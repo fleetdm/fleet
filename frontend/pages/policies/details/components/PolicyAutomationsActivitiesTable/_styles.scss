@@ -76,12 +76,23 @@
     text-align: left;
     font-weight: $regular;
 
-    // The whole row is clickable, so suppress the text-icon button's grey hover
-    // highlight over the Details cell.
+    // The whole row is clickable, so suppress the button's grey hover highlight
+    // over the Details cell. (The keyboard focus outline is left intact.)
     &:hover,
     &:focus,
     &:active {
       background-color: transparent;
+    }
+
+    // Keyboard focus draws a box via the button's `::after` outline, sized to
+    // the full button (`100%`), so in the fixed-height (40px) row it nearly
+    // fills the cell and bleeds into the adjacent rows. Inset it so the box
+    // floats inside the cell with clear space around both the text and the row
+    // dividers.
+    &.button:focus-visible::after {
+      inset: $pad-xsmall;
+      width: auto;
+      height: auto;
     }
 
     &.button > .children-wrapper {

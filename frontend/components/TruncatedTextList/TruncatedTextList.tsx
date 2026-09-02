@@ -58,30 +58,41 @@ const renderVisibleRow = ({
   onClick,
 }: IRenderVisibleRowParams) => {
   const truncatedFirst = truncateString(items[0] ?? "", truncatedFirstMaxChars);
+  const firstWasTruncated = truncatedFirst !== (items[0] ?? "");
 
   const truncatedFirstContent = (
     <>
-      <TooltipWrapper
-        tipContent={items[0]}
-        showArrow
-        underline={false}
-        position={tooltipPosition}
-        tipOffset={8}
-        fixedPositionStrategy
-      >
+      {firstWasTruncated ? (
+        <TooltipWrapper
+          tipContent={items[0]}
+          showArrow
+          underline={false}
+          position={tooltipPosition}
+          tipOffset={8}
+          fixedPositionStrategy
+        >
+          <span>{truncatedFirst}</span>
+        </TooltipWrapper>
+      ) : (
         <span>{truncatedFirst}</span>
-      </TooltipWrapper>
-      {separator}
-      <TooltipWrapper
-        tipContent={renderItemsList(items.slice(1))}
-        showArrow
-        underline={false}
-        position={tooltipPosition}
-        tipOffset={8}
-        fixedPositionStrategy
-      >
-        <span className={`${baseClass}__more`}>+{items.length - 1} more</span>
-      </TooltipWrapper>
+      )}
+      {items.length > 1 && (
+        <>
+          {separator}
+          <TooltipWrapper
+            tipContent={renderItemsList(items.slice(1))}
+            showArrow
+            underline={false}
+            position={tooltipPosition}
+            tipOffset={8}
+            fixedPositionStrategy
+          >
+            <span className={`${baseClass}__more`}>
+              +{items.length - 1} more
+            </span>
+          </TooltipWrapper>
+        </>
+      )}
     </>
   );
 
@@ -108,10 +119,6 @@ const renderVisibleRow = ({
 
   const isTruncatedFirst = visibleCount === 0;
   const content = isTruncatedFirst ? truncatedFirstContent : standardContent;
-  const rowStyle: React.CSSProperties = {
-    whiteSpace: "nowrap",
-    overflow: "hidden",
-  };
   const rowClass = classnames(`${baseClass}__visible`, {
     [`${baseClass}__visible--truncated`]: isTruncatedFirst,
   });
@@ -119,16 +126,12 @@ const renderVisibleRow = ({
   if (onClick) {
     return (
       <Button variant="link" className={rowClass} onClick={onClick}>
-        <span style={rowStyle}>{content}</span>
+        <span>{content}</span>
       </Button>
     );
   }
 
-  return (
-    <span className={rowClass} style={rowStyle}>
-      {content}
-    </span>
-  );
+  return <span className={rowClass}>{content}</span>;
 };
 
 const TruncatedTextList = ({
@@ -196,24 +199,9 @@ const TruncatedTextList = ({
   const hidden = items.slice(visibleCount);
 
   return (
-    <div
-      ref={containerRef}
-      className={classnames(baseClass, className)}
-      style={{ position: "relative", minWidth: 0 }}
-    >
+    <div ref={containerRef} className={classnames(baseClass, className)}>
       {/* Hidden measurement layer — same font/size as the visible row */}
-      <div
-        className={`${baseClass}__measure`}
-        aria-hidden
-        style={{
-          position: "absolute",
-          top: 0,
-          left: 0,
-          visibility: "hidden",
-          pointerEvents: "none",
-          whiteSpace: "nowrap",
-        }}
-      >
+      <div className={`${baseClass}__measure`} aria-hidden>
         {items.map((item, i) => (
           <span
             // eslint-disable-next-line react/no-array-index-key

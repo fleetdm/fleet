@@ -558,9 +558,19 @@ module.exports = {
               // > This works because HTML in Markdown files is added as-is, while any <meta> tags in codeblocks would have their brackets replaced with HTML entities when they are converted to HTML.
               let embeddedMetadata = {};
               try {
-                for (let tag of (htmlString.match(/<meta[^>]*>/igm)||[])) {
-                  let name = tag.match(/name="([^">]+)"/i)[1];
-                  let value = tag.match(/value="([^">]+)"/i)[1];
+                for (let tag of (htmlString.match(/<meta[^>]*>/igm))||[]) {
+                  let name = tag.match(/name="([^">]+)"/i);
+                  if(!name || !name[1]){
+                    throw new Error(`A <meta> tag is misssing a name attribute. To resolve, Make sure all <meta> tags have a name attribute and try running this script again`);
+                  } else {
+                    name = name[1];
+                  }
+                  let value = tag.match(/value="([^">]+)"/i);
+                  if(!value || !value[1]) {
+                    throw new Error(`A <meta> tag (<meta name="${name}">) is misssing a value attribute. To resolve, add a value attribute to this <meta> tag and try running this script again`);
+                  } else {
+                    value = value[1];
+                  }
                   embeddedMetadata[name] = value;
                 }//∞
               } catch (err) {
@@ -571,29 +581,12 @@ module.exports = {
               }//ﬁ
 
               // Get last modified timestamp using git, and represent it as a JS timestamp.
-              let lastModifiedAt;
-              if(!githubAccessToken) {
-                lastModifiedAt = Date.now();
-              } else if(process.env.GITHUB_REF_NAME && process.env.GITHUB_REF_NAME === 'main') {// Only add lastModifiedAt timestamps if this test is running on the main branch
-                let responseData = await sails.helpers.http.get.with({// [?]: https://docs.github.com/en/rest/commits/commits?apiVersion=2022-11-28#list-commits
-                  url: 'https://api.github.com/repos/fleetdm/fleet/commits',
-                  data: {
-                    path: path.join(sectionRepoPath, pageRelSourcePath),
-                    page: 1,
-                    per_page: 1,//eslint-disable-line camelcase
-                  },
-                  headers: baseHeadersForGithubRequests,
-                }).intercept((err)=>{
-                  return new Error(`When getting the commit history for ${path.join(sectionRepoPath, pageRelSourcePath)} to get a lastModifiedAt timestamp, an error occured. ${util.inspect(err)}`);
-                });
-                // The value we'll use for the lastModifiedAt timestamp will be date value of the `commiter` property of the `commit` we got in the API response from github.
-                let mostRecentCommitToThisFile = responseData[0];
-                if(!mostRecentCommitToThisFile.commit || !mostRecentCommitToThisFile.commit.committer) {
-                  // Throw an error if the the response from GitHub is missing a commit or commiter.
-                  throw new Error(`When getting the commit history for ${path.join(sectionRepoPath, pageRelSourcePath)} to get a lastModifiedAt timestamp, the response from the GitHub API did not include information about the most recent commit. Response from GitHub: ${util.inspect(responseData, {depth:null})}`);
-                }
-                lastModifiedAt = (new Date(mostRecentCommitToThisFile.commit.committer.date)).getTime(); // Convert the UTC timestamp from GitHub to a JS timestamp.
-              }
+              // > Inspired by https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L265-L273
+              let lastModifiedAt = (new Date((await sails.helpers.process.executeCommand.with({
+                command: `git log -1 --format="%ai" '${path.relative(topLvlRepoPath, pageSourcePath)}'`,
+                dir: topLvlRepoPath,
+              })).stdout)).getTime();
+
 
               // Determine display title (human-readable title) to use for this page.
               let pageTitle;
@@ -671,7 +664,7 @@ module.exports = {
                   throw new Error(`Failed compiling markdown content: An article page is missing a category meta tag (<meta name="category" value="guides">) at "${path.join(topLvlRepoPath, pageSourcePath)}".  To resolve, add a meta tag with the category of the article`);
                 } else {
                   // Throwing an error if the article has an invalid category.
-                  let validArticleCategories = ['deploy', 'articles', 'security', 'engineering', 'success stories', 'announcements', 'guides', 'releases', 'podcasts', 'report', 'case study', 'comparison', 'whitepaper', 'webinar' ];
+                  let validArticleCategories = ['deploy', 'articles', 'security', 'engineering', 'announcements', 'guides', 'releases', 'podcasts', 'report', 'case study', 'comparison', 'whitepaper', 'webinar', 'newsletter', 'industry news' ];
                   if(!validArticleCategories.includes(embeddedMetadata.category)) {
                     throw new Error(`Failed compiling markdown content: An article page has an invalid category meta tag (<meta name="category" value="${embeddedMetadata.category}">) at "${path.join(topLvlRepoPath, pageSourcePath)}". To resolve, change the meta tag to a valid category, one of: ${validArticleCategories}`);
                   }
@@ -798,10 +791,9 @@ module.exports = {
                 } else {
 
                   // For article pages, we'll attach the category to the `rootRelativeUrlPath`.
-                  // If the article is categorized as 'product' we'll replace the category with 'use-cases', or if it is categorized as 'success story' we'll replace it with 'device-management'
                   rootRelativeUrlPath = (
                     '/' +
-                    (encodeURIComponent(embeddedMetadata.category === 'success stories' ? 'success-stories' : embeddedMetadata.category === 'security' ? 'securing' : embeddedMetadata.category === 'whitepaper' ? 'whitepapers' : embeddedMetadata.category === 'webinar' ? 'webinars' : embeddedMetadata.category === 'case study' ? 'case-study' : embeddedMetadata.category)) + '/' +
+                    (encodeURIComponent(embeddedMetadata.category === 'security' ? 'securing' : embeddedMetadata.category === 'whitepaper' ? 'whitepapers' : embeddedMetadata.category === 'webinar' ? 'webinars' : embeddedMetadata.category === 'case study' ? 'case-study' : embeddedMetadata.category === 'newsletter' ? 'newsletters' : embeddedMetadata.category === 'industry news' ? 'industry-news' : embeddedMetadata.category)) + '/' +
                     (pageUnextensionedUnwhitespacedLowercasedRelPath.split(/\//).map((fileOrFolderName) => encodeURIComponent(fileOrFolderName.replace(/^[0-9]+[\-]+/,'').replace(/\./g, '-'))).join('/'))
                   );
                 }
@@ -855,30 +847,12 @@ module.exports = {
         let RELATIVE_PATH_TO_OPEN_POSITIONS_YML_IN_FLEET_REPO = 'handbook/company/open-positions.yml';
 
         // Get last modified timestamp using git, and represent it as a JS timestamp.
-        let lastModifiedAt;
-        if(!githubAccessToken) {
-          lastModifiedAt = Date.now();
-        } else {
-          // If we're including a lastModifiedAt value for schema tables, we'll send a request to the GitHub API to get a timestamp of when the last commit
-          let responseData = await sails.helpers.http.get.with({// [?]: https://docs.github.com/en/rest/commits/commits?apiVersion=2022-11-28#list-commits
-            url: 'https://api.github.com/repos/fleetdm/fleet/commits',
-            data: {
-              path: RELATIVE_PATH_TO_OPEN_POSITIONS_YML_IN_FLEET_REPO,
-              page: 1,
-              per_page: 1,//eslint-disable-line camelcase
-            },
-            headers: baseHeadersForGithubRequests,
-          }).intercept((err)=>{
-            return new Error(`When getting the commit history for the open positions YAML to get a lastModifiedAt timestamp, an error occured. ${util.inspect(err)}`);
-          });
-          // The value we'll use for the lastModifiedAt timestamp will be date value of the `commiter` property of the `commit` we got in the API response from github.
-          let mostRecentCommitToThisFile = responseData[0];
-          if(!mostRecentCommitToThisFile.commit || !mostRecentCommitToThisFile.commit.committer) {
-            // Throw an error if the the response from GitHub is missing a commit or commiter.
-            throw new Error(`When trying to get a lastModifiedAt timestamp for the open positions YAML, the response from the GitHub API did not include information about the most recent commit. Response from GitHub: ${util.inspect(responseData, {depth:null})}`);
-          }
-          lastModifiedAt = (new Date(mostRecentCommitToThisFile.commit.committer.date)).getTime(); // Convert the UTC timestamp from GitHub to a JS timestamp.
-        }
+        // > Inspired by https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L265-L273
+        let lastModifiedAt = (new Date((await sails.helpers.process.executeCommand.with({
+          command: `git log -1 --format="%ai" '${path.join(topLvlRepoPath, RELATIVE_PATH_TO_OPEN_POSITIONS_YML_IN_FLEET_REPO)}'`,
+          dir: topLvlRepoPath,
+        })).stdout)).getTime();
+
 
         let openPositionsYaml = await sails.helpers.fs.read(path.join(topLvlRepoPath, RELATIVE_PATH_TO_OPEN_POSITIONS_YML_IN_FLEET_REPO)).intercept('doesNotExist', (err)=>new Error(`Could not find open positions YAML file at "${RELATIVE_PATH_TO_OPEN_POSITIONS_YML_IN_FLEET_REPO}".  Was it accidentally moved?  Raw error: `+err.message));
         let openPositionsToCreatePartialsFor = YAML.parse(openPositionsYaml, {prettyErrors: true});

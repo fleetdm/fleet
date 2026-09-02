@@ -9,6 +9,7 @@ const DEFAULT_CONFIG_MDM_MOCK: IMdmConfig = {
   windows_enabled_and_configured: true,
   windows_entra_tenant_ids: [],
   windows_entra_client_ids: [],
+  microsoft_graph_credential_invalid: false,
   apple_bm_default_team: "Apples",
   apple_bm_enabled_and_configured: true,
   apple_bm_terms_expired: false,
@@ -18,18 +19,29 @@ const DEFAULT_CONFIG_MDM_MOCK: IMdmConfig = {
   macos_updates: {
     minimum_version: "",
     deadline: "",
+    deadline_days: null,
   },
   ios_updates: {
     minimum_version: "",
     deadline: "",
+    deadline_days: null,
   },
   ipados_updates: {
     minimum_version: "",
     deadline: "",
+    deadline_days: null,
   },
   apple_settings: {
     configuration_profiles: null,
     enable_disk_encryption: false,
+    enable_escrow_disk_encryption_key: false,
+  },
+  windows_settings: {
+    enable_disk_encryption: false,
+    require_bitlocker_pin: false,
+  },
+  linux_settings: {
+    enable_escrow_disk_encryption_key: false,
   },
   setup_experience: {
     macos_bootstrap_package: "",
@@ -72,7 +84,6 @@ export const DEFAULT_LICENSE_MOCK: ILicense = {
   device_count: 4,
   note: "",
   organization: "",
-  managed_cloud: true,
   allow_disable_telemetry: false,
 };
 
@@ -224,6 +235,7 @@ const DEFAULT_CONFIG_MOCK: IConfig = {
   fleet_desktop: {
     transparency_url: "https://fleetdm.com/transparency",
     alternative_browser_host: "",
+    sso_enabled: false,
   },
   mdm: createMockMdmConfig(),
   gitops: {
@@ -235,6 +247,7 @@ const DEFAULT_CONFIG_MOCK: IConfig = {
       secrets: true,
     },
   },
+  max_software_package_size: 10 * 1024 * 1024 * 1024,
 };
 
 export const createMockConfig = (overrides?: Partial<IConfig>): IConfig => {

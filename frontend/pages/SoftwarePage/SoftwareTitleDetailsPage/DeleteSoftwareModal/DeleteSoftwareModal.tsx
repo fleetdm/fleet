@@ -65,28 +65,43 @@ const getPlatformMessage = (isAppStoreApp: boolean, isAndroidApp: boolean) => {
 interface IDeleteSoftwareModalProps {
   softwareId: number;
   teamId: number;
+  /** Per-installer id on a multi-package title. When set, only this
+   * specific package is deleted; otherwise the request deletes the legacy
+   * single-package row (or VPP/FMA installer slot). */
+  installerId?: number;
   onExit: () => void;
   onSuccess: () => void;
   gitOpsModeEnabled?: boolean;
   isAppStoreApp?: boolean;
   isAndroidApp?: boolean;
+  /** When true, the modal title reads "Delete package" instead of "Delete
+   * software" and the title-level metadata warning is suppressed — we're
+   * deleting one specific installer on a title that can hold several, not
+   * the title itself. */
+  canActivateMultiplePackages?: boolean;
 }
 
 const DeleteSoftwareModal = ({
   softwareId,
   teamId,
+  installerId,
   onExit,
   onSuccess,
   gitOpsModeEnabled,
   isAppStoreApp = false,
   isAndroidApp = false,
+  canActivateMultiplePackages = false,
 }: IDeleteSoftwareModalProps) => {
   const [isDeleting, setIsDeleting] = useState(false);
 
   const onDeleteSoftware = useCallback(async () => {
     setIsDeleting(true);
     try {
-      await softwareAPI.deleteSoftwareInstaller(softwareId, teamId);
+      await softwareAPI.deleteSoftwareInstaller(
+        softwareId,
+        teamId,
+        installerId
+      );
       notify.success("Successfully deleted software.");
       onSuccess();
     } catch (error) {
@@ -109,12 +124,12 @@ const DeleteSoftwareModal = ({
     }
     setIsDeleting(false);
     onExit();
-  }, [softwareId, teamId, onSuccess, onExit]);
+  }, [softwareId, teamId, installerId, onSuccess, onExit]);
 
   return (
     <Modal
       className={baseClass}
-      title="Delete software"
+      title={canActivateMultiplePackages ? "Delete package" : "Delete software"}
       onExit={onExit}
       isContentDisabled={isDeleting}
     >
@@ -125,7 +140,9 @@ const DeleteSoftwareModal = ({
         </InfoBanner>
       )}
       {getPlatformMessage(isAppStoreApp, isAndroidApp)}
-      <p>Custom icon and display name will be deleted.</p>
+      {!canActivateMultiplePackages && (
+        <p>Custom icon and display name will be deleted.</p>
+      )}
       <div className="modal-cta-wrap">
         <Button
           variant="alert"
@@ -134,7 +151,7 @@ const DeleteSoftwareModal = ({
         >
           Delete
         </Button>
-        <Button variant="inverse-alert" onClick={onExit}>
+        <Button variant="secondary" onClick={onExit}>
           Cancel
         </Button>
       </div>

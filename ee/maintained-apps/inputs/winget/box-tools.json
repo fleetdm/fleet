@@ -1,0 +1,10 @@
+{
+  "name": "Box Tools",
+  "slug": "box-tools/windows",
+  "package_identifier": "Box.BoxTools",
+  "unique_identifier": "Box Tools",
+  "installer_arch": "x64",
+  "installer_type": "msi",
+  "installer_scope": "machine",
+  "default_categories": ["Productivity"]
+}

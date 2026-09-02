@@ -3,6 +3,7 @@ import classnames from "classnames";
 import { toast } from "sonner";
 
 import Icon from "components/Icon";
+import Button from "components/buttons/Button";
 import CopyButton from "components/buttons/CopyButton";
 import { Colors } from "styles/var/colors";
 import { syntaxHighlight } from "utilities/helpers";
@@ -38,6 +39,10 @@ const variantIcon: Record<
   error: { name: "error-outline", color: "status-error" },
 };
 
+// Serialized payloads that hold nothing worth revealing. Compared against the
+// pretty-printed JSON, so an empty object is "{}" rather than "{\n}".
+const EMPTY_DETAIL_TEXT = ["", "{}", "[]", "null", '""'];
+
 /**
  * `ToastCard` is the single source of truth for every toast variant. It is
  * rendered inside Sonner's headless `toast.custom()` wrapper — Sonner
@@ -55,7 +60,6 @@ const ToastCard = ({
   toastId,
 }: IToastCardProps): JSX.Element => {
   const [isOpen, setIsOpen] = useState(false);
-  const hasDetail = detail !== undefined;
   const icon = variantIcon[variant];
 
   const toggle = (): void => {
@@ -72,10 +76,15 @@ const ToastCard = ({
   // identical to the "Manage activity automations" modal's payload.
   let detailHtml = "";
   let detailText = "";
-  if (hasDetail) {
+  if (detail !== undefined) {
     try {
-      detailText = JSON.stringify(detail, null, 2);
-      detailHtml = syntaxHighlight(detail);
+      // Values with no JSON representation (functions, symbols) return
+      // undefined here rather than throwing, so treat them as empty and skip
+      // the highlighter, which assumes a string.
+      detailText = JSON.stringify(detail, null, 2) ?? "";
+      if (detailText !== "") {
+        detailHtml = syntaxHighlight(detail);
+      }
     } catch {
       // Circular refs / non-serializable values — fall back to safe text.
       detailText = String(detail);
@@ -85,6 +94,13 @@ const ToastCard = ({
         .replace(/>/g, "&gt;");
     }
   }
+
+  // Callers pass caught errors straight through as `response`, and an `Error`'s
+  // own properties (message, stack) are non-enumerable, so JSON.stringify
+  // returns "{}" without throwing — the panel would open on an empty object.
+  // Treat a payload that carries nothing as no payload at all: the message
+  // already holds the error text, and an empty panel is worse than no panel.
+  const hasDetail = !EMPTY_DETAIL_TEXT.includes(detailText);
 
   // Capture when the toast first rendered. Snapshotted once via the lazy
   // initializer so the timestamp stays stable across re-renders (toggling
@@ -123,33 +139,26 @@ const ToastCard = ({
         </div>
         <div className={`${baseClass}__actions`}>
           {hasDetail && (
-            <button
-              type="button"
-              className={`${baseClass}__action-button`}
-              aria-expanded={isOpen}
-              aria-controls={panelId}
-              aria-label={
+            <Button
+              className={classnames(`${baseClass}__chevron`, {
+                [`${baseClass}__chevron--open`]: isOpen,
+              })}
+              variant="subdued"
+              icon="chevron-down"
+              ariaExpanded={isOpen}
+              ariaControls={panelId}
+              ariaLabel={
                 isOpen ? "Collapse error details" : "Expand error details"
               }
               onClick={toggle}
-            >
-              <span
-                className={classnames(`${baseClass}__chevron`, {
-                  [`${baseClass}__chevron--open`]: isOpen,
-                })}
-              >
-                <Icon name="chevron-down" color="ui-fleet-black-75" />
-              </span>
-            </button>
+            />
           )}
-          <button
-            type="button"
-            className={`${baseClass}__action-button`}
-            aria-label="Dismiss notification"
+          <Button
+            variant="subdued"
+            icon="close"
+            ariaLabel="Dismiss notification"
             onClick={handleClose}
-          >
-            <Icon name="close" color="ui-fleet-black-75" />
-          </button>
+          />
         </div>
       </div>
       {hasDetail && isOpen && (

@@ -2,7 +2,11 @@
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
 import helpers from "utilities/helpers";
-import { ILabel, ILabelSummary } from "interfaces/label";
+import {
+  CUSTOM_HOST_VITAL_CRITERION,
+  ILabel,
+  ILabelSummary,
+} from "interfaces/label";
 import { IDynamicLabelFormData } from "pages/labels/components/DynamicLabelForm/DynamicLabelForm";
 import { IManualLabelFormData } from "pages/labels/components/ManualLabelForm/ManualLabelForm";
 import { IHost } from "interfaces/host";
@@ -66,9 +70,15 @@ const generateCreateLabelBody = (formData: INewLabelFormData) => {
       return {
         name: formData.name,
         description: formData.description,
+        // `custom_host_vital_id` is only sent for the custom-vital path
         criteria: {
           vital: formData.vital,
           value: formData.vitalValue,
+          ...(formData.vital === CUSTOM_HOST_VITAL_CRITERION &&
+          formData.customHostVitalId != null &&
+          Number.isFinite(formData.customHostVitalId)
+            ? { custom_host_vital_id: formData.customHostVitalId }
+            : {}),
         },
       };
     default:

@@ -1,15 +1,16 @@
 {
   "versions": [
     {
-      "version": "2026.1.3",
+      "version": "2026.2.1",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'WebStorm %' AND publisher = 'JetBrains s.r.o.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'WebStorm %' AND publisher = 'JetBrains s.r.o.' AND version_compare(version, '261.25134.101') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'WebStorm %' AND publisher = 'JetBrains s.r.o.' AND version_compare(version, '262.9437.145') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) IN ('webstorm.exe','webstorm64.exe'));"
       },
-      "installer_url": "https://download.jetbrains.com/webstorm/WebStorm-2026.1.3.exe",
+      "installer_url": "https://download.jetbrains.com/webstorm/WebStorm-2026.2.1.exe",
       "install_script_ref": "68119c0c",
       "uninstall_script_ref": "c2646a7f",
-      "sha256": "21331dbb0d64ace77e3eee223db1ac4ced2629484cab563dab73f45b439366e6",
+      "sha256": "86a7405254698e3a79d3afe3e5a655c7d2c8fafb2272f7b0c9fddc0426579324",
       "default_categories": [
         "Developer tools"
       ]

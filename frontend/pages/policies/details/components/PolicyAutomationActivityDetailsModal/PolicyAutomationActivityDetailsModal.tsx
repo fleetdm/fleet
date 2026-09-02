@@ -1,5 +1,6 @@
 import React from "react";
 
+import { ActivityType } from "interfaces/activity";
 import { IPolicyAutomationActivity } from "interfaces/policy";
 import PATHS from "router/paths";
 
@@ -10,11 +11,12 @@ import CustomLink from "components/CustomLink";
 import DataSet from "components/DataSet";
 import Textarea from "components/Textarea";
 import Icon from "components/Icon";
+import { SKIPPED_PRE_INSTALL_OUTPUT } from "components/ActivityDetails/InstallDetails/constants";
 import { HumanTimeDiffWithDateTip } from "components/HumanTimeDiffWithDateTip";
 
 import {
   getAutomationRunDisplayName,
-  getAutomationStatusIconName,
+  getAutomationStatusIcon,
   getDetailOutputText,
 } from "../PolicyAutomationsActivitiesTable/helpers";
 
@@ -32,8 +34,30 @@ const PolicyAutomationActivityDetailsModal = ({
   onCancel,
   onResetPolicy,
 }: IPolicyAutomationActivityDetailsModalProps): JSX.Element => {
-  const { status, created_at, host_id, host_display_name } = activity;
+  const { created_at, host_id, host_display_name } = activity;
   const detailOutput = getDetailOutputText(activity);
+  const isSoftwareInstall = activity.type === ActivityType.InstalledSoftware;
+
+  // A code-style output block with a copy button. Renders nothing when empty.
+  const renderOutputSection = (label: string, value: string | null) =>
+    value ? (
+      <Textarea
+        key={label}
+        variant="code"
+        label={
+          <div className={`${baseClass}__details-label`}>
+            <span>{label}</span>
+            <CopyButton
+              copyText={value}
+              size="small"
+              ariaLabel={`Copy ${label.toLowerCase()}`}
+            />
+          </div>
+        }
+      >
+        {value}
+      </Textarea>
+    ) : null;
 
   return (
     <Modal title="Details" onExit={onCancel} className={baseClass}>
@@ -61,37 +85,40 @@ const PolicyAutomationActivityDetailsModal = ({
           title="Status"
           value={
             <span className={`${baseClass}__status`}>
-              <Icon name={getAutomationStatusIconName(status)} />
+              <Icon
+                name={getAutomationStatusIcon(activity).name}
+                color={getAutomationStatusIcon(activity).color}
+              />
               {getAutomationRunDisplayName(activity)}
             </span>
           }
         />
-        {detailOutput && (
-          <Textarea
-            variant="code"
-            label={
-              <div className={`${baseClass}__details-label`}>
-                <span>Details</span>
-                <CopyButton
-                  copyText={detailOutput}
-                  size="small"
-                  ariaLabel="Copy details"
-                />
-              </div>
-            }
-          >
-            {detailOutput}
-          </Textarea>
+        {isSoftwareInstall ? (
+          <>
+            {renderOutputSection(
+              "Pre-install query output",
+              activity.details?.skipped_install
+                ? SKIPPED_PRE_INSTALL_OUTPUT
+                : activity.pre_install_output
+            )}
+            {renderOutputSection("Details", activity.output)}
+            {renderOutputSection(
+              "Post-install script output",
+              activity.post_install_output
+            )}
+          </>
+        ) : (
+          renderOutputSection("Details", detailOutput || null)
         )}
         <div className="modal-cta-wrap">
           <Button onClick={onCancel}>Done</Button>
           {onResetPolicy && (
             <Button
-              variant="inverse"
+              variant="secondary"
               onClick={onResetPolicy}
               className={`${baseClass}__reset`}
+              icon="refresh"
             >
-              <Icon name="refresh" />
               Reset policy
             </Button>
           )}

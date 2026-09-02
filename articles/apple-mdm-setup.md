@@ -30,14 +30,27 @@ How to connect Fleet to APNs:
 3. Select **Renew certificate** and then select **Download CSR** to download a certificate signing request (CSR) for Apple Push Notification service (APNs).
 5. Sign in to [Apple Push Certificates Portal](https://identity.apple.com/pushcert/).
 6. In Apple Push Certificates Portal, select **Renew** next to your certificate. Make sure that the certificate's **Common Name (CN)** matches the one presented in Fleet. If you choose a different certificate, you must turn MDM off and back on for all Apple hosts.
-7. Upload your CSR and download new APNs certificate.
-8. Upload APNs certificate (.pem file) in Fleet.
+7. Upload your CSR and download a new APNs certificate.
+8. Upload the APNs certificate (.pem file) in Fleet.
 
 ## Apple Business (AB)
 
 > Available in Fleet Premium
 
 Connect Fleet to your AB to allow automatic enrollment for company-owned and [Account-driven User Enrollment](https://fleetdm.com/guides/enroll-personal-byod-ios-ipad-hosts-with-managed-apple-account) for personal (BYOD) macOS, iOS, and iPadOS hosts.
+
+### Re-enrolling AB hosts
+
+When an AB host re-enrolls in Fleet (e.g., after a wipe or OS reinstall), Fleet automatically:
+  - Cancels pending MDM commands, script runs, and software installs
+  - Clears completed commands, scripts, and software from the previous enrollment
+  - Resets host labels
+
+This means you **do not need to delete** an AB host from Fleet before re-enrolling it. Fleet handles clearing stale state automatically.
+
+> This automatic state clearing does not apply to hosts undergoing AB MDM migration. During migration, the host's existing state (labels, pending activity) is preserved to ensure a seamless transition from your previous MDM solution.
+
+### To connect Fleet to AB, you have to add an AB token to Fleet. To add an AB token:
 
 How to connect Fleet to AB:
 
@@ -106,6 +119,8 @@ There is no in-product "reset to latest default" action today. If you want your 
 Fleet supports manually turning on MDM for macOS hosts that are already enrolled in Fleet.
 
 End users can turn on MDM from their **Fleet Desktop > My device** page.
+
+You can trigger policy automations right when MDM is turned on, because Fleet re-evaluates all policies immediately after MDM is turned on. In your policy's query, use `server_url` in the [`mdm` table](https://fleetdm.com/tables/mdm) to detect that a host is talking to Fleet for MDM features.
 
 ### Host is in Apple Business (AB)
 
@@ -206,8 +221,6 @@ Entity A's VPP token will be assigned to the above fleets.
 
 ### International organizations
 
-> Support for Apple App Store (VPP) apps from non-US stores is [coming soon](https://github.com/fleetdm/fleet/issues/43846).
-
 For international organizations that manage hosts across multiple countries, the best practice is to have one AB and VPP connection per country. Apple Business and VPP tokens are tied to a specific country or region.
 
 The default fleets for each country's AB token will look like this:
@@ -249,10 +262,11 @@ When an AB host re-enrolls in Fleet (e.g., after a wipe or OS reinstall), Fleet 
   - Clears completed commands, scripts, and software from the previous enrollment
   - Resets host labels
 
-This means you **do not need to delete** an AB host from Fleet before 
-re-enrolling it. Fleet handles clearing stale state automatically.
+This means you **do not need to delete** an AB host from Fleet before re-enrolling it. Fleet handles clearing stale state automatically.
 
 > This automatic state clearing does not apply to hosts undergoing AB MDM migration. During migration, the host's existing state (labels, pending activity) is preserved to ensure a seamless transition from your previous MDM solution.
+
+> For AB hosts, you do not need to delete the host from Fleet before re-enrolling. Fleet automatically clears pending and completed commands, scripts, software installs, and labels when the host re-enrolls. See [Re-enrolling AB hosts](#re-enrolling-ab-hosts).
 
 <meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="zhumo">

@@ -47,8 +47,13 @@ export interface ITeam extends ITeamSummary {
   secrets?: IEnrollSecret[];
   role?: UserRole; // role value is included when the team is in the context of a user
   mdm?: {
+    /** @deprecated Virtual key: true only when all per-platform disk
+    encryption settings (`apple_settings`, `windows_settings`,
+    `linux_settings`) are enabled. Read the per-platform fields instead. */
     enable_disk_encryption: boolean;
     enable_recovery_lock_password: boolean;
+    name_template?: string;
+    /** @deprecated Use `windows_settings.require_bitlocker_pin`. */
     windows_require_bitlocker_pin: boolean;
     macos_updates: IAppleDeviceUpdates;
     ios_updates: IAppleDeviceUpdates;
@@ -56,6 +61,7 @@ export interface ITeam extends ITeamSummary {
     apple_settings: {
       configuration_profiles: null; // TODO: types?
       enable_disk_encryption: boolean;
+      enable_escrow_disk_encryption_key?: boolean;
     };
     setup_experience: {
       macos_bootstrap_package: string | null;
@@ -71,6 +77,14 @@ export interface ITeam extends ITeamSummary {
     };
     macos_setup?: {
       enable_managed_local_account?: boolean;
+    };
+    windows_settings?: {
+      enable_disk_encryption?: boolean;
+      require_bitlocker_pin?: boolean;
+      enable_managed_local_account?: boolean;
+    };
+    linux_settings?: {
+      enable_escrow_disk_encryption_key?: boolean;
     };
     windows_updates: {
       deadline_days: number | null;
@@ -88,7 +102,10 @@ export interface ITeam extends ITeamSummary {
  */
 export type ITeamWebhookSettings = Pick<
   IWebhookSettings,
-  "vulnerabilities_webhook" | "failing_policies_webhook" | "host_status_webhook"
+  | "vulnerabilities_webhook"
+  | "failing_policies_webhook"
+  | "host_status_webhook"
+  | "host_activities_webhook"
 >;
 
 /**

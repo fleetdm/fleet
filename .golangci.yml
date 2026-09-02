@@ -260,6 +260,9 @@ linters:
       - path: cmd/osquery-perf/agent.go
         linters:
           - gosec
+      - path: cmd/osquery-perf/certificates.go
+        linters:
+          - gosec
       - path: cmd/fleet/serve.go
         linters:
           - gosec

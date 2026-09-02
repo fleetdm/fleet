@@ -45,6 +45,9 @@ Fleet is successful because of our customers and community, and those relationsh
 > **Compliance**
 > Community members can request compliance documentation (e.g. Fleet's SOC2 Type 2 report) at https://fleetdm.com/trust. In its current form, our SOC 2 report is intended to be shared only with parties who have signed a non-disclosure agreement (NDA) with Fleet. Internal stakeholders can [download approved documents](https://fleetdm.com/handbook/company/go-to-market-operations#fleets-vendor-collateral) from Google Drive.
 
+> **Export control**
+> Fleet conforms to the export-control restrictions applicable to ECCN 5D992.c classification. Accordingly, Fleet does not currently do business in Cuba, Iran, Syria, North Korea, Russia, or Belarus, or in the Crimea, Donetsk, and Luhansk regions of Ukraine.
+
 
 ## Directly responsible individuals (DRIs)
 
@@ -193,7 +196,7 @@ This works because every Fleetie grants edit access to everyone else at Fleet as
 
 ### Shared calendars
 
-Team calendars are the primary source for sprint rituals; they facilitate the execution of each sprint. 
+Team calendars are the primary source for release rituals; they facilitate the execution of each release cycle. 
 Looking to add, change, or remove a shared calendar? [Create an issue](https://fleetdm.com/handbook/people#contact-us) and the appropriate DRI will reply with feedback.
 
 ### 1:1 meetings 
@@ -214,7 +217,7 @@ Fleet uses skip-level 1:1 meetings as a recurring pulse check to encourage [valu
 
 > **Are you scheduling time with the CEO?**
 >
-> Please do not add events to the CEO's calendar, *even if the CEO asks you to*. Instead, [get scheduling help from the Executive Assistant](https://fleetdm.com/handbook/company/leadership#schedule-time-with-the-ceo)).
+> Please do not add events to the CEO's calendar, *even if the CEO asks you to*. Instead, [get scheduling help from the Executive Assistant](https://fleetdm.com/handbook/company/leadership#schedule-time-with-the-ceo).
 
 
 ## Shadowing meetings
@@ -258,9 +261,10 @@ At Fleet, we do not send internal emails to each other. Instead, we prefer to us
 - We use threads in Slack as much as possible. Threads help limit noise for other people following the channel and reduce notification overload.
 - We configure our [working hours in Slack](https://slack.com/help/articles/360025054173-Set-up-Slack-for-work-hours-) to make sure everyone knows when they can get in touch with others.
 - In consideration of our team, Fleet avoids using global tags in channels (i.e. @here, @channel, etc.) (What about polls? Good question, Fleeties are asked to post their poll in the channel and @mention the teammates they would like to hear from.)
+- Fleet doesn't use third-party polling apps. To run a poll, post the question in the channel with each option on its own line prefixed by an emoji, then add those same emoji as reactions to your own message so teammates can vote in one click (e.g. "Do you like this?" / "👍 Yes" / "👎 No"). For recurring polls, use a Slack reminder or scheduled message to post it on a schedule.
 - To save everyone time, please [don't ask to ask: just ask](https://dontasktoask.com/).
 
-> **Need an app that you don't see in Fleet Slack?** [Create a IT issue](https://fleetdm.com/handbook/it#contact-us) to request an app be added to the Fleet Slack workspace.
+> **Need an app that you don't see in Fleet Slack?** Fleet keeps third-party Slack apps to a minimum, and requesting an app install from within Slack is turned off. First check whether Slack's built-in features (emoji-reaction polls, scheduled messages, reminders, workflows, canvases) already cover the need. If they don't, [create an IT & Enablement issue](https://fleetdm.com/handbook/it-and-enablement#contact-us) describing the use case. The Head of IT & Enablement is the DRI for approving new Slack apps.
 
 
 ### Key Slack channels
@@ -343,6 +347,20 @@ In practice, this means:
 - **Analysis and summaries:** Check that they reflect the source. AI can hallucinate or oversimplify. If you are summarizing a document or producing a report, verify the output against the original.
 
 The bottom line: don't put your name on something you haven't actually reviewed. That applies to AI-generated work the same as anything else.
+
+
+### Use AI to help you communicate, not to communicate for you
+
+There's a difference between using AI to produce work and using AI to talk to people. Documentation, reports, announcements, and other content meant to inform many people are work products. Use AI to draft and improve them as much as you like, as long as you review and own the result.
+
+Direct conversation is different. When a teammate messages you on Slack or emails you, they expect to be talking to you. AI-generated replies are easy to spot, and once someone suspects they're chatting with a bot instead of a colleague, trust erodes quickly and is hard to earn back. Conversations are how we build relationships at an all-remote company, and they only work if there's a person on both ends.
+
+What this means in practice:
+
+- When you're talking directly with someone, the words should be yours. It's fine to use AI to think through a problem, check your grammar, or tighten something you wrote. It's not fine to paste an AI's response as your own.
+- If English isn't your first language, AI is a great tool for polishing your writing, and we encourage it. Keep your own voice, though. Your teammates would rather read your imperfect words than an AI's perfect ones.
+
+If a conversation matters enough to have, it matters enough to have yourself.
 
 
 ### Protect customer and confidential information
@@ -504,7 +522,7 @@ When posting about a personal or philosophical topic that potential Fleet custom
 - Don't show or say customer names, codenames, or real email addresses.
 
 **Playback:**
-- Don't enable closed captions during sprint demo recording (they're added later if needed).
+- Don't enable closed captions during release demo recording (they're added later if needed).
 
 
 ## Feedback
@@ -690,6 +708,9 @@ When you need to take time off, follow this process:
 - Let your manager and team know the days when you will be out by posting a message in your department Slack channel mentioning your manager, with when and how long.
 - Life happens and things come up.  But as soon as you know when you'll be out, let the company know.  (Extra notice helps!)
 - Find someone to cover anything that needs covering while you're out and communicate what they need to take over the responsibilities as well as who to refer to for help (e.g., meetings, planned tasks, unfinished business, important Slack/email threads, [CODEOWNERS](https://github.com/fleetdm/fleet/blob/main/CODEOWNERS) coverage, anything where someone might be depending on you).
+- If you have an open pull request, note in the pull request that you'll be out, and when you're back. Put it in the pull request and not only in Slack, since whoever picks it up may not be the person you told.
+  - If the change isn't finished, move the pull request back to draft.
+  - If it needs to keep moving while you're out, name someone who has agreed to take it over.
 - Mark an all-day "Out of office" event in Google Calendar for the day(s) you're taking off, or for the hours that you will be off if less than a day. Google Calendar recognizes the event title "OOO" and will give you the option to decline existing and new meetings or just new meetings. You are expected to attend any meetings that you have accepted, so be sure to decline meetings you are not going to attend.
   - If you are the DRI of meetings, especially external meetings with prospects and customers, be sure not to use an "Out of Office" (OOO) event, because it will cancel the meeting.  Instead, you can find someone else at Fleet to cover the meeting.
 - If you can’t complete these steps because you need to take the day off quickly due to an emergency, let your manager know and they will help you complete the handoff.
@@ -740,7 +761,7 @@ Fleet gives new parents six weeks of paid leave. After six weeks, if you don't f
 
 ### Wellness budget 
 
-Every Fleetie gets up to $80/month on their Brex card to put toward their choice of wellness. This is a "use-it-or-lose-it" monthly budget that cannot be carried over to future months. [Contact the 🧑‍🚀 People department](https://fleetdm.com/handbook/people#contact-us) with any questions.
+Every Fleetie gets up to $80/month on their Brex card to put toward their choice of wellness. This is a "use-it-or-lose-it" monthly budget that cannot be carried over to future months and should fit within one of the following categories: physical health, mental health, or lifestyle/self-care. Gift vouchers are not an approved wellness expense. [Contact the 🧑‍🚀 People department](https://fleetdm.com/handbook/people#contact-us) with any questions.
 
 
 ### Compensation
@@ -770,7 +791,7 @@ Fleet uses Carta to manage its cap table. Fleet option holders can [exercise sha
 > FYI: You can calculate the "Taxable Income" by subtracting the exercised or "strike" price from the "Fair Market Value" of shares at the time of exercise. 
 > I.e. _"Fair Market Value" of shares at time of exercise_ - _strike price_ =  "*Taxable income*"
 
-As a US Fleetie, if you choose to "early exercise" your unvested options, you will need to file an 83(b) election within 30days of receiving the shares post exercise. As part of your exercise, Carta automatically generates the 83(b) election form when an option with early exercise enabled is issued. A tab for the 83(b) form will appear as soon as you decide to early exercise their option. This feature allows eligible U.S.-based equity holders to elect to be taxed at the time of grant rather than at the time of vesting. Additionally, Carta sends an email with instructions when a qualifying grant is accepted or an option is exercised. You can also access a pre-filled 83(b) election form directly within the platform.
+As a US Fleetie, if you choose to "early exercise" your unvested options, you will need to file an 83(b) election within 30 days of receiving the shares post exercise. As part of your exercise, Carta automatically generates the 83(b) election form when an option with early exercise enabled is issued. A tab for the 83(b) form will appear as soon as you decide to early exercise their option. This feature allows eligible U.S.-based equity holders to elect to be taxed at the time of grant rather than at the time of vesting. Additionally, Carta sends an email with instructions when a qualifying grant is accepted or an option is exercised. You can also access a pre-filled 83(b) election form directly within the platform.
 
 > Please note that the form must be printed, signed, and mailed to the IRS within 30 days of the grant date. You should also upload a signed copy to the platform for record-keeping purposes. Check out [how to track 83(b) election filings for early exercised option grants](https://support.carta.com/kb/guide/en/how-to-track-83-b-election-filings-for-early-exercised-option-grants-bZaiinjNng/Steps/3835066) for further guidance.
 
@@ -923,5 +944,5 @@ Please see 📖[handbook/engineering#perform-an-incident-postmortem](https://fle
 Please see 📖[handbook/company/communications#tools-and-equipment](https://fleetdm.com/handbook/company/communications#tools-and-equipment).
 
 
-<meta name="maintainedBy" value="sampfluger88">
+<meta name="maintainedBy" value="ireedy">
 <meta name="title" value="🛰️ Communications">

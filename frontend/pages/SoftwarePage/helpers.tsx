@@ -78,7 +78,7 @@ export const getInstallType = (
 
 // Used in EditSoftwareModal and PackageForm
 export const getTargetType = (
-  softwareInstaller: ISoftwarePackage | IAppStoreApp
+  softwareInstaller?: ISoftwarePackage | IAppStoreApp
 ) => {
   if (!softwareInstaller) return "All hosts";
 
@@ -91,7 +91,7 @@ export const getTargetType = (
 
 // Used in EditSoftwareModal and PackageForm
 export const getCustomTarget = (
-  softwareInstaller: ISoftwarePackage | IAppStoreApp
+  softwareInstaller?: ISoftwarePackage | IAppStoreApp
 ) => {
   if (!softwareInstaller) return "labelsIncludeAny";
 
@@ -102,7 +102,7 @@ export const getCustomTarget = (
 
 // Used in EditSoftwareModal and PackageForm
 export const generateSelectedLabels = (
-  softwareInstaller: ISoftwarePackage | IAppStoreApp
+  softwareInstaller?: ISoftwarePackage | IAppStoreApp
 ) => {
   if (
     !softwareInstaller ||
@@ -235,11 +235,11 @@ export const getSelfServiceTooltip = (
   if (isIosOrIpadosApp)
     return (
       <>
-        End users can install from self-service.
+        End users can install from self service.
         <br />
         <CustomLink
           newTab
-          text="Learn how to deploy self-service"
+          text="Learn how to deploy self service"
           variant="tooltip-link"
           url={`${LEARN_MORE_ABOUT_BASE_LINK}/deploy-self-service-to-ios`}
         />
@@ -249,7 +249,7 @@ export const getSelfServiceTooltip = (
   return (
     <>
       End users can install from <br />
-      <strong>Fleet Desktop</strong> &gt; <strong>Self-service</strong>. <br />
+      <strong>Fleet Desktop</strong> &gt; <strong>Self service</strong>. <br />
       <CustomLink
         newTab
         text="Learn more"

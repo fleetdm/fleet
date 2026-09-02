@@ -7,8 +7,10 @@ import {
   getDefaultSoftwareInstallHandler,
   getSoftwareInstallHandlerNoOutputs,
   getSoftwareInstallHandlerOnlyInstallOutput,
+  getSoftwareInstallHandlerWithHash,
   getSoftwareInstallHandlerWithPreInstall,
   getSoftwareInstallHandlerOnlyPreInstallOutput,
+  getSoftwareInstallHandlerAppOpen,
   getSoftwareInstallResultHandlerPremiumRequired,
 } from "test/handlers/software-handlers";
 import mockServer from "test/mock-server";
@@ -132,6 +134,31 @@ describe("SoftwareInstallDetailsModal", () => {
       expect(screen.getByText(/Test Host/)).toBeInTheDocument();
       expect(screen.queryByText(/You can retry/)).not.toBeInTheDocument();
       expect(screen.getByText(/\d+.*ago/)).toBeInTheDocument();
+    });
+
+    it("renders app-open skipped copy instead of generic failed-install copy", () => {
+      render(
+        <StatusMessage
+          softwareName="CoolApp"
+          installResult={createMockSoftwareInstallResult({
+            status: "failed_install",
+          })}
+          isMyDevicePage={false}
+          skippedInstall
+        />
+      );
+
+      expect(screen.getByText(/Fleet skipped install of/)).toBeInTheDocument();
+      expect(screen.getByText(/The app was open/)).toBeInTheDocument();
+      expect(
+        screen.getByText(
+          /It will update once the user closes it and policy runs again, or update via self service\./
+        )
+      ).toBeInTheDocument();
+      expect(screen.queryByText(/failed to install/)).not.toBeInTheDocument();
+      // Grey "!" (error-outline), not the red failure icon.
+      expect(screen.getByTestId("error-outline-icon")).toBeInTheDocument();
+      expect(screen.queryByTestId("error-icon")).not.toBeInTheDocument();
     });
 
     it("on host details page/install activity, renders installed message with timestamp", () => {
@@ -309,6 +336,33 @@ describe("SoftwareInstallDetailsModal", () => {
       ).not.toBeInTheDocument();
     });
 
+    it("renders the app-open pre-install output for a skipped install", async () => {
+      mockServer.use(getSoftwareInstallHandlerAppOpen);
+      const renderWithServer = createCustomRenderer({ withBackendMock: true });
+      const { user } = renderWithServer(
+        <SoftwareInstallDetailsModal
+          details={{
+            ...baseDetails,
+            skipped_install: true,
+          }}
+          onCancel={noop}
+        />
+      );
+
+      await screen.findByText(/Fleet skipped install of/);
+      await user.click(screen.getByRole("button", { name: /Details/i }));
+
+      expect(screen.getByText("Pre-install query output:")).toBeInTheDocument();
+      // Figma: the code block shows both the generic no-result line and the
+      // app-open reason (label stays "Pre-install query output:").
+      expect(
+        screen.getByText(
+          /Query didn't return result or failed\s+The app was open/
+        )
+      ).toBeInTheDocument();
+      expect(screen.queryByText("Install stopped")).not.toBeInTheDocument();
+    });
+
     it("shows install and post-install outputs after clicking Details (no pre-install)", async () => {
       mockServer.use(getDefaultSoftwareInstallHandler);
       const renderWithServer = createCustomRenderer({ withBackendMock: true });
@@ -412,6 +466,63 @@ describe("SoftwareInstallDetailsModal", () => {
         "href",
         "https://fleetdm.com/upgrade"
       );
+    });
+  });
+
+  // The Package SHA-256 hash row is guarded on the payload's `hash_sha256`
+  // field. Backend hydrates it for package-backed installs; VPP / older
+  // results carry no hash and the row must stay out of the DOM.
+  describe("Package SHA-256 hash row", () => {
+    afterEach(() => {
+      mockServer.resetHandlers();
+    });
+
+    it("renders the label, hash, and a copy button when the install result carries hash_sha256", async () => {
+      mockServer.use(getSoftwareInstallHandlerWithHash);
+      const renderWithServer = createCustomRenderer({ withBackendMock: true });
+
+      renderWithServer(
+        <SoftwareInstallDetailsModal
+          details={baseDetails}
+          hostSoftware={baseHostSoftware}
+          onCancel={noop}
+        />
+      );
+
+      expect(
+        await screen.findByText("Package SHA-256 hash:")
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText(
+          "e6ddb2dd089ecea38ab73ed12812df269f1447e750cf4355703340bb8aa1ad"
+        )
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: /Copy hash to clipboard/i })
+      ).toBeInTheDocument();
+    });
+
+    it("does not render the hash row when the install result has no hash_sha256", async () => {
+      mockServer.use(getDefaultSoftwareInstallHandler);
+      const renderWithServer = createCustomRenderer({ withBackendMock: true });
+
+      renderWithServer(
+        <SoftwareInstallDetailsModal
+          details={baseDetails}
+          hostSoftware={baseHostSoftware}
+          onCancel={noop}
+        />
+      );
+
+      // Wait for the modal to finish loading (status message is a good
+      // anchor — it renders after the useQuery resolves).
+      await screen.findByText(/Fleet installed/);
+      expect(
+        screen.queryByText("Package SHA-256 hash:")
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: /Copy hash to clipboard/i })
+      ).not.toBeInTheDocument();
     });
   });
 });

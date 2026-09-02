@@ -100,6 +100,40 @@ export const filterSoftwareByCustomCategory = (
   });
 };
 
+// Client-side match filter used by the desktop `SelfServiceTable`, the mobile
+// tile list, and the "Install all" count. Matches the backend `MatchQuery`
+// columns on `software_titles` (name, bundle_identifier, custom display_name)
+// so a rename-only admin edit is still findable and the Install all button
+// installs exactly what the user sees on screen.
+export const filterSoftwareByQuery = (
+  software: IDeviceSoftwareWithUiStatus[],
+  query: string | undefined
+): IDeviceSoftwareWithUiStatus[] => {
+  const q = query?.toLowerCase().trim() ?? "";
+  if (!q) return software;
+  return software.filter((item) => {
+    const fields = [item.name, item.display_name, item.bundle_identifier];
+    return fields.some((f) => f?.toLowerCase().includes(q));
+  });
+};
+
+// Keeps only categories that have at least one software item. Membership is
+// resolved the same way as `filterSoftwareByCustomCategory` so the dropdown
+// stays consistent with what selecting a category shows.
+export const filterCategoriesWithSoftware = (
+  categories: ISelfServiceCategory[],
+  software: IDeviceSoftwareWithUiStatus[]
+): ISelfServiceCategory[] => {
+  const categoryNamesInUse = new Set<string>();
+  software.forEach((item) => {
+    [
+      ...(item.software_package?.categories ?? []),
+      ...(item.app_store_app?.categories ?? []),
+    ].forEach((name) => categoryNamesInUse.add(name.toLowerCase()));
+  });
+  return categories.filter((c) => categoryNamesInUse.has(c.name.toLowerCase()));
+};
+
 /** Count of items in the list that are eligible to be queued by install_all. */
 export const countUninstalledForInstallAll = (
   software: IDeviceSoftwareWithUiStatus[]

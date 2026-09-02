@@ -28,9 +28,10 @@ import {
 } from "interfaces/policy";
 import {
   API_ALL_TEAMS_ID,
+  API_NO_TEAM_ID,
   APP_CONTEXT_ALL_TEAMS_ID,
-  ITeamConfig,
 } from "interfaces/team";
+import { isQueryablePlatform } from "interfaces/platform";
 
 import configAPI from "services/entities/config";
 import globalPoliciesAPI, {
@@ -54,7 +55,7 @@ import { SingleValue } from "react-select-5";
 import DropdownWrapper from "components/forms/fields/DropdownWrapper";
 import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 import Spinner from "components/Spinner";
-import TeamsDropdown from "components/TeamsDropdown";
+import FleetsDropdown from "components/FleetsDropdown";
 import TableDataError from "components/DataError";
 import MainContent from "components/MainContent";
 import PageDescription from "components/PageDescription";
@@ -83,6 +84,7 @@ interface IManagePoliciesPageProps {
       order_direction?: "asc" | "desc";
       page?: string;
       automation_type?: AutomationType;
+      platform?: string;
       manage_automations?: string;
     };
     search: string;
@@ -95,13 +97,31 @@ export const DEFAULT_SORT_COLUMN = "name";
 
 const AUTOMATION_TYPES: AutomationType[] = [
   "software",
+  "patch",
   "scripts",
+  "profiles",
   "calendar",
   "conditional_access",
   "other",
 ];
 
 const GLOBAL_AUTOMATION_TYPES: GlobalPoliciesAutomationType[] = ["other"];
+
+const getValidAutomationTypesForTeam = (
+  teamIdForApi: number | undefined
+): (AutomationType | GlobalPoliciesAutomationType)[] => {
+  if (teamIdForApi === undefined) {
+    // All fleets → global policies only support webhook/ticket automations.
+    return GLOBAL_AUTOMATION_TYPES;
+  }
+  if (teamIdForApi === API_NO_TEAM_ID) {
+    // Unassigned supports every automation type EXCEPT calendar events,
+    // which PolicyAutomationsFields hardcodes as fleet-only (never available
+    // for "All fleets" or "Unassigned").
+    return AUTOMATION_TYPES.filter((type) => type !== "calendar");
+  }
+  return AUTOMATION_TYPES;
+};
 
 const baseClass = "manage-policies-page";
 
@@ -179,6 +199,9 @@ const ManagePolicyPage = ({
     DEFAULT_SORT_DIRECTION)();
   const page =
     queryParams && queryParams.page ? parseInt(queryParams?.page, 10) : 0;
+  const targetedPlatformParam = isQueryablePlatform(queryParams?.platform)
+    ? queryParams?.platform
+    : undefined;
   const initialAutomationFilter = (() => {
     const automationQueryParam = queryParams.automation_type;
 
@@ -186,9 +209,7 @@ const ManagePolicyPage = ({
       return null;
     }
 
-    const validValues = isAllTeamsSelected
-      ? GLOBAL_AUTOMATION_TYPES
-      : AUTOMATION_TYPES;
+    const validValues = getValidAutomationTypesForTeam(teamIdForApi);
 
     return (validValues as string[]).includes(automationQueryParam)
       ? automationQueryParam
@@ -269,6 +290,7 @@ const ManagePolicyPage = ({
         orderDirection: sortDirection,
         orderKey: sortHeader,
         automationType: automationFilter as GlobalPoliciesAutomationType,
+        platform: targetedPlatformParam,
       },
     ],
     ({ queryKey }) => {
@@ -278,6 +300,7 @@ const ManagePolicyPage = ({
       enabled: isRouteOk && isAllTeamsSelected,
       select: (data) => data.policies || [],
       staleTime: 5000,
+      refetchOnWindowFocus: false,
     }
   );
 
@@ -292,6 +315,7 @@ const ManagePolicyPage = ({
         scope: "policiesCount",
         query: !isAllTeamsSelected ? "" : searchQuery,
         automationType: automationFilter as GlobalPoliciesAutomationType,
+        platform: targetedPlatformParam,
       },
     ],
     ({ queryKey }) => globalPoliciesAPI.getCount(queryKey[0]),
@@ -328,6 +352,7 @@ const ManagePolicyPage = ({
         // no teams does inherit
         mergeInherited: true,
         automationType: automationFilter as AutomationType,
+        platform: targetedPlatformParam,
       },
     ],
     ({ queryKey }) => {
@@ -336,6 +361,7 @@ const ManagePolicyPage = ({
     {
       enabled: isRouteOk && isPremiumTier && !isAllTeamsSelected,
       select: (data: ILoadTeamPoliciesResponse) => data.policies || [],
+      refetchOnWindowFocus: false,
     }
   );
 
@@ -357,6 +383,7 @@ const ManagePolicyPage = ({
         teamId: teamIdForApi || 0, // TODO: Fix number/undefined type
         mergeInherited: true,
         automationType: automationFilter as AutomationType,
+        platform: targetedPlatformParam,
       },
     ],
     ({ queryKey }) => teamPoliciesAPI.getCount(queryKey[0]),
@@ -389,6 +416,7 @@ const ManagePolicyPage = ({
         setConfig(data);
       },
       staleTime: 5000,
+      refetchOnWindowFocus: false,
     }
   );
 
@@ -399,6 +427,7 @@ const ManagePolicyPage = ({
     // Enable for all teams including "No team" (teamIdForApi === 0)
     enabled: isRouteOk && teamIdForApi !== undefined,
     staleTime: 5000,
+    refetchOnWindowFocus: false,
   });
   const teamConfig = teamData?.team;
 
@@ -683,7 +712,10 @@ const ManagePolicyPage = ({
     const hide =
       isFetchingCount ||
       policiesErrors ||
-      (!policyResults && searchQuery === "" && !automationFilter);
+      (!policyResults &&
+        searchQuery === "" &&
+        !automationFilter &&
+        !targetedPlatformParam);
 
     if (hide) {
       return null;
@@ -700,9 +732,8 @@ const ManagePolicyPage = ({
           lastUpdatedAt={updatedAt}
           customTooltipText={
             <>
-              Counts are updated hourly. Click host
-              <br />
-              counts for the most up-to-date count.
+              Counts are updated hourly. Click host counts for the most
+              up-to-date count.
             </>
           }
         />
@@ -722,9 +753,19 @@ const ManagePolicyPage = ({
       helpText: "Policies with software automation enabled.",
     },
     {
+      label: "Patch",
+      value: "patch",
+      helpText: "Patch policies for Fleet-maintained apps.",
+    },
+    {
       label: "Scripts",
       value: "scripts",
       helpText: "Policies with script automation enabled.",
+    },
+    {
+      label: "Profiles",
+      value: "profiles",
+      helpText: "Policies with configuration profile automation enabled.",
     },
     {
       label: "Calendar",
@@ -765,14 +806,19 @@ const ManagePolicyPage = ({
           ? globalPoliciesCount
           : teamPoliciesCountMergeInherited;
         const isTrulyEmpty =
-          (policiesCount ?? 0) === 0 && searchQuery === "" && !automationFilter;
+          (policiesCount ?? 0) === 0 &&
+          searchQuery === "" &&
+          !automationFilter &&
+          !targetedPlatformParam;
 
-        // No team ID = All fleets → only show "all" and "other" options
-        const optionsForTeam = teamIdForApi
-          ? automationFilterOptions
-          : automationFilterOptions.filter((opt) =>
-              ["all", "other"].includes(opt.value as string)
-            );
+        const validAutomationTypesForTeam = getValidAutomationTypesForTeam(
+          teamIdForApi
+        );
+        const optionsForTeam = automationFilterOptions.filter(
+          (opt) =>
+            opt.value === "all" ||
+            (validAutomationTypesForTeam as string[]).includes(opt.value)
+        );
 
         return (
           <DropdownWrapper
@@ -823,7 +869,10 @@ const ManagePolicyPage = ({
           page={page}
           onQueryChange={onQueryChange}
           customControl={renderAutomationFilter}
-          isFiltered={!!automationFilter}
+          isFiltered={!!automationFilter || !!targetedPlatformParam}
+          router={router}
+          queryParams={queryParams}
+          platform={targetedPlatformParam}
           otherAutomationType={otherAutomationType}
           onOpenManageAutomationsModal={
             canAddOrDeletePolicies ? onOpenManageAutomationsModal : undefined
@@ -867,7 +916,10 @@ const ManagePolicyPage = ({
           page={page}
           onQueryChange={onQueryChange}
           customControl={renderAutomationFilter}
-          isFiltered={!!automationFilter}
+          isFiltered={!!automationFilter || !!targetedPlatformParam}
+          router={router}
+          queryParams={queryParams}
+          platform={targetedPlatformParam}
           otherAutomationType={otherAutomationType}
           onOpenManageAutomationsModal={
             canAddOrDeletePolicies ? onOpenManageAutomationsModal : undefined
@@ -922,11 +974,11 @@ const ManagePolicyPage = ({
     if (isPremiumTier && !isPrimoMode) {
       if ((userTeams && userTeams.length > 1) || isOnGlobalTeam) {
         return (
-          <TeamsDropdown
-            currentUserTeams={userTeams || []}
-            selectedTeamId={currentTeamId}
+          <FleetsDropdown
+            currentUserFleets={userTeams || []}
+            selectedFleetId={currentTeamId}
             onChange={onTeamChange}
-            includeNoTeams
+            includeUnassigned
           />
         );
       }

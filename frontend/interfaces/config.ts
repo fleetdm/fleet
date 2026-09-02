@@ -4,6 +4,7 @@ import {
   IWebhookFailingPolicies,
   IWebhookSoftwareVulnerabilities,
   IWebhookActivities,
+  IWebhookHostActivities,
 } from "interfaces/webhook";
 import { IGlobalIntegrations } from "./integration";
 import { EndUserLocalAccountType } from "./mdm";
@@ -15,8 +16,6 @@ export interface ILicense {
   expiration: string;
   note: string;
   organization: string;
-  // Whether the Fleet instance is managed by FleetDM
-  managed_cloud: boolean;
   allow_disable_telemetry: boolean;
 }
 
@@ -41,16 +40,27 @@ interface ICustomSetting {
 }
 
 export interface IAppleDeviceUpdates {
+  /** The sentinel `"latest"` enforces the newest version available, with the
+   * deadline derived from `deadline_days` instead of a fixed date. */
   minimum_version: string;
   deadline: string;
+  /** Only set when `minimum_version` is `"latest"`; null otherwise. */
+  deadline_days: number | null;
   update_new_hosts?: boolean;
 }
 
 export interface IMdmConfig {
   /** Update this URL if you're self-hosting Fleet and you want your hosts to talk to a different URL for MDM features. (If not configured, hosts will use the base URL of the Fleet instance.) */
   apple_server_url: string;
+  /** @deprecated Virtual key: true only when all per-platform disk
+  encryption settings (`apple_settings`, `windows_settings`, `linux_settings`)
+  are enabled. Read the per-platform fields instead. */
   enable_disk_encryption: boolean;
+  /** Host name template applied to "No team" Apple hosts. Mirrors
+  `enable_disk_encryption` as a global-scope Controls > OS setting. */
+  name_template?: string;
   enable_recovery_lock_password: boolean;
+  /** @deprecated Use `windows_settings.require_bitlocker_pin`. */
   windows_require_bitlocker_pin: boolean;
   /** `enabled_and_configured` only tells us if Apples MDM has been enabled and
   configured correctly. The naming is slightly confusing but at one point we
@@ -76,6 +86,7 @@ export interface IMdmConfig {
   apple_settings: {
     configuration_profiles: null | ICustomSetting[];
     enable_disk_encryption: boolean;
+    enable_escrow_disk_encryption_key?: boolean;
   };
   setup_experience: {
     macos_bootstrap_package: string | null;
@@ -92,6 +103,14 @@ export interface IMdmConfig {
   macos_setup?: {
     enable_managed_local_account?: boolean;
   };
+  windows_settings?: {
+    enable_disk_encryption?: boolean;
+    require_bitlocker_pin?: boolean;
+    enable_managed_local_account?: boolean;
+  };
+  linux_settings?: {
+    enable_escrow_disk_encryption_key?: boolean;
+  };
   macos_migration: IMacOsMigrationSettings;
   windows_updates: {
     deadline_days: number | null;
@@ -99,6 +118,15 @@ export interface IMdmConfig {
   };
   windows_entra_tenant_ids: string[] | null;
   windows_entra_client_ids: string[] | null;
+  microsoft_graph_credential_invalid: boolean;
+  windows_automatic_enrollment?: IWindowsAutomaticEnrollment | null;
+  apple_account_provisioning?: IAppleAccountProvisioning;
+}
+
+/** Settings for new user-driven Windows MDM enrollments (Premium only). */
+export interface IWindowsAutomaticEnrollment {
+  /** Name of the fleet new MDM-enrolled Windows hosts are assigned to; "" means Unassigned. */
+  default_fleet: string;
 }
 
 // Note: IDeviceGlobalConfig is misnamed on the backend because in some cases it returns team config
@@ -120,6 +148,7 @@ export interface IDeviceGlobalConfig {
 export interface IFleetDesktopSettings {
   transparency_url: string;
   alternative_browser_host: string;
+  sso_enabled: boolean;
 }
 
 export interface IConfigFeatures {
@@ -241,10 +270,17 @@ export interface IConfig {
   mdm: IMdmConfig;
   gitops: IGitOpsModeConfig;
   partnerships?: IFleetPartnerships;
+  max_software_package_size: number;
 }
 
 interface IFleetPartnerships {
   enable_primo: boolean;
+}
+
+export interface IAppleAccountProvisioning {
+  oauth_idp_token_url: string;
+  oauth_idp_client_id: string;
+  oauth_idp_client_secret: string;
 }
 
 export interface IWebhookSettings {
@@ -252,6 +288,7 @@ export interface IWebhookSettings {
   host_status_webhook: IWebhookHostStatus | null;
   vulnerabilities_webhook: IWebhookSoftwareVulnerabilities;
   activities_webhook: IWebhookActivities;
+  host_activities_webhook?: IWebhookHostActivities | null;
 }
 
 export type IAutomationsConfig = Pick<

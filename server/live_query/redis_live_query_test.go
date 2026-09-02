@@ -3,6 +3,7 @@ package live_query
 import (
 	"log/slog"
 	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/datastore/redis"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
@@ -267,8 +268,38 @@ func TestReverseIndexCleanupInactiveQueries(t *testing.T) {
 	}
 }
 
-// TestReverseIndexKillSwitch verifies that a threshold of 0 disables the reverse
-// index and forces the legacy bitfield model even for single-host queries.
+func TestReverseIndexReadSkippedWhenNoReverseQueries(t *testing.T) {
+	// commandstats is reset and read per node via CONFIG RESETSTAT / INFO, so this
+	// runs against standalone Redis only.
+	pool := redistest.SetupRedis(t, "*livequery", false, true, true)
+	// A non-zero cache TTL so the warm-up call below keeps the cache valid for the
+	// measured call, which would otherwise reload it and issue its own SMEMBERS on
+	// the active sets, confounding the assertion.
+	store := NewRedisLiveQuery(pool, slog.New(slog.DiscardHandler), time.Minute, 2)
+
+	// A broadcast (above-threshold) query: there is active work to serve, but no
+	// query uses the reverse per-host index.
+	require.NoError(t, store.RunQuery("b", "SELECT 1", []uint{1, 2, 3}))
+
+	// Warm the in-memory cache so the measured call below does not reload it.
+	_, err := store.QueriesForHost(1)
+	require.NoError(t, err)
+
+	conn := redis.ConfigureDoer(pool, pool.Get())
+	defer conn.Close()
+	_, err = conn.Do("CONFIG", "RESETSTAT")
+	require.NoError(t, err)
+
+	queries, err := store.QueriesForHost(1)
+	require.NoError(t, err)
+	require.Equal(t, map[string]string{"b": "SELECT 1"}, queries)
+
+	info, err := redigo.String(conn.Do("INFO", "commandstats"))
+	require.NoError(t, err)
+	assert.NotContains(t, info, "cmdstat_smembers",
+		"no SMEMBERS should be issued on checkin when no reverse queries are active")
+}
+
 func TestReverseIndexKillSwitch(t *testing.T) {
 	for _, cluster := range []bool{false, true} {
 		clusterName := "standalone"

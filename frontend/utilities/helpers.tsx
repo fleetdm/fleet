@@ -4,7 +4,6 @@ import {
   flatMap,
   omit,
   pick,
-  memoize,
   reduce,
   trim,
   trimEnd,
@@ -13,7 +12,6 @@ import {
 } from "lodash";
 import md5 from "js-md5";
 import {
-  formatDistanceToNow,
   formatDuration,
   intlFormat,
   intervalToDuration,
@@ -22,6 +20,7 @@ import {
 } from "date-fns";
 
 import { QueryParams, buildQueryStringFromParams } from "utilities/url";
+import { timeAgo } from "utilities/date_format";
 import { IHost } from "interfaces/host";
 import { ILabel } from "interfaces/label";
 import { IPack } from "interfaces/pack";
@@ -43,7 +42,6 @@ import { ITeam } from "interfaces/team";
 import { UserRole } from "interfaces/user";
 
 import stringUtils from "utilities/strings";
-import sortUtils from "utilities/sort";
 import {
   DEFAULT_EMPTY_CELL_VALUE,
   DEFAULT_GRAVATAR_LINK,
@@ -578,14 +576,14 @@ export const humanHostLastSeen = (lastSeen: string): string => {
   if (lastSeen === "Unavailable") {
     return "Unavailable";
   }
-  return formatDistanceToNow(new Date(lastSeen), { addSuffix: true });
+  return timeAgo(new Date(lastSeen), { addSuffix: true });
 };
 
 export const humanHostEnrolled = (enrolled: string): string => {
   if (!enrolled || enrolled < INITIAL_FLEET_DATE) {
     return "Never";
   }
-  return formatDistanceToNow(new Date(enrolled), { addSuffix: true });
+  return timeAgo(new Date(enrolled), { addSuffix: true });
 };
 
 export const humanHostMemory = (bytes: number): string => {
@@ -599,7 +597,7 @@ export const humanHostDetailUpdated = (detailUpdated?: string): string => {
     return "unavailable";
   }
   try {
-    return formatDistanceToNow(new Date(detailUpdated), { addSuffix: true });
+    return timeAgo(new Date(detailUpdated), { addSuffix: true });
   } catch {
     return "unavailable";
   }
@@ -614,7 +612,7 @@ export const humanLastSeen = (lastSeen: string): string => {
     return "Unavailable";
   }
 
-  return formatDistanceToNow(new Date(lastSeen), { addSuffix: true });
+  return timeAgo(new Date(lastSeen), { addSuffix: true });
 };
 
 export const internationalTimeFormat = (date: number | Date): string => {
@@ -651,7 +649,7 @@ export const humanQueryLastRun = (lastRun: string): string => {
   }
 
   try {
-    return formatDistanceToNow(new Date(lastRun), { addSuffix: true });
+    return timeAgo(new Date(lastRun), { addSuffix: true });
   } catch {
     return "Unavailable";
   }
@@ -727,36 +725,36 @@ export const getPerformanceImpactIndicatorTooltip = (
     case PerformanceImpactIndicatorValue.MINIMAL:
       return (
         <>
-          Running this report very frequently has little to no <br /> impact on
-          your device&apos;s performance.
+          Running this report very frequently has little to no impact on your
+          device&apos;s performance.
         </>
       );
     case PerformanceImpactIndicatorValue.CONSIDERABLE:
       return (
         <>
-          Running this report frequently can have a noticeable <br />
-          impact on your device&apos;s performance.
+          Running this report frequently can have a noticeable impact on your
+          device&apos;s performance.
         </>
       );
     case PerformanceImpactIndicatorValue.EXCESSIVE:
       return (
         <>
-          Running this report, even infrequently, can have a <br />
-          significant impact on your device&apos;s performance.
+          Running this report, even infrequently, can have a significant impact
+          on your device&apos;s performance.
         </>
       );
     case PerformanceImpactIndicatorValue.DENYLISTED:
       return (
         <>
-          This report has been <br /> stopped from running <br /> because of
-          excessive <br /> resource consumption.
+          This report has been stopped from running because of excessive
+          resource consumption.
         </>
       );
     case PerformanceImpactIndicatorValue.UNDETERMINED:
       return (
         <>
-          Performance impact will be available
-          <br /> when {isHostSpecific ? "the" : "this"} report runs
+          Performance impact will be available when{" "}
+          {isHostSpecific ? "the" : "this"} report runs
           {isHostSpecific && " on this host"}.
         </>
       );
@@ -826,18 +824,6 @@ export const tooltipTextWithLineBreaks = (lines: string[]) => {
     );
   });
 };
-
-export const getSortedTeamOptions = memoize((teams: ITeam[]) =>
-  teams
-    .map((team) => {
-      return {
-        disabled: false,
-        label: team.name,
-        value: team.id,
-      };
-    })
-    .sort((a, b) => sortUtils.caseInsensitiveAsc(a.label, b.label))
-);
 
 // returns a mixture of props from host
 export const normalizeEmptyValues = (
@@ -1002,6 +988,32 @@ export const isDateTimePast = (dt: string) => {
   return new Date(dt) < new Date();
 };
 
+/**
+ * Helper function to take whatever message is from the API and strip out the Learn More link and format it accordingly.
+ */
+export const generateGenericLearnMoreErrMsg = (errMsg: string) => {
+  const lowercasedErr = errMsg.toLowerCase();
+  if (lowercasedErr.includes(" learn more: https://")) {
+    const message = errMsg.substring(
+      0,
+      lowercasedErr.indexOf(" learn more: https://")
+    );
+    const link = errMsg.substring(lowercasedErr.indexOf("https://"));
+    return (
+      <>
+        {message}{" "}
+        <CustomLink
+          url={link}
+          text="Learn more"
+          variant="flash-message-link"
+          newTab
+        />
+      </>
+    );
+  }
+  return errMsg;
+};
+
 export default {
   addGravatarUrlToResource,
   removeOSPrefix,
@@ -1049,4 +1061,5 @@ export default {
   wait,
   wrapFleetHelper,
   isDateTimePast,
+  generateGenericLearnMoreErrMsg,
 };

@@ -22,6 +22,7 @@ import RotatedHostRecoveryLockPasswordActivityItem from "./ActivityItems/Rotated
 import InstalledSoftwareActivityItem from "./ActivityItems/InstalledSoftwareActivityItem";
 import InstalledAllSelfServiceSoftwareActivityItem from "./ActivityItems/InstalledAllSelfServiceSoftwareActivityItem";
 import CanceledRunScriptActivityItem from "./ActivityItems/CanceledRunScriptActivityItem";
+import CanceledMdmCommandActivityItem from "./ActivityItems/CanceledMdmCommandActivityItem";
 import CanceledInstallSoftwareActivityItem from "./ActivityItems/CanceledInstallSoftwareActivityItem";
 import CanceledSetupExperienceActivityItem from "./ActivityItems/CanceledSetupExperienceActivityItem";
 import CanceledUninstallSoftwareActivtyItem from "./ActivityItems/CanceledUninstallSoftwareActivtyItem";
@@ -35,7 +36,12 @@ import RotatedManagedLocalAccountPasswordActivityItem from "./ActivityItems/Rota
 import FailedToRotateManagedLocalAccountPasswordActivityItem from "./ActivityItems/FailedToRotateManagedLocalAccountPassword";
 import FailedEnrollmentProfileRenewalActivityItem from "./ActivityItems/FailedEnrollmentProfileRenewalActivityItem";
 import MdmUnenrolledActivityItem from "./ActivityItems/MdmUnenrolledActivityItem";
+import MdmEnrolledActivityItem from "./ActivityItems/MdmEnrolledActivityItem";
 import RanCustomMdmCommandActivityItem from "./ActivityItems/RanCustomMdmCommandActivityItem";
+import EditedCustomHostVitalValueActivityItem from "./ActivityItems/EditedCustomHostVitalValueActivityItem";
+import PolicyAutomationActivityItem from "./ActivityItems/PolicyAutomationActivityItem";
+import ReleasedFromABActivityItem from "./ActivityItems/ReleasedFromABActivityItem";
+import ResentConfigurationProfileActivityItem from "./ActivityItems/ResentConfigurationProfileActivityItem/ResentConfigurationProfileActivityItem";
 
 /** The component props that all host activity items must adhere to */
 export interface IHostActivityItemComponentProps {
@@ -78,6 +84,7 @@ export const pastActivityComponentMap: Record<
   [ActivityType.UninstalledSoftware]: InstalledSoftwareActivityItem,
   [ActivityType.InstalledAppStoreApp]: InstalledSoftwareActivityItem,
   [ActivityType.CanceledRunScript]: CanceledRunScriptActivityItem,
+  [ActivityType.CanceledMdmCommand]: CanceledMdmCommandActivityItem,
   [ActivityType.CanceledInstallSoftware]: CanceledInstallSoftwareActivityItem,
   [ActivityType.CanceledInstallAppStoreApp]: CanceledInstallSoftwareActivityItem,
   [ActivityType.CanceledUninstallSoftware]: CanceledUninstallSoftwareActivtyItem,
@@ -91,7 +98,19 @@ export const pastActivityComponentMap: Record<
   [ActivityType.FailedToRotateManagedLocalAccountPassword]: FailedToRotateManagedLocalAccountPasswordActivityItem,
   [ActivityType.FailedEnrollmentProfileRenewal]: FailedEnrollmentProfileRenewalActivityItem,
   [ActivityType.MdmUnenrolled]: MdmUnenrolledActivityItem,
+  [ActivityType.MdmEnrolled]: MdmEnrolledActivityItem,
   [ActivityType.RanCustomMdmCommand]: RanCustomMdmCommandActivityItem,
+  [ActivityType.EditedCustomHostVitalValue]: EditedCustomHostVitalValueActivityItem,
+  [ActivityType.RanAutomationWebhook]: PolicyAutomationActivityItem,
+  [ActivityType.RanAutomationTicket]: PolicyAutomationActivityItem,
+  [ActivityType.RanAutomationCalendarEvent]: PolicyAutomationActivityItem,
+  [ActivityType.RanAutomationConditionalAccess]: PolicyAutomationActivityItem,
+  [ActivityType.FailedAutomationWebhook]: PolicyAutomationActivityItem,
+  [ActivityType.FailedAutomationTicket]: PolicyAutomationActivityItem,
+  [ActivityType.FailedAutomationCalendarEvent]: PolicyAutomationActivityItem,
+  [ActivityType.FailedAutomationConditionalAccess]: PolicyAutomationActivityItem,
+  [ActivityType.ReleasedDeviceFromAB]: ReleasedFromABActivityItem,
+  [ActivityType.ResentConfigurationProfile]: ResentConfigurationProfileActivityItem,
 };
 
 export const upcomingActivityComponentMap: Record<

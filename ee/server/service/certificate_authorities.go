@@ -1,6 +1,7 @@
 package service
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
@@ -127,8 +128,7 @@ func (svc *Service) NewCertificateAuthority(ctx context.Context, p fleet.Certifi
 	if p.CustomSCEPProxy != nil {
 		p.CustomSCEPProxy.Preprocess()
 
-		// New CA: the challenge is always being set, so validate its characters.
-		if err := svc.validateCustomSCEPProxy(ctx, p.CustomSCEPProxy, true, errPrefix); err != nil {
+		if err := svc.validateCustomSCEPProxy(ctx, p.CustomSCEPProxy, errPrefix); err != nil {
 			return nil, err
 		}
 
@@ -393,27 +393,7 @@ func (svc *Service) validateNDESSCEPProxy(ctx context.Context, ndesSCEP *fleet.N
 	return nil
 }
 
-// printableStringChallengeRegexp matches challenges containing only characters that are valid in an ASN.1 PrintableString, minus
-// the space. Windows encodes the SCEP challenge password as a PrintableString, so a challenge containing any other character
-// (most commonly "_") makes Windows certificate enrollment fail with "The string contains a non-printable character." The space
-// is a valid PrintableString character but is disallowed here because leading/trailing spaces are an invisible footgun. Keep in
-// sync with PRINTABLE_STRING_REGEX in the CustomSCEPForm frontend helpers.
-var printableStringChallengeRegexp = regexp.MustCompile(`^[A-Za-z0-9'()+,./:=?-]*$`)
-
-// scepChallengePrintableErrMsg is returned when a custom SCEP proxy challenge contains characters that Windows cannot use.
-const scepChallengePrintableErrMsg = `Custom SCEP Proxy challenge can only contain letters, numbers, and the characters ' ( ) + , - . / : = ?. Certificate enrollment rejects other characters, such as "_".`
-
-// challengeHasAllowedChars reports whether the challenge contains only the characters Fleet allows in a SCEP challenge: the ASN.1
-// PrintableString set minus the space (see printableStringChallengeRegexp).
-func challengeHasAllowedChars(challenge string) bool {
-	return printableStringChallengeRegexp.MatchString(challenge)
-}
-
-// validateCustomSCEPProxy validates a custom SCEP proxy CA payload. validateChallengeChars controls whether
-// the challenge is checked for Windows-incompatible (non-PrintableString) characters; callers should only
-// set it when the challenge is being created or changed, so that challenges stored before this validation
-// existed continue to work.
-func (svc *Service) validateCustomSCEPProxy(ctx context.Context, customSCEP *fleet.CustomSCEPProxyCA, validateChallengeChars bool, errPrefix string) error {
+func (svc *Service) validateCustomSCEPProxy(ctx context.Context, customSCEP *fleet.CustomSCEPProxyCA, errPrefix string) error {
 	if err := validateCAName(customSCEP.Name, errPrefix); err != nil {
 		return err
 	}
@@ -422,9 +402,6 @@ func (svc *Service) validateCustomSCEPProxy(ctx context.Context, customSCEP *fle
 	}
 	if customSCEP.Challenge == "" || customSCEP.Challenge == fleet.MaskedPassword {
 		return fleet.NewInvalidArgumentError("challenge", fmt.Sprintf("%sCustom SCEP Proxy challenge cannot be empty", errPrefix))
-	}
-	if validateChallengeChars && !challengeHasAllowedChars(customSCEP.Challenge) {
-		return fleet.NewInvalidArgumentError("challenge", fmt.Sprintf("%s%s", errPrefix, scepChallengePrintableErrMsg))
 	}
 	if err := svc.scepConfigService.ValidateSCEPURL(ctx, customSCEP.URL); err != nil {
 		svc.logger.ErrorContext(ctx, "Failed to validate custom SCEP URL", "err", err)
@@ -515,6 +492,10 @@ func (svc *Service) BatchApplyCertificateAuthorities(ctx context.Context, incomi
 		// Note: This check is here primarily for future reference to help make the usage intent
 		// clear and to differentiate behavior from dual-use endpoints that support patch semantics (e.g., app config)
 		return fleet.NewInvalidArgumentError("gitops", "certificate_authorities: batch apply is intended only for use with gitops")
+	}
+
+	if len(svc.config.Server.PrivateKey) == 0 {
+		return &fleet.BadRequestError{Message: "Server private key must be configured. Learn more: https://fleetdm.com/learn-more-about/fleet-server-private-key"}
 	}
 
 	ops, err := svc.getCertificateAuthoritiesBatchOperations(ctx, incoming)
@@ -810,11 +791,7 @@ func (svc *Service) processCustomSCEPProxyCAs(ctx context.Context, batchOps *fle
 	}
 
 	for name, incoming := range incomingByName {
-		// Only validate the challenge characters when the challenge is new or changed, so that challenges stored before this validation
-		// existed continue to work.
-		existing, exists := existingByName[name]
-		challengeChanged := !exists || existing == nil || incoming.Challenge != existing.Challenge
-		if err := svc.validateCustomSCEPProxy(ctx, incoming, challengeChanged, "certificate_authorities.custom_scep_proxy: "); err != nil {
+		if err := svc.validateCustomSCEPProxy(ctx, incoming, "certificate_authorities.custom_scep_proxy: "); err != nil {
 			return err
 		}
 		// create the payload to be added or updated
@@ -1439,32 +1416,45 @@ func (svc *Service) validateNDESSCEPProxyUpdate(ctx context.Context, ndesSCEP *f
 			return &fleet.BadRequestError{Message: fmt.Sprintf("%sInvalid SCEP URL. Please correct and try again.", errPrefix)}
 		}
 	}
-	if ndesSCEP.AdminURL != nil {
-		if *ndesSCEP.AdminURL == "" {
-			return &fleet.BadRequestError{
-				Message: fmt.Sprintf("%sInvalid NDES SCEP admin URL. Please correct and try again.", errPrefix),
-			}
+	if ndesSCEP.AdminURL != nil && *ndesSCEP.AdminURL == "" {
+		return &fleet.BadRequestError{
+			Message: fmt.Sprintf("%sInvalid NDES SCEP admin URL. Please correct and try again.", errPrefix),
+		}
+	}
+	if ndesSCEP.Username != nil && *ndesSCEP.Username == "" {
+		return &fleet.BadRequestError{
+			Message: fmt.Sprintf("%sInvalid NDES SCEP username. Please correct and try again.", errPrefix),
+		}
+	}
+	// The GET endpoint returns the password masked, so the mask is rejected along with the
+	// empty string (as in the GitOps batch path): changing NDES credentials always requires
+	// re-supplying the actual password.
+	if ndesSCEP.Password != nil && (*ndesSCEP.Password == "" || *ndesSCEP.Password == fleet.MaskedPassword) {
+		return &fleet.BadRequestError{
+			Message: fmt.Sprintf("%sInvalid NDES SCEP password. Please correct and try again.", errPrefix),
+		}
+	}
+
+	// The admin URL, username and password are used together to authenticate against NDES,
+	// so a change to any of them means the whole set has to be re-validated against the server.
+	if ndesSCEP.AdminURL != nil || ndesSCEP.Username != nil || ndesSCEP.Password != nil {
+		// We want to generate a NDESSCEPProxyCA struct with all required fields to verify the admin URL.
+		// Any field that is not being updated uses the existing value from oldCA. The checks above
+		// reject blank updated values, so cmp.Or only ever falls back for a field left out of the update.
+		NDESProxy := fleet.NDESSCEPProxyCA{
+			URL:      cmp.Or(ptr.ValOrZero(ndesSCEP.URL), ptr.ValOrZero(oldCA.URL)),
+			AdminURL: cmp.Or(ptr.ValOrZero(ndesSCEP.AdminURL), ptr.ValOrZero(oldCA.AdminURL)),
+			Username: cmp.Or(ptr.ValOrZero(ndesSCEP.Username), ptr.ValOrZero(oldCA.Username)),
+			Password: cmp.Or(ptr.ValOrZero(ndesSCEP.Password), ptr.ValOrZero(oldCA.Password)),
 		}
 
-		// We want to generate a NDESSCEPProxyCA struct with all required fields to verify the admin URL.
-		// If URL, Username or Password are not being updated we use the existing values from oldCA
-		NDESProxy := fleet.NDESSCEPProxyCA{
-			AdminURL: *ndesSCEP.AdminURL,
-		}
-		if ndesSCEP.URL != nil {
-			NDESProxy.URL = *ndesSCEP.URL
-		} else {
-			NDESProxy.URL = *oldCA.URL
-		}
-		if ndesSCEP.Username != nil {
-			NDESProxy.Username = *ndesSCEP.Username
-		} else {
-			NDESProxy.Username = *oldCA.Username
-		}
-		if ndesSCEP.Password != nil {
-			NDESProxy.Password = *ndesSCEP.Password
-		} else {
-			NDESProxy.Password = *oldCA.Password
+		// If the merged set matches what's already stored there's nothing new to validate.
+		// Skip the round-trip so a no-op update doesn't consume a slot in NDES's password
+		// cache (each validation retrieves an enrollment challenge password).
+		if NDESProxy.AdminURL == ptr.ValOrZero(oldCA.AdminURL) &&
+			NDESProxy.Username == ptr.ValOrZero(oldCA.Username) &&
+			NDESProxy.Password == ptr.ValOrZero(oldCA.Password) {
+			return nil
 		}
 
 		if err := svc.scepConfigService.ValidateNDESSCEPAdminURL(ctx, NDESProxy); err != nil {
@@ -1474,8 +1464,12 @@ func (svc *Service) validateNDESSCEPProxyUpdate(ctx context.Context, ndesSCEP *f
 				return &fleet.BadRequestError{Message: fmt.Sprintf("%sThe NDES password cache is full. Please increase the number of cached passwords in NDES and try again.", errPrefix)}
 			case errors.As(err, &scep.NDESInsufficientPermissionsError{}):
 				return &fleet.BadRequestError{Message: fmt.Sprintf("%sInsufficient permissions for NDES SCEP admin URL. Please correct and try again.", errPrefix)}
-			default:
+			case errors.As(err, &scep.NDESInvalidError{}):
 				return &fleet.BadRequestError{Message: fmt.Sprintf("%sInvalid NDES SCEP admin URL or credentials. Please correct and try again.", errPrefix)}
+			default:
+				// anything else means the admin URL couldn't be reached at all (timeout, DNS
+				// failure, connection refused), not that the server rejected the credentials
+				return &fleet.BadRequestError{Message: fmt.Sprintf("%sCouldn't connect to NDES SCEP admin URL. Please correct and try again.", errPrefix)}
 			}
 		}
 	}
@@ -1501,12 +1495,6 @@ func (svc *Service) validateCustomSCEPProxyUpdate(ctx context.Context, customSCE
 		return &fleet.BadRequestError{
 			Message: fmt.Sprintf("%sCustom SCEP Proxy challenge cannot be empty", errPrefix),
 		}
-	}
-	// Only validate the challenge characters when a new challenge value is provided. A nil or masked challenge means it is unchanged,
-	// so challenges stored before this validation existed keep working.
-	if customSCEP.Challenge != nil && *customSCEP.Challenge != fleet.MaskedPassword &&
-		!challengeHasAllowedChars(*customSCEP.Challenge) {
-		return &fleet.BadRequestError{Message: fmt.Sprintf("%s%s", errPrefix, scepChallengePrintableErrMsg)}
 	}
 
 	return nil

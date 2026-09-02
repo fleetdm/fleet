@@ -8,7 +8,7 @@ interface IChevronProps {
 }
 
 const ChevronLeft = ({
-  color = "core-fleet-black",
+  color = "ui-fleet-black-75",
   size = "medium",
 }: IChevronProps) => {
   return (

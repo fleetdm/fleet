@@ -14,11 +14,15 @@ You can automatically send activites to a webhook URL or a [log destination](htt
 
 Policy automations are triggered if a policy fails on a host. 
 
-Policies run every 1 hour ([configurable](https://fleetdm.com/docs/configuration/fleet-server-configuration#osquery-policy-update-interval)) and run in ascending order by policy ID after the ID is turned into a string ("100" runs before "53", which runs before "7"). 
+Policies run every 1 hour ([configurable](https://fleetdm.com/docs/configuration/fleet-server-configuration#osquery-policy-update-interval)) by default, and run in ascending order by policy ID after the ID is turned into a string ("100" runs before "53", which runs before "7"). 
 
-Automations are fired for scheduled policy runs. Running a live policy doesn't trigger automations.
+Several events can trigger a policy check sooner than this interval: a manual host refetch, a calendar event, a software install or uninstall completing, Apple App Store (VPP) app install verification, and an MDM check-in all ask the host to check in and run its policies again right away. Because of this, a policy can be evaluated far more often than once an hour, especially on a host with frequent software installs or MDM activity.
+
+Automations are fired for scheduled policy runs, including the ones triggered early by the events above. Running a live policy doesn't trigger automations.
 
 ### Calendar
+
+_Available in Fleet Premium_, fleet-level policies only.
 
 You can configure Fleet to automatically reserve time in your end users' calendars (maintenance
 windows), trigger or send report results to webhooks, or create tickets.
@@ -27,11 +31,13 @@ To learn how to use Fleet's maintenance windows, head to this [article](https://
 
 ### Software and scripts
 
-By default, software and script automations are only triggered when a policy is newly failing on a host. A policy is "newly failing" if a host updated its response from no response to "fail" or from "pass" to "fail." A policy that remains failing ("fail" → "fail") does not retrigger the automation.
+_Available in Fleet Premium_, fleet-level policies only.
+
+By default, software and script automations are only triggered when a policy is newly failing on a host. A policy is "newly failing" if a host updated its response from no response to "fail" or from "pass" to "fail." A policy that remains failing ("fail" → "fail") does not re-trigger the automation.
+
+To install software and script automations on every subsequent failing result, instead of only on newly failing hosts, set `continuous_automations_enabled` to `true` on the policy. When enabled, Fleet triggers the software install or script each time it receives a failing response, including consecutive failures ("fail" → "fail"). Because this can retry an automation that doesn't resolve the policy, it may cause a retry loop. Continuous automations don't affect webhooks, tickets, calendar events, or conditional access, which always trigger only on newly failing hosts.
 
 Automations for [software](https://fleetdm.com/guides/automatic-software-install-in-fleet) and [scripts](https://fleetdm.com/guides/policy-automation-run-script) are attempted up to 3 total times. Each time the policy runs and fails, Fleet triggers the software install or script again, up to a total of 3 attempts. If the host passes the policy, the retry count resets.
-
-To run software and script automations on _every_ failing policy result, instead of only on newly failing hosts, set `continuous_automations_enabled` to `true` on the policy (_Available in Fleet Premium_, fleet policies only). When enabled, Fleet triggers the software install or script each time it receives a failing response, including consecutive failures ("fail" → "fail"). Because this can retry an automation that doesn't resolve the policy, it may cause a retry loop. Continuous automations don't affect webhooks, tickets, calendar events, or conditional access, which always trigger only on newly failing hosts.
 
 ### Webhooks and tickets
 

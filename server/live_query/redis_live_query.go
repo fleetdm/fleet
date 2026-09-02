@@ -145,6 +145,16 @@ func (r *redisLiveQuery) isReverse(campaignID string) bool {
 	return found
 }
 
+// hasReverseActiveQueries is a thread-safe method that reports whether any
+// active query uses the reverse per-host index. It gates the per-host reverse
+// read on the checkin path so that, when no reverse query is active, a checkin
+// does not issue a SMEMBERS for a key that does not exist.
+func (r *redisLiveQuery) hasReverseActiveQueries() bool {
+	r.cache.mu.RLock()
+	defer r.cache.mu.RUnlock()
+	return len(r.cache.reverseActiveCache) > 0
+}
+
 // NewRedisLiveQuery creates a new Redis implementation of the live query store
 // using the provided Redis connection pool.
 //
@@ -295,8 +305,11 @@ func (r *redisLiveQuery) QueriesForHost(hostID uint) (map[string]string, error) 
 	}
 
 	// Reverse (small-target) queries: a single read of this host's own set.
-	if err := r.collectReverseQueriesForHost(hostID, queries); err != nil {
-		return nil, err
+	// Skip it entirely when no active query uses the reverse model.
+	if r.hasReverseActiveQueries() {
+		if err := r.collectReverseQueriesForHost(hostID, queries); err != nil {
+			return nil, err
+		}
 	}
 
 	return queries, nil

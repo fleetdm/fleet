@@ -3,6 +3,10 @@
 
   &__query-description {
     overflow-wrap: anywhere;
+
+    p {
+      white-space: pre-wrap;
+    }
   }
 
   &__title-bar {
@@ -20,7 +24,7 @@
     display: flex;
     justify-content: flex-end;
     min-width: max-content;
-    gap: $pad-medium;
+    gap: $gap-action-elements;
   }
 
   &__query-name {

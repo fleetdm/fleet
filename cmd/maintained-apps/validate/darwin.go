@@ -240,8 +240,10 @@ func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueAppIdent
 			// might be newer than the installer version. For OneDrive, we only verify that
 			// the app exists rather than checking the version.
 			if uniqueAppIdentifier == "com.microsoft.OneDrive" {
-				logger.InfoContext(ctx, "OneDrive detected - skipping version check due to auto-update behavior")
-				return true, nil
+				if !checkVersionMatch(appVersion, result.Version, result.BundledVersion) {
+					logger.InfoContext(ctx, "OneDrive detected - version mismatch but app is installed, falling back to existence-only validation")
+					return true, nil
+				}
 			}
 
 			// GPG Suite's installer version (e.g., "2023.3") doesn't match the app bundle version
@@ -290,6 +292,15 @@ func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueAppIdent
 			if uniqueAppIdentifier == "com.logitech.logitune" {
 				if !checkVersionMatch(appVersion, result.Version, result.BundledVersion) {
 					logger.InfoContext(ctx, "Logi Tune detected - version mismatch but app is installed, falling back to existence-only validation")
+					return true, nil
+				}
+			}
+
+			// The Developer Edition cask version is the full beta ("153.0b13") but
+			// the bundle reports only the base version ("153.0"); accept base+"b".
+			if uniqueAppIdentifier == "org.mozilla.firefoxdeveloperedition" {
+				if result.Version != "" && strings.HasPrefix(appVersion, result.Version+"b") {
+					logger.InfoContext(ctx, "Firefox Developer Edition detected - cask version matches bundle base version with beta suffix")
 					return true, nil
 				}
 			}

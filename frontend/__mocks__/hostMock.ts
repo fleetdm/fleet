@@ -40,6 +40,7 @@ const DEFAULT_HOST_MOCK: IHost = {
   policy_updated_at: "2022-01-02T12:00:00Z",
   last_enrolled_at: "2022-01-02T12:00:00Z",
   last_mdm_enrolled_at: "2022-01-02T12:00:00Z",
+  last_mdm_checked_in_at: "",
   seen_time: "2022-04-06T02:11:41Z",
   refetch_requested: false,
   refetch_critical_queries_until: null,
@@ -64,6 +65,7 @@ const DEFAULT_HOST_MOCK: IHost = {
   cpu_logical_cores: 8,
   hardware_vendor: "",
   hardware_model: "",
+  hardware_marketing_name: "",
   hardware_version: "",
   hardware_serial: "",
   computer_name: "9b20fc72a247",
@@ -117,6 +119,8 @@ const DEFAULT_HOST_MOCK: IHost = {
   device_mapping: [],
   end_users: [],
   conditional_access_bypassed: false,
+  dep_assigned_to_fleet: false,
+  timezone: null,
 };
 
 const createMockHost = (overrides?: Partial<IHost>): IHost => {
@@ -182,6 +186,7 @@ const DEFAULT_HOST_SOFTWARE_PACKAGE_MOCK: IHostSoftwarePackage = {
     installed_at: "2022-01-01T12:00:00Z",
   },
   last_uninstall: null,
+  has_uninstall_script: true,
 };
 
 export const createMockHostSoftwarePackage = (

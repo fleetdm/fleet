@@ -6,11 +6,13 @@ import Modal from "components/Modal";
 import { notify } from "components/ToastNotification";
 
 import mdmAPI from "services/entities/mdm";
+import { getErrorReason, hasStatusKey } from "interfaces/errors";
 import { isAndroid, isIPadOrIPhone } from "interfaces/platform";
 import {
+  isAccountDrivenUserEnrollment,
   isAutomaticDeviceEnrollment,
-  isBYODAccountDrivenUserEnrollment,
   isBYODManualEnrollment,
+  isPersonalEnrollmentStatus,
   MdmEnrollmentStatus,
 } from "interfaces/mdm";
 
@@ -21,7 +23,13 @@ interface IUnenrollMdmModalProps {
   hostPlatform: string;
   hostName: string;
   enrollmentStatus: MdmEnrollmentStatus | null;
+  /** MDM enrollment channel. Account-Driven User Enrollment re-enrolls through
+   * Apple's "Sign in to Work or School Account" flow; every other personal
+   * enrollment re-enrolls through the enrollment link, and both report the same
+   * enrollmentStatus. */
+  lastMdmEnrollmentType?: string | null;
   onClose: () => void;
+  onSuccess: () => void;
 }
 
 const UnenrollMdmModal = ({
@@ -29,7 +37,9 @@ const UnenrollMdmModal = ({
   hostPlatform,
   hostName,
   enrollmentStatus,
+  lastMdmEnrollmentType,
   onClose,
+  onSuccess,
 }: IUnenrollMdmModalProps) => {
   const [requestState, setRequestState] = useState<
     undefined | "unenrolling" | "error"
@@ -51,30 +61,33 @@ const UnenrollMdmModal = ({
           </>
         );
       notify.success(successMessage);
+      onSuccess();
       onClose();
     } catch (unenrollMdmError: unknown) {
-      const errorMessage =
-        isIPadOrIPhone(hostPlatform) || isAndroid(hostPlatform) ? (
-          "Couldn't unenroll. Please try again."
-        ) : (
-          <>
-            Failed to turn off MDM for <b>{hostName}</b>. Please try again.
-          </>
-        );
-      notify.error(errorMessage, { response: unenrollMdmError });
+      // A 409 means MDM is already off for this host, so "please try again"
+      // would send the user in a loop. It also means this page was working from
+      // stale data, so refresh it to drop the action.
+      if (hasStatusKey(unenrollMdmError) && unenrollMdmError.status === 409) {
+        notify.error(getErrorReason(unenrollMdmError));
+        onSuccess();
+        onClose();
+      } else {
+        const errorMessage =
+          isIPadOrIPhone(hostPlatform) || isAndroid(hostPlatform) ? (
+            "Couldn't unenroll. Please try again."
+          ) : (
+            <>
+              Failed to turn off MDM for <b>{hostName}</b>. Please try again.
+            </>
+          );
+        notify.error(errorMessage, { response: unenrollMdmError });
+      }
     }
     setRequestState(undefined);
   };
 
   const generateIosOrIpadosDescription = () => {
-    if (isBYODManualEnrollment(enrollmentStatus)) {
-      return (
-        <p>
-          To re-enroll, go to <b>Hosts &gt; Add hosts &gt; iOS/iPadOS</b> and
-          share the link with end user.
-        </p>
-      );
-    } else if (isBYODAccountDrivenUserEnrollment(enrollmentStatus)) {
+    if (isAccountDrivenUserEnrollment(lastMdmEnrollmentType)) {
       return (
         <p>
           To re-enroll, ask your end user to navigate to{" "}
@@ -85,12 +98,21 @@ const UnenrollMdmModal = ({
           on their host and to log in with their work email.
         </p>
       );
+    } else if (
+      isBYODManualEnrollment(enrollmentStatus) ||
+      isPersonalEnrollmentStatus(enrollmentStatus)
+    ) {
+      return (
+        <p>
+          To re-enroll, go to <b>Hosts &gt; Add hosts &gt; iOS/iPadOS</b> and
+          share the link with end user.
+        </p>
+      );
     } else if (isAutomaticDeviceEnrollment(enrollmentStatus)) {
       return (
         <p>
-          To re-enroll, make sure that the host is still in Apple Business
-          Manager (ABM). The host will automatically enroll after it&apos;s
-          reset.
+          To re-enroll, make sure that the host is still in Apple Business (AB).
+          The host will automatically enroll after it&apos;s reset.
         </p>
       );
     }
@@ -152,7 +174,7 @@ const UnenrollMdmModal = ({
           >
             {buttonText}
           </Button>
-          <Button onClick={onClose} variant="inverse-alert">
+          <Button onClick={onClose} variant="secondary">
             Cancel
           </Button>
         </div>

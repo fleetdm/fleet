@@ -125,12 +125,12 @@ The only exceptions are:
 1. **Other open-source projects:** When we contribute to open-source projects owned by other people and organizations, we contribute to those outside repositories.  For example, Fleet contributes to [osquery](https://github.com/osquery/osquery/commits/master), [Sails.js](https://github.com/balderdashy/sails/commits/master), and [other open-source projects](https://github.com/orgs/fleetdm/sponsoring).
 2. **Non-public matters:** Since GitHub does not allow non-public issues inside public repos, we have to use separate repositories to track non-public issues.  Sometimes it is also useful to contribute files to a non-public repository, such as when they mention customer relationships that are under non-disclosure agreements.  When we work on something non-public, we contribute to the repository with the appropriate [level of confidentiality](https://fleetdm.com/handbook/company#levels-of-confidentiality):
    - _Confidential:_ [`fleetdm/confidential`](https://github.com/fleetdm/confidential)
+   - _Confidential (security):_ [`fleetdm/security`](https://github.com/fleetdm/security) is Fleet's internal application security tracker, used for vulnerability triage, remediation, and responsible disclosures. It allows us to provide access to our private security reports without exposing unrelated confidential information.
    - _Classified (¶¶):_ [`fleetdm/classified`](https://github.com/fleetdm/classified)
-3. **GitHub Actions:** Since GitHub requires GitHub Actions to live in dedicated repositories in order to submit them to the marketplace, Fleet uses a separate repo for publishing [GitHub Actions designed for other people to deploy and use (and/or fork)](https://github.com/fleetdm/fleet-mdm-gitops).
-4. **Software vulnerabilities:** Since GitHub only allows one latest release per repository, we currently maintain two repositories to host our CVE/CPE database releases: 
+3. **Software vulnerabilities:** Since GitHub only allows one latest release per repository, we currently maintain two repositories to host our CVE/CPE database releases: 
   - _vulnerabilities:_ [`fleetdm/vulnerabilities`](https://github.com/fleetdm/vulnerabilities)
   - _nvd:_ [`fleetdm/nvd`](https://github.com/fleetdm/nvd)
-5. **Terraform modules:** Since Terraform clones the entire repo once per tagged version of a module, we maintain a separate repo for Terraform modules at [fleetdm/fleet-terraform](https://github.com/fleetdm/fleet-terraform) to expedite deployments using `terraform init`.
+4. **Terraform modules:** Since Terraform clones the entire repo once per tagged version of a module, we maintain a separate repo for Terraform modules at [fleetdm/fleet-terraform](https://github.com/fleetdm/fleet-terraform) to expedite deployments using `terraform init`.
 
 Besides the exceptions above, Fleet does not use any other repositories.  Other GitHub repositories in `fleetdm` should be archived and made private.
 
@@ -211,6 +211,11 @@ Every department organizes their work into [team-based kanban boards](https://gi
 3. **Shared to-do list:** What should I work on next? Who needs help? What important work is blocked? Is that bug fix merged yet? When will it be released? When will that new feature ship? What did I do yesterday?
 
 
+## Why route cross-functional taskings through the team's manager?
+
+At Fleet, taskings that span departments (an OKR, an event, a piece of content, anything that needs another team's involvement) go to that team's manager first, even if you already know who you want to do it. The manager owns their team's priorities and workload, so they need to know what's on it. If they don't, they can't prioritize the work, and they can't hold anyone accountable for delivering it.
+
+
 ## Why agile?
 
 Releasing software [🟢 iteratively](https://fleetdm.com/handbook/company#results) gets changes and improvements into the hands of users faster and generally results in [🔵 software that works](https://fleetdm.com/handbook/company#objectivity). This makes contributors fitter, happier, and more productive.
@@ -231,14 +236,14 @@ We apply the [twelve principles of agile](https://agilemanifesto.org) to Fleet's
 12. At regular intervals, the team reflects on how to become more effective, then tunes and adjusts its behavior accordingly.
 
 
-### Why scrum?
+### Why continuous flow?
 
-Scrum is an agile framework for software development that helps teams deliver high quality software faster. It emphasizes teamwork, collaboration, and continuous improvement to achieve business objectives. Here are some of the key reasons why [we use scrum at Fleet](https://fleetdm.com/handbook/engineering#scrum)): 
-- Improved collaboration and communication: Scrum emphasizes teamwork and collaboration, which leads to better communication between team members and stakeholders. This helps ensure that everyone is aligned and working towards the same goals.
-- Flexibility and adaptability: Scrum allows teams to respond quickly to changing requirements and market conditions. By working in short sprints, teams can continuously adapt to new information and feedback, and adjust their approach as needed.
-- Continuous improvement: Scrum encourages teams to reflect on their processes and identify areas for improvement. The regular sprint retrospective meetings provide a forum for the team to discuss what went well and what could be improved, and to make changes to their processes accordingly.
-- Faster delivery of working software: Scrum helps teams deliver working software faster by breaking down the development process into manageable chunks that can be completed within a sprint. Stakeholders can see progress and provide feedback more quickly, which helps ensure the final product meets their needs.
-- Higher quality software: Scrum includes regular testing and quality assurance activities, which help ensure that the software being developed is of high quality and meets the required standards.
+Fleet's product groups use a continuous flow process instead of fixed multi-week iterations. Well-drafted stories can often be implemented in a day or two, so batching work into fixed iterations adds latency without adding value. Instead, issues flow continuously across each group's board from intake to release. Here are some of the reasons we work [this way](https://fleetdm.com/handbook/company/product-groups#continuous-flow):
+- Less latency: Work starts as soon as it is ready, instead of waiting for the next iteration to begin.
+- Flexibility and adaptability: Teams respond quickly to changing requirements and new information, and adjust their approach as they learn.
+- Continuous improvement: A short retrospective at the end of each three-week release gives the team a regular forum to reflect on what went well, what could be better, and what to change.
+- Faster delivery of working software: Breaking work into small, independently valuable stories lets the team ship and gather feedback sooner.
+- Higher quality software: Quality assurance is involved from intake onward, so testing and reliability are built in rather than bolted on.
 
 
 ### Why lean software development?
@@ -402,6 +407,14 @@ Avoid using too many unnecessary words or superlatives, so your writing is short
  There exists an exceptionally significant rationale that unequivocally warrants refraining from the utilization of an exceptionally vast multitude of gratuitous, superfluous, surplus verbiage, or excessive superlatives when one is tasked with the composition of official documentation that is destined for perusal and comprehension by our distinguished and highly regarded clientele. When the writer in question opts to employ an excessively copious quantity, or even a modicum of superfluous verbiage that, in truth, does not contribute substantively to the essence and signification of the text, it invariably leads to an undue lengthening of the document and an exponentially augmented level of complexity in terms of comprehensibility.
 </blockquote>
 
+## Why avoid daylight-saving-specific time zone abbreviations?
+
+When scheduling a meeting or referencing a time, use the general time zone abbreviation ("PT," "MT," "CT," "ET") rather than the daylight-saving-specific variant ("PST" or "PDT," "MST" or "MDT," "CST" or "CDT," "EST" or "EDT").
+
+Using "PST" vs. "PDT" (or the equivalent for other US time zones) can cause mistakes. If someone (or an AI tool, or a search engine) pastes or looks up "PST" or "PDT" literally, they may get confused about whether the date in question falls under daylight saving time, since the abbreviation for a fixed time zone changes twice a year while "PT" does not. Using the general abbreviation avoids this ambiguity entirely, since it doesn't force the reader (human or AI) to figure out whether DST applies on that particular date. The same logic applies to any time zone abbreviation that changes with daylight saving time, not just the US ones listed above.
+
+This is analogous to why ISO/IANA time zone identifiers are preferred for precision (e.g., "America/Chicago" or "US Pacific Time") and never something like "Pacific Standard Time" that hardcodes a daylight-saving-time assumption. The general format sidesteps the daylight-saving-time ambiguity altogether.
+
 ## Why roles instead of fully custom RBAC for UI permissions?
 
 Fleet won’t offer fully custom, per-action role-based access control (RBAC) in the UI. Instead, we ship a small set of roles that match real job functions (IT Admin, Security Analyst, Help Desk, etc.). Most teams don’t want to design and maintain a permission matrix. They want clear responsibilities, fast onboarding, simpler audits, and fewer ways to misconfigure access. Opinionated roles keep the product easier to use, document, support, and evolve without breaking bespoke setups.
@@ -511,6 +524,9 @@ Please see [handbook/company/why-this-way#why-direct-responsibility](https://fle
 
 ##### What is a P1?
 Please see [handbook/company/why-this-way#why-spend-so-much-energy-responding-to-every-potential-production-incident](https://fleetdm.com/handbook/company/why-this-way#why-spend-so-much-energy-responding-to-every-potential-production-incident).
+
+##### Why scrum?
+Please see [handbook/company/why-this-way#why-continuous-flow](https://fleetdm.com/handbook/company/why-this-way#why-continuous-flow).
 
 <meta name="maintainedBy" value="mikermcneil">
 <meta name="title" value="💭 Why this way?">

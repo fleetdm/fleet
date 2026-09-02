@@ -1,4 +1,6 @@
 import createMockUser from "__mocks__/userMock";
+import createMockConfig, { createMockMdmConfig } from "__mocks__/configMock";
+import { IEndUserAuthentication } from "interfaces/config";
 
 import permissions from ".";
 
@@ -173,5 +175,111 @@ describe("permissions - canWriteSoftware", () => {
       teams: [{ id: TEAM_ID, name: "Team 1", role }],
     });
     expect(permissions.canWriteSoftware(user, TEAM_ID)).toBe(false);
+  });
+});
+
+describe("permissions - canDownloadSoftwareInstaller", () => {
+  // Mirrors backend READ on `installable_entity` (policy.rego L837-865):
+  // admin | maintainer | technician | gitops are allowed at both global and
+  // team scope. Observer / observer+ are excluded. Guards the download button
+  // in the UI so observers don't see it and hit the backend 403.
+  const TEAM_ID = 1;
+
+  it("returns false when there is no user", () => {
+    expect(permissions.canDownloadSoftwareInstaller(null, TEAM_ID)).toBe(false);
+  });
+
+  it.each([
+    ["admin", "admin"],
+    ["maintainer", "maintainer"],
+    ["technician", "technician"],
+  ] as const)("allows a global %s", (_label, role) => {
+    const user = createMockUser({ global_role: role, teams: [] });
+    expect(permissions.canDownloadSoftwareInstaller(user, TEAM_ID)).toBe(true);
+    expect(permissions.canDownloadSoftwareInstaller(user, null)).toBe(true);
+  });
+
+  it.each([
+    ["admin", "admin"],
+    ["maintainer", "maintainer"],
+    ["technician", "technician"],
+  ] as const)("allows a team %s on their team", (_label, role) => {
+    const user = createMockUser({
+      global_role: null,
+      teams: [{ id: TEAM_ID, name: "Team 1", role }],
+    });
+    expect(permissions.canDownloadSoftwareInstaller(user, TEAM_ID)).toBe(true);
+  });
+
+  it("denies a team technician on a different team", () => {
+    const user = createMockUser({
+      global_role: null,
+      teams: [{ id: 2, name: "Team 2", role: "technician" }],
+    });
+    expect(permissions.canDownloadSoftwareInstaller(user, TEAM_ID)).toBe(false);
+  });
+
+  it.each([
+    ["observer", "observer"],
+    ["observer_plus", "observer_plus"],
+  ] as const)("denies a global %s", (_label, role) => {
+    const user = createMockUser({ global_role: role, teams: [] });
+    expect(permissions.canDownloadSoftwareInstaller(user, TEAM_ID)).toBe(false);
+  });
+
+  it.each([
+    ["observer", "observer"],
+    ["observer_plus", "observer_plus"],
+  ] as const)("denies a team %s on their team", (_label, role) => {
+    const user = createMockUser({
+      global_role: null,
+      teams: [{ id: TEAM_ID, name: "Team 1", role }],
+    });
+    expect(permissions.canDownloadSoftwareInstaller(user, TEAM_ID)).toBe(false);
+  });
+});
+
+describe("permissions - isEndUserIdPConfigured", () => {
+  const configWithIdP = (idp?: Partial<IEndUserAuthentication>) =>
+    createMockConfig({
+      mdm: createMockMdmConfig({
+        end_user_authentication: {
+          entity_id: "https://fleet.example.com",
+          idp_name: "Okta",
+          metadata: "",
+          metadata_url: "https://idp.example.com/metadata",
+          issuer_uri: "",
+          ...idp,
+        },
+      }),
+    });
+
+  it("accepts an IdP with a metadata URL", () => {
+    expect(permissions.isEndUserIdPConfigured(configWithIdP())).toBe(true);
+  });
+
+  it("accepts an IdP with inline metadata instead of a URL", () => {
+    expect(
+      permissions.isEndUserIdPConfigured(
+        configWithIdP({ metadata: "<EntityDescriptor />", metadata_url: "" })
+      )
+    ).toBe(true);
+  });
+
+  it.each([
+    ["neither metadata nor a metadata URL", { metadata: "", metadata_url: "" }],
+    ["no entity ID", { entity_id: "" }],
+    ["no IdP name", { idp_name: "" }],
+  ] as [string, Partial<IEndUserAuthentication>][])(
+    "rejects an IdP with %s",
+    (_label, idp) => {
+      expect(permissions.isEndUserIdPConfigured(configWithIdP(idp))).toBe(
+        false
+      );
+    }
+  );
+
+  it("rejects an unconfigured IdP", () => {
+    expect(permissions.isEndUserIdPConfigured(createMockConfig())).toBe(false);
   });
 });

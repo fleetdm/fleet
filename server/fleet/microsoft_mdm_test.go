@@ -272,6 +272,138 @@ func TestBuildMDMWindowsProfilePayloadFromMDMResponse(t *testing.T) {
 				CommandUUID: "foo",
 			},
 		},
+		{
+			// The signature measured on hardware: the SCEP root node Add is rejected, its sibling reports 216
+			// (atomic rollback), and the Atomic itself reports 507.
+			name: "user-channel write rejected with 500",
+			cmd: MDMWindowsCommand{
+				CommandUUID: "cmd-1",
+				RawCommand: []byte(`<Atomic><CmdID>cmd-1</CmdID>` +
+					`<Add><CmdID>add-1</CmdID><Item><Target><LocURI>./User/Vendor/MSFT/ClientCertificateInstall/SCEP/x</LocURI></Target></Item></Add>` +
+					`<Add><CmdID>add-2</CmdID><Item><Target><LocURI>./User/Vendor/MSFT/ClientCertificateInstall/SCEP/x/Install/ServerURL</LocURI></Target></Item></Add>` +
+					`</Atomic>`),
+			},
+			statuses: map[string]SyncMLCmd{
+				"cmd-1": {Data: new(syncml.CmdStatusAtomicFailed)},
+				"add-1": {Data: new(syncml.CmdStatusCommandFailed), Cmd: new("Add")},
+				"add-2": {Data: new(syncml.CmdStatusAtomicRollbackAccepted), Cmd: new("Add")},
+			},
+			hostUUID: "host-uuid",
+			expectedPayload: &MDMWindowsProfilePayload{
+				HostUUID: "host-uuid",
+				Status:   &MDMDeliveryFailed,
+				Detail: "./User/Vendor/MSFT/ClientCertificateInstall/SCEP/x: status 500, " +
+					"./User/Vendor/MSFT/ClientCertificateInstall/SCEP/x/Install/ServerURL: status 216",
+				CommandUUID:         "cmd-1",
+				UserChannelRejected: true,
+			},
+		},
+		{
+			// 404 observed live on a device-bound (fleetd) enrollment with nobody signed in: the "./User/..." node has no
+			// user to resolve to. On a failed install it counts as a user-context rejection.
+			name: "user-channel write rejected with 404",
+			cmd: MDMWindowsCommand{
+				CommandUUID: "cmd-1",
+				RawCommand:  []byte(`<Replace><CmdID>rep-1</CmdID><Item><Target><LocURI>./User/Vendor/MSFT/Policy/Config/InternetExplorer/A</LocURI></Target></Item></Replace>`),
+			},
+			statuses: map[string]SyncMLCmd{
+				"rep-1": {Data: new(syncml.CmdStatusNotFound), Cmd: new("Replace")},
+			},
+			hostUUID: "host-uuid",
+			expectedPayload: &MDMWindowsProfilePayload{
+				HostUUID:            "host-uuid",
+				Status:              &MDMDeliveryFailed,
+				Detail:              "./User/Vendor/MSFT/Policy/Config/InternetExplorer/A: status 404",
+				CommandUUID:         "cmd-1",
+				UserChannelRejected: true,
+			},
+		},
+		{
+			// The same 404 on a device-channel target is an ordinary failure, not a user-context rejection.
+			name: "device-channel 404 is not a user-context rejection",
+			cmd: MDMWindowsCommand{
+				CommandUUID: "cmd-1",
+				RawCommand:  []byte(`<Replace><CmdID>rep-1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Config/InternetExplorer/A</LocURI></Target></Item></Replace>`),
+			},
+			statuses: map[string]SyncMLCmd{
+				"rep-1": {Data: new(syncml.CmdStatusNotFound), Cmd: new("Replace")},
+			},
+			hostUUID: "host-uuid",
+			expectedPayload: &MDMWindowsProfilePayload{
+				HostUUID:    "host-uuid",
+				Status:      &MDMDeliveryFailed,
+				Detail:      "./Device/Vendor/MSFT/Policy/Config/InternetExplorer/A: status 404",
+				CommandUUID: "cmd-1",
+			},
+		},
+		{
+			name: "user-channel write rejected with 405",
+			cmd: MDMWindowsCommand{
+				CommandUUID: "cmd-1",
+				RawCommand:  []byte(`<Replace><CmdID>rep-1</CmdID><Item><Target><LocURI>./User/Vendor/MSFT/Policy/Config/Experience/A</LocURI></Target></Item></Replace>`),
+			},
+			statuses: map[string]SyncMLCmd{
+				"rep-1": {Data: new(syncml.CmdStatusNotAllowed), Cmd: new("Replace")},
+			},
+			hostUUID: "host-uuid",
+			expectedPayload: &MDMWindowsProfilePayload{
+				HostUUID:            "host-uuid",
+				Status:              &MDMDeliveryFailed,
+				Detail:              "./User/Vendor/MSFT/Policy/Config/Experience/A: status 405",
+				CommandUUID:         "cmd-1",
+				UserChannelRejected: true,
+			},
+		},
+		{
+			// 418 means the node already existed, which only happens when the user channel IS writable, so an Atomic
+			// that rolled back because of one must not read as a user-context rejection. The already-exists resend
+			// path recovers from it.
+			name: "atomic rollback from a nested 418 is not a user-channel rejection",
+			cmd: MDMWindowsCommand{
+				CommandUUID: "cmd-1",
+				RawCommand: []byte(`<Atomic><CmdID>cmd-1</CmdID>` +
+					`<Add><CmdID>add-1</CmdID><Item><Target><LocURI>./User/Vendor/MSFT/Policy/Config/A</LocURI></Target></Item></Add>` +
+					`</Atomic>`),
+			},
+			statuses: map[string]SyncMLCmd{
+				"cmd-1": {Data: new(syncml.CmdStatusAtomicFailed)},
+				"add-1": {Data: new(syncml.CmdStatusAlreadyExists), Cmd: new("Add")},
+			},
+			hostUUID: "host-uuid",
+			expectedPayload: &MDMWindowsProfilePayload{
+				HostUUID:            "host-uuid",
+				Status:              &MDMDeliveryFailed,
+				Detail:              "./User/Vendor/MSFT/Policy/Config/A: status 418",
+				CommandUUID:         "cmd-1",
+				UserChannelRejected: false,
+			},
+		},
+		{
+			// A SCEP profile's user-channel write is the Exec on Install/Enroll, so leaving Exec out of the failure
+			// scan would both hide the failing command and miss the rejection.
+			name: "user-channel Exec rejected inside an atomic",
+			cmd: MDMWindowsCommand{
+				CommandUUID: "cmd-1",
+				RawCommand: []byte(`<Atomic><CmdID>cmd-1</CmdID>` +
+					`<Add><CmdID>add-1</CmdID><Item><Target><LocURI>./User/Vendor/MSFT/ClientCertificateInstall/SCEP/x</LocURI></Target></Item></Add>` +
+					`<Exec><CmdID>exec-1</CmdID><Item><Target><LocURI>./User/Vendor/MSFT/ClientCertificateInstall/SCEP/x/Install/Enroll</LocURI></Target></Item></Exec>` +
+					`</Atomic>`),
+			},
+			statuses: map[string]SyncMLCmd{
+				"cmd-1":  {Data: new(syncml.CmdStatusAtomicFailed)},
+				"add-1":  {Data: new(syncml.CmdStatusAtomicRollbackAccepted), Cmd: new("Add")},
+				"exec-1": {Data: new(syncml.CmdStatusCommandFailed), Cmd: new("Exec")},
+			},
+			hostUUID: "host-uuid",
+			expectedPayload: &MDMWindowsProfilePayload{
+				HostUUID: "host-uuid",
+				Status:   &MDMDeliveryFailed,
+				Detail: "./User/Vendor/MSFT/ClientCertificateInstall/SCEP/x: status 216, " +
+					"./User/Vendor/MSFT/ClientCertificateInstall/SCEP/x/Install/Enroll: status 500",
+				CommandUUID:         "cmd-1",
+				UserChannelRejected: true,
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -734,51 +866,139 @@ func TestWindowsResponseToDeliveryStatusForRemove(t *testing.T) {
 	}
 }
 
+// TestBuildMDMWindowsProfilePayloadFromMDMResponseRemoveOperation covers how a removal's SyncML statuses become a delivery
+// status, a detail string, and the user-channel rejection signal.
 func TestBuildMDMWindowsProfilePayloadFromMDMResponseRemoveOperation(t *testing.T) {
-	t.Run("atomic remove with 405 is success", func(t *testing.T) {
-		cmd := MDMWindowsCommand{
-			CommandUUID: "cmd-1",
-			RawCommand:  []byte(`<Atomic><CmdID>cmd-1</CmdID><Delete><CmdID>sub-1</CmdID><Item><Target><LocURI>./Device/Test</LocURI></Target></Item></Delete></Atomic>`),
-		}
-		statuses := map[string]SyncMLCmd{
-			"cmd-1": {Data: new(syncml.CmdStatusNotAllowed)},
-		}
-		payload, err := BuildMDMWindowsProfilePayloadFromMDMResponse(cmd, statuses, "host-1", true)
-		require.NoError(t, err)
-		require.Equal(t, MDMDeliveryVerified, *payload.Status)
-	})
+	t.Parallel()
 
-	t.Run("non-atomic remove with mixed 200 and 404", func(t *testing.T) {
-		cmdStr := new("Replace")
-		cmd := MDMWindowsCommand{
-			CommandUUID: "cmd-1",
-			RawCommand: []byte(`<Delete><CmdID>del-1</CmdID><Item><Target><LocURI>./Device/A</LocURI></Target></Item></Delete>` +
-				`<Delete><CmdID>del-2</CmdID><Item><Target><LocURI>./Device/B</LocURI></Target></Item></Delete>`),
-		}
-		statuses := map[string]SyncMLCmd{
-			"del-1": {Data: new(syncml.CmdStatusOK), Cmd: cmdStr},
-			"del-2": {Data: new(syncml.CmdStatusNotFound), Cmd: cmdStr},
-		}
-		payload, err := BuildMDMWindowsProfilePayloadFromMDMResponse(cmd, statuses, "host-1", true)
-		require.NoError(t, err)
-		require.Equal(t, MDMDeliveryVerified, *payload.Status)
-	})
+	const (
+		deviceNode  = "./Device/Vendor/MSFT/Policy/Config/A"
+		deviceNodeB = "./Device/Vendor/MSFT/Policy/Config/B"
+		userNode    = "./User/Vendor/MSFT/Policy/Config/C"
+	)
+	deleteCmd := func(cmdID, locURI string) string {
+		return `<Delete><CmdID>` + cmdID + `</CmdID><Item><Target><LocURI>` + locURI + `</LocURI></Target></Item></Delete>`
+	}
 
-	t.Run("non-atomic remove with 500 succeeds (best-effort)", func(t *testing.T) {
-		cmdStr := new("Replace")
-		cmd := MDMWindowsCommand{
-			CommandUUID: "cmd-1",
-			RawCommand: []byte(`<Delete><CmdID>del-1</CmdID><Item><Target><LocURI>./Device/A</LocURI></Target></Item></Delete>` +
-				`<Delete><CmdID>del-2</CmdID><Item><Target><LocURI>./Device/B</LocURI></Target></Item></Delete>`),
-		}
-		statuses := map[string]SyncMLCmd{
-			"del-1": {Data: new(syncml.CmdStatusOK), Cmd: cmdStr},
-			"del-2": {Data: new(syncml.CmdStatusCommandFailed), Cmd: cmdStr},
-		}
-		payload, err := BuildMDMWindowsProfilePayloadFromMDMResponse(cmd, statuses, "host-1", true)
-		require.NoError(t, err)
-		require.Equal(t, MDMDeliveryVerified, *payload.Status)
-	})
+	for _, tc := range []struct {
+		name         string
+		raw          string
+		statuses     map[string]SyncMLCmd
+		wantStatus   MDMDeliveryStatus
+		wantRejected bool
+		wantDetail   string
+	}{
+		{
+			name:       "device node is read-only",
+			raw:        deleteCmd("del-1", deviceNode),
+			statuses:   map[string]SyncMLCmd{"del-1": {Data: new(syncml.CmdStatusNotAllowed)}},
+			wantStatus: MDMDeliveryVerified,
+		},
+		{
+			name: "device node deleted, second already gone",
+			raw:  deleteCmd("del-1", deviceNode) + deleteCmd("del-2", deviceNodeB),
+			statuses: map[string]SyncMLCmd{
+				"del-1": {Data: new(syncml.CmdStatusOK)},
+				"del-2": {Data: new(syncml.CmdStatusNotFound)},
+			},
+			wantStatus: MDMDeliveryVerified,
+		},
+		{
+			name: "device node does not support delete",
+			raw:  deleteCmd("del-1", deviceNode) + deleteCmd("del-2", deviceNodeB),
+			statuses: map[string]SyncMLCmd{
+				"del-1": {Data: new(syncml.CmdStatusOK)},
+				"del-2": {Data: new(syncml.CmdStatusCommandFailed)},
+			},
+			wantStatus: MDMDeliveryVerified,
+		},
+		{
+			name:         "user node not allowed",
+			raw:          deleteCmd("del-1", userNode),
+			statuses:     map[string]SyncMLCmd{"del-1": {Data: new(syncml.CmdStatusNotAllowed)}},
+			wantStatus:   MDMDeliveryVerified,
+			wantRejected: true,
+		},
+		{
+			name:         "user node command failed",
+			raw:          deleteCmd("del-1", userNode),
+			statuses:     map[string]SyncMLCmd{"del-1": {Data: new(syncml.CmdStatusCommandFailed)}},
+			wantStatus:   MDMDeliveryVerified,
+			wantRejected: true,
+		},
+		{
+			// 404 on a user node is ambiguous: genuinely gone, or unreachable because nobody is signed in (observed live
+			// on a device-bound enrollment). The payload flags it and the enrollment's user context state decides: held
+			// while a user context is still awaited (the sign-out race; the gate never sends removals in that state
+			// otherwise), completed as a real removal the rest of the time.
+			name:         "user node not found flags the ambiguity for the state check",
+			raw:          deleteCmd("del-1", userNode),
+			statuses:     map[string]SyncMLCmd{"del-1": {Data: new(syncml.CmdStatusNotFound)}},
+			wantStatus:   MDMDeliveryVerified,
+			wantRejected: true,
+		},
+		{
+			name:       "user node deleted cleanly",
+			raw:        deleteCmd("del-1", userNode),
+			statuses:   map[string]SyncMLCmd{"del-1": {Data: new(syncml.CmdStatusOK)}},
+			wantStatus: MDMDeliveryVerified,
+		},
+		{
+			// Deletes are never wrapped in <Atomic>, so a mixed removal partially succeeds: the device node goes, the user
+			// node does not, and the whole command still reads as verified.
+			name: "mixed removal with only the user node rejected",
+			raw:  deleteCmd("del-1", deviceNode) + deleteCmd("del-2", userNode),
+			statuses: map[string]SyncMLCmd{
+				"del-1": {Data: new(syncml.CmdStatusOK)},
+				"del-2": {Data: new(syncml.CmdStatusNotAllowed)},
+			},
+			wantStatus:   MDMDeliveryVerified,
+			wantRejected: true,
+		},
+		{
+			// Fleet does not build atomic removals, but the response parser handles them, so the nested walk is covered too.
+			name: "atomic removal with a rejected user node",
+			raw:  `<Atomic><CmdID>cmd-1</CmdID>` + deleteCmd("sub-1", userNode) + `</Atomic>`,
+			statuses: map[string]SyncMLCmd{
+				"cmd-1": {Data: new(syncml.CmdStatusNotAllowed)},
+				"sub-1": {Data: new(syncml.CmdStatusNotAllowed)},
+			},
+			wantStatus:   MDMDeliveryVerified,
+			wantRejected: true,
+		},
+		{
+			// A code outside the best-effort set is a real failure, and only then does the per-LocURI text reach the detail.
+			name:       "removal genuinely failed",
+			raw:        deleteCmd("del-1", userNode),
+			statuses:   map[string]SyncMLCmd{"del-1": {Data: new(syncml.CmdStatusBadRequest)}},
+			wantStatus: MDMDeliveryFailed,
+			wantDetail: userNode + ": status " + syncml.CmdStatusBadRequest,
+		},
+		{
+			name: "failed removal also carrying a user-channel rejection",
+			raw:  deleteCmd("del-1", deviceNode) + deleteCmd("del-2", userNode),
+			statuses: map[string]SyncMLCmd{
+				"del-1": {Data: new(syncml.CmdStatusBadRequest)},
+				"del-2": {Data: new(syncml.CmdStatusNotAllowed)},
+			},
+			wantStatus:   MDMDeliveryFailed,
+			wantRejected: true,
+			wantDetail: deviceNode + ": status " + syncml.CmdStatusBadRequest + ", " +
+				userNode + ": status " + syncml.CmdStatusNotAllowed,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			payload, err := BuildMDMWindowsProfilePayloadFromMDMResponse(
+				MDMWindowsCommand{CommandUUID: "cmd-1", RawCommand: []byte(tc.raw)}, tc.statuses, "host-1", true)
+			require.NoError(t, err)
+
+			require.Equal(t, tc.wantStatus, *payload.Status)
+			require.Equal(t, tc.wantRejected, payload.UserChannelRejected)
+			// A removal that reads as success must not carry per-LocURI status text into the admin-visible detail.
+			require.Equal(t, tc.wantDetail, payload.Detail)
+		})
+	}
 }
 
 func TestExtractLocURIsFromProfileBytes(t *testing.T) {
@@ -811,6 +1031,256 @@ func TestExtractLocURIsFromProfileBytes(t *testing.T) {
 		uris := ExtractLocURIsFromProfileBytes([]byte(xml))
 		require.Equal(t, []string{"./Device/A"}, uris)
 	})
+
+	t.Run("surrounding whitespace trimmed", func(t *testing.T) {
+		// A formatting-only spelling change (e.g. an editor reflowing the LocURI text) must not make the same node look like a
+		// different URI: edit-diffing would otherwise emit a <Delete> for a node the new version still enforces.
+		xml := "<Replace><Item><Target><LocURI>\n\t\t./Device/A </LocURI></Target></Item></Replace><Atomic><Add><Item><Target><LocURI> ./Device/B\n</LocURI></Target></Item></Add></Atomic>"
+		uris := ExtractLocURIsFromProfileBytes([]byte(xml))
+		require.Equal(t, []string{"./Device/A", "./Device/B"}, uris)
+	})
+}
+
+func TestWindowsProfileScopeFromBytes(t *testing.T) {
+	t.Parallel()
+
+	scepUserProfile := `<Add><Item><Target><LocURI>./User/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID</LocURI></Target></Item></Add>` +
+		`<Exec><Item><Target><LocURI>./User/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/Enroll</LocURI></Target></Item></Exec>`
+	scepDeviceProfile := `<Add><Item><Target><LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID</LocURI></Target></Item></Add>` +
+		`<Exec><Item><Target><LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/Enroll</LocURI></Target></Item></Exec>`
+
+	testCases := []struct {
+		name    string
+		profile string
+		want    WindowsProfileScope
+	}{
+		{
+			name:    "device scoped",
+			profile: `<Replace><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Config/Experience/AllowCortana</LocURI></Target></Item></Replace>`,
+			want:    WindowsProfileScopeDevice,
+		},
+		{
+			name:    "scope-less spelling is device scoped",
+			profile: `<Replace><Item><Target><LocURI>./Vendor/MSFT/Policy/Config/Experience/AllowCortana</LocURI></Target></Item></Replace>`,
+			want:    WindowsProfileScopeDevice,
+		},
+		{
+			name:    "user scoped",
+			profile: `<Replace><Item><Target><LocURI>./User/Vendor/MSFT/Policy/Config/Experience/AllowWindowsSpotlight</LocURI></Target></Item></Replace>`,
+			want:    WindowsProfileScopeUser,
+		},
+		{
+			name: "mixed scope is user scoped",
+			profile: `<Replace><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Config/A</LocURI></Target></Item></Replace>` +
+				`<Replace><Item><Target><LocURI>./User/Vendor/MSFT/Policy/Config/B</LocURI></Target></Item></Replace>`,
+			want: WindowsProfileScopeUser,
+		},
+		{
+			// Text-splitting cases. A raw prefix match on the profile bytes would miss these, which is why
+			// classification parses the profile instead of scanning it. See the differential fixed in #49715.
+			name:    "user target split by a CDATA section",
+			profile: `<Replace><Item><Target><LocURI><![CDATA[./User/Vendor/MSFT/Policy/Config/A]]></LocURI></Target></Item></Replace>`,
+			want:    WindowsProfileScopeUser,
+		},
+		{
+			name:    "user target split by a comment",
+			profile: `<Replace><Item><Target><LocURI>./User<!-- c -->/Vendor/MSFT/Policy/Config/A</LocURI></Target></Item></Replace>`,
+			want:    WindowsProfileScopeUser,
+		},
+		{
+			name: "atomic nested user target",
+			profile: `<Atomic><Replace><Item><Target><LocURI>./Device/A</LocURI></Target></Item></Replace>` +
+				`<Add><Item><Target><LocURI>./User/B</LocURI></Target></Item></Add></Atomic>`,
+			want: WindowsProfileScopeUser,
+		},
+		{
+			// An Exec on a user node is a user-channel write even though it sets no persistent value, so unlike
+			// ExtractLocURIsFromProfileBytes the classifier must not skip Exec.
+			name:    "exec-only user target",
+			profile: `<Exec><Item><Target><LocURI>./User/Vendor/MSFT/ClientCertificateInstall/SCEP/abc/Install/Enroll</LocURI></Target></Item></Exec>`,
+			want:    WindowsProfileScopeUser,
+		},
+		{
+			name:    "scep user profile, atomic-wrapped on the fly",
+			profile: scepUserProfile,
+			want:    WindowsProfileScopeUser,
+		},
+		{
+			name:    "scep device profile",
+			profile: scepDeviceProfile,
+			want:    WindowsProfileScopeDevice,
+		},
+		{
+			name:    "whitespace around the loc uri",
+			profile: "<Replace><Item><Target><LocURI>\n\t ./User/Vendor/MSFT/Policy/Config/A \n</LocURI></Target></Item></Replace>",
+			want:    WindowsProfileScopeUser,
+		},
+		{
+			// Delete is a verb an authored profile can carry, and a Delete against a user node is still a
+			// user-channel write.
+			name:    "delete targeting the user channel",
+			profile: `<Delete><Item><Target><LocURI>./User/Vendor/MSFT/Policy/Config/A</LocURI></Target></Item></Delete>`,
+			want:    WindowsProfileScopeUser,
+		},
+		{
+			name: "atomic nested delete targeting the user channel",
+			profile: `<Atomic><Replace><Item><Target><LocURI>./Device/A</LocURI></Target></Item></Replace>` +
+				`<Delete><Item><Target><LocURI>./User/B</LocURI></Target></Item></Delete></Atomic>`,
+			want: WindowsProfileScopeUser,
+		},
+		{
+			// A variable in a node name or value cannot change the channel, so it must not force the gate on. This
+			// is the shape every real SCEP profile has.
+			name:    "fleet variable below the scope segment stays device scoped",
+			profile: `<Add><Item><Target><LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID</LocURI></Target></Item></Add>`,
+			want:    WindowsProfileScopeDevice,
+		},
+		{
+			name:    "empty profile",
+			profile: "",
+			want:    WindowsProfileScopeDevice,
+		},
+		{
+			name:    "unparseable profile",
+			profile: `<Replace><Item><Target><LocURI>./User/A`,
+			want:    WindowsProfileScopeDevice,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			require.Equal(t, tc.want, WindowsProfileScopeFromBytes([]byte(tc.profile)))
+		})
+	}
+}
+
+func TestCanonicalLocURI(t *testing.T) {
+	t.Parallel()
+
+	// All device-scoped spellings of the same node collapse to one comparison form.
+	for _, spelling := range []string{
+		"./Device/Vendor/MSFT/Policy/Config/X",
+		"./Vendor/MSFT/Policy/Config/X",
+		"Device/Vendor/MSFT/Policy/Config/X",
+		"Vendor/MSFT/Policy/Config/X",
+		" ./Device/Vendor/MSFT/Policy/Config/X\n",
+	} {
+		require.Equal(t, "Vendor/MSFT/Policy/Config/X", CanonicalLocURI(spelling), "spelling: %q", spelling)
+	}
+	// User scope is explicit and stays distinct from device scope.
+	require.Equal(t, "User/Vendor/MSFT/X", CanonicalLocURI("./User/Vendor/MSFT/X"))
+	// Case is preserved: CSP paths are documented case-sensitive.
+	require.Equal(t, "vendor/msft/x", CanonicalLocURI("./Device/vendor/msft/x"))
+	// Only a whole "Device" segment is a scope marker, not a prefix of the first segment.
+	require.Equal(t, "DeviceLock/X", CanonicalLocURI("./DeviceLock/X"))
+}
+
+func TestLocURITargetsReservedNode(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		locURI   string
+		reserved string
+		want     bool
+	}{
+		{name: "explicit device scope", locURI: "./Device/Vendor/MSFT/BitLocker/RequireDeviceEncryption", reserved: syncml.FleetBitLockerTargetLocURI, want: true},
+		{name: "scope-less (regression #48752)", locURI: "Vendor/MSFT/BitLocker/RequireDeviceEncryption", reserved: syncml.FleetBitLockerTargetLocURI, want: true},
+		{name: "user scope matches via Contains, not a prefix check", locURI: "./User/Vendor/MSFT/BitLocker/Foo", reserved: syncml.FleetBitLockerTargetLocURI, want: true},
+		{name: "surrounding whitespace", locURI: " Vendor/MSFT/BitLocker/Foo ", reserved: syncml.FleetBitLockerTargetLocURI, want: true},
+		// Boundary safety: a longer sibling segment that merely shares the reserved-node prefix must not match, on either end.
+		{name: "left boundary: node ending in Vendor is not reserved", locURI: "Custom/SomeVendor/MSFT/BitLocker/Foo", reserved: syncml.FleetBitLockerTargetLocURI, want: false},
+		{name: "right boundary: BitLockerCustom sibling is not reserved", locURI: "Vendor/MSFT/BitLockerCustom/Foo", reserved: syncml.FleetBitLockerTargetLocURI, want: false},
+		{name: "unrelated node", locURI: "./Device/Vendor/MSFT/DMClient/Foo", reserved: syncml.FleetBitLockerTargetLocURI, want: false},
+		// The reserved node itself (no descendant leaf) matches (node-inclusive).
+		{name: "bare BitLocker node matches", locURI: "./Device/Vendor/MSFT/BitLocker", reserved: syncml.FleetBitLockerTargetLocURI, want: true},
+		// One positive smoke per reserved constant so a future typo/rename is caught.
+		{name: "OS update", locURI: "Vendor/MSFT/Policy/Config/Update/AllowAutoUpdate", reserved: syncml.FleetOSUpdateTargetLocURI, want: true},
+		{name: "RemoteWipe operation", locURI: "./Device/Vendor/MSFT/RemoteWipe/doWipe", reserved: syncml.FleetRemoteWipeTargetLocURI, want: true},
+		// RemoteWipe is a wipe-only subtree: the bare node matches (node-inclusive), a sibling does not (boundary).
+		{name: "bare RemoteWipe node matches (wipe-only subtree)", locURI: "Vendor/MSFT/RemoteWipe", reserved: syncml.FleetRemoteWipeTargetLocURI, want: true},
+		{name: "RemoteWipeCustom sibling is not reserved", locURI: "Vendor/MSFT/RemoteWipeCustom/doWipe", reserved: syncml.FleetRemoteWipeTargetLocURI, want: false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			require.Equal(t, tt.want, LocURITargetsReservedNode(tt.locURI, tt.reserved))
+		})
+	}
+}
+
+func TestSyncMLCmdIsPremium(t *testing.T) {
+	t.Parallel()
+
+	newExecCmd := func(locURI string) SyncMLCmd {
+		return SyncMLCmd{
+			XMLName: xml.Name{Local: "Exec"},
+			Items:   []CmdItem{{Target: new(locURI)}},
+		}
+	}
+	tests := []struct {
+		name   string
+		locURI string
+		want   bool
+	}{
+		{name: "explicit device wipe", locURI: "./Device/Vendor/MSFT/RemoteWipe/doWipe", want: true},
+		{name: "scope-less wipe (regression #48752)", locURI: "Vendor/MSFT/RemoteWipe/doWipe", want: true},
+		{name: "non-wipe command", locURI: "./DevDetail/SwV", want: false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			require.Equal(t, tt.want, newExecCmd(tt.locURI).IsPremium())
+		})
+	}
+}
+
+func TestProfileTargetsReservedLocURI(t *testing.T) {
+	t.Parallel()
+
+	osUpdate := syncml.FleetOSUpdateTargetLocURI
+	tests := []struct {
+		name   string
+		syncML string
+		want   bool
+	}{
+		{
+			name:   "scoped OS update profile (fast path)",
+			syncML: `<Replace><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Config/Update/AllowAutoUpdate</LocURI></Target></Item></Replace>`,
+			want:   true,
+		},
+		{
+			name:   "scope-less OS update profile (regression #48752)",
+			syncML: `<Replace><Item><Target><LocURI>Vendor/MSFT/Policy/Config/Update/AllowAutoUpdate</LocURI></Target></Item></Replace>`,
+			want:   true,
+		},
+		{
+			name:   "scope-less OS update inside Atomic",
+			syncML: `<Atomic><Replace><Item><Target><LocURI>Vendor/MSFT/Policy/Config/Update/AllowAutoUpdate</LocURI></Target></Item></Replace></Atomic>`,
+			want:   true,
+		},
+		{
+			name:   "non-OS-update profile",
+			syncML: `<Replace><Item><Target><LocURI>Vendor/MSFT/BitLocker/RequireDeviceEncryption</LocURI></Target></Item></Replace>`,
+			want:   false,
+		},
+		{
+			name:   "node ending in Update is not reserved",
+			syncML: `<Replace><Item><Target><LocURI>Custom/Config/UpdatePolicy/AllowAutoUpdate</LocURI></Target></Item></Replace>`,
+			want:   false,
+		},
+		{
+			// Sibling segment sharing the reserved prefix must not be flagged (mentions the node name so the quick-reject
+			// filter passes, forcing the boundary-aware per-LocURI check to make the call).
+			name:   "UpdateExtra sibling segment is not reserved",
+			syncML: `<Replace><Item><Target><LocURI>Vendor/MSFT/Policy/Config/UpdateExtra/AllowAutoUpdate</LocURI></Target></Item></Replace>`,
+			want:   false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			require.Equal(t, tt.want, ProfileTargetsReservedLocURI([]byte(tt.syncML), osUpdate))
+		})
+	}
 }
 
 func TestIsFleetInternalCmdID(t *testing.T) {
@@ -827,6 +1297,41 @@ func TestIsFleetInternalCmdID(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			require.Equal(t, tc.want, IsFleetInternalCmdID(tc.in))
+		})
+	}
+}
+
+func TestEnrollmentVersionAtLeast(t *testing.T) {
+	const minVersion = syncml.MinSupportedEnrollmentVersion // "4.0"
+
+	for _, tc := range []struct {
+		name    string
+		version string
+		want    bool
+		wantErr string
+	}{
+		{"minimum version", "4.0", true, ""},
+		{"historically supported 5.0", "5.0", true, ""},
+		{"historically supported 7.0", "7.0", true, ""},
+		{"newer 8.0", "8.0", true, ""},
+		{"windows 11 25H2 9.0", "9.0", true, ""},
+		{"double-digit major 10.0 above 9.0", "10.0", true, ""},
+		{"below minimum 3.0", "3.0", false, ""},
+		{"below minimum 3.9", "3.9", false, ""},
+		{"higher minor same major", "4.1", true, ""},
+		{"major only equal", "4", true, ""},
+		{"empty", "", false, "version is empty"},
+		{"non-numeric", "abc", false, `invalid version component "abc"`},
+		{"non-numeric minor", "4.x", false, `invalid version component "x"`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := enrollmentVersionAtLeast(tc.version, minVersion)
+			if tc.wantErr != "" {
+				require.ErrorContains(t, err, tc.wantErr)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, tc.want, got)
 		})
 	}
 }

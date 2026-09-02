@@ -52,7 +52,7 @@ import {
 
 import { ITableQueryData } from "components/TableContainer/TableContainer";
 
-import TeamsDropdown from "components/TeamsDropdown";
+import FleetsDropdown from "components/FleetsDropdown";
 import Spinner from "components/Spinner";
 import CustomLink from "components/CustomLink";
 import { SingleValue } from "react-select-5";
@@ -242,8 +242,12 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
       select: (data: IHostSummary) => data,
       onSuccess: (data: IHostSummary) => {
         setLabels(data.builtin_labels);
+        setMissingCount(data.missing_30_days_count || 0);
+        // low_disk_space_count and dep_assign_error_count are Premium-only.
+        // The backend nulls out low_disk_space_count for non-Premium callers,
+        // and the linked filters (`?low_disk_space=`, ABM issue filters) are
+        // also Premium-gated, so their cards stay hidden on Free.
         if (isPremiumTier) {
-          setMissingCount(data.missing_30_days_count || 0);
           setLowDiskSpaceCount(data.low_disk_space_count || 0);
           setAbmIssueCount(data.dep_assign_error_count || 0);
         }
@@ -398,15 +402,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
       setSoftwareTitleDetail(
         <LastUpdatedText
           lastUpdatedAt={software.counts_updated_at}
-          customTooltipText={
-            <>
-              Fleet periodically queries all hosts to
-              <br />
-              retrieve software. Click to view
-              <br />
-              hosts for the most up-to-date lists.
-            </>
-          }
+          customTooltipText="Fleet periodically queries all hosts to retrieve software. Click to view hosts for the most up-to-date lists."
         />
       );
     } else if (!isViewingVulnerableSoftware) {
@@ -806,7 +802,11 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
       {showMdmCard && <div className={`${baseClass}__section`}>{MDMCard}</div>}
     </>
   );
-  const linuxLayout = () => null;
+  const linuxLayout = () => (
+    <>
+      <div className={`${baseClass}__section`}>{OperatingSystemsCard}</div>
+    </>
+  );
 
   const chromeLayout = () => (
     <>
@@ -830,6 +830,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
 
   const androidLayout = () => (
     <>
+      <div className={`${baseClass}__section`}>{OperatingSystemsCard}</div>
       {showMdmCard && <div className={`${baseClass}__section`}>{MDMCard}</div>}
     </>
   );
@@ -898,9 +899,9 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
       if (userTeams) {
         if (userTeams.length > 1 || isOnGlobalTeam) {
           return (
-            <TeamsDropdown
-              selectedTeamId={currentTeamId}
-              currentUserTeams={userTeams}
+            <FleetsDropdown
+              selectedFleetId={currentTeamId}
+              currentUserFleets={userTeams}
               onChange={handleTeamChange}
             />
           );
@@ -968,7 +969,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
         <div className={`${baseClass}__host-sections`}>
           {isHostSummaryFetching ? (
             <Card paddingSize="medium">
-              <Spinner includeContainer={false} verticalPadding="small" />
+              <Spinner verticalPadding="small" />
             </Card>
           ) : (
             HostCountCards

@@ -57,6 +57,11 @@ const DEFAULT_OPTIONS = [
     disabled: false,
   },
   {
+    label: "Release from Apple Business",
+    value: "releaseFromAB",
+    disabled: false,
+  },
+  {
     label: "Turn off MDM",
     value: "mdmOff",
     disabled: false,
@@ -103,7 +108,9 @@ interface IHostActionConfigOptions {
   isHostOnline: boolean;
   isEnrolledInMdm: boolean;
   isConnectedToFleetMdm?: boolean;
+  isDEPAssignedToFleet: boolean;
   isMacMdmEnabledAndConfigured: boolean;
+  isAppleBusinessEnabledAndConfigured: boolean;
   isWindowsMdmEnabledAndConfigured: boolean;
   isAndroidMdmEnabledAndConfigured: boolean;
   doesStoreEncryptionKey: boolean;
@@ -117,6 +124,7 @@ interface IHostActionConfigOptions {
   recoveryLockPasswordAvailable: boolean;
   isManagedLocalAccountEnabled: boolean;
   managedAccountStatus: string | null | undefined;
+  managedAccountDetail: string | undefined;
   managedAccountPasswordAvailable: boolean;
   /**
    * BYOD permission gates (issue #23242). Undefined when the host's stored
@@ -388,22 +396,72 @@ const canShowManagedAccount = (config: IHostActionConfigOptions) => {
   const {
     isPremiumTier,
     isConnectedToFleetMdm,
-    isGlobalAdmin,
-    isGlobalMaintainer,
-    isTeamAdmin,
-    isTeamMaintainer,
     hostPlatform,
     hostMdmEnrollmentStatus,
     isManagedLocalAccountEnabled,
   } = config;
   if (!isPremiumTier) return false;
-  if (hostPlatform !== "darwin") return false;
+  if (hostPlatform !== "darwin" && hostPlatform !== "windows") return false;
   if (!isConnectedToFleetMdm) return false;
-  if (!isAutomaticDeviceEnrollment(hostMdmEnrollmentStatus)) return false;
+  // Automatic device enrollment is an Apple ADE concept. On Windows the account is created by fleetd after any MDM
+  // enrollment, so the managedAccountStatus fallback below is what tells us a row exists for this host.
+  if (
+    hostPlatform === "darwin" &&
+    !isAutomaticDeviceEnrollment(hostMdmEnrollmentStatus)
+  ) {
+    return false;
+  }
   if (!isManagedLocalAccountEnabled && !config.managedAccountStatus) {
     return false;
   }
-  return isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
+  // Not role-gated: the backend authorizes this action for any user who can
+  // read the host (including observers), matching the other "show secret"
+  // actions above (disk encryption key, Recovery Lock password). Restricting
+  // it to admins/maintainers here hid the action from observers even though
+  // the API returns the managed account password to them.
+  return true;
+};
+
+const canReleaseFromAB = (config: IHostActionConfigOptions) => {
+  const {
+    isPremiumTier,
+    hostMdmEnrollmentStatus,
+    isAppleBusinessEnabledAndConfigured,
+    isGlobalAdmin,
+    isTeamAdmin,
+    hostPlatform,
+  } = config;
+
+  if (!isPremiumTier) {
+    return false;
+  }
+
+  if (!isAppleBusinessEnabledAndConfigured) {
+    return false;
+  }
+
+  if (!isAppleDevice(hostPlatform)) {
+    return false;
+  }
+
+  if (
+    !isAutomaticDeviceEnrollment(hostMdmEnrollmentStatus) &&
+    hostMdmEnrollmentStatus !== "Pending"
+  ) {
+    return false;
+  }
+
+  if (!config.isDEPAssignedToFleet) {
+    return false;
+  }
+
+  const hasRequiredRole = isGlobalAdmin || isTeamAdmin;
+
+  if (!hasRequiredRole) {
+    return false;
+  }
+
+  return true;
 };
 
 const canClearPasscode = (config: IHostActionConfigOptions) => {
@@ -511,6 +569,10 @@ const removeUnavailableOptions = (
 
   if (!canShowManagedAccount(config)) {
     options = options.filter((option) => option.value !== "managedAccount");
+  }
+
+  if (!canReleaseFromAB(config)) {
+    options = options.filter((option) => option.value !== "releaseFromAB");
   }
 
   if (!canClearPasscode(config)) {
@@ -640,6 +702,7 @@ const modifyOptions = (
     diskEncryptionProfileStatus,
     recoveryLockPasswordAvailable,
     managedAccountStatus,
+    managedAccountDetail,
     managedAccountPasswordAvailable,
     wipeAllowed,
     lockAllowed,
@@ -690,13 +753,6 @@ const modifyOptions = (
     optionsToDisable = optionsToDisable.concat(
       options.filter((option) => option.value === "query")
     );
-
-    // Disable "Turn off MDM" (Unenroll) when offline for all platforms except iOS/iPadOS and Android
-    if (!isIPadOrIPhone(hostPlatform) && !isAndroid(hostPlatform)) {
-      optionsToDisable = optionsToDisable.concat(
-        options.filter((option) => option.value === "mdmOff")
-      );
-    }
   }
 
   // While device status is updating, or device is locked/wiped, disable Query and Turn off MDM
@@ -791,7 +847,7 @@ const modifyOptions = (
     if (managedAccountOption) {
       managedAccountOption.disabled = true;
       if (managedAccountStatus === "pending") {
-        // No password yet — the AccountConfiguration command hasn't been acked.
+        // No password yet. On macOS the AccountConfiguration command hasn't been acked; on Windows fleetd hasn't escrowed a password yet.
         managedAccountOption.tooltipContent = (
           <>
             The managed account is still being
@@ -800,11 +856,25 @@ const modifyOptions = (
           </>
         );
       } else if (managedAccountStatus === "failed") {
-        managedAccountOption.tooltipContent = (
+        // The reason the host reported is the actionable part, so prefer it over generic copy.
+        managedAccountOption.tooltipContent = managedAccountDetail ? (
+          <span className="host-actions-dropdown__managed-account-error">
+            {managedAccountDetail}
+          </span>
+        ) : (
           <>
             The managed account failed to be
             <br />
             created. It will retry at the next enrollment.
+          </>
+        );
+      } else if (hostPlatform === "windows") {
+        // Unlike macOS, the Windows setting is declarative: fleetd provisions already-enrolled hosts too, so this is a "not yet" rather than a "never".
+        managedAccountOption.tooltipContent = (
+          <>
+            The managed account hasn&apos;t been
+            <br />
+            created on this host yet.
           </>
         );
       } else {

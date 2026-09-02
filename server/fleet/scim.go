@@ -28,8 +28,12 @@ type ScimUser struct {
 	Department *string   `db:"department"`
 	Active     *bool     `db:"active"`
 	UpdatedAt  time.Time `db:"updated_at"`
-	Emails     []ScimUserEmail
-	Groups     []ScimUserGroup
+	// FleetUserID is the durable link to the matching Fleet user, used to
+	// deprovision that user on deactivation regardless of later changes to
+	// userName/emails. Nil when no matching Fleet user has been resolved.
+	FleetUserID *uint `db:"user_id"`
+	Emails      []ScimUserEmail
+	Groups      []ScimUserGroup
 }
 
 type ScimUserGroup struct {
@@ -120,6 +124,10 @@ type ScimGroup struct {
 	ExternalID  *string `db:"external_id"`
 	DisplayName string  `db:"display_name"`
 	ScimUsers   []uint
+	// ChildGroups holds the IDs of SCIM groups that are direct (nested) members
+	// of this group. Microsoft Entra ID provisions nested groups by sending
+	// group-type members rather than flattening them into user members.
+	ChildGroups []uint
 }
 
 type ScimLastRequest struct {

@@ -26,7 +26,7 @@ As part of locking an iOS or iPadOS host, Fleet collects the device's location d
 
 > **Android**: The lock action will enforce the host lock screen and require the user to enter their password or PIN. It is available on company-owned and BYOD Android hosts.
 >
-> On a fully-managed device, it locks the whole device, while on a BYOD device, it depends on how the end user has their device lock configured. If the user has a separate work profile lock (a distinct PIN for work apps), it locks just the work profile. Android shows a **Lock pending** badge while locking, then returns to normal once acknowledged (no **Locked** badge.
+> On a fully-managed device, it locks the whole device, while on a BYOD device, it depends on how the end user has their device lock configured. If the user has a separate work profile lock (a distinct PIN for work apps), it locks just the work profile. Android shows a **Lock pending** badge while locking, then returns to normal once acknowledged (no **Locked** badge).
 
 ### Get location of locked iOS/iPadOS host
 
@@ -59,11 +59,13 @@ Example URL:
    - **macOS, Windows, iOS, iPadOS**: The host will be marked with a "Wipe pending" badge. Once the wipe command is acknowledged by the host, the badge will update to "Wiped".
    - **Linux**: No "Wipe pending" or "Wiped" badge is shown. See [Linux wipe behavior](#linux-wipe-behavior) below for details.
 
-Wiping a host silently cancels all of its upcoming activities — no canceled activity entries are added to the host's activity history.
+Wiping a host silently cancels all of its upcoming activities. No canceled activity entries are added to the host's activity history.
 
 When wiping and re-installing the operating system (OS) on a host, delete the host from Fleet before you re-enroll it. If you re-enroll without deleting, Fleet won't escrow a new disk encryption key.
 
-If you're gifting a company-owned macOS host or you want to prevent the host from automatically re-enrolling to Fleet for some other reason, first release the host from Apple Business (AB) and then delete the host in Fleet.
+Wait for the wipe to finish before deleting the host. Deleting a host removes Fleet's record of the commands it has already sent. If you delete while the wipe is still pending, Fleet can't confirm whether it finished.
+
+If you're gifting a company-owned Apple host, or you want to prevent a host from automatically re-enrolling to Fleet for some other reason, first release the host from Apple Business (AB) and then delete the host in Fleet. Deleting in Fleet doesn't change the assignment in AB, so a host still assigned to Fleet comes back as a **Pending** host.
 
 For Windows hosts, Fleet uses the [doWipeProtected](https://learn.microsoft.com/en-us/windows/client-management/mdm/remotewipe-csp#dowipeprotected) command by default. According to Microsoft, this leaves the host [unable to boot](https://learn.microsoft.com/en-us/windows/client-management/mdm/remotewipe-csp#:~:text=In%20some%20device%20configurations%2C%20this%20command%20may%20leave%20the%20device%20unable%20to%20boot.). However, it is possible to use the [doWipe command via the API](https://fleetdm.com/docs/rest-api/rest-api#parameters57).
 
@@ -162,8 +164,6 @@ For Linux hosts, running `fleetctl mdm wipe` triggers the same script-based wipe
 *For Windows and Linux hosts, a script will run as part of the lock and unlock actions. Details for each script can be found in GitHub for [Windows](https://github.com/fleetdm/fleet/tree/main/ee/server/service/embedded_scripts/windows_lock.ps1) and [Linux](https://github.com/fleetdm/fleet/tree/main/ee/server/service/embedded_scripts/linux_lock.sh) hosts.
 
 **For Linux hosts, the wipe action also runs a script. The wipe script can be found in GitHub for [Linux](https://github.com/fleetdm/fleet/tree/main/ee/server/service/embedded_scripts/linux_wipe.sh).
-
-** Fleet is currently tracking a [known Apple bug](https://github.com/fleetdm/fleet/issues/34208), which results in Lost mode being cleared after reboot on iOS/iPadOS 26.
 
 <meta name="articleTitle" value="Lock and wipe hosts">
 <meta name="authorFullName" value="JD Strong">

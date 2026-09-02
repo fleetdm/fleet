@@ -36,6 +36,7 @@ var policyAutomationSuccessActivityTypes = []string{
 	"ran_automation_ticket",
 	"ran_automation_calendar_event",
 	"ran_automation_conditional_access",
+	"resent_configuration_profile",
 }
 
 var policyAutomationActivityTypes = func() []string {
@@ -940,7 +941,13 @@ func (ds *Datastore) GetHostUpcomingActivityMeta(ctx context.Context, hostID uin
 // the next activity, or to a missing call to activateNextUpcomingActivity. It
 // unblocks up to maxHosts found in this situation (by activating the next
 // activity for each host).
-func (ds *Datastore) UnblockHostsUpcomingActivityQueue(ctx context.Context, maxHosts int) (int, error) {
+//
+// When skipFleetInitiated is true (the fleet-initiated release budget is
+// enabled), a host is only considered blocked if it has an unactivated
+// non-fleet-initiated activity: hosts waiting solely on deferred
+// fleet-initiated activities are the release cron's job, and activating them
+// here would bypass its budget.
+func (ds *Datastore) UnblockHostsUpcomingActivityQueue(ctx context.Context, maxHosts int, skipFleetInitiated bool) (int, error) {
 	const findBlockedHostsStmt = `
 		SELECT
 			DISTINCT inactive_ua.host_id
@@ -952,13 +959,298 @@ func (ds *Datastore) UnblockHostsUpcomingActivityQueue(ctx context.Context, maxH
 		WHERE
 			active_ua.host_id IS NULL AND
 			inactive_ua.activated_at IS NULL
+		%s
 		LIMIT ?`
 
+	var fleetInitiatedFilter string
+	if skipFleetInitiated {
+		fleetInitiatedFilter = "AND inactive_ua.fleet_initiated = 0"
+	}
+	stmt := fmt.Sprintf(findBlockedHostsStmt, fleetInitiatedFilter)
+
 	var blockedHostIDs []uint
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &blockedHostIDs, findBlockedHostsStmt, maxHosts); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &blockedHostIDs, stmt, maxHosts); err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "select blocked hosts")
 	}
-	return len(blockedHostIDs), ds.activateNextUpcomingActivityForBatchOfHosts(ctx, blockedHostIDs)
+	return ds.activateNextUpcomingActivityForBatchOfHosts(ctx, blockedHostIDs)
+}
+
+// ReleaseFleetInitiatedUpcomingActivities activates the upcoming activities
+// queue of up to maxHosts hosts that have no activated activity and at least
+// one fleet-initiated activity waiting (enqueued with deferred activation by
+// the policy-automation paths). Hosts with the oldest waiting fleet-initiated
+// activity are released first. It returns the number of hosts released.
+//
+// This is the release valve for the activity.fleet_initiated_release_per_minute
+// budget: enqueue is unthrottled, but hosts only start executing
+// fleet-initiated work at the pace this method is called with.
+func (ds *Datastore) ReleaseFleetInitiatedUpcomingActivities(ctx context.Context, maxHosts int) (int, error) {
+	const findGatedHostsStmt = `
+		SELECT
+			gated_ua.host_id
+		FROM
+			upcoming_activities gated_ua
+			LEFT OUTER JOIN upcoming_activities active_ua ON
+				active_ua.host_id = gated_ua.host_id AND
+				active_ua.activated_at IS NOT NULL
+		WHERE
+			active_ua.host_id IS NULL AND
+			gated_ua.activated_at IS NULL AND
+			gated_ua.fleet_initiated = 1
+		GROUP BY
+			gated_ua.host_id
+		ORDER BY
+			MIN(gated_ua.created_at), gated_ua.host_id
+		LIMIT ?`
+
+	var gatedHostIDs []uint
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &gatedHostIDs, findGatedHostsStmt, maxHosts); err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "select gated hosts")
+	}
+	return ds.activateNextUpcomingActivityForBatchOfHosts(ctx, gatedHostIDs)
+}
+
+// mdmApplePushDeliveryGraceDays is how long an activated command has to reach its device before the
+// reaper gives up on it, matching the window in GetEnrollmentIDsWithPendingMDMAppleCommands past
+// which Fleet stops pushing it.
+//
+// Measured from activated_at, not from nano_enrollment_queue.created_at even though that is the
+// column the pusher compares. Both enqueue paths copy the queue row's created_at from the activity's
+// to preserve ordering, so a command that activates after a long wait is born already outside the
+// window, which is the state of every install behind a head the reaper has just freed.
+const mdmApplePushDeliveryGraceDays = 7
+
+// reapableActivatedInstallWhere matches an activated MDM-command-backed install that is old enough
+// to reap and can no longer make progress. An answered install is judged on the age of the answer,
+// taken from ncr.updated_at, the column Fleet measures the verification budget from. Only an
+// unanswered one is judged on delivery, having either lost its queue row or gone past the delivery
+// grace. Anything else is still in flight, including an unanswered command for a device that is
+// simply switched off. Arguments come from reapableActivatedInstallArgs.
+//
+// A device unreachable for days accumulates activation age the whole time, which is why neither
+// branch uses that age: judging it on activation, or on delivery once it has answered, would fail
+// the install seconds after the device came back and started running it.
+//
+// A NotNow answer does not count: nanomdm records one but keeps the command queued and re-serves it
+// (RetrieveNextCommand joins results with `status != 'NotNow'`), so the install has not run.
+//
+// Microseconds and not seconds: truncating to whole seconds turns any positive sub-second value into
+// INTERVAL 0, which matches every activated install on the fleet and walks past the callers' guards.
+//
+// The nano lookups key on command_uuid alone, its primary key in nano_commands, so there is nothing
+// for an enrollment id to disambiguate.
+const reapableActivatedInstallWhere = `
+	ua.activity_type IN ('vpp_app_install', 'in_house_app_install')
+	AND ua.activated_at IS NOT NULL
+	AND ua.activated_at < NOW(6) - INTERVAL ? MICROSECOND
+	AND (
+		EXISTS (
+			SELECT 1
+			FROM nano_command_results ncr
+			WHERE ncr.command_uuid = ua.execution_id
+				AND ncr.status != 'NotNow'
+				AND ncr.updated_at < NOW(6) - INTERVAL ? MICROSECOND
+		)
+		OR (
+			NOT EXISTS (
+				SELECT 1
+				FROM nano_command_results ncr
+				WHERE ncr.command_uuid = ua.execution_id
+					AND ncr.status != 'NotNow'
+			)
+			AND (
+				NOT EXISTS (
+					SELECT 1
+					FROM nano_enrollment_queue neq
+					WHERE neq.command_uuid = ua.execution_id
+						AND neq.active = 1
+				)
+				OR ua.activated_at < NOW(6) - INTERVAL ? DAY
+			)
+		)
+	)`
+
+// reapableActivatedInstallArgs returns the positional arguments
+// reapableActivatedInstallWhere expects, in order.
+func reapableActivatedInstallArgs(olderThan time.Duration) []any {
+	micros := olderThan.Microseconds()
+	return []any{micros, micros, mdmApplePushDeliveryGraceDays}
+}
+
+func (ds *Datastore) ReapStuckActivatedMDMInstalls(ctx context.Context, olderThan time.Duration, maxHosts int) ([]fleet.ReapedMDMInstall, error) {
+	findHostsStmt := `
+	SELECT DISTINCT
+		ua.host_id,
+		h.uuid AS host_uuid
+	FROM
+		upcoming_activities ua
+		JOIN hosts h ON h.id = ua.host_id
+	WHERE ` + reapableActivatedInstallWhere + `
+	LIMIT ?`
+
+	type reapableHost struct {
+		HostID   uint   `db:"host_id"`
+		HostUUID string `db:"host_uuid"`
+	}
+	var hosts []reapableHost
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hosts, findHostsStmt,
+		append(reapableActivatedInstallArgs(olderThan), maxHosts)...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "find hosts with a stuck activated MDM install")
+	}
+
+	var (
+		reaped []fleet.ReapedMDMInstall
+		errs   []error
+	)
+	for _, host := range hosts {
+		hostReaped, err := ds.reapStuckActivatedMDMInstallsForHost(ctx, host.HostID, host.HostUUID, olderThan)
+		if err != nil {
+			// one host must not stop the rest, as in activateNextUpcomingActivityForBatchOfHosts
+			errs = append(errs, err)
+			continue
+		}
+		reaped = append(reaped, hostReaped...)
+	}
+	return reaped, errors.Join(errs...)
+}
+
+// reapStuckActivatedMDMInstallsForHost fails every reapable install for one host and releases its
+// queue, in a single transaction. It is per host rather than per install because activation
+// batches up to maxMDMCommandActivations installs at once and stops at the first row that is still
+// activated, so failing one of a batch would advance nothing, and because the verify lock it
+// clears is one row for the whole host.
+func (ds *Datastore) reapStuckActivatedMDMInstallsForHost(ctx context.Context, hostID uint, hostUUID string,
+	olderThan time.Duration,
+) ([]fleet.ReapedMDMInstall, error) {
+	findInstallsStmt := `
+	SELECT
+		ua.execution_id,
+		ua.activity_type,
+		COALESCE(JSON_EXTRACT(ua.payload, '$.from_auto_update') = 1, 0) AS from_auto_update
+	FROM
+		upcoming_activities ua
+	WHERE
+		ua.host_id = ? AND ` + reapableActivatedInstallWhere + `
+	ORDER BY ua.id`
+
+	type reapableInstall struct {
+		ExecutionID    string `db:"execution_id"`
+		ActivityType   string `db:"activity_type"`
+		FromAutoUpdate bool   `db:"from_auto_update"`
+	}
+
+	var reaped []fleet.ReapedMDMInstall
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		reaped = nil // a retry re-runs the whole host
+
+		var installs []reapableInstall
+		if err := sqlx.SelectContext(ctx, tx, &installs, findInstallsStmt,
+			append([]any{hostID}, reapableActivatedInstallArgs(olderThan)...)...); err != nil {
+			return ctxerr.Wrap(ctx, err, "list stuck activated MDM installs for host")
+		}
+		// the host was found on the reader, so its rows may have resolved since
+		if len(installs) == 0 {
+			return nil
+		}
+
+		var failedAny bool
+		for _, inst := range installs {
+			swType := softwareTypeVPP
+			if inst.ActivityType == "in_house_app_install" {
+				swType = softwareTypeInHouseApp
+			}
+
+			// Eligibility is re-checked here, not trusted from the select above: that
+			// select took the transaction's snapshot while this update reads the latest
+			// committed rows, so a device that checked in between would otherwise be
+			// overruled mid-verification. No rows affected means it did check in, so
+			// nothing is recorded here, though the queue is still advanced past the row.
+			failStmt := fmt.Sprintf(`
+UPDATE %s
+SET verification_failed_at = CURRENT_TIMESTAMP(6)
+WHERE command_uuid = ?
+	AND verification_at IS NULL
+	AND verification_failed_at IS NULL
+	AND canceled = 0
+	AND NOT EXISTS (
+		SELECT 1
+		FROM nano_command_results ncr
+		WHERE ncr.command_uuid = ?
+			AND ncr.status != 'NotNow'
+			AND ncr.updated_at >= NOW(6) - INTERVAL ? MICROSECOND
+	)`, swType.getInstallMappingTableName())
+			res, err := tx.ExecContext(ctx, failStmt,
+				inst.ExecutionID, inst.ExecutionID, olderThan.Microseconds())
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "set stuck activated MDM install as failed")
+			}
+			if affected, _ := res.RowsAffected(); affected == 0 {
+				continue
+			}
+			failedAny = true
+
+			// Stop the APNs retry cron pushing a command Fleet has now given up on, and
+			// stop a device that comes back from installing an app already reported as
+			// failed, which would leak the verify lock on the way through.
+			const deactivateNanoStmt = `UPDATE nano_enrollment_queue SET active = 0 WHERE id = ? AND command_uuid = ?`
+			if _, err := tx.ExecContext(ctx, deactivateNanoStmt, hostUUID, inst.ExecutionID); err != nil {
+				return ctxerr.Wrap(ctx, err, "deactivate nano queue row for reaped MDM install")
+			}
+
+			cmdResults := &mdm.CommandResults{CommandUUID: inst.ExecutionID, Status: fleet.MDMAppleStatusError}
+			entry := fleet.ReapedMDMInstall{HostID: hostID, HostUUID: hostUUID, CommandUUID: inst.ExecutionID}
+			switch swType {
+			case softwareTypeVPP:
+				user, act, err := ds.getPastActivityDataForVPPAppInstallDB(ctx, tx, cmdResults)
+				if err != nil {
+					if fleet.IsNotFound(err) {
+						continue // shouldn't happen, but the install is failed either way
+					}
+					return ctxerr.Wrap(ctx, err, "get past activity data for reaped app store app install")
+				}
+				act.FromAutoUpdate = inst.FromAutoUpdate
+				entry.User, entry.AppStoreActivity = user, act
+			case softwareTypeInHouseApp:
+				user, act, err := ds.getPastActivityDataForInHouseAppInstallDB(ctx, tx, cmdResults)
+				if err != nil {
+					if fleet.IsNotFound(err) {
+						continue
+					}
+					return ctxerr.Wrap(ctx, err, "get past activity data for reaped in-house app install")
+				}
+				entry.User, entry.InHouseActivity = user, act
+			}
+			reaped = append(reaped, entry)
+		}
+
+		// The verify lock is one row per host, not per install, so it is cleared once and
+		// only if something was failed. Leaving it would suppress verification of the next
+		// install acknowledged on this host, turning one stuck install into two. The cost is
+		// that an unrelated install mid-verification loses its suppression and the next
+		// acknowledgement sends a redundant InstalledApplicationList; accepted, because every
+		// narrower condition instead risks retaining the lock when it does damage.
+		if failedAny {
+			const delHostMDMCommandStmt = `DELETE FROM host_mdm_commands WHERE host_id = ? AND command_type = ?`
+			if _, err := tx.ExecContext(ctx, delHostMDMCommandStmt, hostID, fleet.VerifySoftwareInstallVPPPrefix); err != nil {
+				return ctxerr.Wrap(ctx, err, "delete verify vpp from host_mdm_commands")
+			}
+		}
+
+		// Advancing per install converges by itself: each call deletes only its own row and
+		// then stops at whatever is still activated, so only the last one activates the next
+		// batch. Any row left activated because it is not reapable yet keeps the queue
+		// blocked on purpose, since its command can still be delivered.
+		for _, inst := range installs {
+			if _, err := ds.activateNextUpcomingActivity(ctx, tx, hostID, inst.ExecutionID); err != nil {
+				return ctxerr.Wrap(ctx, err, "activate next activity after reaping MDM install")
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return reaped, nil
 }
 
 // ActivateNextUpcomingActivityForHost activates the next upcoming activity for the given host.
@@ -974,12 +1266,18 @@ func (ds *Datastore) ActivateNextUpcomingActivityForHost(ctx context.Context, ho
 	return err
 }
 
-func (ds *Datastore) activateNextUpcomingActivityForBatchOfHosts(ctx context.Context, hostIDs []uint) error {
+// activateNextUpcomingActivityForBatchOfHosts activates the next upcoming
+// activity of each host, chunked into batch transactions. It returns the
+// number of hosts whose activation committed, along with any per-host
+// activation errors joined together (partial success returns both a non-zero
+// count and a non-nil error).
+func (ds *Datastore) activateNextUpcomingActivityForBatchOfHosts(ctx context.Context, hostIDs []uint) (int, error) {
 	const maxHostIDsPerBatch = 500
 
 	slices.Sort(hostIDs)              // sorting can help avoid deadlocks
 	hostIDs = slices.Compact(hostIDs) // dedupe IDs (must be sorted first)
 
+	var activated int
 	var errs []error
 	for batch := range slices.Chunk(hostIDs, maxHostIDsPerBatch) {
 		err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
@@ -990,11 +1288,35 @@ func (ds *Datastore) activateNextUpcomingActivityForBatchOfHosts(ctx context.Con
 			}
 			return nil
 		})
-		if err != nil {
-			errs = append(errs, err)
+		if err == nil {
+			activated += len(batch)
+			continue
+		}
+
+		// The chunk transaction is all-or-nothing: one host whose activation
+		// deterministically fails (e.g. an FK or duplicate-key violation on its
+		// queued row) would roll back every other host in the chunk, and the
+		// callers that select hosts in a deterministic order (the release and
+		// unblock crons) would re-pick the same hosts on every run, wedging the
+		// queue behind the poison host. Retry each host of the failed chunk in
+		// its own transaction so a bad host only loses its own slot.
+		for _, hostID := range batch {
+			hostErr := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+				_, err := ds.activateNextUpcomingActivity(ctx, tx, hostID, "")
+				return err
+			})
+			if hostErr != nil {
+				ds.logger.ErrorContext(ctx, "activate next upcoming activity failed for host; skipping it",
+					"host_id", hostID,
+					"err", hostErr,
+				)
+				errs = append(errs, ctxerr.Wrapf(ctx, hostErr, "activate next activity for host %d", hostID))
+				continue
+			}
+			activated++
 		}
 	}
-	return errors.Join(errs...)
+	return activated, errors.Join(errs...)
 }
 
 // This function activates the next upcoming activity, if any, for the specified host.
@@ -1402,16 +1724,26 @@ ORDER BY
 	ua.priority DESC, ua.created_at ASC
 `
 
+	// is_user_enrollment must reflect the actual MDM enrollment channel, NOT
+	// host_mdm.is_personal_enrollment: the latter is also set for
+	// manual-profile BYOD, which is device-channel and must install
+	// device-scoped like company-owned manual. Only Account-Driven User
+	// Enrollment (ADUE) is user-scoped, and its primary enrollment row
+	// (id = host UUID) has type 'User Enrollment (Device)' — every other
+	// device-channel enrollment is 'Device'. See #48879.
 	const getHostStmt = `
 SELECT
 	h.uuid,
 	h.team_id,
 	h.platform,
 	h.hardware_serial,
-	COALESCE(hm.is_personal_enrollment, 0) AS is_personal_enrollment
+	COALESCE((
+		SELECT 1 FROM nano_enrollments ne
+		WHERE ne.id = h.uuid AND ne.type = 'User Enrollment (Device)' AND ne.enabled = 1
+		LIMIT 1
+	), 0) AS is_user_enrollment
 FROM
 	hosts h
-	LEFT JOIN host_mdm hm ON hm.host_id = h.id
 WHERE
 	h.id = ?
 `
@@ -1423,7 +1755,10 @@ INSERT INTO
 SELECT
 	?,
 	execution_id,
-	created_at -- force same timestamp to keep ordering
+	-- distinct, forward-dated timestamps: nanomdm orders the queue by
+	-- created_at alone, and one statement's rows would otherwise tie on the
+	-- column default and be served in arbitrary order
+	NOW(6) + INTERVAL ROW_NUMBER() OVER (ORDER BY priority DESC, created_at ASC, id ASC) MICROSECOND
 FROM
 	upcoming_activities
 WHERE
@@ -1439,11 +1774,11 @@ ORDER BY
 	}
 
 	var hostData struct {
-		UUID                 string `db:"uuid"`
-		TeamID               *uint  `db:"team_id"`
-		Platform             string `db:"platform"`
-		HardwareSerial       string `db:"hardware_serial"`
-		IsPersonalEnrollment bool   `db:"is_personal_enrollment"`
+		UUID             string `db:"uuid"`
+		TeamID           *uint  `db:"team_id"`
+		Platform         string `db:"platform"`
+		HardwareSerial   string `db:"hardware_serial"`
+		IsUserEnrollment bool   `db:"is_user_enrollment"`
 	}
 	if err := sqlx.GetContext(ctx, tx, &hostData, getHostStmt, hostID); err != nil {
 		return ctxerr.Wrap(ctx, err, "get host info for in-house install")
@@ -1546,7 +1881,7 @@ WHERE
 			HostPlatform:     hostData.Platform,
 			ManifestURL:      manifestURL,
 			Configuration:    cfg,
-			IsUserEnrollment: hostData.IsPersonalEnrollment,
+			IsUserEnrollment: hostData.IsUserEnrollment,
 		})
 		insValues = append(insValues, "(?, 'InstallApplication', ?, ?)")
 		insArgs = append(insArgs, p.ExecutionID, string(cmdBytes), mdm.CommandSubtypeNone)
@@ -1568,11 +1903,17 @@ WHERE
 
 	// best-effort APNs push notification to the host, not critical because we
 	// have a cron job that will retry for hosts with pending MDM commands.
-	if ds.pusher != nil {
+	wrapped, ok := tx.(common_mysql.WrappedExtContext)
+	if ds.pusher == nil || !ok {
+		return nil
+	}
+	// we wrap the APNs Push here, as activate next upcoming is called from many sites
+	// and it's racy to ping before we have committed the transaction.
+	wrapped.AddOnCommitHook(func() {
 		if _, err := ds.pusher.Push(ctx, []string{hostData.UUID}); err != nil {
 			ds.logger.ErrorContext(ctx, "failed to send push notification", "err", err, "hostID", hostID, "hostUUID", hostData.UUID)
 		}
-	}
+	})
 	return nil
 }
 
@@ -1595,20 +1936,31 @@ const policyAutomationHostJoin = `
     JOIN  hosts               h   ON h.id            = ahp.host_id
     LEFT JOIN host_display_names hdn ON hdn.host_id  = ahp.host_id`
 
-// statusOutputCols renders the trailing "status, output" column pair that every
-// UNION branch must project after policyAutomationCols. Modeling it as a struct
+// statusOutputCols renders the trailing status/output columns that every UNION
+// branch must project after policyAutomationCols. Modeling it as a struct
 // (rather than a raw SQL fragment) makes the positional contract that UNION ALL
-// relies on impossible to break by hand: both columns are always present,
-// always aliased, and always in this order, so no branch can silently reorder
-// or drop one. status and output are SQL expressions; use "NULL" for output
-// when the branch has nothing to surface.
+// relies on impossible to break by hand: the columns are always present, always
+// aliased, and always in this order, so no branch can silently reorder or drop
+// one. All fields are SQL expressions. status and output are required; an empty
+// preInstallOutput/postInstallOutput is projected as NULL (only the
+// installed_software branch surfaces those).
 type statusOutputCols struct {
-	status string
-	output string
+	status            string
+	output            string
+	preInstallOutput  string
+	postInstallOutput string
 }
 
 func (c statusOutputCols) sql() string {
-	return fmt.Sprintf("%s AS status, %s AS output", c.status, c.output)
+	pre, post := c.preInstallOutput, c.postInstallOutput
+	if pre == "" {
+		pre = "NULL"
+	}
+	if post == "" {
+		post = "NULL"
+	}
+	return fmt.Sprintf("%s AS status, %s AS output, %s AS pre_install_output, %s AS post_install_output",
+		c.status, c.output, pre, post)
 }
 
 // policyAutomationNamedStatusCols projects the status/output pair for the named
@@ -1631,7 +1983,9 @@ type policyAutomationTaskBranch struct {
 	joins string
 	// errorCond and successCond are the WHERE fragments selecting failed and
 	// successful tasks respectively. They are wrapped in parentheses when
-	// applied, so internal OR/AND precedence is preserved.
+	// applied, so internal OR/AND precedence is preserved. Together they must
+	// partition the rows the branch surfaces: every row is matched by exactly one
+	// of them, and that must agree with statusCols.
 	errorCond   string
 	successCond string
 	// statusCols projects the status/output pair for this branch. The
@@ -1665,11 +2019,25 @@ var policyAutomationTaskBranches = []policyAutomationTaskBranch{
                 ON  hsi.host_id      = ahp.host_id
                 AND hsi.execution_id = ap.details->>'$.install_uuid'
                 AND hsi.policy_id    = ?`,
+		// Outcome comes from the recorded details.status (a historical snapshot),
+		// not the live host_software_installs status, which goes NULL once the row
+		// is removed. The activity is only written for a terminal install (see
+		// svc.NewActivity in orbit.go, gated on status != pending_install), and
+		// details.status has been recorded since the activity type was introduced,
+		// so in practice the only values are 'installed' and 'failed_install'.
+		// 'failed_install' is treated as the sole failure and anything else (an
+		// unexpected or empty status) as success, so errorCond and successCond are
+		// null-safe complements that exactly partition what statusCols reports.
 		errorCond:   "ap.details->>'$.status' = 'failed_install'",
-		successCond: "ap.details->>'$.status' = 'installed'",
+		successCond: "NOT (ap.details->>'$.status' <=> 'failed_install')",
+		// A software install can fail at the pre-install query, install script, or
+		// post-install script stage, so surface all three outputs; the modal shows
+		// them as separate sections.
 		statusCols: statusOutputCols{
-			status: "IF(ap.details->>'$.status' = 'installed', 'success', 'error')",
-			output: "hsi.install_script_output",
+			status:            "IF(ap.details->>'$.status' = 'failed_install', 'error', 'success')",
+			output:            "hsi.install_script_output",
+			preInstallOutput:  "hsi.pre_install_query_output",
+			postInstallOutput: "hsi.post_install_script_output",
 		},
 	},
 	{
@@ -1678,19 +2046,22 @@ var policyAutomationTaskBranches = []policyAutomationTaskBranch{
             INNER JOIN host_vpp_software_installs hvsi
                 ON  hvsi.host_id      = ahp.host_id
                 AND hvsi.command_uuid = ap.details->>'$.command_uuid'
-                AND hvsi.policy_id    = ?
-            LEFT JOIN nano_command_results ncr
-                ON  ncr.command_uuid = hvsi.command_uuid
-                AND ncr.id = (SELECT uuid FROM hosts WHERE id = ahp.host_id)`,
-		errorCond: "hvsi.verification_failed_at IS NOT NULL OR ncr.status IN ('Error', 'CommandFormatError')",
-		// verification_at IS NOT NULL is the canonical "installed" indicator: it
-		// is set by Fleet after the MDM command result is confirmed, independently
-		// of the nano_command_results row.
-		successCond: "hvsi.verification_at IS NOT NULL",
+                AND hvsi.policy_id    = ?`,
+		// Like installed_software, a VPP activity is only written in a terminal
+		// state — either on a command error (apple_mdm.go) or once the install is
+		// verified/timed out (setStatusForExpectedInstall in
+		// apple_mdm_cmd_results.go) — recording the outcome in details.status. Read
+		// that historical snapshot rather than the live hvsi.verification_* columns,
+		// which mutate over the install's lifetime and go NULL when the row is
+		// removed. 'failed_install' is the sole failure; everything else is a
+		// success. error and success conditions are null-safe complements that
+		// exactly partition what statusCols reports.
+		errorCond:   "ap.details->>'$.status' = 'failed_install'",
+		successCond: "NOT (ap.details->>'$.status' <=> 'failed_install')",
 		// VPP apps are installed via MDM command, not a script, so there is no
 		// script output to surface.
 		statusCols: statusOutputCols{
-			status: "IF(hvsi.verification_at IS NOT NULL, 'success', 'error')",
+			status: "IF(ap.details->>'$.status' = 'failed_install', 'error', 'success')",
 			output: "NULL",
 		},
 	},

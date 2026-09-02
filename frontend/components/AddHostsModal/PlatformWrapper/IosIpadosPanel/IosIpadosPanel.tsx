@@ -8,6 +8,8 @@ import { getPathWithQueryParams } from "utilities/url";
 import InputField from "components/forms/fields/InputField";
 import Radio from "components/forms/fields/Radio";
 
+import EnrollQrCode from "../EnrollQrCode";
+
 type EnrollmentType = "personal" | "companyOwned";
 
 const baseClass = "ios-ipados-panel";
@@ -24,11 +26,6 @@ const IosIpadosPanel = ({ enrollSecret }: IosIpadosPanelProps) => {
     "personal"
   );
 
-  const helpText =
-    "When the end user navigates to this URL, the enrollment profile " +
-    "will download in their browser. End users will have to install the profile " +
-    "to enroll to Fleet.";
-
   if (!config) return null;
 
   if (!isMacMdmEnabledAndConfigured) {
@@ -37,6 +34,7 @@ const IosIpadosPanel = ({ enrollSecret }: IosIpadosPanelProps) => {
         <CustomLink
           url={PATHS.ADMIN_INTEGRATIONS_MDM_APPLE}
           text="Turn on Apple MDM"
+          emphasized
         />{" "}
         to enroll iOS & iPadOS hosts.
       </p>
@@ -66,21 +64,24 @@ const IosIpadosPanel = ({ enrollSecret }: IosIpadosPanelProps) => {
           <Radio
             name="iosIpadosEnrollmentType"
             id="iosIpadosCompanyOwned"
-            label="Company-owned"
+            label="Company-owned (fully-managed)"
             value="companyOwned"
             checked={enrollmentType === "companyOwned"}
             onChange={() => setEnrollmentType("companyOwned")}
           />
         </fieldset>
+        <h3 className="platform-wrapper__panel-heading">
+          Enrollment instructions
+        </h3>
         <InputField
-          label="Enrollment instructions:"
+          label="Share this link with your end users:"
           enableCopy
           readOnly
           inputWrapperClass={`${baseClass}__enroll-link`}
           name="enroll-link"
           value={url}
-          helpText={helpText}
         />
+        <EnrollQrCode url={url} />
       </form>
     </div>
   );

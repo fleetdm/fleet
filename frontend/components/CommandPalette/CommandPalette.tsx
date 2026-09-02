@@ -7,7 +7,7 @@ import React, {
   useCallback,
   useRef,
 } from "react";
-import { Command, useCommandState } from "cmdk";
+import { Command } from "cmdk";
 import {
   Title as DialogTitle,
   Description as DialogDescription,
@@ -44,24 +44,6 @@ import { isPreFilteredResult } from "./components/constants";
 
 const baseClass = "command-palette";
 
-// Subscribes to cmdk's selected value via its internal store. We can't
-// rely on `Command.Dialog`'s `onValueChange` prop for this: in cmdk@1.1.1
-// that callback only fires when `value` is also controlled, and the
-// palette runs cmdk uncontrolled so arrow-key highlight changes never
-// reach React without this bridge. Rendered inside `Command.Dialog` so
-// the `useCommandState` context is available.
-const HighlightSubscriber = ({
-  onChange,
-}: {
-  onChange: (value: string) => void;
-}) => {
-  const value = useCommandState((state) => state.value);
-  useEffect(() => {
-    onChange(value ?? "");
-  }, [value, onChange]);
-  return null;
-};
-
 // cmdk treats `value` as the row's identity *and* as the substring it
 // filters against. Two rows with the same value collide. Including the
 // item's id guarantees uniqueness without losing the user-typeable
@@ -95,6 +77,11 @@ const CommandPalette = (): JSX.Element | null => {
   const [page, setPage] = useState<Page>("root");
   const [search, setSearch] = useState("");
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
+  // Controlled highlight — cmdk's uncontrolled auto-select doesn't re-run
+  // when a picker's async results replace the previous set (state.value
+  // still points at the now-unmounted row), so we set it explicitly.
+  // Empty string means "let cmdk pick the first item on next mount."
+  const [cmdkValue, setCmdkValue] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
 
   const {
@@ -138,6 +125,16 @@ const CommandPalette = (): JSX.Element | null => {
     isAnyTeamMaintainer ||
     isTechnician;
 
+  // The Variables section (and its Global variables / Custom host vitals
+  // sub-tabs) is hidden from technicians in the Controls sub-nav — they only
+  // get OS settings and Scripts (see ManageControlsPage). canAccessControls
+  // includes technicians, so use this narrower flag for Variables.
+  const canAccessVariables =
+    isGlobalAdmin ||
+    isGlobalMaintainer ||
+    isAnyTeamAdmin ||
+    isAnyTeamMaintainer;
+
   // Custom variables are admin-tier global config (mirrors Variables.tsx
   // `canEdit`). Team admins/maintainers/technicians lack the role even
   // though they have `canWrite`, so the destination page would render
@@ -154,6 +151,16 @@ const CommandPalette = (): JSX.Element | null => {
     !!isGlobalMaintainer ||
     !!isTeamAdmin ||
     !!isTeamMaintainer;
+
+  // Admin/maintainer-only Controls sub-items (Certificates, Passwords, Host
+  // names). Technicians can reach Controls (canAccessControls) but not these,
+  // so gate them on the positive admin/maintainer role rather than
+  // `!isTechnician`.
+  const isAdminOrMaintainer =
+    isGlobalAdmin ||
+    isGlobalMaintainer ||
+    isAnyTeamAdmin ||
+    isAnyTeamMaintainer;
 
   // Observer+ users can run live queries even though they can't write.
   const canRunLiveReport =
@@ -204,6 +211,12 @@ const CommandPalette = (): JSX.Element | null => {
   // current one — they'd land on Reports and see no button.
   const canManageReportAutomations = isGlobalAdmin || isTeamAdmin;
 
+  // Host activity automations: per-fleet setting on the Hosts page, admin
+  // only (mirrors ManageHostsPage's canManageHostActivityAutomations). The
+  // destination opens the modal from `?manage_automations=1` and re-checks
+  // the same gate.
+  const canManageHostActivityAutomations = isGlobalAdmin || isTeamAdmin;
+
   const canAccessSettings = isGlobalAdmin;
 
   // Whether a specific team is selected (not "All teams")
@@ -229,8 +242,28 @@ const CommandPalette = (): JSX.Element | null => {
       setPage("root");
       setSearch("");
       setExpandedItems(new Set());
+      // Also clear cmdkValue: if we closed while on root, the page-change
+      // effect won't fire on reopen, and a stale highlight would carry
+      // over — making Enter accidentally activate a prior row.
+      setCmdkValue("");
     }
   }, [open]);
+
+  // Reset the highlight when the page changes so cmdk auto-selects the
+  // first item on the new page rather than sticking on a value that
+  // belongs to the page we just left.
+  useEffect(() => {
+    setCmdkValue("");
+  }, [page]);
+
+  // Picker results arrive asynchronously; when they do, snap the highlight
+  // to the first row so pressing Enter opens it without a preceding arrow.
+  const handlePickerResultsChange = useCallback(
+    (firstItemValue: string | null) => {
+      setCmdkValue(firstItemValue ?? "");
+    },
+    []
+  );
 
   const canSwitchFleet =
     isPremiumTier &&
@@ -403,14 +436,17 @@ const CommandPalette = (): JSX.Element | null => {
         availableTeams,
         config,
         canAccessControls,
+        canAccessVariables,
         canWrite,
         canRunLiveReport,
         canAccessSettings,
         canManagePolicyAutomations,
         canManageSoftwareAutomations,
         canManageReportAutomations,
+        canManageHostActivityAutomations,
         canEditCustomVariable,
         canAddSoftware,
+        isAdminOrMaintainer,
         isTechnician,
         isPremiumTier,
         isPrimoMode,
@@ -438,14 +474,17 @@ const CommandPalette = (): JSX.Element | null => {
       availableTeams,
       config,
       canAccessControls,
+      canAccessVariables,
       canWrite,
       canRunLiveReport,
       canAccessSettings,
       canManagePolicyAutomations,
       canManageSoftwareAutomations,
       canManageReportAutomations,
+      canManageHostActivityAutomations,
       canEditCustomVariable,
       canAddSoftware,
+      isAdminOrMaintainer,
       isTechnician,
       isPremiumTier,
       isPrimoMode,
@@ -804,6 +843,16 @@ const CommandPalette = (): JSX.Element | null => {
     <Command.Dialog
       open={open}
       onOpenChange={handleOpenChange}
+      // Controlling `value` also switches cmdk into a mode where
+      // `onValueChange` fires on every internal selection update
+      // (arrow keys, pointer hover, filter-driven re-selects), which is
+      // what lets us drive `handleHighlightChange` from a single source
+      // instead of a `useCommandState` bridge.
+      value={cmdkValue}
+      onValueChange={(value) => {
+        setCmdkValue(value);
+        handleHighlightChange(value);
+      }}
       label="Command palette"
       className={baseClass}
       overlayClassName={`${baseClass}__overlay`}
@@ -825,7 +874,6 @@ const CommandPalette = (): JSX.Element | null => {
         return 0;
       }}
     >
-      <HighlightSubscriber onChange={handleHighlightChange} />
       {/* cmdk's Dialog wraps Radix Dialog.Content, which requires a Title and
           a Description for screen reader accessibility — without these, Radix
           logs a console error/warning on every open. Both are rendered
@@ -946,6 +994,7 @@ const CommandPalette = (): JSX.Element | null => {
             search={search}
             showTeamColumn={!!isPremiumTier && !isPrimoMode}
             onSelect={handleSelectHost}
+            onResultsChange={handlePickerResultsChange}
           />
         )}
         {page === "view-software" && (
@@ -953,6 +1002,7 @@ const CommandPalette = (): JSX.Element | null => {
             search={search}
             currentTeam={currentTeam}
             onSelect={handleSelectSoftware}
+            onResultsChange={handlePickerResultsChange}
           />
         )}
         {page === "view-software-library" && (
@@ -961,6 +1011,7 @@ const CommandPalette = (): JSX.Element | null => {
             currentTeam={currentTeam}
             scope="library"
             onSelect={handleSelectSoftware}
+            onResultsChange={handlePickerResultsChange}
           />
         )}
         {page === "view-report" && (
@@ -969,6 +1020,7 @@ const CommandPalette = (): JSX.Element | null => {
             currentTeam={currentTeam}
             isViewerObserver={isViewerObserverInScope}
             onSelect={handleSelectReport}
+            onResultsChange={handlePickerResultsChange}
           />
         )}
         {page === "view-policy" && (
@@ -977,6 +1029,7 @@ const CommandPalette = (): JSX.Element | null => {
             currentTeam={currentTeam}
             isPremiumTier={!!isPremiumTier}
             onSelect={handleSelectPolicy}
+            onResultsChange={handlePickerResultsChange}
           />
         )}
       </Command.List>

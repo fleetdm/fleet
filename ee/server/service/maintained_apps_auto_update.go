@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"path"
-	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -83,28 +83,47 @@ func autoUpdateOneFleetMaintainedApp(
 	// Download the latest published version when the store is configured and the
 	// pin would actually promote to it. Download failures are isolated: we log and
 	// still try to promote among whatever is already cached.
+	var publishedVersion string
 	if store != nil && client != nil {
-		if err := downloadNewVersionIfEligible(ctx, ds, store, logger, c, pin, client, manifests); err != nil {
+		version, err := downloadNewVersionIfEligible(ctx, ds, store, logger, c, pin, client, manifests)
+		if err != nil {
 			logger.ErrorContext(ctx, "downloading new fleet-maintained app version",
 				"title_id", c.TitleID, "team_id", teamIDForLog(c.TeamID), "slug", c.Slug, "err", err)
 		}
+		publishedVersion = version
 	}
 
-	return promoteFleetMaintainedApp(ctx, ds, logger, c, pin)
+	return promoteFleetMaintainedApp(ctx, ds, logger, c, pin, publishedVersion)
 }
 
 // promoteFleetMaintainedApp advances the active installer to the newest cached
 // version the pin allows, without ever rewriting the pin (a nil PinnedVersion
 // leaves it untouched, so an admin pin changed between this read and write is
 // never clobbered).
-func promoteFleetMaintainedApp(ctx context.Context, ds fleet.Datastore, logger *slog.Logger, c fleet.FMAAutoUpdateCandidate, pin string) error {
-	// Cached versions, semver-sorted newest-first.
-	versions, err := ds.GetFleetMaintainedVersionsByTitleID(ctx, c.TeamID, c.TitleID, true)
+func promoteFleetMaintainedApp(ctx context.Context, ds fleet.Datastore, logger *slog.Logger, c fleet.FMAAutoUpdateCandidate, pin string, publishedVersion string) error {
+	// Cached versions, most recently downloaded first. This runs on every pass, not just
+	// after a download, so the first entry decides which version stays active.
+	versions, err := ds.GetFleetMaintainedVersionsByTitleID(ctx, c.TeamID, c.TitleID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "getting cached versions")
 	}
 	if len(versions) == 0 {
 		return nil
+	}
+
+	// The selection below takes the newest download, which after a rollback is the version
+	// upstream dropped. Make the version the manifest publishes now the newest instead.
+	if publishedVersion != "" {
+		publishedIndex := slices.IndexFunc(versions, func(version fleet.FleetMaintainedVersion) bool {
+			return version.Version == publishedVersion
+		})
+		if publishedIndex > 0 {
+			if err := ds.MarkFleetMaintainedAppVersionCurrent(ctx, versions[publishedIndex].ID); err != nil {
+				return ctxerr.Wrap(ctx, err, "marking cached version current")
+			}
+			// These versions were read before changing uploaded_at, so reorder them to match the write.
+			versions[0], versions[publishedIndex] = versions[publishedIndex], versions[0]
+		}
 	}
 
 	target, ok := selectAutoUpdateTarget(versions, pin)
@@ -117,12 +136,11 @@ func promoteFleetMaintainedApp(ctx context.Context, ds fleet.Datastore, logger *
 		TeamID:  c.TeamID,
 		TitleID: c.TitleID,
 	}
+	// SetFleetMaintainedAppActiveInstaller atomically flips the active installer,
+	// re-points policies, and redirects installs frozen on the old version to the
+	// new one, so a host never installs a version other than the one displayed.
 	if err := ds.SetFleetMaintainedAppActiveInstaller(ctx, payload, target.ID); err != nil {
 		return ctxerr.Wrap(ctx, err, "setting active installer")
-	}
-	// Cancel pending installs of the version we advanced away from.
-	if err := ds.ProcessInstallerUpdateSideEffects(ctx, c.InstallerID, true, false); err != nil {
-		return ctxerr.Wrap(ctx, err, "processing installer update side effects")
 	}
 
 	logger.InfoContext(ctx, "advanced fleet-maintained app to newer cached version",
@@ -151,11 +169,13 @@ func downloadNewVersionIfEligible(
 	pin string,
 	client *http.Client,
 	manifests map[string]*manifestEntry,
-) error {
+) (publishedVersion string, err error) {
 	app, err := hydrateLatestManifest(ctx, ds, c, manifests)
 	if err != nil {
-		return err
+		return "", err
 	}
+
+	versionAlreadyCached := false
 
 	// For a concrete manifest version the eligibility gates can run up front. For a
 	// "latest" manifest the real version isn't known until the installer is
@@ -165,14 +185,17 @@ func downloadNewVersionIfEligible(
 		// Caret pin: caching a version the pin can never promote to wastes a slot.
 		// Empty pin always takes latest; literal pins were filtered out by the caller.
 		if pin != "" && !versionMatchesMajor(app.Version, strings.TrimPrefix(pin, "^")) {
-			return nil
+			return "", nil
 		}
-		has, err := ds.HasFMAInstallerVersion(ctx, c.TeamID, c.FleetMaintainedAppID, app.Version)
+		versionExists, cachedHash, err := ds.HasFMAInstallerVersion(ctx, c.TeamID, c.FleetMaintainedAppID, app.Version)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "checking cached version")
+			return "", ctxerr.Wrap(ctx, err, "checking cached version")
 		}
-		if has {
-			return nil
+		// A version only counts as cached while its bytes still match the manifest, matching
+		// the GitOps path: a rebuilt package (same version, new hash) is downloaded and
+		// replaces them. A manifest without a hash can't be compared, so it downloads again.
+		if versionExists && cachedHash == app.SHA256 {
+			versionAlreadyCached = true
 		}
 	}
 
@@ -180,33 +203,36 @@ func downloadNewVersionIfEligible(
 	// team cached the same version), skip the HTTP download and reuse the bytes.
 	storageID := app.SHA256
 	needBytes := true
-	if app.SHA256 != noCheckHash && !isLatest {
+	if versionAlreadyCached {
+		needBytes = false
+	} else if app.SHA256 != noCheckHash && !isLatest {
 		exists, err := store.Exists(ctx, app.SHA256)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "checking installer store")
+			return "", ctxerr.Wrap(ctx, err, "checking installer store")
 		}
 		needBytes = !exists
 	}
 
 	version := app.Version
 	filename := ""
+	extension := ""
 	upgradeCode := app.UpgradeCode
 	var packageIDs []string
 	var tfr *fleet.TempFileReader
 	if needBytes {
 		tfr, filename, err = maintained_apps.DownloadInstaller(ctx, app.InstallerURL, client)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "downloading app installer")
+			return "", ctxerr.Wrap(ctx, err, "downloading app installer")
 		}
 		defer tfr.Close()
 
 		gotHash, err := file.SHA256FromTempFileReader(tfr)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "calculating SHA256 hash")
+			return "", ctxerr.Wrap(ctx, err, "calculating SHA256 hash")
 		}
 		if app.SHA256 != noCheckHash {
 			if gotHash != app.SHA256 {
-				return ctxerr.New(ctx, "mismatch in maintained app SHA256 hash")
+				return "", ctxerr.New(ctx, "mismatch in maintained app SHA256 hash")
 			}
 		} else {
 			storageID = gotHash
@@ -218,11 +244,11 @@ func downloadNewVersionIfEligible(
 		// extraction consumes the reader and the bytes are stored below.
 		meta, metaErr := file.ExtractInstallerMetadata(tfr)
 		if err := tfr.Rewind(); err != nil {
-			return ctxerr.Wrap(ctx, err, "resetting installer file reader")
+			return "", ctxerr.Wrap(ctx, err, "resetting installer file reader")
 		}
 		if metaErr != nil {
 			if isLatest {
-				return ctxerr.Wrap(ctx, metaErr, "extracting installer metadata")
+				return "", ctxerr.Wrap(ctx, metaErr, "extracting installer metadata")
 			}
 			logger.WarnContext(ctx, "extracting fleet-maintained app installer metadata", "slug", c.Slug, "err", metaErr)
 		} else {
@@ -236,29 +262,33 @@ func downloadNewVersionIfEligible(
 		}
 	} else {
 		// Bytes already cached (possibly only on an inactive row after a rollback):
-		// recover the package IDs and upgrade code from any installer with the same
-		// content hash so the uninstall script can still be substituted.
-		pids, ucode, err := ds.GetSoftwareInstallerMetadataByStorageID(ctx, storageID)
+		// describe them from any installer with the same content hash. The extension
+		// decides how the uninstall script is substituted, and an installer URL often
+		// ends in something that isn't one, so it has to come off the row.
+		cached, err := ds.GetSoftwareInstallerMetadataByStorageID(ctx, storageID)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "recovering cached installer metadata")
+			return "", ctxerr.Wrap(ctx, err, "recovering cached installer metadata")
 		}
-		packageIDs = pids
-		if ucode != "" {
-			upgradeCode = ucode
+		packageIDs = cached.PackageIDs
+		filename = cached.Filename
+		extension = cached.Extension
+		if cached.UpgradeCode != "" {
+			upgradeCode = cached.UpgradeCode
 		}
 	}
 
 	// Apply the deferred gates now that the concrete version is known ("latest").
 	if isLatest && pin != "" && !versionMatchesMajor(version, strings.TrimPrefix(pin, "^")) {
-		return nil
+		return "", nil
 	}
 	if version != app.Version {
-		has, err := ds.HasFMAInstallerVersion(ctx, c.TeamID, c.FleetMaintainedAppID, version)
+		versionExists, cachedHash, err := ds.HasFMAInstallerVersion(ctx, c.TeamID, c.FleetMaintainedAppID, version)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "checking cached version")
+			return "", ctxerr.Wrap(ctx, err, "checking cached version")
 		}
-		if has {
-			return nil
+		// Same as above, except the hash to compare is the one just downloaded.
+		if versionExists && cachedHash == storageID {
+			versionAlreadyCached = true
 		}
 	}
 
@@ -267,47 +297,43 @@ func downloadNewVersionIfEligible(
 			filename = path.Base(u.Path)
 		}
 	}
+	if extension == "" {
+		extension = extensionFromFilename(filename)
+	}
 
 	payload := &fleet.UploadSoftwareInstallerPayload{
 		TeamID:          c.TeamID,
 		Version:         version,
 		Filename:        filename,
-		Extension:       strings.TrimLeft(filepath.Ext(filename), "."),
+		Extension:       extension,
 		StorageID:       storageID,
 		URL:             app.InstallerURL,
 		UpgradeCode:     upgradeCode,
 		PatchQuery:      app.PatchQuery,
+		AppOpenQuery:    app.AppOpenQuery,
 		InstallScript:   app.InstallScript,
 		UninstallScript: app.UninstallScript,
 		PackageIDs:      packageIDs,
 		InstallerFile:   tfr,
 	}
 
-	// Preserve admin-customized scripts across auto-updates. The active installer
-	// (still the previous version here; promotion happens later) is the one to
-	// carry forward from. Detect customization per-script by comparing against the
-	// manifest: the install script is a version-independent template (direct
-	// compare), but the uninstall script is version-specific after $PACKAGE_ID /
-	// $UPGRADE_CODE substitution, so compare against the manifest template
-	// substituted with the active version's package IDs.
-	active, err := ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, c.TeamID, c.TitleID, true)
+	// Carry an admin's scripts across the version bump. Read the row again rather
+	// than trust the candidate, which was listed before the download and can be
+	// stale. A title can hold more than one active package, so it has to be the
+	// candidate's own row. The insert copies the flags off that same row.
+	payload.InstallScriptEdited = c.InstallScriptEdited
+	payload.UninstallScriptEdited = c.UninstallScriptEdited
+	active, err := ds.GetSoftwareInstallerMetadataByTeamTitleAndInstallerID(ctx, c.TeamID, c.TitleID, c.InstallerID, true)
 	if err != nil && !fleet.IsNotFound(err) {
-		return ctxerr.Wrap(ctx, err, "getting active installer to preserve custom scripts")
+		return "", ctxerr.Wrap(ctx, err, "getting active installer to preserve custom scripts")
 	}
 	if active != nil {
-		if strings.TrimSpace(active.InstallScript) != strings.TrimSpace(app.InstallScript) {
+		payload.InstallScriptEdited = active.InstallScriptEdited
+		payload.UninstallScriptEdited = active.UninstallScriptEdited
+		if active.InstallScriptEdited {
 			payload.InstallScript = active.InstallScript
 		}
-		defaultUninstall := &fleet.UploadSoftwareInstallerPayload{
-			UninstallScript: app.UninstallScript,
-			PackageIDs:      active.PackageIDs(),
-			UpgradeCode:     active.UpgradeCode,
-			Extension:       active.Extension,
-		}
-		if err := preProcessUninstallScript(defaultUninstall); err != nil {
-			return ctxerr.Wrap(ctx, err, "computing manifest uninstall script for comparison")
-		}
-		if strings.TrimSpace(active.UninstallScript) != strings.TrimSpace(defaultUninstall.UninstallScript) {
+		if active.UninstallScriptEdited {
 			payload.UninstallScript = active.UninstallScript
 		}
 	}
@@ -315,14 +341,34 @@ func downloadNewVersionIfEligible(
 	// Substitute $PACKAGE_ID / $UPGRADE_CODE in the uninstall script, matching the
 	// GitOps materialization path (no-op when there are no package IDs).
 	if err := preProcessUninstallScript(payload); err != nil {
-		return ctxerr.Wrap(ctx, err, "processing uninstall script")
+		return "", ctxerr.Wrap(ctx, err, "processing uninstall script")
 	}
+
+	// No row to write, so the scripts and queries go onto the one already there.
+	if versionAlreadyCached {
+		if file.PackageIDRegex.MatchString(payload.UninstallScript) ||
+			file.UpgradeCodeRegex.MatchString(payload.UninstallScript) {
+			logger.WarnContext(ctx, "manifest uninstall script has unsubstituted template variables", "slug", c.Slug)
+			return version, nil
+		}
+		if active == nil || (payload.InstallScript == active.InstallScript &&
+			payload.UninstallScript == active.UninstallScript &&
+			payload.PatchQuery == active.PatchQuery && payload.AppOpenQuery == active.AppOpenQuery) {
+			return version, nil
+		}
+		if err := ds.UpdateInstallerScriptsAndQueries(ctx, active.InstallerID, version,
+			payload.InstallScript, payload.UninstallScript, payload.PatchQuery, payload.AppOpenQuery); err != nil {
+			logger.WarnContext(ctx, "refreshing installer scripts and queries", "slug", c.Slug, "err", err)
+		}
+		return version, nil
+	}
+
 	// Refuse to persist a row whose uninstall script still has unsubstituted
 	// template variables (e.g. metadata extraction failed and preProcess silently
 	// no-op'd): promoting it would record uninstalls as succeeding while the app
 	// stays installed. Skip this candidate; the next run retries.
 	if file.PackageIDRegex.MatchString(payload.UninstallScript) || file.UpgradeCodeRegex.MatchString(payload.UninstallScript) {
-		return ctxerr.Errorf(ctx, "uninstall script for %q still has unsubstituted template variables; skipping cache", c.Slug)
+		return "", ctxerr.Errorf(ctx, "uninstall script for %q still has unsubstituted template variables; skipping cache", c.Slug)
 	}
 
 	// Store the bytes before creating the DB row, so a Put failure can't leave a
@@ -331,23 +377,23 @@ func downloadNewVersionIfEligible(
 	if needBytes && tfr != nil {
 		exists, err := store.Exists(ctx, storageID)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "checking installer store")
+			return "", ctxerr.Wrap(ctx, err, "checking installer store")
 		}
 		if !exists {
 			if err := store.Put(ctx, storageID, tfr); err != nil {
-				return ctxerr.Wrap(ctx, err, "storing installer")
+				return "", ctxerr.Wrap(ctx, err, "storing installer")
 			}
 		}
 	}
 
 	if _, err := ds.InsertFleetMaintainedAppVersion(ctx, c.InstallerID, payload); err != nil {
-		return ctxerr.Wrap(ctx, err, "caching new fleet-maintained app version")
+		return "", ctxerr.Wrap(ctx, err, "caching new fleet-maintained app version")
 	}
 
 	logger.InfoContext(ctx, "cached new fleet-maintained app version",
 		"title_id", c.TitleID, "team_id", teamIDForLog(c.TeamID), "slug", c.Slug,
 		"from", c.Version, "to", version, "pin", pin)
-	return nil
+	return version, nil
 }
 
 func hydrateLatestManifest(ctx context.Context, ds fleet.Datastore, c fleet.FMAAutoUpdateCandidate, manifests map[string]*manifestEntry) (*fleet.MaintainedApp, error) {
@@ -371,8 +417,8 @@ func hydrateLatestManifest(ctx context.Context, ds fleet.Datastore, c fleet.FMAA
 }
 
 // selectAutoUpdateTarget picks the cached version the pin allows the cron to
-// advance to. versions must be semver-sorted newest-first. An empty pin means
-// Latest (newest). A caret pin returns the newest version within its major, or
+// advance to. versions must be ordered most recently downloaded first. An empty
+// pin means Latest (newest). A caret pin returns the newest version within its major, or
 // ok=false when no cached version satisfies the major (so the cron skips rather
 // than crossing into another major, unlike the on-demand PATCH path).
 func selectAutoUpdateTarget(versions []fleet.FleetMaintainedVersion, pin string) (fleet.FleetMaintainedVersion, bool) {

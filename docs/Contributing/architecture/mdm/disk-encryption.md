@@ -100,8 +100,9 @@ sequenceDiagram
 #### Troubleshooting
 The key stored in host_disk_encryption_keys for a given host will be deleted under the following circumstances:
 - MDM re-enrollment or enrollment profile reinstallation, outside Fleet-initiated MDM SCEP certificate renewal
-- Disk encryption disabled for a host's fleet
 - Host moved to a fleet with disk encryption disabled
+
+Turning disk encryption off for a fleet does not delete the keys of the hosts already in it. Deletion on a fleet change only runs when hosts move fleets and only when the destination fleet has no disk encryption profile.
 
 If the host is still in an encrypted fleet after the MDM re-enrollment, or in the case of a fleet
 change, once the host is moved to a fleet with encryption enabled, Fleet will initiate one of the processes
@@ -162,8 +163,9 @@ sequenceDiagram
         fleetd->>fleetd: execute reports
         fleetd->>fleet: return report data including encryption status
         fleet->>fleetd: Disable notifs.EnforceBitLockerEncryption in orbit<br>config because Host is encrypted and a<br>key is escrowed
-        fleet->>fleet: Verify that recovery key is decryptable<br>(hourly cron job)
 ```
+
+Unlike macOS, there is no periodic decryptability check for Windows. The key is marked decryptable when it's escrowed and is never re-verified.
 
 #### Troubleshooting
 
@@ -221,15 +223,92 @@ sequenceDiagram
         fleetd->>host: Use user passphrase to create new<br>keyslot with random passphrase
         fleetd->>fleet: Encrypt and send new passphrase
         fleet->>fleetd: Disable notifs.RunDiskEncryptionEscrow in orbit<br>config because Host is encrypted and a<br>key is escrowed
-        fleet->>fleet: Verify that recovery key is decryptable<br>(hourly cron job)
 ```
+
+As with Windows, there is no periodic decryptability check for Linux.
+
+#### TPM-backed FDE (Ubuntu 26 and later)
+
+Newer Ubuntu releases offer TPM-backed full-disk encryption. The volume is still LUKS2/dm-crypt
+underneath, but the LUKS key is sealed to the TPM and the disk unlocks automatically at boot, so by
+default there is **no user passphrase**. snapd (via secboot) owns the LUKS key slots.
+
+This means Fleet cannot escrow a key by adding a key slot with `cryptsetup luksAddKey` as it does for
+the passphrase flow above: an externally added slot is untracked by snapd and can be removed when
+snapd re-seals the key (for example on a kernel update). Instead, orbit detects that the volume is
+snapd-managed (by inspecting the LUKS2 tokens) and escrows a dedicated, Fleet-owned snapd recovery
+key created in its own named slot (`fleet-escrow`), leaving the user's install-time recovery key
+untouched.
+
+Because the disk auto-unlocks and there is no passphrase to collect, this happens **silently with no
+end-user dialog**. orbit reports `key_type: "recovery_key"` in the escrow request
+(`POST /api/fleet/orbit/luks_data`); recovery keys have no salt or key slot, so those columns are
+empty/null in `host_disk_encryption_keys`. The escrowed recovery key is revealed to admins through
+the same Host details flow as other platforms.
+
+```mermaid
+sequenceDiagram
+        actor Admin
+        participant fleet as Fleet server
+        participant host as Linux Host (TPM FDE)
+        participant fleetd as orbit
+        participant snapd as snapd / snap-tpmctl
+        actor user as End User
+        user->>host: Enable TPM-backed FDE during OS installation
+        Admin->>fleet: Enable disk encryption
+        host->>fleet: Enroll in Fleet
+        fleetd->>fleet: request vitals queries
+        fleet->>fleetd: Return reports including encryption status
+        fleetd->>fleet: return report data including encryption status
+        fleet->>fleetd: Enable notifs.RunDiskEncryptionEscrow in orbit<br>config because Host is encrypted but no<br>key is escrowed
+        fleetd->>snapd: Detect snapd-managed FDE (LUKS2 tokens)
+        fleetd->>snapd: generate-recovery-key
+        snapd->>fleetd: Return recovery key + transient key id
+        fleetd->>snapd: add-recovery-key (enroll under fleet-escrow slot)
+        fleetd->>snapd: check-recovery-key (validate before escrow)
+        fleetd->>fleet: Encrypt and send recovery key<br>(key_type: recovery_key, no salt/key slot)
+        fleet->>fleetd: Disable notifs.RunDiskEncryptionEscrow in orbit<br>config because Host is encrypted and a<br>key is escrowed
+```
+
+**Tooling.** orbit manages the snapd recovery key exclusively through the **snapd REST API over the
+`/run/snapd.socket` unix socket** (`POST /v2/system-volumes`), which snapd 2.74 (shipping in Ubuntu
+26.04) extended so management agents can enroll a dedicated, named recovery key. The flow is:
+`generate-recovery-key` (synchronous; returns the key value and a transient key id) →
+`add-recovery-key` (asynchronous; enrolls the key under the `fleet-escrow` name, falling back to
+`replace-recovery-key` if the slot already exists) → `check-recovery-key` (validates before
+escrow). These actions require root on the privileged socket, which orbit has, and the socket is
+guaranteed present wherever TPM-backed FDE is in use — no network or snap store access needed.
+
+orbit deliberately does **not** shell out to the
+[`snap-tpmctl`](https://github.com/canonical/snap-tpmctl) CLI: that tool is itself just another
+client of the same socket, is GPL-licensed (the socket is a stable, language-agnostic wire
+protocol), is not installed by default, and would add a network/snap-store dependency. If a socket
+operation fails, the escrow is reported to the server as a failure (the host shows "Action
+required"/"Failed") rather than silently falling back to the passphrase dialog, which cannot work on
+a host with no user passphrase. The socket is not on the boot/unlock path either — a TPM-backed host
+boots and auto-unlocks via snapd's initramfs regardless.
+
+snapd's `/v2/system-volumes` exposes no way to delete a recovery-key slot (as of snapd 2.74 — only
+passphrase/PIN auth factors can be removed). A recovery key is retired by rotating it
+(`replace-recovery-key`), which is what enrollment does on a retry. So if escrow to the Fleet server
+fails after a key is enrolled, orbit does not (and cannot) delete it; the host stays pending escrow
+and the next attempt regenerates and replaces the key in place, so escrow self-heals on retry. The
+orphaned key is harmless because its secret was never stored anywhere.
 
 ## Key storage and security
 
-Encryption keys are stored in the `host_disk_encryption_keys` table. The value for the key is
-encrypted using Fleet's CA certificate, and thus can only be decrypted if you have the CA private
-key. Additionally, a backup copy of any key that gets escrowed is stored in the
-`host_disk_encryption_keys_archive` table. In the event that a host's encryption key is unavailable
+Encryption keys are stored in the `host_disk_encryption_keys` table. The value for the key is encrypted with a credential that depends on the host's platform, and can only be decrypted with the matching private key:
+
+| Platform | Encrypted with | Decrypted in `getHostDiskEncryptionKey` using |
+| --- | --- | --- |
+| macOS, iOS, iPadOS | Fleet's CA certificate | `assets.CACertsAndKeyForDecryption` |
+| Windows | WSTEP identity certificate | `mdm.windows_wstep_identity_cert_bytes` and its key |
+| Linux | Fleet server private key | `server.private_key` |
+
+Replacing any of these leaves every key that was escrowed against the old credential undecryptable. Fleet re-verifies decryptability hourly for macOS only, and only for keys it has not verified before. Windows and Linux keys are marked decryptable at escrow time and are never re-checked, and no platform re-checks a key already marked decryptable.
+
+Additionally, a backup copy of any key that gets escrowed is stored in the
+`host_disk_encryption_keys_archive` table. Archived keys are encrypted the same way as live ones, so they don't survive a credential change either. In the event that a host's encryption key is unavailable
 due to a rotation or other event, it is possible to restore the host's most recently archived key by
 executing the following query against the Fleet server's MySQL database, replacing HOST_ID with the
 ID of the host in question:

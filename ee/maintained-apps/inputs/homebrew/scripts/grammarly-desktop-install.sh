@@ -11,7 +11,9 @@ quit_application() {
   local timeout_duration=10
 
   # check if the application is running
-  if ! osascript -e "application id \"$bundle_id\" is running" 2>/dev/null; then
+  local app_running
+  app_running=$(osascript -e "application id \"$bundle_id\" is running" 2>/dev/null)
+  if [[ "$app_running" != "true" ]]; then
     return
   fi
 
@@ -44,9 +46,17 @@ quit_application() {
 }
 
 # extract contents
+# Fail before the existing app is removed below, so a bad download can't leave
+# the host without a working install.
 MOUNT_POINT=$(mktemp -d /tmp/dmg_mount_XXXXXX)
-hdiutil attach -plist -nobrowse -readonly -mountpoint "$MOUNT_POINT" "$INSTALLER_PATH"
-sudo cp -R "$MOUNT_POINT"/* "$TMPDIR"
+if ! hdiutil attach -plist -nobrowse -readonly -mountpoint "$MOUNT_POINT" "$INSTALLER_PATH"; then
+	echo "Failed to mount DMG '$INSTALLER_PATH'." >&2
+	exit 1
+fi
+if ! sudo cp -R "$MOUNT_POINT"/* "$TMPDIR"; then
+	hdiutil detach "$MOUNT_POINT" || true
+	exit 1
+fi
 hdiutil detach "$MOUNT_POINT"
 
 # copy to the applications folder
@@ -61,7 +71,12 @@ fi
 
 # Copy Grammarly Installer.app from temp directory to Applications as Grammarly Desktop.app
 if [ -d "$TMPDIR/Grammarly Installer.app" ]; then
-	sudo cp -R "$TMPDIR/Grammarly Installer.app" "$APPDIR/Grammarly Desktop.app"
+	if ! sudo cp -R "$TMPDIR/Grammarly Installer.app" "$APPDIR/Grammarly Desktop.app"; then
+		# remove the partial copy so a failed install isn't inventoried as the new version
+		sudo rm -rf "$APPDIR/Grammarly Desktop.app"
+		echo "Installation failed"
+		exit 1
+	fi
 	echo "Installation verified"
 else
 	echo "Error: Grammarly Installer.app not found in extracted files"

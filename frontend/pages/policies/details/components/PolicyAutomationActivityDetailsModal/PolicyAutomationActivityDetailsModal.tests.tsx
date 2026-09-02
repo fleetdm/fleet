@@ -17,6 +17,8 @@ const failedSoftwareActivity: IPolicyAutomationActivity = {
   host_display_name: "Rachael's MacBook Pro",
   status: "error",
   output: "Failed installer: Package name is Zoom Workplace",
+  pre_install_output: null,
+  post_install_output: null,
 };
 
 describe("PolicyAutomationActivityDetailsModal", () => {
@@ -61,6 +63,80 @@ describe("PolicyAutomationActivityDetailsModal", () => {
       screen.getByRole("button", { name: /reset policy/i })
     );
     expect(onResetPolicy).toHaveBeenCalledTimes(1);
+  });
+
+  it("renders separate pre-install, install, and post-install output sections for software installs", () => {
+    render(
+      <PolicyAutomationActivityDetailsModal
+        activity={{
+          ...failedSoftwareActivity,
+          pre_install_output: "pre-install query returned no rows",
+          output: "install script exited 1",
+          post_install_output: "post-install verification failed",
+        }}
+        onCancel={jest.fn()}
+      />
+    );
+
+    expect(screen.getByText("Pre-install query output")).toBeInTheDocument();
+    expect(
+      screen.getByText("pre-install query returned no rows")
+    ).toBeInTheDocument();
+    // The install-script section uses the "Details" label (shared with the modal
+    // title), so assert on its unique output value rather than the label.
+    expect(screen.getByText("install script exited 1")).toBeInTheDocument();
+    expect(screen.getByText("Post-install script output")).toBeInTheDocument();
+    expect(
+      screen.getByText("post-install verification failed")
+    ).toBeInTheDocument();
+  });
+
+  it("omits an install output section that is empty", () => {
+    render(
+      <PolicyAutomationActivityDetailsModal
+        activity={{
+          ...failedSoftwareActivity,
+          pre_install_output: "pre-install query failed",
+          output: null,
+          post_install_output: null,
+        }}
+        onCancel={jest.fn()}
+      />
+    );
+
+    // Only the stage that produced output is shown; empty sections (the
+    // install-script and post-install stages here) are omitted.
+    expect(screen.getByText("Pre-install query output")).toBeInTheDocument();
+    expect(screen.getByText("pre-install query failed")).toBeInTheDocument();
+    expect(
+      screen.queryByText("Post-install script output")
+    ).not.toBeInTheDocument();
+  });
+
+  it("explains a patch-when-closed skip instead of showing empty output sections", () => {
+    render(
+      <PolicyAutomationActivityDetailsModal
+        activity={{
+          ...failedSoftwareActivity,
+          details: {
+            policy_id: 123,
+            software_title: "1Password",
+            skipped_install: true,
+          },
+          output: null,
+          pre_install_output: "",
+        }}
+        onCancel={jest.fn()}
+      />
+    );
+
+    expect(screen.getByText("Patch skipped (1Password)")).toBeInTheDocument();
+
+    // Shown inline, the same way a failing row shows its output sections.
+    expect(screen.getByText("Pre-install query output")).toBeInTheDocument();
+    expect(
+      screen.getByText(/Query didn't return result or failed/)
+    ).toBeInTheDocument();
   });
 
   it("omits the details box when there is no output or error", () => {

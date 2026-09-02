@@ -14,6 +14,24 @@
     gap: $pad-small;
   }
 
+  // When a leading icon is rendered, group it with the copy on the left
+  // instead of pushing them to opposite edges with `space-between`.
+  &__icon {
+    justify-content: flex-start;
+    align-items: flex-start;
+    gap: $pad-small;
+  }
+
+  &__leading-icon {
+    flex-shrink: 0;
+    // Override .icon's `align-self: center` so a wrapping message keeps the
+    // icon lined up with the first line of text. The one-line-tall band +
+    // `align-items: center` centers the 16px svg on the first line of copy.
+    align-self: flex-start;
+    align-items: center;
+    height: calc(#{$x-small} * #{$line-height});
+  }
+
   &__info {
     // Do not use display flex as it will have adverse effects on spacing around HTML tags
     align-content: center;

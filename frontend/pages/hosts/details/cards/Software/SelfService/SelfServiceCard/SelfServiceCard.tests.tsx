@@ -127,7 +127,7 @@ describe("SelfServiceCard", () => {
 
     render(<SelfServiceCard {...props} />);
 
-    expect(screen.getByText("Self-service")).toBeInTheDocument();
+    expect(screen.getByText("Self service")).toBeInTheDocument();
     expect(
       screen.getByText(
         /Install organization-approved apps provided by your IT department/
@@ -239,7 +239,20 @@ describe("SelfServiceCard", () => {
     // satisfy toHaveBeenCalled().
     const pushSpy = jest.fn();
     const mockRouter = createMockRouter({ push: pushSpy });
-    const props = createTestProps({ router: mockRouter });
+    // Only categories with software appear, so the software must be in Browsers.
+    const browserPackage = createMockHostSoftwarePackage({
+      categories: (["🌎 Browsers"] as string[]) as SoftwareCategory[],
+    });
+    const props = createTestProps({
+      router: mockRouter,
+      enhancedSoftware: [
+        {
+          ...createMockDeviceSoftware({ name: "browser" }),
+          ui_status: "uninstalled",
+          software_package: browserPackage,
+        },
+      ],
+    });
     const render = createCustomRenderer({ withBackendMock: true });
     const user = userEvent.setup();
 
@@ -256,7 +269,40 @@ describe("SelfServiceCard", () => {
     );
   });
 
-  it("renders the install-all button enabled when 'All' is selected and items are eligible", () => {
+  it("hides categories that have no self-service software", async () => {
+    // BE returns both, but only Browsers has software, so Security is hidden.
+    mockServer.use(
+      listDeviceSelfServiceCategoriesHandler([
+        { id: 1, name: "🌎 Browsers" },
+        { id: 2, name: "🔐 Security" },
+      ])
+    );
+    const browserPackage = createMockHostSoftwarePackage({
+      categories: (["🌎 Browsers"] as string[]) as SoftwareCategory[],
+    });
+    const props = createTestProps({
+      enhancedSoftware: [
+        {
+          ...createMockDeviceSoftware({ name: "browser" }),
+          ui_status: "uninstalled",
+          software_package: browserPackage,
+        },
+      ],
+    });
+    const render = createCustomRenderer({ withBackendMock: true });
+    const user = userEvent.setup();
+
+    render(<SelfServiceCard {...props} />);
+
+    await user.click(await screen.findByRole("button", { expanded: false }));
+    expect(await screen.findByText("🌎 Browsers")).toBeInTheDocument();
+    expect(screen.queryByText("🔐 Security")).not.toBeInTheDocument();
+  });
+
+  it("does not render the install-all button on the unfiltered 'All' view even when items are eligible", () => {
+    // DEFAULT_QUERY_PARAMS has category_id: undefined, i.e. the "All" view.
+    // Install all is suppressed there so a single click can't queue the entire
+    // catalog — see #48485.
     const props = createTestProps({
       enhancedSoftware: [
         {
@@ -269,9 +315,9 @@ describe("SelfServiceCard", () => {
 
     render(<SelfServiceCard {...props} />);
 
-    const button = screen.getByRole("button", { name: /Install all/i });
-    expect(button).toBeInTheDocument();
-    expect(button).toBeEnabled();
+    expect(
+      screen.queryByRole("button", { name: /Install all/i })
+    ).not.toBeInTheDocument();
   });
 
   it("renders the install-all button with the uninstalled count when a category is selected", async () => {
@@ -323,14 +369,27 @@ describe("SelfServiceCard", () => {
   // click only queues whatever's still eligible. The button stays enabled
   // whenever count > 0. See #47855.
   it("keeps the install-all button enabled when an item is in progress and there are still uninstalled items", async () => {
+    mockServer.use(
+      listDeviceSelfServiceCategoriesHandler([{ id: 1, name: "🌎 Browsers" }])
+    );
+    const browserPackage = createMockHostSoftwarePackage({
+      categories: (["🌎 Browsers"] as string[]) as SoftwareCategory[],
+    });
     const props = createTestProps({
+      queryParams: { ...DEFAULT_QUERY_PARAMS, category_id: 1 },
       enhancedSoftware: [
         {
-          ...createMockDeviceSoftware({ name: "uninstalled-app" }),
+          ...createMockDeviceSoftware({
+            name: "uninstalled-app",
+            software_package: browserPackage,
+          }),
           ui_status: "uninstalled",
         },
         {
-          ...createMockDeviceSoftware({ name: "in-progress-app" }),
+          ...createMockDeviceSoftware({
+            name: "in-progress-app",
+            software_package: browserPackage,
+          }),
           ui_status: "installing",
         },
       ],
@@ -345,6 +404,124 @@ describe("SelfServiceCard", () => {
     expect(button).toBeEnabled();
   });
 
+  // With a search query active, the install-all count and the request sent to
+  // the BE must both match the visible (filtered) subset. The count math is
+  // covered at the helper level in helpers.tests.ts; here we only need to
+  // assert the count *renders* correctly and the query lands on the POST.
+  it("forwards the search query to install_all so the request matches the visible subset", async () => {
+    let installAllUrl = "";
+    mockServer.use(
+      http.post(
+        baseUrl("/device/:token/software/install_all"),
+        ({ request }) => {
+          installAllUrl = request.url;
+          return new HttpResponse(null, { status: 202 });
+        }
+      )
+    );
+    mockServer.use(
+      listDeviceSelfServiceCategoriesHandler([{ id: 1, name: "🌎 Browsers" }])
+    );
+    const browserPackage = createMockHostSoftwarePackage({
+      categories: (["🌎 Browsers"] as string[]) as SoftwareCategory[],
+    });
+    const props = createTestProps({
+      queryParams: { ...DEFAULT_QUERY_PARAMS, category_id: 1, query: "fox" },
+      enhancedSoftware: [
+        {
+          ...createMockDeviceSoftware({
+            name: "Firefox",
+            software_package: browserPackage,
+          }),
+          ui_status: "uninstalled",
+        },
+      ],
+    });
+    const render = createCustomRenderer({ withBackendMock: true });
+    const user = userEvent.setup();
+
+    render(<SelfServiceCard {...props} />);
+
+    await user.click(
+      await screen.findByRole("button", { name: /Install all \(1\)/i })
+    );
+    await user.click(
+      await screen.findByRole("button", { name: /^Install all$/i })
+    );
+
+    await waitFor(() => {
+      expect(installAllUrl).toContain("query=fox");
+    });
+    expect(installAllUrl).toContain("category_id=1");
+  });
+
+  // Normalization must happen once at the SelfServiceCard level so the
+  // desktop table filter, count, and outgoing API call all share identical
+  // semantics. Whitespace-padded or whitespace-only queries would otherwise
+  // drift between react-table (raw) and the helper/API (trimmed).
+  it.each([
+    ["trailing/leading spaces", "  fox  ", "query=fox"],
+    ["whitespace-only", "   ", null],
+    ["empty string", "", null],
+  ])(
+    "normalizes queryParams.query (%s) into a single semantics for the POST",
+    async (_, urlQuery, expectedFragment) => {
+      let installAllUrl = "";
+      mockServer.use(
+        http.post(
+          baseUrl("/device/:token/software/install_all"),
+          ({ request }) => {
+            installAllUrl = request.url;
+            return new HttpResponse(null, { status: 202 });
+          }
+        )
+      );
+      mockServer.use(
+        listDeviceSelfServiceCategoriesHandler([{ id: 1, name: "🌎 Browsers" }])
+      );
+      const browserPackage = createMockHostSoftwarePackage({
+        categories: (["🌎 Browsers"] as string[]) as SoftwareCategory[],
+      });
+      const props = createTestProps({
+        queryParams: {
+          ...DEFAULT_QUERY_PARAMS,
+          category_id: 1,
+          query: urlQuery,
+        },
+        enhancedSoftware: [
+          {
+            ...createMockDeviceSoftware({
+              name: "Firefox",
+              software_package: browserPackage,
+            }),
+            ui_status: "uninstalled",
+          },
+        ],
+      });
+      const render = createCustomRenderer({ withBackendMock: true });
+      const user = userEvent.setup();
+
+      render(<SelfServiceCard {...props} />);
+
+      await user.click(
+        await screen.findByRole("button", { name: /Install all \(1\)/i })
+      );
+      await user.click(
+        await screen.findByRole("button", { name: /^Install all$/i })
+      );
+
+      await waitFor(() => {
+        expect(installAllUrl).toContain("category_id=1");
+      });
+      if (expectedFragment) {
+        expect(installAllUrl).toContain(expectedFragment);
+        expect(installAllUrl).not.toContain("query=%20");
+      } else {
+        expect(installAllUrl).not.toContain("query=");
+      }
+    }
+  );
+
   it("posts to install_all and fires onInstallAllSuccess when the confirm modal is submitted", async () => {
     let installAllCalled = false;
     let installAllUrl = "";
@@ -358,12 +535,22 @@ describe("SelfServiceCard", () => {
         }
       )
     );
+    mockServer.use(
+      listDeviceSelfServiceCategoriesHandler([{ id: 1, name: "🌎 Browsers" }])
+    );
+    const browserPackage = createMockHostSoftwarePackage({
+      categories: (["🌎 Browsers"] as string[]) as SoftwareCategory[],
+    });
     const onInstallAllSuccess = jest.fn();
     const props = createTestProps({
       onInstallAllSuccess,
+      queryParams: { ...DEFAULT_QUERY_PARAMS, category_id: 1 },
       enhancedSoftware: [
         {
-          ...createMockDeviceSoftware({ name: "uninstalled-app" }),
+          ...createMockDeviceSoftware({
+            name: "uninstalled-app",
+            software_package: browserPackage,
+          }),
           ui_status: "uninstalled",
         },
       ],
@@ -374,7 +561,7 @@ describe("SelfServiceCard", () => {
     render(<SelfServiceCard {...props} />);
 
     await user.click(
-      screen.getByRole("button", { name: /Install all \(1\)/i })
+      await screen.findByRole("button", { name: /Install all \(1\)/i })
     );
     // The confirm button inside the modal is labeled "Install all" (no count).
     await user.click(
@@ -385,8 +572,8 @@ describe("SelfServiceCard", () => {
       expect(installAllCalled).toBe(true);
       expect(onInstallAllSuccess).toHaveBeenCalled();
     });
-    // "All" selected → no category_id should be on the query string.
-    expect(installAllUrl).not.toContain("category_id");
+    // A specific category is selected → its category_id is on the query string.
+    expect(installAllUrl).toContain("category_id=1");
   });
 
   it("does not render the install-all button on the mobile view", () => {
@@ -405,7 +592,6 @@ describe("SelfServiceCard", () => {
 
   it("renders empty search state when the search query yields no rows", () => {
     const props = createTestProps({
-      enhancedSoftware: [],
       queryParams: { ...DEFAULT_QUERY_PARAMS, query: "nonexistent" },
     });
     const render = createCustomRenderer({ withBackendMock: true });
@@ -425,6 +611,46 @@ describe("SelfServiceCard", () => {
       name: /Reach out to IT/i,
     });
     expect(contactLink[0]).toHaveAttribute("href", props.contactUrl);
+  });
+
+  it("removes the empty search state immediately when search is cleared", async () => {
+    mockServer.use(
+      listDeviceSelfServiceCategoriesHandler([{ id: 1, name: "🌎 Browsers" }])
+    );
+    const browserPackage = createMockHostSoftwarePackage({
+      categories: (["🌎 Browsers"] as string[]) as SoftwareCategory[],
+    });
+    const props = createTestProps({
+      queryParams: { ...DEFAULT_QUERY_PARAMS, query: "nonexistent" },
+      enhancedSoftware: [
+        {
+          ...createMockDeviceSoftware({ name: "browser" }),
+          ui_status: "installed",
+          software_package: browserPackage,
+        },
+      ],
+    });
+    const render = createCustomRenderer({ withBackendMock: true });
+    const { rerender } = render(<SelfServiceCard {...props} />);
+
+    expect(
+      await screen.findByText("No items match your search")
+    ).toBeInTheDocument();
+    // Ensure the categories request has settled before exercising the update.
+    // Trigger renders the current selection label ("All" when none is picked).
+    await screen.findByRole("button", { name: /^All$/i });
+
+    rerender(
+      <SelfServiceCard
+        {...props}
+        queryParams={{ ...DEFAULT_QUERY_PARAMS, query: "" }}
+      />
+    );
+
+    expect(
+      screen.queryByText("No items match your search")
+    ).not.toBeInTheDocument();
+    expect(screen.getByText("browser")).toBeInTheDocument();
   });
 
   it("renders empty-category state when the category filter yields no rows", async () => {

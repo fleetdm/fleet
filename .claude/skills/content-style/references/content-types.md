@@ -18,6 +18,7 @@ Each content type has its own shape. Identify the type first, then apply the mat
 - Bold UI elements only (e.g. "Navigate to **Settings > Hosts**"). Never bold for emphasis.
 - Surface the simple, high-level steps first; put advanced details lower down.
 - Requires the article endmatter below with `category` set to `guides`.
+- For the full section-by-section skeleton (prerequisites, inline gotcha callouts, step shapes, verify/troubleshoot, a fill-in template) and an audit checklist for existing guides, use the `fleet-guide-formatting` skill.
 
 ## Articles and blog posts
 
@@ -48,6 +49,8 @@ Each content type has its own shape. Identify the type first, then apply the mat
 ## Article endmatter template
 
 Articles, guides, and announcements end with this YAML block. Match `articleTitle` to the H1 exactly. Don't fabricate the author, username, or date — ask if you don't have them.
+
+The 150-character cap on `description` is **enforced by the website build**, not a style preference: `website/scripts/build-static-content.js` throws `An article page has an invalid description meta tag` and fails the whole production build for any page over the limit, whatever its category. Count the characters rather than eyeballing it.
 
 ```
 <meta name="articleTitle" value="[Must match the H1 exactly]">

@@ -95,6 +95,55 @@ func (svc *Service) GetFleetDesktopSummary(ctx context.Context) (fleet.DesktopSu
 }
 
 /////////////////////////////////////////////////////////////////////////////////
+// POST /device/{token}/sso
+/////////////////////////////////////////////////////////////////////////////////
+
+type initiateDeviceSSORequest struct {
+	Token string `url:"token"`
+}
+
+func (r *initiateDeviceSSORequest) deviceAuthToken() string { return r.Token }
+
+type initiateDeviceSSOResponse struct {
+	URL string `json:"url"`
+	Err error  `json:"error,omitempty"`
+	// Cookie fields
+	sessionID       string
+	sessionDuration time.Duration
+}
+
+func (r initiateDeviceSSOResponse) Error() error { return r.Err }
+
+func (r initiateDeviceSSOResponse) SetCookies(_ context.Context, w http.ResponseWriter) {
+	if r.sessionID == "" {
+		return
+	}
+	setSSOCookie(w, r.sessionID, int(r.sessionDuration.Seconds()))
+}
+
+func initiateDeviceSSOEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*initiateDeviceSSORequest)
+	initiation, err := svc.InitiateDeviceSSO(ctx, "/device/"+req.Token)
+	if err != nil {
+		return initiateDeviceSSOResponse{Err: err}, nil
+	}
+	return initiateDeviceSSOResponse{
+		URL:             initiation.IdPURL,
+		sessionID:       initiation.SessionID,
+		sessionDuration: initiation.SessionDuration,
+	}, nil
+}
+
+func (svc *Service) InitiateDeviceSSO(ctx context.Context, deviceURL string) (*fleet.DeviceSSOInitiation, error) {
+	svc.authz.SkipAuthorization(ctx)
+	return nil, fleet.ErrMissingLicense
+}
+
+func (svc *Service) RequireDeviceSSOSession(ctx context.Context, host *fleet.Host, sessionID string) error {
+	return nil
+}
+
+/////////////////////////////////////////////////////////////////////////////////
 // Get Current Device's Host
 /////////////////////////////////////////////////////////////////////////////////
 
@@ -107,8 +156,17 @@ func (r *getDeviceHostRequest) deviceAuthToken() string {
 	return r.Token
 }
 
+// deviceHostDetailResponse wraps the host detail response to shadow the
+// host's policies with their device-safe representation, which excludes the
+// policy author's identity and the raw SQL query (this is a device-authenticated
+// endpoint, so it must not expose admin-only data).
+type deviceHostDetailResponse struct {
+	*fleet.HostDetailResponse
+	Policies *[]*fleet.DevicePolicy `json:"policies,omitempty"`
+}
+
 type getDeviceHostResponse struct {
-	Host *fleet.HostDetailResponse `json:"host"`
+	Host *deviceHostDetailResponse `json:"host"`
 	// Deprecated: use OrgLogoURLDarkMode.
 	OrgLogoURL string `json:"org_logo_url"`
 	// Deprecated: use OrgLogoURLLightMode.
@@ -174,6 +232,7 @@ func getDeviceHostEndpoint(ctx context.Context, request interface{}, svc fleet.S
 			resp.ComputerName = ""
 			resp.DisplayText = ""
 			resp.DisplayName = ""
+			resp.HostMDMAppleDeviceVitals = fleet.HostMDMAppleDeviceVitals{}
 
 			// Scrub sensitive data from the license response
 			scrubbedLicense := *license
@@ -237,8 +296,19 @@ func getDeviceHostEndpoint(ctx context.Context, request interface{}, svc fleet.S
 		},
 	}
 
+	deviceHost := &deviceHostDetailResponse{HostDetailResponse: resp}
+	if resp.Policies != nil {
+		devicePolicies := fleet.HostPoliciesToDevicePolicies(*resp.Policies)
+		deviceHost.Policies = &devicePolicies
+		// defense-in-depth: the shadow field above already wins over the
+		// embedded policies when marshaling, but clear the admin-facing
+		// policies anyway so they cannot leak if the wrapped response is ever
+		// marshaled directly.
+		resp.Policies = nil
+	}
+
 	return getDeviceHostResponse{
-		Host:                      resp,
+		Host:                      deviceHost,
 		OrgLogoURL:                ac.OrgInfo.OrgLogoURL,
 		OrgLogoURLLightBackground: ac.OrgInfo.OrgLogoURLLightBackground,
 		OrgLogoURLDarkMode:        ac.OrgInfo.OrgLogoURLDarkMode,
@@ -463,8 +533,8 @@ func (r *listDevicePoliciesRequest) deviceAuthToken() string {
 }
 
 type listDevicePoliciesResponse struct {
-	Err      error               `json:"error,omitempty"`
-	Policies []*fleet.HostPolicy `json:"policies"`
+	Err      error                 `json:"error,omitempty"`
+	Policies []*fleet.DevicePolicy `json:"policies"`
 }
 
 func (r listDevicePoliciesResponse) Error() error { return r.Err }
@@ -484,7 +554,7 @@ func listDevicePoliciesEndpoint(ctx context.Context, request interface{}, svc fl
 	return listDevicePoliciesResponse{Policies: data}, nil
 }
 
-func (svc *Service) ListDevicePolicies(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error) {
+func (svc *Service) ListDevicePolicies(ctx context.Context, host *fleet.Host) ([]*fleet.DevicePolicy, error) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)
@@ -1100,4 +1170,27 @@ func (svc *Service) GetDeviceSetupExperienceStatus(ctx context.Context) (*fleet.
 	svc.authz.SkipAuthorization(ctx)
 
 	return nil, fleet.ErrMissingLicense
+}
+
+type deviceSendAPNSPingRequest struct {
+	Token string `url:"token"`
+}
+
+func (r *deviceSendAPNSPingRequest) deviceAuthToken() string {
+	return r.Token
+}
+
+func deviceSendAPNSPing(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
+	host, ok := hostctx.FromContext(ctx)
+	if !ok {
+		err := ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("internal error: missing host from request context"))
+		return sendAPNSPingResponse{Err: err}, nil
+	}
+
+	err := svc.DeviceSendAPNSPing(ctx, host)
+	if err != nil {
+		return sendAPNSPingResponse{Err: err}, nil
+	}
+
+	return sendAPNSPingResponse{Err: nil}, nil
 }

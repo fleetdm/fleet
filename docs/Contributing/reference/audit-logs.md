@@ -447,6 +447,23 @@ This activity contains the following fields:
 }
 ```
 
+## user_mfa_requested
+
+Generated when a user with multi-factor authentication (MFA) enabled submits valid credentials and Fleet sends a verification email.
+
+This activity contains the following fields:
+- "email": The email used in the login request.
+- "public_ip": Public IP of the login request.
+
+#### Example
+
+```json
+{
+	"email": "foo@example.com",
+	"public_ip": "168.226.215.82"
+}
+```
+
 ## created_user
 
 Generated when a user is created.
@@ -482,6 +499,23 @@ This activity contains the following fields:
 	"user_id": 42,
 	"user_name": "Foo",
 	"user_email": "foo@example.com"
+}
+```
+
+## scim_user_deprovision_skipped
+
+Generated when a SCIM user is deactivated or deleted but Fleet cannot determine which Fleet user to deprovision. This can indicate the SCIM user's identifiers were modified before deactivation; verify that no corresponding Fleet account remains active.
+
+This activity contains the following fields:
+- "scim_user_id": Unique ID of the SCIM user in Fleet.
+- "scim_user_name": The SCIM user's userName at the time of deprovisioning.
+
+#### Example
+
+```json
+{
+	"scim_user_id": 42,
+	"scim_user_name": "nondomain_user"
 }
 ```
 
@@ -885,9 +919,11 @@ This activity contains the following fields:
 
 ## edited_macos_profile
 
-Generated when a user edits the macOS profiles of a fleet (or no fleet) via the fleetctl CLI.
+Generated when a user edits the macOS profiles of a fleet (or no fleet) via the fleetctl CLI, or edits a single macOS profile via the edit profile endpoint.
 
 This activity contains the following fields:
+- "profile_name": Name of the edited profile. Only present when a single profile was edited; omitted for fleetctl/GitOps batch edits.
+- "profile_identifier": Identifier of the edited profile. Only present when a single profile was edited; omitted for fleetctl/GitOps batch edits.
 - "fleet_id": The ID of the fleet that the profiles apply to, `null` if they apply to devices that are not in a fleet ("Unassigned").
 - "fleet_name": The name of the fleet that the profiles apply to, `null` if they apply to devices that are not in a fleet ("Unassigned").
 
@@ -895,6 +931,8 @@ This activity contains the following fields:
 
 ```json
 {
+  "profile_name": "Custom settings 1",
+  "profile_identifier": "com.my.profile",
   "team_id": 123,
   "team_name": "Workstations",
   "fleet_id": 123,
@@ -1335,9 +1373,10 @@ This activity contains the following fields:
 
 ## edited_windows_profile
 
-Generated when a user edits the Windows profiles of a fleet (or no fleet) via the fleetctl CLI.
+Generated when a user edits the Windows profiles of a fleet (or no fleet) via the fleetctl CLI, or edits a single Windows profile via the edit profile endpoint.
 
 This activity contains the following fields:
+- "profile_name": Name of the edited profile. Only present when a single profile was edited; omitted for fleetctl/GitOps batch edits.
 - "fleet_id": The ID of the fleet that the profiles apply to, `null` if they apply to devices that are not in a fleet ("Unassigned").
 - "fleet_name": The name of the fleet that the profiles apply to, `null` if they apply to devices that are not in a fleet ("Unassigned").
 
@@ -1345,6 +1384,7 @@ This activity contains the following fields:
 
 ```json
 {
+  "profile_name": "Custom settings 1",
   "team_id": 123,
   "team_name": "Workstations",
   "fleet_id": 123,
@@ -1472,9 +1512,11 @@ This activity contains the following fields:
 
 ## edited_declaration_profile
 
-Generated when a user edits the macOS declarations of a fleet (or no fleet) via the fleetctl CLI.
+Generated when a user edits the macOS declarations of a fleet (or no fleet) via the fleetctl CLI, or edits a single declaration via the edit profile endpoint.
 
 This activity contains the following fields:
+- "profile_name": Name of the edited declaration. Only present when a single declaration was edited; omitted for fleetctl/GitOps batch edits.
+- "profile_identifier": Identifier of the edited declaration. Only present when a single declaration was edited; omitted for fleetctl/GitOps batch edits.
 - "fleet_id": The ID of the fleet that the declarations apply to, `null` if they apply to devices that are not in a fleet ("Unassigned").
 - "fleet_name": The name of the fleet that the declarations apply to, `null` if they apply to devices that are not in a fleet ("Unassigned").
 
@@ -1482,6 +1524,8 @@ This activity contains the following fields:
 
 ```json
 {
+  "profile_name": "Passcode requirements",
+  "profile_identifier": "com.my.declaration",
   "team_id": 123,
   "team_name": "Workstations",
   "fleet_id": 123,
@@ -1533,9 +1577,10 @@ This activity contains the following fields:
 
 ## edited_android_profile
 
-Generated when a user edits the Android profiles of a fleet (or no fleet) via the fleetctl CLI.
+Generated when a user edits the Android profiles of a fleet (or no fleet) via the fleetctl CLI, or edits a single Android profile via the edit profile endpoint.
 
 This activity contains the following fields:
+- "profile_name": Name of the edited profile. Only present when a single profile was edited; omitted for fleetctl/GitOps batch edits.
 - "fleet_id": The ID of the fleet that the profiles apply to, `null` if they apply to devices that are not in a fleet ("Unassigned").
 - "fleet_name": The name of the fleet that the profiles apply to, `null` if they apply to devices that are not in a fleet ("Unassigned").
 
@@ -1543,6 +1588,7 @@ This activity contains the following fields:
 
 ```json
 {
+  "profile_name": "Custom settings 1",
   "team_id": 123,
   "team_name": "Workstations",
   "fleet_id": 123,
@@ -1746,6 +1792,7 @@ This activity contains the following fields:
 - "labels_include_any": Target hosts that have any label in the array.
 - "labels_exclude_any": Target hosts that don't have any label in the array.
 - "software_display_name": Display name of the software title.
+- "pinned_version": The version a Fleet-maintained app is pinned to — a specific version (e.g. `"149.0.7827.54"`) or a caret major-version constraint (e.g. `"^147"`). `null` when the app automatically updates to the latest version, or when the version wasn't changed.
 
 #### Example
 
@@ -1761,6 +1808,7 @@ This activity contains the following fields:
   "software_title_id": 2234,
   "software_icon_url": "/api/latest/fleet/software/titles/2234/icon?team_id=123",
   "software_display_name": "Crowdstrike Falcon",
+  "pinned_version": "149.0.7827.54",
   "labels_include_any": [
     {
       "name": "Engineering",
@@ -2547,6 +2595,48 @@ Generated when Okta conditional access configuration is removed.
 
 This activity does not contain any detail fields.
 
+## added_google_workspace_integration
+
+Generated when a Google Workspace integration is configured to sync IdP host vitals.
+
+This activity contains a `domain` field with the Google Workspace primary domain that was configured.
+
+#### Example
+
+```json
+{
+  "domain": "example.com"
+}
+```
+
+## edited_google_workspace_integration
+
+Generated when an existing Google Workspace integration is edited.
+
+This activity contains a `domain` field with the Google Workspace primary domain.
+
+#### Example
+
+```json
+{
+  "domain": "example.com"
+}
+```
+
+## deleted_google_workspace_integration
+
+Generated when a Google Workspace integration is removed.
+
+This activity contains a `domain` field with the Google Workspace primary domain that was removed.
+
+#### Example
+
+```json
+{
+  "domain": "example.com"
+}
+```
+
 ## enabled_conditional_access_automations
 
 Generated when conditional access automations are enabled for a fleet.
@@ -2619,6 +2709,21 @@ This activity contains the following fields:
 }
 ```
 
+## updated_custom_variable
+
+Generated when a custom variable's value is updated.
+
+This activity contains the following fields:
+- "custom_variable_name": the name of the custom variable.
+
+#### Example
+
+```json
+{
+	"custom_variable_name": "SOME_API_KEY"
+}
+```
+
 ## deleted_custom_variable
 
 Generated when custom variable is deleted.
@@ -2654,6 +2759,44 @@ This activity contains the following fields:
 	"team_name": "Workstations",
 	"fleet_id": 1,
 	"fleet_name": "Workstations"
+}
+```
+
+## created_setup_experience_script
+
+Generated when a script is added to (or replaced in) setup experience.
+
+This activity contains the following fields:
+- "fleet_id": the ID of the fleet that the script applies to (`null` for hosts that aren't assigned to a fleet).
+- "fleet_name": the name of the fleet that the script applies to (`null` for hosts that aren't assigned to a fleet).
+- "script_name": the name of the script that was added.
+
+#### Example
+
+```json
+{
+	"fleet_id": 123,
+	"fleet_name": "Workstations",
+	"script_name": "set-timezones.sh"
+}
+```
+
+## deleted_setup_experience_script
+
+Generated when a script is removed from setup experience.
+
+This activity contains the following fields:
+- "fleet_id": the ID of the fleet that the script applied to (`null` for hosts that aren't assigned to a fleet).
+- "fleet_name": the name of the fleet that the script applied to (`null` for hosts that aren't assigned to a fleet).
+- "script_name": the name of the script that was removed.
+
+#### Example
+
+```json
+{
+	"fleet_id": 123,
+	"fleet_name": "Workstations",
+	"script_name": "set-timezones.sh"
 }
 ```
 
@@ -2781,6 +2924,25 @@ This activity contains the following fields:
   "team_name": "Workstations",
   "fleet_id": 123,
   "fleet_name": "Workstations"
+}
+```
+
+## edited_host_name_template
+
+Generated when a user edits the host name template for a fleet (or no fleet).
+
+This activity contains the following fields:
+- "fleet_id": The ID of the fleet that the host name template applies to, `null` if it applies to devices that are not in a fleet ("Unassigned").
+- "fleet_name": The name of the fleet that the host name template applies to, `null` if it applies to devices that are not in a fleet ("Unassigned").
+- "name_template": The host name template, `null` if the template was cleared.
+
+#### Example
+
+```json
+{
+  "fleet_id": 123,
+  "fleet_name": "Workstations",
+  "name_template": "WS-$FLEET_VAR_HOST_HARDWARE_SERIAL"
 }
 ```
 
@@ -3008,6 +3170,48 @@ This activity contains the following fields:
 }
 ```
 
+## edited_account_provisioning
+
+Generated when settings for account provisioning are edited.
+
+This activity contains the following fields:
+- "fleet_id": the ID of the fleet the label belonged to.
+- "fleet_name": the name of the fleet the label belonged to.
+
+#### Example
+
+```json
+{
+  "fleet_id": 123,
+  "fleet_name": "Workstations"
+}
+```
+
+## ran_custom_mdm_command
+
+Generated when a user runs a custom MDM command via API or the fleetctl CLI.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+- "host_uuid": UUID of the host.
+- "command_uuid": UUID of the MDM command used to install the app.
+- "request_type": the type of custom MDM command.
+- "platform": the platform of the host ("darwin" or "windows").
+
+#### Example
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro",
+  "host_uuid": "1b3d5e7f-9a2c-4e6d-8b0a-1c3d5e7f9a2b",
+  "command_uuid": "98765432-1234-1234-1234-1234567890ab",
+  "request_type": "EraseDevice",
+  "platform": "darwin"
+}
+```
+
 ## added_label_to_host
 
 Generated when a label is added to a host.
@@ -3047,6 +3251,63 @@ This activity contains the following fields:
   "host_display_name": "Anna's MacBook Pro",
   "label_id": 42,
   "label_name": "Engineering"
+}
+```
+
+## created_apple_asset_declaration
+
+Generated when creating an Apple asset declaration.
+
+This activity contains the following fields:
+- "fleet_id": the ID of the fleet the asset belongs to.
+- "fleet_name": the name of the fleet the asset belongs to.
+- "asset_name": the name of the asset.
+
+#### Example
+
+```json
+{
+	"fleet_id": 1,
+	"fleet_name": "💻 Workstations",
+	"asset_name": "My Asset"
+}
+```
+
+## edited_apple_asset_declaration
+
+Generated when an Apple asset declaration is edited.
+
+This activity contains the following fields:
+- "fleet_id": the ID of the fleet the asset belongs to.
+- "fleet_name": the name of the fleet the asset belongs to.
+- "asset_name": the name of the asset.
+
+#### Example
+
+```json
+{
+	"fleet_id": 1,
+	"fleet_name": "💻 Workstations",
+	"asset_name": "My Asset"
+}
+```
+
+## deleted_apple_asset_declaration
+
+Generated when an Apple asset declaration is deleted.
+
+This activity contains the following fields:
+- "fleet_id": the ID of the fleet the asset belongs to.
+- "fleet_name": the name of the fleet the asset belongs to.
+- "asset_name": the name of the asset.
+
+#### Example
+
+```json
+{
+	"fleet_id": 1,
+	"fleet_name": "💻 Workstations",
+	"asset_name": "My Asset"
 }
 ```
 

@@ -44,7 +44,7 @@ func TestGlobalPoliciesAuth(t *testing.T) {
 	ds.NewGlobalPolicyFunc = func(ctx context.Context, authorID *uint, args fleet.PolicyPayload) (*fleet.Policy, error) {
 		return &fleet.Policy{}, nil
 	}
-	ds.ListGlobalPoliciesFunc = func(ctx context.Context, opts fleet.ListOptions) ([]*fleet.Policy, error) {
+	ds.ListGlobalPoliciesFunc = func(ctx context.Context, opts fleet.ListOptions, platform string) ([]*fleet.Policy, error) {
 		return nil, nil
 	}
 	ds.PoliciesByIDFunc = func(ctx context.Context, ids []uint) (map[uint]*fleet.Policy, error) {
@@ -132,7 +132,7 @@ func TestGlobalPoliciesAuth(t *testing.T) {
 			})
 			checkAuthErr(t, tt.shouldFailWrite, err)
 
-			_, err = svc.ListGlobalPolicies(ctx, fleet.ListOptions{})
+			_, err = svc.ListGlobalPolicies(ctx, fleet.ListOptions{}, "")
 			checkAuthErr(t, tt.shouldFailRead, err)
 
 			_, err = svc.GetPolicyByID(ctx, 1)
@@ -555,6 +555,54 @@ func TestApplyPolicySpecsLabelScopeRequiresPremium(t *testing.T) {
 	require.False(t, ds.ApplyPolicySpecsFuncInvoked)
 }
 
+func TestApplyPolicySpecsPatchWhenClosedRequiresPremium(t *testing.T) {
+	newDS := func() *mock.Store {
+		ds := new(mock.Store)
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{}, nil
+		}
+		ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
+			return &fleet.Team{ID: 1, Name: name}, nil
+		}
+		ds.ApplyPolicySpecsFunc = func(ctx context.Context, authorID uint, specs []*fleet.PolicySpec) error {
+			return nil
+		}
+		return ds
+	}
+
+	// patch_when_closed requires a patch-type team policy.
+	patchSpec := func() *fleet.PolicySpec {
+		return &fleet.PolicySpec{
+			Name:            "patch policy",
+			Team:            "team1",
+			Type:            fleet.PolicyTypePatch,
+			PatchWhenClosed: true,
+		}
+	}
+
+	testAdmin := fleet.User{ID: 1, GlobalRole: new(fleet.RoleAdmin)}
+
+	// A free-tier caller can't apply patch_when_closed, and we never reach the datastore.
+	t.Run("free tier rejected", func(t *testing.T) {
+		ds := newDS()
+		svc, ctx := newTestService(t, ds, nil, nil)
+		viewerCtx := viewer.NewContext(ctx, viewer.Viewer{User: &testAdmin})
+		err := svc.ApplyPolicySpecs(viewerCtx, []*fleet.PolicySpec{patchSpec()})
+		require.ErrorIs(t, err, fleet.ErrMissingLicense)
+		require.False(t, ds.ApplyPolicySpecsFuncInvoked)
+	})
+
+	// A premium caller applies it successfully.
+	t.Run("premium accepted", func(t *testing.T) {
+		ds := newDS()
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}})
+		viewerCtx := viewer.NewContext(ctx, viewer.Viewer{User: &testAdmin})
+		err := svc.ApplyPolicySpecs(viewerCtx, []*fleet.PolicySpec{patchSpec()})
+		require.NoError(t, err)
+		require.True(t, ds.ApplyPolicySpecsFuncInvoked)
+	})
+}
+
 func TestApplyPolicySpecsDefaultType(t *testing.T) {
 	ds := new(mock.Store)
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
@@ -848,4 +896,105 @@ func TestNewGlobalPolicyQueryIDAuth(t *testing.T) {
 			require.Equal(t, tc.wantQueryLoaded, ds.QueryFuncInvoked)
 		})
 	}
+}
+
+func TestApplyPolicySpecsResendConfigProfile(t *testing.T) {
+	const (
+		teamName  = "team1"
+		teamID    = uint(1)
+		appleUUID = fleet.MDMAppleProfileUUIDPrefix + "1111"
+	)
+
+	setupDS := func() *mock.Store {
+		ds := new(mock.Store)
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{}, nil
+		}
+		ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
+			return &fleet.Team{ID: teamID, Name: name}, nil
+		}
+		return ds
+	}
+
+	adminCtx := func(ctx context.Context) context.Context {
+		return viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{
+			ID:         1,
+			GlobalRole: new(fleet.RoleAdmin),
+		}})
+	}
+
+	spec := func(team string, profileUUID *string) *fleet.PolicySpec {
+		return &fleet.PolicySpec{
+			Name:        "resend spec policy",
+			Query:       "SELECT 1;",
+			Team:        team,
+			Platform:    "darwin",
+			ProfileUUID: profileUUID,
+		}
+	}
+
+	// A team spec carrying a profile UUID reaches the datastore untouched — the
+	// service layer does not split the columns, the datastore dispatches on prefix.
+	t.Run("team spec passes profile_uuid through", func(t *testing.T) {
+		ds := setupDS()
+		var captured []*fleet.PolicySpec
+		ds.ApplyPolicySpecsFunc = func(ctx context.Context, authorID uint, specs []*fleet.PolicySpec) error {
+			captured = specs
+			return nil
+		}
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{
+			License: &fleet.LicenseInfo{Tier: fleet.TierPremium},
+		})
+
+		err := svc.ApplyPolicySpecs(adminCtx(ctx), []*fleet.PolicySpec{spec(teamName, new(appleUUID))})
+		require.NoError(t, err)
+		require.True(t, ds.ApplyPolicySpecsFuncInvoked)
+		require.Len(t, captured, 1)
+		require.NotNil(t, captured[0].ProfileUUID)
+		require.Equal(t, appleUUID, *captured[0].ProfileUUID)
+	})
+
+	// "All fleets" (empty team) cannot carry a resend profile.
+	t.Run("global spec rejects profile_uuid", func(t *testing.T) {
+		ds := setupDS()
+		ds.ApplyPolicySpecsFunc = func(ctx context.Context, authorID uint, specs []*fleet.PolicySpec) error {
+			return nil
+		}
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{
+			License: &fleet.LicenseInfo{Tier: fleet.TierPremium},
+		})
+
+		err := svc.ApplyPolicySpecs(adminCtx(ctx), []*fleet.PolicySpec{spec("", new(appleUUID))})
+		require.Error(t, err)
+		require.ErrorContains(t, err, errPolicyAllFleetsForProfiles)
+		require.False(t, ds.ApplyPolicySpecsFuncInvoked)
+	})
+
+	// PolicySpec has no premium struct tag and the decoder does not reach into the
+	// spec slice, so ApplyPolicySpecs needs its own explicit license check.
+	t.Run("profile_uuid requires premium", func(t *testing.T) {
+		ds := setupDS()
+		ds.ApplyPolicySpecsFunc = func(ctx context.Context, authorID uint, specs []*fleet.PolicySpec) error {
+			return nil
+		}
+		// Free license.
+		svc, ctx := newTestService(t, ds, nil, nil)
+
+		err := svc.ApplyPolicySpecs(adminCtx(ctx), []*fleet.PolicySpec{spec(teamName, new(appleUUID))})
+		require.ErrorIs(t, err, fleet.ErrMissingLicense)
+		require.False(t, ds.ApplyPolicySpecsFuncInvoked)
+	})
+
+	// Without a profile UUID, a free-tier spec is unaffected.
+	t.Run("no profile_uuid does not require premium", func(t *testing.T) {
+		ds := setupDS()
+		ds.ApplyPolicySpecsFunc = func(ctx context.Context, authorID uint, specs []*fleet.PolicySpec) error {
+			return nil
+		}
+		svc, ctx := newTestService(t, ds, nil, nil)
+
+		err := svc.ApplyPolicySpecs(adminCtx(ctx), []*fleet.PolicySpec{spec(teamName, nil)})
+		require.NoError(t, err)
+		require.True(t, ds.ApplyPolicySpecsFuncInvoked)
+	})
 }

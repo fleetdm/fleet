@@ -287,7 +287,7 @@ const EditAutoUpdateConfigModal = ({
               dropdownHelpText={
                 generateHelpText(false, formData.customTarget) // maps to !automaticInstall help text
               }
-              subTitle="Changes to targets will also apply to self-service."
+              subTitle="Changes to targets will also apply to self service."
             />
           </Card>
         </div>
@@ -295,7 +295,7 @@ const EditAutoUpdateConfigModal = ({
       <ModalFooter
         primaryButtons={
           <>
-            <Button onClick={onExit} variant="inverse">
+            <Button onClick={onExit} variant="secondary">
               Cancel
             </Button>
             <GitOpsModeTooltipWrapper

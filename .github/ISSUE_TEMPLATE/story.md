@@ -22,10 +22,10 @@ It is [planned and ready](https://fleetdm.com/handbook/company/development-group
 ## Changes
 
 ### Product
-- [ ] UI changes: TODO <!-- Insert the link to the relevant Figma cover page. If there are substantial UI changes at one of Fleet's breakpoints (480, 768, 1024, 1280, and 1440px), make sure wireframes show the UI at the relevant breakpoint(s). Put "No changes" if there are no changes to the user interface. -->
+- [ ] UI changes: TODO <!-- Insert the link to the relevant Figma "Ready" page. If there are substantial UI changes at one of Fleet's breakpoints (480, 768, 1024, 1280, and 1440px), make sure wireframes show the UI at the relevant breakpoint(s). Put "No changes" if there are no changes to the user interface. -->
 - [ ] CLI (fleetctl) usage changes: TODO <!-- Insert the link to the relevant Figma cover page. Put "No changes" if there are no changes to the CLI. -->
 - [ ] YAML changes: TODO <!-- Specify changes in the YAML files doc page as a PR to the reference docs release branch following the guidelines in the handbook here: https://fleetdm.com/handbook/product-design#drafting Put "No changes" if there are no changes necessary. -->
-- [ ] REST API changes: TODO <!-- Specify changes in the REST API doc page as a PR to reference docs release branch following the guidelines in the handbook here: https://fleetdm.com/handbook/product-design#drafting Put "No changes" if there are no changes necessary. Move this item to the engineering list below if engineering will design the API changes. -->
+- [ ] REST API changes: TODO <!-- Specify changes as a PR to reference docs release branch following the guidelines in the handbook here: https://fleetdm.com/handbook/product-design#drafting Put "No changes" if there are no changes necessary. Move this item to the engineering list below if engineering will design the API changes. -->
 - [ ] Fleet's agent (fleetd) changes: TODO <!-- Specify changes to fleetd. If the change requires a new Fleet (server) version, consider specifying to only enable this change in new Fleet versions. If there are new tables, specify changes in the schema/ folder as a PR to the reference docs release branch following the guidelines in the handbook here: https://fleetdm.com/handbook/product-design#drafting Put "No changes" if there are no changes necessary. -->
 - [ ] Fleet server configuration changes: TODO <!-- Specify changes in the Fleet server configuration doc page as a PR to reference docs release branch following the guidelines in the handbook here: https://fleetdm.com/handbook/product-design#drafting File a :help-customers request and assign the SVP of Customer Success. Up to Customer Success to device if any changes to cloud environments is needed. Put "No changes" if there are no changes necessary. -->
 - [ ] Exposed, public API endpoint changes: TODO <!-- Specify changes in the "Which API endpoints to expose to the public internet?" guide as a PR to reference docs release branch following the guidelines in the handbook here: https://fleetdm.com/handbook/product-design#drafting File a :help-customers request and assign the SVP of Customer Success. Up to Customer Success to device if any changes to cloud environments is needed.  Put "No changes" if there are no changes necessary. -->
@@ -37,6 +37,7 @@ It is [planned and ready](https://fleetdm.com/handbook/company/development-group
 - [ ] Changes to paid features or tiers: TODO  <!-- Specify changes in pricing-features-table.yml as a PR to reference docs release branch. Specify "Fleet Free" and/or "Fleet Premium" if there are no changes to the pricing page necessary. -->
 - [ ] My device and fleetdm.com/better changes: TODO <!-- If there are changes to the personal information Fleet can see on end user workstations, make sure wireframes include changes to the My device page. Also, specify changes as a PR to the fleetdm.com/better (aka Transparency page). Put "No changes" if there are no changes necessary. -->
 - [ ] Usage statistics: TODO <!-- Specify changes in the Fleet usage statistics guide as a PR to reference docs release branch. Put "No changes" if there are no changes necessary. -->
+- [ ] Compatibility: TODO <!-- If there are there are any breaking changes, outside of a major release, notify the Manager of Customer Support and Solutions Architecture. Put "No changes" if there are no changes necessary. -->
 - [ ] Other reference documentation changes: TODO <!-- Any other reference doc changes? Specify changes as a PR to reference docs release branch. Put "No changes" if there are no changes necessary. -->
 - [ ] First draft of test plan added
 - [ ] Once shipped, requester has been notified
@@ -82,6 +83,7 @@ It is [planned and ready](https://fleetdm.com/handbook/company/development-group
 - [ ] Test all API endpoints added or modified in the **API changes** section of this issue
 - [ ] Verify any new API endpoints appear in the list when adding an API-only user. The API endpoints display name, method, and path is the same as listed in the API reference docs
 - [ ] Verify error handling for invalid inputs where applicable
+- [ ] Verify that the new endpoints are available for granular API assignment during API-only user creation
 
 #### GitOps (generate + run)
 - [ ] Configure the feature through the UI and run `fleetctl generate-gitops`
@@ -89,6 +91,7 @@ It is [planned and ready](https://fleetdm.com/handbook/company/development-group
 - [ ] Modify the generated `.yml` and run `fleetctl gitops`
 - [ ] Confirm the configuration updates correctly in Fleet
 - [ ] Enable GitOps mode and verify the feature behaves correctly
+- [ ] Create a new fleet and apply the feature for the first time together with the fleet creation
 
 #### Permissions
 - [ ] Verify role restrictions are applied correctly for **global roles** (admin, maintainer, observer, observer+, GitOps)

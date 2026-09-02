@@ -14,6 +14,8 @@
   "skip_livecheck": true,
   "bundle_version": null,
   "bundle_short_version": null,
+  "pinned": false,
+  "pinned_version": null,
   "sha256": "ab416a7d215029cfed6f292b176951ca614ce263c2b8923beee7fcf417de199a",
   "artifacts": [
     {

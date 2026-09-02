@@ -2,8 +2,8 @@
 name:  Release QA
 about: Checklist of required tests prior to release
 title: 'Release QA:'
-labels: '#g-mdm,#g-orchestration,#g-software,#g-security-compliance,:release'
-assignees: 'xpkoala,andreykizimenko,chrstphr84,Brajim20'
+labels: '#g-orchestration,#g-apple-at-work,#g-power-to-pc,#g-auto-patching,#g-supply-chain,#g-byod,:release'
+assignees: 'xpkoala,andreykizimenko,chrstphr84,Brajim20,marcusallen97,thisisjoegrant'
 
 ---
 
@@ -44,7 +44,6 @@ Smoke tests are limited to core functionality and serve as a pre-release final r
 - [ ] IdP Provisioning (SCIM)
 - [ ] GitOps and generate-gitops
 - [ ] Fleet Free
-- [ ] UI / UX
 
 <table>
 <tr><th>Test name</th><th>Step instructions</th><th>Expected result</th></tr>
@@ -156,21 +155,6 @@ Reference: https://fleetdm.com/pricing
 </td>
 </tr>
 
-<tr>
-<td>UI / UX</td>
-<td>Verify visual consistency and layout integrity across product group areas.</td>
-<td>
-
-Perform a quick visual scan of the UI and confirm:
-
-- No layout or alignment issues (misaligned, overlapping, or clipped elements).
-- Fonts, colors, and icons render correctly and match the design system.
-- UI components render correctly (buttons, inputs, tables).
-- No obvious visual regressions or broken UI states.
-
-</td>
-</tr>
-
 </table>
 
 ### Apple at Work
@@ -185,7 +169,6 @@ Perform a quick visual scan of the UI and confirm:
 - [ ] iOS/iPadOS
 - [ ] Token & Certificate Renewals
 - [ ] Fleet Free
-- [ ] UI / UX
 
 <table>
 <tr><th>Test name</th><th>Step instructions</th><th>Expected result</th></tr>
@@ -299,7 +282,7 @@ Run basic checks for the product group area while using a Fleet Free license.
 
 - Features documented as Free work normally:
    - Host enrollment
-   - Apple and Android MDM
+   - Apple MDM
    - Configuration profile delivery
    - APNs Certificate renewal
 - Premium features are correctly restricted or hidden:
@@ -313,46 +296,47 @@ Reference: https://fleetdm.com/pricing
 </td>
 </tr>
 
-<tr>
-<td>UI / UX</td>
-<td>Verify visual consistency and layout integrity across product group areas.</td>
-<td>
-
-Perform a quick visual scan of the UI and confirm:
-
-- No layout or alignment issues (misaligned, overlapping, or clipped elements).
-- Fonts, colors, and icons render correctly and match the design system.
-- UI components render correctly (buttons, inputs, tables).
-- No obvious visual regressions or broken UI states.
-
-</td>
-</tr>
-
 </table>
 
 ### Power to PC
 
 **Progress**
-- [ ] MDM enrollment flow
+- [ ] Manual enrollment
+- [ ] Autopilot enrollment
 - [ ] MDM migration flow
 - [ ] OS settings
 - [ ] Disk encryption
 - [ ] OS updates
-- [ ] Setup Experience
+- [ ] Android
 - [ ] Fleet Free
-- [ ] UI / UX
 
 <table>
 <tr><th>Test name</th><th>Step instructions</th><th>Expected result</th></tr>
 
 <tr>
-<td>MDM enrollment flow</td>
-<td>Verify MDM enrollments, run MDM commands.</td>
+<td>Manual enrollment</td>
+<td>Verify MDM enrollment, run MDM commands.</td>
 <td>
 
-1. With Windows MDM turned On, enroll a Windows host and verify MDM is turned On for the host.
-2. Erase an Auto-Pilot enabled Windows host and complete automated enrollment flow.
-3. Verify able to run MDM commands on Windows hosts from the CLI.
+1. With Windows MDM turned on and the Setup experience configured (end user authentication and software installs), enroll a Windows host and verify MDM is turned on and the configured software installs.
+2. Verify able to run MDM commands on Windows hosts from the CLI.
+
+</td>
+</tr>
+
+<tr>
+<td>Autopilot enrollment</td>
+<td>Verify Windows Autopilot/Entra OOBE enrollment, both fully configured and with nothing configured.</td>
+<td>
+
+**Full configuration**
+
+1. Configure a fleet with setup experience items (enable EUA, add FMA & Custom package software), add a configuration profile, enable OS updates, and disk encryption (BitLocker).
+2. Enroll an Auto-Pilot host via OOBE and verify the ESP completes and all configured items apply.
+
+**Blank enrollment**
+
+3. Enroll an Auto-Pilot host into the "Unassigned" fleet with nothing configured and verify the ESP completes.
 
 </td>
 </tr>
@@ -400,12 +384,15 @@ Perform a quick visual scan of the UI and confirm:
 </tr>
 
 <tr>
-<td>Setup Experience</td>
-<td>Verify Windows Setup experience.</td>
+<td>Android</td>
+<td>Verify enrollment, profiles, & software installs.</td>
 <td>
 
-1. Configure End user authentication.
-2. Add software (FMA, Custom pkg).
+1. Verify BYOD enrollment.
+2. Verify Profiles are delivered to host and applied.
+3. Verify apps install.
+4. Verify certificate delivery.
+5. Verify `Unenroll`.
 
 </td>
 </tr>
@@ -420,6 +407,7 @@ Run basic checks for the product group area while using a Fleet Free license.
 - Features documented as Free work normally:
    - Host enrollment
    - Windows MDM
+   - Android MDM
    - Configuration profile delivery
 - Premium features are correctly restricted or hidden:
    - Automatic MDM migration
@@ -428,21 +416,6 @@ Run basic checks for the product group area while using a Fleet Free license.
 - No UI, API, or workflow errors occur when using Free-only functionality.
 
 Reference: https://fleetdm.com/pricing
-
-</td>
-</tr>
-
-<tr>
-<td>UI / UX</td>
-<td>Verify visual consistency and layout integrity across product group areas.</td>
-<td>
-
-Perform a quick visual scan of the UI and confirm:
-
-- No layout or alignment issues (misaligned, overlapping, or clipped elements).
-- Fonts, colors, and icons render correctly and match the design system.
-- UI components render correctly (buttons, inputs, tables).
-- No obvious visual regressions or broken UI states.
 
 </td>
 </tr>
@@ -458,7 +431,6 @@ Perform a quick visual scan of the UI and confirm:
 - [ ] Scripts
 - [ ] Software
 - [ ] Fleet Free
-- [ ] UI / UX
 
 <table>
 <tr><th>Test name</th><th>Step instructions</th><th>Expected result</th></tr>
@@ -552,33 +524,16 @@ Reference: https://fleetdm.com/pricing
 </td>
 </tr>
 
-<tr>
-<td>UI / UX</td>
-<td>Verify visual consistency and layout integrity across product group areas.</td>
-<td>
-
-Perform a quick visual scan of the UI and confirm:
-
-- No layout or alignment issues (misaligned, overlapping, or clipped elements).
-- Fonts, colors, and icons render correctly and match the design system.
-- UI components render correctly (buttons, inputs, tables).
-- No obvious visual regressions or broken UI states.
-
-</td>
-</tr>
-
 </table>
 
-### Security & Compliance
+### Supply Chain
 
 **Progress**
 - [ ] Disk encryption (Linux)
 - [ ] Vulnerabilities
 - [ ] Certificate Authorities
-- [ ] Android
 - [ ] Lock & Wipe
 - [ ] Fleet Free
-- [ ] UI / UX
 
 <table>
 <tr><th>Test name</th><th>Step instructions</th><th>Expected result</th></tr>
@@ -611,24 +566,11 @@ Perform a quick visual scan of the UI and confirm:
 <td>Verify setup and certificate delivery.</td>
 <td>
 
-1. Configure and verify that certificates deploy to hosts with the following CAs:
+1. Configure and verify that certificates deploy to hosts with the following CAs and that they appear on the Host Details page:
     1. DigiCert
     2. NDES
     3. SmallStep
-
-</td>
-</tr>
-
-<tr>
-<td>Android</td>
-<td>Verify enrollment, profiles, & software installs.</td>
-<td>
-
-1. Verify BYOD enrollment.
-2. Verify Profiles are delivered to host and applied.
-3. Verify apps install.
-4. Verify certificate delivery.
-5. Verify `Unenroll`.
+    4. Hydrant (ACME)
 
 </td>
 </tr>
@@ -663,21 +605,6 @@ Run basic checks for the product group area while using a Fleet Free license.
 - No UI, API, or workflow errors occur when using Free-only functionality.
 
 Reference: https://fleetdm.com/pricing
-
-</td>
-</tr>
-
-<tr>
-<td>UI / UX</td>
-<td>Verify visual consistency and layout integrity across product group areas.</td>
-<td>
-
-Perform a quick visual scan of the UI and confirm:
-
-- No layout or alignment issues (misaligned, overlapping, or clipped elements).
-- Fonts, colors, and icons render correctly and match the design system.
-- UI components render correctly (buttons, inputs, tables).
-- No obvious visual regressions or broken UI states.
 
 </td>
 </tr>

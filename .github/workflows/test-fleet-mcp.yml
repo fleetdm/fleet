@@ -5,17 +5,17 @@ on:
     branches:
       - main
     paths:
-      - 'tools/fleet-mcp/**'
+      - 'cmd/fleet-mcp/**'
       - '.github/workflows/test-fleet-mcp.yml'
   pull_request:
     paths:
-      - 'tools/fleet-mcp/**'
+      - 'cmd/fleet-mcp/**'
       - '.github/workflows/test-fleet-mcp.yml'
   workflow_dispatch: # Manual
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
-  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.head_ref || github.ref }}
   cancel-in-progress: true
 
 defaults:
@@ -37,15 +37,15 @@ jobs:
           egress-policy: audit
 
       - name: Checkout code
-        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
       - name: Install Go
         uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
         with:
-          go-version-file: 'tools/fleet-mcp/go.mod'
+          go-version-file: 'cmd/fleet-mcp/go.mod'
 
       - name: Run tests
-        working-directory: tools/fleet-mcp
+        working-directory: cmd/fleet-mcp
         run: go test -race -count=1 ./...

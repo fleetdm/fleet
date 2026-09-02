@@ -6,6 +6,7 @@ import { InjectedRouter } from "react-router";
 
 import PATHS from "router/paths";
 import { getPathWithQueryParams } from "utilities/url";
+import { pluralize } from "utilities/strings/stringUtils";
 import { AppContext } from "context/app";
 import { useSoftwareInstaller } from "hooks/useSoftwareInstallerMeta";
 import {
@@ -27,7 +28,7 @@ import EditIconModal from "../EditIconModal";
 import EditSoftwareModal from "../EditSoftwareModal";
 import EditConfigurationModal from "../EditConfigurationModal";
 import EditAutoUpdateConfigModal from "../EditAutoUpdateConfigModal";
-import AddPatchPolicyModal from "../AddPatchPolicyModal";
+import DeployModal from "../DeployModal";
 import PoliciesModal from "../PoliciesModal";
 
 interface ISoftwareSummaryCard {
@@ -36,10 +37,14 @@ interface ISoftwareSummaryCard {
   teamId?: number;
   router: InjectedRouter;
   refetchSoftwareTitle: () => void;
-  onToggleViewYaml: () => void;
   /** Opens the page-owned Versions modal; the Actions item is gated here by
    * `canManageVersions`. */
   onClickVersions: () => void;
+  /** Canonical "this title can hold multiple custom packages" flag. When
+   * true the card hides its Self-service / Auto install / Patch chips
+   * (Library accordion rows show per-package icons instead) and collapses
+   * the Actions dropdown into a single pencil-icon Edit-appearance button. */
+  canActivateMultiplePackages?: boolean;
 }
 
 const baseClass = "software-summary-card";
@@ -64,8 +69,8 @@ const SoftwareSummaryCard = ({
   teamId,
   router,
   refetchSoftwareTitle,
-  onToggleViewYaml,
   onClickVersions,
+  canActivateMultiplePackages = false,
 }: ISoftwareSummaryCard) => {
   const { isPremiumTier } = useContext(AppContext);
   const installerResult = useSoftwareInstaller(softwareTitle);
@@ -73,7 +78,7 @@ const SoftwareSummaryCard = ({
   const [iconUploadedAt, setIconUploadedAt] = useState("");
   const [showEditIconModal, setShowEditIconModal] = useState(false);
   const [showEditSoftwareModal, setShowEditSoftwareModal] = useState(false);
-  const [showAddPatchPolicyModal, setShowAddPatchPolicyModal] = useState(false);
+  const [showDeployModal, setShowDeployModal] = useState(false);
   const [showEditConfigurationModal, setShowEditConfigurationModal] = useState(
     false
   );
@@ -129,6 +134,16 @@ const SoftwareSummaryCard = ({
   // not by the host OS — VPP apps can be macOS too, and an iOS/iPadOS title can
   // ship as a custom package.
   const isAppleVpp = installerType === "app-store" && !isAndroidPlayStoreApp;
+  // Multi-package custom titles pluralize the kind chip — a title with two
+  // .pkg installers reads "Custom packages", not "Custom package". Falls back
+  // to singular for single-package titles (and back-compat responses where
+  // `packages` is still null — `pluralize(0)` also returns the plural form,
+  // but those titles never reach the custom-package branch of `find` below).
+  const customPackageCount = softwareTitle.packages?.length ?? 1;
+  const customPackageChipLabel = pluralize(
+    customPackageCount,
+    "Custom package"
+  );
   // Order matters: `.find` returns the first truthy row. FMA is checked first
   // because a Fleet-maintained app uploaded as a custom package still counts
   // as FMA; Apple VPP precedes Play Store so cross-platform store titles label
@@ -137,11 +152,19 @@ const SoftwareSummaryCard = ({
     [isFleetMaintainedApp, "Fleet-maintained"],
     [isAppleVpp, "App Store (VPP)"],
     [isAndroidPlayStoreApp, "Play Store"],
-    [isCustomPackage, "Custom package"],
+    [isCustomPackage, customPackageChipLabel],
   ] as const).find(([flag]) => flag)?.[1];
 
+  // Titles that can hold multiple custom packages move Self-service and
+  // Auto-install/Patch indicators down to per-row icons on the Library
+  // accordion. The title-level chips would be misleading when one package
+  // is self-service and another isn't. FMA and iOS in-house .ipa keep the
+  // chips since they're single-package — the flag is owned by the page.
+  const showSelfServiceChip = isSelfService && !canActivateMultiplePackages;
+  const showAutoInstallChip = hasLinkedPolicies && !canActivateMultiplePackages;
+
   const showHeaderPills =
-    !!installerKindLabel || isSelfService || hasLinkedPolicies;
+    !!installerKindLabel || showSelfServiceChip || showAutoInstallChip;
 
   const headerPills = useMemo(() => {
     if (!showHeaderPills) {
@@ -150,17 +173,17 @@ const SoftwareSummaryCard = ({
     return (
       <>
         {installerKindLabel && <Chip text={installerKindLabel} />}
-        {isSelfService && (
+        {showSelfServiceChip && (
           <Chip
             icon="user"
-            text="Self-service"
+            text="Self service"
             tooltip={getSelfServiceTooltip(
               isIpadOrIphoneSoftwareSource(softwareTitle.source),
               isAndroidSoftwareSource(softwareTitle.source)
             )}
           />
         )}
-        {hasLinkedPolicies && (
+        {showAutoInstallChip && (
           <Chip
             icon={isPatchPolicyOnly ? undefined : "refresh"}
             text={isPatchPolicyOnly ? "Patch policy" : "Auto install"}
@@ -189,8 +212,8 @@ const SoftwareSummaryCard = ({
   }, [
     showHeaderPills,
     installerKindLabel,
-    isSelfService,
-    hasLinkedPolicies,
+    showSelfServiceChip,
+    showAutoInstallChip,
     isPatchPolicyOnly,
     mergedPolicies,
     softwareTitle.source,
@@ -242,7 +265,8 @@ const SoftwareSummaryCard = ({
   const canEditConfiguration =
     canManageSoftware &&
     ((isAndroidPlayStoreApp && !isAndroidPlayStoreWebApp) || isIosOrIpadosApp);
-  const canPatchSoftware = canManageSoftware && isFleetMaintainedApp;
+  const canDeploySoftware =
+    canManageSoftware && isFleetMaintainedApp && !!isPremiumTier;
   /** Versions / pin is a Premium-only Fleet-maintained app feature */
   const canManageVersions =
     canManageSoftware && isFleetMaintainedApp && !!isPremiumTier;
@@ -255,7 +279,7 @@ const SoftwareSummaryCard = ({
 
   const onClickEditAppearance = () => setShowEditIconModal(true);
   const onClickEditSoftware = () => setShowEditSoftwareModal(true);
-  const onClickAddPatchPolicy = () => setShowAddPatchPolicyModal(true);
+  const onClickDeploy = () => setShowDeployModal(true);
   const onClickEditConfiguration = () => setShowEditConfigurationModal(true);
   const onClickEditAutoUpdateConfig = () =>
     setShowEditAutoUpdateConfigModal(true);
@@ -282,11 +306,17 @@ const SoftwareSummaryCard = ({
             canEditAppearance ? onClickEditAppearance : undefined
           }
           onClickEditSoftware={
-            canEditSoftware ? onClickEditSoftware : undefined
+            // Multi-package titles move per-installer editing to the Library
+            // accordion row; the page-level Edit button collapses to a single
+            // pencil-icon Edit-appearance button below. Single-package types
+            // (FMA, VPP, Google Play, iOS in-house .ipa) keep the Actions
+            // dropdown.
+            canEditSoftware && !canActivateMultiplePackages
+              ? onClickEditSoftware
+              : undefined
           }
-          onClickAddPatchPolicy={
-            canPatchSoftware ? onClickAddPatchPolicy : undefined
-          }
+          useSingleEditAppearanceButton={canActivateMultiplePackages}
+          onClickDeploy={canDeploySoftware ? onClickDeploy : undefined}
           onClickVersions={canManageVersions ? onClickVersions : undefined}
           onClickEditConfiguration={
             canEditConfiguration ? onClickEditConfiguration : undefined
@@ -294,7 +324,6 @@ const SoftwareSummaryCard = ({
           onClickEditAutoUpdateConfig={
             canEditAutoUpdateConfig ? onClickEditAutoUpdateConfig : undefined
           }
-          patchPolicyId={softwareTitle.software_package?.patch_policy?.id}
           headerPills={headerPills}
           isAppleVpp={isAppleVpp}
         />
@@ -329,21 +358,23 @@ const SoftwareSummaryCard = ({
           onExit={() => setShowEditSoftwareModal(false)}
           refetchSoftwareTitle={refetchSoftwareTitle}
           installerType={installerResult.meta.installerType}
-          openViewYamlModal={onToggleViewYaml}
           isFleetMaintainedApp={isFleetMaintainedApp}
           isIosOrIpadosApp={isIosOrIpadosApp}
           name={softwareTitle.name}
           displayName={softwareDisplayName}
           source={softwareTitle.source}
           iconUrl={softwareTitle.icon_url}
+          patchWhenClosed={
+            softwareTitle.software_package?.patch_policy?.patch_when_closed
+          }
         />
       )}
-      {showAddPatchPolicyModal && softwareInstallerOnTeam && (
-        <AddPatchPolicyModal
-          softwareId={softwareTitle.id}
+      {showDeployModal && softwareInstallerOnTeam && (
+        <DeployModal
+          softwareTitle={softwareTitle}
           teamId={teamId}
           onSuccess={refetchSoftwareTitle}
-          onExit={() => setShowAddPatchPolicyModal(false)}
+          onExit={() => setShowDeployModal(false)}
         />
       )}
       {showEditConfigurationModal && softwareInstallerOnTeam && (

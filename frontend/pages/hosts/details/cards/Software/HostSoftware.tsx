@@ -42,7 +42,7 @@ import { generateSoftwareTableHeaders as generateDeviceSoftwareTableConfig } fro
 import HostSoftwareTable from "./HostSoftwareTable";
 import { getSoftwareSubheader } from "./helpers";
 
-const baseClass = "host-software-card";
+const baseClass = "host-software-section";
 
 export interface ITableSoftware extends Omit<ISoftware, "vulnerabilities"> {
   vulnerabilities: string[]; // for client-side search purposes, we only want an array of cve strings
@@ -162,16 +162,13 @@ const HostSoftware = ({
     ? isPremiumTierProp
     : isPremiumTierFromContext;
 
-  // The /Applications filter only applies to macOS hosts on the host details
-  // page, and defaults to ON (only top-level applications) when the host is
-  // macOS and no explicit value is set in the URL. It is left undefined for
-  // other platforms, and on the My device page (which has no filter dropdown),
-  // so the param is neither sent to the API nor appended to the URL on
-  // pagination.
-  const macosApplicationsFilter =
-    !isMyDevicePage && isMacOS(platform)
-      ? queryParams.macos_applications ?? true
-      : undefined;
+  // The /Applications filter only applies to macOS hosts, and defaults to ON
+  // (only top-level applications) when the host is macOS and no explicit value
+  // is set in the URL. It is left undefined for other platforms, so the param
+  // is neither sent to the API nor appended to the URL on pagination.
+  const macosApplicationsFilter = isMacOS(platform)
+    ? queryParams.macos_applications ?? true
+    : undefined;
 
   const isUnsupported = isIPadOrIPhone(platform) && queryParams.vulnerable; // no Android software and no vulnerable software for iOS
 
@@ -227,6 +224,7 @@ const HostSoftware = ({
         id: id as string,
         softwareUpdatedAt,
         ...queryParams,
+        macos_applications: macosApplicationsFilter,
       },
     ],
     ({ queryKey }) => deviceAPI.getDeviceSoftware(queryKey[0]),
@@ -307,9 +305,8 @@ const HostSoftware = ({
           router,
           teamId: hostTeamId,
           onShowInventoryVersions,
-          platform,
         });
-  }, [isMyDevicePage, router, hostTeamId, onShowInventoryVersions, platform]);
+  }, [isMyDevicePage, router, hostTeamId, onShowInventoryVersions]);
 
   const isLoading = isMyDevicePage
     ? deviceSoftwareLoading

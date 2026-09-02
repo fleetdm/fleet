@@ -1,6 +1,13 @@
 .vitals-card {
   @include vertical-card-layout;
 
+  &__header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: $pad-medium;
+  }
+
   .date-tooltip {
     cursor: pointer;
   }
@@ -71,6 +78,13 @@
     }
   }
 
+  // TooltipWrapper pulls its dashed underline into the element's last pixel
+  // with a negative margin, which DataSet's `dd` then clips away. Keep the
+  // border inside the box so the hover affordance survives on every vital.
+  .component__tooltip-wrapper__underline {
+    margin-bottom: 0;
+  }
+
   &__os-version-tooltip {
     min-width: 0;
 
@@ -103,6 +117,12 @@
       margin: -6px; // See underline under link and border with keyboard nav
       padding: 6px; // See underline under link and border with keyboard nav
     }
+  }
+
+  &__custom-vital-title {
+    display: inline-flex;
+    align-items: center;
+    gap: $pad-xsmall;
   }
 
   .text-muted {

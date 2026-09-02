@@ -50,9 +50,28 @@ For the API, use the [List MDM commands](https://fleetdm.com/docs/rest-api/rest-
 pbpaste | base64 -d
 ```
 
+
 ## MDM troubleshooting
 
 Fleet's MDM software engineering team has created a resource they use for MDM support escalations. The [MDM troubleshooting checklist](https://github.com/fleetdm/fleet/blob/8c8f1dac4857e73804c1dc720efdacc14d0d3d6c/docs/Contributing/product-groups/mdm/mdm-bug-checklist.md) lives as a plain-text document in the public Fleet GitHub repository so that anyone can keep it up-to-date as needed. 
+
+If the device is enrolled in Fleet, you can grab `mdmclient` logs remotely with this query:
+
+```sql
+SELECT
+  timestamp,
+  datetime(timestamp, 'unixepoch') AS event_time,
+  process,
+  subsystem,
+  category,
+  level,
+  message
+FROM unified_log
+WHERE timestamp > (SELECT unix_time - 3600 FROM time)
+  AND process = 'mdmclient'
+  AND subsystem = 'com.apple.ManagedClient'
+```
+
 
 ## Server-side logs
 
@@ -61,6 +80,32 @@ Use [fleetctl](https://fleetdm.com/guides/fleetctl) to see server logs.
 ```bash
 fleetctl debug errors
 ```
+
+
+## iOS & iPadOS MDMClient logs
+
+You can obtain MDMClient related logs on iOS and iPadOS using sysdiagnose. This will assist with troubleshooting MDM command and profile delivery issues to those devices.
+
+- Hold down **Power** and **Volume Up + Down** buttons together for ~ 1 second
+- An iPhone will vibrate once, and trigger a screenshot (iPad will trigger a screenshot)
+- Wait a few minutes for the log archive to be generated
+- Go to **Settings > Privacy & Security > Analytics & Improvements > Analytics Data**
+- Search for `sysdiag` and share the `.tar.gz` file
+- Search the archive for `system_logs.logarchive` and open with **Console**
+- Filter for `mdmclient`
+
+## Apple System Diagnostics
+
+A sysdiagnose is a collection of diagnostic logs that are useful for troubleshooting and debugging problems on Apple devices (macOS, iOS, and iPadOS).
+
+On a Mac, you can grab this two ways: via the UI with [Activity Monitor](https://support.apple.com/guide/activity-monitor/run-system-diagnostics-actmntr2225/mac) (the System Diagnostics option), or the CLI by running this command:
+
+```bash
+sudo sysdiagnose -f ~/Desktop/
+```
+
+Getting a sysdiagnose from iOS/iPadOS is a little more complicated, but can be done. The best way to do this is to follow [Apple's documentation](https://support.apple.com/guide/platform-support/use-diagnostics-to-research-device-issues-supd3f43814e/web).
+
 
 <meta name="category" value="guides">
 <meta name="authorFullName" value="Steven Palmesano">

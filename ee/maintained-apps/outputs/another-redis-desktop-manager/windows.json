@@ -1,15 +1,16 @@
 {
   "versions": [
     {
-      "version": "1.7.1",
+      "version": "1.7.4",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'Another Redis Desktop Manager %' AND publisher = 'Another';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Another Redis Desktop Manager %' AND publisher = 'Another' AND version_compare(version, '1.7.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Another Redis Desktop Manager %' AND publisher = 'Another' AND version_compare(version, '1.7.4') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'another redis desktop manager.exe');"
       },
-      "installer_url": "https://github.com/qishibo/AnotherRedisDesktopManager/releases/download/v1.7.1/Another-Redis-Desktop-Manager-win-1.7.1-x64.exe",
+      "installer_url": "https://github.com/qishibo/AnotherRedisDesktopManager/releases/download/v1.7.4/Another-Redis-Desktop-Manager-win-1.7.4-x64.exe",
       "install_script_ref": "a37c96e2",
       "uninstall_script_ref": "a39761e0",
-      "sha256": "563ee788d1185c6cb8bd244c2532dd506e5e12ec1d77c41f0a645b5e21456c29",
+      "sha256": "a7f9788dda0bf9d6c52f9df1e2e6d43d9823540f2aacfe3632a4956db5091a41",
       "default_categories": [
         "Developer tools"
       ]

@@ -1,15 +1,16 @@
 {
   "versions": [
     {
-      "version": "4.7.2",
+      "version": "4.8.1",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Electrum' AND publisher = 'Electrum Technologies GmbH';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Electrum' AND publisher = 'Electrum Technologies GmbH' AND version_compare(version, '4.7.2') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Electrum' AND publisher = 'Electrum Technologies GmbH' AND version_compare(version, '4.8.1') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'electrum.exe');"
       },
-      "installer_url": "https://download.electrum.org/4.7.2/electrum-4.7.2-setup.exe",
+      "installer_url": "https://download.electrum.org/4.8.1/electrum-4.8.1-setup.exe",
       "install_script_ref": "32bde59f",
       "uninstall_script_ref": "8bd5077f",
-      "sha256": "89a2e2934ce2b87f91787db867c280e29372e7c435e57b8cb98a5b5b594e230e",
+      "sha256": "aad7bb1193a395fa34e7191d6b1dd30d695515d016054e0cbd9511583a4615b8",
       "default_categories": [
         "Productivity"
       ]

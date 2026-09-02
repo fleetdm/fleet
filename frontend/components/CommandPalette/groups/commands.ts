@@ -291,6 +291,8 @@ const buildCommandsItems = (
                     "tar.gz",
                     "tarballs",
                     "sh",
+                    "py",
+                    "python",
                   ],
                 },
                 {

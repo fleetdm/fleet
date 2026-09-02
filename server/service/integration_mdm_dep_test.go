@@ -1175,11 +1175,13 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 			found = true
 			require.Nil(t, activity.ActorID)
 			require.Nil(t, activity.ActorFullName)
+			depHost, err := s.ds.HostByIdentifier(context.Background(), devices[0].SerialNumber)
+			require.NoError(t, err)
 			require.JSONEq(
 				t,
 				fmt.Sprintf(
-					`{"host_serial": "%s", "enrollment_id": null, "host_display_name": "%s (%s)", "installed_from_dep": true, "mdm_platform": "apple", "platform": "darwin"}`,
-					devices[0].SerialNumber, devices[0].Model, devices[0].SerialNumber,
+					`{"host_id": %d, "host_serial": "%s", "enrollment_id": null, "host_display_name": "%s (%s)", "installed_from_dep": true, "mdm_platform": "apple", "platform": "darwin"}`,
+					depHost.ID, devices[0].SerialNumber, devices[0].Model, devices[0].SerialNumber,
 				),
 				string(*activity.Details),
 			)
@@ -1408,11 +1410,13 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 	s.awaitRunAppleMDMWorkerSchedule()
 
 	// The last activity should have `installed_from_dep=true`.
+	depReenrollHost, err := s.ds.HostByIdentifier(context.Background(), mdmDevice.SerialNumber)
+	require.NoError(t, err)
 	s.lastActivityMatches(
 		"mdm_enrolled",
 		fmt.Sprintf(
-			`{"host_serial": "%s", "enrollment_id": null, "host_display_name": "%s (%s)", "installed_from_dep": true, "mdm_platform": "apple", "platform": "darwin"}`,
-			mdmDevice.SerialNumber, mdmDevice.Model, mdmDevice.SerialNumber,
+			`{"host_id": %d, "host_serial": "%s", "enrollment_id": null, "host_display_name": "%s (%s)", "installed_from_dep": true, "mdm_platform": "apple", "platform": "darwin"}`,
+			depReenrollHost.ID, mdmDevice.SerialNumber, mdmDevice.Model, mdmDevice.SerialNumber,
 		),
 		0,
 	)
@@ -2332,10 +2336,12 @@ func (s *integrationMDMTestSuite) TestReenrollingADEDeviceAfterRemovingItFromABM
 
 func (s *integrationMDMTestSuite) TestEnforceMiniumOSVersion() {
 	t := s.T()
+	// machine info blobs in this test are signed with a throwaway cert, not an
+	// Apple device identity
+	apple_mdm.SetMachineInfoVerificationForTest(t, false)
 	s.enableABM(t.Name())
 
 	latestMacOSVersion := "14.6.1" // this is the latest version in our test data (see ../mdm/apple/gdmf/testdata/gdmf.json)
-	latestMacOSBuild := "23G93"    // this is the latest version in our test data (see ../mdm/apple/gdmf/testdata/gdmf.json)
 	deadline := "2023-12-31"
 	scepChallenge := "scepcha/><llenge"
 	scepURL := s.server.URL + "/mdm/apple/scep"
@@ -2385,6 +2391,11 @@ func (s *integrationMDMTestSuite) TestEnforceMiniumOSVersion() {
 		}
 	}))
 	s.runDEPSchedule()
+	// The OS updates cron only pulls fresh assets from GDMF when the cached ones are missing or
+	// older than 24h, so any assets seeded by an earlier test in this suite would make it skip the
+	// fetch and leave us without the test data this test relies on.
+	mysqltest.TruncateTables(t, s.ds, "apple_software_update_assets")
+	s.runAppleOSUpdatesSchedule()
 
 	// confirm that the devices were created
 	listHostsRes := listHostsResponse{}
@@ -2668,8 +2679,7 @@ func (s *integrationMDMTestSuite) TestEnforceMiniumOSVersion() {
 				SoftwareUpdateDeviceID:      "J516sAP",
 			},
 			updateRequired: &fleet.MDMAppleSoftwareUpdateRequiredDetails{
-				OSVersion:    latestMacOSVersion,
-				BuildVersion: latestMacOSBuild,
+				OSVersion: latestMacOSVersion,
 			},
 		},
 		{
@@ -2730,9 +2740,10 @@ func (s *integrationMDMTestSuite) TestEnforceMiniumOSVersion() {
 					var expectEnrollInfo *mdmtest.AppleEnrollInfo
 					if mi != nil && tc.updateRequired == nil && tc.err == "" {
 						expectEnrollInfo = &mdmtest.AppleEnrollInfo{
-							SCEPChallenge: scepChallenge,
-							SCEPURL:       scepURL,
-							MDMURL:        mdmURL,
+							SCEPChallenge:  scepChallenge,
+							SCEPURL:        scepURL,
+							MDMURL:         mdmURL,
+							SCEPSubjectOUs: []string{apple_mdm.FleetEnrollmentSubjectOU},
 						}
 					}
 					require.NoError(t, checkMDMEnrollEndpoint(t, mi, expectEnrollInfo, tc.updateRequired, tc.err, true))
@@ -2776,9 +2787,10 @@ func (s *integrationMDMTestSuite) TestEnforceMiniumOSVersion() {
 					var expectEnrollInfo *mdmtest.AppleEnrollInfo
 					if mi != nil && tc.updateRequired == nil && tc.err == "" {
 						expectEnrollInfo = &mdmtest.AppleEnrollInfo{
-							SCEPChallenge: "scepcha/><llenge",
-							SCEPURL:       s.server.URL + "/mdm/apple/scep",
-							MDMURL:        s.server.URL + "/mdm/apple/mdm",
+							SCEPChallenge:  "scepcha/><llenge",
+							SCEPURL:        s.server.URL + "/mdm/apple/scep",
+							MDMURL:         s.server.URL + "/mdm/apple/mdm",
+							SCEPSubjectOUs: []string{apple_mdm.FleetEnrollmentSubjectOU},
 						}
 					}
 
@@ -2921,6 +2933,52 @@ func (s *integrationMDMTestSuite) TestDeleteMultipleHostsPendingDEP() {
 		}
 
 	}
+}
+
+// Deleting a host while ABM is turned off must still mark its host_dep_assignments
+// row as deleted, otherwise the row is left orphaned pointing at a host that no
+// longer exists.
+func (s *integrationMDMTestSuite) TestDeleteHostWithABMDisabledDeletesDEPAssignment() {
+	t := s.T()
+	ctx := t.Context()
+
+	s.enableABM(t.Name())
+	abmTok, err := s.ds.GetABMTokenByOrgName(ctx, t.Name())
+	require.NoError(t, err)
+
+	serial := mdmtest.RandSerialNumber()
+	host, err := s.ds.NewHost(ctx, &fleet.Host{
+		Hostname:        "dep-host-abm-off",
+		HardwareSerial:  serial,
+		UUID:            uuid.NewString(),
+		Platform:        "darwin",
+		OsqueryHostID:   new(uuid.NewString()),
+		NodeKey:         new(uuid.NewString()),
+		LastEnrolledAt:  time.Now(),
+		DetailUpdatedAt: time.Now(),
+	})
+	require.NoError(t, err)
+	require.NoError(t, s.ds.UpsertMDMAppleHostDEPAssignments(ctx, []fleet.Host{*host}, abmTok.ID, nil))
+
+	dep, err := s.ds.GetHostDEPAssignment(ctx, host.ID)
+	require.NoError(t, err)
+	require.Nil(t, dep.DeletedAt)
+
+	// turn ABM off
+	appCfg, err := s.ds.AppConfig(ctx)
+	require.NoError(t, err)
+	origCfg := appCfg.Copy()
+	t.Cleanup(func() {
+		require.NoError(t, s.ds.SaveAppConfig(context.Background(), origCfg))
+	})
+	appCfg.MDM.AppleBMEnabledAndConfigured = false
+	require.NoError(t, s.ds.SaveAppConfig(ctx, appCfg))
+
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &deleteHostResponse{})
+
+	dep, err = s.ds.GetHostDEPAssignment(ctx, host.ID)
+	require.NoError(t, err)
+	require.NotNil(t, dep.DeletedAt)
 }
 
 // This test case covers the bug https://github.com/fleetdm/fleet/issues/26879

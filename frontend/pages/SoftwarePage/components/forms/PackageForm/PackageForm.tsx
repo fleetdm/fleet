@@ -1,10 +1,12 @@
 // Used in AddPackageModal.tsx and EditSoftwareModal.tsx
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useContext } from "react";
 import classnames from "classnames";
 
+import { AppContext } from "context/app";
 import useGitOpsMode from "hooks/useGitOpsMode";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 import {
+  formatFileSize,
   getExtensionFromFileName,
   getFileDetails,
 } from "utilities/file/fileUtils";
@@ -12,7 +14,11 @@ import getDefaultInstallScript from "utilities/software_install_scripts";
 import getDefaultUninstallScript from "utilities/software_uninstall_scripts";
 import { ILabelSummary } from "interfaces/label";
 
-import { SoftwareCategory } from "interfaces/software";
+import {
+  IAppStoreApp,
+  ISoftwarePackage,
+  SoftwareCategory,
+} from "interfaces/software";
 import { isScriptOnlyPackageType } from "interfaces/package_type";
 
 import { notify } from "components/ToastNotification";
@@ -28,12 +34,19 @@ import {
 } from "pages/SoftwarePage/helpers";
 import { DropdownTargetLabelSelector } from "components/TargetLabelSelector";
 import SoftwareOptionsSelector from "pages/SoftwarePage/components/forms/SoftwareOptionsSelector";
+import { GitOpsCustomPackageBanner } from "pages/SoftwarePage/SoftwareAddPage/SoftwareCustomPackage/SoftwareCustomPackage";
+import { ADD_SOFTWARE_ERROR_PREFIX } from "pages/SoftwarePage/SoftwareAddPage/helpers";
+import { EDIT_SOFTWARE_ERROR_PREFIX } from "pages/SoftwarePage/SoftwareTitleDetailsPage/EditSoftwareModal/helpers";
 import InfoBanner from "components/InfoBanner";
 import CustomLink from "components/CustomLink";
 
 import PackageAdvancedOptions from "../PackageAdvancedOptions";
-import { createTooltipContent, generateFormValidation } from "./helpers";
-import SoftwareDeploySlider from "../SoftwareDeploySelector";
+import {
+  createTooltipContent,
+  estimateUploadSize,
+  generateFormValidation,
+} from "./helpers";
+import SoftwareDeploySlider from "../SoftwareDeploySlider";
 
 export const baseClass = "package-form";
 
@@ -65,6 +78,8 @@ const getGraphicName = (ext: string) => {
     return "file-sh";
   } else if (ext === "ps1") {
     return "file-ps1";
+  } else if (ext === "py") {
+    return "file-py";
   }
   return "file-pkg";
 };
@@ -90,14 +105,17 @@ const renderSoftwareDeployWarningBanner = () => (
 const renderFileTypeMessage = () => {
   return (
     <>
-      macOS (.pkg,{" "}
-      <TooltipWrapper tipContent="Script-only package">.sh</TooltipWrapper>),
-      iOS/iPadOS (.ipa),
-      <br />
-      Windows (.msi, .exe,{" "}
-      <TooltipWrapper tipContent="Script-only package">.ps1</TooltipWrapper>),
-      or Linux (.deb, .rpm, .tar.gz,{" "}
-      <TooltipWrapper tipContent="Script-only package">.sh</TooltipWrapper>)
+      <TooltipWrapper tipContent="Supports .pkg, .sh, and .py">
+        macOS
+      </TooltipWrapper>
+      , <TooltipWrapper tipContent="Supports .ipa">iOS/iPadOS</TooltipWrapper>,{" "}
+      <TooltipWrapper tipContent="Supports .msi, .exe, .ps1">
+        Windows
+      </TooltipWrapper>
+      , or{" "}
+      <TooltipWrapper tipContent="Supports .deb, .rpm, .tar.gz, .sh, and .py">
+        Linux
+      </TooltipWrapper>
     </>
   );
 };
@@ -111,7 +129,11 @@ interface IPackageFormProps {
   onClickPreviewEndUserExperience: (isIosOrIpadosApp: boolean) => void;
   isEditingSoftware?: boolean;
   isFleetMaintainedApp?: boolean;
-  defaultSoftware?: any; // TODO
+  /** Installer being edited — seeds the form's target-type / label / category
+   * defaults. Only passed on the edit flow (`EditSoftwareModal`); the add flow
+   * leaves it undefined. Not a `File` — the user's newly-picked file lands in
+   * `formData.software` after `onFileSelect`. */
+  defaultSoftware?: ISoftwarePackage | IAppStoreApp;
   defaultInstallScript?: string;
   defaultPreInstallQuery?: string;
   defaultPostInstallScript?: string;
@@ -123,10 +145,25 @@ interface IPackageFormProps {
   gitopsCompatible?: boolean;
   /** When provided, the categories list is fetched dynamically for this fleet. */
   teamId?: number;
+  /** Set when this form is mounted inside the multi-package add modal.
+   * Renders a contextual banner just under the file chooser — GitOps copy
+   * when GitOps mode is on, the first-added-wins copy otherwise. Other
+   * call sites (single-package add page, edit modal) leave it false. */
+  multiPackageContext?: boolean;
+  /** Restricts the file picker to a specific platform/file type when set —
+   * used by the multi-package add modal so a second .pkg upload can't slip
+   * onto a Linux title. Falls back to PackageForm's full all-platforms accept
+   * + message when omitted. */
+  restrictedFileAccept?: string;
+  restrictedFileTypeLabel?: React.ReactNode;
+  /** Overrides the initial `targetType` for new (non-editing) forms. The
+   * multi-package add modal preselects `"Custom"` per Figma. */
+  initialTargetType?: string;
+  patchWhenClosed?: boolean;
 }
 // application/gzip is used for .tar.gz files because browsers can't handle double-extensions correctly
 const ACCEPTED_EXTENSIONS =
-  ".pkg,.msi,.exe,.deb,.rpm,application/gzip,.tgz,.sh,.ps1,.ipa";
+  ".pkg,.msi,.exe,.deb,.rpm,application/gzip,.tgz,.sh,.ps1,.py,.ipa";
 
 const PackageForm = ({
   labels,
@@ -147,17 +184,31 @@ const PackageForm = ({
   className,
   gitopsCompatible = false,
   teamId,
+  multiPackageContext = false,
+  restrictedFileAccept,
+  restrictedFileTypeLabel,
+  initialTargetType,
+  patchWhenClosed = false,
 }: IPackageFormProps) => {
   const { gitOpsModeEnabled, repoURL } = useGitOpsMode("software");
+  const { config } = useContext(AppContext);
+  const maxSoftwarePackageSize = config?.max_software_package_size;
 
   const initialFormData: IPackageFormData = {
-    software: defaultSoftware || null,
+    // `formData.software` is typed as `File | null` (its shape once a user
+    // picks a file), but on the edit flow we seed it with the existing
+    // installer so truthy-gated UI (advanced options, file details) reads
+    // correctly before any re-upload. `File` is not extended to include the
+    // installer types because `formData.software` becomes a real `File` the
+    // moment `onFileSelect` fires, and downstream (multipart upload) needs
+    // that shape.
+    software: ((defaultSoftware as unknown) as File) || null,
     installScript: defaultInstallScript || "",
     preInstallQuery: defaultPreInstallQuery || "",
     postInstallScript: defaultPostInstallScript || "",
     uninstallScript: defaultUninstallScript || "",
     selfService: defaultSelfService || false,
-    targetType: getTargetType(defaultSoftware),
+    targetType: initialTargetType ?? getTargetType(defaultSoftware),
     customTarget: getCustomTarget(defaultSoftware),
     labelTargets: generateSelectedLabels(defaultSoftware),
     automaticInstall: false,
@@ -170,9 +221,55 @@ const PackageForm = ({
     software: { isValid: false },
   });
 
+  // GitOps mode hides the target selector, so a "Custom" target with no labels
+  // can never be satisfied: the picker that would fix it isn't rendered, and
+  // Save stays disabled with nothing on screen to explain why. Targeting comes
+  // from YAML in that mode, so normalize to the default instead.
+  //
+  // This runs as an effect rather than in the initial state because `config`
+  // loads asynchronously — GitOps mode often isn't known yet on first render.
+  // Rows that already carry labels (the edit flow) are left alone so their
+  // targeting isn't silently dropped.
+  useEffect(() => {
+    if (!gitOpsModeEnabled) {
+      return;
+    }
+    const hasLabelTargets = Object.values(formData.labelTargets).some(Boolean);
+    if (formData.targetType !== "Custom" || hasLabelTargets) {
+      return;
+    }
+    const normalized = { ...formData, targetType: "All hosts" };
+    setFormData(normalized);
+    // Validation is held in state and only recomputed on change handlers, so
+    // it has to be refreshed here too — otherwise a file chosen before config
+    // resolved leaves behind a failure for the target we just normalized away,
+    // and Save stays disabled.
+    setFormValidation(generateFormValidation(normalized));
+  }, [gitOpsModeEnabled, formData]);
+
+  const notifyTooLarge = () => {
+    const errorPrefix = isEditingSoftware
+      ? EDIT_SOFTWARE_ERROR_PREFIX
+      : ADD_SOFTWARE_ERROR_PREFIX;
+    notify.error(
+      `${errorPrefix} The maximum file size is ${formatFileSize(
+        maxSoftwarePackageSize || 0
+      )}.`
+    );
+  };
+
   const onFileSelect = (files: FileList | null) => {
     if (files && files.length > 0) {
       const file = files[0];
+
+      // Reject before uploading if file size is too big
+      if (
+        maxSoftwarePackageSize !== undefined &&
+        file.size > maxSoftwarePackageSize
+      ) {
+        notifyTooLarge();
+        return;
+      }
 
       // Only populate default install/uninstall scripts when adding (but not editing) software
       if (isEditingSoftware) {
@@ -185,7 +282,13 @@ const PackageForm = ({
         try {
           newDefaultInstallScript = getDefaultInstallScript(file.name);
         } catch (e) {
-          notify.error(`${e}`, { response: e });
+          notify.error(ADD_SOFTWARE_ERROR_PREFIX, {
+            response: {
+              data: {
+                message: e instanceof Error ? e.message : String(e),
+              },
+            },
+          });
           return;
         }
 
@@ -193,7 +296,13 @@ const PackageForm = ({
         try {
           newDefaultUninstallScript = getDefaultUninstallScript(file.name);
         } catch (e) {
-          notify.error(`${e}`, { response: e });
+          notify.error(ADD_SOFTWARE_ERROR_PREFIX, {
+            response: {
+              data: {
+                message: e instanceof Error ? e.message : String(e),
+              },
+            },
+          });
           return;
         }
 
@@ -211,6 +320,16 @@ const PackageForm = ({
 
   const onFormSubmit = (evt: React.FormEvent<HTMLFormElement>) => {
     evt.preventDefault();
+
+    // The server caps the whole request body, and not just the file.
+    if (
+      maxSoftwarePackageSize !== undefined &&
+      estimateUploadSize(formData) > maxSoftwarePackageSize
+    ) {
+      notifyTooLarge();
+      return;
+    }
+
     onSubmit(formData);
   };
 
@@ -349,6 +468,7 @@ const PackageForm = ({
     !!formData.software && // show after selection
     !gitOpsModeEnabled && // hide in gitOps mode
     !isEditingSoftware && // show only on add, not edit
+    !multiPackageContext && // hide in the multi-package add modal — per Figma 2:130 the modal omits the deploy slider
     // automatic install is not supported for ipa packages, exe, tarball, or script packages
     !isIpaPackage &&
     !isExePackage &&
@@ -367,9 +487,17 @@ const PackageForm = ({
     </>
   );
 
-  // GitOps mode hides SoftwareOptionsSelector and TargetLabelSelector
-  // 4.83 Removed option/targets from Add page
-  const showOptionsTargetsSelectors = !gitOpsModeEnabled && isEditingSoftware;
+  // GitOps mode hides SoftwareOptionsSelector and TargetLabelSelector.
+  // The options selector exposes Self-service on Add and Edit; categories
+  // remain edit-only inside SoftwareOptionsSelector. The target selector
+  // shows whenever a package is being staged — on Edit, in the
+  // multi-package Add modal, and on the single-package Add page once a file
+  // is chosen — because every package on a title needs its own label scope.
+  const showSoftwareOptionsSelector =
+    !gitOpsModeEnabled && (isEditingSoftware || !!formData.software);
+  const showTargetLabelSelector =
+    !gitOpsModeEnabled &&
+    (isEditingSoftware || multiPackageContext || !!formData.software);
 
   const renderSoftwareOptionsSelector = () => (
     <SoftwareOptionsSelector
@@ -385,21 +513,34 @@ const PackageForm = ({
   );
 
   const renderTargetLabelSelector = () => (
-    <DropdownTargetLabelSelector
-      selectedTargetType={formData.targetType}
-      selectedCustomTarget={formData.customTarget}
-      selectedLabels={formData.labelTargets}
-      customTargetOptions={CUSTOM_TARGET_OPTIONS}
-      className={`${baseClass}__target`}
-      onSelectTargetType={onSelectTargetType}
-      onSelectCustomTarget={onSelectCustomTarget}
-      onSelectLabel={onSelectLabel}
-      labels={labels || []}
-      dropdownHelpText={
-        formData.targetType === "Custom" &&
-        generateHelpText(formData.automaticInstall, formData.customTarget)
-      }
-    />
+    <>
+      {!isEditingSoftware && (
+        <InfoBanner
+          icon="info-outline"
+          iconColor="ui-fleet-black-50"
+          className={`${baseClass}__multi-package-banner`}
+          borderRadius="medium"
+        >
+          If multiple packages of the same software target the same host, Fleet
+          will install the one that was added first.
+        </InfoBanner>
+      )}
+      <DropdownTargetLabelSelector
+        selectedTargetType={formData.targetType}
+        selectedCustomTarget={formData.customTarget}
+        selectedLabels={formData.labelTargets}
+        customTargetOptions={CUSTOM_TARGET_OPTIONS}
+        className={`${baseClass}__target`}
+        onSelectTargetType={onSelectTargetType}
+        onSelectCustomTarget={onSelectCustomTarget}
+        onSelectLabel={onSelectLabel}
+        labels={labels || []}
+        dropdownHelpText={
+          formData.targetType === "Custom" &&
+          generateHelpText(formData.automaticInstall, formData.customTarget)
+        }
+      />
+    </>
   );
 
   return (
@@ -408,11 +549,11 @@ const PackageForm = ({
         <FileUploader
           canEdit={canEditFile}
           graphicName={getGraphicName(ext || "")}
-          accept={ACCEPTED_EXTENSIONS}
-          message={renderFileTypeMessage()}
+          accept={restrictedFileAccept ?? ACCEPTED_EXTENSIONS}
+          message={restrictedFileTypeLabel ?? renderFileTypeMessage()}
           onFileUpload={onFileSelect}
           buttonMessage="Choose file"
-          buttonType="brand-inverse-icon"
+          buttonType="secondary"
           className={`${baseClass}__file-uploader`}
           fileDetails={
             formData.software ? getFileDetails(formData.software) : undefined
@@ -420,7 +561,16 @@ const PackageForm = ({
           gitopsCompatible={gitopsCompatible}
           gitOpsModeEnabled={gitOpsModeEnabled}
         />
-        {(showDeploySoftwareSlider || showOptionsTargetsSelectors) && ( // Only show container if one of the two components will be rendered to avoid extra gap spacing
+        {/* GitOps-mode banner lives under the file uploader because the
+            target section is hidden in GitOps mode. The non-GitOps
+            first-added-wins banner moved into `renderTargetLabelSelector`
+            per Figma 5944-4477. */}
+        {multiPackageContext && gitOpsModeEnabled && (
+          <GitOpsCustomPackageBanner />
+        )}
+        {(showDeploySoftwareSlider ||
+          showSoftwareOptionsSelector ||
+          showTargetLabelSelector) && ( // Only show container if any one component will render — avoids stray gap spacing
           <div
             // including `form` class here keeps the children fields subject to the global form
             // children styles
@@ -431,10 +581,10 @@ const PackageForm = ({
             }
           >
             {showDeploySoftwareSlider && renderSoftwareDeploySlider()}
-            {showOptionsTargetsSelectors && (
+            {(showSoftwareOptionsSelector || showTargetLabelSelector) && (
               <div className={`${baseClass}__form-frame`}>
-                {renderSoftwareOptionsSelector()}
-                {renderTargetLabelSelector()}
+                {showSoftwareOptionsSelector && renderSoftwareOptionsSelector()}
+                {showTargetLabelSelector && renderTargetLabelSelector()}
               </div>
             )}
           </div>
@@ -457,28 +607,38 @@ const PackageForm = ({
             onChangeUninstallScript={onChangeUninstallScript}
             gitopsCompatible={gitopsCompatible}
             gitOpsModeEnabled={gitOpsModeEnabled}
+            patchWhenClosed={patchWhenClosed}
           />
         )}
         <div className={`${baseClass}__action-buttons`}>
-          {submitTooltipContent ? (
-            <TooltipWrapper
-              tipContent={submitTooltipContent}
-              underline={false}
-              showArrow
-              tipOffset={10}
-              position="left"
-            >
+          {(() => {
+            // Single source of truth for the submit button — both the
+            // tooltipped and non-tooltipped branches need identical text,
+            // disabled state, and type. A previous duplication let the
+            // "Save" / "Add software" copy drift between branches.
+            const submitButton = (
               <Button type="submit" disabled={isSubmitDisabled}>
-                {isEditingSoftware ? "Save" : "Add software"}
+                {isEditingSoftware || multiPackageContext
+                  ? "Save"
+                  : "Add software"}
               </Button>
-            </TooltipWrapper>
-          ) : (
-            <Button type="submit" disabled={isSubmitDisabled}>
-              {isEditingSoftware ? "Save" : "Add software"}
-            </Button>
-          )}
+            );
+            return submitTooltipContent ? (
+              <TooltipWrapper
+                tipContent={submitTooltipContent}
+                underline={false}
+                showArrow
+                tipOffset={10}
+                position="left"
+              >
+                {submitButton}
+              </TooltipWrapper>
+            ) : (
+              submitButton
+            );
+          })()}
 
-          <Button variant="inverse" onClick={onCancel}>
+          <Button variant="secondary" onClick={onCancel}>
             Cancel
           </Button>
         </div>

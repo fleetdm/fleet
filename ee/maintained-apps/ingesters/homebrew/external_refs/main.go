@@ -42,8 +42,11 @@ var Funcs = map[string][]func(*maintained_apps.FMAManifestApp) (*maintained_apps
 	"grammarly-desktop/darwin":      {GrammarlyDesktopVersionShortener},
 	"logitune/darwin":               {LogiTunePKGInstaller},
 	"anka-virtualization/darwin":    {AnkaVersionShortener},
+	"onedrive/darwin":               {OneDriveVersionShortener},
 	"pd/darwin":                     {PdVersionTransformer},
+	"smallstepagent/darwin":         {SmallstepAgentVersionTransformer},
 	"sonos/darwin":                  {SonosVersionTransformer},
+	"harmony-sase/darwin":           {HarmonySASEVersionShortener},
 	"visual-studio-code/darwin":     {VSCodeUniversalInstaller},
 }
 

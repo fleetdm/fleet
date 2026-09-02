@@ -1,0 +1,11 @@
+.delete-asset-modal {
+  &__content {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-large;
+
+    p {
+      margin: 0;
+    }
+  }
+}

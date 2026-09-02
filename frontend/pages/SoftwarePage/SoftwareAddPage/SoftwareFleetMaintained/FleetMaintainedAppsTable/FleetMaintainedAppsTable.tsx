@@ -42,28 +42,31 @@ const EmptyFleetAppsTable = () => (
   />
 );
 
-/** Used to convert FleetMaintainedApp API response which has separate entries
- * for Windows FMA and macOS FMA into table friendly format that combines
- * entries for the same app for different platforms */
-const combineAppsByPlatform = (
+/** Converts the FleetMaintainedApp API response, which has separate macOS and
+ * Windows entries, into a table-friendly format that combines an app's entries
+ * for different platforms into one row. Apps are keyed by their slug token (the
+ * prefix before "/"), not by name, so two distinct apps that share a display
+ * name stay as separate rows. */
+export const combineAppsByPlatform = (
   fmaList: IFleetMaintainedApp[]
 ): ICombinedFMA[] => {
-  const combinedApps: { [name: string]: ICombinedFMA } = {};
+  const combinedApps: { [appToken: string]: ICombinedFMA } = {};
 
   fmaList.forEach((app: IFleetMaintainedApp) => {
     const { name, platform, ...rest } = app;
+    const appToken = app.slug.split("/")[0];
 
-    if (!combinedApps[name]) {
-      combinedApps[name] = { name, macos: null, windows: null };
+    if (!combinedApps[appToken]) {
+      combinedApps[appToken] = { name, macos: null, windows: null };
     }
 
     if (platform === "darwin") {
-      combinedApps[name].macos = {
+      combinedApps[appToken].macos = {
         platform: platform as FleetMaintainedAppPlatform,
         ...rest,
       };
     } else if (platform === "windows") {
-      combinedApps[name].windows = {
+      combinedApps[appToken].windows = {
         platform: platform as FleetMaintainedAppPlatform,
         ...rest,
       };

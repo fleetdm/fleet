@@ -29,6 +29,7 @@ func (ds *Datastore) ListOperatingSystemsForPlatform(ctx context.Context, platfo
 		SELECT id, name, version, arch, kernel_version, platform, display_version, installation_type, os_version_id
 		FROM operating_systems
 		WHERE platform = ?
+		ORDER BY version
 	`
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &oses, sqlStatement, platform); err != nil {
 		return nil, err

@@ -9,6 +9,7 @@ This handbook page details processes specific to working [with](#contact-us) and
 | CFO | [Tina Ong](https://www.linkedin.com/in/ongtina/) _([@rfoo2015](https://github.com/rfoo2015))_
 | Deal Desk       | [Nathan Holliday](https://www.linkedin.com/in/nathanael-holliday/) _([@hollidayn](https://github.com/hollidayn))_
 | Head of GTM Architecture | [Sam Pfluger](https://www.linkedin.com/in/sampfluger88/) _([@sampfluger88](https://github.com/sampfluger88))_ 
+| Controller | [Ryan Evans](https://www.linkedin.com/in/revans111/) _([@bigaapl](https://github.com/bigaapl))_ 
 
 
 ## Contact us
@@ -186,7 +187,7 @@ To create a new invoice for a Fleet customer, follow these steps:
    - Make sure the start and end dates of the contract and amount match the subscription agreement.
    - If professional services are included in the subscription agreement, include as a separate line in the invoice, and ensure the amounts total correctly.
    - Ensure the wiring instructions for payment via SVB are listed in the invoice.
-   - For deals that are not on an annual payment schedule, or multi-year deals with annual payment schedule, note the invoicing schedule and invoice amount in the notes section of the invoice, and update the ["Future invoices to be sent" spreadsheet (confidential doc)](https://docs.google.com/spreadsheets/d/11kQNw6oTkPe_FCuRItZ26zBCGFOyxpF86XCJ335slxU/edit?gid=0#gid=0).
+   - For deals that are not on an annual payment schedule, or multi-year deals with annual payment schedule, note the invoicing schedule and invoice amount in the notes section of the invoice.
 6. Download the completed invoice as a PDF.
    - Rename the pdf copy `[invoice number] Fleet invoice - [customer name]`.
    - Save a copy of the PDF into the invoice folder.
@@ -216,7 +217,7 @@ For customers with large deployments, Fleet accepts payment via wire transfer or
 
 Payment information for customers within the United States is on Fleet's invoices. Typically, payment information does not need to be sent separately.
 
-For Fleet customers outside of the United States or instances where a customer is requesting payment information prior to invoicing, provide remittance information to customers by exporting ["💸 Paying Fleet"](https://docs.google.com/document/d/1KP_-x9c1x3sS1X9Q8Wlib2H7tq69xRONn1KMA3nVFQc/edit) into a PDF, then sending that to the prospect.
+For Fleet customers outside of the United States or instances where a customer is requesting payment information prior to invoicing, provide remittance information to customers by requesting ACH / Wire information in the #help-finance channel. Finance team will provide a bank letter to be forwarded.
 
 
 ### Communicate the status of customer financial actions
@@ -248,9 +249,6 @@ Please reach out to [Fleet's billing contact] with any questions.
 Thanks,
 [name]
 ```
-
-5. If Finance is still awaiting a PO one week after the opportunity has been closed/won, reply to the thread in the Slack post, mention the CSM, and ask them to follow up with their customer contact.
-
 
 ### Create an offer in AWS Marketplace
 
@@ -372,15 +370,6 @@ No later than the second month of every quarter, we check [Delaware division of 
 - If outstanding amounts shown: ensure payment before due date to avoid penalties, interest, and entering bad standing.
 
 
-### Check finances for quirks
-
-Every quarter, we check Quickbooks Online (QBO) for discrepancies and follow up on quirks.
-1. Check to make sure [bookkeeping quirks](https://docs.google.com/spreadsheets/d/1nuUPMZb1z_lrbaQEcgjnxppnYv_GWOTTo4FMqLOlsWg/edit?usp=sharing) are all accounted for and resolved or in progress toward resolution.
-2. Check balance sheet and profit and loss statements (P&Ls) in QBO against the latest [monthly workbooks](https://drive.google.com/drive/folders/1ben-xJgL5MlMJhIl2OeQpDjbk-pF6eJM) in Google Drive. Ensure reports are in the "accrual" accounting method.
-3. Reach out to Pilot with any differences or quirks, and ask them to resolve/provide clarity.  This often will need to happen over a call to review sycnhronously.
-4. Once quirks are resolved, note the day it was resolved in the spreadsheet.
-
-
 ### Report quarterly numbers in Chronograph
 
 Follow these steps to perform quarterly reporting for Fleet's investors:
@@ -409,7 +398,7 @@ Within 60 days of the end of the year, follow these steps:
 
 ### Process a new vendor invoice
 
-Fleet pays its vendors in less than 15 business days in most cases. All invoices and tax documents should be submitted to the Finance department using the [appropriate Fleet email address (confidential Google Doc)](https://docs.google.com/document/d/1tE-NpNfw1icmU2MjYuBRib0VWBPVAdmq4NiCrpuI0F0/edit#heading=h.wqalwz1je6rq).
+Fleet pays its based on the payment terms in the contract with the vendor. All invoices and tax documents should be submitted to the Finance department using the [appropriate Fleet email address (confidential Google Doc)](https://docs.google.com/document/d/1tE-NpNfw1icmU2MjYuBRib0VWBPVAdmq4NiCrpuI0F0/edit#heading=h.wqalwz1je6rq).
 - After making sure the invoice received from a new vendor is valid, add the new vendor to the recurring expenses section of ["The numbers"](https://docs.google.com/spreadsheets/d/1X-brkmUK7_Rgp7aq42drNcUg8ZipzEiS153uKZSabWc/edit#gid=2112277278) before paying the invoice.
 - If we have not paid this vendor before, make sure we have received the required W-9 or W-8 form from the vendor. **Accounting cannot process a payment without these tax forms for compliance reasons.**
   - **US-based vendors** are required to complete a [W-9 form](https://www.irs.gov/pub/irs-pdf/fw9.pdf).
@@ -503,7 +492,7 @@ Go to [GitHub's terms of services](https://docs.github.com/en/free-pro-team@late
 
 ### Measure intent signals
 
-Daily, follow the steps in the [🦄⚡️🌐 Go-To-Market strategy doc (confidential)](https://github.com/fleetdm/confidential/blob/main/go-to-market-strategy.md#daily) to measure and process intent signals.
+Daily, follow the steps in the [🦄⚡️🌐 Go-To-Market strategy doc (confidential)](https://github.com/fleetdm/confidential/blob/main/go-to-market/go-to-market-strategy.md#daily) to measure and process intent signals.
 
 
 ### Manage duplicates in CRM

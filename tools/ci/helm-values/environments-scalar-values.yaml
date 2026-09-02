@@ -1,0 +1,13 @@
+environments:
+  FLEET_TEST_ZERO: 0
+  FLEET_TEST_FALSE: false
+
+envsFrom:
+  - name: FLEET_SERVER_PRIVATE_KEY
+    valueFrom:
+      secretKeyRef:
+        name: fleet-mdm
+        key: server-private-key
+
+vulnProcessing:
+  dedicated: true

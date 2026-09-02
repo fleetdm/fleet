@@ -1,0 +1,13 @@
+{
+  "name": "Lenovo System Update",
+  "slug": "lenovo-system-update/windows",
+  "package_identifier": "Lenovo.SystemUpdate",
+  "unique_identifier": "Lenovo System Update",
+  "exists_query": "SELECT 1 FROM programs WHERE name = 'Lenovo System Update';",
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/lenovo_system_update_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/lenovo_system_update_uninstall.ps1",
+  "installer_arch": "x86",
+  "installer_type": "exe",
+  "installer_scope": "machine",
+  "default_categories": ["Productivity"]
+}

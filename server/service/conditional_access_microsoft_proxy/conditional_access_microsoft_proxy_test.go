@@ -19,7 +19,7 @@ func TestProxyStatusErrorCapturesBody(t *testing.T) {
 		}))
 		defer srv.Close()
 
-		p, err := New(srv.URL, "key", func() (string, error) { return "https://fleet.example.com", nil })
+		p, err := New(srv.URL, func() (string, error) { return "https://fleet.example.com", nil })
 		require.NoError(t, err)
 
 		_, err = p.SetComplianceStatus(t.Context(), "tenant", "secret", "device", "upn", true, "name", "macOS", "14.0", false, time.Now())
@@ -48,7 +48,7 @@ func TestProxyStatusErrorCapturesBody(t *testing.T) {
 		}))
 		defer srv.Close()
 
-		p, err := New(srv.URL, "key", func() (string, error) { return "https://fleet.example.com", nil })
+		p, err := New(srv.URL, func() (string, error) { return "https://fleet.example.com", nil })
 		require.NoError(t, err)
 
 		_, err = p.SetComplianceStatus(t.Context(), "tenant", "secret", "device", "upn", true, "name", "macOS", "14.0", false, time.Now())
