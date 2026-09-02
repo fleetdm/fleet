@@ -1832,10 +1832,18 @@ type Datastore interface {
 	// Returns the number of hosts restored.
 	RestoreRecoveryLockForReenabledHosts(ctx context.Context) (int64, error)
 
-	// SetRecoveryLockVerified marks the recovery lock as verified, and promotes the pending password to active.
+	// SetRecoveryLockVerified marks the recovery lock as verified, and promotes the pending password
+	// to active. With no pending password (see SetRecoveryLockVerifyingLastKnownPassword) the active
+	// password is what was verified, so it is kept.
 	SetRecoveryLockVerified(ctx context.Context, hostUUID string, verifyCommandUUID string) error
 
 	SetRecoveryLockVerifying(ctx context.Context, hostUUID, commandUUID, pendingVerifyCommandUUID string) error
+
+	// SetRecoveryLockVerifyingLastKnownPassword is SetRecoveryLockVerifying for the fallback taken
+	// when a SetRecoveryLock is rejected for a password mismatch: the device kept a lock Fleet may
+	// already know, so the verify goes out with the active password instead. It drops the pending
+	// password, which the device rejected and must not be promoted.
+	SetRecoveryLockVerifyingLastKnownPassword(ctx context.Context, hostUUID, commandUUID, pendingVerifyCommandUUID string) error
 
 	// SetRecoveryLockFailed marks the recovery lock as failed with the given error message, and does not retry.
 	// Matches on hostUUID and either pending_verify_command_uuid = commandUUID OR pending_set_command_uuid = commandUUID

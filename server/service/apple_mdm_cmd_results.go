@@ -375,6 +375,25 @@ func (r *recoveryLockResult) HostUUID() string             { return r.cmdResult.
 func (r *recoveryLockResult) CmdStatus() string            { return r.cmdResult.Status }
 func (r *recoveryLockResult) ErrorChain() []mdm.ErrorChain { return r.cmdResult.ErrorChain }
 
+// passwordVerified reports the device's verdict on a VerifyRecoveryLock. The device
+// acknowledges the command whether or not the password matched, and carries the verdict in
+// the payload instead:
+//
+//	<key>PasswordVerified</key>
+//	<false/>
+//
+// Apple requires the key in the response, so an absent one is not read as a pass: claiming
+// a lock is verified when the device never said so is the failure mode worth avoiding.
+func (r *recoveryLockResult) passwordVerified() (bool, error) {
+	var resp struct {
+		PasswordVerified bool `plist:"PasswordVerified"`
+	}
+	if err := plist.Unmarshal(r.cmdResult.Raw, &resp); err != nil {
+		return false, fmt.Errorf("verify recovery lock command result: xml unmarshal: %w", err)
+	}
+	return resp.PasswordVerified, nil
+}
+
 // NewRecoveryLockResult wraps an mdm.CommandResults to implement fleet.MDMCommandResults
 func NewRecoveryLockResult(cmdResult *mdm.CommandResults) fleet.MDMCommandResults {
 	return &recoveryLockResult{cmdResult: cmdResult}
@@ -479,6 +498,35 @@ func NewSetRecoveryLockResultsHandler(
 				}
 			}
 
+			if apple_mdm.IsRecoveryLockPasswordMismatchError(rlResult.cmdResult.ErrorChain) && pendingRecoveryLock.HasCurrentPassword {
+				// The device kept a lock that the new password can't replace, but Fleet has a
+				// password on file — verify that one rather than failing outright. Common after a
+				// re-enrollment: the row is soft-deleted, the cron re-SETs as if the host were
+				// fresh, but the device never actually dropped the lock.
+				pendingVerifyCmdUUID := uuid.NewString()
+				if err := ds.SetRecoveryLockVerifyingLastKnownPassword(ctx, hostUUID, results.UUID(), pendingVerifyCmdUUID); err != nil {
+					return ctxerr.Wrap(ctx, err, "SetRecoveryLock handler: set recovery lock verifying with last known password")
+				}
+				if err := commander.VerifyRecoveryLockLastKnownPassword(ctx, hostUUID, pendingVerifyCmdUUID); err != nil {
+					if apnsErr, ok := errors.AsType[*apple_mdm.APNSDeliveryError](err); ok {
+						// Do not fail on APNS push failures.
+						logger.WarnContext(ctx, "VerifyRecoveryLock with last known password command enqueued but APNs push failed",
+							"host_uuid", hostUUID,
+							"command_uuid", pendingVerifyCmdUUID,
+							"error", apnsErr,
+						)
+						return nil
+					}
+					// Reset to retry on actual cmd enqueue failures
+					if err := ds.RetryRecoveryLock(ctx, hostUUID, pendingVerifyCmdUUID); err != nil {
+						return ctxerr.Wrap(ctx, err, "VerifyRecoveryLock with last known password handler: reset recovery lock for retry")
+					}
+					return ctxerr.Wrap(ctx, err, "VerifyRecoveryLock with last known password handler: verify recovery lock")
+				}
+
+				return nil
+			}
+
 			// Failed Clear operations aren't retried
 			// Command format errors are terminal - command is malformed and won't succeed on retry.
 			// Password mismatch errors are also terminal - requires admin intervention.
@@ -542,6 +590,28 @@ func NewVerifyRecoveryLockResultsHandler(
 
 		switch rlResult.CmdStatus() {
 		case fleet.MDMAppleStatusAcknowledged:
+			verified, err := rlResult.passwordVerified()
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "VerifyRecoveryLock handler: read password verified")
+			}
+			if !verified {
+				// The device answered, and the answer is no: it holds a lock that isn't the
+				// password we sent. Nothing to retry, the next attempt gets the same answer.
+				errorMsg := "Device reported that the recovery lock password does not match"
+				if pending.OperationType == fleet.MDMOperationTypeRemove {
+					errorMsg = "Device reported that a recovery lock password is still set"
+				}
+				if err := ds.SetRecoveryLockFailed(ctx, results.HostUUID(), results.UUID(), errorMsg); err != nil {
+					return ctxerr.Wrap(ctx, err, "VerifyRecoveryLock handler: set recovery lock failed")
+				}
+				logger.WarnContext(ctx, "VerifyRecoveryLock acknowledged but the device did not verify the password",
+					"host_uuid", results.HostUUID(),
+					"command_uuid", results.UUID(),
+					"operation_type", pending.OperationType,
+				)
+				return nil
+			}
+
 			if pending.OperationType == fleet.MDMOperationTypeInstall {
 				// verified the last set password, mark as verified and promote
 				if err := ds.SetRecoveryLockVerified(ctx, results.HostUUID(), results.UUID()); err != nil {

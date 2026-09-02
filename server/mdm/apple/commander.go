@@ -815,6 +815,12 @@ func (svc *MDMAppleCommander) VerifyRecoveryLock(ctx context.Context, hostUUID, 
 	return svc.verifyRecoveryLock(ctx, hostUUID, cmdUUID, "$"+fleet.HostSecretPrefix+fleet.HostSecretRecoveryLockPendingPassword)
 }
 
+func (svc *MDMAppleCommander) VerifyRecoveryLockLastKnownPassword(ctx context.Context, hostUUID, cmdUUID string) error {
+	// Use the host secret placeholder for the last known password - the actual password will be injected at delivery time
+	// by ExpandHostSecrets, which looks up the password from host_recovery_key_passwords.
+	return svc.verifyRecoveryLock(ctx, hostUUID, cmdUUID, "$"+fleet.HostSecretPrefix+fleet.HostSecretRecoveryLockPassword)
+}
+
 func (svc *MDMAppleCommander) VerifyClearRecoveryLock(ctx context.Context, hostUUID, cmdUUID string) error {
 	// A device without a recovery lock password will accept a empty password in a VerifyRecoveryLock, so we use it to ensure the same process
 	// for both setting and clearing is always verified by the device.

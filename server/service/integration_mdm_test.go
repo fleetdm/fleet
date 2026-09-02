@@ -24719,7 +24719,8 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 		require.NotNil(t, verifyCmd, "acknowledging SetRecoveryLock should enqueue VerifyRecoveryLock")
 		require.Equal(t, "VerifyRecoveryLock", verifyCmd.Command.RequestType)
 
-		_, err = mdmClient.Acknowledge(verifyCmd.CommandUUID)
+		// An acknowledgment alone isn't a pass: the verdict rides in PasswordVerified.
+		_, err = mdmClient.AcknowledgeVerifyRecoveryLock(verifyCmd.CommandUUID, true)
 		require.NoError(t, err)
 		return setCmd
 	}
@@ -25423,6 +25424,166 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 			"a new password must be generated after re-enrollment; the original is no longer on the device")
 
 		// Disable recovery lock password.
+		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
+			"mdm": map[string]any{"enable_recovery_lock_password": false},
+		}, http.StatusOK, &appConfigResponse{})
+	})
+
+	// =========================================================================
+	// Test: a device acknowledges VerifyRecoveryLock even when the password did not
+	// match, and reports the verdict in PasswordVerified. An acknowledgment on its own
+	// must not be read as a successful verification.
+	// =========================================================================
+	t.Run("verify acknowledged with PasswordVerified false fails the host", func(t *testing.T) {
+		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
+			"mdm": map[string]any{"enable_recovery_lock_password": true},
+		}, http.StatusOK, &appConfigResponse{})
+
+		host, mdmClient := createAppleSiliconHost(t)
+
+		runRecoveryLockCron(t)
+		setCmd, err := mdmClient.Idle()
+		require.NoError(t, err)
+		require.NotNil(t, setCmd)
+		require.Equal(t, "SetRecoveryLock", setCmd.Command.RequestType)
+
+		verifyCmd, err := mdmClient.Acknowledge(setCmd.CommandUUID)
+		require.NoError(t, err)
+		if verifyCmd == nil {
+			verifyCmd, err = mdmClient.Idle()
+			require.NoError(t, err)
+		}
+		require.NotNil(t, verifyCmd)
+		require.Equal(t, "VerifyRecoveryLock", verifyCmd.Command.RequestType)
+
+		// Acknowledged, but the device says the password isn't the one it holds.
+		nextCmd, err := mdmClient.AcknowledgeVerifyRecoveryLock(verifyCmd.CommandUUID, false)
+		require.NoError(t, err)
+		assert.Nil(t, nextCmd, "a device that answered no must not be asked the same thing again")
+
+		rlpStatus := getHostRecoveryLockStatus(host.ID)
+		require.NotNil(t, rlpStatus.Status)
+		assert.Equal(t, fleet.RecoveryLockStatusFailed, *rlpStatus.Status,
+			"an acknowledgment carrying PasswordVerified=false must not verify the host")
+		assert.Contains(t, rlpStatus.Detail, "does not match")
+		assert.False(t, rlpStatus.PasswordAvailable)
+
+		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
+			"mdm": map[string]any{"enable_recovery_lock_password": false},
+		}, http.StatusOK, &appConfigResponse{})
+	})
+
+	// =========================================================================
+	// Test: re-enrollment soft-deletes the row but keeps the last known password.
+	// If the device did NOT actually drop its lock, the fresh SetRecoveryLock is
+	// rejected with a password mismatch (MDMClientError 70). Rather than failing
+	// outright, Fleet verifies the password it still has on file.
+	// =========================================================================
+
+	// Drives the fallback: re-enroll a verified host, let the cron re-SET, and have the
+	// device reject that set with a password mismatch. Returns the last known password
+	// (the one stored before re-enrollment) and the VerifyRecoveryLock command Fleet
+	// issued in response.
+	mismatchAfterReenroll := func(t *testing.T, host *fleet.Host, mdmClient *mdmtest.TestAppleMDMClient) (string, *mdm.Command) {
+		t.Helper()
+
+		// Get to verified first so Fleet has a known-good password on file.
+		runRecoveryLockCron(t)
+		ackSetThenVerify(t, mdmClient)
+
+		var getPasswordResp getHostRecoveryLockPasswordResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/recovery_lock_password", host.ID), nil, http.StatusOK, &getPasswordResp)
+		require.NotNil(t, getPasswordResp.RecoveryLockPassword)
+		require.NotNil(t, getPasswordResp.RecoveryLockPassword.Password)
+		// Copy the value: unmarshalling the next response reuses this pointer.
+		knownPassword := *getPasswordResp.RecoveryLockPassword.Password
+		require.NotEmpty(t, knownPassword)
+
+		// Re-enrollment soft-deletes the row. The stored password survives the delete,
+		// which is what makes the fallback below possible.
+		require.NoError(t, mdmClient.Reenroll())
+
+		// The cron treats the host as fresh and enqueues a SetRecoveryLock carrying only
+		// a NewPassword — no CurrentPassword, since Fleet assumes the lock is gone.
+		runRecoveryLockCron(t)
+		setCmd, err := mdmClient.Idle()
+		require.NoError(t, err)
+		require.NotNil(t, setCmd)
+		require.Equal(t, "SetRecoveryLock", setCmd.Command.RequestType)
+
+		// The device still holds the pre-re-enrollment lock, so it rejects the set.
+		verifyCmd, err := mdmClient.Err(setCmd.CommandUUID, []mdm.ErrorChain{
+			{ErrorCode: 70, ErrorDomain: "MDMClientError", LocalizedDescription: "Existing recovery lock password not provided"},
+		})
+		require.NoError(t, err)
+		if verifyCmd == nil {
+			verifyCmd, err = mdmClient.Idle()
+			require.NoError(t, err)
+		}
+		require.NotNil(t, verifyCmd, "a mismatch with a known password on file must enqueue VerifyRecoveryLock")
+		require.Equal(t, "VerifyRecoveryLock", verifyCmd.Command.RequestType)
+		// The verify must carry the last known password, not the fresh one the device
+		// just rejected.
+		assert.Contains(t, string(verifyCmd.Raw), knownPassword,
+			"verify must be sent with the last known password")
+
+		return knownPassword, verifyCmd
+	}
+
+	t.Run("password mismatch after re-enrollment verifies the last known password", func(t *testing.T) {
+		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
+			"mdm": map[string]any{"enable_recovery_lock_password": true},
+		}, http.StatusOK, &appConfigResponse{})
+
+		host, mdmClient := createAppleSiliconHost(t)
+		knownPassword, verifyCmd := mismatchAfterReenroll(t, host, mdmClient)
+
+		// The device confirms it still has that password.
+		_, err := mdmClient.AcknowledgeVerifyRecoveryLock(verifyCmd.CommandUUID, true)
+		require.NoError(t, err)
+
+		rlpStatus := getHostRecoveryLockStatus(host.ID)
+		require.NotNil(t, rlpStatus.Status)
+		assert.Equal(t, fleet.RecoveryLockStatusVerified, *rlpStatus.Status,
+			"a verified last known password must not leave the host failed")
+		assert.Empty(t, rlpStatus.Detail)
+		assert.True(t, rlpStatus.PasswordAvailable)
+
+		// The password the admin can read must be the one the device actually has, not
+		// the fresh one it rejected.
+		var getPasswordResp getHostRecoveryLockPasswordResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/recovery_lock_password", host.ID), nil, http.StatusOK, &getPasswordResp)
+		require.NotNil(t, getPasswordResp.RecoveryLockPassword)
+		require.NotNil(t, getPasswordResp.RecoveryLockPassword.Password)
+		assert.Equal(t, knownPassword, *getPasswordResp.RecoveryLockPassword.Password)
+
+		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
+			"mdm": map[string]any{"enable_recovery_lock_password": false},
+		}, http.StatusOK, &appConfigResponse{})
+	})
+
+	t.Run("password mismatch after re-enrollment fails when the last known password does not verify", func(t *testing.T) {
+		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
+			"mdm": map[string]any{"enable_recovery_lock_password": true},
+		}, http.StatusOK, &appConfigResponse{})
+
+		host, mdmClient := createAppleSiliconHost(t)
+		_, verifyCmd := mismatchAfterReenroll(t, host, mdmClient)
+
+		// The device rejects the last known password too: whatever lock it holds is one
+		// Fleet doesn't know. Nothing left to try, so this is terminal.
+		nextCmd, err := mdmClient.Err(verifyCmd.CommandUUID, []mdm.ErrorChain{
+			{ErrorCode: 70, ErrorDomain: "MDMClientError", LocalizedDescription: "Recovery lock password not set"},
+		})
+		require.NoError(t, err)
+		assert.Nil(t, nextCmd, "a terminal verify failure must not enqueue another command")
+
+		rlpStatus := getHostRecoveryLockStatus(host.ID)
+		require.NotNil(t, rlpStatus.Status)
+		assert.Equal(t, fleet.RecoveryLockStatusFailed, *rlpStatus.Status)
+		assert.Contains(t, rlpStatus.Detail, "Recovery lock password not set")
+		assert.False(t, rlpStatus.PasswordAvailable)
+
 		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
 			"mdm": map[string]any{"enable_recovery_lock_password": false},
 		}, http.StatusOK, &appConfigResponse{})

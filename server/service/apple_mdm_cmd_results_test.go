@@ -584,13 +584,33 @@ func TestVerifyRecoveryLockResultsHandler(t *testing.T) {
 		}
 	}
 
+	// A device answers a VerifyRecoveryLock in the payload, not in the status: it
+	// acknowledges either way and reports the verdict in PasswordVerified.
+	rawVerifyResponse := func(passwordVerified bool) []byte {
+		verdict := "<false/>"
+		if passwordVerified {
+			verdict = "<true/>"
+		}
+		return []byte(`<?xml version="1.0" encoding="UTF-8"?><plist version="1.0"><dict><key>PasswordVerified</key>` + verdict + `</dict></plist>`)
+	}
+
 	newResult := func(status string, errChain []mdm.ErrorChain) fleet.MDMCommandResults {
 		return NewRecoveryLockResult(&mdm.CommandResults{
 			Enrollment:  mdm.Enrollment{UDID: hostUUID},
 			CommandUUID: verifyCmdUUID,
 			Status:      status,
 			ErrorChain:  errChain,
-			Raw:         []byte(`<?xml version="1.0" encoding="UTF-8"?><plist version="1.0"><dict></dict></plist>`),
+			Raw:         rawVerifyResponse(true),
+		})
+	}
+
+	// newUnverifiedResult is an acknowledgment that says the password did not match.
+	newUnverifiedResult := func() fleet.MDMCommandResults {
+		return NewRecoveryLockResult(&mdm.CommandResults{
+			Enrollment:  mdm.Enrollment{UDID: hostUUID},
+			CommandUUID: verifyCmdUUID,
+			Status:      fleet.MDMAppleStatusAcknowledged,
+			Raw:         rawVerifyResponse(false),
 		})
 	}
 
@@ -685,6 +705,66 @@ func TestVerifyRecoveryLockResultsHandler(t *testing.T) {
 
 		assert.True(t, deleteCalled)
 		assert.Equal(t, verifyCmdUUID, capturedCmdUUID)
+	})
+
+	t.Run("acknowledged with PasswordVerified false fails instead of verifying", func(t *testing.T) {
+		ds := new(mock.DataStore)
+		ds.GetPendingRecoveryLockFunc = pendingFn(fleet.MDMOperationTypeInstall, false, 0)
+
+		ds.SetRecoveryLockVerifiedFunc = func(_ context.Context, _, _ string) error {
+			t.Fatal("an acknowledgment the device did not verify must not mark the host verified")
+			return nil
+		}
+		ds.RetryRecoveryLockVerifyFunc = func(_ context.Context, _, _, _ string) error {
+			t.Fatal("re-asking the device the same question gets the same answer")
+			return nil
+		}
+
+		var capturedError string
+		ds.SetRecoveryLockFailedFunc = func(_ context.Context, hUUID, commandUUID, errorMsg string) error {
+			assert.Equal(t, hostUUID, hUUID)
+			assert.Equal(t, verifyCmdUUID, commandUUID)
+			capturedError = errorMsg
+			return nil
+		}
+
+		newActivityFn := func(_ context.Context, _ *fleet.User, _ fleet.ActivityDetails) error {
+			t.Fatal("no set activity for a password the device never confirmed")
+			return nil
+		}
+
+		handler := NewVerifyRecoveryLockResultsHandler(ds, logger, commander, newActivityFn)
+
+		err := handler(ctx, newUnverifiedResult())
+		require.NoError(t, err)
+
+		assert.True(t, ds.SetRecoveryLockFailedFuncInvoked)
+		assert.Contains(t, capturedError, "does not match")
+	})
+
+	t.Run("acknowledged clear with PasswordVerified false keeps the password", func(t *testing.T) {
+		ds := new(mock.DataStore)
+		ds.GetPendingRecoveryLockFunc = pendingFn(fleet.MDMOperationTypeRemove, true, 0)
+
+		// The lock is still on the device, so dropping Fleet's copy would strand it.
+		ds.DeleteHostRecoveryLockPasswordFunc = func(_ context.Context, _, _ string) error {
+			t.Fatal("the stored password must not be deleted while the device still has a lock")
+			return nil
+		}
+
+		var capturedError string
+		ds.SetRecoveryLockFailedFunc = func(_ context.Context, _, _, errorMsg string) error {
+			capturedError = errorMsg
+			return nil
+		}
+
+		handler := NewVerifyRecoveryLockResultsHandler(ds, logger, commander, nil)
+
+		err := handler(ctx, newUnverifiedResult())
+		require.NoError(t, err)
+
+		assert.True(t, ds.SetRecoveryLockFailedFuncInvoked)
+		assert.Contains(t, capturedError, "still set")
 	})
 
 	t.Run("password not set error is terminal", func(t *testing.T) {

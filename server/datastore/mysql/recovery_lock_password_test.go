@@ -260,6 +260,53 @@ func testRecoveryLockStatusMethods(t *testing.T, ds *Datastore) {
 		assert.Equal(t, verifyCmdUUID, result.VerifyCommandUUID.String)
 	})
 
+	t.Run("SetRecoveryLockVerifyingLastKnownPassword keeps the active password", func(t *testing.T) {
+		host, firstSetCmdUUID := setupHost(t, "last-known-host", "1.2.3.20", "lastknownkey", "lastknownuuid")
+
+		// Establish an active password, then stage a second one the device will reject.
+		markRecoveryLockVerified(t, ds, host.UUID)
+		var activePassword []byte
+		require.NoError(t, ds.writer(ctx).GetContext(ctx, &activePassword,
+			"SELECT encrypted_password FROM host_recovery_key_passwords WHERE host_uuid = ?", host.UUID))
+		require.NotEmpty(t, activePassword)
+
+		secondSetCmdUUID := uuid.NewString()
+		require.NoError(t, ds.SetHostsRecoveryLockPasswords(ctx, []fleet.HostRecoveryLockPasswordPayload{
+			{HostUUID: host.UUID, Password: apple_mdm.GenerateRecoveryLockPassword(), PendingSetCommandUUID: secondSetCmdUUID},
+		}))
+		require.NotEqual(t, firstSetCmdUUID, secondSetCmdUUID)
+
+		// The set came back with a password mismatch, so the verify goes out with the
+		// active password and the rejected pending one is dropped.
+		verifyCmdUUID := uuid.NewString()
+		require.NoError(t, ds.SetRecoveryLockVerifyingLastKnownPassword(ctx, host.UUID, secondSetCmdUUID, verifyCmdUUID))
+
+		var row struct {
+			Status                   string         `db:"status"`
+			EncryptedPassword        []byte         `db:"encrypted_password"`
+			PendingEncryptedPassword []byte         `db:"pending_encrypted_password"`
+			PendingSetCommandUUID    sql.NullString `db:"pending_set_command_uuid"`
+			PendingVerifyCommandUUID sql.NullString `db:"pending_verify_command_uuid"`
+		}
+		const selectStmt = `
+			SELECT status, encrypted_password, pending_encrypted_password,
+			       pending_set_command_uuid, pending_verify_command_uuid
+			FROM host_recovery_key_passwords WHERE host_uuid = ?`
+		require.NoError(t, ds.writer(ctx).GetContext(ctx, &row, selectStmt, host.UUID))
+		assert.Equal(t, string(fleet.MDMDeliveryVerifying), row.Status)
+		assert.Empty(t, row.PendingEncryptedPassword, "the rejected password must not stay staged for promotion")
+		assert.Equal(t, activePassword, row.EncryptedPassword)
+		assert.False(t, row.PendingSetCommandUUID.Valid)
+		assert.Equal(t, verifyCmdUUID, row.PendingVerifyCommandUUID.String)
+
+		// The device confirms the active password; with nothing pending, it stays put.
+		require.NoError(t, ds.SetRecoveryLockVerified(ctx, host.UUID, verifyCmdUUID))
+		require.NoError(t, ds.writer(ctx).GetContext(ctx, &row, selectStmt, host.UUID))
+		assert.Equal(t, string(fleet.MDMDeliveryVerified), row.Status)
+		assert.Equal(t, activePassword, row.EncryptedPassword,
+			"verifying the active password must not overwrite it with a NULL pending one")
+	})
+
 	t.Run("SetRecoveryLockVerified ignores a stale verify command", func(t *testing.T) {
 		host, setCmdUUID := setupHost(t, "stale-verify-host", "1.2.3.15", "stalekey", "staleuuid")
 

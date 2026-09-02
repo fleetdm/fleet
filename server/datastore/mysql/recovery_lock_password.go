@@ -232,10 +232,10 @@ func (ds *Datastore) RestoreRecoveryLockForReenabledHosts(ctx context.Context) (
 
 func (ds *Datastore) SetRecoveryLockVerified(ctx context.Context, hostUUID string, verifyCommandUUID string) error {
 	stmt := fmt.Sprintf(`
-		UPDATE host_recovery_key_passwords SET 
+		UPDATE host_recovery_key_passwords SET
 			status = '%s',
 		    verify_command_uuid = ?,
-			encrypted_password = pending_encrypted_password,
+			encrypted_password = COALESCE(pending_encrypted_password, encrypted_password),
 			pending_encrypted_password = NULL,
 			pending_set_command_uuid = NULL,
 			pending_verify_command_uuid = NULL,
@@ -668,6 +668,21 @@ func (ds *Datastore) SetRecoveryLockVerifying(ctx context.Context, hostUUID, set
 		  AND deleted = 0
 `, fleet.MDMDeliveryVerifying, setCommandUUID, pendingVerifyCommandUUID, hostUUID, setCommandUUID)
 	return ctxerr.Wrap(ctx, err, "set recovery lock verifying")
+}
+
+func (ds *Datastore) SetRecoveryLockVerifyingLastKnownPassword(ctx context.Context, hostUUID, setCommandUUID, pendingVerifyCommandUUID string) error {
+	// The device rejected the pending password, so clear it: the verify going out carries the
+	// active password, and that is what SetRecoveryLockVerified must leave in place.
+	_, err := ds.writer(ctx).ExecContext(ctx, `
+		UPDATE host_recovery_key_passwords
+		SET status = ?, set_command_uuid = ?, pending_verify_command_uuid = ?,
+		pending_set_command_uuid = NULL,
+		pending_encrypted_password = NULL
+		WHERE host_uuid = ?
+		  AND pending_set_command_uuid = ?
+		  AND deleted = 0
+`, fleet.MDMDeliveryVerifying, setCommandUUID, pendingVerifyCommandUUID, hostUUID, setCommandUUID)
+	return ctxerr.Wrap(ctx, err, "set recovery lock verifying with last known password")
 }
 
 func (ds *Datastore) RetryRecoveryLock(ctx context.Context, hostUUID, commandUUID string) error {
