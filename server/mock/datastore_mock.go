@@ -1454,6 +1454,10 @@ type MDMWindowsSaveUnlinkedEnrollmentHardwareSerialFunc func(ctx context.Context
 
 type MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerialFunc func(ctx context.Context, hardwareSerial string) (*fleet.MDMWindowsEnrolledDevice, error)
 
+type MDMWindowsClaimEnrolledActivityFunc func(ctx context.Context, mdmHardwareID string, claimedAt time.Time) (bool, error)
+
+type MDMWindowsReleaseEnrolledActivityClaimFunc func(ctx context.Context, mdmHardwareID string, claimedAt time.Time) error
+
 type GetWindowsEnrollmentDefaultFleetFunc func(ctx context.Context) (fleetID *uint, fleetName string, err error)
 
 type SetWindowsEnrollmentDefaultFleetFunc func(ctx context.Context, fleetID *uint) error
@@ -4527,6 +4531,12 @@ type DataStore struct {
 
 	MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerialFunc        MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerialFunc
 	MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerialFuncInvoked bool
+
+	MDMWindowsClaimEnrolledActivityFunc        MDMWindowsClaimEnrolledActivityFunc
+	MDMWindowsClaimEnrolledActivityFuncInvoked bool
+
+	MDMWindowsReleaseEnrolledActivityClaimFunc        MDMWindowsReleaseEnrolledActivityClaimFunc
+	MDMWindowsReleaseEnrolledActivityClaimFuncInvoked bool
 
 	GetWindowsEnrollmentDefaultFleetFunc        GetWindowsEnrollmentDefaultFleetFunc
 	GetWindowsEnrollmentDefaultFleetFuncInvoked bool
@@ -10926,6 +10936,20 @@ func (s *DataStore) MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerial(ctx co
 	s.MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerialFuncInvoked = true
 	s.mu.Unlock()
 	return s.MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerialFunc(ctx, hardwareSerial)
+}
+
+func (s *DataStore) MDMWindowsClaimEnrolledActivity(ctx context.Context, mdmHardwareID string, claimedAt time.Time) (bool, error) {
+	s.mu.Lock()
+	s.MDMWindowsClaimEnrolledActivityFuncInvoked = true
+	s.mu.Unlock()
+	return s.MDMWindowsClaimEnrolledActivityFunc(ctx, mdmHardwareID, claimedAt)
+}
+
+func (s *DataStore) MDMWindowsReleaseEnrolledActivityClaim(ctx context.Context, mdmHardwareID string, claimedAt time.Time) error {
+	s.mu.Lock()
+	s.MDMWindowsReleaseEnrolledActivityClaimFuncInvoked = true
+	s.mu.Unlock()
+	return s.MDMWindowsReleaseEnrolledActivityClaimFunc(ctx, mdmHardwareID, claimedAt)
 }
 
 func (s *DataStore) GetWindowsEnrollmentDefaultFleet(ctx context.Context) (fleetID *uint, fleetName string, err error) {
