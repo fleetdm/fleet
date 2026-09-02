@@ -538,7 +538,7 @@ T-shirt sizes represent a rough estimate on the effort required to complete a ta
 | T-shirt size | Time |
 |:---|:-----------------------------|
 | XXS | ≤1 day for 1 contributor |
-| XS | ≤½ week for 1 contributor |
+| XS | <3 days for 1 contributor |
 | S  | ≤1 week for 1 contributor |
 | M  | ≤1 release cycle for 1 contributor |
 | L  | 1 release cycle for 2 contributors |
