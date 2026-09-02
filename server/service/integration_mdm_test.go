@@ -28225,6 +28225,84 @@ func (s *integrationMDMTestSuite) TestHostNameTemplateTransferTeamToNoTeam() {
 // TestAndroidCustomCommandsListAndResults exercises the full API flow for Android custom commands:
 // send a command via POST /commands/run, verify it appears in GET /commands (list), deliver a
 // Pub/Sub ack, and verify GET /commands/results returns the stored result.
+func (s *integrationMDMTestSuite) TestAndroidCompanyOwnedOnlyCommands() {
+	t := s.T()
+	ctx := t.Context()
+
+	enterpriseID, err := s.ds.CreateEnterprise(ctx, s.users["admin1"].ID)
+	require.NoError(t, err)
+	require.NoError(t, s.ds.UpdateEnterprise(ctx, &android.EnterpriseDetails{
+		ID:           enterpriseID,
+		EnterpriseID: "cobo-only-fake",
+		SignupName:   "fake",
+		SignupToken:  "value",
+		TopicID:      "yep",
+	}))
+	require.NoError(t, s.ds.InsertOrReplaceMDMConfigAsset(ctx, fleet.MDMConfigAsset{
+		Name:  fleet.MDMAssetAndroidPubSubToken,
+		Value: []byte("test-android-cobo-only-pubsub-token"),
+	}))
+
+	var (
+		issueCallsMu sync.Mutex
+		issueCounter int
+	)
+	s.androidAPIClient.EnterprisesDevicesIssueCommandFunc = func(_ context.Context, deviceName string, _ *androidmanagement.Command) (*androidmanagement.Operation, error) {
+		issueCallsMu.Lock()
+		defer issueCallsMu.Unlock()
+		issueCounter++
+		return &androidmanagement.Operation{Name: fmt.Sprintf("%s/operations/cobo-only-op-%d", deviceName, issueCounter)}, nil
+	}
+	issuedCount := func() int {
+		issueCallsMu.Lock()
+		defer issueCallsMu.Unlock()
+		return issueCounter
+	}
+
+	uuidForHost := func(hostID uint) string {
+		var hostResp getHostResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hostID), nil, http.StatusOK, &hostResp)
+		return hostResp.Host.UUID
+	}
+	byodUUID := uuidForHost(createAndroidHostForTest(t, s.ds, nil, false))
+	coboUUID := uuidForHost(createAndroidHostForTest(t, s.ds, nil, true))
+
+	for _, rawCmd := range []string{
+		`{"type":"REBOOT"}`,
+		`{"type":"RELINQUISH_OWNERSHIP"}`,
+		`{"type":"START_LOST_MODE"}`,
+		`{"type":"STOP_LOST_MODE"}`,
+		// AMAPI infers the type from these params, so omitting it must not bypass the check
+		`{"startLostModeParams":{"lostMessage":{"defaultMessage":"lost"}}}`,
+		`{"stopLostModeParams":{}}`,
+	} {
+		before := issuedCount()
+		res := s.Do("POST", "/api/latest/fleet/commands/run", &runMDMCommandRequest{
+			Command:   base64.StdEncoding.EncodeToString([]byte(rawCmd)),
+			HostUUIDs: []string{byodUUID},
+		}, http.StatusBadRequest)
+		require.Contains(t, extractServerErrorText(res.Body),
+			"This Android command is only supported on company-owned hosts.", rawCmd)
+		require.Equal(t, before, issuedCount(), "%s must not reach AMAPI", rawCmd)
+	}
+
+	// The same command on a company-owned host still goes through.
+	var runResp runMDMCommandResponse
+	s.DoJSON("POST", "/api/latest/fleet/commands/run", &runMDMCommandRequest{
+		Command:   base64.StdEncoding.EncodeToString([]byte(`{"type":"REBOOT"}`)),
+		HostUUIDs: []string{coboUUID},
+	}, http.StatusOK, &runResp)
+	require.Equal(t, "REBOOT", runResp.RequestType)
+
+	// A command that works on a work profile is unaffected by the restriction.
+	runResp = runMDMCommandResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/commands/run", &runMDMCommandRequest{
+		Command:   base64.StdEncoding.EncodeToString([]byte(`{"type":"CLEAR_APP_DATA"}`)),
+		HostUUIDs: []string{byodUUID},
+	}, http.StatusOK, &runResp)
+	require.Equal(t, "CLEAR_APP_DATA", runResp.RequestType)
+}
+
 func (s *integrationMDMTestSuite) TestAndroidCustomCommandsListAndResults() {
 	t := s.T()
 	ctx := t.Context()

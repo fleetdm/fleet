@@ -630,6 +630,16 @@ var androidMDMPremiumCommands = map[string]struct{}{
 	"RESET_PASSWORD": {},
 }
 
+// androidMDMCompanyOwnedOnlyCommands are AMAPI commands Google only honors on fully
+// managed or company-owned devices. On a BYOD work profile AMAPI still accepts the
+// request and reports it as running, but the device never carries it out.
+var androidMDMCompanyOwnedOnlyCommands = map[string]struct{}{
+	"REBOOT":               {},
+	"RELINQUISH_OWNERSHIP": {},
+	"START_LOST_MODE":      {},
+	"STOP_LOST_MODE":       {},
+}
+
 // enqueueAndroidMDMCommand issues an AMAPI custom command for each targeted Android host.
 // rawJSON is the base64-decoded JSON bytes of the AMAPI Command object.
 // For now, only single-host targeting is supported.
@@ -639,21 +649,32 @@ func (svc *Service) enqueueAndroidMDMCommand(ctx context.Context, rawJSON []byte
 			"Android custom commands can only target a single host at a time.").WithStatus(http.StatusBadRequest)
 	}
 
-	// Parse the command type and sensitive fields for premium gating.
+	// Parse the command type, along with the fields AMAPI infers a type from, for
+	// premium and company-owned gating.
 	var cmdPayload struct {
-		Type        string `json:"type"`
-		NewPassword string `json:"newPassword"`
+		Type                string          `json:"type"`
+		NewPassword         string          `json:"newPassword"`
+		StartLostModeParams json.RawMessage `json:"startLostModeParams"`
+		StopLostModeParams  json.RawMessage `json:"stopLostModeParams"`
 	}
 	if err := json.Unmarshal(rawJSON, &cmdPayload); err != nil {
 		return nil, fleet.NewInvalidArgumentError("command", "invalid Android command JSON").WithStatus(http.StatusBadRequest)
 	}
 
-	// Normalize to uppercase to match AMAPI convention and our premium map keys.
+	// Normalize to uppercase to match AMAPI convention and our gating map keys.
 	cmdType := strings.ToUpper(strings.TrimSpace(cmdPayload.Type))
 
-	// If type is omitted but newPassword is set, AMAPI infers RESET_PASSWORD.
-	if cmdType == "" && cmdPayload.NewPassword != "" {
-		cmdType = "RESET_PASSWORD"
+	// AMAPI infers the type from these params when it is omitted, so gating on the
+	// literal type alone would let a caller skip the checks below by leaving it out.
+	if cmdType == "" {
+		switch {
+		case cmdPayload.NewPassword != "":
+			cmdType = "RESET_PASSWORD"
+		case cmdPayload.StartLostModeParams != nil:
+			cmdType = "START_LOST_MODE"
+		case cmdPayload.StopLostModeParams != nil:
+			cmdType = "STOP_LOST_MODE"
+		}
 	}
 
 	if _, ok := androidMDMPremiumCommands[cmdType]; ok {
@@ -667,6 +688,21 @@ func (svc *Service) enqueueAndroidMDMCommand(ctx context.Context, rawJSON []byte
 	}
 
 	host := hosts[0]
+
+	if _, ok := androidMDMCompanyOwnedOnlyCommands[cmdType]; ok {
+		// The hosts here come from ListHostsLiteByUUIDs, which does not join host_mdm,
+		// so host.MDM carries no enrollment status and the ownership has to be read.
+		hostMDM, err := svc.ds.GetHostMDM(ctx, host.ID)
+		if err != nil && !fleet.IsNotFound(err) {
+			return nil, ctxerr.Wrap(ctx, err, "get host mdm for android command ownership check")
+		}
+		if hostMDM != nil && hostMDM.IsPersonalEnrollment {
+			return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+				Message: "This Android command is only supported on company-owned hosts.",
+			}, "company-owned only android command targeting a personally-owned host")
+		}
+	}
+
 	cmd, err := svc.androidSvc.IssueCustomCommand(ctx, host.ID, rawJSON)
 	if err != nil {
 		return nil, err
