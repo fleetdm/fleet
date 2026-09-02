@@ -342,7 +342,7 @@ const TAGGED_TEMPLATES = {
     }
     return (
       <>
-        changed <b>{user_email}</b> to <b>{activity.details?.role}</b>
+        changed <b>{user_email}</b> to <b>{role}</b>
         {isPremiumTier && " for all fleets"}.
       </>
     );
