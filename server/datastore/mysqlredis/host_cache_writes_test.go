@@ -9,6 +9,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	redigo "github.com/gomodule/redigo/redis"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -22,6 +23,18 @@ func primeCachedHost(t *testing.T, d *Datastore, id uint, nk string) {
 	d.hostCachePutByNodeKey(ctx, &fleet.Host{ID: id, NodeKey: &nk, Hostname: "primed-" + nk})
 	_, result := d.hostCacheGetByNodeKey(ctx, nk)
 	require.Equal(t, hostCacheLookupHit, result, "primeCachedHost failed to prime %q", nk)
+}
+
+// hostCacheTTLOf returns the remaining TTL in seconds for key (-1 = no expiry,
+// -2 = missing), used to assert that the in-place team patch keeps the entry's
+// original expiry rather than resetting it.
+func hostCacheTTLOf(t *testing.T, pool fleet.RedisPool, key string) int {
+	t.Helper()
+	conn := pool.Get()
+	defer conn.Close()
+	ttl, err := redigo.Int(conn.Do("TTL", key))
+	require.NoError(t, err)
+	return ttl
 }
 
 func requireCacheMiss(t *testing.T, d *Datastore, nk string) {
@@ -191,10 +204,17 @@ func TestWritePathInvalidation(t *testing.T) {
 			require.Equal(t, hostCacheLookupMiss, after, "EnrollOrbit must clear the pre-enrollment negative cache")
 		})
 
-		t.Run("AddHostsToTeam invalidates every host in the batch", func(t *testing.T) {
+		t.Run("AddHostsToTeam patches team_id in place and keeps the entry's expiry", func(t *testing.T) {
+			// The whole point of patching rather than DELing: no transferred host
+			// misses on its next check-in, so a bulk transfer can't stampede the
+			// reader, and each entry keeps its staggered expiry instead of
+			// collapsing the batch into one synchronized TTL wave.
 			t.Cleanup(func() { cleanupHostCacheKeys(t, pool) })
 			ds := new(mock.Store)
 			ds.AddHostsToTeamFunc = func(_ context.Context, _ *fleet.AddHostsToTeamParams) error { return nil }
+			ds.GetConfigEnableDiskEncryptionFunc = func(_ context.Context, _ *uint) (fleet.DiskEncryptionConfig, error) {
+				return fleet.DiskEncryptionConfig{MacOSEscrowEnabled: true, WindowsEnabled: true, LinuxEscrowEnabled: true}, nil
+			}
 			d := New(ds, pool, WithHostCache(30*time.Second))
 
 			nks := []string{"nk-team-a", "nk-team-b", "nk-team-c"}
@@ -202,13 +222,42 @@ func TestWritePathInvalidation(t *testing.T) {
 			for i, nk := range nks {
 				primeCachedHost(t, d, ids[i], nk)
 			}
+			ttlBefore := hostCacheTTLOf(t, pool, hostCacheKeyByNodeKey(nks[0]))
 
 			params := fleet.NewAddHostsToTeamParams(new(uint(7)), ids)
 			require.NoError(t, d.AddHostsToTeam(ctx, params))
 			require.True(t, ds.AddHostsToTeamFuncInvoked)
+
 			for _, nk := range nks {
-				requireCacheMiss(t, d, nk)
+				h, result := d.hostCacheGetByNodeKey(ctx, nk)
+				require.Equal(t, hostCacheLookupHit, result, "entry for %q must survive the transfer", nk)
+				require.NotNil(t, h.TeamID)
+				require.Equal(t, uint(7), *h.TeamID, "cached team_id must reflect the transfer")
+				require.Equal(t, "primed-"+nk, h.Hostname, "the rest of the snapshot must be preserved")
 			}
+
+			ttlAfter := hostCacheTTLOf(t, pool, hostCacheKeyByNodeKey(nks[0]))
+			require.NotEqual(t, -1, ttlAfter, "entry must keep an expiry, not become persistent")
+			require.LessOrEqual(t, ttlAfter, ttlBefore, "KEEPTTL must not extend the entry's life")
+			require.Greater(t, ttlAfter, ttlBefore-5, "expiry must be preserved, not reset")
+		})
+
+		t.Run("AddHostsToTeam falls back to invalidation when the destination config is unavailable", func(t *testing.T) {
+			// A transfer can drop escrowed disk encryption keys, which is cached
+			// in the orbit family. If we can't tell whether it did, dropping the
+			// entry is the only safe move.
+			t.Cleanup(func() { cleanupHostCacheKeys(t, pool) })
+			ds := new(mock.Store)
+			ds.AddHostsToTeamFunc = func(_ context.Context, _ *fleet.AddHostsToTeamParams) error { return nil }
+			ds.GetConfigEnableDiskEncryptionFunc = func(_ context.Context, _ *uint) (fleet.DiskEncryptionConfig, error) {
+				return fleet.DiskEncryptionConfig{}, errors.New("boom")
+			}
+			d := New(ds, pool, WithHostCache(30*time.Second))
+
+			nk := "nk-team-fallback"
+			primeCachedHost(t, d, 13, nk)
+			require.NoError(t, d.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(new(uint(7)), []uint{13})))
+			requireCacheMiss(t, d, nk)
 		})
 
 		t.Run("DeleteTeam invalidates every host in the batch", func(t *testing.T) {

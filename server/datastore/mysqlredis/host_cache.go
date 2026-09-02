@@ -701,3 +701,179 @@ func (d *Datastore) LoadHostByNodeKey(ctx context.Context, nodeKey string) (*fle
 func (d *Datastore) LoadHostByOrbitNodeKey(ctx context.Context, orbitNodeKey string) (*fleet.Host, error) {
 	return d.loadHostFamily(ctx, orbitCacheFamily, orbitNodeKey, d.Datastore.LoadHostByOrbitNodeKey)
 }
+
+// rewriteTeamOnHostIDs patches team_id on the cached snapshots of a transferred
+// batch instead of deleting them, keeping each entry's existing expiry.
+//
+// Why not just invalidate: a team transfer changes exactly one cached field, but
+// DELing the batch makes every transferred host miss on its next check-in. The
+// whole population then reloads inside one poll interval, so the reader sees the
+// full uncached host-load rate in a burst, and because the reloads all repopulate together
+// their TTLs collapse into one wave that re-fires each TTL period.
+// Patching in place removes the reload entirely and preserves the natural TTL spread.
+//
+// Anything that cannot be patched confidently — an unreadable envelope, or a
+// failure to resolve the destination's disk encryption settings — falls back to
+// the DEL path, so correctness never depends on the patch succeeding.
+func (d *Datastore) rewriteTeamOnHostIDs(ctx context.Context, ids []uint, teamID *uint) {
+	if !d.hostCacheEnabled || len(ids) == 0 {
+		return
+	}
+
+	// The transfer drops escrowed disk encryption keys for platforms the
+	// destination doesn't escrow for, which is the one other cached field a
+	// transfer can change (orbit family only). Without these settings we can't
+	// tell, so invalidate rather than serve a stale key-available flag.
+	destDiskEncryption, err := d.Datastore.GetConfigEnableDiskEncryption(ctx, teamID)
+	if err != nil {
+		d.recordHostCacheErr(ctx, "get", err)
+		d.invalidateHostIDs(ctx, ids, "team")
+		return
+	}
+
+	families := []cacheFamily{osqueryCacheFamily, orbitCacheFamily}
+	nFam := len(families)
+
+	idxKeys := make([]string, 0, nFam*len(ids))
+	for _, id := range ids {
+		for _, fam := range families {
+			idxKeys = append(idxKeys, fam.indexKey(id))
+		}
+	}
+	resolved := d.pipelinedMGET(ctx, idxKeys)
+
+	// Reverse index -> payload key, so the payloads can be fetched in one pass.
+	type target struct {
+		fam     cacheFamily
+		nodeKey string
+		id      uint
+	}
+	targets := make([]target, 0, len(idxKeys))
+	payloadKeys := make([]string, 0, len(idxKeys))
+	for i, id := range ids {
+		for f, fam := range families {
+			key := resolved[i*nFam+f]
+			if key == "" {
+				continue
+			}
+			targets = append(targets, target{fam: fam, nodeKey: key, id: id})
+			payloadKeys = append(payloadKeys, fam.primaryKey(key))
+		}
+	}
+	if len(targets) == 0 {
+		// Nothing cached for this batch: clear the reverse index and any negative entries.
+		d.invalidateHostIDs(ctx, ids, "team")
+		return
+	}
+
+	payloads := d.pipelinedMGET(ctx, payloadKeys)
+
+	writes := make([]hostCacheKV, 0, len(targets))
+	var fallback []uint
+	patched := 0
+	for i, t := range targets {
+		raw := payloads[i]
+		if raw == "" {
+			// Expired between the two MGETs; nothing to patch and nothing stale.
+			continue
+		}
+		var env hostCacheEnvelope
+		if err := json.Unmarshal([]byte(raw), &env); err != nil {
+			d.recordHostCacheErr(ctx, "get", err)
+			fallback = append(fallback, t.id)
+			continue
+		}
+		env.TeamID = teamID
+		if t.fam.sfPrefix == orbitCacheFamily.sfPrefix && !escrowKeptOnTransfer(env.Platform, destDiskEncryption) {
+			env.MDM.EncryptionKeyAvailable = false
+		}
+		next, err := json.Marshal(&env)
+		if err != nil {
+			d.recordHostCacheErr(ctx, "set", err)
+			fallback = append(fallback, t.id)
+			continue
+		}
+		writes = append(writes, hostCacheKV{key: t.fam.primaryKey(t.nodeKey), val: next})
+		patched++
+	}
+
+	d.pipelinedSETKeepTTL(ctx, writes)
+	if len(fallback) > 0 {
+		d.invalidateHostIDs(ctx, fallback, "team")
+	}
+	d.recordHostCacheInvalidations(ctx, "team_rewrite", patched)
+}
+
+// escrowKeptOnTransfer mirrors cleanupDiskEncryptionKeysOnTeamChangeDB's
+// per-platform decision so the cached MDM.EncryptionKeyAvailable flag stays in
+// step with the rows the transfer just deleted.
+func escrowKeptOnTransfer(platform string, cfg fleet.DiskEncryptionConfig) bool {
+	switch (&fleet.Host{Platform: platform}).FleetPlatform() {
+	case "darwin":
+		return cfg.MacOSEscrowEnabled
+	case "windows":
+		return cfg.WindowsEnabled
+	case "linux":
+		return cfg.LinuxEscrowEnabled
+	}
+	return false
+}
+
+type hostCacheKV struct {
+	key string
+	val []byte
+}
+
+// KEEPTTL keeps each entry's existing expiry; a plain SET would reset it and
+// leave the whole batch expiring together.
+func (d *Datastore) pipelinedSETKeepTTL(ctx context.Context, kvs []hostCacheKV) {
+	if len(kvs) == 0 {
+		return
+	}
+	byKey := make(map[string][]byte, len(kvs))
+	keys := make([]string, 0, len(kvs))
+	for _, kv := range kvs {
+		byKey[kv.key] = kv.val
+		keys = append(keys, kv.key)
+	}
+	for _, group := range redis.SplitKeysBySlot(d.pool, keys...) {
+		for len(group) > 0 {
+			n := min(len(group), hostCacheInvalidateBatchSize)
+			chunk := group[:n]
+			group = group[n:]
+			d.setKeepTTLChunk(ctx, chunk, byKey)
+		}
+	}
+}
+
+// SET has no variadic form, so the chunk is pipelined to avoid a round-trip per key.
+func (d *Datastore) setKeepTTLChunk(ctx context.Context, chunk []string, byKey map[string][]byte) {
+	conn := d.pool.Get()
+	defer conn.Close()
+	if err := redis.BindConn(d.pool, conn, chunk...); err != nil {
+		d.recordHostCacheErr(ctx, "set", err)
+		return
+	}
+	doer := redis.ConfigureDoer(d.pool, conn)
+	sent := 0
+	for _, k := range chunk {
+		if err := doer.Send("SET", k, byKey[k], "KEEPTTL"); err != nil {
+			d.recordHostCacheErr(ctx, "set", err)
+			break
+		}
+		sent++
+	}
+	if sent == 0 {
+		return
+	}
+	if err := doer.Flush(); err != nil {
+		d.recordHostCacheErr(ctx, "set", err)
+		return
+	}
+	for i := 0; i < sent; i++ {
+		if _, err := doer.Receive(); err != nil {
+			d.recordHostCacheErr(ctx, "set", err)
+			return
+		}
+	}
+}
