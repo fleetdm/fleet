@@ -13,6 +13,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push/nanopush"
 	nanomdm_pushsvc "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push/service"
@@ -88,7 +89,10 @@ func initAppleMDMPushService(mdmStorage *mysql.NanoMDMStorage, apnsPushExpiratio
 	}
 
 	pushProviderFactory := nanopush.NewFactory(opts...)
-	return nanomdm_pushsvc.New(mdmStorage, mdmStorage, pushProviderFactory, nanoMDMLogger)
+	pusher := nanomdm_pushsvc.New(mdmStorage, mdmStorage, pushProviderFactory, nanoMDMLogger)
+	// retry transient push failures in-process; the legacy per-minute
+	// pusher cron was the de facto retry before its removal
+	return apple_mdm.NewRetryingPusher(pusher, logger.With("component", "apple-mdm-push-retry"))
 }
 
 // checkMDMAssetsExist reports whether the named MDM config assets exist in
