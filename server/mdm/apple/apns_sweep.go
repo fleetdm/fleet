@@ -21,7 +21,7 @@ const (
 	apnsSweepMaxBatch = 2000
 )
 
-// apnsNotifier is the slice of MDMAppleCommander the sweep needs; tests
+// apnsNotifier is the subset of MDMAppleCommander the sweep needs; tests
 // substitute a fake.
 type apnsNotifier interface {
 	SendNotifications(ctx context.Context, ids []string) error
@@ -50,6 +50,11 @@ func SweepAPNsPushes(ctx context.Context, ds fleet.Datastore, commander *MDMAppl
 func sweepAPNsPushes(ctx context.Context, ds fleet.Datastore, notifier apnsNotifier,
 	logger *slog.Logger, interval time.Duration,
 ) error {
+	if interval <= 0 {
+		// the cron constructor guards this too; a local clamp keeps the
+		// batch-size division from panicking for any future caller
+		interval = time.Minute
+	}
 	appCfg, err := ds.AppConfig(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "retrieving app config")

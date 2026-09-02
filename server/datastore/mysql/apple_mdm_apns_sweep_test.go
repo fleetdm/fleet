@@ -128,7 +128,9 @@ func TestAPNsSweep(t *testing.T) {
 
 	t.Run("shorter silence window widens eligibility", func(t *testing.T) {
 		// with a 1-second window even the recently-seen rows qualify,
-		// proving the silentFor parameter drives the filter.
+		// proving the silentFor parameter drives the filter. Set the
+		// timestamp explicitly rather than relying on nanoEnroll's seed.
+		setLastSeen(hRecent.UUID, 2*time.Second)
 		eligible, _, _, err := ds.ListNanoEnrollmentIDsForAPNsSweep(ctx, "", 100, time.Second)
 		require.NoError(t, err)
 		require.ElementsMatch(t, append(wantEligible, hRecent.UUID), eligible)
