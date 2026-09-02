@@ -7,10 +7,10 @@
         "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.strictllm.chat' AND version_compare(bundle_short_version, '2.1.6') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.strictllm.chat' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/StrictLLM-LLC/download/releases/download/v2.1.6/StrictLLM-2.1.6-macos-arm64-StrictLLM.Chat-2.1.6-arm64.dmg",
+      "installer_url": "https://github.com/StrictLLM-LLC/download/releases/download/v2.1.6/StrictLLM-2.1.6-macos-x64-StrictLLM.Chat-2.1.6.dmg",
       "install_script_ref": "6ef29f93",
       "uninstall_script_ref": "3f7ac217",
-      "sha256": "3f7a9938db6f64a5757c0884798021f05e29d3cb1d65ee06f0a9f8b0efe54a47",
+      "sha256": "25182e942090e17e3a8fb78277e8ccdfd33f7ac38fed98f06f6e121408c7ff6f",
       "default_categories": [
         "Communication"
       ]

@@ -6,7 +6,7 @@
   ],
   "desc": "Secure local chat interface for large language models",
   "homepage": "https://strictllm.com/",
-  "url": "https://github.com/StrictLLM-LLC/download/releases/download/v2.1.6/StrictLLM-2.1.6-macos-arm64-StrictLLM.Chat-2.1.6-arm64.dmg",
+  "url": "https://github.com/StrictLLM-LLC/download/releases/download/v2.1.6/StrictLLM-2.1.6-macos-x64-StrictLLM.Chat-2.1.6.dmg",
   "url_specs": {
     "verified": "github.com/StrictLLM-LLC/download/"
   },
@@ -18,7 +18,7 @@
   "bundle_short_version": "2.1.6",
   "pinned": false,
   "pinned_version": null,
-  "sha256": "3f7a9938db6f64a5757c0884798021f05e29d3cb1d65ee06f0a9f8b0efe54a47",
+  "sha256": "25182e942090e17e3a8fb78277e8ccdfd33f7ac38fed98f06f6e121408c7ff6f",
   "artifacts": [
     {
       "uninstall": [
@@ -79,5 +79,45 @@
   "ruby_source_path": "Casks/strictllm.rb",
   "ruby_source_checksum": {
     "sha256": "a7fbac7700c495b401a6f11bdbb19eda34c81c661021b060ceaaf0aed88e1a32"
-  }
+  },
+  "variations": {
+    "arm64_golden_gate": {
+      "url": "https://github.com/StrictLLM-LLC/download/releases/download/v2.1.6/StrictLLM-2.1.6-macos-arm64-StrictLLM.Chat-2.1.6-arm64.dmg",
+      "sha256": "3f7a9938db6f64a5757c0884798021f05e29d3cb1d65ee06f0a9f8b0efe54a47"
+    },
+    "arm64_tahoe": {
+      "url": "https://github.com/StrictLLM-LLC/download/releases/download/v2.1.6/StrictLLM-2.1.6-macos-arm64-StrictLLM.Chat-2.1.6-arm64.dmg",
+      "sha256": "3f7a9938db6f64a5757c0884798021f05e29d3cb1d65ee06f0a9f8b0efe54a47"
+    },
+    "arm64_sequoia": {
+      "url": "https://github.com/StrictLLM-LLC/download/releases/download/v2.1.6/StrictLLM-2.1.6-macos-arm64-StrictLLM.Chat-2.1.6-arm64.dmg",
+      "sha256": "3f7a9938db6f64a5757c0884798021f05e29d3cb1d65ee06f0a9f8b0efe54a47"
+    },
+    "arm64_sonoma": {
+      "url": "https://github.com/StrictLLM-LLC/download/releases/download/v2.1.6/StrictLLM-2.1.6-macos-arm64-StrictLLM.Chat-2.1.6-arm64.dmg",
+      "sha256": "3f7a9938db6f64a5757c0884798021f05e29d3cb1d65ee06f0a9f8b0efe54a47"
+    },
+    "arm64_ventura": {
+      "url": "https://github.com/StrictLLM-LLC/download/releases/download/v2.1.6/StrictLLM-2.1.6-macos-arm64-StrictLLM.Chat-2.1.6-arm64.dmg",
+      "sha256": "3f7a9938db6f64a5757c0884798021f05e29d3cb1d65ee06f0a9f8b0efe54a47"
+    },
+    "arm64_monterey": {
+      "url": "https://github.com/StrictLLM-LLC/download/releases/download/v2.1.6/StrictLLM-2.1.6-macos-arm64-StrictLLM.Chat-2.1.6-arm64.dmg",
+      "sha256": "3f7a9938db6f64a5757c0884798021f05e29d3cb1d65ee06f0a9f8b0efe54a47"
+    }
+  },
+  "supported_platforms": [
+    "golden_gate",
+    "arm64_golden_gate",
+    "tahoe",
+    "arm64_tahoe",
+    "sequoia",
+    "arm64_sequoia",
+    "sonoma",
+    "arm64_sonoma",
+    "ventura",
+    "arm64_ventura",
+    "monterey",
+    "arm64_monterey"
+  ]
 }
