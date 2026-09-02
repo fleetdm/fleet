@@ -67,12 +67,6 @@ const Modal = ({
     setIsClosing(true);
     setTimeout(() => {
       onExit();
-      // Modals shown again via isHidden are never unmounted, so the closing
-      // state must be cleared here or the next show stays frozen at the end of
-      // the fade-out — invisible, but still blocking clicks on the whole page.
-      // For modals that unmount on exit these are no-ops.
-      isClosingRef.current = false;
-      setIsClosing(false);
     }, CLOSE_ANIMATION_MS);
   }, [onExit]);
 
