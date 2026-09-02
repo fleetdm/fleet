@@ -311,8 +311,7 @@ const MicrosoftGraphPage = () => {
       credential_invalid,
     } = storedCredential;
 
-    // A rejected credential already raises the app-wide banner, which says the same thing with the action attached, so
-    // the indicator is left to the failures the banner says nothing about: throttling, Graph outages, and the rest.
+    // A rejected credential already raises the app-wide banner, so don't duplicate it here.
     const showSyncError = !!last_sync_error && !credential_invalid;
 
     return (
