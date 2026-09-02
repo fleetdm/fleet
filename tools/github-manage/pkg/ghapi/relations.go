@@ -140,6 +140,86 @@ func getTaskListIssueRefs(issueNumber int) []int {
 	return related
 }
 
+// GetProjectItemParents returns a map of issue number -> parent issue number
+// for every project item that is a sub-issue, using the native sub-issues
+// parent link. One paginated query covers the whole project, unlike the
+// per-issue lookups above.
+func GetProjectItemParents(projectID int) (map[int]int, error) {
+	projectNodeID, err := getProjectNodeID(projectID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get project node ID: %v", err)
+	}
+
+	parents := make(map[int]int)
+	cursor := ""
+	for {
+		after := ""
+		if cursor != "" {
+			after = fmt.Sprintf(`, after: "%s"`, cursor)
+		}
+		query := fmt.Sprintf(`{
+			node(id: "%s") {
+				... on ProjectV2 {
+					items(first: 100%s) {
+						nodes {
+							content {
+								... on Issue {
+									number
+									parent { number }
+								}
+							}
+						}
+						pageInfo {
+							hasNextPage
+							endCursor
+						}
+					}
+				}
+			}
+		}`, projectNodeID, after)
+
+		out, err := RunCommandWithRetry(fmt.Sprintf(`gh api graphql -f query='%s'`, query), 3)
+		if err != nil {
+			return nil, fmt.Errorf("failed to query project item parents: %v", err)
+		}
+
+		var resp struct {
+			Data struct {
+				Node struct {
+					Items struct {
+						Nodes []struct {
+							Content struct {
+								Number int `json:"number"`
+								Parent *struct {
+									Number int `json:"number"`
+								} `json:"parent"`
+							} `json:"content"`
+						} `json:"nodes"`
+						PageInfo struct {
+							HasNextPage bool   `json:"hasNextPage"`
+							EndCursor   string `json:"endCursor"`
+						} `json:"pageInfo"`
+					} `json:"items"`
+				} `json:"node"`
+			} `json:"data"`
+		}
+		if err := json.Unmarshal(out, &resp); err != nil {
+			return nil, fmt.Errorf("failed to parse project item parents response: %v", err)
+		}
+
+		for _, n := range resp.Data.Node.Items.Nodes {
+			c := n.Content
+			if c.Number != 0 && c.Parent != nil && c.Parent.Number != 0 && c.Parent.Number != c.Number {
+				parents[c.Number] = c.Parent.Number
+			}
+		}
+		if !resp.Data.Node.Items.PageInfo.HasNextPage {
+			return parents, nil
+		}
+		cursor = resp.Data.Node.Items.PageInfo.EndCursor
+	}
+}
+
 // repoOwnerNameCache caches owner/name lookups.
 var repoOwnerNameCache struct {
 	sync.Mutex
