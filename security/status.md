@@ -324,6 +324,14 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Justification:** `vulnerable_code_not_in_execute_path`
 - **Timestamp:** 2026-03-23 16:44:57
 
+### [CVE-2026-84304](https://nvd.nist.gov/vuln/detail/CVE-2026-84304)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** The vulnerability affects the HTTP/2 server transport of gRPC-Go (memory exhaustion via fragmented DATA frames sent by a remote client); fleetctl does not run a gRPC server (grpc is a transitive dependency used by the Fleet server).
+- **Products:** `fleetctl`,`pkg:golang/google.golang.org/grpc`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-09-02 09:20:06
+
 ### [CVE-2026-8376](https://nvd.nist.gov/vuln/detail/CVE-2026-8376)
 - **Author:** @lucasmrod
 - **Status:** `not_affected`
