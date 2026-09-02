@@ -224,7 +224,7 @@ func TestInitiateOTAEnrollSSOPersistsQueryParams(t *testing.T) {
 	}
 }
 
-func TestServeEndUserEnrollOTAClearsCookieForFullyManaged(t *testing.T) {
+func TestServeEndUserEnrollOTAKeepsSessionForFullyManaged(t *testing.T) {
 	if !hasBuildTag("full") {
 		t.Skip("This test requires running with -tags full")
 	}
@@ -272,70 +272,32 @@ func TestServeEndUserEnrollOTAClearsCookieForFullyManaged(t *testing.T) {
 	sessionID, err := shared_mdm.CreateBYODIdPSession(ctx, kv, clock.C, idpUUID)
 	require.NoError(t, err)
 
-	// A fully-managed Android enrollment with a valid BYOD session.
-	req, err := http.NewRequest("GET", ts.URL+"?enroll_secret=foo&fully_managed=true", nil)
-	require.NoError(t, err)
-	req.AddCookie(&http.Cookie{
-		Name:  shared_mdm.BYODIdpCookieName,
-		Value: sessionID,
-	})
+	// The session must outlive the page: the token endpoint resolves it and
+	// only then ends it.
+	for _, query := range []string{"?enroll_secret=foo&fully_managed=true", "?enroll_secret=foo"} {
+		req, err := http.NewRequest("GET", ts.URL+query, nil)
+		require.NoError(t, err)
+		req.AddCookie(&http.Cookie{Name: shared_mdm.BYODIdpCookieName, Value: sessionID})
 
-	client := fleethttp.NewClient(fleethttp.WithFollowRedir(false))
-	response, err := client.Do(req)
-	require.NoError(t, err)
-	defer response.Body.Close()
+		response, err := fleethttp.NewClient(fleethttp.WithFollowRedir(false)).Do(req)
+		require.NoError(t, err)
+		defer response.Body.Close()
+		require.Equal(t, http.StatusOK, response.StatusCode)
 
-	require.Equal(t, http.StatusOK, response.StatusCode)
-
-	// Assert that Set-Cookie header is present and clears the BYOD cookie.
-	setCookieHeaders := response.Header.Values("Set-Cookie")
-	var foundClear bool
-	for _, sc := range setCookieHeaders {
-		if bytes.Contains([]byte(sc), []byte(shared_mdm.BYODIdpCookieName)) &&
-			bytes.Contains([]byte(sc), []byte("Max-Age=0")) {
-			foundClear = true
-			break
+		for _, sc := range response.Header.Values("Set-Cookie") {
+			require.False(t,
+				bytes.Contains([]byte(sc), []byte(shared_mdm.BYODIdpCookieName)) &&
+					bytes.Contains([]byte(sc), []byte("Max-Age=0")),
+				"%s should not clear %s, got: %v", query, shared_mdm.BYODIdpCookieName, sc,
+			)
 		}
+		body, err := io.ReadAll(response.Body)
+		require.NoError(t, err)
+		require.NotContains(t, string(body), idpUUID)
+		require.NotContains(t, string(body), "IDP_UUID")
 	}
-	require.True(t, foundClear, "expected Set-Cookie header to clear %s, got: %v", shared_mdm.BYODIdpCookieName, setCookieHeaders)
-
-	// Assert that the rendered HTML contains the IdP UUID for JS to use.
-	bodyBytes, err := io.ReadAll(response.Body)
-	require.NoError(t, err)
-	bodyString := string(bodyBytes)
-	require.Contains(t, bodyString, fmt.Sprintf(`const IDP_UUID = "%s";`, idpUUID))
-
-	// BYOD (non-fully-managed) requests should NOT clear the cookie
-	req2, err := http.NewRequest("GET", ts.URL+"?enroll_secret=foo", nil)
-	require.NoError(t, err)
-	req2.AddCookie(&http.Cookie{
-		Name:  shared_mdm.BYODIdpCookieName,
-		Value: sessionID,
-	})
-
-	response2, err := client.Do(req2)
-	require.NoError(t, err)
-	defer response2.Body.Close()
-
-	require.Equal(t, http.StatusOK, response2.StatusCode)
-
-	setCookieHeaders2 := response2.Header.Values("Set-Cookie")
-	for _, sc := range setCookieHeaders2 {
-		require.False(t,
-			bytes.Contains([]byte(sc), []byte(shared_mdm.BYODIdpCookieName)) &&
-				bytes.Contains([]byte(sc), []byte("Max-Age=0")),
-			"BYOD request should not clear %s, got: %v", shared_mdm.BYODIdpCookieName, setCookieHeaders2,
-		)
-	}
-
-	// Assert that BYOD rendered HTML has an empty IdP UUID (not passed through template).
-	bodyBytes2, err := io.ReadAll(response2.Body)
-	require.NoError(t, err)
-	require.Contains(t, string(bodyBytes2), `const IDP_UUID = "";`)
 }
 
-// A cookie that merely matches the enrollment_reference query string is not a
-// completed IdP authentication and must not render the page.
 func TestServeEndUserEnrollOTARejectsUnknownSession(t *testing.T) {
 	ds := new(mock.Store)
 	ds.HasUsersFunc = func(ctx context.Context) (bool, error) { return true, nil }

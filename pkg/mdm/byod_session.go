@@ -28,6 +28,9 @@ type BYODIdPSession struct {
 
 // CreateBYODIdPSession returns the opaque id to hand back in the cookie.
 func CreateBYODIdPSession(ctx context.Context, kv fleet.KeyValueStore, clk clock.Clock, idpAccountUUID string) (string, error) {
+	if kv == nil {
+		return "", ctxerr.New(ctx, "byod idp session store not configured")
+	}
 	sessionID, err := server.GenerateRandomURLSafeText(byodIdPSessionIDLength)
 	if err != nil {
 		return "", ctxerr.Wrap(ctx, err, "generate byod idp session id")
