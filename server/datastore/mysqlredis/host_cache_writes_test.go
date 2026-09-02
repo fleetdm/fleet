@@ -672,3 +672,23 @@ func TestHostCacheReadFailureFallback(t *testing.T) {
 	require.Empty(t, patched, "a partially-read index must not patch the half that resolved")
 	require.Equal(t, ids, fallback, "every host in the chunk must fall back")
 }
+
+func TestUniqueHostIDs(t *testing.T) {
+	// A host has an entry per cache family, so a failure that hits both would
+	// otherwise name it twice: duplicate Redis deletes and a doubled count.
+	for _, tc := range []struct {
+		name string
+		in   []uint
+		want []uint
+	}{
+		{"empty", nil, nil},
+		{"single", []uint{7}, []uint{7}},
+		{"both families of one host", []uint{7, 7}, []uint{7}},
+		{"keeps first-seen order", []uint{9, 7, 9, 8, 7}, []uint{9, 7, 8}},
+		{"already unique", []uint{1, 2, 3}, []uint{1, 2, 3}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			require.Equal(t, tc.want, uniqueHostIDs(tc.in))
+		})
+	}
+}

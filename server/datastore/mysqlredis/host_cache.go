@@ -753,16 +753,30 @@ func (d *Datastore) rewriteTeamOnHostIDs(ctx context.Context, ids []uint, teamID
 		fallback = append(fallback, chunkFallback...)
 	}
 
-	if len(fallback) > 0 {
-		d.invalidateHostIDs(ctx, fallback, "team")
+	// Both counts are per host, matching the invalidation counter's semantics: a
+	// host has an entry per family, and each can independently be patched,
+	// skipped, or fall back — so either list can name the same host twice.
+	if fallbackHosts := uniqueHostIDs(fallback); len(fallbackHosts) > 0 {
+		d.invalidateHostIDs(ctx, fallbackHosts, "team")
 	}
-	// Per host, to match the semantics of the invalidation counter: a host has
-	// one entry per family, and either can be absent or skipped.
-	patchedHosts := make(map[uint]struct{}, len(patched))
-	for _, id := range patched {
-		patchedHosts[id] = struct{}{}
+	d.recordHostCacheInvalidations(ctx, "team_rewrite", len(uniqueHostIDs(patched)))
+}
+
+// uniqueHostIDs removes repeats while preserving order.
+func uniqueHostIDs(ids []uint) []uint {
+	if len(ids) < 2 {
+		return ids
 	}
-	d.recordHostCacheInvalidations(ctx, "team_rewrite", len(patchedHosts))
+	seen := make(map[uint]struct{}, len(ids))
+	out := make([]uint, 0, len(ids))
+	for _, id := range ids {
+		if _, dup := seen[id]; dup {
+			continue
+		}
+		seen[id] = struct{}{}
+		out = append(out, id)
+	}
+	return out
 }
 
 // rewriteTeamChunk patches one chunk of host IDs, returning the hosts it patched
