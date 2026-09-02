@@ -86,6 +86,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/tokenpki"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push/nanopush"
 	nanomdm_pushsvc "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push/service"
 	scepserver "github.com/fleetdm/fleet/v4/server/mdm/scep/server"
 	mdmtesting "github.com/fleetdm/fleet/v4/server/mdm/testing_utils"
@@ -22384,8 +22385,10 @@ func (s *integrationMDMTestSuite) TestIOSiPadOSRefetch() {
 		case "pushmagic" + failedMdmDeviceTokenInactive.SerialNumber:
 			return map[string]*push.Response{
 				pushObject.Token.String(): {
-					Id:  failedPushUUID,
-					Err: errors.New("device token is inactive"),
+					Id: failedPushUUID,
+					// same shape the nanopush provider returns on a 410
+					Err: fmt.Errorf("push HTTP status: 410: %w",
+						&nanopush.JSONPushError{Reason: "Unregistered", Timestamp: time.Now().UnixMilli()}),
 				},
 			}, nil
 		case "pushmagic" + failedMdmDevice.SerialNumber:
