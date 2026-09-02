@@ -434,9 +434,9 @@ func generateTelephonyInfos() []*androidmanagement.TelephonyInfo {
 		info := &androidmanagement.TelephonyInfo{
 			PhoneNumber: carrier.dialCode + randomDigits(carrier.nationalLen),
 			CarrierName: carrier.name,
-			// 19 digits behind the 89 telecom industry identifier. The trailing
-			// digit is random rather than a real Luhn check digit; nothing in
-			// Fleet validates it.
+			// 19 digits in total: the 89 telecom major industry identifier plus
+			// 17 more. The last of those is random rather than a real Luhn check
+			// digit, since nothing in Fleet validates it.
 			IccId:           "89" + randomDigits(17),
 			ActivationState: activationStateUnspecified,
 			ConfigMode:      configModeUnspecified,
