@@ -1,18 +1,20 @@
 # Trigger AppleCare log collection with a custom MDM command
 
-When you open an AppleCare case, Apple often needs diagnostic logs from the affected device. Collecting them used to mean physical access to the device and a user walking through the steps. On iOS 27, iPadOS 27, macOS 27, and tvOS 27, you can start that collection remotely by sending Apple's `TriggerEnhancedLogCollection` command as a custom MDM command through Fleet. The device gathers the logs and uploads them directly to Apple, where they attach to your AppleCare ticket.
+When you open an AppleCare case, Apple often needs diagnostic logs from the affected device. Collecting them used to mean physical access to the device and a user walking through the steps. On iOS 27 and iPadOS 27, you can start that collection remotely by sending Apple's `TriggerEnhancedLogCollection` command as a custom MDM command through Fleet. The device gathers the logs and uploads them directly to Apple, where they attach to your AppleCare ticket.
+
+> **Note:** Fleet supports enhanced log collection on iOS and iPadOS. Support for macOS and tvOS isn't available yet.
 
 ## Prerequisites
 
 Check these before you start:
 
-- Fleet MDM turned on, with the target device enrolled and supervised. Enhanced log collection doesn't work on unsupervised devices.
-- macOS 27, iOS 27, iPadOS 27, or tvOS 27 or later on the target device.
+- Fleet MDM turned on, with the target iPhone or iPad enrolled and supervised. Enhanced log collection doesn't work on unsupervised devices.
+- iOS 27 or iPadOS 27 or later on the target device.
 - An AppleCare token for the case. AppleCare issues this as part of the ticket, either an interactive or a non-interactive token (see the note below).
 - `fleetctl` installed and logged in, or a [Fleet API token](https://fleetdm.com/docs/rest-api/rest-api#retrieve-your-api-token).
 - An AppleCare Enterprise agreement. Apple requires one to use enhanced log collection, including for testing during the beta.
 
-> **Note:** The token type controls what the user sees. An interactive token prompts the user to consent, and they can review what was collected and decline before anything uploads. A non-interactive (headless) token shows a notification and collects in the background. Macs always use interactive collection. iPhone and iPad devices require interactive collection when a passcode is set or an account (such as iCloud or Mail) is configured. Apple TV and Shared iPad always use non-interactive collection. Ask AppleCare for the token type that fits the device.
+> **Note:** The token type controls what the user sees. An interactive token prompts the user to consent, and they can review what was collected and decline before anything uploads. A non-interactive (headless) token shows a notification and collects in the background. iPhone and iPad devices require interactive collection when a passcode is set or an account (such as iCloud or Mail) is configured. Shared iPad always uses non-interactive collection. Ask AppleCare for the token type that fits the device.
 
 > **Warning:** The AppleCare token authorizes a diagnostic session on the device. Treat it like a secret. Don't commit it to a repository or paste it into a shared ticket.
 
@@ -124,22 +126,22 @@ fleetctl mdm run-command --payload=cancel-enhanced-log-collection.xml --hosts=SE
 
 ## Troubleshoot
 
-**The command result shows Failed or the device never responds.** Confirm the device runs macOS, iOS, iPadOS, or tvOS 27 or later and is supervised. Enhanced log collection is unavailable on earlier versions and on unsupervised devices.
+**The command result shows Failed or the device never responds.** Confirm the device runs iOS or iPadOS 27 or later and is supervised. Enhanced log collection is unavailable on earlier versions and on unsupervised devices.
 
-**The user never sees a consent prompt.** The token is likely non-interactive, or the device qualifies for background collection. Macs always prompt; iPhone and iPad prompt only when a passcode or account is present. If you expected a prompt, ask AppleCare to reissue an interactive token.
+**The user never sees a consent prompt.** The token is likely non-interactive, or the device qualifies for background collection. iPhone and iPad prompt only when a passcode or account is present, and Shared iPad never prompts. If you expected a prompt, ask AppleCare to reissue an interactive token.
 
 **Logs don't appear on the AppleCare ticket.** The token may be expired or tied to a different case. Request a fresh token from AppleCare for this specific device, then resend the command.
 
-## Further reading
+## Related resources
 
 - [MDM commands](https://fleetdm.com/guides/mdm-commands)
 - [Run MDM command API reference](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command)
 - [Apple: AppleCare log collection](https://support.apple.com/en-ca/guide/deployment/depd638aa061/1/web/1.0#dep99ac06bf1)
 - [Apple: TriggerEnhancedLogCollection command](https://developer.apple.com/documentation/devicemanagement/triggerenhancedlogcollectioncommand)
 
-<meta name="articleTitle" value="Trigger AppleCare log collection with a custom MDM command">
-<meta name="authorFullName" value="Jonathan Porter">
-<meta name="authorGitHubUsername" value="jp-cpe">
-<meta name="publishedOn" value="2026-08-14">
 <meta name="category" value="guides">
-<meta name="description" value="Trigger AppleCare enhanced log collection on supervised Apple devices by sending a custom MDM command with Fleet.">
+<meta name="authorGitHubUsername" value="jp-cpe">
+<meta name="authorFullName" value="Jonathan Porter">
+<meta name="publishedOn" value="2026-08-14">
+<meta name="articleTitle" value="Trigger AppleCare log collection with a custom MDM command">
+<meta name="description" value="Learn how to trigger AppleCare enhanced log collection on a supervised iPhone or iPad with a custom MDM command in Fleet.">
