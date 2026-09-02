@@ -335,7 +335,13 @@ const HostDetailsPage = ({
     setEnrollmentProfileFailedDetails,
   ] = useState<Omit<IFailedEnrollmentProfileModalProps, "onDone"> | null>(null);
 
-  const [refetchStartTime, setRefetchStartTime] = useState<number | null>(null);
+  // React Router reuses this component when only host_id changes.
+  const [refetchStart, setRefetchStart] = useState<{
+    hostId: number;
+    at: number;
+  } | null>(null);
+  const refetchStartTime =
+    refetchStart?.hostId === hostIdFromURL ? refetchStart.at : null;
   const [showRefetchSpinner, setShowRefetchSpinner] = useState(false);
   const [usersState, setUsersState] = useState<{ username: string }[]>([]);
   const [usersSearchString, setUsersSearchString] = useState("");
@@ -440,7 +446,7 @@ const HostDetailsPage = ({
    */
   const resetHostRefetchStates = () => {
     setShowRefetchSpinner(false);
-    setRefetchStartTime(null);
+    setRefetchStart(null);
   };
 
   const {
@@ -465,7 +471,7 @@ const HostDetailsPage = ({
           (hasEverEnrolled(returnedHost) || refetchStartTime !== null)
         ) {
           if (!refetchStartTime) {
-            setRefetchStartTime(Date.now());
+            setRefetchStart({ hostId: hostIdFromURL, at: Date.now() });
           }
           setShowRefetchSpinner(true);
 
@@ -801,7 +807,7 @@ const HostDetailsPage = ({
 
       try {
         await hostAPI.refetch(host).then(() => {
-          setRefetchStartTime(Date.now());
+          setRefetchStart({ hostId: hostIdFromURL, at: Date.now() });
           setTimeout(() => {
             refetchHostDetails();
             refetchExtensions();
