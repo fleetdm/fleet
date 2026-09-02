@@ -708,6 +708,7 @@ When you need to take time off, follow this process:
 - Let your manager and team know the days when you will be out by posting a message in your department Slack channel mentioning your manager, with when and how long.
 - Life happens and things come up.  But as soon as you know when you'll be out, let the company know.  (Extra notice helps!)
 - Find someone to cover anything that needs covering while you're out and communicate what they need to take over the responsibilities as well as who to refer to for help (e.g., meetings, planned tasks, unfinished business, important Slack/email threads, [CODEOWNERS](https://github.com/fleetdm/fleet/blob/main/CODEOWNERS) coverage, anything where someone might be depending on you).
+  - For customer success and support roles, it can be hard to know how best to get your work covered or to plan for contingencies. Talk to your manager to figure out what's best for the company.
 - If you have an open pull request, note in the pull request that you'll be out, and when you're back. Put it in the pull request and not only in Slack, since whoever picks it up may not be the person you told.
   - If the change isn't finished, move the pull request back to draft.
   - If it needs to keep moving while you're out, name someone who has agreed to take it over.
