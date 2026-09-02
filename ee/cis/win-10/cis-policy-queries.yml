@@ -1291,7 +1291,8 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure 'Interactive logon: Do not require CTRL+ALT+DEL' is set to 'Disabled'
+  name: >
+    CIS - Ensure 'Interactive logon: Do not require CTRL+ALT+DEL' is set to 'Disabled'
   platforms: win10
   platform: windows
   description: |
