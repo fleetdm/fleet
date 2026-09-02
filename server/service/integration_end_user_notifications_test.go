@@ -57,6 +57,13 @@ func newRenderableTestNotification(t *testing.T, ds *mysql.Datastore, hostID uin
 	})
 	require.NoError(t, ds.AddPatchNotificationApp(context.Background(), notificationUUID,
 		fleet.PatchNotificationApp{SoftwareTitleID: titleID}))
+
+	// so the view has an icon URL to assert on
+	_, err := ds.CreateOrUpdateSoftwareTitleIcon(context.Background(), &fleet.UploadSoftwareTitleIconPayload{
+		TitleID: titleID, TeamID: 0, StorageID: uuid.NewString(), Filename: "icon.png",
+	})
+	require.NoError(t, err)
+
 	return notificationUUID
 }
 
@@ -197,7 +204,48 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 		require.Nil(t, got.NextAttemptAt)
 	})
 
+	t.Run("a real outcome's activity appears in both the host and global feeds", func(t *testing.T) {
+		host := newNotifiableHost(t, "notif-both-feeds")
+		notificationUUID := newRenderableTestNotification(t, s.ds, host.ID, `{"reminder": false}`)
+		dispatch(t)
+		dispatched := getTestNotification(t, s.ds, notificationUUID)
+		require.NotNil(t, dispatched.ExecutionID)
+
+		postScriptResult(host, *dispatched.ExecutionID, 0)
+
+		// the notification's own script is held back from the feed, so this host's
+		// only past activity is the one the outcome emitted
+		var hostFeed listActivitiesResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities", host.ID), nil, http.StatusOK, &hostFeed)
+		require.Len(t, hostFeed.Activities, 1)
+		require.Equal(t, "notified_end_user_before_patching", hostFeed.Activities[0].Type)
+		require.NotNil(t, hostFeed.Activities[0].Details)
+		require.Contains(t, string(*hostFeed.Activities[0].Details), notificationUUID)
+
+		// and nothing else has happened since, so it is the newest one globally
+		var globalFeed listActivitiesResponse
+		s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &globalFeed,
+			"order_key", "a.id", "order_direction", "desc", "per_page", "1")
+		require.Len(t, globalFeed.Activities, 1)
+		require.Equal(t, "notified_end_user_before_patching", globalFeed.Activities[0].Type)
+		require.NotNil(t, globalFeed.Activities[0].Details)
+		require.Contains(t, string(*globalFeed.Activities[0].Details), notificationUUID)
+	})
+
 	t.Run("GET returns the view the notification's kind builds", func(t *testing.T) {
+		// the view carries the org's own logos, so give the org one of each
+		s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+			"org_info": {
+				"org_logo_url_light_mode": "https://example.com/light.png",
+				"org_logo_url_dark_mode": "https://example.com/dark.png"
+			}
+		}`), http.StatusOK, &appConfigResponse{})
+		defer func() {
+			s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+				"org_info": {"org_logo_url_light_mode": "", "org_logo_url_dark_mode": ""}
+			}`), http.StatusOK, &appConfigResponse{})
+		}()
+
 		host := newNotifiableHost(t, "notif-get")
 		notificationUUID := newRenderableTestNotification(t, s.ds, host.ID, `{"reminder": false}`)
 		dispatch(t)
@@ -214,6 +262,46 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 			{ID: "remind", Label: "Remind me 5 minutes before"},
 			{ID: "update_now", Label: "Update now"},
 		}, resp.Actions)
+
+		// one app renders the singular form
+		require.Equal(t, "This app will close and update in **1 hour**.", resp.Description)
+		require.Equal(t, "https://example.com/light.png", resp.OrgLogoURLLightMode)
+		require.Equal(t, "https://example.com/dark.png", resp.OrgLogoURLDarkMode)
+		require.Len(t, resp.Items, 1)
+		require.NotEmpty(t, resp.Items[0].Name)
+		require.NotNil(t, resp.Items[0].IconURL, "the fixture gave this title an icon")
+		require.Contains(t, *resp.Items[0].IconURL, token, "the icon URL carries the device token")
+	})
+
+	t.Run("GET renders the plural form for more than one app", func(t *testing.T) {
+		host := newNotifiableHost(t, "notif-get-plural")
+		notificationUUID := newTestNotification(t, s.ds, host.ID, "patch", `{"reminder": false}`)
+		require.NoError(t, s.ds.NewPatchNotification(ctx, notificationUUID))
+
+		for _, name := range []string{"notif-get-plural-1", "notif-get-plural-2"} {
+			var titleID uint
+			mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+				if _, err := q.ExecContext(ctx,
+					`INSERT INTO software_titles (name, source) VALUES (?, 'apps')`, name); err != nil {
+					return err
+				}
+				return sqlx.GetContext(ctx, q, &titleID,
+					`SELECT id FROM software_titles WHERE name = ? AND source = 'apps'`, name)
+			})
+			require.NoError(t, s.ds.AddPatchNotificationApp(ctx, notificationUUID,
+				fleet.PatchNotificationApp{SoftwareTitleID: titleID}))
+		}
+
+		dispatch(t)
+		dispatched := getTestNotification(t, s.ds, notificationUUID)
+		require.NotNil(t, dispatched.ExecutionID)
+		_, token := fetchScript(t, host, *dispatched.ExecutionID)
+
+		var resp notifications_api.NotificationView
+		s.DoJSONWithoutAuth("GET", fmt.Sprintf("/api/latest/fleet/device/%s/notifications/%s", token, notificationUUID),
+			nil, http.StatusOK, &resp)
+		require.Equal(t, "These apps will close and update in **1 hour**.", resp.Description)
+		require.Len(t, resp.Items, 2)
 	})
 
 	t.Run("another host's token 404s on both endpoints", func(t *testing.T) {

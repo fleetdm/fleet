@@ -6,12 +6,26 @@ import (
 	"testing"
 	"time"
 
+	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	notifications_api "github.com/fleetdm/fleet/v4/server/notifications/api"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// capturingActivityWriter is a patchNotificationActivityWriter that records the
+// one activity it was given, so a test can inspect its fields.
+type capturingActivityWriter struct {
+	invoked  bool
+	activity activity_api.ActivityDetails
+}
+
+func (w *capturingActivityWriter) NewActivity(_ context.Context, _ *fleet.User, activity activity_api.ActivityDetails) error {
+	w.invoked = true
+	w.activity = activity
+	return nil
+}
 
 // Which notification an app-open skip is recorded on. The datastore is mocked,
 // so only that decision is tested here. TestSaveHostSoftwareInstallResultAppOpenSkip
@@ -240,9 +254,144 @@ func TestPatchNotificationUpdateNow(t *testing.T) {
 			require.NotNil(t, view)
 			require.Len(t, view.Items, 1)
 			assert.Equal(t, "Installing...", view.Items[0].Status)
-			for _, action := range view.Actions {
-				assert.NotEqual(t, patchNotificationActionUpdateNow, action.ID, "the apps are already installing")
+			require.Equal(t, []notifications_api.NotificationAction{
+				{ID: patchNotificationActionDismiss, Label: "Hide"},
+			}, view.Actions, "the apps are already installing, so only Hide is offered")
+		})
+	}
+}
+
+// What the activity OnOutcome records: which apps and policies it names, which
+// of the two notices it was for, and whether the outcome was a success or a
+// failure. TestSaveHostSoftwareInstallResultAppOpenSkip and the integration
+// suite exercise real script outcomes; this is the decision on its own.
+func TestPatchNotificationOnOutcome(t *testing.T) {
+	const hostID = uint(1)
+
+	twoAppsTwoPolicies := []fleet.PatchNotificationAppDetail{
+		{SoftwareTitleID: 10, Name: "AppOne", PolicyID: new(uint(30))},
+		{SoftwareTitleID: 11, Name: "AppTwo", PolicyID: new(uint(31))},
+	}
+
+	cases := []struct {
+		name string
+		// notification.Payload: the reminder flag the view's copy already keys off
+		reminder bool
+		// the previous attempt's outcome, nil if this is the first attempt
+		lastExitCode *int64
+
+		outcome notifications_api.NotificationOutcome
+		apps    []fleet.PatchNotificationAppDetail
+
+		wantNoActivity bool
+		wantStatus     string
+		wantTimeBefore int
+		wantTitles     []string
+		wantPolicyIDs  []uint
+	}{
+		{
+			name:           "the first notice, displayed, names every app and policy",
+			outcome:        notifications_api.NotificationOutcome{Displayed: true, ExitCode: 0, ExecutionID: "exec-1"},
+			apps:           twoAppsTwoPolicies,
+			wantStatus:     "success",
+			wantTimeBefore: 3600,
+			wantTitles:     []string{"AppOne", "AppTwo"},
+			wantPolicyIDs:  []uint{30, 31},
+		},
+		{
+			name:           "the reminder, displayed, uses the reminder's time before",
+			reminder:       true,
+			outcome:        notifications_api.NotificationOutcome{Displayed: true, ExitCode: 0, ExecutionID: "exec-2"},
+			apps:           twoAppsTwoPolicies,
+			wantStatus:     "success",
+			wantTimeBefore: 300,
+			wantTitles:     []string{"AppOne", "AppTwo"},
+			wantPolicyIDs:  []uint{30, 31},
+		},
+		{
+			name:           "a first failure is recorded",
+			outcome:        notifications_api.NotificationOutcome{Displayed: false, ExitCode: 41, ExecutionID: "exec-3"},
+			apps:           twoAppsTwoPolicies,
+			wantStatus:     "failed",
+			wantTimeBefore: 3600,
+			wantTitles:     []string{"AppOne", "AppTwo"},
+			wantPolicyIDs:  []uint{30, 31},
+		},
+		{
+			name:           "a repeat of the same failure is not recorded again",
+			lastExitCode:   new(int64(41)),
+			outcome:        notifications_api.NotificationOutcome{Displayed: false, ExitCode: 41, ExecutionID: "exec-4"},
+			apps:           twoAppsTwoPolicies,
+			wantNoActivity: true,
+		},
+		{
+			name:           "a different failure after an earlier one is still recorded",
+			lastExitCode:   new(int64(41)),
+			outcome:        notifications_api.NotificationOutcome{Displayed: false, ExitCode: 42, ExecutionID: "exec-5"},
+			apps:           twoAppsTwoPolicies,
+			wantStatus:     "failed",
+			wantTimeBefore: 3600,
+			wantTitles:     []string{"AppOne", "AppTwo"},
+			wantPolicyIDs:  []uint{30, 31},
+		},
+		{
+			// a policy deleted after the notification was created leaves
+			// patch_notification_apps.policy_id null, but its app is still named
+			name:    "an app whose policy was deleted is still listed, without a policy id",
+			outcome: notifications_api.NotificationOutcome{Displayed: true, ExitCode: 0, ExecutionID: "exec-6"},
+			apps: []fleet.PatchNotificationAppDetail{
+				{SoftwareTitleID: 10, Name: "AppOne", PolicyID: new(uint(30))},
+				{SoftwareTitleID: 12, Name: "AppThree", PolicyID: nil},
+			},
+			wantStatus:     "success",
+			wantTimeBefore: 3600,
+			wantTitles:     []string{"AppOne", "AppThree"},
+			wantPolicyIDs:  []uint{30},
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			ds := new(mock.Store)
+			ds.ListPatchNotificationAppsFunc = func(_ context.Context, _ string) ([]fleet.PatchNotificationAppDetail, error) {
+				return c.apps, nil
 			}
+			ds.HostLiteByIDFunc = func(_ context.Context, _ uint) (*fleet.HostLite, error) {
+				return &fleet.HostLite{ID: hostID, ComputerName: "Test Host"}, nil
+			}
+
+			writer := &capturingActivityWriter{}
+			kind := &patchNotificationKind{ds: ds, activities: writer, logger: slog.New(slog.DiscardHandler)}
+
+			payload := patchNotificationFirstNoticePayload
+			if c.reminder {
+				payload = patchNotificationReminderPayload
+			}
+			notification := &notifications_api.EndUserNotification{
+				UUID: "notification-uuid", HostID: hostID, Payload: payload, LastExitCode: c.lastExitCode,
+			}
+
+			err := kind.OnOutcome(context.Background(), notification, c.outcome)
+			require.NoError(t, err)
+
+			if c.wantNoActivity {
+				assert.False(t, writer.invoked)
+				return
+			}
+
+			require.True(t, writer.invoked)
+			activity, ok := writer.activity.(fleet.ActivityTypeNotifiedEndUserBeforePatching)
+			require.True(t, ok)
+
+			assert.Equal(t, hostID, activity.HostID)
+			assert.Equal(t, "Test Host", activity.HostDisplayName)
+			assert.Equal(t, notification.UUID, activity.PatchNotificationUUID)
+			assert.Equal(t, c.wantStatus, activity.Status)
+			assert.Equal(t, c.wantTimeBefore, activity.TimeBefore)
+			assert.Equal(t, c.outcome.ExecutionID, activity.ScriptExecutionID)
+
+			assert.Equal(t, c.wantTitles, activity.SoftwareTitles)
+			assert.Equal(t, c.wantPolicyIDs, activity.PolicyIDs)
 		})
 	}
 }

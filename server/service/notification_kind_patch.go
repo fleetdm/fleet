@@ -320,21 +320,14 @@ func (k *patchNotificationKind) OnOutcome(ctx context.Context, notification *not
 		return ctxerr.Wrap(ctx, err, "get host for patch notification activity")
 	}
 
-	// Several apps can come from the same policy, and a policy that was deleted
-	// leaves patch_notification_apps.policy_id null.
+	// A policy that was deleted leaves patch_notification_apps.policy_id null.
 	softwareTitles := make([]string, 0, len(apps))
 	policyIDs := make([]uint, 0, len(apps))
-	seenPolicyIDs := make(map[uint]struct{}, len(apps))
 	for _, app := range apps {
 		softwareTitles = append(softwareTitles, app.Name)
-		if app.PolicyID == nil {
-			continue
+		if app.PolicyID != nil {
+			policyIDs = append(policyIDs, *app.PolicyID)
 		}
-		if _, seen := seenPolicyIDs[*app.PolicyID]; seen {
-			continue
-		}
-		seenPolicyIDs[*app.PolicyID] = struct{}{}
-		policyIDs = append(policyIDs, *app.PolicyID)
 	}
 
 	status := "failed"
