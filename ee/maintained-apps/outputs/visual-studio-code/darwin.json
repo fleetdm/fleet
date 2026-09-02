@@ -1,13 +1,13 @@
 {
   "versions": [
     {
-      "version": "1.134.0",
+      "version": "1.136.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.microsoft.VSCode';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.microsoft.VSCode' AND version_compare(bundle_short_version, '1.134.0') < 0);",
-        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.microsoft.VSCode');"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.microsoft.VSCode' AND version_compare(bundle_short_version, '1.136.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.microsoft.VSCode' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://update.code.visualstudio.com/1.134.0/darwin-universal/stable",
+      "installer_url": "https://update.code.visualstudio.com/1.136.0/darwin-universal/stable",
       "install_script_ref": "58ade691",
       "uninstall_script_ref": "38d65803",
       "sha256": "no_check",

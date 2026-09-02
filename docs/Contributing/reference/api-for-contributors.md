@@ -3551,6 +3551,7 @@ X-Client-Cert-Serial: <fleet_identity_scep_cert_serial>
         "name": "GoogleChrome.pkg",
         "version": "125.12.2",
         "self_service": true,
+        "has_uninstall_script": true,
         "categories": ["Browsers"],
      	"last_install": {
           "install_uuid": "8bbb8ac2-b254-4387-8cba-4d8a0407368b",

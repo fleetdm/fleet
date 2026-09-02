@@ -120,6 +120,8 @@ Fleet supports manually turning on MDM for macOS hosts that are already enrolled
 
 End users can turn on MDM from their **Fleet Desktop > My device** page.
 
+You can trigger policy automations right when MDM is turned on, because Fleet re-evaluates all policies immediately after MDM is turned on. In your policy's query, use `server_url` in the [`mdm` table](https://fleetdm.com/tables/mdm) to detect that a host is talking to Fleet for MDM features.
+
 ### Host is in Apple Business (AB)
 
 #### If a macOS host is listed in AB:

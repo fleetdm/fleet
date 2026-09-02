@@ -203,7 +203,7 @@ describe("UsersForm", () => {
 
     const windowsPayload = (enabled: boolean) => ({
       mdm: {
-        windows_settings: { managed_local_account_settings: { enabled } },
+        windows_settings: { enable_managed_local_account: enabled },
       },
     });
 

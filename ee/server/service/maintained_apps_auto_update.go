@@ -175,6 +175,8 @@ func downloadNewVersionIfEligible(
 		return "", err
 	}
 
+	versionAlreadyCached := false
+
 	// For a concrete manifest version the eligibility gates can run up front. For a
 	// "latest" manifest the real version isn't known until the installer is
 	// extracted, so the caret-major and cache checks are deferred until after that.
@@ -193,8 +195,7 @@ func downloadNewVersionIfEligible(
 		// the GitOps path: a rebuilt package (same version, new hash) is downloaded and
 		// replaces them. A manifest without a hash can't be compared, so it downloads again.
 		if versionExists && cachedHash == app.SHA256 {
-			// Nothing to download, and this cached version is what the manifest publishes.
-			return app.Version, nil
+			versionAlreadyCached = true
 		}
 	}
 
@@ -202,7 +203,9 @@ func downloadNewVersionIfEligible(
 	// team cached the same version), skip the HTTP download and reuse the bytes.
 	storageID := app.SHA256
 	needBytes := true
-	if app.SHA256 != noCheckHash && !isLatest {
+	if versionAlreadyCached {
+		needBytes = false
+	} else if app.SHA256 != noCheckHash && !isLatest {
 		exists, err := store.Exists(ctx, app.SHA256)
 		if err != nil {
 			return "", ctxerr.Wrap(ctx, err, "checking installer store")
@@ -212,6 +215,7 @@ func downloadNewVersionIfEligible(
 
 	version := app.Version
 	filename := ""
+	extension := ""
 	upgradeCode := app.UpgradeCode
 	var packageIDs []string
 	var tfr *fleet.TempFileReader
@@ -258,15 +262,18 @@ func downloadNewVersionIfEligible(
 		}
 	} else {
 		// Bytes already cached (possibly only on an inactive row after a rollback):
-		// recover the package IDs and upgrade code from any installer with the same
-		// content hash so the uninstall script can still be substituted.
-		pids, ucode, err := ds.GetSoftwareInstallerMetadataByStorageID(ctx, storageID)
+		// describe them from any installer with the same content hash. The extension
+		// decides how the uninstall script is substituted, and an installer URL often
+		// ends in something that isn't one, so it has to come off the row.
+		cached, err := ds.GetSoftwareInstallerMetadataByStorageID(ctx, storageID)
 		if err != nil {
 			return "", ctxerr.Wrap(ctx, err, "recovering cached installer metadata")
 		}
-		packageIDs = pids
-		if ucode != "" {
-			upgradeCode = ucode
+		packageIDs = cached.PackageIDs
+		filename = cached.Filename
+		extension = cached.Extension
+		if cached.UpgradeCode != "" {
+			upgradeCode = cached.UpgradeCode
 		}
 	}
 
@@ -281,7 +288,7 @@ func downloadNewVersionIfEligible(
 		}
 		// Same as above, except the hash to compare is the one just downloaded.
 		if versionExists && cachedHash == storageID {
-			return version, nil
+			versionAlreadyCached = true
 		}
 	}
 
@@ -290,12 +297,15 @@ func downloadNewVersionIfEligible(
 			filename = path.Base(u.Path)
 		}
 	}
+	if extension == "" {
+		extension = extensionFromFilename(filename)
+	}
 
 	payload := &fleet.UploadSoftwareInstallerPayload{
 		TeamID:          c.TeamID,
 		Version:         version,
 		Filename:        filename,
-		Extension:       extensionFromFilename(filename),
+		Extension:       extension,
 		StorageID:       storageID,
 		URL:             app.InstallerURL,
 		UpgradeCode:     upgradeCode,
@@ -307,39 +317,23 @@ func downloadNewVersionIfEligible(
 		InstallerFile:   tfr,
 	}
 
-	// Preserve admin-customized scripts across auto-updates. The active installer
-	// (still the previous version here; promotion happens later) is the one to
-	// carry forward from. Detect customization per-script by comparing against the
-	// manifest, first neutralizing the parts that legitimately change between
-	// versions so a routine version bump isn't mistaken for an edit: the install
-	// script hardcodes the versioned installer filename, and the uninstall script
-	// is version-specific after $PACKAGE_ID / $UPGRADE_CODE substitution.
-	active, err := ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, c.TeamID, c.TitleID, true)
+	// Carry an admin's scripts across the version bump. Read the row again rather
+	// than trust the candidate, which was listed before the download and can be
+	// stale. A title can hold more than one active package, so it has to be the
+	// candidate's own row. The insert copies the flags off that same row.
+	payload.InstallScriptEdited = c.InstallScriptEdited
+	payload.UninstallScriptEdited = c.UninstallScriptEdited
+	active, err := ds.GetSoftwareInstallerMetadataByTeamTitleAndInstallerID(ctx, c.TeamID, c.TitleID, c.InstallerID, true)
 	if err != nil && !fleet.IsNotFound(err) {
 		return "", ctxerr.Wrap(ctx, err, "getting active installer to preserve custom scripts")
 	}
 	if active != nil {
-		// Compare with the old and new filenames replaced by a common placeholder
-		// (active.Name is the filename column); otherwise the filename difference
-		// alone reads as an admin edit and the stale script is kept against the
-		// newly downloaded installer. FMAs whose script embeds a name unrelated to
-		// the stored installer filename (e.g. a versioned pkg inside a dmg) aren't
-		// neutralized and fall back to preserving, as before.
-		activeInstall := normalizeInstallerFilename(strings.TrimSpace(active.InstallScript), active.Name)
-		manifestInstall := normalizeInstallerFilename(strings.TrimSpace(app.InstallScript), payload.Filename)
-		if activeInstall != manifestInstall {
+		payload.InstallScriptEdited = active.InstallScriptEdited
+		payload.UninstallScriptEdited = active.UninstallScriptEdited
+		if active.InstallScriptEdited {
 			payload.InstallScript = active.InstallScript
 		}
-		defaultUninstall := &fleet.UploadSoftwareInstallerPayload{
-			UninstallScript: app.UninstallScript,
-			PackageIDs:      active.PackageIDs(),
-			UpgradeCode:     active.UpgradeCode,
-			Extension:       active.Extension,
-		}
-		if err := preProcessUninstallScript(defaultUninstall); err != nil {
-			return "", ctxerr.Wrap(ctx, err, "computing manifest uninstall script for comparison")
-		}
-		if strings.TrimSpace(active.UninstallScript) != strings.TrimSpace(defaultUninstall.UninstallScript) {
+		if active.UninstallScriptEdited {
 			payload.UninstallScript = active.UninstallScript
 		}
 	}
@@ -349,6 +343,26 @@ func downloadNewVersionIfEligible(
 	if err := preProcessUninstallScript(payload); err != nil {
 		return "", ctxerr.Wrap(ctx, err, "processing uninstall script")
 	}
+
+	// No row to write, so the scripts and queries go onto the one already there.
+	if versionAlreadyCached {
+		if file.PackageIDRegex.MatchString(payload.UninstallScript) ||
+			file.UpgradeCodeRegex.MatchString(payload.UninstallScript) {
+			logger.WarnContext(ctx, "manifest uninstall script has unsubstituted template variables", "slug", c.Slug)
+			return version, nil
+		}
+		if active == nil || (payload.InstallScript == active.InstallScript &&
+			payload.UninstallScript == active.UninstallScript &&
+			payload.PatchQuery == active.PatchQuery && payload.AppOpenQuery == active.AppOpenQuery) {
+			return version, nil
+		}
+		if err := ds.UpdateInstallerScriptsAndQueries(ctx, active.InstallerID, version,
+			payload.InstallScript, payload.UninstallScript, payload.PatchQuery, payload.AppOpenQuery); err != nil {
+			logger.WarnContext(ctx, "refreshing installer scripts and queries", "slug", c.Slug, "err", err)
+		}
+		return version, nil
+	}
+
 	// Refuse to persist a row whose uninstall script still has unsubstituted
 	// template variables (e.g. metadata extraction failed and preProcess silently
 	// no-op'd): promoting it would record uninstalls as succeeding while the app
@@ -428,24 +442,4 @@ func teamIDForLog(p *uint) any {
 		return "none"
 	}
 	return *p
-}
-
-// normalizeInstallerFilename replaces the version-specific installer filename in
-// a generated FMA install script with a fixed placeholder, so two scripts that
-// differ only because the installer filename changed between versions compare
-// equal. A missing filename leaves the script unchanged.
-func normalizeInstallerFilename(script, filename string) string {
-	if filename == "" {
-		return script
-	}
-	const placeholder = "__FLEET_INSTALLER_FILE__"
-	// Replace only where the filename is the installer path argument. A short URL
-	// basename (e.g. "dmg") would otherwise rewrite free-floating occurrences such
-	// as /tmp/dmg_mount_XXXXXX.
-	script = strings.ReplaceAll(script, `"$TMPDIR/`+filename+`"`, `"$TMPDIR/`+placeholder+`"`)
-	// The unquoted (choices) form is always followed by " -target", so bound the
-	// match with the trailing space; otherwise a filename would prefix-match a
-	// longer path that merely starts with it.
-	script = strings.ReplaceAll(script, `"$TMPDIR"/`+filename+" ", `"$TMPDIR"/`+placeholder+" ")
-	return script
 }

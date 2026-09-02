@@ -349,6 +349,20 @@ In practice, this means:
 The bottom line: don't put your name on something you haven't actually reviewed. That applies to AI-generated work the same as anything else.
 
 
+### Use AI to help you communicate, not to communicate for you
+
+There's a difference between using AI to produce work and using AI to talk to people. Documentation, reports, announcements, and other content meant to inform many people are work products. Use AI to draft and improve them as much as you like, as long as you review and own the result.
+
+Direct conversation is different. When a teammate messages you on Slack or emails you, they expect to be talking to you. AI-generated replies are easy to spot, and once someone suspects they're chatting with a bot instead of a colleague, trust erodes quickly and is hard to earn back. Conversations are how we build relationships at an all-remote company, and they only work if there's a person on both ends.
+
+What this means in practice:
+
+- When you're talking directly with someone, the words should be yours. It's fine to use AI to think through a problem, check your grammar, or tighten something you wrote. It's not fine to paste an AI's response as your own.
+- If English isn't your first language, AI is a great tool for polishing your writing, and we encourage it. Keep your own voice, though. Your teammates would rather read your imperfect words than an AI's perfect ones.
+
+If a conversation matters enough to have, it matters enough to have yourself.
+
+
 ### Protect customer and confidential information
 
 This is a hard rule: do not input confidential or private information into personal AI tools.
@@ -694,11 +708,16 @@ When you need to take time off, follow this process:
 - Let your manager and team know the days when you will be out by posting a message in your department Slack channel mentioning your manager, with when and how long.
 - Life happens and things come up.  But as soon as you know when you'll be out, let the company know.  (Extra notice helps!)
 - Find someone to cover anything that needs covering while you're out and communicate what they need to take over the responsibilities as well as who to refer to for help (e.g., meetings, planned tasks, unfinished business, important Slack/email threads, [CODEOWNERS](https://github.com/fleetdm/fleet/blob/main/CODEOWNERS) coverage, anything where someone might be depending on you).
+- If you have an open pull request, note in the pull request that you'll be out, and when you're back. Put it in the pull request and not only in Slack, since whoever picks it up may not be the person you told.
+  - If the change isn't finished, move the pull request back to draft.
+  - If it needs to keep moving while you're out, name someone who has agreed to take it over.
 - Mark an all-day "Out of office" event in Google Calendar for the day(s) you're taking off, or for the hours that you will be off if less than a day. Google Calendar recognizes the event title "OOO" and will give you the option to decline existing and new meetings or just new meetings. You are expected to attend any meetings that you have accepted, so be sure to decline meetings you are not going to attend.
   - If you are the DRI of meetings, especially external meetings with prospects and customers, be sure not to use an "Out of Office" (OOO) event, because it will cancel the meeting.  Instead, you can find someone else at Fleet to cover the meeting.
 - If you can’t complete these steps because you need to take the day off quickly due to an emergency, let your manager know and they will help you complete the handoff.
 - If you ever want to take a day off, and the only thing stopping you is internal (Fleetie-only) meetings, don’t stress. Consider, “Is this a meeting that I can reschedule to another day, or is this a meeting that can go on without me and not interfere with the company’s plans?” Talk to your manager if you’re unsure, but it is perfectly OK to reschedule internal meetings that can wait so that you can take a day off.
 - This process is the same for any days you take off, whether it's a holiday or you just need a break.
+
+> For customer success and support roles, it can be hard to know how best to get your work covered or to plan for contingencies. Talk to your manager ahead of booking leave to figure out what's best for the company.
 
 
 ### Holidays
@@ -774,7 +793,7 @@ Fleet uses Carta to manage its cap table. Fleet option holders can [exercise sha
 > FYI: You can calculate the "Taxable Income" by subtracting the exercised or "strike" price from the "Fair Market Value" of shares at the time of exercise. 
 > I.e. _"Fair Market Value" of shares at time of exercise_ - _strike price_ =  "*Taxable income*"
 
-As a US Fleetie, if you choose to "early exercise" your unvested options, you will need to file an 83(b) election within 30days of receiving the shares post exercise. As part of your exercise, Carta automatically generates the 83(b) election form when an option with early exercise enabled is issued. A tab for the 83(b) form will appear as soon as you decide to early exercise their option. This feature allows eligible U.S.-based equity holders to elect to be taxed at the time of grant rather than at the time of vesting. Additionally, Carta sends an email with instructions when a qualifying grant is accepted or an option is exercised. You can also access a pre-filled 83(b) election form directly within the platform.
+As a US Fleetie, if you choose to "early exercise" your unvested options, you will need to file an 83(b) election within 30 days of receiving the shares post exercise. As part of your exercise, Carta automatically generates the 83(b) election form when an option with early exercise enabled is issued. A tab for the 83(b) form will appear as soon as you decide to early exercise their option. This feature allows eligible U.S.-based equity holders to elect to be taxed at the time of grant rather than at the time of vesting. Additionally, Carta sends an email with instructions when a qualifying grant is accepted or an option is exercised. You can also access a pre-filled 83(b) election form directly within the platform.
 
 > Please note that the form must be printed, signed, and mailed to the IRS within 30 days of the grant date. You should also upload a signed copy to the platform for record-keeping purposes. Check out [how to track 83(b) election filings for early exercised option grants](https://support.carta.com/kb/guide/en/how-to-track-83-b-election-filings-for-early-exercised-option-grants-bZaiinjNng/Steps/3835066) for further guidance.
 
