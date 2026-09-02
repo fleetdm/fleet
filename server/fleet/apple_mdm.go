@@ -2004,3 +2004,12 @@ type ComputedAppleSoftwareUpdateHost struct {
 	AppleSoftwareUpdateHost
 	Resend bool
 }
+
+// MDMAppleAPNsSweepState is the APNs sweep cron's persisted position: the
+// keyset cursor of the enrollment walk plus the batch size computed at the
+// start of the pass, so the size rides along with the cursor instead of
+// being recounted every tick. A nil state means no pass is in progress.
+type MDMAppleAPNsSweepState struct {
+	Cursor    string `json:"cursor"`
+	BatchSize int    `json:"batch_size"`
+}
