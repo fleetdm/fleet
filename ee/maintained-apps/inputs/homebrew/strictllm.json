@@ -1,0 +1,9 @@
+{
+  "name": "StrictLLM Chat",
+  "unique_identifier": "com.strictllm.chat",
+  "token": "strictllm",
+  "installer_format": "dmg",
+  "slug": "strictllm/darwin",
+  "default_categories": ["Communication"],
+  "cask_path": "ee/maintained-apps/inputs/homebrew/custom-tap/api/strictllm.json"
+}

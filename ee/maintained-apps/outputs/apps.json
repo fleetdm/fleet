@@ -8262,6 +8262,13 @@
       "description": "Stretchly is a break time reminder app."
     },
     {
+      "name": "StrictLLM Chat",
+      "slug": "strictllm/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.strictllm.chat",
+      "description": "StrictLLM Chat is a secure local chat interface for large language models."
+    },
+    {
       "name": "Sublime Merge",
       "slug": "sublime-merge/darwin",
       "platform": "darwin",
