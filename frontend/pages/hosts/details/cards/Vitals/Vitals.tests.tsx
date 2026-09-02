@@ -1139,7 +1139,7 @@ describe("Android vitals", () => {
   const ANDROID_VITAL_TITLES = [
     "Bootloader version",
     "Encryption status",
-    "Google Play Protect enabled",
+    "Play Protect enabled",
     "Kernel version",
     "Manufacturer",
     "Passcode set",
@@ -1218,9 +1218,7 @@ describe("Android vitals", () => {
     );
     expect(getVitalValue(container, "USB debugging enabled")).toBe("True");
     expect(getVitalValue(container, "Passcode set")).toBe("True");
-    expect(getVitalValue(container, "Google Play Protect enabled")).toBe(
-      "True"
-    );
+    expect(getVitalValue(container, "Play Protect enabled")).toBe("True");
   });
 
   it("maps the AMAPI enum values to human-readable labels", () => {
@@ -1276,9 +1274,7 @@ describe("Android vitals", () => {
     // collapsing into the empty-cell value.
     expect(getVitalValue(container, "USB debugging enabled")).toBe("False");
     expect(getVitalValue(container, "Passcode set")).toBe("False");
-    expect(getVitalValue(container, "Google Play Protect enabled")).toBe(
-      "True"
-    );
+    expect(getVitalValue(container, "Play Protect enabled")).toBe("True");
   });
 
   it("formats the security update version as a readable date", () => {

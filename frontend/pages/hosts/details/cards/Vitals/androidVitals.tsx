@@ -225,8 +225,8 @@ const buildAndroidHostVitals = (
       value: displayEnum(encryptionType, ENCRYPTION_STATUS_LABELS),
     },
     {
-      sortKey: "Google Play Protect enabled",
-      title: "Google Play Protect enabled",
+      sortKey: "Play Protect enabled",
+      title: "Play Protect enabled",
       value: displayBoolean(playProtectEnabled),
     },
     {
