@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"log/slog"
 	"testing"
 	"time"
@@ -68,7 +69,10 @@ func TestCreatePatchNotificationForEndUser(t *testing.T) {
 		awaiting bool
 		// host_software_installs.software_title_id
 		noTitle bool
+		// NewPatchNotification: the patch_notifications row can't be written
+		newPatchFails bool
 
+		wantErr     bool
 		wantCreated bool
 		wantAppOn   string // "" means no app was recorded
 	}{
@@ -92,6 +96,14 @@ func TestCreatePatchNotificationForEndUser(t *testing.T) {
 			name:      "the install has no software title to record",
 			noTitle:   true,
 			wantAppOn: "",
+		},
+		{
+			// the app is recorded first, so the notification still renders
+			name:          "a failure recording the patch notification still leaves the app listed",
+			newPatchFails: true,
+			wantErr:       true,
+			wantCreated:   true,
+			wantAppOn:     createdUUID,
 		},
 	}
 
@@ -117,7 +129,12 @@ func TestCreatePatchNotificationForEndUser(t *testing.T) {
 				require.NotNil(t, notification.ExpiresAt, "a notification with no expiry never gives up")
 				return &notifications_api.EndUserNotification{UUID: createdUUID}, nil
 			}
-			ds.NewPatchNotificationFunc = func(_ context.Context, _ string) error { return nil }
+			ds.NewPatchNotificationFunc = func(_ context.Context, _ string) error {
+				if c.newPatchFails {
+					return errors.New("insert failed")
+				}
+				return nil
+			}
 
 			var addedTo string
 			var addedApp fleet.PatchNotificationApp
@@ -139,7 +156,11 @@ func TestCreatePatchNotificationForEndUser(t *testing.T) {
 			}
 
 			err := svc.createPatchNotificationForEndUser(context.Background(), &fleet.Host{ID: hostID}, install)
-			require.NoError(t, err)
+			if c.wantErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
 
 			assert.Equal(t, c.wantCreated, notificationsSvc.CreateNotificationFuncInvoked)
 			assert.Equal(t, c.wantCreated, ds.NewPatchNotificationFuncInvoked)
@@ -170,11 +191,13 @@ func TestPatchNotificationUpdateNow(t *testing.T) {
 	cases := []struct {
 		name   string
 		status string
-		// ActOnNotification: false when another request already acted on this
-		// notification, which is what a second press of Update now sees
-		alreadyActed bool
-		noInstaller  bool
+		// GetHostLastInstallData: the app is already on the host's queue, which is
+		// what a second press of Update now finds
+		alreadyPending bool
+		noInstaller    bool
+		installFails   bool
 
+		wantErr       bool
 		wantInstalls  int
 		wantActionTry bool
 	}{
@@ -185,10 +208,10 @@ func TestPatchNotificationUpdateNow(t *testing.T) {
 			wantActionTry: true,
 		},
 		{
-			name:          "another request already acted, so a second Update now queues nothing",
-			status:        notifications_api.EndUserNotificationDispatched,
-			alreadyActed:  true,
-			wantActionTry: true,
+			name:           "an app already on the host's queue is not queued a second time",
+			status:         notifications_api.EndUserNotificationDispatched,
+			alreadyPending: true,
+			wantActionTry:  true,
 		},
 		{
 			name:   "Update now on a failed or expired notification queues nothing",
@@ -202,14 +225,28 @@ func TestPatchNotificationUpdateNow(t *testing.T) {
 			wantInstalls:  0,
 			wantActionTry: true,
 		},
+		{
+			// the notification stays live so the next press finishes the job
+			name:          "a queueing failure leaves the notification not acted on",
+			status:        notifications_api.EndUserNotificationDispatched,
+			installFails:  true,
+			wantErr:       true,
+			wantActionTry: false,
+		},
 	}
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			ds := new(mock.Store)
-			notificationSvc := &stubNotificationService{acts: !c.alreadyActed}
+			notificationSvc := &stubNotificationService{acts: true}
 			kind := &patchNotificationKind{
 				ds: ds, notificationSvc: notificationSvc, logger: slog.New(slog.DiscardHandler),
+			}
+			ds.GetHostLastInstallDataFunc = func(_ context.Context, _ uint, _ uint) (*fleet.HostLastInstallData, error) {
+				if !c.alreadyPending {
+					return nil, nil
+				}
+				return &fleet.HostLastInstallData{Status: new(fleet.SoftwareInstallPending)}, nil
 			}
 			ds.ListPatchNotificationAppsFunc = func(_ context.Context, _ string) ([]fleet.PatchNotificationAppDetail, error) {
 				app := fleet.PatchNotificationAppDetail{
@@ -227,6 +264,9 @@ func TestPatchNotificationUpdateNow(t *testing.T) {
 			ds.InsertSoftwareInstallRequestFunc = func(_ context.Context, gotHostID uint, gotInstallerID uint, opts fleet.HostSoftwareInstallOptions) (string, error) {
 				assert.Equal(t, hostID, gotHostID)
 				assert.Equal(t, installerID, gotInstallerID)
+				if c.installFails {
+					return "", errors.New("insert failed")
+				}
 				installs = append(installs, opts)
 				return "", nil
 			}
@@ -242,6 +282,12 @@ func TestPatchNotificationUpdateNow(t *testing.T) {
 				UUID: "notification-uuid", HostID: hostID, Status: c.status,
 				Payload: patchNotificationFirstNoticePayload,
 			})
+			if c.wantErr {
+				require.Error(t, err)
+				assert.False(t, notificationSvc.actInvoked,
+					"the notification stays live so the next press can finish queueing")
+				return
+			}
 			require.NoError(t, err)
 
 			require.Len(t, installs, c.wantInstalls)

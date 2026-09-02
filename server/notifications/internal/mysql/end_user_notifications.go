@@ -112,15 +112,6 @@ func (ds *Datastore) GetEndUserNotificationByUUID(ctx context.Context, notificat
 
 // GetNotificationAwaitingDisplay returns the host's notification of this kind
 // that the end user has not seen yet, or nil.
-//
-// displayed_at rather than status alone, because Fleet marks a notification
-// dispatched when it queues the script, up to a minute before Fleet Desktop puts
-// the notification on screen. A notification the end user has seen is left out
-// even when it is pending again, which is what Remind me later makes it.
-//
-// expires_at because the sweep that marks a notification expired runs on a
-// schedule, so a notification can be past its expiry while still pending. An app
-// added to one of those would never be sent.
 func (ds *Datastore) GetNotificationAwaitingDisplay(ctx context.Context, hostID uint, kind string) (*api.EndUserNotification, error) {
 	const getStmt = `
 SELECT ` + endUserNotificationColumns + `
@@ -128,7 +119,9 @@ FROM notifications_end_user eun
 WHERE eun.host_id = ?
 	AND eun.kind = ?
 	AND eun.status IN (?, ?)
+	-- dispatched means the script is queued, not that the end user has seen it
 	AND eun.displayed_at IS NULL
+	-- the expired status is set by a sweep, so pending can still be past expiry
 	AND eun.expires_at > NOW(6)
 ORDER BY eun.id DESC
 LIMIT 1
@@ -353,10 +346,8 @@ WHERE uuid = ?
 	return nil
 }
 
-// ActOnEndUserNotification marks a notification as acted on, and reports whether
-// this call is the call that marked the notification. The status check is in the
-// statement rather than a read beforehand, so two actions at once can't both get
-// true.
+// The status check is in the statement rather than a read beforehand, so two
+// actions at once can't both get true.
 func (ds *Datastore) ActOnEndUserNotification(ctx context.Context, notificationUUID string) (bool, error) {
 	const updateStmt = `
 UPDATE notifications_end_user
