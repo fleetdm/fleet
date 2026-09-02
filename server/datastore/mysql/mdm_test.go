@@ -39,6 +39,7 @@ func TestMDMShared(t *testing.T) {
 		name string
 		fn   func(t *testing.T, ds *Datastore)
 	}{
+		{"TestGetDeviceInfoForACMERenewal", testGetDeviceInfoForACMERenewal},
 		{"TestListMDMCommandsByHostIdentifier", testListMDMCommandsByHostIdentifier},
 		{"TestMDMCommands", testMDMCommands},
 		{"TestListMDMCommandsWithTeamFilter", testListMDMCommandsWithTeamFilter},
@@ -6152,4 +6153,73 @@ func testListMDMCommandsAndroid(t *testing.T, ds *Datastore) {
 		}
 	}
 	assert.Equal(t, 3, androidCount, "expected 3 Android commands in all-hosts listing")
+}
+
+func testGetDeviceInfoForACMERenewal(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	encTok := uuid.NewString()
+	abmToken, err := ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: "unused", EncryptedToken: []byte(encTok), RenewAt: time.Now().Add(365 * 24 * time.Hour)})
+	require.NoError(t, err)
+
+	newHost := func(name, model, osName, osVersion string, depAssigned bool) *fleet.Host {
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			Hostname:       name,
+			OsqueryHostID:  new("osquery-" + name),
+			NodeKey:        new("nodekey-" + name),
+			UUID:           "uuid-" + name,
+			HardwareSerial: "serial-" + name,
+			HardwareModel:  model,
+			Platform:       "darwin",
+		})
+		require.NoError(t, err)
+		// NewHost does not persist hardware_model
+		require.NoError(t, ds.UpdateHost(ctx, h))
+
+		if osName != "" {
+			require.NoError(t, ds.UpdateHostOperatingSystem(ctx, h.ID, fleet.OperatingSystem{
+				Name:     osName,
+				Version:  osVersion,
+				Platform: "darwin",
+			}))
+		}
+		if depAssigned {
+			require.NoError(t, ds.UpsertMDMAppleHostDEPAssignments(ctx, []fleet.Host{*h}, abmToken.ID, make(map[uint]time.Time)))
+		}
+		return h
+	}
+
+	macOS := newHost("mac", "MacBookPro18,1", "macOS", "14.5.0", true)
+	iOS := newHost("ios", "iPhone14,2", "iOS", "17.5.1", true)
+	iPadOS := newHost("ipad", "iPad13,1", "iPadOS", "17.5.1", true)
+	// not eligible: no DEP assignment
+	noDEP := newHost("nodep", "MacBookPro18,1", "macOS", "14.5.0", false)
+	// not eligible: DEP-assigned but no operating system recorded
+	noOS := newHost("noos", "MacBookPro18,1", "", "", true)
+	// not eligible: DEP-assigned but not an Apple OS
+	otherOS := newHost("other", "ThinkPad", "Ubuntu", "22.04 LTS", true)
+	// not eligible: DEP assignment was deleted
+	deletedDEP := newHost("deleted", "MacBookPro18,1", "macOS", "14.5.0", true)
+	require.NoError(t, ds.DeleteHostDEPAssignments(ctx, abmToken.ID, []string{deletedDEP.HardwareSerial}))
+
+	// no host UUIDs returns an empty result without hitting the DB
+	got, err := ds.GetDeviceInfoForACMERenewal(ctx, nil)
+	require.NoError(t, err)
+	require.Empty(t, got)
+
+	// unknown host UUID returns nothing
+	got, err = ds.GetDeviceInfoForACMERenewal(ctx, []string{"no-such-uuid"})
+	require.NoError(t, err)
+	require.Empty(t, got)
+
+	// only the eligible hosts are returned, with their device info
+	got, err = ds.GetDeviceInfoForACMERenewal(ctx, []string{
+		macOS.UUID, iOS.UUID, iPadOS.UUID, noDEP.UUID, noOS.UUID, otherOS.UUID, deletedDEP.UUID,
+	})
+	require.NoError(t, err)
+	require.ElementsMatch(t, []fleet.DeviceInfoForACMERenewal{
+		{HostUUID: macOS.UUID, HardwareSerial: macOS.HardwareSerial, HardwareModel: "MacBookPro18,1", OSVersion: "14.5.0"},
+		{HostUUID: iOS.UUID, HardwareSerial: iOS.HardwareSerial, HardwareModel: "iPhone14,2", OSVersion: "17.5.1"},
+		{HostUUID: iPadOS.UUID, HardwareSerial: iPadOS.HardwareSerial, HardwareModel: "iPad13,1", OSVersion: "17.5.1"},
+	}, got)
 }

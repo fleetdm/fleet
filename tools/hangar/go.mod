@@ -1,6 +1,6 @@
 module github.com/fleetdm/fleet/tools/hangar
 
-go 1.26.7
+go 1.26.8
 
 require (
 	github.com/Masterminds/semver/v3 v3.5.0

@@ -25,6 +25,14 @@ func Logger(l *slog.Logger) DBOption {
 	}
 }
 
+// WithReprepareRetry retries statements the server rejects with MySQL 1615.
+func WithReprepareRetry() DBOption {
+	return func(o *common_mysql.DBOptions) error {
+		o.Interceptor = common_mysql.ReprepareRetryInterceptor{}
+		return nil
+	}
+}
+
 // WithInterceptor adds the sql Interceptor to the datastore.
 func WithInterceptor(i sqlmw.Interceptor) DBOption {
 	return func(o *common_mysql.DBOptions) error {
