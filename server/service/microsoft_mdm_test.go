@@ -3584,7 +3584,9 @@ func TestWarnOnWindowsMDMHardwareIDCollision(t *testing.T) {
 		incumbentHost    = "A5D3F1A9-1B40-49DC-9D54-B4F558850CB9"
 	)
 
-	newSvc := func(incumbent string, lookupErr error) (*Service, *testutils.TestHandler) {
+	// Takes the subtest's t: the mock below asserts while a subtest is running, so closing over the parent's t would
+	// call FailNow on the wrong goroutine and fail the parent instead of the subtest.
+	newSvc := func(t *testing.T, incumbent string, lookupErr error) (*Service, *testutils.TestHandler) {
 		ds := new(mock.Store)
 		ds.MDMWindowsGetEnrolledHostUUIDWithHardwareIDFunc = func(_ context.Context, hwID string) (string, error) {
 			require.Equal(t, sharedHardwareID, hwID)
@@ -3614,8 +3616,8 @@ func TestWarnOnWindowsMDMHardwareIDCollision(t *testing.T) {
 	}
 
 	t.Run("warns and names both hosts when a different host holds the hardware id", func(t *testing.T) {
-		svc, handler := newSvc(incumbentHost, nil)
-		svc.warnOnWindowsMDMHardwareIDCollision(context.Background(), sharedHardwareID, enrollingHost)
+		svc, handler := newSvc(t, incumbentHost, nil)
+		svc.warnOnWindowsMDMHardwareIDCollision(t.Context(), sharedHardwareID, enrollingHost)
 
 		rec := findWarning(handler)
 		require.NotNil(t, rec, "a collision must be reported")
@@ -3626,22 +3628,18 @@ func TestWarnOnWindowsMDMHardwareIDCollision(t *testing.T) {
 	})
 
 	t.Run("stays quiet when the same host re-enrolls", func(t *testing.T) {
-		svc, handler := newSvc(enrollingHost, nil)
-		svc.warnOnWindowsMDMHardwareIDCollision(context.Background(), sharedHardwareID, enrollingHost)
+		svc, handler := newSvc(t, enrollingHost, nil)
+		svc.warnOnWindowsMDMHardwareIDCollision(t.Context(), sharedHardwareID, enrollingHost)
 		require.Nil(t, findWarning(handler), "a host re-enrolling itself is not a collision")
 	})
 
-	t.Run("stays quiet when nothing holds the hardware id", func(t *testing.T) {
-		svc, handler := newSvc("", nil)
-		svc.warnOnWindowsMDMHardwareIDCollision(context.Background(), sharedHardwareID, enrollingHost)
-		require.Nil(t, findWarning(handler), "a first enrollment is not a collision")
-	})
-
-	t.Run("stays quiet when the incumbent enrollment is not linked to a host", func(t *testing.T) {
-		// An Entra automatic enrollment is inserted with an empty host uuid, so there is no host to name.
-		svc, handler := newSvc("", nil)
-		svc.warnOnWindowsMDMHardwareIDCollision(context.Background(), sharedHardwareID, enrollingHost)
-		require.Nil(t, findWarning(handler))
+	t.Run("stays quiet when no linked host holds the hardware id", func(t *testing.T) {
+		// One case, not two: the lookup coalesces "no enrollment holds it" and "an enrollment holds it but is not
+		// linked to a host yet" into the same empty string, so the service cannot tell them apart. That those two DB
+		// states both resolve to empty is asserted in testMDMWindowsGetEnrolledHostUUIDWithHardwareID.
+		svc, handler := newSvc(t, "", nil)
+		svc.warnOnWindowsMDMHardwareIDCollision(t.Context(), sharedHardwareID, enrollingHost)
+		require.Nil(t, findWarning(handler), "with no linked incumbent there is no collision to report")
 	})
 
 	t.Run("skips the lookup entirely for an automatic enrollment", func(t *testing.T) {
@@ -3652,14 +3650,14 @@ func TestWarnOnWindowsMDMHardwareIDCollision(t *testing.T) {
 		}
 		handler := testutils.NewTestHandler()
 		svc := &Service{ds: ds, logger: slog.New(handler)}
-		svc.warnOnWindowsMDMHardwareIDCollision(context.Background(), sharedHardwareID, "")
+		svc.warnOnWindowsMDMHardwareIDCollision(t.Context(), sharedHardwareID, "")
 		require.Nil(t, findWarning(handler))
 		require.False(t, ds.MDMWindowsGetEnrolledHostUUIDWithHardwareIDFuncInvoked)
 	})
 
 	t.Run("a lookup failure is logged and swallowed", func(t *testing.T) {
-		svc, handler := newSvc("", errors.New("db is down"))
-		svc.warnOnWindowsMDMHardwareIDCollision(context.Background(), sharedHardwareID, enrollingHost)
+		svc, handler := newSvc(t, "", errors.New("db is down"))
+		svc.warnOnWindowsMDMHardwareIDCollision(t.Context(), sharedHardwareID, enrollingHost)
 
 		require.Nil(t, findWarning(handler), "a lookup failure must not be reported as a collision")
 		var sawLookupWarning bool

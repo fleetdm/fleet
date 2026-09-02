@@ -648,7 +648,10 @@ func (ds *Datastore) MDMWindowsGetEnrolledHostUUIDWithHardwareID(ctx context.Con
 	const stmt = `SELECT COALESCE(host_uuid, '') FROM mdm_windows_enrollments WHERE mdm_hardware_id = ? LIMIT 1`
 
 	var hostUUID string
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &hostUUID, stmt, mdmDeviceHWID); err != nil {
+	// Read the primary. The caller runs this immediately before deleting the incumbent enrollment on the primary, so a
+	// replica that has not caught up with a recent insert or host link would report no incumbent and suppress the very
+	// warning this exists to emit.
+	if err := sqlx.GetContext(ctx, ds.writer(ctx), &hostUUID, stmt, mdmDeviceHWID); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return "", nil
 		}
