@@ -1152,9 +1152,18 @@ describe("Android vitals", () => {
   /** Shown only for company-owned hosts. */
   const COMPANY_OWNED_TITLES = ["Carrier", "IMEI", "Phone number"];
 
+  /** Android hosts enroll manually; ownership is stated explicitly because the
+   * identifier rows require positive confirmation of company ownership. */
+  const companyOwnedMdm = () =>
+    createMockHostMdmData({
+      enrollment_status: "On (manual)",
+      is_personal_enrollment: false,
+    });
+
   const createMockAndroidHost = (overrides: Partial<IHost> = {}) =>
     createMockHost({
       platform: "android",
+      mdm: companyOwnedMdm(),
       os_version: "Android 16 (2026-05-01)",
       adb_enabled: true,
       passcode_protected: true,
@@ -1309,8 +1318,23 @@ describe("Android vitals", () => {
     expect(getVitalValue(container, "Manufacturer")).toBe("Motorola");
   });
 
+  it("does not roll a nonexistent calendar date forward", () => {
+    // V8 parses "2026-02-30" as March 2, so formatting it would report a patch
+    // level the device never sent.
+    const { container } = renderAndroidCard(
+      createMockAndroidHost({ security_update_version: "2026-02-30" })
+    );
+
+    expect(getVitalValue(container, "Security update version")).toBe(
+      "2026-02-30"
+    );
+  });
+
   it("renders the empty cell value for each vital the device didn't report", () => {
-    const mockHost = createMockHost({ platform: "android" });
+    const mockHost = createMockHost({
+      platform: "android",
+      mdm: companyOwnedMdm(),
+    });
 
     const { container } = renderAndroidCard(mockHost);
 
@@ -1365,6 +1389,7 @@ describe("Android vitals", () => {
   it("keeps the company-owned-only vitals hidden after a personal host unenrolls", () => {
     const { container } = renderAndroidCard(
       createMockAndroidHost({
+        meid: "A00000292788E1",
         mdm: createMockHostMdmData({
           enrollment_status: "Off",
           is_personal_enrollment: true,
@@ -1372,7 +1397,7 @@ describe("Android vitals", () => {
       })
     );
 
-    COMPANY_OWNED_TITLES.forEach((title) => {
+    [...COMPANY_OWNED_TITLES, "MEID"].forEach((title) => {
       expect(getVitalValue(container, title)).toBeUndefined();
     });
   });
@@ -1380,14 +1405,40 @@ describe("Android vitals", () => {
   it("hides the company-owned-only vitals when ownership can't be determined", () => {
     // The My device page renders the card without MDM data, so BYOD can't be
     // ruled out and these hardware identifiers stay hidden.
-    const { container } = renderAndroidCard(createMockAndroidHost(), {
-      withMdm: false,
-    });
+    const { container } = renderAndroidCard(
+      createMockAndroidHost({ meid: "A00000292788E1" }),
+      { withMdm: false }
+    );
 
-    COMPANY_OWNED_TITLES.forEach((title) => {
+    [...COMPANY_OWNED_TITLES, "MEID"].forEach((title) => {
       expect(getVitalValue(container, title)).toBeUndefined();
     });
     expect(getVitalValue(container, "Security posture")).toBe("Secure");
+  });
+
+  it("hides the company-owned-only vitals when the ownership flag is absent", () => {
+    // is_personal_enrollment carries no omitempty server-side, so it should
+    // always be present — but ownership is confirmed positively rather than
+    // assumed, so a payload without it hides the identifiers.
+    const mockHost = createMockAndroidHost({ meid: "A00000292788E1" });
+    delete mockHost.mdm.is_personal_enrollment;
+
+    const { container } = renderAndroidCard(mockHost);
+
+    [...COMPANY_OWNED_TITLES, "MEID"].forEach((title) => {
+      expect(getVitalValue(container, title)).toBeUndefined();
+    });
+    expect(getVitalValue(container, "Security posture")).toBe("Secure");
+  });
+
+  it("omits the MEID row when the server reports it as empty", () => {
+    // normalizeEmptyValues rewrites an empty value to the empty-cell string,
+    // which must not be mistaken for a reported MEID.
+    const { container } = renderAndroidCard(
+      createMockAndroidHost({ meid: "" })
+    );
+
+    expect(getVitalValue(container, "MEID")).toBeUndefined();
   });
 
   it("shows the Android API level in a tooltip on the operating system", async () => {

@@ -90,7 +90,7 @@ const ANDROID_OS_PATCH_LEVEL = / \(\d{4}-\d{2}-\d{2}\)$/;
 export const stripAndroidOSPatchLevel = (osVersion?: string) =>
   osVersion ? osVersion.replace(ANDROID_OS_PATCH_LEVEL, "") : osVersion;
 
-const SECURITY_PATCH_LEVEL_FORMAT = /^\d{4}-\d{2}-\d{2}$/;
+const SECURITY_PATCH_LEVEL_FORMAT = /^(\d{4})-(\d{2})-(\d{2})$/;
 
 /** AMAPI reports the security patch level as a YYYY-MM-DD date, which is shown
  * as a readable one. The time is appended so it parses in the viewer's own
@@ -105,13 +105,25 @@ const displaySecurityUpdateVersion = (value?: string) => {
   if (!value) {
     return DEFAULT_EMPTY_CELL_VALUE;
   }
-  if (!SECURITY_PATCH_LEVEL_FORMAT.test(value)) {
+  const parts = SECURITY_PATCH_LEVEL_FORMAT.exec(value);
+  if (!parts) {
     return value;
   }
+  const [, year, month, day] = parts;
   const asDate = `${value}T00:00:00`;
-  return Number.isNaN(new Date(asDate).getTime())
-    ? value
-    : readableDate(asDate);
+  const parsed = new Date(asDate);
+  // Being date-shaped isn't enough: the value can still name a day that
+  // doesn't exist, and V8 rolls "2026-02-30" over to March 2 rather than
+  // rejecting it, so the parsed components are compared back to the input.
+  // An unparseable value yields NaN components, which fail this too.
+  if (
+    parsed.getFullYear() !== Number(year) ||
+    parsed.getMonth() + 1 !== Number(month) ||
+    parsed.getDate() !== Number(day)
+  ) {
+    return value;
+  }
+  return readableDate(asDate);
 };
 
 /** A vital title whose tooltip explains the vital and links out to the docs. */
@@ -179,7 +191,8 @@ const displayTelephonyValue = (
 };
 
 interface IAndroidVital {
-  /** Also the DataSet key, kebab-cased. */
+  /** The vital's display label. Sorts the card, and is kebab-cased into the
+   * DataSet's React key. */
   sortKey: string;
   title: React.ReactNode;
   value: React.ReactNode;
@@ -280,12 +293,14 @@ const buildAndroidHostVitals = (
   // same predicate as the Enrollment ID row, which holds after the host
   // unenrolls.
   //
-  // Absent MDM data means BYOD can't be ruled out, so the rows stay hidden.
-  // That's the My device page, which deliberately passes no `mdm` — and these
-  // are hardware identifiers, so "unknown ownership" resolves to not showing
-  // them rather than to showing them.
+  // Ownership has to be positively confirmed, so anything unknown resolves to
+  // not showing these rather than to showing them: they're hardware
+  // identifiers, and not showing one costs the admin far less than surfacing
+  // it on a device that turns out to be personal. That covers the My device
+  // page, which deliberately passes no `mdm` at all, as well as a payload
+  // that omits is_personal_enrollment.
   const isCompanyOwned =
-    !!mdm &&
+    mdm?.is_personal_enrollment === false &&
     !wasBYODEnrolled(mdm.enrollment_status, mdm.is_personal_enrollment);
 
   if (isCompanyOwned) {
@@ -314,8 +329,10 @@ const buildAndroidHostVitals = (
     );
 
     // MEID is the CDMA counterpart of IMEI and a device reports at most one of
-    // the two, so it only earns a row on the devices that report it.
-    if (meid) {
+    // the two, so it only earns a row on the devices that report it. The
+    // empty-cell string is checked for as well as a missing value, since
+    // normalizeEmptyValues rewrites an empty one to it.
+    if (meid && meid !== DEFAULT_EMPTY_CELL_VALUE) {
       rows.push({ sortKey: "MEID", title: "MEID", value: displayText(meid) });
     }
   }
