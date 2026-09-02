@@ -1834,7 +1834,8 @@ type Datastore interface {
 
 	// SetRecoveryLockVerified marks the recovery lock as verified, and promotes the pending password
 	// to active. With no pending password (see SetRecoveryLockVerifyingLastKnownPassword) the active
-	// password is what was verified, so it is kept.
+	// password is what was verified, so it is kept. Also prunes the archive: a device that confirms
+	// which password it holds rules out every password generated before that one.
 	SetRecoveryLockVerified(ctx context.Context, hostUUID string, verifyCommandUUID string) error
 
 	SetRecoveryLockVerifying(ctx context.Context, hostUUID, commandUUID, pendingVerifyCommandUUID string) error

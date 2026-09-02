@@ -24732,6 +24732,21 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 		return &getHostResp.Host.MDM.OSSettings.RecoveryLockPassword
 	}
 
+	// archivedSetCommandUUIDs returns the SetRecoveryLock commands whose passwords Fleet
+	// cannot rule out as the one the device holds, newest first. The archive is a DB-only
+	// backstop with no read path, so this reads it directly.
+	archivedSetCommandUUIDs := func(t *testing.T, hostUUID string) []string {
+		t.Helper()
+		var cmdUUIDs []string
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(t.Context(), q, &cmdUUIDs, `
+				SELECT COALESCE(set_command_uuid, '')
+				FROM host_recovery_key_password_archive
+				WHERE host_uuid = ? ORDER BY id DESC`, hostUUID)
+		})
+		return cmdUUIDs
+	}
+
 	// =========================================================================
 	// Test 1: MDM on, feature off - hosts should not get recovery lock password
 	// =========================================================================
@@ -24781,13 +24796,17 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 
 		// Simulate the device acknowledging SetRecoveryLock and then the VerifyRecoveryLock
 		// that Fleet issues to confirm the device really took the password.
-		ackSetThenVerify(t, mdmClient)
+		setCmd := ackSetThenVerify(t, mdmClient)
 
 		// Host should now be in verified state
 		rlpStatus = getHostRecoveryLockStatus(host.ID)
 		require.NotNil(t, rlpStatus.Status)
 		assert.Equal(t, fleet.RecoveryLockStatusVerified, *rlpStatus.Status, "status should be verified after the verify step")
 		assert.True(t, rlpStatus.PasswordAvailable)
+
+		// A host that confirms what it holds rules out every earlier candidate, so the
+		// archive settles at one row: the set command that delivered the active password.
+		assert.Equal(t, []string{setCmd.CommandUUID}, archivedSetCommandUUIDs(t, host.UUID))
 
 		// Verify activity was created for setting password
 		s.lastActivityOfTypeMatches(fleet.ActivityTypeSetHostRecoveryLockPassword{}.ActivityName(),
@@ -25424,6 +25443,60 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 			"a new password must be generated after re-enrollment; the original is no longer on the device")
 
 		// Disable recovery lock password.
+		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
+			"mdm": map[string]any{"enable_recovery_lock_password": false},
+		}, http.StatusOK, &appConfigResponse{})
+	})
+
+	// =========================================================================
+	// Test: the case the archive exists for. The device acknowledged the set, so it is
+	// holding the new password, but Fleet never got a verify through — the row ends up
+	// failed with the *old* password still active. Without the archive the password now
+	// on the device would be unrecoverable.
+	// =========================================================================
+	t.Run("a password the device may hold survives a failed verify in the archive", func(t *testing.T) {
+		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
+			"mdm": map[string]any{"enable_recovery_lock_password": true},
+		}, http.StatusOK, &appConfigResponse{})
+
+		host, mdmClient := createAppleSiliconHost(t)
+
+		runRecoveryLockCron(t)
+		setCmd, err := mdmClient.Idle()
+		require.NoError(t, err)
+		require.NotNil(t, setCmd)
+		require.Equal(t, "SetRecoveryLock", setCmd.Command.RequestType)
+
+		// The device took the password. Every verify Fleet sends to confirm it fails
+		// transiently, until the retry budget runs out.
+		cmd, err := mdmClient.Acknowledge(setCmd.CommandUUID)
+		require.NoError(t, err)
+		for attempt := 0; attempt <= maxRecoveryLockRetries+1; attempt++ {
+			if cmd == nil {
+				cmd, err = mdmClient.Idle()
+				require.NoError(t, err)
+			}
+			if cmd == nil {
+				break
+			}
+			require.Equal(t, "VerifyRecoveryLock", cmd.Command.RequestType)
+			cmd, err = mdmClient.Err(cmd.CommandUUID, []mdm.ErrorChain{
+				{ErrorCode: 12345, ErrorDomain: "SomeTransientError", LocalizedDescription: "Temporary failure"},
+			})
+			require.NoError(t, err)
+		}
+
+		rlpStatus := getHostRecoveryLockStatus(host.ID)
+		require.NotNil(t, rlpStatus.Status)
+		require.Equal(t, fleet.RecoveryLockStatusFailed, *rlpStatus.Status)
+
+		// Fleet never confirmed it, so it never became the active password and the host
+		// detail API has nothing to offer — but the device is most likely locked with it,
+		// and the archive is the only place it still exists.
+		assert.False(t, rlpStatus.PasswordAvailable)
+		assert.Equal(t, []string{setCmd.CommandUUID}, archivedSetCommandUUIDs(t, host.UUID),
+			"a password the device acknowledged must stay recoverable after the verify fails")
+
 		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
 			"mdm": map[string]any{"enable_recovery_lock_password": false},
 		}, http.StatusOK, &appConfigResponse{})

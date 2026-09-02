@@ -13,6 +13,98 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
+// maxArchivedRecoveryLockPasswordsPerHost bounds a host that never tells Fleet which
+// password it holds: every re-enrollment and every retry adds a candidate that the
+// proof-based prune has nothing to rule out with. This is only a runaway backstop —
+// SetRecoveryLockVerified is what keeps the archive at one row per healthy host.
+const maxArchivedRecoveryLockPasswordsPerHost = 25
+
+// recoveryLockArchiveRow is one password Fleet is about to put on the wire. encryptedPassword
+// must be the same ciphertext written to host_recovery_key_passwords: the prune identifies
+// the row a device confirmed by matching on it.
+type recoveryLockArchiveRow struct {
+	hostUUID          string
+	encryptedPassword []byte
+	setCommandUUID    string
+}
+
+// archiveRecoveryLockPasswords records passwords before their command is enqueued, then
+// trims the affected hosts back to the cap. Archiving at generation time rather than on
+// acknowledgment is deliberate: a device can apply a SetRecoveryLock without Fleet ever
+// learning it did (lost result, CheckOut mid-command, queue cleared by a re-enrollment),
+// and each retry generates a fresh password, so an operation can put several on the device.
+func archiveRecoveryLockPasswords(ctx context.Context, tx sqlx.ExtContext, rows []recoveryLockArchiveRow) error {
+	if len(rows) == 0 {
+		return nil
+	}
+
+	args := make([]any, 0, len(rows)*3)
+	hostUUIDs := make([]string, 0, len(rows))
+	for _, r := range rows {
+		args = append(args, r.hostUUID, r.encryptedPassword, r.setCommandUUID)
+		hostUUIDs = append(hostUUIDs, r.hostUUID)
+	}
+
+	stmt := fmt.Sprintf(`
+		INSERT INTO host_recovery_key_password_archive (host_uuid, encrypted_password, set_command_uuid)
+		VALUES %s
+	`, strings.TrimSuffix(strings.Repeat("(?, ?, ?),", len(rows)), ","))
+
+	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "archiving recovery lock passwords")
+	}
+
+	// Scoped to the hosts just inserted so this stays an indexed lookup per host rather
+	// than a scan of the whole archive.
+	trimStmt, trimArgs, err := sqlx.In(`
+		DELETE a FROM host_recovery_key_password_archive a
+		JOIN (
+			SELECT id FROM (
+				SELECT id, ROW_NUMBER() OVER (PARTITION BY host_uuid ORDER BY id DESC) AS rn
+				FROM host_recovery_key_password_archive
+				WHERE host_uuid IN (?)
+			) ranked
+			WHERE ranked.rn > ?
+		) doomed ON doomed.id = a.id
+	`, hostUUIDs, maxArchivedRecoveryLockPasswordsPerHost)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "build trim query for archived recovery lock passwords")
+	}
+	if _, err := tx.ExecContext(ctx, trimStmt, trimArgs...); err != nil {
+		return ctxerr.Wrap(ctx, err, "trimming archived recovery lock passwords")
+	}
+
+	return nil
+}
+
+// pruneArchivedRecoveryLockPasswords drops every archived password older than the one the
+// device just confirmed. A successful verify is proof of device state: the device answered
+// that it holds this password, so no earlier one can still be on it. Anything newer is kept
+// — those were generated after the confirmed one and may yet have reached the device.
+func pruneArchivedRecoveryLockPasswords(ctx context.Context, tx sqlx.ExtContext, hostUUID string, activePassword []byte) error {
+	var confirmedID sql.NullInt64
+	if err := sqlx.GetContext(ctx, tx, &confirmedID, `
+		SELECT MAX(id) FROM host_recovery_key_password_archive
+		WHERE host_uuid = ? AND encrypted_password = ?
+	`, hostUUID, activePassword); err != nil {
+		return ctxerr.Wrap(ctx, err, "find confirmed archived recovery lock password")
+	}
+	if !confirmedID.Valid {
+		// Nothing to anchor the prune on, so nothing can be ruled out. Happens for rows
+		// that predate the archive.
+		return nil
+	}
+
+	if _, err := tx.ExecContext(ctx, `
+		DELETE FROM host_recovery_key_password_archive
+		WHERE host_uuid = ? AND id < ?
+	`, hostUUID, confirmedID.Int64); err != nil {
+		return ctxerr.Wrap(ctx, err, "prune archived recovery lock passwords")
+	}
+
+	return nil
+}
+
 // SetHostsRecoveryLockPasswords is only called in the initial setting of a recovery lock password, and therefore inserts needed values, on duplicate it clears out any old values.
 // It sets the password as pending.
 func (ds *Datastore) SetHostsRecoveryLockPasswords(ctx context.Context, passwords []fleet.HostRecoveryLockPasswordPayload) error {
@@ -25,12 +117,18 @@ func (ds *Datastore) SetHostsRecoveryLockPasswords(ctx context.Context, password
 	// again by the next cron run while the command is being enqueued. If enqueue fails,
 	// ClearRecoveryLockPendingStatus should be called to reset the status to NULL.
 	var args []any
+	archive := make([]recoveryLockArchiveRow, 0, len(passwords))
 	for _, p := range passwords {
 		encrypted, err := encrypt([]byte(p.Password), ds.serverPrivateKey)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "encrypting recovery lock password")
 		}
 		args = append(args, p.HostUUID, encrypted, fleet.MDMDeliveryPending, fleet.MDMOperationTypeInstall, p.PendingSetCommandUUID)
+		archive = append(archive, recoveryLockArchiveRow{
+			hostUUID:          p.HostUUID,
+			encryptedPassword: encrypted,
+			setCommandUUID:    p.PendingSetCommandUUID,
+		})
 	}
 
 	stmt := `
@@ -52,11 +150,12 @@ func (ds *Datastore) SetHostsRecoveryLockPasswords(ctx context.Context, password
 	placeholders := strings.TrimSuffix(strings.Repeat("(?, ?, ?, ?, ?),", len(passwords)), ",")
 	stmt = fmt.Sprintf(stmt, placeholders)
 
-	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, args...); err != nil {
-		return ctxerr.Wrap(ctx, err, "storing recovery lock passwords")
-	}
-
-	return nil
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "storing recovery lock passwords")
+		}
+		return archiveRecoveryLockPasswords(ctx, tx, archive)
+	})
 }
 
 func (ds *Datastore) GetHostRecoveryLockPassword(ctx context.Context, hostUUID string) (*fleet.HostRecoveryLockPassword, error) {
@@ -247,11 +346,32 @@ func (ds *Datastore) SetRecoveryLockVerified(ctx context.Context, hostUUID strin
 		  AND deleted = 0
 	`, fleet.MDMDeliveryVerified)
 
-	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, verifyCommandUUID, hostUUID, verifyCommandUUID); err != nil {
-		return ctxerr.Wrap(ctx, err, "set recovery lock verified")
-	}
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		if _, err := tx.ExecContext(ctx, stmt, verifyCommandUUID, hostUUID, verifyCommandUUID); err != nil {
+			return ctxerr.Wrap(ctx, err, "set recovery lock verified")
+		}
 
-	return nil
+		// Read back rather than trusting RowsAffected: a result for a command the row is no
+		// longer waiting on leaves it untouched, and nothing was confirmed.
+		var row struct {
+			Status            sql.NullString `db:"status"`
+			EncryptedPassword []byte         `db:"encrypted_password"`
+		}
+		if err := sqlx.GetContext(ctx, tx, &row, `
+			SELECT status, encrypted_password FROM host_recovery_key_passwords
+			WHERE host_uuid = ? AND deleted = 0
+		`, hostUUID); err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return nil
+			}
+			return ctxerr.Wrap(ctx, err, "get verified recovery lock password")
+		}
+		if row.Status.String != string(fleet.MDMDeliveryVerified) || len(row.EncryptedPassword) == 0 {
+			return nil
+		}
+
+		return pruneArchivedRecoveryLockPasswords(ctx, tx, hostUUID, row.EncryptedPassword)
+	})
 }
 
 func (ds *Datastore) SetRecoveryLockFailed(ctx context.Context, hostUUID, commandUUID, errorMsg string) error {
@@ -461,45 +581,51 @@ func (ds *Datastore) InitiateRecoveryLockRotation(ctx context.Context, hostUUID,
 		  AND pending_encrypted_password IS NULL
 `, fleet.MDMDeliveryPending, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerified, fleet.MDMDeliveryFailed)
 
-	result, err := ds.writer(ctx).ExecContext(ctx, stmt, encryptedPassword, setCommandUUID, hostUUID)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "initiate recovery lock rotation")
-	}
-
-	rows, _ := result.RowsAffected()
-	if rows == 0 {
-		// Determine the specific reason for failure
-		var dest struct {
-			HasPassword   bool           `db:"has_password"`
-			HasPending    bool           `db:"has_pending"`
-			Status        sql.NullString `db:"status"`
-			OperationType sql.NullString `db:"operation_type"`
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		result, err := tx.ExecContext(ctx, stmt, encryptedPassword, setCommandUUID, hostUUID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "initiate recovery lock rotation")
 		}
-		checkStmt := `
-			SELECT
-				encrypted_password IS NOT NULL AND deleted = 0 AS has_password,
-				pending_encrypted_password IS NOT NULL AS has_pending,
-				status,
-				operation_type
-			FROM host_recovery_key_passwords
-			WHERE host_uuid = ? AND deleted = 0
-		`
-		if err := sqlx.GetContext(ctx, ds.reader(ctx), &dest, checkStmt, hostUUID); err != nil {
-			if err == sql.ErrNoRows {
-				return ctxerr.Wrap(ctx, notFound("HostRecoveryLockPassword").
-					WithMessage(fmt.Sprintf("for host %s", hostUUID)))
+
+		rows, _ := result.RowsAffected()
+		if rows == 0 {
+			// Determine the specific reason for failure
+			var dest struct {
+				HasPassword   bool           `db:"has_password"`
+				HasPending    bool           `db:"has_pending"`
+				Status        sql.NullString `db:"status"`
+				OperationType sql.NullString `db:"operation_type"`
 			}
-			return ctxerr.Wrap(ctx, err, "check recovery lock rotation eligibility")
+			checkStmt := `
+				SELECT
+					encrypted_password IS NOT NULL AND deleted = 0 AS has_password,
+					pending_encrypted_password IS NOT NULL AS has_pending,
+					status,
+					operation_type
+				FROM host_recovery_key_passwords
+				WHERE host_uuid = ? AND deleted = 0
+			`
+			if err := sqlx.GetContext(ctx, tx, &dest, checkStmt, hostUUID); err != nil {
+				if errors.Is(err, sql.ErrNoRows) {
+					return ctxerr.Wrap(ctx, notFound("HostRecoveryLockPassword").
+						WithMessage(fmt.Sprintf("for host %s", hostUUID)))
+				}
+				return ctxerr.Wrap(ctx, err, "check recovery lock rotation eligibility")
+			}
+
+			if dest.HasPending {
+				return ctxerr.Wrap(ctx, fleet.ErrRecoveryLockRotationPending, fmt.Sprintf("host %s", hostUUID))
+			}
+
+			return ctxerr.Wrap(ctx, fleet.ErrRecoveryLockNotEligible, fmt.Sprintf("host %s (status=%v, operation_type=%v)", hostUUID, dest.Status.String, dest.OperationType.String))
 		}
 
-		if dest.HasPending {
-			return ctxerr.Wrap(ctx, fleet.ErrRecoveryLockRotationPending, fmt.Sprintf("host %s", hostUUID))
-		}
-
-		return ctxerr.Wrap(ctx, fleet.ErrRecoveryLockNotEligible, fmt.Sprintf("host %s (status=%v, operation_type=%v)", hostUUID, dest.Status.String, dest.OperationType.String))
-	}
-
-	return nil
+		return archiveRecoveryLockPasswords(ctx, tx, []recoveryLockArchiveRow{{
+			hostUUID:          hostUUID,
+			encryptedPassword: encryptedPassword,
+			setCommandUUID:    setCommandUUID,
+		}})
+	})
 }
 
 func (ds *Datastore) ClearRecoveryLockRotation(ctx context.Context, hostUUID string) error {

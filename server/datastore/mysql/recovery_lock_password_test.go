@@ -45,6 +45,7 @@ func TestRecoveryLockPassword(t *testing.T) {
 		{"HostRecoveryLockStatusMatrix", testHostRecoveryLockStatusMatrix},
 		{"RecoveryLockReadersReturnNotFoundForSoftDeleted", testRecoveryLockReadersReturnNotFoundForSoftDeleted},
 		{"MDMTurnOffSoftDeletesRecoveryLockPassword", testMDMTurnOffSoftDeletesRecoveryLockPassword},
+		{"RecoveryLockPasswordArchive", testRecoveryLockPasswordArchive},
 	}
 
 	for _, c := range cases {
@@ -2416,4 +2417,162 @@ func testRecoveryLockReadersReturnNotFoundForSoftDeleted(t *testing.T, ds *Datas
 	got, err := ds.GetHostRecoveryLockPasswordStatus(ctx, host.UUID)
 	require.NoError(t, err)
 	assert.Nil(t, got)
+}
+
+// testRecoveryLockPasswordArchive covers the archive's contract: it records every password
+// Fleet puts on the wire (not just the ones a device confirms), and it shrinks only when a
+// device proves which password it holds.
+func testRecoveryLockPasswordArchive(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// sendPassword does what the cron does: generate, store as pending, archive.
+	sendPassword := func(t *testing.T, hostUUID string) (string, string) {
+		t.Helper()
+		pw, cmdUUID := apple_mdm.GenerateRecoveryLockPassword(), uuid.NewString()
+		require.NoError(t, ds.SetHostsRecoveryLockPasswords(ctx, []fleet.HostRecoveryLockPasswordPayload{
+			{HostUUID: hostUUID, Password: pw, PendingSetCommandUUID: cmdUUID},
+		}))
+		return pw, cmdUUID
+	}
+
+	// The archive has no read path in the datastore on purpose — it is a backstop queried
+	// directly against the DB when a host's recovery lock has gone wrong.
+	type archivedRow struct {
+		EncryptedPassword []byte         `db:"encrypted_password"`
+		SetCommandUUID    sql.NullString `db:"set_command_uuid"`
+	}
+	archivedRows := func(t *testing.T, hostUUID string) []archivedRow {
+		t.Helper()
+		var rows []archivedRow
+		require.NoError(t, sqlx.SelectContext(ctx, ds.writer(ctx), &rows, `
+			SELECT encrypted_password, set_command_uuid
+			FROM host_recovery_key_password_archive
+			WHERE host_uuid = ? ORDER BY id DESC`, hostUUID))
+		return rows
+	}
+
+	archivedPasswords := func(t *testing.T, hostUUID string) []string {
+		t.Helper()
+		rows := archivedRows(t, hostUUID)
+		out := make([]string, 0, len(rows))
+		for _, row := range rows {
+			decrypted, err := decrypt(row.EncryptedPassword, ds.serverPrivateKey)
+			require.NoError(t, err)
+			out = append(out, string(decrypted))
+		}
+		return out
+	}
+
+	t.Run("every generated password is archived, including ones no device confirmed", func(t *testing.T) {
+		host := test.NewHost(t, ds, "archive-host", "1.2.9.1", "archivekey", "archiveuuid", time.Now())
+
+		// A set, then two retries: the cron generates a fresh password each time, and the
+		// two discarded ones may already be on the device.
+		first, firstCmdUUID := sendPassword(t, host.UUID)
+		second, _ := sendPassword(t, host.UUID)
+		third, thirdCmdUUID := sendPassword(t, host.UUID)
+
+		assert.Equal(t, []string{third, second, first}, archivedPasswords(t, host.UUID),
+			"a password overwritten by a retry is still a password the device may hold")
+
+		// Each row carries the command that would have delivered it, which is how a
+		// support query ties a candidate back to what the device was asked to do.
+		rows := archivedRows(t, host.UUID)
+		require.Len(t, rows, 3)
+		assert.Equal(t, thirdCmdUUID, rows[0].SetCommandUUID.String)
+		assert.Equal(t, firstCmdUUID, rows[2].SetCommandUUID.String)
+	})
+
+	t.Run("a confirmed password prunes everything older", func(t *testing.T) {
+		host := test.NewHost(t, ds, "archive-prune-host", "1.2.9.2", "prunekey", "pruneuuid", time.Now())
+
+		sendPassword(t, host.UUID)
+		sendPassword(t, host.UUID)
+		confirmed, _ := sendPassword(t, host.UUID)
+		require.Len(t, archivedPasswords(t, host.UUID), 3)
+
+		// The device answers that it holds the third one, which rules out the first two.
+		markRecoveryLockVerified(t, ds, host.UUID)
+		assert.Equal(t, []string{confirmed}, archivedPasswords(t, host.UUID))
+
+		// A rotation adds a candidate; confirming it collapses the archive again. This is
+		// what keeps a healthy host at one row however often it rotates.
+		rotated := apple_mdm.GenerateRecoveryLockPassword()
+		require.NoError(t, ds.InitiateRecoveryLockRotation(ctx, host.UUID, uuid.NewString(), rotated))
+		assert.Equal(t, []string{rotated, confirmed}, archivedPasswords(t, host.UUID))
+
+		markRecoveryLockVerified(t, ds, host.UUID)
+		assert.Equal(t, []string{rotated}, archivedPasswords(t, host.UUID))
+	})
+
+	t.Run("a stale verify result confirms nothing and prunes nothing", func(t *testing.T) {
+		host := test.NewHost(t, ds, "archive-stale-host", "1.2.9.3", "stalearchkey", "stalearchuuid", time.Now())
+
+		sendPassword(t, host.UUID)
+		pending, err := ds.GetPendingRecoveryLock(ctx, host.UUID)
+		require.NoError(t, err)
+		require.NotNil(t, pending.PendingSetCommandUUID)
+		require.NoError(t, ds.SetRecoveryLockVerifying(ctx, host.UUID, *pending.PendingSetCommandUUID, uuid.NewString()))
+		sendPassword(t, host.UUID)
+		require.Len(t, archivedPasswords(t, host.UUID), 2)
+
+		// A result for a command the row is no longer waiting on must not be read as proof.
+		require.NoError(t, ds.SetRecoveryLockVerified(ctx, host.UUID, uuid.NewString()))
+		assert.Len(t, archivedPasswords(t, host.UUID), 2)
+	})
+
+	t.Run("verifying the last known password keeps the rejected candidate", func(t *testing.T) {
+		host := test.NewHost(t, ds, "archive-fallback-host", "1.2.9.4", "fbkey", "fbuuid", time.Now())
+
+		sendPassword(t, host.UUID)
+		markRecoveryLockVerified(t, ds, host.UUID)
+		active := archivedPasswords(t, host.UUID)
+		require.Len(t, active, 1)
+
+		// Re-enrollment path: the row is soft-deleted, the cron re-SETs as if the host were
+		// fresh, and the device rejects it for a password mismatch.
+		require.NoError(t, softDeleteHostRecoveryLockPassword(ctx, ds.writer(ctx), host.UUID))
+		rejected, rejectedCmdUUID := sendPassword(t, host.UUID)
+
+		verifyCmdUUID := uuid.NewString()
+		require.NoError(t, ds.SetRecoveryLockVerifyingLastKnownPassword(ctx, host.UUID, rejectedCmdUUID, verifyCmdUUID))
+		require.NoError(t, ds.SetRecoveryLockVerified(ctx, host.UUID, verifyCmdUUID))
+
+		// The confirmed password is the older one, so the prune rules out nothing. The
+		// rejected candidate is kept on purpose: the archive only drops what a device has
+		// positively ruled out, and it is bounded by the per-host cap either way.
+		assert.Equal(t, []string{rejected, active[0]}, archivedPasswords(t, host.UUID))
+	})
+
+	t.Run("a host with no archive reads empty", func(t *testing.T) {
+		assert.Empty(t, archivedRows(t, "no-such-host-uuid"))
+	})
+
+	t.Run("a host that never confirms is capped", func(t *testing.T) {
+		host := test.NewHost(t, ds, "archive-cap-host", "1.2.9.5", "capkey", "capuuid", time.Now())
+
+		var newest string
+		for range maxArchivedRecoveryLockPasswordsPerHost + 5 {
+			newest, _ = sendPassword(t, host.UUID)
+		}
+
+		archived := archivedPasswords(t, host.UUID)
+		require.Len(t, archived, maxArchivedRecoveryLockPasswordsPerHost)
+		assert.Equal(t, newest, archived[0], "the cap must drop the oldest candidates, not the newest")
+	})
+
+	t.Run("the archive outlives the host", func(t *testing.T) {
+		host := test.NewHost(t, ds, "archive-outlives-host", "1.2.9.6", "outliveskey", "outlivesuuid", time.Now())
+
+		sent, _ := sendPassword(t, host.UUID)
+
+		// Unenroll soft-deletes the live row, which is what makes the password unreadable
+		// through the normal API — while the device may still be locked with it.
+		require.NoError(t, softDeleteHostRecoveryLockPassword(ctx, ds.writer(ctx), host.UUID))
+		assert.Equal(t, []string{sent}, archivedPasswords(t, host.UUID))
+
+		require.NoError(t, ds.DeleteHost(ctx, host.ID))
+		assert.Equal(t, []string{sent}, archivedPasswords(t, host.UUID),
+			"a deleted host can still be holding a lock Fleet handed it")
+	})
 }
