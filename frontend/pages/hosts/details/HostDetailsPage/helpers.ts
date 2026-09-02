@@ -1,6 +1,6 @@
 import { getErrorReason } from "interfaces/errors";
 import { IHost } from "interfaces/host";
-import { isAndroid, isChrome } from "interfaces/platform";
+import { isAndroid, isChrome, isIPadOrIPhone } from "interfaces/platform";
 
 import { getHostDeviceStatusUIState } from "../helpers";
 
@@ -18,11 +18,12 @@ export const getErrorMessage = (e: unknown, hostName: string) => {
   return `Host "${hostName}" ${errorMessage}`;
 };
 
-// The "My device" link opens the end-user page authed by the host's device
-// auth token. Fleet Desktop is what mints that token on orbit check-in, so a
-// host missing fleet_desktop_version is also missing a token and has no live
-// end-user surface. Hide the button on wiped hosts and on hosts with a wipe
-// in flight — the device is about to have no end-user session to review.
+// The "My device" link opens the end-user page. macOS/Windows/Linux reach it
+// with a device auth token minted by Fleet Desktop on orbit check-in, so a host
+// missing fleet_desktop_version has no live end-user surface. iOS/iPadOS don't
+// run Fleet Desktop and reach it by host UUID instead. Hide the button on wiped
+// hosts and on hosts with a wipe in flight — the device is about to have no
+// end-user session to review.
 export const canShowMyDeviceButton = (
   // platform is a plain string rather than HostPlatform: legacy ChromeOS hosts
   // report "CrOS", which predates the HostPlatform union.
@@ -37,7 +38,9 @@ export const canShowMyDeviceButton = (
   ) {
     return false;
   }
-  if (!host.fleet_desktop_version) return false;
+  if (!isIPadOrIPhone(host.platform) && !host.fleet_desktop_version) {
+    return false;
+  }
   const uiState = getHostDeviceStatusUIState(
     host.mdm.device_status,
     host.mdm.pending_action

@@ -50,6 +50,35 @@ describe("canShowMyDeviceButton", () => {
     expect(canShowMyDeviceButton(host)).toBe(false);
   });
 
+  // iOS/iPadOS never run Fleet Desktop; they reach the My device page by host
+  // UUID, so the missing fleet_desktop_version must not hide the button.
+  it("returns true for iOS without Fleet Desktop", () => {
+    const host = createMockHost({
+      platform: "ios",
+      fleet_desktop_version: null,
+      mdm: { ...createMockHost().mdm, device_status: "unlocked" },
+    });
+    expect(canShowMyDeviceButton(host)).toBe(true);
+  });
+
+  it("returns true for iPadOS without Fleet Desktop", () => {
+    const host = createMockHost({
+      platform: "ipados",
+      fleet_desktop_version: null,
+      mdm: { ...createMockHost().mdm, device_status: "unlocked" },
+    });
+    expect(canShowMyDeviceButton(host)).toBe(true);
+  });
+
+  it("returns false for a wiped iOS host", () => {
+    const host = createMockHost({
+      platform: "ios",
+      fleet_desktop_version: null,
+      mdm: { ...createMockHost().mdm, device_status: "wiped" },
+    });
+    expect(canShowMyDeviceButton(host)).toBe(false);
+  });
+
   it("returns false when Fleet Desktop is not installed", () => {
     const host = createMockHost({ fleet_desktop_version: null });
     expect(canShowMyDeviceButton(host)).toBe(false);
