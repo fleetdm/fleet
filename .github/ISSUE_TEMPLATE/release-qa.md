@@ -318,7 +318,7 @@ Reference: https://fleetdm.com/pricing
 <td>Verify MDM enrollment, run MDM commands on both Windows 11 and Windows 10 hosts.</td>
 <td>
 
-1. With Windows MDM turned on and the Setup experience configured (end user authentication and software installs), enroll a Windows 11 host and verify MDM is turned on and the configured software installs.
+1. With Windows MDM turned on and the Setup experience configured (end user authentication, hidden `_fleetadmin` user, and software installs), enroll a Windows 11 host and verify MDM is turned on and the configured software installs.
 2. Verify able to run MDM commands on Windows 11 hosts from the CLI.
 3. Repeat steps with a Windows 10 host.
 
@@ -332,7 +332,7 @@ Reference: https://fleetdm.com/pricing
 
 **Full configuration**
 
-1. Configure a fleet with setup experience items (enable EUA, add FMA & Custom package software), add a configuration profile, enable OS updates, and disk encryption (BitLocker).
+1. Configure a fleet with setup experience items (enable EUA, add FMA & Custom package software), add a configuration profile, enable OS updates, enable hidden `_fleetadmin` user, and disk encryption (BitLocker).
 2. Enroll an Auto-Pilot host via OOBE and verify the ESP completes and all configured items apply.
 
 **Blank enrollment**
