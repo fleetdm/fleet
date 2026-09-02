@@ -233,18 +233,26 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 	})
 
 	t.Run("GET returns the view the notification's kind builds", func(t *testing.T) {
-		// the view carries the org's own logos, so give the org one of each
-		s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-			"org_info": {
-				"org_logo_url_light_mode": "https://example.com/light.png",
-				"org_logo_url_dark_mode": "https://example.com/dark.png"
-			}
-		}`), http.StatusOK, &appConfigResponse{})
-		defer func() {
-			s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-				"org_info": {"org_logo_url_light_mode": "", "org_logo_url_dark_mode": ""}
-			}`), http.StatusOK, &appConfigResponse{})
-		}()
+		// The view carries the org's own logos, so give the org one of each. Each
+		// mode-aware field has a deprecated twin that Fleet rejects the config for
+		// disagreeing with, so both move together, and whatever another test left
+		// behind is put back afterwards.
+		setOrgLogos := func(light, dark string) {
+			s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(`{
+				"org_info": {
+					"org_logo_url": %q,
+					"org_logo_url_dark_mode": %q,
+					"org_logo_url_light_background": %q,
+					"org_logo_url_light_mode": %q
+				}
+			}`, dark, dark, light, light)), http.StatusOK, &appConfigResponse{})
+		}
+
+		var before appConfigResponse
+		s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &before)
+		defer setOrgLogos(before.AppConfig.OrgInfo.OrgLogoURLLightMode, before.AppConfig.OrgInfo.OrgLogoURLDarkMode)
+
+		setOrgLogos("https://example.com/light.png", "https://example.com/dark.png")
 
 		host := newNotifiableHost(t, "notif-get")
 		notificationUUID := newRenderableTestNotification(t, s.ds, host.ID, `{"reminder": false}`)

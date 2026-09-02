@@ -2777,7 +2777,6 @@ CREATE TABLE `patch_notifications` (
   `notification_uuid` varchar(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `install_at` datetime(6) DEFAULT NULL,
   `reminder_sent_at` datetime(6) DEFAULT NULL,
-  `installs_queued_at` datetime(6) DEFAULT NULL,
   PRIMARY KEY (`notification_uuid`),
   KEY `idx_patch_notifications_install_at` (`install_at`),
   CONSTRAINT `fk_patch_notifications_notification_uuid` FOREIGN KEY (`notification_uuid`) REFERENCES `notifications_end_user` (`uuid`) ON DELETE CASCADE
