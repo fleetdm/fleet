@@ -134,6 +134,23 @@ func TestParseResponseGeneralErrors(t *testing.T) {
 		err = bc.ParseResponse("GET", "", response, &struct{}{})
 		require.Error(t, err)
 	})
+
+	t.Run("server-provided error name is kept", func(t *testing.T) {
+		bc, err := NewBaseClient("https://test.com", true, "", "", nil, fleet.CapabilityMap{}, nil)
+		require.NoError(t, err)
+		response := &http.Response{
+			StatusCode: http.StatusUnprocessableEntity,
+			Body:       io.NopCloser(bytes.NewBufferString(`{"message": "Validation Failed", "errors": [{"name": "scripts[1]", "reason": "boom"}]}`)),
+		}
+		err = bc.ParseResponse("POST", "/api/latest/fleet/scripts/batch", response, &struct{}{})
+		var scErr *StatusCodeErr
+		require.ErrorAs(t, err, &scErr)
+		require.Equal(t, "scripts[1]", scErr.Name)
+		require.Equal(t, "Validation Failed: boom", scErr.Body)
+		require.Equal(t, http.StatusUnprocessableEntity, scErr.Code)
+		// the name must not leak into the printed message
+		require.NotContains(t, err.Error(), "scripts[1]")
+	})
 }
 
 func TestNewBaseClient(t *testing.T) {
