@@ -50,6 +50,14 @@ func newOsqueryError(msg string) *OsqueryError {
 	return NewOsqueryError(msg, false)
 }
 
+// recordErrorDetail keeps error detail on the request log line and off the
+// response, since the enroll endpoints are unauthenticated. Callers must not
+// return an error implementing ErrWithInternal, or the line gets two "internal"
+// attrs.
+func recordErrorDetail(ctx context.Context, err error) {
+	logging.WithExtras(ctx, "internal", err.Error())
+}
+
 func (svc *Service) AuthenticateHost(ctx context.Context, nodeKey string) (*fleet.Host, bool, error) {
 	// skipauth: Authorization is currently for user endpoints only.
 	svc.authz.SkipAuthorization(ctx)
@@ -134,12 +142,14 @@ func (svc *Service) EnrollOsquery(ctx context.Context, enrollSecret, hostIdentif
 
 	secret, err := svc.ds.VerifyEnrollSecret(ctx, enrollSecret)
 	if err != nil {
-		return "", newOsqueryErrorWithInvalidNode("enroll failed: " + err.Error())
+		recordErrorDetail(ctx, err)
+		return "", newOsqueryErrorWithInvalidNode("enroll failed")
 	}
 
 	identityCert, err := svc.ds.GetHostIdentityCertByName(ctx, hostIdentifier)
 	if err != nil && !fleet.IsNotFound(err) {
-		return "", fleet.OrbitError{Message: fmt.Sprintf("loading certificate: %s", err.Error())}
+		recordErrorDetail(ctx, err)
+		return "", fleet.OrbitError{Message: "loading certificate"}
 	}
 
 	// If an identity certificate exists for this host, make sure the request had an HTTP message signature with the matching certificate.
@@ -157,13 +167,15 @@ func (svc *Service) EnrollOsquery(ctx context.Context, enrollSecret, hostIdentif
 
 	nodeKey, err := server.GenerateRandomText(svc.config.Osquery.NodeKeySize)
 	if err != nil {
-		return "", newOsqueryErrorWithInvalidNode("generate node key failed: " + err.Error())
+		recordErrorDetail(ctx, err)
+		return "", newOsqueryErrorWithInvalidNode("generate node key failed")
 	}
 
 	hostIdentifier = getHostIdentifier(ctx, svc.logger, svc.config.Osquery.HostIdentifier, hostIdentifier, hostDetails)
 	canEnroll, err := svc.enrollHostLimiter.CanEnrollNewHost(ctx)
 	if err != nil {
-		return "", newOsqueryErrorWithInvalidNode("can enroll host check failed: " + err.Error())
+		recordErrorDetail(ctx, err)
+		return "", newOsqueryErrorWithInvalidNode("can enroll host check failed")
 	}
 	if !canEnroll {
 		deviceCount := "unknown"
@@ -183,7 +195,8 @@ func (svc *Service) EnrollOsquery(ctx context.Context, enrollSecret, hostIdentif
 
 	appConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {
-		return "", newOsqueryErrorWithInvalidNode("app config load failed: " + err.Error())
+		recordErrorDetail(ctx, err)
+		return "", newOsqueryErrorWithInvalidNode("app config load failed")
 	}
 
 	host, err := svc.ds.EnrollOsquery(ctx,
@@ -197,12 +210,14 @@ func (svc *Service) EnrollOsquery(ctx context.Context, enrollSecret, hostIdentif
 		fleet.WithEnrollOsqueryIdentityCert(identityCert),
 	)
 	if err != nil {
-		return "", newOsqueryErrorWithInvalidNode("save enroll failed: " + err.Error())
+		recordErrorDetail(ctx, err)
+		return "", newOsqueryErrorWithInvalidNode("save enroll failed")
 	}
 
 	features, err := svc.HostFeatures(ctx, host)
 	if err != nil {
-		return "", newOsqueryErrorWithInvalidNode("host features load failed: " + err.Error())
+		recordErrorDetail(ctx, err)
+		return "", newOsqueryErrorWithInvalidNode("host features load failed")
 	}
 
 	// Save enrollment details if provided
@@ -219,21 +234,24 @@ func (svc *Service) EnrollOsquery(ctx context.Context, enrollSecret, hostIdentif
 	if r, ok := hostDetails["os_version"]; ok {
 		err := detailQueries["os_version"].IngestFunc(ctx, svc.logger, host, []map[string]string{r})
 		if err != nil {
-			return "", ctxerr.Wrap(ctx, err, "Ingesting os_version")
+			recordErrorDetail(ctx, err)
+			return "", ctxerr.New(ctx, "Ingesting os_version")
 		}
 		save = true
 	}
 	if r, ok := hostDetails["osquery_info"]; ok {
 		err := detailQueries["osquery_info"].IngestFunc(ctx, svc.logger, host, []map[string]string{r})
 		if err != nil {
-			return "", ctxerr.Wrap(ctx, err, "Ingesting osquery_info")
+			recordErrorDetail(ctx, err)
+			return "", ctxerr.New(ctx, "Ingesting osquery_info")
 		}
 		save = true
 	}
 	if r, ok := hostDetails["system_info"]; ok {
 		err := detailQueries["system_info"].IngestFunc(ctx, svc.logger, host, []map[string]string{r})
 		if err != nil {
-			return "", ctxerr.Wrap(ctx, err, "Ingesting system_info")
+			recordErrorDetail(ctx, err)
+			return "", ctxerr.New(ctx, "Ingesting system_info")
 		}
 		save = true
 	}
@@ -243,7 +261,8 @@ func (svc *Service) EnrollOsquery(ctx context.Context, enrollSecret, hostIdentif
 			go svc.serialUpdateHost(ctx, host)
 		} else {
 			if err := svc.ds.UpdateHost(ctx, host); err != nil {
-				return "", ctxerr.Wrap(ctx, err, "save host in enroll agent")
+				recordErrorDetail(ctx, err)
+				return "", ctxerr.New(ctx, "save host in enroll agent")
 			}
 		}
 	}

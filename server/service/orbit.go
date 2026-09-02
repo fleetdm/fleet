@@ -122,7 +122,8 @@ func (svc *Service) processWindowsEUAToken(ctx context.Context, hostUUID string,
 				"device_id", deviceID, "host_uuid", hostUUID)
 			return "", "", "", fleet.NewOrbitIDPAuthRequiredError()
 		}
-		return "", "", "", ctxerr.Wrap(ctx, err, "getting windows mdm enrollment for EUA token")
+		recordErrorDetail(ctx, err)
+		return "", "", "", ctxerr.New(ctx, "getting windows mdm enrollment for EUA token")
 	}
 
 	// Fetch or create the mdm_idp_accounts row for this email.
@@ -130,16 +131,19 @@ func (svc *Service) processWindowsEUAToken(ctx context.Context, hostUUID string,
 	// that may have been populated by SCIM provisioning.
 	acct, err := svc.ds.GetMDMIdPAccountByEmail(ctx, upn)
 	if err != nil && !fleet.IsNotFound(err) {
-		return "", "", "", ctxerr.Wrap(ctx, err, "getting mdm idp account by email for EUA token")
+		recordErrorDetail(ctx, err)
+		return "", "", "", ctxerr.New(ctx, "getting mdm idp account by email for EUA token")
 	}
 	if fleet.IsNotFound(err) {
 		if err := svc.ds.InsertMDMIdPAccount(ctx, &fleet.MDMIdPAccount{Email: upn, Username: upn}); err != nil {
-			return "", "", "", ctxerr.Wrap(ctx, err, "inserting mdm idp account for EUA token")
+			recordErrorDetail(ctx, err)
+			return "", "", "", ctxerr.New(ctx, "inserting mdm idp account for EUA token")
 		}
 		// Re-fetch to get the UUID assigned by the DB.
 		acct, err = svc.ds.GetMDMIdPAccountByEmail(ctx, upn)
 		if err != nil {
-			return "", "", "", ctxerr.Wrap(ctx, err, "re-fetching mdm idp account after insert for EUA token")
+			recordErrorDetail(ctx, err)
+			return "", "", "", ctxerr.New(ctx, "re-fetching mdm idp account after insert for EUA token")
 		}
 	}
 	if acct == nil {
@@ -188,7 +192,8 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 			// 	3. Orbit tries to re-enroll using old secret.
 			return "", fleet.NewAuthFailedError("invalid secret")
 		}
-		return "", fleet.OrbitError{Message: err.Error()}
+		recordErrorDetail(ctx, err)
+		return "", fleet.OrbitError{Message: "enroll failed"}
 	}
 
 	identifier := hostInfo.OsqueryIdentifier
@@ -198,7 +203,8 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 
 	identityCert, err := svc.ds.GetHostIdentityCertByName(ctx, identifier)
 	if err != nil && !fleet.IsNotFound(err) {
-		return "", fleet.OrbitError{Message: fmt.Sprintf("loading certificate: %s", err.Error())}
+		recordErrorDetail(ctx, err)
+		return "", fleet.OrbitError{Message: "loading certificate"}
 	}
 
 	// If an identity certificate exists for this host, make sure the request had an HTTP message signature with the matching certificate.
@@ -216,19 +222,22 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 
 	orbitNodeKey, err := server.GenerateRandomText(svc.config.Osquery.NodeKeySize)
 	if err != nil {
-		return "", fleet.OrbitError{Message: "failed to generate orbit node key: " + err.Error()}
+		recordErrorDetail(ctx, err)
+		return "", fleet.OrbitError{Message: "failed to generate orbit node key"}
 	}
 
 	appConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {
-		return "", fleet.OrbitError{Message: "app config load failed: " + err.Error()}
+		recordErrorDetail(ctx, err)
+		return "", fleet.OrbitError{Message: "app config load failed"}
 	}
 	isEndUserAuthRequired := appConfig.MDM.MacOSSetup.EnableEndUserAuthentication
 	// If the secret is for a team, get the team config as well.
 	if secret.TeamID != nil {
 		team, err := svc.ds.TeamLite(ctx, *secret.TeamID)
 		if err != nil {
-			return "", fleet.OrbitError{Message: "failed to get team config: " + err.Error()}
+			recordErrorDetail(ctx, err)
+			return "", fleet.OrbitError{Message: "failed to get team config"}
 		}
 		isEndUserAuthRequired = team.Config.MDM.MacOSSetup.EnableEndUserAuthentication
 	}
@@ -242,7 +251,8 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 		// Try to find an IdP account for this host.
 		idpAccount, err := svc.ds.GetMDMIdPAccountByHostUUID(ctx, hostInfo.HardwareUUID)
 		if err != nil {
-			return "", fleet.OrbitError{Message: "failed to get IdP account: " + err.Error()}
+			recordErrorDetail(ctx, err)
+			return "", fleet.OrbitError{Message: "failed to get IdP account"}
 		}
 		if idpAccount == nil {
 			// Get the host platform.
@@ -285,7 +295,8 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 					// prompt for end user authentication again. See https://github.com/fleetdm/fleet/issues/46300.
 					previouslyEnrolled, err := svc.ds.HostPreviouslyOrbitEnrolled(ctx, hostInfo, appConfig.MDM.EnabledAndConfigured)
 					if err != nil {
-						return "", fleet.OrbitError{Message: "failed to check for prior orbit enrollment: " + err.Error()}
+						recordErrorDetail(ctx, err)
+						return "", fleet.OrbitError{Message: "failed to check for prior orbit enrollment"}
 					}
 					if !previouslyEnrolled {
 						// Report the unauthenticated host and let Orbit handle it (e.g. by prompting the user to authenticate).
@@ -317,7 +328,8 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 		fleet.WithEnrollOrbitIdentityCert(identityCert),
 	)
 	if err != nil {
-		return "", fleet.OrbitError{Message: "failed to enroll " + err.Error()}
+		recordErrorDetail(ctx, err)
+		return "", fleet.OrbitError{Message: "failed to enroll"}
 	}
 
 	platform := host.FleetPlatform()

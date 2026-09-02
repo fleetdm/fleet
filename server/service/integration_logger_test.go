@@ -331,9 +331,8 @@ func (s *integrationLoggerTestSuite) TestEnrollOsqueryLogsErrors() {
 	require.Len(t, records, 1)
 	assert.Equal(t, slog.LevelInfo, records[0].Level)
 	attrs := testutils.RecordAttrs(&records[0])
-	errStr := fmt.Sprint(attrs["err"])
-	assert.Contains(t, errStr, "enroll failed:")
-	assert.Contains(t, errStr, "no matching secret found")
+	assert.Contains(t, fmt.Sprint(attrs["err"]), "enroll failed")
+	assert.Contains(t, fmt.Sprint(attrs["internal"]), "no matching secret found")
 }
 
 func (s *integrationLoggerTestSuite) TestSetupExperienceEULAMetadataDoesNotLogErrorIfNotFound() {
