@@ -331,7 +331,7 @@ const TAGGED_TEMPLATES = {
     const { actor_id } = activity;
     const { user_id, user_email, role } = activity.details || {};
 
-    if (actor_id === user_id) {
+    if (actor_id != null && actor_id === user_id) {
       return (
         <>
           was assigned the <b>{role}</b> role
@@ -351,7 +351,7 @@ const TAGGED_TEMPLATES = {
     const { actor_id } = activity;
     const { user_id, user_email, role } = activity.details || {};
 
-    if (actor_id === user_id) {
+    if (actor_id != null && actor_id === user_id) {
       return (
         <>
           was removed as <b>{role}</b>
@@ -371,7 +371,7 @@ const TAGGED_TEMPLATES = {
     const { actor_id } = activity;
     const { user_id, user_email, role, team_name } = activity.details || {};
 
-    if (actor_id === user_id) {
+    if (actor_id != null && actor_id === user_id) {
       return (
         <>
           was assigned the <b>{role}</b> role for the <b>{team_name}</b> fleet
@@ -390,7 +390,7 @@ const TAGGED_TEMPLATES = {
     const { actor_id } = activity;
     const { user_id, user_email, team_name } = activity.details || {};
 
-    if (actor_id === user_id) {
+    if (actor_id != null && actor_id === user_id) {
       return (
         <>
           was removed from the <b>{team_name}</b> fleet via just-in-time (JIT)
@@ -2911,7 +2911,8 @@ const GlobalActivityItem = ({
       case ActivityType.UserDeletedGlobalRole:
       case ActivityType.UserChangedTeamRole:
       case ActivityType.UserDeletedTeamRole:
-        return activity.actor_id === activity.details?.user_id ? (
+        return activity.actor_id != null &&
+          activity.actor_id === activity.details?.user_id ? (
           <b>{activity.details?.user_email} </b>
         ) : (
           DEFAULT_ACTOR_DISPLAY
