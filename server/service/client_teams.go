@@ -125,7 +125,7 @@ func (c *Client) ApplyTeamScripts(tmName string, scripts []fleet.ScriptPayload, 
 
 	var resp fleet.BatchSetScriptsResponse
 	err = c.authenticatedRequestWithQuery(map[string]interface{}{"scripts": scripts}, verb, path, &resp, query.Encode())
-	return resp.Scripts, err
+	return resp.Scripts, rewrapScriptBatchIndexErr(err, scripts)
 }
 
 func (c *Client) ApplyTeamSoftwareInstallers(

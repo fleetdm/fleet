@@ -4,14 +4,16 @@ package main
 // (newMux) over HTTP via httptest. The wire contract these tests pin —
 // request/response shapes, header semantics, error bodies, SSE stream
 // behavior — is documented on pushHandler, parsePushHeaders, apnsPushError,
-// and eventsSSEHandler in handlers.go. TestE2EBufordCompatibility verifies
-// the contract through the actual buford client `fleet serve` uses in
-// production.
+// and eventsSSEHandler in handlers.go. TestE2ENanopushProvider verifies the
+// contract through the actual nanopush provider `fleet serve` uses in
+// production; TestE2EBufordCompatibility keeps the legacy buford client
+// covered while it remains in-tree.
 
 import (
 	"bufio"
 	"bytes"
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -30,6 +32,8 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push/nanopush"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -256,8 +260,8 @@ func waitStreamClosed(t *testing.T, c *sseClient, timeout time.Duration) {
 
 // pushRaw sends a push the way a spec-correct APNS client would, declaring
 // apns-push-type: mdm by default. Pass an empty string value in headers to
-// omit that header instead (Fleet's buford client sends no apns-* headers at
-// all today — TestE2EPushTypeHeader covers that path explicitly).
+// omit that header instead (Fleet sent no apns-* headers before the nanopush
+// swap — TestE2EPushTypeHeader keeps that path covered).
 func pushRaw(t *testing.T, baseURL, token string, payload []byte, headers map[string]string) *http.Response {
 	t.Helper()
 	req, err := http.NewRequest(http.MethodPost, baseURL+"/3/device/"+token, bytes.NewReader(payload))
@@ -305,7 +309,7 @@ func requireAPNSErrorBody(t *testing.T, resp *http.Response) string {
 		Timestamp *int64 `json:"timestamp"`
 	}
 	require.NoError(t, json.Unmarshal(bodyBytes, &body),
-		"non-200 responses must have a JSON body: buford's parseErrorResponse returns a JSON-decode error to the caller otherwise")
+		"non-200 responses must have a JSON body: nanopush's newError (and buford's parseErrorResponse) return a JSON-decode error to the caller otherwise")
 	if resp.StatusCode == http.StatusGone {
 		assert.NotNil(t, body.Timestamp, "410 Unregistered must carry the unix-millis timestamp of when the token died")
 	} else {
@@ -402,8 +406,8 @@ func TestE2EPushWithPastExpirationDiscarded(t *testing.T) {
 	srv, node := newTestServerWithNode(t)
 	const token = "aabbccddee04" // nolint:gosec // test token
 
-	// apns-expiration is unix SECONDS (buford's Headers.Expiration marshals
-	// seconds); 1 is 1970, long past. Device offline → discard, don't store.
+	// apns-expiration is unix SECONDS (nanopush sends exp.Unix()); 1 is 1970,
+	// long past. Device offline → discard, don't store.
 	resp := pushOffline(t, srv.URL, token, []byte(`{"mdm":"stale"}`), map[string]string{"apns-expiration": "1"}, node)
 	require.Equal(t, http.StatusOK, resp.StatusCode, "a discarded push is still a successful push (APNS semantics)")
 
@@ -465,8 +469,8 @@ func TestE2EPushTypeHeader(t *testing.T) {
 	const token = "aabbccddee0c" // nolint:gosec // test token
 
 	t.Run("absent header is accepted", func(t *testing.T) {
-		// Fleet's buford path sends no apns-push-type header at all, so
-		// header-less pushes must keep working.
+		// Fleet sent no apns-push-type header before the nanopush swap, so
+		// header-less pushes must keep working for older clients.
 		resp := pushRaw(t, srv.URL, token, []byte(`{"mdm":"m"}`), map[string]string{"apns-push-type": ""})
 		require.Equal(t, http.StatusOK, resp.StatusCode)
 	})
@@ -482,8 +486,9 @@ func TestE2EPushTypeHeader(t *testing.T) {
 }
 
 func TestE2EPayloadWithNewlineIsFramedSafely(t *testing.T) {
-	// PushMagic comes from the device's TokenUpdate and buford builds the
-	// body by string concatenation, so a payload can contain a raw newline.
+	// PushMagic comes from the device's TokenUpdate and the push providers
+	// build the body by string concatenation, so a payload can contain a raw
+	// newline.
 	// Emitted as-is it would end the SSE event early and corrupt every frame
 	// after it; the server must split it across data: lines instead.
 	srv := newTestServer(t)
@@ -741,10 +746,10 @@ func TestE2EDisconnectedStreamIsReapedByKeepalive(t *testing.T) {
 	waitConnected(t, srv.URL, 0)
 }
 
-// TestE2EBufordCompatibility drives the mock through the actual buford
-// client library — the same code path `fleet serve` uses to talk to Apple
-// (server/mdm/nanomdm/push/buford wraps bufordpush.Service). If these pass,
-// pointing Fleet's push provider at the mock works.
+// TestE2EBufordCompatibility drives the mock through the buford client
+// library — the code path `fleet serve` used before the nanopush swap
+// (server/mdm/nanomdm/push/buford wraps bufordpush.Service). Kept while
+// buford remains in-tree so older clients stay covered.
 func TestE2EBufordCompatibility(t *testing.T) {
 	srv := newTestServer(t)
 	svc := bufordpush.NewService(fleethttp.NewClient(), srv.URL)
@@ -766,5 +771,55 @@ func TestE2EBufordCompatibility(t *testing.T) {
 			"error must decode as a buford push error, not a JSON parse failure — the mock must always send the JSON error body")
 		assert.Equal(t, bufordpush.ErrBadDeviceToken, apnsErr.Reason)
 		assert.Equal(t, http.StatusBadRequest, apnsErr.Status)
+	})
+}
+
+// TestE2ENanopushProvider drives the mock through the actual nanopush
+// provider — the code path `fleet serve` uses to talk to Apple — with the
+// same options production sets (expiration, custom client), so the mock is
+// proven against the headers Fleet really sends (apns-expiration,
+// apns-push-type: mdm, apns-topic).
+func TestE2ENanopushProvider(t *testing.T) {
+	srv := newTestServer(t)
+	factory := nanopush.NewFactory(
+		nanopush.WithNewClient(func(*tls.Certificate) (*http.Client, error) {
+			return fleethttp.NewClient(), nil
+		}),
+		nanopush.WithExpiration(7*24*time.Hour),
+		nanopush.WithPushServerURL(srv.URL),
+	)
+	prov, err := factory.NewPushProvider(nil)
+	require.NoError(t, err)
+
+	t.Run("successful push round-trips to a client", func(t *testing.T) {
+		const token = "aabbccddee0e" // nolint:gosec // test token
+		pushInfo := &mdm.Push{PushMagic: "pushmagicXYZ", Topic: "com.apple.mgmt.External.test"}
+		require.NoError(t, pushInfo.SetTokenString(token))
+
+		resp, err := prov.Push(t.Context(), []*mdm.Push{pushInfo})
+		require.NoError(t, err)
+		require.Len(t, resp, 1)
+		require.NoError(t, resp[token].Err)
+		assert.NotEmpty(t, resp[token].Id, "apns-id must round-trip through the provider")
+
+		c := sseConnect(t, srv.URL, token)
+		assert.JSONEq(t, `{"mdm":"pushmagicXYZ"}`, nextPing(t, c, 5*time.Second))
+	})
+
+	t.Run("error body decodes as JSONPushError", func(t *testing.T) {
+		const token = "aabbccddee0f" // nolint:gosec // test token
+		// an over-limit payload is the easiest error reachable through the
+		// provider: tokens are hex-encoded by the transport so they can't be
+		// made invalid from here
+		pushInfo := &mdm.Push{PushMagic: strings.Repeat("x", maxPayloadBytes), Topic: "com.apple.mgmt.External.test"}
+		require.NoError(t, pushInfo.SetTokenString(token))
+
+		resp, err := prov.Push(t.Context(), []*mdm.Push{pushInfo})
+		require.NoError(t, err)
+		require.Len(t, resp, 1)
+		var jsonErr *nanopush.JSONPushError
+		require.ErrorAs(t, resp[token].Err, &jsonErr,
+			"error must decode as a nanopush JSONPushError, not a JSON parse failure — the mock must always send the JSON error body")
+		assert.Equal(t, "PayloadTooLarge", jsonErr.Reason)
 	})
 }

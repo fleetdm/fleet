@@ -315,11 +315,12 @@ Reference: https://fleetdm.com/pricing
 
 <tr>
 <td>Manual enrollment</td>
-<td>Verify MDM enrollment, run MDM commands.</td>
+<td>Verify MDM enrollment, run MDM commands on both Windows 11 and Windows 10 hosts.</td>
 <td>
 
-1. With Windows MDM turned on and the Setup experience configured (end user authentication, hidden `_fleetadmin` user, and software installs), enroll a Windows host and verify MDM is turned on and the configured software installs.
-2. Verify able to run MDM commands on Windows hosts from the CLI.
+1. With Windows MDM turned on and the Setup experience configured (end user authentication, hidden `_fleetadmin` user, and software installs), enroll a Windows 11 host and verify MDM is turned on and the configured software installs.
+2. Verify able to run MDM commands on Windows 11 hosts from the CLI.
+3. Repeat steps with a Windows 10 host.
 
 </td>
 </tr>

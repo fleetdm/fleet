@@ -48,6 +48,13 @@ linters:
           deny:
             - pkg: math/rand$
               desc: Use math/rand/v2 instead
+        no-plist-forks:
+          list-mode: lax
+          deny:
+            - pkg: howett.net/plist
+              desc: Use github.com/micromdm/plist instead
+            - pkg: github.com/groob/plist
+              desc: Use github.com/micromdm/plist instead
     custom:
       nilaway:
         type: module
