@@ -269,7 +269,9 @@ UPDATE
 	if err != nil {
 		return err
 	}
-	return s.updateLastSeen(r)
+	// Written synchronously rather than through the async batch: TokenUpdate completes the enrollment,
+	// and a freshly enrolled host must report a check-in time right away, not after the next flush.
+	return s.upsertSeenTime(r.Context, r.ID)
 }
 
 func (s *MySQLStorage) RetrieveTokenUpdateTally(ctx context.Context, id string) (int, error) {
@@ -392,21 +394,20 @@ func seenTimesUpsert(ids []string) (string, []any) {
 	return stmt, args
 }
 
-func (s *MySQLStorage) updateLastSeen(r *mdm.Request) (err error) {
+func (s *MySQLStorage) updateLastSeen(r *mdm.Request) error {
 	if s.asyncLastSeen != nil {
 		s.asyncLastSeen.markHostSeen(r.Context, r.ID)
 		return nil
 	}
+	return s.upsertSeenTime(r.Context, r.ID)
+}
 
-	_, err = s.db.ExecContext(
-		r.Context,
-		`INSERT INTO nano_seen_times (id, seen_time) VALUES (?, CURRENT_TIMESTAMP) ON DUPLICATE KEY UPDATE seen_time = CURRENT_TIMESTAMP`,
-		r.ID,
-	)
-	if err != nil {
-		err = fmt.Errorf("updating last seen: %w", err)
+func (s *MySQLStorage) upsertSeenTime(ctx context.Context, id string) error {
+	stmt, args := seenTimesUpsert([]string{id})
+	if _, err := s.db.ExecContext(ctx, stmt, args...); err != nil {
+		return fmt.Errorf("updating last seen: %w", err)
 	}
-	return
+	return nil
 }
 
 func (s *MySQLStorage) updateLastSeenBatch(ctx context.Context, ids []string) {
