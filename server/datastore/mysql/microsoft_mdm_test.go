@@ -96,6 +96,7 @@ func TestMDMWindows(t *testing.T) {
 		{"TestMDMWindowsUnlinkedEnrollmentHardwareSerial", testMDMWindowsUnlinkedEnrollmentHardwareSerial},
 		{"TestMDMWindowsClaimEnrolledActivity", testMDMWindowsClaimEnrolledActivity},
 		{"TestWindowsEnrollmentDefaultFleet", testWindowsEnrollmentDefaultFleet},
+		{"TestMDMWindowsGetEnrolledHostUUIDWithHardwareID", testMDMWindowsGetEnrolledHostUUIDWithHardwareID},
 	}
 
 	for _, c := range cases {
@@ -8913,4 +8914,50 @@ func testWindowsProfileRetryOnDeviceFailure(t *testing.T, ds *Datastore) {
 
 	// Terminal failures must reach the rollup that GetMDMWindowsProfilesSummary reads.
 	require.Equal(t, string(fleet.MDMDeliveryFailed), readWindowsProfilesStatusRollup(t, ds)[host.UUID])
+}
+
+// testMDMWindowsGetEnrolledHostUUIDWithHardwareID covers the lookup behind the duplicate hardware ID warning (#50612).
+func testMDMWindowsGetEnrolledHostUUIDWithHardwareID(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	hwID := uuid.New().String() + uuid.New().String()
+
+	// Nothing holds the hardware ID yet.
+	got, err := ds.MDMWindowsGetEnrolledHostUUIDWithHardwareID(ctx, hwID)
+	require.NoError(t, err)
+	require.Empty(t, got, "an unheld hardware ID must not look like a collision")
+
+	// An enrollment that is not linked to a host yet reports empty, so the caller cannot mistake it for a collision.
+	deviceID := uuid.New().String()
+	require.NoError(t, ds.MDMWindowsInsertEnrolledDevice(ctx, &fleet.MDMWindowsEnrolledDevice{
+		MDMDeviceID:            deviceID,
+		MDMHardwareID:          hwID,
+		MDMDeviceState:         microsoft_mdm.MDMDeviceStateEnrolled,
+		MDMDeviceType:          "CIMClient_Windows",
+		MDMDeviceName:          "REPRO-UNLINKED",
+		MDMEnrollType:          "AutomaticEnrollment",
+		MDMEnrollProtoVersion:  "5.0",
+		MDMEnrollClientVersion: "10.0.26200.8037",
+		HostUUID:               "",
+	}))
+	got, err = ds.MDMWindowsGetEnrolledHostUUIDWithHardwareID(ctx, hwID)
+	require.NoError(t, err)
+	require.Empty(t, got, "an unlinked enrollment has no host to name")
+
+	// Once linked, the holder is reported.
+	host := test.NewHost(t, ds, "hwid-holder", "10.0.0.31", "hwid-holder-key", "hwid-holder-uuid", time.Now())
+	host.Platform = "windows"
+	require.NoError(t, ds.UpdateHost(ctx, host))
+	_, err = ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, host.UUID, deviceID)
+	require.NoError(t, err)
+
+	got, err = ds.MDMWindowsGetEnrolledHostUUIDWithHardwareID(ctx, hwID)
+	require.NoError(t, err)
+	require.Equal(t, host.UUID, got)
+
+	// The delete on re-enrollment releases it again.
+	require.NoError(t, ds.MDMWindowsDeleteEnrolledDeviceOnReenrollment(ctx, hwID))
+	got, err = ds.MDMWindowsGetEnrolledHostUUIDWithHardwareID(ctx, hwID)
+	require.NoError(t, err)
+	require.Empty(t, got)
 }

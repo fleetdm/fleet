@@ -3573,3 +3573,101 @@ func TestESPReleaseIncludesSkipUserStatusPage(t *testing.T) {
 		"release commands must include SkipUserStatusPage=true; without it, a second user "+
 			"signing in to an already-enrolled device hits a fresh Account setup ESP that hangs (#51380)")
 }
+
+// TestWarnOnWindowsMDMHardwareIDCollision covers the detection added for issue #50612. The enrollment itself is
+// deliberately unchanged: a second host presenting an already-held HW device id still takes over the enrollment, but
+// Fleet now says so, because nothing else in the product reports it.
+func TestWarnOnWindowsMDMHardwareIDCollision(t *testing.T) {
+	const (
+		sharedHardwareID = "F19B99942A3B9C53679F46017599C1FC4953B9BD3F0BC20FF681D0F93FAE5992"
+		enrollingHost    = "7C3BA655-C134-4CA5-A23B-CA8147643DA0"
+		incumbentHost    = "A5D3F1A9-1B40-49DC-9D54-B4F558850CB9"
+	)
+
+	newSvc := func(incumbent string, lookupErr error) (*Service, *testutils.TestHandler) {
+		ds := new(mock.Store)
+		ds.MDMWindowsGetEnrolledHostUUIDWithHardwareIDFunc = func(_ context.Context, hwID string) (string, error) {
+			require.Equal(t, sharedHardwareID, hwID)
+			return incumbent, lookupErr
+		}
+		handler := testutils.NewTestHandler()
+		return &Service{ds: ds, logger: slog.New(handler)}, handler
+	}
+
+	findWarning := func(h *testutils.TestHandler) *slog.Record {
+		for _, r := range h.Records() {
+			if r.Level == slog.LevelWarn && strings.Contains(r.Message, "hardware ID already held by another host") {
+				rec := r
+				return &rec
+			}
+		}
+		return nil
+	}
+
+	attrsOf := func(r *slog.Record) map[string]string {
+		attrs := make(map[string]string)
+		r.Attrs(func(a slog.Attr) bool {
+			attrs[a.Key] = a.Value.String()
+			return true
+		})
+		return attrs
+	}
+
+	t.Run("warns and names both hosts when a different host holds the hardware id", func(t *testing.T) {
+		svc, handler := newSvc(incumbentHost, nil)
+		svc.warnOnWindowsMDMHardwareIDCollision(context.Background(), sharedHardwareID, enrollingHost)
+
+		rec := findWarning(handler)
+		require.NotNil(t, rec, "a collision must be reported")
+		attrs := attrsOf(rec)
+		require.Equal(t, sharedHardwareID, attrs["mdm_hardware_id"])
+		require.Equal(t, enrollingHost, attrs["enrolling_host_uuid"])
+		require.Equal(t, incumbentHost, attrs["existing_host_uuid"])
+	})
+
+	t.Run("stays quiet when the same host re-enrolls", func(t *testing.T) {
+		svc, handler := newSvc(enrollingHost, nil)
+		svc.warnOnWindowsMDMHardwareIDCollision(context.Background(), sharedHardwareID, enrollingHost)
+		require.Nil(t, findWarning(handler), "a host re-enrolling itself is not a collision")
+	})
+
+	t.Run("stays quiet when nothing holds the hardware id", func(t *testing.T) {
+		svc, handler := newSvc("", nil)
+		svc.warnOnWindowsMDMHardwareIDCollision(context.Background(), sharedHardwareID, enrollingHost)
+		require.Nil(t, findWarning(handler), "a first enrollment is not a collision")
+	})
+
+	t.Run("stays quiet when the incumbent enrollment is not linked to a host", func(t *testing.T) {
+		// An Entra automatic enrollment is inserted with an empty host uuid, so there is no host to name.
+		svc, handler := newSvc("", nil)
+		svc.warnOnWindowsMDMHardwareIDCollision(context.Background(), sharedHardwareID, enrollingHost)
+		require.Nil(t, findWarning(handler))
+	})
+
+	t.Run("skips the lookup entirely for an automatic enrollment", func(t *testing.T) {
+		ds := new(mock.Store)
+		ds.MDMWindowsGetEnrolledHostUUIDWithHardwareIDFunc = func(_ context.Context, _ string) (string, error) {
+			t.Fatal("must not look up a collision when the enrolling host is unknown")
+			return "", nil
+		}
+		handler := testutils.NewTestHandler()
+		svc := &Service{ds: ds, logger: slog.New(handler)}
+		svc.warnOnWindowsMDMHardwareIDCollision(context.Background(), sharedHardwareID, "")
+		require.Nil(t, findWarning(handler))
+		require.False(t, ds.MDMWindowsGetEnrolledHostUUIDWithHardwareIDFuncInvoked)
+	})
+
+	t.Run("a lookup failure is logged and swallowed", func(t *testing.T) {
+		svc, handler := newSvc("", errors.New("db is down"))
+		svc.warnOnWindowsMDMHardwareIDCollision(context.Background(), sharedHardwareID, enrollingHost)
+
+		require.Nil(t, findWarning(handler), "a lookup failure must not be reported as a collision")
+		var sawLookupWarning bool
+		for _, r := range handler.Records() {
+			if r.Level == slog.LevelWarn && strings.Contains(r.Message, "checking whether a windows mdm hardware id") {
+				sawLookupWarning = true
+			}
+		}
+		require.True(t, sawLookupWarning, "the failure itself should still be visible")
+	})
+}
