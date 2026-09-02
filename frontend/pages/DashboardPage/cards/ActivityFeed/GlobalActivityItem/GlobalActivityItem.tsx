@@ -332,12 +332,11 @@ const TAGGED_TEMPLATES = {
     const { user_id, user_email, role } = activity.details || {};
 
     if (actor_id === user_id) {
-      // this is the case when SSO user is crated via JIT provisioning
-      // should only be possible for premium tier, but check anyway
       return (
         <>
           was assigned the <b>{role}</b> role
-          {isPremiumTier && " for all fleets"}.
+          {isPremiumTier && " for all fleets"} via just-in-time (JIT)
+          provisioning.
         </>
       );
     }
@@ -349,10 +348,21 @@ const TAGGED_TEMPLATES = {
     );
   },
   userDeletedGlobalRole: (activity: IActivity, isPremiumTier: boolean) => {
+    const { actor_id } = activity;
+    const { user_id, user_email, role } = activity.details || {};
+
+    if (actor_id === user_id) {
+      return (
+        <>
+          was removed as <b>{role}</b>
+          {isPremiumTier && " for all fleets"} via just-in-time (JIT)
+          provisioning.
+        </>
+      );
+    }
     return (
       <>
-        removed <b>{activity.details?.user_email}</b> as{" "}
-        <b>{activity.details?.role}</b>
+        removed <b>{user_email}</b> as <b>{role}</b>
         {isPremiumTier && " for all fleets"}.
       </>
     );
@@ -361,27 +371,36 @@ const TAGGED_TEMPLATES = {
     const { actor_id } = activity;
     const { user_id, user_email, role, team_name } = activity.details || {};
 
-    const varText =
-      actor_id === user_id ? (
+    if (actor_id === user_id) {
+      return (
         <>
-          was assigned the <b>{role}</b> role
-        </>
-      ) : (
-        <>
-          changed <b>{user_email}</b> to <b>{role}</b>
+          was assigned the <b>{role}</b> role for the <b>{team_name}</b> fleet
+          via just-in-time (JIT) provisioning.
         </>
       );
+    }
     return (
       <>
-        {varText} for the <b>{team_name}</b> fleet.
+        changed <b>{user_email}</b> to <b>{role}</b> for the <b>{team_name}</b>{" "}
+        fleet.
       </>
     );
   },
   userDeletedTeamRole: (activity: IActivity) => {
+    const { actor_id } = activity;
+    const { user_id, user_email, team_name } = activity.details || {};
+
+    if (actor_id === user_id) {
+      return (
+        <>
+          was removed from the <b>{team_name}</b> fleet via just-in-time (JIT)
+          provisioning.
+        </>
+      );
+    }
     return (
       <>
-        removed <b>{activity.details?.user_email}</b> from the{" "}
-        <b>{activity.details?.team_name}</b> fleet.
+        removed <b>{user_email}</b> from the <b>{team_name}</b> fleet.
       </>
     );
   },
@@ -2889,7 +2908,9 @@ const GlobalActivityItem = ({
 
     switch (activity.type) {
       case ActivityType.UserChangedGlobalRole:
+      case ActivityType.UserDeletedGlobalRole:
       case ActivityType.UserChangedTeamRole:
+      case ActivityType.UserDeletedTeamRole:
         return activity.actor_id === activity.details?.user_id ? (
           <b>{activity.details?.user_email} </b>
         ) : (
