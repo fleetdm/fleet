@@ -418,7 +418,11 @@ func (d *Datastore) hostCacheClearDirectEntries(ctx context.Context, nodeKey, or
 // to redisSetMembersBatchSize=10000 in hosts.go (whose elements are ~10-byte host IDs). Common practice for
 // pipelined batches is 100-1000; 500 is a defensible middle. Lower if metrics show invalidation causing Redis CPU
 // spikes during bulk team moves; raise if round-trip latency dominates.
-const hostCacheInvalidateBatchSize = 500
+var hostCacheInvalidateBatchSize = 500
+
+// hostCacheRewriteHostBatchSize bounds how many hosts' snapshots the team patch holds in memory at once.
+// A var so tests can cross the chunk boundary without priming hundreds of hosts.
+var hostCacheRewriteHostBatchSize = 500
 
 // invalidateHostIDs efficiently invalidates both cache families for a batch
 // of host IDs. Equivalent to calling hostCacheDeleteByID in a loop but uses
@@ -445,7 +449,7 @@ func (d *Datastore) invalidateHostIDs(ctx context.Context, ids []uint, reason st
 			idxKeys = append(idxKeys, fam.indexKey(id))
 		}
 	}
-	resolved := d.pipelinedMGET(ctx, idxKeys)
+	resolved, _ := d.pipelinedMGET(ctx, idxKeys)
 
 	// Phase 2: build the full DEL key list (payload + negative + reverse index for whichever family was
 	// populated) and issue pipelined DELs.
@@ -472,10 +476,13 @@ func (d *Datastore) invalidateHostIDs(ctx context.Context, ids []uint, reason st
 // Works in both modes via redis.SplitKeysBySlot: in cluster mode keys are grouped by slot (CROSSSLOT-safe)
 // and one MGET per slot group is issued; in standalone mode SplitKeysBySlot returns a single group containing
 // all keys and BindConn is a no-op. Either way the group is further chunked at hostCacheInvalidateBatchSize.
-func (d *Datastore) pipelinedMGET(ctx context.Context, keys []string) []string {
+// The bool reports whether every chunk was read. A failed read leaves empty
+// strings, which a caller cannot tell apart from "not cached" — and the two need
+// opposite handling, since a key we failed to read may still hold a stale value.
+func (d *Datastore) pipelinedMGET(ctx context.Context, keys []string) ([]string, bool) {
 	result := make([]string, len(keys))
 	if len(keys) == 0 {
-		return result
+		return result, true
 	}
 
 	// Slot grouping rearranges keys; this map restores input order.
@@ -484,18 +491,21 @@ func (d *Datastore) pipelinedMGET(ctx context.Context, keys []string) []string {
 		indexOf[k] = i
 	}
 
+	ok := true
 	for _, group := range redis.SplitKeysBySlot(d.pool, keys...) {
 		for len(group) > 0 {
 			n := min(len(group), hostCacheInvalidateBatchSize)
 			chunk := group[:n]
 			group = group[n:]
-			d.mgetChunk(ctx, chunk, indexOf, result)
+			if !d.mgetChunk(ctx, chunk, indexOf, result) {
+				ok = false
+			}
 		}
 	}
-	return result
+	return result, ok
 }
 
-func (d *Datastore) mgetChunk(ctx context.Context, chunk []string, indexOf map[string]int, out []string) {
+func (d *Datastore) mgetChunk(ctx context.Context, chunk []string, indexOf map[string]int, out []string) bool {
 	conn := d.pool.Get()
 	defer conn.Close()
 	// BindConn MUST come before ConfigureDoer. redisc's BindConn expects the raw cluster conn from the pool,
@@ -503,7 +513,7 @@ func (d *Datastore) mgetChunk(ctx context.Context, chunk []string, indexOf map[s
 	// In standalone mode BindConn is a no-op.
 	if err := redis.BindConn(d.pool, conn, chunk...); err != nil {
 		d.recordHostCacheErr(ctx, "get", err)
-		return
+		return false
 	}
 	// ConfigureDoer returns a RetryConn wrapper around conn. We use the wrapper for the Do() call but keep the
 	// `defer conn.Close()` against the raw conn so the lifecycle is explicit and tools don't flag the assignment
@@ -513,7 +523,7 @@ func (d *Datastore) mgetChunk(ctx context.Context, chunk []string, indexOf map[s
 	values, err := redigo.Values(doer.Do("MGET", args...))
 	if err != nil {
 		d.recordHostCacheErr(ctx, "get", err)
-		return
+		return false
 	}
 	for i, v := range values {
 		if i >= len(chunk) {
@@ -526,6 +536,7 @@ func (d *Datastore) mgetChunk(ctx context.Context, chunk []string, indexOf map[s
 			out[indexOf[chunk[i]]] = string(b)
 		}
 	}
+	return true
 }
 
 // pipelinedDEL issues variadic DEL across all keys. Slot-grouped and chunked the same way as pipelinedMGET
@@ -733,6 +744,32 @@ func (d *Datastore) rewriteTeamOnHostIDs(ctx context.Context, ids []uint, teamID
 		return
 	}
 
+	var patched, fallback []uint
+	for len(ids) > 0 {
+		n := min(len(ids), hostCacheRewriteHostBatchSize)
+		chunkPatched, chunkFallback := d.rewriteTeamChunk(ctx, ids[:n], teamID, destDiskEncryption)
+		ids = ids[n:]
+		patched = append(patched, chunkPatched...)
+		fallback = append(fallback, chunkFallback...)
+	}
+
+	if len(fallback) > 0 {
+		d.invalidateHostIDs(ctx, fallback, "team")
+	}
+	// Per host, to match the semantics of the invalidation counter: a host has
+	// one entry per family, and either can be absent or skipped.
+	patchedHosts := make(map[uint]struct{}, len(patched))
+	for _, id := range patched {
+		patchedHosts[id] = struct{}{}
+	}
+	d.recordHostCacheInvalidations(ctx, "team_rewrite", len(patchedHosts))
+}
+
+// rewriteTeamChunk patches one chunk of host IDs, returning the hosts it patched
+// and the ones that must fall back to invalidation.
+func (d *Datastore) rewriteTeamChunk(
+	ctx context.Context, ids []uint, teamID *uint, destDiskEncryption fleet.DiskEncryptionConfig,
+) (patched, fallback []uint) {
 	families := []cacheFamily{osqueryCacheFamily, orbitCacheFamily}
 	nFam := len(families)
 
@@ -742,7 +779,12 @@ func (d *Datastore) rewriteTeamOnHostIDs(ctx context.Context, ids []uint, teamID
 			idxKeys = append(idxKeys, fam.indexKey(id))
 		}
 	}
-	resolved := d.pipelinedMGET(ctx, idxKeys)
+	resolved, ok := d.pipelinedMGET(ctx, idxKeys)
+	if !ok {
+		// Unresolved keys are indistinguishable from uncached ones, so patching
+		// only what came back would leave the rest holding the old team.
+		return nil, ids
+	}
 
 	// Reverse index -> payload key, so the payloads can be fetched in one pass.
 	type target struct {
@@ -763,15 +805,17 @@ func (d *Datastore) rewriteTeamOnHostIDs(ctx context.Context, ids []uint, teamID
 		}
 	}
 	if len(targets) == 0 {
-		// Nothing cached for this batch: clear the reverse index and any negative entries.
-		d.invalidateHostIDs(ctx, ids, "team")
-		return
+		// Nothing cached for these hosts: clear the reverse index and any negative entries.
+		return nil, ids
 	}
 
-	payloads := d.pipelinedMGET(ctx, payloadKeys)
+	payloads, ok := d.pipelinedMGET(ctx, payloadKeys)
+	if !ok {
+		// Same reasoning: an unread payload still holds the old snapshot.
+		return nil, ids
+	}
 
 	writes := make([]hostCacheKV, 0, len(targets))
-	var fallback []uint
 	for i, t := range targets {
 		raw := payloads[i]
 		if raw == "" {
@@ -801,16 +845,10 @@ func (d *Datastore) rewriteTeamOnHostIDs(ctx context.Context, ids []uint, teamID
 	for _, kv := range failed {
 		fallback = append(fallback, kv.id)
 	}
-	if len(fallback) > 0 {
-		d.invalidateHostIDs(ctx, fallback, "team")
-	}
-	// Per host, to match the semantics of the invalidation counter: a host has
-	// one entry per family, and either can be absent or skipped.
-	patchedHosts := make(map[uint]struct{}, len(applied))
 	for _, kv := range applied {
-		patchedHosts[kv.id] = struct{}{}
+		patched = append(patched, kv.id)
 	}
-	d.recordHostCacheInvalidations(ctx, "team_rewrite", len(patchedHosts))
+	return patched, fallback
 }
 
 // escrowKeptOnTransfer mirrors cleanupDiskEncryptionKeysOnTeamChangeDB's

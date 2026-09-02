@@ -3,6 +3,8 @@ package mysqlredis
 import (
 	"context"
 	"errors"
+	"fmt"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -42,6 +44,40 @@ func requireCacheMiss(t *testing.T, d *Datastore, nk string) {
 	_, result := d.hostCacheGetByNodeKey(t.Context(), nk)
 	require.Equal(t, hostCacheLookupMiss, result, "expected miss for %q, got %v", nk, result)
 }
+
+// failAfterPool delegates to a real pool but breaks specific connections: every
+// Get past healthyGets fails, or — when failOnlyNth is set — just that one Get
+// fails and the rest succeed. The team patch reads the reverse index and the
+// payloads in separate passes, each of which can span several round trips, so
+// tests need to choose exactly which read breaks.
+type failAfterPool struct {
+	fleet.RedisPool
+	healthyGets *int32
+	failOnlyNth int32 // 1-based Get to fail; 0 means "use healthyGets instead"
+	gets        *int32
+}
+
+func (p failAfterPool) Get() redigo.Conn {
+	if p.failOnlyNth > 0 {
+		if atomic.AddInt32(p.gets, 1) == p.failOnlyNth {
+			return failingConn{}
+		}
+		return p.RedisPool.Get()
+	}
+	if atomic.AddInt32(p.healthyGets, -1) < 0 {
+		return failingConn{}
+	}
+	return p.RedisPool.Get()
+}
+
+type failingConn struct{}
+
+func (failingConn) Close() error                   { return nil }
+func (failingConn) Err() error                     { return errors.New("redis is down") }
+func (failingConn) Do(string, ...any) (any, error) { return nil, errors.New("redis is down") }
+func (failingConn) Send(string, ...any) error      { return errors.New("redis is down") }
+func (failingConn) Flush() error                   { return errors.New("redis is down") }
+func (failingConn) Receive() (any, error)          { return nil, errors.New("redis is down") }
 
 func TestWritePathInvalidation(t *testing.T) {
 	runTest := func(t *testing.T, pool fleet.RedisPool) {
@@ -311,6 +347,42 @@ func TestWritePathInvalidation(t *testing.T) {
 			require.Equal(t, uint(7), *h.TeamID)
 		})
 
+		t.Run("AddHostsToTeam patches a batch larger than one chunk", func(t *testing.T) {
+			t.Cleanup(func() { cleanupHostCacheKeys(t, pool) })
+			ds := new(mock.Store)
+			ds.AddHostsToTeamFunc = func(_ context.Context, _ *fleet.AddHostsToTeamParams) error { return nil }
+			ds.GetConfigEnableDiskEncryptionFunc = func(_ context.Context, _ *uint) (fleet.DiskEncryptionConfig, error) {
+				return fleet.DiskEncryptionConfig{MacOSEscrowEnabled: true}, nil
+			}
+			d := New(ds, pool, WithHostCache(30*time.Second))
+
+			// Shrink the chunk instead of priming hundreds of hosts: the point is
+			// crossing the boundary, and a large prime storms the pool with short-
+			// lived connections that later tests then trip over.
+			defer func(orig int) { hostCacheRewriteHostBatchSize = orig }(hostCacheRewriteHostBatchSize)
+			hostCacheRewriteHostBatchSize = 4
+
+			const total = 10
+			ids := make([]uint, 0, total)
+			nks := make([]string, 0, total)
+			for i := range total {
+				id := uint(5000 + i)
+				nk := fmt.Sprintf("nk-chunked-%d", id)
+				primeCachedHost(t, d, id, nk)
+				ids = append(ids, id)
+				nks = append(nks, nk)
+			}
+
+			require.NoError(t, d.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(new(uint(7)), ids)))
+
+			for i, nk := range nks {
+				h, result := d.hostCacheGetByNodeKey(ctx, nk)
+				require.Equal(t, hostCacheLookupHit, result, "host %d (index %d) must stay cached", ids[i], i)
+				require.NotNil(t, h.TeamID)
+				require.Equal(t, uint(7), *h.TeamID, "host %d (index %d) must be patched", ids[i], i)
+			}
+		})
+
 		t.Run("AddHostsToTeam falls back to invalidation when the destination config is unavailable", func(t *testing.T) {
 			// A transfer can drop escrowed disk encryption keys, which is cached
 			// in the orbit family. If we can't tell whether it did, dropping the
@@ -538,4 +610,65 @@ func TestWritePathInvalidation(t *testing.T) {
 		pool := redistest.SetupRedis(t, hostCacheTestCleanupPrefix, true, true, false)
 		runTest(t, pool)
 	})
+}
+
+// TestHostCacheReadFailureFallback runs on its own Redis database: it wraps the
+// pool with a fault-injecting double, and the shared pool is in use by the rest
+// of the package's tests.
+func TestHostCacheReadFailureFallback(t *testing.T) {
+	pool := isolatedRedis(t, 4)
+	ctx := t.Context()
+
+	t.Cleanup(func() { cleanupHostCacheKeys(t, pool) })
+	// Every Get fails, standing in for Redis being unreachable. Wrapping the
+	// shared pool rather than building a second one: a pool of our own would
+	// have to be closed, and closing it disturbs the pool the rest of this
+	// package's tests are using.
+	noHealthyGets := int32(0)
+	d := New(new(mock.Store), failAfterPool{RedisPool: pool, healthyGets: &noHealthyGets}, WithHostCache(30*time.Second))
+
+	values, ok := d.pipelinedMGET(ctx, []string{"any-key"})
+	require.False(t, ok, "an unreachable Redis must report the read as failed")
+	require.Equal(t, []string{""}, values, "which is otherwise indistinguishable from a miss")
+
+	patched, fallback := d.rewriteTeamChunk(ctx, []uint{60}, new(uint(7)), fleet.DiskEncryptionConfig{})
+	require.Empty(t, patched)
+	require.Equal(t, []uint{60}, fallback, "the host must be routed to invalidation")
+
+	// The index read succeeds and the payload read fails: the entries are
+	// still there holding the old team, so skipping them would strand them.
+	live := New(new(mock.Store), pool, WithHostCache(30*time.Second))
+	nk := "nk-payload-read-fails"
+	primeCachedHost(t, live, 61, nk)
+
+	budget := int32(1) // one healthy Get: the index MGET, not the payload MGET
+	flaky := New(new(mock.Store), failAfterPool{RedisPool: pool, healthyGets: &budget}, WithHostCache(30*time.Second))
+	patched, fallback = flaky.rewriteTeamChunk(ctx, []uint{61}, new(uint(7)), fleet.DiskEncryptionConfig{})
+	require.Empty(t, patched, "an unread payload must not count as patched")
+	require.Equal(t, []uint{61}, fallback, "it must fall back to invalidation instead of being skipped")
+
+	// Partial index read: enough hosts that the index MGET spans two Redis
+	// round trips, with only the first succeeding. The hosts behind the
+	// failed half resolve to nothing, which is indistinguishable from being
+	// uncached, so without the check they would be silently skipped while
+	// the rest got patched.
+	// Shrink the Redis chunk so the index MGET spans two round trips.
+	defer func(orig int) { hostCacheInvalidateBatchSize = orig }(hostCacheInvalidateBatchSize)
+	hostCacheInvalidateBatchSize = 4
+
+	const spansTwoChunks = 6
+	ids := make([]uint, 0, spansTwoChunks)
+	for i := range spansTwoChunks {
+		id := uint(7000 + i)
+		primeCachedHost(t, live, id, fmt.Sprintf("nk-partial-%d", id))
+		ids = append(ids, id)
+	}
+
+	// Fail only the second Get — the index MGET's second round trip — so the
+	// payload reads still succeed and cannot mask the gap.
+	gets := int32(0)
+	flaky = New(new(mock.Store), failAfterPool{RedisPool: pool, failOnlyNth: 2, gets: &gets}, WithHostCache(30*time.Second))
+	patched, fallback = flaky.rewriteTeamChunk(ctx, ids, new(uint(7)), fleet.DiskEncryptionConfig{})
+	require.Empty(t, patched, "a partially-read index must not patch the half that resolved")
+	require.Equal(t, ids, fallback, "every host in the chunk must fall back")
 }
