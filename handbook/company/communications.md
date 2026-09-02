@@ -247,6 +247,11 @@ Fleet uses these levels to standardize a commitment to minimal esotericism acros
 - **"¶¶":** _(Classified - CEO, Executive Assistant, Head of People, and GTM Systems Architect)_
 
 
+### Sharing Google Docs externally
+
+When sharing access to a Google Doc outside of the company, first prefix the name of the Google Doc with "[shared externally to the company]". This makes it easier for others to notice when a doc is shared externally as they open it up, and easier to notice when something is shared externally which no longer should be (for example, after a consultant is no longer working with the company and should no longer have access).
+
+
 ## Company database
 
 Fleet uses Google Drive to keep files correctly bucketed and accessible for team members. When adding a file, you can: 
