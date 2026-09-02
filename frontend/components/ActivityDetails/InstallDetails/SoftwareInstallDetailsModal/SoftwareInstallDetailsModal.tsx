@@ -42,6 +42,9 @@ import TooltipTruncatedText from "components/TooltipTruncatedText";
 import {
   INSTALL_DETAILS_STATUS_ICONS,
   SKIPPED_INSTALL_DETAILS,
+  SKIPPED_INSTALL_DETAILS_LINK_TEXT,
+  SKIPPED_INSTALL_DETAILS_LINK_URL,
+  SKIPPED_INSTALL_DETAILS_PREFIX,
   SKIPPED_PRE_INSTALL_OUTPUT,
   getInstallDetailsStatusPredicate,
 } from "../constants";
@@ -149,6 +152,23 @@ export const StatusMessage = ({
     : "";
 
   if (skippedInstall && status === "failed_install") {
+    // Admin activity feed links "policy runs again" to admin-facing cadence
+    // docs; the end-user "My device" flow shows plain text since the doc is
+    // admin-only.
+    const skippedDetails = isMyDevicePage ? (
+      SKIPPED_INSTALL_DETAILS
+    ) : (
+      <>
+        {SKIPPED_INSTALL_DETAILS_PREFIX}
+        <CustomLink
+          url={SKIPPED_INSTALL_DETAILS_LINK_URL}
+          text={SKIPPED_INSTALL_DETAILS_LINK_TEXT}
+          newTab
+        />
+        .
+      </>
+    );
+
     return (
       <IconStatusMessage
         className={`${baseClass}__status-message`}
@@ -158,7 +178,7 @@ export const StatusMessage = ({
           <span>
             Fleet skipped install of <b>{software_title}</b> ({software_package}
             ) on {formattedHost}
-            {displayTimeStamp}. {SKIPPED_INSTALL_DETAILS}
+            {displayTimeStamp}. {skippedDetails}
           </span>
         }
       />

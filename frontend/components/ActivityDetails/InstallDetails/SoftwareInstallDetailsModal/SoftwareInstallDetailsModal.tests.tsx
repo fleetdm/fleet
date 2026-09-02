@@ -136,7 +136,7 @@ describe("SoftwareInstallDetailsModal", () => {
       expect(screen.getByText(/\d+.*ago/)).toBeInTheDocument();
     });
 
-    it("renders app-open skipped copy instead of generic failed-install copy", () => {
+    it("renders app-open skipped copy with a policy-automations link on the admin activity feed", () => {
       render(
         <StatusMessage
           softwareName="CoolApp"
@@ -149,16 +149,48 @@ describe("SoftwareInstallDetailsModal", () => {
       );
 
       expect(screen.getByText(/Fleet skipped install of/)).toBeInTheDocument();
-      expect(screen.getByText(/The app was open/)).toBeInTheDocument();
       expect(
         screen.getByText(
-          /It will update once the user closes it and policy runs again, or update via self service\./
+          /The app was open\. It will update once the user closes it and the/
         )
       ).toBeInTheDocument();
+      // "policy runs again" is the external CustomLink to the cadence docs.
+      const link = screen.getByRole("link", { name: /policy runs again/ });
+      expect(link).toHaveAttribute(
+        "href",
+        "https://fleetdm.com/learn-more-about/policy-automations"
+      );
+      expect(link).toHaveAttribute("target", "_blank");
+      // Self-service tail should be gone.
+      expect(
+        screen.queryByText(/update via self service/)
+      ).not.toBeInTheDocument();
       expect(screen.queryByText(/failed to install/)).not.toBeInTheDocument();
       // Grey "!" (error-outline), not the red failure icon.
       expect(screen.getByTestId("error-outline-icon")).toBeInTheDocument();
       expect(screen.queryByTestId("error-icon")).not.toBeInTheDocument();
+    });
+
+    it("renders skipped copy as plain text (no policy-automations link) on the My device page", () => {
+      render(
+        <StatusMessage
+          softwareName="CoolApp"
+          installResult={createMockSoftwareInstallResult({
+            status: "failed_install",
+          })}
+          isMyDevicePage
+          skippedInstall
+        />
+      );
+
+      expect(
+        screen.getByText(
+          /It will update once the user closes it and the policy runs again\./
+        )
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByRole("link", { name: /policy runs again/ })
+      ).not.toBeInTheDocument();
     });
 
     it("on host details page/install activity, renders installed message with timestamp", () => {
