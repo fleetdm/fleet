@@ -712,9 +712,11 @@ func (d *Datastore) LoadHostByOrbitNodeKey(ctx context.Context, orbitNodeKey str
 // their TTLs collapse into one wave that re-fires each TTL period.
 // Patching in place removes the reload entirely and preserves the natural TTL spread.
 //
-// Anything that cannot be patched confidently — an unreadable envelope, or a
-// failure to resolve the destination's disk encryption settings — falls back to
-// the DEL path, so correctness never depends on the patch succeeding.
+// Anything that cannot be patched confidently falls back to the DEL path: an
+// unreadable envelope, a failure to resolve the destination's disk encryption
+// settings, or a write that errored and so may have left the old snapshot in
+// place. A write that XX rejected needs no fallback — that entry had already
+// expired, so there is nothing stale to clear.
 func (d *Datastore) rewriteTeamOnHostIDs(ctx context.Context, ids []uint, teamID *uint) {
 	if !d.hostCacheEnabled || len(ids) == 0 {
 		return
@@ -795,7 +797,10 @@ func (d *Datastore) rewriteTeamOnHostIDs(ctx context.Context, ids []uint, teamID
 		writes = append(writes, hostCacheKV{key: t.fam.primaryKey(t.nodeKey), val: next, id: t.id})
 	}
 
-	applied := d.pipelinedSETKeepTTL(ctx, writes)
+	applied, failed := d.pipelinedSETKeepTTL(ctx, writes)
+	for _, kv := range failed {
+		fallback = append(fallback, kv.id)
+	}
 	if len(fallback) > 0 {
 		d.invalidateHostIDs(ctx, fallback, "team")
 	}
@@ -833,10 +838,11 @@ type hostCacheKV struct {
 // leave the whole batch expiring together. XX drops a key that expired between
 // being read and being written back: without it that SET recreates the entry
 // with no expiry at all, and since the reverse index expired with it, no
-// invalidation could ever find it again. Returns the writes Redis applied.
-func (d *Datastore) pipelinedSETKeepTTL(ctx context.Context, kvs []hostCacheKV) []hostCacheKV {
+// invalidation could ever find it again. Returns the writes Redis applied, and
+// the ones whose outcome is unknown because the write errored.
+func (d *Datastore) pipelinedSETKeepTTL(ctx context.Context, kvs []hostCacheKV) (applied, failed []hostCacheKV) {
 	if len(kvs) == 0 {
-		return nil
+		return nil, nil
 	}
 	byKey := make(map[string]hostCacheKV, len(kvs))
 	keys := make([]string, 0, len(kvs))
@@ -844,55 +850,70 @@ func (d *Datastore) pipelinedSETKeepTTL(ctx context.Context, kvs []hostCacheKV) 
 		byKey[kv.key] = kv
 		keys = append(keys, kv.key)
 	}
-	var applied []hostCacheKV
 	for _, group := range redis.SplitKeysBySlot(d.pool, keys...) {
 		for len(group) > 0 {
 			n := min(len(group), hostCacheInvalidateBatchSize)
 			chunk := group[:n]
 			group = group[n:]
-			applied = append(applied, d.setKeepTTLChunk(ctx, chunk, byKey)...)
+			chunkApplied, chunkFailed := d.setKeepTTLChunk(ctx, chunk, byKey)
+			applied = append(applied, chunkApplied...)
+			failed = append(failed, chunkFailed...)
 		}
 	}
-	return applied
+	return applied, failed
 }
 
 // SET has no variadic form, so the chunk is pipelined to avoid a round-trip per key.
-func (d *Datastore) setKeepTTLChunk(ctx context.Context, chunk []string, byKey map[string]hostCacheKV) []hostCacheKV {
+func (d *Datastore) setKeepTTLChunk(ctx context.Context, chunk []string, byKey map[string]hostCacheKV) (applied, failed []hostCacheKV) {
+	all := func() []hostCacheKV {
+		out := make([]hostCacheKV, 0, len(chunk))
+		for _, k := range chunk {
+			out = append(out, byKey[k])
+		}
+		return out
+	}
+
 	conn := d.pool.Get()
 	defer conn.Close()
 	// BindConn before ConfigureDoer, see mgetChunk for the rationale.
 	if err := redis.BindConn(d.pool, conn, chunk...); err != nil {
 		d.recordHostCacheErr(ctx, "set", err)
-		return nil
+		return nil, all()
 	}
 	doer := redis.ConfigureDoer(d.pool, conn)
+
 	sent := make([]hostCacheKV, 0, len(chunk))
-	for _, k := range chunk {
+	for i, k := range chunk {
 		if err := doer.Send("SET", k, byKey[k].val, "XX", "KEEPTTL"); err != nil {
 			d.recordHostCacheErr(ctx, "set", err)
+			for _, rest := range chunk[i:] {
+				failed = append(failed, byKey[rest])
+			}
 			break
 		}
 		sent = append(sent, byKey[k])
 	}
 	if len(sent) == 0 {
-		return nil
+		return nil, failed
 	}
 	if err := doer.Flush(); err != nil {
 		d.recordHostCacheErr(ctx, "set", err)
-		return nil
+		return nil, append(failed, sent...)
 	}
-	applied := make([]hostCacheKV, 0, len(sent))
-	for _, kv := range sent {
+
+	applied = make([]hostCacheKV, 0, len(sent))
+	for i, kv := range sent {
 		reply, err := doer.Receive()
 		if err != nil {
 			d.recordHostCacheErr(ctx, "set", err)
-			return applied
+			return applied, append(failed, sent[i:]...)
 		}
 		if reply == nil {
-			// XX rejected the write: the entry expired since it was read.
+			// XX rejected the write: the entry expired since it was read, so
+			// there is no stale snapshot to clear and nothing to fall back to.
 			continue
 		}
 		applied = append(applied, kv)
 	}
-	return applied
+	return applied, failed
 }

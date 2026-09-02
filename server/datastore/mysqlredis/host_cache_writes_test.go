@@ -252,9 +252,10 @@ func TestWritePathInvalidation(t *testing.T) {
 			d := New(new(mock.Store), pool, WithHostCache(30*time.Second))
 
 			gone := hostCacheKeyByNodeKey("nk-expired-mid-rewrite")
-			applied := d.pipelinedSETKeepTTL(ctx, []hostCacheKV{{key: gone, val: []byte(`{"id":42}`), id: 42}})
+			applied, failed := d.pipelinedSETKeepTTL(ctx, []hostCacheKV{{key: gone, val: []byte(`{"id":42}`), id: 42}})
 
 			require.Empty(t, applied, "a key that no longer exists must not count as patched")
+			require.Empty(t, failed, "an expired entry is not a failure: there is nothing stale to invalidate")
 			conn := pool.Get()
 			defer conn.Close()
 			exists, err := redigo.Int(conn.Do("EXISTS", gone))
@@ -271,12 +272,43 @@ func TestWritePathInvalidation(t *testing.T) {
 			key := hostCacheKeyByNodeKey(nk)
 			ttlBefore := hostCacheTTLOf(t, pool, key)
 
-			applied := d.pipelinedSETKeepTTL(ctx, []hostCacheKV{{key: key, val: []byte(`{"id":43}`), id: 43}})
+			applied, failed := d.pipelinedSETKeepTTL(ctx, []hostCacheKV{{key: key, val: []byte(`{"id":43}`), id: 43}})
 
 			require.Len(t, applied, 1)
+			require.Empty(t, failed)
 			ttlAfter := hostCacheTTLOf(t, pool, key)
 			require.NotEqual(t, -1, ttlAfter, "entry must keep an expiry")
 			require.LessOrEqual(t, ttlAfter, ttlBefore)
+		})
+
+		t.Run("one expired family does not invalidate the host's other family", func(t *testing.T) {
+			// An expired entry needs no fallback, so the sibling entry that was
+			// patched successfully must survive: treating expiry as a failure
+			// would drop it and put the host back on the reload path.
+			t.Cleanup(func() { cleanupHostCacheKeys(t, pool) })
+			ds := new(mock.Store)
+			ds.AddHostsToTeamFunc = func(_ context.Context, _ *fleet.AddHostsToTeamParams) error { return nil }
+			ds.GetConfigEnableDiskEncryptionFunc = func(_ context.Context, _ *uint) (fleet.DiskEncryptionConfig, error) {
+				return fleet.DiskEncryptionConfig{MacOSEscrowEnabled: true}, nil
+			}
+			d := New(ds, pool, WithHostCache(30*time.Second))
+
+			nk, onk := "nk-two-families", "onk-two-families"
+			d.hostCachePutByNodeKey(ctx, &fleet.Host{ID: 44, NodeKey: &nk, Hostname: "primed"})
+			d.hostCachePutByOrbitNodeKey(ctx, &fleet.Host{ID: 44, OrbitNodeKey: &onk, Hostname: "primed"})
+
+			// Stand in for the orbit payload expiring between the read and the write.
+			conn := pool.Get()
+			_, err := conn.Do("DEL", hostCacheKeyByOrbitNodeKey(onk))
+			require.NoError(t, err)
+			conn.Close()
+
+			require.NoError(t, d.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(new(uint(7)), []uint{44})))
+
+			h, result := d.hostCacheGetByNodeKey(ctx, nk)
+			require.Equal(t, hostCacheLookupHit, result, "the surviving family must stay cached")
+			require.NotNil(t, h.TeamID)
+			require.Equal(t, uint(7), *h.TeamID)
 		})
 
 		t.Run("AddHostsToTeam falls back to invalidation when the destination config is unavailable", func(t *testing.T) {
