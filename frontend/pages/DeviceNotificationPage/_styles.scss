@@ -12,31 +12,28 @@
   &__card {
     background-color: $core-fleet-white;
     color: $core-fleet-black;
-    border-radius: $border-radius-xlarge;
+    border-radius: $border-radius-large;
     padding: $pad-large;
     @include flex-column-24px-gap;
   }
 
   &__header {
-    display: flex;
-    align-items: flex-start;
-    gap: $pad-medium;
-  }
-
-  &__header-text {
-    flex: 1;
-    min-width: 0;
     @include flex-column-8px-gap;
   }
 
+  // App/org logo sits in the bottom-left slot of the actions row.
+  // `margin-right: auto` eats free space to its right so the logo hugs the
+  // left edge while the error slot and buttons stay packed on the right
+  // under `justify-content: flex-end`. Uses <picture> for dark-mode swap.
   &__logo {
+    margin-right: auto;
     flex-shrink: 0;
-    width: 32px;
-    height: 32px;
+    width: 28px;
+    height: 28px;
 
     img {
-      width: 32px;
-      height: 32px;
+      width: 28px;
+      height: 28px;
       object-fit: contain;
     }
   }
@@ -110,13 +107,9 @@
     gap: $pad-small;
   }
 
-  // The error slot lives inside the actions row, left of the buttons, so
-  // showing it doesn't shift the row vertically. `margin-right: auto` eats
-  // the free space to its right, keeping the buttons right-aligned even
-  // while the actions row uses `justify-content: flex-end`.
+  // The error slot sits immediately left of the buttons so showing it doesn't
+  // shift the row vertically.
   &__action-error {
-    margin-right: auto;
-
     // DataError's single-line variant ships with $pad-large vertical padding
     // for stand-alone page use. Strip it here so the icon+text sits flush
     // against the buttons and the actions row keeps a stable height.

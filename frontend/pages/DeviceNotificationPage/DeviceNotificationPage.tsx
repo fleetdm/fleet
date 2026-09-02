@@ -143,10 +143,11 @@ const DeviceNotificationPage = ({
     if (!node || !data) return undefined;
     // Native ToastWindow starts at 525x318 and resizes to fit the card. Every
     // height change (list scroll, action swap after update_now) posts back so
-    // the window follows without an assumed fixed height.
-    const observer = new ResizeObserver((entries) => {
-      const height = entries[0]?.contentRect.height ?? 0;
-      postBridgeMessage("resize", { height });
+    // the window follows without an assumed fixed height. Use `offsetHeight`
+    // (border box) so the reported height includes the card's 24px padding —
+    // `contentRect.height` reports the content box and would clip the buttons.
+    const observer = new ResizeObserver(() => {
+      postBridgeMessage("resize", { height: node.offsetHeight });
     });
     observer.observe(node);
     return () => observer.disconnect();
@@ -165,21 +166,12 @@ const DeviceNotificationPage = ({
     <div className={baseClass}>
       <div className={`${baseClass}__card`} ref={cardRef}>
         <div className={`${baseClass}__header`}>
-          <div className={`${baseClass}__header-text`}>
-            <p className={`${baseClass}__title`}>
-              {renderBoldMarkup(view.title)}
-            </p>
-            <p className={`${baseClass}__description`}>
-              {renderBoldMarkup(view.description)}
-            </p>
-          </div>
-          <picture className={`${baseClass}__logo`}>
-            <source
-              srcSet={view.org_logo_url_dark_mode}
-              media="(prefers-color-scheme: dark)"
-            />
-            <img src={view.org_logo_url_light_mode} alt="" />
-          </picture>
+          <p className={`${baseClass}__title`}>
+            {renderBoldMarkup(view.title)}
+          </p>
+          <p className={`${baseClass}__description`}>
+            {renderBoldMarkup(view.description)}
+          </p>
         </div>
         <List
           data={view.items}
@@ -187,6 +179,13 @@ const DeviceNotificationPage = ({
           renderItemRow={renderNotificationItemRow}
         />
         <div className={`${baseClass}__actions`}>
+          <picture className={`${baseClass}__logo`}>
+            <source
+              srcSet={view.org_logo_url_dark_mode}
+              media="(prefers-color-scheme: dark)"
+            />
+            <img src={view.org_logo_url_light_mode} alt="" />
+          </picture>
           {isPostError && (
             <div className={`${baseClass}__action-error`} role="alert">
               <DataError
