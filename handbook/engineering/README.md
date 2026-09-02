@@ -156,6 +156,8 @@ If the PR is not something we want to pursue, thank the contributor, explain the
 
 4. **Track the work**: Create an issue using the relevant [work item](https://fleetdm.com/handbook/company/product-groups#work-items) issue template. The issue then moves across the relevant product group's board following the [standard process](https://fleetdm.com/handbook/company/product-groups#how-issues-move).
 
+5. **Testing locally**: For community PRs, reviewers should complete code review first, then check out the PR locally, run it, and verify expected behavior.
+
 
 #### Merge a community pull request
 

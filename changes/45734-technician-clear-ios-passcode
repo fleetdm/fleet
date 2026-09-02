@@ -1,0 +1,2 @@
+- Added the ability for users with the Technician role to clear passcodes on iOS and iPadOS hosts.
+- Fixed fleet-level admins and maintainers receiving a permission error when clearing passcodes on hosts in their fleets.

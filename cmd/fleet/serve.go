@@ -360,7 +360,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 
 	mdmStorage, depStorage, scepStorage := initAppleMDMStorages(mds, initFatal)
 
-	mdmPushService := initAppleMDMPushService(mdmStorage, logger)
+	mdmPushService := initAppleMDMPushService(mdmStorage, config.MDM.AppleAPNsPushExpiration, logger)
 	mds.WithPusher(mdmPushService)
 
 	// reconcile Apple MDM and Business Manager configuration with the database

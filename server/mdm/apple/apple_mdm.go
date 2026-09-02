@@ -1448,7 +1448,7 @@ var acmeEnrollmentProfileMobileconfigTemplate = template.Must(template.New("").F
 				{{ end }}<array>
 					<array>
 						<string>CN</string>
-						<string>{{ .SerialTemplate | xml }}</string>
+						<string>{{ .ClientIdentifier | xml }}</string>
 					</array>
 				</array>
 			</array>
@@ -1595,6 +1595,8 @@ func AddEnrollmentRefToFleetURL(fleetURL, reference string) (string, error) {
 // GenerateACMEEnrollmentProfileMobileconfig builds an ACME (hardware-attested) enrollment profile. See
 // GenerateEnrollmentProfileMobileconfig for newEnrollment; the OU marker survives because Fleet's ACME
 // signer reuses the SCEP depot signer, which copies the CSR Subject verbatim.
+// deviceSerial fills both ClientIdentifier and the Subject CN. We observed that on iOS renewals,
+// the device does not substitute %SerialNumber% with its serial number, so we fill it in.
 func GenerateACMEEnrollmentProfileMobileconfig(orgName, mdmURL, acmeIdent, deviceSerial, topic string, accessRights int, newEnrollment bool) ([]byte, error) {
 	serverURL, err := ResolveAppleMDMURL(mdmURL)
 	if err != nil {
@@ -1613,7 +1615,6 @@ func GenerateACMEEnrollmentProfileMobileconfig(orgName, mdmURL, acmeIdent, devic
 		Topic                  string
 		ServerURL              string
 		ClientIdentifier       string
-		SerialTemplate         string
 		AccessRights           int
 		NewEnrollmentSubjectOU string
 	}{
@@ -1622,7 +1623,6 @@ func GenerateACMEEnrollmentProfileMobileconfig(orgName, mdmURL, acmeIdent, devic
 		Topic:                  topic,
 		ServerURL:              serverURL,
 		ClientIdentifier:       deviceSerial,
-		SerialTemplate:         `%SerialNumber%`, // Apple replaces this placeholder with the device's serial number during enrollment
 		AccessRights:           accessRights,
 		NewEnrollmentSubjectOU: newEnrollmentSubjectOU(newEnrollment),
 	}); err != nil {
@@ -1840,8 +1840,11 @@ func IOSiPadOSRefetch(ctx context.Context, ds fleet.Datastore, commander *MDMApp
 	return nil
 }
 
-// turnOffMDMIfAPNSFailed checks if the error is an APNSDeliveryError and turns off MDM for the failed devices.
-// Returns a boolean value to indicate whether or not MDM was turned off.
+// turnOffMDMIfAPNSFailed turns off MDM for any device whose push was rejected
+// by APNs with an Unregistered reason (dead token). It returns true whenever
+// err is an APNSDeliveryError — even when no device was turned off — signaling
+// the caller that only push delivery failed (commands remain durably queued)
+// so processing can continue.
 func turnOffMDMIfAPNSFailed(ctx context.Context, ds fleet.Datastore, err error, logger *slog.Logger, newActivityFn NewActivityFunc) (bool,
 	error,
 ) {
@@ -1851,7 +1854,10 @@ func turnOffMDMIfAPNSFailed(ctx context.Context, ds fleet.Datastore, err error, 
 	}
 
 	for uuid, err := range e.errorsByUUID {
-		if strings.Contains(err.Error(), "device token is inactive") {
+		// nanopush surfaces APNs' structured rejection reason; buford rendered
+		// this same condition as "device token is inactive". If the push
+		// provider ever changes, this classification must change with it.
+		if APNSReason(err) == APNSReasonUnregistered {
 			logger.InfoContext(ctx, "turning off MDM for device with inactive device token", "uuid", uuid)
 			users, activities, err := ds.MDMTurnOff(ctx, uuid)
 			if err != nil {
