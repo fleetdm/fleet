@@ -2,6 +2,8 @@ import { installCSPNonce } from "./install_csp_nonce";
 
 describe("installCSPNonce", () => {
   const nativeCreateElement = document.createElement.bind(document);
+  const nativeCreateElementNS = document.createElementNS.bind(document);
+  const XHTML_NS = "http://www.w3.org/1999/xhtml";
 
   const setNonceMeta = (value: string | null) => {
     document.head.innerHTML = "";
@@ -15,6 +17,7 @@ describe("installCSPNonce", () => {
 
   afterEach(() => {
     document.createElement = nativeCreateElement;
+    document.createElementNS = nativeCreateElementNS;
     document.head.innerHTML = "";
   });
 
@@ -25,6 +28,15 @@ describe("installCSPNonce", () => {
     expect(document.createElement("style").getAttribute("nonce")).toEqual(
       "abc123"
     );
+  });
+
+  it("stamps the nonce on <style> created via createElementNS (Ace)", () => {
+    setNonceMeta("abc123");
+    installCSPNonce();
+
+    expect(
+      document.createElementNS(XHTML_NS, "style").getAttribute("nonce")
+    ).toEqual("abc123");
   });
 
   it("does not stamp <script> or unrelated elements", () => {
