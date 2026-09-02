@@ -30,7 +30,7 @@ Observed behavior when restricting **Apple Account on Organization Devices** to 
 - Propagation takes a few minutes — devices continue to accept personal sign-in immediately after the change.
 - It only affects **new** sign-in attempts. Accounts already signed in are unaffected.
 - It is a **global** setting. There is no per-group or per-device scoping.
-- It requires Managed Apple Accounts, which requires the org to have captured its domains. Not all customers have.
+- It requires Managed Apple Accounts, which requires the org to have captured its domains.
 
 **Critically, "organization device" means a device in Apple Business Manager.** In testing, ADE-enrolled and supervised devices were restricted as expected. Devices enrolled via manual profile (OTA) enrollment could still sign in with a personal iCloud account, and Account-Driven User Enrollment (ADUE) was likewise unaffected.
 
@@ -72,20 +72,20 @@ Two further findings:
 - Manual/OTA enrollments and ADUE are outside the reach of the ABM setting, and `GetToken` offers no substitute. **No selective MDM-side lever blocks personal iCloud on those devices** — only the all-or-nothing restriction below.
 - The ABM setting cannot be scoped. Turning it on is all-or-nothing for the organization.
 
-## The blunt alternative: `allowAccountModification`
+## `allowAccountModification` (Restrictions payload)
 
 The [Restrictions payload](https://developer.apple.com/documentation/devicemanagement/restrictions) has an `allowAccountModification` key. Setting it to `false` blocks **all** iCloud sign-ins on the device. Unlike the ABM setting, it cannot be bypassed for Managed Apple Accounts — the org's own accounts are blocked too.
 
 It also blocks adding any other internet account: mail, contacts, calendars, and so on.
 
-So it is a real lever where nothing else reaches, but it is not the restriction the customer asked for. It answers "no accounts at all," not "only our accounts." Worth naming in any customer conversation so the trade-off is explicit rather than discovered later.
+It reaches devices the ABM setting does not, but it answers "no accounts at all," not "only our accounts."
 
 ## Implications for Fleet
 
-- **Restriction #1 needs no Fleet server work.** It is an ABM setting the customer toggles themselves. Fleet's role is documenting it, including the limits above: ABM/ADE + supervised only, global scope, new sign-ins only, Managed Apple Accounts required.
+- **Restriction #1 needs no Fleet server work.** It is an ABM setting, subject to the limits above: ABM/ADE + supervised only, global scope, new sign-ins only, Managed Apple Accounts required.
 - **Restriction #2 is the piece that would need implementation.** Fleet would have to declare `com.apple.mdm.token` in `ServerCapabilities` and answer `GetToken` for `com.apple.maid`. Today the enrollment payload declares only `com.apple.mdm.per-user-connections` and `com.apple.mdm.bootstraptoken` (`server/mdm/apple/apple_mdm.go`). The nanomdm layer already parses the `GetToken` message and its response type (`server/mdm/nanomdm/mdm/checkin.go`); the handling and policy are what's missing.
 - Any denial response must be explicit. Since an empty response permits sign-in, "fail closed" has to be deliberate.
-- Everything here depends on Managed Apple Accounts and captured domains. Worth confirming with a customer before promising either restriction.
+- Both restrictions depend on Managed Apple Accounts, which requires captured domains.
 
 ## References
 
