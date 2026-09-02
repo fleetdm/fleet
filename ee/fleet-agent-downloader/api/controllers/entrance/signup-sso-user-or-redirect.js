@@ -39,6 +39,7 @@ module.exports = {
       this.req.session.userId = possibleUserRecordForThisSsoUser.id;
     } else {
       // If we did not find a user in the database for this SSO user, we'll create a new one.
+      // WARNING: THIS IS NOT ATOMIC.  Please read: https://github.com/fleetdm/fleet/pull/49927/changes#r3898390411
       let newUserRecord = await User.create({
         fullName: ssoUserInfo.name,
         emailAddress: ssoUserInfo.email,
