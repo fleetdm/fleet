@@ -290,6 +290,16 @@ func TestSoftwareIngestionMutations(t *testing.T) {
 	MutateSoftwareOnIngestion(t.Context(), rpiImagerClean, slog.New(slog.DiscardHandler))
 	assert.Equal(t, "2.0.11.1", rpiImagerClean.Version)
 
+	// Test Raspberry Pi Imager sanitizer drops a non-numeric suffix so the
+	// ingested version stays comparable with version_compare
+	rpiImagerSuffix := &fleet.Software{
+		BundleIdentifier: "com.raspberrypi.rpi-imager",
+		Source:           "apps",
+		Version:          "v2.0.11.1-beta",
+	}
+	MutateSoftwareOnIngestion(t.Context(), rpiImagerSuffix, slog.New(slog.DiscardHandler))
+	assert.Equal(t, "2.0.11.1", rpiImagerSuffix.Version)
+
 	// Test JetBrains software without version in name is not transformed
 	jetbrainsNoVersionInName := &fleet.Software{
 		Name:    "IntelliJ IDEA",

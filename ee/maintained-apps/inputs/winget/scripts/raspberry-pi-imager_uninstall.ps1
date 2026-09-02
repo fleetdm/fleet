@@ -26,16 +26,23 @@ foreach ($key in $uninstallKeys) {
             $key.UninstallString
         }
 
-        # Split the command from its args (command is usually quoted).
-        $splitArgs = $uninstallCommand.Split('"')
-        if ($splitArgs.Length -gt 1) {
-            if ($splitArgs.Length -eq 3) {
-                $uninstallArgs = "$( $splitArgs[2] ) $uninstallArgs".Trim()
-            } elseif ($splitArgs.Length -gt 3) {
-                Throw "Uninstall command contains multiple quoted strings. Update the script.`nUninstall command: $uninstallCommand"
-            }
-            $uninstallCommand = $splitArgs[1]
+        # Parse the command defensively: quoted path, unquoted path that may
+        # contain spaces (captured through ".exe"), or a bare token.
+        $trailingArgs = ""
+        if ($uninstallCommand -match '^\s*"([^"]+)"\s*(.*)$') {
+            $uninstallCommand = $matches[1]
+            $trailingArgs = $matches[2]
+        } elseif ($uninstallCommand -match '(?i)^\s*(.+?\.exe)\s*(.*)$') {
+            $uninstallCommand = $matches[1]
+            $trailingArgs = $matches[2]
+        } elseif ($uninstallCommand -match '^\s*(\S+)\s*(.*)$') {
+            $uninstallCommand = $matches[1]
+            $trailingArgs = $matches[2]
+        } else {
+            Write-Host "Error: Could not parse uninstall string: $uninstallCommand"
+            Exit 1
         }
+        if ($trailingArgs -ne '') { $uninstallArgs = "$trailingArgs $uninstallArgs".Trim() }
         Write-Host "Uninstall command: $uninstallCommand"
         Write-Host "Uninstall args: $uninstallArgs"
 

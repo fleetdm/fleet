@@ -2427,8 +2427,10 @@ var (
 	// rpiImagerVersion strips the leading "v" that Raspberry Pi Imager's macOS
 	// build embeds in CFBundleShortVersionString/CFBundleVersion (e.g.
 	// "v2.0.11.1"), which doesn't match its release version ("2.0.11.1") and
-	// breaks version ordering.
-	rpiImagerVersion   = regexp.MustCompile(`^[vV](\d.*)$`)
+	// breaks version ordering. Captures only the dotted-numeric run so a future
+	// build metadata suffix (e.g. "v2.0.11.1-beta") doesn't end up in the
+	// ingested version, which version_compare can't order.
+	rpiImagerVersion   = regexp.MustCompile(`^[vV](\d+(?:\.\d+)*)`)
 	basicAppSanitizers = []struct {
 		matchBundleIdentifier string
 		matchName             string
