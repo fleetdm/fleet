@@ -1809,10 +1809,18 @@ func updateSoftwareUpdatedAt(
 	tx sqlx.ExtContext,
 	hostID uint,
 ) error {
-	const stmt = `INSERT INTO host_updates(host_id, software_updated_at) VALUES (?, CURRENT_TIMESTAMP) ON DUPLICATE KEY UPDATE software_updated_at=VALUES(software_updated_at)`
+	now := time.Now().UTC()
+	const stmt = `INSERT INTO host_updates(host_id, software_updated_at) VALUES (?, ?) ON DUPLICATE KEY UPDATE software_updated_at=VALUES(software_updated_at)`
 
-	if _, err := tx.ExecContext(ctx, stmt, hostID); err != nil {
+	if _, err := tx.ExecContext(ctx, stmt, hostID, now); err != nil {
 		return ctxerr.Wrap(ctx, err, "update host updates")
+	}
+
+	// Sync denormalized sort column on hosts.
+	if _, err := tx.ExecContext(ctx,
+		`UPDATE hosts SET sort_software_updated_at = ? WHERE id = ?`, now, hostID,
+	); err != nil {
+		return ctxerr.Wrap(ctx, err, "sync sort_software_updated_at")
 	}
 
 	return nil
