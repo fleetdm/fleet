@@ -5,7 +5,7 @@
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Raspberry Pi Imager' AND publisher = 'Raspberry Pi Ltd';",
         "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Raspberry Pi Imager' AND publisher = 'Raspberry Pi Ltd' AND version_compare(version, '2.0.8') < 0);",
-        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'raspberry pi imager.exe');"
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'rpi-imager.exe');"
       },
       "installer_url": "https://github.com/raspberrypi/rpi-imager/releases/download/v2.0.8/imager-v2.0.8.exe",
       "install_script_ref": "b1ca01cc",
