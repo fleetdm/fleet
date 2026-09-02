@@ -10,58 +10,92 @@ When a host fails a policy in Fleet, IT and Security teams can block access to t
 
 Okta's [Adaptive MFA](https://www.okta.com/learn/adaptive-mfa/) SKU is required to use this feature.
 
-Conditional access with Okta requires an mTLS reverse proxy on a separate subdomain (e.g., `okta.fleet.example.com`). All other Fleet traffic continues to use your existing Fleet server URL. If you're a managed-cloud customer, please reach out to Fleet to set up the mTLS infrastructure for you.
+Conditional access with Okta requires two reverse proxies in front of your Fleet server. The Fleet server itself must not be reachable from the public internet. All traffic reaches it through one of these proxies:
+
+- **Main TLS reverse proxy** at your Fleet server URL (e.g., `https://fleet.example.com`). It forwards all requests to your internal Fleet address (e.g., `http://fleet.internal:8080`), except requests to `/api/fleet/conditional_access/idp/sso`. It redirects those to the mTLS reverse proxy.
+- **mTLS reverse proxy** on an `okta.` subdomain of your Fleet server URL (e.g., `https://okta.fleet.example.com`). It requires a client certificate issued by Fleet, forwards requests to the same internal Fleet address, and adds the `X-Client-Cert-Serial` header.
+
+> **Warning:** Fleet trusts the `X-Client-Cert-Serial` header on `/api/fleet/conditional_access/idp/sso`. Only the mTLS reverse proxy verifies certificates, so the main reverse proxy must never forward that path to Fleet. Without the redirect, anyone who can reach your Fleet server URL can set the header themselves and impersonate an enrolled host.
+
+If you're a managed-cloud customer, please reach out to Fleet to set up the mTLS infrastructure for you.
 
 If you would like to set up a testing environment, see the [Okta conditional access testing guide](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/guides/okta-conditional-access-testing.md).
 
-If you use [fleet-terraform](https://github.com/fleetdm/fleet-terraform) modules for AWS hosting, see the [okta-conditional-access addon](https://github.com/fleetdm/fleet-terraform/tree/main/addons/okta-conditional-access) for streamlined mTLS proxy setup.
+If you use [fleet-terraform](https://github.com/fleetdm/fleet-terraform) modules for AWS hosting, the [okta-conditional-access addon](https://github.com/fleetdm/fleet-terraform/tree/main/addons/okta-conditional-access) sets up this model for you. It creates the mTLS load balancer, and its `redirect_rules` output adds the redirect to your main load balancer.
 
 Otherwise, you'll need to:
 
 1. **Get the mTLS CA certificate**: Download the CA certificate from Fleet's SCEP endpoint at `/api/fleet/conditional_access/scep?operation=GetCACert`. This is the certificate that signs the client certificates deployed to your hosts.
 
-> Note: The certificate is provided in DER format. If your mTLS termination solution requires PEM format, you can convert it using the following command:
+> **Note:** The certificate is provided in DER format. If your mTLS reverse proxy requires PEM format, convert it with the following command. Replace `fleet-scep-ca.cer` with the filename you used when downloading the certificate.
 
 `openssl x509 -inform der -in fleet-scep-ca.cer -out fleet-scep-ca.pem`
 
-Replace `fleet-scep-ca.crt` with the filename you used when downloading the certificate.
+2. **Create a DNS record**: Point the `okta.` subdomain of your Fleet server URL (e.g., `okta.fleet.example.com`) to your mTLS reverse proxy. Fleet builds the mTLS URL by adding `okta.` in front of your Fleet server URL's hostname, so the subdomain must match exactly.
 
-2. **Create a DNS record**: Set up a subdomain with an `okta` prefix pointing to your mTLS proxy server (e.g., `okta.fleet.example.com`).
-
-3. **Configure an mTLS reverse proxy**: Set up a reverse proxy that:
+3. **Configure the mTLS reverse proxy**: Set up a reverse proxy that:
    - Requires client certificate authentication using your CA certificate
-   - Forwards the `X-Client-Cert-Serial` header to your Fleet backend
+   - Forwards requests to your internal Fleet address
+   - Adds the `X-Client-Cert-Serial` header with the client certificate's serial number
 
-4. **Redirect the SSO endpoint**: Configure your main Fleet server to redirect `/api/fleet/conditional_access/idp/sso` to the mTLS proxy (e.g., `https://okta.fleet.example.com/api/fleet/conditional_access/idp/sso`). This ensures all authentication requests go through mTLS verification.
+4. **Redirect the SSO endpoint on the main reverse proxy**: Configure the reverse proxy at your Fleet server URL to redirect all requests to `/api/fleet/conditional_access/idp/sso` to the same path on the mTLS reverse proxy (e.g., `https://okta.fleet.example.com/api/fleet/conditional_access/idp/sso`). Redirect every HTTP method. Fleet accepts the SAML request as either `GET` or `POST`.
 
 #### Example Caddy configuration
 
-Here's an example `Caddyfile` for setting up the mTLS proxy:
+Here's an example `Caddyfile` for both reverse proxies:
 
 ```caddyfile
+# Main TLS reverse proxy
+fleet.example.com {
+  # Never forward the SSO endpoint to Fleet from here
+  redir /api/fleet/conditional_access/idp/sso https://okta.fleet.example.com{uri} 307
+
+  reverse_proxy fleet.internal:8080
+}
+
+# mTLS reverse proxy
 okta.fleet.example.com {
-  # Enable TLS with mTLS (client certificate authentication)
   tls {
     client_auth {
       mode require_and_verify
-      trusted_ca_cert_file /etc/caddy/fleet-scep-ca.crt
+      trusted_ca_cert_file /etc/caddy/fleet-scep-ca.pem
     }
   }
 
-  # Reverse proxy to your Fleet server
-  reverse_proxy https://fleet.example.com {
+  reverse_proxy fleet.internal:8080 {
     # Forward client certificate serial number to Fleet
     header_up X-Client-Cert-Serial {http.request.tls.client.serial}
   }
 }
 ```
 
+> **Note:** The example uses a `307` redirect so a `POST` request keeps its method and body. A `301` or `302` also works if that's all your proxy supports. The redirect only needs to keep the request away from Fleet. In the normal sign-in flow, Okta sends the browser to the mTLS reverse proxy directly.
+
 > **Important:** Caddy sends the certificate serial number in decimal format, while AWS ALB sends it in hexadecimal format. When using Caddy, you must configure Fleet to parse the serial number in decimal format by setting [`conditional_access.cert_serial_format`](https://fleetdm.com/docs/configuration/fleet-server-configuration#conditional-access) to `decimal`.
 
 Replace:
+- `fleet.example.com` with your Fleet server URL's hostname
 - `okta.fleet.example.com` with your mTLS subdomain
-- `/etc/caddy/fleet-scep-ca.crt` with the path to your SCEP CA certificate
-- `https://fleet.example.com` with your Fleet server URL
+- `fleet.internal:8080` with your internal Fleet address
+- `/etc/caddy/fleet-scep-ca.pem` with the path to your SCEP CA certificate
+
+#### Verify the proxies
+
+From any computer, send a request to the SSO endpoint through your Fleet server URL:
+
+```bash
+curl -si -X POST https://fleet.example.com/api/fleet/conditional_access/idp/sso -H 'X-Client-Cert-Serial: 1'
+```
+
+The response must be a redirect to your `okta.` subdomain. Any other response means the main reverse proxy is forwarding the path to Fleet.
+
+Then send a request to the mTLS reverse proxy without a client certificate:
+
+```bash
+curl -si https://okta.fleet.example.com/api/fleet/conditional_access/idp/sso
+```
+
+The connection must fail during the TLS handshake. If you get an HTTP response, the proxy isn't requiring a client certificate.
 
 ## Step 1: Download IdP signature certificate from Fleet
 
