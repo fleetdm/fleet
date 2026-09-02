@@ -242,6 +242,43 @@ func TestWritePathInvalidation(t *testing.T) {
 			require.Greater(t, ttlAfter, ttlBefore-5, "expiry must be preserved, not reset")
 		})
 
+		t.Run("the team patch never resurrects an entry that expired since it was read", func(t *testing.T) {
+			// The payload is read and written back as two separate Redis round
+			// trips. If the entry expires in between, writing it back without XX
+			// recreates it with no expiry at all — and its reverse index expired
+			// with it, so no later invalidation could reach it: the host would
+			// authenticate from a frozen snapshot forever.
+			t.Cleanup(func() { cleanupHostCacheKeys(t, pool) })
+			d := New(new(mock.Store), pool, WithHostCache(30*time.Second))
+
+			gone := hostCacheKeyByNodeKey("nk-expired-mid-rewrite")
+			applied := d.pipelinedSETKeepTTL(ctx, []hostCacheKV{{key: gone, val: []byte(`{"id":42}`), id: 42}})
+
+			require.Empty(t, applied, "a key that no longer exists must not count as patched")
+			conn := pool.Get()
+			defer conn.Close()
+			exists, err := redigo.Int(conn.Do("EXISTS", gone))
+			require.NoError(t, err)
+			require.Equal(t, 0, exists, "the write must not recreate the expired key")
+		})
+
+		t.Run("the team patch keeps the expiry of entries that are still alive", func(t *testing.T) {
+			t.Cleanup(func() { cleanupHostCacheKeys(t, pool) })
+			d := New(new(mock.Store), pool, WithHostCache(30*time.Second))
+
+			nk := "nk-still-alive"
+			primeCachedHost(t, d, 43, nk)
+			key := hostCacheKeyByNodeKey(nk)
+			ttlBefore := hostCacheTTLOf(t, pool, key)
+
+			applied := d.pipelinedSETKeepTTL(ctx, []hostCacheKV{{key: key, val: []byte(`{"id":43}`), id: 43}})
+
+			require.Len(t, applied, 1)
+			ttlAfter := hostCacheTTLOf(t, pool, key)
+			require.NotEqual(t, -1, ttlAfter, "entry must keep an expiry")
+			require.LessOrEqual(t, ttlAfter, ttlBefore)
+		})
+
 		t.Run("AddHostsToTeam falls back to invalidation when the destination config is unavailable", func(t *testing.T) {
 			// A transfer can drop escrowed disk encryption keys, which is cached
 			// in the orbit family. If we can't tell whether it did, dropping the

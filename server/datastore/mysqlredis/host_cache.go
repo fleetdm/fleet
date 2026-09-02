@@ -770,7 +770,6 @@ func (d *Datastore) rewriteTeamOnHostIDs(ctx context.Context, ids []uint, teamID
 
 	writes := make([]hostCacheKV, 0, len(targets))
 	var fallback []uint
-	patched := 0
 	for i, t := range targets {
 		raw := payloads[i]
 		if raw == "" {
@@ -793,15 +792,20 @@ func (d *Datastore) rewriteTeamOnHostIDs(ctx context.Context, ids []uint, teamID
 			fallback = append(fallback, t.id)
 			continue
 		}
-		writes = append(writes, hostCacheKV{key: t.fam.primaryKey(t.nodeKey), val: next})
-		patched++
+		writes = append(writes, hostCacheKV{key: t.fam.primaryKey(t.nodeKey), val: next, id: t.id})
 	}
 
-	d.pipelinedSETKeepTTL(ctx, writes)
+	applied := d.pipelinedSETKeepTTL(ctx, writes)
 	if len(fallback) > 0 {
 		d.invalidateHostIDs(ctx, fallback, "team")
 	}
-	d.recordHostCacheInvalidations(ctx, "team_rewrite", patched)
+	// Per host, to match the semantics of the invalidation counter: a host has
+	// one entry per family, and either can be absent or skipped.
+	patchedHosts := make(map[uint]struct{}, len(applied))
+	for _, kv := range applied {
+		patchedHosts[kv.id] = struct{}{}
+	}
+	d.recordHostCacheInvalidations(ctx, "team_rewrite", len(patchedHosts))
 }
 
 // escrowKeptOnTransfer mirrors cleanupDiskEncryptionKeysOnTeamChangeDB's
@@ -822,58 +826,73 @@ func escrowKeptOnTransfer(platform string, cfg fleet.DiskEncryptionConfig) bool 
 type hostCacheKV struct {
 	key string
 	val []byte
+	id  uint
 }
 
 // KEEPTTL keeps each entry's existing expiry; a plain SET would reset it and
-// leave the whole batch expiring together.
-func (d *Datastore) pipelinedSETKeepTTL(ctx context.Context, kvs []hostCacheKV) {
+// leave the whole batch expiring together. XX drops a key that expired between
+// being read and being written back: without it that SET recreates the entry
+// with no expiry at all, and since the reverse index expired with it, no
+// invalidation could ever find it again. Returns the writes Redis applied.
+func (d *Datastore) pipelinedSETKeepTTL(ctx context.Context, kvs []hostCacheKV) []hostCacheKV {
 	if len(kvs) == 0 {
-		return
+		return nil
 	}
-	byKey := make(map[string][]byte, len(kvs))
+	byKey := make(map[string]hostCacheKV, len(kvs))
 	keys := make([]string, 0, len(kvs))
 	for _, kv := range kvs {
-		byKey[kv.key] = kv.val
+		byKey[kv.key] = kv
 		keys = append(keys, kv.key)
 	}
+	var applied []hostCacheKV
 	for _, group := range redis.SplitKeysBySlot(d.pool, keys...) {
 		for len(group) > 0 {
 			n := min(len(group), hostCacheInvalidateBatchSize)
 			chunk := group[:n]
 			group = group[n:]
-			d.setKeepTTLChunk(ctx, chunk, byKey)
+			applied = append(applied, d.setKeepTTLChunk(ctx, chunk, byKey)...)
 		}
 	}
+	return applied
 }
 
 // SET has no variadic form, so the chunk is pipelined to avoid a round-trip per key.
-func (d *Datastore) setKeepTTLChunk(ctx context.Context, chunk []string, byKey map[string][]byte) {
+func (d *Datastore) setKeepTTLChunk(ctx context.Context, chunk []string, byKey map[string]hostCacheKV) []hostCacheKV {
 	conn := d.pool.Get()
 	defer conn.Close()
+	// BindConn before ConfigureDoer, see mgetChunk for the rationale.
 	if err := redis.BindConn(d.pool, conn, chunk...); err != nil {
 		d.recordHostCacheErr(ctx, "set", err)
-		return
+		return nil
 	}
 	doer := redis.ConfigureDoer(d.pool, conn)
-	sent := 0
+	sent := make([]hostCacheKV, 0, len(chunk))
 	for _, k := range chunk {
-		if err := doer.Send("SET", k, byKey[k], "KEEPTTL"); err != nil {
+		if err := doer.Send("SET", k, byKey[k].val, "XX", "KEEPTTL"); err != nil {
 			d.recordHostCacheErr(ctx, "set", err)
 			break
 		}
-		sent++
+		sent = append(sent, byKey[k])
 	}
-	if sent == 0 {
-		return
+	if len(sent) == 0 {
+		return nil
 	}
 	if err := doer.Flush(); err != nil {
 		d.recordHostCacheErr(ctx, "set", err)
-		return
+		return nil
 	}
-	for i := 0; i < sent; i++ {
-		if _, err := doer.Receive(); err != nil {
+	applied := make([]hostCacheKV, 0, len(sent))
+	for _, kv := range sent {
+		reply, err := doer.Receive()
+		if err != nil {
 			d.recordHostCacheErr(ctx, "set", err)
-			return
+			return applied
 		}
+		if reply == nil {
+			// XX rejected the write: the entry expired since it was read.
+			continue
+		}
+		applied = append(applied, kv)
 	}
+	return applied
 }
