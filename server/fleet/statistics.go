@@ -91,6 +91,14 @@ type StatisticsPayload struct {
 	NumHostsFleetMDMEnrolledMacOS int `json:"numHostsFleetMDMEnrolledMacOS"`
 	// NumHostsFleetMDMEnrolledWindows is the number of Windows hosts actually enrolled in Fleet's own MDM
 	NumHostsFleetMDMEnrolledWindows int `json:"numHostsFleetMDMEnrolledWindows"`
+	// NumMDMAppleProfiles is the number of Apple (macOS/iOS) configuration profiles defined across all teams
+	NumMDMAppleProfiles int `json:"numMDMAppleProfiles"`
+	// NumMDMWindowsProfiles is the number of Windows configuration profiles defined across all teams
+	NumMDMWindowsProfiles int `json:"numMDMWindowsProfiles"`
+	// NumMDMAppleDeclarations is the number of Apple DDM declarations defined across all teams
+	NumMDMAppleDeclarations int `json:"numMDMAppleDeclarations"`
+	// NumMDMAndroidProfiles is the number of Android configuration profiles defined across all teams
+	NumMDMAndroidProfiles int `json:"numMDMAndroidProfiles"`
 }
 
 type HostsCountByOrbitVersion struct {
