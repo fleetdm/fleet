@@ -559,6 +559,13 @@ func TestEnrollmentProfileNewEnrollmentSubjectOUMarker(t *testing.T) {
 		renewal, err := GenerateACMEEnrollmentProfileMobileconfig("Fleet", "https://example.com", "acme-ident", "SERIAL123", "com.foo.bar", MDMAccessRightAll, false)
 		require.NoError(t, err)
 		require.NotContains(t, string(renewal), FleetEnrollmentSubjectOU)
+
+		// The ACME payload gets no %SerialNumber% substitution from the device, so the CN must be
+		// the literal serial to match the order's permanent-identifier at finalize.
+		for _, profile := range [][]byte{fresh, renewal} {
+			require.NotContains(t, string(profile), "%SerialNumber%")
+			require.Contains(t, string(profile), "<string>CN</string>\n\t\t\t\t\t\t<string>SERIAL123</string>")
+		}
 	})
 }
 

@@ -3453,10 +3453,10 @@ the `software` table.
 
 - `created_at`: the time the row in the database was created, which usually corresponds to the first enrollment of the host.
 - `updated_at`: the last time the row in the database for the `hosts` table was updated.
-- `detail_updated_at`: the last time Fleet updated host data (this includes updates to host associated tables, e.g. `host_users`).
+- `detail_updated_at`: the last time Fleet updated host data (this includes updates to host associated tables, e.g. `host_users`). This only changes when the host's detail queries run, which is less frequent than policy queries, so it lags behind events (like a policy automation) that were triggered by a policy check alone.
 - `label_updated_at`: the last time Fleet updated the label membership for the host
 - `last_enrolled_at`: the last time the host enrolled to Fleet.
-- `policy_updated_at`: the last time we updated the policy results for the host
+- `policy_updated_at`: the last time we updated the policy results for the host. Policies can be checked, and policy automations triggered, much more often than the policy update interval ([learn more](https://fleetdm.com/guides/automations#policy-automations)).
 - `seen_time`: the last time the host contacted the fleet server, regardless of what operation it was for.
 - `software_updated_at`: the last time software changed for the host in any way.
 - `last_restarted_at`: the last time that the host was restarted.
@@ -3650,6 +3650,7 @@ To filter Windows hosts using `os_name` and `os_version`, set `os_name` to the f
       "mdm": {
         "encryption_key_available": false,
         "enrollment_status": "Pending",
+        "is_personal_enrollment": false,
         "dep_profile_error": true,
         "name": "Fleet",
         "server_url": "https://example.fleetdm.com/mdm/apple/mdm",
@@ -4220,6 +4221,7 @@ Returns the information of the specified host.
     "mdm": {
       "encryption_key_available": true,
       "enrollment_status": "On (manual)",
+      "is_personal_enrollment": false,
       "name": "Fleet",
       "connected_to_fleet": true,
       "server_url": "https://acme.com/mdm/apple/mdm",
@@ -4289,6 +4291,8 @@ Returns the information of the specified host.
 > - `scripts_enabled: null` means this agent is not a fleetd agent, or this agent is version <=1.23.0 which is not collecting the scripts enabled info
 
 > Note: [Get human-device mapping](https://github.com/fleetdm/fleet/blob/62dc32454f6a40e81fe229abdfc370d3bf7a56c6/docs/REST%20API/rest-api.md?plain=1#L3518) is deprecated as of Fleet 4.67.0. It is maintained for backwards compatibility. Please use the [Get host](#get-host) endpoint to get human-device mapping.
+
+> Note: `mdm.is_personal_enrollment` reports whether the last MDM enrollment Fleet recorded for the host was personal (BYOD). Unlike `mdm.enrollment_status`, it is not cleared when the host unenrolls, so it stays `true` for an unenrolled Android or Apple mobile host. On macOS and Windows, MDM state is re-reported by the agent, which resets the field once the enrollment profile is gone.
 
 > Note: For iOS, iPadOS, and Android hosts with ⁠`mdm.enrollment_status` set to "On (personal)", ⁠`hardware_serial` and ⁠`uuid` represent a temporary enrollment ID. For Android work profile, this is what Google calls an [enterprise-specific ID](https://developer.android.com/work/versions/android-12#:~:text=An%20enrollment%2Dspecific%20ID%20provides%20a%20unique%20ID%20that%20identifies%20the%20work%20profile%20enrollment%20in%20a%20particular%20organization%2C%20and%20will%20remain%20stable%20across%20factory%20resets).
 
@@ -4482,6 +4486,7 @@ In Fleet, hostnames are fully qualified domain names (FQDNs). `hostname` (e.g. j
     "mdm": {
       "encryption_key_available": false,
       "enrollment_status": null,
+      "is_personal_enrollment": false,
       "name": "",
       "server_url": null,
       "device_status": "unlocked",
@@ -4713,6 +4718,7 @@ X-Client-Cert-Serial: <fleet_identity_scep_cert_serial>
     "mdm": {
       "encryption_key_available": true,
       "enrollment_status": "On (manual)",
+      "is_personal_enrollment": false,
       "name": "Fleet",
       "connected_to_fleet": true,
       "server_url": "https://acme.com/mdm/apple/mdm",
@@ -6840,6 +6846,7 @@ If `mdm_id`, `mdm_name`, `mdm_enrollment_status`, `os_settings`, or `os_settings
       "mdm": {
         "encryption_key_available": false,
         "enrollment_status": null,
+        "is_personal_enrollment": false,
         "name": "",
         "server_url": null
       }
@@ -6908,7 +6915,6 @@ Deletes the label specified by ID.
 - [Get disk encryption status](#get-disk-encryption-status)
 - [Update host name template](#update-host-name-template)
 - [Resend host name template](#resend-host-name-template)
-- [Update Recovery Lock](#update-recovery-lock)
 - [Get OS settings (configuration profiles) status](#get-os-settings-configuration-profiles-status)
 - [Get OS setting (configuration profile) status](#get-os-setting-configuration-profile-status)
 - [Resend configuration profile](#resend-configuration-profile)
@@ -10365,6 +10371,7 @@ The semantics for creating a fleet policy are the same as for global policies, s
 | calendar_events_enabled | boolean | body | _Available in Fleet Premium_. Whether to trigger calendar events when policy is failing.                                                                |
 | conditional_access_enabled | boolean | body | _Available in Fleet Premium_. Whether to block single sign-on for end users whose hosts fail this policy.                                              |
 | software_title_id | integer | body | _Available in Fleet Premium_. ID of software title to install if the policy fails. If `software_title_id` is specified and the software has `labels_include_any` or `labels_exclude_any` defined, the policy will inherit this target in addition to specified `platform`.                                                                     |
+| software_installer_id | integer | body | _Available in Fleet Premium_. ID of a specific package of `software_title_id` to install on failure. If omitted, defaults to the title's first-added package. |
 | script_id         | integer | body | _Available in Fleet Premium_. ID of script to run if the policy fails.                                                                 |
 | continuous_automations_enabled | boolean | body | _Available in Fleet Premium_. If enabled, software and script automations will run every time Fleet receives a failing response from a host. If not, all automations run on a host's first failure, and when a host's response changes from pass to fail. |
 | labels_include_any      | array     | form | Labels, specified by label name, to target with this policy. If specified, the policy will run on hosts that match **any of these** labels. |
@@ -10596,6 +10603,7 @@ _Available in Fleet Premium_
 | calendar_events_enabled | boolean | body | _Available in Fleet Premium_. Whether to trigger calendar events when policy is failing.                                                                |
 | conditional_access_enabled | boolean | body | _Available in Fleet Premium_. Whether to block single sign-on for end users whose hosts fail this policy.                                              |
 | software_title_id       | integer | body | _Available in Fleet Premium_. ID of software title to install if the policy fails. Set to `null` to remove the automation.                              |
+| software_installer_id   | integer | body | _Available in Fleet Premium_. ID of a specific package of `software_title_id` to install on failure. If omitted, defaults to the title's first-added package.                              |
 | script_id               | integer | body | _Available in Fleet Premium_. ID of script to run if the policy fails. Set to `null` to remove the automation.                                          |
 | continuous_automations_enabled | boolean | body | _Available in Fleet Premium_. If enabled, software and script automations will run every time Fleet receives a failing response from a host. If not, all automations run on a host's first failure, and when a host's response changes from pass to fail. |
 | labels_include_any      | array     | form | Labels, specified by label name, to target with this policy. If specified, the policy will run on hosts that match **any of these** labels. |

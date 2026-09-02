@@ -2964,14 +2964,17 @@ func buildESPBlockCommands(provID, errorText, blockButtons string) []*mdm_types.
 }
 
 // buildESPReleaseCommands builds SyncML commands that release the device from the ESP. The release path advances
-// DevicePreparation to "complete" and signals ServerHasFinishedProvisioning at both Device and User scopes to
-// complete both the Device setup and Account setup phases of the ESP so Windows proceeds to login.
+// DevicePreparation to "complete", signals ServerHasFinishedProvisioning at both Device and User scopes to
+// complete both the Device setup and Account setup phases, and sets SkipUserStatusPage=true so that subsequent
+// user logins skip the Account setup ESP phase (#51380).
 func buildESPReleaseCommands(provID string) []*mdm_types.SyncMLCmd {
 	cmds := []*mdm_types.SyncMLCmd{
 		newSyncMLCmdInt(fleet.CmdReplace,
 			fmt.Sprintf("./Device/Vendor/MSFT/EnrollmentStatusTracking/DevicePreparation/PolicyProviders/%s/InstallationState", provID), "3"),
 		newSyncMLCmdBool(fleet.CmdReplace,
 			fmt.Sprintf("./Device/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus/ServerHasFinishedProvisioning", provID), "true"),
+		newSyncMLCmdBool(fleet.CmdReplace,
+			fmt.Sprintf("./Device/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus/SkipUserStatusPage", provID), "true"),
 	}
 	for _, cmd := range cmds {
 		cmd.CmdID = mdm_types.CmdID{Value: uuid.New().String()}

@@ -319,6 +319,51 @@ type OsqueryConfig struct {
 	//     body's node_key field is ignored. Pre-auth rejects
 	//     absent/invalid headers BEFORE the body is read.
 	AllowBodyAuthFallback bool `yaml:"allow_body_auth_fallback"`
+
+	// ConfigETags enables conditional osquery config requests: an agent that
+	// sends an "etag" field in its /api/osquery/config request body receives
+	// the config with an "etag" key added, and the constant {"etag":"ok"}
+	// body when its etag matches the current config.
+	//
+	// Default is FALSE: the request's etag field is ignored, every response
+	// is the full config with no "etag" key (byte-identical to the
+	// pre-feature behavior for every agent, opted-in or not), and no etag
+	// store I/O happens. Setting FLEET_OSQUERY_CONFIG_ETAGS=true and
+	// restarting opts a deployment in. This gate is broader than
+	// RedisConfigETags below, which only disables the Redis short circuit
+	// while leaving the conditional request protocol active.
+	ConfigETags bool `yaml:"config_etags"`
+
+	// RedisConfigETags enables the Redis-backed osquery config ETag SHORT
+	// CIRCUIT: when a host's request body carries an "etag" field matching
+	// the stored validator, the /api/osquery/config response is the constant
+	// {"etag":"ok"} body served straight from Redis, WITHOUT building the
+	// config (zero database reads for that request). Requires Redis to be
+	// configured; silently has no effect without it.
+	//
+	// Default is FALSE: every config request takes the always-full-build
+	// path, byte-identical to the behavior without this feature. Setting
+	// FLEET_OSQUERY_REDIS_CONFIG_ETAGS=true and restarting enables the short
+	// circuit, and requires ConfigETags above to be true as well (see
+	// effectiveRedisConfigETags). Toggling it back off is the A/B lever for
+	// ruling the feature out when debugging config delivery.
+	//
+	// See fleet.OsqueryService.GetClientConfigWithETag and the
+	// server/service/redis_config_etag package for the full contract.
+	RedisConfigETags bool `yaml:"redis_config_etags"`
+
+	// ConfigInMemoryCache enables the in-memory cache that serves the
+	// scheduled-report section of the osquery config — the response's
+	// "packs" key — for PackConfigCacheTTL, keyed by (team,
+	// query_reports_disabled), instead of rebuilding it from the database on
+	// every check-in. It never covers the rest of the response: "options"
+	// and "decorators" are rebuilt from agent options every time.
+	//
+	// Default is FALSE: every check-in builds from the database, which is
+	// slower but immune to any staleness in the cache. Setting
+	// FLEET_OSQUERY_CONFIG_IN_MEMORY_CACHE=true and restarting opts a
+	// deployment in. Independent of the config ETag options above.
+	ConfigInMemoryCache bool `yaml:"config_in_memory_cache"`
 }
 
 // Validate checks that osquery_host_identifier is one of the supported values.
@@ -1007,6 +1052,10 @@ type MDMConfig struct {
 	// AppleDEPSyncPeriodicity is the duration between DEP device syncing
 	// (fetching and setting of DEP profiles).
 	AppleDEPSyncPeriodicity time.Duration `yaml:"apple_dep_sync_periodicity"`
+	// AppleAPNsPushExpiration is the value used for the apns-expiration header
+	// on APNs push notifications, so APNs stores and retries delivery to
+	// offline devices until then. Zero or negative omits the header.
+	AppleAPNsPushExpiration time.Duration `yaml:"apple_apns_push_expiration"`
 	// AppleSCEPChallenge is the SCEP challenge for SCEP enrollment requests.
 	AppleSCEPChallenge string `yaml:"apple_scep_challenge"`
 	// AppleSCEPSignerValidityDays are the days signed client certificates will
@@ -1655,6 +1704,12 @@ func (man Manager) addConfigs() {
 		"Maximum body size for the osquery/log endpoint (e.g. 10MiB, 500KB). 0 means use the built-in default (10MiB). Only applied when osquery.allow_body_auth_fallback is true. In header-auth mode (false) the route is not subject to any body size limit; this value is ignored.")
 	man.addConfigByteSize("osquery.max_distributed_write_body_size", "0",
 		"Maximum body size for the osquery/distributed/write endpoint (e.g. 10MiB, 500KB). 0 means use the built-in default (5MiB). Only applied when osquery.allow_body_auth_fallback is true. In header-auth mode (false) the route is not subject to any body size limit; this value is ignored.")
+	man.addConfigBool("osquery.config_etags", false,
+		"Enable conditional osquery config requests: agents that send an etag receive the minimal 'unchanged' body when their config is current. Off by default; while off, every response is the full config with no etag, identical to the behavior before this feature existed.")
+	man.addConfigBool("osquery.redis_config_etags", false,
+		"Answer osquery config requests whose etag matches with the minimal 'unchanged' body straight from a Redis-backed ETag store, skipping the config build (and its database reads) entirely. Off by default; requires Redis (no effect without it) and requires osquery.config_etags to be enabled as well. While off, every config request takes the always-full-build path.")
+	man.addConfigBool("osquery.config_in_memory_cache", false,
+		"Cache the scheduled-report section of the osquery config (the response's 'packs' key) in memory, keyed by fleet (team) and the query_reports_disabled setting, instead of rebuilding it from the database on every config check-in. Off by default; while off, every check-in builds from the database. The rest of the response is never cached, and the cache is bypassed entirely for hosts with 2017 packs and for fleets with label-scoped reports, whose config differs per host.")
 	man.addConfigBool("osquery.allow_body_auth_fallback", true,
 		"Selects how host-authenticated osquery requests are authenticated. When true (default), only body-based node_key is used for authentication. When false, the nodey_key header is required for authentication and the body's node_key is ignored; pre-auth rejects absent/invalid headers before the body is read.")
 
@@ -1958,6 +2013,8 @@ func (man Manager) addConfigs() {
 	man.addConfigString("mdm.apple_vpp_app_metadata_api_bearer_token", "", "Apple Connect JWT, used for accessing VPP app metadata directly from Apple")
 	man.addConfigString("mdm.apple_scep_challenge", "", "SCEP static challenge for enrollment")
 	man.addConfigDuration("mdm.apple_dep_sync_periodicity", 1*time.Minute, "How much time to wait for DEP profile assignment")
+	man.addConfigDuration("mdm.apple_apns_push_expiration", 7*24*time.Hour, "How long APNs should store and retry delivering push notifications to offline devices (apns-expiration header); zero or negative omits the header")
+	man.hideConfig("mdm.apple_apns_push_expiration")
 	man.addConfigString("mdm.windows_wstep_identity_cert", "", "Microsoft WSTEP PEM-encoded certificate path")
 	man.addConfigString("mdm.windows_wstep_identity_key", "", "Microsoft WSTEP PEM-encoded private key path")
 	man.addConfigString("mdm.windows_wstep_identity_cert_bytes", "", "Microsoft WSTEP PEM-encoded certificate bytes")
@@ -2166,6 +2223,9 @@ func (man Manager) LoadConfig() FleetConfig {
 			MaxLogWriteBodySize:              man.getConfigByteSize("osquery.max_log_write_body_size"),
 			MaxDistributedWriteBodySize:      man.getConfigByteSize("osquery.max_distributed_write_body_size"),
 			AllowBodyAuthFallback:            man.getConfigBool("osquery.allow_body_auth_fallback"),
+			ConfigETags:                      man.getConfigBool("osquery.config_etags"),
+			RedisConfigETags:                 man.getConfigBool("osquery.redis_config_etags"),
+			ConfigInMemoryCache:              man.getConfigBool("osquery.config_in_memory_cache"),
 		},
 		Activity: ActivityConfig{
 			EnableAuditLog:                 man.getConfigBool("activity.enable_audit_log"),
@@ -2336,6 +2396,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			AppleConnectJWT:                   man.getConfigString("mdm.apple_vpp_app_metadata_api_bearer_token"),
 			AppleSCEPChallenge:                man.getConfigString("mdm.apple_scep_challenge"),
 			AppleDEPSyncPeriodicity:           man.getConfigDuration("mdm.apple_dep_sync_periodicity"),
+			AppleAPNsPushExpiration:           man.getConfigDuration("mdm.apple_apns_push_expiration"),
 			WindowsWSTEPIdentityCert:          man.getConfigString("mdm.windows_wstep_identity_cert"),
 			WindowsWSTEPIdentityKey:           man.getConfigString("mdm.windows_wstep_identity_key"),
 			WindowsWSTEPIdentityCertBytes:     man.getConfigString("mdm.windows_wstep_identity_cert_bytes"),
@@ -2824,6 +2885,8 @@ func TestConfig() FleetConfig {
 			DetailUpdateInterval:  1 * time.Hour,
 			MaxJitterPercent:      0,
 			AllowBodyAuthFallback: true,
+			ConfigETags:           true,
+			ConfigInMemoryCache:   true, // off in production; on here to cover the cache paths
 		},
 		Activity: ActivityConfig{
 			EnableAuditLog: true,

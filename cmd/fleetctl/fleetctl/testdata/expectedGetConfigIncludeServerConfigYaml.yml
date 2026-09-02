@@ -112,14 +112,13 @@ spec:
       require_all_software_windows: false
       macos_script:
       software:
-    windows_enrollment: null
+    windows_automatic_enrollment: null
     windows_settings:
       require_bitlocker_pin: false
       custom_settings: null
       enable_disk_encryption: false
       configuration_profiles: null
-      managed_local_account_settings:
-        enabled: false
+      enable_managed_local_account: false
     linux_settings:
       enable_escrow_disk_encryption_key: false
     android_settings:

@@ -392,7 +392,8 @@ type CommandEnqueueResult struct {
 // MDMCommandAuthz is used to check user authorization to read/write an
 // MDM command.
 type MDMCommandAuthz struct {
-	TeamID *uint `json:"team_id" renameto:"fleet_id"` // required for authorization by team
+	TeamID   *uint  `json:"team_id" renameto:"fleet_id"` // required for authorization by team
+	Platform string `json:"platform"`                    // Platform of the targeted host
 }
 
 // SetTeamID implements the TeamIDSetter interface.
@@ -1449,6 +1450,11 @@ type NanoMDMEnrollmentDetails struct {
 	HardwareAttested       bool       `db:"hardware_attested"`
 	UnlockToken            *string    `db:"unlock_token"`
 	BootstrapTokenEscrowed bool       `db:"bootstrap_token_escrowed"`
+	// EnrollmentType is the MDM enrollment channel as reported by nanomdm, e.g.
+	// "Device" or "User Enrollment (Device)". Manual BYOD and Account-Driven User
+	// Enrollment both produce the "On (manual - personal)" status, so the channel
+	// is the only way to tell them apart.
+	EnrollmentType string `db:"enrollment_type"`
 }
 
 // MDM SSO initiator constants identify which enrollment flow initiated the SSO

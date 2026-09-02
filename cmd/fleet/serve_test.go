@@ -39,7 +39,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/otel/sdk/resource"
-	semconv "go.opentelemetry.io/otel/semconv/v1.40.0"
+	semconv "go.opentelemetry.io/otel/semconv/v1.41.0"
 )
 
 // safeStore is a wrapper around mock.Store to allow for concurrent calling to
@@ -1331,12 +1331,12 @@ func TestHostVitalsLabelMembershipJob(t *testing.T) {
 	}
 
 	numCalls := 0
-	ds.UpdateLabelMembershipByHostCriteriaFunc = func(ctx context.Context, hvl fleet.HostVitalsLabel) (*fleet.Label, error) {
+	ds.UpdateLabelMembershipByHostCriteriaFunc = func(ctx context.Context, hvl fleet.HostVitalsLabel) (*fleet.Label, []uint, error) {
 		label := hvl.GetLabel()
 		// Only the host vitals label should be processed.
 		require.Equal(t, label, labels[2])
 		numCalls++
-		return nil, nil
+		return nil, nil, nil
 	}
 
 	err := cronHostVitalsLabelMembership(ctx, ds)

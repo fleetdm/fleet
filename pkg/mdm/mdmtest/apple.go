@@ -867,6 +867,10 @@ func (c *TestAppleMDMClient) SCEPEnroll() error {
 		return err
 	}
 
+	// the device has a single MDM identity, so a new SCEP cert replaces any
+	// ACME one it previously enrolled with
+	c.acmeCert = nil
+	c.acmeKey = nil
 	c.scepCert = cert
 	c.scepKey = key
 	return nil
@@ -955,6 +959,10 @@ func (c *TestAppleMDMClient) ACMEEnroll() error {
 		return fmt.Errorf("parse x509 ACME certificate: %w", err)
 	}
 
+	// the device has a single MDM identity, so a new ACME cert replaces any
+	// SCEP one it previously enrolled with
+	c.scepCert = nil
+	c.scepKey = nil
 	c.acmeCert = acmeCert
 	// We can reuse the same key we used for the CSR since it's the one that matches the cert
 	c.acmeKey = acmeKey

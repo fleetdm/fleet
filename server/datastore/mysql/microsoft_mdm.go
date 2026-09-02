@@ -1820,6 +1820,8 @@ func (ds *Datastore) whereBitLockerStatus(ctx context.Context, status fleet.Disk
 		withinGracePeriod     = `(hdek.updated_at IS NOT NULL AND hdek.updated_at >= DATE_SUB(NOW(6), INTERVAL 1 HOUR))`
 		whereProtectionOn     = `(hd.bitlocker_protection_status IS NULL OR hd.bitlocker_protection_status != 0)`
 		whereProtectionOff    = `(hd.bitlocker_protection_status = 0)`
+		// Set only when the agent tried to restore protection and could not, or deliberately deferred.
+		whereProtectionError = `(hd.bitlocker_protection_error IS NOT NULL AND hd.bitlocker_protection_error != '')`
 	)
 
 	whereBitLockerPINSet := `TRUE`
@@ -1859,20 +1861,23 @@ AND (
 AND ` + whereBitLockerPINSet
 
 	case fleet.DiskEncryptionActionRequired:
-		// Action required when:
-		// 1. We _would_ be in verified/verifying but PIN is required and not set, OR
-		// 2. Disk is encrypted and key is escrowed but BitLocker protection is off
-		//    (e.g., suspended for a BIOS update, or a TPM configuration issue)
+		// Action required means a person has to do something. Two ways to get here:
+		// 1. We _would_ be in verified/verifying but a PIN is required and not set, which only the end user can fix, OR
+		// 2. The disk is encrypted with protection off AND the agent reported it cannot restore it, either because
+		//    policy forbids a TPM-only protector, or the TPM is not ready, or it is deferring until a staged restart.
+		// Protection being off on its own is NOT action required: Fleet repairs that itself, so it belongs in enforcing.
 		return whereNotServer + `
 AND NOT ` + whereClientError + `
 AND ` + whereKeyAvailable + `
 AND (` + whereEncrypted + ` OR (NOT ` + whereEncrypted + ` AND ` + whereHostDisksUpdated + ` AND ` + withinGracePeriod + `))
-AND (NOT ` + whereBitLockerPINSet + ` OR (` + whereEncrypted + ` AND ` + whereProtectionOff + `))`
+AND (NOT ` + whereBitLockerPINSet + ` OR (` + whereEncrypted + ` AND ` + whereProtectionOff + ` AND ` + whereProtectionError + `))`
 
 	case fleet.DiskEncryptionEnforcing:
 		// Possible enforcing scenarios:
 		// - we don't have the key
 		// - we have the key and host_disks reported unencrypted before the key was updated or outside the 1-hour grace period after key was updated
+		// - the disk is encrypted but protection is off and the agent has not reported a problem, so Fleet is restoring
+		//   it and no one needs to be told to act
 		return whereNotServer + `
 AND NOT ` + whereClientError + `
 AND (
@@ -1882,6 +1887,12 @@ AND (
             AND (NOT ` + whereHostDisksUpdated + ` OR NOT ` + withinGracePeriod + `)
 		)
 	)
+    OR (` + whereKeyAvailable + `
+        AND ` + whereEncrypted + `
+        AND ` + whereProtectionOff + `
+        AND NOT ` + whereProtectionError + `
+        AND ` + whereBitLockerPINSet + `
+    )
 )`
 
 	case fleet.DiskEncryptionFailed:
@@ -1991,7 +2002,9 @@ SELECT
 	END AS status,
 	COALESCE(client_error, '') as detail,
 	hd.bitlocker_protection_status,
-	COALESCE(hd.tpm_pin_set, false) as tpm_pin_set
+	COALESCE(hd.tpm_pin_set, false) as tpm_pin_set,
+	COALESCE(hd.bitlocker_protection_error, '') as bitlocker_protection_error,
+	COALESCE(hd.bitlocker_protection_outcome, '') as bitlocker_protection_outcome
 FROM
 	host_mdm hmdm
 	LEFT JOIN host_disk_encryption_keys hdek ON hmdm.host_id = hdek.host_id
@@ -2011,10 +2024,12 @@ WHERE
 	)
 
 	var dest struct {
-		Status           fleet.DiskEncryptionStatus `db:"status"`
-		Detail           string                     `db:"detail"`
-		ProtectionStatus *int                       `db:"bitlocker_protection_status"`
-		TpmPinSet        bool                       `db:"tpm_pin_set"`
+		Status            fleet.DiskEncryptionStatus `db:"status"`
+		Detail            string                     `db:"detail"`
+		ProtectionStatus  *int                       `db:"bitlocker_protection_status"`
+		TpmPinSet         bool                       `db:"tpm_pin_set"`
+		ProtectionError   string                     `db:"bitlocker_protection_error"`
+		ProtectionOutcome string                     `db:"bitlocker_protection_outcome"`
 	}
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &dest, stmt, host.ID); err != nil {
 		if err != sql.ErrNoRows {
@@ -2033,14 +2048,35 @@ WHERE
 		dest.Status = fleet.DiskEncryptionFailed
 	}
 
+	protectionOff := dest.ProtectionStatus != nil && *dest.ProtectionStatus == fleet.BitLockerProtectionStatusOff
+	pinMissing := diskEncryptionConfig.BitLockerPINRequired && !dest.TpmPinSet
+
+	deferred := dest.ProtectionOutcome == string(fleet.DiskEncryptionProtectionDeferred)
+
+	var actionRequired *fleet.ActionRequiredState
+	if dest.Status == fleet.DiskEncryptionActionRequired {
+		switch {
+		// The agent is waiting on a restart it will not perform itself, so restarting is the action, and it takes
+		// precedence: nothing else can proceed until it happens.
+		case deferred:
+			actionRequired = new(fleet.ActionRequiredRestart)
+		// Creating a PIN goes through "Change how the drive is unlocked at startup", which Windows only offers on a
+		// protected volume, so while protection is off there is nothing for the end user to do here and the reason
+		// belongs in the detail instead.
+		case pinMissing && !protectionOff:
+			actionRequired = new(fleet.ActionRequiredCreatePIN)
+		}
+	}
+
 	// Build a meaningful detail message for action_required when there's no client error.
 	if dest.Status == fleet.DiskEncryptionActionRequired && dest.Detail == "" {
-		protectionOff := dest.ProtectionStatus != nil && *dest.ProtectionStatus == fleet.BitLockerProtectionStatusOff
-		pinMissing := diskEncryptionConfig.BitLockerPINRequired && !dest.TpmPinSet
-
 		switch {
+		case protectionOff && deferred:
+			dest.Detail = "BitLocker protection is off. Fleet will turn it back on after this host restarts."
+		case protectionOff && dest.ProtectionError != "":
+			dest.Detail = fmt.Sprintf("BitLocker protection is off. Fleet could not turn it back on: %s", dest.ProtectionError)
 		case protectionOff && pinMissing:
-			dest.Detail = "BitLocker protection is off and a required startup PIN is not set. The disk is encrypted but the TPM protector is not active, and a BitLocker PIN must be configured."
+			dest.Detail = "BitLocker protection is off and a startup PIN is required. Windows only offers PIN setup while the volume is protected, so the end user cannot create one until protection is restored."
 		case protectionOff:
 			dest.Detail = "BitLocker protection is off. The disk is encrypted but the TPM protector is not active. This may be due to a suspended BitLocker state or a TPM configuration issue."
 		case pinMissing:
@@ -2049,8 +2085,9 @@ WHERE
 	}
 
 	return &fleet.HostMDMDiskEncryption{
-		Status: &dest.Status,
-		Detail: dest.Detail,
+		Status:         &dest.Status,
+		Detail:         dest.Detail,
+		ActionRequired: actionRequired,
 	}, nil
 }
 
@@ -2108,6 +2145,9 @@ func (ds *Datastore) DeleteMDMWindowsConfigProfile(ctx context.Context, profileU
 		// Retain the profile's content so the profile-manager cron can build <Delete> commands after the definition is gone.
 		// This must run before the definition row is deleted. deleteMDMWindowsConfigProfile returns notFound if it does not exist.
 		if err := ds.retainWindowsProfilePriorContentDB(ctx, tx, []string{profileUUID}); err != nil {
+			return err
+		}
+		if err := snapshotWindowsProfileNamesForDeletionDB(ctx, tx, []string{profileUUID}); err != nil {
 			return err
 		}
 		if err := deleteMDMWindowsConfigProfile(ctx, tx, profileUUID); err != nil {
@@ -2241,6 +2281,29 @@ func (ds *Datastore) retainWindowsProfilePriorContentDB(ctx context.Context, tx 
 	return nil
 }
 
+// snapshotWindowsProfileNamesForDeletionDB copies each profile's live name onto its host
+// rows before the profile row is deleted: those rows outlive it, and their denormalized
+// profile_name is what reads fall back to once the live name is gone. Casts to BINARY
+// because the column's collation is case-insensitive, so a plain != would skip a rename
+// that only changed case.
+func snapshotWindowsProfileNamesForDeletionDB(ctx context.Context, tx sqlx.ExtContext, profileUUIDs []string) error {
+	if len(profileUUIDs) == 0 {
+		return nil
+	}
+	stmt, args, err := sqlx.In(`
+		UPDATE host_mdm_windows_profiles hmwp
+		JOIN mdm_windows_configuration_profiles mwcp ON mwcp.profile_uuid = hmwp.profile_uuid
+		SET hmwp.profile_name = mwcp.name
+		WHERE hmwp.profile_uuid IN (?) AND hmwp.profile_name != CAST(mwcp.name AS BINARY)`, profileUUIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "building IN for profile name snapshot")
+	}
+	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "snapshotting windows profile names before deletion")
+	}
+	return nil
+}
+
 // GetWindowsMDMProfilePriorContents returns the retained syncml for the given (profile_uuid, checksum) version keys.
 // Reader-backed; callers that cannot tolerate a replica-lag miss (the reconcile pass consumes each modify-install once) wrap the
 // context with ctxdb.RequirePrimary.
@@ -2289,6 +2352,9 @@ func (ds *Datastore) DeleteMDMWindowsConfigProfileByTeamAndName(ctx context.Cont
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		// Retain the profile's content for the cron to build <Delete> commands from, before the definition row is deleted (#46993).
 		if err := ds.retainWindowsProfilePriorContentDB(ctx, tx, []string{profile.ProfileUUID}); err != nil {
+			return err
+		}
+		if err := snapshotWindowsProfileNamesForDeletionDB(ctx, tx, []string{profile.ProfileUUID}); err != nil {
 			return err
 		}
 		if _, err := tx.ExecContext(ctx, `DELETE FROM mdm_windows_configuration_profiles WHERE profile_uuid=?`, profile.ProfileUUID); err != nil {
@@ -3101,16 +3167,15 @@ INSERT INTO
 }
 
 // UpdateMDMWindowsConfigProfile updates an existing profile's contents (if
-// cp.SyncML is non-empty) and/or label targeting in place. cp.Name must
-// match the existing profile's -- name is a Windows profile's only
-// identity, so it never changes on this path.
+// cp.SyncML is non-empty), name and/or label targeting in place. The profile is
+// keyed by cp.ProfileUUID, so a rename keeps the same row.
 func (ds *Datastore) UpdateMDMWindowsConfigProfile(ctx context.Context, cp fleet.MDMWindowsConfigProfile, usesFleetVars []fleet.FleetVarName) (*fleet.MDMWindowsConfigProfile, error) {
 	var teamID uint
 	if cp.TeamID != nil {
 		teamID = *cp.TeamID
 	}
 
-	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		var existing struct {
 			Name   string `db:"name"`
 			SyncML []byte `db:"syncml"`
@@ -3123,14 +3188,9 @@ func (ds *Datastore) UpdateMDMWindowsConfigProfile(ctx context.Context, cp fleet
 			}
 			return ctxerr.Wrap(ctx, err, "get existing windows config profile")
 		}
-		if existing.Name != cp.Name {
-			return ctxerr.Wrap(ctx, &fleet.BadRequestError{
-				Message: "The new profile's name must match the existing profile's name.",
-			})
-		}
-
 		if len(cp.SyncML) > 0 {
 			contentChanged := !bytes.Equal(existing.SyncML, cp.SyncML)
+			nameChanged := existing.Name != cp.Name
 
 			// Retain the outgoing version before overwriting it so the
 			// profile-manager cron can build <Delete> commands for LocURIs the
@@ -3142,15 +3202,60 @@ func (ds *Datastore) UpdateMDMWindowsConfigProfile(ctx context.Context, cp fleet
 				}
 			}
 
-			// uploaded_at is preserved when the content didn't change, matching
-			// the upsert's IF(syncml = VALUES(syncml), ...) convention -- a
-			// no-op edit must not read as a fresh upload.
-			stmt := `UPDATE mdm_windows_configuration_profiles SET syncml = ?, uploaded_at = IF(?, CURRENT_TIMESTAMP(), uploaded_at) WHERE profile_uuid = ? AND name = ?`
-			res, err := tx.ExecContext(ctx, stmt, cp.SyncML, contentChanged, cp.ProfileUUID, cp.Name)
+			// A rename is a fresh upload even when the bytes are identical, so
+			// uploaded_at survives only a true no-op (as in the batch path).
+			const setClause = `UPDATE mdm_windows_configuration_profiles
+SET syncml = ?, name = ?, uploaded_at = IF(?, CURRENT_TIMESTAMP(), uploaded_at)
+WHERE profile_uuid = ?`
+
+			// A name is unique per team across all four profile tables and no index
+			// spans them, so a cross-platform clash is checked here. In the statement
+			// rather than a preceding SELECT so check and write are atomic, as
+			// NewMDMWindowsConfigProfile does on insert.
+			stmt := setClause
+			args := []any{cp.SyncML, cp.Name, contentChanged || nameChanged, cp.ProfileUUID}
+			if nameChanged {
+				stmt += `
+	AND NOT EXISTS (SELECT 1 FROM mdm_apple_configuration_profiles WHERE name = ? AND team_id = ?)
+	AND NOT EXISTS (SELECT 1 FROM mdm_apple_declarations WHERE name = ? AND team_id = ?)
+	AND NOT EXISTS (SELECT 1 FROM mdm_android_configuration_profiles WHERE name = ? AND team_id = ?)`
+				args = append(args, cp.Name, teamID, cp.Name, teamID, cp.Name, teamID)
+			}
+
+			res, err := tx.ExecContext(ctx, stmt, args...)
 			if err != nil {
-				return ctxerr.Wrap(ctx, err, "updating windows mdm config profile contents")
+				switch {
+				case IsDuplicate(err):
+					// Another Windows profile in the team already holds the name.
+					return ctxerr.Wrap(ctx, &existsError{
+						ResourceType: "MDMWindowsConfigProfile.Name",
+						Identifier:   cp.Name,
+						TeamID:       cp.TeamID,
+					})
+				default:
+					return ctxerr.Wrap(ctx, err, "updating windows mdm config profile contents")
+				}
 			}
 			if aff, _ := res.RowsAffected(); aff == 0 {
+				if nameChanged {
+					// Nothing matched. Either the NOT EXISTS guard blocked the
+					// rename, or another transaction deleted the profile after
+					// this one read it: the SELECT at the top of this transaction
+					// is a non-locking read, so it doesn't hold the row.
+					var stillExists bool
+					if err := sqlx.GetContext(ctx, tx, &stillExists,
+						`SELECT EXISTS (SELECT 1 FROM mdm_windows_configuration_profiles WHERE profile_uuid = ?)`,
+						cp.ProfileUUID); err != nil {
+						return ctxerr.Wrap(ctx, err, "checking windows config profile after blocked update")
+					}
+					if stillExists {
+						return ctxerr.Wrap(ctx, &existsError{
+							ResourceType: "MDMWindowsConfigProfile.Name",
+							Identifier:   cp.Name,
+							TeamID:       cp.TeamID,
+						})
+					}
+				}
 				return ctxerr.Wrap(ctx, notFound("MDMWindowsProfile").WithName(cp.ProfileUUID))
 			}
 
@@ -3433,6 +3538,9 @@ ON DUPLICATE KEY UPDATE
 		if err := ds.retainWindowsProfilePriorContentDB(ctx, tx, deletedProfileUUIDs); err != nil {
 			return false, nil, ctxerr.Wrap(ctx, err, "retain deleted profiles for async removal")
 		}
+		if err := snapshotWindowsProfileNamesForDeletionDB(ctx, tx, deletedProfileUUIDs); err != nil {
+			return false, nil, err
+		}
 	}
 
 	// Step 3: Delete the config profile rows.
@@ -3515,20 +3623,27 @@ ON DUPLICATE KEY UPDATE
 func (ds *Datastore) GetHostMDMWindowsProfiles(ctx context.Context, hostUUID string) ([]fleet.HostMDMWindowsProfile, error) {
 	stmt := fmt.Sprintf(`
 SELECT
-	profile_uuid,
-	profile_name AS name,
+	hmwp.profile_uuid,
+	-- the live profile is the source of truth for the name; hmwp.profile_name is a
+	-- denormalized copy that only answers once the profile row is gone (deleted
+	-- profiles keep their host rows so the removal can still be tracked).
+	COALESCE(mwcp.name, hmwp.profile_name) AS name,
 	-- internally, a NULL status implies that the cron needs to pick up
 	-- this profile, for the user that difference doesn't exist, the
 	-- profile is effectively pending. This is consistent with all our
 	-- aggregation functions.
-	COALESCE(status, '%s') AS status,
-	COALESCE(operation_type, '') AS operation_type,
-	COALESCE(detail, '') AS detail,
-	command_uuid
+	COALESCE(hmwp.status, '%s') AS status,
+	COALESCE(hmwp.operation_type, '') AS operation_type,
+	COALESCE(hmwp.detail, '') AS detail,
+	hmwp.command_uuid
 FROM
-	host_mdm_windows_profiles
+	host_mdm_windows_profiles hmwp
+	LEFT JOIN mdm_windows_configuration_profiles mwcp ON mwcp.profile_uuid = hmwp.profile_uuid
 WHERE
-host_uuid = ? AND profile_name NOT IN(?) AND NOT (operation_type = '%s' AND COALESCE(status, '%s') IN('%s', '%s'))`,
+-- the Fleet-reserved filter reads the stored copy, not the resolved name: reserved
+-- profiles are Fleet-managed and can't be renamed, so the two always agree, and the
+-- stored copy keeps working once a reserved profile has been deleted.
+hmwp.host_uuid = ? AND hmwp.profile_name NOT IN(?) AND NOT (hmwp.operation_type = '%s' AND COALESCE(hmwp.status, '%s') IN('%s', '%s'))`,
 		fleet.MDMDeliveryPending,
 		fleet.MDMOperationTypeRemove,
 		fleet.MDMDeliveryPending,

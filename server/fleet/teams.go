@@ -129,7 +129,7 @@ type TeamPayloadMacOSSettings struct {
 
 // TeamPayloadWindowsSettings is the subset of windows_settings fields settable via the team PATCH endpoint.
 type TeamPayloadWindowsSettings struct {
-	ManagedLocalAccountSettings ManagedLocalAccountSettings `json:"managed_local_account_settings"`
+	EnableManagedLocalAccount optjson.Bool `json:"enable_managed_local_account"`
 	// RequireBitLockerPIN is the canonical home of the deprecated top-level
 	// windows_require_bitlocker_pin key.
 	RequireBitLockerPIN  optjson.Bool `json:"require_bitlocker_pin"`
@@ -494,7 +494,8 @@ func (t *TeamMDM) Clone() (Cloner, error) {
 // every serialization (API responses, teams.config storage) recomputes it as
 // the AND of the four per-platform disk encryption settings, and unset
 // per-platform settings become explicit booleans (fanned out from the flat
-// value when none was ever set).
+// value when none was ever set). The other unset optjson toggles below default
+// to false the same way, so no serialization path emits null for them.
 func (t TeamMDM) MarshalJSON() ([]byte, error) {
 	t.EnableDiskEncryption = normalizeDiskEncryptionFields(
 		t.EnableDiskEncryption,
@@ -509,6 +510,9 @@ func (t TeamMDM) MarshalJSON() ([]byte, error) {
 		t.RequireBitLockerPIN = t.WindowsSettings.RequireBitLockerPIN.Value
 	} else {
 		t.WindowsSettings.RequireBitLockerPIN = optjson.SetBool(t.RequireBitLockerPIN)
+	}
+	if !t.WindowsSettings.EnableManagedLocalAccount.Valid {
+		t.WindowsSettings.EnableManagedLocalAccount = optjson.SetBool(false)
 	}
 	// the alias type has no methods, so marshaling it avoids infinite recursion
 	type alias TeamMDM
