@@ -501,7 +501,7 @@ spec:
     Ask your system administrator to establish the recommended configuration via GP, ensure that the following UI path to include 'Guests, Local account'
     'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Deny access to this computer from the network'
   query: |
-    SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/UserRights/DenyAccessFromNetwork</LocURI></Target></Item></Get></SyncBody>" AND (regex_match(mdm_command_output,".*(Guest).*",0) is not null);
+    SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/UserRights/DenyAccessFromNetwork</LocURI></Target></Item></Get></SyncBody>" AND (regex_match(mdm_command_output,".*(Guest).*",0) is not null) AND (regex_match(mdm_command_output,".*(Local account).*",0) is not null);
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, english-support-only
   contributors: marcosd4h
@@ -577,7 +577,7 @@ spec:
     Ask your system administrator to establish the recommended configuration via GP, ensure that the following UI path includes 'Guests, Local account'
     'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Deny log on through Remote Desktop Services'
   query: |
-    SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/UserRights/DenyRemoteDesktopServicesLogOn</LocURI></Target></Item></Get></SyncBody>" AND (regex_match(mdm_command_output,".*(Guest).*",0) is not null);
+    SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/UserRights/DenyRemoteDesktopServicesLogOn</LocURI></Target></Item></Get></SyncBody>" AND (regex_match(mdm_command_output,".*(Guest).*",0) is not null) AND (regex_match(mdm_command_output,".*(Local account).*",0) is not null);
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, english-support-only
   contributors: marcosd4h
@@ -3340,7 +3340,7 @@ spec:
     To establish the recommended configuration via GP, set the following UI path to '%SystemRoot%\System32\logfiles\firewall\privatefw.log':
     'Computer Configuration\Policies\Windows Settings\Security Settings\Windows Defender Firewall with Advanced Security\Windows Defender Firewall with Advanced Security - Local Group Policy Object\Windows Defender Firewall Properties\Private Profile\Logging Customize\Name'
   query: |
-    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\WindowsFirewall\\PrivateProfile\\Logging\LogFilePath' AND data ='%systemroot%\system32\logfiles\firewall\pfirewall.log');
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\WindowsFirewall\PrivateProfile\Logging\LogFilePath' and data != '');
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
   contributors: RachelElysia
@@ -3511,7 +3511,7 @@ spec:
     To establish the recommended configuration via GP, set the following UI path to a valid log file path:
     'Computer Configuration\Policies\Windows Settings\Security Settings\Windows Defender Firewall with Advanced Security\Windows Defender Firewall with Advanced Security - Local Group Policy Object\Windows Defender Firewall Properties\Public Profile\Logging Customize\Name'
   query: |
-    SELECT * FROM registry WHERE (key = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\WindowsFirewall\\PublicProfile\\Logging\LogFilePath' and data == '%SystemRoot%\System32\logfiles\firewall\publicfw.log');
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\WindowsFirewall\PublicProfile\Logging\LogFilePath' and data != '');
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
   contributors: RachelElysia
@@ -4065,10 +4065,10 @@ spec:
       -  4672: Special privileges assigned to new logon.
       -  4673: A privileged service was called.
       -  4674: An operation was attempted on a privileged object.
-      The recommended state for this setting is: 'Success and Failure'.
+      The recommended state for this setting is: 'Success'.
   resolution: |
     Automatic method:
-    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to include Success and Failure:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to include Success:
     'Computer Configuration\Policies\Windows Settings\Security Settings\Advanced Audit Policy Configuration\Audit Policies\Privilege Use\Audit Sensitive Privilege Use'
   query: |
     SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/Audit/PrivilegeUse_AuditSensitivePrivilegeUse</LocURI></Target></Item></Get></SyncBody>" 

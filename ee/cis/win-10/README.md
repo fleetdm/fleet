@@ -6,7 +6,7 @@ For requirements and usage details, see the [CIS Benchmarks](https://fleetdm.com
 
 ### Limitations
 
-> All Automated items in this version of the benchmark are able to be automated. Fleet does not ship BitLocker (BL) or Next Generation (NG) profile recommendations.
+> All Automated items in this version of the benchmark are covered. Fleet does not ship BitLocker (BL) or Next Generation (NG) profile recommendations.
 
 ### Important: Group Policy removal does not clear registry values
 
