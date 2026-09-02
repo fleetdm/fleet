@@ -5,6 +5,7 @@ import { createMockHostSoftware } from "__mocks__/hostMock";
 import { createMockSoftwareInstallResult } from "__mocks__/softwareMock";
 import {
   getDefaultSoftwareInstallHandler,
+  getDeviceSoftwareInstallHandlerFailedWithPreInstall,
   getSoftwareInstallHandlerNoOutputs,
   getSoftwareInstallHandlerOnlyInstallOutput,
   getSoftwareInstallHandlerWithHash,
@@ -468,6 +469,35 @@ describe("SoftwareInstallDetailsModal", () => {
           name: /Details/i,
         })
       ).not.toBeInTheDocument();
+    });
+
+    // #52017: on the end-user My device page, clicking "Failed" opened the modal
+    // but showed "is installed" because the host inventory still reported an
+    // older version. The override is meant for the admin Host details page;
+    // My device (deviceAuthToken) must show the failure so the user can see
+    // Details + Retry.
+    it("on My device, does not override a failed install to 'is installed' even when the host reports an older installed version", async () => {
+      mockServer.use(getDeviceSoftwareInstallHandlerFailedWithPreInstall);
+      const renderWithServer = createCustomRenderer({ withBackendMock: true });
+
+      renderWithServer(
+        <SoftwareInstallDetailsModal
+          details={baseDetails}
+          hostSoftware={createMockHostSoftware({
+            id: 99,
+            name: "CoolApp",
+          })}
+          deviceAuthToken="token123"
+          onCancel={noop}
+        />
+      );
+
+      expect(await screen.findByText(/failed to install/)).toBeInTheDocument();
+      expect(screen.queryByText(/is installed\./i)).not.toBeInTheDocument();
+      expect(
+        await screen.findByRole("button", { name: /Details/i })
+      ).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument();
     });
   });
 
