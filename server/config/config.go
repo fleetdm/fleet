@@ -1056,6 +1056,10 @@ type MDMConfig struct {
 	// on APNs push notifications, so APNs stores and retries delivery to
 	// offline devices until then. Zero or negative omits the header.
 	AppleAPNsPushExpiration time.Duration `yaml:"apple_apns_push_expiration"`
+	// AppleAPNsSweepInterval is the tick interval of the APNs sweep cron,
+	// which walks enabled enrollments in daily laps and re-pushes any silent
+	// for more than a day.
+	AppleAPNsSweepInterval time.Duration `yaml:"apple_apns_sweep_interval"`
 	// AppleSCEPChallenge is the SCEP challenge for SCEP enrollment requests.
 	AppleSCEPChallenge string `yaml:"apple_scep_challenge"`
 	// AppleSCEPSignerValidityDays are the days signed client certificates will
@@ -2015,6 +2019,8 @@ func (man Manager) addConfigs() {
 	man.addConfigDuration("mdm.apple_dep_sync_periodicity", 1*time.Minute, "How much time to wait for DEP profile assignment")
 	man.addConfigDuration("mdm.apple_apns_push_expiration", 7*24*time.Hour, "How long APNs should store and retry delivering push notifications to offline devices (apns-expiration header); zero or negative omits the header")
 	man.hideConfig("mdm.apple_apns_push_expiration")
+	man.addConfigDuration("mdm.apple_apns_sweep_interval", 1*time.Minute, "Tick interval of the APNs sweep cron, which re-pushes Apple MDM enrollments that have been silent for more than a day")
+	man.hideConfig("mdm.apple_apns_sweep_interval")
 	man.addConfigString("mdm.windows_wstep_identity_cert", "", "Microsoft WSTEP PEM-encoded certificate path")
 	man.addConfigString("mdm.windows_wstep_identity_key", "", "Microsoft WSTEP PEM-encoded private key path")
 	man.addConfigString("mdm.windows_wstep_identity_cert_bytes", "", "Microsoft WSTEP PEM-encoded certificate bytes")
@@ -2397,6 +2403,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			AppleSCEPChallenge:                man.getConfigString("mdm.apple_scep_challenge"),
 			AppleDEPSyncPeriodicity:           man.getConfigDuration("mdm.apple_dep_sync_periodicity"),
 			AppleAPNsPushExpiration:           man.getConfigDuration("mdm.apple_apns_push_expiration"),
+			AppleAPNsSweepInterval:            man.getConfigDuration("mdm.apple_apns_sweep_interval"),
 			WindowsWSTEPIdentityCert:          man.getConfigString("mdm.windows_wstep_identity_cert"),
 			WindowsWSTEPIdentityKey:           man.getConfigString("mdm.windows_wstep_identity_key"),
 			WindowsWSTEPIdentityCertBytes:     man.getConfigString("mdm.windows_wstep_identity_cert_bytes"),

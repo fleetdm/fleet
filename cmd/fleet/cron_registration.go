@@ -296,15 +296,37 @@ func registerMDMCrons(ctx context.Context, deps cronSchedulesDeps) {
 		return cronMigrateToPerHostPolicy(ctx, deps.instanceID, deps.ds, deps.logger, deps.androidSvc)
 	})
 
-	deps.register("failed to register APNs pusher schedule", func() (fleet.CronSchedule, error) {
-		return newMDMAPNsPusher(
-			ctx,
-			deps.instanceID,
-			deps.ds,
-			deps.commander,
-			deps.logger,
-		)
-	})
+	// The APNs sweep replaces the legacy per-minute pending-commands pusher;
+	// the env var runs the legacy cron instead, as a rollback lever. Not
+	// both: the legacy cron's pushes keep last_seen_at fresh, which would
+	// starve the sweep's silence filter.
+	if legacyInterval, legacyEnabled, parseErr := legacyAPNsPusherInterval(os.Getenv); legacyEnabled {
+		if parseErr != nil {
+			deps.logger.WarnContext(ctx, "invalid FLEET_MDM_APPLE_LEGACY_APNS_PUSHER_INTERVAL, using 1m", "err", parseErr)
+		}
+		deps.logger.InfoContext(ctx, "legacy APNs pusher enabled; APNs sweep disabled")
+		deps.register("failed to register APNs pusher schedule", func() (fleet.CronSchedule, error) {
+			return newMDMAPNsPusher(
+				ctx,
+				deps.instanceID,
+				deps.ds,
+				deps.commander,
+				legacyInterval,
+				deps.logger,
+			)
+		})
+	} else {
+		deps.register("failed to register APNs sweep schedule", func() (fleet.CronSchedule, error) {
+			return newMDMAPNsSweepSchedule(
+				ctx,
+				deps.instanceID,
+				deps.ds,
+				deps.commander,
+				deps.config.MDM.AppleAPNsSweepInterval,
+				deps.logger,
+			)
+		})
+	}
 
 	deps.register("failed to register Apple MDM OS updates schedule", func() (fleet.CronSchedule, error) {
 		return newAppleMDMOSUpdatesSchedule(ctx, deps.instanceID, deps.ds, deps.logger)
@@ -403,4 +425,24 @@ func registerMiscCrons(ctx context.Context, deps cronSchedulesDeps) {
 	deps.register("failed to register batch activity completion checker schedule", func() (fleet.CronSchedule, error) {
 		return newBatchActivityCompletionCheckerSchedule(ctx, deps.instanceID, deps.ds, deps.logger)
 	})
+}
+
+// legacyAPNsPusherInterval reads FLEET_MDM_APPLE_LEGACY_APNS_PUSHER_INTERVAL,
+// the rollback lever that registers the legacy per-minute APNs pusher instead
+// of the APNs sweep. Returns the interval to use and whether the lever is
+// set; a non-nil error reports an invalid value, with the interval already
+// fallen back to 1m.
+func legacyAPNsPusherInterval(getenv func(string) string) (time.Duration, bool, error) {
+	raw := getenv("FLEET_MDM_APPLE_LEGACY_APNS_PUSHER_INTERVAL")
+	if raw == "" {
+		return 0, false, nil
+	}
+	interval, err := time.ParseDuration(raw)
+	if err == nil && interval <= 0 {
+		err = fmt.Errorf("non-positive interval %q", raw)
+	}
+	if err != nil {
+		return 1 * time.Minute, true, err
+	}
+	return interval, true, nil
 }
