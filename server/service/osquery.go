@@ -38,6 +38,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service/contract"
 	"github.com/fleetdm/fleet/v4/server/service/osquery_utils"
 	kithttp "github.com/go-kit/kit/transport/http"
+	"github.com/google/uuid"
 	"github.com/spf13/cast"
 	"golang.org/x/exp/slices"
 )
@@ -2895,6 +2896,10 @@ func (svc *Service) processSoftwareForNewlyFailingPolicies(
 		}
 	}
 
+	// Every install queued from this one policy report was requested at the
+	// same moment with no ordering between them, so they share a batch and the
+	// host runs them at the same time instead of one per check-in.
+	batchID := uuid.NewString()
 	for _, failingPolicyWithInstaller := range failingPoliciesWithInstaller {
 		policyID := failingPolicyWithInstaller.ID
 		_, newlyFailing := newFailingSet[policyID]
@@ -2989,6 +2994,7 @@ func (svc *Service) processSoftwareForNewlyFailingPolicies(
 				SelfService:     false,
 				PolicyID:        &policyID,
 				DeferActivation: svc.deferFleetInitiatedActivation(),
+				BatchID:         batchID,
 			},
 		)
 		if err != nil {

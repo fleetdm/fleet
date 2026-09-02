@@ -97,6 +97,7 @@ spec:
       manual_agent_install:
       require_all_software_macos: false
       require_all_software_windows: false
+      install_software_in_parallel: false
       script:
       software:
     setup_experience:
@@ -110,6 +111,7 @@ spec:
       macos_manual_agent_install:
       require_all_software_macos: false
       require_all_software_windows: false
+      install_software_in_parallel: false
       macos_script:
       software:
     windows_automatic_enrollment: null

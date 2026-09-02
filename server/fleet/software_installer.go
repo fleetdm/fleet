@@ -1419,6 +1419,13 @@ type HostSoftwareInstallOptions struct {
 	// release cron activates it within the configured per-minute budget. Set
 	// by policy-automation paths when activity.fleet_initiated_release_per_minute > 0.
 	DeferActivation bool
+	// BatchID groups install requests that may run at the same time. The
+	// host's upcoming-activities queue activates one activity at a time, so
+	// each install normally waits for the previous one to finish. Requests
+	// that share a BatchID (same host, same priority, queued back to back) are
+	// activated together and fleetd downloads and installs them concurrently.
+	// Empty means the request is activated on its own, in queue order.
+	BatchID string
 }
 
 // IsFleetInitiated returns true if the software install is initiated by Fleet.

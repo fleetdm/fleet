@@ -305,7 +305,7 @@ To replace the Fleet logo with your organization's logo:
  
 > See [configuration documentation](https://fleetdm.com/docs/configuration/yaml-files#org-info) for recommended logo sizes.
 
-> Setup experience software installs alphabetically (by name unless custom display name is added), one at a time. The setup script runs after all software installs are complete. Software won't appear in the upcoming activity until the previous install is complete (success or fail).
+> Setup experience software installs alphabetically (by name unless custom display name is added), one at a time. The setup script runs after all software installs are complete. Software won't appear in the upcoming activity until the previous install is complete (success or fail). To install all software at once instead, set `install_software_in_parallel: true` in the `setup_experience` section of your GitOps YAML (or via `PATCH /api/v1/fleet/setup_experience`): every item then starts on the same agent check-in and the host downloads and installs them at the same time.
 
 > Currently, software that [automatically installs](https://fleetdm.com/guides/automatic-software-install-in-fleet) and scripts that [automatically run](https://fleetdm.com/guides/policy-automation-run-script) are also installed and run during Setup Assistant but won't appear in the window. Automatic software and scripts may run before or after the setup experience software/script. They aren't installed/run in any particular order.
 

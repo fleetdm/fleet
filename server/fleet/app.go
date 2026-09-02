@@ -970,8 +970,12 @@ type MacOSSetup struct {
 	ManualAgentInstall          optjson.Bool                       `json:"manual_agent_install" renameto:"macos_manual_agent_install"`
 	RequireAllSoftware          bool                               `json:"require_all_software_macos"`
 	RequireAllSoftwareWindows   bool                               `json:"require_all_software_windows"`
-	EnableManagedLocalAccount   optjson.Bool                       `json:"enable_managed_local_account" renameto:"enable_create_local_admin_account" renamescope:"macos_setup,setup_experience"`
-	EndUserLocalAccountType     optjson.String                     `json:"end_user_local_account_type"`
+	// InstallSoftwareInParallel starts every pending setup experience software
+	// item at once instead of one at a time in display-name order. Applies to
+	// macOS, Windows and Linux hosts.
+	InstallSoftwareInParallel bool           `json:"install_software_in_parallel"`
+	EnableManagedLocalAccount optjson.Bool   `json:"enable_managed_local_account" renameto:"enable_create_local_admin_account" renamescope:"macos_setup,setup_experience"`
+	EndUserLocalAccountType   optjson.String `json:"end_user_local_account_type"`
 }
 
 // Validate checks the payload is in a valid state.

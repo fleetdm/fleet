@@ -164,42 +164,71 @@ func (r *Runner) run(ctx context.Context, config *fleet.OrbitConfig) error {
 		r.logger.Debug().Msg("starting software installers run")
 	}
 
-	var errs []error
+	// Every install the server handed us in this poll runs at the same time.
+	// The server already decides how many installs a host gets per poll (one at
+	// a time during a serial setup experience, everything pending otherwise), so
+	// serializing again here only made each item wait for the previous one to
+	// finish downloading, installing and reporting.
+	var (
+		wg   sync.WaitGroup
+		mu   sync.Mutex
+		errs []error
+	)
+	addErr := func(err error) {
+		mu.Lock()
+		defer mu.Unlock()
+		errs = append(errs, err)
+	}
 	for _, installerID := range config.Notifications.PendingSoftwareInstallerIDs {
-		logger := r.logger.With().Str("installerID", installerID).Logger()
-
-		logger.Info().Msg("processing")
 		if ctx.Err() != nil {
-			errs = append(errs, ctx.Err())
+			addErr(ctx.Err())
 			break
 		}
-		payload, err := r.installSoftware(ctx, installerID, logger)
-		if err != nil {
-			errs = append(errs, err)
-		}
-		if payload == nil {
-			continue
-		}
-		attemptNum := 1
-		err = retry.Do(func() error {
-			if err := r.OrbitClient.SaveInstallerResult(payload); err != nil {
-				logger.Info().Err(err).Msgf("failed to save installer result, attempt #%d", attemptNum)
-				attemptNum++
-				return err
+		wg.Add(1)
+		go func(installerID string) {
+			defer wg.Done()
+			if err := r.processInstall(ctx, installerID); err != nil {
+				addErr(err)
 			}
-			return nil
-		}, r.retryOpts...)
-		if err != nil {
-			errs = append(errs, fmt.Errorf("saving software install results: %w", err))
-		}
-
+		}(installerID)
 	}
+	wg.Wait()
+
 	if len(errs) != 0 {
 		r.logger.Error().Errs("errs", errs).Msg("failures found when processing installers")
 		return errors.Join(errs...)
 	}
 
 	return nil
+}
+
+// processInstall runs one pending install end to end: fetch the details,
+// download and install, then report the result to the server.
+func (r *Runner) processInstall(ctx context.Context, installerID string) error {
+	logger := r.logger.With().Str("installerID", installerID).Logger()
+	logger.Info().Msg("processing")
+
+	var errs []error
+	payload, err := r.installSoftware(ctx, installerID, logger)
+	if err != nil {
+		errs = append(errs, err)
+	}
+	if payload == nil {
+		return errors.Join(errs...)
+	}
+	attemptNum := 1
+	err = retry.Do(func() error {
+		if err := r.OrbitClient.SaveInstallerResult(payload); err != nil {
+			logger.Info().Err(err).Msgf("failed to save installer result, attempt #%d", attemptNum)
+			attemptNum++
+			return err
+		}
+		return nil
+	}, r.retryOpts...)
+	if err != nil {
+		errs = append(errs, fmt.Errorf("saving software install results: %w", err))
+	}
+	return errors.Join(errs...)
 }
 
 // handleInstallerNotFound returns a synthetic failure payload once

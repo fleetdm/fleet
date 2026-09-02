@@ -4649,6 +4649,13 @@
             "null"
           ]
         },
+        "install_software_in_parallel": {
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
         "script": {
           "deprecated": true,
           "deprecationMessage": "'script' is deprecated, use 'macos_script' instead",

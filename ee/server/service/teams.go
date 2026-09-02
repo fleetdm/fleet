@@ -2332,6 +2332,7 @@ func (svc *Service) editTeamFromSpec(
 		}
 	}
 	team.Config.MDM.MacOSSetup.RequireAllSoftwareWindows = spec.MDM.MacOSSetup.RequireAllSoftwareWindows
+	team.Config.MDM.MacOSSetup.InstallSoftwareInParallel = spec.MDM.MacOSSetup.InstallSoftwareInParallel
 
 	// Whether Windows/Android MDM is configured is gated at the global level
 	// in ModifyAppConfig; createTeamFromSpec doesn't gate custom_settings on
@@ -2906,6 +2907,11 @@ func (svc *Service) updateTeamMDMAppleSetup(ctx context.Context, tm *fleet.Team,
 
 	if payload.RequireAllSoftwareWindows != nil && tm.Config.MDM.MacOSSetup.RequireAllSoftwareWindows != *payload.RequireAllSoftwareWindows {
 		tm.Config.MDM.MacOSSetup.RequireAllSoftwareWindows = *payload.RequireAllSoftwareWindows
+		didUpdate = true
+	}
+
+	if payload.InstallSoftwareInParallel != nil && tm.Config.MDM.MacOSSetup.InstallSoftwareInParallel != *payload.InstallSoftwareInParallel {
+		tm.Config.MDM.MacOSSetup.InstallSoftwareInParallel = *payload.InstallSoftwareInParallel
 		didUpdate = true
 	}
 

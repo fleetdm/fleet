@@ -226,6 +226,101 @@ func TestSetupExperienceNextStep(t *testing.T) {
 	assert.True(t, finished)
 }
 
+// TestSetupExperienceNextStepParallel checks that install_software_in_parallel starts every pending software item on one
+// call, including while another item is still running, and that the default keeps the one-at-a-time behaviour.
+func TestSetupExperienceNextStepParallel(t *testing.T) {
+	ctx := context.Background()
+	ds := new(mock.Store)
+	svc := newTestService(t, ds)
+
+	hostUUID := "123"
+	hostID := uint(1)
+	installerIDs := []uint{2, 3, 4}
+
+	parallel := true
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{
+			MDM: fleet.MDM{
+				EnabledAndConfigured: true,
+				MacOSSetup:           fleet.MacOSSetup{InstallSoftwareInParallel: parallel},
+			},
+		}, nil
+	}
+	ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, host *fleet.Host) (bool, error) {
+		return true, nil
+	}
+
+	newStatuses := func() []*fleet.SetupExperienceStatusResult {
+		running := uint(9)
+		statuses := []*fleet.SetupExperienceStatusResult{
+			{HostUUID: hostUUID, SoftwareInstallerID: &running, Status: fleet.SetupExperienceStatusRunning},
+		}
+		for i := range installerIDs {
+			statuses = append(statuses, &fleet.SetupExperienceStatusResult{
+				HostUUID:            hostUUID,
+				SoftwareInstallerID: &installerIDs[i],
+				Status:              fleet.SetupExperienceStatusPending,
+			})
+		}
+		return statuses
+	}
+	statuses := newStatuses()
+	ds.ListSetupExperienceResultsByHostUUIDFunc = func(ctx context.Context, hostUUID string, teamID uint) ([]*fleet.SetupExperienceStatusResult, error) {
+		return statuses, nil
+	}
+
+	var requestedInstalls []uint
+	ds.InsertSoftwareInstallRequestFunc = func(ctx context.Context, hostID, softwareInstallerID uint, opts fleet.HostSoftwareInstallOptions) (string, error) {
+		requestedInstalls = append(requestedInstalls, softwareInstallerID)
+		require.True(t, opts.ForSetupExperience)
+		return fmt.Sprintf("install-uuid-%d", softwareInstallerID), nil
+	}
+	var updated []*fleet.SetupExperienceStatusResult
+	ds.UpdateSetupExperienceStatusResultFunc = func(ctx context.Context, status *fleet.SetupExperienceStatusResult) error {
+		updated = append(updated, status)
+		return nil
+	}
+
+	host := &fleet.Host{ID: hostID, UUID: hostUUID, Platform: "linux", OsqueryHostID: ptr.String(hostUUID)}
+
+	// Parallel: all three pending items start on one call, even though another item is still running.
+	finished, err := svc.SetupExperienceNextStep(ctx, host)
+	require.NoError(t, err)
+	assert.False(t, finished)
+	assert.Equal(t, installerIDs, requestedInstalls)
+	require.Len(t, updated, 3)
+	for i, u := range updated {
+		assert.Equal(t, fleet.SetupExperienceStatusRunning, u.Status)
+		assert.Equal(t, fmt.Sprintf("install-uuid-%d", installerIDs[i]), *u.HostSoftwareInstallsExecutionID)
+	}
+
+	// Nothing left pending: a follow-up call starts nothing more while installs are in flight.
+	requestedInstalls, updated = nil, nil
+	finished, err = svc.SetupExperienceNextStep(ctx, host)
+	require.NoError(t, err)
+	assert.False(t, finished)
+	assert.Empty(t, requestedInstalls)
+	assert.Empty(t, updated)
+
+	// Default (serial): with an item running, nothing new starts.
+	parallel = false
+	statuses = newStatuses()
+	requestedInstalls, updated = nil, nil
+	finished, err = svc.SetupExperienceNextStep(ctx, host)
+	require.NoError(t, err)
+	assert.False(t, finished)
+	assert.Empty(t, requestedInstalls)
+	assert.Empty(t, updated)
+
+	// Default (serial): with nothing running, only the first pending item starts.
+	statuses = newStatuses()[1:]
+	finished, err = svc.SetupExperienceNextStep(ctx, host)
+	require.NoError(t, err)
+	assert.False(t, finished)
+	assert.Equal(t, installerIDs[:1], requestedInstalls)
+	require.Len(t, updated, 1)
+}
+
 func TestSetupExperienceSetWithManualAgentInstall(t *testing.T) {
 	ctx := test.UserContext(context.Background(), test.UserAdmin)
 	ds := new(mock.Store)

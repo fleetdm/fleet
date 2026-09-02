@@ -1,0 +1,1 @@
+- fleetd now runs every software install it receives in one config poll concurrently instead of one after the other, so an install no longer waits for the previous one to finish downloading, installing, and reporting.

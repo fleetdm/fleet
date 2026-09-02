@@ -160,6 +160,7 @@
         "manual_agent_install": null,
         "require_all_software_macos": false,
         "require_all_software_windows": false,
+        "install_software_in_parallel": false,
         "script": null,
         "software": null
       },
@@ -175,6 +176,7 @@
         "macos_script": null,
         "require_all_software_macos": false,
         "require_all_software_windows": false,
+        "install_software_in_parallel": false,
         "software": null
       },
       "windows_automatic_enrollment": null,

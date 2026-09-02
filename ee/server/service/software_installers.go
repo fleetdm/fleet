@@ -1700,6 +1700,59 @@ func installerCompatibleWithHost(installer *fleet.SoftwareInstaller, host *fleet
 }
 
 func (svc *Service) InstallSoftwareTitle(ctx context.Context, hostID uint, softwareTitleID uint) error {
+	host, err := svc.hostForSoftwareInstall(ctx, hostID)
+	if err != nil {
+		return err
+	}
+	install, err := svc.prepareSoftwareTitleInstall(ctx, host, softwareTitleID)
+	if err != nil {
+		return err
+	}
+	return install("")
+}
+
+// InstallSoftwareTitles queues an install of every given title on the host as
+// one batch. Every title is checked before anything is queued, so a title that
+// cannot be installed rejects the whole request and leaves the host's queue
+// untouched. The queued installs share a batch ID: the host's queue activates
+// them together and fleetd downloads and installs them at the same time
+// instead of one per check-in.
+func (svc *Service) InstallSoftwareTitles(ctx context.Context, hostID uint, softwareTitleIDs []uint) error {
+	if len(softwareTitleIDs) == 0 {
+		svc.authz.SkipAuthorization(ctx)
+		return &fleet.BadRequestError{Message: "software_title_ids must contain at least one software title ID."}
+	}
+	host, err := svc.hostForSoftwareInstall(ctx, hostID)
+	if err != nil {
+		return err
+	}
+
+	seen := make(map[uint]struct{}, len(softwareTitleIDs))
+	installs := make([]func(batchID string) error, 0, len(softwareTitleIDs))
+	for _, softwareTitleID := range softwareTitleIDs {
+		if _, dup := seen[softwareTitleID]; dup {
+			return &fleet.BadRequestError{Message: fmt.Sprintf("software_title_ids contains software title %d more than once.", softwareTitleID)}
+		}
+		seen[softwareTitleID] = struct{}{}
+		install, err := svc.prepareSoftwareTitleInstall(ctx, host, softwareTitleID)
+		if err != nil {
+			return err
+		}
+		installs = append(installs, install)
+	}
+
+	batchID := uuid.NewString()
+	for _, install := range installs {
+		if err := install(batchID); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// hostForSoftwareInstall loads the host for a software install request and
+// authorizes the request against the host's team.
+func (svc *Service) hostForSoftwareInstall(ctx context.Context, hostID uint) (*fleet.Host, error) {
 	// we need to use ds.Host because ds.HostLite doesn't return the orbit
 	// node key
 	host, err := svc.ds.Host(ctx, hostID)
@@ -1708,11 +1761,11 @@ func (svc *Service) InstallSoftwareTitle(ctx context.Context, hostID uint, softw
 		// had access to install software (to prevent leaking valid host ids).
 		if fleet.IsNotFound(err) {
 			if err := svc.authz.Authorize(ctx, &fleet.HostSoftwareInstallerResultAuthz{}, fleet.ActionWrite); err != nil {
-				return err
+				return nil, err
 			}
 		}
 		svc.authz.SkipAuthorization(ctx)
-		return ctxerr.Wrap(ctx, err, "get host")
+		return nil, ctxerr.Wrap(ctx, err, "get host")
 	}
 
 	platform := host.FleetPlatform()
@@ -1722,28 +1775,40 @@ func (svc *Service) InstallSoftwareTitle(ctx context.Context, hostID uint, softw
 		// fleetd is required to install software so if the host is
 		// enrolled via plain osquery we return an error
 		svc.authz.SkipAuthorization(ctx)
-		return fleet.NewUserMessageError(errors.New("Host doesn't have fleetd installed"), http.StatusUnprocessableEntity)
+		return nil, fleet.NewUserMessageError(errors.New("Host doesn't have fleetd installed"), http.StatusUnprocessableEntity)
 	}
 
 	// authorize with the host's team
 	if err := svc.authz.Authorize(ctx, &fleet.HostSoftwareInstallerResultAuthz{HostTeamID: host.TeamID}, fleet.ActionWrite); err != nil {
-		return err
+		return nil, err
 	}
+	return host, nil
+}
+
+// prepareSoftwareTitleInstall resolves what installing the title on the host
+// means (in-house app, package, or App Store app) and runs every check that can
+// reject the request. It returns the step that queues the install, so a caller
+// can check several titles before queueing any of them. The returned func takes
+// the batch ID to queue the install under ("" for none).
+func (svc *Service) prepareSoftwareTitleInstall(ctx context.Context, host *fleet.Host, softwareTitleID uint) (func(batchID string) error, error) {
+	hostID := host.ID
+	platform := host.FleetPlatform()
+	mobileAppleDevice := fleet.InstallableDevicePlatform(platform) == fleet.IOSPlatform || fleet.InstallableDevicePlatform(platform) == fleet.IPadOSPlatform
 
 	if mobileAppleDevice {
 		iha, err := svc.ds.GetInHouseAppMetadataByTeamAndTitleID(ctx, host.TeamID, softwareTitleID)
 		if err != nil && !fleet.IsNotFound(err) {
-			return ctxerr.Wrap(ctx, err, "install in house app: get metadata")
+			return nil, ctxerr.Wrap(ctx, err, "install in house app: get metadata")
 		}
 
 		if iha != nil {
 			scoped, err := svc.ds.IsInHouseAppLabelScoped(ctx, iha.InstallerID, hostID)
 			if err != nil {
-				return ctxerr.Wrap(ctx, err, "checking label scoping during in-house app install attempt")
+				return nil, ctxerr.Wrap(ctx, err, "checking label scoping during in-house app install attempt")
 			}
 
 			if !scoped {
-				return &fleet.BadRequestError{
+				return nil, &fleet.BadRequestError{
 					Message: "Couldn't install. This host isn't a member of the labels defined for this software title.",
 				}
 			}
@@ -1751,18 +1816,23 @@ func (svc *Service) InstallSoftwareTitle(ctx context.Context, hostID uint, softw
 			opts := fleet.HostSoftwareInstallOptions{SelfService: false}
 			cfg, err := svc.ds.GetInHouseAppConfiguration(ctx, iha.InstallerID)
 			if err != nil && !fleet.IsNotFound(err) {
-				return ctxerr.Wrap(ctx, err, "get in-house app configuration for pre-flight check")
+				return nil, ctxerr.Wrap(ctx, err, "get in-house app configuration for pre-flight check")
 			}
 			switch err := svc.precheckAppConfigResolvable(ctx, host, cfg); {
 			case errors.Is(err, apple_mdm.ErrUnresolvableAppConfigVar):
-				_, err := svc.recordFailedInHouseInstall(ctx, host.ID, iha.InstallerID, opts, unresolvableAppConfigFailureReason(err))
-				return err
+				return func(string) error {
+					_, err := svc.recordFailedInHouseInstall(ctx, host.ID, iha.InstallerID, opts, unresolvableAppConfigFailureReason(err))
+					return err
+				}, nil
 			case err != nil:
-				return ctxerr.Wrap(ctx, err, "pre-flight substitute fleet variables in in-house app configuration")
+				return nil, ctxerr.Wrap(ctx, err, "pre-flight substitute fleet variables in in-house app configuration")
 			}
 
-			err = svc.ds.InsertHostInHouseAppInstall(ctx, host.ID, iha.InstallerID, softwareTitleID, uuid.NewString(), opts)
-			return ctxerr.Wrap(ctx, err, "insert in house app install")
+			return func(string) error {
+				// In-house apps install over MDM, which has its own command queue; the batch does not apply.
+				err := svc.ds.InsertHostInHouseAppInstall(ctx, host.ID, iha.InstallerID, softwareTitleID, uuid.NewString(), opts)
+				return ctxerr.Wrap(ctx, err, "insert in house app install")
+			}, nil
 		}
 		// it's OK if we didn't find an in-house app; this might be a VPP app, so continue on
 	}
@@ -1772,12 +1842,12 @@ func (svc *Service) InstallSoftwareTitle(ctx context.Context, hostID uint, softw
 		// host matches more than one package of the title).
 		installer, anyPackages, err := svc.resolveFirstAddedInScopeInstaller(ctx, host, softwareTitleID, false)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		// The title has packages but the host isn't in scope for any of them.
 		if installer == nil && anyPackages {
-			return &fleet.BadRequestError{
+			return nil, &fleet.BadRequestError{
 				Message: "Couldn't install. Host isn't member of the labels defined for this software title.",
 			}
 		}
@@ -1786,11 +1856,11 @@ func (svc *Service) InstallSoftwareTitle(ctx context.Context, hostID uint, softw
 		if installer != nil {
 			lastInstallRequest, err := svc.ds.GetHostLastInstallData(ctx, host.ID, installer.InstallerID)
 			if err != nil {
-				return ctxerr.Wrapf(ctx, err, "getting last install data for host %d and installer %d", host.ID, installer.InstallerID)
+				return nil, ctxerr.Wrapf(ctx, err, "getting last install data for host %d and installer %d", host.ID, installer.InstallerID)
 			}
 			if lastInstallRequest != nil && lastInstallRequest.Status != nil &&
 				(*lastInstallRequest.Status == fleet.SoftwareInstallPending || *lastInstallRequest.Status == fleet.SoftwareUninstallPending) {
-				return &fleet.BadRequestError{
+				return nil, &fleet.BadRequestError{
 					Message: "Couldn't install. Host already has a pending install/uninstall for this installer.",
 					InternalErr: ctxerr.WrapWithData(
 						ctx, err, "host already has a pending install/uninstall for this installer",
@@ -1803,7 +1873,9 @@ func (svc *Service) InstallSoftwareTitle(ctx context.Context, hostID uint, softw
 					),
 				}
 			}
-			return svc.installSoftwareTitleUsingInstaller(ctx, host, installer)
+			return func(batchID string) error {
+				return svc.installSoftwareTitleUsingInstaller(ctx, host, installer, batchID)
+			}, nil
 		}
 	}
 	// User-enrolled (BYOD) iOS/iPadOS hosts are no longer blocked here. The
@@ -1816,7 +1888,7 @@ func (svc *Service) InstallSoftwareTitle(ctx context.Context, hostID uint, softw
 		// if we couldn't find an installer or a VPP app, return a bad
 		// request error
 		if fleet.IsNotFound(err) {
-			return &fleet.BadRequestError{
+			return nil, &fleet.BadRequestError{
 				Message: "Couldn't install software. Software title is not available for install. Please add software package or App Store app to install.",
 				InternalErr: ctxerr.WrapWithData(
 					ctx, err, "couldn't find an installer or VPP app for software title",
@@ -1825,25 +1897,28 @@ func (svc *Service) InstallSoftwareTitle(ctx context.Context, hostID uint, softw
 			}
 		}
 
-		return ctxerr.Wrap(ctx, err, "finding VPP app for title")
+		return nil, ctxerr.Wrap(ctx, err, "finding VPP app for title")
 	}
 
 	// check the label scoping for this VPP app and host
 	scoped, err := svc.ds.IsVPPAppLabelScoped(ctx, vppApp.VPPAppTeam.AppTeamID, hostID)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "checking label scoping during vpp software install attempt")
+		return nil, ctxerr.Wrap(ctx, err, "checking label scoping during vpp software install attempt")
 	}
 
 	if !scoped {
-		return &fleet.BadRequestError{
+		return nil, &fleet.BadRequestError{
 			Message: "Couldn't install. This host isn't a member of the labels defined for this software title.",
 		}
 	}
 
-	_, err = svc.installSoftwareFromVPP(ctx, host, vppApp, mobileAppleDevice || fleet.InstallableDevicePlatform(platform) == fleet.MacOSPlatform, fleet.HostSoftwareInstallOptions{
-		SelfService: false,
-	})
-	return err
+	return func(batchID string) error {
+		_, err := svc.installSoftwareFromVPP(ctx, host, vppApp, mobileAppleDevice || fleet.InstallableDevicePlatform(platform) == fleet.MacOSPlatform, fleet.HostSoftwareInstallOptions{
+			SelfService: false,
+			BatchID:     batchID,
+		})
+		return err
+	}, nil
 }
 
 func (svc *Service) installSoftwareFromVPP(ctx context.Context, host *fleet.Host, vppApp *fleet.VPPApp, appleDevice bool, opts fleet.HostSoftwareInstallOptions) (string, error) {
@@ -2205,7 +2280,7 @@ func (svc *Service) InstallVPPAppPostValidation(ctx context.Context, host *fleet
 	return cmdUUID, nil
 }
 
-func (svc *Service) installSoftwareTitleUsingInstaller(ctx context.Context, host *fleet.Host, installer *fleet.SoftwareInstaller) error {
+func (svc *Service) installSoftwareTitleUsingInstaller(ctx context.Context, host *fleet.Host, installer *fleet.SoftwareInstaller, batchID string) error {
 	ext, requiredPlatform := installerRequiredPlatform(installer)
 	if requiredPlatform == "" {
 		// this should never happen
@@ -2233,6 +2308,7 @@ func (svc *Service) installSoftwareTitleUsingInstaller(ctx context.Context, host
 	_, err := svc.ds.InsertSoftwareInstallRequest(ctx, host.ID, installer.InstallerID, fleet.HostSoftwareInstallOptions{
 		SelfService: false,
 		WithRetries: true,
+		BatchID:     batchID,
 	})
 	return ctxerr.Wrap(ctx, err, "inserting software install request")
 }

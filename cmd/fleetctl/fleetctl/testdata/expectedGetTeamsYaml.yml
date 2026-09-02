@@ -55,6 +55,7 @@ spec:
         macos_script: null
         require_all_software_macos: false
         require_all_software_windows: false
+        install_software_in_parallel: false
         software: null
       windows_require_bitlocker_pin: null
       windows_settings:
@@ -118,6 +119,7 @@ spec:
         manual_agent_install: null
         require_all_software_macos: false
         require_all_software_windows: false
+        install_software_in_parallel: false
         script: null
         software: null
       macos_updates:
@@ -208,6 +210,7 @@ spec:
         macos_script: null
         require_all_software_macos: false
         require_all_software_windows: false
+        install_software_in_parallel: false
         software: null
       windows_require_bitlocker_pin: null
       windows_settings:
@@ -280,6 +283,7 @@ spec:
         manual_agent_install: null
         require_all_software_macos: false
         require_all_software_windows: false
+        install_software_in_parallel: false
         script: null
         software: null
       macos_updates:

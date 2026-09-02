@@ -745,6 +745,40 @@ func (svc *Service) InstallSoftwareTitle(ctx context.Context, hostID uint, softw
 	return fleet.ErrMissingLicense
 }
 
+/////////////////////////////////////////////////////////////////////////////////
+// Request to install several software titles in a host at the same time
+/////////////////////////////////////////////////////////////////////////////////
+
+type installSoftwareBatchRequest struct {
+	HostID           uint   `url:"host_id"`
+	SoftwareTitleIDs []uint `json:"software_title_ids"`
+}
+
+type installSoftwareBatchResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r installSoftwareBatchResponse) Error() error { return r.Err }
+
+func (r installSoftwareBatchResponse) Status() int { return http.StatusAccepted }
+
+func installSoftwareTitlesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*installSoftwareBatchRequest)
+
+	if err := svc.InstallSoftwareTitles(ctx, req.HostID, req.SoftwareTitleIDs); err != nil {
+		return installSoftwareBatchResponse{Err: err}, nil
+	}
+	return installSoftwareBatchResponse{}, nil
+}
+
+func (svc *Service) InstallSoftwareTitles(ctx context.Context, hostID uint, softwareTitleIDs []uint) error {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return fleet.ErrMissingLicense
+}
+
 func (svc *Service) GetVPPTokenIfCanInstallVPPApps(ctx context.Context, appleDevice bool, host *fleet.Host) (string, error) {
 	return "", fleet.ErrMissingLicense // called downstream of auth checks so doesn't need skipauth
 }
