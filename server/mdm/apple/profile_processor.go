@@ -590,7 +590,7 @@ func preprocessProfileContents(
 					// Populate Fleet vars in the CA fields
 					caVarsCache := make(map[string]string)
 
-					ok, err := replaceFleetVarInItem(ctx, ds, target, hostLite, caVarsCache, &caCopy.CertificateCommonName, onMismatchedHostCount)
+					ok, err := replaceFleetVarInItem(ctx, ds, target, hostLite, caVarsCache, &caCopy.CertificateCommonName, hostIDForUUIDCache, variablesUpdatedAt, onMismatchedHostCount)
 					if err != nil {
 						return ctxerr.Wrap(ctx, err, "populating Fleet variables in DigiCert CA common name")
 					}
@@ -598,7 +598,7 @@ func preprocessProfileContents(
 						failed = true
 						break fleetVarLoop
 					}
-					ok, err = replaceFleetVarInItem(ctx, ds, target, hostLite, caVarsCache, &caCopy.CertificateSeatID, onMismatchedHostCount)
+					ok, err = replaceFleetVarInItem(ctx, ds, target, hostLite, caVarsCache, &caCopy.CertificateSeatID, hostIDForUUIDCache, variablesUpdatedAt, onMismatchedHostCount)
 					if err != nil {
 						return ctxerr.Wrap(ctx, err, "populating Fleet variables in DigiCert CA common name")
 					}
@@ -608,7 +608,7 @@ func preprocessProfileContents(
 					}
 					if len(caCopy.CertificateUserPrincipalNames) > 0 {
 						for i := range caCopy.CertificateUserPrincipalNames {
-							ok, err = replaceFleetVarInItem(ctx, ds, target, hostLite, caVarsCache, &caCopy.CertificateUserPrincipalNames[i], onMismatchedHostCount)
+							ok, err = replaceFleetVarInItem(ctx, ds, target, hostLite, caVarsCache, &caCopy.CertificateUserPrincipalNames[i], hostIDForUUIDCache, variablesUpdatedAt, onMismatchedHostCount)
 							if err != nil {
 								return ctxerr.Wrap(ctx, err, "populating Fleet variables in DigiCert CA common name")
 							}
@@ -758,11 +758,11 @@ func getFirstIDPEmail(ctx context.Context, ds fleet.Datastore, target *fleet.Cmd
 	return emails[0], true, nil
 }
 
-func replaceFleetVarInItem(ctx context.Context, ds fleet.Datastore, target *fleet.CmdTarget, hostLite fleet.Host, caVarsCache map[string]string, item *string, onMismatchedHostCount func(int) error) (bool, error) {
+func replaceFleetVarInItem(ctx context.Context, ds fleet.Datastore, target *fleet.CmdTarget, hostLite fleet.Host, caVarsCache map[string]string, item *string, hostIDForUUIDCache map[string]uint, variablesUpdatedAt *time.Time, onMismatchedHostCount func(int) error) (bool, error) {
 	caFleetVars := variables.Find(*item)
 	for _, caVar := range caFleetVars {
-		switch caVar {
-		case string(fleet.FleetVarHostEndUserEmailIDP):
+		switch {
+		case caVar == string(fleet.FleetVarHostEndUserEmailIDP):
 			email, ok := caVarsCache[string(fleet.FleetVarHostEndUserEmailIDP)]
 			if !ok {
 				var err error
@@ -776,7 +776,7 @@ func replaceFleetVarInItem(ctx context.Context, ds fleet.Datastore, target *flee
 				caVarsCache[string(fleet.FleetVarHostEndUserEmailIDP)] = email
 			}
 			*item = profiles.ReplaceFleetVariableInXML(fleetVarHostEndUserEmailIDPRegexp, *item, email)
-		case string(fleet.FleetVarHostHardwareSerial):
+		case caVar == string(fleet.FleetVarHostHardwareSerial):
 			hardwareSerial, ok := caVarsCache[string(fleet.FleetVarHostHardwareSerial)]
 			if !ok {
 				var err error
@@ -791,7 +791,7 @@ func replaceFleetVarInItem(ctx context.Context, ds fleet.Datastore, target *flee
 				caVarsCache[string(fleet.FleetVarHostHardwareSerial)] = hostLite.HardwareSerial
 			}
 			*item = profiles.ReplaceFleetVariableInXML(fleet.FleetVarHostHardwareSerialRegexp, *item, hardwareSerial)
-		case string(fleet.FleetVarHostPlatform):
+		case caVar == string(fleet.FleetVarHostPlatform):
 			platform, ok := caVarsCache[string(fleet.FleetVarHostPlatform)]
 			if !ok {
 				var err error
@@ -810,8 +810,33 @@ func replaceFleetVarInItem(ctx context.Context, ds fleet.Datastore, target *flee
 				caVarsCache[string(fleet.FleetVarHostPlatform)] = platform
 			}
 			*item = profiles.ReplaceFleetVariableInXML(fleet.FleetVarHostPlatformRegexp, *item, platform)
+		case slices.Contains(fleet.IDPFleetVariables, fleet.FleetVarName(caVar)):
+			value, ok := caVarsCache[caVar]
+			if !ok {
+				var err error
+				value, _, ok, err = profiles.ResolveHostEndUserIDPValue(ctx, ds, caVar, hostLite.UUID, hostIDForUUIDCache, func(errMsg string) error {
+					return ds.UpdateOrDeleteHostMDMAppleProfile(ctx, &fleet.HostMDMAppleProfile{
+						CommandUUID:        target.CmdUUID,
+						HostUUID:           hostLite.UUID,
+						Status:             &fleet.MDMDeliveryFailed,
+						Detail:             errMsg,
+						OperationType:      fleet.MDMOperationTypeInstall,
+						VariablesUpdatedAt: variablesUpdatedAt,
+					})
+				})
+				if err != nil {
+					return false, ctxerr.Wrap(ctx, err, "resolving host end user IDP variable")
+				}
+				if !ok {
+					return false, nil
+				}
+				caVarsCache[caVar] = value
+			}
+			fleetVar := fleet.FleetVarName(caVar)
+			*item = strings.ReplaceAll(*item, fleetVar.WithPrefix(), value)
+			*item = strings.ReplaceAll(*item, fleetVar.WithBraces(), value)
 		default:
-			// We should not reach this since we validated the variables when saving app config
+			return false, ctxerr.Errorf(ctx, "unsupported DigiCert Fleet variable FLEET_VAR_%s", caVar)
 		}
 	}
 	return true, nil

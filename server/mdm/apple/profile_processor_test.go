@@ -546,6 +546,168 @@ func TestPreprocessProfileContentsDigiCertUPNIsUniqueForMultipleHosts(t *testing
 	assert.Equal(t, host2Serial+"@example.com", upnByHostUUID[host2UUID], "host 2 UPN should contain its own serial")
 }
 
+func TestPreprocessProfileContentsDigiCertCertificateEnrollmentWithFleetVariables(t *testing.T) {
+	ctx := license.NewContext(t.Context(), &fleet.LicenseInfo{Tier: fleet.TierPremium})
+	logger := slog.New(slog.DiscardHandler)
+	appCfg := &fleet.AppConfig{}
+	appCfg.ServerSettings.ServerURL = "https://test.example.com"
+	appCfg.MDM.EnabledAndConfigured = true
+	ds := new(mock.Store)
+	svc := scep.NewSCEPConfigService(logger, nil)
+
+	const caName = "myCA"
+	const hostUUID = "host-uuid"
+	const hardwareSerial = "SERIAL-123"
+	const username = "test.user@example.com"
+	const usernameLocalPart = "test.user"
+
+	var issuedConfig fleet.DigiCertCA
+	mockDigiCert := &digicert_mock.Service{}
+	mockDigiCert.GetCertificateFunc = func(ctx context.Context, config fleet.DigiCertCA) (*fleet.DigiCertCertificate, error) {
+		issuedConfig = config
+		now := time.Now()
+		return &fleet.DigiCertCertificate{
+			PfxData:        []byte("fake-pfx"),
+			Password:       "fake-password",
+			NotValidBefore: now,
+			NotValidAfter:  now.Add(365 * 24 * time.Hour),
+			SerialNumber:   "certificate-serial",
+		}, nil
+	}
+
+	targets := map[string]*fleet.CmdTarget{
+		"p1": {
+			CmdUUID:           "cmd-uuid",
+			ProfileIdentifier: "com.apple.security.pkcs12",
+			EnrollmentIDs:     []string{hostUUID},
+		},
+	}
+	pending := fleet.MDMDeliveryPending
+	hostProfilesToInstallMap := map[fleet.HostProfileUUID]*fleet.MDMAppleBulkUpsertHostProfilePayload{
+		{HostUUID: hostUUID, ProfileUUID: "p1"}: {
+			ProfileUUID:       "p1",
+			ProfileIdentifier: "com.apple.security.pkcs12",
+			HostUUID:          hostUUID,
+			OperationType:     fleet.MDMOperationTypeInstall,
+			Status:            &pending,
+			CommandUUID:       "cmd-uuid",
+			Scope:             fleet.PayloadScopeSystem,
+		},
+	}
+	profileContents := map[string]mobileconfig.Mobileconfig{
+		"p1": []byte("<string>$FLEET_VAR_" + string(fleet.FleetVarDigiCertPasswordPrefix) + caName + "</string><data>$FLEET_VAR_" + string(fleet.FleetVarDigiCertDataPrefix) + caName + "</data>"),
+	}
+	groupedCAs := &fleet.GroupedCertificateAuthorities{
+		DigiCert: []fleet.DigiCertCA{
+			{
+				Name:                          caName,
+				URL:                           "https://digicert.example.com",
+				APIToken:                      "api-token",
+				ProfileID:                     "profile-id",
+				CertificateCommonName:         fleet.FleetVarHostHardwareSerial.WithPrefix(),
+				CertificateUserPrincipalNames: []string{fleet.FleetVarHostEndUserIDPUsername.WithPrefix()},
+				CertificateSeatID:             fleet.FleetVarHostEndUserIDPUsernameLocalPart.WithPrefix(),
+			},
+		},
+	}
+	ds.ListHostsLiteByUUIDsFunc = func(ctx context.Context, filter fleet.TeamFilter, uuids []string) ([]*fleet.Host, error) {
+		assert.Equal(t, []string{hostUUID}, uuids)
+		return []*fleet.Host{{ID: 1, UUID: hostUUID, HardwareSerial: hardwareSerial}}, nil
+	}
+	ds.HostIDsByIdentifierFunc = func(ctx context.Context, filter fleet.TeamFilter, identifiers []string) ([]uint, error) {
+		assert.Equal(t, []string{hostUUID}, identifiers)
+		return []uint{1}, nil
+	}
+	ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
+		assert.EqualValues(t, 1, hostID)
+		return &fleet.ScimUser{UserName: username}, nil
+	}
+	ds.ListHostDeviceMappingFunc = func(ctx context.Context, hostID uint) ([]*fleet.HostDeviceMapping, error) {
+		return nil, nil
+	}
+	var hostProfileUpdates []*fleet.MDMAppleBulkUpsertHostProfilePayload
+	ds.BulkUpsertMDMAppleHostProfilesFunc = func(ctx context.Context, payload []*fleet.MDMAppleBulkUpsertHostProfilePayload) error {
+		hostProfileUpdates = payload
+		return nil
+	}
+	var managedCertificates []*fleet.MDMManagedCertificate
+	ds.BulkUpsertMDMManagedCertificatesFunc = func(ctx context.Context, payload []*fleet.MDMManagedCertificate) error {
+		managedCertificates = payload
+		return nil
+	}
+
+	err := preprocessProfileContents(ctx, appCfg, ds, svc, mockDigiCert, logger, targets, profileContents, hostProfilesToInstallMap, make(map[string]string), groupedCAs)
+	require.NoError(t, err)
+	require.True(t, mockDigiCert.GetCertificateFuncInvoked)
+	assert.Equal(t, hardwareSerial, issuedConfig.CertificateCommonName)
+	assert.Equal(t, []string{username}, issuedConfig.CertificateUserPrincipalNames)
+	assert.Equal(t, usernameLocalPart, issuedConfig.CertificateSeatID)
+	require.Len(t, hostProfileUpdates, 1)
+	assert.Equal(t, "p1", hostProfileUpdates[0].ProfileUUID)
+	assert.Equal(t, hostUUID, hostProfileUpdates[0].HostUUID)
+	assert.Equal(t, fleet.MDMOperationTypeInstall, hostProfileUpdates[0].OperationType)
+	require.NotNil(t, hostProfileUpdates[0].Status)
+	assert.Equal(t, fleet.MDMDeliveryPending, *hostProfileUpdates[0].Status)
+	assert.NotEqual(t, "cmd-uuid", hostProfileUpdates[0].CommandUUID)
+	require.Len(t, managedCertificates, 1)
+	assert.Equal(t, hostUUID, managedCertificates[0].HostUUID)
+	assert.Equal(t, "p1", managedCertificates[0].ProfileUUID)
+	assert.Equal(t, fleet.CAConfigDigiCert, managedCertificates[0].Type)
+	assert.Equal(t, caName, managedCertificates[0].CAName)
+	require.NotNil(t, managedCertificates[0].Serial)
+	assert.Equal(t, "certificate-serial", *managedCertificates[0].Serial)
+	require.NotNil(t, managedCertificates[0].NotValidBefore)
+	require.NotNil(t, managedCertificates[0].NotValidAfter)
+	require.Len(t, targets, 1)
+	for profileUUID, target := range targets {
+		assert.Equal(t, profileUUID, target.CmdUUID)
+		assert.Equal(t, hostProfileUpdates[0].CommandUUID, target.CmdUUID)
+		contents, ok := profileContents[profileUUID]
+		require.True(t, ok)
+		assert.Equal(t, "<string>fake-password</string><data>ZmFrZS1wZng=</data>", string(contents))
+	}
+	t.Logf("issued DigiCert config: CN=%q UPN=%q seat ID=%q", issuedConfig.CertificateCommonName, issuedConfig.CertificateUserPrincipalNames, issuedConfig.CertificateSeatID)
+}
+
+func TestReplaceFleetVarInItemIDPVariables(t *testing.T) {
+	ds := new(mock.Store)
+	ds.HostIDsByIdentifierFunc = func(ctx context.Context, filter fleet.TeamFilter, idents []string) ([]uint, error) {
+		return []uint{1}, nil
+	}
+	ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
+		return &fleet.ScimUser{
+			UserName:   "user@example.com",
+			GivenName:  new("R&D"),
+			FamilyName: new("User"),
+			Department: new("Engineering & IT"),
+			Groups:     []fleet.ScimUserGroup{{DisplayName: "Engineering"}, {DisplayName: "IT"}},
+		}, nil
+	}
+	ds.ListHostDeviceMappingFunc = func(ctx context.Context, hostID uint) ([]*fleet.HostDeviceMapping, error) {
+		return nil, nil
+	}
+
+	tests := []struct {
+		fleetVar fleet.FleetVarName
+		expected string
+	}{
+		{fleet.FleetVarHostEndUserIDPUsername, "user@example.com"},
+		{fleet.FleetVarHostEndUserIDPUsernameLocalPart, "user"},
+		{fleet.FleetVarHostEndUserIDPGroups, "Engineering,IT"},
+		{fleet.FleetVarHostEndUserIDPDepartment, "Engineering & IT"},
+		{fleet.FleetVarHostEndUserIDPFullname, "R&D User"},
+	}
+	for _, tt := range tests {
+		t.Run(string(tt.fleetVar), func(t *testing.T) {
+			item := "prefix-" + tt.fleetVar.WithBraces() + "-suffix"
+			ok, err := replaceFleetVarInItem(t.Context(), ds, &fleet.CmdTarget{CmdUUID: "command"}, fleet.Host{UUID: "host"}, make(map[string]string), &item, make(map[string]uint), nil, func(int) error { return nil })
+			require.NoError(t, err)
+			require.True(t, ok)
+			assert.Equal(t, "prefix-"+tt.expected+"-suffix", item)
+		})
+	}
+}
+
 func TestPreprocessProfileContentsEndUserIDP(t *testing.T) {
 	ctx := context.Background()
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))

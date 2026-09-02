@@ -292,17 +292,45 @@ func TestCreatingCertificateAuthorities(t *testing.T) {
 	})
 
 	t.Run("Create DigiCert CA - Happy path with variables", func(t *testing.T) {
-		svc, ctx := baseSetupForCATests()
+		fleetVars := append([]fleet.FleetVarName{fleet.FleetVarHostHardwareSerial}, fleet.IDPFleetVariables...)
+		for _, fleetVar := range fleetVars {
+			t.Run(string(fleetVar), func(t *testing.T) {
+				svc, ctx := baseSetupForCATests()
+				value := fleetVar.WithPrefix()
+				createDigicertRequest := fleet.CertificateAuthorityPayload{
+					DigiCert: &fleet.DigiCertCA{
+						Name:                          "DigicertWIFI",
+						URL:                           digicertURL,
+						APIToken:                      "digicert_api_token",
+						ProfileID:                     "digicert_profile_id",
+						CertificateCommonName:         value,
+						CertificateUserPrincipalNames: []string{value},
+						CertificateSeatID:             value,
+					},
+				}
 
+				_, err := svc.NewCertificateAuthority(ctx, createDigicertRequest)
+				require.EqualError(t, err, "mock error to avoid NewActivity panic")
+				require.Len(t, createdCAs, 1)
+				createdCA := createdCAs[0]
+				assert.Equal(t, value, *createdCA.CertificateCommonName)
+				assert.Equal(t, []string{value}, *createdCA.CertificateUserPrincipalNames)
+				assert.Equal(t, value, *createdCA.CertificateSeatID)
+			})
+		}
+	})
+
+	t.Run("Create DigiCert CA - Happy path with hardware serial and IDP username variables", func(t *testing.T) {
+		svc, ctx := baseSetupForCATests()
 		createDigicertRequest := fleet.CertificateAuthorityPayload{
 			DigiCert: &fleet.DigiCertCA{
 				Name:                          "DigicertWIFI",
 				URL:                           digicertURL,
 				APIToken:                      "digicert_api_token",
 				ProfileID:                     "digicert_profile_id",
-				CertificateCommonName:         "$FLEET_VAR_HOST_HARDWARE_SERIAL",
-				CertificateUserPrincipalNames: []string{"$FLEET_VAR_HOST_HARDWARE_SERIAL"},
-				CertificateSeatID:             "$FLEET_VAR_HOST_HARDWARE_SERIAL",
+				CertificateCommonName:         fleet.FleetVarHostHardwareSerial.WithPrefix(),
+				CertificateUserPrincipalNames: []string{fleet.FleetVarHostEndUserIDPUsername.WithPrefix()},
+				CertificateSeatID:             fleet.FleetVarHostEndUserIDPUsernameLocalPart.WithPrefix(),
 			},
 		}
 
@@ -310,20 +338,13 @@ func TestCreatingCertificateAuthorities(t *testing.T) {
 		require.EqualError(t, err, "mock error to avoid NewActivity panic")
 		require.Len(t, createdCAs, 1)
 		createdCA := createdCAs[0]
-
-		assert.Equal(t, createDigicertRequest.DigiCert.Name, *createdCA.Name)
-		assert.Equal(t, createDigicertRequest.DigiCert.URL, *createdCA.URL)
-		assert.Equal(t, string(fleet.CATypeDigiCert), createdCA.Type)
-		require.NotNil(t, createdCA.APIToken)
-		assert.Equal(t, createDigicertRequest.DigiCert.APIToken, *createdCA.APIToken)
-		require.NotNil(t, createdCA.ProfileID)
-		assert.Equal(t, createDigicertRequest.DigiCert.ProfileID, *createdCA.ProfileID)
 		require.NotNil(t, createdCA.CertificateCommonName)
 		assert.Equal(t, createDigicertRequest.DigiCert.CertificateCommonName, *createdCA.CertificateCommonName)
-		assert.ElementsMatch(t, createDigicertRequest.DigiCert.CertificateUserPrincipalNames, *createdCA.CertificateUserPrincipalNames)
+		require.NotNil(t, createdCA.CertificateUserPrincipalNames)
+		assert.Equal(t, createDigicertRequest.DigiCert.CertificateUserPrincipalNames, *createdCA.CertificateUserPrincipalNames)
 		require.NotNil(t, createdCA.CertificateSeatID)
 		assert.Equal(t, createDigicertRequest.DigiCert.CertificateSeatID, *createdCA.CertificateSeatID)
-		verifyNilFieldsForType(t, createdCA)
+		t.Logf("created DigiCert config: CN=%q UPN=%q seat ID=%q", *createdCA.CertificateCommonName, *createdCA.CertificateUserPrincipalNames, *createdCA.CertificateSeatID)
 	})
 
 	t.Run("Create DigiCert CA - Happy path with no UPNs", func(t *testing.T) {
@@ -359,6 +380,29 @@ func TestCreatingCertificateAuthorities(t *testing.T) {
 		require.NotNil(t, createdCA.CertificateSeatID)
 		assert.Equal(t, createDigicertRequest.DigiCert.CertificateSeatID, *createdCA.CertificateSeatID)
 		verifyNilFieldsForType(t, createdCA)
+	})
+
+	t.Run("Create DigiCert CA - rejects custom variables", func(t *testing.T) {
+		for _, value := range []string{"$FLEET_SECRET_CERTIFICATE_ID", "$FLEET_HOST_VITAL_ASSET_TAG"} {
+			t.Run(value, func(t *testing.T) {
+				svc, ctx := baseSetupForCATests()
+				createDigicertRequest := fleet.CertificateAuthorityPayload{
+					DigiCert: &fleet.DigiCertCA{
+						Name:                          "DigicertWIFI",
+						URL:                           digicertURL,
+						APIToken:                      "digicert_api_token",
+						ProfileID:                     "digicert_profile_id",
+						CertificateCommonName:         value,
+						CertificateUserPrincipalNames: []string{value},
+						CertificateSeatID:             value,
+					},
+				}
+
+				_, err := svc.NewCertificateAuthority(ctx, createDigicertRequest)
+				require.Error(t, err)
+				require.Empty(t, createdCAs)
+			})
+		}
 	})
 
 	t.Run("Create Hydrant CA - Happy path", func(t *testing.T) {
@@ -1346,18 +1390,23 @@ func TestUpdatingCertificateAuthorities(t *testing.T) {
 		})
 
 		t.Run("Allows variable for certificate related fields", func(t *testing.T) {
-			svc, ctx := baseSetupForCATests()
+			fleetVars := append([]fleet.FleetVarName{fleet.FleetVarHostHardwareSerial}, fleet.IDPFleetVariables...)
+			for _, fleetVar := range fleetVars {
+				t.Run(string(fleetVar), func(t *testing.T) {
+					svc, ctx := baseSetupForCATests()
+					value := fleetVar.WithPrefix()
+					payload := fleet.CertificateAuthorityUpdatePayload{
+						DigiCertCAUpdatePayload: &fleet.DigiCertCAUpdatePayload{
+							CertificateCommonName:         &value,
+							CertificateUserPrincipalNames: &[]string{value},
+							CertificateSeatID:             &value,
+						},
+					}
 
-			payload := fleet.CertificateAuthorityUpdatePayload{
-				DigiCertCAUpdatePayload: &fleet.DigiCertCAUpdatePayload{
-					CertificateCommonName:         ptr.String("$FLEET_VAR_HOST_HARDWARE_SERIAL"),
-					CertificateUserPrincipalNames: &[]string{"$FLEET_VAR_HOST_HARDWARE_SERIAL"},
-					CertificateSeatID:             ptr.String("$FLEET_VAR_HOST_HARDWARE_SERIAL"),
-				},
+					err := svc.UpdateCertificateAuthority(ctx, digicertID, payload)
+					require.EqualError(t, err, "mock error to avoid NewActivity panic")
+				})
 			}
-
-			err := svc.UpdateCertificateAuthority(ctx, digicertID, payload)
-			require.Error(t, err, "mock error to avoid NewActivity panic")
 		})
 
 		t.Run("Fails updating URL if no api token", func(t *testing.T) {

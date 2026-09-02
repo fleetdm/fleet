@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/url"
 	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/ee/server/service/scep"
@@ -259,19 +260,25 @@ func validateDigicertCACN(cn string, errPrefix string) error {
 	if len(strings.TrimSpace(cn)) == 0 {
 		return fleet.NewInvalidArgumentError("certificate_common_name", fmt.Sprintf("%sCA Common Name (CN) cannot be empty", errPrefix))
 	}
+	if unsupportedVar := unsupportedDigicertFleetVarRegexp.FindString(cn); unsupportedVar != "" {
+		return fleet.NewInvalidArgumentError("certificate_common_name", fmt.Sprintf("%s%s is not allowed in CA Common Name (CN)", errPrefix, unsupportedVar))
+	}
 	fleetVars := variables.Find(cn)
 	for _, fleetVar := range fleetVars {
-		switch fleetVar {
-		case string(fleet.FleetVarHostEndUserEmailIDP), string(fleet.FleetVarHostHardwareSerial), string(fleet.FleetVarHostPlatform):
-			// ok
-		default:
+		if !isSupportedDigicertFleetVar(fleet.FleetVarName(fleetVar)) {
 			return fleet.NewInvalidArgumentError("certificate_common_name", fmt.Sprintf("%sFLEET_VAR_%s is not allowed in CA Common Name (CN)", errPrefix, fleetVar))
 		}
 	}
 	return nil
 }
 
+func isSupportedDigicertFleetVar(fleetVar fleet.FleetVarName) bool {
+	return fleetVar == fleet.FleetVarHostEndUserEmailIDP || fleetVar == fleet.FleetVarHostHardwareSerial || fleetVar == fleet.FleetVarHostPlatform ||
+		slices.Contains(fleet.IDPFleetVariables, fleetVar)
+}
+
 var alphanumeric = regexp.MustCompile(`^\w+$`)
+var unsupportedDigicertFleetVarRegexp = regexp.MustCompile(`\$\{?FLEET_(?:SECRET|HOST_VITAL)_[A-Z0-9_]+\}?`)
 
 func isAlphanumeric(s string) bool {
 	return alphanumeric.MatchString(s)
@@ -281,12 +288,12 @@ func validateDigicertSeatID(seatID string, errPrefix string) error {
 	if len(strings.TrimSpace(seatID)) == 0 {
 		return fleet.NewInvalidArgumentError("certificate_seat_id", fmt.Sprintf("%sCA Seat ID cannot be empty", errPrefix))
 	}
+	if unsupportedVar := unsupportedDigicertFleetVarRegexp.FindString(seatID); unsupportedVar != "" {
+		return fleet.NewInvalidArgumentError("certificate_seat_id", fmt.Sprintf("%s%s is not allowed in DigiCert Seat ID", errPrefix, unsupportedVar))
+	}
 	fleetVars := variables.Find(seatID)
 	for _, fleetVar := range fleetVars {
-		switch fleetVar {
-		case string(fleet.FleetVarHostEndUserEmailIDP), string(fleet.FleetVarHostHardwareSerial), string(fleet.FleetVarHostPlatform):
-			// ok
-		default:
+		if !isSupportedDigicertFleetVar(fleet.FleetVarName(fleetVar)) {
 			return fleet.NewInvalidArgumentError("certificate_seat_id", fmt.Sprintf("%sFLEET_VAR_%s is not allowed in DigiCert Seat ID", errPrefix, fleetVar))
 		}
 	}
@@ -305,12 +312,13 @@ func validateDigicertUserPrincipalNames(userPrincipalNames []string, errPrefix s
 		return fleet.NewInvalidArgumentError("certificate_user_principal_names",
 			fmt.Sprintf("%sDigiCert certificate_user_principal_name cannot be empty if specified", errPrefix))
 	}
+	if unsupportedVar := unsupportedDigicertFleetVarRegexp.FindString(userPrincipalNames[0]); unsupportedVar != "" {
+		return fleet.NewInvalidArgumentError("certificate_user_principal_names",
+			fmt.Sprintf("%s%s is not allowed in CA User Principal Name", errPrefix, unsupportedVar))
+	}
 	fleetVars := variables.Find(userPrincipalNames[0])
 	for _, fleetVar := range fleetVars {
-		switch fleetVar {
-		case string(fleet.FleetVarHostEndUserEmailIDP), string(fleet.FleetVarHostHardwareSerial), string(fleet.FleetVarHostPlatform):
-			// ok
-		default:
+		if !isSupportedDigicertFleetVar(fleet.FleetVarName(fleetVar)) {
 			return fleet.NewInvalidArgumentError("certificate_user_principal_names",
 				fmt.Sprintf("%sFLEET_VAR_%s is not allowed in CA User Principal Name", errPrefix, fleetVar))
 		}
