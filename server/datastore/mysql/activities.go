@@ -1337,11 +1337,21 @@ func (ds *Datastore) activateNextUpcomingActivityForBatchOfHosts(ctx context.Con
 //     and the next few upcoming activities are all of this type, they are
 //     batch-activated together (up to a limit) to reduce the processing
 //     latency and number of push notifications to send to this host.
+//   - Upcoming activities of the same type and priority that share a
+//     `batch_id` in their payload are activated together: the caller has said
+//     they may run at the same time, so the host receives all of them on its
+//     next check-in instead of one per check-in.
 //
 // When called after receiving results for an activity, the fromCompletedExecID
 // argument identifies that completed activity.
 func (ds *Datastore) activateNextUpcomingActivity(ctx context.Context, tx sqlx.ExtContext, hostID uint, fromCompletedExecID string) (activatedExecIDs []string, err error) {
-	const maxMDMCommandActivations = 5
+	const (
+		maxMDMCommandActivations = 5
+		// maxBatchActivations bounds how many activities sharing a batch_id are
+		// activated together in one pass; anything past it is picked up on the
+		// next activation.
+		maxBatchActivations = 100
+	)
 
 	const deleteCompletedStmt = `
 DELETE FROM upcoming_activities
@@ -1357,7 +1367,8 @@ SELECT
 	activity_type,
 	activated_at,
 	IF(activated_at IS NULL, 0, 1) as topmost,
-	priority
+	priority,
+	COALESCE(IF(JSON_TYPE(JSON_EXTRACT(payload, '$.batch_id')) = 'STRING', JSON_UNQUOTE(JSON_EXTRACT(payload, '$.batch_id')), NULL), '') AS batch_id
 FROM
 	upcoming_activities
 WHERE
@@ -1392,9 +1403,10 @@ WHERE
 		ActivatedAt  *time.Time `db:"activated_at"`
 		Topmost      bool       `db:"topmost"`
 		Priority     int        `db:"priority"`
+		BatchID      string     `db:"batch_id"`
 	}
 	var nextActivities []nextActivity
-	stmt, args := fmt.Sprintf(findNextStmt, ""), []any{hostID, maxMDMCommandActivations}
+	stmt, args := fmt.Sprintf(findNextStmt, ""), []any{hostID, maxBatchActivations}
 	if len(ds.testActivateSpecificNextActivities) > 0 {
 		stmt, args, err = sqlx.In(fmt.Sprintf(findNextStmt, findNextSpecificExecIDsClause),
 			hostID, ds.testActivateSpecificNextActivities, len(ds.testActivateSpecificNextActivities))
@@ -1406,24 +1418,65 @@ WHERE
 		return nil, ctxerr.Wrap(ctx, err, "find next upcoming activities to activate")
 	}
 
+	// batch_id is read with a JSON_TYPE guard above: an absent key or a JSON
+	// null both come back as "", never as the string "null", so unbatched
+	// activities can never be mistaken for one batch.
+	sameBatch := func(a, b nextActivity) bool {
+		return a.BatchID != "" && a.BatchID == b.BatchID &&
+			a.ActivityType == b.ActivityType && a.Priority == b.Priority
+	}
+
 	var toActivate []nextActivity
-	for _, act := range nextActivities {
+	var running *nextActivity
+	for i := range nextActivities {
+		act := nextActivities[i]
 		if act.ActivatedAt != nil {
-			// there are still activated activities, do not activate more
-			break
+			// there are still activated activities. Normally nothing more is
+			// activated until they report, except later members of the batch
+			// they belong to (see below), so remember one of them.
+			if running == nil {
+				running = &nextActivities[i]
+			}
+			continue
+		}
+		if running != nil {
+			// Activities are still running: only a member of the same batch may
+			// join them. Batch members are usually queued one request at a time,
+			// so the first one is already activated by the time the second one
+			// arrives; without this, a batch would only run together when it was
+			// queued behind something else.
+			if !sameBatch(*running, act) {
+				break
+			}
+			toActivate = append(toActivate, act)
+			activatedExecIDs = append(activatedExecIDs, act.ExecutionID)
+			continue
 		}
 		if len(toActivate) > 0 {
-			// we already identified one to activate, allow more only if they are a)
-			// the same type, b) that type is vpp_app_install, c) the same priority.
-			// The reason for that is to batch-activate MDM commands to reduce
-			// latency and push notifications required, and the same priority check
-			// is because we can't enforce the ordering of commands if they don't
-			// share the same priority (we transfer the created_at timestamp to the
-			// nano queue, which guarantees same order of processing for activities
-			// with the same priority).
-			if toActivate[0].ActivityType != act.ActivityType ||
-				toActivate[0].ActivityType != "vpp_app_install" ||
-				toActivate[0].Priority != act.Priority {
+			// we already identified one to activate, allow more only if they are
+			// the same type and the same priority, and either a) that type is
+			// vpp_app_install, or b) they share a batch_id.
+			//
+			// a) batch-activates MDM commands to reduce latency and push
+			// notifications required; the same priority check is because we
+			// can't enforce the ordering of commands if they don't share the same
+			// priority (we transfer the created_at timestamp to the nano queue,
+			// which guarantees same order of processing for activities with the
+			// same priority).
+			//
+			// b) is the caller telling us these activities may run at the same
+			// time (see HostSoftwareInstallOptions.BatchID): fleetd receives all
+			// of them on its next check-in and runs them concurrently instead of
+			// one per check-in.
+			first := toActivate[0]
+			if first.ActivityType != act.ActivityType || first.Priority != act.Priority {
+				break
+			}
+			if first.ActivityType == "vpp_app_install" {
+				if len(toActivate) >= maxMDMCommandActivations {
+					break
+				}
+			} else if !sameBatch(first, act) {
 				break
 			}
 		}

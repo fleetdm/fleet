@@ -289,6 +289,11 @@ func (svc *Service) updateAppConfigMDMAppleSetup(ctx context.Context, payload fl
 		didUpdate = true
 	}
 
+	if payload.InstallSoftwareInParallel != nil && ac.MDM.MacOSSetup.InstallSoftwareInParallel != *payload.InstallSoftwareInParallel {
+		ac.MDM.MacOSSetup.InstallSoftwareInParallel = *payload.InstallSoftwareInParallel
+		didUpdate = true
+	}
+
 	if payload.EnableReleaseDeviceManually != nil {
 		if ac.MDM.MacOSSetup.EnableReleaseDeviceManually.Value != *payload.EnableReleaseDeviceManually {
 			ac.MDM.MacOSSetup.EnableReleaseDeviceManually = optjson.SetBool(*payload.EnableReleaseDeviceManually)

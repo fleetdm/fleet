@@ -96,6 +96,7 @@ export interface IMdmConfig {
     macos_manual_agent_install: boolean | null;
     require_all_software_macos: boolean | null;
     require_all_software_windows: boolean | null;
+    install_software_in_parallel: boolean | null;
     lock_end_user_info: boolean | null;
     enable_create_local_admin_account?: boolean;
     end_user_local_account_type?: EndUserLocalAccountType;

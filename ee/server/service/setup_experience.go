@@ -14,6 +14,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/google/uuid"
 )
 
 // setupExperienceGatingPolicyTimeout bounds how long a policy-gated setup-experience item waits for its in-scope gating
@@ -254,6 +255,10 @@ func (svc *Service) SetupExperienceNextStep(ctx context.Context, host *fleet.Hos
 	if err != nil {
 		return false, ctxerr.Wrap(ctx, err, "retrieving setup experience status results for next step")
 	}
+	parallel, err := isSetupExperienceSoftwareParallel(ctx, svc.ds, host)
+	if err != nil {
+		return false, err
+	}
 
 	// Software (installers and VPP apps) are treated as a single group,
 	// ordered alphabetically by display name (falling back to name). This
@@ -297,132 +302,51 @@ func (svc *Service) SetupExperienceNextStep(ctx context.Context, host *fleet.Hos
 			if err := svc.advancePolicyGatedSetupExperienceItem(ctx, host, status); err != nil {
 				return false, err
 			}
-			// One software item is in flight at a time; defer further progress to the next poll or install callback.
-			return false, nil
+			if !parallel {
+				// One software item is in flight at a time; defer further progress to the next poll or install callback.
+				return false, nil
+			}
 		}
 	}
 
 	switch {
-	case len(softwarePending) > 0 && softwareRunning == 0:
-		// Enqueue only the first pending software item (installer or VPP app).
-		// On the next call, this item will be in "running" state and the next
-		// pending item will be picked up. This ensures software is installed
-		// one at a time in the alphabetical display-name order determined at
-		// enqueue time (rows are ordered by sesr.id).
+	case len(softwarePending) > 0 && (softwareRunning == 0 || parallel):
+		// By default, enqueue only the first pending software item (installer or
+		// VPP app). On the next call, this item will be in "running" state and
+		// the next pending item will be picked up. This ensures software is
+		// installed one at a time in the alphabetical display-name order
+		// determined at enqueue time (rows are ordered by sesr.id).
+		//
+		// With install_software_in_parallel, every pending item is started on
+		// this call, so the host downloads and installs them all at once.
 		//
 		// Un-gated items are started before policy-gated ones: a gated item may sit in "running" while it waits for the host's
 		// labels and the gating policy result, and we don't want that wait to delay the un-gated installs (which need neither).
 		// Alphabetical order is preserved within each group (softwarePending is already ordered by sesr.id).
-		sw := softwarePending[0]
-		for _, pending := range softwarePending {
-			if !pending.PolicyGated {
-				sw = pending
+		// In parallel mode the items share a batch so the host's queue activates
+		// them together and fleetd runs them at the same time.
+		var batchID string
+		toStart := softwarePending
+		if parallel {
+			batchID = uuid.NewString()
+		} else {
+			sw := softwarePending[0]
+			for _, pending := range softwarePending {
+				if !pending.PolicyGated {
+					sw = pending
+					break
+				}
+			}
+			toStart = []*fleet.SetupExperienceStatusResult{sw}
+		}
+		for _, sw := range toStart {
+			stop, err := svc.startSetupExperienceSoftwareItem(ctx, host, sw, batchID)
+			if err != nil {
+				return false, err
+			}
+			if stop {
 				break
 			}
-		}
-
-		switch {
-		case sw.SoftwareInstallerID != nil:
-			if sw.PolicyGated {
-				// Policy-gated (Windows/Linux): run the associated policy as a gate. Flip to running (awaiting policy) and act on
-				// a fresh result if one is already available; otherwise wait for the next poll. The install, when needed, is
-				// performed through the normal setup-experience path below so it inherits the retry count and the
-				// RequireAllSoftwareWindows handling.
-				if err := svc.advancePolicyGatedSetupExperienceItem(ctx, host, sw); err != nil {
-					return false, err
-				}
-				return false, nil
-			}
-			installUUID, err := svc.ds.InsertSoftwareInstallRequest(ctx, host.ID, *sw.SoftwareInstallerID, fleet.HostSoftwareInstallOptions{
-				SelfService:        false,
-				ForSetupExperience: true,
-			})
-			if err != nil {
-				return false, ctxerr.Wrap(ctx, err, "queueing setup experience install request")
-			}
-			sw.HostSoftwareInstallsExecutionID = &installUUID
-			sw.Status = fleet.SetupExperienceStatusRunning
-			if err := svc.ds.UpdateSetupExperienceStatusResult(ctx, sw); err != nil {
-				return false, ctxerr.Wrap(ctx, err, "updating setup experience result with install uuid")
-			}
-
-		case sw.VPPAppTeamID != nil:
-			vppAppID, err := sw.VPPAppID()
-			if err != nil {
-				return false, ctxerr.Wrap(ctx, err, "constructing vpp app details for installation")
-			}
-
-			if sw.SoftwareTitleID == nil {
-				return false, ctxerr.Errorf(ctx, "setup experience software title id missing from vpp app install request: %d", sw.ID)
-			}
-
-			vppApp := &fleet.VPPApp{
-				TitleID: *sw.SoftwareTitleID,
-				VPPAppTeam: fleet.VPPAppTeam{
-					VPPAppID: *vppAppID,
-				},
-			}
-
-			cmdUUID, err := svc.installSoftwareFromVPP(ctx, host, vppApp, true, fleet.HostSoftwareInstallOptions{
-				SelfService:        false,
-				ForSetupExperience: true,
-			})
-
-			if err != nil {
-				// if we get an error (e.g. no available licenses) while attempting to enqueue the
-				// install, then we should immediately go to an error state so setup experience
-				// isn't blocked.
-				svc.logger.WarnContext(ctx, "got an error when attempting to enqueue VPP app install", "err", err, "adam_id", sw.VPPAppAdamID)
-				sw.Status = fleet.SetupExperienceStatusFailure
-				sw.Error = ptr.String(err.Error())
-				// Persist the failure before cancelling other steps, so that
-				// maybeCancelPendingSetupExperienceSteps can find the failed
-				// item from its loaded statuses.
-				if err := svc.ds.UpdateSetupExperienceStatusResult(ctx, sw); err != nil {
-					return false, ctxerr.Wrap(ctx, err, "updating setup experience with vpp install failure")
-				}
-				failActivity := fleet.ActivityInstalledAppStoreApp{
-					HostID:              host.ID,
-					HostDisplayName:     host.DisplayName(),
-					SoftwareTitle:       sw.Name,
-					AppStoreID:          ptr.ValOrZero(sw.VPPAppAdamID),
-					Status:              string(fleet.SoftwareInstallFailed),
-					HostPlatform:        host.Platform,
-					FromSetupExperience: true,
-				}
-				if actErr := svc.NewActivity(ctx, nil, failActivity); actErr != nil {
-					svc.logger.WarnContext(ctx, "failed to create activity for VPP app install failure during setup experience", "err", actErr)
-				}
-				// At this point we need to check whether the "cancel if software install fails" setting is active,
-				// in which case we'll cancel the remaining pending items.
-				requireAllSoftware, err := svc.IsAllSetupExperienceSoftwareRequired(ctx, host)
-				if err != nil {
-					return false, ctxerr.Wrap(ctx, err, "checking if all software is required after vpp app install failure")
-				}
-				if requireAllSoftware {
-					err := svc.MaybeCancelPendingSetupExperienceSteps(ctx, host)
-					if err != nil {
-						return false, ctxerr.Wrap(ctx, err, "cancelling remaining setup experience steps after vpp app install failure")
-					}
-				}
-			} else {
-				sw.NanoCommandUUID = &cmdUUID
-				sw.Status = fleet.SetupExperienceStatusRunning
-				if err := svc.ds.UpdateSetupExperienceStatusResult(ctx, sw); err != nil {
-					return false, ctxerr.Wrap(ctx, err, "updating setup experience with vpp install command uuid")
-				}
-			}
-		case sw.InHouseAppID != nil:
-			// In-house apps only install during setup experience on iOS/iPadOS,
-			// which is driven in one pass by the worker and never reaches this
-			// poll-driven flow. Fail the item instead of letting it fall through
-			// the switch silently and stall the queue.
-			sw.Status = fleet.SetupExperienceStatusFailure
-			sw.Error = new("In-house apps can only be installed during setup experience on iOS and iPadOS.")
-			if err := svc.ds.UpdateSetupExperienceStatusResult(ctx, sw); err != nil {
-				return false, ctxerr.Wrap(ctx, err, "updating setup experience status result to failure")
-			}
-			svc.logger.ErrorContext(ctx, "unexpected in-house app setup experience item in poll-driven flow", "status_id", sw.ID)
 		}
 	case softwareRunning == 0 && len(scriptsPending) > 0:
 		// enqueue scripts
@@ -459,6 +383,138 @@ func (svc *Service) SetupExperienceNextStep(ctx context.Context, host *fleet.Hos
 	}
 
 	return false, nil
+}
+
+// startSetupExperienceSoftwareItem starts one pending setup experience software item (installer or VPP app). It returns
+// stop=true when the remaining pending items were cancelled as a side effect and no further item must be started.
+func (svc *Service) startSetupExperienceSoftwareItem(ctx context.Context, host *fleet.Host, sw *fleet.SetupExperienceStatusResult, batchID string) (stop bool, err error) {
+	switch {
+	case sw.SoftwareInstallerID != nil:
+		if sw.PolicyGated {
+			// Policy-gated (Windows/Linux): run the associated policy as a gate. Flip to running (awaiting policy) and act on
+			// a fresh result if one is already available; otherwise wait for the next poll. The install, when needed, is
+			// performed through the normal setup-experience path below so it inherits the retry count and the
+			// RequireAllSoftwareWindows handling.
+			if err := svc.advancePolicyGatedSetupExperienceItem(ctx, host, sw); err != nil {
+				return false, err
+			}
+			return false, nil
+		}
+		installUUID, err := svc.ds.InsertSoftwareInstallRequest(ctx, host.ID, *sw.SoftwareInstallerID, fleet.HostSoftwareInstallOptions{
+			SelfService:        false,
+			ForSetupExperience: true,
+			BatchID:            batchID,
+		})
+		if err != nil {
+			return false, ctxerr.Wrap(ctx, err, "queueing setup experience install request")
+		}
+		sw.HostSoftwareInstallsExecutionID = &installUUID
+		sw.Status = fleet.SetupExperienceStatusRunning
+		if err := svc.ds.UpdateSetupExperienceStatusResult(ctx, sw); err != nil {
+			return false, ctxerr.Wrap(ctx, err, "updating setup experience result with install uuid")
+		}
+
+	case sw.VPPAppTeamID != nil:
+		vppAppID, err := sw.VPPAppID()
+		if err != nil {
+			return false, ctxerr.Wrap(ctx, err, "constructing vpp app details for installation")
+		}
+
+		if sw.SoftwareTitleID == nil {
+			return false, ctxerr.Errorf(ctx, "setup experience software title id missing from vpp app install request: %d", sw.ID)
+		}
+
+		vppApp := &fleet.VPPApp{
+			TitleID: *sw.SoftwareTitleID,
+			VPPAppTeam: fleet.VPPAppTeam{
+				VPPAppID: *vppAppID,
+			},
+		}
+
+		cmdUUID, err := svc.installSoftwareFromVPP(ctx, host, vppApp, true, fleet.HostSoftwareInstallOptions{
+			SelfService:        false,
+			ForSetupExperience: true,
+			BatchID:            batchID,
+		})
+
+		if err != nil {
+			// if we get an error (e.g. no available licenses) while attempting to enqueue the
+			// install, then we should immediately go to an error state so setup experience
+			// isn't blocked.
+			svc.logger.WarnContext(ctx, "got an error when attempting to enqueue VPP app install", "err", err, "adam_id", sw.VPPAppAdamID)
+			sw.Status = fleet.SetupExperienceStatusFailure
+			sw.Error = ptr.String(err.Error())
+			// Persist the failure before cancelling other steps, so that
+			// maybeCancelPendingSetupExperienceSteps can find the failed
+			// item from its loaded statuses.
+			if err := svc.ds.UpdateSetupExperienceStatusResult(ctx, sw); err != nil {
+				return false, ctxerr.Wrap(ctx, err, "updating setup experience with vpp install failure")
+			}
+			failActivity := fleet.ActivityInstalledAppStoreApp{
+				HostID:              host.ID,
+				HostDisplayName:     host.DisplayName(),
+				SoftwareTitle:       sw.Name,
+				AppStoreID:          ptr.ValOrZero(sw.VPPAppAdamID),
+				Status:              string(fleet.SoftwareInstallFailed),
+				HostPlatform:        host.Platform,
+				FromSetupExperience: true,
+			}
+			if actErr := svc.NewActivity(ctx, nil, failActivity); actErr != nil {
+				svc.logger.WarnContext(ctx, "failed to create activity for VPP app install failure during setup experience", "err", actErr)
+			}
+			// At this point we need to check whether the "cancel if software install fails" setting is active,
+			// in which case we'll cancel the remaining pending items.
+			requireAllSoftware, err := svc.IsAllSetupExperienceSoftwareRequired(ctx, host)
+			if err != nil {
+				return false, ctxerr.Wrap(ctx, err, "checking if all software is required after vpp app install failure")
+			}
+			if requireAllSoftware {
+				err := svc.MaybeCancelPendingSetupExperienceSteps(ctx, host)
+				if err != nil {
+					return false, ctxerr.Wrap(ctx, err, "cancelling remaining setup experience steps after vpp app install failure")
+				}
+				// The remaining pending items were just cancelled; do not start any more of them.
+				return true, nil
+			}
+		} else {
+			sw.NanoCommandUUID = &cmdUUID
+			sw.Status = fleet.SetupExperienceStatusRunning
+			if err := svc.ds.UpdateSetupExperienceStatusResult(ctx, sw); err != nil {
+				return false, ctxerr.Wrap(ctx, err, "updating setup experience with vpp install command uuid")
+			}
+		}
+	case sw.InHouseAppID != nil:
+		// In-house apps only install during setup experience on iOS/iPadOS,
+		// which is driven in one pass by the worker and never reaches this
+		// poll-driven flow. Fail the item instead of letting it fall through
+		// the switch silently and stall the queue.
+		sw.Status = fleet.SetupExperienceStatusFailure
+		sw.Error = new("In-house apps can only be installed during setup experience on iOS and iPadOS.")
+		if err := svc.ds.UpdateSetupExperienceStatusResult(ctx, sw); err != nil {
+			return false, ctxerr.Wrap(ctx, err, "updating setup experience status result to failure")
+		}
+		svc.logger.ErrorContext(ctx, "unexpected in-house app setup experience item in poll-driven flow", "status_id", sw.ID)
+	}
+	return false, nil
+}
+
+// isSetupExperienceSoftwareParallel reports whether the host's team (or the global config for hosts on no team) has
+// install_software_in_parallel set, in which case every pending setup experience software item is started at once instead
+// of one at a time.
+func isSetupExperienceSoftwareParallel(ctx context.Context, ds fleet.Datastore, host *fleet.Host) (bool, error) {
+	teamID := host.TeamID
+	if teamID == nil || *teamID == 0 {
+		ac, err := ds.AppConfig(ctx)
+		if err != nil {
+			return false, ctxerr.Wrap(ctx, err, "getting app config for setup experience parallel installs")
+		}
+		return ac.MDM.MacOSSetup.InstallSoftwareInParallel, nil
+	}
+	team, err := ds.TeamLite(ctx, *teamID)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "load team for setup experience parallel installs")
+	}
+	return team.Config.MDM.MacOSSetup.InstallSoftwareInParallel, nil
 }
 
 // advancePolicyGatedSetupExperienceItem drives a policy-gated Windows/Linux setup-experience software item. The item's installer

@@ -1965,6 +1965,7 @@ VALUES
 			'software_title_name', ?,
 			'source', ?,
 			'with_retries', ?,
+			'batch_id', NULLIF(?, ''),
 			'user', (SELECT JSON_OBJECT('name', name, 'email', email, 'gravatar_url', gravatar_url) FROM users WHERE id = ?)
 		)
 	)`
@@ -2025,6 +2026,7 @@ VALUES
 			installerDetails.TitleName,
 			installerDetails.Source,
 			opts.WithRetries,
+			opts.BatchID,
 			userID,
 		)
 		if err != nil {

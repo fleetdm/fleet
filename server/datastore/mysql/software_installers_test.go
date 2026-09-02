@@ -34,6 +34,7 @@ func TestSoftwareInstallers(t *testing.T) {
 	}{
 		{"SoftwareInstallRequests", testSoftwareInstallRequests},
 		{"ListPendingSoftwareInstalls", testListPendingSoftwareInstalls},
+		{"BatchedSoftwareInstallsActivateTogether", testBatchedSoftwareInstallsActivateTogether},
 		{"GetSoftwareInstallResults", testGetSoftwareInstallResult},
 		{"CleanupUnusedSoftwareInstallers", testCleanupUnusedSoftwareInstallers},
 		{"BatchSetSoftwareInstallers", testBatchSetSoftwareInstallers},
@@ -7630,4 +7631,88 @@ func testHasFMAInstallerVersion(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.False(t, versionExists)
 	require.Empty(t, storageID)
+}
+
+// testBatchedSoftwareInstallsActivateTogether checks the host's upcoming-activities queue hands out install requests
+// that share a BatchID all at once, and keeps handing out one at a time for requests without one.
+func testBatchedSoftwareInstallsActivateTogether(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+
+	newInstaller := func(n int) uint {
+		tfr, err := fleet.NewTempFileReader(strings.NewReader("hello"), t.TempDir)
+		require.NoError(t, err)
+		id, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+			InstallScript:   "install",
+			InstallerFile:   tfr,
+			StorageID:       fmt.Sprintf("storage%d", n),
+			Filename:        fmt.Sprintf("file%d", n),
+			Title:           fmt.Sprintf("file%d", n),
+			Version:         "1.0",
+			Source:          "apps",
+			UserID:          user.ID,
+			ValidatedLabels: &fleet.LabelIdentsWithScope{},
+		})
+		require.NoError(t, err)
+		return id
+	}
+	installers := []uint{newInstaller(1), newInstaller(2), newInstaller(3)}
+
+	// Without a batch: three requests, only the first is handed to the host.
+	serialHost := test.NewHost(t, ds, "serial", "1", "serialkey", "serialuuid", time.Now())
+	var serialExecIDs []string
+	for _, installerID := range installers {
+		execID, err := ds.InsertSoftwareInstallRequest(ctx, serialHost.ID, installerID, fleet.HostSoftwareInstallOptions{})
+		require.NoError(t, err)
+		serialExecIDs = append(serialExecIDs, execID)
+		time.Sleep(time.Millisecond)
+	}
+	ready, err := ds.ListReadyToExecuteSoftwareInstalls(ctx, serialHost.ID)
+	require.NoError(t, err)
+	require.Equal(t, serialExecIDs[:1], ready)
+
+	// With a batch: three requests, all three are handed to the host at once.
+	batchHost := test.NewHost(t, ds, "batch", "2", "batchkey", "batchuuid", time.Now())
+	batchID := uuid.NewString()
+	var batchExecIDs []string
+	for _, installerID := range installers {
+		execID, err := ds.InsertSoftwareInstallRequest(ctx, batchHost.ID, installerID, fleet.HostSoftwareInstallOptions{BatchID: batchID})
+		require.NoError(t, err)
+		batchExecIDs = append(batchExecIDs, execID)
+		time.Sleep(time.Millisecond)
+	}
+	ready, err = ds.ListReadyToExecuteSoftwareInstalls(ctx, batchHost.ID)
+	require.NoError(t, err)
+	require.ElementsMatch(t, batchExecIDs, ready)
+
+	// A request with a different batch, queued after the batch, waits for the whole batch to finish.
+	otherExecID, err := ds.InsertSoftwareInstallRequest(ctx, batchHost.ID, newInstaller(4), fleet.HostSoftwareInstallOptions{BatchID: uuid.NewString()})
+	require.NoError(t, err)
+	ready, err = ds.ListReadyToExecuteSoftwareInstalls(ctx, batchHost.ID)
+	require.NoError(t, err)
+	require.ElementsMatch(t, batchExecIDs, ready)
+
+	// Finishing two of the three does not release the next request.
+	for _, execID := range batchExecIDs[:2] {
+		_, err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
+			HostID:                batchHost.ID,
+			InstallUUID:           execID,
+			InstallScriptExitCode: ptr.Int(0),
+		}, nil)
+		require.NoError(t, err)
+	}
+	ready, err = ds.ListReadyToExecuteSoftwareInstalls(ctx, batchHost.ID)
+	require.NoError(t, err)
+	require.Equal(t, batchExecIDs[2:], ready)
+
+	// Finishing the last one does.
+	_, err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
+		HostID:                batchHost.ID,
+		InstallUUID:           batchExecIDs[2],
+		InstallScriptExitCode: ptr.Int(0),
+	}, nil)
+	require.NoError(t, err)
+	ready, err = ds.ListReadyToExecuteSoftwareInstalls(ctx, batchHost.ID)
+	require.NoError(t, err)
+	require.Equal(t, []string{otherExecID}, ready)
 }

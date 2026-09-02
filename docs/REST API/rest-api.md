@@ -8170,6 +8170,7 @@ _Available in Fleet Premium_
 | lock_end_user_info | boolean | body  | When enabled, end user can't edit the local account's Account Name and Full Name in macOS Setup Assistant. These fields will be locked to values from your IdP. (Default: `true`)  |
 | require_all_software_macos | boolean | body | If set to `true`, setup will be canceled on macOS hosts if any software installs fail. |
 | require_all_software_windows | boolean | body | If set to `true`, setup will be canceled on Windows hosts if any software installs fail (the host is blocked at the Windows Enrollment Status Page until the device is reset). If `false`, the Enrollment Status Page lists the failed software and the end user can continue to the desktop and install it later via self-service. |
+| install_software_in_parallel | boolean | body | If set to `true`, setup experience software is installed all at once instead of one item at a time. Applies to macOS, Windows, and Linux hosts. (Default: `false`) |
 | enable_release_device_manually | boolean | body  | When enabled, you're responsible for sending the [`DeviceConfigured` command](https://developer.apple.com/documentation/devicemanagement/device-configured-command). End users will be stuck in Setup Assistant until this command is sent. |
 | manual_agent_install | boolean | body  | If set to `true` Fleet's agent (fleetd) won't be installed as part of automatic enrollment (ADE) on macOS hosts. (Default: `false`) |
 | enable_managed_local_account     | boolean | body | _Available in Fleet Premium._ During the Setup experience, a managed local account will be created on macOS hosts if set to true. |
@@ -13647,6 +13648,39 @@ Package installs time out after 1 hour.
 #### Example
 
 `POST /api/v1/fleet/hosts/123/software/3435/install`
+
+##### Default response
+
+`Status: 202`
+
+### Install several software titles at once
+
+_Available in Fleet Premium._
+
+Install several software titles on one host at the same time. The host's queue normally hands the agent one install at a time, so each install waits for the previous one to download, install, and report back. Titles queued with this endpoint are handed to the agent together and it downloads and installs them concurrently.
+
+Every title is checked before anything is queued. If one title cannot be installed (not available for the host, out of label scope, already pending), nothing is queued and the error is returned.
+
+`POST /api/v1/fleet/hosts/:id/software/install`
+
+#### Parameters
+
+| Name               | Type    | In   | Description                                                  |
+| ------------------ | ------- | ---- | ------------------------------------------------------------ |
+| id                 | integer | path | **Required**. The host's ID.                                 |
+| software_title_ids | array   | body | **Required**. The IDs of the software titles to install.     |
+
+#### Example
+
+`POST /api/v1/fleet/hosts/123/software/install`
+
+##### Request body
+
+```json
+{
+  "software_title_ids": [3435, 3436, 3437]
+}
+```
 
 ##### Default response
 

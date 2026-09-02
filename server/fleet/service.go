@@ -852,6 +852,10 @@ type Service interface {
 	// InstallSoftwareTitle installs a software title in the given host.
 	InstallSoftwareTitle(ctx context.Context, hostID uint, softwareTitleID uint) error
 
+	// InstallSoftwareTitles queues an install of every given software title on
+	// the host as one batch, so the host runs them all at the same time.
+	InstallSoftwareTitles(ctx context.Context, hostID uint, softwareTitleIDs []uint) error
+
 	// UpdateSoftwareTitleAutoUpdateConfig updates the auto-update configuration for a software title.
 	UpdateSoftwareTitleAutoUpdateConfig(ctx context.Context, titleID uint, teamID *uint, config SoftwareAutoUpdateConfig) error
 

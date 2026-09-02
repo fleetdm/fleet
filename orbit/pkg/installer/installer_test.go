@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 	"syscall"
 	"testing"
 	"testing/synctest"
@@ -1511,4 +1512,78 @@ func TestRunInstallerScriptSurfacesExecveError(t *testing.T) {
 	require.Error(t, err)
 	require.NotNil(t, payload.InstallScriptOutput)
 	require.Contains(t, *payload.InstallScriptOutput, execveErr)
+}
+
+// TestInstallerRunParallel checks that every install the server hands out in
+// one poll runs at the same time. Each fake install blocks until all of them
+// have started, so a runner that walked the list one at a time would never
+// get past the first item and the test would time out.
+func TestInstallerRunParallel(t *testing.T) {
+	t.Parallel()
+
+	const pending = 3
+	ids := []string{"exec1", "exec2", "exec3"}
+
+	started := make(chan struct{}, pending)
+	allStarted := make(chan struct{})
+	go func() {
+		for i := 0; i < pending; i++ {
+			<-started
+		}
+		close(allStarted)
+	}()
+
+	oc := &TestOrbitClient{}
+	oc.getInstallerDetailsFn = func(installID string) (*fleet.SoftwareInstallDetails, error) {
+		started <- struct{}{}
+		select {
+		case <-allStarted:
+		case <-time.After(5 * time.Second):
+			return nil, errors.New("timed out waiting for the other installs to start: installs ran one at a time")
+		}
+		return &fleet.SoftwareInstallDetails{
+			ExecutionID:   installID,
+			InstallerID:   1337,
+			InstallScript: "script",
+		}, nil
+	}
+	oc.downloadInstallerFn = func(installerID uint, downloadDir string) (string, error) {
+		return filepath.Join(downloadDir, fmt.Sprint(installerID)+".pkg"), nil
+	}
+
+	var mu sync.Mutex
+	saved := make(map[string]*fleet.HostSoftwareInstallResultPayload)
+	oc.saveInstallerResultFn = func(p *fleet.HostSoftwareInstallResultPayload) error {
+		mu.Lock()
+		defer mu.Unlock()
+		saved[p.InstallUUID] = p
+		return nil
+	}
+
+	r := &Runner{
+		OrbitClient:    oc,
+		OsqueryClient:  &TestQueryClient{},
+		scriptsEnabled: func() bool { return true },
+		removeAllFn:    func(string) error { return nil },
+		tempDirFn: func(dir, pattern string) (string, error) {
+			return t.TempDir(), nil
+		},
+		execCmdFn: func(ctx context.Context, scriptPath string, env []string) ([]byte, int, error) {
+			return []byte("ok"), 0, nil
+		},
+	}
+
+	var config fleet.OrbitConfig
+	config.Notifications.PendingSoftwareInstallerIDs = ids
+
+	require.NoError(t, r.run(context.Background(), &config))
+
+	mu.Lock()
+	defer mu.Unlock()
+	require.Len(t, saved, pending)
+	for _, id := range ids {
+		require.Contains(t, saved, id)
+		require.NotNil(t, saved[id].InstallScriptExitCode)
+		require.Equal(t, 0, *saved[id].InstallScriptExitCode)
+	}
 }

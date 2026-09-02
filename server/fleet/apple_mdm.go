@@ -688,6 +688,7 @@ type MDMAppleSetupPayload struct {
 	ManualAgentInstall          *bool   `json:"manual_agent_install" renameto:"macos_manual_agent_install"`
 	RequireAllSoftware          *bool   `json:"require_all_software_macos"`
 	RequireAllSoftwareWindows   *bool   `json:"require_all_software_windows"`
+	InstallSoftwareInParallel   *bool   `json:"install_software_in_parallel"`
 	LockEndUserInfo             *bool   `json:"lock_end_user_info"`
 	EnableManagedLocalAccount   *bool   `json:"enable_managed_local_account" renameto:"enable_create_local_admin_account"`
 	EndUserLocalAccountType     *string `json:"end_user_local_account_type"`

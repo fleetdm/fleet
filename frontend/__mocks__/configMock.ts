@@ -51,6 +51,7 @@ const DEFAULT_CONFIG_MDM_MOCK: IMdmConfig = {
     apple_enable_release_device_manually: false,
     require_all_software_macos: false,
     require_all_software_windows: false,
+    install_software_in_parallel: false,
     lock_end_user_info: false,
   },
   macos_migration: {
