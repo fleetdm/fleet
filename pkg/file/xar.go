@@ -532,6 +532,9 @@ func getDistributionInfo(d *distributionXML) (name string, identifier string, ve
 		for _, pkgRef := range d.PkgRefs {
 			if pkgRef.Version != "" {
 				version = pkgRef.Version
+				if version != "0" {
+					break
+				}
 			}
 		}
 	}

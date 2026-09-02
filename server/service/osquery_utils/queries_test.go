@@ -230,6 +230,47 @@ func TestSoftwareIngestionMutations(t *testing.T) {
 	MutateSoftwareOnIngestion(t.Context(), notPython, slog.New(slog.DiscardHandler))
 	assert.Equal(t, "3.14.5150.0", notPython.Version)
 
+	// Test AnyDesk version sanitizer - strips the client-ID prefix AnyDesk writes
+	// into its registry DisplayVersion ("ad 9.7.15" for the generic client).
+	anyDesk := &fleet.Software{
+		Name:    "AnyDesk",
+		Source:  "programs",
+		Vendor:  "AnyDesk Software GmbH",
+		Version: "ad 9.7.15",
+	}
+	MutateSoftwareOnIngestion(t.Context(), anyDesk, slog.New(slog.DiscardHandler))
+	assert.Equal(t, "9.7.15", anyDesk.Version)
+
+	// Test AnyDesk custom clients, which carry an ID in the prefix
+	anyDeskCustom := &fleet.Software{
+		Name:    "AnyDesk",
+		Source:  "programs",
+		Vendor:  "AnyDesk Software GmbH",
+		Version: "ad1a2b3c4 9.7.15",
+	}
+	MutateSoftwareOnIngestion(t.Context(), anyDeskCustom, slog.New(slog.DiscardHandler))
+	assert.Equal(t, "9.7.15", anyDeskCustom.Version)
+
+	// Test AnyDesk sanitizer leaves an already-clean version alone
+	anyDeskClean := &fleet.Software{
+		Name:    "AnyDesk",
+		Source:  "programs",
+		Vendor:  "AnyDesk Software GmbH",
+		Version: "9.7.15",
+	}
+	MutateSoftwareOnIngestion(t.Context(), anyDeskClean, slog.New(slog.DiscardHandler))
+	assert.Equal(t, "9.7.15", anyDeskClean.Version)
+
+	// Test AnyDesk sanitizer doesn't touch other vendors' prefixed versions
+	notAnyDesk := &fleet.Software{
+		Name:    "Some App",
+		Source:  "programs",
+		Vendor:  "Some Other Vendor",
+		Version: "ad 9.7.15",
+	}
+	MutateSoftwareOnIngestion(t.Context(), notAnyDesk, slog.New(slog.DiscardHandler))
+	assert.Equal(t, "ad 9.7.15", notAnyDesk.Version)
+
 	// Test JetBrains software without version in name is not transformed
 	jetbrainsNoVersionInName := &fleet.Software{
 		Name:    "IntelliJ IDEA",
@@ -4485,6 +4526,92 @@ func TestTPMPinConfigVerifyDirectIngest(t *testing.T) {
 			err := ingestFunc(ctx, logger, tt.host, ds, tt.rows)
 			require.Equal(t, tt.wantError, err != nil)
 			require.Equal(t, cmdInserted, tt.wantCmd)
+		})
+	}
+}
+
+// TestBitlockerStartupPolicyRelaxDirectIngest covers the query that lifts a startup-authentication policy blocking
+// Fleet from restoring BitLocker protection on an encrypted but unprotected volume.
+func TestBitlockerStartupPolicyRelaxDirectIngest(t *testing.T) {
+	logger := slog.New(slog.DiscardHandler)
+	ctx := t.Context()
+
+	testHost := &fleet.Host{UUID: "test-uuid", ID: 1}
+	row := func(value int) []map[string]string {
+		return []map[string]string{{"data": strconv.Itoa(value)}}
+	}
+
+	tests := []struct {
+		name      string
+		host      *fleet.Host
+		rows      []map[string]string
+		wantCmd   bool
+		wantError bool
+	}{
+		{
+			name: "nil host",
+			host: nil,
+		},
+		{
+			name: "empty UUID host",
+			host: &fleet.Host{UUID: ""},
+		},
+		{
+			name:      "more rows than the query can return",
+			host:      testHost,
+			rows:      append(row(microsoft_mdm.PolicyOptDropdownDisallowed), row(microsoft_mdm.PolicyOptDropdownDisallowed)...),
+			wantError: true,
+		},
+		{
+			// The deadlock: policy forbids the only protector Fleet can add without the end user.
+			name:    "a banned TPM-only protector is permitted so protection can be restored",
+			host:    testHost,
+			rows:    row(microsoft_mdm.PolicyOptDropdownDisallowed),
+			wantCmd: true,
+		},
+		{
+			name: "an already permitted TPM-only protector needs no command",
+			host: testHost,
+			rows: row(microsoft_mdm.PolicyOptDropdownOptional),
+		},
+		{
+			// Required also permits the protector, so nothing is blocking the agent.
+			name: "a required TPM-only protector needs no command",
+			host: testHost,
+			rows: row(microsoft_mdm.PolicyOptDropdownRequired),
+		},
+		{
+			name: "an unset dropdown already permits a TPM-only protector",
+			host: testHost,
+			rows: []map[string]string{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ds := new(mock.Store)
+
+			cmdInserted := false
+			if tt.wantCmd {
+				ds.MDMWindowsInsertCommandForHostsFunc = func(
+					ctx context.Context,
+					hostUUIDs []string,
+					cmd *fleet.MDMWindowsCommand,
+				) error {
+					cmdInserted = true
+					require.Equal(t, []string{tt.host.UUID}, hostUUIDs)
+					require.NotNil(t, cmd)
+					// The command has to permit a TPM-only protector, otherwise it does not unblock the agent.
+					require.Contains(t, string(cmd.RawCommand),
+						fmt.Sprintf(`ConfigureTPMUsageDropDown_Name" value="%d"`, microsoft_mdm.PolicyOptDropdownOptional))
+					return nil
+				}
+			}
+
+			ingestFunc := bitlockerPolicyQueries["bitlocker_startup_policy_relax"].DirectIngestFunc
+			err := ingestFunc(ctx, logger, tt.host, ds, tt.rows)
+			require.Equal(t, tt.wantError, err != nil)
+			require.Equal(t, tt.wantCmd, cmdInserted)
 		})
 	}
 }

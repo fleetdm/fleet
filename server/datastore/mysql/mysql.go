@@ -36,7 +36,7 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"github.com/jmoiron/sqlx"
 	"go.opentelemetry.io/otel/attribute"
-	semconv "go.opentelemetry.io/otel/semconv/v1.40.0"
+	semconv "go.opentelemetry.io/otel/semconv/v1.41.0"
 	"golang.org/x/sync/singleflight"
 )
 
@@ -100,20 +100,6 @@ type Datastore struct {
 	// certificates and keys.
 	serverPrivateKey string
 
-	// knownSoftwareTitleKeys caches title keys that are known to exist in software_titles.
-	// This eliminates redundant INSERT IGNORE statements during concurrent software ingestion,
-	// preventing lock convoys on the unique index when many hosts report the same software catalog.
-	// The cache evicts an arbitrary half of entries once it reaches a fixed size cap to avoid
-	// unbounded growth on long-lived servers without forcing a full cold start.
-	knownSoftwareTitleKeys map[string]struct{}
-	// knownSoftwareTitleKeysMu serializes cache writes and clears; reads use RLock.
-	knownSoftwareTitleKeysMu sync.RWMutex
-
-	// titleInsertSF deduplicates concurrent INSERT IGNORE INTO software_titles calls for the
-	// same title key. Only one goroutine per title actually executes the INSERT; others wait
-	// and share the result. This prevents lock convoys on cold-start (#48719).
-	titleInsertSF singleflight.Group
-
 	// windowsFMAMatches caches the Windows Fleet-maintained apps that software ingestion
 	// matches reported program names against. The lookup joins software_installers and
 	// software_titles, and ingestion runs on every host software update, so it is held
@@ -139,15 +125,6 @@ type Datastore struct {
 	// program at once, and every one of them misses.
 	windowsFMAMatchesSF singleflight.Group
 }
-
-// maxKnownSoftwareTitleKeys caps the in-process software title cache at roughly 100k entries so
-// long-lived servers do not retain every title they have ever seen.
-const maxKnownSoftwareTitleKeys = 100_000
-
-// evictKnownSoftwareTitleKeys removes half the cache when the cap is hit. Keeping the other half
-// preserves most steady-state hits while avoiding a full cold start that would reintroduce a burst
-// of INSERT IGNORE statements.
-const evictKnownSoftwareTitleKeys = maxKnownSoftwareTitleKeys / 2
 
 // WithPusher sets an APNs pusher for the datastore, used when activating
 // next activities that require MDM commands.
@@ -333,18 +310,17 @@ func NewDBConnections(cfg config.MysqlConfig, opts ...DBOption) (*common_mysql.D
 // Use this when you need to share database connections with other bounded context datastores.
 func NewDatastore(conns *common_mysql.DBConnections, cfg config.MysqlConfig, c clock.Clock) (*Datastore, error) {
 	ds := &Datastore{
-		primary:                conns.Primary,
-		replica:                conns.Replica,
-		logger:                 conns.Options.Logger,
-		clock:                  c,
-		config:                 cfg,
-		readReplicaConfig:      conns.Options.ReplicaConfig,
-		writeCh:                make(chan itemToWrite),
-		stmtCache:              make(map[string]*sqlx.Stmt),
-		minLastOpenedAtDiff:    conns.Options.MinLastOpenedAtDiff,
-		serverPrivateKey:       conns.Options.PrivateKey,
-		knownSoftwareTitleKeys: make(map[string]struct{}),
-		Datastore:              NewAndroidDatastore(conns.Options.Logger, conns.Primary, conns.Replica),
+		primary:             conns.Primary,
+		replica:             conns.Replica,
+		logger:              conns.Options.Logger,
+		clock:               c,
+		config:              cfg,
+		readReplicaConfig:   conns.Options.ReplicaConfig,
+		writeCh:             make(chan itemToWrite),
+		stmtCache:           make(map[string]*sqlx.Stmt),
+		minLastOpenedAtDiff: conns.Options.MinLastOpenedAtDiff,
+		serverPrivateKey:    conns.Options.PrivateKey,
+		Datastore:           NewAndroidDatastore(conns.Options.Logger, conns.Primary, conns.Replica),
 	}
 
 	go ds.writeChanLoop()
@@ -837,35 +813,53 @@ func (ds *Datastore) Close() error {
 
 // appendListOptionsToSelect will apply the given list options to ds and
 // return the new select dataset.
-//
-// NOTE: This is a copy of appendListOptionsToSQL that uses the goqu package.
-func appendListOptionsToSelect(ds *goqu.SelectDataset, opts fleet.ListOptions) *goqu.SelectDataset {
-	ds = appendOrderByToSelect(ds, opts)
+func appendListOptionsToSelect(ds *goqu.SelectDataset, opts fleet.ListOptions, allowlist common_mysql.OrderKeyAllowlist) (*goqu.SelectDataset, error) {
+	ds, err := appendOrderByToSelect(ds, opts, allowlist)
+	if err != nil {
+		return nil, err
+	}
 	ds = appendLimitOffsetToSelect(ds, opts)
-	return ds
+	return ds, nil
 }
 
-func appendOrderByToSelect(ds *goqu.SelectDataset, opts fleet.ListOptions) *goqu.SelectDataset {
-	if opts.OrderKey != "" {
-		ordersKeys := strings.Split(opts.OrderKey, ",")
-		for _, key := range ordersKeys {
-			sanitized := common_mysql.SanitizeColumn(key)
-			if sanitized == "" {
-				continue
-			}
-
-			var orderedExpr exp.OrderedExpression
-			if opts.OrderDirection == fleet.OrderDescending {
-				orderedExpr = goqu.L(sanitized).Desc()
-			} else {
-				orderedExpr = goqu.L(sanitized).Asc()
-			}
-
-			ds = ds.OrderAppend(orderedExpr)
-		}
+// appendOrderByToSelect appends the requested ordering to ds. Each query passes
+// its own allowlist, since the sortable columns differ per query; a key outside
+// it is rejected rather than reaching the ORDER BY. A nil allowlist rejects
+// every key. Mapped columns are quoted as identifiers, so they must be bare
+// column names rather than SQL expressions.
+func appendOrderByToSelect(ds *goqu.SelectDataset, opts fleet.ListOptions, allowlist common_mysql.OrderKeyAllowlist) (*goqu.SelectDataset, error) {
+	if opts.OrderKey == "" {
+		return ds, nil
 	}
 
-	return ds
+	// An order key may name more than one column, e.g. "name,version".
+	for key := range strings.SplitSeq(opts.OrderKey, ",") {
+		key = strings.TrimSpace(key)
+		if key == "" {
+			continue
+		}
+		column, ok := allowlist[key]
+		if !ok {
+			return nil, common_mysql.InvalidOrderKeyError{Key: key, Allowed: allowlist.AllowedKeys()}
+		}
+		sanitized := common_mysql.SanitizeColumn(column)
+		if sanitized == "" {
+			// The allowlist maps this key to something that isn't a column
+			// name, which would silently drop it from the ordering.
+			return nil, fmt.Errorf("order key %q maps to an invalid column %q", key, column)
+		}
+
+		var orderedExpr exp.OrderedExpression
+		if opts.OrderDirection == fleet.OrderDescending {
+			orderedExpr = goqu.L(sanitized).Desc()
+		} else {
+			orderedExpr = goqu.L(sanitized).Asc()
+		}
+
+		ds = ds.OrderAppend(orderedExpr)
+	}
+
+	return ds, nil
 }
 
 func appendLimitOffsetToSelect(ds *goqu.SelectDataset, opts fleet.ListOptions) *goqu.SelectDataset {

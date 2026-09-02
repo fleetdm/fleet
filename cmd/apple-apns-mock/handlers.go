@@ -212,10 +212,10 @@ func pingEvent(payload []byte) string {
 }
 
 // pushHandler serves POST /3/device/{token}, the same shape as
-// api.push.apple.com. It accepts what Fleet's buford client sends — a raw JSON
-// body and no apns-* headers — plus the spec headers parsePushHeaders models,
-// and applies APNs payload limits. The payload is forwarded verbatim, not
-// parsed.
+// api.push.apple.com. It accepts what Fleet's nanopush client sends — a raw
+// JSON body with apns-expiration, apns-push-type: mdm, and apns-topic — as
+// well as requests with no apns-* headers at all (legacy clients), and
+// applies APNs payload limits. The payload is forwarded verbatim, not parsed.
 func pushHandler(w http.ResponseWriter, r *http.Request, c *coordinator, logger *slog.Logger) {
 	// parsePushHeaders returns its headers even on failure so the error
 	// response echoes the client's apns-id, like real APNS does.
@@ -261,10 +261,12 @@ func pushHandler(w http.ResponseWriter, r *http.Request, c *coordinator, logger 
 	logger.DebugContext(r.Context(), "push accepted", "token", token, "apns-id", headers.PushID, "payload_size", len(payload), "expiration", expiration)
 }
 
-// pushHeaders holds the apns-* request headers the mock models. Fleet sends
-// none of them today, so every field has an "absent" behavior; this struct
-// is the extension point for future headers (apns-priority,
-// apns-collapse-id, ...).
+// pushHeaders holds the apns-* request headers the mock models. Every field
+// keeps an "absent" behavior so clients that send no apns-* headers still
+// work; this struct is the extension point for future headers
+// (apns-priority, apns-collapse-id, ...). apns-topic is accepted but not
+// modeled: Fleet deployments use a single topic and pending pushes are keyed
+// by token alone.
 type pushHeaders struct {
 	PushID     string     // apns-id: echoed back if given (else a generated UUID); non-UUID → 400 BadMessageId
 	PushType   string     // apns-push-type: absent or "mdm" accepted; anything else → 400 InvalidPushType (this mock only models MDM wake-ups)
@@ -304,10 +306,10 @@ func parsePushHeaders(r *http.Request) (*pushHeaders, *apnsError) {
 }
 
 // apnsPushError writes the error shape real APNs returns: an apns-id header
-// and a {"reason":...} JSON body. The body is load-bearing — buford's
-// parseErrorResponse surfaces a JSON-decode error instead of the reason on
-// anything else. A 410 Unregistered, if ever modeled, must add a "timestamp"
-// field; Apple omits it on every other error.
+// and a {"reason":...} JSON body. The body is load-bearing — nanopush's
+// newError surfaces a JSON-decode error instead of the reason on anything
+// else. A 410 Unregistered, if ever modeled, must add a "timestamp" field;
+// Apple omits it on every other error.
 func apnsPushError(w http.ResponseWriter, headers *pushHeaders, err *apnsError) {
 	w.Header().Set("Content-Type", "application/json")
 	if headers != nil {

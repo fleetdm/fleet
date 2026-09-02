@@ -147,35 +147,81 @@ func (svc *Service) MDMListHostConfigurationProfiles(ctx context.Context, hostID
 	return sums, nil
 }
 
-func (svc *Service) MDMAppleEnableFileVaultAndEscrow(ctx context.Context, teamID *uint) error {
-	cert, err := assets.X509Cert(ctx, svc.ds, fleet.MDMAssetCACert)
+// MDMAppleReconcileFileVaultProfile brings the FileVault profile in line with
+// the fleet's (or no-team's) two macOS disk encryption settings: absent when
+// both are off, and otherwise carrying only the payloads the settings call for.
+// It reads the settings itself so callers only need to say which fleet changed.
+func (svc *Service) MDMAppleReconcileFileVaultProfile(ctx context.Context, teamID *uint) error {
+	diskEncryption, err := svc.macOSDiskEncryptionSettings(ctx, teamID)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "retrieving CA cert")
+		return ctxerr.Wrap(ctx, err, "reading macOS disk encryption settings")
+	}
+
+	if !diskEncryption.MacOSEnabled && !diskEncryption.MacOSEscrowEnabled {
+		err := svc.ds.DeleteMDMAppleConfigProfileByTeamAndIdentifier(ctx, teamID, mobileconfig.FleetFileVaultPayloadIdentifier)
+		if err != nil && !fleet.IsNotFound(err) {
+			return ctxerr.Wrap(ctx, err, "removing FileVault profile")
+		}
+		return nil
+	}
+
+	// Only the escrow payload carries the certificate, so enforcement-only
+	// profiles neither need it nor should fail when it cannot be read. Read it
+	// fresh otherwise: turning Apple MDM off and on again mints a new CA, and a
+	// key escrowed against the old one can no longer be decrypted, so the
+	// profile has to carry the current certificate.
+	var certB64 string
+	if diskEncryption.MacOSEscrowEnabled {
+		cert, err := assets.X509Cert(ctx, svc.ds, fleet.MDMAssetCACert)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "retrieving CA cert")
+		}
+		certB64 = base64.StdEncoding.EncodeToString(cert.Raw)
 	}
 
 	var contents bytes.Buffer
 	params := fileVaultProfileOptions{
 		PayloadIdentifier:    mobileconfig.FleetFileVaultPayloadIdentifier,
 		PayloadName:          mdm.FleetFileVaultProfileName,
-		Base64DerCertificate: base64.StdEncoding.EncodeToString(cert.Raw),
+		Base64DerCertificate: certB64,
+		EnableEnforcement:    diskEncryption.MacOSEnabled,
+		EnableEscrow:         diskEncryption.MacOSEscrowEnabled,
 	}
 	if err := fileVaultProfileTemplate.Execute(&contents, params); err != nil {
-		return ctxerr.Wrap(ctx, err, "enabling FileVault")
+		return ctxerr.Wrap(ctx, err, "rendering FileVault profile")
 	}
 
 	cp, err := fleet.NewMDMAppleConfigProfile(contents.Bytes(), teamID)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "enabling FileVault")
+		return ctxerr.Wrap(ctx, err, "building FileVault profile")
 	}
 
-	// filevault profile is a fleet-controlled profile that doesn't use any Fleet variables
-	_, err = svc.ds.NewMDMAppleConfigProfile(ctx, *cp, nil)
-	return ctxerr.Wrap(ctx, err, "enabling FileVault")
+	// upserted rather than replaced: the profile_uuid stays put, so hosts get an
+	// install only when the payloads actually differ. The FileVault profile is
+	// fleet-controlled and uses no Fleet variables.
+	return ctxerr.Wrap(ctx, svc.ds.UpsertMDMAppleFleetConfigProfile(ctx, *cp), "upserting FileVault profile")
 }
 
-func (svc *Service) MDMAppleDisableFileVaultAndEscrow(ctx context.Context, teamID *uint) error {
-	err := svc.ds.DeleteMDMAppleConfigProfileByTeamAndIdentifier(ctx, teamID, mobileconfig.FleetFileVaultPayloadIdentifier)
-	return ctxerr.Wrap(ctx, err, "disabling FileVault")
+// macOSDiskEncryptionSettings returns the effective disk encryption settings for
+// a fleet, or no-team's when teamID is nil or 0.
+//
+// Every caller reconciles immediately after saving these settings, so the read
+// is forced to the primary: a replica serving the previous values would render
+// the profile from them and push it to every Mac in the fleet.
+func (svc *Service) macOSDiskEncryptionSettings(ctx context.Context, teamID *uint) (fleet.DiskEncryptionConfig, error) {
+	ctx = ctxdb.RequirePrimary(ctx, true)
+	if teamID == nil || *teamID == 0 {
+		appCfg, err := svc.ds.AppConfig(ctx)
+		if err != nil {
+			return fleet.DiskEncryptionConfig{}, ctxerr.Wrap(ctx, err, "getting app config")
+		}
+		return appCfg.MDM.DiskEncryptionConfig(), nil
+	}
+	tmMDM, err := svc.ds.TeamMDMConfig(ctx, *teamID)
+	if err != nil {
+		return fleet.DiskEncryptionConfig{}, ctxerr.Wrap(ctx, err, "getting fleet MDM config")
+	}
+	return tmMDM.DiskEncryptionConfig(), nil
 }
 
 func (svc *Service) UpdateMDMAppleSetup(ctx context.Context, payload fleet.MDMAppleSetupPayload) error {
@@ -1369,7 +1415,18 @@ func (svc *Service) getOrCreatePreassignTeam(ctx context.Context, groups []strin
 		spec := &fleet.TeamSpec{
 			Name: teamName,
 			MDM: fleet.TeamSpecMDM{
-				EnableDiskEncryption: optjson.SetBool(true),
+				// the deprecated flat toggle would fan out to these, but set them
+				// directly so this doesn't depend on the fan-out outliving it
+				MacOSSettings: map[string]any{
+					"enable_disk_encryption":            true,
+					"enable_escrow_disk_encryption_key": true,
+				},
+				WindowsSettings: fleet.WindowsSettings{
+					EnableDiskEncryption: optjson.SetBool(true),
+				},
+				LinuxSettings: fleet.LinuxSettings{
+					EnableEscrowDiskEncryptionKey: optjson.SetBool(true),
+				},
 				MacOSSetup: fleet.MacOSSetup{
 					MacOSSetupAssistant: ac.MDM.MacOSSetup.MacOSSetupAssistant,
 					// NOTE: BootstrapPackage gets set by
@@ -1995,7 +2052,7 @@ func (svc *Service) decryptUploadedABMToken(ctx context.Context, token io.Reader
 }
 
 func (svc *Service) ClearPasscode(ctx context.Context, hostID uint) (*fleet.CommandEnqueueResult, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionRead); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
 		return nil, err
 	}
 
@@ -2004,7 +2061,12 @@ func (svc *Service) ClearPasscode(ctx context.Context, hostID uint) (*fleet.Comm
 		return nil, ctxerr.Wrap(ctx, err, "host lite")
 	}
 
-	if err := svc.authz.Authorize(ctx, fleet.MDMCommandAuthz{TeamID: host.TeamID}, fleet.ActionWrite); err != nil {
+	// The platform is part of the authorization input because the policy grants
+	// technicians passcode clearing on iOS/iPadOS only.
+	if err := svc.authz.Authorize(ctx, fleet.MDMCommandAuthz{
+		TeamID:   host.TeamID,
+		Platform: host.Platform,
+	}, fleet.ActionClearPasscode); err != nil {
 		return nil, err
 	}
 

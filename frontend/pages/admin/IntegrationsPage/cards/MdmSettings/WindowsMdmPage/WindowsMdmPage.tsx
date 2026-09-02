@@ -54,7 +54,7 @@ const useSetWindowsMdm = ({
             enableMdm && turnOnProgrammatically && enableAutoMigration,
           // The default fleet for user-driven enrollment is Premium only; the backend rejects it otherwise.
           ...(isPremiumTier && {
-            windows_enrollment: { default_fleet: defaultFleet },
+            windows_automatic_enrollment: { default_fleet: defaultFleet },
           }),
         },
         true
@@ -89,7 +89,7 @@ const WindowsMdmPage = ({ router }: IWindowsMdmPageProps) => {
     !(config?.mdm?.enable_turn_on_windows_mdm_manually ?? false)
   );
   const [defaultFleet, setDefaultFleet] = useState(
-    config?.mdm?.windows_enrollment?.default_fleet ?? UNASSIGNED_FLEET
+    config?.mdm?.windows_automatic_enrollment?.default_fleet ?? UNASSIGNED_FLEET
   );
 
   const isConnectedToEntra = !!config?.mdm?.windows_entra_tenant_ids?.length;

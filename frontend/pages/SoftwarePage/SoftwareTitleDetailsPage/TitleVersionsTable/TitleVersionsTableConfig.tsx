@@ -5,10 +5,11 @@ import PATHS from "router/paths";
 import { getPathWithQueryParams } from "utilities/url";
 
 import {
+  IHeaderProps,
   INumberCellProps,
   IStringCellProps,
 } from "interfaces/datatable_config";
-import { CellProps, HeaderProps } from "react-table";
+import { CellProps } from "react-table";
 
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
@@ -26,7 +27,7 @@ type IVersionCellProps = IStringCellProps<ISoftwareTitleVersion>;
 type IVulnCellProps = CellProps<ISoftwareTitleVersion, string[] | null>;
 type IHostCountCellProps = INumberCellProps<ISoftwareTitleVersion>;
 type IViewAllHostsLinkProps = CellProps<ISoftwareTitleVersion>;
-type IVersionHeaderProps = HeaderProps<ISoftwareTitleVersion>;
+type IVersionHeaderProps = IHeaderProps<ISoftwareTitleVersion>;
 
 const generateSoftwareTitleVersionsTableConfig = ({
   teamId,
