@@ -1418,11 +1418,39 @@ WHERE
 		return nil, ctxerr.Wrap(ctx, err, "find next upcoming activities to activate")
 	}
 
+	// batch_id is read with a JSON_TYPE guard above: an absent key or a JSON
+	// null both come back as "", never as the string "null", so unbatched
+	// activities can never be mistaken for one batch.
+	sameBatch := func(a, b nextActivity) bool {
+		return a.BatchID != "" && a.BatchID == b.BatchID &&
+			a.ActivityType == b.ActivityType && a.Priority == b.Priority
+	}
+
 	var toActivate []nextActivity
-	for _, act := range nextActivities {
+	var running *nextActivity
+	for i := range nextActivities {
+		act := nextActivities[i]
 		if act.ActivatedAt != nil {
-			// there are still activated activities, do not activate more
-			break
+			// there are still activated activities. Normally nothing more is
+			// activated until they report, except later members of the batch
+			// they belong to (see below), so remember one of them.
+			if running == nil {
+				running = &nextActivities[i]
+			}
+			continue
+		}
+		if running != nil {
+			// Activities are still running: only a member of the same batch may
+			// join them. Batch members are usually queued one request at a time,
+			// so the first one is already activated by the time the second one
+			// arrives; without this, a batch would only run together when it was
+			// queued behind something else.
+			if !sameBatch(*running, act) {
+				break
+			}
+			toActivate = append(toActivate, act)
+			activatedExecIDs = append(activatedExecIDs, act.ExecutionID)
+			continue
 		}
 		if len(toActivate) > 0 {
 			// we already identified one to activate, allow more only if they are
@@ -1444,15 +1472,11 @@ WHERE
 			if first.ActivityType != act.ActivityType || first.Priority != act.Priority {
 				break
 			}
-			// batch_id is read with a JSON_TYPE guard above: an absent key or a JSON
-			// null both come back as "", never as the string "null", so unbatched
-			// activities can never be mistaken for one batch.
-			sameBatch := first.BatchID != "" && first.BatchID == act.BatchID
 			if first.ActivityType == "vpp_app_install" {
 				if len(toActivate) >= maxMDMCommandActivations {
 					break
 				}
-			} else if !sameBatch {
+			} else if !sameBatch(first, act) {
 				break
 			}
 		}
