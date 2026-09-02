@@ -79,7 +79,10 @@ export default class TableSystemInfo extends Table {
       if (!devMode) {
         // This throws "Not allowed" error if
         // https://chromeenterprise.google/policies/?policy=EnterpriseHardwarePlatformAPIEnabled is
-        // not configured to enabled for the device.
+        // not configured to enabled for the device. When the policy is disabled, we gracefully
+        // return empty strings instead of pushing warnings, because warnings cause the entire
+        // query to be marked as failed (status=1) even when valid data is returned for all
+        // other columns.
         // @ts-expect-error @types/chrome doesn't yet have the deviceAttributes Promise API.
         const platformInfo = await chrome.enterprise.hardwarePlatform.getHardwarePlatformInfo();
         hwVendor = platformInfo.manufacturer;
@@ -90,14 +93,6 @@ export default class TableSystemInfo extends Table {
       }
     } catch (err) {
       console.warn("get platform info:", err);
-      warningsArray.push({
-        column: "hardware_vendor",
-        error_message: err.message.toString(),
-      });
-      warningsArray.push({
-        column: "hardware_model",
-        error_message: err.message.toString(),
-      });
     }
 
     let cpuBrand = "",
