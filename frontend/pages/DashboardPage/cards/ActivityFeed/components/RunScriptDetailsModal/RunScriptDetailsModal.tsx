@@ -157,12 +157,16 @@ interface IRunScriptDetailsModalProps {
   scriptExecutionId: string;
   onCancel: () => void;
   isHidden?: boolean;
+  /** Skips the close animation so the X matches the Close button. Used when this
+   * modal swaps back to another modal in a group instead of closing. */
+  disableExitAnimation?: boolean;
 }
 
 const RunScriptDetailsModal = ({
   scriptExecutionId,
   onCancel,
   isHidden = false,
+  disableExitAnimation = false,
 }: IRunScriptDetailsModalProps) => {
   // For scrollable modal
   const [isTopScrolling, setIsTopScrolling] = useState(false);
@@ -247,6 +251,7 @@ const RunScriptDetailsModal = ({
       title="Script details"
       onExit={onCancel}
       onEnter={onCancel}
+      disableExitAnimation={disableExitAnimation}
       className={baseClass}
       isHidden={isHidden}
     >

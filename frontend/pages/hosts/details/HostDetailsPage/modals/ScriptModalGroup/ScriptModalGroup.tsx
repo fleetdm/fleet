@@ -239,6 +239,7 @@ const ScriptModalGroup = ({
           setSelectedScript(null);
         }}
         isHidden={currentModal !== ModalGroupOption.Delete}
+        disableExitAnimation
       />
       <RunScriptDetailsModal
         scriptExecutionId={selectedExecutionId || ""}
@@ -252,6 +253,7 @@ const ScriptModalGroup = ({
           }
         }}
         isHidden={currentModal !== ModalGroupOption.ViewRunDetails}
+        disableExitAnimation
       />
     </>
   );
