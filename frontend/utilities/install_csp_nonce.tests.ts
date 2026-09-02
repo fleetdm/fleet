@@ -18,22 +18,20 @@ describe("installCSPNonce", () => {
     document.head.innerHTML = "";
   });
 
-  it("stamps the nonce on created <style> and <script> elements", () => {
+  it("stamps the nonce on created <style> elements", () => {
     setNonceMeta("abc123");
     installCSPNonce();
 
     expect(document.createElement("style").getAttribute("nonce")).toEqual(
       "abc123"
     );
-    expect(document.createElement("script").getAttribute("nonce")).toEqual(
-      "abc123"
-    );
   });
 
-  it("does not stamp unrelated elements", () => {
+  it("does not stamp <script> or unrelated elements", () => {
     setNonceMeta("abc123");
     installCSPNonce();
 
+    expect(document.createElement("script").hasAttribute("nonce")).toBe(false);
     expect(document.createElement("div").hasAttribute("nonce")).toBe(false);
   });
 

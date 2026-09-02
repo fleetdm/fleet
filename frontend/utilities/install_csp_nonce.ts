@@ -4,10 +4,17 @@ import getCSPNonce from "./nonce";
 // <style> elements at runtime via document.createElement. Under a strict CSP
 // (style-src 'self' 'nonce-…') those tags are blocked unless they carry the
 // nonce, and several of these libraries expose no nonce option. Wrapping
-// document.createElement so every dynamically created <style>/<script> is
-// stamped with the server's nonce before insertion covers all of them at the
-// single point they share. No-op when the page is served without a CSP.
-const NONCE_TAGS = new Set(["style", "script"]);
+// document.createElement to stamp the server's nonce on created <style> tags
+// covers all of them at the single point they share. No-op when the page is
+// served without a CSP.
+//
+// Scoped to <style> deliberately: every runtime CSP violation we hit is an
+// inline style, same-origin <script src> chunks are already allowed by
+// script-src 'self', and the template's inline scripts are nonced server-side.
+// So Fleet never needs to auto-nonce a <script>, and not doing so keeps this
+// wrapper from ever stamping the higher-value target. This only runs for code
+// that is already executing JS, so it is not itself an injection vector, and
+// the nonce is readable from the csp-nonce meta tag regardless.
 
 // "disabled" is the sentinel nonce the server emits when no CSP is active.
 const CSP_DISABLED = "disabled";
@@ -24,7 +31,7 @@ export const installCSPNonce = (): void => {
     options?: ElementCreationOptions
   ) {
     const element = original(tagName, options);
-    if (typeof tagName === "string" && NONCE_TAGS.has(tagName.toLowerCase())) {
+    if (typeof tagName === "string" && tagName.toLowerCase() === "style") {
       element.setAttribute("nonce", nonce);
     }
     return element;
