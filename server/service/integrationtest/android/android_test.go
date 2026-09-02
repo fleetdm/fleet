@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"github.com/WatchBeam/clock"
 	"io"
 	"net/http"
 	"testing"
@@ -153,7 +154,7 @@ func testCreateEnrollmentToken(t *testing.T, s *Suite) {
 			secret := "global-no-idp-account" // nolint: gosec
 			createTeamAndSecret(secret, secret, false)
 			resp := s.DoRawWithHeaders(t, "GET", "/api/v1/fleet/android_enterprise/enrollment_token", nil, http.StatusUnprocessableEntity, map[string]string{
-				"Cookie": fmt.Sprintf("%s=%s", shared_mdm.BYODIdpCookieName, "test-uuid"),
+				"Cookie": fmt.Sprintf("%s=%s", shared_mdm.BYODIdpCookieName, mustBYODIdPSession(t, s, "test-uuid")),
 			}, "enroll_secret", secret)
 			je := decodeJsonError(t, resp)
 
@@ -218,7 +219,7 @@ func testCreateEnrollmentToken(t *testing.T, s *Suite) {
 			require.NoError(t, err)
 
 			resp := s.DoRawWithHeaders(t, "GET", "/api/v1/fleet/android_enterprise/enrollment_token", nil, http.StatusOK, map[string]string{
-				"Cookie": fmt.Sprintf("%s=%s", shared_mdm.BYODIdpCookieName, idpAccount.UUID),
+				"Cookie": fmt.Sprintf("%s=%s", shared_mdm.BYODIdpCookieName, mustBYODIdPSession(t, s, idpAccount.UUID)),
 			}, "enroll_secret", globalSecret)
 
 			bodyBytes, err := io.ReadAll(resp.Body)
@@ -320,7 +321,7 @@ func testCreateEnrollmentToken(t *testing.T, s *Suite) {
 			resp := s.DoRawWithHeaders(t, "GET",
 				fmt.Sprintf("/api/v1/fleet/android_enterprise/enrollment_token?enroll_secret=%s&fully_managed=true&idp_uuid=%s", globalSecret, paramAccount.UUID),
 				nil, http.StatusOK, map[string]string{
-					"Cookie": fmt.Sprintf("%s=%s", shared_mdm.BYODIdpCookieName, cookieAccount.UUID),
+					"Cookie": fmt.Sprintf("%s=%s", shared_mdm.BYODIdpCookieName, mustBYODIdPSession(t, s, cookieAccount.UUID)),
 				},
 			)
 			defer resp.Body.Close()
@@ -430,4 +431,12 @@ func decodeJsonError(t *testing.T, response *http.Response) endpointer.JsonError
 	require.NoError(t, err)
 
 	return je
+}
+
+// mustBYODIdPSession mints the session the IdP callback would have, so a test can
+// present a valid BYOD cookie without driving the SAML flow.
+func mustBYODIdPSession(t *testing.T, s *Suite, idpAccountUUID string) string {
+	sessionID, err := shared_mdm.CreateBYODIdPSession(t.Context(), s.KeyValueStore, clock.C, idpAccountUUID)
+	require.NoError(t, err)
+	return sessionID
 }

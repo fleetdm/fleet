@@ -488,6 +488,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 			return svc.NewActivity(ctx, user, activity)
 		},
 		config.MDM.AndroidAgent,
+		redis_key_value.New(redisPool),
 	)
 	if err != nil {
 		initFatal(err, "initializing android service")
@@ -887,6 +888,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 			svc,
 			config.Server.URLPrefix,
 			ds,
+			redis_key_value.New(redisPool),
 			logger,
 			serveCSP,
 		)
