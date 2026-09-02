@@ -20,14 +20,12 @@ Object.defineProperty(window, "matchMedia", {
     dispatchEvent: jest.fn(),
   })),
 });
-// Not a jest.fn(), so a suite calling jest.resetAllMocks() between tests doesn't strip the
-// implementation out from under components that observe on mount.
+// jsdom has no ResizeObserver, so this is a polyfill, not a test double, and it deliberately avoids jest.fn(). A suite
+// that needs a spy can swap in its own and restore it (see HostsEnrolledCard.tests.tsx).
 const noop = () => undefined;
 global.ResizeObserver = class {
   observe = noop;
-
   unobserve = noop;
-
   disconnect = noop;
 };
 

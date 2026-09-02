@@ -457,9 +457,9 @@ const HostDetailsPage = ({
       onSuccess: (returnedHost) => {
         // If API returns refetch_requested: true,
         // only set timer if *not* already set!
-        // Pending hosts carry the flag from the moment they're created, so ignore it unless the
-        // host has enrolled and can actually return vitals. On a never-enrolled host only a click
-        // sets refetchStartTime, so an explicit request still gets its spinner and its feedback.
+        // Pending hosts carry the flag from the moment they're created, so ignore it unless the host has enrolled and
+        // can actually return vitals. On a never-enrolled host only a click (within first 60s) sets refetchStartTime,
+        // so an explicit request still gets its spinner and its feedback.
         if (
           returnedHost.refetch_requested &&
           (hasEverEnrolled(returnedHost) || refetchStartTime !== null)

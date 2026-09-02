@@ -38,10 +38,6 @@ const mockLocation = {
 const ADMIN = createMockUser();
 const OBSERVER = createMockUser({ role: "observer", global_role: "observer" });
 
-/** A pending host has an MDM record but has never checked in with fleetd, so
- * `last_enrolled_at` is the "never" sentinel. Pending hosts are created with
- * `refetch_requested` already set, and their `seen_time` falls back to
- * `created_at`, so they report "online" for the first minute of their life. */
 const mockPendingWindowsHost = (status: "online" | "offline"): IHost => {
   const host = createMockHost({
     platform: "windows",
