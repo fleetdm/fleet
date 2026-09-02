@@ -300,6 +300,25 @@ func TestSoftwareIngestionMutations(t *testing.T) {
 	MutateSoftwareOnIngestion(t.Context(), rpiImagerSuffix, slog.New(slog.DiscardHandler))
 	assert.Equal(t, "2.0.11.1", rpiImagerSuffix.Version)
 
+	// Test Raspberry Pi Imager version sanitizer also applies on Windows,
+	// where the installer embeds the same leading "v" in DisplayVersion
+	rpiImagerWindows := &fleet.Software{
+		Name:    "Raspberry Pi Imager",
+		Source:  "programs",
+		Version: "v2.0.8",
+	}
+	MutateSoftwareOnIngestion(t.Context(), rpiImagerWindows, slog.New(slog.DiscardHandler))
+	assert.Equal(t, "2.0.8", rpiImagerWindows.Version)
+
+	// Test Raspberry Pi Imager Windows sanitizer doesn't touch other software
+	notRpiImagerWindows := &fleet.Software{
+		Name:    "Some Other App",
+		Source:  "programs",
+		Version: "v2.0.8",
+	}
+	MutateSoftwareOnIngestion(t.Context(), notRpiImagerWindows, slog.New(slog.DiscardHandler))
+	assert.Equal(t, "v2.0.8", notRpiImagerWindows.Version)
+
 	// Test JetBrains software without version in name is not transformed
 	jetbrainsNoVersionInName := &fleet.Software{
 		Name:    "IntelliJ IDEA",
