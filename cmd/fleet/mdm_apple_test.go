@@ -45,7 +45,7 @@ func TestInitAppleMDMPushService_DevModeReturnsNopPusher(t *testing.T) {
 	// SetOverride enables dev mode and registers cleanup via t.
 	dev_mode.SetOverride("FLEET_DEV_MDM_APPLE_DISABLE_PUSH", "1", t)
 
-	pusher := initAppleMDMPushService(nil, 7*24*time.Hour, discardLogger())
+	pusher := initAppleMDMPushService(nil, 30*24*time.Hour, discardLogger())
 	require.IsType(t, nopPusher{}, pusher)
 }
 
@@ -53,7 +53,7 @@ func TestInitAppleMDMPushService_DevModeCustomPushServerURL(t *testing.T) {
 	// SetOverride enables dev mode and registers cleanup via t.
 	dev_mode.SetOverride("FLEET_DEV_MDM_APPLE_PUSH_SERVER_URL", "http://localhost:8378", t)
 
-	pusher := initAppleMDMPushService(nil, 7*24*time.Hour, discardLogger())
+	pusher := initAppleMDMPushService(nil, 30*24*time.Hour, discardLogger())
 	require.IsType(t, &nanomdm_pushsvc.PushService{}, pusher)
 }
 
