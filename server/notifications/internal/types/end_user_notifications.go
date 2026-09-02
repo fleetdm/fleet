@@ -23,6 +23,9 @@ type Datastore interface {
 	ExpireEndUserNotifications(ctx context.Context) (int64, error)
 	VerifyEndUserNotification(ctx context.Context, notificationUUID string, displayedAt time.Time) error
 	DelayEndUserNotification(ctx context.Context, notificationUUID string, nextAttemptAt time.Time, payload json.RawMessage) error
+	// ActOnEndUserNotification returns false when the notification was already
+	// terminal, so only the first call gets true.
+	ActOnEndUserNotification(ctx context.Context, notificationUUID string) (bool, error)
 	SetEndUserNotificationOutcome(ctx context.Context, notificationUUID string, outcome api.NotificationOutcome, nextAttemptAt *time.Time) error
 }
 

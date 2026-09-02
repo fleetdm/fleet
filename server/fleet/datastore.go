@@ -752,13 +752,6 @@ type Datastore interface {
 	// PatchNotificationExistsForApp reports whether a patch notification on this
 	// host still has this app to install.
 	PatchNotificationExistsForApp(ctx context.Context, hostID uint, softwareTitleID uint) (bool, error)
-	// GetPatchNotification returns when a notification's apps are due to be
-	// installed, when its reminder was sent, and when its installs were queued.
-	GetPatchNotification(ctx context.Context, notificationUUID string) (*PatchNotification, error)
-	// SetPatchNotificationInstallsQueued records that this notification's apps
-	// have been put on the host's queue, and returns false when the notification
-	// was not changed or does not exist.
-	SetPatchNotificationInstallsQueued(ctx context.Context, notificationUUID string) (bool, error)
 	// NewPatchNotification adds the patch_notifications row for a notification
 	// the notifications context has already created.
 	NewPatchNotification(ctx context.Context, notificationUUID string) error

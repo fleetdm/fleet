@@ -27,6 +27,7 @@ func TestEndUserNotifications(t *testing.T) {
 		{"Expire", testExpireEndUserNotifications},
 		{"Verify", testVerifyEndUserNotification},
 		{"Delay", testDelayEndUserNotification},
+		{"ActOn", testActOnEndUserNotification},
 		{"Outcome", testSetEndUserNotificationOutcome},
 		{"HostDeleteCascade", testEndUserNotificationHostDeleteCascade},
 	}
@@ -465,6 +466,40 @@ func testVerifyEndUserNotification(t *testing.T, env *testEnv) {
 	got, err = env.ds.GetEndUserNotificationByUUID(ctx, delayedUUID)
 	require.NoError(t, err)
 	assert.Nil(t, got.DisplayedAt)
+}
+
+// Acting on a notification is terminal, and only the first caller gets true.
+// That is what makes a second Update now queue nothing.
+func testActOnEndUserNotification(t *testing.T, env *testEnv) {
+	ctx := t.Context()
+
+	t.Run("the first call marks the notification acted and a second call does not", func(t *testing.T) {
+		hostID := newDarwinHost(t, env, "act-on", true)
+		notificationUUID := newHostNotification(t, env, hostID, "test_kind",
+			api.EndUserNotificationDispatched, 1, true)
+
+		acted, err := env.ds.ActOnEndUserNotification(ctx, notificationUUID)
+		require.NoError(t, err)
+		assert.True(t, acted)
+
+		got, err := env.ds.GetEndUserNotificationByUUID(ctx, notificationUUID)
+		require.NoError(t, err)
+		assert.Equal(t, api.EndUserNotificationActed, got.Status)
+
+		acted, err = env.ds.ActOnEndUserNotification(ctx, notificationUUID)
+		require.NoError(t, err)
+		assert.False(t, acted, "the notification was already acted on")
+	})
+
+	t.Run("a notification that already failed cannot be acted on", func(t *testing.T) {
+		hostID := newDarwinHost(t, env, "act-on-failed", true)
+		notificationUUID := newHostNotification(t, env, hostID, "test_kind",
+			api.EndUserNotificationFailed, 1, false)
+
+		acted, err := env.ds.ActOnEndUserNotification(ctx, notificationUUID)
+		require.NoError(t, err)
+		assert.False(t, acted)
+	})
 }
 
 func testDelayEndUserNotification(t *testing.T, env *testEnv) {

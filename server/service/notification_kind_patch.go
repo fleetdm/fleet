@@ -49,17 +49,24 @@ type patchNotificationActivityWriter interface {
 	NewActivity(ctx context.Context, user *fleet.User, activity activity_api.ActivityDetails) error
 }
 
+// The patch kind doesn't own the notifications table, so delaying and acting on
+// a notification go through the notifications context's service.
+type patchNotificationService interface {
+	notifications_api.DelayNotificationService
+	notifications_api.ActOnNotificationService
+}
+
 type patchNotificationKind struct {
 	ds              fleet.Datastore
 	activities      patchNotificationActivityWriter
-	notificationSvc notifications_api.DelayNotificationService
+	notificationSvc patchNotificationService
 	logger          *slog.Logger
 }
 
 func NewPatchNotificationKind(
 	ds fleet.Datastore,
 	activities patchNotificationActivityWriter,
-	notificationSvc notifications_api.DelayNotificationService,
+	notificationSvc patchNotificationService,
 	logger *slog.Logger,
 ) notifications_api.NotificationKind {
 	return &patchNotificationKind{
@@ -124,11 +131,7 @@ func (svc *Service) createPatchNotificationForEndUser(ctx context.Context, host 
 }
 
 func (k *patchNotificationKind) Render(ctx context.Context, notification *notifications_api.EndUserNotification) (*notifications_api.NotificationView, error) {
-	patchNotification, err := k.ds.GetPatchNotification(ctx, notification.UUID)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "get patch notification")
-	}
-	return k.renderView(ctx, notification, patchNotification.InstallsQueuedAt != nil)
+	return k.renderView(ctx, notification, notification.Status == notifications_api.EndUserNotificationActed)
 }
 
 // installsQueued is passed in rather than read, so an action that just queued
@@ -264,14 +267,13 @@ func (k *patchNotificationKind) updateNow(ctx context.Context, notification *not
 		return nil, nil
 	}
 
-	// The end user can press Update now more than once. Only the request that
-	// marks installs_queued_at goes on to queue the installs, so a second press
-	// cannot queue the same apps again.
-	queued, err := k.ds.SetPatchNotificationInstallsQueued(ctx, notification.UUID)
+	// Only the request that marks the notification acted queues the installs, so
+	// a second press of Update now cannot queue the same apps again.
+	acted, err := k.notificationSvc.ActOnNotification(ctx, notification.UUID)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "set patch notification installs queued")
+		return nil, ctxerr.Wrap(ctx, err, "act on patch notification")
 	}
-	if !queued {
+	if !acted {
 		return k.renderView(ctx, notification, true)
 	}
 
@@ -297,8 +299,8 @@ func (k *patchNotificationKind) updateNow(ctx context.Context, notification *not
 		}
 	}
 
-	// This request is the one that queued them, so the view says so without
-	// reading installs_queued_at back.
+	// this request marked the notification, so the view says installing without
+	// a second read
 	return k.renderView(ctx, notification, true)
 }
 

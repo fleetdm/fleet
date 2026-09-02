@@ -328,23 +328,49 @@ func (ds *Datastore) DelayEndUserNotification(ctx context.Context, notificationU
 	// result to report, and the next dispatch overwrites it. displayed_at is
 	// cleared so the next send records its own display.
 	//
-	// Expired and failed notifications are excluded so a delay can't revive one.
+	// Terminal notifications are excluded so a delay can't revive a notification
+	// that is already over.
 	const updateStmt = `
 UPDATE notifications_end_user
 SET status = ?, next_attempt_at = ?, last_reason = ?, displayed_at = NULL,
 	payload = COALESCE(?, payload)
 WHERE uuid = ?
-	AND status NOT IN (?, ?)
+	AND status NOT IN (?, ?, ?)
 	AND expires_at > NOW(6)
 `
 
 	if _, err := ds.primary.ExecContext(ctx, updateStmt,
 		api.EndUserNotificationPending, nextAttemptAt, api.EndUserNotificationReasonDelayed, payload, notificationUUID,
-		api.EndUserNotificationExpired, api.EndUserNotificationFailed,
+		api.EndUserNotificationExpired, api.EndUserNotificationFailed, api.EndUserNotificationActed,
 	); err != nil {
 		return ctxerr.Wrap(ctx, err, "delay end user notification")
 	}
 	return nil
+}
+
+// ActOnEndUserNotification marks a notification as acted on, and reports whether
+// this call is the call that marked the notification. The status check is in the
+// statement rather than a read beforehand, so two actions at once can't both get
+// true.
+func (ds *Datastore) ActOnEndUserNotification(ctx context.Context, notificationUUID string) (bool, error) {
+	const updateStmt = `
+UPDATE notifications_end_user
+SET status = ?
+WHERE uuid = ? AND status IN (?, ?)
+`
+
+	res, err := ds.primary.ExecContext(ctx, updateStmt,
+		api.EndUserNotificationActed, notificationUUID,
+		api.EndUserNotificationPending, api.EndUserNotificationDispatched,
+	)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "act on end user notification")
+	}
+	rows, err := res.RowsAffected()
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "rows affected acting on end user notification")
+	}
+	return rows > 0, nil
 }
 
 // SetEndUserNotificationOutcome records how an attempt to display ended. A

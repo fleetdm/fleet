@@ -57,6 +57,10 @@ func (m *mockDatastore) DelayEndUserNotification(context.Context, string, time.T
 	return nil
 }
 
+func (m *mockDatastore) ActOnEndUserNotification(context.Context, string) (bool, error) {
+	return true, nil
+}
+
 func (m *mockDatastore) SetEndUserNotificationOutcome(context.Context, string, api.NotificationOutcome, *time.Time) error {
 	return nil
 }

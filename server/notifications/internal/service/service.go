@@ -115,3 +115,11 @@ func (s *Service) DelayNotification(ctx context.Context, notificationUUID string
 	}
 	return nil
 }
+
+func (s *Service) ActOnNotification(ctx context.Context, notificationUUID string) (bool, error) {
+	acted, err := s.ds.ActOnEndUserNotification(ctx, notificationUUID)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "act on end user notification")
+	}
+	return acted, nil
+}

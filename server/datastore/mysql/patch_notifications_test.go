@@ -69,13 +69,14 @@ func testPatchNotificationExistsForApp(t *testing.T, ds *Datastore) {
 
 	// a pending or dispatched notification still has its apps to install, so a
 	// second skip for one of those apps is dropped. A failed or expired
-	// notification will never install its apps, so those apps are skipped into a
-	// new notification instead.
+	// notification never installed them, and an acted notification already
+	// queued the installs, so a later skip starts a new notification either way.
 	stillCounts := map[string]bool{
 		notifications_api.EndUserNotificationPending:    true,
 		notifications_api.EndUserNotificationDispatched: true,
 		notifications_api.EndUserNotificationFailed:     false,
 		notifications_api.EndUserNotificationExpired:    false,
+		notifications_api.EndUserNotificationActed:      false,
 	}
 
 	for status, wantExists := range stillCounts {
@@ -100,29 +101,6 @@ func testPatchNotificationExistsForApp(t *testing.T, ds *Datastore) {
 	exists, err := ds.PatchNotificationExistsForApp(ctx, host.ID, newTestSoftwareTitle(t, ds, "unlisted"))
 	require.NoError(t, err)
 	assert.False(t, exists)
-
-	// once Update now queues the installs, the notification no longer has its  apps to install,
-	// so an app whose forced install failed is skipped into a new notification
-	queuedTitleID := newTestSoftwareTitle(t, ds, "app-installs-queued")
-	queuedUUID := newPatchNotification(t, ds, host.ID, notifications_api.EndUserNotificationDispatched, 1)
-	require.NoError(t, ds.AddPatchNotificationApp(ctx, queuedUUID,
-		fleet.PatchNotificationApp{SoftwareTitleID: queuedTitleID}))
-
-	exists, err = ds.PatchNotificationExistsForApp(ctx, host.ID, queuedTitleID)
-	require.NoError(t, err)
-	assert.True(t, exists)
-
-	queued, err := ds.SetPatchNotificationInstallsQueued(ctx, queuedUUID)
-	require.NoError(t, err)
-	assert.True(t, queued)
-	exists, err = ds.PatchNotificationExistsForApp(ctx, host.ID, queuedTitleID)
-	require.NoError(t, err)
-	assert.False(t, exists)
-
-	// a second Update now on the same notification does not record the installs as queued a second time
-	queued, err = ds.SetPatchNotificationInstallsQueued(ctx, queuedUUID)
-	require.NoError(t, err)
-	assert.False(t, queued)
 }
 
 func testPatchNotificationAddAndListApps(t *testing.T, ds *Datastore) {
@@ -220,6 +198,10 @@ func testPatchNotificationAddAndListApps(t *testing.T, ds *Datastore) {
 		_, err := q.ExecContext(ctx, `DELETE FROM notifications_end_user WHERE uuid = ?`, notificationUUID)
 		return err
 	})
-	_, err = ds.GetPatchNotification(ctx, notificationUUID)
-	assert.True(t, fleet.IsNotFound(err))
+	var remaining int
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &remaining,
+			`SELECT COUNT(*) FROM patch_notifications WHERE notification_uuid = ?`, notificationUUID)
+	})
+	assert.Zero(t, remaining)
 }

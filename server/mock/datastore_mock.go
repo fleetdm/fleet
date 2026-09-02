@@ -540,10 +540,6 @@ type GetDetailsForUninstallFromExecutionIDFunc func(ctx context.Context, executi
 
 type PatchNotificationExistsForAppFunc func(ctx context.Context, hostID uint, softwareTitleID uint) (bool, error)
 
-type GetPatchNotificationFunc func(ctx context.Context, notificationUUID string) (*fleet.PatchNotification, error)
-
-type SetPatchNotificationInstallsQueuedFunc func(ctx context.Context, notificationUUID string) (bool, error)
-
 type NewPatchNotificationFunc func(ctx context.Context, notificationUUID string) error
 
 type AddPatchNotificationAppFunc func(ctx context.Context, notificationUUID string, app fleet.PatchNotificationApp) error
@@ -3122,12 +3118,6 @@ type DataStore struct {
 
 	PatchNotificationExistsForAppFunc        PatchNotificationExistsForAppFunc
 	PatchNotificationExistsForAppFuncInvoked bool
-
-	GetPatchNotificationFunc        GetPatchNotificationFunc
-	GetPatchNotificationFuncInvoked bool
-
-	SetPatchNotificationInstallsQueuedFunc        SetPatchNotificationInstallsQueuedFunc
-	SetPatchNotificationInstallsQueuedFuncInvoked bool
 
 	NewPatchNotificationFunc        NewPatchNotificationFunc
 	NewPatchNotificationFuncInvoked bool
@@ -7642,20 +7632,6 @@ func (s *DataStore) PatchNotificationExistsForApp(ctx context.Context, hostID ui
 	s.PatchNotificationExistsForAppFuncInvoked = true
 	s.mu.Unlock()
 	return s.PatchNotificationExistsForAppFunc(ctx, hostID, softwareTitleID)
-}
-
-func (s *DataStore) GetPatchNotification(ctx context.Context, notificationUUID string) (*fleet.PatchNotification, error) {
-	s.mu.Lock()
-	s.GetPatchNotificationFuncInvoked = true
-	s.mu.Unlock()
-	return s.GetPatchNotificationFunc(ctx, notificationUUID)
-}
-
-func (s *DataStore) SetPatchNotificationInstallsQueued(ctx context.Context, notificationUUID string) (bool, error) {
-	s.mu.Lock()
-	s.SetPatchNotificationInstallsQueuedFuncInvoked = true
-	s.mu.Unlock()
-	return s.SetPatchNotificationInstallsQueuedFunc(ctx, notificationUUID)
 }
 
 func (s *DataStore) NewPatchNotification(ctx context.Context, notificationUUID string) error {

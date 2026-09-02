@@ -14,6 +14,7 @@ type Service interface {
 	RecordOutcomeService
 	NotificationLookupService
 	DelayNotificationService
+	ActOnNotificationService
 	CreateNotificationService
 
 	// ExpireAndQueueNotifications gives up on notifications that are out of
@@ -60,4 +61,11 @@ type CreateNotificationService interface {
 // a second one; nil keeps what's there.
 type DelayNotificationService interface {
 	DelayNotification(ctx context.Context, notificationUUID string, nextAttemptAt time.Time, payload json.RawMessage) error
+}
+
+// ActOnNotificationService marks a notification as acted on, which is terminal.
+// It reports whether this call is the call that marked the notification, so a
+// kind can make a repeated action a no-op, including two arriving at once.
+type ActOnNotificationService interface {
+	ActOnNotification(ctx context.Context, notificationUUID string) (bool, error)
 }

@@ -16,10 +16,8 @@ func (ds *Datastore) PatchNotificationExistsForApp(ctx context.Context, hostID u
 SELECT 1
 FROM patch_notification_apps pna
 	JOIN notifications_end_user neu ON neu.uuid = pna.notification_uuid
-	JOIN patch_notifications pn ON pn.notification_uuid = pna.notification_uuid
 WHERE neu.host_id = ?
 	AND neu.status IN (?, ?)
-	AND pn.installs_queued_at IS NULL
 	AND pna.software_title_id = ?
 LIMIT 1
 `
@@ -35,40 +33,6 @@ LIMIT 1
 		return false, ctxerr.Wrap(ctx, err, "check patch notification exists for app")
 	}
 	return exists, nil
-}
-
-func (ds *Datastore) GetPatchNotification(ctx context.Context, notificationUUID string) (*fleet.PatchNotification, error) {
-	const selectStmt = `
-SELECT notification_uuid, install_at, reminder_sent_at, installs_queued_at
-FROM patch_notifications
-WHERE notification_uuid = ?
-`
-
-	var notification fleet.PatchNotification
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &notification, selectStmt, notificationUUID); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ctxerr.Wrap(ctx, notFound("PatchNotification").WithName(notificationUUID))
-		}
-		return nil, ctxerr.Wrap(ctx, err, "get patch notification")
-	}
-	return &notification, nil
-}
-
-func (ds *Datastore) SetPatchNotificationInstallsQueued(ctx context.Context, notificationUUID string) (bool, error) {
-	const updateStmt = `
-UPDATE patch_notifications SET installs_queued_at = NOW(6)
-WHERE notification_uuid = ? AND installs_queued_at IS NULL
-`
-
-	res, err := ds.writer(ctx).ExecContext(ctx, updateStmt, notificationUUID)
-	if err != nil {
-		return false, ctxerr.Wrap(ctx, err, "set patch notification installs queued")
-	}
-	rows, err := res.RowsAffected()
-	if err != nil {
-		return false, ctxerr.Wrap(ctx, err, "rows affected setting patch notification installs queued")
-	}
-	return rows > 0, nil
 }
 
 func (ds *Datastore) NewPatchNotification(ctx context.Context, notificationUUID string) error {

@@ -13,6 +13,7 @@ const (
 	EndUserNotificationDispatched = "dispatched"
 	EndUserNotificationFailed     = "failed"
 	EndUserNotificationExpired    = "expired"
+	EndUserNotificationActed      = "acted"
 )
 
 // What an end user's device can do with a notification.

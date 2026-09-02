@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"log/slog"
 	"testing"
 	"time"
@@ -24,6 +25,22 @@ type capturingActivityWriter struct {
 func (w *capturingActivityWriter) NewActivity(_ context.Context, _ *fleet.User, activity activity_api.ActivityDetails) error {
 	w.invoked = true
 	w.activity = activity
+	return nil
+}
+
+// stubNotificationService stands in for the notifications context. acts is what
+// ActOnNotification reports, so a test can say another request acted first.
+type stubNotificationService struct {
+	acts       bool
+	actInvoked bool
+}
+
+func (s *stubNotificationService) ActOnNotification(_ context.Context, _ string) (bool, error) {
+	s.actInvoked = true
+	return s.acts, nil
+}
+
+func (s *stubNotificationService) DelayNotification(_ context.Context, _ string, _ time.Time, _ json.RawMessage) error {
 	return nil
 }
 
@@ -160,48 +177,46 @@ func TestPatchNotificationUpdateNow(t *testing.T) {
 	cases := []struct {
 		name   string
 		status string
-		// SetPatchNotificationInstallsQueued: false when another request already
-		// recorded this notification's installs as queued, which is what a second
-		// press of Update now sees
-		alreadyQueued bool
-		noInstaller   bool
+		// ActOnNotification: false when another request already acted on this
+		// notification, which is what a second press of Update now sees
+		alreadyActed bool
+		noInstaller  bool
 
-		wantInstalls   int
-		wantMarkQueued bool
+		wantInstalls  int
+		wantActionTry bool
 	}{
 		{
-			name:           "queues an install per app and marks the notification",
-			status:         notifications_api.EndUserNotificationDispatched,
-			wantInstalls:   1,
-			wantMarkQueued: true,
+			name:          "Update now queues an install per app and acts on the notification",
+			status:        notifications_api.EndUserNotificationDispatched,
+			wantInstalls:  1,
+			wantActionTry: true,
 		},
 		{
-			name:           "installs are already queued, so pressing again queues nothing",
-			status:         notifications_api.EndUserNotificationDispatched,
-			alreadyQueued:  true,
-			wantMarkQueued: true,
+			name:          "another request already acted, so a second Update now queues nothing",
+			status:        notifications_api.EndUserNotificationDispatched,
+			alreadyActed:  true,
+			wantActionTry: true,
 		},
 		{
-			name:   "a failed or expired notification queues nothing",
+			name:   "Update now on a failed or expired notification queues nothing",
 			status: notifications_api.EndUserNotificationFailed,
 		},
 		{
 			// the installer was deleted, so software_installer_id is null
-			name:           "an app with no installer is skipped, not fatal",
-			status:         notifications_api.EndUserNotificationDispatched,
-			noInstaller:    true,
-			wantInstalls:   0,
-			wantMarkQueued: true,
+			name:          "an app whose installer was deleted is skipped and the action still succeeds",
+			status:        notifications_api.EndUserNotificationDispatched,
+			noInstaller:   true,
+			wantInstalls:  0,
+			wantActionTry: true,
 		},
 	}
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			ds := new(mock.Store)
-			kind := &patchNotificationKind{ds: ds, logger: slog.New(slog.DiscardHandler)}
-
-			ds.SetPatchNotificationInstallsQueuedFunc = func(_ context.Context, _ string) (bool, error) {
-				return !c.alreadyQueued, nil
+			notificationSvc := &stubNotificationService{acts: !c.alreadyActed}
+			kind := &patchNotificationKind{
+				ds: ds, notificationSvc: notificationSvc, logger: slog.New(slog.DiscardHandler),
 			}
 			ds.ListPatchNotificationAppsFunc = func(_ context.Context, _ string) ([]fleet.PatchNotificationAppDetail, error) {
 				app := fleet.PatchNotificationAppDetail{
@@ -242,10 +257,9 @@ func TestPatchNotificationUpdateNow(t *testing.T) {
 				require.NotNil(t, opts.PolicyID, "the install keeps its policy so it shows in Automation runs")
 				assert.Equal(t, policyID, *opts.PolicyID)
 			}
-			assert.Equal(t, c.wantMarkQueued, ds.SetPatchNotificationInstallsQueuedFuncInvoked)
-			assert.False(t, ds.GetPatchNotificationFuncInvoked, "installs_queued_at is not read back after writing it")
+			assert.Equal(t, c.wantActionTry, notificationSvc.actInvoked)
 
-			if !c.wantMarkQueued {
+			if !c.wantActionTry {
 				assert.Nil(t, view, "nothing changed, so the notification renders as it was")
 				return
 			}
