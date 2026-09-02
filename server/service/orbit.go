@@ -2038,9 +2038,17 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 			return ctxerr.Wrap(ctx, err, "create activity for software installation")
 		}
 
+		// The install result and its activity are already recorded, so a failure
+		// here is logged rather than returned: failing the request would have orbit
+		// report the same result again and emit a second activity.
 		if isAppOpenSkip && hsi.NotifyBeforePatching {
 			if err := svc.createPatchNotificationForEndUser(ctx, host, hsi); err != nil {
-				return ctxerr.Wrap(ctx, err, "create patch notification for end user")
+				svc.logger.ErrorContext(ctx,
+					"failed to create patch notification for end user",
+					"host_id", host.ID,
+					"install_uuid", result.InstallUUID,
+					"err", err,
+				)
 			}
 		}
 

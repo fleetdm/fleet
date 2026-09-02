@@ -89,6 +89,8 @@ func testGetNotificationAwaitingDisplay(t *testing.T, env *testEnv) {
 		hostNotificationStatus    string
 		hostNotificationAttempts  uint
 		hostNotificationDisplayed bool
+		// past its expiry but not yet swept, so its status is still pending
+		hostNotificationPastExpiry bool
 
 		wantNewNotificationForTheApp bool
 	}{
@@ -140,6 +142,14 @@ func testGetNotificationAwaitingDisplay(t *testing.T, env *testEnv) {
 			hostNotificationStatus:       api.EndUserNotificationExpired,
 			wantNewNotificationForTheApp: true,
 		},
+		{
+			// the sweep that sets the expired status runs on a schedule, so a
+			// notification can be past its expiry while still pending
+			name:                         "an app is not added to a pending notification that is past its expiry",
+			hostNotificationStatus:       api.EndUserNotificationPending,
+			hostNotificationPastExpiry:   true,
+			wantNewNotificationForTheApp: true,
+		},
 	}
 
 	for i, c := range cases {
@@ -151,6 +161,12 @@ func testGetNotificationAwaitingDisplay(t *testing.T, env *testEnv) {
 			if c.hostNotificationStatus != "" {
 				hostNotificationUUID = newHostNotification(t, env, hostID, "test_kind",
 					c.hostNotificationStatus, c.hostNotificationAttempts, c.hostNotificationDisplayed)
+			}
+			if c.hostNotificationPastExpiry {
+				_, err := env.db.ExecContext(ctx,
+					`UPDATE notifications_end_user SET expires_at = NOW(6) - INTERVAL 1 HOUR WHERE uuid = ?`,
+					hostNotificationUUID)
+				require.NoError(t, err)
 			}
 
 			// an app on this host now needs patching, so Fleet looks for a

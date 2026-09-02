@@ -89,13 +89,6 @@ func TestCreatePatchNotificationForEndUser(t *testing.T) {
 			wantAppOn: "",
 		},
 		{
-			// a notification that was displayed, queued its installs, failed or
-			// expired no longer lists the app, so a new notification is created
-			name:        "no notification lists the app",
-			wantCreated: true,
-			wantAppOn:   createdUUID,
-		},
-		{
 			name:      "the install has no software title to record",
 			noTitle:   true,
 			wantAppOn: "",

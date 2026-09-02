@@ -706,19 +706,22 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 		require.Equal(t, "Installing...", view.Items[0].Status)
 		require.Equal(t, []notifications_api.NotificationAction{{ID: "dismiss", Label: "Hide"}}, view.Actions)
 
-		var executionID string
-		var queuedPolicyID *uint
+		var queuedInstalls []struct {
+			ExecutionID string `db:"execution_id"`
+			PolicyID    *uint  `db:"policy_id"`
+		}
 		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-			return q.QueryRowxContext(ctx, `
+			return sqlx.SelectContext(ctx, q, &queuedInstalls, `
 				SELECT ua.execution_id, siua.policy_id
 				FROM upcoming_activities ua
 					JOIN software_install_upcoming_activities siua ON siua.upcoming_activity_id = ua.id
-				WHERE ua.host_id = ?`, host.ID).Scan(&executionID, &queuedPolicyID)
+				WHERE ua.host_id = ?`, host.ID)
 		})
-		require.NotNil(t, queuedPolicyID, "the install keeps its policy so it shows in Automation runs")
-		require.Equal(t, policy.ID, *queuedPolicyID)
+		require.Len(t, queuedInstalls, 1, "the notification's one app gets one install")
+		require.NotNil(t, queuedInstalls[0].PolicyID, "the install keeps its policy so it shows in Automation runs")
+		require.Equal(t, policy.ID, *queuedInstalls[0].PolicyID)
 
-		queued, err := s.ds.GetSoftwareInstallDetails(ctx, executionID)
+		queued, err := s.ds.GetSoftwareInstallDetails(ctx, queuedInstalls[0].ExecutionID)
 		require.NoError(t, err)
 		require.True(t, queued.NotifyBeforePatching)
 		require.Empty(t, queued.PreInstallCondition)
@@ -729,11 +732,11 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 		var activatedCount int
 		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			return sqlx.GetContext(ctx, q, &activatedCount,
-				`SELECT COUNT(*) FROM host_software_installs WHERE execution_id = ?`, executionID)
+				`SELECT COUNT(*) FROM host_software_installs WHERE execution_id = ?`, queuedInstalls[0].ExecutionID)
 		})
 		require.Equal(t, 1, activatedCount, "otherwise the read below is still the queued half")
 
-		activated, err := s.ds.GetSoftwareInstallDetails(ctx, executionID)
+		activated, err := s.ds.GetSoftwareInstallDetails(ctx, queuedInstalls[0].ExecutionID)
 		require.NoError(t, err)
 		require.True(t, activated.NotifyBeforePatching)
 		require.Empty(t, activated.PreInstallCondition)
