@@ -515,6 +515,14 @@ WHERE
 			return ctxerr.Wrap(ctx, err, "saving team")
 		}
 
+		// Sync denormalized sort_team_name for all hosts in this team.
+		if _, err := tx.ExecContext(ctx,
+			`UPDATE hosts SET sort_team_name = ? WHERE team_id = ?`,
+			team.Name, team.ID,
+		); err != nil {
+			return ctxerr.Wrap(ctx, err, "sync sort_team_name on team rename")
+		}
+
 		if err := saveUsersForTeamDB(ctx, tx, team); err != nil {
 			return err
 		}

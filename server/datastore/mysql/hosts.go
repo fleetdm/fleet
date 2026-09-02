@@ -67,7 +67,7 @@ var hostAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
 	"hardware_model":        "h.hardware_model",
 	"hardware_serial":       "h.hardware_serial",
 	"team_id":               "h.team_id",
-	"team_name":             "t.name",
+	"team_name":             "h.sort_team_name",
 	"primary_ip":            "h.primary_ip",
 	"primary_mac":           "h.primary_mac",
 	"public_ip":             "h.public_ip",
@@ -76,14 +76,17 @@ var hostAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
 	"agent":                 "COALESCE(NULLIF(hoi.version, ''), h.osquery_version)",
 	"orbit_version":         "hoi.version",
 	"fleet_desktop_version": "hoi.desktop_version",
-	"issues":                "host_issues.total_issues_count",
+	"issues":                "h.sort_total_issues_count",
 	"display_name":          "hdn.display_name",
-	// COALESCE required: must match SELECT clause so cursor pagination (WHERE) and ORDER BY are consistent
-	"seen_time":                    "COALESCE(hst.seen_time, h.created_at)",
-	"software_updated_at":          "COALESCE(hu.software_updated_at, h.created_at)",
-	"gigs_disk_space_available":    "COALESCE(hd.gigs_disk_space_available, 0)",
-	"percent_disk_space_available": "COALESCE(hd.percent_disk_space_available, 0)",
-	"gigs_total_disk_space":        "COALESCE(hd.gigs_total_disk_space, 0)",
+	// Denormalized sort columns on hosts table (indexed) replace the former
+	// COALESCE expressions over LEFT-JOINed tables. The COALESCE wrapping
+	// and/or the join-amplified column prevented MySQL from using an index
+	// for ORDER BY, forcing a full filesort at scale. See #46251.
+	"seen_time":                    "h.sort_seen_time",
+	"software_updated_at":          "h.sort_software_updated_at",
+	"gigs_disk_space_available":    "h.sort_gigs_disk_space_available",
+	"percent_disk_space_available": "h.sort_percent_disk_space_available",
+	"gigs_total_disk_space":        "h.sort_gigs_total_disk_space",
 	// Note: 'h.node_key', 'h.orbit_node_key', 'hdek.base64_encrypted' intentionally EXCLUDED
 }
 
@@ -177,6 +180,12 @@ func (ds *Datastore) NewHost(ctx context.Context, host *fleet.Host) (*fleet.Host
 		)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "new host seen time")
+		}
+		if _, err = tx.ExecContext(ctx,
+			`UPDATE hosts SET sort_seen_time = ?, sort_software_updated_at = created_at WHERE id = ?`,
+			host.SeenTime, host.ID,
+		); err != nil {
+			return ctxerr.Wrap(ctx, err, "sync sort columns for new host")
 		}
 		_, err = tx.ExecContext(ctx,
 			`INSERT INTO host_display_names (host_id, display_name) VALUES (?,?)`,
@@ -2774,12 +2783,23 @@ func (ds *Datastore) EnrollOsquery(ctx context.Context, opts ...fleet.DatastoreE
 			}
 		}
 
+		seenNow := time.Now().UTC()
 		_, err = tx.ExecContext(ctx, `
 			INSERT INTO host_seen_times (host_id, seen_time) VALUES (?, ?)
 			ON DUPLICATE KEY UPDATE seen_time = VALUES(seen_time)`,
-			hostID, time.Now().UTC())
+			hostID, seenNow)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "new host seen time")
+		}
+		if _, err = tx.ExecContext(ctx,
+			`UPDATE hosts h LEFT JOIN teams t ON h.team_id = t.id
+			 SET h.sort_seen_time = ?,
+			     h.sort_software_updated_at = COALESCE(h.sort_software_updated_at, h.created_at),
+			     h.sort_team_name = t.name
+			 WHERE h.id = ?`,
+			seenNow, hostID,
+		); err != nil {
+			return ctxerr.Wrap(ctx, err, "sync sort columns on enroll")
 		}
 
 		// Update the host id for the identity certificate
@@ -3247,6 +3267,18 @@ func (ds *Datastore) MarkHostsSeen(ctx context.Context, hostIDs []uint, t time.T
 		if _, err := tx.ExecContext(ctx, query, insertArgs...); err != nil {
 			return ctxerr.Wrap(ctx, err, "exec update")
 		}
+
+		// Sync denormalized sort_seen_time on hosts.
+		placeholders := strings.TrimSuffix(strings.Repeat("?,", len(hostIDs)), ",")
+		syncQuery := fmt.Sprintf(`UPDATE hosts SET sort_seen_time = ? WHERE id IN (%s)`, placeholders)
+		syncArgs := make([]any, 0, 1+len(hostIDs))
+		syncArgs = append(syncArgs, t)
+		for _, id := range hostIDs {
+			syncArgs = append(syncArgs, id)
+		}
+		if _, err := tx.ExecContext(ctx, syncQuery, syncArgs...); err != nil {
+			return ctxerr.Wrap(ctx, err, "sync sort_seen_time")
+		}
 		return nil
 	}); err != nil {
 		return ctxerr.Wrap(ctx, err, "MarkHostsSeen transaction")
@@ -3700,6 +3732,18 @@ func (ds *Datastore) AddHostsToTeam(ctx context.Context, params *fleet.AddHostsT
 
 				if _, err := tx.ExecContext(ctx, query, args...); err != nil {
 					return ctxerr.Wrap(ctx, err, "exec AddHostsToTeam")
+				}
+
+				// Sync denormalized sort_team_name.
+				syncQuery, syncArgs, err := sqlx.In(
+					`UPDATE hosts h LEFT JOIN teams t ON h.team_id = t.id SET h.sort_team_name = t.name WHERE h.id IN (?)`,
+					hostIDsBatch,
+				)
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "sqlx.In sync sort_team_name")
+				}
+				if _, err := tx.ExecContext(ctx, syncQuery, syncArgs...); err != nil {
+					return ctxerr.Wrap(ctx, err, "sync sort_team_name on team change")
 				}
 
 				if err := cleanupDiskEncryptionKeysOnTeamChangeDB(ctx, tx, hostIDsBatch, destDiskEncryption); err != nil {
@@ -5091,12 +5135,22 @@ func (ds *Datastore) SetOrUpdateHostDisksSpace(ctx context.Context, hostID uint,
 	case !errors.Is(err, sql.ErrNoRows):
 		return ctxerr.Wrap(ctx, err, "select host_disks")
 	}
-	return ds.updateOrInsert(
+	if err := ds.updateOrInsert(
 		ctx,
 		`UPDATE host_disks SET gigs_disk_space_available = ?, percent_disk_space_available = ?, gigs_total_disk_space = ?, gigs_all_disk_space = ? WHERE host_id = ?`,
 		`INSERT INTO host_disks (gigs_disk_space_available, percent_disk_space_available, gigs_total_disk_space, gigs_all_disk_space, host_id) VALUES (?, ?, ?, ?, ?)`,
 		gigsAvailable, percentAvailable, gigsTotal, gigsAll, hostID,
-	)
+	); err != nil {
+		return err
+	}
+	// Sync denormalized sort columns on hosts.
+	if _, err := ds.writer(ctx).ExecContext(ctx,
+		`UPDATE hosts SET sort_gigs_disk_space_available = ?, sort_percent_disk_space_available = ?, sort_gigs_total_disk_space = ? WHERE id = ?`,
+		gigsAvailable, percentAvailable, gigsTotal, hostID,
+	); err != nil {
+		return ctxerr.Wrap(ctx, err, "sync sort disk columns")
+	}
+	return nil
 }
 
 // SetOrUpdateHostDisksEncryption sets the host's flag indicating if the disk encryption is enabled. For Windows hosts,
@@ -6843,6 +6897,13 @@ func updateHostIssuesFailingPoliciesForSingleHost(ctx context.Context, tx sqlx.E
 	if _, err := tx.ExecContext(ctx, stmt, hostID); err != nil {
 		return ctxerr.Wrap(ctx, err, "updating failing policies in host issues for one host")
 	}
+	// Sync denormalized sort column.
+	if _, err := tx.ExecContext(ctx,
+		`UPDATE hosts SET sort_total_issues_count = COALESCE((SELECT total_issues_count FROM host_issues WHERE host_id = ?), 0) WHERE id = ?`,
+		hostID, hostID,
+	); err != nil {
+		return ctxerr.Wrap(ctx, err, "sync sort_total_issues_count for single host")
+	}
 	return nil
 }
 
@@ -6928,6 +6989,19 @@ func updateHostIssuesFailingPolicies(ctx context.Context, tx sqlx.ExecerContext,
 		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
 			return ctxerr.Wrap(ctx, err, "updating failing policies in host issues")
 		}
+
+		// Sync denormalized sort column on hosts.
+		syncStmt, syncArgs, err := sqlx.In(
+			`UPDATE hosts h LEFT JOIN host_issues hi ON h.id = hi.host_id
+			 SET h.sort_total_issues_count = COALESCE(hi.total_issues_count, 0)
+			 WHERE h.id IN (?)`, hostIDsBatch,
+		)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "building IN statement for syncing sort_total_issues_count")
+		}
+		if _, err := tx.ExecContext(ctx, syncStmt, syncArgs...); err != nil {
+			return ctxerr.Wrap(ctx, err, "syncing sort_total_issues_count")
+		}
 	}
 	return nil
 }
@@ -6946,7 +7020,17 @@ func (ds *Datastore) UpdateHostIssuesVulnerabilities(ctx context.Context) error 
 	if !license.IsPremium(ctx) {
 		// This will rarely be needed, but we need to reset the critical vulnerabilities count if the license went from premium to free
 		// or if DB got messed up (like during dev testing).
-		return clearAllFn()
+		if err := clearAllFn(); err != nil {
+			return err
+		}
+		// Sync denormalized sort column after clearing.
+		if _, err := ds.writer(ctx).ExecContext(ctx,
+			`UPDATE hosts h LEFT JOIN host_issues hi ON h.id = hi.host_id
+			 SET h.sort_total_issues_count = COALESCE(hi.total_issues_count, 0)`,
+		); err != nil {
+			return ctxerr.Wrap(ctx, err, "sync sort_total_issues_count after license downgrade")
+		}
+		return nil
 	}
 
 	var allHostIDs []uint
@@ -7058,7 +7142,17 @@ func (ds *Datastore) UpdateHostIssuesVulnerabilities(ctx context.Context) error 
 		}
 	}
 	if clearAll {
-		return clearAllFn()
+		if err := clearAllFn(); err != nil {
+			return err
+		}
+	}
+
+	// Sync denormalized sort_total_issues_count on hosts from host_issues.
+	if _, err := ds.writer(ctx).ExecContext(ctx,
+		`UPDATE hosts h LEFT JOIN host_issues hi ON h.id = hi.host_id
+		 SET h.sort_total_issues_count = COALESCE(hi.total_issues_count, 0)`,
+	); err != nil {
+		return ctxerr.Wrap(ctx, err, "sync sort_total_issues_count after vulnerabilities update")
 	}
 	return nil
 }
