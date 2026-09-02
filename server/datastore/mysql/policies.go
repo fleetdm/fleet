@@ -381,11 +381,49 @@ func (ds *Datastore) ResetPolicy(ctx context.Context, policyID uint) error {
 		if err := resetPolicyAutomationAttempts(ctx, tx, policyID); err != nil {
 			return ctxerr.Wrap(ctx, err, "reset policy automation attempts")
 		}
-		// removeAllMemberships=true, removePolicyStats=true; platform is unused
-		// when removing all memberships, so "" is fine.
-		return cleanupPolicy(ctx, tx, tx, policyID, "", true, true, ds.logger)
+		return markPolicyNeedsFullMembershipCleanup(ctx, tx, policyID)
 	}); err != nil {
 		return ctxerr.Wrap(ctx, err, "resetting policy")
+	}
+
+	// removeAllMemberships=true, removePolicyStats=true; platform is unused
+	// when removing all memberships, so "" is fine.
+	if err := ds.cleanupPolicyAfterCommit(ctx, policyID, "", true, true); err != nil {
+		return ctxerr.Wrap(ctx, err, "resetting policy")
+	}
+	return nil
+}
+
+// markPolicyNeedsFullMembershipCleanup must be called inside the caller's transaction,
+// so an interrupted cleanup is still retried by the policy_membership cron.
+func markPolicyNeedsFullMembershipCleanup(ctx context.Context, db sqlx.ExecerContext, policyID uint) error {
+	if _, err := db.ExecContext(ctx,
+		`UPDATE policies SET needs_full_membership_cleanup = 1 WHERE id = ?`, policyID,
+	); err != nil {
+		return ctxerr.Wrap(ctx, err, "setting needs_full_membership_cleanup flag")
+	}
+	return nil
+}
+
+// cleanupPolicyAfterCommit runs the membership cleanup in autocommit, so its row locks
+// last one statement instead of accumulating until a transaction commits. Held longer,
+// they stall policy and software install result ingestion fleet-wide.
+func (ds *Datastore) cleanupPolicyAfterCommit(
+	ctx context.Context, policyID uint, platform string,
+	shouldRemoveAllPolicyMemberships bool, removePolicyStats bool,
+) error {
+	db := ds.writer(ctx)
+	if err := cleanupPolicy(
+		ctx, db, db, policyID, platform, shouldRemoveAllPolicyMemberships, removePolicyStats, ds.logger,
+	); err != nil {
+		return err
+	}
+	if shouldRemoveAllPolicyMemberships {
+		if _, err := db.ExecContext(ctx,
+			`UPDATE policies SET needs_full_membership_cleanup = 0 WHERE id = ?`, policyID,
+		); err != nil {
+			return ctxerr.Wrap(ctx, err, "clearing needs_full_membership_cleanup flag")
+		}
 	}
 	return nil
 }
@@ -394,16 +432,25 @@ func (ds *Datastore) ResetPolicy(ctx context.Context, policyID uint) error {
 //
 // Currently, SavePolicy does not allow updating the team of an existing policy.
 func (ds *Datastore) SavePolicy(ctx context.Context, p *fleet.Policy, shouldRemoveAllPolicyMemberships bool, removePolicyStats bool) error {
+	if p == nil {
+		return ctxerr.New(ctx, "save policy: policy is nil")
+	}
+
 	if err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		return savePolicy(ctx, tx, ds.logger, p, shouldRemoveAllPolicyMemberships, removePolicyStats)
+		return savePolicy(ctx, tx, p, shouldRemoveAllPolicyMemberships)
 	}); err != nil {
 		return ctxerr.Wrap(ctx, err, "updating policy")
 	}
 
+	if err := ds.cleanupPolicyAfterCommit(
+		ctx, p.ID, p.Platform, shouldRemoveAllPolicyMemberships, removePolicyStats,
+	); err != nil {
+		return ctxerr.Wrap(ctx, err, "updating policy")
+	}
 	return nil
 }
 
-func savePolicy(ctx context.Context, db sqlx.ExtContext, logger *slog.Logger, p *fleet.Policy, shouldRemoveAllPolicyMemberships bool, removePolicyStats bool) error {
+func savePolicy(ctx context.Context, db sqlx.ExtContext, p *fleet.Policy, shouldRemoveAllPolicyMemberships bool) error {
 	if p.TeamID == nil && p.SoftwareInstallerID != nil {
 		return ctxerr.Wrap(ctx, errSoftwareTitleIDOnGlobalPolicy, "save policy")
 	}
@@ -466,9 +513,10 @@ func savePolicy(ctx context.Context, db sqlx.ExtContext, logger *slog.Logger, p 
 		return ctxerr.Wrap(ctx, err, "resetting policy automation attempts")
 	}
 
-	return cleanupPolicy(
-		ctx, db, db, p.ID, p.Platform, shouldRemoveAllPolicyMemberships, removePolicyStats, logger,
-	)
+	if shouldRemoveAllPolicyMemberships {
+		return markPolicyNeedsFullMembershipCleanup(ctx, db, p.ID)
+	}
+	return nil
 }
 
 // ResetPolicyAutomationRetryAttemptsForHost marks all prior script and software
@@ -1725,12 +1773,35 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 
 		}
 
+		// A pinned package with no title has nothing to associate against — reject
+		// early. Also catches global policies since global specs (empty Team) never
+		// carry a title, so any non-zero SoftwarePackageID there is invalid.
+		if spec.SoftwarePackageID != nil && *spec.SoftwarePackageID != 0 &&
+			(spec.SoftwareTitleID == nil || *spec.SoftwareTitleID == 0) {
+			return ctxerr.Wrap(ctx, &fleet.BadRequestError{
+				Message: fmt.Sprintf(
+					"software_package_id %d requires software_title_id to be set on policy %q",
+					*spec.SoftwarePackageID, spec.Name,
+				),
+			}, "validate policy spec")
+		}
+
 		if spec.SoftwareTitleID == nil || *spec.SoftwareTitleID == 0 {
 			continue
 		}
 		if spec.Team == "" {
 			return ctxerr.Wrap(ctx, errSoftwareTitleIDOnGlobalPolicy, "create policy from spec")
 		}
+
+		// When the caller pinned a specific package, skip the first-added default
+		// lookup for this spec. Validation + direct use happens inline in the
+		// INSERT loop below (the map is keyed by team+title, so a per-policy pin
+		// can't live in it — two policies on the same team+title with different
+		// pins would collide).
+		if spec.SoftwarePackageID != nil && *spec.SoftwarePackageID != 0 {
+			continue
+		}
+
 		var ids struct {
 			SoftwareInstallerID *uint `db:"si_id"`
 			VPPAppsTeamsID      *uint `db:"vat_id"`
@@ -1868,7 +1939,30 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 				var vppAppsTeamsID *uint
 				if spec.SoftwareTitleID != nil {
 					if _, ok := vppTitleIDs[*spec.SoftwareTitleID]; !ok {
-						softwareInstallerID = softwareInstallerIDs[teamNameToID[spec.Team]][*spec.SoftwareTitleID]
+						// Pinned specs: validate the installer id belongs to the
+						// title on this team, then use it directly. Bypasses the
+						// team+title map, which can only hold one value per key.
+						if spec.SoftwarePackageID != nil && *spec.SoftwarePackageID != 0 {
+							var pinnedInstallerID uint
+							err := sqlx.GetContext(ctx, tx, &pinnedInstallerID,
+								`SELECT id FROM software_installers
+									WHERE id = ? AND global_or_team_id = ? AND title_id = ? AND is_active = 1`,
+								*spec.SoftwarePackageID, teamNameToID[spec.Team], *spec.SoftwareTitleID)
+							if err != nil {
+								if errors.Is(err, sql.ErrNoRows) {
+									return ctxerr.Wrap(ctx, &fleet.BadRequestError{
+										Message: fmt.Sprintf(
+											"software_package_id %d does not belong to software_title_id %d on team %q",
+											*spec.SoftwarePackageID, *spec.SoftwareTitleID, spec.Team,
+										),
+									}, "validate pinned software package id")
+								}
+								return ctxerr.Wrap(ctx, err, "validate pinned software package id")
+							}
+							softwareInstallerID = &pinnedInstallerID
+						} else {
+							softwareInstallerID = softwareInstallerIDs[teamNameToID[spec.Team]][*spec.SoftwareTitleID]
+						}
 					} else {
 						vppAppsTeamsID = vppAppsTeamsIDs[teamNameToID[spec.Team]][*spec.SoftwareTitleID]
 					}
@@ -2078,27 +2172,15 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 	// Always run cleanup since labels may have changed even if the main policy
 	// fields didn't (the cleanup function is safe to call and will only delete
 	// memberships that don't match current criteria).
-	dbCtx := ds.writer(ctx)
 	for _, args := range pendingCleanups {
-		if err := cleanupPolicy(
+		if err := ds.cleanupPolicyAfterCommit(
 			ctx,
-			dbCtx,
-			dbCtx,
 			args.policyID,
 			args.platform,
 			args.shouldRemoveAllPolicyMemberships,
 			args.removePolicyStats,
-			ds.logger,
 		); err != nil {
 			return err
-		}
-
-		if args.shouldRemoveAllPolicyMemberships {
-			if _, err := ds.writer(ctx).ExecContext(ctx,
-				`UPDATE policies SET needs_full_membership_cleanup = 0 WHERE id = ?`,
-				args.policyID); err != nil {
-				return ctxerr.Wrap(ctx, err, "clearing needs_full_membership_cleanup flag")
-			}
 		}
 	}
 	return nil
@@ -2441,10 +2523,12 @@ func cleanupPolicyMembershipForPolicy(
 	var afterHostID uint
 	for {
 		var batchHostIDs []uint
+		// Join order is pinned: the optimizer otherwise leads with hosts (range scan +
+		// filesort), making each batch O(#hosts) rather than O(batch size).
 		err := sqlx.SelectContext(ctx, queryerContext, &batchHostIDs, `
 			SELECT pm.host_id
 			FROM policy_membership pm
-			INNER JOIN hosts h ON pm.host_id = h.id
+			STRAIGHT_JOIN hosts h ON pm.host_id = h.id
 			WHERE pm.policy_id = ? AND pm.host_id > ?
 			ORDER BY pm.host_id ASC
 			LIMIT ?`, policyID, afterHostID, policyMembershipDeleteBatchSize)

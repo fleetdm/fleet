@@ -805,7 +805,7 @@ WHERE
 			{{$additionalWhere = "(si.id IS NOT NULL OR iha.id IS NOT NULL)"}}
 		{{end}}
 		{{if $.ListOptions.MatchQuery}}
-			{{$additionalWhere = "(st.name LIKE ? OR scve.cve LIKE ?)"}}
+			{{$additionalWhere = "(st.name LIKE ? OR st.bundle_identifier LIKE ? OR stdn.display_name LIKE ? OR scve.cve LIKE ?)"}}
 		{{end}}
 		{{if and (hasTeamID $) $.Platform}}
 		  {{if and $.ForSetupExperience (isDarwinOnly $.Platform)}}
@@ -881,7 +881,7 @@ GROUP BY
 
 	if opt.ListOptions.MatchQuery != "" {
 		match := likePattern(opt.ListOptions.MatchQuery)
-		args = append(args, match, match)
+		args = append(args, match, match, match, match)
 	}
 
 	if opt.Platform != "" {

@@ -9,14 +9,17 @@ dist
 
 # generated artifacts
 assets/bundle*.*
+assets/*.js
+assets/*.js.LICENSE.txt
 assets/*@*.svg
-assets/*@*.png
+assets/**/*@*.png
 assets/*@*.gif
 assets/*@*.eot
 assets/*@*.woff
 assets/*@*.woff2
 assets/*@*.ttf
 assets/*@*.mp4
+assets/icons/
 frontend/templates/react.tmpl
 bindata.go
 server/bindata/generated.go
@@ -138,6 +141,7 @@ Fleet\ Desktop.app
 # custom golangci-lint executable
 custom-gcl
 /fleet
+/osquery-perf
 
 # dibble (the seed slinger) — binary lives next to source
 tools/dibble/dibble

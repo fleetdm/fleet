@@ -5,7 +5,7 @@
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.egnyte.DesktopApp';",
         "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.egnyte.DesktopApp' AND version_compare(bundle_short_version, '1.19.1') < 0);",
-        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.egnyte.DesktopApp');"
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.egnyte.DesktopApp' AND a.bundle_executable != '');"
       },
       "installer_url": "https://egnyte-cdn.egnyte.com/desktopapp/mac/en-us/1.19.1/Egnyte_1.19.1_2367.dmg",
       "install_script_ref": "5495db25",
