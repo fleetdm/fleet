@@ -324,6 +324,14 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Justification:** `vulnerable_code_not_in_execute_path`
 - **Timestamp:** 2026-03-23 16:44:57
 
+### [CVE-2026-84304](https://nvd.nist.gov/vuln/detail/CVE-2026-84304)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** The vulnerability affects the HTTP/2 server transport of gRPC-Go (memory exhaustion via fragmented DATA frames sent by a remote client); fleetctl does not run a gRPC server (grpc is a transitive dependency used by the Fleet server).
+- **Products:** `fleetctl`,`pkg:golang/google.golang.org/grpc`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-09-02 09:20:06
+
 ### [CVE-2026-8376](https://nvd.nist.gov/vuln/detail/CVE-2026-8376)
 - **Author:** @lucasmrod
 - **Status:** `not_affected`
@@ -411,6 +419,14 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Products:** `fleetctl`,`pkg:golang/stdlib`
 - **Justification:** `vulnerable_code_not_in_execute_path`
 - **Timestamp:** 2026-08-17 10:36:56
+
+### [CVE-2026-56854](https://nvd.nist.gov/vuln/detail/CVE-2026-56854)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** The vulnerable code is in the SSH server authentication path of golang.org/x/crypto/ssh (ssh.NewServerConn), where source-address restrictions on authorized keys were not enforced. fleetctl does not run an SSH server; golang.org/x/crypto/ssh is only linked into the fleetctl binary as an SSH client (go-git SSH transport, skeema/knownhosts, go.step.sm/crypto key parsing) and for terminal password prompts (golang.org/x/crypto/ssh/terminal).
+- **Products:** `fleetctl`,`pkg:golang/golang.org/x/crypto`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-09-02 09:20:53
 
 ### [CVE-2026-56853](https://nvd.nist.gov/vuln/detail/CVE-2026-56853)
 - **Author:** @lucasmrod
