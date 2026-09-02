@@ -561,6 +561,7 @@ func (r enrollmentTokenResponse) SetCookies(_ context.Context, w http.ResponseWr
 		Value:    "",
 		Path:     "/",
 		MaxAge:   -1,
+		Secure:   true,
 		HttpOnly: true,
 		SameSite: http.SameSiteLaxMode,
 	})
