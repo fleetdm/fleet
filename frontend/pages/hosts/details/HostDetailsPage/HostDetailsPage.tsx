@@ -160,7 +160,11 @@ import {
 } from "../helpers";
 import WipeModal from "./modals/WipeModal";
 import { parseHostSoftwareQueryParams } from "../cards/Software/HostSoftware";
-import { canShowMyDeviceButton, getErrorMessage } from "./helpers";
+import {
+  canShowMyDeviceButton,
+  getErrorMessage,
+  hasEverEnrolled,
+} from "./helpers";
 import CancelActivityModal from "./modals/CancelActivityModal";
 import CancelCommandModal from "./modals/CancelCommandModal";
 import CertificateDetailsModal from "../modals/CertificateDetailsModal";
@@ -453,7 +457,9 @@ const HostDetailsPage = ({
       onSuccess: (returnedHost) => {
         // If API returns refetch_requested: true,
         // only set timer if *not* already set!
-        if (returnedHost.refetch_requested) {
+        // Pending hosts carry the flag from the moment they're created, so ignore it until the host
+        // has enrolled and can actually return vitals.
+        if (returnedHost.refetch_requested && hasEverEnrolled(returnedHost)) {
           if (!refetchStartTime) {
             setRefetchStartTime(Date.now());
           }

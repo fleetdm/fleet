@@ -20,11 +20,16 @@ Object.defineProperty(window, "matchMedia", {
     dispatchEvent: jest.fn(),
   })),
 });
-global.ResizeObserver = jest.fn().mockImplementation(() => ({
-  observe: jest.fn(),
-  unobserve: jest.fn(),
-  disconnect: jest.fn(),
-}));
+// Not a jest.fn(), so a suite calling jest.resetAllMocks() between tests doesn't strip the
+// implementation out from under components that observe on mount.
+const noop = () => undefined;
+global.ResizeObserver = class {
+  observe = noop;
+
+  unobserve = noop;
+
+  disconnect = noop;
+};
 
 // Mock server setup
 beforeAll(() => mockServer.listen());
