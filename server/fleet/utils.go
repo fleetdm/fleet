@@ -1,6 +1,7 @@
 package fleet
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"io"
@@ -9,6 +10,7 @@ import (
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/fatih/color"
+	"github.com/fleetdm/fleet/v4/server/platform/jsondecode"
 	"golang.org/x/text/unicode/norm"
 )
 
@@ -47,10 +49,16 @@ func WriteAppleBMTermsExpiredBanner(w io.Writer) {
 // any unknown key is specified in the JSON value, and if there is any trailing
 // byte after the JSON value.
 func JSONStrictDecode(r io.Reader, v interface{}) error {
-	dec := json.NewDecoder(r)
+	// The body is buffered so that a decode failure can be located a second time; see jsondecode.Enrich.
+	data, err := io.ReadAll(r)
+	if err != nil {
+		return err
+	}
+
+	dec := json.NewDecoder(bytes.NewReader(data))
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(v); err != nil {
-		return err
+		return jsondecode.Enrich(err, data, v)
 	}
 
 	var extra json.RawMessage

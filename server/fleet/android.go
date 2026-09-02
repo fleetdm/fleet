@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/mdm"
+	"github.com/fleetdm/fleet/v4/server/platform/jsondecode"
 	"github.com/fleetdm/fleet/v4/server/variables"
 	"google.golang.org/api/androidmanagement/v1"
 )
@@ -94,8 +95,9 @@ func (m *MDMAndroidConfigProfile) ValidateUserProvided(isPremium bool) error {
 		}
 	}
 
-	if err := json.Unmarshal(m.RawJSON, &androidmanagement.Policy{}); err != nil {
-		return parseAndroidProfileValidationError(err)
+	policy := &androidmanagement.Policy{}
+	if err := json.Unmarshal(m.RawJSON, policy); err != nil {
+		return parseAndroidProfileValidationError(jsondecode.Enrich(err, m.RawJSON, policy))
 	}
 
 	if err := validateAndroidProfileFleetVariables(m.RawJSON, profileKeyMap); err != nil {
