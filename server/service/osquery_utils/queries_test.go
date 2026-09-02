@@ -271,6 +271,25 @@ func TestSoftwareIngestionMutations(t *testing.T) {
 	MutateSoftwareOnIngestion(t.Context(), notAnyDesk, slog.New(slog.DiscardHandler))
 	assert.Equal(t, "ad 9.7.15", notAnyDesk.Version)
 
+	// Test Raspberry Pi Imager version sanitizer - strips the leading "v" the
+	// macOS build embeds in CFBundleShortVersionString.
+	rpiImager := &fleet.Software{
+		BundleIdentifier: "com.raspberrypi.rpi-imager",
+		Source:           "apps",
+		Version:          "v2.0.11.1",
+	}
+	MutateSoftwareOnIngestion(t.Context(), rpiImager, slog.New(slog.DiscardHandler))
+	assert.Equal(t, "2.0.11.1", rpiImager.Version)
+
+	// Test Raspberry Pi Imager sanitizer leaves an already-clean version alone
+	rpiImagerClean := &fleet.Software{
+		BundleIdentifier: "com.raspberrypi.rpi-imager",
+		Source:           "apps",
+		Version:          "2.0.11.1",
+	}
+	MutateSoftwareOnIngestion(t.Context(), rpiImagerClean, slog.New(slog.DiscardHandler))
+	assert.Equal(t, "2.0.11.1", rpiImagerClean.Version)
+
 	// Test JetBrains software without version in name is not transformed
 	jetbrainsNoVersionInName := &fleet.Software{
 		Name:    "IntelliJ IDEA",
