@@ -96,6 +96,53 @@ func TestEnrichLeavesAlreadyLocatedErrorsAlone(t *testing.T) {
 	}
 }
 
+// optSlice mirrors optjson.Slice[T]: a custom unmarshaler over a *composite*, which delegates the whole
+// element list to encoding/json.
+type optSlice[T any] struct {
+	Set   bool
+	Value []T
+}
+
+func (s *optSlice[T]) UnmarshalJSON(b []byte) error {
+	s.Set = true
+	return jsonv1.Unmarshal(b, &s.Value)
+}
+
+// TestEnrichStopsAtCompositeUnmarshalerBoundary documents a known limit. Locating a failure relies on
+// v2 error semantics, and v2 cannot see inside a custom UnmarshalJSON: it reports the position of the
+// value handed to the method, not of the field within it. For a scalar wrapper such as optjson.Int that
+// is the whole path, but for a composite such as optjson.Slice the path stops at the slice.
+//
+// Go 1.26 reported the full "specs.software.packages.self_service" here, because the v1 decoder
+// accumulated its field stack across the custom unmarshaler. Recovering that last segment again would
+// mean giving the optjson composites a v2 UnmarshalJSONFrom method, which changes how they decode
+// everywhere v2 is used, so it is deliberately out of scope here. A truncated-but-correct prefix is
+// still a large improvement on the empty path this package exists to fix.
+func TestEnrichStopsAtCompositeUnmarshalerBoundary(t *testing.T) {
+	type pkg struct {
+		SelfService optInt `json:"self_service"`
+	}
+	type software struct {
+		Packages optSlice[pkg] `json:"packages"`
+	}
+	type spec struct {
+		Software software `json:"software"`
+	}
+	type request struct {
+		Specs []spec `json:"specs"`
+	}
+
+	in := []byte(`{"specs":[{"software":{"packages":[{"self_service":"yes"}]}}]}`)
+	var v request
+	err := Enrich(jsonv1.Unmarshal(in, &v), in, &v)
+
+	terr, ok := errors.AsType[*jsonv1.UnmarshalTypeError](err)
+	require.True(t, ok)
+	require.Equal(t, "specs.0.software.packages", terr.Field)
+	// The prefix is correct as far as it goes, which is what callers render.
+	require.NotEmpty(t, terr.Field, "an empty path is the regression this package fixes")
+}
+
 func TestEnrichIgnoresUnrelatedErrors(t *testing.T) {
 	data := []byte(`{}`)
 	v := &root{}
