@@ -1,21 +1,10 @@
 # Learn more about .exe install scripts:
 # http://fleetdm.com/learn-more-about/exe-install-scripts
 #
-# Raspberry Pi Imager uses an Inno Setup installer; these switches run it
-# silently and it installs machine-wide when run elevated. Despite its [Run]
-# entry being flagged skipifsilent, the Setup process does not exit on its
-# own after a silent install (or reinstall) finishes -- it keeps running and
-# holds the installer file lock indefinitely. A plain "Start-Process -Wait"
-# would therefore block until killed even though the files install
-# correctly. So this launches Setup and polls for completion instead.
-#
-# The poll prefers detecting a version change from the pre-launch state, so
-# an upgrade over an existing older install isn't mistaken for already being
-# done on the very first check. Reinstalling the exact same version has no
-# such signal to key off (DisplayVersion never changes, and Setup doesn't
-# reliably exit either), so that case is only confirmed by presence once the
-# full poll budget has elapsed -- giving Setup the entire budget to do its
-# work before treating mere presence as good enough.
+# Raspberry Pi Imager uses an Inno Setup installer; it needs /VERYSILENT to
+# run silently and installs machine-wide when run elevated. Its installer
+# stays running after a silent install, so this script waits for Raspberry
+# Pi Imager to register in Programs and Features, then stops it.
 
 $exeFilePath = "${env:INSTALLER_PATH}"
 
@@ -95,10 +84,8 @@ try {
         $elapsed += $pollIntervalSeconds
     }
 
-    # Timed out: Setup is still "running" per Windows but, per the header
-    # note, that alone doesn't mean the install didn't finish. It's had the
-    # full budget to do real work, so presence alone (even at an unchanged
-    # version, i.e. a same-version reinstall) is trusted here.
+    # Setup is still "running" per Windows, but it's had the full budget to
+    # finish its work, so presence alone is trusted here.
     if (Get-RaspberryPiImagerVersion) {
         Write-Host "Raspberry Pi Imager present after ${pollTimeoutSeconds}s; treating as complete"
         if (-not $process.HasExited) { Stop-ProcessTree -ParentId $process.Id }
