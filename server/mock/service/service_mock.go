@@ -733,7 +733,7 @@ type TriggerLinuxDiskEncryptionEscrowFunc func(ctx context.Context, host *fleet.
 
 type CheckMDMAppleEnrollmentWithMinimumOSVersionFunc func(ctx context.Context, m *fleet.MDMAppleMachineInfo) (*fleet.MDMAppleSoftwareUpdateRequired, error)
 
-type GetOTAProfileFunc func(ctx context.Context, enrollSecret string, idpUUID string, personal bool) ([]byte, error)
+type GetOTAProfileFunc func(ctx context.Context, enrollSecret string, idpSessionID string, personal bool) ([]byte, error)
 
 type TriggerCronScheduleFunc func(ctx context.Context, name string) error
 
@@ -5007,11 +5007,11 @@ func (s *Service) CheckMDMAppleEnrollmentWithMinimumOSVersion(ctx context.Contex
 	return s.CheckMDMAppleEnrollmentWithMinimumOSVersionFunc(ctx, m)
 }
 
-func (s *Service) GetOTAProfile(ctx context.Context, enrollSecret string, idpUUID string, personal bool) ([]byte, error) {
+func (s *Service) GetOTAProfile(ctx context.Context, enrollSecret string, idpSessionID string, personal bool) ([]byte, error) {
 	s.mu.Lock()
 	s.GetOTAProfileFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetOTAProfileFunc(ctx, enrollSecret, idpUUID, personal)
+	return s.GetOTAProfileFunc(ctx, enrollSecret, idpSessionID, personal)
 }
 
 func (s *Service) TriggerCronSchedule(ctx context.Context, name string) error {

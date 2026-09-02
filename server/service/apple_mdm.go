@@ -4412,7 +4412,7 @@ func (r callbackMDMSSOResponse) HijackRender(ctx context.Context, w http.Respons
 func (r callbackMDMSSOResponse) SetCookies(_ context.Context, w http.ResponseWriter) {
 	deleteSSOCookie(w)
 	if r.byodEnrollCookieValue != "" {
-		setBYODCookie(w, r.byodEnrollCookieValue, 30*60) // valid for 30 minutes
+		setBYODCookie(w, r.byodEnrollCookieValue, int(shared_mdm.BYODIdPSessionTTL.Seconds()))
 	}
 	if r.deviceSSOSessionID != "" {
 		setDeviceSSOSessionCookie(w, r.deviceSSOSessionID, r.deviceSSOSessionDuration)
@@ -8541,8 +8541,8 @@ type getOTAProfileRequest struct {
 	EnrollSecret string `query:"enroll_secret"`
 	// Personal indicates the end user chose "Personal (BYOD)" on the /enroll page.
 	// Defaults to false (company-owned) when omitted.
-	Personal bool   `query:"byod"`
-	IdpUUID  string // The UUID of the mdm_idp_account that was used if any, can be empty, will be taken from cookies
+	Personal     bool `query:"byod"`
+	IdpSessionID string
 }
 
 func (getOTAProfileRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
@@ -8563,7 +8563,7 @@ func (getOTAProfileRequest) DecodeRequest(ctx context.Context, r *http.Request) 
 		return &getOTAProfileRequest{
 			EnrollSecret: enrollSecret,
 			Personal:     personal,
-			IdpUUID:      "",
+			IdpSessionID: "",
 		}, nil
 	}
 
@@ -8577,13 +8577,13 @@ func (getOTAProfileRequest) DecodeRequest(ctx context.Context, r *http.Request) 
 	return &getOTAProfileRequest{
 		EnrollSecret: enrollSecret,
 		Personal:     personal,
-		IdpUUID:      boydIdpCookie.Value,
+		IdpSessionID: boydIdpCookie.Value,
 	}, nil
 }
 
 func getOTAProfileEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getOTAProfileRequest)
-	profile, err := svc.GetOTAProfile(ctx, req.EnrollSecret, req.IdpUUID, req.Personal)
+	profile, err := svc.GetOTAProfile(ctx, req.EnrollSecret, req.IdpSessionID, req.Personal)
 	if err != nil {
 		return &getMDMAppleConfigProfileResponse{Err: err}, err
 	}
@@ -8592,10 +8592,23 @@ func getOTAProfileEndpoint(ctx context.Context, request interface{}, svc fleet.S
 	return &getMDMAppleConfigProfileResponse{fileReader: io.NopCloser(reader), fileLength: reader.Size(), fileName: "fleet-mdm-enrollment-profile"}, nil
 }
 
-func (svc *Service) GetOTAProfile(ctx context.Context, enrollSecret, idpUUID string, personal bool) ([]byte, error) {
+func (svc *Service) GetOTAProfile(ctx context.Context, enrollSecret, idpSessionID string, personal bool) ([]byte, error) {
 	// Skip authz as this endpoint is used by end users from their iPhones or iPads; authz is done
 	// by the enroll secret verification below
 	svc.authz.SkipAuthorization(ctx)
+
+	var idpUUID string
+	if idpSessionID != "" {
+		uuid, err := shared_mdm.ValidateBYODIdPSession(ctx, svc.keyValueStore, svc.clock, idpSessionID)
+		var noSession *fleet.AuthRequiredError
+		switch {
+		case errors.As(err, &noSession):
+		case err != nil:
+			return nil, ctxerr.Wrap(ctx, err, "resolving byod idp session")
+		default:
+			idpUUID = uuid
+		}
+	}
 
 	cfg, err := svc.ds.AppConfig(ctx)
 	if err != nil {

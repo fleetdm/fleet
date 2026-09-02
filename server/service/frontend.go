@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"html/template"
 	"io"
@@ -10,6 +11,7 @@ import (
 	"net/url"
 	"regexp"
 
+	"github.com/WatchBeam/clock"
 	assetfs "github.com/elazarl/go-bindata-assetfs"
 	shared_mdm "github.com/fleetdm/fleet/v4/pkg/mdm"
 	"github.com/fleetdm/fleet/v4/server/bindata"
@@ -89,6 +91,7 @@ func ServeEndUserEnrollOTA(
 	svc fleet.Service,
 	urlPrefix string,
 	ds fleet.Datastore,
+	kv fleet.KeyValueStore,
 	logger *slog.Logger,
 	serveCSP bool,
 ) http.Handler {
@@ -142,19 +145,20 @@ func ServeEndUserEnrollOTA(
 			return
 		}
 
+		var cookieIdPRef string
 		if authRequired {
 			// check if authentication cookie is present, in which case we go ahead with
 			// offering the enrollment profile to download.
-			var cookieIdPRef string
-			if byodCookie, _ := r.Cookie(shared_mdm.BYODIdpCookieName); byodCookie != nil {
-				cookieIdPRef = byodCookie.Value
-
-				// if the cookie is present, we should also receive a (matching) enroll reference
-				if cookieIdPRef != "" {
-					enrollRef := r.URL.Query().Get("enrollment_reference")
-					if cookieIdPRef != enrollRef {
-						cookieIdPRef = "" // cookie does not match the enroll reference, so we ignore it and require authentication
-					}
+			if byodCookie, _ := r.Cookie(shared_mdm.BYODIdpCookieName); byodCookie != nil && byodCookie.Value != "" {
+				uuid, err := shared_mdm.ValidateBYODIdPSession(r.Context(), kv, clock.C, byodCookie.Value)
+				var noSession *fleet.AuthRequiredError
+				switch {
+				case errors.As(err, &noSession):
+				case err != nil:
+					herr(ctx, w, "resolve IdP session err: "+err.Error())
+					return
+				default:
+					cookieIdPRef = uuid
 				}
 			}
 
@@ -173,11 +177,10 @@ func ServeEndUserEnrollOTA(
 		// been successfully completed (we have a cookie with the IdP account
 		// reference).
 
-		// Clear the BYOD IdP cookie now that we are about to render the enrollment page.
 		var idpUUID string
 		fullyManaged := r.URL.Query().Get("fully_managed")
 		if authRequired && (fullyManaged == "true" || fullyManaged == "1") {
-			idpUUID = r.URL.Query().Get("enrollment_reference")
+			idpUUID = cookieIdPRef
 			http.SetCookie(w, &http.Cookie{
 				Name:     shared_mdm.BYODIdpCookieName,
 				Value:    "",

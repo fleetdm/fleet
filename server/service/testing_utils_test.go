@@ -688,7 +688,11 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 	}
 	debugHandler := MakeDebugHandler(svc, cfg, logger, errHandler, ds, nil)
 	rootMux.Handle("/debug/", debugHandler)
-	rootMux.Handle("/enroll", ServeEndUserEnrollOTA(svc, "", ds, logger, false))
+	var enrollKV fleet.KeyValueStore
+	if len(opts) > 0 && opts[0].Pool != nil {
+		enrollKV = redis_key_value.New(opts[0].Pool)
+	}
+	rootMux.Handle("/enroll", ServeEndUserEnrollOTA(svc, "", ds, enrollKV, logger, false))
 
 	if len(opts) > 0 && opts[0].EnableSCIM {
 		require.NoError(t, scim.RegisterSCIM(rootMux, ds, svc, logger, &cfg))

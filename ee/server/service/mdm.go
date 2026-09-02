@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/file"
+	shared_mdm "github.com/fleetdm/fleet/v4/pkg/mdm"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
@@ -1073,8 +1074,16 @@ func (svc *Service) MDMSSOCallback(ctx context.Context, sessionID string, samlRe
 		for k, v := range u.Query() {
 			q.Add(k, v[0])
 		}
+		// The page resolves the IdP account from the session; the reference has
+		// no reader on this branch and would only land in browser history.
+		q.Del("enrollment_reference")
 		u.RawQuery = q.Encode()
-		return u.String(), enrollmentRef, "", 0
+		byodSessionID, err := shared_mdm.CreateBYODIdPSession(ctx, svc.keyValueStore, svc.clock, enrollmentRef)
+		if err != nil {
+			logging.WithErr(ctx, err)
+			return "/enroll?error=" + url.QueryEscape("An error occurred. : Failed to start enrollment session."), "", "", 0
+		}
+		return u.String(), byodSessionID, "", 0
 
 	case ssoRequestData.Initiator == fleet.SSOInitiatorFleetDesktop:
 		// Re-check the feature is still on: an admin may have disabled it between

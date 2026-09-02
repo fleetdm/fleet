@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/pkg/mdm"
 	shared_mdm "github.com/fleetdm/fleet/v4/pkg/mdm"
 	"github.com/fleetdm/fleet/v4/server"
@@ -55,6 +56,7 @@ type Service struct {
 	SignupSSEInterval time.Duration
 	// AllowLocalhostServerURL is set during tests.
 	AllowLocalhostServerURL bool
+	keyValueStore           fleet.KeyValueStore
 }
 
 func NewService(
@@ -66,9 +68,18 @@ func NewService(
 	fleetDS fleet.Datastore,
 	newActivity fleet.NewActivityFunc,
 	androidAgentConfig config.AndroidAgentConfig,
+	keyValueStore fleet.KeyValueStore,
 ) (android.Service, error) {
 	client := newAMAPIClient(ctx, logger, licenseKey)
-	return NewServiceWithClient(logger, ds, client, serverPrivateKey, fleetDS, newActivity, androidAgentConfig)
+	return NewServiceWithClient(logger, ds, client, serverPrivateKey, fleetDS, newActivity, androidAgentConfig, WithKeyValueStore(keyValueStore))
+}
+
+// ServiceOption configures optional dependencies of the android service.
+type ServiceOption func(*Service)
+
+// WithKeyValueStore provides the store backing BYOD IdP sessions.
+func WithKeyValueStore(kv fleet.KeyValueStore) ServiceOption {
+	return func(s *Service) { s.keyValueStore = kv }
 }
 
 func NewServiceWithClient(
@@ -79,6 +90,7 @@ func NewServiceWithClient(
 	fleetDS fleet.Datastore,
 	newActivity fleet.NewActivityFunc,
 	androidAgentConfig config.AndroidAgentConfig,
+	opts ...ServiceOption,
 ) (android.Service, error) {
 	authorizer, err := authz.NewAuthorizer()
 	if err != nil {
@@ -95,6 +107,9 @@ func NewServiceWithClient(
 		fleetDS:            fleetDS,
 		newActivity:        newActivity,
 		androidAgentConfig: androidAgentConfig,
+	}
+	for _, opt := range opts {
+		opt(svc)
 	}
 
 	// OK to use background context here because this function is only called during server bootstrap
@@ -481,7 +496,8 @@ func (svc *Service) DeleteEnterprise(ctx context.Context) error {
 type enrollmentTokenRequest struct {
 	EnrollSecret string `query:"enroll_secret"`
 	FullyManaged bool   `query:"fully_managed"`
-	IdpUUID      string // The UUID of the mdm_idp_account that was used if any, can be empty, will be taken from cookies
+	IdpUUID      string // from the idp_uuid query parameter, if any
+	IdpSessionID string // from the BYOD IdP cookie, if any
 }
 
 func (enrollmentTokenRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
@@ -533,27 +549,39 @@ func (enrollmentTokenRequest) DecodeRequest(ctx context.Context, r *http.Request
 
 	return &enrollmentTokenRequest{
 		EnrollSecret: enrollSecret,
-		IdpUUID:      byodIdpCookie.Value,
+		IdpSessionID: byodIdpCookie.Value,
 		FullyManaged: fullyManaged,
 	}, nil
 }
 
 func enrollmentTokenEndpoint(ctx context.Context, request interface{}, svc android.Service) fleet.Errorer {
 	req := request.(*enrollmentTokenRequest)
-	token, err := svc.CreateEnrollmentToken(ctx, req.EnrollSecret, req.IdpUUID, req.FullyManaged)
+	token, err := svc.CreateEnrollmentToken(ctx, req.EnrollSecret, req.IdpUUID, req.IdpSessionID, req.FullyManaged)
 	if err != nil {
 		return android.DefaultResponse{Err: err}
 	}
 	return android.EnrollmentTokenResponse{EnrollmentToken: token}
 }
 
-func (svc *Service) CreateEnrollmentToken(ctx context.Context, enrollSecret, idpUUID string, fullyManaged bool) (*android.EnrollmentToken, error) {
+func (svc *Service) CreateEnrollmentToken(ctx context.Context, enrollSecret, idpUUID, idpSessionID string, fullyManaged bool) (*android.EnrollmentToken, error) {
 	// Authorization is done by VerifyEnrollSecret below.
 	// We call SkipAuthorization here to avoid explicitly calling it when errors occur.
 	svc.authz.SkipAuthorization(ctx)
 	_, err := svc.checkIfAndroidNotConfigured(ctx, http.StatusConflict)
 	if err != nil {
 		return nil, err
+	}
+
+	if idpSessionID != "" {
+		uuid, err := shared_mdm.ValidateBYODIdPSession(ctx, svc.keyValueStore, clock.C, idpSessionID)
+		var noSession *fleet.AuthRequiredError
+		switch {
+		case errors.As(err, &noSession):
+		case err != nil:
+			return nil, ctxerr.Wrap(ctx, err, "resolving byod idp session")
+		default:
+			idpUUID = uuid
+		}
 	}
 
 	_, err = svc.ds.VerifyEnrollSecret(ctx, enrollSecret)

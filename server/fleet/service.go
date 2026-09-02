@@ -1242,7 +1242,7 @@ type Service interface {
 	// GetOTAProfile gets the OTA (over-the-air) profile for a given team based on the enroll secret provided.
 	// personal indicates whether the end user selected "Personal (BYOD)" on the /enroll page; it is
 	// baked into the POST-back URL so the OTA enrollment handler can set the correct access rights.
-	GetOTAProfile(ctx context.Context, enrollSecret, idpUUID string, personal bool) ([]byte, error)
+	GetOTAProfile(ctx context.Context, enrollSecret, idpSessionID string, personal bool) ([]byte, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// CronSchedulesService
