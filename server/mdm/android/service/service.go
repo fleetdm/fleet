@@ -496,7 +496,7 @@ func (svc *Service) DeleteEnterprise(ctx context.Context) error {
 type enrollmentTokenRequest struct {
 	EnrollSecret string `query:"enroll_secret"`
 	FullyManaged bool   `query:"fully_managed"`
-	IdpUUID      string // from the idp_uuid query parameter, if any
+	IdpUUID      string // resolved from the session; carried in the token, never read from the request
 	IdpSessionID string // from the BYOD IdP cookie, if any
 }
 
@@ -514,21 +514,12 @@ func (enrollmentTokenRequest) DecodeRequest(ctx context.Context, r *http.Request
 		fullyManaged = true
 	}
 
-	if idpUUID := r.URL.Query().Get("idp_uuid"); idpUUID != "" {
-		return &enrollmentTokenRequest{
-			EnrollSecret: enrollSecret,
-			IdpUUID:      idpUUID,
-			FullyManaged: fullyManaged,
-		}, nil
-	}
-
 	byodIdpCookie, err := r.Cookie(mdm.BYODIdpCookieName)
 
 	if err == http.ErrNoCookie {
 		// We do not fail here if no cookie is found, we validate later down the line if it's required
 		return &enrollmentTokenRequest{
 			EnrollSecret: enrollSecret,
-			IdpUUID:      "",
 			FullyManaged: fullyManaged,
 		}, nil
 	}
@@ -554,16 +545,40 @@ func (enrollmentTokenRequest) DecodeRequest(ctx context.Context, r *http.Request
 	}, nil
 }
 
+type enrollmentTokenResponse struct {
+	android.EnrollmentTokenResponse
+	// clearIdPCookie ends the IdP session for a fully managed enrollment so the
+	// next device enrolled from the same browser authenticates again.
+	clearIdPCookie bool
+}
+
+func (r enrollmentTokenResponse) SetCookies(_ context.Context, w http.ResponseWriter) {
+	if !r.clearIdPCookie {
+		return
+	}
+	http.SetCookie(w, &http.Cookie{
+		Name:     mdm.BYODIdpCookieName,
+		Value:    "",
+		Path:     "/",
+		MaxAge:   -1,
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+	})
+}
+
 func enrollmentTokenEndpoint(ctx context.Context, request interface{}, svc android.Service) fleet.Errorer {
 	req := request.(*enrollmentTokenRequest)
-	token, err := svc.CreateEnrollmentToken(ctx, req.EnrollSecret, req.IdpUUID, req.IdpSessionID, req.FullyManaged)
+	token, err := svc.CreateEnrollmentToken(ctx, req.EnrollSecret, req.IdpSessionID, req.FullyManaged)
 	if err != nil {
 		return android.DefaultResponse{Err: err}
 	}
-	return android.EnrollmentTokenResponse{EnrollmentToken: token}
+	return enrollmentTokenResponse{
+		EnrollmentTokenResponse: android.EnrollmentTokenResponse{EnrollmentToken: token},
+		clearIdPCookie:          req.FullyManaged && req.IdpSessionID != "",
+	}
 }
 
-func (svc *Service) CreateEnrollmentToken(ctx context.Context, enrollSecret, idpUUID, idpSessionID string, fullyManaged bool) (*android.EnrollmentToken, error) {
+func (svc *Service) CreateEnrollmentToken(ctx context.Context, enrollSecret, idpSessionID string, fullyManaged bool) (*android.EnrollmentToken, error) {
 	// Authorization is done by VerifyEnrollSecret below.
 	// We call SkipAuthorization here to avoid explicitly calling it when errors occur.
 	svc.authz.SkipAuthorization(ctx)
@@ -572,6 +587,7 @@ func (svc *Service) CreateEnrollmentToken(ctx context.Context, enrollSecret, idp
 		return nil, err
 	}
 
+	var idpUUID string
 	if idpSessionID != "" {
 		uuid, err := shared_mdm.ValidateBYODIdPSession(ctx, svc.keyValueStore, clock.C, idpSessionID)
 		var noSession *fleet.AuthRequiredError
