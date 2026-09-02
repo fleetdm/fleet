@@ -239,22 +239,24 @@ const ScriptModalGroup = ({
           setSelectedScript(null);
         }}
         isHidden={currentModal !== ModalGroupOption.Delete}
-        disableExitAnimation
       />
-      <RunScriptDetailsModal
-        scriptExecutionId={selectedExecutionId || ""}
-        onCancel={() => {
-          if (previousModal === ModalGroupOption.ViewScriptDetails) {
-            setCurrentModal(previousModal);
-            setPreviousModal(ModalGroupOption.Run);
-          } else if (previousModal === ModalGroupOption.Run) {
-            setCurrentModal(previousModal);
-            setPreviousModal(null);
-          }
-        }}
-        isHidden={currentModal !== ModalGroupOption.ViewRunDetails}
-        disableExitAnimation
-      />
+      {/* Mounted only while shown: it holds no state worth preserving (the
+          scripts table pagination lives in this component), and unmounting
+          discards any in-flight close-animation state. */}
+      {currentModal === ModalGroupOption.ViewRunDetails && (
+        <RunScriptDetailsModal
+          scriptExecutionId={selectedExecutionId || ""}
+          onCancel={() => {
+            if (previousModal === ModalGroupOption.ViewScriptDetails) {
+              setCurrentModal(previousModal);
+              setPreviousModal(ModalGroupOption.Run);
+            } else if (previousModal === ModalGroupOption.Run) {
+              setCurrentModal(previousModal);
+              setPreviousModal(null);
+            }
+          }}
+        />
+      )}
     </>
   );
 };

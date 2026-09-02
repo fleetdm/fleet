@@ -15,9 +15,6 @@ interface IDeleteScriptModalProps {
   scriptName: string;
   scriptId: number;
   onCancel: () => void;
-  /** Skips the close animation so the X matches the Cancel button. Used when
-   * this modal swaps back to another modal in a group instead of closing. */
-  disableExitAnimation?: boolean;
   afterDelete: () => void;
   isHidden?: boolean;
 }
@@ -26,7 +23,6 @@ const DeleteScriptModal = ({
   scriptName,
   scriptId,
   onCancel,
-  disableExitAnimation = false,
   afterDelete,
   isHidden = false,
 }: IDeleteScriptModalProps) => {
@@ -56,7 +52,6 @@ const DeleteScriptModal = ({
       className={baseClass}
       title="Delete script"
       onExit={onCancel}
-      disableExitAnimation={disableExitAnimation}
       onEnter={() => onClickDelete(scriptId)}
       isHidden={isHidden}
       isContentDisabled={isDeleting}

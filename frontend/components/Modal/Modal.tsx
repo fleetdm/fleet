@@ -41,13 +41,6 @@ export interface IModalProps {
    * @default false
    * */
   disableClosingModal?: boolean;
-  /** `disableExitAnimation` makes the X, Escape, and backdrop close instantly,
-   * like a footer Close button. For a modal whose close swaps to another modal
-   * in a group rather than closing it: playing an exit animation and then
-   * cross-fading shows both modals briefly.
-   * @default false
-   */
-  disableExitAnimation?: boolean;
   className?: string;
 }
 
@@ -61,7 +54,6 @@ const Modal = ({
   isLoading = false,
   isContentDisabled = false,
   disableClosingModal = false,
-  disableExitAnimation = false,
   className,
 }: IModalProps): JSX.Element => {
   const isDownOnBackgroundRef = useRef(false);
@@ -71,10 +63,6 @@ const Modal = ({
 
   const handleClose = useCallback(() => {
     if (isClosingRef.current) return;
-    if (disableExitAnimation) {
-      onExit();
-      return;
-    }
     isClosingRef.current = true;
     setIsClosing(true);
     setTimeout(() => {
@@ -86,7 +74,7 @@ const Modal = ({
       isClosingRef.current = false;
       setIsClosing(false);
     }, CLOSE_ANIMATION_MS);
-  }, [onExit, disableExitAnimation]);
+  }, [onExit]);
 
   useEffect(() => {
     const closeWithEscapeKey = (e: KeyboardEvent) => {

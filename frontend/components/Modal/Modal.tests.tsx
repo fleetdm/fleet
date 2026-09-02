@@ -216,31 +216,6 @@ describe("Modal", () => {
     expect(onExit).toHaveBeenCalledTimes(2);
   });
 
-  // A modal whose close swaps to another modal in a group closes instantly,
-  // like a footer Close button — playing the exit animation first shows both
-  // modals briefly. See #51497.
-  it("closes immediately and repeatedly with disableExitAnimation", () => {
-    const onExit = jest.fn();
-    const { container } = render(
-      <Modal title="Test" onExit={onExit} disableExitAnimation>
-        <div>content</div>
-      </Modal>
-    );
-
-    const closeButton = container.querySelector(".modal__ex button");
-    if (!closeButton) throw new Error("X button not found");
-
-    fireEvent.click(closeButton);
-    expect(onExit).toHaveBeenCalledTimes(1);
-
-    const background = container.querySelector(".modal__background");
-    expect(background).not.toHaveClass("modal__closing");
-
-    // no stale closing state — a second close works without any timers
-    fireEvent.click(closeButton);
-    expect(onExit).toHaveBeenCalledTimes(2);
-  });
-
   it("does not call onExit when clicking the background if disableClosingModal is true", async () => {
     const onExit = jest.fn();
     const { container } = render(
