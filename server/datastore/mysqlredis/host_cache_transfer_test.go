@@ -2,13 +2,12 @@ package mysqlredis
 
 import (
 	"fmt"
-	"os"
 	"testing"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
-	"github.com/fleetdm/fleet/v4/server/datastore/redis"
+	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
@@ -19,32 +18,13 @@ import (
 // uncached load returns. A transfer deletes escrowed disk encryption keys for
 // platforms the destination doesn't escrow for, per host, so a batch that mixes
 // platforms must come out of the patch with per-host answers.
-// isolatedRedis gives this test its own Redis logical database. It cannot use
-// redistest: mysqltest.CreateMySQLDS marks the test parallel, and redistest's
-// cleanup deletes every key under the host-cache prefix — which is the same
-// prefix the rest of this package's tests are actively using.
-func isolatedRedis(t *testing.T, database int) fleet.RedisPool {
-	if _, ok := os.LookupEnv("REDIS_TEST"); !ok {
-		t.Skip("set REDIS_TEST environment variable to run redis-based tests")
-	}
-	pool, err := redis.NewPool(redis.PoolConfig{
-		Server:      "127.0.0.1:6379",
-		Database:    database,
-		ConnTimeout: 5 * time.Second,
-	})
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		conn := pool.Get()
-		_, _ = conn.Do("FLUSHDB")
-		conn.Close()
-		pool.Close()
-	})
-	return pool
-}
-
 func TestHostCacheTransferEscrowFlag(t *testing.T) {
 	ds := mysqltest.CreateMySQLDS(t)
-	pool := isolatedRedis(t, 3)
+	// CreateMySQLDS marks this test parallel, so it runs alongside the rest of the
+	// package while sharing this pool — and redistest's cleanup deletes every key
+	// under the host-cache prefix. Keep the cached working set here small and
+	// scoped to keys nothing else uses.
+	pool := redistest.SetupRedis(t, hostCacheKeyPrefix, false, false, false)
 	d := New(ds, pool, WithHostCache(3*time.Minute))
 	ctx := t.Context()
 

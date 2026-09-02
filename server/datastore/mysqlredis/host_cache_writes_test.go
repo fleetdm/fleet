@@ -616,7 +616,7 @@ func TestWritePathInvalidation(t *testing.T) {
 // pool with a fault-injecting double, and the shared pool is in use by the rest
 // of the package's tests.
 func TestHostCacheReadFailureFallback(t *testing.T) {
-	pool := isolatedRedis(t, 4)
+	pool := redistest.SetupRedis(t, hostCacheKeyPrefix, false, false, false)
 	ctx := t.Context()
 
 	t.Cleanup(func() { cleanupHostCacheKeys(t, pool) })
