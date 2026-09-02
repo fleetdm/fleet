@@ -52,6 +52,33 @@ func TestAPNSReason(t *testing.T) {
 	}
 }
 
+func TestIsPermanentAPNSRejection(t *testing.T) {
+	permanent := []string{
+		APNSReasonUnregistered, APNSReasonExpiredToken, APNSReasonBadDeviceToken, APNSReasonDeviceTokenNotForTopic,
+		APNSReasonBadCertificate, APNSReasonBadCertificateEnvironment, APNSReasonExpiredProviderToken,
+		APNSReasonForbidden, APNSReasonInvalidProviderToken, APNSReasonMissingProviderToken,
+		APNSReasonBadTopic, APNSReasonTopicDisallowed,
+	}
+	for _, reason := range permanent {
+		t.Run(reason, func(t *testing.T) {
+			err := fmt.Errorf("push HTTP status: 400: %w", &nanopush.JSONPushError{Reason: reason})
+			require.True(t, isPermanentAPNSRejection(err))
+		})
+	}
+
+	transient := map[string]error{
+		"TooManyRequests":      fmt.Errorf("push HTTP status: 429: %w", &nanopush.JSONPushError{Reason: APNSReasonTooManyRequests}),
+		"InternalServerError":  fmt.Errorf("push HTTP status: 500: %w", &nanopush.JSONPushError{Reason: "InternalServerError"}),
+		"transport error":      errors.New("dial tcp: connection refused"),
+		"no structured reason": fmt.Errorf("push HTTP status: 502: %w", &nanopush.JSONPushError{}),
+	}
+	for name, err := range transient {
+		t.Run(name, func(t *testing.T) {
+			require.False(t, isPermanentAPNSRejection(err))
+		})
+	}
+}
+
 func TestTurnOffMDMIfAPNSFailed(t *testing.T) {
 	ctx := t.Context()
 	noActivity := func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error { return nil }
