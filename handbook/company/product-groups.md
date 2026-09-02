@@ -354,7 +354,7 @@ The product group walks the board **right-to-left**, starting at "Ready for rele
 
 User story reviews [happen weekly](https://fleetdm.com/handbook/product-design#rituals) between each product group's Product Designer (PD), Engineering Manager (EM), Tech Lead (TL) and Quality Assurance (QA) Engineer. 
 
-1 business day before the call, the PD shares stories that are ready for review in the relevant product group Slack channel. This way, the QA Engineer has time to review the stories and add items to the test plan.
+At least 1 business day before the call, the PD shares stories that are ready for review in the relevant product group Slack channel. This way, the QA Engineer has time to review the stories and add items to the test plan.
 
 During the call, contributors (PD and EM) present all user stories that have completed the product checklist and are ready for review. The PD is the DRI for completing all product checklist items before bringing to review. For [engineer-initiated stories](https://fleetdm.com/handbook/engineering#create-an-engineering-initiated-story), the EM is the DRI for completing all engineering checklist items before bringing to review.
 
