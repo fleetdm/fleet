@@ -137,7 +137,7 @@ This UUID-based authentication only works for iOS and iPadOS hosts and is suppor
 - [Reporting an agent error](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/reference/api-for-contributors.md#report-an-agent-error)
 - [Download device's MDM manual enrollment profile](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/reference/api-for-contributors.md#download-devices-mdm-manual-enrollment-profile)
 
-Because iOS and iPadOS hosts authenticate this way, Fleet also strips identifying details, like UUID, hardware serial, and MDM profile data, from the [Get host by Fleet Desktop token](https://fleetdm.com/docs/rest-api/rest-api#get-host-by-fleet-desktop-token) response for those hosts.
+Because iOS and iPadOS hosts authenticate by UUID, Fleet also strips identifying details, like UUID, hardware serial, and MDM profile data, from the [Get host by Fleet Desktop token](https://fleetdm.com/docs/rest-api/rest-api#get-host-by-fleet-desktop-token) response for those hosts.
 
 <meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="zhumo">
