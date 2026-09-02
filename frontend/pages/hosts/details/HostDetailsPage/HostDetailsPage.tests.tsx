@@ -166,4 +166,26 @@ describe("HostDetailsPage - pending hosts", () => {
     ).not.toBeInTheDocument();
     expect(notify.error).not.toHaveBeenCalled();
   }, 15000);
+
+  it("still reports back when the user asks for the refetch", async () => {
+    stubQueries(mockPendingWindowsHost("online"));
+    (hostAPI.loadHostDetails as jest.Mock)
+      .mockResolvedValueOnce({ host: mockPendingWindowsHost("online") })
+      .mockResolvedValue({ host: mockPendingWindowsHost("offline") });
+
+    const { user } = renderPageAs(ADMIN, true);
+    await user.click(await screen.findByRole("button", { name: /refetch/i }));
+    await waitFor(() => {
+      expect(hostAPI.refetch).toHaveBeenCalled();
+    });
+
+    await waitFor(
+      () => {
+        expect(notify.error).toHaveBeenCalledWith(
+          "This host is offline. Please try refetching host vitals later."
+        );
+      },
+      { timeout: 10000 }
+    );
+  }, 20000);
 });
