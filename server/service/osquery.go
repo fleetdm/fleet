@@ -58,6 +58,17 @@ func recordErrorDetail(ctx context.Context, err error) {
 	logging.WithExtras(ctx, "internal", err.Error())
 }
 
+// enrollError is recordErrorDetail for sites that return a plain error. A
+// cancellation is wrapped rather than replaced so the transport still answers
+// 499 when the client went away.
+func enrollError(ctx context.Context, err error, msg string) error {
+	if errors.Is(err, context.Canceled) {
+		return ctxerr.Wrap(ctx, err, msg)
+	}
+	recordErrorDetail(ctx, err)
+	return ctxerr.New(ctx, msg)
+}
+
 func (svc *Service) AuthenticateHost(ctx context.Context, nodeKey string) (*fleet.Host, bool, error) {
 	// skipauth: Authorization is currently for user endpoints only.
 	svc.authz.SkipAuthorization(ctx)
@@ -234,24 +245,21 @@ func (svc *Service) EnrollOsquery(ctx context.Context, enrollSecret, hostIdentif
 	if r, ok := hostDetails["os_version"]; ok {
 		err := detailQueries["os_version"].IngestFunc(ctx, svc.logger, host, []map[string]string{r})
 		if err != nil {
-			recordErrorDetail(ctx, err)
-			return "", ctxerr.New(ctx, "Ingesting os_version")
+			return "", enrollError(ctx, err, "Ingesting os_version")
 		}
 		save = true
 	}
 	if r, ok := hostDetails["osquery_info"]; ok {
 		err := detailQueries["osquery_info"].IngestFunc(ctx, svc.logger, host, []map[string]string{r})
 		if err != nil {
-			recordErrorDetail(ctx, err)
-			return "", ctxerr.New(ctx, "Ingesting osquery_info")
+			return "", enrollError(ctx, err, "Ingesting osquery_info")
 		}
 		save = true
 	}
 	if r, ok := hostDetails["system_info"]; ok {
 		err := detailQueries["system_info"].IngestFunc(ctx, svc.logger, host, []map[string]string{r})
 		if err != nil {
-			recordErrorDetail(ctx, err)
-			return "", ctxerr.New(ctx, "Ingesting system_info")
+			return "", enrollError(ctx, err, "Ingesting system_info")
 		}
 		save = true
 	}
@@ -261,8 +269,7 @@ func (svc *Service) EnrollOsquery(ctx context.Context, enrollSecret, hostIdentif
 			go svc.serialUpdateHost(ctx, host)
 		} else {
 			if err := svc.ds.UpdateHost(ctx, host); err != nil {
-				recordErrorDetail(ctx, err)
-				return "", ctxerr.New(ctx, "save host in enroll agent")
+				return "", enrollError(ctx, err, "save host in enroll agent")
 			}
 		}
 	}

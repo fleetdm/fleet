@@ -122,8 +122,7 @@ func (svc *Service) processWindowsEUAToken(ctx context.Context, hostUUID string,
 				"device_id", deviceID, "host_uuid", hostUUID)
 			return "", "", "", fleet.NewOrbitIDPAuthRequiredError()
 		}
-		recordErrorDetail(ctx, err)
-		return "", "", "", ctxerr.New(ctx, "getting windows mdm enrollment for EUA token")
+		return "", "", "", enrollError(ctx, err, "getting windows mdm enrollment for EUA token")
 	}
 
 	// Fetch or create the mdm_idp_accounts row for this email.
@@ -131,19 +130,16 @@ func (svc *Service) processWindowsEUAToken(ctx context.Context, hostUUID string,
 	// that may have been populated by SCIM provisioning.
 	acct, err := svc.ds.GetMDMIdPAccountByEmail(ctx, upn)
 	if err != nil && !fleet.IsNotFound(err) {
-		recordErrorDetail(ctx, err)
-		return "", "", "", ctxerr.New(ctx, "getting mdm idp account by email for EUA token")
+		return "", "", "", enrollError(ctx, err, "getting mdm idp account by email for EUA token")
 	}
 	if fleet.IsNotFound(err) {
 		if err := svc.ds.InsertMDMIdPAccount(ctx, &fleet.MDMIdPAccount{Email: upn, Username: upn}); err != nil {
-			recordErrorDetail(ctx, err)
-			return "", "", "", ctxerr.New(ctx, "inserting mdm idp account for EUA token")
+			return "", "", "", enrollError(ctx, err, "inserting mdm idp account for EUA token")
 		}
 		// Re-fetch to get the UUID assigned by the DB.
 		acct, err = svc.ds.GetMDMIdPAccountByEmail(ctx, upn)
 		if err != nil {
-			recordErrorDetail(ctx, err)
-			return "", "", "", ctxerr.New(ctx, "re-fetching mdm idp account after insert for EUA token")
+			return "", "", "", enrollError(ctx, err, "re-fetching mdm idp account after insert for EUA token")
 		}
 	}
 	if acct == nil {

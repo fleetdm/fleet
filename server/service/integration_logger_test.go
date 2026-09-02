@@ -332,6 +332,7 @@ func (s *integrationLoggerTestSuite) TestEnrollOsqueryLogsErrors() {
 	assert.Equal(t, slog.LevelInfo, records[0].Level)
 	attrs := testutils.RecordAttrs(&records[0])
 	assert.Contains(t, fmt.Sprint(attrs["err"]), "enroll failed")
+	assert.NotContains(t, fmt.Sprint(attrs["err"]), "no matching secret found")
 	assert.Contains(t, fmt.Sprint(attrs["internal"]), "no matching secret found")
 }
 
