@@ -4,12 +4,18 @@
 # Raspberry Pi Imager uses an Inno Setup installer; these switches run it
 # silently and it installs machine-wide when run elevated. Despite its [Run]
 # entry being flagged skipifsilent, the Setup process does not exit on its
-# own after a silent install finishes -- it keeps running and holds the
-# installer file lock indefinitely. A plain "Start-Process -Wait" would
-# therefore block until killed even though the files install correctly. So
-# this launches Setup, polls until Raspberry Pi Imager is registered in
-# Programs and Features, then stops the lingering process to release the
-# lock.
+# own after a silent install (or reinstall) finishes -- it keeps running and
+# holds the installer file lock indefinitely. A plain "Start-Process -Wait"
+# would therefore block until killed even though the files install
+# correctly. So this launches Setup and polls for completion instead.
+#
+# The poll prefers detecting a version change from the pre-launch state, so
+# an upgrade over an existing older install isn't mistaken for already being
+# done on the very first check. Reinstalling the exact same version has no
+# such signal to key off (DisplayVersion never changes, and Setup doesn't
+# reliably exit either), so that case is only confirmed by presence once the
+# full poll budget has elapsed -- giving Setup the entire budget to do its
+# work before treating mere presence as good enough.
 
 $exeFilePath = "${env:INSTALLER_PATH}"
 
@@ -21,14 +27,17 @@ $registryUninstallPaths = @(
     'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*'
 )
 
-function Test-RaspberryPiImagerInstalled {
+# Returns the registered DisplayVersion for Raspberry Pi Imager, or $null if
+# not currently installed.
+function Get-RaspberryPiImagerVersion {
     try {
         $props = Get-ItemProperty -Path $registryUninstallPaths -ErrorAction SilentlyContinue |
             Where-Object { $_.DisplayName -eq 'Raspberry Pi Imager' } |
             Select-Object -First 1
-        return [bool]$props
+        if ($props) { return $props.DisplayVersion }
+        return $null
     } catch {
-        return $false
+        return $null
     }
 }
 
@@ -47,6 +56,8 @@ try {
         Exit 1
     }
 
+    $beforeVersion = Get-RaspberryPiImagerVersion
+
     $processOptions = @{
         FilePath = "$exeFilePath"
         ArgumentList = "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART"
@@ -58,8 +69,9 @@ try {
 
     $elapsed = 0
     while ($elapsed -lt $pollTimeoutSeconds) {
-        if (Test-RaspberryPiImagerInstalled) {
-            Write-Host "Raspberry Pi Imager registered in Programs and Features after ${elapsed}s"
+        $currentVersion = Get-RaspberryPiImagerVersion
+        if ($currentVersion -and $currentVersion -ne $beforeVersion) {
+            Write-Host "Raspberry Pi Imager $currentVersion registered in Programs and Features after ${elapsed}s"
             if (-not $process.HasExited) {
                 Stop-ProcessTree -ParentId $process.Id
                 Write-Host "Stopped lingering installer process to release file lock"
@@ -67,27 +79,33 @@ try {
             Exit 0
         }
 
-        # If Setup exits on its own, trust its exit code (after a final check).
         if ($process.HasExited) {
-            Start-Sleep -Seconds 2
-            if (Test-RaspberryPiImagerInstalled) { Exit 0 }
             $exitCode = $process.ExitCode
+            if ($exitCode -ne 0 -and $exitCode -ne 3010) {
+                Write-Host "Installer exited with code $exitCode"
+                Exit $exitCode
+            }
+            Start-Sleep -Seconds 2
+            if (Get-RaspberryPiImagerVersion) { Exit 0 }
             Write-Host "Installer exited with code $exitCode but Raspberry Pi Imager was not detected"
-            # 3010 = success, reboot required.
-            if ($exitCode -eq 3010) { Exit 0 }
-            Exit $exitCode
+            Exit 1
         }
 
         Start-Sleep -Seconds $pollIntervalSeconds
         $elapsed += $pollIntervalSeconds
     }
 
-    if (Test-RaspberryPiImagerInstalled) {
+    # Timed out: Setup is still "running" per Windows but, per the header
+    # note, that alone doesn't mean the install didn't finish. It's had the
+    # full budget to do real work, so presence alone (even at an unchanged
+    # version, i.e. a same-version reinstall) is trusted here.
+    if (Get-RaspberryPiImagerVersion) {
+        Write-Host "Raspberry Pi Imager present after ${pollTimeoutSeconds}s; treating as complete"
         if (-not $process.HasExited) { Stop-ProcessTree -ParentId $process.Id }
         Exit 0
     }
 
-    Write-Host "Timed out after ${pollTimeoutSeconds}s waiting for Raspberry Pi Imager to register in Programs and Features"
+    Write-Host "Timed out after ${pollTimeoutSeconds}s waiting for Raspberry Pi Imager to be detected"
     if (-not $process.HasExited) { Stop-ProcessTree -ParentId $process.Id }
     Exit 1
 
