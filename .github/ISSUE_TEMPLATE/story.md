@@ -58,7 +58,7 @@ It is [planned and ready](https://fleetdm.com/handbook/company/development-group
 
 - Requires testing in a hosted environment: TODO <!-- User story has features that require testing in a hosted environment. Otherwise, remove this item. -->
 - Requires load testing: TODO <!-- User story has performance implications that require load testing. Otherwise, remove this item. -->
-- [ ] Load mitigation plan: TODO <!-- Engineer: document how to save a Fleet server that is experiencing load if this feature suddenly starts causing significant server load in production (e.g. how to disable or throttle the feature via a config setting, feature flag, or cron schedule change, and any feature-specific rollback or recovery steps). Remove this item if the story has no load risk. -->
+- [ ] Load mitigation plan: TODO <!-- Engineer: document how to save a Fleet server that is experiencing load if this feature suddenly starts causing significant server load in production (e.g. how to disable or throttle the feature via a config setting, feature flag, or cron schedule change; SQL statements that can clear or disable the feature, such as clearing relevant tables; and any feature-specific rollback or recovery steps). Remove this item if the story has no load risk. -->
 - Risk level: Low / High TODO <!-- Choose one. Consider: Does this change come with performance risks?  Any risk of accidental log spew? Any particular regressions to watch out for?  Any potential compatibility issues, even if it's not technically a breaking change? -->
 - Risk description: TODO <!-- If the risk level is high, explain why. If low, remove. -->
 
