@@ -70,6 +70,26 @@ const displayBoolean = (value?: boolean | null) => {
 const displayText = (value?: string | null) =>
   value ? <TooltipTruncatedText value={value} /> : DEFAULT_EMPTY_CELL_VALUE;
 
+/** AMAPI reports the manufacturer exactly as the device sends it, which is
+ * often all lowercase ("samsung"). Only the first letter is touched, so a name
+ * that capitalizes itself ("OnePlus", "LGE") keeps its own casing. */
+const displayManufacturer = (value?: string) =>
+  value
+    ? displayText(value.charAt(0).toUpperCase() + value.slice(1))
+    : DEFAULT_EMPTY_CELL_VALUE;
+
+/** The trailing security patch level in an Android os_version, which the
+ * server folds in — "Android 16 (2026-01-01)". */
+const ANDROID_OS_PATCH_LEVEL = / \(\d{4}-\d{2}-\d{2}\)$/;
+
+/** Drops the security patch level from an Android OS version for display. It
+ * has its own vital (Security update version), so the parenthetical would just
+ * repeat it. Only a value ending in a date is touched, so an unexpected format
+ * is shown as sent. The API keeps returning the full string — this is display
+ * only, and every other surface still shows it. */
+export const stripAndroidOSPatchLevel = (osVersion?: string) =>
+  osVersion ? osVersion.replace(ANDROID_OS_PATCH_LEVEL, "") : osVersion;
+
 const SECURITY_PATCH_LEVEL_FORMAT = /^\d{4}-\d{2}-\d{2}$/;
 
 /** AMAPI reports the security patch level as a YYYY-MM-DD date, which is shown
@@ -217,7 +237,7 @@ const buildAndroidHostVitals = (
     {
       sortKey: "Manufacturer",
       title: "Manufacturer",
-      value: displayText(manufacturer),
+      value: displayManufacturer(manufacturer),
     },
     {
       sortKey: "Passcode set",

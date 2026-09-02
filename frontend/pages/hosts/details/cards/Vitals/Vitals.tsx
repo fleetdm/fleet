@@ -36,7 +36,9 @@ import Icon from "components/Icon/Icon";
 import Button from "components/buttons/Button";
 
 import DiskSpaceIndicator from "pages/hosts/components/DiskSpaceIndicator";
-import buildAndroidHostVitals from "./androidVitals";
+import buildAndroidHostVitals, {
+  stripAndroidOSPatchLevel,
+} from "./androidVitals";
 import { getCityCountryLocation } from "../../modals/LocationModal/LocationModal";
 
 /** Everything buildHostVitals needs to render the pre-existing host vitals.
@@ -568,7 +570,9 @@ export const buildHostVitals = ({
   const hasApiLevel = isAndroidHost && typeof vitalsData.api_level === "number";
 
   if (!osUpdateMinimumVersion) {
-    const version = vitalsData.os_version;
+    const version = isAndroidHost
+      ? stripAndroidOSPatchLevel(vitalsData.os_version)
+      : vitalsData.os_version;
     const versionForRender = ROLLING_ARCH_LINUX_VERSIONS.includes(version) ? (
       <>
         {version.slice(0, -8)}&nbsp;

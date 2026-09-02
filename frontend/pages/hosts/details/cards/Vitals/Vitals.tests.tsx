@@ -1198,6 +1198,7 @@ describe("Android vitals", () => {
     const { container } = renderAndroidCard(createMockAndroidHost());
 
     expect(getVitalValue(container, "Manufacturer")).toBe("Motorola");
+    expect(getVitalValue(container, "Operating system")).toBe("Android 16");
     expect(getVitalValue(container, "Kernel version")).toBe(
       "6.1.75-android15-8-g3fb15dd41ea-ab12873456"
     );
@@ -1404,7 +1405,7 @@ describe("Android vitals", () => {
       />
     );
 
-    await user.hover(screen.getByText("Android 16 (2026-05-01)"));
+    await user.hover(screen.getByText("Android 16"));
 
     await waitFor(() => {
       expect(screen.getByText(/Android API level: 36/)).toBeInTheDocument();
@@ -1424,7 +1425,7 @@ describe("Android vitals", () => {
       />
     );
 
-    await user.hover(screen.getByText("Android 16 (2026-05-01)"));
+    await user.hover(screen.getByText("Android 16"));
 
     await waitFor(() => {
       expect(screen.queryByText(/Android API level/)).not.toBeInTheDocument();
@@ -1493,6 +1494,53 @@ describe("Android vitals", () => {
     expect(learnMore.closest("a")).toHaveAttribute(
       "href",
       "https://fleetdm.com/learn-more-about/security-posture"
+    );
+  });
+
+  it("capitalizes a manufacturer the device reports in lowercase", () => {
+    const { container } = renderAndroidCard(
+      createMockAndroidHost({ manufacturer: "samsung" })
+    );
+
+    expect(getVitalValue(container, "Manufacturer")).toBe("Samsung");
+  });
+
+  it("leaves a manufacturer that capitalizes itself alone", () => {
+    const { container } = renderAndroidCard(
+      createMockAndroidHost({ manufacturer: "OnePlus" })
+    );
+
+    expect(getVitalValue(container, "Manufacturer")).toBe("OnePlus");
+  });
+
+  it("drops the security patch level from the operating system version", () => {
+    // The server folds it into os_version, and it has its own vital now, so
+    // showing it here would just repeat it.
+    const { container } = renderAndroidCard(
+      createMockAndroidHost({ os_version: "Android 16 (2026-01-01)" })
+    );
+
+    expect(getVitalValue(container, "Operating system")).toBe("Android 16");
+  });
+
+  it("leaves an Android version that reports no patch level alone", () => {
+    const { container } = renderAndroidCard(
+      createMockAndroidHost({ os_version: "Android 16" })
+    );
+
+    expect(getVitalValue(container, "Operating system")).toBe("Android 16");
+  });
+
+  it("does not strip a parenthetical from a non-Android OS version", () => {
+    const mockHost = createMockHost({
+      platform: "darwin",
+      os_version: "macOS 26.5 (25F74)",
+    });
+
+    const { container } = renderAndroidCard(mockHost);
+
+    expect(getVitalValue(container, "Operating system")).toBe(
+      "macOS 26.5 (25F74)"
     );
   });
 
