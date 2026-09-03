@@ -16,20 +16,23 @@ Fleet allows users to upload [scripts](https://fleetdm.com/guides/scripts) execu
 2. **Add a policy**: Navigate to **Policies**, select the fleet you want the policy to run on, and click **Add policy**. Follow the instructions to set up a custom policy or use one baked into Fleet. You can also add a script automation to an existing policy.
 3. **Set the automation**: In the previous step's **Policies** list view you navigated to, click **Manage automations**, then click **Run script**. Check the box beside the policy (or policies) for which you want to run scripts, then select a script in the drop-down that appears next to the policy name. When you're done associating policies to scripts, click **Save**.
 
-When a host fails the selected policy, this will trigger the script to run on the host.
-
-If the script fails, you can reset a script automation and trigger the script to run on all targeted hosts again. To do this, go to the policy's details page and, under **Automation runs**, select **Reset policy**. This clears the policy's passing and failing host counts, so hosts that already failed will re-run the script automation on their next check-in. You can also automate this reset with the [Reset policy results](https://fleetdm.com/docs/rest-api/rest-api#reset-policy-results) API endpoint.
+When a host fails the selected policy, this will trigger the script to run on the host. If the script fails, see [Resetting a policy's automation status](#resetting-a-policys-automation-status) below to retry it.
 
 ## How does it work?
 
 * Online hosts report policy status when on a configurable cadence, with hourly default.
 * Fleet will send scripts to the hosts on the first policy failure or if a policy goes from "Pass" to "Fail". By default, policies that remain failed for a host in consecutive reports will not be resent to the script.
 * To run the script on _every_ failing result, including consecutive failures, set `continuous_automations_enabled` to `true` on the policy (_Available in Fleet Premium_). Because this can retry a script that doesn't resolve the policy, it may cause a retry loop.
-
-> When script automation on a policy is added or switched to a different script, the policy's status will reset for associated hosts. This allows the newly attached script to run on hosts that had previously failed the policy. This reset only happens when the policy is switched to a *different* script; editing the content of the currently attached script does not reset the policy's status. To rerun an edited script's content on hosts that already failed the policy, call the [Reset policy results](https://fleetdm.com/docs/rest-api/rest-api#reset-policy-results) API endpoint after updating the script.
-
 * Policy automation scripts are automatically attempted up to 3 total times. Each time the script exits with a non-zero exit code (i.e., it fails), Fleet triggers the script again, up to a total of 3 attempts. If the host passes the policy, the retry count resets.
 * When used in policy automation, Fleet does not run shell scripts on Windows hosts or PowerShell scripts on non-Windows hosts.
+
+## Resetting a policy's automation status
+
+Switching a policy's script automation to a *different* script automatically resets the policy's status (pass/fail counts) for associated hosts, so the newly attached script can run on hosts that had previously failed the policy. This automatic reset does **not** happen when you only edit the content of the currently attached script, or for any other policy edit that doesn't switch to a different script, software installer, or App Store (VPP) app.
+
+To manually reset a policy's status — for example, after editing a script's content, or to retry a failed script on all targeted hosts again — go to the policy's details page and, under **Automation runs**, select **Reset policy**. This clears the policy's passing and failing host counts, so targeted hosts will re-run the script automation on their next check-in.
+
+You can automate this reset with the [Reset policy results](https://fleetdm.com/docs/rest-api/rest-api#reset-policy-results) API endpoint, which has the same effect as the **Reset policy** button.
 
 ## Via the API
 
