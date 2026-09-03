@@ -32,7 +32,7 @@ You can require IdP authentication during automatic enrollment (ADE) for Apple (
 
 4. In Fleet, configure your IdP by heading to **Settings > Integrations > Authentication (SSO) > End users**. Then, enable IdP authentication by heading to **Controls > Setup experience > Require IdP authentication**. Alternatively, you can use [Fleet's GitOps workflow](https://fleetdm.com/docs/configuration/yaml-files) to configure your IdP integration and enable IdP authentication.
 
-> **Require IdP authentication** is configured per fleet. When manually enrolling a host using a secret-based enrollment link (e.g. `https://<your_fleet_url>/enroll?enroll_secret=<SECRET>`), make sure the `enroll_secret` belongs to the fleet where you turned on **Require IdP authentication**. An enroll secret for "All fleets," or for a fleet where this setting is off, won't require IdP authentication, even if it's enabled for another fleet.
+> **Require IdP authentication** is configured per fleet. When [enrolling mobile devices](https://fleetdm.com/guides/enroll-hosts#mobile-devices) using an enrollment link, make sure the `enroll_secret` in the link's URL belongs to the fleet where you turned on **Require IdP authentication**.
 
 > If you've already configured [single sign-on
 > (SSO)](https://fleetdm.com/docs/deploy/single-sign-on-sso) in Fleet, you still want to create a
