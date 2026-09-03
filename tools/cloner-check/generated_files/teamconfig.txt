@@ -1,4 +1,4 @@
-github.com/fleetdm/fleet/v4/server/fleet/TeamConfig	AgentOptions	*json.RawMessage
+github.com/fleetdm/fleet/v4/server/fleet/TeamConfig	AgentOptions	*jsontext.Value
 github.com/fleetdm/fleet/v4/server/fleet/TeamConfig	HostExpirySettings	fleet.HostExpirySettings
 github.com/fleetdm/fleet/v4/server/fleet/HostExpirySettings	HostExpiryEnabled	bool
 github.com/fleetdm/fleet/v4/server/fleet/HostExpirySettings	HostExpiryWindow	int
@@ -106,7 +106,7 @@ github.com/fleetdm/fleet/v4/server/fleet/TeamMDM	HostNameTemplate	string
 github.com/fleetdm/fleet/v4/server/fleet/TeamConfig	Features	fleet.Features
 github.com/fleetdm/fleet/v4/server/fleet/Features	EnableHostUsers	bool
 github.com/fleetdm/fleet/v4/server/fleet/Features	EnableSoftwareInventory	bool
-github.com/fleetdm/fleet/v4/server/fleet/Features	AdditionalQueries	*json.RawMessage
+github.com/fleetdm/fleet/v4/server/fleet/Features	AdditionalQueries	*jsontext.Value
 github.com/fleetdm/fleet/v4/server/fleet/Features	DetailQueryOverrides	map[string]*string
 github.com/fleetdm/fleet/v4/server/fleet/Features	HistoricalData	fleet.HistoricalDataSettings
 github.com/fleetdm/fleet/v4/server/fleet/HistoricalDataSettings	Uptime	bool

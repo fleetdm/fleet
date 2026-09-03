@@ -3768,6 +3768,10 @@ type Datastore interface {
 	ScimGroupByDisplayName(ctx context.Context, displayName string) (*ScimGroup, error)
 	// ReplaceScimGroup replaces an existing SCIM group in the database
 	ReplaceScimGroup(ctx context.Context, group *ScimGroup) error
+	// ApplyScimGroupPatch updates an existing SCIM group's attributes and applies
+	// only the membership changes described by deltas, leaving every other member
+	// of the group untouched.
+	ApplyScimGroupPatch(ctx context.Context, group *ScimGroup, deltas ScimGroupMemberDeltas) error
 	// DeleteScimGroup deletes a SCIM group from the database
 	DeleteScimGroup(ctx context.Context, id uint) error
 	// ListScimGroups retrieves a list of SCIM groups with pagination
