@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/tls"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -3727,6 +3728,14 @@ func (s *integrationMDMTestSuite) TestBlockedEndpointsForABOnlyACMEConfig() {
 	authToken, err := s.ds.GetDeviceAuthToken(t.Context(), host.ID)
 	require.NoError(t, err)
 
+	// setup automatic enrollment profile to get a token
+	depProfileToken := "fake-dep-token"
+	s.ds.NewMDMAppleEnrollmentProfile(t.Context(), fleet.MDMAppleEnrollmentProfilePayload{
+		Type:       fleet.MDMAppleEnrollmentTypeAutomatic,
+		DEPProfile: new(json.RawMessage(`{}`)),
+		Token:      depProfileToken,
+	})
+
 	for _, isBlocked := range []bool{true, false} {
 		t.Run(fmt.Sprintf("blocked=%v", isBlocked), func(t *testing.T) {
 			appCfg, err := s.ds.AppConfig(t.Context())
@@ -3793,6 +3802,16 @@ func (s *integrationMDMTestSuite) TestBlockedEndpointsForABOnlyACMEConfig() {
 			require.NoError(t, err)
 			bodyString := string(bodyBytes)
 			assert.Contains(t, bodyString, fmt.Sprintf(`const IS_APPLE_MANUAL_ENROLLMENT_BLOCKED = "%t" == "true"`, isBlocked))
+
+			encodedSigned := base64.StdEncoding.EncodeToString(signedDeviceInfo)
+			resp = s.DoRawWithHeaders("GET", "/api/mdm/apple/enroll", nil, getUserStatusCode(isBlocked, http.StatusOK), map[string]string{
+				"x-apple-aspen-deviceinfo": encodedSigned,
+			}, "token", depProfileToken)
+			assertUserFacingResponse(t, resp, isBlocked)
+			resp = s.DoRawWithHeaders("POST", "/api/mdm/apple/enroll", nil, getUserStatusCode(isBlocked, http.StatusOK), map[string]string{
+				"x-apple-aspen-deviceinfo": encodedSigned,
+			}, "token", depProfileToken)
+			assertUserFacingResponse(t, resp, isBlocked)
 		})
 	}
 }
