@@ -231,6 +231,17 @@ func withDiskEncryptionDefaults(m fleet.TeamMDM) fleet.TeamMDM {
 	return m
 }
 
+// withCreateDefaults adds the defaults only team creation persists on top of
+// withDiskEncryptionDefaults: the canonical BitLocker PIN home is stored as
+// explicit false for new teams, while edits leave an absent value untouched.
+func withCreateDefaults(m fleet.TeamMDM) fleet.TeamMDM {
+	m = withDiskEncryptionDefaults(m)
+	if !m.WindowsSettings.RequireBitLockerPIN.Valid {
+		m.WindowsSettings.RequireBitLockerPIN = optjson.SetBool(false)
+	}
+	return m
+}
+
 func TestApplyTeamSpecs(t *testing.T) {
 	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
 	_, ds := testing_utils.RunServerWithMockedDS(t, &service.TestServerOpts{License: license})
@@ -382,7 +393,7 @@ spec:
 	assert.JSONEq(t, string(agentOpts), string(*teamsByName["team2"].Config.AgentOptions))
 	assert.JSONEq(t, string(newAgentOpts), string(*teamsByName["team1"].Config.AgentOptions))
 	assert.Equal(t, []*fleet.EnrollSecret{{Secret: "AAA"}}, enrolledSecretsCalled[uint(42)])
-	assert.Equal(t, withDiskEncryptionDefaults(fleet.TeamMDM{
+	assert.Equal(t, withCreateDefaults(fleet.TeamMDM{
 		MacOSSetup: fleet.MacOSSetup{
 			EnableReleaseDeviceManually: optjson.SetBool(false),
 			EnableManagedLocalAccount:   optjson.SetBool(false),
@@ -844,7 +855,7 @@ spec:
 
 	newMDMSettings := fleet.MDM{
 		DeprecatedAppleBMDefaultTeam: "team1",
-		WindowsSettings:              fleet.WindowsSettings{ManagedLocalAccountSettings: fleet.ManagedLocalAccountSettings{Enabled: optjson.SetBool(false)}},
+		WindowsSettings:              fleet.WindowsSettings{EnableManagedLocalAccount: optjson.SetBool(false)},
 		AppleBMTermsExpired:          false,
 		MacOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("14.6.1"),
@@ -930,7 +941,7 @@ spec:
 
 	newMDMSettings = fleet.MDM{
 		DeprecatedAppleBMDefaultTeam: "team1",
-		WindowsSettings:              fleet.WindowsSettings{ManagedLocalAccountSettings: fleet.ManagedLocalAccountSettings{Enabled: optjson.SetBool(false)}},
+		WindowsSettings:              fleet.WindowsSettings{EnableManagedLocalAccount: optjson.SetBool(false)},
 		AppleBMTermsExpired:          false,
 		MacOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("14.6.1"),
@@ -1671,7 +1682,7 @@ spec:
 		MacOSSettings: fleet.MacOSSettings{
 			CustomSettings: []fleet.MDMProfileSpec{{Path: mobileConfigPath}},
 		},
-		WindowsSettings:             fleet.WindowsSettings{ManagedLocalAccountSettings: fleet.ManagedLocalAccountSettings{Enabled: optjson.SetBool(false)}},
+		WindowsSettings:             fleet.WindowsSettings{EnableManagedLocalAccount: optjson.SetBool(false)},
 		WindowsEnabledAndConfigured: true,
 	}, currentAppConfig.MDM)
 
@@ -1718,7 +1729,7 @@ spec:
 		MacOSSettings: fleet.MacOSSettings{
 			CustomSettings: []fleet.MDMProfileSpec{{Path: mobileConfigPath}},
 		},
-		WindowsSettings:             fleet.WindowsSettings{ManagedLocalAccountSettings: fleet.ManagedLocalAccountSettings{Enabled: optjson.SetBool(false)}},
+		WindowsSettings:             fleet.WindowsSettings{EnableManagedLocalAccount: optjson.SetBool(false)},
 		WindowsEnabledAndConfigured: true,
 	}, currentAppConfig.MDM)
 
@@ -3286,7 +3297,7 @@ spec:
     name: 123
 `,
 			flags:   []string{"--force"},
-			wantErr: `400 Bad Request: invalid value type at 'specs.name': expected string but got number`,
+			wantErr: `400 Bad Request: invalid value type at 'specs.0.name': expected string but got number`,
 		},
 		{
 			desc: "unknown key for team can be forced",
@@ -3761,7 +3772,7 @@ spec:
         deadline_days: abc
         grace_period_days: 1
 `,
-			wantErr: `400 Bad Request: invalid value type at 'specs.mdm.windows_updates.deadline_days': expected int but got string`,
+			wantErr: `400 Bad Request: invalid value type: expected int but got string`,
 		},
 		{
 			desc: "windows_updates.grace_period_days not a number",
@@ -3776,7 +3787,7 @@ spec:
         deadline_days: 1
         grace_period_days: true
 `,
-			wantErr: `400 Bad Request: invalid value type at 'specs.mdm.windows_updates.grace_period_days': expected int but got bool`,
+			wantErr: `400 Bad Request: invalid value type: expected int but got bool`,
 		},
 		{
 			desc: "windows_updates valid",

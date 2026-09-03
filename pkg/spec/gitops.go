@@ -191,8 +191,10 @@ type GitOpsControls struct {
 	WindowsEntraClientIDs          any `json:"windows_entra_client_ids"`
 	AndroidEnabledAndConfigured    any `json:"android_enabled_and_configured"`
 	AndroidSettings                any `json:"android_settings"`
+	LinuxSettings                  any `json:"linux_settings"`
 
-	AppleRequireHardwareAttestation any `json:"apple_require_hardware_attestation"`
+	AppleRequireHardwareAttestation  any `json:"apple_require_hardware_attestation"`
+	OnlyAllowAppleBusinessEnrollment any `json:"only_allow_apple_business_enrollment"`
 
 	EnableDiskEncryption       any              `json:"enable_disk_encryption"`
 	EnableRecoveryLockPassword any              `json:"enable_recovery_lock_password"`
@@ -213,7 +215,8 @@ func (c GitOpsControls) Set() bool {
 		c.AppleRequireHardwareAttestation != nil || c.EnableTurnOnWindowsMDMManually != nil ||
 		c.WindowsEntraTenantIDs != nil || c.WindowsEntraClientIDs != nil || c.RequireBitLockerPIN != nil ||
 		c.AppleAccountProvisioning != nil ||
-		c.NameTemplate != nil
+		c.OnlyAllowAppleBusinessEnrollment != nil ||
+		c.NameTemplate != nil || c.LinuxSettings != nil
 }
 
 type Policy struct {
@@ -1375,20 +1378,9 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, logFn Logf, y
 
 	// Find Fleet secrets in profiles
 	if result.Controls.MacOSSettings != nil {
-		// We are marshalling/unmarshalling to get the data into the fleet.MacOSSettings struct.
-		// This is inefficient, but it is more robust and less error-prone.
-		var macOSSettings fleet.MacOSSettings
-		data, err := json.Marshal(result.Controls.MacOSSettings)
+		macOSSettings, err := reparseSettings[fleet.MacOSSettings](result.Controls.MacOSSettings, controlsFilePath, "macos_settings")
 		if err != nil {
-			return multierror.Append(multiError, fmt.Errorf("failed to process controls.macos_settings: %v", err))
-		}
-		data, _, err = rewriteNewToOldKeys(data, &macOSSettings)
-		if err != nil {
-			return multierror.Append(multiError, fmt.Errorf("failed to rewrite macos_settings keys: %v", err))
-		}
-		err = json.Unmarshal(data, &macOSSettings)
-		if err != nil {
-			return multierror.Append(multiError, MaybeParseTypeError(controlsFilePath, []string{"controls", "macos_settings"}, err))
+			return multierror.Append(multiError, err)
 		}
 
 		// An activation names exactly one declaration in its
@@ -1436,25 +1428,14 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, logFn Logf, y
 			}
 		}
 
-		// Since we already unmarshalled and updated the path, we need to update the result struct.
 		result.Controls.MacOSSettings = macOSSettings
 	}
 	if result.Controls.WindowsSettings != nil {
-		// We are marshalling/unmarshalling to get the data into the fleet.WindowsSettings struct.
-		// This is inefficient, but it is more robust and less error-prone.
-		var windowsSettings fleet.WindowsSettings
-		data, err := json.Marshal(result.Controls.WindowsSettings)
+		windowsSettings, err := reparseSettings[fleet.WindowsSettings](result.Controls.WindowsSettings, controlsFilePath, "windows_settings")
 		if err != nil {
-			return multierror.Append(multiError, fmt.Errorf("failed to process controls.windows_settings: %v", err))
+			return multierror.Append(multiError, err)
 		}
-		data, _, err = rewriteNewToOldKeys(data, &windowsSettings)
-		if err != nil {
-			return multierror.Append(multiError, fmt.Errorf("failed to rewrite windows_settings keys: %v", err))
-		}
-		err = json.Unmarshal(data, &windowsSettings)
-		if err != nil {
-			return multierror.Append(multiError, MaybeParseTypeError(controlsFilePath, []string{"controls", "windows_settings"}, err))
-		}
+
 		if windowsSettings.CustomSettings.Valid {
 			var errs []error
 			windowsSettings.CustomSettings.Value, errs = expandBaseItems(windowsSettings.CustomSettings.Value, controlsDir, "profile", GlobExpandOptions{
@@ -1471,25 +1452,22 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, logFn Logf, y
 				}
 			}
 		}
-		// Since we already unmarshalled and updated the path, we need to update the result struct.
+
 		result.Controls.WindowsSettings = windowsSettings
+	}
+	if result.Controls.LinuxSettings != nil {
+		linuxSettings, err := reparseSettings[fleet.LinuxSettings](result.Controls.LinuxSettings, controlsFilePath, "linux_settings")
+		if err != nil {
+			return multierror.Append(multiError, err)
+		}
+
+		result.Controls.LinuxSettings = linuxSettings
 	}
 
 	if result.Controls.AndroidSettings != nil {
-		// We are marshalling/unmarshalling to get the data into the fleet.AndroidSettings struct.
-		// This is inefficient, but it is more robust and less error-prone.
-		var androidSettings fleet.AndroidSettings
-		data, err := json.Marshal(result.Controls.AndroidSettings)
+		androidSettings, err := reparseSettings[fleet.AndroidSettings](result.Controls.AndroidSettings, controlsFilePath, "android_settings")
 		if err != nil {
-			return multierror.Append(multiError, fmt.Errorf("failed to process controls.android_settings: %v", err))
-		}
-		data, _, err = rewriteNewToOldKeys(data, &androidSettings)
-		if err != nil {
-			return multierror.Append(multiError, fmt.Errorf("failed to rewrite android_settings keys: %v", err))
-		}
-		err = json.Unmarshal(data, &androidSettings)
-		if err != nil {
-			return multierror.Append(multiError, MaybeParseTypeError(controlsFilePath, []string{"controls", "android_settings"}, err))
+			return multierror.Append(multiError, err)
 		}
 
 		if androidSettings.CustomSettings.Valid {
@@ -1521,7 +1499,6 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, logFn Logf, y
 			}
 		}
 
-		// Since we already unmarshalled and updated the path, we need to update the result struct.
 		result.Controls.AndroidSettings = androidSettings
 	}
 
@@ -1530,6 +1507,22 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, logFn Logf, y
 	}
 
 	return multiError
+}
+
+func reparseSettings[T any](v any, filePath, key string) (T, error) {
+	var settings T
+	data, err := json.Marshal(v)
+	if err != nil {
+		return settings, fmt.Errorf("failed to process controls.%s: %w", key, err)
+	}
+	data, _, err = rewriteNewToOldKeys(data, &settings)
+	if err != nil {
+		return settings, fmt.Errorf("failed to rewrite controls.%s keys: %w", key, err)
+	}
+	if err := json.Unmarshal(data, &settings); err != nil {
+		return settings, MaybeParseTypeError(filePath, []string{"controls", key}, err)
+	}
+	return settings, nil
 }
 
 // validateOSUpdatesProfileConflict rejects a config that both configures managed
@@ -2288,20 +2281,40 @@ func parsePolicyInstallSoftware(baseDir string, teamName *string, policy *Policy
 	wrapErrs := func(err error) []error {
 		return []error{wrapErr(err)}
 	}
-	if (installSoftwareObj.PackagePath != "" || installSoftwareObj.AppStoreID != "" || installSoftwareObj.HashSHA256 != "" || installSoftwareObj.FleetMaintainedAppSlug != "") && teamName == nil {
+
+	hasPath := installSoftwareObj.PackagePath != ""
+	hasAppStore := installSoftwareObj.AppStoreID != ""
+	hasFMA := installSoftwareObj.FleetMaintainedAppSlug != ""
+	hasHash := installSoftwareObj.HashSHA256 != ""
+
+	if (hasPath || hasAppStore || hasHash || hasFMA) && teamName == nil {
 		return wrapErrs(errors.New("install_software can only be set on team policies"))
 	}
-	if installSoftwareObj.PackagePath == "" && installSoftwareObj.AppStoreID == "" && installSoftwareObj.HashSHA256 == "" && installSoftwareObj.FleetMaintainedAppSlug == "" {
+	if !hasPath && !hasAppStore && !hasHash && !hasFMA {
 		return wrapErrs(errors.New("install_software must include either a package_path, an app_store_id, a hash_sha256 or a fleet_maintained_app_slug"))
 	}
+	// All four selectors are mutually exclusive. package_path and hash_sha256
+	// is the combo admins actually reach for (trying to sub-select a package
+	// inside a multi-package YAML), so when it's the ONLY conflict we surface
+	// a specific, teaching message. Any other multi-selector combination (or
+	// three+ selectors including path+hash) gets the generic "pick one" hint,
+	// because a targeted message would leave the extra selector unaddressed.
 	setCount := 0
-	for _, s := range []string{installSoftwareObj.PackagePath, installSoftwareObj.AppStoreID, installSoftwareObj.HashSHA256, installSoftwareObj.FleetMaintainedAppSlug} {
+	for _, s := range []string{
+		installSoftwareObj.PackagePath,
+		installSoftwareObj.AppStoreID,
+		installSoftwareObj.HashSHA256,
+		installSoftwareObj.FleetMaintainedAppSlug,
+	} {
 		if s != "" {
 			setCount++
 		}
 	}
 	if setCount > 1 {
-		return wrapErrs(errors.New("install_software must have only one of package_path, app_store_id, hash_sha256 or fleet_maintained_app_slug"))
+		if setCount == 2 && hasPath && hasHash {
+			return wrapErrs(errors.New("install_software.package_path and install_software.hash_sha256 are alternatives. Use hash_sha256 alone to pin a package by hash, or split the multi-package YAML into single-package YAML files and use package_path."))
+		}
+		return wrapErrs(errors.New("install_software must have only one of package_path, app_store_id, hash_sha256, or fleet_maintained_app_slug"))
 	}
 
 	var errs []error
@@ -2317,17 +2330,17 @@ func parsePolicyInstallSoftware(baseDir string, teamName *string, policy *Policy
 		}
 		var policyInstallSoftwareSpec fleet.SoftwarePackageSpec
 		if err := YamlUnmarshal(fileBytes, &policyInstallSoftwareSpec); err != nil {
-			// see if the issue is that a package path was passed in that references multiple packages
+			// Fall back to array shape: the file may define multiple packages for one title.
 			var multiplePackages []fleet.SoftwarePackageSpec
 			if err := YamlUnmarshal(fileBytes, &multiplePackages); err != nil || len(multiplePackages) == 0 {
 				return wrapErrs(fmt.Errorf("file %q does not contain a valid software package definition", installSoftwareObj.PackagePath))
 			}
 
-			if len(multiplePackages) > 1 {
-				return wrapErrs(fmt.Errorf("file %q contains multiple packages, so cannot be used as a target for policy automation", installSoftwareObj.PackagePath))
-			}
-
 			errs = append(errs, validateYAMLKeys(fileBytes, reflect.TypeFor[[]fleet.SoftwarePackageSpec](), installSoftwareObj.PackagePath, []string{"software", "packages"})...)
+
+			if len(multiplePackages) > 1 {
+				return wrapErrs(fmt.Errorf("file %q contains multiple packages; use install_software.hash_sha256 to select one, or split the packages into single-package YAML files", installSoftwareObj.PackagePath))
+			}
 			policyInstallSoftwareSpec = multiplePackages[0]
 		} else {
 			errs = append(errs, validateYAMLKeys(fileBytes, reflect.TypeFor[fleet.SoftwarePackageSpec](), installSoftwareObj.PackagePath, []string{"software", "packages"})...)
@@ -2350,6 +2363,23 @@ func parsePolicyInstallSoftware(baseDir string, teamName *string, policy *Policy
 
 		policy.InstallSoftwareURL = policyInstallSoftwareSpec.URL
 		policy.InstallSoftware.Other.HashSHA256 = policyInstallSoftwareSpec.SHA256
+	}
+
+	// Bare hash_sha256: resolve by searching the team's packages. Used when the
+	// title has multiple packages and the admin pins one by its file fingerprint
+	// rather than pointing at a single-package YAML.
+	if installSoftwareObj.HashSHA256 != "" && installSoftwareObj.PackagePath == "" {
+		matched := false
+		for _, pkg := range packages {
+			if pkg.SHA256 != "" && pkg.SHA256 == installSoftwareObj.HashSHA256 {
+				policy.InstallSoftwareURL = pkg.URL
+				matched = true
+				break
+			}
+		}
+		if !matched {
+			errs = append(errs, wrapErr(fmt.Errorf("install_software.hash_sha256 %s not found on team", installSoftwareObj.HashSHA256)))
+		}
 	}
 
 	if policy.InstallSoftware.Other.AppStoreID != "" {

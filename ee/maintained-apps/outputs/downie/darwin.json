@@ -5,12 +5,12 @@
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.charliemonroe.Downie-4';",
         "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.charliemonroe.Downie-4' AND version_compare(bundle_short_version, '4.12.14') < 0);",
-        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.charliemonroe.Downie-4');"
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.charliemonroe.Downie-4' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://software.charliemonroe.net/trial/downie/v4/Downie_4_5242.dmg",
+      "installer_url": "https://software.charliemonroe.net/trial/downie/v4/Downie_4_5250.dmg",
       "install_script_ref": "4f6dd0e2",
       "uninstall_script_ref": "65dfe669",
-      "sha256": "b261eb312d3b7a5abad1f322ca30b038c41787069828e2aa4a3aeb0dfe316201",
+      "sha256": "10c92f9471b054e663326060f5d7e96694d05783fc07585f37a1b908b79380df",
       "default_categories": [
         "Productivity"
       ]

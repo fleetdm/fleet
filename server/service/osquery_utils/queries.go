@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"log/slog"
+	"maps"
 	"net"
 	"net/url"
 	"regexp"
@@ -2417,8 +2418,13 @@ var (
 	// bogus DisplayVersion. The optional middle group lets those component names
 	// normalize to the same marketing version as the bundle, so a single install
 	// doesn't show up in inventory under two different versions.
-	pythonNameVersion  = regexp.MustCompile(`^Python (\d+\.\d+\.\d+)( [A-Za-z][^()]*)? \(`)
-	basicAppSanitizers = []struct {
+	pythonNameVersion = regexp.MustCompile(`^Python (\d+\.\d+\.\d+)( [A-Za-z][^()]*)? \(`)
+	// anyDeskClientVersion strips the client-ID prefix AnyDesk writes into its
+	// Windows registry DisplayVersion: "ad 9.7.15" for the generic client, and
+	// "ad<id> 9.7.15" for a custom client. version_compare can't order those
+	// against a real version, so the patch policy would never see a match.
+	anyDeskClientVersion = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9]*\s+(\d+(?:\.\d+)*)$`)
+	basicAppSanitizers   = []struct {
 		matchBundleIdentifier string
 		matchName             string
 		mutate                func(*fleet.Software, *slog.Logger)
@@ -2577,6 +2583,22 @@ var (
 			},
 			mutate: func(s *fleet.Software, logger *slog.Logger) {
 				if matches := pythonNameVersion.FindStringSubmatch(s.Name); len(matches) >= 2 {
+					s.Version = matches[1]
+				}
+			},
+		},
+		{
+			// AnyDesk on Windows prefixes its registry DisplayVersion with the
+			// client ID: the generic client reports "ad 9.7.15" and a custom client
+			// "ad<id> 9.7.15". Strip the prefix so the version sorts and compares
+			// against the real one.
+			matches: func(s *fleet.Software) bool {
+				return s.Source == "programs" &&
+					strings.Contains(strings.ToLower(s.Vendor), "anydesk") &&
+					anyDeskClientVersion.MatchString(s.Version)
+			},
+			mutate: func(s *fleet.Software, logger *slog.Logger) {
+				if matches := anyDeskClientVersion.FindStringSubmatch(s.Version); len(matches) == 2 {
 					s.Version = matches[1]
 				}
 			},
@@ -3018,7 +3040,7 @@ func directIngestDiskEncryptionKeyFileDarwin(
 	}
 
 	// Only archive the key if disk encryption is enabled for this host (team / globally)
-	if !IsDiskEncryptionEnabledForHost(ctx, logger, ds, host) {
+	if !IsDiskEncryptionEscrowEnabledForHost(ctx, logger, ds, host) {
 		logger.DebugContext(ctx, "skipping key archival, disk encryption not enabled for host (team/globally)",
 			"component", "service",
 			"method", "directIngestDiskEncryptionKeyFileDarwin",
@@ -3103,7 +3125,7 @@ func directIngestDiskEncryptionKeyFileLinesDarwin(
 	}
 
 	// Only archive the key if disk encryption is enabled for this host (team/globally)
-	if !IsDiskEncryptionEnabledForHost(ctx, logger, ds, host) {
+	if !IsDiskEncryptionEscrowEnabledForHost(ctx, logger, ds, host) {
 		logger.DebugContext(ctx, "skipping key archival, disk encryption not enabled for host team/globally",
 			"component", "service",
 			"method", "directIngestDiskEncryptionKeyFileLinesDarwin",
@@ -3537,6 +3559,72 @@ var luksVerifyQueryIngester = func(decrypter func(string) (string, error)) func(
 	}
 }
 
+// bitlockerPolicyQueries run wherever Fleet enforces Windows disk encryption, whether or not a startup PIN is required.
+var bitlockerPolicyQueries = map[string]DetailQuery{
+	// An admin, third-party software, or a previous MDM can leave a volume encrypted but unprotected while policy forbids the
+	// TPM-only protector the agent has to create, and Windows offers the end user no way to add a protector to an unprotected volume.
+	"bitlocker_startup_policy_relax": {
+		Platforms: []string{"windows"},
+		// We only want to run this query iff:
+		// - BitLocker is not an optional component (is built in) OR is an optional component and enabled.
+		// - And no protector that can release the volume master key at boot exists, so the agent has to create one.
+		// - And the volume is fully encrypted with protection off, the only state this repairs.
+		Discovery: `
+			WITH should_run(yes) AS (
+			SELECT
+				(
+					EXISTS(SELECT 1 FROM windows_optional_features WHERE name = 'BitLocker' AND state = 1)
+					OR NOT EXISTS(SELECT 1 FROM windows_optional_features WHERE name = 'BitLocker')
+				)
+				AND NOT EXISTS(SELECT 1 FROM bitlocker_key_protectors WHERE drive_letter = 'C:' AND key_protector_type IN (1,4,5,6))
+				-- Volume is encrypted with protection off
+				AND EXISTS(SELECT 1 FROM bitlocker_info WHERE drive_letter = 'C:' AND protection_status = 0 AND conversion_status = 1)
+			)
+			SELECT 1 FROM should_run WHERE yes = 1`,
+		Query: "SELECT data FROM registry WHERE path='HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\FVE\\UseTPM'",
+		DirectIngestFunc: func(
+			ctx context.Context,
+			logger *slog.Logger,
+			host *fleet.Host,
+			ds fleet.Datastore,
+			rows []map[string]string,
+		) error {
+			if host == nil || host.UUID == "" {
+				logger.DebugContext(ctx, "Ingestion not run, host is nil or UUID is empty", "query", "bitlocker_startup_policy_relax")
+				return nil
+			}
+
+			if len(rows) > 1 {
+				return ctxerr.Errorf(
+					ctx,
+					"bitlocker_startup_policy_relax query: invalid number of rows: %d", len(rows),
+				)
+			}
+
+			// Only an explicit "disallowed" blocks the agent. Any other value, including an unset dropdown, already
+			// permits a TPM-only protector, so there is nothing to clear and no command worth sending.
+			if len(rows) == 0 || rows[0]["data"] != fmt.Sprintf("%d", microsoft_mdm.PolicyOptDropdownDisallowed) {
+				return nil
+			}
+
+			logger.InfoContext(ctx, "Clearing a startup policy that blocks restoring BitLocker protection",
+				"query", "bitlocker_startup_policy_relax",
+				"host_id", host.ID)
+			// The same payload tpm_pin_config_verify sends, because every dropdown defaults to 'optional'.
+			cmd, err := microsoft_mdm.SystemDriveRequiresStartupAuthCmd(
+				microsoft_mdm.SystemDriveRequiresStartupAuthSpec{
+					CmdUUID: uuid.NewString(),
+					Enabled: true,
+				},
+			)
+			if err != nil {
+				return err
+			}
+			return ds.MDMWindowsInsertCommandForHosts(ctx, []string{host.UUID}, cmd)
+		},
+	},
+}
+
 var tpmPINQueries = map[string]DetailQuery{
 	// The tpm_pin_config_verify query checks the Windows registry to verify whether the host has the proper
 	// BitLocker policy for allowing the setup of a TPM PIN protector, if not properly set, the proper
@@ -3706,13 +3794,17 @@ func GetDetailQueries(
 		// Add TPM PIN Queries iff Win MDM is enabled and ready to go
 		if appConfig.MDM.WindowsEnabledAndConfigured {
 			enableDiskEncryption := appConfig.MDM.WindowsSettings.EnableDiskEncryption.Value
-			requireTPMPin := appConfig.MDM.RequireBitLockerPIN.Value
+			requireTPMPin := appConfig.MDM.BitLockerPINRequired()
 
 			// If the host is part of a team, we need to look at the related team config
 			// instead of the App config ...
 			if teamMDMConfig != nil {
 				enableDiskEncryption = teamMDMConfig.WindowsSettings.EnableDiskEncryption.Value
-				requireTPMPin = teamMDMConfig.RequireBitLockerPIN
+				requireTPMPin = teamMDMConfig.DiskEncryptionConfig().BitLockerPINRequired
+			}
+
+			if enableDiskEncryption {
+				maps.Copy(generatedMap, bitlockerPolicyQueries)
 			}
 
 			if enableDiskEncryption && requireTPMPin {

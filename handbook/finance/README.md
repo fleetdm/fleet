@@ -9,6 +9,7 @@ This handbook page details processes specific to working [with](#contact-us) and
 | CFO | [Tina Ong](https://www.linkedin.com/in/ongtina/) _([@rfoo2015](https://github.com/rfoo2015))_
 | Deal Desk       | [Nathan Holliday](https://www.linkedin.com/in/nathanael-holliday/) _([@hollidayn](https://github.com/hollidayn))_
 | Head of GTM Architecture | [Sam Pfluger](https://www.linkedin.com/in/sampfluger88/) _([@sampfluger88](https://github.com/sampfluger88))_ 
+| Controller | [Ryan Evans](https://www.linkedin.com/in/revans111/) _([@bigaapl](https://github.com/bigaapl))_ 
 
 
 ## Contact us
@@ -305,6 +306,7 @@ A recent signed copy of Fleet's W-9 form can be found in [this confidential PDF 
 
 1. Update individual teammates commission calculators (linked from [main commission calculator](https://docs.google.com/spreadsheets/d/1PuqUbfPGos87TfcHWgUd05TRJgQLlBmhyz1euj79m2A/edit?usp=sharing)) with new revenue from any deals that are closed-won (have a subscription agreement signed by both parties) and have a **close date** within the previous month.
     - Verify closed-won deal numbers with CRO to ensure any agreed upon exceptions are captured (eg: CRO approves an AE to receive commission on a renewal deal due to cross-sell).
+    - For Solutions Specialists, use the ["Ω Solutions Specialist meetings delivered" Salesforce report](https://fleetdm.lightning.force.com/lightning/r/Report/00OUG000004wVFd2AM/view) to calculate commission based on first meetings delivered and attended in the previous month.
 2. In the "Monthly commission payroll party" meeting, present the commission calculations for Fleeties receiving commission for approval.
     - If there are any quarterly accelerators due for the teammate receiving commission, ensure the individual total includes both the monthly and the quarterly amount.
 3. After the amounts are approved in the meeting, process the commission payroll.

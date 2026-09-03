@@ -1483,7 +1483,7 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateAuthorizationForTeamUse
 		var createTeamResp teamResponse
 		s.DoJSON("POST", "/api/latest/fleet/teams", createTeamRequest{
 			TeamPayload: fleet.TeamPayload{
-				Name: new(deleteOtherTeamName),
+				Name: &deleteOtherTeamName,
 			},
 		}, http.StatusOK, &createTeamResp)
 		otherTeamID := createTeamResp.Team.ID

@@ -338,7 +338,7 @@ spec:
 		MacOSSettings: fleet.MacOSSettings{
 			CustomSettings: []fleet.MDMProfileSpec{{Path: mobileConfigPath}},
 		},
-		WindowsSettings:             fleet.WindowsSettings{ManagedLocalAccountSettings: fleet.ManagedLocalAccountSettings{Enabled: optjson.SetBool(false)}},
+		WindowsSettings:             fleet.WindowsSettings{EnableManagedLocalAccount: optjson.SetBool(false)},
 		WindowsEnabledAndConfigured: true,
 	}, currentAppConfig.MDM)
 
@@ -385,7 +385,7 @@ spec:
 		MacOSSettings: fleet.MacOSSettings{
 			CustomSettings: []fleet.MDMProfileSpec{{Path: mobileConfigPath}},
 		},
-		WindowsSettings:             fleet.WindowsSettings{ManagedLocalAccountSettings: fleet.ManagedLocalAccountSettings{Enabled: optjson.SetBool(false)}},
+		WindowsSettings:             fleet.WindowsSettings{EnableManagedLocalAccount: optjson.SetBool(false)},
 		WindowsEnabledAndConfigured: true,
 	}, currentAppConfig.MDM)
 
@@ -1601,7 +1601,7 @@ spec:
     name: 123
 `,
 			flags:   []string{"--force"},
-			wantErr: `400 Bad Request: invalid value type at 'specs.name': expected string but got number`,
+			wantErr: `400 Bad Request: invalid value type at 'specs.0.name': expected string but got number`,
 		},
 		{
 			desc: "unknown key for team can be forced",
@@ -2076,7 +2076,7 @@ spec:
         deadline_days: abc
         grace_period_days: 1
 `,
-			wantErr: `400 Bad Request: invalid value type at 'specs.mdm.windows_updates.deadline_days': expected int but got string`,
+			wantErr: `400 Bad Request: invalid value type: expected int but got string`,
 		},
 		{
 			desc: "windows_updates.grace_period_days not a number",
@@ -2091,7 +2091,7 @@ spec:
         deadline_days: 1
         grace_period_days: true
 `,
-			wantErr: `400 Bad Request: invalid value type at 'specs.mdm.windows_updates.grace_period_days': expected int but got bool`,
+			wantErr: `400 Bad Request: invalid value type: expected int but got bool`,
 		},
 		{
 			desc: "windows_updates valid",

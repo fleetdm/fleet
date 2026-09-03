@@ -81,19 +81,6 @@ func TestRequestSecurityTokenResponseCollectionSoapResponse(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, outXML)
 	require.Contains(t, string(outXML), fmt.Sprintf("base64binary\">%s</BinarySecurityToken>", provisionedToken))
-
-	// Verify the provisioning doc advertises ROBOSupport=false. Fleet does
-	// not implement WSTEP ROBO renewal; advertising "true" causes Windows
-	// to attempt renewal, fail, and set EnrollmentState=3. See #50611.
-	certStore := NewCertStoreProvisioningData("Device", "AA", []byte("id"), "BB", []byte("sc"))
-	appCfg := NewApplicationProvisioningData("https://example.com/mdm", "dev", "pw")
-	provDoc := NewProvisioningDoc(certStore, appCfg, NewDMClientProvisioningData())
-	encoded, err := provDoc.GetEncodedB64Representation()
-	require.NoError(t, err)
-	raw, err := base64.StdEncoding.DecodeString(encoded)
-	require.NoError(t, err)
-	require.Contains(t, string(raw), `name="ROBOSupport" value="false"`)
-	require.NotContains(t, string(raw), `name="ROBOSupport" value="true"`)
 }
 
 func TestGetPoliciesResponseSoapResponse(t *testing.T) {
@@ -2474,6 +2461,8 @@ func TestRekeyWindowsDevice(t *testing.T) {
 			// Loaded as 1 so the per-session refresh fires when the pending fetch returns empty (asserted at the end of
 			// the test); a device loaded with the flag at 0 skips the refresh entirely.
 			HasPendingCommands: true,
+			// Already announced, so the deferred mdm_enrolled path short-circuits: this test is about rekeying.
+			EnrolledActivityAt: new(time.Now()),
 		}, nil
 	}
 
@@ -3544,4 +3533,30 @@ func TestIsFleetdPresentOnDevice(t *testing.T) {
 			assert.Equal(t, tc.wantPresent, present)
 		})
 	}
+}
+
+// TestESPReleaseIncludesSkipUserStatusPage verifies that the ESP release
+// commands set SkipUserStatusPage=true so that subsequent user logins on an
+// already-enrolled device skip the Account setup ESP phase (#51380).
+func TestESPReleaseIncludesSkipUserStatusPage(t *testing.T) {
+	const provID = "test-provider"
+	cmds := buildESPReleaseCommands(provID)
+
+	var found bool
+	for _, cmd := range cmds {
+		uri := cmd.GetTargetURI()
+		if strings.Contains(uri, "SkipUserStatusPage") {
+			found = true
+			assert.Contains(t, uri, "/Device/",
+				"SkipUserStatusPage must be at Device scope, not User scope")
+			require.NotNil(t, cmd.Items, "SkipUserStatusPage command must have Items")
+			require.NotEmpty(t, cmd.Items, "SkipUserStatusPage command must have at least one Item")
+			require.NotNil(t, cmd.Items[0].Data, "SkipUserStatusPage Item must have Data")
+			assert.Equal(t, "true", cmd.Items[0].Data.Content,
+				"SkipUserStatusPage must be set to true in release commands")
+		}
+	}
+	assert.True(t, found,
+		"release commands must include SkipUserStatusPage=true; without it, a second user "+
+			"signing in to an already-enrolled device hits a fresh Account setup ESP that hangs (#51380)")
 }

@@ -92,7 +92,7 @@ During enrollment, end users are prompted to set up Windows Hello and add a PIN.
 
 After you connect Fleet to Entra, you can customize the Windows setup experience with [Windows Autopilot](https://learn.microsoft.com/en-us/autopilot/windows-autopilot).
 
-In order to connect Fleet to Entra, the IT admin (you) needs a Microsoft Enterprise Mobility + Security E3 license. Each end user who automatically enrolls or manually turns on MDM needs at least a [Microsoft Entra P1 license](https://www.microsoft.com/en-us/security/business/microsoft-entra-pricing). If they already have an [E3 or E5 license](https://www.microsoft.com/en-us/microsoft-365/enterprise/microsoft365-plans-and-pricing) then you're good to go.
+In order to connect Fleet to Entra, your organization needs a Microsoft Enterprise Mobility + Security E3 subscription. You don't need to assign this license to your own admin account: Intune supports unlicensed admin access, so you can configure automatic enrollment and Autopilot from an admin account with no license assigned. Each end user who automatically enrolls or manually turns on MDM needs at least a Microsoft Entra ID P1 license. Microsoft's [Autopilot licensing requirements](https://learn.microsoft.com/en-us/autopilot/requirements?tabs=licensing) list "Microsoft Entra ID P1 or P2 and Microsoft Intune subscription or an alternative MDM service" as a supported combination. If your end users already have an E3 or E5 license then you're good to go.
 
 ### Step 1: Buy Microsoft licenses
 
@@ -106,15 +106,13 @@ In order to connect Fleet to Entra, the IT admin (you) needs a Microsoft Enterpr
 
 5. On the **Enterprise Mobility + Security E3** page, select **Buy** and follow instructions to purchase the license. 
 
-6. Find and buy a license.
+6. Sign in to [Microsoft Entra ID portal](https://portal.azure.com).
 
-7. Sign in to [Microsoft Entra ID portal](https://portal.azure.com).
+7. At the top of the page, search "Users" and select **Users**.
 
-8. At the top of the page, search "Users" and select **Users**.
+8. Select or create a test user and select **Licenses**.
 
-9. Select or create a test user and select **Licenses**.
-
-10. Select **+ Assignments** and assign yourself the **Enterprise Mobility + Security E3**. Assign the test user the Intune license.
+9. Select **+ Assignments** and assign the test user a **Microsoft Entra ID P1** license, so they can complete automatic enrollment testing in Step 3. End users don't need an Intune license to enroll in Fleet.
 
 ### Step 2: Connect Fleet to Microsoft Entra ID
 
@@ -195,11 +193,11 @@ Testing automatic enrollment requires creating a test user in Microsoft Entra ID
 
 ### Step 1: Create an Autopilot profile
 
-1. Sign in to [Microsoft Intune](https://intune.microsoft.com/) using the Intune admin user from step 1.
+1. Sign in to [Microsoft Intune](https://intune.microsoft.com/).
 
 2. In the left-side bar, select **Devices > Windows** (under **By platform**). Then select **Enrollment** under **Device onboarding**. Under **Windows Autopilot** select **Deployment Profiles** to navigate to the **Windows Autopilot deployment profiles** page.
 
-3. Select **+ Create profile > Windows PC** and follow steps to create an Autopilot profile. On the **Assignments** step, select **+ Add all devices**.
+3. Select **+ Create profile > Windows PC** and follow steps to create an Autopilot profile. On the **Out-of-box experience (OOBE)** page, set **User account type** to **Standard** if you don't want the first end user to be a local administrator. See [Force a standard user account](#force-a-standard-user-account) below. On the **Assignments** step, select **+ Add all devices**.
 
 ### Step 2: Register a test workstation
 
@@ -229,6 +227,46 @@ Testing automatic enrollment requires creating a test user in Microsoft Entra ID
 
 2. After it's been wiped, open your workstation and follow the setup steps. On the screen in which you're asked to sign in, you should see the title "Welcome to [your organization]!" next to the logo you uploaded in step 4.
 
+### Set a default fleet for new hosts
+
+_Available in Fleet Premium_
+
+By default, Windows hosts enrolled via Autopilot are added to "Unassigned". You can configure a default fleet so that new hosts enrolled into MDM are automatically assigned to a specific fleet, similar to how [Apple Business default fleets](https://fleetdm.com/guides/macos-mdm-setup#set-a-default-team-for-hosts-enrolled-via-abm) work.
+
+> **Note:** The default fleet applies only to hosts that enroll through end user-driven enrollment (Microsoft Entra). Hosts that install Fleet's agent before enrolling in MDM keep the fleet from their enroll secret instead.
+
+#### In the UI
+
+1. Head to **Settings > Integrations > MDM > Windows MDM** and select **Edit**.
+
+2. Under **User driven enrollment**, use the **Default fleet** dropdown to select the fleet that new hosts enrolled into MDM should be assigned to.
+
+> **Note:** The **Default fleet** dropdown is disabled until Fleet is connected to Microsoft Entra. Connect Entra first using the steps above.
+
+3. Select **Save**.
+
+#### Via GitOps (YAML)
+
+Add the `windows_enrollment` key under `mdm` in your global (org) settings YAML file:
+
+```yaml
+  mdm:
+    windows_enrollment:
+      default_fleet: "💻 Workstations"
+```
+
+To clear the default and send new hosts to "Unassigned", set `default_fleet` to an empty string (`""`).
+
+#### How hosts are assigned
+
+A host is assigned to the default fleet only when it enrolls in MDM before Fleet's agent is installed. That's the order Autopilot uses. Fleet applies the default at the moment it links the MDM enrollment to the host record, so:
+
+- Changing the default fleet affects only hosts that enroll after the change. Hosts already in Fleet stay where they are.
+- Hosts that already exist in Fleet keep their current fleet when they re-enroll, including hosts you deliberately left in "Unassigned".
+- Hosts you moved to another fleet manually aren't moved back to the default.
+- Deleting the fleet you set as the default clears the setting, and new hosts go to "Unassigned" until you set a new one.
+
+> **Warning:** Some virtual machines report a placeholder hardware serial such as `System Serial Number` instead of a unique one. Fleet matches a new host to its MDM enrollment by serial number. If two or more unmatched enrollments share a serial, Fleet leaves the host in "Unassigned". This affects Windows MDM enrollment generally, not only default fleets. Configure unique serial numbers on your virtual machines.
 
 ## Automatic Windows MDM migration
 
@@ -291,6 +329,6 @@ The Autopilot service may need a few minutes to sync after the device record cle
 <meta name="authorFullName" value="Noah Talerman">
 <meta name="authorGitHubUsername" value="noahtalerman">
 <meta name="category" value="guides">
-<meta name="publishedOn" value="2023-10-23">
+<meta name="publishedOn" value="2026-08-17">
 <meta name="articleImageUrl" value="../website/assets/images/articles/windows-mdm-fleet-1600x900@2x.png">
 <meta name="description" value="Configuring Windows MDM in Fleet.">

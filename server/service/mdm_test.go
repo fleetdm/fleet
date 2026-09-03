@@ -24,6 +24,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	android "github.com/fleetdm/fleet/v4/server/mdm/android"
@@ -50,6 +51,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/scep/x509util"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/google/uuid"
@@ -2033,12 +2035,12 @@ func TestUpdateMDMConfigProfileDispatch(t *testing.T) {
 		return nil, errors.New("simulated declaration lookup error")
 	}
 
-	err := svc.UpdateMDMConfigProfile(ctx, declUUID, nil, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
+	err := svc.UpdateMDMConfigProfile(ctx, declUUID, "", nil, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
 	require.ErrorContains(t, err, "simulated declaration lookup error")
 	require.True(t, ds.GetMDMAppleDeclarationFuncInvoked)
 
 	// an unrecognized profile UUID prefix still falls through to "not supported".
-	err = svc.UpdateMDMConfigProfile(ctx, "unrecognized-"+uuid.NewString(), nil, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
+	err = svc.UpdateMDMConfigProfile(ctx, "unrecognized-"+uuid.NewString(), "", nil, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
 	require.Error(t, err)
 	assert.ErrorContains(t, err, "updating this profile type is not yet supported")
 
@@ -2054,7 +2056,7 @@ func TestUpdateMDMConfigProfileDispatch(t *testing.T) {
 			{"explicitly emptied", nil},
 		} {
 			t.Run(prefix+" "+tc.name, func(t *testing.T) {
-				err := svc.UpdateMDMConfigProfile(ctx, prefix+uuid.NewString(), nil, nil, fleet.LabelsIncludeAll, nil, optjson.SetSlice(tc.activation))
+				err := svc.UpdateMDMConfigProfile(ctx, prefix+uuid.NewString(), "", nil, nil, fleet.LabelsIncludeAll, nil, optjson.SetSlice(tc.activation))
 				require.Error(t, err)
 				assert.ErrorContains(t, err, ActivationUnsupportedProfileErrorMsg)
 			})
@@ -3955,8 +3957,6 @@ func TestUploadMDMAppleAPNSCertReplacesFileVaultProfile(t *testing.T) {
 
 	newActivityCalls := 0
 	opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, activity activity_api.ActivityDetails) error {
-		act := fleet.ActivityTypeEnabledMacosDiskEncryption{}
-		require.Equal(t, act.ActivityName(), activity.ActivityName())
 		newActivityCalls++
 		return nil
 	}
@@ -3976,42 +3976,47 @@ func TestUploadMDMAppleAPNSCertReplacesFileVaultProfile(t *testing.T) {
 		return fleet.DiskEncryptionConfig{}, nil
 	}
 
-	deleteCalls := uint(0)
-	ds.DeleteMDMAppleConfigProfileByTeamAndIdentifierFunc = func(ctx context.Context, teamID *uint, profileIdentifier string) error {
-		require.Equal(t, mobileconfig.FleetFileVaultPayloadIdentifier, profileIdentifier)
-		if deleteCalls == 0 {
-			// No Team
-			require.Nil(t, teamID)
-		} else {
-			require.NotNil(t, teamID)
-			require.Equal(t, deleteCalls, *teamID)
+	// the reconciler reads each fleet's macOS settings back before writing
+	ds.TeamMDMConfigFunc = func(ctx context.Context, teamID uint) (*fleet.TeamMDM, error) {
+		tm := &fleet.TeamMDM{}
+		if teamID == 1 {
+			tm.MacOSSettings.EnableDiskEncryption = optjson.SetBool(true)
+			tm.MacOSSettings.EnableEscrowDiskEncryptionKey = optjson.SetBool(true)
 		}
+		return tm, nil
+	}
 
+	// the profile is upserted rather than deleted and re-inserted, so the
+	// profile_uuid survives and hosts are only pushed to when the bytes differ
+	deleteCalls := 0
+	ds.DeleteMDMAppleConfigProfileByTeamAndIdentifierFunc = func(ctx context.Context, teamID *uint, profileIdentifier string) error {
 		deleteCalls++
 		return nil
 	}
 
-	newProfileCalls := uint(0)
-	ds.NewMDMAppleConfigProfileFunc = func(ctx context.Context, p fleet.MDMAppleConfigProfile, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleConfigProfile, error) {
-		require.Nil(t, usesFleetVars) // Filevault does not use fleet vars
+	upsertCalls := uint(0)
+	ds.UpsertMDMAppleFleetConfigProfileFunc = func(ctx context.Context, p fleet.MDMAppleConfigProfile) error {
 		require.Equal(t, mobileconfig.FleetFileVaultPayloadIdentifier, p.Identifier)
-		if newProfileCalls == 0 {
+		if upsertCalls == 0 {
 			// No Team
 			require.Nil(t, p.TeamID)
 		} else {
 			require.NotNil(t, p.TeamID)
-			require.Equal(t, newProfileCalls, *p.TeamID)
+			require.Equal(t, upsertCalls, *p.TeamID)
 		}
-		newProfileCalls++
-		return nil, nil
+		upsertCalls++
+		return nil
 	}
 
 	err = svc.UploadMDMAppleAPNSCert(ctx, bytes.NewReader(apnsCert))
 	require.NoError(t, err)
 
-	require.EqualValues(t, 2, newProfileCalls)
-	require.EqualValues(t, 2, deleteCalls)
-	require.EqualValues(t, 2, newActivityCalls) // Only enabled Disk encryption activities, we don't want to log disable right before enabling.
+	// no-team and team 1 have macOS disk encryption on; team 2 does not
+	require.EqualValues(t, 2, upsertCalls)
+	require.Equal(t, 0, deleteCalls, "the profile is replaced in place, never deleted first")
+	// no activities: the settings didn't change, the FileVault profile is
+	// (re)created as a side effect of turning on Apple MDM
+	require.Equal(t, 0, newActivityCalls)
 }
 
 func TestNewMDMProfilePremiumOnlyAndroid(t *testing.T) {
@@ -4334,7 +4339,7 @@ func TestUpdateMDMAndroidConfigProfile(t *testing.T) {
 			return nil
 		}
 
-		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, nil, []string{"label1"}, fleet.LabelsIncludeAny, nil, optjson.Slice[byte]{})
+		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, "", nil, []string{"label1"}, fleet.LabelsIncludeAny, nil, optjson.Slice[byte]{})
 		require.NoError(t, err)
 
 		assert.Empty(t, updated.RawJSON)
@@ -4367,7 +4372,7 @@ func TestUpdateMDMAndroidConfigProfile(t *testing.T) {
 			return nil
 		}
 
-		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, newContent, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
+		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, "", newContent, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
 		require.NoError(t, err)
 		assert.Equal(t, newContent, updated.RawJSON)
 		assert.Equal(t, existing.Name, updated.Name)
@@ -4397,7 +4402,7 @@ func TestUpdateMDMAndroidConfigProfile(t *testing.T) {
 			return nil
 		}
 
-		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, newContent, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
+		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, "", newContent, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
 		require.NoError(t, err)
 		assert.Equal(t, newContent, updated.RawJSON)
 		require.NotNil(t, updated.TeamID)
@@ -4426,7 +4431,7 @@ func TestUpdateMDMAndroidConfigProfile(t *testing.T) {
 			return &p, nil
 		}
 
-		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, newContent, []string{"label1"}, fleet.LabelsIncludeAny, []string{"label2"}, optjson.Slice[byte]{})
+		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, "", newContent, []string{"label1"}, fleet.LabelsIncludeAny, []string{"label2"}, optjson.Slice[byte]{})
 		require.NoError(t, err)
 		assert.Equal(t, newContent, updated.RawJSON)
 		require.Len(t, updated.LabelsIncludeAny, 1)
@@ -4448,7 +4453,7 @@ func TestUpdateMDMAndroidConfigProfile(t *testing.T) {
 		}
 
 		invalidContent := []byte(`{"notARealAndroidPolicyField": true}`)
-		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, invalidContent, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
+		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, "", invalidContent, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
 		require.Error(t, err)
 		assert.ErrorContains(t, err, "Invalid JSON payload")
 	})
@@ -4465,7 +4470,7 @@ func TestUpdateMDMAndroidConfigProfile(t *testing.T) {
 			return nil, nil
 		}
 
-		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, nil, []string{"label1"}, fleet.LabelsIncludeAny, []string{"label1"}, optjson.Slice[byte]{})
+		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, "", nil, []string{"label1"}, fleet.LabelsIncludeAny, []string{"label1"}, optjson.Slice[byte]{})
 		require.Error(t, err)
 		assert.ErrorContains(t, err, `label "label1" cannot appear in both include and exclude lists`)
 	})
@@ -4482,7 +4487,7 @@ func TestUpdateMDMAndroidConfigProfile(t *testing.T) {
 			return nil, nil
 		}
 
-		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, nil, []string{"label1"}, fleet.LabelsIncludeAny, nil, optjson.Slice[byte]{})
+		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, "", nil, []string{"label1"}, fleet.LabelsIncludeAny, nil, optjson.Slice[byte]{})
 		require.Error(t, err)
 		assert.ErrorContains(t, err, "managed by Fleet")
 	})
@@ -4494,7 +4499,7 @@ func TestUpdateMDMAndroidConfigProfile(t *testing.T) {
 			return nil, wantErr
 		}
 
-		err := svc.UpdateMDMConfigProfile(ctx, "g"+uuid.NewString(), nil, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
+		err := svc.UpdateMDMConfigProfile(ctx, "g"+uuid.NewString(), "", nil, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
 		require.Error(t, err)
 		assert.ErrorIs(t, err, wantErr)
 	})
@@ -4511,7 +4516,7 @@ func TestUpdateMDMAndroidConfigProfile(t *testing.T) {
 			return nil, nil
 		}
 
-		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, nil, []string{"label1"}, fleet.LabelsIncludeAny, nil, optjson.Slice[byte]{})
+		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, "", nil, []string{"label1"}, fleet.LabelsIncludeAny, nil, optjson.Slice[byte]{})
 		require.ErrorIs(t, err, fleet.ErrMissingLicense)
 		require.ErrorContains(t, err, "Scoping configuration profiles with labels requires Fleet Premium license")
 
@@ -4520,7 +4525,7 @@ func TestUpdateMDMAndroidConfigProfile(t *testing.T) {
 			return &p, nil
 		}
 		newContent := []byte(`{"screenCaptureDisabled": false}`)
-		err = svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, newContent, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
+		err = svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, "", newContent, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
 		require.NoError(t, err)
 	})
 
@@ -4541,14 +4546,14 @@ func TestUpdateMDMAndroidConfigProfile(t *testing.T) {
 		}
 
 		newContent := []byte(`{"name": "$FLEET_VAR_HOST_UUID"}`)
-		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, newContent, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
+		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, "", newContent, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
 		require.NoError(t, err)
 		assert.Contains(t, capturedVars, fleet.FleetVarHostUUID)
 
 		// labels-only edit passes no variables -- the datastore leaves the
 		// existing associations untouched when no content is provided
 		capturedVars = []fleet.FleetVarName{fleet.FleetVarName("sentinel")}
-		err = svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, nil, []string{"label1"}, fleet.LabelsIncludeAny, nil, optjson.Slice[byte]{})
+		err = svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, "", nil, []string{"label1"}, fleet.LabelsIncludeAny, nil, optjson.Slice[byte]{})
 		require.NoError(t, err)
 		assert.Empty(t, capturedVars)
 	})
@@ -4569,10 +4574,10 @@ func TestUpdateMDMAndroidConfigProfile(t *testing.T) {
 		}
 
 		newContent := []byte(`{"screenCaptureDisabled": false}`)
-		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, newContent, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
+		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, "", newContent, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
 		require.ErrorIs(t, err, fleet.ErrMissingLicense)
 
-		err = svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, nil, []string{"label1"}, fleet.LabelsIncludeAny, nil, optjson.Slice[byte]{})
+		err = svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, "", nil, []string{"label1"}, fleet.LabelsIncludeAny, nil, optjson.Slice[byte]{})
 		require.ErrorIs(t, err, fleet.ErrMissingLicense)
 	})
 
@@ -4625,10 +4630,10 @@ func TestUpdateMDMAndroidConfigProfile(t *testing.T) {
 
 				// profile content and labels are deliberately nil/empty here --
 				// this isolates the authz checks from content/label validation.
-				err := svc.UpdateMDMConfigProfile(ctx, noTeamProfile.ProfileUUID, nil, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
+				err := svc.UpdateMDMConfigProfile(ctx, noTeamProfile.ProfileUUID, "", nil, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
 				checkShouldFail(t, err, tt.shouldFailGlobal)
 
-				err = svc.UpdateMDMConfigProfile(ctx, teamProfile.ProfileUUID, nil, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
+				err = svc.UpdateMDMConfigProfile(ctx, teamProfile.ProfileUUID, "", nil, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
 				checkShouldFail(t, err, tt.shouldFailTeam)
 			})
 		}
@@ -4654,6 +4659,9 @@ func TestProcessIncomingMDMCmdsWipeFailedActivity(t *testing.T) {
 	enrolledDevice := &fleet.MDMWindowsEnrolledDevice{
 		MDMDeviceID: testDeviceID,
 		HostUUID:    testHostUUID,
+		// Already announced, so the deferred mdm_enrolled path short-circuits and the activity assertions below are
+		// about wipe_failed_host only.
+		EnrolledActivityAt: new(time.Now()),
 	}
 
 	// MDMWindowsSaveResponse returns a WipeFailed result.
@@ -4913,10 +4921,12 @@ func TestGetMDMCommandResultsTeamScoping(t *testing.T) {
 // (b) injects a Get for the same URI into the outgoing response so the device replies on the next round-trip.
 func TestProcessIncomingMDMCmdsDevDetailLinkage(t *testing.T) {
 	const (
-		testDeviceID      = "test-device-id"
-		testSerial        = "ABC123XYZ"
-		testHostUUID      = "host-uuid-from-osquery"
-		testHostID   uint = 99
+		testDeviceID        = "test-device-id"
+		testHardwareID      = "test-hardware-id"
+		testSerial          = "ABC123XYZ"
+		testHostUUID        = "host-uuid-from-osquery"
+		testHostname        = "DESKTOP-0C89RC0"
+		testHostID     uint = 99
 		// CmdRef value is never asserted; a constant keeps the generated SyncML deterministic.
 		resultsCmdRef = "results-cmdref"
 	)
@@ -4945,7 +4955,8 @@ func TestProcessIncomingMDMCmdsDevDetailLinkage(t *testing.T) {
 	}
 
 	// newSvc builds a service with the stubs that processIncomingMDMCmds always touches; per-subtest stubs override.
-	newSvc := func(t *testing.T) (*Service, *mock.Store, context.Context) {
+	// The returned opts carries the activity mock, so subtests can assert on the deferred mdm_enrolled activity.
+	newSvc := func(t *testing.T) (*Service, *mock.Store, *TestServerOpts, context.Context) {
 		t.Helper()
 		ds := new(mock.Store)
 		opts := &TestServerOpts{}
@@ -4964,7 +4975,17 @@ func TestProcessIncomingMDMCmdsDevDetailLinkage(t *testing.T) {
 		ds.GetWindowsMDMCommandsForResendingFunc = func(ctx context.Context, deviceID string, cmdUUIDs []string) ([]*fleet.MDMWindowsCommand, error) {
 			return nil, nil
 		}
-		return svcImpl, ds, ctx
+		// A linked enrollment whose mdm_enrolled activity has not been recorded yet resolves its host and claims the
+		// activity; these are the defaults for the happy path, and subtests override them to exercise the rest.
+		ds.ListHostsLiteByUUIDsFunc = func(_ context.Context, _ fleet.TeamFilter, uuids []string) ([]*fleet.Host, error) {
+			assert.Equal(t, []string{testHostUUID}, uuids)
+			return []*fleet.Host{{ID: testHostID, UUID: testHostUUID, HardwareSerial: testSerial, Hostname: testHostname}}, nil
+		}
+		ds.MDMWindowsClaimEnrolledActivityFunc = func(_ context.Context, mdmHardwareID string, _ time.Time) (bool, error) {
+			assert.Equal(t, testHardwareID, mdmHardwareID)
+			return true, nil
+		}
+		return svcImpl, ds, opts, ctx
 	}
 
 	// hasGetForDevDetailSerial reports whether responseCmds contains a Get for the SMBIOS serial number URI.
@@ -5013,13 +5034,13 @@ func TestProcessIncomingMDMCmdsDevDetailLinkage(t *testing.T) {
 			return updated, nil
 		}
 		ds.MDMWindowsGetEnrolledDeviceWithDeviceIDFunc = func(_ context.Context, _ string) (*fleet.MDMWindowsEnrolledDevice, error) {
-			return &fleet.MDMWindowsEnrolledDevice{MDMDeviceID: testDeviceID, MDMEnrollUserID: ""}, nil
+			return &fleet.MDMWindowsEnrolledDevice{MDMDeviceID: testDeviceID, MDMHardwareID: testHardwareID, MDMEnrollUserID: ""}, nil
 		}
 	}
 
 	t.Run("unlinked enrollment: Get for DevDetail SMBIOSSerialNumber is injected", func(t *testing.T) {
-		svc, ds, ctx := newSvc(t)
-		enrolledDevice := &fleet.MDMWindowsEnrolledDevice{MDMDeviceID: testDeviceID, HostUUID: ""}
+		svc, ds, _, ctx := newSvc(t)
+		enrolledDevice := &fleet.MDMWindowsEnrolledDevice{MDMDeviceID: testDeviceID, MDMHardwareID: testHardwareID, HostUUID: ""}
 		reqMsg := buildReqMsg(t, "")
 
 		cmds, err := svc.processIncomingMDMCmds(ctx, enrolledDevice, reqMsg, RequestAuthStateTrusted)
@@ -5041,8 +5062,8 @@ func TestProcessIncomingMDMCmdsDevDetailLinkage(t *testing.T) {
 	})
 
 	t.Run("already-linked enrollment: no Get and no host lookup", func(t *testing.T) {
-		svc, ds, ctx := newSvc(t)
-		enrolledDevice := &fleet.MDMWindowsEnrolledDevice{MDMDeviceID: testDeviceID, HostUUID: testHostUUID}
+		svc, ds, _, ctx := newSvc(t)
+		enrolledDevice := &fleet.MDMWindowsEnrolledDevice{MDMDeviceID: testDeviceID, MDMHardwareID: testHardwareID, HostUUID: testHostUUID}
 		reqMsg := buildReqMsg(t, "")
 
 		cmds, err := svc.processIncomingMDMCmds(ctx, enrolledDevice, reqMsg, RequestAuthStateTrusted)
@@ -5053,8 +5074,8 @@ func TestProcessIncomingMDMCmdsDevDetailLinkage(t *testing.T) {
 	})
 
 	t.Run("Results with SMBIOS serial trigger linkage and skip the redundant Get", func(t *testing.T) {
-		svc, ds, ctx := newSvc(t)
-		enrolledDevice := &fleet.MDMWindowsEnrolledDevice{MDMDeviceID: testDeviceID, HostUUID: ""}
+		svc, ds, _, ctx := newSvc(t)
+		enrolledDevice := &fleet.MDMWindowsEnrolledDevice{MDMDeviceID: testDeviceID, MDMHardwareID: testHardwareID, HostUUID: ""}
 		stubLink(t, ds, true)
 
 		cmds, err := svc.processIncomingMDMCmds(ctx, enrolledDevice, buildReqMsg(t, serialResults(testSerial)), RequestAuthStateTrusted)
@@ -5066,8 +5087,8 @@ func TestProcessIncomingMDMCmdsDevDetailLinkage(t *testing.T) {
 	})
 
 	t.Run("serial with no matching host (NotFound): Get is reinjected for retry", func(t *testing.T) {
-		svc, ds, ctx := newSvc(t)
-		enrolledDevice := &fleet.MDMWindowsEnrolledDevice{MDMDeviceID: testDeviceID, HostUUID: ""}
+		svc, ds, _, ctx := newSvc(t)
+		enrolledDevice := &fleet.MDMWindowsEnrolledDevice{MDMDeviceID: testDeviceID, MDMHardwareID: testHardwareID, HostUUID: ""}
 		// Production returns a fleet NotFound (not sql.ErrNoRows) when no Windows host matches the serial: the host
 		// hasn't enrolled in osquery yet, or the serial is ambiguous. This is the common, non-error retry path.
 		ds.WindowsHostLiteByHardwareSerialFunc = func(_ context.Context, _ string) (*fleet.HostLite, error) {
@@ -5090,8 +5111,8 @@ func TestProcessIncomingMDMCmdsDevDetailLinkage(t *testing.T) {
 	})
 
 	t.Run("serial lookup fails with an unexpected error: non-fatal, Get reinjected", func(t *testing.T) {
-		svc, ds, ctx := newSvc(t)
-		enrolledDevice := &fleet.MDMWindowsEnrolledDevice{MDMDeviceID: testDeviceID, HostUUID: ""}
+		svc, ds, _, ctx := newSvc(t)
+		enrolledDevice := &fleet.MDMWindowsEnrolledDevice{MDMDeviceID: testDeviceID, MDMHardwareID: testHardwareID, HostUUID: ""}
 		// A non-NotFound error (e.g. a real DB failure) is logged and handled, but linkage stays non-fatal: the
 		// management session must not fail and the Get must be reinjected so a later session retries.
 		ds.WindowsHostLiteByHardwareSerialFunc = func(_ context.Context, _ string) (*fleet.HostLite, error) {
@@ -5107,8 +5128,8 @@ func TestProcessIncomingMDMCmdsDevDetailLinkage(t *testing.T) {
 	})
 
 	t.Run("Results carries the URI but an empty serial: no lookup, Get reinjected", func(t *testing.T) {
-		svc, ds, ctx := newSvc(t)
-		enrolledDevice := &fleet.MDMWindowsEnrolledDevice{MDMDeviceID: testDeviceID, HostUUID: ""}
+		svc, ds, _, ctx := newSvc(t)
+		enrolledDevice := &fleet.MDMWindowsEnrolledDevice{MDMDeviceID: testDeviceID, MDMHardwareID: testHardwareID, HostUUID: ""}
 
 		// Whitespace-only Data trims to empty, so there is no usable serial and no host lookup should happen.
 		cmds, err := svc.processIncomingMDMCmds(ctx, enrolledDevice, buildReqMsg(t, serialResults("   ")), RequestAuthStateTrusted)
@@ -5119,8 +5140,8 @@ func TestProcessIncomingMDMCmdsDevDetailLinkage(t *testing.T) {
 	})
 
 	t.Run("placeholder serial: no lookup, no mislink, Get reinjected", func(t *testing.T) {
-		svc, ds, ctx := newSvc(t)
-		enrolledDevice := &fleet.MDMWindowsEnrolledDevice{MDMDeviceID: testDeviceID, HostUUID: ""}
+		svc, ds, _, ctx := newSvc(t)
+		enrolledDevice := &fleet.MDMWindowsEnrolledDevice{MDMDeviceID: testDeviceID, MDMHardwareID: testHardwareID, HostUUID: ""}
 		// Reproduce the staggered-mislink trap: an unrelated host already carries this junk placeholder serial, so a
 		// naive lookup would return exactly one match and link THIS enrollment to the wrong host. The placeholder guard
 		// must stop the lookup from ever running; these devices link via the osquery MDMDeviceID backstop instead.
@@ -5136,8 +5157,8 @@ func TestProcessIncomingMDMCmdsDevDetailLinkage(t *testing.T) {
 	})
 
 	t.Run("SMBIOSSerialNumber Item is not the first one: still found", func(t *testing.T) {
-		svc, ds, ctx := newSvc(t)
-		enrolledDevice := &fleet.MDMWindowsEnrolledDevice{MDMDeviceID: testDeviceID, HostUUID: ""}
+		svc, ds, _, ctx := newSvc(t)
+		enrolledDevice := &fleet.MDMWindowsEnrolledDevice{MDMDeviceID: testDeviceID, MDMHardwareID: testHardwareID, HostUUID: ""}
 		stubLink(t, ds, true)
 
 		// The serial is the second Item in the Results command, not the first. A naive Items[0]-only scan misses it.
@@ -5153,8 +5174,8 @@ func TestProcessIncomingMDMCmdsDevDetailLinkage(t *testing.T) {
 	})
 
 	t.Run("link already applied by another path: HostUUID still refreshed in-memory", func(t *testing.T) {
-		svc, ds, ctx := newSvc(t)
-		enrolledDevice := &fleet.MDMWindowsEnrolledDevice{MDMDeviceID: testDeviceID, HostUUID: ""}
+		svc, ds, _, ctx := newSvc(t)
+		enrolledDevice := &fleet.MDMWindowsEnrolledDevice{MDMDeviceID: testDeviceID, MDMHardwareID: testHardwareID, HostUUID: ""}
 		// updated=false simulates the row already holding host_uuid=testHostUUID (the WHERE host_uuid <> ? guard
 		// short-circuited). In-memory state must still be refreshed so no redundant Get is sent.
 		stubLink(t, ds, false)
@@ -5367,5 +5388,374 @@ func TestRunMDMCommandAndroid(t *testing.T) {
 		_, err := svc.RunMDMCommand(ctx, encoded, []string{androidHost.UUID})
 		require.Error(t, err)
 		require.ErrorContains(t, err, "Android MDM isn't turned on")
+	})
+}
+
+func TestUpdateAppConfigMDMDiskEncryptionPINOnly(t *testing.T) {
+	// enabling only the BitLocker PIN doesn't enable key escrow, so it must
+	// not require the server private key
+	ds := new(mock.Store)
+	// construct the concrete Service directly to reach the unexported method;
+	// it performs no authorization or license checks of its own
+	svc := &Service{ds: ds} // no server private key configured
+	svc.SetActivityService(&mock.MockActivityService{
+		NewActivityFunc: func(_ context.Context, _ *activity_api.User, activity activity_api.ActivityDetails) error {
+			// the PIN is a Windows disk encryption setting, so its change is
+			// recorded as a windows settings edit
+			require.Equal(t, fleet.ActivityTypeEditedDiskEncryptionSettings{}.ActivityName(), activity.ActivityName())
+			edited, ok := activity.(fleet.ActivityTypeEditedDiskEncryptionSettings)
+			require.True(t, ok)
+			require.Equal(t, "windows", edited.Platform)
+			return nil
+		},
+	})
+	ctx := test.UserContext(t.Context(), test.UserAdmin)
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{
+			MDM: fleet.MDM{
+				WindowsEnabledAndConfigured: true,
+				WindowsSettings: fleet.WindowsSettings{
+					EnableDiskEncryption: optjson.SetBool(true),
+				},
+			},
+		}, nil
+	}
+	var savedConfig *fleet.AppConfig
+	ds.SaveAppConfigFunc = func(ctx context.Context, info *fleet.AppConfig) error {
+		savedConfig = info
+		return nil
+	}
+
+	err := svc.updateAppConfigMDMDiskEncryption(ctx, fleet.DiskEncryptionSettingsChanges{}, new(true))
+	require.NoError(t, err)
+	require.NotNil(t, savedConfig)
+	require.True(t, savedConfig.MDM.RequireBitLockerPIN.Value)
+}
+
+func TestResolvePerPlatformDiskEncryptionPayload(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		payload fleet.MDMDiskEncryptionSettingsPayload
+		want    fleet.DiskEncryptionSettingsChanges
+		wantErr bool
+	}{
+		{
+			name:    "empty payload changes nothing",
+			payload: fleet.MDMDiskEncryptionSettingsPayload{},
+			want:    fleet.DiskEncryptionSettingsChanges{},
+		},
+		{
+			name:    "flat toggle fans out to all four",
+			payload: fleet.MDMDiskEncryptionSettingsPayload{EnableDiskEncryption: new(true)},
+			want: fleet.DiskEncryptionSettingsChanges{
+				MacOSEnable: new(true), MacOSEscrow: new(true), WindowsEnable: new(true), LinuxEscrow: new(true),
+			},
+		},
+		{
+			name: "per-platform values pass through",
+			payload: fleet.MDMDiskEncryptionSettingsPayload{
+				MacOSSettings:   &fleet.MacOSDiskEncryptionSettingsPayload{EnableDiskEncryption: new(true)},
+				WindowsSettings: &fleet.WindowsDiskEncryptionSettingsPayload{EnableDiskEncryption: new(false)},
+			},
+			want: fleet.DiskEncryptionSettingsChanges{
+				MacOSEnable: new(true), WindowsEnable: new(false),
+			},
+		},
+		{
+			name: "flat agreeing with per-platform fans out",
+			payload: fleet.MDMDiskEncryptionSettingsPayload{
+				EnableDiskEncryption: new(true),
+				WindowsSettings:      &fleet.WindowsDiskEncryptionSettingsPayload{EnableDiskEncryption: new(true)},
+			},
+			want: fleet.DiskEncryptionSettingsChanges{
+				MacOSEnable: new(true), MacOSEscrow: new(true), WindowsEnable: new(true), LinuxEscrow: new(true),
+			},
+		},
+		{
+			name: "flat conflicting with per-platform errors",
+			payload: fleet.MDMDiskEncryptionSettingsPayload{
+				EnableDiskEncryption: new(true),
+				LinuxSettings:        &fleet.LinuxDiskEncryptionSettingsPayload{EnableEscrowDiskEncryptionKey: new(false)},
+			},
+			wantErr: true,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := tc.payload.ResolvePerPlatform()
+			if tc.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, tc.want, got)
+		})
+	}
+}
+
+func TestResolveBitLockerPINPayload(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		payload fleet.MDMDiskEncryptionSettingsPayload
+		want    *bool
+		wantErr bool
+	}{
+		{"neither provided", fleet.MDMDiskEncryptionSettingsPayload{}, nil, false},
+		{"deprecated only", fleet.MDMDiskEncryptionSettingsPayload{RequireBitLockerPIN: new(true)}, new(true), false},
+		{
+			"canonical only",
+			fleet.MDMDiskEncryptionSettingsPayload{
+				WindowsSettings: &fleet.WindowsDiskEncryptionSettingsPayload{RequireBitLockerPIN: new(true)},
+			},
+			new(true), false,
+		},
+		{
+			"both agreeing",
+			fleet.MDMDiskEncryptionSettingsPayload{
+				RequireBitLockerPIN: new(false),
+				WindowsSettings:     &fleet.WindowsDiskEncryptionSettingsPayload{RequireBitLockerPIN: new(false)},
+			},
+			new(false), false,
+		},
+		{
+			"both disagreeing conflicts",
+			fleet.MDMDiskEncryptionSettingsPayload{
+				RequireBitLockerPIN: new(true),
+				WindowsSettings:     &fleet.WindowsDiskEncryptionSettingsPayload{RequireBitLockerPIN: new(false)},
+			},
+			nil, true,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := tc.payload.ResolveBitLockerPIN()
+			if tc.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, tc.want, got)
+		})
+	}
+}
+
+// windowsMDMEnrollmentInstalledFromDEP has to reproduce, from the stored row, the automatic-enrollment flag that
+// storeWindowsMDMEnrolledDevice derives from the live request, so pin the whole truth table.
+func TestWindowsMDMEnrollmentInstalledFromDEP(t *testing.T) {
+	inOOBE := new(time.Now().UTC())
+	for _, tc := range []struct {
+		name                    string
+		enrollUserID            string
+		awaitingConfigurationAt *time.Time
+		want                    bool
+	}{
+		{"Entra enrollment during OOBE is automatic", "fleetie@example.com", inOOBE, true},
+		{"Autopilot enrollment whose token carried no UPN is still automatic", "", inOOBE, true},
+		{"Entra enrollment outside OOBE is user-driven", "fleetie@example.com", nil, false},
+		{"programmatic enrollment is not automatic", "host-uuid-from-osquery", nil, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got := windowsMDMEnrollmentInstalledFromDEP(&fleet.MDMWindowsEnrolledDevice{
+				MDMEnrollUserID:         tc.enrollUserID,
+				AwaitingConfigurationAt: tc.awaitingConfigurationAt,
+			})
+			assert.Equal(t, tc.want, got)
+		})
+	}
+}
+
+// TestWindowsMDMDeferredEnrolledActivity covers the mdm_enrolled activity for Windows enrollments that had no host at
+// enrollment time. Entra (automatic) enrollments carry neither a host UUID nor a serial in the WSTEP exchange, so their
+// activity is recorded on the management session that first links the enrollment to a host, and only once.
+func TestWindowsMDMDeferredEnrolledActivity(t *testing.T) {
+	const (
+		testDeviceID   = "test-device-id"
+		testHardwareID = "test-hardware-id"
+		testSerial     = "ABC123XYZ"
+		testHostUUID   = "host-uuid-from-osquery"
+		testHostname   = "DESKTOP-0C89RC0"
+		testHostID     = uint(99)
+	)
+
+	// newSvc wires a service whose activity writes are captured in env.recorded. Setting env.activityErr makes the
+	// activity service fail instead of recording.
+	type env struct {
+		svc         *Service
+		ds          *mock.Store
+		ctx         context.Context
+		recorded    []fleet.ActivityDetails
+		activityErr error
+	}
+	newSvc := func(t *testing.T) *env {
+		t.Helper()
+		ds := new(mock.Store)
+		opts := &TestServerOpts{}
+		svc, ctx := newTestService(t, ds, nil, nil, opts)
+		svcImpl, ok := svc.(*Service)
+		if !ok {
+			svcImpl = svc.(validationMiddleware).Service.(*Service)
+		}
+		e := &env{svc: svcImpl, ds: ds, ctx: ctx}
+
+		opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, act activity_api.ActivityDetails) error {
+			if e.activityErr != nil {
+				return e.activityErr
+			}
+			e.recorded = append(e.recorded, act)
+			return nil
+		}
+		ds.ListHostsLiteByUUIDsFunc = func(_ context.Context, _ fleet.TeamFilter, uuids []string) ([]*fleet.Host, error) {
+			assert.Equal(t, []string{testHostUUID}, uuids)
+			return []*fleet.Host{{ID: testHostID, UUID: testHostUUID, HardwareSerial: testSerial, Hostname: testHostname}}, nil
+		}
+		ds.MDMWindowsClaimEnrolledActivityFunc = func(_ context.Context, mdmHardwareID string, _ time.Time) (bool, error) {
+			assert.Equal(t, testHardwareID, mdmHardwareID)
+			return true, nil
+		}
+		return e
+	}
+
+	// entraEnrollment is a linked Entra enrollment whose activity has not been recorded yet. awaiting_configuration_at
+	// is set, which is what the enrollment records for an automatic (OOBE/Autopilot) enrollment.
+	entraEnrollment := func() *fleet.MDMWindowsEnrolledDevice {
+		return &fleet.MDMWindowsEnrolledDevice{
+			MDMDeviceID:             testDeviceID,
+			MDMHardwareID:           testHardwareID,
+			HostUUID:                testHostUUID,
+			MDMEnrollUserID:         "fleetie@example.com",
+			AwaitingConfigurationAt: new(time.Now().UTC()),
+		}
+	}
+
+	t.Run("linked enrollment without an activity yet: recorded with host id and serial", func(t *testing.T) {
+		e := newSvc(t)
+
+		e.svc.maybeCreateWindowsMDMEnrolledActivity(e.ctx, entraEnrollment())
+
+		require.True(t, e.ds.MDMWindowsClaimEnrolledActivityFuncInvoked)
+		require.Len(t, e.recorded, 1)
+		act, ok := e.recorded[0].(*fleet.ActivityTypeMDMEnrolled)
+		require.True(t, ok, "expected an mdm_enrolled activity, got %T", e.recorded[0])
+		assert.Equal(t, testHostID, act.HostID)
+		require.NotNil(t, act.HostSerial)
+		assert.Equal(t, testSerial, *act.HostSerial)
+		assert.Equal(t, testHostname, act.HostDisplayName)
+		assert.Equal(t, fleet.MDMPlatformMicrosoft, act.MDMPlatform)
+		assert.Equal(t, "windows", act.Platform)
+		assert.True(t, act.InstalledFromDEP, "Entra enrollment in OOBE is Windows' automatic enrollment")
+		assert.Equal(t, []uint{testHostID}, act.HostIDs(), "the activity must land on the host's timeline")
+	})
+
+	t.Run("enrollment that already has an activity: no claim, no activity", func(t *testing.T) {
+		e := newSvc(t)
+		device := entraEnrollment()
+		device.EnrolledActivityAt = new(time.Now())
+
+		e.svc.maybeCreateWindowsMDMEnrolledActivity(e.ctx, device)
+
+		assert.False(t, e.ds.MDMWindowsClaimEnrolledActivityFuncInvoked, "the in-memory check must short-circuit before any query")
+		assert.False(t, e.ds.ListHostsLiteByUUIDsFuncInvoked)
+		assert.Empty(t, e.recorded)
+	})
+
+	t.Run("still-unlinked enrollment: nothing recorded and the claim is left for later", func(t *testing.T) {
+		e := newSvc(t)
+		device := entraEnrollment()
+		device.HostUUID = ""
+
+		e.svc.maybeCreateWindowsMDMEnrolledActivity(e.ctx, device)
+
+		assert.False(t, e.ds.ListHostsLiteByUUIDsFuncInvoked, "an unlinked enrollment must not reach the database")
+		assert.False(t, e.ds.MDMWindowsClaimEnrolledActivityFuncInvoked)
+		assert.Empty(t, e.recorded)
+	})
+
+	t.Run("activity write fails: the claim is released so a later session retries", func(t *testing.T) {
+		e := newSvc(t)
+		var released bool
+		var claimedAt, releasedAt time.Time
+		e.ds.MDMWindowsClaimEnrolledActivityFunc = func(_ context.Context, _ string, at time.Time) (bool, error) {
+			claimedAt = at
+			return true, nil
+		}
+		e.ds.MDMWindowsReleaseEnrolledActivityClaimFunc = func(_ context.Context, mdmHardwareID string, at time.Time) error {
+			assert.Equal(t, testHardwareID, mdmHardwareID)
+			released, releasedAt = true, at
+			return nil
+		}
+		e.activityErr = errors.New("activity store unavailable")
+
+		e.svc.maybeCreateWindowsMDMEnrolledActivity(e.ctx, entraEnrollment())
+
+		assert.True(t, released, "a failed activity write must not leave the enrollment marked as announced")
+		assert.Equal(t, claimedAt, releasedAt, "the release must be scoped to the timestamp that was claimed")
+		assert.Empty(t, e.recorded)
+	})
+
+	t.Run("another path claimed it first: no duplicate activity", func(t *testing.T) {
+		e := newSvc(t)
+		// The claim is the exactly-once guard: two sessions (or a session racing orbit enroll) can both reach here, but
+		// only the one whose UPDATE affects a row records the activity.
+		e.ds.MDMWindowsClaimEnrolledActivityFunc = func(_ context.Context, _ string, _ time.Time) (bool, error) { return false, nil }
+
+		e.svc.maybeCreateWindowsMDMEnrolledActivity(e.ctx, entraEnrollment())
+
+		assert.True(t, e.ds.MDMWindowsClaimEnrolledActivityFuncInvoked)
+		assert.Empty(t, e.recorded)
+	})
+
+	t.Run("host was deleted: the claim is spent so later sessions stop re-checking", func(t *testing.T) {
+		e := newSvc(t)
+		var lookups int
+		e.ds.ListHostsLiteByUUIDsFunc = func(_ context.Context, _ fleet.TeamFilter, _ []string) ([]*fleet.Host, error) {
+			lookups++
+			return nil, nil
+		}
+		var claimedWith time.Time
+		e.ds.MDMWindowsClaimEnrolledActivityFunc = func(_ context.Context, mdmHardwareID string, at time.Time) (bool, error) {
+			assert.Equal(t, testHardwareID, mdmHardwareID)
+			claimedWith = at
+			return true, nil
+		}
+
+		e.svc.maybeCreateWindowsMDMEnrolledActivity(e.ctx, entraEnrollment())
+
+		require.True(t, e.ds.MDMWindowsClaimEnrolledActivityFuncInvoked)
+		assert.Equal(t, 2, lookups, "the replica miss must be confirmed against the primary before suppressing")
+		assert.Equal(t, common_mysql.GetDefaultNonZeroTime(), claimedWith,
+			"an enrollment that can never be announced is marked with the zero-time value, not a real timestamp")
+		assert.Empty(t, e.recorded, "nothing to attribute the activity to, so none is recorded")
+	})
+
+	t.Run("replica has not caught up: the primary confirm finds the host and the activity is recorded", func(t *testing.T) {
+		e := newSvc(t)
+		var calls int
+		e.ds.ListHostsLiteByUUIDsFunc = func(ctx context.Context, _ fleet.TeamFilter, _ []string) ([]*fleet.Host, error) {
+			calls++
+			if calls == 1 {
+				require.False(t, ctxdb.IsPrimaryRequired(ctx), "the first lookup should go to the replica")
+				return nil, nil // replica lag: the orbit enroll that created this host has not replicated yet
+			}
+			require.True(t, ctxdb.IsPrimaryRequired(ctx), "the confirm must go to the primary")
+			return []*fleet.Host{{ID: testHostID, UUID: testHostUUID, HardwareSerial: testSerial, Hostname: testHostname}}, nil
+		}
+
+		e.svc.maybeCreateWindowsMDMEnrolledActivity(e.ctx, entraEnrollment())
+
+		assert.Equal(t, 2, calls)
+		require.Len(t, e.recorded, 1, "a lagging replica must not cost the activity")
+		act := e.recorded[0].(*fleet.ActivityTypeMDMEnrolled)
+		assert.Equal(t, testHostID, act.HostID)
+	})
+
+	t.Run("host lookup fails: non-fatal, claim untouched", func(t *testing.T) {
+		e := newSvc(t)
+		e.ds.ListHostsLiteByUUIDsFunc = func(_ context.Context, _ fleet.TeamFilter, _ []string) ([]*fleet.Host, error) {
+			return nil, errors.New("db unavailable")
+		}
+
+		e.svc.maybeCreateWindowsMDMEnrolledActivity(e.ctx, entraEnrollment())
+
+		assert.False(t, e.ds.MDMWindowsClaimEnrolledActivityFuncInvoked)
+		assert.Empty(t, e.recorded)
 	})
 }
