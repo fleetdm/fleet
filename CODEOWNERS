@@ -69,10 +69,8 @@ go.mod @fleetdm/go
 /docs                                                   @rachaelshaw
 /docs/solutions                                         @AdamBaali # « @AdamBaali added as interim co-owner while @ddribeiro is OOO
 /docs/Configuration                                     @rachaelshaw
-/docs/Contributing                                      @lukeheath @georgekarrv @sharon-fdm # « Contributing guidelines
-/docs/Contributing/product-groups/orchestration/understanding-host-vitals.md @sharon-fdm @getvictor @lucasmrod
+/docs/Contributing                                      @lukeheath @georgekarrv @sharon-fdm # « Contributing docs are owned by the EMs only — don't add per-path individual owners here (see https://github.com/fleetdm/fleet/issues/46731)
 /docs/REST\ API/rest-api.md                             @rachaelshaw # « REST API reference documentation
-/docs/Contributing/reference                            @rachaelshaw
 /docs/Get\ started/why-fleet.md                         @mike-j-thomas
 /render.yaml                                            @rfairburn
 /it-and-security                                        @allenhouchins
@@ -86,25 +84,8 @@ go.mod @fleetdm/go
 #  ╚═╝└┴┘┘└┘└─┘─┴┘  └─┘ ┴   ┴  ┴└─└─┘─┴┘└─┘└─┘ ┴   └─┘┴└─└─┘└─┘┴  └─┘
 ################################################################################################
 
-# MDM
-/docs/Contributing/architecture/mdm                     @georgekarrv @JordanMontgomery @sharon-fdm @getvictor
-/docs/Contributing/product-groups/mdm                   @georgekarrv @JordanMontgomery @sharon-fdm @getvictor
-/docs/Contributing/research/mdm                         @georgekarrv @JordanMontgomery @sharon-fdm @getvictor
-
-# Orchestration
-/docs/Contributing/architecture/orchestration           @sharon-fdm @lucasmrod
-/docs/Contributing/product-groups/orchestration         @sharon-fdm @lucasmrod
-/docs/Contributing/research/orchestration               @sharon-fdm @lucasmrod
-
-# Software
-/docs/Contributing/architecture/software                @georgekarrv @cdcme
-/docs/Contributing/product-groups/software              @georgekarrv @cdcme
-/docs/Contributing/research/software                    @georgekarrv @cdcme
-
-# Security & Compliance
-/docs/Contributing/architecture/security-compliance     @sharon-fdm @juan-fdz-hawa
-/docs/Contributing/product-groups/security-compliance   @sharon-fdm @juan-fdz-hawa
-/docs/Contributing/research/security-compliance         @sharon-fdm @juan-fdz-hawa
+# Contributing docs are organized by feature and owned by the EMs via the /docs/Contributing entry
+# above. Team-based entries (which don't go stale with reorgs) are OK; individual owners are not.
 /docs/Contributing/reference/patterns-backend.md        @fleetdm/go
 
 # Website

@@ -70,7 +70,7 @@ A common network-related APNs failure comes from SSL/TLS inspection appliances. 
 
 When your devices stop responding to MDM commands, start by checking the APNs certificate expiration date in your MDM console. If the certificate is valid, verify that your network permits outbound traffic on the required ports and that SSL/TLS inspection isn't intercepting APNs connections.
 
-If a single device isn't checking in while others on the same network work fine, the device token may have become invalid. In many cases, re-enrolling the affected device resolves the issue. For additional MDM troubleshooting, see [this guide](https://github.com/fleetdm/fleet/blob/8c8f1dac4857e73804c1dc720efdacc14d0d3d6c/docs/Contributing/product-groups/mdm/mdm-bug-checklist.md) created by Fleet’s MDM software engineering team.
+If a single device isn't checking in while others on the same network work fine, the device token may have become invalid. In many cases, re-enrolling the affected device resolves the issue. For additional MDM troubleshooting, see [this guide](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/mdm/mdm-bug-checklist.md) created by Fleet’s MDM software engineering team.
 
 ## APNs certificate management in practice
 

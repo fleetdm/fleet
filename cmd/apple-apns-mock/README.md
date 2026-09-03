@@ -4,7 +4,7 @@ A mock of Apple's push notification service (APNs) for load testing Fleet's Appl
 
 Instances are interchangeable: they coordinate through Redis, so Fleet can push to any of them and it reaches whichever holds the device's stream. Redis is required.
 
-See [the design doc](../../docs/Contributing/product-groups/mdm/apple-apns-mock.md) for how it fits into load testing.
+See [the design doc](../../docs/Contributing/apple-mdm/apple-apns-mock.md) for how it fits into load testing.
 
 ### Relevant documentation
 - [Sending notifications to APNs](https://developer.apple.com/documentation/usernotifications/sending-notification-requests-to-apns)
@@ -115,7 +115,7 @@ connect at any instance GETDEL <prefix>pending:<token>, then announce ownership
 
 Keys used: `<prefix>pending:<token>`, `<prefix>stats:<node-id>`, `<prefix>seq`, and the `<prefix>push` channel. A push that has already expired (`apns-expiration: 0`) is never stored: its payload rides inline in the announcement. If Redis is unreachable a push is answered `503 ServiceUnavailable` rather than silently dropped.
 
-Why it is shaped this way — the store-before-announce ordering, the `GETDEL` claim, the sequence number on ownership announcements — is in [the design doc](../../docs/Contributing/product-groups/mdm/apple-apns-mock.md#routing-between-instances).
+Why it is shaped this way — the store-before-announce ordering, the `GETDEL` claim, the sequence number on ownership announcements — is in [the design doc](../../docs/Contributing/apple-mdm/apple-apns-mock.md#routing-between-instances).
 
 ## Tests
 
