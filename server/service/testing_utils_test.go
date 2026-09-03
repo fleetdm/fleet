@@ -692,7 +692,7 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 	if len(opts) > 0 && opts[0].Pool != nil {
 		enrollKV = redis_key_value.New(opts[0].Pool)
 	}
-	rootMux.Handle("/enroll", ServeEndUserEnrollOTA(svc, "", ds, enrollKV, logger, false))
+	rootMux.Handle("/enroll", ServeEndUserEnrollOTA(svc, "", ds, enrollKV, clock.C, logger, false))
 
 	if len(opts) > 0 && opts[0].EnableSCIM {
 		require.NoError(t, scim.RegisterSCIM(rootMux, ds, svc, logger, &cfg))

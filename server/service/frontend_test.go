@@ -128,7 +128,7 @@ func TestServeEndUserEnrollOTA(t *testing.T) {
 			appCfg.MDM.AndroidEnabledAndConfigured = enabled
 
 			logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
-			h := ServeEndUserEnrollOTA(svc, "", ds, newMemKeyValueStore(), logger, false)
+			h := ServeEndUserEnrollOTA(svc, "", ds, newMemKeyValueStore(), clock.C, logger, false)
 			ts := httptest.NewServer(h)
 			t.Cleanup(func() {
 				ts.Close()
@@ -262,7 +262,7 @@ func TestServeEndUserEnrollOTAKeepsSessionForFullyManaged(t *testing.T) {
 	kv := newMemKeyValueStore()
 	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{KeyValueStore: kv})
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
-	h := ServeEndUserEnrollOTA(svc, "", ds, kv, logger, false)
+	h := ServeEndUserEnrollOTA(svc, "", ds, kv, clock.C, logger, false)
 	ts := httptest.NewServer(h)
 	t.Cleanup(func() {
 		ts.Close()
@@ -309,7 +309,7 @@ func TestServeEndUserEnrollOTARejectsUnknownSession(t *testing.T) {
 	}
 	kv := newMemKeyValueStore()
 	svc := &enrollPageService{}
-	h := ServeEndUserEnrollOTA(svc, "", ds, kv, slog.New(slog.NewTextHandler(os.Stdout, nil)), false)
+	h := ServeEndUserEnrollOTA(svc, "", ds, kv, clock.C, slog.New(slog.NewTextHandler(os.Stdout, nil)), false)
 	ts := httptest.NewServer(h)
 	t.Cleanup(ts.Close)
 

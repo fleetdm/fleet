@@ -57,6 +57,7 @@ type Service struct {
 	// AllowLocalhostServerURL is set during tests.
 	AllowLocalhostServerURL bool
 	keyValueStore           fleet.KeyValueStore
+	clock                   clock.Clock
 }
 
 func NewService(
@@ -82,6 +83,11 @@ func WithKeyValueStore(kv fleet.KeyValueStore) ServiceOption {
 	return func(s *Service) { s.keyValueStore = kv }
 }
 
+// WithClock replaces the clock, for tests.
+func WithClock(clk clock.Clock) ServiceOption {
+	return func(s *Service) { s.clock = clk }
+}
+
 func NewServiceWithClient(
 	logger *slog.Logger,
 	ds fleet.AndroidDatastore,
@@ -98,6 +104,7 @@ func NewServiceWithClient(
 	}
 
 	svc := &Service{
+		clock:              clock.C,
 		logger:             logger,
 		authz:              authorizer,
 		ds:                 ds,
@@ -590,7 +597,7 @@ func (svc *Service) CreateEnrollmentToken(ctx context.Context, enrollSecret, idp
 
 	var idpUUID string
 	if idpSessionID != "" {
-		uuid, err := shared_mdm.ValidateBYODIdPSession(ctx, svc.keyValueStore, clock.C, idpSessionID)
+		uuid, err := shared_mdm.ValidateBYODIdPSession(ctx, svc.keyValueStore, svc.clock, idpSessionID)
 		var noSession *fleet.AuthRequiredError
 		switch {
 		case errors.As(err, &noSession):

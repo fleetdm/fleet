@@ -92,6 +92,7 @@ func ServeEndUserEnrollOTA(
 	urlPrefix string,
 	ds fleet.Datastore,
 	kv fleet.KeyValueStore,
+	clk clock.Clock,
 	logger *slog.Logger,
 	serveCSP bool,
 ) http.Handler {
@@ -150,7 +151,7 @@ func ServeEndUserEnrollOTA(
 			// check if authentication cookie is present, in which case we go ahead with
 			// offering the enrollment profile to download.
 			if byodCookie, _ := r.Cookie(shared_mdm.BYODIdpCookieName); byodCookie != nil && byodCookie.Value != "" {
-				uuid, err := shared_mdm.ValidateBYODIdPSession(r.Context(), kv, clock.C, byodCookie.Value)
+				uuid, err := shared_mdm.ValidateBYODIdPSession(r.Context(), kv, clk, byodCookie.Value)
 				var noSession *fleet.AuthRequiredError
 				switch {
 				case errors.As(err, &noSession):
