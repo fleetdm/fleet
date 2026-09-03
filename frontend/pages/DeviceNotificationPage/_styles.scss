@@ -1,0 +1,120 @@
+// Layout matches the Figma toast (nodes 5546:42302 for the frame, 5546:42315
+// for the list). The native ToastWindow supplies the outer shadow and window
+// corners (ToastWindow.swift:43,47), so the card doesn't add its own shadow.
+
+.device-notification-page {
+  // Page background stays transparent — the native window supplies rounded
+  // corners; a page-level background would square them off.
+  background: transparent;
+  margin: 0;
+  padding: 0;
+
+  &__card {
+    background-color: $core-fleet-white;
+    color: $core-fleet-black;
+    border-radius: $border-radius-large;
+    padding: $pad-large;
+    @include flex-column-24px-gap;
+  }
+
+  &__header {
+    @include flex-column-8px-gap;
+  }
+
+  // App/org logo sits in the bottom-left slot of the actions row.
+  // `margin-right: auto` eats free space to its right so the logo hugs the
+  // left edge while the error slot and buttons stay packed on the right
+  // under `justify-content: flex-end`. Uses <picture> for dark-mode swap.
+  &__logo {
+    margin-right: auto;
+    flex-shrink: 0;
+    width: 28px;
+    height: 28px;
+
+    img {
+      width: 28px;
+      height: 28px;
+      object-fit: contain;
+    }
+  }
+
+  &__title {
+    font-size: $small;
+    font-weight: $bold;
+    margin: 0;
+  }
+
+  &__description {
+    font-size: $x-small;
+    margin: 0;
+    color: $ui-fleet-black-75;
+  }
+
+  // Item list is Fleet's <List> — it owns the rounded container, border, and
+  // per-row dividers. Toast-scoped overrides only: cap the height so 4.5 rows
+  // show (the half row is the "more below" affordance from Figma dev note
+  // 5546:42433), suppress the default row hover (toast rows aren't clickable),
+  // and bump SoftwareIcon to Figma's 32×32 (no preset for it).
+  .list__list {
+    max-height: calc(4.5 * 48px);
+    overflow-y: auto;
+  }
+
+  .list__row {
+    height: 32px;
+
+    &:hover {
+      background: $core-fleet-white;
+    }
+
+    .software-icon {
+      width: 32px;
+      height: 32px;
+      flex-shrink: 0;
+
+      > svg,
+      > img {
+        width: 32px;
+        height: 32px;
+      }
+    }
+  }
+
+  &__item-left {
+    display: flex;
+    align-items: center;
+    gap: $pad-small;
+    min-width: 0;
+    flex: 1;
+  }
+
+  &__item-name {
+    flex: 1;
+    min-width: 0;
+    font-size: $x-small;
+  }
+
+  &__item-status {
+    font-size: $x-small;
+    color: $ui-fleet-black-75;
+    flex-shrink: 0;
+  }
+
+  &__actions {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: $pad-small;
+  }
+
+  // The error slot sits immediately left of the buttons so showing it doesn't
+  // shift the row vertically.
+  &__action-error {
+    // DataError's single-line variant ships with $pad-large vertical padding
+    // for stand-alone page use. Strip it here so the icon+text sits flush
+    // against the buttons and the actions row keeps a stable height.
+    .data-error__header--single-line {
+      padding: 0;
+    }
+  }
+}

@@ -78,6 +78,10 @@ export default {
     `/${API_VERSION}/fleet/device/${token}/configuration_profiles/${profileUUID}/resend`,
   DEVICE_BYPASS_CONDITIONAL_ACCESS: (token: string) =>
     `/${API_VERSION}/fleet/device/${token}/bypass_conditional_access`,
+  DEVICE_NOTIFICATION: (token: string, notificationUuid: string) =>
+    `/${API_VERSION}/fleet/device/${token}/notifications/${notificationUuid}`,
+  DEVICE_NOTIFICATION_ACTIONS: (token: string, notificationUuid: string) =>
+    `/${API_VERSION}/fleet/device/${token}/notifications/${notificationUuid}/actions`,
 
   // Chart endpoints
   CHART_DATA: (metric: string) => `/${API_VERSION}/fleet/charts/${metric}`,
