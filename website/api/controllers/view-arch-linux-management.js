@@ -11,7 +11,9 @@ module.exports = {
 
     success: {
       viewTemplatePath: 'pages/arch-linux-management'
-    }
+    },
+
+    badConfig: { responseType: 'badConfig' },
 
   },
 
