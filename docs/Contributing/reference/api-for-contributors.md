@@ -712,7 +712,7 @@ Content-Type: application/octet-stream
     "mdm_server_url": "https://example.com/mdm/apple/mdm",
     "mdm_server_uuid": "8b8a8f1e-3c2d-4e5f-9a6b-7c8d9e0f1a2b",
     "renew_date": "2024-10-20T00:00:00Z",
-    "primary": true,
+    "default": true,
     "terms_expired": false,
     "token_invalid": false,
     "macos_fleet": null,
@@ -727,7 +727,7 @@ Content-Type: application/octet-stream
     "mdm_server_url": "https://example.com/mdm/apple/mdm",
     "mdm_server_uuid": "8b8a8f1e-3c2d-4e5f-9a6b-7c8d9e0f1a2b",
     "renew_date": "2024-10-20T00:00:00Z",
-    "primary": true,
+    "default": true,
     "terms_expired": false,
     "token_invalid": false,
     "macos_fleet": null,
@@ -820,7 +820,7 @@ None.
     "mdm_server_url": "https://example.com/mdm/apple/mdm",
     "mdm_server_uuid": "8b8a8f1e-3c2d-4e5f-9a6b-7c8d9e0f1a2b",
     "renew_date": "2024-11-29T00:00:00Z",
-    "primary": true,
+    "default": true,
     "terms_expired": false,
     "token_invalid": false,
     "macos_fleet": 1,
@@ -835,7 +835,7 @@ None.
     "mdm_server_url": "https://example.com/mdm/apple/mdm",
     "mdm_server_uuid": "8b8a8f1e-3c2d-4e5f-9a6b-7c8d9e0f1a2b",
     "renew_date": "2024-11-29T00:00:00Z",
-    "primary": true,
+    "default": true,
     "terms_expired": false,
     "token_invalid": false,
     "macos_fleet": 1,
@@ -849,11 +849,11 @@ None.
 }
 ```
 
-### Set AB token as primary
+### Set AB token as default
 
-`PATCH /api/v1/fleet/ab_tokens/:id/primary`
+`PATCH /api/v1/fleet/ab_tokens/:id/default`
 
-Fleet uses the primary AB token to verify Managed Apple Account sign-in on hosts that aren't in Apple Business. Hosts that are in Apple Business use their own AB token. If you have one AB token, it's always primary. Setting a new primary clears the previous one.
+Fleet uses the default AB token to verify Managed Apple Account sign-in on hosts that aren't in Apple Business. Hosts that are in Apple Business use their own AB token. If you have one AB token, it's always the default. Setting a new default clears the previous one.
 
 #### Parameters
 
@@ -863,7 +863,7 @@ Fleet uses the primary AB token to verify Managed Apple Account sign-in on hosts
 
 #### Example
 
-`PATCH /api/v1/fleet/ab_tokens/2/primary`
+`PATCH /api/v1/fleet/ab_tokens/2/default`
 
 ##### Default response
 
@@ -878,7 +878,7 @@ Fleet uses the primary AB token to verify Managed Apple Account sign-in on hosts
     "mdm_server_url": "https://example.com/mdm/apple/mdm",
     "mdm_server_uuid": "8b8a8f1e-3c2d-4e5f-9a6b-7c8d9e0f1a2b",
     "renew_date": "2025-10-20T00:00:00Z",
-    "primary": true,
+    "default": true,
     "terms_expired": false,
     "token_invalid": false,
     "macos_fleet": null,
@@ -893,7 +893,7 @@ Fleet uses the primary AB token to verify Managed Apple Account sign-in on hosts
     "mdm_server_url": "https://example.com/mdm/apple/mdm",
     "mdm_server_uuid": "8b8a8f1e-3c2d-4e5f-9a6b-7c8d9e0f1a2b",
     "renew_date": "2025-10-20T00:00:00Z",
-    "primary": true,
+    "default": true,
     "terms_expired": false,
     "token_invalid": false,
     "macos_fleet": null,
@@ -953,7 +953,7 @@ Content-Type: application/octet-stream
     "mdm_server_url": "https://example.com/mdm/apple/mdm",
     "mdm_server_uuid": "8b8a8f1e-3c2d-4e5f-9a6b-7c8d9e0f1a2b",
     "renew_date": "2025-10-20T00:00:00Z",
-    "primary": true,
+    "default": true,
     "terms_expired": false,
     "token_invalid": false,
     "macos_fleet": null,
@@ -968,7 +968,7 @@ Content-Type: application/octet-stream
     "mdm_server_url": "https://example.com/mdm/apple/mdm",
     "mdm_server_uuid": "8b8a8f1e-3c2d-4e5f-9a6b-7c8d9e0f1a2b",
     "renew_date": "2025-10-20T00:00:00Z",
-    "primary": true,
+    "default": true,
     "terms_expired": false,
     "token_invalid": false,
     "macos_fleet": null,

@@ -8835,7 +8835,7 @@ None.
       "mdm_server_url": "https://example.com/mdm/apple/mdm",
       "mdm_server_uuid": "8b8a8f1e-3c2d-4e5f-9a6b-7c8d9e0f1a2b",
       "renew_date": "2023-11-29T00:00:00Z",
-      "primary": true,
+      "default": true,
       "terms_expired": false,
       "macos_fleet": {
         "name": "💻 Workstations",
@@ -8859,7 +8859,7 @@ None.
       "mdm_server_url": "https://example.com/mdm/apple/mdm",
       "mdm_server_uuid": "8b8a8f1e-3c2d-4e5f-9a6b-7c8d9e0f1a2b",
       "renew_date": "2023-11-29T00:00:00Z",
-      "primary": true,
+      "default": true,
       "terms_expired": false,
       "token_invalid": false,
       "macos_team": {
