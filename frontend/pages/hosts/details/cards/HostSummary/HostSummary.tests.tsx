@@ -5,7 +5,7 @@ import { createMockHostSummary } from "__mocks__/hostMock";
 import createMockUser from "__mocks__/userMock";
 import { BootstrapPackageStatus } from "interfaces/mdm";
 import { HostPlatform } from "interfaces/platform";
-import { createCustomRenderer } from "test/test-utils";
+import { createCustomRenderer, renderWithSetup } from "test/test-utils";
 
 import HostSummary from "./HostSummary";
 
@@ -166,6 +166,34 @@ describe("Host Summary section", () => {
 
         expect(screen.getByText("Status")).toBeInTheDocument();
         expect(screen.getByText("Online")).toBeInTheDocument();
+      }
+    );
+  });
+
+  describe("Online history entry point", () => {
+    it.each<[string, HostPlatform]>([
+      ["macOS", "darwin"],
+      ["iOS", "ios"],
+      ["iPadOS", "ipados"],
+      ["Android", "android"],
+    ])(
+      "wraps the status pill in a clickable button for %s when toggleOnlineHistoryModal is provided",
+      async (_label, platform) => {
+        const toggleOnlineHistoryModal = jest.fn();
+        const summaryData = createMockHostSummary({ platform });
+
+        const { user } = renderWithSetup(
+          <HostSummary
+            summaryData={summaryData}
+            toggleOnlineHistoryModal={toggleOnlineHistoryModal}
+          />
+        );
+
+        const button = screen.getByRole("button", {
+          name: /view online history/i,
+        });
+        await user.click(button);
+        expect(toggleOnlineHistoryModal).toHaveBeenCalled();
       }
     );
   });

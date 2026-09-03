@@ -143,6 +143,7 @@ import {
 import HostReportsTab from "../HostReportsTab";
 import CertificateDetailsModal from "../modals/CertificateDetailsModal";
 import EditHostVitalModal from "../modals/EditHostVitalModal";
+import HostOnlineHistoryModal from "../modals/HostOnlineHistoryModal";
 import InventoryVersionsModal from "../modals/InventoryVersionsModal";
 import LocationModal from "../modals/LocationModal";
 import MDMStatusModal from "../modals/MDMStatusModal";
@@ -278,6 +279,7 @@ const HostDetailsPage = ({
     location.query.show_mdm_status === "true"
   );
   const [showVitalsModal, setShowVitalsModal] = useState(false);
+  const [showOnlineHistoryModal, setShowOnlineHistoryModal] = useState(false);
   // Sync MDM status modal state when the query param changes while mounted
   // (e.g., browser back/forward navigation).
   useEffect(() => {
@@ -713,6 +715,14 @@ const HostDetailsPage = ({
     ? teams?.find((t) => t.id === host.team_id)?.features
     : config?.features;
 
+  const teamHistoricalData = host?.team_id
+    ? teams?.find((t) => t.id === host.team_id)?.features?.historical_data
+    : undefined;
+  const globalHistoricalData = config?.features?.historical_data;
+  const uptimeCollectionEnabled =
+    (globalHistoricalData?.uptime ?? true) &&
+    (teamHistoricalData?.uptime ?? true);
+
   useEffect(() => {
     setUsersState(() => {
       return (
@@ -768,6 +778,10 @@ const HostDetailsPage = ({
   const toggleVitalsModal = useCallback(() => {
     setShowVitalsModal(!showVitalsModal);
   }, [showVitalsModal, setShowVitalsModal]);
+
+  const toggleOnlineHistoryModal = useCallback(() => {
+    setShowOnlineHistoryModal((prev) => !prev);
+  }, []);
 
   const toggleMDMStatusModal = useCallback(() => {
     setShowMDMStatusModal((prev) => {
@@ -1680,6 +1694,7 @@ const HostDetailsPage = ({
                   bootstrapPackageData={bootstrapPackageData}
                   isPremiumTier={isPremiumTier}
                   toggleBootstrapPackageModal={toggleBootstrapPackageModal}
+                  toggleOnlineHistoryModal={toggleOnlineHistoryModal}
                   className={fullWidthCardClass}
                 />
                 <VitalsCard
@@ -2270,6 +2285,14 @@ const HostDetailsPage = ({
               canEditCustomHostVitals ? setEditingCustomHostVital : undefined
             }
             onExit={toggleVitalsModal}
+          />
+        )}
+        {showOnlineHistoryModal && (
+          <HostOnlineHistoryModal
+            hostId={host.id}
+            fleetId={host.team_id ?? undefined}
+            uptimeCollectionEnabled={uptimeCollectionEnabled}
+            onExit={toggleOnlineHistoryModal}
           />
         )}
         {editingCustomHostVital && (

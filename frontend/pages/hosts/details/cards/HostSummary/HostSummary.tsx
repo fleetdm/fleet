@@ -30,6 +30,7 @@ interface IHostSummaryProps {
   bootstrapPackageData?: IBootstrapPackageData;
   isPremiumTier?: boolean;
   toggleBootstrapPackageModal?: () => void;
+  toggleOnlineHistoryModal?: () => void;
   className?: string;
 }
 
@@ -38,6 +39,7 @@ const HostSummary = ({
   bootstrapPackageData,
   isPremiumTier,
   toggleBootstrapPackageModal,
+  toggleOnlineHistoryModal,
   className,
 }: IHostSummaryProps): JSX.Element => {
   const classNames = classnames(baseClass, className);
@@ -79,16 +81,28 @@ const HostSummary = ({
   const renderStatus = () => {
     const displayedStatus = getHostStatus(status, mdm?.enrollment_status);
     const tooltipText = getHostStatusTooltipText(displayedStatus, platform);
+    const indicator = (
+      <StatusIndicator
+        value={displayedStatus}
+        tooltip={tooltipText ? { tooltipText, position: "bottom" } : undefined}
+      />
+    );
     return (
       <DataSet
         title="Status"
         value={
-          <StatusIndicator
-            value={displayedStatus}
-            tooltip={
-              tooltipText ? { tooltipText, position: "bottom" } : undefined
-            }
-          />
+          toggleOnlineHistoryModal ? (
+            <button
+              type="button"
+              className={`${baseClass}__status-button`}
+              onClick={toggleOnlineHistoryModal}
+              aria-label="View online history"
+            >
+              {indicator}
+            </button>
+          ) : (
+            indicator
+          )
         }
       />
     );
