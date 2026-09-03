@@ -2405,6 +2405,14 @@ func testBatchSetSoftwareInstallersSetupExperienceSideEffects(t *testing.T, ds *
 		require.NoError(t, err)
 	}
 
+	// setup experience installs are queued as Fleet-initiated
+	upcoming, _, err := ds.ListHostUpcomingActivities(ctx, host1.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, upcoming, 2)
+	for _, act := range upcoming {
+		require.True(t, act.FleetInitiated)
+	}
+
 	// batch-set without changes
 	_, err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{
 		{
