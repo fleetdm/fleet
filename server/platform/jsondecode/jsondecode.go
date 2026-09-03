@@ -1,20 +1,10 @@
-// Package jsondecode is how Fleet decodes JSON request bodies and spec files.
+// Package jsondecode decodes the JSON that Fleet validates strictly: spec and GitOps files via
+// fleet.JSONStrictDecode, and Android configuration profiles.
 //
 // It decodes exactly like encoding/json but reports errors through encoding/json/v2, because as of Go
 // 1.27 that is the only way to learn *where* a decode failed. Under v1 error semantics an error returned
 // from a custom UnmarshalJSON method is reported verbatim, so it reaches the caller with no position at
-// all: UnmarshalTypeError.Field is empty. Every pkg/optjson type has such a method, which is why
-// "deadline_days must be a number" degraded into an error that could not say which field it meant.
-//
-// Callers never see a v2 error. Everything is translated back into the encoding/json error values Fleet
-// already matches on, with the field path filled in, so consumers such as platform/http.UserMessageError,
-// pkg/spec.ParseTypeError and the "unknown field" checks in server/service and server/fleet keep working
-// unchanged.
-//
-// The one behavior difference is that v2 stops decoding at the first error where v1 kept going and
-// reported the first error at the end. That only matters to a caller that reads a partially decoded
-// value after a failure. server/service.applyTeamSpecsRequest.DecodeBody is the only such caller, and it
-// re-decodes leniently when it wants to accept a spec despite an unknown field.
+// all: UnmarshalTypeError.Field is empty.
 package jsondecode
 
 import (
@@ -29,8 +19,8 @@ import (
 	"strings"
 )
 
-// decodeOptions keeps decoding byte-for-byte compatible with encoding/json -- case-insensitive member
-// matching, duplicate names allowed, and so on -- while turning off legacy error reporting, which is
+// decodeOptions keeps decoding byte-for-byte compatible with encoding/json (case-insensitive member
+// matching, duplicate names allowed, and so on) while turning off legacy error reporting, which is
 // what makes the position of a failure available.
 var decodeOptions = []jsonv2.Options{
 	jsonv1.DefaultOptionsV1(),
@@ -40,8 +30,7 @@ var decodeOptions = []jsonv2.Options{
 // RejectUnknownMembers is the equivalent of (*json.Decoder).DisallowUnknownFields.
 func RejectUnknownMembers() jsonv2.Options { return jsonv2.RejectUnknownMembers(true) }
 
-// Decoder reads JSON values from a stream, mirroring (*json.Decoder). Callers reading more than one
-// value from the same reader need this rather than repeated Decode calls, which would each start over.
+// Decoder reads JSON values from a stream, mirroring (*json.Decoder).
 type Decoder struct {
 	dec  *jsontext.Decoder
 	opts []jsonv2.Options
@@ -49,7 +38,10 @@ type Decoder struct {
 
 // NewDecoder returns a Decoder reading from r.
 func NewDecoder(r io.Reader, opts ...jsonv2.Options) *Decoder {
-	all := combine(opts)
+	// Built up rather than appended onto decodeOptions, which would risk writing into the shared slice.
+	all := make([]jsonv2.Options, 0, len(decodeOptions)+len(opts))
+	all = append(all, decodeOptions...)
+	all = append(all, opts...)
 	return &Decoder{dec: jsontext.NewDecoder(r, all...), opts: all}
 }
 
@@ -59,29 +51,20 @@ func (d *Decoder) Decode(v any) error {
 	return translate(jsonv2.UnmarshalDecode(d.dec, v, d.opts...), v)
 }
 
-// Decode reads a single JSON value from r into v. Like (*json.Decoder).Decode, and unlike
-// json.Unmarshal, bytes after the value are left in r rather than rejected.
-func Decode(r io.Reader, v any, opts ...jsonv2.Options) error {
-	return NewDecoder(r, opts...).Decode(v)
-}
-
 // Unmarshal decodes the JSON value in data into v, rejecting trailing bytes like json.Unmarshal.
-func Unmarshal(data []byte, v any, opts ...jsonv2.Options) error {
-	all := combine(opts)
-	return translate(jsonv2.Unmarshal(data, v, all...), v)
-}
-
-func combine(extra []jsonv2.Options) []jsonv2.Options {
-	all := make([]jsonv2.Options, 0, len(decodeOptions)+len(extra))
-	all = append(all, decodeOptions...)
-	return append(all, extra...)
+func Unmarshal(data []byte, v any) error {
+	return translate(jsonv2.Unmarshal(data, v, decodeOptions...), v)
 }
 
 // translate rewrites a v2 error into the encoding/json error the v1 API would have produced, except that
 // the field path is populated even when the failure came from a custom UnmarshalJSON. root is the value
 // being decoded into; it supplies the type name UnmarshalTypeError.Struct reports, matching what Go
-// 1.27's own v1 shim does. Anything that is not a v2 semantic error is returned unchanged, so io.EOF and
-// syntax errors reach callers as they always did.
+// 1.27's own v1 shim does.
+//
+// Anything that is not a v2 semantic error is returned unchanged, so io.EOF still ends a stream. That
+// also means malformed JSON keeps jsontext's wording ("unexpected EOF after offset 1") rather than
+// encoding/json's ("unexpected end of JSON input"): nothing matches on it, and the offset is the more
+// useful of the two. See TestMalformedJSONUsesV2Wording.
 func translate(err error, root any) error {
 	serr, ok := errors.AsType[*jsonv2.SemanticError](err)
 	if err == nil || !ok {
@@ -95,28 +78,24 @@ func translate(err error, root any) error {
 	}
 
 	// A custom UnmarshalJSON that passes an encoding/json error straight back (every pkg/optjson type
-	// does) has already named the concrete Go type that failed -- int, say, rather than the optjson.Int
-	// wrapping it. Annotate that error with the position rather than replacing it, which is what the
-	// pre-Go 1.27 decoder did and keeps callers that walk to the root cause working.
+	// does) has already named the concrete Go type that failed.
 	//
 	// The type assertion is deliberately direct rather than errors.As: a method that *wraps* an
-	// UnmarshalTypeError has added a message of its own, and that message is the useful part.
+	// UnmarshalTypeError has added a message of its own, and we want to keep that message.
 	if inner, ok := serr.Err.(*jsonv1.UnmarshalTypeError); ok { //nolint:errorlint // see above
 		inner.Struct = rootTypeName(root)
 		inner.Field = FieldPath(err)
 		return inner
 	}
 
-	// Anything else a custom UnmarshalJSON returned is a validation failure in its own right -- "contents
-	// must be base64", say. encoding/json reports those verbatim, and replacing one with a synthesized
-	// type error would throw away the only description of what is actually wrong.
-	if serr.Err != nil && !isNumberFormatError(serr.Err) {
+	// Anything else a custom UnmarshalJSON returned is a validation failure in its own right.
+	if serr.Err != nil && !isNumberOverflow(serr) {
 		return serr.Err
 	}
 
-	// A genuine type mismatch: either v2 reported no underlying cause, or it is the numeric parse failure
-	// that encoding/json renders as "number 1.23". Err is deliberately left unset on the result, because
-	// callers resolve errors to their root cause and wrapping would hide this one.
+	// A genuine type mismatch, which is the ordinary case and reaches here in one of two shapes. Usually
+	// serr.Err is nil, because v2 spotted the mismatch itself -- a JSON string against a bool field, say
+	// -- and nothing failed underneath it to report.
 	return &jsonv1.UnmarshalTypeError{
 		Value:  describeValue(serr),
 		Type:   serr.GoType,
@@ -126,11 +105,22 @@ func translate(err error, root any) error {
 	}
 }
 
-// isNumberFormatError reports whether err is the failure to parse a JSON number into a Go numeric type,
-// which encoding/json describes as a type error ("cannot unmarshal number 1.23 into ... of type int")
-// rather than surfacing the strconv error.
-func isNumberFormatError(err error) bool {
-	return errors.Is(err, strconv.ErrSyntax) || errors.Is(err, strconv.ErrRange)
+// isNumberOverflow reports whether serr is v2 failing to fit a JSON number into a Go numeric type.
+func isNumberOverflow(serr *jsonv2.SemanticError) bool {
+	if !errors.Is(serr.Err, strconv.ErrSyntax) && !errors.Is(serr.Err, strconv.ErrRange) {
+		return false
+	}
+	if serr.GoType == nil {
+		return false
+	}
+	switch serr.GoType.Kind() {
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
+		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr,
+		reflect.Float32, reflect.Float64:
+		return true
+	default:
+		return false
+	}
 }
 
 // IsTypeError reports whether err describes a value of the wrong type, as opposed to malformed JSON or

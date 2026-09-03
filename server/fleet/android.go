@@ -95,7 +95,7 @@ func (m *MDMAndroidConfigProfile) ValidateUserProvided(isPremium bool) error {
 		}
 	}
 
-	// The decoded policy is thrown away: this only checks that every value has the right type.
+	// This only checks that every value has the right type.
 	if err := jsondecode.Unmarshal(m.RawJSON, &androidmanagement.Policy{}); err != nil {
 		return parseAndroidProfileValidationError(err)
 	}
