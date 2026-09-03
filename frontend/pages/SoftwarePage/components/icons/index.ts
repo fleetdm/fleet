@@ -847,6 +847,7 @@ import Raindropio from "./png/Raindropio.png";
 import RancherDesktop from "./png/RancherDesktop.png";
 import RapidApi from "./png/RapidApi.png";
 import Rapidweaver from "./png/Rapidweaver.png";
+import RaspberryPiImager from "./png/RaspberryPiImager.png";
 import Raycast from "./png/Raycast.png";
 import Readest from "./png/Readest.png";
 import RealVncServer from "./png/RealVncServer.png";
@@ -2023,6 +2024,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "rancher desktop": RancherDesktop,
   rapidapi: RapidApi,
   rapidweaver: Rapidweaver,
+  "raspberry pi imager": RaspberryPiImager,
   raycast: Raycast,
   readest: Readest,
   "realvnc connect viewer": VncViewer,

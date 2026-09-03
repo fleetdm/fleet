@@ -7198,6 +7198,20 @@
       "description": "RapidWeaver is a web design software."
     },
     {
+      "name": "Raspberry Pi Imager",
+      "slug": "raspberry-pi-imager/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.raspberrypi.rpi-imager",
+      "description": "Raspberry Pi Imager is an imaging utility to install operating systems to a microSD card."
+    },
+    {
+      "name": "Raspberry Pi Imager",
+      "slug": "raspberry-pi-imager/windows",
+      "platform": "windows",
+      "unique_identifier": "Raspberry Pi Imager",
+      "description": "Raspberry Pi Imager is an imaging utility to install operating systems to a microSD card."
+    },
+    {
       "name": "Raycast",
       "slug": "raycast/darwin",
       "platform": "darwin",
