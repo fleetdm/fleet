@@ -120,6 +120,8 @@ Google Workspace doesn't support the [SCIM](https://scim.cloud/) standard. Inste
 
 When a Google Workspace integration is configured, Fleet ignores SCIM requests from other identity providers. Configure either a SCIM integration (Okta, Entra ID, etc.) or Google Workspace, not both.
 
+Nested groups are resolved: if a user belongs to a group only through a child group nested inside it, Fleet includes the parent group in that user's IdP groups. You don't need to flatten your group structure for Fleet.
+
 ### Prerequisites
 
 - Google Workspace with super admin access to the [Google Admin console](https://admin.google.com/)

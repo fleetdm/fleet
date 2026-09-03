@@ -48,6 +48,7 @@ func TestScim(t *testing.T) {
 		{"ScimLastRequest", testScimLastRequest},
 		{"ScimUsersExist", testScimUsersExist},
 		{"ScimNestedGroups", testScimNestedGroups},
+		{"ListScimGroupsChildGroups", testListScimGroupsChildGroups},
 		{"TriggerResendIdPProfiles", testTriggerResendIdPProfiles},
 		{"TriggerResendIdPProfilesOnTeam", testTriggerResendIdPProfilesOnTeam},
 		{"TriggerResendCertTemplatesAndAppConfigs", testTriggerResendCertTemplatesAndAppConfigs},
@@ -142,6 +143,44 @@ func testScimUserCreate(t *testing.T, ds *Datastore) {
 // by Entra ID via group-type members) is stored and expanded transitively: a user
 // who is a direct member of a child group is an effective member of every ancestor
 // group.
+func testListScimGroupsChildGroups(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	child := &fleet.ScimGroup{DisplayName: "List Child Group"}
+	childID, err := ds.CreateScimGroup(ctx, child)
+	require.NoError(t, err)
+
+	parent := &fleet.ScimGroup{DisplayName: "List Parent Group", ChildGroups: []uint{childID}}
+	parentID, err := ds.CreateScimGroup(ctx, parent)
+	require.NoError(t, err)
+
+	findGroup := func(groups []fleet.ScimGroup, id uint) *fleet.ScimGroup {
+		for i := range groups {
+			if groups[i].ID == id {
+				return &groups[i]
+			}
+		}
+		return nil
+	}
+	opts := fleet.ScimListOptions{StartIndex: 1, PerPage: 100}
+
+	groups, _, err := ds.ListScimGroups(ctx, fleet.ScimGroupsListOptions{ScimListOptions: opts})
+	require.NoError(t, err)
+	gotParent := findGroup(groups, parentID)
+	require.NotNil(t, gotParent)
+	require.Empty(t, gotParent.ChildGroups, "child groups are not fetched unless requested")
+
+	groups, _, err = ds.ListScimGroups(ctx, fleet.ScimGroupsListOptions{ScimListOptions: opts, IncludeChildGroups: true})
+	require.NoError(t, err)
+	gotParent = findGroup(groups, parentID)
+	require.NotNil(t, gotParent)
+	require.Equal(t, []uint{childID}, gotParent.ChildGroups)
+
+	gotChild := findGroup(groups, childID)
+	require.NotNil(t, gotChild)
+	require.Empty(t, gotChild.ChildGroups)
+}
+
 func testScimNestedGroups(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 

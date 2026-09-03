@@ -117,6 +117,10 @@ type ScimGroupsListOptions struct {
 
 	// ExcludeUsers if true, the group's users will not be fetched
 	ExcludeUsers bool
+
+	// IncludeChildGroups if true, each group's direct nested child group IDs are
+	// fetched. Opt-in so the SCIM list endpoint's members output is unchanged.
+	IncludeChildGroups bool
 }
 
 type ScimGroup struct {

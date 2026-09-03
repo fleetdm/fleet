@@ -1302,6 +1302,36 @@ func (ds *Datastore) ListScimGroups(ctx context.Context, opts fleet.ScimGroupsLi
 		}
 	}
 
+	if opts.IncludeChildGroups {
+		childQuery, args, err := sqlx.In(`
+			SELECT
+				parent_group_id, child_group_id
+			FROM scim_group_group
+			WHERE parent_group_id IN (?)
+			ORDER BY child_group_id ASC
+		`, groupIDs)
+		if err != nil {
+			return nil, 0, ctxerr.Wrap(ctx, err, "prepare child groups query")
+		}
+
+		type groupChild struct {
+			ParentID uint `db:"parent_group_id"`
+			ChildID  uint `db:"child_group_id"`
+		}
+		var allGroupChildren []groupChild
+		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &allGroupChildren, childQuery, args...); err != nil {
+			if !errors.Is(err, sql.ErrNoRows) {
+				return nil, 0, ctxerr.Wrap(ctx, err, "select scim group children")
+			}
+		}
+
+		for _, gc := range allGroupChildren {
+			if group, ok := groupMap[gc.ParentID]; ok {
+				group.ChildGroups = append(group.ChildGroups, gc.ChildID)
+			}
+		}
+	}
+
 	return groups, totalResults, nil
 }
 

@@ -344,3 +344,108 @@ func TestGoogleWorkspaceSyncGroupMembershipUpdate(t *testing.T) {
 	require.Len(t, r.replacedGroups, 1)
 	assert.Equal(t, []uint{1}, r.replacedGroups[0].ScimUsers)
 }
+
+func TestGoogleWorkspaceSyncCreatesNestedGroupEdges(t *testing.T) {
+	r := newSyncRecorder(gwAppConfig(), nil, nil)
+	dir := &fakeDirectory{
+		users: []*fleet.ScimUser{gwUser("g1", "alice@example.com", "Engineering", true)},
+		groups: []*fleet.GoogleWorkspaceGroup{
+			// Parent is listed first, so its child has no scim_groups.id yet when
+			// the first pass reaches it.
+			{ExternalID: "parent", DisplayName: "Engineering", ChildGroupExternalIDs: []string{"child"}},
+			{ExternalID: "child", DisplayName: "Backend", MemberExternalIDs: []string{"g1"}},
+		},
+	}
+
+	require.NoError(t, runSync(t, r, dir))
+
+	require.Len(t, r.createdGroups, 2)
+	childID := r.createdGroups[1].ID
+
+	require.Len(t, r.replacedGroups, 1, "only the parent needs a second write")
+	assert.Equal(t, r.createdGroups[0].ID, r.replacedGroups[0].ID)
+	assert.Equal(t, []uint{childID}, r.replacedGroups[0].ChildGroups)
+}
+
+func TestGoogleWorkspaceSyncNestedGroupsAreIdempotent(t *testing.T) {
+	user := scimUser("g1", "alice@example.com", "Engineering", true)
+	user.ID = 1
+	parent := fleet.ScimGroup{ID: 5, ExternalID: new("parent"), DisplayName: "Engineering", ChildGroups: []uint{6}}
+	child := fleet.ScimGroup{ID: 6, ExternalID: new("child"), DisplayName: "Backend", ScimUsers: []uint{1}}
+	r := newSyncRecorder(gwAppConfig(), []fleet.ScimUser{user}, []fleet.ScimGroup{parent, child})
+
+	dir := &fakeDirectory{
+		users: []*fleet.ScimUser{gwUser("g1", "alice@example.com", "Engineering", true)},
+		groups: []*fleet.GoogleWorkspaceGroup{
+			{ExternalID: "parent", DisplayName: "Engineering", ChildGroupExternalIDs: []string{"child"}},
+			{ExternalID: "child", DisplayName: "Backend", MemberExternalIDs: []string{"g1"}},
+		},
+	}
+
+	require.NoError(t, runSync(t, r, dir))
+	assert.Empty(t, r.createdGroups)
+	assert.Empty(t, r.replacedGroups, "unchanged nested edges must not be rewritten")
+	assert.Empty(t, r.deletedGroups)
+}
+
+func TestGoogleWorkspaceSyncRemovesNestedGroupEdge(t *testing.T) {
+	parent := fleet.ScimGroup{ID: 5, ExternalID: new("parent"), DisplayName: "Engineering", ChildGroups: []uint{6}}
+	child := fleet.ScimGroup{ID: 6, ExternalID: new("child"), DisplayName: "Backend"}
+	r := newSyncRecorder(gwAppConfig(), nil, []fleet.ScimGroup{parent, child})
+
+	dir := &fakeDirectory{
+		users: []*fleet.ScimUser{gwUser("g1", "alice@example.com", "Engineering", true)},
+		groups: []*fleet.GoogleWorkspaceGroup{
+			{ExternalID: "parent", DisplayName: "Engineering"}, // child no longer nested
+			{ExternalID: "child", DisplayName: "Backend"},
+		},
+	}
+
+	require.NoError(t, runSync(t, r, dir))
+	require.Len(t, r.replacedGroups, 1)
+	assert.Equal(t, uint(5), r.replacedGroups[0].ID)
+	assert.Empty(t, r.replacedGroups[0].ChildGroups)
+}
+
+func TestGoogleWorkspaceSyncSkipsUnresolvableNestedGroups(t *testing.T) {
+	r := newSyncRecorder(gwAppConfig(), nil, nil)
+	dir := &fakeDirectory{
+		users: []*fleet.ScimUser{gwUser("g1", "alice@example.com", "Engineering", true)},
+		groups: []*fleet.GoogleWorkspaceGroup{
+			// "outside" belongs to another domain and never appears in the pull.
+			{ExternalID: "parent", DisplayName: "Engineering", ChildGroupExternalIDs: []string{"outside", "child", "child"}},
+			{ExternalID: "child", DisplayName: "Backend"},
+		},
+	}
+
+	require.NoError(t, runSync(t, r, dir))
+	require.Len(t, r.createdGroups, 2)
+	require.Len(t, r.replacedGroups, 1)
+	assert.Equal(t, []uint{r.createdGroups[1].ID}, r.replacedGroups[0].ChildGroups,
+		"unresolvable child dropped, duplicate child de-duplicated")
+}
+
+func TestGoogleWorkspaceSyncDropsNestedEdgeWhenChildCreateFails(t *testing.T) {
+	r := newSyncRecorder(gwAppConfig(), nil, nil)
+	r.ds.CreateScimGroupFunc = func(_ context.Context, group *fleet.ScimGroup) (uint, error) {
+		if group.DisplayName == "Backend" {
+			return 0, errors.New("create boom")
+		}
+		group.ID = 1001
+		r.createdGroups = append(r.createdGroups, group)
+		return group.ID, nil
+	}
+
+	dir := &fakeDirectory{
+		users: []*fleet.ScimUser{gwUser("g1", "alice@example.com", "Engineering", true)},
+		groups: []*fleet.GoogleWorkspaceGroup{
+			{ExternalID: "parent", DisplayName: "Engineering", ChildGroupExternalIDs: []string{"child"}},
+			{ExternalID: "child", DisplayName: "Backend"},
+		},
+	}
+
+	err := runSync(t, r, dir)
+	require.ErrorContains(t, err, "partial sync")
+	require.Len(t, r.createdGroups, 1)
+	assert.Empty(t, r.replacedGroups, "parent has no resolvable child, so nothing to write")
+}
