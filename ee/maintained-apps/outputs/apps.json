@@ -7149,6 +7149,13 @@
       "description": "qView is an image viewer."
     },
     {
+      "name": "R for macOS",
+      "slug": "r/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.R-project.R",
+      "description": "R for macOS is a free software environment for statistical computing and graphics."
+    },
+    {
       "name": "R for Windows",
       "slug": "r/windows",
       "platform": "windows",
