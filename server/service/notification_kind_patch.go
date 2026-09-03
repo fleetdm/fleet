@@ -275,19 +275,26 @@ func (k *patchNotificationKind) updateNow(ctx context.Context, notification *not
 	}
 
 	// Acted is set only once every app is queued, so a press that fails part way
-	// leaves the notification live for the next one to finish.
+	// leaves the notification live for the next one, which skips what this one queued.
+	var queuedTitleIDs []uint
+	var queueErr error
 	for _, app := range apps {
 		if app.SoftwareInstallerID == nil {
 			k.logger.InfoContext(ctx, "skipping patch notification install for software with no installer",
 				"notification_uuid", notification.UUID, "software_title_id", app.SoftwareTitleID)
 			continue
 		}
+		// queued by an earlier press that failed before it finished
+		if app.InstallQueued {
+			continue
+		}
 
 		// check if this install is already queued
 		lastInstall, err := k.ds.GetHostLastInstallData(ctx, notification.HostID, *app.SoftwareInstallerID)
 		if err != nil {
-			return nil, ctxerr.Wrapf(ctx, err, "get host last install data: host_id=%d, software_installer_id=%d",
+			queueErr = ctxerr.Wrapf(ctx, err, "get host last install data: host_id=%d, software_installer_id=%d",
 				notification.HostID, *app.SoftwareInstallerID)
+			break
 		}
 		if lastInstall != nil && lastInstall.Status != nil && *lastInstall.Status == fleet.SoftwareInstallPending {
 			continue
@@ -299,9 +306,19 @@ func (k *patchNotificationKind) updateNow(ctx context.Context, notification *not
 				IgnoreAppOpenQuery: true,
 			},
 		); err != nil {
-			return nil, ctxerr.Wrapf(ctx, err, "insert software install request: host_id=%d, software_installer_id=%d",
+			queueErr = ctxerr.Wrapf(ctx, err, "insert software install request: host_id=%d, software_installer_id=%d",
 				notification.HostID, *app.SoftwareInstallerID)
+			break
 		}
+
+		queuedTitleIDs = append(queuedTitleIDs, app.SoftwareTitleID)
+	}
+
+	if err := k.ds.SetPatchNotificationAppsQueued(ctx, notification.UUID, queuedTitleIDs); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "set patch notification apps queued")
+	}
+	if queueErr != nil {
+		return nil, queueErr
 	}
 
 	if _, err := k.notificationSvc.ActOnNotification(ctx, notification.UUID); err != nil {

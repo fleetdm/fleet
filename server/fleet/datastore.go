@@ -757,6 +757,9 @@ type Datastore interface {
 	NewPatchNotification(ctx context.Context, notificationUUID string) error
 	// AddPatchNotificationApp adds an app, ignoring one already listed.
 	AddPatchNotificationApp(ctx context.Context, notificationUUID string, app PatchNotificationApp) error
+	// SetPatchNotificationAppsQueued records that this notification put the apps on
+	// the host's queue, so a later attempt doesn't queue them again.
+	SetPatchNotificationAppsQueued(ctx context.Context, notificationUUID string, softwareTitleIDs []uint) error
 	// ListPatchNotificationApps returns a notification's apps, with names and icons
 	// for the host's fleet.
 	ListPatchNotificationApps(ctx context.Context, notificationUUID string) ([]PatchNotificationAppDetail, error)

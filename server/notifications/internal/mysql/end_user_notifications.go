@@ -23,6 +23,7 @@ type Datastore struct {
 	logger  *slog.Logger
 }
 
+//nolint:nilaway // NewDBConnections returns a nil conns only alongside an error, which fails startup
 func NewDatastore(conns *platform_mysql.DBConnections, logger *slog.Logger) *Datastore {
 	return &Datastore{primary: conns.Primary, replica: conns.Replica, logger: logger}
 }

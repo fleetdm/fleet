@@ -15,4 +15,5 @@ type PatchNotificationAppDetail struct {
 	Name                string `db:"name"`
 	DisplayName         string `db:"display_name"`
 	HasIcon             bool   `db:"has_icon"`
+	InstallQueued       bool   `db:"install_queued"`
 }

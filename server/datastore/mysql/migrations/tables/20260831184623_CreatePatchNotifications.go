@@ -31,6 +31,7 @@ CREATE TABLE IF NOT EXISTS patch_notification_apps (
   policy_id             INT UNSIGNED NULL DEFAULT NULL,
   software_title_id     INT UNSIGNED NOT NULL,
   software_installer_id INT UNSIGNED NULL DEFAULT NULL,
+  install_queued        TINYINT(1) NOT NULL DEFAULT 0,
   PRIMARY KEY (notification_uuid, software_title_id),
   KEY idx_patch_notification_apps_policy (policy_id),
   KEY idx_patch_notification_apps_software_installer (software_installer_id),

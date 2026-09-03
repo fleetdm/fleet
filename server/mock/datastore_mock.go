@@ -544,6 +544,8 @@ type NewPatchNotificationFunc func(ctx context.Context, notificationUUID string)
 
 type AddPatchNotificationAppFunc func(ctx context.Context, notificationUUID string, app fleet.PatchNotificationApp) error
 
+type SetPatchNotificationAppsQueuedFunc func(ctx context.Context, notificationUUID string, softwareTitleIDs []uint) error
+
 type ListPatchNotificationAppsFunc func(ctx context.Context, notificationUUID string) ([]fleet.PatchNotificationAppDetail, error)
 
 type ListSoftwareForVulnDetectionFunc func(ctx context.Context, filter fleet.VulnSoftwareFilter) ([]fleet.Software, error)
@@ -3124,6 +3126,9 @@ type DataStore struct {
 
 	AddPatchNotificationAppFunc        AddPatchNotificationAppFunc
 	AddPatchNotificationAppFuncInvoked bool
+
+	SetPatchNotificationAppsQueuedFunc        SetPatchNotificationAppsQueuedFunc
+	SetPatchNotificationAppsQueuedFuncInvoked bool
 
 	ListPatchNotificationAppsFunc        ListPatchNotificationAppsFunc
 	ListPatchNotificationAppsFuncInvoked bool
@@ -7646,6 +7651,13 @@ func (s *DataStore) AddPatchNotificationApp(ctx context.Context, notificationUUI
 	s.AddPatchNotificationAppFuncInvoked = true
 	s.mu.Unlock()
 	return s.AddPatchNotificationAppFunc(ctx, notificationUUID, app)
+}
+
+func (s *DataStore) SetPatchNotificationAppsQueued(ctx context.Context, notificationUUID string, softwareTitleIDs []uint) error {
+	s.mu.Lock()
+	s.SetPatchNotificationAppsQueuedFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetPatchNotificationAppsQueuedFunc(ctx, notificationUUID, softwareTitleIDs)
 }
 
 func (s *DataStore) ListPatchNotificationApps(ctx context.Context, notificationUUID string) ([]fleet.PatchNotificationAppDetail, error) {

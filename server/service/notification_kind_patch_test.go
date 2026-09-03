@@ -248,6 +248,7 @@ func TestPatchNotificationUpdateNow(t *testing.T) {
 				}
 				return &fleet.HostLastInstallData{Status: new(fleet.SoftwareInstallPending)}, nil
 			}
+			ds.SetPatchNotificationAppsQueuedFunc = func(_ context.Context, _ string, _ []uint) error { return nil }
 			ds.ListPatchNotificationAppsFunc = func(_ context.Context, _ string) ([]fleet.PatchNotificationAppDetail, error) {
 				app := fleet.PatchNotificationAppDetail{
 					SoftwareTitleID:     titleID,
@@ -312,6 +313,86 @@ func TestPatchNotificationUpdateNow(t *testing.T) {
 			}, view.Actions, "the apps are already installing, so only Hide is offered")
 		})
 	}
+}
+
+func TestPatchNotificationUpdateNowResumesAfterFailure(t *testing.T) {
+	const (
+		hostID          = uint(1)
+		firstTitleID    = uint(10)
+		secondTitleID   = uint(11)
+		firstInstaller  = uint(20)
+		secondInstaller = uint(21)
+	)
+
+	ds := new(mock.Store)
+	notificationSvc := &stubNotificationService{acts: true}
+	kind := &patchNotificationKind{
+		ds: ds, notificationSvc: notificationSvc, logger: slog.New(slog.DiscardHandler),
+	}
+
+	queued := map[uint]struct{}{}
+	ds.ListPatchNotificationAppsFunc = func(_ context.Context, _ string) ([]fleet.PatchNotificationAppDetail, error) {
+		apps := []fleet.PatchNotificationAppDetail{
+			{SoftwareTitleID: firstTitleID, SoftwareInstallerID: new(firstInstaller)},
+			{SoftwareTitleID: secondTitleID, SoftwareInstallerID: new(secondInstaller)},
+		}
+		for i, app := range apps {
+			if _, ok := queued[app.SoftwareTitleID]; ok {
+				apps[i].InstallQueued = true
+			}
+		}
+		return apps, nil
+	}
+	ds.SetPatchNotificationAppsQueuedFunc = func(_ context.Context, _ string, softwareTitleIDs []uint) error {
+		for _, softwareTitleID := range softwareTitleIDs {
+			queued[softwareTitleID] = struct{}{}
+		}
+		return nil
+	}
+
+	// the first app's install finishes between the two presses, so it is no
+	// longer pending by the time the second press runs
+	ds.GetHostLastInstallDataFunc = func(_ context.Context, _ uint, installerID uint) (*fleet.HostLastInstallData, error) {
+		_, firstAppQueued := queued[firstTitleID]
+		if installerID == firstInstaller && firstAppQueued {
+			return &fleet.HostLastInstallData{Status: new(fleet.SoftwareInstalled)}, nil
+		}
+		return nil, nil
+	}
+
+	var installed []uint
+	secondInstallerFails := true
+	ds.InsertSoftwareInstallRequestFunc = func(_ context.Context, _ uint, installerID uint, _ fleet.HostSoftwareInstallOptions) (string, error) {
+		if installerID == secondInstaller && secondInstallerFails {
+			return "", errors.New("insert failed")
+		}
+		installed = append(installed, installerID)
+		return "", nil
+	}
+
+	ds.AppConfigFunc = func(_ context.Context) (*fleet.AppConfig, error) { return &fleet.AppConfig{}, nil }
+	ds.GetDeviceAuthTokenIfFreshFunc = func(_ context.Context, _ uint, _ time.Duration) (string, error) {
+		return "device-token", nil
+	}
+
+	notification := &notifications_api.EndUserNotification{
+		UUID: "notification-uuid", HostID: hostID,
+		Status:  notifications_api.EndUserNotificationDispatched,
+		Payload: patchNotificationFirstNoticePayload,
+	}
+
+	_, err := kind.updateNow(context.Background(), notification)
+	require.Error(t, err)
+	require.Equal(t, []uint{firstInstaller}, installed)
+	assert.False(t, notificationSvc.actInvoked)
+
+	// the end user presses again, and this time the second app's install works
+	secondInstallerFails = false
+	_, err = kind.updateNow(context.Background(), notification)
+	require.NoError(t, err)
+	require.Equal(t, []uint{firstInstaller, secondInstaller}, installed,
+		"the first app is not queued a second time")
+	assert.True(t, notificationSvc.actInvoked)
 }
 
 // What the activity OnOutcome records: which apps and policies it names, which

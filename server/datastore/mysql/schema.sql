@@ -2761,6 +2761,7 @@ CREATE TABLE `patch_notification_apps` (
   `policy_id` int unsigned DEFAULT NULL,
   `software_title_id` int unsigned NOT NULL,
   `software_installer_id` int unsigned DEFAULT NULL,
+  `install_queued` tinyint(1) NOT NULL DEFAULT '0',
   PRIMARY KEY (`notification_uuid`,`software_title_id`),
   KEY `idx_patch_notification_apps_policy` (`policy_id`),
   KEY `idx_patch_notification_apps_software_installer` (`software_installer_id`),

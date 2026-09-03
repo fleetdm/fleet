@@ -63,12 +63,32 @@ ON DUPLICATE KEY UPDATE software_title_id = software_title_id
 	return nil
 }
 
+func (ds *Datastore) SetPatchNotificationAppsQueued(ctx context.Context, notificationUUID string, softwareTitleIDs []uint) error {
+	if len(softwareTitleIDs) == 0 {
+		return nil
+	}
+
+	stmt, args, err := sqlx.In(`
+UPDATE patch_notification_apps SET install_queued = 1
+WHERE notification_uuid = ? AND software_title_id IN (?)
+`, notificationUUID, softwareTitleIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "build set patch notification apps queued update")
+	}
+
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "set patch notification apps queued")
+	}
+	return nil
+}
+
 func (ds *Datastore) ListPatchNotificationApps(ctx context.Context, notificationUUID string) ([]fleet.PatchNotificationAppDetail, error) {
 	const selectStmt = `
 SELECT
 	pna.policy_id,
 	pna.software_title_id,
 	pna.software_installer_id,
+	pna.install_queued,
 	COALESCE(st.name, '') AS name,
 	COALESCE(NULLIF(stdn.display_name, ''), st.name, '') AS display_name,
 	sti.software_title_id IS NOT NULL AS has_icon

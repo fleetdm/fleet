@@ -270,7 +270,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	platform_http.MaxRequestBodySize = config.Server.DefaultMaxRequestBodySize
 
 	mds, dbConns, carveStore := initDatastore(config, logger, clock.C, initFatal)
-	if mds == nil || dbConns == nil {
+	if mds == nil {
 		initFatal(errors.New("datastore was nil after initialization"), "initializing datastore")
 		return
 	}
