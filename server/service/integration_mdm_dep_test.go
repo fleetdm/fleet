@@ -3676,16 +3676,34 @@ func (s *integrationMDMTestSuite) TestBlockedEndpointsForABOnlyACMEConfig() {
 	}
 
 	assertUserFacingResponse := func(t *testing.T, resp *http.Response, isBlocked bool) {
+		// Every request validates the status code, so no need to do it here.
 		if isBlocked {
-			assert.Equal(t, http.StatusForbidden, resp.StatusCode)
 			errorMsg := extractServerErrorText(resp.Body)
 			expectedErr := fleet.ABOnlyEnrollmentForbiddenError{}
 			assert.Contains(t, errorMsg, expectedErr.Error())
-		} else {
-			// Just make sure we aren't seeing a 403.
-			assert.NotEqual(t, http.StatusForbidden, resp.StatusCode)
 		}
 	}
+
+	deviceInfo := []byte(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PRODUCT</key>
+	<string></string>
+	<key>SERIAL</key>
+	<string>foo</string>
+	<key>UDID</key>
+	<string></string>
+	<key>VERSION</key>
+	<string></string>
+</dict>
+</plist>`)
+	signedDeviceInfo, _, _ := s.getSignedOTAEnrollmentBody(t, deviceInfo)
+
+	// setup team with enroll secret
+	enrollSecret := "team"
+	_, err = s.ds.NewTeam(t.Context(), &fleet.Team{Name: "team", Secrets: []*fleet.EnrollSecret{{Secret: enrollSecret}}})
+	require.NoError(t, err)
 
 	for _, isBlocked := range []bool{true, false} {
 		t.Run(fmt.Sprintf("blocked=%v", isBlocked), func(t *testing.T) {
@@ -3697,8 +3715,6 @@ func (s *integrationMDMTestSuite) TestBlockedEndpointsForABOnlyACMEConfig() {
 			require.Equal(t, isBlocked, appCfg.MDM.IsAppleMDMSCEPBlocked())
 			require.NoError(t, s.ds.SaveAppConfig(context.Background(), appCfg))
 
-			enrollSecret := "team"
-
 			// we hit CA Caps and CA Cert to verify the middleware on all endpoints is blocking.
 			// PKIOperation requires additional setup to verify, but it's under the same middleware.
 			resp := s.DoRaw("GET", apple_mdm.SCEPPath, nil, getStatusCode(isBlocked), "operation", "GetCACaps")
@@ -3707,6 +3723,11 @@ func (s *integrationMDMTestSuite) TestBlockedEndpointsForABOnlyACMEConfig() {
 			assertUserFacingResponse(t, resp, isBlocked)
 
 			resp = s.DoRaw("GET", "/api/latest/fleet/enrollment_profiles/ota", nil, getStatusCode(isBlocked), "enroll_secret", enrollSecret)
+			assertUserFacingResponse(t, resp, isBlocked)
+
+			// Both requests return 403 forbidden here, but the following assert makes sure the blocked is the AB only blocked, the other forbidden is due to missing ceritficates,
+			// but it means we passed the blocked check.
+			resp = s.DoRaw("POST", "/api/latest/fleet/ota_enrollment", signedDeviceInfo, http.StatusForbidden, "enroll_secret", enrollSecret)
 			assertUserFacingResponse(t, resp, isBlocked)
 		})
 	}

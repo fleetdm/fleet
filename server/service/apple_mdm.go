@@ -8766,6 +8766,15 @@ func (svc *Service) MDMAppleProcessOTAEnrollment(
 	// authorization is performed via the enroll secret and the provided certificates
 	svc.authz.SkipAuthorization(ctx)
 
+	appCfg, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "reading app config")
+	}
+
+	if appCfg.MDM.OnlyAllowAppleBusinessEnrollment {
+		return nil, &fleet.ABOnlyEnrollmentForbiddenError{}
+	}
+
 	if len(certificates) == 0 {
 		return nil, authz.ForbiddenWithInternal("no certificates provided", nil, nil, nil)
 	}
@@ -8790,11 +8799,6 @@ func (svc *Service) MDMAppleProcessOTAEnrollment(
 		return nil, fmt.Errorf("loading SCEP challenge from the database: %w", err)
 	}
 	scepChallenge := string(assets[fleet.MDMAssetSCEPChallenge].Value)
-
-	appCfg, err := svc.ds.AppConfig(ctx)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "reading app config")
-	}
 
 	mdmURL := appCfg.MDMUrl()
 
