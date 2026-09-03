@@ -170,6 +170,19 @@ func TestValidationErrorsAreNotTypeErrors(t *testing.T) {
 	})
 }
 
+func TestMalformedJSONKeepsV1Wording(t *testing.T) {
+	for _, in := range []string{`{`, ``, `{"plain":`} {
+		var want, got payload
+		require.EqualError(t, Unmarshal([]byte(in), &got), jsonv1.Unmarshal([]byte(in), &want).Error(), in)
+	}
+
+	// Other syntax errors keep encoding/json's leading wording, without jsontext's prefix.
+	err := Unmarshal([]byte(`{"plain":}`), &payload{})
+	require.ErrorContains(t, err, "invalid character '}'")
+	require.NotContains(t, err.Error(), "jsontext")
+	require.False(t, IsTypeError(err))
+}
+
 func TestUnknownFieldKeepsV1Wording(t *testing.T) {
 	// Some code detects this case by matching encoding/json's exact message, so it has to survive
 	// verbatim, and only when the caller asked for strictness.

@@ -60,11 +60,12 @@ func Unmarshal(data []byte, v any) error {
 // being decoded into; it supplies the type name UnmarshalTypeError.Struct reports, matching what Go
 // 1.27's own v1 shim does.
 //
-// Anything that is not a v2 semantic error is returned unchanged, so io.EOF still ends a stream. That
-// also means malformed JSON keeps jsontext's wording ("unexpected EOF after offset 1") rather than
-// encoding/json's ("unexpected end of JSON input"): nothing matches on it, and the offset is the more
-// useful of the two. See TestMalformedJSONUsesV2Wording.
+// Anything else is returned unchanged, so io.EOF still ends a stream.
 func translate(err error, root any) error {
+	if _, ok := errors.AsType[*jsontext.SyntacticError](err); ok {
+		return syntaxError(err)
+	}
+
 	serr, ok := errors.AsType[*jsonv2.SemanticError](err)
 	if err == nil || !ok {
 		return err
@@ -102,6 +103,18 @@ func translate(err error, root any) error {
 		Struct: rootTypeName(root),
 		Field:  FieldPath(err),
 	}
+}
+
+// syntaxError restates a jsontext syntax error in encoding/json's wording.
+func syntaxError(err error) error {
+	if errors.Is(err, io.ErrUnexpectedEOF) {
+		return errors.New("unexpected end of JSON input")
+	}
+	msg := err.Error()
+	if i := strings.LastIndex(msg, "jsontext: "); i >= 0 {
+		msg = msg[i+len("jsontext: "):]
+	}
+	return errors.New(msg)
 }
 
 // isNumberOverflow reports whether serr is v2 failing to fit a JSON number into a Go numeric type.
