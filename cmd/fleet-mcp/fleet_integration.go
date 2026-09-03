@@ -39,10 +39,24 @@ type FleetClient struct {
 	liveQueryClient *http.Client
 }
 
-// liveQueryTimeoutMargin is added to liveQueryDeadline() for the live query
+// liveQueryTimeoutMargin is added to the server-side wait for the live query
 // client's timeout, covering request setup and the response write after the
 // server-side wait elapses.
 const liveQueryTimeoutMargin = 30 * time.Second
+
+// maxSingleHostBlock caps the server-side wait this timeout is derived from.
+// FLEET_LIVE_QUERY_REST_PERIOD is also the multi-host campaign's wait budget,
+// set far above anything a server blocks for (900s in render.yaml) so fleet-wide
+// queries outlast asleep hosts; uncapped, that budget would let one stalled
+// connection hang for 15 minutes. Fleet's own period must stay under the request
+// timeout of any proxy in front of it, so real values are tens of seconds.
+const maxSingleHostBlock = 120 * time.Second
+
+// singleHostQueryTimeout bounds the blocking POST /hosts/:id/query client.
+// liveQueryDeadline() stays uncapped for the campaign path.
+func singleHostQueryTimeout() time.Duration {
+	return min(liveQueryDeadline(), maxSingleHostBlock) + liveQueryTimeoutMargin
+}
 
 // PlatformBreakdown represents platform distribution data
 type PlatformBreakdown struct {
@@ -126,7 +140,7 @@ func NewFleetClient(baseURL, apiKey string, tlsSkipVerify bool, caFile string) *
 			Transport: transport,
 		},
 		liveQueryClient: &http.Client{
-			Timeout:   liveQueryDeadline() + liveQueryTimeoutMargin,
+			Timeout:   singleHostQueryTimeout(),
 			Transport: transport,
 		},
 	}

@@ -1124,6 +1124,16 @@ func TestNewFleetClientLiveQueryTimeout(t *testing.T) {
 	if got, want := fc.liveQueryClient.Timeout, 25*time.Second+liveQueryTimeoutMargin; got != want {
 		t.Fatalf("live query client timeout with negative period = %v, want %v", got, want)
 	}
+
+	// The campaign wait budget can be minutes; the single-host client must not inherit that.
+	t.Setenv("FLEET_LIVE_QUERY_REST_PERIOD", "900s")
+	fc = NewFleetClient("https://fleet.example.com", "key", false, "")
+	if got, want := fc.liveQueryClient.Timeout, maxSingleHostBlock+liveQueryTimeoutMargin; got != want {
+		t.Fatalf("live query client timeout with 900s period = %v, want %v", got, want)
+	}
+	if got := liveQueryDeadline(); got != 900*time.Second {
+		t.Fatalf("liveQueryDeadline() = %v, want 900s (campaign path must stay uncapped)", got)
+	}
 }
 
 func TestRunAdHocSingleHostFallsBackToDefaultClient(t *testing.T) {
