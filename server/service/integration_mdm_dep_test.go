@@ -3488,6 +3488,87 @@ func (s *integrationMDMTestSuite) TestDEPRequireACME() {
 	assert.True(t, hostResp.Host.MDMEnrollmentHardwareAttested)
 }
 
+// TestABOnlyEnrollmentBlocksAuthenticateForNonDEPHosts covers the AB-only enforcement in
+// MDMAppleCheckinAndCommandService.Authenticate directly, independent of the enrollment-profile
+// and SCEP layers that also enforce it. That matters because a device can reach the raw MDM
+// checkin endpoint without going through Fleet's profile-issuance endpoint at all — e.g. it
+// obtained a profile before AB-only was turned on, or via some other channel — so Authenticate
+// is the last line of defense and needs its own coverage rather than relying on the
+// profile-fetch block to catch every case.
+func (s *integrationMDMTestSuite) TestABOnlyEnrollmentBlocksAuthenticateForNonDEPHosts() {
+	t := s.T()
+	s.enableABM(t.Name())
+	s.setSkipWorkerJobs(t)
+
+	depDevice := godep.Device{SerialNumber: uuid.New().String(), Model: "MacBookPro16,1", OS: "osx", OpType: "added"}
+	s.mockDEPResponse(t.Name(), http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		encoder := json.NewEncoder(w)
+		switch r.URL.Path {
+		case "/session":
+			require.NoError(t, encoder.Encode(map[string]string{"auth_session_token": "xyz"}))
+		case "/profile":
+			require.NoError(t, encoder.Encode(godep.ProfileResponse{ProfileUUID: uuid.New().String()}))
+		case "/server/devices":
+			require.NoError(t, encoder.Encode(godep.DeviceResponse{Devices: []godep.Device{depDevice}}))
+		case "/devices/sync":
+			require.NoError(t, encoder.Encode(godep.DeviceResponse{Devices: []godep.Device{depDevice}, Cursor: "foo"}))
+		case "/profile/devices":
+			b, err := io.ReadAll(r.Body)
+			require.NoError(t, err)
+			var prof profileAssignmentReq
+			require.NoError(t, json.Unmarshal(b, &prof))
+			resp := godep.ProfileResponse{ProfileUUID: prof.ProfileUUID, Devices: make(map[string]string, len(prof.Devices))}
+			for _, serial := range prof.Devices {
+				resp.Devices[serial] = string(fleet.DEPAssignProfileResponseSuccess)
+			}
+			require.NoError(t, encoder.Encode(resp))
+		default:
+			_, _ = w.Write([]byte(`{}`))
+		}
+	}))
+	s.runDEPSchedule()
+	depURLToken := loadEnrollmentProfileDEPToken(t, s.ds)
+
+	// Only OnlyAllowAppleBusinessEnrollment, not AppleRequireHardwareAttestation: SCEP
+	// blocking (IsAppleMDMSCEPBlocked) requires both, and we want SCEP to succeed here so
+	// the non-DEP device actually reaches Authenticate instead of being turned away earlier.
+	origAppCfg, err := s.ds.AppConfig(t.Context())
+	require.NoError(t, err)
+	t.Cleanup(func() { s.ds.SaveAppConfig(context.Background(), origAppCfg) })
+	appCfg, err := s.ds.AppConfig(t.Context())
+	require.NoError(t, err)
+	appCfg.MDM.OnlyAllowAppleBusinessEnrollment = true
+	require.NoError(t, s.ds.SaveAppConfig(context.Background(), appCfg))
+
+	// The DEP-assigned device has a row in host_dep_assignments for its serial (populated by
+	// the DEP sync above), so the full enroll flow — profile fetch, SCEP, Authenticate,
+	// TokenUpdate — must succeed end to end.
+	validDevice := mdmtest.NewTestMDMClientAppleDEPFromDevice(s.server.URL, depURLToken, depDevice.SerialNumber, depDevice.Model)
+	require.NoError(t, validDevice.Enroll())
+
+	// A device with a valid SCEP identity but no DEP assignment skips Fleet's
+	// enrollment-profile endpoint entirely (NewTestMDMClientAppleDirect never calls it), so
+	// SCEP enrollment succeeds and the device reaches the raw Authenticate checkin — which
+	// must reject it on its own.
+	rogueDevice := mdmtest.NewTestMDMClientAppleDirect(mdmtest.AppleEnrollInfo{
+		SCEPChallenge: s.scepChallenge,
+		SCEPURL:       s.server.URL + apple_mdm.SCEPPath,
+		MDMURL:        s.server.URL + apple_mdm.MDMPath,
+	}, "MacBookPro16,1")
+	err = rogueDevice.Enroll()
+	require.Error(t, err)
+	assert.ErrorContains(t, err, "authenticate:")
+	assert.ErrorContains(t, err, fmt.Sprintf("%d", http.StatusForbidden))
+
+	// Rejected at Authenticate, so no host record should have been created for it.
+	listHostsRes := listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listHostsRes)
+	for _, h := range listHostsRes.Hosts {
+		assert.NotEqual(t, rogueDevice.UUID, h.UUID, "a host rejected at Authenticate must not be created")
+	}
+}
+
 func (s *integrationMDMTestSuite) TestGetDefaultDEPProfile() {
 	t := s.T()
 	s.enableABM(t.Name())
