@@ -14075,7 +14075,7 @@ func testHostVPPInstallLatestPerApp(t *testing.T, ds *Datastore) {
 	newApp := func(n string) fleet.VPPAppID {
 		app, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
 			Name: "vpplatest" + n, BundleIdentifier: "com.app.vpplatest" + n,
-			VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_latest_" + n, Platform: fleet.MacOSPlatform}},
+			AdamID: "adam_vpp_latest_" + n, Platform: fleet.MacOSPlatform,
 		}, nil)
 		require.NoError(t, err)
 		return app.VPPAppID
