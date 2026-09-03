@@ -617,3 +617,23 @@ type VPPIconAvailable struct {
 func (e *VPPIconAvailable) Error() string {
 	return fmt.Sprintf("VPP icon available at: %s", e.IconURL)
 }
+
+// ABOnlyEnrollmentForbiddenError is returned by device-facing enrollment
+// endpoints when only Apple Business enrollment is allowed.
+type ABOnlyEnrollmentForbiddenError struct {
+	ErrorWithUUID
+	InternalErr error
+}
+
+func (e *ABOnlyEnrollmentForbiddenError) Error() string {
+	return "Manual enrollment is not available. Only devices assigned through Apple Business can enroll. Please contact your IT administrator."
+}
+
+func (e *ABOnlyEnrollmentForbiddenError) StatusCode() int { return http.StatusForbidden }
+
+func (e *ABOnlyEnrollmentForbiddenError) Internal() string {
+	if e.InternalErr != nil {
+		return e.InternalErr.Error()
+	}
+	return ""
+}

@@ -345,6 +345,12 @@ type MDM struct {
 	/////////////////////////////////////////////////////////////////
 }
 
+// IsMDMSCEPBlocked reports whether MDM SCEP endpoints is blocked all together, this blocks enrollments
+// and renewals, plus those that might have a valid profile lying around with the static SCEP can't enroll.
+func (m MDM) IsMDMSCEPBlocked() bool {
+	return m.OnlyAllowAppleBusinessEnrollment && m.AppleRequireHardwareAttestation
+}
+
 type DiskEncryptionConfig struct {
 	// MacOSEnabled indicates if FileVault enforcement is enabled for macOS hosts.
 	MacOSEnabled bool

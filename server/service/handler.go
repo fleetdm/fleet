@@ -1406,8 +1406,9 @@ func RegisterAppleMDMProtocolServices(
 	serverURLPrefix string,
 	fleetConfig config.FleetConfig,
 	svc fleet.Service,
+	ds fleet.Datastore,
 ) error {
-	if err := registerSCEP(mux, scepConfig, scepStorage, mdmStorage, logger, fleetConfig); err != nil {
+	if err := registerSCEP(mux, scepConfig, scepStorage, mdmStorage, logger, fleetConfig, ds); err != nil {
 		return fmt.Errorf("scep: %w", err)
 	}
 	if err := registerMDM(mux, mdmStorage, checkinAndCommandService, ddmService, profileService, logger, fleetConfig); err != nil {
@@ -1479,6 +1480,7 @@ func registerSCEP(
 	mdmStorage fleet.MDMAppleStore,
 	logger *slog.Logger,
 	fleetConfig config.FleetConfig,
+	appCfgGetter fleet.GetsAppConfig,
 ) error {
 	var signer scepserver.CSRSignerContext = scepserver.SignCSRAdapter(scep_depot.NewSigner(
 		scepStorage,
@@ -1504,8 +1506,11 @@ func registerSCEP(
 
 	scepSlogLogger := logger.With("component", "http-mdm-apple-scep")
 	e := scepserver.MakeServerEndpoints(scepService)
+	e.GetEndpoint = scepserver.ACMEOnlyEnrollmentMiddleware(appCfgGetter)(e.GetEndpoint)
+	e.PostEndpoint = scepserver.ACMEOnlyEnrollmentMiddleware(appCfgGetter)(e.PostEndpoint)
 	e.GetEndpoint = scepserver.EndpointLoggingMiddleware(scepSlogLogger)(e.GetEndpoint)
 	e.PostEndpoint = scepserver.EndpointLoggingMiddleware(scepSlogLogger)(e.PostEndpoint)
+
 	scepHandler := scepserver.MakeHTTPHandler(e, scepService, scepSlogLogger)
 	mux.Handle(apple_mdm.SCEPPath, otel.WrapHandler(scepHandler, apple_mdm.SCEPPath, fleetConfig))
 	return nil

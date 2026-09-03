@@ -3656,3 +3656,48 @@ func (s *integrationMDMTestSuite) TestDEPSyncCursorPersistedAfterSuccessfulSync(
 		return nil
 	})
 }
+
+func (s *integrationMDMTestSuite) TestBlockedEndpointsForABOnlyACMEConfig() {
+	t := s.T()
+
+	originalAppCfg, err := s.ds.AppConfig(t.Context())
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		s.ds.SaveAppConfig(context.Background(), originalAppCfg)
+	})
+
+	getStatusCode := func(isBlocked bool) int {
+		if isBlocked {
+			return http.StatusForbidden
+		}
+		return http.StatusOK
+	}
+
+	assertUserFacingResponse := func(resp *http.Response, isBlocked bool) {
+		assert.Equal(t, getStatusCode(isBlocked), resp.StatusCode)
+		if isBlocked {
+			errorMsg := extractServerErrorText(resp.Body)
+			expectedErr := fleet.ABOnlyEnrollmentForbiddenError{}
+			assert.Equal(t, expectedErr.Error(), errorMsg)
+		}
+	}
+
+	for _, isBlocked := range []bool{true, false} {
+		t.Run(fmt.Sprintf("blocked=%v", isBlocked), func(t *testing.T) {
+			appCfg, err := s.ds.AppConfig(t.Context())
+			require.NoError(t, err)
+
+			appCfg.MDM.AppleRequireHardwareAttestation = isBlocked
+			appCfg.MDM.OnlyAllowAppleBusinessEnrollment = isBlocked
+			require.Equal(t, isBlocked, appCfg.MDM.IsMDMSCEPBlocked())
+			require.NoError(t, s.ds.SaveAppConfig(context.Background(), appCfg))
+
+			// we hit CA Caps and CA Cert to verify the middleware on all endpoints is blocking.
+			// PKIOperation requires additional setup to verify, but it's under the same middleware.
+			resp := s.DoRaw("GET", apple_mdm.SCEPPath, nil, getStatusCode(isBlocked), "operation", "GetCACaps")
+			assertUserFacingResponse(resp, isBlocked)
+			resp = s.DoRaw("GET", apple_mdm.SCEPPath, nil, getStatusCode(isBlocked), "operation", "GetCACert")
+			assertUserFacingResponse(resp, isBlocked)
+		})
+	}
+}
