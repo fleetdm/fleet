@@ -3689,7 +3689,7 @@ func (s *integrationMDMTestSuite) TestBlockedEndpointsForABOnlyACMEConfig() {
 
 			appCfg.MDM.AppleRequireHardwareAttestation = isBlocked
 			appCfg.MDM.OnlyAllowAppleBusinessEnrollment = isBlocked
-			require.Equal(t, isBlocked, appCfg.MDM.IsMDMSCEPBlocked())
+			require.Equal(t, isBlocked, appCfg.MDM.IsAppleMDMSCEPBlocked())
 			require.NoError(t, s.ds.SaveAppConfig(context.Background(), appCfg))
 
 			// we hit CA Caps and CA Cert to verify the middleware on all endpoints is blocking.

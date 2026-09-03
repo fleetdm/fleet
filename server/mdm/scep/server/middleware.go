@@ -20,7 +20,7 @@ func ACMEOnlyEnrollmentMiddleware(appCfgGetter fleet.GetsAppConfig) endpoint.Mid
 			if err != nil {
 				return nil, fmt.Errorf("loading app config for SCEP enrollment policy: %w", err)
 			}
-			if cfg.MDM.IsMDMSCEPBlocked() {
+			if cfg.MDM.IsAppleMDMSCEPBlocked() {
 				return nil, &fleet.ABOnlyEnrollmentForbiddenError{}
 			}
 			return next(ctx, request)
