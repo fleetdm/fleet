@@ -6,7 +6,7 @@
 
 - **"Chrome auto-updates" isn't the same as "Chrome is updated."** Chrome downloads patches automatically, but fixes only activate after a relaunch. A browser left open for days is still vulnerable in memory.
 - **Two critical memory-safety flaws.** CVE-2026-84353 (Shared Tab Groups) and CVE-2026-84352 (WebGL) are use-after-free bugs that allow attackers to run code in the browser process.
--**Chrome ships different build numbers per platform.** Chrome 152 is version 152.0.7977.64 on Linux and 152.0.7977.64/.65 on Windows and macOS.
+- **Chrome ships different build numbers per platform.** Chrome 152 is version 152.0.7977.64 on Linux and 152.0.7977.64/.65 on Windows and macOS.
 - **Find unpatched browsers instantly.** Fleet's software inventory lets you find the exact Chrome version running on every device.
 - **The same inventory feeds vulnerability matching.** Once Chrome's version is in Fleet's software table, it's cross-referenced against CVE data the same way every other piece of software on the fleet is, so a missed update surfaces as a flagged vulnerability, not a browser tab nobody looked at again.
 
