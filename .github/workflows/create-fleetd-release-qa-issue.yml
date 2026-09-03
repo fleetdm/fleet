@@ -15,9 +15,11 @@ on:
       - 'rc-patch-fleetd-v*'
   workflow_dispatch:
 
+# Serialize runs for the same branch without cancelling: a cherry-pick pushed
+# right after cutting the RC must not cancel the run creating the issue.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 defaults:
   run:
@@ -111,9 +113,10 @@ jobs:
             }
 
             // Previous fleetd version, to pre-fill the "Release versioning" section.
-            const tags = await github.paginate(github.rest.repos.listTags, {
+            const refs = await github.paginate(github.rest.git.listMatchingRefs, {
               owner: context.repo.owner,
               repo: context.repo.repo,
+              ref: 'tags/orbit-v',
               per_page: 100,
             });
             const cmp = (a, b) => {
@@ -121,18 +124,29 @@ jobs:
               for (let i = 0; i < 3; i++) if (pa[i] !== pb[i]) return pa[i] - pb[i];
               return 0;
             };
-            const previous = tags
-              .map(t => t.name.match(/^orbit-v(\d+\.\d+\.\d+)$/)?.[1])
+            const previous = refs
+              .map(r => r.ref.match(/^refs\/tags\/orbit-v(\d+\.\d+\.\d+)$/)?.[1])
               .filter(v => v && cmp(v, version) < 0)
               .sort(cmp)
               .pop();
             console.log(`Previous fleetd version: ${previous ?? 'unknown'}`);
 
+            // Pre-fill the Orbit and Desktop lines of "Release versioning" (they
+            // share the fleetd version). Match the whole line by component name so
+            // small edits to the template's placeholder text don't break this, and
+            // warn if the line is gone so the template and workflow can be re-synced.
             let body = templateBody;
             if (previous) {
-              body = body
-                .replace(/^- Orbit: True \/ False : `v1\.xx\.x` > `v1\.xx\.x`$/m, `- Orbit: True : \`v${previous}\` > \`v${version}\``)
-                .replace(/^- Desktop: True \/ False : `v1\.xx\.x` > `v1\.xx\.x`$/m, `- Desktop: True : \`v${previous}\` > \`v${version}\``);
+              for (const component of ['Orbit', 'Desktop']) {
+                const line = new RegExp(`^-\\s*${component}:.*$`, 'm');
+                if (!line.test(body)) {
+                  core.warning(`Template has no "- ${component}:" line under "Release versioning"; leaving the body as-is.`);
+                  continue;
+                }
+                body = body.replace(line, `- ${component}: True : \`v${previous}\` > \`v${version}\``);
+              }
+            } else {
+              core.warning('No previous orbit-v* tag found; leaving "Release versioning" placeholders as-is.');
             }
             body = [
               `**Release candidate branch:** [\`${branch}\`](https://github.com/${context.repo.owner}/${context.repo.repo}/tree/${branch}) (${releaseType} release)`,
