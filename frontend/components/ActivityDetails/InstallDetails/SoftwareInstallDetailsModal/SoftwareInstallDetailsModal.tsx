@@ -152,9 +152,8 @@ export const StatusMessage = ({
     : "";
 
   if (skippedInstall && status === "failed_install") {
-    // Admin activity feed links "policy runs again" to admin-facing cadence
-    // docs; the end-user "My device" flow shows plain text since the doc is
-    // admin-only.
+    // Admin-facing pages link "policy runs again" to cadence docs; the end-user
+    // "My device" flow shows plain text since the doc is admin-only.
     const skippedDetails = isMyDevicePage ? (
       SKIPPED_INSTALL_DETAILS
     ) : (
