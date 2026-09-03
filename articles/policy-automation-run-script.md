@@ -16,7 +16,7 @@ Fleet allows users to upload [scripts](https://fleetdm.com/guides/scripts) execu
 2. **Add a policy**: Navigate to **Policies**, select the fleet you want the policy to run on, and click **Add policy**. Follow the instructions to set up a custom policy or use one baked into Fleet. You can also add a script automation to an existing policy.
 3. **Set the automation**: In the previous step's **Policies** list view you navigated to, click **Manage automations**, then click **Run script**. Check the box beside the policy (or policies) for which you want to run scripts, then select a script in the drop-down that appears next to the policy name. When you're done associating policies to scripts, click **Save**.
 
-When a host fails the selected policy, this will trigger the script to run on the host. If the script fails, see [Resetting a policy's automation status](https://fleetdm.com/guides/automations#resetting-a-policys-automation-status) to retry it.
+When a host fails the selected policy, this will trigger the script to run on the host. If the script fails on several hosts, [learn how to reset the policy](https://fleetdm.com/guides/automations#policy-automations) to retry the script.
 
 ## How does it work?
 
