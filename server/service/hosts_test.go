@@ -6558,7 +6558,8 @@ func TestGetHostRecoveryLockPassword(t *testing.T) {
 		}
 		ds.GetHostRecoveryLockPasswordFunc = func(ctx context.Context, hostUUID string) (*fleet.HostRecoveryLockPassword, error) {
 			return &fleet.HostRecoveryLockPassword{
-				Password: "test-password",
+				Password: new("test-password"),
+				Status:   &fleet.MDMDeliveryVerified,
 			}, nil
 		}
 		ds.MarkRecoveryLockPasswordViewedFunc = func(ctx context.Context, hostUUID string) (time.Time, error) {
@@ -6571,7 +6572,8 @@ func TestGetHostRecoveryLockPassword(t *testing.T) {
 		userCtx := test.UserContext(ctx, test.UserAdmin)
 		password, err := svc.GetHostRecoveryLockPassword(userCtx, 3)
 		require.NoError(t, err)
-		assert.Equal(t, "test-password", password.Password)
+		require.NotNil(t, password.Password)
+		assert.Equal(t, "test-password", *password.Password)
 	})
 
 	t.Run("calls MarkRecoveryLockPasswordViewed and sets auto_rotate_at", func(t *testing.T) {
@@ -6597,7 +6599,8 @@ func TestGetHostRecoveryLockPassword(t *testing.T) {
 		}
 		ds.GetHostRecoveryLockPasswordFunc = func(ctx context.Context, hostUUID string) (*fleet.HostRecoveryLockPassword, error) {
 			return &fleet.HostRecoveryLockPassword{
-				Password: "test-password-4",
+				Password: new("test-password-4"),
+				Status:   &fleet.MDMDeliveryVerified,
 			}, nil
 		}
 		opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, _ activity_api.ActivityDetails) error {
@@ -6615,7 +6618,8 @@ func TestGetHostRecoveryLockPassword(t *testing.T) {
 		userCtx := test.UserContext(ctx, test.UserAdmin)
 		password, err := svc.GetHostRecoveryLockPassword(userCtx, 4)
 		require.NoError(t, err)
-		assert.Equal(t, "test-password-4", password.Password)
+		require.NotNil(t, password.Password)
+		assert.Equal(t, "test-password-4", *password.Password)
 		assert.True(t, markViewedCalled, "MarkRecoveryLockPasswordViewed should be called")
 		require.NotNil(t, password.AutoRotateAt)
 		assert.WithinDuration(t, expectedRotateAt, *password.AutoRotateAt, 1*time.Second)
@@ -6644,7 +6648,8 @@ func TestGetHostRecoveryLockPassword(t *testing.T) {
 		}
 		ds.GetHostRecoveryLockPasswordFunc = func(ctx context.Context, hostUUID string) (*fleet.HostRecoveryLockPassword, error) {
 			return &fleet.HostRecoveryLockPassword{
-				Password: "test-password-5",
+				Password: new("test-password-5"),
+				Status:   &fleet.MDMDeliveryVerified,
 			}, nil
 		}
 		ds.MarkRecoveryLockPasswordViewedFunc = func(ctx context.Context, hostUUID string) (time.Time, error) {

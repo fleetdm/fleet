@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "4.6.1",
+      "version": "4.6.2",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.wrike.Wrike';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.wrike.Wrike' AND version_compare(bundle_short_version, '4.6.1') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.wrike.Wrike' AND version_compare(bundle_short_version, '4.6.2') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.wrike.Wrike' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://dl.wrike.com/download/WrikeDesktopApp_ARM.v4.6.1.dmg",
+      "installer_url": "https://dl.wrike.com/download/WrikeDesktopApp_ARM.v4.6.2.dmg",
       "install_script_ref": "db0938a2",
       "uninstall_script_ref": "89651e32",
-      "sha256": "4bfe955f8421b5e44770a24481970402856c9f7b3408a89cbfc11495472577a2",
+      "sha256": "b8796829ac6d884df0bd65e9f5b399375c827852dbb51cfdd4420a091194c9bd",
       "default_categories": [
         "Productivity"
       ]

@@ -210,6 +210,12 @@ func (e *UserMessageError) UserMessage() string {
 			sb.WriteString("s")
 		}
 
+		if cause.Field == "" {
+			// Since Go 1.27, encoding/json no longer records the field path for errors surfaced by a custom
+			// UnmarshalJSON (optjson types, for instance), so drop the empty location instead of printing "at ''".
+			return fmt.Sprintf("invalid value type: expected %s but got %s", sb.String(), cause.Value)
+		}
+
 		return fmt.Sprintf("invalid value type at '%s': expected %s but got %s", cause.Field, sb.String(), cause.Value)
 
 	default:

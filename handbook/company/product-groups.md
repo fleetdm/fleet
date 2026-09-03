@@ -46,8 +46,6 @@ At Fleet, [anyone can contribute](https://fleetdm.com/handbook/company#openness)
 
 ### Orchestration group
 
-The goal of the orchestration group is to increase and exceed [Fleet's product maturity goals in the orchestration category](https://fleetdm.com/orchestration).
-
 | Responsibility                    | Human(s)                  |
 |:----------------------------------|:--------------------------|
 | Product Designer                  | [Rachael Shaw](https://www.linkedin.com/in/rachaelcshaw/) _([@rachaelshaw](https://github.com/rachaelshaw))_
@@ -72,8 +70,6 @@ The goal of the orchestration group is to increase and exceed [Fleet's product m
 
 ### Supply Chain group
 
-The goal of the Supply Chain group is to help customers secure the software and dependencies running on their fleet, reducing exposure to vulnerabilities and ensuring compliance across the device lifecycle.
-
 | Responsibility                    | Human(s)                  |
 |:----------------------------------|:--------------------------|
 | Product Designer                  | [Rachael Shaw](https://www.linkedin.com/in/rachaelcshaw/) _([@rachaelshaw](https://github.com/rachaelshaw))_
@@ -96,8 +92,6 @@ The goal of the Supply Chain group is to help customers secure the software and 
 
 ### Apple @ Work group
 
-The goal of the Apple @ Work group is to increase the number of Apple devices managed by Fleet.
-
 | Responsibility                    | Human(s)                  |
 |:----------------------------------|:--------------------------|
 | Product Designer                  | [Mel Pike](https://www.linkedin.com/in/melpike/) _([@melpike](https://github.com/melpike))_
@@ -117,8 +111,6 @@ The goal of the Apple @ Work group is to increase the number of Apple devices ma
 
 
 ### Auto Patching group
-
-The goal of the Auto Patching group is to reduce the amount of time before software is patched after vulnerabilities are discovered.
 
 | Responsibility                    | Human(s)                  |
 |:----------------------------------|:--------------------------|
@@ -142,8 +134,6 @@ The goal of the Auto Patching group is to reduce the amount of time before softw
 
 ### Power to the PC group
 
-The goal of the Power to the PC group is to empower Windows users to fully leverage Fleet as an MDM.
-
 | Responsibility                    | Human(s)                  |
 |:----------------------------------|:--------------------------|
 | Product Designer                  | [Mel Pike](https://www.linkedin.com/in/melpike/) _([@melpike](https://github.com/melpike))_
@@ -157,8 +147,6 @@ The goal of the Power to the PC group is to empower Windows users to fully lever
 
 ### BYOD group
 
-The goal of the BYOD group is to enable Fleet to manage personally-owned Android devices used at work. This group also owns corporate-owned Android device management so that one team can ensure corporate-owned features are not applied to personal devices.
-
 | Responsibility                    | Human(s)                  |
 |:----------------------------------|:--------------------------|
 | Product Designer                  | [LeAnn Gove](https://www.linkedin.com/in/leann-gove-61a750142/) _([@leanngove](https://github.com/leanngove))_
@@ -171,8 +159,6 @@ The goal of the BYOD group is to enable Fleet to manage personally-owned Android
 
 
 ### Website group
-
-The goal of the website group is to increase and exceed Fleet's product maturity goals for fleetdm.com.
 
 | Responsibility                    | Human(s)                  |
 |:----------------------------------|:--------------------------|
@@ -538,11 +524,11 @@ T-shirt sizes represent a rough estimate on the effort required to complete a ta
 | T-shirt size | Time |
 |:---|:-----------------------------|
 | XXS | ≤1 day for 1 contributor |
-| XS | ≤1 week for 1 contributor |
-| S  | ≤1 release cycle for 1 contributor |
-| M  | 1 release cycle for 2 contributors |
-| L  | 1 release cycle for 3 contributors |
-| XL | >1 release cycle for 3 contributors |
+| XS | ≤3 days for 1 contributor |
+| S  | ≤1 week for 1 contributor |
+| M  | ≤2 weeks for 1 contributor |
+| L  | ≤3 weeks for 1 contributor |
+| XL | >3 weeks for 1 contributor |
 
 
 ### Implementing
