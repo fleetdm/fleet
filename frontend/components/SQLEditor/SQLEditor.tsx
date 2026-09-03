@@ -18,12 +18,12 @@ import {
   sqlKeyWords,
 } from "utilities/sql_tools";
 import { releaseStuckSelectionOnScroll } from "utilities/ace_editor";
+import "utilities/ace_theme";
 
 import CopyButton from "components/buttons/CopyButton";
 import Icon from "components/Icon";
 
 import "./mode";
-import "./theme";
 
 export interface ISQLEditorProps {
   focus?: boolean;
