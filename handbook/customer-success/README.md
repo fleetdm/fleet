@@ -247,6 +247,24 @@ During the window of time available to investigate an issue, use the resources a
 
 Note: For non-CSA engaged customer requests, CSE's are responsible for escalations to a CSA as needed. 
 
+### Escalate a support issue
+
+If additional help is needed after timeboxing an investigation, escalate the issue using Unthread:
+
+1. In Unthread, open the customer conversation and use the **triage** option.
+2. Post a thread to [#help-customers](https://fleetdm.slack.com/archives/C062D0THVV1) with:
+   - A short summary of the issue
+   - Customer impact and urgency
+   - What has already been investigated (including logs, repro steps, and findings)
+   - The specific help needed (for example: CSA input, on-call engineering support, or infrastructure review)
+3. Tag Kathy Satterlee for visibility and coordination.
+4. If no answer is found in 30 minutes, escalate to:
+   - [Contact the developer on-call](#contact-the-developer-on-call), or
+   - [Contact the infrastructure engineer on-call](#contact-the-infrastructure-engineer-on-call) (for suspected infrastructure issues)
+5. Keep follow-up updates in that same #help-customers thread so internal coordination stays in one place.
+6. Share the #help-customers thread back in the customer-facing thread when appropriate, so context stays linked.
+
+
 ### Keep support conversations in one thread
 
 A single issue can sprawl across the customer channel, #help-customers, #help-engineering, and a product group channel, making it hard to track. To keep full context in one place:
