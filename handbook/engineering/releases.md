@@ -66,7 +66,7 @@ Only merge unreleased bug fixes during the release candidate period to minimize 
 
 This process ensures your bug fix is included in `main` for future releases, as well as the release candidate branch for the pending release.
 
-> If unreleased bugs are still open 2 business days before the release due date, push the due date. Set the new date by estimating how long the remaining bug fixes will take, then adding 2 business days for smoke and load testing. Communicate the new date in the [#help-releases thread](#discuss-release-dates) for the release.
+> If unreleased bugs are still open 2 business days before the release due date, contact the release ritual DRI and request they push the target release date. Set the new date by estimating how long the remaining bug fixes will take, then adding 2 business days for smoke and load testing. Communicate the new date in the [#help-releases thread](#discuss-release-dates) for the release.
 
 If there is partially merged feature work when the release candidate is created, the previously merged code must be reverted. If there is an exceptional, business-critical need to merge feature work into the release candidate, as determined by the [release ritual DRI](https://fleetdm.com/handbook/engineering#rituals), the release candidate [feature merge exception process](#request-release-candidate-feature-merge-exception) may be followed.
 
