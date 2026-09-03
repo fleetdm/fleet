@@ -1,5 +1,6 @@
 import { getErrorReason } from "interfaces/errors";
 import { IHost } from "interfaces/host";
+import { INITIAL_FLEET_DATE } from "utilities/constants";
 
 import { getHostDeviceStatusUIState } from "../helpers";
 
@@ -32,3 +33,10 @@ export const canShowMyDeviceButton = (
   );
   return uiState !== "wiped" && uiState !== "wiping";
 };
+
+// Hosts created in a pending state (Apple Business Manager, Windows Autopilot) are inserted with
+// refetch_requested already set, but there is nothing on the device yet to answer it, so the flag
+// stays on until the host actually enrolls. Their last_enrolled_at holds the "never" sentinel until
+// then, which is what separates them from hosts that can return vitals.
+export const hasEverEnrolled = (host: Pick<IHost, "last_enrolled_at">) =>
+  !!host.last_enrolled_at && host.last_enrolled_at >= INITIAL_FLEET_DATE;

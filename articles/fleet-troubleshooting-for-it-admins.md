@@ -81,12 +81,6 @@ Use [fleetctl](https://fleetdm.com/guides/fleetctl) to see server logs.
 fleetctl debug errors
 ```
 
-<meta name="category" value="guides">
-<meta name="authorFullName" value="Steven Palmesano">
-<meta name="authorGitHubUsername" value="spalmesano0">
-<meta name="publishedOn" value="2026-02-13">
-<meta name="articleTitle" value="Fleet troubleshooting for IT admins">
-<meta name="description" value="Basic troubleshooting steps for when things go wrong.">
 
 ## iOS & iPadOS MDMClient logs
 
@@ -99,3 +93,23 @@ You can obtain MDMClient related logs on iOS and iPadOS using sysdiagnose. This 
 - Search for `sysdiag` and share the `.tar.gz` file
 - Search the archive for `system_logs.logarchive` and open with **Console**
 - Filter for `mdmclient`
+
+## Apple System Diagnostics
+
+A sysdiagnose is a collection of diagnostic logs that are useful for troubleshooting and debugging problems on Apple devices (macOS, iOS, and iPadOS).
+
+On a Mac, you can grab this two ways: via the UI with [Activity Monitor](https://support.apple.com/guide/activity-monitor/run-system-diagnostics-actmntr2225/mac) (the System Diagnostics option), or the CLI by running this command:
+
+```bash
+sudo sysdiagnose -f ~/Desktop/
+```
+
+Getting a sysdiagnose from iOS/iPadOS is a little more complicated, but can be done. The best way to do this is to follow [Apple's documentation](https://support.apple.com/guide/platform-support/use-diagnostics-to-research-device-issues-supd3f43814e/web).
+
+
+<meta name="category" value="guides">
+<meta name="authorFullName" value="Steven Palmesano">
+<meta name="authorGitHubUsername" value="spalmesano0">
+<meta name="publishedOn" value="2026-02-13">
+<meta name="articleTitle" value="Fleet troubleshooting for IT admins">
+<meta name="description" value="Basic troubleshooting steps for when things go wrong.">

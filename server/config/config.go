@@ -114,7 +114,12 @@ const (
 	TLSProfileKey          = "server.tls_compatibility"
 	TLSProfileModern       = "modern"
 	TLSProfileIntermediate = "intermediate"
+
+	EndpointRequestSizeOverridesKey = "server.endpoint_request_size_overrides"
 )
+
+// EndpointRequestSizeOverrides maps a literal registered endpoint path (e.g. "/api/_version_/fleet/...") to its maximum allowed body size.
+type EndpointRequestSizeOverrides map[string]int64
 
 // ServerConfig defines configs related to the Fleet server
 type ServerConfig struct {
@@ -136,12 +141,15 @@ type ServerConfig struct {
 	PrivateKeySecretSTSExternalID    string        `yaml:"private_key_sts_external_id"`
 	VPPVerifyTimeout                 time.Duration `yaml:"vpp_verify_timeout"`
 	VPPVerifyRequestDelay            time.Duration `yaml:"vpp_verify_request_delay"`
+	VPPInstallReapTimeout            time.Duration `yaml:"vpp_install_reap_timeout"`
 	CleanupDistTargetsAge            time.Duration `yaml:"cleanup_dist_targets_age"`
 	MaxInstallerSizeBytes            int64         `yaml:"max_installer_size"`
 	TrustedProxies                   string        `yaml:"trusted_proxies"`
 	GzipResponses                    bool          `yaml:"gzip_responses"`
 	DefaultMaxRequestBodySize        int64         `yaml:"default_max_request_body_size"`
 	AllowPrivateNetworkIntegrations  bool          `yaml:"allow_private_network_integrations"`
+	BypassNetworkBlocking            bool          `yaml:"bypass_network_blocking"`
+	EndpointRequestSizeOverrides     EndpointRequestSizeOverrides
 }
 
 func (s *ServerConfig) DefaultHTTPServer(ctx context.Context, handler http.Handler) *http.Server {
@@ -311,6 +319,51 @@ type OsqueryConfig struct {
 	//     body's node_key field is ignored. Pre-auth rejects
 	//     absent/invalid headers BEFORE the body is read.
 	AllowBodyAuthFallback bool `yaml:"allow_body_auth_fallback"`
+
+	// ConfigETags enables conditional osquery config requests: an agent that
+	// sends an "etag" field in its /api/osquery/config request body receives
+	// the config with an "etag" key added, and the constant {"etag":"ok"}
+	// body when its etag matches the current config.
+	//
+	// Default is FALSE: the request's etag field is ignored, every response
+	// is the full config with no "etag" key (byte-identical to the
+	// pre-feature behavior for every agent, opted-in or not), and no etag
+	// store I/O happens. Setting FLEET_OSQUERY_CONFIG_ETAGS=true and
+	// restarting opts a deployment in. This gate is broader than
+	// RedisConfigETags below, which only disables the Redis short circuit
+	// while leaving the conditional request protocol active.
+	ConfigETags bool `yaml:"config_etags"`
+
+	// RedisConfigETags enables the Redis-backed osquery config ETag SHORT
+	// CIRCUIT: when a host's request body carries an "etag" field matching
+	// the stored validator, the /api/osquery/config response is the constant
+	// {"etag":"ok"} body served straight from Redis, WITHOUT building the
+	// config (zero database reads for that request). Requires Redis to be
+	// configured; silently has no effect without it.
+	//
+	// Default is FALSE: every config request takes the always-full-build
+	// path, byte-identical to the behavior without this feature. Setting
+	// FLEET_OSQUERY_REDIS_CONFIG_ETAGS=true and restarting enables the short
+	// circuit, and requires ConfigETags above to be true as well (see
+	// effectiveRedisConfigETags). Toggling it back off is the A/B lever for
+	// ruling the feature out when debugging config delivery.
+	//
+	// See fleet.OsqueryService.GetClientConfigWithETag and the
+	// server/service/redis_config_etag package for the full contract.
+	RedisConfigETags bool `yaml:"redis_config_etags"`
+
+	// ConfigInMemoryCache enables the in-memory cache that serves the
+	// scheduled-report section of the osquery config — the response's
+	// "packs" key — for PackConfigCacheTTL, keyed by (team,
+	// query_reports_disabled), instead of rebuilding it from the database on
+	// every check-in. It never covers the rest of the response: "options"
+	// and "decorators" are rebuilt from agent options every time.
+	//
+	// Default is FALSE: every check-in builds from the database, which is
+	// slower but immune to any staleness in the cache. Setting
+	// FLEET_OSQUERY_CONFIG_IN_MEMORY_CACHE=true and restarting opts a
+	// deployment in. Independent of the config ETag options above.
+	ConfigInMemoryCache bool `yaml:"config_in_memory_cache"`
 }
 
 // Validate checks that osquery_host_identifier is one of the supported values.
@@ -411,6 +464,13 @@ type ActivityConfig struct {
 	EnableAuditLog bool `yaml:"enable_audit_log"`
 	// AuditLogPlugin sets the plugin to use to log activities.
 	AuditLogPlugin string `yaml:"audit_log_plugin"`
+	// FleetInitiatedReleasePerMinute caps how many hosts get a Fleet-initiated
+	// upcoming activity (policy-automation installs and scripts) activated per
+	// minute. Fleet-initiated activities are enqueued immediately but held
+	// unactivated until the release cron activates them within this budget,
+	// pacing the downstream execution and result-ingestion load. 0 disables the
+	// gate and activates inline at enqueue time.
+	FleetInitiatedReleasePerMinute int `yaml:"fleet_initiated_release_per_minute"`
 }
 
 // FirehoseConfig defines configs for the AWS Firehose logging plugin
@@ -510,6 +570,12 @@ type S3Config struct {
 	SoftwareInstallersCloudFrontURLSigningPublicKeyID string        `yaml:"software_installers_cloudfront_url_signing_public_key_id"`
 	SoftwareInstallersCloudFrontURLSigningPrivateKey  string        `yaml:"software_installers_cloudfront_url_signing_private_key"`
 	SoftwareInstallersCloudFrontSigner                crypto.Signer `yaml:"-"`
+	// SoftwareInstallersSignedURL, when true, makes Fleet hand out a presigned
+	// GET URL (instead of proxying the bytes) for software installer, in-house
+	// app and bootstrap package downloads, so clients fetch directly from the
+	// object store. Only supported against a GCS (storage.googleapis.com)
+	// endpoint. This is the GCS counterpart to the CloudFront signing config.
+	SoftwareInstallersSignedURL bool `yaml:"software_installers_signed_url"`
 }
 
 func (s S3Config) ValidateCloudFrontURL(initFatal func(err error, msg string)) {
@@ -541,6 +607,44 @@ func (s S3Config) ValidateCloudFrontURL(initFatal func(err error, msg string)) {
 	}
 }
 
+// ValidateSoftwareInstallersSignedURL validates the GCS presigned-URL download
+// option. Presigned downloads are only supported against a GCS endpoint, so we
+// fail fast on any other endpoint to avoid silently proxying large files.
+func (s S3Config) ValidateSoftwareInstallersSignedURL(initFatal func(err error, msg string)) {
+	if !s.SoftwareInstallersSignedURL {
+		return
+	}
+	// Presigned URLs point clients straight at the object store, so require an
+	// https scheme (no plaintext, and newS3Store's resolver needs one) and match
+	// the parsed hostname, not a substring, so a look-alike host can't satisfy it.
+	u, err := url.Parse(s.SoftwareInstallersEndpointURL)
+	if err != nil {
+		initFatal(fmt.Errorf("invalid s3_software_installers_endpoint_url: %w", err),
+			"S3 software installers signed URL")
+		return
+	}
+	if u.Scheme != "https" {
+		initFatal(errors.New("Couldn't configure. `s3_software_installers_signed_url` requires `s3_software_installers_endpoint_url` to be an https URL (e.g. https://storage.googleapis.com)."),
+			"S3 software installers signed URL")
+		return
+	}
+	host := strings.ToLower(u.Hostname())
+	if host != "storage.googleapis.com" && !strings.HasSuffix(host, ".storage.googleapis.com") {
+		initFatal(errors.New("Couldn't configure. `s3_software_installers_signed_url` requires `s3_software_installers_endpoint_url` to point at a GCS endpoint (storage.googleapis.com)."),
+			"S3 software installers signed URL")
+		return
+	}
+	// Presigning needs HMAC credentials. Without them it fails at request time and
+	// Fleet silently proxies every download, which is what this check prevents.
+	// IAM auth doesn't use HMAC creds and is rejected at store init, so skip it then.
+	if !s.SoftwareInstallersGCSIAMAuth &&
+		(s.SoftwareInstallersAccessKeyID == "" || s.SoftwareInstallersSecretAccessKey == "") {
+		initFatal(errors.New("Couldn't configure. `s3_software_installers_signed_url` requires `s3_software_installers_access_key_id` and `s3_software_installers_secret_access_key` for presigning."),
+			"S3 software installers signed URL")
+		return
+	}
+}
+
 func (s S3Config) BucketsAndPrefixesMatch() bool {
 	cb := s.CarvesBucket
 	if cb == "" {
@@ -568,6 +672,7 @@ func (s S3Config) SoftwareInstallersToInternalCfg() S3ConfigInternal {
 		DisableSSL:       s.SoftwareInstallersDisableSSL,
 		ForceS3PathStyle: s.SoftwareInstallersForceS3PathStyle,
 		GCSIAMAuth:       s.SoftwareInstallersGCSIAMAuth,
+		SignedURL:        s.SoftwareInstallersSignedURL,
 	}
 	if s.SoftwareInstallersCloudFrontSigner != nil {
 		configInternal.CloudFrontConfig = &S3CloudFrontConfig{
@@ -643,6 +748,7 @@ type S3ConfigInternal struct {
 	ForceS3PathStyle bool
 	GCSIAMAuth       bool
 	CloudFrontConfig *S3CloudFrontConfig
+	SignedURL        bool
 }
 
 type S3CloudFrontConfig struct {
@@ -818,9 +924,11 @@ type FleetConfig struct {
 	Prometheus                 PrometheusConfig
 	MDM                        MDMConfig
 	Calendar                   CalendarConfig
+	GoogleWorkspace            GoogleWorkspaceConfig `yaml:"google_workspace"`
 	Partnerships               PartnershipsConfig
 	MicrosoftCompliancePartner MicrosoftCompliancePartnerConfig `yaml:"microsoft_compliance_partner"`
 	ConditionalAccess          ConditionalAccessConfig          `yaml:"conditional_access"`
+	WebSocket                  WebSocketConfig                  `yaml:"websocket"`
 
 	// Deprecated: "packaging" fields were used for "Fleet Sandbox" which doesn't exist anymore.
 	Packaging PackagingConfig
@@ -859,6 +967,35 @@ func (c ConditionalAccessConfig) Validate(initFatal func(err error, msg string))
 			fmt.Errorf("%q is not a valid value (must be %q or %q)", c.CertSerialFormat, CertSerialFormatHex, CertSerialFormatDecimal),
 			"conditional_access.cert_serial_format",
 		)
+	}
+}
+
+// WebSocketConfig holds the server configuration for the agent WebSocket
+// notification transport (ADR-0011). When TransportEnabled is false (the
+// default), the WebSocket endpoint is not registered and agents poll as usual.
+type WebSocketConfig struct {
+	TransportEnabled bool          `yaml:"transport_enabled"`
+	PingInterval     time.Duration `yaml:"ping_interval"`
+	PongTimeout      time.Duration `yaml:"pong_timeout"`
+	CheckInterval    time.Duration `yaml:"check_interval"`
+	CheckBatchSize   int           `yaml:"check_batch_size"`
+}
+
+// Validate checks that the WebSocketConfig has valid values. The values feed
+// tickers and batch loops, so zero or negative values would panic or spin.
+func (w WebSocketConfig) Validate(initFatal func(err error, msg string)) {
+	if !w.TransportEnabled {
+		return
+	}
+	for name, ok := range map[string]bool{
+		"websocket.ping_interval":    w.PingInterval > 0,
+		"websocket.pong_timeout":     w.PongTimeout > 0,
+		"websocket.check_interval":   w.CheckInterval > 0,
+		"websocket.check_batch_size": w.CheckBatchSize > 0,
+	} {
+		if !ok {
+			initFatal(errors.New("must be greater than 0"), name)
+		}
 	}
 }
 
@@ -907,9 +1044,18 @@ type MDMConfig struct {
 
 	// AppleEnable enables Apple MDM functionality on Fleet.
 	AppleEnable bool `yaml:"apple_enable"`
+	// AppleMachineInfoVerify controls whether the CMS/PKCS7 signature on Apple's
+	// x-apple-aspen-deviceinfo (MachineInfo) blob is verified during enrollment.
+	// Enabled by default; set to false to run verification in audit mode (log
+	// failures without blocking enrollment).
+	AppleMachineInfoVerify bool `yaml:"apple_machineinfo_verify"`
 	// AppleDEPSyncPeriodicity is the duration between DEP device syncing
 	// (fetching and setting of DEP profiles).
 	AppleDEPSyncPeriodicity time.Duration `yaml:"apple_dep_sync_periodicity"`
+	// AppleAPNsPushExpiration is the value used for the apns-expiration header
+	// on APNs push notifications, so APNs stores and retries delivery to
+	// offline devices until then. Zero or negative omits the header.
+	AppleAPNsPushExpiration time.Duration `yaml:"apple_apns_push_expiration"`
 	// AppleSCEPChallenge is the SCEP challenge for SCEP enrollment requests.
 	AppleSCEPChallenge string `yaml:"apple_scep_challenge"`
 	// AppleSCEPSignerValidityDays are the days signed client certificates will
@@ -947,6 +1093,18 @@ type MDMConfig struct {
 	// EnableCustomDiskEncryption is a cross-platform alias for EnableCustomFileVault.
 	EnableCustomDiskEncryption bool `yaml:"enable_custom_disk_encryption"`
 	AllowAllDeclarations       bool `yaml:"allow_all_declarations"`
+	// AllowCustomActivations opts in to custom DDM activations. Off by default
+	// because a predicate Fleet cannot validate can wedge a host's MDM
+	// subsystem beyond remote recovery -- see Apple FB24193230 and #50764.
+	AllowCustomActivations bool `yaml:"allow_custom_activations"`
+
+	// AllowOrbitEndUserAuthBypass controls whether an Orbit/fleetd host that does
+	// not complete end user authentication is allowed to enroll into a team that
+	// requires it. Defaults to true so that agents predating end user
+	// authentication (and installers built with `fleetctl package
+	// --bypass-end-user-auth`) can still enroll. Set to false to strictly enforce
+	// end user authentication for all Orbit enrollments.
+	AllowOrbitEndUserAuthBypass bool `yaml:"allow_orbit_end_user_auth_bypass"`
 
 	AndroidAgent     AndroidAgentConfig `yaml:"android_agent"`
 	AndroidBatchSize int                `yaml:"android_batch_size"`
@@ -1000,6 +1158,53 @@ func (c *CalendarConfig) AlwaysReloadEvent() bool {
 
 func (c *CalendarConfig) SetAlwaysReloadEvent(value bool) {
 	c.alwaysReloadEvent = value
+}
+
+// Defaults for the Google Workspace directory sync limits. They are safety rails
+// against runaway pagination and unbounded memory growth, sized above what any real
+// tenant is expected to have, not tuning knobs:
+//
+//   - Users: Google publishes no per-account cap; 500,000 (1,000 pages of 500) is
+//     far above the largest directory Fleet expects to sync.
+//   - Groups: also uncapped by Google. 100,000 also bounds the per-group member
+//     fan-out, since members are fetched one group at a time (it does not bound how
+//     long a pass takes: 100,000 sequential member listings is already a long sync).
+//   - Members per group: Google itself enforces a hard limit of 50,000 direct
+//     members per group, so 60,000 sits just above a ceiling Google won't exceed.
+//   - Total memberships: every group's members are held until the pull is
+//     reconciled, so the sum is the dominant memory term.
+const (
+	DefaultGoogleWorkspaceMaxUsers            = 500_000
+	DefaultGoogleWorkspaceMaxGroups           = 100_000
+	DefaultGoogleWorkspaceMaxGroupMembers     = 60_000
+	DefaultGoogleWorkspaceMaxGroupMemberships = 5_000_000
+)
+
+// GoogleWorkspaceConfig holds the limits applied to one directory sync pass. These
+// are hidden settings: they exist so an operator with a directory larger than the
+// defaults can be unblocked without waiting for a Fleet release. A value of 0
+// disables the corresponding limit.
+type GoogleWorkspaceConfig struct {
+	MaxUsers            int `yaml:"max_users"`
+	MaxGroups           int `yaml:"max_groups"`
+	MaxGroupMembers     int `yaml:"max_group_members"`
+	MaxGroupMemberships int `yaml:"max_group_memberships"`
+}
+
+// Validate checks that the sync limits are non-negative, so a typo can't silently
+// disable a safety rail.
+func (g GoogleWorkspaceConfig) Validate(initFatal func(err error, msg string)) {
+	for setting, value := range map[string]int{
+		"google_workspace.max_users":             g.MaxUsers,
+		"google_workspace.max_groups":            g.MaxGroups,
+		"google_workspace.max_group_members":     g.MaxGroupMembers,
+		"google_workspace.max_group_memberships": g.MaxGroupMemberships,
+	} {
+		if value < 0 {
+			initFatal(fmt.Errorf("%s must be non-negative (0 = no limit), got %d", setting, value),
+				"Google Workspace configuration")
+		}
+	}
 }
 
 type x509KeyPairConfig struct {
@@ -1405,13 +1610,17 @@ func (man Manager) addConfigs() {
 	man.addConfigString("server.private_key_sts_external_id", "", "External ID for STS role assumption when accessing private key secret")
 	man.addConfigDuration("server.vpp_verify_timeout", 10*time.Minute, "Maximum amount of time to wait for VPP app install verification")
 	man.addConfigDuration("server.vpp_verify_request_delay", 5*time.Second, "Delay in between requests to verify VPP app installs")
+	man.addConfigDuration("server.vpp_install_reap_timeout", 24*time.Hour,
+		"Minimum time a stuck App Store or in-house app install must have been activated before Fleet fails it to release the host's activity queue. Zero or less turns the reaper off, and a value below server.vpp_verify_timeout is raised to it")
 	man.addConfigDuration("server.cleanup_dist_targets_age", 24*time.Hour, "Specifies the cleanup age for completed live query distributed targets.")
 	man.addConfigByteSize("server.max_installer_size", installersize.Human(installersize.MaxSoftwareInstallerSize), "Maximum size in bytes for software installer uploads (e.g. 10GiB, 500MB, 1G)")
 	man.addConfigString("server.trusted_proxies", "",
 		"Trusted proxy configuration for client IP extraction: 'none' (RemoteAddr only), a header name (e.g., 'True-Client-IP'), a hop count (e.g., '2'), or comma-separated IP/CIDR ranges")
 	man.addConfigBool("server.gzip_responses", false, "Enable gzip-compressed responses for supported clients")
 	man.addConfigBool("server.allow_private_network_integrations", false, "Allow integration HTTP requests to private network addresses (RFC 1918). Loopback and cloud metadata addresses are always blocked regardless of this setting.")
+	man.addConfigBool("server.bypass_network_blocking", false, "Disable all outbound network blocking protections for integration HTTP requests (loopback, cloud metadata, and private network addresses). Only intended for environments where egress is already constrained by external infrastructure (e.g. an egress proxy or firewall) that Fleet's own checks would otherwise conflict with. This is an infrastructure-level setting and cannot be changed at runtime.")
 	man.addConfigByteSize("server.default_max_request_body_size", installersize.Human(platform_http.MaxRequestBodySize), "Default maximum size in bytes for request bodies, certain endpoints will have higher limits (e.g. 10MiB, 500KB, 1G)")
+	man.addConfigString(EndpointRequestSizeOverridesKey, "", "Per-endpoint max request body size overrides, as a list of {endpoint, max_request_size} objects")
 
 	// Hide the sandbox flag as we don't want it to be discoverable for users for now
 	man.hideConfig("server.sandbox_enabled")
@@ -1426,7 +1635,7 @@ func (man Manager) addConfigs() {
 	man.addConfigBool("auth.require_http_message_signature", false,
 		"Require HTTP message signatures for fleetd requests (Premium feature)")
 	man.addConfigInt("auth.sso_rate_limit_per_minute", 0,
-		"Number of allowed requests per minute to the SSO callback endpoint (default uses the login rate limit value in a dedicated bucket)")
+		"Number of allowed requests per minute to the SSO callback and Fleet Desktop device SSO endpoints (each in its own bucket; defaults to the login rate limit value)")
 
 	// App
 	man.addConfigString("app.token_key", "CHANGEME",
@@ -1495,6 +1704,12 @@ func (man Manager) addConfigs() {
 		"Maximum body size for the osquery/log endpoint (e.g. 10MiB, 500KB). 0 means use the built-in default (10MiB). Only applied when osquery.allow_body_auth_fallback is true. In header-auth mode (false) the route is not subject to any body size limit; this value is ignored.")
 	man.addConfigByteSize("osquery.max_distributed_write_body_size", "0",
 		"Maximum body size for the osquery/distributed/write endpoint (e.g. 10MiB, 500KB). 0 means use the built-in default (5MiB). Only applied when osquery.allow_body_auth_fallback is true. In header-auth mode (false) the route is not subject to any body size limit; this value is ignored.")
+	man.addConfigBool("osquery.config_etags", false,
+		"Enable conditional osquery config requests: agents that send an etag receive the minimal 'unchanged' body when their config is current. Off by default; while off, every response is the full config with no etag, identical to the behavior before this feature existed.")
+	man.addConfigBool("osquery.redis_config_etags", false,
+		"Answer osquery config requests whose etag matches with the minimal 'unchanged' body straight from a Redis-backed ETag store, skipping the config build (and its database reads) entirely. Off by default; requires Redis (no effect without it) and requires osquery.config_etags to be enabled as well. While off, every config request takes the always-full-build path.")
+	man.addConfigBool("osquery.config_in_memory_cache", false,
+		"Cache the scheduled-report section of the osquery config (the response's 'packs' key) in memory, keyed by fleet (team) and the query_reports_disabled setting, instead of rebuilding it from the database on every config check-in. Off by default; while off, every check-in builds from the database. The rest of the response is never cached, and the cache is bypassed entirely for hosts with 2017 packs and for fleets with label-scoped reports, whose config differs per host.")
 	man.addConfigBool("osquery.allow_body_auth_fallback", true,
 		"Selects how host-authenticated osquery requests are authenticated. When true (default), only body-based node_key is used for authentication. When false, the nodey_key header is required for authentication and the body's node_key is ignored; pre-auth rejects absent/invalid headers before the body is read.")
 
@@ -1503,6 +1718,8 @@ func (man Manager) addConfigs() {
 		"Enable audit logs")
 	man.addConfigString("activity.audit_log_plugin", "filesystem",
 		"Log plugin to use for audit logs")
+	man.addConfigInt("activity.fleet_initiated_release_per_minute", 1000,
+		"Maximum number of hosts whose Fleet-initiated activities (policy automation installs/scripts) are released for execution per minute (0 = unlimited)")
 
 	// Logging
 	man.addConfigBool("logging.debug", false,
@@ -1645,6 +1862,7 @@ func (man Manager) addConfigs() {
 	man.addConfigString("s3.software_installers_cloudfront_url", "", "CloudFront URL for software installers")
 	man.addConfigString("s3.software_installers_cloudfront_url_signing_public_key_id", "", "CloudFront public key ID for URL signing")
 	man.addConfigString("s3.software_installers_cloudfront_url_signing_private_key", "", "CloudFront private key for URL signing")
+	man.addConfigBool("s3.software_installers_signed_url", false, "Hand out presigned GCS URLs for installer/in-house app/bootstrap downloads instead of proxying bytes (requires a storage.googleapis.com endpoint)")
 
 	// PubSub
 	man.addConfigString("pubsub.project", "", "Google Cloud Project to use")
@@ -1790,10 +2008,13 @@ func (man Manager) addConfigs() {
 	man.addConfigString("mdm.apple_bm_key", "", "Apple Business PEM-encoded private key path")
 	man.addConfigString("mdm.apple_bm_key_bytes", "", "Apple Business PEM-encoded private key bytes")
 	man.addConfigBool("mdm.apple_enable", false, "Enable MDM Apple functionality")
+	man.addConfigBool("mdm.apple_machineinfo_verify", true, "Verify the signature on Apple's x-apple-aspen-deviceinfo (MachineInfo) blob during enrollment")
 	man.addConfigInt("mdm.apple_scep_signer_validity_days", 365, "Days signed client certificates will be valid")
 	man.addConfigString("mdm.apple_vpp_app_metadata_api_bearer_token", "", "Apple Connect JWT, used for accessing VPP app metadata directly from Apple")
 	man.addConfigString("mdm.apple_scep_challenge", "", "SCEP static challenge for enrollment")
 	man.addConfigDuration("mdm.apple_dep_sync_periodicity", 1*time.Minute, "How much time to wait for DEP profile assignment")
+	man.addConfigDuration("mdm.apple_apns_push_expiration", 7*24*time.Hour, "How long APNs should store and retry delivering push notifications to offline devices (apns-expiration header); zero or negative omits the header")
+	man.hideConfig("mdm.apple_apns_push_expiration")
 	man.addConfigString("mdm.windows_wstep_identity_cert", "", "Microsoft WSTEP PEM-encoded certificate path")
 	man.addConfigString("mdm.windows_wstep_identity_key", "", "Microsoft WSTEP PEM-encoded private key path")
 	man.addConfigString("mdm.windows_wstep_identity_cert_bytes", "", "Microsoft WSTEP PEM-encoded certificate bytes")
@@ -1804,6 +2025,8 @@ func (man Manager) addConfigs() {
 	man.addConfigBool("mdm.enable_custom_filevault", false, "Allows usage of custom Apple MDM profiles for FileVault (Fleet Premium required)")
 	man.addConfigBool("mdm.enable_custom_disk_encryption", false, "Allows usage of custom Apple MDM profiles for FileVault and custom Windows profiles for BitLocker (Fleet Premium required)")
 	man.addConfigBool("mdm.allow_all_declarations", false, "Allows all MDM declaration types to be sent, bypassing safety checks")
+	man.addConfigBool("mdm.allow_custom_activations", false, "Allows custom activations to be uploaded for Apple declaration (DDM) profiles")
+	man.addConfigBool("mdm.allow_orbit_end_user_auth_bypass", true, "Allow Orbit hosts that do not complete end user authentication to enroll into teams that require it; set to false to strictly enforce end user authentication for Orbit enrollments")
 	man.addConfigString("mdm.android_agent.package", "com.fleetdm.agent", "Package name for the Fleet Android agent")
 	man.addConfigString("mdm.android_agent.signing_sha256", "x+IyvrwVbQEBYV/ojWmLavJE0VIZE1RAT2JmxeI5sFw=", "Signing certificate SHA256 fingerprint for the Fleet Android agent")
 	man.hideConfig("mdm.android_agent.package")
@@ -1817,6 +2040,20 @@ func (man Manager) addConfigs() {
 		"How much time to wait between processing calendar integration.",
 	)
 
+	// Google Workspace directory sync limits (hidden; safety rails, not tuning knobs)
+	man.addConfigInt("google_workspace.max_users", DefaultGoogleWorkspaceMaxUsers,
+		"Maximum users pulled from a Google Workspace directory in one sync (0 = no limit)")
+	man.addConfigInt("google_workspace.max_groups", DefaultGoogleWorkspaceMaxGroups,
+		"Maximum groups pulled from a Google Workspace directory in one sync (0 = no limit)")
+	man.addConfigInt("google_workspace.max_group_members", DefaultGoogleWorkspaceMaxGroupMembers,
+		"Maximum members pulled for a single Google Workspace group (0 = no limit)")
+	man.addConfigInt("google_workspace.max_group_memberships", DefaultGoogleWorkspaceMaxGroupMemberships,
+		"Maximum total group memberships pulled from a Google Workspace directory in one sync (0 = no limit)")
+	man.hideConfig("google_workspace.max_users")
+	man.hideConfig("google_workspace.max_groups")
+	man.hideConfig("google_workspace.max_group_members")
+	man.hideConfig("google_workspace.max_group_memberships")
+
 	// Partnerships
 	man.addConfigBool("partnerships.enable_secureframe", false, "Point transparency URL at Secureframe landing page")
 
@@ -1828,6 +2065,18 @@ func (man Manager) addConfigs() {
 	// Conditional Access
 	man.addConfigString("conditional_access.cert_serial_format", "hex",
 		"Format for parsing certificate serial numbers from X-Client-Cert-Serial header: 'hex' (default, used by AWS ALB) or 'decimal' (used by Caddy)")
+
+	// WebSocket agent transport
+	man.addConfigBool("websocket.transport_enabled", false,
+		"Enable the agent WebSocket notification transport (experimental)")
+	man.addConfigDuration("websocket.ping_interval", 5*time.Minute,
+		"Interval between WebSocket keepalive pings sent to connected agents")
+	man.addConfigDuration("websocket.pong_timeout", 30*time.Second,
+		"Time to wait for a pong before considering an agent WebSocket connection dead")
+	man.addConfigDuration("websocket.check_interval", 30*time.Second,
+		"Interval of the per-instance job that notifies connected agents with due interval work")
+	man.addConfigInt("websocket.check_batch_size", 500,
+		"Number of connected agents checked per batch by the interval notification job")
 }
 
 func (man Manager) hideConfig(name string) {
@@ -1919,12 +2168,15 @@ func (man Manager) LoadConfig() FleetConfig {
 			PrivateKeySecretSTSExternalID:    man.getConfigString("server.private_key_sts_external_id"),
 			VPPVerifyTimeout:                 man.getConfigDuration("server.vpp_verify_timeout"),
 			VPPVerifyRequestDelay:            man.getConfigDuration("server.vpp_verify_request_delay"),
+			VPPInstallReapTimeout:            man.getConfigDuration("server.vpp_install_reap_timeout"),
 			CleanupDistTargetsAge:            man.getConfigDuration("server.cleanup_dist_targets_age"),
 			MaxInstallerSizeBytes:            man.getConfigByteSize("server.max_installer_size"),
 			TrustedProxies:                   man.getConfigString("server.trusted_proxies"),
 			GzipResponses:                    man.getConfigBool("server.gzip_responses"),
 			DefaultMaxRequestBodySize:        man.getConfigByteSize("server.default_max_request_body_size"),
 			AllowPrivateNetworkIntegrations:  man.getConfigBool("server.allow_private_network_integrations"),
+			BypassNetworkBlocking:            man.getConfigBool("server.bypass_network_blocking"),
+			EndpointRequestSizeOverrides:     man.getConfigEndpointRequestSizeOverrides(),
 		},
 		Auth: AuthConfig{
 			BcryptCost:                  man.getConfigInt("auth.bcrypt_cost"),
@@ -1971,10 +2223,14 @@ func (man Manager) LoadConfig() FleetConfig {
 			MaxLogWriteBodySize:              man.getConfigByteSize("osquery.max_log_write_body_size"),
 			MaxDistributedWriteBodySize:      man.getConfigByteSize("osquery.max_distributed_write_body_size"),
 			AllowBodyAuthFallback:            man.getConfigBool("osquery.allow_body_auth_fallback"),
+			ConfigETags:                      man.getConfigBool("osquery.config_etags"),
+			RedisConfigETags:                 man.getConfigBool("osquery.redis_config_etags"),
+			ConfigInMemoryCache:              man.getConfigBool("osquery.config_in_memory_cache"),
 		},
 		Activity: ActivityConfig{
-			EnableAuditLog: man.getConfigBool("activity.enable_audit_log"),
-			AuditLogPlugin: man.getConfigString("activity.audit_log_plugin"),
+			EnableAuditLog:                 man.getConfigBool("activity.enable_audit_log"),
+			AuditLogPlugin:                 man.getConfigString("activity.audit_log_plugin"),
+			FleetInitiatedReleasePerMinute: man.getConfigNonNegativeInt("activity.fleet_initiated_release_per_minute"),
 		},
 		Logging: LoggingConfig{
 			Debug:                man.getConfigBool("logging.debug"),
@@ -2135,10 +2391,12 @@ func (man Manager) LoadConfig() FleetConfig {
 			AppleBMKey:                        man.getConfigString("mdm.apple_bm_key"),
 			AppleBMKeyBytes:                   man.getConfigString("mdm.apple_bm_key_bytes"),
 			AppleEnable:                       man.getConfigBool("mdm.apple_enable"),
+			AppleMachineInfoVerify:            man.getConfigBool("mdm.apple_machineinfo_verify"),
 			AppleSCEPSignerValidityDays:       man.getConfigInt("mdm.apple_scep_signer_validity_days"),
 			AppleConnectJWT:                   man.getConfigString("mdm.apple_vpp_app_metadata_api_bearer_token"),
 			AppleSCEPChallenge:                man.getConfigString("mdm.apple_scep_challenge"),
 			AppleDEPSyncPeriodicity:           man.getConfigDuration("mdm.apple_dep_sync_periodicity"),
+			AppleAPNsPushExpiration:           man.getConfigDuration("mdm.apple_apns_push_expiration"),
 			WindowsWSTEPIdentityCert:          man.getConfigString("mdm.windows_wstep_identity_cert"),
 			WindowsWSTEPIdentityKey:           man.getConfigString("mdm.windows_wstep_identity_key"),
 			WindowsWSTEPIdentityCertBytes:     man.getConfigString("mdm.windows_wstep_identity_cert_bytes"),
@@ -2149,6 +2407,8 @@ func (man Manager) LoadConfig() FleetConfig {
 			EnableCustomFileVault:             man.getConfigBool("mdm.enable_custom_filevault"),
 			EnableCustomDiskEncryption:        man.getConfigBool("mdm.enable_custom_disk_encryption"),
 			AllowAllDeclarations:              man.getConfigBool("mdm.allow_all_declarations"),
+			AllowCustomActivations:            man.getConfigBool("mdm.allow_custom_activations"),
+			AllowOrbitEndUserAuthBypass:       man.getConfigBool("mdm.allow_orbit_end_user_auth_bypass"),
 			AndroidAgent: AndroidAgentConfig{
 				Package:       man.getConfigString("mdm.android_agent.package"),
 				SigningSHA256: man.getConfigString("mdm.android_agent.signing_sha256"),
@@ -2157,6 +2417,12 @@ func (man Manager) LoadConfig() FleetConfig {
 		},
 		Calendar: CalendarConfig{
 			Periodicity: man.getConfigDuration("calendar.periodicity"),
+		},
+		GoogleWorkspace: GoogleWorkspaceConfig{
+			MaxUsers:            man.getConfigInt("google_workspace.max_users"),
+			MaxGroups:           man.getConfigInt("google_workspace.max_groups"),
+			MaxGroupMembers:     man.getConfigInt("google_workspace.max_group_members"),
+			MaxGroupMemberships: man.getConfigInt("google_workspace.max_group_memberships"),
 		},
 		Partnerships: PartnershipsConfig{
 			EnableSecureframe: man.getConfigBool("partnerships.enable_secureframe"),
@@ -2167,6 +2433,13 @@ func (man Manager) LoadConfig() FleetConfig {
 		},
 		ConditionalAccess: ConditionalAccessConfig{
 			CertSerialFormat: man.getConfigString("conditional_access.cert_serial_format"),
+		},
+		WebSocket: WebSocketConfig{
+			TransportEnabled: man.getConfigBool("websocket.transport_enabled"),
+			PingInterval:     man.getConfigDuration("websocket.ping_interval"),
+			PongTimeout:      man.getConfigDuration("websocket.pong_timeout"),
+			CheckInterval:    man.getConfigDuration("websocket.check_interval"),
+			CheckBatchSize:   man.getConfigInt("websocket.check_batch_size"),
 		},
 	}
 
@@ -2220,6 +2493,7 @@ func (man Manager) loadS3Config() S3Config {
 		SoftwareInstallersCloudFrontURL:                   man.getConfigString("s3.software_installers_cloudfront_url"),
 		SoftwareInstallersCloudFrontURLSigningPublicKeyID: man.getConfigString("s3.software_installers_cloudfront_url_signing_public_key_id"),
 		SoftwareInstallersCloudFrontURLSigningPrivateKey:  man.getConfigString("s3.software_installers_cloudfront_url_signing_private_key"),
+		SoftwareInstallersSignedURL:                       man.getConfigBool("s3.software_installers_signed_url"),
 	}
 }
 
@@ -2311,6 +2585,17 @@ func (man Manager) getConfigString(key string) string {
 	}
 
 	return stringVal
+}
+
+// getConfigNonNegativeInt is like getConfigInt but panics on negative values,
+// for keys where a negative would silently disable a protection (0 is the
+// documented "disabled" value; below that is an operator error).
+func (man Manager) getConfigNonNegativeInt(key string) int {
+	val := man.getConfigInt(key)
+	if val < 0 {
+		panic(fmt.Sprintf("%s cannot be negative (0 disables it): %d", key, val))
+	}
+	return val
 }
 
 // Custom handling for TLSProfile which can only accept specific values
@@ -2418,6 +2703,63 @@ func (man Manager) getConfigByteSize(key string) int64 {
 	}
 
 	return byteSize
+}
+
+// getConfigEndpointRequestSizeOverrides retrieves and parses server.endpoint_request_size_overrides.
+func (man Manager) getConfigEndpointRequestSizeOverrides() EndpointRequestSizeOverrides {
+	interfaceVal := man.getInterfaceVal(EndpointRequestSizeOverridesKey)
+
+	// Raw shape of the config
+	var rawConfig []struct {
+		Endpoint       string `json:"endpoint" yaml:"endpoint"`
+		MaxRequestSize string `json:"max_request_size" yaml:"max_request_size"`
+	}
+
+	switch v := interfaceVal.(type) {
+	case string: // Viper returns a string when the value is from env variable or CLI flag.
+		if v == "" {
+			return nil
+		}
+		if err := json.Unmarshal([]byte(v), &rawConfig); err != nil {
+			panic(fmt.Sprintf("Unable to parse %s: %s", EndpointRequestSizeOverridesKey, err.Error()))
+		}
+	case []any: // Viper returns a native []any when the value is from YAML config file.
+		if len(v) == 0 {
+			return nil
+		}
+		b, err := json.Marshal(v)
+		if err != nil {
+			panic(fmt.Sprintf("Unable to encode value for key %s: %s", EndpointRequestSizeOverridesKey, err.Error()))
+		}
+		if err := json.Unmarshal(b, &rawConfig); err != nil {
+			panic(fmt.Sprintf("Unable to encode value for key %s: %s", EndpointRequestSizeOverridesKey, err.Error()))
+		}
+	case nil:
+		return nil
+	default:
+		panic(fmt.Sprintf("Unexpected type %T for key %s", interfaceVal, EndpointRequestSizeOverridesKey))
+	}
+
+	cfgOverrides := make(EndpointRequestSizeOverrides, len(rawConfig))
+
+	for _, o := range rawConfig {
+		if o.Endpoint == "" {
+			panic(fmt.Sprintf("Empty endpoint in %s", EndpointRequestSizeOverridesKey))
+		}
+
+		size, err := units.RAMInBytes(o.MaxRequestSize)
+		if err != nil {
+			panic(fmt.Sprintf("Unable to parse byte size for key %s, endpoint %s: %s", EndpointRequestSizeOverridesKey, o.Endpoint, err.Error()))
+		}
+
+		if _, ok := cfgOverrides[o.Endpoint]; ok {
+			panic(fmt.Sprintf("Duplicate config entry found for endpoint %s in %s", o.Endpoint, EndpointRequestSizeOverridesKey))
+		}
+
+		cfgOverrides[o.Endpoint] = size
+	}
+
+	return cfgOverrides
 }
 
 // panics if the config is invalid, this is handled by Viper (this is how all
@@ -2543,6 +2885,8 @@ func TestConfig() FleetConfig {
 			DetailUpdateInterval:  1 * time.Hour,
 			MaxJitterPercent:      0,
 			AllowBodyAuthFallback: true,
+			ConfigETags:           true,
+			ConfigInMemoryCache:   true, // off in production; on here to cover the cache paths
 		},
 		Activity: ActivityConfig{
 			EnableAuditLog: true,
@@ -2565,6 +2909,16 @@ func TestConfig() FleetConfig {
 		},
 		Vulnerabilities: VulnerabilitiesConfig{
 			OSVForVulnerabilities: true,
+		},
+		MDM: MDMConfig{
+			AllowOrbitEndUserAuthBypass: true,
+		},
+		WebSocket: WebSocketConfig{
+			TransportEnabled: false,
+			PingInterval:     5 * time.Minute,
+			PongTimeout:      30 * time.Second,
+			CheckInterval:    30 * time.Second,
+			CheckBatchSize:   500,
 		},
 	}
 }

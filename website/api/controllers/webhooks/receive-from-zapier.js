@@ -31,7 +31,8 @@ module.exports = {
   exits: {
     success: { description: 'An event has successfully been received.' },
     unrecognizedEventName: { description: 'I do not know how to handle that kind of event.', responseType: 'ok' },// TODO: how will zapier react to receiving a bad request response?
-    couldNotMatchLinkedinId: { description: 'A linkedIn company could not be found using the provided linkedIn url', responseType: 'ok' }
+    couldNotMatchLinkedinId: { description: 'A linkedIn company could not be found using the provided linkedIn url', responseType: 'ok' },
+    invalidWebhookSecret: {description: 'This webhook request could not be verified.', responseType: 'unauthorized'},
   },
 
 
@@ -47,7 +48,7 @@ module.exports = {
     }
 
     if (sails.config.custom.zapierWebhookSecret !== webhookSecret) {
-      throw new Error('Received unexpected webhook request with webhookSecret set to: '+webhookSecret);
+      throw 'invalidWebhookSecret';
     }
     // Search for any campaigns that have a placeholder URN. If there are more than one records with a placeholder URN, throw an error.
     let adCampaignsWithPlaceholderUrns = await AdCampaign.find({

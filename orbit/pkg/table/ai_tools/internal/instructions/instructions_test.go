@@ -3,6 +3,7 @@ package instructions
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -87,10 +88,16 @@ func TestHiddenUnicode(t *testing.T) {
 }
 
 func TestWorldWritableFlag(t *testing.T) {
+	// os.Chmod on Windows only toggles the read-only attribute; it cannot produce
+	// a world-writable DACL, which is what fsutil.Stat reads there. The Windows
+	// side of the flag is covered by fsutil's icacls-driven TestStatPermWindowsACL.
+	if runtime.GOOS == "windows" {
+		t.Skip("POSIX mode bits not meaningful on Windows")
+	}
 	home := t.TempDir()
 	p := filepath.Join(home, "CLAUDE.md")
 	write(t, p, "rules", 0o666)
-	if err := os.Chmod(p, 0o666); err != nil { // #nosec G302 -- test fixture: intentionally world-writable to exercise world_writable detection
+	if err := os.Chmod(p, 0o666); err != nil { //nolint:gosec // test fixture: intentionally world-writable to exercise world_writable detection
 		t.Fatal(err)
 	}
 	for _, in := range Scan(homes.Home{Dir: home, Username: "t"}) {

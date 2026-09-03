@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
@@ -30,6 +31,8 @@ func TestCustomHostVitals(t *testing.T) {
 		{"DeleteCustomHostVital", testDeleteCustomHostVital},
 		{"DeleteUsedCustomHostVital", testDeleteUsedCustomHostVital},
 		{"SetHostValueResendsReferencingProfiles", testSetHostCustomHostVitalValueResendsProfiles},
+		{"SetHostValueResendsReferencingAndroidAppConfigs", testSetHostCustomHostVitalValueResendsAndroidAppConfigs},
+		{"SetHostValueResendsReferencingDeviceName", testSetHostCustomHostVitalValueResendsDeviceName},
 		{"ReconcileSnapshotMarksVitalDeclarations", testReconcileSnapshotMarksVitalDeclarations},
 		{"ValidateReferencedCustomHostVitalsRejectsMalformed", testValidateReferencedCustomHostVitalsRejectsMalformed},
 	}
@@ -411,6 +414,54 @@ func testDeleteUsedCustomHostVital(t *testing.T, ds *Datastore) {
 		require.NoError(t, ds.DeleteMDMWindowsConfigProfile(ctx, winProfile.ProfileUUID))
 	})
 
+	t.Run("android profiles", func(t *testing.T) {
+		androidProfile, err := ds.NewMDMAndroidConfigProfile(ctx, fleet.MDMAndroidConfigProfile{
+			Name:    "android-zoo",
+			RawJSON: json.RawMessage(fmt.Sprintf(`{"name": "%s"}`, token)),
+		}, nil)
+		require.NoError(t, err)
+
+		_, err = ds.DeleteCustomHostVital(ctx, id)
+		require.Error(t, err)
+		var useErr *fleet.CustomHostVitalUsedError
+		require.ErrorAs(t, err, &useErr)
+		require.Equal(t, id, useErr.CustomHostVitalID)
+		require.Equal(t, "FUNCTION", useErr.CustomHostVitalName)
+		require.Equal(t, fleet.CustomHostVitalEntityAndroidProfile, useErr.Entity.Type)
+		require.Equal(t, "android-zoo", useErr.Entity.Name)
+		require.Equal(t, "Unassigned", useErr.Entity.FleetName)
+
+		require.NoError(t, ds.DeleteMDMAndroidConfigProfile(ctx, androidProfile.ProfileUUID))
+	})
+
+	t.Run("android app configurations", func(t *testing.T) {
+		const appID = "org.mozilla.firefox"
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			if _, err := q.ExecContext(ctx,
+				`INSERT INTO vpp_apps (adam_id, platform, name) VALUES (?, 'android', 'Firefox')`, appID); err != nil {
+				return err
+			}
+			_, err := q.ExecContext(ctx,
+				`INSERT INTO vpp_apps_teams (adam_id, platform, team_id, global_or_team_id) VALUES (?, 'android', ?, ?)`,
+				appID, foobarTeam.ID, foobarTeam.ID)
+			return err
+		})
+		require.NoError(t, ds.updateAndroidAppConfigurationTx(ctx, ds.writer(ctx), foobarTeam.ID, appID,
+			[]byte(fmt.Sprintf(`{"managedConfiguration":{"assetTag":"%s"}}`, token))))
+
+		_, err = ds.DeleteCustomHostVital(ctx, id)
+		require.Error(t, err)
+		var useErr *fleet.CustomHostVitalUsedError
+		require.ErrorAs(t, err, &useErr)
+		require.Equal(t, id, useErr.CustomHostVitalID)
+		require.Equal(t, "FUNCTION", useErr.CustomHostVitalName)
+		require.Equal(t, fleet.CustomHostVitalEntityAndroidAppConfig, useErr.Entity.Type)
+		require.Equal(t, "Firefox", useErr.Entity.Name)
+		require.Equal(t, "Foobar", useErr.Entity.FleetName)
+
+		require.NoError(t, ds.DeleteAndroidAppConfiguration(ctx, appID, foobarTeam.ID))
+	})
+
 	t.Run("scripts", func(t *testing.T) {
 		script, err := ds.NewScript(ctx, &fleet.Script{
 			Name:           "collect.sh",
@@ -465,13 +516,14 @@ func testDeleteUsedCustomHostVital(t *testing.T, ds *Datastore) {
 	})
 
 	t.Run("setup experience scripts", func(t *testing.T) {
-		require.NoError(t, ds.SetSetupExperienceScript(ctx, &fleet.Script{
+		_, err := ds.SetSetupExperienceScript(ctx, &fleet.Script{
 			Name:           "setup.sh",
 			ScriptContents: fmt.Sprintf("echo %s", token),
 			TeamID:         &foobarTeam.ID,
-		}))
+		})
+		require.NoError(t, err)
 
-		_, err := ds.DeleteCustomHostVital(ctx, id)
+		_, err = ds.DeleteCustomHostVital(ctx, id)
 		require.Error(t, err)
 		var useErr *fleet.CustomHostVitalUsedError
 		require.ErrorAs(t, err, &useErr)
@@ -484,6 +536,58 @@ func testDeleteUsedCustomHostVital(t *testing.T, ds *Datastore) {
 		require.NoError(t, ds.DeleteSetupExperienceScript(ctx, &foobarTeam.ID))
 	})
 
+	t.Run("host name templates", func(t *testing.T) {
+		teamVitalID := createCustomHostVital(t, ds, "HT_TEAM")
+		_, err := ds.writer(ctx).ExecContext(ctx,
+			`UPDATE teams SET config = JSON_SET(config, '$.mdm.name_template', ?) WHERE id = ?`,
+			fmt.Sprintf("WS-$%s%d", fleet.CustomHostVitalPrefix, teamVitalID), foobarTeam.ID)
+		require.NoError(t, err)
+
+		_, err = ds.DeleteCustomHostVital(ctx, teamVitalID)
+		require.Error(t, err)
+		var useErr *fleet.CustomHostVitalUsedError
+		require.ErrorAs(t, err, &useErr)
+		require.Equal(t, teamVitalID, useErr.CustomHostVitalID)
+		require.Equal(t, "HT_TEAM", useErr.CustomHostVitalName)
+		require.Equal(t, fleet.CustomHostVitalEntityHostNameTemplate, useErr.Entity.Type)
+		require.Equal(t, "Foobar", useErr.Entity.FleetName)
+		require.Contains(t, err.Error(), "host name template")
+
+		// Clearing the team's template unblocks the delete.
+		_, err = ds.writer(ctx).ExecContext(ctx,
+			`UPDATE teams SET config = JSON_SET(config, '$.mdm.name_template', '') WHERE id = ?`, foobarTeam.ID)
+		require.NoError(t, err)
+
+		name, err := ds.DeleteCustomHostVital(ctx, teamVitalID)
+		require.NoError(t, err)
+		require.Equal(t, "HT_TEAM", name)
+
+		// The "No team" (global) template blocks the delete the same way.
+		noTeamVitalID := createCustomHostVital(t, ds, "HT_NOTEAM")
+		_, err = ds.writer(ctx).ExecContext(ctx,
+			`UPDATE app_config_json SET json_value = JSON_SET(json_value, '$.mdm.name_template', ?)`,
+			fmt.Sprintf("WS-${%s%d}", fleet.CustomHostVitalPrefix, noTeamVitalID))
+		require.NoError(t, err)
+
+		_, err = ds.DeleteCustomHostVital(ctx, noTeamVitalID)
+		require.Error(t, err)
+		useErr = nil
+		require.ErrorAs(t, err, &useErr)
+		require.Equal(t, noTeamVitalID, useErr.CustomHostVitalID)
+		require.Equal(t, "HT_NOTEAM", useErr.CustomHostVitalName)
+		require.Equal(t, fleet.CustomHostVitalEntityHostNameTemplate, useErr.Entity.Type)
+		require.Equal(t, "Unassigned", useErr.Entity.FleetName)
+
+		// Clearing the global template as well unblocks the delete again.
+		_, err = ds.writer(ctx).ExecContext(ctx,
+			`UPDATE app_config_json SET json_value = JSON_SET(json_value, '$.mdm.name_template', CAST('null' AS JSON))`)
+		require.NoError(t, err)
+
+		name, err = ds.DeleteCustomHostVital(ctx, noTeamVitalID)
+		require.NoError(t, err)
+		require.Equal(t, "HT_NOTEAM", name)
+	})
+
 	t.Run("host vitals labels", func(t *testing.T) {
 		// A host-vitals label references the vital by id in its criteria JSON,
 		// not via the $FLEET_HOST_VITAL_<id> token.
@@ -493,11 +597,12 @@ func testDeleteUsedCustomHostVital(t *testing.T, ds *Datastore) {
 			CustomHostVitalID: &id,
 		})
 		require.NoError(t, err)
+		raw := json.RawMessage(criteria)
 		label, err := ds.NewLabel(ctx, &fleet.Label{
 			Name:                "chv-del-label",
 			LabelType:           fleet.LabelTypeRegular,
 			LabelMembershipType: fleet.LabelMembershipTypeHostVitals,
-			HostVitalsCriteria:  new(json.RawMessage(criteria)),
+			HostVitalsCriteria:  &raw,
 		})
 		require.NoError(t, err)
 
@@ -529,6 +634,7 @@ func testSetHostCustomHostVitalValueResendsProfiles(t *testing.T, ds *Datastore)
 
 	host := test.NewHost(t, ds, "mac", "1", "mackey", "macuuid", time.Now())
 	winHost := test.NewHost(t, ds, "win", "2", "winkey", "winuuid", time.Now(), test.WithPlatform("windows"))
+	androidHost := newBareAndroidHostForTest(t, ds, "android")
 
 	vitalID := createCustomHostVital(t, ds, "FUNCTION")
 	otherID := createCustomHostVital(t, ds, "OTHER")
@@ -550,11 +656,24 @@ func testSetHostCustomHostVitalValueResendsProfiles(t *testing.T, ds *Datastore)
 	profWNone, err := ds.NewMDMWindowsConfigProfile(ctx, *generateWindowsCP("wn", "plain", 0), nil)
 	require.NoError(t, err)
 
+	profAVital, err := ds.NewMDMAndroidConfigProfile(ctx, fleet.MDMAndroidConfigProfile{
+		Name:    "av",
+		RawJSON: json.RawMessage(fmt.Sprintf(`{"name": "%s"}`, token)),
+	}, nil)
+	require.NoError(t, err)
+	profANone, err := ds.NewMDMAndroidConfigProfile(ctx, fleet.MDMAndroidConfigProfile{
+		Name:    "an",
+		RawJSON: json.RawMessage(`{"name": "plain"}`),
+	}, nil)
+	require.NoError(t, err)
+
 	forceSetAppleHostProfileStatus(t, ds, host.UUID, profVital, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
 	forceSetAppleHostProfileStatus(t, ds, host.UUID, profOther, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
 	forceSetAppleHostProfileStatus(t, ds, host.UUID, profNone, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
 	forceSetWindowsHostProfileStatus(t, ds, winHost.UUID, profWVital, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
 	forceSetWindowsHostProfileStatus(t, ds, winHost.UUID, profWNone, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
+	forceSetAndroidHostProfileStatus(t, ds, androidHost.UUID, profAVital, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
+	forceSetAndroidHostProfileStatus(t, ds, androidHost.UUID, profANone, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
 
 	// DDM declaration referencing the vital, delivered (verifying) to the mac host.
 	bracedToken := fmt.Sprintf("${%s%d}", fleet.CustomHostVitalPrefix, vitalID)
@@ -565,9 +684,10 @@ func testSetHostCustomHostVitalValueResendsProfiles(t *testing.T, ds *Datastore)
 	require.NoError(t, err)
 	forceSetAppleHostDeclarationStatus(t, ds, host.UUID, declVital, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
 
-	// Set the value on both hosts; only referencing entities on the same host reset.
+	// Set the value on all three hosts; only referencing entities on the same host reset.
 	require.NoError(t, ds.SetHostCustomHostVitalValue(ctx, host.ID, vitalID, "Engineering"))
 	require.NoError(t, ds.SetHostCustomHostVitalValue(ctx, winHost.ID, vitalID, "Engineering"))
+	require.NoError(t, ds.SetHostCustomHostVitalValue(ctx, androidHost.ID, vitalID, "Engineering"))
 
 	// A reset row has NULL status, which assertHostProfileStatus reports as
 	// pending. The declaration surfaces through GetHostMDMAppleProfiles too, so
@@ -580,6 +700,9 @@ func testSetHostCustomHostVitalValueResendsProfiles(t *testing.T, ds *Datastore)
 	assertHostProfileStatus(t, ds, winHost.UUID,
 		hostProfileStatus{profWVital.ProfileUUID, fleet.MDMDeliveryPending},
 		hostProfileStatus{profWNone.ProfileUUID, fleet.MDMDeliveryVerifying})
+	assertHostProfileStatus(t, ds, androidHost.UUID,
+		hostProfileStatus{profAVital.ProfileUUID, fleet.MDMDeliveryPending},
+		hostProfileStatus{profANone.ProfileUUID, fleet.MDMDeliveryVerifying})
 
 	var declStatus *fleet.MDMDeliveryStatus
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
@@ -588,6 +711,257 @@ func testSetHostCustomHostVitalValueResendsProfiles(t *testing.T, ds *Datastore)
 			host.UUID, declVital.DeclarationUUID)
 	})
 	require.Nil(t, declStatus, "declaration should be reset (NULL status) so the DDM reconciler re-delivers it")
+}
+
+// Setting a host's value for a vital must queue a resend of the Android
+// managed app configurations delivered to that host that reference the vital.
+// Unlike profiles, app configs have no per-host status row to reset: delivery
+// is driven by the software worker, so the resend is a queued job scoped to
+// the one affected host, not the whole fleet.
+func testSetHostCustomHostVitalValueResendsAndroidAppConfigs(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// The enterprise name is resolved from the DB when queueing the job.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `INSERT INTO android_enterprises (signup_name, enterprise_id) VALUES ('test', 'LC0vital123')`)
+		return err
+	})
+
+	androidHost, err := ds.NewAndroidHost(ctx, createAndroidHost("chv-appcfg-host"), false)
+	require.NoError(t, err)
+	macHost := test.NewHost(t, ds, "chv-appcfg-mac", "9", "chv-appcfg-mackey", "chv-appcfg-macuuid", time.Now())
+
+	otherTeam, err := ds.NewTeam(ctx, &fleet.Team{Name: "chv-appcfg-other-team"})
+	require.NoError(t, err)
+
+	vitalID := createCustomHostVital(t, ds, "FUNCTION")
+	otherVitalID := createCustomHostVital(t, ds, "OTHER")
+	unusedVitalID := createCustomHostVital(t, ds, "UNUSED")
+	token := fmt.Sprintf("$%s%d", fleet.CustomHostVitalPrefix, vitalID)
+	otherToken := fmt.Sprintf("$%s%d", fleet.CustomHostVitalPrefix, otherVitalID)
+
+	// A different vital whose ID happens to start with vitalID's digits (1 vs 10).
+	// INSTR can't tell $FLEET_HOST_VITAL_1 from $FLEET_HOST_VITAL_10, so an app
+	// referencing only this one is a false-positive candidate in SQL that the Go
+	// ContainsVar pass has to reject. It must resend for its own vital, never for
+	// vitalID.
+	lookalikeVitalID := vitalID * 10
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			`INSERT INTO custom_host_vitals (id, name) VALUES (?, 'LOOKALIKE')`, lookalikeVitalID)
+		return err
+	})
+	lookalikeToken := fmt.Sprintf("$%s%d", fleet.CustomHostVitalPrefix, lookalikeVitalID)
+
+	// vitalApp's config references the vital; otherApp's references a different
+	// vital; otherTeamApp's references the same vital but in another fleet.
+	const (
+		vitalAppID       = "com.example.vitalapp"
+		secondVitalAppID = "com.example.secondvitalapp"
+		otherAppID       = "com.example.otherapp"
+		otherTeamAppID   = "com.example.otherteamapp"
+		lookalikeAppID   = "com.example.lookalikeapp"
+		noSigilAppID     = "com.example.nosigilapp"
+	)
+	appTeamIDs := map[string]uint{}
+	addApp := func(appID string, teamID uint) {
+		t.Helper()
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			if _, err := q.ExecContext(ctx,
+				`INSERT INTO vpp_apps (adam_id, platform, name) VALUES (?, 'android', ?)`, appID, appID); err != nil {
+				return err
+			}
+			res, err := q.ExecContext(ctx,
+				`INSERT INTO vpp_apps_teams (adam_id, platform, team_id, global_or_team_id) VALUES (?, 'android', ?, ?)`,
+				appID, ptr.UintOrNilIfZero(teamID), teamID)
+			if err != nil {
+				return err
+			}
+			id, err := res.LastInsertId()
+			if err != nil {
+				return err
+			}
+			appTeamIDs[appID] = uint(id) //nolint:gosec // test-only insert id
+			return nil
+		})
+	}
+	addApp(vitalAppID, 0)
+	addApp(otherAppID, 0)
+	addApp(otherTeamAppID, otherTeam.ID)
+	addApp(lookalikeAppID, 0)
+	addApp(noSigilAppID, 0)
+
+	configWith := func(tok string) []byte {
+		return []byte(fmt.Sprintf(`{"managedConfiguration":{"assetTag":"%s"}}`, tok))
+	}
+	require.NoError(t, ds.updateAndroidAppConfigurationTx(ctx, ds.writer(ctx), 0, vitalAppID, configWith(token)))
+	require.NoError(t, ds.updateAndroidAppConfigurationTx(ctx, ds.writer(ctx), 0, otherAppID, configWith(otherToken)))
+	require.NoError(t, ds.updateAndroidAppConfigurationTx(ctx, ds.writer(ctx), otherTeam.ID, otherTeamAppID, configWith(token)))
+	require.NoError(t, ds.updateAndroidAppConfigurationTx(ctx, ds.writer(ctx), 0, lookalikeAppID, configWith(lookalikeToken)))
+	// A bare mention with no '$' isn't a variable reference, but INSTR matches it.
+	require.NoError(t, ds.updateAndroidAppConfigurationTx(ctx, ds.writer(ctx), 0, noSigilAppID,
+		[]byte(fmt.Sprintf(`{"managedConfiguration":{"note":"see %s%d in the runbook"}}`, fleet.CustomHostVitalPrefix, vitalID))))
+
+	type appConfigResendJob struct {
+		Task             string            `json:"task"`
+		ApplicationID    string            `json:"application_id"`
+		AppTeamID        uint              `json:"app_team_id"` //nolint:apiparamcheck // mirrors the worker job args
+		EnterpriseName   string            `json:"enterprise_name"`
+		AppConfigChanged bool              `json:"app_config_changed"`
+		HostUUIDToPolicy map[string]string `json:"host_uuid_to_policy_id"`
+	}
+	// Reads and clears the queue, so each assertion sees only its own jobs.
+	drainJobs := func() []appConfigResendJob {
+		t.Helper()
+		var raw []json.RawMessage
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, q, &raw,
+				`SELECT args FROM jobs WHERE name = 'software_worker' AND state = 'queued'`)
+		})
+		jobs := make([]appConfigResendJob, 0, len(raw))
+		for _, r := range raw {
+			var j appConfigResendJob
+			require.NoError(t, json.Unmarshal(r, &j))
+			jobs = append(jobs, j)
+		}
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `DELETE FROM jobs`)
+			return err
+		})
+		return jobs
+	}
+	drainJobs()
+
+	// A vital no app config references queues nothing.
+	require.NoError(t, ds.SetHostCustomHostVitalValue(ctx, androidHost.Host.ID, unusedVitalID, "ignored"))
+	require.Empty(t, drainJobs())
+
+	// A non-Android host queues nothing, even for a referenced vital.
+	require.NoError(t, ds.SetHostCustomHostVitalValue(ctx, macHost.ID, vitalID, "Engineering"))
+	require.Empty(t, drainJobs())
+
+	// The referenced vital queues exactly one host-scoped resend, for the app
+	// whose config references it, in the host's fleet only.
+	require.NoError(t, ds.SetHostCustomHostVitalValue(ctx, androidHost.Host.ID, vitalID, "Engineering"))
+	jobs := drainJobs()
+
+	// Both of these match the SQL INSTR filter for vitalID and are ruled out only
+	// by the Go ContainsVar pass. Asserted before the exact count so a regression
+	// names the guard that broke instead of just reporting a bad job count.
+	resentApps := make([]string, 0, len(jobs))
+	for _, j := range jobs {
+		resentApps = append(resentApps, j.ApplicationID)
+	}
+	require.NotContains(t, resentApps, lookalikeAppID,
+		"an app referencing only the lookalike vital ($FLEET_HOST_VITAL_<vitalID*10>) must not resend on vitalID's change")
+	require.NotContains(t, resentApps, noSigilAppID,
+		"a bare mention with no '$' isn't a variable reference and must not resend")
+
+	require.Len(t, jobs, 1)
+	require.Equal(t, "make_android_app_available_batch", jobs[0].Task)
+	require.Equal(t, vitalAppID, jobs[0].ApplicationID)
+	require.Equal(t, appTeamIDs[vitalAppID], jobs[0].AppTeamID)
+	require.Equal(t, "enterprises/LC0vital123", jobs[0].EnterpriseName)
+	require.True(t, jobs[0].AppConfigChanged)
+	require.Equal(t, map[string]string{androidHost.Host.UUID: "1"}, jobs[0].HostUUIDToPolicy,
+		"resend must target only the host whose value changed, at its applied policy")
+
+	// The lookalike app resends for its own vital, so its absence above is the id
+	// boundary working rather than a misconfigured fixture.
+	require.NoError(t, ds.SetHostCustomHostVitalValue(ctx, androidHost.Host.ID, lookalikeVitalID, "LOOKALIKE-VALUE"))
+	jobs = drainJobs()
+	require.Len(t, jobs, 1)
+	require.Equal(t, lookalikeAppID, jobs[0].ApplicationID)
+
+	// Re-setting the same vital queues again: the value changed, so the device
+	// needs the new one even though nothing else moved.
+	require.NoError(t, ds.SetHostCustomHostVitalValue(ctx, androidHost.Host.ID, vitalID, "Support"))
+	require.Len(t, drainJobs(), 1)
+
+	// A second app referencing the same vital gets its own resend, so both
+	// apps' policies are re-pushed off one value change.
+	addApp(secondVitalAppID, 0)
+	require.NoError(t, ds.updateAndroidAppConfigurationTx(ctx, ds.writer(ctx), 0, secondVitalAppID, configWith(token)))
+	require.NoError(t, ds.SetHostCustomHostVitalValue(ctx, androidHost.Host.ID, vitalID, "Sales"))
+	jobs = drainJobs()
+	require.Len(t, jobs, 2)
+	resentAppIDs := []string{jobs[0].ApplicationID, jobs[1].ApplicationID}
+	require.ElementsMatch(t, []string{vitalAppID, secondVitalAppID}, resentAppIDs)
+
+	// Scoping one app to a label the host isn't a member of puts the host out of
+	// that app's scope: it drops out of the resend while the other stays.
+	label, err := ds.NewLabel(ctx, &fleet.Label{Name: "chv-appcfg-scope", Query: "SELECT 1"})
+	require.NoError(t, err)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			`INSERT INTO vpp_app_team_labels (vpp_app_team_id, label_id, exclude) VALUES (?, ?, 0)`,
+			appTeamIDs[vitalAppID], label.ID)
+		return err
+	})
+	require.NoError(t, ds.SetHostCustomHostVitalValue(ctx, androidHost.Host.ID, vitalID, "OutOfScope"))
+	jobs = drainJobs()
+	require.Len(t, jobs, 1, "the out-of-scope app must not be resent")
+	require.Equal(t, secondVitalAppID, jobs[0].ApplicationID)
+}
+
+// testSetHostCustomHostVitalValueResendsDeviceName covers the device-name side
+// of the resend-on-value-change hook: setting the value of a vital referenced
+// by the host's (team) name template re-queues its device-name enforcement
+// row, but setting a vital the template doesn't reference leaves the row
+// untouched, mirroring the precision of the profile-resend case above. Also
+// covers the same behavior for a No-team ("Unassigned") host, whose template
+// lives in the global app config rather than a team's config.
+func testSetHostCustomHostVitalValueResendsDeviceName(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	vitalID := createCustomHostVital(t, ds, "FUNCTION")
+	otherID := createCustomHostVital(t, ds, "OTHER")
+
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "device-name-vital-team"})
+	require.NoError(t, err)
+	_, err = ds.writer(ctx).ExecContext(ctx,
+		`UPDATE teams SET config = JSON_SET(config, '$.mdm.name_template', ?) WHERE id = ?`,
+		fmt.Sprintf("WS-$%s%d", fleet.CustomHostVitalPrefix, vitalID), team.ID)
+	require.NoError(t, err)
+
+	host := enrollAppleHostForDeviceName(t, ds, "vital-mac", "darwin", team.ID, false)
+	require.NoError(t, ds.BulkUpsertHostDeviceNameEnforcement(ctx, &team.ID))
+	require.NoError(t, ds.SetHostDeviceNameStatus(ctx, host.UUID, fleet.MDMDeliveryVerifying, nil, "WS-Engineering", ""))
+
+	// Setting a vital the template doesn't reference leaves the settled row alone.
+	require.NoError(t, ds.SetHostCustomHostVitalValue(ctx, host.ID, otherID, "ignored"))
+	require.Equal(t, fleet.MDMDeliveryVerifying, *getDeviceNameRow(t, ds, host.UUID).Status)
+
+	// Setting the referenced vital's value re-queues the row (status reset to
+	// NULL) so the cron re-resolves the name with the new value.
+	require.NoError(t, ds.SetHostCustomHostVitalValue(ctx, host.ID, vitalID, "Engineering"))
+	require.Nil(t, getDeviceNameRow(t, ds, host.UUID).Status)
+
+	// Same behavior for a No-team ("Unassigned") host: its template lives in
+	// app_config_json instead of a team's config.
+	_, err = ds.writer(ctx).ExecContext(ctx,
+		`UPDATE app_config_json SET json_value = JSON_SET(json_value, '$.mdm.name_template', ?)`,
+		fmt.Sprintf("NT-$%s%d", fleet.CustomHostVitalPrefix, vitalID))
+	require.NoError(t, err)
+	defer func() {
+		_, err := ds.writer(ctx).ExecContext(ctx,
+			`UPDATE app_config_json SET json_value = JSON_SET(json_value, '$.mdm.name_template', CAST('null' AS JSON))`)
+		require.NoError(t, err)
+	}()
+
+	noTeamHost := enrollAppleHostForDeviceName(t, ds, "vital-mac-noteam", "darwin", team.ID, false)
+	_, err = ds.writer(ctx).ExecContext(ctx, `UPDATE hosts SET team_id = NULL WHERE id = ?`, noTeamHost.ID)
+	require.NoError(t, err)
+	require.NoError(t, ds.BulkUpsertHostDeviceNameEnforcement(ctx, nil))
+	require.NoError(t, ds.SetHostDeviceNameStatus(ctx, noTeamHost.UUID, fleet.MDMDeliveryVerifying, nil, "NT-Engineering", ""))
+
+	// Setting a vital the No-team template doesn't reference leaves the row alone.
+	require.NoError(t, ds.SetHostCustomHostVitalValue(ctx, noTeamHost.ID, otherID, "ignored"))
+	require.Equal(t, fleet.MDMDeliveryVerifying, *getDeviceNameRow(t, ds, noTeamHost.UUID).Status)
+
+	// Setting the referenced vital's value re-queues the No-team row too.
+	require.NoError(t, ds.SetHostCustomHostVitalValue(ctx, noTeamHost.ID, vitalID, "Engineering"))
+	require.Nil(t, getDeviceNameRow(t, ds, noTeamHost.UUID).Status)
 }
 
 // The DDM reconcile snapshot must flag declarations that reference a custom host
@@ -602,6 +976,8 @@ func testReconcileSnapshotMarksVitalDeclarations(t *testing.T, ds *Datastore) {
 	// A macOS host must be MDM-enrolled to enter the reconcile window; otherwise
 	// the snapshot skips loading declarations entirely.
 	host := test.NewHost(t, ds, "macos-1", "1", "macos-1-key", "macos-1-uuid", time.Now())
+	err := ds.SetOrUpdateMDMData(ctx, host.ID, false, true, "https://example.com", true, fleet.WellKnownMDMFleet, "", false)
+	require.NoError(t, err)
 	nanoEnroll(t, ds, host, false)
 
 	vitalID := createCustomHostVital(t, ds, "FUNCTION")
@@ -618,7 +994,7 @@ func testReconcileSnapshotMarksVitalDeclarations(t *testing.T, ds *Datastore) {
 	}, nil)
 	require.NoError(t, err)
 
-	_, allDecls, _, _, err := ds.GetAppleDeclarationReconcileSnapshot(ctx, "", 100)
+	_, allDecls, _, _, _, err := ds.GetAppleDeclarationReconcileSnapshot(ctx, "", 100)
 	require.NoError(t, err)
 
 	byUUID := make(map[string]*fleet.AppleDeclarationForReconcile, len(allDecls))

@@ -221,6 +221,38 @@ module.exports.routes = {
     }
   },// handles /announcements/foo
 
+  'GET /newsletters': {
+    skipAssets: false,
+    action: 'articles/view-articles',// Meta title and description set in view action
+    locals: {
+      currentSection: 'more',
+    }
+  },
+
+  'GET /newsletters/*': {
+    skipAssets: false,
+    action: 'articles/view-basic-article',// Meta title and description set in view action
+    locals: {
+      currentSection: 'more',
+    }
+  },// handles /newsletters/foo
+
+  'GET /industry-news': {
+    skipAssets: false,
+    action: 'articles/view-articles',// Meta title and description set in view action
+    locals: {
+      currentSection: 'more',
+    }
+  },
+
+  'GET /industry-news/*': {
+    skipAssets: false,
+    action: 'articles/view-basic-article',// Meta title and description set in view action
+    locals: {
+      currentSection: 'more',
+    }
+  },// handles /industry-news/foo
+
   'GET /podcasts': {
     skipAssets: false,
     action: 'articles/view-articles',// Meta title and description set in view action
@@ -406,11 +438,11 @@ module.exports.routes = {
     }
   },
 
-  'GET /visibility-and-reporting': {
-    action: 'view-visibility-and-reporting',
+  'GET /endpoint-governance': {
+    action: 'view-endpoint-governance',
     locals: {
-      pageTitleForMeta: 'Visibility and reporting',
-      pageDescriptionForMeta: 'Pulse check anything, build reports, and ship data to any platform with Fleet.',
+      pageTitleForMeta: 'Endpoint governance',
+      pageDescriptionForMeta: 'Secure every extension, package, and AI tool running on your devices.',
       currentSection: 'platform',
     }
   },
@@ -633,6 +665,27 @@ module.exports.routes = {
       pageTitleForMeta: 'Security & control',
       pageDescriptionForMeta: 'Control what belongs on your devices and detect vulnerabilities automatically.',
     }
+  },
+
+  'GET /ai': {
+    action: 'view-ai-in-it',
+    locals: {
+      pageTitleForMeta: 'AI-powered IT',
+      pageDescriptionForMeta: 'AI in IT means more than answering questions. See how Fleet lets AI safely make changes across your fleet, with you in control.',
+      currentSection: 'platform',
+    }
+  },
+
+  'GET /capex-savings': {
+    action: 'view-capex-savings',
+    locals: {
+      pageTitleForMeta: 'Capex savings',
+      pageDescriptionForMeta: 'Fleet collects real performance data from every device, so you can see which computers need replacing, which ones don\'t, and safely defer refresh cycles.',
+    }
+  },
+
+  'GET /configuration-generator': {
+    action: 'view-configuration-generator'
   },
 
   //  ╦  ╔═╗╔╗╔╔╦╗╦╔╗╔╔═╗  ╔═╗╔═╗╔═╗╔═╗╔═╗
@@ -914,6 +967,7 @@ module.exports.routes = {
   'GET /guides/sysadmin-diaries-lost-device': (req, res) => { return res.redirect(301, '/guides/lock-wipe-hosts'); },
   'GET /guides/teams': (req, res) => { return res.redirect(301, '/guides/fleets'); },
   'GET /guides/secret-variables': '/guides/secrets-in-scripts-and-configuration-profiles',
+  'GET /guides/configuration-profiles': '/guides/custom-os-settings',
   'GET /guides/ndes-scep-proxy': '/guides/connect-end-user-to-wifi-with-certificate',
   'GET /guides/install-fleet-maintained-apps-on-macos-hosts': '/guides/fleet-maintained-apps',
   'GET /guides/queries': '/guides/reports',
@@ -1061,7 +1115,7 @@ module.exports.routes = {
   'GET /software-catalog/imazing': '/software-catalog/imazing-darwin',
   'GET /software-catalog/imazing-profile-editor': '/software-catalog/imazing-darwin',
   'GET /software-catalog/insomnia': '/software-catalog/insomnia-darwin',
-  'GET /software-catalog/intellij-idea-ce': '/software-catalog/intellij-idea-ce-darwin',
+  'GET /software-catalog/intellij-idea-ce': '/software-catalog/intellij-idea-darwin',
   'GET /software-catalog/intellij-idea': '/software-catalog/intellij-idea-darwin',
   'GET /software-catalog/little-snitch': '/software-catalog/little-snitch-darwin',
   'GET /software-catalog/intune-company-portal': '/software-catalog/intune-company-portal-darwin',
@@ -1150,6 +1204,8 @@ module.exports.routes = {
   'GET /orchestration': '/visibility-and-reporting',
   'GET /gitops-workshop': (req, res) => { let originalQueryString = req.url.match(/\?(.+)$/) ? '?' + req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl + '/workshops' + originalQueryString); },
   'GET /gitops-workshops': '/workshops',
+  'GET /guides/seamless-mdm-migration': '/support',
+  'GET /visibility-and-reporting': '/endpoint-governance',
   //  ╔╦╗╦╔═╗╔═╗  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗   ┬   ╔╦╗╔═╗╦ ╦╔╗╔╦  ╔═╗╔═╗╔╦╗╔═╗
   //  ║║║║╚═╗║    ╠╦╝║╣  ║║║╠╦╝║╣ ║   ║ ╚═╗  ┌┼─   ║║║ ║║║║║║║║  ║ ║╠═╣ ║║╚═╗
   //  ╩ ╩╩╚═╝╚═╝  ╩╚═╚═╝═╩╝╩╩╚═╚═╝╚═╝ ╩ ╚═╝  └┘   ═╩╝╚═╝╚╩╝╝╚╝╩═╝╚═╝╩ ╩═╩╝╚═╝
@@ -1236,7 +1292,7 @@ module.exports.routes = {
   'GET /learn-more-about/idp-email': 'https://fleetdm.com/docs/rest-api/rest-api#get-human-device-mapping',
   'GET /learn-more-about/enrolling-hosts': '/docs/using-fleet/adding-hosts',
   'GET /learn-more-about/setup-assistant': '/guides/setup-experience',
-  'GET /learn-more-about/policy-automations': '/docs/using-fleet/automations',
+  'GET /learn-more-about/policy-automations': '/docs/using-fleet/automations#policy-automations',
   'GET /install-wine': 'https://github.com/fleetdm/fleet/blob/main/assets/scripts/install-wine.sh',
   'GET /learn-more-about/creating-service-accounts': 'https://console.cloud.google.com/projectselector2/iam-admin/serviceaccounts/create?walkthrough_id=iam--create-service-account&pli=1#step_index=1',
   'GET /learn-more-about/google-workspace-domains': 'https://admin.google.com/ac/domains/manage',
@@ -1296,6 +1352,7 @@ module.exports.routes = {
   'GET /learn-more-about/troubleshoot-idp-connection': '/guides/foreign-vitals-map-idp-users-to-hosts#verify-connection',
   'GET /learn-more-about/unsigning-configuration-profiles': 'https://fleetdm.com/guides/custom-os-settings#create-configuration-profile',
   'GET /learn-more-about/how-to-connect-android-enterprise': '/guides/android-mdm-setup',
+  'GET /learn-more-about/android-zero-touch-portal': 'https://enterprise.google.com/android/zero-touch/customers',
   'GET /learn-more-about/custom-scep-configuration-profile': '/guides/connect-end-user-to-wifi-with-certificate#step-2-add-scep-configuration-profile-to-fleet2',
   'GET /learn-more-about/ndes-scep-configuration-profile': '/guides/connect-end-user-to-wifi-with-certificate#step-2-add-scep-configuration-profile-to-fleet',
   'GET /learn-more-about/macos-distribution-packages': 'https://scriptingosx.com/2017/09/on-distribution-packages/',
@@ -1356,6 +1413,18 @@ module.exports.routes = {
   'GET /learn-more-about/linux-wipe': '/guides/lock-wipe-hosts#linux-wipe-behavior',
   'GET /learn-more-about/configuration-profile-assets': '/articles/custom-os-settings#apple-declarations-ddm',
   'GET /learn-more-about/android-encryption-status': 'https://developers.google.com/android/management/reference/rest/v1/enterprises.devices#EncryptionStatus',
+  'GET /learn-more-about/release-devices': 'https://developer.apple.com/documentation/devicemanagement/disown-devices',
+  'GET /learn-more-about/mdm-enrollment': '/guides/windows-mdm-setup#manual-enrollment',
+  'GET /learn-more-about/windows-default-fleet': '/guides/windows-mdm-setup#set-a-default-fleet-for-new-hosts',
+  'GET /learn-more-about/device-and-user-scope': '/guides/custom-os-settings#device-and-user-scope',
+  'GET /learn-more-about/idp-account-sync': '/guides/deploying-apple-account-provisioning-with-fleet',
+  'GET /learn-more-about/security-posture': 'https://developers.google.com/android/management/reference/rest/v1/enterprises.devices#DevicePosture',
+  'GET /learn-more-about/software-update-status': 'https://developers.google.com/android/management/reference/rest/v1/enterprises.devices#SystemUpdateInfo',
+  'GET /learn-more-about/ddm-activations': '/guides/custom-os-settings#apple-declarations-ddm',
+  'GET /learn-more-about/linux-disk-encryption': '/guides/enforce-disk-encryption#enforce-disk-encryption-on-linux',
+  'GET /learn-more-about/removal-behavior': '/guides/custom-os-settings#removal-behavior',
+  'GET /learn-more-about/android-manual-sync': '/guides/how-to-manually-sync-an-android-device',
+  'GET /learn-more-about/policy-automation-resend-configuration-profile': '/guides/policy-automation-resend-configuration-profile',
 
   // Sitemap
   // =============================================================================================================
@@ -1411,6 +1480,7 @@ module.exports.routes = {
   'PATCH /api/android/v1/enterprises/:androidEnterpriseId/policies/:policyId': { action: 'android-proxy/modify-android-policies', csrf: false },
   'DELETE /api/android/v1/enterprises/:androidEnterpriseId': { action: 'android-proxy/delete-one-android-enterprise', csrf: false },
   'GET /api/android/v1/enterprises/:androidEnterpriseId/devices/:deviceId': { action: 'android-proxy/get-android-device' },
+  'GET /api/android/v1/enterprises/:androidEnterpriseId/devices/:deviceId/operations/:operationId': { action: 'android-proxy/get-android-device-operation' },
   'GET /api/android/v1/enterprises/:androidEnterpriseId/devices': { action: 'android-proxy/get-android-devices' },
   'DELETE /api/android/v1/enterprises/:androidEnterpriseId/devices/:deviceId': { action: 'android-proxy/delete-android-device', csrf: false },
   'PATCH /api/android/v1/enterprises/:androidEnterpriseId/devices/:deviceId': { action: 'android-proxy/modify-android-device', csrf: false },
@@ -1434,7 +1504,6 @@ module.exports.routes = {
   'POST /api/v1/customers/login': { action: 'entrance/login' },
   '/api/v1/account/logout': { action: 'account/logout' },
   'POST /api/v1/customers/create-quote': { action: 'customers/create-quote' },
-  'POST /api/v1/customers/save-billing-info-and-subscribe': { action: 'customers/save-billing-info-and-subscribe' },
   'POST /api/v1/entrance/update-password-and-login': { action: 'entrance/update-password-and-login' },
   'POST /api/v1/deliver-demo-signup': { action: 'deliver-demo-signup' },
   'POST /api/v1/create-or-update-one-newsletter-subscription': { action: 'create-or-update-one-newsletter-subscription' },

@@ -1,30 +1,5 @@
 # REST API
 
-- [Authentication](#authentication)
-- [Activities](#activities)
-- [Charts](#charts)
-- [Fleet configuration](#fleet-configuration)
-- [File carving](#file-carving)
-- [Hosts](#hosts)
-- [Labels](#labels)
-- [OS Settings](#os-settings)
-- [Setup Experience](#setup-experience)
-- [Commands](#commands)
-- [Integrations](#integrations-1)
-- [SCIM](#scim)
-- [Policies](#policies)
-- [Reports](#reports)
-- [Schedule (deprecated)](#schedule)
-- [Scripts](#scripts)
-- [Sessions](#sessions)
-- [Software](#software)
-- [Targets](#targets)
-- [Fleets](#fleets)
-- [Translator](#translator)
-- [Users](#users)
-- [Custom variables](#custom-variables)
-- [API errors](#api-responses)
-
 Use the Fleet APIs to automate Fleet.
 
 This page includes a list of available resources and their API routes.
@@ -517,6 +492,10 @@ Cookie: __Host-FLEETSSOSESSIONID=slI727JZ+j0FvyBRLyD/gri1rxtwpaZT
 
 ## Activities
 
++ [List activities](#list-activities)
++ [List policy automation activities](#list-policy-automation-activities)
++ [Reset policy results](#reset-policy-results)
+
 ### List activities
 
 Returns a list of the activities that have been performed in Fleet. For a comprehensive list of activity types and detailed information, please see the [audit logs](https://fleetdm.com/docs/using-fleet/audit-activities) page.
@@ -529,7 +508,7 @@ Returns a list of the activities that have been performed in Fleet. For a compre
 |:--------------- |:------- |:----- |:------------------------------------------------------------|
 | page            | integer | query | Page number of the results to fetch.                                                                                          |
 | per_page        | integer | query | Results per page. Maximum is 10,000 records. If no pagination parameters are specified, defaults to 10,000.                    |
-| order_key       | string  | query | What to order results by. Can be any column in the `activities` table.                                                         |
+| order_key       | string  | query | What to order results by. Allowed fields are `id`, `created_at`, `user_id`, `activity_type`, `user_name`, `user_email`, `fleet_initiated`, and `streamed`.                                                         |
 | order_direction | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
 | after           | string  | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used. |
 | query | string | query | Search query keywords. Searchable fields include `actor_full_name` and `actor_email`.
@@ -564,7 +543,7 @@ Returns a list of the activities that have been performed in Fleet. For a compre
         "install_uuid": "23c18ea1-8cd7-4af4-a1d8-f2666993a66b",
         "self_service": false,
         "software_title": "zoom.us.app",
-        "software_package": "ZoomInstallerIT.pkg",
+        "software_package": "ZoomInstallerIT.pkg"
       }
     },
     {
@@ -598,7 +577,7 @@ Returns a list of the activities that have been performed in Fleet. For a compre
         "install_uuid": "077970ab-0ed6-4573-9cdc-ca9ef9015283",
         "self_service": false,
         "software_title": "zoom.us.app",
-        "software_package": "ZoomInstallerIT.pkg",
+        "software_package": "ZoomInstallerIT.pkg"
       }
     }
   ],
@@ -609,6 +588,156 @@ Returns a list of the activities that have been performed in Fleet. For a compre
 }
 
 ```
+
+### List policy automation activities
+
+`GET /api/v1/fleet/policies/:id/automation_activities`
+
+#### Parameters
+
+| Name | Type    | In   | Description                  |
+| ---- | ------- | ---- | ---------------------------- |
+| id   | integer | path | **Required**. The policy ID. |
+| status   | string | path | Optional filter by automation status. Either "success" or "error" |
+| query   | string | path | Search query to filter by. Can search by host's name. |
+| page | integer | query | Page number of the results to fetch.|
+| per_page | integer | query | Results per page. Maximum is 10,000 records. If no pagination parameters are specified, defaults to 10,000.|
+| order_key | string | query | What to order results by. Allowed fields are `id`, `created_at`, and `activity_type`. |
+| order_direction | string | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
+| after | string | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used. |
+
+#### Example
+
+`GET /api/v1/fleet/policies/12/automation_activities?query=Anna's%20MacBook`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "activities": [
+    {
+      "created_at": "2023-07-27T14:35:08Z",
+      "id": 412,
+      "actor_full_name": "Fleet",
+      "actor_id": null,
+      "actor_gravatar": "",
+      "actor_email": "",
+      "type": "failed_webhook_policy_automation",
+      "fleet_initiated": true,
+      "details": {
+        "policy_id": 42,
+        "policy_name": "Gatekeeper enabled"
+      },
+      "host_id": 10,
+      "host_display_name": "Anna's MacBook Pro",
+      "status": "error",
+      "output": null
+    },
+    {
+      "created_at": "2023-07-27T14:34:22Z",
+      "id": 410,
+      "actor_full_name": "Anna Chao",
+      "actor_id": 3,
+      "actor_gravatar": "",
+      "actor_email": "anna@example.com",
+      "type": "ran_script",
+      "fleet_initiated": false,
+      "details": {
+        "host_id": 10,
+        "host_display_name": "Anna's MacBook Pro",
+        "script_name": "remediate-gatekeeper.sh",
+        "script_execution_id": "d6cffa75-b5b5-41ef-9230-15073c8a88cf",
+        "policy_id": 42,
+        "policy_name": "Gatekeeper enabled"
+      },
+      "host_id": 10,
+      "host_display_name": "Anna's MacBook Pro",
+      "status": "success",
+      "output": "Gatekeeper enabled\n"
+    },
+    {
+      "created_at": "2023-07-27T14:33:01Z",
+      "id": 407,
+      "actor_full_name": "Fleet",
+      "actor_id": null,
+      "actor_gravatar": "",
+      "actor_email": "",
+      "type": "installed_software",
+      "fleet_initiated": true,
+      "details": {
+        "host_id": 11,
+        "host_display_name": "Marco's Windows",
+        "install_uuid": "23c18ea1-8cd7-4af4-a1d8-f2666993a66b",
+        "software_title": "1Password",
+        "software_package": "1Password.msi",
+        "policy_id": 42,
+        "policy_name": "Gatekeeper enabled"
+      },
+      "host_id": 11,
+      "host_display_name": "Marco's Windows",
+      "status": "error",
+      "output": "Installing software...\nFailed\nExit code: 1"
+    },
+    {
+      "created_at": "2023-07-27T14:31:47Z",
+      "id": 404,
+      "actor_full_name": "Fleet",
+      "actor_id": null,
+      "actor_gravatar": "",
+      "actor_email": "",
+      "type": "installed_app_store_app",
+      "fleet_initiated": true,
+      "details": {
+        "host_id": 10,
+        "host_display_name": "Anna's MacBook Pro",
+        "software_title": "Logic Pro",
+        "app_store_id": "1234567",
+        "command_uuid": "98765432-1234-1234-1234-1234567890ab",
+        "policy_id": 42,
+        "policy_name": "Gatekeeper enabled"
+      },
+      "host_id": 10,
+      "host_display_name": "Anna's MacBook Pro",
+      "status": "success",
+      "output": null
+    }
+  ],
+  "meta": {
+    "has_next_results": false,
+    "has_previous_results": false
+  }
+}
+```
+
+### Reset policy results
+
+Clears a policy's pass/fail results, identical to the side effect of editing its query. Immediately sets `passing_host_count` and `failing_host_count` to `0` and wipes membership records so the counts remain `0` until hosts re-report. Pass the `host_id` query parameter to instead reset only a single host's result for the policy.
+
+`POST /api/v1/fleet/policies/:policy_id/reset`
+
+#### Parameters
+
+| Name      | Type    | In   | Description                                                                                   |
+| --------- | ------- | ---- | --------------------------------------------------------------------------------------------- |
+| policy_id | integer | path | **Required.** The policy's ID.                                                                |
+| host_id   | integer | query | When set, resets only this host's result for the policy instead of resetting all hosts.      |
+
+#### Example
+
+`POST /api/v1/fleet/policies/123/reset?host_id=42`
+
+##### Default response
+
+`Status: 200`
+
+#### Errors
+
+| Status | Description                                                            |
+| ------ | ---------------------------------------------------------------------- |
+| 403    | The authenticated user does not have write access to the policy.       |
+| 404    | No policy with the given `policy_id` exists.                           |
 
 ---
 
@@ -879,7 +1008,7 @@ See [Connect certificate authority](#connect-certificate-authority-ca) above for
       "id": 5,
       "name": "SECTIGO_WIFI",
       "type": "custom_est_proxy"
-    }
+    },
     {
       "id": 6,
       "name": "SMALLSTEP_WIFI",
@@ -919,7 +1048,7 @@ Get details of the certificate authority.
   "profile_id": "b416e058-1bdc-4844-9c3f-7c71d58d0eff",
   "certificate_common_name": "$FLEET_VAR_HOST_HARDWARE_SERIAL",
   "certificate_user_principal_names": [
-    "$FLEET_VAR_HOST_HARDWARE_SERIAL",
+    "$FLEET_VAR_HOST_HARDWARE_SERIAL"
   ],
   "certificate_seat_id": "$FLEET_VAR_HOST_END_USER_EMAIL_IDP"
 }
@@ -992,7 +1121,7 @@ Authorization: Bearer sunVIQ+wqYQvJlXf1aqYTt8LrlUGKBigNdWmdH5bhT1MH
       "certificate_authority_name": "PRODUCTION_SCEP_SERVER",
       "subject_name": "CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME, OU=$FLEET_VAR_HOST_UUID, ST=$FLEET_VAR_HOST_HARDWARE_SERIAL",
       "subject_alternative_name": "DNS=example.com, UPN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME",
-      "created_at": "2025-11-04T00:00:00Z",
+      "created_at": "2025-11-04T00:00:00Z"
     },
     {
       "id": 2,
@@ -1000,7 +1129,7 @@ Authorization: Bearer sunVIQ+wqYQvJlXf1aqYTt8LrlUGKBigNdWmdH5bhT1MH
       "certificate_authority_id": "1",
       "certificate_authority_name": "PRODUCTION_SCEP_SERVER",
       "subject_name": "CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME, OU=$FLEET_VAR_HOST_UUID",
-      "created_at": "2025-11-04T00:00:00Z",
+      "created_at": "2025-11-04T00:00:00Z"
     }
   ],
   "meta": {
@@ -1640,7 +1769,7 @@ None.
   "activity_expiry_settings": {
     "activity_expiry_enabled": false,
     "activity_expiry_window": 0,
-    "preserve_host_activity_on_reenrollment": false,
+    "preserve_host_activity_on_reenrollment": false
   },
   "features": {
     "enable_host_users": true,
@@ -1660,6 +1789,7 @@ None.
     "enable_disk_encryption": true,
     "windows_require_bitlocker_pin": false,
     "apple_require_hardware_attestation": false,
+    "name_template": "",
     "macos_updates": {
       "minimum_version": "12.3.1",
       "deadline": "2022-01-01",
@@ -1690,8 +1820,21 @@ None.
         {
           "path": "path/to/profile1.mobileconfig",
           "labels": ["Label 1", "Label 2"]
+        },
+        {
+          "path": "path/to/declaration.json",
+          "labels": ["Label 1", "Label 2"]
         }
-      ]
+      ],
+      "assets": [
+        {
+          "path": "path/to/assets/asset.json"
+        }
+      ],
+      "managed_local_account_settings": {
+        "enabled": true
+      },
+      "end_user_local_account_type": "admin"
     },
     "windows_settings": {
       "custom_settings": [
@@ -1706,6 +1849,7 @@ None.
          "labels": ["Label 3", "Label 4"]
         }
       ],
+      "enable_managed_local_account": true
     },
     "scripts": ["path/to/script.sh"],
     "end_user_authentication": {
@@ -1726,14 +1870,16 @@ None.
       "enable_release_device_manually": false,
       "manual_agent_install": false,
       "enable_managed_local_account": false,
-      "end_user_local_account_type": "admin",
+      "end_user_local_account_type": "admin"
     },
     "setup_experience": {
       "bootstrap_package": "",
       "enable_end_user_authentication": false,
       "apple_setup_assistant": "path/to/config.json",
       "enable_release_device_manually": false,
-      "manual_agent_install": false
+      "manual_agent_install": false,
+      "enable_managed_local_account": false,
+      "end_user_local_account_type": "admin"
     },
     "client_url": "https://instance.fleet.com",
     "apple_account_provisioning": {
@@ -1769,7 +1915,6 @@ None.
     "tier": "premium",
     "organization": "fleet",
     "device_count": 500000,
-    "managed_cloud": false,
     "expiration": "2031-10-16T00:00:00Z",
     "note": ""
   },
@@ -1799,7 +1944,7 @@ None.
   },
   "gitops": {
     "gitops_mode_enabled": false,
-    "repository_url": "",
+    "repository_url": ""
   },
   "webhook_settings": {
     "host_status_webhook": {
@@ -1896,7 +2041,8 @@ None.
     "disable_data_sync": false,
     "periodicity": 3600000000000,
     "recent_vulnerability_max_age": 2592000000000000
-  }
+  },
+  "max_software_package_size": 10737418240
 }
 ```
 
@@ -2006,7 +2152,7 @@ Modifies the Fleet's configuration with the supplied information.
   "activity_expiry_settings": {
     "activity_expiry_enabled": false,
     "activity_expiry_window": 0,
-    "preserve_host_activity_on_reenrollment": false,
+    "preserve_host_activity_on_reenrollment": false
   },
   "features": {
     "enable_host_users": true,
@@ -2062,7 +2208,7 @@ Modifies the Fleet's configuration with the supplied information.
         {
           "path": "path/to/profile3.json",
           "labels_include_any": ["Label 5", "Label 6"]
-        },
+        }
       ]
     },
     "apple_settings": {
@@ -2078,8 +2224,17 @@ Modifies the Fleet's configuration with the supplied information.
         {
           "path": "path/to/profile3.json",
           "labels_include_any": ["Label 5", "Label 6"]
-        },
-      ]
+        }
+      ],
+      "assets": [
+        {
+          "path": "path/to/assets/asset.json"
+        }
+      ],
+      "managed_local_account_settings": {
+        "enabled": true
+      },
+      "end_user_local_account_type": "admin"
     },
     "windows_settings": {
       "custom_settings": [
@@ -2093,7 +2248,8 @@ Modifies the Fleet's configuration with the supplied information.
           "path": "path/to/profile3.xml",
           "labels_exclude_any": ["Label 1", "Label 2"]
         }
-      ]
+      ],
+      "enable_managed_local_account": true
     },
     "end_user_authentication": {
       "entity_id": "",
@@ -2117,8 +2273,13 @@ Modifies the Fleet's configuration with the supplied information.
     "setup_experience": {
       "bootstrap_package": "",
       "enable_end_user_authentication": false,
+      "enable_managed_local_account": false,
+      "end_user_local_account_type": "admin",
       "lock_end_user_info": true,
       "apple_setup_assistant": "path/to/config.json"
+    },
+    "windows_automatic_enrollment": {
+      "default_fleet": "Workstations"
     },
     "apple_server_url": "https://instance.fleet.com"
   },
@@ -2152,7 +2313,7 @@ Modifies the Fleet's configuration with the supplied information.
   },
   "gitops": {
     "gitops_mode_enabled": false,
-    "repository_url": "",
+    "repository_url": ""
   },
   "webhook_settings": {
     "host_status_webhook": {
@@ -2689,6 +2850,7 @@ When updating conditional access config, all `conditional_access` fields must ei
 | windows_require_bitlocker_pin           | boolean | _Available in Fleet Premium._ End users on Windows hosts that are "Unassigned" will be required to set a BitLocker PIN if set to true. `enable_disk_encryption` must be set to true. When the PIN is set, it's required to unlock Windows host during startup. |
 | apple_require_hardware_attestation | boolean | _Available in Fleet Premium._ Specifies whether or not to require Apple Silicon macOS hosts to complete a device attestation challenge verifying that the hardware serial matches a known host record from ABM as part of DEP enrollment. |
 | enable_recovery_lock_password     | boolean | _Available in Fleet Premium._ Unassigned hosts will have Recovery Lock password enabled if set to true. |
+| name_template                     | string  | _Available in Fleet Premium._ Naming convention applied to "Unassigned" macOS, iOS, and iPadOS hosts. Supports the built-in host identity and IdP end-user variables and custom (`$FLEET_SECRET_*`) variables; certificate authority variables aren't supported. See the [Update host name template](#update-host-name-template) endpoint for the full list. An empty string clears the template. To set the template for a fleet, use that endpoint. |
 | macos_updates         | object  | See [`mdm.macos_updates`](#mdm-macos-updates). |
 | ios_updates         | object  | See [`mdm.ios_updates`](#mdm-ios-updates). |
 | ipados_updates         | object  | See [`mdm.ipados_updates`](#mdm-ipados-updates). |
@@ -2696,8 +2858,10 @@ When updating conditional access config, all `conditional_access` fields must ei
 | macos_migration         | object  | See [`mdm.macos_migration`](#mdm-macos-migration). |
 | setup_experience         | object  | See [`mdm.setup_experience`](#mdm-setup-experience). |
 | macos_settings         | object  | See [`mdm.macos_settings`](#mdm-macos-settings). |
+| apple_settings         | object  | See [`mdm.apple_settings`](#mdm-macos-settings). |
 | windows_settings         | object  | See [`mdm.windows_settings`](#mdm-windows-settings). |
 | apple_server_url         | string  | Update this URL if you're self-hosting Fleet and you want your hosts to talk to this URL for MDM features. (If not configured, hosts will use the base URL of the Fleet instance.)  |
+| windows_automatic_enrollment         | object  | See [`mdm.windows_automatic_enrollment`](#mdm-windows-enrollment). |
 
 > Note: If `apple_server_url` changes and Apple (macOS, iOS, iPadOS) hosts already have MDM turned on, the end users will have to turn MDM off and back on to use MDM features.
 
@@ -2713,9 +2877,10 @@ _Available in Fleet Premium._
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| minimum_version                   | string  | Hosts that are "Unassigned" and have MDM turned on will be prompted to update when their OS is below this version. |
-| deadline                          | string  | Hosts that are "Unassigned" and have MDM turned on will be forced to update their OS after this deadline (7PM local time for hosts already on macOS 14 or above, 20:00 UTC for hosts on earlier macOS versions). |
-| update_new_hosts                          | string  | macOS hosts that automatically enroll (ADE) are updated to [Apple's latest version](https://fleetdm.com/guides/enforce-os-updates) during macOS Setup Assistant. For backwards compatibility, if not specified, and `deadline` and `minimum_version` are set, `update_new_hosts` is set to `true`. Otherwise, `update_new_hosts` defaults to `false`. |
+| minimum_version                   | string  | The minimum required macOS version. Hosts that are "Unassigned" and have MDM turned on will be prompted to update when their OS is below this version. Accepts a version number (e.g., `"15.4.1"`) or `"latest"`. Pair with `deadline` for version numbers or `deadline_days` for `"latest"`. |
+| deadline                          | string  | Hosts that are "Unassigned" and have MDM turned on will be forced to update their OS after this deadline (7PM local time for hosts already on macOS 14 or above, 20:00 UTC for hosts on earlier macOS versions). Required when `minimum_version` is a version number. Cannot be used with automatic options. |
+| deadline_days                     | integer | Hosts that are "Unassigned" and have MDM turned on will be forced to update their OS the specified number of days after Apple releases an update. Required when `minimum_version` is `"latest"`. Cannot be used with a version number. |
+| update_new_hosts                  | string  | macOS hosts that automatically enroll (ADE) are updated to [Apple's latest version](https://fleetdm.com/guides/enforce-os-updates) during macOS Setup Assistant. For backwards compatibility, if not specified, and `deadline` and `minimum_version` are set, `update_new_hosts` is set to `true`. Otherwise, `update_new_hosts` defaults to `false`. |
 
 <br/>
 
@@ -2727,8 +2892,9 @@ _Available in Fleet Premium._
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| minimum_version                   | string  | Hosts that are "Unassigned" will be prompted to update when their OS is below this version. |
-| deadline                          | string  | Hosts that are "Unassigned" will be forced to update their OS after this deadline (7PM local time). |
+| minimum_version                   | string  | The minimum required iOS version. Hosts that are "Unassigned" and have MDM turned on will be prompted to update when their OS is below this version. Accepts a version number (e.g., `"15.4.1"`) or `"latest"`. Pair with `deadline` for version numbers or `deadline_days` for `"latest"`. |
+| deadline                          | string  | Hosts that are "Unassigned" will be forced to update their OS after this deadline (7PM local time). Required when `minimum_version` is a version number. Cannot be used with automatic options. |
+| deadline_days                     | integer | Hosts that are "Unassigned" and have MDM turned on will be forced to update their OS the specified number of days after Apple releases an update. Required when `minimum_version` is `"latest"`. Cannot be used with a version number. |
 
 <br/>
 
@@ -2740,8 +2906,9 @@ _Available in Fleet Premium._
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| minimum_version                   | string  | Hosts that are "Unassigned" will be prompted to update when their OS is below this version. |
-| deadline                          | string  | Hosts that are "Unassigned" will be forced to update their OS after this deadline (7PM local time). |
+| minimum_version                   | string  | The minimum required iPadOS version. Hosts that are "Unassigned" and have MDM turned on will be prompted to update when their OS is below this version. Accepts a version number (e.g., `"15.4.1"`) or `"latest"`. Pair with `deadline` for version numbers or `deadline_days` for `"latest"`. |
+| deadline                          | string  | Hosts that are "Unassigned" will be forced to update their OS after this deadline (7PM local time). Required when `minimum_version` is a version number. Cannot be used with automatic options. |
+| deadline_days                     | integer | Hosts that are "Unassigned" and have MDM turned on will be forced to update their OS the specified number of days after Apple releases an update. Required when `minimum_version` is `"latest"`. Cannot be used with a version number. |
 
 <br/>
 
@@ -2752,8 +2919,8 @@ _Available in Fleet Premium._
 `mdm.windows_updates` is an object with the following structure:
 
 | Name                              | Type    | Description   |
-| ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| deadline_days                     | integer | Hosts that are "Unassigned" and have MDM turned on will have this number of days before updates are installed on Windows. |
+| ---------------------             | ------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| deadline_days                     | integer | Hosts that are "Unassigned" and have MDM turned on will have this number of days before updates are installed on Windows.    |
 | grace_period_days                 | integer | Hosts that are "Unassigned" and have MDM turned on will have this number of days before Windows restarts to install updates. |
 
 <br/>
@@ -2778,13 +2945,12 @@ _Available in Fleet Premium._
 
 `mdm.setup_experience` is an object with the following structure:
 
-| Name                              | Type    | Description   |
-| ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| enable_end_user_authentication    | boolean | If set to true, IdP authentication will be required during automatic MDM enrollment of new macOS devices. Settings for your IdP provider must also be [configured](https://fleetdm.com/guides/setup-experience#require-idp-authentication). |
-| enable_managed_local_account     | boolean | _Available in Fleet Premium._ During Setup experience, a managed local account will be created on macOS hosts if set to true. |
-| end_user_local_account_type     | string | _Available in Fleet Premium._ Specifies the type of local end user account created. (Default: `"admin"`) `enable_managed_local_account` must be true. |
-| lock_end_user_info                | boolean | If set to true, end user can't edit the local account's Account Name and Full Name in macOS Setup Assistant. These fields will be locked to values from your IdP. (Default: `true`) |
-| enable_managed_local_account      | boolean | Whether to enforce creating managed local accounts on macOS hosts that automatically enroll. |
+| Name                                 | Type    | Description   |
+| ---------------------                | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| enable_end_user_authentication       | boolean | If set to true, end user authentication will be required during automatic MDM enrollment of new macOS devices. Settings for your IdP provider must also be [configured](https://fleetdm.com/guides/setup-experience#end-user-authentication). |
+| enable_managed_local_account         | boolean | _Available in Fleet Premium._ During Setup experience, a managed local account will be created on eligible hosts if set to true. |
+| end_user_local_account_type          | string  | _Available in Fleet Premium._ Specifies the type of local end user account created. (Default: `"admin"`) `enable_managed_local_account` must be true. |
+| lock_end_user_info                   | boolean | If set to true, end user can't edit the local account's Account Name and Full Name in macOS Setup Assistant. These fields will be locked to values from your IdP. (Default: `true`) |
 
 <br/>
 
@@ -2792,9 +2958,22 @@ _Available in Fleet Premium._
 
 `mdm.macos_settings` is an object with the following structure:
 
-| Name                              | Type    | Description   |
-| ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| custom_settings                   | array   | Only intended to be used by [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To add macOS configuration profiles using Fleet's API, use the [Create configuration profile](#create-configuration-profile) endpoint instead. |
+| Name                                   | Type    | Description   |
+| -------------------------------------- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| custom_settings                        | array   | Only intended to be used by [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To add macOS configuration profiles using Fleet's API, use the [Create configuration profile](#create-configuration-profile) endpoint instead. |
+
+<br/>
+
+##### mdm.apple_settings
+
+`mdm.apple_settings` is an object with the following structure:
+
+| Name                                   | Type    | Description   |
+| -------------------------------------- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| custom_settings                        | array   | Only intended to be used by [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To add macOS configuration profiles using Fleet's API, use the [Create configuration profile](#create-configuration-profile) endpoint instead. |
+| managed_local_account_settings         | object  | Settings for the managed local account. |
+| managed_local_account_settings.enabled | boolean | Whether to create the managed local account (default: `false`). |
+| end_user_local_account_type            | string  | The end user account type. Requires `managed_local_account_settings.enabled` to be `true`. Options: `"admin"`, `"standard"`, `"none"` (default: `"admin"`). |
 
 <br/>
 
@@ -2802,9 +2981,20 @@ _Available in Fleet Premium._
 
 `mdm.windows_settings` is an object with the following structure:
 
+| Name                                   | Type    | Description   |
+| -------------------------------------- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| custom_settings                        | array   | Only intended to be used by [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To add Windows configuration profiles using Fleet's API, use the [Create configuration profile](#create-configuration-profile) endpoint instead. |
+| enable_managed_local_account           | boolean | Whether to create the managed local account (default: `false`). |
+
+<br/>
+
+##### mdm.windows_automatic_enrollment
+
+`mdm.windows_automatic_enrollment` is an object with the following structure:
+
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| custom_settings                   | array   | Only intended to be used by [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To add Windows configuration profiles using Fleet's API, use the [Create configuration profile](#create-configuration-profile) endpoint instead. |
+| default_fleet                     | string  | The name of the fleet that new MDM enrolled Windows hosts will be placed in. Empty string (default) places hosts in "No fleet".
 
 <br/>
 
@@ -2850,8 +3040,16 @@ _Available in Fleet Premium._
         {
           "path": "path/to/profile2.json",
           "labels": ["Label 3", "Label 4"]
-        },
-      ]
+        }
+      ],
+      "assets": [
+        {
+          "path": "path/to/assets/asset.json"
+        }
+      ],
+      "managed_local_account_settings": {
+        "enabled": true
+      }
     },
     "windows_settings": {
       "configuration_profiles": [
@@ -2859,7 +3057,8 @@ _Available in Fleet Premium._
           "path": "path/to/profile3.xml",
           "labels": ["Label 1", "Label 2"]
         }
-      ]
+      ],
+      "enable_managed_local_account": true
     },
     "end_user_authentication": {
       "entity_id": "",
@@ -2877,6 +3076,9 @@ _Available in Fleet Premium._
       "enable_end_user_authentication": false,
       "lock_end_user_info": true,
       "apple_setup_assistant": "path/to/config.json"
+    },
+    "windows_automatic_enrollment": {
+      "default_fleet": "Workstations"
     }
   }
 }
@@ -3101,7 +3303,7 @@ None.
       "created_at": "2021-06-16T22:05:49Z",
       "secret": "aFtH2Nq09hrvi73ErlWNQfa7M53D3rPR",
       "team_id": 1,
-      "fleet_id": 1,
+      "fleet_id": 1
     }
   ]
 }
@@ -3247,6 +3449,7 @@ None.
 - [Run live report on host by identifier (ad hoc)](#run-live-report-on-host-by-identifier-ad-hoc)
 - [Bypass host's conditional access](#bypass-hosts-conditional-access)
 - [Get host's managed account password](#get-hosts-managed-account-password)
+- [Release host from Apple Business](#release-host-from-apple-business)
 
 
 #### About host timestamps
@@ -3265,10 +3468,10 @@ the `software` table.
 
 - `created_at`: the time the row in the database was created, which usually corresponds to the first enrollment of the host.
 - `updated_at`: the last time the row in the database for the `hosts` table was updated.
-- `detail_updated_at`: the last time Fleet updated host data (this includes updates to host associated tables, e.g. `host_users`).
+- `detail_updated_at`: the last time Fleet updated host data (this includes updates to host associated tables, e.g. `host_users`). This only changes when the host's detail queries run, which is less frequent than policy queries, so it lags behind events (like a policy automation) that were triggered by a policy check alone.
 - `label_updated_at`: the last time Fleet updated the label membership for the host
 - `last_enrolled_at`: the last time the host enrolled to Fleet.
-- `policy_updated_at`: the last time we updated the policy results for the host
+- `policy_updated_at`: the last time we updated the policy results for the host. Policies can be checked, and policy automations triggered, much more often than the policy update interval ([learn more](https://fleetdm.com/guides/automations#policy-automations)).
 - `seen_time`: the last time the host contacted the fleet server, regardless of what operation it was for.
 - `software_updated_at`: the last time software changed for the host in any way.
 - `last_restarted_at`: the last time that the host was restarted.
@@ -3276,6 +3479,10 @@ the `software` table.
 ### List hosts
 
 `GET /api/v1/fleet/hosts`
+
+> `populate_software` returns a lot of data per host when set, and drastically more data when set to `true` on Fleet Premium. If you need vulnerability details for a large number of hosts, consider setting `populate_software` to `without_vulnerability_details` and pulling vulnerability details from the [Get vulnerability](#get-vulnerability) endpoint, as this returns details once per vulnerability rather than once per vulnerability per host.
+
+> Searching with `query` and setting `device_mapping=true` are each expensive, and combining them is more so. If you're using these, the best practice is to reduce the number of results returned using `per_page=50`, to prevent overloading the Fleet server.
 
 #### Parameters
 
@@ -3312,7 +3519,7 @@ the `software` table.
 | bootstrap_package       | string | query | _Available in Fleet Premium_. Filters the hosts by the status of the MDM bootstrap package on the host. Valid options are 'installed', 'pending', or 'failed'. |
 | os_settings          | string  | query | Filters the hosts by the status of the operating system settings applied to the hosts. Valid options are 'verified', 'verifying', 'pending', or 'failed'. **Note: If this filter is used in Fleet Premium without a fleet ID filter, the results include only "Unassigned" hosts.** |
 | os_settings_disk_encryption | string | query | Filters the hosts by disk encryption status. Valid options are 'verified', 'verifying', 'action_required', 'enforcing', 'failed', or 'removing_enforcement'.  **Note: If this filter is used in Fleet Premium without a fleet ID filter, the results include only "Unassigned" hosts.** |
-| populate_software     | string | query | If `false` (or omitted), omits installed software details for each host. If `"without_vulnerability_details"`, include a list of installed software for each host, including which CVEs apply to the installed software versions. `true` adds vulnerability description, CVSS score, and other details when using Fleet Premium. See notes below on performance. |
+| populate_software     | string | query | If `false` (or omitted), omits installed software details for each host. If `"without_vulnerability_details"`, include a list of installed software for each host, including which CVEs apply to the installed software versions. `true` adds vulnerability description, CVSS score, and other details when using Fleet Premium. See notes above on performance. |
 | populate_policies     | boolean | query | If `true`, the response will include policy data for each host, including Fleet-maintained policies. |
 | populate_users     | boolean | query | If `true`, the response will include user data for each host. |
 | populate_labels     | boolean | query | If `true`, the response will include labels for each host. |
@@ -3323,8 +3530,6 @@ the `software` table.
 | dep_assign_profile_response | string | query | Filters the hosts by DEP profile assignment status. Valid options are 'SUCCESS', 'FAILED', 'THROTTLED' or 'NOT_ACCESSIBLE'. Only Apple hosts which are, or were assigned to Fleet in ABM will be returned. |
 
 > `software_id` is deprecated as of Fleet 4.42. It is maintained for backwards compatibility. Please use the `software_version_id` instead.
-
-> `populate_software` returns a lot of data per host when set, and drastically more data when set to `true` on Fleet Premium. If you need vulnerability details for a large number of hosts, consider setting `populate_software` to `without_vulnerability_details` and pulling vulnerability details from the [Get vulnerability](#get-vulnerability) endpoint, as this returns details once per vulnerability rather than once per vulnerability per host.
 
 If `software_title_id` is specified, an additional top-level key `"software_title"` is returned with the software title object corresponding to the `software_title_id`. See [List software](#list-software) response payload for details about this object.
 
@@ -3395,6 +3600,7 @@ To filter Windows hosts using `os_name` and `os_version`, set `os_name` to the f
       "cpu_logical_cores": 8,
       "hardware_vendor": "Apple Inc.",
       "hardware_model": "MacBookPro17,1",
+      "hardware_marketing_name": "MacBook Pro (13-inch, M1, 2020)",
       "hardware_version": "",
       "hardware_serial": "C0124FXASD6G",
       "computer_name": "Anna's MacBook Pro",
@@ -3460,6 +3666,7 @@ To filter Windows hosts using `os_name` and `os_version`, set `os_name` to the f
       "mdm": {
         "encryption_key_available": false,
         "enrollment_status": "Pending",
+        "is_personal_enrollment": false,
         "dep_profile_error": true,
         "name": "Fleet",
         "server_url": "https://example.fleetdm.com/mdm/apple/mdm",
@@ -3481,7 +3688,7 @@ To filter Windows hosts using `os_name` and `os_version`, set `os_name` to the f
               "cvss_score": 7.5, // Fleet Premium only
               "epss_probability": 0.01537, // Fleet Premium only
               "cisa_known_exploit": false, // Fleet Premium only
-              "cve_published": "2022-01-01 12:32:00", // Fleet Premium only
+              "cve_published": "2022-01-01T12:32:00Z", // Fleet Premium only
               "cve_description": "In the GNU C Library (aka glibc or libc6) before 2.28, parse_reg_exp in posix/regcomp.c misparses alternatives, which allows attackers to cause a denial of service (assertion failure and application exit) or trigger an incorrect result by attempting a regular-expression match.", // Fleet Premium only
               "resolved_in_version": "2.28" // Fleet Premium only
             }
@@ -3794,6 +4001,9 @@ Returns the information of the specified host.
 
 `GET /api/v1/fleet/hosts/:id`
 
+> If you're hitting this endpoint often (e.g. every hour) for a large number of hosts (e.g. 1k+) the best practice is to set the `exclude_software` to `true` to prevent overloading the Fleet server.
+
+
 #### Parameters
 
 | Name             | Type    | In    | Description                                                                             |
@@ -3802,7 +4012,7 @@ Returns the information of the specified host.
 | exclude_software | boolean | query | If `true`, the response will not include a list of installed software for the host.     |
 | exclude_fleet_maintained_policies | boolean | query | If `true`, will omit Fleet-maintained policies from the policies list. |
 
-#### Example
+#### Example (macOS)
 
 `GET /api/v1/fleet/hosts/121`
 
@@ -3847,6 +4057,7 @@ Returns the information of the specified host.
     "cpu_logical_cores": 8,
     "hardware_vendor": "Apple Inc.",
     "hardware_model": "MacBookPro17,1",
+    "hardware_marketing_name": "MacBook Pro (13-inch, M1, 2020)",
     "hardware_version": "",
     "hardware_serial": "C0124FXASD6G",
     "computer_name": "Anna's MacBook Pro",
@@ -3869,6 +4080,7 @@ Returns the information of the specified host.
     "disk_encryption_enabled": true,
     "status": "online",
     "display_text": "Annas-MacBook-Pro.local",
+    "apple_business_source": "Apple",
     "additional": {},
     "issues": {
       "failing_policies_count": 1,
@@ -3890,7 +4102,7 @@ Returns the information of the specified host.
       }
     },
     "maintenance_window": {
-      "starts_at": "2024-06-18T13:27:18−04:00",
+      "starts_at": "2024-06-18T13:27:18-04:00",
       "timezone": "America/New_York"
     },
     "users": [
@@ -3977,7 +4189,7 @@ Returns the information of the specified host.
         "resolution": "fix with these other steps...",
         "platform": "darwin",
         "response": "fail",
-        "critical": false,
+        "critical": false
       },
       {
         "id": 3,
@@ -3987,7 +4199,7 @@ Returns the information of the specified host.
         "resolution": "",
         "platform": "",
         "response": "",
-        "critical": false,
+        "critical": false
       },
       {
         "id": 1,
@@ -3997,7 +4209,7 @@ Returns the information of the specified host.
         "resolution": "fix with these steps...",
         "platform": "windows,linux",
         "response": "pass",
-        "critical": false,
+        "critical": false
       }
     ],
     "software": [
@@ -4022,16 +4234,18 @@ Returns the information of the specified host.
         "generated_cpe": "",
         "vulnerabilities": null,
         "installed_paths": ["/usr/lib/some-path-2"]
-      },
+      }
     ],
     "mdm": {
       "encryption_key_available": true,
       "enrollment_status": "On (manual)",
+      "is_personal_enrollment": false,
       "name": "Fleet",
       "connected_to_fleet": true,
       "server_url": "https://acme.com/mdm/apple/mdm",
       "device_status": "unlocked",
       "pending_action": "",
+      "bootstrap_token_escrowed": true,
       "macos_settings": {
         "disk_encryption": "verified",
         "action_required": null
@@ -4054,6 +4268,10 @@ Returns the information of the specified host.
         "disk_encryption": {
           "status": "verified",
           "detail": ""
+        },
+        "host_name": {
+          "status": "verified",
+          "detail": ""
         }
       },
       "profiles": [
@@ -4072,13 +4290,357 @@ Returns the information of the specified host.
 }
 ```
 
+#### Example (iOS/iPadOS)
+`GET /api/v1/fleet/hosts/121`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "host": {
+    "created_at": "2021-08-19T02:02:22Z",
+    "updated_at": "2021-08-19T21:14:58Z",
+    "id": 1,
+    "detail_updated_at": "2021-08-19T21:07:53Z",
+    "last_restarted_at": "2020-11-01T03:01:45Z",
+    "software_updated_at": "2020-11-05T05:09:44Z",
+    "label_updated_at": "2021-08-19T21:07:53Z",
+    "policy_updated_at": "2023-06-26T18:33:15Z",
+    "last_enrolled_at": "2021-08-19T02:02:22Z",
+    "last_mdm_checked_in_at": "2023-02-26T22:33:12Z",
+    "last_mdm_enrolled_at": "2023-02-26T22:33:12Z",
+    "mdm_enrollment_hardware_attested": true,
+    "seen_time": "2021-08-19T21:14:58Z",
+    "refetch_requested": false,
+    "hostname": "Annas-iPhone",
+    "uuid": "309a4b7d-0000-0000-8e7f-26ae0815ede8",
+    "udid": "00008110-001A2B3C4D5E6F78",
+    "platform": "ios",
+    "osquery_version": "5.15.0",
+    "orbit_version": "1.22.0",
+    "fleet_desktop_version": null,
+    "scripts_enabled": false,
+    "os_version": "iOS 17.4.1",
+    "os_update_minimum_version": "15.1",
+    "os_update_deadline": "2025-07-01",
+    "build": "21E236",
+    "platform_like": "darwin",
+    "code_name": "",
+    "uptime": 210671000000000,
+    "memory": 6442450944,
+    "cpu_type": "arm64",
+    "cpu_subtype": "ARM64E",
+    "cpu_brand": "Apple A16 Bionic",
+    "cpu_physical_cores": 6,
+    "cpu_logical_cores": 6,
+    "hardware_vendor": "Apple Inc.",
+    "hardware_model": "iPhone15,2",
+    "hardware_version": "iPhone 15 Pro",
+    "hardware_serial": "F2LXX1XXXXXX",
+    "computer_name": "Anna's iPhone",
+    "timezone": null,
+    "display_name": "Anna's iPhone",
+    "public_ip": "123.45.678.910",
+    "primary_ip": "192.168.1.42",
+    "primary_mac": "a4:83:e7:12:34:56",
+    "distributed_interval": 10,
+    "config_tls_refresh": 10,
+    "logger_tls_period": 10,
+    "team_id": null,
+    "fleet_id": null,
+    "pack_stats": null,
+    "team_name": null,
+    "fleet_name": null,
+    "gigs_disk_space_available": 54.3,
+    "percent_disk_space_available": 43,
+    "gigs_total_disk_space": 128,
+    "app_analytics_enabled": true,
+    "accessibility_settings": {
+      "bold_text_enabled": false,
+      "grayscale_enabled": false,
+      "increase_contrast_enabled": false,
+      "reduce_motion_enabled": true,
+      "reduce_transparency_enabled": false,
+      "text_size": 4,
+      "touch_accommodations_enabled": false,
+      "voice_over_enabled": false,
+      "zoom_enabled": false
+    },
+    "awaiting_configuration": false,
+    "battery_level": 0.82,
+    "bluetooth_mac": "a4:83:e7:12:34:57",
+    "cellular_technology": "GSM",
+    "data_roaming_enabled": false,
+    "device_properties_attestation": [
+      "MIIC6zCCAnKgAwIBAgIGAZ+onLUpMAoGCCqGSM49BAMDMFIxLjAsBgNVBAMMJUFwcGxl",
+      "MIICSTCCAc6gAwIBAgIUcDHgQKbmtGvw4vNNVWqEVNBCXnEwCgYIKoZIzj0EAwMwUTEt"
+    ],
+    "diagnostic_submission_enabled": true,
+    "eas_device_identifier": "3E2A1F9C4D7B6E8A2C5D1F0E3B4A7C9D",
+    "is_cloud_backup_enabled": true,
+    "is_device_locator_service_enabled": true,
+    "is_do_not_disturb_in_effect": false,
+    "is_mdm_lost_mode_enabled": false,
+    "is_network_tethered": false,
+    "itunes_store_account_hash": "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2",
+    "itunes_store_account_is_active": true,
+    "last_cloud_backup_date": "2023-02-25T14:22:10Z",
+    "mdm_options": {
+      "activation_lock_allowed_while_supervised": true,
+      "bootstrap_token_allowed": true,
+      "prompt_user_to_allow_bootstrap_token_for_authentication": false
+    },
+    "model_number": "MNEP3LL/A",
+    "modem_firmware_version": "2.01.00",
+    "organization_info": {
+      "organization_name": "Acme Corp",
+      "organization_address": "123 Main St, New York, NY 10001",
+      "organization_phone": "+1-800-555-0100",
+      "organization_email": "it@example.com",
+      "organization_magic": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+    },
+    "personal_hotspot_enabled": false,
+    "push_token": "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6",
+    "service_subscriptions": [
+      {
+        "carrier_settings_version": "42.0",
+        "current_carrier_network": "Verizon",
+        "current_mcc": "311",
+        "current_mnc": "480",
+        "eid": "89049032004008882600890049000003",
+        "iccid": "89014103211118510720",
+        "imei": "352099001761481",
+        "is_data_preferred": true,
+        "is_roaming": false,
+        "is_voice_preferred": true,
+        "label": "Primary",
+        "label_id": "com.apple.subscriberLabel.primary",
+        "meid": "35209900176148",
+        "phone_number": "+1-123-456-7890",
+        "slot": "CTSubscriptionSlotOne",
+        "subscriber_carrier_network": "Verizon"
+      }
+    ],
+    "supplemental_build_version": "21E236",
+    "supplemental_os_version_extra": "(a)",
+    "wifi_mac": "a4:83:e7:12:34:58",
+    "disk_encryption_enabled": true,
+    "status": "online",
+    "display_text": "Annas-iPhone",
+    "additional": {},
+    "issues": {
+      "failing_policies_count": 1,
+      "critical_vulnerabilities_count": 2, // Available in Fleet Premium
+      "total_issues_count": 3
+    },
+    "batteries": [
+      {
+        "cycle_count": 187,
+        "health": "Normal"
+      }
+    ],
+    "geolocation": {
+      "country_iso": "US",
+      "city_name": "New York",
+      "geometry": {
+        "type": "point",
+        "coordinates": [40.6799, -74.0028]
+      }
+    },
+    "maintenance_window": {
+      "starts_at": "2024-06-18T13:27:18−04:00",
+      "timezone": "America/New_York"
+    },
+    "users": [
+      {
+        "uid": 501,
+        "username": "annachao",
+        "type": "",
+        "groupname": "mobile",
+        "shell": ""
+      }
+    ],
+    "end_users": [
+      {
+        "idp_info_updated_at": "2025-03-20T02:02:17Z",
+        "idp_id": "f26f8649-1e25-42c5-be71-1b1e6de56d3d",
+        "idp_username": "anna@example.com",
+        "idp_full_name": "Anna Chao",
+        "idp_department": "Product",
+        "idp_groups": [
+          "Product",
+          "Designers"
+        ],
+        "other_emails": [
+          {
+            "email": "anna2@example.com",
+            "source": "managed_apple_id"
+          },
+          {
+            "email": "anna3@example.com",
+            "source": "custom"
+          }
+        ]
+      }
+    ],
+    "labels": [
+      {
+        "created_at": "2021-08-19T02:02:17Z",
+        "updated_at": "2021-08-19T02:02:17Z",
+        "id": 6,
+        "name": "All Hosts",
+        "description": "All hosts which have enrolled in Fleet",
+        "query": "SELECT 1;",
+        "platform": "",
+        "label_type": "builtin",
+        "label_membership_type": "dynamic"
+      },
+      {
+        "created_at": "2021-08-19T02:02:17Z",
+        "updated_at": "2021-08-19T02:02:17Z",
+        "id": 9,
+        "name": "iOS",
+        "description": "All iOS hosts",
+        "query": "SELECT 1 FROM osquery_info WHERE build_platform = 'ios';",
+        "platform": "ios",
+        "label_type": "builtin",
+        "label_membership_type": "dynamic"
+      },
+      {
+        "created_at": "2021-08-19T02:02:17Z",
+        "updated_at": "2021-08-19T02:02:17Z",
+        "id": 12,
+        "name": "Hosts with Gmail installed",
+        "description": "",
+        "query": "SELECT * FROM apps WHERE name LIKE \"%Gmail%\"",
+        "platform": "ios",
+        "label_type": "regular",
+        "label_membership_type": "dynamic"
+      }
+    ],
+    "packs": [],
+    "policies": [
+      {
+        "id": 2,
+        "name": "Passcode required (iOS)",
+        "query": "SELECT 1 FROM managed_policies WHERE domain = 'com.apple.mobiledevice.passwordpolicy' AND name = 'forcePIN' AND value = 1 LIMIT 1;",
+        "description": "Checks that a passcode is enforced on the device.",
+        "resolution": "Go to Settings > Face ID & Passcode > Turn Passcode On.",
+        "platform": "ios",
+        "response": "fail",
+        "critical": false
+      },
+      {
+        "id": 3,
+        "name": "SomeQuery3",
+        "query": "SELECT * FROM baz;",
+        "description": "",
+        "resolution": "",
+        "platform": "",
+        "response": "",
+        "critical": false
+      },
+      {
+        "id": 1,
+        "name": "OS version up to date (iOS)",
+        "query": "SELECT 1 FROM os_version WHERE version >= '17.4.1';",
+        "description": "Checks that the device is running the latest iOS version.",
+        "resolution": "Go to Settings > General > Software Update and install the latest update.",
+        "platform": "ios",
+        "response": "pass",
+        "critical": false
+      }
+    ],
+    "software": [
+      {
+        "id": 321,
+        "name": "Gmail",
+        "version": "6.0.240414",
+        "source": "ios_apps",
+        "bundle_identifier": "com.google.Gmail",
+        "last_opened_at": "2021-08-18T21:14:00Z",
+        "generated_cpe": "",
+        "vulnerabilities": null,
+        "installed_paths": ["/var/containers/Bundle/Application/"]
+      },
+      {
+        "id": 322,
+        "name": "Slack",
+        "version": "23.10.10",
+        "source": "ios_apps",
+        "bundle_identifier": "com.tinyspeck.chatlyio",
+        "last_opened_at": "2021-08-18T21:14:00Z",
+        "generated_cpe": "",
+        "vulnerabilities": null,
+        "installed_paths": ["/var/containers/Bundle/Application/"]
+      }
+    ],
+    "mdm": {
+      "encryption_key_available": false,
+      "enrollment_status": "On (automatic)",
+      "name": "Fleet",
+      "connected_to_fleet": true,
+      "server_url": "https://acme.com/mdm/apple/mdm",
+      "device_status": "unlocked",
+      "pending_action": "",
+      "macos_settings": {
+        "disk_encryption": null,
+        "action_required": null
+      },
+      "apple_settings": {
+        "disk_encryption": null,
+        "action_required": null
+      },
+      "macos_setup": {
+        "bootstrap_package_status": "installed",
+        "detail": "",
+        "bootstrap_package_name": ""
+      },
+      "setup_experience": {
+        "bootstrap_package_status": "installed",
+        "detail": "",
+        "bootstrap_package_name": ""
+      },
+      "os_settings": {
+        "disk_encryption": {
+          "status": null,
+          "detail": ""
+        }
+      },
+      "profiles": [
+        {
+          "profile_uuid": "954ec5ea-a334-4825-87b3-937e7e381f24",
+          "name": "iOS Restrictions Profile",
+          "status": "verifying",
+          "operation_type": "install",
+          "scope": "device",
+          "managed_local_account": "",
+          "detail": ""
+        }
+      ]
+    }
+  }
+}
+```
+
+`mdm.os_settings.host_name` reports the host name template enforcement status for a macOS, iOS, or iPadOS host. Its `status` is one of `pending`, `verifying`, `verified`, or `failed`, and `detail` carries the error message when the status is `failed`. The object is omitted entirely for hosts that aren't enforced (no template set on the host's fleet or on "Unassigned", non-MDM hosts, and personal (BYOD) enrollments).
+
+`mdm.bootstrap_token_escrowed` indicates whether Fleet has escrowed a [bootstrap token](https://support.apple.com/guide/deployment/use-secure-and-bootstrap-tokens-dep24dbdcf9e/web) for the macOS host. The bootstrap token authorizes certain MDM operations, such as remote wipe and installing OS updates, without requiring a user with a secure token to be logged in. This field is only present for macOS hosts.
+
 `browser` and `extension_for` fields are included when set and when empty. `extension_for` shows the browser or Visual Studio Code fork associated with the extension, allowing for differentiation between e.g. an extension installed on Visual Studio Code and one installed on Cursor. `browser` is deprecated, and only shows this information for browser plugins.
 
 > Note: the response above assumes a [GeoIP database is configured](https://fleetdm.com/docs/deploying/configuration#geoip), otherwise the `geolocation` object won't be included.
 
 > Note: `installed_paths` may be blank depending on installer package. For example, on Linux, RPM-installed packages do not provide installed path information.
 
-> Note: `signature_information` is only set for macOS (.app) applications.
+> Note: 
+> - `signature_information` is only set for macOS (.app) applications. 
+> - Currently, the following are supported only for iOS/iPadOS: `accessibility_settings`, `app_analytics_enabled`, `awaiting_configuration`, `battery_level`, `bluetooth_mac`, `cellular_technology`, `data_roaming_enabled`, `device_properties_attestation`, `diagnostic_submission_enabled`, `eas_device_identifier`, `is_cloud_backup_enabled`, `is_device_locator_service_enabled`, `is_do_not_disturb_in_effect`, `is_mdm_lost_mode_enabled`, `is_network_tethered`, `itunes_store_account_hash`, `itunes_store_account_is_active`, `last_cloud_backup_date`, `mdm_options`, `model_number`, `modem_firmware_version`, `organization_info`, `personal_hotspot_enabled`, `push_token`, `service_subscriptions`, `supplemental_build_version`, `supplemental_os_version_extra`, `udid`, and `wifi_mac`.
+> - These iOS/iPadOS vitals are collected via Apple's [`DeviceInformation`](https://developer.apple.com/documentation/devicemanagement/deviceinformationcommand/command-data.dictionary/queries-data.dictionary) MDM command. A property the device doesn't report is omitted from the response rather than returned as `null`. The exception is `mdm_options`, which is returned as an empty object when the device reports it with nothing set.
+> - `cellular_technology` is one of `None`, `GSM`, `CDMA`, or `GSM and CDMA`. This will be `unknown` if Apple adds a value in the future that Fleet doesn't recognize.
+> - `device_properties_attestation` is an array of base64-encoded DER certificates forming a chain, leaf first. The chain is anchored to Apple's Enterprise Attestation Root CA, which is not itself included in the array.
 
 > Note:
 > - `orbit_version: null` means this agent is not a fleetd agent
@@ -4088,17 +4650,21 @@ Returns the information of the specified host.
 
 > Note: [Get human-device mapping](https://github.com/fleetdm/fleet/blob/62dc32454f6a40e81fe229abdfc370d3bf7a56c6/docs/REST%20API/rest-api.md?plain=1#L3518) is deprecated as of Fleet 4.67.0. It is maintained for backwards compatibility. Please use the [Get host](#get-host) endpoint to get human-device mapping.
 
+> Note: `mdm.is_personal_enrollment` reports whether the last MDM enrollment Fleet recorded for the host was personal (BYOD). Unlike `mdm.enrollment_status`, it is not cleared when the host unenrolls, so it stays `true` for an unenrolled Android or Apple mobile host. On macOS and Windows, MDM state is re-reported by the agent, which resets the field once the enrollment profile is gone.
+
 > Note: For iOS, iPadOS, and Android hosts with ⁠`mdm.enrollment_status` set to "On (personal)", ⁠`hardware_serial` and ⁠`uuid` represent a temporary enrollment ID. For Android work profile, this is what Google calls an [enterprise-specific ID](https://developer.android.com/work/versions/android-12#:~:text=An%20enrollment%2Dspecific%20ID%20provides%20a%20unique%20ID%20that%20identifies%20the%20work%20profile%20enrollment%20in%20a%20particular%20organization%2C%20and%20will%20remain%20stable%20across%20factory%20resets).
 
 ### Get host by identifier
 
 Returns the information of the host specified using the `hostname`, `uuid`, or `hardware_serial` as an identifier.
 
+`GET /api/v1/fleet/hosts/identifier/:identifier`
+
+> If you're hitting this endpoint often (e.g. every hour) for a large number of hosts (e.g. 1k+) the best practice is to set the `exclude_software` to `true` to prevent overloading the Fleet server.
+
 If `hostname` is specified when there is more than one host with the same hostname, the endpoint returns the first matching host. 
 
-> In Fleet, hostnames are fully qualified domain names (FQDNs). `hostname` (e.g. johns-macbook-air.local) is **not** the same as `display_name` (e.g. John's MacBook Air).
-
-`GET /api/v1/fleet/hosts/identifier/:identifier`
+In Fleet, hostnames are fully qualified domain names (FQDNs). `hostname` (e.g. johns-macbook-air.local) is **not** the same as `display_name` (e.g. John's MacBook Air).
 
 #### Parameters
 
@@ -4109,7 +4675,7 @@ If `hostname` is specified when there is more than one host with the same hostna
 | exclude_fleet_maintained_policies | boolean | query | If `true`, will omit Fleet-maintained policies from the policies list. |
 
 
-#### Example
+#### Example (macOS)
 
 `GET /api/v1/fleet/hosts/identifier/392547dc-0000-0000-a87a-d701ff75bc65`
 
@@ -4138,6 +4704,8 @@ If `hostname` is specified when there is more than one host with the same hostna
     "platform": "ubuntu",
     "osquery_version": "5.5.1",
     "os_version": "Ubuntu 20.04.3 LTS",
+    "os_update_minimum_version": "15.1",
+    "os_update_deadline": "2025-07-01",
     "build": "",
     "platform_like": "debian",
     "code_name": "focal",
@@ -4150,6 +4718,7 @@ If `hostname` is specified when there is more than one host with the same hostna
     "cpu_logical_cores": 1,
     "hardware_vendor": "",
     "hardware_model": "",
+    "hardware_marketing_name": "",
     "hardware_version": "",
     "hardware_serial": "",
     "computer_name": "23cfc9caacf0",
@@ -4259,7 +4828,7 @@ If `hostname` is specified when there is more than one host with the same hostna
         "created_at": "2022-09-02T18:52:19Z",
         "updated_at": "2022-09-02T18:52:19Z",
         "response": "fail",
-        "critical": false,
+        "critical": false
       }
     ],
     "software": [
@@ -4278,6 +4847,7 @@ If `hostname` is specified when there is more than one host with the same hostna
     "mdm": {
       "encryption_key_available": false,
       "enrollment_status": null,
+      "is_personal_enrollment": false,
       "name": "",
       "server_url": null,
       "device_status": "unlocked",
@@ -4319,6 +4889,286 @@ If `hostname` is specified when there is more than one host with the same hostna
   }
 }
 ```
+#### Example (iOS/iPadOS)
+
+`GET /api/v1/fleet/hosts/identifier/392547dc-0000-0000-a87a-d701ff75bc65`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "host": {
+    "created_at": "2022-02-10T02:29:13Z",
+    "updated_at": "2022-10-14T17:07:11Z",
+    "id": 33,
+    "detail_updated_at": "2022-10-14T17:07:12Z",
+    "label_updated_at": "2022-10-14T17:07:12Z",
+    "policy_updated_at": "2022-10-14T17:07:12Z",
+    "last_enrolled_at": "2022-02-10T02:29:13Z",
+    "last_mdm_checked_in_at": "2023-02-26T22:33:12Z",
+    "last_mdm_enrolled_at": "2023-02-26T22:33:12Z",
+    "mdm_enrollment_hardware_attested": true,
+    "software_updated_at": "2020-11-05T05:09:44Z",
+    "seen_time": "2022-10-14T17:45:41Z",
+    "refetch_requested": false,
+    "hostname": "Johns-iPhone",
+    "uuid": "392547dc-0000-0000-a87a-d701ff75bc65",
+    "platform": "ios",
+    "osquery_version": "5.5.1",
+    "os_version": "iOS 17.4.1",
+    "build": "21E236",
+    "platform_like": "darwin",
+    "code_name": "",
+    "uptime": 20807520000000000,
+    "memory": 6442450944,
+    "cpu_type": "arm64",
+    "cpu_subtype": "ARM64E",
+    "cpu_brand": "Apple A16 Bionic",
+    "cpu_physical_cores": 6,
+    "cpu_logical_cores": 6,
+    "hardware_vendor": "Apple Inc.",
+    "hardware_model": "iPhone15,2",
+    "hardware_version": "iPhone 15 Pro",
+    "hardware_serial": "F2LXX1XXXXXX",
+    "computer_name": "John's iPhone",
+    "timezone": null,
+    "public_ip": "",
+    "primary_ip": "192.168.1.42",
+    "primary_mac": "a4:83:e7:12:34:56",
+    "distributed_interval": 10,
+    "config_tls_refresh": 60,
+    "logger_tls_period": 10,
+    "team_id": 2,
+    "fleet_id": 2,
+    "team_name": null,
+    "fleet_name": null,
+    "gigs_disk_space_available": 54.3,
+    "percent_disk_space_available": 43,
+    "gigs_total_disk_space": 128,
+    "app_analytics_enabled": true,
+    "accessibility_settings": {
+      "bold_text_enabled": false,
+      "grayscale_enabled": false,
+      "increase_contrast_enabled": false,
+      "reduce_motion_enabled": true,
+      "reduce_transparency_enabled": false,
+      "text_size": 4,
+      "touch_accommodations_enabled": false,
+      "voice_over_enabled": false,
+      "zoom_enabled": false
+    },
+    "awaiting_configuration": false,
+    "battery_level": 0.82,
+    "bluetooth_mac": "a4:83:e7:12:34:57",
+    "cellular_technology": "GSM",
+    "data_roaming_enabled": false,
+    "device_properties_attestation": [
+      "MIIC6zCCAnKgAwIBAgIGAZ+onLUpMAoGCCqGSM49BAMDMFIxLjAsBgNVBAMMJUFwcGxl",
+      "MIICSTCCAc6gAwIBAgIUcDHgQKbmtGvw4vNNVWqEVNBCXnEwCgYIKoZIzj0EAwMwUTEt"
+    ],
+    "diagnostic_submission_enabled": true,
+    "eas_device_identifier": "3E2A1F9C4D7B6E8A2C5D1F0E3B4A7C9D",
+    "is_cloud_backup_enabled": true,
+    "is_device_locator_service_enabled": true,
+    "is_do_not_disturb_in_effect": false,
+    "is_mdm_lost_mode_enabled": false,
+    "is_network_tethered": false,
+    "itunes_store_account_hash": "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2",
+    "itunes_store_account_is_active": true,
+    "last_cloud_backup_date": "2023-02-25T14:22:10Z",
+    "mdm_options": {
+      "activation_lock_allowed_while_supervised": true,
+      "bootstrap_token_allowed": true,
+      "prompt_user_to_allow_bootstrap_token_for_authentication": false
+    },
+    "model_number": "MNEP3LL/A",
+    "modem_firmware_version": "2.01.00",
+    "organization_info": {
+      "organization_name": "Acme Corp",
+      "organization_address": "123 Main St, New York, NY 10001",
+      "organization_phone": "+1-123-456-7890",
+      "organization_email": "it@example.com",
+      "organization_magic": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+    },
+    "personal_hotspot_enabled": false,
+    "push_token": "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6",
+    "service_subscriptions": [
+      {
+        "carrier_settings_version": "42.0",
+        "current_carrier_network": "Verizon",
+        "current_mcc": "311",
+        "current_mnc": "480",
+        "eid": "89049032004008882600890049000003",
+        "iccid": "89014103211118510720",
+        "imei": "352099001761481",
+        "is_data_preferred": true,
+        "is_roaming": false,
+        "is_voice_preferred": true,
+        "label": "Primary",
+        "label_id": "com.apple.subscriberLabel.primary",
+        "meid": "35209900176148",
+        "phone_number": "+1-555-867-5309",
+        "slot": "CTSubscriptionSlotOne",
+        "subscriber_carrier_network": "Verizon"
+      }
+    ],
+    "supplemental_build_version": "21E236",
+    "supplemental_os_version_extra": "(a)",
+    "wifi_mac": "a4:83:e7:12:34:58",
+    "issues": {
+      "failing_policies_count": 1,
+      "critical_vulnerabilities_count": 2, // Fleet Premium only
+      "total_issues_count": 3
+    },
+    "batteries": [
+      {
+        "cycle_count": 187,
+        "health": "Normal"
+      }
+    ],
+    "geolocation": {
+      "country_iso": "US",
+      "city_name": "New York",
+      "geometry": {
+        "type": "point",
+        "coordinates": [40.6799, -74.0028]
+      }
+    },
+    "pack_stats": [
+      {
+        "pack_id": 1,
+        "pack_name": "Global",
+        "type": "global",
+        "query_stats": [
+          {
+            "scheduled_query_name": "Get running processes (with user_name)",
+            "scheduled_query_id": 49,
+            "query_name": "Get running processes (with user_name)",
+            "pack_name": "Global",
+            "pack_id": 1,
+            "average_memory": 260000,
+            "denylisted": false,
+            "executions": 1,
+            "interval": 86400,
+            "last_executed": "2022-10-14T10:00:01Z",
+            "output_size": 198,
+            "system_time": 20,
+            "user_time": 80,
+            "wall_time": 0
+          }
+        ]
+      }
+    ],
+    "labels": [
+      {
+        "created_at": "2021-09-14T05:11:02Z",
+        "updated_at": "2021-09-14T05:11:02Z",
+        "id": 12,
+        "name": "All iOS",
+        "description": "All iOS devices",
+        "query": "SELECT 1 FROM osquery_info WHERE build_platform = 'ios';",
+        "platform": "ios",
+        "label_type": "builtin",
+        "label_membership_type": "dynamic"
+      }
+    ],
+    "packs": [
+      {
+        "created_at": "2021-09-17T05:28:54Z",
+        "updated_at": "2021-09-17T05:28:54Z",
+        "id": 1,
+        "name": "Global",
+        "description": "Global pack",
+        "disabled": false,
+        "type": "global",
+        "labels": null,
+        "label_ids": null,
+        "hosts": null,
+        "host_ids": null,
+        "teams": null,
+        "fleet": null,
+        "team_ids": null,
+        "fleet_ids": null
+      }
+    ],
+    "policies": [
+      {
+        "id": 142,
+        "name": "Passcode required (iOS)",
+        "query": "SELECT 1 FROM managed_policies WHERE domain = 'com.apple.mobiledevice.passwordpolicy' AND name = 'forcePIN' AND value = 1 LIMIT 1;",
+        "description": "Checks to make sure that a passcode is required on iOS devices.",
+        "author_id": 31,
+        "author_name": "",
+        "author_email": "",
+        "team_id": null,
+        "fleet_id": null,
+        "resolution": "To enable a passcode, on the failing device, go to Settings > Face ID & Passcode > Turn Passcode On.",
+        "platform": "ios",
+        "created_at": "2022-09-02T18:52:19Z",
+        "updated_at": "2022-09-02T18:52:19Z",
+        "response": "fail",
+        "critical": false
+      }
+    ],
+    "software": [
+      {
+        "id": 16923,
+        "name": "Gmail",
+        "version": "6.0.240414",
+        "source": "ios_apps",
+        "browser": "",
+        "extension_for": "",
+        "generated_cpe": "",
+        "vulnerabilities": null,
+        "installed_paths": ["/var/containers/Bundle/Application/"]
+      }
+    ],
+    "mdm": {
+      "encryption_key_available": false,
+      "enrollment_status": "On (automatic)",
+      "name": "Fleet",
+      "server_url": "https://acme.com/mdm/apple/mdm",
+      "device_status": "unlocked",
+      "pending_action": "",
+      "macos_settings": {
+        "disk_encryption": null,
+        "action_required": null
+      },
+      "apple_settings": {
+        "disk_encryption": null,
+        "action_required": null
+      },
+      "macos_setup": {
+        "bootstrap_package_status": "installed",
+        "detail": ""
+      },
+      "setup_experience": {
+        "bootstrap_package_status": "installed",
+        "detail": ""
+      },
+      "os_settings": {
+        "disk_encryption": {
+          "status": null,
+          "detail": ""
+        }
+      },
+      "profiles": [
+        {
+          "profile_uuid": "954ec5ea-a334-4825-87b3-937e7e381f24",
+          "name": "iOS Restrictions Profile",
+          "status": "verifying",
+          "operation_type": "install",
+          "scope": "device",
+          "managed_local_account": "",
+          "detail": ""
+        }
+      ]
+    }
+  }
+}
+```
 
 > Note: the response above assumes a [GeoIP database is configured](https://fleetdm.com/docs/deploying/configuration#geoip), otherwise the `geolocation` object won't be included.
 
@@ -4326,17 +5176,24 @@ If `hostname` is specified when there is more than one host with the same hostna
 
 `browser` and `extension_for` fields are included when set and when empty. `extension_for` will show the browser or Visual Studio Code fork associated with the extension, allowing for differentiation between e.g. an extension installed on Visual Studio Code and one installed on Cursor. `browser` is deprecated, and only shows this information for browser plugins.
 
+> Note: Currently, the following are supported only for iOS/iPadOS: `accessibility_settings`, `app_analytics_enabled`, `awaiting_configuration`, `battery_level`, `bluetooth_mac`, `cellular_technology`, `data_roaming_enabled`, `device_properties_attestation`, `diagnostic_submission_enabled`, `eas_device_identifier`, `is_cloud_backup_enabled`, `is_device_locator_service_enabled`, `is_do_not_disturb_in_effect`, `is_mdm_lost_mode_enabled`, `is_network_tethered`, `itunes_store_account_hash`, `itunes_store_account_is_active`, `last_cloud_backup_date`, `mdm_options`, `model_number`, `modem_firmware_version`, `organization_info`, `personal_hotspot_enabled`, `push_token`, `service_subscriptions`, `supplemental_build_version`, `supplemental_os_version_extra`, `udid`, and `wifi_mac`.
+> - These iOS/iPadOS vitals are collected via Apple's [`DeviceInformation`](https://developer.apple.com/documentation/devicemanagement/deviceinformationcommand/command-data.dictionary/queries-data.dictionary) MDM command. A property the device doesn't report is omitted from the response rather than returned as `null`. The exception is `mdm_options`, which is returned as an empty object when the device reports it with nothing set.
+> - `cellular_technology` is one of `None`, `GSM`, `CDMA`, or `GSM and CDMA`. This will be `unknown` if Apple adds a value in the future that Fleet doesn't recognize.
+> - `device_properties_attestation` is an array of base64-encoded DER certificates forming a chain, leaf first. The chain is anchored to Apple's Enterprise Attestation Root CA, which is not itself included in the array.
+
+
 ### Get host by Fleet Desktop token
 
-> If you're hitting this endpoint often (e.g. every hour) for a large number of hosts (e.g. 1k+) the best practice is to set the `exclude_software` to `true` to prevent overloading the Fleet server.
-
 Returns a subset of information about the host specified by `token`. To get all information about a host, use the ["Get host"](#get-host) endpoint.
+
+`GET /api/v1/fleet/device/:token`
+
+> If you're hitting this endpoint often (e.g. every hour) for a large number of hosts (e.g. 1k+) the best practice is to set the `exclude_software` to `true` to prevent overloading the Fleet server.
 
 This is the API route used by the **My device** page in Fleet Desktop to display information about the host to the end user.
 
 This endpoint doesn't require API token authentication. Authentication on macOS, Windows, and Linux is enforced by generating a [random UUID that rotates hourly](https://fleetdm.com/guides/fleet-desktop#secure-fleet-desktop). For iOS and iPadOS, this is the host's hardware UUID.
 
-`GET /api/v1/fleet/device/:token`
 
 ##### Parameters
 
@@ -4382,6 +5239,8 @@ X-Client-Cert-Serial: <fleet_identity_scep_cert_serial>
     "platform": "darwin",
     "osquery_version": "5.15.0",
     "os_version": "macOS 15.2",
+    "os_update_minimum_version": "15.1",
+    "os_update_deadline": "2025-07-01",
     "build": "24C101",
     "platform_like": "darwin",
     "code_name": "",
@@ -4394,6 +5253,7 @@ X-Client-Cert-Serial: <fleet_identity_scep_cert_serial>
     "cpu_logical_cores": 8,
     "hardware_vendor": "Apple Inc.",
     "hardware_model": "MacBookPro17,1",
+    "hardware_marketing_name": "MacBook Pro (13-inch, M1, 2020)",
     "hardware_version": "",
     "hardware_serial": "",
     "computer_name": "Anna's MacBook Pro",
@@ -4508,9 +5368,11 @@ X-Client-Cert-Serial: <fleet_identity_scep_cert_serial>
     "mdm": {
       "encryption_key_available": true,
       "enrollment_status": "On (manual)",
+      "is_personal_enrollment": false,
       "name": "Fleet",
       "connected_to_fleet": true,
       "server_url": "https://acme.com/mdm/apple/mdm",
+      "bootstrap_token_escrowed": true,
       "macos_settings": {
         "disk_encryption": "verified",
         "action_required": null
@@ -4552,6 +5414,8 @@ X-Client-Cert-Serial: <fleet_identity_scep_cert_serial>
 ```
 
 `browser` and `extension_for` fields are included when set and when empty. `extension_for` will show the browser or Visual Studio Code fork associated with the extension, allowing for differentiation between e.g. an extension installed on Visual Studio Code and one installed on Cursor. `browser` is deprecated, and only shows this information for browser plugins.
+
+> `global_config.mdm.enabled_and_configured` only represents Apple MDM, and will return false if Apple MDM is not configured even if other platforms have MDM enabled and configured.
 
 ### Delete host
 
@@ -4879,14 +5743,14 @@ This report includes a subset of host vitals, and simplified policy and vulnerab
         "id": 123,
         "name": "Google Chrome is up to date",
         "critical": true, // Fleet Premium only
-        "resolution": "Follow the Update Google Chrome instructions here: https://support.google.com/chrome/answer/95414?sjid=6534253818042437614-NA",
+        "resolution": "Follow the Update Google Chrome instructions here: https://support.google.com/chrome/answer/95414?sjid=6534253818042437614-NA"
       }
     ],
     "vulnerable_software": [
       {
         "id": 321,
         "name": "Firefox.app",
-        "version": "116.0.3",
+        "version": "116.0.3"
       }
     ]
   }
@@ -5075,7 +5939,7 @@ Retrieves MDM enrollment status and Munki versions, aggregated across all hosts.
 
 | Name    | Type    | In    | Description                                                                                                                                                                                                                                                                                                                        |
 | ------- | ------- | ----- | ---------------------------------------------------------------------------------------------------------------- |
-| fleet_id | integer | query | _Available in Fleet Premium_. Filters the aggregate host information to only include hosts in the specified fleet. |                           |
+| fleet_id | integer | query | _Available in Fleet Premium_. Filters the aggregate host information to only include hosts in the specified fleet. |
 
 A `fleet_id` of `0` returns the statistics for hosts that are "Unassigned". A `null` or missing `fleet_id` returns statistics for all hosts on all fleets.
 
@@ -5179,6 +6043,8 @@ On Windows hosts, `last_opened_at` is supported for software from the `programs`
 
 Currently, `hash_sha256`, `executable_sha256`, and `executable_path` are only supported for macOS software from the `apps` source. `hash_sha256` is the [`cdhash_sha256`](https://fleetdm.com/tables/codesign).
 
+`software_package.has_uninstall_script` is `true` when the installer has a non-empty uninstall script configured. It's omitted for VPP and in-house apps. For `.tgz` and script-only (`.ps1`/`.sh`/`.py`) packages the uninstall script is optional, so this field is what tells clients whether uninstall is actually available.
+
 #### Example
 
 `GET /api/v1/fleet/hosts/123/software`
@@ -5225,6 +6091,7 @@ Currently, `hash_sha256`, `executable_sha256`, and `executable_path` are only su
         "version": "149.0.7827.54",
         "platform": "darwin",
         "self_service": true,
+        "has_uninstall_script": true,
         "last_install": null,
         "last_uninstall": null,
         "package_url": null,
@@ -5268,6 +6135,8 @@ On macOS hosts, `last_opened_at` is supported for software from the `apps` sourc
 On Windows hosts, `last_opened_at` is supported for software from the `programs` source. On Linux hosts, `last_opened_at` is supported for software from the `deb_packages` and `rpm_packages` sources. On Windows and Linux hosts, it represents the last open time of any version.
 
 Currently, `hash_sha256`, `executable_sha256`, and `executable_path` are only supported for macOS software from the `apps` source. `hash_sha256` is the [`cdhash_sha256`](https://fleetdm.com/tables/codesign).
+
+`software_package.has_uninstall_script` is `true` when the installer has a non-empty uninstall script configured. It's omitted for VPP and in-house apps. For `.tgz` and script-only (`.ps1`/`.sh`/`.py`) packages the uninstall script is optional, so this field is what tells clients whether uninstall is actually available.
 
 #### Example
 
@@ -5315,6 +6184,7 @@ Currently, `hash_sha256`, `executable_sha256`, and `executable_path` are only su
         "version": "149.0.7827.54",
         "platform": "darwin",
         "self_service": true,
+        "has_uninstall_script": true,
         "last_install": null,
         "last_uninstall": null,
         "package_url": null,
@@ -5379,10 +6249,10 @@ If `mdm_id`, `mdm_name` or `mdm_enrollment_status` is specified, then Windows Se
 `Status: 200`
 
 ```csv
-created_at,updated_at,id,detail_updated_at,label_updated_at,policy_updated_at,last_enrolled_at,seen_time,refetch_requested,hostname,uuid,platform,osquery_version,os_version,build,platform_like,code_name,uptime,memory,cpu_type,cpu_subtype,cpu_brand,cpu_physical_cores,cpu_logical_cores,hardware_vendor,hardware_model,hardware_version,hardware_serial,computer_name,primary_ip_id,primary_ip,primary_mac,distributed_interval,config_tls_refresh,logger_tls_period,team_name,fleet_name,gigs_disk_space_available,percent_disk_space_available,gigs_total_disk_space,issues,device_mapping,status,display_text
-2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,1,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,false,foo.local0,a4fc55a1-b5de-409c-a2f4-441f564680d3,debian,,,,,,0s,0,,,,0,0,,,,,,,,,0,0,0,,,0,0,0,0,,,,
-2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:22:56Z,false,foo.local1,689539e5-72f0-4bf7-9cc5-1530d3814660,rhel,,,,,,0s,0,,,,0,0,,,,,,,,,0,0,0,,,0,0,0,0,,,,
-2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,3,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:21:56Z,false,foo.local2,48ebe4b0-39c3-4a74-a67f-308f7b5dd171,linux,,,,,,0s,0,,,,0,0,,,,,,,,,0,0,0,,,0,0,0,0,,,,
+created_at,updated_at,id,detail_updated_at,label_updated_at,policy_updated_at,last_enrolled_at,seen_time,refetch_requested,hostname,uuid,platform,osquery_version,os_version,build,platform_like,code_name,uptime,memory,cpu_type,cpu_subtype,cpu_brand,cpu_physical_cores,cpu_logical_cores,hardware_vendor,hardware_model,hardware_marketing_name,hardware_version,hardware_serial,computer_name,primary_ip_id,primary_ip,primary_mac,distributed_interval,config_tls_refresh,logger_tls_period,team_name,fleet_name,gigs_disk_space_available,percent_disk_space_available,gigs_total_disk_space,issues,device_mapping,status,display_text
+2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,1,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,false,foo.local0,a4fc55a1-b5de-409c-a2f4-441f564680d3,debian,,,,,,0s,0,,,,0,0,,,,,,,,,,0,0,0,,,0,0,0,0,,,,
+2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:22:56Z,false,foo.local1,689539e5-72f0-4bf7-9cc5-1530d3814660,rhel,,,,,,0s,0,,,,0,0,,,,,,,,,,0,0,0,,,0,0,0,0,,,,
+2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,3,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:21:56Z,false,foo.local2,48ebe4b0-39c3-4a74-a67f-308f7b5dd171,linux,,,,,,0s,0,,,,0,0,,,,,,,,,,0,0,0,,,0,0,0,0,,,,
 ```
 
 ### Get host's disk encryption key
@@ -5470,7 +6340,7 @@ Rotates the Recovery Lock password for a host.
 
 ##### Default response
 
-`204`
+`Status: 200`
 
 ### Get host's certificates
 
@@ -5497,7 +6367,7 @@ For macOS hosts, certificates from MDM-delivered profiles containing an ACME pay
 
 `GET /api/v1/fleet/hosts/8/certificates`
 
-#### Default response
+##### Default response
 
 `Status: 200`
 
@@ -5654,7 +6524,9 @@ To unlock an iOS or iPadOS host, the host must have MDM turned on. To unlock a W
 
 Sends a command to wipe the specified macOS, iOS, iPadOS, Linux, Windows, or Android host. The host is wiped once it comes online.
 
-Wiping an Android host is available in Fleet Free and Fleet Premium. Wiping a macOS, iOS, iPadOS, Linux, or Windows host is available in Fleet Premium.
+Wiping a company-owned (fully managed) Android host is available in Fleet Free and Fleet Premium. (This feature was [previously "Unenroll"](https://github.com/fleetdm/fleet/issues/41683).)
+
+Wiping a macOS, iOS, iPadOS, Linux, Windows, or personal (BYOD) Android host is available in Fleet Premium.
 
 To wipe a macOS, iOS, iPadOS, or Windows host, the host must have MDM turned on. To wipe a Linux host, the host must have [scripts enabled](https://fleetdm.com/docs/using-fleet/scripts). To wipe an Android host, the host must be enrolled as a fully managed device.
 
@@ -5702,7 +6574,7 @@ To wipe a macOS, iOS, iPadOS, or Windows host, the host must have MDM turned on.
 | id   | integer | path | **Required**. The host's ID. |
 | page | integer | query | Page number of the results to fetch.|
 | per_page | integer | query | Results per page. Maximum is 10,000 records. If no pagination parameters are specified, defaults to 10,000.|
-| order_key | string | query | What to order results by. Allowed fields are `id`, `created_at`, and `activity_type`. |
+| order_key | string | query | What to order results by. Allowed fields are `id`, `created_at`, `user_id`, `activity_type`, `user_name`, `user_email`, and `fleet_initiated`. |
 | order_direction | string | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
 | after | string | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used. |
 
@@ -5753,8 +6625,8 @@ To wipe a macOS, iOS, iPadOS, or Windows host, the host must have MDM turned on.
         "script_name": "set-timezones.sh",
         "script_execution_id": "d6cffa75-b5b5-41ef-9230-15073c8a88cf",
         "async": true
-      },
-    },
+      }
+    }
   ],
   "meta": {
     "has_next_results": false,
@@ -5823,7 +6695,7 @@ To wipe a macOS, iOS, iPadOS, or Windows host, the host must have MDM turned on.
         "script_name": "set-timezones.sh",
         "script_execution_id": "d6cffa75-b5b5-41ef-9230-15073c8a88cf",
         "async": true
-      },
+      }
     },
     {
       "created_at": "2021-07-27T13:25:21Z",
@@ -5840,8 +6712,8 @@ To wipe a macOS, iOS, iPadOS, or Windows host, the host must have MDM turned on.
         "script_name": "",
         "script_execution_id": "y3cffa75-b5b5-41ef-9230-15073c8a88cf",
         "async": false
-      },
-    },
+      }
+    }
   ],
   "meta": {
     "has_next_results": false,
@@ -5979,7 +6851,7 @@ Note that if the host is online and the query times out, this endpoint will retu
 
 ### Run live report on host by identifier (ad hoc)
 
-Runs an ad hoc live report against a host identified using `uuid` and responds with the results.
+Runs an ad hoc live report against a host, specified using the `hostname`, `uuid`, or `hardware_serial` as an identifier, and responds with the results.
 
 The live report will stop if the targeted host is offline, or if the query times out. Timeouts happen if the host hasn't responded after the configured `FLEET_LIVE_QUERY_REST_PERIOD` (default 25 seconds) or if the `distributed_interval` agent option (default 10 seconds) is higher than the `FLEET_LIVE_QUERY_REST_PERIOD`.
 
@@ -6045,7 +6917,7 @@ Grant a blocked host access for a single login. Requires Okta conditional access
 
 `POST /api/v1/fleet/device/abcdef012456789/bypass_conditional_access`
 
-#### Default response 
+##### Default response 
 
 `Status: 200` 
 
@@ -6068,7 +6940,7 @@ Remotely clear the passcode on a host. Requires iOS/iPadOS host to have sent its
 
 `POST /api/v1/fleet/hosts/123/clear_passcode`
 
-#### Default response 
+##### Default response 
 
 `Status: 200` 
 
@@ -6100,11 +6972,11 @@ Rotates the managed local account password for a host.
 
 ##### Default response
 
-`204`
+`Status: 204`
 
 ### Get host's managed account password
 
-Retrieves the managed account password for a macOS host.
+Retrieves the managed account password for an eligible macOS or Windows host.
 
 The host will only return a password if its managed account password status is "Verified".
 
@@ -6132,6 +7004,57 @@ The host will only return a password if its managed account password status is "
     "password": "test-123",
     "updated_at": "2026-02-01T05:31:43Z"
   }
+}
+```
+
+### Release host from Apple Business
+
+_Available in Fleet Premium_
+
+Release multiple hosts from Apple Business (AB) by calling Apple's Disown Device API.
+
+This permanently removes the host from your AB, and cannot be added back automatically. This action can't be undone.
+
+`POST /api/v1/fleet/hosts/release_ab`
+
+#### Parameters
+
+| Name                          | Type    | In    | Description                                                             |
+| ----------------------------- | ------  | ----  | -----------------------------------------------------------             |
+| ids                           | array   | body  | **Required.** A list of host IDs to release from Apple Business         |
+
+#### Example
+
+`POST /api/v1/fleet/hosts/release_ab`
+
+##### Request body
+```json
+{
+  "ids": [1, 42, 57]
+}
+```
+
+##### Default response
+
+`200`
+
+```json
+{
+  "results": [
+    {
+      "host_id": 1,
+      "status": "success"
+    },
+    {
+      "host_id": 42,
+      "status": "success"
+    },
+    {
+      "host_id": 57,
+      "status": "failed",
+      "error": "Host is not enrolled in Apple Business"
+    },
+  ]
 }
 ```
 
@@ -6165,7 +7088,7 @@ Add a dynamic or manual label.
 | criteria    | object | body | Criteria for adding hosts to a host vitals label. See [`criteria`](#criteria) for details. |
 | hosts       | array | body | The list of host identifiers (`hardware_serial` or `uuid`). The label will apply to any host with a matching identifier. Only one of either `query` (to create a dynamic label), `hosts` (to create a manual label), or `host_ids` (to create a manual label)  can be included in the request. |
 | host_ids    | array | body | The list of Fleet host IDs the label will apply to.  Only one of either `query` (to create a dynamic label) or `hosts`/`host_ids` (to create a manual label)  can be included in the request. |
-| platform    | string | body | The specific platform for the label to target. Provides an additional filter. Choices for platform are `darwin`, `windows`, `ubuntu`, and `centos`. All platforms are included by default and this option is represented by an empty string. |
+| platform    | string | body | The specific platform for the label to target. Provides an additional filter. Choices for platform are `"darwin"`, `"windows"`, `"linux"`, `"ubuntu"`, and `"centos"`. All platforms are included by default and this option is represented by an empty string. |
 
 If `query`, `criteria`, and `hosts` aren't specified, a manual label with no hosts will be created.
 
@@ -6173,10 +7096,11 @@ The `hostname` host identifier is deprecated. Please use `host_ids`, `hardware_s
 
 #### criteria
 
-| Name        | Type   | Description                                                                                                                                                                                                                                  |
-| ----------- | ------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| vital       | string | The type of host vital to use when creating a host vital label. Can be `"end_user_idp_group"` or `"end_user_idp_department"`. |
-| value       | string | Hosts with vital data matching this value will be added to the label. |
+| Name                  | Type   | Description                                                                                                                                                                                                                                  |
+| --------------------- | ------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| vital                 | string | The type of host vital to use when creating a host vital label. Can be `"end_user_idp_group"`, `"end_user_idp_department"`, or `"custom_host_vital"`. |
+| custom_host_vital_id  | integer | The ID of the [custom host vital](https://fleetdm.com/guides/custom-host-vitals) to match on. Required when `vital` is `"custom_host_vital"`. |
+| value                 | string | Hosts with vital data matching this value will be added to the label. |
 
 
 #### Example
@@ -6315,7 +7239,7 @@ Returns the specified label.
     "team_id": null,
     "fleet_id": null,
     "team_name": null,
-    "fleet_name": null,
+    "fleet_name": null
   }
 }
 ```
@@ -6623,6 +7547,7 @@ If `mdm_id`, `mdm_name`, `mdm_enrollment_status`, `os_settings`, or `os_settings
       "mdm": {
         "encryption_key_available": false,
         "enrollment_status": null,
+        "is_personal_enrollment": false,
         "name": "",
         "server_url": null
       }
@@ -6680,11 +7605,17 @@ Deletes the label specified by ID.
 - [Create configuration profile](#create-configuration-profile)
 - [List configuration profiles](#list-configuration-profiles)
 - [Get or download configuration profile](#get-or-download-configuration-profile)
+- [Update configuration profile](#update-configuration-profile)
 - [Delete configuration profile](#delete-configuration-profile)
 - [Batch-update configuration profiles](#batch-update-configuration-profiles)
+- [Create Apple asset declaration](#create-apple-asset-declaration)
+- [List Apple asset declarations](#list-apple-asset-declarations)
+- [Get or download Apple asset declaration](#get-or-download-apple-asset-declaration)
+- [Delete Apple asset declaration](#delete-apple-asset-declaration)
 - [Update disk encryption](#update-disk-encryption)
 - [Get disk encryption status](#get-disk-encryption-status)
-- [Update Recovery Lock](#update-recovery-lock)
+- [Update host name template](#update-host-name-template)
+- [Resend host name template](#resend-host-name-template)
 - [Get OS settings (configuration profiles) status](#get-os-settings-configuration-profiles-status)
 - [Get OS setting (configuration profile) status](#get-os-setting-configuration-profile-status)
 - [Resend configuration profile](#resend-configuration-profile)
@@ -6710,10 +7641,11 @@ Add a configuration profile to enforce custom settings on macOS and Windows host
 | Name                      | Type     | In   | Description                                                                                                   |
 | ------------------------- | -------- | ---- | ------------------------------------------------------------------------------------------------------------- |
 | profile                   | file     | body | **Required.** The .mobileconfig and JSON for macOS or XML for Windows file containing the profile. |
-| fleet_id                   | string   | body | _Available in Fleet Premium_. The fleet ID for the profile. If specified, the profile is applied to only hosts that are assigned to the specified fleet. If not specified, the profile is applied to only hosts that are "Unassigned". |
-| labels_include_all        | array     | body | _Available in Fleet Premium_. Target hosts that have all labels, specified by label name, in the array. |
-| labels_include_any      | array     | body | _Available in Fleet Premium_. Target hosts that have any label, specified by label name, in the array. |
-| labels_exclude_any | array | body | _Available in Fleet Premium_. Target hosts that that don’t have any label, specified by label name, in the array. |
+| fleet_id                  | string   | body | _Available in Fleet Premium_. The fleet ID for the profile. If specified, the profile is applied to only hosts that are assigned to the specified fleet. If not specified, the profile is applied to only hosts that are "Unassigned". |
+| labels_include_all        | array    | body | _Available in Fleet Premium_. Target hosts that have all labels, specified by label name, in the array. |
+| labels_include_any        | array    | body | _Available in Fleet Premium_. Target hosts that have any label, specified by label name, in the array. |
+| labels_exclude_any        | array    | body | _Available in Fleet Premium_. Target hosts that that don't have any label, specified by label name, in the array. |
+| activation                | file     | body | _Available in Fleet Premium_. The activation criteria for the profile as a JSON file. Only supported for declaration (DDM) profiles. For all other profile types, this value is `null`. |
 
 `labels_exclude_any` can be combined with either `labels_include_all` or `labels_include_any`, but `labels_include_all` and `labels_include_any` cannot be combined with each other. If none are specified, all hosts are targeted.
 
@@ -6731,9 +7663,10 @@ assigned to a fleet. Note that in this example the form data specifies `fleet_id
 ##### Request body
 
 ```http
-profile="Foo.mobileconfig"
+profile="DDM.json"
 fleet_id="1"
 labels_include_all="Label name 1"
+activation="activation.json"
 ```
 
 ##### Default response
@@ -6796,7 +7729,8 @@ List all configuration profiles for macOS and Windows hosts enrolled to Fleet's 
         "name": "Label name 1",
         "id": 1
        }
-      ]
+      ],
+      "activation": "eyJldmVudCI6..."
     },
     {
       "profile_uuid": "f5ad01cc-f416-4b5f-88f3-a26da3b56a19",
@@ -6809,7 +7743,7 @@ List all configuration profiles for macOS and Windows hosts enrolled to Fleet's 
       "labels_include_all": [
         {
           "name": "Label name 2",
-          "broken": true,
+          "broken": true
         },
         {
           "name": "Label name 3",
@@ -6868,7 +7802,8 @@ If one or more assigned labels are deleted the profile is considered broken (`br
       "name": "Label name 2",
       "id": 2
     }
-  ]
+  ],
+  "activation": "eyJldmVudCI6..."
 }
 ```
 
@@ -6887,9 +7822,9 @@ solely on the response status code returned by this endpoint.
 ##### Example response headers
 
 ```http
-  Content-Length: 542
-  Content-Type: application/octet-stream
-  Content-Disposition: attachment;filename="2023-03-31 Example profile.mobileconfig"
+Content-Length: 542
+Content-Type: application/octet-stream
+Content-Disposition: attachment;filename="2023-03-31 Example profile.mobileconfig"
 ```
 
 ###### Example response body
@@ -6913,6 +7848,60 @@ solely on the response status code returned by this endpoint.
   <integer>1</integer>
 </dict>
 </plist>
+```
+
+### Update configuration profile
+
+_Available in Fleet Premium._
+
+Update an existing configuration profile. Use this endpoint to change which hosts a profile is applied to (labels/custom targets) and/or to upload a new profile file.
+
+`PATCH /api/v1/fleet/configuration_profiles/:profile_uuid`
+
+#### Parameters
+
+| Name                      | Type    | In   | Description                                                                                                   |
+| ------------------------- | ------- | ---- | ------------------------------------------------------------------------------------------------------------- |
+| profile_uuid              | string  | url  | **Required.** The UUID of the configuration profile to update. |
+| profile                   | file    | form | A replacement profile file (`.mobileconfig`, `.json`, or `.xml`). See requirements below. |
+| labels_include_all        | array   | body | Target hosts that have all labels, specified by label name, in the array. |
+| labels_include_any        | array   | body | Target hosts that have any label, specified by label name, in the array. |
+| labels_exclude_any        | array   | body | Target hosts that don't have any label, specified by label name, in the array. |
+| activation                | file     | body | _Available in Fleet Premium_. The activation criteria for the profile as a JSON file. Only supported for declaration (DDM) profiles. For all other profile types, this value is `null`. |
+
+Only one of `labels_include_all`, `labels_include_any`, or `labels_exclude_any` can be specified. If none are specified, the profile targets all hosts.
+
+##### Uploading a new profile file
+
+You can upload a new profile file to replace the contents of the existing profile. The new profile must match the identity of the existing profile:
+
+- **DDM (declarative management) profiles** (`.json`): The new profile must have the same **Identifier** as the existing profile.
+- **.mobileconfig profiles**: The new profile must have the same **PayloadIdentifier** as the existing profile.
+
+If the new profile does not match the required identifiers, the request will be rejected.
+
+#### Example
+
+Update a configuration profile to target hosts with specific labels.
+
+`PATCH /api/v1/fleet/configuration_profiles/f663713f-04ee-40f0-a95a-7af428c351a9`
+
+##### Request body
+
+```json
+{
+  "labels_include_all": ["Label name 1", "Label name 2"]
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "profile_uuid": "f663713f-04ee-40f0-a95a-7af428c351a9"
+}
 ```
 
 ### Delete configuration profile
@@ -6964,7 +7953,7 @@ For Apple (macOS, iOS, iPadOS) profiles, Fleet will send only an `InstallProfile
 
 For Windows profiles, Fleet applies new profiles or updates when content changes, and deletes profiles no longer in the list. It does not send commands to remove configuration profiles from Windows hosts.
 
-For declaration (DDM) profiles, hosts with new, updated, or removed profiles are marked “Pending,” and Fleet sends a [DeclarativeManagement command](https://developer.apple.com/documentation/devicemanagement/declarativemanagementcommand) to tell Apple (macOS, iOS, iPadOS) hosts to sync profiles. If declarations are current, no command is sent and the host is not marked "Pending."
+For declaration (DDM) profiles, hosts with new, updated, or removed profiles are marked "Pending," and Fleet sends a [DeclarativeManagement command](https://developer.apple.com/documentation/devicemanagement/declarativemanagementcommand) to tell Apple (macOS, iOS, iPadOS) hosts to sync profiles. If declarations are current, no command is sent and the host is not marked "Pending."
 
 For requests with 100+ profiles, requests will take 5+ seconds.
 
@@ -6984,12 +7973,13 @@ For requests with 100+ profiles, requests will take 5+ seconds.
 ##### Configuration profiles
 
 | Name                    | Type    | Description   |
-| -----------------------| ------- | ----------------------------------------------------------------------------------- |
-| profile                | string   | Base64 encoded configuration profile (.mobileconfig) or declaration (DDM) profile for Apple (macOS, iOS, iPadOS) hosts, JSON profile for Android hosts, or XML profile for Windows hosts. |
-| labels_include_all        | array     | _Available in Fleet Premium_. Target hosts that have all labels, specified by label name, in the array. |
-| labels_include_any      | array     | _Available in Fleet Premium_. Target hosts that have any label, specified by label name, in the array. |
-| labels_exclude_any | array  | _Available in Fleet Premium_. Target hosts that that don’t have any label, specified by label name, in the array. |
-| display_name                | string   | Required for Windows and declaration (DDM) profiles. It's not supported for .mobileconfig profiles. Instead, the profiles `PayloadDisplayName` is used. |
+| ------------------------| ------- | ----------------------------------------------------------------------------------- |
+| profile                 | string  | Base64 encoded configuration profile (.mobileconfig) or declaration (DDM) profile for Apple (macOS, iOS, iPadOS) hosts, JSON profile for Android hosts, or XML profile for Windows hosts. |
+| labels_include_all      | array   | _Available in Fleet Premium_. Target hosts that have all labels, specified by label name, in the array. |
+| labels_include_any      | array   | _Available in Fleet Premium_. Target hosts that have any label, specified by label name, in the array. |
+| labels_exclude_any      | array   | _Available in Fleet Premium_. Target hosts that that don't have any label, specified by label name, in the array. |
+| display_name            | string  | Required for Windows and declaration (DDM) profiles. It's not supported for .mobileconfig profiles. Instead, the profiles `PayloadDisplayName` is used. |
+| activation              | string  | _Available in Fleet Premium_. The Base64 encoded activation criteria for the profile. Only supported for declaration (DDM) profiles. For all other profile types, this value is `null`. |
 
 For each `profile`, `labels_exclude_any` can be combined with either `labels_include_all` or `labels_include_any`, but `labels_include_all` and `labels_include_any` cannot be combined with each other. If neither is set, all hosts on the specified platform are targeted.
 
@@ -7003,10 +7993,12 @@ For each `profile`, `labels_exclude_any` can be combined with either `labels_inc
 {
   "configuration_profiles": [
     {
-      "profile": "PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPCFET0NUWVBFIHBsaXN0IFBVQkxJQyAiLS8vQXBwbGUvL0RURCBQTElTVCAxLjAvL0VOIiAiaHR0cDovL3d3dy5hcHBsZS5jb20vRFREcy9Qcm9wZXJ0eUxpc3QtMS4wLmR0ZCI+CjxwbGlzdCB2ZXJzaW9uPSIxLjAiPgo8ZGljdD4KCTxrZXk+UGF5bG9hZENvbnRlbnQ8L2tleT4KCTxhcnJheT4KCQk8ZGljdD4KCQkJPGtleT5BbGxvd1ByZVJlbGVhc2VJbnN0YWxsYXRpb248L2tleT4KCQkJPHRydWUvPgoJCQk8a2V5PkF1dG9tYXRpY0NoZWNrRW5hYmxlZDwva2V5PgoJCQk8dHJ1ZS8+CgkJCTxrZXk+QXV0b21hdGljRG93bmxvYWQ8L2tleT4KCQkJPHRydWUvPgoJCQk8a2V5PkF1dG9tYXRpY2FsbHlJbnN0YWxsQXBwVXBkYXRlczwva2V5PgoJCQk8dHJ1ZS8+CgkJCTxrZXk+QXV0b21hdGljYWxseUluc3RhbGxNYWNPU1VwZGF0ZXM8L2tleT4KCQkJPHRydWUvPgoJCQk8a2V5PkNvbmZpZ0RhdGFJbnN0YWxsPC9rZXk+CgkJCTx0cnVlLz4KCQkJPGtleT5Dcml0aWNhbFVwZGF0ZUluc3RhbGw8L2tleT4KCQkJPHRydWUvPgoJCQk8a2V5PlBheWxvYWREZXNjcmlwdGlvbjwva2V5PgoJCQk8c3RyaW5nPkNvbmZpZ3VyZXMgU29mdHdhcmUgVXBkYXRlIHNldHRpbmdzPC9zdHJpbmc+CgkJCTxrZXk+UGF5bG9hZERpc3BsYXlOYW1lPC9rZXk+CgkJCTxzdHJpbmc+U29mdHdhcmUgVXBkYXRlPC9zdHJpbmc+CgkJCTxrZXk+UGF5bG9hZElkZW50aWZpZXI8L2tleT4KCQkJPHN0cmluZz5jb20uZ2l0aHViLmVyaWtiZXJnbHVuZC5Qcm9maWxlQ3JlYXRvci5CRUJBMDc0MC00RERCLTRBQzQtODVEQy1CQTQ4Qjk2QzBEQzguY29tLmFwcGxlLlNvZnR3YXJlVXBkYXRlLkE4Qjk3MDMyLTc2NDUtNDA2OC1CNDU3LTAxREU1QzZCMzNGNzwvc3RyaW5nPgoJCQk8a2V5PlBheWxvYWRPcmdhbml6YXRpb248L2tleT4KCQkJPHN0cmluZz48L3N0cmluZz4KCQkJPGtleT5QYXlsb2FkVHlwZTwva2V5PgoJCQk8c3RyaW5nPmNvbS5hcHBsZS5Tb2Z0d2FyZVVwZGF0ZTwvc3RyaW5nPgoJCQk8a2V5PlBheWxvYWRVVUlEPC9rZXk+CgkJCTxzdHJpbmc+QThCOTcwMzItNzY0NS00MDY4LUI0NTctMDFERTVDNkIzM0Y3PC9zdHJpbmc+CgkJCTxrZXk+UGF5bG9hZFZlcnNpb248L2tleT4KCQkJPGludGVnZXI+MTwvaW50ZWdlcj4KCQk8L2RpY3Q+Cgk8L2FycmF5PgoJPGtleT5QYXlsb2FkRGVzY3JpcHRpb248L2tleT4KCTxzdHJpbmc+RW5hYmxlcyBhdXRvbWF0aWMgdXBkYXRlczwvc3RyaW5nPgoJPGtleT5QYXlsb2FkRGlzcGxheU5hbWU8L2tleT4KCTxzdHJpbmc+VHVybiBvbiBhdXRvbWF0aWMgdXBkYXRlczwvc3RyaW5nPgoJPGtleT5QYXlsb2FkSWRlbnRpZmllcjwva2V5PgoJPHN0cmluZz5jb20uZ2l0aHViLmVyaWtiZXJnbHVuZC5Qcm9maWxlQ3JlYXRvci5CRUJBMDc0MC00RERCLTRBQzQtODVEQy1CQTQ4Qjk2QzBEQzg8L3N0cmluZz4KCTxrZXk+UGF5bG9hZE9yZ2FuaXphdGlvbjwva2V5PgoJPHN0cmluZz5GbGVldERNPC9zdHJpbmc+Cgk8a2V5PlBheWxvYWRSZW1vdmFsRGlzYWxsb3dlZDwva2V5PgoJPHRydWUvPgoJPGtleT5QYXlsb2FkU2NvcGU8L2tleT4KCTxzdHJpbmc+U3lzdGVtPC9zdHJpbmc+Cgk8a2V5PlBheWxvYWRUeXBlPC9rZXk+Cgk8c3RyaW5nPkNvbmZpZ3VyYXRpb248L3N0cmluZz4KCTxrZXk+UGF5bG9hZFVVSUQ8L2tleT4KCTxzdHJpbmc+QkVCQTA3NDAtNEREQi00QUM0LTg1REMtQkE0OEI5NkMwREM4PC9zdHJpbmc+Cgk8a2V5PlBheWxvYWRWZXJzaW9uPC9rZXk+Cgk8aW50ZWdlcj4xPC9pbnRlZ2VyPgo8L2RpY3Q+CjwvcGxpc3Q+",
+      "profile": "<base64-encoded DDM profile>",
+      "display_name": "Passcode Settings",
+      "activation": "eyJldmVudCI6...",
       "labels_include_any": [
         "Apple Silicon macOS hosts"
-      ],
+      ]
     }
   ]
 }
@@ -7014,7 +8006,193 @@ For each `profile`, `labels_exclude_any` can be combined with either `labels_inc
 
 ##### Default response
 
-`204`
+`Status: 204`
+
+### Create Apple asset declaration
+
+Add an Apple asset declaration to reference in a configuration profile.
+
+> You need to send a request of type `multipart/form-data`.
+
+> This endpoint accepts a maximum request body size of 1.5MiB.
+
+`POST /api/v1/fleet/assets`
+
+#### Parameters
+
+| Name                      | Type     | In   | Description                                                                                                   |
+| ------------------------- | -------- | ---- | ------------------------------------------------------------------------------------------------------------- |
+| asset                   | file     | body | **Required.** The JSON asset declaration. The "Type" must be a valid Apple asset declaration type (e.g., "com.apple.asset.data"), and an "Identifier" must be defined. See [Apple's documentation](https://developer.apple.com/documentation/devicemanagement) for type-specific payload requirements. |
+| fleet_id                   | string   | body | _Available in Fleet Premium_. The fleet ID for the asset. If specified, the asset is available to only the configuration profile(s) that are assigned to the specified fleet. If not specified, the profile is applied to only hosts that are "Unassigned". |
+
+#### Example
+
+`POST /api/v1/fleet/assets`
+
+##### Request body
+
+```
+fleet_id="1"
+asset="my-asset.json"
+```
+
+##### Example asset file (my-asset.json)
+```
+{
+    "Type": "com.apple.asset.data",
+    "Identifier": "EB13EE2B-5D63-4EBA-810F-5B81D07F5017",
+    "ServerToken": "E180CA9A-F089-4FA3-BBDF-94CC159C4AE8",
+    "Payload": {
+        "Reference": {
+            "DataURL": "https://example.com/asset-data/data/test.txt",
+            "ContentType": "text/plain"
+        },
+        "Authentication": {
+            "Type": "MDM"
+        }
+    }
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "asset_uuid": "954ec5ea-a334-4825-87b3-937e7e381f24"
+}
+```
+
+### List Apple asset declarations
+
+Get a list of the Apple asset declarations in Fleet.
+
+For Fleet Premium, the list can optionally be filtered by fleet ID. If no fleet ID is specified, fleet assets are excluded from the results (i.e., only assets that are associated with "Unassigned" are listed).
+
+`GET /api/v1/fleet/assets`
+
+#### Parameters
+
+| Name                      | Type   | In    | Description                                                               |
+| ------------------------- | ------ | ----- | ------------------------------------------------------------------------- |
+| fleet_id                  | string | query | _Available in Fleet Premium_. The fleet id to filter profiles.            |
+
+#### Example
+
+List all assets available for the "Unassigned" fleet.
+
+`GET /api/v1/fleet/assets`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "assets": [
+    {
+      "asset_uuid": "39f6cbbc-fe7b-4adc-b7a9-542d1af89c63",
+      "asset": "my-asset.json",
+      "identifier": "com.example.asset1",
+      "created_at": "2023-03-31T00:00:00Z",
+      "updated_at": "2023-03-31T00:00:00Z",
+      "checksum": "dGVzdAo="
+    },
+    {
+      "asset_uuid": "39f6cbbc-fe7b-4adc-b7a9-542d1af89c63",
+      "asset": "my-asset2.json",
+      "identifier": "com.example.asset2",
+      "created_at": "2023-03-31T00:00:00Z",
+      "updated_at": "2023-03-31T00:00:00Z",
+      "checksum": "dGVzdAo="
+    }
+  ]
+}
+```
+
+### Get or download Apple asset declaration
+
+Get or download the original Apple asset declaration file that was uploaded to Fleet.
+
+`GET /api/v1/fleet/assets/:asset_uuid`
+
+#### Parameters
+
+| Name                      | Type    | In    | Description                                             |
+| ------------------------- | ------- | ----- | ------------------------------------------------------- |
+| asset_uuid                | string  | url   | **Required** The UUID of the asset to get.  |
+| alt                       | string  | query | If specified and set to "media", downloads the asset. |
+
+#### Example (get asset metadata)
+
+`GET /api/v1/fleet/assets/954ec5ea-a334-4825-87b3-937e7e381f24`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "asset_uuid": "954ec5ea-a334-4825-87b3-937e7e381f24",
+  "fleet_id": 0,
+  "asset": "my-asset.json",
+  "identifier": "com.example.asset1",
+  "created_at": "2023-03-31T00:00:00Z",
+  "updated_at": "2023-03-31T00:00:00Z",
+  "checksum": "dGVzdAo="
+}
+```
+
+#### Example (download an asset)
+
+`GET /api/v1/fleet/assets/954ec5ea-a334-4825-87b3-937e7e381f24?alt=media`
+
+##### Default response
+
+`Status: 200`
+
+**Note** To confirm success, it is important for clients to match content length with the response header (this is done automatically by most clients, including the browser) rather than relying solely on the response status code returned by this endpoint.
+
+##### Example response headers
+
+```http
+Content-Length: 542
+Content-Type: application/octet-stream
+Content-Disposition: attachment;filename="2023-03-31 my-asset.json"
+```
+
+###### Example response body
+
+```json
+{
+  "Type": "com.apple.asset.data",
+  "Identifier": "com.example.asset1",
+  "ServerURL": "https://example.com/assets/my-asset.json"
+}
+```
+
+### Delete Apple asset declaration
+
+Deletes an Apple asset declaration.
+
+> If an asset is referenced in a configuration profile, you must delete the configuration profile first before being able to remove the asset.
+
+`DELETE /api/v1/fleet/assets/:asset_uuid`
+
+#### Parameters
+
+| Name                      | Type    | In    | Description                                       |
+| ------------------------- | ------- | ----- | ------------------------------------------------- |
+| asset_uuid                | string  | url   | **Required** The UUID of the asset to delete.     |
+
+#### Example
+
+`DELETE /api/v1/fleet/assets/954ec5ea-a334-4825-87b3-937e7e381f24`
+
+##### Default response
+
+`Status: 204`
 
 ### Resend configuration profile by Fleet Desktop token
 
@@ -7040,21 +8218,20 @@ Resends a configuration profile for the specified host. Currently, macOS, iOS, i
 
 ### Batch-resend configuration profile
 
-
 `POST /api/v1/fleet/configuration_profiles/resend/batch`
 
 #### Parameters
 
-| Name    | Type    | In   | Description                                                                                                                                                                                                                                                                                                                        |
-| ------- | ------- | ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| profile_uuid | integer | body | **Required**. The UUID of the existing configuration profile you'd like to resend.|
-| filters | object  | body | **Required**. See [filters](#filters)  |
+| Name          | Type    | In   | Description                                                                            |
+| ------------- | ------- | ---- | -------------------------------------------------------------------------------------- |
+| profile_uuid  | integer | body | **Required**. The UUID of the existing configuration profile you'd like to resend.     |
+| filters       | object  | body | **Required**. See [filters](#filters)                                                  |
 
 ##### Filters
 
-| Name                              | Type    | Description   |
+| Name                   | Type    | Description   |
 | -----------------------| ------- | ----------------------------------------------------------------------------------- |
-| profile_status                | string   | Profile status. Currently, `"failed"` is supported. |
+| profile_status         | string   | Profile status. Currently, `"failed"` is supported. |
 
 #### Example
 
@@ -7098,7 +8275,7 @@ _Available in Fleet Premium_
 
 ##### Default response
 
-`204`
+`Status: 204`
 
 
 ### Get disk encryption status
@@ -7135,6 +8312,68 @@ The summary can optionally be filtered by fleet ID.
   "removing_enforcement": {"macos": 123, "windows": 0, "linux": 0}
 }
 ```
+
+### Update host name template
+
+_Available in Fleet Premium_
+
+Sets a naming convention for all macOS, iOS, and iPadOS hosts in a fleet (or "Unassigned"). Fleet resolves the template per host, renames the host on the device via an Apple MDM command, and updates the host's name in Fleet.
+
+Sending an empty `name_template` clears the template. Clearing the template stops enforcement but doesn't rename any host.
+
+`POST /api/v1/fleet/host_name_template`
+
+#### Parameters
+
+| Name          | Type    | In   | Description                                                                                                                    |
+| ------------- | ------- | ---- | ------------------------------------------------------------------------------------------------------------------------------ |
+| fleet_id      | integer | body | The fleet ID to apply the host name template to. The template is applied to "Unassigned" hosts if the value is absent or `0`. |
+| name_template | string  | body | The host name template. Send an empty string to clear the template.                                                            |
+
+The template supports the built-in host identity variables (`$FLEET_VAR_HOST_HARDWARE_SERIAL`, `$FLEET_VAR_HOST_UUID`, `$FLEET_VAR_HOST_PLATFORM`), the IdP end-user variables (`$FLEET_VAR_HOST_END_USER_IDP_USERNAME`, `$FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART`, `$FLEET_VAR_HOST_END_USER_IDP_GROUPS`, `$FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT`, `$FLEET_VAR_HOST_END_USER_IDP_FULL_NAME`), and custom (`$FLEET_SECRET_*`) variables; each also works in its `${...}` form. Certificate authority variables (SCEP challenges and proxy URLs, DigiCert data, certificate renewal IDs, the Platform SSO device registration token) and the deprecated `$FLEET_VAR_HOST_END_USER_EMAIL_IDP` variable aren't supported and return a `422` — they resolve to secrets or certificate data that are meaningless and unsafe as a host name.
+
+If a host is missing the IdP data a variable needs, that host's rename fails. A referenced custom variable must already exist (an undefined one returns a `422`); custom variables are global, and a custom variable's value becomes the host's (publicly visible) name, so it isn't kept hidden as it is in scripts and configuration profiles.
+
+#### Example
+
+`POST /api/v1/fleet/host_name_template`
+
+##### Request body
+
+```json
+{
+  "fleet_id": 5,
+  "name_template": "iPad $FLEET_VAR_HOST_HARDWARE_SERIAL"
+}
+```
+
+##### Default response
+
+`Status: 204`
+
+### Resend host name template
+
+_Available in Fleet Premium_
+
+Resends the host name template MDM command to a host whose host name status is "failed" or "verified". The host's status returns to "pending" (shown as "Enforcing" in the UI) until the device applies the name again.
+
+`POST /api/v1/fleet/hosts/:id/name_template/resend`
+
+#### Parameters
+
+| Name | Type    | In   | Description                                            |
+| ---- | ------- | ---- | ------------------------------------------------------ |
+| id   | integer | path | **Required.** The ID of the host to resend to.         |
+
+#### Example
+
+`POST /api/v1/fleet/hosts/42/name_template/resend`
+
+##### Default response
+
+`Status: 202`
+
+If the host has no host name template enforced, the response is `404`. If the host name status is "pending" or "verifying", the response is `409`.
 
 ### Get OS settings (configuration profiles) status
 
@@ -7197,7 +8436,7 @@ Get status counts of a single OS settings (configuration profile) enforced on ho
   "verified": 123,
   "verifying": 123,
   "failed": 123,
-  "pending": 123,
+  "pending": 123
 }
 ```
 
@@ -7394,10 +8633,10 @@ To enroll macOS hosts, turn on MDM features, and add [human-device mapping](http
 ##### Example response headers
 
 ```http
-  Content-Length: 542
-  Content-Type: application/x-apple-aspen-config; charset=utf-8
-  Content-Disposition: attachment;filename="fleet-mdm-enrollment-profile.mobileconfig"
-  X-Content-Type-Options: nosniff
+Content-Length: 542
+Content-Type: application/x-apple-aspen-config; charset=utf-8
+Content-Disposition: attachment;filename="fleet-mdm-enrollment-profile.mobileconfig"
+X-Content-Type-Options: nosniff
 ```
 
 ###### Example response body
@@ -7642,8 +8881,8 @@ _Available in Fleet Premium_
 | require_all_software_windows | boolean | body | If set to `true`, setup will be canceled on Windows hosts if any software installs fail (the host is blocked at the Windows Enrollment Status Page until the device is reset). If `false`, the Enrollment Status Page lists the failed software and the end user can continue to the desktop and install it later via self-service. |
 | enable_release_device_manually | boolean | body  | When enabled, you're responsible for sending the [`DeviceConfigured` command](https://developer.apple.com/documentation/devicemanagement/device-configured-command). End users will be stuck in Setup Assistant until this command is sent. |
 | manual_agent_install | boolean | body  | If set to `true` Fleet's agent (fleetd) won't be installed as part of automatic enrollment (ADE) on macOS hosts. (Default: `false`) |
-| enable_managed_local_account     | boolean | During the Setup experience, a managed local account will be created on macOS hosts if set to true. |
-| end_user_local_account_type     | string | Specifies the type of local end user account created. (Default: `"admin"`) `enable_managed_local_account` must be true. |
+| enable_managed_local_account     | boolean | body | _Available in Fleet Premium._ During the Setup experience, a managed local account will be created on macOS hosts if set to true. |
+| end_user_local_account_type     | string | body | Specifies the type of local end user account created. (Default: `"admin"`) `enable_managed_local_account` must be true. |
 
 #### Example
 
@@ -8001,31 +9240,35 @@ Delete a script that will automatically run during macOS setup.
 
 _Available in Fleet Premium_
 
-Edit managed local account enforcement settings for eligible macOS hosts.
+Edit managed local account enforcement settings for eligible hosts.
 
 `POST /api/v1/fleet/managed_local_account`
 
 #### Parameters
 
-| Name                         | Type    | In    | Description                                                                          |
-| ---------------------------- | ------  | ----  | -------------------------------------------------------------------------------------|
-| fleet_id                      | integer | body  | The fleet ID to apply the settings to. If omitted, settings apply to unassigned hosts.|
-| enable_managed_local_account | boolean | body  | Whether to enforce creating managed local accounts on eligible hosts.                |
+| Name                                 | Type    | In    | Description                                                                          |
+| ------------------------------------ | ------  | ----  | -------------------------------------------------------------------------------------|
+| fleet_id                             | integer | body  | The fleet ID to apply the settings to. If omitted, settings apply to unassigned hosts.|
+| enable_managed_local_account         | boolean | body  | _Available in Fleet Premium._ During Setup experience, a managed local account will be created on eligible hosts if set to true. |
+| end_user_local_account_type          | string  | body  | Specifies the type of local end user account created. (Default: `"admin"`) `enable_managed_local_account` must be true. |
 
 #### Example
 
 `POST /api/v1/fleet/managed_local_account`
 
-##### Default response
-
-`204`
+##### Request body
 
 ```json
 {
   "fleet_id": 3,
-  "enable_managed_local_account": true
+  "enable_managed_local_account": true,
+  "end_user_local_account_type": "admin"
 }
 ```
+
+##### Default response
+
+`Status: 204`
 
 ---
 
@@ -8091,9 +9334,9 @@ The possible `status` values for Windows hosts are listed in [Microsoft's OMA DM
 
 #### Parameters
 
-| Name                      | Type   | In    | Description                                                               |
-| ------------------------- | ------ | ----- | ------------------------------------------------------------------------- |
-| command_uuid              | string | query | The unique identifier of the command.                                     |
+| Name                      | Type    | In    | Description                                                               |
+| ------------------------- | ------  | ----- | ------------------------------------------------------------------------- |
+| command_uuid              | string  | query | The unique identifier of the command.                                     |
 | host_identifier           | string  | query | The host's `hostname`, `uuid`, or `hardware_serial`. Returns only results for the specified host. |
 
 #### Example
@@ -8163,7 +9406,7 @@ This endpoint returns the list of custom MDM commands that have been executed.
 | order_key                 | string  | query | What to order results by. Allowed values: `host_uuid`, `command_uuid`, `status`, `updated_at`, `request_type`, `hostname`. Default is `updated_at`. |
 | order_direction           | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
 | request_type              | string  | query | The request type to filter commands by. |
-| command_status            | string | query | Comma-separated string of one of the following options: 'ran', 'pending', or 'failed'. |
+| command_status            | string  | query | Comma-separated string of one of the following options: 'ran', 'pending', or 'failed'. |
 | after                     | string  | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used. |
 
 > Currently, `⁠command_status` is only available when ⁠`host_identifier` is provided and the host is macOS, iOS, or iPadOS. Additionally, ⁠`count` is returned only when ⁠`command_status` is `⁠pending`; for any other values, ⁠`count` will be `⁠null`.
@@ -8220,6 +9463,7 @@ This endpoint returns the list of custom MDM commands that have been executed.
 - [List Apple Business (AB) tokens](#list-apple-business-ab-tokens)
 - [List Volume Purchasing Program (VPP) tokens](#list-volume-purchasing-program-vpp-tokens)
 - [Get Android Enterprise](#get-android-enterprise)
+- [Delete Android Enterprise](#delete-android-enterprise)
 
 ### Get Apple Push Notification service (APNs)
 
@@ -8265,70 +9509,73 @@ None.
 `Status: 200`
 
 ```json
-"ab_tokens": [
-  {
-    "id": 1,
-    "apple_id": "apple@example.com",
-    "org_name": "Fleet Device Management Inc.",
-    "mdm_server_url": "https://example.com/mdm/apple/mdm",
-    "renew_date": "2023-11-29T00:00:00Z",
-    "terms_expired": false,
-    "macos_fleet": {
-      "name": "💻 Workstations",
-      "id": 1
-    },
-    "ios_fleet": {
-      "name": "📱🏢 Company-owned iPhones",
-      "id": 2
-    },
-    "ipados_fleet": {
-      "name": "🔳🏢 Company-owned iPads",
-      "id": 3
+{
+  "ab_tokens": [
+    {
+      "id": 1,
+      "apple_id": "apple@example.com",
+      "org_name": "Fleet Device Management Inc.",
+      "mdm_server_url": "https://example.com/mdm/apple/mdm",
+      "renew_date": "2023-11-29T00:00:00Z",
+      "terms_expired": false,
+      "macos_fleet": {
+        "name": "💻 Workstations",
+        "fleet_id": 1
+      },
+      "ios_fleet": {
+        "name": "📱🏢 Company-owned iPhones",
+        "fleet_id": 2
+      },
+      "ipados_fleet": {
+        "name": "🔳🏢 Company-owned iPads",
+        "fleet_id": 3
+      }
     }
-  }
-],
-"abm_tokens": [
-  {
-    "id": 1,
-    "apple_id": "apple@example.com",
-    "org_name": "Fleet Device Management Inc.",
-    "mdm_server_url": "https://example.com/mdm/apple/mdm",
-    "renew_date": "2023-11-29T00:00:00Z",
-    "terms_expired": false,
-    "macos_team": {
-      "name": "💻 Workstations",
-      "id": 1
-    },
-    "macos_fleet": {
-      "name": "💻 Workstations",
-      "id": 1
-    },
-    "ios_team": {
-      "name": "📱🏢 Company-owned iPhones",
-      "id": 2
-    },
-    "ios_fleet": {
-      "name": "📱🏢 Company-owned iPhones",
-      "id": 2
-    },
-    "ipados_team": {
-      "name": "🔳🏢 Company-owned iPads",
-      "id": 3
-    },
-    "ipados_fleet": {
-      "name": "🔳🏢 Company-owned iPads",
-      "id": 3
-    },
-    "byod_team": {
-      "name": "📱 BYOD iPhones",
-      "id": 4
-    },
-    "byod_fleet": {
-      "name": "📱 BYOD iPhones",
-      "id": 4
+  ],
+  "abm_tokens": [
+    {
+      "id": 1,
+      "apple_id": "apple@example.com",
+      "org_name": "Fleet Device Management Inc.",
+      "mdm_server_url": "https://example.com/mdm/apple/mdm",
+      "renew_date": "2023-11-29T00:00:00Z",
+      "terms_expired": false,
+      "token_invalid": false,
+      "macos_team": {
+        "name": "💻 Workstations",
+        "id": 1
+      },
+      "macos_fleet": {
+        "name": "💻 Workstations",
+        "id": 1
+      },
+      "ios_team": {
+        "name": "📱🏢 Company-owned iPhones",
+        "id": 2
+      },
+      "ios_fleet": {
+        "name": "📱🏢 Company-owned iPhones",
+        "id": 2
+      },
+      "ipados_team": {
+        "name": "🔳🏢 Company-owned iPads",
+        "id": 3
+      },
+      "ipados_fleet": {
+        "name": "🔳🏢 Company-owned iPads",
+        "id": 3
+      },
+      "byod_team": {
+        "name": "📱 BYOD iPhones",
+        "id": 4
+      },
+      "byod_fleet": {
+        "name": "📱 BYOD iPhones",
+        "id": 4
+      }
     }
-  }
-]
+  ]
+}
 ```
 
 ### List Volume Purchasing Program (VPP) tokens
@@ -8350,33 +9597,53 @@ None.
 `Status: 200`
 
 ```json
-"vpp_tokens": [
-  {
-    "id": 1,
-    "org_name": "Fleet Device Management Inc.",
-    "location": "https://example.com/mdm/apple/mdm",
-    "country_code": "us",
-    "renew_date": "2023-11-29T00:00:00Z",
-    "fleets": [
-      {
-        "name": "💻 Workstations",
-        "id": 1
-      },
-      {
-        "name": "💻🐣 Workstations (canary)",
-        "id": 2
-      },
-      {
-        "name": "📱🏢 Company-owned iPhones",
-        "id": 3
-      },
-      {
-        "name": "🔳🏢 Company-owned iPads",
-        "id": 4
-      }
-    ],
-  }
-]
+{
+  "vpp_tokens": [
+    {
+      "id": 1,
+      "org_name": "Fleet Device Management Inc.",
+      "location": "https://example.com/mdm/apple/mdm",
+      "country_code": "us",
+      "renew_date": "2023-11-29T00:00:00Z",
+      "teams": [
+        {
+          "name": "💻 Workstations",
+          "team_id": 1
+        },
+        {
+          "name": "💻🐣 Workstations (canary)",
+          "team_id": 2
+        },
+        {
+          "name": "📱🏢 Company-owned iPhones",
+          "team_id": 3
+        },
+        {
+          "name": "🔳🏢 Company-owned iPads",
+          "team_id": 4
+        }
+      ],
+      "fleets": [
+        {
+          "name": "💻 Workstations",
+          "fleet_id": 1
+        },
+        {
+          "name": "💻🐣 Workstations (canary)",
+          "fleet_id": 2
+        },
+        {
+          "name": "📱🏢 Company-owned iPhones",
+          "fleet_id": 3
+        },
+        {
+          "name": "🔳🏢 Company-owned iPads",
+          "fleet_id": 4
+        }
+      ]
+    }
+  ]
+}
 ```
 
 ### Get Android Enterprise
@@ -8404,6 +9671,24 @@ None.
   "android_enterprise_id": "LC0445szuv"
 }
 ```
+
+### Delete Android Enterprise
+
+Delete Android Enterprise that's connected to Fleet. Once deleted, hosts that belong to Android Enterprise will be un-enrolled and Android MDM features will be turned off.
+
+`DELETE /api/v1/fleet/android_enterprise`
+
+#### Parameters
+
+None.
+
+#### Example
+
+`DELETE /api/v1/fleet/android_enterprise`
+
+##### Default response
+
+`Status: 200`
 
 ---
 
@@ -9093,14 +10378,12 @@ None.
     {
       "id": "urn:ietf:params:scim:schemas:core:2.0:User",
       "name": "User",
-      "description": "SCIM User",
-      "attributes": [...]
+      "description": "SCIM User"
     },
     {
       "id": "urn:ietf:params:scim:schemas:core:2.0:Group",
       "name": "Group",
-      "description": "SCIM Group",
-      "attributes": [...]
+      "description": "SCIM Group"
     }
   ]
 }
@@ -9257,7 +10540,7 @@ A passing host answers "yes" to a policy if the host returns results for a polic
 
 A failing host answers "no" to a policy if the host does not return results for a policy's query.
 
-For example, a policy might ask “Is Gatekeeper enabled on macOS devices?“ This policy's osquery query might look like the following: `SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;`
+For example, a policy might ask "Is Gatekeeper enabled on macOS devices?" This policy's osquery query might look like the following: `SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;`
 
 ### List policies
 
@@ -9432,7 +10715,8 @@ _Available in Fleet Premium_
       "conditional_access_enabled": false,
       "install_software": {
         "name": "Adobe Acrobat",
-        "software_title_id": 1234
+        "software_title_id": 1234,
+        "patch_when_closed": true
       }
     }
   ],
@@ -9687,7 +10971,7 @@ _Available in Fleet Premium_
     "patch_software": {
       "display_name": "", 
       "name": "Adobe Acrobat.app",
-      "software_title_id": 1234,
+      "software_title_id": 1234
     },
     "install_software": {
       "name": "Adobe Acrobat.app",
@@ -9794,15 +11078,19 @@ The semantics for creating a fleet policy are the same as for global policies, s
 | critical          | boolean | body | _Available in Fleet Premium_. Mark policy as critical/high impact. Critical policies can never bypass conditional access. |
 | type | string | body | The type of the policy. Options are `"dynamic"` (classic policy with an editable query) or `"patch"` (tied to `patch_software_title_id` and automatically updated to include the newest Fleet-maintained app version). If not specified, defaults to `"dynamic"`. |
 | patch_software_title_id | integer | body | _Available in Fleet Premium_. ID of the software title (Fleet-maintained only) to create a patch policy for. Required if `type` is `patch`. |
+| patch_when_closed | boolean | body | _Available in Fleet Premium_. Only applies if `type` is `patch`. If `true`, Fleet adds a read-only pre-install condition that skips the automated install while the app is open. Setting this to `true` also sets `continuous_automations_enabled` to `true`. If `false`, Fleet installs the update the next time the policy fails, whether or not the app is open. |
 | calendar_events_enabled | boolean | body | _Available in Fleet Premium_. Whether to trigger calendar events when policy is failing.                                                                |
 | conditional_access_enabled | boolean | body | _Available in Fleet Premium_. Whether to block single sign-on for end users whose hosts fail this policy.                                              |
 | software_title_id | integer | body | _Available in Fleet Premium_. ID of software title to install if the policy fails. If `software_title_id` is specified and the software has `labels_include_any` or `labels_exclude_any` defined, the policy will inherit this target in addition to specified `platform`.                                                                     |
+| software_installer_id | integer | body | _Available in Fleet Premium_. ID of a specific package of `software_title_id` to install on failure. If omitted, defaults to the title's first-added package. |
 | script_id         | integer | body | _Available in Fleet Premium_. ID of script to run if the policy fails.                                                                 |
 | continuous_automations_enabled | boolean | body | _Available in Fleet Premium_. If enabled, software and script automations will run every time Fleet receives a failing response from a host. If not, all automations run on a host's first failure, and when a host's response changes from pass to fail. |
 | labels_include_any      | array     | form | Labels, specified by label name, to target with this policy. If specified, the policy will run on hosts that match **any of these** labels. |
 | labels_include_all              | array    | body | _Available in Fleet Premium_. Labels, specified by label name, to target with this policy. If specified, the policy will run on hosts that match **all of these** labels. |
 | labels_exclude_any | array | form | _Available in Fleet Premium_. Labels, specified by label name, to target with this policy. If specified, the policy will **not** run on hosts that match **any of these** labels. |
 | labels_exclude_all | array | form | _Available in Fleet Premium_. Labels, specified by label name, to target with this policy. If specified, the policy will **not** run on hosts that match **all of these** labels. |
+
+> `patch_when_closed` is only supported for patch policies tied to a Fleet-maintained app (`patch_software_title_id` refers to a title added via [Add Fleet-maintained app](#add-fleet-maintained-app)). Enabling it overrides any `pre_install_query` previously set on that software title — see [Update package](#update-package). When this is enabled, Fleet won't retry software install when pre-install condition fails.
 
 Either `query` or `query_id` must be provided.
 
@@ -10028,8 +11316,10 @@ _Available in Fleet Premium_
 | calendar_events_enabled | boolean | body | _Available in Fleet Premium_. Whether to trigger calendar events when policy is failing.                                                                |
 | conditional_access_enabled | boolean | body | _Available in Fleet Premium_. Whether to block single sign-on for end users whose hosts fail this policy.                                              |
 | software_title_id       | integer | body | _Available in Fleet Premium_. ID of software title to install if the policy fails. Set to `null` to remove the automation.                              |
+| software_installer_id   | integer | body | _Available in Fleet Premium_. ID of a specific package of `software_title_id` to install on failure. If omitted, defaults to the title's first-added package.                              |
 | script_id               | integer | body | _Available in Fleet Premium_. ID of script to run if the policy fails. Set to `null` to remove the automation.                                          |
 | continuous_automations_enabled | boolean | body | _Available in Fleet Premium_. If enabled, software and script automations will run every time Fleet receives a failing response from a host. If not, all automations run on a host's first failure, and when a host's response changes from pass to fail. |
+| patch_when_closed | boolean | body | _Available in Fleet Premium_. Only applies to existing patch policies (`type` is `patch`). If `true`, Fleet adds a read-only pre-install condition that skips the automated install while the app is open. Setting this to `true` also sets `continuous_automations_enabled` to `true`. If `false`, Fleet installs the update the next time the policy fails, whether or not the app is open. |
 | labels_include_any      | array     | form | Labels, specified by label name, to target with this policy. If specified, the policy will run on hosts that match **any of these** labels. |
 | labels_include_all              | array    | body | _Available in Fleet Premium_. Labels, specified by label name, to target with this policy. If specified, the policy will run on hosts that match **all of these** labels. |
 | labels_exclude_any | array | form | _Available in Fleet Premium_. Labels, specified by label name, to target with this policy. If specified, the policy will **not** run on hosts that match **any of these** labels. |
@@ -10039,6 +11329,8 @@ _Available in Fleet Premium_
 Either `query` or `query_id` must be provided.
 
 Only one set of label targets (`labels_include_any`/`labels_include_all`) and one set of label exclusions (`labels_exclude_any`/`labels_exclude_all`) can be specified. If none are set, all hosts on the specified `platform` are targeted.
+
+Setting `patch_when_closed` to `false` after it was `true` removes the read-only pre-install condition Fleet added; `pre_install_query` becomes editable again on the software title.
 
 #### Example
 
@@ -11042,6 +12334,8 @@ By default, script runs time out after 5 minutes. You can modify this default in
 
 Gets the result of a script that was executed.
 
+`GET /api/v1/fleet/scripts/results/:execution_id`
+
 #### Parameters
 
 | Name         | Type   | In   | Description                                   |
@@ -11089,7 +12383,7 @@ The script will be added to each host's list of upcoming activities.
 | Name            | Type    | In   | Description                                                                                    |
 | ----            | ------- | ---- | --------------------------------------------                                                   |
 | script_id       | integer | body | **Required**. The ID of the existing saved script to run. |
-| host_ids        | array   | body |  List of host IDs.  Required if `filters` not specified. Only one of `host_ids` or `filters` may be included in the request.   |                                            |
+| host_ids        | array   | body |  List of host IDs.  Required if `filters` not specified. Only one of `host_ids` or `filters` may be included in the request.   |
 | filters | object  | body | See [filters](#filters4). Required if `host_ids` not specified. Only one of `host_ids` or `filters` may be included in the request.   |
 | not_before       | string  | body | UTC time when the script run is scheduled to begin. If omitted, the batch script will begin right away. |
 
@@ -11203,7 +12497,7 @@ Returns a list of batch script executions.
   ],
   "meta": {
     "has_next_results": false,
-    "has_previous_results": false,
+    "has_previous_results": false
   },
   "count": 1
 }
@@ -11267,7 +12561,7 @@ Returns a list hosts targeted in a batch script run, along with their script exe
 | Name                | Type    | In    | Description                                                                                    |
 | --------------------| ------- | ----- | --------------------------------------------                                                   |
 | batch_execution_id  | string  | path  | **Required**. The ID returned from a batch script run. |
-| status              | string  | query | Filters to hosts with this script status. Either `"ran"`, `"pending"`, `"errored"`, `"incompatible"`, or "`canceled`". |
+| status              | string  | query | **Required** Filters to hosts with this script status. Either `"ran"`, `"pending"`, `"errored"`, `"incompatible"`, or "`canceled`". |
 | page                | integer | query | Page number of the results to fetch. |
 | per_page            | integer | query | Results per page. |
 | order_key           | string  | query | What to order results by. Allowed fields are `display_name`, `hostname`, and `updated_at`. |
@@ -11490,40 +12784,41 @@ Deletes an existing script.
 `Status: 200`
 
 ```json
-"scripts": [
-  {
-    "script_id": 3,
-    "name": "remove-zoom-artifacts.sh",
-    "last_execution": {
-      "execution_id": "e797d6c6-3aae-11ee-be56-0242ac120002",
-      "executed_at": "2021-12-15T15:23:57Z",
-      "status": "error"
+{
+  "scripts": [
+    {
+      "script_id": 3,
+      "name": "remove-zoom-artifacts.sh",
+      "last_execution": {
+        "execution_id": "e797d6c6-3aae-11ee-be56-0242ac120002",
+        "executed_at": "2021-12-15T15:23:57Z",
+        "status": "error"
+      }
+    },
+    {
+      "script_id": 5,
+      "name": "set-timezone.sh",
+      "last_execution": {
+        "id": "e797d6c6-3aae-11ee-be56-0242ac120002",
+        "executed_at": "2021-12-15T15:23:57Z",
+        "status": "pending"
+      }
+    },
+    {
+      "script_id": 8,
+      "name": "uninstall-zoom.sh",
+      "last_execution": {
+        "id": "e797d6c6-3aae-11ee-be56-0242ac120002",
+        "executed_at": "2021-12-15T15:23:57Z",
+        "status": "ran"
+      }
     }
-  },
-  {
-    "script_id": 5,
-    "name": "set-timezone.sh",
-    "last_execution": {
-      "id": "e797d6c6-3aae-11ee-be56-0242ac120002",
-      "executed_at": "2021-12-15T15:23:57Z",
-      "status": "pending"
-    }
-  },
-  {
-    "script_id": 8,
-    "name": "uninstall-zoom.sh",
-    "last_execution": {
-      "id": "e797d6c6-3aae-11ee-be56-0242ac120002",
-      "executed_at": "2021-12-15T15:23:57Z",
-      "status": "ran"
-    }
+  ],
+  "meta": {
+    "has_next_results": false,
+    "has_previous_results": false
   }
-],
-"meta": {
-  "has_next_results": false,
-  "has_previous_results": false
 }
-
 ```
 
 ### Get or download script
@@ -11653,6 +12948,7 @@ Deletes the session specified by ID. When the user associated with the session n
 - [Create Fleet-maintained app](#create-fleet-maintained-app)
 - [Install software](#install-software)
 - [Uninstall software](#uninstall-software)
+- [Install self-service software by Fleet Desktop token](#install-self-service-software-by-fleet-desktop-token)
 - [Get software install result](#get-software-install-result)
 - [Download software](#download-package)
 - [Delete software](#delete-software)
@@ -11721,6 +13017,24 @@ Get a list of all software.
               "vulnerabilities": null
           }
       ],
+      "packages": [
+          {
+              "name": "Slack-4.50.128-macOS.pkg",
+              "automatic_install_policies": null,
+              "version": "4.50.128",
+              "platform": "darwin",
+              "self_service": false,
+              "package_url": ""
+          },
+          {
+              "name": "Slack-4.51.133-macOS.pkg",
+              "automatic_install_policies": null,
+              "version": "4.51.133",
+              "platform": "darwin",
+              "self_service": true,
+              "package_url": ""
+          }
+      ],
       "software_package": {
           "name": "Slack-4.50.128-macOS.pkg",
           "automatic_install_policies": null,
@@ -11752,6 +13066,7 @@ Get a list of all software.
               "vulnerabilities": null
           }
       ],
+      "packages": null,
       "software_package": null,
       "app_store_app": null,
       "bundle_identifier": "com.raycast.macos",
@@ -11767,7 +13082,11 @@ Get a list of all software.
 
 `browser` and `extension_for` fields are included when set and when empty. `extension_for` will show the browser or Visual Studio Code fork associated with the extension, allowing for differentiation between e.g. an extension installed on Visual Studio Code and one installed on Cursor. `browser` is deprecated, and only shows this information for browser plugins.
 
+A software title can have more than one package. The `packages` array lists all packages added for the title. `software_package` is kept for backwards compatibility and contains the oldest (first added) package; it's `null` when no package is available.
+
 ### List software versions
+
+> For optimal performance, we recommend Fleet Premium users set `without_vulnerability_details` to `true` whenever possible. If set to `false` a large amount of data will be included in the response. If you need vulnerability details, consider using the [Get vulnerability](#get-vulnerability) endpoint.
 
 Get a list of all software versions.
 
@@ -11787,10 +13106,9 @@ Get a list of all software versions.
 | min_cvss_score | integer | query | _Available in Fleet Premium_. Filters to include only software with vulnerabilities that have a CVSS version 3.x base score higher than the specified value.   |
 | max_cvss_score | integer | query | _Available in Fleet Premium_. Filters to only include software with vulnerabilities that have a CVSS version 3.x base score lower than what's specified.   |
 | exploit | boolean | query | _Available in Fleet Premium_. If `true`, filters to only include software with vulnerabilities that have been actively exploited in the wild (`cisa_known_exploit: true`). Default is `false`.  |
-| without_vulnerability_details | boolean | query | _Available in Fleet Premium_. If `true` only vulnerability name is included in response. If `false` (or omitted), adds vulnerability description, CVSS score, and other details available in Fleet Premium. See notes below on performance. |
+| without_vulnerability_details | boolean | query | _Available in Fleet Premium_. If `true` only vulnerability name is included in response. If `false` (or omitted), adds vulnerability description, CVSS score, and other details available in Fleet Premium. See note above on performance. |
 | after | string | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used. |
 
-> For optimal performance, we recommend Fleet Premium users set `without_vulnerability_details` to `true` whenever possible. If set to `false` a large amount of data will be included in the response. If you need vulnerability details, consider using the [Get vulnerability](#get-vulnerability) endpoint.
 
 #### Example
 
@@ -11802,7 +13120,7 @@ Get a list of all software versions.
 
 ```json
 {
-    "counts_updated_at": "2022-01-01 12:32:00",
+    "counts_updated_at": "2022-01-01T12:32:00Z",
     "count": 2,
     "software": [
       {
@@ -11822,7 +13140,7 @@ Get a list of all software versions.
             "cvss_score": 7.5,
             "epss_probability": 0.01537,
             "cisa_known_exploit": false,
-            "cve_published": "2022-01-01 12:32:00",
+            "cve_published": "2022-01-01T12:32:00Z",
             "cve_description": "In the GNU C Library (aka glibc or libc6) before 2.28, parse_reg_exp in posix/regcomp.c misparses alternatives, which allows attackers to cause a denial of service (assertion failure and application exit) or trigger an incorrect result by attempting a regular-expression match.",
             "resolved_in_version": "2.28"
           }
@@ -11972,6 +13290,79 @@ Returns information about the specified software. By default, `versions` are sor
         }
     ],
     "counts_updated_at": "2026-06-04T17:23:45Z",
+    "packages": [
+        {
+            "team_id": 310,
+            "title_id": 2792,
+            "name": "Slack-4.50.128-macOS.pkg",
+            "icon_url": null,
+            "version": "4.50.128",
+            "platform": "darwin",
+            "uploaded_at": "2026-06-04T17:29:09.155424Z",
+            "installer_id": 36817,
+            "install_script": "#!/bin/sh\n\ninstaller -pkg \"$INSTALLER_PATH\" -target /\n",
+            "pre_install_query": "",
+            "post_install_script": "",
+            "uninstall_script": "#!/bin/sh\n\n# Fleet extracts and saves package IDs.\npkg_ids=(\n  'com.tinyspeck.slackmacgap'\n)\n",
+            "hash_sha256": "f7e4cba7676dacb03ac4cdbe5a99cc1d80ef751c484a13c6a7cf6a93de4a494e",
+            "status": {
+                "installed": 0,
+                "pending_install": 1,
+                "failed_install": 0,
+                "pending_uninstall": 0,
+                "failed_uninstall": 0
+            },
+            "self_service": false,
+            "url": "",
+            "fleet_maintained_app_id": null,
+            "automatic_install_policies": null,
+            "labels_include_any": null,
+            "labels_exclude_any": null,
+            "labels_include_all": null,
+            "categories": null,
+            "display_name": "",
+            "patch_policy": null,
+            "fleet_id": 310
+        },
+        {
+            "team_id": 310,
+            "title_id": 2792,
+            "name": "Slack-4.51.133-macOS.pkg",
+            "icon_url": null,
+            "version": "4.51.133",
+            "platform": "darwin",
+            "uploaded_at": "2026-06-10T09:14:51.482217Z",
+            "installer_id": 36901,
+            "install_script": "#!/bin/sh\n\ninstaller -pkg \"$INSTALLER_PATH\" -target /\n",
+            "pre_install_query": "",
+            "post_install_script": "",
+            "uninstall_script": "#!/bin/sh\n\n# Fleet extracts and saves package IDs.\npkg_ids=(\n  'com.tinyspeck.slackmacgap'\n)\n",
+            "hash_sha256": "a1b2c3d4e5f60718293a4b5c6d7e8f901a2b3c4d5e6f70819203a4b5c6d7e8f9",
+            "status": {
+                "installed": 0,
+                "pending_install": 0,
+                "failed_install": 0,
+                "pending_uninstall": 0,
+                "failed_uninstall": 0
+            },
+            "self_service": true,
+            "url": "",
+            "fleet_maintained_app_id": null,
+            "automatic_install_policies": null,
+            "labels_include_any": null,
+            "labels_exclude_any": null,
+            "labels_include_all": [
+                {
+                    "id": 12,
+                    "name": "IT test team"
+                }
+            ],
+            "categories": null,
+            "display_name": "",
+            "patch_policy": null,
+            "fleet_id": 310
+        }
+    ],
     "software_package": {
         "team_id": 310,
         "title_id": 2792,
@@ -12014,30 +13405,37 @@ Returns information about the specified software. By default, `versions` are sor
 
 `browser` and `extension_for` fields are included when set and when empty, at the same level as `source`. `extension_for` will show the browser or Visual Studio Code fork associated with the extension, allowing for differentiation between e.g. an extension installed on Visual Studio Code and one installed on Cursor. `browser` is deprecated, and only shows this information for browser plugins.
 
-For Fleet-maintained apps, the `software_package` object includes two additional fields:
+A software title can have more than one package. The `packages` array lists all packages added for the title, including per-package `self_service`, `categories`, and labels (`labels_include_any`, `labels_exclude_any`, `labels_include_all`). `software_package` is kept for backwards compatibility and contains the oldest (first added) package.
+
+> Install, pending, and failed counts in `packages.status` are combined across policy automations, setup experience, and manual installs.
+
+For Fleet-maintained apps, software package objects include two additional fields:
 
 - `pinned_version`: The version the app is pinned to — a specific version (e.g. `"149.0.7827.54"`) or a caret major-version constraint (e.g. `"^147"`). Omitted when the app automatically updates to the latest version.
 - `fleet_maintained_versions`: The versions Fleet has cached and that are available to pin or roll back to. Each entry includes `id`, `version`, and `uploaded_at`. For example:
+
 ```json
-"software_package": {
-  "name": "GoogleChrome.pkg",
-  "version": "149.0.7827.54",
-  "platform": "darwin",
-  "fleet_maintained_app_id": 12,
-  "pinned_version": "149.0.7827.54",
-  "fleet_maintained_versions": [
-    {
-      "id": 36818,
-      "version": "149.0.7827.54",
-      "uploaded_at": "2026-06-04T17:47:23Z"
-    },
-    {
-      "id": 36817,
-      "version": "148.0.7794.0",
-      "uploaded_at": "2026-05-21T11:02:55Z"
-    }
-  ]
-}
+"packages": [
+  {
+    "name": "GoogleChrome.pkg",
+    "version": "149.0.7827.54",
+    "platform": "darwin",
+    "fleet_maintained_app_id": 12,
+    "pinned_version": "149.0.7827.54",
+    "fleet_maintained_versions": [
+      {
+        "id": 36818,
+        "version": "149.0.7827.54",
+        "uploaded_at": "2026-06-04T17:47:23Z"
+      },
+      {
+        "id": 36817,
+        "version": "148.0.7794.0",
+        "uploaded_at": "2026-05-21T11:02:55Z"
+      }
+    ]
+  }
+]
 ```
 
 For in-house iOS apps, the `software_package` field is populated with package information.
@@ -12244,7 +13642,7 @@ Operating systems other than Windows, macOS, and Linux do not report vulnerabili
 
 _Available in Fleet Premium._
 
-Add a package (.pkg, .msi, .exe, .deb, .rpm, .tar.gz, .ipa) to install on Apple (macOS/iOS/iPadOS), Windows, or Linux hosts. Also supports adding a custom script (.sh, .ps1) to run on Windows or Linux hosts.
+Add a package (.pkg, .msi, .exe, .deb, .rpm, .tar.gz, .ipa) to install on Apple (macOS/iOS/iPadOS), Windows, or Linux hosts. Also supports adding a custom script (.sh and .py for macOS and Linux, .ps1 for Windows).
 
 > You need to send a request of type `multipart/form-data`.
 
@@ -12256,9 +13654,9 @@ Add a package (.pkg, .msi, .exe, .deb, .rpm, .tar.gz, .ipa) to install on Apple 
 
 | Name            | Type    | In   | Description                                      |
 | ----            | ------- | ---- | --------------------------------------------     |
-| software        | file    | body | **Required**. Installer package file or custom script file. Supported packages are `.pkg`, `.msi`, `.exe`, `.deb`, `.rpm`, `.tar.gz`, `.ipa`, `.sh`, and `.ps1`. |
+| software        | file    | body | **Required**. Installer package file or custom script file. Supported packages are `.pkg`, `.msi`, `.exe`, `.deb`, `.rpm`, `.tar.gz`, `.ipa`, `.sh`, `.py`, and `.ps1`. |
 | fleet_id         | integer | body | The fleet ID. Adds a software package to the specified fleet. If not specified, it will add the software for "Unassigned" hosts. |
-| install_script  | string | body | Script that Fleet runs to install software. If not specified Fleet runs the [default install script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) for each package type if one exists. Required for `.tar.gz` and `.exe` (no default script). Not supported for `.sh` and `.ps1`. |
+| install_script  | string | body | Script that Fleet runs to install software. If not specified Fleet runs the [default install script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) for each package type if one exists. Required for `.tar.gz` and `.exe` (no default script). Not supported for `.sh`, `.py`, and `.ps1`. |
 | uninstall_script  | string | body | Script that Fleet runs to uninstall software. If not specified Fleet runs the [default uninstall script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) for each package type if one exists. Required for `.tar.gz` and `.exe` (no default script). |
 | pre_install_query  | string | body | Query that is pre-install condition. If the query doesn't return any result, Fleet won't proceed to install. |
 | post_install_script | string | body | The contents of the script to run after install. If the specified script fails (exit code non-zero) software install will be marked as failed and rolled back. |
@@ -12266,7 +13664,7 @@ Add a package (.pkg, .msi, .exe, .deb, .rpm, .tar.gz, .ipa) to install on Apple 
 | labels_include_all        | array     | body | Target hosts that have all labels, specified by label name, in the array. |
 | labels_include_any        | array     | body | Target hosts that have any label, specified by label name, in the array. |
 | labels_exclude_any | array | body | Target hosts that don't have any label, specified by label name, in the array. |
-| automatic_install | boolean | body | Specifies whether to create a policy that triggers a software install only on hosts missing the software. Not supported for iOS, iPadOS, Android, or for `.sh` and `.ps1`. |
+| automatic_install | boolean | body | Specifies whether to create a policy that triggers a software install only on hosts missing the software. Not supported for iOS, iPadOS, Android, or for `.sh`, `.py`, and `.ps1`. |
 
 Only one of `labels_include_all`, `labels_include_any` or `labels_exclude_any` can be specified. If none are specified, all hosts are targeted.
 
@@ -12343,22 +13741,29 @@ Update a package to install on macOS, Windows, Linux, iOS, or iPadOS hosts.
 | Name            | Type    | In   | Description                                      |
 | ----            | ------- | ---- | --------------------------------------------     |
 | id | integer | path | ID of the software title being updated. |
-| software        | file    | body | Installer package file or custom script file. Supported packages are `.pkg`, `.msi`, `.exe`, `.deb`, `.rpm`, `.tar.gz`, `.ipa`, `.sh`, and `.ps1`.   |
+| software        | file    | body | Installer package file or custom script file. Supported packages are `.pkg`, `.msi`, `.exe`, `.deb`, `.rpm`, `.tar.gz`, `.ipa`, `.sh`, `.py`, and `.ps1`.   |
 | fleet_id         | integer | body | **Required**. The fleet ID. Updates a software package in the specified fleet. |
 | display_name    | string  | body | Optional override for the default `name`. |
 | categories        | array | body | Zero or more [self-service category](#list-self-service-categories) names defined on the fleet, used to group self-service software on your end users' **Fleet Desktop > My device** page. Each value must match a category that exists on the fleet. Software with no categories will still be shown under **All**. |
-| install_script  | string | body | Command that Fleet runs to install software. If not specified Fleet runs the [default install command](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) for each package type. Not supported for `.sh` and `.ps1`. |
+| install_script  | string | body | Command that Fleet runs to install software. If not specified Fleet runs the [default install command](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) for each package type. Not supported for `.sh`, `.py`, and `.ps1`. |
 | pre_install_query  | string | body | Query that is pre-install condition. If the query doesn't return any result, the package will not be installed. |
 | post_install_script | string | body | The contents of the script to run after install. If the specified script fails (exit code non-zero) software install will be marked as failed and rolled back. |
 | self_service | boolean | body | Whether this is optional self-service software that can be installed by the end user. |
 | labels_include_all        | array     | body | Target hosts that have all labels, specified by label name, in the array. |
 | labels_include_any        | array     | body | Target hosts that have any label, specified by label name, in the array. Only one of either `labels_include_any` or `labels_exclude_any` can be specified. |
 | labels_exclude_any | array | body | Target hosts that don't have any label, specified by label name, in the array. |
+| automatic_install | boolean | body | Enables or disables "Force install": a policy that triggers a software install only on hosts missing the software (doesn't check version). Set to `false` to remove the policy. |
+| patch | boolean | body | _Available for Fleet-maintained apps only._ Enables or disables "Patch": a policy that triggers a software install when the installed version is outdated. Set to `false` to remove the policy (and its managed `pre_install_query`, if `patch_when_closed` was enabled). |
+| patch_when_closed | boolean | body | _Available for Fleet-maintained apps only. Only applies when `patch` is `true`._ If `true` (default), Fleet adds a read-only pre-install condition that skips the automated install while the app is open. If `false` ("Force patch"), Fleet installs the update the next time the policy fails, whether or not the app is open. |
 | version | string | body | Only available for Fleet-maintained apps. Pins the app to a specific or major version. Available versions are listed in the Fleet UI under **Actions > Versions**. To pin to a major version, use a caret (`^`) constraint and specify only the major version, without the minor and patch versions. For example, `"^147"` means Fleet continuously updates to the latest version until the app reaches 148.0. Set `version` to an empty string (`""`) to switch back to automatically updating to the latest version found in [Fleet's catalog](https://fleetdm.com/software-catalog). `version` can't be changed in the same request as other fields; omit it to leave the current pin unchanged. |
+
+> `patch` and `patch_when_closed` are only available for Fleet-maintained apps.
 
 Only one of `labels_include_all`, `labels_include_any` or `labels_exclude_any` can be specified. If none are specified, all hosts are targeted.
 
 > Changes to the installer package will reset installation counts. Changes to any field other than `self_service` will cancel pending installs for the old package.
+
+> If this software title has a patch policy with `patch_when_closed` set to `true` (see [Update fleet-level policy](#update-fleet-level-policy)), `pre_install_query` is managed by Fleet and can't be set directly.
 
 Add the `X-Fleet-Scripts-Encoded: base64` header line to parse `install_script`, `uninstall_script`, `post_install_script`, and `pre_install_query` fields as bas64-encoded rather than as-is.
 
@@ -12455,7 +13860,9 @@ icon="crowdstrike-icon-512x512.png"
 `Status: 200`
 
 ```json
+{
   "icon_url": "/api/latest/fleet/software/titles/33/icon?team_id=2"
+}
 ```
 
 ### Download software icon
@@ -12561,7 +13968,7 @@ Returns the list of Apple App Store (VPP) apps that can be added to the specifie
       "latest_version": "2.04",
       "app_store_id": "634148309",
       "platform": "ipados"
-    },
+    }
   ]
 }
 ```
@@ -12685,7 +14092,7 @@ Only one of `labels_include_all`, `labels_include_any` or `labels_exclude_any` c
   "app_store_app": {
     "name": "Logic Pro",
     "display_name": "",
-    "icon_url" null,
+    "icon_url": null,
     "app_store_id": 1091189122,
     "categories": ["Browser"],
     "latest_version": "2.04",
@@ -12710,7 +14117,7 @@ Only one of `labels_include_all`, `labels_include_any` or `labels_exclude_any` c
     "status": {
       "installed": 3,
       "pending": 1,
-      "failed": 2,
+      "failed": 2
     }
   }
 }
@@ -12770,8 +14177,7 @@ List available Fleet-maintained apps.
       "platform": "darwin",
       "version": "2.39.179",
       "software_title_id": 3
-    },
-    ...
+    }
   ],
   "count": 250,
   "meta": {
@@ -12816,7 +14222,8 @@ Returns information about the specified Fleet-maintained app.
     "url": "https://downloads.1password.com/mac/1Password-8.10.50-aarch64.zip",
     "install_script": "#!/bin/sh\ninstaller -pkg \"$INSTALLER_PATH\" -target /",
     "uninstall_script": "#!/bin/sh\npkg_ids=$PACKAGE_ID\nfor pkg_id in '${pkg_ids[@]}'...",
-    "software_title_id": 3
+    "software_title_id": 3,
+    "automatic_install_query": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.1password.1password';",
     "categories": ["Productivity"]
   }
 }
@@ -12843,11 +14250,13 @@ Add Fleet-maintained app so it's available for install.
 | labels_include_all        | array     | body | Target hosts that have all labels, specified by label name, in the array. |
 | labels_include_any        | array     | form | Target hosts that have any label, specified by label name, in the array. |
 | labels_exclude_any | array | form | Target hosts that don't have any label, specified by label name, in the array. |
-| automatic_install | boolean | form | Create a policy that triggers a software install only on hosts missing the software. |
+| automatic_install | boolean | form | Create a policy that triggers a software install only on hosts missing the software ("Force install"). This policy doesn't check the installed version. |
 
 Only one of `labels_include_all`, `labels_include_any` or `labels_exclude_any` can be specified. If none are specified, all hosts are targeted.
 
 Add the `X-Fleet-Scripts-Encoded: base64` header line to parse `install_script`, `uninstall_script`, `post_install_script`, and `pre_install_query` fields as bas64-encoded rather than as-is.
+
+To keep this app patched to the latest version ("Patch"), create a [patch policy](#create-fleet-level-policy) with `patch_software_title_id` set to the `software_title_id` returned below. `automatic_install` and a patch policy can both be added for the same app.
 
 #### Example
 
@@ -12992,6 +14401,27 @@ Uninstalls software from a host.
 
 `Status: 202`
 
+### Install self-service software by Fleet Desktop token
+
+Install self-service software on a macOS, Windows, or Linux host. The software must have a `self_service` flag `true` to be installed.
+
+`POST /api/v1/fleet/device/:token/software/install/:software_title_id`
+
+#### Parameters
+
+| Name  | Type   | In   | Description                        |
+| ----- | ------ | ---- | ---------------------------------- |
+| token | string | path | **Required**. The host's [Fleet Desktop token](https://fleetdm.com/guides/fleet-desktop#secure-fleet-desktop). |
+| software_title_id | string | path | **Required**. The software title's ID. |
+
+#### Example
+
+`POST /api/v1/fleet/device/22aada07-dc73-41f2-8452-c0987543fd29/software/install/123`
+
+##### Default response
+
+`Status: 202`
+
 ### Get software install result
 
 _Available in Fleet Premium._
@@ -13005,6 +14435,8 @@ To get the results of an Apple App Store app install, use the [List MDM commands
 | Name            | Type    | In   | Description                                      |
 | ----            | ------- | ---- | --------------------------------------------     |
 | install_uuid | string | path | **Required**. The software installation UUID.|
+
+When install attempt was skipped because a patch policy has `patch_when_closed` enabled (the app was open). `status` will be `failed_install`, and `pre_install_query_output` will be `"Query didn't return result\nThe app was open."`. Fleet won't retry when 3 times in this case. It will try again on the next policy run.
 
 #### Example
 
@@ -13023,7 +14455,7 @@ To get the results of an Apple App Store app install, use the [List MDM commands
    "host_id": 123,
    "host_display_name": "Marko's MacBook Pro",
    "status": "failed_install",
-   "output": "Installing software...\nError: The operation can’t be completed because the item “Falcon” is in use.",
+   "output": "Installing software...\nError: The operation can’t be completed because the item \"Falcon\" is in use.",
    "pre_install_query_output": "Query returned result\nSuccess",
    "post_install_script_output": "Running script...\nExit code: 1 (Failed)\nRolling back software install...\nSuccess"
  }
@@ -13251,7 +14683,7 @@ Retrieves a list of all CVEs affecting software and/or OS versions.
       "epss_probability": 0.9729,// Available in Fleet Premium
       "cisa_known_exploit": false,// Available in Fleet Premium
       "cve_published": "2022-06-01T00:15:00Z",// Available in Fleet Premium
-      "cve_description": "Microsoft Windows Support Diagnostic Tool (MSDT) Remote Code Execution Vulnerability.",// Available in Fleet Premium
+      "cve_description": "Microsoft Windows Support Diagnostic Tool (MSDT) Remote Code Execution Vulnerability." // Available in Fleet Premium
     }
   ],
   "count": 123,
@@ -13288,43 +14720,45 @@ If no vulnerable OS versions or software were found, but Fleet is aware of the v
 `Status: 200`
 
 ```json
-"vulnerability": {
-  "cve": "CVE-2022-30190",
-  "created_at": "2022-06-01T00:15:00Z",
-  "hosts_count": 1234,
-  "hosts_count_updated_at": "2023-12-20T15:23:57Z",
-  "details_link": "https://nvd.nist.gov/vuln/detail/CVE-2022-30190",
-  "cvss_score": 7.8,// Available in Fleet Premium
-  "epss_probability": 0.9729,// Available in Fleet Premium
-  "cisa_known_exploit": false,// Available in Fleet Premium
-  "cve_published": "2022-06-01T00:15:00Z",// Available in Fleet Premium
-  "cve_description": "Microsoft Windows Support Diagnostic Tool (MSDT) Remote Code Execution Vulnerability.",// Available in Fleet Premium
-  "os_versions" : [
-    {
-      "os_version_id": 6,
-      "hosts_count": 200,
-      "name": "macOS 14.1.2",
-      "name_only": "macOS",
-      "version": "14.1.2",
-      "resolved_in_version": "14.2",
-      "generated_cpes": [
-        "cpe:2.3:o:apple:macos:*:*:*:*:*:14.2:*:*",
-        "cpe:2.3:o:apple:mac_os_x:*:*:*:*:*:14.2:*:*"
-      ]
-    }
-  ],
-  "software": [
-    {
-      "id": 2363,
-      "software_title_id": 124,
-      "name": "Docker Desktop",
-      "version": "4.9.1",
-      "source": "programs",
-      "generated_cpe": "cpe:2.3:a:docker:docker_desktop:4.9.1:*:*:*:*:windows:*:*",
-      "hosts_count": 50,
-      "resolved_in_version": "5.0.0"
-    }
-  ]
+{
+  "vulnerability": {
+    "cve": "CVE-2022-30190",
+    "created_at": "2022-06-01T00:15:00Z",
+    "hosts_count": 1234,
+    "hosts_count_updated_at": "2023-12-20T15:23:57Z",
+    "details_link": "https://nvd.nist.gov/vuln/detail/CVE-2022-30190",
+    "cvss_score": 7.8,// Available in Fleet Premium
+    "epss_probability": 0.9729,// Available in Fleet Premium
+    "cisa_known_exploit": false,// Available in Fleet Premium
+    "cve_published": "2022-06-01T00:15:00Z",// Available in Fleet Premium
+    "cve_description": "Microsoft Windows Support Diagnostic Tool (MSDT) Remote Code Execution Vulnerability.",// Available in Fleet Premium
+    "os_versions" : [
+      {
+        "os_version_id": 6,
+        "hosts_count": 200,
+        "name": "macOS 14.1.2",
+        "name_only": "macOS",
+        "version": "14.1.2",
+        "resolved_in_version": "14.2",
+        "generated_cpes": [
+          "cpe:2.3:o:apple:macos:*:*:*:*:*:14.2:*:*",
+          "cpe:2.3:o:apple:mac_os_x:*:*:*:*:*:14.2:*:*"
+        ]
+      }
+    ],
+    "software": [
+      {
+        "id": 2363,
+        "software_title_id": 124,
+        "name": "Docker Desktop",
+        "version": "4.9.1",
+        "source": "programs",
+        "generated_cpe": "cpe:2.3:a:docker:docker_desktop:4.9.1:*:*:*:*:windows:*:*",
+        "hosts_count": 50,
+        "resolved_in_version": "5.0.0"
+      }
+    ]
+  }
 }
 ```
 
@@ -13620,7 +15054,7 @@ _Available in Fleet Premium_
 
 `mdm.apple_settings.configuration_profiles`, `mdm.windows_settings.configuration_profiles`, `scripts`, and `mdm.setup_experience` only include the configuration profiles, scripts, and setup experience settings applied using [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To list profiles, scripts, or setup experience settings added in the UI or API, use the [List configuration profiles](https://fleetdm.com/docs/rest-api/rest-api#list-custom-os-settings-configuration-profiles), [List scripts](https://fleetdm.com/docs/rest-api/rest-api#list-scripts), or GET endpoints from [Setup experience](https://fleetdm.com/docs/rest-api/rest-api#setup-experience) instead.
 
-"Unassigned" (id 0) will only return `id`, `name`, `webhook_settings.failing_policies_webhook`, `integrations.jira`, and `integrations.zendesk` fields.
+"Unassigned" (id 0) will only return `id`, `name`, `webhook_settings.failing_policies_webhook`, `webhook_settings.host_activities_webhook`, `integrations.jira`, and `integrations.zendesk` fields.
 
 #### Parameters
 
@@ -13670,6 +15104,10 @@ _Available in Fleet Premium_
         "destination_url": "",
         "policy_ids": null,
         "host_batch_size": 0
+      },
+      "host_activities_webhook": {
+        "enable_host_activities_webhook": true,
+        "destination_url": "https://server.com/example"
       }
     },
     "integrations": {
@@ -13703,8 +15141,23 @@ _Available in Fleet Premium_
           {
             "path": "path/to/profile1.mobileconfig",
             "labels": ["Label 1", "Label 2"]
+          },
+          {
+            "path": "path/to/declaration.json",
+            "labels": ["Label 1", "Label 2"]
+          },
+          {
+            "path": "path/to/assets/asset.json"
           }
-        ]
+        ],
+        "assets": [
+          {
+            "path": "path/to/assets/asset.json"
+          }
+        ],
+        "managed_local_account_settings": {
+          "enabled": true
+        }
       },
       "windows_settings": {
         "custom_settings": [
@@ -13718,7 +15171,8 @@ _Available in Fleet Premium_
             "path": "path/to/profile2.xml",
             "labels": ["Label 3", "Label 4"]
           }
-        ]
+        ],
+        "enable_managed_local_account": true
       },
       "macos_setup": {
         "bootstrap_package": "",
@@ -13730,6 +15184,8 @@ _Available in Fleet Premium_
       "setup_experience": {
         "bootstrap_package": "",
         "enable_end_user_authentication": false,
+        "enable_managed_local_account": false,
+        "end_user_local_account_type": "admin",
         "apple_setup_assistant": "path/to/config.json",
         "enable_release_device_manually": false,
         "manual_agent_install": false
@@ -13835,7 +15291,7 @@ _Available in Fleet Premium_
 
 | Name                                                    | Type    | In   | Description                                                                                                                                                                                               |
 | ------------------------------------------------------- | ------- | ---- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| id                                                      | integer | path | **Required.** The desired fleet's ID. Use `0` for "Unassigned" hosts. **Note:** When using `id=0`, only `webhook_settings.failing_policies_webhook`, `integrations.jira`, and `integrations.zendesk` fields are supported in the request body. |
+| id                                                      | integer | path | **Required.** The desired fleet's ID. Use `0` for "Unassigned" hosts. **Note:** When using `id=0`, only `webhook_settings.failing_policies_webhook`, `webhook_settings.host_activities_webhook`, `integrations.jira`, and `integrations.zendesk` fields are supported in the request body. |
 | name                                                    | string  | body | The fleet's name. Fleet names must differ by more than letter case. Renaming a fleet into another fleet's name returns a 409 Conflict error.                                                                                                                                                                                          |
 | host_ids                                                | array    | body | A list of hosts that belong to the fleet.                                                                                                                                                                  |
 | user_ids                                                | array    | body | A list of users on the fleet.                                                                                                                                                             |
@@ -13843,7 +15299,7 @@ _Available in Fleet Premium_
 | integrations                                            | object  | body | Integrations settings for the fleet. See [integrations](#integrations3) for details. Note that integrations referenced here must already exist globally, created by a call to [Modify configuration](#modify-configuration).                               |
 | mdm                                                     | object  | body | MDM settings for the fleet. See [mdm](#mdm2) for details.                                                                                                                                                                                |
 | host_expiry_settings                                    | object  | body | Host expiry settings for the fleet. See [host_expiry_settings](#host-expiry-settings2) for details.   |
-| features                                                | object  | body | Per-fleet feature toggles. v1 accepts only the `historical_data` sub-field; other `features` sub-fields are writable per-fleet only via GitOps. See [features.historical_data](#features-historical-data) below. |
+| features                                                | object  | body | Per-fleet feature toggles. Accepts only certain sub-fields; other `features` sub-fields are writable per-fleet only via GitOps. See [features](#features2) below. |
 
 #### Example (transfer hosts to a fleet)
 
@@ -13913,7 +15369,8 @@ Returned when the requested name only differs from another fleet's name by lette
         "destination_url": "",
         "policy_ids": null,
         "host_batch_size": 0
-      }
+      },
+      "host_activities_webhook": null
     }
   }
 }
@@ -13925,6 +15382,7 @@ Returned when the requested name only differs from another fleet's name by lette
 | ---------------------             | ----- | ---------------------------------------------------------------------------------------------- |
 | failing_policies_webhook          | array | See [`webhook_settings.failing_policies_webhook`](#webhook-settings-failing-policies-webhook2). |
 | host_status_webhook               | array | See [`webhook_settings.host_status_webhook`](#webhook-settings-host-status-webhook2).           |
+| host_activities_webhook           | object | See [`webhook_settings.host_activities_webhook`](#webhook-settings-host-activities-webhook).   |
 
 <br/>
 
@@ -13954,6 +15412,19 @@ Returned when the requested name only differs from another fleet's name by lette
 
 <br/>
 
+##### webhook_settings.host_activities_webhook
+
+`webhook_settings.host_activities_webhook` is an object with the following structure:
+
+| Name                              | Type    | Description   |
+| ---------------------             | ------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| enable_host_activities_webhook | boolean | Whether or not the host activities webhook is enabled. When enabled, Fleet sends a webhook request every time an activity linked to one of this fleet's hosts is created. The webhook payload has the same format as the global [activities webhook](#webhook-settings-activities-webhook). MDM command results (shown via **Show MDM commands** on the host details page) are not activities and don't trigger this webhook yet. |
+| destination_url                | string  | The URL to deliver the webhook requests to.                                                                                                                                                               |
+
+Omitting `host_activities_webhook` from a `webhook_settings` update leaves the stored value unchanged. To turn the webhook off, send the object with `enable_host_activities_webhook: false`.
+
+<br/>
+
 ##### Example request body
 
 ```json
@@ -13970,6 +15441,10 @@ Returned when the requested name only differs from another fleet's name by lette
       "destination_url": "https://server.com",
       "host_percentage": 5,
       "days_count": 7
+    },
+    "host_activities_webhook": {
+      "enable_host_activities_webhook": true,
+      "destination_url": "https://server.com"
     }
   }
 }
@@ -14058,6 +15533,7 @@ Returned when the requested name only differs from another fleet's name by lette
 | ipados_updates         | object  | See [`mdm.ipados_updates`](#mdm-ipados-updates2). |
 | windows_updates         | object  | See [`mdm.windows_updates`](#mdm-windows-updates2). |
 | macos_settings         | object  | See [`mdm.macos_settings`](#mdm-macos-settings2). |
+| apple_settings           | object  | See [`mdm.apple_settings`](#mdm-apple-settings2).     |
 | windows_settings         | object  | See [`mdm.windows_settings`](#mdm-windows-settings2). |
 | setup_experience         | object  | See [`mdm.setup_experience`](#mdm-setup-experience2). |
 
@@ -14105,9 +15581,9 @@ Returned when the requested name only differs from another fleet's name by lette
 `mdm.windows_updates` is an object with the following structure:
 
 | Name                              | Type    | Description   |
-| ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| deadline_days                   | integer | Hosts that belong to this fleet and have MDM turned on will have this number of days before updates are installed on Windows.                                                                   |
-| grace_period_days               | integer | Hosts that belong to this fleet and have MDM turned on will have this number of days before Windows restarts to install updates.                                                                    |
+| ---------------------             | ------- | -----------------------------------------------------------------------------------------------------------------------------     |
+| deadline_days                     | integer | Hosts that belong to this fleet and have MDM turned on will have this number of days before updates are installed on Windows.     |
+| grace_period_days                 | integer | Hosts that belong to this fleet and have MDM turned on will have this number of days before Windows restarts to install updates.  |
 
 
 <br/>
@@ -14119,32 +15595,46 @@ Returned when the requested name only differs from another fleet's name by lette
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | custom_settings                 | array    | Only intended to be used by [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To add macOS configuration profiles using Fleet's API, use the [Create configuration profile](#create-configuration-profile) endpoint instead.                                                                                                                                      |
+<br/>
+
+
+##### mdm.apple_settings
+
+`mdm.apple_settings` is an object with the following structure:
+
+| Name                                   | Type    | Description   |
+| -------------------------------------- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| custom_settings                        | array   | Only intended to be used by [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To add macOS configuration profiles using Fleet's API, use the [Create configuration profile](#create-configuration-profile) endpoint instead. |
+| managed_local_account_settings         | object  | Settings for the managed local account. |
+| managed_local_account_settings.enabled | boolean | Whether to create the managed local account (default: `false`). |
+| end_user_local_account_type            | string  | The end user account type. Requires `managed_local_account_settings.enabled` to be `true`. Options: `"admin"`, `"standard"`, `"none"` (default: `"admin"`). |
 
 <br/>
+
 
 ##### mdm.windows_settings
 
 `mdm.windows_settings` is an object with the following structure:
 
-| Name                              | Type    | Description   |
-| ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| custom_settings                 | array    | Only intended to be used by [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To add Windows configuration profiles using Fleet's API, use the [Create configuration profile](#create-configuration-profile) endpoint instead.                                                                                                                             |
-
+| Name                                   | Type    | Description   |
+| -------------------------------------- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| custom_settings                        | array   | Only intended to be used by [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To add Windows configuration profiles using Fleet's API, use the [Create configuration profile](#create-configuration-profile) endpoint instead. |
+| enable_managed_local_account           | boolean  | Whether to create the managed local account (default: `false`). |
 
 <br/>
+
 
 ##### mdm.setup_experience
 
 
 `mdm.setup_experience` is an object with the following structure:
 
-| Name                              | Type    | Description   |
-| ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| enable_end_user_authentication  | boolean | If set to true, IdP authentication will be required during automatic MDM enrollment of new macOS hosts. Settings for your IdP provider must also be [configured](https://fleetdm.com/guides/setup-experience#require-idp-authentication).
-| lock_end_user_info  | boolean | If set to true, end user can't edit the local account's Account Name and Full Name in macOS Setup Assistant. These fields will be locked to values from your IdP. (Default: `true`) |
-| enable_managed_local_account      | boolean | Whether to enforce creating managed local accounts on eligible hosts. |
-
-<br/>
+| Name                                  | Type    | Description   |
+| ------------------------------------- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| enable_end_user_authentication        | boolean | If set to true, IdP authentication will be required during automatic MDM enrollment of new macOS hosts. Settings for your IdP provider must also be [configured](https://fleetdm.com/guides/setup-experience#require-idp-authentication).
+| lock_end_user_info                    | boolean | If set to true, end user can't edit the local account's Account Name and Full Name in macOS Setup Assistant. These fields will be locked to values from your IdP. (Default: `true`) |
+| enable_managed_local_account          | boolean | _Available in Fleet Premium._ During Setup experience, a managed local account will be created on eligible hosts if set to true. |
+| end_user_local_account_type          | string  | body  | Specifies the type of local end user account created. (Default: `"admin"`) `enable_managed_local_account` must be true. |
 
 
 ##### Example request body
@@ -14177,7 +15667,18 @@ Returned when the requested name only differs from another fleet's name by lette
           "path": "path/to/profile2.json",
           "labels": ["Label 3", "Label 4"]
         },
-      ]
+        {
+          "path": "path/to/assets/asset.json"
+        },
+      ],
+      "assets": [
+        {
+          "path": "path/to/assets/asset.json"
+        }
+      ],
+      "managed_local_account_settings": {
+        "enabled": true
+      }
     },
     "windows_settings": {
       "custom_settings": [
@@ -14191,7 +15692,8 @@ Returned when the requested name only differs from another fleet's name by lette
           "path": "path/to/profile3.xml",
           "labels": ["Label 1", "Label 2"]
         }
-      ]
+      ],
+      "enable_managed_local_account": true
     },
     "setup_experience": {
       "enable_end_user_authentication": false
@@ -14221,17 +15723,38 @@ Returned when the requested name only differs from another fleet's name by lette
 }
 ```
 
+#### features
+
+| Name                              | Type    | Description   |
+| ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| enable_software_inventory         | boolean  | Whether to enable software inventory for this fleet. If this key is omitted, the previously-configured value does not change. |
+| historical_data         | object  | See [features.historical_data](#features-historical-data). |
+
 ##### features.historical_data
+
+`features.historical_data` is an object with the following structure:
+
+| Name              | Type    | Description                                                                                                |
+| ----------------- | ------- | ---------------------------------------------------------------------------------------------------------- |
+| uptime            | boolean | Whether to collect host-uptime samples for hosts in this fleet. (Default: `true`)                          |
+| vulnerabilities   | boolean | Whether to collect CVE samples for hosts in this fleet. (Default: `true`)                                  |
 
 Sub-keys mirror the global `features.historical_data` shape and default to
 `true`. A dataset is collected for a host in this fleet only when both the
 global sub-key AND this fleet's sub-key are `true`. Sub-keys omitted from
 the PATCH body retain their current stored value.
 
-| Name              | Type    | Description                                                                                                |
-| ----------------- | ------- | ---------------------------------------------------------------------------------------------------------- |
-| uptime            | boolean | Whether to collect host-uptime samples for hosts in this fleet. (Default: `true`)                          |
-| vulnerabilities   | boolean | Whether to collect CVE samples for hosts in this fleet. (Default: `true`)                                  |
+###### Example request body
+
+```json
+{
+  "features": {
+    "historical_data": {
+      "vulnerabilities": false
+    }
+  }
+}
+```
 
 ###### Example request body
 
@@ -14346,8 +15869,23 @@ _Available in Fleet Premium_
           {
            "path": "path/to/profile1.mobileconfig",
            "labels": ["Label 1", "Label 2"]
+          },
+          {
+           "path": "path/to/declaration.json",
+           "labels": ["Label 1", "Label 2"]
+          },
+          {
+           "path": "path/to/assets/asset.json"
           }
-        ]
+        ],
+        "assets": [
+          {
+            "path": "path/to/assets/asset.json"
+          }
+        ],
+        "managed_local_account_settings": {
+          "enabled": true
+        }
       },
       "windows_settings": {
         "custom_settings": [
@@ -14361,7 +15899,8 @@ _Available in Fleet Premium_
            "path": "path/to/profile2.xml",
            "labels": ["Label 3", "Label 4"]
           }
-        ]
+        ],
+        "enable_managed_local_account": true
       },
       "macos_setup": {
         "bootstrap_package": "",
@@ -14513,7 +16052,7 @@ _Available in Fleet Premium_
 
 `DELETE /api/v1/fleet/fleets/1`
 
-#### Default response
+##### Default response
 
 `Status: 200`
 
@@ -14679,6 +16218,9 @@ None.
       "mfa_enabled": false,
       "global_role": null,
       "api_only": false,
+      "last_login_at": "2020-12-10T04:15:20Z",
+      "last_activity_at": "2020-12-10T04:32:41Z",
+      "status": "active",
       "fleets": [
         {
           "id": 1,
@@ -14947,6 +16489,9 @@ Returns all information about a specific user.
     "mfa_enabled": false,
     "global_role": "admin",
     "api_only": false,
+    "last_login_at": "2020-12-10T05:24:27Z",
+    "last_activity_at": "2020-12-10T05:31:03Z",
+    "status": "active",
     "fleets": []
   }
 }
@@ -15688,6 +17233,31 @@ Returns information about the current state of the database; valid keys are:
 
 None.
 
+#### Example
+
+`GET /debug/db/process-list`
+
+##### Default response
+
+`Status: 200`
+
+```json
+[
+  {
+    "id": 1234,
+    "user": "fleet",
+    "host": "10.0.0.5:52014",
+    "db": "fleet",
+    "command": "Query",
+    "time": 0,
+    "state": "executing",
+    "info": "SELECT * FROM hosts"
+  }
+]
+```
+
+> The response shape depends on the requested `key`. `locks` returns a list of objects with `waiting_trx_id`, `waiting_thread`, `waiting_query`, `blocking_trx_id`, `blocking_thread`, and `blocking_query`. `innodb-status` returns a JSON string containing the raw `SHOW ENGINE INNODB STATUS` output. `process-list` returns a list of objects as shown above.
+
 ### Get profiling information
 
 Returns runtime profiling data of the server in the format expected by `go tools pprof`. The responses are equivalent to those returned by the Go `http/pprof` package.
@@ -15698,6 +17268,16 @@ Valid keys are: `cmdline`, `profile`, `symbol` and `trace`.
 
 #### Parameters
 None.
+
+#### Example
+
+`GET /debug/pprof/cmdline`
+
+##### Default response
+
+`Status: 200`
+
+The response body is the same as the Go [`net/http/pprof`](https://pkg.go.dev/net/http/pprof) package returns for the given `key`: plain text for `cmdline` and `symbol`, and a binary pprof profile for `profile` and `trace`.
 
 ### Get trace sampling settings
 
@@ -15774,7 +17354,7 @@ At least one field is required. Ratios outside the `[0, 1]` range are rejected.
 
 ### List custom variables
 
-Lists all custom variables that can be used in scripts and profiles prefixed with `$FLEET_SECRET_`.
+Lists all custom variables that can be used in scripts, configuration profiles, and host name templates prefixed with `$FLEET_SECRET_`.
 
 `GET /api/v1/fleet/custom_variables`
 
@@ -15809,7 +17389,7 @@ Lists all custom variables that can be used in scripts and profiles prefixed wit
   ],
   "meta": {
     "has_next_results": false,
-    "has_previous_results": false,
+    "has_previous_results": false
   },
   "count": 1
 }
@@ -15818,7 +17398,7 @@ Lists all custom variables that can be used in scripts and profiles prefixed wit
 
 ### Create custom variable
 
-Creates a custom variable that can be used in scripts and profiles prefixed with `$FLEET_SECRET_`.
+Creates a custom variable that can be used in scripts, configuration profiles, and host name templates prefixed with `$FLEET_SECRET_`.
 
 
 `POST /api/v1/fleet/custom_variables`
@@ -15870,6 +17450,229 @@ Removes a custom variable from Fleet.
 ##### Default response
 
 `Status: 200`
+
+## Custom host vitals
+
+- [List custom host vitals](#list-custom-host-vitals)
+- [Create custom host vital](#create-custom-host-vital)
+- [Update custom host vital](#update-custom-host-vital)
+- [Delete custom host vital](#delete-custom-host-vital)
+- [Update host's custom host vital value](#update-hosts-custom-host-vital-value)
+- [Replace all custom host vitals](#replace-all-custom-host-vitals)
+
+### List custom host vitals
+
+Lists all [custom host vitals](https://fleetdm.com/guides/custom-host-vitals), which can be referenced as `$FLEET_HOST_VITAL_<id>` in scripts and configuration profiles, or as `custom_host_vital_id` in a Host vitals label's [`criteria`](#criteria).
+
+`GET /api/v1/fleet/custom_host_vitals`
+
+#### Parameters
+
+| Name            | Type    | In    | Description                                                 |
+|:--------------- |:------- |:----- |:------------------------------------------------------------|
+| query           | string  | query | Search query. Matches against the vital's name or its `$FLEET_HOST_VITAL_<id>` variable. |
+| page            | integer | query | Page number of the results to fetch.  |
+| per_page        | integer | query | Results per page. |
+| order_key       | string  | query | What to order results by. Allowed fields are `name`, `id`, and `updated_at`. Default is `name`. |
+| order_direction | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
+| after           | string  | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used. |
+
+#### Example
+
+`GET /api/v1/fleet/custom_host_vitals`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "custom_host_vitals": [
+    {
+      "id": 1,
+      "name": "Asset tag",
+      "created_at": "2026-06-04T15:22:36Z",
+      "updated_at": "2026-06-04T15:22:36Z"
+    }
+  ],
+  "meta": {
+    "has_next_results": false,
+    "has_previous_results": false
+  },
+  "count": 1
+}
+```
+
+### Create custom host vital
+
+Creates a custom host vital.
+
+`POST /api/v1/fleet/custom_host_vitals`
+
+#### Parameters
+
+| Name | Type   | In   | Description                                |
+|:---- |:------ |:---- |:--------------------------------------------|
+| name | string | body | **Required.** The vital's name, without the `FLEET_HOST_VITAL_` prefix. Must be unique across all custom host vitals (case-insensitive), and 255 characters or fewer. |
+
+Fails with a `409` if a custom host vital with this name already exists.
+
+#### Example
+
+`POST /api/v1/fleet/custom_host_vitals`
+
+##### Request body
+
+```json
+{
+  "name": "Asset tag"
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "custom_host_vital": {
+    "id": 1,
+    "name": "Asset tag",
+    "created_at": "2026-06-04T15:22:36Z",
+    "updated_at": "2026-06-04T15:22:36Z"
+  }
+}
+```
+
+### Update custom host vital
+
+Renames a custom host vital. The vital's ID, its `$FLEET_HOST_VITAL_<id>` variable, and any host values already set for it, are unaffected.
+
+`PATCH /api/v1/fleet/custom_host_vitals/:id`
+
+#### Parameters
+
+| Name | Type    | In   | Description                            |
+|:---- |:------- |:---- |:----------------------------------------|
+| id   | integer | path | **Required.** The custom host vital's ID. |
+| name | string  | body | **Required.** The vital's new name. |
+
+Fails with a `409` if another custom host vital already has this name.
+
+#### Example
+
+`PATCH /api/v1/fleet/custom_host_vitals/1`
+
+##### Request body
+
+```json
+{
+  "name": "Asset tag number"
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "custom_host_vital": {
+    "id": 1,
+    "name": "Asset tag number",
+    "created_at": "2026-06-04T15:22:36Z",
+    "updated_at": "2026-06-05T09:03:11Z"
+  }
+}
+```
+
+### Delete custom host vital
+
+Deletes a custom host vital, along with any per-host values set for it.
+
+`DELETE /api/v1/fleet/custom_host_vitals/:id`
+
+#### Parameters
+
+| Name | Type    | In   | Description                            |
+|:---- |:------- |:---- |:----------------------------------------|
+| id   | integer | path | **Required.** The custom host vital's ID. |
+
+Fails with a `409` if the vital is still referenced by a script, configuration profile, or Host vitals label. Remove the reference first.
+
+#### Example
+
+`DELETE /api/v1/fleet/custom_host_vitals/1`
+
+##### Default response
+
+`Status: 200`
+
+### Update host's custom host vital value
+
+Sets a host's value for a custom host vital.
+
+`PUT /api/v1/fleet/hosts/:host_id/custom_host_vitals/:id`
+
+#### Parameters
+
+| Name    | Type    | In   | Description                                       |
+|:------- |:------- |:---- |:---------------------------------------------------|
+| host_id | integer | path | **Required.** The host's ID. |
+| id      | integer | path | **Required.** The custom host vital's ID. |
+| value   | string  | body | **Required.** The value to set for this host. |
+
+#### Example
+
+`PUT /api/v1/fleet/hosts/123/custom_host_vitals/1`
+
+##### Request body
+
+```json
+{
+  "value": "C02XL0Zerato"
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+### Replace all custom host vitals
+
+Replaces all existing custom host vital definitions with the provided list. Existing vitals not included in the list are deleted, which fails if one of them is still referenced by a script, configuration profile, or Host vitals label.
+
+`PUT /api/v1/fleet/spec/custom_host_vitals`
+
+#### Parameters
+
+| Name               | Type    | In   | Description                                       |
+|:------------------ |:------- |:---- |:---------------------------------------------------|
+| custom_host_vitals | array   | body | The full list of custom host vitals. Each item is an object with a `name`. |
+| dry_run            | boolean | body | If `true`, validates the request without applying changes. Default is `false`. |
+
+> Omitting `custom_host_vitals` from the request, or sending an empty list, deletes every existing custom host vital. This is the endpoint `fleetctl gitops` uses to apply the `custom_host_vitals:` key in `default.yml`.
+
+#### Example
+
+`PUT /api/v1/fleet/spec/custom_host_vitals`
+
+##### Request body
+
+```json
+{
+  "custom_host_vitals": [
+    { "name": "Asset tag" },
+    { "name": "Function" },
+    { "name": "ITAM device ID" }
+  ]
+}
+```
+
+##### Default response
+
+`Status: 200`
+
 
 ## API errors
 

@@ -33,7 +33,7 @@ const OSSettings = ({
   location: { search: queryString },
   params,
 }: IOSSettingsProps) => {
-  const { section } = params;
+  const { section, platform: urlPlatformParam } = params;
   const { isTeamTechnician, isGlobalTechnician } = useContext(AppContext);
 
   const {
@@ -78,6 +78,12 @@ const OSSettings = ({
     return null;
   }
 
+  // only the disk encryption card has platform sub-routes
+  if (urlPlatformParam && currentFormSection.urlSection !== "disk-encryption") {
+    router.replace(currentFormSection.path.concat(queryString));
+    return null;
+  }
+
   const CurrentCard = currentFormSection.Card;
 
   // Wait for the fleet id to resolve before mounting children — they fire
@@ -113,6 +119,7 @@ const OSSettings = ({
             router={router}
             currentPage={currentPage}
             activeTab={isAssetsSubTab ? "assets" : "profiles"}
+            urlPlatformParam={urlPlatformParam}
           />
         }
       />

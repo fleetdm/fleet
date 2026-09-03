@@ -21,7 +21,10 @@ import PastActivityFeed from "./PastActivityFeed";
 import UpcomingActivityFeed from "./UpcomingActivityFeed";
 import MDMCommandsToggle from "./MDMCommandsToggle";
 import CommandFeed from "./CommandFeed";
-import { ShowCommandDetailsHandler } from "./CommandItem/CommandItem";
+import {
+  CancelCommandHandler,
+  ShowCommandDetailsHandler,
+} from "./CommandItem/CommandItem";
 
 const baseClass = "host-activity-card";
 
@@ -62,6 +65,9 @@ interface IActivityProps {
   onShowDetails: ShowActivityDetailsHandler;
   onShowCommandDetails: ShowCommandDetailsHandler;
   onCancel: (activity: IHostUpcomingActivity) => void;
+  /** When provided, cancelable pending MDM commands in the Upcoming tab
+   * render a cancel button. */
+  onCancelCommand?: CancelCommandHandler;
   onShowMDMCommands: () => void;
   onHideMDMCommands: () => void;
 }
@@ -84,6 +90,7 @@ const Activity = ({
   onShowDetails,
   onShowCommandDetails,
   onCancel,
+  onCancelCommand,
   onShowMDMCommands,
   onHideMDMCommands,
 }: IActivityProps) => {
@@ -175,6 +182,7 @@ const Activity = ({
                 onShowDetails={onShowCommandDetails}
                 onNextPage={onNextPage}
                 onPreviousPage={onPreviousPage}
+                onCancelCommand={onCancelCommand}
               />
             ) : (
               <UpcomingActivityFeed

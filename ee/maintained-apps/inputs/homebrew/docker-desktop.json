@@ -1,9 +1,13 @@
 {
   "name": "Docker Desktop",
   "slug": "docker-desktop/darwin",
-  "unique_identifier": "com.electron.dockerdesktop",
+  "unique_identifier": "com.docker.docker",
   "token": "docker-desktop",
   "installer_format": "dmg",
+  "post_uninstall_scripts": [
+    "sudo rm -rf '/Applications/Docker.app.back'",
+    "sudo rm -rf /Users/*/Library/'Application Support'/com.docker.install"
+  ],
   "default_categories": ["Developer tools"],
   "install_script_path": "ee/maintained-apps/inputs/homebrew/scripts/docker_desktop_install.sh"
 }

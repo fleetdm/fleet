@@ -1,15 +1,16 @@
 {
   "versions": [
     {
-      "version": "0.11.18",
+      "version": "0.12.6",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Readest' AND publisher = 'bilingify';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Readest' AND publisher = 'bilingify' AND version_compare(version, '0.11.18') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Readest' AND publisher = 'bilingify' AND version_compare(version, '0.12.6') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'readest.exe');"
       },
-      "installer_url": "https://github.com/readest/readest/releases/download/v0.11.18/Readest_0.11.18_x64-setup.exe",
+      "installer_url": "https://github.com/readest/readest/releases/download/v0.12.6/Readest_0.12.6_x64-setup.exe",
       "install_script_ref": "2b4dd196",
       "uninstall_script_ref": "36b7aeaf",
-      "sha256": "4cb7200c16272291c37b1b16f70014719415551ae07bb481b68426082698d2b3",
+      "sha256": "0d7ccd42a8a039c3d63c62da433019bbbaf93709f9d935aeec856bbec7b0798e",
       "default_categories": [
         "Productivity"
       ]

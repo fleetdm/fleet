@@ -202,7 +202,7 @@ func TestApplyAsGitOpsDeprecatedKeys(t *testing.T) {
 	ds.SetAsideLabelsFunc = func(ctx context.Context, notOnTeamID *uint, names []string, user fleet.User) error {
 		return nil
 	}
-	ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {
+	ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName, activationAction fleet.MDMAppleActivationAction) (*fleet.MDMAppleDeclaration, error) {
 		declaration.DeclarationUUID = uuid.NewString()
 		return declaration, nil
 	}
@@ -215,6 +215,12 @@ func TestApplyAsGitOpsDeprecatedKeys(t *testing.T) {
 	}
 	ds.CountABMTokensWithTermsExpiredFunc = func(ctx context.Context) (int, error) {
 		return 0, nil
+	}
+	ds.SetABMTokenInvalidForOrgNameFunc = func(ctx context.Context, orgName string, invalid bool) (bool, error) {
+		return false, nil
+	}
+	ds.IsABMTokenInvalidForOrgNameFunc = func(ctx context.Context, orgName string) (bool, error) {
+		return false, nil
 	}
 
 	ds.GetABMTokenOrgNamesAssociatedWithTeamFunc = func(ctx context.Context, teamID *uint) ([]string, error) {
@@ -332,6 +338,7 @@ spec:
 		MacOSSettings: fleet.MacOSSettings{
 			CustomSettings: []fleet.MDMProfileSpec{{Path: mobileConfigPath}},
 		},
+		WindowsSettings:             fleet.WindowsSettings{EnableManagedLocalAccount: optjson.SetBool(false)},
 		WindowsEnabledAndConfigured: true,
 	}, currentAppConfig.MDM)
 
@@ -378,6 +385,7 @@ spec:
 		MacOSSettings: fleet.MacOSSettings{
 			CustomSettings: []fleet.MDMProfileSpec{{Path: mobileConfigPath}},
 		},
+		WindowsSettings:             fleet.WindowsSettings{EnableManagedLocalAccount: optjson.SetBool(false)},
 		WindowsEnabledAndConfigured: true,
 	}, currentAppConfig.MDM)
 
@@ -413,7 +421,7 @@ spec:
 	// then apply for real
 	assert.Contains(t, runAppForTestDeprecated(t, []string{"apply", "-f", name}), "[+] applied 1 fleet\n")
 	assert.JSONEq(t, string(json.RawMessage(`{"config":{"views":{"foo":"qux"}}}`)), string(*savedTeam.Config.AgentOptions))
-	assert.Equal(t, fleet.TeamMDM{
+	assert.Equal(t, withDiskEncryptionDefaults(fleet.TeamMDM{
 		EnableDiskEncryption: false,
 		MacOSSettings: fleet.MacOSSettings{
 			CustomSettings: []fleet.MDMProfileSpec{{Path: mobileConfigPath}},
@@ -432,7 +440,7 @@ spec:
 			DeadlineDays:    optjson.SetInt(0),
 			GracePeriodDays: optjson.SetInt(1),
 		},
-	}, savedTeam.Config.MDM)
+	}), savedTeam.Config.MDM)
 	assert.Equal(t, []*fleet.EnrollSecret{{Secret: "BBB"}}, teamEnrollSecrets)
 	assert.True(t, ds.ApplyEnrollSecretsFuncInvoked)
 	assert.True(t, ds.BatchSetMDMProfilesFuncInvoked)
@@ -458,7 +466,7 @@ spec:
 	require.True(t, ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked)
 	require.True(t, ds.NewJobFuncInvoked)
 	// all left untouched, only setup assistant added
-	assert.Equal(t, fleet.TeamMDM{
+	assert.Equal(t, withDiskEncryptionDefaults(fleet.TeamMDM{
 		EnableDiskEncryption: false,
 		MacOSSettings: fleet.MacOSSettings{
 			CustomSettings: []fleet.MDMProfileSpec{{Path: mobileConfigPath}},
@@ -478,7 +486,7 @@ spec:
 			EndUserLocalAccountType:     optjson.SetString("admin"),
 			LockEndUserInfo:             optjson.SetBool(false),
 		},
-	}, savedTeam.Config.MDM)
+	}), savedTeam.Config.MDM)
 
 	// add bootstrap package to team
 	name = writeTmpYml(t, fmt.Sprintf(`
@@ -498,7 +506,7 @@ spec:
 	// then apply for real
 	assert.Contains(t, runAppForTestDeprecated(t, []string{"apply", "-f", name}), "[+] applied 1 fleet\n")
 	// all left untouched, only bootstrap package added
-	assert.Equal(t, fleet.TeamMDM{
+	assert.Equal(t, withDiskEncryptionDefaults(fleet.TeamMDM{
 		EnableDiskEncryption: false,
 		MacOSSettings: fleet.MacOSSettings{
 			CustomSettings: []fleet.MDMProfileSpec{{Path: mobileConfigPath}},
@@ -519,7 +527,7 @@ spec:
 			EndUserLocalAccountType:     optjson.SetString("admin"),
 			LockEndUserInfo:             optjson.SetBool(false),
 		},
-	}, savedTeam.Config.MDM)
+	}), savedTeam.Config.MDM)
 
 	// Apply policies.
 	var appliedPolicySpecs []*fleet.PolicySpec
@@ -767,6 +775,12 @@ func TestApplyMacosSetupDeprecatedKeys(t *testing.T) {
 		}
 		ds.CountABMTokensWithTermsExpiredFunc = func(ctx context.Context) (int, error) {
 			return 0, nil
+		}
+		ds.SetABMTokenInvalidForOrgNameFunc = func(ctx context.Context, orgName string, invalid bool) (bool, error) {
+			return false, nil
+		}
+		ds.IsABMTokenInvalidForOrgNameFunc = func(ctx context.Context, orgName string) (bool, error) {
+			return false, nil
 		}
 
 		ds.GetABMTokenOrgNamesAssociatedWithTeamFunc = func(ctx context.Context, teamID *uint) ([]string, error) {
@@ -1587,7 +1601,7 @@ spec:
     name: 123
 `,
 			flags:   []string{"--force"},
-			wantErr: `400 Bad Request: invalid value type at 'specs.name': expected string but got number`,
+			wantErr: `400 Bad Request: invalid value type at 'specs.0.name': expected string but got number`,
 		},
 		{
 			desc: "unknown key for team can be forced",
@@ -2062,7 +2076,7 @@ spec:
         deadline_days: abc
         grace_period_days: 1
 `,
-			wantErr: `400 Bad Request: invalid value type at 'specs.mdm.windows_updates.deadline_days': expected int but got string`,
+			wantErr: `400 Bad Request: invalid value type: expected int but got string`,
 		},
 		{
 			desc: "windows_updates.grace_period_days not a number",
@@ -2077,7 +2091,7 @@ spec:
         deadline_days: 1
         grace_period_days: true
 `,
-			wantErr: `400 Bad Request: invalid value type at 'specs.mdm.windows_updates.grace_period_days': expected int but got bool`,
+			wantErr: `400 Bad Request: invalid value type: expected int but got bool`,
 		},
 		{
 			desc: "windows_updates valid",
@@ -2465,6 +2479,8 @@ spec:
 			wantOutput: `[+] applied fleet config`,
 		},
 		{
+			// an explicit null means "not provided", matching the app config
+			// path (the per-platform optjson fields serialize unset as null)
 			desc: "team config macos_settings.enable_disk_encryption without a value",
 			spec: `
 apiVersion: v1
@@ -2476,7 +2492,7 @@ spec:
       macos_settings:
         enable_disk_encryption:
 `,
-			wantErr: `400 Bad Request: invalid value type at 'macos_settings.enable_disk_encryption': expected bool but got <nil>`,
+			wantOutput: `[+] applied 1 fleet`,
 		},
 		{
 			desc: "team config macos_settings.enable_disk_encryption with invalid value type",

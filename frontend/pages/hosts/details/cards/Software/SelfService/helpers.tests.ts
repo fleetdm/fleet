@@ -11,6 +11,7 @@ import {
   hasInProgressInstallAllItems,
   filterCategoriesWithSoftware,
   filterSoftwareByCustomCategory,
+  filterSoftwareByQuery,
 } from "./helpers";
 
 const makeItem = (
@@ -258,6 +259,57 @@ describe("filterSoftwareByCustomCategory", () => {
     expect(filterSoftwareByCustomCategory([security], categories, 1)).toEqual(
       []
     );
+  });
+});
+
+describe("filterSoftwareByQuery", () => {
+  const chrome = makeItem("uninstalled", { name: "Google Chrome" });
+  const firefox = makeItem("uninstalled", { name: "Firefox" });
+  const zoom = makeItem("uninstalled", { name: "Zoom" });
+
+  it("returns the input unchanged when the query is undefined or empty", () => {
+    expect(filterSoftwareByQuery([chrome, firefox], undefined)).toEqual([
+      chrome,
+      firefox,
+    ]);
+    expect(filterSoftwareByQuery([chrome, firefox], "")).toEqual([
+      chrome,
+      firefox,
+    ]);
+    expect(filterSoftwareByQuery([chrome, firefox], "   ")).toEqual([
+      chrome,
+      firefox,
+    ]);
+  });
+
+  it("matches case-insensitively on name (substring)", () => {
+    expect(filterSoftwareByQuery([chrome, firefox, zoom], "fox")).toEqual([
+      firefox,
+    ]);
+    expect(filterSoftwareByQuery([chrome, firefox, zoom], "OOM")).toEqual([
+      zoom,
+    ]);
+  });
+
+  it("matches on bundle_identifier when name doesn't contain the query", () => {
+    const cisco = makeItem("uninstalled", {
+      name: "acme-secure-client",
+      bundle_identifier: "com.cisco.secureclient.vpn.service",
+    });
+    expect(filterSoftwareByQuery([chrome, cisco], "cisco")).toEqual([cisco]);
+  });
+
+  it("matches on custom display_name when name and bundle don't contain the query", () => {
+    const cisco = makeItem("uninstalled", {
+      name: "acme-secure-client",
+      bundle_identifier: "com.zeta.vpn.service",
+      display_name: "Cisco Secure Client",
+    });
+    expect(filterSoftwareByQuery([chrome, cisco], "cisco")).toEqual([cisco]);
+  });
+
+  it("returns [] when nothing matches", () => {
+    expect(filterSoftwareByQuery([chrome, firefox], "safari")).toEqual([]);
   });
 });
 

@@ -253,7 +253,12 @@
       "grace_period_days": 2
     },
     "macos_settings": {
-      "custom_settings": null
+      "custom_settings": null,
+      "enable_disk_encryption": false,
+      "enable_escrow_disk_encryption_key": true
+    },
+    "linux_settings": {
+      "enable_escrow_disk_encryption_key": true
     },
     "macos_setup": {
       "enable_end_user_authentication": true,
@@ -285,12 +290,16 @@
       "idp_name": "some-other-idp-name"
     },
     "windows_enabled_and_configured": true,
-    "enable_disk_encryption": true,
     "name_template": "No team Mac $FLEET_VAR_HOST_UUID",
     "windows_settings": {
-      "custom_settings": []
+      "custom_settings": [],
+      "enable_disk_encryption": true,
+      "require_bitlocker_pin": false
     },
     "volume_purchasing_program": null,
+    "windows_automatic_enrollment": {
+      "default_fleet": "💻 Workstations"
+    },
     "android_enabled_and_configured": true,
     "android_settings": {
       "custom_settings": []

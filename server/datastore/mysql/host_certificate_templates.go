@@ -450,9 +450,10 @@ func (ds *Datastore) ListAndroidHostUUIDsWithPendingCertificateTemplates(
 		SELECT DISTINCT host_uuid
 		FROM host_certificate_templates
 		WHERE status = '%s'
+		  AND (retry_count = 0 OR retry_count > %d OR updated_at <= NOW() - INTERVAL CAST(POW(2, retry_count - 1) * 30 AS UNSIGNED) SECOND)
 		ORDER BY host_uuid
 		LIMIT ? OFFSET ?
-	`, fleet.CertificateTemplatePending)
+	`, fleet.CertificateTemplatePending, fleet.MaxCertificateInstallRetries)
 	var hostUUIDs []string
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hostUUIDs, stmt, limit, offset); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "list host uuids with pending certificate templates")
@@ -831,7 +832,6 @@ func (ds *Datastore) GetOrCreateFleetChallengeForCertificateTemplate(
 		challenge = newChal
 		return nil
 	})
-
 	if err != nil {
 		return "", err
 	}

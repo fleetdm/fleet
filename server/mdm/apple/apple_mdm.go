@@ -60,6 +60,24 @@ const (
 	// redirect after the SSO flow is completed.
 	FleetUISSOCallbackPath = "/mdm/sso/callback"
 
+	// FleetUISSOCallbackError redirects to the callback route's generic error.
+	FleetUISSOCallbackError = FleetUISSOCallbackPath + "?error=true"
+
+	// FleetUISSOCallbackSessionExpired redirects to the callback route and asks
+	// it for the timed-out message instead of the generic one. Signing in can
+	// take a while on a device being set up for the first time, and the generic
+	// error gives the end user nothing to act on.
+	FleetUISSOCallbackSessionExpired = FleetUISSOCallbackError + "&reason=session_expired"
+
+	// FleetUIDeviceSSOError is where the Fleet Desktop SSO flow lands when the
+	// callback fails before loading the SSO session: the device-page counterpart
+	// of FleetUISSOCallbackError.
+	FleetUIDeviceSSOError = "/device/sso-error?reason=error"
+
+	// FleetUIDeviceSSOErrorSessionExpired is the device-page counterpart of
+	// FleetUISSOCallbackSessionExpired.
+	FleetUIDeviceSSOErrorSessionExpired = "/device/sso-error?reason=session_expired"
+
 	// FleetPayloadIdentifier is the value for the "<key>PayloadIdentifier</key>"
 	// used by Fleet MDM on the enrollment profile.
 	FleetPayloadIdentifier = "com.fleetdm.fleet.mdm.apple"
@@ -1039,7 +1057,8 @@ func logCountsForResults(deviceResults map[string]string) (out []interface{}) {
 // NewDEPClient creates an Apple DEP API HTTP client based on the provided
 // storage that will flag the ABM token's terms expired field and the
 // AppConfig's AppleBMTermsExpired field whenever the status of the terms
-// changes.
+// changes, and flag the ABM token's token_invalid field whenever Apple
+// rejects the token or reports its signature as invalid.
 func NewDEPClient(storage godep.ClientStorage, updater fleet.ABMTermsUpdater, logger *slog.Logger) *godep.Client {
 	return godep.NewClient(storage, fleethttp.NewClient(), godep.WithAfterHook(func(ctx context.Context, reqErr error) error {
 		// to check for ABM terms expired, we must have an ABM token organization
@@ -1050,6 +1069,36 @@ func NewDEPClient(storage godep.ClientStorage, updater fleet.ABMTermsUpdater, lo
 		orgName := depclient.GetName(ctx)
 		if _, rawTokenPresent := ctxabm.FromContext(ctx); rawTokenPresent || orgName == "" {
 			return reqErr
+		}
+
+		// if the request failed due to the token being rejected or its
+		// signature being invalid, flag the ABM token's token_invalid. If it
+		// succeeded, or failed with a different *definitive* signal that the
+		// token itself was accepted (e.g. terms not signed -- Apple only
+		// evaluates terms after authenticating the token), clear the flag.
+		// Any other failure (e.g. a transient network or server error) is
+		// inconclusive and leaves the flag untouched. This must happen before
+		// the terms-expired handling below, as that block can return early
+		// from this after-hook once its own bookkeeping is done.
+		tokenInvalid := reqErr != nil && (godep.IsTokenRejected(reqErr) || godep.IsSignatureInvalid(reqErr))
+		tokenAccepted := reqErr == nil || godep.IsTermsNotSigned(reqErr)
+		if tokenAccepted || tokenInvalid {
+			// Check the current value via a read replica first, so the common
+			// case (the flag already has the desired value, which is most DEP
+			// API calls) doesn't hit the writer. If the read fails, fall back to
+			// always writing, since that's no worse than before this check
+			// existed.
+			needsUpdate := true
+			if currentlyInvalid, err := updater.IsABMTokenInvalidForOrgName(ctx, orgName); err != nil {
+				logger.ErrorContext(ctx, "Apple DEP client: failed to get token invalid status of ABM token", "err", err)
+			} else {
+				needsUpdate = currentlyInvalid != tokenInvalid
+			}
+			if needsUpdate {
+				if _, err := updater.SetABMTokenInvalidForOrgName(ctx, orgName, tokenInvalid); err != nil {
+					logger.ErrorContext(ctx, "Apple DEP client: failed to update token invalid status of ABM token", "err", err)
+				}
+			}
 		}
 
 		// if the request failed due to terms not signed, or if it succeeded,
@@ -1113,8 +1162,27 @@ func NewDEPClient(storage godep.ClientStorage, updater fleet.ABMTermsUpdater, lo
 					"apple_bm_terms_expired", appCfg.MDM.AppleBMTermsExpired)
 			}
 		}
+
 		return reqErr
 	}))
+}
+
+// ClassifyDEPDeviceError classifies an error returned by a DEP device-details
+// style call (e.g. godep.Client.GetDeviceDetails) into a DEPDeviceErrorType
+// for API consumers, or "" if err is nil.
+func ClassifyDEPDeviceError(err error) fleet.DEPDeviceErrorType {
+	switch {
+	case err == nil:
+		return ""
+	case godep.IsTokenRejected(err) || godep.IsSignatureInvalid(err):
+		return fleet.DEPDeviceErrorTokenInvalid
+	case godep.IsTermsNotSigned(err):
+		return fleet.DEPDeviceErrorTermsExpired
+	case godep.IsServerError(err):
+		return fleet.DEPDeviceErrorServerError
+	default:
+		return fleet.DEPDeviceErrorUnavailable
+	}
 }
 
 var funcMap = map[string]any{
@@ -1380,7 +1448,7 @@ var acmeEnrollmentProfileMobileconfigTemplate = template.Must(template.New("").F
 				{{ end }}<array>
 					<array>
 						<string>CN</string>
-						<string>{{ .SerialTemplate | xml }}</string>
+						<string>{{ .ClientIdentifier | xml }}</string>
 					</array>
 				</array>
 			</array>
@@ -1527,6 +1595,8 @@ func AddEnrollmentRefToFleetURL(fleetURL, reference string) (string, error) {
 // GenerateACMEEnrollmentProfileMobileconfig builds an ACME (hardware-attested) enrollment profile. See
 // GenerateEnrollmentProfileMobileconfig for newEnrollment; the OU marker survives because Fleet's ACME
 // signer reuses the SCEP depot signer, which copies the CSR Subject verbatim.
+// deviceSerial fills both ClientIdentifier and the Subject CN. We observed that on iOS renewals,
+// the device does not substitute %SerialNumber% with its serial number, so we fill it in.
 func GenerateACMEEnrollmentProfileMobileconfig(orgName, mdmURL, acmeIdent, deviceSerial, topic string, accessRights int, newEnrollment bool) ([]byte, error) {
 	serverURL, err := ResolveAppleMDMURL(mdmURL)
 	if err != nil {
@@ -1545,7 +1615,6 @@ func GenerateACMEEnrollmentProfileMobileconfig(orgName, mdmURL, acmeIdent, devic
 		Topic                  string
 		ServerURL              string
 		ClientIdentifier       string
-		SerialTemplate         string
 		AccessRights           int
 		NewEnrollmentSubjectOU string
 	}{
@@ -1554,7 +1623,6 @@ func GenerateACMEEnrollmentProfileMobileconfig(orgName, mdmURL, acmeIdent, devic
 		Topic:                  topic,
 		ServerURL:              serverURL,
 		ClientIdentifier:       deviceSerial,
-		SerialTemplate:         `%SerialNumber%`, // Apple replaces this placeholder with the device's serial number during enrollment
 		AccessRights:           accessRights,
 		NewEnrollmentSubjectOU: newEnrollmentSubjectOU(newEnrollment),
 	}); err != nil {
@@ -1645,98 +1713,138 @@ func IOSiPadOSRefetch(ctx context.Context, ds fleet.Datastore, commander *MDMApp
 	}
 	logger.InfoContext(ctx, "sending commands to refetch", "count", len(devices), "lookup-duration", time.Since(start))
 
-	hostMDMCommands := make([]fleet.HostMDMCommand, 0, 3*len(devices))
-	installedAppsUUIDs := struct {
-		ManagedOnly []string
-		All         []string
-	}{}
-	for _, device := range devices {
-		if !slices.Contains(device.CommandsAlreadySent, fleet.RefetchAppsCommandUUIDPrefix) {
-			if isBYODDevice := !device.InstalledFromDEP; isBYODDevice {
-				installedAppsUUIDs.ManagedOnly = append(installedAppsUUIDs.ManagedOnly, device.UUID)
-			} else {
-				installedAppsUUIDs.All = append(installedAppsUUIDs.All, device.UUID)
-			}
-			hostMDMCommands = append(hostMDMCommands, fleet.HostMDMCommand{
-				HostID:      device.HostID,
-				CommandType: fleet.RefetchAppsCommandUUIDPrefix,
+	type deviceGroup struct {
+		hostIDs []uint
+		uuids   []string
+	}
+
+	// trackAndSend records the tracking rows BEFORE enqueueing so that a device
+	// acknowledging the command right after the APNs push can't race the
+	// insert and leave behind a row that no result will ever clear. The nano
+	// enqueue is a single transaction, so on enqueue failure nothing was
+	// queued and the rows are removed again; if only the notification failed
+	// the command is durably queued and the rows must stay.
+	trackAndSend := func(commandType string, group deviceGroup, wrapMsg string, enqueue func() error) error {
+		rows := make([]fleet.HostMDMCommand, 0, len(group.hostIDs))
+		for _, hostID := range group.hostIDs {
+			rows = append(rows, fleet.HostMDMCommand{
+				HostID:      hostID,
+				CommandType: commandType,
 			})
 		}
-	}
-	if len(installedAppsUUIDs.ManagedOnly)+len(installedAppsUUIDs.All) > 0 {
-		for i, uuids := range [][]string{installedAppsUUIDs.ManagedOnly, installedAppsUUIDs.All} {
-			managedOnly := i == 0
-			if len(uuids) == 0 {
-				continue
+		if err := ds.AddHostMDMCommands(ctx, rows); err != nil {
+			return ctxerr.Wrap(ctx, err, "add host mdm commands")
+		}
+		err := enqueue()
+		if err != nil {
+			if _, isNotifErr := errors.AsType[*NotificationFailedError](err); !isNotifErr {
+				if rmErr := ds.RemoveHostMDMCommands(ctx, group.hostIDs, commandType); rmErr != nil {
+					logger.ErrorContext(ctx, "untrack host mdm commands after enqueue failure",
+						"err", rmErr, "command_type", commandType)
+				}
 			}
-
-			commandUUID := uuid.NewString()
-			err = commander.InstalledApplicationList(ctx, uuids, fleet.RefetchAppsCommandUUIDPrefix+commandUUID, managedOnly)
 			turnedOff, turnedOffError := turnOffMDMIfAPNSFailed(ctx, ds, err, logger, newActivityFn)
 			if turnedOffError != nil {
 				return turnedOffError
 			}
-			if err != nil && !turnedOff {
-				return ctxerr.Wrap(ctx, err, "send InstalledApplicationList commands to ios and ipados devices")
+			if !turnedOff {
+				return ctxerr.Wrap(ctx, err, wrapMsg)
 			}
+		}
+		return nil
+	}
+
+	// groupToSend returns the devices that were not already sent a commandType command.
+	groupToSend := func(commandType string) deviceGroup {
+		var group deviceGroup
+		for _, device := range devices {
+			if slices.Contains(device.CommandsAlreadySent, commandType) {
+				continue
+			}
+			group.hostIDs = append(group.hostIDs, device.HostID)
+			group.uuids = append(group.uuids, device.UUID)
+		}
+		return group
+	}
+
+	// groupsByFlag groups the devices that were not already sent a commandType
+	// command by the value of the command's per-batch flag (e.g. managedOnly),
+	// so each group can be enqueued with the flag value its devices require.
+	groupsByFlag := func(commandType string, flag func(device fleet.AppleDevicesToRefetch) bool) map[bool]deviceGroup {
+		groups := map[bool]deviceGroup{}
+		for _, device := range devices {
+			if slices.Contains(device.CommandsAlreadySent, commandType) {
+				continue
+			}
+			flagValue := flag(device)
+			group := groups[flagValue]
+			group.hostIDs = append(group.hostIDs, device.HostID)
+			group.uuids = append(group.uuids, device.UUID)
+			groups[flagValue] = group
+		}
+		return groups
+	}
+
+	appGroups := groupsByFlag(fleet.RefetchAppsCommandUUIDPrefix, func(device fleet.AppleDevicesToRefetch) bool {
+		isBYODDevice := !device.InstalledFromDEP
+		return isBYODDevice // BYOD devices are only queried for managed apps
+	})
+	for _, managedOnly := range []bool{true, false} { // fixed order keeps enqueue order deterministic
+		group, ok := appGroups[managedOnly]
+		if !ok {
+			continue
+		}
+
+		commandUUID := uuid.NewString()
+		err := trackAndSend(fleet.RefetchAppsCommandUUIDPrefix, group,
+			"send InstalledApplicationList commands to ios and ipados devices", func() error {
+				return commander.InstalledApplicationList(ctx, group.uuids, fleet.RefetchAppsCommandUUIDPrefix+commandUUID, managedOnly)
+			})
+		if err != nil {
+			return err
 		}
 	}
 
-	certsListUUIDs := make([]string, 0, len(devices))
-	for _, device := range devices {
-		if !slices.Contains(device.CommandsAlreadySent, fleet.RefetchCertsCommandUUIDPrefix) {
-			certsListUUIDs = append(certsListUUIDs, device.UUID)
-			hostMDMCommands = append(hostMDMCommands, fleet.HostMDMCommand{
-				HostID:      device.HostID,
-				CommandType: fleet.RefetchCertsCommandUUIDPrefix,
-			})
-		}
-	}
-	if len(certsListUUIDs) > 0 {
+	certs := groupToSend(fleet.RefetchCertsCommandUUIDPrefix)
+	if len(certs.uuids) > 0 {
 		commandUUID := uuid.NewString()
-		err = commander.CertificateList(ctx, certsListUUIDs, fleet.RefetchCertsCommandUUIDPrefix+commandUUID)
-		turnedOff, turnedOffError := turnOffMDMIfAPNSFailed(ctx, ds, err, logger, newActivityFn)
-		if turnedOffError != nil {
-			return turnedOffError
-		}
-		if err != nil && !turnedOff {
-			return ctxerr.Wrap(ctx, err, "send CertificateList commands to ios and ipados devices")
+		err := trackAndSend(fleet.RefetchCertsCommandUUIDPrefix, certs,
+			"send CertificateList commands to ios and ipados devices", func() error {
+				return commander.CertificateList(ctx, certs.uuids, fleet.RefetchCertsCommandUUIDPrefix+commandUUID)
+			})
+		if err != nil {
+			return err
 		}
 	}
 
 	// DeviceInformation is last because the refetch response clears the refetch_requested flag
-	deviceInfoUUIDs := make([]string, 0, len(devices))
-	for _, device := range devices {
-		if !slices.Contains(device.CommandsAlreadySent, fleet.RefetchDeviceCommandUUIDPrefix) {
-			deviceInfoUUIDs = append(deviceInfoUUIDs, device.UUID)
-			hostMDMCommands = append(hostMDMCommands, fleet.HostMDMCommand{
-				HostID:      device.HostID,
-				CommandType: fleet.RefetchDeviceCommandUUIDPrefix,
-			})
+	deviceInfoGroups := groupsByFlag(fleet.RefetchDeviceCommandUUIDPrefix, func(device fleet.AppleDevicesToRefetch) bool {
+		return device.IsPersonalEnrollment
+	})
+	for _, isPersonalEnrollment := range []bool{true, false} {
+		group, ok := deviceInfoGroups[isPersonalEnrollment]
+		if !ok {
+			continue
 		}
-	}
-	if len(deviceInfoUUIDs) > 0 {
+
 		commandUUID := uuid.NewString()
-		err := commander.DeviceInformation(ctx, deviceInfoUUIDs, fleet.RefetchDeviceCommandUUIDPrefix+commandUUID)
-		turnedOff, turnedOffError := turnOffMDMIfAPNSFailed(ctx, ds, err, logger, newActivityFn)
-		if turnedOffError != nil {
-			return turnedOffError
-		}
-		if err != nil && !turnedOff {
-			return ctxerr.Wrap(ctx, err, "send DeviceInformation commands to ios and ipados devices")
+		err := trackAndSend(fleet.RefetchDeviceCommandUUIDPrefix, group,
+			"send DeviceInformation commands to ios and ipados devices", func() error {
+				return commander.DeviceInformation(ctx, group.uuids, fleet.RefetchDeviceCommandUUIDPrefix+commandUUID, isPersonalEnrollment)
+			})
+		if err != nil {
+			return err
 		}
 	}
 
-	// Add commands to the database to track the commands sent
-	err = ds.AddHostMDMCommands(ctx, hostMDMCommands)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "add host mdm commands")
-	}
 	return nil
 }
 
-// turnOffMDMIfAPNSFailed checks if the error is an APNSDeliveryError and turns off MDM for the failed devices.
-// Returns a boolean value to indicate whether or not MDM was turned off.
+// turnOffMDMIfAPNSFailed turns off MDM for any device whose push was rejected
+// by APNs with an Unregistered reason (dead token). It returns true whenever
+// err is an APNSDeliveryError — even when no device was turned off — signaling
+// the caller that only push delivery failed (commands remain durably queued)
+// so processing can continue.
 func turnOffMDMIfAPNSFailed(ctx context.Context, ds fleet.Datastore, err error, logger *slog.Logger, newActivityFn NewActivityFunc) (bool,
 	error,
 ) {
@@ -1746,7 +1854,10 @@ func turnOffMDMIfAPNSFailed(ctx context.Context, ds fleet.Datastore, err error, 
 	}
 
 	for uuid, err := range e.errorsByUUID {
-		if strings.Contains(err.Error(), "device token is inactive") {
+		// nanopush surfaces APNs' structured rejection reason; buford rendered
+		// this same condition as "device token is inactive". If the push
+		// provider ever changes, this classification must change with it.
+		if APNSReason(err) == APNSReasonUnregistered {
 			logger.InfoContext(ctx, "turning off MDM for device with inactive device token", "uuid", uuid)
 			users, activities, err := ds.MDMTurnOff(ctx, uuid)
 			if err != nil {
@@ -1851,7 +1962,15 @@ func ValidateMDMSettingsAppleSupportedOSVersion[T fleet.MDM | fleet.TeamMDM](set
 		return nil, errors.New("invalid settings type")
 	}
 
-	if macOSUpdates.MinimumVersion.Value == "" && iOSUpdates.MinimumVersion.Value == "" && iPadOSUpdates.MinimumVersion.Value == "" {
+	// "latest" is a sentinel, not a version: the concrete target is resolved per
+	// host from Apple's published versions later on, so there is nothing to look
+	// up here.
+	needsVersionCheck := func(s fleet.AppleOSUpdateSettings) bool {
+		return s.MinimumVersion.Value != "" && !s.EnforcesLatestVersion()
+	}
+
+	if !needsVersionCheck(macOSUpdates) && !needsVersionCheck(iOSUpdates) && !needsVersionCheck(iPadOSUpdates) {
+		// nothing to validate, so don't pay for the round trip to Apple.
 		return nil, nil
 	}
 
@@ -1864,12 +1983,12 @@ func ValidateMDMSettingsAppleSupportedOSVersion[T fleet.MDM | fleet.TeamMDM](set
 	}
 
 	invalid := make(map[string]string, 3)
-	if macOSUpdates.MinimumVersion.Value != "" {
+	if needsVersionCheck(macOSUpdates) {
 		if ok := am.IsSupportedMacOSVersion(macOSUpdates.MinimumVersion.Value, excludeNonPublicAssetSets); !ok {
 			invalid["macos"] = fleet.AppleOSVersionUnsupportedMessage
 		}
 	}
-	if iOSUpdates.MinimumVersion.Value != "" {
+	if needsVersionCheck(iOSUpdates) {
 		// NOTE: iPod generally falls in the category of iOS in Fleet, but we're only validating against iPhone here
 		// because we assume Apple will eventually remove iPod versions from the Apple Software Lookup Service
 		// and we want to avoid breaking workflows for users in that event
@@ -1877,7 +1996,7 @@ func ValidateMDMSettingsAppleSupportedOSVersion[T fleet.MDM | fleet.TeamMDM](set
 			invalid["ios"] = fleet.AppleOSVersionUnsupportedMessage
 		}
 	}
-	if iPadOSUpdates.MinimumVersion.Value != "" {
+	if needsVersionCheck(iPadOSUpdates) {
 		if ok := am.IsSupportedIOSVersion(iPadOSUpdates.MinimumVersion.Value, "ipad", excludeNonPublicAssetSets); !ok {
 			invalid["ipados"] = fleet.AppleOSVersionUnsupportedMessage
 		}
@@ -1891,7 +2010,7 @@ func ValidateMDMSettingsAppleSupportedOSVersion[T fleet.MDM | fleet.TeamMDM](set
 type RecoveryLockCommander interface {
 	SetRecoveryLock(ctx context.Context, hostUUIDs []string, cmdUUID string) error
 	ClearRecoveryLock(ctx context.Context, hostUUIDs []string, cmdUUID string) error
-	RotateRecoveryLock(ctx context.Context, hostUUID string, cmdUUID string) error
+	RotateRecoveryLock(ctx context.Context, hostUUIDs []string, cmdUUID string) error
 }
 
 // SendRecoveryLockCommands is the cron job function that sends SetRecoveryLock MDM commands
@@ -1974,14 +2093,30 @@ func sendSetRecoveryLockCommands(
 
 	logger.InfoContext(ctx, "sending SetRecoveryLock commands", "count", len(hosts))
 
+	// Hosts that already hold a password need the rotate variant of the command, which
+	// also carries CurrentPassword. That is a different payload, so it is a separate
+	// command with its own UUID.
+	setCmdUUID, rotateCmdUUID := uuid.NewString(), uuid.NewString()
+
 	// Generate passwords for all hosts upfront.
 	// Passwords must be stored BEFORE enqueuing commands because they are injected
 	// at delivery time by ExpandHostSecrets (which looks up by host UUID).
 	passwords := make([]fleet.HostRecoveryLockPasswordPayload, 0, len(hosts))
-	for _, hostUUID := range hosts {
+	freshSetHostUUIDs := make([]string, 0, len(hosts))
+	rotateHostUUIDs := make([]string, 0, len(hosts))
+	for hostUUID, hasPassword := range hosts {
+		cmdUUID := setCmdUUID
+		if hasPassword {
+			cmdUUID = rotateCmdUUID
+			rotateHostUUIDs = append(rotateHostUUIDs, hostUUID)
+		} else {
+			freshSetHostUUIDs = append(freshSetHostUUIDs, hostUUID)
+		}
+
 		passwords = append(passwords, fleet.HostRecoveryLockPasswordPayload{
-			HostUUID: hostUUID,
-			Password: GenerateRecoveryLockPassword(),
+			HostUUID:              hostUUID,
+			Password:              GenerateRecoveryLockPassword(),
+			PendingSetCommandUUID: cmdUUID,
 		})
 	}
 
@@ -1992,32 +2127,31 @@ func sendSetRecoveryLockCommands(
 		return ctxerr.Wrap(ctx, err, "bulk set recovery lock passwords")
 	}
 
-	// Collect host UUIDs for enqueue.
-	// The password is not in the command - a placeholder is used that will be
-	// expanded at delivery time by ExpandHostSecrets.
-	hostUUIDs := make([]string, 0, len(passwords))
-	for _, p := range passwords {
-		hostUUIDs = append(hostUUIDs, p.HostUUID)
-	}
+	// Enqueue one command per batch. Each host gets their own queue entry pointing to
+	// that command, and ExpandHostSecrets injects the per-host password at delivery time.
+	enqueue := func(send func(context.Context, []string, string) error, hostUUIDs []string, cmdUUID string) error {
+		if len(hostUUIDs) == 0 {
+			return nil
+		}
 
-	// Enqueue a single command for all hosts. Each host gets their own queue entry
-	// pointing to the same command, and ExpandHostSecrets injects the per-host
-	// password at delivery time.
-	cmdUUID := uuid.NewString()
-	if err := commander.SetRecoveryLock(ctx, hostUUIDs, cmdUUID); err != nil {
+		err := send(ctx, hostUUIDs, cmdUUID)
+		if err == nil {
+			logger.InfoContext(ctx, "sent SetRecoveryLock commands",
+				"host_count", len(hostUUIDs),
+				"command_uuid", cmdUUID,
+			)
+			return nil
+		}
+
 		// Check if this is an APNs delivery error (command was persisted but push failed).
 		// In this case, the command is already queued and will be delivered when the device
 		// checks in, so we should NOT clear the pending status (which would cause duplicates).
-		var apnsErr *APNSDeliveryError
-		if errors.As(err, &apnsErr) {
-			// Command was persisted but push notification failed - log warning but don't fail.
-			// The command will be delivered when the device next checks in.
+		if apnsErr, ok := errors.AsType[*APNSDeliveryError](err); ok {
 			logger.WarnContext(ctx, "SetRecoveryLock commands enqueued but APNs push failed",
 				"host_count", len(hostUUIDs),
 				"command_uuid", cmdUUID,
-				"error", err,
+				"error", apnsErr,
 			)
-			// Don't clear pending status - command is queued and will be processed
 			return nil
 		}
 
@@ -2037,12 +2171,13 @@ func sendSetRecoveryLockCommands(
 		return ctxerr.Wrap(ctx, err, "enqueue SetRecoveryLock commands")
 	}
 
-	logger.InfoContext(ctx, "sent SetRecoveryLock commands",
-		"host_count", len(hostUUIDs),
-		"command_uuid", cmdUUID,
+	var result *multierror.Error
+	result = multierror.Append(result,
+		enqueue(commander.SetRecoveryLock, freshSetHostUUIDs, setCmdUUID),
+		enqueue(commander.RotateRecoveryLock, rotateHostUUIDs, rotateCmdUUID),
 	)
 
-	return nil
+	return result.ErrorOrNil()
 }
 
 func sendClearRecoveryLockCommands(
@@ -2051,7 +2186,10 @@ func sendClearRecoveryLockCommands(
 	commander RecoveryLockCommander,
 	logger *slog.Logger,
 ) error {
-	hosts, err := ds.ClaimHostsForRecoveryLockClear(ctx)
+	// The command UUID is recorded on the claimed rows so the result handler can match the
+	// result back to the in-flight clear, so it has to be minted before claiming.
+	cmdUUID := uuid.NewString()
+	hosts, err := ds.ClaimHostsForRecoveryLockClear(ctx, cmdUUID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "get hosts for recovery lock clear action")
 	}
@@ -2065,7 +2203,6 @@ func sendClearRecoveryLockCommands(
 
 	// Enqueue clear command. The CurrentPassword placeholder will be expanded at
 	// delivery time by ExpandHostSecrets (which looks up by host UUID).
-	cmdUUID := uuid.NewString()
 	if err := commander.ClearRecoveryLock(ctx, hosts, cmdUUID); err != nil {
 		var apnsErr *APNSDeliveryError
 		if errors.As(err, &apnsErr) {
@@ -2123,9 +2260,10 @@ func sendAutoRotationCommands(
 	var result *multierror.Error
 	for _, host := range hosts {
 		newPassword := GenerateRecoveryLockPassword()
+		setCmdUUID := uuid.NewString()
 
 		// Initiate rotation - stores pending password and validates eligibility
-		if err := ds.InitiateRecoveryLockRotation(ctx, host.HostUUID, newPassword); err != nil {
+		if err := ds.InitiateRecoveryLockRotation(ctx, host.HostUUID, setCmdUUID, newPassword); err != nil {
 			// Check for benign race conditions where host state changed between
 			// GetHostsForAutoRotation and now (e.g., manual rotation started,
 			// password removed, host deleted, etc.)
@@ -2148,17 +2286,15 @@ func sendAutoRotationCommands(
 		}
 
 		// Enqueue RotateRecoveryLock command
-		cmdUUID := uuid.NewString()
-		if err := commander.RotateRecoveryLock(ctx, host.HostUUID, cmdUUID); err != nil {
-			var apnsErr *APNSDeliveryError
-			if errors.As(err, &apnsErr) {
+		if err := commander.RotateRecoveryLock(ctx, []string{host.HostUUID}, setCmdUUID); err != nil {
+			if apnsErr, ok := errors.AsType[*APNSDeliveryError](err); ok {
 				// Command was persisted but push notification failed - log activity and continue.
 				// The command will be retried when the device checks in.
 				logAutoRotationActivity(ctx, logger, newActivityFn, host)
 				logger.WarnContext(ctx, "auto-rotation command enqueued but APNs push failed",
 					"host_uuid", host.HostUUID,
-					"command_uuid", cmdUUID,
-					"error", err,
+					"command_uuid", setCmdUUID,
+					"error", apnsErr,
 				)
 				continue
 			}
@@ -2184,7 +2320,7 @@ func sendAutoRotationCommands(
 
 		logger.DebugContext(ctx, "sent auto-rotation command",
 			"host_uuid", host.HostUUID,
-			"command_uuid", cmdUUID,
+			"command_uuid", setCmdUUID,
 		)
 	}
 
@@ -2248,7 +2384,7 @@ func EnqueueManagedLocalAccountRotation(
 	commander ManagedLocalAccountRotationCommander,
 	hostUUID, accountUUID string,
 ) (cmdUUID string, err error, rollbackErr error) {
-	newPassword := GenerateManagedAccountPassword()
+	newPassword := fleet.GenerateManagedLocalAccountPassword(false)
 	hashPlist, hashErr := GenerateSaltedSHA512PBKDF2Hash(newPassword)
 	if hashErr != nil {
 		return "", hashErr, nil
@@ -2430,4 +2566,225 @@ func MDMPushCertTopic(ctx context.Context, ds fleet.MDMAssetRetriever) (string, 
 	}
 
 	return mdmPushCertTopic, nil
+}
+
+func HandleAppleMDMOSUpdates(ctx context.Context, ds fleet.Datastore, logger *slog.Logger) error {
+	lastUpdatedAt, err := ds.GetLastAppleOSUpdatesUpdate(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get last apple os updates update")
+	}
+
+	if lastUpdatedAt == nil || time.Since(*lastUpdatedAt) > 24*time.Hour {
+		logger.InfoContext(ctx, "pulling fresh apple os updates from gdmf")
+
+		assetMetadata, err := gdmf.GetAssetMetadata()
+		if err != nil {
+			logger.ErrorContext(ctx, "error getting asset metadata from GDMF", "error", err)
+			goto computeOSTargets
+		}
+
+		updates := map[string][]fleet.OSUpdateAsset{
+			"macos": assetMetadata.PublicAssetSets.MacOS,
+			"ios":   assetMetadata.PublicAssetSets.IOS,
+		}
+
+		err = ds.UpsertAppleOSUpdates(ctx, updates)
+		if err != nil {
+			logger.ErrorContext(ctx, "error upserting apple os updates", "error", err)
+			goto computeOSTargets
+		}
+
+		// Apple stops reporting versions once they expire, so drop the cached assets that are no
+		// longer in the set we just fetched. This only runs when the fetch succeeded, otherwise we
+		// would delete assets based on an incomplete view of what Apple currently publishes.
+		for class, assets := range updates {
+			if len(assets) == 0 {
+				logger.WarnContext(ctx, "gdmf returned no os updates for class, keeping cached assets", "class", class)
+			}
+		}
+		deleted, err := ds.DeleteStaleAppleOSUpdates(ctx, updates)
+		if err != nil {
+			logger.ErrorContext(ctx, "error deleting stale apple os updates", "error", err)
+			goto computeOSTargets
+		}
+		if deleted > 0 {
+			logger.InfoContext(ctx, "deleted apple os updates no longer reported by gdmf", "count", deleted)
+		}
+	} else {
+		logger.InfoContext(ctx, "apple os updates are less than 24 hours old, not pulling new os updates", "last_updated_at", *lastUpdatedAt)
+	}
+
+computeOSTargets:
+	appCfg, err := ds.AppConfig(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "fetching app config")
+	}
+
+	// Get a list of all teams that has latest configured for macOS, iOS, or iPadOS.
+	// We use admin global role to have access to all teams.
+	teams, err := ds.ListTeams(ctx, fleet.TeamFilter{User: &fleet.User{
+		GlobalRole: new("admin"),
+	}}, fleet.ListOptions{})
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "listing teams")
+	}
+
+	// platform -> map of team_id -> deadline_days
+	teamsWithLatest := map[string]map[uint]int{}
+	teamsWithLatest["darwin"] = map[uint]int{}
+	teamsWithLatest["ios"] = map[uint]int{}
+	teamsWithLatest["ipados"] = map[uint]int{}
+
+	for _, team := range teams {
+		if team.Config.MDM.MacOSUpdates.MinimumVersion.Value == fleet.AppleOSUpdateLatestVersion {
+			teamsWithLatest["darwin"][team.ID] = team.Config.MDM.MacOSUpdates.DeadlineDays.Value
+		}
+		if team.Config.MDM.IOSUpdates.MinimumVersion.Value == fleet.AppleOSUpdateLatestVersion {
+			teamsWithLatest["ios"][team.ID] = team.Config.MDM.IOSUpdates.DeadlineDays.Value
+		}
+		if team.Config.MDM.IPadOSUpdates.MinimumVersion.Value == fleet.AppleOSUpdateLatestVersion {
+			teamsWithLatest["ipados"][team.ID] = team.Config.MDM.IPadOSUpdates.DeadlineDays.Value
+		}
+	}
+
+	// We will replace 0 with NULL check when looking up hosts to reconcile and checking the team_id column
+	if appCfg.MDM.MacOSUpdates.MinimumVersion.Value == fleet.AppleOSUpdateLatestVersion {
+		teamsWithLatest["darwin"][0] = appCfg.MDM.MacOSUpdates.DeadlineDays.Value
+	}
+	if appCfg.MDM.IOSUpdates.MinimumVersion.Value == fleet.AppleOSUpdateLatestVersion {
+		teamsWithLatest["ios"][0] = appCfg.MDM.IOSUpdates.DeadlineDays.Value
+	}
+	if appCfg.MDM.IPadOSUpdates.MinimumVersion.Value == fleet.AppleOSUpdateLatestVersion {
+		teamsWithLatest["ipados"][0] = appCfg.MDM.IPadOSUpdates.DeadlineDays.Value
+	}
+
+	updateAssets, err := ds.ListAppleOSUpdateAssets(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "listing apple os update assets")
+	}
+	const batchSize = 1000
+	var cursor string
+	for {
+		hostBatch, err := ds.ListAppleOSUpdateHostsForReconcile(ctx, cursor, batchSize, teamsWithLatest)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "listing apple os update hosts for reconcile")
+		}
+		if len(hostBatch) == 0 {
+			break
+		}
+		logger.InfoContext(ctx, "recomputing target os version and deadline for hosts", "cursor", cursor, "end_cursor", hostBatch[len(hostBatch)-1].HostUUID, "count", len(hostBatch))
+
+		targets := computeOSUpdatesTarget(ctx, logger, hostBatch, updateAssets, teamsWithLatest)
+		logger.InfoContext(ctx, "updating target os version and deadline for hosts", "count", len(targets))
+		if err := ds.SetAppleOSUpdateTargetsAndResend(ctx, targets); err != nil {
+			return ctxerr.Wrap(ctx, err, "setting apple os update targets and resending profiles")
+		}
+
+		cursor = hostBatch[len(hostBatch)-1].HostUUID
+	}
+
+	return nil
+}
+
+func computeOSUpdatesTarget(ctx context.Context, logger *slog.Logger, hosts []*fleet.AppleSoftwareUpdateHost, updateAssets map[string][]fleet.AppleSoftwareUpdateAsset, teamsWithLatest map[string]map[uint]int) []*fleet.ComputedAppleSoftwareUpdateHost {
+	var computedHosts []*fleet.ComputedAppleSoftwareUpdateHost
+
+	// Deduping hosts to avoid gnarly bugs
+	seen := make(map[string]struct{}, len(hosts))
+	var duplicateHosts int
+	for _, host := range hosts {
+		if _, ok := seen[host.HostUUID]; ok {
+			duplicateHosts++
+			continue
+		}
+		seen[host.HostUUID] = struct{}{}
+
+		var updateAssetsPlatform string
+		if host.Platform == "darwin" {
+			updateAssetsPlatform = "macos"
+		} else {
+			updateAssetsPlatform = "ios" // covers iPhone, iPad, iPod
+		}
+
+		// teamsWithLatest is configured per platform, one for macos, ios, ipados.
+		teamsWithLatestForPlatform, ok := teamsWithLatest[host.Platform]
+		if !ok {
+			logger.DebugContext(ctx, "unsupported os update platform", "platform", host.Platform, "host_uuid", host.HostUUID)
+			continue
+		}
+
+		deadlineDays, ok := teamsWithLatestForPlatform[host.TeamID]
+		if !ok {
+			// Host no longer has a team with latest set. Clear the target version and deadline, do NOT mark for resend as the reconciler will handle complete removal of profile.
+			host.TargetOSVersion = ""
+			host.TargetDeadline = nil
+			host.ResolvedAt = nil
+			computedHosts = append(computedHosts, &fleet.ComputedAppleSoftwareUpdateHost{
+				AppleSoftwareUpdateHost: *host,
+				Resend:                  false,
+			})
+			continue
+		}
+
+		// Host has a team with latest set. Compute the target OS version and deadline.
+
+		// Look up latest OS version from updateAssets
+		assets, ok := updateAssets[updateAssetsPlatform]
+		if !ok || len(assets) == 0 {
+			logger.DebugContext(ctx, "no update assets found for platform", "platform", updateAssetsPlatform, "host_uuid", host.HostUUID)
+			continue
+		}
+
+		var latestAsset *fleet.AppleSoftwareUpdateAsset
+		for i := range assets {
+			asset := &assets[i]
+			if !slices.Contains(asset.SupportedDevices, host.SoftwareUpdateDeviceID) {
+				continue
+			}
+
+			if latestAsset == nil {
+				latestAsset = asset
+				continue
+			}
+			// Current latest is less than this asset, so update latestAsset to this one
+			if less, _ := IsLessThanVersion(latestAsset.ProductVersion, asset.ProductVersion); less {
+				latestAsset = asset
+			}
+
+		}
+
+		if latestAsset == nil {
+			logger.DebugContext(ctx, "no update asset found for host's device id", "host_uuid", host.HostUUID, "device_id", host.SoftwareUpdateDeviceID)
+			continue
+		}
+
+		startDate := latestAsset.PostingDate
+		if latestAsset.FirstSeenAt.After(startDate) {
+			startDate = latestAsset.FirstSeenAt
+		}
+		targetDeadline := startDate.Add(time.Duration(deadlineDays) * 24 * time.Hour)
+
+		if latestAsset.ProductVersion == host.TargetOSVersion && (host.TargetDeadline != nil && targetDeadline.Equal(*host.TargetDeadline)) {
+			logger.DebugContext(ctx, "host target version and deadline unchanged", "host_uuid", host.HostUUID, "target_version", host.TargetOSVersion, "target_deadline", host.TargetDeadline)
+			continue
+		}
+
+		logger.DebugContext(ctx, "host target version and/or deadline changed", "host_uuid", host.HostUUID, "old_target_version", host.TargetOSVersion, "new_target_version", latestAsset.ProductVersion, "old_target_deadline", host.TargetDeadline, "new_target_deadline", targetDeadline)
+
+		host.TargetOSVersion = latestAsset.ProductVersion
+		host.TargetDeadline = &targetDeadline
+		host.ResolvedAt = new(time.Now().UTC())
+
+		computedHosts = append(computedHosts, &fleet.ComputedAppleSoftwareUpdateHost{
+			AppleSoftwareUpdateHost: *host,
+			Resend:                  true,
+		})
+	}
+
+	if duplicateHosts > 0 {
+		logger.WarnContext(ctx, "os updates reconcile: skipped rows for host UUIDs already seen in this batch; likely duplicate host rows sharing a UUID",
+			"skipped", duplicateHosts)
+	}
+
+	return computedHosts
 }

@@ -4,15 +4,19 @@ import classnames from "classnames";
 import { isAndroid, isIPadOrIPhone } from "interfaces/platform";
 
 import Button from "components/buttons/Button";
-import Icon from "components/Icon/Icon";
 import { HumanTimeDiffWithFleetLaunchCutoff } from "components/HumanTimeDiffWithDateTip";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 import { useCheckTruncatedElement } from "hooks/useCheckTruncatedElement";
 import TooltipWrapper from "components/TooltipWrapper";
 import { MdmEnrollmentStatus } from "interfaces/mdm";
+import { humanLastSeen, internationalTimeFormat } from "utilities/helpers";
 
 import { HostMdmDeviceStatusUIState } from "../../helpers";
-import { DEVICE_STATUS_TAGS, REFETCH_TOOLTIP_MESSAGES } from "./helpers";
+import {
+  ANDROID_NO_REFETCH_TOOLTIP_MESSAGE,
+  DEVICE_STATUS_TAGS,
+  REFETCH_TOOLTIP_MESSAGES,
+} from "./helpers";
 
 const baseClass = "host-header";
 
@@ -54,9 +58,9 @@ const RefetchButton = ({
             className={classNames}
             disabled={isDisabled || isFetching}
             onClick={onRefetchHost}
-            variant="inverse"
+            variant="secondary"
+            icon="refresh"
           >
-            <Icon name="refresh" color="ui-fleet-black-75" size="small" />
             {buttonText}
           </Button>
         </div>
@@ -97,7 +101,14 @@ const HostHeader = ({
 
   const renderRefetch = () => {
     if (isAndroid(platform)) {
-      return null;
+      return (
+        <RefetchButton
+          isDisabled
+          isFetching={false}
+          tooltip={ANDROID_NO_REFETCH_TOOLTIP_MESSAGE}
+          onRefetchHost={onRefetchHost}
+        />
+      );
     }
 
     const isOnline = summaryData.status === "online";
@@ -149,13 +160,73 @@ const HostHeader = ({
     );
   };
 
-  const lastFetched = summaryData.detail_updated_at ? (
-    <HumanTimeDiffWithFleetLaunchCutoff
-      timeString={summaryData.detail_updated_at}
-    />
-  ) : (
-    ": unavailable"
-  );
+  // `summaryData` is run through `normalizeEmptyValues`, so a host that has
+  // never checked in reports "---", while platforms whose API response omits
+  // the field altogether leave it undefined.
+  const lastMdmCheckIn = summaryData.last_mdm_checked_in_at;
+  const hasMdmCheckIn =
+    !!lastMdmCheckIn && lastMdmCheckIn !== DEFAULT_EMPTY_CELL_VALUE;
+
+  // "Last fetched" is the most recent of the osquery detail refresh and the
+  // policy refresh, so a patch-when-closed skip driven by a fresh policy
+  // re-eval doesn't look older than the page itself.
+  const detailUpdatedAtMs = Date.parse(summaryData.detail_updated_at);
+  const policyUpdatedAtMs = Date.parse(summaryData.policy_updated_at);
+  const detailValid = Number.isFinite(detailUpdatedAtMs);
+  const policyValid = Number.isFinite(policyUpdatedAtMs);
+  let lastFetchedAt: string | undefined;
+  if (detailValid && policyValid) {
+    lastFetchedAt = new Date(
+      Math.max(detailUpdatedAtMs, policyUpdatedAtMs)
+    ).toISOString();
+  } else if (detailValid) {
+    lastFetchedAt = summaryData.detail_updated_at;
+  } else if (policyValid) {
+    lastFetchedAt = summaryData.policy_updated_at;
+  }
+
+  const withTooltip = (content: React.ReactNode) => {
+    if (!hasMdmCheckIn) {
+      return content;
+    }
+
+    return (
+      <TooltipWrapper
+        tipContent={
+          <>
+            <span>
+              Last fetched:
+              <b>
+                {" "}
+                {lastFetchedAt
+                  ? internationalTimeFormat(new Date(lastFetchedAt))
+                  : "unavailable"}
+              </b>
+            </span>
+            <br />
+            <span>
+              Last MDM check-in:
+              <b> {internationalTimeFormat(new Date(lastMdmCheckIn))}</b>
+            </span>
+          </>
+        }
+        position="top"
+        underline={false}
+        showArrow
+      >
+        {content}
+      </TooltipWrapper>
+    );
+  };
+
+  let lastFetched: React.ReactNode = ": unavailable";
+  if (lastFetchedAt && hasMdmCheckIn) {
+    lastFetched = humanLastSeen(lastFetchedAt);
+  } else if (lastFetchedAt) {
+    lastFetched = (
+      <HumanTimeDiffWithFleetLaunchCutoff timeString={lastFetchedAt} />
+    );
+  }
 
   const renderDeviceStatusTag = () => {
     if (!hostMdmDeviceStatus || hostMdmDeviceStatus === "unlocked") return null;
@@ -209,8 +280,11 @@ const HostHeader = ({
           {renderDeviceStatusTag()}
 
           <div className={`${baseClass}__last-fetched`}>
-            {"Last fetched"} {lastFetched}
-            &nbsp;
+            {withTooltip(
+              <>
+                {"Last fetched"} {lastFetched}
+              </>
+            )}
           </div>
         </div>
       </div>

@@ -7,7 +7,6 @@ on:
     paths:
       - 'tools/fleetctl-docker/**'
       - 'tools/wix-docker/**'
-      - 'tools/bomutils-docker/**'
       - '.github/workflows/test-native-tooling-packaging.yml'
   workflow_dispatch: # Manual
   schedule:
@@ -49,7 +48,7 @@ jobs:
 
     - name: Checkout Code
       if: ${{ matrix.build_type ==  'local' }}
-      uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
         persist-credentials: false
 
@@ -62,10 +61,6 @@ jobs:
     - name: Build fleetdm/wix
       if: ${{ matrix.build_type ==  'local' }}
       run: make wix-docker
-
-    - name: Build fleetdm/bomutils
-      if: ${{ matrix.build_type ==  'local' }}
-      run: make bomutils-docker
 
     - name: Build fleetdm/fleetctl
       if: ${{ matrix.build_type ==  'local' }}

@@ -190,7 +190,7 @@ func preprocessProfileContents(
 		// Check if Fleet variables or custom host vitals are present.
 		contentsStr := string(contents)
 		fleetVars := variables.Find(contentsStr)
-		hasHostVitals := len(fleet.ContainsCustomHostVitalIDs(contentsStr)) > 0
+		hasHostVitals := len(fleet.FindCustomHostVitalIDs(contentsStr)) > 0
 		if len(fleetVars) == 0 && !hasHostVitals {
 			continue
 		}
@@ -390,6 +390,13 @@ func preprocessProfileContents(
 					// Insert the SCEP challenge into the profile contents
 					challenge, err := scepConfig.GetNDESSCEPChallenge(ctx, *ndesConfig)
 					if err != nil {
+						if !scep.IsTerminalNDESChallengeError(err) {
+							// Nothing was delivered, and the condition clears on its own, so leave the profile queued and let a later tick preprocess it.
+							logger.WarnContext(ctx, "could not reach NDES for a SCEP challenge; leaving profile queued for a later tick",
+								"host_uuid", hostUUID, "profile_uuid", profUUID, "err", err)
+							failed = true
+							break fleetVarLoop
+						}
 						detail := scep.NDESChallengeErrorToDetail(err)
 						err := ds.UpdateOrDeleteHostMDMAppleProfile(ctx, &fleet.HostMDMAppleProfile{
 							CommandUUID:        target.CmdUUID,
@@ -453,7 +460,7 @@ func preprocessProfileContents(
 					ca, ok := smallstepCAs[caName]
 					if !ok {
 						logger.ErrorContext(ctx, "Smallstep SCEP CA not found. "+
-							"This error should never happen since we validated/populated CAs earlier", "ca_name", caName)
+							"This error should never happen since we validated/populated CAs earlier", "known_cas", profiles.KnownCANames(smallstepCAs))
 						continue
 					}
 					logger.DebugContext(ctx, "fetching Smallstep SCEP challenge", "host_uuid", hostUUID, "profile_uuid", profUUID)
@@ -571,7 +578,7 @@ func preprocessProfileContents(
 					ca, ok := digiCertCAs[caName]
 					if !ok {
 						logger.ErrorContext(ctx, "Custom DigiCert CA not found. "+
-							"This error should never happen since we validated/populated CAs earlier", "ca_name", caName)
+							"This error should never happen since we validated/populated CAs earlier", "known_cas", profiles.KnownCANames(digiCertCAs))
 						continue
 					}
 					caCopy := *ca

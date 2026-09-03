@@ -5,7 +5,10 @@
     opacity: 0;
   }
 
-  tr:hover {
+  // Reveal on row hover or when the button receives keyboard focus, so
+  // keyboard users can see the button they've tabbed to.
+  tr:hover,
+  tr:focus-within {
     .config-profile-host-count-cell__resend-button {
       opacity: 1;
     }

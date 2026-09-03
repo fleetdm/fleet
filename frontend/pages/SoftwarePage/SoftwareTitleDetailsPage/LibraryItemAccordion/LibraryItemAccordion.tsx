@@ -108,6 +108,10 @@ export interface ILibraryItemAccordionProps {
   /** Click on the labels list in the expanded panel — opens the edit software
    * modal. Wired as a CustomLink-style underline button via TruncatedTextList. */
   onLabelsClick?: () => void;
+  /** Click handler for the pencil "Edit" button in the expanded panel — opens
+   * the same edit software modal reached via the label-count badge. Gated on
+   * `canEditSoftware`; when omitted the button is hidden. */
+  onEditClick?: () => void;
   onDownloadClick?: () => void;
   onTrashClick?: () => void;
 
@@ -166,6 +170,7 @@ const LibraryItemAccordion = ({
   onBadgeClick,
   onLabelCountClick,
   onLabelsClick,
+  onEditClick,
   onDownloadClick,
   onTrashClick,
   canActivateMultiplePackages = false,
@@ -228,12 +233,12 @@ const LibraryItemAccordion = ({
     if (onBadgeClick) {
       return (
         <Button
-          variant="inverse"
+          variant="subdued"
           size="small"
           onClick={handleBadgeClick(onBadgeClick)}
           className={`${baseClass}__badge-button`}
+          icon={iconName}
         >
-          <Icon name={iconName} color="ui-fleet-black-75" />
           <span>{label}</span>
         </Button>
       );
@@ -242,7 +247,7 @@ const LibraryItemAccordion = ({
       <span
         className={`${baseClass}__badge-button ${baseClass}__badge-button--static`}
       >
-        <Icon name={iconName} color="ui-fleet-black-75" />
+        <Icon name={iconName} />
         <span>{label}</span>
       </span>
     );
@@ -276,15 +281,14 @@ const LibraryItemAccordion = ({
     >
       {onClick && canClick ? (
         <Button
-          variant="inverse"
+          variant="subdued"
           onClick={handleBadgeClick(onClick)}
           className={`${baseClass}__icon-button`}
           ariaLabel={ariaLabel}
-        >
-          <Icon name={iconName} color="ui-fleet-black-75" />
-        </Button>
+          icon={iconName}
+        />
       ) : (
-        <Icon name={iconName} color="ui-fleet-black-75" />
+        <Icon name={iconName} />
       )}
     </TooltipWrapper>
   );
@@ -350,19 +354,19 @@ const LibraryItemAccordion = ({
           >
             {canEditSoftware ? (
               <Button
-                variant="inverse"
+                variant="subdued"
                 size="small"
                 onClick={handleBadgeClick(onLabelCountClick)}
                 className={`${baseClass}__badge-button`}
+                icon="tag"
               >
-                <Icon name="tag" color="ui-fleet-black-75" />
                 <span>{labelCount}</span>
               </Button>
             ) : (
               <span
                 className={`${baseClass}__badge-button ${baseClass}__badge-button--static`}
               >
-                <Icon name="tag" color="ui-fleet-black-75" />
+                <Icon name="tag" />
                 <span>{labelCount}</span>
               </span>
             )}
@@ -371,19 +375,19 @@ const LibraryItemAccordion = ({
         {showAllHostsBadge &&
           (canEditSoftware ? (
             <Button
-              variant="inverse"
+              variant="subdued"
               size="small"
               onClick={handleBadgeClick(onLabelCountClick)}
               className={`${baseClass}__badge-button`}
+              icon="tag"
             >
-              <Icon name="tag" color="ui-fleet-black-75" />
               <span>{ALL_HOSTS_LABEL}</span>
             </Button>
           ) : (
             <span
               className={`${baseClass}__badge-button ${baseClass}__badge-button--static`}
             >
-              <Icon name="tag" color="ui-fleet-black-75" />
+              <Icon name="tag" />
               <span>{ALL_HOSTS_LABEL}</span>
             </span>
           ))}
@@ -564,6 +568,7 @@ const LibraryItemAccordion = ({
           />
           <CopyButton
             copyText={hashSha256}
+            variant="subdued"
             ariaLabel="Copy hash to clipboard"
           />
         </div>
@@ -573,14 +578,13 @@ const LibraryItemAccordion = ({
 
   const renderTrashButtonBody = (disabled: boolean) => (
     <Button
-      variant="icon"
+      variant="secondary"
       disabled={disabled}
       onClick={onTrashClick}
       ariaLabel="Delete this version"
       className={`${baseClass}__trash-button`}
-    >
-      <Icon name="trash" />
-    </Button>
+      icon="trash"
+    />
   );
 
   // GitOps-lock the trash button for installer types whose mutations should
@@ -726,15 +730,23 @@ const LibraryItemAccordion = ({
           </div>
 
           <div className={`${baseClass}__actions-column`}>
+            {canEditSoftware && onEditClick && (
+              <Button
+                variant="secondary"
+                onClick={onEditClick}
+                ariaLabel="Edit software"
+                className={`${baseClass}__edit-button`}
+                icon="pencil"
+              />
+            )}
             {canDownload && (
               <Button
-                variant="icon"
+                variant="secondary"
                 onClick={onDownloadClick}
                 ariaLabel="Download installer"
                 className={`${baseClass}__download-button`}
-              >
-                <Icon name="download" />
-              </Button>
+                icon="download"
+              />
             )}
             {canEditSoftware && renderTrashButton()}
           </div>

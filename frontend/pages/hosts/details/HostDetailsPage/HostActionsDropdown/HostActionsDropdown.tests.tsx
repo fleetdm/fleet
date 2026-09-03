@@ -5,6 +5,7 @@ import { createCustomRenderer } from "test/test-utils";
 
 import createMockUser from "__mocks__/userMock";
 import createMockTeam from "__mocks__/teamMock";
+import { MDM_ENROLLMENT_STATUSES, MdmEnrollmentStatus } from "interfaces/mdm";
 
 import HostActionsDropdown from "./HostActionsDropdown";
 import { HostMdmDeviceStatusUIState } from "../../helpers";
@@ -1241,6 +1242,38 @@ describe("Host Actions Dropdown", () => {
       expect(screen.getByText("Run script")).toBeInTheDocument();
     });
 
+    it("renders the Run script action for Arch-based Linux distributions", async () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isGlobalAdmin: true,
+            currentUser: createMockUser(),
+            config: {
+              server_settings: {
+                scripts_disabled: false,
+              },
+            },
+          },
+        },
+      });
+
+      const { user } = render(
+        <HostActionsDropdown
+          hostTeamId={null}
+          onSelect={noop}
+          hostStatus="online"
+          isConnectedToFleetMdm
+          hostPlatform="omarchy"
+          hostMdmEnrollmentStatus={null}
+          hostMdmDeviceStatus="unlocked"
+          hostScriptsEnabled
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+      expect(screen.getByText("Run script")).toBeInTheDocument();
+    });
+
     it("renders the Run script action as enabled when scripts_enabled is null", async () => {
       const render = createCustomRenderer({
         context: {
@@ -2234,7 +2267,7 @@ describe("Host Actions Dropdown", () => {
       ).not.toBeInTheDocument();
     });
 
-    it("hides the action for non-macOS hosts", async () => {
+    it("hides the action for hosts that are neither macOS nor Windows", async () => {
       const render = createCustomRenderer({
         context: {
           app: {
@@ -2254,7 +2287,7 @@ describe("Host Actions Dropdown", () => {
           hostMdmDeviceStatus="unlocked"
           hostScriptsEnabled
           isConnectedToFleetMdm
-          hostPlatform="windows"
+          hostPlatform="ubuntu"
           isManagedLocalAccountEnabled
         />
       );
@@ -2264,6 +2297,67 @@ describe("Host Actions Dropdown", () => {
       expect(
         screen.queryByText("Show managed account")
       ).not.toBeInTheDocument();
+    });
+
+    // Windows hosts get a managed account from fleetd after any MDM enrollment.
+    it("shows the action for a Windows host that is not automatically enrolled", async () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isGlobalAdmin: true,
+            isPremiumTier: true,
+            currentUser: createMockUser(),
+          },
+        },
+      });
+
+      const { user } = render(
+        <HostActionsDropdown
+          hostTeamId={null}
+          onSelect={noop}
+          hostStatus="online"
+          hostMdmEnrollmentStatus="On (manual)"
+          hostMdmDeviceStatus="unlocked"
+          hostScriptsEnabled
+          isConnectedToFleetMdm
+          hostPlatform="windows"
+          isManagedLocalAccountEnabled
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+
+      expect(screen.getByText("Show managed account")).toBeInTheDocument();
+    });
+
+    it("shows the action for a Windows host with an existing account row even when the setting is off", async () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isGlobalAdmin: true,
+            isPremiumTier: true,
+            currentUser: createMockUser(),
+          },
+        },
+      });
+
+      const { user } = render(
+        <HostActionsDropdown
+          hostTeamId={null}
+          onSelect={noop}
+          hostStatus="online"
+          hostMdmEnrollmentStatus="On (manual)"
+          hostMdmDeviceStatus="unlocked"
+          hostScriptsEnabled
+          isConnectedToFleetMdm
+          hostPlatform="windows"
+          managedAccountStatus="verified"
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+
+      expect(screen.getByText("Show managed account")).toBeInTheDocument();
     });
 
     it("hides the action when host is not connected to Fleet MDM", async () => {
@@ -2410,6 +2504,50 @@ describe("Host Actions Dropdown", () => {
       });
     });
 
+    it("shows the reported reason instead of the generic copy when the host sent one", async () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isGlobalAdmin: true,
+            isPremiumTier: true,
+            currentUser: createMockUser(),
+          },
+        },
+      });
+
+      const detail =
+        "this device's password policy rejected the generated 29-character password";
+
+      const { user } = render(
+        <HostActionsDropdown
+          hostTeamId={null}
+          onSelect={noop}
+          hostStatus="online"
+          hostMdmEnrollmentStatus="On (manual)"
+          hostMdmDeviceStatus="unlocked"
+          hostScriptsEnabled
+          isConnectedToFleetMdm
+          hostPlatform="windows"
+          isManagedLocalAccountEnabled
+          managedAccountStatus="failed"
+          managedAccountDetail={detail}
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+
+      const option = screen.getByText("Show managed account");
+      expect(option).toHaveAttribute("aria-disabled", "true");
+
+      await user.hover(option);
+      await waitFor(() => {
+        expect(screen.getByText(detail)).toBeInTheDocument();
+      });
+      expect(
+        screen.queryByText(/The managed account failed to be/i)
+      ).not.toBeInTheDocument();
+    });
+
     it("disables the action with 'next enrollment' tooltip when status is null (no record)", async () => {
       const render = createCustomRenderer({
         context: {
@@ -2545,39 +2683,97 @@ describe("Host Actions Dropdown", () => {
       expect(screen.queryByText("Clear passcode")).toBeInTheDocument();
     });
 
-    it("does not render for below maintainer", async () => {
-      const render = createCustomRenderer({
-        context: {
-          app: {
-            isGlobalTechnician: true,
-            isGlobalAdmin: false,
-            isTeamMaintainer: false,
-            isTeamAdmin: false,
-            isPremiumTier: true,
-            isMacMdmEnabledAndConfigured: true,
-            currentUser: createMockUser(),
+    // Technicians can clear passcodes on iOS/iPadOS hosts, globally or on a host
+    // of their own fleet. Android stays admin/maintainer-only, and roles below
+    // technician never see the action.
+    it.each([
+      {
+        case: "renders for a global technician on an iOS host",
+        currentUser: createMockUser(),
+        isGlobalTechnician: true,
+        hostTeamId: 1,
+        hostPlatform: "ios",
+        hostMdmEnrollmentStatus: "On (company-owned)" as const,
+        expectVisible: true,
+      },
+      {
+        case: "renders for a team technician on an iOS host of their fleet",
+        currentUser: createMockUser({
+          global_role: null,
+          teams: [createMockTeam({ id: 1, role: "technician" })],
+        }),
+        isGlobalTechnician: false,
+        hostTeamId: 1,
+        hostPlatform: "ios",
+        hostMdmEnrollmentStatus: "On (company-owned)" as const,
+        expectVisible: true,
+      },
+      {
+        case: "does not render for an observer on an iOS host",
+        currentUser: createMockUser({ global_role: "observer" }),
+        isGlobalTechnician: false,
+        hostTeamId: 1,
+        hostPlatform: "ios",
+        hostMdmEnrollmentStatus: "On (company-owned)" as const,
+        expectVisible: false,
+      },
+      {
+        case: "does not render for a technician on an Android host",
+        currentUser: createMockUser(),
+        isGlobalTechnician: true,
+        hostTeamId: null,
+        hostPlatform: "android",
+        hostMdmEnrollmentStatus: "On (automatic)" as const,
+        expectVisible: false,
+      },
+    ])(
+      "$case",
+      async ({
+        currentUser,
+        isGlobalTechnician,
+        hostTeamId,
+        hostPlatform,
+        hostMdmEnrollmentStatus,
+        expectVisible,
+      }) => {
+        const render = createCustomRenderer({
+          context: {
+            app: {
+              isPremiumTier: true,
+              isMacMdmEnabledAndConfigured: true,
+              isAndroidMdmEnabledAndConfigured: true,
+              isGlobalTechnician,
+              currentUser,
+            },
           },
-        },
-      });
+        });
 
-      const { user } = render(
-        <HostActionsDropdown
-          hostTeamId={1}
-          onSelect={noop}
-          hostStatus="online"
-          hostPlatform="ios"
-          hostMdmEnrollmentStatus="On (company-owned)"
-          isConnectedToFleetMdm
-          hostMdmDeviceStatus="unlocked"
-          hostScriptsEnabled
-        />
-      );
+        const { user } = render(
+          <HostActionsDropdown
+            hostTeamId={hostTeamId}
+            onSelect={noop}
+            hostStatus="online"
+            hostPlatform={hostPlatform}
+            hostMdmEnrollmentStatus={hostMdmEnrollmentStatus}
+            isConnectedToFleetMdm
+            hostMdmDeviceStatus="unlocked"
+            hostScriptsEnabled
+          />
+        );
 
-      // Global technicians see the Transfer action, but Clear passcode must
-      // still be hidden since it requires maintainer or above.
-      await user.click(screen.getByText("Actions"));
-      expect(screen.queryByText("Clear passcode")).not.toBeInTheDocument();
-    });
+        // A role with no actions at all on the host gets no dropdown to open.
+        const actionsButton = screen.queryByText("Actions");
+        if (actionsButton) {
+          await user.click(actionsButton);
+        }
+
+        if (expectVisible) {
+          expect(screen.queryByText("Clear passcode")).toBeInTheDocument();
+        } else {
+          expect(screen.queryByText("Clear passcode")).not.toBeInTheDocument();
+        }
+      }
+    );
 
     it("does not render for non-iOS hosts", async () => {
       const render = createCustomRenderer({
@@ -2758,6 +2954,273 @@ describe("Host Actions Dropdown", () => {
             )
           ).toBeInTheDocument();
         });
+      }
+    );
+  });
+
+  describe("Release from Apple Business action", () => {
+    const globalAdminRender = createCustomRenderer({
+      context: {
+        app: {
+          isGlobalAdmin: true,
+          isPremiumTier: true,
+          currentUser: createMockUser(),
+          config: { mdm: { apple_bm_enabled_and_configured: true } },
+        },
+      },
+    });
+    it("clicking it opens confirmation modal", async () => {
+      const selectHandler = jest.fn();
+      const { user } = globalAdminRender(
+        <HostActionsDropdown
+          hostTeamId={null}
+          onSelect={selectHandler}
+          hostStatus="online"
+          hostPlatform="darwin"
+          hostMdmEnrollmentStatus="On (company-owned)"
+          isConnectedToFleetMdm
+          hostMdmDeviceStatus="unlocked"
+          hostScriptsEnabled
+          isDEPAssignedToFleet
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+
+      await waitFor(() =>
+        expect(
+          screen.getByText("Release from Apple Business")
+        ).toBeInTheDocument()
+      );
+
+      await user.click(screen.getByText("Release from Apple Business"));
+
+      expect(selectHandler).toHaveBeenCalledWith("releaseFromAB");
+    });
+
+    it("renders to global admin", async () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isGlobalAdmin: true,
+            isPremiumTier: true,
+            currentUser: createMockUser(),
+            config: { mdm: { apple_bm_enabled_and_configured: true } },
+          },
+        },
+      });
+
+      const { user } = render(
+        <HostActionsDropdown
+          hostTeamId={null}
+          onSelect={noop}
+          hostStatus="online"
+          hostPlatform="darwin"
+          hostMdmEnrollmentStatus="On (company-owned)"
+          isConnectedToFleetMdm
+          hostMdmDeviceStatus="unlocked"
+          hostScriptsEnabled
+          isDEPAssignedToFleet
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+
+      await waitFor(() =>
+        expect(
+          screen.getByText("Release from Apple Business")
+        ).toBeInTheDocument()
+      );
+    });
+    it("renders to team admin", async () => {
+      const teamID = 1;
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isPremiumTier: true,
+            currentUser: createMockUser({
+              teams: [createMockTeam({ id: teamID, role: "admin" })],
+            }),
+            config: { mdm: { apple_bm_enabled_and_configured: true } },
+          },
+        },
+      });
+
+      const { user } = render(
+        <HostActionsDropdown
+          hostTeamId={teamID}
+          onSelect={noop}
+          hostStatus="online"
+          hostPlatform="darwin"
+          hostMdmEnrollmentStatus="On (company-owned)"
+          isConnectedToFleetMdm
+          hostMdmDeviceStatus="unlocked"
+          hostScriptsEnabled
+          isDEPAssignedToFleet
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+
+      await waitFor(() =>
+        expect(
+          screen.getByText("Release from Apple Business")
+        ).toBeInTheDocument()
+      );
+    });
+    it("does not render to an any team admin", async () => {
+      const teamID = 1;
+
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isPremiumTier: true,
+            currentUser: createMockUser({
+              teams: [createMockTeam({ id: 2, role: "admin" })],
+            }),
+            config: { mdm: { apple_bm_enabled_and_configured: true } },
+          },
+        },
+      });
+
+      const { user } = render(
+        <HostActionsDropdown
+          hostTeamId={teamID}
+          onSelect={noop}
+          hostStatus="online"
+          hostPlatform="darwin"
+          hostMdmEnrollmentStatus="On (company-owned)"
+          isConnectedToFleetMdm
+          hostMdmDeviceStatus="unlocked"
+          hostScriptsEnabled
+          isDEPAssignedToFleet
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+
+      await waitFor(() =>
+        expect(
+          screen.queryByText("Release from Apple Business")
+        ).not.toBeInTheDocument()
+      );
+    });
+
+    it("does not render when apple business is disabled", async () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isGlobalAdmin: true,
+            isPremiumTier: true,
+            currentUser: createMockUser(),
+            config: { mdm: { apple_bm_enabled_and_configured: false } },
+          },
+        },
+      });
+
+      const { user } = render(
+        <HostActionsDropdown
+          hostTeamId={null}
+          onSelect={noop}
+          hostStatus="online"
+          hostPlatform="darwin"
+          hostMdmEnrollmentStatus="On (company-owned)"
+          isConnectedToFleetMdm
+          hostMdmDeviceStatus="unlocked"
+          hostScriptsEnabled
+          isDEPAssignedToFleet
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+
+      await waitFor(() =>
+        expect(
+          screen.queryByText("Release from Apple Business")
+        ).not.toBeInTheDocument()
+      );
+    });
+
+    it("does not render when host is not DEP assigned to Fleet", async () => {
+      const { user } = globalAdminRender(
+        <HostActionsDropdown
+          hostTeamId={null}
+          onSelect={noop}
+          hostStatus="online"
+          hostPlatform="darwin"
+          hostMdmEnrollmentStatus="On (company-owned)"
+          isConnectedToFleetMdm={false}
+          hostMdmDeviceStatus="unlocked"
+          hostScriptsEnabled
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+
+      await waitFor(() =>
+        expect(
+          screen.queryByText("Release from Apple Business")
+        ).not.toBeInTheDocument()
+      );
+    });
+
+    const inABValues: MdmEnrollmentStatus[] = [
+      "On (company-owned)",
+      "On (automatic)",
+      "Pending",
+    ];
+
+    it.each(inABValues)(
+      "does render for %s device state indicating it's in Apple Business",
+      async (deviceState: MdmEnrollmentStatus) => {
+        const { user } = globalAdminRender(
+          <HostActionsDropdown
+            hostTeamId={null}
+            onSelect={noop}
+            hostStatus="online"
+            hostPlatform="darwin"
+            hostMdmEnrollmentStatus={deviceState}
+            isConnectedToFleetMdm
+            isDEPAssignedToFleet
+            hostMdmDeviceStatus="unlocked"
+            hostScriptsEnabled
+          />
+        );
+
+        await user.click(screen.getByText("Actions"));
+
+        await waitFor(() =>
+          expect(
+            screen.getByText("Release from Apple Business")
+          ).toBeInTheDocument()
+        );
+      }
+    );
+
+    it.each(MDM_ENROLLMENT_STATUSES.filter((s) => !inABValues.includes(s)))(
+      "does not render for %s device state indicating it's not in Apple Business",
+      async (deviceState: MdmEnrollmentStatus) => {
+        const { user } = globalAdminRender(
+          <HostActionsDropdown
+            hostTeamId={null}
+            onSelect={noop}
+            hostStatus="online"
+            hostPlatform="darwin"
+            hostMdmEnrollmentStatus={deviceState}
+            isConnectedToFleetMdm
+            hostMdmDeviceStatus="unlocked"
+            hostScriptsEnabled
+            isDEPAssignedToFleet
+          />
+        );
+
+        await user.click(screen.getByText("Actions"));
+
+        await waitFor(() =>
+          expect(
+            screen.queryByText("Release from Apple Business")
+          ).not.toBeInTheDocument()
+        );
       }
     );
   });

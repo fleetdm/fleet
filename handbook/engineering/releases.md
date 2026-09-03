@@ -26,7 +26,7 @@ To start a preview without starting the simulated hosts, use the `--no-hosts` fl
 
 For each bug found, please use the [bug report template](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=bug%2C%3Areproduce&template=bug-report.md&title=) to create a new bug report issue.
 
-For unreleased bugs in an active release, a new bug is created with the `~unreleased bug` label. The `:release` label and associated product group label is added, and the milestone is set to the version that the feature will be released in. For example, if the feature will be released in v4.71.0 and the bug did not exist prior to that version, the milestone is set to `v4.71.0`. The engineer responsible for the feature is assigned. If QA is unsure who the bug should be assigned to, it is assigned to the EM. Fixing the bug becomes part of the story.
+For unreleased bugs in an active release, a new bug is created with the `~unreleased bug` label. The associated product group label is added, the bug is added to the product group's release board, and the milestone is set to the version that the feature will be released in. For example, if the feature will be released in v4.71.0 and the bug did not exist prior to that version, the milestone is set to `v4.71.0`. The engineer responsible for the feature is assigned. If QA is unsure who the bug should be assigned to, it is assigned to the EM. Fixing the bug becomes part of the story.
 
 
 ## Create a release candidate
@@ -38,6 +38,21 @@ All minor releases go through the release candidate process before they are publ
 2. Open the [confidential repo environment variables](https://github.com/fleetdm/confidential/settings/variables/actions) page and update the `QAWOLF_DEPLOY_TAG` repository variable with the name of the release candidate branch.
 
 During the release candidate period, the release candidate is deployed to our QA Wolf instance every morning instead of `main` to ensure that any new bugs reported by QA Wolf are in the upcoming release and need to be fixed before publishing the release.
+
+
+## Create a fleetd release candidate
+
+At the same time as the Fleet server RC, a fleetd release candidate branch is also created at `rc-minor-fleetd-v1.x.x` from `main`, where `1.x.x` is the next minor version after the last released fleetd version (fleetd versioning is separate from Fleet server versioning). No additional feature work is merged into the RC branch without EM and QA approval.
+
+1. Create the release candidate branch from `main` and push it. Pushing the branch triggers the [create fleetd release QA issue](https://github.com/fleetdm/fleet/actions/workflows/create-fleetd-release-qa-issue.yml) GitHub Action, which creates the [Release QA (fleetd)](https://github.com/fleetdm/fleet/blob/main/.github/ISSUE_TEMPLATE/release-qa-fleetd.md) issue on the release board.
+2. Confirm the release QA issue was created. If it wasn't, run the workflow manually from the release candidate branch, or create the issue from the template.
+3. Announce the release candidate in Slack.
+
+The same cherry-pick policy applies as for the Fleet server RC. To merge a bug fix into the fleetd release candidate, follow the same process described in [Merge unreleased bug fixes into the release candidate](#merge-unreleased-bug-fixes-into-the-release-candidate).
+
+Once QA approves, push to `edge` for 24 hours. QA runs smoke tests from the release issue during this period. If no issues are found, promote from `edge` to `stable`. For the full release steps, see the [fleetd release procedure](https://github.com/fleetdm/fleet/blob/main/tools/tuf/README.md).
+
+> Android and ChromeOS agents are released less frequently and as needed. They do not follow the train-timetable schedule. See [Prepare fleetd agent release](#prepare-fleetd-agent-release) for links to their release guides.
 
 
 ## Merge unreleased bug fixes into the release candidate
@@ -75,7 +90,7 @@ Before kicking off release QA, confirm that we are using the latest versions of 
 
 > In Go versioning, the number after the first dot is the "major" version, while the number after the second dot is the "minor" version. For example, in Go 1.19.9, "19" is the major version and "9" is the minor version. Major version upgrades are assessed separately by engineering.
 
-Our goal is to keep these dependencies up-to-date with each release of Fleet. If a release is going out with an old dependency version, it should be treated as a [critical bug](https://fleetdm.com/handbook/engineering#critical-bugs) to make sure it is updated before the release is published.
+Our goal is to keep these dependencies up-to-date with each release of Fleet. If a release is going out with an old dependency version, it should be treated as a [critical bug](https://fleetdm.com/handbook/company/product-groups#release-testing) to make sure it is updated before the release is published.
 
 3. **osquery**: Latest release
 - Check the [latest version of osquery](https://github.com/osquery/osquery/releases).
@@ -163,7 +178,7 @@ Immediately after publishing a new release of Fleet or fleetd, close out the ass
 
 1. **Update product group boards**: In GitHub Projects, go to each product group board tracking the current release and filter by the current milestone.
 
-2. **Move user stories to drafting board**: Select all items in "Ready for release" that have the `story` label. Apply the `:product` label and remove the `:release` label. These items will move back to the product drafting board.
+2. **Move user stories to drafting board**: Select all items in "Ready for release" that have the `story` label. Apply the `:product` label. These items will move back to the product drafting board.
 
 3. **Confirm and close**: Make sure that all items with the `story` label have left the "Ready for release" column. Select all remaining items in the "Ready for release" column and move them to the "Closed" column. This will close the related GitHub issues.
 
@@ -185,7 +200,7 @@ When target release dates are changed on the calendar, the release ritual DRI al
 
 ## Discuss release dates
 
-A single Slack thread is created in the #help-releases channel for every release candidate. Any discussions about release dates should be kept within the release candidate's thread.
+A single Slack thread is created in the #help-releases channel for every release candidate. Discussions in the release candidate's thread should be limited to release dates.
 
 
 ## Handle process exceptions for non-released code
@@ -200,6 +215,25 @@ In these cases there are two differences in our pull request process:
 
 - QA is done before merging the code change to the main branch.
 - Tickets are not moved to "Ready for release". Bugs are closed, and user stories are moved to the product drafting board's "Confirm and celebrate" column.
+
+
+## Server and agent compatibility
+
+The Fleet server and the agent (fleetd) are released independently. Because of this, there will always be hosts running a different version of the agent than the server expects, whether because the server was just upgraded, because the agent was auto-updated first, or because some hosts have not yet received the agent update.
+
+### Keep agents up to date
+
+Running old agents is discouraged. Customers should keep agents on the latest version. If immediate updates are not possible, establish a regular upgrade cadence rather than letting agents fall behind indefinitely.
+
+### Do not break across version boundaries
+
+When a feature requires changes to both the server and the agent, a version mismatch must not break existing functionality. The new feature will not work until both sides are updated, but nothing that previously worked should stop working. This applies in both directions: a newer server with an older agent, and a newer agent with an older server.
+
+### Test compatibility with the previous release
+
+We test and QA each release against the previous version of its counterpart. When a new server version depends on a new agent feature, we verify that agents one version behind keep working. When a new agent version depends on a new server feature, we verify that the agent keeps working against a server one version behind.
+
+For long-term compatibility rules, see the [Fleetd development and release strategy](https://fleetdm.com/docs/contributing/workflows/fleetd-development-and-release-strategy). Server release notes must call out when a feature requires a minimum agent version.
 
 
 <meta name="maintainedBy" value="lukeheath">

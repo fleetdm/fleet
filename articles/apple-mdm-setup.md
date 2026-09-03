@@ -30,8 +30,8 @@ How to connect Fleet to APNs:
 3. Select **Renew certificate** and then select **Download CSR** to download a certificate signing request (CSR) for Apple Push Notification service (APNs).
 5. Sign in to [Apple Push Certificates Portal](https://identity.apple.com/pushcert/).
 6. In Apple Push Certificates Portal, select **Renew** next to your certificate. Make sure that the certificate's **Common Name (CN)** matches the one presented in Fleet. If you choose a different certificate, you must turn MDM off and back on for all Apple hosts.
-7. Upload your CSR and download new APNs certificate.
-8. Upload APNs certificate (.pem file) in Fleet.
+7. Upload your CSR and download a new APNs certificate.
+8. Upload the APNs certificate (.pem file) in Fleet.
 
 ## Apple Business (AB)
 
@@ -119,6 +119,8 @@ There is no in-product "reset to latest default" action today. If you want your 
 Fleet supports manually turning on MDM for macOS hosts that are already enrolled in Fleet.
 
 End users can turn on MDM from their **Fleet Desktop > My device** page.
+
+You can trigger policy automations right when MDM is turned on, because Fleet re-evaluates all policies immediately after MDM is turned on. In your policy's query, use `server_url` in the [`mdm` table](https://fleetdm.com/tables/mdm) to detect that a host is talking to Fleet for MDM features.
 
 ### Host is in Apple Business (AB)
 
@@ -253,16 +255,47 @@ How automatic enrollment profiles are assigned:
 
 ![Fleet-AB-workflow](https://fleetdm.com/images/articles/abm-assignment-workflow.jpg)
 
-### Re-enrolling AB hosts
+### Release a host from Apple Business
 
-When an AB host re-enrolls in Fleet (e.g., after a wipe or OS reinstall), Fleet automatically:
+> Available in Fleet Premium
+
+You can permanently release (disown) a host from Apple Business directly from Fleet. 
+This calls Apple's Disown Device API and removes the device from your Apple Business account. 
+
+**This action cannot be undone.** Once released, the device can no longer be automatically 
+re-enrolled via Apple Business. The host will remain enrolled in Fleet until an admin manually 
+unenrolls or wipes it.
+
+**Prerequisites:**
+- The host must be enrolled via Apple Business (DEP)
+- You must be a global admin or team admin
+
+**To release a host from Apple Business:**
+
+1. Navigate to the **Host details** page for the host.
+2. Select **Actions > Release from Apple Business**.
+3. Confirm the action in the modal.
+
+**To release multiple hosts via API:**
+
+`POST /api/v1/fleet/hosts/release_ab`
+
+See the [REST API documentation](https://fleetdm.com/docs/rest-api/rest-api#release-host-from-ab) 
+for details.
+
+> **Note:** Releasing a host from Apple Business does not unenroll it from Fleet or wipe it. 
+> Admins must manually unenroll or wipe the host after releasing.
+
+### Re-enrolling Apple Business hosts
+
+When an Apple Business host re-enrolls in Fleet (e.g., after a wipe or OS reinstall), Fleet automatically:
   - Cancels pending MDM commands, script runs, and software installs
   - Clears completed commands, scripts, and software from the previous enrollment
   - Resets host labels
 
-This means you **do not need to delete** an AB host from Fleet before re-enrolling it. Fleet handles clearing stale state automatically.
+This means you **do not need to delete** an Apple Business host from Fleet before re-enrolling it. Fleet handles clearing stale state automatically.
 
-> This automatic state clearing does not apply to hosts undergoing AB MDM migration. During migration, the host's existing state (labels, pending activity) is preserved to ensure a seamless transition from your previous MDM solution.
+> This automatic state clearing does not apply to hosts undergoing Apple Business MDM migration. During migration, the host's existing state (labels, pending activity) is preserved to ensure a seamless transition from your previous MDM solution.
 
 > For AB hosts, you do not need to delete the host from Fleet before re-enrolling. Fleet automatically clears pending and completed commands, scripts, software installs, and labels when the host re-enrolls. See [Re-enrolling AB hosts](#re-enrolling-ab-hosts).
 

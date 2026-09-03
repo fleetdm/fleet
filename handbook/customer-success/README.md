@@ -9,12 +9,12 @@ This handbook page details processes specific to working [with](#contact-us) and
 |:--------------------------------------|:------------------------------------------------------------------------------------------------------------------------|
 | SVP of Customer Success                | [Zay Hanlon](https://www.linkedin.com/in/zayhanlon/) _([@zayhanlon](https://github.com/zayhanlon))_
 | VP of Security Solutions              | [Dhruv Majumdar](https://www.linkedin.com/in/neondhruv/) _([@karmine05](https://github.com/karmine05))_
-| Infrastructure Engineer               | [Robert Fairburn](https://www.linkedin.com/in/robert-fairburn/) _([@rfairburn](https://github.com/rfairburn))_ <br> [Jorge Falcon](https://www.linkedin.com/in/falcon-jorge/) _([@BCTBB](https://github.com/bctbb))_
+| Infrastructure Engineer               | [Robert Fairburn](https://www.linkedin.com/in/robert-fairburn/) _([@rfairburn](https://github.com/rfairburn))_
 | Technical Evangelist                  | [Zach Wasserman](https://www.linkedin.com/in/zacharywasserman/) _([@zwass](https://github.com/zwass))_
 | Manager of Customer Support and Solutions Architecture | [Dale Ribeiro](https://www.linkedin.com/in/daleribeiro/) _([@ddribeiro](https://github.com/ddribeiro))_
 | Customer Solutions Architect (CSA)    | [Jake Stenger](https://www.linkedin.com/in/jakestenger) _([@jakestenger](https://github.com/jakestenger))_ <br> [Adam Baali](https://uk.linkedin.com/in/adambaali) _([@AdamBaali](https://github.com/AdamBaali))_ <br> [Kitzy](https://linkedin.com/in/kitzy) _([@kitzy](https://github.com/kitzy))_ <br> [Jonathan Porter](https://linkedin.com/in/jp-cpe) _([@jp-cpe](https://github.com/jp-cpe))_
 | Customer Success Manager (CSM)        | [Josh Roskos](https://www.linkedin.com/in/jroskos/) <br> [Mike Pinto](https://www.linkedin.com/in/michael-pinto-a06b4515a/) <br> [Andreas Najjar](https://www.linkedin.com/in/andreasnajjar/) <br> [Sean Hannon](https://www.linkedin.com/in/sean-hannon-73b603105/) <br> [Kelly Kroening](https://www.linkedin.com/in/kelly-kroening)
-| Customer Support Engineer (CSE)       | [Kathy Satterlee](https://www.linkedin.com/in/ksatter/) _([@ksatter](https://github.com/ksatter))_ <br> [Mason Buettner](https://www.linkedin.com/in/mason-buettner-b72959175/) _([@mason-buettner](https://github.com/mason-buettner))_ <br> [Gray Williams](https://linkedin.com/in/gwilliamsuk) _([@grayw](https://github.com/grayw))_ <br> Steven Palmesano _([@spalmesano0](https://github.com/spalmesano0))_
+| Customer Support Engineer (CSE)       | [Ryn Satterlee](https://www.linkedin.com/in/rynsatterlee/) _([@rynsatterlee](https://github.com/rynsatterlee))_ <br> [Mason Buettner](https://www.linkedin.com/in/mason-buettner-b72959175/) _([@mason-buettner](https://github.com/mason-buettner))_ <br> [Gray Williams](https://linkedin.com/in/gwilliamsuk) _([@grayw](https://github.com/grayw))_ <br> Steven Palmesano _([@spalmesano0](https://github.com/spalmesano0))_
 
 ## Contact us
 
@@ -191,6 +191,7 @@ Document the completion of a customer promise through the following steps:
 
 ### Submit a feature request for CSA review (For CSMs)
 
+Note: This is for cases where the customer in question does not have an assigned CSA. CSAs will submit feature requests for accounts that they are assigned to.
 Submit a feature request to the CSA team for review following these steps:
 - Navigate to the help-customers board in GitHub
 - Press "Add item" under the "New requests" column
@@ -245,6 +246,14 @@ During the window of time available to investigate an issue, use the resources a
   - Contact the developer on-call.
 
 Note: For non-CSA engaged customer requests, CSE's are responsible for escalations to a CSA as needed. 
+
+If an issue is causing serious problems for a customer and support hasn't found a resolution within **1 business day**, stop investigating solo and escalate to engineering:
+
+1. [File a bug report](#file-a-customer-bug-report) (or locate the existing issue) so the problem is tracked in GitHub, not only in Slack threads.
+2. Add the appropriate [priority label](https://fleetdm.com/handbook/company/product-groups#high-priority-user-stories-and-bugs) and assign the issue to the product group's Engineering Manager so it's prioritized at the next standup.
+3. Keep investigating together with engineering. Escalating isn't handing off; it's adding help.
+
+Don't wait for the issue to become an incident. Escalating on day one gives engineering time to help during business hours instead of scrambling near a deadline or over a weekend.
 
 ### Keep support conversations in one thread
 
@@ -376,7 +385,7 @@ Customer Support Engineers (CSEs) are responsible for the first response to Slac
 ### Maintain first responder SLA
 
 The first responder on-call for Managed Cloud will take ownership of the @infrastructure-oncall alias in Slack first thing Monday morning. The previous week's on-call will provide a summary in the #help-customers Slack channel with an update on alarms that came up the week before, open issues with or without direct end-user impact, and other issues to keep an eye out for.
-- **First responders:** Robert Fairburn, Jorge Falcon
+- **First responders:** Robert Fairburn
 
 Escalation of alarms will be done manually by the first responder according to the escalation contacts mentioned above. A [suspected outage issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23outage%2C%23g-cx%2C%3Arelease&projects=&template=outage.md&title=Suspected+outage%3A+YYYY-MM-DD) should be created to track the escalation and determine root cause. 
 - **Escalations (in order):** » Eric Shaw (fleetdm.com) » Zay Hanlon » Luke Heath » Mike McNeil
@@ -614,6 +623,12 @@ When a user requests that we delete all data we have stored about them, their da
         4. Click the "Actions" dropdown in the upper right corner of the customer profile page and select delete.
 
 
+### Respond to a logo removal request from a customer
+
+1. CSM navigates to the account in Salesforce and changes the "Customer requested logo removal?" field from "No" to "Yes" and adds details about who made the request in the "Logo usage notes" field.
+2. CSM messages the [#help-marketing](https://fleetdm.slack.com/archives/C01ALP02RB5) Slack channel, ccing marketing leadership, with the subject/message "Customer logo removal request" and includes a screenshot and any other necessary details.
+
+
 ### Create a task for a CSA
 
 If assistance is needed for research or solutioning by a CSA, create an issue using the [CSA task template](https://github.com/fleetdm/fleet/issues/new?template=csa-task.md) for tracking.
@@ -622,6 +637,14 @@ If assistance is needed for research or solutioning by a CSA, create an issue us
 
 This will automatically be added to the `:help-customers` project board, with the status of `New requests`. During the next standup meeting, the Manager of Customer Support and Solutions Architecture will triage the task.
 
+
+### Update premium usage stats
+
+Every month, the VP of Customer Success creates a new tab in the [usage stats Google Sheet](https://docs.google.com/spreadsheets/d/1ZcWXIShQyhHNXdaJ927_ykHcPk6DuZQewfk4egbM0bw/edit?gid=889119618#gid=889119618).
+
+The Google sheet exists for historical purposes (e.g. how many hosts has a customer had enrolled on average over the course of 1 quarter) and to track customers with multiple Fleet environments.
+
+A Grafana dashboard is [coming soon](https://github.com/fleetdm/confidential/issues/15810).
 
 ## Rituals
 

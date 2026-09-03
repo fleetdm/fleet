@@ -52,7 +52,7 @@ import {
 
 import { ITableQueryData } from "components/TableContainer/TableContainer";
 
-import TeamsDropdown from "components/TeamsDropdown";
+import FleetsDropdown from "components/FleetsDropdown";
 import Spinner from "components/Spinner";
 import CustomLink from "components/CustomLink";
 import { SingleValue } from "react-select-5";
@@ -402,15 +402,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
       setSoftwareTitleDetail(
         <LastUpdatedText
           lastUpdatedAt={software.counts_updated_at}
-          customTooltipText={
-            <>
-              Fleet periodically queries all hosts to
-              <br />
-              retrieve software. Click to view
-              <br />
-              hosts for the most up-to-date lists.
-            </>
-          }
+          customTooltipText="Fleet periodically queries all hosts to retrieve software. Click to view hosts for the most up-to-date lists."
         />
       );
     } else if (!isViewingVulnerableSoftware) {
@@ -907,9 +899,9 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
       if (userTeams) {
         if (userTeams.length > 1 || isOnGlobalTeam) {
           return (
-            <TeamsDropdown
-              selectedTeamId={currentTeamId}
-              currentUserTeams={userTeams}
+            <FleetsDropdown
+              selectedFleetId={currentTeamId}
+              currentUserFleets={userTeams}
               onChange={handleTeamChange}
             />
           );

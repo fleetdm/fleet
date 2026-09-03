@@ -33,6 +33,11 @@ labels:
   description: Label C description
   label_membership_type: host_vitals
   name: Label C
+- description: Label D description
+  label_membership_type: dynamic
+  name: Label D
+  platform: linux
+  query: SELECT 1
 org_settings:
   activity_expiry_settings:
     activity_expiry_enabled: false
@@ -89,6 +94,7 @@ org_settings:
       vulnerabilities: true
   fleet_desktop:
     alternative_browser_host: musica.alternativa
+    sso_enabled: false
     transparency_url: https://fleetdm.com/transparency
   host_expiry_settings:
     host_expiry_enabled: false
@@ -138,6 +144,8 @@ org_settings:
       - "📱🏢 Company-owned mobile devices"
       - "📱🔐 Personal mobile devices"
       location: Fleet Device Management Inc.
+    windows_automatic_enrollment:
+      default_fleet: "💻 Workstations"
   org_info:
     contact_url: https://fleetdm.com/company/contact
     org_logo_url_dark_mode: http://some-org-logo-url.com

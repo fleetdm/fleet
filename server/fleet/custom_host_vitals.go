@@ -1,6 +1,7 @@
 package fleet
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -51,7 +52,7 @@ func (e MissingCustomHostVitalsError) Error() string {
 	if len(tokens) > 1 {
 		plural = "s"
 	}
-	return fmt.Sprintf("Couldn't add. Custom host vital%s %s is not defined", plural, strings.Join(tokens, ", "))
+	return fmt.Sprintf("Custom host vital%s %s is not defined", plural, strings.Join(tokens, ", "))
 }
 
 // InvalidCustomHostVitalRefError is returned on upload when a document contains a
@@ -72,7 +73,7 @@ func (e InvalidCustomHostVitalRefError) Error() string {
 		plural = "s"
 	}
 	return fmt.Sprintf(
-		"Couldn't add. Invalid custom host vital reference%s %s; the value after $%s must be a custom host vital ID",
+		"Invalid custom host vital reference%s %s; the value after $%s must be a custom host vital ID",
 		plural, strings.Join(tokens, ", "), CustomHostVitalPrefix,
 	)
 }
@@ -82,19 +83,36 @@ func (e InvalidCustomHostVitalRefError) Error() string {
 // Distinct from MissingCustomHostVitalsError (upload-time: the id doesn't exist)
 // so the delivery failure detail shown to admins names the real cause.
 type MissingCustomHostVitalValueError struct {
-	MissingIDs []uint
+	MissingIDs   []uint
+	MissingNames []string
 }
 
-func (e MissingCustomHostVitalValueError) Error() string {
+func (e *MissingCustomHostVitalValueError) Error() string {
 	tokens := make([]string, 0, len(e.MissingIDs))
-	for _, id := range e.MissingIDs {
-		tokens = append(tokens, fmt.Sprintf("\"$%s%d\"", CustomHostVitalPrefix, id))
+	for i, id := range e.MissingIDs {
+		var name string
+		if i < len(e.MissingNames) {
+			name = e.MissingNames[i]
+		}
+		tokens = append(tokens, fmt.Sprintf("%s ($%s%d)", name, CustomHostVitalPrefix, id))
 	}
 	plural := ""
 	if len(tokens) > 1 {
 		plural = "s"
 	}
-	return fmt.Sprintf("Couldn't populate custom host vital%s %s: no value set for this host", plural, strings.Join(tokens, ", "))
+	return fmt.Sprintf(
+		"Couldn't populate the custom host vital%s %s because there's no value set for this host.",
+		plural, strings.Join(tokens, ", "),
+	)
+}
+
+// IsInvalidReferencedCustomHostVitalsError reports whether err is a user-input validation failure:
+// - an unknown vital ID (MissingCustomHostVitalsError)
+// - or a malformed $FLEET_HOST_VITAL_<x> reference (InvalidCustomHostVitalRefError)
+func IsInvalidReferencedCustomHostVitalsError(err error) bool {
+	var missing *MissingCustomHostVitalsError
+	var invalid *InvalidCustomHostVitalRefError
+	return errors.As(err, &missing) || errors.As(err, &invalid)
 }
 
 // CustomHostVitalEntity identifies the kind of entity that can reference a custom host vital.
@@ -105,9 +123,12 @@ const (
 	CustomHostVitalEntityAppleProfile          CustomHostVitalEntity = "apple_profile"
 	CustomHostVitalEntityAppleDeclaration      CustomHostVitalEntity = "apple_declaration"
 	CustomHostVitalEntityWindowsProfile        CustomHostVitalEntity = "windows_profile"
+	CustomHostVitalEntityAndroidProfile        CustomHostVitalEntity = "android_profile"
+	CustomHostVitalEntityAndroidAppConfig      CustomHostVitalEntity = "android_app_config"
 	CustomHostVitalEntitySoftwareInstaller     CustomHostVitalEntity = "software_installer"
 	CustomHostVitalEntitySetupExperienceScript CustomHostVitalEntity = "setup_experience_script"
 	CustomHostVitalEntityLabel                 CustomHostVitalEntity = "label"
+	CustomHostVitalEntityHostNameTemplate      CustomHostVitalEntity = "host_name_template"
 )
 
 // Describes an entity that references a custom host vital.
@@ -128,6 +149,14 @@ type CustomHostVitalUsedInfo struct {
 
 // Message returns the human-readable "X is used by Y" explanation.
 func (i CustomHostVitalUsedInfo) Message() string {
+	if i.Entity.Type == CustomHostVitalEntityHostNameTemplate {
+		// there's no separate entity name to report, just the fleet whose template references the vital.
+		return fmt.Sprintf(
+			"Custom host vital %q (used as $%s%d) is used by the host name template in the %q fleet. Please edit or clear the host name template and try again.",
+			i.CustomHostVitalName, CustomHostVitalPrefix, i.CustomHostVitalID, i.Entity.FleetName,
+		)
+	}
+
 	noun, action := "configuration profile", "Please delete the configuration profile and try again."
 	switch i.Entity.Type {
 	case CustomHostVitalEntityScript:
@@ -138,6 +167,8 @@ func (i CustomHostVitalUsedInfo) Message() string {
 		noun, action = "setup experience script", "Please edit or delete the setup experience script and try again."
 	case CustomHostVitalEntityLabel:
 		noun, action = "label", "Please edit or delete the label and try again."
+	case CustomHostVitalEntityAndroidAppConfig:
+		noun, action = "software", "Please edit or clear the software's configuration and try again."
 	}
 	return fmt.Sprintf(
 		"Custom host vital %q (used as $%s%d) is used by the %q %s in the %q fleet. %s",
@@ -168,7 +199,7 @@ func ValidateCustomHostVitalName(name string) error {
 	return nil
 }
 
-func ContainsCustomHostVitalIDs(text string) []uint {
+func FindCustomHostVitalIDs(text string) []uint {
 	suffixes := ContainsPrefixVars(text, CustomHostVitalPrefix)
 	if len(suffixes) == 0 {
 		return nil

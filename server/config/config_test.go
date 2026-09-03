@@ -15,6 +15,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/docker/go-units"
 	"github.com/fleetdm/fleet/v4/pkg/testutils"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
@@ -326,6 +327,183 @@ osquery:
 				})
 				got := loadedCfg.Osquery.AsyncConfigForTask(AsyncTaskLabelMembership)
 				require.Equal(t, c.wantLabelCfg, got)
+			}
+		})
+	}
+}
+
+// TestOsqueryConfigETagDefaults pins both config ETag flags off. The feature
+// ships opt-in, so a silent flip back to on would turn the conditional-request
+// protocol — and its Redis traffic — on for every deployment that never asked
+// for it.
+func TestOsqueryConfigETagDefaults(t *testing.T) {
+	cases := []struct {
+		desc            string
+		envVars         []string
+		wantConfigETags bool
+		wantRedisETags  bool
+	}{
+		{
+			desc: "unset defaults to off",
+		},
+		{
+			desc:            "opted in",
+			envVars:         []string{"FLEET_OSQUERY_CONFIG_ETAGS=true", "FLEET_OSQUERY_REDIS_CONFIG_ETAGS=true"},
+			wantConfigETags: true,
+			wantRedisETags:  true,
+		},
+		{
+			// The two flags are combined only later, in
+			// effectiveRedisConfigETags. Enabling the Redis one here must
+			// not implicitly enable the protocol.
+			desc:            "redis flag alone does not enable the protocol",
+			envVars:         []string{"FLEET_OSQUERY_REDIS_CONFIG_ETAGS=true"},
+			wantConfigETags: false,
+			wantRedisETags:  true,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.desc, func(t *testing.T) {
+			var cmd cobra.Command
+			cmd.PersistentFlags().StringP("config", "c", "", "Path to a configuration file")
+			man := NewManager(&cmd)
+			man.viper.SetConfigType("yaml")
+			require.NoError(t, man.viper.ReadConfig(strings.NewReader("")))
+
+			testutils.SaveEnv(t)
+			os.Clearenv()
+			for _, env := range c.envVars {
+				kv := strings.SplitN(env, "=", 2)
+				t.Setenv(kv[0], kv[1])
+			}
+
+			var loadedCfg FleetConfig
+			require.NotPanics(t, func() {
+				loadedCfg = man.LoadConfig()
+			})
+			require.Equal(t, c.wantConfigETags, loadedCfg.Osquery.ConfigETags)
+			require.Equal(t, c.wantRedisETags, loadedCfg.Osquery.RedisConfigETags)
+		})
+	}
+}
+
+func TestServerConfigEndpointRequestSizeOverrides(t *testing.T) {
+	cases := []struct {
+		desc              string
+		yaml              string
+		env               []string
+		panics            bool
+		expectedOverrides EndpointRequestSizeOverrides
+	}{
+		{
+			desc:              "unset",
+			expectedOverrides: nil,
+		},
+		{
+			desc: "YAML list",
+			yaml: `
+server:
+  endpoint_request_size_overrides:
+    - endpoint: "/api/_version_/fleet/software/titles/{title_id:[0-9]+}/package/token/{token}"
+      max_request_size: "50MiB"
+    - endpoint: "/api/osquery/log"
+      max_request_size: "20MiB"`,
+			expectedOverrides: EndpointRequestSizeOverrides{
+				"/api/_version_/fleet/software/titles/{title_id:[0-9]+}/package/token/{token}": 50 * units.MiB,
+				"/api/osquery/log": 20 * units.MiB,
+			},
+		},
+		{
+			desc: "Enviroment variable - JSON array",
+			env: []string{
+				`FLEET_SERVER_ENDPOINT_REQUEST_SIZE_OVERRIDES=[{"endpoint": "/api/osquery/log", "max_request_size": "20MiB"}]`,
+			},
+			expectedOverrides: EndpointRequestSizeOverrides{
+				"/api/osquery/log": 20 * units.MiB,
+			},
+		},
+		{
+			desc: "Environment variable replaces YAML list instead of merging with it",
+			yaml: `
+server:
+  endpoint_request_size_overrides:
+    - endpoint: "/api/osquery/log"
+      max_request_size: "20MiB"`,
+			env: []string{
+				`FLEET_SERVER_ENDPOINT_REQUEST_SIZE_OVERRIDES=[{"endpoint": "/api/osquery/distributed/write", "max_request_size": "10MiB"}]`,
+			},
+			expectedOverrides: EndpointRequestSizeOverrides{
+				"/api/osquery/distributed/write": 10 * units.MiB,
+			},
+		},
+		{
+			desc: "Duplicate endpoint panics",
+			yaml: `
+server:
+  endpoint_request_size_overrides:
+    - endpoint: "/api/osquery/log"
+      max_request_size: "10MiB"
+    - endpoint: "/api/osquery/log"
+      max_request_size: "20MiB"`,
+			// expectedOverrides: EndpointRequestSizeOverrides{
+			// 	"/api/osquery/log": 20 * units.MiB,
+			// },
+			panics: true,
+		},
+		{
+			desc: "Malformed JSON in environment variable panics",
+			env: []string{
+				`FLEET_SERVER_ENDPOINT_REQUEST_SIZE_OVERRIDES=not-json`,
+			},
+			panics: true,
+		},
+		{
+			desc: "Malformed size string panics",
+			yaml: `
+server:
+  endpoint_request_size_overrides:
+    - endpoint: "/api/osquery/log"
+      max_request_size: "not-a-size"`,
+			panics: true,
+		},
+		{
+			desc: "Empty endpoint panics",
+			yaml: `
+server:
+  endpoint_request_size_overrides:
+    - endpoint: ""
+      max_request_size: "20MiB"`,
+			panics: true,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.desc, func(t *testing.T) {
+			var cmd cobra.Command
+			cmd.PersistentFlags().StringP("config", "c", "", "Path to a configuration file")
+			man := NewManager(&cmd)
+
+			man.viper.SetConfigType("yaml")
+			require.NoError(t, man.viper.ReadConfig(strings.NewReader(c.yaml)))
+
+			testutils.SaveEnv(t)
+			os.Clearenv()
+			for _, env := range c.env {
+				kv := strings.SplitN(env, "=", 2)
+				t.Setenv(kv[0], kv[1])
+			}
+
+			var loadedCfg FleetConfig
+			if c.panics {
+				require.Panics(t, func() {
+					loadedCfg = man.LoadConfig()
+				})
+			} else {
+				require.NotPanics(t, func() {
+					loadedCfg = man.LoadConfig()
+				})
+				require.Equal(t, c.expectedOverrides, loadedCfg.Server.EndpointRequestSizeOverrides)
 			}
 		})
 	}
@@ -775,6 +953,50 @@ func TestValidateCloudfrontURL(t *testing.T) {
 	}
 }
 
+func TestValidateSoftwareInstallersSignedURL(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		name       string
+		enabled    bool
+		endpoint   string
+		accessKey  string
+		secret     string
+		gcsIAMAuth bool
+		wantFatal  bool
+	}{
+		{"disabled skips validation", false, "https://s3.amazonaws.com", "", "", false, false},
+		{"gcs host with hmac creds", true, "https://storage.googleapis.com", "GOOG-key", "secret", false, false},
+		{"gcs bucket virtual host", true, "https://my-bucket.storage.googleapis.com", "GOOG-key", "secret", false, false},
+		{"scheme-less endpoint rejected", true, "storage.googleapis.com", "GOOG-key", "secret", false, true},
+		{"http scheme rejected", true, "http://storage.googleapis.com", "GOOG-key", "secret", false, true},
+		{"look-alike host rejected", true, "https://storage.googleapis.com.evil.com", "GOOG-key", "secret", false, true},
+		{"substring in path rejected", true, "https://evil.com/storage.googleapis.com", "GOOG-key", "secret", false, true},
+		{"non-gcs host rejected", true, "https://s3.amazonaws.com", "GOOG-key", "secret", false, true},
+		{"missing access key rejected", true, "https://storage.googleapis.com", "", "secret", false, true},
+		{"missing secret rejected", true, "https://storage.googleapis.com", "GOOG-key", "", false, true},
+		{"iam auth skips hmac cred check", true, "https://storage.googleapis.com", "", "", true, false},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			s3 := S3Config{
+				SoftwareInstallersSignedURL:       c.enabled,
+				SoftwareInstallersEndpointURL:     c.endpoint,
+				SoftwareInstallersAccessKeyID:     c.accessKey,
+				SoftwareInstallersSecretAccessKey: c.secret,
+				SoftwareInstallersGCSIAMAuth:      c.gcsIAMAuth,
+			}
+			var gotFatal bool
+			initFatal := func(err error, msg string) {
+				gotFatal = true
+				require.Error(t, err)
+			}
+			s3.ValidateSoftwareInstallersSignedURL(initFatal)
+			require.Equal(t, c.wantFatal, gotFatal)
+		})
+	}
+}
+
 func TestAndroidAgentConfigValidate(t *testing.T) {
 	t.Parallel()
 
@@ -822,6 +1044,102 @@ func TestAndroidBatchSizeValidate(t *testing.T) {
 		cfg.ValidateAndroidBatchSize(func(err error, msg string) { called = true })
 		require.True(t, called)
 	})
+}
+
+func TestGoogleWorkspaceConfig(t *testing.T) {
+	cases := []struct {
+		desc    string
+		yaml    string
+		envVars []string
+		want    GoogleWorkspaceConfig
+	}{
+		{
+			desc: "defaults",
+			want: GoogleWorkspaceConfig{
+				MaxUsers:            DefaultGoogleWorkspaceMaxUsers,
+				MaxGroups:           DefaultGoogleWorkspaceMaxGroups,
+				MaxGroupMembers:     DefaultGoogleWorkspaceMaxGroupMembers,
+				MaxGroupMemberships: DefaultGoogleWorkspaceMaxGroupMemberships,
+			},
+		},
+		{
+			desc: "yaml overrides",
+			yaml: `
+google_workspace:
+  max_users: 10
+  max_groups: 20
+  max_group_members: 30
+  max_group_memberships: 40`,
+			want: GoogleWorkspaceConfig{MaxUsers: 10, MaxGroups: 20, MaxGroupMembers: 30, MaxGroupMemberships: 40},
+		},
+		{
+			desc: "env overrides",
+			envVars: []string{
+				"FLEET_GOOGLE_WORKSPACE_MAX_USERS=1",
+				"FLEET_GOOGLE_WORKSPACE_MAX_GROUPS=2",
+				"FLEET_GOOGLE_WORKSPACE_MAX_GROUP_MEMBERS=3",
+				"FLEET_GOOGLE_WORKSPACE_MAX_GROUP_MEMBERSHIPS=4",
+			},
+			want: GoogleWorkspaceConfig{MaxUsers: 1, MaxGroups: 2, MaxGroupMembers: 3, MaxGroupMemberships: 4},
+		},
+		{
+			desc:    "zero disables a limit",
+			envVars: []string{"FLEET_GOOGLE_WORKSPACE_MAX_USERS=0"},
+			want: GoogleWorkspaceConfig{
+				MaxUsers:            0,
+				MaxGroups:           DefaultGoogleWorkspaceMaxGroups,
+				MaxGroupMembers:     DefaultGoogleWorkspaceMaxGroupMembers,
+				MaxGroupMemberships: DefaultGoogleWorkspaceMaxGroupMemberships,
+			},
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.desc, func(t *testing.T) {
+			var cmd cobra.Command
+			cmd.PersistentFlags().StringP("config", "c", "", "Path to a configuration file")
+			man := NewManager(&cmd)
+
+			man.viper.SetConfigType("yaml")
+			require.NoError(t, man.viper.ReadConfig(strings.NewReader(c.yaml)))
+
+			testutils.SaveEnv(t)
+			os.Clearenv()
+			for _, env := range c.envVars {
+				kv := strings.SplitN(env, "=", 2)
+				t.Setenv(kv[0], kv[1])
+			}
+
+			require.Equal(t, c.want, man.LoadConfig().GoogleWorkspace)
+		})
+	}
+}
+
+func TestGoogleWorkspaceConfigValidate(t *testing.T) {
+	t.Parallel()
+
+	t.Run("valid when zero or positive", func(t *testing.T) {
+		cfg := GoogleWorkspaceConfig{MaxUsers: 0, MaxGroups: 1, MaxGroupMembers: 2, MaxGroupMemberships: 3}
+		cfg.Validate(func(err error, msg string) { t.Fatalf("unexpected error: %v", err) })
+	})
+
+	// A negative value would silently disable the limit, so it must be rejected at
+	// startup rather than removing a safety rail.
+	for _, tc := range []struct {
+		name string
+		cfg  GoogleWorkspaceConfig
+	}{
+		{"negative max users", GoogleWorkspaceConfig{MaxUsers: -1}},
+		{"negative max groups", GoogleWorkspaceConfig{MaxGroups: -1}},
+		{"negative max group members", GoogleWorkspaceConfig{MaxGroupMembers: -1}},
+		{"negative max group memberships", GoogleWorkspaceConfig{MaxGroupMemberships: -1}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			called := false
+			tc.cfg.Validate(func(err error, msg string) { called = true })
+			require.True(t, called)
+		})
+	}
 }
 
 func TestServerConfigWithH2C(t *testing.T) {
@@ -958,6 +1276,21 @@ func TestLoggingConfigValidate(t *testing.T) {
 	})
 }
 
+func TestOsqueryConfigInMemoryCacheDefault(t *testing.T) {
+	var cmd cobra.Command
+	cmd.PersistentFlags().StringP("config", "c", "", "Path to a configuration file")
+	man := NewManager(&cmd)
+	man.viper.SetConfigType("yaml")
+	require.NoError(t, man.viper.ReadConfig(strings.NewReader("")))
+
+	testutils.SaveEnv(t)
+	os.Clearenv()
+	require.False(t, man.LoadConfig().Osquery.ConfigInMemoryCache)
+
+	t.Setenv("FLEET_OSQUERY_CONFIG_IN_MEMORY_CACHE", "true")
+	require.True(t, man.LoadConfig().Osquery.ConfigInMemoryCache)
+}
+
 func TestOsqueryConfigValidate(t *testing.T) {
 	t.Parallel()
 
@@ -1086,4 +1419,42 @@ func TestMDMConfigValidateAppleAPNSAndSCEPPair(t *testing.T) {
 		cfg.ValidateAppleAPNSAndSCEPPair(func(err error, msg string) { called = true })
 		require.True(t, called)
 	})
+}
+
+func TestValidateWebSocketConfig(t *testing.T) {
+	t.Parallel()
+	valid := WebSocketConfig{
+		TransportEnabled: true,
+		PingInterval:     5 * time.Minute,
+		PongTimeout:      30 * time.Second,
+		CheckInterval:    30 * time.Second,
+		CheckBatchSize:   500,
+	}
+
+	t.Run("valid", func(t *testing.T) {
+		valid.Validate(func(err error, msg string) { t.Errorf("unexpected error: %v (%s)", err, msg) })
+	})
+
+	t.Run("invalid values ignored when transport disabled", func(t *testing.T) {
+		cfg := WebSocketConfig{TransportEnabled: false}
+		cfg.Validate(func(err error, msg string) { t.Errorf("unexpected error: %v (%s)", err, msg) })
+	})
+
+	for _, c := range []struct {
+		name   string
+		mutate func(*WebSocketConfig)
+	}{
+		{"zero ping_interval", func(c *WebSocketConfig) { c.PingInterval = 0 }},
+		{"negative pong_timeout", func(c *WebSocketConfig) { c.PongTimeout = -time.Second }},
+		{"zero check_interval", func(c *WebSocketConfig) { c.CheckInterval = 0 }},
+		{"zero check_batch_size", func(c *WebSocketConfig) { c.CheckBatchSize = 0 }},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			cfg := valid
+			c.mutate(&cfg)
+			called := false
+			cfg.Validate(func(err error, msg string) { called = true })
+			require.True(t, called)
+		})
+	}
 }

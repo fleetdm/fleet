@@ -15,6 +15,7 @@ import (
 	"fmt"
 
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	platform_authz "github.com/fleetdm/fleet/v4/server/platform/authz"
@@ -130,6 +131,33 @@ func (a *Authorizer) Authorize(ctx context.Context, object, action interface{}) 
 	}
 
 	return nil
+}
+
+// AuthorizeOrNotFound authorizes action on object. If that fails, it also
+// checks fleet.ActionRead on the same object; if the caller can't even read
+// it, notFoundErr is returned instead of the original failure, so a resource
+// entirely outside the caller's visibility is indistinguishable from one that
+// doesn't exist. If the caller CAN read it, or notFoundErr is nil, the
+// original authorization failure is returned unchanged: in the first case no
+// new information is disclosed by it (the caller already knows the resource
+// exists); in the second, masking would incorrectly return nil (success) for
+// a caller who was never authorized.
+func (a *Authorizer) AuthorizeOrNotFound(ctx context.Context, object, action any, notFoundErr error) error {
+	actionErr := a.Authorize(ctx, object, action)
+	if actionErr == nil {
+		return nil
+	}
+
+	if readErr := a.Authorize(ctx, object, fleet.ActionRead); readErr == nil || notFoundErr == nil {
+		return actionErr
+	}
+
+	// The caller can't read this resource either: report notFoundErr instead
+	// of actionErr, so its existence isn't disclosed. Still record the real
+	// cause for observability, so a systemic authz/policy failure isn't
+	// silently reported as "not found" for every caller.
+	ctxerr.Handle(ctx, actionErr)
+	return notFoundErr
 }
 
 // ExtraAuthzer is the interface to implement extra fields for the policy.

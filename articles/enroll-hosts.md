@@ -36,6 +36,10 @@ To manually enroll iOS, iPadOS, or Android hosts, follow the steps below:
 
 4. When your end users visit the link and follow the steps provided on the enrollment page, their host will be enrolled.
 
+To test enrollment yourself, scan the QR code below the enrollment link. It opens the same page you share with your end users.
+
+Company-owned (fully-managed) Android hosts enroll from the setup wizard after a factory reset. That page provides a separate QR code for the wizard to scan.
+
 ## CLI
 
 > You must have `fleetctl` installed. [Learn how to install `fleetctl`](https://fleetdm.com/guides/fleetctl#installing-fleetctl).
@@ -47,7 +51,8 @@ The `--type` flag is used to specify the fleetd installer type.
 - macOS: `pkg`
   - Generating a .pkg on Linux requires [Docker](https://docs.docker.com/get-docker) to be installed and running.
 - Windows: `msi`
-  - Generating a .msi on Windows, macOS, or Linux requires [Docker](https://docs.docker.com/get-docker) to be installed and running. On Windows, you can [use WiX without Docker instead](https://fleetdm.com/guides/enroll-hosts#generating-fleetd-for-windows-using-local-wix-toolset).
+  - Generating a .msi on Windows, Intel Macs, or Linux requires [Docker](https://docs.docker.com/get-docker) to be installed and running. On Windows, you can [use WiX without Docker instead](https://fleetdm.com/guides/enroll-hosts#generating-fleetd-for-windows-using-local-wix-toolset).
+  - Generating a .msi on Apple Silicon Macs requires [Docker](https://docs.docker.com/get-docker) to be installed. If you need to continue using Wine, see [WineHQ wiki](https://gitlab.winehq.org/wine/wine/-/wikis/MacOS).
 - Linux: `deb`, `rpm`, or `pkg.tar.zst`
   - `deb`: Debian-based linux (e.g. Ubuntu, Debian).
   - `rpm`: RPM-based linux (e.g. OpenSUSE, Red Hat, Fedora).
@@ -74,8 +79,9 @@ Tip: To see all options for `fleetctl package` command, run `fleetctl package -h
 You can use your tool of choice, like [Munki](https://www.munki.org/munki/) on macOS or a package manager ([APT](https://en.wikipedia.org/wiki/APT_(software)) or [DNF](https://en.wikipedia.org/wiki/DNF_(software))) on Linux, to install fleetd.
 
 ### Enroll hosts to a fleet
+`Applies only to Fleet Premium`
 
-With hosts segmented into fleet, you can apply unique queries and give users access to only the hosts in specific fleet. [Learn more about fleet](https://fleetdm.com/docs/using-fleet/segment-hosts).
+With hosts segmented into fleets, you can apply unique queries and give users access to only the hosts in specific fleet. [Learn more about fleet](https://fleetdm.com/docs/using-fleet/segment-hosts).
 
 To enroll to a specific fleet: from the **Hosts** page, select the desired fleet from the menu at the top of the screen, then follow the instructions above for generating Fleet's agent (fleetd). The fleet's enroll secret will be included in the generated command or on the enrollment page for iOS, iPadOS, and Android hosts.
 
@@ -172,6 +178,20 @@ In the Google Admin console:
 > Delete the host from Fleet before re-enrolling to clear labels, prevent pending actions, and avoid showing stale vitals. **Apple Business (AB) hosts are the exception**. Fleet automatically clears stale state on re-enrollment, so deletion isn't needed. See the [Apple MDM setup guide](https://fleetdm.com/guides/macos-mdm-setup#re-enrolling-ab-hosts) for details.
 
 > The unenroll action on Android hosts sends a wipe command via the Android Management API. [Learn more](https://fleedtdm.com/docs/rest-api/rest-api#turn-off-hosts-mdm)
+
+## Delete a host
+
+Deleting a host removes it from Fleet. It does not unenroll the device or change anything in Apple Business (AB). The MDM enrollment and the management profile stay on the device. The device also stays assigned to Fleet in AB.
+
+Because that assignment is still in place, deleting a host assigned to Fleet in AB brings it straight back as a **Pending** host. To remove it for good, release or reassign the device in AB first, then delete the host in Fleet. If Fleet can't reach AB to check the assignment, the delete fails. Retry once AB is reachable.
+
+Deleting a host also cancels its upcoming activities and removes Fleet's record of the MDM commands it has already sent. Delete a host while a wipe or another command is still in flight, and Fleet can no longer report whether that command completed.
+
+To decommission a host:
+
+1. Unenroll or [wipe the host](https://fleetdm.com/guides/lock-wipe-hosts#wipe-a-host) in Fleet, and confirm it finished.
+2. For Apple hosts, release or reassign the device in AB.
+3. Delete the host in Fleet.
 
 ## Debugging
 

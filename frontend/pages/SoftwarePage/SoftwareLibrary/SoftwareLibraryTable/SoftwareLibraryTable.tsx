@@ -22,7 +22,6 @@ import LastUpdatedText from "components/LastUpdatedText";
 import Slider from "components/forms/fields/Slider";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
 import TableCount from "components/TableContainer/TableCount";
-import Icon from "components/Icon";
 
 import EmptySoftwareTable from "pages/SoftwarePage/components/tables/EmptySoftwareTable";
 
@@ -206,14 +205,14 @@ const SoftwareLibraryTable = ({
   const renderCustomControls = () => {
     return (
       <div className={`${baseClass}__controls`}>
-        <Button variant="inverse" onClick={onClickCategories}>
-          <Icon name="settings" /> Categories
+        <Button variant="secondary" onClick={onClickCategories} icon="settings">
+          Categories
         </Button>
         <Slider
           value={selfServiceOnly}
           onChange={handleSelfServiceToggle}
-          inactiveText="Self-service only"
-          activeText="Self-service only"
+          inactiveText="Self service only"
+          activeText="Self service only"
           disabled={controlsDisabled}
         />
       </div>

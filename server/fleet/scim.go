@@ -2,6 +2,7 @@ package fleet
 
 import (
 	"fmt"
+	"slices"
 	"time"
 )
 
@@ -28,8 +29,12 @@ type ScimUser struct {
 	Department *string   `db:"department"`
 	Active     *bool     `db:"active"`
 	UpdatedAt  time.Time `db:"updated_at"`
-	Emails     []ScimUserEmail
-	Groups     []ScimUserGroup
+	// FleetUserID is the durable link to the matching Fleet user, used to
+	// deprovision that user on deactivation regardless of later changes to
+	// userName/emails. Nil when no matching Fleet user has been resolved.
+	FleetUserID *uint `db:"user_id"`
+	Emails      []ScimUserEmail
+	Groups      []ScimUserGroup
 }
 
 type ScimUserGroup struct {
@@ -120,6 +125,44 @@ type ScimGroup struct {
 	ExternalID  *string `db:"external_id"`
 	DisplayName string  `db:"display_name"`
 	ScimUsers   []uint
+	// ChildGroups holds the IDs of SCIM groups that are direct (nested) members
+	// of this group. Microsoft Entra ID provisions nested groups by sending
+	// group-type members rather than flattening them into user members.
+	ChildGroups []uint
+}
+
+// ScimGroupMemberDeltas describes a targeted change to a SCIM group's
+// membership.
+type ScimGroupMemberDeltas struct {
+	AddUsers          []uint
+	RemoveUsers       []uint
+	AddChildGroups    []uint
+	RemoveChildGroups []uint
+}
+
+func (d *ScimGroupMemberDeltas) AddUser(id uint) { record(&d.AddUsers, &d.RemoveUsers, id) }
+
+func (d *ScimGroupMemberDeltas) RemoveUser(id uint) { record(&d.RemoveUsers, &d.AddUsers, id) }
+
+func (d *ScimGroupMemberDeltas) AddChildGroup(id uint) {
+	record(&d.AddChildGroups, &d.RemoveChildGroups, id)
+}
+
+func (d *ScimGroupMemberDeltas) RemoveChildGroup(id uint) {
+	record(&d.RemoveChildGroups, &d.AddChildGroups, id)
+}
+
+// record folds one member change into the deltas, keeping the two invariants the
+// write relies on: a member appears at most once in a list, and never in both
+// lists. Changes are recorded in the order the caller applies them, so the last
+// one wins, an add after a remove leaves only the add.
+func record(into, from *[]uint, id uint) {
+	if !slices.Contains(*into, id) {
+		*into = append(*into, id)
+	}
+	if i := slices.Index(*from, id); i >= 0 {
+		*from = slices.Delete(*from, i, i+1)
+	}
 }
 
 type ScimLastRequest struct {

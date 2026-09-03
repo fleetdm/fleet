@@ -373,11 +373,19 @@ const TableContainer = <T,>({
           className={`${baseClass}__table-action-button`}
         >
           <>
-            {resolvedButtonText}
-            {actionButton.iconSvg && (
+            {actionButton.iconPosition === "left" && actionButton.iconSvg && (
               <Icon
                 name={actionButton.iconSvg}
                 color={actionButton.iconColor || "ui-fleet-black-75"}
+                size="small"
+              />
+            )}
+            {resolvedButtonText}
+            {actionButton.iconPosition !== "left" && actionButton.iconSvg && (
+              <Icon
+                name={actionButton.iconSvg}
+                color={actionButton.iconColor || "ui-fleet-black-75"}
+                size="small"
               />
             )}
           </>
@@ -488,6 +496,11 @@ const TableContainer = <T,>({
                   {renderCount()}
                 </div>
               )}
+              {/* `.controls` shape is load-bearing: the collapse rule in
+                  TableContainer/_styles.scss uses `:has(.controls > *)` to
+                  hide the header when this element renders no children.
+                  Renaming or restructuring this span needs a matching
+                  update to the selector. */}
               <span className="controls">
                 {actionButton &&
                   !actionButton.hideButton &&

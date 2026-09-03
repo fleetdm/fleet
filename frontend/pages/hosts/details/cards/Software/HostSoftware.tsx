@@ -42,7 +42,7 @@ import { generateSoftwareTableHeaders as generateDeviceSoftwareTableConfig } fro
 import HostSoftwareTable from "./HostSoftwareTable";
 import { getSoftwareSubheader } from "./helpers";
 
-const baseClass = "host-software-card";
+const baseClass = "host-software-section";
 
 export interface ITableSoftware extends Omit<ISoftware, "vulnerabilities"> {
   vulnerabilities: string[]; // for client-side search purposes, we only want an array of cve strings
@@ -305,9 +305,8 @@ const HostSoftware = ({
           router,
           teamId: hostTeamId,
           onShowInventoryVersions,
-          platform,
         });
-  }, [isMyDevicePage, router, hostTeamId, onShowInventoryVersions, platform]);
+  }, [isMyDevicePage, router, hostTeamId, onShowInventoryVersions]);
 
   const isLoading = isMyDevicePage
     ? deviceSoftwareLoading

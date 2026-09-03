@@ -108,8 +108,65 @@ describe("AssetsTab", () => {
     render(<AssetsTab currentTeamId={0} router={createMockRouter()} />);
 
     expect(await screen.findByText("No assets")).toBeInTheDocument();
+    // Empty state's own "Add asset" primaryButton + the persistent tab-header
+    // "Add asset" (accessible name "plus Add asset" from its icon) — both
+    // match /Add asset$/i.
+    expect(screen.getAllByRole("button", { name: /Add asset$/i })).toHaveLength(
+      2
+    );
+  });
+
+  it("renders the EmptyState heading without Add asset for technicians when there are no assets", async () => {
+    (mdmAPI.getAssets as jest.Mock).mockResolvedValue({ assets: [] });
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: {
+        app: {
+          isPremiumTier: true,
+          isGlobalTechnician: true,
+          config: mdmEnabledConfig,
+        },
+      },
+    });
+
+    render(<AssetsTab currentTeamId={0} router={createMockRouter()} />);
+
     expect(
-      screen.getByRole("button", { name: "Add asset" })
+      await screen.findByRole("heading", { name: /No assets/i })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/No assets have been added\./i)
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /Add asset$/i })
+    ).not.toBeInTheDocument();
+  });
+
+  it("renders the tab-header description and Add asset button above the list", async () => {
+    (mdmAPI.getAssets as jest.Mock).mockResolvedValue({
+      assets: [
+        {
+          asset_uuid: "u1",
+          name: "Asset",
+          identifier: "com.example.asset1",
+          created_at: "2024-01-01T00:00:00Z",
+          uploaded_at: "2024-01-01T00:00:00Z",
+          checksum: "abc",
+        },
+      ],
+    });
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: { app: { isPremiumTier: true, config: mdmEnabledConfig } },
+    });
+
+    render(<AssetsTab currentTeamId={0} router={createMockRouter()} />);
+
+    expect(
+      screen.getByText(/Manage assets that provide data or credentials/i)
+    ).toBeInTheDocument();
+    expect(
+      await screen.findByRole("button", { name: /Add asset$/i })
     ).toBeInTheDocument();
   });
 

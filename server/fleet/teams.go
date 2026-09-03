@@ -1,6 +1,7 @@
 package fleet
 
 import (
+	"context"
 	"database/sql/driver"
 	"encoding/json"
 	"fmt"
@@ -8,7 +9,6 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
-	"github.com/fleetdm/fleet/v4/server/ptr"
 	"golang.org/x/text/unicode/norm"
 )
 
@@ -34,6 +34,11 @@ const (
 	DisplayNameAllTeams = "All fleets"
 )
 
+// MaxTeamNameLength matches the varchar(255) size of teams.name in MySQL.
+// Enforce this before insert/update so callers get an InvalidArgumentError
+// instead of a raw "Data too long" MySQL error.
+const MaxTeamNameLength = 255
+
 // IsReservedTeamName checks if the name provided is a reserved fleet name (case-insensitive).
 // Both old names ("No team", "All teams") and new display names ("Unassigned", "All fleets")
 // are reserved to prevent creating teams with any of these names.
@@ -41,6 +46,11 @@ func IsReservedTeamName(name string) bool {
 	normalizedName := strings.ToLower(norm.NFC.String(name))
 	return normalizedName == "no team" || normalizedName == "all teams" ||
 		normalizedName == "unassigned" || normalizedName == "all fleets"
+}
+
+// IsUnassignedFleetName checks if the name provided is the display name of the "Unassigned" pseudo-fleet, i.e. hosts with no fleet (case-insensitive).
+func IsUnassignedFleetName(name string) bool {
+	return strings.ToLower(name) == "unassigned"
 }
 
 type TeamPayload struct {
@@ -60,11 +70,13 @@ type TeamPayload struct {
 // `features` shape so admins can use the same JSON path on both endpoints.
 //
 // Only the sub-fields defined here take effect; the broader Features
-// fields (enable_host_users, enable_software_inventory, additional_queries,
-// detail_query_overrides) remain settable per-fleet only via the
-// `/spec/fleets` GitOps path.
+// fields (enable_host_users, additional_queries, detail_query_overrides)
+// remain settable per-fleet only via the `/spec/fleets` GitOps path.
 type TeamPayloadFeatures struct {
-	HistoricalData *HistoricalDataPayload `json:"historical_data"`
+	// EnableSoftwareInventory uses optjson.Bool so a key omitted from a
+	// PATCH body retains its current stored value (PATCH-merge semantics).
+	EnableSoftwareInventory optjson.Bool           `json:"enable_software_inventory"`
+	HistoricalData          *HistoricalDataPayload `json:"historical_data"`
 }
 
 // HistoricalDataPayload is the per-sub-key partial-PATCH form of
@@ -98,6 +110,35 @@ type TeamPayloadMDM struct {
 
 	MacOSSetup       *MacOSSetup    `json:"macos_setup"`
 	HostNameTemplate optjson.String `json:"name_template"`
+
+	// MacOSSettings exposes only the disk encryption surface on the team PATCH endpoint;
+	// configuration profiles are managed through their own endpoints.
+	MacOSSettings *TeamPayloadMacOSSettings `json:"macos_settings" renameto:"apple_settings"`
+	// WindowsSettings exposes only the managed local account and disk encryption surfaces
+	// on the team PATCH endpoint; configuration profiles are managed through their own endpoints.
+	WindowsSettings *TeamPayloadWindowsSettings `json:"windows_settings"`
+	LinuxSettings   *TeamPayloadLinuxSettings   `json:"linux_settings"`
+}
+
+// TeamPayloadMacOSSettings is the subset of macos_settings (apple_settings) fields
+// settable via the team PATCH endpoint.
+type TeamPayloadMacOSSettings struct {
+	EnableDiskEncryption          optjson.Bool `json:"enable_disk_encryption"`
+	EnableEscrowDiskEncryptionKey optjson.Bool `json:"enable_escrow_disk_encryption_key"`
+}
+
+// TeamPayloadWindowsSettings is the subset of windows_settings fields settable via the team PATCH endpoint.
+type TeamPayloadWindowsSettings struct {
+	EnableManagedLocalAccount optjson.Bool `json:"enable_managed_local_account"`
+	// RequireBitLockerPIN is the canonical home of the deprecated top-level
+	// windows_require_bitlocker_pin key.
+	RequireBitLockerPIN  optjson.Bool `json:"require_bitlocker_pin"`
+	EnableDiskEncryption optjson.Bool `json:"enable_disk_encryption"`
+}
+
+// TeamPayloadLinuxSettings is the subset of linux_settings fields settable via the team PATCH endpoint.
+type TeamPayloadLinuxSettings struct {
+	EnableEscrowDiskEncryptionKey optjson.Bool `json:"enable_escrow_disk_encryption_key"`
 }
 
 // Team is the data representation for the "Team" concept (group of hosts and
@@ -184,6 +225,16 @@ func (t Team) MarshalJSON() ([]byte, error) {
 		Secrets:     t.Secrets,
 	}
 
+	// Fall back to defaults when these keys are missing from the stored config
+	// (e.g. a team created before they existed), so the serialized team matches
+	// what AppConfig.MarshalJSON serves for the global config.
+	if !x.MDM.MacOSSetup.EnableManagedLocalAccount.Valid {
+		x.MDM.MacOSSetup.EnableManagedLocalAccount = optjson.SetBool(false)
+	}
+	if !x.MDM.MacOSSetup.EndUserLocalAccountType.Valid {
+		x.MDM.MacOSSetup.EndUserLocalAccountType = optjson.SetString("admin")
+	}
+
 	return json.Marshal(x)
 }
 
@@ -264,6 +315,89 @@ type TeamWebhookSettings struct {
 	// HostStatusWebhook can be nil to match the TeamSpec webhook settings
 	HostStatusWebhook      *HostStatusWebhookSettings     `json:"host_status_webhook"`
 	FailingPoliciesWebhook FailingPoliciesWebhookSettings `json:"failing_policies_webhook"`
+	// HostActivitiesWebhook is nil when not provided so partial updates and
+	// team specs can leave the stored value untouched.
+	HostActivitiesWebhook *HostActivitiesWebhookSettings `json:"host_activities_webhook"`
+}
+
+// HostActivitiesWebhookSettings is the per-fleet webhook fired when an
+// activity linked to one of the fleet's hosts is created. The payload has the
+// same format as the global activities webhook (ActivitiesWebhookSettings).
+type HostActivitiesWebhookSettings struct {
+	Enable         bool   `json:"enable_host_activities_webhook"`
+	DestinationURL string `json:"destination_url"`
+}
+
+// HostActivitiesWebhookLookup is the subset of Datastore reads needed to
+// resolve the host-activities webhooks of the fleets a set of hosts belong to.
+type HostActivitiesWebhookLookup interface {
+	ListHostsLiteByIDs(ctx context.Context, ids []uint) ([]*Host, error)
+	TeamLitesByIDs(ctx context.Context, ids []uint) ([]*TeamLite, error)
+}
+
+// HostActivitiesWebhookDelivery is one fleet's resolved host-activities
+// webhook destination together with the subset of the activity's hosts that
+// belong to that fleet. Payloads are scoped this way so a delivery is always
+// exactly one fleet's subscription — it never mixes fleets' host IDs.
+type HostActivitiesWebhookDelivery struct {
+	DestinationURL string
+	HostIDs        []uint
+}
+
+// ResolveHostActivitiesWebhooks returns one enabled host-activities webhook delivery per fleet the given hosts belong to.
+func ResolveHostActivitiesWebhooks(ctx context.Context, ds HostActivitiesWebhookLookup, hostIDs []uint) ([]HostActivitiesWebhookDelivery, error) {
+	if len(hostIDs) == 0 {
+		return nil, nil
+	}
+
+	hosts, err := ds.ListHostsLiteByIDs(ctx, hostIDs)
+	if err != nil {
+		return nil, err
+	}
+
+	// fleetKeys keeps delivery order deterministic (map iteration is
+	// randomized). Key 0 is reserved for "Unassigned" hosts (nil TeamID), so
+	// it can't collide with a real fleet.
+	fleetKeys := make([]uint, 0, len(hosts))
+	hostsByFleet := make(map[uint][]uint)
+	for _, host := range hosts {
+		var fleetKey uint
+		if host.TeamID != nil {
+			fleetKey = *host.TeamID
+		}
+		if _, ok := hostsByFleet[fleetKey]; !ok {
+			fleetKeys = append(fleetKeys, fleetKey)
+		}
+		hostsByFleet[fleetKey] = append(hostsByFleet[fleetKey], host.ID)
+	}
+
+	fleets, err := ds.TeamLitesByIDs(ctx, fleetKeys)
+	if err != nil {
+		return nil, err
+	}
+	fleetsByID := make(map[uint]*TeamLite, len(fleets))
+	for _, f := range fleets {
+		fleetsByID[f.ID] = f
+	}
+
+	// Resolve each fleet's webhook into its own delivery.
+	var deliveries []HostActivitiesWebhookDelivery
+	for _, fleetKey := range fleetKeys {
+		team, ok := fleetsByID[fleetKey]
+		if !ok { // deleted fleet
+			continue
+		}
+		webhook := team.Config.WebhookSettings.HostActivitiesWebhook
+		if webhook == nil || !webhook.Enable || webhook.DestinationURL == "" {
+			continue
+		}
+		deliveries = append(deliveries, HostActivitiesWebhookDelivery{
+			DestinationURL: webhook.DestinationURL,
+			HostIDs:        hostsByFleet[fleetKey],
+		})
+	}
+
+	return deliveries, nil
 }
 
 // DefaultTeam represents the limited team information returned for team ID 0
@@ -281,6 +415,7 @@ type DefaultTeamConfig struct {
 // DefaultTeamWebhookSettings contains webhook settings for team ID 0
 type DefaultTeamWebhookSettings struct {
 	FailingPoliciesWebhook FailingPoliciesWebhookSettings `json:"failing_policies_webhook"`
+	HostActivitiesWebhook  *HostActivitiesWebhookSettings `json:"host_activities_webhook"`
 }
 
 // DefaultTeamIntegrations contains only the integrations supported for team ID 0
@@ -337,6 +472,8 @@ type TeamMDM struct {
 
 	AndroidSettings AndroidSettings `json:"android_settings"`
 
+	LinuxSettings LinuxSettings `json:"linux_settings"`
+
 	// HostNameTemplate is the template used to compute a host's display name from
 	// host-identity Fleet variables (e.g. $FLEET_VAR_HOST_HARDWARE_SERIAL).
 	HostNameTemplate string `json:"name_template"`
@@ -351,6 +488,83 @@ type TeamMDM struct {
 // Clone implements cloner for TeamMDM.
 func (t *TeamMDM) Clone() (Cloner, error) {
 	return t.Copy(), nil
+}
+
+// MarshalJSON keeps the deprecated flat EnableDiskEncryption toggle virtual:
+// every serialization (API responses, teams.config storage) recomputes it as
+// the AND of the four per-platform disk encryption settings, and unset
+// per-platform settings become explicit booleans (fanned out from the flat
+// value when none was ever set). The other unset optjson toggles below default
+// to false the same way, so no serialization path emits null for them.
+func (t TeamMDM) MarshalJSON() ([]byte, error) {
+	t.EnableDiskEncryption = normalizeDiskEncryptionFields(
+		t.EnableDiskEncryption,
+		&t.MacOSSettings.EnableDiskEncryption,
+		&t.MacOSSettings.EnableEscrowDiskEncryptionKey,
+		&t.WindowsSettings.EnableDiskEncryption,
+		&t.LinuxSettings.EnableEscrowDiskEncryptionKey,
+	)
+	// keep the deprecated windows_require_bitlocker_pin key in sync with its
+	// canonical windows_settings.require_bitlocker_pin home
+	if t.WindowsSettings.RequireBitLockerPIN.Valid {
+		t.RequireBitLockerPIN = t.WindowsSettings.RequireBitLockerPIN.Value
+	} else {
+		t.WindowsSettings.RequireBitLockerPIN = optjson.SetBool(t.RequireBitLockerPIN)
+	}
+	if !t.WindowsSettings.EnableManagedLocalAccount.Valid {
+		t.WindowsSettings.EnableManagedLocalAccount = optjson.SetBool(false)
+	}
+	// the alias type has no methods, so marshaling it avoids infinite recursion
+	type alias TeamMDM
+	return json.Marshal(alias(t))
+}
+
+// UnmarshalJSON fills per-platform disk encryption settings ABSENT from the
+// stored document from the flat toggle. This keeps team configs correct even
+// if the per-platform keys were dropped from the stored JSON (e.g. re-saved by
+// a pre-split server after the fan-out migration ran). A key explicitly
+// present (including explicit null) is never overridden here.
+func (t *TeamMDM) UnmarshalJSON(b []byte) error {
+	// the alias type has no methods, so unmarshaling it avoids infinite recursion
+	type alias TeamMDM
+	if err := json.Unmarshal(b, (*alias)(t)); err != nil {
+		return err
+	}
+	for _, f := range []*optjson.Bool{
+		&t.MacOSSettings.EnableDiskEncryption,
+		&t.MacOSSettings.EnableEscrowDiskEncryptionKey,
+		&t.WindowsSettings.EnableDiskEncryption,
+		&t.LinuxSettings.EnableEscrowDiskEncryptionKey,
+	} {
+		if !f.Set {
+			*f = optjson.SetBool(t.EnableDiskEncryption)
+		}
+	}
+	// the BitLocker PIN's canonical home inherits the deprecated top-level key
+	// the same way when absent from the document
+	if !t.WindowsSettings.RequireBitLockerPIN.Set {
+		t.WindowsSettings.RequireBitLockerPIN = optjson.SetBool(t.RequireBitLockerPIN)
+	}
+	return nil
+}
+
+// DiskEncryptionConfig returns the team's effective per-platform disk
+// encryption settings.
+func (t *TeamMDM) DiskEncryptionConfig() DiskEncryptionConfig {
+	if t == nil {
+		return DiskEncryptionConfig{}
+	}
+	pinRequired := t.RequireBitLockerPIN
+	if t.WindowsSettings.RequireBitLockerPIN.Valid {
+		pinRequired = t.WindowsSettings.RequireBitLockerPIN.Value
+	}
+	return DiskEncryptionConfig{
+		MacOSEnabled:         t.MacOSSettings.EnableDiskEncryption.Value,
+		MacOSEscrowEnabled:   t.MacOSSettings.EnableEscrowDiskEncryptionKey.Value,
+		WindowsEnabled:       t.WindowsSettings.EnableDiskEncryption.Value,
+		BitLockerPINRequired: pinRequired,
+		LinuxEscrowEnabled:   t.LinuxSettings.EnableEscrowDiskEncryptionKey.Value,
+	}
 }
 
 // Copy returns a deep copy of the TeamMDM.
@@ -370,9 +584,6 @@ func (t *TeamMDM) Copy() *TeamMDM {
 		for i, mps := range t.MacOSSettings.CustomSettings {
 			clone.MacOSSettings.CustomSettings[i] = *mps.Copy()
 		}
-	}
-	if t.MacOSSettings.DeprecatedEnableDiskEncryption != nil {
-		clone.MacOSSettings.DeprecatedEnableDiskEncryption = ptr.Bool(*t.MacOSSettings.DeprecatedEnableDiskEncryption)
 	}
 	if t.WindowsSettings.CustomSettings.Set {
 		windowsSettings := make([]MDMProfileSpec, len(t.WindowsSettings.CustomSettings.Value))
@@ -426,6 +637,7 @@ type TeamSpecMDM struct {
 	WindowsSettings WindowsSettings `json:"windows_settings"`
 
 	AndroidSettings  AndroidSettings `json:"android_settings"`
+	LinuxSettings    LinuxSettings   `json:"linux_settings"`
 	HostNameTemplate optjson.String  `json:"name_template"`
 
 	// NOTE: TeamMDM must be kept in sync with TeamSpecMDM.
@@ -482,6 +694,10 @@ func (t *TeamConfig) Copy() *TeamConfig {
 	if t.WebhookSettings.HostStatusWebhook != nil {
 		hostStatusCopy := *t.WebhookSettings.HostStatusWebhook
 		clone.WebhookSettings.HostStatusWebhook = &hostStatusCopy
+	}
+	if t.WebhookSettings.HostActivitiesWebhook != nil {
+		hostActivitiesCopy := *t.WebhookSettings.HostActivitiesWebhook
+		clone.WebhookSettings.HostActivitiesWebhook = &hostActivitiesCopy
 	}
 	if len(t.WebhookSettings.FailingPoliciesWebhook.PolicyIDs) > 0 {
 		clone.WebhookSettings.FailingPoliciesWebhook.PolicyIDs = make([]uint, len(t.WebhookSettings.FailingPoliciesWebhook.PolicyIDs))
@@ -711,6 +927,7 @@ type TeamSpec struct {
 type TeamSpecWebhookSettings struct {
 	HostStatusWebhook      *HostStatusWebhookSettings      `json:"host_status_webhook"`
 	FailingPoliciesWebhook *FailingPoliciesWebhookSettings `json:"failing_policies_webhook"`
+	HostActivitiesWebhook  *HostActivitiesWebhookSettings  `json:"host_activities_webhook"`
 }
 
 // TeamSpecIntegrations contains the configuration for external services'
@@ -747,20 +964,55 @@ func TeamSpecFromTeam(t *Team) (*TeamSpec, error) {
 		agentOptions = *t.Config.AgentOptions
 	}
 
+	// normalize a local copy so the spec always carries explicit per-platform
+	// disk encryption booleans, even for configs stored before the
+	// per-platform split.
+	mdm := t.Config.MDM
+	flat := normalizeDiskEncryptionFields(
+		mdm.EnableDiskEncryption,
+		&mdm.MacOSSettings.EnableDiskEncryption,
+		&mdm.MacOSSettings.EnableEscrowDiskEncryptionKey,
+		&mdm.WindowsSettings.EnableDiskEncryption,
+		&mdm.LinuxSettings.EnableEscrowDiskEncryptionKey,
+	)
+
 	var mdmSpec TeamSpecMDM
-	mdmSpec.MacOSUpdates = t.Config.MDM.MacOSUpdates
-	mdmSpec.WindowsUpdates = t.Config.MDM.WindowsUpdates
-	mdmSpec.MacOSSettings = t.Config.MDM.MacOSSettings.ToMap()
-	delete(mdmSpec.MacOSSettings, "enable_disk_encryption")
-	mdmSpec.MacOSSetup = t.Config.MDM.MacOSSetup
-	mdmSpec.EnableDiskEncryption = optjson.SetBool(t.Config.MDM.EnableDiskEncryption)
-	mdmSpec.EnableRecoveryLockPassword = optjson.SetBool(t.Config.MDM.EnableRecoveryLockPassword)
-	mdmSpec.WindowsSettings = t.Config.MDM.WindowsSettings
-	mdmSpec.AndroidSettings = t.Config.MDM.AndroidSettings
+	mdmSpec.MacOSUpdates = mdm.MacOSUpdates
+	mdmSpec.WindowsUpdates = mdm.WindowsUpdates
+	mdmSpec.MacOSSettings = mdm.MacOSSettings.ToMap()
+	// assets are only present in ToMap for GitOps request validation; they are
+	// not stored on the team config, so keep them out of the generated spec.
+	delete(mdmSpec.MacOSSettings, "assets")
+	mdmSpec.MacOSSetup = mdm.MacOSSetup
+	// emit the deprecated flat toggle only when it agrees with every
+	// per-platform setting: the flat toggle wins when provided, so emitting it
+	// for a mixed state would reset the per-platform values on re-apply.
+	uniformDiskEncryption := true
+	for _, v := range []bool{
+		mdm.MacOSSettings.EnableDiskEncryption.Value,
+		mdm.MacOSSettings.EnableEscrowDiskEncryptionKey.Value,
+		mdm.WindowsSettings.EnableDiskEncryption.Value,
+		mdm.LinuxSettings.EnableEscrowDiskEncryptionKey.Value,
+	} {
+		if v != flat {
+			uniformDiskEncryption = false
+			break
+		}
+	}
+	if uniformDiskEncryption {
+		mdmSpec.EnableDiskEncryption = optjson.SetBool(flat)
+	}
+	mdmSpec.EnableRecoveryLockPassword = optjson.SetBool(mdm.EnableRecoveryLockPassword)
+	mdmSpec.WindowsSettings = mdm.WindowsSettings
+	mdmSpec.AndroidSettings = mdm.AndroidSettings
+	mdmSpec.LinuxSettings = mdm.LinuxSettings
 
 	var webhookSettings TeamSpecWebhookSettings
 	if t.Config.WebhookSettings.HostStatusWebhook != nil {
 		webhookSettings.HostStatusWebhook = t.Config.WebhookSettings.HostStatusWebhook
+	}
+	if t.Config.WebhookSettings.HostActivitiesWebhook != nil {
+		webhookSettings.HostActivitiesWebhook = t.Config.WebhookSettings.HostActivitiesWebhook
 	}
 
 	var integrations TeamSpecIntegrations

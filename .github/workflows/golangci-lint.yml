@@ -25,7 +25,7 @@ on:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
-  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id}}
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.head_ref || github.ref }}
   cancel-in-progress: true
 
 defaults:
@@ -59,7 +59,7 @@ jobs:
           egress-policy: audit
 
       - name: Checkout code
-        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
@@ -78,7 +78,7 @@ jobs:
         run: |
           # Don't forget to update
           # docs/Contributing/Testing-and-local-development.md when this version changes
-          go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@6008b81b81c690c046ffc3fd5bce896da715d5fd # v2.11.3
+          go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@27774aaf853a4fd21f1dd5e69439459dc1b26e68 # v2.13.2
           SKIP_INCREMENTAL=1 make lint-go
 
       - name: Run cloner-check tool
@@ -122,7 +122,7 @@ jobs:
           egress-policy: audit
 
       - name: Checkout code
-        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0  # Fetch full history for accurate diff
           persist-credentials: false
@@ -142,7 +142,7 @@ jobs:
         run: |
           # Don't forget to update
           # docs/Contributing/Testing-and-local-development.md when this version changes
-          go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@6008b81b81c690c046ffc3fd5bce896da715d5fd # v2.11.3
+          go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@27774aaf853a4fd21f1dd5e69439459dc1b26e68 # v2.13.2
           # custom build of golangci-lint that incorporates nilaway - see .custom-gcl.yml
           golangci-lint custom
           ./custom-gcl run -c .golangci-incremental.yml --new-from-rev=origin/${{ github.base_ref }} --timeout 15m ./...

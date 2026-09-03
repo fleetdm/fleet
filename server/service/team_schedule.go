@@ -7,6 +7,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"gopkg.in/guregu/null.v3"
 )
@@ -42,12 +43,16 @@ func getTeamScheduleEndpoint(ctx context.Context, request interface{}, svc fleet
 	return resp, nil
 }
 
-func (svc Service) GetTeamScheduledQueries(ctx context.Context, teamID uint, opts fleet.ListOptions) ([]*fleet.ScheduledQuery, error) {
-	var teamID_ *uint
-	if teamID != 0 {
-		teamID_ = &teamID
+// The team schedule routes spell the global schedule as fleet_id 0.
+func teamIDOrNilForGlobal(teamID uint) *uint {
+	if teamID == 0 {
+		return nil
 	}
-	queries, _, _, _, err := svc.ListQueries(ctx, opts, teamID_, ptr.Bool(true), false, nil)
+	return &teamID
+}
+
+func (svc Service) GetTeamScheduledQueries(ctx context.Context, teamID uint, opts fleet.ListOptions) ([]*fleet.ScheduledQuery, error) {
+	queries, _, _, _, err := svc.ListQueries(ctx, opts, teamIDOrNilForGlobal(teamID), new(true), false, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -111,15 +116,35 @@ func nameForCopiedQuery(originalName string) string {
 	return "Copy of " + originalName + " (" + fmt.Sprintf("%d", time.Now().Unix()) + ")"
 }
 
-func (svc Service) TeamScheduleQuery(ctx context.Context, teamID uint, scheduledQuery *fleet.ScheduledQuery) (*fleet.ScheduledQuery, error) {
-	originalQuery, err := svc.ds.Query(ctx, scheduledQuery.QueryID)
+// scheduledQueryInScope loads scheduledQueryID and rejects it unless it
+// belongs to teamID (nil for the global schedule). The schedule endpoints
+// carry their scope in the URL path but address the report by a globally
+// unique ID, so without this the path scope is decorative: a report can be
+// reached through any schedule's URL. A mismatch returns the same not-found
+// error as a report that doesn't exist, so probing can't distinguish the two.
+func (svc Service) scheduledQueryInScope(ctx context.Context, scheduledQueryID uint, teamID *uint) (*fleet.Query, error) {
+	query, err := svc.ds.Query(ctx, scheduledQueryID)
 	if err != nil {
 		setAuthCheckedOnPreAuthErr(ctx)
-		return nil, ctxerr.Wrap(ctx, err, "get query from id")
+		return nil, ctxerr.Wrap(ctx, err, "get scheduled query")
 	}
-	if originalQuery.TeamID != nil {
+	if !ptr.Equal(query.TeamID, teamID) {
 		setAuthCheckedOnPreAuthErr(ctx)
-		return nil, ctxerr.New(ctx, "cannot create a team schedule from a team query")
+		return nil, ctxerr.Wrap(ctx, common_mysql.NotFound("Report").WithID(scheduledQueryID), "get scheduled query")
+	}
+	return query, nil
+}
+
+func (svc Service) TeamScheduleQuery(ctx context.Context, teamID uint, scheduledQuery *fleet.ScheduledQuery) (*fleet.ScheduledQuery, error) {
+	// Authorize before loading the source report, so a caller who can't create
+	// anything here learns nothing about which source IDs exist.
+	if err := svc.authz.Authorize(ctx, fleet.Query{TeamID: &teamID}, fleet.ActionWrite); err != nil {
+		return nil, err
+	}
+	// nil scope: only a global report may be used as the source.
+	originalQuery, err := svc.scheduledQueryInScope(ctx, scheduledQuery.QueryID, nil)
+	if err != nil {
+		return nil, err
 	}
 	originalQuery.Name = nameForCopiedQuery(originalQuery.Name)
 	originalQuery.TeamID = &teamID
@@ -155,14 +180,17 @@ func modifyTeamScheduleEndpoint(ctx context.Context, request interface{}, svc fl
 	return modifyTeamScheduleResponse{}, nil
 }
 
-// teamID is not used because of mismatch between old internal representation and API.
 func (svc Service) ModifyTeamScheduledQueries(
 	ctx context.Context,
 	teamID uint,
 	scheduledQueryID uint,
 	scheduledQueryPayload fleet.ScheduledQueryPayload,
 ) (*fleet.ScheduledQuery, error) {
-	query, err := svc.ModifyQuery(ctx, scheduledQueryID, fleet.ScheduledQueryPayloadToQueryPayloadForModifyQuery(scheduledQueryPayload))
+	scoped, err := svc.scheduledQueryInScope(ctx, scheduledQueryID, teamIDOrNilForGlobal(teamID))
+	if err != nil {
+		return nil, err
+	}
+	query, err := svc.modifyLoadedQuery(ctx, scoped, fleet.ScheduledQueryPayloadToQueryPayloadForModifyQuery(scheduledQueryPayload))
 	if err != nil {
 		return nil, err
 	}
@@ -194,7 +222,10 @@ func deleteTeamScheduleEndpoint(ctx context.Context, request interface{}, svc fl
 	return deleteTeamScheduleResponse{}, nil
 }
 
-// teamID is not used because of mismatch between old internal representation and API.
 func (svc Service) DeleteTeamScheduledQueries(ctx context.Context, teamID uint, scheduledQueryID uint) error {
-	return svc.DeleteQueryByID(ctx, scheduledQueryID)
+	scoped, err := svc.scheduledQueryInScope(ctx, scheduledQueryID, teamIDOrNilForGlobal(teamID))
+	if err != nil {
+		return err
+	}
+	return svc.deleteLoadedQuery(ctx, scoped)
 }

@@ -30,9 +30,12 @@
     }
   }
 
+  &__advanced--fleet-certificate {
+    @include flex-column-8px-gap;
+  }
+
   &__certificate-loading {
     color: $ui-fleet-black-50;
-    padding-top: $pad-xsmall;
   }
 
   &__certificate-error {
@@ -48,8 +51,16 @@
   }
 
   &__advanced--heading,
-  &__chromeos--heading {
+  &__chromeos--heading,
+  &__panel-heading {
     font-weight: $bold;
+  }
+
+  // `h3` has no font size of its own in the global stylesheet, so without this
+  // it inherits the browser default and renders larger than the form labels
+  // below it.
+  &__panel-heading {
+    font-size: $x-small;
   }
 
   &__chromeos--info {

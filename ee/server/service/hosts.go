@@ -13,6 +13,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/google/uuid"
 )
 
@@ -56,8 +57,11 @@ func (svc *Service) LockHost(ctx context.Context, hostID uint, viewPIN bool) (un
 
 	// Authorize again with team loaded now that we have the host's team_id.
 	// Authorize as "execute mdm_command", which is the correct access
-	// requirement and is what happens for macOS platforms.
-	if err := svc.authz.Authorize(ctx, fleet.MDMCommandAuthz{TeamID: host.TeamID}, fleet.ActionWrite); err != nil {
+	// requirement and is what happens for macOS platforms. Mask the failure as
+	// not-found when the caller can't even read the host's MDM commands, so
+	// host IDs outside their visibility can't be probed.
+	notFoundErr := ctxerr.Wrap(ctx, common_mysql.NotFound("Host").WithID(hostID), "lock host")
+	if err := svc.authz.AuthorizeOrNotFound(ctx, fleet.MDMCommandAuthz{TeamID: host.TeamID}, fleet.ActionWrite, notFoundErr); err != nil {
 		return "", err
 	}
 
@@ -190,8 +194,11 @@ func (svc *Service) UnlockHost(ctx context.Context, hostID uint) (string, error)
 
 	// Authorize again with team loaded now that we have the host's team_id.
 	// Authorize as "execute mdm_command", which is the correct access
-	// requirement.
-	if err := svc.authz.Authorize(ctx, fleet.MDMCommandAuthz{TeamID: host.TeamID}, fleet.ActionWrite); err != nil {
+	// requirement. Mask the failure as not-found when the caller can't even
+	// read the host's MDM commands, so host IDs outside their visibility can't
+	// be probed.
+	notFoundErr := ctxerr.Wrap(ctx, common_mysql.NotFound("Host").WithID(hostID), "unlock host")
+	if err := svc.authz.AuthorizeOrNotFound(ctx, fleet.MDMCommandAuthz{TeamID: host.TeamID}, fleet.ActionWrite, notFoundErr); err != nil {
 		return "", err
 	}
 
@@ -271,8 +278,11 @@ func (svc *Service) WipeHost(ctx context.Context, hostID uint, metadata *fleet.M
 
 	// Authorize again with team loaded now that we have the host's team_id.
 	// Authorize as "execute mdm_command", which is the correct access
-	// requirement and is what happens for macOS platforms.
-	if err := svc.authz.Authorize(ctx, fleet.MDMCommandAuthz{TeamID: host.TeamID}, fleet.ActionWrite); err != nil {
+	// requirement and is what happens for macOS platforms. Mask the failure as
+	// not-found when the caller can't even read the host's MDM commands, so
+	// host IDs outside their visibility can't be probed.
+	notFoundErr := ctxerr.Wrap(ctx, common_mysql.NotFound("Host").WithID(hostID), "wipe host")
+	if err := svc.authz.AuthorizeOrNotFound(ctx, fleet.MDMCommandAuthz{TeamID: host.TeamID}, fleet.ActionWrite, notFoundErr); err != nil {
 		return err
 	}
 
@@ -588,8 +598,12 @@ func (svc *Service) RotateRecoveryLockPassword(ctx context.Context, hostID uint)
 	}
 
 	// Authorize again with team loaded now that we have the host's team_id.
-	// Authorize as "execute mdm_command", which is the correct access requirement.
-	if err := svc.authz.Authorize(ctx, fleet.MDMCommandAuthz{TeamID: host.TeamID}, fleet.ActionWrite); err != nil {
+	// Authorize as "execute mdm_command", which is the correct access
+	// requirement. Mask the failure as not-found when the caller can't even
+	// read the host's MDM commands, so host IDs outside their visibility can't
+	// be probed.
+	notFoundErr := ctxerr.Wrap(ctx, common_mysql.NotFound("Host").WithID(hostID), "rotate recovery lock password")
+	if err := svc.authz.AuthorizeOrNotFound(ctx, fleet.MDMCommandAuthz{TeamID: host.TeamID}, fleet.ActionWrite, notFoundErr); err != nil {
 		return err
 	}
 
@@ -679,15 +693,14 @@ func (svc *Service) RotateRecoveryLockPassword(ctx context.Context, hostID uint)
 
 	// Generate new password
 	newPassword := apple_mdm.GenerateRecoveryLockPassword()
-
+	setCmdUUID := uuid.NewString()
 	// Store pending rotation
-	if err := svc.ds.InitiateRecoveryLockRotation(ctx, host.UUID, newPassword); err != nil {
+	if err := svc.ds.InitiateRecoveryLockRotation(ctx, host.UUID, setCmdUUID, newPassword); err != nil {
 		return ctxerr.Wrap(ctx, err, "initiate recovery lock rotation")
 	}
 
 	// Enqueue MDM command
-	cmdUUID := uuid.NewString()
-	if err := svc.mdmAppleCommander.RotateRecoveryLock(ctx, host.UUID, cmdUUID); err != nil {
+	if err := svc.mdmAppleCommander.RotateRecoveryLock(ctx, []string{host.UUID}, setCmdUUID); err != nil {
 		// Only clear the pending rotation if the enqueue itself failed.
 		// If it's an APNS delivery error, the command was successfully enqueued
 		// and will be delivered when the device checks in.
@@ -757,9 +770,10 @@ func (svc *Service) GetHostManagedAccountPassword(ctx context.Context, hostID ui
 	if err := svc.authz.Authorize(ctx, host, fleet.ActionRead); err != nil {
 		return nil, err
 	}
-	if !fleet.IsMacOSPlatform(host.Platform) {
+	isWindows := fleet.IsWindowsPlatform(host.Platform)
+	if !fleet.IsMacOSPlatform(host.Platform) && !isWindows {
 		return nil, &fleet.BadRequestError{
-			Message: "Host is not a macOS device.",
+			Message: "Host is not a macOS or Windows device.",
 		}
 	}
 
@@ -783,10 +797,12 @@ func (svc *Service) GetHostManagedAccountPassword(ctx context.Context, hostID ui
 		return nil, ctxerr.Wrap(ctx, err, "get host managed account password")
 	}
 
-	// Surface the rotation lifecycle alongside the password so the modal can
-	// render the auto-rotate / pending-rotation banner on first open without a
-	// separate host-details refetch round-trip.
-	pwd.PendingRotation = acct.PendingRotation
+	// Surface the rotation lifecycle alongside the password so the modal can render the auto-rotate / pending-rotation
+	// banner on first open without a separate host-details refetch round-trip. Windows accounts never rotate yet, so their
+	// response omits the rotation fields.
+	if !isWindows {
+		pwd.PendingRotation = acct.PendingRotation
+	}
 
 	// Log the activity before applying any view side-effects. If activity
 	// creation fails the endpoint returns an error and the password is not
@@ -798,6 +814,11 @@ func (svc *Service) GetHostManagedAccountPassword(ctx context.Context, hostID ui
 		HostDisplayName: host.DisplayName(),
 	}); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "create viewed managed local account activity")
+	}
+
+	// Windows accounts do not auto-rotate, so viewing must not arm the rotate timer and AutoRotateAt stays nil.
+	if isWindows {
+		return pwd, nil
 	}
 
 	// Start the auto-rotation timer (no-op for views inside the existing window)
@@ -834,9 +855,16 @@ func (svc *Service) RotateManagedLocalAccountPassword(ctx context.Context, hostI
 		return ctxerr.Wrap(ctx, err, "get host lite")
 	}
 	// Authorize again with team loaded now that we have the host's team_id.
-	// Authorize as "execute mdm_command", which is the correct access requirement.
-	if err := svc.authz.Authorize(ctx, fleet.MDMCommandAuthz{TeamID: host.TeamID}, fleet.ActionWrite); err != nil {
+	// Authorize as "execute mdm_command", which is the correct access
+	// requirement. Mask the failure as not-found when the caller can't even
+	// read the host's MDM commands, so host IDs outside their visibility can't
+	// be probed.
+	notFoundErr := ctxerr.Wrap(ctx, common_mysql.NotFound("Host").WithID(hostID), "rotate managed local account password")
+	if err := svc.authz.AuthorizeOrNotFound(ctx, fleet.MDMCommandAuthz{TeamID: host.TeamID}, fleet.ActionWrite, notFoundErr); err != nil {
 		return err
+	}
+	if fleet.IsWindowsPlatform(host.Platform) {
+		return &fleet.BadRequestError{Message: "Password rotation is not available for Windows hosts."}
 	}
 	if !fleet.IsMacOSPlatform(host.Platform) {
 		return &fleet.BadRequestError{Message: "Host is not a macOS device."}

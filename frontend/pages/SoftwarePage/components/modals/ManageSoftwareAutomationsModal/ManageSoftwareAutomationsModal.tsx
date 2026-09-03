@@ -434,7 +434,7 @@ const ManageAutomationsModal = ({
         {!!selectedIntegration && (
           <Button
             type="button"
-            variant="inverse"
+            variant="secondary"
             onClick={togglePreviewTicketModal}
           >
             Preview ticket
@@ -481,7 +481,7 @@ const ManageAutomationsModal = ({
         />
         <Button
           type="button"
-          variant="inverse"
+          variant="secondary"
           onClick={togglePreviewPayloadModal}
         >
           Example payload
@@ -515,8 +515,7 @@ const ManageAutomationsModal = ({
       <TooltipWrapper
         tipContent={
           <>
-            Add an integration to create
-            <br /> tickets for vulnerability automations.
+            Add an integration to create tickets for vulnerability automations.
           </>
         }
         disableTooltip={hasIntegrations || gomDisabled}
@@ -610,7 +609,7 @@ const ManageAutomationsModal = ({
         </div>
         <div className="modal-cta-wrap">
           {renderSaveButton()}
-          <Button onClick={onReturnToApp} variant="inverse">
+          <Button onClick={onReturnToApp} variant="secondary">
             Cancel
           </Button>
         </div>

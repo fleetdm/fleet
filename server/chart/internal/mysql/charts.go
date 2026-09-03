@@ -5,10 +5,12 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"math"
 	"slices"
 	"strings"
 	"time"
 
+	"github.com/RoaringBitmap/roaring"
 	"github.com/fleetdm/fleet/v4/server/chart/api"
 	"github.com/fleetdm/fleet/v4/server/chart/internal/types"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
@@ -156,8 +158,9 @@ func (ds *Datastore) FindOnlineHostIDs(ctx context.Context, now time.Time, disab
 }
 
 // The matcher list exists as a performance optimization that bounds which CVEs
-// the chart collects.
-// TODO: implement bitmap compression so we can collect more CVE data.
+// the chart collects. Collection RAM is no longer the constraint (bits are set
+// into roaring bitmaps while streaming — see streamCVEHostPairs); the list now
+// bounds the join size and the host_scd_data row count per bucket.
 
 // cveSoftwareMatcher filters `software` rows by a MySQL LIKE pattern and an
 // optional source allowlist. Empty Sources means any source. Category groups
@@ -203,15 +206,17 @@ var trackedCVESoftwareMatchers = []cveSoftwareMatcher{
 	{api.CVECategoryOS, "kernel-%", []string{"rpm_packages"}},
 }
 
-// AffectedHostIDsByCVE returns host IDs grouped by CVE, scoped to the given
-// cves set. It streams two joins (software-level and OS-level vulnerabilities)
-// and merges the results into a single map. Duplicates across sources are
-// harmless — the downstream HostIDsToBlob setBit is idempotent.
+// AffectedHostIDsByCVE returns a bitmap of affected host IDs per CVE, scoped
+// to the given cves set. It streams two joins (software-level and OS-level
+// vulnerabilities) and merges the results into a single map, setting bits
+// while scanning so the raw (cve, host_id) rows — millions on a large fleet —
+// are never materialized. Duplicates across sources are harmless — Bitmap.Add
+// is idempotent.
 //
 // nil or empty cves returns an empty map without running any query.
-// TODO: support `nil` meaning "all CVEs" once bitmap compression is implemented.
-func (ds *Datastore) AffectedHostIDsByCVE(ctx context.Context, disabledFleetIDs []uint, cves []string) (map[string][]uint, error) {
-	result := make(map[string][]uint)
+// TODO: support `nil` meaning "all CVEs".
+func (ds *Datastore) AffectedHostIDsByCVE(ctx context.Context, disabledFleetIDs []uint, cves []string) (map[string]*roaring.Bitmap, error) {
+	result := make(map[string]*roaring.Bitmap)
 	if len(cves) == 0 {
 		return result, nil
 	}
@@ -253,6 +258,12 @@ func (ds *Datastore) AffectedHostIDsByCVE(ctx context.Context, disabledFleetIDs 
 	}
 	if err := ds.streamCVEHostPairs(ctx, osQuery, osArgs, result); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "stream OS CVE host pairs")
+	}
+
+	// Compact container representations now that all bits are set, so the
+	// retained op form stays small until RecordBucketData serializes it.
+	for _, rb := range result {
+		rb.RunOptimize()
 	}
 
 	return result, nil
@@ -300,17 +311,30 @@ func (ds *Datastore) CollectibleCVEs(ctx context.Context) ([]string, error) {
 // the curated universe with the filter's predicates (software category, CVSS
 // range, EPSS range, known-exploit) and subtracting any excluded CVEs.
 //
-// With the default filter (CVSS 9.0–10.0, all categories, no EPSS bound, no
-// known-exploit, no exclusions) this reproduces the iteration-1 "tracked
-// critical CVEs" set, so the chart's default display is unchanged.
+// Filtering on any cve_meta column (CVSS, EPSS, known-exploit) requires that
+// row to exist, so those filters exclude CVEs Fleet has no NVD metadata for.
+// When no such filter is set the join is dropped and they resolve. NULL fails
+// every comparison, so an explicit 0.0–10.0 CVSS range still excludes a CVE
+// whose cvss_score is NULL, while no CVSS bound at all includes it.
 //
 // Returns a non-nil empty slice when the filter resolves to nothing, so callers
-// never pass nil to GetSCDData (which would mean "all collected", leaking
-// lower-severity CVEs into the chart).
+// never pass nil to GetSCDData, which would mean "no entity filter" and widen
+// the chart to everything the collector recorded.
 func (ds *Datastore) ResolveCVEChartEntities(ctx context.Context, filter types.CVEChartFilter) ([]string, error) {
-	set := make(map[string]struct{})
 	cats := categorySet(filter.Categories) // nil == all categories
 	metaClause, metaArgs := cveMetaPredicate(filter)
+
+	if cats == nil && metaClause == "" && len(filter.ExcludeCVEs) == 0 {
+		return ds.CollectibleCVEs(ctx)
+	}
+
+	set := make(map[string]struct{})
+
+	swMetaJoin, osMetaJoin := "", ""
+	if metaClause != "" {
+		swMetaJoin = "JOIN cve_meta cm ON cm.cve = sc.cve"
+		osMetaJoin = "JOIN cve_meta cm ON cm.cve = osv.cve"
+	}
 
 	// Software-side: skip entirely when no matcher falls in the selected
 	// categories (e.g. only the OS category is selected).
@@ -320,7 +344,7 @@ func (ds *Datastore) ResolveCVEChartEntities(ctx context.Context, filter types.C
 			SELECT DISTINCT sc.cve
 			FROM software_cve sc
 			JOIN software s  ON s.id = sc.software_id
-			JOIN cve_meta cm ON cm.cve = sc.cve
+			` + swMetaJoin + `
 			WHERE ` + swClause + metaClause
 		expanded, expandedArgs, err := sqlx.In(swQuery, args...)
 		if err != nil {
@@ -337,7 +361,7 @@ func (ds *Datastore) ResolveCVEChartEntities(ctx context.Context, filter types.C
 		osQuery := `
 			SELECT DISTINCT osv.cve
 			FROM operating_system_vulnerabilities osv
-			JOIN cve_meta cm ON cm.cve = osv.cve
+			` + osMetaJoin + `
 			WHERE 1=1` + metaClause
 		expanded, expandedArgs, err := sqlx.In(osQuery, metaArgs...)
 		if err != nil {
@@ -385,11 +409,21 @@ func softwareMatcherClause(categories map[string]struct{}) (clause string, args 
 }
 
 // cveMetaPredicate builds the cve_meta WHERE fragment (with a leading " AND ")
-// shared by the software- and OS-side resolve queries, plus its args. The CVSS
-// range is always applied; EPSS bounds and the known-exploit flag are optional.
+// shared by the software- and OS-side resolve queries, plus its args. Every
+// predicate is optional: CVSS and EPSS bounds are applied only when set, and
+// the known-exploit flag only when true. Returns an empty fragment when no
+// predicate applies, so callers must not assume a leading " AND ".
 func cveMetaPredicate(filter types.CVEChartFilter) (string, []any) {
-	clauses := []string{"cm.cvss_score >= ?", "cm.cvss_score <= ?"}
-	args := []any{filter.CVSSMin, filter.CVSSMax}
+	var clauses []string
+	var args []any
+	if filter.CVSSMin != nil {
+		clauses = append(clauses, "cm.cvss_score >= ?")
+		args = append(args, *filter.CVSSMin)
+	}
+	if filter.CVSSMax != nil {
+		clauses = append(clauses, "cm.cvss_score <= ?")
+		args = append(args, *filter.CVSSMax)
+	}
 	if filter.EPSSMin != nil {
 		clauses = append(clauses, "cm.epss_probability >= ?")
 		args = append(args, *filter.EPSSMin)
@@ -400,6 +434,9 @@ func cveMetaPredicate(filter types.CVEChartFilter) (string, []any) {
 	}
 	if filter.KnownExploit {
 		clauses = append(clauses, "cm.cisa_known_exploit = 1")
+	}
+	if len(clauses) == 0 {
+		return "", nil
 	}
 	return " AND " + strings.Join(clauses, " AND "), args
 }
@@ -450,14 +487,20 @@ func streamCVEStrings(ctx context.Context, q sqlx.QueryerContext, query string, 
 	return rows.Err()
 }
 
-// streamCVEHostPairs runs a query yielding (cve, host_id) pairs and appends
-// host IDs into out under each CVE key. Streams rather than materializing the
-// join result, since on a large fleet the (cve, host_id) row count can reach
-// millions.
+// streamCVEHostPairs runs a query yielding (cve, host_id) pairs and sets each
+// host's bit in out's bitmap for that CVE, allocating the bitmap on first
+// sight of the CVE. Setting bits while scanning keeps peak memory at one
+// bitmap per CVE (KBs even at 50k hosts) instead of retaining every raw
+// (cve, host_id) pair, whose row count can reach many millions on a large
+// fleet. Duplicate pairs — several matching software rows on one host, or
+// overlap between the software and OS queries — are no-op Adds.
+//
+// Host IDs of 0 or above MaxUint32 are skipped, mirroring chart.NewBitmap —
+// Fleet host IDs are AUTO_INCREMENT starting at 1.
 //
 // args are expanded via sqlx.In for slice arguments (e.g. team IDs) and
 // rebinds to the driver dialect.
-func (ds *Datastore) streamCVEHostPairs(ctx context.Context, query string, args []any, out map[string][]uint) error {
+func (ds *Datastore) streamCVEHostPairs(ctx context.Context, query string, args []any, out map[string]*roaring.Bitmap) error {
 	if len(args) > 0 {
 		expanded, expandedArgs, err := sqlx.In(query, args...)
 		if err != nil {
@@ -481,7 +524,15 @@ func (ds *Datastore) streamCVEHostPairs(ctx context.Context, query string, args 
 		if err := rows.Scan(&cve, &hostID); err != nil {
 			return err
 		}
-		out[cve] = append(out[cve], hostID)
+		if hostID == 0 || hostID > math.MaxUint32 {
+			continue
+		}
+		rb, ok := out[cve]
+		if !ok {
+			rb = roaring.New()
+			out[cve] = rb
+		}
+		rb.Add(uint32(hostID))
 	}
 	return rows.Err()
 }

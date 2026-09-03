@@ -41,6 +41,7 @@ const (
 	OSUpdatesAlreadyConfiguredErrorMessage                       = "Couldn't add profile. OS updates are already configured. Remove the OS updates settings first."
 	CouldNotUpdateAppleOSSettingsWithCustomProfileErrorMessage   = "Couldn't update OS updates settings. A custom OS updates declaration profile already exists. Remove the custom profile first."
 	CouldNotUpdateWindowsOSSettingsWithCustomProfileErrorMessage = "Couldn't update OS updates settings. A custom OS updates profile already exists. Remove the custom profile first."
+	WindowsMDMNotTurnedOnMessage                                 = `Windows MDM isn’t turned on. This can be enabled by setting "controls.windows_enabled_and_configured: true" in the default configuration. Visit https://fleetdm.com/guides/windows-mdm-setup and https://fleetdm.com/docs/configuration/yaml-files#controls to learn more about enabling MDM.`
 )
 
 // FleetVarName represents the name of a Fleet variable (without the FLEET_VAR_ prefix).
@@ -77,6 +78,15 @@ const (
 	FleetVarHostEndUserIDPFullname          FleetVarName = "HOST_END_USER_IDP_FULL_NAME"
 	FleetVarHostUUID                        FleetVarName = "HOST_UUID"
 	FleetVarHostPlatform                    FleetVarName = "HOST_PLATFORM"
+
+	// FleetVarHostTargetOSVersion and FleetVarHostTargetOSDeadline are
+	// Fleet-internal: they are only ever placed in Fleet's own OS-update
+	// declaration when the platform's minimum_version is "latest", and are
+	// resolved per host at declaration fetch time from host_mdm_apple_os_updates.
+	// They are deliberately absent from the lists of variables admins may use in
+	// their own profiles and declarations.
+	FleetVarHostTargetOSVersion  FleetVarName = "HOST_TARGET_OS_VERSION"
+	FleetVarHostTargetOSDeadline FleetVarName = "HOST_TARGET_OS_DEADLINE"
 
 	// FleetVarPSSODeviceRegistrationToken is the admin-facing variable placed in
 	// the RegistrationToken key of a Fleet com.apple.extensiblesso (Platform SSO
@@ -187,6 +197,7 @@ type ABMToken struct {
 	OrganizationName    string    `db:"organization_name" json:"org_name"`
 	RenewAt             time.Time `db:"renew_at" json:"renew_date"`
 	TermsExpired        bool      `db:"terms_expired" json:"terms_expired"`
+	TokenInvalid        bool      `db:"token_invalid" json:"token_invalid"`
 	MacOSDefaultTeamID  *uint     `db:"macos_default_team_id" json:"-"`
 	IOSDefaultTeamID    *uint     `db:"ios_default_team_id" json:"-"`
 	IPadOSDefaultTeamID *uint     `db:"ipados_default_team_id" json:"-"`
@@ -231,14 +242,17 @@ func (a AppleCSR) AuthzType() string {
 }
 
 // ABMTermsUpdater is the minimal interface required to get and update the
-// AppConfig, and set an ABM token's terms_expired flag as required to handle
-// the DEP API errors to indicate that Apple's terms have changed and must be
-// accepted. The Fleet Datastore satisfies this interface.
+// AppConfig, and set an ABM token's terms_expired and token_invalid flags as
+// required to handle the DEP API errors to indicate that Apple's terms have
+// changed and must be accepted, or that the token itself was rejected.
+// The Fleet Datastore satisfies this interface.
 type ABMTermsUpdater interface {
 	AppConfig(ctx context.Context) (*AppConfig, error)
 	SaveAppConfig(ctx context.Context, info *AppConfig) error
 	SetABMTokenTermsExpiredForOrgName(ctx context.Context, orgName string, expired bool) (wasSet bool, err error)
 	CountABMTokensWithTermsExpired(ctx context.Context) (int, error)
+	SetABMTokenInvalidForOrgName(ctx context.Context, orgName string, invalid bool) (wasSet bool, err error)
+	IsABMTokenInvalidForOrgName(ctx context.Context, orgName string) (bool, error)
 }
 
 // MDMIdPAccount contains account information of a third-party IdP that can be
@@ -339,15 +353,20 @@ type HostMDMProfileRetryCount struct {
 }
 
 // ProfileACMECommandResult bundles the gates needed to decide whether an
-// InstallProfile ack should trigger a CertificateList refetch on macOS:
-// host platform, profile UUID, and whether the delivered profile contains a
-// com.apple.security.acme payload. Computed in a single query keyed on
+// InstallProfile ack should trigger a CertificateList refetch on macOS, and
+// which channel to send it on. Computed in a single query keyed on
 // (host_uuid, command_uuid).
 type ProfileACMECommandResult struct {
 	HostID         uint   `db:"host_id"`
 	Platform       string `db:"platform"`
 	ProfileUUID    string `db:"profile_uuid"`
 	HasACMEPayload bool   `db:"has_acme_payload"`
+	// Scope tells which channel installed the profile, hence which keychain its
+	// ACME cert landed in.
+	Scope PayloadScope `db:"scope"`
+	// UserEnrollmentID is the host's active user-channel enrollment, resolved
+	// only for user-scoped profiles. Empty when there is none.
+	UserEnrollmentID string `db:"user_enrollment_id"`
 }
 
 // TeamIDSetter defines the method to set a TeamID value on a struct,
@@ -373,12 +392,19 @@ type CommandEnqueueResult struct {
 // MDMCommandAuthz is used to check user authorization to read/write an
 // MDM command.
 type MDMCommandAuthz struct {
-	TeamID *uint `json:"team_id" renameto:"fleet_id"` // required for authorization by team
+	TeamID   *uint  `json:"team_id" renameto:"fleet_id"` // required for authorization by team
+	Platform string `json:"platform"`                    // Platform of the targeted host
 }
 
 // SetTeamID implements the TeamIDSetter interface.
 func (m *MDMCommandAuthz) SetTeamID(tid *uint) {
 	m.TeamID = tid
+}
+
+func (m MDMCommandAuthz) ExtraAuthz() (map[string]any, error) {
+	return map[string]any{
+		"is_apple_mobile": IsAppleMobilePlatform(m.Platform),
+	}, nil
 }
 
 // AuthzType implements authz.AuthzTyper.
@@ -649,6 +675,9 @@ type MDMConfigProfilePayload struct {
 	LabelsIncludeAll []ConfigurationProfileLabel `json:"labels_include_all,omitempty" db:"-"`
 	LabelsIncludeAny []ConfigurationProfileLabel `json:"labels_include_any,omitempty" db:"-"`
 	LabelsExcludeAny []ConfigurationProfileLabel `json:"labels_exclude_any,omitempty" db:"-"`
+	// Base64-encoded activation for declaration (DDM) profiles, null for any
+	// other profile type and for declarations without a custom activation.
+	Activation []byte `json:"activation" db:"-"`
 }
 
 // BatchModifyMDMConfigProfilePayload represents the payload for a config profile when
@@ -674,6 +703,9 @@ type MDMProfileBatchPayload struct {
 	LabelsIncludeAny []string   `json:"labels_include_any,omitempty"`
 	LabelsExcludeAny []string   `json:"labels_exclude_any,omitempty"`
 	SecretsUpdatedAt *time.Time `json:"-"`
+
+	// Base64-encoded custom activation, only valid for Apple declarations.
+	Activation []byte `json:"activation,omitempty"`
 }
 
 func NewMDMConfigProfilePayloadFromWindows(cp *MDMWindowsConfigProfile) *MDMConfigProfilePayload {
@@ -720,7 +752,7 @@ func NewMDMConfigProfilePayloadFromAppleDDM(decl *MDMAppleDeclaration) *MDMConfi
 	if decl.TeamID != nil && *decl.TeamID > 0 {
 		tid = decl.TeamID
 	}
-	return &MDMConfigProfilePayload{
+	payload := &MDMConfigProfilePayload{
 		ProfileUUID:      decl.DeclarationUUID,
 		TeamID:           tid,
 		Name:             decl.Name,
@@ -733,6 +765,10 @@ func NewMDMConfigProfilePayloadFromAppleDDM(decl *MDMAppleDeclaration) *MDMConfi
 		LabelsIncludeAny: decl.LabelsIncludeAny,
 		LabelsExcludeAny: decl.LabelsExcludeAny,
 	}
+	if decl.Activation != nil {
+		payload.Activation = decl.Activation.RawJSON
+	}
+	return payload
 }
 
 func NewMDMConfigProfilePayloadFromAndroid(cp *MDMAndroidConfigProfile) *MDMConfigProfilePayload {
@@ -758,6 +794,10 @@ func NewMDMConfigProfilePayloadFromAndroid(cp *MDMAndroidConfigProfile) *MDMConf
 type MDMProfileSpec struct {
 	Path  string `json:"path,omitempty"`
 	Paths string `json:"paths,omitempty"`
+
+	// Activation is a path to a custom activation JSON file, only valid
+	// alongside an Apple declaration.
+	Activation string `json:"activation,omitempty"`
 
 	// Deprecated: the Labels field is now deprecated, it is superseded by
 	// LabelsIncludeAll, so any value set via this field will be transferred to
@@ -1094,25 +1134,43 @@ func (m MDMConfigAsset) Copy() MDMConfigAsset {
 	return clone
 }
 
-// MDMPlatform returns "darwin" or "windows" as MDM platforms
-// derived from a host's platform (hosts.platform field).
+// ClassicMDMPlatform returns "darwin" or "windows" as MDM platforms derived
+// from a host's platform (a raw hosts.platform value, or the collapsed one
+// returned by Host.FleetPlatform), or "" for platforms that don't take part in
+// the classic MDM command pipeline.
 //
 // Note that "darwin" as MDM platform means Apple (we keep it as "darwin"
 // to keep backwards compatibility throughout the app).
-func MDMPlatform(hostPlatform string) string {
+//
+// Android is deliberately not part of this list: Android hosts don't take part
+// in the classic MDM command pipeline (raw XML/plist commands, the
+// nano_commands and mdm_windows_commands listings, the mdmlifecycle hooks and
+// the host_mdm turn-off/reset paths MDMTurnOff and MDMResetEnrollment). Android
+// has its own commands table and its own unenroll path. To check whether Fleet
+// can turn MDM on for a platform at all, use MDMTurnedOnSupported instead.
+func ClassicMDMPlatform(hostPlatform string) string {
 	switch hostPlatform {
 	case "darwin", "ios", "ipados":
 		return "darwin"
 	case "windows":
 		return "windows"
-		// TODO(android): add android to this list?
 	}
 	return ""
 }
 
-// MDMSupported returns whether MDM is supported for a given host platform.
-func MDMSupported(hostPlatform string) bool {
-	return MDMPlatform(hostPlatform) != ""
+// ClassicMDMSupported returns whether the given host platform takes part in the
+// classic MDM command pipeline. It returns false for Android, see
+// ClassicMDMPlatform for details.
+func ClassicMDMSupported(hostPlatform string) bool {
+	return ClassicMDMPlatform(hostPlatform) != ""
+}
+
+// MDMTurnedOnSupported returns whether Fleet supports any form of MDM
+// enrollment for the given host platform, Android included. Use this for the
+// checks that only care about MDM being turned on for the host, such as the
+// "Can't <action> the host because it doesn't have MDM turned on." pre-checks.
+func MDMTurnedOnSupported(hostPlatform string) bool {
+	return ClassicMDMSupported(hostPlatform) || IsAndroidPlatform(hostPlatform)
 }
 
 // FilterMacOSOnlyProfilesFromIOSIPadOS will filter out profiles that are only for macOS devices
@@ -1288,10 +1346,11 @@ func (p InstallableDevicePlatform) IsApplePlatform() bool {
 }
 
 type AppleDevicesToRefetch struct {
-	HostID              uint                   `db:"host_id"`
-	UUID                string                 `db:"uuid"`
-	InstalledFromDEP    bool                   `db:"installed_from_dep"`
-	CommandsAlreadySent MDMCommandsAlreadySent `db:"commands_already_sent"`
+	HostID               uint                   `db:"host_id"`
+	UUID                 string                 `db:"uuid"`
+	InstalledFromDEP     bool                   `db:"installed_from_dep"`
+	IsPersonalEnrollment bool                   `db:"is_personal_enrollment"`
+	CommandsAlreadySent  MDMCommandsAlreadySent `db:"commands_already_sent"`
 }
 
 type MDMCommandsAlreadySent []string
@@ -1392,10 +1451,16 @@ type HostMDMIdentifiers struct {
 }
 
 type NanoMDMEnrollmentDetails struct {
-	LastMDMEnrollmentTime *time.Time `db:"authenticate_at"`
-	LastMDMSeenTime       *time.Time `db:"last_seen_at"`
-	HardwareAttested      bool       `db:"hardware_attested"`
-	UnlockToken           *string    `db:"unlock_token"`
+	LastMDMEnrollmentTime  *time.Time `db:"authenticate_at"`
+	LastMDMSeenTime        *time.Time `db:"last_seen_at"`
+	HardwareAttested       bool       `db:"hardware_attested"`
+	UnlockToken            *string    `db:"unlock_token"`
+	BootstrapTokenEscrowed bool       `db:"bootstrap_token_escrowed"`
+	// EnrollmentType is the MDM enrollment channel as reported by nanomdm, e.g.
+	// "Device" or "User Enrollment (Device)". Manual BYOD and Account-Driven User
+	// Enrollment both produce the "On (manual - personal)" status, so the channel
+	// is the only way to tell them apart.
+	EnrollmentType string `db:"enrollment_type"`
 }
 
 // MDM SSO initiator constants identify which enrollment flow initiated the SSO
@@ -1413,7 +1478,62 @@ const (
 	SSOInitiatorAccountDrivenEnroll = "account_driven_enroll"
 	// SSOInitiatorAppleMDMSSO is used for automatic MDM Apple enrollment SSO flow.
 	SSOInitiatorAppleMDMSSO = "mdm_sso"
+	// SSOInitiatorFleetDesktop is used when the Fleet Desktop "My device" page
+	// requires the end user to authenticate with the IdP.
+	SSOInitiatorFleetDesktop = "fleet_desktop"
 )
+
+// maxSSORelayStateLen is the cap the SAML 2.0 HTTP bindings put on RelayState.
+const maxSSORelayStateLen = 80
+
+// SSORelayState is a value Fleet asks the IdP to echo back with the SAML
+// assertion. It survives a callback whose SSO session can no longer be loaded
+type SSORelayState string
+
+// SSORelayStateNone leaves RelayState off the AuthnRequest entirely.
+const SSORelayStateNone = SSORelayState("")
+
+// ParseSSORelayState turns the raw RelayState an IdP posted back into the
+// initiator Fleet sent, or SSORelayStateNone when it echoed back nothing Fleet
+// recognizes.
+func ParseSSORelayState(raw string) SSORelayState {
+	if len(raw) > maxSSORelayStateLen {
+		return SSORelayStateNone
+	}
+	switch raw {
+	case SSOInitiatorOTAEnroll, SSOInitiatorOrbitSetupExperience,
+		SSOInitiatorAccountDrivenEnroll, SSOInitiatorAppleMDMSSO, SSOInitiatorFleetDesktop:
+		return SSORelayState(raw)
+	default:
+		return SSORelayStateNone
+	}
+}
+
+// DeviceSSOInitiation is what a device needs to start the Fleet Desktop SSO
+// flow: the IdP URL to navigate to, plus the handshake session that ties the
+// eventual SAML callback back to this request.
+type DeviceSSOInitiation struct {
+	// IdPURL is the URL the browser must navigate to in order to authenticate.
+	IdPURL string
+	// SessionID identifies the SSO handshake session, carried to the SAML
+	// callback by the __Host-FLEETSSOSESSIONID cookie.
+	SessionID string
+	// SessionDuration is how long the handshake session and its cookie stay
+	// valid; both must use it so neither outlives the other.
+	SessionDuration time.Duration
+}
+
+// DeviceSSOSession is minted after a successful IdP callback initiated from
+// the Fleet Desktop "My device" page, and consumed by the device endpoint SSO
+// gate. It is bound to the host whose device token started the flow, so one
+// device's session cannot unlock another device's page in the same browser.
+type DeviceSSOSession struct {
+	HostID uint `json:"host_id"`
+	// IdPAccountUUID identifies the mdm_idp_accounts row for the IdP identity
+	// that completed the SAML flow.
+	IdPAccountUUID string    `json:"idp_account_uuid"`
+	ExpiresAt      time.Time `json:"expires_at"`
+}
 
 // ValidateMDMProfileSpecs validates the label configuration for each profile spec: exactly one
 // include mode may be set, no label may appear in both include and exclude lists, and the legacy

@@ -17,14 +17,14 @@ func simulateLatencyAndErrors(latencyMean time.Duration, errorRate float64, next
 	return func(w http.ResponseWriter, r *http.Request) {
 		// Add random latency (50%-150% of mean)
 		if latencyMean > 0 {
-			jitter := time.Duration(float64(latencyMean) * (0.5 + rand.Float64())) // #nosec G404 -- load testing
+			jitter := time.Duration(float64(latencyMean) * (0.5 + rand.Float64())) //nolint:gosec // load testing
 			time.Sleep(jitter)
 		}
 
 		// Occasionally return errors
-		if errorRate > 0 && rand.Float64() < errorRate { // #nosec G404 -- load testing
+		if errorRate > 0 && rand.Float64() < errorRate { //nolint:gosec // load testing
 			w.Header().Set("Content-Type", "application/json")
-			if rand.Float64() < 0.5 { // #nosec G404 -- load testing
+			if rand.Float64() < 0.5 { //nolint:gosec // load testing
 				w.WriteHeader(http.StatusTooManyRequests)
 				_ = json.NewEncoder(w).Encode(map[string]any{
 					"error": map[string]any{
@@ -59,6 +59,14 @@ func forwardForRealDevice(store *deviceStore, google *googleForwarder) func(http
 			if store.getByName(name) != nil {
 				next(w, r)
 				return
+			}
+			// An unknown device is normally a real one, but it is also what every fake device
+			// looks like after this process restarts. Record a delete for it either way: if it
+			// was a forgotten fake device, its agent must not be able to register it again and
+			// resurrect a host Fleet just unenrolled. Recording a real device's name here is
+			// harmless, since only fake devices ever register.
+			if r.Method == http.MethodDelete {
+				store.markDeleted(name)
 			}
 			// Real device — forward via Google SDK if available
 			if google != nil {

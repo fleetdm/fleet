@@ -88,7 +88,6 @@ module.exports.custom = {
 
   // Other integrations:
   // anthropicSecret: undefined,
-  // openAiSecret: undefined,
   // iqSecret: undefined, // You gotta use the base64-encoded API secret.  (Get it in your account settings in LeadIQ.)
   // salesforceIntegrationUsername: undefined,
   // salesforceIntegrationPasskey: undefined,
@@ -130,7 +129,6 @@ module.exports.custom = {
     'schema': 'rachaelshaw',                               // Data tables (osquery/fleetd schema) documentation
     'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml': 'rachaelshaw', //« Built-in queries
     'docs/get-started/faq': 'zayhanlon',
-    'docs/Contributing/rituals': 'lukeheath',
     'ee/cis': 'sharon-fdm',//« Fleet Premium only: built-in queries  (built-in policies for CIS benchmarks)  -- FYI: On 2023-07-15, we changed this so that Sharon, Lucas, and Rachel are all maintainers, but where there is a single DRI who is automatically requested approval from.
 
     // Fleet's internal IT and security (+dogfooding)
@@ -138,6 +136,7 @@ module.exports.custom = {
 
     // 🫧 Articles and release notes
     'articles': 'mike-j-thomas',
+    'articles/fleet-usage-statistics.md': 'rachaelshaw', //« Usage stats guide (more specific than the 'articles' catch-all above)
     'CHANGELOG.md': 'lukeheath',
 
     // 🫧 Website (fleetdm.com)
@@ -233,7 +232,8 @@ module.exports.custom = {
     // Reference, config surface, built-in queries, API, and other documentation
     'docs': ['rachaelshaw', 'noahtalerman', 'eashaw'],// (default for docs)
     'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml': ['rachaelshaw', 'noahtalerman', 'eashaw'],// (standard query library)
-    '/docs/get-started/faq': ['ksatter', 'ddribeiro', 'zayhanlon'],
+    '/docs/get-started/faq': ['rynsatterlee', 'ddribeiro', 'zayhanlon'],
+    'docs/solutions': ['ddribeiro', 'allenhouchins'],
     'docs/REST API/rest-api.md': ['rachaelshaw', 'lukeheath'],// (standard query library)
     'schema': ['eashaw', 'lukeheath'],// (Osquery table schema)
     'ee/cis': ['lukeheath', 'sharon-fdm', 'lucasmrod', 'rachelElysia', 'rachaelshaw'],
@@ -516,8 +516,6 @@ module.exports.custom = {
   // Microsoft compliance proxy
   // compliancePartnerClientId: '…',
   // compliancePartnerClientSecret: '…',
-  // cloudCustomerCompliancePartnerSharedSecret: '…',
-  // alternateCompliancePartnerSharedSecret: '…',
 
 
   // Android proxy

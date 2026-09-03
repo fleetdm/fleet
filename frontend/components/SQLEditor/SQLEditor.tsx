@@ -17,12 +17,13 @@ import {
   sqlDataTypes,
   sqlKeyWords,
 } from "utilities/sql_tools";
+import { releaseStuckSelectionOnScroll } from "utilities/ace_editor";
+import "utilities/ace_theme";
 
 import CopyButton from "components/buttons/CopyButton";
 import Icon from "components/Icon";
 
 import "./mode";
-import "./theme";
 
 export interface ISQLEditorProps {
   focus?: boolean;
@@ -230,6 +231,9 @@ const SQLEditor = ({
       readOnly: true,
     });
 
+    // Prevent scrolling from selecting text after a stationary click (#48490).
+    releaseStuckSelectionOnScroll(editor);
+
     if (isReadonlyCopy) {
       // keep Ace read-only and remove any selection
       editor.setOption("readOnly", true);
@@ -285,7 +289,7 @@ const SQLEditor = ({
         <div className={`${baseClass}__label-actions`}>
           {labelActionComponent}
           {enableCopy && (
-            <CopyButton copyText={value || ""} variant="inverse" size="small">
+            <CopyButton copyText={value || ""} variant="subdued" size="small">
               Copy <Icon name="copy" />
             </CopyButton>
           )}

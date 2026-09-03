@@ -271,11 +271,18 @@ var activityTemplatesByCategory = map[string][]fleet.ActivityDetails{
 		fleet.ActivityTypeEditedIPadOSMinVersion{},
 		fleet.ActivityTypeEnabledMacosDiskEncryption{},
 		fleet.ActivityTypeDisabledMacosDiskEncryption{},
+		// one per platform: the activity is emitted per changed platform, so
+		// seeding all three shows what the feed actually looks like
+		fleet.ActivityTypeEditedDiskEncryptionSettings{Platform: "macos"},
+		fleet.ActivityTypeEditedDiskEncryptionSettings{Platform: "windows"},
+		fleet.ActivityTypeEditedDiskEncryptionSettings{Platform: "linux"},
 		fleet.ActivityTypeEnabledRecoveryLockPasswords{},
 		fleet.ActivityTypeDisabledRecoveryLockPasswords{},
 		fleet.ActivityTypeEditedHostNameTemplate{},
 		fleet.ActivityTypeEnabledGitOpsMode{},
 		fleet.ActivityTypeDisabledGitOpsMode{},
+		fleet.ActivityTypeEnabledSSOFleetDesktop{},
+		fleet.ActivityTypeDisabledSSOFleetDesktop{},
 		fleet.ActivityTypeEnabledGitOpsException{},
 		fleet.ActivityTypeDisabledGitOpsException{},
 		fleet.ActivityTypeEnabledHistoricalDataset{},
@@ -305,6 +312,8 @@ var activityTemplatesByCategory = map[string][]fleet.ActivityDetails{
 		fleet.ActivityCreatedCustomVariable{},
 		fleet.ActivityDeletedCustomVariable{},
 		fleet.ActivityEditedSetupExperienceSoftware{},
+		fleet.ActivityTypeEnabledAppleBusinessOnlyEnrollment{},
+		fleet.ActivityTypeDisabledAppleBusinessOnlyEnrollment{},
 	},
 	CategoryProfiles: {
 		fleet.ActivityTypeCreatedMacosProfile{},
@@ -337,6 +346,8 @@ var activityTemplatesByCategory = map[string][]fleet.ActivityDetails{
 		fleet.ActivityTypeRanScriptBatch{},
 		fleet.ActivityTypeBatchScriptScheduled{},
 		fleet.ActivityTypeBatchScriptCanceled{},
+		fleet.ActivityCreatedSetupExperienceScript{},
+		fleet.ActivityDeletedSetupExperienceScript{},
 	},
 	CategorySoftware: {
 		fleet.ActivityTypeInstalledSoftware{},

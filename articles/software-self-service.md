@@ -30,6 +30,8 @@ You can also add the software and later make it available in self-service:
 
 If a software item isn't made available in self-service, end users will not see it in **Fleet Desktop > Self-service**. IT admins can still install, update, and uninstall the software from Fleet.
 
+> For [custom packages](https://fleetdm.com/guides/deploy-software-packages#add-multiple-packages-to-a-software-title), self-service is set per package. When a title has more than one self-service package and a host matches more than one, Fleet installs the package that was added first.
+
 ## Manage self-service categories
 
 _Available in Fleet Premium_
@@ -42,7 +44,7 @@ To manage categories for a fleet:
 
 1. Select the fleet from the dropdown in the upper left corner of the page.
 2. Select **Software** in the main navigation menu.
-3. Select the self-service categories icon in the upper right corner of the page.
+3. Select Library, then the ⚙️ (Categories) icon.
 4. Select **Add category** to create a new category, or use the pencil and trash icons in a row to rename or delete a category.
 
 To assign a software title to one or more categories, edit the software in **Software > Library**, enable **Self-service** in the **Options** section, and check the categories you want to assign.
@@ -57,6 +59,8 @@ End users can install every app in a category in one click from the **My device 
 
 1. Select a category from the dropdown above the software table.
 2. Select **Install all** to install every app in the category. The count in the button adjusts based on what's already installed on the device.
+
+> **Install all** only appears when a specific category is selected. It's hidden on the unfiltered **All** view to prevent accidentally queuing installs for the entire software catalog.
 
 Fleet queues each install as a separate operation. End users can monitor progress in the **Status** column. Software is installed in alphabetical order.
 

@@ -53,6 +53,9 @@ type SoftwareInstallDetails struct {
 	SoftwareInstallerURL *SoftwareInstallerURL `json:"installer_url,omitempty"`
 	// MaxRetries is the number of additional attempts allowed after the initial attempt (0 = no retries).
 	MaxRetries uint `json:"max_retries,omitempty"`
+
+	AppOpenQuery    string `json:"-" db:"app_open_query"`
+	PatchWhenClosed bool   `json:"-" db:"patch_when_closed"`
 }
 
 type SoftwareInstallerURL struct {
@@ -144,6 +147,15 @@ type SoftwareInstaller struct {
 
 	// Configuration is the in-house app's managed app configuration (iOS / iPadOS only) as returned in API responses: a JSON string of XML.
 	Configuration json.RawMessage `json:"configuration,omitempty" db:"-"`
+
+	// AppOpenQuery is the Fleet-managed pre-install query that skips the install while the app is open.
+	AppOpenQuery string `json:"-" db:"app_open_query"`
+
+	// InstallScriptEdited records that an admin replaced the install script, which
+	// makes the Fleet-maintained app auto-update cron carry it forward.
+	InstallScriptEdited bool `json:"-" db:"install_script_edited"`
+	// UninstallScriptEdited is the same for the uninstall script.
+	UninstallScriptEdited bool `json:"-" db:"uninstall_script_edited"`
 }
 
 // SoftwarePackageResponse is the response type used when applying software by batch.
@@ -153,6 +165,11 @@ type SoftwarePackageResponse struct {
 	TeamID *uint `json:"team_id" renameto:"fleet_id" db:"team_id"`
 	// TitleID is the id of the software title associated with the software installer.
 	TitleID *uint `json:"title_id" db:"title_id"`
+	// InstallerID is the row ID of the specific software_installers entry this
+	// response describes. Zero for in-house apps, which come from a different
+	// table. GitOps uses this to pin a policy to the exact package the YAML
+	// referenced when several installers share a title.
+	InstallerID uint `json:"installer_id" db:"installer_id"`
 	// URL is the source URL for this installer (set when uploading via batch/gitops).
 	URL string `json:"url" db:"url"`
 	// HashSHA256 is the SHA256 hash of the software installer.
@@ -210,6 +227,38 @@ type DeletedSoftwarePackage struct {
 	// DisplayName is the team's display-name override for the title when
 	// set, otherwise the software title name.
 	DisplayName string `json:"display_name" db:"display_name"`
+}
+
+// SoftwarePackageDownloadProgress reports one software package's download in a batch.
+// A package that hasn't started downloading has an empty name. Entries keep their place in
+// the batch payload, which is what tells two packages with the same name apart, so nothing
+// may filter or reorder them.
+type SoftwarePackageDownloadProgress struct {
+	Name   string                        `json:"name"`
+	Status SoftwarePackageDownloadStatus `json:"status"`
+}
+
+// SoftwarePackageDownloadStatus is how far a package got through its download.
+type SoftwarePackageDownloadStatus string
+
+const (
+	SoftwarePackageDownloadStarted  SoftwarePackageDownloadStatus = "downloading"
+	SoftwarePackageDownloadFinished SoftwarePackageDownloadStatus = "downloaded"
+	SoftwarePackageDownloadFailed   SoftwarePackageDownloadStatus = "failed"
+	SoftwarePackageDownloadSkipped  SoftwarePackageDownloadStatus = "skipped"
+)
+
+// BatchSetSoftwareInstallersResult is the status of a software batch started by
+// BatchSetSoftwareInstallers.
+type BatchSetSoftwareInstallersResult struct {
+	Status  string
+	Message string
+	// Packages is always empty for a dry run.
+	Packages []SoftwarePackageResponse
+	// DeletedPackages holds what the batch deleted, or would delete on a dry run.
+	DeletedPackages  []DeletedSoftwarePackage
+	Categories       []string
+	DownloadProgress []SoftwarePackageDownloadProgress
 }
 
 // VPPAppResponse is the response type used when applying app store apps by batch.
@@ -487,10 +536,14 @@ type HostSoftwareInstallerResult struct {
 	// nil = not triggered by a policy
 	// 1,2,3 attempt, 3 being max retries
 	AttemptNumber *int `json:"attempt_number,omitempty" db:"attempt_number"`
+	// PatchWhenClosed is set from the triggering policy; it distinguishes an empty pre-install result
+	// caused by the app being open from an ordinary pre-install-query failure.
+	PatchWhenClosed bool `json:"-" db:"patch_when_closed"`
 }
 
 const (
 	SoftwareInstallerQueryFailCopy          = "Query didn't return result or failed\nInstall stopped"
+	SoftwareInstallerAppOpenCopy            = "The app was open\nInstall stopped"
 	SoftwareInstallerQuerySuccessCopy       = "Query returned result\nProceeding to install..."
 	SoftwareInstallerScriptsDisabledCopy    = "Installing software...\nError: Scripts are disabled for this host. To run scripts, deploy the fleetd agent with --enable-scripts."
 	SoftwareInstallerInstallFailCopy        = "Installing software...\nFailed\n%s"
@@ -500,8 +553,10 @@ const (
 Exit code: %d (Failed)
 %s
 `
-	SoftwareInstallerDownloadFailedCopy = "Installing software...\nError: Software installer download failed."
-	SoftwareInstallerNotFoundCopy       = "Installing software...\nError: The software installer no longer exists on the server. fleetd abandoned the install after retrying for 5 minutes."
+	SoftwareInstallerDownloadFailedCopy    = "Installing software...\nError: Software installer download failed."
+	SoftwareInstallerNotFoundCopy          = "Installing software...\nError: The software installer no longer exists on the server. fleetd abandoned the install after retrying for 5 minutes."
+	SoftwareInstallerFleetVarsFailedCopy   = "Installing software...\nError: Fleet couldn't resolve variables in this software's scripts.\n%s"
+	SoftwareInstallerScriptCouldNotRunCopy = "Installing software...\nError: Fleet couldn't run the install script. The script's interpreter (from its \"#!\" shebang) may be missing or not executable on this host, or the script was stopped before it finished.\n%s"
 )
 
 // EnhanceOutputDetails is used to add extra boilerplate/information to the
@@ -513,7 +568,12 @@ func (h *HostSoftwareInstallerResult) EnhanceOutputDetails() {
 
 	if h.PreInstallQueryOutput != nil {
 		if *h.PreInstallQueryOutput == "" {
-			*h.PreInstallQueryOutput = SoftwareInstallerQueryFailCopy
+			// For patch-when-closed, an empty result means the app was open, not a query failure.
+			if h.PatchWhenClosed {
+				*h.PreInstallQueryOutput = SoftwareInstallerAppOpenCopy
+			} else {
+				*h.PreInstallQueryOutput = SoftwareInstallerQueryFailCopy
+			}
 			return
 		}
 		*h.PreInstallQueryOutput = SoftwareInstallerQuerySuccessCopy
@@ -534,6 +594,12 @@ func (h *HostSoftwareInstallerResult) EnhanceOutputDetails() {
 		return
 	case ExitCodeInstallerNotFound:
 		*h.Output = SoftwareInstallerNotFoundCopy
+		return
+	case ExitCodeFleetVarResolutionFailed:
+		*h.Output = fmt.Sprintf(SoftwareInstallerFleetVarsFailedCopy, *h.Output)
+		return
+	case ExitCodeScriptTimeout:
+		h.Output = new(fmt.Sprintf(SoftwareInstallerScriptCouldNotRunCopy, *h.Output))
 		return
 	default:
 		h.Output = ptr.String(fmt.Sprintf(SoftwareInstallerInstallFailCopy, *h.Output))
@@ -560,6 +626,16 @@ type HostSoftwareInstallerResultAuthz struct {
 // AuthzType implements authz.AuthzTyper.
 func (s *HostSoftwareInstallerResultAuthz) AuthzType() string {
 	return "host_software_installer_result"
+}
+
+// CachedInstallerMetadata describes installer bytes already in the store, for a
+// version being cached without downloading the file again. Filename and Extension
+// come off the stored row because an installer URL often ends in neither.
+type CachedInstallerMetadata struct {
+	PackageIDs  []string
+	UpgradeCode string
+	Filename    string
+	Extension   string
 }
 
 type UploadSoftwareInstallerPayload struct {
@@ -619,6 +695,10 @@ type UploadSoftwareInstallerPayload struct {
 	PatchQuery string
 	// Configuration is the in-house app's managed app configuration as raw XML bytes (iOS / iPadOS only).
 	Configuration []byte
+	// AppOpenQuery is the Fleet-managed pre-install query that skips the install while the app is open.
+	AppOpenQuery          string
+	InstallScriptEdited   bool
+	UninstallScriptEdited bool
 }
 
 // SoftwareInstallerLookupRow projects the columns needed to resolve an
@@ -713,6 +793,14 @@ type UpdateSoftwareInstallerPayload struct {
 	PinnedVersion *string
 	// Configuration is the in-house app's managed app configuration as raw XML bytes (iOS / iPadOS only). nil means leave unchanged; explicit empty means clear.
 	Configuration []byte
+	// Patch enables or disables the title's patch policy. FMA-only.
+	Patch *bool
+	// PatchWhenClosed skips the install while the app is open. FMA-only.
+	PatchWhenClosed *bool
+	// InstallScriptEdited and UninstallScriptEdited are the values to persist, not a
+	// request of whether to change them.
+	InstallScriptEdited   bool
+	UninstallScriptEdited bool
 }
 
 func (u *UpdateSoftwareInstallerPayload) IsNoopPayload(existing *SoftwareTitle) bool {
@@ -720,7 +808,7 @@ func (u *UpdateSoftwareInstallerPayload) IsNoopPayload(existing *SoftwareTitle) 
 		u.InstallScript == nil && u.PostInstallScript == nil && u.UninstallScript == nil &&
 		u.LabelsIncludeAny == nil && u.LabelsExcludeAny == nil && u.LabelsIncludeAll == nil &&
 		u.DisplayName == nil && u.CategoryIDs == nil && u.Configuration == nil &&
-		u.PinnedVersion == nil
+		u.PinnedVersion == nil && u.Patch == nil && u.PatchWhenClosed == nil
 }
 
 // DownloadSoftwareInstallerPayload is the payload for downloading a software installer.
@@ -801,8 +889,10 @@ func CanonicalPlatform(p string) string {
 func AllowedSetupExperiencePlatformsForExtension(ext string) []string {
 	ext = strings.TrimPrefix(strings.ToLower(ext), ".")
 	switch ext {
-	case "sh":
+	case "sh", "py":
 		return []string{"darwin", "linux"}
+	case "ipa":
+		return []string{"ios", "ipados"}
 	default:
 		return nil
 	}
@@ -868,8 +958,10 @@ type AutomaticInstallPolicy struct {
 }
 
 type PatchPolicyData struct {
-	ID   uint   `json:"id" db:"id"`
-	Name string `json:"name" db:"name"`
+	ID                           uint   `json:"id" db:"id"`
+	Name                         string `json:"name" db:"name"`
+	PatchWhenClosed              bool   `json:"patch_when_closed" db:"patch_when_closed"`
+	ContinuousAutomationsEnabled bool   `json:"continuous_automations_enabled" db:"continuous_automations_enabled"`
 }
 
 // SoftwarePackageOrApp provides information about a software installer
@@ -883,12 +975,17 @@ type SoftwarePackageOrApp struct {
 	// installed automatically with a policy.
 	AutomaticInstallPolicies []AutomaticInstallPolicy `json:"automatic_install_policies"`
 
-	Version       string                 `json:"version"`
-	Platform      string                 `json:"platform"`
-	SelfService   *bool                  `json:"self_service,omitempty"`
-	LastInstall   *HostSoftwareInstall   `json:"last_install"`
-	LastUninstall *HostSoftwareUninstall `json:"last_uninstall"`
-	PackageURL    *string                `json:"package_url"`
+	Version     string `json:"version"`
+	Platform    string `json:"platform"`
+	SelfService *bool  `json:"self_service,omitempty"`
+	// HasUninstallScript indicates whether the installer has a non-empty
+	// uninstall script configured. Absent for VPP and in-house apps (the
+	// key is dropped via omitempty on a nil pointer), and absent on
+	// /software/titles responses; only host software responses set it.
+	HasUninstallScript *bool                  `json:"has_uninstall_script,omitempty"`
+	LastInstall        *HostSoftwareInstall   `json:"last_install"`
+	LastUninstall      *HostSoftwareUninstall `json:"last_uninstall"`
+	PackageURL         *string                `json:"package_url"`
 	// InstallDuringSetup is a boolean that indicates if the package
 	// will be installed during the macos setup experience.
 	InstallDuringSetup      *bool                    `json:"install_during_setup,omitempty" db:"install_during_setup"`
@@ -946,8 +1043,9 @@ type SoftwarePackageSpec struct {
 	// consistent with the query/policy `platform` field. Additive with
 	// InstallDuringSetup: the native platform is controlled by that bool, the
 	// non-native entries feed the setup_experience_software_installers
-	// cross-table. Only meaningful for packages whose file can run on more than
-	// one platform (today: .sh).
+	// cross-table. Only meaningful for packages that produce more than one
+	// setup experience target: cross-platform scripts (.sh, .py) and .ipa
+	// packages, whose single entry stands for both the iOS and iPadOS titles.
 	SetupExperiencePlatform optjson.String        `json:"setup_experience_platform,omitzero"`
 	Icon                    TeamSpecSoftwareAsset `json:"icon"`
 	// Configuration is the managed app configuration file path; only meaningful for .ipa packages.
@@ -1013,6 +1111,7 @@ type MaintainedAppSpec struct {
 	LabelsExcludeAny        []string              `json:"labels_exclude_any"`
 	LabelsIncludeAll        []string              `json:"labels_include_all"`
 	Categories              optjson.Slice[string] `json:"categories,omitzero"`
+	DisplayName             string                `json:"display_name,omitempty"`
 	InstallDuringSetup      optjson.Bool          `json:"setup_experience"`
 	SetupExperiencePlatform optjson.String        `json:"setup_experience_platform,omitzero"`
 	Icon                    TeamSpecSoftwareAsset `json:"icon"`
@@ -1034,6 +1133,7 @@ func (spec MaintainedAppSpec) ToSoftwarePackageSpec() SoftwarePackageSpec {
 		InstallDuringSetup:      spec.InstallDuringSetup,
 		Icon:                    spec.Icon,
 		Categories:              spec.Categories,
+		DisplayName:             spec.DisplayName,
 	}
 }
 
@@ -1165,21 +1265,6 @@ func (h *HostSoftwareInstallResultPayload) Status() SoftwareInstallerStatus {
 	}
 }
 
-const (
-	// ExitCodeScriptsDisabled is a special exit code returned by fleetd in the
-	// HostSoftwareInstallResultPayload when the install was attempted on a host with scripts
-	// disabled.
-	ExitCodeScriptsDisabled = -2
-	// ExitCodeInstallerDownloadFailed is a special exit code returned by fleetd in the
-	// HostSoftwareInstallResultPayload when fleetd failed to download the installer.
-	ExitCodeInstallerDownloadFailed = -3
-	// ExitCodeInstallerNotFound is a special exit code returned by fleetd in the
-	// HostSoftwareInstallResultPayload when fleetd has been unable to fetch installer
-	// details from the server for longer than the retry window (e.g. because the
-	// installer was deleted/replaced while a setup-experience install was in flight).
-	ExitCodeInstallerNotFound = -4
-)
-
 // SoftwareInstallerTokenMetadata is the metadata stored in Redis for a software installer token.
 type SoftwareInstallerTokenMetadata struct {
 	TitleID uint `json:"title_id"`
@@ -1282,11 +1367,16 @@ const MaxSoftwareInstallAttempts = 3
 const MaxPackagesPerTitle = 10
 
 func ValidateTitlePackages(payloads []*UploadSoftwareInstallerPayload, teamName string) error {
-	var customCount, fmaCount int
+	var customCount int
 	seenHash := make(map[string]struct{}, len(payloads))
+	seenFMA := make(map[uint]struct{}, len(payloads))
+	var fmaNames []string
 	for _, p := range payloads {
 		if p.FleetMaintainedAppID != nil {
-			fmaCount++
+			if _, seen := seenFMA[*p.FleetMaintainedAppID]; !seen {
+				seenFMA[*p.FleetMaintainedAppID] = struct{}{}
+				fmaNames = append(fmaNames, p.Title)
+			}
 			continue
 		}
 		customCount++
@@ -1295,7 +1385,12 @@ func ValidateTitlePackages(payloads []*UploadSoftwareInstallerPayload, teamName 
 		}
 		seenHash[p.StorageID] = struct{}{}
 	}
-	if fmaCount > 0 && customCount > 0 {
+	// Two FMAs on one title share a bundle identifier (e.g. Firefox and Firefox ESR): same
+	// inventory app, so only one can be added.
+	if len(fmaNames) > 1 {
+		return ConflictError{Message: fmt.Sprintf(CantAddConflictingFMAMessage, fmaNames[0], fmaNames[1])}
+	}
+	if len(fmaNames) > 0 && customCount > 0 {
 		return ConflictError{Message: fmt.Sprintf(SoftwareAlreadyHasFleetMaintainedAppMessage, payloads[0].Title, teamName)}
 	}
 	if customCount > MaxPackagesPerTitle {
@@ -1319,6 +1414,11 @@ type HostSoftwareInstallOptions struct {
 	// MaxSoftwareInstallAttempts total). Set by host details, self-service,
 	// and setup experience install paths.
 	WithRetries bool
+	// DeferActivation enqueues the upcoming activity without activating it;
+	// the activity stays invisible to the host until the fleet-initiated
+	// release cron activates it within the configured per-minute budget. Set
+	// by policy-automation paths when activity.fleet_initiated_release_per_minute > 0.
+	DeferActivation bool
 }
 
 // IsFleetInitiated returns true if the software install is initiated by Fleet.
@@ -1329,13 +1429,18 @@ func (o HostSoftwareInstallOptions) IsFleetInitiated() bool {
 }
 
 // Priority returns the upcoming activities queue priority to use for this
-// software installation. Software installed for the setup experience is
-// prioritized over other software installations.
+// software installation. Setup experience outranks everything; user-initiated
+// installs outrank Fleet-initiated ones so they are never queued behind
+// deferred policy-automation activities.
 func (o HostSoftwareInstallOptions) Priority() int {
-	if o.ForSetupExperience {
-		return 100
+	switch {
+	case o.ForSetupExperience:
+		return SetupExperienceActivityPriority
+	case !o.IsFleetInitiated():
+		return UserInitiatedActivityPriority
+	default:
+		return 0
 	}
-	return 0
 }
 
 // PreflightInstallFailedError signals that Fleet failed an install before
@@ -1375,4 +1480,20 @@ func BatchSoftwareInstallerRetryInterval() time.Duration {
 	}
 
 	return defaultInterval
+}
+
+// SoftwareInstallAttemptCounter counts failed software install attempts per host and
+// installer.
+type SoftwareInstallAttemptCounter interface {
+	// RecordAttempt counts one failed attempt and returns the running count. It sets
+	// the key to expire after expireIn, so the count clears when the key expires.
+	RecordAttempt(ctx context.Context, hostID uint, softwareInstallerID uint, expireIn time.Duration) (int, error)
+	// CountAttempts returns the current count without recording anything, and 0 when
+	// the key does not exist.
+	CountAttempts(ctx context.Context, hostID uint, softwareInstallerID uint) (int, error)
+	// ResetAttempts deletes the key for this host and installer.
+	ResetAttempts(ctx context.Context, hostID uint, softwareInstallerID uint) error
+	// ResetInstallerAttempts deletes the keys for these installers on every host, so an
+	// edited installer counts from zero instead of waiting for the keys to expire.
+	ResetInstallerAttempts(ctx context.Context, softwareInstallerIDs []uint) error
 }

@@ -2,31 +2,6 @@
 
 set -euo pipefail
 
-fix_import_spacing() {
-  local file="$1"
-  awk '
-    /^import \* as React from / {
-      print;
-      print "";
-      next;
-    }
-    /^import type / {
-      print;
-      print "";
-      next;
-    }
-    { print }
-  ' "$file" > "${file}.tmp"
-  
-  if [ $? -eq 0 ]; then
-    mv "${file}.tmp" "$file"
-  else
-    rm -f "${file}.tmp"
-    echo "Error: Failed to update $file" >&2
-    return 1
-  fi
-}
-
 # Check if a string is a valid JavaScript identifier
 # Valid identifiers: start with letter/underscore/dollar, contain only letters/digits/underscore/dollar
 is_valid_js_identifier() {
@@ -97,7 +72,7 @@ add_icon_to_index() {
     echo "Import for ${component_name} already exists in index.ts"
   else
     # Insert import in alphabetical order
-    local import_line="import ${component_name} from \"./${component_name}\";"
+    local import_line="import ${component_name} from \"./png/${component_name}.png\";"
     
     # Verify index_file is set and exists before running awk
     if [[ -z "$index_file" ]]; then
@@ -304,11 +279,6 @@ while getopts ":s:a:i:" opt; do
     :) echo "Option -$OPTARG requires an argument." >&2; exit 1 ;;
   esac
 done
-
-if ! command -v svgr &> /dev/null; then
-  echo "Error: 'svgr' is not installed. Install it with 'npm install -g @svgr/cli'"
-  exit 1
-fi
 
 # Validate
 if [[ -z "$SLUG" ]]; then
@@ -534,53 +504,32 @@ if [[ $ICON_WIDTH -gt 128 || $ICON_HEIGHT -gt 128 ]]; then
   fi
 fi
 
-# Generate SVG from 128 PNG
-WIDTH=32
-HEIGHT=32
-BASE64_DATA=$(base64 -i "$ICON_128" | tr -d '\n')
+#############################################
+# Write the icon into the frontend icon dir #
+#############################################
 
-# Determine SVG filename based on input method
-if [[ -n "$PNG_PATH" ]]; then
-  SVG_BASENAME="$SLUG"
-else
-  SVG_BASENAME=$(basename "$APP_PATH" .app)
-fi
-OUTPUT_SVG="$TMP_DIR/${SVG_BASENAME}.svg"
-
-cat > "$OUTPUT_SVG" <<EOF
-<svg xmlns="http://www.w3.org/2000/svg" width="$WIDTH" height="$HEIGHT" viewBox="0 0 $WIDTH $HEIGHT" version="1.1">
-  <image width="$WIDTH" height="$HEIGHT" href="data:image/png;base64,$BASE64_DATA"/>
-</svg>
-EOF
-
-echo "SVG saved to: $OUTPUT_SVG"
-
-## Generate TSX component
-# TODO: we could just have a template file that we populated with the base64 PNG and the component name,
-# rather than needing a separate tool. Particularly since we have to do tweaks on the output of the
-# svgr tool to make the result pass linting.
-svgr "$OUTPUT_SVG" --typescript --ext tsx --out-dir frontend/pages/SoftwarePage/components/icons/
-
-TSX_FILE="frontend/pages/SoftwarePage/components/icons/${COMPONENT_NAME}.tsx"
+ICON_OUTPUT_DIR="frontend/pages/SoftwarePage/components/icons/png"
+ICON_OUTPUT_PNG="$ICON_OUTPUT_DIR/${COMPONENT_NAME}.png"
+mkdir -p "$ICON_OUTPUT_DIR"
+cp "$ICON_128" "$ICON_OUTPUT_PNG"
 
 echo "Component name: $COMPONENT_NAME"
 
-# Fix import spacing
-fix_import_spacing "$TSX_FILE"
-
-# Adjust component name (remove Svg prefix)
-SVG_COMPONENT_NAME=$(grep -oE '^const Svg[A-Za-z0-9_]+' "$TSX_FILE" | awk '{print $2}')
-if [[ -z "$SVG_COMPONENT_NAME" ]]; then
-  echo "Error: could not find Svg component name in $TSX_FILE"
-  exit 1
+# Quantize to a palette. These are served as individual files, so per-icon size
+# is what a page actually pays; skip-if-larger keeps already-small icons as-is.
+if command -v pngquant &> /dev/null; then
+  pngquant --quality=65-90 --speed 1 --strip --skip-if-larger \
+    --force --output "$ICON_OUTPUT_PNG" "$ICON_OUTPUT_PNG" || true
+else
+  echo "Warning: 'pngquant' not installed — icon left uncompressed (~4x larger than needed)."
+  echo "         Install it with 'brew install pngquant' and re-run, or CI will flag this icon."
 fi
 
-NEW_COMPONENT_NAME="${SVG_COMPONENT_NAME#Svg}"
-sed -i '' "s/$SVG_COMPONENT_NAME/$NEW_COMPONENT_NAME/g" "$TSX_FILE"
+echo "Icon saved to: $ICON_OUTPUT_PNG ($(wc -c < "$ICON_OUTPUT_PNG" | tr -d ' ') bytes)"
 
 # Update index.ts with import and map entry
 echo "Updating index.ts with new icon..."
-add_icon_to_index "$NEW_COMPONENT_NAME" "$APP_DISPLAY_NAME"
+add_icon_to_index "$COMPONENT_NAME" "$APP_DISPLAY_NAME"
 
 ######################################
 # Copy 128x128 PNG to asset location #

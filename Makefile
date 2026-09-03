@@ -251,10 +251,11 @@ fleetctl-dev: fleetctl
 	@echo "Run the JavaScript linters"
 lint-js:
 	yarn lint
+	yarn lint:icons
 
 .help-short--lint-go:
 	@echo "Run the Go linters"
-lint-go: check-no-testing-in-prod
+lint-go: check-no-testing-in-prod check-nilaway-func-size
 	golangci-lint run --allow-serial-runners --timeout 15m
 ifndef SKIP_INCREMENTAL
 	$(MAKE) lint-go-incremental
@@ -264,6 +265,13 @@ endif
 	@echo "Fail if any Fleet-owned package reachable from cmd/fleet, cmd/fleetctl, or orbit/cmd/orbit imports \"testing\". See https://github.com/fleetdm/fleet/issues/45220."
 check-no-testing-in-prod:
 	go run ./tools/check-no-testing-in-prod
+
+.help-short--check-nilaway-func-size:
+	@echo "Fail if any function has too many CFG blocks for nilaway to analyze."
+# Deliberately not part of the incremental lint: nilaway reports this failure at a synthetic $GOROOT
+# position that --new-from-rev always filters out, so the gate has to run over the whole repo.
+check-nilaway-func-size:
+	go run ./tools/check-nilaway-func-size ./...
 
 .help-short--lint-go-incremental:
 	@echo "Run the incremental Go linters"
@@ -523,9 +531,6 @@ clean-assets:
 
 fleetctl-docker: xp-fleetctl
 	docker build -t fleetdm/fleetctl --platform=linux/amd64 -f tools/fleetctl-docker/Dockerfile .
-
-bomutils-docker:
-	cd tools/bomutils-docker && docker build -t fleetdm/bomutils --platform=linux/amd64 -f Dockerfile .
 
 wix-docker:
 	cd tools/wix-docker && docker build -t fleetdm/wix --platform=linux/amd64 -f Dockerfile .
@@ -1058,11 +1063,9 @@ vex-report:
 	sh -c 'go run ./tools/vex-parser ./security/vex/fleetctl >> security/status.md'
 	sh -c 'echo "## \`fleetdm/wix\` docker image\n" >> security/status.md'
 	sh -c 'go run ./tools/vex-parser ./security/vex/wix >> security/status.md'
-	sh -c 'echo "## \`fleetdm/bomutils\` docker image\n" >> security/status.md'
-	sh -c 'go run ./tools/vex-parser ./security/vex/bomutils >> security/status.md'
 
 # make update-go version=1.24.4
-UPDATE_GO_DOCKERFILES := ./Dockerfile-desktop-linux ./infrastructure/loadtesting/terraform/docker/loadtest.Dockerfile ./tools/mdm/migration/mdmproxy/Dockerfile
+UPDATE_GO_DOCKERFILES := ./Dockerfile-desktop-linux ./infrastructure/loadtesting/terraform/docker/loadtest.Dockerfile ./infrastructure/loadtesting/terraform/docker/apple-apns-mock.Dockerfile ./infrastructure/loadtesting/terraform/docker/android-amapi-mock.Dockerfile ./tools/mdm/migration/mdmproxy/Dockerfile
 UPDATE_GO_MODS := \
 	go.mod \
 	./tools/mdm/windows/bitlocker/go.mod \
@@ -1078,15 +1081,19 @@ UPDATE_GO_MODS := \
 	./tools/hangar/go.mod \
 	./cmd/fleet-mcp/go.mod \
 	./tools/dibble/go.mod \
+	./tools/gitops-auto-complete/go.mod \
 	./tools/upgrade/go.mod
+# The index digest is scraped from the default `imagetools inspect` output rather than requested with
+# `--format '{{.Manifest.Digest}}'`: buildx >= v0.32 silently ignores that template and prints the full
+# report, which then gets written into the Dockerfile as the digest.
 update-go:
 	@test $(version) || (echo "Missing 'version' argument, usage: 'make update-go version=1.24.4'" ; exit 1)
 	@for dockerfile in $(UPDATE_GO_DOCKERFILES) ; do \
 		go run ./tools/tuf/replace $$dockerfile "golang:.+-" "golang:$(version)-" ; \
 		tag=$$(grep -oE 'golang:[^@[:space:]]+' $$dockerfile | head -n1) ; \
 		echo "Resolving index digest for $$tag ..." ; \
-		digest=$$(docker buildx imagetools inspect $$tag --format '{{.Manifest.Digest}}') ; \
-		test "$$digest" || (echo "Failed to resolve digest for $$tag" ; exit 1) ; \
+		digest=$$(docker buildx imagetools inspect $$tag | awk '/^Digest:/ { print $$2 ; exit }') ; \
+		echo "$$digest" | grep -qE '^sha256:[0-9a-f]{64}$$' || { echo "Failed to resolve digest for $$tag (got: $$digest)" ; exit 1 ; } ; \
 		go run ./tools/tuf/replace $$dockerfile "$$tag@sha256:[0-9a-f]+" "$$tag@$$digest" ; \
 		echo "* Updated $$dockerfile -> $$tag@$$digest" ; \
 	done

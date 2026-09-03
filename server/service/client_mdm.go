@@ -341,8 +341,11 @@ func (c *Client) RunMDMCommand(hostUUIDs []string, rawCmd []byte, forPlatform st
 		prepareFn = c.prepareAppleMDMCommand
 	case "windows":
 		prepareFn = c.prepareWindowsMDMCommand
+	case "android":
+		// Android commands are JSON; base64-encode as-is (no XML preparation needed).
+		prepareFn = func(b []byte) ([]byte, error) { return b, nil }
 	default:
-		return nil, fmt.Errorf("Invalid platform %q. You can only run MDM commands on Windows or Apple hosts.", forPlatform)
+		return nil, fmt.Errorf("Invalid platform %q. You can only run MDM commands on Windows, Apple, or Android hosts.", forPlatform)
 	}
 
 	rawCmd, err := prepareFn(rawCmd)

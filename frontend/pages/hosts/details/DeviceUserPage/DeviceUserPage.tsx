@@ -1,13 +1,13 @@
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useState, useCallback, useEffect, useMemo } from "react";
 import { InjectedRouter, Params } from "react-router/lib/Router";
 import { useQuery } from "react-query";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
-import useIsMobileWidth from "hooks/useIsMobileWidth";
 import { AxiosError } from "axios";
 
 import { pick } from "lodash";
 
 import classNames from "classnames";
+import useIsMobileWidth from "hooks/useIsMobileWidth";
 
 import deviceUserAPI, {
   IGetDeviceCertsApiParams,
@@ -55,11 +55,34 @@ import {
 
 import UnsupportedScreenSize from "layouts/UnsupportedScreenSize";
 
+import { canTriggerAPNSPing } from "interfaces/mdm";
 import HostSummaryCard from "../cards/HostSummary";
 import VitalsCard from "../cards/Vitals";
 import SoftwareCard from "../cards/Software";
 import PoliciesCard from "../cards/Policies";
-import InfoModal from "./InfoModal";
+
+import PolicyDetailsModal from "../cards/Policies/HostPoliciesTable/PolicyDetailsModal";
+import ControlsCard from "../cards/Controls";
+import { shouldShowControlsTab } from "../cards/Controls/helpers";
+import {
+  countFailedControls,
+  generateTableData,
+} from "../cards/Controls/OSSettingsTableConfig";
+import BootstrapPackageModal from "../HostDetailsPage/modals/BootstrapPackageModal";
+import { parseHostSoftwareQueryParams } from "../cards/Software/HostSoftware";
+import { parseSelfServiceQueryParams } from "../cards/Software/SelfService/SelfService";
+import SelfService from "../cards/Software/SelfService";
+import CertificateDetailsModal from "../modals/CertificateDetailsModal";
+import CertificatesCard from "../cards/Certificates";
+import UserCard from "../cards/User";
+import HostHeader from "../cards/HostHeader/HostHeader";
+import InventoryVersionsModal from "../modals/InventoryVersionsModal";
+import { REFETCH_HOST_DETAILS_POLLING_INTERVAL } from "../HostDetailsPage/HostDetailsPage";
+import DeviceUserBanners from "./components/DeviceUserBanners";
+import CreateLinuxKeyModal from "./CreateLinuxKeyModal";
+import BitLockerPinModal from "./BitLockerPinModal";
+import AutoEnrollMdmModal from "./AutoEnrollMdmModal";
+import useDeviceSSO from "./useDeviceSSO";
 import {
   getErrorMessage,
   hasRemainingSetupSteps,
@@ -68,23 +91,7 @@ import {
   isIPad,
   isRecentlyEnrolled,
 } from "./helpers";
-
-import PolicyDetailsModal from "../cards/Policies/HostPoliciesTable/PolicyDetailsModal";
-import AutoEnrollMdmModal from "./AutoEnrollMdmModal";
-import BitLockerPinModal from "./BitLockerPinModal";
-import CreateLinuxKeyModal from "./CreateLinuxKeyModal";
-import OSSettingsModal from "../OSSettingsModal";
-import BootstrapPackageModal from "../HostDetailsPage/modals/BootstrapPackageModal";
-import { parseHostSoftwareQueryParams } from "../cards/Software/HostSoftware";
-import { parseSelfServiceQueryParams } from "../cards/Software/SelfService/SelfService";
-import SelfService from "../cards/Software/SelfService";
-import DeviceUserBanners from "./components/DeviceUserBanners";
-import CertificateDetailsModal from "../modals/CertificateDetailsModal";
-import CertificatesCard from "../cards/Certificates";
-import UserCard from "../cards/User";
-import HostHeader from "../cards/HostHeader/HostHeader";
-import InventoryVersionsModal from "../modals/InventoryVersionsModal";
-import { REFETCH_HOST_DETAILS_POLLING_INTERVAL } from "../HostDetailsPage/HostDetailsPage";
+import InfoModal from "./InfoModal";
 
 import SettingUpYourDevice from "./components/SettingUpYourDevice";
 import InfoButton from "./components/InfoButton";
@@ -97,12 +104,14 @@ const fullWidthCardClass = `${baseClass}__card--full-width`;
 const PREMIUM_TAB_PATHS = [
   PATHS.DEVICE_USER_DETAILS_SELF_SERVICE,
   PATHS.DEVICE_USER_DETAILS,
+  PATHS.DEVICE_USER_DETAILS_CONTROLS,
   PATHS.DEVICE_USER_DETAILS_SOFTWARE,
   PATHS.DEVICE_USER_DETAILS_POLICIES,
 ] as const;
 
 const FREE_TAB_PATHS = [
   PATHS.DEVICE_USER_DETAILS,
+  PATHS.DEVICE_USER_DETAILS_CONTROLS,
   PATHS.DEVICE_USER_DETAILS_SOFTWARE,
 ] as const;
 
@@ -122,6 +131,7 @@ interface IDeviceUserPageProps {
       order_key?: string;
       order_direction?: "asc" | "desc";
       setup_only?: string;
+      sso_error?: string;
     };
     search?: string;
   };
@@ -147,7 +157,6 @@ const DeviceUserPage = ({
     null
   );
   const [showPolicyDetailsModal, setShowPolicyDetailsModal] = useState(false);
-  const [showOSSettingsModal, setShowOSSettingsModal] = useState(false);
   const [showBootstrapPackageModal, setShowBootstrapPackageModal] = useState(
     false
   );
@@ -205,6 +214,7 @@ const DeviceUserPage = ({
     data: deviceCertificates,
     isLoading: isLoadingDeviceCertificates,
     isError: isErrorDeviceCertificates,
+    error: deviceCertificatesError,
     refetch: refetchDeviceCertificates,
   } = useQuery<
     IGetDeviceCertificatesResponse,
@@ -265,7 +275,7 @@ const DeviceUserPage = ({
   const {
     data: dupDetails,
     isLoading: isLoadingDupDetails,
-    error: isDupDetailsError,
+    error: dupDetailsError,
     refetch: refetchDupDetails,
   } = useQuery<IDUPDetails, AxiosError>(
     ["host", deviceAuthToken],
@@ -358,7 +368,7 @@ const DeviceUserPage = ({
   );
 
   const isAuthenticationError =
-    isDupDetailsError && isDupDetailsError.status === 401;
+    dupDetailsError && dupDetailsError.status === 401;
 
   const {
     host,
@@ -393,6 +403,12 @@ const DeviceUserPage = ({
   const checkForSetupExperienceSoftware =
     isSetupExperienceSoftwareEnabledPlatform && isPremiumTier;
 
+  // Memoized so the table keeps a stable `data` reference across renders.
+  const controls = useMemo(
+    () => (host ? generateTableData(host.mdm, host.platform) ?? [] : []),
+    [host]
+  );
+
   const summaryData = normalizeEmptyValues(pick(host, HOST_SUMMARY_DATA));
 
   const vitalsData = normalizeEmptyValues(pick(host, HOST_VITALS_DATA));
@@ -401,6 +417,7 @@ const DeviceUserPage = ({
     data: setupStepStatuses,
     isLoading: isLoadingSetupSteps,
     isError: isErrorSetupSteps,
+    error: setupStepsError,
   } = useQuery<
     IGetSetupExperienceStatusesResponse,
     AxiosError,
@@ -449,6 +466,23 @@ const DeviceUserPage = ({
     }
   );
 
+  const {
+    isSSORequired,
+    isRedirecting: isRedirectingToSSO,
+    retry: retryDeviceSSO,
+  } = useDeviceSSO({
+    deviceAuthToken,
+    errors: [
+      dupDetailsError,
+      deviceCertificatesError,
+      setupStepsError,
+      mdmManualEnrollUrlError,
+    ],
+    ssoErrorParam: location.query.sso_error,
+    isSetupOnly: !!location.query.setup_only,
+    hasSession: !!dupDetails,
+  });
+
   const { bypassConditionalAccess } = deviceUserAPI;
 
   const [isLoadingBypass, setIsLoadingBypass] = useState(false);
@@ -495,10 +529,6 @@ const DeviceUserPage = ({
     name: host?.mdm.setup_experience?.bootstrap_package_name,
   };
 
-  const toggleOSSettingsModal = useCallback(() => {
-    setShowOSSettingsModal(!showOSSettingsModal);
-  }, [showOSSettingsModal, setShowOSSettingsModal]);
-
   const onCancelPolicyDetailsModal = useCallback(() => {
     setShowPolicyDetailsModal(false);
     setSelectedPolicy(null);
@@ -508,6 +538,14 @@ const DeviceUserPage = ({
   const onRefetchHost = useCallback(async () => {
     if (!host) return;
     setShowRefetchSpinner(true);
+
+    // Trigger APNS ping independently of the main refetch
+    if (canTriggerAPNSPing(host)) {
+      deviceUserAPI.apnsPing(deviceAuthToken).catch((error) => {
+        notify.error("Failed to send APNS ping", { response: error });
+      });
+    }
+
     try {
       await deviceUserAPI.refetch(deviceAuthToken);
       setRefetchStartTime(Date.now());
@@ -588,6 +626,17 @@ const DeviceUserPage = ({
   const renderDeviceUserPage = () => {
     const failingPoliciesCount = host?.issues?.failing_policies_count || 0;
 
+    const failedControlsCount = countFailedControls(controls);
+
+    const showControlsTab =
+      !!host &&
+      shouldShowControlsTab({
+        platform: host.platform,
+        osVersion: host.os_version,
+        enrollmentStatus: host.mdm?.enrollment_status ?? null,
+        hasControls: controls.length > 0,
+      });
+
     // TODO: We should probably have a standard way to handle this on all pages. Do we want to show
     // a premium-only message in the case that a user tries direct navigation to a premium-only page
     // or silently redirect as below?
@@ -597,6 +646,9 @@ const DeviceUserPage = ({
     ).map((t) => t(deviceAuthToken));
     if (!hasSelfService) {
       tabPaths = tabPaths.filter((path) => !path.includes("self-service"));
+    }
+    if (!showControlsTab) {
+      tabPaths = tabPaths.filter((path) => !path.endsWith("/controls"));
     }
 
     const findSelectedTab = (pathname: string) => {
@@ -731,6 +783,7 @@ const DeviceUserPage = ({
             diskEncryptionKeyAvailable={host.mdm.encryption_key_available}
             mdmManualEnrolmentUrl={mdmManualEnrollUrl}
             lastMdmEnrolledAt={host.last_mdm_enrolled_at}
+            detailUpdatedAt={host.detail_updated_at}
           />
           <HostHeader
             summaryData={summaryData}
@@ -749,12 +802,19 @@ const DeviceUserPage = ({
               <TabList>
                 {isPremiumTier && isSoftwareEnabled && hasSelfService && (
                   <Tab>
-                    <TabText>Self-service</TabText>
+                    <TabText>Self service</TabText>
                   </Tab>
                 )}
                 <Tab>
                   <TabText>Details</TabText>
                 </Tab>
+                {showControlsTab && (
+                  <Tab>
+                    <TabText count={failedControlsCount} countVariant="alert">
+                      Controls
+                    </TabText>
+                  </Tab>
+                )}
                 {isSoftwareEnabled && (
                   <Tab>
                     <TabText>Software</TabText>
@@ -791,9 +851,6 @@ const DeviceUserPage = ({
                   summaryData={summaryData}
                   bootstrapPackageData={bootstrapPackageData}
                   isPremiumTier={isPremiumTier}
-                  toggleOSSettingsModal={toggleOSSettingsModal}
-                  hostSettings={host?.mdm.profiles ?? []}
-                  osSettings={host?.mdm.os_settings}
                 />
                 <VitalsCard
                   className={fullWidthCardClass}
@@ -825,6 +882,20 @@ const DeviceUserPage = ({
                   />
                 )}
               </TabPanel>
+              {showControlsTab && (
+                <TabPanel>
+                  <ControlsCard
+                    controls={controls}
+                    hostDisplayName={host.display_name}
+                    isDeviceUser
+                    isConnectedToFleetMdm={!!host.mdm.connected_to_fleet}
+                    canResendProfiles={isAppleHost || isWindows(host.platform)}
+                    resendRequest={resendProfile}
+                    onProfileResent={refetchDupDetails}
+                    router={router}
+                  />
+                </TabPanel>
+              )}
               {isSoftwareEnabled && (
                 <TabPanel>
                   <SoftwareCard
@@ -888,16 +959,6 @@ const DeviceUserPage = ({
             }
           />
         )}
-        {!!host && showOSSettingsModal && (
-          <OSSettingsModal
-            canResendProfiles={isAppleHost || isWindows(host.platform)}
-            platform={host.platform}
-            hostMDMData={host.mdm}
-            resendRequest={resendProfile}
-            onProfileResent={refetchDupDetails}
-            onClose={toggleOSSettingsModal}
-          />
-        )}
         {showBootstrapPackageModal &&
           bootstrapPackageData.details &&
           bootstrapPackageData.name && (
@@ -931,6 +992,26 @@ const DeviceUserPage = ({
     );
   };
 
+  const renderDeviceSSOState = () => {
+    if (isRedirectingToSSO) {
+      return (
+        <div className={`${baseClass}__sso-redirect`} role="status">
+          <Spinner {...(isMobileView && { variant: "mobile" })} />
+          <span>Redirecting to your organization’s sign-in page…</span>
+        </div>
+      );
+    }
+
+    return (
+      <DeviceUserError
+        isMobileView={isMobileView}
+        isMobileDevice={isMobileDevice}
+        ssoError="sign_in_failed"
+        onRetry={retryDeviceSSO}
+      />
+    );
+  };
+
   const coreWrapperClassnames = classNames("core-wrapper", {
     "low-width-supported": !shouldShowUnsupportedScreen(location.pathname),
   });
@@ -938,6 +1019,26 @@ const DeviceUserPage = ({
   const siteNavContainerClassnames = classNames("site-nav-container", {
     "low-width-supported": !shouldShowUnsupportedScreen(location.pathname),
   });
+
+  // The SSO branch has to come first: a refused device call is an error to
+  // every query on the page, but one the end user can act on by signing in.
+  const renderDeviceUserBody = () => {
+    if (isSSORequired) {
+      return renderDeviceSSOState();
+    }
+    if (dupDetailsError || enrollUrlError) {
+      return (
+        <DeviceUserError
+          isMobileView={isMobileView}
+          isMobileDevice={isMobileDevice}
+          isAuthenticationError={!!isAuthenticationError}
+        />
+      );
+    }
+    return (
+      <div className={coreWrapperClassnames}>{renderDeviceUserPage()}</div>
+    );
+  };
 
   return (
     <div className="app-wrap">
@@ -970,15 +1071,7 @@ const DeviceUserPage = ({
           )}
         </div>
       </nav>
-      {isDupDetailsError || enrollUrlError ? (
-        <DeviceUserError
-          isMobileView={isMobileView}
-          isMobileDevice={isMobileDevice}
-          isAuthenticationError={!!isAuthenticationError}
-        />
-      ) : (
-        <div className={coreWrapperClassnames}>{renderDeviceUserPage()}</div>
-      )}
+      {renderDeviceUserBody()}
       {showInfoModal && (
         <InfoModal
           onCancel={toggleInfoModal}

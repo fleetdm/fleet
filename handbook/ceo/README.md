@@ -114,7 +114,7 @@ The Executive Assistant will verify daily that the CEO's calendar is accurate fo
   - The CEO will schedule his own transportation (e.g. to/from hotel/event location) while traveling. If the CEO is traveling to an event or meeting where other Fleeties are present, he may use travel time (e.g. an Uber ride) as time to align with other team members in person.
 
 The CEO's calendar should reflect the following schedule for travel:
-- Time block for the CEO to pack (always have this event even if the CEO doesn't check any bags in, he always bring a carry-on bag),
+- Time block for the CEO to pack (always have this event even if the CEO doesn't check any bags in, he always brings a carry-on bag),
   - 45 minutes
   - Calendar event name: Pack
 - Travel time to the airport the CEO is going to,
@@ -127,11 +127,11 @@ The CEO's calendar should reflect the following schedule for travel:
   - Agenda: CEO's link to the boarding pass. You will get this when it's time to check in for the CEO's flight. It will come by email or by text to which you can email it to yourself or text it to yourself. If you cannot get a link, download the boarding pass and upload as a google doc. Make sure the CEO has access to the doc before placing the link in the agenda as the boarding pass. 
 - Time block to get water and boarding,
   - 30 minutes for domestic flights
-  - 90 minutes for international flights where the first leg crosses international borders (this is because they blockade international gates and make you wait in line and the boarding time in longer)
+  - 90 minutes for international flights where the first leg crosses international borders (this is because they blockade international gates and make you wait in line and the boarding time is longer)
   - Calendar event name: Get water and boarding
 - Airline flight calendar event
   - The airline website will either offer to download the flight or have it emailed. After you download the flights from the airline website, import it to the CEO's calendar (this is in the calendar settings) or send it to the CEO's email. (For either option, there is either a calendar icon to click or a button that says "add to calendar".)
-  - If there is no offer to download or email it (usually happens with international flights), manually put it on the CEO's calendar with this event title: ABBREVIATED_AIRPORT to ABREVIATED_ AIRPORT. Make sure to double check the time the flight starts and lands.
+  - If there is no offer to download or email it (usually happens with international flights), manually put it on the CEO's calendar with this event title: ABBREVIATED_AIRPORT to ABBREVIATED_ AIRPORT. Make sure to double check the time the flight starts and lands.
   - For connecting flights, when there is a time gap between flights, fill the gap with a calendar event named: Find next gate
 - Time block to get water and bags (this is after the CEO lands from the flight),
   - 30 minutes

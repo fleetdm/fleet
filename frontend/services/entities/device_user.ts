@@ -63,6 +63,11 @@ export interface IGetSetupExperienceStatusesParams {
   token: string;
 }
 
+export interface IInitiateDeviceSSOResponse {
+  /** The IdP URL the browser must navigate to in order to sign in. */
+  url: string;
+}
+
 export default {
   loadHostDetails: ({
     token,
@@ -87,6 +92,24 @@ export default {
   refetch: (deviceAuthToken: string) => {
     const { DEVICE_USER_DETAILS } = endpoints;
     const path = `${DEVICE_USER_DETAILS}/${deviceAuthToken}/refetch`;
+
+    return sendRequest("POST", path);
+  },
+  apnsPing: (deviceAuthToken: string) => {
+    const { DEVICE_USER_APNS_PING } = endpoints;
+    const path = DEVICE_USER_APNS_PING(deviceAuthToken);
+
+    return sendRequest("POST", path);
+  },
+
+  /** Starts the Fleet Desktop SSO flow. Sets the SSO handshake cookie and
+   * returns the IdP URL to navigate to; the session cookie is set server-side
+   * when the IdP calls back. */
+  initiateDeviceSSO: (
+    deviceAuthToken: string
+  ): Promise<IInitiateDeviceSSOResponse> => {
+    const { DEVICE_USER_DETAILS } = endpoints;
+    const path = `${DEVICE_USER_DETAILS}/${deviceAuthToken}/sso`;
 
     return sendRequest("POST", path);
   },
@@ -117,15 +140,17 @@ export default {
 
   installAllSelfServiceSoftwareInCategory: (
     deviceToken: string,
-    categoryId?: number
+    categoryId?: number,
+    query?: string
   ) => {
     const { DEVICE_SOFTWARE_INSTALL_ALL } = endpoints;
-    // When categoryId is undefined ("All" selected) we omit the query param;
-    // getPathWithQueryParams already drops undefined values, so the BE
-    // receives a bare POST and installs every uninstalled item.
+    // `getPathWithQueryParams` drops undefined values, so an omitted
+    // `categoryId` means "install all categories" and an omitted `query`
+    // means "no name filter" — matching the endpoint's optional semantics.
+    // Callers are expected to hand a trimmed query (or an empty string).
     const path = getPathWithQueryParams(
       DEVICE_SOFTWARE_INSTALL_ALL(deviceToken),
-      { category_id: categoryId }
+      { category_id: categoryId, query: query || undefined }
     );
     return sendRequest("POST", path);
   },

@@ -40,6 +40,9 @@ export default {
 
   // Device endpoints
   DEVICE_USER_DETAILS: `/${API_VERSION}/fleet/device`,
+  DEVICE_USER_APNS_PING: (token: string): string => {
+    return `/${API_VERSION}/fleet/device/${token}/apns_ping`;
+  },
   DEVICE_SOFTWARE: (token: string) =>
     `/${API_VERSION}/fleet/device/${token}/software`,
   DEVICE_SOFTWARE_INSTALL: (token: string, softwareTitleId: number) =>
@@ -96,6 +99,8 @@ export default {
   HOSTS_TRANSFER_BY_FILTER: `/${API_VERSION}/fleet/hosts/transfer/filter`,
   HOST_CUSTOM_HOST_VITAL: (hostId: number, vitalId: number) =>
     `/${API_VERSION}/fleet/hosts/${hostId}/custom_host_vitals/${vitalId}`,
+  HOST_CANCEL_MDM_COMMAND: (hostId: number, commandUUID: string) =>
+    `/${API_VERSION}/fleet/hosts/${hostId}/commands/${commandUUID}`,
   HOST_LOCK: (id: number) => `/${API_VERSION}/fleet/hosts/${id}/lock`,
   HOST_UNLOCK: (id: number) => `/${API_VERSION}/fleet/hosts/${id}/unlock`,
   HOST_WIPE: (id: number) => `/${API_VERSION}/fleet/hosts/${id}/wipe`,
@@ -120,6 +125,7 @@ export default {
     `/${API_VERSION}/fleet/hosts/${id}/device_mapping/idp`,
   HOST_DEP_ASSIGNMENT: (id: number) =>
     `/${API_VERSION}/fleet/hosts/${id}/dep_assignment`,
+  HOST_APNS_PING: (id: number) => `/${API_VERSION}/fleet/hosts/${id}/apns_ping`,
 
   INVITES: `/${API_VERSION}/fleet/invites`,
   INVITE_VERIFY: (token: string) => `/${API_VERSION}/fleet/invites/${token}`,
@@ -151,6 +157,8 @@ export default {
    */
 
   MDM_SUMMARY: `/${API_VERSION}/fleet/hosts/summary/mdm`,
+
+  MDM_MICROSOFT_GRAPH_CREDENTIALS: `/${API_VERSION}/fleet/microsoft_graph_credentials`,
 
   MDM_ANDROID_ENTERPRISE: `/${API_VERSION}/fleet/android_enterprise`,
   MDM_ANDROID_SIGNUP_URL: `/${API_VERSION}/fleet/android_enterprise/signup_url`,
@@ -372,4 +380,5 @@ export default {
   GLOBAL_VARIABLES: `/${API_VERSION}/fleet/custom_variables`,
   // custom host vitals endpoints
   CUSTOM_HOST_VITALS: `/${API_VERSION}/fleet/custom_host_vitals`,
+  RELEASE_AB_HOSTS: `/${API_VERSION}/fleet/hosts/release_ab`,
 };
