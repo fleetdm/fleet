@@ -178,7 +178,7 @@ Immediately after publishing a new release of Fleet or fleetd, close out the ass
 
 1. **Update product group boards**: In GitHub Projects, go to each product group board tracking the current release and filter by the current milestone.
 
-2. **Move user stories to the intake & outtake board**: Select all items in "Ready for release" that have the `story` label. Apply the `:product` label. These items will move back to the 🦢 Product design intake & outtake board.
+2. **Move user stories to the intake & outtake board**: Select all items in "Ready for release" that have the `story` label. Apply the `:product` label. These items will move back to the 🦢📨🎉 Product design intake & outtake board.
 
 3. **Confirm and close**: Make sure that all items with the `story` label have left the "Ready for release" column. Select all remaining items in the "Ready for release" column and move them to the "Closed" column. This will close the related GitHub issues.
 
