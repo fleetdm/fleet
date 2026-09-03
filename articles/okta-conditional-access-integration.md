@@ -13,7 +13,7 @@ Okta's [Adaptive MFA](https://www.okta.com/learn/adaptive-mfa/) SKU is required 
 Conditional access with Okta requires two reverse proxies in front of your Fleet server. The Fleet server itself must not be reachable from the public internet. All traffic reaches it through one of these proxies:
 
 - **Main TLS reverse proxy** at your Fleet server URL (e.g., `https://fleet.example.com`). It forwards all requests to your internal Fleet address (e.g., `http://fleet.internal:8080`), except requests to `/api/fleet/conditional_access/idp/sso`. It redirects those to the mTLS reverse proxy.
-- **mTLS reverse proxy** on an `okta.` subdomain of your Fleet server URL (e.g., `https://okta.fleet.example.com`). It requires a client certificate issued by Fleet, forwards requests to the same internal Fleet address, and adds the `X-Client-Cert-Serial` header.
+- **mTLS reverse proxy** on an `okta.` subdomain of your Fleet server URL (e.g., `https://okta.fleet.example.com`). It requires a client certificate (mTLS) and validates it against Fleet's SCEP CA public certificate, which you download from Fleet in step 1 below. It then forwards requests to the same internal Fleet address and adds the `X-Client-Cert-Serial` header.
 
 > **Warning:** Fleet trusts the `X-Client-Cert-Serial` header on `/api/fleet/conditional_access/idp/sso`. Only the mTLS reverse proxy verifies certificates, so the main reverse proxy must never forward that path to Fleet. Without the redirect, anyone who can reach your Fleet server URL can set the header themselves and impersonate an enrolled host.
 
