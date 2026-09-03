@@ -1,1 +1,1 @@
-- Fixed iOS in-house app installs failing with "Could not validate manifest" on deployments that set `mdm.apple_server_url`, by building the `InstallApplication` manifest URL from the hostname Apple devices reach Fleet on rather than from `server_settings.server_url`.
+- Fixed iOS in-house app installs failing on deployments that set `mdm.apple_server_url`, by building both the `InstallApplication` manifest URL and the `.ipa` download URL inside that manifest from the hostname Apple devices reach Fleet on rather than from `server_settings.server_url`.

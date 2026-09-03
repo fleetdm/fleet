@@ -857,6 +857,46 @@ func TestGetInHouseAppManifest(t *testing.T) {
 	require.Contains(t, string(manifest), signerURL)
 }
 
+// The device fetches the manifest and then the .ipa named inside it, so on a
+// split-hostname deploy both URLs have to be the one Apple devices reach Fleet on.
+func TestGetInHouseAppManifestAppleServerURL(t *testing.T) {
+	ds := new(mock.Store)
+	svc := newTestService(t, ds)
+	ctx := context.Background()
+
+	const validToken = "00000000-0000-0000-0000-000000000003"
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{
+			ServerSettings: fleet.ServerSettings{ServerURL: "https://admin.example.com"},
+			MDM:            fleet.MDM{AppleServerURL: "https://devices.example.com"},
+		}, nil
+	}
+	ds.GetInHouseAppInstallTokenMetadataFunc = func(ctx context.Context, token string) (*fleet.InHouseAppInstallTokenMetadata, error) {
+		return &fleet.InHouseAppInstallTokenMetadata{
+			Token:           validToken,
+			SoftwareTitleID: 1,
+			TeamID:          0,
+			HostID:          7,
+			ExpiresAt:       time.Now().Add(time.Hour),
+		}, nil
+	}
+	ds.GetInHouseAppMetadataByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint) (*fleet.SoftwareInstaller, error) {
+		return &fleet.SoftwareInstaller{
+			BundleIdentifier: "com.foo.bar",
+			Version:          "1.2.3",
+			SoftwareTitle:    "test in-house app",
+			StorageID:        "123storageid",
+		}, nil
+	}
+
+	manifest, err := svc.GetInHouseAppManifest(ctx, 1, validToken)
+	require.NoError(t, err)
+	assert.Contains(t, string(manifest),
+		"<string>https://devices.example.com/api/latest/fleet/software/titles/1/in_house_app/"+validToken+"</string>")
+	assert.NotContains(t, string(manifest), "admin.example.com")
+}
+
 func TestGetInHouseAppPackageTokenAuth(t *testing.T) {
 	ds := new(mock.Store)
 	svc := newTestService(t, ds)
