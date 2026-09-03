@@ -702,7 +702,7 @@ To make a feature request or advocate for a feature request from a customer or c
 
 New requests are [triaged daily](https://fleetdm.com/handbook/product-design#triage-new-requests) by the Head of Product Design. If the request meets the [criteria for prioritization](#criteria-for-prioritization), the request will be added to the upcoming feature fest (`~feature fest` label). If it doesn't, the request will be put to the side and the requester will be notified.
 
-> **Fast for Fleeties:** Fleeties do not have to wait for "Unpacking the why" to add a request to feature fest. If you think Fleet is missing something and have described in detail what you already tried, it can be moved directly to the [🎁 Feature fest board](https://github.com/orgs/fleetdm/projects/72). Just add the `~feature fest` label, remove the `:product` label, and remove the issue from the 🦢 Product design intake & outtake project.
+> **Fast for Fleeties:** Fleeties do not have to wait for "Unpacking the why" to add a request to feature fest. If you think Fleet is missing something and have described in detail what you already tried, it can be moved directly to the [🎁 Feature fest board](https://github.com/orgs/fleetdm/projects/72). Just add the `~feature fest` label, remove the `:product` label, and remove the issue from the 🦢📨🎉 Product design intake & outtake project.
 
 
 ### Criteria for prioritization
