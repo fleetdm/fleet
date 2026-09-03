@@ -4379,13 +4379,8 @@ WHERE
 	hda.deleted_at IS NULL
 `
 
-	stmt, args, err := sqlx.In(stmt, hostIDs)
+	serials, err := selectInBatches[string](ctx, ds.reader(ctx), stmt, hostIDs, hostIDsFanoutBatchSize)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "prepare statement arguments")
-	}
-
-	var serials []string
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &serials, stmt, args...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "list mdm apple dep serials")
 	}
 	return serials, nil

@@ -439,15 +439,19 @@ func (ds *Datastore) UpdateTeamIDOnAndroidDevices(ctx context.Context, hostUUIDs
 	if len(hostUUIDs) == 0 {
 		return nil
 	}
-	query, args, err := sqlx.In(
-		`UPDATE android_devices ad JOIN hosts h ON ad.host_id = h.id SET ad.team_id = ? WHERE h.uuid IN (?)`,
-		teamID, hostUUIDs,
-	)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "build update android_devices team_id query")
-	}
-	if _, err := ds.writer(ctx).ExecContext(ctx, query, args...); err != nil {
-		return ctxerr.Wrap(ctx, err, "update android_devices team_id")
+	// Batched: a team transfer can carry more host UUIDs than MySQL allows
+	// placeholders for in one statement.
+	for batch := range slices.Chunk(hostUUIDs, hostIDsFanoutBatchSize) {
+		query, args, err := sqlx.In(
+			`UPDATE android_devices ad JOIN hosts h ON ad.host_id = h.id SET ad.team_id = ? WHERE h.uuid IN (?)`,
+			teamID, batch,
+		)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "build update android_devices team_id query")
+		}
+		if _, err := ds.writer(ctx).ExecContext(ctx, query, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "update android_devices team_id")
+		}
 	}
 	return nil
 }
@@ -2780,16 +2784,12 @@ WHERE
 	h.platform = 'android'
 `
 
-	stmt, args, err := sqlx.In(stmt, hostIDs)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "prepare statement arguments")
-	}
-
-	var rows []struct {
+	type androidHost struct {
 		ID   uint   `db:"id"`
 		UUID string `db:"uuid"`
 	}
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, stmt, args...); err != nil {
+	rows, err := selectInBatches[androidHost](ctx, ds.reader(ctx), stmt, hostIDs, hostIDsFanoutBatchSize)
+	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "list mdm android uuids to host ids")
 	}
 

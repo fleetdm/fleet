@@ -210,6 +210,7 @@ func TestHosts(t *testing.T) {
 		{"HostTimeZone", testHostTimeZone},
 		{"ListHostsDEPFilters", testListHostsDEPFilters},
 		{"ExtendHostOrbitDebugUntil", testExtendHostOrbitDebugUntil},
+		{"TransferHostIDFanoutAbovePlaceholderLimit", testHostsTransferHostIDFanoutAbovePlaceholderLimit},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -13216,6 +13217,57 @@ func testHostsAddToTeamCleansUpTeamQueryResults(t *testing.T, ds *Datastore) {
 	require.Equal(t, query0Global.ID, hostStaticOnTeam1.PackStats[0].QueryStats[0].ScheduledQueryID)
 	require.Len(t, hostStaticOnTeam1.PackStats[1].QueryStats, 1)
 	require.Equal(t, query1Team1.ID, hostStaticOnTeam1.PackStats[1].QueryStats[0].ScheduledQueryID)
+}
+
+// The host transfer path fans the full selected-host set out to several
+// host-ID list queries. Each expands to one placeholder per host, so any of
+// them that is not batched fails with MySQL error 1390 ("Prepared statement
+// contains too many placeholders") once the selection exceeds 65,535 hosts —
+// after the team reassignment itself has already committed. No hosts need to
+// exist for this: the limit is enforced when the statement is prepared.
+func testHostsTransferHostIDFanoutAbovePlaceholderLimit(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	hostIDs := make([]uint, 0, mysqlMaxPlaceholders+1)
+	for i := uint(1); i <= mysqlMaxPlaceholders+1; i++ {
+		hostIDs = append(hostIDs, i)
+	}
+
+	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(nil, hostIDs)))
+
+	_, err := ds.ListHostsLiteByIDs(ctx, hostIDs)
+	require.NoError(t, err)
+
+	_, err = ds.ListMDMAndroidUUIDsToHostIDs(ctx, hostIDs)
+	require.NoError(t, err)
+
+	_, err = ds.ListMDMAppleDEPSerialsInHostIDs(ctx, hostIDs)
+	require.NoError(t, err)
+
+	_, err = ds.BulkSetPendingMDMHostProfiles(ctx, hostIDs, nil, nil, nil)
+	require.NoError(t, err)
+
+	// Android hosts on the same transfer get their android_devices rows
+	// re-pointed by UUID, which fans out the same way.
+	hostUUIDs := make([]string, 0, len(hostIDs))
+	for _, id := range hostIDs {
+		hostUUIDs = append(hostUUIDs, fmt.Sprintf("uuid-%d", id))
+	}
+	require.NoError(t, ds.UpdateTeamIDOnAndroidDevices(ctx, hostUUIDs, nil))
+
+	// A repeated ID must still yield one row, the way a single `IN (?)` does,
+	// even when the two occurrences fall in different batches.
+	host := newTestHostWithPlatform(t, ds, "dup-host", "darwin", nil)
+	dupIDs := make([]uint, 0, hostIDsFanoutBatchSize+2)
+	dupIDs = append(dupIDs, host.ID)
+	for i := range hostIDsFanoutBatchSize {
+		dupIDs = append(dupIDs, mysqlMaxPlaceholders+uint(i)+1) // nonexistent
+	}
+	dupIDs = append(dupIDs, host.ID)
+
+	dupHosts, err := ds.ListHostsLiteByIDs(ctx, dupIDs)
+	require.NoError(t, err)
+	require.Len(t, dupHosts, 1)
 }
 
 func testUpdateHostIssues(t *testing.T, ds *Datastore) {

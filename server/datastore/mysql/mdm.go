@@ -1133,16 +1133,20 @@ func (ds *Datastore) bulkSetPendingMDMHostProfilesDB(
 
 	switch {
 	case len(hostUUIDs) > 0:
-		// TODO: if a very large number (~65K) of uuids was provided, could
-		// result in too many placeholders (not an immediate concern).
-		uuidStmt = `SELECT uuid, platform FROM hosts WHERE uuid IN (?)`
-		args = append(args, hostUUIDs)
+		// Batched: a team transfer or bulk operation can pass more host UUIDs
+		// than MySQL allows placeholders for in one statement.
+		hosts, err = selectInBatches[fleet.Host](ctx, tx,
+			`SELECT uuid, platform FROM hosts WHERE uuid IN (?)`, hostUUIDs, hostIDsFanoutBatchSize)
+		if err != nil {
+			return updates, ctxerr.Wrap(ctx, err, "load host UUIDs by host uuid")
+		}
 
 	case len(hostIDs) > 0:
-		// TODO: if a very large number (~65K) of uuids was provided, could
-		// result in too many placeholders (not an immediate concern).
-		uuidStmt = `SELECT uuid, platform FROM hosts WHERE id IN (?)`
-		args = append(args, hostIDs)
+		hosts, err = selectInBatches[fleet.Host](ctx, tx,
+			`SELECT uuid, platform FROM hosts WHERE id IN (?)`, hostIDs, hostIDsFanoutBatchSize)
+		if err != nil {
+			return updates, ctxerr.Wrap(ctx, err, "load host UUIDs by host id")
+		}
 
 	case len(teamIDs) > 0:
 		// TODO: if a very large number (~65K) of team IDs was provided, could

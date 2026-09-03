@@ -3485,13 +3485,8 @@ SELECT
 FROM hosts
 WHERE id IN (?)`
 
-	stmt, args, err := sqlx.In(stmt, ids)
+	hosts, err := selectInBatches[*fleet.Host](ctx, ds.reader(ctx), stmt, ids, hostIDsFanoutBatchSize)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "building query to select hosts by id")
-	}
-
-	var hosts []*fleet.Host
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hosts, stmt, args...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "select hosts by id")
 	}
 
