@@ -3670,15 +3670,20 @@ func (s *integrationMDMTestSuite) TestBlockedEndpointsForABOnlyACMEConfig() {
 		if isBlocked {
 			return http.StatusForbidden
 		}
+
+		// TODO: Should we alter this since some endpoints might return 204 or we might be okay with 400's
 		return http.StatusOK
 	}
 
-	assertUserFacingResponse := func(resp *http.Response, isBlocked bool) {
-		assert.Equal(t, getStatusCode(isBlocked), resp.StatusCode)
+	assertUserFacingResponse := func(t *testing.T, resp *http.Response, isBlocked bool) {
 		if isBlocked {
+			assert.Equal(t, http.StatusForbidden, resp.StatusCode)
 			errorMsg := extractServerErrorText(resp.Body)
 			expectedErr := fleet.ABOnlyEnrollmentForbiddenError{}
-			assert.Equal(t, expectedErr.Error(), errorMsg)
+			assert.Contains(t, errorMsg, expectedErr.Error())
+		} else {
+			// Just make sure we aren't seeing a 403.
+			assert.NotEqual(t, http.StatusForbidden, resp.StatusCode)
 		}
 	}
 
@@ -3692,12 +3697,17 @@ func (s *integrationMDMTestSuite) TestBlockedEndpointsForABOnlyACMEConfig() {
 			require.Equal(t, isBlocked, appCfg.MDM.IsAppleMDMSCEPBlocked())
 			require.NoError(t, s.ds.SaveAppConfig(context.Background(), appCfg))
 
+			enrollSecret := "team"
+
 			// we hit CA Caps and CA Cert to verify the middleware on all endpoints is blocking.
 			// PKIOperation requires additional setup to verify, but it's under the same middleware.
 			resp := s.DoRaw("GET", apple_mdm.SCEPPath, nil, getStatusCode(isBlocked), "operation", "GetCACaps")
-			assertUserFacingResponse(resp, isBlocked)
+			assertUserFacingResponse(t, resp, isBlocked)
 			resp = s.DoRaw("GET", apple_mdm.SCEPPath, nil, getStatusCode(isBlocked), "operation", "GetCACert")
-			assertUserFacingResponse(resp, isBlocked)
+			assertUserFacingResponse(t, resp, isBlocked)
+
+			resp = s.DoRaw("GET", "/api/latest/fleet/enrollment_profiles/ota", nil, getStatusCode(isBlocked), "enroll_secret", enrollSecret)
+			assertUserFacingResponse(t, resp, isBlocked)
 		})
 	}
 }
