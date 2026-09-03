@@ -1679,6 +1679,10 @@ func (svc *Service) GetMDMManualEnrollmentProfile(ctx context.Context, personal 
 		return nil, ctxerr.Wrap(ctx, err)
 	}
 
+	if appConfig.MDM.OnlyAllowAppleBusinessEnrollment {
+		return nil, &fleet.BadRequestError{Message: fleet.AdminOnlyEnrollmentForbiddenErrMsg}
+	}
+
 	topic, err := assets.APNSTopic(ctx, svc.ds)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "extracting topic from APNs cert")

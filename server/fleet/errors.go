@@ -637,3 +637,5 @@ func (e *ABOnlyEnrollmentForbiddenError) Internal() string {
 	}
 	return ""
 }
+
+const AdminOnlyEnrollmentForbiddenErrMsg = "Manual enrollment is not available because only Apple Business enrollment is allowed for this organization."

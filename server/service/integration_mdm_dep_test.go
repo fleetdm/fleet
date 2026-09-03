@@ -3666,20 +3666,34 @@ func (s *integrationMDMTestSuite) TestBlockedEndpointsForABOnlyACMEConfig() {
 		s.ds.SaveAppConfig(context.Background(), originalAppCfg)
 	})
 
-	getStatusCode := func(isBlocked bool, unblockedStatus int) int {
+	getUserStatusCode := func(isBlocked bool, unblockedStatus int) int {
 		if isBlocked {
 			return http.StatusForbidden
 		}
 
 		return unblockedStatus
 	}
-
 	assertUserFacingResponse := func(t *testing.T, resp *http.Response, isBlocked bool) {
 		// Every request validates the status code, so no need to do it here.
 		if isBlocked {
 			errorMsg := extractServerErrorText(resp.Body)
 			expectedErr := fleet.ABOnlyEnrollmentForbiddenError{}
 			assert.Contains(t, errorMsg, expectedErr.Error())
+		}
+	}
+
+	getAdminStatusCode := func(isBlocked bool, unblockedStatus int) int {
+		if isBlocked {
+			return http.StatusBadRequest
+		}
+
+		return unblockedStatus
+	}
+	assertAdminFacingResponse := func(t *testing.T, resp *http.Response, isBlocked bool) {
+		// Every request validates the status code, so no need to do it here.
+		if isBlocked {
+			errorMsg := extractServerErrorText(resp.Body)
+			assert.Contains(t, errorMsg, fleet.AdminOnlyEnrollmentForbiddenErrMsg)
 		}
 	}
 
@@ -3716,37 +3730,42 @@ func (s *integrationMDMTestSuite) TestBlockedEndpointsForABOnlyACMEConfig() {
 
 			// we hit CA Caps and CA Cert to verify the middleware on all endpoints is blocking.
 			// PKIOperation requires additional setup to verify, but it's under the same middleware.
-			resp := s.DoRaw("GET", apple_mdm.SCEPPath, nil, getStatusCode(isBlocked, http.StatusOK), "operation", "GetCACaps")
+			resp := s.DoRaw("GET", apple_mdm.SCEPPath, nil, getUserStatusCode(isBlocked, http.StatusOK), "operation", "GetCACaps")
 			assertUserFacingResponse(t, resp, isBlocked)
-			resp = s.DoRaw("GET", apple_mdm.SCEPPath, nil, getStatusCode(isBlocked, http.StatusOK), "operation", "GetCACert")
+			resp = s.DoRaw("GET", apple_mdm.SCEPPath, nil, getUserStatusCode(isBlocked, http.StatusOK), "operation", "GetCACert")
 			assertUserFacingResponse(t, resp, isBlocked)
 
-			resp = s.DoRaw("GET", "/api/latest/fleet/enrollment_profiles/ota", nil, getStatusCode(isBlocked, http.StatusOK), "enroll_secret", enrollSecret)
+			resp = s.DoRaw("GET", "/api/latest/fleet/enrollment_profiles/ota", nil, getUserStatusCode(isBlocked, http.StatusOK), "enroll_secret", enrollSecret)
 			assertUserFacingResponse(t, resp, isBlocked)
 
 			// Both requests return 403 forbidden here, but the following assert makes sure the blocked is the AB only blocked, the other forbidden is due to missing ceritficates,
 			// but it means we passed the blocked check.
-			resp = s.DoRaw("POST", "/api/latest/fleet/ota_enrollment", signedDeviceInfo, getStatusCode(isBlocked, http.StatusForbidden), "enroll_secret", enrollSecret)
+			resp = s.DoRaw("POST", "/api/latest/fleet/ota_enrollment", signedDeviceInfo, getUserStatusCode(isBlocked, http.StatusForbidden), "enroll_secret", enrollSecret)
 			assertUserFacingResponse(t, resp, isBlocked)
 
 			// unblocked returns 401 with a redirect
 			apple_mdm.SetMachineInfoVerificationForTest(t, false)
-			resp = s.DoRawNoAuth("POST", "/api/mdm/apple/account_driven_enroll", signedDeviceInfo, getStatusCode(isBlocked, http.StatusUnauthorized))
+			resp = s.DoRawNoAuth("POST", "/api/mdm/apple/account_driven_enroll", signedDeviceInfo, getUserStatusCode(isBlocked, http.StatusUnauthorized))
 			assertUserFacingResponse(t, resp, isBlocked)
 			if !isBlocked {
 				assert.Contains(t, resp.Header.Get("Www-Authenticate"), `method="apple-as-web"`)
 			}
-			resp = s.DoRawNoAuth("POST", "/api/mdm/apple/account_driven_enroll/fake-token", signedDeviceInfo, getStatusCode(isBlocked, http.StatusUnauthorized))
+			resp = s.DoRawNoAuth("POST", "/api/mdm/apple/account_driven_enroll/fake-token", signedDeviceInfo, getUserStatusCode(isBlocked, http.StatusUnauthorized))
 			assertUserFacingResponse(t, resp, isBlocked)
 			if !isBlocked {
 				assert.Contains(t, resp.Header.Get("Www-Authenticate"), `method="apple-as-web"`)
 			}
 
 			// WithAuth means we hit the to grab the profile, looking for an ADUE challenge, 404 on non-blocked is a good indicator we skipped the block.
-			resp = s.DoRaw("POST", "/api/mdm/apple/account_driven_enroll", signedDeviceInfo, getStatusCode(isBlocked, http.StatusNotFound))
+			resp = s.DoRaw("POST", "/api/mdm/apple/account_driven_enroll", signedDeviceInfo, getUserStatusCode(isBlocked, http.StatusNotFound))
 			assertUserFacingResponse(t, resp, isBlocked)
-			resp = s.DoRaw("POST", "/api/mdm/apple/account_driven_enroll/fake-token", signedDeviceInfo, getStatusCode(isBlocked, http.StatusNotFound))
+			resp = s.DoRaw("POST", "/api/mdm/apple/account_driven_enroll/fake-token", signedDeviceInfo, getUserStatusCode(isBlocked, http.StatusNotFound))
 			assertUserFacingResponse(t, resp, isBlocked)
+
+			resp = s.DoRaw("GET", "/api/latest/fleet/mdm/manual_enrollment_profile", nil, getAdminStatusCode(isBlocked, http.StatusOK))
+			assertAdminFacingResponse(t, resp, isBlocked)
+			resp = s.DoRaw("GET", "/api/latest/fleet/enrollment_profiles/manual", nil, getAdminStatusCode(isBlocked, http.StatusOK))
+			assertAdminFacingResponse(t, resp, isBlocked)
 		})
 	}
 }
