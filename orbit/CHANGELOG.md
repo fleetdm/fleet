@@ -4,7 +4,7 @@
 
 * Added the `homebrew_outdated` table to fleetd for querying outdated Homebrew packages (formulae and casks) on macOS, exposing installed and latest-available versions.
 
-* Check local MDM enrollment status on macOS before firing Migrate MDM webhook to prevent showing an error.
+- * Fixed Migrate MDM webhook showing an error on macOS by checking local MDM enrollment status before firing.
 
 * Added a `--bypass-end-user-auth` flag (env `ORBIT_BYPASS_END_USER_AUTH`) that skips the end-user authentication prompt during enrollment on Linux and Windows by not advertising the end-user auth capability to the Fleet server. When a Windows MDM EUA token is present, it takes precedence and end-user auth is still processed.
 
