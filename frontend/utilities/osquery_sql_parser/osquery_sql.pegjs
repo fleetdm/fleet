@@ -50,6 +50,7 @@
     'LIKE': true,
     'LIMIT': true,
 
+    'NATURAL': true,
     'NOT': true,
     'NULL': true,
 
@@ -170,7 +171,15 @@ empty_stmt
   = __ { return [] }
 
 multiple_stmt
-  = head:crud_stmt tail:(__ SEMICOLON __ crud_stmt)* {
+  = head:crud_stmt tail:(__ SEMICOLON __ crud_stmt)* &{
+      // Input with no statement at all (empty, whitespace-only, or comments
+      // only) is not a query: it would save and then silently do nothing.
+      // A lone `;` still parses -- the tail carries the semicolon. A failing
+      // predicate (rather than error()) keeps peggy's accumulated
+      // expectations, which validateQuery reads to say "expected a SELECT
+      // statement" instead of a generic syntax error.
+      return !(Array.isArray(head) && head.length === 0 && tail.length === 0);
+    } {
       const headAst = head && head.ast || head
       const cur = tail && tail.length && tail[0].length >= 4 ? [headAst] : headAst;
       if (!tail) tail = []
@@ -388,7 +397,13 @@ table_base
     }
 
 join_op
+  = KW_NATURAL __ op:join_op_kind { return `NATURAL ${op}`; }
+  / join_op_kind
+
+join_op_kind
   = KW_LEFT __ KW_OUTER? __ KW_JOIN { return 'LEFT JOIN'; }
+  / KW_RIGHT __ KW_OUTER? __ KW_JOIN { return 'RIGHT JOIN'; }
+  / KW_FULL __ KW_OUTER? __ KW_JOIN { return 'FULL JOIN'; }
   / 'CROSS'i __ KW_JOIN { return 'CROSS JOIN'; }
   / (KW_INNER __)? KW_JOIN { return 'INNER JOIN'; }
 
@@ -1090,6 +1105,9 @@ KW_COLLATE  = "COLLATE"i    !ident_start { return 'COLLATE'; }
 
 KW_ON       = "ON"i       !ident_start
 KW_LEFT     = "LEFT"i     !ident_start
+KW_RIGHT    = "RIGHT"i    !ident_start
+KW_FULL     = "FULL"i     !ident_start
+KW_NATURAL  = "NATURAL"i  !ident_start
 KW_INNER    = "INNER"i    !ident_start
 KW_JOIN     = "JOIN"i     !ident_start
 KW_OUTER    = "OUTER"i    !ident_start

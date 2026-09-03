@@ -21,14 +21,18 @@ const describeSyntaxError = (err: unknown): string => {
   }
 
   // When the parser would have accepted a SELECT keyword and, alternatively,
-  // the end of the input, the error is at a statement position — meaning the
-  // input is something other than the SELECT statements osquery executes
-  // (e.g. INSERT, DROP, or free text) rather than a typo inside one.
+  // a semicolon or the end of the input, the error is at a statement position
+  // — meaning the input is something other than the SELECT statements osquery
+  // executes (e.g. INSERT, DROP, a lone comment, or free text) rather than a
+  // typo inside one. SELECT alone isn't enough: it is also expected inside a
+  // just-opened subquery, where the generic located message is the right one.
   const expectsSelect = (expected ?? []).some(
     (e) => e.type === "literal" && e.text?.toUpperCase() === "SELECT"
   );
-  const expectsEndOfInput = (expected ?? []).some((e) => e.type === "end");
-  if (expectsSelect && expectsEndOfInput) {
+  const expectsStatementEnd = (expected ?? []).some(
+    (e) => e.type === "end" || (e.type === "literal" && e.text === ";")
+  );
+  if (expectsSelect && expectsStatementEnd) {
     return expectedSelectErr(location.start.line);
   }
 

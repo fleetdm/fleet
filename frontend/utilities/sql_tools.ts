@@ -220,6 +220,7 @@ export const sqlKeyWords = [
   "inner",
   "cross",
   "natural",
+  "full",
   "with",
   "values",
 ];
