@@ -238,6 +238,7 @@ var windowsOpenQueryOverrides = map[string]string{ //nolint:gosec // G101 false 
 	"ProtonVPN":                    "IN ('proton vpn.exe','protonvpn.exe')",
 	"PyCharm Community Edition":    "IN ('pycharm.exe','pycharm64.exe')",
 	"PyCharm Professional":         "IN ('pycharm.exe','pycharm64.exe')",
+	"Raspberry Pi Imager":          "= 'rpi-imager.exe'",
 	"Rider":                        "IN ('rider.exe','rider64.exe')",
 	"RStudio":                      "IN ('rgui.exe','rsession.exe','rstudio.exe')",
 	"RubyMine":                     "IN ('rubymine.exe','rubymine64.exe')",

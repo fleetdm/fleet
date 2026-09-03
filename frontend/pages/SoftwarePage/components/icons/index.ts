@@ -652,6 +652,7 @@ import MicrosoftEdge from "./png/MicrosoftEdge.png";
 import MicrosoftOdbcDriver17 from "./png/MicrosoftOdbcDriver17.png";
 import MicrosoftOdbcDriver18 from "./png/MicrosoftOdbcDriver18.png";
 import MicrosoftOffice from "./png/MicrosoftOffice.png";
+import MicrosoftOleDbDriver19 from "./png/MicrosoftOleDbDriver19.png";
 import MicrosoftOneNote from "./png/MicrosoftOneNote.png";
 import MicrosoftOutlook from "./png/MicrosoftOutlook.png";
 import MicrosoftPowerPoint from "./png/MicrosoftPowerPoint.png";
@@ -847,6 +848,7 @@ import Raindropio from "./png/Raindropio.png";
 import RancherDesktop from "./png/RancherDesktop.png";
 import RapidApi from "./png/RapidApi.png";
 import Rapidweaver from "./png/Rapidweaver.png";
+import RaspberryPiImager from "./png/RaspberryPiImager.png";
 import Raycast from "./png/Raycast.png";
 import Readest from "./png/Readest.png";
 import RealVncServer from "./png/RealVncServer.png";
@@ -1819,6 +1821,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "microsoft odbc driver 17 for sql server": MicrosoftOdbcDriver17,
   "microsoft odbc driver 18 for sql server": MicrosoftOdbcDriver18,
   "microsoft office": MicrosoftOffice,
+  "microsoft ole db driver 19 for sql server": MicrosoftOleDbDriver19,
   "microsoft onenote": MicrosoftOneNote,
   "microsoft outlook": MicrosoftOutlook,
   "microsoft powerpoint": MicrosoftPowerPoint,
@@ -2023,6 +2026,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "rancher desktop": RancherDesktop,
   rapidapi: RapidApi,
   rapidweaver: Rapidweaver,
+  "raspberry pi imager": RaspberryPiImager,
   raycast: Raycast,
   readest: Readest,
   "realvnc connect viewer": VncViewer,
