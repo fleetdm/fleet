@@ -574,26 +574,7 @@ func validateConfigProfileFleetVariables(contents string, lic *fleet.LicenseInfo
 		return nil, err
 	}
 
-	for _, fleetVar := range fleetVars {
-		if !strings.HasPrefix(fleetVar, string(fleet.FleetVarDigiCertDataPrefix)) && !strings.HasPrefix(fleetVar, string(fleet.FleetVarDigiCertPasswordPrefix)) {
-			continue
-		}
-		caName := strings.TrimPrefix(strings.TrimPrefix(fleetVar, string(fleet.FleetVarDigiCertDataPrefix)), string(fleet.FleetVarDigiCertPasswordPrefix))
-		for _, ca := range groupedCAs.DigiCert {
-			if ca.Name != caName {
-				continue
-			}
-			caContents := ca.CertificateCommonName + ca.CertificateSeatID + strings.Join(ca.CertificateUserPrincipalNames, "")
-			for _, caFleetVar := range variables.Find(caContents) {
-				if slices.Contains(fleet.IDPFleetVariables, fleet.FleetVarName(caFleetVar)) {
-					fleetVars = append(fleetVars, caFleetVar)
-				}
-			}
-			break
-		}
-	}
-
-	return variables.Dedupe(fleetVars), nil
+	return fleet.ResolveDigiCertProfileFleetVariables(fleetVars, groupedCAs.DigiCert), nil
 }
 
 // extensibleSSOProfileContent is the subset of an Apple configuration profile

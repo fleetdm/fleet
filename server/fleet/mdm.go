@@ -14,6 +14,7 @@ import (
 	"time"
 
 	mdm_types "github.com/fleetdm/fleet/v4/server/mdm"
+	"github.com/fleetdm/fleet/v4/server/variables"
 	"github.com/google/uuid"
 )
 
@@ -166,6 +167,30 @@ var (
 	}
 	FleetVarsSupportedInDigiCert = slices.Concat([]FleetVarName{FleetVarHostEndUserEmailIDP}, FleetVarsSupportedInScripts)
 )
+
+func ResolveDigiCertProfileFleetVariables(fleetVars []string, digiCertCAs []DigiCertCA) []string {
+	resolvedFleetVars := slices.Clone(fleetVars)
+	for _, fleetVar := range fleetVars {
+		if !strings.HasPrefix(fleetVar, string(FleetVarDigiCertDataPrefix)) && !strings.HasPrefix(fleetVar, string(FleetVarDigiCertPasswordPrefix)) {
+			continue
+		}
+		caName := strings.TrimPrefix(strings.TrimPrefix(fleetVar, string(FleetVarDigiCertDataPrefix)), string(FleetVarDigiCertPasswordPrefix))
+		for _, ca := range digiCertCAs {
+			if ca.Name != caName {
+				continue
+			}
+			caContents := strings.Join(append([]string{ca.CertificateCommonName, ca.CertificateSeatID}, ca.CertificateUserPrincipalNames...), "\n")
+			for _, caFleetVar := range variables.Find(caContents) {
+				if slices.Contains(IDPFleetVariables, FleetVarName(caFleetVar)) {
+					resolvedFleetVars = append(resolvedFleetVars, caFleetVar)
+				}
+			}
+			break
+		}
+	}
+
+	return variables.Dedupe(resolvedFleetVars)
+}
 
 type AppleMDM struct {
 	CommonName   string    `json:"common_name"`

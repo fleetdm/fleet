@@ -2406,6 +2406,12 @@ func batchSetProfileVariableAssociationsDB(
 	if len(profileVariablesByUUID) == 0 {
 		return false, nil
 	}
+	if platform == "darwin" && !forAppleDeclarations {
+		profileVariablesByUUID, err = resolveDigiCertProfileVariableAssociationsDB(ctx, tx, profileVariablesByUUID)
+		if err != nil {
+			return false, err
+		}
+	}
 
 	var columnName string
 	switch {

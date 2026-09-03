@@ -6,12 +6,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/variables"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -368,11 +370,37 @@ func (ds *Datastore) BatchApplyCertificateAuthorities(ctx context.Context, ops f
 	upserts = append(upserts, ops.Update...)
 
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		var digiCertCAsToRefresh []string
+		for _, ca := range ops.Update {
+			if ca.Type == string(fleet.CATypeDigiCert) && ca.Name != nil {
+				if err := lockDigiCertProfileVariableAssociations(ctx, tx); err != nil {
+					return err
+				}
+				break
+			}
+		}
+		for _, ca := range ops.Update {
+			if ca.Type != string(fleet.CATypeDigiCert) || ca.Name == nil {
+				continue
+			}
+			oldCA, err := getDigiCertCAForProfileVariables(ctx, tx, *ca.Name, true)
+			if err != nil {
+				return err
+			}
+			if digiCertProfileVariableFieldsChanged(ca, oldCA) {
+				digiCertCAsToRefresh = append(digiCertCAsToRefresh, *ca.Name)
+			}
+		}
 		if err := batchUpsertCertificateAuthorities(ctx, tx, ds.serverPrivateKey, upserts); err != nil {
 			return err
 		}
 		if err := batchDeleteCertificateAuthorities(ctx, tx, ops.Delete); err != nil {
 			return err
+		}
+		for _, caName := range digiCertCAsToRefresh {
+			if err := ds.refreshDigiCertProfileVariableAssociations(ctx, tx, caName); err != nil {
+				return err
+			}
 		}
 		return nil
 	})
@@ -445,14 +473,265 @@ func (ds *Datastore) UpdateCertificateAuthorityByID(ctx context.Context, certifi
 	WHERE id = ?
 	`, setStmt)
 
-	_, err = ds.writer(ctx).ExecContext(ctx, stmt, updateArgs...)
-	if err != nil {
-		if strings.Contains(err.Error(), "idx_ca_type_name") {
-			return fleet.ConflictError{Message: "a certificate authority with this name already exists"}
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		var currentCA *fleet.CertificateAuthority
+		if digiCertUpdateMayAffectProfileVariables(ca) {
+			if err := lockDigiCertProfileVariableAssociations(ctx, tx); err != nil {
+				return err
+			}
+			currentCA, err = getDigiCertCAByIDForProfileVariables(ctx, tx, certificateAuthorityID)
+			if err != nil {
+				return err
+			}
 		}
-		return ctxerr.Wrapf(ctx, err, "updating certificate authority with id %d", certificateAuthorityID)
+		_, err = tx.ExecContext(ctx, stmt, updateArgs...)
+		if err != nil {
+			if strings.Contains(err.Error(), "idx_ca_type_name") {
+				return fleet.ConflictError{Message: "a certificate authority with this name already exists"}
+			}
+			return ctxerr.Wrapf(ctx, err, "updating certificate authority with id %d", certificateAuthorityID)
+		}
+
+		if currentCA != nil && digiCertProfileVariableFieldsChanged(ca, currentCA) {
+			if err := ds.refreshDigiCertProfileVariableAssociations(ctx, tx, *currentCA.Name); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
+
+func digiCertUpdateMayAffectProfileVariables(ca *fleet.CertificateAuthority) bool {
+	return ca.Type == string(fleet.CATypeDigiCert) &&
+		ca.Name == nil &&
+		(ca.CertificateCommonName != nil || ca.CertificateUserPrincipalNames != nil || ca.CertificateSeatID != nil)
+}
+
+func digiCertProfileVariableFieldsChanged(ca, oldCA *fleet.CertificateAuthority) bool {
+	return ca.CertificateCommonName != nil && (oldCA.CertificateCommonName == nil || *ca.CertificateCommonName != *oldCA.CertificateCommonName) ||
+		ca.CertificateUserPrincipalNames != nil && (oldCA.CertificateUserPrincipalNames == nil || !slices.Equal(*ca.CertificateUserPrincipalNames, *oldCA.CertificateUserPrincipalNames)) ||
+		ca.CertificateSeatID != nil && (oldCA.CertificateSeatID == nil || *ca.CertificateSeatID != *oldCA.CertificateSeatID)
+}
+
+type digiCertProfileVariables struct {
+	Name                          string `db:"name"`
+	CertificateCommonName         string `db:"certificate_common_name"`
+	CertificateUserPrincipalNames []byte `db:"certificate_user_principal_names"`
+	CertificateSeatID             string `db:"certificate_seat_id"`
+}
+
+func lockDigiCertProfileVariableAssociations(ctx context.Context, tx sqlx.ExtContext) error {
+	var id uint
+	if err := sqlx.GetContext(ctx, tx, &id, `
+		SELECT id
+		FROM fleet_variables
+		WHERE name = ?
+		FOR UPDATE
+	`, "FLEET_VAR_"+string(fleet.FleetVarDigiCertDataPrefix)); err != nil {
+		return ctxerr.Wrap(ctx, err, "locking DigiCert profile variable associations")
+	}
+	return nil
+}
+
+func getDigiCertCAForProfileVariables(ctx context.Context, tx sqlx.ExtContext, caName string, forUpdate bool) (*fleet.CertificateAuthority, error) {
+	var ca digiCertProfileVariables
+	stmt := `
+		SELECT name, certificate_common_name, certificate_user_principal_names, certificate_seat_id
+		FROM certificate_authorities
+		WHERE type = 'digicert' AND name = ?
+	`
+	if forUpdate {
+		stmt += " FOR UPDATE"
+	}
+	if err := sqlx.GetContext(ctx, tx, &ca, stmt, caName); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting DigiCert certificate authority for profile variable associations")
+	}
+	return certificateAuthorityFromDigiCertProfileVariables(ctx, ca)
+}
+
+func getDigiCertCAByIDForProfileVariables(ctx context.Context, tx sqlx.ExtContext, caID uint) (*fleet.CertificateAuthority, error) {
+	var ca digiCertProfileVariables
+	if err := sqlx.GetContext(ctx, tx, &ca, `
+		SELECT name, certificate_common_name, certificate_user_principal_names, certificate_seat_id
+		FROM certificate_authorities
+		WHERE type = 'digicert' AND id = ?
+		FOR UPDATE
+	`, caID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting DigiCert certificate authority for profile variable associations")
+	}
+	return certificateAuthorityFromDigiCertProfileVariables(ctx, ca)
+}
+
+func certificateAuthorityFromDigiCertProfileVariables(ctx context.Context, ca digiCertProfileVariables) (*fleet.CertificateAuthority, error) {
+	var upns []string
+	if err := json.Unmarshal(ca.CertificateUserPrincipalNames, &upns); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "unmarshalling DigiCert certificate user principal names for profile variable associations")
+	}
+	return &fleet.CertificateAuthority{
+		Name:                          &ca.Name,
+		CertificateCommonName:         &ca.CertificateCommonName,
+		CertificateUserPrincipalNames: &upns,
+		CertificateSeatID:             &ca.CertificateSeatID,
+	}, nil
+}
+
+func getDigiCertCAsForProfileVariables(ctx context.Context, tx sqlx.ExtContext) ([]fleet.DigiCertCA, error) {
+	var caRows []digiCertProfileVariables
+	if err := sqlx.SelectContext(ctx, tx, &caRows, `
+		SELECT name, certificate_common_name, certificate_user_principal_names, certificate_seat_id
+		FROM certificate_authorities
+		WHERE type = 'digicert'
+		FOR SHARE
+	`); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting DigiCert certificate authorities for profile variable associations")
 	}
 
+	digiCertCAs := make([]fleet.DigiCertCA, 0, len(caRows))
+	for _, caRow := range caRows {
+		ca, err := certificateAuthorityFromDigiCertProfileVariables(ctx, caRow)
+		if err != nil {
+			return nil, err
+		}
+		digiCertCAs = append(digiCertCAs, fleet.DigiCertCA{
+			Name:                          *ca.Name,
+			CertificateCommonName:         *ca.CertificateCommonName,
+			CertificateUserPrincipalNames: *ca.CertificateUserPrincipalNames,
+			CertificateSeatID:             *ca.CertificateSeatID,
+		})
+	}
+	return digiCertCAs, nil
+}
+
+func resolveDigiCertProfileVariableAssociationsDB(
+	ctx context.Context,
+	tx sqlx.ExtContext,
+	profileVariablesByUUID []fleet.MDMProfileUUIDFleetVariables,
+) ([]fleet.MDMProfileUUIDFleetVariables, error) {
+	usesDigiCert := false
+	for _, profileVariables := range profileVariablesByUUID {
+		for _, fleetVar := range profileVariables.FleetVariables {
+			if strings.HasPrefix(string(fleetVar), string(fleet.FleetVarDigiCertDataPrefix)) ||
+				strings.HasPrefix(string(fleetVar), string(fleet.FleetVarDigiCertPasswordPrefix)) {
+				usesDigiCert = true
+				break
+			}
+		}
+		if usesDigiCert {
+			break
+		}
+	}
+	if !usesDigiCert {
+		return profileVariablesByUUID, nil
+	}
+
+	if err := lockDigiCertProfileVariableAssociations(ctx, tx); err != nil {
+		return nil, err
+	}
+	digiCertCAs, err := getDigiCertCAsForProfileVariables(ctx, tx)
+	if err != nil {
+		return nil, err
+	}
+
+	resolvedProfiles := make([]fleet.MDMProfileUUIDFleetVariables, 0, len(profileVariablesByUUID))
+	for _, profileVariables := range profileVariablesByUUID {
+		usesDigiCert := false
+		for _, fleetVar := range profileVariables.FleetVariables {
+			if strings.HasPrefix(string(fleetVar), string(fleet.FleetVarDigiCertDataPrefix)) ||
+				strings.HasPrefix(string(fleetVar), string(fleet.FleetVarDigiCertPasswordPrefix)) {
+				usesDigiCert = true
+				break
+			}
+		}
+		if !usesDigiCert {
+			resolvedProfiles = append(resolvedProfiles, profileVariables)
+			continue
+		}
+
+		var mobileconfig []byte
+		if err := sqlx.GetContext(ctx, tx, &mobileconfig, `
+			SELECT mobileconfig
+			FROM mdm_apple_configuration_profiles
+			WHERE profile_uuid = ?
+		`, profileVariables.ProfileUUID); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "getting Apple profile for DigiCert profile variable associations")
+		}
+		resolved := fleet.ResolveDigiCertProfileFleetVariables(variables.Find(string(mobileconfig)), digiCertCAs)
+		fleetVars := make([]fleet.FleetVarName, len(resolved))
+		for i, fleetVar := range resolved {
+			fleetVars[i] = fleet.FleetVarName(fleetVar)
+		}
+		resolvedProfiles = append(resolvedProfiles, fleet.MDMProfileUUIDFleetVariables{
+			ProfileUUID:    profileVariables.ProfileUUID,
+			FleetVariables: fleetVars,
+		})
+	}
+	return resolvedProfiles, nil
+}
+
+func (ds *Datastore) refreshDigiCertProfileVariableAssociations(ctx context.Context, tx sqlx.ExtContext, caName string) error {
+	digiCertCAs, err := getDigiCertCAsForProfileVariables(ctx, tx)
+	if err != nil {
+		return err
+	}
+
+	type profileRow struct {
+		ProfileUUID  string `db:"profile_uuid"`
+		Mobileconfig []byte `db:"mobileconfig"`
+	}
+	var profiles []profileRow
+	if err := sqlx.SelectContext(ctx, tx, &profiles, `
+		SELECT macp.profile_uuid, macp.mobileconfig
+		FROM mdm_apple_configuration_profiles macp
+		WHERE EXISTS (
+			SELECT 1
+			FROM mdm_configuration_profile_variables mcpv
+			JOIN fleet_variables fv ON fv.id = mcpv.fleet_variable_id
+			WHERE mcpv.apple_profile_uuid = macp.profile_uuid AND fv.name IN (?, ?)
+		)
+	`, "FLEET_VAR_"+string(fleet.FleetVarDigiCertDataPrefix), "FLEET_VAR_"+string(fleet.FleetVarDigiCertPasswordPrefix)); err != nil {
+		return ctxerr.Wrap(ctx, err, "getting Apple profiles with DigiCert variables")
+	}
+
+	profileVariables := make([]fleet.MDMProfileUUIDFleetVariables, 0, len(profiles))
+	for _, profile := range profiles {
+		fleetVarsInProfile := variables.Find(string(profile.Mobileconfig))
+		if !slices.Contains(fleetVarsInProfile, string(fleet.FleetVarDigiCertDataPrefix)+caName) &&
+			!slices.Contains(fleetVarsInProfile, string(fleet.FleetVarDigiCertPasswordPrefix)+caName) {
+			continue
+		}
+		if err := sqlx.GetContext(ctx, tx, &profile.Mobileconfig, `
+			SELECT mobileconfig
+			FROM mdm_apple_configuration_profiles
+			WHERE profile_uuid = ?
+			FOR UPDATE SKIP LOCKED
+		`, profile.ProfileUUID); err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				continue
+			}
+			return ctxerr.Wrap(ctx, err, "locking Apple profile for DigiCert profile variable associations")
+		}
+		fleetVarsInProfile = variables.Find(string(profile.Mobileconfig))
+		if !slices.Contains(fleetVarsInProfile, string(fleet.FleetVarDigiCertDataPrefix)+caName) &&
+			!slices.Contains(fleetVarsInProfile, string(fleet.FleetVarDigiCertPasswordPrefix)+caName) {
+			continue
+		}
+		resolved := fleet.ResolveDigiCertProfileFleetVariables(fleetVarsInProfile, digiCertCAs)
+		fleetVars := make([]fleet.FleetVarName, len(resolved))
+		for i, fleetVar := range resolved {
+			fleetVars[i] = fleet.FleetVarName(fleetVar)
+		}
+		profileVariables = append(profileVariables, fleet.MDMProfileUUIDFleetVariables{
+			ProfileUUID:    profile.ProfileUUID,
+			FleetVariables: fleetVars,
+		})
+	}
+
+	if len(profileVariables) == 0 {
+		return nil
+	}
+	if _, err := setVariableAssociationsForColumnDB(ctx, tx, profileVariables, "apple_profile_uuid"); err != nil {
+		return ctxerr.Wrap(ctx, err, "refreshing DigiCert profile variable associations")
+	}
 	return nil
 }
 
