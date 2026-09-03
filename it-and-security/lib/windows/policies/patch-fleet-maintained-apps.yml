@@ -24,10 +24,11 @@
     - x86 Windows hosts with Claude installed
 - name: Firefox up to date (Windows)
   description: The host may have an outdated version of Firefox, potentially risking security vulnerabilities or compatibility issues.
-  resolution: "Download the latest version from Self-service or check for updates using Firefox's built-in update functionality. You can also uninstall Firefox if you are no longer using it."
+  resolution: "Firefox is managed by IT and should be updated automatically. If you are failing this policy, install the latest version from Self-service, then click Refetch. If you are still failing after Refetch completes, drop a note in #help-it."
   type: patch
   fleet_maintained_app_slug: firefox/windows
-  install_software: false
+  install_software: true
+  calendar_events_enabled: true
   labels_include_any:
     - x86 Windows hosts with Firefox installed
 - name: Google Chrome up to date (Windows)
