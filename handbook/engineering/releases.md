@@ -214,7 +214,7 @@ Some of our code does not go through a scheduled release process and is released
 In these cases there are two differences in our pull request process:
 
 - QA is done before merging the code change to the main branch.
-- Tickets are not moved to "Ready for release". Bugs are closed, and user stories are moved to the 🦢 Product design intake & outtake board's "Confirm and celebrate" column.
+- Tickets are not moved to "Ready for release". Bugs are closed, and user stories are moved to the 🦢📨🎉 Product design intake & outtake board's "Confirm and celebrate" column.
 
 
 ## Server and agent compatibility
