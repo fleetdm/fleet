@@ -18,7 +18,7 @@ Fleet allows users to upload [scripts](https://fleetdm.com/guides/scripts) execu
 
 When a host fails the selected policy, this will trigger the script to run on the host.
 
-If the script fails, you can reset a script automation and trigger the script to run on all targeted hosts again. To do this, deselect the policy in the **Policies > Manage automations** modal, select **Save**, and then reselect the policy. This will reset the policy's host passing and failing host counts and retrigger the script automation. You can automate this reset with the [Reset policy results](https://fleetdm.com/docs/rest-api/rest-api#reset-policy-results) API endpoint.
+If the script fails, you can reset a script automation and trigger the script to run on all targeted hosts again. To do this, go to the policy's details page and, under **Automation runs**, select **Reset policy**. This clears the policy's passing and failing host counts, so hosts that already failed will re-run the script automation on their next check-in. You can also automate this reset with the [Reset policy results](https://fleetdm.com/docs/rest-api/rest-api#reset-policy-results) API endpoint.
 
 ## How does it work?
 
