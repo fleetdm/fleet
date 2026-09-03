@@ -20,7 +20,7 @@ Several events can trigger a policy check sooner than this interval: a manual ho
 
 Automations are fired for scheduled policy runs, including the ones triggered early by the events above. Running a live policy doesn't trigger automations.
 
-Fleet automatically re-runs a policy's automations on hosts that already failed it when you edit the policy's query, or swap in a different script, software package, or App Store (VPP) app. Editing the content of the same script or software package doesn't do this.
+Fleet resets policy status and automatically re-runs a policy's automations on hosts that already failed the policy when you edit the policy's query, or swap in a different script, software package, or App Store (VPP) app. Editing the content of the same script or software package doesn't do this.
 
 To manually re-run automations on hosts that already failed a policy (for example, after editing a script's content), go to the policy's details page and, under **Automation runs**, select **Reset policy**. You can also do this with the [Reset policy results](https://fleetdm.com/docs/rest-api/rest-api#reset-policy-results) API endpoint.
 
