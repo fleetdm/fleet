@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "4.3.11",
+      "version": "4.3.12",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'dignicy.extraDock';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'dignicy.extraDock' AND version_compare(bundle_short_version, '4.3.11') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'dignicy.extraDock' AND version_compare(bundle_short_version, '4.3.12') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'dignicy.extraDock' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/AppitStudio/extra-dock-updates/releases/download/v4.3.11/extraDock.dmg",
+      "installer_url": "https://github.com/AppitStudio/extra-dock-updates/releases/download/v4.3.12/extraDock.dmg",
       "install_script_ref": "b1d54782",
       "uninstall_script_ref": "39871f56",
-      "sha256": "83d5fbcba657d014bd9bd60d151d932b0313bbebb3003f00112ebf7284b00ebd",
+      "sha256": "7b02f5915f401a18a18a6af4d2f28ee3a5a81583db6c63eac66d57a9eda78b61",
       "default_categories": [
         "Productivity"
       ]

@@ -1,6 +1,6 @@
 module github.com/fleetdm/fleet/v4
 
-go 1.26.8
+go 1.27.1
 
 require (
 	cloud.google.com/go/pubsub v1.50.1
@@ -64,7 +64,6 @@ require (
 	github.com/go-git/go-git/v5 v5.19.2
 	github.com/go-ini/ini v1.67.0
 	github.com/go-jose/go-jose/v3 v3.0.5
-	github.com/go-json-experiment/json v0.0.0-20260214004413-d219187c3433
 	github.com/go-kit/kit v0.12.0
 	github.com/go-ole/go-ole v1.2.6
 	github.com/go-sql-driver/mysql v1.9.3
@@ -116,6 +115,7 @@ require (
 	github.com/osquery/osquery-go v0.0.0-20250131154556-629f995b6947
 	github.com/pandatix/nvdapi v0.6.4
 	github.com/patrickmn/go-cache v2.1.0+incompatible
+	github.com/pelletier/go-toml/v2 v2.2.4
 	github.com/pkg/errors v0.9.1
 	github.com/pmezard/go-difflib v1.0.0
 	github.com/prometheus/client_golang v1.21.1
@@ -329,7 +329,6 @@ require (
 	github.com/opencontainers/runtime-spec v1.1.0 // indirect
 	github.com/opencontainers/selinux v1.13.1 // indirect
 	github.com/oschwald/maxminddb-golang v1.10.0 // indirect
-	github.com/pelletier/go-toml/v2 v2.2.4 // indirect
 	github.com/pjbgf/sha1cd v0.6.0 // indirect
 	github.com/pkg/term v0.0.0-20190109203006-aa71e9d9e942 // indirect
 	github.com/power-devops/perfstat v0.0.0-20240221224432-82ca36839d55 // indirect
