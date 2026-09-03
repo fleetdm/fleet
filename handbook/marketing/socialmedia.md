@@ -19,6 +19,18 @@
 
 [Internal table](https://docs.google.com/spreadsheets/d/1WMiVzHQ-QV_llgDCBRX0P7uxuDNJaooYKPX1XKW6SSc/edit?gid=0#gid=0)
 
+# TikTok
+
+TikTok isn't a primary paid or advertising channel for Fleet. We'll revisit investing further here (paid campaigns, dedicated content, etc.) once other major social platforms have baseline retargeting coverage in place. Until then, TikTok gets lightweight, ongoing maintenance to keep the account active and monitored.
+
+## Rituals
+
+### Monthly
+
+- Post or refresh something on Fleet's TikTok profile so it doesn't look abandoned.
+- Check TikTok DMs for anything that needs a response.
+- Search TikTok for "fleetdm", "osquery", and "fleet mdm" to find and engage with relevant mentions or content.
+
 # LinkedIn (Campaign Manager) ads
 
 This page describes how Fleet runs paid LinkedIn advertising, including strategy, campaign structure, budget, rituals, and decision rules through Campaign Manager.
