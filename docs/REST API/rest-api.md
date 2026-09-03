@@ -713,7 +713,7 @@ Returns a list of the activities that have been performed in Fleet. For a compre
 
 ### Reset policy results
 
-Clears a policy's pass/fail results — the same side effect as editing the policy's query, or switching its script, software installer, or App Store (VPP) app automation to a different one (see [Resetting a policy's automation status](https://fleetdm.com/guides/automations#resetting-a-policys-automation-status)). Immediately sets `passing_host_count` and `failing_host_count` to `0` and wipes membership records so the counts remain `0` until hosts re-report. Pass the `host_id` query parameter to instead reset only a single host's result for the policy.
+Clears a policy's pass/fail results. Fleet does this automatically when you edit the policy's query or swap in a different script, software package, or VPP app (see [Resetting a policy's automation status](https://fleetdm.com/guides/automations#resetting-a-policys-automation-status)); use this endpoint to do it manually. Immediately sets `passing_host_count` and `failing_host_count` to `0` and wipes membership records so the counts remain `0` until hosts re-report. Pass the `host_id` query parameter to instead reset only a single host's result for the policy.
 
 `POST /api/v1/fleet/policies/:policy_id/reset`
 
