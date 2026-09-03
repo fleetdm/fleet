@@ -15,6 +15,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	nanomdm_mysql "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/storage/mysql"
+	notifications_api "github.com/fleetdm/fleet/v4/server/notifications/api"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/google/uuid"
@@ -48,6 +49,7 @@ func TestActivity(t *testing.T) {
 		{"ActivateDeletedInstallerShowsPlaceholder", testActivateDeletedInstallerShowsPlaceholder},
 		{"ActivateScriptPackageUninstallWithCorruptPayload", testActivateScriptPackageUninstallWithCorruptPayload},
 		{"ListPolicyAutomationActivities", testListPolicyAutomationActivities},
+		{"ListPolicyAutomationActivitiesNotifyBeforePatching", testListPolicyAutomationActivitiesNotifyBeforePatching},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -3444,5 +3446,94 @@ func testListPolicyAutomationActivities(t *testing.T, ds *Datastore) {
 		}
 		require.True(t, sawNamedErr, "expected a failed named automation")
 		require.True(t, sawNamedSucc, "expected a successful named automation")
+	})
+}
+
+func testListPolicyAutomationActivitiesNotifyBeforePatching(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	activitySvc := NewTestActivityService(t, ds)
+
+	adminFilter := fleet.TeamFilter{
+		User:            &fleet.User{GlobalRole: new("admin")},
+		IncludeObserver: true,
+	}
+
+	host := test.NewHost(t, ds, "notified-host", "3.3.3.3", "notify-key", "notify-uuid", time.Now())
+
+	// notify_before_patching is only valid on a team policy, never on "All fleets"
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "notify-before-patching-team"})
+	require.NoError(t, err)
+	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID})))
+
+	newPatchPolicy := func(t *testing.T, name string) *fleet.Policy {
+		policy, err := ds.NewTeamPolicy(ctx, team.ID, nil, fleet.PolicyPayload{Name: name, Query: "SELECT 1"})
+		require.NoError(t, err)
+		require.NotNil(t, policy)
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `UPDATE policies SET notify_before_patching = 1 WHERE id = ?`, policy.ID)
+			return err
+		})
+		return policy
+	}
+
+	firstPolicy := newPatchPolicy(t, "notify-policy-1")
+	secondPolicy := newPatchPolicy(t, "notify-policy-2")
+
+	// A notification with one app per policy, and the activity reporting whether
+	// the notification was displayed. Automation runs finds that activity by
+	// joining the notification's apps to the policy.
+	newNotification := func(t *testing.T, status string, policyIDs []uint) string {
+		notificationUUID := newPatchNotification(t, ds, host.ID, notifications_api.EndUserNotificationDispatched, 1)
+
+		for _, policyID := range policyIDs {
+			require.NoError(t, ds.AddPatchNotificationApp(ctx, notificationUUID, fleet.PatchNotificationApp{
+				PolicyID:        &policyID,
+				SoftwareTitleID: newTestSoftwareTitle(t, ds, uuid.NewString()),
+			}))
+		}
+
+		require.NoError(t, activitySvc.NewActivity(ctx, nil, dummyActivity{
+			name: "notified_end_user_before_patching",
+			details: map[string]any{
+				"patch_notification_uuid": notificationUUID,
+				"status":                  status,
+				"time_before":             3600,
+			},
+			hostIDs: []uint{host.ID},
+		}))
+		return notificationUUID
+	}
+
+	bothPolicies := newNotification(t, "success", []uint{firstPolicy.ID, secondPolicy.ID})
+	failedOnFirst := newNotification(t, "failed", []uint{firstPolicy.ID})
+
+	listOpts := fleet.ListOptions{OrderKey: "id", IncludeMetadata: true}
+
+	t.Run("a notification with an app from two policies shows in both Automation runs tables", func(t *testing.T) {
+		// the first policy has an app on both notifications
+		first, _, err := ds.ListPolicyAutomationActivities(ctx, firstPolicy.ID, adminFilter, listOpts, "")
+		require.NoError(t, err)
+		require.Len(t, first, 2)
+
+		// the second policy only has an app on the notification that lists both policies
+		second, _, err := ds.ListPolicyAutomationActivities(ctx, secondPolicy.ID, adminFilter, listOpts, "")
+		require.NoError(t, err)
+		require.Len(t, second, 1)
+		require.Equal(t, "notified_end_user_before_patching", second[0].Type)
+		require.Equal(t, "success", second[0].Status)
+		require.Contains(t, string(*second[0].Details), bothPolicies)
+	})
+
+	// the activity's status field is what the error and success filters read
+	t.Run("status filters split displayed from failed", func(t *testing.T) {
+		failed, _, err := ds.ListPolicyAutomationActivities(ctx, firstPolicy.ID, adminFilter, listOpts, "error")
+		require.NoError(t, err)
+		require.Len(t, failed, 1)
+		require.Contains(t, string(*failed[0].Details), failedOnFirst)
+
+		displayed, _, err := ds.ListPolicyAutomationActivities(ctx, firstPolicy.ID, adminFilter, listOpts, "success")
+		require.NoError(t, err)
+		require.Len(t, displayed, 1)
+		require.Contains(t, string(*displayed[0].Details), bothPolicies)
 	})
 }

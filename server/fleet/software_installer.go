@@ -57,6 +57,7 @@ type SoftwareInstallDetails struct {
 	AppOpenQuery         string `json:"-" db:"app_open_query"`
 	PatchWhenClosed      bool   `json:"-" db:"patch_when_closed"`
 	NotifyBeforePatching bool   `json:"-" db:"notify_before_patching"`
+	IgnoreAppOpenQuery   bool   `json:"-" db:"ignore_app_open_query"`
 }
 
 type SoftwareInstallerURL struct {
@@ -1395,7 +1396,8 @@ type HostSoftwareInstallOptions struct {
 	// WithRetries indicates the install should be retried on failure (up to
 	// MaxSoftwareInstallAttempts total). Set by host details, self-service,
 	// and setup experience install paths.
-	WithRetries bool
+	WithRetries        bool
+	IgnoreAppOpenQuery bool
 }
 
 // IsFleetInitiated returns true if the software install is initiated by Fleet.

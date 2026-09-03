@@ -37,6 +37,8 @@ func notificationOutcomeForExitCode(exitCode int64) (reason string, retryIn *tim
 		return api.EndUserNotificationReasonScreenLocked, &shortRetry
 	case 42:
 		return api.EndUserNotificationReasonNoDisplay, &shortRetry
+	case 50:
+		return api.EndUserNotificationReasonAnotherDisplayed, &shortRetry
 	case 70:
 		return api.EndUserNotificationReasonInternalError, &shortRetry
 

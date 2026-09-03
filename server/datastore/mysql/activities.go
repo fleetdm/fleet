@@ -1977,6 +1977,19 @@ var policyAutomationTaskBranches = []policyAutomationTaskBranch{
 			output: "NULL",
 		},
 	},
+	{
+		activityType: "notified_end_user_before_patching",
+		joins: `
+            INNER JOIN patch_notification_apps pna
+                ON  pna.notification_uuid = ap.details->>'$.patch_notification_uuid'
+                AND pna.policy_id         = ?`,
+		errorCond:   "ap.details->>'$.status' = 'failed'",
+		successCond: "NOT (ap.details->>'$.status' <=> 'failed')",
+		statusCols: statusOutputCols{
+			status: "IF(ap.details->>'$.status' = 'failed', 'error', 'success')",
+			output: "NULL",
+		},
+	},
 }
 
 // policyAutomationBranch is a single UNION ALL branch: a complete SELECT (minus

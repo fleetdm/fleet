@@ -650,7 +650,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	// Inject the notifications bounded context into the main service
 	svc.SetNotificationsService(notificationsSvc)
 	// Register kinds here, and nowhere else.
-	notificationsSvc.RegisterKind(service.NewPatchNotificationKind(notificationsSvc))
+	notificationsSvc.RegisterKind(service.NewPatchNotificationKind(ds, svc, notificationsSvc, logger))
 
 	// Bootstrap ACME service module
 	acmeSigner := &acmeCSRSigner{signer: scepdepot.NewSigner(scepStorage, scepdepot.WithValidityDays(config.MDM.AppleSCEPSignerValidityDays), scepdepot.WithAllowRenewalDays(14))}

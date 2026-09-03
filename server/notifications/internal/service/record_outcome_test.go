@@ -28,6 +28,7 @@ func TestNotificationOutcomeForExitCode(t *testing.T) {
 		{40, api.EndUserNotificationReasonNoGUIUser, true, false},
 		{41, api.EndUserNotificationReasonScreenLocked, true, false},
 		{42, api.EndUserNotificationReasonNoDisplay, true, false},
+		{50, api.EndUserNotificationReasonAnotherDisplayed, true, false},
 		{70, api.EndUserNotificationReasonInternalError, true, false},
 		{100, api.EndUserNotificationReasonDesktopMissing, true, true},
 		{101, api.EndUserNotificationReasonDesktopTooOld, true, true},

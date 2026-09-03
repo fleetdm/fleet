@@ -2,30 +2,30 @@ package service
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/notifications/api"
 	"github.com/fleetdm/fleet/v4/server/notifications/internal/types"
 )
 
-// Delay only happens if a kind is registered to decide when.
-func (s *Service) ApplyAction(ctx context.Context, hostID uint, notificationUUID string, action api.EndUserNotificationAction) error {
-	notification, err := s.GetNotificationForHost(ctx, hostID, notificationUUID)
+func (s *Service) ApplyAction(ctx context.Context, hostID uint, notificationUUID string, action api.EndUserNotificationAction) (*api.NotificationView, error) {
+	notification, err := s.notificationForHost(ctx, hostID, notificationUUID)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if action.Action == nil {
-		return ctxerr.Wrap(ctx, &types.InvalidArgumentError{Name: "action", Reason: "is required"})
+		return nil, ctxerr.Wrap(ctx, &types.InvalidArgumentError{Name: "action", Reason: "is required"})
 	}
 
 	kind, kindRegistered := s.kinds[notification.Kind]
 	if !kindRegistered {
 		s.logger.WarnContext(ctx, "no kind registered for end user notification",
 			"kind", notification.Kind, "notification_uuid", notification.UUID)
+		return nil, ctxerr.Wrap(ctx, &types.NotFoundError{Identifier: notificationUUID}, "no kind to act on notification")
 	}
 
+	var view *api.NotificationView
 	switch *action.Action {
 	case api.EndUserNotificationActionVerify:
 		// TODO: end users should be able to send the time they displayed a
@@ -34,19 +34,20 @@ func (s *Service) ApplyAction(ctx context.Context, hostID uint, notificationUUID
 		// returns a successful code.
 
 	case api.EndUserNotificationActionDelay:
-		if !kindRegistered {
-			return nil
-		}
-		if err := kind.OnDelay(ctx, notification); err != nil {
-			return ctxerr.Wrap(ctx, err, "notification kind handling delay")
+		view, err = kind.OnDelay(ctx, notification)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "notification kind handling delay")
 		}
 
 	default:
-		return ctxerr.Wrap(ctx, &types.InvalidArgumentError{
-			Name:   "action",
-			Reason: fmt.Sprintf("%q is not something that can be done to a notification", *action.Action),
-		})
+		view, err = kind.OnAction(ctx, notification, *action.Action)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "notification kind handling action")
+		}
 	}
 
-	return nil
+	if view != nil {
+		return view, nil
+	}
+	return s.render(ctx, notification)
 }

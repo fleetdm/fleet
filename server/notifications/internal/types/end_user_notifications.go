@@ -13,14 +13,19 @@ import (
 // Datastore is what the service needs of the notifications tables. Each method
 // is documented on its implementation in internal/mysql.
 type Datastore interface {
+	NewEndUserNotification(ctx context.Context, notification *api.EndUserNotification) (*api.EndUserNotification, error)
 	GetEndUserNotificationByUUID(ctx context.Context, notificationUUID string) (*api.EndUserNotification, error)
 	GetEndUserNotificationByExecutionID(ctx context.Context, executionID string) (*api.EndUserNotification, error)
+	GetNotificationAwaitingDisplay(ctx context.Context, hostID uint, kind string) (*api.EndUserNotification, error)
 	ListEndUserNotificationsToDispatch(ctx context.Context, limit int) ([]*api.EndUserNotification, error)
 	SetEndUserNotificationsDispatched(ctx context.Context, notifications []*api.EndUserNotification) error
 	DeferEndUserNotificationsForHosts(ctx context.Context, hostIDs []uint) error
 	ExpireEndUserNotifications(ctx context.Context) (int64, error)
 	VerifyEndUserNotification(ctx context.Context, notificationUUID string, displayedAt time.Time) error
 	DelayEndUserNotification(ctx context.Context, notificationUUID string, nextAttemptAt time.Time, payload json.RawMessage) error
+	// ActOnEndUserNotification returns false when the notification was already
+	// terminal, so only the first call gets true.
+	ActOnEndUserNotification(ctx context.Context, notificationUUID string) (bool, error)
 	SetEndUserNotificationOutcome(ctx context.Context, notificationUUID string, outcome api.NotificationOutcome, nextAttemptAt *time.Time) error
 }
 

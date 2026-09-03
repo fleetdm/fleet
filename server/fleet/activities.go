@@ -1258,6 +1258,30 @@ func (a ActivityTypeInstalledSoftware) ActivateNextUpcomingActivityArgs() (uint,
 	return a.HostID, a.CommandUUID
 }
 
+type ActivityTypeNotifiedEndUserBeforePatching struct {
+	HostID                uint       `json:"host_id"`
+	HostDisplayName       string     `json:"host_display_name"`
+	PatchNotificationUUID string     `json:"patch_notification_uuid"`
+	SoftwareTitles        []string   `json:"software_titles"`
+	PolicyIDs             []uint     `json:"policy_ids"`
+	TimeBefore            int        `json:"time_before"`
+	InstallAt             *time.Time `json:"install_at"`
+	Status                string     `json:"status"`
+	ScriptExecutionID     string     `json:"script_execution_id,omitempty"`
+}
+
+func (a ActivityTypeNotifiedEndUserBeforePatching) ActivityName() string {
+	return "notified_end_user_before_patching"
+}
+
+func (a ActivityTypeNotifiedEndUserBeforePatching) HostIDs() []uint {
+	return []uint{a.HostID}
+}
+
+func (a ActivityTypeNotifiedEndUserBeforePatching) WasFromAutomation() bool {
+	return len(a.PolicyIDs) > 0
+}
+
 type ActivityTypeUninstalledSoftware struct {
 	HostID          uint    `json:"host_id"`
 	HostDisplayName string  `json:"host_display_name"`

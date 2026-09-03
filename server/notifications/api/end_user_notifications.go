@@ -13,6 +13,7 @@ const (
 	EndUserNotificationDispatched = "dispatched"
 	EndUserNotificationFailed     = "failed"
 	EndUserNotificationExpired    = "expired"
+	EndUserNotificationActed      = "acted"
 )
 
 // What an end user's device can do with a notification.
@@ -33,6 +34,7 @@ const (
 	EndUserNotificationReasonNoGUIUser         = "no_gui_user"
 	EndUserNotificationReasonScreenLocked      = "screen_locked"
 	EndUserNotificationReasonNoDisplay         = "no_display"
+	EndUserNotificationReasonAnotherDisplayed  = "another_displayed"
 	EndUserNotificationReasonInternalError     = "internal_error"
 	EndUserNotificationReasonDesktopMissing    = "fleet_desktop_missing"
 	EndUserNotificationReasonDesktopTooOld     = "fleet_desktop_too_old"
@@ -81,6 +83,29 @@ type EndUserNotificationAction struct {
 	DisplayedAt *time.Time `json:"displayed_at"`
 }
 
+type NotificationItem struct {
+	SoftwareTitleID uint    `json:"software_title_id"`
+	IconURL         *string `json:"icon_url"`
+	Name            string  `json:"name"`
+	DisplayName     string  `json:"display_name,omitempty"`
+	Status          string  `json:"status,omitempty"`
+}
+
+type NotificationAction struct {
+	ID    string `json:"id"`
+	Label string `json:"label"`
+}
+
+type NotificationView struct {
+	UUID                string               `json:"uuid"`
+	OrgLogoURLLightMode string               `json:"org_logo_url_light_mode"`
+	OrgLogoURLDarkMode  string               `json:"org_logo_url_dark_mode"`
+	Title               string               `json:"title"`
+	Description         string               `json:"description"`
+	Items               []NotificationItem   `json:"items"`
+	Actions             []NotificationAction `json:"actions"`
+}
+
 // NotificationOutcome is how an attempt to put a notification on screen ended.
 type NotificationOutcome struct {
 	Displayed   bool
@@ -97,12 +122,18 @@ type NotificationOutcome struct {
 type NotificationKind interface {
 	// Name is the value stored in notifications_end_user.kind.
 	Name() string
+	Render(ctx context.Context, notification *EndUserNotification) (*NotificationView, error)
 	// OnVerify sets when the notification was displayed on the host. Currently
 	// unused because Fleet uses the script endpoint to report when the
 	// notification was displayed.
 	OnVerify(ctx context.Context, notification *EndUserNotification, displayedAt time.Time) error
-	// OnDelay sets the notification to attempt later at a time the kind chooses.
-	OnDelay(ctx context.Context, notification *EndUserNotification) error
+	// OnDelay sets the notification to attempt later at a time the kind chooses,
+	// and returns the view to send back, or nil to render the notification
+	// unchanged.
+	OnDelay(ctx context.Context, notification *EndUserNotification) (*NotificationView, error)
+	// OnAction carries out what the end user chose, and returns the view to send
+	// back, or nil to render the notification unchanged.
+	OnAction(ctx context.Context, notification *EndUserNotification, actionID string) (*NotificationView, error)
 	// OnOutcome runs after Fleet records how an attempt ended.
 	OnOutcome(ctx context.Context, notification *EndUserNotification, outcome NotificationOutcome) error
 }

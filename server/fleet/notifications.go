@@ -9,4 +9,5 @@ import (
 type NotificationsWriteService interface {
 	api.RecordOutcomeService
 	api.NotificationLookupService
+	api.CreateNotificationService
 }

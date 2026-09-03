@@ -23,11 +23,12 @@ type Datastore struct {
 	logger  *slog.Logger
 }
 
+//nolint:nilaway // NewDBConnections returns a nil conns only alongside an error, which fails startup
 func NewDatastore(conns *platform_mysql.DBConnections, logger *slog.Logger) *Datastore {
-	return &Datastore{primary: conns.Primary, replica: conns.Replica, logger: logger} // nolint:nilaway // serve.go always passes real connections
+	return &Datastore{primary: conns.Primary, replica: conns.Replica, logger: logger}
 }
 
-func (ds *Datastore) reader(ctx context.Context) *sqlx.DB {
+func (ds *Datastore) reader(_ context.Context) *sqlx.DB {
 	return ds.replica
 }
 
@@ -110,6 +111,35 @@ func (ds *Datastore) GetEndUserNotificationByUUID(ctx context.Context, notificat
 	return &notification, nil
 }
 
+// GetNotificationAwaitingDisplay returns the host's notification of this kind
+// that the end user has not seen yet, or nil.
+func (ds *Datastore) GetNotificationAwaitingDisplay(ctx context.Context, hostID uint, kind string) (*api.EndUserNotification, error) {
+	const getStmt = `
+SELECT ` + endUserNotificationColumns + `
+FROM notifications_end_user eun
+WHERE eun.host_id = ?
+	AND eun.kind = ?
+	AND eun.status IN (?, ?)
+	-- dispatched means the script is queued, not that the end user has seen it
+	AND eun.displayed_at IS NULL
+	-- the expired status is set by a sweep, so pending can still be past expiry
+	AND eun.expires_at > NOW(6)
+ORDER BY eun.id DESC
+LIMIT 1
+`
+
+	var notification api.EndUserNotification
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &notification, getStmt, hostID, kind,
+		api.EndUserNotificationPending, api.EndUserNotificationDispatched,
+	); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get end user notification awaiting display")
+	}
+	return &notification, nil
+}
+
 func (ds *Datastore) GetEndUserNotificationByExecutionID(ctx context.Context, executionID string) (*api.EndUserNotification, error) {
 	const getStmt = `SELECT ` + endUserNotificationColumns + ` FROM notifications_end_user eun WHERE eun.execution_id = ?`
 
@@ -177,7 +207,7 @@ func (ds *Datastore) SetEndUserNotificationsDispatched(ctx context.Context, noti
 	const updateStmt = `
 UPDATE notifications_end_user
 SET status = ?, execution_id = ?, attempt_count = attempt_count + 1, last_reason = NULL
-WHERE uuid = ?
+WHERE uuid = ? AND status = ?
 `
 
 	for _, notification := range notifications {
@@ -189,6 +219,7 @@ WHERE uuid = ?
 	for _, notification := range notifications {
 		if _, err := ds.primary.ExecContext(ctx, updateStmt,
 			api.EndUserNotificationDispatched, *notification.ExecutionID, notification.UUID,
+			api.EndUserNotificationPending,
 		); err != nil {
 			return ctxerr.Wrap(ctx, err, "set end user notification dispatched")
 		}
@@ -296,23 +327,47 @@ func (ds *Datastore) DelayEndUserNotification(ctx context.Context, notificationU
 	// result to report, and the next dispatch overwrites it. displayed_at is
 	// cleared so the next send records its own display.
 	//
-	// Expired and failed notifications are excluded so a delay can't revive one.
+	// Terminal notifications are excluded so a delay can't revive a notification
+	// that is already over.
 	const updateStmt = `
 UPDATE notifications_end_user
 SET status = ?, next_attempt_at = ?, last_reason = ?, displayed_at = NULL,
 	payload = COALESCE(?, payload)
 WHERE uuid = ?
-	AND status NOT IN (?, ?)
+	AND status NOT IN (?, ?, ?)
 	AND expires_at > NOW(6)
 `
 
 	if _, err := ds.primary.ExecContext(ctx, updateStmt,
 		api.EndUserNotificationPending, nextAttemptAt, api.EndUserNotificationReasonDelayed, payload, notificationUUID,
-		api.EndUserNotificationExpired, api.EndUserNotificationFailed,
+		api.EndUserNotificationExpired, api.EndUserNotificationFailed, api.EndUserNotificationActed,
 	); err != nil {
 		return ctxerr.Wrap(ctx, err, "delay end user notification")
 	}
 	return nil
+}
+
+// The status check is in the statement rather than a read beforehand, so two
+// actions at once can't both get true.
+func (ds *Datastore) ActOnEndUserNotification(ctx context.Context, notificationUUID string) (bool, error) {
+	const updateStmt = `
+UPDATE notifications_end_user
+SET status = ?
+WHERE uuid = ? AND status IN (?, ?)
+`
+
+	res, err := ds.primary.ExecContext(ctx, updateStmt,
+		api.EndUserNotificationActed, notificationUUID,
+		api.EndUserNotificationPending, api.EndUserNotificationDispatched,
+	)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "act on end user notification")
+	}
+	rows, err := res.RowsAffected()
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "rows affected acting on end user notification")
+	}
+	return rows > 0, nil
 }
 
 // SetEndUserNotificationOutcome records how an attempt to display ended. A

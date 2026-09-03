@@ -107,6 +107,10 @@ type TestServerOpts struct {
 	// dispatch notifications directly instead of going through the cron.
 	NotificationsSvc notifications_api.Service
 
+	// NotificationsMock is populated automatically when a test service is built,
+	// and is what the service uses unless DBConns replaced it with NotificationsSvc.
+	NotificationsMock *fleet_mock.MockNotificationsService
+
 	// MicrosoftGraphClientFactory overrides the Graph client used to verify a credential on config write.
 	MicrosoftGraphClientFactory msgraph.ClientFactory
 

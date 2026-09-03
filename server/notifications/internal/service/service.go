@@ -43,7 +43,27 @@ func (s *Service) RegisterKind(kind api.NotificationKind) {
 	s.kinds[kind.Name()] = kind
 }
 
-func (s *Service) GetNotificationForHost(ctx context.Context, hostID uint, notificationUUID string) (*api.EndUserNotification, error) {
+func (s *Service) CreateNotification(ctx context.Context, notification *api.EndUserNotification) (*api.EndUserNotification, error) {
+	if _, kindRegistered := s.kinds[notification.Kind]; !kindRegistered {
+		return nil, ctxerr.Errorf(ctx, "no kind registered for end user notification %q", notification.Kind)
+	}
+
+	created, err := s.ds.NewEndUserNotification(ctx, notification)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "create end user notification")
+	}
+	return created, nil
+}
+
+func (s *Service) NotificationAwaitingDisplay(ctx context.Context, hostID uint, kind string) (*api.EndUserNotification, error) {
+	notification, err := s.ds.GetNotificationAwaitingDisplay(ctx, hostID, kind)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get end user notification awaiting first dispatch")
+	}
+	return notification, nil
+}
+
+func (s *Service) notificationForHost(ctx context.Context, hostID uint, notificationUUID string) (*api.EndUserNotification, error) {
 	notification, err := s.ds.GetEndUserNotificationByUUID(ctx, notificationUUID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get end user notification")
@@ -56,6 +76,29 @@ func (s *Service) GetNotificationForHost(ctx context.Context, hostID uint, notif
 	}
 
 	return notification, nil
+}
+
+func (s *Service) RenderNotificationForHost(ctx context.Context, hostID uint, notificationUUID string) (*api.NotificationView, error) {
+	notification, err := s.notificationForHost(ctx, hostID, notificationUUID)
+	if err != nil {
+		return nil, err
+	}
+	return s.render(ctx, notification)
+}
+
+func (s *Service) render(ctx context.Context, notification *api.EndUserNotification) (*api.NotificationView, error) {
+	kind, kindRegistered := s.kinds[notification.Kind]
+	if !kindRegistered {
+		s.logger.WarnContext(ctx, "no kind registered for end user notification",
+			"kind", notification.Kind, "notification_uuid", notification.UUID)
+		return nil, ctxerr.Wrap(ctx, &types.NotFoundError{Identifier: notification.UUID}, "no kind to render notification")
+	}
+
+	view, err := kind.Render(ctx, notification)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "notification kind rendering view")
+	}
+	return view, nil
 }
 
 func (s *Service) NotificationUUIDForExecution(ctx context.Context, executionID string) (string, error) {
@@ -71,4 +114,12 @@ func (s *Service) DelayNotification(ctx context.Context, notificationUUID string
 		return ctxerr.Wrap(ctx, err, "delay end user notification")
 	}
 	return nil
+}
+
+func (s *Service) ActOnNotification(ctx context.Context, notificationUUID string) (bool, error) {
+	acted, err := s.ds.ActOnEndUserNotification(ctx, notificationUUID)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "act on end user notification")
+	}
+	return acted, nil
 }
