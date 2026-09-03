@@ -48,9 +48,9 @@ Below is the JSON payload that is sent to Fleet Device Management Inc:
   "resultLogDestination": "firehose",
   "statusLogDestination": "firehose",
   "auditLogDestination": "firehose",
-  "anyVulnerabilityWebhookEnabled": true, // true if configured for any Fleet
-  "anyHostActivityWebhookEnabled": true, // true if configured for any Fleet
-  "anyPolicyAutomationWebhookEnabled": true, // true if configured for any Fleet
+  "anyVulnerabilitiesWebhookEnabled": true, // true if configured for any Fleet
+  "anyFailingPoliciesWebhookEnabled": true, // true if configured for any Fleet
+  "anyHostActivitiesWebhookEnabled": true, // true if configured for any Fleet
   "ticketDestinationConfigured": true,
   "ssoConfiguredFleetUsers": true,
   "ssoConfiguredEndUsers": true,
