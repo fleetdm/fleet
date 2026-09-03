@@ -5497,6 +5497,13 @@
       "description": "Microsoft Office is a suite of productivity applications including Word, Excel, PowerPoint, and Outlook."
     },
     {
+      "name": "Microsoft OLE DB Driver 19 for SQL Server",
+      "slug": "microsoft-ole-db-driver-19/windows",
+      "platform": "windows",
+      "unique_identifier": "Microsoft OLE DB Driver 19 for SQL Server",
+      "description": "Microsoft OLE DB Driver 19 for SQL Server lets applications connect to SQL Server and Azure SQL Database through the OLE DB interface."
+    },
+    {
       "name": "Microsoft OneNote",
       "slug": "microsoft-onenote/darwin",
       "platform": "darwin",
@@ -7196,6 +7203,20 @@
       "platform": "darwin",
       "unique_identifier": "com.realmacsoftware.rapidweaver8",
       "description": "RapidWeaver is a web design software."
+    },
+    {
+      "name": "Raspberry Pi Imager",
+      "slug": "raspberry-pi-imager/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.raspberrypi.rpi-imager",
+      "description": "Raspberry Pi Imager is an imaging utility to install operating systems to a microSD card."
+    },
+    {
+      "name": "Raspberry Pi Imager",
+      "slug": "raspberry-pi-imager/windows",
+      "platform": "windows",
+      "unique_identifier": "Raspberry Pi Imager",
+      "description": "Raspberry Pi Imager is an imaging utility to install operating systems to a microSD card."
     },
     {
       "name": "Raycast",
