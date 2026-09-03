@@ -449,3 +449,50 @@ func TestGoogleWorkspaceSyncDropsNestedEdgeWhenChildCreateFails(t *testing.T) {
 	require.Len(t, r.createdGroups, 1)
 	assert.Empty(t, r.replacedGroups, "parent has no resolvable child, so nothing to write")
 }
+
+func TestGoogleWorkspaceSyncSkipsSelfReferencingNestedGroup(t *testing.T) {
+	r := newSyncRecorder(gwAppConfig(), nil, nil)
+	dir := &fakeDirectory{
+		users: []*fleet.ScimUser{gwUser("g1", "alice@example.com", "Engineering", true)},
+		groups: []*fleet.GoogleWorkspaceGroup{
+			{ExternalID: "parent", DisplayName: "Engineering", ChildGroupExternalIDs: []string{"parent", "child"}},
+			{ExternalID: "child", DisplayName: "Backend"},
+		},
+	}
+
+	require.NoError(t, runSync(t, r, dir))
+	require.Len(t, r.createdGroups, 2)
+	require.Len(t, r.replacedGroups, 1)
+	assert.Equal(t, []uint{r.createdGroups[1].ID}, r.replacedGroups[0].ChildGroups,
+		"a group listing itself as a nested member must not become its own parent")
+}
+
+func TestGoogleWorkspaceSyncBestEffortContinuesPastFailedGroupUpdate(t *testing.T) {
+	parent := fleet.ScimGroup{ID: 5, ExternalID: new("parent"), DisplayName: "Engineering"}
+	child := fleet.ScimGroup{ID: 6, ExternalID: new("child"), DisplayName: "Backend"}
+	other := fleet.ScimGroup{ID: 7, ExternalID: new("other"), DisplayName: "Sales"}
+	r := newSyncRecorder(gwAppConfig(), nil, []fleet.ScimGroup{parent, child, other})
+	r.ds.ReplaceScimGroupFunc = func(_ context.Context, group *fleet.ScimGroup) error {
+		if group.ID == 5 {
+			return errors.New("replace boom")
+		}
+		r.replacedGroups = append(r.replacedGroups, group)
+		return nil
+	}
+
+	dir := &fakeDirectory{
+		users: []*fleet.ScimUser{gwUser("g1", "alice@example.com", "Engineering", true)},
+		groups: []*fleet.GoogleWorkspaceGroup{
+			{ExternalID: "parent", DisplayName: "Engineering", ChildGroupExternalIDs: []string{"child"}},
+			{ExternalID: "child", DisplayName: "Backend"},
+			{ExternalID: "other", DisplayName: "Sales", ChildGroupExternalIDs: []string{"child"}},
+		},
+	}
+
+	err := runSync(t, r, dir)
+	require.ErrorContains(t, err, "partial sync")
+	require.Len(t, r.replacedGroups, 1, "the group after the failure is still processed")
+	assert.Equal(t, uint(7), r.replacedGroups[0].ID)
+	require.NotNil(t, r.lastRequest)
+	assert.Equal(t, "error", r.lastRequest.Status)
+}
