@@ -580,10 +580,9 @@ func enrollmentTokenEndpoint(ctx context.Context, request interface{}, svc andro
 	if err != nil {
 		return android.DefaultResponse{Err: err}
 	}
-	return enrollmentTokenResponse{
-		EnrollmentTokenResponse: android.EnrollmentTokenResponse{EnrollmentToken: token},
-		clearIdPCookie:          req.FullyManaged && req.IdpSessionID != "",
-	}
+	resp := enrollmentTokenResponse{clearIdPCookie: req.FullyManaged && req.IdpSessionID != ""}
+	resp.EnrollmentToken = token
+	return resp
 }
 
 func (svc *Service) CreateEnrollmentToken(ctx context.Context, enrollSecret, idpSessionID string, fullyManaged bool) (*android.EnrollmentToken, error) {
