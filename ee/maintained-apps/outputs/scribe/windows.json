@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "6.8.4.0",
+      "version": "6.8.28.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Scribe' AND publisher = 'Colony Labs, Inc';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Scribe' AND publisher = 'Colony Labs, Inc' AND version_compare(version, '6.8.4.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Scribe' AND publisher = 'Colony Labs, Inc' AND version_compare(version, '6.8.28.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'scribe.exe');"
       },
-      "installer_url": "https://colony-labs-public.s3.us-east-2.amazonaws.com/Scribe_6.8.4.msi",
+      "installer_url": "https://colony-labs-public.s3.us-east-2.amazonaws.com/Scribe_6.8.28.msi",
       "install_script_ref": "cf2d0de4",
       "uninstall_script_ref": "4475c279",
-      "sha256": "9969fddd78c0c7ef45a2ea246086ae51a08a268482e5013455b4fab5ad51acf8",
+      "sha256": "6342c4dfc4bea23dd2ae2d7bf95475774a3c74ed85a24ff2ccce2f44e66c7a53",
       "default_categories": [
         "Productivity"
       ],
