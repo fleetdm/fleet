@@ -163,7 +163,21 @@ The “Attributed to” field is associated with a Salesforce user. The opportun
 
 ### Record Solutions Specialist-attributed meetings delivered
 
-For opportunities [attributed to](#update-salesforce-attributed-to-field-on-an-opportunity) the Solutions Specialist, the Solutions Specialist is responsible for adding the date of the first meeting to the "First meeting date" field on the Salesforce opportunity. If the prospect attends the call, the Solutions Specialist will also check the "First meeting attended?" checkbox.
+The Solutions Specialist is responsible for recording partner and prospect meetings they've booked through outbound efforts. 
+
+To record first meetings related to opportunities [attributed to](#update-salesforce-attributed-to-field-on-an-opportunity) a Solutions Specialist, the Specialist will: 
+
+1. Navigate to the relavent opportunity and record the date and time of the first meeting in the "First meeting date" field.
+
+2. If the prospect attends the meeting, check the "First meeting attended?" checkbox on the Salesforce opportunity. 
+
+To record Partner meetings:
+
+1. Navigate to the relavent partner account and record the date and time of the first meeting in the "Partner meeting date" field.
+
+2. Add the contact that booked the meeting to the "Converting attendee" field.
+
+3. If the Partner attends the meeting, check the "Partner meeting attended?" checkbox on the Salesforce account.
 
 
 ### Process the help-solutions-specialist Slack channel
