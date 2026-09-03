@@ -34,8 +34,12 @@ SDK="$(xcrun --show-sdk-path)"
 
 # --- Host app -------------------------------------------------------------
 SOURCES=(
+    "$SRC_DIR/cli.swift"
+    "$SRC_DIR/FleetErrorPage.swift"
     "$SRC_DIR/FleetService.swift"
     "$SRC_DIR/BrowserWindow.swift"
+    "$SRC_DIR/ToastWindow.swift"
+    "$SRC_DIR/NotifyCommand.swift"
     "$SRC_DIR/FleetDesktopApp.swift"
 )
 SWIFT_FLAGS=(-sdk "$SDK" -parse-as-library -O)

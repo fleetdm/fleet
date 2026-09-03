@@ -1,15 +1,16 @@
 {
   "versions": [
     {
-      "version": "2.4.3",
+      "version": "2.9.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.google.antigravity';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.google.antigravity' AND version_compare(bundle_short_version, '2.4.3') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.google.antigravity' AND version_compare(bundle_short_version, '2.9.1') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.google.antigravity');"
       },
-      "installer_url": "https://storage.googleapis.com/antigravity-public/antigravity-hub/2.4.3-4510119262814208/darwin-arm/Antigravity.dmg",
+      "installer_url": "https://storage.googleapis.com/antigravity-public/antigravity-hub/2.9.1-4871453687021568/darwin-arm/Antigravity.dmg",
       "install_script_ref": "b60a046d",
       "uninstall_script_ref": "5e1a08b9",
-      "sha256": "ba5ea61b6915acccc5e6e2165e18949f05f2e725fab89e780aa6b36e37132ded",
+      "sha256": "ad8c1452579889f67657354afc1cbd5709040c3605fca5777587cd3fa965f2cb",
       "default_categories": [
         "Developer tools"
       ]

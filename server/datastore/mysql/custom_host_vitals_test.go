@@ -772,7 +772,7 @@ func testReconcileSnapshotMarksVitalDeclarations(t *testing.T, ds *Datastore) {
 	}, nil)
 	require.NoError(t, err)
 
-	_, allDecls, _, _, err := ds.GetAppleDeclarationReconcileSnapshot(ctx, "", 100)
+	_, allDecls, _, _, _, err := ds.GetAppleDeclarationReconcileSnapshot(ctx, "", 100)
 	require.NoError(t, err)
 
 	byUUID := make(map[string]*fleet.AppleDeclarationForReconcile, len(allDecls))

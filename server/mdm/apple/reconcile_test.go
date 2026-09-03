@@ -46,22 +46,22 @@ func TestEntityAppliesToHost_AppleWrapper(t *testing.T) {
 
 	t.Run("wrong team -> false", func(t *testing.T) {
 		p := &fleet.AppleProfileForReconcile{TeamID: 5, IncludeMode: fleet.AppleProfileIncludeNone}
-		require.False(t, EntityAppliesToHost(p, host, nil))
+		require.False(t, EntityAppliesToHost(p, host, nil, false))
 	})
 	t.Run("global team matches nil team_id host", func(t *testing.T) {
 		p := &fleet.AppleProfileForReconcile{TeamID: 0, IncludeMode: fleet.AppleProfileIncludeNone}
-		require.True(t, EntityAppliesToHost(p, host, nil))
+		require.True(t, EntityAppliesToHost(p, host, nil, false))
 	})
 	t.Run("non-apple platform -> false (Apple-only platform gate)", func(t *testing.T) {
 		linuxHost := *host
 		linuxHost.Platform = "linux"
 		p := &fleet.AppleProfileForReconcile{TeamID: 0, IncludeMode: fleet.AppleProfileIncludeNone}
-		require.False(t, EntityAppliesToHost(p, &linuxHost, nil))
+		require.False(t, EntityAppliesToHost(p, &linuxHost, nil, false))
 	})
-	// The shared package tests the dynamic-label timing rule itself; this case
-	// pins that the Apple wrapper threads host.LabelUpdatedAt into it, rather
-	// than e.g. a zero time.
-	t.Run("host.LabelUpdatedAt is threaded into the exclude-timing gate", func(t *testing.T) {
+	// The shared package tests the dynamic-label unknown-membership rule itself;
+	// this case pins that the Apple wrapper threads host.LabelUpdatedAt and the
+	// on-host state into it, rather than e.g. a zero time.
+	t.Run("host.LabelUpdatedAt is threaded into the exclude unknown-membership gate", func(t *testing.T) {
 		dynamicExcLabel := fleet.AppleProfileLabelRef{
 			LabelID:             new(uint(99)),
 			LabelMembershipType: int(fleet.LabelMembershipTypeDynamic),
@@ -73,18 +73,21 @@ func TestEntityAppliesToHost_AppleWrapper(t *testing.T) {
 			IncludeLabels: []fleet.AppleProfileLabelRef{{LabelID: new(uint(1))}},
 			ExcludeLabels: []fleet.AppleProfileLabelRef{dynamicExcLabel},
 		}
-		// Host scanned before the dynamic exclude label was created -> disqualified.
+		// Host scanned before the dynamic exclude label was created: membership is
+		// unknown, so the current state is preserved — withheld when not on the
+		// host, kept when already on it.
 		staleHost := &fleet.AppleHostReconcileInfo{
 			HostID: 1, UUID: "h1", TeamID: nil, Platform: "darwin",
 			LabelUpdatedAt: time.Date(2026, 5, 1, 0, 0, 0, 0, time.UTC),
 		}
-		require.False(t, EntityAppliesToHost(p, staleHost, map[uint]struct{}{1: {}}))
+		require.False(t, EntityAppliesToHost(p, staleHost, map[uint]struct{}{1: {}}, false))
+		require.True(t, EntityAppliesToHost(p, staleHost, map[uint]struct{}{1: {}}, true))
 		// Once the host's scan advances past the label's CreatedAt, it applies.
 		freshHost := &fleet.AppleHostReconcileInfo{
 			HostID: 1, UUID: "h1", TeamID: nil, Platform: "darwin",
 			LabelUpdatedAt: time.Date(2026, 5, 3, 0, 0, 0, 0, time.UTC),
 		}
-		require.True(t, EntityAppliesToHost(p, freshHost, map[uint]struct{}{1: {}}))
+		require.True(t, EntityAppliesToHost(p, freshHost, map[uint]struct{}{1: {}}, false))
 	})
 }
 
@@ -132,8 +135,8 @@ func TestEntityAppliesToHost_DeclarationsShareSameDispatcher(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			pr := EntityAppliesToHost(prof, host, c.hostLabels)
-			dr := EntityAppliesToHost(decl, host, c.hostLabels)
+			pr := EntityAppliesToHost(prof, host, c.hostLabels, false)
+			dr := EntityAppliesToHost(decl, host, c.hostLabels, false)
 			require.Equal(t, c.want, pr, "profile result")
 			require.Equal(t, c.want, dr, "declaration result")
 			require.Equal(t, pr, dr,
@@ -329,6 +332,171 @@ func TestComputeReconcileDeltas(t *testing.T) {
 		require.Len(t, toInstall, 1) // pGlobal still installs
 		require.Empty(t, toRemove)
 	})
+
+	// Unknown-membership preservation: a dynamic label created after the host's
+	// last label scan must preserve the host's current profile state instead of
+	// forcing a removal (see #47865).
+	t.Run("unknown dynamic exclude label preserves current state", func(t *testing.T) {
+		unknownExc := fleet.AppleProfileLabelRef{
+			LabelID:             new(uint(30)),
+			LabelMembershipType: int(fleet.LabelMembershipTypeDynamic),
+			CreatedAt:           hostA.LabelUpdatedAt.Add(time.Hour),
+		}
+		pExc := &fleet.AppleProfileForReconcile{
+			ProfileUUID:       "aExcProf",
+			ProfileIdentifier: "com.example.exc",
+			ProfileName:       "Exc",
+			TeamID:            0,
+			Checksum:          []byte("eeee"),
+			IncludeMode:       fleet.AppleProfileIncludeNone,
+			ExcludeLabels:     []fleet.AppleProfileLabelRef{unknownExc},
+		}
+		profByTeam := map[uint][]*fleet.AppleProfileForReconcile{0: {pExc}}
+
+		// Not on the host: withheld until the host reports label results.
+		toInstall, toRemove := ComputeReconcileDeltas(
+			[]*fleet.AppleHostReconcileInfo{hostA}, nil, nil, profByTeam, map[string]struct{}{},
+		)
+		require.Empty(t, toInstall)
+		require.Empty(t, toRemove)
+
+		// Already installed on the host: kept, no removal.
+		current := map[string][]*fleet.MDMAppleProfilePayload{
+			"uuid-A": {{
+				ProfileUUID:   "aExcProf",
+				HostUUID:      "uuid-A",
+				Checksum:      []byte("eeee"),
+				OperationType: fleet.MDMOperationTypeInstall,
+				Status:        new(fleet.MDMDeliveryVerified),
+			}},
+		}
+		toInstall, toRemove = ComputeReconcileDeltas(
+			[]*fleet.AppleHostReconcileInfo{hostA}, nil, current, profByTeam, map[string]struct{}{},
+		)
+		require.Empty(t, toInstall)
+		require.Empty(t, toRemove)
+
+		// Host reports label results (scan time advances past the label's
+		// CreatedAt): membership is now authoritative. Member -> removed.
+		freshHost := *hostA
+		freshHost.LabelUpdatedAt = unknownExc.CreatedAt.Add(time.Hour)
+		hostLabels := map[uint]map[uint]struct{}{hostA.HostID: {30: {}}}
+		toInstall, toRemove = ComputeReconcileDeltas(
+			[]*fleet.AppleHostReconcileInfo{&freshHost}, hostLabels, current, profByTeam, map[string]struct{}{},
+		)
+		require.Empty(t, toInstall)
+		require.Len(t, toRemove, 1)
+		require.Equal(t, "aExcProf", toRemove[0].ProfileUUID)
+
+		// Non-member after the scan -> kept installed, and installed on hosts
+		// that didn't have it.
+		toInstall, toRemove = ComputeReconcileDeltas(
+			[]*fleet.AppleHostReconcileInfo{&freshHost}, nil, current, profByTeam, map[string]struct{}{},
+		)
+		require.Empty(t, toInstall)
+		require.Empty(t, toRemove)
+		toInstall, toRemove = ComputeReconcileDeltas(
+			[]*fleet.AppleHostReconcileInfo{&freshHost}, nil, nil, profByTeam, map[string]struct{}{},
+		)
+		require.Len(t, toInstall, 1)
+		require.Empty(t, toRemove)
+	})
+
+	t.Run("unknown dynamic include_all label preserves current state", func(t *testing.T) {
+		unknownInc := fleet.AppleProfileLabelRef{
+			LabelID:             new(uint(31)),
+			LabelMembershipType: int(fleet.LabelMembershipTypeDynamic),
+			CreatedAt:           hostA.LabelUpdatedAt.Add(time.Hour),
+		}
+		pInc := &fleet.AppleProfileForReconcile{
+			ProfileUUID:       "aIncProf",
+			ProfileIdentifier: "com.example.inc",
+			ProfileName:       "Inc",
+			TeamID:            0,
+			Checksum:          []byte("ffff"),
+			IncludeMode:       fleet.AppleProfileIncludeAll,
+			IncludeLabels:     []fleet.AppleProfileLabelRef{{LabelID: new(uint(10))}, unknownInc},
+		}
+		profByTeam := map[uint][]*fleet.AppleProfileForReconcile{0: {pInc}}
+		// Host is a confirmed member of the pre-existing include label only.
+		hostLabels := map[uint]map[uint]struct{}{hostA.HostID: {10: {}}}
+
+		// Not on the host: withheld until membership in the new label is known.
+		toInstall, toRemove := ComputeReconcileDeltas(
+			[]*fleet.AppleHostReconcileInfo{hostA}, hostLabels, nil, profByTeam, map[string]struct{}{},
+		)
+		require.Empty(t, toInstall)
+		require.Empty(t, toRemove)
+
+		// Already installed on the host: kept, no removal.
+		current := map[string][]*fleet.MDMAppleProfilePayload{
+			"uuid-A": {{
+				ProfileUUID:   "aIncProf",
+				HostUUID:      "uuid-A",
+				Checksum:      []byte("ffff"),
+				OperationType: fleet.MDMOperationTypeInstall,
+				Status:        new(fleet.MDMDeliveryVerified),
+			}},
+		}
+		toInstall, toRemove = ComputeReconcileDeltas(
+			[]*fleet.AppleHostReconcileInfo{hostA}, hostLabels, current, profByTeam, map[string]struct{}{},
+		)
+		require.Empty(t, toInstall)
+		require.Empty(t, toRemove)
+
+		// Scan advances, host confirmed NOT a member of the new label -> removed.
+		freshHost := *hostA
+		freshHost.LabelUpdatedAt = unknownInc.CreatedAt.Add(time.Hour)
+		toInstall, toRemove = ComputeReconcileDeltas(
+			[]*fleet.AppleHostReconcileInfo{&freshHost}, hostLabels, current, profByTeam, map[string]struct{}{},
+		)
+		require.Empty(t, toInstall)
+		require.Len(t, toRemove, 1)
+		require.Equal(t, "aIncProf", toRemove[0].ProfileUUID)
+
+		// Scan advances, host confirmed a member of both labels -> stays.
+		memberLabels := map[uint]map[uint]struct{}{hostA.HostID: {10: {}, 31: {}}}
+		toInstall, toRemove = ComputeReconcileDeltas(
+			[]*fleet.AppleHostReconcileInfo{&freshHost}, memberLabels, current, profByTeam, map[string]struct{}{},
+		)
+		require.Empty(t, toInstall)
+		require.Empty(t, toRemove)
+	})
+
+	t.Run("unknown labels do not preserve a profile pending removal", func(t *testing.T) {
+		unknownExc := fleet.AppleProfileLabelRef{
+			LabelID:             new(uint(32)),
+			LabelMembershipType: int(fleet.LabelMembershipTypeDynamic),
+			CreatedAt:           hostA.LabelUpdatedAt.Add(time.Hour),
+		}
+		pExc := &fleet.AppleProfileForReconcile{
+			ProfileUUID:       "aExcProf",
+			ProfileIdentifier: "com.example.exc",
+			ProfileName:       "Exc",
+			TeamID:            0,
+			Checksum:          []byte("eeee"),
+			IncludeMode:       fleet.AppleProfileIncludeNone,
+			ExcludeLabels:     []fleet.AppleProfileLabelRef{unknownExc},
+		}
+		profByTeam := map[uint][]*fleet.AppleProfileForReconcile{0: {pExc}}
+		// A remove operation is in flight: the profile is NOT considered on the
+		// host, so the unknown exclude label keeps it withheld (no flip back to
+		// install) and the in-flight removal proceeds untouched.
+		current := map[string][]*fleet.MDMAppleProfilePayload{
+			"uuid-A": {{
+				ProfileUUID:   "aExcProf",
+				HostUUID:      "uuid-A",
+				Checksum:      []byte("eeee"),
+				OperationType: fleet.MDMOperationTypeRemove,
+				Status:        new(fleet.MDMDeliveryPending),
+			}},
+		}
+		toInstall, toRemove := ComputeReconcileDeltas(
+			[]*fleet.AppleHostReconcileInfo{hostA}, nil, current, profByTeam, map[string]struct{}{},
+		)
+		require.Empty(t, toInstall)
+		require.Empty(t, toRemove)
+	})
 }
 
 func TestComputeDeclarationDeltas(t *testing.T) {
@@ -393,6 +561,61 @@ func TestComputeDeclarationDeltas(t *testing.T) {
 		require.Empty(t, changedUser)
 		require.Len(t, rows, 1)
 		require.Equal(t, "tok1", rows[0].Token)
+	})
+
+	t.Run("unknown dynamic exclude label preserves current declaration state", func(t *testing.T) {
+		unknownExc := fleet.AppleProfileLabelRef{
+			LabelID:             new(uint(40)),
+			LabelMembershipType: int(fleet.LabelMembershipTypeDynamic),
+			CreatedAt:           hostA.LabelUpdatedAt.Add(time.Hour),
+		}
+		dExc := &fleet.AppleDeclarationForReconcile{
+			DeclarationUUID:       "aDeclExc",
+			DeclarationIdentifier: "com.example.decl.exc",
+			DeclarationName:       "ExcDecl",
+			TeamID:                0,
+			Token:                 []byte("tokE"),
+			IncludeMode:           fleet.AppleProfileIncludeNone,
+			ExcludeLabels:         []fleet.AppleProfileLabelRef{unknownExc},
+		}
+		byTeam := map[uint][]*fleet.AppleDeclarationForReconcile{0: {dExc}}
+
+		// Not on the host: withheld, nothing changes.
+		changedDevice, changedUser, rows := ComputeDeclarationDeltas(
+			[]*fleet.AppleHostReconcileInfo{hostA}, nil, nil, byTeam, declsWithBrokenLabel,
+		)
+		require.Empty(t, changedDevice)
+		require.Empty(t, changedUser)
+		require.Empty(t, rows)
+
+		// Already installed on the host: kept, no removal row.
+		current := map[string][]*fleet.MDMAppleHostDeclaration{
+			"uuid-A": {{
+				HostUUID:        "uuid-A",
+				DeclarationUUID: "aDeclExc",
+				Token:           "tokE",
+				OperationType:   fleet.MDMOperationTypeInstall,
+				Status:          new(fleet.MDMDeliveryVerified),
+			}},
+		}
+		changedDevice, changedUser, rows = ComputeDeclarationDeltas(
+			[]*fleet.AppleHostReconcileInfo{hostA}, nil, current, byTeam, declsWithBrokenLabel,
+		)
+		require.Empty(t, changedDevice)
+		require.Empty(t, changedUser)
+		require.Empty(t, rows)
+
+		// Scan advances and the host is a confirmed member -> removal row.
+		freshHost := *hostA
+		freshHost.LabelUpdatedAt = unknownExc.CreatedAt.Add(time.Hour)
+		hostLabels := map[uint]map[uint]struct{}{hostA.HostID: {40: {}}}
+		changedDevice, changedUser, rows = ComputeDeclarationDeltas(
+			[]*fleet.AppleHostReconcileInfo{&freshHost}, hostLabels, current, byTeam, declsWithBrokenLabel,
+		)
+		require.ElementsMatch(t, []string{"uuid-A"}, changedDevice)
+		require.Empty(t, changedUser)
+		require.Len(t, rows, 1)
+		require.Equal(t, fleet.MDMOperationTypeRemove, rows[0].OperationType)
 	})
 }
 
@@ -585,6 +808,76 @@ func TestComputeDeclarationDeltasAssets(t *testing.T) {
 		require.Len(t, rows, 1)
 		require.NotNil(t, rows[0].AssetsUpdatedAt)
 		require.True(t, assetsUpdatedAt.Equal(*rows[0].AssetsUpdatedAt))
+	})
+}
+
+func TestComputeDeclarationDeltasActivations(t *testing.T) {
+	host := &fleet.AppleHostReconcileInfo{
+		HostID: 1, UUID: "uuid-A", TeamID: nil, Platform: "darwin",
+		LabelUpdatedAt: time.Date(2026, 5, 1, 0, 0, 0, 0, time.UTC),
+	}
+	declsWithBrokenLabel := map[string]struct{}{}
+
+	activationUpdatedAt := time.Date(2026, 7, 9, 12, 0, 0, 0, time.UTC)
+
+	// The declaration's own token stays "tokA" throughout: a custom activation
+	// lives in its own table, so adding, editing or removing one never changes
+	// the declaration's content.
+	declWithActivation := &fleet.AppleDeclarationForReconcile{
+		DeclarationUUID: "aDeclAct", DeclarationIdentifier: "com.example.act", DeclarationName: "ActDecl",
+		TeamID: 0, Token: []byte("tokA"), IncludeMode: fleet.AppleProfileIncludeNone,
+		ActivationUpdatedAt: &activationUpdatedAt,
+	}
+	declNoActivation := *declWithActivation
+	declNoActivation.ActivationUpdatedAt = nil
+
+	hostHasActivation := func() map[string][]*fleet.MDMAppleHostDeclaration {
+		return map[string][]*fleet.MDMAppleHostDeclaration{
+			"uuid-A": {{
+				HostUUID:            "uuid-A",
+				DeclarationUUID:     "aDeclAct",
+				Token:               "tokA",
+				OperationType:       fleet.MDMOperationTypeInstall,
+				Status:              new(fleet.MDMDeliveryVerified),
+				ActivationUpdatedAt: &activationUpdatedAt,
+			}},
+		}
+	}
+
+	t.Run("activation unchanged since last delivery -> no diff", func(t *testing.T) {
+		changedDevice, changedUser, rows := ComputeDeclarationDeltas(
+			[]*fleet.AppleHostReconcileInfo{host}, nil, hostHasActivation(),
+			map[uint][]*fleet.AppleDeclarationForReconcile{0: {declWithActivation}}, declsWithBrokenLabel,
+		)
+		require.Empty(t, changedDevice)
+		require.Empty(t, changedUser)
+		require.Empty(t, rows)
+	})
+
+	t.Run("activation removed pokes and clears the stamp", func(t *testing.T) {
+		// Without this the host keeps serving the deleted custom activation,
+		// predicate included, because nothing else in the delta changes.
+		changedDevice, _, rows := ComputeDeclarationDeltas(
+			[]*fleet.AppleHostReconcileInfo{host}, nil, hostHasActivation(),
+			map[uint][]*fleet.AppleDeclarationForReconcile{0: {&declNoActivation}}, declsWithBrokenLabel,
+		)
+		require.ElementsMatch(t, []string{"uuid-A"}, changedDevice)
+		require.Len(t, rows, 1)
+		require.Equal(t, fleet.MDMOperationTypeInstall, rows[0].OperationType)
+		require.Equal(t, "tokA", rows[0].Token)
+		require.Nil(t, rows[0].ActivationUpdatedAt, "the stamp must clear so the effective token changes")
+	})
+
+	t.Run("no activation on either side -> no diff", func(t *testing.T) {
+		current := hostHasActivation()
+		current["uuid-A"][0].ActivationUpdatedAt = nil
+		changedDevice, changedUser, rows := ComputeDeclarationDeltas(
+			[]*fleet.AppleHostReconcileInfo{host}, nil, current,
+			map[uint][]*fleet.AppleDeclarationForReconcile{0: {&declNoActivation}}, declsWithBrokenLabel,
+		)
+		require.Empty(t, changedDevice)
+		require.Empty(t, changedUser)
+		require.Empty(t, rows)
 	})
 }
 
@@ -1785,4 +2078,241 @@ func TestMDMAppleExecuteReconcileBatchSkipsHostBeingProcessed(t *testing.T) {
 	}
 	assert.Contains(t, pendingHosts, nonSetupHostUUID, "non setup host should still have profiles enqueued")
 	assert.Contains(t, pendingHosts, blockedHostUUID, "previously blocked host should now have profiles enqueued after key expiry")
+}
+
+// Deleting a profile and adding the same one back mints a new profile UUID, so the
+// host carries two rows for one identifier: the old one mid-removal and the new one
+// awaiting install. The queued RemoveProfile must be cancelled or it strips the
+// profile the admin just re-added. See issue #49573.
+func TestComputeReconcileDeltasCancelsSupersededRemoval(t *testing.T) {
+	host := &fleet.AppleHostReconcileInfo{
+		HostID: 1, UUID: "uuid-A", TeamID: nil, Platform: "darwin",
+		LabelUpdatedAt: time.Date(2026, 5, 1, 0, 0, 0, 0, time.UTC),
+	}
+	readded := &fleet.AppleProfileForReconcile{
+		ProfileUUID:       "aNewProfileUUID",
+		ProfileIdentifier: "com.example.wifi",
+		ProfileName:       "Wi-Fi",
+		TeamID:            0,
+		Checksum:          []byte("aaaa"),
+		IncludeMode:       fleet.AppleProfileIncludeNone,
+	}
+	staleRemoval := &fleet.MDMAppleProfilePayload{
+		ProfileUUID:       "aOldProfileUUID",
+		ProfileIdentifier: "com.example.wifi",
+		ProfileName:       "Wi-Fi",
+		HostUUID:          "uuid-A",
+		Checksum:          []byte("aaaa"),
+		OperationType:     fleet.MDMOperationTypeRemove,
+		Status:            &fleet.MDMDeliveryPending,
+		CommandUUID:       "remove-cmd",
+	}
+	current := map[string][]*fleet.MDMAppleProfilePayload{"uuid-A": {staleRemoval}}
+
+	t.Run("identifier re-added: removal carried through as cancel-only", func(t *testing.T) {
+		toInstall, toRemove := ComputeReconcileDeltas(
+			[]*fleet.AppleHostReconcileInfo{host}, nil,
+			current,
+			map[uint][]*fleet.AppleProfileForReconcile{0: {readded}},
+			map[string]struct{}{},
+		)
+
+		require.Len(t, toInstall, 1)
+		require.Equal(t, "aNewProfileUUID", toInstall[0].ProfileUUID)
+
+		require.Len(t, toRemove, 1)
+		require.Equal(t, "aOldProfileUUID", toRemove[0].ProfileUUID)
+		require.True(t, toRemove[0].CancelOnly)
+		require.Equal(t, "remove-cmd", toRemove[0].CommandUUID)
+	})
+
+	t.Run("identifier not re-added: removal still left alone", func(t *testing.T) {
+		toInstall, toRemove := ComputeReconcileDeltas(
+			[]*fleet.AppleHostReconcileInfo{host}, nil,
+			current,
+			map[uint][]*fleet.AppleProfileForReconcile{}, // nothing desired
+			map[string]struct{}{},
+		)
+
+		require.Empty(t, toInstall)
+		require.Empty(t, toRemove, "an in-flight removal must not be queued a second time")
+	})
+}
+
+// End of the same flow: the cancel-only removal must pull its queued command out
+// without ever sending a RemoveProfile, and must be left untouched when the install
+// that justified it did not survive the callers' filters.
+func TestMDMAppleExecuteReconcileBatchCancelOnlyRemoval(t *testing.T) {
+	const hostUUID = "uuid-A"
+	const identifier = "com.example.wifi"
+
+	newInstall := func() *fleet.MDMAppleProfilePayload {
+		return &fleet.MDMAppleProfilePayload{
+			ProfileUUID: "aNewProfileUUID", ProfileIdentifier: identifier, ProfileName: "Wi-Fi",
+			HostUUID: hostUUID, Scope: fleet.PayloadScopeSystem, Checksum: []byte("aaaa"),
+		}
+	}
+	cancelOnly := func() *fleet.MDMAppleProfilePayload {
+		return &fleet.MDMAppleProfilePayload{
+			ProfileUUID: "aOldProfileUUID", ProfileIdentifier: identifier, ProfileName: "Wi-Fi",
+			HostUUID: hostUUID, Scope: fleet.PayloadScopeSystem, Checksum: []byte("aaaa"),
+			OperationType: fleet.MDMOperationTypeRemove, Status: &fleet.MDMDeliveryPending,
+			CommandUUID: "remove-cmd", CancelOnly: true,
+		}
+	}
+
+	type results struct {
+		deletedCmds map[string][]string
+		enqueued    []string
+		cleanedUp   []*fleet.MDMAppleProfilePayload
+		upserted    []*fleet.MDMAppleBulkUpsertHostProfilePayload
+	}
+
+	run := func(t *testing.T, toInstall, toRemove []*fleet.MDMAppleProfilePayload) *results {
+		t.Helper()
+		res := &results{deletedCmds: map[string][]string{}}
+
+		mdmStorage := &mdmmock.MDMAppleStore{}
+		ds := new(mock.Store)
+		kv := new(mock.AdvancedKVStore)
+		pushFactory, _ := newMockAPNSPushProviderFactory()
+		cmdr := NewMDMAppleCommander(mdmStorage, nanomdm_pushsvc.New(mdmStorage, mdmStorage, pushFactory, stdlogfmt.New()))
+
+		kv.MGetFunc = func(ctx context.Context, keys []string) (map[string]*string, error) {
+			return map[string]*string{}, nil
+		}
+		ds.GetNanoMDMUserEnrollmentFunc = func(ctx context.Context, hostUUID string) (*fleet.NanoEnrollment, error) {
+			return nil, nil
+		}
+		ds.GetMDMAppleProfilesContentsFunc = func(ctx context.Context, uuids []string) (map[string]mobileconfig.Mobileconfig, error) {
+			return map[string]mobileconfig.Mobileconfig{"aNewProfileUUID": []byte("content")}, nil
+		}
+		ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
+			return &fleet.GroupedCertificateAuthorities{}, nil
+		}
+		ds.BulkDeleteMDMAppleHostsConfigProfilesFunc = func(ctx context.Context, payload []*fleet.MDMAppleProfilePayload) error {
+			res.cleanedUp = append(res.cleanedUp, payload...)
+			return nil
+		}
+		ds.BulkUpsertMDMAppleHostProfilesFunc = func(ctx context.Context, payload []*fleet.MDMAppleBulkUpsertHostProfilePayload) error {
+			res.upserted = append(res.upserted, payload...)
+			return nil
+		}
+
+		var mu sync.Mutex
+		mdmStorage.BulkDeleteHostUserCommandsWithoutResultsFunc = func(ctx context.Context, commandToIDs map[string][]string) error {
+			mu.Lock()
+			defer mu.Unlock()
+			for cmd, ids := range commandToIDs {
+				res.deletedCmds[cmd] = append(res.deletedCmds[cmd], ids...)
+			}
+			return nil
+		}
+		mdmStorage.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.CommandWithSubtype) (map[string]error, error) {
+			mu.Lock()
+			defer mu.Unlock()
+			res.enqueued = append(res.enqueued, cmd.Command.Command.RequestType)
+			return nil, nil
+		}
+		mdmStorage.RetrievePushInfoFunc = func(ctx context.Context, tokens []string) (map[string]*mdm.Push, error) {
+			out := make(map[string]*mdm.Push, len(tokens))
+			for _, tok := range tokens {
+				out[tok] = &mdm.Push{Token: []byte(tok)}
+			}
+			return out, nil
+		}
+		mdmStorage.RetrievePushCertFunc = func(ctx context.Context, topic string) (*tls.Certificate, string, error) {
+			cert, err := tls.LoadX509KeyPair("../../service/testdata/server.pem", "../../service/testdata/server.key")
+			return &cert, "", err
+		}
+		mdmStorage.IsPushCertStaleFunc = func(ctx context.Context, topic string, staleToken string) (bool, error) {
+			return false, nil
+		}
+		mdmStorage.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, names []fleet.MDMAssetName,
+			_ sqlx.QueryerContext,
+		) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+			certPEM, err := os.ReadFile("../../service/testdata/server.pem")
+			require.NoError(t, err)
+			keyPEM, err := os.ReadFile("../../service/testdata/server.key")
+			require.NoError(t, err)
+			return map[fleet.MDMAssetName]fleet.MDMConfigAsset{
+				fleet.MDMAssetCACert: {Value: certPEM},
+				fleet.MDMAssetCAKey:  {Value: keyPEM},
+			}, nil
+		}
+
+		appCfg := &fleet.AppConfig{}
+		appCfg.ServerSettings.ServerURL = "https://test.example.com"
+		appCfg.MDM.EnabledAndConfigured = true
+
+		_, err := ExecuteReconcileBatch(t.Context(), ds, cmdr, kv, slog.New(slog.DiscardHandler), appCfg, 0, toInstall, toRemove)
+		require.NoError(t, err)
+		return res
+	}
+
+	t.Run("install present: removal cancelled, no RemoveProfile sent", func(t *testing.T) {
+		res := run(t, []*fleet.MDMAppleProfilePayload{newInstall()}, []*fleet.MDMAppleProfilePayload{cancelOnly()})
+
+		require.Contains(t, res.deletedCmds, "remove-cmd")
+		require.Equal(t, []string{hostUUID}, res.deletedCmds["remove-cmd"])
+		require.Equal(t, []string{"InstallProfile"}, res.enqueued)
+
+		require.Len(t, res.cleanedUp, 1)
+		require.Equal(t, "aOldProfileUUID", res.cleanedUp[0].ProfileUUID)
+
+		// the re-added profile must be installed, not left carrying the removal's state
+		require.Len(t, res.upserted, 1)
+		require.Equal(t, "aNewProfileUUID", res.upserted[0].ProfileUUID)
+		require.Equal(t, fleet.MDMOperationTypeInstall, res.upserted[0].OperationType)
+		require.NotEmpty(t, res.upserted[0].CommandUUID)
+	})
+
+	t.Run("install filtered out: removal left untouched", func(t *testing.T) {
+		res := run(t, nil, []*fleet.MDMAppleProfilePayload{cancelOnly()})
+
+		require.Empty(t, res.deletedCmds, "nothing to supersede, so the queued command must stand")
+		require.Empty(t, res.enqueued, "a cancel-only row must never send a RemoveProfile")
+		require.Empty(t, res.cleanedUp)
+	})
+}
+
+// A profile re-added with a different PayloadScope lands on the other channel, so
+// the queued removal on the original channel still has to be delivered: the two are
+// separate installs with separate enrollment IDs.
+func TestComputeReconcileDeltasScopeChangeKeepsRemoval(t *testing.T) {
+	host := &fleet.AppleHostReconcileInfo{
+		HostID: 1, UUID: "uuid-A", TeamID: nil, Platform: "darwin",
+		LabelUpdatedAt: time.Date(2026, 5, 1, 0, 0, 0, 0, time.UTC),
+	}
+	readdedAsSystem := &fleet.AppleProfileForReconcile{
+		ProfileUUID:       "aNewProfileUUID",
+		ProfileIdentifier: "com.example.wifi",
+		ProfileName:       "Wi-Fi",
+		TeamID:            0,
+		Checksum:          []byte("aaaa"),
+		Scope:             fleet.PayloadScopeSystem,
+		IncludeMode:       fleet.AppleProfileIncludeNone,
+	}
+	staleUserRemoval := &fleet.MDMAppleProfilePayload{
+		ProfileUUID:       "aOldProfileUUID",
+		ProfileIdentifier: "com.example.wifi",
+		ProfileName:       "Wi-Fi",
+		HostUUID:          "uuid-A",
+		Checksum:          []byte("aaaa"),
+		Scope:             fleet.PayloadScopeUser,
+		OperationType:     fleet.MDMOperationTypeRemove,
+		Status:            &fleet.MDMDeliveryPending,
+		CommandUUID:       "remove-cmd",
+	}
+
+	toInstall, toRemove := ComputeReconcileDeltas(
+		[]*fleet.AppleHostReconcileInfo{host}, nil,
+		map[string][]*fleet.MDMAppleProfilePayload{"uuid-A": {staleUserRemoval}},
+		map[uint][]*fleet.AppleProfileForReconcile{0: {readdedAsSystem}},
+		map[string]struct{}{},
+	)
+
+	require.Len(t, toInstall, 1)
+	require.Equal(t, fleet.PayloadScopeSystem, toInstall[0].Scope)
+	require.Empty(t, toRemove, "a user-channel removal must not be cancelled by a system-channel install")
 }

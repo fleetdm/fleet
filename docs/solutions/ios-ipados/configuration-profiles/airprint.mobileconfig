@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>PayloadContent</key>
+    <array>
+        <dict>
+            <key>AirPrint</key>
+            <array>
+                <dict>
+                    <key>IPAddress</key>
+                    <string>TODO: PRINTER IP ADDRESS OR HOSTNAME</string>
+                    <key>ResourcePath</key>
+                    <string>TODO: RESOURCE PATH, e.g. ipp/print</string>
+                </dict>
+            </array>
+            <key>PayloadDisplayName</key>
+            <string>AirPrint</string>
+            <key>PayloadIdentifier</key>
+            <string>com.fleetdm.airprint.airprint</string>
+            <key>PayloadType</key>
+            <string>com.apple.airprint</string>
+            <key>PayloadUUID</key>
+            <string>A2E5F9B0-3D4C-4E7A-8F1B-2C9D6E4A7B22</string>
+            <key>PayloadVersion</key>
+            <integer>1</integer>
+        </dict>
+    </array>
+    <key>PayloadDisplayName</key>
+    <string>AirPrint</string>
+    <key>PayloadIdentifier</key>
+    <string>com.fleetdm.airprint</string>
+    <key>PayloadType</key>
+    <string>Configuration</string>
+    <key>PayloadUUID</key>
+    <string>9B3E7A5C-1F2D-4C6E-8A9B-3D5E7C1A9F44</string>
+    <key>PayloadVersion</key>
+    <integer>1</integer>
+</dict>
+</plist>

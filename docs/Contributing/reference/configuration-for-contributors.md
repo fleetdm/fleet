@@ -180,20 +180,6 @@ Whether to send anonymous usage statistics. Overrides the value set by `enable_a
     enable_analytics: false
   ```
 
-### microsoft_compliance_partner.proxy_api_key
-
-For managed cloud customers only. The Fleet team sets this key.
-
-Key that allows the Fleet server to communicate to the Microsoft compliance partner proxy on fleetdm.com.
-
-- Default value: ""
-- Environment variable: `FLEET_MICROSOFT_COMPLIANCE_PARTNER_PROXY_API_KEY`
-- Config file format:
-  ```yaml
-  microsoft_compliance_partner:
-    proxy_api_key: foobar
-  ```
-
 ### mdm.enable_custom_os_updates_and_filevault
 
 Documentation for setting has moved to the [Fleet server configuration](https://fleetdm.com/docs/configuration/fleet-server-configuration#mdm-enable-custom-os-updates-and-filevault) reference.
@@ -228,6 +214,18 @@ Enables exporting logs to an OpenTelemetry collector in addition to stderr outpu
   logging:
     tracing_enabled: true
     otel_logs_enabled: true
+  ```
+
+### mdm.apple_machineinfo_verify
+
+Whether Fleet verifies the CMS/PKCS7 signature on Apple's `x-apple-aspen-deviceinfo` (MachineInfo) blob during MDM enrollment. When enabled (the default), enrollment requests whose MachineInfo signature does not verify against Apple's device-identity CA are rejected. Set to `false` to run verification in audit mode, where failures are logged but enrollment is allowed to proceed.
+
+- Default value: true
+- Environment variable: `FLEET_MDM_APPLE_MACHINEINFO_VERIFY`
+- Config file format:
+  ```yaml
+  mdm:
+    apple_machineinfo_verify: false
   ```
 
 ### mdm.allow_all_declarations

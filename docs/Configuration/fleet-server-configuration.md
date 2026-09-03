@@ -689,9 +689,9 @@ Per-endpoint max request body size overrides using human-readable sizes (e.g. 50
 - Config file format:
   ```yaml
   server:
-  endpoint_request_size_overrides:
-    - endpoint: "/api/_version_/fleet/software/titles/{title_id:[0-9]+}/available_for_install"
-      max_request_size: "50MiB"
+    endpoint_request_size_overrides:
+      - endpoint: "/api/_version_/fleet/software/titles/{title_id:[0-9]+}/available_for_install"
+        max_request_size: "50MiB"
   ```
 
 ### server_tls
@@ -800,6 +800,20 @@ Setting to true will disable the origin check.
   server:
     websockets_allow_unsafe_origin: true
   ```
+
+### server_allow_private_network_integrations
+
+Allows Fleet's HTTP client to make outbound requests to RFC 1918 and other private network addresses. Enable this if  Fleet needs to reach an integration over HTTP. (Examples include SSO/IdP, EJBCA, Jira, or SCEP server, or an `HTTP_PROXY`/`HTTPS_PROXY` hosted on a private network.)
+
+This does not affect the always-blocked loopback (`127.0.0.0/8`) and cloud metadata (`169.254.0.0/16`) ranges.
+
+- Default value: `false`
+- Environment variable: `FLEET_SERVER_ALLOW_PRIVATE_NETWORK_INTEGRATIONS`
+- Config file format:
+```yaml
+server:
+  allow_private_network_integrations: true
+```
 
 ### server_force_h2c
 
@@ -1385,6 +1399,22 @@ This setting only applies in legacy body-auth mode (`osquery_allow_body_auth_fal
     max_distributed_write_body_size: 10MiB
   ```
 
+### osquery_config_in_memory_cache
+
+Caches the scheduled-report section of the osquery config in memory, so that Fleet doesn't rebuild it from the database on every config check-in. Disabled by default.
+
+When enabled, the cache holds that section for one minute, keyed by fleet (team) and the `server_settings.query_reports_disabled` setting, which reduces database reads on config check-ins. It covers only the `packs` key of the response; the rest of the config is rebuilt on every check-in. It's also used only where it can't change what a host receives: hosts with 2017 packs, and fleets with label-scoped reports (whose configs differ per host), always build from the database.
+
+When disabled, every check-in builds that section from the database.
+
+- Default value: `false`
+- Environment variable: `FLEET_OSQUERY_CONFIG_IN_MEMORY_CACHE`
+- Config file format:
+  ```yaml
+  osquery:
+    config_in_memory_cache: true
+  ```
+
 ### osquery_allow_body_auth_fallback
 
 Selects how osquery requests are authenticated.
@@ -1399,6 +1429,40 @@ When `false`, the `Authorization: NodeKey` header is required and the body's `no
   ```yaml
   osquery:
     allow_body_auth_fallback: false
+  ```
+
+### osquery_config_etags
+
+Enables conditional osquery config requests on `/api/osquery/config`. Disabled by default.
+
+When enabled, an agent that sends an `"etag"` field in its config request body receives the config with an `"etag"` key added, and the minimal `{"etag":"ok"}` body when its etag matches the current config. Agents that don't send the field are unaffected either way.
+
+Setting this to `false` is the escape hatch that disables the feature entirely: the request's etag field is ignored, every response is the full config with no `"etag"` key — byte-identical to the behavior before this feature existed for every agent — and no ETag store I/O happens. This is broader than `osquery_redis_config_etags` below, which only disables the Redis short circuit while leaving conditional requests active.
+
+- Default value: `false`
+- Environment variable: `FLEET_OSQUERY_CONFIG_ETAGS`
+- Config file format:
+  ```yaml
+  osquery:
+    config_etags: false
+  ```
+
+### osquery_redis_config_etags
+
+Enables the Redis-backed ETag short circuit for the osquery config endpoint (`/api/osquery/config`). Disabled by default.
+
+When enabled, Fleet stores config ETags in Redis. When an agent's config request body carries an `"etag"` field matching the stored validator, Fleet answers with the minimal `{"etag":"ok"}` body directly from Redis **without building the config** — skipping that request's database reads entirely. Fleets (teams) whose config is uniform share one ETag per fleet and platform; fleets with label-scoped reports (whose configs are host-specific) use isolated per-host ETags that are invalidated whenever a host's label results are recorded. Qualifying changes (agent options, features, report schedules, label deletion, 2017 packs, fleet/team changes) invalidate the stored ETags immediately; a short "write fence" window after each change keeps Fleet's in-memory caches from repopulating Redis with stale data.
+
+The short circuit is automatically bypassed — falling back to a normal full config build — when the deployment has user-created 2017 packs, when the agent sends no (or an empty) etag, or on any Redis error (the feature fails open and can never block config delivery). Requires Redis; has no effect without it. It also requires `osquery_config_etags` (above): when that is `false`, this option is forced off with a startup warning, and no config ETag Redis traffic occurs at all. Agents that don't send the `"etag"` field receive the config exactly as before this feature existed, with no etag in the response.
+
+When disabled, every config request takes the full-build path, identical to the behavior before this feature existed — use this to A/B test the feature or to rule it out when debugging config delivery.
+
+- Default value: `false`
+- Environment variable: `FLEET_OSQUERY_REDIS_CONFIG_ETAGS`
+- Config file format:
+  ```yaml
+  osquery:
+    redis_config_etags: false
   ```
 
 ## External activity audit logging
@@ -2763,6 +2827,8 @@ Optionally, if you're using a third-party to manage AWS resources, this is the A
 
 ## S3
 
+> If you're hosting Fleet on Render (or any service that doesn't offer S3-compatible storage and is not a multi-container deployment) or building Fleet locally, use the `FLEET_SOFTWARE_INSTALLER_STORE_DIR` environment variable (no YAML or flag equivalent) to store software installers and bootstrap packages on local disk instead. If you're hosting Fleet in AWS, GCP or any other large-scale deployment, use an S3 compatible object store (below) because local storage won't work for multi-container deployments.
+
 ### s3_software_installers_bucket
 
 *Available in Fleet Premium.*
@@ -3692,27 +3758,29 @@ If you have an [Apple Developer account that is enabled as an MDM vendor](https:
     apple_vpp_app_metadata_api_bearer_token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ92eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6Ikp
   ```
 
-### mdm.enable_custom_filevault
+### mdm.enable_custom_disk_encryption
 
-> `mdm.enable_custom_os_updates_and_filevault` is deprecated as of Fleet 4.87.0. Custom OS updates will be enabled for all, for FileVault you can use `mdm.enable_custom_filevault` instead. When set to `true`, it enables both custom OS update and FileVault profiles (equivalent to setting both replacement options to `true`). Maintained for backwards compatibility.
+> `mdm.enable_custom_filevault` is deprecated as of Fleet 4.90.0 and `mdm.enable_custom_os_updates_and_filevault` is deprecated as of Fleet 4.87.0. Both are maintained for backwards compatibility. Please use `mdm.enable_custom_disk_encryption` instead. As of Fleet 4.87.0, custom OS updates are enabled by default.
 
 *Available in Fleet Premium.*
 
-Allows users to add custom Apple MDM profiles for FileVault management, including [FDEFileVault](https://developer.apple.com/documentation/devicemanagement/fdefilevault), [FDEFileVaultOptions](https://developer.apple.com/documentation/devicemanagement/fdefilevaultoptions), and [FDERecoveryKeyEscrow](https://developer.apple.com/documentation/devicemanagement/fderecoverykeyescrow) configuration profiles
+For macOS, allows users to add custom macOS [configuration profiles](https://fleetdm.com/guides/custom-os-settings) for FileVault, including [FDEFileVault](https://developer.apple.com/documentation/devicemanagement/fdefilevault), [FDEFileVaultOptions](https://developer.apple.com/documentation/devicemanagement/fdefilevaultoptions), and [FDERecoveryKeyEscrow](https://developer.apple.com/documentation/devicemanagement/fderecoverykeyescrow) configuration profiles.
 
-> Enabling this option may cause conflicts between your custom FileVault configuration profiles and the profiles Fleet manages under the hood for disk encryption.
+For Windows, allows users to add custom Windows profiles for BitLocker.
+
+> Enabling this option may cause conflicts between your custom disk encryption configuration profiles and the profiles Fleet manages under the hood when [Fleet's disk encryption](https://fleetdm.com/guides/enforce-disk-encryption) is enabled.
 
 - Default value: `false`
-- Environment variable: `FLEET_MDM_ENABLE_CUSTOM_FILEVAULT`
+- Environment variable: `FLEET_MDM_ENABLE_CUSTOM_DISK_ENCRYPTION`
 - Config file format:
   ```yaml
   mdm:
-    enable_custom_filevault: false
+    enable_custom_disk_encryption: false
   ```
 
 ### mdm.allow_all_declarations
 
-> Enable this feature flag to deploy any device-scoped, configuration [declaration (DDM profile)](https://developer.apple.com/documentation/devicemanagement/devicemanagement-declarations) with Fleet. Assets and user-scoped declarations are [coming in Fleet 4.90](https://github.com/fleetdm/fleet/issues/38986). At the same time, Fleet will enable this feature flag out-of-the-box.
+> Enable this feature flag to deploy any device-scoped, configuration [declaration (DDM profile)](https://developer.apple.com/documentation/devicemanagement/devicemanagement-declarations) with Fleet. Assets and user-scoped declarations are [coming in Fleet 4.90](https://github.com/fleetdm/fleet/issues/38986). At the same time, Fleet will enable this feature flag out-of-the-box. Custom activations are [coming in Fleet 4.91.0](https://github.com/fleetdm/fleet/issues/48222).
 
 If disabled (default), Fleet doesn't allow [these configurations](https://github.com/fleetdm/fleet/blob/9589631a7f25a342ed24571c08deffbc959661ec/server/fleet/apple_mdm.go#L704-L717).
 
@@ -3726,6 +3794,22 @@ Enabling this bypasses checks for forbidden declaration types, reserved identifi
   ```yaml
   mdm:
     allow_all_declarations: true
+  ```
+
+### mdm.allow_orbit_end_user_auth_bypass
+
+When a team requires [end user authentication](https://fleetdm.com/guides/end-user-authentication), Fleet gates Linux and Windows Orbit enrollment on end user authentication. `fleetd`/Orbit versions that predate end user authentication support cannot complete that flow, and installers built with `fleetctl package --bypass-end-user-auth` intentionally skip it.
+
+By default (`true`), Fleet allows those hosts to enroll into a team that requires end user authentication without completing it. Set this to `false` to strictly enforce end user authentication for all Orbit enrollments — hosts that do not complete end user authentication (including `--bypass-end-user-auth` installers and pre-end-user-auth agents) are then blocked.
+
+Hosts that already enrolled before end user authentication was enabled are always allowed to re-enroll regardless of this setting. Windows hosts that present a valid end-user-auth token from MDM enrollment always complete end user authentication regardless of this setting.
+
+- Default value: `true`
+- Environment variable: `FLEET_MDM_ALLOW_ORBIT_END_USER_AUTH_BYPASS`
+- Config file format:
+  ```yaml
+  mdm:
+    allow_orbit_end_user_auth_bypass: false
   ```
 
 ### fleet_allow_bootstrap_package_during_migration

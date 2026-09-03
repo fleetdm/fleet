@@ -4,7 +4,8 @@
       "version": "4.7.5.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Garmin BaseCamp' AND publisher = 'Garmin Ltd. or its subsidiaries';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Garmin BaseCamp' AND publisher = 'Garmin Ltd. or its subsidiaries' AND version_compare(version, '4.7.5.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Garmin BaseCamp' AND publisher = 'Garmin Ltd. or its subsidiaries' AND version_compare(version, '4.7.5.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'garmin basecamp.exe');"
       },
       "installer_url": "https://download.garmin.com/software/BaseCamp_475.exe",
       "install_script_ref": "df742bcc",

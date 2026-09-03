@@ -11,11 +11,9 @@ import { IMdmAsset } from "interfaces/mdm";
 import mdmAPI, { IListAssetsResponse } from "services/entities/mdm";
 
 import Button from "components/buttons/Button";
-import Card from "components/Card/Card";
 import DataError from "components/DataError";
 import EmptyState from "components/EmptyState";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
-import Icon from "components/Icon";
 import PageDescription from "components/PageDescription";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 import Spinner from "components/Spinner";
@@ -42,6 +40,7 @@ const AssetsTab = ({ currentTeamId, router }: IAssetsTabProps) => {
   } = useContext(AppContext);
 
   const isTechnician = isGlobalTechnician || isTeamTechnician;
+  const canAddAsset = !isTechnician;
   // Team admins can reach /settings/integrations/mdm/apple, but only global
   // admins can actually turn on Apple MDM there.
   const canTurnOnMdm = !!isGlobalAdmin;
@@ -132,25 +131,28 @@ const AssetsTab = ({ currentTeamId, router }: IAssetsTabProps) => {
     }
 
     if (!assets?.length) {
-      if (isTechnician) {
-        return <Card className="empty-assets">No assets have been added.</Card>;
-      }
       return (
         <EmptyState
           variant="header-list"
           header="No assets"
-          info="Add an asset to make it available for reference in Apple DDM declarations."
+          info={
+            canAddAsset
+              ? "Add an asset to make it available for reference in Apple DDM declarations."
+              : "No assets have been added."
+          }
           primaryButton={
-            <GitOpsModeTooltipWrapper
-              renderChildren={(disableChildren) => (
-                <Button
-                  disabled={disableChildren}
-                  onClick={() => setShowAddAssetModal(true)}
-                >
-                  Add asset
-                </Button>
-              )}
-            />
+            canAddAsset ? (
+              <GitOpsModeTooltipWrapper
+                renderChildren={(disableChildren) => (
+                  <Button
+                    disabled={disableChildren}
+                    onClick={() => setShowAddAssetModal(true)}
+                  >
+                    Add asset
+                  </Button>
+                )}
+              />
+            ) : undefined
           }
         />
       );
@@ -171,7 +173,7 @@ const AssetsTab = ({ currentTeamId, router }: IAssetsTabProps) => {
     );
   };
 
-  const showAddAssetButton = isPremiumTier && mdmAppleEnabled && !isTechnician;
+  const showAddAssetButton = isPremiumTier && mdmAppleEnabled && canAddAsset;
 
   return (
     <div className={baseClass}>
@@ -189,9 +191,9 @@ const AssetsTab = ({ currentTeamId, router }: IAssetsTabProps) => {
                 size="small"
                 onClick={() => setShowAddAssetModal(true)}
                 disabled={disableChildren}
+                icon="plus"
               >
-                <Icon name="plus" size="small" />
-                <span>Add asset</span>
+                Add asset
               </Button>
             )}
           />

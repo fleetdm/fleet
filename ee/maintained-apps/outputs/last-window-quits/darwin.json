@@ -4,7 +4,8 @@
       "version": "1.1.4",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'io.lawand.last-window-quits';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'io.lawand.last-window-quits' AND version_compare(bundle_short_version, '1.1.4') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'io.lawand.last-window-quits' AND version_compare(bundle_short_version, '1.1.4') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'io.lawand.last-window-quits');"
       },
       "installer_url": "https://lawand.io/wp-content/uploads/2024/12/last-window-quits-1.1.4.zip",
       "install_script_ref": "58da4ce9",

@@ -1012,14 +1012,50 @@ func TestInvalidGitOpsYaml(t *testing.T) {
 					config += "name: No team\nsettings:\n  webhook_settings:\n    host_status_webhook:\n      enable_host_status_webhook: true\n    failing_policies_webhook:\n      enable_failing_policies_webhook: true\n"
 					noTeamPath5a, noTeamBasePath5a := createNamedFileOnTempDir(t, "no-team.yml", config)
 					_, err = GitOpsFromFile(noTeamPath5a, noTeamBasePath5a, nil, nopLogf)
-					assert.ErrorContains(t, err, "unsupported webhook_settings option 'host_status_webhook' in no-team.yml - only 'failing_policies_webhook' is allowed")
+					require.ErrorContains(t, err, "unsupported webhook_settings option 'host_status_webhook' in no-team.yml - only 'failing_policies_webhook' and 'host_activities_webhook' are allowed")
 
 					// No team with vulnerabilities_webhook in webhook_settings should fail
 					config = getConfig([]string{"name", "settings"})
 					config += "name: No team\nsettings:\n  webhook_settings:\n    vulnerabilities_webhook:\n      enable_vulnerabilities_webhook: true\n"
 					noTeamPath5b, noTeamBasePath5b := createNamedFileOnTempDir(t, "no-team.yml", config)
 					_, err = GitOpsFromFile(noTeamPath5b, noTeamBasePath5b, nil, nopLogf)
-					assert.ErrorContains(t, err, "unsupported webhook_settings option 'vulnerabilities_webhook' in no-team.yml - only 'failing_policies_webhook' is allowed")
+					require.ErrorContains(t, err, "unsupported webhook_settings option 'vulnerabilities_webhook' in no-team.yml - only 'failing_policies_webhook' and 'host_activities_webhook' are allowed")
+
+					// No team with valid host_activities_webhook should work
+					config = getConfig([]string{"name", "settings"})
+					config += "name: No team\nsettings:\n  webhook_settings:\n    host_activities_webhook:\n      enable_host_activities_webhook: true\n      destination_url: https://example.com/webhook\n"
+					noTeamPath5c, noTeamBasePath5c := createNamedFileOnTempDir(t, "no-team.yml", config)
+					gitops, err = GitOpsFromFile(noTeamPath5c, noTeamBasePath5c, nil, nopLogf)
+					require.NoError(t, err)
+					assert.NotNil(t, gitops)
+
+					// No team with non-object host_activities_webhook should fail
+					config = getConfig([]string{"name", "settings"})
+					config += "name: No team\nsettings:\n  webhook_settings:\n    host_activities_webhook: bad\n"
+					noTeamPath5d, noTeamBasePath5d := createNamedFileOnTempDir(t, "no-team.yml", config)
+					_, err = GitOpsFromFile(noTeamPath5d, noTeamBasePath5d, nil, nopLogf)
+					require.ErrorContains(t, err, "'settings.webhook_settings.host_activities_webhook' must be an object or null")
+
+					// No team with a string-valued enable flag should fail instead of silently disabling
+					config = getConfig([]string{"name", "settings"})
+					config += "name: No team\nsettings:\n  webhook_settings:\n    host_activities_webhook:\n      enable_host_activities_webhook: \"true\"\n      destination_url: https://example.com/webhook\n"
+					noTeamPath5e, noTeamBasePath5e := createNamedFileOnTempDir(t, "no-team.yml", config)
+					_, err = GitOpsFromFile(noTeamPath5e, noTeamBasePath5e, nil, nopLogf)
+					require.ErrorContains(t, err, "'settings.webhook_settings.host_activities_webhook.enable_host_activities_webhook' must be a boolean")
+
+					// No team with a misspelled key should fail instead of silently disabling
+					config = getConfig([]string{"name", "settings"})
+					config += "name: No team\nsettings:\n  webhook_settings:\n    host_activities_webhook:\n      enable_host_activity_webhook: true\n      destination_url: https://example.com/webhook\n"
+					noTeamPath5f, noTeamBasePath5f := createNamedFileOnTempDir(t, "no-team.yml", config)
+					_, err = GitOpsFromFile(noTeamPath5f, noTeamBasePath5f, nil, nopLogf)
+					require.ErrorContains(t, err, "unsupported option 'enable_host_activity_webhook' in settings.webhook_settings.host_activities_webhook")
+
+					// No team with a non-string destination_url should fail
+					config = getConfig([]string{"name", "settings"})
+					config += "name: No team\nsettings:\n  webhook_settings:\n    host_activities_webhook:\n      enable_host_activities_webhook: true\n      destination_url: 123\n"
+					noTeamPath5g, noTeamBasePath5g := createNamedFileOnTempDir(t, "no-team.yml", config)
+					_, err = GitOpsFromFile(noTeamPath5g, noTeamBasePath5g, nil, nopLogf)
+					require.ErrorContains(t, err, "'settings.webhook_settings.host_activities_webhook.destination_url' must be a string")
 
 					// 'No team' file with invalid name.
 					config = getConfig([]string{"name", "settings"})
@@ -2699,6 +2735,47 @@ software:
 		assert.ErrorContains(t, err, "display_name is too long (max 255 characters)")
 	})
 
+	t.Run("fleet_maintained_app_display_name_too_long", func(t *testing.T) {
+		config := getTeamConfig([]string{"name", "software"})
+		config += `name: Test Team
+software:
+  fleet_maintained_apps:
+    - slug: 1password/darwin
+      display_name: "` + longDisplayName + `"
+`
+		path, basePath := createTempFile(t, "", config)
+		_, err := GitOpsFromFile(path, basePath, appConfig, nopLogf)
+		assert.ErrorContains(t, err, "display_name is too long (max 255 characters)")
+	})
+
+	t.Run("multibyte_display_name_at_rune_limit", func(t *testing.T) {
+		// 255 multibyte characters fit the utf8mb4 varchar(255) column, so they
+		// must be accepted even though they take more than 255 bytes
+		multibyteDisplayName := strings.Repeat("é", 255)
+		config := getTeamConfig([]string{"name", "software"})
+		config += `name: Test Team
+software:
+  packages:
+    - hash_sha256: "abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234"
+      display_name: "` + multibyteDisplayName + `"
+  app_store_apps:
+    - app_store_id: "12345"
+      display_name: "` + multibyteDisplayName + `"
+  fleet_maintained_apps:
+    - slug: 1password/darwin
+      display_name: "` + multibyteDisplayName + `"
+`
+		path, basePath := createTempFile(t, "", config)
+		result, err := GitOpsFromFile(path, basePath, appConfig, nopLogf)
+		require.NoError(t, err)
+		require.Len(t, result.Software.Packages, 1)
+		assert.Equal(t, multibyteDisplayName, result.Software.Packages[0].DisplayName)
+		require.Len(t, result.Software.AppStoreApps, 1)
+		assert.Equal(t, multibyteDisplayName, result.Software.AppStoreApps[0].DisplayName)
+		require.Len(t, result.Software.FleetMaintainedApps, 1)
+		assert.Equal(t, multibyteDisplayName, result.Software.FleetMaintainedApps[0].DisplayName)
+	})
+
 	t.Run("valid_display_name", func(t *testing.T) {
 		config := getTeamConfig([]string{"name", "software"})
 		// Use hash instead of URL to avoid network calls, and no scripts required
@@ -2710,6 +2787,9 @@ software:
   app_store_apps:
     - app_store_id: "12345"
       display_name: "Custom VPP App Name"
+  fleet_maintained_apps:
+    - slug: 1password/darwin
+      display_name: "Custom FMA Name"
 `
 		path, basePath := createTempFile(t, "", config)
 		result, err := GitOpsFromFile(path, basePath, appConfig, nopLogf)
@@ -2718,6 +2798,13 @@ software:
 		assert.Equal(t, "Custom Package Name", result.Software.Packages[0].DisplayName)
 		require.Len(t, result.Software.AppStoreApps, 1)
 		assert.Equal(t, "Custom VPP App Name", result.Software.AppStoreApps[0].DisplayName)
+		require.Len(t, result.Software.FleetMaintainedApps, 1)
+		assert.Equal(t, "Custom FMA Name", result.Software.FleetMaintainedApps[0].DisplayName)
+
+		// the FMA display name must survive the conversion to the package spec used
+		// to build the batch payload
+		packageSpec := result.Software.FleetMaintainedApps[0].ToSoftwarePackageSpec()
+		assert.Equal(t, "Custom FMA Name", packageSpec.DisplayName)
 	})
 }
 
@@ -3416,9 +3503,9 @@ func TestGitOpsGlobProfiles(t *testing.T) {
 		dir := t.TempDir()
 		profilesDir := filepath.Join(dir, "profiles")
 		require.NoError(t, os.MkdirAll(profilesDir, 0o755))
-		require.NoError(t, os.WriteFile(filepath.Join(profilesDir, "alpha.mobileconfig"), []byte("<plist></plist>"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(profilesDir, "alpha.mobileconfig"), []byte(emptyMCProfile), 0o644))
 		require.NoError(t, os.WriteFile(filepath.Join(profilesDir, "beta.json"), []byte("{}"), 0o644))
-		require.NoError(t, os.WriteFile(filepath.Join(profilesDir, "gamma.mobileconfig"), []byte("<plist></plist>"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(profilesDir, "gamma.mobileconfig"), []byte(emptyMCProfile), 0o644))
 
 		config := getGlobalConfig([]string{"controls"})
 		config += `controls:
@@ -3504,8 +3591,8 @@ func TestGitOpsGlobProfiles(t *testing.T) {
 		dir := t.TempDir()
 		profilesDir := filepath.Join(dir, "profiles")
 		require.NoError(t, os.MkdirAll(profilesDir, 0o755))
-		require.NoError(t, os.WriteFile(filepath.Join(profilesDir, "a.mobileconfig"), []byte("<plist></plist>"), 0o644))
-		require.NoError(t, os.WriteFile(filepath.Join(profilesDir, "b.mobileconfig"), []byte("<plist></plist>"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(profilesDir, "a.mobileconfig"), []byte(emptyMCProfile), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(profilesDir, "b.mobileconfig"), []byte(emptyMCProfile), 0o644))
 
 		config := getGlobalConfig([]string{"controls"})
 		config += `controls:
@@ -3600,7 +3687,7 @@ func TestGitOpsOSUpdatesProfileConflict(t *testing.T) {
 	t.Run("macos updates configured with non-conflicting profile is allowed", func(t *testing.T) {
 		t.Parallel()
 		dir := t.TempDir()
-		require.NoError(t, os.WriteFile(filepath.Join(dir, "plain.mobileconfig"), []byte("<plist></plist>"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "plain.mobileconfig"), []byte(emptyMCProfile), 0o644))
 
 		config := getGlobalConfig([]string{"controls"})
 		config += `controls:
@@ -4195,7 +4282,7 @@ func TestControlsNewKeyNames(t *testing.T) {
 		dir := t.TempDir()
 		profileDir := filepath.Join(dir, "lib")
 		require.NoError(t, os.Mkdir(profileDir, 0o755))
-		require.NoError(t, os.WriteFile(filepath.Join(profileDir, "macos-password.mobileconfig"), []byte("<plist></plist>"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(profileDir, "macos-password.mobileconfig"), []byte(emptyMCProfile), 0o644))
 		require.NoError(t, os.WriteFile(filepath.Join(profileDir, "windows-screenlock.xml"), []byte("<xml/>"), 0o644))
 		require.NoError(t, os.WriteFile(filepath.Join(profileDir, "collect-fleetd-logs.sh"), []byte("#!/bin/bash"), 0o644))
 
@@ -4263,7 +4350,7 @@ org_settings:
 		dir := t.TempDir()
 		profileDir := filepath.Join(dir, "lib")
 		require.NoError(t, os.Mkdir(profileDir, 0o755))
-		require.NoError(t, os.WriteFile(filepath.Join(profileDir, "macos-password.mobileconfig"), []byte("<plist></plist>"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(profileDir, "macos-password.mobileconfig"), []byte(emptyMCProfile), 0o644))
 		require.NoError(t, os.WriteFile(filepath.Join(profileDir, "windows-screenlock.xml"), []byte("<xml/>"), 0o644))
 		require.NoError(t, os.WriteFile(filepath.Join(profileDir, "collect-fleetd-logs.sh"), []byte("#!/bin/bash"), 0o644))
 
@@ -5019,7 +5106,7 @@ func TestParsePolicyInstallSoftware(t *testing.T) {
 				InstallSoftware: installSoftware,
 			},
 		}
-		fmasBySlug := map[string]struct{}{"zoom/darwin": {}}
+		fmasBySlug := map[string]*fleet.MaintainedAppSpec{"zoom/darwin": {Slug: "zoom/darwin"}}
 		errs := parsePolicyInstallSoftware(".", &teamName, policy, nil, nil, fmasBySlug)
 		require.Nil(t, errs)
 		assert.Equal(t, "zoom/darwin", policy.InstallSoftware.Other.FleetMaintainedAppSlug)
@@ -5037,7 +5124,7 @@ func TestParsePolicyInstallSoftware(t *testing.T) {
 				InstallSoftware: installSoftware,
 			},
 		}
-		fmasBySlug := map[string]struct{}{"zoom/darwin": {}}
+		fmasBySlug := map[string]*fleet.MaintainedAppSpec{"zoom/darwin": {Slug: "zoom/darwin"}}
 		errs := parsePolicyInstallSoftware(".", &teamName, policy, nil, nil, fmasBySlug)
 		require.Len(t, errs, 1)
 		assert.Contains(t, errs[0].Error(), `fleet_maintained_app_slug "notreal/darwin" not found`)
@@ -5096,7 +5183,7 @@ func TestParsePolicyInstallSoftware(t *testing.T) {
 				InstallSoftware: installSoftware,
 			},
 		}
-		fmasBySlug := map[string]struct{}{"zoom/darwin": {}}
+		fmasBySlug := map[string]*fleet.MaintainedAppSpec{"zoom/darwin": {Slug: "zoom/darwin"}}
 		errs := parsePolicyInstallSoftware(".", &teamName, policy, nil, nil, fmasBySlug)
 		require.Nil(t, errs)
 		assert.Equal(t, "zoom/darwin", policy.FleetMaintainedAppSlug)
@@ -5119,7 +5206,7 @@ func TestParsePolicyInstallSoftware(t *testing.T) {
 				InstallSoftware: installSoftware,
 			},
 		}
-		fmasBySlug := map[string]struct{}{"zoom/darwin": {}, "1password/darwin": {}}
+		fmasBySlug := map[string]*fleet.MaintainedAppSpec{"zoom/darwin": {Slug: "zoom/darwin"}, "1password/darwin": {Slug: "1password/darwin"}}
 		errs := parsePolicyInstallSoftware(".", &teamName, policy, nil, nil, fmasBySlug)
 		require.Nil(t, errs)
 		assert.Equal(t, "1password/darwin", policy.FleetMaintainedAppSlug)
@@ -5523,3 +5610,322 @@ policies:
 		})
 	}
 }
+
+func TestGitOpsPatchWhenClosed(t *testing.T) {
+	t.Parallel()
+
+	const fmaSoftware = `
+software:
+  fleet_maintained_apps:
+    - slug: google-chrome/darwin
+`
+	// An FMA that carries a user-authored pre_install_query, which patch-when-closed rejects.
+	const fmaSoftwareWithPreInstall = `
+software:
+  fleet_maintained_apps:
+    - slug: google-chrome/darwin
+      pre_install_query:
+        path: ./preinstall.yml
+`
+
+	tests := []struct {
+		name     string
+		software string
+		policies string
+		// wantErrs empty means the config must apply cleanly.
+		wantErrs []string
+		// wantCA, when set, asserts the resulting ContinuousAutomationsEnabled on the single policy.
+		wantCA *bool
+	}{
+		{
+			name:     "patch_when_closed with continuous_automations omitted auto-sets it true",
+			software: fmaSoftware,
+			policies: `
+policies:
+  - name: Chrome up to date
+    type: patch
+    platform: darwin
+    fleet_maintained_app_slug: google-chrome/darwin
+    patch_when_closed: true
+`,
+			wantCA: new(true),
+		},
+		{
+			name:     "patch_when_closed with continuous_automations explicitly true applies",
+			software: fmaSoftware,
+			policies: `
+policies:
+  - name: Chrome up to date
+    type: patch
+    platform: darwin
+    fleet_maintained_app_slug: google-chrome/darwin
+    continuous_automations_enabled: true
+    patch_when_closed: true
+`,
+			wantCA: new(true),
+		},
+		{
+			name:     "patch_when_closed with explicit continuous_automations false is rejected",
+			software: fmaSoftware,
+			policies: `
+policies:
+  - name: Chrome up to date
+    type: patch
+    platform: darwin
+    fleet_maintained_app_slug: google-chrome/darwin
+    continuous_automations_enabled: false
+    patch_when_closed: true
+`,
+			wantErrs: []string{`"continuous_automations_enabled" must be true when "patch_when_closed" is true`},
+		},
+		{
+			name:     "patch_when_closed rejects a pre_install_query on the referenced FMA",
+			software: fmaSoftwareWithPreInstall,
+			policies: `
+policies:
+  - name: Chrome up to date
+    type: patch
+    platform: darwin
+    fleet_maintained_app_slug: google-chrome/darwin
+    patch_when_closed: true
+`,
+			wantErrs: []string{`"pre_install_query" can't be set on Fleet-maintained app "google-chrome/darwin"`},
+		},
+		{
+			// Backward compat: without the key, continuous automations stay off.
+			name:     "patch policy without patch_when_closed leaves continuous_automations off",
+			software: fmaSoftware,
+			policies: `
+policies:
+  - name: Chrome up to date
+    type: patch
+    platform: darwin
+    fleet_maintained_app_slug: google-chrome/darwin
+`,
+			wantCA: new(false),
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			config := getTeamConfig([]string{"policies"}) + tc.software + tc.policies
+			path, basePath := createTempFile(t, "", config)
+			g, err := GitOpsFromFile(path, basePath, premiumAppConfig(), nopLogf)
+			if len(tc.wantErrs) > 0 {
+				for _, want := range tc.wantErrs {
+					require.ErrorContains(t, err, want)
+				}
+				return
+			}
+			require.NoError(t, err)
+			require.Len(t, g.Policies, 1)
+			if tc.wantCA != nil {
+				assert.Equal(t, *tc.wantCA, g.Policies[0].ContinuousAutomationsEnabled)
+			}
+		})
+	}
+}
+
+func TestValidateTeamWebhookSettingsHostActivitiesWebhook(t *testing.T) {
+	t.Parallel()
+
+	settings := func(haw any) map[string]any {
+		return map[string]any{"webhook_settings": map[string]any{"host_activities_webhook": haw}}
+	}
+
+	cases := []struct {
+		name    string
+		haw     any
+		wantErr string
+	}{
+		{"valid", map[string]any{"enable_host_activities_webhook": true, "destination_url": "https://example.com/hook"}, ""},
+		{"null is allowed", nil, ""},
+		{"non-object", "bad", "'settings.webhook_settings.host_activities_webhook' must be an object or null"},
+		{"misspelled key", map[string]any{"enable_host_activity_webhook": true}, "unsupported option 'enable_host_activity_webhook' in settings.webhook_settings.host_activities_webhook"},
+		{"string enable flag", map[string]any{"enable_host_activities_webhook": "true"}, "'settings.webhook_settings.host_activities_webhook.enable_host_activities_webhook' must be a boolean"},
+		{"non-string destination_url", map[string]any{"destination_url": 123}, "'settings.webhook_settings.host_activities_webhook.destination_url' must be a string"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			err := validateTeamWebhookSettings(settings(c.haw), nil).ErrorOrNil()
+			if c.wantErr == "" {
+				require.NoError(t, err)
+			} else {
+				require.ErrorContains(t, err, c.wantErr)
+			}
+		})
+	}
+}
+
+func TestGitOpsProfileActivation(t *testing.T) {
+	writeConfig := func(t *testing.T, profileEntry string) (string, string) {
+		dir := t.TempDir()
+		libDir := filepath.Join(dir, "lib")
+		require.NoError(t, os.Mkdir(libDir, 0o755))
+		require.NoError(t, os.WriteFile(filepath.Join(libDir, "ddm.json"),
+			[]byte(`{"Type":"com.apple.configuration.passcode.settings","Identifier":"com.fleet.cfg","Payload":{"Echo":"x"}}`), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(libDir, "ddm2.json"),
+			[]byte(`{"Type":"com.apple.configuration.passcode.settings","Identifier":"com.fleet.cfg2","Payload":{"Echo":"x"}}`), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(libDir, "activation.json"),
+			[]byte(`{"Type":"com.apple.activation.simple","Identifier":"com.fleet.act","Payload":{"StandardConfigurations":["com.fleet.cfg"]}}`), 0o644))
+
+		config := `
+reports:
+policies:
+agent_options:
+org_settings:
+  server_settings:
+  org_info:
+  secrets:
+controls:
+  apple_settings:
+    configuration_profiles:
+` + profileEntry
+		yamlPath := filepath.Join(dir, "gitops.yml")
+		require.NoError(t, os.WriteFile(yamlPath, []byte(config), 0o644))
+		return dir, yamlPath
+	}
+
+	t.Run("activation path is resolved to an absolute path", func(t *testing.T) {
+		dir, yamlPath := writeConfig(t, "      - path: ./lib/ddm.json\n        activation: ./lib/activation.json\n")
+
+		gitops, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
+		require.NoError(t, err)
+
+		macOSSettings, ok := gitops.Controls.MacOSSettings.(fleet.MacOSSettings)
+		require.True(t, ok, "unexpected type %T", gitops.Controls.MacOSSettings)
+		require.Len(t, macOSSettings.CustomSettings, 1)
+
+		// The resolved path must be absolute so gitops works from any directory.
+		got := macOSSettings.CustomSettings[0].Activation
+		require.True(t, filepath.IsAbs(got), "activation path should be absolute, got %q", got)
+		require.Equal(t, filepath.Join(dir, "lib", "activation.json"), got)
+	})
+
+	t.Run("activation with a glob is rejected", func(t *testing.T) {
+		dir, yamlPath := writeConfig(t, "      - paths: ./lib/*.json\n        activation: ./lib/activation.json\n")
+
+		_, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), `cannot use "activation" with "paths"`)
+	})
+
+	t.Run("missing activation file errors", func(t *testing.T) {
+		dir, yamlPath := writeConfig(t, "      - path: ./lib/ddm.json\n        activation: ./lib/nope.json\n")
+
+		_, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "failed to read activation file")
+	})
+}
+
+func TestGitOpsPolicyWithResendConfigurationProfile(t *testing.T) {
+	t.Parallel()
+
+	//nolint:gosec // G101: test fixture, not a real credential.
+	const passwordProfile = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadDisplayName</key>
+	<string>Password policy</string>
+	<key>PayloadIdentifier</key>
+	<string>com.fleet.password</string>
+	<key>PayloadScope</key>
+	<string>System</string>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadUUID</key>
+	<string>F7CF282E-D91B-44E9-922F-A719634F9C8E</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+</dict>
+</plist>
+`
+
+	// writeConfig lays out a gitops dir holding one macOS and one Windows profile,
+	// then appends the given policies section to a team (or global) config.
+	writeConfig := func(t *testing.T, global bool, policies string) (*GitOps, error) {
+		dir := t.TempDir()
+		require.NoError(t, os.Mkdir(filepath.Join(dir, "lib"), 0o755))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "lib", "password.MOBILECoNFIG"), []byte(passwordProfile), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "lib", "screenlock.XmL"), []byte("<Replace></Replace>"), 0o644))
+
+		exclude := []string{"controls", "policies"}
+		config := getTeamConfig(exclude)
+		if global {
+			config = getGlobalConfig(exclude)
+		}
+		config += `
+controls:
+  macos_settings:
+    custom_settings:
+      - path: ./lib/password.MOBILECoNFIG
+  windows_settings:
+    custom_settings:
+      - path: ./lib/screenlock.XmL
+` + policies
+
+		yamlPath := filepath.Join(dir, "gitops.yml")
+		require.NoError(t, os.WriteFile(yamlPath, []byte(config), 0o644))
+		return GitOpsFromFile(yamlPath, dir, nil, nopLogf)
+	}
+
+	t.Run("resolves macOS and Windows profile names defined in controls", func(t *testing.T) {
+		got, err := writeConfig(t, false, `
+policies:
+- name: Mac policy
+  query: SELECT 1;
+  resend_configuration_profile:
+    name: Password policy
+- name: Windows policy
+  query: SELECT 1;
+  resend_configuration_profile:
+    name: screenlock
+- name: No resend policy
+  query: SELECT 1;
+`)
+		require.NoError(t, err)
+		require.Len(t, got.Policies, 3)
+		require.Equal(t, new("Password policy"), got.Policies[0].ResendConfigurationProfileName)
+		require.Equal(t, new("screenlock"), got.Policies[1].ResendConfigurationProfileName)
+		// Policies without the key get an empty name so the server unsets any existing profile.
+		require.Equal(t, new(""), got.Policies[2].ResendConfigurationProfileName)
+	})
+
+	t.Run("errors when the profile is not defined in controls", func(t *testing.T) {
+		_, err := writeConfig(t, false, `
+policies:
+- name: Mac policy
+  query: SELECT 1;
+  resend_configuration_profile:
+    name: Not a profile
+`)
+		require.ErrorContains(t, err, `configuration profile "Not a profile" was not defined in controls`)
+	})
+
+	t.Run("errors on global policies", func(t *testing.T) {
+		_, err := writeConfig(t, true, `
+policies:
+- name: Mac policy
+  query: SELECT 1;
+  resend_configuration_profile:
+    name: Password policy
+`)
+		require.ErrorContains(t, err, "resend_configuration_profile can only be set on team policies")
+	})
+}
+
+const emptyMCProfile = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadDisplayName</key>
+	<string>Empty Profile</string>
+	<key>PayloadIdentifier</key>
+	<string>empty-profile-identifier</string>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+</dict>
+</plist>`

@@ -584,7 +584,6 @@ The MDM endpoints exist to support the related command-line interface sub-comman
 - [SCEP proxy](#scep-proxy)
 - [Get Android Enterprise signup URL](#get-android-enterprise-signup-url)
 - [Connect Android Enterprise](#connect-android-enterprise)
-- [Delete Android Enterprise](#delete-android-enterprise)
 - [Get Android enrollment token](#get-android-enrollment-token)
 - [Create Android enrollment token](#create-android-enrollment-token)
 - [Get Android Enterprise server-sent event](#get-android-enterprise-server-sent-event)
@@ -713,6 +712,7 @@ Content-Type: application/octet-stream
     "mdm_server_url": "https://example.com/mdm/apple/mdm",
     "renew_date": "2024-10-20T00:00:00Z",
     "terms_expired": false,
+    "token_invalid": false,
     "macos_fleet": null,
     "ios_fleet": null,
     "ipados_fleet": null,
@@ -725,6 +725,7 @@ Content-Type: application/octet-stream
     "mdm_server_url": "https://example.com/mdm/apple/mdm",
     "renew_date": "2024-10-20T00:00:00Z",
     "terms_expired": false,
+    "token_invalid": false,
     "macos_fleet": null,
     "ios_fleet": null,
     "ipados_fleet": null,
@@ -815,6 +816,7 @@ None.
     "mdm_server_url": "https://example.com/mdm/apple/mdm",
     "renew_date": "2024-11-29T00:00:00Z",
     "terms_expired": false,
+    "token_invalid": false,
     "macos_fleet": 1,
     "ios_fleet": 2,
     "ipados_fleet": 3,
@@ -827,6 +829,7 @@ None.
     "mdm_server_url": "https://example.com/mdm/apple/mdm",
     "renew_date": "2024-11-29T00:00:00Z",
     "terms_expired": false,
+    "token_invalid": false,
     "macos_fleet": 1,
     "ios_fleet": 2,
     "ipados_fleet": 3,
@@ -884,6 +887,7 @@ Content-Type: application/octet-stream
     "mdm_server_url": "https://example.com/mdm/apple/mdm",
     "renew_date": "2025-10-20T00:00:00Z",
     "terms_expired": false,
+    "token_invalid": false,
     "macos_fleet": null,
     "ios_fleet": null,
     "ipados_fleet": null,
@@ -896,6 +900,7 @@ Content-Type: application/octet-stream
     "mdm_server_url": "https://example.com/mdm/apple/mdm",
     "renew_date": "2025-10-20T00:00:00Z",
     "terms_expired": false,
+    "token_invalid": false,
     "macos_fleet": null,
     "ios_fleet": null,
     "ipados_fleet": null,
@@ -1155,8 +1160,10 @@ A successful response contains an HTTP cookie `__Host-FLEETSSOSESSIONID` that ne
 
 Example response cookie in the HTTP `Set-Cookie` header:
 ```
-Set-Cookie: __Host-FLEETSSOSESSIONID=slI727JZ+j0FvyBRLyD/gri1rxtwpaZT; Path=/; Max-Age=300; HttpOnly; Secure
+Set-Cookie: __Host-FLEETSSOSESSIONID=slI727JZ+j0FvyBRLyD/gri1rxtwpaZT; Path=/; Max-Age=900; HttpOnly; Secure
 ```
+
+`Max-Age` matches `auth.sso_session_validity_period`, which defaults to 15 minutes.
 
 ### Complete SSO during DEP or Account Driven enrollment
 
@@ -1210,6 +1217,16 @@ enrollment flow:
 
  - `access-token` a token that is passed by the device in the Authorization header on the second call to the Account Driven
    Enrollment endpoint to download an enrollment profile.
+
+If the credentials can't be validated, the server redirects the client to the Fleet UI with the
+following query parameters:
+
+- `error=true` is set for any failure.
+- `reason=session_expired` is added when the SSO session created by `POST /api/v1/fleet/mdm/sso` is
+  no longer available, so the Fleet UI can tell the end user their sign-in timed out rather than
+  showing a generic error. This happens when the user takes longer than
+  `auth.sso_session_validity_period` to authenticate with the IdP, when the session cookie expires,
+  or when the callback is replayed (the session is single use).
 
 ### Over the air enrollment
 
@@ -1401,7 +1418,7 @@ Content-Type: application/octet-stream
 
 _Available in Fleet Premium_
 
-Returns the raw data about a DEP device's current state from the [Get Device Details](https://developer.apple.com/documentation/devicemanagement/device-details) API. Supports only Apple hosts which are, or were, assigned to Fleet in Apple Business.
+Returns the raw data about a DEP device's current state from the [Get Device Details](https://developer.apple.com/documentation/devicemanagement/device-details) API. Supports only Apple hosts which are, or were, assigned to Fleet in Apple Business. If there is an error communicating with the DEP APIs, `dep_device` will be null and `dep_device_error` will contain human-readable error details.
 
 `GET /api/v1/fleet/hosts/:id/dep_assignment`
 
@@ -1446,7 +1463,8 @@ Returns the raw data about a DEP device's current state from the [Get Device Det
     "ab_token_id": 1,
     "mdm_migration_deadline": "2025-12-05T00:00:00Z",
     "mdm_migration_completed": "2025-12-05T00:00:00Z"
-  }
+  },
+  "dep_device_error": null
 }
 ```
 
@@ -1507,21 +1525,6 @@ This is callback URL that will be open after user completes Google's signup flow
 ```
 <html><!-- self-closing page --></html>
 ```
-
-### Delete Android Enterprise
-
-> **Experimental feature.** This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
-This endpoint is used to delete Android Enterprise. Once deleted, hosts that belong to Android Enterprise will be un-enrolled and Android MDM features will be turned off.
-
-`DELETE /api/v1/fleet/android_enterprise/`
-
-#### Example
-
-`DELETE /api/v1/fleet/android_enterprise`
-
-##### Default response
-
-`Status: 200`
 
 ### Get Android enrollment token
 
@@ -2220,7 +2223,8 @@ If the `name` is not already associated with an existing fleet, this API route c
 | mdm.macos_updates.minimum_version         | string | body  | The required minimum operating system version.                                                                                                                                                                                      |
 | mdm.macos_updates.deadline                | string | body  | The required installation date for Nudge to enforce the operating system version.                                                                                                                                                   |
 | mdm.apple_settings                        | object | body  | The Apple-specific MDM settings.                                                                                                                                                                                                    |
-| mdm.apple_settings.configuration_profiles        | array   | body  | The list of objects consists of a `path` to .mobileconfig or JSON file and `labels_include_all`, `labels_include_any`, or `labels_exclude_any` list of label names.                                                                                                                                                         |
+| mdm.apple_settings.configuration_profiles        | array   | body  | The list of objects consists of a `path` to a .mobileconfig or JSON file and `labels_include_all`, `labels_include_any`, or `labels_exclude_any` list of label names.  |
+| mdm.apple_settings.assets                 | array   | body  | The list of objects consists of a `path` to a JSON asset declaration (`com.apple.asset`) file.   |
 | mdm.windows_settings                        | object | body  | The Windows-specific MDM settings.                                                                                                                                                                                                    |
 | mdm.windows_settings.configuration_profiles        | array   | body  | The list of objects consists of a `path` to XML files and `labels_include_all`, `labels_include_any`, or `labels_exclude_any` list of label names.                                                                                                                                                         |
 | scripts                                   | array   | body  | A list of script files to add to this fleet so they can be executed at a later time.                                                                                                                                                 |
@@ -2299,12 +2303,17 @@ If the `name` is not already associated with an existing fleet, this API route c
         "apple_settings": {
           "configuration_profiles": [
             {
-              "path": "path/to/profile1.mobileconfig"
+              "path": "path/to/profile1.mobileconfig",
               "labels_include_all": ["Label 1", "Label 2"]
             },
             {
-              "path": "path/to/profile2.json"
+              "path": "path/to/profile2.json",
               "labels_exclude_any": ["Label 3", "Label 4"]
+            },
+          ],
+          "assets": [
+            {
+              "path": "path/to/assets/asset.json"
             },
           ],
           "enable_disk_encryption": true
@@ -2312,7 +2321,7 @@ If the `name` is not already associated with an existing fleet, this API route c
         "windows_settings": {
           "configuration_profiles": [
             {
-              "path": "path/to/profile3.xml"
+              "path": "path/to/profile3.xml",
               "labels_include_all": ["Label 1", "Label 2"]
             }
           ]
@@ -2457,7 +2466,7 @@ Gets all labels visible to the currently logged-in user.
       "id": 8,
       "name": "Ubuntu Linux",
       "description": "All Ubuntu hosts",
-      "query": "SELECT 1 FROM os_version WHERE platform = 'ubuntu';",
+      "query": "SELECT 1 FROM os_version WHERE platform = 'ubuntu' OR platform_like LIKE '%ubuntu%';",
       "platform": "ubuntu",
       "label_type": "builtin",
       "label_membership_type": "dynamic",
@@ -2495,9 +2504,9 @@ Gets all labels visible to the currently logged-in user.
       "id": 11,
       "name": "Ubuntu",
       "description": "Filters Ubuntu hosts",
-      "query": "SELECT 1 FROM os_version WHERE platform = 'ubuntu';",
+      "query": "SELECT 1 FROM os_version WHERE platform = 'ubuntu' OR platform_like LIKE '%ubuntu%';",
       "label_type": "builtin",
-      "label_membership_type": "dynamic",,
+      "label_membership_type": "dynamic",
       "team_id": null,
       "team_name": null,
       "fleet_id": null,
@@ -3377,9 +3386,46 @@ currently pending.
 
 Device-authenticated routes are routes used by the Fleet Desktop application. Unlike most other routes, Fleet user's API token does not authenticate them. They use a device-specific token.
 
+Fleet Premium can require single sign-on in front of these routes. When `fleet_desktop.sso_enabled` is `true`, the device token is no longer enough on its own. Most of these routes also need a device SSO session. [Initiate Fleet Desktop single sign-on](#initiate-fleet-desktop-single-sign-on) creates the session, and the `__Host-FLEET_DESKTOP_SESSION` cookie carries it. Fleet binds the session to the host whose device token started the flow. One device's cookie can't unlock another device's page in the same browser.
+
+A request without a valid session for that host returns `401` with an `sso_required` marker:
+
+```json
+{
+  "message": "Single sign-on required",
+  "errors": [
+    {
+      "name": "base",
+      "reason": "Single sign-on required"
+    }
+  ],
+  "uuid": "e3b0c442-98fc-1c14-9afb-f4c8996fb924",
+  "sso_required": true
+}
+```
+
+An expired device token also returns `401`. The marker is what tells the "My device" page to start the single sign-on flow instead of reporting an invalid URL. Token errors take precedence, so an invalid token returns `401` with no marker, whatever the session cookie holds.
+
+Fleet checks the session after it resolves the host. The check covers all three ways a device authenticates: the rotating token, a client certificate, and a device UUID in the URL. This includes iOS and iPadOS.
+
+Two cases stay reachable with the setting on and no session.
+
+First, the exempt routes. Fleet registers these through a separate endpointer, listed in one block in `server/service/handler.go`, so every other device route needs a session by default:
+
+- [Get Fleet Desktop information](#get-fleet-desktop-information) and `HEAD /api/v1/fleet/device/{token}/ping`. The Fleet Desktop tray app polls both.
+- [Report an agent error](#report-an-agent-error), which fleetd posts.
+- [Migrate device to Fleet from another MDM solution](#migrate-device-to-fleet-from-another-mdm-solution). The tray app's migration dialog posts this, and it has no browser to complete an IdP round trip in.
+- [Get device's transparency URL](#get-devices-transparency-url), the "About Fleet" redirect. It exposes nothing about the host.
+- [Initiate Fleet Desktop single sign-on](#initiate-fleet-desktop-single-sign-on). This has to be reachable before a session exists.
+
+Requiring a session on the fleetd routes would mean changing fleetd. The tray app behaves the same way whether single sign-on is on or off.
+
+Second, hosts still in Setup Experience. Setup Experience opens the device page in a web view during Setup Assistant, where the end user can't complete an IdP round trip. Fleet lets these requests through while a host is awaiting configuration. After setup finishes, the next visit needs a session.
+
 - [Get device's Google Chrome profiles](#get-devices-google-chrome-profiles)
 - [Get device's mobile device management (MDM) and Munki information](#get-devices-mobile-device-management-mdm-and-munki-information)
 - [Get Fleet Desktop information](#get-fleet-desktop-information)
+- [Initiate Fleet Desktop single sign-on](#initiate-fleet-desktop-single-sign-on)
 - [Get device's software](#get-devices-software)
 - [Get device's software install results](#get-devices-software-install-results)
 - [Get device's software MDM command results](#get-devices-software-mdm-command-results)
@@ -3390,6 +3436,7 @@ Device-authenticated routes are routes used by the Fleet Desktop application. Un
 - [Get device's API features](#get-devices-api-features)
 - [Get device's transparency URL](#get-devices-transparency-url)
 - [Download device's MDM manual enrollment profile](#download-devices-mdm-manual-enrollment-profile)
+- [Send APNs ping to device](#send-apns-ping-to-device)
 - [Migrate device to Fleet from another MDM solution](#migrate-device-to-fleet-from-another-mdm-solution)
 - [Trigger Linux disk encryption escrow](#trigger-linux-disk-encryption-escrow)
 - [Report an agent error](#report-an-agent-error)
@@ -3486,6 +3533,69 @@ In regards to the `notifications` key:
 
 - `needs_mdm_migration` means that the device fits all the requirements to allow the user to initiate an MDM migration to Fleet.
 - `renew_enrollment_profile` means that the device is currently unmanaged from MDM but should be DEP enrolled into Fleet.
+
+#### Initiate Fleet Desktop single sign-on
+_Available in Fleet Premium_
+
+Starts the SAML authentication flow for the Fleet Desktop "My device" page. Returns the IdP URL to send the browser to. Fleet also sets a handshake cookie, which it reads back when the IdP redirects to the callback.
+
+`POST /api/v1/fleet/device/{token}/sso`
+
+##### Parameters
+
+| Name  | Type   | In   | Description                        |
+| ----- | ------ | ---- | ---------------------------------- |
+| token | string | path | The device's authentication token. |
+
+##### Example
+
+`POST /api/v1/fleet/device/abcdef012456789/sso`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "url": "https://idp.example.com/saml/sso?SAMLRequest=..."
+}
+```
+
+This endpoint sets the `__Host-FLEETSSOSESSIONID` handshake cookie. Fleet uses it to validate the SAML response when the IdP redirects back to the existing MDM SSO callback, `POST /api/v1/fleet/mdm/sso/callback`. There's no new callback route, so IdP apps that already point at that URL keep working. On success, the callback replies `303` to the device page and sets the `__Host-FLEET_DESKTOP_SESSION` cookie that carries the device SSO session.
+
+##### Error responses
+
+| Status | When |
+| ------ | ---- |
+| `400`  | `fleet_desktop.sso_enabled` is `false`, no IdP is configured under `mdm.end_user_authentication`, the device page and the IdP callback aren't served from the same host, or Fleet couldn't fetch and parse the IdP metadata. |
+| `401`  | The device token is invalid or expired. |
+| `402`  | Fleet Premium is required. |
+| `429`  | The rate limit was exceeded. This endpoint uses its own bucket, set by `auth.sso_rate_limit_per_minute`. The default is the login rate of 10 requests per minute. |
+
+##### Which IdP identity is accepted
+
+Fleet accepts any identity the configured IdP authenticates. Completing the flow proves that a person signed in at the IdP. Fleet doesn't compare that identity against the host's enrollment-time IdP account, so the device token stays the only host-specific secret.
+
+Fleet records the authenticated identity in `mdm_idp_accounts`, which it shares with the MDM SSO flows, and the device SSO session references it. This flow never writes a host-to-IdP-account association in `host_mdm_idp_accounts`. That link belongs to enrollment.
+
+##### Callback failures
+
+Once the callback has verified the assertion and identified the flow as Fleet Desktop, failures redirect to `/device/{token}?sso_error=<reason>` and set no session cookie. Reasons are `sso_disabled` (the setting was turned off between initiation and the callback) and `server_error`.
+
+Failures before that point have no SSO session to read the device page URL from. To handle them, Fleet sets `RelayState` to `fleet_desktop` on the SAML `AuthnRequest`, and the IdP echoes it back with the assertion. The callback uses that value to tell a Fleet Desktop flow apart from the MDM flows. It then redirects to a device error page instead of the shared MDM one:
+
+- An assertion that doesn't verify redirects to `/device/sso-error?reason=error`.
+- A missing or expired handshake cookie redirects to `/device/sso-error?reason=session_expired`.
+
+Without a `RelayState` that Fleet recognizes, these fall back to `/mdm/sso/callback?error=true` and `/mdm/sso/callback?error=true&reason=session_expired`.
+
+##### Hosts and cookies
+
+Both cookies use the `__Host-` prefix, which scopes them to a single host name. The device page and the SAML callback must therefore be reached on the same host name. The port can differ, because cookies aren't port-scoped.
+
+Pointing `fleet_desktop.alternative_browser_host` or `mdm.apple_server_url` at a different host than `server_settings.server_url` makes single sign-on for Fleet Desktop unusable. Neither cookie reaches the leg that needs to read it. Rather than send the end user into a redirect loop, this endpoint fails with `400`.
+
+Only this endpoint sets the `fleet_desktop` SSO initiator, and it sets it server-side. `POST /api/v1/fleet/mdm/sso` is unauthenticated and reads its initiator and host UUID from the request body, so it rejects this initiator with `400`. Accepting it there would create a device SSO session for any host UUID, without the caller ever holding that host's device token.
 
 #### Get device's software
 
@@ -3751,8 +3861,6 @@ For VPP `InstallApplication` command results, `results_metadata` may include:
 
 Queues an install for every self-service software title available to the device that isn't already installed.
 
-If `category_id` is provided, only titles assigned to that [self-service category](https://fleetdm.com/docs/rest-api/rest-api#self-service-categories) on the device's fleet are queued.
-
 `POST /api/v1/fleet/device/{token}/software/install_all`
 
 ##### Parameters
@@ -3760,11 +3868,12 @@ If `category_id` is provided, only titles assigned to that [self-service categor
 | Name        | Type    | In    | Description                                                                                                                                          |
 | ----------- | ------- | ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
 | token       | string  | path  | **Required**. The device's authentication token.                                                                                                     |
-| category_id | integer | query | Restrict the install to a single self-service category. Must reference a category that exists on the device's fleet. If omitted, all categories are included. |
+| category_id | integer | query | Restrict to a single [self-service category](https://fleetdm.com/docs/rest-api/rest-api#self-service-categories). Must exist on the device's fleet. If omitted, all categories are included. |
+| query       | string  | query | Restrict to titles whose name matches (same semantics as the self-service list endpoint). If omitted, no name filter is applied. |
 
 ##### Example
 
-`POST /api/v1/fleet/device/22aada07-dc73-41f2-8452-c0987543fd29/software/install_all?category_id=12`
+`POST /api/v1/fleet/device/22aada07-dc73-41f2-8452-c0987543fd29/software/install_all?category_id=12&query=zoom`
 
 ##### Default response
 
@@ -4015,6 +4124,32 @@ with the download option.
   "enroll_url": "https://your-fleet-server-url.com/enroll?enroll_secret=ABCzmPbtEECxZhHlFlz9uTWApZmXsCND"
 }
 ```
+
+---
+
+#### Send APNs ping to device
+
+Sends an APNs push notification to the current device, prompting it to check in with the Fleet server and pick up any pending MDM commands or configuration profiles. Used by the **My device** page when the user refetches.
+
+This is intentionally separate from the refetch endpoint so that programmatic refetches don't each trigger an APNs push.
+
+The device must be an Apple host with MDM turned on. The request has no body. If the device is offline, the push notification will be delivered when the device comes back online.
+
+`POST /api/v1/fleet/device/{token}/apns_ping`
+
+##### Parameters
+
+| Name  | Type   | In   | Description                        |
+| ----- | ------ | ---- | ---------------------------------- |
+| token | string | path | The device's authentication token. |
+
+##### Example
+
+`POST /api/v1/fleet/device/abcdef012456789/apns_ping`
+
+##### Default response
+
+`Status: 204`
 
 ---
 

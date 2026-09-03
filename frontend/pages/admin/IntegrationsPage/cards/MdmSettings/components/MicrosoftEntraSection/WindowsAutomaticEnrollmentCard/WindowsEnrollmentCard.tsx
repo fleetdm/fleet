@@ -1,13 +1,12 @@
 import React from "react";
 
 import Button from "components/buttons/Button";
-import Icon from "components/Icon/Icon";
 import SectionCard from "../../SectionCard";
 
 interface IWindowsAutomaticEnrollmentCardProps {
   windowsMdmEnabled: boolean;
   tenantAdded: boolean;
-  viewDetails: () => void;
+  onViewDetails: () => void;
 }
 
 const WindowsMdmDisabledCard = (
@@ -27,8 +26,7 @@ const WindowsTenantAddedCard = ({
   <SectionCard
     iconName="success"
     cta={
-      <Button onClick={editTenants} variant="subdued">
-        <Icon name="pencil" />
+      <Button onClick={editTenants} variant="subdued" icon="pencil">
         Edit
       </Button>
     }
@@ -56,17 +54,17 @@ const WindowsTenantNotAddedCard = ({
 const WindowsAutomaticEnrollmentCard = ({
   windowsMdmEnabled,
   tenantAdded,
-  viewDetails,
+  onViewDetails,
 }: IWindowsAutomaticEnrollmentCardProps) => {
   if (!windowsMdmEnabled) {
     return WindowsMdmDisabledCard;
   }
 
   if (tenantAdded) {
-    return <WindowsTenantAddedCard editTenants={viewDetails} />;
+    return <WindowsTenantAddedCard editTenants={onViewDetails} />;
   }
 
-  return <WindowsTenantNotAddedCard addTenant={viewDetails} />;
+  return <WindowsTenantNotAddedCard addTenant={onViewDetails} />;
 };
 
 export default WindowsAutomaticEnrollmentCard;

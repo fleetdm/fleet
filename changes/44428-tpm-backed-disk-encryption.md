@@ -1,1 +1,0 @@
-- Added support for escrowing disk encryption recovery keys from Linux hosts that use TPM-backed full-disk encryption (e.g. Ubuntu 26). On these hosts, orbit escrows a dedicated Fleet-owned snapd recovery key silently, without prompting the end user for a passphrase.

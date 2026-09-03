@@ -1,4 +1,4 @@
-import type { BranchStatus, ProcInfo } from "../lib/tauri";
+import type { BranchStatus, ProcInfo } from "../lib/ipc";
 
 function branchState(s: BranchStatus | null): {
   dot: string;
@@ -70,7 +70,7 @@ function ProcSummary({
   // user sees the running stack even though we don't own a live spawn
   // for it. Also filter out the docker-compose-up proc itself when
   // surfaced this way to avoid showing it twice.
-  const ownChips = running.filter((p) => p.id !== "docker-compose-up");
+  const ownChips = running.filter((p) => !p.id.endsWith("docker-compose-up"));
 
   const totalChips = ownChips.length + (dockerUp ? 1 : 0);
   if (totalChips === 0) {

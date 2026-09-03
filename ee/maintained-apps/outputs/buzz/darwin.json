@@ -1,15 +1,16 @@
 {
   "versions": [
     {
-      "version": "1.4.4",
+      "version": "1.4.5",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.chidiwilliams.buzz';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.chidiwilliams.buzz' AND version_compare(bundle_short_version, '1.4.4') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.chidiwilliams.buzz' AND version_compare(bundle_short_version, '1.4.5') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.chidiwilliams.buzz');"
       },
-      "installer_url": "https://github.com/chidiwilliams/buzz/releases/download/v1.4.4/Buzz-1.4.4-mac-ARM64.dmg",
+      "installer_url": "https://github.com/chidiwilliams/buzz/releases/download/v1.4.5/Buzz-1.4.5-mac-ARM64.dmg",
       "install_script_ref": "91030d70",
       "uninstall_script_ref": "9e4e48ef",
-      "sha256": "956d74ec3db341e04867a4dd727ed22fa8ec629762e505624dcce85a78eb94f8",
+      "sha256": "db705058144c859e15d410e11a2b7a4b6faeb6994aab8e8101bd0bb5a05a06a8",
       "default_categories": [
         "Productivity"
       ]

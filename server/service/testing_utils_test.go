@@ -63,6 +63,7 @@ import (
 	nanomdm_push "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
 	"github.com/fleetdm/fleet/v4/server/mdm/psso"
 	"github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
+	"github.com/fleetdm/fleet/v4/server/microsoft/msgraph"
 	fleet_mock "github.com/fleetdm/fleet/v4/server/mock"
 	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
@@ -105,6 +106,32 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		if mockDS.ConditionalAccessMicrosoftGetFunc == nil {
 			mockDS.ConditionalAccessMicrosoftGetFunc = func(ctx context.Context) (*fleet.ConditionalAccessMicrosoftIntegration, error) {
 				return &fleet.ConditionalAccessMicrosoftIntegration{}, nil
+			}
+		}
+		// Config reads hydrate the Windows enrollment default fleet from its config row.
+		if mockDS.GetWindowsEnrollmentDefaultFleetFunc == nil {
+			mockDS.GetWindowsEnrollmentDefaultFleetFunc = func(ctx context.Context) (*uint, string, error) {
+				return nil, "", nil
+			}
+		}
+		// Default to none configured so tests that don't care don't panic on a nil mock.
+		if mockDS.ListMicrosoftGraphCredentialsFunc == nil {
+			mockDS.ListMicrosoftGraphCredentialsFunc = func(ctx context.Context) ([]*fleet.MicrosoftGraphCredential, error) {
+				return nil, nil
+			}
+		}
+		if mockDS.ListMicrosoftGraphCredentialMetadataFunc == nil {
+			mockDS.ListMicrosoftGraphCredentialMetadataFunc = func(ctx context.Context) ([]*fleet.MicrosoftGraphCredential, error) {
+				return nil, nil
+			}
+		}
+		// The pack config cache calls HasLabelScopedScheduledQueries on every
+		// GetClientConfig request to decide whether caching is safe. Default to
+		// "no label-scoped queries" so existing tests that don't care about
+		// label scoping don't panic on a nil mock.
+		if mockDS.HasLabelScopedScheduledQueriesFunc == nil {
+			mockDS.HasLabelScopedScheduledQueriesFunc = func(ctx context.Context, teamID *uint, queryReportsDisabled bool) (bool, error) {
+				return false, nil
 			}
 		}
 	}
@@ -256,6 +283,13 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 	orgLogoStore, err := filesystem.NewOrgLogoStore(t.TempDir())
 	require.NoError(t, err)
 
+	// Config writes that carry a new credential verify it against Entra and Graph, so default to a no-op factory and
+	// let tests inject their own when they assert on verification.
+	msGraphClientFactory := msgraph.ClientFactory(noopGraphFactory)
+	if len(opts) > 0 && opts[0].MicrosoftGraphClientFactory != nil {
+		msGraphClientFactory = opts[0].MicrosoftGraphClientFactory
+	}
+
 	svc, err := NewService(
 		ctx,
 		ds,
@@ -324,6 +358,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 			androidModule,
 			estCAService,
 			pssoNonceStore,
+			msGraphClientFactory,
 		)
 		if err != nil {
 			panic(err)
@@ -458,14 +493,20 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 		logger = opts[0].Logger
 	}
 
+	var extraInitFeatureRoutes []apiendpoints.FeatureRouteFunc
+
 	if len(opts) > 0 {
 		opts[0].FeatureRoutes = append(opts[0].FeatureRoutes, android_service.GetRoutes(svc, opts[0].AndroidModule))
+	} else {
+		// No opts (mock-backed tests): android routes aren't wired into the handler,
+		// but the endpointer only dereferences the android module when an endpoint is
+		// actually served, so surface a path-only stub to apiendpoints.Validate.
+		extraInitFeatureRoutes = append(extraInitFeatureRoutes, apiendpoints.FeatureRouteFunc(android_service.GetRoutes(svc, nil)))
 	}
 
 	// Activity routes. If DBConns is provided, wire the real bounded context into
 	// the main handler. Otherwise, build a path-only stub from the same registration
 	// code and surface it to apiendpoints.Validate for catalog validation only.
-	var extraInitFeatureRoutes []apiendpoints.FeatureRouteFunc
 	if len(opts) > 0 && opts[0].DBConns != nil {
 		legacyAuthorizer, err := authz.NewAuthorizer()
 		require.NoError(t, err)
@@ -1528,3 +1569,17 @@ func (rt *mockRoundTripper) RoundTrip(req *http.Request) (*http.Response, error)
 // errOnly adapts RecordPolicyQueryExecutions' (stalePolicyIDs, error) return
 // for assertions that only care about the error.
 func errOnly(_ []uint, err error) error { return err }
+
+// noopGraphClient keeps credential verification off the network. Test servers built without an injected factory would
+// otherwise reach the real login.microsoftonline.com and graph.microsoft.com on any config write carrying a credential.
+type noopGraphClient struct{}
+
+func (noopGraphClient) VerifyCredential(context.Context) error { return nil }
+
+func (noopGraphClient) ListWindowsAutopilotDevices(context.Context) ([]msgraph.WindowsAutopilotDevice, error) {
+	return nil, nil
+}
+
+func noopGraphFactory(*fleet.MicrosoftGraphCredential) (msgraph.Client, error) {
+	return noopGraphClient{}, nil
+}

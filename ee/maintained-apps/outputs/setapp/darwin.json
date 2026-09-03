@@ -1,15 +1,16 @@
 {
   "versions": [
     {
-      "version": "3.54.0",
+      "version": "3.55.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.setapp.DesktopClient.SetappAgent';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.setapp.DesktopClient.SetappAgent' AND version_compare(bundle_short_version, '3.54.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.setapp.DesktopClient.SetappAgent' AND version_compare(bundle_short_version, '3.55.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.setapp.DesktopClient.SetappAgent');"
       },
-      "installer_url": "https://dl.devmate.com/com.setapp.DesktopClient/153/1784621405/Setapp-153.zip",
+      "installer_url": "https://dl.devmate.com/com.setapp.DesktopClient/156/1787228237/Setapp-156.zip",
       "install_script_ref": "eb0dc2d0",
       "uninstall_script_ref": "9ef05eb6",
-      "sha256": "3b8579b2ccc7f0a3bab102fca3417dfca9f243d1ac5dbc08fb60e85b3796f124",
+      "sha256": "63d7f3935317f9d57c869586160583810c7995c86a2b159f5f72cfa88ebbb2c5",
       "default_categories": [
         "Productivity"
       ]

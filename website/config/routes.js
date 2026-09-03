@@ -406,11 +406,11 @@ module.exports.routes = {
     }
   },
 
-  'GET /visibility-and-reporting': {
-    action: 'view-visibility-and-reporting',
+  'GET /endpoint-governance': {
+    action: 'view-endpoint-governance',
     locals: {
-      pageTitleForMeta: 'Visibility and reporting',
-      pageDescriptionForMeta: 'Pulse check anything, build reports, and ship data to any platform with Fleet.',
+      pageTitleForMeta: 'Endpoint governance',
+      pageDescriptionForMeta: 'Secure every extension, package, and AI tool running on your devices.',
       currentSection: 'platform',
     }
   },
@@ -1167,6 +1167,8 @@ module.exports.routes = {
   'GET /orchestration': '/visibility-and-reporting',
   'GET /gitops-workshop': (req, res) => { let originalQueryString = req.url.match(/\?(.+)$/) ? '?' + req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl + '/workshops' + originalQueryString); },
   'GET /gitops-workshops': '/workshops',
+  'GET /guides/seamless-mdm-migration': '/support',
+  'GET /visibility-and-reporting': '/endpoint-governance',
   //  ╔╦╗╦╔═╗╔═╗  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗   ┬   ╔╦╗╔═╗╦ ╦╔╗╔╦  ╔═╗╔═╗╔╦╗╔═╗
   //  ║║║║╚═╗║    ╠╦╝║╣  ║║║╠╦╝║╣ ║   ║ ╚═╗  ┌┼─   ║║║ ║║║║║║║║  ║ ║╠═╣ ║║╚═╗
   //  ╩ ╩╩╚═╝╚═╝  ╩╚═╚═╝═╩╝╩╩╚═╚═╝╚═╝ ╩ ╚═╝  └┘   ═╩╝╚═╝╚╩╝╝╚╝╩═╝╚═╝╩ ╩═╩╝╚═╝
@@ -1346,6 +1348,7 @@ module.exports.routes = {
   'GET /learn-more-about/disable-entra-conditional-access': '/guides/entra-conditional-access-integration#disable',
   'GET /learn-more-about/available-fma-versions': 'https://github.com/fleetdm/fleet/tree/main/ee/maintained-apps/outputs',
   'GET /learn-more-about/connect-microsoft-entra': '/guides/windows-mdm-setup#step-2-connect-fleet-to-microsoft-entra-id',
+  'GET /learn-more-about/connect-microsoft-graph': '/guides/windows-mdm-setup#connect-fleet-to-microsoft-graph',
   'GET /learn-more-about/macos-configuration-profiles-same-scope': '/guides/custom-os-settings#upgrading-to-4-71-0',
   'GET /learn-more-about/configuration-profiles-user-channel': '/guides/custom-os-settings#upgrading-to-4-71-0',
   'GET /learn-more-about/disable-okta-conditional-access': '/guides/okta-conditional-access-integration#disabling-okta-conditional-access',
@@ -1378,7 +1381,11 @@ module.exports.routes = {
   'GET /learn-more-about/idp-account-sync': '/guides/deploying-apple-account-provisioning-with-fleet',
   'GET /learn-more-about/security-posture': 'https://developers.google.com/android/management/reference/rest/v1/enterprises.devices#DevicePosture',
   'GET /learn-more-about/software-update-status': 'https://developers.google.com/android/management/reference/rest/v1/enterprises.devices#SystemUpdateInfo',
-
+  'GET /learn-more-about/ddm-activations': '/guides/custom-os-settings#apple-declarations-ddm',
+  'GET /learn-more-about/linux-disk-encryption': '/guides/enforce-disk-encryption#enforce-disk-encryption-on-linux',
+  'GET /learn-more-about/removal-behavior': '/guides/custom-os-settings#removal-behavior',
+  'GET /learn-more-about/android-manual-sync': '/guides/how-to-manually-sync-an-android-device',
+  'GET /learn-more-about/policy-automation-resend-configuration-profile': '/guides/policy-automation-resend-configuration-profile',
 
   // Sitemap
   // =============================================================================================================
@@ -1434,6 +1441,7 @@ module.exports.routes = {
   'PATCH /api/android/v1/enterprises/:androidEnterpriseId/policies/:policyId': { action: 'android-proxy/modify-android-policies', csrf: false },
   'DELETE /api/android/v1/enterprises/:androidEnterpriseId': { action: 'android-proxy/delete-one-android-enterprise', csrf: false },
   'GET /api/android/v1/enterprises/:androidEnterpriseId/devices/:deviceId': { action: 'android-proxy/get-android-device' },
+  'GET /api/android/v1/enterprises/:androidEnterpriseId/devices/:deviceId/operations/:operationId': { action: 'android-proxy/get-android-device-operation' },
   'GET /api/android/v1/enterprises/:androidEnterpriseId/devices': { action: 'android-proxy/get-android-devices' },
   'DELETE /api/android/v1/enterprises/:androidEnterpriseId/devices/:deviceId': { action: 'android-proxy/delete-android-device', csrf: false },
   'PATCH /api/android/v1/enterprises/:androidEnterpriseId/devices/:deviceId': { action: 'android-proxy/modify-android-device', csrf: false },
@@ -1457,7 +1465,6 @@ module.exports.routes = {
   'POST /api/v1/customers/login': { action: 'entrance/login' },
   '/api/v1/account/logout': { action: 'account/logout' },
   'POST /api/v1/customers/create-quote': { action: 'customers/create-quote' },
-  'POST /api/v1/customers/save-billing-info-and-subscribe': { action: 'customers/save-billing-info-and-subscribe' },
   'POST /api/v1/entrance/update-password-and-login': { action: 'entrance/update-password-and-login' },
   'POST /api/v1/deliver-demo-signup': { action: 'deliver-demo-signup' },
   'POST /api/v1/create-or-update-one-newsletter-subscription': { action: 'create-or-update-one-newsletter-subscription' },

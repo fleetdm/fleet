@@ -50,9 +50,13 @@ func (ds *Datastore) SoftwareTitleByID(ctx context.Context, id uint, teamID *uin
 		inHouseAppsTeamsGlobalOrTeamIDFilter = fmt.Sprintf("iha.global_or_team_id = %d", *teamID)
 	} else {
 		teamFilter = ds.whereFilterTeamWithGlobalStats(tmFilter, "sthc")
-		softwareInstallerGlobalOrTeamIDFilter = "TRUE"
-		vppAppsTeamsGlobalOrTeamIDFilter = "TRUE"
-		inHouseAppsTeamsGlobalOrTeamIDFilter = "TRUE"
+		// A nil teamID means "every fleet the caller can see", not "every fleet".
+		// These joins decide whether the title row exists at all, so leaving them
+		// unfiltered confirms titles that exist only in a fleet the caller has no
+		// access to. Same boundary the host-counts filter above already applies.
+		softwareInstallerGlobalOrTeamIDFilter = ds.whereFilterGlobalOrTeamIDByTeamsWithSqlFilter(tmFilter, "TRUE", "si.global_or_team_id")
+		vppAppsTeamsGlobalOrTeamIDFilter = ds.whereFilterGlobalOrTeamIDByTeamsWithSqlFilter(tmFilter, "TRUE", "vat.global_or_team_id")
+		inHouseAppsTeamsGlobalOrTeamIDFilter = ds.whereFilterGlobalOrTeamIDByTeamsWithSqlFilter(tmFilter, "TRUE", "iha.global_or_team_id")
 	}
 
 	// Select software title but filter out if the software has zero host counts
@@ -213,24 +217,25 @@ func (ds *Datastore) UpdateSoftwareTitleName(ctx context.Context, titleID uint, 
 // installer/VPP/in-house columns that get promoted in post-processing.
 type softwareTitleWithInstallerFields struct {
 	fleet.SoftwareTitleListResult
-	PackageSelfService        *bool   `db:"package_self_service"`
-	PackageName               *string `db:"package_name"`
-	PackageVersion            *string `db:"package_version"`
-	PackagePlatform           *string `db:"package_platform"`
-	PackageURL                *string `db:"package_url"`
-	PackageInstallDuringSetup *bool   `db:"package_install_during_setup"`
-	VPPAppSelfService         *bool   `db:"vpp_app_self_service"`
-	VPPAppAdamID              *string `db:"vpp_app_adam_id"`
-	VPPAppVersion             *string `db:"vpp_app_version"`
-	VPPAppPlatform            *string `db:"vpp_app_platform"`
-	VPPAppIconURL             *string `db:"vpp_app_icon_url"`
-	VPPInstallDuringSetup     *bool   `db:"vpp_install_during_setup"`
-	FleetMaintainedAppID      *uint   `db:"fleet_maintained_app_id"`
-	InHouseAppName            *string `db:"in_house_app_name"`
-	InHouseAppVersion         *string `db:"in_house_app_version"`
-	InHouseAppPlatform        *string `db:"in_house_app_platform"`
-	InHouseAppStorageID       *string `db:"in_house_app_storage_id"`
-	InHouseAppSelfService     *bool   `db:"in_house_app_self_service"`
+	PackageSelfService           *bool   `db:"package_self_service"`
+	PackageName                  *string `db:"package_name"`
+	PackageVersion               *string `db:"package_version"`
+	PackagePlatform              *string `db:"package_platform"`
+	PackageURL                   *string `db:"package_url"`
+	PackageInstallDuringSetup    *bool   `db:"package_install_during_setup"`
+	VPPAppSelfService            *bool   `db:"vpp_app_self_service"`
+	VPPAppAdamID                 *string `db:"vpp_app_adam_id"`
+	VPPAppVersion                *string `db:"vpp_app_version"`
+	VPPAppPlatform               *string `db:"vpp_app_platform"`
+	VPPAppIconURL                *string `db:"vpp_app_icon_url"`
+	VPPInstallDuringSetup        *bool   `db:"vpp_install_during_setup"`
+	FleetMaintainedAppID         *uint   `db:"fleet_maintained_app_id"`
+	InHouseAppName               *string `db:"in_house_app_name"`
+	InHouseAppVersion            *string `db:"in_house_app_version"`
+	InHouseAppPlatform           *string `db:"in_house_app_platform"`
+	InHouseAppStorageID          *string `db:"in_house_app_storage_id"`
+	InHouseAppSelfService        *bool   `db:"in_house_app_self_service"`
+	InHouseAppInstallDuringSetup *bool   `db:"in_house_app_install_during_setup"`
 }
 
 // canUseOptimizedListTitlesQuery returns true when the common fast-path can be used:
@@ -432,10 +437,11 @@ func (ds *Datastore) processSoftwareTitleResults(
 				platform = *title.InHouseAppPlatform
 			}
 			title.SoftwarePackage = &fleet.SoftwarePackageOrApp{
-				Name:        *title.InHouseAppName,
-				Version:     version,
-				Platform:    platform,
-				SelfService: title.InHouseAppSelfService,
+				Name:               *title.InHouseAppName,
+				Version:            version,
+				Platform:           platform,
+				SelfService:        title.InHouseAppSelfService,
+				InstallDuringSetup: title.InHouseAppInstallDuringSetup,
 			}
 			// This is set directly for software packages via db tag, but for in-house apps we need to set it here.
 			title.HashSHA256 = title.InHouseAppStorageID
@@ -585,7 +591,7 @@ func (ds *Datastore) processSoftwareTitleResults(
 			}
 		}
 		if len(fmaTitleIDs) > 0 {
-			fmaVersions, err := ds.getFleetMaintainedVersionsByTitleIDs(ctx, ds.reader(ctx), fmaTitleIDs, *opt.TeamID, false)
+			fmaVersions, err := ds.getFleetMaintainedVersionsByTitleIDs(ctx, ds.reader(ctx), fmaTitleIDs, *opt.TeamID)
 			if err != nil {
 				return nil, 0, nil, ctxerr.Wrap(ctx, err, "get fleet maintained versions")
 			}
@@ -754,6 +760,7 @@ SELECT
 		,iha.platform as in_house_app_platform
 		,iha.storage_id as in_house_app_storage_id
 		,iha.self_service as in_house_app_self_service
+		,iha.install_during_setup as in_house_app_install_during_setup
 	{{end}}
 FROM software_titles st
 	{{if hasTeamID .}}
@@ -828,8 +835,12 @@ WHERE
 		{{end}}
 		AND ({{$defFilter}})
 	{{end}}
-	-- If for setup experience, exclude any installers that are not supported
-	{{if .ForSetupExperience}}
+	-- If for setup experience, exclude any installers that are not supported.
+	-- In-house apps are only supported for setup experience on iOS/iPadOS, so
+	-- they surface whenever the platform list includes a mobile platform (the
+	-- platform predicate above already restricts iha rows to the listed
+	-- platforms) and stay excluded for desktop-only queries.
+	{{if and .ForSetupExperience (not (containsAppleMobile $.Platform))}}
 		AND iha.id IS NULL
 	{{end}}
 GROUP BY
@@ -854,6 +865,7 @@ GROUP BY
 		,in_house_app_platform
 		,in_house_app_storage_id
 		,in_house_app_self_service
+		,in_house_app_install_during_setup
 	{{end}}
 `
 	var args []any
@@ -911,6 +923,14 @@ GROUP BY
 		},
 		"isDarwinOnly": func(platform string) bool {
 			return strings.TrimSpace(strings.ReplaceAll(platform, "macos", "darwin")) == "darwin"
+		},
+		"containsAppleMobile": func(platform string) bool {
+			for p := range strings.SplitSeq(platform, ",") {
+				if p = strings.TrimSpace(p); p == "ios" || p == "ipados" {
+					return true
+				}
+			}
+			return false
 		},
 		"hasTeamID": func(q fleet.SoftwareTitleListOptions) bool {
 			return q.TeamID != nil
@@ -1053,7 +1073,8 @@ func buildOptimizedListSoftwareTitlesSQL(opts fleet.SoftwareTitleListOptions) st
 			iha.version AS in_house_app_version,
 			iha.platform AS in_house_app_platform,
 			iha.storage_id AS in_house_app_storage_id,
-			iha.self_service AS in_house_app_self_service`
+			iha.self_service AS in_house_app_self_service,
+			iha.install_during_setup AS in_house_app_install_during_setup`
 	}
 
 	outerSQL += fmt.Sprintf(`
@@ -1126,9 +1147,9 @@ func countSoftwareTitlesOptimized(opts fleet.SoftwareTitleListOptions) string {
 }
 
 // GetFleetMaintainedVersionsByTitleID returns all cached versions of a fleet-maintained app
-// for the given title and team.
-func (ds *Datastore) GetFleetMaintainedVersionsByTitleID(ctx context.Context, teamID *uint, titleID uint, byVersion bool) ([]fleet.FleetMaintainedVersion, error) {
-	result, err := ds.getFleetMaintainedVersionsByTitleIDs(ctx, ds.reader(ctx), []uint{titleID}, ptr.ValOrZero(teamID), byVersion)
+// for the given title and team, most recently downloaded first.
+func (ds *Datastore) GetFleetMaintainedVersionsByTitleID(ctx context.Context, teamID *uint, titleID uint) ([]fleet.FleetMaintainedVersion, error) {
+	result, err := ds.getFleetMaintainedVersionsByTitleIDs(ctx, ds.reader(ctx), []uint{titleID}, ptr.ValOrZero(teamID))
 	if err != nil {
 		return nil, err
 	}
@@ -1136,8 +1157,10 @@ func (ds *Datastore) GetFleetMaintainedVersionsByTitleID(ctx context.Context, te
 }
 
 // getFleetMaintainedVersionsByTitleIDs returns all cached versions of fleet-maintained apps
-// for the given title IDs and team, keyed by title ID.
-func (ds *Datastore) getFleetMaintainedVersionsByTitleIDs(ctx context.Context, q sqlx.QueryerContext, titleIDs []uint, teamID uint, byVersion bool) (map[uint][]fleet.FleetMaintainedVersion, error) {
+// for the given title IDs and team, keyed by title ID, most recently downloaded first.
+// Fleet only caches what the manifest published and never rewrites a cached row's version,
+// so download order follows the manifest.
+func (ds *Datastore) getFleetMaintainedVersionsByTitleIDs(ctx context.Context, q sqlx.QueryerContext, titleIDs []uint, teamID uint) (map[uint][]fleet.FleetMaintainedVersion, error) {
 	if len(titleIDs) == 0 {
 		return nil, nil
 	}
@@ -1146,7 +1169,7 @@ func (ds *Datastore) getFleetMaintainedVersionsByTitleIDs(ctx context.Context, q
 		SELECT si.id, si.version, si.filename, si.title_id, si.uploaded_at
 			FROM software_installers si
 		WHERE si.title_id IN (?) AND si.global_or_team_id = ? AND si.fleet_maintained_app_id IS NOT NULL
-		ORDER BY si.title_id, si.uploaded_at DESC
+		ORDER BY si.title_id, si.uploaded_at DESC, si.id DESC
 	`
 
 	query, args, err := sqlx.In(query, titleIDs, teamID)
@@ -1169,21 +1192,16 @@ func (ds *Datastore) getFleetMaintainedVersionsByTitleIDs(ctx context.Context, q
 		result[row.TitleID] = append(result[row.TitleID], row.FleetMaintainedVersion)
 	}
 
-	if byVersion {
-		// sort by semantic version
-		for id := range result {
-			slices.SortFunc(result[id], func(a fleet.FleetMaintainedVersion, b fleet.FleetMaintainedVersion) int {
-				aVersion, aErr := fleet.VersionToSemverVersion(a.Version)
-				bVersion, bErr := fleet.VersionToSemverVersion(b.Version)
-				if aErr != nil || bErr != nil {
-					return strings.Compare(b.Version, a.Version)
-				}
-				return bVersion.Compare(aVersion)
-			})
-		}
-	}
-
 	return result, nil
+}
+
+func (ds *Datastore) MarkFleetMaintainedAppVersionCurrent(ctx context.Context, installerID uint) error {
+	_, err := ds.writer(ctx).ExecContext(ctx,
+		`UPDATE software_installers SET uploaded_at = NOW(6) WHERE id = ?`, installerID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "marking fleet maintained app version current")
+	}
+	return nil
 }
 
 func (ds *Datastore) HasFMAInstallerVersion(ctx context.Context, teamID *uint, fmaID uint, version string) (versionExists bool, storageID string, err error) {
@@ -1216,7 +1234,8 @@ func (ds *Datastore) GetCachedFMAInstallerMetadata(ctx context.Context, teamID *
 			COALESCE(usc.contents, '') AS uninstall_script,
 			COALESCE(si.pre_install_query, '') AS pre_install_query,
 			si.upgrade_code,
-			si.patch_query
+			si.patch_query,
+			si.app_open_query
 		FROM software_installers si
 		LEFT JOIN script_contents isc ON isc.id = si.install_script_content_id
 		LEFT JOIN script_contents usc ON usc.id = si.uninstall_script_content_id

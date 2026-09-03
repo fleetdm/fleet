@@ -119,6 +119,7 @@ const DEFAULT_HOST_MOCK: IHost = {
   end_users: [],
   conditional_access_bypassed: false,
   dep_assigned_to_fleet: false,
+  timezone: null,
 };
 
 const createMockHost = (overrides?: Partial<IHost>): IHost => {
@@ -184,6 +185,7 @@ const DEFAULT_HOST_SOFTWARE_PACKAGE_MOCK: IHostSoftwarePackage = {
     installed_at: "2022-01-01T12:00:00Z",
   },
   last_uninstall: null,
+  has_uninstall_script: true,
 };
 
 export const createMockHostSoftwarePackage = (

@@ -444,6 +444,101 @@ func TestClearPasscode(t *testing.T) {
 	})
 }
 
+func TestCancelHostMDMCommand(t *testing.T) {
+	t.Parallel()
+	ds := new(mock.Store)
+	authorizer, err := authz.NewAuthorizer()
+	require.NoError(t, err)
+
+	var lastActivity fleet.ActivityDetails
+	svc := Service{ds: ds, authz: authorizer, Service: &mocksvc.Service{
+		NewActivityFunc: func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+			lastActivity = activity
+			return nil
+		},
+	}}
+
+	ds.HostLiteFunc = func(ctx context.Context, hostID uint) (*fleet.Host, error) {
+		return &fleet.Host{ID: hostID, UUID: "host-uuid-1", Platform: "darwin", Hostname: "mac-1"}, nil
+	}
+	ds.CancelHostMDMCommandFunc = func(ctx context.Context, host *fleet.Host, commandUUID string) (string, error) {
+		return "DeviceLock", nil
+	}
+
+	t.Run("authorization", func(t *testing.T) {
+		// The selective-list gate admits gitops (which can send raw MDM
+		// commands via POST /commands/run); mdm_command write then decides.
+		cases := []struct {
+			desc              string
+			user              *fleet.User
+			shoudFailWithAuth bool
+		}{
+			{"no role", test.UserNoRoles, true},
+			{"observer", test.UserObserver, true},
+			{"observer+", test.UserObserverPlus, true},
+			{"technician", test.UserTechnician, true},
+			{"gitops", test.UserGitOps, false},
+			{"maintainer", test.UserMaintainer, false},
+			{"admin", test.UserAdmin, false},
+		}
+		for _, c := range cases {
+			t.Run(c.desc, func(t *testing.T) {
+				ctx := test.UserContext(t.Context(), c.user)
+				err := svc.CancelHostMDMCommand(ctx, 1, "cmd-uuid")
+				checkAuthErr(t, c.shoudFailWithAuth, err)
+			})
+		}
+	})
+
+	t.Run("happy path", func(t *testing.T) {
+		ds.CancelHostMDMCommandFuncInvoked = false
+		lastActivity = nil
+
+		ctx := test.UserContext(t.Context(), test.UserAdmin)
+		require.NoError(t, svc.CancelHostMDMCommand(ctx, 1, "cmd-uuid"))
+		require.True(t, ds.CancelHostMDMCommandFuncInvoked)
+
+		act, ok := lastActivity.(fleet.ActivityTypeCanceledMDMCommand)
+		require.True(t, ok)
+		assert.Equal(t, uint(1), act.HostID)
+		assert.Equal(t, "mac-1", act.HostDisplayName)
+		assert.Equal(t, "DeviceLock", act.CommandType)
+	})
+
+	t.Run("non-apple platform", func(t *testing.T) {
+		ds.HostLiteFunc = func(ctx context.Context, hostID uint) (*fleet.Host, error) {
+			return &fleet.Host{ID: hostID, Platform: "windows"}, nil
+		}
+		ds.CancelHostMDMCommandFuncInvoked = false
+
+		ctx := test.UserContext(t.Context(), test.UserAdmin)
+		err := svc.CancelHostMDMCommand(ctx, 1, "cmd-uuid")
+		require.Error(t, err)
+		var badReq *fleet.BadRequestError
+		require.ErrorAs(t, err, &badReq)
+		assert.Contains(t, badReq.Message, "Only Apple MDM commands can be canceled")
+		require.False(t, ds.CancelHostMDMCommandFuncInvoked)
+
+		// Restore for subsequent tests.
+		ds.HostLiteFunc = func(ctx context.Context, hostID uint) (*fleet.Host, error) {
+			return &fleet.Host{ID: hostID, UUID: "host-uuid-1", Platform: "darwin", Hostname: "mac-1"}, nil
+		}
+	})
+
+	t.Run("datastore error means no activity", func(t *testing.T) {
+		ds.CancelHostMDMCommandFunc = func(ctx context.Context, host *fleet.Host, commandUUID string) (string, error) {
+			return "", &notFoundError{}
+		}
+		lastActivity = nil
+
+		ctx := test.UserContext(t.Context(), test.UserAdmin)
+		err := svc.CancelHostMDMCommand(ctx, 1, "cmd-uuid")
+		require.Error(t, err)
+		require.True(t, fleet.IsNotFound(err))
+		require.Nil(t, lastActivity)
+	})
+}
+
 func TestUpdateABMTokenTeams(t *testing.T) {
 	t.Parallel()
 	ds := new(mock.Store)
@@ -602,5 +697,121 @@ func TestUpdateABMTokenTeams(t *testing.T) {
 		assert.Equal(t, validTeamName, appCfgToken.MacOSTeam)
 		assert.Equal(t, validTeamName, appCfgToken.IOSTeam)
 		assert.Equal(t, validTeamName, appCfgToken.IpadOSTeam)
+	})
+}
+func TestMDMAppleEditedAppleOSUpdatesDeclaration(t *testing.T) {
+	ctx := context.Background()
+	teamID := uint(1)
+
+	// captured records what the datastore was handed, so the tests assert on the
+	// generated declaration rather than on a real write.
+	type captured struct {
+		decl    *fleet.MDMAppleDeclaration
+		vars    []fleet.FleetVarName
+		deleted string
+		labels  []string
+	}
+
+	newSvc := func() (*Service, *captured) {
+		got := &captured{}
+		ds := new(mock.Store)
+		ds.LabelIDsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]uint, error) {
+			got.labels = names
+			ids := make(map[string]uint, len(names))
+			for i, name := range names {
+				ids[name] = uint(i + 1) //nolint:gosec
+			}
+			return ids, nil
+		}
+		ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, decl *fleet.MDMAppleDeclaration,
+			usesFleetVars []fleet.FleetVarName, activationAction fleet.MDMAppleActivationAction,
+		) (*fleet.MDMAppleDeclaration, error) {
+			got.decl = decl
+			got.vars = usesFleetVars
+			decl.DeclarationUUID = "decl-uuid"
+			return decl, nil
+		}
+		ds.DeleteMDMAppleDeclarationByNameFunc = func(ctx context.Context, declTeamID *uint, name string) error {
+			got.deleted = name
+			return nil
+		}
+		return &Service{ds: ds}, got
+	}
+
+	// Each platform gets its own declaration name and built-in label; a mix-up
+	// would send the OS update declaration to the wrong devices.
+	platforms := []struct {
+		name      string
+		device    fleet.AppleDevice
+		declName  string
+		labelName string
+	}{
+		{"macos", fleet.MacOS, mdm.FleetMacOSUpdatesProfileName, fleet.BuiltinLabelMacOS14Plus},
+		{"ios", fleet.IOS, mdm.FleetIOSUpdatesProfileName, fleet.BuiltinLabelIOS},
+		{"ipados", fleet.IPadOS, mdm.FleetIPadOSUpdatesProfileName, fleet.BuiltinLabelIPadOS},
+	}
+
+	t.Run("latest emits Fleet variable placeholders", func(t *testing.T) {
+		for _, p := range platforms {
+			t.Run(p.name, func(t *testing.T) {
+				svc, got := newSvc()
+
+				err := svc.mdmAppleEditedAppleOSUpdates(ctx, &teamID, p.device, fleet.AppleOSUpdateSettings{
+					MinimumVersion: optjson.SetString(fleet.AppleOSUpdateLatestVersion),
+					DeadlineDays:   optjson.SetInt(14),
+				})
+				require.NoError(t, err)
+				require.NotNil(t, got.decl)
+				require.Empty(t, got.deleted)
+
+				// The literal placeholder text matters: it is what gets substituted
+				// per host at declaration fetch time.
+				require.Contains(t, string(got.decl.RawJSON), `"TargetOSVersion": "$FLEET_VAR_HOST_TARGET_OS_VERSION"`)
+				require.Contains(t, string(got.decl.RawJSON), `"TargetLocalDateTime": "${FLEET_VAR_HOST_TARGET_OS_DEADLINE}T12:00:00"`)
+				// Without these the declaration is stored but never expanded.
+				require.ElementsMatch(t, []fleet.FleetVarName{
+					fleet.FleetVarHostTargetOSVersion,
+					fleet.FleetVarHostTargetOSDeadline,
+				}, got.vars)
+
+				require.Equal(t, p.declName, got.decl.Name)
+				require.Equal(t, []string{p.labelName}, got.labels)
+			})
+		}
+	})
+
+	t.Run("specific version emits literal values and no variables", func(t *testing.T) {
+		for _, p := range platforms {
+			t.Run(p.name, func(t *testing.T) {
+				svc, got := newSvc()
+
+				err := svc.mdmAppleEditedAppleOSUpdates(ctx, &teamID, p.device, fleet.AppleOSUpdateSettings{
+					MinimumVersion: optjson.SetString("15.7.8"),
+					Deadline:       optjson.SetString("2026-09-01"),
+				})
+				require.NoError(t, err)
+				require.NotNil(t, got.decl)
+				require.Contains(t, string(got.decl.RawJSON), `"TargetOSVersion": "15.7.8"`)
+				require.Contains(t, string(got.decl.RawJSON), `"TargetLocalDateTime": "2026-09-01T12:00:00"`)
+				require.NotContains(t, string(got.decl.RawJSON), "FLEET_VAR_")
+				require.Empty(t, got.vars)
+
+				require.Equal(t, p.declName, got.decl.Name)
+				require.Equal(t, []string{p.labelName}, got.labels)
+			})
+		}
+	})
+
+	t.Run("disabled deletes the declaration", func(t *testing.T) {
+		for _, p := range platforms {
+			t.Run(p.name, func(t *testing.T) {
+				svc, got := newSvc()
+
+				err := svc.mdmAppleEditedAppleOSUpdates(ctx, &teamID, p.device, fleet.AppleOSUpdateSettings{})
+				require.NoError(t, err)
+				require.Nil(t, got.decl, "no declaration should be written when OS updates are off")
+				require.Equal(t, p.declName, got.deleted)
+			})
+		}
 	})
 }

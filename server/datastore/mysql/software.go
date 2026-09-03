@@ -1372,10 +1372,12 @@ func (ds *Datastore) preInsertSoftwareInventory(
 
 				// Retrieve the IDs for the titles we just inserted (or that already existed).
 				// Use uniqueTitles (all unique titles) so we resolve IDs for cached titles too.
-				var retrievedTitleSummaries []fleet.SoftwareTitleSummary
-				titlePlaceholders := strings.TrimSuffix(strings.Repeat("(?,?,?,?),", len(uniqueTitles)), ",")
-				queryArgs := make([]any, 0, len(uniqueTitles)*4)
-				var upgradeCodes []string
+				// The branches are UNIONed, not ORed: a single OR across these columns causes a regression to a full table scan.
+				var (
+					bundleArgs  []any // (bundle_identifier, source, extension_for)
+					nameArgs    []any // (name, source, extension_for)
+					upgradeArgs []any // unique_identifier, which resolves to upgrade_code for Windows programs
+				)
 				for tk := range uniqueTitles {
 					title := uniqueTitles[tk]
 					bundleID := ""
@@ -1383,33 +1385,45 @@ func (ds *Datastore) preInsertSoftwareInventory(
 						bundleID = *title.BundleIdentifier
 					}
 
-					firstArg := title.Name
 					if bundleID != "" {
-						firstArg = bundleID
+						bundleArgs = append(bundleArgs, bundleID, title.Source, title.ExtensionFor)
+					} else {
+						nameArgs = append(nameArgs, title.Name, title.Source, title.ExtensionFor)
 					}
-					queryArgs = append(queryArgs, firstArg, title.Source, title.ExtensionFor, bundleID)
 
 					// Collect non-empty upgrade_codes for Windows programs
 					if title.UpgradeCode != nil && *title.UpgradeCode != "" && title.Source == "programs" {
-						upgradeCodes = append(upgradeCodes, *title.UpgradeCode)
+						upgradeArgs = append(upgradeArgs, *title.UpgradeCode)
 					}
 				}
 
-				// Build query that matches by (name/bundle_identifier, source, extension_for) OR by upgrade_code.
-				stmt := fmt.Sprintf(`SELECT id, name, source, extension_for, bundle_identifier, upgrade_code, application_id
-					FROM software_titles
-					WHERE (COALESCE(bundle_identifier, name), source, extension_for, COALESCE(bundle_identifier, '')) IN (%s)`, titlePlaceholders)
-
-				if len(upgradeCodes) > 0 {
-					ucPlaceholders := strings.TrimSuffix(strings.Repeat("?,", len(upgradeCodes)), ",")
-					stmt += fmt.Sprintf(` OR (upgrade_code IN (%s) AND source = 'programs')`, ucPlaceholders)
-					for _, uc := range upgradeCodes {
-						queryArgs = append(queryArgs, uc)
-					}
+				const titleSelect = `SELECT id, name, source, extension_for, bundle_identifier, upgrade_code, application_id ` +
+					`FROM software_titles`
+				branches := make([]string, 0, 3)
+				queryArgs := make([]any, 0, len(bundleArgs)+len(nameArgs)+len(upgradeArgs))
+				if len(bundleArgs) > 0 {
+					branches = append(branches, titleSelect+fmt.Sprintf(` WHERE (bundle_identifier, source, extension_for) IN (%s)`,
+						strings.TrimSuffix(strings.Repeat("(?,?,?),", len(bundleArgs)/3), ",")))
+					queryArgs = append(queryArgs, bundleArgs...)
+				}
+				if len(nameArgs) > 0 {
+					branches = append(branches,
+						titleSelect+fmt.Sprintf(` WHERE bundle_identifier IS NULL AND (name, source, extension_for) IN (%s)`,
+							strings.TrimSuffix(strings.Repeat("(?,?,?),", len(nameArgs)/3), ",")))
+					queryArgs = append(queryArgs, nameArgs...)
+				}
+				if len(upgradeArgs) > 0 {
+					branches = append(branches, titleSelect+fmt.Sprintf(` WHERE source = 'programs' AND unique_identifier IN (%s)`,
+						strings.TrimSuffix(strings.Repeat("?,", len(upgradeArgs)), ",")))
+					queryArgs = append(queryArgs, upgradeArgs...)
 				}
 
-				if err := sqlx.SelectContext(ctx, tx, &retrievedTitleSummaries, stmt, queryArgs...); err != nil {
-					return ctxerr.Wrap(ctx, err, "select software titles")
+				var retrievedTitleSummaries []fleet.SoftwareTitleSummary
+				if len(branches) > 0 {
+					if err := sqlx.SelectContext(ctx, tx, &retrievedTitleSummaries,
+						strings.Join(branches, " UNION "), queryArgs...); err != nil {
+						return ctxerr.Wrap(ctx, err, "select software titles")
+					}
 				}
 
 				// Map the titles back to their checksums
@@ -3289,6 +3303,295 @@ func (ds *Datastore) cleanupUnusedSoftware(ctx context.Context) error {
 	return nil
 }
 
+// Reconciliation tuning for repairing pre-v4.76.0 software checksums. These are
+// vars (not consts) so tests can lower them to exercise batching.
+var (
+	// reconcileGroupsPerRun caps how many duplicate software groups are fetched and
+	// repaired per iteration; the loop repeats until none remain.
+	reconcileGroupsPerRun = 500
+	// reconcileRepointBatch bounds how many rows each host-reference statement
+	// touches, keeping every transaction small even for widely-installed software.
+	// (Fleet migrations run in a single transaction and cannot batch, which is why
+	// this repair lives in a cron where we control transaction size.)
+	reconcileRepointBatch = 1000
+)
+
+// softwareChecksumDupGroup is one row of the duplicate-detection query: an identity
+// shared by more than one software row. The identity columns must stay in sync with
+// Software.ComputeRawChecksum.
+type softwareChecksumDupGroup struct {
+	Name             string `db:"name"`
+	Version          string `db:"version"`
+	Source           string `db:"source"`
+	BundleIdentifier string `db:"bundle_identifier"`
+	Release          string `db:"release"`
+	Arch             string `db:"arch"`
+	Vendor           string `db:"vendor"`
+	ExtensionFor     string `db:"extension_for"`
+	ExtensionID      string `db:"extension_id"`
+	ApplicationID    string `db:"application_id"`
+	UpgradeCode      string `db:"upgrade_code"`
+	MemberCount      int    `db:"member_count"`
+	// Members is "id:checksumhex" per row, joined with ",". Encoding both in one
+	// token keeps ids and checksums aligned. A duplicate group has only a handful of
+	// members (one per historical checksum formula), so GROUP_CONCAT won't truncate;
+	// MemberCount is checked against the parsed list to catch it if it ever does.
+	Members string `db:"members"`
+}
+
+// software rebuilds the fleet.Software identity so its canonical checksum can be
+// recomputed via ComputeRawChecksum (the sole source of truth).
+func (g softwareChecksumDupGroup) software() fleet.Software {
+	sw := fleet.Software{
+		Name: g.Name, Version: g.Version, Source: g.Source,
+		BundleIdentifier: g.BundleIdentifier, Release: g.Release, Arch: g.Arch,
+		Vendor: g.Vendor, ExtensionFor: g.ExtensionFor, ExtensionID: g.ExtensionID,
+	}
+	if g.ApplicationID != "" {
+		appID := g.ApplicationID
+		sw.ApplicationID = &appID
+	}
+	if g.UpgradeCode != "" {
+		upgradeCode := g.UpgradeCode
+		sw.UpgradeCode = &upgradeCode
+	}
+	return sw
+}
+
+// ReconcileSoftwareChecksums repairs software rows whose checksum was computed
+// with the pre-v4.76.0 field ordering. Such rows no longer match the checksum
+// the current ingestion path computes, so a second row gets inserted for the
+// same software, producing duplicate inventory entries (same name/version/source,
+// different checksum, split host counts).
+//
+// It runs to completion, merging every duplicate group onto a single canonical row
+// (the one whose stored checksum equals ComputeRawChecksum). It is idempotent —
+// re-running finds nothing to do — so it is safe to run repeatedly. It is invoked by
+// the one-shot cronSoftwareChecksumMigration schedule (auto-runs once after startup,
+// re-triggerable with `fleetctl trigger --name software_checksum_migration`).
+func (ds *Datastore) ReconcileSoftwareChecksums(ctx context.Context) error {
+	ds.logger.InfoContext(ctx, "software checksum migration starting")
+
+	// COALESCE the nullable columns so NULL and '' group together, matching
+	// ComputeRawChecksum which treats an empty application_id/upgrade_code as absent.
+	findGroupsStmt := `
+		SELECT
+			name, version, source, COALESCE(bundle_identifier, '') AS bundle_identifier,
+			` + "`release`" + `, arch, vendor, extension_for, extension_id,
+			COALESCE(application_id, '') AS application_id,
+			COALESCE(upgrade_code, '') AS upgrade_code,
+			COUNT(*) AS member_count,
+			GROUP_CONCAT(CONCAT(id, ':', LOWER(HEX(checksum)))) AS members
+		FROM software
+		GROUP BY
+			name, version, source, COALESCE(bundle_identifier, ''), ` + "`release`" + `,
+			arch, vendor, extension_for, extension_id,
+			COALESCE(application_id, ''), COALESCE(upgrade_code, '')
+		HAVING COUNT(*) > 1
+		LIMIT ?`
+
+	total := 0
+	// Each iteration merges up to reconcileGroupsPerRun groups (deleting their stale
+	// rows), so the duplicate count strictly decreases and the loop terminates. There
+	// is no covering index for this GROUP BY, so each iteration is a full-table scan;
+	// acceptable for a one-shot background job, and a full batch is rare.
+	for {
+		// Read from the primary: each iteration merges groups (writes) and then
+		// re-scans, so a lagging replica could return groups we already merged.
+		var groups []softwareChecksumDupGroup
+		if err := sqlx.SelectContext(ctx, ds.writer(ctx), &groups, findGroupsStmt, reconcileGroupsPerRun); err != nil {
+			return ctxerr.Wrap(ctx, err, "find duplicate software groups")
+		}
+		for _, g := range groups {
+			if err := ds.reconcileSoftwareGroup(ctx, g); err != nil {
+				return ctxerr.Wrap(ctx, err, "reconcile software group")
+			}
+		}
+		total += len(groups)
+		// A short batch means we fetched every remaining group and just resolved them,
+		// so another scan would find nothing.
+		if len(groups) < reconcileGroupsPerRun {
+			break
+		}
+	}
+
+	ds.logger.InfoContext(ctx, "software checksum migration complete", "groups_merged", total)
+	return nil
+}
+
+type softwareChecksumMember struct {
+	id       uint64
+	checksum string
+}
+
+// parseSoftwareChecksumMembers parses the GROUP_CONCAT "id:checksumhex" list for a
+// duplicate group. The id is kept as uint64 (its parsed type) since it is only ever
+// passed as a SQL bind argument. It verifies the list was not truncated by
+// GROUP_CONCAT (group_concat_max_len) by requiring the parsed count to equal the
+// group's member count, so we never merge against a partial view of the group.
+func parseSoftwareChecksumMembers(members string, memberCount int) ([]softwareChecksumMember, error) {
+	var parsed []softwareChecksumMember
+	for tok := range strings.SplitSeq(members, ",") {
+		idStr, cksum, ok := strings.Cut(tok, ":")
+		if !ok {
+			return nil, fmt.Errorf("malformed reconciliation member token %q", tok)
+		}
+		id, err := strconv.ParseUint(idStr, 10, 64)
+		if err != nil {
+			return nil, fmt.Errorf("parse software id %q: %w", idStr, err)
+		}
+		parsed = append(parsed, softwareChecksumMember{id: id, checksum: cksum})
+	}
+	if len(parsed) != memberCount {
+		return nil, fmt.Errorf("reconciliation member list truncated: parsed %d of %d members", len(parsed), memberCount)
+	}
+	return parsed, nil
+}
+
+// reconcileSoftwareGroup merges a single duplicate group onto its canonical row.
+func (ds *Datastore) reconcileSoftwareGroup(ctx context.Context, g softwareChecksumDupGroup) error {
+	sw := g.software()
+	canonical, err := sw.ComputeRawChecksum()
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "compute canonical checksum")
+	}
+	canonicalHex := hex.EncodeToString(canonical)
+
+	parsed, err := parseSoftwareChecksumMembers(g.Members, g.MemberCount)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, fmt.Sprintf("reconcile group %s/%s/%s", sw.Name, sw.Version, sw.Source))
+	}
+	if len(parsed) < 2 {
+		// A duplicate group always has at least two members; nothing to merge otherwise.
+		return nil
+	}
+
+	// Survivor is the row whose stored checksum already equals canonical.
+	survivorIdx := -1
+	for i, m := range parsed {
+		if m.checksum == canonicalHex {
+			survivorIdx = i
+			break
+		}
+	}
+
+	if survivorIdx == -1 {
+		// No member matches canonical: fix the first member's checksum in place and
+		// make it the survivor. This cannot collide on the unique checksum index —
+		// any row with the canonical checksum shares this identity and would be in
+		// this group, and none here has it.
+		survivorIdx = 0
+		if err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+			_, err := tx.ExecContext(ctx, `UPDATE software SET checksum = ? WHERE id = ?`, canonical, parsed[0].id)
+			return err
+		}); err != nil {
+			return ctxerr.Wrap(ctx, err, "fix software checksum in place")
+		}
+		ds.logger.DebugContext(ctx, "software checksum migration: fixed checksum in place",
+			"name", sw.Name, "version", sw.Version, "source", sw.Source,
+			"software_id", parsed[0].id, "old_checksum", parsed[0].checksum, "new_checksum", canonicalHex)
+	}
+
+	survivorID := parsed[survivorIdx].id
+	for i, m := range parsed {
+		if i == survivorIdx {
+			continue
+		}
+		moved, err := ds.mergeSoftwareRow(ctx, m.id, survivorID)
+		if err != nil {
+			return err
+		}
+		ds.logger.DebugContext(ctx, "software checksum migration: merged duplicate software",
+			"name", sw.Name, "version", sw.Version, "source", sw.Source,
+			"survivor_id", survivorID, "stale_id", m.id,
+			"stale_checksum", m.checksum, "canonical_checksum", canonicalHex, "hosts_repointed", moved)
+	}
+	return nil
+}
+
+// mergeSoftwareRow repoints all host references from staleID onto survivorID in
+// bounded batches, then deletes the now-unreferenced stale software row. Returns
+// the number of host_software rows repointed.
+func (ds *Datastore) mergeSoftwareRow(ctx context.Context, staleID, survivorID uint64) (int64, error) {
+	// host_software has a composite PK (host_id, software_id). If a host is linked to
+	// both rows, repointing the stale link would collide with the survivor's. Resolve
+	// those collisions by deleting the redundant stale link first (the derived table
+	// lets us reference host_software in the subquery of its own DELETE), then repoint
+	// the rest with a plain UPDATE. This avoids UPDATE IGNORE, whose skipped rows would
+	// make a LIMIT-batched loop terminate early and drop still-movable links.
+	if _, err := ds.execReconcileBatches(ctx,
+		`DELETE FROM host_software
+		 WHERE software_id = ?
+		   AND host_id IN (SELECT host_id FROM (SELECT host_id FROM host_software WHERE software_id = ?) surv)
+		 LIMIT ?`, staleID, survivorID); err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "delete colliding host_software links")
+	}
+	moved, err := ds.execReconcileBatches(ctx,
+		`UPDATE host_software SET software_id = ? WHERE software_id = ? LIMIT ?`, survivorID, staleID)
+	if err != nil {
+		return moved, ctxerr.Wrap(ctx, err, "repoint host_software")
+	}
+
+	// host_software_installed_paths has no unique (host_id, software_id), so a plain
+	// repoint cannot collide.
+	if _, err := ds.execReconcileBatches(ctx,
+		`UPDATE host_software_installed_paths SET software_id = ? WHERE software_id = ? LIMIT ?`,
+		survivorID, staleID); err != nil {
+		return moved, ctxerr.Wrap(ctx, err, "repoint host_software_installed_paths")
+	}
+
+	// kernel_host_counts is a derived aggregate with no cascade; drop the stale rows so
+	// no dangling software_id remains (recomputed by the kernel counters).
+	if err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(ctx, `DELETE FROM kernel_host_counts WHERE software_id = ?`, staleID)
+		return err
+	}); err != nil {
+		return moved, ctxerr.Wrap(ctx, err, "delete stale kernel host counts")
+	}
+	// Deleting the stale software row cascades software_cpe (FK ON DELETE CASCADE).
+	// software_cve and software_host_counts for the stale id are removed by the
+	// existing orphan-cleanup crons, matching cleanupUnusedSoftware's behavior.
+	if err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(ctx, `DELETE FROM software WHERE id = ?`, staleID)
+		return err
+	}); err != nil {
+		return moved, ctxerr.Wrap(ctx, err, "delete stale software row")
+	}
+	return moved, nil
+}
+
+// execReconcileBatches runs stmt repeatedly, appending reconcileRepointBatch as the
+// final bound argument (the statement must end with `LIMIT ?`), until a run affects
+// fewer rows than the batch size. Returns the total number of rows affected. Keeping
+// each statement to a bounded row count keeps its transaction small.
+func (ds *Datastore) execReconcileBatches(ctx context.Context, stmt string, args ...any) (int64, error) {
+	// The args and batch size are constant across iterations, so build the full
+	// argument list once (args... followed by the LIMIT value).
+	fullArgs := append(append([]any{}, args...), reconcileRepointBatch)
+	var total int64
+	for {
+		// Each batch runs in its own transaction with deadlock retry: batches run
+		// concurrently with live software ingestion writing host_software, so a
+		// transient deadlock should retry rather than fail the whole migration.
+		var n int64
+		if err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+			res, err := tx.ExecContext(ctx, stmt, fullArgs...)
+			if err != nil {
+				return err
+			}
+			n, err = res.RowsAffected()
+			return err
+		}); err != nil {
+			return total, err
+		}
+		total += n
+		if n < int64(reconcileRepointBatch) {
+			break
+		}
+	}
+	return total, nil
+}
+
 func (ds *Datastore) CleanupSoftwareTitles(ctx context.Context) error {
 	var n int64
 	defer func(start time.Time) {
@@ -3837,29 +4140,30 @@ type hostSoftware struct {
 	LastUninstallUninstalledAt     *time.Time `db:"last_uninstall_uninstalled_at"`
 	LastUninstallScriptExecutionID *string    `db:"last_uninstall_script_execution_id"`
 
-	ExitCode              *int       `db:"exit_code"`
-	LastOpenedAt          *time.Time `db:"last_opened_at"`
-	BundleIdentifier      *string    `db:"bundle_identifier"`
-	TitleBundleIdentifier *string    `db:"title_bundle_identifier"`
-	Version               *string    `db:"version"`
-	SoftwareID            *uint      `db:"software_id"`
-	SoftwareSource        *string    `db:"software_source"`
-	SoftwareExtensionFor  *string    `db:"software_extension_for"`
-	InstallerID           *uint      `db:"installer_id"`
-	PackageSelfService    *bool      `db:"package_self_service"`
-	PackageName           *string    `db:"package_name"`
-	PackagePlatform       *string    `db:"package_platform"`
-	PackageVersion        *string    `db:"package_version"`
-	VPPAppSelfService     *bool      `db:"vpp_app_self_service"`
-	VPPAppAdamID          *string    `db:"vpp_app_adam_id"`
-	VPPAppVersion         *string    `db:"vpp_app_version"`
-	VPPAppPlatform        *string    `db:"vpp_app_platform"`
-	VPPAppIconURL         *string    `db:"vpp_app_icon_url"`
-	InHouseAppID          *uint      `db:"in_house_app_id"`
-	InHouseAppName        *string    `db:"in_house_app_name"`
-	InHouseAppPlatform    *string    `db:"in_house_app_platform"`
-	InHouseAppVersion     *string    `db:"in_house_app_version"`
-	InHouseAppSelfService *bool      `db:"in_house_app_self_service"`
+	ExitCode                  *int       `db:"exit_code"`
+	LastOpenedAt              *time.Time `db:"last_opened_at"`
+	BundleIdentifier          *string    `db:"bundle_identifier"`
+	TitleBundleIdentifier     *string    `db:"title_bundle_identifier"`
+	Version                   *string    `db:"version"`
+	SoftwareID                *uint      `db:"software_id"`
+	SoftwareSource            *string    `db:"software_source"`
+	SoftwareExtensionFor      *string    `db:"software_extension_for"`
+	InstallerID               *uint      `db:"installer_id"`
+	PackageSelfService        *bool      `db:"package_self_service"`
+	PackageName               *string    `db:"package_name"`
+	PackagePlatform           *string    `db:"package_platform"`
+	PackageVersion            *string    `db:"package_version"`
+	PackageHasUninstallScript *bool      `db:"package_has_uninstall_script"`
+	VPPAppSelfService         *bool      `db:"vpp_app_self_service"`
+	VPPAppAdamID              *string    `db:"vpp_app_adam_id"`
+	VPPAppVersion             *string    `db:"vpp_app_version"`
+	VPPAppPlatform            *string    `db:"vpp_app_platform"`
+	VPPAppIconURL             *string    `db:"vpp_app_icon_url"`
+	InHouseAppID              *uint      `db:"in_house_app_id"`
+	InHouseAppName            *string    `db:"in_house_app_name"`
+	InHouseAppPlatform        *string    `db:"in_house_app_platform"`
+	InHouseAppVersion         *string    `db:"in_house_app_version"`
+	InHouseAppSelfService     *bool      `db:"in_house_app_self_service"`
 
 	VulnerabilitiesList       *string `db:"vulnerabilities_list"`
 	SoftwareIDList            *string `db:"software_id_list"`
@@ -4173,9 +4477,12 @@ func (ds *Datastore) resolveFirstAddedInstallersForHost(ctx context.Context, hos
 				COUNT(label_membership.label_id) AS count_host_labels,
 				SUM(
 					CASE
+						-- only dynamic labels (membership type 0) need to wait for the host to
+						-- report label results; manual and host vitals membership is populated by
+						-- the server.
 						WHEN labels.created_at IS NOT NULL AND (
-							labels.label_membership_type = 1 OR
-							(labels.label_membership_type = 0 AND :host_label_updated_at >= labels.created_at)
+							labels.label_membership_type <> 0 OR
+							:host_label_updated_at >= labels.created_at
 						) THEN 1
 						ELSE 0
 					END
@@ -4440,8 +4747,7 @@ func filterVPPAppsByLabel(
 					COUNT(label_membership.label_id) AS count_host_labels,
 					SUM(
 						CASE
-							WHEN labels.created_at IS NOT NULL AND labels.label_membership_type = 0 AND :host_label_updated_at >= labels.created_at THEN 1
-							WHEN labels.created_at IS NOT NULL AND labels.label_membership_type = 1 THEN 1
+							WHEN labels.created_at IS NOT NULL AND (labels.label_membership_type <> 0 OR :host_label_updated_at >= labels.created_at) THEN 1
 							ELSE 0
 						END
 					) AS count_host_updated_after_labels
@@ -4622,8 +4928,7 @@ func filterInHouseAppsByLabel(
 					COUNT(lm.label_id) AS count_host_labels,
 					SUM(
 						CASE
-							WHEN lbl.created_at IS NOT NULL AND lbl.label_membership_type = 0 AND :host_label_updated_at >= lbl.created_at THEN 1
-							WHEN lbl.created_at IS NOT NULL AND lbl.label_membership_type = 1 THEN 1
+							WHEN lbl.created_at IS NOT NULL AND (lbl.label_membership_type <> 0 OR :host_label_updated_at >= lbl.created_at) THEN 1
 							ELSE 0
 						END
 					) AS count_host_updated_after_labels
@@ -5050,10 +5355,11 @@ func hydrateHostSoftwareRecordFromDb(hydrated *hostSoftware, softwareTitle *host
 		platform = *hydrated.PackagePlatform
 	}
 	hydrated.SoftwarePackage = &fleet.SoftwarePackageOrApp{
-		Name:        *hydrated.PackageName,
-		Version:     version,
-		Platform:    platform,
-		SelfService: hydrated.PackageSelfService,
+		Name:               *hydrated.PackageName,
+		Version:            version,
+		Platform:           platform,
+		SelfService:        hydrated.PackageSelfService,
+		HasUninstallScript: hydrated.PackageHasUninstallScript,
 	}
 
 	// promote the last install info to the proper destination fields
@@ -5505,6 +5811,83 @@ func filterOutOfScopeFailedHostSoftwareInstalls(
 	}
 }
 
+// filterSelfServiceOutOfScopeHostSoftware drops self-service titles that a scope filter excluded from the inventory maps. Self
+// service impacts inventory: when a software title is excluded because of a filter, it should be excluded from the inventory as
+// well, because we cannot "reinstall" it on the self service page. Only titles flagged self-service are considered; the rest are
+// left alone. Callers apply this only when opts.SelfServiceOnly is set. Maps are mutated in place.
+func filterSelfServiceOutOfScopeHostSoftware(
+	bySoftwareTitleID map[uint]*hostSoftware,
+	byVPPAdamID map[string]*hostSoftware,
+	byInHouseID map[uint]*hostSoftware,
+	filteredBySoftwareTitleID map[uint]*hostSoftware,
+	filteredByVPPAdamID map[string]*hostSoftware,
+	filteredByInHouseID map[uint]*hostSoftware,
+) {
+	for _, software := range bySoftwareTitleID {
+		if software.PackageSelfService != nil && *software.PackageSelfService {
+			if filteredBySoftwareTitleID[software.ID] == nil {
+				// remove the software title from bySoftwareTitleID
+				delete(bySoftwareTitleID, software.ID)
+			}
+		}
+	}
+	for vppAppAdamID, software := range byVPPAdamID {
+		if software.VPPAppSelfService != nil && *software.VPPAppSelfService {
+			if filteredByVPPAdamID[vppAppAdamID] == nil {
+				// remove the software title from byVPPAdamID
+				delete(byVPPAdamID, vppAppAdamID)
+			}
+		}
+	}
+	for inHouseID, software := range byInHouseID {
+		if software.InHouseAppSelfService != nil && *software.InHouseAppSelfService {
+			if filteredByInHouseID[inHouseID] == nil {
+				// remove the software title from byInHouseID
+				delete(byInHouseID, inHouseID)
+			}
+		}
+	}
+}
+
+// filterHostSoftwareToMacOSApplications drops every title the host isn't reporting at the top level of the macOS /Applications
+// folder. Callers apply this only for macOS hosts with opts.MacOSApplicationsOnly set. Pruning the in-memory maps (rather than
+// the SQL) keeps the count and main queries consistent and applies uniformly across software, VPP, and in-house apps. Maps are
+// mutated in place.
+func (ds *Datastore) filterHostSoftwareToMacOSApplications(
+	ctx context.Context,
+	hostID uint,
+	bySoftwareTitleID map[uint]*hostSoftware,
+	bySoftwareID map[uint]*hostSoftware,
+	byVPPAdamID map[string]*hostSoftware,
+	byInHouseID map[uint]*hostSoftware,
+) error {
+	qualifyingTitleIDs, err := ds.macOSTopLevelApplicationTitleIDs(ctx, hostID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "filter macos applications")
+	}
+	for titleID := range bySoftwareTitleID {
+		if _, ok := qualifyingTitleIDs[titleID]; !ok {
+			delete(bySoftwareTitleID, titleID)
+		}
+	}
+	for softwareID, s := range bySoftwareID {
+		if _, ok := qualifyingTitleIDs[s.ID]; !ok {
+			delete(bySoftwareID, softwareID)
+		}
+	}
+	for adamID, s := range byVPPAdamID {
+		if _, ok := qualifyingTitleIDs[s.ID]; !ok {
+			delete(byVPPAdamID, adamID)
+		}
+	}
+	for inHouseID, s := range byInHouseID {
+		if _, ok := qualifyingTitleIDs[s.ID]; !ok {
+			delete(byInHouseID, inHouseID)
+		}
+	}
+	return nil
+}
+
 // mergeInstallDataByInstaller records the most recent install for a title's specific installer,
 // keyed by (title id, installer id). Keeping install data per installer (rather than collapsing to
 // one row per title) is what lets ListHostSoftware later surface the install belonging to the
@@ -5915,6 +6298,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 				si.filename as package_name,
 				si.version as package_version,
 				si.platform as package_platform,
+				EXISTS(SELECT 1 FROM script_contents sc WHERE sc.id = si.uninstall_script_content_id AND sc.contents REGEXP '[^ \t\n\r]') as package_has_uninstall_script,
 				vat.self_service as vpp_app_self_service,
 				vat.adam_id as vpp_app_adam_id,
 				vap.latest_version as vpp_app_version,
@@ -6071,8 +6455,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 								COUNT(*) AS count_installer_labels,
 								COUNT(lm.label_id) AS count_host_labels,
 								SUM(
-									CASE WHEN lbl.label_membership_type <> 1 AND lbl.created_at IS NOT NULL AND :host_label_updated_at >= lbl.created_at THEN 1
-									WHEN lbl.label_membership_type = 1 AND lbl.created_at IS NOT NULL THEN 1
+									CASE WHEN lbl.created_at IS NOT NULL AND (lbl.label_membership_type <> 0 OR :host_label_updated_at >= lbl.created_at) THEN 1
 									ELSE 0 END) as count_host_updated_after_labels
 							FROM
 								software_installer_labels sil
@@ -6130,8 +6513,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 								COUNT(*) AS count_installer_labels,
 								COUNT(lm.label_id) AS count_host_labels,
 								SUM(CASE
-								WHEN lbl.created_at IS NOT NULL AND lbl.label_membership_type = 0 AND :host_label_updated_at >= lbl.created_at THEN 1
-								WHEN lbl.created_at IS NOT NULL AND lbl.label_membership_type = 1 THEN 1
+								WHEN lbl.created_at IS NOT NULL AND (lbl.label_membership_type <> 0 OR :host_label_updated_at >= lbl.created_at) THEN 1
 								ELSE 0 END) as count_host_updated_after_labels
 							FROM
 								vpp_app_team_labels vatl
@@ -6188,8 +6570,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 								COUNT(*) AS count_installer_labels,
 								COUNT(lm.label_id) AS count_host_labels,
 								SUM(CASE
-								WHEN lbl.created_at IS NOT NULL AND lbl.label_membership_type = 0 AND :host_label_updated_at >= lbl.created_at THEN 1
-								WHEN lbl.created_at IS NOT NULL AND lbl.label_membership_type = 1 THEN 1
+								WHEN lbl.created_at IS NOT NULL AND (lbl.label_membership_type <> 0 OR :host_label_updated_at >= lbl.created_at) THEN 1
 								ELSE 0 END) as count_host_updated_after_labels
 							FROM
 								in_house_app_labels ihl
@@ -6597,30 +6978,8 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 	// self service impacts inventory, when a software title is excluded because of a filter,
 	// it should be excluded from the inventory as well, because we cannot "reinstall" it on the self service page
 	if opts.SelfServiceOnly {
-		for _, software := range bySoftwareTitleID {
-			if software.PackageSelfService != nil && *software.PackageSelfService {
-				if filteredBySoftwareTitleID[software.ID] == nil {
-					// remove the software title from bySoftwareTitleID
-					delete(bySoftwareTitleID, software.ID)
-				}
-			}
-		}
-		for vppAppAdamID, software := range byVPPAdamID {
-			if software.VPPAppSelfService != nil && *software.VPPAppSelfService {
-				if filteredByVPPAdamID[vppAppAdamID] == nil {
-					// remove the software title from byVPPAdamID
-					delete(byVPPAdamID, vppAppAdamID)
-				}
-			}
-		}
-		for inHouseID, software := range byInHouseID {
-			if software.InHouseAppSelfService != nil && *software.InHouseAppSelfService {
-				if filteredByInHouseID[inHouseID] == nil {
-					// remove the software title from byInHouseID
-					delete(byInHouseID, inHouseID)
-				}
-			}
-		}
+		filterSelfServiceOutOfScopeHostSoftware(bySoftwareTitleID, byVPPAdamID, byInHouseID,
+			filteredBySoftwareTitleID, filteredByVPPAdamID, filteredByInHouseID)
 	}
 
 	// since these host installed vpp apps/in-house apps are already added in bySoftwareTitleID,
@@ -6643,29 +7002,9 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 	// than the SQL) keeps the count and main queries consistent and applies
 	// uniformly across software, VPP, and in-house apps.
 	if opts.MacOSApplicationsOnly && fleet.IsMacOSPlatform(host.Platform) {
-		qualifyingTitleIDs, err := ds.macOSTopLevelApplicationTitleIDs(ctx, host.ID)
-		if err != nil {
-			return nil, nil, ctxerr.Wrap(ctx, err, "filter macos applications")
-		}
-		for titleID := range bySoftwareTitleID {
-			if _, ok := qualifyingTitleIDs[titleID]; !ok {
-				delete(bySoftwareTitleID, titleID)
-			}
-		}
-		for softwareID, s := range bySoftwareID {
-			if _, ok := qualifyingTitleIDs[s.ID]; !ok {
-				delete(bySoftwareID, softwareID)
-			}
-		}
-		for adamID, s := range byVPPAdamID {
-			if _, ok := qualifyingTitleIDs[s.ID]; !ok {
-				delete(byVPPAdamID, adamID)
-			}
-		}
-		for inHouseID, s := range byInHouseID {
-			if _, ok := qualifyingTitleIDs[s.ID]; !ok {
-				delete(byInHouseID, inHouseID)
-			}
+		if err := ds.filterHostSoftwareToMacOSApplications(ctx, host.ID, bySoftwareTitleID, bySoftwareID,
+			byVPPAdamID, byInHouseID); err != nil {
+			return nil, nil, err
 		}
 	}
 
@@ -6985,6 +7324,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 					software_installers.filename AS package_name,
 					software_installers.version AS package_version,
 					software_installers.platform as package_platform,
+					EXISTS(SELECT 1 FROM script_contents sc WHERE sc.id = software_installers.uninstall_script_content_id AND sc.contents REGEXP '[^ \t\n\r]') AS package_has_uninstall_script,
 					GROUP_CONCAT(software.id) AS software_id_list,
 					GROUP_CONCAT(software.source) AS software_source_list,
 					GROUP_CONCAT(software.extension_for) AS software_extension_for_list,
@@ -7032,6 +7372,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 					NULL AS package_name,
 					NULL AS package_version,
 					NULL as package_platform,
+					NULL AS package_has_uninstall_script,
 					NULL AS software_id_list,
 					NULL AS software_source_list,
 					NULL AS software_extension_for_list,
@@ -7075,6 +7416,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 					NULL AS package_name,
 					NULL AS package_version,
 					NULL as package_platform,
+					NULL AS package_has_uninstall_script,
 					NULL AS software_id_list,
 					NULL AS software_source_list,
 					NULL AS software_extension_for_list,

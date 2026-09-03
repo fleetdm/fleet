@@ -215,6 +215,14 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 		if err := validateTeamWebhookSettings(ctx, payload.WebhookSettings); err != nil {
 			return nil, err
 		}
+		// A nil HostActivitiesWebhook means "not provided", so preserve the
+		// stored value: existing callers PATCH webhook_settings with only the
+		// webhook they manage (e.g. the policies page sends just
+		// failing_policies_webhook) and must not clear this one. Disabling is
+		// explicit: send the object with enable_host_activities_webhook: false.
+		if payload.WebhookSettings.HostActivitiesWebhook == nil {
+			payload.WebhookSettings.HostActivitiesWebhook = team.Config.WebhookSettings.HostActivitiesWebhook
+		}
 		team.Config.WebhookSettings = *payload.WebhookSettings
 	}
 
@@ -242,9 +250,11 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 			if err := payload.MDM.MacOSUpdates.Validate(); err != nil {
 				return nil, fleet.NewInvalidArgumentError("macos_updates", err.Error())
 			}
-			if payload.MDM.MacOSUpdates.MinimumVersion.Set || payload.MDM.MacOSUpdates.Deadline.Set || payload.MDM.MacOSUpdates.UpdateNewHosts.Set {
+			if payload.MDM.MacOSUpdates.MinimumVersion.Set || payload.MDM.MacOSUpdates.Deadline.Set || payload.MDM.MacOSUpdates.DeadlineDays.Set || payload.MDM.MacOSUpdates.UpdateNewHosts.Set {
 				macOSMinVersionUpdated = team.Config.MDM.MacOSUpdates.MinimumVersion.Value != payload.MDM.MacOSUpdates.MinimumVersion.Value ||
-					team.Config.MDM.MacOSUpdates.Deadline.Value != payload.MDM.MacOSUpdates.Deadline.Value
+					team.Config.MDM.MacOSUpdates.Deadline.Value != payload.MDM.MacOSUpdates.Deadline.Value ||
+					team.Config.MDM.MacOSUpdates.DeadlineDays.Value != payload.MDM.MacOSUpdates.DeadlineDays.Value ||
+					team.Config.MDM.MacOSUpdates.DeadlineDays.Valid != payload.MDM.MacOSUpdates.DeadlineDays.Valid
 				updateNewHostsChanged = team.Config.MDM.MacOSUpdates.UpdateNewHosts.Value != payload.MDM.MacOSUpdates.UpdateNewHosts.Value
 				team.Config.MDM.MacOSUpdates = *payload.MDM.MacOSUpdates
 			}
@@ -254,9 +264,11 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 				return nil, fleet.NewInvalidArgumentError("ios_updates", err.Error())
 			}
 
-			if payload.MDM.IOSUpdates.MinimumVersion.Set || payload.MDM.IOSUpdates.Deadline.Set {
+			if payload.MDM.IOSUpdates.MinimumVersion.Set || payload.MDM.IOSUpdates.Deadline.Set || payload.MDM.IOSUpdates.DeadlineDays.Set {
 				iOSMinVersionUpdated = team.Config.MDM.IOSUpdates.MinimumVersion.Value != payload.MDM.IOSUpdates.MinimumVersion.Value ||
-					team.Config.MDM.IOSUpdates.Deadline.Value != payload.MDM.IOSUpdates.Deadline.Value
+					team.Config.MDM.IOSUpdates.Deadline.Value != payload.MDM.IOSUpdates.Deadline.Value ||
+					team.Config.MDM.IOSUpdates.DeadlineDays.Value != payload.MDM.IOSUpdates.DeadlineDays.Value ||
+					team.Config.MDM.IOSUpdates.DeadlineDays.Valid != payload.MDM.IOSUpdates.DeadlineDays.Valid
 				team.Config.MDM.IOSUpdates = *payload.MDM.IOSUpdates
 			}
 		}
@@ -264,9 +276,11 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 			if err := payload.MDM.IPadOSUpdates.Validate(); err != nil {
 				return nil, fleet.NewInvalidArgumentError("ipados_updates", err.Error())
 			}
-			if payload.MDM.IPadOSUpdates.MinimumVersion.Set || payload.MDM.IPadOSUpdates.Deadline.Set {
+			if payload.MDM.IPadOSUpdates.MinimumVersion.Set || payload.MDM.IPadOSUpdates.Deadline.Set || payload.MDM.IPadOSUpdates.DeadlineDays.Set {
 				iPadOSMinVersionUpdated = team.Config.MDM.IPadOSUpdates.MinimumVersion.Value != payload.MDM.IPadOSUpdates.MinimumVersion.Value ||
-					team.Config.MDM.IPadOSUpdates.Deadline.Value != payload.MDM.IPadOSUpdates.Deadline.Value
+					team.Config.MDM.IPadOSUpdates.Deadline.Value != payload.MDM.IPadOSUpdates.Deadline.Value ||
+					team.Config.MDM.IPadOSUpdates.DeadlineDays.Value != payload.MDM.IPadOSUpdates.DeadlineDays.Value ||
+					team.Config.MDM.IPadOSUpdates.DeadlineDays.Valid != payload.MDM.IPadOSUpdates.DeadlineDays.Valid
 				team.Config.MDM.IPadOSUpdates = *payload.MDM.IPadOSUpdates
 			}
 		}
@@ -501,6 +515,10 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 		if payload.Features.HistoricalData.Vulnerabilities.Valid {
 			team.Config.Features.HistoricalData.Vulnerabilities = payload.Features.HistoricalData.Vulnerabilities.Value
 		}
+	}
+
+	if payload.Features != nil && payload.Features.EnableSoftwareInventory.Valid {
+		team.Config.Features.EnableSoftwareInventory = payload.Features.EnableSoftwareInventory.Value
 	}
 
 	team, err = svc.ds.SaveTeam(ctx, team)
@@ -996,6 +1014,18 @@ func (svc *Service) DeleteTeam(ctx context.Context, teamID uint) error {
 		}
 	}
 
+	// If this fleet is the Windows enrollment default, clear it explicitly to revoke the cache.
+	winDefaultFleetID, _, err := svc.ds.GetWindowsEnrollmentDefaultFleet(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get windows enrollment default fleet")
+	}
+	clearedWindowsEnrollmentDefaultFleet := winDefaultFleetID != nil && *winDefaultFleetID == teamID
+	if clearedWindowsEnrollmentDefaultFleet {
+		if err := svc.ds.SetWindowsEnrollmentDefaultFleet(ctx, nil); err != nil {
+			return ctxerr.Wrap(ctx, err, "clear windows enrollment default fleet")
+		}
+	}
+
 	if err := svc.ds.DeleteTeam(ctx, teamID); err != nil {
 		return err
 	}
@@ -1033,6 +1063,17 @@ func (svc *Service) DeleteTeam(ctx context.Context, teamID uint) error {
 		},
 	); err != nil {
 		return ctxerr.Wrap(ctx, err, "create activity for team deletion")
+	}
+
+	if clearedWindowsEnrollmentDefaultFleet {
+		// Record the change in Windows enrollment default
+		if err := svc.NewActivity(
+			ctx,
+			authz.UserFromContext(ctx),
+			fleet.ActivityTypeEditedWindowsEnrollmentDefaultFleet{},
+		); err != nil {
+			return ctxerr.Wrap(ctx, err, "create activity for cleared windows enrollment default fleet")
+		}
 	}
 	return nil
 }
@@ -1441,10 +1482,16 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 				return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("secrets", "enroll secret must not be empty"), "validate secrets")
 			}
 		}
-		// TODO: should we be we validating the other Apple platforms? if so, we should also include
-		// ValidateMDMSettingsAppleSupportedOSVersion for each platform
+		// TODO: we should also include ValidateMDMSettingsAppleSupportedOSVersion for
+		// each platform here, as the API paths do.
 		if err := spec.MDM.MacOSUpdates.Validate(); err != nil {
 			return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("macos_updates", err.Error()))
+		}
+		if err := spec.MDM.IOSUpdates.Validate(); err != nil {
+			return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("ios_updates", err.Error()))
+		}
+		if err := spec.MDM.IPadOSUpdates.Validate(); err != nil {
+			return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("ipados_updates", err.Error()))
 		}
 		if err := spec.MDM.WindowsUpdates.Validate(); err != nil {
 			return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("windows_updates", err.Error()))
@@ -1630,6 +1677,12 @@ func (svc *Service) createTeamFromSpec(
 		hostStatusWebhook = spec.WebhookSettings.HostStatusWebhook
 	}
 
+	var hostActivitiesWebhook *fleet.HostActivitiesWebhookSettings
+	if spec.WebhookSettings.HostActivitiesWebhook != nil {
+		fleet.ValidateEnabledHostActivitiesWebhook(*spec.WebhookSettings.HostActivitiesWebhook, invalid)
+		hostActivitiesWebhook = spec.WebhookSettings.HostActivitiesWebhook
+	}
+
 	if spec.Integrations.GoogleCalendar != nil {
 		err = svc.validateTeamCalendarIntegrations(spec.Integrations.GoogleCalendar, appCfg, dryRun, invalid)
 		if err != nil {
@@ -1691,7 +1744,8 @@ func (svc *Service) createTeamFromSpec(
 			},
 			HostExpirySettings: hostExpirySettings,
 			WebhookSettings: fleet.TeamWebhookSettings{
-				HostStatusWebhook: hostStatusWebhook,
+				HostStatusWebhook:     hostStatusWebhook,
+				HostActivitiesWebhook: hostActivitiesWebhook,
 			},
 			Integrations: fleet.TeamIntegrations{
 				GoogleCalendar:           spec.Integrations.GoogleCalendar,
@@ -1800,19 +1854,25 @@ func (svc *Service) editTeamFromSpec(
 		mdmIPadOSUpdatesEdited  bool
 		mdmWindowsUpdatesEdited bool
 	)
-	if spec.MDM.MacOSUpdates.Deadline.Set || spec.MDM.MacOSUpdates.MinimumVersion.Set || spec.MDM.MacOSUpdates.UpdateNewHosts.Set {
+	if spec.MDM.MacOSUpdates.Deadline.Set || spec.MDM.MacOSUpdates.MinimumVersion.Set || spec.MDM.MacOSUpdates.DeadlineDays.Set || spec.MDM.MacOSUpdates.UpdateNewHosts.Set {
 		mdmMacOSUpdatesEdited = team.Config.MDM.MacOSUpdates.MinimumVersion.Value != spec.MDM.MacOSUpdates.MinimumVersion.Value ||
-			team.Config.MDM.MacOSUpdates.Deadline.Value != spec.MDM.MacOSUpdates.Deadline.Value
+			team.Config.MDM.MacOSUpdates.Deadline.Value != spec.MDM.MacOSUpdates.Deadline.Value ||
+			team.Config.MDM.MacOSUpdates.DeadlineDays.Value != spec.MDM.MacOSUpdates.DeadlineDays.Value ||
+			team.Config.MDM.MacOSUpdates.DeadlineDays.Valid != spec.MDM.MacOSUpdates.DeadlineDays.Valid
 		team.Config.MDM.MacOSUpdates = spec.MDM.MacOSUpdates
 	}
-	if spec.MDM.IOSUpdates.Deadline.Set || spec.MDM.IOSUpdates.MinimumVersion.Set {
+	if spec.MDM.IOSUpdates.Deadline.Set || spec.MDM.IOSUpdates.MinimumVersion.Set || spec.MDM.IOSUpdates.DeadlineDays.Set {
 		mdmIOSUpdatesEdited = team.Config.MDM.IOSUpdates.MinimumVersion.Value != spec.MDM.IOSUpdates.MinimumVersion.Value ||
-			team.Config.MDM.IOSUpdates.Deadline.Value != spec.MDM.IOSUpdates.Deadline.Value
+			team.Config.MDM.IOSUpdates.Deadline.Value != spec.MDM.IOSUpdates.Deadline.Value ||
+			team.Config.MDM.IOSUpdates.DeadlineDays.Value != spec.MDM.IOSUpdates.DeadlineDays.Value ||
+			team.Config.MDM.IOSUpdates.DeadlineDays.Valid != spec.MDM.IOSUpdates.DeadlineDays.Valid
 		team.Config.MDM.IOSUpdates = spec.MDM.IOSUpdates
 	}
-	if spec.MDM.IPadOSUpdates.Deadline.Set || spec.MDM.IPadOSUpdates.MinimumVersion.Set {
+	if spec.MDM.IPadOSUpdates.Deadline.Set || spec.MDM.IPadOSUpdates.MinimumVersion.Set || spec.MDM.IPadOSUpdates.DeadlineDays.Set {
 		mdmIPadOSUpdatesEdited = team.Config.MDM.IPadOSUpdates.MinimumVersion.Value != spec.MDM.IPadOSUpdates.MinimumVersion.Value ||
-			team.Config.MDM.IPadOSUpdates.Deadline.Value != spec.MDM.IPadOSUpdates.Deadline.Value
+			team.Config.MDM.IPadOSUpdates.Deadline.Value != spec.MDM.IPadOSUpdates.Deadline.Value ||
+			team.Config.MDM.IPadOSUpdates.DeadlineDays.Value != spec.MDM.IPadOSUpdates.DeadlineDays.Value ||
+			team.Config.MDM.IPadOSUpdates.DeadlineDays.Valid != spec.MDM.IPadOSUpdates.DeadlineDays.Valid
 		team.Config.MDM.IPadOSUpdates = spec.MDM.IPadOSUpdates
 	}
 
@@ -2066,6 +2126,11 @@ func (svc *Service) editTeamFromSpec(
 	if spec.WebhookSettings.FailingPoliciesWebhook != nil {
 		fleet.ValidateEnabledFailingPoliciesTeamIntegrations(*spec.WebhookSettings.FailingPoliciesWebhook, fleet.TeamIntegrations{}, invalid)
 		team.Config.WebhookSettings.FailingPoliciesWebhook = *spec.WebhookSettings.FailingPoliciesWebhook
+	}
+
+	if spec.WebhookSettings.HostActivitiesWebhook != nil {
+		fleet.ValidateEnabledHostActivitiesWebhook(*spec.WebhookSettings.HostActivitiesWebhook, invalid)
+		team.Config.WebhookSettings.HostActivitiesWebhook = spec.WebhookSettings.HostActivitiesWebhook
 	}
 
 	if spec.Integrations.GoogleCalendar != nil {
@@ -2538,7 +2603,7 @@ func (svc *Service) updateTeamMDMAppleSetup(ctx context.Context, tm *fleet.Team,
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "getting setup experience information")
 			}
-			if sec.Installers != 0 || sec.VPP != 0 {
+			if sec.Installers != 0 || sec.VPP != 0 || sec.InHouseApps != 0 {
 				return fleet.NewUserMessageError(errors.New("Couldn’t enable macos_manual_agent_install. To use this option, first disable setup experience software."), http.StatusUnprocessableEntity)
 			}
 			if sec.Scripts != 0 {
@@ -2609,6 +2674,14 @@ func validateTeamWebhookSettings(ctx context.Context, webhookSettings *fleet.Tea
 		}
 	}
 
+	if webhookSettings.HostActivitiesWebhook != nil {
+		invalid := &fleet.InvalidArgumentError{}
+		fleet.ValidateEnabledHostActivitiesWebhook(*webhookSettings.HostActivitiesWebhook, invalid)
+		if invalid.HasErrors() {
+			return ctxerr.Wrap(ctx, invalid)
+		}
+	}
+
 	return nil
 }
 
@@ -2628,6 +2701,9 @@ func (svc *Service) modifyDefaultTeamConfig(ctx context.Context, payload fleet.T
 	if payload.WebhookSettings != nil {
 		if err := validateTeamWebhookSettings(ctx, payload.WebhookSettings); err != nil {
 			return nil, err
+		}
+		if payload.WebhookSettings.HostActivitiesWebhook == nil {
+			payload.WebhookSettings.HostActivitiesWebhook = config.WebhookSettings.HostActivitiesWebhook
 		}
 		config.WebhookSettings = *payload.WebhookSettings
 	}
