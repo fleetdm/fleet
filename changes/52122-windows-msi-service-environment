@@ -1,0 +1,1 @@
+- Changed the fleetd Windows MSI to configure orbit through per-service environment variables instead of command-line flags, so downgrading orbit to a version that predates a newer setting no longer prevents the "Fleet osquery" service from starting.

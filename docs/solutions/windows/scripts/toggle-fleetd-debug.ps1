@@ -17,17 +17,35 @@ if (-not $imagePath) {
 
 $imagePath = $imagePath.Trim()
 
-$hasDebug = $imagePath -match '(^|\s)--debug(\s|$)'
+if ($imagePath -match '\s--') {
+    # Legacy install: fleetd's settings are command-line flags on the service ImagePath.
+    $hasDebug = $imagePath -match '(^|\s)--debug(\s|$)'
 
-if ($hasDebug) {
-    Write-Host "--debug is present: removing it."
-    $imagePath = ($imagePath -replace '\s*--debug\b\s*').Trim()
+    if ($hasDebug) {
+        Write-Host "--debug is present: removing it."
+        $imagePath = ($imagePath -replace '\s*--debug\b\s*').Trim()
+    } else {
+        Write-Host "--debug is missing: adding it."
+        $imagePath = "$imagePath --debug"
+    }
+
+    Set-ItemProperty -Path $regPath -Name ImagePath -Value $imagePath -Type ExpandString
 } else {
-    Write-Host "--debug is missing: adding it."
-    $imagePath = "$imagePath --debug"
-}
+    # Current install: fleetd's settings are per-service environment variables in the
+    # service's Environment (REG_MULTI_SZ) value, applied by Windows when the service starts.
+    $environment = @((Get-ItemProperty -Path $regPath -Name Environment -ErrorAction SilentlyContinue).Environment | Where-Object { $_ })
+    $hasDebug = @($environment | Where-Object { $_ -match '^ORBIT_DEBUG=' }).Count -gt 0
 
-Set-ItemProperty -Path $regPath -Name ImagePath -Value $imagePath -Type ExpandString
+    if ($hasDebug) {
+        Write-Host "ORBIT_DEBUG is present: removing it."
+        $environment = @($environment | Where-Object { $_ -notmatch '^ORBIT_DEBUG=' })
+    } else {
+        Write-Host "ORBIT_DEBUG is missing: adding it."
+        $environment += 'ORBIT_DEBUG=true'
+    }
+
+    Set-ItemProperty -Path $regPath -Name Environment -Value ([string[]]$environment) -Type MultiString
+}
 
 try {
     Restart-Service -Name $serviceName -Force -ErrorAction Stop
@@ -38,4 +56,3 @@ try {
 
 Write-Host "`nLogs are located at:"
 Write-Host "C:\Windows\system32\config\systemprofile\AppData\Local\FleetDM\Orbit\Logs\orbit-osquery.log"
-
