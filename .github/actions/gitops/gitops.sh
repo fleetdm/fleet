@@ -12,6 +12,7 @@ FLEETCTL="${FLEETCTL:-fleetctl}"
 FLEET_DRY_RUN_ONLY="${FLEET_DRY_RUN_ONLY:-false}"
 FLEET_DELETE_OTHER_FLEETS="${FLEET_DELETE_OTHER_FLEETS:-true}"
 
+echo "George Test $FLEET_GITOPS_DIR $DOGFOOD_MACOS_MIGRATION_WEBHOOK_URL - end test"
 # Check for existence of the global file in case the script is used
 # on repositories with fleet only yamls.
 if [ -f "$FLEET_GLOBAL_FILE" ]; then
