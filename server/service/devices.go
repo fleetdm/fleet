@@ -923,6 +923,10 @@ func (svc *Service) GetDeviceMDMAppleEnrollmentProfile(ctx context.Context) (*ur
 		return nil, ctxerr.Wrap(ctx, err, "fetching app config")
 	}
 
+	if cfg.MDM.OnlyAllowAppleBusinessEnrollment {
+		return nil, &fleet.ABOnlyEnrollmentForbiddenError{}
+	}
+
 	host, ok := hostctx.FromContext(ctx)
 	if !ok {
 		return nil, ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("internal error: missing host from request context"))

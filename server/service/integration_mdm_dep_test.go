@@ -3718,6 +3718,15 @@ func (s *integrationMDMTestSuite) TestBlockedEndpointsForABOnlyACMEConfig() {
 	_, err = s.ds.NewTeam(t.Context(), &fleet.Team{Name: "team", Secrets: []*fleet.EnrollSecret{{Secret: enrollSecret}}})
 	require.NoError(t, err)
 
+	// setup host so we can do device authenticated endpoints
+	host, err := s.ds.NewHost(t.Context(), &fleet.Host{TeamID: ptr.Uint(1)})
+	require.NoError(t, err)
+
+	// Mint a fresh device auth token
+	s.DoRaw("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_url", host.ID), nil, http.StatusOK)
+	authToken, err := s.ds.GetDeviceAuthToken(t.Context(), host.ID)
+	require.NoError(t, err)
+
 	for _, isBlocked := range []bool{true, false} {
 		t.Run(fmt.Sprintf("blocked=%v", isBlocked), func(t *testing.T) {
 			appCfg, err := s.ds.AppConfig(t.Context())
@@ -3766,6 +3775,9 @@ func (s *integrationMDMTestSuite) TestBlockedEndpointsForABOnlyACMEConfig() {
 			assertAdminFacingResponse(t, resp, isBlocked)
 			resp = s.DoRaw("GET", "/api/latest/fleet/enrollment_profiles/manual", nil, getAdminStatusCode(isBlocked, http.StatusOK))
 			assertAdminFacingResponse(t, resp, isBlocked)
+
+			resp = s.DoRawNoAuth("GET", fmt.Sprintf("/api/latest/fleet/device/%s/mdm/apple/manual_enrollment_profile", authToken), nil, getUserStatusCode(isBlocked, http.StatusOK))
+			assertUserFacingResponse(t, resp, isBlocked)
 		})
 	}
 }
