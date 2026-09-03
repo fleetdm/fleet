@@ -600,7 +600,7 @@ func preprocessProfileContents(
 					}
 					ok, err = replaceFleetVarInItem(ctx, ds, target, hostLite, caVarsCache, &caCopy.CertificateSeatID, hostIDForUUIDCache, variablesUpdatedAt, onMismatchedHostCount)
 					if err != nil {
-						return ctxerr.Wrap(ctx, err, "populating Fleet variables in DigiCert CA common name")
+						return ctxerr.Wrap(ctx, err, "populating Fleet variables in DigiCert CA seat ID")
 					}
 					if !ok {
 						failed = true
@@ -610,7 +610,7 @@ func preprocessProfileContents(
 						for i := range caCopy.CertificateUserPrincipalNames {
 							ok, err = replaceFleetVarInItem(ctx, ds, target, hostLite, caVarsCache, &caCopy.CertificateUserPrincipalNames[i], hostIDForUUIDCache, variablesUpdatedAt, onMismatchedHostCount)
 							if err != nil {
-								return ctxerr.Wrap(ctx, err, "populating Fleet variables in DigiCert CA common name")
+								return ctxerr.Wrap(ctx, err, "populating Fleet variables in DigiCert CA user principal name")
 							}
 							if !ok {
 								failed = true
@@ -761,6 +761,9 @@ func getFirstIDPEmail(ctx context.Context, ds fleet.Datastore, target *fleet.Cmd
 func replaceFleetVarInItem(ctx context.Context, ds fleet.Datastore, target *fleet.CmdTarget, hostLite fleet.Host, caVarsCache map[string]string, item *string, hostIDForUUIDCache map[string]uint, variablesUpdatedAt *time.Time, onMismatchedHostCount func(int) error) (bool, error) {
 	caFleetVars := variables.Find(*item)
 	for _, caVar := range caFleetVars {
+		if !slices.Contains(fleet.FleetVarsSupportedInDigiCert, fleet.FleetVarName(caVar)) {
+			return false, ctxerr.Errorf(ctx, "unsupported DigiCert Fleet variable FLEET_VAR_%s", caVar)
+		}
 		switch {
 		case caVar == string(fleet.FleetVarHostEndUserEmailIDP):
 			email, ok := caVarsCache[string(fleet.FleetVarHostEndUserEmailIDP)]
@@ -810,6 +813,9 @@ func replaceFleetVarInItem(ctx context.Context, ds fleet.Datastore, target *flee
 				caVarsCache[string(fleet.FleetVarHostPlatform)] = platform
 			}
 			*item = profiles.ReplaceFleetVariableInXML(fleet.FleetVarHostPlatformRegexp, *item, platform)
+		case caVar == string(fleet.FleetVarHostUUID):
+			*item = strings.ReplaceAll(*item, fleet.FleetVarHostUUID.WithPrefix(), hostLite.UUID)
+			*item = strings.ReplaceAll(*item, fleet.FleetVarHostUUID.WithBraces(), hostLite.UUID)
 		case slices.Contains(fleet.IDPFleetVariables, fleet.FleetVarName(caVar)):
 			value, ok := caVarsCache[caVar]
 			if !ok {
@@ -835,8 +841,6 @@ func replaceFleetVarInItem(ctx context.Context, ds fleet.Datastore, target *flee
 			fleetVar := fleet.FleetVarName(caVar)
 			*item = strings.ReplaceAll(*item, fleetVar.WithPrefix(), value)
 			*item = strings.ReplaceAll(*item, fleetVar.WithBraces(), value)
-		default:
-			return false, ctxerr.Errorf(ctx, "unsupported DigiCert Fleet variable FLEET_VAR_%s", caVar)
 		}
 	}
 	return true, nil

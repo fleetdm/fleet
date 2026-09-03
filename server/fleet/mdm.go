@@ -164,6 +164,7 @@ var (
 		FleetVarHostEndUserIDPDepartment,
 		FleetVarHostEndUserIDPFullname,
 	}
+	FleetVarsSupportedInDigiCert = slices.Concat([]FleetVarName{FleetVarHostEndUserEmailIDP}, FleetVarsSupportedInScripts)
 )
 
 type AppleMDM struct {

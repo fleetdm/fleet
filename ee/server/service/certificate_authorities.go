@@ -273,8 +273,7 @@ func validateDigicertCACN(cn string, errPrefix string) error {
 }
 
 func isSupportedDigicertFleetVar(fleetVar fleet.FleetVarName) bool {
-	return fleetVar == fleet.FleetVarHostEndUserEmailIDP || fleetVar == fleet.FleetVarHostHardwareSerial || fleetVar == fleet.FleetVarHostPlatform ||
-		slices.Contains(fleet.IDPFleetVariables, fleetVar)
+	return slices.Contains(fleet.FleetVarsSupportedInDigiCert, fleetVar)
 }
 
 var alphanumeric = regexp.MustCompile(`^\w+$`)

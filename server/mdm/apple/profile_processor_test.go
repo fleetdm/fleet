@@ -669,10 +669,16 @@ func TestPreprocessProfileContentsDigiCertCertificateEnrollmentWithFleetVariable
 	t.Logf("issued DigiCert config: CN=%q UPN=%q seat ID=%q", issuedConfig.CertificateCommonName, issuedConfig.CertificateUserPrincipalNames, issuedConfig.CertificateSeatID)
 }
 
-func TestReplaceFleetVarInItemIDPVariables(t *testing.T) {
+func TestReplaceFleetVarInItem(t *testing.T) {
 	ds := new(mock.Store)
+	ds.ListHostsLiteByUUIDsFunc = func(ctx context.Context, filter fleet.TeamFilter, uuids []string) ([]*fleet.Host, error) {
+		return []*fleet.Host{{ID: 1, UUID: "host", HardwareSerial: "serial", Platform: "darwin"}}, nil
+	}
 	ds.HostIDsByIdentifierFunc = func(ctx context.Context, filter fleet.TeamFilter, idents []string) ([]uint, error) {
 		return []uint{1}, nil
+	}
+	ds.GetHostEmailsFunc = func(ctx context.Context, hostUUID string, source string) ([]string, error) {
+		return []string{"legacy@example.com"}, nil
 	}
 	ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
 		return &fleet.ScimUser{
@@ -684,19 +690,24 @@ func TestReplaceFleetVarInItemIDPVariables(t *testing.T) {
 		}, nil
 	}
 	ds.ListHostDeviceMappingFunc = func(ctx context.Context, hostID uint) ([]*fleet.HostDeviceMapping, error) {
-		return nil, nil
+		return []*fleet.HostDeviceMapping{{Email: "legacy@example.com"}}, nil
 	}
 
 	tests := []struct {
 		fleetVar fleet.FleetVarName
 		expected string
 	}{
+		{fleet.FleetVarHostEndUserEmailIDP, "legacy@example.com"},
+		{fleet.FleetVarHostHardwareSerial, "serial"},
+		{fleet.FleetVarHostUUID, "host"},
+		{fleet.FleetVarHostPlatform, "macos"},
 		{fleet.FleetVarHostEndUserIDPUsername, "user@example.com"},
 		{fleet.FleetVarHostEndUserIDPUsernameLocalPart, "user"},
 		{fleet.FleetVarHostEndUserIDPGroups, "Engineering,IT"},
 		{fleet.FleetVarHostEndUserIDPDepartment, "Engineering & IT"},
 		{fleet.FleetVarHostEndUserIDPFullname, "R&D User"},
 	}
+	require.Len(t, tests, len(fleet.FleetVarsSupportedInDigiCert))
 	for _, tt := range tests {
 		t.Run(string(tt.fleetVar), func(t *testing.T) {
 			item := "prefix-" + tt.fleetVar.WithBraces() + "-suffix"

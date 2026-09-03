@@ -292,8 +292,7 @@ func TestCreatingCertificateAuthorities(t *testing.T) {
 	})
 
 	t.Run("Create DigiCert CA - Happy path with variables", func(t *testing.T) {
-		fleetVars := append([]fleet.FleetVarName{fleet.FleetVarHostHardwareSerial}, fleet.IDPFleetVariables...)
-		for _, fleetVar := range fleetVars {
+		for _, fleetVar := range fleet.FleetVarsSupportedInDigiCert {
 			t.Run(string(fleetVar), func(t *testing.T) {
 				svc, ctx := baseSetupForCATests()
 				value := fleetVar.WithPrefix()
@@ -1390,8 +1389,7 @@ func TestUpdatingCertificateAuthorities(t *testing.T) {
 		})
 
 		t.Run("Allows variable for certificate related fields", func(t *testing.T) {
-			fleetVars := append([]fleet.FleetVarName{fleet.FleetVarHostHardwareSerial}, fleet.IDPFleetVariables...)
-			for _, fleetVar := range fleetVars {
+			for _, fleetVar := range fleet.FleetVarsSupportedInDigiCert {
 				t.Run(string(fleetVar), func(t *testing.T) {
 					svc, ctx := baseSetupForCATests()
 					value := fleetVar.WithPrefix()
