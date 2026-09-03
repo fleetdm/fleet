@@ -1,1 +1,0 @@
-- Fixed a bug where Windows hosts showed a failed enrollment state after the MDM certificate renewal window opened.
