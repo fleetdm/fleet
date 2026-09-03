@@ -52,7 +52,7 @@ created if a policy is newly failing on more than one host during the same perio
 
 ### Resetting a policy's automation status
 
-Fleet automatically re-runs a policy's automations on hosts that already failed it when you edit the policy's query, or swap in a different script, software package, or App Store (VPP) app. Editing the *content* of the same script or software package doesn't do this — only swapping in a different one does.
+Fleet automatically re-runs a policy's automations on hosts that already failed it when you edit the policy's query, or swap in a different script, software package, or App Store (VPP) app. Editing the *content* of the same script or software package doesn't do this.
 
 To manually re-run automations on hosts that already failed a policy (for example, after editing a script's content), go to the policy's details page and, under **Automation runs**, select **Reset policy**. You can also do this with the [Reset policy results](https://fleetdm.com/docs/rest-api/rest-api#reset-policy-results) API endpoint.
 
