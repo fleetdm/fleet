@@ -52,9 +52,6 @@ Patch cadence is not slowing down. The teams that handle browser security best a
 - Cyber Security News, [Google Chrome 152 Released With 327 Security Fixes, Including 10 Critical Vulnerabilities](https://cybersecuritynews.com/chrome-152-released-with-327-security-fixes/).
 - SecurityWeek, [Chrome 152 Patches Over 300 Vulnerabilities](https://www.securityweek.com/chrome-152-patches-over-300-vulnerabilities/).
 
----
-*See which of your devices are still exposed. [Talk to Fleet](https://fleetdm.com/contact), or explore the [software catalog](https://fleetdm.com/software-catalog) Fleet already builds from your fleet.*
-
 <meta name="articleTitle" value="What Chrome 152's two critical flaws mean for confirming browser patch coverage">
 <meta name="authorFullName" value="Allen Houchins">
 <meta name="authorGitHubUsername" value="allenhouchins">
