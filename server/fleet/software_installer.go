@@ -54,10 +54,10 @@ type SoftwareInstallDetails struct {
 	// MaxRetries is the number of additional attempts allowed after the initial attempt (0 = no retries).
 	MaxRetries uint `json:"max_retries,omitempty"`
 
-	AppOpenQuery         string `json:"-" db:"app_open_query"`
-	PatchWhenClosed      bool   `json:"-" db:"patch_when_closed"`
-	NotifyBeforePatching bool   `json:"-" db:"notify_before_patching"`
-	IgnoreAppOpenQuery   bool   `json:"-" db:"ignore_app_open_query"`
+	AppOpenQuery string `json:"-" db:"app_open_query"`
+	// OverridePreInstallQuery is decided when the install is queued: it means this attempt runs
+	// AppOpenQuery as its pre-install condition instead of the installer's own pre-install query.
+	OverridePreInstallQuery bool `json:"-" db:"override_pre_install_query"`
 }
 
 type SoftwareInstallerURL struct {

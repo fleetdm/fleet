@@ -69,9 +69,7 @@ func (ds *Datastore) GetSoftwareInstallDetails(ctx context.Context, executionId 
     hsi.self_service AS self_service,
     COALESCE(si.pre_install_query, '') AS pre_install_condition,
     si.app_open_query AS app_open_query,
-    COALESCE(p.patch_when_closed, 0) AS patch_when_closed,
-    COALESCE(p.notify_before_patching, 0) AS notify_before_patching,
-    COALESCE(ua.payload->'$.ignore_app_open_query', 0) AS ignore_app_open_query,
+    hsi.override_pre_install_query AS override_pre_install_query,
     inst.contents AS install_script,
     uninst.contents AS uninstall_script,
     COALESCE(pisnt.contents, '') AS post_install_script
@@ -80,12 +78,6 @@ func (ds *Datastore) GetSoftwareInstallDetails(ctx context.Context, executionId 
   INNER JOIN
     software_installers si
     ON hsi.software_installer_id = si.id
-  LEFT OUTER JOIN
-    policies p
-    ON p.id = hsi.policy_id
-  LEFT OUTER JOIN
-    upcoming_activities ua
-    ON ua.execution_id = hsi.execution_id
   LEFT OUTER JOIN
     script_contents inst
     ON inst.id = si.install_script_content_id
@@ -108,9 +100,7 @@ func (ds *Datastore) GetSoftwareInstallDetails(ctx context.Context, executionId 
 		ua.payload->'$.self_service' AS self_service,
     COALESCE(si.pre_install_query, '') AS pre_install_condition,
     si.app_open_query AS app_open_query,
-    COALESCE(p.patch_when_closed, 0) AS patch_when_closed,
-    COALESCE(p.notify_before_patching, 0) AS notify_before_patching,
-    COALESCE(ua.payload->'$.ignore_app_open_query', 0) AS ignore_app_open_query,
+    COALESCE(ua.payload->'$.override_pre_install_query', 0) AS override_pre_install_query,
     inst.contents AS install_script,
     uninst.contents AS uninstall_script,
     COALESCE(pisnt.contents, '') AS post_install_script
@@ -122,9 +112,6 @@ func (ds *Datastore) GetSoftwareInstallDetails(ctx context.Context, executionId 
   INNER JOIN
     software_installers si
     ON siua.software_installer_id = si.id
-  LEFT OUTER JOIN
-    policies p
-    ON p.id = siua.policy_id
   LEFT OUTER JOIN
     script_contents inst
     ON inst.id = si.install_script_content_id
@@ -147,9 +134,7 @@ func (ds *Datastore) GetSoftwareInstallDetails(ctx context.Context, executionId 
 		return nil, ctxerr.Wrap(ctx, err, "get software install details")
 	}
 
-	// A patch-when-closed or notify-before-patching policy install uses the installer's app open
-	// query as its pre-install condition.
-	if (result.PatchWhenClosed || result.NotifyBeforePatching) && !result.IgnoreAppOpenQuery {
+	if result.OverridePreInstallQuery {
 		result.PreInstallCondition = result.AppOpenQuery
 	}
 
@@ -1941,10 +1926,17 @@ VALUES
 			'software_title_name', ?,
 			'source', ?,
 			'with_retries', ?,
-			'ignore_app_open_query', ?,
+			'override_pre_install_query', ?,
 			'user', (SELECT JSON_OBJECT('name', name, 'email', email, 'gravatar_url', gravatar_url) FROM users WHERE id = ?)
 		)
 	)`
+
+		appOpenPolicyStmt = `
+SELECT
+	patch_when_closed OR notify_before_patching
+FROM
+	policies
+WHERE id = ?`
 
 		insertSIUAStmt = `
 INSERT INTO software_install_upcoming_activities
@@ -1989,6 +1981,19 @@ VALUES
 	}
 	execID := uuid.NewString()
 
+	// A patch-when-closed or notify-before-patching policy install runs the installer's app open
+	// query instead of its pre-install query, so the install skips while the app is open. The end
+	// user pressing "Update now" on a patch notification sets IgnoreAppOpenQuery, which installs
+	// even with the app open. The decision is recorded per attempt rather than read back from the
+	// policy at install time.
+	var overridePreInstallQuery bool
+	if opts.PolicyID != nil && !opts.IgnoreAppOpenQuery {
+		appOpenErr := sqlx.GetContext(ctx, ds.reader(ctx), &overridePreInstallQuery, appOpenPolicyStmt, *opts.PolicyID)
+		if appOpenErr != nil && !errors.Is(appOpenErr, sql.ErrNoRows) {
+			return "", ctxerr.Wrap(ctx, appOpenErr, "getting patch policy app open options")
+		}
+	}
+
 	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		res, err := tx.ExecContext(ctx, insertUAStmt,
 			hostID,
@@ -2002,7 +2007,7 @@ VALUES
 			installerDetails.TitleName,
 			installerDetails.Source,
 			opts.WithRetries,
-			opts.IgnoreAppOpenQuery,
+			overridePreInstallQuery,
 			userID,
 		)
 		if err != nil {
