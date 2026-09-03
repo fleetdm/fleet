@@ -54,11 +54,11 @@ func JSONStrictDecode(r io.Reader, v interface{}) error {
 
 // JSONDecode is JSONStrictDecode without the unknown-key rejection: unrecognized keys are ignored, as
 // with a plain json.Unmarshal. Trailing bytes are still an error.
-func JSONDecode(r io.Reader, v interface{}) error {
+func JSONDecode(r io.Reader, v any) error {
 	return jsonDecode(r, v)
 }
 
-func jsonDecode(r io.Reader, v interface{}, opts ...jsonv2.Options) error {
+func jsonDecode(r io.Reader, v any, opts ...jsonv2.Options) error {
 	dec := jsondecode.NewDecoder(r, opts...)
 	if err := dec.Decode(v); err != nil {
 		return err

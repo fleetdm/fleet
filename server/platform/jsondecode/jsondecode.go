@@ -25,6 +25,7 @@ import (
 	"fmt"
 	"io"
 	"reflect"
+	"strconv"
 	"strings"
 )
 
@@ -93,18 +94,29 @@ func translate(err error, root any) error {
 		return fmt.Errorf("json: unknown field %q", serr.JSONPointer.LastToken())
 	}
 
-	// A custom UnmarshalJSON that delegates to encoding/json (every pkg/optjson type) has already
-	// produced an UnmarshalTypeError naming the concrete Go type that failed -- int, say, rather than the
-	// optjson.Int wrapping it. Annotate that error with the position rather than wrapping it, which is
-	// what the pre-Go 1.27 decoder did and keeps callers that walk to the root cause working.
-	if inner, ok := errors.AsType[*jsonv1.UnmarshalTypeError](serr.Err); ok {
+	// A custom UnmarshalJSON that passes an encoding/json error straight back (every pkg/optjson type
+	// does) has already named the concrete Go type that failed -- int, say, rather than the optjson.Int
+	// wrapping it. Annotate that error with the position rather than replacing it, which is what the
+	// pre-Go 1.27 decoder did and keeps callers that walk to the root cause working.
+	//
+	// The type assertion is deliberately direct rather than errors.As: a method that *wraps* an
+	// UnmarshalTypeError has added a message of its own, and that message is the useful part.
+	if inner, ok := serr.Err.(*jsonv1.UnmarshalTypeError); ok { //nolint:errorlint // see above
 		inner.Struct = rootTypeName(root)
 		inner.Field = FieldPath(err)
 		return inner
 	}
 
-	// Err is deliberately left unset: callers resolve errors to their root cause, so wrapping the v2
-	// error here would hide this one and defeat the point of reporting a position at all.
+	// Anything else a custom UnmarshalJSON returned is a validation failure in its own right -- "contents
+	// must be base64", say. encoding/json reports those verbatim, and replacing one with a synthesized
+	// type error would throw away the only description of what is actually wrong.
+	if serr.Err != nil && !isNumberFormatError(serr.Err) {
+		return serr.Err
+	}
+
+	// A genuine type mismatch: either v2 reported no underlying cause, or it is the numeric parse failure
+	// that encoding/json renders as "number 1.23". Err is deliberately left unset on the result, because
+	// callers resolve errors to their root cause and wrapping would hide this one.
 	return &jsonv1.UnmarshalTypeError{
 		Value:  describeValue(serr),
 		Type:   serr.GoType,
@@ -112,6 +124,13 @@ func translate(err error, root any) error {
 		Struct: rootTypeName(root),
 		Field:  FieldPath(err),
 	}
+}
+
+// isNumberFormatError reports whether err is the failure to parse a JSON number into a Go numeric type,
+// which encoding/json describes as a type error ("cannot unmarshal number 1.23 into ... of type int")
+// rather than surfacing the strconv error.
+func isNumberFormatError(err error) bool {
+	return errors.Is(err, strconv.ErrSyntax) || errors.Is(err, strconv.ErrRange)
 }
 
 // IsTypeError reports whether err describes a value of the wrong type, as opposed to malformed JSON or

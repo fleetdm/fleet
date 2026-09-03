@@ -3,6 +3,7 @@ package jsondecode
 import (
 	jsonv1 "encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"strings"
 	"testing"
@@ -141,6 +142,71 @@ func TestStopsAtCompositeUnmarshalerBoundary(t *testing.T) {
 	require.Equal(t, "specs.0.software.packages", terr.Field)
 	// The prefix is correct as far as it goes, which is what callers render.
 	require.NotEmpty(t, terr.Field, "an empty path is the regression this package fixes")
+}
+
+// errNotBase64 stands in for a domain validation failure raised by a custom UnmarshalJSON, as
+// server/service's backwardsCompatProfilesParam does when profile contents will not decode.
+var errNotBase64 = errors.New("contents must be base64")
+
+type validated struct{ V string }
+
+func (s *validated) UnmarshalJSON(data []byte) error {
+	var raw string
+	if err := jsonv1.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	if raw != "ok" {
+		return fmt.Errorf("field %q: %w", raw, errNotBase64)
+	}
+	return nil
+}
+
+// wrapped stands in for a custom UnmarshalJSON that adds context to an encoding/json failure rather
+// than returning it untouched.
+type wrapped struct{ V map[string][]byte }
+
+func (w *wrapped) UnmarshalJSON(data []byte) error {
+	if err := jsonv1.Unmarshal(data, &w.V); err != nil {
+		return fmt.Errorf("unmarshal profile spec. Error using old format: %w", err)
+	}
+	return nil
+}
+
+type customs struct {
+	Validated validated `json:"validated"`
+	Wrapped   wrapped   `json:"wrapped"`
+}
+
+// TestPreservesErrorsFromCustomUnmarshalers guards the distinction that makes this package safe to put
+// in front of every decode: a value of the wrong type is reported as a type error with the path filled
+// in, but anything else a custom UnmarshalJSON reports is its own description of what is wrong and must
+// survive untouched. Synthesizing a type error over the top of one would throw that description away.
+func TestPreservesErrorsFromCustomUnmarshalers(t *testing.T) {
+	t.Run("validation error survives and is not a type error", func(t *testing.T) {
+		err := Unmarshal([]byte(`{"validated":"nope"}`), &customs{})
+		require.ErrorIs(t, err, errNotBase64, "the sentinel must still be reachable")
+		require.EqualError(t, err, `field "nope": contents must be base64`)
+		require.False(t, IsTypeError(err), "a validation failure is not a type mismatch")
+	})
+
+	t.Run("added context survives", func(t *testing.T) {
+		err := Unmarshal([]byte(`{"wrapped":{"a":123}}`), &customs{})
+		require.ErrorContains(t, err, "unmarshal profile spec. Error using old format:")
+	})
+
+	t.Run("matches encoding/json exactly", func(t *testing.T) {
+		for _, in := range []string{
+			`{"validated":"nope"}`,
+			`{"wrapped":{"a":123}}`,
+			`{"wrapped":123}`,
+		} {
+			var want, got customs
+			wantErr := jsonv1.Unmarshal([]byte(in), &want)
+			gotErr := Unmarshal([]byte(in), &got)
+			require.Error(t, wantErr)
+			require.EqualError(t, gotErr, wantErr.Error(), "input %s", in)
+		}
+	})
 }
 
 func TestPassesThroughNonSemanticErrors(t *testing.T) {
