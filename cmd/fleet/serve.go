@@ -889,6 +889,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 			config.Server.URLPrefix,
 			ds,
 			redis_key_value.New(redisPool),
+			clock.C,
 			logger,
 			serveCSP,
 		)
