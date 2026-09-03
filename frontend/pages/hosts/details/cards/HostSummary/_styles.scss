@@ -22,4 +22,32 @@
     overflow: initial;
     gap: $pad-xsmall; // Future iteration: Consider global gap to for data sets
   }
+
+  // Wraps the online/offline pill so it reads as a click target for the online
+  // history modal. Only the label text is underlined; the color dot stays clean.
+  &__status-button {
+    background: transparent;
+    border: 0;
+    padding: 0;
+    margin: 0;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+
+    .status-indicator {
+      text-decoration: underline;
+      text-decoration-color: $ui-fleet-black-75;
+      text-underline-offset: 3px;
+    }
+
+    &:hover .status-indicator {
+      text-decoration-color: $core-fleet-black;
+    }
+
+    &:focus-visible {
+      @include unstyled-button-focus-outline(3px);
+    }
+  }
 }
