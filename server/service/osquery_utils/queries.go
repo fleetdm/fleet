@@ -47,6 +47,11 @@ type DetailQuery struct {
 	// QueryFunc is optionally used to dynamically build a query. If false is returned, then the query should be
 	// ignored.
 	QueryFunc func(ctx context.Context, logger *slog.Logger, host *fleet.Host, ds fleet.Datastore) (string, bool)
+	// DocumentedQuery is what the query documentation generator shows for a query built
+	// by QueryFunc. Set it to the form most hosts run, and use Description to say what
+	// the other forms are. Without it the generated docs can only say that the query is
+	// built dynamically.
+	DocumentedQuery string
 	// Discovery is the SQL query that defines whether the query will run on the host or not.
 	// If not set, Fleet makes sure the query will always run.
 	Discovery string
@@ -244,46 +249,19 @@ var hostDetailQueries = map[string]DetailQuery{
 		},
 	},
 	"os_version_windows": {
-		// Fleet requires the DisplayVersion as well as the UBR (4th part of the version number) to
-		// correctly map OS vulnerabilities to hosts. The UBR is not available in the os_version table.
-		// The full version number is available in the `kernel_info` table, but there is a Win10 bug
-		// which is reporting an incorrect build number (3rd part), so we query the Windows registry for the UBR
-		// here instead.  To note, osquery 5.12.0 will have the UBR in the os_version table.
-
-		// display_version is not available in some versions of
-		// Windows (Server 2019). By including it using a JOIN it can
-		// return no rows and the query will still succeed
-		Query: `
-		WITH display_version_table AS (
-			SELECT data as display_version
-			FROM registry
-			WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\DisplayVersion'
-		),
-		ubr_table AS (
-			SELECT data AS ubr
-			FROM registry
-			WHERE path ='HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\UBR'
-		),
-		installation_type_table AS (
-			SELECT data AS installation_type
-			FROM registry
-			WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\InstallationType'
-		)
-		SELECT
-			os.name,
-			COALESCE(d.display_version, '') AS display_version,
-			COALESCE(CONCAT((SELECT version FROM os_version), '.', u.ubr), k.version) AS version,
-			COALESCE(it.installation_type, '') AS installation_type
-		FROM
-			os_version os,
-			kernel_info k
-		LEFT JOIN
-			display_version_table d
-		LEFT JOIN
-			ubr_table u
-		LEFT JOIN
-			installation_type_table it`,
-		Platforms: []string{"windows"},
+		// Fleet requires the DisplayVersion as well as the UBR (4th part of the version
+		// number) to correctly map OS vulnerabilities to hosts. The query is built per
+		// host because the UBR's source depends on the agent's osquery version; see
+		// windowsUBRSource.
+		//
+		// display_version is not available in some versions of Windows (Server 2019). By
+		// including it using a JOIN it can return no rows and the query will still succeed.
+		Description: windowsUBRDescription,
+		QueryFunc: func(ctx context.Context, logger *slog.Logger, host *fleet.Host, ds fleet.Datastore) (string, bool) {
+			return windowsOSVersionQuery(windowsUBRSource(host)), true
+		},
+		DocumentedQuery: windowsOSVersionQuery("", windowsVersionFromRevision, ""),
+		Platforms:       []string{"windows"},
 		IngestFunc: func(ctx context.Context, logger *slog.Logger, host *fleet.Host, rows []map[string]string) error {
 			if len(rows) != 1 {
 				logger.ErrorContext(ctx, fmt.Sprintf("detail_query_os_version_windows expected single result got %d", len(rows)),
@@ -705,45 +683,15 @@ var extraDetailQueries = map[string]DetailQuery{
 		// This query is used to populate the `operating_systems` and `host_operating_system`
 		// tables. Separately, the `hosts` table is populated via the `os_version` and
 		// `os_version_windows` detail queries above.
-		// See above description for the `os_version_windows` detail query.
 		//
-		// DisplayVersion doesn't exist on all versions of Windows (Server 2019).
-		// To prevent the query from failing in those cases, we join
-		// the values in when they exist, alternatively the column is
-		// just empty.
-		Query: `
-	WITH display_version_table AS (
-		SELECT data as display_version
-		FROM registry
-		WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\DisplayVersion'
-	),
-	ubr_table AS (
-	SELECT data AS ubr
-	FROM registry
-	WHERE path ='HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\UBR'
-	),
-	installation_type_table AS (
-	SELECT data AS installation_type
-	FROM registry
-	WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\InstallationType'
-	)
-	SELECT
-		os.name,
-		os.platform,
-		os.arch,
-		k.version as kernel_version,
-		COALESCE(CONCAT((SELECT version FROM os_version), '.', u.ubr), k.version) AS version,
-		COALESCE(d.display_version, '') AS display_version,
-		COALESCE(it.installation_type, '') AS installation_type
-	FROM
-		os_version os,
-		kernel_info k
-	LEFT JOIN
-		display_version_table d
-	LEFT JOIN
-		ubr_table u
-	LEFT JOIN
-		installation_type_table it`,
+		// DisplayVersion doesn't exist on all versions of Windows (Server 2019). To prevent
+		// the query from failing in those cases, we join the values in when they exist,
+		// alternatively the column is just empty.
+		Description: windowsUBRDescription,
+		QueryFunc: func(ctx context.Context, logger *slog.Logger, host *fleet.Host, ds fleet.Datastore) (string, bool) {
+			return windowsOSQuery(windowsUBRSource(host)), true
+		},
+		DocumentedQuery:  windowsOSQuery("", windowsVersionFromRevision, ""),
 		Platforms:        []string{"windows"},
 		DirectIngestFunc: directIngestOSWindows,
 	},
@@ -962,6 +910,114 @@ var mdmQueries = map[string]DetailQuery{
 }
 
 // discoveryTable returns a query to determine whether a table exists or not.
+// The UBR (4th part of a Windows version number) is exposed by os_version.revision
+// as of osquery 5.12.0. Agents older than that have to read it out of the registry,
+// so both forms of the Windows OS queries are registered and gated on discovery.
+//
+// Windows Server 2012 and 2012 R2 predate the UBR entirely and report no value for
+// it, so both forms fall back to kernel_info. The revision has to be cast before it
+// is compared: it reads back as 0 or "" on those releases, and SQLite orders any
+// text above any integer, so a bare `> 0` would be true for "". Appending a zero
+// revision would make every fixed build in a security bulletin compare as newer than
+// the host, reporting every CVE in it.
+const (
+	windowsVersionFromRevision = `CASE WHEN CAST(os.revision AS INTEGER) > 0 THEN os.version || '.' || os.revision ELSE k.version END`
+	windowsVersionFromRegistry = `CASE WHEN u.ubr IS NOT NULL AND u.ubr != '' THEN os.version || '.' || u.ubr ELSE k.version END`
+
+	windowsUBRRegistryCTE = `ubr_table AS (
+		SELECT data AS ubr
+		FROM registry
+		WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\UBR'
+	),`
+	windowsUBRRegistryJoin = `LEFT JOIN
+			ubr_table u`
+)
+
+// windowsUBRDescription explains, in the generated query documentation, why the
+// query a host actually runs may differ from the one documented.
+const windowsUBRDescription = "The query shown is the one sent to hosts running osquery " +
+	osqueryVersionWithUBR + " or later, which report the update build revision (UBR) in " +
+	"`os_version.revision`. Hosts on older versions of osquery are sent an equivalent query " +
+	"that reads the UBR from the Windows registry instead. Windows Server 2012 and 2012 R2 " +
+	"have no UBR at all, and fall back to the `kernel_info` version on either form."
+
+// osqueryVersionWithUBR is the first osquery release whose os_version table
+// exposes the UBR.
+const osqueryVersionWithUBR = "5.12.0"
+
+// windowsUBRSource picks where a host's UBR comes from. Hosts whose agent predates
+// os_version.revision read it from the registry instead. A host that has not yet
+// reported its osquery version compares as older and takes the registry path, which
+// works on every version.
+func windowsUBRSource(host *fleet.Host) (ubrCTE, versionExpr, ubrJoin string) {
+	if host != nil && fleet.IsAtLeastVersion(host.OsqueryVersion, osqueryVersionWithUBR) {
+		return "", windowsVersionFromRevision, ""
+	}
+	return windowsUBRRegistryCTE, windowsVersionFromRegistry, windowsUBRRegistryJoin
+}
+
+// windowsOSVersionQuery builds the detail query that populates hosts.os_version.
+func windowsOSVersionQuery(ubrCTE, versionExpr, ubrJoin string) string {
+	return fmt.Sprintf(`
+		WITH display_version_table AS (
+			SELECT data as display_version
+			FROM registry
+			WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\DisplayVersion'
+		),
+		%s
+		installation_type_table AS (
+			SELECT data AS installation_type
+			FROM registry
+			WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\InstallationType'
+		)
+		SELECT
+			os.name,
+			COALESCE(d.display_version, '') AS display_version,
+			%s AS version,
+			COALESCE(it.installation_type, '') AS installation_type
+		FROM
+			os_version os,
+			kernel_info k
+		LEFT JOIN
+			display_version_table d
+		%s
+		LEFT JOIN
+			installation_type_table it`, ubrCTE, versionExpr, ubrJoin)
+}
+
+// windowsOSQuery builds the detail query that populates the operating_systems and
+// host_operating_system tables.
+func windowsOSQuery(ubrCTE, versionExpr, ubrJoin string) string {
+	return fmt.Sprintf(`
+		WITH display_version_table AS (
+			SELECT data as display_version
+			FROM registry
+			WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\DisplayVersion'
+		),
+		%s
+		installation_type_table AS (
+			SELECT data AS installation_type
+			FROM registry
+			WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\InstallationType'
+		)
+		SELECT
+			os.name,
+			os.platform,
+			os.arch,
+			k.version as kernel_version,
+			%s AS version,
+			COALESCE(d.display_version, '') AS display_version,
+			COALESCE(it.installation_type, '') AS installation_type
+		FROM
+			os_version os,
+			kernel_info k
+		LEFT JOIN
+			display_version_table d
+		%s
+		LEFT JOIN
+			installation_type_table it`, ubrCTE, versionExpr, ubrJoin)
+}
+
 func discoveryTable(tableName string) string {
 	return fmt.Sprintf("SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = '%s'", tableName)
 }

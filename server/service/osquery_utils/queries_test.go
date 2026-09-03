@@ -5197,3 +5197,41 @@ func TestWindowsEnrollmentDefaultFleetSkipsPendingAutopilotHost(t *testing.T) {
 		})
 	}
 }
+
+// TestWindowsUBRSource pins which source the Windows OS queries read the update
+// build revision from. Agents that predate os_version.revision have to fall back to
+// the registry, and a host that has not reported its osquery version yet must take
+// that same path, since it works on every version.
+func TestWindowsUBRSource(t *testing.T) {
+	tc := []struct {
+		osqueryVersion string
+		wantRevision   bool
+	}{
+		{"5.12.0", true},
+		{"5.12.1", true},
+		{"5.18.1", true},
+		{"6.0.0", true},
+		{"5.11.0", false},
+		{"5.9.1", false},
+		{"4.9.0", false},
+		{"", false},
+		{"not-a-version", false},
+	}
+
+	for _, tt := range tc {
+		t.Run(tt.osqueryVersion, func(t *testing.T) {
+			host := &fleet.Host{OsqueryVersion: tt.osqueryVersion}
+			for _, q := range []string{
+				windowsOSVersionQuery(windowsUBRSource(host)),
+				windowsOSQuery(windowsUBRSource(host)),
+			} {
+				require.Equal(t, tt.wantRevision, strings.Contains(q, "os.revision"))
+				require.Equal(t, !tt.wantRevision, strings.Contains(q, "ubr_table"))
+			}
+		})
+	}
+
+	// A nil host must not panic, and must take the path that works everywhere.
+	require.Contains(t, windowsOSVersionQuery(windowsUBRSource(nil)), "ubr_table")
+	require.Contains(t, windowsOSQuery(windowsUBRSource(nil)), "ubr_table")
+}
