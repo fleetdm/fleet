@@ -43,10 +43,8 @@ const getPolicyTooltip = (count = 0) =>
     ? "A policy triggers install."
     : `${count} policies trigger install.`;
 
-const getAutoUpdateTooltip = (start?: string, end?: string) =>
-  start && end
-    ? `Auto updates between ${start} and ${end}.`
-    : "Auto updates enabled.";
+const getAutoUpdateTooltip = (start: string, end: string) =>
+  `Auto updates between ${start} and ${end}.`;
 
 const installIconMap: Record<InstallType, InstallIconConfig> = {
   manual: {
@@ -70,19 +68,23 @@ const installIconMap: Record<InstallType, InstallIconConfig> = {
       autoUpdateEnabled = false,
       autoUpdateWindowStart,
       autoUpdateWindowEnd,
-    }) => (
-      <>
-        {automaticInstallPoliciesCount > 0 && (
-          <>{getPolicyTooltip(automaticInstallPoliciesCount)}</>
-        )}
-        {automaticInstallPoliciesCount > 0 && autoUpdateEnabled && <br />}
-        {autoUpdateEnabled && (
-          <>
-            {getAutoUpdateTooltip(autoUpdateWindowStart, autoUpdateWindowEnd)}
-          </>
-        )}
-      </>
-    ),
+    }) => {
+      const showAutoUpdate =
+        autoUpdateEnabled && !!autoUpdateWindowStart && !!autoUpdateWindowEnd;
+      return (
+        <>
+          {automaticInstallPoliciesCount > 0 && (
+            <>{getPolicyTooltip(automaticInstallPoliciesCount)}</>
+          )}
+          {automaticInstallPoliciesCount > 0 && showAutoUpdate && <br />}
+          {showAutoUpdate && (
+            <>
+              {getAutoUpdateTooltip(autoUpdateWindowStart, autoUpdateWindowEnd)}
+            </>
+          )}
+        </>
+      );
+    },
   },
   automaticSelfService: {
     iconName: "automatic-self-service",
@@ -93,23 +95,27 @@ const installIconMap: Record<InstallType, InstallIconConfig> = {
       autoUpdateEnabled = false,
       autoUpdateWindowStart,
       autoUpdateWindowEnd,
-    }) => (
-      <>
-        {automaticInstallPoliciesCount > 0 && (
-          <>
-            {getPolicyTooltip(automaticInstallPoliciesCount)}
-            <br />
-          </>
-        )}
-        {autoUpdateEnabled && (
-          <>
-            {getAutoUpdateTooltip(autoUpdateWindowStart, autoUpdateWindowEnd)}
-            <br />
-          </>
-        )}
-        {getSelfServiceTooltip(isIosOrIpadosApp, isAndroidPlayStoreApp)}
-      </>
-    ),
+    }) => {
+      const showAutoUpdate =
+        autoUpdateEnabled && !!autoUpdateWindowStart && !!autoUpdateWindowEnd;
+      return (
+        <>
+          {automaticInstallPoliciesCount > 0 && (
+            <>
+              {getPolicyTooltip(automaticInstallPoliciesCount)}
+              <br />
+            </>
+          )}
+          {showAutoUpdate && (
+            <>
+              {getAutoUpdateTooltip(autoUpdateWindowStart, autoUpdateWindowEnd)}
+              <br />
+            </>
+          )}
+          {getSelfServiceTooltip(isIosOrIpadosApp, isAndroidPlayStoreApp)}
+        </>
+      );
+    },
   },
 };
 

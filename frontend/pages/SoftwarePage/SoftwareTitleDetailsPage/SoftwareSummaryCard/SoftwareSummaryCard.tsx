@@ -225,13 +225,10 @@ const SoftwareSummaryCard = ({
                 : undefined
             }
             tooltip={
-              softwareTitle.auto_update_window_start &&
-              softwareTitle.auto_update_window_end ? (
-                <>
-                  Between {softwareTitle.auto_update_window_start} and{" "}
-                  {softwareTitle.auto_update_window_end}.
-                </>
-              ) : undefined
+              <>
+                Between {softwareTitle.auto_update_window_start} and{" "}
+                {softwareTitle.auto_update_window_end}.
+              </>
             }
           />
         )}
