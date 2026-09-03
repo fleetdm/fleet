@@ -2130,9 +2130,6 @@ func (ds *Datastore) GetDeviceInfoForACMERenewal(ctx context.Context, hostUUIDs 
 		return []fleet.DeviceInfoForACMERenewal{}, nil
 	}
 
-	// TODO(mna): anyone knows what those TODOs (from Sarah's PRs) were for?
-	// TODO: refactor this to use hw model from host_dep_assignments once we have that fully in place
-	// TODO: confirm we can rely on host_operating_system and operating_systems tables for accurate OS version information
 	stmt := `
 SELECT
 	h.uuid AS host_uuid,
@@ -2147,7 +2144,7 @@ FROM
 WHERE
 	h.uuid IN(?)
 	AND hda.deleted_at IS NULL
-	AND os.name = 'macOS'`
+	AND os.name IN ('macOS', 'iOS', 'iPadOS')`
 
 	stmt, args, err := sqlx.In(stmt, hostUUIDs)
 	if err != nil {

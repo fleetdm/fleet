@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { Command } from "cmdk";
 
 import hostsAPI, { ILoadHostsResponse } from "services/entities/hosts";
@@ -19,12 +19,18 @@ interface IHostPickerProps {
    *  installs have nothing meaningful to show in the team column). */
   showTeamColumn?: boolean;
   onSelect: (hostId: number) => void;
+  /** Fires when the results list identity changes, with the cmdk value of
+   *  the first item (or null when empty). The parent uses it to point
+   *  cmdk's highlight at the first row after each fetch — cmdk's own
+   *  auto-select doesn't re-run when items reference-change. */
+  onResultsChange?: (firstItemValue: string | null) => void;
 }
 
 const HostPicker = ({
   search,
   showTeamColumn = false,
   onSelect,
+  onResultsChange,
 }: IHostPickerProps): JSX.Element => {
   // No team scoping — the picker is a global navigator. On select, the
   // parent navigates to /hosts/:id/details without fleet_id; the host
@@ -46,6 +52,18 @@ const HostPicker = ({
       }),
     selectItems: (data) => data?.hosts ?? [],
   });
+
+  const firstItemValue =
+    hosts.length > 0 ? `${RESULT_PREFIXES.host}${hosts[0].id}` : null;
+  // Key the effect off a stable signature of the full list, not just the
+  // first id. If results change but the first id is the same (user types
+  // more, list shrinks/reorders), a previously-arrow'd row further down
+  // may be gone — we still need to snap the highlight back to the first
+  // row so the controlled cmdk value stays valid.
+  const itemsSignature = hosts.map((h) => h.id).join(",");
+  useEffect(() => {
+    onResultsChange?.(firstItemValue);
+  }, [itemsSignature, firstItemValue, onResultsChange]);
 
   if (isLoading && hosts.length === 0) {
     return <div className={`${baseClass}__empty`}>Looking for hosts...</div>;

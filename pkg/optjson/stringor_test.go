@@ -68,7 +68,7 @@ func TestStringOr(t *testing.T) {
 			name:         "field invalid object",
 			getVar:       func() any { var s target; return &s },
 			src:          `{"field":{}}`,
-			unmarshalErr: "cannot unmarshal object into Go struct field target.field of type []string",
+			unmarshalErr: "cannot unmarshal object into Go value of type []string",
 		},
 		{
 			name:      "array field null",
@@ -191,7 +191,7 @@ func TestBoolOr(t *testing.T) {
 			name:         "field invalid array",
 			getVar:       func() any { var s target; return &s },
 			src:          `{"field":[]}`,
-			unmarshalErr: "cannot unmarshal array into Go struct field target.field of type optjson.child",
+			unmarshalErr: "cannot unmarshal array into Go value of type optjson.child",
 		},
 		{
 			name:      "array field null",

@@ -160,7 +160,11 @@ import {
 } from "../helpers";
 import WipeModal from "./modals/WipeModal";
 import { parseHostSoftwareQueryParams } from "../cards/Software/HostSoftware";
-import { canShowMyDeviceButton, getErrorMessage } from "./helpers";
+import {
+  canShowMyDeviceButton,
+  getErrorMessage,
+  hasEverEnrolled,
+} from "./helpers";
 import CancelActivityModal from "./modals/CancelActivityModal";
 import CancelCommandModal from "./modals/CancelCommandModal";
 import CertificateDetailsModal from "../modals/CertificateDetailsModal";
@@ -331,7 +335,13 @@ const HostDetailsPage = ({
     setEnrollmentProfileFailedDetails,
   ] = useState<Omit<IFailedEnrollmentProfileModalProps, "onDone"> | null>(null);
 
-  const [refetchStartTime, setRefetchStartTime] = useState<number | null>(null);
+  // React Router reuses this component when only host_id changes.
+  const [refetchStart, setRefetchStart] = useState<{
+    hostId: number;
+    at: number;
+  } | null>(null);
+  const refetchStartTime =
+    refetchStart?.hostId === hostIdFromURL ? refetchStart.at : null;
   const [showRefetchSpinner, setShowRefetchSpinner] = useState(false);
   const [usersState, setUsersState] = useState<{ username: string }[]>([]);
   const [usersSearchString, setUsersSearchString] = useState("");
@@ -436,7 +446,7 @@ const HostDetailsPage = ({
    */
   const resetHostRefetchStates = () => {
     setShowRefetchSpinner(false);
-    setRefetchStartTime(null);
+    setRefetchStart(null);
   };
 
   const {
@@ -453,9 +463,15 @@ const HostDetailsPage = ({
       onSuccess: (returnedHost) => {
         // If API returns refetch_requested: true,
         // only set timer if *not* already set!
-        if (returnedHost.refetch_requested) {
+        // Pending hosts carry the flag from the moment they're created, so ignore it unless the host has enrolled and
+        // can actually return vitals. On a never-enrolled host only a click (within first 60s) sets refetchStartTime,
+        // so an explicit request still gets its spinner and its feedback.
+        if (
+          returnedHost.refetch_requested &&
+          (hasEverEnrolled(returnedHost) || refetchStartTime !== null)
+        ) {
           if (!refetchStartTime) {
-            setRefetchStartTime(Date.now());
+            setRefetchStart({ hostId: hostIdFromURL, at: Date.now() });
           }
           setShowRefetchSpinner(true);
 
@@ -791,7 +807,7 @@ const HostDetailsPage = ({
 
       try {
         await hostAPI.refetch(host).then(() => {
-          setRefetchStartTime(Date.now());
+          setRefetchStart({ hostId: hostIdFromURL, at: Date.now() });
           setTimeout(() => {
             refetchHostDetails();
             refetchExtensions();
@@ -1917,6 +1933,7 @@ const HostDetailsPage = ({
               hostPlatform={host.platform}
               hostName={host.display_name}
               enrollmentStatus={host.mdm.enrollment_status}
+              lastMdmEnrollmentType={host.last_mdm_enrollment_type}
               onClose={toggleUnenrollMdmModal}
               onSuccess={() => {
                 // The server marks the host unenrolled immediately, so refresh

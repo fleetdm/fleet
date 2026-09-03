@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<installer-gui-script minSpecVersion="2">
+    <title>GlobalProtect</title>
+    <choices-outline>
+        <line choice="default"/>
+    </choices-outline>
+    <choice id="default">
+        <pkg-ref id="com.paloaltonetworks.globalprotect.pkg"/>
+    </choice>
+    <pkg-ref id="com.paloaltonetworks.globalprotect.pkg" version="6.2.8-948" installKBytes="180866">#gp.pkg</pkg-ref>
+    <pkg-ref id="com.paloaltonetworks.globalprotect.uninstall.pkg" version="0" installKBytes="0">#gp_uninstall.pkg</pkg-ref>
+    <pkg-ref id="com.paloaltonetworks.globalprotect.systemext.pkg" version="0" installKBytes="0">#gp_systemext.pkg</pkg-ref>
+    <pkg-ref id="com.paloaltonetworks.globalprotect.pkg">
+        <bundle-version>
+            <bundle CFBundleShortVersionString="6.2.8" id="com.paloaltonetworks.GlobalProtect.gpsplit" path="Contents/Resources/gpsplit.kext"/>
+        </bundle-version>
+    </pkg-ref>
+</installer-gui-script>
