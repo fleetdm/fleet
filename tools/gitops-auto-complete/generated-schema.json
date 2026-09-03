@@ -2819,6 +2819,9 @@
             "null"
           ]
         },
+        "deadline_days": {
+          "description": "DeadlineDays is the number of days after an OS version's release date\nbefore the update is enforced. It is only valid when MinimumVersion is\n\"latest\", where the deadline is relative to each version's release rather\nthan a fixed calendar date.\n\ntype: `integer`"
+        },
         "minimum_version": {
           "description": "MinimumVersion is the required minimum operating system version.\n\ntype: `string`",
           "type": [
@@ -2940,7 +2943,13 @@
           "$ref": "#/$defs/AppleAccountProvisioning",
           "description": "type: `AppleAccountProvisioning`"
         },
-        "apple_require_hardware_attestation": true,
+        "apple_require_hardware_attestation": {
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
         "apple_settings": {
           "$ref": "#/$defs/MacOSSettings",
           "description": "type: `MacOSSettings`"
@@ -2989,6 +2998,13 @@
           "description": "type: `string`",
           "type": [
             "string",
+            "null"
+          ]
+        },
+        "only_allow_apple_business_enrollment": {
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
             "null"
           ]
         },
@@ -3137,6 +3153,13 @@
           "description": "AlternativeBrowserHost if set, Fleet Desktop will use this to open any links;\nthis is used in scenarios where we want Fleet Desktop traffic to use a custom proxy, for security reasons.\n\ntype: `string`",
           "type": [
             "string",
+            "null"
+          ]
+        },
+        "sso_enabled": {
+          "description": "SSOEnabled requires end users to authenticate with the IdP configured in\nmdm.end_user_authentication, which must be set before this can be enabled.\n\ntype: `boolean`",
+          "type": [
+            "boolean",
             "null"
           ]
         },
@@ -3336,6 +3359,9 @@
           "$ref": "#/$defs/MDM",
           "description": "type: `MDM`"
         },
+        "microsoft_graph_credentials": {
+          "description": "MicrosoftGraphCredentials are the outbound Entra app-registration credentials Fleet authenticates with when\nreading Windows Autopilot devices, as opposed to the inbound enrollment allowlists under controls. It sits here\nrather than under controls to match every other credential in GitOps: it is applied through its own endpoint,\nexactly like certificate_authorities above."
+        },
         "org_info": {
           "$ref": "#/$defs/OrgInfo",
           "description": "type: `OrgInfo`"
@@ -3441,7 +3467,7 @@
           ]
         },
         "continuous_automations_enabled": {
-          "description": "ContinuousAutomationsEnabled indicates whether software/script automations\nshould run on every failing policy result, not just on pass→fail transitions.\n\nOnly applies to team policies.\n\ntype: `boolean`",
+          "description": "Shadows PolicySpec.ContinuousAutomationsEnabled to tell whether the key was set\nexplicitly vs. omitted, which patch_when_closed validation needs.\n\ntype: `boolean`",
           "type": [
             "boolean",
             "null"
@@ -3548,6 +3574,13 @@
           "description": "Name is the name of the policy.\n\ntype: `string`",
           "type": "string"
         },
+        "patch_when_closed": {
+          "description": "PatchWhenClosed skips the install while the app is open, via the managed pre-install query.\n\ntype: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
         "path": {
           "type": [
             "string",
@@ -3567,8 +3600,22 @@
             "null"
           ]
         },
+        "profile_uuid": {
+          "description": "ProfileUUID is the UUID of the configuration profile associated with this policy (team policies only).\nWhen editing a policy, if this is nil or \"\" then the profile UUID is unset from the policy.\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "query": {
           "description": "Query is the policy's SQL query.\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "resend_configuration_profile": {
+          "description": "type: `string`",
           "type": [
             "string",
             "null"
@@ -3587,6 +3634,9 @@
         },
         "script_id": {
           "description": "ScriptID is the ID of the script associated with this policy (team policies only).\nWhen editing a policy, if this is nil or 0 then the script ID is unset from the policy.\n\ntype: `integer`"
+        },
+        "software_package_id": {
+          "description": "SoftwarePackageID optionally pins the policy to a specific package under\nthe given SoftwareTitleID (team policies only). When nil the applier\nfalls back to the title's first-added package. Used by GitOps to preserve\nwhich package a policy YAML referenced when the title has multiple\ninstallers sharing a bundle identifier.\n\ntype: `integer`"
         },
         "software_title_id": {
           "description": "SoftwareTitleID is the title ID of the installer associated with this policy (team policies only).\nWhen editing a policy, if this is nil or 0 then the title ID is unset from the policy.\n\ntype: `integer`"
@@ -3742,6 +3792,30 @@
           ]
         },
         "vulnerabilities": {
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "HostActivitiesWebhookSettings": {
+      "additionalProperties": false,
+      "description": "HostActivitiesWebhookSettings is the per-fleet webhook fired when an activity linked to one of the fleet's hosts is created.",
+      "properties": {
+        "destination_url": {
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "enable_host_activities_webhook": {
           "description": "type: `boolean`",
           "type": [
             "boolean",
@@ -4018,6 +4092,23 @@
         "null"
       ]
     },
+    "LinuxSettings": {
+      "additionalProperties": false,
+      "description": "LinuxSettings contains MDM-related settings specific to Linux hosts.",
+      "properties": {
+        "enable_escrow_disk_encryption_key": {
+          "description": "EnableEscrowDiskEncryptionKey makes Fleet escrow the LUKS passphrase of\nLinux hosts.\n\ntype: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
     "MDM": {
       "additionalProperties": false,
       "description": "MDM is part of AppConfig and defines the mdm settings.",
@@ -4145,6 +4236,10 @@
           "$ref": "#/$defs/AppleOSUpdateSettings",
           "description": "IPadOSUpdates defines the OS update settings for iPadOS devices.\n\ntype: `AppleOSUpdateSettings`"
         },
+        "linux_settings": {
+          "$ref": "#/$defs/LinuxSettings",
+          "description": "type: `LinuxSettings`"
+        },
         "macos_migration": {
           "$ref": "#/$defs/MacOSMigration",
           "description": "type: `MacOSMigration`"
@@ -4165,10 +4260,24 @@
           "$ref": "#/$defs/AppleOSUpdateSettings",
           "description": "MacOSUpdates defines the OS update settings for macOS devices.\n\ntype: `AppleOSUpdateSettings`"
         },
+        "microsoft_graph_credential_invalid": {
+          "description": "MicrosoftGraphCredentialInvalid reports that at least one stored Microsoft Graph credential has been rejected by\nEntra or denied by Graph, so an admin has to supply a new secret or grant consent.\n\ntype: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
         "name_template": {
           "description": "type: `string`",
           "type": [
             "string",
+            "null"
+          ]
+        },
+        "only_allow_apple_business_enrollment": {
+          "description": "OnlyAllowAppleBusinessEnrollment indicates whether or not only Apple Business assigned devices are allowed to enroll.\nIf true and AppleRequireHardwareAttestation is also true, it blocks SCEP completely.\n\ntype: `boolean`",
+          "type": [
+            "boolean",
             "null"
           ]
         },
@@ -4186,6 +4295,13 @@
           },
           "type": [
             "array",
+            "null"
+          ]
+        },
+        "windows_automatic_enrollment": {
+          "description": "WindowsAutomaticEnrollment configures behavior for new user-driven Windows MDM enrollments. The DB row backing it is\nthe source of truth (by fleet id); this field carries the setting through the config API and GitOps by fleet name.\n\ntype: `object`",
+          "type": [
+            "object",
             "null"
           ]
         },
@@ -4230,7 +4346,7 @@
           ]
         },
         "windows_require_bitlocker_pin": {
-          "description": "type: `boolean`",
+          "description": "RequireBitLockerPIN is deprecated: use\nWindowsSettings.RequireBitLockerPIN, which it mirrors.\n\ntype: `boolean`",
           "type": [
             "boolean",
             "null"
@@ -4299,6 +4415,13 @@
       "additionalProperties": false,
       "description": "MDMProfileSpec represents the spec used to define configuration profiles via yaml files.",
       "properties": {
+        "activation": {
+          "description": "Activation is a path to a custom activation JSON file, only valid\nalongside an Apple declaration.\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "labels": {
           "description": "Deprecated: the Labels field is now deprecated, it is superseded by\nLabelsIncludeAll, so any value set via this field will be transferred to\nLabelsIncludeAll.\n\ntype: `array\u003cstring\u003e`",
           "items": {
@@ -4407,7 +4530,7 @@
       "description": "MacOSSettings contains settings specific to macOS.",
       "properties": {
         "assets": {
-          "description": "Assets is a slice of Apple DDM asset (com.apple.asset) declaration file\npaths. Unlike CustomSettings, assets are not stored on the AppConfig/team\nspec: this field is only populated while parsing a GitOps file so the\nassets can be applied via their own batch endpoint. It is intentionally\nomitted from ToMap/FromMap.\n\ntype: `array\u003cMDMProfileSpec\u003e`",
+          "description": "Assets is a slice of Apple DDM asset (com.apple.asset) declaration file\npaths. Unlike CustomSettings, assets are not stored on the AppConfig/team\nspec: this field is only populated while parsing a GitOps file so the\nassets can be applied via their own batch endpoint. It is intentionally\nomitted from FromMap; ToMap includes it only so the key passes the team\nspec's strict key validation (see applyTeamSpecsRequest.DecodeBody).\n\ntype: `array\u003cMDMProfileSpec\u003e`",
           "items": {
             "$ref": "#/$defs/MDMProfileSpec"
           },
@@ -4439,7 +4562,14 @@
           ]
         },
         "enable_disk_encryption": {
-          "description": "type: `boolean`",
+          "description": "EnableDiskEncryption enforces FileVault on macOS hosts.\n\ntype: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "enable_escrow_disk_encryption_key": {
+          "description": "EnableEscrowDiskEncryptionKey makes Fleet escrow the FileVault recovery\nkey of macOS hosts, independently of whether Fleet enforces FileVault.\n\ntype: `boolean`",
           "type": [
             "boolean",
             "null"
@@ -4626,6 +4756,13 @@
           },
           "type": [
             "array",
+            "null"
+          ]
+        },
+        "display_name": {
+          "description": "type: `string`",
+          "type": [
+            "string",
             "null"
           ]
         },
@@ -5370,7 +5507,7 @@
           ]
         },
         "setup_experience_platform": {
-          "description": "SetupExperiencePlatform selects the installer for the setup experience,\nas a comma-separated string of platforms (e.g. \"darwin,linux\"),\nconsistent with the query/policy `platform` field. Additive with\nInstallDuringSetup: the native platform is controlled by that bool, the\nnon-native entries feed the setup_experience_software_installers\ncross-table. Only meaningful for packages whose file can run on more than\none platform (today: .sh).\n\ntype: `string`",
+          "description": "SetupExperiencePlatform selects the installer for the setup experience,\nas a comma-separated string of platforms (e.g. \"darwin,linux\"),\nconsistent with the query/policy `platform` field. Additive with\nInstallDuringSetup: the native platform is controlled by that bool, the\nnon-native entries feed the setup_experience_software_installers\ncross-table. Only meaningful for packages that produce more than one\nsetup experience target: cross-platform scripts (.sh, .py) and .ipa\npackages, whose single entry stands for both the iOS and iPadOS titles.\n\ntype: `string`",
           "type": [
             "string",
             "null"
@@ -5580,6 +5717,10 @@
           "$ref": "#/$defs/AppleOSUpdateSettings",
           "description": "type: `AppleOSUpdateSettings`"
         },
+        "linux_settings": {
+          "$ref": "#/$defs/LinuxSettings",
+          "description": "type: `LinuxSettings`"
+        },
         "macos_settings": {
           "$ref": "#/$defs/MacOSSettings",
           "deprecated": true,
@@ -5781,6 +5922,10 @@
           "$ref": "#/$defs/FailingPoliciesWebhookSettings",
           "description": "type: `FailingPoliciesWebhookSettings`"
         },
+        "host_activities_webhook": {
+          "$ref": "#/$defs/HostActivitiesWebhookSettings",
+          "description": "HostActivitiesWebhook is nil when not provided so partial updates and\nteam specs can leave the stored value untouched.\n\ntype: `HostActivitiesWebhookSettings`"
+        },
         "host_status_webhook": {
           "$ref": "#/$defs/HostStatusWebhookSettings",
           "description": "HostStatusWebhook can be nil to match the TeamSpec webhook settings\n\ntype: `HostStatusWebhookSettings`"
@@ -5977,6 +6122,36 @@
           },
           "type": [
             "array",
+            "null"
+          ]
+        },
+        "enable_create_local_admin_account": {
+          "description": "EnableManagedLocalAccount turns on the hidden managed local admin account created by\nfleetd on Windows hosts during Autopilot/OOBE enrollment.\n\ntype: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "enable_disk_encryption": {
+          "description": "EnableDiskEncryption enforces BitLocker on Windows hosts.\n\ntype: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "enable_managed_local_account": {
+          "deprecated": true,
+          "deprecationMessage": "'enable_managed_local_account' is deprecated, use 'enable_create_local_admin_account' instead",
+          "description": "EnableManagedLocalAccount turns on the hidden managed local admin account created by\nfleetd on Windows hosts during Autopilot/OOBE enrollment.\n\ntype: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "require_bitlocker_pin": {
+          "description": "RequireBitLockerPIN requires end users on Windows hosts to set a\nBitLocker PIN. Requires EnableDiskEncryption.\n\ntype: `boolean`",
+          "type": [
+            "boolean",
             "null"
           ]
         }

@@ -1,0 +1,297 @@
+name: Check for new Go patch release
+
+# Checks daily whether a new Go patch release is available for the Go version
+# used in the main go.mod. If so, it runs `make update-go version=<NEW_VERSION>`,
+# opens an automated PR with the changes, and creates two tracking issues on the
+# #g-orchestration board: one for updating Go in the Fleet server and one for
+# updating Go in fleetd.
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 7 * * *' # Nightly 7AM UTC
+
+# This workflow only runs on schedule and workflow_dispatch, so use a stable
+# group to serialize runs (a newly queued run cancels an in-progress one).
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    # fail-fast using bash -eo pipefail. See https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#exit-codes-and-error-action-preference
+    shell: bash
+
+permissions:
+  contents: read
+
+jobs:
+  check-go-patch-release:
+    # Only run from main: a manual dispatch from a feature branch would check
+    # out that branch and open a PR against main from stale/unrelated content.
+    if: github.repository == 'fleetdm/fleet' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # for peter-evans/create-pull-request to create branch
+      pull-requests: write # for peter-evans/create-pull-request to create a PR
+      issues: write # to create the tracking issues
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Check for a new Go patch release
+        id: check
+        run: |
+          current=$(grep -E '^go ' go.mod | awk '{print $2}')
+          major_minor=$(echo "$current" | cut -d. -f1-2)
+          echo "Current Go version in go.mod: $current (release branch: $major_minor)"
+
+          # go.dev/dl/?mode=json returns the currently supported stable releases.
+          # Only look at patch releases of the same major.minor we are already on,
+          # and sort them instead of relying on the API's response ordering.
+          latest=$(curl -fsS --retry 3 'https://go.dev/dl/?mode=json' | \
+            jq -r --arg mm "go$major_minor." \
+            '.[] | select(.stable == true) | .version | select(startswith($mm)) | ltrimstr("go")' | \
+            sort -V | tail -n1)
+          if [[ -z "$latest" ]]; then
+            echo "No stable release found for Go $major_minor, nothing to do."
+            echo "update_needed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # The version comes from an external HTTP response and gets interpolated
+          # into shell commands (make update-go, branch names): require x.y.z.
+          if [[ ! "$latest" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Unexpected Go version format from go.dev: $latest" >&2
+            exit 1
+          fi
+          echo "Latest Go $major_minor patch release: $latest"
+
+          if [[ "$latest" == "$current" ]]; then
+            echo "Already on the latest patch release."
+            echo "update_needed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # Guard against go.mod being ahead of go.dev (e.g. release day races):
+          # only update if latest sorts strictly higher than current.
+          if [[ "$(printf '%s\n%s\n' "$current" "$latest" | sort -V | tail -n1)" != "$latest" ]]; then
+            echo "go.mod version $current is newer than $latest, nothing to do."
+            echo "update_needed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "update_needed=true" >> "$GITHUB_OUTPUT"
+          echo "new_version=$latest" >> "$GITHUB_OUTPUT"
+
+      - name: Install Go
+        if: steps.check.outputs.update_needed == 'true'
+        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
+        with:
+          # Install the new Go version (not the one in go.mod): `make update-go`
+          # bumps the root go.mod first, and with setup-go's GOTOOLCHAIN=local the
+          # remaining `go run` invocations fail if the installed toolchain is older.
+          go-version: ${{ steps.check.outputs.new_version }}
+          check-latest: true
+
+      - name: Update Go version
+        if: steps.check.outputs.update_needed == 'true'
+        env:
+          NEW_GO_VERSION: ${{ steps.check.outputs.new_version }}
+        run: make update-go version="$NEW_GO_VERSION"
+
+      - name: PR changes
+        if: steps.check.outputs.update_needed == 'true'
+        uses: peter-evans/create-pull-request@271a8d0340265f705b14b6d32b9829c1cb33d45e # v7.0.8
+        with:
+          base: main
+          branch: update-go-${{ steps.check.outputs.new_version }}
+          delete-branch: true
+          title: Update Go to ${{ steps.check.outputs.new_version }} [automated]
+          reviewers: lukeheath,georgekarrv,sharon-fdm
+          assignees: lucasmrod,getvictor,JordanMontgomery,cdcme
+          commit-message: |
+            Update Go to ${{ steps.check.outputs.new_version }} [automated]
+
+            Generated automatically with `make update-go version=${{ steps.check.outputs.new_version }}`.
+          body: |
+            Automated change from [GitHub action](https://github.com/fleetdm/fleet/actions/workflows/check-go-patch-release.yml).
+
+            Updates Go to the latest patch release, `${{ steps.check.outputs.new_version }}`, by running `make update-go version=${{ steps.check.outputs.new_version }}`.
+
+      - name: Create tracking issues on the g-orchestration board
+        if: steps.check.outputs.update_needed == 'true'
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        env:
+          NEW_GO_VERSION: ${{ steps.check.outputs.new_version }}
+          PROJECT_TOKEN: ${{ secrets.FLEET_GITHUB_TOKEN_PROJECTS }}
+        with:
+          script: |
+            const newVersion = process.env.NEW_GO_VERSION;
+            const runURL = `https://github.com/fleetdm/fleet/actions/runs/${context.runId}`;
+
+            // component: short name used in the issue title and release mention;
+            // description: longer form used in the issue body.
+            const makeIssue = (component, description) => ({
+              title: `Update Go to ${newVersion} in ${component}`,
+              body: [
+                `A new Go patch release, \`${newVersion}\`, is available.`,
+                ``,
+                `Update the Go version used to build and release ${description}.`,
+                ``,
+                `An automated PR updating the Go version across the repo was opened by the`,
+                `[check-go-patch-release workflow](${runURL}) (branch \`update-go-${newVersion}\`).`,
+                `Review and merge it, then make sure the new Go version ships in the next ${component} release.`,
+                ``,
+                `Release notes: https://go.dev/doc/devel/release#go${newVersion}`,
+                ``,
+                `---`,
+                `*This issue was automatically created by the check-go-patch-release workflow.*`,
+              ].join('\n'),
+            });
+
+            const issuesToCreate = [
+              makeIssue('Fleet server', 'the **Fleet server**'),
+              makeIssue('fleetd', '**fleetd** (Orbit, Fleet Desktop, and osquery installers)'),
+            ];
+
+            // Idempotency: the workflow runs daily and the PR may stay open for a
+            // few days, so don't re-create issues that already exist for this version.
+            const existing = await github.paginate(github.rest.issues.listForRepo, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              labels: '#g-orchestration',
+              state: 'all',
+              per_page: 100,
+            });
+
+            const issuesToPlace = [];
+            for (const spec of issuesToCreate) {
+              const duplicate = existing.find(i => i.title === spec.title);
+              if (duplicate) {
+                console.log(`Issue already exists: #${duplicate.number} (${spec.title}) — not creating a new one.`);
+                // Still consider open duplicates for board placement below, so
+                // that a placement that failed on a previous run is retried.
+                if (duplicate.state === 'open') {
+                  issuesToPlace.push(duplicate);
+                }
+                continue;
+              }
+              const issue = await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: spec.title,
+                body: spec.body,
+                labels: ['#g-orchestration'],
+              });
+              console.log(`Created issue #${issue.data.number}: ${spec.title}`);
+              issuesToPlace.push(issue.data);
+            }
+
+            if (issuesToPlace.length === 0) {
+              return;
+            }
+
+            // --- Project board: add to #g-orchestration and set status to "Inbox" ---
+            // Requires a PAT stored as FLEET_GITHUB_TOKEN_PROJECTS with
+            // read/write access to organization projects.
+            const projectToken = process.env.PROJECT_TOKEN;
+            if (!projectToken) {
+              core.warning(
+                'FLEET_GITHUB_TOKEN_PROJECTS secret is not configured — ' +
+                'issues were created but not added to the project board. ' +
+                'Create a fine-grained PAT with Organization Projects read/write scope.'
+              );
+              return;
+            }
+
+            const { getOctokit } = require('@actions/github');
+            const projectOctokit = getOctokit(projectToken);
+
+            const PROJECT_ID    = 'PVT_kwDOBDAnic4A4BEx';        // #g-orchestration (#71)
+            const STATUS_FIELD  = 'PVTSSF_lADOBDAnic4A4BExzgtDlHw';
+            const INBOX         = 'f33a1ec5';
+
+            for (const issue of issuesToPlace) {
+              // Skip issues already on the board (e.g. placed by a previous
+              // run) so we don't reset a status someone has since changed.
+              const itemsResult = await projectOctokit.graphql(`
+                query($id: ID!) {
+                  node(id: $id) {
+                    ... on Issue {
+                      projectItems(first: 20) {
+                        nodes { id project { id } }
+                      }
+                    }
+                  }
+                }
+              `, {
+                id: issue.node_id,
+              });
+              const alreadyPlaced = (itemsResult.node?.projectItems?.nodes || [])
+                .some(n => n.project.id === PROJECT_ID);
+              if (alreadyPlaced) {
+                console.log(`Issue #${issue.number} is already on the #g-orchestration board — skipping.`);
+                continue;
+              }
+
+              const addResult = await projectOctokit.graphql(`
+                mutation($projectId: ID!, $contentId: ID!) {
+                  addProjectV2ItemById(input: {projectId: $projectId, contentId: $contentId}) {
+                    item { id }
+                  }
+                }
+              `, {
+                projectId: PROJECT_ID,
+                contentId: issue.node_id,
+              });
+
+              const itemId = addResult.addProjectV2ItemById.item.id;
+              console.log(`Added issue #${issue.number} to #g-orchestration board (item ${itemId})`);
+
+              await projectOctokit.graphql(`
+                mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $optionId: String!) {
+                  updateProjectV2ItemFieldValue(input: {
+                    projectId: $projectId
+                    itemId: $itemId
+                    fieldId: $fieldId
+                    value: {singleSelectOptionId: $optionId}
+                  }) {
+                    projectV2Item { id }
+                  }
+                }
+              `, {
+                projectId: PROJECT_ID,
+                itemId: itemId,
+                fieldId: STATUS_FIELD,
+                optionId: INBOX,
+              });
+
+              console.log(`Status of issue #${issue.number} set to "Inbox"`);
+            }
+
+      - name: Slack notification on failure
+        if: ${{ failure() }}
+        uses: slackapi/slack-github-action@e28cf165c92ffef168d23c5c9000cffc8a25e117 # v1.24.0
+        with:
+          payload: |
+            {
+              "text": "${{ job.status }}\nhttps://github.com/fleetdm/fleet/actions/runs/${{ github.run_id }}",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "❌ The check Go patch release workflow failed\nhttps://github.com/fleetdm/fleet/actions/runs/${{ github.run_id }}"
+                  }
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_G_ORCHESTRATION_WEBHOOK_URL }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK

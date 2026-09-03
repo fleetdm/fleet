@@ -95,6 +95,55 @@ func (svc *Service) GetFleetDesktopSummary(ctx context.Context) (fleet.DesktopSu
 }
 
 /////////////////////////////////////////////////////////////////////////////////
+// POST /device/{token}/sso
+/////////////////////////////////////////////////////////////////////////////////
+
+type initiateDeviceSSORequest struct {
+	Token string `url:"token"`
+}
+
+func (r *initiateDeviceSSORequest) deviceAuthToken() string { return r.Token }
+
+type initiateDeviceSSOResponse struct {
+	URL string `json:"url"`
+	Err error  `json:"error,omitempty"`
+	// Cookie fields
+	sessionID       string
+	sessionDuration time.Duration
+}
+
+func (r initiateDeviceSSOResponse) Error() error { return r.Err }
+
+func (r initiateDeviceSSOResponse) SetCookies(_ context.Context, w http.ResponseWriter) {
+	if r.sessionID == "" {
+		return
+	}
+	setSSOCookie(w, r.sessionID, int(r.sessionDuration.Seconds()))
+}
+
+func initiateDeviceSSOEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*initiateDeviceSSORequest)
+	initiation, err := svc.InitiateDeviceSSO(ctx, "/device/"+req.Token)
+	if err != nil {
+		return initiateDeviceSSOResponse{Err: err}, nil
+	}
+	return initiateDeviceSSOResponse{
+		URL:             initiation.IdPURL,
+		sessionID:       initiation.SessionID,
+		sessionDuration: initiation.SessionDuration,
+	}, nil
+}
+
+func (svc *Service) InitiateDeviceSSO(ctx context.Context, deviceURL string) (*fleet.DeviceSSOInitiation, error) {
+	svc.authz.SkipAuthorization(ctx)
+	return nil, fleet.ErrMissingLicense
+}
+
+func (svc *Service) RequireDeviceSSOSession(ctx context.Context, host *fleet.Host, sessionID string) error {
+	return nil
+}
+
+/////////////////////////////////////////////////////////////////////////////////
 // Get Current Device's Host
 /////////////////////////////////////////////////////////////////////////////////
 
@@ -1121,4 +1170,27 @@ func (svc *Service) GetDeviceSetupExperienceStatus(ctx context.Context) (*fleet.
 	svc.authz.SkipAuthorization(ctx)
 
 	return nil, fleet.ErrMissingLicense
+}
+
+type deviceSendAPNSPingRequest struct {
+	Token string `url:"token"`
+}
+
+func (r *deviceSendAPNSPingRequest) deviceAuthToken() string {
+	return r.Token
+}
+
+func deviceSendAPNSPing(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
+	host, ok := hostctx.FromContext(ctx)
+	if !ok {
+		err := ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("internal error: missing host from request context"))
+		return sendAPNSPingResponse{Err: err}, nil
+	}
+
+	err := svc.DeviceSendAPNSPing(ctx, host)
+	if err != nil {
+		return sendAPNSPingResponse{Err: err}, nil
+	}
+
+	return sendAPNSPingResponse{Err: nil}, nil
 }

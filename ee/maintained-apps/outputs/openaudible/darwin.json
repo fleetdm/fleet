@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "4.8.7",
+      "version": "4.8.8",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.openaudible.openaudible';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.openaudible.openaudible' AND version_compare(bundle_short_version, '4.8.7') < 0);",
-        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'org.openaudible.openaudible');"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.openaudible.openaudible' AND version_compare(bundle_short_version, '4.8.8') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'org.openaudible.openaudible' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/openaudible/openaudible/releases/download/v4.8.7/OpenAudible_4.8.7.dmg",
+      "installer_url": "https://github.com/openaudible/openaudible/releases/download/v4.8.8/OpenAudible_4.8.8.dmg",
       "install_script_ref": "843c34d8",
       "uninstall_script_ref": "5a6b6749",
-      "sha256": "0fd35949777c55b01d50c412b97dd11e90d9719ace79ec3ae221742a1c2c8522",
+      "sha256": "a9197f15293e9fac29a4ace0412423d24ff63ad411a54ef7da3d901f83990acc",
       "default_categories": [
         "Productivity"
       ]

@@ -1,3 +1,15 @@
+## 1.59.0 (Aug 13, 2026)
+
+* Added a new `ai_tools` table that inventories AI software (desktop apps, IDE plugins, agent CLIs, MCP servers, live AI/MCP sockets, agent instruction files, and browser extensions) with a `type` discriminator and per-row `risk_flags`, `sha256`, and JSON `detail` columns.
+
+* Fixed LUKS disk encryption key escrow failing with a misleading "passphrase incorrect" error on Linux hosts whose passphrase is stored in a key slot other than slot 0. The existing passphrase is now validated against any key slot.
+
+* Removed the wmic.exe dependency in the `mdm_bridge` table implementation.
+
+* Upgraded the nfpm packaging dependency in `fleetctl` to v2.47.0.
+
+* Updated Orbit CA certs.
+
 ## 1.58.0 (Jul 17, 2026)
 
 * Fixed Orbit and Fleet Desktop stripping the subpath from `--fleet-url`, which caused 404s on all API calls when Fleet is deployed at a subpath (e.g. `https://host/subpath`).

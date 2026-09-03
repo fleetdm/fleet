@@ -10,6 +10,7 @@ import (
 	"crypto/tls"
 	"embed"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"encoding/xml"
 	"errors"
@@ -37,6 +38,7 @@ import (
 	"github.com/fleetdm/fleet/v4/cmd/osquery-perf/osquery_perf"
 	"github.com/fleetdm/fleet/v4/cmd/osquery-perf/softwaredb"
 	"github.com/fleetdm/fleet/v4/pkg/file"
+	"github.com/fleetdm/fleet/v4/pkg/mdm/apnsmock"
 	"github.com/fleetdm/fleet/v4/pkg/mdm/mdmtest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
@@ -73,11 +75,14 @@ var (
 	rhel10KernelsFS embed.FS
 	//go:embed windows_11-software.json.bz2
 	windowsSoftwareFS embed.FS
+	//go:embed macos_26x-software.json.bz2
+	macOSSoftwareFS embed.FS
 
 	macosVulnerableSoftware            []fleet.Software
 	vsCodeExtensionsVulnerableSoftware []fleet.Software
 	windowsSoftware                    []map[string]string
 	ubuntuSoftware                     []map[string]string
+	macOSSoftware                      []map[string]string
 	ubuntuKernels                      []map[string]string
 	rhel8Kernels                       []map[string]string
 	rhel9Kernels                       []map[string]string
@@ -150,6 +155,9 @@ func loadSoftwareItems(fs embed.FS, path string, source string) []map[string]str
 		UpgradeCode string `json:"upgrade_code"`
 		Release     string `json:"release,omitempty"`
 		Arch        string `json:"arch,omitempty"`
+		// macOS template fields.
+		BundleIdentifier string `json:"bundle_identifier,omitempty"`
+		InstalledPath    string `json:"installed_path,omitempty"`
 	}
 	var softwareList []softwareJSON
 	// ignoring "G110: Potential DoS vulnerability via decompression bomb", as this is test code.
@@ -159,12 +167,20 @@ func loadSoftwareItems(fs embed.FS, path string, source string) []map[string]str
 
 	softwareRows := make([]map[string]string, 0, len(softwareList))
 	for _, s := range softwareList {
-		softwareRows = append(softwareRows, map[string]string{
+		row := map[string]string{
 			"name":         s.Name,
 			"version":      s.Version,
 			"source":       source,
 			"upgrade_code": s.UpgradeCode,
-		})
+		}
+
+		if s.BundleIdentifier != "" {
+			row["bundle_identifier"] = s.BundleIdentifier
+		}
+		if s.InstalledPath != "" {
+			row["installed_path"] = s.InstalledPath
+		}
+		softwareRows = append(softwareRows, row)
 	}
 	return softwareRows
 }
@@ -285,6 +301,7 @@ func init() {
 	loadExtraVulnerableSoftware()
 	windowsSoftware = loadSoftwareItems(windowsSoftwareFS, "windows_11-software.json.bz2", "programs")
 	ubuntuSoftware = loadSoftwareItems(ubuntuSoftwareFS, "ubuntu_2204-software.json.bz2", "deb_packages")
+	macOSSoftware = loadSoftwareItems(macOSSoftwareFS, "macos_26x-software.json.bz2", "apps")
 	ubuntuKernels = loadDebKernelList(ubuntuKernelsFS, "ubuntu_2204-kernels.json")
 	rhel8Kernels = loadRPMKernelList(rhel8KernelsFS, "rhel_8-kernels.json")
 	rhel9Kernels = loadRPMKernelList(rhel9KernelsFS, "rhel_9-kernels.json")
@@ -348,7 +365,6 @@ func (n *nodeKeyManager) Add(nodekey string) {
 
 type mdmAgent struct {
 	agentIndex                 int
-	MDMCheckInInterval         time.Duration
 	model                      string
 	serverAddress              string
 	softwareCount              softwareEntityCount
@@ -356,9 +372,29 @@ type mdmAgent struct {
 	strings                    map[string]string
 	softwareVersionMap         map[rune]int // Maps first char to version option: 0=base, 1=alternate, 2-31=patch versions 0-29
 	mdmProfileFailureProb      float64
+	cancelableCmdAckDelay      time.Duration
 	osVersion                  string
 	supplementalOSVersionExtra string
 	isPersonalEnrollment       bool
+	apnsPushURL                string
+}
+
+// delayCancelableMDMAck holds the fetch→acknowledge window open for
+// cancelable MDM commands (lock, wipe, clear passcode, enable lost mode) so
+// that DELETE /api/v1/fleet/hosts/:id/commands/:command_uuid can be exercised
+// against a command the device has already fetched — Fleet cannot know a
+// command was delivered, so this window is the only way to test that race.
+// No-op when the delay is 0 or the command is not cancelable.
+func delayCancelableMDMAck(delay time.Duration, deviceDesc string, cmd *mdm.Command) {
+	if delay <= 0 || cmd == nil {
+		return
+	}
+	if _, ok := fleet.CancelableAppleMDMRequestTypes[cmd.Command.RequestType]; !ok {
+		return
+	}
+	log.Printf("%s: fetched %s command %s, waiting %s before acknowledging (cancel test window)",
+		deviceDesc, cmd.Command.RequestType, cmd.CommandUUID, delay)
+	time.Sleep(delay)
 }
 
 // stats, model, *serverURL, *mdmSCEPChallenge, *mdmCheckInInterval
@@ -468,10 +504,21 @@ type agent struct {
 
 	mdmUserProb float64
 
+	mdmAPNSPushURL string
+
 	// winMDMWake signals the Windows MDM loop to start an OMA-DM session on demand (in response to the server's
 	// WindowsMDMSyncRequest notification), mirroring real fleetd waking the device. Buffered with capacity 1, sent
 	// non-blocking, so coalesced wakes never block the orbit config loop. Non-nil only for Windows MDM agents.
 	winMDMWake chan struct{}
+
+	// ws simulates orbit's WebSocket notification transport; non-nil only
+	// while the server's orbit-config directive has it enabled (see
+	// syncWSTransport). wsSupported gates which orbit agents follow the
+	// directive (-websocket_prob), simulating older fleetd versions that
+	// ignore it.
+	wsMu        sync.Mutex
+	ws          *wsTransport
+	wsSupported bool
 
 	// isEnrolledToMDM is true when the mdmDevice has enrolled.
 	isEnrolledToMDM bool
@@ -510,7 +557,18 @@ type agent struct {
 
 	// notNowProfiles tracks the profile identifiers (per channel) this agent has
 	// already responded NotNow to, so the redelivered command is acknowledged.
-	notNowProfiles map[string]bool
+	// The device and user check-in loops run concurrently and both record into
+	// it, hence the mutex.
+	notNowProfilesMu sync.Mutex
+	notNowProfiles   map[string]bool
+
+	// installedProfiles tracks the configuration profiles this agent has
+	// acknowledged installing, keyed by channel ("device" or "user") + "/" +
+	// payload identifier. The MDM loop goroutine writes it while the osquery
+	// query goroutines read it to answer profile verification queries (see
+	// mdmConfigProfilesMac), hence the mutex.
+	installedProfilesMu sync.Mutex
+	installedProfiles   map[string]installedMDMProfile
 
 	disableScriptExec   bool
 	disableFleetDesktop bool
@@ -559,6 +617,7 @@ type agent struct {
 	MDMCheckInInterval    time.Duration
 	DiskEncryptionEnabled bool
 	mdmProfileFailureProb float64
+	cancelableCmdAckDelay time.Duration
 	OSPatchLevel          int                 // For Linux patches
 	linuxKernels          []map[string]string // Pre-selected kernels for this agent
 	softwareVersionMap    map[rune]int        // Maps first char to version option: 0=base, 1=alternate, 2-31=patch versions 0-29
@@ -593,6 +652,19 @@ type agent struct {
 	entraIDDeviceID          string
 	entraIDUserPrincipalName string
 	installedAdamIDs         []int
+
+	// configTLSETag enables the native osquery conditional config request
+	// behavior: the agent sends an "etag" field in the config request body
+	// and treats the constant {"etag":"ok"} response as "unchanged".
+	configTLSETag bool
+	// configETag holds the etag from the last config response RECEIVED
+	// (matching the real client, which stores the validator on receipt, not
+	// on successful apply). Opaque and server-assigned; echoed verbatim.
+	configETag string
+	// lastConfigBodyBytes is the size of the last received full config body.
+	// Used to estimate the body bytes avoided by a subsequent not-modified
+	// response for this host.
+	lastConfigBodyBytes int64
 }
 
 func (a *agent) GetSerialNumber() string {
@@ -689,9 +761,13 @@ func newAgent(
 	linuxUniqueSoftwareTitle bool,
 	commonSoftwareNameSuffix string,
 	mdmProfileFailureProb float64,
+	cancelableCmdAckDelay time.Duration,
 	httpMessageSignatureProb float64,
 	httpMessageSignatureP384Prob float64,
+	configTLSETag bool,
 	psso pssoParams,
+	mdmAPNSPushURL string,
+	websocketProb float64,
 ) *agent {
 	var deviceAuthToken *string
 	if rand.Float64() <= orbitProb {
@@ -782,10 +858,12 @@ func newAgent(
 		linuxUniqueSoftwareVersion: linuxUniqueSoftwareVersion,
 		linuxUniqueSoftwareTitle:   linuxUniqueSoftwareTitle,
 
-		macMDMClient:  macMDMClient,
-		winMDMClient:  winMDMClient,
-		mdmUserProb:   mdmUserProb,
-		ddmDeclTokens: make(map[string]string),
+		macMDMClient:   macMDMClient,
+		winMDMClient:   winMDMClient,
+		mdmUserProb:    mdmUserProb,
+		wsSupported:    rand.Float64() < websocketProb, // nolint:gosec // ignore weak randomizer
+		mdmAPNSPushURL: mdmAPNSPushURL,
+		ddmDeclTokens:  make(map[string]string),
 
 		disableScriptExec:        disableScriptExec,
 		disableFleetDesktop:      disableFleetDesktop,
@@ -796,11 +874,13 @@ func newAgent(
 		cachedLastOpenedAt:       make(map[string]*time.Time),
 		commonSoftwareNameSuffix: commonSoftwareNameSuffix,
 		mdmProfileFailureProb:    mdmProfileFailureProb,
+		cancelableCmdAckDelay:    cancelableCmdAckDelay,
 		// Every 20th host (5%) withholds its issued SCEP certs to exercise the server's verification backstop (test-only failure).
 		withholdSCEPCert: agentIndex%20 == 0,
 
 		entraIDDeviceID:          uuid.NewString(),
 		entraIDUserPrincipalName: fmt.Sprintf("fake-%s@example.com", randomString(5)),
+		configTLSETag:            configTLSETag,
 	}
 
 	// Windows MDM agents can be woken on demand by the server, so give them a wake channel for the MDM loop.
@@ -902,6 +982,8 @@ func (a *agent) runLoop(i int, onlyAlreadyEnrolled bool) {
 
 	_ = a.config()
 
+	// This startup read runs before runOrbitLoop, so it cannot race with the
+	// WebSocket transport (started only from that loop's config checks).
 	resp, err := a.DistributedRead()
 	if err == nil {
 		if len(resp.Queries) > 0 {
@@ -918,6 +1000,7 @@ func (a *agent) runLoop(i int, onlyAlreadyEnrolled bool) {
 	if a.macMDMClient != nil {
 		mdmEnrollWithRetry("macOS", a.stats.IncrementMDMErrors, a.macMDMClient.Enroll)
 		a.setMDMEnrolled()
+		a.seedEnrollmentProfile()
 		a.stats.IncrementMDMEnrollments()
 
 		if rand.Float64() < a.mdmUserProb {
@@ -947,6 +1030,11 @@ func (a *agent) runLoop(i int, onlyAlreadyEnrolled bool) {
 		defer liveQueryTicker.Stop()
 
 		for range liveQueryTicker.C {
+			// With the WebSocket transport running, the tick belongs to it
+			// (see wsPollTick).
+			if a.wsPollTick() {
+				continue
+			}
 			if resp, err := a.DistributedRead(); err == nil && len(resp.Queries) > 0 {
 				_ = a.DistributedWrite(resp.Queries)
 			}
@@ -1131,8 +1219,10 @@ func (a *agent) runOrbitLoop() {
 	}
 
 	// orbit does a config check when it starts
-	if _, err := orbitClient.GetConfig(); err != nil {
+	if cfg, err := orbitClient.GetConfig(); err != nil {
 		a.stats.IncrementOrbitErrors()
+	} else {
+		a.syncWSTransport(cfg.WebSocketTransport)
 	}
 
 	tokenRotationEnabled := false
@@ -1209,6 +1299,8 @@ func (a *agent) runOrbitLoop() {
 				a.stats.IncrementOrbitErrors()
 				continue
 			}
+			// Follow the server's WebSocket transport directive, like fleetd.
+			a.syncWSTransport(cfg.WebSocketTransport)
 			if len(cfg.Notifications.PendingScriptExecutionIDs) > 0 {
 				// there are pending scripts to execute on this host, start a goroutine
 				// that will simulate executing them.
@@ -1286,27 +1378,136 @@ func (a *agent) runOrbitLoop() {
 	}
 }
 
-// profileNotNowRequested reports whether the delivered InstallProfile command
-// carries a profile whose decoded content contains the marker string "NotNow"
-// and this agent has not yet responded NotNow to that profile identifier on
-// the given channel. When it returns true it records the identifier, so the
-// redelivered command is acknowledged. Only called from the MDM loop
-// goroutine, so notNowProfiles needs no locking.
-func (a *agent) profileNotNowRequested(cmd *mdm.Command, channel string) bool {
+// installedMDMProfile is a configuration profile a simulated device has
+// acknowledged installing via MDM.
+type installedMDMProfile struct {
+	identifier  string
+	displayName string
+	installDate time.Time
+}
+
+// installProfilePayload returns the raw (unsigned) mobileconfig carried by a
+// delivered InstallProfile command, or nil if the command is not an
+// InstallProfile or cannot be parsed.
+func installProfilePayload(cmd *mdm.Command) []byte {
 	var full micromdm.CommandPayload
 	if err := plist.Unmarshal(cmd.Raw, &full); err != nil || full.Command.InstallProfile == nil {
-		return false
+		return nil
 	}
 	profile := full.Command.InstallProfile.Payload
 	// The mobileconfig may be PKCS7-signed; unwrap to the raw XML plist.
 	if !bytes.HasPrefix(profile, []byte("<?xml")) {
 		p7, err := pkcs7.Parse(profile)
 		if err != nil {
-			return false
+			return nil
 		}
 		profile = p7.Content
 	}
-	if !bytes.Contains(profile, []byte("NotNow")) {
+	return profile
+}
+
+// parseInstallProfileCommand extracts the payload identifier and display name
+// of the profile carried by a delivered InstallProfile command.
+func parseInstallProfileCommand(cmd *mdm.Command) (identifier, displayName string, ok bool) {
+	profile := installProfilePayload(cmd)
+	if profile == nil {
+		return "", "", false
+	}
+	var parsed struct {
+		PayloadIdentifier  string `plist:"PayloadIdentifier"`
+		PayloadDisplayName string `plist:"PayloadDisplayName"`
+	}
+	if err := plist.Unmarshal(profile, &parsed); err != nil || parsed.PayloadIdentifier == "" {
+		return "", "", false
+	}
+	if parsed.PayloadDisplayName == "" {
+		parsed.PayloadDisplayName = parsed.PayloadIdentifier
+	}
+	return parsed.PayloadIdentifier, parsed.PayloadDisplayName, true
+}
+
+// removeProfileIdentifier returns the payload identifier targeted by a
+// delivered RemoveProfile command, or "" if the command cannot be parsed.
+func removeProfileIdentifier(cmd *mdm.Command) string {
+	var full micromdm.CommandPayload
+	if err := plist.Unmarshal(cmd.Raw, &full); err != nil || full.Command.RemoveProfile == nil {
+		return ""
+	}
+	return full.Command.RemoveProfile.Identifier
+}
+
+// profileNotFoundErrChain is the error a real Apple device reports when asked
+// to remove a profile that is not installed. The server treats it as a
+// successful removal (see apple_mdm.IsProfileNotFoundError).
+func profileNotFoundErrChain(identifier string) []mdm.ErrorChain {
+	return []mdm.ErrorChain{
+		{
+			ErrorCode:            89,
+			ErrorDomain:          "MDMClientError",
+			LocalizedDescription: fmt.Sprintf("Profile with identifier '%s' not found.", identifier),
+		},
+	}
+}
+
+// recordInstalledProfile tracks the profile carried by an acknowledged
+// InstallProfile command as installed on the given channel.
+func (a *agent) recordInstalledProfile(channel string, cmd *mdm.Command) {
+	identifier, displayName, ok := parseInstallProfileCommand(cmd)
+	if !ok {
+		return
+	}
+	a.installedProfilesMu.Lock()
+	defer a.installedProfilesMu.Unlock()
+	if a.installedProfiles == nil {
+		a.installedProfiles = make(map[string]installedMDMProfile)
+	}
+	a.installedProfiles[channel+"/"+identifier] = installedMDMProfile{
+		identifier:  identifier,
+		displayName: displayName,
+		installDate: time.Now(),
+	}
+}
+
+// removeInstalledProfile untracks the given profile identifier on the given
+// channel, reporting whether it was installed (i.e. whether a RemoveProfile
+// command for it should succeed).
+func (a *agent) removeInstalledProfile(channel, identifier string) bool {
+	a.installedProfilesMu.Lock()
+	defer a.installedProfilesMu.Unlock()
+	key := channel + "/" + identifier
+	if _, ok := a.installedProfiles[key]; !ok {
+		return false
+	}
+	delete(a.installedProfiles, key)
+	return true
+}
+
+// seedEnrollmentProfile tracks the Fleet enrollment profile as installed on
+// the device channel. It is installed during enrollment rather than via an
+// InstallProfile command, and the server sends a RemoveProfile for it when a
+// host is unenrolled, so it must be tracked for that removal to succeed.
+func (a *agent) seedEnrollmentProfile() {
+	a.installedProfilesMu.Lock()
+	defer a.installedProfilesMu.Unlock()
+	if a.installedProfiles == nil {
+		a.installedProfiles = make(map[string]installedMDMProfile)
+	}
+	a.installedProfiles["device/"+apple_mdm.FleetPayloadIdentifier] = installedMDMProfile{
+		identifier:  apple_mdm.FleetPayloadIdentifier,
+		displayName: "Enrollment Profile",
+		installDate: time.Now(),
+	}
+}
+
+// profileNotNowRequested reports whether the delivered InstallProfile command
+// carries a profile whose decoded content contains the marker string "NotNow"
+// and this agent has not yet responded NotNow to that profile identifier on
+// the given channel. When it returns true it records the identifier, so the
+// redelivered command is acknowledged. The device and user check-in loops call
+// it concurrently, so notNowProfiles is mutex-guarded.
+func (a *agent) profileNotNowRequested(cmd *mdm.Command, channel string) bool {
+	profile := installProfilePayload(cmd)
+	if profile == nil || !bytes.Contains(profile, []byte("NotNow")) {
 		return false
 	}
 	var parsed struct {
@@ -1316,6 +1517,10 @@ func (a *agent) profileNotNowRequested(cmd *mdm.Command, channel string) bool {
 		return false
 	}
 	key := channel + "/" + parsed.PayloadIdentifier
+
+	a.notNowProfilesMu.Lock()
+	defer a.notNowProfilesMu.Unlock()
+
 	if a.notNowProfiles[key] {
 		return false
 	}
@@ -1327,9 +1532,17 @@ func (a *agent) profileNotNowRequested(cmd *mdm.Command, channel string) bool {
 }
 
 func (a *agent) runMacosMDMLoop() {
-	mdmCheckInTicker := time.Tick(a.MDMCheckInInterval)
+	// The user channel needs its own goroutine: the device loop below blocks on
+	// its APNS subscription forever, so anything sequenced after it never runs.
+	if a.mdmUserEnrolled() {
+		go a.runMacosMDMUserLoop()
+	}
 
-	for range mdmCheckInTicker {
+	hexToken := hex.EncodeToString([]byte(a.macMDMClient.GetToken()))
+	deviceAPNSClient := apnsmock.NewClient(a.mdmAPNSPushURL, hexToken, apnsmock.WithInitialJitter(time.Minute), apnsmock.WithLogf(log.Printf))
+	deviceAPNSClient.Start(context.Background())
+
+	for range deviceAPNSClient.Pings() {
 		mdmCommandPayload, err := a.macMDMClient.Idle()
 		if err != nil {
 			log.Printf("MDM Idle request failed: %s", err)
@@ -1341,6 +1554,8 @@ func (a *agent) runMacosMDMLoop() {
 	INNER_FOR_LOOP:
 		for mdmCommandPayload != nil {
 			a.stats.IncrementMDMCommandsReceived()
+			delayCancelableMDMAck(a.cancelableCmdAckDelay,
+				fmt.Sprintf("macOS agent %s", a.macMDMClient.SerialNumber), mdmCommandPayload)
 
 			switch mdmCommandPayload.Command.RequestType {
 			case "InstallProfile":
@@ -1386,12 +1601,27 @@ func (a *agent) runMacosMDMLoop() {
 						}
 					}
 
+					a.recordInstalledProfile("device", mdmCommandPayload)
+
 					mdmCommandPayload, err = a.macMDMClient.Acknowledge(mdmCommandPayload.CommandUUID)
 					if err != nil {
 						log.Printf("MDM Acknowledge request failed: %s", err)
 						a.stats.IncrementMDMErrors()
 						break INNER_FOR_LOOP
 					}
+				}
+
+			case "RemoveProfile":
+				identifier := removeProfileIdentifier(mdmCommandPayload)
+				if identifier != "" && a.removeInstalledProfile("device", identifier) {
+					mdmCommandPayload, err = a.macMDMClient.Acknowledge(mdmCommandPayload.CommandUUID)
+				} else {
+					mdmCommandPayload, err = a.macMDMClient.Err(mdmCommandPayload.CommandUUID, profileNotFoundErrChain(identifier))
+				}
+				if err != nil {
+					log.Printf("MDM RemoveProfile response failed: %s", err)
+					a.stats.IncrementMDMErrors()
+					break INNER_FOR_LOOP
 				}
 
 			case "DeclarativeManagement":
@@ -1524,104 +1754,128 @@ func (a *agent) runMacosMDMLoop() {
 				}
 			}
 		}
+	}
+}
 
-		// MDM User checkin
-		if a.mdmUserEnrolled() {
-			mdmCommandPayload, err = a.macMDMClient.UserIdle()
-			if err != nil {
-				log.Printf("MDM Idle request failed: %s", err)
-				a.stats.IncrementMDMUserErrors()
-				continue
-			}
-			a.stats.IncrementMDMUserSessions()
+// runMacosMDMUserLoop runs the user-channel check-in loop. It is a separate
+// goroutine from the device loop because a real device is woken independently
+// on each channel, and because the device loop never returns (its APNS
+// subscription is only closed when the process exits).
+func (a *agent) runMacosMDMUserLoop() {
+	hexToken := hex.EncodeToString([]byte(a.macMDMClient.GetUserToken()))
+	userAPNSClient := apnsmock.NewClient(a.mdmAPNSPushURL, hexToken, apnsmock.WithInitialJitter(time.Minute), apnsmock.WithLogf(log.Printf))
+	userAPNSClient.Start(context.Background())
 
-		INNER_FOR_LOOP_USER:
-			for mdmCommandPayload != nil {
-				a.stats.IncrementMDMUserCommandsReceived()
+	for range userAPNSClient.Pings() {
+		mdmCommandPayload, err := a.macMDMClient.UserIdle()
+		if err != nil {
+			log.Printf("MDM Idle request failed: %s", err)
+			a.stats.IncrementMDMUserErrors()
+			continue
+		}
+		a.stats.IncrementMDMUserSessions()
 
-				switch mdmCommandPayload.Command.RequestType {
-				case "InstallProfile":
-					if a.mdmProfileFailureProb > 0.0 && rand.Float64() <= a.mdmProfileFailureProb {
-						errChain := []mdm.ErrorChain{
-							{
-								ErrorCode:            89,
-								ErrorDomain:          "ErrorDomain",
-								LocalizedDescription: "The profile did not install",
-							},
-						}
-						mdmCommandPayload, err = a.macMDMClient.UserChannelErr(mdmCommandPayload.CommandUUID, errChain)
-						if err != nil {
-							log.Printf("MDM Error request failed: %s", err)
-							a.stats.IncrementMDMUserErrors()
-							break INNER_FOR_LOOP_USER
-						}
-					} else {
-						if a.profileNotNowRequested(mdmCommandPayload, "user") {
-							mdmCommandPayload, err = a.macMDMClient.UserNotNow(mdmCommandPayload.CommandUUID)
-							if err != nil {
-								log.Printf("MDM NotNow request failed: %s", err)
-								a.stats.IncrementMDMUserErrors()
-								break INNER_FOR_LOOP_USER
-							}
-							continue
-						}
+	INNER_FOR_LOOP_USER:
+		for mdmCommandPayload != nil {
+			a.stats.IncrementMDMUserCommandsReceived()
 
-						mdmCommandPayload, err = a.macMDMClient.UserAcknowledge(mdmCommandPayload.CommandUUID)
-						if err != nil {
-							log.Printf("MDM Acknowledge request failed: %s", err)
-							a.stats.IncrementMDMUserErrors()
-							break INNER_FOR_LOOP_USER
-						}
+			switch mdmCommandPayload.Command.RequestType {
+			case "InstallProfile":
+				if a.mdmProfileFailureProb > 0.0 && rand.Float64() <= a.mdmProfileFailureProb {
+					errChain := []mdm.ErrorChain{
+						{
+							ErrorCode:            89,
+							ErrorDomain:          "ErrorDomain",
+							LocalizedDescription: "The profile did not install",
+						},
 					}
-
-				case "DeclarativeManagement":
-					// Device immediately responds with Acknowledged status and then contacts the Declarations endpoints.
-					nextMdmCommandPayload, err := a.macMDMClient.UserAcknowledge(mdmCommandPayload.CommandUUID)
+					mdmCommandPayload, err = a.macMDMClient.UserChannelErr(mdmCommandPayload.CommandUUID, errChain)
 					if err != nil {
-						log.Printf("MDM Acknowledge request failed: %s", err)
+						log.Printf("MDM Error request failed: %s", err)
 						a.stats.IncrementMDMUserErrors()
 						break INNER_FOR_LOOP_USER
 					}
-					// Note: Declarative management could happen async while other MDM commands proceed. This is a potential enhancement.
-					// (iff a real device does process DDM in parallel with traditional MDM commands).
-					a.doDeclarativeManagement(mdmCommandPayload, ddmMethods{
-						getGlobalToken: func() string {
-							return a.ddmUserGlobalToken
-						},
-						setGlobalToken: func(token string) {
-							a.ddmUserGlobalToken = token
-						},
-						getDeclTokens: func() map[string]string {
-							return a.ddmUserDeclTokens
-						},
-						setDeclTokens: func(tokens map[string]string) {
-							a.ddmUserDeclTokens = tokens
-						},
-						DeclarativeManagement:            a.macMDMClient.UserDeclarativeManagement,
-						IncrementTokensErrors:            a.stats.IncrementUserDDMTokensErrors,
-						IncrementTokensSuccess:           a.stats.IncrementUserDDMTokensSuccess,
-						IncrementDeclarationItemsErrors:  a.stats.IncrementUserDDMDeclarationItemsErrors,
-						IncrementDeclarationItemsSuccess: a.stats.IncrementUserDDMDeclarationItemsSuccess,
-						IncrementConfigurationErrors:     a.stats.IncrementUserDDMConfigurationErrors,
-						IncrementConfigurationSuccess:    a.stats.IncrementUserDDMConfigurationSuccess,
-						IncrementManagementErrors:        a.stats.IncrementDDMManagementErrors,
-						IncrementManagementSuccess:       a.stats.IncrementDDMManagementSuccess,
-						IncrementActivationErrors:        a.stats.IncrementUserDDMActivationErrors,
-						IncrementActivationSuccess:       a.stats.IncrementUserDDMActivationSuccess,
-						IncrementStatusErrors:            a.stats.IncrementUserDDMStatusErrors,
-						IncrementStatusSuccess:           a.stats.IncrementUserDDMStatusSuccess,
-						IncrementAssetErrors:             a.stats.IncrementUserDDMAssetErrors,
-						IncrementAssetSuccess:            a.stats.IncrementUserDDMAssetSuccess,
-					})
-					mdmCommandPayload = nextMdmCommandPayload
+				} else {
+					if a.profileNotNowRequested(mdmCommandPayload, "user") {
+						mdmCommandPayload, err = a.macMDMClient.UserNotNow(mdmCommandPayload.CommandUUID)
+						if err != nil {
+							log.Printf("MDM NotNow request failed: %s", err)
+							a.stats.IncrementMDMUserErrors()
+							break INNER_FOR_LOOP_USER
+						}
+						continue
+					}
 
-				default:
+					a.recordInstalledProfile("user", mdmCommandPayload)
+
 					mdmCommandPayload, err = a.macMDMClient.UserAcknowledge(mdmCommandPayload.CommandUUID)
 					if err != nil {
 						log.Printf("MDM Acknowledge request failed: %s", err)
 						a.stats.IncrementMDMUserErrors()
 						break INNER_FOR_LOOP_USER
 					}
+				}
+
+			case "RemoveProfile":
+				identifier := removeProfileIdentifier(mdmCommandPayload)
+				if identifier != "" && a.removeInstalledProfile("user", identifier) {
+					mdmCommandPayload, err = a.macMDMClient.UserAcknowledge(mdmCommandPayload.CommandUUID)
+				} else {
+					mdmCommandPayload, err = a.macMDMClient.UserChannelErr(mdmCommandPayload.CommandUUID, profileNotFoundErrChain(identifier))
+				}
+				if err != nil {
+					log.Printf("MDM RemoveProfile response failed: %s", err)
+					a.stats.IncrementMDMUserErrors()
+					break INNER_FOR_LOOP_USER
+				}
+
+			case "DeclarativeManagement":
+				// Device immediately responds with Acknowledged status and then contacts the Declarations endpoints.
+				nextMdmCommandPayload, err := a.macMDMClient.UserAcknowledge(mdmCommandPayload.CommandUUID)
+				if err != nil {
+					log.Printf("MDM Acknowledge request failed: %s", err)
+					a.stats.IncrementMDMUserErrors()
+					break INNER_FOR_LOOP_USER
+				}
+				// Note: Declarative management could happen async while other MDM commands proceed. This is a potential enhancement.
+				// (iff a real device does process DDM in parallel with traditional MDM commands).
+				a.doDeclarativeManagement(mdmCommandPayload, ddmMethods{
+					getGlobalToken: func() string {
+						return a.ddmUserGlobalToken
+					},
+					setGlobalToken: func(token string) {
+						a.ddmUserGlobalToken = token
+					},
+					getDeclTokens: func() map[string]string {
+						return a.ddmUserDeclTokens
+					},
+					setDeclTokens: func(tokens map[string]string) {
+						a.ddmUserDeclTokens = tokens
+					},
+					DeclarativeManagement:            a.macMDMClient.UserDeclarativeManagement,
+					IncrementTokensErrors:            a.stats.IncrementUserDDMTokensErrors,
+					IncrementTokensSuccess:           a.stats.IncrementUserDDMTokensSuccess,
+					IncrementDeclarationItemsErrors:  a.stats.IncrementUserDDMDeclarationItemsErrors,
+					IncrementDeclarationItemsSuccess: a.stats.IncrementUserDDMDeclarationItemsSuccess,
+					IncrementConfigurationErrors:     a.stats.IncrementUserDDMConfigurationErrors,
+					IncrementConfigurationSuccess:    a.stats.IncrementUserDDMConfigurationSuccess,
+					IncrementManagementErrors:        a.stats.IncrementDDMManagementErrors,
+					IncrementManagementSuccess:       a.stats.IncrementDDMManagementSuccess,
+					IncrementActivationErrors:        a.stats.IncrementUserDDMActivationErrors,
+					IncrementActivationSuccess:       a.stats.IncrementUserDDMActivationSuccess,
+					IncrementStatusErrors:            a.stats.IncrementUserDDMStatusErrors,
+					IncrementStatusSuccess:           a.stats.IncrementUserDDMStatusSuccess,
+					IncrementAssetErrors:             a.stats.IncrementUserDDMAssetErrors,
+					IncrementAssetSuccess:            a.stats.IncrementUserDDMAssetSuccess,
+				})
+				mdmCommandPayload = nextMdmCommandPayload
+
+			default:
+				mdmCommandPayload, err = a.macMDMClient.UserAcknowledge(mdmCommandPayload.CommandUUID)
+				if err != nil {
+					log.Printf("MDM Acknowledge request failed: %s", err)
+					a.stats.IncrementMDMUserErrors()
+					break INNER_FOR_LOOP_USER
 				}
 			}
 		}
@@ -2197,7 +2451,22 @@ func (a *agent) enroll(i int, onlyAlreadyEnrolled bool) error {
 }
 
 func (a *agent) config() error {
-	request, err := http.NewRequest("POST", a.serverAddress+"/api/osquery/config", bytes.NewReader([]byte(`{"node_key": "`+a.nodeKey+`"}`)))
+	// The presence of the "etag" field — even empty — is the opt-in to
+	// conditional responses; its value is the etag from the last config
+	// response received (see the configETag field docs).
+	sentConditional := a.configTLSETag && a.configETag != ""
+	requestBody := []byte(`{"node_key": "` + a.nodeKey + `"}`)
+	if a.configTLSETag {
+		var err error
+		requestBody, err = json.Marshal(map[string]string{
+			"node_key": a.nodeKey,
+			"etag":     a.configETag,
+		})
+		if err != nil {
+			return err
+		}
+	}
+	request, err := http.NewRequest("POST", a.serverAddress+"/api/osquery/config", bytes.NewReader(requestBody))
 	if err != nil {
 		return err
 	}
@@ -2211,10 +2480,58 @@ func (a *agent) config() error {
 
 	a.stats.IncrementConfigRequests()
 
-	statusCode := response.StatusCode
-	if statusCode != http.StatusOK {
+	if response.StatusCode != http.StatusOK {
 		a.stats.IncrementConfigErrors()
-		return fmt.Errorf("config request failed: %d", statusCode)
+		return fmt.Errorf("config request failed: %d", response.StatusCode)
+	}
+
+	// Read the full body
+	body, err := io.ReadAll(response.Body)
+	if err != nil {
+		a.stats.IncrementConfigErrors()
+		return fmt.Errorf("read config body: %w", err)
+	}
+
+	// Extract the body-carried etag, if the server assigned one.
+	var envelope struct {
+		ETag *string `json:"etag"`
+	}
+	if err := json.Unmarshal(body, &envelope); err != nil {
+		a.stats.IncrementConfigErrors()
+		return fmt.Errorf("json parse at config: %w", err)
+	}
+
+	// The reserved value "ok" means the config is unchanged. The server may
+	// only say this to an agent that echoed one of its validators.
+	if envelope.ETag != nil && *envelope.ETag == "ok" {
+		if !sentConditional {
+			a.stats.IncrementConfigErrors()
+			return fmt.Errorf("invalid config unchanged response: sent_etag=%t", sentConditional)
+		}
+		a.stats.RecordConfigNotModified(int64(len(body)), a.lastConfigBodyBytes)
+		return nil
+	}
+
+	if a.configTLSETag {
+		if envelope.ETag != nil {
+			serverETag := *envelope.ETag
+			// Drift diagnostic only: the validator should be the SHA-256 of
+			// the canonical config — the body with the etag key stripped.
+			// The server value stays authoritative regardless.
+			if canonical, err := canonicalConfigBody(body); err == nil && serverETag != sha256Hex(canonical) {
+				a.stats.IncrementConfigETagDrift()
+			}
+			// Store on receive, BEFORE processing the config — the real
+			// client echoes the etag of the last config received, not
+			// applied, so a config the agent fails to process is confirmed
+			// unchanged instead of re-downloaded.
+			a.configETag = serverETag
+			a.lastConfigBodyBytes = int64(len(body))
+		} else {
+			// The server assigned no etag (it does not support conditional
+			// requests): hold no validator, keep opting in with an empty one.
+			a.configETag = ""
+		}
 	}
 
 	parsedResp := struct {
@@ -2222,7 +2539,7 @@ func (a *agent) config() error {
 			Queries map[string]interface{} `json:"queries"`
 		} `json:"packs"`
 	}{}
-	if err := json.NewDecoder(response.Body).Decode(&parsedResp); err != nil {
+	if err := json.Unmarshal(body, &parsedResp); err != nil {
 		a.stats.IncrementConfigErrors()
 		return fmt.Errorf("json parse at config: %w", err)
 	}
@@ -2278,7 +2595,34 @@ func (a *agent) config() error {
 	a.scheduledQueryData = newScheduledQueryData
 	a.scheduledQueryMapMutex.Unlock()
 
+	a.stats.RecordFullConfigResponse(int64(len(body)), sentConditional)
+
 	return nil
+}
+
+// canonicalConfigBody returns the config body with the top-level "etag" key
+// removed, re-marshaled the way the server marshals configs (two-space
+// indent, trailing newline) — the representation the validator covers.
+func canonicalConfigBody(body []byte) ([]byte, error) {
+	var config map[string]any
+	if err := json.Unmarshal(body, &config); err != nil {
+		return nil, err
+	}
+	delete(config, "etag")
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	enc.SetIndent("", "  ")
+	if err := enc.Encode(config); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
+}
+
+// sha256Hex returns the lowercase hex SHA-256 digest of the given bytes,
+// matching the server-assigned validator format.
+func sha256Hex(data []byte) string {
+	sum := sha256.Sum256(data)
+	return fmt.Sprintf("%x", sum)
 }
 
 const stringVals = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_."
@@ -2404,6 +2748,28 @@ func (a *agent) softwareMacOS() []map[string]string {
 		if globalAgentIndex < remainder {
 			endIdx++
 		}
+	}
+
+	// Template software is served identically to every macOS host, mirroring the
+	// Windows and Ubuntu templates. This is what makes a simulated Mac fleet
+	// homogeneous: every host reports the same titles, so concurrent ingest
+	// contends on the software_titles unique index the way a real corporate
+	// Mac fleet does. Unlike the "common" pool, it is never sliced per-host.
+	templateSoftware := make([]map[string]string, 0, len(macOSSoftware))
+	for _, s := range macOSSoftware {
+		var lastOpenedAt string
+		if l := a.genLastOpenedAt(s["name"]); l != nil {
+			lastOpenedAt = l.Format(time.UnixDate)
+		}
+		baseVersion := s["version"]
+		templateSoftware = append(templateSoftware, map[string]string{
+			"name":              s["name"],
+			"version":           a.selectSoftwareVersion(s["name"], baseVersion, baseVersion+".1"),
+			"bundle_identifier": s["bundle_identifier"],
+			"source":            s["source"],
+			"last_opened_at":    lastOpenedAt,
+			"installed_path":    s["installed_path"],
+		})
 	}
 
 	commonSoftware := make([]map[string]string, 0)
@@ -2543,7 +2909,8 @@ func (a *agent) softwareMacOS() []map[string]string {
 	}
 
 	// Combine all software
-	software := commonSoftware
+	software := templateSoftware
+	software = append(software, commonSoftware...)
 	software = append(software, uniqueSoftware...)
 	software = append(software, realSoftware...)
 	software = append(software, duplicateBundleSoftware...)
@@ -2770,7 +3137,7 @@ func selectKernels(kernelList []map[string]string) []map[string]string {
 }
 
 func (a *agent) DistributedRead() (*distributedReadResponse, error) {
-	request, err := http.NewRequest("POST", a.serverAddress+"/api/osquery/distributed/read", bytes.NewReader([]byte(`{"node_key": "`+a.nodeKey+`"}`)))
+	request, err := http.NewRequest("POST", a.serverAddress+a.distributedAPIPrefix()+"/distributed/read", bytes.NewReader([]byte(`{"node_key": "`+a.distributedNodeKey()+`"}`)))
 	if err != nil {
 		return nil, err
 	}
@@ -2926,14 +3293,23 @@ func (a *agent) mdmMac() []map[string]string {
 	}
 }
 
+// mdmConfigProfilesMac returns the profiles this agent has acknowledged
+// installing on the device and user channels, merged as the server's
+// mdm_config_profiles_darwin_with_user query does with the macos_profiles and
+// macos_user_profiles tables.
 func (a *agent) mdmConfigProfilesMac() []map[string]string {
-	return []map[string]string{
-		{
-			"identifier":   "osquery-perf",
-			"display_name": "OSQuery Perf Agent",
-			"install_date": "2006-01-02 15:04:05 -0700",
-		},
+	a.installedProfilesMu.Lock()
+	defer a.installedProfilesMu.Unlock()
+
+	results := make([]map[string]string, 0, len(a.installedProfiles))
+	for _, profile := range a.installedProfiles {
+		results = append(results, map[string]string{
+			"identifier":   profile.identifier,
+			"display_name": profile.displayName,
+			"install_date": profile.installDate.Format("2006-01-02 15:04:05 -0700"),
+		})
 	}
+	return results
 }
 
 func (a *agent) entraConditionalAccess() []map[string]string {
@@ -3210,48 +3586,48 @@ func (a *agent) runLiveYaraQuery(query string) (results []map[string]string, sta
 	// Return a response indicating that the file is clean.
 	ss := fleet.OsqueryStatus(0)
 	return []map[string]string{
-			{
-				"count":     "0",
-				"matches":   "",
-				"strings":   "",
-				"tags":      "",
-				"sig_group": "",
-				"sigfile":   "",
-				"sigrule":   "",
-				"sigurl":    url,
-				// Could pull this from the query, but not necessary for load testing.
-				"path": "/some/path",
-			},
-		}, &ss, nil, &fleet.Stats{
-			WallTimeMs: uint64(rand.Intn(1000) * 1000),
-			UserTime:   uint64(rand.Intn(1000)),
-			SystemTime: uint64(rand.Intn(1000)),
-			Memory:     uint64(rand.Intn(1000)),
-		}
+		{
+			"count":     "0",
+			"matches":   "",
+			"strings":   "",
+			"tags":      "",
+			"sig_group": "",
+			"sigfile":   "",
+			"sigrule":   "",
+			"sigurl":    url,
+			// Could pull this from the query, but not necessary for load testing.
+			"path": "/some/path",
+		},
+	}, &ss, nil, &fleet.Stats{
+		WallTimeMs: uint64(rand.Intn(1000) * 1000), //nolint:gosec // G115: rand.Intn(1000) is bounded, so this cannot overflow.
+		UserTime:   uint64(rand.Intn(1000)),        //nolint:gosec // G115: rand.Intn(1000) is bounded, so this cannot overflow.
+		SystemTime: uint64(rand.Intn(1000)),        //nolint:gosec // G115: rand.Intn(1000) is bounded, so this cannot overflow.
+		Memory:     uint64(rand.Intn(1000)),        //nolint:gosec // G115: rand.Intn(1000) is bounded, so this cannot overflow.
+	}
 }
 
 func (a *agent) runLiveMockQuery(query string) (results []map[string]string, status *fleet.OsqueryStatus, message *string, stats *fleet.Stats) {
 	ss := fleet.OsqueryStatus(0)
 	return []map[string]string{
-			{
-				"admindir":   "/var/lib/dpkg",
-				"arch":       "amd64",
-				"maintainer": "foobar",
-				"name":       "netconf",
-				"priority":   "optional",
-				"revision":   "",
-				"section":    "default",
-				"size":       "112594",
-				"source":     "",
-				"status":     "install ok installed",
-				"version":    "20230224000000",
-			},
-		}, &ss, nil, &fleet.Stats{
-			WallTimeMs: uint64(rand.Intn(1000) * 1000),
-			UserTime:   uint64(rand.Intn(1000)),
-			SystemTime: uint64(rand.Intn(1000)),
-			Memory:     uint64(rand.Intn(1000)),
-		}
+		{
+			"admindir":   "/var/lib/dpkg",
+			"arch":       "amd64",
+			"maintainer": "foobar",
+			"name":       "netconf",
+			"priority":   "optional",
+			"revision":   "",
+			"section":    "default",
+			"size":       "112594",
+			"source":     "",
+			"status":     "install ok installed",
+			"version":    "20230224000000",
+		},
+	}, &ss, nil, &fleet.Stats{
+		WallTimeMs: uint64(rand.Intn(1000) * 1000), //nolint:gosec // G115: rand.Intn(1000) is bounded, so this cannot overflow.
+		UserTime:   uint64(rand.Intn(1000)),        //nolint:gosec // G115: rand.Intn(1000) is bounded, so this cannot overflow.
+		SystemTime: uint64(rand.Intn(1000)),        //nolint:gosec // G115: rand.Intn(1000) is bounded, so this cannot overflow.
+		Memory:     uint64(rand.Intn(1000)),        //nolint:gosec // G115: rand.Intn(1000) is bounded, so this cannot overflow.
+	}
 }
 
 func (a *agent) processQuery(name, query string, cachedResults *cachedResults) (
@@ -3261,6 +3637,7 @@ func (a *agent) processQuery(name, query string, cachedResults *cachedResults) (
 	const (
 		hostPolicyQueryPrefix = "fleet_policy_query_"
 		hostDetailQueryPrefix = "fleet_detail_query_"
+		hostLabelQueryPrefix  = "fleet_label_query_"
 		liveQueryPrefix       = "fleet_distributed_query_"
 	)
 	statusOK := fleet.StatusOK
@@ -3273,6 +3650,12 @@ func (a *agent) processQuery(name, query string, cachedResults *cachedResults) (
 		return true, results, status, message, stats
 	case strings.HasPrefix(name, hostPolicyQueryPrefix):
 		return true, a.runPolicy(query), &statusOK, nil, nil
+	case strings.HasPrefix(name, hostLabelQueryPrefix) &&
+		strings.ToLower(strings.TrimRight(strings.TrimSpace(query), ";")) == "select 1":
+		// "select 1;" is the "All hosts" builtin label query. Its label ID varies
+		// across deployments, so the per-ID template lookup below can't be relied
+		// on to match it; always report membership.
+		return true, []map[string]string{{"1": "1"}}, &statusOK, nil, nil
 	case name == hostDetailQueryPrefix+"scheduled_query_stats":
 		return true, a.randomQueryStats(), &statusOK, nil, nil
 	case name == hostDetailQueryPrefix+"mdm":
@@ -3283,7 +3666,20 @@ func (a *agent) processQuery(name, query string, cachedResults *cachedResults) (
 			ss = statusNotOK
 		}
 		return true, results, &ss, nil, nil
-	case name == hostDetailQueryPrefix+"mdm_config_profiles_darwin_with_user", name == hostDetailQueryPrefix+"mdm_config_profiles_darwin":
+	case name == hostDetailQueryPrefix+"mdm_config_profiles_darwin":
+		// Simulated fleetd has the macos_user_profiles table, so this legacy
+		// query's discovery fails (it requires the table to NOT exist) and
+		// only mdm_config_profiles_darwin_with_user runs. Report no results
+		// and no status, as osquery does for queries whose discovery fails.
+		return true, nil, nil, nil, nil
+	case name == hostDetailQueryPrefix+"mdm_macos_software_update_id":
+		return true, []map[string]string{
+			{
+				"key":   "compatible",
+				"value": "VMA2MACOSAP", // report an osquery-perf host as a VM
+			},
+		}, &statusOK, nil, nil
+	case name == hostDetailQueryPrefix+"mdm_config_profiles_darwin_with_user":
 		ss := statusOK
 		if rand.Intn(10) > 0 { // 90% success
 			results = a.mdmConfigProfilesMac()
@@ -3683,7 +4079,7 @@ func (a *agent) DistributedWrite(queries map[string]string) error {
 		Messages: make(map[string]string),
 		Stats:    make(map[string]*fleet.Stats),
 	}
-	r.NodeKey = a.nodeKey
+	r.NodeKey = a.distributedNodeKey()
 
 	cachedResults := cachedResults{}
 
@@ -3724,7 +4120,7 @@ func (a *agent) DistributedWrite(queries map[string]string) error {
 		panic(err)
 	}
 
-	request, err := http.NewRequest("POST", a.serverAddress+"/api/osquery/distributed/write", bytes.NewReader(body))
+	request, err := http.NewRequest("POST", a.serverAddress+a.distributedAPIPrefix()+"/distributed/write", bytes.NewReader(body))
 	if err != nil {
 		return err
 	}
@@ -3842,9 +4238,18 @@ func (a *mdmAgent) runAppleIDeviceMDMLoop(mdmSCEPChallenge string) {
 
 	a.stats.IncrementMDMEnrollments()
 
-	mdmCheckInTicker := time.Tick(a.MDMCheckInInterval)
+	// installedProfiles tracks the profiles this device has acknowledged
+	// installing, so RemoveProfile commands succeed or fail like on a real
+	// device. Seeded with the enrollment profile, which is installed during
+	// enrollment rather than via an InstallProfile command. Only this
+	// goroutine touches it, so it needs no locking.
+	installedProfiles := map[string]struct{}{apple_mdm.FleetPayloadIdentifier: {}}
 
-	for range mdmCheckInTicker {
+	hexToken := hex.EncodeToString([]byte(mdmClient.GetToken()))
+	deviceAPNSClient := apnsmock.NewClient(a.apnsPushURL, hexToken, apnsmock.WithInitialJitter(time.Minute), apnsmock.WithLogf(log.Printf))
+	deviceAPNSClient.Start(context.Background())
+
+	for range deviceAPNSClient.Pings() {
 		mdmCommandPayload, err := mdmClient.Idle()
 		if err != nil {
 			log.Printf("MDM Idle request failed: %s: %s", a.model, err)
@@ -3855,6 +4260,7 @@ func (a *mdmAgent) runAppleIDeviceMDMLoop(mdmSCEPChallenge string) {
 
 		for mdmCommandPayload != nil {
 			a.stats.IncrementMDMCommandsReceived()
+			delayCancelableMDMAck(a.cancelableCmdAckDelay, deviceName, mdmCommandPayload)
 			switch mdmCommandPayload.Command.RequestType {
 			case "DeviceInformation":
 				if a.isPersonalEnrollment {
@@ -3881,7 +4287,18 @@ func (a *mdmAgent) runAppleIDeviceMDMLoop(mdmSCEPChallenge string) {
 					}
 					mdmCommandPayload, err = mdmClient.Err(mdmCommandPayload.CommandUUID, errChain)
 				} else {
+					if identifier, _, ok := parseInstallProfileCommand(mdmCommandPayload); ok {
+						installedProfiles[identifier] = struct{}{}
+					}
 					mdmCommandPayload, err = mdmClient.Acknowledge(mdmCommandPayload.CommandUUID)
+				}
+			case "RemoveProfile":
+				identifier := removeProfileIdentifier(mdmCommandPayload)
+				if _, ok := installedProfiles[identifier]; identifier != "" && ok {
+					delete(installedProfiles, identifier)
+					mdmCommandPayload, err = mdmClient.Acknowledge(mdmCommandPayload.CommandUUID)
+				} else {
+					mdmCommandPayload, err = mdmClient.Err(mdmCommandPayload.CommandUUID, profileNotFoundErrChain(identifier))
 				}
 
 			default:
@@ -3968,13 +4385,10 @@ func main() {
 		configInterval  = flag.Duration("config_interval", 1*time.Minute, "Interval for config requests")
 		// Flag logger_tls_period defines how often to check for sending scheduled query results.
 		// osquery-perf will send log requests with results only if there are scheduled queries configured AND it's their time to run.
-		logInterval   = flag.Duration("logger_tls_period", 10*time.Second, "Interval for scheduled queries log requests")
-		queryInterval = flag.Duration("query_interval", 10*time.Second, "Interval for distributed query requests")
-		// NOTE: at least for macOS (not sure for Windows), this is a significant difference vs a real
-		// device, as APNS push notifications will be used to wake-up the device for check-ins instead of
-		// the device having to check-in at a regular interval. I believe macOS will check-in from time to time
-		// without push notifications, but definitely not every minute.
-		mdmCheckInInterval  = flag.Duration("mdm_check_in_interval", 1*time.Minute, "Interval for performing MDM check-ins (applies to both macOS and Windows)")
+		logInterval         = flag.Duration("logger_tls_period", 10*time.Second, "Interval for scheduled queries log requests")
+		queryInterval       = flag.Duration("query_interval", 10*time.Second, "Interval for distributed query requests")
+		websocketProb       = flag.Float64("websocket_prob", 1.0, "Probability of an orbit agent supporting the WebSocket notification transport when the server's orbit config directive enables it (older fleetd versions ignore the directive)")
+		mdmCheckInInterval  = flag.Duration("mdm_check_in_interval", 1*time.Minute, "Interval for performing MDM check-ins (applies only to Windows)")
 		onlyAlreadyEnrolled = flag.Bool("only_already_enrolled", false, "Only start agents that are already enrolled")
 		nodeKeyFile         = flag.String("node_key_file", "", "File with node keys to use")
 
@@ -4049,11 +4463,13 @@ func main() {
 		defaultSerialProb = flag.Float64("default_serial_prob", 0.05,
 			"Probability of osquery returning a default (-1) serial number. See: #19789")
 
-		mdmProb               = flag.Float64("mdm_prob", 0.0, "Probability of a host enrolling via Fleet MDM (applies for macOS and Windows hosts, implies orbit enrollment on Windows) [0, 1]")
-		mdmUserProb           = flag.Float64("mdm_user_prob", 0.0, "Probability of a host having an MDM user enrollment (compounds on mdm_prob) [0, 1]")
-		mdmSCEPChallenge      = flag.String("mdm_scep_challenge", "", "SCEP challenge to use when running macOS MDM enroll")
-		mdmProfileFailureProb = flag.Float64("mdm_profile_failure_prob", 0.0, "Probability of an MDM profile to fail install [0, 1]")
-		mdmIOSBYODProb        = flag.Float64("mdm_ios_byod_prob", 0.0, "Probability of a simulated iOS/iPadOS device (os_templates iphone_14.6/ipad_13.18/iphone_17) reporting as a personal (BYOD) enrollment, which omits the newer device vitals fields from its DeviceInformation ack [0, 1]")
+		mdmProb                      = flag.Float64("mdm_prob", 0.0, "Probability of a host enrolling via Fleet MDM (applies for macOS and Windows hosts, implies orbit enrollment on Windows) [0, 1]")
+		mdmUserProb                  = flag.Float64("mdm_user_prob", 0.0, "Probability of a host having an MDM user enrollment (compounds on mdm_prob) [0, 1]")
+		mdmAPNSURL                   = flag.String("mdm_apns_url", "", "APNS URL to check for MDM push notifications (e.g., http://localhost:8378) - required for Apple (macOS/iOS/iPadOS) MDM enrollments.")
+		mdmSCEPChallenge             = flag.String("mdm_scep_challenge", "", "SCEP challenge to use when running macOS MDM enroll")
+		mdmProfileFailureProb        = flag.Float64("mdm_profile_failure_prob", 0.0, "Probability of an MDM profile to fail install [0, 1]")
+		mdmCancelableCommandAckDelay = flag.Duration("mdm_cancelable_command_ack_delay", 0, "Delay between fetching a cancelable MDM command (lock, wipe, clear passcode, enable lost mode) and acknowledging it, opening a window to test command cancellation")
+		mdmIOSBYODProb               = flag.Float64("mdm_ios_byod_prob", 0.0, "Probability of a simulated iOS/iPadOS device (os_templates iphone_14.6/ipad_13.18/iphone_17) reporting as a personal (BYOD) enrollment, which omits the newer device vitals fields from its DeviceInformation ack [0, 1]")
 
 		mdmPSSOProb      = flag.Float64("mdm_psso_prob", 0.0, "Probability of an MDM-enrolled macOS host also simulating Apple Platform SSO [0, 1]. Requires the Fleet server to have account provisioning configured and the PSSO profile assigned to the host")
 		mdmPSSOClientID  = flag.String("mdm_psso_client_id", "", "Apple Platform SSO IdP/extension client ID. Must match the Fleet server's account provisioning config; PSSO is skipped when empty")
@@ -4075,6 +4491,9 @@ func main() {
 		commonSoftwareNameSuffix = flag.String("common_software_name_suffix", "", "Suffix to add to generated common software names")
 		softwareDatabasePath     = flag.String("software_db_path", "software-library/software.db",
 			"Path to software.db (SQLite database with realistic software data). Auto-generates from software.sql if missing.")
+
+		configTLSETag = flag.Bool("config_tls_etag", false,
+			"Enable native osquery conditional config requests (sends an \"etag\" field in the request body, treats the {\"etag\":\"ok\"} response as unchanged). Default false — opt in to measure bandwidth savings.")
 
 		// Android load testing flags
 		androidPubSubToken       = flag.String("android_pubsub_token", "", "PubSub token for authenticating fake Android device messages to Fleet")
@@ -4144,6 +4563,13 @@ func main() {
 	}
 	if *androidNonComplianceProb < 0 || *androidNonComplianceProb > 1 {
 		log.Fatalf("Argument android_non_compliance_prob must be between 0 and 1, got %f", *androidNonComplianceProb)
+	}
+
+	// only fail if mdm is turned on for macOS devices and the mdm_apns_url is not specified.
+	if *mdmProb > 0 &&
+		strings.Contains(*osTemplates, "macos") &&
+		*mdmAPNSURL == "" {
+		log.Fatalf("Argument mdm_apns_url must be specified when mdm_prob is greater than 0")
 	}
 
 	tmplsm := make(map[*template.Template]int)
@@ -4216,6 +4642,9 @@ func main() {
 		}
 
 		if tmpl.Name() == "iphone_14.6.tmpl" || tmpl.Name() == "ipad_13.18.tmpl" || tmpl.Name() == "iphone_17.tmpl" {
+			if *mdmAPNSURL == "" {
+				log.Fatalf("Argument mdm_apns_url must be specified when iOS/iPadOS templates are used.")
+			}
 			model := "iPhone 14,6"
 			var osVersion, supplementalOSVersionExtra string
 			// iphone_17 simulates a device with a Rapid Security Response (RSR) installed,
@@ -4230,7 +4659,6 @@ func main() {
 			}
 			mobileDevice := mdmAgent{
 				agentIndex:                 i + 1,
-				MDMCheckInInterval:         *mdmCheckInInterval,
 				model:                      model,
 				serverAddress:              *serverURL,
 				osVersion:                  osVersion,
@@ -4251,6 +4679,8 @@ func main() {
 				strings:               make(map[string]string),
 				softwareVersionMap:    make(map[rune]int),
 				mdmProfileFailureProb: *mdmProfileFailureProb,
+				cancelableCmdAckDelay: *mdmCancelableCommandAckDelay,
+				apnsPushURL:           *mdmAPNSURL,
 			}
 			go mobileDevice.runAppleIDeviceMDMLoop(*mdmSCEPChallenge)
 			time.Sleep(sleepTime)
@@ -4356,8 +4786,10 @@ func main() {
 			*linuxUniqueSoftwareTitle,
 			*commonSoftwareNameSuffix,
 			*mdmProfileFailureProb,
+			*mdmCancelableCommandAckDelay,
 			*httpMessageSignatureProb,
 			*httpMessageSignatureP384Prob,
+			*configTLSETag,
 			pssoParams{
 				prob:      *mdmPSSOProb,
 				clientID:  *mdmPSSOClientID,
@@ -4367,6 +4799,8 @@ func main() {
 				loginProb: *mdmPSSOLoginProb,
 				keyProb:   *mdmPSSOKeyProb,
 			},
+			*mdmAPNSURL,
+			*websocketProb,
 		)
 		a.stats = stats
 		a.nodeKeyManager = nodeKeyManager

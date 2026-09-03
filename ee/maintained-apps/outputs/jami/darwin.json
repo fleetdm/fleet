@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "2.41",
+      "version": "2.42",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'cx.ring';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'cx.ring' AND version_compare(bundle_short_version, '2.41') < 0);",
-        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'cx.ring');"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'cx.ring' AND version_compare(bundle_short_version, '2.42') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'cx.ring' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://dl.jami.net/mac_osx/jami2026072011.dmg",
+      "installer_url": "https://dl.jami.net/mac_osx/jami2026082009.dmg",
       "install_script_ref": "656eb108",
       "uninstall_script_ref": "aff7c461",
-      "sha256": "5ecb4257d78b6a955df972624871563e9a78486a4be12989184dcbc9f0796b6a",
+      "sha256": "8e9e1990ce3af57629a619991c91f08c0518273facbed5b3fcdd736ef11fa6e6",
       "default_categories": [
         "Communication"
       ]

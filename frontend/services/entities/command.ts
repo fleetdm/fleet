@@ -65,4 +65,9 @@ export default {
     const url = `${COMMANDS_RESULTS}?command_uuid=${command_uuid}&host_identifier=${host_identifier}`;
     return sendRequest("GET", url);
   },
+
+  cancelHostCommand: (hostId: number, commandUUID: string): Promise<void> => {
+    const { HOST_CANCEL_MDM_COMMAND } = endpoints;
+    return sendRequest("DELETE", HOST_CANCEL_MDM_COMMAND(hostId, commandUUID));
+  },
 };

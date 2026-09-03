@@ -5,6 +5,7 @@ import { createMockHostSoftware } from "__mocks__/hostMock";
 import { createMockSoftwareInstallResult } from "__mocks__/softwareMock";
 import {
   getDefaultSoftwareInstallHandler,
+  getDeviceSoftwareInstallHandlerFailedWithPreInstall,
   getSoftwareInstallHandlerNoOutputs,
   getSoftwareInstallHandlerOnlyInstallOutput,
   getSoftwareInstallHandlerWithHash,
@@ -136,7 +137,7 @@ describe("SoftwareInstallDetailsModal", () => {
       expect(screen.getByText(/\d+.*ago/)).toBeInTheDocument();
     });
 
-    it("renders app-open skipped copy instead of generic failed-install copy", () => {
+    it("renders app-open skipped copy with a policy-automations link on the admin activity feed", () => {
       render(
         <StatusMessage
           softwareName="CoolApp"
@@ -144,21 +145,53 @@ describe("SoftwareInstallDetailsModal", () => {
             status: "failed_install",
           })}
           isMyDevicePage={false}
-          installSkippedWhenAppOpen
+          skippedInstall
         />
       );
 
       expect(screen.getByText(/Fleet skipped install of/)).toBeInTheDocument();
-      expect(screen.getByText(/The app was open/)).toBeInTheDocument();
       expect(
         screen.getByText(
-          /It will update once the user closes it and policy runs again, or update via self service\./
+          /The app was open\. It will update once the user closes it and the/
         )
       ).toBeInTheDocument();
+      // "policy runs again" is the external CustomLink to the cadence docs.
+      const link = screen.getByRole("link", { name: /policy runs again/ });
+      expect(link).toHaveAttribute(
+        "href",
+        "https://fleetdm.com/learn-more-about/policy-automations"
+      );
+      expect(link).toHaveAttribute("target", "_blank");
+      // Self-service tail should be gone.
+      expect(
+        screen.queryByText(/update via self service/)
+      ).not.toBeInTheDocument();
       expect(screen.queryByText(/failed to install/)).not.toBeInTheDocument();
       // Grey "!" (error-outline), not the red failure icon.
       expect(screen.getByTestId("error-outline-icon")).toBeInTheDocument();
       expect(screen.queryByTestId("error-icon")).not.toBeInTheDocument();
+    });
+
+    it("renders skipped copy as plain text (no policy-automations link) on the My device page", () => {
+      render(
+        <StatusMessage
+          softwareName="CoolApp"
+          installResult={createMockSoftwareInstallResult({
+            status: "failed_install",
+          })}
+          isMyDevicePage
+          skippedInstall
+        />
+      );
+
+      expect(
+        screen.getByText(
+          /It will update once the user closes it and the policy runs again\./
+        )
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByRole("link", { name: /policy runs again/ })
+      ).not.toBeInTheDocument();
     });
 
     it("on host details page/install activity, renders installed message with timestamp", () => {
@@ -343,7 +376,7 @@ describe("SoftwareInstallDetailsModal", () => {
         <SoftwareInstallDetailsModal
           details={{
             ...baseDetails,
-            install_skipped_when_app_open: true,
+            skipped_install: true,
           }}
           onCancel={noop}
         />
@@ -436,6 +469,35 @@ describe("SoftwareInstallDetailsModal", () => {
           name: /Details/i,
         })
       ).not.toBeInTheDocument();
+    });
+
+    // #52017: on the end-user My device page, clicking "Failed" opened the modal
+    // but showed "is installed" because the host inventory still reported an
+    // older version. The override is meant for the admin Host details page;
+    // My device (deviceAuthToken) must show the failure so the user can see
+    // Details + Retry.
+    it("on My device, does not override a failed install to 'is installed' even when the host reports an older installed version", async () => {
+      mockServer.use(getDeviceSoftwareInstallHandlerFailedWithPreInstall);
+      const renderWithServer = createCustomRenderer({ withBackendMock: true });
+
+      renderWithServer(
+        <SoftwareInstallDetailsModal
+          details={baseDetails}
+          hostSoftware={createMockHostSoftware({
+            id: 99,
+            name: "CoolApp",
+          })}
+          deviceAuthToken="token123"
+          onCancel={noop}
+        />
+      );
+
+      expect(await screen.findByText(/failed to install/)).toBeInTheDocument();
+      expect(screen.queryByText(/is installed\./i)).not.toBeInTheDocument();
+      expect(
+        await screen.findByRole("button", { name: /Details/i })
+      ).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument();
     });
   });
 

@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "3.32.0",
+      "version": "3.32.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'edu.mit.scratch.scratch-desktop';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'edu.mit.scratch.scratch-desktop' AND version_compare(bundle_short_version, '3.32.0') < 0);",
-        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'edu.mit.scratch.scratch-desktop');"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'edu.mit.scratch.scratch-desktop' AND version_compare(bundle_short_version, '3.32.1') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'edu.mit.scratch.scratch-desktop' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://downloads.scratch.mit.edu/desktop/Scratch%203.32.0.dmg",
+      "installer_url": "https://downloads.scratch.mit.edu/desktop/Scratch%203.32.1.dmg",
       "install_script_ref": "cf2699f4",
       "uninstall_script_ref": "2c381ac2",
-      "sha256": "e28ec141cd34c2976600923a63d1d663329c5819798f69e0dd389e92c5339f1f",
+      "sha256": "a0184df50e26ba3fbffd665b972108dfa3f0d7ce07b3fa7096a7c6749af3ff29",
       "default_categories": [
         "Productivity"
       ]

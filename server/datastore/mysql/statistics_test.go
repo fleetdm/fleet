@@ -33,6 +33,7 @@ func TestStatistics(t *testing.T) {
 		{"PoliciesAutomationEnabledSoftware", testPoliciesAutomationEnabledSoftware},
 		{"GitOpsModeStatistics", testGitOpsModeStatistics},
 		{"FleetMDMEnrolled", testStatisticsFleetMDMEnrolled},
+		{"MDMProfileCounts", testStatisticsMDMProfileCounts},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -107,9 +108,14 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 	assert.False(t, stats.ConditionalAccessEnabled)
 	assert.False(t, stats.EntraConditionalAccessConfigured)
 	assert.False(t, stats.GitOpsModeEnabled)
+	assert.False(t, stats.FleetDesktopSSOEnabled)
 	// Existing-install defaults applied by migration 20260323144117_AddGitOpsExceptionsToAppConfig
 	// (labels + secrets on, software off) and baked into the dumped test schema.
 	assert.Equal(t, []string{"labels", "secrets"}, stats.GitOpsModeExceptions)
+	assert.Equal(t, 0, stats.NumMDMAppleProfiles)
+	assert.Equal(t, 0, stats.NumMDMWindowsProfiles)
+	assert.Equal(t, 0, stats.NumMDMAppleDeclarations)
+	assert.Equal(t, 0, stats.NumMDMAndroidProfiles)
 
 	firstIdentifier := stats.AnonymousIdentifier
 
@@ -973,9 +979,42 @@ func testPoliciesAutomationEnabledSoftware(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assert.Equal(t, 2, count)
 
-	// A patch policy counts even with no install automation attached -- this matches the
-	// automation_type=software filter in createAutomationClause, which the API exposes.
+	// A patch policy with no install automation does not count: automation_type=software no
+	// longer matches on p.type, automation_type=patch covers those instead.
 	insertPolicy("patch ruby", ", type, patch_software_title_id", ", 'patch', ?", titleID)
+	count, err = amountPoliciesAutomationEnabledSoftwareDB(ctx, ds.reader(ctx))
+	require.NoError(t, err)
+	assert.Equal(t, 2, count)
+
+	// A patch policy that also installs a package does count.
+	var pythonTitleID uint
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		res, err := q.ExecContext(ctx, `INSERT INTO software_titles (name, source, bundle_identifier) VALUES ('Python', 'apps', 'org.python.lang')`)
+		if err != nil {
+			return err
+		}
+		id, _ := res.LastInsertId()
+		pythonTitleID = uint(id) //nolint:gosec // test fixture
+		return nil
+	})
+	insertPolicy("patch python", ", type, patch_software_title_id, software_installer_id", ", 'patch', ?, ?", pythonTitleID, installerID)
+	count, err = amountPoliciesAutomationEnabledSoftwareDB(ctx, ds.reader(ctx))
+	require.NoError(t, err)
+	assert.Equal(t, 3, count)
+
+	// Script and calendar automations are separate filters and must not count.
+	var scriptID uint
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		res, err := q.ExecContext(ctx, `INSERT INTO scripts (name, global_or_team_id, script_content_id) VALUES ('run.sh', 0, ?)`, installScriptID)
+		if err != nil {
+			return err
+		}
+		id, _ := res.LastInsertId()
+		scriptID = uint(id) //nolint:gosec // test fixture
+		return nil
+	})
+	insertPolicy("run script", ", script_id", ", ?", scriptID)
+	insertPolicy("calendar", ", calendar_events_enabled", ", 1")
 	count, err = amountPoliciesAutomationEnabledSoftwareDB(ctx, ds.reader(ctx))
 	require.NoError(t, err)
 	assert.Equal(t, 3, count)
@@ -1044,6 +1083,7 @@ func testGitOpsModeStatistics(t *testing.T, ds *Datastore) {
 	cfg.GitOpsConfig.Exceptions.Labels = false
 	cfg.GitOpsConfig.Exceptions.Software = false
 	cfg.GitOpsConfig.Exceptions.Secrets = false
+	cfg.FleetDesktop.SSOEnabled = true
 	require.NoError(t, ds.SaveAppConfig(ctx, cfg))
 
 	stats, shouldSend, err = ds.ShouldSendStatistics(license.NewContext(ctx, premiumLicense), time.Millisecond, fleetConfig)
@@ -1051,6 +1091,7 @@ func testGitOpsModeStatistics(t *testing.T, ds *Datastore) {
 	assert.True(t, shouldSend)
 	assert.False(t, stats.GitOpsModeEnabled)
 	assert.Equal(t, []string{}, stats.GitOpsModeExceptions)
+	assert.True(t, stats.FleetDesktopSSOEnabled)
 }
 
 func testStatisticsFleetMDMEnrolled(t *testing.T, ds *Datastore) {
@@ -1099,4 +1140,94 @@ func testStatisticsFleetMDMEnrolled(t *testing.T, ds *Datastore) {
 	assert.True(t, shouldSend)
 	assert.Equal(t, 1, stats.NumHostsFleetMDMEnrolledMacOS)
 	assert.Equal(t, 1, stats.NumHostsFleetMDMEnrolledWindows)
+}
+
+func testStatisticsMDMProfileCounts(t *testing.T, ds *Datastore) {
+	eh := ctxerr.MockHandler{}
+	eh.RetrieveImpl = func(flush bool) ([]*ctxerr.StoredError, error) {
+		return nil, nil
+	}
+	ctx := ctxerr.NewContext(context.Background(), eh)
+
+	premiumLicense := &fleet.LicenseInfo{Tier: fleet.TierPremium, Organization: "Fleet"}
+	fleetConfig := config.FleetConfig{Osquery: config.OsqueryConfig{DetailUpdateInterval: 1 * time.Hour}}
+
+	// Initial state: all profile counts should be zero.
+	stats, shouldSend, err := ds.ShouldSendStatistics(license.NewContext(ctx, premiumLicense), time.Millisecond, fleetConfig)
+	require.NoError(t, err)
+	assert.True(t, shouldSend)
+	assert.Equal(t, 0, stats.NumMDMAppleProfiles)
+	assert.Equal(t, 0, stats.NumMDMWindowsProfiles)
+	assert.Equal(t, 0, stats.NumMDMAppleDeclarations)
+	assert.Equal(t, 0, stats.NumMDMAndroidProfiles)
+
+	markStatisticsStale(t, ctx, ds)
+
+	// Insert Apple configuration profiles.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		for i := 1; i <= 3; i++ {
+			_, err := q.ExecContext(ctx,
+				`INSERT INTO mdm_apple_configuration_profiles (team_id, identifier, name, mobileconfig, checksum, profile_uuid)
+				 VALUES (0, ?, ?, '<plist></plist>', '', ?)`,
+				fmt.Sprintf("com.test.profile%d", i),
+				fmt.Sprintf("Test Profile %d", i),
+				fmt.Sprintf("a%d", i),
+			)
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+
+	// Insert Windows configuration profiles.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		for i := 1; i <= 2; i++ {
+			_, err := q.ExecContext(ctx,
+				`INSERT INTO mdm_windows_configuration_profiles (team_id, name, syncml, profile_uuid)
+				 VALUES (0, ?, '<Replace></Replace>', ?)`,
+				fmt.Sprintf("Win Profile %d", i),
+				fmt.Sprintf("w%d", i),
+			)
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+
+	// Insert Apple declarations.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		for i := 1; i <= 4; i++ {
+			_, err := q.ExecContext(ctx,
+				`INSERT INTO mdm_apple_declarations (team_id, identifier, name, raw_json, declaration_uuid)
+				 VALUES (0, ?, ?, '{}', ?)`,
+				fmt.Sprintf("com.test.decl%d", i),
+				fmt.Sprintf("Test Decl %d", i),
+				fmt.Sprintf("d%d", i),
+			)
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+
+	// Insert Android configuration profiles.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			`INSERT INTO mdm_android_configuration_profiles (team_id, name, raw_json, profile_uuid)
+			 VALUES (0, 'Android Profile 1', '{}', 'n1')`,
+		)
+		return err
+	})
+
+	// Verify the counts match what was inserted.
+	stats, shouldSend, err = ds.ShouldSendStatistics(license.NewContext(ctx, premiumLicense), time.Millisecond, fleetConfig)
+	require.NoError(t, err)
+	assert.True(t, shouldSend)
+	assert.Equal(t, 3, stats.NumMDMAppleProfiles)
+	assert.Equal(t, 2, stats.NumMDMWindowsProfiles)
+	assert.Equal(t, 4, stats.NumMDMAppleDeclarations)
+	assert.Equal(t, 1, stats.NumMDMAndroidProfiles)
 }

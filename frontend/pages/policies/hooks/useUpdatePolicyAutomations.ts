@@ -13,7 +13,7 @@ import teamsAPI from "services/entities/teams";
 export type IPolicyAutomationUpdate = Pick<
   IPolicyFormData,
   | "software_title_id"
-  | "software_installer_id"
+  | "software_package_id"
   | "script_id"
   | "calendar_events_enabled"
   | "conditional_access_enabled"
@@ -37,7 +37,7 @@ interface IUseUpdatePolicyAutomationsArgs {
   isGlobalPolicy: boolean;
   automationsConfig: IConfig | ITeamConfig | undefined;
   onSuccess?: () => void;
-  onError?: () => void;
+  onError?: (err: unknown) => void;
 }
 
 /** Saves a single policy's automations: the per-policy fields via the policy
@@ -113,13 +113,13 @@ const useUpdatePolicyAutomations = ({
     },
     {
       onSuccess,
-      onError: () => {
+      onError: (err) => {
         if (isGlobalPolicy) {
           queryClient.invalidateQueries(["config"]);
         } else {
           queryClient.invalidateQueries(["teams", teamIdForApi]);
         }
-        onError?.();
+        onError?.(err);
       },
     }
   );

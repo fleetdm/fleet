@@ -2,6 +2,7 @@ package androidmgmt
 
 import (
 	"context"
+	"encoding/json/v2"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -14,7 +15,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
-	"github.com/go-json-experiment/json"
 	"github.com/google/uuid"
 	"google.golang.org/api/androidmanagement/v1"
 	"google.golang.org/api/googleapi"
@@ -229,7 +229,7 @@ func (g *GoogleClient) EnterprisesDevicesGet(ctx context.Context, deviceName str
 func (g *GoogleClient) EnterprisesDevicesDelete(ctx context.Context, deviceName string) error {
 	_, err := g.mgmt.Enterprises.Devices.Delete(deviceName).Context(ctx).Do()
 	switch {
-	case googleapi.IsNotModified(err):
+	case googleapi.IsNotModified(err) || isErrorCode(err, http.StatusNotFound):
 		g.logger.InfoContext(ctx, "Android device already deleted", "device_name", deviceName)
 		return nil
 	case err != nil:

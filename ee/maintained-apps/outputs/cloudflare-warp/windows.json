@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "26.6.880.0",
+      "version": "26.7.1376.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Cloudflare One Client' AND publisher = 'Cloudflare, Inc.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Cloudflare One Client' AND publisher = 'Cloudflare, Inc.' AND version_compare(version, '26.6.880.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Cloudflare One Client' AND publisher = 'Cloudflare, Inc.' AND version_compare(version, '26.7.1376.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'cloudflare one.exe');"
       },
-      "installer_url": "https://downloads.cloudflareclient.com/v1/download/windows/version/2026.6.880.0",
+      "installer_url": "https://downloads.cloudflareclient.com/v1/download/windows/version/2026.7.1376.0",
       "install_script_ref": "22e48c46",
       "uninstall_script_ref": "cee7bc51",
-      "sha256": "ffcd1d803d774409ae54e565e85b7e03cd96450fd1654eee44f8a9e463078030",
+      "sha256": "1a987075524fc570ef53bf9cf5e868a9bc878f56376d86ce9f8c6d674fc76195",
       "default_categories": [
         "Productivity"
       ],

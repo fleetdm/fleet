@@ -14,7 +14,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
-	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push/buford"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push/nanopush"
 	nanomdm_pushsvc "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push/service"
 	scepdepot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
 	"github.com/fleetdm/fleet/v4/server/service"
@@ -54,17 +54,40 @@ func initAppleMDMStorages(mds *mysql.Datastore, initFatal func(err error, msg st
 // initAppleMDMPushService chooses the push service implementation: a no-op
 // pusher when FLEET_DEV_MDM_APPLE_DISABLE_PUSH=1 (development mode), or a
 // real APNs pusher built around the NanoMDM storage in all other cases.
-func initAppleMDMPushService(mdmStorage *mysql.NanoMDMStorage, logger *slog.Logger) push.Pusher {
+// apnsPushExpiration drives the apns-expiration header so APNs stores and
+// retries delivery to offline devices; zero or negative omits the header,
+// leaving delivery to Apple's undocumented default storage policy.
+func initAppleMDMPushService(mdmStorage *mysql.NanoMDMStorage, apnsPushExpiration time.Duration, logger *slog.Logger) push.Pusher {
 	if dev_mode.Env("FLEET_DEV_MDM_APPLE_DISABLE_PUSH") == "1" {
 		return nopPusher{}
 	}
 	nanoMDMLogger := service.NewNanoMDMLogger(logger.With("component", "apple-mdm-push"))
-	pushProviderFactory := buford.NewPushProviderFactory(buford.WithNewClient(func(cert *tls.Certificate) (*http.Client, error) {
-		return fleethttp.NewClient(fleethttp.WithTLSClientConfig(&tls.Config{
-			Certificates: []tls.Certificate{*cert},
-			MinVersion:   tls.VersionTLS12, // Apple APNs requires TLS 1.2+
-		})), nil
-	}))
+
+	opts := []nanopush.Option{
+		// keep the fleethttp client: it preserves proxy support and sane
+		// timeouts that nanopush's default bare transport does not have
+		nanopush.WithNewClient(func(cert *tls.Certificate) (*http.Client, error) {
+			return fleethttp.NewClient(fleethttp.WithTLSClientConfig(&tls.Config{
+				Certificates: []tls.Certificate{*cert},
+				MinVersion:   tls.VersionTLS12, // Apple APNs requires TLS 1.2+
+			})), nil
+		}),
+	}
+
+	if apnsPushExpiration > 0 {
+		opts = append(opts, nanopush.WithExpiration(apnsPushExpiration))
+	} else {
+		logger.WarnContext(context.Background(),
+			"mdm.apple_apns_push_expiration is zero or negative; pushes are sent without an apns-expiration header and APNs may not retry delivery to offline devices")
+	}
+
+	devPushServer := dev_mode.Env("FLEET_DEV_MDM_APPLE_PUSH_SERVER_URL")
+	if devPushServer != "" {
+		logger.InfoContext(context.Background(), "using dev push server URL", "url", devPushServer)
+		opts = append(opts, nanopush.WithPushServerURL(devPushServer))
+	}
+
+	pushProviderFactory := nanopush.NewFactory(opts...)
 	return nanomdm_pushsvc.New(mdmStorage, mdmStorage, pushProviderFactory, nanoMDMLogger)
 }
 

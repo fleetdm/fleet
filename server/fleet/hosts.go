@@ -410,12 +410,19 @@ type Host struct {
 	GigsTotalDiskSpace float64  `json:"gigs_total_disk_space" db:"gigs_total_disk_space" csv:"gigs_total_disk_space"`
 	GigsAllDiskSpace   *float64 `json:"gigs_all_disk_space" db:"gigs_all_disk_space" csv:"gigs_all_disk_space"`
 
-	// DiskEncryptionEnabled is only returned by GET /host/{id} and so is not
-	// exportable as CSV (which is the result of List Hosts endpoint). It is
-	// a *bool because for some Linux we set it to NULL and omit it from the JSON
-	// response if the host does not have disk encryption enabled. It is also
-	// omitted if we don't have encryption information yet.
+	// DiskEncryptionEnabled is not exportable as CSV (which is one of the
+	// outputs of the List Hosts endpoint). It is a *bool because for some Linux
+	// we set it to NULL and omit it from the JSON response if the host does not
+	// have disk encryption enabled. It is also omitted if we don't have
+	// encryption information yet.
 	DiskEncryptionEnabled *bool `json:"disk_encryption_enabled,omitempty" db:"disk_encryption_enabled" csv:"-"`
+
+	// BitLockerProtectionStatus and TPMPINSet come from the same host_disks join as DiskEncryptionEnabled and are only
+	// populated by loaders that perform it.
+	// BitLockerProtectionStatus is 0 off, 1 on, nil for unknown or never reported.
+	BitLockerProtectionStatus *int `json:"-" db:"bitlocker_protection_status" csv:"-"`
+	// TPMPINSet is only maintained on teams with windows_require_bitlocker_pin.
+	TPMPINSet bool `json:"-" db:"tpm_pin_set" csv:"-"`
 
 	// DiskEncryptionKeyEscrowed is set to signal that a FileVault disk encryption key was escrowed.
 	// We need this because the escrow process for macOS is driven by detail queries
@@ -462,6 +469,9 @@ type Host struct {
 	// host_dep_assignments table.
 	DEPAssignedToFleet *bool `json:"dep_assigned_to_fleet,omitempty" db:"dep_assigned_to_fleet" csv:"-"`
 
+	// GroupTag is the Windows Autopilot group tag for a host synced from a tenant's Autopilot registry.
+	GroupTag *string `json:"group_tag,omitempty" db:"group_tag" csv:"-"`
+
 	// LastRestartedAt is a UNIX timestamp that indicates when the Host was last restarted.
 	LastRestartedAt time.Time `json:"last_restarted_at" db:"last_restarted_at" csv:"last_restarted_at"`
 
@@ -483,6 +493,17 @@ type Host struct {
 	// null) for every other platform, or when a given field wasn't returned
 	// by a particular enrollment.
 	HostMDMAppleDeviceVitals
+
+	// HostMDMAndroidDeviceVitals holds additional Android vitals collected
+	// from AMAPI status reports and persisted to
+	// host_mdm_android_device_vitals (see HostMDMAndroidDeviceVitals and
+	// MDMAndroidDeviceVitals, same package). Embedded anonymously so its
+	// fields flatten into the top-level host JSON response. Only populated
+	// for Android hosts, via a separate query
+	// (LoadHostMDMAndroidDeviceVitals) — every field is omitted (not null)
+	// for every other platform, or when a given field wasn't reported by a
+	// particular status report.
+	HostMDMAndroidDeviceVitals
 }
 
 type HostForeignVitalGroup struct {
@@ -640,6 +661,17 @@ type MDMHostData struct {
 	// EnrollmentStatus is a string representation of state derived from
 	// booleans stored in the host_mdm table, loaded by JOIN in datastore
 	EnrollmentStatus *string `json:"enrollment_status" db:"-" csv:"mdm.enrollment_status"`
+	// IsPersonalEnrollment reports whether the last MDM enrollment Fleet recorded for the
+	// host was personal (BYOD). Unlike EnrollmentStatus it is not cleared on unenrollment,
+	// so consumers can still tell a BYOD device apart afterwards (BYOD devices never report
+	// a serial number, so the UI has nothing else to identify them by). That only holds for
+	// platforms where MDM state comes from the MDM protocol - Android and Apple mobile. On
+	// macOS and Windows the fleetd detail queries re-ingest MDM state, and
+	// directIngestMDMMac/directIngestMDMWindows pass false once the profile is gone.
+	//
+	// Deliberately not a CSV column: the hosts report is a stable user-facing format and
+	// this field is only needed by the UI.
+	IsPersonalEnrollment bool `json:"is_personal_enrollment" db:"-" csv:"-"`
 	// DEPProfileError is a boolean representing whether Fleet received a "FAILED" response when
 	// attempting to assign a DEP profile for the host.
 	// See https://developer.apple.com/documentation/devicemanagement/assignprofileresponse
@@ -659,6 +691,14 @@ type MDMHostData struct {
 	// It is not filled in by all host-returning methods (currently only populated if
 	// svc.getHostDetails is called).
 	EncryptionKeyArchived *bool `json:"encryption_key_archived,omitempty" db:"encryption_key_archived" csv:"-"`
+
+	// BootstrapTokenEscrowed indicates if Fleet has escrowed a bootstrap token for the
+	// macOS host. The bootstrap token is used by macOS to authorize certain MDM
+	// operations, such as remote wipe and OS updates, without requiring a user with a
+	// secure token to be logged in. It is only applicable to macOS hosts, and it is not
+	// filled in by all host-returning methods (currently only populated if
+	// svc.getHostDetails is called).
+	BootstrapTokenEscrowed *bool `json:"bootstrap_token_escrowed,omitempty" db:"-" csv:"-"`
 
 	// this is set to nil if the key exists but decryptable is NULL in the db, 1
 	// if decryptable, 0 if non-decryptable and -1 if no disk encryption key row
@@ -744,6 +784,9 @@ type HostMDMHostNameSetting struct {
 type HostMDMDiskEncryption struct {
 	Status *DiskEncryptionStatus `json:"status" db:"-" csv:"-"`
 	Detail string                `json:"detail" db:"-" csv:"-"`
+	// ActionRequired names what the END USER has to do, and is set only when there is something they can actually do.
+	// macos_settings carries the same value for backwards compatibility
+	ActionRequired *ActionRequiredState `json:"action_required,omitempty" db:"-" csv:"-"`
 }
 
 type HostMDMRecoveryLockPassword struct {
@@ -910,6 +953,11 @@ type ActionRequiredState string
 const (
 	ActionRequiredLogOut    ActionRequiredState = "log_out"
 	ActionRequiredRotateKey ActionRequiredState = "rotate_key"
+	// ActionRequiredCreatePIN is Windows-only: BitLocker policy requires a startup PIN and the end user has not set one.
+	ActionRequiredCreatePIN ActionRequiredState = "create_pin"
+	// ActionRequiredRestart is Windows-only: BitLocker protection is off and the agent is waiting for a staged restart
+	// before turning it back on.
+	ActionRequiredRestart ActionRequiredState = "restart"
 )
 
 func (s ActionRequiredState) addrOf() *ActionRequiredState {
@@ -928,15 +976,50 @@ type HostMDMMacOSSetup struct {
 	BootstrapPackageName   string                    `db:"bootstrap_package_name" json:"bootstrap_package_name" csv:"-"`
 }
 
+// fileVaultVerification is whether encryption is confirmed once the FileVault
+// profile is delivered: from the escrowed key's decryptability, or from the
+// reported disk state when enforcing without escrow.
+type fileVaultVerification int
+
+const (
+	fileVaultVerificationUnknown fileVaultVerification = iota
+	fileVaultVerificationNotConfirmed
+	fileVaultVerificationConfirmed
+)
+
+func (d *MDMHostData) keyVerification() fileVaultVerification {
+	switch {
+	case d.rawDecryptable == nil:
+		return fileVaultVerificationUnknown
+	case *d.rawDecryptable == 1:
+		return fileVaultVerificationConfirmed
+	default:
+		// no key row (-1) or a key we could not decrypt (0)
+		return fileVaultVerificationNotConfirmed
+	}
+}
+
+func diskVerification(diskEncrypted *bool) fileVaultVerification {
+	switch {
+	case diskEncrypted == nil:
+		return fileVaultVerificationUnknown
+	case *diskEncrypted:
+		return fileVaultVerificationConfirmed
+	default:
+		return fileVaultVerificationNotConfirmed
+	}
+}
+
 // PopulateOSSettingsAndMacOSSettings populates the OSSettings and MacOSSettings
-// on the MDMHostData struct. It determines the disk encryption status for the
-// host based on the file-vault profile in its list of profiles and whether its
-// disk encryption key is available and decryptable. The file-vault profile
-// identifier is received as an argument to avoid a circular dependency.
+// on the MDMHostData struct. It derives the disk encryption status from the
+// file-vault profile in its list of profiles and, once delivered, from the
+// escrowed key's decryptability — or from diskEncrypted when cfg enforces
+// FileVault without escrow. The file-vault profile identifier is received as
+// an argument to avoid a circular dependency.
 //
 // NOTE: This overwrites both OSSettings and MacOSSettings on the MDMHostData struct. Any existing
 // data in those fields will be lost.
-func (d *MDMHostData) PopulateOSSettingsAndMacOSSettings(profiles []HostMDMAppleProfile, fileVaultIdentifier string) {
+func (d *MDMHostData) PopulateOSSettingsAndMacOSSettings(profiles []HostMDMAppleProfile, fileVaultIdentifier string, cfg DiskEncryptionConfig, diskEncrypted *bool) {
 	var settings MDMHostMacOSSettings
 
 	var fvprof *HostMDMAppleProfile
@@ -952,31 +1035,28 @@ func (d *MDMHostData) PopulateOSSettingsAndMacOSSettings(profiles []HostMDMApple
 		case MDMOperationTypeInstall:
 			switch {
 			case fvprof.Status != nil && (*fvprof.Status == MDMDeliveryVerifying || *fvprof.Status == MDMDeliveryVerified):
-				if d.rawDecryptable != nil && *d.rawDecryptable == 1 { //nolint:gocritic // ignore ifElseChain
-					//  if a FileVault profile has been successfully installed on the host
-					//  AND we have fetched and are able to decrypt the key
+				verification := d.keyVerification()
+				// logging out lets the deferred FileVault enablement run; rotating
+				// produces a key Fleet can escrow
+				actionRequired := ActionRequiredRotateKey
+				if cfg.MacOSEnforceOnly() {
+					verification = diskVerification(diskEncrypted)
+					actionRequired = ActionRequiredLogOut
+				}
+
+				switch verification {
+				case fileVaultVerificationConfirmed:
 					switch *fvprof.Status {
 					case MDMDeliveryVerifying:
 						settings.DiskEncryption = DiskEncryptionVerifying.addrOf()
 					case MDMDeliveryVerified:
 						settings.DiskEncryption = DiskEncryptionVerified.addrOf()
 					}
-				} else if d.rawDecryptable != nil {
-					// if a FileVault profile has been successfully installed on the host
-					// but either we didn't get an encryption key or we're not able to
-					// decrypt the key we've got
+				case fileVaultVerificationNotConfirmed:
 					settings.DiskEncryption = DiskEncryptionActionRequired.addrOf()
-					settings.ActionRequired = ActionRequiredRotateKey.addrOf()
-				} else {
-					// if [a FileVault profile is pending to be installed or] the
-					// matching row in host_disk_encryption_keys has a field decryptable
-					// = NULL
-					switch *fvprof.Status {
-					case MDMDeliveryVerifying, MDMDeliveryVerified:
-						settings.DiskEncryption = DiskEncryptionVerifying.addrOf()
-					case MDMDeliveryPending:
-						settings.DiskEncryption = DiskEncryptionEnforcing.addrOf()
-					}
+					settings.ActionRequired = actionRequired.addrOf()
+				case fileVaultVerificationUnknown:
+					settings.DiskEncryption = DiskEncryptionVerifying.addrOf()
 				}
 
 			case fvprof.Status != nil && *fvprof.Status == MDMDeliveryFailed:
@@ -984,8 +1064,7 @@ func (d *MDMHostData) PopulateOSSettingsAndMacOSSettings(profiles []HostMDMApple
 				settings.DiskEncryption = DiskEncryptionFailed.addrOf()
 
 			default:
-				// if a FileVault profile is pending to be installed [or the matching
-				// row in host_disk_encryption_keys has a field decryptable = NULL]
+				// if a FileVault profile is pending to be installed
 				settings.DiskEncryption = DiskEncryptionEnforcing.addrOf()
 			}
 
@@ -1013,6 +1092,7 @@ func (d *MDMHostData) PopulateOSSettingsAndMacOSSettings(profiles []HostMDMApple
 	if fvprof != nil {
 		hde.Detail = fvprof.Detail
 	}
+	hde.ActionRequired = settings.ActionRequired
 	d.OSSettings = &HostMDMOSSettings{DiskEncryption: hde}
 }
 
@@ -1164,6 +1244,11 @@ type HostDetail struct {
 
 	LastMDMEnrolledAt  *time.Time `json:"last_mdm_enrolled_at"`
 	LastMDMCheckedInAt *time.Time `json:"last_mdm_checked_in_at"`
+	// LastMDMEnrollmentType is the MDM enrollment channel reported by the device,
+	// e.g. "Device" or "User Enrollment (Device)". Manual BYOD and Account-Driven
+	// User Enrollment both report the "On (manual - personal)" status, so this is
+	// what distinguishes them. Nil for hosts with no Apple MDM enrollment.
+	LastMDMEnrollmentType *string `json:"last_mdm_enrollment_type"`
 
 	MDMEnrollmentHardwareAttested bool `json:"mdm_enrollment_hardware_attested"`
 
@@ -1171,6 +1256,12 @@ type HostDetail struct {
 
 	OSUpdateMinimumVersion *string `json:"os_update_minimum_version"`
 	OSUpdateDeadline       *string `json:"os_update_deadline"`
+
+	// IDOnly marks a result where the caller was allowed to resolve the host but
+	// not to read it, so only ID is populated. Handlers must render it as an
+	// id-only response rather than a full one with everything zeroed out, which
+	// would advertise fields the caller never had access to.
+	IDOnly bool `json:"-"`
 }
 
 type HostEndUser struct {
@@ -1498,6 +1589,7 @@ const (
 	WellKnownMDMSimpleMDM = "SimpleMDM"
 	WellKnownMDMFleet     = "Fleet"
 	WellKnownMDMMosyle    = "Mosyle"
+	WellKnownMDMZentral   = "Zentral"
 )
 
 // mdmNameFromServerURLChecks maps URL substrings to well-known MDM solution names.
@@ -1519,6 +1611,7 @@ var mdmNameFromServerURLChecks = []struct {
 	{"simplemdm", WellKnownMDMSimpleMDM},
 	{"fleetdm", WellKnownMDMFleet},
 	{"mosyle", WellKnownMDMMosyle},
+	{"zentral", WellKnownMDMZentral},
 }
 
 // MDMNameFromServerURL returns the MDM solution name corresponding to the
@@ -1589,6 +1682,9 @@ func (h *HostMDM) MarshalJSON() ([]byte, error) {
 	if h.IsServer {
 		return []byte("null"), nil
 	}
+	// NOTE: this is the macadmins/host MDM payload, deliberately narrower than
+	// MDMHostData (which the host endpoints return). It intentionally does not carry
+	// is_personal_enrollment; add it here only if a consumer of this endpoint needs it.
 	var jsonMDM struct {
 		EnrollmentStatus string `json:"enrollment_status"`
 		ServerURL        string `json:"server_url"`

@@ -24,6 +24,24 @@ The following configuration declarations are not supported:
 - com.apple.configuration.app.managed
 - com.apple.configuration.package
 
+#### Activations (`com.apple.activation.simple`)
+For advanced setups, you can provide a custom activation instead of having Fleet automatically create the activation when you upload a configuration profile.
+
+The activation must include `Type`, `Identifier`, and `Payload` key. `Payload` must have a `StandardConfiguration` containing a reference to a **single** configuration profile that already exists in Fleet. Adding a `Predicate` is allowed, however, best practices is to use labels for scoping.
+
+Example:
+```json
+{
+  "Type": "com.apple.activation.simple",
+  "Identifier": "myIdentifier",
+  "Payload": {
+    "StandardConfigurations": [
+	  "myConfigurationIdentifier"
+	]
+  }
+}
+```
+
 #### Assets (`com.apple.asset.*`)
 Deploy credentials, certificates, and other assets referenced by configurations.
 
@@ -139,6 +157,7 @@ Here's an example DDM (`com.apple.configuration.*`) snippet:
 ```json
 {
     "Type": "com.apple.configuration.passcode.settings",
+    "PayloadScope": "User",
     "Identifier": "EB13EE2B-5D63-4EBA-810F-5B81D07F5017",
     "ServerToken": "E180CA9A-F089-4FA3-BBDF-94CC159C4AE8",
     "Payload": {

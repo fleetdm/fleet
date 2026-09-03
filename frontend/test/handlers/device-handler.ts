@@ -44,6 +44,33 @@ export const defaultDeviceHandler = http.get(baseUrl("/device/:token"), () =>
   HttpResponse.json(createDefaultDeviceResponse())
 );
 
+/** The device API answers 401 for an expired device token and, when Fleet
+ * Desktop SSO is on, for a request carrying no IdP session. Only the second
+ * carries the marker. */
+export const ssoRequiredDeviceHandler = http.get(
+  baseUrl("/device/:token"),
+  () =>
+    HttpResponse.json(
+      { message: "Single sign-on required", sso_required: true },
+      { status: 401 }
+    )
+);
+
+export const ssoRequiredDeviceCertificatesHandler = http.get(
+  baseUrl("/device/:token/certificates"),
+  () =>
+    HttpResponse.json(
+      { message: "Single sign-on required", sso_required: true },
+      { status: 401 }
+    )
+);
+
+export const unauthorizedDeviceHandler = http.get(
+  baseUrl("/device/:token"),
+  () =>
+    HttpResponse.json({ message: "Authentication required" }, { status: 401 })
+);
+
 export const customDeviceHandler = (overrides?: Partial<IDUPDetails>) =>
   http.get(baseUrl("/device/:token"), () =>
     HttpResponse.json({ ...createDefaultDeviceResponse(), ...overrides })

@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "6.8.0",
+      "version": "6.9.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.nssurge.surge-mac';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.nssurge.surge-mac' AND version_compare(bundle_short_version, '6.8.0') < 0);",
-        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.nssurge.surge-mac');"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.nssurge.surge-mac' AND version_compare(bundle_short_version, '6.9.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.nssurge.surge-mac' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://dl.nssurge.com/mac/v6/Surge-6.8.0-11990-f036c2c1b04dd8ce81d8aec114ccfdcf.zip",
+      "installer_url": "https://dl.nssurge.com/mac/v6/Surge-6.9.0-12250-2e39a9dd675107098a3c4e779953f46a.zip",
       "install_script_ref": "591d4936",
       "uninstall_script_ref": "73bb9941",
-      "sha256": "fa4391417cca53a1efba5c67944af28c28445ac314c1bdf53d99c0314863e125",
+      "sha256": "d6a0e7fba9f84294e61176d8ca3962a51182d92603ba4bba25890e1ca3d5a53d",
       "default_categories": [
         "Productivity"
       ]

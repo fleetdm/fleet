@@ -402,7 +402,7 @@ func (m model) selectedWorkflowDescription() string {
 	case BulkKickOutOfSprint:
 		desc = "Remove selected issues from a project and reset sprint-related fields (status, labels)."
 	case BulkDemoSummary:
-		desc = "Generate a markdown summary of selected issues grouped by feature and bug, with assignees."
+		desc = "Generate a markdown summary of selected issues grouped by milestone, then by feature and bug, with assignees."
 	case BulkMoveToCurrentSprint:
 		desc = "For each selected issue, if its Status does not contain 'ready' or 'qa' (case-insensitive), set its sprint to the project's current iteration."
 	default:

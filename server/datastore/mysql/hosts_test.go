@@ -19,7 +19,6 @@ import (
 	"time"
 
 	"github.com/WatchBeam/clock"
-	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server"
 	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/config"
@@ -94,6 +93,7 @@ func TestHosts(t *testing.T) {
 		{"ListMDM", testHostsListMDM},
 		{"ListMDMAndroid", testHostsListMDMAndroid},
 		{"SelectHostMDM", testHostMDMSelect},
+		{"SelectHostMDMIsPersonalEnrollment", testHostMDMSelectIsPersonalEnrollment},
 		{"ListMunkiIssueID", testHostsListMunkiIssueID},
 		{"Enroll", testHostsEnroll},
 		{"LoadHostByNodeKey", testHostsLoadHostByNodeKey},
@@ -106,6 +106,7 @@ func TestHosts(t *testing.T) {
 		{"GenerateStatusStatisticsABMPendingExclusion", testHostsGenerateStatusStatisticsABMPendingExclusion},
 		{"GenerateStatusStatisticsDEPErrors", testHostsGenerateStatusStatisticsDEPErrors},
 		{"GenerateStatusStatisticsDeletedDEPAssignment", testHostsGenerateStatusStatisticsDeletedDEPAssignment},
+		{"GenerateStatusStatisticsPlatformBreakdownExcludesPending", testHostsGenerateStatusStatisticsPlatformBreakdownExcludesPending},
 		{"LowDiskSpaceFilterExcludesSentinel", testHostsLowDiskSpaceFilterExcludesSentinel},
 		{"MarkSeen", testHostsMarkSeen},
 		{"MarkSeenMany", testHostsMarkSeenMany},
@@ -172,6 +173,7 @@ func TestHosts(t *testing.T) {
 		{"SetOrUpdateHostDisksSpace", testHostsSetOrUpdateHostDisksSpace},
 		{"HostIDsByOSID", testHostIDsByOSID},
 		{"SetOrUpdateHostDisksEncryption", testHostsSetOrUpdateHostDisksEncryption},
+		{"ListHostsDiskEncryption", testHostsListHostsDiskEncryption},
 		{"HostOrder", testHostOrder},
 		{"GetHostMDMCheckinInfo", testHostsGetHostMDMCheckinInfo},
 		{"UnenrollFromMDM", testHostsUnenrollFromMDM},
@@ -1047,7 +1049,7 @@ func testHostListOptionsTeamFilter(t *testing.T, ds *Datastore) {
 	// disk encryption for linux, must enable disk encryption for no team first
 	ac, err := ds.AppConfig(context.Background())
 	require.NoError(t, err)
-	ac.MDM.EnableDiskEncryption = optjson.SetBool(true)
+	setAppConfigDiskEncryptionForTest(ac, true)
 	err = ds.SaveAppConfig(context.Background(), ac)
 	require.NoError(t, err)
 
@@ -1122,7 +1124,7 @@ func testHostListOptionsTeamFilter(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(&team1.ID, []uint{hosts[1].ID, hosts[2].ID, hosts[3].ID, hosts[4].ID, hosts[5].ID})))
 
 	// enable disk encryption for that team
-	team1.Config.MDM.EnableDiskEncryption = true
+	setTeamMDMDiskEncryptionForTest(&team1.Config.MDM, true)
 	_, err = ds.SaveTeam(context.Background(), team1)
 	require.NoError(t, err)
 
@@ -2184,6 +2186,71 @@ func testHostsListMDMAndroid(t *testing.T, ds *Datastore) {
 		MDMNameFilter:             ptr.String(fleet.WellKnownMDMFleet),
 	}, 3)
 	require.Len(t, hosts, 3, "Should have 2 Android + 1 darwin personal hosts with Fleet MDM")
+}
+
+// is_personal_enrollment rides along in the hostMDMSelect JSON object, so it has to hold
+// up across every query built on that fragment, including for hosts that have no host_mdm
+// row at all. It is deliberately not cleared when a host unenrolls: BYOD devices report no
+// serial number, so the UI identifies them by enrollment ID even after enrollment ends.
+func testHostMDMSelectIsPersonalEnrollment(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	const mdmServerURL = "https://mdm.example.com"
+
+	h, err := ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		OsqueryHostID:   new("personal-enrollment-osquery-id"),
+		NodeKey:         new("personal-enrollment-node-key"),
+		UUID:            "personal-enrollment-uuid",
+		Hostname:        "personal-enrollment-hostname",
+	})
+	require.NoError(t, err)
+
+	// assertIsPersonal checks every read path that embeds hostMDMSelect.
+	assertIsPersonal := func(t *testing.T, want bool) {
+		t.Helper()
+
+		byID, err := ds.Host(ctx, h.ID)
+		require.NoError(t, err)
+		assert.Equal(t, want, byID.MDM.IsPersonalEnrollment, "ds.Host")
+
+		byIdentifier, err := ds.HostByIdentifier(ctx, h.UUID)
+		require.NoError(t, err)
+		assert.Equal(t, want, byIdentifier.MDM.IsPersonalEnrollment, "ds.HostByIdentifier")
+
+		listed, err := ds.ListHosts(ctx, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{})
+		require.NoError(t, err)
+		require.Len(t, listed, 1)
+		assert.Equal(t, want, listed[0].MDM.IsPersonalEnrollment, "ds.ListHosts")
+	}
+
+	// A host that has never been MDM-enrolled has no host_mdm row, so the column reads
+	// NULL and must surface as false rather than blowing up the JSON unmarshal.
+	t.Run("never MDM enrolled", func(t *testing.T) {
+		assertIsPersonal(t, false)
+	})
+
+	t.Run("personal enrollment", func(t *testing.T) {
+		require.NoError(t, ds.SetOrUpdateMDMData(ctx, h.ID, false, true, mdmServerURL, false, fleet.WellKnownMDMFleet, "", true))
+		assertIsPersonal(t, true)
+	})
+
+	t.Run("stays set after unenrollment", func(t *testing.T) {
+		require.NoError(t, ds.SetOrUpdateMDMData(ctx, h.ID, false, false, mdmServerURL, false, fleet.WellKnownMDMFleet, "", true))
+
+		byID, err := ds.Host(ctx, h.ID)
+		require.NoError(t, err)
+		require.NotNil(t, byID.MDM.EnrollmentStatus)
+		require.Equal(t, fleet.MDMEnrollmentStatusOff, *byID.MDM.EnrollmentStatus)
+		assertIsPersonal(t, true)
+	})
+
+	t.Run("company owned re-enrollment clears it", func(t *testing.T) {
+		require.NoError(t, ds.SetOrUpdateMDMData(ctx, h.ID, false, true, mdmServerURL, false, fleet.WellKnownMDMFleet, "", false))
+		assertIsPersonal(t, false)
+	})
 }
 
 func testHostMDMSelect(t *testing.T, ds *Datastore) {
@@ -3652,6 +3719,85 @@ func testHostsGenerateStatusStatisticsDeletedDEPAssignment(t *testing.T, ds *Dat
 	require.NoError(t, err)
 	assert.Equal(t, uint(3), summary.TotalsHostsCount)
 	assert.Equal(t, summary.TotalsHostsCount, platformSum(summary))
+}
+
+// testHostsGenerateStatusStatisticsPlatformBreakdownExcludesPending is a regression test for #48880:
+// the per-platform breakdown query did not exclude pending hosts, causing the "Enrolled hosts" chart
+// to include hosts that hadn't actually enrolled yet.
+func testHostsGenerateStatusStatisticsPlatformBreakdownExcludesPending(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	filter := fleet.TeamFilter{User: test.UserAdmin}
+	now := time.Now()
+
+	platformSum := func(s *fleet.HostSummary) uint {
+		var total uint
+		for _, p := range s.Platforms {
+			total += p.HostsCount
+		}
+		return total
+	}
+
+	// Create one enrolled darwin host.
+	enrolledHost, err := ds.NewHost(ctx, &fleet.Host{
+		OsqueryHostID:   new("plat-enrolled-1"),
+		NodeKey:         new("plat-enrolled-key-1"),
+		DetailUpdatedAt: now,
+		LabelUpdatedAt:  now,
+		PolicyUpdatedAt: now,
+		SeenTime:        now,
+		Platform:        "darwin",
+	})
+	require.NoError(t, err)
+
+	// Mark it as enrolled via MDM (On (automatic)).
+	err = ds.SetOrUpdateMDMData(ctx, enrolledHost.ID, false, true, "https://fleet.example.com", true, fleet.WellKnownMDMFleet, "", false)
+	require.NoError(t, err)
+
+	// Create one pending darwin host.
+	pendingHost, err := ds.NewHost(ctx, &fleet.Host{
+		OsqueryHostID:   new("plat-pending-1"),
+		NodeKey:         new("plat-pending-key-1"),
+		DetailUpdatedAt: now,
+		LabelUpdatedAt:  now,
+		PolicyUpdatedAt: now,
+		SeenTime:        now,
+		Platform:        "darwin",
+	})
+	require.NoError(t, err)
+
+	// Mark it as pending (enrolled=false, installed_from_dep=true => Pending).
+	err = ds.SetOrUpdateMDMData(ctx, pendingHost.ID, false, false, "https://fleet.example.com", true, fleet.WellKnownMDMFleet, "", false)
+	require.NoError(t, err)
+
+	// Create one host with no MDM data (should always be counted).
+	_, err = ds.NewHost(ctx, &fleet.Host{
+		OsqueryHostID:   new("plat-nomdm-1"),
+		NodeKey:         new("plat-nomdm-key-1"),
+		DetailUpdatedAt: now,
+		LabelUpdatedAt:  now,
+		PolicyUpdatedAt: now,
+		SeenTime:        now,
+		Platform:        "windows",
+	})
+	require.NoError(t, err)
+
+	summary, err := ds.GenerateHostStatusStatistics(ctx, filter, now, nil, nil)
+	require.NoError(t, err)
+
+	// Total count includes ALL hosts (including pending) -- this is intentional per product decision.
+	assert.Equal(t, uint(3), summary.TotalsHostsCount, "total should include pending hosts")
+
+	// Platform breakdown should EXCLUDE pending hosts.
+	// Expected: darwin=1 (only the enrolled host), windows=1 (no MDM data, counted).
+	assert.Equal(t, uint(2), platformSum(summary), "platform breakdown should exclude pending hosts")
+
+	// Verify individual platform counts.
+	platformCounts := make(map[string]uint)
+	for _, p := range summary.Platforms {
+		platformCounts[p.Platform] = p.HostsCount
+	}
+	assert.Equal(t, uint(1), platformCounts["darwin"], "darwin platform count should exclude pending host")
+	assert.Equal(t, uint(1), platformCounts["windows"], "windows platform count should include host with no MDM data")
 }
 
 func testHostsMarkSeen(t *testing.T, ds *Datastore) {
@@ -9548,6 +9694,12 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	`, host.UUID)
 	require.NoError(t, err)
 
+	_, err = ds.writer(context.Background()).Exec(`
+          INSERT INTO host_mdm_android_device_vitals (host_uuid)
+          VALUES (?)
+	`, host.UUID)
+	require.NoError(t, err)
+
 	var activity fleet.ActivityDetails = fleet.ActivityTypeRanScript{
 		HostID:          host.ID,
 		HostDisplayName: host.DisplayName(),
@@ -9765,6 +9917,12 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	err = ds.InsertAppleSoftwareUpdateDeviceID(ctx, host.UUID, "bogus-update-id")
+	require.NoError(t, err)
+
+	// Insert into host_autopilot_devices table (no host FK, cleaned up via hostRefs).
+	err = batchUpsertHostAutopilotDevicesDB(ctx, ds.writer(ctx), []*fleet.HostAutopilotDevice{{
+		HostID: host.ID, TenantID: "delete-host-tenant", HardwareSerial: "delete-host-serial",
+	}})
 	require.NoError(t, err)
 
 	// Check there's an entry for the host in all the associated tables.
@@ -10657,6 +10815,136 @@ func testHostsSetOrUpdateHostDisksEncryption(t *testing.T, ds *Datastore) {
 	h, err = ds.Host(context.Background(), host2.ID)
 	require.NoError(t, err)
 	require.True(t, *h.DiskEncryptionEnabled)
+
+	// The recorded protection reason is cleared by the same upsert that reports the status, so these cases pin which
+	// reported statuses clear it and which leave it alone.
+	ctx := t.Context()
+	readRow := func(hostID uint) (protectionError *string, outcome *string, updatedAt time.Time) {
+		var row struct {
+			BitLockerProtectionError   *string   `db:"bitlocker_protection_error"`
+			BitLockerProtectionOutcome *string   `db:"bitlocker_protection_outcome"`
+			UpdatedAt                  time.Time `db:"updated_at"`
+		}
+		require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &row,
+			`SELECT bitlocker_protection_error, bitlocker_protection_outcome, updated_at FROM host_disks WHERE host_id = ?`,
+			hostID))
+		return row.BitLockerProtectionError, row.BitLockerProtectionOutcome, row.UpdatedAt
+	}
+
+	t.Run("protection reported on clears the recorded reason", func(t *testing.T) {
+		require.NoError(t, ds.SetOrUpdateHostBitLockerProtectionOutcome(ctx, host.ID, fleet.DiskEncryptionProtectionFailed, "the TPM is not ready"))
+		stored, outcome, before := readRow(host.ID)
+		require.NotNil(t, stored)
+		require.NotNil(t, outcome)
+
+		require.NoError(t, ds.SetOrUpdateHostDisksEncryption(ctx, host.ID, true, new(fleet.BitLockerProtectionStatusOn)))
+
+		stored, outcome, after := readRow(host.ID)
+		require.Nil(t, stored, "a host reporting protection on has nothing left to explain")
+		require.Nil(t, outcome, "the outcome is cleared with the reason it explains")
+		require.True(t, after.After(before), "updated_at must advance on every report")
+	})
+
+	t.Run("protection reported off keeps the recorded reason", func(t *testing.T) {
+		require.NoError(t, ds.SetOrUpdateHostBitLockerProtectionOutcome(ctx, host.ID, fleet.DiskEncryptionProtectionFailed, "policy forbids a TPM-only protector"))
+
+		require.NoError(t, ds.SetOrUpdateHostDisksEncryption(ctx, host.ID, true, new(fleet.BitLockerProtectionStatusOff)))
+
+		stored, outcome, _ := readRow(host.ID)
+		require.NotNil(t, stored)
+		require.Equal(t, "policy forbids a TPM-only protector", *stored)
+		require.NotNil(t, outcome)
+	})
+
+	t.Run("unknown protection status keeps the recorded reason", func(t *testing.T) {
+		require.NoError(t, ds.SetOrUpdateHostBitLockerProtectionOutcome(ctx, host.ID, fleet.DiskEncryptionProtectionFailed, "the TPM is not ready"))
+
+		// A nil status makes the IF condition NULL rather than false, which must not be read as "clear it".
+		require.NoError(t, ds.SetOrUpdateHostDisksEncryption(ctx, host.ID, true, nil))
+
+		stored, outcome, _ := readRow(host.ID)
+		require.NotNil(t, stored)
+		require.Equal(t, "the TPM is not ready", *stored)
+		require.NotNil(t, outcome)
+	})
+
+	t.Run("reporting the volume unencrypted clears the recorded reason", func(t *testing.T) {
+		require.NoError(t, ds.SetOrUpdateHostBitLockerProtectionOutcome(ctx, host.ID, fleet.DiskEncryptionProtectionFailed, "the TPM is not ready"))
+		stored, outcome, _ := readRow(host.ID)
+		require.NotNil(t, stored)
+		require.NotNil(t, outcome)
+		require.NoError(t, ds.SetOrUpdateHostDisksEncryption(ctx, host.ID, false, nil))
+		stored, outcome, _ = readRow(host.ID)
+		require.Nil(t, stored)
+		require.Nil(t, outcome)
+	})
+
+	t.Run("insert path works for a host with no disks row", func(t *testing.T) {
+		fresh := test.NewHost(t, ds, "no-disks-row.local", "1.1.1.1", "no-disks-row", "no-disks-row", time.Now())
+
+		require.NoError(t, ds.SetOrUpdateHostDisksEncryption(ctx, fresh.ID, true, new(fleet.BitLockerProtectionStatusOn)))
+
+		stored, outcome, _ := readRow(fresh.ID)
+		require.Nil(t, stored)
+		require.Nil(t, outcome)
+		got, err := ds.Host(ctx, fresh.ID)
+		require.NoError(t, err)
+		require.True(t, *got.DiskEncryptionEnabled)
+	})
+}
+
+func testHostsListHostsDiskEncryption(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	newHost := func(i int, platform string) *fleet.Host {
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now(),
+			NodeKey:         new(fmt.Sprintf("disk-encryption-%d", i)),
+			OsqueryHostID:   new(fmt.Sprintf("disk-encryption-%d", i)),
+			UUID:            fmt.Sprintf("disk-encryption-%d", i),
+			Hostname:        fmt.Sprintf("disk-encryption-%d.local", i),
+			Platform:        platform,
+		})
+		require.NoError(t, err)
+		return h
+	}
+
+	encrypted := newHost(1, "darwin")
+	notEncrypted := newHost(2, "darwin")
+	unknown := newHost(3, "darwin")
+	linuxNotEncrypted := newHost(4, "ubuntu")
+
+	require.NoError(t, ds.SetOrUpdateHostDisksEncryption(ctx, encrypted.ID, true, nil))
+	require.NoError(t, ds.SetOrUpdateHostDisksEncryption(ctx, notEncrypted.ID, false, nil))
+	require.NoError(t, ds.SetOrUpdateHostDisksEncryption(ctx, linuxNotEncrypted.ID, false, nil))
+
+	hosts, err := ds.ListHosts(ctx, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{})
+	require.NoError(t, err)
+
+	byID := make(map[uint]*bool, len(hosts))
+	for _, h := range hosts {
+		byID[h.ID] = h.DiskEncryptionEnabled
+	}
+
+	require.Equal(t, new(true), byID[encrypted.ID])
+	require.Equal(t, new(false), byID[notEncrypted.ID])
+
+	// no host_disks row yet, so encryption status is unknown and omitted
+	_, ok := byID[unknown.ID]
+	require.True(t, ok)
+	require.Nil(t, byID[unknown.ID])
+
+	// matching Host(), an unencrypted Linux host reports unknown rather than false
+	_, ok = byID[linuxNotEncrypted.ID]
+	require.True(t, ok)
+	require.Nil(t, byID[linuxNotEncrypted.ID])
+
+	h, err := ds.Host(ctx, linuxNotEncrypted.ID)
+	require.NoError(t, err)
+	require.Nil(t, h.DiskEncryptionEnabled)
 }
 
 func testHostsGetHostMDMCheckinInfo(t *testing.T, ds *Datastore) {
@@ -10767,6 +11055,43 @@ func testHostsLoadHostByOrbitNodeKey(t *testing.T, ds *Datastore) {
 	_, err = ds.LoadHostByOrbitNodeKey(ctx, uuid.New().String())
 	require.Error(t, err)
 	require.True(t, fleet.IsNotFound(err))
+
+	// The BitLocker protection notification decides from these fields rather than from a dedicated query, so dropping
+	// them from this loader's SELECT would silently stop Fleet from ever restoring protection.
+	t.Run("carries bitlocker protection state", func(t *testing.T) {
+		h, err := ds.EnrollOsquery(ctx,
+			fleet.WithEnrollOsqueryHostID("protection-state-uuid"),
+			fleet.WithEnrollOsqueryHardwareUUID("protection-state-uuid"),
+			fleet.WithEnrollOsqueryNodeKey("protection-state-node-key"),
+		)
+		require.NoError(t, err)
+
+		orbitKey := uuid.New().String()
+		_, err = ds.EnrollOrbit(ctx,
+			fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{
+				HardwareUUID:   *h.OsqueryHostID,
+				HardwareSerial: h.HardwareSerial,
+			}),
+			fleet.WithEnrollOrbitNodeKey(orbitKey),
+		)
+		require.NoError(t, err)
+
+		// No host_disks row yet: the LEFT JOIN must yield nils rather than a false that reads as "reported unencrypted".
+		returned, err := ds.LoadHostByOrbitNodeKey(ctx, orbitKey)
+		require.NoError(t, err)
+		require.Nil(t, returned.DiskEncryptionEnabled)
+		require.Nil(t, returned.BitLockerProtectionStatus)
+		require.False(t, returned.TPMPINSet)
+
+		require.NoError(t, ds.SetOrUpdateHostDisksEncryption(ctx, h.ID, true, new(fleet.BitLockerProtectionStatusOff)))
+
+		returned, err = ds.LoadHostByOrbitNodeKey(ctx, orbitKey)
+		require.NoError(t, err)
+		require.NotNil(t, returned.DiskEncryptionEnabled)
+		require.True(t, *returned.DiskEncryptionEnabled)
+		require.NotNil(t, returned.BitLockerProtectionStatus)
+		require.Equal(t, fleet.BitLockerProtectionStatusOff, *returned.BitLockerProtectionStatus)
+	})
 
 	createOrbitHost := func(tag string) *fleet.Host {
 		h, err := ds.NewHost(ctx, &fleet.Host{
@@ -14007,7 +14332,7 @@ func testGetHostsLockWipeStatusBatch(t *testing.T, ds *Datastore) {
 
 	// Pub/Sub COMMAND ack arrives.
 	require.NoError(t, ds.UpdateMDMAndroidCommandStatus(ctx, androidLockUUID,
-		string(android.MDMAndroidCommandStatusAcknowledged), nil, nil))
+		string(android.MDMAndroidCommandStatusAcknowledged), nil, nil, nil))
 
 	statusMap, err = ds.GetHostsLockWipeStatusBatch(ctx, androidHosts)
 	require.NoError(t, err)
@@ -14034,7 +14359,7 @@ func testGetHostsLockWipeStatusBatch(t *testing.T, ds *Datastore) {
 	require.Equal(t, fleet.PendingActionWipe, andStatus.PendingAction())
 
 	require.NoError(t, ds.UpdateMDMAndroidCommandStatus(ctx, androidWipeUUID,
-		string(android.MDMAndroidCommandStatusAcknowledged), nil, nil))
+		string(android.MDMAndroidCommandStatusAcknowledged), nil, nil, nil))
 
 	statusMap, err = ds.GetHostsLockWipeStatusBatch(ctx, androidHosts)
 	require.NoError(t, err)
@@ -14090,7 +14415,7 @@ func testGetHostLockWipeStatusAndroid(t *testing.T, ds *Datastore) {
 	errCode := "UNSUPPORTED"
 	errMsg := "device does not support LOCK"
 	require.NoError(t, ds.UpdateMDMAndroidCommandStatus(ctx, cmdUUID,
-		string(android.MDMAndroidCommandStatusError), &errCode, &errMsg))
+		string(android.MDMAndroidCommandStatusError), &errCode, &errMsg, nil))
 
 	status, err = ds.GetHostLockWipeStatus(ctx, host)
 	require.NoError(t, err)
@@ -14123,7 +14448,7 @@ func testGetHostLockWipeStatusAndroid(t *testing.T, ds *Datastore) {
 
 	// After Pub/Sub ack: result populated, IsPendingClearPasscode = false, PendingAction = none.
 	require.NoError(t, ds.UpdateMDMAndroidCommandStatus(ctx, cpUUID,
-		string(android.MDMAndroidCommandStatusAcknowledged), nil, nil))
+		string(android.MDMAndroidCommandStatusAcknowledged), nil, nil, nil))
 	cpStatus, err = ds.GetHostLockWipeStatus(ctx, cpHost)
 	require.NoError(t, err)
 	require.NotNil(t, cpStatus.ClearPasscodeMDMCommandResult)
@@ -14175,7 +14500,7 @@ func testGetHostsLockWipeStatusBatchAndroidMultiHost(t *testing.T, ds *Datastore
 		Status:        string(android.MDMAndroidCommandStatusPending),
 	}))
 	require.NoError(t, ds.UpdateMDMAndroidCommandStatus(ctx, lockB,
-		string(android.MDMAndroidCommandStatusAcknowledged), nil, nil))
+		string(android.MDMAndroidCommandStatusAcknowledged), nil, nil, nil))
 
 	wipeC := uuid.NewString()
 	require.NoError(t, ds.WipeHostViaAndroidMDM(ctx, hostC, &android.MDMAndroidCommand{
@@ -14186,7 +14511,7 @@ func testGetHostsLockWipeStatusBatchAndroidMultiHost(t *testing.T, ds *Datastore
 		Status:        string(android.MDMAndroidCommandStatusPending),
 	}))
 	require.NoError(t, ds.UpdateMDMAndroidCommandStatus(ctx, wipeC,
-		string(android.MDMAndroidCommandStatusAcknowledged), nil, nil))
+		string(android.MDMAndroidCommandStatusAcknowledged), nil, nil, nil))
 
 	statusMap, err := ds.GetHostsLockWipeStatusBatch(ctx, []*fleet.Host{hostA, hostB, hostC, hostD})
 	require.NoError(t, err)

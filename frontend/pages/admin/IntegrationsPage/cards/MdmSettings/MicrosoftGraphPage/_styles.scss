@@ -1,0 +1,22 @@
+.microsoft-graph-page {
+  @include vertical-page-layout;
+
+  &__content-container {
+    @include flex-column-32px-gap;
+    max-width: $settings-form-max-width;
+  }
+
+  &__sync-status {
+    display: flex;
+    align-items: center;
+    gap: $gap-icon-text;
+  }
+
+  // button-wrap supplies the flex row and gap. Reversed the same way modal-cta-wrap is, so the primary action stays
+  // first in the DOM (tab order and the form's implicit submit both reach Save first) while rendering on the right.
+  // justify-content pins the pair to the left edge, since row-reverse would otherwise pack it against the right.
+  &__form-actions {
+    flex-direction: row-reverse;
+    justify-content: flex-end;
+  }
+}

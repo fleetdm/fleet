@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "1.14.0",
+      "version": "1.15.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.itone.ProcessSpy';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.itone.ProcessSpy' AND version_compare(bundle_short_version, '1.14.0') < 0);",
-        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.itone.ProcessSpy');"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.itone.ProcessSpy' AND version_compare(bundle_short_version, '1.15.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.itone.ProcessSpy' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://process-spy.app/archive/ProcessSpy_1.14.0.dmg",
+      "installer_url": "https://process-spy.app/archive/ProcessSpy_1.15.0.dmg",
       "install_script_ref": "2c9c4502",
       "uninstall_script_ref": "0ab29be3",
-      "sha256": "628f72b63846547618a97c64f94efa41956ef4f5e2d95ec08b0e942964c87730",
+      "sha256": "338af187c07dbe27624d517bc896716dd48f1864ca4ef332683f4c3d312423a9",
       "default_categories": [
         "Productivity"
       ]

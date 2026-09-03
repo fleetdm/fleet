@@ -24,16 +24,24 @@ exported `Columns()`/`Generate()` wrappers used to register the table in
 
 - **Lint compliance** with Fleet's linters (set types, modernize idioms,
   defensive nil guards); all behavior-preserving.
+- **Windows app detection** rewritten for a daemon running as SYSTEM, where
+  upstream's `HKEY_CURRENT_USER` read resolves to SYSTEM's own empty hive and
+  finds nothing: the apps collector walks real users' loaded hives under
+  `HKEY_USERS` for per-user uninstall entries, and additionally scans the
+  MSIX/Appx install root (`%ProgramFiles%\WindowsApps`), which no uninstall key
+  covers. Per-user package directories are read only to attribute scope, never to
+  report an app: they outlive an uninstall, so a row sourced from one would
+  assert an install that is no longer there.
 - **Security hardening** for running in-process in the root/SYSTEM orbit daemon:
   regular-file-only reads that never follow symlinks or block on FIFOs/devices
   (`internal/fsutil`), path-traversal containment for attacker-controlled
   config/manifest/plist fields, removal of outbound DNS resolution of untrusted
-  MCP hostnames (`internal/netsock`), owner-based (not name-based) uid/username
-  attribution (`internal/homes`), and panic recovery at the `Generate` boundary.
+  MCP hostnames (`internal/netsock`), OS-attested (never name-based) uid/username
+  attribution cross-checked against on-disk ownership (`internal/homes`), and
+  panic recovery at the `Generate` boundary.
 
 ## License
 
-⚠️ At the vendored commit (`7c942d0`), the upstream repository contained **no
-LICENSE file** and no license header in its source. Redistributing it therefore
-has no explicit grant. This must be resolved with the author before this code
-ships (e.g. obtain an explicit license, or a written contribution grant).
+Upstream is MIT licensed (`Copyright (c) 2026 Karmine`), added upstream in commit
+`e494314`. The license is vendored alongside this code at
+`orbit/pkg/table/ai_tools/LICENSE`.

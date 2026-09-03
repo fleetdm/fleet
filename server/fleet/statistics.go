@@ -30,6 +30,7 @@ type StatisticsPayload struct {
 	MDMMacOsEnabled                bool   `json:"mdmMacOsEnabled"`
 	HostExpiryEnabled              bool   `json:"hostExpiryEnabled"`
 	MDMWindowsEnabled              bool   `json:"mdmWindowsEnabled"`
+	MDMAndroidEnabled              bool   `json:"mdmAndroidEnabled"`
 	MDMRecoveryLockPasswordEnabled bool   `json:"mdmRecoveryLockPasswordEnabled"`
 	LiveQueryDisabled              bool   `json:"liveQueryDisabled"` //nolint:apiparamcheck // osquery live-query feature
 	NumWeeklyActiveUsers           int    `json:"numWeeklyActiveUsers"`
@@ -83,14 +84,25 @@ type StatisticsPayload struct {
 	// Exceptions are persisted independently of GitOpsModeEnabled.
 	GitOpsModeExceptions []string `json:"gitOpsModeExceptions"`
 
+	// FleetDesktopSSOEnabled is true when SSO is required in front of Fleet Desktop (fleet_desktop.sso_enabled).
+	FleetDesktopSSOEnabled bool `json:"fleetDesktopSSOEnabled"`
+
 	// NumHostsFleetMDMEnrolledMacOS is the number of macOS hosts actually enrolled in Fleet's own MDM
 	NumHostsFleetMDMEnrolledMacOS int `json:"numHostsFleetMDMEnrolledMacOS"`
 	// NumHostsFleetMDMEnrolledWindows is the number of Windows hosts actually enrolled in Fleet's own MDM
 	NumHostsFleetMDMEnrolledWindows int `json:"numHostsFleetMDMEnrolledWindows"`
+	// NumMDMAppleProfiles is the number of Apple (macOS/iOS) configuration profiles defined across all teams
+	NumMDMAppleProfiles int `json:"numMDMAppleProfiles"`
+	// NumMDMWindowsProfiles is the number of Windows configuration profiles defined across all teams
+	NumMDMWindowsProfiles int `json:"numMDMWindowsProfiles"`
+	// NumMDMAppleDeclarations is the number of Apple DDM declarations defined across all teams
+	NumMDMAppleDeclarations int `json:"numMDMAppleDeclarations"`
+	// NumMDMAndroidProfiles is the number of Android configuration profiles defined across all teams
+	NumMDMAndroidProfiles int `json:"numMDMAndroidProfiles"`
 
 	// NumPoliciesAutomationEnabledSoftware is the number of policies with a software
-	// automation, using the same definition as the public automation_type=software
-	// filter: the policy installs software, or it is a patch policy. Kept in sync with
+	// automation, using the same definition as the automation_type=software filter:
+	// the policy installs a package or a VPP app. Kept in sync with
 	// policiesSoftwareAutomationClause in server/datastore/mysql/policies.go.
 	NumPoliciesAutomationEnabledSoftware int `json:"numPoliciesAutomationEnabledSoftware"`
 }
