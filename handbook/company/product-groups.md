@@ -531,25 +531,6 @@ T-shirt sizes represent a rough estimate on the effort required to complete a ta
 | XL | >3 weeks for 1 contributor |
 
 
-#### Starting a story mid-cycle
-
-T-shirt sizes assume a contributor starts at the beginning of a three-week release cycle. Before pulling a story into progress mid-cycle, compare its size to the time remaining in the cycle:
-
-| Time remaining | Largest size expected to ship this release |
-|:---|:---|
-| 3 weeks | L |
-| 2 weeks | M |
-| 1 week | S |
-| 2-3 days | XS |
-| 1 day | XXS |
-
-If a story's size is larger than the time remaining, plan for it to ship in the following release instead of trying to crunch:
-
-1. **Set expectations before work starts.** Tell stakeholders the story is targeting the following release, using the same process as [notifying stakeholders when a user story is pushed](#notify-stakeholders-when-a-user-story-is-pushed). It's cheaper to plan for the later release up front than to surprise stakeholders at release time.
-2. **Develop on a feature branch.** Start work on a feature branch right away so partial work never blocks the release and can merge when it's complete.
-3. **Treat a tight fit as not fitting.** Sizes estimate focused effort and don't include code review, QA, or unplanned work. If the size only just fits the time remaining, expect the story to push.
-
-
 ### Implementing
 
 
