@@ -243,10 +243,12 @@ describe("AddHostsModal", () => {
 
     await user.click(screen.getByRole("tab", { name: "Android" }));
 
-    // Personal (BYOD) is selected by default — URL has no fully_managed param.
+    // Personal (BYOD) is selected by default — URL has no fully_managed param,
+    // but always carries platform=android so the enrollment page never has to
+    // guess this link's platform from the opening device's user agent.
     expect(
       screen.getByDisplayValue(
-        new RegExp(`/enroll\\?enroll_secret=${ENROLL_SECRET}$`)
+        new RegExp(`/enroll\\?enroll_secret=${ENROLL_SECRET}&platform=android$`)
       )
     ).toBeInTheDocument();
     const workProfileQrData = getQrCodeData();
@@ -257,7 +259,7 @@ describe("AddHostsModal", () => {
     expect(
       screen.getByDisplayValue(
         new RegExp(
-          `/enroll\\?enroll_secret=${ENROLL_SECRET}&fully_managed=true$`
+          `/enroll\\?enroll_secret=${ENROLL_SECRET}&platform=android&fully_managed=true$`
         )
       )
     ).toBeInTheDocument();
