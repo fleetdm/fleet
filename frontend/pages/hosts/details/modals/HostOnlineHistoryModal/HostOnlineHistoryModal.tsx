@@ -9,12 +9,15 @@ import chartsAPI, {
 } from "services/entities/charts";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import { DATASET_LABEL, IFormattedDataPoint } from "interfaces/charts";
+import { HostPlatform, isIPadOrIPhone } from "interfaces/platform";
 
 import Modal from "components/Modal";
 import ModalFooter from "components/ModalFooter";
 import Button from "components/buttons/Button";
 import Spinner from "components/Spinner";
 import DataError from "components/DataError";
+import Icon from "components/Icon";
+import TooltipWrapper from "components/TooltipWrapper";
 
 import CheckerboardViz from "pages/DashboardPage/cards/ChartCard/CheckerboardViz";
 import DataCollectionDisabledState from "pages/DashboardPage/cards/ChartCard/DataCollectionDisabledState";
@@ -29,6 +32,7 @@ const tooltipFormatter = ({ value }: { value: number }): string =>
 interface IHostOnlineHistoryModalProps {
   hostId: number;
   fleetId?: number;
+  platform: HostPlatform;
   uptimeCollectionEnabled: boolean;
   onExit: () => void;
 }
@@ -36,6 +40,7 @@ interface IHostOnlineHistoryModalProps {
 const HostOnlineHistoryModal = ({
   hostId,
   fleetId,
+  platform,
   uptimeCollectionEnabled,
   onExit,
 }: IHostOnlineHistoryModalProps): JSX.Element => {
@@ -106,17 +111,26 @@ const HostOnlineHistoryModal = ({
         data={formattedData}
         selectedDays={CHART_DAYS}
         tooltipFormatter={tooltipFormatter}
+        legendVariant="binary"
+        legendInfo={
+          isIPadOrIPhone(platform) ? (
+            <TooltipWrapper
+              tipContent="iOS/iPadOS hosts are online anytime they have power and an internet connection (including locked)."
+              position="top"
+              underline={false}
+              showArrow
+              tipOffset={8}
+            >
+              <Icon name="info-outline" />
+            </TooltipWrapper>
+          ) : undefined
+        }
       />
     );
   };
 
   return (
-    <Modal
-      title="Online history"
-      className={baseClass}
-      onExit={onExit}
-      width="large"
-    >
+    <Modal title="Online history" className={baseClass} onExit={onExit}>
       <>
         <div className={`${baseClass}__chart-container`}>{renderChart()}</div>
         <ModalFooter

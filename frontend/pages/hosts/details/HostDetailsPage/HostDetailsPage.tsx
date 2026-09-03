@@ -2291,6 +2291,7 @@ const HostDetailsPage = ({
           <HostOnlineHistoryModal
             hostId={host.id}
             fleetId={host.team_id ?? undefined}
+            platform={host.platform}
             uptimeCollectionEnabled={uptimeCollectionEnabled}
             onExit={toggleOnlineHistoryModal}
           />
