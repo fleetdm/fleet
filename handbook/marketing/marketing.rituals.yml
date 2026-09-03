@@ -200,9 +200,9 @@
   moreInfoUrl: "https://docs.google.com/spreadsheets/d/1c15vwMZytpCLHUdGvXxi0d6WGgPcQU1UBMniC1F9oKk/edit?gid=0#gid=0"
   dri: "irenareedy"
 -
-  task: "Maintain TikTok presence"
+  task: "Maintain X presence"
   startedOn: "2026-09-01"
   frequency: "Monthly"
-  description: "Keep Fleet's TikTok profile looking active, check DMs for messages needing a response, and search TikTok for \"fleetdm\", \"osquery\", and \"fleet mdm\" to find and engage with relevant mentions. TikTok isn't a primary channel yet, so this is baseline maintenance only."
-  moreInfoUrl: "https://fleetdm.com/handbook/marketing/socialmedia#tiktok"
+  description: "Keep Fleet's X profile looking active, check DMs for messages needing a response, and search X for \"fleetdm\", \"osquery\", and \"fleet mdm\" to find and engage with relevant mentions. X isn't a primary channel yet, so this is baseline maintenance only."
+  moreInfoUrl: "https://fleetdm.com/handbook/marketing/socialmedia#x"
   dri: "irenareedy"

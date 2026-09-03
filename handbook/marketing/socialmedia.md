@@ -19,17 +19,17 @@
 
 [Internal table](https://docs.google.com/spreadsheets/d/1WMiVzHQ-QV_llgDCBRX0P7uxuDNJaooYKPX1XKW6SSc/edit?gid=0#gid=0)
 
-# TikTok
+# X
 
-TikTok isn't a primary paid or advertising channel for Fleet. We'll revisit investing further here (paid campaigns, dedicated content, etc.) once other major social platforms have baseline retargeting coverage in place. Until then, TikTok gets lightweight, ongoing maintenance to keep the account active and monitored.
+X isn't a primary paid or advertising channel for Fleet. We'll revisit investing further here (paid campaigns, dedicated content, etc.) once other major social platforms have baseline retargeting coverage in place. Until then, X gets lightweight, ongoing maintenance to keep the account active and monitored.
 
 ## Rituals
 
 ### Monthly
 
-- Post or refresh something on Fleet's TikTok profile so it doesn't look abandoned.
-- Check TikTok DMs for anything that needs a response.
-- Search TikTok for "fleetdm", "osquery", and "fleet mdm" to find and engage with relevant mentions or content.
+- Post or refresh something on Fleet's X profile so it doesn't look abandoned.
+- Check X DMs for anything that needs a response.
+- Search X for "fleetdm", "osquery", and "fleet mdm" to find and engage with relevant mentions or content.
 
 # LinkedIn (Campaign Manager) ads
 
