@@ -1414,7 +1414,7 @@ func RegisterAppleMDMProtocolServices(
 	if err := registerMDM(mux, mdmStorage, checkinAndCommandService, ddmService, profileService, logger, fleetConfig); err != nil {
 		return fmt.Errorf("mdm: %w", err)
 	}
-	if err := registerMDMServiceDiscovery(mux, logger, serverURLPrefix, fleetConfig); err != nil {
+	if err := registerMDMServiceDiscovery(mux, logger, serverURLPrefix, fleetConfig, ds); err != nil {
 		return fmt.Errorf("service discovery: %w", err)
 	}
 	if err := registerPSSO(mux, svc, logger, fleetConfig); err != nil {
@@ -1428,9 +1428,21 @@ func registerMDMServiceDiscovery(
 	logger *slog.Logger,
 	serverURLPrefix string,
 	fleetConfig config.FleetConfig,
+	appCfgGetter fleet.GetsAppConfig,
 ) error {
 	serviceDiscoveryLogger := logger.With("component", "mdm-apple-service-discovery")
 	serviceDiscoveryHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		appCfg, err := appCfgGetter.AppConfig(r.Context())
+		if err != nil {
+			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+			return
+		}
+		if appCfg.MDM.OnlyAllowAppleBusinessEnrollment {
+			err := &fleet.ABOnlyEnrollmentForbiddenError{}
+			http.Error(w, err.Error(), err.StatusCode())
+			return
+		}
+
 		var mdmEnrollmentURL string
 		token := r.PathValue("token")
 		if token != "" {
@@ -1444,7 +1456,7 @@ func registerMDMServiceDiscovery(
 		serviceDiscoveryLogger.InfoContext(ctx, "serving MDM service discovery response", "url", mdmEnrollmentURL)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		_, err := fmt.Fprintf(w, `{"Servers":[{"Version": "mdm-byod", "BaseURL": "%s"}]}`, mdmEnrollmentURL)
+		_, err = fmt.Fprintf(w, `{"Servers":[{"Version": "mdm-byod", "BaseURL": "%s"}]}`, mdmEnrollmentURL)
 		if err != nil {
 			serviceDiscoveryLogger.ErrorContext(ctx, "error writing service discovery response", "err", err)
 			http.Error(w, "Internal Server Error", http.StatusInternalServerError)

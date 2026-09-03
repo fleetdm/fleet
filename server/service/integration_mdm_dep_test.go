@@ -3778,6 +3778,11 @@ func (s *integrationMDMTestSuite) TestBlockedEndpointsForABOnlyACMEConfig() {
 
 			resp = s.DoRawNoAuth("GET", fmt.Sprintf("/api/latest/fleet/device/%s/mdm/apple/manual_enrollment_profile", authToken), nil, getUserStatusCode(isBlocked, http.StatusOK))
 			assertUserFacingResponse(t, resp, isBlocked)
+
+			resp = s.DoRawNoAuth("GET", "/mdm/apple/service_discovery", nil, getUserStatusCode(isBlocked, http.StatusOK))
+			assertUserFacingResponse(t, resp, isBlocked)
+			resp = s.DoRawNoAuth("GET", "/mdm/apple/service_discovery/fake-token", nil, getUserStatusCode(isBlocked, http.StatusOK))
+			assertUserFacingResponse(t, resp, isBlocked)
 		})
 	}
 }
