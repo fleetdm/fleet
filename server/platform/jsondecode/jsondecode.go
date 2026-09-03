@@ -1,5 +1,4 @@
-// Package jsondecode decodes the JSON that Fleet validates strictly: spec and GitOps files via
-// fleet.JSONStrictDecode, and Android configuration profiles.
+// Package jsondecode decodes the JSON that Fleet validates strictly.
 //
 // It decodes exactly like encoding/json but reports errors through encoding/json/v2, because as of Go
 // 1.27 that is the only way to learn *where* a decode failed. Under v1 error semantics an error returned
