@@ -553,7 +553,8 @@ func (enrollmentTokenRequest) DecodeRequest(ctx context.Context, r *http.Request
 }
 
 type enrollmentTokenResponse struct {
-	android.EnrollmentTokenResponse
+	*android.EnrollmentToken
+	android.DefaultResponse
 	// clearIdPCookie ends the IdP session for a fully managed enrollment so the
 	// next device enrolled from the same browser authenticates again.
 	clearIdPCookie bool
@@ -580,9 +581,10 @@ func enrollmentTokenEndpoint(ctx context.Context, request interface{}, svc andro
 	if err != nil {
 		return android.DefaultResponse{Err: err}
 	}
-	resp := enrollmentTokenResponse{clearIdPCookie: req.FullyManaged && req.IdpSessionID != ""}
-	resp.EnrollmentToken = token
-	return resp
+	return enrollmentTokenResponse{
+		EnrollmentToken: token,
+		clearIdPCookie:  req.FullyManaged && req.IdpSessionID != "",
+	}
 }
 
 func (svc *Service) CreateEnrollmentToken(ctx context.Context, enrollSecret, idpSessionID string, fullyManaged bool) (*android.EnrollmentToken, error) {
