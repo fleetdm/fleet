@@ -3783,6 +3783,16 @@ func (s *integrationMDMTestSuite) TestBlockedEndpointsForABOnlyACMEConfig() {
 			assertUserFacingResponse(t, resp, isBlocked)
 			resp = s.DoRawNoAuth("GET", "/mdm/apple/service_discovery/fake-token", nil, getUserStatusCode(isBlocked, http.StatusOK))
 			assertUserFacingResponse(t, resp, isBlocked)
+
+			// hit /enroll page and verify on the returned enroll page.
+			resp = s.DoRawNoAuth("GET", "/enroll", nil, http.StatusOK)
+			require.Equal(t, resp.Header.Get("Content-Type"), "text/html; charset=utf-8")
+			// assert it contains the content we expect
+			defer resp.Body.Close()
+			bodyBytes, err := io.ReadAll(resp.Body)
+			require.NoError(t, err)
+			bodyString := string(bodyBytes)
+			assert.Contains(t, bodyString, fmt.Sprintf(`const IS_APPLE_MANUAL_ENROLLMENT_BLOCKED = "%t" == "true"`, isBlocked))
 		})
 	}
 }
