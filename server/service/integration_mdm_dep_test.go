@@ -3488,13 +3488,6 @@ func (s *integrationMDMTestSuite) TestDEPRequireACME() {
 	assert.True(t, hostResp.Host.MDMEnrollmentHardwareAttested)
 }
 
-// TestABOnlyEnrollmentBlocksAuthenticateForNonDEPHosts covers the AB-only enforcement in
-// MDMAppleCheckinAndCommandService.Authenticate directly, independent of the enrollment-profile
-// and SCEP layers that also enforce it. That matters because a device can reach the raw MDM
-// checkin endpoint without going through Fleet's profile-issuance endpoint at all — e.g. it
-// obtained a profile before AB-only was turned on, or via some other channel — so Authenticate
-// is the last line of defense and needs its own coverage rather than relying on the
-// profile-fetch block to catch every case.
 func (s *integrationMDMTestSuite) TestABOnlyEnrollmentBlocksAuthenticateForNonDEPHosts() {
 	t := s.T()
 	s.enableABM(t.Name())
@@ -3530,9 +3523,6 @@ func (s *integrationMDMTestSuite) TestABOnlyEnrollmentBlocksAuthenticateForNonDE
 	s.runDEPSchedule()
 	depURLToken := loadEnrollmentProfileDEPToken(t, s.ds)
 
-	// Only OnlyAllowAppleBusinessEnrollment, not AppleRequireHardwareAttestation: SCEP
-	// blocking (IsAppleMDMSCEPBlocked) requires both, and we want SCEP to succeed here so
-	// the non-DEP device actually reaches Authenticate instead of being turned away earlier.
 	origAppCfg, err := s.ds.AppConfig(t.Context())
 	require.NoError(t, err)
 	t.Cleanup(func() { s.ds.SaveAppConfig(context.Background(), origAppCfg) })
