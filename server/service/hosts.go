@@ -2165,6 +2165,11 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 		return nil, ctxerr.Wrap(ctx, err, "get os update for host details")
 	}
 
+	// LastMDMCheckedInAt lives on Host so it's also available to the list-hosts
+	// loader; the details service overwrites the (potentially nil) value from
+	// the list-load with the fresh nano_enrollments read done above.
+	host.LastMDMCheckedInAt = mdmLastCheckedIn
+
 	return &fleet.HostDetail{
 		Host:                          *host,
 		Labels:                        labels,
@@ -2174,7 +2179,6 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 		EndUsers:                      endUsers,
 		CustomHostVitals:              customHostVitals,
 		LastMDMEnrolledAt:             mdmLastEnrollment,
-		LastMDMCheckedInAt:            mdmLastCheckedIn,
 		LastMDMEnrollmentType:         mdmEnrollmentType,
 		MDMEnrollmentHardwareAttested: mdmHardwareAttested,
 		ConditionalAccessBypassed:     conditionalAccessBypassed,

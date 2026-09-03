@@ -1178,6 +1178,7 @@ func (ds *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt
     hd.gigs_all_disk_space,
     hd.encrypted as disk_encryption_enabled,
     COALESCE(hst.seen_time, h.created_at) AS seen_time,
+    nesm.last_seen_at AS last_mdm_checked_in_at,
     t.name AS team_name,
     COALESCE(hu.software_updated_at, h.created_at) AS software_updated_at,
     h.last_restarted_at,
@@ -1483,9 +1484,16 @@ func (ds *Datastore) applyHostFilters(
 		batchScriptExecutionJoin, batchScriptExecutionFilter, whereParams = ds.getBatchExecutionFilters(whereParams, opt)
 	}
 
-	hostMDMSeenJoin := ""
+	// The status filter's online/offline case (filterHostsByStatus) reads
+	// nano_enrollments via alias nesm through hostMobileOnlineExpr; MIA/Missing
+	// reads it via alias nes through hostEffectiveLastSeenExpr. Both joins are
+	// needed when any status filter is active. We also add hostMobileMDMSeenTimeJoin
+	// unconditionally so nesm.last_seen_at is available for populating
+	// Host.LastMDMCheckedInAt on every listed host (feeds Host.Status()'s
+	// mobile branch).
+	hostMDMSeenJoin := hostMobileMDMSeenTimeJoin
 	if opt.StatusFilter.IsValid() {
-		hostMDMSeenJoin = hostMDMSeenTimeJoin
+		hostMDMSeenJoin += hostMDMSeenTimeJoin
 	}
 
 	var depStatusFilter string
@@ -1720,11 +1728,33 @@ func filterHostsByPolicy(sql string, opt fleet.HostListOptions, params []interfa
 const hostMDMSeenTimeJoin = `
 	LEFT JOIN nano_enrollments nes ON nes.id = h.uuid AND nes.type IN ('Device', 'User Enrollment (Device)')`
 
+// hostMobileMDMSeenTimeJoin is the join used by the mobile online/offline
+// predicate. Distinct from hostMDMSeenTimeJoin because it filters to enabled
+// enrollments only — nano_enrollments.last_seen_at is bumped on checkout too,
+// so a recently-unenrolled device would falsely look online without this.
+// Uses alias `nesm` so it can coexist with hostMDMSeenTimeJoin (alias `nes`)
+// in the same query — MIA/Missing still uses the unfiltered join.
+const hostMobileMDMSeenTimeJoin = `
+	LEFT JOIN nano_enrollments nesm ON nesm.id = h.uuid AND nesm.enabled = 1 AND nesm.type IN ('Device', 'User Enrollment (Device)')`
+
 // hostEffectiveLastSeenExpr is the effective "last seen" time for a host: the greatest of the osquery
 // seen_time and the MDM last_seen_at, then detail_updated_at (treating the Never sentinel as null),
 // then created_at.
 // Requires hostMDMSeenTimeJoin (alias nes) and the host_seen_times join (alias hst) to be present.
 const hostEffectiveLastSeenExpr = `COALESCE(GREATEST(COALESCE(hst.seen_time, nes.last_seen_at), COALESCE(nes.last_seen_at, hst.seen_time)), NULLIF(h.detail_updated_at, '` + server.NeverTimestamp + `'), h.created_at)`
+
+// mobileOnlineWindowSeconds is fleet.MobileOnlineWindow expressed in seconds
+// for direct interpolation into INTERVAL clauses.
+const mobileOnlineWindowSeconds = 3600 + fleet.OnlineIntervalBuffer
+
+// hostMobileOnlineExpr is the "freshest MDM activity signal" expression for
+// mobile hosts, mirroring the chart bounded context's mobile online predicate
+// (server/chart/internal/mysql/charts.go FindOnlineHostIDs). Differs from
+// hostEffectiveLastSeenExpr by omitting the created_at fallback — a freshly
+// enrolled device that has never checked in is not "online".
+// Requires hostMobileMDMSeenTimeJoin (alias nesm) and the host_seen_times
+// join (alias hst) to be present.
+const hostMobileOnlineExpr = `COALESCE(GREATEST(COALESCE(hst.seen_time, nesm.last_seen_at), COALESCE(nesm.last_seen_at, hst.seen_time)), NULLIF(h.detail_updated_at, '` + server.NeverTimestamp + `'))`
 
 func filterHostsByStatus(now time.Time, sql string, opt fleet.HostListOptions, params []interface{}) (string, []interface{}) {
 	switch opt.StatusFilter {
@@ -1732,11 +1762,23 @@ func filterHostsByStatus(now time.Time, sql string, opt fleet.HostListOptions, p
 		sql += "AND DATE_ADD(h.created_at, INTERVAL 1 DAY) >= ?"
 		params = append(params, now)
 	case fleet.StatusOnline:
-		sql += fmt.Sprintf("AND DATE_ADD(COALESCE(hst.seen_time, h.created_at), INTERVAL LEAST(h.distributed_interval, h.config_tls_refresh) + %d SECOND) > ?", fleet.OnlineIntervalBuffer)
-		params = append(params, now)
+		sql += fmt.Sprintf(
+			`AND (CASE WHEN h.platform IN ('ios','ipados','android')
+				THEN DATE_ADD(%s, INTERVAL %d SECOND) > ?
+				ELSE DATE_ADD(COALESCE(hst.seen_time, h.created_at), INTERVAL LEAST(h.distributed_interval, h.config_tls_refresh) + %d SECOND) > ?
+			END)`,
+			hostMobileOnlineExpr, mobileOnlineWindowSeconds, fleet.OnlineIntervalBuffer,
+		)
+		params = append(params, now, now)
 	case fleet.StatusOffline:
-		sql += fmt.Sprintf("AND DATE_ADD(COALESCE(hst.seen_time, h.created_at), INTERVAL LEAST(h.distributed_interval, h.config_tls_refresh) + %d SECOND) <= ?", fleet.OnlineIntervalBuffer)
-		params = append(params, now)
+		sql += fmt.Sprintf(
+			`AND (CASE WHEN h.platform IN ('ios','ipados','android')
+				THEN (DATE_ADD(%s, INTERVAL %d SECOND) <= ? OR %s IS NULL)
+				ELSE DATE_ADD(COALESCE(hst.seen_time, h.created_at), INTERVAL LEAST(h.distributed_interval, h.config_tls_refresh) + %d SECOND) <= ?
+			END)`,
+			hostMobileOnlineExpr, mobileOnlineWindowSeconds, hostMobileOnlineExpr, fleet.OnlineIntervalBuffer,
+		)
+		params = append(params, now, now)
 	case fleet.StatusMIA, fleet.StatusMissing:
 		// This must stay in sync with the missing_30_days_count computation in GenerateHostStatusStatistics.
 		sql += "AND DATE_ADD(" + hostEffectiveLastSeenExpr + ", INTERVAL 30 DAY) <= ? AND (hmdm.enrollment_status IS NULL OR hmdm.enrollment_status != 'Pending')"
@@ -2201,7 +2243,11 @@ func (ds *Datastore) GenerateHostStatusStatistics(ctx context.Context, filter fl
 	// host.Status and CountHostsInTargets - that is, the intervals associated
 	// with each status must be the same.
 
-	args := []interface{}{now, now, now, now, now}
+	// One `now` per CASE arm: MIA, Missing, offline-mobile, offline-desktop,
+	// online-mobile, online-desktop, new. The offline/online cases fan out to
+	// two `?` each so we can compare against the appropriate window per
+	// platform group.
+	args := []interface{}{now, now, now, now, now, now, now}
 	hostDisksJoin := ``
 	lowDiskSelect := `0 low_disk_space`
 	if lowDiskSpace != nil {
@@ -2227,19 +2273,27 @@ func (ds *Datastore) GenerateHostStatusStatistics(ctx context.Context, filter fl
 				COUNT(*) total,
 				COALESCE(SUM(CASE WHEN DATE_ADD(`+hostEffectiveLastSeenExpr+`, INTERVAL 30 DAY) <= ? AND (hmdm.enrollment_status IS NULL OR hmdm.enrollment_status != 'Pending') THEN 1 ELSE 0 END), 0) mia,
 				COALESCE(SUM(CASE WHEN DATE_ADD(`+hostEffectiveLastSeenExpr+`, INTERVAL 30 DAY) <= ? AND (hmdm.enrollment_status IS NULL OR hmdm.enrollment_status != 'Pending') THEN 1 ELSE 0 END), 0) missing_30_days_count,
-				COALESCE(SUM(CASE WHEN DATE_ADD(COALESCE(hst.seen_time, h.created_at), INTERVAL LEAST(distributed_interval, config_tls_refresh) + %d SECOND) <= ? THEN 1 ELSE 0 END), 0) offline,
-				COALESCE(SUM(CASE WHEN DATE_ADD(COALESCE(hst.seen_time, h.created_at), INTERVAL LEAST(distributed_interval, config_tls_refresh) + %d SECOND) > ? THEN 1 ELSE 0 END), 0) online,
+				COALESCE(SUM(CASE
+					WHEN h.platform IN ('ios','ipados','android')
+						THEN CASE WHEN DATE_ADD(`+hostMobileOnlineExpr+`, INTERVAL %d SECOND) <= ? OR `+hostMobileOnlineExpr+` IS NULL THEN 1 ELSE 0 END
+					ELSE CASE WHEN DATE_ADD(COALESCE(hst.seen_time, h.created_at), INTERVAL LEAST(distributed_interval, config_tls_refresh) + %d SECOND) <= ? THEN 1 ELSE 0 END
+				END), 0) offline,
+				COALESCE(SUM(CASE
+					WHEN h.platform IN ('ios','ipados','android')
+						THEN CASE WHEN DATE_ADD(`+hostMobileOnlineExpr+`, INTERVAL %d SECOND) > ? THEN 1 ELSE 0 END
+					ELSE CASE WHEN DATE_ADD(COALESCE(hst.seen_time, h.created_at), INTERVAL LEAST(distributed_interval, config_tls_refresh) + %d SECOND) > ? THEN 1 ELSE 0 END
+				END), 0) online,
 				COALESCE(SUM(CASE WHEN DATE_ADD(h.created_at, INTERVAL 1 DAY) >= ? THEN 1 ELSE 0 END), 0) new,
 				COALESCE(SUM(CASE WHEN hdep.deleted_at IS NULL AND hdep.assign_profile_response IN (%s, %s) THEN 1 ELSE 0 END), 0) dep_assign_error_count,
 				%s
 			FROM hosts h
-			LEFT JOIN host_seen_times hst ON (h.id = hst.host_id)`+hostMDMSeenTimeJoin+`
+			LEFT JOIN host_seen_times hst ON (h.id = hst.host_id)`+hostMDMSeenTimeJoin+hostMobileMDMSeenTimeJoin+`
 			LEFT JOIN host_dep_assignments hdep ON h.id = hdep.host_id
 			%s
 			%s
 			WHERE %s
 			LIMIT 1;
-		`, fleet.OnlineIntervalBuffer, fleet.OnlineIntervalBuffer, depFailed, depThrottled, lowDiskSelect, hostMdmJoin, hostDisksJoin, whereClause)
+		`, mobileOnlineWindowSeconds, fleet.OnlineIntervalBuffer, mobileOnlineWindowSeconds, fleet.OnlineIntervalBuffer, depFailed, depThrottled, lowDiskSelect, hostMdmJoin, hostDisksJoin, whereClause)
 
 	stmt, args, err := sqlx.In(sqlStatement, args...)
 	if err != nil {

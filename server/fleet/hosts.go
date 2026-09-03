@@ -44,6 +44,14 @@ const (
 	// than their expected checkin interval.
 	OnlineIntervalBuffer = 60
 
+	// MobileOnlineWindow is the window within which a mobile
+	// (iOS/iPadOS/Android) host's most recent MDM activity signal must fall
+	// for it to count as online. Anchored to the iOS/iPadOS MDM refetch
+	// cadence (1 hour; see ListIOSAndIPadOSToRefetch) plus OnlineIntervalBuffer.
+	// The chart bounded context duplicates this in mobileOnlineWindowSeconds
+	// because it can't import server/fleet (arch test enforced).
+	MobileOnlineWindow = time.Hour + time.Duration(OnlineIntervalBuffer)*time.Second
+
 	// HostIdentiferNotFound is the error message returned when a search for a host by its
 	// identifier (hostname, UUID, or serial number) does not return any results.
 	HostIdentiferNotFound = "Host doesn't exist. Make sure you provide a valid hostname, UUID, or serial number. Learn more about host identifiers: https://fleetdm.com/learn-more-about/host-identifiers"
@@ -343,17 +351,26 @@ type Host struct {
 	// OsqueryHostID is the key used in the request context that is
 	// used to retrieve host information.  It is sent from osquery and may currently be
 	// a GUID or a Host Name, but in either case, it MUST be unique
-	OsqueryHostID    *string   `json:"-" db:"osquery_host_id" csv:"-"`
-	DetailUpdatedAt  time.Time `json:"detail_updated_at" db:"detail_updated_at" csv:"detail_updated_at"` // Time that the host details were last updated
-	LabelUpdatedAt   time.Time `json:"label_updated_at" db:"label_updated_at" csv:"label_updated_at"`    // Time that the host labels were last updated
-	PolicyUpdatedAt  time.Time `json:"policy_updated_at" db:"policy_updated_at" csv:"policy_updated_at"` // Time that the host policies were last updated
-	LastEnrolledAt   time.Time `json:"last_enrolled_at" db:"last_enrolled_at" csv:"last_enrolled_at"`    // Time that the host last enrolled
-	SeenTime         time.Time `json:"seen_time" db:"seen_time" csv:"seen_time"`                         // Time that the host was last "seen"
-	RefetchRequested bool      `json:"refetch_requested" db:"refetch_requested" csv:"refetch_requested"`
-	NodeKey          *string   `json:"-" db:"node_key" csv:"-"`
-	OrbitNodeKey     *string   `json:"-" db:"orbit_node_key" csv:"-"`
-	Hostname         string    `json:"hostname" db:"hostname" csv:"hostname"` // there is a fulltext index on this field
-	UUID             string    `json:"uuid" db:"uuid" csv:"uuid"`             // there is a fulltext index on this field
+	OsqueryHostID   *string   `json:"-" db:"osquery_host_id" csv:"-"`
+	DetailUpdatedAt time.Time `json:"detail_updated_at" db:"detail_updated_at" csv:"detail_updated_at"` // Time that the host details were last updated
+	LabelUpdatedAt  time.Time `json:"label_updated_at" db:"label_updated_at" csv:"label_updated_at"`    // Time that the host labels were last updated
+	PolicyUpdatedAt time.Time `json:"policy_updated_at" db:"policy_updated_at" csv:"policy_updated_at"` // Time that the host policies were last updated
+	LastEnrolledAt  time.Time `json:"last_enrolled_at" db:"last_enrolled_at" csv:"last_enrolled_at"`    // Time that the host last enrolled
+	SeenTime        time.Time `json:"seen_time" db:"seen_time" csv:"seen_time"`                         // Time that the host was last "seen"
+	// LastMDMCheckedInAt is the most recent MDM check-in for this host, sourced from
+	// nano_enrollments.last_seen_at (Apple only; nil for other platforms and for hosts
+	// with no MDM enrollment). Populated by list-hosts and host-details loaders.
+	// Feeds the mobile branch of Host.Status() so iOS/iPadOS hosts, which don't check
+	// in via osquery, still report accurate online/offline based on MDM activity.
+	// No `omitempty`: HostDetail previously serialized this as `null` for hosts with
+	// no MDM enrollment, and preserving that contract avoids breaking clients that
+	// key on the field's presence.
+	LastMDMCheckedInAt *time.Time `json:"last_mdm_checked_in_at" db:"last_mdm_checked_in_at" csv:"-"`
+	RefetchRequested   bool       `json:"refetch_requested" db:"refetch_requested" csv:"refetch_requested"`
+	NodeKey            *string    `json:"-" db:"node_key" csv:"-"`
+	OrbitNodeKey       *string    `json:"-" db:"orbit_node_key" csv:"-"`
+	Hostname           string     `json:"hostname" db:"hostname" csv:"hostname"` // there is a fulltext index on this field
+	UUID               string     `json:"uuid" db:"uuid" csv:"uuid"`             // there is a fulltext index on this field
 	// Platform is the host's platform as defined by osquery's os_version.platform.
 	Platform       string        `json:"platform" csv:"platform"`
 	OsqueryVersion string        `json:"osquery_version" db:"osquery_version" csv:"osquery_version"`
@@ -1242,8 +1259,10 @@ type HostDetail struct {
 
 	CustomHostVitals []HostCustomHostVital `json:"custom_host_vitals,omitempty"`
 
-	LastMDMEnrolledAt  *time.Time `json:"last_mdm_enrolled_at"`
-	LastMDMCheckedInAt *time.Time `json:"last_mdm_checked_in_at"`
+	LastMDMEnrolledAt *time.Time `json:"last_mdm_enrolled_at"`
+	// LastMDMCheckedInAt is defined on the embedded Host so list-hosts loaders can
+	// populate it too. HostDetail's service layer still writes to h.LastMDMCheckedInAt
+	// on the way out.
 	// LastMDMEnrollmentType is the MDM enrollment channel reported by the device,
 	// e.g. "Device" or "User Enrollment (Device)". Manual BYOD and Account-Driven
 	// User Enrollment both report the "On (manual - personal)" status, so this is
@@ -1311,11 +1330,43 @@ type HostSummaryPlatform struct {
 	HostsCount uint   `json:"hosts_count" db:"total"`
 }
 
-// Status calculates the online status of the host
+// neverTimestampParsed mirrors the server.NeverTimestamp sentinel written to
+// detail_updated_at before a host's first full detail refetch. Duplicated as a
+// time.Time here so mobileStatus can drop it from the max without importing
+// the server package (which would create a cycle).
+//
+// Parsed at package init, panics on failure so a future edit that misaligns the
+// format string and the literal can't silently degrade to the zero time — which
+// would cause every mobile host with a zero DetailUpdatedAt to have its detail
+// treated as a valid activity signal, false-onlining "never checked in" hosts.
+var neverTimestampParsed = mustParseNeverTimestamp()
+
+func mustParseNeverTimestamp() time.Time {
+	t, err := time.Parse("2006-01-02 15:04:05", "2000-01-01 00:00:00")
+	if err != nil {
+		panic("fleet: neverTimestampParsed: " + err.Error())
+	}
+	return t
+}
+
+// Status calculates the online status of the host.
+//
+// The logic in this function should remain synchronized with
+// filterHostsByStatus, GenerateHostStatusStatistics, and CountHostsInTargets
+// in server/datastore/mysql — desktop and mobile predicates alike.
+//
+// Callers that construct a minimal fleet.Host{} (live_queries, scripts,
+// calendar_cron) don't populate LastMDMCheckedInAt. That's safe: those code
+// paths only apply to osquery-capable hosts, so the mobile branch never
+// triggers for them. Mobile hosts loaded through ListHosts / GetHost / the
+// details service will have the field populated by the SQL loader.
+//
+// NOTE: As of Fleet 4.15 StatusMIA is deprecated and will be removed in Fleet 5.0
 func (h *Host) Status(now time.Time) HostStatus {
-	// The logic in this function should remain synchronized with
-	// GenerateHostStatusStatistics and CountHostsInTargets - it can't stay in sync for MDM join, since that attribute is not available.
-	// NOTE: As of Fleet 4.15 StatusMIA is deprecated and will be removed in Fleet 5.0
+	if IsMobilePlatform(h.Platform) {
+		return h.mobileStatus(now)
+	}
+
 	onlineInterval := h.ConfigTLSRefresh
 	if h.DistributedInterval < h.ConfigTLSRefresh {
 		onlineInterval = h.DistributedInterval
@@ -1330,6 +1381,42 @@ func (h *Host) Status(now time.Time) HostStatus {
 	default:
 		return StatusOnline
 	}
+}
+
+// mobileStatus computes online/offline for iOS/iPadOS/Android hosts, which
+// don't run osquery. Uses the freshest of:
+//   - LastMDMCheckedInAt (from nano_enrollments.last_seen_at; Apple only)
+//   - DetailUpdatedAt, dropping the never-sentinel (Android's primary signal
+//     via status reports; also iOS/iPadOS full-detail refetches)
+//
+// Compared against MobileOnlineWindow. Deliberately no created_at fallback —
+// a freshly enrolled device that has never checked in is offline, matching
+// the chart bounded context's FindOnlineHostIDs predicate.
+//
+// SeenTime is intentionally NOT consulted here even though the SQL predicate
+// (hostMobileOnlineExpr) does read hst.seen_time when present. Rationale:
+// host_seen_times is bumped only by osquery paths (RecordHostLastSeen in
+// server/agentws and server/service/osquery.go). Mobile platforms don't run
+// osquery, so hst.seen_time is always NULL for pure mobile hosts. The list-
+// hosts loader further coalesces that NULL to h.created_at when populating
+// Host.SeenTime, which would make freshly-enrolled mobile hosts look "online"
+// forever. The SQL side reads the raw hst.seen_time and correctly gets NULL,
+// so both predicates agree in practice.
+func (h *Host) mobileStatus(now time.Time) HostStatus {
+	var latest time.Time
+	if h.LastMDMCheckedInAt != nil {
+		latest = *h.LastMDMCheckedInAt
+	}
+	if !h.DetailUpdatedAt.Equal(neverTimestampParsed) && h.DetailUpdatedAt.After(latest) {
+		latest = h.DetailUpdatedAt
+	}
+	if latest.IsZero() {
+		return StatusOffline
+	}
+	if latest.Add(MobileOnlineWindow).After(now) {
+		return StatusOnline
+	}
+	return StatusOffline
 }
 
 func (h *Host) IsNew(now time.Time) bool {
@@ -1457,6 +1544,13 @@ func IsAppleMobilePlatform(hostPlatform string) bool {
 
 func IsAndroidPlatform(hostPlatform string) bool {
 	return hostPlatform == "android"
+}
+
+// IsMobilePlatform reports whether the platform is iOS, iPadOS, or Android.
+// These platforms don't run osquery and have no check-in interval, so status
+// computations must fall back to MDM activity signals instead.
+func IsMobilePlatform(hostPlatform string) bool {
+	return IsAppleMobilePlatform(hostPlatform) || IsAndroidPlatform(hostPlatform)
 }
 
 func IsWindowsPlatform(hostPlatform string) bool {

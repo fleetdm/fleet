@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
+	"os"
 	"regexp"
 	"sort"
 	"strconv"
@@ -103,6 +104,7 @@ func TestHosts(t *testing.T) {
 		{"SearchLimit", testHostsSearchLimit},
 		{"GenerateStatusStatistics", testHostsGenerateStatusStatistics},
 		{"GenerateStatusStatisticsMobileMDMSeenTime", testHostsGenerateStatusStatisticsMobileMDMSeenTime},
+		{"MobileOnlineOffline", testHostsMobileOnlineOffline},
 		{"GenerateStatusStatisticsABMPendingExclusion", testHostsGenerateStatusStatisticsABMPendingExclusion},
 		{"GenerateStatusStatisticsDEPErrors", testHostsGenerateStatusStatisticsDEPErrors},
 		{"GenerateStatusStatisticsDeletedDEPAssignment", testHostsGenerateStatusStatisticsDeletedDEPAssignment},
@@ -3189,6 +3191,189 @@ func testHostsGenerateStatusStatisticsMobileMDMSeenTime(t *testing.T, ds *Datast
 	require.NoError(t, err)
 	require.Len(t, hosts, 1, "ios host with stale MDM check-in should appear in missing list")
 	assert.Equal(t, h.ID, hosts[0].ID)
+}
+
+// testHostsMobileOnlineOffline covers the online/offline half of the mobile
+// status heuristic — the mirror of testHostsGenerateStatusStatisticsMobileMDMSeenTime
+// which covers the MIA/Missing half. Exercises the ListHosts response's
+// Host.Status(), the filterHostsByStatus SQL predicate (via ListHosts status
+// filter), the GenerateHostStatusStatistics aggregate, and CountHostsInTargets.
+func testHostsMobileOnlineOffline(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	filter := fleet.TeamFilter{User: test.UserAdmin}
+	now := time.Now()
+
+	// Helpers for seeding a mobile host with the "no osquery activity" shape.
+	newMobileHost := func(t *testing.T, name, uuid, platform string) *fleet.Host {
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			Hostname:        name,
+			UUID:            uuid,
+			HardwareSerial:  name + "-serial",
+			Platform:        platform,
+			DetailUpdatedAt: now.Add(-40 * 24 * time.Hour),
+			LabelUpdatedAt:  now.Add(-40 * 24 * time.Hour),
+			PolicyUpdatedAt: now.Add(-40 * 24 * time.Hour),
+		})
+		require.NoError(t, err)
+		// Mobile hosts don't post host_seen_times; drop the row NewHost seeded.
+		_, err = ds.writer(ctx).ExecContext(ctx, `DELETE FROM host_seen_times WHERE host_id = ?`, h.ID)
+		require.NoError(t, err)
+		return h
+	}
+	setNanoLastSeen := func(t *testing.T, h *fleet.Host, ts time.Time) {
+		_, err := ds.writer(ctx).ExecContext(ctx, `UPDATE nano_enrollments SET last_seen_at = ? WHERE id = ?`, ts, h.UUID)
+		require.NoError(t, err)
+	}
+	setDetailUpdatedAt := func(t *testing.T, h *fleet.Host, ts time.Time) {
+		_, err := ds.writer(ctx).ExecContext(ctx, `UPDATE hosts SET detail_updated_at = ? WHERE id = ?`, ts, h.ID)
+		require.NoError(t, err)
+	}
+
+	recent := now.Add(-10 * time.Minute) // well inside 1h + buffer
+	stale := now.Add(-2 * time.Hour)     // well outside 1h + buffer
+	neverTS, _ := time.Parse("2006-01-02 15:04:05", server.NeverTimestamp)
+
+	// iOS online via nano_enrollments.last_seen_at.
+	iosOnline := newMobileHost(t, "ios-online", "ios-online-uuid", "ios")
+	nanoEnroll(t, ds, iosOnline, false)
+	setNanoLastSeen(t, iosOnline, recent)
+
+	// iOS offline: nano last_seen_at stale, no other signals.
+	iosOffline := newMobileHost(t, "ios-offline", "ios-offline-uuid", "ios")
+	nanoEnroll(t, ds, iosOffline, false)
+	setNanoLastSeen(t, iosOffline, stale)
+	setDetailUpdatedAt(t, iosOffline, neverTS)
+
+	// iPadOS online via nano_enrollments.
+	ipadosOnline := newMobileHost(t, "ipados-online", "ipados-online-uuid", "ipados")
+	nanoEnroll(t, ds, ipadosOnline, false)
+	setNanoLastSeen(t, ipadosOnline, recent)
+
+	// Android online via detail_updated_at (no nano row).
+	androidOnline := newMobileHost(t, "android-online", "android-online-uuid", "android")
+	setDetailUpdatedAt(t, androidOnline, recent)
+
+	// Android offline: detail_updated_at is the never sentinel.
+	androidNever := newMobileHost(t, "android-never", "android-never-uuid", "android")
+	setDetailUpdatedAt(t, androidNever, neverTS)
+
+	// iOS disabled enrollment (checked out) with fresh last_seen_at — must be
+	// offline because the mobile join filters nano_enrollments.enabled = 1.
+	iosDisabled := newMobileHost(t, "ios-disabled", "ios-disabled-uuid", "ios")
+	nanoEnroll(t, ds, iosDisabled, false)
+	setNanoLastSeen(t, iosDisabled, recent)
+	_, err := ds.writer(ctx).ExecContext(ctx, `UPDATE nano_enrollments SET enabled = 0 WHERE id = ?`, iosDisabled.UUID)
+	require.NoError(t, err)
+	setDetailUpdatedAt(t, iosDisabled, neverTS)
+
+	expectedOnline := []uint{iosOnline.ID, ipadosOnline.ID, androidOnline.ID}
+	expectedOffline := []uint{iosOffline.ID, androidNever.ID, iosDisabled.ID}
+
+	// GenerateHostStatusStatistics counts.
+	summary, err := ds.GenerateHostStatusStatistics(ctx, filter, now, nil, nil)
+	require.NoError(t, err)
+	assert.Equal(t, uint(len(expectedOnline)), summary.OnlineCount, "online mobile count")
+	assert.Equal(t, uint(len(expectedOffline)), summary.OfflineCount, "offline mobile count")
+
+	// Hosts list, status=online.
+	got, err := ds.ListHosts(ctx, filter, fleet.HostListOptions{StatusFilter: fleet.StatusOnline})
+	require.NoError(t, err)
+	gotIDs := make([]uint, 0, len(got))
+	for _, h := range got {
+		gotIDs = append(gotIDs, h.ID)
+	}
+	assert.ElementsMatch(t, expectedOnline, gotIDs, "status=online filter")
+
+	// Hosts list, status=offline.
+	got, err = ds.ListHosts(ctx, filter, fleet.HostListOptions{StatusFilter: fleet.StatusOffline})
+	require.NoError(t, err)
+	gotIDs = gotIDs[:0]
+	for _, h := range got {
+		gotIDs = append(gotIDs, h.ID)
+	}
+	assert.ElementsMatch(t, expectedOffline, gotIDs, "status=offline filter")
+
+	// Host.Status() on rows returned by ListHosts must agree with the SQL bucket —
+	// LastMDMCheckedInAt gets populated from nesm.last_seen_at and the Go-side
+	// mobile branch runs against it.
+	allHosts, err := ds.ListHosts(ctx, filter, fleet.HostListOptions{})
+	require.NoError(t, err)
+	byID := map[uint]*fleet.Host{}
+	for _, h := range allHosts {
+		byID[h.ID] = h
+	}
+	for _, id := range expectedOnline {
+		h := byID[id]
+		require.NotNil(t, h, "listed host %d", id)
+		assert.Equal(t, fleet.StatusOnline, h.Status(now), "Host.Status for %s", h.Hostname)
+	}
+	for _, id := range expectedOffline {
+		h := byID[id]
+		require.NotNil(t, h, "listed host %d", id)
+		assert.Equal(t, fleet.StatusOffline, h.Status(now), "Host.Status for %s", h.Hostname)
+	}
+
+	// CountHostsInTargets against the same host set.
+	targetIDs := append(append([]uint{}, expectedOnline...), expectedOffline...)
+	metrics, err := ds.CountHostsInTargets(ctx, filter, fleet.HostTargets{HostIDs: targetIDs}, now)
+	require.NoError(t, err)
+	assert.Equal(t, uint(len(expectedOnline)), metrics.OnlineHosts, "target metrics online")
+	assert.Equal(t, uint(len(expectedOffline)), metrics.OfflineHosts, "target metrics offline")
+}
+
+// TestExplainListHostsMobileJoin dumps the EXPLAIN plan for a ListHosts-shaped
+// query after adding the mobile MDM join. Verifies the `LEFT JOIN
+// nano_enrollments nesm ON nesm.id = h.uuid` uses nano_enrollments's PRIMARY
+// KEY rather than a full scan. Not registered in TestHosts because it runs its
+// own datastore and prints to stdout; run explicitly:
+//
+//	MYSQL_TEST=1 go test ./server/datastore/mysql/ -run TestExplainListHostsMobileJoin -count 1 -v
+func TestExplainListHostsMobileJoin(t *testing.T) {
+	if os.Getenv("MYSQL_TEST") == "" {
+		t.Skip("MYSQL_TEST not set")
+	}
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
+	ctx := context.Background()
+
+	// Seed hosts across platforms so the plan estimate reflects a realistic
+	// mix. An empty table can hide plan issues.
+	for i := 0; i < 20; i += 1 {
+		platform := "darwin"
+		switch i % 4 {
+		case 1:
+			platform = "ios"
+		case 2:
+			platform = "android"
+		case 3:
+			platform = "windows"
+		}
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			Hostname:        fmt.Sprintf("explain-host-%d", i),
+			UUID:            fmt.Sprintf("explain-uuid-%d", i),
+			HardwareSerial:  fmt.Sprintf("explain-serial-%d", i),
+			Platform:        platform,
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+		})
+		require.NoError(t, err)
+		if platform == "ios" {
+			nanoEnroll(t, ds, h, false)
+		}
+	}
+
+	// Mirror the shape of ListHosts's SELECT (not the full 100-column list —
+	// EXPLAIN cares about join order and index usage, not select-list width).
+	stmt := `SELECT h.id, h.uuid, h.platform,
+		COALESCE(hst.seen_time, h.created_at) AS seen_time,
+		nesm.last_seen_at AS last_mdm_checked_in_at
+		FROM hosts h
+		LEFT JOIN host_seen_times hst ON (h.id = hst.host_id)
+		LEFT JOIN nano_enrollments nesm ON nesm.id = h.uuid AND nesm.enabled = 1 AND nesm.type IN ('Device', 'User Enrollment (Device)')`
+
+	explainSQLStatement(os.Stdout, ds.reader(ctx), stmt)
 }
 
 func testHostsLowDiskSpaceFilterExcludesSentinel(t *testing.T, ds *Datastore) {

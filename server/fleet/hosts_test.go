@@ -96,6 +96,82 @@ func TestHostStatus(t *testing.T) {
 	}
 }
 
+func TestHostStatusMobile(t *testing.T) {
+	now := time.Date(2026, 3, 5, 12, 0, 0, 0, time.UTC)
+	recent := now.Add(-15 * time.Minute) // well inside MobileOnlineWindow (~61 min)
+	stale := now.Add(-2 * time.Hour)     // well outside MobileOnlineWindow
+
+	neverTS := neverTimestampParsed
+
+	cases := []struct {
+		name string
+		h    Host
+		want HostStatus
+	}{
+		{
+			name: "ios online via LastMDMCheckedInAt",
+			h:    Host{Platform: "ios", DetailUpdatedAt: neverTS, LastMDMCheckedInAt: &recent},
+			want: StatusOnline,
+		},
+		{
+			name: "ios offline when MDM signal is stale and nothing else",
+			h:    Host{Platform: "ios", DetailUpdatedAt: neverTS, LastMDMCheckedInAt: &stale},
+			want: StatusOffline,
+		},
+		{
+			name: "ipados ignores SeenTime (host_seen_times is osquery-only, coalesced with created_at at load)",
+			h:    Host{Platform: "ipados", DetailUpdatedAt: neverTS, SeenTime: recent},
+			want: StatusOffline,
+		},
+		{
+			name: "ipados online via DetailUpdatedAt when it is fresh and not the never sentinel",
+			h:    Host{Platform: "ipados", DetailUpdatedAt: recent},
+			want: StatusOnline,
+		},
+		{
+			name: "ios ignores DetailUpdatedAt when equal to the never sentinel",
+			h:    Host{Platform: "ios", DetailUpdatedAt: neverTS},
+			want: StatusOffline,
+		},
+		{
+			name: "android online via DetailUpdatedAt (no nano row)",
+			h:    Host{Platform: "android", DetailUpdatedAt: recent},
+			want: StatusOnline,
+		},
+		{
+			name: "android offline when DetailUpdatedAt is stale",
+			h:    Host{Platform: "android", DetailUpdatedAt: stale},
+			want: StatusOffline,
+		},
+		{
+			name: "android offline when DetailUpdatedAt is still the never sentinel",
+			h:    Host{Platform: "android", DetailUpdatedAt: neverTS},
+			want: StatusOffline,
+		},
+		{
+			name: "ios takes freshest of all three signals",
+			h: Host{
+				Platform:           "ios",
+				SeenTime:           stale,
+				LastMDMCheckedInAt: &recent,
+				DetailUpdatedAt:    stale,
+			},
+			want: StatusOnline,
+		},
+		{
+			name: "ios freshly enrolled but never checked in stays offline (no created_at fallback)",
+			h:    Host{Platform: "ios", DetailUpdatedAt: neverTS},
+			want: StatusOffline,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			require.Equal(t, c.want, c.h.Status(now))
+		})
+	}
+}
+
 func TestHostStatusIsValid(t *testing.T) {
 	for _, tt := range []struct {
 		name     string
