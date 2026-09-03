@@ -3,6 +3,8 @@ package jsondecode
 import (
 	jsonv1 "encoding/json"
 	"errors"
+	"io"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -35,16 +37,15 @@ type root struct {
 	Specs []inner `json:"specs"`
 }
 
-// decode reproduces what a caller does today: decode with encoding/json, then enrich on failure.
 func decode(t *testing.T, in string) (*jsonv1.UnmarshalTypeError, error) {
 	t.Helper()
 	var v root
-	err := Enrich(jsonv1.Unmarshal([]byte(in), &v), []byte(in), &v)
+	err := Unmarshal([]byte(in), &v)
 	terr, _ := errors.AsType[*jsonv1.UnmarshalTypeError](err)
 	return terr, err
 }
 
-func TestEnrichRecoversPathLostByCustomUnmarshaler(t *testing.T) {
+func TestReportsPathLostByCustomUnmarshaler(t *testing.T) {
 	for _, c := range []struct {
 		name     string
 		in       string
@@ -68,9 +69,9 @@ func TestEnrichRecoversPathLostByCustomUnmarshaler(t *testing.T) {
 	}
 }
 
-func TestEnrichLeavesAlreadyLocatedErrorsAlone(t *testing.T) {
-	// Plain fields never lost their path, so Enrich must not touch them: re-deriving it would risk
-	// disagreeing with what encoding/json already reported.
+func TestMatchesEncodingJSONForPlainFields(t *testing.T) {
+	// Plain fields never lost their path under Go 1.27, so the translation must reproduce exactly what
+	// encoding/json reports for them: same Value and Type, same field path.
 	for _, c := range []struct {
 		name     string
 		in       string
@@ -108,8 +109,8 @@ func (s *optSlice[T]) UnmarshalJSON(b []byte) error {
 	return jsonv1.Unmarshal(b, &s.Value)
 }
 
-// TestEnrichStopsAtCompositeUnmarshalerBoundary documents a known limit. Locating a failure relies on
-// v2 error semantics, and v2 cannot see inside a custom UnmarshalJSON: it reports the position of the
+// TestStopsAtCompositeUnmarshalerBoundary documents a known limit. Locating a failure relies on v2
+// error semantics, and v2 cannot see inside a custom UnmarshalJSON: it reports the position of the
 // value handed to the method, not of the field within it. For a scalar wrapper such as optjson.Int that
 // is the whole path, but for a composite such as optjson.Slice the path stops at the slice.
 //
@@ -118,7 +119,7 @@ func (s *optSlice[T]) UnmarshalJSON(b []byte) error {
 // mean giving the optjson composites a v2 UnmarshalJSONFrom method, which changes how they decode
 // everywhere v2 is used, so it is deliberately out of scope here. A truncated-but-correct prefix is
 // still a large improvement on the empty path this package exists to fix.
-func TestEnrichStopsAtCompositeUnmarshalerBoundary(t *testing.T) {
+func TestStopsAtCompositeUnmarshalerBoundary(t *testing.T) {
 	type pkg struct {
 		SelfService optInt `json:"self_service"`
 	}
@@ -132,9 +133,8 @@ func TestEnrichStopsAtCompositeUnmarshalerBoundary(t *testing.T) {
 		Specs []spec `json:"specs"`
 	}
 
-	in := []byte(`{"specs":[{"software":{"packages":[{"self_service":"yes"}]}}]}`)
 	var v request
-	err := Enrich(jsonv1.Unmarshal(in, &v), in, &v)
+	err := Unmarshal([]byte(`{"specs":[{"software":{"packages":[{"self_service":"yes"}]}}]}`), &v)
 
 	terr, ok := errors.AsType[*jsonv1.UnmarshalTypeError](err)
 	require.True(t, ok)
@@ -143,27 +143,88 @@ func TestEnrichStopsAtCompositeUnmarshalerBoundary(t *testing.T) {
 	require.NotEmpty(t, terr.Field, "an empty path is the regression this package fixes")
 }
 
-func TestEnrichIgnoresUnrelatedErrors(t *testing.T) {
-	data := []byte(`{}`)
-	v := &root{}
+func TestPassesThroughNonSemanticErrors(t *testing.T) {
+	// Syntax errors and io.EOF have to reach callers unchanged: JSONStrictDecode relies on io.EOF to
+	// detect trailing content, and nothing treats malformed JSON as a type error.
+	syntax := Unmarshal([]byte(`{`), &root{})
+	require.Error(t, syntax)
+	require.False(t, IsTypeError(syntax))
+	require.Empty(t, FieldPath(syntax))
 
-	require.NoError(t, Enrich(nil, data, v))
-
-	sentinel := errors.New("boom")
-	require.Equal(t, sentinel, Enrich(sentinel, data, v))
-
-	// Syntax errors carry an offset rather than a path, and are not UnmarshalTypeErrors.
-	syntax := jsonv1.Unmarshal([]byte(`{`), v)
-	require.Equal(t, syntax, Enrich(syntax, []byte(`{`), v))
+	require.NoError(t, Unmarshal([]byte(`{}`), &root{}))
 }
 
-func TestEnrichIsANoOpWhenPositionCannotBeRecovered(t *testing.T) {
-	// If the second decode disagrees (here: nothing wrong with the input), the original error survives
-	// untouched rather than being annotated with a misleading path.
-	original := &jsonv1.UnmarshalTypeError{Value: "string", Type: nil}
-	err := Enrich(original, []byte(`{"inner":{"plain":"fine"}}`), &root{})
-	require.Same(t, original, err)
-	require.Empty(t, original.Field)
+func TestUnknownFieldKeepsV1Wording(t *testing.T) {
+	// server/service/teams.go, server/fleet/agent_options.go and pkg/spec all detect this case by
+	// matching encoding/json's exact message, so it has to survive verbatim.
+	err := Unmarshal([]byte(`{"nope":1}`), &root{}, RejectUnknownMembers())
+	require.EqualError(t, err, `json: unknown field "nope"`)
+
+	// ...and only when asked for: unknown members are ignored by default, as json.Unmarshal does.
+	require.NoError(t, Unmarshal([]byte(`{"nope":1}`), &root{}))
+}
+
+func TestPreservesEncodingJSONDecodingBehavior(t *testing.T) {
+	t.Run("member matching stays case-insensitive", func(t *testing.T) {
+		var v root
+		require.NoError(t, Unmarshal([]byte(`{"INNER":{"PLAIN":"x"}}`), &v))
+		require.Equal(t, "x", v.Inner.Plain)
+	})
+
+	t.Run("duplicate names allowed", func(t *testing.T) {
+		var v root
+		require.NoError(t, Unmarshal([]byte(`{"inner":{"plain":"a"},"inner":{"plain":"b"}}`), &v))
+	})
+
+	t.Run("Decode leaves trailing bytes, Unmarshal rejects them", func(t *testing.T) {
+		r := strings.NewReader(`{"inner":{"plain":"a"}}{"inner":{"plain":"b"}}`)
+		dec := NewDecoder(r)
+
+		var first root
+		require.NoError(t, dec.Decode(&first))
+		require.Equal(t, "a", first.Inner.Plain)
+
+		// A second Decode reaches the next value, and a third reports io.EOF.
+		var second root
+		require.NoError(t, dec.Decode(&second))
+		require.Equal(t, "b", second.Inner.Plain)
+		require.ErrorIs(t, dec.Decode(&second), io.EOF)
+
+		require.Error(t, Unmarshal([]byte(`{"inner":{}}{"inner":{}}`), &root{}))
+	})
+}
+
+func TestReportsPathForPlainFields(t *testing.T) {
+	for _, c := range []struct {
+		name     string
+		in       string
+		wantPath string
+	}{
+		{"plain field", `{"inner":{"plain":123}}`, "inner.plain"},
+		{"custom unmarshaler", `{"inner":{"custom":"nope"}}`, "inner.custom"},
+		{"slice element", `{"specs":[{"custom":"nope"}]}`, "specs.0.custom"},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			err := Unmarshal([]byte(c.in), &root{})
+			require.Error(t, err)
+			require.True(t, IsTypeError(err))
+			require.Equal(t, c.wantPath, FieldPath(err))
+		})
+	}
+
+	require.NoError(t, Unmarshal([]byte(`{"inner":{"plain":"fine"}}`), &root{}))
+}
+
+func TestIsTypeError(t *testing.T) {
+	require.True(t, IsTypeError(Unmarshal([]byte(`{"inner":{"plain":123}}`), &root{})))
+	// Also recognizes an error from a plain encoding/json decode, for callers that mix the two.
+	var v root
+	require.True(t, IsTypeError(jsonv1.Unmarshal([]byte(`{"inner":{"plain":123}}`), &v)))
+
+	// Malformed JSON is a syntax problem, not a type problem.
+	require.False(t, IsTypeError(Unmarshal([]byte(`{`), &root{})))
+	require.False(t, IsTypeError(errors.New("boom")))
+	require.False(t, IsTypeError(nil))
 }
 
 func TestFieldPath(t *testing.T) {

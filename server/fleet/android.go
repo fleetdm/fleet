@@ -95,9 +95,9 @@ func (m *MDMAndroidConfigProfile) ValidateUserProvided(isPremium bool) error {
 		}
 	}
 
-	policy := &androidmanagement.Policy{}
-	if err := json.Unmarshal(m.RawJSON, policy); err != nil {
-		return parseAndroidProfileValidationError(jsondecode.Enrich(err, m.RawJSON, policy))
+	// The decoded policy is thrown away: this only checks that every value has the right type.
+	if err := jsondecode.Unmarshal(m.RawJSON, &androidmanagement.Policy{}); err != nil {
+		return parseAndroidProfileValidationError(err)
 	}
 
 	if err := validateAndroidProfileFleetVariables(m.RawJSON, profileKeyMap); err != nil {
@@ -108,11 +108,9 @@ func (m *MDMAndroidConfigProfile) ValidateUserProvided(isPremium bool) error {
 }
 
 func parseAndroidProfileValidationError(err error) error {
-	var typeErr *json.UnmarshalTypeError
-
 	// Check for type mismatches (e.g., array where object expected)
-	if errors.As(err, &typeErr) {
-		fieldPath := typeErr.Field
+	if jsondecode.IsTypeError(err) {
+		fieldPath := jsondecode.FieldPath(err)
 		if fieldPath == "" {
 			fieldPath = "<root>"
 		}

@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"crypto/x509"
-	"encoding/json"
 	"fmt"
 	"io"
 	"log/slog"
@@ -16,6 +15,7 @@ import (
 	eu "github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 	"github.com/fleetdm/fleet/v4/server/platform/http/multipartform"
+	"github.com/fleetdm/fleet/v4/server/platform/jsondecode"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/auth"
 	"github.com/go-kit/kit/endpoint"
 	kithttp "github.com/go-kit/kit/transport/http"
@@ -114,7 +114,7 @@ func parseCustomTags(urlTagValue string, r *http.Request, field reflect.Value) (
 }
 
 func jsonDecode(body io.Reader, req any) error {
-	return json.NewDecoder(body).Decode(req)
+	return jsondecode.Decode(body, req)
 }
 
 func isBodyDecoder(v reflect.Value) bool {

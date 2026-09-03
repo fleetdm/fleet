@@ -1,8 +1,8 @@
 package fleet
 
 import (
-	"bytes"
 	"encoding/json"
+	jsonv2 "encoding/json/v2"
 	"errors"
 	"io"
 	"regexp"
@@ -49,16 +49,19 @@ func WriteAppleBMTermsExpiredBanner(w io.Writer) {
 // any unknown key is specified in the JSON value, and if there is any trailing
 // byte after the JSON value.
 func JSONStrictDecode(r io.Reader, v interface{}) error {
-	// The body is buffered so that a decode failure can be located a second time; see jsondecode.Enrich.
-	data, err := io.ReadAll(r)
-	if err != nil {
-		return err
-	}
+	return jsonDecode(r, v, jsondecode.RejectUnknownMembers())
+}
 
-	dec := json.NewDecoder(bytes.NewReader(data))
-	dec.DisallowUnknownFields()
+// JSONDecode is JSONStrictDecode without the unknown-key rejection: unrecognized keys are ignored, as
+// with a plain json.Unmarshal. Trailing bytes are still an error.
+func JSONDecode(r io.Reader, v interface{}) error {
+	return jsonDecode(r, v)
+}
+
+func jsonDecode(r io.Reader, v interface{}, opts ...jsonv2.Options) error {
+	dec := jsondecode.NewDecoder(r, opts...)
 	if err := dec.Decode(v); err != nil {
-		return jsondecode.Enrich(err, data, v)
+		return err
 	}
 
 	var extra json.RawMessage
