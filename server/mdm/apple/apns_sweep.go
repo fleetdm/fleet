@@ -14,10 +14,10 @@ const (
 	// apnsSweepSilence is how long an enrollment must have been silent to be
 	// re-armed with a fresh stored push.
 	apnsSweepSilence = 24 * time.Hour
-	// apnsSweepMinBatch avoids near-empty pages on small fleets;
-	// apnsSweepMaxBatch bounds per-tick work on very large ones (a lap then
-	// takes longer than a day, which the pass-start warning surfaces).
-	apnsSweepMinBatch = 50
+	// apnsSweepMinBatch floors pages at one enrollment per tick;
+	// apnsSweepMaxBatch bounds per-tick work on very large fleets (a lap
+	// then takes longer than a day, which the pass-start warning surfaces).
+	apnsSweepMinBatch = 1
 	apnsSweepMaxBatch = 2000
 )
 
@@ -36,11 +36,11 @@ type apnsNotifier interface {
 // gaps, and a spurious nudge costs one empty Idle check-in.
 //
 // The batch size is computed at pass start so one lap completes in roughly a
-// day at the given tick interval, and rides along with the cursor. Below
-// ~72k enrollments the minimum batch size makes laps finish faster than a
-// day; the resulting extra pushes only reach devices that are still silent
-// and offline, where re-arming a fresh stored push is harmless (APNs
-// coalesces them) and extends the expiration hedge.
+// day at the given tick interval, and rides along with the cursor. Fleets
+// smaller than a day's worth of ticks lap faster than a day at one
+// enrollment per tick; the resulting extra pushes only reach devices that
+// are still silent and offline, where re-arming a fresh stored push is
+// harmless (APNs coalesces them) and extends the expiration hedge.
 func SweepAPNsPushes(ctx context.Context, ds fleet.Datastore, commander *MDMAppleCommander,
 	logger *slog.Logger, interval time.Duration,
 ) error {

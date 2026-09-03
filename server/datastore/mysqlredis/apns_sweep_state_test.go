@@ -1,6 +1,8 @@
 package mysqlredis
 
 import (
+	"log/slog"
+	"strings"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
@@ -12,7 +14,8 @@ import (
 
 func TestMDMAppleAPNsSweepState(t *testing.T) {
 	pool := redistest.SetupRedis(t, "apns_sweep_state", false, false, false)
-	ds := New(&mock.Store{}, pool)
+	var logBuf strings.Builder
+	ds := New(&mock.Store{}, pool, WithLogger(slog.New(slog.NewTextHandler(&logBuf, nil))))
 	ctx := t.Context()
 
 	// the state key is fixed (not test-prefixed), so clean it up ourselves.
@@ -55,4 +58,6 @@ func TestMDMAppleAPNsSweepState(t *testing.T) {
 	conn.Close()
 	require.NoError(t, err)
 	require.Zero(t, exists, "poisoned key must be deleted on read")
+	require.Contains(t, logBuf.String(), "level=WARN", "self-heal must be visible in logs")
+	require.Contains(t, logBuf.String(), apnsSweepStateKey)
 }

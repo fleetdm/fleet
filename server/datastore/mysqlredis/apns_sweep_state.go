@@ -33,6 +33,8 @@ func (d *Datastore) GetMDMAppleAPNsSweepState(ctx context.Context) (*fleet.MDMAp
 		if err := json.Unmarshal(raw, &state); err != nil {
 			// complete the self-heal: drop the poisoned key so it doesn't
 			// linger for the next read or a confused operator
+			d.logger.WarnContext(ctx, "dropping undecodable APNs sweep state key, starting a fresh pass",
+				"key", apnsSweepStateKey, "err", err)
 			_, _ = conn.Do("DEL", apnsSweepStateKey)
 			return nil, nil
 		}

@@ -71,7 +71,7 @@ func TestSweepAPNsPushes(t *testing.T) {
 			wantWarn  bool
 		}{
 			{"scales to lap in a day", 100_000, time.Minute, 70, false},
-			{"clamped up to the minimum", 10, time.Minute, 50, false},
+			{"floored at one enrollment per tick", 10, time.Minute, 1, false},
 			{"clamped down to the maximum with a warning", 5_000_000, time.Minute, 2000, true},
 			{"slower ticks mean bigger pages", 40_000, time.Hour, 1667, false},
 			{"intervals of a day or more floor at one tick per lap", 100, 25 * time.Hour, 100, false},
@@ -125,7 +125,7 @@ func TestSweepAPNsPushes(t *testing.T) {
 		require.NoError(t, sweepAPNsPushes(ctx, ds, &fakeAPNsNotifier{}, logger, time.Minute))
 		require.True(t, ds.CountEnabledNanoEnrollmentsFuncInvoked, "fresh pass recomputes the batch")
 		require.Empty(t, gotAfterID)
-		require.Equal(t, 50, gotBatch)
+		require.Equal(t, 1, gotBatch)
 	})
 
 	t.Run("mid-pass state is reused without recounting", func(t *testing.T) {
@@ -157,7 +157,7 @@ func TestSweepAPNsPushes(t *testing.T) {
 		require.Equal(t, [][]string{{"e1", "e2"}}, notifier.calls)
 		require.NotNil(t, gotState)
 		require.Equal(t, "e9", gotState.Cursor)
-		require.Equal(t, 50, gotState.BatchSize, "batch size computed at pass start rides along")
+		require.Equal(t, 1, gotState.BatchSize, "batch size computed at pass start rides along")
 	})
 
 	t.Run("short page resets the state", func(t *testing.T) {
