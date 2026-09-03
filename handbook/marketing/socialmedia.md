@@ -19,6 +19,14 @@
 
 [Internal table](https://docs.google.com/spreadsheets/d/1WMiVzHQ-QV_llgDCBRX0P7uxuDNJaooYKPX1XKW6SSc/edit?gid=0#gid=0)
 
+## Maintain Fleet's X (Twitter) presence
+
+X (Twitter) is not a paid channel for Fleet, so upkeep of the [@fleetctl](https://x.com/fleetctl) account is intentionally low-effort. The Social Media Manager keeps the account looking current and answers anything that arrives directly:
+
+- **Post or reshare** content on a regular basis so the feed does not look abandoned. Reposting what already went out on LinkedIn is fine; this account does not need original content.
+- **Check DMs** for questions, opportunities, or spam that need a response. Route anything technical to [#help-engineering](https://fleetdm.slack.com/archives/C019WG4GH0A) and anything sales-related to the relevant AE.
+- **Search for brand mentions** and engage with relevant results. Use the saved search in [Engage with the community](https://fleetdm.com/handbook/marketing#engage-with-the-community) rather than searching by hand.
+
 # LinkedIn (Campaign Manager) ads
 
 This page describes how Fleet runs paid LinkedIn advertising, including strategy, campaign structure, budget, rituals, and decision rules through Campaign Manager.
