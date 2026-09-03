@@ -130,9 +130,16 @@ export const matchLoosePrefixToKey = <T extends Record<string, unknown>>(
   return match ? (match as keyof T) : undefined;
 };
 
+/**
+ * Case-insensitive string equality.
+ */
+export const equalsIgnoreCase = (a: string, b: string): boolean =>
+  a.toLowerCase() === b.toLowerCase();
+
 export default {
   capitalize,
   capitalizeRole,
+  equalsIgnoreCase,
   pluralize,
   strToBool,
   stripQuotes,

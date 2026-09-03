@@ -18,6 +18,8 @@ type AuthenticateHostFunc func(ctx context.Context, nodeKey string) (host *fleet
 
 type GetClientConfigFunc func(ctx context.Context) (config map[string]interface{}, err error)
 
+type GetClientConfigWithETagFunc func(ctx context.Context, clientETag *string) (*fleet.ClientConfigResult, error)
+
 type GetDistributedQueriesFunc func(ctx context.Context) (queries map[string]string, discovery map[string]string, accelerate uint, err error)
 
 type SubmitDistributedQueryResultsFunc func(ctx context.Context, results fleet.OsqueryDistributedQueryResults, statuses map[string]fleet.OsqueryStatus, messages map[string]string, stats map[string]*fleet.Stats) (err error)
@@ -28,6 +30,8 @@ type SubmitResultLogsFunc func(ctx context.Context, logs []json.RawMessage) (err
 
 type YaraRuleByNameFunc func(ctx context.Context, name string) (*fleet.YaraRule, error)
 
+type ListHostIDsDueForDistributedReadFunc func(ctx context.Context, hostIDs []uint) (map[uint]string, error)
+
 type TLSService struct {
 	EnrollOsqueryFunc        EnrollOsqueryFunc
 	EnrollOsqueryFuncInvoked bool
@@ -37,6 +41,9 @@ type TLSService struct {
 
 	GetClientConfigFunc        GetClientConfigFunc
 	GetClientConfigFuncInvoked bool
+
+	GetClientConfigWithETagFunc        GetClientConfigWithETagFunc
+	GetClientConfigWithETagFuncInvoked bool
 
 	GetDistributedQueriesFunc        GetDistributedQueriesFunc
 	GetDistributedQueriesFuncInvoked bool
@@ -52,6 +59,9 @@ type TLSService struct {
 
 	YaraRuleByNameFunc        YaraRuleByNameFunc
 	YaraRuleByNameFuncInvoked bool
+
+	ListHostIDsDueForDistributedReadFunc        ListHostIDsDueForDistributedReadFunc
+	ListHostIDsDueForDistributedReadFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -75,6 +85,13 @@ func (s *TLSService) GetClientConfig(ctx context.Context) (config map[string]int
 	s.GetClientConfigFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetClientConfigFunc(ctx)
+}
+
+func (s *TLSService) GetClientConfigWithETag(ctx context.Context, clientETag *string) (*fleet.ClientConfigResult, error) {
+	s.mu.Lock()
+	s.GetClientConfigWithETagFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetClientConfigWithETagFunc(ctx, clientETag)
 }
 
 func (s *TLSService) GetDistributedQueries(ctx context.Context) (queries map[string]string, discovery map[string]string, accelerate uint, err error) {
@@ -110,4 +127,11 @@ func (s *TLSService) YaraRuleByName(ctx context.Context, name string) (*fleet.Ya
 	s.YaraRuleByNameFuncInvoked = true
 	s.mu.Unlock()
 	return s.YaraRuleByNameFunc(ctx, name)
+}
+
+func (s *TLSService) ListHostIDsDueForDistributedRead(ctx context.Context, hostIDs []uint) (map[uint]string, error) {
+	s.mu.Lock()
+	s.ListHostIDsDueForDistributedReadFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListHostIDsDueForDistributedReadFunc(ctx, hostIDs)
 }

@@ -251,6 +251,7 @@ fleetctl-dev: fleetctl
 	@echo "Run the JavaScript linters"
 lint-js:
 	yarn lint
+	yarn lint:icons
 
 .help-short--lint-go:
 	@echo "Run the Go linters"
@@ -1082,14 +1083,17 @@ UPDATE_GO_MODS := \
 	./tools/dibble/go.mod \
 	./tools/gitops-auto-complete/go.mod \
 	./tools/upgrade/go.mod
+# The index digest is scraped from the default `imagetools inspect` output rather than requested with
+# `--format '{{.Manifest.Digest}}'`: buildx >= v0.32 silently ignores that template and prints the full
+# report, which then gets written into the Dockerfile as the digest.
 update-go:
 	@test $(version) || (echo "Missing 'version' argument, usage: 'make update-go version=1.24.4'" ; exit 1)
 	@for dockerfile in $(UPDATE_GO_DOCKERFILES) ; do \
 		go run ./tools/tuf/replace $$dockerfile "golang:.+-" "golang:$(version)-" ; \
 		tag=$$(grep -oE 'golang:[^@[:space:]]+' $$dockerfile | head -n1) ; \
 		echo "Resolving index digest for $$tag ..." ; \
-		digest=$$(docker buildx imagetools inspect $$tag --format '{{.Manifest.Digest}}') ; \
-		test "$$digest" || (echo "Failed to resolve digest for $$tag" ; exit 1) ; \
+		digest=$$(docker buildx imagetools inspect $$tag | awk '/^Digest:/ { print $$2 ; exit }') ; \
+		echo "$$digest" | grep -qE '^sha256:[0-9a-f]{64}$$' || { echo "Failed to resolve digest for $$tag (got: $$digest)" ; exit 1 ; } ; \
 		go run ./tools/tuf/replace $$dockerfile "$$tag@sha256:[0-9a-f]+" "$$tag@$$digest" ; \
 		echo "* Updated $$dockerfile -> $$tag@$$digest" ; \
 	done

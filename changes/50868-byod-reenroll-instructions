@@ -1,0 +1,1 @@
+- Fixed the turn off MDM modal showing Account-driven User Enrollment re-enrollment instructions for iOS and iPadOS hosts that enrolled with the manual BYOD enrollment link.

@@ -114,7 +114,12 @@ const (
 	TLSProfileKey          = "server.tls_compatibility"
 	TLSProfileModern       = "modern"
 	TLSProfileIntermediate = "intermediate"
+
+	EndpointRequestSizeOverridesKey = "server.endpoint_request_size_overrides"
 )
+
+// EndpointRequestSizeOverrides maps a literal registered endpoint path (e.g. "/api/_version_/fleet/...") to its maximum allowed body size.
+type EndpointRequestSizeOverrides map[string]int64
 
 // ServerConfig defines configs related to the Fleet server
 type ServerConfig struct {
@@ -144,6 +149,7 @@ type ServerConfig struct {
 	DefaultMaxRequestBodySize        int64         `yaml:"default_max_request_body_size"`
 	AllowPrivateNetworkIntegrations  bool          `yaml:"allow_private_network_integrations"`
 	BypassNetworkBlocking            bool          `yaml:"bypass_network_blocking"`
+	EndpointRequestSizeOverrides     EndpointRequestSizeOverrides
 }
 
 func (s *ServerConfig) DefaultHTTPServer(ctx context.Context, handler http.Handler) *http.Server {
@@ -313,6 +319,51 @@ type OsqueryConfig struct {
 	//     body's node_key field is ignored. Pre-auth rejects
 	//     absent/invalid headers BEFORE the body is read.
 	AllowBodyAuthFallback bool `yaml:"allow_body_auth_fallback"`
+
+	// ConfigETags enables conditional osquery config requests: an agent that
+	// sends an "etag" field in its /api/osquery/config request body receives
+	// the config with an "etag" key added, and the constant {"etag":"ok"}
+	// body when its etag matches the current config.
+	//
+	// Default is FALSE: the request's etag field is ignored, every response
+	// is the full config with no "etag" key (byte-identical to the
+	// pre-feature behavior for every agent, opted-in or not), and no etag
+	// store I/O happens. Setting FLEET_OSQUERY_CONFIG_ETAGS=true and
+	// restarting opts a deployment in. This gate is broader than
+	// RedisConfigETags below, which only disables the Redis short circuit
+	// while leaving the conditional request protocol active.
+	ConfigETags bool `yaml:"config_etags"`
+
+	// RedisConfigETags enables the Redis-backed osquery config ETag SHORT
+	// CIRCUIT: when a host's request body carries an "etag" field matching
+	// the stored validator, the /api/osquery/config response is the constant
+	// {"etag":"ok"} body served straight from Redis, WITHOUT building the
+	// config (zero database reads for that request). Requires Redis to be
+	// configured; silently has no effect without it.
+	//
+	// Default is FALSE: every config request takes the always-full-build
+	// path, byte-identical to the behavior without this feature. Setting
+	// FLEET_OSQUERY_REDIS_CONFIG_ETAGS=true and restarting enables the short
+	// circuit, and requires ConfigETags above to be true as well (see
+	// effectiveRedisConfigETags). Toggling it back off is the A/B lever for
+	// ruling the feature out when debugging config delivery.
+	//
+	// See fleet.OsqueryService.GetClientConfigWithETag and the
+	// server/service/redis_config_etag package for the full contract.
+	RedisConfigETags bool `yaml:"redis_config_etags"`
+
+	// ConfigInMemoryCache enables the in-memory cache that serves the
+	// scheduled-report section of the osquery config — the response's
+	// "packs" key — for PackConfigCacheTTL, keyed by (team,
+	// query_reports_disabled), instead of rebuilding it from the database on
+	// every check-in. It never covers the rest of the response: "options"
+	// and "decorators" are rebuilt from agent options every time.
+	//
+	// Default is FALSE: every check-in builds from the database, which is
+	// slower but immune to any staleness in the cache. Setting
+	// FLEET_OSQUERY_CONFIG_IN_MEMORY_CACHE=true and restarting opts a
+	// deployment in. Independent of the config ETag options above.
+	ConfigInMemoryCache bool `yaml:"config_in_memory_cache"`
 }
 
 // Validate checks that osquery_host_identifier is one of the supported values.
@@ -413,6 +464,13 @@ type ActivityConfig struct {
 	EnableAuditLog bool `yaml:"enable_audit_log"`
 	// AuditLogPlugin sets the plugin to use to log activities.
 	AuditLogPlugin string `yaml:"audit_log_plugin"`
+	// FleetInitiatedReleasePerMinute caps how many hosts get a Fleet-initiated
+	// upcoming activity (policy-automation installs and scripts) activated per
+	// minute. Fleet-initiated activities are enqueued immediately but held
+	// unactivated until the release cron activates them within this budget,
+	// pacing the downstream execution and result-ingestion load. 0 disables the
+	// gate and activates inline at enqueue time.
+	FleetInitiatedReleasePerMinute int `yaml:"fleet_initiated_release_per_minute"`
 }
 
 // FirehoseConfig defines configs for the AWS Firehose logging plugin
@@ -870,6 +928,7 @@ type FleetConfig struct {
 	Partnerships               PartnershipsConfig
 	MicrosoftCompliancePartner MicrosoftCompliancePartnerConfig `yaml:"microsoft_compliance_partner"`
 	ConditionalAccess          ConditionalAccessConfig          `yaml:"conditional_access"`
+	WebSocket                  WebSocketConfig                  `yaml:"websocket"`
 
 	// Deprecated: "packaging" fields were used for "Fleet Sandbox" which doesn't exist anymore.
 	Packaging PackagingConfig
@@ -908,6 +967,35 @@ func (c ConditionalAccessConfig) Validate(initFatal func(err error, msg string))
 			fmt.Errorf("%q is not a valid value (must be %q or %q)", c.CertSerialFormat, CertSerialFormatHex, CertSerialFormatDecimal),
 			"conditional_access.cert_serial_format",
 		)
+	}
+}
+
+// WebSocketConfig holds the server configuration for the agent WebSocket
+// notification transport (ADR-0011). When TransportEnabled is false (the
+// default), the WebSocket endpoint is not registered and agents poll as usual.
+type WebSocketConfig struct {
+	TransportEnabled bool          `yaml:"transport_enabled"`
+	PingInterval     time.Duration `yaml:"ping_interval"`
+	PongTimeout      time.Duration `yaml:"pong_timeout"`
+	CheckInterval    time.Duration `yaml:"check_interval"`
+	CheckBatchSize   int           `yaml:"check_batch_size"`
+}
+
+// Validate checks that the WebSocketConfig has valid values. The values feed
+// tickers and batch loops, so zero or negative values would panic or spin.
+func (w WebSocketConfig) Validate(initFatal func(err error, msg string)) {
+	if !w.TransportEnabled {
+		return
+	}
+	for name, ok := range map[string]bool{
+		"websocket.ping_interval":    w.PingInterval > 0,
+		"websocket.pong_timeout":     w.PongTimeout > 0,
+		"websocket.check_interval":   w.CheckInterval > 0,
+		"websocket.check_batch_size": w.CheckBatchSize > 0,
+	} {
+		if !ok {
+			initFatal(errors.New("must be greater than 0"), name)
+		}
 	}
 }
 
@@ -956,9 +1044,18 @@ type MDMConfig struct {
 
 	// AppleEnable enables Apple MDM functionality on Fleet.
 	AppleEnable bool `yaml:"apple_enable"`
+	// AppleMachineInfoVerify controls whether the CMS/PKCS7 signature on Apple's
+	// x-apple-aspen-deviceinfo (MachineInfo) blob is verified during enrollment.
+	// Enabled by default; set to false to run verification in audit mode (log
+	// failures without blocking enrollment).
+	AppleMachineInfoVerify bool `yaml:"apple_machineinfo_verify"`
 	// AppleDEPSyncPeriodicity is the duration between DEP device syncing
 	// (fetching and setting of DEP profiles).
 	AppleDEPSyncPeriodicity time.Duration `yaml:"apple_dep_sync_periodicity"`
+	// AppleAPNsPushExpiration is the value used for the apns-expiration header
+	// on APNs push notifications, so APNs stores and retries delivery to
+	// offline devices until then. Zero or negative omits the header.
+	AppleAPNsPushExpiration time.Duration `yaml:"apple_apns_push_expiration"`
 	// AppleSCEPChallenge is the SCEP challenge for SCEP enrollment requests.
 	AppleSCEPChallenge string `yaml:"apple_scep_challenge"`
 	// AppleSCEPSignerValidityDays are the days signed client certificates will
@@ -1523,6 +1620,7 @@ func (man Manager) addConfigs() {
 	man.addConfigBool("server.allow_private_network_integrations", false, "Allow integration HTTP requests to private network addresses (RFC 1918). Loopback and cloud metadata addresses are always blocked regardless of this setting.")
 	man.addConfigBool("server.bypass_network_blocking", false, "Disable all outbound network blocking protections for integration HTTP requests (loopback, cloud metadata, and private network addresses). Only intended for environments where egress is already constrained by external infrastructure (e.g. an egress proxy or firewall) that Fleet's own checks would otherwise conflict with. This is an infrastructure-level setting and cannot be changed at runtime.")
 	man.addConfigByteSize("server.default_max_request_body_size", installersize.Human(platform_http.MaxRequestBodySize), "Default maximum size in bytes for request bodies, certain endpoints will have higher limits (e.g. 10MiB, 500KB, 1G)")
+	man.addConfigString(EndpointRequestSizeOverridesKey, "", "Per-endpoint max request body size overrides, as a list of {endpoint, max_request_size} objects")
 
 	// Hide the sandbox flag as we don't want it to be discoverable for users for now
 	man.hideConfig("server.sandbox_enabled")
@@ -1537,7 +1635,7 @@ func (man Manager) addConfigs() {
 	man.addConfigBool("auth.require_http_message_signature", false,
 		"Require HTTP message signatures for fleetd requests (Premium feature)")
 	man.addConfigInt("auth.sso_rate_limit_per_minute", 0,
-		"Number of allowed requests per minute to the SSO callback endpoint (default uses the login rate limit value in a dedicated bucket)")
+		"Number of allowed requests per minute to the SSO callback and Fleet Desktop device SSO endpoints (each in its own bucket; defaults to the login rate limit value)")
 
 	// App
 	man.addConfigString("app.token_key", "CHANGEME",
@@ -1606,6 +1704,12 @@ func (man Manager) addConfigs() {
 		"Maximum body size for the osquery/log endpoint (e.g. 10MiB, 500KB). 0 means use the built-in default (10MiB). Only applied when osquery.allow_body_auth_fallback is true. In header-auth mode (false) the route is not subject to any body size limit; this value is ignored.")
 	man.addConfigByteSize("osquery.max_distributed_write_body_size", "0",
 		"Maximum body size for the osquery/distributed/write endpoint (e.g. 10MiB, 500KB). 0 means use the built-in default (5MiB). Only applied when osquery.allow_body_auth_fallback is true. In header-auth mode (false) the route is not subject to any body size limit; this value is ignored.")
+	man.addConfigBool("osquery.config_etags", false,
+		"Enable conditional osquery config requests: agents that send an etag receive the minimal 'unchanged' body when their config is current. Off by default; while off, every response is the full config with no etag, identical to the behavior before this feature existed.")
+	man.addConfigBool("osquery.redis_config_etags", false,
+		"Answer osquery config requests whose etag matches with the minimal 'unchanged' body straight from a Redis-backed ETag store, skipping the config build (and its database reads) entirely. Off by default; requires Redis (no effect without it) and requires osquery.config_etags to be enabled as well. While off, every config request takes the always-full-build path.")
+	man.addConfigBool("osquery.config_in_memory_cache", false,
+		"Cache the scheduled-report section of the osquery config (the response's 'packs' key) in memory, keyed by fleet (team) and the query_reports_disabled setting, instead of rebuilding it from the database on every config check-in. Off by default; while off, every check-in builds from the database. The rest of the response is never cached, and the cache is bypassed entirely for hosts with 2017 packs and for fleets with label-scoped reports, whose config differs per host.")
 	man.addConfigBool("osquery.allow_body_auth_fallback", true,
 		"Selects how host-authenticated osquery requests are authenticated. When true (default), only body-based node_key is used for authentication. When false, the nodey_key header is required for authentication and the body's node_key is ignored; pre-auth rejects absent/invalid headers before the body is read.")
 
@@ -1614,6 +1718,8 @@ func (man Manager) addConfigs() {
 		"Enable audit logs")
 	man.addConfigString("activity.audit_log_plugin", "filesystem",
 		"Log plugin to use for audit logs")
+	man.addConfigInt("activity.fleet_initiated_release_per_minute", 1000,
+		"Maximum number of hosts whose Fleet-initiated activities (policy automation installs/scripts) are released for execution per minute (0 = unlimited)")
 
 	// Logging
 	man.addConfigBool("logging.debug", false,
@@ -1902,10 +2008,13 @@ func (man Manager) addConfigs() {
 	man.addConfigString("mdm.apple_bm_key", "", "Apple Business PEM-encoded private key path")
 	man.addConfigString("mdm.apple_bm_key_bytes", "", "Apple Business PEM-encoded private key bytes")
 	man.addConfigBool("mdm.apple_enable", false, "Enable MDM Apple functionality")
+	man.addConfigBool("mdm.apple_machineinfo_verify", true, "Verify the signature on Apple's x-apple-aspen-deviceinfo (MachineInfo) blob during enrollment")
 	man.addConfigInt("mdm.apple_scep_signer_validity_days", 365, "Days signed client certificates will be valid")
 	man.addConfigString("mdm.apple_vpp_app_metadata_api_bearer_token", "", "Apple Connect JWT, used for accessing VPP app metadata directly from Apple")
 	man.addConfigString("mdm.apple_scep_challenge", "", "SCEP static challenge for enrollment")
 	man.addConfigDuration("mdm.apple_dep_sync_periodicity", 1*time.Minute, "How much time to wait for DEP profile assignment")
+	man.addConfigDuration("mdm.apple_apns_push_expiration", 7*24*time.Hour, "How long APNs should store and retry delivering push notifications to offline devices (apns-expiration header); zero or negative omits the header")
+	man.hideConfig("mdm.apple_apns_push_expiration")
 	man.addConfigString("mdm.windows_wstep_identity_cert", "", "Microsoft WSTEP PEM-encoded certificate path")
 	man.addConfigString("mdm.windows_wstep_identity_key", "", "Microsoft WSTEP PEM-encoded private key path")
 	man.addConfigString("mdm.windows_wstep_identity_cert_bytes", "", "Microsoft WSTEP PEM-encoded certificate bytes")
@@ -1956,6 +2065,18 @@ func (man Manager) addConfigs() {
 	// Conditional Access
 	man.addConfigString("conditional_access.cert_serial_format", "hex",
 		"Format for parsing certificate serial numbers from X-Client-Cert-Serial header: 'hex' (default, used by AWS ALB) or 'decimal' (used by Caddy)")
+
+	// WebSocket agent transport
+	man.addConfigBool("websocket.transport_enabled", false,
+		"Enable the agent WebSocket notification transport (experimental)")
+	man.addConfigDuration("websocket.ping_interval", 5*time.Minute,
+		"Interval between WebSocket keepalive pings sent to connected agents")
+	man.addConfigDuration("websocket.pong_timeout", 30*time.Second,
+		"Time to wait for a pong before considering an agent WebSocket connection dead")
+	man.addConfigDuration("websocket.check_interval", 30*time.Second,
+		"Interval of the per-instance job that notifies connected agents with due interval work")
+	man.addConfigInt("websocket.check_batch_size", 500,
+		"Number of connected agents checked per batch by the interval notification job")
 }
 
 func (man Manager) hideConfig(name string) {
@@ -2055,6 +2176,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			DefaultMaxRequestBodySize:        man.getConfigByteSize("server.default_max_request_body_size"),
 			AllowPrivateNetworkIntegrations:  man.getConfigBool("server.allow_private_network_integrations"),
 			BypassNetworkBlocking:            man.getConfigBool("server.bypass_network_blocking"),
+			EndpointRequestSizeOverrides:     man.getConfigEndpointRequestSizeOverrides(),
 		},
 		Auth: AuthConfig{
 			BcryptCost:                  man.getConfigInt("auth.bcrypt_cost"),
@@ -2101,10 +2223,14 @@ func (man Manager) LoadConfig() FleetConfig {
 			MaxLogWriteBodySize:              man.getConfigByteSize("osquery.max_log_write_body_size"),
 			MaxDistributedWriteBodySize:      man.getConfigByteSize("osquery.max_distributed_write_body_size"),
 			AllowBodyAuthFallback:            man.getConfigBool("osquery.allow_body_auth_fallback"),
+			ConfigETags:                      man.getConfigBool("osquery.config_etags"),
+			RedisConfigETags:                 man.getConfigBool("osquery.redis_config_etags"),
+			ConfigInMemoryCache:              man.getConfigBool("osquery.config_in_memory_cache"),
 		},
 		Activity: ActivityConfig{
-			EnableAuditLog: man.getConfigBool("activity.enable_audit_log"),
-			AuditLogPlugin: man.getConfigString("activity.audit_log_plugin"),
+			EnableAuditLog:                 man.getConfigBool("activity.enable_audit_log"),
+			AuditLogPlugin:                 man.getConfigString("activity.audit_log_plugin"),
+			FleetInitiatedReleasePerMinute: man.getConfigNonNegativeInt("activity.fleet_initiated_release_per_minute"),
 		},
 		Logging: LoggingConfig{
 			Debug:                man.getConfigBool("logging.debug"),
@@ -2265,10 +2391,12 @@ func (man Manager) LoadConfig() FleetConfig {
 			AppleBMKey:                        man.getConfigString("mdm.apple_bm_key"),
 			AppleBMKeyBytes:                   man.getConfigString("mdm.apple_bm_key_bytes"),
 			AppleEnable:                       man.getConfigBool("mdm.apple_enable"),
+			AppleMachineInfoVerify:            man.getConfigBool("mdm.apple_machineinfo_verify"),
 			AppleSCEPSignerValidityDays:       man.getConfigInt("mdm.apple_scep_signer_validity_days"),
 			AppleConnectJWT:                   man.getConfigString("mdm.apple_vpp_app_metadata_api_bearer_token"),
 			AppleSCEPChallenge:                man.getConfigString("mdm.apple_scep_challenge"),
 			AppleDEPSyncPeriodicity:           man.getConfigDuration("mdm.apple_dep_sync_periodicity"),
+			AppleAPNsPushExpiration:           man.getConfigDuration("mdm.apple_apns_push_expiration"),
 			WindowsWSTEPIdentityCert:          man.getConfigString("mdm.windows_wstep_identity_cert"),
 			WindowsWSTEPIdentityKey:           man.getConfigString("mdm.windows_wstep_identity_key"),
 			WindowsWSTEPIdentityCertBytes:     man.getConfigString("mdm.windows_wstep_identity_cert_bytes"),
@@ -2305,6 +2433,13 @@ func (man Manager) LoadConfig() FleetConfig {
 		},
 		ConditionalAccess: ConditionalAccessConfig{
 			CertSerialFormat: man.getConfigString("conditional_access.cert_serial_format"),
+		},
+		WebSocket: WebSocketConfig{
+			TransportEnabled: man.getConfigBool("websocket.transport_enabled"),
+			PingInterval:     man.getConfigDuration("websocket.ping_interval"),
+			PongTimeout:      man.getConfigDuration("websocket.pong_timeout"),
+			CheckInterval:    man.getConfigDuration("websocket.check_interval"),
+			CheckBatchSize:   man.getConfigInt("websocket.check_batch_size"),
 		},
 	}
 
@@ -2452,6 +2587,17 @@ func (man Manager) getConfigString(key string) string {
 	return stringVal
 }
 
+// getConfigNonNegativeInt is like getConfigInt but panics on negative values,
+// for keys where a negative would silently disable a protection (0 is the
+// documented "disabled" value; below that is an operator error).
+func (man Manager) getConfigNonNegativeInt(key string) int {
+	val := man.getConfigInt(key)
+	if val < 0 {
+		panic(fmt.Sprintf("%s cannot be negative (0 disables it): %d", key, val))
+	}
+	return val
+}
+
 // Custom handling for TLSProfile which can only accept specific values
 // for the argument
 func (man Manager) getConfigTLSProfile() string {
@@ -2557,6 +2703,63 @@ func (man Manager) getConfigByteSize(key string) int64 {
 	}
 
 	return byteSize
+}
+
+// getConfigEndpointRequestSizeOverrides retrieves and parses server.endpoint_request_size_overrides.
+func (man Manager) getConfigEndpointRequestSizeOverrides() EndpointRequestSizeOverrides {
+	interfaceVal := man.getInterfaceVal(EndpointRequestSizeOverridesKey)
+
+	// Raw shape of the config
+	var rawConfig []struct {
+		Endpoint       string `json:"endpoint" yaml:"endpoint"`
+		MaxRequestSize string `json:"max_request_size" yaml:"max_request_size"`
+	}
+
+	switch v := interfaceVal.(type) {
+	case string: // Viper returns a string when the value is from env variable or CLI flag.
+		if v == "" {
+			return nil
+		}
+		if err := json.Unmarshal([]byte(v), &rawConfig); err != nil {
+			panic(fmt.Sprintf("Unable to parse %s: %s", EndpointRequestSizeOverridesKey, err.Error()))
+		}
+	case []any: // Viper returns a native []any when the value is from YAML config file.
+		if len(v) == 0 {
+			return nil
+		}
+		b, err := json.Marshal(v)
+		if err != nil {
+			panic(fmt.Sprintf("Unable to encode value for key %s: %s", EndpointRequestSizeOverridesKey, err.Error()))
+		}
+		if err := json.Unmarshal(b, &rawConfig); err != nil {
+			panic(fmt.Sprintf("Unable to encode value for key %s: %s", EndpointRequestSizeOverridesKey, err.Error()))
+		}
+	case nil:
+		return nil
+	default:
+		panic(fmt.Sprintf("Unexpected type %T for key %s", interfaceVal, EndpointRequestSizeOverridesKey))
+	}
+
+	cfgOverrides := make(EndpointRequestSizeOverrides, len(rawConfig))
+
+	for _, o := range rawConfig {
+		if o.Endpoint == "" {
+			panic(fmt.Sprintf("Empty endpoint in %s", EndpointRequestSizeOverridesKey))
+		}
+
+		size, err := units.RAMInBytes(o.MaxRequestSize)
+		if err != nil {
+			panic(fmt.Sprintf("Unable to parse byte size for key %s, endpoint %s: %s", EndpointRequestSizeOverridesKey, o.Endpoint, err.Error()))
+		}
+
+		if _, ok := cfgOverrides[o.Endpoint]; ok {
+			panic(fmt.Sprintf("Duplicate config entry found for endpoint %s in %s", o.Endpoint, EndpointRequestSizeOverridesKey))
+		}
+
+		cfgOverrides[o.Endpoint] = size
+	}
+
+	return cfgOverrides
 }
 
 // panics if the config is invalid, this is handled by Viper (this is how all
@@ -2682,6 +2885,8 @@ func TestConfig() FleetConfig {
 			DetailUpdateInterval:  1 * time.Hour,
 			MaxJitterPercent:      0,
 			AllowBodyAuthFallback: true,
+			ConfigETags:           true,
+			ConfigInMemoryCache:   true, // off in production; on here to cover the cache paths
 		},
 		Activity: ActivityConfig{
 			EnableAuditLog: true,
@@ -2707,6 +2912,13 @@ func TestConfig() FleetConfig {
 		},
 		MDM: MDMConfig{
 			AllowOrbitEndUserAuthBypass: true,
+		},
+		WebSocket: WebSocketConfig{
+			TransportEnabled: false,
+			PingInterval:     5 * time.Minute,
+			PongTimeout:      30 * time.Second,
+			CheckInterval:    30 * time.Second,
+			CheckBatchSize:   500,
 		},
 	}
 }

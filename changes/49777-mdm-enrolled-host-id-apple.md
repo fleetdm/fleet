@@ -1,1 +1,0 @@
-- Added `host_id` and `host_serial` to the `mdm_enrolled` activity for Apple (macOS, iOS, iPadOS) enrollments, and the activity now appears on the host's activity timeline.

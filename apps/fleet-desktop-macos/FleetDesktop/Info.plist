@@ -9,9 +9,9 @@
     <key>CFBundleIdentifier</key>
     <string>com.fleetdm.fleet-desktop</string>
     <key>CFBundleVersion</key>
-    <string>11</string>
+    <string>12</string>
     <key>CFBundleShortVersionString</key>
-    <string>1.5.0</string>
+    <string>1.5.1</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleExecutable</key>

@@ -2,8 +2,8 @@ package logger
 
 import (
 	"bytes"
-	"testing"
 	"strings"
+	"testing"
 )
 
 func TestLogger(t *testing.T) {

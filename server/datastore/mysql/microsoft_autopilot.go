@@ -69,7 +69,8 @@ SELECT tenant_id, client_id, credential_invalid, last_synced_at, last_sync_error
 FROM mdm_microsoft_graph_credentials
 ORDER BY tenant_id`
 
-	var creds []*fleet.MicrosoftGraphCredential
+	// Non-nil so the endpoint serializes an empty list as [] rather than null.
+	creds := make([]*fleet.MicrosoftGraphCredential, 0)
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &creds, stmt); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "list microsoft graph credential metadata")
 	}
@@ -139,10 +140,14 @@ func (ds *Datastore) SetMicrosoftGraphCredentialInvalid(ctx context.Context, ten
 }
 
 // RecordMicrosoftGraphSyncResult stamps the outcome of a sync pass for a tenant. A nil syncErr records a success and
-// clears any previous error; a non-nil one records the message for display alongside the credential.
+// clears any previous error; a non-nil one records the message for display alongside the credential. last_synced_at
+// means "last successful sync."
 func (ds *Datastore) RecordMicrosoftGraphSyncResult(ctx context.Context, tenantID string, syncErr *string) error {
-	const stmt = `UPDATE mdm_microsoft_graph_credentials SET last_synced_at = NOW(6), last_sync_error = ? WHERE tenant_id = ?`
-	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, syncErr, tenantID); err != nil {
+	const stmt = `
+		UPDATE mdm_microsoft_graph_credentials
+		SET last_synced_at = IF(? IS NULL, NOW(6), last_synced_at), last_sync_error = ?
+		WHERE tenant_id = ?`
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, syncErr, syncErr, tenantID); err != nil {
 		return ctxerr.Wrap(ctx, err, "record microsoft graph sync result")
 	}
 	return nil

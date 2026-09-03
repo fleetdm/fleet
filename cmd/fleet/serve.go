@@ -42,6 +42,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/acl/chartacl"
 	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	activity_bootstrap "github.com/fleetdm/fleet/v4/server/activity/bootstrap"
+	"github.com/fleetdm/fleet/v4/server/agentws"
 	apiendpoints "github.com/fleetdm/fleet/v4/server/api_endpoints"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/chart"
@@ -85,6 +86,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service/middleware/auth"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/log"
 	otelmw "github.com/fleetdm/fleet/v4/server/service/middleware/otel"
+	"github.com/fleetdm/fleet/v4/server/service/redis_install_attempts"
 	"github.com/fleetdm/fleet/v4/server/service/redis_key_value"
 	"github.com/fleetdm/fleet/v4/server/service/redis_lock"
 	"github.com/fleetdm/fleet/v4/server/service/redis_policy_set"
@@ -228,6 +230,8 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 
 	config.ConditionalAccess.Validate(initFatal)
 
+	config.WebSocket.Validate(initFatal)
+
 	config.Server.NormalizeURLPrefix()
 	config.Server.ValidateURLPrefix(initFatal)
 
@@ -262,6 +266,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 
 	// Configure default max request body size based on config
 	platform_http.MaxRequestBodySize = config.Server.DefaultMaxRequestBodySize
+	platform_http.EndpointRequestSizeOverrides = config.Server.EndpointRequestSizeOverrides
 
 	mds, dbConns, carveStore := initDatastore(config, logger, clock.C, initFatal)
 	if mds == nil {
@@ -290,7 +295,8 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 
 	var redisPool fleet.RedisPool
 	var redisWrapperDS *mysqlredis.Datastore
-	redisPool, ds, redisWrapperDS = initRedis(cmd.Context(), config, license, ds, logger, initFatal)
+	var configETagStore fleet.ConfigETagStore
+	redisPool, ds, redisWrapperDS, configETagStore = initRedis(cmd.Context(), config, license, ds, logger, initFatal)
 	if redisPool == nil {
 		initFatal(errors.New("redis pool was nil after initialization"), "initialize Redis")
 		return
@@ -346,9 +352,15 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		logger.WarnContext(cmd.Context(), "Disabling custom disk encryption management because Fleet Premium license is not present")
 	}
 
+	apple_mdm.SetMachineInfoVerification(config.MDM.AppleMachineInfoVerify)
+	if !apple_mdm.MachineInfoVerificationEnabled() {
+		logger.WarnContext(cmd.Context(), "Apple MDM MachineInfo (deviceinfo) signature verification is disabled via "+
+			"mdm.apple_machineinfo_verify; verification failures during enrollment will be logged but not enforced")
+	}
+
 	mdmStorage, depStorage, scepStorage := initAppleMDMStorages(mds, initFatal)
 
-	mdmPushService := initAppleMDMPushService(mdmStorage, logger)
+	mdmPushService := initAppleMDMPushService(mdmStorage, config.MDM.AppleAPNsPushExpiration, logger)
 	mds.WithPusher(mdmPushService)
 
 	// reconcile Apple MDM and Business Manager configuration with the database
@@ -511,6 +523,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		digiCertService,
 		conditionalAccessMicrosoftProxy,
 		redis_key_value.New(redisPool),
+		redis_install_attempts.New(redisPool),
 		androidSvc,
 		orgLogoStore,
 	)
@@ -616,6 +629,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 			softwareTitleIconStore,
 			distributedLock,
 			redis_key_value.New(redisPool),
+			redis_install_attempts.New(redisPool),
 			scepConfigMgr,
 			digiCertService,
 			androidSvc,
@@ -634,6 +648,40 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	}
 	logger.InfoContext(ctx, "instance info", "instanceID", instanceID)
 
+	// OSQUERY CONFIG ETAG SHORT CIRCUIT Injecting the store is the ONE
+	// thing that enables it — without this call the service field stays nil
+	// and every config request takes the full-build path. initRedis only
+	// constructs the store (and the etag_invalidate hooks) when
+	// effectiveRedisConfigETags is true and the startup generation bump
+	// succeeded; with the feature gated off, no config ETag Redis code runs
+	// at all. See fleet.OsqueryService.GetClientConfigWithETag for the full
+	// contract.
+	if !config.Osquery.ConfigETags {
+		// The protocol-level escape hatch: the service ignores agents' etag
+		// fields entirely.
+		logger.InfoContext(ctx, "osquery conditional config requests DISABLED by escape hatch; every config response is the full config with no etag",
+			"component", "config-etag", "flag", "osquery.config_etags")
+		if config.Osquery.RedisConfigETags {
+			logger.WarnContext(ctx, "osquery.redis_config_etags cannot be enabled while osquery.config_etags is false; the Redis short circuit is forced off and no config etag Redis I/O will occur",
+				"component", "config-etag")
+		}
+	}
+	if svc != nil && effectiveRedisConfigETags(config) && configETagStore != nil {
+		svc.SetConfigETagStore(configETagStore)
+		logger.InfoContext(ctx, "osquery config ETag short circuit ENABLED: matching config check-ins are answered 'unchanged' from Redis without building the config",
+			"component", "config-etag", "flag", "osquery.redis_config_etags")
+	} else {
+		// Neutral message: this branch is reached when either flag gates the
+		// feature off, but also when the store was not constructed (Redis
+		// init failure or failed startup generation bump) or svc is nil —
+		// the fields say which.
+		logger.InfoContext(ctx, "osquery config ETag short circuit disabled; all config requests take the full-build path",
+			"component", "config-etag",
+			"flag_enabled", config.Osquery.RedisConfigETags,
+			"feature_enabled", config.Osquery.ConfigETags,
+			"store_configured", configETagStore != nil)
+	}
+
 	// Bootstrap activity bounded context (needed for cron schedules and HTTP routes)
 	activitySvc, activityRoutes := createActivityBoundedContext(svc, ds, dbConns, logger)
 	// Inject the activity bounded context into the main service
@@ -647,6 +695,41 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 
 	// Bootstrap chart bounded context
 	chartSvc, chartRoutes := createChartBoundedContext(dbConns, svc, logger)
+
+	// Bootstrap the agent WebSocket notification transport (ADR-0011): the
+	// per-instance hub of agent connections, the Redis pub/sub subscription
+	// that fans live query wake-ups out to all instances, and the per-instance
+	// interval check job.
+	var agentWSHub *agentws.Hub
+	if config.WebSocket.TransportEnabled {
+		agentWSHub = agentws.NewHub(logger.With("component", "agentws"),
+			config.WebSocket.PingInterval, config.WebSocket.PongTimeout)
+		agentWSHub.InstanceID = instanceID
+		agentNotifier := pubsub.NewRedisAgentNotifier(redisPool, logger.With("component", "agent-notifier"))
+		// Delay live query wake-ups by the live query store's in-memory cache
+		// TTL so a notified read can't be served from a cache snapshot
+		// predating the campaign (see pubsub.DelayedAgentNotifier).
+		svc.SetAgentCheckInNotifier(pubsub.NewDelayedAgentNotifier(agentNotifier,
+			liveQueryMemCacheDuration, logger.With("component", "agent-notifier")))
+		go agentNotifier.Subscribe(ctx, func(n pubsub.AgentNotification) {
+			agentWSHub.Notify(n.Type, n.Reason, n.HostIDs)
+		})
+		// Each instance checks only the connections it holds, so this is a
+		// plain per-instance goroutine, not a locked cron job.
+		go (&agentws.IntervalChecker{
+			Hub:       agentWSHub,
+			Svc:       svc,
+			Interval:  config.WebSocket.CheckInterval,
+			BatchSize: config.WebSocket.CheckBatchSize,
+			Logger:    logger.With("component", "agentws-interval-checker"),
+		}).Run(ctx)
+		// Keep WebSocket-connected hosts "online": the transport removes the
+		// 10s distributed/read poll that used to keep seen_time fresh. 30s
+		// stays inside the smallest online window Fleet computes (min interval
+		// + 60s buffer); uses the same batched last-seen path as polling auth.
+		go agentws.RecordSeenLoop(ctx, agentWSHub, task, 30*time.Second,
+			logger.With("component", "agentws-seen"))
+	}
 
 	// Trace sampler runtime control. The poller re-reads trace_sampler_settings every 60s and atomically swaps the sampler's
 	// ratios and force_full so support can flip a 100% debug window via PATCH /debug/trace_sampler without restarting any
@@ -749,6 +832,9 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 			extra = append(extra, service.WithSsoRateLimit(throttled.PerMin(config.Auth.SSORateLimitPerMinute)))
 		}
 		extra = append(extra, service.WithHTTPSigVerifier(httpSigVerifier))
+		if agentWSHub != nil {
+			extra = append(extra, service.WithAgentWSHub(agentWSHub))
+		}
 
 		apiHandler = service.MakeHandler(svc, config, httpLogger, limiterStore, redisPool, carveStore,
 			[]endpointer.HandlerRoutesFunc{android_service.GetRoutes(svc, androidSvc), activityRoutes, acmeRoutes, chartRoutes}, extra...)
@@ -859,11 +945,13 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 			logger,
 			redis_key_value.New(redisPool),
 			svc.NewActivity,
+			config.Activity.FleetInitiatedReleasePerMinute > 0,
 		)
 
 		mdmCheckinAndCommandService.RegisterResultsHandler("InstalledApplicationList", service.NewInstalledApplicationListResultsHandler(ds, commander, logger, config.Server.VPPVerifyTimeout, config.Server.VPPVerifyRequestDelay, svc.NewActivity))
 		mdmCheckinAndCommandService.RegisterResultsHandler(fleet.DeviceLocationCmdName, service.NewDeviceLocationResultsHandler(ds, commander, logger))
-		mdmCheckinAndCommandService.RegisterResultsHandler(fleet.SetRecoveryLockCmdName, service.NewSetRecoveryLockResultsHandler(ds, logger, svc.NewActivity))
+		mdmCheckinAndCommandService.RegisterResultsHandler(fleet.SetRecoveryLockCmdName, service.NewSetRecoveryLockResultsHandler(ds, logger, commander))
+		mdmCheckinAndCommandService.RegisterResultsHandler(fleet.VerifyRecoveryLockCmdName, service.NewVerifyRecoveryLockResultsHandler(ds, logger, commander, svc.NewActivity))
 
 		hasSCEPChallenge, err := checkMDMAssetsExist(context.Background(), ds, []fleet.MDMAssetName{fleet.MDMAssetSCEPChallenge})
 		if err != nil {
@@ -980,7 +1068,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	rootMux.Handle("/", otelmw.WrapHandler(frontendHandler, "/", config))
 
 	debugHandler := &debugMux{
-		fleetAuthenticatedHandler: service.MakeDebugHandler(svc, config, logger, eh, ds),
+		fleetAuthenticatedHandler: service.MakeDebugHandler(svc, config, logger, eh, ds, agentWSHub),
 	}
 	rootMux.Handle("/debug/", otelmw.WrapHandlerDynamic(debugHandler, config))
 
@@ -1083,6 +1171,11 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 				if err := loggerProvider.Shutdown(ctx); err != nil {
 					logger.ErrorContext(ctx, "failed to shutdown OTEL logger provider", "err", err)
 				}
+			}
+			// srv.Shutdown ignores hijacked connections; close the agent
+			// WebSockets so agents start reconnecting right away.
+			if agentWSHub != nil {
+				agentWSHub.Shutdown()
 			}
 			return srv.Shutdown(ctx)
 		}()

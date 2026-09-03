@@ -118,6 +118,22 @@ func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Du
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "number of hosts enrolled in Fleet MDM")
 		}
+		numMDMAppleProfiles, err := tableRowsCount(ctx, ds.reader(ctx), "mdm_apple_configuration_profiles")
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "number of Apple configuration profiles")
+		}
+		numMDMWindowsProfiles, err := tableRowsCount(ctx, ds.reader(ctx), "mdm_windows_configuration_profiles")
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "number of Windows configuration profiles")
+		}
+		numMDMAppleDeclarations, err := tableRowsCount(ctx, ds.reader(ctx), "mdm_apple_declarations")
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "number of Apple DDM declarations")
+		}
+		numMDMAndroidProfiles, err := tableRowsCount(ctx, ds.reader(ctx), "mdm_android_configuration_profiles")
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "number of Android configuration profiles")
+		}
 
 		stats.NumHostsEnrolled = amountEnrolledHosts
 		stats.NumHostsABMPending = numHostsABMPending
@@ -138,6 +154,7 @@ func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Du
 		stats.MDMMacOsEnabled = appConfig.MDM.EnabledAndConfigured
 		stats.HostExpiryEnabled = appConfig.HostExpirySettings.HostExpiryEnabled
 		stats.MDMWindowsEnabled = appConfig.MDM.WindowsEnabledAndConfigured
+		stats.MDMAndroidEnabled = appConfig.MDM.AndroidEnabledAndConfigured
 		stats.MDMRecoveryLockPasswordEnabled = appConfig.MDM.EnableRecoveryLockPassword.Value
 		stats.LiveQueryDisabled = appConfig.ServerSettings.LiveQueryDisabled
 		stats.NumWeeklyActiveUsers = amountWeeklyUsers
@@ -175,6 +192,10 @@ func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Du
 		stats.FleetMaintainedAppsWindows = fleetMaintainedAppsWindows
 		stats.NumHostsFleetMDMEnrolledMacOS = numHostsFleetMDMEnrolledMacOS
 		stats.NumHostsFleetMDMEnrolledWindows = numHostsFleetMDMEnrolledWindows
+		stats.NumMDMAppleProfiles = numMDMAppleProfiles
+		stats.NumMDMWindowsProfiles = numMDMWindowsProfiles
+		stats.NumMDMAppleDeclarations = numMDMAppleDeclarations
+		stats.NumMDMAndroidProfiles = numMDMAndroidProfiles
 
 		stats.ConditionalAccessEnabled, err = ds.conditionalAccessEnabledOnATeam(ctx, teams)
 		if err != nil {
@@ -193,6 +214,7 @@ func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Du
 
 		stats.GitOpsModeEnabled = appConfig.GitOpsConfig.GitopsModeEnabled
 		stats.GitOpsModeExceptions = gitOpsExceptionsList(appConfig.GitOpsConfig.Exceptions)
+		stats.FleetDesktopSSOEnabled = appConfig.FleetDesktop.SSOEnabled
 
 		return nil
 	}

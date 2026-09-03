@@ -162,6 +162,29 @@ type model struct {
 	currentActions     []ghapi.Action    // Store current actions being processed
 	statusChan         chan ghapi.Status // Channel for receiving status updates from AsyncManager
 	exitMessage        string
+	// Headless run hints: select every issue and/or run a workflow automatically
+	// once the view is populated (see RunTUI).
+	autoSelectAll bool
+	autoWorkflow  string
+}
+
+// workflowAliases maps a --workflow flag value to a WorkflowType for headless
+// runs. Only workflows that can run without further prompting are listed (label
+// workflows need interactive text input, so they're intentionally excluded).
+var workflowAliases = map[string]WorkflowType{
+	"demo":            BulkDemoSummary,
+	"demo-summary":    BulkDemoSummary,
+	"milestone-close": BulkMilestoneClose,
+	"sprint-kickoff":  BulkSprintKickoff,
+	"kick-out":        BulkKickOutOfSprint,
+	"move-to-sprint":  BulkMoveToCurrentSprint,
+}
+
+// resolveWorkflow maps a --workflow flag value to its WorkflowType, matching
+// case-insensitively. The bool is false when the name isn't a known workflow.
+func resolveWorkflow(name string) (WorkflowType, bool) {
+	wt, ok := workflowAliases[strings.ToLower(strings.TrimSpace(name))]
+	return wt, ok
 }
 
 type issuesLoadedMsg struct {
@@ -192,7 +215,11 @@ type workflowExitMsg struct {
 	message string
 }
 
-func RunTUI(commandType CommandType, projectID int, limit int, search string) {
+// RunTUI launches the interactive TUI. autoSelectAll selects every issue as soon
+// as the view is populated, and autoWorkflow (a name like "demo") runs that
+// workflow immediately instead of waiting for the user to pick one — together
+// they enable headless runs such as `gm project apple -aw demo`.
+func RunTUI(commandType CommandType, projectID int, limit int, search string, autoSelectAll bool, autoWorkflow string) {
 	var mm model
 	switch commandType {
 	case ProjectCommand:
@@ -212,6 +239,8 @@ func RunTUI(commandType CommandType, projectID int, limit int, search string) {
 	}
 	// Carry over the search string as a generic mode hint (e.g., for sprint: "previous")
 	mm.search = search
+	mm.autoSelectAll = autoSelectAll
+	mm.autoWorkflow = autoWorkflow
 	p := tea.NewProgram(&mm)
 	if _, err := p.Run(); err != nil {
 		fmt.Printf("Error running Bubble Tea program: %v\n", err)
@@ -503,6 +532,73 @@ func (m model) View() string {
 	return s
 }
 
+// writeDemoSummarySection writes a "Features Completed" / "Bugs Completed"
+// breakdown for the given issues to builder, grouping each category by assignee
+// (falling back to the assignee's login, then "unassigned"). Issues are
+// classified by their labels: "story" → feature, "bug" → bug, with an
+// "~unreleased bug" label demoting a bug back out of the summary.
+func writeDemoSummarySection(builder *strings.Builder, issues []ghapi.Issue) {
+	assigneeOrUnassigned := func(issue ghapi.Issue) string {
+		if len(issue.Assignees) > 0 {
+			user, err := ghapi.GetUserName(issue.Assignees[0].Login)
+			if err == nil {
+				if user.Name != "" {
+					return user.Name
+				}
+				return user.Login
+			}
+		}
+		return "unassigned"
+	}
+
+	features := map[string][]ghapi.Issue{}
+	bugs := map[string][]ghapi.Issue{}
+	for _, issue := range issues {
+		isFeature := false
+		isBug := false
+		for _, l := range issue.Labels {
+			if l.Name == "story" {
+				isFeature = true
+			}
+			if l.Name == "bug" {
+				isBug = true
+			}
+			if l.Name == "~unreleased bug" {
+				isBug = false
+			}
+		}
+		assignee := assigneeOrUnassigned(issue)
+		if isFeature {
+			features[assignee] = append(features[assignee], issue)
+		}
+		if isBug {
+			bugs[assignee] = append(bugs[assignee], issue)
+		}
+	}
+
+	writeCategory := func(heading string, byAssignee map[string][]ghapi.Issue) {
+		builder.WriteString(heading)
+		if len(byAssignee) == 0 {
+			builder.WriteString("_None_\n\n")
+		}
+		var assignees []string
+		for a := range byAssignee {
+			assignees = append(assignees, a)
+		}
+		sort.Strings(assignees)
+		for _, a := range assignees {
+			builder.WriteString(fmt.Sprintf("%s\n", a))
+			for _, issue := range byAssignee[a] {
+				builder.WriteString(fmt.Sprintf("[#%d](https://github.com/fleetdm/fleet/issues/%d)%s\n", issue.Number, issue.Number, issue.Title))
+			}
+			builder.WriteString("\n")
+		}
+	}
+
+	writeCategory("## Features Completed\n\n", features)
+	writeCategory("## Bugs Completed\n\n", bugs)
+}
+
 func (m *model) executeWorkflow() tea.Cmd {
 	// Initialize workflow tasks
 	m.workflowState = WorkflowRunning
@@ -531,80 +627,77 @@ func (m *model) executeWorkflow() tea.Cmd {
 	switch m.workflowType {
 	// newworkflow add workflow steps here (actions / tasks)
 	case BulkDemoSummary:
-		// Build summary markdown grouped by label category and assignee
-		features := map[string][]ghapi.Issue{}
-		bugs := map[string][]ghapi.Issue{}
-		// if status lower ends with 'ready'
-		assigneeOrUnassigned := func(issue ghapi.Issue) string {
-			if len(issue.Assignees) > 0 {
-				user, err := ghapi.GetUserName(issue.Assignees[0].Login)
-				if err == nil {
-					if user.Name != "" {
-						return user.Name
-					} else {
-						return user.Login
-					}
+		// Build summary markdown grouped by milestone, then (within each milestone)
+		// by label category and assignee. Issues with no milestone fall under a
+		// trailing "No milestone" section.
+		const noMilestone = "No milestone"
+		byMilestone := map[string][]ghapi.Issue{}
+		var milestoneOrder []string
+		seenMilestone := map[string]bool{}
+		// isSkippedStatus reports whether an issue in this status is not demo-ready
+		// (still in the inbox/drafting/blocked/ready columns) and should be excluded
+		// from the summary. Matched loosely so emoji/prefix drift ("🥚 Ready") still
+		// hits.
+		isSkippedStatus := func(status string) bool {
+			s := strings.ToLower(strings.TrimSpace(status))
+			if strings.HasSuffix(s, "ready") {
+				return true
+			}
+			for _, kw := range []string{"inbox", "drafting", "blocked"} {
+				if strings.Contains(s, kw) {
+					return true
 				}
 			}
-			return "unassigned"
+			return false
 		}
+		var skipped []ghapi.Issue // selected but excluded due to their status
 		for _, issue := range selectedIssues {
-			if issue.Status == "" || strings.HasSuffix(strings.ToLower(issue.Status), "ready") {
+			if issue.Status == "" {
 				continue
-				// Do something
 			}
-			isFeature := false
-			isBug := false
-			for _, l := range issue.Labels {
-				if l.Name == "story" {
-					isFeature = true
-				}
-				if l.Name == "bug" {
-					isBug = true
-				}
-				if l.Name == "~unreleased bug" {
-					isBug = false
-				}
+			if isSkippedStatus(issue.Status) {
+				skipped = append(skipped, issue)
+				continue
 			}
-			assignee := assigneeOrUnassigned(issue)
-			if isFeature {
-				features[assignee] = append(features[assignee], issue)
+			ms := noMilestone
+			if issue.Milestone != nil && issue.Milestone.Title != "" {
+				ms = issue.Milestone.Title
 			}
-			if isBug {
-				bugs[assignee] = append(bugs[assignee], issue)
+			if !seenMilestone[ms] {
+				seenMilestone[ms] = true
+				milestoneOrder = append(milestoneOrder, ms)
 			}
+			byMilestone[ms] = append(byMilestone[ms], issue)
 		}
-		// Generate markdown content
+		// Sort milestones by title, keeping "No milestone" last.
+		sort.Slice(milestoneOrder, func(i, j int) bool {
+			a, b := milestoneOrder[i], milestoneOrder[j]
+			if a == noMilestone {
+				return false
+			}
+			if b == noMilestone {
+				return true
+			}
+			return a < b
+		})
+
 		var builder strings.Builder
-		builder.WriteString("## Features Completed\n\n")
-		if len(features) == 0 {
-			builder.WriteString("_None_\n\n")
+		for _, ms := range milestoneOrder {
+			builder.WriteString(fmt.Sprintf("# %s\n\n", ms))
+			writeDemoSummarySection(&builder, byMilestone[ms])
 		}
-		var featureAssignees []string
-		for a := range features {
-			featureAssignees = append(featureAssignees, a)
-		}
-		sort.Strings(featureAssignees)
-		for _, a := range featureAssignees {
-			builder.WriteString(fmt.Sprintf("%s\n", a))
-			for _, issue := range features[a] {
-				builder.WriteString(fmt.Sprintf("[#%d](https://github.com/fleetdm/fleet/issues/%d)%s\n", issue.Number, issue.Number, issue.Title))
-			}
-			builder.WriteString("\n")
-		}
-		builder.WriteString("## Bugs Completed\n\n")
-		if len(bugs) == 0 {
-			builder.WriteString("_None_\n\n")
-		}
-		var bugAssignees []string
-		for a := range bugs {
-			bugAssignees = append(bugAssignees, a)
-		}
-		sort.Strings(bugAssignees)
-		for _, a := range bugAssignees {
-			builder.WriteString(fmt.Sprintf("%s\n", a))
-			for _, issue := range bugs[a] {
-				builder.WriteString(fmt.Sprintf("[#%d](https://github.com/fleetdm/fleet/issues/%d)%s\n", issue.Number, issue.Number, issue.Title))
+		// List the selected issues we excluded and why, so the skip is visible
+		// rather than silent. Sorted by status, then issue number.
+		if len(skipped) > 0 {
+			sort.Slice(skipped, func(i, j int) bool {
+				if skipped[i].Status != skipped[j].Status {
+					return skipped[i].Status < skipped[j].Status
+				}
+				return skipped[i].Number < skipped[j].Number
+			})
+			builder.WriteString("# Skipped (not demo-ready)\n\n")
+			for _, issue := range skipped {
+				builder.WriteString(fmt.Sprintf("[#%d](https://github.com/fleetdm/fleet/issues/%d) %s — %s\n", issue.Number, issue.Number, issue.Title, issue.Status))
 			}
 			builder.WriteString("\n")
 		}

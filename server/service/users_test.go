@@ -2062,3 +2062,67 @@ func TestListUsersGlobalRequesterSeesAllTeams(t *testing.T) {
 	require.Len(t, lr.Users, 1)
 	require.Len(t, lr.Users[0].Teams, 2)
 }
+
+// TestListUsersComputesStatus verifies that listing users stamps each user's
+// computed status, and that it is computed from the user's full team
+// memberships BEFORE they are stripped to the requester's scope (so a user
+// whose only teams are outside the requester's scope isn't misreported as
+// having no access).
+func TestListUsersComputesStatus(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil)
+
+	now := time.Now() //nolint:staticcheck // it is referenced.
+	ds.ListUsersFunc = func(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, error) {
+		return []*fleet.User{
+			{
+				// recent login -> active
+				ID:          10,
+				GlobalRole:  new(fleet.RoleAdmin),
+				LastLoginAt: new(now.Add(-24 * time.Hour)),
+			},
+			{
+				// stale login -> inactive
+				ID:          11,
+				GlobalRole:  new(fleet.RoleAdmin),
+				LastLoginAt: new(now.Add(-31 * 24 * time.Hour)),
+			},
+			{
+				// no roles -> no access
+				ID: 12,
+			},
+			{
+				// only member of team 2, which is outside the requester's
+				// scope: status must be computed from the full memberships
+				// (inactive), not the stripped ones (which would be no access)
+				ID:          13,
+				Teams:       []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleObserver}},
+				LastLoginAt: new(now.Add(-31 * 24 * time.Hour)),
+			},
+		}, nil
+	}
+
+	// Requester is an admin of team 1 only.
+	teamOneAdmin := &fleet.User{
+		ID:    1,
+		Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleAdmin}},
+	}
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: teamOneAdmin})
+
+	resp, err := listUsersEndpoint(ctx, &listUsersRequest{
+		ListOptions: fleet.UserListOptions{TeamID: 1},
+	}, svc)
+	require.NoError(t, err)
+
+	lr, ok := resp.(listUsersResponse)
+	require.True(t, ok)
+	require.NoError(t, lr.Err)
+	require.Len(t, lr.Users, 4)
+
+	require.Equal(t, fleet.UserStatusActive, lr.Users[0].Status)
+	require.Equal(t, fleet.UserStatusInactive, lr.Users[1].Status)
+	require.Equal(t, fleet.UserStatusNoAccess, lr.Users[2].Status)
+	require.Equal(t, fleet.UserStatusInactive, lr.Users[3].Status)
+	// ...and team 2 was still stripped from the response.
+	require.Empty(t, lr.Users[3].Teams)
+}

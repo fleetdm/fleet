@@ -169,5 +169,19 @@ func (svc Service) ListPolicyAutomationActivities(ctx context.Context, policyID 
 	if err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "list policy automation activities")
 	}
+
+	// A pre-install-query failure is stored as an empty (non-null)
+	// pre_install_query_output, which the modal and table drop as no-output.
+	// Substitute the same copy /software_install_results uses via
+	// HostSoftwareInstallerResult.EnhanceOutputDetails.
+	for _, a := range activities {
+		if a.Type == "installed_software" && a.Status == "error" &&
+			a.PreInstallOutput != nil && *a.PreInstallOutput == "" {
+			// Rebind rather than mutating through the pointer: the caller may
+			// share the underlying string across rows.
+			out := fleet.SoftwareInstallerQueryFailCopy
+			a.PreInstallOutput = &out
+		}
+	}
 	return activities, meta, nil
 }

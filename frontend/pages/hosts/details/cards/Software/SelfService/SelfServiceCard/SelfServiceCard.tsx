@@ -53,7 +53,10 @@ export interface ISelfServiceCardProps {
   router: InjectedRouter;
   pathname: string;
   isMobileView?: boolean;
-  onClickInstallAction: (softwareId: number, isScriptPackage?: boolean) => void;
+  onClickInstallAction: (
+    softwareId: number,
+    isScriptPackage?: boolean
+  ) => Promise<boolean> | void;
   onInstallAllSuccess?: () => void;
 }
 
@@ -258,10 +261,14 @@ const SelfServiceCard = ({
     );
   }
 
-  // Search query filter required for mobile view only ( desktop view has filter built into TableContainer)
-  const filteredSoftware = isMobileView
-    ? softwareInSelectedCategoryMatchingQuery
-    : softwareInSelectedCategory;
+  // Filter at this layer for both desktop and mobile. Two reasons: (1) the match
+  // spans name, bundle_identifier, and custom display_name (the same columns the
+  // backend MatchQuery searches), and TableContainer's built-in searchQueryColumn
+  // is single-column, so we pre-filter here to widen it. (2) the empty state
+  // stays in sync with the current search query. TableContainer's client-side
+  // filter is debounced separately from the search field and briefly reported
+  // the previous zero-result count when the URL query changed.
+  const filteredSoftware = softwareInSelectedCategoryMatchingQuery;
 
   // The button is shown on desktop ONLY when a specific category is selected
   // (`category_id` is defined). On the unfiltered "All" view we suppress it so a
