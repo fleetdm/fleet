@@ -25,4 +25,13 @@
     align-items: center;
     gap: $pad-small;
   }
+
+  // The host's own error text, shown under the banner copy. Breaks anywhere
+  // because it is whatever the device reported, not a string we control.
+  &__rotation-error {
+    margin-top: $pad-xsmall;
+    font-size: $xx-small;
+    color: $ui-fleet-black-75;
+    overflow-wrap: anywhere;
+  }
 }

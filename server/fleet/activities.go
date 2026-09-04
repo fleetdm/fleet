@@ -1164,10 +1164,11 @@ func (a ActivityTypeRotatedManagedLocalAccountPassword) WasFromAutomation() bool
 }
 
 // ActivityTypeFailedToRotateManagedLocalAccountPassword records a failed attempt
-// to rotate the managed local account password (the device acked the
-// SetAutoAdminPassword command with an error or command-format error). Always
-// attributed to Fleet — the failure is detected at ack time, outside any user
-// context, regardless of who originally initiated the rotation.
+// to rotate the managed local account password. On macOS the device acked the
+// SetAutoAdminPassword command with an error; on Windows fleetd reported that it
+// could not reset the password when it escrowed. Always attributed to Fleet — the
+// failure arrives from the device later, outside any user context, regardless of
+// who originally initiated the rotation.
 type ActivityTypeFailedToRotateManagedLocalAccountPassword struct {
 	HostID          uint   `json:"host_id"`
 	HostDisplayName string `json:"host_display_name"`

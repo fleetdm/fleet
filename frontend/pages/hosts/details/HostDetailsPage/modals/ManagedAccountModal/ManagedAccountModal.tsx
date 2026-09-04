@@ -25,6 +25,13 @@ interface IManagedAccountModalProps {
   // We deferred this decision for now because this modal only displays for
   // Admin or Maintainer roles
   canRotatePassword: boolean;
+  /**
+   * Whether the host reported that the last rotation failed. The password below is still the last
+   * one Fleet received in that case, so the failure is shown alongside it rather than in place of it.
+   */
+  rotationFailed?: boolean;
+  /** The host's reason for the failure, when it reported one. */
+  rotationError?: string;
   onCancel: () => void;
   onRotate: () => void;
 }
@@ -32,6 +39,8 @@ interface IManagedAccountModalProps {
 const ManagedAccountModal = ({
   hostId,
   canRotatePassword,
+  rotationFailed = false,
+  rotationError,
   onCancel,
   onRotate,
 }: IManagedAccountModalProps) => {
@@ -82,6 +91,43 @@ const ManagedAccountModal = ({
     justRotated || managedAccountData?.pending_rotation === true;
   const autoRotateAt = managedAccountData?.auto_rotate_at;
 
+  // One banner at a time, in priority order. Gated on booleans rather than on the reason string's truthiness, so a
+  // failure the host reported without a reason still gets a banner instead of silently rendering nothing.
+  const renderRotationBanner = () => {
+    if (showPendingRotationBanner) {
+      return (
+        <InfoBanner color="yellow">
+          Password will rotate once the host acknowledges the request.
+        </InfoBanner>
+      );
+    }
+    // A failed rotation outranks the auto-rotate hint: the timer is not armed for a failed row, so there is no
+    // upcoming rotation left to promise.
+    if (rotationFailed) {
+      return (
+        <InfoBanner color="yellow" icon="warning">
+          <>
+            Couldn&apos;t rotate password. The password above still works.
+            {rotationError && (
+              <div className={`${baseClass}__rotation-error`}>
+                {rotationError}
+              </div>
+            )}
+          </>
+        </InfoBanner>
+      );
+    }
+    if (autoRotateAt) {
+      return (
+        <InfoBanner color="yellow">
+          Password rotates automatically after{" "}
+          {monthDayTimeFormat(autoRotateAt)}.
+        </InfoBanner>
+      );
+    }
+    return null;
+  };
+
   return (
     <Modal title="Managed account" onExit={onCancel} className={baseClass}>
       {isLoading && <Spinner />}
@@ -98,18 +144,7 @@ const ManagedAccountModal = ({
               value={managedAccountData?.password ?? ""}
               name="Password"
             />
-            {showPendingRotationBanner ? (
-              <InfoBanner color="yellow">
-                Password will rotate once the host acknowledges the request.
-              </InfoBanner>
-            ) : (
-              autoRotateAt && (
-                <InfoBanner color="yellow">
-                  Password rotates automatically after{" "}
-                  {monthDayTimeFormat(autoRotateAt)}.
-                </InfoBanner>
-              )
-            )}
+            {renderRotationBanner()}
             <div className="modal-cta-wrap">
               <Button onClick={onCancel}>Close</Button>
               {canRotatePassword && (
