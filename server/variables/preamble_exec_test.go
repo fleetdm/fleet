@@ -143,3 +143,83 @@ func TestSubstitutingValuesIntoTheBodyExecutesThem(t *testing.T) {
 	got, _ := os.ReadFile(out)
 	require.Equal(t, "Eng", string(got))
 }
+
+// Nothing but a backslash, "U" and hex digits reaches the source, so a value can
+// neither close a string literal nor, outside one, parse at all.
+func TestPythonEscapeNeverExecutesValues(t *testing.T) {
+	python, err := exec.LookPath("python3")
+	if err != nil {
+		t.Skip("python3 not installed")
+	}
+
+	// where a $FLEET_VAR_* token can sit; OUT is the round-trip target
+	inString := map[string]string{
+		"double-quoted": `open("OUT","w").write("TOKEN")`,
+		"single-quoted": `open("OUT","w").write('TOKEN')`,
+		"triple-quoted": `open("OUT","w").write("""TOKEN""")`,
+		"f-string":      `open("OUT","w").write(f"TOKEN")`,
+		"adjacent":      `open("OUT","w").write("TOKEN"[0:0] + "TOKEN")`,
+	}
+
+	// the shared corpus carries shell payloads; these are executable Python
+	values := payloadCorpus()
+	values["py-break-double"] = "X\")\nimport os\nos.system(\"touch <marker>\")\nprint(\""
+	values["py-break-single"] = "X')\nimport os\nos.system('touch <marker>')\nprint('"
+	values["py-break-triple"] = "X\"\"\")\nimport os\nos.system(\"touch <marker>\")\nprint(\"\"\""
+	values["py-fstring-expr"] = "{__import__('os').system('touch <marker>')}"
+
+	for name, value := range values {
+		t.Run(name, func(t *testing.T) {
+			for shape, body := range inString {
+				dir := t.TempDir()
+				marker := filepath.Join(dir, "MARKER")
+				out := filepath.Join(dir, "out")
+				value := strings.ReplaceAll(value, "<marker>", marker)
+
+				src := "#!/usr/bin/env python3\n" + strings.NewReplacer(
+					"OUT", out,
+					"TOKEN", PythonEscape(value),
+				).Replace(body) + "\n"
+
+				script := filepath.Join(dir, "s.py")
+				require.NoError(t, os.WriteFile(script, []byte(src), 0o600))
+				_ = exec.Command(python, script).Run()
+
+				require.NoFileExists(t, marker, "value executed: shape=%s", shape)
+				got, err := os.ReadFile(out)
+				require.NoError(t, err, "shape=%s", shape)
+				require.Equal(t, value, string(got), "value did not round-trip: shape=%s", shape)
+			}
+		})
+	}
+
+	t.Run("bare code fails to parse", func(t *testing.T) {
+		dir := t.TempDir()
+		marker := filepath.Join(dir, "MARKER")
+		script := filepath.Join(dir, "s.py")
+		payload := `__import__(chr(111)+chr(115)).system("touch ` + marker + `")`
+		src := "#!/usr/bin/env python3\nx = " + PythonEscape(payload) + "\n"
+		require.NoError(t, os.WriteFile(script, []byte(src), 0o600))
+
+		require.Error(t, exec.Command(python, script).Run())
+		require.NoFileExists(t, marker)
+	})
+}
+
+// Keeps the test above honest: substituting a value into Python source executes it.
+func TestSubstitutingIntoPythonExecutesValues(t *testing.T) {
+	python, err := exec.LookPath("python3")
+	if err != nil {
+		t.Skip("python3 not installed")
+	}
+	dir := t.TempDir()
+	marker := filepath.Join(dir, "MARKER")
+	script := filepath.Join(dir, "s.py")
+
+	payload := "X\")\nimport os\nos.system(\"touch " + marker + "\")\nprint(\""
+	src := "#!/usr/bin/env python3\n" + Replace(`print("v: $FLEET_VAR_HOST_UUID")`, "HOST_UUID", payload) + "\n"
+	require.NoError(t, os.WriteFile(script, []byte(src), 0o600))
+	_ = exec.Command(python, script).Run()
+
+	require.FileExists(t, marker)
+}

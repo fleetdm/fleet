@@ -104,6 +104,26 @@ func Replace(contents string, variableName string, value string) string {
 	return result
 }
 
+// PythonEscape returns value as Python \U escapes, one per code point, for
+// substitution into Python source, which has no $VAR expansion of its own. Only
+// a backslash, "U" and hex digits reach the script, so the value can't close a
+// string literal, and outside one the leading backslash is a line continuation
+// so the file won't parse. Escaping every character rather than just the
+// dangerous ones is what buys that second property: executable Python needs no
+// quotes at all.
+func PythonEscape(value string) string {
+	const hexDigits = "0123456789abcdef"
+	var b strings.Builder
+	b.Grow(len(value) * 10)
+	for _, r := range value {
+		b.WriteString(`\U`)
+		for shift := 28; shift >= 0; shift -= 4 {
+			b.WriteByte(hexDigits[(r>>shift)&0xf])
+		}
+	}
+	return b.String()
+}
+
 // Contains checks if the given content contains any Fleet variables.
 func Contains(contents string) bool {
 	return fleetVariableRegex.MatchString(contents)

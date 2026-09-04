@@ -14,6 +14,8 @@ type Dialect int
 const (
 	DialectPOSIX Dialect = iota
 	DialectPowerShell
+	// DialectPython takes no preamble; see PythonEscape.
+	DialectPython
 )
 
 // ErrPowerShellLeadingParamBlock reports that a preamble can't be placed around

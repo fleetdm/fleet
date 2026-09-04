@@ -15,19 +15,18 @@ import (
 )
 
 const (
-	pythonFleetVarsMsg      = "Fleet couldn't run this script because Fleet variables aren't supported in Python scripts. Use a shell script, or remove the variable."
 	powerShellParamBlockMsg = "Fleet couldn't run this script because Fleet variables aren't supported inside a PowerShell param() block. Use the variable in the script body instead."
 	unsupportedInterpMsg    = "Fleet couldn't run this script because its interpreter isn't supported."
 	noPlatformMsg           = "There is no platform for this host. Fleet couldn't populate Fleet variables."
 )
 
 // maybeExpandScriptFleetVariables resolves supported $FLEET_VAR_* references in
-// contents for the given host. Values are defined in a preamble and the body
-// keeps its tokens, so a value is never parsed as script source. It returns the
-// expanded contents, or a non-empty failureMessage when a variable can't be
-// resolved for this host (one line per failing variable). Unsupported variable
-// names are left untouched: validation rejects them in new content, and content
-// saved before validation shipped must keep working unchanged.
+// contents for the given host. Values are defined in a preamble, or escaped and
+// substituted for Python, so a value is never parsed as script source. It
+// returns the expanded contents, or a non-empty failureMessage when a variable
+// can't be resolved for this host (one line per failing variable). Unsupported
+// variable names are left untouched: validation rejects them in new content, and
+// content saved before validation shipped must keep working unchanged.
 func (svc *Service) maybeExpandScriptFleetVariables(ctx context.Context, host *fleet.Host, contents string) (expanded string, failureMessage string, err error) {
 	fleetVars := variables.Find(contents)
 	if len(fleetVars) == 0 {
@@ -112,6 +111,13 @@ func (svc *Service) maybeExpandScriptFleetVariables(ctx context.Context, host *f
 		return contents, "", nil
 	}
 
+	if dialect == variables.DialectPython {
+		for name, value := range resolved {
+			contents = variables.Replace(contents, name, variables.PythonEscape(value))
+		}
+		return contents, "", nil
+	}
+
 	expanded, err = variables.InsertPreamble(contents, variables.Preamble(resolved, dialect), dialect)
 	switch {
 	case errors.Is(err, variables.ErrPowerShellLeadingParamBlock):
@@ -138,8 +144,7 @@ func scriptFleetVarDialect(host *fleet.Host, contents string) (variables.Dialect
 	case err != nil:
 		return 0, unsupportedInterpMsg
 	case kind == fleet.ShebangPython:
-		// Python has no $VAR expansion, and no splice into it is context-free
-		return 0, pythonFleetVarsMsg
+		return variables.DialectPython, ""
 	}
 	return variables.DialectPOSIX, ""
 }

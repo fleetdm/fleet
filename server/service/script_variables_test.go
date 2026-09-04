@@ -193,7 +193,7 @@ func TestMaybeExpandScriptFleetVariables(t *testing.T) {
 		require.Equal(t, powerShellParamBlockMsg, failMsg)
 	})
 
-	t.Run("python scripts fail instead of running unexpanded", func(t *testing.T) {
+	t.Run("python scripts get escaped values", func(t *testing.T) {
 		svc, ctx, _ := newSvcAndCtx(fleet.TierPremium)
 		for _, shebang := range []string{
 			"#!/usr/bin/env python3", "#!/usr/bin/python3", "#!/opt/homebrew/bin/python3.12",
@@ -201,9 +201,24 @@ func TestMaybeExpandScriptFleetVariables(t *testing.T) {
 			expanded, failMsg, err := svc.maybeExpandScriptFleetVariables(ctx, host,
 				shebang+"\nprint(\"uuid: $FLEET_VAR_HOST_UUID\")\n")
 			require.NoError(t, err)
-			require.Empty(t, expanded)
-			require.Equal(t, pythonFleetVarsMsg, failMsg)
+			require.Empty(t, failMsg)
+			require.Equal(t, shebang+"\nprint(\"uuid: "+variables.PythonEscape("ABC-123")+"\")\n", expanded)
+			require.NotContains(t, expanded, "ABC-123")
 		}
+	})
+
+	t.Run("python values carrying source stay literal", func(t *testing.T) {
+		svc, ctx, ds := newSvcAndCtx(fleet.TierPremium)
+		payload := "X\")\nimport os\nos.system(\"touch /tmp/pwned\")\nprint(\""
+		u := *scimUser
+		u.Department = &payload
+		mockScimUser(ds, &u)
+		expanded, failMsg, err := svc.maybeExpandScriptFleetVariables(ctx, host,
+			"#!/usr/bin/env python3\nprint(\"$FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT\")\n")
+		require.NoError(t, err)
+		require.Empty(t, failMsg)
+		require.NotContains(t, expanded, "os.system")
+		require.Contains(t, expanded, variables.PythonEscape(payload))
 	})
 
 	t.Run("python scripts without variables are unchanged", func(t *testing.T) {
