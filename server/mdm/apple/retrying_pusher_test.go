@@ -12,6 +12,7 @@ import (
 
 	nanomdm_push "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push/nanopush"
+	nanomdm_pushsvc "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push/service"
 	"github.com/stretchr/testify/require"
 )
 
@@ -145,17 +146,32 @@ func TestRetryingPusherScheduling(t *testing.T) {
 		}
 	})
 
-	t.Run("duplicate failures collapse onto the existing entry", func(t *testing.T) {
+	t.Run("a fresh failure restarts a backed-off entry's ladder", func(t *testing.T) {
 		inner := &fakeInnerPusher{res: map[string]*nanomdm_push.Response{"e1": {Err: transientErr()}}}
 		p, now := newTestRetryingPusher(inner)
 		_, _ = p.Push(ctx, []string{"e1"})
-		// simulate one failed background retry: the entry is now at attempt 2
+		firstAttemptAt := p.pending["e1"].nextAttempt
+
+		// at the first step, a duplicate failure collapses without rescheduling
+		_, _ = p.Push(ctx, []string{"e1"})
+		require.Equal(t, 1, p.pending["e1"].attempt)
+		require.Equal(t, firstAttemptAt, p.pending["e1"].nextAttempt)
+
+		// after a failed background retry escalates the entry, a fresh
+		// enqueue-time failure restarts the ladder
 		*now = now.Add(time.Minute)
 		p.flushDue(ctx)
 		require.Equal(t, 2, p.pending["e1"].attempt)
-		// a fresh enqueue-time failure must not reset the backoff position
 		_, _ = p.Push(ctx, []string{"e1"})
-		require.Equal(t, 2, p.pending["e1"].attempt)
+		require.Equal(t, 1, p.pending["e1"].attempt)
+		requireWithinJitter(t, *now, 30*time.Second, p.pending["e1"].nextAttempt)
+	})
+
+	t.Run("enrollments without push info are never scheduled", func(t *testing.T) {
+		inner := &fakeInnerPusher{res: map[string]*nanomdm_push.Response{"e1": {Err: nanomdm_pushsvc.ErrIdNotFound}}}
+		p, _ := newTestRetryingPusher(inner)
+		_, _ = p.Push(ctx, []string{"e1"})
+		require.Empty(t, p.pending)
 	})
 
 	t.Run("an observed success clears a pending retry", func(t *testing.T) {
@@ -229,6 +245,16 @@ func TestRetryingPusherFlush(t *testing.T) {
 		_, _ = p.Push(ctx, []string{"e1"})
 		p.flushDue(ctx) // now == schedule time, backoff not elapsed
 		require.Equal(t, 1, inner.callCount())
+	})
+
+	t.Run("a retry that finds the enrollment gone drops the entry", func(t *testing.T) {
+		inner := &fakeInnerPusher{res: map[string]*nanomdm_push.Response{"e1": {Err: transientErr()}}}
+		p, now := newTestRetryingPusher(inner)
+		_, _ = p.Push(ctx, []string{"e1"})
+		inner.res = map[string]*nanomdm_push.Response{"e1": {Err: nanomdm_pushsvc.ErrIdNotFound}}
+		*now = now.Add(time.Minute)
+		p.flushDue(ctx)
+		require.Empty(t, p.pending)
 	})
 
 	t.Run("call-level failure keeps entries due without escalating", func(t *testing.T) {

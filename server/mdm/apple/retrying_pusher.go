@@ -2,12 +2,14 @@ package apple_mdm
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	mathrand "math/rand/v2"
 	"sync"
 	"time"
 
 	nanomdm_push "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
+	nanomdm_pushsvc "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push/service"
 )
 
 const (
@@ -117,7 +119,7 @@ func (p *RetryingPusher) Push(ctx context.Context, ids []string) (map[string]*na
 		case r.Err == nil:
 			// an observed success supersedes any pending retry
 			delete(p.pending, id)
-		case isPermanentAPNSRejection(r.Err):
+		case !retryablePushErr(r.Err):
 			// never retried; a pending entry is now known-hopeless too
 			delete(p.pending, id)
 		default:
@@ -185,9 +187,9 @@ func (p *RetryingPusher) flushDue(ctx context.Context) {
 		switch {
 		case r == nil || r.Err == nil:
 			delete(p.pending, id)
-		case isPermanentAPNSRejection(r.Err):
-			p.logger.InfoContext(ctx, "dropping APNs retry, rejection is permanent",
-				"enrollment_id", id, "reason", APNSReason(r.Err))
+		case !retryablePushErr(r.Err):
+			p.logger.InfoContext(ctx, "dropping APNs retry, failure is not retryable",
+				"enrollment_id", id, "reason", APNSReason(r.Err), "err", r.Err)
 			delete(p.pending, id)
 		case e.attempt >= len(retryBackoffs):
 			p.logger.InfoContext(ctx, "giving up on APNs retry, the sweep covers it",
@@ -217,10 +219,17 @@ func (p *RetryingPusher) noteCallResultLocked(ctx context.Context, now time.Time
 }
 
 // scheduleRetryLocked adds id to the pending set at the first backoff step.
-// Duplicates collapse: an already-pending entry keeps its backoff position.
+// Duplicates collapse onto one entry; a fresh enqueue-time failure restarts
+// an entry that had already backed off past the first step, so a device
+// failing right now isn't stuck waiting out an inherited 30m backoff.
 // Requires p.mu held.
 func (p *RetryingPusher) scheduleRetryLocked(ctx context.Context, id string, now time.Time) {
-	if _, ok := p.pending[id]; ok {
+	if e, ok := p.pending[id]; ok {
+		if e.attempt > 1 {
+			e.attempt = 1
+			e.nextAttempt = now.Add(jitteredBackoff(retryBackoffs[0]))
+			e.queuedAt = now
+		}
 		return
 	}
 	if len(p.pending) >= retryPendingCap {
@@ -240,6 +249,14 @@ func (p *RetryingPusher) scheduleRetryLocked(ctx context.Context, id string, now
 		nextAttempt: now.Add(jitteredBackoff(retryBackoffs[0])),
 		queuedAt:    now,
 	}
+}
+
+// retryablePushErr reports whether a per-device push error is worth
+// retrying: transient APNs and transport failures are; permanent APNs
+// rejections and enrollments the push service has no push info for
+// (deleted or unknown) are not.
+func retryablePushErr(err error) bool {
+	return !isPermanentAPNSRejection(err) && !errors.Is(err, nanomdm_pushsvc.ErrIdNotFound)
 }
 
 // jitteredBackoff spreads d by ±20% so a burst of failures doesn't retry in
