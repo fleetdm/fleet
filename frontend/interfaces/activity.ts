@@ -217,6 +217,8 @@ export enum ActivityType {
   EditedCustomHostVital = "edited_custom_host_vital",
   DeletedCustomHostVital = "deleted_custom_host_vital",
   ReleasedDeviceFromAB = "released_from_ab",
+  EnabledOnlyAppleBusinessEnrollment = "enabled_apple_business_only_enrollment",
+  DisabledOnlyAppleBusinessEnrollment = "disabled_apple_business_only_enrollment",
 }
 
 /** This is a subset of ActivityType that are shown only for the host past activities */
@@ -656,4 +658,8 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   [ActivityType.EditedCustomHostVital]: "Edited custom host vital",
   [ActivityType.DeletedCustomHostVital]: "Deleted custom host vital",
   [ActivityType.ReleasedDeviceFromAB]: "Released host from Apple Business",
+  [ActivityType.EnabledOnlyAppleBusinessEnrollment]:
+    "Enabled Apple Business only enrollment",
+  [ActivityType.DisabledOnlyAppleBusinessEnrollment]:
+    "Disabled Apple Business only enrollment",
 };

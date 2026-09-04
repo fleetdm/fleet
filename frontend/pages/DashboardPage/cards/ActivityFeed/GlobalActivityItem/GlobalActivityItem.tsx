@@ -2357,6 +2357,12 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
+  enabledOnlyAppleBusinessEnrollment: () => {
+    return <>enabled Apple Business only enrollment for Apple hosts.</>;
+  },
+  disabledOnlyAppleBusinessEnrollment: () => {
+    return <>disabled Apple Business only enrollment for Apple hosts.</>;
+  },
 };
 
 const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
@@ -2891,6 +2897,12 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     }
     case ActivityType.ReleasedDeviceFromAB: {
       return TAGGED_TEMPLATES.releasedDeviceFromAB(activity);
+    }
+    case ActivityType.EnabledOnlyAppleBusinessEnrollment: {
+      return TAGGED_TEMPLATES.enabledOnlyAppleBusinessEnrollment();
+    }
+    case ActivityType.DisabledOnlyAppleBusinessEnrollment: {
+      return TAGGED_TEMPLATES.disabledOnlyAppleBusinessEnrollment();
     }
     default: {
       return TAGGED_TEMPLATES.defaultActivityTemplate(activity);
