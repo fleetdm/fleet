@@ -35,11 +35,21 @@ type MicrosoftGraphCredentialMetadata struct {
 
 // MicrosoftGraphCredential is the Entra app-registration credential Fleet authenticates with when calling Microsoft
 // Graph: the metadata plus the secret.
+// The shared fields are spelled out rather than embedding MicrosoftGraphCredentialMetadata. Embedding would turn every
+// existing flattened literal of this type into a promoted-field literal, which needs Go 1.27; this branch builds on
+// 1.26. Keep the two field lists in step.
 type MicrosoftGraphCredential struct {
-	MicrosoftGraphCredentialMetadata
-
+	TenantID string `json:"tenant_id" db:"tenant_id"`
+	ClientID string `json:"client_id" db:"client_id"`
 	// ClientSecret is write-only. Omitting it on a write means "keep the stored secret".
 	ClientSecret string `json:"client_secret,omitempty" db:"-"`
+
+	// CredentialInvalid is set by the sync when the credential fails to authenticate or is denied, and cleared on the
+	// next successful sync.
+	CredentialInvalid bool `json:"credential_invalid" db:"credential_invalid"`
+	// LastSyncedAt and LastSyncError report the outcome of the most recent sync for this tenant.
+	LastSyncedAt  *time.Time `json:"last_synced_at" db:"last_synced_at"`
+	LastSyncError *string    `json:"last_sync_error" db:"last_sync_error"`
 }
 
 func (c MicrosoftGraphCredential) AuthzType() string {

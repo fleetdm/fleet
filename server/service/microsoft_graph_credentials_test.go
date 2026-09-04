@@ -120,7 +120,13 @@ func setupGraphCredsTest(t *testing.T, tier string, privateKey string, verifyErr
 	ds.ListMicrosoftGraphCredentialMetadataFunc = func(ctx context.Context) ([]*fleet.MicrosoftGraphCredentialMetadata, error) {
 		out := make([]*fleet.MicrosoftGraphCredentialMetadata, 0, len(env.stored))
 		for _, c := range env.stored {
-			out = append(out, &c.MicrosoftGraphCredentialMetadata)
+			out = append(out, &fleet.MicrosoftGraphCredentialMetadata{
+				TenantID:          c.TenantID,
+				ClientID:          c.ClientID,
+				CredentialInvalid: c.CredentialInvalid,
+				LastSyncedAt:      c.LastSyncedAt,
+				LastSyncError:     c.LastSyncError,
+			})
 		}
 		return out, nil
 	}
@@ -397,8 +403,8 @@ func TestMicrosoftGraphCredentialsAuth(t *testing.T) {
 		{"global gitops", &fleet.User{GlobalRole: new(fleet.RoleGitOps)}, false},
 		{"global maintainer", &fleet.User{GlobalRole: new(fleet.RoleMaintainer)}, true},
 		{"global observer", &fleet.User{GlobalRole: new(fleet.RoleObserver)}, true},
-		{"team admin", &fleet.User{Teams: []fleet.UserTeam{{ID: 1, Role: fleet.RoleAdmin}}}, true},
-		{"team observer", &fleet.User{Teams: []fleet.UserTeam{{ID: 1, Role: fleet.RoleObserver}}}, true},
+		{"team admin", &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleAdmin}}}, true},
+		{"team observer", &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserver}}}, true},
 		{"no user", nil, true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

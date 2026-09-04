@@ -9392,7 +9392,13 @@ func TestGitOpsMicrosoftGraphCredentials(t *testing.T) {
 	ds.ListMicrosoftGraphCredentialMetadataFunc = func(ctx context.Context) ([]*fleet.MicrosoftGraphCredentialMetadata, error) {
 		out := make([]*fleet.MicrosoftGraphCredentialMetadata, 0, len(stored))
 		for _, c := range stored {
-			out = append(out, &c.MicrosoftGraphCredentialMetadata)
+			out = append(out, &fleet.MicrosoftGraphCredentialMetadata{
+				TenantID:          c.TenantID,
+				ClientID:          c.ClientID,
+				CredentialInvalid: c.CredentialInvalid,
+				LastSyncedAt:      c.LastSyncedAt,
+				LastSyncError:     c.LastSyncError,
+			})
 		}
 		return out, nil
 	}
