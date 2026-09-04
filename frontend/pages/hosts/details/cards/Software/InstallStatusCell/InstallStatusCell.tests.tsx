@@ -374,6 +374,40 @@ describe("InstallStatusCell - component", () => {
     });
   });
 
+  it("renders 'Patch skipped' status with tooltip and is not clickable", async () => {
+    const { user } = renderWithSetup(
+      <InstallStatusCell
+        software={{
+          ...createMockHostSoftware({
+            status: "failed_install",
+            skipped_install: true,
+            software_package: testSoftwarePackage,
+          }),
+          ui_status: "skipped_install",
+        }}
+        onShowUpdateDetails={noop}
+        onShowInstallDetails={noop}
+        onShowIpaInstallDetails={noop}
+        onShowScriptDetails={noop}
+        onShowUninstallDetails={noop}
+        onShowVPPInstallDetails={noop}
+      />
+    );
+
+    expect(screen.getByText("Patch skipped")).toBeInTheDocument();
+    expect(screen.getByTestId("error-outline-icon")).toBeInTheDocument();
+
+    await user.hover(screen.getByText("Patch skipped"));
+    await waitFor(() => {
+      expect(screen.getByText(/The app was open/i)).toBeInTheDocument();
+    });
+
+    // A skip is deferred, not a completed action, so nothing to open.
+    expect(
+      screen.queryByRole("button", { name: /patch skipped/i })
+    ).not.toBeInTheDocument();
+  });
+
   it("renders 'Failed' for a script-only package that failed to run", async () => {
     const { user } = renderWithSetup(
       <InstallStatusCell

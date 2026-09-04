@@ -20,6 +20,7 @@ import Spinner from "components/Spinner";
 import TooltipWrapper from "components/TooltipWrapper";
 import Button from "components/buttons/Button";
 import { ISWUninstallDetailsParentState } from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
+import { SKIPPED_INSTALL_DETAILS } from "components/ActivityDetails/InstallDetails/constants";
 import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
 import {
   getLastInstall,
@@ -209,6 +210,12 @@ export const INSTALL_STATUS_DISPLAY_OPTIONS: Record<
     iconName: "error",
     displayText: "Failed",
     tooltip: failedInstallTooltip,
+  },
+  skipped_install: {
+    iconName: "error-outline",
+    iconColor: "ui-fleet-black-50",
+    displayText: "Patch skipped",
+    tooltip: () => SKIPPED_INSTALL_DETAILS,
   },
   failed_uninstall: {
     iconName: "error",
@@ -572,6 +579,7 @@ const InstallStatusCell = ({
         className={`${baseClass}__tooltip-wrapper`}
         disableTooltip={!tooltipContent}
         tipOffset={8}
+        fixedPositionStrategy
       >
         {(isSelfService || isHostOnline) &&
         displayConfig.iconName === "pending-outline" ? (

@@ -1448,6 +1448,26 @@ func TestSaveHostSoftwareInstallResultAppOpenSkip(t *testing.T) {
 		require.True(t, ok, "an installed_software activity should have been emitted")
 		require.Equal(t, string(fleet.SoftwareInstallFailed), act.Status)
 		require.True(t, act.SkippedInstall, "activity should be flagged as an app-open skip")
+
+		// The host software list must surface the skip so the UI can render "Patch
+		// skipped" instead of "Failed" for the row (issue #52297).
+		host.TeamID = &team.ID
+		sw, _, err := ds.ListHostSoftware(ctx, host, fleet.HostSoftwareTitleListOptions{
+			ListOptions:                fleet.ListOptions{PerPage: 100, OrderKey: "name"},
+			IncludeAvailableForInstall: true,
+		})
+		require.NoError(t, err)
+		var found *fleet.HostSoftwareWithInstaller
+		for _, s := range sw {
+			if s.ID == titleID {
+				found = s
+				break
+			}
+		}
+		require.NotNil(t, found, "the skipped install's title must appear in the host software list")
+		require.NotNil(t, found.Status)
+		require.Equal(t, fleet.SoftwareInstallFailed, *found.Status)
+		require.True(t, found.SkippedInstall, "response must flag the row as a patch-when-closed skip")
 	})
 
 	t.Run("regression: ordinary empty pre_install_query fails, counts, and retries", func(t *testing.T) {
