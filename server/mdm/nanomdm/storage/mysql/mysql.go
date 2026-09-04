@@ -235,11 +235,30 @@ func (s *MySQLStorage) StoreTokenUpdate(r *mdm.Request, msg *mdm.TokenUpdate) er
 	if err != nil {
 		return err
 	}
+
+	tx, err := s.db.BeginTx(r.Context, nil)
+	if err != nil {
+		return err
+	}
+	if err := s.storeEnrollment(r, tx, msg, deviceId, userId); err != nil {
+		if rbErr := tx.Rollback(); rbErr != nil {
+			return fmt.Errorf("rollback error: %w; while trying to handle error: %v", rbErr, err)
+		}
+		return err
+	}
+	return tx.Commit()
+}
+
+// storeEnrollment upserts the enrollment and its seen time in one transaction: token_update_tally
+// gates first-enrollment work, so a committed tally bump followed by a failed seen-time write would
+// let the device's retry over-count it. The seen time is written here, synchronously, rather than
+// through the async batch because a freshly enrolled host must report a check-in time right away.
+func (s *MySQLStorage) storeEnrollment(r *mdm.Request, tx *sql.Tx, msg *mdm.TokenUpdate, deviceId, userId string) error {
 	var certSerial int64
 	if r.Certificate != nil {
 		certSerial = r.Certificate.SerialNumber.Int64()
 	}
-	_, err = s.db.ExecContext(
+	_, err := tx.ExecContext(
 		r.Context, `
 INSERT INTO nano_enrollments
 	(id, device_id, user_id, type, topic, push_magic, token_hex, token_update_tally, hardware_attested)
@@ -269,9 +288,7 @@ UPDATE
 	if err != nil {
 		return err
 	}
-	// Written synchronously rather than through the async batch: TokenUpdate completes the enrollment,
-	// and a freshly enrolled host must report a check-in time right away, not after the next flush.
-	return s.upsertSeenTime(r.Context, r.ID)
+	return upsertSeenTime(r.Context, tx, r.ID)
 }
 
 func (s *MySQLStorage) RetrieveTokenUpdateTally(ctx context.Context, id string) (int, error) {
@@ -399,12 +416,17 @@ func (s *MySQLStorage) updateLastSeen(r *mdm.Request) error {
 		s.asyncLastSeen.markHostSeen(r.Context, r.ID)
 		return nil
 	}
-	return s.upsertSeenTime(r.Context, r.ID)
+	return upsertSeenTime(r.Context, s.db, r.ID)
 }
 
-func (s *MySQLStorage) upsertSeenTime(ctx context.Context, id string) error {
+// execer is the subset of *sql.DB and *sql.Tx needed to run a single statement.
+type execer interface {
+	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
+}
+
+func upsertSeenTime(ctx context.Context, db execer, id string) error {
 	stmt, args := seenTimesUpsert([]string{id})
-	if _, err := s.db.ExecContext(ctx, stmt, args...); err != nil {
+	if _, err := db.ExecContext(ctx, stmt, args...); err != nil {
 		return fmt.Errorf("updating last seen: %w", err)
 	}
 	return nil
