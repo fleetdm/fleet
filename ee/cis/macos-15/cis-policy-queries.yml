@@ -2571,7 +2571,12 @@ spec:
         AND NOT (f.path = '/Library/AppStore' OR f.path LIKE '/Library/AppStore/%')
         AND f.type = 'directory'
         AND (CAST(SUBSTR(f.mode,-1) AS INTEGER) & 2) = 2
-        AND NOT ((CAST(f.mode AS INTEGER) & 01000) = 01000)
+        -- Exclude sticky-bit dirs. osquery reports mode as a 4-char
+        -- octal string like "1777" (sticky) or "0755". The first digit
+        -- encodes setuid(4)/setgid(2)/sticky(1). SQLite has no native
+        -- octal literals, so we compare the first char's integer value
+        -- to the possible sticky combinations (1, 3, 5, 7).
+        AND CAST(SUBSTR(f.mode, 1, 1) AS INTEGER) NOT IN (1, 3, 5, 7)
         AND NOT EXISTS (
           SELECT 1 FROM extended_attributes ea
           WHERE ea.path = f.path
@@ -2785,6 +2790,8 @@ spec:
     Note: The fleetd `apfs_volumes` table does not distinguish internal from external disks, so
     this query evaluates all non-role APFS volumes. External APFS/HFS+ volumes (CIS 5.3.2) are
     not separately covered — see the README limitations.
+    Apple's sealed, read-only asset cryptex volumes (names ending in "Cryptex") have no role and
+    cannot be encrypted, so they are excluded.
   resolution: |
     Manual method:
     Use Disk Utility to erase a user disk and format as APFS (Encrypted).
@@ -2798,6 +2805,10 @@ spec:
         role != "Preboot" AND
         role != "xART" AND
         role != "Hardware" AND
+        -- Apple ships sealed, read-only asset cryptex volumes (Siri models,
+        -- PKI trust store) with no role and no encryption. They are not
+        -- user storage and cannot be encrypted, so they must not count.
+        NOT (role = '' AND name LIKE '%Cryptex') AND
         filevault != 1
     );
   purpose: Informational
