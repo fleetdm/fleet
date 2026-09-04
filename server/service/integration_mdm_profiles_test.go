@@ -6894,8 +6894,9 @@ func (s *integrationMDMTestSuite) TestOTAProfile() {
 		require.NoError(t, err)
 
 		idpUUID := uuid.New()
+		sessionID := s.mustBYODIdPSession(t, idpUUID.String())
 		resp := s.DoRawWithHeaders("GET", "/api/latest/fleet/enrollment_profiles/ota", j, http.StatusOK, map[string]string{
-			"Cookie": fmt.Sprintf("%s=%s", shared_mdm.BYODIdpCookieName, s.mustBYODIdPSession(t, idpUUID.String())),
+			"Cookie": fmt.Sprintf("%s=%s", shared_mdm.BYODIdpCookieName, sessionID),
 		}, "enroll_secret", globalEnrollSec)
 
 		require.NotZero(t, resp.ContentLength)
@@ -6907,7 +6908,8 @@ func (s *integrationMDMTestSuite) TestOTAProfile() {
 		require.NoError(t, err)
 		require.Equal(t, resp.ContentLength, int64(len(b)))
 		require.Contains(t, string(b), "com.fleetdm.fleet.mdm.apple.ota")
-		require.Contains(t, string(b), fmt.Sprintf("%s/api/v1/fleet/ota_enrollment?enroll_secret=%s&amp;idp_uuid=%s", cfg.ServerSettings.ServerURL, escSec, idpUUID.String()))
+		require.Contains(t, string(b), fmt.Sprintf("%s/api/v1/fleet/ota_enrollment?enroll_secret=%s&amp;idp_session=%s", cfg.ServerSettings.ServerURL, escSec, url.QueryEscape(sessionID)))
+		require.NotContains(t, string(b), idpUUID.String())
 
 		// the raw account reference is not a session, so the profile carries no account
 		resp = s.DoRawWithHeaders("GET", "/api/latest/fleet/enrollment_profiles/ota", j, http.StatusOK, map[string]string{
@@ -6931,7 +6933,7 @@ func (s *integrationMDMTestSuite) TestOTAProfile() {
 		require.Equal(t, resp.ContentLength, int64(len(b)))
 		require.Contains(t, string(b), "com.fleetdm.fleet.mdm.apple.ota")
 		require.Contains(t, string(b), fmt.Sprintf("%s/api/v1/fleet/ota_enrollment?enroll_secret=%s", cfg.ServerSettings.ServerURL, escSec))
-		require.NotContains(t, string(b), "idp_uuid=")
+		require.NotContains(t, string(b), "idp_session=")
 		require.Contains(t, string(b), cfg.OrgInfo.OrgName)
 	})
 

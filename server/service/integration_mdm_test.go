@@ -17085,7 +17085,7 @@ func (s *integrationMDMTestSuite) TestOTAEnrollment() {
 			require.Equal(t, specResp.TeamIDsByName["newteam"], *hostByIdentifierResp.Host.TeamID)
 		})
 
-		t.Run("ota enrollment if idp_uuid is not set does not associate host with idp account", func(t *testing.T) {
+		t.Run("ota enrollment without an idp session does not associate host with idp account", func(t *testing.T) {
 			hwModel := "MacBookPro16,1"
 			mdmDevice := mdmtest.NewTestMDMClientAppleOTA(
 				s.server.URL,
@@ -17103,7 +17103,7 @@ func (s *integrationMDMTestSuite) TestOTAEnrollment() {
 			require.Nil(t, account) // We do not fail but return nil for both if not found, and we do not expect an entry here.
 		})
 
-		t.Run("ota enrollment if idp_uuid is set associates host with idp account", func(t *testing.T) {
+		t.Run("ota enrollment with an idp session associates host with idp account", func(t *testing.T) {
 			idpEmail := "test@example.com"
 			err := s.ds.InsertMDMIdPAccount(context.Background(), &fleet.MDMIdPAccount{
 				Username: "test",
@@ -17112,13 +17112,14 @@ func (s *integrationMDMTestSuite) TestOTAEnrollment() {
 			require.NoError(t, err)
 			idpAccount, err := s.ds.GetMDMIdPAccountByEmail(context.Background(), idpEmail)
 			require.NoError(t, err)
+			sessionID := s.mustBYODIdPSession(t, idpAccount.UUID)
 
 			hwModel := "MacBookPro16,1"
 			mdmDevice := mdmtest.NewTestMDMClientAppleOTA(
 				s.server.URL,
 				globalSecret,
 				hwModel,
-				mdmtest.WithOTAIdpSession(s.mustBYODIdPSession(t, idpAccount.UUID)),
+				mdmtest.WithOTAIdpSession(sessionID),
 			)
 			enrollTime := time.Now().UTC().Truncate(time.Second)
 			require.NoError(t, mdmDevice.Enroll())
@@ -17127,6 +17128,52 @@ func (s *integrationMDMTestSuite) TestOTAEnrollment() {
 
 			resp := verifySuccessfulOTAEnrollment(mdmDevice, hwModel, "darwin", enrollTime)
 			verifySuccessfulIdpAssociation(resp.Host.UUID, idpAccount.UUID)
+
+			// the session is single-use: enrolling burned it
+			_, err = shared_mdm.ValidateBYODIdPSession(t.Context(), redis_key_value.New(s.redisPool), clock.C, sessionID)
+			require.ErrorAs(t, err, new(*fleet.AuthRequiredError))
+
+			// a second device presenting the same session enrolls without an account
+			secondDevice := mdmtest.NewTestMDMClientAppleOTA(
+				s.server.URL,
+				globalSecret,
+				hwModel,
+				mdmtest.WithOTAIdpSession(sessionID),
+			)
+			require.NoError(t, secondDevice.Enroll())
+			s.awaitRunAppleMDMWorkerSchedule()
+			resp = verifySuccessfulOTAEnrollment(secondDevice, hwModel, "darwin", enrollTime)
+			hostToIdpMap, err := s.ds.GetMDMIdPAccountsByHostUUIDs(context.Background(), []string{resp.Host.UUID})
+			require.NoError(t, err)
+			require.Nil(t, hostToIdpMap[resp.Host.UUID])
+		})
+
+		t.Run("ota enrollment with a used idp session is refused where authentication is required", func(t *testing.T) {
+			idpEmail := "used@example.com"
+			err := s.ds.InsertMDMIdPAccount(context.Background(), &fleet.MDMIdPAccount{
+				Username: "used",
+				Email:    idpEmail,
+			})
+			require.NoError(t, err)
+			idpAccount, err := s.ds.GetMDMIdPAccountByEmail(context.Background(), idpEmail)
+			require.NoError(t, err)
+			sessionID := s.mustBYODIdPSession(t, idpAccount.UUID)
+			require.NoError(t, shared_mdm.ConsumeBYODIdPSession(t.Context(), redis_key_value.New(s.redisPool), clock.C, sessionID))
+
+			var specResp applyTeamSpecsResponse
+			teamSecret := "team_secret_used_session"
+			teamSpecs := applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{Name: "team used session", Secrets: &[]fleet.EnrollSecret{{Secret: teamSecret}}, MDM: fleet.TeamSpecMDM{MacOSSetup: fleet.MacOSSetup{EnableEndUserAuthentication: true}}}}}
+			s.DoJSON("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK, &specResp)
+
+			mdmDevice := mdmtest.NewTestMDMClientAppleOTA(
+				s.server.URL,
+				teamSecret,
+				"MacBookPro16,1",
+				mdmtest.WithOTAIdpSession(sessionID),
+			)
+			err = mdmDevice.Enroll()
+			require.Error(t, err)
+			require.Contains(t, err.Error(), "403 Forbidden")
 		})
 	})
 }

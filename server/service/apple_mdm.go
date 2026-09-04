@@ -8627,7 +8627,12 @@ func (svc *Service) GetOTAProfile(ctx context.Context, enrollSecret, idpSessionI
 		)
 	}
 
-	profBytes, err := apple_mdm.GenerateOTAEnrollmentProfileMobileconfig(cfg.OrgInfo.OrgName, cfg.MDMUrl(), enrollSecret, idpUUID, personal)
+	// the device posts back to the URL in the profile, so the session travels
+	// with it rather than the account it resolved to
+	if idpUUID == "" {
+		idpSessionID = ""
+	}
+	profBytes, err := apple_mdm.GenerateOTAEnrollmentProfileMobileconfig(cfg.OrgInfo.OrgName, cfg.MDMUrl(), enrollSecret, idpSessionID, personal)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "generating ota mobileconfig file")
 	}
@@ -8641,12 +8646,12 @@ func (svc *Service) GetOTAProfile(ctx context.Context, enrollSecret, idpSessionI
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// POST /ota_enrollment?enroll_secret=xyz
+// POST /ota_enrollment?enroll_secret=xyz&idp_session=abc
 ////////////////////////////////////////////////////////////////////////////////
 
 type mdmAppleOTARequest struct {
 	EnrollSecret string `query:"enroll_secret"`
-	IdpUUID      string `query:"idp_uuid"`
+	IdpSessionID string `query:"idp_session"`
 	// Personal is set when the end user chose "Personal (BYOD)" on the /enroll page.
 	// It is propagated through the OTA mobileconfig POST-back URL by GetOTAProfile.
 	Personal     bool
@@ -8663,7 +8668,7 @@ func (mdmAppleOTARequest) DecodeRequest(ctx context.Context, r *http.Request) (i
 		}
 	}
 
-	idpUUID := r.URL.Query().Get("idp_uuid") // Can be empty.
+	idpSessionID := r.URL.Query().Get("idp_session") // Can be empty.
 
 	rawData, err := io.ReadAll(io.LimitReader(r.Body, limit10KiB))
 	if err != nil {
@@ -8701,7 +8706,7 @@ func (mdmAppleOTARequest) DecodeRequest(ctx context.Context, r *http.Request) (i
 	}
 
 	request.EnrollSecret = enrollSecret
-	request.IdpUUID = idpUUID
+	request.IdpSessionID = idpSessionID
 	request.Personal = r.URL.Query().Get("byod") == "true" || r.URL.Query().Get("byod") == "1"
 	request.Certificates = p7.Certificates
 	request.RootSigner = p7.GetOnlySigner()
@@ -8750,7 +8755,7 @@ func (r mdmAppleOTAResponse) HijackRender(ctx context.Context, w http.ResponseWr
 
 func mdmAppleOTAEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*mdmAppleOTARequest)
-	xml, err := svc.MDMAppleProcessOTAEnrollment(ctx, req.Certificates, req.RootSigner, req.EnrollSecret, req.IdpUUID, req.Personal, req.DeviceInfo)
+	xml, err := svc.MDMAppleProcessOTAEnrollment(ctx, req.Certificates, req.RootSigner, req.EnrollSecret, req.IdpSessionID, req.Personal, req.DeviceInfo)
 	if err != nil {
 		return mdmAppleGetInstallerResponse{Err: err}, nil
 	}
@@ -8763,7 +8768,7 @@ func (svc *Service) MDMAppleProcessOTAEnrollment(
 	certificates []*x509.Certificate,
 	rootSigner *x509.Certificate,
 	enrollSecret string,
-	idpUUID string,
+	idpSessionID string,
 	personal bool,
 	deviceInfo fleet.MDMAppleMachineInfo,
 ) ([]byte, error) {
@@ -8855,6 +8860,19 @@ func (svc *Service) MDMAppleProcessOTAEnrollment(
 		return nil, ctxerr.Wrap(ctx, err, "generating manual enrollment profile")
 	}
 
+	var idpUUID string
+	if idpSessionID != "" {
+		uuid, err := shared_mdm.ValidateBYODIdPSession(ctx, svc.keyValueStore, svc.clock, idpSessionID)
+		var noSession *fleet.AuthRequiredError
+		switch {
+		case errors.As(err, &noSession):
+		case err != nil:
+			return nil, ctxerr.Wrap(ctx, err, "resolving byod idp session")
+		default:
+			idpUUID = uuid
+		}
+	}
+
 	requiresIdPUUID, err := shared_mdm.RequiresEnrollOTAAuthentication(ctx, svc.ds, enrollSecret, appCfg.MDM.MacOSSetup.EnableEndUserAuthentication)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "checking requirement of ota enrollment authentication")
@@ -8887,6 +8905,13 @@ func (svc *Service) MDMAppleProcessOTAEnrollment(
 	signed, err := mdmcrypto.Sign(ctx, enrollmentProf, svc.ds)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "signing profile")
+	}
+
+	// the host is bound to the account now; the session has done its job
+	if idpUUID != "" {
+		if err := shared_mdm.ConsumeBYODIdPSession(ctx, svc.keyValueStore, svc.clock, idpSessionID); err != nil {
+			logging.WithErr(ctx, err)
+		}
 	}
 
 	softwareUpdateDeviceID := deviceInfo.Product
