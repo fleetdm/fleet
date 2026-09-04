@@ -36356,7 +36356,11 @@ func (s *integrationEnterpriseTestSuite) TestScriptFleetVariablesExecution() {
 			s.DoJSON("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: h.ID, ScriptContents: contents}, http.StatusAccepted, &runResp)
 
 			fetched := orbitFetchScript(t, h, runResp.ExecutionID)
-			require.Equal(t, fmt.Sprintf("echo serial=%s uuid=%s plat=ubuntu", h.HardwareSerial, h.UUID), fetched.ScriptContents)
+			requireVarsDelivered(t, fetched.ScriptContents, contents, map[string]string{
+				"HOST_HARDWARE_SERIAL": h.HardwareSerial,
+				"HOST_UUID":            h.UUID,
+				"HOST_PLATFORM":        "ubuntu",
+			})
 			require.Nil(t, fetched.ExitCode)
 
 			// stored contents stay unexpanded
@@ -36434,15 +36438,20 @@ func (s *integrationEnterpriseTestSuite) TestScriptFleetVariablesExecution() {
 			return err
 		})
 
+		const contents = "user=$FLEET_VAR_HOST_END_USER_IDP_USERNAME local=user_${FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART}@corp.com dept=$FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT"
 		var runResp fleet.RunScriptResponse
 		s.DoJSON("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{
 			HostID:         host2.ID,
-			ScriptContents: "user=$FLEET_VAR_HOST_END_USER_IDP_USERNAME local=user_${FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART}@corp.com dept=$FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT",
+			ScriptContents: contents,
 		}, http.StatusAccepted, &runResp)
 
 		fetched := orbitFetchScript(t, host2, runResp.ExecutionID)
 		require.Nil(t, fetched.ExitCode)
-		require.Equal(t, "user=jane.doe@example.com ($FLEET_SECRET_INJECTED) local=user_jane.doe@corp.com dept=Engineering", fetched.ScriptContents)
+		requireVarsDelivered(t, fetched.ScriptContents, contents, map[string]string{
+			"HOST_END_USER_IDP_USERNAME":            "jane.doe@example.com ($FLEET_SECRET_INJECTED)",
+			"HOST_END_USER_IDP_USERNAME_LOCAL_PART": "jane.doe",
+			"HOST_END_USER_IDP_DEPARTMENT":          "Engineering",
+		})
 	})
 
 	t.Run("sync run surfaces the resolution failure", func(t *testing.T) {

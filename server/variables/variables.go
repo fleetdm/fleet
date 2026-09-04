@@ -93,6 +93,10 @@ func Dedupe(varsWithDupes []string) []string {
 //
 // For example, Replace(content, "HOST_UUID", "123-456") will replace both
 // $FLEET_VAR_HOST_UUID and ${FLEET_VAR_HOST_UUID} with "123-456".
+//
+// It performs no escaping, and must never be used on content an interpreter will
+// execute: the quoting context at the substitution point is unknown, so no
+// escaping is correct there. Use Preamble instead.
 func Replace(contents string, variableName string, value string) string {
 	// Replace both braced and non-braced versions
 	result := strings.ReplaceAll(contents, "$FLEET_VAR_"+variableName, value)

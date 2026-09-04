@@ -1086,13 +1086,20 @@ func validateFleetVariablesOnInstallerScripts(ctx context.Context, installScript
 		if !isPremium {
 			return fleet.ErrMissingLicense
 		}
-		if v := fleet.FindUnsupportedScriptFleetVar(fleetVars); v != "" {
-			msg := fmt.Sprintf("Fleet variable $FLEET_VAR_%s is not supported in scripts.", v)
-			if argErr != nil {
-				argErr.Append(s.name, msg)
-			} else {
-				argErr = fleet.NewInvalidArgumentError(s.name, msg)
-			}
+		var msg string
+		unsupported := fleet.FindUnsupportedScriptFleetVar(fleetVars)
+		switch {
+		case unsupported != "":
+			msg = fmt.Sprintf("Fleet variable $FLEET_VAR_%s is not supported in scripts.", unsupported)
+		case fleet.ScriptFleetVarsUnsupportedByInterpreter(*s.contents):
+			msg = fleet.FleetVarsInPythonMsg
+		default:
+			continue
+		}
+		if argErr != nil {
+			argErr.Append(s.name, msg)
+		} else {
+			argErr = fleet.NewInvalidArgumentError(s.name, msg)
 		}
 	}
 	if argErr != nil {

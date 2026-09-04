@@ -56,6 +56,18 @@ func TestValidateFleetVariablesInScript(t *testing.T) {
 		}
 	})
 
+	t.Run("python scripts reject variables", func(t *testing.T) {
+		for _, shebang := range []string{
+			"#!/usr/bin/env python3", "#!/usr/bin/python3", "#!/opt/homebrew/bin/python3.12",
+		} {
+			err := ValidateFleetVariablesInScript(shebang+"\nprint(\"$FLEET_VAR_HOST_UUID\")\n", true)
+			require.ErrorContains(t, err, FleetVarsInPythonMsg, shebang)
+
+			require.NoError(t, ValidateFleetVariablesInScript(shebang+"\nprint(\"hi\")\n", true), shebang)
+		}
+		require.NoError(t, ValidateFleetVariablesInScript("#!/bin/sh\necho $FLEET_VAR_HOST_UUID\n", true))
+	})
+
 	t.Run("mixed supported and unsupported", func(t *testing.T) {
 		err := ValidateFleetVariablesInScript(
 			"echo $FLEET_VAR_HOST_UUID\necho $FLEET_VAR_NONEXISTENT", true)

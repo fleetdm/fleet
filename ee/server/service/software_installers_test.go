@@ -3334,6 +3334,17 @@ func TestValidateFleetVariablesOnInstallerScripts(t *testing.T) {
 		require.Equal(t, "uninstall script", invalid[1]["name"])
 	})
 
+	t.Run("python install script rejects variables", func(t *testing.T) {
+		// a .py package's install script is the uploaded file, so it can be python
+		py := "#!/usr/bin/env python3\nprint(\"$FLEET_VAR_HOST_UUID\")\n"
+		err := validateFleetVariablesOnInstallerScripts(premiumCtx, &py, nil, nil)
+		require.ErrorContains(t, err, "install script")
+		require.ErrorContains(t, err, fleet.FleetVarsInPythonMsg)
+
+		pyNoVars := "#!/usr/bin/env python3\nprint(\"hi\")\n"
+		require.NoError(t, validateFleetVariablesOnInstallerScripts(premiumCtx, &pyNoVars, nil, nil))
+	})
+
 	t.Run("any variable on free returns license error", func(t *testing.T) {
 		err := validateFleetVariablesOnInstallerScripts(freeCtx, &plain, nil, &good)
 		require.ErrorIs(t, err, fleet.ErrMissingLicense)
