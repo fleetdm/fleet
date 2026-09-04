@@ -6306,7 +6306,9 @@ Remotely clear the passcode on a host. Requires iOS/iPadOS host to have sent its
 
 _Available in Fleet Premium_
 
-Rotates the managed local account password for a host.
+Rotates the managed local account password for a macOS or Windows host.
+
+On macOS, Fleet generates the new password and sends it to the host in an MDM command. On Windows, Fleet asks fleetd to generate a new password, set it, and send it back, so the rotation completes on the host's next check-in.
 
 `POST /api/v1/fleet/hosts/:id/managed_account_password/rotate`
 
@@ -6326,9 +6328,9 @@ Rotates the managed local account password for a host.
 
 ### Get host's managed account password
 
-Retrieves the managed account password for a macOS host.
+Retrieves the managed account password for a macOS or Windows host.
 
-The host will only return a password if its managed account password status is "Verified".
+On macOS, a password is returned only while its managed account password status is "Verified". On Windows, a password is returned whenever one has been escrowed, including after a failed rotation: the host keeps its previous password when a rotation fails, so that password still works.
 
 `GET /api/v1/fleet/hosts/:id/managed_account_password`
 

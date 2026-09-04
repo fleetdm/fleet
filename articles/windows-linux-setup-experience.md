@@ -137,8 +137,17 @@ Wipe and re-enroll any existing Windows hosts that should receive the account. H
 ### View the managed account password
 To view the password for a host's managed account, go to Host details > Actions > Show managed account. The password is unique per host and stored securely in Fleet.
 
+### Password rotation
+To rotate a host's managed account password, go to **Host details > Actions > Show managed account** and click **Rotate password**. Fleet also rotates the password automatically about an hour after someone views it.
+
+Fleet asks fleetd to generate the new password, set it on the host, and send it back. Rotation finishes on the host's next check-in, not immediately. Fleet keeps showing the current password until the new one arrives.
+
+If the host can't set the new password, Fleet shows the reason and keeps showing the previous password. A domain password policy that rejects the new password is a common cause. The previous password still works, because the host never changed it. Use it as normal, and rotate again once the cause is resolved.
+
 ### Sign in as the managed account
-The managed account is hidden from the Windows sign-in screen. To log in as `_fleetadmin`, select **Other user** on the sign-in screen and enter the username and password manually. If the sign-in screen does not show Other user, type `.\\_fleetadmin` in the username field to authenticate against the local machine.
+The managed account is hidden from the Windows sign-in screen. To log in as `_fleetadmin`, select **Other user** on the sign-in screen and enter the username and password manually.
+
+On a host joined to Microsoft Entra ID, **Other user** asks for an email address and says "Sign in to: Your work or school account", because it is signing in to Entra rather than to the host. To sign in to the host instead, type `.\_fleetadmin` in that field. The `.\` prefix tells Windows to authenticate against the local machine.
 
 ## Recover a Windows host from the setup failure screen
 
