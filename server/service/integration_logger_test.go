@@ -197,7 +197,9 @@ func (s *integrationLoggerTestSuite) TestOsqueryEndpointsLogErrors() {
 	assert.Equal(t, "Bad request", jsn.Message)
 	assert.Len(t, jsn.Errs, 1)
 	assert.Equal(t, "base", jsn.Errs[0]["name"])
-	assert.Equal(t, "json decoder error", jsn.Errs[0]["reason"])
+	// Decode failures now name what was wrong instead of a generic message. The wording past the
+	// offending character comes from jsontext rather than encoding/json.
+	assert.Contains(t, jsn.Errs[0]["reason"], `invalid character '}'`)
 	require.NotEmpty(t, jsn.UUID)
 
 	records := s.handler.Records()
@@ -209,7 +211,7 @@ func (s *integrationLoggerTestSuite) TestOsqueryEndpointsLogErrors() {
 			foundErrRecord = true
 			assert.Equal(t, slog.LevelInfo, records[i].Level)
 			assert.Equal(t, "/api/osquery/log", attrs["path"])
-			assert.Contains(t, fmt.Sprint(attrs["internal"]), `invalid character '}' looking for beginning of value`)
+			assert.Contains(t, fmt.Sprint(attrs["internal"]), `invalid character '}'`)
 			assert.Contains(t, attrs, "took")
 			break
 		}
