@@ -3973,7 +3973,7 @@ func (ds *Datastore) CleanupExpiredHosts(ctx context.Context) ([]fleet.DeletedHo
 	// Process hosts using global expiry
 	if ac.HostExpirySettings.HostExpiryEnabled {
 		sqlQuery := findHostsSql + " AND (team_id IS NULL"
-		args := []interface{}{ac.HostExpirySettings.HostExpiryWindow}
+		args := []any{ac.HostExpirySettings.HostExpiryWindow}
 		if len(teamsUsingGlobalExpiry) > 0 {
 			sqlQuery += " OR team_id IN (?)"
 			sqlQuery, args, err = sqlx.In(sqlQuery, args[0], teamsUsingGlobalExpiry)
@@ -4002,7 +4002,7 @@ func (ds *Datastore) CleanupExpiredHosts(ctx context.Context) ([]fleet.DeletedHo
 	for teamId, expiry := range teamsUsingCustomExpiry {
 		var ids []uint
 		sqlQuery := findHostsSql + " AND team_id = ?"
-		args := []interface{}{expiry, teamId}
+		args := []any{expiry, teamId}
 		err = ds.writer(ctx).SelectContext(
 			ctx,
 			&ids,
