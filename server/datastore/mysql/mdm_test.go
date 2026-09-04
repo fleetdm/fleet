@@ -5691,8 +5691,8 @@ func testProfileHasACMEPayloadForCommand(t *testing.T, ds *Datastore) {
 				return err
 			}
 			_, err := q.ExecContext(ctx,
-				`INSERT INTO nano_enrollments (id, device_id, user_id, type, topic, push_magic, token_hex, enabled, last_seen_at)
-				 VALUES (?, ?, ?, 'User', 'topic', 'magic', 'hex', ?, NOW())`,
+				`INSERT INTO nano_enrollments (id, device_id, user_id, type, topic, push_magic, token_hex, enabled)
+				 VALUES (?, ?, ?, 'User', 'topic', 'magic', 'hex', ?)`,
 				enrollmentID, hostUUID, enrollmentID, enabled)
 			return err
 		})
