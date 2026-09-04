@@ -7306,7 +7306,7 @@ LIMIT 1`
 		case "darwin":
 			settings = ac.MDM.MacOSUpdates
 		default:
-			return "", nil, ctxerr.New(ctx, fmt.Sprintf("unsupported platform %s", dest.Platform))
+			return "", nil, ctxerr.Wrap(ctx, notFound("Host").WithName(serial), "no apple os update settings for platform "+dest.Platform)
 		}
 	} else {
 		// use the team settings
@@ -7322,7 +7322,7 @@ LIMIT 1`
 		case "darwin":
 			settings = tm.Config.MDM.MacOSUpdates
 		default:
-			return "", nil, ctxerr.New(ctx, fmt.Sprintf("unsupported platform %s", dest.Platform))
+			return "", nil, ctxerr.Wrap(ctx, notFound("Host").WithName(serial), "no apple os update settings for platform "+dest.Platform)
 		}
 	}
 

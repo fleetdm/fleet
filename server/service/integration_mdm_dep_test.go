@@ -2243,6 +2243,9 @@ func (s *integrationMDMTestSuite) TestReenrollingADEDeviceAfterRemovingItFromABM
 		return map[string]*push.Response{}, nil
 	}
 
+	// the device must be known from ABM before it may enroll via ADE
+	s.runDEPSchedule()
+
 	// Enroll the host via ADE
 	depURLToken := loadEnrollmentProfileDEPToken(t, s.ds)
 	mdmDevice := mdmtest.NewTestMDMClientAppleDEP(s.server.URL, depURLToken)
@@ -2816,6 +2819,42 @@ func (s *integrationMDMTestSuite) TestEnforceMiniumOSVersion() {
 			}
 		})
 	})
+
+	t.Run("authentication runs before the OS version check", func(t *testing.T) {
+		// devices[0] is in no team, where the minimum version is set to latest,
+		// so this machine info is below the minimum
+		mi := &fleet.MDMAppleMachineInfo{
+			MDMCanRequestSoftwareUpdate: true,
+			Serial:                      devices[0].SerialNumber,
+			UDID:                        uuid.New().String(),
+			Product:                     "Mac15,7",
+			OSVersion:                   "14.4",
+			SupplementalBuildVersion:    "IRRELEVANT",
+			SoftwareUpdateDeviceID:      "J516sAP",
+		}
+		di, err := mdmtest.EncodeDeviceInfo(*mi)
+		require.NoError(t, err)
+
+		t.Run("unknown token", func(t *testing.T) {
+			res := s.DoRawWithHeaders("GET", apple_mdm.EnrollPath, nil, http.StatusUnauthorized,
+				map[string]string{"x-apple-aspen-deviceinfo": di}, "token", "unknown-token")
+			require.NoError(t, res.Body.Close())
+		})
+
+		t.Run("serial not DEP-assigned", func(t *testing.T) {
+			unassigned := *mi
+			unassigned.Serial = uuid.New().String()
+			di, err := mdmtest.EncodeDeviceInfo(unassigned)
+			require.NoError(t, err)
+			res := s.DoRawWithHeaders("GET", apple_mdm.EnrollPath, nil, http.StatusUnauthorized,
+				map[string]string{"x-apple-aspen-deviceinfo": di}, "token", loadEnrollmentProfileDEPToken(t, s.ds))
+			require.NoError(t, res.Body.Close())
+		})
+
+		t.Run("authenticated request", func(t *testing.T) {
+			require.NoError(t, checkMDMEnrollEndpoint(t, mi, nil, &fleet.MDMAppleSoftwareUpdateRequiredDetails{OSVersion: latestMacOSVersion}, "", true))
+		})
+	})
 }
 
 func (s *integrationMDMTestSuite) TestDeleteMultipleHostsPendingDEP() {
@@ -3122,6 +3161,9 @@ func (s *integrationMDMTestSuite) TestSoftwareInventoryForADEMacOSAfterWipeAndRe
 	}
 
 	performHostEnroll := func() *mdmtest.TestAppleMDMClient {
+		// the device must be known from ABM before it may enroll via ADE
+		s.runDEPSchedule()
+
 		// Enroll the host via ADE
 		depURLToken := loadEnrollmentProfileDEPToken(t, s.ds)
 		mdmDevice := mdmtest.NewTestMDMClientAppleDEP(s.server.URL, depURLToken)

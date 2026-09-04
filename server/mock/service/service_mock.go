@@ -623,6 +623,8 @@ type GetMDMAppleFileVaultSummaryFunc func(ctx context.Context, teamID *uint) (*f
 
 type GetMDMAppleProfilesSummaryFunc func(ctx context.Context, teamID *uint) (*fleet.MDMProfilesSummary, error)
 
+type AuthenticateMDMAppleDEPEnrollmentFunc func(ctx context.Context, enrollmentToken string, machineInfo *fleet.MDMAppleMachineInfo) error
+
 type GetMDMAppleEnrollmentProfileByTokenFunc func(ctx context.Context, enrollmentToken string, enrollmentRef string, machineInfo *fleet.MDMAppleMachineInfo) (profile []byte, err error)
 
 type GetMDMAppleAccountEnrollmentProfileFunc func(ctx context.Context, enrollReference string) (profile []byte, err error)
@@ -1920,6 +1922,9 @@ type Service struct {
 
 	GetMDMAppleProfilesSummaryFunc        GetMDMAppleProfilesSummaryFunc
 	GetMDMAppleProfilesSummaryFuncInvoked bool
+
+	AuthenticateMDMAppleDEPEnrollmentFunc        AuthenticateMDMAppleDEPEnrollmentFunc
+	AuthenticateMDMAppleDEPEnrollmentFuncInvoked bool
 
 	GetMDMAppleEnrollmentProfileByTokenFunc        GetMDMAppleEnrollmentProfileByTokenFunc
 	GetMDMAppleEnrollmentProfileByTokenFuncInvoked bool
@@ -4620,6 +4625,13 @@ func (s *Service) GetMDMAppleProfilesSummary(ctx context.Context, teamID *uint) 
 	s.GetMDMAppleProfilesSummaryFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetMDMAppleProfilesSummaryFunc(ctx, teamID)
+}
+
+func (s *Service) AuthenticateMDMAppleDEPEnrollment(ctx context.Context, enrollmentToken string, machineInfo *fleet.MDMAppleMachineInfo) error {
+	s.mu.Lock()
+	s.AuthenticateMDMAppleDEPEnrollmentFuncInvoked = true
+	s.mu.Unlock()
+	return s.AuthenticateMDMAppleDEPEnrollmentFunc(ctx, enrollmentToken, machineInfo)
 }
 
 func (s *Service) GetMDMAppleEnrollmentProfileByToken(ctx context.Context, enrollmentToken string, enrollmentRef string, machineInfo *fleet.MDMAppleMachineInfo) (profile []byte, err error) {
