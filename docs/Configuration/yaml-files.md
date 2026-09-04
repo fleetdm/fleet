@@ -1340,7 +1340,7 @@ After [adding an Apple Business (AB) token via the UI](https://fleetdm.com/guide
 - `ios_fleet` is the the fleet where iOS hosts are automatically added when they appear in Apple Business. If not specified, defaults to "Unassigned".
 - `ipados_fleet` is the fleet where iPadOS hosts are automatically added when they appear in Apple Business. If not specified, defaults to "Unassigned".
 - `byod_fleet` is the fleet where BYOD hosts are automatically added when they appear in Apple Business. If not specified, defaults to "Unassigned".
-- `primary` marks the AB token Fleet uses to verify Managed Apple Account sign-in on hosts that aren't in Apple Business. Only one AB token can be primary. If you have one AB token, it's always primary and you can leave this out.
+- `default` marks the AB token Fleet uses to verify Managed Apple Account sign-in on hosts that aren't in Apple Business. Only one AB token can be the default. If you have one AB token, it's always the default and you can leave this out.
 
 Can only be configured for "All fleets" (`org_settings`).
 
@@ -1355,7 +1355,7 @@ org_settings:
       ios_fleet: 📱🏢 Company-owned iPhones
       ipados_fleet: 🔳🏢 Company-owned iPads
       byod_fleet: 📱 BYOD iPhones
-      primary: true
+      default: true
 ```
 
 #### volume_purchasing_program
