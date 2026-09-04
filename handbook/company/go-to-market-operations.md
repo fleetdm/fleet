@@ -550,7 +550,7 @@ This approach “connects” Eventbrite to Salesforce campaigns by using the **`
     
     ```
         NEW GITOPS REGISTRATION
-        _*`fullName`*_ signed up for `proviededNotes`
+        _*`fullName`*_ signed up for `providedNotes`
 
         - CONTACT: 
         _*`fullName`*_ (`finalLinkedInProfile`)

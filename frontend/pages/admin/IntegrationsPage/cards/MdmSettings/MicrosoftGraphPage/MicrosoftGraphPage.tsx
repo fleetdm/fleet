@@ -285,9 +285,9 @@ const MicrosoftGraphPage = () => {
           messages.map((message) => ({ variant: "error" as const, message }))
         );
       } else {
-        notify.error(
-          getErrorReason(e) || "Couldn't save Microsoft Graph credential."
-        );
+        notify.error("Couldn't save Microsoft Graph credential.", {
+          response: e,
+        });
       }
     } finally {
       setIsSaving(false);

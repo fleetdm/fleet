@@ -6,7 +6,7 @@ ace.define(
   function (acequire, exports, module) {
     exports.isDark = false;
     exports.cssClass = "ace-fleet";
-    exports.cssText = require("./theme.css");
+    exports.cssText = require("./ace_theme.css");
 
     var dom = acequire("../lib/dom");
     dom.importCssString(exports.cssText, exports.cssClass);

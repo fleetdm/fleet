@@ -8,12 +8,12 @@ const mockRouter = createMockRouter();
 
 describe("TitleVersionsTable", () => {
   // Deliberately ordered so that the input order, host count order, and
-  // lexical and numeric version orderings are all different, and
-  // 1.2.10 vs 1.2.9 catches a lexical sort.
+  // lexical and numeric version orderings are all different. 1.2.10 vs 1.2.9
+  // catches a lexical version sort, and 10 vs 9 vs 2 a lexical host count one.
   const unsortedVersions = [
-    { id: 1, version: "1.2.9", vulnerabilities: [], hosts_count: 1 },
-    { id: 2, version: "1.2.2", vulnerabilities: [], hosts_count: 3 },
-    { id: 3, version: "1.2.10", vulnerabilities: [], hosts_count: 2 },
+    { id: 1, version: "1.2.9", vulnerabilities: [], hosts_count: 2 },
+    { id: 2, version: "1.2.2", vulnerabilities: [], hosts_count: 10 },
+    { id: 3, version: "1.2.10", vulnerabilities: [], hosts_count: 9 },
   ];
 
   const renderTable = (data = unsortedVersions) =>
@@ -38,6 +38,24 @@ describe("TitleVersionsTable", () => {
     renderTable();
 
     expect(renderedVersions()).toEqual(["1.2.2", "1.2.10", "1.2.9"]);
+  });
+
+  it("sorts by host count when the Hosts header is clicked", async () => {
+    const { user } = renderTable();
+    const hostsHeader = screen.getByRole("button", { name: "Hosts" });
+
+    // Hosts is the default sorted column, so the first click reverses it.
+    await user.click(hostsHeader);
+    expect(renderedVersions()).toEqual(["1.2.9", "1.2.10", "1.2.2"]);
+
+    await user.click(hostsHeader);
+    expect(renderedVersions()).toEqual(["1.2.2", "1.2.10", "1.2.9"]);
+
+    // Coming back from another sorted column re-sorts on host count, rather
+    // than flipping the direction of whichever column was already sorted.
+    await user.click(screen.getByRole("button", { name: "Version" }));
+    await user.click(hostsHeader);
+    expect(renderedVersions()).toEqual(["1.2.9", "1.2.10", "1.2.2"]);
   });
 
   it("sorts by version number when the Version header is clicked", async () => {
