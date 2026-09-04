@@ -3787,11 +3787,11 @@ func (s *integrationMDMTestSuite) TestBlockedEndpointsForABOnlyACMEConfig() {
 
 	// setup team with enroll secret
 	enrollSecret := "team"
-	_, err = s.ds.NewTeam(t.Context(), &fleet.Team{Name: "team", Secrets: []*fleet.EnrollSecret{{Secret: enrollSecret}}})
+	team, err := s.ds.NewTeam(t.Context(), &fleet.Team{Name: "team", Secrets: []*fleet.EnrollSecret{{Secret: enrollSecret}}})
 	require.NoError(t, err)
 
 	// setup host so we can do device authenticated endpoints
-	host, err := s.ds.NewHost(t.Context(), &fleet.Host{TeamID: new(uint(1))})
+	host, err := s.ds.NewHost(t.Context(), &fleet.Host{TeamID: &team.ID})
 	require.NoError(t, err)
 
 	// Mint a fresh device auth token
