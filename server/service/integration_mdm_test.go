@@ -19913,6 +19913,20 @@ func (s *integrationMDMTestSuite) TestAndroidAMAPIErrorStatusMapping() {
 			passcodeHostID := createAndroidHostForTest(t, s.ds, nil, true)
 			s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/clear_passcode", passcodeHostID), nil, ae.want)
 
+			// BYO hosts may be locked too, and take the same path as COBO.
+			byoLockHostID := createAndroidHostForTest(t, s.ds, nil, false)
+			s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", byoLockHostID), nil, ae.want)
+
+			// Custom commands reach the mapping through a different service entry point
+			// (server/service/mdm.go) than the three commands above, so cover it separately.
+			customHostID := createAndroidHostForTest(t, s.ds, nil, true)
+			var customHost getHostResponse
+			s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", customHostID), nil, http.StatusOK, &customHost)
+			s.Do("POST", "/api/latest/fleet/commands/run", &runMDMCommandRequest{
+				Command:   base64.StdEncoding.EncodeToString([]byte(`{"type":"REBOOT"}`)),
+				HostUUIDs: []string{customHost.Host.UUID},
+			}, ae.want)
+
 			// BYO unenroll issues the work-profile wipe, so it goes through the same mapping.
 			unenrollHostID := createAndroidHostForTest(t, s.ds, nil, false)
 			s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/mdm", unenrollHostID), nil, ae.wantUnenroll)
