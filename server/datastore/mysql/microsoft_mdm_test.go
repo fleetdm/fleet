@@ -8984,10 +8984,6 @@ func testMDMWindowsConflictingEnrollmentHardwareID(t *testing.T, ds *Datastore) 
 	})
 
 	t.Run("an incumbent with an empty hardware id still conflicts", func(t *testing.T) {
-		// mdm_hardware_id is NOT NULL but not non-empty, and the enrollment request's HWDevID context item is stored
-		// without a non-empty check, so an incumbent can hold a host under an empty hardware id. Reporting the
-		// conflict through the returned string alone would make that incumbent look like "no incumbent" and reopen
-		// exactly the claim this guard exists to refuse.
 		emptyHWHostUUID := uuid.New().String()
 		emptyHWIncumbent := newEnrollment(emptyHWHostUUID)
 		emptyHWIncumbent.MDMHardwareID = ""

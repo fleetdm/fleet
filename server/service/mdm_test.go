@@ -5036,8 +5036,7 @@ func TestProcessIncomingMDMCmdsDevDetailLinkage(t *testing.T) {
 		ds.MDMWindowsGetEnrolledDeviceWithDeviceIDFunc = func(_ context.Context, _ string) (*fleet.MDMWindowsEnrolledDevice, error) {
 			return &fleet.MDMWindowsEnrolledDevice{MDMDeviceID: testDeviceID, MDMHardwareID: testHardwareID, MDMEnrollUserID: ""}, nil
 		}
-		// No incumbent holds the host, which is the ordinary case: a first enrollment, or this same hardware
-		// re-enrolling after its upsert cleared host_uuid.
+		// No incumbent holds the host, which is the ordinary case.
 		ds.MDMWindowsConflictingEnrollmentHardwareIDFunc = func(_ context.Context, hostUUID, mdmHardwareID string) (bool, string, error) {
 			assert.Equal(t, testHostUUID, hostUUID)
 			assert.Equal(t, testHardwareID, mdmHardwareID)
