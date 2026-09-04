@@ -110,7 +110,7 @@ func TestNeedsOrbitSymlinkUpdate(t *testing.T) {
 	linkPath := filepath.Join(rootDir, "bin", "orbit", filepath.Base(localTarget.ExecPath))
 
 	require.NoError(t, os.Remove(linkPath))
-	require.NoError(t, os.WriteFile(linkPath, []byte("regular-file-content"), 0o755))
+	require.NoError(t, os.WriteFile(linkPath, []byte("regular-file-content"), 0o600))
 
 	needsUpdate, isNotSymlink, err = r.needsOrbitSymlinkUpdate()
 	require.NoError(t, err)
