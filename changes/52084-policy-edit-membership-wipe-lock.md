@@ -1,1 +1,0 @@
-- Fixed editing a policy on a large fleet stalling policy and software install result ingestion fleet-wide. The `policy_membership` wipe now runs after the policy update commits instead of inside its transaction, so its row locks are no longer held for the whole wipe. An interrupted wipe is completed by the policy membership cron.

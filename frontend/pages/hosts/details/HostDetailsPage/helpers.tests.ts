@@ -1,6 +1,6 @@
 import createMockHost from "__mocks__/hostMock";
 
-import { canShowMyDeviceButton } from "./helpers";
+import { canShowMyDeviceButton, hasEverEnrolled } from "./helpers";
 
 describe("canShowMyDeviceButton", () => {
   it("returns true when Fleet Desktop is installed and the host is not wiped", () => {
@@ -56,5 +56,29 @@ describe("canShowMyDeviceButton", () => {
       },
     });
     expect(canShowMyDeviceButton(host)).toBe(true);
+  });
+});
+
+describe("hasEverEnrolled", () => {
+  it("returns true for a host that has checked in", () => {
+    expect(
+      hasEverEnrolled(
+        createMockHost({ last_enrolled_at: "2026-08-21T10:30:00Z" })
+      )
+    ).toBe(true);
+  });
+
+  it("returns false for a pending host holding the never sentinel", () => {
+    expect(
+      hasEverEnrolled(
+        createMockHost({ last_enrolled_at: "2000-01-01T00:00:00Z" })
+      )
+    ).toBe(false);
+  });
+
+  it("returns false when the date is missing", () => {
+    expect(hasEverEnrolled(createMockHost({ last_enrolled_at: "" }))).toBe(
+      false
+    );
   });
 });

@@ -6,7 +6,10 @@ import { createMockConfig, createMockMdmConfig } from "__mocks__/configMock";
 
 import MainContent from "./MainContent";
 
-const GRAPH_BANNER_TEXT = /Your Microsoft Graph credential is invalid/i;
+const GRAPH_BANNER_TEXT =
+  "Your Microsoft Graph client secret is expired, deleted, or has missing " +
+  "permissions. Windows Autopilot devices won't sync to Fleet as pending " +
+  "hosts. Users with the admin role in Fleet can update the credential.";
 
 const renderMainContent = ({
   credentialInvalid = false,

@@ -1,6 +1,6 @@
 module github.com/vulsio/goval-dictionary
 
-go 1.26.8
+go 1.27.1
 
 require (
 	github.com/cheggaaa/pb/v3 v3.1.7

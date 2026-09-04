@@ -2,6 +2,7 @@ package mysqlredis
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"math"
 	"sync"
@@ -14,7 +15,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
-	"github.com/go-json-experiment/json/v1"
 	redigo "github.com/gomodule/redigo/redis"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"

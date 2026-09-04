@@ -717,6 +717,8 @@ When you need to take time off, follow this process:
 - If you ever want to take a day off, and the only thing stopping you is internal (Fleetie-only) meetings, don’t stress. Consider, “Is this a meeting that I can reschedule to another day, or is this a meeting that can go on without me and not interfere with the company’s plans?” Talk to your manager if you’re unsure, but it is perfectly OK to reschedule internal meetings that can wait so that you can take a day off.
 - This process is the same for any days you take off, whether it's a holiday or you just need a break.
 
+> For customer success and support roles, it can be hard to know how best to get your work covered or to plan for contingencies. Talk to your manager ahead of booking leave to figure out what's best for the company.
+
 
 ### Holidays
 

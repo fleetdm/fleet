@@ -103,18 +103,57 @@ describe("MicrosoftGraphPage", () => {
     expect(screen.getByRole("button", { name: "Delete" })).toBeInTheDocument();
   });
 
-  it("renders sync status, including the last error", async () => {
-    renderPage([
+  it("renders the last sync error in a tooltip on the error indicator", async () => {
+    const { user } = renderPage([
       createMockCredential({
         last_synced_at: "2026-08-14T12:00:00Z",
-        last_sync_error: "AADSTS7000215: Invalid client secret provided.",
+        last_sync_error: "Microsoft Graph is temporarily unavailable (503).",
       }),
     ]);
 
     expect(await screen.findByText("Last synced:")).toBeInTheDocument();
+    await user.hover(screen.getByTestId("error-icon"));
+
+    // Scoped to the tooltip.
+    await waitFor(() => {
+      expect(
+        within(screen.getByRole("tooltip")).getByText(
+          "Microsoft Graph is temporarily unavailable (503)."
+        )
+      ).toBeInTheDocument();
+    });
+  });
+
+  it("exposes the sync error to screen readers without a hover", async () => {
+    renderPage([
+      createMockCredential({
+        last_synced_at: "2026-08-14T12:00:00Z",
+        last_sync_error: "Microsoft Graph is temporarily unavailable (503).",
+      }),
+    ]);
+
+    // The message is visible only on hover, which a screen reader cannot perform, so it is also rendered as
+    // visually-hidden text that stays in the accessibility tree.
     expect(
-      screen.getByText("AADSTS7000215: Invalid client secret provided.")
+      await screen.findByText(
+        "Microsoft Graph is temporarily unavailable (503)."
+      )
     ).toBeInTheDocument();
+  });
+
+  it("hides the error indicator when the credential was rejected", async () => {
+    renderPage([
+      createMockCredential({
+        credential_invalid: true,
+        last_synced_at: "2026-08-14T12:00:00Z",
+        last_sync_error:
+          "Microsoft Graph rejected the credential. Check the tenant ID, client ID, and client secret.",
+      }),
+    ]);
+
+    // A rejected credential already raises the app-wide banner, so repeating it here would be the same news twice.
+    expect(await screen.findByText("Last synced:")).toBeInTheDocument();
+    expect(screen.queryByTestId("error-icon")).not.toBeInTheDocument();
   });
 
   it("reports never synced when the credential has not synced yet", async () => {

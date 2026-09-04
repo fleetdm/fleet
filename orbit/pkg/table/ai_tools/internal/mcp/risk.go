@@ -25,7 +25,7 @@ var fetchRunners = map[string]struct{}{
 var secretKeyMarkers = []string{
 	"token", "secret", "password", "passwd", "passphrase",
 	"apikey", "api_key", "access_key", "private_key", "credential",
-	"client_secret", "bearer", "session", "auth_key",
+	"client_secret", "bearer", "session", "auth_key", "authorization",
 }
 
 // enrichRisk computes the static security posture of a server in place:

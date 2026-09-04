@@ -12,6 +12,7 @@ import hostAPI from "services/entities/hosts";
 import activitiesAPI from "services/entities/activities";
 import teamAPI from "services/entities/teams";
 import commandAPI from "services/entities/command";
+import { notify } from "components/ToastNotification";
 
 import HostDetailsPage from "./HostDetailsPage";
 
@@ -36,6 +37,17 @@ const mockLocation = {
 
 const ADMIN = createMockUser();
 const OBSERVER = createMockUser({ role: "observer", global_role: "observer" });
+
+const mockPendingWindowsHost = (status: "online" | "offline"): IHost => {
+  const host = createMockHost({
+    platform: "windows",
+    status,
+    refetch_requested: true,
+    last_enrolled_at: "2000-01-01T00:00:00Z",
+  });
+  host.mdm.enrollment_status = "Pending";
+  return host;
+};
 
 /** An Apple host that is MDM-enrolled and online -- the only combination that
  * pings APNS alongside the refetch. */
@@ -126,4 +138,50 @@ describe("HostDetailsPage - APNS ping on refetch", () => {
     });
     expect(hostAPI.apnsPing).toHaveBeenCalledWith(1);
   });
+});
+
+describe("HostDetailsPage - pending hosts", () => {
+  afterEach(() => {
+    jest.resetAllMocks();
+  });
+
+  it("doesn't spin on vitals or report the host offline", async () => {
+    stubQueries(mockPendingWindowsHost("online"));
+    // The host row ages out of the 60-second online window while the page is open.
+    (hostAPI.loadHostDetails as jest.Mock)
+      .mockResolvedValueOnce({ host: mockPendingWindowsHost("online") })
+      .mockResolvedValue({ host: mockPendingWindowsHost("offline") });
+
+    renderPageAs(ADMIN, true);
+    await screen.findByText("Vitals");
+    // Give the poll timer (2s) room to fire if it was scheduled.
+    await new Promise((resolve) => setTimeout(resolve, 3000));
+
+    expect(
+      screen.queryByText(/fetching fresh vitals/i)
+    ).not.toBeInTheDocument();
+    expect(notify.error).not.toHaveBeenCalled();
+  }, 15000);
+
+  it("still reports back when the user asks for the refetch", async () => {
+    stubQueries(mockPendingWindowsHost("online"));
+    (hostAPI.loadHostDetails as jest.Mock)
+      .mockResolvedValueOnce({ host: mockPendingWindowsHost("online") })
+      .mockResolvedValue({ host: mockPendingWindowsHost("offline") });
+
+    const { user } = renderPageAs(ADMIN, true);
+    await user.click(await screen.findByRole("button", { name: /refetch/i }));
+    await waitFor(() => {
+      expect(hostAPI.refetch).toHaveBeenCalled();
+    });
+
+    await waitFor(
+      () => {
+        expect(notify.error).toHaveBeenCalledWith(
+          "This host is offline. Please try refetching host vitals later."
+        );
+      },
+      { timeout: 10000 }
+    );
+  }, 20000);
 });

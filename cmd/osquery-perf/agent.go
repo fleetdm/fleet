@@ -3586,48 +3586,48 @@ func (a *agent) runLiveYaraQuery(query string) (results []map[string]string, sta
 	// Return a response indicating that the file is clean.
 	ss := fleet.OsqueryStatus(0)
 	return []map[string]string{
-			{
-				"count":     "0",
-				"matches":   "",
-				"strings":   "",
-				"tags":      "",
-				"sig_group": "",
-				"sigfile":   "",
-				"sigrule":   "",
-				"sigurl":    url,
-				// Could pull this from the query, but not necessary for load testing.
-				"path": "/some/path",
-			},
-		}, &ss, nil, &fleet.Stats{
-			WallTimeMs: uint64(rand.Intn(1000) * 1000),
-			UserTime:   uint64(rand.Intn(1000)),
-			SystemTime: uint64(rand.Intn(1000)),
-			Memory:     uint64(rand.Intn(1000)),
-		}
+		{
+			"count":     "0",
+			"matches":   "",
+			"strings":   "",
+			"tags":      "",
+			"sig_group": "",
+			"sigfile":   "",
+			"sigrule":   "",
+			"sigurl":    url,
+			// Could pull this from the query, but not necessary for load testing.
+			"path": "/some/path",
+		},
+	}, &ss, nil, &fleet.Stats{
+		WallTimeMs: uint64(rand.Intn(1000) * 1000), //nolint:gosec // G115: rand.Intn(1000) is bounded, so this cannot overflow.
+		UserTime:   uint64(rand.Intn(1000)),        //nolint:gosec // G115: rand.Intn(1000) is bounded, so this cannot overflow.
+		SystemTime: uint64(rand.Intn(1000)),        //nolint:gosec // G115: rand.Intn(1000) is bounded, so this cannot overflow.
+		Memory:     uint64(rand.Intn(1000)),        //nolint:gosec // G115: rand.Intn(1000) is bounded, so this cannot overflow.
+	}
 }
 
 func (a *agent) runLiveMockQuery(query string) (results []map[string]string, status *fleet.OsqueryStatus, message *string, stats *fleet.Stats) {
 	ss := fleet.OsqueryStatus(0)
 	return []map[string]string{
-			{
-				"admindir":   "/var/lib/dpkg",
-				"arch":       "amd64",
-				"maintainer": "foobar",
-				"name":       "netconf",
-				"priority":   "optional",
-				"revision":   "",
-				"section":    "default",
-				"size":       "112594",
-				"source":     "",
-				"status":     "install ok installed",
-				"version":    "20230224000000",
-			},
-		}, &ss, nil, &fleet.Stats{
-			WallTimeMs: uint64(rand.Intn(1000) * 1000),
-			UserTime:   uint64(rand.Intn(1000)),
-			SystemTime: uint64(rand.Intn(1000)),
-			Memory:     uint64(rand.Intn(1000)),
-		}
+		{
+			"admindir":   "/var/lib/dpkg",
+			"arch":       "amd64",
+			"maintainer": "foobar",
+			"name":       "netconf",
+			"priority":   "optional",
+			"revision":   "",
+			"section":    "default",
+			"size":       "112594",
+			"source":     "",
+			"status":     "install ok installed",
+			"version":    "20230224000000",
+		},
+	}, &ss, nil, &fleet.Stats{
+		WallTimeMs: uint64(rand.Intn(1000) * 1000), //nolint:gosec // G115: rand.Intn(1000) is bounded, so this cannot overflow.
+		UserTime:   uint64(rand.Intn(1000)),        //nolint:gosec // G115: rand.Intn(1000) is bounded, so this cannot overflow.
+		SystemTime: uint64(rand.Intn(1000)),        //nolint:gosec // G115: rand.Intn(1000) is bounded, so this cannot overflow.
+		Memory:     uint64(rand.Intn(1000)),        //nolint:gosec // G115: rand.Intn(1000) is bounded, so this cannot overflow.
+	}
 }
 
 func (a *agent) processQuery(name, query string, cachedResults *cachedResults) (
