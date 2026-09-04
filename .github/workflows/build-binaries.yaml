@@ -33,6 +33,11 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          # website/ is ~270 MB of PDFs and media this job never reads.
+          sparse-checkout: |
+            /*
+            !/website/
+          sparse-checkout-cone-mode: false
 
       - name: Install Go
         uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
