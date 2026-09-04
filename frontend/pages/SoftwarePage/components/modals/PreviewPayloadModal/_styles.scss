@@ -1,5 +1,5 @@
 .preview-data-modal {
-  &__preview-modal {
+  .modal__content {
     @include vertical-modal-layout;
   }
 

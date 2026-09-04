@@ -315,9 +315,10 @@ export default PackComposerPage;
 
 ### Form field labels
 
-Use the built-in `label` prop on form field components (`InputField`, `InputFieldHiddenContent`,
-`Dropdown`, `Checkbox`, etc.) instead of creating separate label elements or wrapper divs. This
-keeps label styling and accessibility consistent across the app.
+Use the built-in `label` prop on any FormField-based control (`InputField`,
+`InputFieldHiddenContent`, `Dropdown`, `Checkbox`, `Radio`, `Slider`, `TextArea`, etc.)
+instead of creating separate label elements or wrapper divs. This keeps label styling and
+accessibility consistent across the app.
 
 ### Form submission
 

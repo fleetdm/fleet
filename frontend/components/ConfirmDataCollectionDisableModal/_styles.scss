@@ -16,9 +16,7 @@
   }
 
   &__dataset-list {
-    display: flex;
-    flex-direction: column;
-    gap: $pad-xsmall;
+    @include flex-column-4px-gap;
     margin: 0;
     padding-left: $pad-large;
 
