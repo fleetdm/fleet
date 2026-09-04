@@ -45,6 +45,20 @@ Below is the JSON payload that is sent to Fleet Device Management Inc:
   "aiFeaturesDisabled": true,
   "maintenanceWindowsEnabled": true,
   "maintenanceWindowsConfigured": true,
+  "resultLogDestination": "firehose",
+  "statusLogDestination": "firehose",
+  "auditLogDestination": "firehose",
+  "anyVulnerabilitiesWebhookEnabled": true, // true if configured for any Fleet
+  "anyFailingPoliciesWebhookEnabled": true, // true if configured for any Fleet
+  "anyHostActivitiesWebhookEnabled": true, // true if configured for any Fleet
+  "ticketDestinationConfigured": true,
+  "ssoConfiguredFleetUsers": true,
+  "ssoConfiguredEndUsers": true,
+  "accountProvisioningConfigured": true,
+  "idpSCIMConfigured": true,
+  "idpGoogleWorkspaceConfigured": false,
+  "certificateAuthorityConfigured": true,
+  "globalActivityWebhookEnabled": true,
   "oktaConditionalAccessConfigured": true,
   "entraConditionalAccessConfigured": true,
   "conditionalAccessBypassDisabled": false,
