@@ -480,6 +480,8 @@ func azureDataFromClaims(ctx context.Context, claims jwt.MapClaims) (AzureData, 
 	}, nil
 }
 
+// populateClientCert constructs an x509 client certificate template for Windows MDM enrollment,
+// configuring the certificate validity period derived from MDM policy settings.
 func populateClientCert(sn *big.Int, subject string, issuerCert *x509.Certificate, csr *x509.CertificateRequest) (*x509.Certificate, error) {
 	certValidityPeriodInSecsInt, err := strconv.Atoi(syncml.PolicyCertValidityPeriodInSecs)
 	if err != nil {

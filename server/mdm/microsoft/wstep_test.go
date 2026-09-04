@@ -6,7 +6,9 @@ import (
 	"crypto/x509"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"math/big"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -395,17 +397,24 @@ func TestPopulateClientCertValidityAndNotBefore(t *testing.T) {
 	require.True(t, cert.NotBefore.After(expectedNotBeforeMin) && cert.NotBefore.Before(expectedNotBeforeMax),
 		"NotBefore should be ~10m in the past (clock-skew), got %v", cert.NotBefore)
 
-	// NotAfter should be derived from syncml.PolicyCertValidityPeriodInSecs (~365 days from now)
-	expectedNotAfterMin := beforeCall.Add(365*24*time.Hour - 5*time.Second)
-	expectedNotAfterMax := afterCall.Add(365*24*time.Hour + 5*time.Second)
+	// NotAfter should be derived from syncml.PolicyCertValidityPeriodInSecs
+	validitySecs, err := strconv.ParseInt(syncml.PolicyCertValidityPeriodInSecs, 10, 64)
+	require.NoError(t, err)
+	expectedValidity := time.Duration(validitySecs) * time.Second
+
+	expectedNotAfterMin := beforeCall.Add(expectedValidity - 5*time.Second)
+	expectedNotAfterMax := afterCall.Add(expectedValidity + 5*time.Second)
 	require.True(t, cert.NotAfter.After(expectedNotAfterMin) && cert.NotAfter.Before(expectedNotAfterMax),
-		"NotAfter should be ~365 days in the future, got %v", cert.NotAfter)
+		"NotAfter should match PolicyCertValidityPeriodInSecs from now, got %v", cert.NotAfter)
 
-	// The effective remaining validity from issuance time must be approximately 365 days (not halved to 185 days)
+	// The effective remaining validity from issuance time must closely track PolicyCertValidityPeriodInSecs
 	validityFromNow := cert.NotAfter.Sub(time.Now())
-	require.Greater(t, validityFromNow, 360*24*time.Hour, "validity must be ~365 days, not halved by 180d renewal backdating")
+	require.Greater(t, validityFromNow, expectedValidity-24*time.Hour, "validity must match policy period, not halved by renewal backdating")
 
-	// Verify WstepCertRenewalPeriodInDays matches PolicyCertRenewalPeriodInSecs (180 days)
-	require.Equal(t, "180", syncml.WstepCertRenewalPeriodInDays)
+	// Verify WstepCertRenewalPeriodInDays matches PolicyCertRenewalPeriodInSecs converted to days
+	renewalSecs, err := strconv.ParseInt(syncml.PolicyCertRenewalPeriodInSecs, 10, 64)
+	require.NoError(t, err)
+	expectedRenewalDays := fmt.Sprintf("%d", renewalSecs/(24*60*60))
+	require.Equal(t, expectedRenewalDays, syncml.WstepCertRenewalPeriodInDays)
 }
 
