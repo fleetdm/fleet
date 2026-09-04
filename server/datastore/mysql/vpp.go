@@ -19,6 +19,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
+	platform_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/go-sql-driver/mysql"
 	"github.com/google/uuid"
@@ -3288,7 +3289,10 @@ INSERT INTO
 SELECT
 	?,
 	execution_id,
-	created_at -- force same timestamp to keep ordering
+	-- distinct, forward-dated timestamps: nanomdm orders the queue by
+	-- created_at alone, and one statement's rows would otherwise tie on the
+	-- column default and be served in arbitrary order
+	NOW(6) + INTERVAL ROW_NUMBER() OVER (ORDER BY priority DESC, created_at ASC, id ASC) MICROSECOND
 FROM
 	upcoming_activities
 WHERE
@@ -3309,11 +3313,17 @@ ORDER BY
 
 	// best-effort APNs push notification to the host, not critical because we
 	// have a cron job that will retry for hosts with pending MDM commands.
-	if ds.pusher != nil {
+	wrapped, ok := tx.(platform_mysql.WrappedExtContext)
+	if ds.pusher == nil || !ok {
+		return nil
+	}
+	// we wrap the APNs Push here, as activate next upcoming is called from many sites
+	// and it's racy to ping before we have committed the transaction.
+	wrapped.AddOnCommitHook(func() {
 		if _, err := ds.pusher.Push(ctx, []string{hostData.UUID}); err != nil {
 			ds.logger.ErrorContext(ctx, "failed to send push notification", "err", err, "hostID", hostID, "hostUUID", hostData.UUID)
 		}
-	}
+	})
 	return nil
 }
 

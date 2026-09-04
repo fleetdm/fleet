@@ -2474,6 +2474,8 @@ func TestRekeyWindowsDevice(t *testing.T) {
 			// Loaded as 1 so the per-session refresh fires when the pending fetch returns empty (asserted at the end of
 			// the test); a device loaded with the flag at 0 skips the refresh entirely.
 			HasPendingCommands: true,
+			// Already announced, so the deferred mdm_enrolled path short-circuits: this test is about rekeying.
+			EnrolledActivityAt: new(time.Now()),
 		}, nil
 	}
 

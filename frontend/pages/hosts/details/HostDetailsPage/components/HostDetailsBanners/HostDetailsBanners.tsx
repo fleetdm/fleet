@@ -163,7 +163,20 @@ const HostDetailsBanners = ({
     hostPlatform === "windows" &&
     diskEncryptionOSSetting?.status === "action_required"
   ) {
-    return actionRequiredBanner;
+    // Fleet is holding the repair until the host restarts, so point the admin at the restart rather than at My device.
+    if (diskEncryptionOSSetting?.action_required === "restart") {
+      return (
+        <div className={baseClass}>
+          <InfoBanner color="yellow">
+            Disk encryption: Requires a restart. Ask the user to restart their
+            device so disk encryption protection can be turned back on.
+          </InfoBanner>
+        </div>
+      );
+    }
+    if (diskEncryptionOSSetting?.action_required === "create_pin") {
+      return actionRequiredBanner;
+    }
   }
 
   return null;
