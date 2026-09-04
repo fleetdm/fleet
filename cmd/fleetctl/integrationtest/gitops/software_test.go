@@ -1122,9 +1122,9 @@ func TestGitOpsABMMissingTeamKeepsExistingAssignments(t *testing.T) {
 	// token's macOS default fleet is already the existing team before the run.
 	ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
 		return []*fleet.ABMToken{{
-			ID:                  1,
-			OrganizationName:    "Fleet ABM",
-			MacOSDefaultTeamID:  new(existingTeam.ID),
+			ID:                 1,
+			OrganizationName:   "Fleet ABM",
+			MacOSDefaultTeamID: new(existingTeam.ID),
 		}}, nil
 	}
 	type abmSave struct {
