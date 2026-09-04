@@ -117,7 +117,6 @@ describe("HostOnlineHistoryModal", () => {
       <HostOnlineHistoryModal
         hostId={42}
         fleetId={1}
-        platform="darwin"
         uptimeCollectionEnabled
         onExit={jest.fn()}
       />
@@ -139,7 +138,6 @@ describe("HostOnlineHistoryModal", () => {
       <HostOnlineHistoryModal
         hostId={42}
         fleetId={1}
-        platform="ios"
         uptimeCollectionEnabled={false}
         onExit={jest.fn()}
       />
@@ -159,7 +157,6 @@ describe("HostOnlineHistoryModal", () => {
     render(
       <HostOnlineHistoryModal
         hostId={42}
-        platform="darwin"
         uptimeCollectionEnabled
         onExit={jest.fn()}
       />
@@ -174,7 +171,6 @@ describe("HostOnlineHistoryModal", () => {
     render(
       <HostOnlineHistoryModal
         hostId={42}
-        platform="darwin"
         uptimeCollectionEnabled
         onExit={jest.fn()}
       />
@@ -186,40 +182,6 @@ describe("HostOnlineHistoryModal", () => {
     });
   });
 
-  it("renders the iOS/iPadOS legend explainer icon for ios hosts", async () => {
-    mockServer.use(chartHandler);
-    const render = createCustomRenderer({ withBackendMock: true });
-    render(
-      <HostOnlineHistoryModal
-        hostId={42}
-        platform="ios"
-        uptimeCollectionEnabled
-        onExit={jest.fn()}
-      />
-    );
-
-    await screen.findByText("More");
-    // Icon anchors the platform explainer tooltip; hover-only content isn't
-    // asserted here because react-tooltip-5 portals it outside our tree.
-    expect(screen.getByTestId("info-outline-icon")).toBeInTheDocument();
-  });
-
-  it("does not render the iOS/iPadOS legend explainer for non-mobile hosts", async () => {
-    mockServer.use(chartHandler);
-    const render = createCustomRenderer({ withBackendMock: true });
-    render(
-      <HostOnlineHistoryModal
-        hostId={42}
-        platform="darwin"
-        uptimeCollectionEnabled
-        onExit={jest.fn()}
-      />
-    );
-
-    await screen.findByText("More");
-    expect(screen.queryByTestId("info-outline-icon")).not.toBeInTheDocument();
-  });
-
   it("calls onExit when Done is clicked", async () => {
     mockServer.use(chartHandler);
     const onExit = jest.fn();
@@ -227,7 +189,6 @@ describe("HostOnlineHistoryModal", () => {
     const { user } = render(
       <HostOnlineHistoryModal
         hostId={42}
-        platform="darwin"
         uptimeCollectionEnabled
         onExit={onExit}
       />
