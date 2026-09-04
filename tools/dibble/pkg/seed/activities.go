@@ -312,6 +312,8 @@ var activityTemplatesByCategory = map[string][]fleet.ActivityDetails{
 		fleet.ActivityCreatedCustomVariable{},
 		fleet.ActivityDeletedCustomVariable{},
 		fleet.ActivityEditedSetupExperienceSoftware{},
+		fleet.ActivityTypeEnabledAppleBusinessOnlyEnrollment{},
+		fleet.ActivityTypeDisabledAppleBusinessOnlyEnrollment{},
 	},
 	CategoryProfiles: {
 		fleet.ActivityTypeCreatedMacosProfile{},

@@ -332,7 +332,9 @@ func getStats(t *testing.T, baseURL string) statsResponse {
 // waitConnected polls /stats until the expected number of clients is
 // connected. Subscription happens after the SSE response headers are sent,
 // so a connect immediately followed by a push can race it; tests that need
-// the live-delivery path synchronize here.
+// the live-delivery path synchronize here. The gauge is bumped once the
+// connect has claimed, so a stream it counts is one a later push reaches
+// live rather than one whose claim could still take that push itself.
 func waitConnected(t *testing.T, baseURL string, want int64) {
 	t.Helper()
 	deadline := time.Now().Add(5 * time.Second)
@@ -785,7 +787,7 @@ func TestE2ENanopushProvider(t *testing.T) {
 		nanopush.WithNewClient(func(*tls.Certificate) (*http.Client, error) {
 			return fleethttp.NewClient(), nil
 		}),
-		nanopush.WithExpiration(7*24*time.Hour),
+		nanopush.WithExpiration(30*24*time.Hour),
 		nanopush.WithPushServerURL(srv.URL),
 	)
 	prov, err := factory.NewPushProvider(nil)

@@ -310,10 +310,10 @@ func TestWritePathInvalidation(t *testing.T) {
 			}
 		})
 
-		t.Run("CleanupExpiredHosts clears cache for each removed host", func(t *testing.T) {
+		t.Run("CleanupExpiredHostsBatch clears cache for each removed host", func(t *testing.T) {
 			t.Cleanup(func() { cleanupHostCacheKeys(t, pool) })
 			ds := new(mock.Store)
-			ds.CleanupExpiredHostsFunc = func(_ context.Context) ([]fleet.DeletedHostDetails, error) {
+			ds.CleanupExpiredHostsBatchFunc = func(_ context.Context, _ int) ([]fleet.DeletedHostDetails, error) {
 				return []fleet.DeletedHostDetails{{ID: 70}, {ID: 71}}, nil
 			}
 			d := New(ds, pool, WithHostCache(30*time.Second))
@@ -322,7 +322,7 @@ func TestWritePathInvalidation(t *testing.T) {
 			for i, nk := range nks {
 				primeCachedHost(t, d, uint(70+i), nk)
 			}
-			_, err := d.CleanupExpiredHosts(ctx)
+			_, err := d.CleanupExpiredHostsBatch(ctx, 100)
 			require.NoError(t, err)
 			for _, nk := range nks {
 				requireCacheMiss(t, d, nk)

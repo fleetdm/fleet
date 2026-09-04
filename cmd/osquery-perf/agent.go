@@ -4502,6 +4502,7 @@ func main() {
 		androidStatusInterval    = flag.Duration("android_status_interval", 5*time.Minute, "Interval between Android STATUS_REPORT messages (real devices report ~every 24h; lower values stress test Fleet harder)")
 		androidAppCount          = flag.Int("android_app_count", 50, "Number of installed apps each Android device reports")
 		androidNonComplianceProb = flag.Float64("android_non_compliance_prob", 0.05, "Probability of an Android STATUS_REPORT including non-compliance details [0, 1]")
+		androidVitalsChurnProb   = flag.Float64("android_vitals_churn_prob", defaultVitalsChurnProb, "Probability of an Android STATUS_REPORT reporting changed host vitals; 0 reports identical vitals forever, which MySQL stores without writing a row [0, 1]")
 	)
 
 	flag.Parse()
@@ -4563,6 +4564,9 @@ func main() {
 	}
 	if *androidNonComplianceProb < 0 || *androidNonComplianceProb > 1 {
 		log.Fatalf("Argument android_non_compliance_prob must be between 0 and 1, got %f", *androidNonComplianceProb)
+	}
+	if *androidVitalsChurnProb < 0 || *androidVitalsChurnProb > 1 {
+		log.Fatalf("Argument android_vitals_churn_prob must be between 0 and 1, got %f", *androidVitalsChurnProb)
 	}
 
 	// only fail if mdm is turned on for macOS devices and the mdm_apns_url is not specified.
@@ -4701,6 +4705,7 @@ func main() {
 				*androidStatusInterval,
 				*androidAppCount,
 				*androidNonComplianceProb,
+				*androidVitalsChurnProb,
 				stats,
 			)
 			go androidDevice.runLoop()
