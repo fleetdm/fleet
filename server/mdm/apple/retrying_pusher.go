@@ -35,6 +35,23 @@ const (
 // it.
 var retryBackoffs = [...]time.Duration{30 * time.Second, 2 * time.Minute, 8 * time.Minute, 30 * time.Minute}
 
+// retry5xxFloor is the minimum wait before retrying a failure APNs answered
+// with a 5xx reason: "After 15 minutes, you can retry JSON payloads that
+// receive response status codes that begin with 5XX."
+const retry5xxFloor = 15 * time.Minute
+
+// retryWait returns the jittered wait before retry number attempt (1-based)
+// for the given failure, flooring 5xx-reason failures at Apple's documented
+// 15 minutes.
+func retryWait(err error, attempt int) time.Duration {
+	wait := jitteredBackoff(retryBackoffs[attempt-1])
+	if wait < retry5xxFloor && isAPNS5xxRejection(err) {
+		// upward-only jitter keeps the wait compliant while still spreading
+		wait = retry5xxFloor + time.Duration(mathrand.Float64()*0.2*float64(retry5xxFloor)) //nolint:gosec // non-security randomness
+	}
+	return wait
+}
+
 type retryEntry struct {
 	// attempt counts retries scheduled so far; the wait behind nextAttempt
 	// is retryBackoffs[attempt-1], and the entry is dropped once all of
@@ -116,7 +133,7 @@ func (p *RetryingPusher) Push(ctx context.Context, ids []string) (map[string]*na
 			// entirely, and that's a transient failure for each of them. No
 			// call-level error (e.g. the dev nop pusher) means nothing to do.
 			if err != nil {
-				p.scheduleRetryLocked(ctx, id, now)
+				p.scheduleRetryLocked(ctx, id, now, err)
 			}
 		case r.Err == nil:
 			// an observed success supersedes any pending retry
@@ -125,7 +142,7 @@ func (p *RetryingPusher) Push(ctx context.Context, ids []string) (map[string]*na
 			// never retried; a pending entry is now known-hopeless too
 			delete(p.pending, id)
 		default:
-			p.scheduleRetryLocked(ctx, id, now)
+			p.scheduleRetryLocked(ctx, id, now, r.Err)
 		}
 	}
 	return res, err
@@ -202,8 +219,8 @@ func (p *RetryingPusher) flushDue(ctx context.Context) {
 				"enrollment_id", id, "attempts", e.attempt)
 			delete(p.pending, id)
 		default:
-			e.nextAttempt = now.Add(jitteredBackoff(retryBackoffs[e.attempt]))
 			e.attempt++
+			e.nextAttempt = now.Add(retryWait(r.Err, e.attempt))
 		}
 	}
 }
@@ -248,11 +265,11 @@ func (p *RetryingPusher) noteCallOutcomeLocked(ctx context.Context, now time.Tim
 // an entry that had already backed off past the first step, so a device
 // failing right now isn't stuck waiting out an inherited 30m backoff.
 // Requires p.mu held.
-func (p *RetryingPusher) scheduleRetryLocked(ctx context.Context, id string, now time.Time) {
+func (p *RetryingPusher) scheduleRetryLocked(ctx context.Context, id string, now time.Time, cause error) {
 	if e, ok := p.pending[id]; ok {
 		if e.attempt > 1 {
 			e.attempt = 1
-			e.nextAttempt = now.Add(jitteredBackoff(retryBackoffs[0]))
+			e.nextAttempt = now.Add(retryWait(cause, 1))
 			e.queuedAt = now
 		}
 		return
@@ -271,7 +288,7 @@ func (p *RetryingPusher) scheduleRetryLocked(ctx context.Context, id string, now
 	}
 	p.pending[id] = &retryEntry{
 		attempt:     1,
-		nextAttempt: now.Add(jitteredBackoff(retryBackoffs[0])),
+		nextAttempt: now.Add(retryWait(cause, 1)),
 		queuedAt:    now,
 	}
 }

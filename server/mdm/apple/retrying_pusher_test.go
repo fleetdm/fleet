@@ -50,8 +50,16 @@ func (f *fakeInnerPusher) callCount() int {
 	return len(f.calls)
 }
 
+// transientErr is a fast-ladder transient failure (429 — not 5xx, which gets
+// the 15-minute floor).
 func transientErr() error {
-	return fmt.Errorf("push HTTP status: 503: %w", &nanopush.JSONPushError{Reason: "InternalServerError"})
+	return fmt.Errorf("push HTTP status: 429: %w", &nanopush.JSONPushError{Reason: APNSReasonTooManyRequests})
+}
+
+// fiveXXErr is a transient failure with a 5xx reason, subject to Apple's
+// 15-minute retry floor.
+func fiveXXErr() error {
+	return fmt.Errorf("push HTTP status: 503: %w", &nanopush.JSONPushError{Reason: APNSReasonServiceUnavailable})
 }
 
 // newTestRetryingPusher returns a wrapper with no background loop and a
@@ -167,6 +175,29 @@ func TestRetryingPusherScheduling(t *testing.T) {
 		requireWithinJitter(t, *now, 30*time.Second, p.pending["e1"].nextAttempt)
 	})
 
+	t.Run("5xx failures wait at least Apple's 15-minute floor", func(t *testing.T) {
+		inner := &fakeInnerPusher{res: map[string]*nanomdm_push.Response{"e1": {Err: fiveXXErr()}}}
+		p, now := newTestRetryingPusher(inner)
+		_, _ = p.Push(ctx, []string{"e1"})
+		e := p.pending["e1"]
+		require.Equal(t, 1, e.attempt)
+		require.False(t, e.nextAttempt.Before(now.Add(retry5xxFloor)), "must not retry a 5xx sooner than 15m")
+		require.False(t, e.nextAttempt.After(now.Add(time.Duration(float64(retry5xxFloor)*1.2))))
+
+		// escalation on a repeated 5xx keeps the floor at rungs below 15m
+		*now = e.nextAttempt.Add(time.Second)
+		p.flushDue(ctx)
+		require.Equal(t, 2, e.attempt)
+		require.False(t, e.nextAttempt.Before(now.Add(retry5xxFloor)))
+
+		// the 30m rung already exceeds the floor and keeps its normal window
+		e.attempt = 3
+		*now = e.nextAttempt.Add(20 * time.Minute)
+		p.flushDue(ctx)
+		require.Equal(t, 4, e.attempt)
+		requireWithinJitter(t, *now, 30*time.Minute, e.nextAttempt)
+	})
+
 	t.Run("enrollments without push info are never scheduled", func(t *testing.T) {
 		inner := &fakeInnerPusher{res: map[string]*nanomdm_push.Response{"e1": {Err: nanomdm_pushsvc.ErrIdNotFound}}}
 		p, _ := newTestRetryingPusher(inner)
@@ -190,11 +221,11 @@ func TestRetryingPusherScheduling(t *testing.T) {
 		var buf strings.Builder
 		p.logger = slog.New(slog.NewTextHandler(&buf, nil))
 		for i := range retryPendingCap {
-			p.scheduleRetryLocked(ctx, fmt.Sprintf("e%05d", i), *now)
+			p.scheduleRetryLocked(ctx, fmt.Sprintf("e%05d", i), *now, transientErr())
 			*now = now.Add(time.Millisecond)
 		}
 		require.Len(t, p.pending, retryPendingCap)
-		p.scheduleRetryLocked(ctx, "one-more", *now)
+		p.scheduleRetryLocked(ctx, "one-more", *now, transientErr())
 		require.Len(t, p.pending, retryPendingCap)
 		require.NotContains(t, p.pending, "e00000", "oldest entry dropped")
 		require.Contains(t, p.pending, "one-more")

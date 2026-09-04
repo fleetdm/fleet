@@ -16,6 +16,12 @@ const (
 	APNSReasonTooManyRequests        = "TooManyRequests"
 	APNSReasonPayloadTooLarge        = "PayloadTooLarge"
 
+	// 5xx reasons: transient, but Apple documents retrying them no sooner
+	// than 15 minutes after the failure.
+	APNSReasonInternalServerError = "InternalServerError"
+	APNSReasonServiceUnavailable  = "ServiceUnavailable"
+	APNSReasonShutdown            = "Shutdown"
+
 	// 403-class reasons: certificate or topic problems that retrying a
 	// device token cannot fix.
 	APNSReasonBadCertificate            = "BadCertificate"
@@ -43,6 +49,17 @@ func isPermanentAPNSRejection(err error) bool {
 		APNSReasonForbidden, APNSReasonInvalidProviderToken, APNSReasonMissingProviderToken,
 		APNSReasonBadTopic, APNSReasonTopicDisallowed,
 		APNSReasonPayloadTooLarge, APNSReasonUnrelatedKeyIdInToken, APNSReasonBadEnvironmentKeyIdInToken:
+		return true
+	}
+	return false
+}
+
+// isAPNS5xxRejection reports whether a per-device push error carries one of
+// APNs' 5xx reasons, which Apple documents retrying no sooner than 15
+// minutes after the failure.
+func isAPNS5xxRejection(err error) bool {
+	switch APNSReason(err) {
+	case APNSReasonInternalServerError, APNSReasonServiceUnavailable, APNSReasonShutdown:
 		return true
 	}
 	return false
