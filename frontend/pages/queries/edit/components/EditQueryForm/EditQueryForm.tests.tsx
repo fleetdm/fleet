@@ -245,7 +245,7 @@ describe("EditQueryForm - component", () => {
 
     expect(
       await screen.findByText(
-        /live reports are disabled in organization settings/i
+        /live reports are disabled in organization settings\./i
       )
     ).toBeInTheDocument();
   });

@@ -91,17 +91,13 @@ func (r *registry) subscribe(token string, seq int64) (*subscriber, *ping) {
 	}
 	e.sub = sub
 	e.seq = seq
-	r.connected.Add(1)
 	return sub, evicted
 }
 
 // unsubscribe releases the stream and returns any unwritten ping. It detaches
 // only if sub is still the token's current subscriber, so a replaced handler's
-// deferred cleanup cannot evict its replacement. connected always decrements:
-// the handler calls this exactly once per subscribe.
+// deferred cleanup cannot evict its replacement.
 func (r *registry) unsubscribe(token string, sub *subscriber) *ping {
-	r.connected.Add(-1)
-
 	token, sh := r.shardFor(token)
 	sh.Lock()
 	defer sh.Unlock()
