@@ -381,13 +381,9 @@ func handleEnterprisesList(store *deviceStore) http.HandlerFunc {
 	return func(w http.ResponseWriter, _ *http.Request) {
 		known := store.knownEnterprises()
 
-		// An empty list is not "no enterprises exist", it is "this mock has not been told about
-		// any yet" — it holds no state across restarts and learns enterprises only from traffic.
-		// Fleet treats a successful list that omits its enterprise as confirmation the
-		// enterprise was deleted, so answering with an empty list here would have it delete its
-		// enterprise records, turn Android MDM off and unenroll every Android host. A failed
-		// list is explicitly treated as a technical problem instead, which is what an unknown
-		// state should look like.
+		// Fleet unenrolls every Android host and turns Android MDM off when its enterprise is
+		// absent from a successful list. An empty list here only means nothing has been observed
+		// yet, and a failed list is already treated as a technical problem, which is what it is.
 		if len(known) == 0 {
 			http.Error(w, "mock has not observed any enterprise yet", http.StatusServiceUnavailable)
 			return

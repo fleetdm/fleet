@@ -65,11 +65,8 @@ type deviceStore struct {
 	deletedESIDs map[string]struct{}
 	deletedNames map[string]struct{}
 
-	// enterprises records every enterprise this mock has been asked about, whether or not a
-	// fake device was ever registered against it. GET /v1/enterprises answers from this rather
-	// than from the registered devices alone: Fleet reads its enterprise missing from that
-	// list as proof the enterprise was deleted, and responds by deleting its own enterprise
-	// records, turning Android MDM off and unenrolling every Android host.
+	// enterprises records every enterprise this mock has been addressed about, so that
+	// GET /v1/enterprises can report one that has no registered fake device.
 	enterprises map[string]struct{}
 
 	// policyVersions tracks the latest version for each policy name.
