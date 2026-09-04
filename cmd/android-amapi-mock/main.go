@@ -66,7 +66,10 @@ type deviceStore struct {
 	deletedNames map[string]struct{}
 
 	// enterprises records every enterprise this mock has been addressed about, so that
-	// GET /v1/enterprises can report one that has no registered fake device.
+	// GET /v1/enterprises can report one that has no registered fake device. It has its own
+	// lock because it is touched by nearly every AMAPI request: sharing mu would put a
+	// store-wide writer in front of every concurrent device lookup.
+	entMu       sync.RWMutex
 	enterprises map[string]struct{}
 
 	// policyVersions tracks the latest version for each policy name.
@@ -95,24 +98,39 @@ func (ds *deviceStore) noteEnterprise(id string) {
 	if id == "" {
 		return
 	}
-	ds.mu.Lock()
-	defer ds.mu.Unlock()
+
+	// The set is effectively write-once — a load test addresses one enterprise for its whole
+	// run — so keep the common case on the read lock and only write on first sight.
+	ds.entMu.RLock()
+	_, known := ds.enterprises[id]
+	ds.entMu.RUnlock()
+	if known {
+		return
+	}
+
+	ds.entMu.Lock()
+	defer ds.entMu.Unlock()
 	ds.enterprises[id] = struct{}{}
 }
 
 // knownEnterprises returns every enterprise the mock has seen, either addressed directly or
 // through a registered fake device.
 func (ds *deviceStore) knownEnterprises() []string {
-	ds.mu.RLock()
-	defer ds.mu.RUnlock()
-
+	// Taken one after the other rather than nested, so this never holds two of the store's
+	// locks at once.
+	ds.entMu.RLock()
 	seen := make(map[string]struct{}, len(ds.enterprises))
 	maps.Copy(seen, ds.enterprises)
+	ds.entMu.RUnlock()
+
+	ds.mu.RLock()
 	for _, d := range ds.byESID {
 		if d.EnterpriseID != "" {
 			seen[d.EnterpriseID] = struct{}{}
 		}
 	}
+	ds.mu.RUnlock()
+
 	return slices.Collect(maps.Keys(seen))
 }
 
