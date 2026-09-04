@@ -2975,16 +2975,15 @@ func (svc *Service) GetMDMAppleEnrollmentProfileByToken(ctx context.Context, tok
 		return nil, ctxerr.Wrap(ctx, err, "extracting topic from APNs cert")
 	}
 
-	var depAssignments []*fleet.HostDEPAssignment
+	depAssignments, err := svc.ds.GetHostDEPAssignmentsBySerial(ctx, machineInfo.Serial)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting DEP assignments by serial")
+	}
+
 	if appConfig.MDM.OnlyAllowAppleBusinessEnrollment {
 		if machineInfo.Serial == "" {
 			// adue enrollment does not have a serial, so fail fast
 			return nil, &fleet.ABOnlyEnrollmentForbiddenError{}
-		}
-
-		depAssignments, err = svc.ds.GetHostDEPAssignmentsBySerial(ctx, machineInfo.Serial)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "getting DEP assignments by serial")
 		}
 
 		// No DEP assignment for this serial, so we fail.

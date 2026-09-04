@@ -1434,10 +1434,9 @@ func registerMDMServiceDiscovery(
 	serviceDiscoveryHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		appCfg, err := appCfgGetter.AppConfig(r.Context())
 		if err != nil {
-			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+			serviceDiscoveryLogger.ErrorContext(r.Context(), "error loading app config for service discovery", "err", err)
 			return
-		}
-		if appCfg.MDM.OnlyAllowAppleBusinessEnrollment {
+		} else if appCfg.MDM.OnlyAllowAppleBusinessEnrollment {
 			err := &fleet.ABOnlyEnrollmentForbiddenError{}
 			http.Error(w, err.Error(), err.StatusCode())
 			return

@@ -345,7 +345,7 @@ type MDM struct {
 	/////////////////////////////////////////////////////////////////
 }
 
-// IsAppleMDMSCEPBlocked reports whether Apple MDM SCEP endpoints is blocked all together, this blocks enrollments
+// IsAppleMDMSCEPBlocked reports whether Apple MDM SCEP endpoints are blocked altogether. This blocks enrollments
 // and renewals, plus those that might have a valid profile lying around with the static SCEP can't enroll.
 func (m MDM) IsAppleMDMSCEPBlocked() bool {
 	return m.OnlyAllowAppleBusinessEnrollment && m.AppleRequireHardwareAttestation

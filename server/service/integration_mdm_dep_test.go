@@ -3499,23 +3499,23 @@ func (s *integrationMDMTestSuite) TestABOnlyEnrollmentBlocksAuthenticateForNonDE
 		encoder := json.NewEncoder(w)
 		switch r.URL.Path {
 		case "/session":
-			require.NoError(t, encoder.Encode(map[string]string{"auth_session_token": "xyz"}))
+			assert.NoError(t, encoder.Encode(map[string]string{"auth_session_token": "xyz"}))
 		case "/profile":
-			require.NoError(t, encoder.Encode(godep.ProfileResponse{ProfileUUID: uuid.New().String()}))
+			assert.NoError(t, encoder.Encode(godep.ProfileResponse{ProfileUUID: uuid.New().String()}))
 		case "/server/devices":
-			require.NoError(t, encoder.Encode(godep.DeviceResponse{Devices: []godep.Device{depDevice}}))
+			assert.NoError(t, encoder.Encode(godep.DeviceResponse{Devices: []godep.Device{depDevice}}))
 		case "/devices/sync":
-			require.NoError(t, encoder.Encode(godep.DeviceResponse{Devices: []godep.Device{depDevice}, Cursor: "foo"}))
+			assert.NoError(t, encoder.Encode(godep.DeviceResponse{Devices: []godep.Device{depDevice}, Cursor: "foo"}))
 		case "/profile/devices":
 			b, err := io.ReadAll(r.Body)
-			require.NoError(t, err)
+			assert.NoError(t, err)
 			var prof profileAssignmentReq
-			require.NoError(t, json.Unmarshal(b, &prof))
+			assert.NoError(t, json.Unmarshal(b, &prof))
 			resp := godep.ProfileResponse{ProfileUUID: prof.ProfileUUID, Devices: make(map[string]string, len(prof.Devices))}
 			for _, serial := range prof.Devices {
 				resp.Devices[serial] = string(fleet.DEPAssignProfileResponseSuccess)
 			}
-			require.NoError(t, encoder.Encode(resp))
+			assert.NoError(t, encoder.Encode(resp))
 		default:
 			_, _ = w.Write([]byte(`{}`))
 		}
@@ -3525,11 +3525,11 @@ func (s *integrationMDMTestSuite) TestABOnlyEnrollmentBlocksAuthenticateForNonDE
 
 	origAppCfg, err := s.ds.AppConfig(t.Context())
 	require.NoError(t, err)
-	t.Cleanup(func() { s.ds.SaveAppConfig(context.Background(), origAppCfg) })
+	t.Cleanup(func() { require.NoError(t, s.ds.SaveAppConfig(context.Background(), origAppCfg)) })
 	appCfg, err := s.ds.AppConfig(t.Context())
 	require.NoError(t, err)
 	appCfg.MDM.OnlyAllowAppleBusinessEnrollment = true
-	require.NoError(t, s.ds.SaveAppConfig(context.Background(), appCfg))
+	require.NoError(t, s.ds.SaveAppConfig(t.Context(), appCfg))
 
 	// The DEP-assigned device has a row in host_dep_assignments for its serial (populated by
 	// the DEP sync above), so the full enroll flow — profile fetch, SCEP, Authenticate,
@@ -3548,8 +3548,8 @@ func (s *integrationMDMTestSuite) TestABOnlyEnrollmentBlocksAuthenticateForNonDE
 	}, "MacBookPro16,1")
 	err = rogueDevice.Enroll()
 	require.Error(t, err)
-	assert.ErrorContains(t, err, "authenticate:")
-	assert.ErrorContains(t, err, fmt.Sprintf("%d", http.StatusForbidden))
+	require.ErrorContains(t, err, "authenticate:")
+	require.ErrorContains(t, err, fmt.Sprintf("%d", http.StatusForbidden))
 
 	// Rejected at Authenticate, so no host record should have been created for it.
 	listHostsRes := listHostsResponse{}
@@ -3735,7 +3735,7 @@ func (s *integrationMDMTestSuite) TestBlockedEndpointsForABOnlyACMEConfig() {
 	originalAppCfg, err := s.ds.AppConfig(t.Context())
 	require.NoError(t, err)
 	t.Cleanup(func() {
-		s.ds.SaveAppConfig(context.Background(), originalAppCfg)
+		require.NoError(t, s.ds.SaveAppConfig(context.Background(), originalAppCfg))
 	})
 
 	getUserStatusCode := func(isBlocked bool, unblockedStatus int) int {
@@ -3791,7 +3791,7 @@ func (s *integrationMDMTestSuite) TestBlockedEndpointsForABOnlyACMEConfig() {
 	require.NoError(t, err)
 
 	// setup host so we can do device authenticated endpoints
-	host, err := s.ds.NewHost(t.Context(), &fleet.Host{TeamID: ptr.Uint(1)})
+	host, err := s.ds.NewHost(t.Context(), &fleet.Host{TeamID: new(uint(1))})
 	require.NoError(t, err)
 
 	// Mint a fresh device auth token
@@ -3800,12 +3800,13 @@ func (s *integrationMDMTestSuite) TestBlockedEndpointsForABOnlyACMEConfig() {
 	require.NoError(t, err)
 
 	// setup automatic enrollment profile to get a token
-	depProfileToken := "fake-dep-token"
-	s.ds.NewMDMAppleEnrollmentProfile(t.Context(), fleet.MDMAppleEnrollmentProfilePayload{
+	depProfileToken := "fake-dep-token" // nolint:gosec // test credential
+	_, err = s.ds.NewMDMAppleEnrollmentProfile(t.Context(), fleet.MDMAppleEnrollmentProfilePayload{
 		Type:       fleet.MDMAppleEnrollmentTypeAutomatic,
 		DEPProfile: new(json.RawMessage(`{}`)),
 		Token:      depProfileToken,
 	})
+	require.NoError(t, err)
 
 	for _, isBlocked := range []bool{true, false} {
 		t.Run(fmt.Sprintf("blocked=%v", isBlocked), func(t *testing.T) {
@@ -3815,7 +3816,7 @@ func (s *integrationMDMTestSuite) TestBlockedEndpointsForABOnlyACMEConfig() {
 			appCfg.MDM.AppleRequireHardwareAttestation = isBlocked
 			appCfg.MDM.OnlyAllowAppleBusinessEnrollment = isBlocked
 			require.Equal(t, isBlocked, appCfg.MDM.IsAppleMDMSCEPBlocked())
-			require.NoError(t, s.ds.SaveAppConfig(context.Background(), appCfg))
+			require.NoError(t, s.ds.SaveAppConfig(t.Context(), appCfg))
 
 			// we hit CA Caps and CA Cert to verify the middleware on all endpoints is blocking.
 			// PKIOperation requires additional setup to verify, but it's under the same middleware.
@@ -3866,7 +3867,7 @@ func (s *integrationMDMTestSuite) TestBlockedEndpointsForABOnlyACMEConfig() {
 
 			// hit /enroll page and verify on the returned enroll page.
 			resp = s.DoRawNoAuth("GET", "/enroll", nil, http.StatusOK)
-			require.Equal(t, resp.Header.Get("Content-Type"), "text/html; charset=utf-8")
+			require.Equal(t, "text/html; charset=utf-8", resp.Header.Get("Content-Type"))
 			// assert it contains the content we expect
 			defer resp.Body.Close()
 			bodyBytes, err := io.ReadAll(resp.Body)
