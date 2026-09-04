@@ -3065,14 +3065,7 @@ func (svc *Service) removeWindowsDeviceIfAlreadyMDMEnrolled(ctx context.Context,
 }
 
 // warnOnWindowsMDMHardwareIDCollision reports that the MDM hardware ID an enrolling device presented is already held by
-// a different host. It only warns when Fleet can be certain: the enrolling host is known (a programmatic enrollment,
-// where the orbit node key identifies the host) and the incumbent enrollment is linked to a different host.
-//
-// An Entra automatic enrollment carries no host identity at enroll time, so a collision there is indistinguishable from
-// the same machine re-enrolling and is deliberately not reported, rather than warning on every legitimate automatic
-// re-enrollment.
-//
-// Best effort by construction: it returns nothing, so a duplicate hardware ID can never fail an enrollment.
+// a different host.
 func (svc *Service) warnOnWindowsMDMHardwareIDCollision(ctx context.Context, hardwareID, hostUUID string) {
 	if hostUUID == "" {
 		return
@@ -3090,7 +3083,7 @@ func (svc *Service) warnOnWindowsMDMHardwareIDCollision(ctx context.Context, har
 
 	svc.logger.WarnContext(ctx,
 		"windows host is enrolling in MDM with a hardware ID already held by another host, which takes over that host's "+
-			"enrollment and leaves it unmanaged while still reporting MDM as on",
+			"enrollment and leaves it unmanaged",
 		"mdm_hardware_id", hardwareID,
 		"enrolling_host_uuid", hostUUID,
 		"existing_host_uuid", incumbentHostUUID,
