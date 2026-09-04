@@ -48,6 +48,23 @@ func CreateBYODIdPSession(ctx context.Context, kv fleet.KeyValueStore, clk clock
 	return sessionID, nil
 }
 
+// ConsumeBYODIdPSession ends a session once the flow it authenticated has
+// completed. The key is overwritten rather than deleted so this works on any
+// store; ValidateBYODIdPSession rejects the expired record until it is dropped.
+func ConsumeBYODIdPSession(ctx context.Context, kv fleet.KeyValueStore, clk clock.Clock, sessionID string) error {
+	if kv == nil {
+		return ctxerr.New(ctx, "byod idp session store not configured")
+	}
+	b, err := json.Marshal(BYODIdPSession{ExpiresAt: clk.Now()})
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "marshal consumed byod idp session")
+	}
+	if err := kv.Set(ctx, byodIdPSessionKeyPrefix+sessionID, string(b), time.Second); err != nil {
+		return ctxerr.Wrap(ctx, err, "consume byod idp session")
+	}
+	return nil
+}
+
 // ValidateBYODIdPSession returns an AuthRequiredError for an unknown or expired
 // session; any other error is the store failing.
 func ValidateBYODIdPSession(ctx context.Context, kv fleet.KeyValueStore, clk clock.Clock, sessionID string) (string, error) {

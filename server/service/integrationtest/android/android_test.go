@@ -248,7 +248,8 @@ func testCreateEnrollmentToken(t *testing.T, s *Suite) {
 			})
 		})
 
-		t.Run("when idp_uuid is passed as query param", func(t *testing.T) {
+		t.Run("when the session cookie is set", func(t *testing.T) {
+			var sessionID string
 			enableAndroidMDM()
 			createTeamAndSecret(globalSecret, globalSecret, true)
 			setupAndroidEnterprise()
@@ -261,10 +262,11 @@ func testCreateEnrollmentToken(t *testing.T, s *Suite) {
 			idpAccount, err := s.DS.GetMDMIdPAccountByEmail(t.Context(), idpEmail)
 			require.NoError(t, err)
 
+			sessionID = mustBYODIdPSession(t, s, idpAccount.UUID)
 			resp := s.DoRawWithHeaders(t, "GET",
 				fmt.Sprintf("/api/v1/fleet/android_enterprise/enrollment_token?enroll_secret=%s&fully_managed=true", globalSecret),
 				nil, http.StatusOK, map[string]string{
-					"Cookie": fmt.Sprintf("%s=%s", shared_mdm.BYODIdpCookieName, mustBYODIdPSession(t, s, idpAccount.UUID)),
+					"Cookie": fmt.Sprintf("%s=%s", shared_mdm.BYODIdpCookieName, sessionID),
 				},
 			)
 			defer resp.Body.Close()
@@ -298,6 +300,10 @@ func testCreateEnrollmentToken(t *testing.T, s *Suite) {
 
 			require.Equal(t, globalSecret, enrollmentRequest.EnrollSecret)
 			require.Equal(t, idpAccount.UUID, enrollmentRequest.IdpUUID)
+
+			// the session is single-use: minting the token burned it
+			_, err = shared_mdm.ValidateBYODIdPSession(t.Context(), s.KeyValueStore, clock.C, sessionID)
+			require.ErrorAs(t, err, new(*fleet.AuthRequiredError))
 
 			t.Cleanup(func() {
 				mysqltest.TruncateTables(t, s.DS)

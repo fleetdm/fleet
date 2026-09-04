@@ -64,6 +64,13 @@ func TestBYODIdPSession(t *testing.T) {
 	_, err = ValidateBYODIdPSession(ctx, kv, clk, sessionID)
 	require.ErrorAs(t, err, new(*fleet.AuthRequiredError))
 
+	// Consuming ends the session immediately, before the store drops the key.
+	sessionID, err = CreateBYODIdPSession(ctx, kv, clk, "idp-account-uuid")
+	require.NoError(t, err)
+	require.NoError(t, ConsumeBYODIdPSession(ctx, kv, clk, sessionID))
+	_, err = ValidateBYODIdPSession(ctx, kv, clk, sessionID)
+	require.ErrorAs(t, err, new(*fleet.AuthRequiredError))
+
 	// A missing or failing store is not the user being signed out.
 	_, err = ValidateBYODIdPSession(ctx, nil, clk, sessionID)
 	require.Error(t, err)
