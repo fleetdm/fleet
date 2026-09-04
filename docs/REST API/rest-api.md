@@ -13309,7 +13309,7 @@ Add Apple App Store or Google Play store app. Apple apps must be added in Apple 
 | labels_include_all        | array     | body | Target hosts that have all labels, specified by label name, in the array. |
 | labels_include_any        | array     | body | Target hosts that have any label, specified by label name, in the array. |
 | labels_exclude_any | array | form | Target hosts that don't have any label, specified by label name, in the array. |
-| configuration | object | form | The app's managed configuration. For iOS and iPadOS apps it is in XML format, and for Android Play Store apps it is in JSON format. Currently only supported for iOS, iPadOS, and Android. |
+| configurations | array | form | A list of one or more managed app configurations. For iOS and iPadOS apps each `configuration` is in XML format, and for Android Play Store apps it is in JSON format. Currently only supported for iOS, iPadOS, and Android. Each entry is an object with a `configuration` value and, optionally, one of `labels_include_any`, `labels_include_all`, or `labels_exclude_any` to scope that configuration to a subset of the hosts. |
 
 Only one of `labels_include_all`, `labels_include_any` or `labels_exclude_any` can be specified. If none are specified, all hosts are targeted.
 
@@ -13327,6 +13327,29 @@ Only one of `labels_include_all`, `labels_include_any` or `labels_exclude_any` c
   "team_id": 2,
   "platform": "ipados",
   "self_service": true
+}
+```
+
+##### Request body with multiple label-scoped configurations
+
+```json
+{
+  "app_store_id": "546505307",
+  "team_id": 2,
+  "platform": "ios",
+  "configurations": [
+    {
+      "labels_include_any": ["Product"],
+      "configuration": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>...<!-- Product config -->"
+    },
+    {
+      "labels_include_any": ["Marketing"],
+      "configuration": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>...<!-- Marketing config -->"
+    },
+    {
+      "configuration": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>...<!-- default config -->"
+    }
+  ]
 }
 ```
 
@@ -13375,11 +13398,13 @@ Modify an Apple App Store (VPP) or a Google Play app's options.
 | labels_include_all        | array     | body | Target hosts that have all labels, specified by label name, in the array. |
 | labels_include_any        | array     | body | Target hosts that have any label, specified by label name, in the array. |
 | labels_exclude_any | array | body | Target hosts that don't have any label, specified by label name, in the array. |
-| configuration | object | body | The app's managed configuration. For iOS and iPadOS apps it is in XML format, and for Android Play Store apps it is in JSON format. Currently only supported for iOS, iPadOS, and Android. |
+| configurations | array | body | A list of one or more managed app configurations. For iOS and iPadOS apps each `configuration` is in XML format, and for Android Play Store apps it is in JSON format. Currently only supported for iOS, iPadOS, and Android. Each entry is an object with a `configuration` value and, optionally, one of `labels_include_any`, `labels_include_all`, or `labels_exclude_any` to scope that configuration to a subset of the hosts. |
 
 Only one of `labels_include_all`, `labels_include_any` or `labels_exclude_any` can be specified. If none are specified, all hosts are targeted.
 
-`configuration` only supports `managedConfiguration` and `workProfileWidgets` from [Android application policy](https://developers.google.com/android/management/reference/rest/v1/enterprises.policies#ApplicationPolicy). Configuration keys vary by app. Refer to the app vendor's documentation for available managed configuration options. For example, see [Zoom's Android managed configuration](https://support.zoom.com/hc/en/article?id=zm_kb&sysparm_article=KB0064790) or [GlobalProtect's Android configuration](https://docs.paloaltonetworks.com/globalprotect/10-1/globalprotect-admin/mobile-endpoint-management/manage-the-globalprotect-app-using-other-third-party-mdms/configure-the-globalprotect-app-for-android).
+Each configuration only supports `managedConfiguration` and `workProfileWidgets` from [Android application policy](https://developers.google.com/android/management/reference/rest/v1/enterprises.policies#ApplicationPolicy). Configuration keys vary by app. Refer to the app vendor's documentation for available managed configuration options. For example, see [Zoom's Android managed configuration](https://support.zoom.com/hc/en/article?id=zm_kb&sysparm_article=KB0064790) or [GlobalProtect's Android configuration](https://docs.paloaltonetworks.com/globalprotect/10-1/globalprotect-admin/mobile-endpoint-management/manage-the-globalprotect-app-using-other-third-party-mdms/configure-the-globalprotect-app-for-android).
+
+If multiple configurations match the same host, Fleet applies the one that was added first. Each entry in the response includes a `created_at` timestamp so you can confirm which configuration takes precedence.
 
 #### Example
 
@@ -13395,6 +13420,27 @@ Only one of `labels_include_all`, `labels_include_any` or `labels_exclude_any` c
   "labels_include_any": [
     "Product",
     "Marketing"
+  ]
+}
+```
+
+##### Request body with multiple label-scoped configurations
+
+```json
+{
+  "team_id": 2,
+  "configurations": [
+    {
+      "labels_include_any": ["Product"],
+      "configuration": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>...<!-- Product config -->"
+    },
+    {
+      "labels_include_any": ["Marketing"],
+      "configuration": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>...<!-- Marketing config -->"
+    },
+    {
+      "configuration": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>...<!-- default config -->"
+    }
   ]
 }
 ```
@@ -13421,6 +13467,32 @@ Only one of `labels_include_all`, `labels_include_any` or `labels_exclude_any` c
       {
         "name": "Marketing",
         "id": 17
+      }
+    ],
+    "configurations": [
+      {
+        "labels_include_any": [
+          {
+            "name": "Product",
+            "id": 12
+          }
+        ],
+        "configuration": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>...<!-- Product config -->",
+        "created_at": "2026-08-25T14:20:11Z"
+      },
+      {
+        "labels_include_any": [
+          {
+            "name": "Marketing",
+            "id": 17
+          }
+        ],
+        "configuration": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>...<!-- Marketing config -->",
+        "created_at": "2026-08-25T14:22:03Z"
+      },
+      {
+        "configuration": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>...<!-- default config -->",
+        "created_at": "2026-08-25T14:23:41Z"
       }
     ],
     "automatic_install_policies": [
