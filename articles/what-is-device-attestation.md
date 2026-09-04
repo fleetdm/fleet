@@ -121,7 +121,7 @@ chip or later, all from ADE) receive ACME certificates on their next renewal cyc
 Intel Macs fall back to SCEP because they don't have a Secure Enclave to bind keys to. iPhones
 and iPads with an A10X Fusion chip or earlier also fall back to SCEP, because Apple's ACME
 protocol ignores the `Attest` key on those devices and they can't complete the attestation
-challenge. Apple TV and iPod touch aren't supported and also fall back to SCEP.
+challenge. iPod touch devices aren't supported and also fall back to SCEP.
 
 When a device enrolls with a hardware-attested certificate, Fleet shows **MDM attestation: Yes**
 in host vitals. If a host isn't attested, the field doesn't appear. That keeps the UI clear
