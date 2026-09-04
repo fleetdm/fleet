@@ -1009,7 +1009,7 @@ type BatchSetAppleDDMAssetsFunc func(ctx context.Context, teamID *uint, teamName
 
 type ReleaseABDevicesFunc func(ctx context.Context, hostIDs []uint) ([]*fleet.ABReleaseDeviceResponse, error)
 
-type ListMicrosoftGraphCredentialsFunc func(ctx context.Context) ([]*fleet.MicrosoftGraphCredential, error)
+type ListMicrosoftGraphCredentialsFunc func(ctx context.Context) ([]*fleet.MicrosoftGraphCredentialMetadata, error)
 
 type ApplyMicrosoftGraphCredentialsFunc func(ctx context.Context, creds []fleet.MicrosoftGraphCredential, dryRun bool) error
 
@@ -5973,7 +5973,7 @@ func (s *Service) ReleaseABDevices(ctx context.Context, hostIDs []uint) ([]*flee
 	return s.ReleaseABDevicesFunc(ctx, hostIDs)
 }
 
-func (s *Service) ListMicrosoftGraphCredentials(ctx context.Context) ([]*fleet.MicrosoftGraphCredential, error) {
+func (s *Service) ListMicrosoftGraphCredentials(ctx context.Context) ([]*fleet.MicrosoftGraphCredentialMetadata, error) {
 	s.mu.Lock()
 	s.ListMicrosoftGraphCredentialsFuncInvoked = true
 	s.mu.Unlock()

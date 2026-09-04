@@ -1709,8 +1709,8 @@ type Service interface {
 	//////////////////////////////////////////////////////////////////////////////
 	// Microsoft Graph
 
-	// ListMicrosoftGraphCredentials returns the stored Microsoft Graph credentials with their per-tenant sync status. Client secrets are masked.
-	ListMicrosoftGraphCredentials(ctx context.Context) ([]*MicrosoftGraphCredential, error)
+	// ListMicrosoftGraphCredentials returns the stored Microsoft Graph credentials with their per-tenant sync status.
+	ListMicrosoftGraphCredentials(ctx context.Context) ([]*MicrosoftGraphCredentialMetadata, error)
 	// ApplyMicrosoftGraphCredentials declaratively reconciles the stored Microsoft Graph credentials to the supplied
 	// list, verifying any new or changed credential against Graph before storing it. A tenant absent from the list is deleted.
 	ApplyMicrosoftGraphCredentials(ctx context.Context, creds []MicrosoftGraphCredential, dryRun bool) error

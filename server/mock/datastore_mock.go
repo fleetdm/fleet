@@ -1516,7 +1516,7 @@ type GetHostMDMProfileInstallStatusFunc func(ctx context.Context, hostUUID strin
 
 type ListMicrosoftGraphCredentialsFunc func(ctx context.Context) ([]*fleet.MicrosoftGraphCredential, error)
 
-type ListMicrosoftGraphCredentialMetadataFunc func(ctx context.Context) ([]*fleet.MicrosoftGraphCredential, error)
+type ListMicrosoftGraphCredentialMetadataFunc func(ctx context.Context) ([]*fleet.MicrosoftGraphCredentialMetadata, error)
 
 type ReplaceMicrosoftGraphCredentialsFunc func(ctx context.Context, upsert []*fleet.MicrosoftGraphCredential, deleteTenantIDs []string) error
 
@@ -11160,7 +11160,7 @@ func (s *DataStore) ListMicrosoftGraphCredentials(ctx context.Context) ([]*fleet
 	return s.ListMicrosoftGraphCredentialsFunc(ctx)
 }
 
-func (s *DataStore) ListMicrosoftGraphCredentialMetadata(ctx context.Context) ([]*fleet.MicrosoftGraphCredential, error) {
+func (s *DataStore) ListMicrosoftGraphCredentialMetadata(ctx context.Context) ([]*fleet.MicrosoftGraphCredentialMetadata, error) {
 	s.mu.Lock()
 	s.ListMicrosoftGraphCredentialMetadataFuncInvoked = true
 	s.mu.Unlock()

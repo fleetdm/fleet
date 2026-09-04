@@ -63,14 +63,14 @@ ORDER BY tenant_id`
 }
 
 // ListMicrosoftGraphCredentialMetadata returns the stored credentials without their client secrets.
-func (ds *Datastore) ListMicrosoftGraphCredentialMetadata(ctx context.Context) ([]*fleet.MicrosoftGraphCredential, error) {
+func (ds *Datastore) ListMicrosoftGraphCredentialMetadata(ctx context.Context) ([]*fleet.MicrosoftGraphCredentialMetadata, error) {
 	const stmt = `
 SELECT tenant_id, client_id, credential_invalid, last_synced_at, last_sync_error
 FROM mdm_microsoft_graph_credentials
 ORDER BY tenant_id`
 
 	// Non-nil so the endpoint serializes an empty list as [] rather than null.
-	creds := make([]*fleet.MicrosoftGraphCredential, 0)
+	creds := make([]*fleet.MicrosoftGraphCredentialMetadata, 0)
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &creds, stmt); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "list microsoft graph credential metadata")
 	}

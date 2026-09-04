@@ -2597,7 +2597,7 @@ type Datastore interface {
 
 	// ListMicrosoftGraphCredentialMetadata returns the stored credentials without their client secrets, decrypting
 	// nothing.
-	ListMicrosoftGraphCredentialMetadata(ctx context.Context) ([]*MicrosoftGraphCredential, error)
+	ListMicrosoftGraphCredentialMetadata(ctx context.Context) ([]*MicrosoftGraphCredentialMetadata, error)
 
 	// ReplaceMicrosoftGraphCredentials reconciles the stored credentials.
 	ReplaceMicrosoftGraphCredentials(ctx context.Context, upsert []*MicrosoftGraphCredential, deleteTenantIDs []string) error

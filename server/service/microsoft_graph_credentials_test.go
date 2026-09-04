@@ -117,12 +117,10 @@ func setupGraphCredsTest(t *testing.T, tier string, privateKey string, verifyErr
 		}
 		return out, nil
 	}
-	ds.ListMicrosoftGraphCredentialMetadataFunc = func(ctx context.Context) ([]*fleet.MicrosoftGraphCredential, error) {
-		out := make([]*fleet.MicrosoftGraphCredential, 0, len(env.stored))
+	ds.ListMicrosoftGraphCredentialMetadataFunc = func(ctx context.Context) ([]*fleet.MicrosoftGraphCredentialMetadata, error) {
+		out := make([]*fleet.MicrosoftGraphCredentialMetadata, 0, len(env.stored))
 		for _, c := range env.stored {
-			meta := *c
-			meta.ClientSecret = "" // the metadata read never decrypts
-			out = append(out, &meta)
+			out = append(out, &c.MicrosoftGraphCredentialMetadata)
 		}
 		return out, nil
 	}
@@ -375,47 +373,45 @@ func TestListMicrosoftGraphCredentials(t *testing.T) {
 	require.Len(t, creds, 1)
 	assert.Equal(t, graphTenantA, creds[0].TenantID)
 	assert.Equal(t, graphClientA, creds[0].ClientID)
-	assert.Empty(t, creds[0].ClientSecret, "the secret is write-only and must never be returned, not even as a mask")
+	// No assertion that the secret is absent: the returned type has no field to carry one.
 	// Per-tenant status is the whole reason this endpoint exists; it is no longer on the app config.
 	assert.True(t, creds[0].CredentialInvalid)
 
 	assert.True(t, env.ds.ListMicrosoftGraphCredentialMetadataFuncInvoked,
 		"the read must go through the metadata query")
 	assert.False(t, env.ds.ListMicrosoftGraphCredentialsFuncInvoked,
-		"the read must not decrypt secrets it is about to mask")
+		"the read must not decrypt secrets it has no way to return")
 }
 
 func TestMicrosoftGraphCredentialsAuth(t *testing.T) {
 	t.Parallel()
 	env := setupGraphCredsTest(t, fleet.TierPremium, "test-private-key", nil)
 
+	// Reading a credential is held to the same roles as writing one, so a single expectation covers both calls.
 	for _, tc := range []struct {
-		name            string
-		user            *fleet.User
-		shouldFailWrite bool
-		shouldFailRead  bool
+		name       string
+		user       *fleet.User
+		shouldFail bool
 	}{
-		{"global admin", &fleet.User{GlobalRole: new(fleet.RoleAdmin)}, false, false},
-		{"global gitops", &fleet.User{GlobalRole: new(fleet.RoleGitOps)}, false, false},
-		{"global maintainer", &fleet.User{GlobalRole: new(fleet.RoleMaintainer)}, true, false},
-		{"global observer", &fleet.User{GlobalRole: new(fleet.RoleObserver)}, true, false},
-		{"team admin", &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleAdmin}}}, true, false},
-		{"team observer", &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserver}}}, true, false},
-		// Every authenticated role may read the config, so an anonymous caller is the only case that distinguishes
-		// "read is authorized" from "read skips authorization entirely".
-		{"no user", nil, true, true},
+		{"global admin", &fleet.User{GlobalRole: new(fleet.RoleAdmin)}, false},
+		{"global gitops", &fleet.User{GlobalRole: new(fleet.RoleGitOps)}, false},
+		{"global maintainer", &fleet.User{GlobalRole: new(fleet.RoleMaintainer)}, true},
+		{"global observer", &fleet.User{GlobalRole: new(fleet.RoleObserver)}, true},
+		{"team admin", &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleAdmin}}}, true},
+		{"team observer", &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserver}}}, true},
+		{"no user", nil, true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := viewer.NewContext(env.ctx, viewer.Viewer{User: tc.user})
 
 			_, err := env.svc.ListMicrosoftGraphCredentials(ctx)
-			checkAuthErr(t, tc.shouldFailRead, err)
+			checkAuthErr(t, tc.shouldFail, err)
 
 			// A dry run exercises the authorization check without depending on the datastore mocks.
 			err = env.svc.ApplyMicrosoftGraphCredentials(ctx, []fleet.MicrosoftGraphCredential{
 				{TenantID: graphTenantA, ClientID: graphClientA, ClientSecret: "secret-a"},
 			}, true)
-			checkAuthErr(t, tc.shouldFailWrite, err)
+			checkAuthErr(t, tc.shouldFail, err)
 		})
 	}
 }
