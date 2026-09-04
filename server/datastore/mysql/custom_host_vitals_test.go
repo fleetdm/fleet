@@ -597,11 +597,12 @@ func testDeleteUsedCustomHostVital(t *testing.T, ds *Datastore) {
 			CustomHostVitalID: &id,
 		})
 		require.NoError(t, err)
+		raw := json.RawMessage(criteria)
 		label, err := ds.NewLabel(ctx, &fleet.Label{
 			Name:                "chv-del-label",
 			LabelType:           fleet.LabelTypeRegular,
 			LabelMembershipType: fleet.LabelMembershipTypeHostVitals,
-			HostVitalsCriteria:  new(json.RawMessage(criteria)),
+			HostVitalsCriteria:  &raw,
 		})
 		require.NoError(t, err)
 

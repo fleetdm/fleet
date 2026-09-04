@@ -785,11 +785,11 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 		policy.FailingHostCount = 0
 		policy.PassingHostCount = 0
 	}
-	// A chosen installer without a title has nothing to resolve against (the software block below
+	// A chosen package without a title has nothing to resolve against (the software block below
 	// only runs when the title is set), so reject it rather than silently ignore the choice.
 	if !p.SoftwareTitleID.Set && p.SoftwareInstallerID.Set && p.SoftwareInstallerID.Value != 0 {
 		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
-			Message: "software_installer_id can only be set together with software_title_id",
+			Message: "software_package_id can only be set together with software_title_id",
 		})
 	}
 	if p.SoftwareTitleID.Set {
@@ -962,7 +962,7 @@ func (svc *Service) getInstallerOrVPPAppForTitle(ctx context.Context, teamID *ui
 	if softwareTitleID == nil || *softwareTitleID == 0 {
 		if installerChosen {
 			return nil, nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
-				Message: "software_installer_id can only be set together with software_title_id",
+				Message: "software_package_id can only be set together with software_title_id",
 			})
 		}
 		return nil, nil, nil

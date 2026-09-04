@@ -41,6 +41,11 @@ import TooltipTruncatedText from "components/TooltipTruncatedText";
 
 import {
   INSTALL_DETAILS_STATUS_ICONS,
+  SKIPPED_INSTALL_DETAILS,
+  SKIPPED_INSTALL_DETAILS_LINK_TEXT,
+  SKIPPED_INSTALL_DETAILS_LINK_URL,
+  SKIPPED_INSTALL_DETAILS_PREFIX,
+  SKIPPED_PRE_INSTALL_OUTPUT,
   getInstallDetailsStatusPredicate,
 } from "../constants";
 
@@ -147,6 +152,22 @@ export const StatusMessage = ({
     : "";
 
   if (skippedInstall && status === "failed_install") {
+    // Admin-facing pages link "policy runs again" to cadence docs; the end-user
+    // "My device" flow shows plain text since the doc is admin-only.
+    const skippedDetails = isMyDevicePage ? (
+      SKIPPED_INSTALL_DETAILS
+    ) : (
+      <>
+        {SKIPPED_INSTALL_DETAILS_PREFIX}
+        <CustomLink
+          url={SKIPPED_INSTALL_DETAILS_LINK_URL}
+          text={SKIPPED_INSTALL_DETAILS_LINK_TEXT}
+          newTab
+        />
+        .
+      </>
+    );
+
     return (
       <IconStatusMessage
         className={`${baseClass}__status-message`}
@@ -156,8 +177,7 @@ export const StatusMessage = ({
           <span>
             Fleet skipped install of <b>{software_title}</b> ({software_package}
             ) on {formattedHost}
-            {displayTimeStamp}. The app was open. It will update once the user
-            closes it and policy runs again, or update via self service.
+            {displayTimeStamp}. {skippedDetails}
           </span>
         }
       />
@@ -318,7 +338,7 @@ export const SoftwareInstallDetailsModal = ({
       {
         label: "Pre-install query output:",
         value: detailsFromProps.skipped_install
-          ? "Query didn't return result or failed\nThe app was open"
+          ? SKIPPED_PRE_INSTALL_OUTPUT
           : swInstallResult?.pre_install_query_output,
       },
       {
@@ -376,17 +396,21 @@ export const SoftwareInstallDetailsModal = ({
   // True when host inventory reports at least one installed version for this app.
   const inventoryReportsInstalled = !!hostSoftware?.installed_versions?.length;
 
-  // This modal is opened in two contexts:
-  // - From Host -> Software: hostSoftware is defined (we trust inventory to override failures).
-  // - From the Activity feed: hostSoftware is undefined (we trust install result status).
+  // This modal is opened in three contexts:
+  // - Admin Host -> Software: hostSoftware defined, no deviceAuthToken.
+  // - End-user My device: hostSoftware defined, deviceAuthToken present.
+  // - Activity feed: hostSoftware undefined.
   const openedFromHostSoftwarePage = !!hostSoftware;
 
   // Used only for overriding failed_install/failed_uninstall -> "is installed."
-  // - From Host -> Software: override based on inventory.
-  // - From Activity feed: never override (always show the failure).
-  const canOverrideFailureWithInstalled = openedFromHostSoftwarePage
-    ? inventoryReportsInstalled
-    : false;
+  // - Admin Host -> Software: override based on inventory (4.82 #31663).
+  // - My device: never override — the end user just triggered Update and needs
+  //   to see the failure + Details + Retry (#52017).
+  // - Activity feed: never override (always show the failure).
+  const canOverrideFailureWithInstalled =
+    openedFromHostSoftwarePage && !deviceAuthToken
+      ? inventoryReportsInstalled
+      : false;
 
   // Treat failed_install / failed_uninstall with installed versions as installed
   const overrideFailedMessageWithInstalledMessage =

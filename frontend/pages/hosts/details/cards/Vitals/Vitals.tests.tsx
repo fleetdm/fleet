@@ -1,13 +1,18 @@
 import React from "react";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
+import { pick } from "lodash";
 import { createCustomRenderer } from "test/test-utils";
 
 import createMockHost, { createMockHostGeolocation } from "__mocks__/hostMock";
+import { IHost } from "interfaces/host";
 import { createMockHostMdmData } from "__mocks__/mdmMock";
 import { MdmEnrollmentStatus } from "interfaces/mdm";
 import { HostPlatform } from "interfaces/platform";
 import { IHostCustomVital } from "interfaces/custom_host_vitals";
-import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
+import {
+  DEFAULT_EMPTY_CELL_VALUE,
+  HOST_VITALS_DATA,
+} from "utilities/constants";
 import { normalizeEmptyValues } from "utilities/helpers";
 import Vitals from "./Vitals";
 
@@ -50,6 +55,70 @@ describe("Vitals Card component", () => {
     expect(screen.queryByText("Serial number")).not.toBeInTheDocument();
     expect(screen.queryByText("Private IP address")).not.toBeInTheDocument();
     expect(screen.queryByText("Public IP address")).not.toBeInTheDocument();
+  });
+
+  it("keeps Enrollment ID for a personally enrolled Android host after it unenrolls", () => {
+    const mockHost = createMockHost({
+      platform: "android",
+      hardware_model: "Pixel 6",
+      hardware_serial: "",
+      uuid: "enrollment-id-12345",
+      mdm: createMockHostMdmData({
+        enrollment_status: "Off",
+        is_personal_enrollment: true,
+      }),
+    });
+
+    render(<Vitals vitalsData={mockHost} mdm={mockHost.mdm} />);
+
+    expect(screen.getByText("Enrollment ID")).toBeInTheDocument();
+    expect(screen.getAllByText("enrollment-id-12345")[0]).toBeInTheDocument();
+    expect(screen.queryByText("Serial number")).not.toBeInTheDocument();
+  });
+
+  it("renders Serial number for an unenrolled Android host that was not personally enrolled", () => {
+    const mockHost = createMockHost({
+      platform: "android",
+      hardware_model: "Pixel 6",
+      hardware_serial: "1234567890",
+      mdm: createMockHostMdmData({
+        enrollment_status: "Off",
+        is_personal_enrollment: false,
+      }),
+    });
+
+    render(<Vitals vitalsData={mockHost} mdm={mockHost.mdm} />);
+
+    expect(screen.getByText("Serial number")).toBeInTheDocument();
+    expect(screen.getByText("1234567890")).toBeInTheDocument();
+    expect(screen.queryByText("Enrollment ID")).not.toBeInTheDocument();
+  });
+
+  it("tells the user the Enrollment ID is stable for personal Android hosts", async () => {
+    const mockHost = createMockHost({
+      platform: "android",
+      hardware_serial: "",
+      uuid: "enrollment-id-12345",
+      mdm: createMockHostMdmData({
+        enrollment_status: "Off",
+        is_personal_enrollment: true,
+      }),
+    });
+    const customRender = createCustomRenderer({});
+
+    const { user } = customRender(
+      <Vitals vitalsData={mockHost} mdm={mockHost.mdm} />
+    );
+
+    await user.hover(screen.getByText("Enrollment ID"));
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(
+          /For personal \(BYOD\) Android hosts, this enrollment ID is stable across unenroll\/re-enroll cycles\./i
+        )
+      ).toBeInTheDocument();
+    });
   });
 
   it("renders Enrollment ID and Hardware model for personally enrolled iOS hosts", () => {
@@ -1062,6 +1131,491 @@ describe("Custom host vitals", () => {
 
       expect(screen.getByText("macOS 26.5")).toBeVisible();
       expect(screen.queryByText(/Minimum version required/i)).toBeNull();
+    });
+  });
+});
+
+describe("Android vitals", () => {
+  const ANDROID_VITAL_TITLES = [
+    "Bootloader version",
+    "Encryption status",
+    "Play Protect enabled",
+    "Kernel version",
+    "Manufacturer",
+    "Passcode set",
+    "Security posture",
+    "Security update version",
+    "Software update status",
+    "USB debugging enabled",
+  ];
+
+  /** Shown only for company-owned hosts. */
+  const COMPANY_OWNED_TITLES = ["Carrier", "IMEI", "Phone number"];
+
+  /** Android hosts enroll manually; ownership is stated explicitly because the
+   * identifier rows require positive confirmation of company ownership. */
+  const companyOwnedMdm = () =>
+    createMockHostMdmData({
+      enrollment_status: "On (manual)",
+      is_personal_enrollment: false,
+    });
+
+  const createMockAndroidHost = (overrides: Partial<IHost> = {}) =>
+    createMockHost({
+      platform: "android",
+      mdm: companyOwnedMdm(),
+      os_version: "Android 16 (2026-05-01)",
+      adb_enabled: true,
+      passcode_protected: true,
+      play_protect_enabled: true,
+      encryption_type: "ACTIVE",
+      manufacturer: "Motorola",
+      security_update_version: "2026-05-01",
+      device_kernel_version: "6.1.75-android15-8-g3fb15dd41ea-ab12873456",
+      bootloader_version: "S906U1UES9FYL1",
+      system_update_status: "UNKNOWN_UPDATE_AVAILABLE",
+      security_posture: "SECURE",
+      imei: "A1000031212",
+      api_level: 36,
+      telephony_infos: [
+        { phone_number: "18001234567", carrier_name: "Verizon" },
+      ],
+      ...overrides,
+    });
+
+  /** Mirrors production exactly: HostDetailsPage and DeviceUserPage both hand
+   * the card normalizeEmptyValues(pick(host, HOST_VITALS_DATA)). Rendering the
+   * raw host instead would hide a vital that never made it into that pick. */
+  const renderAndroidCard = (
+    mockHost: IHost,
+    { withMdm = true }: { withMdm?: boolean } = {}
+  ) =>
+    render(
+      <Vitals
+        vitalsData={normalizeEmptyValues(pick(mockHost, HOST_VITALS_DATA))}
+        mdm={withMdm ? mockHost.mdm : undefined}
+      />
+    );
+
+  /** The value rendered next to a vital's title. */
+  const getVitalValue = (container: HTMLElement, title: string) =>
+    Array.from(
+      container.querySelectorAll(".vitals-card__info-grid > .data-set > dt")
+    ).find((el) => el.textContent === title)?.nextElementSibling?.textContent;
+
+  it("renders every Android vital the device reported", () => {
+    const { container } = renderAndroidCard(createMockAndroidHost());
+
+    expect(getVitalValue(container, "Manufacturer")).toBe("Motorola");
+    expect(getVitalValue(container, "Operating system")).toBe("Android 16");
+    expect(getVitalValue(container, "Kernel version")).toBe(
+      "6.1.75-android15-8-g3fb15dd41ea-ab12873456"
+    );
+    expect(getVitalValue(container, "Bootloader version")).toBe(
+      "S906U1UES9FYL1"
+    );
+    expect(getVitalValue(container, "IMEI")).toBe("A1000031212");
+    expect(getVitalValue(container, "Phone number")).toBe("18001234567");
+    expect(getVitalValue(container, "Carrier")).toBe("Verizon");
+    expect(getVitalValue(container, "Encryption status")).toBe("Active");
+    expect(getVitalValue(container, "Security posture")).toBe("Secure");
+    expect(getVitalValue(container, "Software update status")).toBe(
+      "Update pending"
+    );
+    expect(getVitalValue(container, "Security update version")).toBe(
+      "May 1, 2026"
+    );
+    expect(getVitalValue(container, "USB debugging enabled")).toBe("True");
+    expect(getVitalValue(container, "Passcode set")).toBe("True");
+    expect(getVitalValue(container, "Play Protect enabled")).toBe("True");
+  });
+
+  it("maps the AMAPI enum values to human-readable labels", () => {
+    const { container } = renderAndroidCard(
+      createMockAndroidHost({
+        encryption_type: "ACTIVE_PER_USER",
+        security_posture: "POTENTIALLY_COMPROMISED",
+        system_update_status: "SECURITY_UPDATE_AVAILABLE",
+      })
+    );
+
+    expect(getVitalValue(container, "Encryption status")).toBe(
+      "Active (per user)"
+    );
+    expect(getVitalValue(container, "Security posture")).toBe(
+      "Potentially compromised"
+    );
+    expect(getVitalValue(container, "Software update status")).toBe(
+      "Security update pending"
+    );
+  });
+
+  it("falls back to the raw value for an enum member Fleet doesn't know", () => {
+    const { container } = renderAndroidCard(
+      createMockAndroidHost({
+        security_posture: "SOME_NEW_POSTURE" as never,
+      })
+    );
+
+    expect(getVitalValue(container, "Security posture")).toBe(
+      "SOME_NEW_POSTURE"
+    );
+  });
+
+  it("does not resolve an enum value to an Object prototype member", () => {
+    const { container } = renderAndroidCard(
+      createMockAndroidHost({ security_posture: "constructor" as never })
+    );
+
+    expect(getVitalValue(container, "Security posture")).toBe("constructor");
+  });
+
+  it("renders booleans as True/False, including a reported false", () => {
+    const { container } = renderAndroidCard(
+      createMockAndroidHost({
+        adb_enabled: false,
+        passcode_protected: false,
+        play_protect_enabled: true,
+      })
+    );
+
+    // `false` must survive the trip through normalizeEmptyValues rather than
+    // collapsing into the empty-cell value.
+    expect(getVitalValue(container, "USB debugging enabled")).toBe("False");
+    expect(getVitalValue(container, "Passcode set")).toBe("False");
+    expect(getVitalValue(container, "Play Protect enabled")).toBe("True");
+  });
+
+  it("formats the security update version as a readable date", () => {
+    const { container } = renderAndroidCard(
+      createMockAndroidHost({ security_update_version: "2026-05-01" })
+    );
+
+    // Parsed in the local timezone, so the day never rolls backwards.
+    expect(getVitalValue(container, "Security update version")).toBe(
+      "May 1, 2026"
+    );
+  });
+
+  it("shows a security patch level that isn't date-shaped as sent", () => {
+    const { container } = renderAndroidCard(
+      createMockAndroidHost({ security_update_version: "2026-05" })
+    );
+
+    expect(getVitalValue(container, "Security update version")).toBe("2026-05");
+  });
+
+  it("does not throw on a date-shaped but impossible security patch level", () => {
+    // Intl.DateTimeFormat throws on an Invalid Date, which would take down the
+    // whole card rather than just this row.
+    const { container } = renderAndroidCard(
+      createMockAndroidHost({ security_update_version: "2026-13-45" })
+    );
+
+    expect(getVitalValue(container, "Security update version")).toBe(
+      "2026-13-45"
+    );
+    expect(getVitalValue(container, "Manufacturer")).toBe("Motorola");
+  });
+
+  it("does not roll a nonexistent calendar date forward", () => {
+    // V8 parses "2026-02-30" as March 2, so formatting it would report a patch
+    // level the device never sent.
+    const { container } = renderAndroidCard(
+      createMockAndroidHost({ security_update_version: "2026-02-30" })
+    );
+
+    expect(getVitalValue(container, "Security update version")).toBe(
+      "2026-02-30"
+    );
+  });
+
+  it("renders the empty cell value for each vital the device didn't report", () => {
+    const mockHost = createMockHost({
+      platform: "android",
+      mdm: companyOwnedMdm(),
+    });
+
+    const { container } = renderAndroidCard(mockHost);
+
+    [...ANDROID_VITAL_TITLES, ...COMPANY_OWNED_TITLES].forEach((title) => {
+      expect(getVitalValue(container, title)).toBe(DEFAULT_EMPTY_CELL_VALUE);
+    });
+  });
+
+  it("does not render any Android vital for a non-Android host", () => {
+    const mockHost = createMockHost({ platform: "darwin" });
+
+    const { container } = renderAndroidCard(mockHost);
+
+    [...ANDROID_VITAL_TITLES, ...COMPANY_OWNED_TITLES, "MEID"].forEach(
+      (title) => {
+        expect(getVitalValue(container, title)).toBeUndefined();
+      }
+    );
+  });
+
+  it("renders MEID when the device reports one", () => {
+    const { container } = renderAndroidCard(
+      createMockAndroidHost({ imei: undefined, meid: "A00000292788E1" })
+    );
+
+    expect(getVitalValue(container, "MEID")).toBe("A00000292788E1");
+  });
+
+  it("omits the MEID row on a device that doesn't report one", () => {
+    const { container } = renderAndroidCard(createMockAndroidHost());
+
+    expect(getVitalValue(container, "MEID")).toBeUndefined();
+  });
+
+  it("hides the company-owned-only vitals for a personally enrolled host", () => {
+    const { container } = renderAndroidCard(
+      createMockAndroidHost({
+        meid: "A00000292788E1",
+        mdm: createMockHostMdmData({
+          enrollment_status: "On (manual - personal)",
+        }),
+      })
+    );
+
+    [...COMPANY_OWNED_TITLES, "MEID"].forEach((title) => {
+      expect(getVitalValue(container, title)).toBeUndefined();
+    });
+    // The rest of the Android vitals still render.
+    expect(getVitalValue(container, "Security posture")).toBe("Secure");
+  });
+
+  it("keeps the company-owned-only vitals hidden after a personal host unenrolls", () => {
+    const { container } = renderAndroidCard(
+      createMockAndroidHost({
+        meid: "A00000292788E1",
+        mdm: createMockHostMdmData({
+          enrollment_status: "Off",
+          is_personal_enrollment: true,
+        }),
+      })
+    );
+
+    [...COMPANY_OWNED_TITLES, "MEID"].forEach((title) => {
+      expect(getVitalValue(container, title)).toBeUndefined();
+    });
+  });
+
+  it("hides the company-owned-only vitals when ownership can't be determined", () => {
+    // The My device page renders the card without MDM data, so BYOD can't be
+    // ruled out and these hardware identifiers stay hidden.
+    const { container } = renderAndroidCard(
+      createMockAndroidHost({ meid: "A00000292788E1" }),
+      { withMdm: false }
+    );
+
+    [...COMPANY_OWNED_TITLES, "MEID"].forEach((title) => {
+      expect(getVitalValue(container, title)).toBeUndefined();
+    });
+    expect(getVitalValue(container, "Security posture")).toBe("Secure");
+  });
+
+  it("hides the company-owned-only vitals when the ownership flag is absent", () => {
+    // is_personal_enrollment carries no omitempty server-side, so it should
+    // always be present — but ownership is confirmed positively rather than
+    // assumed, so a payload without it hides the identifiers.
+    const mockHost = createMockAndroidHost({ meid: "A00000292788E1" });
+    delete mockHost.mdm.is_personal_enrollment;
+
+    const { container } = renderAndroidCard(mockHost);
+
+    [...COMPANY_OWNED_TITLES, "MEID"].forEach((title) => {
+      expect(getVitalValue(container, title)).toBeUndefined();
+    });
+    expect(getVitalValue(container, "Security posture")).toBe("Secure");
+  });
+
+  it("omits the MEID row when the server reports it as empty", () => {
+    // normalizeEmptyValues rewrites an empty value to the empty-cell string,
+    // which must not be mistaken for a reported MEID.
+    const { container } = renderAndroidCard(
+      createMockAndroidHost({ meid: "" })
+    );
+
+    expect(getVitalValue(container, "MEID")).toBeUndefined();
+  });
+
+  it("shows the Android API level in a tooltip on the operating system", async () => {
+    const mockHost = createMockAndroidHost();
+    const customRender = createCustomRenderer({});
+
+    const { user } = customRender(
+      <Vitals
+        vitalsData={normalizeEmptyValues(pick(mockHost, HOST_VITALS_DATA))}
+        mdm={mockHost.mdm}
+      />
+    );
+
+    await user.hover(screen.getByText("Android 16"));
+
+    await waitFor(() => {
+      expect(screen.getByText(/Android API level: 36/)).toBeInTheDocument();
+    });
+  });
+
+  it("renders no API level tooltip when the device didn't report one", async () => {
+    const mockHost = createMockAndroidHost();
+    // The server omits the field entirely rather than sending a null.
+    delete mockHost.api_level;
+    const customRender = createCustomRenderer({});
+
+    const { user } = customRender(
+      <Vitals
+        vitalsData={normalizeEmptyValues(pick(mockHost, HOST_VITALS_DATA))}
+        mdm={mockHost.mdm}
+      />
+    );
+
+    await user.hover(screen.getByText("Android 16"));
+
+    await waitFor(() => {
+      expect(screen.queryByText(/Android API level/)).not.toBeInTheDocument();
+    });
+  });
+
+  it("lists every number in a tooltip on a dual-SIM device", async () => {
+    const mockHost = createMockAndroidHost({
+      telephony_infos: [
+        { phone_number: "18001234567", carrier_name: "Verizon" },
+        { phone_number: "18009876543", carrier_name: "AT&T" },
+      ],
+    });
+    const customRender = createCustomRenderer({});
+
+    const { user } = customRender(
+      <Vitals
+        vitalsData={normalizeEmptyValues(pick(mockHost, HOST_VITALS_DATA))}
+        mdm={mockHost.mdm}
+      />
+    );
+
+    // The first SIM's number is what shows on the card.
+    await user.hover(screen.getAllByText("18001234567")[0]);
+
+    await waitFor(() => {
+      expect(screen.getByText("18009876543")).toBeInTheDocument();
+    });
+  });
+
+  it("shows one carrier when both SIMs are on the same network", () => {
+    const { container } = renderAndroidCard(
+      createMockAndroidHost({
+        telephony_infos: [
+          { phone_number: "18001234567", carrier_name: "Verizon" },
+          { phone_number: "18009876543", carrier_name: "Verizon" },
+        ],
+      })
+    );
+
+    // Deduplicated, so the value isn't repeated and stays usable as a key.
+    expect(getVitalValue(container, "Carrier")).toBe("Verizon");
+  });
+
+  it("links out to the docs from the Security posture tooltip", async () => {
+    const mockHost = createMockAndroidHost();
+    const customRender = createCustomRenderer({});
+
+    const { user } = customRender(
+      <Vitals
+        vitalsData={normalizeEmptyValues(pick(mockHost, HOST_VITALS_DATA))}
+        mdm={mockHost.mdm}
+      />
+    );
+
+    await user.hover(screen.getByText("Security posture"));
+
+    const tooltip = await screen.findByText(
+      /Google's risk assessment for this host/i
+    );
+    // Scoped to this tooltip so the assertion can't drift onto another vital's
+    // Learn more link.
+    const learnMore = within(tooltip.closest("div") as HTMLElement).getByText(
+      /Learn more/
+    );
+    expect(learnMore.closest("a")).toHaveAttribute(
+      "href",
+      "https://fleetdm.com/learn-more-about/security-posture"
+    );
+  });
+
+  it("capitalizes a manufacturer the device reports in lowercase", () => {
+    const { container } = renderAndroidCard(
+      createMockAndroidHost({ manufacturer: "samsung" })
+    );
+
+    expect(getVitalValue(container, "Manufacturer")).toBe("Samsung");
+  });
+
+  it("leaves a manufacturer that capitalizes itself alone", () => {
+    const { container } = renderAndroidCard(
+      createMockAndroidHost({ manufacturer: "OnePlus" })
+    );
+
+    expect(getVitalValue(container, "Manufacturer")).toBe("OnePlus");
+  });
+
+  it("drops the security patch level from the operating system version", () => {
+    // The server folds it into os_version, and it has its own vital now, so
+    // showing it here would just repeat it.
+    const { container } = renderAndroidCard(
+      createMockAndroidHost({ os_version: "Android 16 (2026-01-01)" })
+    );
+
+    expect(getVitalValue(container, "Operating system")).toBe("Android 16");
+  });
+
+  it("leaves an Android version that reports no patch level alone", () => {
+    const { container } = renderAndroidCard(
+      createMockAndroidHost({ os_version: "Android 16" })
+    );
+
+    expect(getVitalValue(container, "Operating system")).toBe("Android 16");
+  });
+
+  it("does not strip a parenthetical from a non-Android OS version", () => {
+    const mockHost = createMockHost({
+      platform: "darwin",
+      os_version: "macOS 26.5 (25F74)",
+    });
+
+    const { container } = renderAndroidCard(mockHost);
+
+    expect(getVitalValue(container, "Operating system")).toBe(
+      "macOS 26.5 (25F74)"
+    );
+  });
+
+  it("explains the encryption status and software update status vitals", async () => {
+    const mockHost = createMockAndroidHost();
+    const customRender = createCustomRenderer({});
+
+    const { user } = customRender(
+      <Vitals
+        vitalsData={normalizeEmptyValues(pick(mockHost, HOST_VITALS_DATA))}
+        mdm={mockHost.mdm}
+      />
+    );
+
+    await user.hover(screen.getByText("Encryption status"));
+    await waitFor(() => {
+      expect(
+        screen.getByText(/Shows whether this device's storage is encrypted\./i)
+      ).toBeInTheDocument();
+    });
+
+    await user.hover(screen.getByText("Software update status"));
+    await waitFor(() => {
+      expect(
+        screen.getByText(
+          /Shows whether an Android OS update is available for this host\./i
+        )
+      ).toBeInTheDocument();
     });
   });
 });

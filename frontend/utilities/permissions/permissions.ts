@@ -32,17 +32,17 @@ export const isEndUserIdPConfigured = (config: IConfig): boolean => {
   );
 };
 
-export const isGlobalAdmin = (user: IUser): boolean => {
-  return user.global_role === "admin";
+export const isGlobalAdmin = (user: IUser | null): boolean => {
+  return user?.global_role === "admin";
 };
 
-export const isGlobalMaintainer = (user: IUser): boolean => {
-  return user.global_role === "maintainer";
+export const isGlobalMaintainer = (user: IUser | null): boolean => {
+  return user?.global_role === "maintainer";
 };
 
-export const isGlobalObserver = (user: IUser): boolean => {
+export const isGlobalObserver = (user: IUser | null): boolean => {
   return (
-    user.global_role === "observer" || user.global_role === "observer_plus"
+    user?.global_role === "observer" || user?.global_role === "observer_plus"
   );
 };
 
@@ -142,8 +142,8 @@ export const isAnyTeamTechnician = (user: IUser): boolean => {
   return false;
 };
 
-export const isGlobalTechnician = (user: IUser): boolean => {
-  return user.global_role === "technician";
+export const isGlobalTechnician = (user: IUser | null): boolean => {
+  return user?.global_role === "technician";
 };
 
 const isAnyTeamAdmin = (user: IUser): boolean => {
@@ -234,6 +234,22 @@ export const canDownloadSoftwareInstaller = (
   );
 };
 
+const isGlobalOrTeamObserverOrAbove = (
+  user: IUser | null,
+  teamId: number | null
+): boolean => {
+  return (
+    isGlobalObserver(user) ||
+    isGlobalTechnician(user) ||
+    isGlobalMaintainer(user) ||
+    isGlobalAdmin(user) ||
+    isTeamObserver(user, teamId) ||
+    isTeamTechnician(user, teamId) ||
+    isTeamMaintainer(user, teamId) ||
+    isTeamAdmin(user, teamId)
+  );
+};
+
 export default {
   isSandboxMode,
   isFreeTier,
@@ -264,4 +280,5 @@ export default {
   isNoAccess,
   canWriteSoftware,
   canDownloadSoftwareInstaller,
+  isGlobalOrTeamObserverOrAbove,
 };

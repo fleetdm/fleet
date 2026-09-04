@@ -58,8 +58,12 @@ const hasLength = (a: unknown[], b: unknown[]): number => {
   return 0;
 };
 
-const versionAsc = (a: string, b: string): number =>
-  compareVersions(String(a ?? ""), String(b ?? ""));
+// A missing version becomes "", which sorts before any real version.
+const versionAsc = (a: unknown, b: unknown): number =>
+  compareVersions(
+    typeof a === "string" ? a : "",
+    typeof b === "string" ? b : ""
+  );
 
 const POLICY_STATUS_PRECEDENCE = ["actionRequired", "fail", "pass"];
 

@@ -27,8 +27,7 @@ spec:
         require_bitlocker_pin: false
         configuration_profiles: null
         enable_disk_encryption: false
-        managed_local_account_settings:
-          enabled: false
+        enable_managed_local_account: false
       linux_settings:
         enable_escrow_disk_encryption_key: false
       android_settings:
@@ -98,8 +97,7 @@ spec:
         require_bitlocker_pin: false
         custom_settings: null
         enable_disk_encryption: false
-        managed_local_account_settings:
-          enabled: false
+        enable_managed_local_account: false
       linux_settings:
         enable_escrow_disk_encryption_key: false
       android_settings:

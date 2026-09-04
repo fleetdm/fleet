@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   api,
+  type BuildInfo,
   type ContextInfo,
   type ContextSummary,
   type DetectedProcess,
@@ -181,7 +182,63 @@ function Sidebar({
         </Group>
       </div>
       <ThemeToggle value={theme} onChange={onThemeChange} />
+      <BuildStamp />
     </div>
+  );
+}
+
+/// Which build this is, pinned below the theme toggle. Hangar is handed around
+/// as an ad-hoc-signed .app and rebuilt often, so "am I on the new one?" needs
+/// an answer that doesn't involve a terminal — and a crash report is only
+/// useful with the build that produced it. Click to copy.
+function BuildStamp() {
+  const [info, setInfo] = useState<BuildInfo | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    api
+      .buildInfo()
+      .then(setInfo)
+      .catch(() => setInfo(null));
+  }, []);
+
+  if (!info) return null;
+
+  const full = `Fleet Hangar ${info.version} (${info.commit}${
+    info.date && info.date !== "unknown" ? `, built ${info.date}` : ""
+  })`;
+
+  return (
+    <button
+      onClick={() => {
+        navigator.clipboard.writeText(full).then(
+          () => {
+            setCopied(true);
+            setTimeout(() => setCopied(false), 1200);
+          },
+          () => setCopied(false),
+        );
+      }}
+      title={`${full}\nClick to copy`}
+      style={{
+        borderTop: "1px solid var(--app-border)",
+        borderLeft: "none",
+        borderRight: "none",
+        borderBottom: "none",
+        borderRadius: 0,
+        background: "none",
+        textAlign: "left",
+        width: "100%",
+        padding: "var(--pad-small) var(--pad-medium)",
+        fontSize: "var(--fs-xxx-small)",
+        color: "var(--app-text-dim)",
+        whiteSpace: "nowrap",
+        overflow: "hidden",
+        textOverflow: "ellipsis",
+      }}
+    >
+      {copied ? "Copied" : `v${info.version} · ${info.commit}`}
+    </button>
   );
 }
 

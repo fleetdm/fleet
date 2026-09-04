@@ -286,8 +286,9 @@ func getDeviceHostEndpoint(ctx context.Context, request interface{}, svc fleet.S
 			// TODO(mna): It currently only returns the Apple enabled and configured,
 			// regardless of the platform of the device. See
 			// https://github.com/fleetdm/fleet/pull/19304#discussion_r1618792410.
-			EnabledAndConfigured: ac.MDM.EnabledAndConfigured,
-			RequireAllSoftware:   requireAllSoftware,
+			EnabledAndConfigured:             ac.MDM.EnabledAndConfigured,
+			RequireAllSoftware:               requireAllSoftware,
+			OnlyAllowAppleBusinessEnrollment: ac.MDM.OnlyAllowAppleBusinessEnrollment,
 		},
 		Features: fleet.DeviceFeatures{
 			EnableSoftwareInventory:       softwareInventoryEnabled,
@@ -923,6 +924,10 @@ func (svc *Service) GetDeviceMDMAppleEnrollmentProfile(ctx context.Context) (*ur
 		return nil, ctxerr.Wrap(ctx, err, "fetching app config")
 	}
 
+	if cfg.MDM.OnlyAllowAppleBusinessEnrollment {
+		return nil, &fleet.ABOnlyEnrollmentForbiddenError{}
+	}
+
 	host, ok := hostctx.FromContext(ctx)
 	if !ok {
 		return nil, ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("internal error: missing host from request context"))
@@ -1170,4 +1175,27 @@ func (svc *Service) GetDeviceSetupExperienceStatus(ctx context.Context) (*fleet.
 	svc.authz.SkipAuthorization(ctx)
 
 	return nil, fleet.ErrMissingLicense
+}
+
+type deviceSendAPNSPingRequest struct {
+	Token string `url:"token"`
+}
+
+func (r *deviceSendAPNSPingRequest) deviceAuthToken() string {
+	return r.Token
+}
+
+func deviceSendAPNSPing(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
+	host, ok := hostctx.FromContext(ctx)
+	if !ok {
+		err := ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("internal error: missing host from request context"))
+		return sendAPNSPingResponse{Err: err}, nil
+	}
+
+	err := svc.DeviceSendAPNSPing(ctx, host)
+	if err != nil {
+		return sendAPNSPingResponse{Err: err}, nil
+	}
+
+	return sendAPNSPingResponse{Err: nil}, nil
 }

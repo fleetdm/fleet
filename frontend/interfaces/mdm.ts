@@ -1,5 +1,6 @@
 import { IConfigServerSettings } from "./config";
-import { HostAndroidCertStatus } from "./host";
+import { HostAndroidCertStatus, IHostDevice, IHostMdmData } from "./host";
+import { isAppleDevice } from "./platform";
 
 export interface IMdmApple {
   common_name: string;
@@ -337,6 +338,29 @@ export const isBYODManualEnrollment = (
   return enrollmentStatus === "On (manual)";
 };
 
+/** MDM enrollment channels as reported by the device. Account-Driven User
+ * Enrollment is the only personal (BYOD) flow that enrolls on the user channel;
+ * manual BYOD enrolls on the device channel like company-owned hosts. */
+export const MDM_ENROLLMENT_TYPE_ACCOUNT_DRIVEN = "User Enrollment (Device)";
+
+/** Whether a host enrolled through Account-Driven User Enrollment, which decides
+ * how the end user re-enrolls. The enrollment status can't answer this: manual
+ * BYOD reports the same "On (manual - personal)". See #50868. */
+export const isAccountDrivenUserEnrollment = (
+  lastMdmEnrollmentType?: string | null
+) => {
+  return lastMdmEnrollmentType === MDM_ENROLLMENT_TYPE_ACCOUNT_DRIVEN;
+};
+
+/** Personal (BYOD) enrollment status. Note this covers BOTH manual BYOD and
+ * Account-Driven User Enrollment — the status alone cannot tell them apart, so
+ * use `isAccountDrivenUserEnrollment` when the difference matters. See #50868. */
+export const isPersonalEnrollmentStatus = (
+  enrollmentStatus: MdmEnrollmentStatus | null
+) => {
+  return enrollmentStatus === "On (manual - personal)";
+};
+
 /** This checks if the device is enrolled via an Apple ID user enrollment.
  * We refer to that as "account driven user enrollment". Note that this same
  * status now also covers manual BYOD enrollments (Apple) and Android BYO
@@ -345,6 +369,22 @@ export const isBYODAccountDrivenUserEnrollment = (
   enrollmentStatus: MdmEnrollmentStatus | null
 ) => {
   return enrollmentStatus === "On (manual - personal)";
+};
+
+/** Whether the host's last recorded MDM enrollment was personal (BYOD), including
+ * hosts that have since unenrolled. `is_personal_enrollment` is not cleared on
+ * unenrollment while `enrollment_status` flips to "Off", so UI that identifies a
+ * BYOD device (which never reports a serial number) must not rely on the status
+ * alone. The status is still checked because not every host payload carries the
+ * flag: only queries built on the server's shared host-MDM select populate it. */
+export const wasBYODEnrolled = (
+  enrollmentStatus: MdmEnrollmentStatus | null,
+  isPersonalEnrollment?: boolean
+) => {
+  return (
+    isPersonalEnrollment === true ||
+    isBYODAccountDrivenUserEnrollment(enrollmentStatus)
+  );
 };
 
 /** This check is the device is enrolled via Automated Device Enrollment (ADE, also known as DEP)
@@ -367,4 +407,25 @@ export const isAndroidBYO = (enrollmentStatus: MdmEnrollmentStatus | null) => {
 /** Android COBO (company-owned, fully managed) enrollment. */
 export const isAndroidCOBO = (enrollmentStatus: MdmEnrollmentStatus | null) => {
   return enrollmentStatus === "On (automatic)";
+};
+
+// canTriggerAPNSPing checks the host state if it's allowed to hit APNS ping, it does not do any permission level checks.
+
+type ICanTriggerAPNSPingHost = Pick<IHostDevice, "platform"> & {
+  mdm: Pick<IHostMdmData, "connected_to_fleet"> &
+    Pick<IHostMdmData, "enrollment_status">;
+};
+
+export const canTriggerAPNSPing = (host: ICanTriggerAPNSPingHost) => {
+  return (
+    isAppleDevice(host.platform) &&
+    host.mdm.connected_to_fleet &&
+    host.mdm.enrollment_status !== null &&
+    ([
+      "On (automatic)",
+      "On (manual)",
+      "On (manual - personal)",
+      "On (company-owned)",
+    ] as MdmEnrollmentStatus[]).includes(host.mdm.enrollment_status)
+  );
 };

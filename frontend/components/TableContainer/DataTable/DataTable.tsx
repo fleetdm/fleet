@@ -267,12 +267,11 @@ const DataTable = ({
             b: { values: Record<string, unknown[]> },
             id: string
           ) => sort.hostPolicyStatus(a.values[id], b.values[id]),
-
           version: (
             a: { values: Record<string, unknown> },
             b: { values: Record<string, unknown> },
             id: string
-          ) => sort.versionAsc(a.values[id] as string, b.values[id] as string),
+          ) => sort.versionAsc(a.values[id], b.values[id]),
         }),
         []
       ),

@@ -335,16 +335,36 @@ describe("ControlDetailsModal", () => {
       );
     });
 
-    it("keeps the BitLocker PIN wording on windows disk encryption", () => {
+    // Windows reaches action_required for a missing PIN, an unready TPM, and a policy that forbids a TPM-only
+    // protector, so the fallback must not name any one of them. It is only reached if the server omits a reason.
+    it("falls back to neutral wording on windows disk encryption with no reason", () => {
       renderModal({
         control: generateWinDiskEncryptionSetting("action_required", ""),
       });
 
       expect(
-        screen.getByText(/BitLocker PIN/, { selector: "span" })
+        screen.getByText(/needs attention/, { selector: "span" })
       ).toHaveTextContent(
-        "Disk encryption is on, but the end user hasn't set a BitLocker PIN on Anna's MacBook Pro yet."
+        "Disk encryption on Anna's MacBook Pro needs attention."
       );
+      expect(screen.queryByText(/BitLocker PIN/)).toBeNull();
+    });
+
+    // The generic copy names a PIN, but the server reaches action_required for
+    // reasons that have nothing to do with one. When it sends a reason, that
+    // reason wins, otherwise we assert a PIN requirement that may not exist.
+    it("prefers the server reason over the PIN wording on windows disk encryption", () => {
+      const detail =
+        "BitLocker protection is off. Fleet could not turn it back on: could not add a TPM protector, so protection was not re-enabled: 0x80310066";
+
+      renderModal({
+        control: generateWinDiskEncryptionSetting("action_required", detail),
+      });
+
+      expect(
+        screen.getByText(/could not turn it back on/, { selector: "span" })
+      ).toHaveTextContent(detail);
+      expect(screen.queryByText(/hasn't set a BitLocker PIN/)).toBeNull();
     });
   });
 

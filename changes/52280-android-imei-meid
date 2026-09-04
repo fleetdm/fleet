@@ -1,0 +1,1 @@
+* Added collection of the Android hardware radio identifiers (IMEI and MEID) from AMAPI status reports, returned as `imei` and `meid` by the get host endpoints for company-owned Android hosts.

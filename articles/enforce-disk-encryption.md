@@ -136,6 +136,10 @@ Share [these guided instructions](https://fleetdm.com/guides/mdm-migration#how-t
 
 ## Advanced
 
+### Custom disk encryption profiles
+
+If you need FileVault or BitLocker settings Fleet doesn't manage directly, you can upload your own configuration profile alongside or instead of Fleet's enforcement. See [Custom disk encryption profiles](https://fleetdm.com/guides/custom-disk-encryption-profiles).
+
 ### Escrow Buddy
 
 Fleet uses [Escrow Buddy](https://github.com/macadmins/escrow-buddy) to escrow disk encryption keys from macOS hosts. Escrow Buddy is installed only on macOS hosts that are assigned to a team in Fleet with disk encryption enforced. If a host is then transferred to a team that doesn't enforce disk encryption, Escrow Buddy stays installed.

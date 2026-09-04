@@ -44,7 +44,10 @@ import {
   IHostCertificate,
   CERTIFICATES_DEFAULT_SORT,
 } from "interfaces/certificates";
-import { FLEET_FILEVAULT_PROFILE_DISPLAY_NAME } from "interfaces/mdm";
+import {
+  canTriggerAPNSPing,
+  FLEET_FILEVAULT_PROFILE_DISPLAY_NAME,
+} from "interfaces/mdm";
 import { ICommand } from "interfaces/command";
 
 import {
@@ -157,7 +160,11 @@ import {
 } from "../helpers";
 import WipeModal from "./modals/WipeModal";
 import { parseHostSoftwareQueryParams } from "../cards/Software/HostSoftware";
-import { canShowMyDeviceButton, getErrorMessage } from "./helpers";
+import {
+  canShowMyDeviceButton,
+  getErrorMessage,
+  hasEverEnrolled,
+} from "./helpers";
 import CancelActivityModal from "./modals/CancelActivityModal";
 import CancelCommandModal from "./modals/CancelCommandModal";
 import CertificateDetailsModal from "../modals/CertificateDetailsModal";
@@ -328,7 +335,13 @@ const HostDetailsPage = ({
     setEnrollmentProfileFailedDetails,
   ] = useState<Omit<IFailedEnrollmentProfileModalProps, "onDone"> | null>(null);
 
-  const [refetchStartTime, setRefetchStartTime] = useState<number | null>(null);
+  // React Router reuses this component when only host_id changes.
+  const [refetchStart, setRefetchStart] = useState<{
+    hostId: number;
+    at: number;
+  } | null>(null);
+  const refetchStartTime =
+    refetchStart?.hostId === hostIdFromURL ? refetchStart.at : null;
   const [showRefetchSpinner, setShowRefetchSpinner] = useState(false);
   const [usersState, setUsersState] = useState<{ username: string }[]>([]);
   const [usersSearchString, setUsersSearchString] = useState("");
@@ -433,7 +446,7 @@ const HostDetailsPage = ({
    */
   const resetHostRefetchStates = () => {
     setShowRefetchSpinner(false);
-    setRefetchStartTime(null);
+    setRefetchStart(null);
   };
 
   const {
@@ -450,9 +463,15 @@ const HostDetailsPage = ({
       onSuccess: (returnedHost) => {
         // If API returns refetch_requested: true,
         // only set timer if *not* already set!
-        if (returnedHost.refetch_requested) {
+        // Pending hosts carry the flag from the moment they're created, so ignore it unless the host has enrolled and
+        // can actually return vitals. On a never-enrolled host only a click (within first 60s) sets refetchStartTime,
+        // so an explicit request still gets its spinner and its feedback.
+        if (
+          returnedHost.refetch_requested &&
+          (hasEverEnrolled(returnedHost) || refetchStartTime !== null)
+        ) {
           if (!refetchStartTime) {
-            setRefetchStartTime(Date.now());
+            setRefetchStart({ hostId: hostIdFromURL, at: Date.now() });
           }
           setShowRefetchSpinner(true);
 
@@ -775,9 +794,20 @@ const HostDetailsPage = ({
       // unless there is an error. The spinner state is also controlled in the fullyReloadHost
       // method.
       setShowRefetchSpinner(true);
+
+      // Trigger APNS ping independently
+      if (
+        canTriggerAPNSPing(host) &&
+        permissions.isGlobalOrTeamObserverOrAbove(currentUser, host.team_id)
+      ) {
+        hostAPI.apnsPing(host.id).catch((error) => {
+          notify.error("Failed to send APNS ping", { response: error });
+        });
+      }
+
       try {
         await hostAPI.refetch(host).then(() => {
-          setRefetchStartTime(Date.now());
+          setRefetchStart({ hostId: hostIdFromURL, at: Date.now() });
           setTimeout(() => {
             refetchHostDetails();
             refetchExtensions();
@@ -1123,8 +1153,7 @@ const HostDetailsPage = ({
         }
         isManagedLocalAccountEnabled={
           host.platform === "windows"
-            ? mdmConfig?.windows_settings?.managed_local_account_settings
-                ?.enabled ?? false
+            ? mdmConfig?.windows_settings?.enable_managed_local_account ?? false
             : mdmConfig?.macos_setup?.enable_managed_local_account ?? false
         }
         managedAccountStatus={
@@ -1446,7 +1475,7 @@ const HostDetailsPage = ({
                 <TabText>Library</TabText>
               </Tab>
             </TabList>
-            <TabPanel>
+            <TabPanel className={`${baseClass}__software-inventory-tab-panel`}>
               <SoftwareInventoryCard
                 id={host.id}
                 platform={host.platform}
@@ -1517,7 +1546,7 @@ const HostDetailsPage = ({
             </TabPanel>
           </>
         ) : (
-          <>
+          <div className={`${baseClass}__software-inventory-tab-panel`}>
             <SoftwareInventoryCard
               id={host.id}
               platform={host.platform}
@@ -1539,7 +1568,7 @@ const HostDetailsPage = ({
                 deviceType={host?.platform === "darwin" ? "macos" : ""}
               />
             )}
-          </>
+          </div>
         )}
       </div>
     );
@@ -1904,6 +1933,7 @@ const HostDetailsPage = ({
               hostPlatform={host.platform}
               hostName={host.display_name}
               enrollmentStatus={host.mdm.enrollment_status}
+              lastMdmEnrollmentType={host.last_mdm_enrollment_type}
               onClose={toggleUnenrollMdmModal}
               onSuccess={() => {
                 // The server marks the host unenrolled immediately, so refresh
@@ -2209,12 +2239,16 @@ const HostDetailsPage = ({
         )}
         {showMDMStatusModal && host.mdm.enrollment_status && (
           <MDMStatusModal
-            fleetId={currentTeam?.id}
+            fleetId={host.team_id}
             hostId={host.id}
             depProfileError={host.mdm.dep_profile_error}
             enrollmentStatus={host.mdm.enrollment_status}
             isPremiumTier={isPremiumTier}
-            isAppleDevice={isAppleDeviceHost}
+            platform={host.platform}
+            lastMDMCheckIn={host.last_mdm_checked_in_at}
+            connectedToFleet={host.mdm.connected_to_fleet}
+            onSuccessfulCheckIn={refetchHostDetails}
+            user={currentUser}
             router={router}
             onExit={toggleMDMStatusModal}
           />

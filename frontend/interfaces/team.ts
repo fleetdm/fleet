@@ -81,9 +81,7 @@ export interface ITeam extends ITeamSummary {
     windows_settings?: {
       enable_disk_encryption?: boolean;
       require_bitlocker_pin?: boolean;
-      managed_local_account_settings?: {
-        enabled?: boolean;
-      };
+      enable_managed_local_account?: boolean;
     };
     linux_settings?: {
       enable_escrow_disk_encryption_key?: boolean;

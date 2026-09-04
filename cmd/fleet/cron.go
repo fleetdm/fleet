@@ -1334,8 +1334,10 @@ func newCleanupsAndAggregationSchedule(
 	chartSvc chart_api.Service,
 ) (*schedule.Schedule, error) {
 	const (
-		name            = string(fleet.CronCleanupsThenAggregation)
-		defaultInterval = 1 * time.Hour
+		name                          = string(fleet.CronCleanupsThenAggregation)
+		defaultInterval               = 1 * time.Hour
+		expiredHostsCleanupMaxRunTime = 10 * time.Minute
+		expiredHostsCleanupBatchSize  = 5000
 	)
 	s := schedule.New(
 		ctx, name, instanceID, defaultInterval, ds, ds,
@@ -1389,9 +1391,7 @@ func newCleanupsAndAggregationSchedule(
 		schedule.WithJob(
 			"expired_hosts",
 			func(ctx context.Context) error {
-				// Call service method to handle activity creation
-				_, err := svc.CleanupExpiredHosts(ctx)
-				return err
+				return cleanupExpiredHostsCronJob(ctx, svc, logger, expiredHostsCleanupMaxRunTime, expiredHostsCleanupBatchSize)
 			},
 		),
 		schedule.WithJob(
@@ -1624,6 +1624,34 @@ func newCleanupsAndAggregationSchedule(
 	)
 
 	return s, nil
+}
+
+func cleanupExpiredHostsCronJob(ctx context.Context, svc fleet.Service, logger *slog.Logger, maxRunTime time.Duration, batchSize int) error {
+	deadline := time.Now().Add(maxRunTime)
+	for {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+
+		if time.Now().After(deadline) {
+			logger.InfoContext(ctx, "expired hosts cleanup reached runtime limit", "max_run_time", maxRunTime)
+			return nil
+		}
+
+		// Keep deleting batches while the service reports deleted hosts, but
+		// cap the expired_hosts loop so a
+		// large backlog cannot monopolize the cleanups schedule. The budget is
+		// only checked between batches: hosts are deleted in individual
+		// transactions, so cancelling mid-batch would leave already-deleted
+		// hosts without their deleted_host activity.
+		deleted, err := svc.CleanupExpiredHostsBatch(ctx, batchSize)
+		if err != nil {
+			return err
+		}
+		if len(deleted) == 0 {
+			return nil
+		}
+	}
 }
 
 // buildChartScopeResolver returns a per-dataset scope resolver for the chart
@@ -2064,11 +2092,11 @@ func newMDMAPNsPusher(
 	instanceID string,
 	ds fleet.Datastore,
 	commander *apple_mdm.MDMAppleCommander,
+	interval time.Duration,
 	logger *slog.Logger,
 ) (*schedule.Schedule, error) {
 	const name = string(fleet.CronAppleMDMAPNsPusher)
 
-	interval := 1 * time.Minute
 	if intervalEnv := dev_mode.Env("FLEET_DEV_CUSTOM_APNS_PUSHER_INTERVAL"); intervalEnv != "" {
 		var err error
 		interval, err = time.ParseDuration(intervalEnv)
@@ -2093,6 +2121,37 @@ func newMDMAPNsPusher(
 			}
 
 			return service.SendPushesToPendingDevices(ctx, ds, commander, logger)
+		}),
+	)
+
+	return s, nil
+}
+
+// newMDMAPNsSweepSchedule runs the APNs sweep: one bounded page of enabled
+// enrollments per tick, re-pushing any silent for more than a day, one lap
+// per ~24h. Registered instead of the legacy per-minute pusher unless the
+// FLEET_MDM_APPLE_LEGACY_APNS_PUSHER_INTERVAL rollback lever is set.
+func newMDMAPNsSweepSchedule(
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	commander *apple_mdm.MDMAppleCommander,
+	interval time.Duration,
+	logger *slog.Logger,
+) (*schedule.Schedule, error) {
+	const name = string(fleet.CronAppleMDMAPNsSweep)
+
+	if interval <= 0 {
+		logger.WarnContext(ctx, "invalid mdm.apple_apns_sweep_interval, using 1m")
+		interval = 1 * time.Minute
+	}
+
+	logger = logger.With("cron", name)
+	s := schedule.New(
+		ctx, name, instanceID, interval, ds, ds,
+		schedule.WithLogger(logger),
+		schedule.WithJob("apns_sweep", func(ctx context.Context) error {
+			return apple_mdm.SweepAPNsPushes(ctx, ds, commander, logger, interval)
 		}),
 	)
 
@@ -2180,8 +2239,10 @@ func cronHostVitalsLabelMembership(
 		if label.LabelMembershipType != fleet.LabelMembershipTypeHostVitals {
 			continue
 		}
-		// Update membership for the label.
-		_, err = ds.UpdateLabelMembershipByHostCriteria(ctx, label)
+		// Update membership for the label. The changed host IDs are consumed
+		// by the config ETag invalidation decorator wrapping ds; nothing to
+		// do with them here.
+		_, _, err = ds.UpdateLabelMembershipByHostCriteria(ctx, label)
 		if err != nil {
 			return ctxerr.Wrapf(ctx, err, "update label membership for label %d (%s)", label.ID, label.Name)
 		}

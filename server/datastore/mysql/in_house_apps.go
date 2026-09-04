@@ -471,11 +471,11 @@ upcoming AS (
 -- NOTE if you change this logic make sure to change inHouseAppHostStatusNamedQuery accordingly
 past AS (
 	SELECT
-		hihsi.host_id,
+		ranked.host_id,
 		CASE
-			WHEN hihsi.verification_at IS NOT NULL THEN
+			WHEN ranked.verification_at IS NOT NULL THEN
 				:software_status_installed
-			WHEN hihsi.verification_failed_at IS NOT NULL THEN
+			WHEN ranked.verification_failed_at IS NOT NULL THEN
 				:software_status_failed
 			WHEN ncr.status = :mdm_status_error OR ncr.status = :mdm_status_format_error THEN
 				:software_status_failed
@@ -484,28 +484,35 @@ past AS (
 			ELSE
 				NULL -- either pending or not installed via in-house App
 		END AS status
-	FROM
-		host_in_house_software_installs hihsi
-		JOIN hosts h ON host_id = h.id
-		-- LEFT JOIN so Fleet-side pre-flight failures (unresolvable
-		-- managed-config Fleet variable) survive — those never enqueue an MDM
-		-- command, so no ncr row exists. The CASE above maps
-		-- verification_failed_at IS NOT NULL to failed before any ncr.status
-		-- branch is evaluated.
-		LEFT JOIN nano_command_results ncr ON ncr.id = h.uuid AND ncr.command_uuid = hihsi.command_uuid
-		LEFT JOIN host_in_house_software_installs hihsi2
-			ON hihsi.host_id = hihsi2.host_id AND
-				 hihsi.in_house_app_id = hihsi2.in_house_app_id AND
-				 hihsi2.removed = 0 AND
-				 hihsi2.canceled = 0 AND
-				 (hihsi.created_at < hihsi2.created_at OR (hihsi.created_at = hihsi2.created_at AND hihsi.id < hihsi2.id))
+	FROM (
+		SELECT
+			hihsi.host_id,
+			hihsi.command_uuid,
+			hihsi.verification_at,
+			hihsi.verification_failed_at,
+			h.uuid AS host_uuid,
+			ROW_NUMBER() OVER (
+				PARTITION BY hihsi.host_id
+				ORDER BY hihsi.created_at DESC, hihsi.id DESC
+			) AS rn
+		FROM
+			host_in_house_software_installs hihsi
+			JOIN hosts h ON hihsi.host_id = h.id
+		WHERE
+			hihsi.in_house_app_id = :in_house_app_id
+			AND (h.team_id = :team_id OR (h.team_id IS NULL AND :team_id = 0))
+			AND hihsi.removed = 0
+			AND hihsi.canceled = 0
+	) ranked
+	-- LEFT JOIN so Fleet-side pre-flight failures (unresolvable
+	-- managed-config Fleet variable) survive — those never enqueue an MDM
+	-- command, so no ncr row exists. The CASE above maps
+	-- verification_failed_at IS NOT NULL to failed before any ncr.status
+	-- branch is evaluated.
+	LEFT JOIN nano_command_results ncr ON ncr.id = ranked.host_uuid AND ncr.command_uuid = ranked.command_uuid
 	WHERE
-		hihsi2.id IS NULL
-		AND hihsi.in_house_app_id = :in_house_app_id
-		AND (h.team_id = :team_id OR (h.team_id IS NULL AND :team_id = 0))
-		AND hihsi.host_id NOT IN (SELECT host_id FROM upcoming) -- antijoin to exclude hosts with upcoming activities
-		AND hihsi.removed = 0
-		AND hihsi.canceled = 0
+		ranked.rn = 1
+		AND ranked.host_id NOT IN (SELECT host_id FROM upcoming) -- antijoin to exclude hosts with upcoming activities
 )
 
 -- count each status

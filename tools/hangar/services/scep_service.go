@@ -167,9 +167,6 @@ func (s *ScepService) StopProfile(profileID string) error {
 	return s.pm.Stop(scep.ProcID(profileID))
 }
 
-// LanIP returns the host's primary LAN IPv4 for building SCEP URLs.
-func (s *ScepService) LanIP() string { return scep.LanIP() }
-
 // primaryRepo resolves server 1's repo path (where the scepserver binary is
 // built from). Shared with the MDM-assets service via primaryRepoPath.
 func (s *ScepService) primaryRepo() (string, error) {

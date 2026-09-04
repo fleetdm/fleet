@@ -33,13 +33,19 @@ implementation.
 ## Development
 
 Requirements: Go (see `go.mod`), Node 24+, and the
-[Wails 3 prerequisites](https://v3alpha.wails.io/getting-started/installation/). Install the
+[Wails 3 prerequisites](https://v3.wails.io/getting-started/installation/). Install the
 CLIs once:
 
 ```sh
-go install github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0-alpha.98
+go install github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0-beta.8
 go install github.com/go-task/task/v3/cmd/task@latest
 ```
+
+Keep all three Wails versions in lockstep when upgrading — the `wails3` CLI above, the
+`github.com/wailsapp/wails/v3` module in `go.mod`, and `@wailsio/runtime` in
+`frontend/package.json` (pinned to an exact version on purpose: the Go and JS runtimes speak the
+same protocol to each other, `package-lock.json` is gitignored repo-wide, so a `latest` range
+would hand every fresh clone whatever runtime happened to be newest that day).
 
 Then, from this directory:
 
@@ -86,14 +92,105 @@ wails3 generate bindings -clean=true -ts
   notarize first (`task darwin:sign:notarize`) for real hosts — an ad-hoc build installs cleanly
   only because a pkg install skips the quarantine flag.
 
+## Versioning
+
+`build/config.yml`'s `info.version` is the **single place** to set the release — bump it there
+whenever you hand a build to someone. `task build` / `task package` stamp it, plus the git commit
+and build time, into three places that would otherwise disagree:
+
+| Where | What it shows | Fed by |
+|---|---|---|
+| `--version` | `Fleet Hangar 1.1.0 (a1b2c3d, built …Z)` | `-ldflags -X` → `internal/buildinfo` |
+| Settings sidebar (bottom) | `v1.1.0 · a1b2c3d`, click to copy the full string | same |
+| `hangar.log`, first line of every session | same | same |
+| `Info.plist` → Finder, `task pkg`, Fleet inventory | `CFBundleShortVersionString`, `CFBundleVersion`, `FleetHangarGitCommit` | `PlistBuddy` at bundle time |
+
+Check any bundle without launching it:
+
+```sh
+"/Applications/Fleet Hangar.app/Contents/MacOS/fleet-hangar" --version
+```
+
+The commit carries a `-dirty` suffix when the working tree had uncommitted changes — the normal
+state of a build made to test a branch, and worth knowing when someone reports what it did. A
+build made outside the task pipeline (a bare `go build`, `go run`, a test binary) reports
+`dev (unknown)`, so an unstamped build can't be mistaken for a release.
+
+Bumping the version is what makes an install register as an upgrade: Fleet's software inventory
+keys off `CFBundleShortVersionString`, so shipping two different builds both claiming `1.0.0`
+leaves hosts reporting the old version.
+
+## Logs
+
+Two different things live in `~/Library/Logs/com.fleetdm.fleet-hangar/`:
+
+- **`<channel>.log`** — the output of the processes Hangar spawns (`fleet-serve-s1`, `scep-scep1`,
+  `tuf-build`, ...). This is what the Logs tab shows, and its *Reveal in Finder* button opens this
+  folder. Rotated at 16 MB, one generation kept as `.log.1`.
+- **`hangar.log`** — Hangar's own diagnostics: startup, the macOS sleep/wake and screen-change
+  events it saw, which quit path it took, a heartbeat every five minutes, and — because file
+  descriptor 2 is redirected into it — whatever the Go runtime prints on its way out when the app
+  dies unexpectedly. A packaged `.app` launched from Finder has fd 2 on `/dev/null`, so without
+  that redirect those crash dumps are simply lost. Rotated at 8 MB, at startup only (fd 2 points
+  at the open file for the whole session).
+
+`hangar.log` is the file to ask for when someone reports that Hangar "just closed itself". Every
+session opens with the build that produced it (see [Versioning](#versioning)) and then reports
+what became of the previous one, from a liveness marker (`last-session.json`) refreshed every
+30 seconds:
+
+```
+level=WARN msg="previous session never recorded an exit: it crashed or was killed" pid=… last_alive=…
+```
+
+Any crash output sits immediately above that line. A deliberate quit logs `session end` with a
+reason instead — including `signal: terminated`, so a `killall` or a logout doesn't read as a
+crash. `HANGAR_LOG_LEVEL=debug` raises the level for a run.
+
+### Reporting a crash
+
+Ask for `hangar.log`, and ask them to **relaunch Hangar first** — the verdict on a dead session is
+written at the *next* startup, so a relaunch is what turns "it vanished" into a timestamped line:
+
+```sh
+zip -j ~/Desktop/hangar-logs.zip ~/Library/Logs/com.fleetdm.fleet-hangar/hangar.log*
+```
+
+The glob picks up `hangar.log.1` too, in case the log rotated and the crash landed in the previous
+generation. Worth collecting alongside it: the build (bottom of the Settings sidebar), roughly when
+it happened and what the Mac was doing (lid closed, monitor plugged or unplugged, idle), whether
+their `fleet serve`/ngrok survived — that separates "Hangar died" from "everything died" — and
+`~/Library/Logs/DiagnosticReports/Fleet Hangar*.ips` if it exists. That last one won't exist for a
+Go `fatal error`, which prints its dump and calls `exit(2)` — a normal exit as far as macOS is
+concerned, and the reason these crashes left no trace at all before `hangar.log`. A segfault down
+in the Objective-C/webview layer does die by signal and does produce one.
+
+Reading it, working backwards from the end:
+
+| What you see | What happened |
+|---|---|
+| `session end` with a reason | Quit, or signalled. Not a crash. |
+| No `session end`; next session logs `previous session never recorded an exit` | It died — `last_alive` dates it to within 30s |
+| `fatal error:` / `panic:` + goroutine dump | The cause, with every goroutine (a stalled main thread shows as the pile-up behind it) |
+| `screen parameters changed` or `displays woke` just before the end | The Wails screen crash is back — reopen [wailsapp/wails#5556](https://github.com/wailsapp/wails/issues/5556) |
+| Nothing — the log just stops | Killed hard (jetsam, OOM, `kill -9`). The last heartbeat's `heap_mb`/`goroutines` and an `.ips` are the evidence |
+
 ## Known issues
 
-- **Rare crash on display sleep/wake or monitor changes** (upstream Wails v3 alpha bug, not
-  ours). Wails' `screen_darwin.go` stores the autoreleased `[NSString UTF8String]` buffers for
-  each screen's `id`/`name` in a C struct and reads them from Go later, after the autorelease
-  pool has drained — a use-after-free. On an `ApplicationDidChangeScreenParameters` event the
-  dangling pointer trips `fatal error: invalid pointer found on stack`. It's a `fatal error`,
-  not a panic, so it can't be recovered, and the handler is registered inside Wails so we can't
-  intercept it. It's infrequent (one occurrence observed over an ~11h session). Until a fixed
-  Wails alpha ships, relaunch the app if it happens. Reported upstream:
-  [wailsapp/wails#5556](https://github.com/wailsapp/wails/issues/5556).
+- **Crash on display sleep/wake or monitor changes — fixed upstream, keep an eye out for it.**
+  Wails' `screen_darwin.go` used to store the autoreleased `[NSString UTF8String]` buffers for
+  each screen's `id`/`name` in a C struct and read them from Go later, after the autorelease pool
+  had drained — a use-after-free. On an `ApplicationDidChangeScreenParameters` event the dangling
+  pointer tripped `fatal error: invalid pointer found on stack`: a `fatal error` rather than a
+  panic, so unrecoverable, and raised inside Wails where we couldn't intercept it. Symptom was
+  Hangar simply being gone on return to the machine, with nothing written down anywhere.
+
+  Reported as [wailsapp/wails#5556](https://github.com/wailsapp/wails/issues/5556) and fixed in
+  `v3.0.0-alpha.101` (the strings are `strdup`'d now, and screen enumeration runs in an explicit
+  autorelease pool). Hangar was pinned to `alpha.98`, one release short of the fix, until the
+  bump to `beta.8`.
+
+  If it ever comes back, `hangar.log` will say so (see [Logs](#logs)): a hit ends with
+  `screen parameters changed` — logged from a synchronous event hook that runs just before Wails
+  refreshes its screen cache — followed by a `fatal error` dump naming `cScreenToScreen` /
+  `processAndCacheScreens`.

@@ -332,6 +332,62 @@ osquery:
 	}
 }
 
+// TestOsqueryConfigETagDefaults pins both config ETag flags off. The feature
+// ships opt-in, so a silent flip back to on would turn the conditional-request
+// protocol — and its Redis traffic — on for every deployment that never asked
+// for it.
+func TestOsqueryConfigETagDefaults(t *testing.T) {
+	cases := []struct {
+		desc            string
+		envVars         []string
+		wantConfigETags bool
+		wantRedisETags  bool
+	}{
+		{
+			desc: "unset defaults to off",
+		},
+		{
+			desc:            "opted in",
+			envVars:         []string{"FLEET_OSQUERY_CONFIG_ETAGS=true", "FLEET_OSQUERY_REDIS_CONFIG_ETAGS=true"},
+			wantConfigETags: true,
+			wantRedisETags:  true,
+		},
+		{
+			// The two flags are combined only later, in
+			// effectiveRedisConfigETags. Enabling the Redis one here must
+			// not implicitly enable the protocol.
+			desc:            "redis flag alone does not enable the protocol",
+			envVars:         []string{"FLEET_OSQUERY_REDIS_CONFIG_ETAGS=true"},
+			wantConfigETags: false,
+			wantRedisETags:  true,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.desc, func(t *testing.T) {
+			var cmd cobra.Command
+			cmd.PersistentFlags().StringP("config", "c", "", "Path to a configuration file")
+			man := NewManager(&cmd)
+			man.viper.SetConfigType("yaml")
+			require.NoError(t, man.viper.ReadConfig(strings.NewReader("")))
+
+			testutils.SaveEnv(t)
+			os.Clearenv()
+			for _, env := range c.envVars {
+				kv := strings.SplitN(env, "=", 2)
+				t.Setenv(kv[0], kv[1])
+			}
+
+			var loadedCfg FleetConfig
+			require.NotPanics(t, func() {
+				loadedCfg = man.LoadConfig()
+			})
+			require.Equal(t, c.wantConfigETags, loadedCfg.Osquery.ConfigETags)
+			require.Equal(t, c.wantRedisETags, loadedCfg.Osquery.RedisConfigETags)
+		})
+	}
+}
+
 func TestServerConfigEndpointRequestSizeOverrides(t *testing.T) {
 	cases := []struct {
 		desc              string
@@ -1218,6 +1274,21 @@ func TestLoggingConfigValidate(t *testing.T) {
 		cfg.Validate(func(err error, msg string) { called = true })
 		require.True(t, called)
 	})
+}
+
+func TestOsqueryConfigInMemoryCacheDefault(t *testing.T) {
+	var cmd cobra.Command
+	cmd.PersistentFlags().StringP("config", "c", "", "Path to a configuration file")
+	man := NewManager(&cmd)
+	man.viper.SetConfigType("yaml")
+	require.NoError(t, man.viper.ReadConfig(strings.NewReader("")))
+
+	testutils.SaveEnv(t)
+	os.Clearenv()
+	require.False(t, man.LoadConfig().Osquery.ConfigInMemoryCache)
+
+	t.Setenv("FLEET_OSQUERY_CONFIG_IN_MEMORY_CACHE", "true")
+	require.True(t, man.LoadConfig().Osquery.ConfigInMemoryCache)
 }
 
 func TestOsqueryConfigValidate(t *testing.T) {

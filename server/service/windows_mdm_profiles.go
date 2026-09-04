@@ -160,11 +160,11 @@ func (svc *Service) parseAndValidateWindowsConfigProfile(ctx context.Context, te
 }
 
 // updateMDMWindowsConfigProfile implements the Windows branch of
-// UpdateMDMConfigProfile. A profile's name cannot change here: unlike Apple
-// profiles there is no separate identifier, so name is a Windows profile's
-// only identity (GitOps likewise treats a rename as delete-then-insert, not
-// an edit).
-func (svc *Service) updateMDMWindowsConfigProfile(ctx context.Context, profileUUID string, profile []byte, labelsInclude []string, labelsMembershipMode fleet.MDMLabelsMode, labelsExcludeAny []string) error {
+// UpdateMDMConfigProfile. A Windows .xml carries no identifier, so the profile is
+// keyed by UUID here and the uploaded file's name replaces the stored one. The
+// rename is in place, unlike GitOps, which matches on name and so treats a rename
+// as delete-then-insert.
+func (svc *Service) updateMDMWindowsConfigProfile(ctx context.Context, profileUUID string, profileName string, profile []byte, labelsInclude []string, labelsMembershipMode fleet.MDMLabelsMode, labelsExcludeAny []string) error {
 	// first we perform a basic authz check
 	if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionRead); err != nil {
 		return ctxerr.Wrap(ctx, err)
@@ -197,7 +197,14 @@ func (svc *Service) updateMDMWindowsConfigProfile(ctx context.Context, profileUU
 	var cp *fleet.MDMWindowsConfigProfile
 	var usesFleetVars []fleet.FleetVarName
 	if len(profile) > 0 {
-		cp, usesFleetVars, _, err = svc.parseAndValidateWindowsConfigProfile(ctx, teamID, existing.Name, profile, labelsInclude, labelsMembershipMode, labelsExcludeAny)
+		// Content with no file name is not reachable from the endpoint; fall back
+		// rather than blanking the name.
+		newName := profileName
+		if newName == "" {
+			newName = existing.Name
+		}
+		// Validates the name too, so a rename onto a Fleet-reserved name is rejected.
+		cp, usesFleetVars, _, err = svc.parseAndValidateWindowsConfigProfile(ctx, teamID, newName, profile, labelsInclude, labelsMembershipMode, labelsExcludeAny)
 		if err != nil {
 			return err
 		}
@@ -225,6 +232,9 @@ func (svc *Service) updateMDMWindowsConfigProfile(ctx context.Context, profileUU
 	cp.ProfileUUID = profileUUID
 
 	if _, err := svc.ds.UpdateMDMWindowsConfigProfile(ctx, *cp, usesFleetVars); err != nil {
+		if _, ok := errors.AsType[endpointer.ExistsErrorInterface](err); ok {
+			err = fleet.NewInvalidArgumentError("profile", SameProfileNameUploadErrorMsg).WithStatus(http.StatusConflict)
+		}
 		return ctxerr.Wrap(ctx, err)
 	}
 

@@ -99,6 +99,14 @@ export interface IMunkiData {
 
 export type MacDiskEncryptionActionRequired = "log_out" | "rotate_key";
 
+/** What the END USER can do about a disk encryption problem. Only set when there is something they can do: a Windows
+ * host also reaches action_required when the TPM is not ready or policy forbids a TPM-only protector, and neither is
+ * fixable from the My device page. Absent means show the reason without offering a call to action. */
+export type DiskEncryptionActionRequired =
+  | MacDiskEncryptionActionRequired
+  | "create_pin"
+  | "restart";
+
 export type HostAndroidCertStatus =
   | "verified"
   | "failed"
@@ -130,6 +138,7 @@ export interface IOSSettings {
   disk_encryption: {
     status: DiskEncryptionStatus | null;
     detail: string;
+    action_required?: DiskEncryptionActionRequired | null;
   };
   recovery_lock_password?: {
     status: RecoveryLockPasswordStatus;
@@ -183,6 +192,14 @@ export interface IHostMdmData {
    */
   bootstrap_token_escrowed?: boolean;
   enrollment_status: MdmEnrollmentStatus | null;
+  /**
+   * is_personal_enrollment reports whether the last MDM enrollment Fleet recorded
+   * for the host was personal (BYOD). Unlike enrollment_status it is not cleared
+   * on unenrollment, so BYOD-only UI doesn't flip back once the host unenrolls.
+   * That holds for Android and Apple mobile hosts; on macOS and Windows the fleetd
+   * detail queries re-ingest MDM state and can reset it once the profile is gone.
+   */
+  is_personal_enrollment?: boolean;
   dep_profile_error?: boolean;
   name?: string;
   id?: number;
@@ -384,6 +401,53 @@ export interface IHostMdmAppleServiceSubscription {
   subscriber_carrier_network?: string;
 }
 
+/** AMAPI's DevicePosture enum: Google's overall risk assessment of the device.
+ * The server blanks POSTURE_UNSPECIFIED, its "no data" member, so it never
+ * reaches the UI.
+ * https://developers.google.com/android/management/reference/rest/v1/enterprises.devices#DevicePosture */
+export type AndroidSecurityPosture =
+  | "SECURE"
+  | "AT_RISK"
+  | "POTENTIALLY_COMPROMISED";
+
+/** AMAPI's EncryptionStatus enum, read from the device's DevicePolicyManager.
+ * The server blanks ENCRYPTION_STATUS_UNSPECIFIED.
+ * https://developers.google.com/android/management/reference/rest/v1/enterprises.devices#EncryptionStatus */
+export type AndroidEncryptionStatus =
+  | "UNSUPPORTED"
+  | "INACTIVE"
+  | "ACTIVATING"
+  | "ACTIVE"
+  | "ACTIVE_DEFAULT_KEY"
+  | "ACTIVE_PER_USER";
+
+/** AMAPI's SystemUpdateInfo.UpdateStatus enum. The server blanks
+ * UPDATE_STATUS_UNKNOWN, its "no data" member.
+ * https://developers.google.com/android/management/reference/rest/v1/enterprises.devices#UpdateStatus */
+export type AndroidSystemUpdateStatus =
+  | "UP_TO_DATE"
+  | "UNKNOWN_UPDATE_AVAILABLE"
+  | "SECURITY_UPDATE_AVAILABLE"
+  | "OS_UPDATE_AVAILABLE";
+
+/** One SIM card's telephony information. A device may report more than one
+ * (dual-SIM). AMAPI only populates this for fully managed (company-owned)
+ * devices, and the server withholds it for a personal enrollment. */
+export interface IHostMdmAndroidTelephonyInfo {
+  phone_number?: string;
+  carrier_name?: string;
+  iccid?: string;
+  activation_state?: string;
+  config_mode?: string;
+}
+
+/** One security risk contributing to the device's security posture, with the
+ * admin-facing advice AMAPI attaches to it. */
+export interface IHostMdmAndroidPostureDetail {
+  security_risk?: string;
+  advice?: string[];
+}
+
 export interface IHost {
   created_at: string;
   updated_at: string;
@@ -395,6 +459,8 @@ export interface IHost {
   policy_updated_at: string;
   last_enrolled_at: string;
   last_mdm_enrolled_at: string;
+  last_mdm_checked_in_at: string | null;
+  last_mdm_enrollment_type?: string | null;
   seen_time: string;
   refetch_requested: boolean;
   refetch_critical_queries_until: string | null;
@@ -502,6 +568,27 @@ export interface IHost {
   mdm_options?: IHostMdmAppleDeviceVitalsMdmOptions;
   device_properties_attestation?: string[];
   service_subscriptions?: IHostMdmAppleServiceSubscription[];
+  // Android-only vitals collected from AMAPI status reports.
+  // Omitted entirely (not just null) for every other platform, and for any
+  // field the device didn't report.
+  adb_enabled?: boolean;
+  passcode_protected?: boolean;
+  play_protect_enabled?: boolean;
+  encryption_type?: AndroidEncryptionStatus;
+  manufacturer?: string;
+  /** The device's security patch level, as a YYYY-MM-DD date. */
+  security_update_version?: string;
+  device_kernel_version?: string;
+  bootloader_version?: string;
+  system_update_status?: AndroidSystemUpdateStatus;
+  security_posture?: AndroidSecurityPosture;
+  /** IMEI (GSM) and MEID (CDMA) are alternatives — a device reports at most
+   * one. Both are withheld for personally-owned hosts, like telephony_infos. */
+  imei?: string;
+  meid?: string;
+  api_level?: number;
+  security_posture_details?: IHostMdmAndroidPostureDetail[];
+  telephony_infos?: IHostMdmAndroidTelephonyInfo[];
 }
 
 /*

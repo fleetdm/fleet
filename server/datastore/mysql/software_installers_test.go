@@ -81,6 +81,8 @@ func TestSoftwareInstallers(t *testing.T) {
 		{"SetHostSoftwareInstallResultResolvesOrphanedActivity", testSetHostSoftwareInstallResultResolvesOrphanedActivity},
 		{"GetSoftwareTitlesForInstallAll", testGetSoftwareTitlesForInstallAll},
 		{"SummaryUpcomingPerHostNoDropout", testSummaryUpcomingPerHostNoDropout},
+		{"InstallStatusUsesLatestRowPerHost", testInstallStatusUsesLatestRowPerHost},
+		{"InstallStatusDoesNotScanHistoryPerHostRow", testInstallStatusDoesNotScanHistoryPerHostRow},
 		{"GetSoftwareInstallDetailsCustomHostVitals", testGetSoftwareInstallDetailsCustomHostVitals},
 	}
 
@@ -1946,7 +1948,7 @@ func testBatchSetSoftwareInstallersMultipleCustomPackages(t *testing.T, ds *Data
 	})
 	require.NoError(t, err)
 	fma := santa("santaFMA", "2026.8")
-	fma.FleetMaintainedAppID = new(maintainedApp.ID)
+	fma.FleetMaintainedAppID = &maintainedApp.ID
 	_, err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{
 		santa("santaA", "2026.2"),
 		fma,
@@ -2645,7 +2647,7 @@ func testGetSoftwareInstallersPendingDeletion(t *testing.T, ds *Datastore) {
 			URL:                  "https://example.com/maintained1",
 			ValidatedLabels:      &fleet.LabelIdentsWithScope{},
 			BundleIdentifier:     "fleet.maintained1",
-			FleetMaintainedAppID: new(maintainedApp.ID),
+			FleetMaintainedAppID: &maintainedApp.ID,
 		},
 	})
 	require.NoError(t, err)
@@ -5508,7 +5510,7 @@ func testInsertFleetMaintainedAppVersion(t *testing.T, ds *Datastore) {
 			LabelScope: fleet.LabelScopeIncludeAny,
 			ByName:     map[string]fleet.LabelIdent{lbl.Name: {LabelID: lbl.ID, LabelName: lbl.Name}},
 		},
-		FleetMaintainedAppID: new(maintainedApp.ID),
+		FleetMaintainedAppID: &maintainedApp.ID,
 	})
 	require.NoError(t, err)
 
@@ -5595,6 +5597,48 @@ func testInsertFleetMaintainedAppVersion(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 	require.Equal(t, v2ID, again)
+
+	// A rebuild of v2 (same version, new bytes) refreshes the row in place, and must
+	// leave a script the admin edited on it alone.
+	const rebuildAdminInstall = "echo ADMIN install"
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		res, err := q.ExecContext(ctx, `
+			INSERT INTO script_contents (contents, md5_checksum) VALUES (?, UNHEX(MD5(?)))
+			ON DUPLICATE KEY UPDATE id = LAST_INSERT_ID(id)`, rebuildAdminInstall, rebuildAdminInstall)
+		if err != nil {
+			return err
+		}
+		scriptID, err := res.LastInsertId()
+		if err != nil {
+			return err
+		}
+		_, err = q.ExecContext(ctx,
+			`UPDATE software_installers SET install_script_content_id = ?, install_script_edited = 1 WHERE id = ?`,
+			scriptID, v2ID)
+		return err
+	})
+	rebuilt, err := ds.InsertFleetMaintainedAppVersion(ctx, activeID, &fleet.UploadSoftwareInstallerPayload{
+		Version: "2.0", Filename: "foo-2.0.pkg", Extension: "pkg", StorageID: "sha-v2-rebuilt",
+		URL: "https://example.test/foo-2.0.pkg", InstallScript: "echo install v2", UninstallScript: "echo uninstall v2",
+	})
+	require.NoError(t, err)
+	require.Equal(t, v2ID, rebuilt)
+
+	var refreshed struct {
+		Storage       string `db:"storage_id"`
+		Install       string `db:"install_script"`
+		InstallEdited bool   `db:"install_script_edited"`
+	}
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &refreshed, `
+			SELECT si.storage_id, si.install_script_edited, sc.contents AS install_script
+			FROM software_installers si
+			JOIN script_contents sc ON sc.id = si.install_script_content_id
+			WHERE si.id = ?`, v2ID)
+	})
+	require.Equal(t, "sha-v2-rebuilt", refreshed.Storage)
+	require.True(t, refreshed.InstallEdited)
+	require.Equal(t, rebuildAdminInstall, refreshed.Install, "a rebuild keeps the script the admin edited")
 
 	// Force v2 to be the oldest non-active version so eviction is deterministic.
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
@@ -5715,6 +5759,25 @@ func testInsertFleetMaintainedAppVersionClonesLiveActive(t *testing.T, ds *Datas
 		return err
 	})
 
+	// The same admin replaces v2's install script and leaves its uninstall script alone.
+	const adminInstall = "echo ADMIN install"
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		res, err := q.ExecContext(ctx, `
+			INSERT INTO script_contents (contents, md5_checksum) VALUES (?, UNHEX(MD5(?)))
+			ON DUPLICATE KEY UPDATE id = LAST_INSERT_ID(id)`, adminInstall, adminInstall)
+		if err != nil {
+			return err
+		}
+		scriptID, err := res.LastInsertId()
+		if err != nil {
+			return err
+		}
+		_, err = q.ExecContext(ctx,
+			`UPDATE software_installers SET install_script_content_id = ?, install_script_edited = 1 WHERE id = ?`,
+			scriptID, v2)
+		return err
+	})
+
 	// Insert v3 with the STALE caller id (v1). Config must clone from live active (v2).
 	v3, err := ds.InsertFleetMaintainedAppVersion(ctx, v1, &fleet.UploadSoftwareInstallerPayload{
 		Version: "3.0", Filename: "foo-3.0.pkg", Extension: "pkg", StorageID: "clone-v3",
@@ -5723,15 +5786,29 @@ func testInsertFleetMaintainedAppVersionClonesLiveActive(t *testing.T, ds *Datas
 	require.NoError(t, err)
 
 	var r struct {
-		SelfService        bool `db:"self_service"`
-		InstallDuringSetup bool `db:"install_during_setup"`
+		SelfService        bool   `db:"self_service"`
+		InstallDuringSetup bool   `db:"install_during_setup"`
+		Install            string `db:"install_script"`
+		Uninstall          string `db:"uninstall_script"`
+		InstallEdited      bool   `db:"install_script_edited"`
+		UninstallEdited    bool   `db:"uninstall_script_edited"`
 	}
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		return sqlx.GetContext(ctx, q, &r,
-			`SELECT self_service, install_during_setup FROM software_installers WHERE id = ?`, v3)
+		return sqlx.GetContext(ctx, q, &r, `
+			SELECT si.self_service, si.install_during_setup,
+				si.install_script_edited, si.uninstall_script_edited,
+				sci.contents AS install_script, scu.contents AS uninstall_script
+			FROM software_installers si
+			JOIN script_contents sci ON sci.id = si.install_script_content_id
+			JOIN script_contents scu ON scu.id = si.uninstall_script_content_id
+			WHERE si.id = ?`, v3)
 	})
 	require.True(t, r.SelfService, "self_service cloned from live active (v2), not stale v1")
 	require.True(t, r.InstallDuringSetup, "install_during_setup cloned from live active (v2), not stale v1")
+	require.True(t, r.InstallEdited)
+	require.Equal(t, adminInstall, r.Install, "an edited script is cloned from live active, not taken from the payload")
+	require.False(t, r.UninstallEdited)
+	require.Equal(t, "echo u3", r.Uninstall, "an unedited script still comes from the payload")
 }
 
 // testGetSoftwareInstallerMetadataByStorageID verifies metadata recovery works
@@ -5758,7 +5835,7 @@ func testGetSoftwareInstallerMetadataByStorageID(t *testing.T, ds *Datastore) {
 		PackageIDs: []string{"PROD-CODE"}, UpgradeCode: "UP-CODE",
 		InstallerFile: newFile("v1"), StorageID: "hash-meta-1", Filename: "foo.msi", Extension: "msi",
 		Version: "1.0", UserID: user.ID, TeamID: &team.ID, ValidatedLabels: &fleet.LabelIdentsWithScope{},
-		FleetMaintainedAppID: new(maintainedApp.ID),
+		FleetMaintainedAppID: &maintainedApp.ID,
 	})
 	require.NoError(t, err)
 
@@ -5768,16 +5845,20 @@ func testGetSoftwareInstallerMetadataByStorageID(t *testing.T, ds *Datastore) {
 		return err
 	})
 
-	pids, ucode, err := ds.GetSoftwareInstallerMetadataByStorageID(ctx, "hash-meta-1")
+	cached, err := ds.GetSoftwareInstallerMetadataByStorageID(ctx, "hash-meta-1")
 	require.NoError(t, err)
-	require.Equal(t, []string{"PROD-CODE"}, pids, "recovers package IDs from an inactive row")
-	require.Equal(t, "UP-CODE", ucode)
+	require.Equal(t, []string{"PROD-CODE"}, cached.PackageIDs, "recovers package IDs from an inactive row")
+	require.Equal(t, "UP-CODE", cached.UpgradeCode)
+	require.Equal(t, "foo.msi", cached.Filename)
+	require.Equal(t, "msi", cached.Extension)
 
 	// Unknown hash → empty, no error.
-	pids, ucode, err = ds.GetSoftwareInstallerMetadataByStorageID(ctx, "no-such-hash")
+	cached, err = ds.GetSoftwareInstallerMetadataByStorageID(ctx, "no-such-hash")
 	require.NoError(t, err)
-	require.Empty(t, pids)
-	require.Empty(t, ucode)
+	require.Empty(t, cached.PackageIDs)
+	require.Empty(t, cached.UpgradeCode)
+	require.Empty(t, cached.Filename)
+	require.Empty(t, cached.Extension)
 }
 
 func testRepointPolicyToNewInstaller(t *testing.T, ds *Datastore) {
@@ -7094,7 +7175,7 @@ func testSoftwareTitlePins(t *testing.T, ds *Datastore) {
 		Version:              "1.0",
 		UserID:               user.ID,
 		ValidatedLabels:      &fleet.LabelIdentsWithScope{},
-		FleetMaintainedAppID: new(fma.ID),
+		FleetMaintainedAppID: &fma.ID,
 	})
 	require.NoError(t, err)
 
@@ -7155,7 +7236,7 @@ func testSetFleetMaintainedAppActiveInstallerPin(t *testing.T, ds *Datastore) {
 		Title: "testpkg", Source: "apps", Platform: "darwin",
 		InstallScript: "echo install", UninstallScript: "echo uninstall",
 		InstallerFile: tfr, StorageID: "storageid1", Filename: "test.pkg", Version: "1.0",
-		UserID: user.ID, ValidatedLabels: &fleet.LabelIdentsWithScope{}, FleetMaintainedAppID: new(fma.ID),
+		UserID: user.ID, ValidatedLabels: &fleet.LabelIdentsWithScope{}, FleetMaintainedAppID: &fma.ID,
 		PatchQuery: v1Query,
 	})
 	require.NoError(t, err)
@@ -7404,7 +7485,7 @@ func testGetSoftwareInstallDetailsPatchWhenClosed(t *testing.T, ds *Datastore) {
 			TeamID:               &team.ID,
 			UserID:               user.ID,
 			ValidatedLabels:      &fleet.LabelIdentsWithScope{},
-			FleetMaintainedAppID: new(app.ID),
+			FleetMaintainedAppID: &app.ID,
 		})
 		require.NoError(t, err)
 		return installerID, titleID
@@ -7488,7 +7569,7 @@ func testSoftwareInstallerAppOpenQueryRoundTrip(t *testing.T, ds *Datastore) {
 			Platform:             "darwin",
 			UserID:               user.ID,
 			ValidatedLabels:      &fleet.LabelIdentsWithScope{},
-			FleetMaintainedAppID: new(app.ID),
+			FleetMaintainedAppID: &app.ID,
 			AppOpenQuery:         appOpenQuery,
 		})
 		require.NoError(t, err)
@@ -7551,4 +7632,454 @@ func testHasFMAInstallerVersion(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.False(t, versionExists)
 	require.Empty(t, storageID)
+}
+
+// installStatusFixture seeds one installer on a team plus a helper that appends
+// install rows with full control over ordering and flags.
+type installStatusFixture struct {
+	teamID      uint
+	installerID uint
+	titleID     uint
+	addInstall  func(hostID uint, createdAt time.Time, exitCode *int, removed, canceled, hostDeleted bool)
+}
+
+func newInstallStatusFixture(t *testing.T, ds *Datastore, name string) *installStatusFixture {
+	ctx := context.Background()
+
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: name})
+	require.NoError(t, err)
+	user := test.NewUser(t, ds, name, name+"@example.com", true)
+
+	installerID, titleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		Title:           name,
+		Source:          "apps",
+		InstallScript:   "echo",
+		TeamID:          &team.ID,
+		Filename:        name + ".pkg",
+		UserID:          user.ID,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	var seq int
+	return &installStatusFixture{
+		teamID:      team.ID,
+		installerID: installerID,
+		titleID:     titleID,
+		addInstall: func(hostID uint, createdAt time.Time, exitCode *int, removed, canceled, hostDeleted bool) {
+			seq++
+			var deletedAt *time.Time
+			if hostDeleted {
+				deletedAt = &createdAt
+			}
+			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+				_, err := q.ExecContext(ctx, `
+INSERT INTO host_software_installs
+	(execution_id, host_id, software_installer_id, software_title_id, install_script_exit_code,
+	 created_at, updated_at, removed, canceled, host_deleted_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+					fmt.Sprintf("%s-%d", name, seq), hostID, installerID, titleID, exitCode,
+					createdAt, createdAt, removed, canceled, deletedAt)
+				return err
+			})
+		},
+	}
+}
+
+func testInstallStatusUsesLatestRowPerHost(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	f := newInstallStatusFixture(t, ds, "latest-row")
+
+	newHost := func(tag string) *fleet.Host {
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			Hostname:      "latest-row-" + tag,
+			OsqueryHostID: new("osquery-latest-row-" + tag),
+			NodeKey:       new("node-key-latest-row-" + tag),
+			UUID:          uuid.NewString(),
+			Platform:      "darwin",
+			TeamID:        &f.teamID,
+		})
+		require.NoError(t, err)
+		return h
+	}
+
+	base := time.Now().UTC().Truncate(time.Second).Add(-24 * time.Hour)
+	succeeded, failed := new(0), new(1)
+
+	// The newest row decides the status, even when an older row succeeded.
+	latestFailed := newHost("latest-failed")
+	f.addInstall(latestFailed.ID, base, succeeded, false, false, false)
+	f.addInstall(latestFailed.ID, base.Add(time.Hour), failed, false, false, false)
+
+	// Canceled and removed rows are not candidates, so the previous row wins.
+	canceledLatest := newHost("canceled-latest")
+	f.addInstall(canceledLatest.ID, base, succeeded, false, false, false)
+	f.addInstall(canceledLatest.ID, base.Add(time.Hour), nil, false, true, false)
+
+	removedLatest := newHost("removed-latest")
+	f.addInstall(removedLatest.ID, base, failed, false, false, false)
+	f.addInstall(removedLatest.ID, base.Add(time.Hour), succeeded, true, false, false)
+
+	// Rows sharing a created_at are broken by id, and the host is counted once.
+	tied := newHost("tied")
+	f.addInstall(tied.ID, base, failed, false, false, false)
+	f.addInstall(tied.ID, base, succeeded, false, false, false)
+
+	// A host whose rows are all soft-deleted drops out of the summary. The host
+	// list filter has never had a host_deleted_at condition, so it still matches
+	// there; that asymmetry is asserted below so it stays deliberate.
+	softDeleted := newHost("soft-deleted")
+	f.addInstall(softDeleted.ID, base, succeeded, false, false, true)
+
+	// A queued install supersedes the host's history.
+	queued := newHost("queued")
+	f.addInstall(queued.ID, base, succeeded, false, false, false)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		res, err := q.ExecContext(ctx, `
+INSERT INTO upcoming_activities
+	(host_id, priority, fleet_initiated, activity_type, execution_id, payload)
+VALUES (?, 0, 1, 'software_install', 'latest-row-queued', JSON_OBJECT('self_service', false))`, queued.ID)
+		if err != nil {
+			return err
+		}
+		uaID, err := res.LastInsertId()
+		if err != nil {
+			return err
+		}
+		_, err = q.ExecContext(ctx, `
+INSERT INTO software_install_upcoming_activities
+	(upcoming_activity_id, software_installer_id, software_title_id)
+VALUES (?, ?, ?)`, uaID, f.installerID, f.titleID)
+		return err
+	})
+
+	summary, err := ds.GetSummaryHostSoftwareInstalls(ctx, f.installerID)
+	require.NoError(t, err)
+	require.Equal(t, fleet.SoftwareInstallerStatusSummary{
+		Installed:      2, // canceledLatest, tied
+		FailedInstall:  2, // latestFailed, removedLatest
+		PendingInstall: 1, // queued
+	}, *summary)
+
+	userTeamFilter := fleet.TeamFilter{User: test.UserAdmin}
+	for _, c := range []struct {
+		status      fleet.SoftwareInstallerStatus
+		wantHostIDs []uint
+	}{
+		{fleet.SoftwareInstalled, []uint{canceledLatest.ID, tied.ID, softDeleted.ID}},
+		{fleet.SoftwareInstallFailed, []uint{latestFailed.ID, removedLatest.ID}},
+		{fleet.SoftwareFailed, []uint{latestFailed.ID, removedLatest.ID}},
+		{fleet.SoftwareInstallPending, []uint{queued.ID}},
+		{fleet.SoftwareUninstallFailed, []uint{}},
+	} {
+		t.Run(string(c.status), func(t *testing.T) {
+			opts := fleet.HostListOptions{
+				ListOptions:           fleet.ListOptions{PerPage: 100},
+				SoftwareTitleIDFilter: &f.titleID,
+				SoftwareStatusFilter:  &c.status,
+				TeamFilter:            &f.teamID,
+			}
+			hosts, err := ds.ListHosts(ctx, userTeamFilter, opts)
+			require.NoError(t, err)
+			gotHostIDs := make([]uint, 0, len(hosts))
+			for _, h := range hosts {
+				gotHostIDs = append(gotHostIDs, h.ID)
+			}
+			require.ElementsMatch(t, c.wantHostIDs, gotHostIDs)
+
+			count, err := ds.CountHosts(ctx, userTeamFilter, opts)
+			require.NoError(t, err)
+			require.Equal(t, len(c.wantHostIDs), count)
+		})
+	}
+}
+
+// testInstallStatusDoesNotScanHistoryPerHostRow pins the cost model of the host
+// software status filter: selecting each host's most recent install must stay
+// bounded by the title's or app's own history. Two shapes break that bound in
+// opposite directions — a self anti-join rescans a host's history once per row of
+// it, and a per-host lookup scales with the candidate host set instead of the
+// title. Both are caught here.
+//
+// Only the host list filter is asserted. The status summary shares the anti-join
+// defect, but MySQL only picks the quadratic plan for it well past any fixture
+// size that belongs in a unit test, so a bound there would not discriminate.
+func testInstallStatusDoesNotScanHistoryPerHostRow(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	user := test.NewUser(t, ds, "depth", "depth@example.com", true)
+
+	const (
+		deepHosts    = 50
+		deepDepth    = 100
+		breadthHosts = 3000
+		narrowHosts  = 5
+		shallowDepth = 2
+		// every install row this title has, across all three teams
+		titleRows = deepHosts*deepDepth + (breadthHosts+narrowHosts)*shallowDepth
+	)
+
+	// One title, one installer per team, so every team's hosts share software_title_id.
+	var titleID uint
+	newTeamInstaller := func(name string) uint {
+		team, err := ds.NewTeam(ctx, &fleet.Team{Name: name})
+		require.NoError(t, err)
+		_, tID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+			Title:           "history-depth",
+			Source:          "apps",
+			InstallScript:   "echo",
+			TeamID:          &team.ID,
+			Filename:        "history-depth.pkg",
+			UserID:          user.ID,
+			ValidatedLabels: &fleet.LabelIdentsWithScope{},
+		})
+		require.NoError(t, err)
+		titleID = tID
+		return team.ID
+	}
+	deepTeam := newTeamInstaller("history-depth-deep")
+	breadthTeam := newTeamInstaller("history-depth-breadth")
+	narrowTeam := newTeamInstaller("history-depth-narrow")
+
+	addHosts := func(prefix string, teamID uint, n int) []uint {
+		ids := make([]uint, 0, n)
+		for i := range n {
+			h, err := ds.NewHost(ctx, &fleet.Host{
+				Hostname:      fmt.Sprintf("%s-%d", prefix, i),
+				OsqueryHostID: new(fmt.Sprintf("osquery-%s-%d", prefix, i)),
+				NodeKey:       new(fmt.Sprintf("node-key-%s-%d", prefix, i)),
+				UUID:          uuid.NewString(),
+				Platform:      "darwin",
+				TeamID:        &teamID,
+			})
+			require.NoError(t, err)
+			ids = append(ids, h.ID)
+		}
+		return ids
+	}
+	// Breadth hosts only need to exist and carry install rows, so insert them in bulk.
+	addHostsBulk := func(prefix string, teamID uint, n int) []uint {
+		const chunk = 500
+		for start := 0; start < n; start += chunk {
+			placeholders := make([]string, 0, chunk)
+			args := make([]any, 0, chunk*7)
+			for i := start; i < start+chunk && i < n; i++ {
+				placeholders = append(placeholders, "(?, ?, ?, ?, ?, 'darwin', ?, NOW(), NOW(), NOW(), NOW())")
+				args = append(args, fmt.Sprintf("osquery-%s-%d", prefix, i), fmt.Sprintf("nk-%s-%d", prefix, i),
+					fmt.Sprintf("onk-%s-%d", prefix, i), uuid.NewString(), fmt.Sprintf("%s-%d", prefix, i), teamID)
+			}
+			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+				_, err := q.ExecContext(ctx, `
+INSERT INTO hosts (osquery_host_id, node_key, orbit_node_key, uuid, hostname, platform, team_id,
+	detail_updated_at, label_updated_at, policy_updated_at, last_enrolled_at)
+VALUES `+strings.Join(placeholders, ","), args...)
+				return err
+			})
+		}
+		var ids []uint
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, q.(sqlx.QueryerContext), &ids,
+				`SELECT id FROM hosts WHERE team_id = ?`, teamID)
+		})
+		return ids
+	}
+
+	deepIDs := addHosts("history-depth", deepTeam, deepHosts)
+	breadthIDs := addHostsBulk("history-breadth", breadthTeam, breadthHosts)
+	narrowIDs := addHosts("history-narrow", narrowTeam, narrowHosts)
+
+	// Insert oldest-first so created_at ascends with the auto-increment id, the way
+	// an append-only install history accumulates. Seeded the other way round the
+	// anti-join finds a dominating row immediately and the depth bound below passes
+	// against the quadratic shape.
+	installerFor := func(teamID uint) uint {
+		var id uint
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q.(sqlx.QueryerContext), &id,
+				`SELECT id FROM software_installers WHERE title_id = ? AND global_or_team_id = ?`, titleID, teamID)
+		})
+		return id
+	}
+	seedHistory := func(tag string, teamID uint, hostIDs []uint, depth int) {
+		installerID := installerFor(teamID)
+		base := time.Now().UTC().Truncate(time.Second).Add(-time.Duration(depth) * time.Hour)
+		for i := range depth {
+			createdAt := base.Add(time.Duration(i) * time.Hour)
+			for start := 0; start < len(hostIDs); start += 500 {
+				end := min(start+500, len(hostIDs))
+				placeholders := make([]string, 0, end-start)
+				args := make([]any, 0, (end-start)*6)
+				for _, hostID := range hostIDs[start:end] {
+					placeholders = append(placeholders, "(?, ?, ?, ?, 0, ?, ?)")
+					args = append(args, fmt.Sprintf("%s-%d-%d", tag, i, hostID), hostID,
+						installerID, titleID, createdAt, createdAt)
+				}
+				ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+					_, err := q.ExecContext(ctx, `
+INSERT INTO host_software_installs
+	(execution_id, host_id, software_installer_id, software_title_id, install_script_exit_code, created_at, updated_at)
+VALUES `+strings.Join(placeholders, ","), args...)
+					return err
+				})
+			}
+		}
+	}
+	seedHistory("deep", deepTeam, deepIDs, deepDepth)
+	seedHistory("breadth", breadthTeam, breadthIDs, shallowDepth)
+	seedHistory("narrow", narrowTeam, narrowIDs, shallowDepth)
+
+	// Without current statistics the plan depends on whatever ran before it in the
+	// shared suite, which made this measurement swing by 60x.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `ANALYZE TABLE host_software_installs, hosts`)
+		return err
+	})
+
+	// Pin the reads to one connection so the session counters below cover them.
+	replica, ok := ds.replica.(*sqlx.DB)
+	require.True(t, ok, "test datastore replica must be a *sqlx.DB to pin a session")
+	replica.SetMaxOpenConns(1)
+	// Restore both limits the test datastore was built with. SetMaxOpenConns(1) also
+	// drops the idle count to 1, and raising max-open again does not put it back, so
+	// without this every later subtest in the shared suite reopens per query.
+	t.Cleanup(func() {
+		pool := testing_utils.MysqlTestConfig("")
+		replica.SetMaxOpenConns(pool.MaxOpenConns)
+		replica.SetMaxIdleConns(pool.MaxIdleConns)
+	})
+
+	// Sum every row-access counter rather than one of them, so the assertion holds
+	// whichever access method the optimizer picks.
+	rowsTouched := func() int64 {
+		statusRows, err := replica.QueryContext(ctx, `SHOW SESSION STATUS LIKE 'Handler_read%'`)
+		require.NoError(t, err)
+		defer statusRows.Close()
+		var total int64
+		for statusRows.Next() {
+			var name string
+			var value int64
+			require.NoError(t, statusRows.Scan(&name, &value))
+			total += value
+		}
+		require.NoError(t, statusRows.Err())
+		return total
+	}
+	countFilteredTo := func(teamID uint, want int) int64 {
+		status := fleet.SoftwareInstalled
+		before := rowsTouched()
+		count, err := ds.CountHosts(ctx, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{
+			SoftwareTitleIDFilter: &titleID,
+			SoftwareStatusFilter:  &status,
+			TeamFilter:            &teamID,
+		})
+		require.NoError(t, err)
+		require.Equal(t, want, count)
+		return rowsTouched() - before
+	}
+
+	// Breadth first, so each regime reports its own failure. The filter matches five
+	// hosts, so nothing proportional to the other teams' history may be read; a
+	// window function over the whole title reads all of it before the team filter
+	// applies.
+	// Same two bounds for the VPP builder. host_vpp_software_installs has no
+	// host_id-leading index, so a per-host lookup here rescans the app's whole
+	// history for every candidate host — the shape that is right for
+	// host_software_installs is wrong for this table.
+	// Its own title: installerAvailableForInstallForTeamAndTitleID prefers a software
+	// installer over a VPP app, so sharing a title would never reach vppAppJoin.
+	vppAdamID := "history-depth-adam"
+	var vppTitleID uint
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		if _, err := q.ExecContext(ctx, `
+INSERT INTO software_titles (name, source, bundle_identifier) VALUES ('history-depth-vpp', 'apps', 'com.example.historydepth')`); err != nil {
+			return err
+		}
+		if err := sqlx.GetContext(ctx, q.(sqlx.QueryerContext), &vppTitleID,
+			`SELECT id FROM software_titles WHERE name = 'history-depth-vpp'`); err != nil {
+			return err
+		}
+		if _, err := q.ExecContext(ctx, `
+INSERT INTO vpp_apps (adam_id, title_id, bundle_identifier, name, latest_version, platform)
+VALUES (?, ?, 'com.example.historydepth', 'history-depth-vpp', '1.0', 'darwin')`, vppAdamID, vppTitleID); err != nil {
+			return err
+		}
+		for _, teamID := range []uint{deepTeam, breadthTeam, narrowTeam} {
+			if _, err := q.ExecContext(ctx, `
+INSERT INTO vpp_apps_teams (adam_id, team_id, global_or_team_id, platform)
+VALUES (?, ?, ?, 'darwin')`, vppAdamID, teamID, teamID); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	seedVPPHistory := func(tag string, hostIDs []uint, depth int) {
+		base := time.Now().UTC().Truncate(time.Second).Add(-time.Duration(depth) * time.Hour)
+		for i := range depth {
+			createdAt := base.Add(time.Duration(i) * time.Hour)
+			for start := 0; start < len(hostIDs); start += 500 {
+				end := min(start+500, len(hostIDs))
+				placeholders := make([]string, 0, end-start)
+				args := make([]any, 0, (end-start)*5)
+				for _, hostID := range hostIDs[start:end] {
+					placeholders = append(placeholders, "(?, ?, ?, 'darwin', ?, ?)")
+					args = append(args, hostID, vppAdamID,
+						fmt.Sprintf("cmd-%s-%d-%d", tag, i, hostID), createdAt, createdAt)
+				}
+				ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+					// verification_failed_at set so the status CASE resolves without
+					// needing nano_command_results rows.
+					_, err := q.ExecContext(ctx, `
+INSERT INTO host_vpp_software_installs
+	(host_id, adam_id, command_uuid, platform, verification_failed_at, created_at)
+VALUES `+strings.Join(placeholders, ","), args...)
+					return err
+				})
+			}
+		}
+	}
+	seedVPPHistory("deep", deepIDs, deepDepth)
+	seedVPPHistory("breadth", breadthIDs, shallowDepth)
+	seedVPPHistory("narrow", narrowIDs, shallowDepth)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `ANALYZE TABLE host_vpp_software_installs`)
+		return err
+	})
+
+	vppFailed := fleet.SoftwareInstallFailed
+	countVPPFilteredTo := func(teamID uint, want int) int64 {
+		before := rowsTouched()
+		count, err := ds.CountHosts(ctx, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{
+			SoftwareTitleIDFilter: &vppTitleID,
+			SoftwareStatusFilter:  &vppFailed,
+			TeamFilter:            &teamID,
+		})
+		require.NoError(t, err)
+		require.Equal(t, want, count)
+		return rowsTouched() - before
+	}
+
+	// Measured here, deep case: 37,707 ranking the app once, 551,258 with a per-host
+	// lookup that has no index to serve it (50 hosts x the app's whole 11,010 rows).
+	vppNarrowTouched := countVPPFilteredTo(narrowTeam, narrowHosts)
+	require.Less(t, vppNarrowTouched, int64(200000),
+		"VPP status filter must not rescan the app's install history per candidate host")
+	vppDeepTouched := countVPPFilteredTo(deepTeam, deepHosts)
+	require.Less(t, vppDeepTouched, int64(200000),
+		"VPP status filter must not rescan the app's install history per candidate host")
+
+	// Depth: the filter matches every host that has deep history, so the work is
+	// bounded by that history, not by a multiple of it. The anti-join shape reads
+	// about (depth+1)/2 rows per row of history here.
+	// The work must stay bounded by the title's own history rather than a multiple of
+	// it. Measured here: 53,389 ranking the title once, 263,059 for the self
+	// anti-join, which rescans each host's history per row of that history.
+	//
+	// This fixture deliberately gives every host history for the title, so it cannot
+	// separate a per-host-lookup shape from a ranking one — the two cost the same
+	// when fleet size equals the set of hosts with history. The regimes that do
+	// separate them (narrow filter over a wide title, and no host filter at all over
+	// a sparse title) need fixtures far too large for a unit test; they are measured
+	// by the harness in bugs/51426/repro/ instead.
+	deepTouched := countFilteredTo(deepTeam, deepHosts)
+	require.Less(t, deepTouched, int64(6*titleRows),
+		"must not rescan a host's install history once per row of that history")
 }

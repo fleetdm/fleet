@@ -22,6 +22,11 @@ paths:
 - Test pattern: `applyUpToPrev(t)` → set up data → `applyNext(t, db)` → verify
 - Create with: `make migration name=YourChangeName`
 
+## Migrations
+- Guard schema changes so a failed migration can be retried
+- `CREATE TABLE`/`DROP TABLE`: use `IF NOT EXISTS`/`IF EXISTS`
+- `ALTER TABLE`: use `columnExists`/`indexExistsTx`/etc from `migration.go`
+
 ## Migrations on large tables
 Some tables hold hundreds of millions of rows in large deployments. A migration that scans or rewrites one of them can run for hours and block a customer's upgrade (this has happened in production). Any migration that reads or writes one of these tables needs extra scrutiny:
 

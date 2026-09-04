@@ -5,10 +5,11 @@ import PATHS from "router/paths";
 import { getPathWithQueryParams } from "utilities/url";
 
 import {
+  IHeaderProps,
   INumberCellProps,
   IStringCellProps,
 } from "interfaces/datatable_config";
-import { CellProps, HeaderProps } from "react-table";
+import { CellProps } from "react-table";
 
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
@@ -26,7 +27,7 @@ type IVersionCellProps = IStringCellProps<ISoftwareTitleVersion>;
 type IVulnCellProps = CellProps<ISoftwareTitleVersion, string[] | null>;
 type IHostCountCellProps = INumberCellProps<ISoftwareTitleVersion>;
 type IViewAllHostsLinkProps = CellProps<ISoftwareTitleVersion>;
-type IVersionHeaderProps = HeaderProps<ISoftwareTitleVersion>;
+type ITableHeaderProps = IHeaderProps<ISoftwareTitleVersion>;
 
 const generateSoftwareTitleVersionsTableConfig = ({
   teamId,
@@ -35,10 +36,9 @@ const generateSoftwareTitleVersionsTableConfig = ({
   const tableHeaders = [
     {
       title: "Version",
-      Header: (cellProps: IVersionHeaderProps) => (
+      Header: (cellProps: ITableHeaderProps) => (
         <HeaderCell
           value="Version"
-          disableSortBy={false}
           isSortedDesc={cellProps.column.isSortedDesc}
         />
       ),
@@ -86,8 +86,13 @@ const generateSoftwareTitleVersionsTableConfig = ({
     },
     {
       title: "Hosts",
-      Header: "Hosts",
-      disableSortBy: true,
+      Header: (cellProps: ITableHeaderProps) => (
+        <HeaderCell
+          value="Hosts"
+          isSortedDesc={cellProps.column.isSortedDesc}
+        />
+      ),
+      disableSortBy: false,
       accessor: "hosts_count",
       Cell: (cellProps: IHostCountCellProps): JSX.Element => (
         <TextCell value={cellProps.cell.value} />

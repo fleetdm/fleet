@@ -2,6 +2,7 @@ import React from "react";
 import { render, screen } from "@testing-library/react";
 import { noop } from "lodash";
 import { renderWithSetup, createMockRouter } from "test/test-utils";
+import createMockTeam from "__mocks__/teamMock";
 import UserForm from "./UserForm";
 
 // Note: Happy path is tested e2e so these integration tests are only edge cases
@@ -17,24 +18,41 @@ describe("UserForm - component", () => {
     canUseSso: false,
     isNewUser: true,
     router: createMockRouter(),
-    ancestorErrors: {},
+    serverErrors: {},
   };
 
-  it("displays error messages for invalid inputs", async () => {
+  it("reveals every error on submit, even for untouched fields", async () => {
     const { user } = renderWithSetup(<UserForm {...defaultProps} />);
 
     const submitButton = screen.getByText("Add");
     await user.click(submitButton);
 
-    expect(
-      screen.getByText("Name field must be completed")
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText("Email field must be completed")
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText("Password field must be completed")
-    ).toBeInTheDocument();
+    expect(screen.getByText("Enter a name")).toBeInTheDocument();
+    expect(screen.getByText("Enter an email")).toBeInTheDocument();
+    expect(screen.getByText("Enter a password")).toBeInTheDocument();
+  });
+
+  it("keeps the submit button enabled while the form is invalid", async () => {
+    const onSubmit = jest.fn();
+    const { user } = renderWithSetup(
+      <UserForm {...defaultProps} onSubmit={onSubmit} />
+    );
+
+    const submitButton = screen.getByText("Add");
+    expect(submitButton).not.toBeDisabled();
+
+    await user.click(submitButton);
+
+    expect(submitButton).not.toBeDisabled();
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
+
+  it("renders the 'at least one fleet' error inline rather than as a toast", async () => {
+    const { user } = renderWithSetup(<UserForm {...defaultProps} />);
+
+    await user.click(screen.getByText("Add"));
+
+    expect(screen.getByText("Select at least one fleet")).toBeInTheDocument();
   });
 
   it("renders SSO option when canUseSso is true", () => {
@@ -101,43 +119,130 @@ describe("UserForm - component", () => {
   it("does not surface an Email error when only the Name field is blurred", async () => {
     const { user } = renderWithSetup(<UserForm {...defaultProps} />);
 
-    await user.click(screen.getByLabelText("Full name"));
+    await user.type(screen.getByLabelText("Full name"), "Alice");
     await user.tab();
 
-    expect(
-      screen.queryByText("Email field must be completed")
-    ).not.toBeInTheDocument();
-    expect(
-      screen.queryByText("Password field must be completed")
-    ).not.toBeInTheDocument();
+    expect(screen.queryByText("Enter an email")).not.toBeInTheDocument();
+    expect(screen.queryByText("Enter a password")).not.toBeInTheDocument();
   });
 
-  it("shows the Email error after the Email field is blurred", async () => {
+  it("does not show an error when a pristine field is blurred", async () => {
     const { user } = renderWithSetup(<UserForm {...defaultProps} />);
 
     await user.click(screen.getByLabelText("Email"));
     await user.tab();
 
-    expect(
-      screen.getByText("Email field must be completed")
-    ).toBeInTheDocument();
+    expect(screen.queryByText("Enter an email")).not.toBeInTheDocument();
   });
 
-  it("clears the Email error once a valid email is entered", async () => {
+  it("shows the Email error on blur once the Email field is dirty", async () => {
     const { user } = renderWithSetup(<UserForm {...defaultProps} />);
 
     const emailField = screen.getByLabelText("Email");
-    await user.click(emailField);
+    await user.type(emailField, "nope");
     await user.tab();
+
+    expect(screen.getByText("Enter a valid email")).toBeInTheDocument();
+  });
+
+  it("clears the Email error on focus, not on typing", async () => {
+    const { user } = renderWithSetup(<UserForm {...defaultProps} />);
+
+    await user.click(screen.getByText("Add"));
+    expect(screen.getByText("Enter an email")).toBeInTheDocument();
+
+    // Querying the input by the error string is deliberate, not a typo for
+    // "Email": FormField renders the error *in place of* the label, so while an
+    // error shows, the error text IS the field's accessible label. Asserting it
+    // here doubles as coverage of that rule (patterns.md, Visual affordances).
+    await user.click(screen.getByLabelText("Enter an email"));
+
+    expect(screen.queryByText("Enter an email")).not.toBeInTheDocument();
+    // Clearing is per-field: the other errors are still on screen.
+    expect(screen.getByText("Enter a name")).toBeInTheDocument();
+  });
+
+  it("does not validate the email when the field is read-only", async () => {
+    // No SMTP/SES on an edit form makes email read-only. A field the user can't
+    // edit must never hold an error that blocks submit.
+    const onSubmit = jest.fn();
+    const { user } = renderWithSetup(
+      <UserForm
+        {...defaultProps}
+        isNewUser={false}
+        smtpConfigured={false}
+        sesConfigured={false}
+        defaultName="User 1"
+        defaultEmail="not-a-valid-email"
+        defaultGlobalRole="observer"
+        onSubmit={onSubmit}
+      />
+    );
+
+    expect(screen.getByLabelText("Email")).toBeDisabled();
+
+    await user.click(screen.getByText("Save"));
+
+    expect(screen.queryByText("Enter a valid email")).not.toBeInTheDocument();
+    expect(onSubmit).toHaveBeenCalled();
+  });
+
+  it("disables the permissions selectors while a submission is in flight", () => {
+    render(
+      <UserForm
+        {...defaultProps}
+        availableTeams={[createMockTeam({ id: 1, name: "Fleet 1" })]}
+        defaultGlobalRole={null}
+        defaultTeams={[createMockTeam({ id: 1, name: "Fleet 1" })]}
+        isUpdatingUsers
+      />
+    );
+
+    expect(screen.getByRole("checkbox", { name: "Fleet 1" })).toHaveAttribute(
+      "aria-disabled",
+      "true"
+    );
+    expect(screen.getByRole("radio", { name: "Global user" })).toBeDisabled();
+  });
+
+  it("uses password error copy that matches the help text", async () => {
+    const { user } = renderWithSetup(<UserForm {...defaultProps} />);
+
+    const passwordField = document.querySelector(
+      'input[name="password"]'
+    ) as HTMLInputElement;
+    await user.type(passwordField, "abcdefghijkl");
+    await user.tab();
+
     expect(
-      screen.getByText("Email field must be completed")
+      screen.getByText("Enter a password with at least 1 number and 1 symbol")
     ).toBeInTheDocument();
+  });
 
-    await user.type(emailField, "user@example.com");
+  it("does not submit mfa_enabled for a new user who switches to SSO", async () => {
+    const onSubmit = jest.fn();
+    const { user } = renderWithSetup(
+      <UserForm
+        {...defaultProps}
+        canUseSso
+        defaultGlobalRole="observer"
+        onSubmit={onSubmit}
+      />
+    );
 
-    expect(
-      screen.queryByText("Email field must be completed")
-    ).not.toBeInTheDocument();
+    await user.type(screen.getByLabelText("Full name"), "User 1");
+    await user.type(screen.getByLabelText("Email"), "user@example.com");
+
+    // Ticking MFA and then switching to SSO hides the checkbox but leaves its
+    // value in form state, so the payload must drop it.
+    await user.click(screen.getByRole("checkbox", { name: "mfa_enabled" }));
+    await user.click(screen.getByRole("radio", { name: "Single sign-on" }));
+
+    await user.click(screen.getByText("Add"));
+
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({ sso_enabled: true, mfa_enabled: false })
+    );
   });
 
   it("displays disabled SSO option when SSO is globally disabled but was previously enabled for the user", async () => {
@@ -158,8 +263,6 @@ describe("UserForm - component", () => {
     expect(ssoRadio).toBeDisabled();
 
     await user.click(screen.getByText("Save"));
-    expect(
-      screen.getByText(/Password field must be completed/i)
-    ).toBeInTheDocument();
+    expect(screen.getByText("Enter a password")).toBeInTheDocument();
   });
 });
