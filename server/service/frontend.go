@@ -118,10 +118,11 @@ func ServeEndUserEnrollOTA(
 			herr(ctx, w, "load appconfig err: "+err.Error())
 			return
 		}
+		appleManualEnrollmentBlocked := appCfg.MDM.OnlyAllowAppleBusinessEnrollment
 
 		errorMsg := r.URL.Query().Get("error")
 		if errorMsg != "" {
-			if err := renderEnrollPage(w, appCfg, urlPrefix, "", errorMsg, nonce, ""); err != nil {
+			if err := renderEnrollPage(w, appCfg, urlPrefix, "", errorMsg, nonce, "", appleManualEnrollmentBlocked); err != nil {
 				herr(ctx, w, err.Error())
 			}
 			return
@@ -129,7 +130,7 @@ func ServeEndUserEnrollOTA(
 
 		enrollSecret := r.URL.Query().Get("enroll_secret")
 		if enrollSecret == "" {
-			if err := renderEnrollPage(w, appCfg, urlPrefix, "", "This URL is invalid. : Enroll secret is invalid. Please contact your IT admin.", nonce, ""); err != nil {
+			if err := renderEnrollPage(w, appCfg, urlPrefix, "", "This URL is invalid. : Enroll secret is invalid. Please contact your IT admin.", nonce, "", appleManualEnrollmentBlocked); err != nil {
 				herr(ctx, w, err.Error())
 			}
 			return
@@ -189,7 +190,7 @@ func ServeEndUserEnrollOTA(
 			})
 		}
 
-		if err := renderEnrollPage(w, appCfg, urlPrefix, enrollSecret, "", nonce, idpUUID); err != nil {
+		if err := renderEnrollPage(w, appCfg, urlPrefix, enrollSecret, "", nonce, idpUUID, appleManualEnrollmentBlocked); err != nil {
 			herr(ctx, w, err.Error())
 			return
 		}
@@ -213,7 +214,7 @@ func generateEnrollOTAURL(fleetURL string, enrollSecret string) (string, error) 
 	return enrollURL.String(), nil
 }
 
-func renderEnrollPage(w io.Writer, appCfg *fleet.AppConfig, urlPrefix, enrollSecret, errorMessage, nonce, idpUUID string) error {
+func renderEnrollPage(w io.Writer, appCfg *fleet.AppConfig, urlPrefix, enrollSecret, errorMessage, nonce, idpUUID string, appleManualEnrollmentBlocked bool) error {
 	fs := newBinaryFileSystem("/frontend")
 	file, err := fs.Open("templates/enroll-ota.html")
 	if err != nil {
@@ -235,23 +236,25 @@ func renderEnrollPage(w io.Writer, appCfg *fleet.AppConfig, urlPrefix, enrollSec
 		return fmt.Errorf("generate enroll ota url: %w", err)
 	}
 	if err := t.Execute(w, struct {
-		EnrollURL             string
-		URLPrefix             string
-		ErrorMessage          string
-		AndroidMDMEnabled     bool
-		MacMDMEnabled         bool
-		AndroidFeatureEnabled bool
-		CSPNonce              string
-		IdpUUID               string
+		EnrollURL                    string
+		URLPrefix                    string
+		ErrorMessage                 string
+		AndroidMDMEnabled            bool
+		MacMDMEnabled                bool
+		AndroidFeatureEnabled        bool
+		CSPNonce                     string
+		IdpUUID                      string
+		AppleManualEnrollmentBlocked bool
 	}{
-		URLPrefix:             urlPrefix,
-		EnrollURL:             enrollURL,
-		ErrorMessage:          errorMessage,
-		AndroidMDMEnabled:     appCfg.MDM.AndroidEnabledAndConfigured,
-		MacMDMEnabled:         appCfg.MDM.EnabledAndConfigured,
-		AndroidFeatureEnabled: true,
-		CSPNonce:              nonce,
-		IdpUUID:               idpUUID,
+		URLPrefix:                    urlPrefix,
+		EnrollURL:                    enrollURL,
+		ErrorMessage:                 errorMessage,
+		AndroidMDMEnabled:            appCfg.MDM.AndroidEnabledAndConfigured,
+		MacMDMEnabled:                appCfg.MDM.EnabledAndConfigured,
+		AndroidFeatureEnabled:        true,
+		CSPNonce:                     nonce,
+		IdpUUID:                      idpUUID,
+		AppleManualEnrollmentBlocked: appleManualEnrollmentBlocked,
 	}); err != nil {
 		return fmt.Errorf("execute react template: %w", err)
 	}

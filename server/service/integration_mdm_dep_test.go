@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/tls"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -3487,6 +3488,77 @@ func (s *integrationMDMTestSuite) TestDEPRequireACME() {
 	assert.True(t, hostResp.Host.MDMEnrollmentHardwareAttested)
 }
 
+func (s *integrationMDMTestSuite) TestABOnlyEnrollmentBlocksAuthenticateForNonDEPHosts() {
+	t := s.T()
+	s.enableABM(t.Name())
+	s.setSkipWorkerJobs(t)
+
+	depDevice := godep.Device{SerialNumber: uuid.New().String(), Model: "MacBookPro16,1", OS: "osx", OpType: "added"}
+	s.mockDEPResponse(t.Name(), http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		encoder := json.NewEncoder(w)
+		switch r.URL.Path {
+		case "/session":
+			assert.NoError(t, encoder.Encode(map[string]string{"auth_session_token": "xyz"}))
+		case "/profile":
+			assert.NoError(t, encoder.Encode(godep.ProfileResponse{ProfileUUID: uuid.New().String()}))
+		case "/server/devices":
+			assert.NoError(t, encoder.Encode(godep.DeviceResponse{Devices: []godep.Device{depDevice}}))
+		case "/devices/sync":
+			assert.NoError(t, encoder.Encode(godep.DeviceResponse{Devices: []godep.Device{depDevice}, Cursor: "foo"}))
+		case "/profile/devices":
+			b, err := io.ReadAll(r.Body)
+			assert.NoError(t, err)
+			var prof profileAssignmentReq
+			assert.NoError(t, json.Unmarshal(b, &prof))
+			resp := godep.ProfileResponse{ProfileUUID: prof.ProfileUUID, Devices: make(map[string]string, len(prof.Devices))}
+			for _, serial := range prof.Devices {
+				resp.Devices[serial] = string(fleet.DEPAssignProfileResponseSuccess)
+			}
+			assert.NoError(t, encoder.Encode(resp))
+		default:
+			_, _ = w.Write([]byte(`{}`))
+		}
+	}))
+	s.runDEPSchedule()
+	depURLToken := loadEnrollmentProfileDEPToken(t, s.ds)
+
+	origAppCfg, err := s.ds.AppConfig(t.Context())
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, s.ds.SaveAppConfig(context.Background(), origAppCfg)) })
+	appCfg, err := s.ds.AppConfig(t.Context())
+	require.NoError(t, err)
+	appCfg.MDM.OnlyAllowAppleBusinessEnrollment = true
+	require.NoError(t, s.ds.SaveAppConfig(t.Context(), appCfg))
+
+	// The DEP-assigned device has a row in host_dep_assignments for its serial (populated by
+	// the DEP sync above), so the full enroll flow — profile fetch, SCEP, Authenticate,
+	// TokenUpdate — must succeed end to end.
+	validDevice := mdmtest.NewTestMDMClientAppleDEPFromDevice(s.server.URL, depURLToken, depDevice.SerialNumber, depDevice.Model)
+	require.NoError(t, validDevice.Enroll())
+
+	// A device with a valid SCEP identity but no DEP assignment skips Fleet's
+	// enrollment-profile endpoint entirely (NewTestMDMClientAppleDirect never calls it), so
+	// SCEP enrollment succeeds and the device reaches the raw Authenticate checkin — which
+	// must reject it on its own.
+	rogueDevice := mdmtest.NewTestMDMClientAppleDirect(mdmtest.AppleEnrollInfo{
+		SCEPChallenge: s.scepChallenge,
+		SCEPURL:       s.server.URL + apple_mdm.SCEPPath,
+		MDMURL:        s.server.URL + apple_mdm.MDMPath,
+	}, "MacBookPro16,1")
+	err = rogueDevice.Enroll()
+	require.Error(t, err)
+	require.ErrorContains(t, err, "authenticate:")
+	require.ErrorContains(t, err, fmt.Sprintf("%d", http.StatusForbidden))
+
+	// Rejected at Authenticate, so no host record should have been created for it.
+	listHostsRes := listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listHostsRes)
+	for _, h := range listHostsRes.Hosts {
+		assert.NotEqual(t, rogueDevice.UUID, h.UUID, "a host rejected at Authenticate must not be created")
+	}
+}
+
 func (s *integrationMDMTestSuite) TestGetDefaultDEPProfile() {
 	t := s.T()
 	s.enableABM(t.Name())
@@ -3655,4 +3727,163 @@ func (s *integrationMDMTestSuite) TestDEPSyncCursorPersistedAfterSuccessfulSync(
 		require.Equal(t, expectedCursor, cursor)
 		return nil
 	})
+}
+
+func (s *integrationMDMTestSuite) TestBlockedEndpointsForABOnlyACMEConfig() {
+	t := s.T()
+
+	originalAppCfg, err := s.ds.AppConfig(t.Context())
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		require.NoError(t, s.ds.SaveAppConfig(context.Background(), originalAppCfg))
+	})
+
+	getUserStatusCode := func(isBlocked bool, unblockedStatus int) int {
+		if isBlocked {
+			return http.StatusForbidden
+		}
+
+		return unblockedStatus
+	}
+	assertUserFacingResponse := func(t *testing.T, resp *http.Response, isBlocked bool) {
+		// Every request validates the status code, so no need to do it here.
+		if isBlocked {
+			errorMsg := extractServerErrorText(resp.Body)
+			expectedErr := fleet.ABOnlyEnrollmentForbiddenError{}
+			assert.Contains(t, errorMsg, expectedErr.Error())
+		}
+	}
+
+	getAdminStatusCode := func(isBlocked bool, unblockedStatus int) int {
+		if isBlocked {
+			return http.StatusBadRequest
+		}
+
+		return unblockedStatus
+	}
+	assertAdminFacingResponse := func(t *testing.T, resp *http.Response, isBlocked bool) {
+		// Every request validates the status code, so no need to do it here.
+		if isBlocked {
+			errorMsg := extractServerErrorText(resp.Body)
+			assert.Contains(t, errorMsg, fleet.AdminOnlyEnrollmentForbiddenErrMsg)
+		}
+	}
+
+	deviceInfo := []byte(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PRODUCT</key>
+	<string>iPhone</string>
+	<key>SERIAL</key>
+	<string>foo</string>
+	<key>UDID</key>
+	<string></string>
+	<key>VERSION</key>
+	<string></string>
+</dict>
+</plist>`)
+	signedDeviceInfo, _, _ := s.getSignedOTAEnrollmentBody(t, deviceInfo)
+
+	// setup team with enroll secret
+	enrollSecret := "team"
+	team, err := s.ds.NewTeam(t.Context(), &fleet.Team{Name: "team", Secrets: []*fleet.EnrollSecret{{Secret: enrollSecret}}})
+	require.NoError(t, err)
+
+	// setup host so we can do device authenticated endpoints
+	host, err := s.ds.NewHost(t.Context(), &fleet.Host{TeamID: &team.ID})
+	require.NoError(t, err)
+
+	// Mint a fresh device auth token
+	s.DoRaw("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_url", host.ID), nil, http.StatusOK)
+	authToken, err := s.ds.GetDeviceAuthToken(t.Context(), host.ID)
+	require.NoError(t, err)
+
+	// setup automatic enrollment profile to get a token
+	depProfileToken := "fake-dep-token" // nolint:gosec // test credential
+	_, err = s.ds.NewMDMAppleEnrollmentProfile(t.Context(), fleet.MDMAppleEnrollmentProfilePayload{
+		Type:       fleet.MDMAppleEnrollmentTypeAutomatic,
+		DEPProfile: new(json.RawMessage(`{}`)),
+		Token:      depProfileToken,
+	})
+	require.NoError(t, err)
+
+	for _, isBlocked := range []bool{true, false} {
+		t.Run(fmt.Sprintf("blocked=%v", isBlocked), func(t *testing.T) {
+			appCfg, err := s.ds.AppConfig(t.Context())
+			require.NoError(t, err)
+
+			appCfg.MDM.AppleRequireHardwareAttestation = isBlocked
+			appCfg.MDM.OnlyAllowAppleBusinessEnrollment = isBlocked
+			require.Equal(t, isBlocked, appCfg.MDM.IsAppleMDMSCEPBlocked())
+			require.NoError(t, s.ds.SaveAppConfig(t.Context(), appCfg))
+
+			// we hit CA Caps and CA Cert to verify the middleware on all endpoints is blocking.
+			// PKIOperation requires additional setup to verify, but it's under the same middleware.
+			resp := s.DoRaw("GET", apple_mdm.SCEPPath, nil, getUserStatusCode(isBlocked, http.StatusOK), "operation", "GetCACaps")
+			assertUserFacingResponse(t, resp, isBlocked)
+			resp = s.DoRaw("GET", apple_mdm.SCEPPath, nil, getUserStatusCode(isBlocked, http.StatusOK), "operation", "GetCACert")
+			assertUserFacingResponse(t, resp, isBlocked)
+
+			resp = s.DoRaw("GET", "/api/latest/fleet/enrollment_profiles/ota", nil, getUserStatusCode(isBlocked, http.StatusOK), "enroll_secret", enrollSecret)
+			assertUserFacingResponse(t, resp, isBlocked)
+
+			// Both requests return 403 forbidden here, but the following assert makes sure the blocked is the AB only blocked, the other forbidden is due to missing ceritficates,
+			// but it means we passed the blocked check.
+			resp = s.DoRaw("POST", "/api/latest/fleet/ota_enrollment", signedDeviceInfo, getUserStatusCode(isBlocked, http.StatusForbidden), "enroll_secret", enrollSecret)
+			assertUserFacingResponse(t, resp, isBlocked)
+
+			// unblocked returns 401 with a redirect
+			apple_mdm.SetMachineInfoVerificationForTest(t, false)
+			resp = s.DoRawNoAuth("POST", "/api/mdm/apple/account_driven_enroll", signedDeviceInfo, getUserStatusCode(isBlocked, http.StatusUnauthorized))
+			assertUserFacingResponse(t, resp, isBlocked)
+			if !isBlocked {
+				assert.Contains(t, resp.Header.Get("Www-Authenticate"), `method="apple-as-web"`)
+			}
+			resp = s.DoRawNoAuth("POST", "/api/mdm/apple/account_driven_enroll/fake-token", signedDeviceInfo, getUserStatusCode(isBlocked, http.StatusUnauthorized))
+			assertUserFacingResponse(t, resp, isBlocked)
+			if !isBlocked {
+				assert.Contains(t, resp.Header.Get("Www-Authenticate"), `method="apple-as-web"`)
+			}
+
+			// WithAuth means we hit the to grab the profile, looking for an ADUE challenge, 404 on non-blocked is a good indicator we skipped the block.
+			resp = s.DoRaw("POST", "/api/mdm/apple/account_driven_enroll", signedDeviceInfo, getUserStatusCode(isBlocked, http.StatusNotFound))
+			assertUserFacingResponse(t, resp, isBlocked)
+			resp = s.DoRaw("POST", "/api/mdm/apple/account_driven_enroll/fake-token", signedDeviceInfo, getUserStatusCode(isBlocked, http.StatusNotFound))
+			assertUserFacingResponse(t, resp, isBlocked)
+
+			resp = s.DoRaw("GET", "/api/latest/fleet/mdm/manual_enrollment_profile", nil, getAdminStatusCode(isBlocked, http.StatusOK))
+			assertAdminFacingResponse(t, resp, isBlocked)
+			resp = s.DoRaw("GET", "/api/latest/fleet/enrollment_profiles/manual", nil, getAdminStatusCode(isBlocked, http.StatusOK))
+			assertAdminFacingResponse(t, resp, isBlocked)
+
+			resp = s.DoRawNoAuth("GET", fmt.Sprintf("/api/latest/fleet/device/%s/mdm/apple/manual_enrollment_profile", authToken), nil, getUserStatusCode(isBlocked, http.StatusOK))
+			assertUserFacingResponse(t, resp, isBlocked)
+
+			resp = s.DoRawNoAuth("GET", "/mdm/apple/service_discovery", nil, getUserStatusCode(isBlocked, http.StatusOK))
+			assertUserFacingResponse(t, resp, isBlocked)
+			resp = s.DoRawNoAuth("GET", "/mdm/apple/service_discovery/fake-token", nil, getUserStatusCode(isBlocked, http.StatusOK))
+			assertUserFacingResponse(t, resp, isBlocked)
+
+			// hit /enroll page and verify on the returned enroll page.
+			resp = s.DoRawNoAuth("GET", "/enroll", nil, http.StatusOK)
+			require.Equal(t, "text/html; charset=utf-8", resp.Header.Get("Content-Type"))
+			// assert it contains the content we expect
+			defer resp.Body.Close()
+			bodyBytes, err := io.ReadAll(resp.Body)
+			require.NoError(t, err)
+			bodyString := string(bodyBytes)
+			assert.Contains(t, bodyString, fmt.Sprintf(`const IS_APPLE_MANUAL_ENROLLMENT_BLOCKED = "%t" == "true"`, isBlocked))
+
+			encodedSigned := base64.StdEncoding.EncodeToString(signedDeviceInfo)
+			resp = s.DoRawWithHeaders("GET", "/api/mdm/apple/enroll", nil, getUserStatusCode(isBlocked, http.StatusOK), map[string]string{
+				"x-apple-aspen-deviceinfo": encodedSigned,
+			}, "token", depProfileToken)
+			assertUserFacingResponse(t, resp, isBlocked)
+			resp = s.DoRawWithHeaders("POST", "/api/mdm/apple/enroll", nil, getUserStatusCode(isBlocked, http.StatusOK), map[string]string{
+				"x-apple-aspen-deviceinfo": encodedSigned,
+			}, "token", depProfileToken)
+			assertUserFacingResponse(t, resp, isBlocked)
+		})
+	}
 }
