@@ -19,7 +19,25 @@ func IsValidEntraGUID(s string) bool {
 	return entraGUIDRegex.MatchString(s)
 }
 
-// MicrosoftGraphCredential is the Entra app-registration credential Fleet authenticates with when calling Microsoft Graph.
+// MicrosoftGraphCredentialMetadata is a stored credential without its client secret. This is what the read endpoint
+// serializes, so it must never gain a secret field.
+type MicrosoftGraphCredentialMetadata struct {
+	TenantID string `json:"tenant_id" db:"tenant_id"`
+	ClientID string `json:"client_id" db:"client_id"`
+
+	// CredentialInvalid is set by the sync when the credential fails to authenticate or is denied, and cleared on the
+	// next successful sync.
+	CredentialInvalid bool `json:"credential_invalid" db:"credential_invalid"`
+	// LastSyncedAt and LastSyncError report the outcome of the most recent sync for this tenant.
+	LastSyncedAt  *time.Time `json:"last_synced_at" db:"last_synced_at"`
+	LastSyncError *string    `json:"last_sync_error" db:"last_sync_error"`
+}
+
+// MicrosoftGraphCredential is the Entra app-registration credential Fleet authenticates with when calling Microsoft
+// Graph: the metadata plus the secret.
+// The shared fields are spelled out rather than embedding MicrosoftGraphCredentialMetadata. Embedding would turn every
+// existing flattened literal of this type into a promoted-field literal, which needs Go 1.27; this branch builds on
+// 1.26. Keep the two field lists in step.
 type MicrosoftGraphCredential struct {
 	TenantID string `json:"tenant_id" db:"tenant_id"`
 	ClientID string `json:"client_id" db:"client_id"`
@@ -32,6 +50,10 @@ type MicrosoftGraphCredential struct {
 	// LastSyncedAt and LastSyncError report the outcome of the most recent sync for this tenant.
 	LastSyncedAt  *time.Time `json:"last_synced_at" db:"last_synced_at"`
 	LastSyncError *string    `json:"last_sync_error" db:"last_sync_error"`
+}
+
+func (c MicrosoftGraphCredential) AuthzType() string {
+	return "microsoft_graph_credential"
 }
 
 // Configured reports whether the credential carries everything needed to mint a token.
