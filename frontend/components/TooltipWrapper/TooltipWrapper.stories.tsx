@@ -120,6 +120,25 @@ export const BalancedWithNestedMarkup: Story = {
   },
 };
 
+/** Hovering any of these triggers should render NO tooltip — no empty
+ * background flash, no arrow. Callers can pass a conditional `tipContent`
+ * without gating on `disableTooltip` themselves. */
+export const EmptyContentSuppressed: Story = {
+  render: () => (
+    <div style={{ display: "flex", gap: "4rem", alignItems: "flex-start" }}>
+      <TooltipWrapper tipContent="">Empty string</TooltipWrapper>
+      <TooltipWrapper tipContent={null}>Null</TooltipWrapper>
+      <TooltipWrapper tipContent={undefined}>Undefined</TooltipWrapper>
+      <TooltipWrapper tipContent={false && "hidden"}>
+        Falsy conditional
+      </TooltipWrapper>
+      <TooltipWrapper tipContent="Populated, for contrast">
+        Populated
+      </TooltipWrapper>
+    </div>
+  ),
+};
+
 /** Structural `<br />`s (list separators) are respected as forced breaks —
  * balance runs within each segment rather than across the whole flow. */
 export const BalancedWithForcedBreaks: Story = {

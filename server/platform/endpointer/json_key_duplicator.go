@@ -2,9 +2,8 @@ package endpointer
 
 import (
 	"bytes"
+	"encoding/json/jsontext"
 	"io"
-
-	"github.com/go-json-experiment/json/jsontext"
 )
 
 // DuplicateJSONKeysOpts controls optional behavior of DuplicateJSONKeys.
@@ -44,7 +43,7 @@ type DuplicateJSONKeysOpts struct {
 // that naturally-occurring new keys can be detected and skipped.
 func DuplicateJSONKeys(data []byte, rules []AliasRule, opts ...DuplicateJSONKeysOpts) []byte {
 	compact := len(opts) > 0 && opts[0].Compact
-	return duplicateJSONKeys(data, rules, compact)
+	return duplicateJSONKeys(data, rules, compact, "")
 }
 
 // duplicateJSONKeys is the recursive core of DuplicateJSONKeys.
@@ -57,21 +56,16 @@ func DuplicateJSONKeys(data []byte, rules []AliasRule, opts ...DuplicateJSONKeys
 // are consumed whole by ReadValue, so their leaves are never duplicated in
 // place), while nested renamed *leaves* are duplicated in place. The new-named
 // subtree is always a clean RewriteOldToNewKeys copy.
-func duplicateJSONKeys(data []byte, rules []AliasRule, compact bool) []byte {
+//
+// rootKey is the object key data was nested under in a larger document (empty for a whole document); it seeds scope
+// matching for the recursive calls.
+func duplicateJSONKeys(data []byte, rules []AliasRule, compact bool, rootKey string) []byte {
 	if len(rules) == 0 || len(data) == 0 {
 		return data
 	}
 
-	oldToNew := make(map[string]string, len(rules))
-	newToOld := make(map[string]string, len(rules))
-	inlineOld := make(map[string]struct{}, len(rules))
-	for _, r := range rules {
-		oldToNew[r.OldKey] = r.NewKey
-		newToOld[r.NewKey] = r.OldKey
-		if r.Inline {
-			inlineOld[r.OldKey] = struct{}{}
-		}
-	}
+	oldIdx := newAliasIndex(rules, func(r AliasRule) string { return r.OldKey })
+	newIdx := newAliasIndex(rules, func(r AliasRule) string { return r.NewKey })
 
 	var buf bytes.Buffer
 	dec := jsontext.NewDecoder(bytes.NewReader(data), jsontext.AllowDuplicateNames(true))
@@ -96,6 +90,30 @@ func duplicateJSONKeys(data []byte, rules []AliasRule, compact bool) []byte {
 	}
 	var scopes []scopeState
 
+	// enclosing records, per open container, the object key that container was reached through, so scoped rules can be
+	// resolved. Array elements inherit the array's own key.
+	var enclosing []string
+	pendingKey := ""
+	currentEnclosing := func() string {
+		if len(enclosing) == 0 {
+			return rootKey
+		}
+		return enclosing[len(enclosing)-1]
+	}
+	openContainer := func() {
+		key := pendingKey
+		if key == "" {
+			key = currentEnclosing()
+		}
+		enclosing = append(enclosing, key)
+		pendingKey = ""
+	}
+	closeContainer := func() {
+		if len(enclosing) > 0 {
+			enclosing = enclosing[:len(enclosing)-1]
+		}
+	}
+
 	for {
 		tok, err := dec.ReadToken()
 		if err != nil {
@@ -111,6 +129,19 @@ func duplicateJSONKeys(data []byte, rules []AliasRule, compact bool) []byte {
 		switch kind {
 		case '{':
 			scopes = append(scopes, scopeState{naturalNew: make(map[string]bool)})
+			openContainer()
+			if err := enc.WriteToken(tok); err != nil {
+				return data
+			}
+
+		case '[':
+			openContainer()
+			if err := enc.WriteToken(tok); err != nil {
+				return data
+			}
+
+		case ']':
+			closeContainer()
 			if err := enc.WriteToken(tok); err != nil {
 				return data
 			}
@@ -133,6 +164,7 @@ func duplicateJSONKeys(data []byte, rules []AliasRule, compact bool) []byte {
 				}
 				scopes = scopes[:len(scopes)-1]
 			}
+			closeContainer()
 			if err := enc.WriteToken(tok); err != nil {
 				return data
 			}
@@ -150,15 +182,17 @@ func duplicateJSONKeys(data []byte, rules []AliasRule, compact bool) []byte {
 
 			if isKey {
 				keyName := tok.String()
+				enclosingKey := currentEnclosing()
 
 				// Track new keys that appear naturally.
-				if len(scopes) > 0 && newToOld[keyName] != "" {
+				if _, ok := newIdx.lookup(keyName, enclosingKey); ok && len(scopes) > 0 {
 					scopes[len(scopes)-1].naturalNew[keyName] = true
 				}
 
 				// Check if this key is deprecated and should generate a duplicate.
-				newKey, shouldDuplicate := oldToNew[keyName]
+				rule, shouldDuplicate := oldIdx.lookup(keyName, enclosingKey)
 				if shouldDuplicate {
+					pendingKey = ""
 					// Write the old key.
 					if err := enc.WriteToken(tok); err != nil {
 						return data
@@ -175,10 +209,10 @@ func duplicateJSONKeys(data []byte, rules []AliasRule, compact bool) []byte {
 					// container instead re-runs the duplicator over its value so
 					// nested renames also surface under the old name, the way
 					// they did before this container was renamed.
-					if _, ok := inlineOld[keyName]; ok && startsWithContainer(val) {
+					if rule.Inline && startsWithContainer(val) {
 						// compact is irrelevant here: the result is re-encoded
 						// by the outer encoder, which applies its own indent.
-						oldVal := duplicateJSONKeys([]byte(val), rules, true)
+						oldVal := duplicateJSONKeys([]byte(val), rules, true, keyName)
 						if err := enc.WriteValue(jsontext.Value(oldVal)); err != nil {
 							return data
 						}
@@ -189,29 +223,32 @@ func duplicateJSONKeys(data []byte, rules []AliasRule, compact bool) []byte {
 					// New-named sibling: a clean, fully new-named copy. For a
 					// scalar this is the same value, which yields an in-place
 					// duplicate (both old and new key on the same object).
-					newVal, renameErr := RewriteOldToNewKeys([]byte(val), rules)
+					newVal, renameErr := rewriteOldToNewKeysIn([]byte(val), rules, rule.NewKey)
 					if renameErr != nil {
 						newVal = []byte(val) // fall back to original value on error
 					}
 					if len(scopes) > 0 {
 						scopes[len(scopes)-1].pending = append(
 							scopes[len(scopes)-1].pending,
-							pendingDup{newKey: newKey, value: jsontext.Value(newVal)},
+							pendingDup{newKey: rule.NewKey, value: jsontext.Value(newVal)},
 						)
 					}
 				} else { // !shouldDuplicate (no old key match) — just write the key as-is
+					pendingKey = keyName
 					if err := enc.WriteToken(tok); err != nil {
 						return data
 					}
 				}
 			} else { // !isKey — string value, not a key — just write as-is
+				pendingKey = ""
 				if err := enc.WriteToken(tok); err != nil {
 					return data
 				}
 			}
 
 		default:
-			// All other tokens: [, ], numbers, bools, null — pass through.
+			// All other tokens: numbers, bools, null — scalar values.
+			pendingKey = ""
 			if err := enc.WriteToken(tok); err != nil {
 				return data
 			}

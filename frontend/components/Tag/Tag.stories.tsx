@@ -11,7 +11,7 @@ const meta: Meta<typeof Tag> = {
   title: "Components/Tag",
   argTypes: {
     children: { control: "text" },
-    size: { control: "radio", options: ["large", "small"] },
+    size: { control: "radio", options: ["large", "small", "xsmall"] },
     disabled: { control: "boolean" },
     tooltip: { control: "text" },
     className: { control: "text" },
@@ -35,6 +35,13 @@ export const Small: Story = {
   args: {
     children: "Patch",
     size: "small",
+  },
+};
+
+export const XSmall: Story = {
+  args: {
+    children: "16 API endpoints",
+    size: "xsmall",
   },
 };
 

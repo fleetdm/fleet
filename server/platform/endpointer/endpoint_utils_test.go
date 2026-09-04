@@ -576,6 +576,113 @@ func TestMakeDecoderGzipBomb(t *testing.T) {
 	})
 }
 
+// TestMakeEndpointRequestSizeOverride asserts the precedence between a
+// route's own resolved limit and a configured EndpointRequestSizeOverrides entry.
+// The override only wins when it's larger, and it's never consulted
+// for routes that opt out entirely via SkipRequestBodySizeLimit (-1).
+func TestMakeEndpointRequestSizeOverride(t *testing.T) {
+	const path = "/some/path"
+
+	cases := []struct {
+		desc          string
+		routeLimit    int64
+		skipLimit     bool
+		globalDefault int64
+		overrides     map[string]int64
+		expectedLimit int64
+	}{
+		{
+			desc:          "No override: falls back to global default",
+			globalDefault: 10,
+			expectedLimit: 10,
+		},
+		{
+			desc:          "Override lower than resolved default: default wins",
+			globalDefault: 10,
+			overrides:     map[string]int64{path: 5},
+			expectedLimit: 10,
+		},
+		{
+			desc:          "Override higher than resolved default: override wins",
+			globalDefault: 10,
+			overrides:     map[string]int64{path: 100},
+			expectedLimit: 100,
+		},
+		{
+			desc:          "Override higher than route's own literal: override wins",
+			routeLimit:    20,
+			globalDefault: 10,
+			overrides:     map[string]int64{path: 100},
+			expectedLimit: 100,
+		},
+		{
+			desc:          "Override lower than route's own literal: literal wins",
+			routeLimit:    20,
+			globalDefault: 10,
+			overrides:     map[string]int64{path: 15},
+			expectedLimit: 20,
+		},
+		{
+			desc:          "Skip limit (-1): override is ignored entirely",
+			skipLimit:     true,
+			globalDefault: 10,
+			overrides:     map[string]int64{path: 100},
+			expectedLimit: -1,
+		},
+		{
+			desc:          "No matching override entry: unaffected",
+			globalDefault: 10,
+			overrides:     map[string]int64{"/some/other/path": 100},
+			expectedLimit: 10,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.desc, func(t *testing.T) {
+			oldDefault := platform_http.MaxRequestBodySize
+			oldOverrides := platform_http.EndpointRequestSizeOverrides
+			t.Cleanup(func() {
+				platform_http.MaxRequestBodySize = oldDefault
+				platform_http.EndpointRequestSizeOverrides = oldOverrides
+			})
+			platform_http.MaxRequestBodySize = c.globalDefault
+			platform_http.EndpointRequestSizeOverrides = c.overrides
+
+			var limitPassed int64
+			r := mux.NewRouter()
+			ce := &CommonEndpointer[testHandlerFunc]{
+				EP: nopEP{},
+				MakeDecoderFn: func(iface any, requestBodySizeLimit int64) kithttp.DecodeRequestFunc {
+					limitPassed = requestBodySizeLimit
+					return func(ctx context.Context, r *http.Request) (any, error) {
+						return nopRequest{}, nil
+					}
+				},
+				EncodeFn: func(ctx context.Context, w http.ResponseWriter, i any) error {
+					w.WriteHeader(http.StatusOK)
+					return nil
+				},
+				AuthMiddleware: func(next endpoint.Endpoint) endpoint.Endpoint { return next },
+				Router:         r,
+			}
+
+			handler := func(ctx context.Context, request any) (platform_http.Errorer, error) {
+				return nopResponse{}, nil
+			}
+			switch {
+			case c.skipLimit:
+				ce.SkipRequestBodySizeLimit().POST(path, handler, nil)
+			case c.routeLimit != 0:
+				ce.WithRequestBodySizeLimit(c.routeLimit).POST(path, handler, nil)
+			default:
+				ce.POST(path, handler, nil)
+			}
+
+			assert.Equal(t, c.expectedLimit, limitPassed)
+		})
+	}
+}
+
 func TestRequestFieldName(t *testing.T) {
 	type tagged struct {
 		Plain     string `json:"plain"`

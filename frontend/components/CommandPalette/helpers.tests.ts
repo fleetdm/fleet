@@ -255,6 +255,21 @@ describe("CommandPalette helpers", () => {
       expect(ids).not.toContain("turn-on-apple-mdm");
     });
 
+    it("shows Microsoft Graph on premium regardless of whether Windows MDM is on", () => {
+      // The Autopilot sync only reads the tenant's registry, so the credential is useful before Windows MDM is on.
+      const windowsMdmOff = buildPaletteItems({
+        ...BASE_CONTEXT,
+        isWindowsMdmEnabledAndConfigured: false,
+      }).map((i) => i.id);
+      const windowsMdmOn = buildPaletteItems({
+        ...BASE_CONTEXT,
+        isWindowsMdmEnabledAndConfigured: true,
+      }).map((i) => i.id);
+
+      expect(windowsMdmOff).toContain("edit-microsoft-graph");
+      expect(windowsMdmOn).toContain("edit-microsoft-graph");
+    });
+
     it("shows 'Add AB' when Apple MDM on but AB not configured", () => {
       const configNoAbm = createMockConfig();
       configNoAbm.mdm = {
@@ -732,6 +747,11 @@ describe("CommandPalette helpers", () => {
       expect(ids).not.toContain("edit-abm");
       expect(ids).not.toContain("add-vpp");
       expect(ids).not.toContain("edit-vpp");
+    });
+
+    it("hides the Microsoft Graph command, whose page paywalls on Free", () => {
+      const ids = buildPaletteItems(FREE_CONTEXT).map((i) => i.id);
+      expect(ids).not.toContain("edit-microsoft-graph");
     });
 
     it("hides premium integrations settings sub-items", () => {

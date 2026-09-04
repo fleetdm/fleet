@@ -13,9 +13,15 @@ const baseClass = "command-item";
  */
 export type ShowCommandDetailsHandler = (cmd: ICommand) => void;
 
+/** Handler that will cancel a pending command. */
+export type CancelCommandHandler = (cmd: ICommand) => void;
+
 interface ICommandItemProps {
   command: ICommand;
   onShowDetails: ShowCommandDetailsHandler;
+  /** When provided, the item renders a cancel button that calls it. */
+  onCancel?: CancelCommandHandler;
+  isSoloItem?: boolean;
 }
 
 const getStatusText = (command: ICommand): string => {
@@ -37,7 +43,12 @@ const getStatusText = (command: ICommand): string => {
   }
 };
 
-const CommandItem = ({ command, onShowDetails }: ICommandItemProps) => {
+const CommandItem = ({
+  command,
+  onShowDetails,
+  onCancel,
+  isSoloItem,
+}: ICommandItemProps) => {
   const { request_type, updated_at, name, status } = command;
 
   const statusText = getStatusText(command);
@@ -46,6 +57,13 @@ const CommandItem = ({ command, onShowDetails }: ICommandItemProps) => {
   const onShowCommandDetails = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.stopPropagation();
     onShowDetails(command);
+  };
+
+  const onCancelCommand = (e: React.MouseEvent<HTMLButtonElement>) => {
+    // the cancel button is nested inside the row's details button; without
+    // this the click would also open the command details modal
+    e.stopPropagation();
+    onCancel?.(command);
   };
 
   const activityText = name ? (
@@ -64,8 +82,11 @@ const CommandItem = ({ command, onShowDetails }: ICommandItemProps) => {
       className={baseClass}
       useFleetAvatar
       allowShowDetails
+      allowCancel={!!onCancel}
+      isSoloItem={isSoloItem}
       createdAt={new Date(updated_at)}
       onClickFeedItem={onShowCommandDetails}
+      onClickCancel={onCancelCommand}
     >
       {activityText}
     </FeedListItem>

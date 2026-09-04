@@ -71,14 +71,15 @@ func TestGenerateQueryForManifest(t *testing.T) {
 }
 
 func TestGenerateOpenQuery(t *testing.T) {
-	// macOS resolves the app's install path from its bundle identifier and matches a process
-	// running from inside it.
+	// macOS resolves the app's install path and executable name from its bundle identifier
+	// and matches only the app's own executable, so in-bundle login items and helpers that
+	// outlive the app don't count as open.
 	got := patch_policy.GenerateOpenQuery("darwin", "org.mozilla.firefox", "")
-	require.Equal(t, "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'org.mozilla.firefox');", got)
+	require.Equal(t, "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'org.mozilla.firefox' AND a.bundle_executable != '');", got)
 
 	// Apostrophes in the bundle identifier are escaped so they can't break the literal.
 	got = patch_policy.GenerateOpenQuery("darwin", "com.oreilly.o'reilly", "")
-	require.Equal(t, "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.oreilly.o''reilly');", got)
+	require.Equal(t, "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.oreilly.o''reilly' AND a.bundle_executable != '');", got)
 
 	// Windows matches a process named "<title>.exe".
 	got = patch_policy.GenerateOpenQuery("windows", "", "Slack")
@@ -98,6 +99,9 @@ func TestGenerateOpenQuery(t *testing.T) {
 
 	got = patch_policy.GenerateOpenQuery("windows", "", "Microsoft Teams")
 	require.Equal(t, "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) IN ('teams.exe','ms-teams.exe'));", got)
+
+	got = patch_policy.GenerateOpenQuery("windows", "", "Raspberry Pi Imager")
+	require.Equal(t, "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'rpi-imager.exe');", got)
 
 	// Unknown platform yields no query.
 	require.Empty(t, patch_policy.GenerateOpenQuery("linux", "com.example.foo", ""))

@@ -1,0 +1,1 @@
+- Fixed an issue where a second user signing in to a Windows device that was already enrolled via Autopilot would get stuck on the "Account setup" Enrollment Status Page for up to 3 hours.

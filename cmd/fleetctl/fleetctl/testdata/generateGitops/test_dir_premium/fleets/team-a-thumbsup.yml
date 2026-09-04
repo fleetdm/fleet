@@ -27,7 +27,8 @@ controls:
   apple_settings:
     configuration_profiles:
     - path: "../lib/team-a-👍/profiles/team-macos-mobileconfig-profile.mobileconfig"
-  enable_disk_encryption: true
+    enable_disk_encryption: true
+    enable_escrow_disk_encryption_key: true
   enable_recovery_lock_password: false
   ios_updates:
     deadline: "2021-12-31"
@@ -39,6 +40,8 @@ controls:
     deadline_days:
     minimum_version: "98.2"
     update_new_hosts:
+  linux_settings:
+    enable_escrow_disk_encryption_key: true
   macos_updates:
     deadline: "2020-12-31"
     deadline_days:
@@ -48,7 +51,9 @@ controls:
   scripts:
   - path: "../lib/team-a-👍/scripts/Script B.ps1"
   windows_enabled_and_configured: true
-  windows_require_bitlocker_pin: false
+  windows_settings:
+    enable_disk_encryption: true
+    require_bitlocker_pin: false
   windows_updates:
     deadline_days: 95
     grace_period_days: 92
@@ -91,6 +96,18 @@ policies:
   resolution: Install the app
   type: dynamic
   webhooks_and_tickets_enabled: true
+- calendar_events_enabled: false
+  conditional_access_enabled: false
+  continuous_automations_enabled: false
+  critical: false
+  description: This is a team policy with configuration profile automation
+  name: Team Profile policy
+  platform: darwin
+  query: SELECT * FROM team_policy WHERE id = 4
+  resend_configuration_profile: Team Profile
+  resolution: Nothing to do.
+  type: dynamic
+  webhooks_and_tickets_enabled: false
 - calendar_events_enabled: false
   conditional_access_enabled: false
   continuous_automations_enabled: false

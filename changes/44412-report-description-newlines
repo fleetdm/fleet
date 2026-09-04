@@ -1,0 +1,1 @@
+- Fixed report descriptions so that newlines are preserved when the description is displayed, instead of being collapsed onto a single line.

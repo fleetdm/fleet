@@ -190,6 +190,47 @@ describe("CommandPalette", () => {
       await openPalette(user);
       expect(screen.getByPlaceholderText(/search/i)).toHaveValue("");
     });
+
+    // Regression: cmdk's selected `value` is controlled here, so if we
+    // don't clear it on close, the previously highlighted row stays
+    // selected across close/reopen. Enter would then activate a prior
+    // row instead of the (expected) first item.
+    it("resets the highlight when reopened, not sticking on a prior row", async () => {
+      const { user } = adminRender(<CommandPalette />);
+      await openPalette(user);
+
+      // Move the highlight away from the first item. ArrowDown twice so
+      // even if the first row starts unselected, we land somewhere past it.
+      await user.keyboard("{ArrowDown}");
+      await user.keyboard("{ArrowDown}");
+
+      // Capture what's highlighted so we can assert it's NOT what's
+      // highlighted after reopen.
+      const highlightedBeforeClose = document.querySelector(
+        `.command-palette__item[aria-selected="true"]`
+      );
+      expect(highlightedBeforeClose).not.toBeNull();
+      const priorLabel = highlightedBeforeClose?.textContent;
+
+      await user.keyboard("{Escape}");
+      await waitFor(() => {
+        expect(
+          screen.queryByPlaceholderText(/search/i)
+        ).not.toBeInTheDocument();
+      });
+
+      await openPalette(user);
+
+      await waitFor(() => {
+        const highlightedAfterReopen = document.querySelector(
+          `.command-palette__item[aria-selected="true"]`
+        );
+        // Something is highlighted (cmdk auto-selects the first item on a
+        // fresh mount), and it's not the row we left on.
+        expect(highlightedAfterReopen).not.toBeNull();
+        expect(highlightedAfterReopen?.textContent).not.toBe(priorLabel);
+      });
+    });
   });
 
   describe("Rendering items", () => {

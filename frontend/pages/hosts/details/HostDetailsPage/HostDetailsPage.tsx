@@ -7,7 +7,7 @@ import React, {
 } from "react";
 import { timeAgo } from "utilities/date_format";
 import { Params, InjectedRouter } from "react-router/lib/Router";
-import { useQuery } from "react-query";
+import { useQuery, useQueryClient } from "react-query";
 import { useErrorHandler } from "react-error-boundary";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 import { pick } from "lodash";
@@ -44,7 +44,10 @@ import {
   IHostCertificate,
   CERTIFICATES_DEFAULT_SORT,
 } from "interfaces/certificates";
-import { FLEET_FILEVAULT_PROFILE_DISPLAY_NAME } from "interfaces/mdm";
+import {
+  canTriggerAPNSPing,
+  FLEET_FILEVAULT_PROFILE_DISPLAY_NAME,
+} from "interfaces/mdm";
 import { ICommand } from "interfaces/command";
 
 import {
@@ -112,6 +115,10 @@ import FailedEnrollmentProfileModal, {
   IFailedEnrollmentProfileModalProps,
 } from "components/modals/FailedEnrollmentProfileModal";
 
+import {
+  getDiskEncryptionSettings,
+  isMacOSDiskEncryptionEnforceOnly,
+} from "pages/ManageControlsPage/OSSettings/cards/DiskEncryption/helpers";
 import HostSummaryCard from "../cards/HostSummary";
 import VitalsCard from "../cards/Vitals";
 import UserCard from "../cards/User";
@@ -153,8 +160,13 @@ import {
 } from "../helpers";
 import WipeModal from "./modals/WipeModal";
 import { parseHostSoftwareQueryParams } from "../cards/Software/HostSoftware";
-import { canShowMyDeviceButton, getErrorMessage } from "./helpers";
+import {
+  canShowMyDeviceButton,
+  getErrorMessage,
+  hasEverEnrolled,
+} from "./helpers";
 import CancelActivityModal from "./modals/CancelActivityModal";
+import CancelCommandModal from "./modals/CancelCommandModal";
 import CertificateDetailsModal from "../modals/CertificateDetailsModal";
 import HostHeader from "../cards/HostHeader";
 import InventoryVersionsModal from "../modals/InventoryVersionsModal";
@@ -323,10 +335,18 @@ const HostDetailsPage = ({
     setEnrollmentProfileFailedDetails,
   ] = useState<Omit<IFailedEnrollmentProfileModalProps, "onDone"> | null>(null);
 
-  const [refetchStartTime, setRefetchStartTime] = useState<number | null>(null);
+  // React Router reuses this component when only host_id changes.
+  const [refetchStart, setRefetchStart] = useState<{
+    hostId: number;
+    at: number;
+  } | null>(null);
+  const refetchStartTime =
+    refetchStart?.hostId === hostIdFromURL ? refetchStart.at : null;
   const [showRefetchSpinner, setShowRefetchSpinner] = useState(false);
   const [usersState, setUsersState] = useState<{ username: string }[]>([]);
   const [usersSearchString, setUsersSearchString] = useState("");
+  const queryClient = useQueryClient();
+
   const [
     hostMdmDeviceStatus,
     setHostMdmDeviceState,
@@ -339,6 +359,10 @@ const HostDetailsPage = ({
     selectedCancelActivity,
     setSelectedCancelActivity,
   ] = useState<IHostUpcomingActivity | null>(null);
+  const [
+    selectedCancelCommand,
+    setSelectedCancelCommand,
+  ] = useState<ICommand | null>(null);
 
   // activity states
   const [activeActivityTab, setActiveActivityTab] = useState<
@@ -422,7 +446,7 @@ const HostDetailsPage = ({
    */
   const resetHostRefetchStates = () => {
     setShowRefetchSpinner(false);
-    setRefetchStartTime(null);
+    setRefetchStart(null);
   };
 
   const {
@@ -439,9 +463,15 @@ const HostDetailsPage = ({
       onSuccess: (returnedHost) => {
         // If API returns refetch_requested: true,
         // only set timer if *not* already set!
-        if (returnedHost.refetch_requested) {
+        // Pending hosts carry the flag from the moment they're created, so ignore it unless the host has enrolled and
+        // can actually return vitals. On a never-enrolled host only a click (within first 60s) sets refetchStartTime,
+        // so an explicit request still gets its spinner and its feedback.
+        if (
+          returnedHost.refetch_requested &&
+          (hasEverEnrolled(returnedHost) || refetchStartTime !== null)
+        ) {
           if (!refetchStartTime) {
-            setRefetchStartTime(Date.now());
+            setRefetchStart({ hostId: hostIdFromURL, at: Date.now() });
           }
           setShowRefetchSpinner(true);
 
@@ -764,9 +794,20 @@ const HostDetailsPage = ({
       // unless there is an error. The spinner state is also controlled in the fullyReloadHost
       // method.
       setShowRefetchSpinner(true);
+
+      // Trigger APNS ping independently
+      if (
+        canTriggerAPNSPing(host) &&
+        permissions.isGlobalOrTeamObserverOrAbove(currentUser, host.team_id)
+      ) {
+        hostAPI.apnsPing(host.id).catch((error) => {
+          notify.error("Failed to send APNS ping", { response: error });
+        });
+      }
+
       try {
         await hostAPI.refetch(host).then(() => {
-          setRefetchStartTime(Date.now());
+          setRefetchStart({ hostId: hostIdFromURL, at: Date.now() });
           setTimeout(() => {
             refetchHostDetails();
             refetchExtensions();
@@ -1021,6 +1062,13 @@ const HostDetailsPage = ({
     [host]
   );
 
+  // enforce-only (macOS disk encryption on, escrow off) fleets never receive
+  // keys, so the disk encryption control drops its key phrasing
+  const hostFleetMdm = host?.team_id
+    ? teams?.find((team) => team.id === host.team_id)?.mdm
+    : config?.mdm;
+  const fleetDiskEncryptionSettings = getDiskEncryptionSettings(hostFleetMdm);
+
   const onSelectHostAction = (action: string) => {
     switch (action) {
       case "transfer":
@@ -1105,8 +1153,7 @@ const HostDetailsPage = ({
         }
         isManagedLocalAccountEnabled={
           host.platform === "windows"
-            ? mdmConfig?.windows_settings?.managed_local_account_settings
-                ?.enabled ?? false
+            ? mdmConfig?.windows_settings?.enable_managed_local_account ?? false
             : mdmConfig?.macos_setup?.enable_managed_local_account ?? false
         }
         managedAccountStatus={
@@ -1124,6 +1171,26 @@ const HostDetailsPage = ({
         clearPasscodeAllowed={host.mdm.clear_passcode_allowed}
       />
     );
+  };
+
+  const onSuccessCancelCommand = () => {
+    // back to the first page: canceling the last command on a later page
+    // would otherwise strand the feed on an empty page
+    setActivityPage(0);
+    // invalidate by scope rather than the queries' bound refetch(): the
+    // refetch handles are tied to the page the user was on, while the page-0
+    // key that renders after the reset could still serve cached
+    // pre-cancellation data within the staleTime window. Invalidation covers
+    // every page of the scope, including the Upcoming tab badge and toggle
+    // label counts.
+    queryClient.invalidateQueries([{ scope: "host-upcoming-mdm-commands" }]);
+    queryClient.invalidateQueries([{ scope: "host-past-mdm-commands" }]);
+    // the canceled_mdm_command activity renders from the past-activities
+    // feed, not the command queries
+    queryClient.invalidateQueries([{ scope: "past-activities" }]);
+    // the device status chip ("Lock pending") is derived from host.mdm on the
+    // host details query
+    refetchHostDetails();
   };
 
   const onSuccessCancelActivity = (activity: IHostUpcomingActivity) => {
@@ -1336,20 +1403,29 @@ const HostDetailsPage = ({
     isHostTeamMaintainer ||
     isHostTeamObserverPlus;
 
-  const canManagePolicies =
+  // Careful adding boolean logic to this component: eslint's rules-of-hooks
+  // counts code paths and each &&/||/ternary doubles them; this component is
+  // large enough that a handful more overflows the counter and every hook
+  // gets flagged as "called conditionally". Reuse this const where the
+  // admin-or-maintainer check is needed.
+  const isAdminOrMaintainer =
     isGlobalAdmin ||
     isGlobalMaintainer ||
     isHostTeamAdmin ||
     isHostTeamMaintainer;
 
+  const canManagePolicies = isAdminOrMaintainer;
+
+  // Deliberately not reusing cancel-activity permissions: canceling MDM
+  // commands is authorized like sending them (mdm_command write), which
+  // differs from the unified queue's cancel_host_activity and is free to
+  // diverge.
+  const canCancelMDMCommands = isPremiumTier && isAdminOrMaintainer;
+
   // Technicians can open /controls but can't add anything once there — both
   // configuration profiles and the script library hide their add actions for
   // them — so the empty state's CTA would land them on a read-only page.
-  const canAddControls =
-    isGlobalAdmin ||
-    isGlobalMaintainer ||
-    isHostTeamAdmin ||
-    isHostTeamMaintainer;
+  const canAddControls = isAdminOrMaintainer;
 
   const bootstrapPackageData = {
     status: host?.mdm.setup_experience?.bootstrap_package_status,
@@ -1399,7 +1475,7 @@ const HostDetailsPage = ({
                 <TabText>Library</TabText>
               </Tab>
             </TabList>
-            <TabPanel>
+            <TabPanel className={`${baseClass}__software-inventory-tab-panel`}>
               <SoftwareInventoryCard
                 id={host.id}
                 platform={host.platform}
@@ -1470,7 +1546,7 @@ const HostDetailsPage = ({
             </TabPanel>
           </>
         ) : (
-          <>
+          <div className={`${baseClass}__software-inventory-tab-panel`}>
             <SoftwareInventoryCard
               id={host.id}
               platform={host.platform}
@@ -1492,7 +1568,7 @@ const HostDetailsPage = ({
                 deviceType={host?.platform === "darwin" ? "macos" : ""}
               />
             )}
-          </>
+          </div>
         )}
       </div>
     );
@@ -1609,12 +1685,7 @@ const HostDetailsPage = ({
                       ? pastActivitiesIsError || pastMDMCommandsIsError
                       : upcomingActivitiesIsError || upcomingMDMCommandsIsError
                   }
-                  canCancelActivities={
-                    isGlobalAdmin ||
-                    isGlobalMaintainer ||
-                    isHostTeamAdmin ||
-                    isHostTeamMaintainer
-                  }
+                  canCancelActivities={isAdminOrMaintainer}
                   isUpcomingDisabled={isAndroidHost}
                   showMDMCommandsToggle={canGetMDMCommands}
                   showMDMCommands={showMDMCommands}
@@ -1636,6 +1707,9 @@ const HostDetailsPage = ({
                   onShowDetails={onShowActivityDetails}
                   onShowCommandDetails={setMdmCommandDetails}
                   onCancel={onCancelActivity}
+                  onCancelCommand={
+                    canCancelMDMCommands ? setSelectedCancelCommand : undefined
+                  }
                 />
                 <UserCard
                   className={defaultCardClass}
@@ -1726,6 +1800,9 @@ const HostDetailsPage = ({
                     rotateRecoveryLockPassword={rotateRecoveryLockPassword}
                     resendHostNameTemplate={resendHostNameTemplate}
                     onProfileResent={refetchHostDetails}
+                    isMacOSDiskEncryptionEnforceOnly={isMacOSDiskEncryptionEnforceOnly(
+                      fleetDiskEncryptionSettings
+                    )}
                     router={router}
                   />
                 </TabPanel>
@@ -1856,6 +1933,7 @@ const HostDetailsPage = ({
               hostPlatform={host.platform}
               hostName={host.display_name}
               enrollmentStatus={host.mdm.enrollment_status}
+              lastMdmEnrollmentType={host.last_mdm_enrollment_type}
               onClose={toggleUnenrollMdmModal}
               onSuccess={() => {
                 // The server marks the host unenrolled immediately, so refresh
@@ -2091,6 +2169,14 @@ const HostDetailsPage = ({
               onExit={() => setSelectedCancelActivity(null)}
             />
           )}
+          {selectedCancelCommand && (
+            <CancelCommandModal
+              hostId={host.id}
+              command={selectedCancelCommand}
+              onSuccessCancel={onSuccessCancelCommand}
+              onExit={() => setSelectedCancelCommand(null)}
+            />
+          )}
           {selectedCertificate && (
             <CertificateDetailsModal
               certificate={selectedCertificate}
@@ -2153,12 +2239,16 @@ const HostDetailsPage = ({
         )}
         {showMDMStatusModal && host.mdm.enrollment_status && (
           <MDMStatusModal
-            fleetId={currentTeam?.id}
+            fleetId={host.team_id}
             hostId={host.id}
             depProfileError={host.mdm.dep_profile_error}
             enrollmentStatus={host.mdm.enrollment_status}
             isPremiumTier={isPremiumTier}
-            isAppleDevice={isAppleDeviceHost}
+            platform={host.platform}
+            lastMDMCheckIn={host.last_mdm_checked_in_at}
+            connectedToFleet={host.mdm.connected_to_fleet}
+            onSuccessfulCheckIn={refetchHostDetails}
+            user={currentUser}
             router={router}
             onExit={toggleMDMStatusModal}
           />

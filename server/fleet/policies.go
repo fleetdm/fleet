@@ -166,6 +166,12 @@ const PolicyNoTeamID = uint(0)
 // Max times a policy automation will be retried on failure.
 const MaxPolicyAutomationRetries = 3
 
+// Max amount of retries allowed in a row via policy automations.
+const MaxPolicyAutomationInstallAttempts = 10
+
+// Time to live of the install attempt counter key when it is not updated again.
+const PolicyAutomationInstallAttemptExpiry = 24 * time.Hour
+
 // Verify verifies the policy payload is valid.
 func (p PolicyPayload) Verify() error {
 	if p.PatchWhenClosed && p.Type != PolicyTypePatch {
@@ -362,9 +368,11 @@ type ModifyPolicyPayload struct {
 	SoftwareTitleID optjson.Any[uint] `json:"software_title_id" premium:"true"`
 	// SoftwareInstallerID optionally selects which package of the title to install on failure.
 	// When omitted (or 0), the policy defaults to the title's first-added package.
+	// The wire key is `software_package_id`; the endpointer's renameto layer accepts
+	// the legacy `software_installer_id` alias and logs a deprecation warning.
 	//
 	// Only applies to team policies.
-	SoftwareInstallerID optjson.Any[uint] `json:"software_installer_id" premium:"true"`
+	SoftwareInstallerID optjson.Any[uint] `json:"software_installer_id" renameto:"software_package_id" premium:"true"`
 	// ScriptID is the ID of the script that will be executed if the policy fails.
 	// Value 0 will unset the current script from the policy.
 	//
@@ -744,6 +752,12 @@ type PolicySpec struct {
 	// SoftwareTitleID is the title ID of the installer associated with this policy (team policies only).
 	// When editing a policy, if this is nil or 0 then the title ID is unset from the policy.
 	SoftwareTitleID *uint `json:"software_title_id"`
+	// SoftwarePackageID optionally pins the policy to a specific package under
+	// the given SoftwareTitleID (team policies only). When nil the applier
+	// falls back to the title's first-added package. Used by GitOps to preserve
+	// which package a policy YAML referenced when the title has multiple
+	// installers sharing a bundle identifier.
+	SoftwarePackageID *uint `json:"software_package_id,omitempty"`
 	// ScriptID is the ID of the script associated with this policy (team policies only).
 	// When editing a policy, if this is nil or 0 then the script ID is unset from the policy.
 	ScriptID *uint `json:"script_id"`
@@ -777,11 +791,12 @@ type PolicySoftwareTitle struct {
 	SoftwareTitleID uint `json:"software_title_id" db:"title_id"`
 	// SoftwareInstallerID is the ID of the specific package the policy pins
 	// on a multi-package title. Nil for VPP-backed policies (which pin via
-	// vpp_apps_teams_id, not an installer). The multi-package policy
+	// vpp_apps_teams_id, not a package). The multi-package policy
 	// automation UI reads this on load to reflect the user's non-default
 	// package choice; when nil, the UI falls back to the title's first-added
-	// package.
-	SoftwareInstallerID *uint `json:"software_installer_id,omitempty"`
+	// package. Wire key is `software_package_id` (via the endpointer's renameto
+	// layer, which also accepts the legacy `software_installer_id` alias).
+	SoftwareInstallerID *uint `json:"software_installer_id,omitempty" renameto:"software_package_id"`
 	// Name is the associated installer title name
 	// (not the package name, but the installed software title).
 	Name        string `json:"name" db:"name"`
@@ -899,6 +914,7 @@ type PolicyAutomationType string
 
 const (
 	PolicyAutomationTypeSoftware          PolicyAutomationType = "software"
+	PolicyAutomationTypePatch             PolicyAutomationType = "patch"
 	PolicyAutomationTypeScripts           PolicyAutomationType = "scripts"
 	PolicyAutomationTypeCalendar          PolicyAutomationType = "calendar"
 	PolicyAutomationTypeConditionalAccess PolicyAutomationType = "conditional_access"

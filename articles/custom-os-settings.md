@@ -24,6 +24,24 @@ The following configuration declarations are not supported:
 - com.apple.configuration.app.managed
 - com.apple.configuration.package
 
+#### Activations (`com.apple.activation.simple`)
+For advanced setups, you can provide a custom activation instead of having Fleet automatically create the activation when you upload a configuration profile.
+
+The activation must include `Type`, `Identifier`, and `Payload` key. `Payload` must have a `StandardConfiguration` containing a reference to a **single** configuration profile that already exists in Fleet. Adding a `Predicate` is allowed, however, best practices is to use labels for scoping.
+
+Example:
+```json
+{
+  "Type": "com.apple.activation.simple",
+  "Identifier": "myIdentifier",
+  "Payload": {
+    "StandardConfigurations": [
+	  "myConfigurationIdentifier"
+	]
+  }
+}
+```
+
 #### Assets (`com.apple.asset.*`)
 Deploy credentials, certificates, and other assets referenced by configurations.
 
@@ -293,6 +311,15 @@ macOS, iOS, and iPadOS profiles installed manually by the end user aren't manage
 If a backup is migrated to a new host using [Apple’s Migration Assistant](https://support.apple.com/en-us/102613) and includes configuration profiles, those profiles aren’t managed. Migration Assistant also restores the enrollment profile, but without a valid private key, which breaks communication with Fleet. Fleet still shows MDM as turned on. If this happens, the end user will have to manually turn MDM off and back on.
 
 To manually remove unmanaged profiles, ask the end user to go to **System Settings > General > Device Management**, select the profile, and select the **- (minus)** button at the bottom of the list.
+
+## Stuck user-channel profiles
+
+Configuration profiles scoped to the user channel only deliver to the host's enrolled managed local account. If that account is deleted, the user channel has no account to deliver to. In Fleet, the profile can show as **Pending** or **Enforcing** even though no MDM command was ever queued or sent.
+
+To check which account a profile is scoped to, go to a host's **Host details > OS settings** and hover over the user icon next to the profile's name.
+
+To resolve this, run `sudo profiles renew -type enrollment` on the host. This re-enrolls the user channel under the account that's currently logged in.
+
 
 <meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="noahtalerman">

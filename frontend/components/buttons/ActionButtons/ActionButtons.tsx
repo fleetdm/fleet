@@ -64,6 +64,7 @@ const ActionButtons = ({ baseClass, actions }: IProps): JSX.Element => {
                       variant={action.buttonVariant}
                       onClick={action.onClick}
                       disabled={disableChildren}
+                      icon={action.iconName}
                     >
                       {action.label}
                     </Button>
@@ -72,7 +73,11 @@ const ActionButtons = ({ baseClass, actions }: IProps): JSX.Element => {
               );
             }
             return (
-              <Button variant={action.buttonVariant} onClick={action.onClick}>
+              <Button
+                variant={action.buttonVariant}
+                onClick={action.onClick}
+                icon={action.iconName}
+              >
                 {action.label}
               </Button>
             );

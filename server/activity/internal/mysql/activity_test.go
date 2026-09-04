@@ -286,6 +286,14 @@ func testListActivitiesOrdering(t *testing.T, env *testEnv) {
 	require.Len(t, activities, 3)
 	assert.Less(t, activities[0].ID, activities[1].ID)
 	assert.Less(t, activities[1].ID, activities[2].ID)
+
+	// The order key is validated against an allowlist: ordering by a column that
+	// isn't an allowed sort key (e.g. the details JSON) is rejected, so it can't
+	// be used as a cursor-based binary-search oracle to read it.
+	for _, badKey := range []string{"a.details", "details", "user_password"} {
+		_, _, err := env.ds.ListActivities(ctx, listOpts(withOrder(badKey, activityapi.OrderAscending)))
+		require.Error(t, err, "order key %q must be rejected", badKey)
+	}
 }
 
 func testListActivitiesCursorPagination(t *testing.T, env *testEnv) {
@@ -402,6 +410,13 @@ func testListHostPastActivities(t *testing.T, env *testEnv) {
 				require.NotNil(t, a.Details)
 			}
 		})
+	}
+
+	// Ordering by a column that isn't an allowed sort key (e.g. the details
+	// JSON) is rejected, so it can't be used as a cursor-based oracle.
+	for _, badKey := range []string{"a.details", "details", "user_password"} {
+		_, _, err := env.ds.ListHostPastActivities(ctx, hostID, listOpts(withOrder(badKey, activityapi.OrderAscending)))
+		require.Error(t, err, "order key %q must be rejected", badKey)
 	}
 }
 

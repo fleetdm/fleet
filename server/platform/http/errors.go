@@ -210,6 +210,12 @@ func (e *UserMessageError) UserMessage() string {
 			sb.WriteString("s")
 		}
 
+		if cause.Field == "" {
+			// Since Go 1.27, encoding/json no longer records the field path for errors surfaced by a custom
+			// UnmarshalJSON (optjson types, for instance), so drop the empty location instead of printing "at ''".
+			return fmt.Sprintf("invalid value type: expected %s but got %s", sb.String(), cause.Value)
+		}
+
 		return fmt.Sprintf("invalid value type at '%s': expected %s but got %s", cause.Field, sb.String(), cause.Value)
 
 	default:
@@ -328,6 +334,34 @@ func (e *AuthRequiredError) StatusCode() int {
 
 // IsClientError implements ErrWithIsClientError.
 func (e *AuthRequiredError) IsClientError() bool {
+	return true
+}
+
+// DeviceSSORequiredError is returned by device endpoints when
+// fleet_desktop.sso_enabled is on and the request carries no valid device SSO
+// session. It answers 401 like an invalid device token does, but its encoded
+// body carries an sso_required marker so the "My device" page starts the SSO
+// flow instead of reporting an invalid URL.
+type DeviceSSORequiredError struct {
+	// internal is the reason that should only be logged internally
+	internal string
+
+	ErrorWithUUID
+}
+
+func NewDeviceSSORequiredError(internal string) *DeviceSSORequiredError {
+	return &DeviceSSORequiredError{internal: internal}
+}
+
+func (e *DeviceSSORequiredError) Error() string {
+	return "Single sign-on required"
+}
+
+func (e *DeviceSSORequiredError) Internal() string {
+	return e.internal
+}
+
+func (e *DeviceSSORequiredError) IsClientError() bool {
 	return true
 }
 

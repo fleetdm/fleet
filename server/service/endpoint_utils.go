@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"crypto/x509"
-	"encoding/json"
 	"fmt"
 	"io"
 	"log/slog"
@@ -16,6 +15,7 @@ import (
 	eu "github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 	"github.com/fleetdm/fleet/v4/server/platform/http/multipartform"
+	"github.com/fleetdm/fleet/v4/server/platform/jsondecode"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/auth"
 	"github.com/go-kit/kit/endpoint"
 	kithttp "github.com/go-kit/kit/transport/http"
@@ -114,7 +114,7 @@ func parseCustomTags(urlTagValue string, r *http.Request, field reflect.Value) (
 }
 
 func jsonDecode(body io.Reader, req any) error {
-	return json.NewDecoder(body).Decode(req)
+	return jsondecode.NewDecoder(body).Decode(req)
 }
 
 func isBodyDecoder(v reflect.Value) bool {
@@ -210,17 +210,37 @@ func badRequestf(format string, a ...any) error {
 	}
 }
 
+// newDeviceAuthenticatedEndpointer returns the endpointer for device endpoints.
+// Its routes are subject to the Fleet Desktop SSO gate; see
+// newDeviceSSOExemptEndpointer for the exceptions.
 func newDeviceAuthenticatedEndpointer(svc fleet.Service, logger *slog.Logger, opts []kithttp.ServerOption, r *mux.Router,
 	versions ...string,
 ) *eu.CommonEndpointer[handlerFunc] {
+	return deviceAuthenticatedEndpointer(svc, logger, opts, r, true, versions...)
+}
+
+// newDeviceSSOExemptEndpointer returns an endpointer for the device endpoints
+// that stay reachable with fleet_desktop.sso_enabled on and no device SSO
+// session.
+func newDeviceSSOExemptEndpointer(svc fleet.Service, logger *slog.Logger, opts []kithttp.ServerOption, r *mux.Router,
+	versions ...string,
+) *eu.CommonEndpointer[handlerFunc] {
+	return deviceAuthenticatedEndpointer(svc, logger, opts, r, false, versions...)
+}
+
+func deviceAuthenticatedEndpointer(svc fleet.Service, logger *slog.Logger, opts []kithttp.ServerOption, r *mux.Router,
+	ssoGate bool, versions ...string,
+) *eu.CommonEndpointer[handlerFunc] {
 	// Extract certificate serial from X-Client-Cert-Serial header for certificate-based auth
 	opts = append(opts, kithttp.ServerBefore(extractCertSerialFromHeader))
+	// Make the Fleet Desktop device SSO session available to the auth middleware
+	opts = append(opts, kithttp.ServerBefore(extractDeviceSSOSessionFromCookie))
 	// Inject the fleet.CapabilitiesHeader header to the response for device endpoints
 	opts = append(opts, capabilitiesResponseFunc(fleet.GetServerDeviceCapabilities()))
 	// Add the capabilities reported by the device to the request context
 	opts = append(opts, capabilitiesContextFunc())
 
-	return &eu.CommonEndpointer[handlerFunc]{
+	ep := &eu.CommonEndpointer[handlerFunc]{
 		EP: &fleetEndpointer{
 			svc: svc,
 		},
@@ -233,6 +253,10 @@ func newDeviceAuthenticatedEndpointer(svc fleet.Service, logger *slog.Logger, op
 		Router:   r,
 		Versions: versions,
 	}
+	if !ssoGate {
+		return ep
+	}
+	return ep.AppendCustomMiddlewareAfterAuth(requireDeviceSSOSession(svc))
 }
 
 func newHostAuthenticatedEndpointer(svc fleet.Service, logger *slog.Logger, opts []kithttp.ServerOption, r *mux.Router,

@@ -22,6 +22,28 @@ func (m *model) HandleStateChange(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.workflowState = NormalMode
 		m.applyFilter()         // Initialize filter state
 		m.adjustViewForCursor() // Ensure view is properly initialized
+		// Headless run: select every issue and/or kick off a workflow immediately
+		// (e.g. `gm project apple -aw demo`) instead of waiting for keyboard input.
+		if m.autoSelectAll {
+			m.selected = make(map[int]struct{})
+			for i := range m.choices {
+				m.selected[i] = struct{}{}
+			}
+			m.selectedCount = len(m.selected)
+		}
+		if m.autoWorkflow != "" {
+			wt, ok := resolveWorkflow(m.autoWorkflow)
+			if !ok {
+				m.errorMessage = fmt.Sprintf("unknown workflow %q for --workflow", m.autoWorkflow)
+				return m, nil
+			}
+			if len(m.selected) == 0 {
+				m.errorMessage = "no issues selected for --workflow (pass --all-issues or select issues)"
+				return m, nil
+			}
+			m.workflowType = wt
+			return m, m.executeWorkflow()
+		}
 		return m, nil
 	case spinner.TickMsg:
 		var cmd tea.Cmd

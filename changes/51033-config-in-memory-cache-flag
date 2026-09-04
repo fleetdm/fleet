@@ -1,0 +1,1 @@
+* Added the `osquery.config_in_memory_cache` server configuration option and disabled the in-memory cache of the osquery config's scheduled-report section by default; set it to `true` to re-enable the cache.

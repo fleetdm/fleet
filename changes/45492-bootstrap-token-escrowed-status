@@ -1,0 +1,1 @@
+- Added `mdm.bootstrap_token_escrowed` to the get host and get host by Fleet Desktop token API responses, so admins can see whether Fleet has escrowed a macOS host's bootstrap token without querying the database directly.

@@ -752,7 +752,7 @@ func TestDecodeCallbackRequestSAMLResponseSizeCap(t *testing.T) {
 		oversized := strings.Repeat("A", int(fleet.MaxSSOCallbackSize)+1)
 		r := httptest.NewRequest("POST", "/api/v1/fleet/sso/callback?SAMLResponse="+oversized, nil)
 
-		_, _, err := decodeCallbackRequest(t.Context(), r)
+		_, _, _, err := decodeCallbackRequest(t.Context(), r)
 		require.Error(t, err)
 		var bre *fleet.BadRequestError
 		require.ErrorAs(t, err, &bre)
@@ -765,8 +765,31 @@ func TestDecodeCallbackRequestSAMLResponseSizeCap(t *testing.T) {
 		r := httptest.NewRequest("POST", "/api/v1/fleet/sso/callback", strings.NewReader(form.Encode()))
 		r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
-		_, decoded, err := decodeCallbackRequest(t.Context(), r)
+		_, decoded, _, err := decodeCallbackRequest(t.Context(), r)
 		require.NoError(t, err)
 		require.Equal(t, "<x/>", string(decoded))
+	})
+}
+
+func TestDecodeCallbackRequestRelayState(t *testing.T) {
+	postWith := func(t *testing.T, form url.Values) fleet.SSORelayState {
+		t.Helper()
+		form.Set("SAMLResponse", base64.StdEncoding.EncodeToString([]byte("<x/>")))
+		r := httptest.NewRequest("POST", "/api/v1/fleet/mdm/sso/callback", strings.NewReader(form.Encode()))
+		r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+		_, _, relayState, err := decodeCallbackRequest(t.Context(), r)
+		require.NoError(t, err)
+		return relayState
+	}
+
+	t.Run("a recognized value survives the form round trip", func(t *testing.T) {
+		require.Equal(t,
+			fleet.SSORelayState(fleet.SSOInitiatorFleetDesktop),
+			postWith(t, url.Values{"RelayState": {fleet.SSOInitiatorFleetDesktop}}))
+	})
+
+	t.Run("an absent RelayState decodes to empty", func(t *testing.T) {
+		require.Empty(t, postWith(t, url.Values{}))
 	})
 }

@@ -1,0 +1,1 @@
+- Added a tooltip explaining why the "Last fetched" column on the Hosts page reads "Never" for a host that has checked in but has not yet reported vitals.

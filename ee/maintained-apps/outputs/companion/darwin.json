@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "5.0.3",
+      "version": "5.0.5",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'companion.bitfocus.no';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'companion.bitfocus.no' AND version_compare(bundle_short_version, '5.0.3') < 0);",
-        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'companion.bitfocus.no');"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'companion.bitfocus.no' AND version_compare(bundle_short_version, '5.0.5') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'companion.bitfocus.no' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://cf-pub.bitfocus.io/companion/companion/companion-mac-arm64-5.0.3-9703-stable-2daa0d7670.dmg",
+      "installer_url": "https://cf-pub.bitfocus.io/companion/companion/companion-mac-arm64-5.0.5-9736-stable-0293f0d1ee.dmg",
       "install_script_ref": "f4b5e238",
       "uninstall_script_ref": "60aa1001",
-      "sha256": "b539d8304d92c421f0ac33d0e80435bc2b20038b5befb13973747ee239ca419c",
+      "sha256": "29be1d68b04e2ac6742727f8bd83cf03ed8f7a347325115d9e18a55806d41338",
       "default_categories": [
         "Productivity"
       ]

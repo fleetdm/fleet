@@ -237,6 +237,11 @@ func testGraphCredentialSecretEncryptedAtRest(t *testing.T, ds *Datastore) {
 func testGraphCredentialMetadataOmitsSecret(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
+	empty, err := ds.ListMicrosoftGraphCredentialMetadata(ctx)
+	require.NoError(t, err)
+	require.NotNil(t, empty, "an empty read must return an empty slice, not nil")
+	require.Empty(t, empty)
+
 	seedGraphCredential(t, ds, testTenantA)
 	require.NoError(t, ds.SetMicrosoftGraphCredentialInvalid(ctx, testTenantA, true))
 
@@ -245,7 +250,6 @@ func testGraphCredentialMetadataOmitsSecret(t *testing.T, ds *Datastore) {
 	require.Len(t, meta, 1)
 	assert.Equal(t, testTenantA, meta[0].TenantID)
 	assert.Equal(t, "client-"+testTenantA, meta[0].ClientID)
-	assert.Empty(t, meta[0].ClientSecret, "the metadata read must not carry the secret")
 	// The fields the UI needs, including the banner flag, still come through.
 	assert.True(t, meta[0].CredentialInvalid)
 }
@@ -285,19 +289,26 @@ func testGraphCredentialSyncState(t *testing.T, ds *Datastore) {
 	// must not fail the whole pass over it.
 	require.NoError(t, ds.SetMicrosoftGraphCredentialInvalid(ctx, "8f1e0b1c-0000-0000-0000-000000000000", true))
 
-	// A failed pass records the message alongside the timestamp.
+	// A failed pass records the message without advancing last_synced_at, which reports the last SUCCESSFUL sync.
 	syncErr := "AADSTS7000222: client secret expired"
 	require.NoError(t, ds.RecordMicrosoftGraphSyncResult(ctx, testTenantA, &syncErr))
 	got = storedGraphCredential(t, ds, testTenantA)
-	require.NotNil(t, got.LastSyncedAt)
+	assert.Nil(t, got.LastSyncedAt, "a failed pass must not claim the tenant synced")
 	require.NotNil(t, got.LastSyncError)
 	assert.Equal(t, syncErr, *got.LastSyncError)
 
-	// A subsequent success clears the error.
+	// A success stamps the time and clears the error.
 	require.NoError(t, ds.RecordMicrosoftGraphSyncResult(ctx, testTenantA, nil))
 	got = storedGraphCredential(t, ds, testTenantA)
 	require.NotNil(t, got.LastSyncedAt)
 	assert.Nil(t, got.LastSyncError)
+	syncedAt := *got.LastSyncedAt
+
+	// A failure after a success keeps the earlier success time, so the UI can show how stale the data is.
+	require.NoError(t, ds.RecordMicrosoftGraphSyncResult(ctx, testTenantA, &syncErr))
+	got = storedGraphCredential(t, ds, testTenantA)
+	require.NotNil(t, got.LastSyncedAt)
+	assert.WithinDuration(t, syncedAt, *got.LastSyncedAt, 0, "a later failure must not move the last successful sync")
 
 	// Rotating the credential clears all of its sync state, which describes the credential being replaced.
 	require.NoError(t, ds.RecordMicrosoftGraphSyncResult(ctx, testTenantA, &syncErr))

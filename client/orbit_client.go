@@ -169,6 +169,11 @@ func (oc *OrbitClient) requestWithExternal(ctx context.Context, verb string, pat
 			return err
 		}
 		oc.SetClientCapabilitiesHeader(request)
+		// Some endpoints authenticate via a request header instead of (or in
+		// addition to) the body; let the params set any headers they need.
+		if hs, ok := params.(interface{ setRequestHeaders(*http.Request) }); ok {
+			hs.setRequestHeaders(request)
+		}
 	}
 	response, err := oc.DoHTTPRequest(request)
 	if err != nil {
@@ -874,6 +879,16 @@ func (oc *OrbitClient) SetOrUpdateDiskEncryptionKey(diskEncryptionStatus fleet.O
 		return err
 	}
 	return nil
+}
+
+// SetOrUpdateDiskEncryptionProtection reports what the agent did about a volume that was encrypted but unprotected.
+func (oc *OrbitClient) SetOrUpdateDiskEncryptionProtection(outcome fleet.DiskEncryptionProtectionOutcome, clientError string) error {
+	verb, path := "POST", "/api/fleet/orbit/disk_encryption_protection"
+	var resp fleet.OrbitPostDiskEncryptionProtectionResponse
+	return oc.authenticatedRequest(verb, path, &fleet.OrbitPostDiskEncryptionProtectionRequest{
+		Outcome:     outcome,
+		ClientError: clientError,
+	}, &resp)
 }
 
 const httpTraceTimeFormat = "2006-01-02T15:04:05Z"

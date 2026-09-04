@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "3.54.2",
+      "version": "3.55.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.setapp.DesktopClient.SetappAgent';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.setapp.DesktopClient.SetappAgent' AND version_compare(bundle_short_version, '3.54.2') < 0);",
-        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.setapp.DesktopClient.SetappAgent');"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.setapp.DesktopClient.SetappAgent' AND version_compare(bundle_short_version, '3.55.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.setapp.DesktopClient.SetappAgent' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://dl.devmate.com/com.setapp.DesktopClient/155/1785848113/Setapp-155.zip",
+      "installer_url": "https://dl.devmate.com/com.setapp.DesktopClient/156/1787228237/Setapp-156.zip",
       "install_script_ref": "eb0dc2d0",
       "uninstall_script_ref": "9ef05eb6",
-      "sha256": "3a073dedca2384fb1374fd02f6c9bf3d5d7037567bec158eddeeb103b7aa73db",
+      "sha256": "63d7f3935317f9d57c869586160583810c7995c86a2b159f5f72cfa88ebbb2c5",
       "default_categories": [
         "Productivity"
       ]

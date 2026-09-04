@@ -122,28 +122,37 @@ const ScriptOutput = ({
   output,
   hostname,
   wasAdHoc = false,
-}: IScriptOutputProps) => (
-  <div className={`${baseClass}__script-result`}>
-    <Textarea
-      label={
-        <>
-          The{" "}
-          <TooltipWrapper
-            tipContent="Fleet records the last 10,000 characters to prevent downtime."
-            tooltipClass={`${baseClass}__output-tooltip`}
-            delayInMs={500}
-          >
-            output recorded
-          </TooltipWrapper>{" "}
-          when <b>{hostname}</b> ran the script{wasAdHoc && " above"}:
-        </>
-      }
-      variant="code"
-    >
-      {output}
-    </Textarea>
-  </div>
-);
+}: IScriptOutputProps) => {
+  const content =
+    output.trim().length === 0 ? (
+      <span>
+        No output captured when <b>{hostname}</b> ran the script
+        {wasAdHoc && " above"}.
+      </span>
+    ) : (
+      <Textarea
+        label={
+          <>
+            The{" "}
+            <TooltipWrapper
+              tipContent="Fleet records the last 10,000 characters to prevent downtime."
+              tooltipClass={`${baseClass}__output-tooltip`}
+              delayInMs={500}
+            >
+              output recorded
+            </TooltipWrapper>{" "}
+            when <b>{hostname}</b> ran the script{wasAdHoc && " above"}:
+          </>
+        }
+        variant="code"
+      >
+        {output}
+      </Textarea>
+    );
+
+  return <div className={`${baseClass}__script-result`}>{content}</div>;
+};
+
 interface IRunScriptDetailsModalProps {
   scriptExecutionId: string;
   onCancel: () => void;

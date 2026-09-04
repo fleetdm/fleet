@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "3.201.21",
+      "version": "3.202.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.standardnotes.standardnotes';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.standardnotes.standardnotes' AND version_compare(bundle_short_version, '3.201.21') < 0);",
-        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'org.standardnotes.standardnotes');"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.standardnotes.standardnotes' AND version_compare(bundle_short_version, '3.202.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'org.standardnotes.standardnotes' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/standardnotes/app/releases/download/%40standardnotes%2Fdesktop%403.201.21/standard-notes-3.201.21-mac-arm64.zip",
+      "installer_url": "https://github.com/standardnotes/app/releases/download/%40standardnotes%2Fdesktop%403.202.0/standard-notes-3.202.0-mac-arm64.zip",
       "install_script_ref": "ebbcc8bc",
       "uninstall_script_ref": "39ef2ea9",
-      "sha256": "192c92d0889dc5b0fbfbd6194d1064afffc06b5d20fe971c1e795aa90e0fdcee",
+      "sha256": "13c6e69c20954dfde5b7063b824dee4cb6eaf521450378f3e615405e284a26b7",
       "default_categories": [
         "Security"
       ]

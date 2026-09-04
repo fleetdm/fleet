@@ -19,3 +19,9 @@ func (w *COMWorker) EncryptVolume(string) (string, error) { return "", nil }
 
 // RotateRecoveryKey is a no-op on non-Windows platforms.
 func (w *COMWorker) RotateRecoveryKey(string) (string, error) { return "", nil }
+
+func (w *COMWorker) HasTPMFamilyProtector(string) (bool, error) { return false, nil }
+
+func (w *COMWorker) AddTPMProtector(string) error { return nil }
+
+func (w *COMWorker) EnableProtection(string) error { return nil }

@@ -162,9 +162,11 @@ const TooltipWrapper = ({
     // [`${baseClass}__${wrapperCustomClass}`]: !!wrapperCustomClass,
   });
 
+  const willRenderTooltip = !disableTooltip && !!tipContent;
+
   const elementClassNames = classnames(`${baseClass}__element`, {
     // [`${baseClass}__${elementCustomClass}`]: !!elementCustomClass,
-    [`${baseClass}__underline`]: underline,
+    [`${baseClass}__underline`]: underline && willRenderTooltip,
   });
 
   const tipClassNames = classnames(`${baseClass}__tip-text`, tooltipClass, {
@@ -200,12 +202,12 @@ const TooltipWrapper = ({
         data-tip
         data-tooltip-id={tipId}
         style={
-          isMobileView && !disableTooltip ? { cursor: "pointer" } : undefined
+          isMobileView && willRenderTooltip ? { cursor: "pointer" } : undefined
         } // With mobile width, show pointer cursor on hover since tooltip won't show on hover
       >
         {children}
       </div>
-      {!disableTooltip && (
+      {willRenderTooltip && (
         <ReactTooltip5
           className={tipClassNames}
           id={tipId}

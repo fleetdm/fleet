@@ -533,7 +533,11 @@ func (svc *Service) ListUsers(ctx context.Context, opt fleet.UserListOptions) ([
 	// strip any team memberships (IDs/names/roles) for teams the requester has
 	// no role in before returning them. Global roles are authorized to see all
 	// teams and are left untouched.
+	// Status is computed before stripping so a user isn't misreported as
+	// having no access when their teams are outside the requester's scope.
+	now := time.Now()
 	for _, user := range users {
+		user.Status = user.ComputeStatus(now)
 		user.Teams = filterUserTeamsToRequesterScope(user.Teams, vc.User)
 	}
 
@@ -666,6 +670,7 @@ func (svc *Service) User(ctx context.Context, id uint) (*fleet.User, error) {
 	if err := svc.authz.Authorize(ctx, user, fleet.ActionRead); err != nil {
 		return nil, err
 	}
+	user.Status = user.ComputeStatus(time.Now())
 	return user, nil
 }
 

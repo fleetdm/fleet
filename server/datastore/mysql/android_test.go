@@ -63,6 +63,7 @@ func TestAndroid(t *testing.T) {
 		{"NewAndroidHostWithIdP", testNewAndroidHostWithIdP},
 		{"AndroidBYODDetection", testAndroidBYODDetection},
 		{"SetAndroidHostUnenrolled", testSetAndroidHostUnenrolled},
+		{"AndroidPersonalEnrollmentSurvivesUnenroll", testAndroidPersonalEnrollmentSurvivesUnenroll},
 		{"SetAndroidHostEnrolled", testSetAndroidHostEnrolled},
 		{"AndroidPubSubDedupState", testAndroidPubSubDedupState},
 		{"BulkSetAndroidHostsUnenrolled", testBulkSetAndroidHostsUnenrolled},
@@ -3635,6 +3636,49 @@ func testAndroidPubSubDedupState(t *testing.T, ds *Datastore) {
 
 	err = ds.SetAndroidPubSubDedupState(testCtx(), 999999, "msg-x", &t2)
 	require.True(t, fleet.IsNotFound(err), "set on a missing android_devices row must surface NotFound, got %v", err)
+}
+
+// The host details response must keep reporting a personal (BYOD) enrollment after the
+// host unenrolls: BYOD devices never report a serial number, so the UI identifies them by
+// their enrollment ID and has nothing to fall back on once enrollment_status flips to "Off".
+func testAndroidPersonalEnrollmentSurvivesUnenroll(t *testing.T, ds *Datastore) {
+	ctx := testCtx()
+	test.AddBuiltinLabels(t, ds)
+
+	byod, err := ds.NewAndroidHost(ctx, createAndroidHost("enterprise-byod-"+uuid.NewString()), false)
+	require.NoError(t, err)
+	companyOwned, err := ds.NewAndroidHost(ctx, createAndroidHost("enterprise-cobo-"+uuid.NewString()), true)
+	require.NoError(t, err)
+
+	loadMDM := func(hostID uint) *fleet.MDMHostData {
+		h, err := ds.Host(ctx, hostID)
+		require.NoError(t, err)
+		return &h.MDM
+	}
+
+	byodMDM := loadMDM(byod.Host.ID)
+	assert.True(t, byodMDM.IsPersonalEnrollment)
+	require.NotNil(t, byodMDM.EnrollmentStatus)
+	assert.Equal(t, fleet.MDMEnrollmentStatusPersonal, *byodMDM.EnrollmentStatus)
+
+	companyOwnedMDM := loadMDM(companyOwned.Host.ID)
+	assert.False(t, companyOwnedMDM.IsPersonalEnrollment)
+
+	for _, hostID := range []uint{byod.Host.ID, companyOwned.Host.ID} {
+		didUnenroll, err := ds.SetAndroidHostUnenrolled(ctx, hostID)
+		require.NoError(t, err)
+		require.True(t, didUnenroll)
+	}
+
+	byodMDM = loadMDM(byod.Host.ID)
+	assert.True(t, byodMDM.IsPersonalEnrollment)
+	require.NotNil(t, byodMDM.EnrollmentStatus)
+	assert.Equal(t, fleet.MDMEnrollmentStatusOff, *byodMDM.EnrollmentStatus)
+
+	companyOwnedMDM = loadMDM(companyOwned.Host.ID)
+	assert.False(t, companyOwnedMDM.IsPersonalEnrollment)
+	require.NotNil(t, companyOwnedMDM.EnrollmentStatus)
+	assert.Equal(t, fleet.MDMEnrollmentStatusOff, *companyOwnedMDM.EnrollmentStatus)
 }
 
 func testSetAndroidHostUnenrolled(t *testing.T, ds *Datastore) {

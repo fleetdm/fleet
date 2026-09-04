@@ -3,6 +3,10 @@
 
   &__query-description {
     overflow-wrap: anywhere;
+
+    p {
+      white-space: pre-wrap;
+    }
   }
 
   &__title-bar {

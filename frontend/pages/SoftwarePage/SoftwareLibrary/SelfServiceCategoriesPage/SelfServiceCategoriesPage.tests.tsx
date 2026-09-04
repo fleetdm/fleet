@@ -1,7 +1,12 @@
 import React from "react";
 import { screen, waitFor, within } from "@testing-library/react";
 
-import { createCustomRenderer, createMockRouter } from "test/test-utils";
+import {
+  createCustomRenderer,
+  createMockRouter,
+  getOpenModal,
+  queryOpenModal,
+} from "test/test-utils";
 import mockServer from "test/mock-server";
 import createMockUser from "__mocks__/userMock";
 import { createMockTeamSummary } from "__mocks__/teamMock";
@@ -51,20 +56,6 @@ const premiumAdminContext = {
     availableTeams: [mockTeam],
     setCurrentTeam: jest.fn(),
   },
-};
-
-// Returns the currently open modal element scoped for `within(...)` queries.
-// Modal renders its title as a span (not a heading) so role-based queries
-// can't locate it; falling back to the modal-container class since only one
-// modal is open at a time in these tests.
-const MODAL_SELECTOR = ".modal__modal_container";
-const getOpenModal = async () => {
-  await waitFor(() => {
-    if (!document.querySelector(MODAL_SELECTOR)) {
-      throw new Error("Modal not yet rendered");
-    }
-  });
-  return document.querySelector(MODAL_SELECTOR) as HTMLElement;
 };
 
 describe("SelfServiceCategoriesPage", () => {
@@ -387,7 +378,7 @@ describe("SelfServiceCategoriesPage", () => {
 
     await user.click(within(modal).getByRole("button", { name: /Cancel/ }));
     await waitFor(() => {
-      expect(document.querySelector(".modal__modal_container")).toBeNull();
+      expect(queryOpenModal()).toBeNull();
     });
   });
 
@@ -408,7 +399,7 @@ describe("SelfServiceCategoriesPage", () => {
 
     await user.click(within(modal).getByRole("button", { name: /Cancel/ }));
     await waitFor(() => {
-      expect(document.querySelector(".modal__modal_container")).toBeNull();
+      expect(queryOpenModal()).toBeNull();
     });
   });
 
@@ -431,7 +422,7 @@ describe("SelfServiceCategoriesPage", () => {
 
     await user.click(within(modal).getByRole("button", { name: /Cancel/ }));
     await waitFor(() => {
-      expect(document.querySelector(".modal__modal_container")).toBeNull();
+      expect(queryOpenModal()).toBeNull();
     });
   });
 
@@ -584,7 +575,7 @@ describe("SelfServiceCategoriesPage ?add_category=1 deep-link", () => {
     // User dismisses the modal.
     await user.keyboard("{Escape}");
     await waitFor(() => {
-      expect(document.querySelector(".modal__modal_container")).toBeNull();
+      expect(queryOpenModal()).toBeNull();
     });
 
     // Round 2: palette pushes the deep-link again (new location object).
@@ -620,6 +611,6 @@ describe("SelfServiceCategoriesPage ?add_category=1 deep-link", () => {
       });
     });
 
-    expect(document.querySelector(".modal__modal_container")).toBeNull();
+    expect(queryOpenModal()).toBeNull();
   });
 });

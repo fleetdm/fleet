@@ -5,12 +5,28 @@
     margin: 0;
   }
 
-  .disk-encryption-content {
-    animation: fade-in 250ms ease-out;
-  }
   .section-header__sub-title a {
     font-size: inherit;
     color: inherit;
+  }
+
+  &__tab-panel {
+    @include vertical-page-tab-panel-layout;
+
+    p {
+      margin: 0;
+    }
+  }
+
+  &__settings-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: $pad-large;
+  }
+
+  &__form-fields {
+    @include flex-column-16px-gap;
   }
 
   .data-table {

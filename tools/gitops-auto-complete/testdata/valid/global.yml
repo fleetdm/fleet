@@ -17,6 +17,8 @@ controls: # Controls added to "No team"
   apple_settings:
     configuration_profiles:
       - path: ./lib/macos-password.mobileconfig
+  apple_require_hardware_attestation: false
+  only_allow_apple_business_enrollment: true
   windows_settings:
     configuration_profiles:
       - path: ./lib/windows-screenlock.xml

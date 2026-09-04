@@ -130,6 +130,32 @@ module.exports = {
       }//∞
     }//∞
 
+    // Emit per-instance host counts grouped by major OS type.
+    for (let instanceStats of latestStatisticsForEachInstance) {
+      if (!instanceStats.hostsEnrolledByOperatingSystem) {
+        continue;
+      }
+      let hostCountByMajorOs = {};
+      for (let platform in instanceStats.hostsEnrolledByOperatingSystem) {
+        let totalForPlatform = 0;
+        for (let osVersion of instanceStats.hostsEnrolledByOperatingSystem[platform]) {
+          totalForPlatform += osVersion.numEnrolled || 0;
+        }
+        if (totalForPlatform > 0) {
+          hostCountByMajorOs[platform] = (hostCountByMajorOs[platform] || 0) + totalForPlatform;
+        }
+      }
+      for (let osType in hostCountByMajorOs) {
+        metricsToReport.push({
+          metric: 'usage_statistics_v2.host_count_by_os_type',
+          type: 3,
+          points: [{ timestamp: timestampForTheseMetrics, value: hostCountByMajorOs[osType] }],
+          resources: [{ name: instanceStats.anonymousIdentifier, type: 'fleet_instance' }],
+          tags: [`os_type:${osType}`, `license_tier:${instanceStats.licenseTier}`, `organization:${instanceStats.organization}`],
+        });
+      }
+    }//∞
+
 
     let allHostsEnrolledByOsqueryVersion = _.pluck(latestStatisticsReportedByReleasedFleetVersions, 'hostsEnrolledByOsqueryVersion');
     let combinedHostsEnrolledByOsqueryVersion = [];
@@ -400,6 +426,27 @@ module.exports = {
       points: [{
         timestamp: timestampForTheseMetrics,
         value: numberOfInstancesWithMdmWindowsDisabled
+      }],
+      tags: [`enabled:false`],
+    });
+    // mdmAndroidEnabled
+    let numberOfInstancesWithMdmAndroidEnabled = _.where(latestStatisticsReportedByReleasedFleetVersions, {mdmAndroidEnabled: true}).length;
+    let numberOfInstancesWithMdmAndroidDisabled = numberOfInstancesToReport - numberOfInstancesWithMdmAndroidEnabled;
+    metricsToReport.push({
+      metric: 'usage_statistics.android_mdm',
+      type: 3,
+      points: [{
+        timestamp: timestampForTheseMetrics,
+        value: numberOfInstancesWithMdmAndroidEnabled
+      }],
+      tags: [`enabled:true`],
+    });
+    metricsToReport.push({
+      metric: 'usage_statistics.android_mdm',
+      type: 3,
+      points: [{
+        timestamp: timestampForTheseMetrics,
+        value: numberOfInstancesWithMdmAndroidDisabled
       }],
       tags: [`enabled:false`],
     });

@@ -82,9 +82,13 @@ func syncMicrosoftAutopilotTenant(
 		}
 	}
 
+	// The stored message is displayed verbatim in the UI.
 	var syncErrMsg *string
 	if syncErr != nil {
-		msg := syncErr.Error()
+		msg := msgraph.UserFacingMessage(syncErr)
+		if msg == "" {
+			msg = "Couldn't sync Windows Autopilot devices from Microsoft Graph."
+		}
 		syncErrMsg = &msg
 	}
 	if recErr := ds.RecordMicrosoftGraphSyncResult(ctx, cred.TenantID, syncErrMsg); recErr != nil {

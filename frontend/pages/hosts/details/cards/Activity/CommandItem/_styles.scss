@@ -1,0 +1,7 @@
+.command-item {
+  // Figma specs 8px between the info and cancel buttons on command rows;
+  // FeedListItem's default is $pad-medium, kept for activity rows.
+  .feed-list-item__details-actions {
+    gap: $pad-small;
+  }
+}

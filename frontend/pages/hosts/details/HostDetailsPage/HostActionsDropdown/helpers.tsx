@@ -474,20 +474,21 @@ const canClearPasscode = (config: IHostActionConfigOptions) => {
     config.isGlobalMaintainer ||
     config.isTeamAdmin ||
     config.isTeamMaintainer;
-  if (!isAdminOrMaintainer) {
-    return false;
-  }
-
-  // Android: per Figma dev note (#41683) hide Clear passcode whenever any of Lock / Unenroll / Wipe / Clear passcode is pending.
-  if (
-    isAndroid(config.hostPlatform) &&
-    config.hostMdmDeviceStatus &&
-    config.hostMdmDeviceStatus !== "unlocked"
-  ) {
-    return false;
-  }
 
   if (isAndroid(config.hostPlatform)) {
+    // Android clear passcode stays admin/maintainer-only.
+    if (!isAdminOrMaintainer) {
+      return false;
+    }
+
+    // Android: per Figma dev note (#41683) hide Clear passcode whenever any of Lock / Unenroll / Wipe / Clear passcode is pending.
+    if (
+      config.hostMdmDeviceStatus &&
+      config.hostMdmDeviceStatus !== "unlocked"
+    ) {
+      return false;
+    }
+
     return (
       config.isAndroidMdmEnabledAndConfigured &&
       config.isEnrolledInMdm &&
@@ -495,7 +496,15 @@ const canClearPasscode = (config: IHostActionConfigOptions) => {
     );
   }
 
-  // iOS / iPadOS — existing behavior unchanged.
+  // iOS / iPadOS — technicians can also clear passcodes.
+  if (
+    !isAdminOrMaintainer &&
+    !config.isGlobalTechnician &&
+    !config.isTeamTechnician
+  ) {
+    return false;
+  }
+
   if (!isIPadOrIPhone(config.hostPlatform)) {
     return false;
   }
