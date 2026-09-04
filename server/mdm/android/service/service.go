@@ -1,7 +1,6 @@
 package service
 
 import (
-	"bytes"
 	"context"
 	"database/sql"
 	_ "embed"
@@ -11,6 +10,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strings"
 	"time"
 
@@ -966,6 +966,8 @@ func marshalRawCommand(cmd *androidmanagement.Command) sql.Null[string] {
 	return sql.Null[string]{V: string(b), Valid: true}
 }
 
+var sensitiveMetadataKeyRe = regexp.MustCompile(`"(?:\\u[0-9a-fA-F]{4}|n)ewPassword"\s*:\s*"[^"]*"\s*,?\s*`)
+
 // redactOperationSensitiveFields strips sensitive fields (e.g. newPassword) from
 // the AMAPI Operation metadata before the Operation is persisted as raw_result.
 func redactOperationSensitiveFields(op *androidmanagement.Operation) {
@@ -974,9 +976,7 @@ func redactOperationSensitiveFields(op *androidmanagement.Operation) {
 	}
 	var m map[string]any
 	if err := json.Unmarshal(op.Metadata, &m); err != nil {
-		if bytes.Contains(op.Metadata, []byte(`"newPassword"`)) {
-			op.Metadata = nil
-		}
+		op.Metadata = sensitiveMetadataKeyRe.ReplaceAll(op.Metadata, nil)
 		return
 	}
 	if _, ok := m["newPassword"]; ok {
