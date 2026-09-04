@@ -3851,6 +3851,8 @@ If `mdm_id`, `mdm_name` or `mdm_enrollment_status` is specified, then Windows Se
 
 Returns the count of all hosts organized by status. `online_count` includes all hosts currently enrolled in Fleet. `offline_count` includes all hosts that haven't checked into Fleet recently. `mia_count` includes all hosts that haven't been seen by Fleet in more than 30 days. `new_count` includes the hosts that have been enrolled to Fleet in the last 24 hours.
 
+For iOS, iPadOS, and Android hosts, which don't run osquery, `online`/`offline` is based on the most recent MDM check-in (`nano_enrollments.last_seen_at` for Apple; `detail_updated_at` for Android) within a 1-hour window, instead of the osquery check-in interval used by other platforms.
+
 `GET /api/v1/fleet/host_summary`
 
 #### Parameters
