@@ -2064,11 +2064,11 @@ func newMDMAPNsPusher(
 	instanceID string,
 	ds fleet.Datastore,
 	commander *apple_mdm.MDMAppleCommander,
+	interval time.Duration,
 	logger *slog.Logger,
 ) (*schedule.Schedule, error) {
 	const name = string(fleet.CronAppleMDMAPNsPusher)
 
-	interval := 1 * time.Minute
 	if intervalEnv := dev_mode.Env("FLEET_DEV_CUSTOM_APNS_PUSHER_INTERVAL"); intervalEnv != "" {
 		var err error
 		interval, err = time.ParseDuration(intervalEnv)
@@ -2093,6 +2093,37 @@ func newMDMAPNsPusher(
 			}
 
 			return service.SendPushesToPendingDevices(ctx, ds, commander, logger)
+		}),
+	)
+
+	return s, nil
+}
+
+// newMDMAPNsSweepSchedule runs the APNs sweep: one bounded page of enabled
+// enrollments per tick, re-pushing any silent for more than a day, one lap
+// per ~24h. Registered instead of the legacy per-minute pusher unless the
+// FLEET_MDM_APPLE_LEGACY_APNS_PUSHER_INTERVAL rollback lever is set.
+func newMDMAPNsSweepSchedule(
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	commander *apple_mdm.MDMAppleCommander,
+	interval time.Duration,
+	logger *slog.Logger,
+) (*schedule.Schedule, error) {
+	const name = string(fleet.CronAppleMDMAPNsSweep)
+
+	if interval <= 0 {
+		logger.WarnContext(ctx, "invalid mdm.apple_apns_sweep_interval, using 1m")
+		interval = 1 * time.Minute
+	}
+
+	logger = logger.With("cron", name)
+	s := schedule.New(
+		ctx, name, instanceID, interval, ds, ds,
+		schedule.WithLogger(logger),
+		schedule.WithJob("apns_sweep", func(ctx context.Context) error {
+			return apple_mdm.SweepAPNsPushes(ctx, ds, commander, logger, interval)
 		}),
 	)
 

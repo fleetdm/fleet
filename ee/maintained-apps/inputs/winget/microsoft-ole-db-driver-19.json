@@ -1,0 +1,12 @@
+{
+  "name": "Microsoft OLE DB Driver 19 for SQL Server",
+  "slug": "microsoft-ole-db-driver-19/windows",
+  "package_identifier": "Microsoft.SQLServer.OLEDBDriver",
+  "unique_identifier": "Microsoft OLE DB Driver 19 for SQL Server",
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/microsoft_ole_db_driver_19_install.ps1",
+  "exists_query": "SELECT 1 FROM programs WHERE name = 'Microsoft OLE DB Driver 19 for SQL Server' AND publisher = 'Microsoft Corporation' AND version LIKE '19.%';",
+  "installer_arch": "x64",
+  "installer_type": "msi",
+  "installer_scope": "machine",
+  "default_categories": ["Developer tools"]
+}
