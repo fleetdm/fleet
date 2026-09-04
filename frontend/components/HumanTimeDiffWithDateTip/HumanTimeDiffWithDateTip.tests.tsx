@@ -54,6 +54,8 @@ describe("HumanTimeDiffWithDateTip - component", () => {
       />
     );
 
+    expect(screen.queryByText(NEVER_TOOLTIP)).not.toBeInTheDocument();
+
     await user.hover(screen.getByText(/never/i));
 
     expect(await screen.findByText(NEVER_TOOLTIP)).toBeInTheDocument();
