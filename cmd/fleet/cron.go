@@ -1632,19 +1632,18 @@ func cleanupExpiredHostsCronJob(ctx context.Context, svc fleet.Service, logger *
 			return err
 		}
 
-		remainingRunTime := time.Until(deadline)
-		if remainingRunTime <= 0 {
+		if time.Now().After(deadline) {
 			logger.InfoContext(ctx, "expired hosts cleanup reached runtime limit", "max_run_time", maxRunTime)
 			return nil
 		}
 
 		// svc.CleanupExpiredHosts processes one bounded batch. Keep calling it
 		// while it reports deleted hosts, but cap the expired_hosts loop so a
-		// large backlog cannot monopolize the cleanups schedule. Each service
-		// call gets a child context with the remaining job budget.
-		cleanupCtx, cancel := context.WithTimeout(ctx, remainingRunTime)
-		deleted, err := svc.CleanupExpiredHosts(cleanupCtx)
-		cancel()
+		// large backlog cannot monopolize the cleanups schedule. The budget is
+		// only checked between batches: hosts are deleted in individual
+		// transactions, so cancelling mid-batch would leave already-deleted
+		// hosts without their deleted_host activity.
+		deleted, err := svc.CleanupExpiredHosts(ctx)
 		if err != nil {
 			return err
 		}

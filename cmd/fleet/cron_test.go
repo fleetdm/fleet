@@ -254,15 +254,11 @@ func TestCleanupStaleOVALVulnerabilities(t *testing.T) {
 func TestCleanupExpiredHostsCronJob(t *testing.T) {
 	logger := slog.New(slog.DiscardHandler)
 
-	t.Run("passes bounded context and drains until empty", func(t *testing.T) {
+	t.Run("drains until empty", func(t *testing.T) {
 		svc := &servicemock.Service{}
 		calls := 0
 		svc.CleanupExpiredHostsFunc = func(ctx context.Context) ([]fleet.DeletedHostDetails, error) {
 			calls++
-			deadline, ok := ctx.Deadline()
-			require.True(t, ok)
-			require.Positive(t, time.Until(deadline))
-			require.LessOrEqual(t, time.Until(deadline), time.Minute)
 			if calls == 1 {
 				return []fleet.DeletedHostDetails{{ID: 1}}, nil
 			}
@@ -279,16 +275,31 @@ func TestCleanupExpiredHostsCronJob(t *testing.T) {
 		calls := 0
 		svc.CleanupExpiredHostsFunc = func(ctx context.Context) ([]fleet.DeletedHostDetails, error) {
 			calls++
-			deadline, ok := ctx.Deadline()
-			require.True(t, ok)
-			require.Positive(t, time.Until(deadline))
+			// The batch must not be cancelled by the runtime budget: a batch
+			// that outlives the budget still completes, and the loop stops
+			// before starting the next one.
+			_, hasDeadline := ctx.Deadline()
+			require.False(t, hasDeadline)
 			time.Sleep(60 * time.Millisecond)
+			require.NoError(t, ctx.Err())
 			return []fleet.DeletedHostDetails{{ID: 1}}, nil
 		}
 
 		err := cleanupExpiredHostsCronJob(context.Background(), svc, logger, 50*time.Millisecond)
 		require.NoError(t, err)
 		require.Equal(t, 1, calls)
+	})
+
+	t.Run("returns error when parent context is cancelled", func(t *testing.T) {
+		svc := &servicemock.Service{}
+		ctx, cancel := context.WithCancel(context.Background())
+		svc.CleanupExpiredHostsFunc = func(ctx context.Context) ([]fleet.DeletedHostDetails, error) {
+			cancel()
+			return []fleet.DeletedHostDetails{{ID: 1}}, nil
+		}
+
+		err := cleanupExpiredHostsCronJob(ctx, svc, logger, time.Minute)
+		require.ErrorIs(t, err, context.Canceled)
 	})
 }
 
