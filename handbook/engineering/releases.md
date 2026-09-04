@@ -44,8 +44,8 @@ During the release candidate period, the release candidate is deployed to our QA
 
 At the same time as the Fleet server RC, a fleetd release candidate branch is also created at `rc-minor-fleetd-v1.x.x` from `main`, where `1.x.x` is the next minor version after the last released fleetd version (fleetd versioning is separate from Fleet server versioning). No additional feature work is merged into the RC branch without EM and QA approval.
 
-1. Create the release candidate branch from `main` and push it.
-2. Create a release QA issue for the fleetd release.
+1. Create the release candidate branch from `main` and push it. Pushing the branch triggers the [create fleetd release QA issue](https://github.com/fleetdm/fleet/actions/workflows/create-fleetd-release-qa-issue.yml) GitHub Action, which creates the [Release QA (fleetd)](https://github.com/fleetdm/fleet/blob/main/.github/ISSUE_TEMPLATE/release-qa-fleetd.md) issue on the release board.
+2. Confirm the release QA issue was created. If it wasn't, run the workflow manually from the release candidate branch, or create the issue from the template.
 3. Announce the release candidate in Slack.
 
 The same cherry-pick policy applies as for the Fleet server RC. To merge a bug fix into the fleetd release candidate, follow the same process described in [Merge unreleased bug fixes into the release candidate](#merge-unreleased-bug-fixes-into-the-release-candidate).

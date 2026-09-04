@@ -2105,12 +2105,25 @@ func (s *integrationTestSuite) TestHostDeviceURL() {
 	// Unknown host ID: 404.
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_url", host.ID+9999), nil, http.StatusNotFound, &resp)
 
-	// iOS and iPadOS hosts can't use device-token auth, so the endpoint
-	// rejects them with 400 instead of minting an unusable URL.
+	// iOS and iPadOS hosts have no device auth token; their URL is the host
+	// UUID landing on the self-service tab, matching the Web Clip profile in
+	// docs/solutions/ios-ipados.
 	iosHost := createOrbitEnrolledHost(t, "ios", "device-url-ios", s.ds)
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_url", iosHost.ID), nil, http.StatusBadRequest, &resp)
+	var iosResp getHostDeviceURLResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_url", iosHost.ID), nil, http.StatusOK, &iosResp)
+	require.Equal(t, "https://fleet.example.com/device/"+iosHost.UUID+"/self-service", iosResp.DeviceURL)
 	ipadHost := createOrbitEnrolledHost(t, "ipados", "device-url-ipad", s.ds)
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_url", ipadHost.ID), nil, http.StatusBadRequest, &resp)
+	var ipadResp getHostDeviceURLResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_url", ipadHost.ID), nil, http.StatusOK, &ipadResp)
+	require.Equal(t, "https://fleet.example.com/device/"+ipadHost.UUID+"/self-service", ipadResp.DeviceURL)
+
+	// Android and ChromeOS have no My device page at all, so the endpoint explains
+	// that rather than minting a URL that leads nowhere. See #48439.
+	for _, platform := range []string{"android", "chrome", "CrOS"} {
+		unsupportedHost := createOrbitEnrolledHost(t, platform, "device-url-"+platform, s.ds)
+		res := s.Do("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_url", unsupportedHost.ID), nil, http.StatusBadRequest)
+		require.Contains(t, extractServerErrorText(res.Body), fleet.MyDeviceURLUnsupportedPlatformMessage, "platform %s", platform)
+	}
 
 	// Non-global-admin roles: 403. Switch tokens, then restore admin token at end.
 	defer func() { s.token = s.getTestAdminToken() }()
