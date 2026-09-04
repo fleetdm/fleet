@@ -1,7 +1,7 @@
 module.exports = {
 
 
-  friendlyName: 'Get',
+  friendlyName: 'Get cached value',
 
 
   description: 'Retrieve a value from the app\'s cache, or undefined if no unexpired value is cached under the specified key.',
@@ -52,6 +52,8 @@ module.exports = {
       });
       if(!serializedValue) {
         return undefined;
+      } else {
+        console.log(serializedValue);
       }
       try {
         return JSON.parse(serializedValue);

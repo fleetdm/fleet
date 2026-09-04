@@ -1,7 +1,7 @@
 module.exports = {
 
 
-  friendlyName: 'Set',
+  friendlyName: 'Set cached value',
 
 
   description: 'Store a JSON-serializable value in the app\'s cache under a specified key, with a TTL.',

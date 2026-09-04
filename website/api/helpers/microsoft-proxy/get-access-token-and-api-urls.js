@@ -71,7 +71,7 @@ module.exports = {
       }
       if(requestError.raw && requestError.raw.statusCode === 401) {
         // If Microsoft rejected the access token used for this request, clear this tenant's cached tokens to force re-authentication on the next request.
-        await sails.helpers.cache.destroy.with({key: accessTokensCacheKey});
+        await sails.helpers.cache.destroyCachedValue.with({key: accessTokensCacheKey});
       }
       if(requestError.code === 'requestFailed') {
         throw 'microsoftApiRequestFailed';
@@ -82,7 +82,7 @@ module.exports = {
 
     let graphAccessToken;
     let manageApiAccessToken;
-    let cachedAccessTokens = await sails.helpers.cache.get.with({key: accessTokensCacheKey});
+    let cachedAccessTokens = await sails.helpers.cache.getCachedValue.with({key: accessTokensCacheKey});
     if(cachedAccessTokens && cachedAccessTokens.graphAccessToken && cachedAccessTokens.manageApiAccessToken) {
       graphAccessToken = cachedAccessTokens.graphAccessToken;
       manageApiAccessToken = cachedAccessTokens.manageApiAccessToken;
@@ -135,7 +135,7 @@ module.exports = {
       // Cache the tokens until five minutes before they expire, so a request never uses a token that expires while it is in flight.
       let tokenCacheTtlInSeconds = secondsUntilTokensExpire - 60 * 5;
       if(tokenCacheTtlInSeconds > 0) {
-        await sails.helpers.cache.set.with({
+        await sails.helpers.cache.setCachedValue.with({
           key: accessTokensCacheKey,
           value: {
             graphAccessToken: graphAccessToken,
@@ -148,7 +148,7 @@ module.exports = {
 
     let tenantDataSyncUrl;
     let deviceDataSyncUrl;
-    let cachedApiUrls = await sails.helpers.cache.get.with({key: apiUrlsCacheKey});
+    let cachedApiUrls = await sails.helpers.cache.getCachedValue.with({key: apiUrlsCacheKey});
     if(cachedApiUrls && cachedApiUrls.tenantDataSyncUrl && cachedApiUrls.deviceDataSyncUrl) {
       tenantDataSyncUrl = cachedApiUrls.tenantDataSyncUrl;
       deviceDataSyncUrl = cachedApiUrls.deviceDataSyncUrl;
@@ -194,7 +194,7 @@ module.exports = {
       deviceDataSyncUrl = deviceDataSyncService.uri;
 
       // Data sync URLs are effectively static per tenant, so cache them for 24 hours.
-      await sails.helpers.cache.set.with({
+      await sails.helpers.cache.setCachedValue.with({
         key: apiUrlsCacheKey,
         value: {
           tenantDataSyncUrl: tenantDataSyncUrl,

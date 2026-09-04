@@ -1,7 +1,7 @@
 module.exports = {
 
 
-  friendlyName: 'Destroy',
+  friendlyName: 'Destroy cached value',
 
 
   description: 'Remove a value from the app\'s cache.',

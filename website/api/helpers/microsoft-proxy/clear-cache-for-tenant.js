@@ -33,8 +33,8 @@ module.exports = {
   fn: async function ({entraTenantId}) {
 
     // Note: these cache keys are shared with the getAccessTokenAndApiUrls helper.
-    await sails.helpers.cache.destroy.with({key: `microsoft-proxy:access-tokens:${entraTenantId}`});
-    await sails.helpers.cache.destroy.with({key: `microsoft-proxy:api-urls:${entraTenantId}`});
+    await sails.helpers.cache.destroyCachedValue.with({key: `microsoft-proxy:access-tokens:${entraTenantId}`});
+    await sails.helpers.cache.destroyCachedValue.with({key: `microsoft-proxy:api-urls:${entraTenantId}`});
 
   }
 
