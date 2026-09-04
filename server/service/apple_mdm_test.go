@@ -266,6 +266,9 @@ func setupAppleMDMService(t *testing.T, license *fleet.LicenseInfo, tweakCfg ...
 	ds.InsertAppleSoftwareUpdateDeviceIDFunc = func(ctx context.Context, hostUUID, updateDeviceID string) error {
 		return nil
 	}
+	ds.GetHostDEPAssignmentsBySerialFunc = func(ctx context.Context, serial string) ([]*fleet.HostDEPAssignment, error) {
+		return nil, nil
+	}
 
 	return svc, ctx, ds, opts
 }
@@ -4027,7 +4030,7 @@ func TestMDMCommandAndReportResultsDeclarativeManagementDetail(t *testing.T) {
 }
 
 // TestMaybeQueueCertificateListForACMEProfile verifies the on-demand
-// CertificateList trigger fires only on macOS hosts whose acked profile
+// CertificateList trigger fires on hosts whose acked profile
 // contains an ACME payload, and that it dedups against pending refetches.
 func TestMaybeQueueCertificateListForACMEProfile(t *testing.T) {
 	ctx := context.Background()
@@ -10265,11 +10268,42 @@ func TestGetMDMAppleEnrollmentProfileByToken(t *testing.T) {
 				expectACME: false,
 			},
 			{
-				name: "iPhone",
+				name: "iPhone 16.0",
 				mi: fleet.MDMAppleMachineInfo{
-					Product: "iPhone14,3",
-					Serial:  "IPHONESERIAL",
-					UDID:    "iphone-udid",
+					Product:   "iPhone14,3",
+					Serial:    "IPHONESERIAL",
+					UDID:      "iphone-udid",
+					OSVersion: "16.0",
+				},
+				expectACME: true,
+			},
+			{
+				name: "iPhone < 16.0 does not require ACME",
+				mi: fleet.MDMAppleMachineInfo{
+					Product:   "iPhone14,3",
+					Serial:    "IPHONESERIAL",
+					UDID:      "iphone-udid",
+					OSVersion: "15.0",
+				},
+				expectACME: false,
+			},
+			{
+				name: "iPad 16.1",
+				mi: fleet.MDMAppleMachineInfo{
+					Product:   "iPad10,1",
+					Serial:    "IPADSERIAL",
+					UDID:      "ipad-udid",
+					OSVersion: "16.1",
+				},
+				expectACME: true,
+			},
+			{
+				name: "iPad < 16.1 does not require ACME",
+				mi: fleet.MDMAppleMachineInfo{
+					Product:   "iPad10,1",
+					Serial:    "IPADSERIAL",
+					UDID:      "ipad-udid",
+					OSVersion: "16.0",
 				},
 				expectACME: false,
 			},
@@ -10326,6 +10360,95 @@ func TestGetMDMAppleEnrollmentProfileByToken(t *testing.T) {
 					assertSCEPProfile(t, decodeSignedEnrollmentProfile(t, profile))
 				})
 			}
+		})
+	})
+
+	t.Run("AB only enrollment", func(t *testing.T) {
+		depAssignedMI := fleet.MDMAppleMachineInfo{
+			Product:   "MacBookPro18,3", // Apple Silicon
+			Serial:    "ABONLYSERIAL",
+			UDID:      "ab-only-udid",
+			OSVersion: "13.6.0", // < 14 so ACME is never required, isolating the AB-only/SCEP-block behavior
+		}
+
+		t.Run("device without a serial is forbidden", func(t *testing.T) {
+			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+				return &fleet.AppConfig{
+					OrgInfo:        fleet.OrgInfo{OrgName: "Foo Inc."},
+					ServerSettings: fleet.ServerSettings{ServerURL: "https://foo.example.com"},
+					MDM:            fleet.MDM{EnabledAndConfigured: true, OnlyAllowAppleBusinessEnrollment: true},
+				}, nil
+			}
+			// DEP assignments are always fetched regardless of AB-only, so return none for
+			// the empty serial -- the missing serial alone must still be forbidden.
+			ds.GetHostDEPAssignmentsBySerialFunc = func(ctx context.Context, serial string) ([]*fleet.HostDEPAssignment, error) {
+				return []*fleet.HostDEPAssignment{}, nil
+			}
+			noSerialMI := depAssignedMI
+			noSerialMI.Serial = ""
+
+			_, err := svc.GetMDMAppleEnrollmentProfileByToken(ctx, "valid-token", "", &noSerialMI)
+			var abErr *fleet.ABOnlyEnrollmentForbiddenError
+			require.ErrorAs(t, err, &abErr)
+		})
+
+		t.Run("device not DEP assigned is forbidden", func(t *testing.T) {
+			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+				return &fleet.AppConfig{
+					OrgInfo:        fleet.OrgInfo{OrgName: "Foo Inc."},
+					ServerSettings: fleet.ServerSettings{ServerURL: "https://foo.example.com"},
+					MDM:            fleet.MDM{EnabledAndConfigured: true, OnlyAllowAppleBusinessEnrollment: true},
+				}, nil
+			}
+			ds.GetHostDEPAssignmentsBySerialFunc = func(ctx context.Context, serial string) ([]*fleet.HostDEPAssignment, error) {
+				return []*fleet.HostDEPAssignment{}, nil
+			}
+
+			_, err := svc.GetMDMAppleEnrollmentProfileByToken(ctx, "valid-token", "", &depAssignedMI)
+			var abErr *fleet.ABOnlyEnrollmentForbiddenError
+			require.ErrorAs(t, err, &abErr)
+		})
+
+		t.Run("DEP assigned device without hardware attestation gets SCEP", func(t *testing.T) {
+			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+				return &fleet.AppConfig{
+					OrgInfo:        fleet.OrgInfo{OrgName: "Foo Inc."},
+					ServerSettings: fleet.ServerSettings{ServerURL: "https://foo.example.com"},
+					MDM:            fleet.MDM{EnabledAndConfigured: true, OnlyAllowAppleBusinessEnrollment: true},
+				}, nil
+			}
+			ds.GetHostDEPAssignmentsBySerialFunc = func(ctx context.Context, serial string) ([]*fleet.HostDEPAssignment, error) {
+				return []*fleet.HostDEPAssignment{{HostID: 1}}, nil
+			}
+
+			profile, err := svc.GetMDMAppleEnrollmentProfileByToken(ctx, "valid-token", "", &depAssignedMI)
+			require.NoError(t, err)
+			assertSCEPProfile(t, decodeSignedEnrollmentProfile(t, profile))
+		})
+
+		t.Run("DEP assigned device that falls through to SCEP is blocked when hardware attestation is also required", func(t *testing.T) {
+			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+				return &fleet.AppConfig{
+					OrgInfo:        fleet.OrgInfo{OrgName: "Foo Inc."},
+					ServerSettings: fleet.ServerSettings{ServerURL: "https://foo.example.com"},
+					MDM: fleet.MDM{
+						EnabledAndConfigured:             true,
+						OnlyAllowAppleBusinessEnrollment: true,
+						AppleRequireHardwareAttestation:  true,
+					},
+				}, nil
+			}
+			ds.GetHostDEPAssignmentsBySerialFunc = func(ctx context.Context, serial string) ([]*fleet.HostDEPAssignment, error) {
+				return []*fleet.HostDEPAssignment{{HostID: 1}}, nil
+			}
+
+			// depAssignedMI is on macOS 13, so isMDMAppleACMERequired returns false and the
+			// code falls through to the SCEP branch -- with both AB-only and hardware
+			// attestation configured, that fallback must be blocked rather than silently
+			// issuing a SCEP profile.
+			_, err := svc.GetMDMAppleEnrollmentProfileByToken(ctx, "valid-token", "", &depAssignedMI)
+			var abErr *fleet.ABOnlyEnrollmentForbiddenError
+			require.ErrorAs(t, err, &abErr)
 		})
 	})
 
@@ -10391,22 +10514,20 @@ func TestGetMDMAppleEnrollmentProfileByToken(t *testing.T) {
 					ds.GetHostDEPAssignmentsBySerialFuncInvoked = false // reset invocation flag
 
 					_, err := svc.GetMDMAppleEnrollmentProfileByToken(ctx, "valid-token", "", &machineInfo)
-					if hardwareAttestationRequired {
-						// when hardware attestation is required, DEP assignment is checked before deciding on ACME vs SCEP, so an error here should be returned
-						require.True(t, ds.GetHostDEPAssignmentsBySerialFuncInvoked)
-						require.Error(t, err)
-						require.Contains(t, err.Error(), "checking DEP assignment")
-					} else {
-						// when hardware attestation is not required, DEP assignment is not relevant since we always return SCEP, so an error here should not be returned
-						require.False(t, ds.GetHostDEPAssignmentsBySerialFuncInvoked)
-						require.NoError(t, err)
-					}
+
+					// DEP assignment is always fetched.
+					require.True(t, ds.GetHostDEPAssignmentsBySerialFuncInvoked)
+					require.Error(t, err)
+					require.Contains(t, err.Error(), "getting DEP assignments by serial")
 				})
 
 				t.Run("invalid OS version for Apple Silicon Mac returns error", func(t *testing.T) {
 					// restore foundProfileFunc in case a previous sub-test left a different func
 					ds.GetMDMAppleEnrollmentProfileByTokenFunc = foundProfileFunc
 					ds.GetHostDEPAssignmentsBySerialFuncInvoked = false // reset invocation flag
+					ds.GetHostDEPAssignmentsBySerialFunc = func(ctx context.Context, serial string) ([]*fleet.HostDEPAssignment, error) {
+						return nil, nil
+					}
 					invalidOSMI := fleet.MDMAppleMachineInfo{
 						Product:   "MacBookPro18,3", // Apple Silicon — reaches the OSVersion check
 						Serial:    "MACSILSERIAL",
@@ -10415,13 +10536,13 @@ func TestGetMDMAppleEnrollmentProfileByToken(t *testing.T) {
 					}
 					_, err := svc.GetMDMAppleEnrollmentProfileByToken(ctx, "valid-token", "", &invalidOSMI)
 					if hardwareAttestationRequired {
-						// isMDMAppleACMERequired is called and fails at the OSVersion check — DEP check is never reached
-						require.False(t, ds.GetHostDEPAssignmentsBySerialFuncInvoked)
+						// isMDMAppleACMERequired is called and fails at the OSVersion check — DEP check is always reached as it is outside and also used for AB only.
+						require.True(t, ds.GetHostDEPAssignmentsBySerialFuncInvoked)
 						require.Error(t, err)
 						require.Contains(t, err.Error(), "checking if device is less than macOS 14")
 					} else {
 						// isMDMAppleACMERequired is never called, so OSVersion is irrelevant — SCEP is always returned
-						require.False(t, ds.GetHostDEPAssignmentsBySerialFuncInvoked)
+						require.True(t, ds.GetHostDEPAssignmentsBySerialFuncInvoked)
 						require.NoError(t, err)
 					}
 				})

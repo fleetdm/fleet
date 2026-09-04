@@ -1030,6 +1030,16 @@ func (s *integrationTestSuite) TestGetHostDiskEncryption() {
 	})
 	require.NoError(t, err)
 
+	listHostsDiskEncryption := func() map[uint]*bool {
+		var listResp listHostsResponse
+		s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "query", t.Name())
+		byID := make(map[uint]*bool, len(listResp.Hosts))
+		for _, h := range listResp.Hosts {
+			byID[h.ID] = h.DiskEncryptionEnabled
+		}
+		return byID
+	}
+
 	// before any disk encryption is received, all hosts report NULL (even if
 	// some have disk space information, i.e. an entry exists in host_disks).
 	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(context.Background(), hostWin.ID, 44.5, 55.6, 90.0, nil))
@@ -1048,6 +1058,12 @@ func (s *integrationTestSuite) TestGetHostDiskEncryption() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hostLin.ID), nil, http.StatusOK, &getHostResp)
 	require.Equal(t, hostLin.ID, getHostResp.Host.ID)
 	require.Nil(t, getHostResp.Host.DiskEncryptionEnabled)
+
+	listed := listHostsDiskEncryption()
+	require.Len(t, listed, 3)
+	require.Nil(t, listed[hostWin.ID])
+	require.Nil(t, listed[hostMac.ID])
+	require.Nil(t, listed[hostLin.ID])
 
 	// set encrypted for all hosts
 	require.NoError(t, s.ds.SetOrUpdateHostDisksEncryption(context.Background(), hostWin.ID, true, nil))
@@ -1068,6 +1084,11 @@ func (s *integrationTestSuite) TestGetHostDiskEncryption() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hostLin.ID), nil, http.StatusOK, &getHostResp)
 	require.Equal(t, hostLin.ID, getHostResp.Host.ID)
 	require.True(t, *getHostResp.Host.DiskEncryptionEnabled)
+
+	listed = listHostsDiskEncryption()
+	require.Equal(t, new(true), listed[hostWin.ID])
+	require.Equal(t, new(true), listed[hostMac.ID])
+	require.Equal(t, new(true), listed[hostLin.ID])
 
 	// should succeed as we no longer require MDM to access this endpoint, as Linux encryption doesn't require MDM
 	var profiles getMDMProfilesSummaryResponse
@@ -1094,6 +1115,11 @@ func (s *integrationTestSuite) TestGetHostDiskEncryption() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hostLin.ID), nil, http.StatusOK, &getHostResp)
 	require.Equal(t, hostLin.ID, getHostResp.Host.ID)
 	require.Nil(t, getHostResp.Host.DiskEncryptionEnabled)
+
+	listed = listHostsDiskEncryption()
+	require.Equal(t, new(false), listed[hostWin.ID])
+	require.Equal(t, new(false), listed[hostMac.ID])
+	require.Nil(t, listed[hostLin.ID])
 
 	// the orbit endpoint to set the disk encryption key always fails in this
 	// suite because MDM is not configured.

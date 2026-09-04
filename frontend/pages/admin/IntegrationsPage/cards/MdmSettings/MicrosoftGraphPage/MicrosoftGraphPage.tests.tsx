@@ -103,18 +103,57 @@ describe("MicrosoftGraphPage", () => {
     expect(screen.getByRole("button", { name: "Delete" })).toBeInTheDocument();
   });
 
-  it("renders sync status, including the last error", async () => {
-    renderPage([
+  it("renders the last sync error in a tooltip on the error indicator", async () => {
+    const { user } = renderPage([
       createMockCredential({
         last_synced_at: "2026-08-14T12:00:00Z",
-        last_sync_error: "AADSTS7000215: Invalid client secret provided.",
+        last_sync_error: "Microsoft Graph is temporarily unavailable (503).",
       }),
     ]);
 
     expect(await screen.findByText("Last synced:")).toBeInTheDocument();
+    await user.hover(screen.getByTestId("error-icon"));
+
+    // Scoped to the tooltip.
+    await waitFor(() => {
+      expect(
+        within(screen.getByRole("tooltip")).getByText(
+          "Microsoft Graph is temporarily unavailable (503)."
+        )
+      ).toBeInTheDocument();
+    });
+  });
+
+  it("exposes the sync error to screen readers without a hover", async () => {
+    renderPage([
+      createMockCredential({
+        last_synced_at: "2026-08-14T12:00:00Z",
+        last_sync_error: "Microsoft Graph is temporarily unavailable (503).",
+      }),
+    ]);
+
+    // The message is visible only on hover, which a screen reader cannot perform, so it is also rendered as
+    // visually-hidden text that stays in the accessibility tree.
     expect(
-      screen.getByText("AADSTS7000215: Invalid client secret provided.")
+      await screen.findByText(
+        "Microsoft Graph is temporarily unavailable (503)."
+      )
     ).toBeInTheDocument();
+  });
+
+  it("hides the error indicator when the credential was rejected", async () => {
+    renderPage([
+      createMockCredential({
+        credential_invalid: true,
+        last_synced_at: "2026-08-14T12:00:00Z",
+        last_sync_error:
+          "Microsoft Graph rejected the credential. Check the tenant ID, client ID, and client secret.",
+      }),
+    ]);
+
+    // A rejected credential already raises the app-wide banner, so repeating it here would be the same news twice.
+    expect(await screen.findByText("Last synced:")).toBeInTheDocument();
+    expect(screen.queryByTestId("error-icon")).not.toBeInTheDocument();
   });
 
   it("reports never synced when the credential has not synced yet", async () => {
@@ -291,6 +330,41 @@ describe("MicrosoftGraphPage", () => {
     expect(notify.batch).toHaveBeenCalledWith([
       { variant: "error", message: "Microsoft Graph rejected the credential." },
     ]);
+  });
+
+  // A whole-credential failure (verification, licensing, missing private key) is reported without a per-field `name`, so
+  // it can't attach to a field. The toast then shows a static main line and puts the full server response in the
+  // expandable panel, so a long reason (e.g. AADSTS) doesn't render on both lines.
+  it("toasts the whole-credential failure with a static main line and the full response in the panel", async () => {
+    const rejection = {
+      data: {
+        errors: [
+          {
+            name: "microsoft_graph_credentials",
+            reason:
+              "Microsoft Graph returned an error (400): AADSTS90002: Tenant not found.",
+          },
+        ],
+      },
+    };
+    mockedAPI.applyCredentials.mockRejectedValue(rejection);
+    const { user } = renderPage([createMockCredential()]);
+
+    const secretField = await screen.findByLabelText("Client secret");
+    await user.clear(secretField);
+    await user.type(secretField, "some-secret");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => {
+      expect(notify.error).toHaveBeenCalledWith(
+        "Couldn't save Microsoft Graph credential.",
+        {
+          response: rejection,
+        }
+      );
+    });
+    // A whole-credential failure has no field, so the per-field batch toast path stays quiet.
+    expect(notify.batch).not.toHaveBeenCalled();
   });
 
   it("clears the secret error when the identity change that required it is reverted", async () => {

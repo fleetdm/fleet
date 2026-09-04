@@ -8,6 +8,7 @@ import (
 	"compress/gzip"
 	"context"
 	"encoding/json"
+	jsonv2 "encoding/json/v2"
 	"errors"
 	"fmt"
 	"io"
@@ -649,7 +650,7 @@ func (s *CVE) fetchVulnCheckDownloadURL(ctx context.Context, baseURL string) (st
 	defer resp.Body.Close()
 
 	var vcResponse VulnCheckBackupResponse
-	if err := json.NewDecoder(resp.Body).Decode(&vcResponse); err != nil {
+	if err := jsonv2.UnmarshalRead(resp.Body, &vcResponse); err != nil {
 		return "", ctxerr.Wrap(ctx, err, "error decoding response")
 	}
 
@@ -741,7 +742,7 @@ func (s *CVE) processVulnCheckFile(ctx context.Context, fileName string) error {
 		}
 
 		var data VulnCheckBackupDataFile
-		if err := json.NewDecoder(gReader).Decode(&data); err != nil {
+		if err := jsonv2.UnmarshalRead(gReader, &data); err != nil {
 			return fmt.Errorf("error decoding JSON from file %s: %w", file.Name, err)
 		}
 
@@ -859,7 +860,7 @@ func readCVEsLegacyFormat(dbDir string, year int) (*schema.NVDCVEFeedJSON10, err
 	defer file.Close()
 
 	var cveFeed schema.NVDCVEFeedJSON10
-	if err := json.NewDecoder(file).Decode(&cveFeed); err != nil {
+	if err := jsonv2.UnmarshalRead(file, &cveFeed); err != nil {
 		return nil, err
 	}
 

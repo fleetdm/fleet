@@ -36,6 +36,9 @@ import Icon from "components/Icon/Icon";
 import Button from "components/buttons/Button";
 
 import DiskSpaceIndicator from "pages/hosts/components/DiskSpaceIndicator";
+import buildAndroidHostVitals, {
+  stripAndroidOSPatchLevel,
+} from "./androidVitals";
 import { getCityCountryLocation } from "../../modals/LocationModal/LocationModal";
 
 /** Everything buildHostVitals needs to render the pre-existing host vitals.
@@ -560,15 +563,40 @@ export const buildHostVitals = ({
 
   // Operating system
   // No tooltip if there's no requirement, including all Windows, Linux, ChromeOS, Android operating systems
+  //
+  // Checked as a number rather than for truthiness: the card's data is run
+  // through normalizeEmptyValues, which rewrites an empty value to the
+  // empty-cell string, and that string is truthy.
+  const hasApiLevel = isAndroidHost && typeof vitalsData.api_level === "number";
+
   if (!osUpdateMinimumVersion) {
-    const version = vitalsData.os_version;
+    const version = isAndroidHost
+      ? stripAndroidOSPatchLevel(vitalsData.os_version)
+      : vitalsData.os_version;
     const versionForRender = ROLLING_ARCH_LINUX_VERSIONS.includes(version) ? (
       <>
         {version.slice(0, -8)}&nbsp;
         <TooltipWrapperArchLinuxRolling />
       </>
     ) : (
-      <TooltipTruncatedText value={version} />
+      <TooltipTruncatedText
+        value={version}
+        // Android reports the API level separately from the OS version string;
+        // it rides along on this row rather than getting a vital of its own.
+        // The version is repeated in the tooltip because supplying `tooltip`
+        // replaces the truncated-text tooltip, which would otherwise leave a
+        // long version unreadable in a narrow column.
+        tooltip={
+          hasApiLevel ? (
+            <>
+              {version}
+              <br />
+              Android API level: {vitalsData.api_level}
+            </>
+          ) : undefined
+        }
+        alwaysShowTooltip={hasApiLevel}
+      />
     );
     vitals.push({
       sortKey: "Operating system",
@@ -693,6 +721,10 @@ export const buildHostVitals = ({
         />
       ),
     });
+  }
+
+  if (isAndroidHost) {
+    vitals.push(...buildAndroidHostVitals(vitalsData, mdm));
   }
 
   customHostVitals?.forEach((vital) => {

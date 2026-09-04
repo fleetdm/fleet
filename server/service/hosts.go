@@ -515,6 +515,15 @@ func (svc *Service) StreamHosts(ctx context.Context, opt fleet.HostListOptions) 
 					host.Users = hu
 				}
 
+				if opt.PopulateEndUsers {
+					heu, err := fleet.GetEndUsers(ctx, svc.ds, host.ID)
+					if err != nil {
+						yield(nil, ctxerr.Wrapf(ctx, err, "get end users for host %d", host.ID))
+						return
+					}
+					host.EndUsers = heu
+				}
+
 				if opt.IncludeDeviceStatus {
 					if status, ok := statusMap[host.ID]; ok {
 						host.MDM.DeviceStatus = ptr.String(string(status.DeviceStatus()))
@@ -1259,9 +1268,8 @@ func (svc *Service) DeleteHost(ctx context.Context, id uint) error {
 	return nil
 }
 
-func (svc *Service) CleanupExpiredHosts(ctx context.Context) ([]fleet.DeletedHostDetails, error) {
-	// Call datastore to get expired hosts and their details
-	hostDetails, err := svc.ds.CleanupExpiredHosts(ctx)
+func (svc *Service) CleanupExpiredHostsBatch(ctx context.Context, batchSize int) ([]fleet.DeletedHostDetails, error) {
+	hostDetails, err := svc.ds.CleanupExpiredHostsBatch(ctx, batchSize)
 	if err != nil {
 		return nil, err
 	}
@@ -2165,6 +2173,7 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get end users for host")
 	}
+	host.EndUsers = endUsers
 
 	conditionalAccessBypassedAt, err := svc.ds.ConditionalAccessBypassedAt(ctx, host.ID)
 	if err != nil {
@@ -2188,7 +2197,6 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 		Packs:                         packs,
 		Batteries:                     &bats,
 		MaintenanceWindow:             nextMw,
-		EndUsers:                      endUsers,
 		CustomHostVitals:              customHostVitals,
 		LastMDMEnrolledAt:             mdmLastEnrollment,
 		LastMDMCheckedInAt:            mdmLastCheckedIn,
@@ -2966,10 +2974,37 @@ func (svc *Service) HostDeviceURL(ctx context.Context, hostID uint) (string, err
 		return "", ctxerr.Wrap(ctx, err, "get host for device url")
 	}
 
+	// Android and ChromeOS have no My device page, so a URL for them would only
+	// lead to an error. "CrOS" is the legacy ChromeOS platform value.
+	switch host.Platform {
+	case "android", "chrome", "CrOS":
+		return "", &fleet.BadRequestError{Message: fleet.MyDeviceURLUnsupportedPlatformMessage}
+	}
+
+	// iOS and iPadOS don't run Fleet Desktop and have no device auth token;
+	// they reach the My device page by host UUID instead, landing on the
+	// self-service tab. Same URL as the Web Clip profile in
+	// docs/solutions/ios-ipados.
 	if host.Platform == "ios" || host.Platform == "ipados" {
-		return "", &fleet.BadRequestError{
-			Message: "My device URL is not available for iOS or iPadOS hosts; those platforms use certificate authentication instead.",
+		if host.UUID == "" {
+			return "", ctxerr.New(ctx, "host has no UUID to build a device URL from")
 		}
+		ac, err := svc.ds.AppConfig(ctx)
+		if err != nil {
+			return "", ctxerr.Wrap(ctx, err, "get app config for server url")
+		}
+		if err := svc.NewActivity(
+			ctx,
+			vc.User,
+			fleet.ActivityTypeRetrievedHostMyDeviceURL{
+				HostID:          host.ID,
+				HostDisplayName: host.DisplayName(),
+			},
+		); err != nil {
+			return "", ctxerr.Wrap(ctx, err, "create activity for retrieved host my device url")
+		}
+		base := strings.TrimRight(ac.ServerSettings.ServerURL, "/")
+		return fmt.Sprintf("%s/device/%s/self-service", base, host.UUID), nil
 	}
 
 	// Reuse the existing token if it's still within the TTL — saves us from
@@ -3516,6 +3551,7 @@ func hostsReportEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 	req.Opts.PerPage = 0 // explicitly disable any limit, we want all matching hosts
 	req.Opts.After = ""
 	req.Opts.DeviceMapping = false
+	req.Opts.PopulateEndUsers = false
 
 	rawCols := strings.Split(req.Columns, ",")
 	var cols []string
@@ -4679,7 +4715,7 @@ type getHostRecoveryLockPasswordRequest struct {
 }
 
 type recoveryLockPasswordPayload struct {
-	Password     string     `json:"password"`
+	Password     *string    `json:"password"`
 	UpdatedAt    time.Time  `json:"updated_at"`
 	AutoRotateAt *time.Time `json:"auto_rotate_at,omitempty"`
 }
@@ -4743,6 +4779,13 @@ func (svc *Service) GetHostRecoveryLockPassword(ctx context.Context, hostID uint
 	password, err := svc.ds.GetHostRecoveryLockPassword(ctx, host.UUID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get host recovery lock password")
+	}
+
+	// Early exit rotation and view activity if the password is not verified. Also clears it out to enforce the API contract.
+	if password.Status == nil || *password.Status != fleet.MDMDeliveryVerified {
+		password.Password = nil
+		password.AutoRotateAt = nil
+		return password, nil
 	}
 
 	// Create activity first. If this fails, we return an error before scheduling

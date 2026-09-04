@@ -48,7 +48,7 @@ func TestEnforceHostLimit(t *testing.T) {
 		ds.DeleteHostsFunc = func(ctx context.Context, ids []uint) error {
 			return nil
 		}
-		ds.CleanupExpiredHostsFunc = func(ctx context.Context) ([]fleet.DeletedHostDetails, error) {
+		ds.CleanupExpiredHostsBatchFunc = func(ctx context.Context, batchSize int) ([]fleet.DeletedHostDetails, error) {
 			return expiredHostDetails, nil
 		}
 		ds.CleanupIncomingHostsFunc = func(ctx context.Context, now time.Time) ([]uint, error) {
@@ -127,7 +127,7 @@ func TestEnforceHostLimit(t *testing.T) {
 
 		// cleanup expired removes h4
 		expiredHostDetails = []fleet.DeletedHostDetails{{ID: h4.ID}}
-		_, err = wrappedDS.CleanupExpiredHosts(ctx)
+		_, err = wrappedDS.CleanupExpiredHostsBatch(ctx, 100)
 		require.NoError(t, err)
 		requireCanEnroll(true)
 		// cleanup incoming removes h4, h5

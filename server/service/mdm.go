@@ -689,10 +689,10 @@ func (svc *Service) validateAppleMDMCommand(ctx context.Context, rawXMLCmd []byt
 		return nil
 	}
 
-	// Check if this is a SetRecoveryLock command and if any host's team (or the
+	// Check if this is a SetRecoveryLock or VerifyRecoveryLock command and if any host's team (or the
 	// global config for hosts with no team) has recovery lock password enabled
 	// (which means Fleet manages the password).
-	if strings.TrimSpace(cmd.Command.RequestType) == "SetRecoveryLock" {
+	if strings.TrimSpace(cmd.Command.RequestType) == fleet.SetRecoveryLockCmdName || strings.TrimSpace(cmd.Command.RequestType) == fleet.VerifyRecoveryLockCmdName {
 		// Get app config once for hosts with no team
 		var appConfig *fleet.AppConfig
 		for _, h := range hosts {

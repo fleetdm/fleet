@@ -247,6 +247,11 @@ Fleet uses these levels to standardize a commitment to minimal esotericism acros
 - **"¶¶":** _(Classified - CEO, Executive Assistant, Head of People, and GTM Systems Architect)_
 
 
+### Sharing Google Docs externally
+
+When sharing access to a Google Doc outside of the company, first prefix the name of the Google Doc with `[shared externally to the company] `. This makes it easier for others to notice when a doc is shared externally as they open it up, and easier to notice when something is shared externally which no longer should be (for example, after a consultant is no longer working with the company and should no longer have access).
+
+
 ## Company database
 
 Fleet uses Google Drive to keep files correctly bucketed and accessible for team members. When adding a file, you can: 
@@ -717,6 +722,8 @@ When you need to take time off, follow this process:
 - If you ever want to take a day off, and the only thing stopping you is internal (Fleetie-only) meetings, don’t stress. Consider, “Is this a meeting that I can reschedule to another day, or is this a meeting that can go on without me and not interfere with the company’s plans?” Talk to your manager if you’re unsure, but it is perfectly OK to reschedule internal meetings that can wait so that you can take a day off.
 - This process is the same for any days you take off, whether it's a holiday or you just need a break.
 
+> For customer success and support roles, it can be hard to know how best to get your work covered or to plan for contingencies. Talk to your manager ahead of booking leave to figure out what's best for the company.
+
 
 ### Holidays
 
@@ -791,7 +798,7 @@ Fleet uses Carta to manage its cap table. Fleet option holders can [exercise sha
 > FYI: You can calculate the "Taxable Income" by subtracting the exercised or "strike" price from the "Fair Market Value" of shares at the time of exercise. 
 > I.e. _"Fair Market Value" of shares at time of exercise_ - _strike price_ =  "*Taxable income*"
 
-As a US Fleetie, if you choose to "early exercise" your unvested options, you will need to file an 83(b) election within 30days of receiving the shares post exercise. As part of your exercise, Carta automatically generates the 83(b) election form when an option with early exercise enabled is issued. A tab for the 83(b) form will appear as soon as you decide to early exercise their option. This feature allows eligible U.S.-based equity holders to elect to be taxed at the time of grant rather than at the time of vesting. Additionally, Carta sends an email with instructions when a qualifying grant is accepted or an option is exercised. You can also access a pre-filled 83(b) election form directly within the platform.
+As a US Fleetie, if you choose to "early exercise" your unvested options, you will need to file an 83(b) election within 30 days of receiving the shares post exercise. As part of your exercise, Carta automatically generates the 83(b) election form when an option with early exercise enabled is issued. A tab for the 83(b) form will appear as soon as you decide to early exercise their option. This feature allows eligible U.S.-based equity holders to elect to be taxed at the time of grant rather than at the time of vesting. Additionally, Carta sends an email with instructions when a qualifying grant is accepted or an option is exercised. You can also access a pre-filled 83(b) election form directly within the platform.
 
 > Please note that the form must be printed, signed, and mailed to the IRS within 30 days of the grant date. You should also upload a signed copy to the platform for record-keeping purposes. Check out [how to track 83(b) election filings for early exercised option grants](https://support.carta.com/kb/guide/en/how-to-track-83-b-election-filings-for-early-exercised-option-grants-bZaiinjNng/Steps/3835066) for further guidance.
 

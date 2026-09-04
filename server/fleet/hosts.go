@@ -263,6 +263,9 @@ type HostListOptions struct {
 	// PopulatePolicies adds the `Policies` array field to all Hosts returned.
 	PopulatePolicies bool
 
+	// PopulateEndUsers adds the `EndUsers` array field to all Hosts returned
+	PopulateEndUsers bool
+
 	// PopulateUsers adds the `Users` array field to all Hosts returned
 	PopulateUsers bool
 
@@ -403,6 +406,9 @@ type Host struct {
 	// Users currently in the host
 	Users []HostUser `json:"users,omitempty" csv:"-"`
 
+	// EndUsers is the list of end users associated with the host. Only populated when PopulateEndUsers is set.
+	EndUsers []HostEndUser `json:"end_users,omitempty" csv:"-"`
+
 	GigsDiskSpaceAvailable    float64 `json:"gigs_disk_space_available" db:"gigs_disk_space_available" csv:"gigs_disk_space_available"`
 	PercentDiskSpaceAvailable float64 `json:"percent_disk_space_available" db:"percent_disk_space_available" csv:"percent_disk_space_available"`
 	// GigsTotalDiskSpace and GigsAllDiskSpace as defined by `server > service > osquery_utils >
@@ -410,11 +416,11 @@ type Host struct {
 	GigsTotalDiskSpace float64  `json:"gigs_total_disk_space" db:"gigs_total_disk_space" csv:"gigs_total_disk_space"`
 	GigsAllDiskSpace   *float64 `json:"gigs_all_disk_space" db:"gigs_all_disk_space" csv:"gigs_all_disk_space"`
 
-	// DiskEncryptionEnabled is only returned by GET /host/{id} and so is not
-	// exportable as CSV (which is the result of List Hosts endpoint). It is
-	// a *bool because for some Linux we set it to NULL and omit it from the JSON
-	// response if the host does not have disk encryption enabled. It is also
-	// omitted if we don't have encryption information yet.
+	// DiskEncryptionEnabled is not exportable as CSV (which is one of the
+	// outputs of the List Hosts endpoint). It is a *bool because for some Linux
+	// we set it to NULL and omit it from the JSON response if the host does not
+	// have disk encryption enabled. It is also omitted if we don't have
+	// encryption information yet.
 	DiskEncryptionEnabled *bool `json:"disk_encryption_enabled,omitempty" db:"disk_encryption_enabled" csv:"-"`
 
 	// BitLockerProtectionStatus and TPMPINSet come from the same host_disks join as DiskEncryptionEnabled and are only
@@ -1238,7 +1244,6 @@ type HostDetail struct {
 
 	// MaintenanceWindow contains the host user's calendar IANA timezone and the start time of the next scheduled maintenance window.
 	MaintenanceWindow *HostMaintenanceWindow `json:"maintenance_window,omitempty"`
-	EndUsers          []HostEndUser          `json:"end_users,omitempty"`
 
 	CustomHostVitals []HostCustomHostVital `json:"custom_host_vitals,omitempty"`
 
