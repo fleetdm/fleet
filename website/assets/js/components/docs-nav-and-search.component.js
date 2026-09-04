@@ -84,7 +84,7 @@ parasails.registerComponent('docsNavAndSearch', {
         policies: 'Search policies',
         tables: 'Search data tables',
         controls: 'Search controls'
-      }
+      };
       if(!searchIndexesThatExist.includes(this.searchFilter)){
         throw new Error(`Invalid 'searchFilter' value provided to <docs-nav-and-search> component. Please change the searchFilter value to one of: ${searchIndexesThatExist.join(', ')}`);
       }
