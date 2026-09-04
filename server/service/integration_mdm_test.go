@@ -19860,6 +19860,62 @@ func (s *integrationMDMTestSuite) TestAndroidHostUnenrollMDM() {
 // transitions a pending row to acknowledged. Each assertion checks that (1) the mock IssueCommand was called with the right
 // type/duration, (2) the mdm_android_commands row is persisted with the right status, and where applicable (3) host_mdm_actions
 // is updated so the API surfaces PendingAction=lock/wipe.
+// TestAndroidAMAPIErrorStatusMapping checks that an AMAPI failure surfaces the matching
+// HTTP status on every Android command endpoint, not just on unenroll. Per #52547 an AMAPI
+// 404 encoded as a 500 on lock/wipe/clear-passcode even though the mapped error reported
+// IsNotFound, so these assertions are on the response status, not on the error value.
+func (s *integrationMDMTestSuite) TestAndroidAMAPIErrorStatusMapping() {
+	t := s.T()
+	ctx := t.Context()
+
+	enterpriseID, err := s.ds.CreateEnterprise(ctx, s.users["admin1"].ID)
+	require.NoError(t, err)
+	require.NoError(t, s.ds.UpdateEnterprise(ctx, &android.EnterpriseDetails{
+		Enterprise:  android.Enterprise{ID: enterpriseID, EnterpriseID: "ultimate-fake"},
+		SignupName:  "fake",
+		SignupToken: "value",
+		TopicID:     "yep",
+	}))
+
+	amapiErrors := []struct {
+		name string
+		err  *googleapi.Error
+		// want is the status for lock/wipe/clear-passcode. Unenroll treats not-found as
+		// "already unenrolled" and returns 204, so it is listed separately.
+		want         int
+		wantUnenroll int
+	}{
+		{"404", &googleapi.Error{Code: http.StatusNotFound, Message: "Not Found"}, http.StatusNotFound, http.StatusNoContent},
+		{"500 entity not found", &googleapi.Error{Code: http.StatusInternalServerError, Body: "Requested entity was not found"}, http.StatusNotFound, http.StatusNoContent},
+		{"400", &googleapi.Error{Code: http.StatusBadRequest, Message: "invalid command"}, http.StatusBadRequest, http.StatusBadRequest},
+		{"409", &googleapi.Error{Code: http.StatusConflict, Message: "device state incompatible"}, http.StatusConflict, http.StatusConflict},
+		{"403 unmapped", &googleapi.Error{Code: http.StatusForbidden, Message: "no access"}, http.StatusInternalServerError, http.StatusInternalServerError},
+	}
+
+	for _, ae := range amapiErrors {
+		t.Run(ae.name, func(t *testing.T) {
+			amapiErr := ae.err
+			s.androidAPIClient.EnterprisesDevicesIssueCommandFunc = func(_ context.Context, _ string, _ *androidmanagement.Command) (*androidmanagement.Operation, error) {
+				return nil, amapiErr
+			}
+
+			// COBO hosts: lock, wipe and clear passcode are all allowed.
+			lockHostID := createAndroidHostForTest(t, s.ds, nil, true)
+			s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", lockHostID), nil, ae.want)
+
+			wipeHostID := createAndroidHostForTest(t, s.ds, nil, true)
+			s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/wipe", wipeHostID), nil, ae.want)
+
+			passcodeHostID := createAndroidHostForTest(t, s.ds, nil, true)
+			s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/clear_passcode", passcodeHostID), nil, ae.want)
+
+			// BYO unenroll issues the work-profile wipe, so it goes through the same mapping.
+			unenrollHostID := createAndroidHostForTest(t, s.ds, nil, false)
+			s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/mdm", unenrollHostID), nil, ae.wantUnenroll)
+		})
+	}
+}
+
 func (s *integrationMDMTestSuite) TestAndroidLockWipeClearPasscode() {
 	t := s.T()
 	ctx := t.Context()

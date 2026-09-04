@@ -1,0 +1,1 @@
+* Fixed Android MDM lock, wipe and clear passcode returning a 500 instead of a 404 when the device no longer exists in the Google Android Enterprise account.
