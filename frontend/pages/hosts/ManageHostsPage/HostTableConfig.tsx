@@ -58,6 +58,9 @@ type ISelectionCellProps = CellProps<IHost>;
 type IIssuesCellProps = CellProps<IHost, IHost["issues"]>;
 type IDeviceUserCellProps = CellProps<IHost, IHost["device_mapping"]>;
 
+const NEVER_FETCHED_TOOLTIP =
+  "This host has not reported vitals yet, even if it has checked in.";
+
 // Max number of individual email lines shown in the tooltip before the
 // remainder collapses into a single "+N more" line.
 const MAX_EMAILS_BEFORE_MORE_LINE = 5;
@@ -349,8 +352,12 @@ const allHostTableHeaders = (teamId?: number): IHostTableColumnConfig[] => [
     Cell: (cellProps: IHostTableStringCellProps) => (
       // TODO(android): android doesn't support refetch?
       <TextCell
-        value={{ timeString: cellProps.cell.value }}
-        formatter={HumanTimeDiffWithFleetLaunchCutoff}
+        value={
+          <HumanTimeDiffWithFleetLaunchCutoff
+            timeString={cellProps.cell.value}
+            neverTooltip={NEVER_FETCHED_TOOLTIP}
+          />
+        }
       />
     ),
   },
