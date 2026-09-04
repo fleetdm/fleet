@@ -3339,7 +3339,7 @@ func TestExplainListHostsMobileJoin(t *testing.T) {
 
 	// Seed hosts across platforms so the plan estimate reflects a realistic
 	// mix. An empty table can hide plan issues.
-	for i := 0; i < 20; i += 1 {
+	for i := range 20 {
 		platform := "darwin"
 		switch i % 4 {
 		case 1:

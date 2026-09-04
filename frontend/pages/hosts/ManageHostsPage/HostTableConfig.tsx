@@ -40,7 +40,7 @@ import {
 } from "interfaces/datatable_config";
 import PATHS from "router/paths";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
-import { getHardwareModelDisplay, getHostStatusTooltipText } from "../helpers";
+import { getHardwareModelDisplay } from "../helpers";
 
 type IHostTableColumnConfig = Column<IHost> & {
   // This is used to prevent these columns from being hidden. This will be
@@ -402,8 +402,11 @@ const allHostTableHeaders = (teamId?: number): IHostTableColumnConfig[] => [
         <TooltipWrapper
           tipContent={
             <>
-              Only supported on hosts that run Fleet&apos;s agent: macOS,
-              Windows, Linux, and ChromeOS.
+              iOS/iPadOS hosts are online anytime they have power and an
+              internet connection (including locked). macOS, Windows, and Linux
+              hosts can be online when locked (lid closed), but less frequently
+              than when the lid is open. Android hosts are never online when
+              locked.
             </>
           }
           className="status-header"
@@ -419,28 +422,15 @@ const allHostTableHeaders = (teamId?: number): IHostTableColumnConfig[] => [
     accessor: "status",
     id: "status",
     Cell: (cellProps: IHostTableStringCellProps) => {
-      if (isMobilePlatform(cellProps.row.original.platform)) {
-        return NotSupported;
-      }
-
       // Show "---" for ABM devices with Pending enrollment status
       if (
         cellProps.row.original.mdm?.enrollment_status === "Pending" &&
         isAppleDevice(cellProps.row.original.platform)
       ) {
-        const tooltip = {
-          tooltipText: getHostStatusTooltipText(DEFAULT_EMPTY_CELL_VALUE),
-        };
-        return (
-          <StatusIndicator value={DEFAULT_EMPTY_CELL_VALUE} tooltip={tooltip} />
-        );
+        return <StatusIndicator value={DEFAULT_EMPTY_CELL_VALUE} />;
       }
 
-      const value = cellProps.cell.value;
-      const tooltip = {
-        tooltipText: getHostStatusTooltipText(value),
-      };
-      return <StatusIndicator value={value} tooltip={tooltip} />;
+      return <StatusIndicator value={cellProps.cell.value} />;
     },
   },
   // Issues

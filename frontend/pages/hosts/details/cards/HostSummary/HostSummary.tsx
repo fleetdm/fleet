@@ -5,7 +5,7 @@ import { BootstrapPackageStatus } from "interfaces/mdm";
 import { IHostMaintenanceWindow } from "interfaces/host";
 import { isAndroid, isIPadOrIPhone } from "interfaces/platform";
 
-import { getHostStatus, getHostStatusTooltipText } from "pages/hosts/helpers";
+import { getHostStatus } from "pages/hosts/helpers";
 
 import TooltipWrapper from "components/TooltipWrapper";
 import Card from "components/Card";
@@ -157,12 +157,6 @@ const HostSummary = ({
         value={
           <StatusIndicator
             value={getHostStatus(status, mdm?.enrollment_status)}
-            tooltip={{
-              tooltipText: getHostStatusTooltipText(
-                getHostStatus(status, mdm?.enrollment_status)
-              ),
-              position: "bottom",
-            }}
           />
         }
       />

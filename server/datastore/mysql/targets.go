@@ -47,7 +47,7 @@ func (ds *Datastore) CountHostsInTargets(ctx context.Context, filter fleet.TeamF
 		queryTargetLogicCondition, ds.whereFilterHostsByTeams(filter, "h"),
 	)
 
-	query, args, err := sqlx.In(sql, append([]interface{}{now, now, now, now, now, now}, queryTargetArgs...)...)
+	query, args, err := sqlx.In(sql, append([]any{now, now, now, now, now, now}, queryTargetArgs...)...)
 	if err != nil {
 		return fleet.TargetMetrics{}, ctxerr.Wrap(ctx, err, "sqlx.In CountHostsInTargets")
 	}

@@ -2247,7 +2247,7 @@ func (ds *Datastore) GenerateHostStatusStatistics(ctx context.Context, filter fl
 	// online-mobile, online-desktop, new. The offline/online cases fan out to
 	// two `?` each so we can compare against the appropriate window per
 	// platform group.
-	args := []interface{}{now, now, now, now, now, now, now}
+	args := []any{now, now, now, now, now, now, now}
 	hostDisksJoin := ``
 	lowDiskSelect := `0 low_disk_space`
 	if lowDiskSpace != nil {
