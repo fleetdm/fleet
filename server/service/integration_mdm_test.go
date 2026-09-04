@@ -16893,6 +16893,21 @@ func (s *integrationMDMTestSuite) TestMachineInfoSignatureEnforcement() {
 	})
 }
 
+func (s *integrationMDMTestSuite) getSignedOTAEnrollmentBody(t *testing.T, reqBody []byte) ([]byte, *x509.Certificate, *rsa.PrivateKey) {
+	t.Helper()
+
+	// Setup signed req body, but also verify we can sign it.
+	cert, key, err := apple_mdm.NewSCEPCACertKey()
+	require.NoError(t, err)
+	signedData, err := pkcs7.NewSignedData(reqBody)
+	require.NoError(t, err)
+	require.NoError(t, signedData.AddSigner(cert, key, pkcs7.SignerInfoConfig{}))
+	signedReqBody, err := signedData.Finish()
+	require.NoError(t, err)
+
+	return signedReqBody, cert, key
+}
+
 func (s *integrationMDMTestSuite) TestOTAEnrollment() {
 	t := s.T()
 
@@ -16921,13 +16936,7 @@ func (s *integrationMDMTestSuite) TestOTAEnrollment() {
 </plist>`)
 
 	// Setup signed req body, but also verify we can sign it.
-	cert, key, err := apple_mdm.NewSCEPCACertKey()
-	require.NoError(t, err)
-	signedData, err := pkcs7.NewSignedData(reqBody)
-	require.NoError(t, err)
-	require.NoError(t, signedData.AddSigner(cert, key, pkcs7.SignerInfoConfig{}))
-	signedReqBody, err := signedData.Finish()
-	require.NoError(t, err)
+	signedReqBody, cert, key := s.getSignedOTAEnrollmentBody(t, reqBody)
 
 	// ensure fleet profiles
 	s.awaitTriggerProfileSchedule(t)
@@ -17000,7 +17009,7 @@ func (s *integrationMDMTestSuite) TestOTAEnrollment() {
 		})
 
 		t.Run("if serial is missing", func(t *testing.T) {
-			signedData, err = pkcs7.NewSignedData([]byte(`<?xml version="1.0" encoding="UTF-8"?>
+			signedData, err := pkcs7.NewSignedData([]byte(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>

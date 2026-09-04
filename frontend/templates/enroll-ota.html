@@ -578,6 +578,7 @@
       // using string comparison to satisfy the linter.
       const ANDROID_MDM_ENABLED = "{{.AndroidMDMEnabled}}" === "true";
       const MAC_MDM_ENABLED = "{{.MacMDMEnabled}}" == "true";
+      const IS_APPLE_MANUAL_ENROLLMENT_BLOCKED = "{{.AppleManualEnrollmentBlocked}}" == "true";
       const ERROR_MESSAGE = "{{.ErrorMessage}}";
       const IDP_UUID = "{{.IdpUUID}}";
       const isFullyManaged = new URLSearchParams(window.location.search).has(
@@ -948,6 +949,13 @@
 
         // handle rendering for macos
         if (platform === "macos") {
+          if (IS_APPLE_MANUAL_ENROLLMENT_BLOCKED) {
+            renderError(
+              "This URL is invalid or expired.",
+              "IT blocked manual enrollments. Please reach out to your IT admin."
+            );
+            return;
+          }
           if (!MAC_MDM_ENABLED) {
             renderError(
               "Apple MDM is turned off.",
@@ -965,6 +973,13 @@
 
         // handle rendering for ios and ipad
         if (platform === "ios" || platform === "ipad") {
+          if (IS_APPLE_MANUAL_ENROLLMENT_BLOCKED) {
+            renderError(
+              "This URL is invalid or expired.",
+              "IT blocked manual enrollments. Please reach out to your IT admin."
+            );
+            return;
+          }
           if (!MAC_MDM_ENABLED) {
             const description = `To enroll your ${
               platform === "ios" ? "iPhone" : "iPad"

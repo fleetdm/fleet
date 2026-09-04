@@ -694,7 +694,9 @@ type Datastore interface {
 	SaveScheduledQuery(ctx context.Context, sq *ScheduledQuery) (*ScheduledQuery, error)
 	DeleteScheduledQuery(ctx context.Context, id uint) error
 	ScheduledQuery(ctx context.Context, id uint) (*ScheduledQuery, error)
-	CleanupExpiredHosts(ctx context.Context) ([]DeletedHostDetails, error)
+	// CleanupExpiredHostsBatch deletes up to batchSize hosts that exceeded their expiry window and
+	// returns the details of the hosts it deleted. Callers loop until it returns no hosts.
+	CleanupExpiredHostsBatch(ctx context.Context, batchSize int) ([]DeletedHostDetails, error)
 	// ScheduledQueryIDsByName loads the IDs associated with the given pack and
 	// query names. It returns a slice of IDs in the same order as
 	// packAndSchedQueryNames, with the ID set to 0 if the corresponding
@@ -2609,7 +2611,7 @@ type Datastore interface {
 
 	// ListMicrosoftGraphCredentialMetadata returns the stored credentials without their client secrets, decrypting
 	// nothing.
-	ListMicrosoftGraphCredentialMetadata(ctx context.Context) ([]*MicrosoftGraphCredential, error)
+	ListMicrosoftGraphCredentialMetadata(ctx context.Context) ([]*MicrosoftGraphCredentialMetadata, error)
 
 	// ReplaceMicrosoftGraphCredentials reconciles the stored credentials.
 	ReplaceMicrosoftGraphCredentials(ctx context.Context, upsert []*MicrosoftGraphCredential, deleteTenantIDs []string) error

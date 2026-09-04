@@ -1032,6 +1032,60 @@ func (s *integrationTestSuite) TestListHostsPopulateSoftwareWithInstalledPaths()
 	assert.Contains(t, string(body), "abc123hash", "JSON should contain the hash")
 }
 
+func (s *integrationTestSuite) TestListHostsPopulateEndUsers() {
+	t := s.T()
+	ctx := context.Background()
+
+	host, err := s.ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         new(t.Name() + "1"),
+		OsqueryHostID:   new(t.Name() + "1"),
+		UUID:            t.Name() + "1",
+		Hostname:        t.Name() + "foo.local",
+		Platform:        "darwin",
+	})
+	require.NoError(t, err)
+
+	// ReplaceHostDeviceMapping rejects mixed sources, so write one source at a time.
+	require.NoError(t, s.ds.ReplaceHostDeviceMapping(ctx, host.ID, []*fleet.HostDeviceMapping{
+		{HostID: host.ID, Email: "anna@acme.com", Source: fleet.DeviceMappingMDMIdpAccounts},
+	}, fleet.DeviceMappingMDMIdpAccounts))
+	require.NoError(t, s.ds.ReplaceHostDeviceMapping(ctx, host.ID, []*fleet.HostDeviceMapping{
+		{HostID: host.ID, Email: "anna@example.com", Source: "google_chrome_profiles"},
+	}, "google_chrome_profiles"))
+
+	findHost := func(resp listHostsResponse) *fleet.HostResponse {
+		for i, h := range resp.Hosts {
+			if h.ID == host.ID {
+				return &resp.Hosts[i]
+			}
+		}
+		return nil
+	}
+
+	// end users are omitted unless populate_end_users is set
+	var listResp listHostsResponse
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp)
+	got := findHost(listResp)
+	require.NotNil(t, got)
+	require.Empty(t, got.EndUsers)
+
+	listResp = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "populate_end_users", "true")
+	got = findHost(listResp)
+	require.NotNil(t, got)
+	require.Len(t, got.EndUsers, 1)
+	assert.Equal(t, "anna@acme.com", got.EndUsers[0].IdpUserName)
+	require.Len(t, got.EndUsers[0].OtherEmails, 1)
+	assert.Equal(t, "anna@example.com", got.EndUsers[0].OtherEmails[0].Email)
+	assert.Equal(t, "google_chrome_profiles", got.EndUsers[0].OtherEmails[0].Source)
+
+	s.Do("GET", "/api/latest/fleet/hosts", nil, http.StatusBadRequest, "populate_end_users", "foo").Body.Close()
+}
+
 func (s *integrationTestSuite) TestGetHostSummary() {
 	t := s.T()
 	ctx := context.Background()
