@@ -754,7 +754,7 @@ func MakeDecoder(
 					}
 				}
 				if errors.Is(err, io.ErrUnexpectedEOF) {
-					return nil, BadRequestErr("json decoder error", err)
+					return nil, jsonDecodeErr(err)
 				}
 				return nil, err
 			}

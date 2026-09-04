@@ -173,7 +173,11 @@ func TestValidationErrorsAreNotTypeErrors(t *testing.T) {
 func TestMalformedJSONKeepsV1Wording(t *testing.T) {
 	for _, in := range []string{`{`, ``, `{"plain":`} {
 		var want, got payload
-		require.EqualError(t, Unmarshal([]byte(in), &got), jsonv1.Unmarshal([]byte(in), &want).Error(), in)
+		err := Unmarshal([]byte(in), &got)
+		require.EqualError(t, err, jsonv1.Unmarshal([]byte(in), &want).Error(), in)
+		// The endpointer tells a truncated body apart from an exhausted size limit by this sentinel, so
+		// restating the message must not break the chain.
+		require.ErrorIs(t, err, io.ErrUnexpectedEOF, in)
 	}
 
 	// Other syntax errors keep encoding/json's leading wording, without jsontext's prefix.
