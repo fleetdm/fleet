@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server"
+	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/cryptoutil"
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/stretchr/testify/require"
@@ -371,3 +372,40 @@ func TestAzureDataFromClaims(t *testing.T) {
 		require.Equal(t, "user@example.com", data.UPN)
 	})
 }
+
+func TestPopulateClientCertValidityAndNotBefore(t *testing.T) {
+	issuerCert, err := cryptoutil.DecodePEMCertificate(testCert)
+	require.NoError(t, err)
+
+	sn := big.NewInt(12345)
+	subject := "test-device-uuid"
+	csr := &x509.CertificateRequest{
+		Version: 1,
+	}
+
+	beforeCall := time.Now()
+	cert, err := populateClientCert(sn, subject, issuerCert, csr)
+	afterCall := time.Now()
+	require.NoError(t, err)
+	require.NotNil(t, cert)
+
+	// NotBefore should be within 10m clock-skew allowance, not backdated by 180 days (#52601)
+	expectedNotBeforeMin := beforeCall.Add(-10*time.Minute - 5*time.Second)
+	expectedNotBeforeMax := afterCall.Add(-10*time.Minute + 5*time.Second)
+	require.True(t, cert.NotBefore.After(expectedNotBeforeMin) && cert.NotBefore.Before(expectedNotBeforeMax),
+		"NotBefore should be ~10m in the past (clock-skew), got %v", cert.NotBefore)
+
+	// NotAfter should be derived from syncml.PolicyCertValidityPeriodInSecs (~365 days from now)
+	expectedNotAfterMin := beforeCall.Add(365*24*time.Hour - 5*time.Second)
+	expectedNotAfterMax := afterCall.Add(365*24*time.Hour + 5*time.Second)
+	require.True(t, cert.NotAfter.After(expectedNotAfterMin) && cert.NotAfter.Before(expectedNotAfterMax),
+		"NotAfter should be ~365 days in the future, got %v", cert.NotAfter)
+
+	// The effective remaining validity from issuance time must be approximately 365 days (not halved to 185 days)
+	validityFromNow := cert.NotAfter.Sub(time.Now())
+	require.Greater(t, validityFromNow, 360*24*time.Hour, "validity must be ~365 days, not halved by 180d renewal backdating")
+
+	// Verify WstepCertRenewalPeriodInDays matches PolicyCertRenewalPeriodInSecs (180 days)
+	require.Equal(t, "180", syncml.WstepCertRenewalPeriodInDays)
+}
+

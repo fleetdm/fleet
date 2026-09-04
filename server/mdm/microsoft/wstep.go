@@ -481,13 +481,15 @@ func azureDataFromClaims(ctx context.Context, claims jwt.MapClaims) (AzureData, 
 }
 
 func populateClientCert(sn *big.Int, subject string, issuerCert *x509.Certificate, csr *x509.CertificateRequest) (*x509.Certificate, error) {
-	certRenewalPeriodInSecsInt, err := strconv.Atoi(syncml.PolicyCertRenewalPeriodInSecs)
+	certValidityPeriodInSecsInt, err := strconv.Atoi(syncml.PolicyCertValidityPeriodInSecs)
 	if err != nil {
-		return nil, fmt.Errorf("invalid renewal time: %w", err)
+		return nil, fmt.Errorf("invalid validity time: %w", err)
 	}
 
-	notBeforeDuration := time.Now().Add(time.Duration(certRenewalPeriodInSecsInt) * -time.Second)
-	yearDuration := 365 * 24 * time.Hour
+	// Minor clock-skew allowance of 10 minutes to accommodate client clock variations
+	now := time.Now()
+	notBefore := now.Add(-10 * time.Minute)
+	notAfter := now.Add(time.Duration(certValidityPeriodInSecsInt) * time.Second)
 
 	certSubject := pkix.Name{
 		OrganizationalUnit: []string{syncml.DocProvisioningAppProviderID},
@@ -508,8 +510,8 @@ func populateClientCert(sn *big.Int, subject string, issuerCert *x509.Certificat
 		EmailAddresses:     csr.EmailAddresses,
 		DNSNames:           csr.DNSNames,
 		URIs:               csr.URIs,
-		NotBefore:          notBeforeDuration,
-		NotAfter:           notBeforeDuration.Add(yearDuration),
+		NotBefore:          notBefore,
+		NotAfter:           notAfter,
 		SerialNumber:       sn,
 		KeyUsage:           x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
 
