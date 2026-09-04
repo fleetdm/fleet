@@ -122,8 +122,8 @@ func TestReconcileAndroidCommands(t *testing.T) {
 		mockDS, client, logger := newReconcileFixture(t, cmd)
 		client.EnterprisesDevicesOperationsGetFunc = func(ctx context.Context, operationName string) (*androidmanagement.Operation, error) {
 			return &androidmanagement.Operation{
-				Name: operationName,
-				Done: true,
+				Name:     operationName,
+				Done:     true,
 				Metadata: []byte(`{"@type":"type.googleapis.com/google.android.devicemanagement.v1.Command","type":"RESET_PASSWORD","newPassword":"s3cret!","userName":"enterprises/E/users/U"}`),
 			}, nil
 		}

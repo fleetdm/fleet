@@ -2718,8 +2718,8 @@ func TestPubSubCommand(t *testing.T) {
 		}
 
 		op := androidmanagement.Operation{
-			Name: stored.OperationName,
-			Done: true,
+			Name:     stored.OperationName,
+			Done:     true,
 			Metadata: googleapi.RawMessage(`{"@type":"type.googleapis.com/google.android.devicemanagement.v1.Command","type":"RESET_PASSWORD","newPassword":"s3cret!","userName":"enterprises/E/users/U"}`),
 		}
 		msg := makeMessage(t, op)

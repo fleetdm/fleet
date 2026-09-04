@@ -1,6 +1,7 @@
 package service
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	_ "embed"
@@ -973,6 +974,9 @@ func redactOperationSensitiveFields(op *androidmanagement.Operation) {
 	}
 	var m map[string]any
 	if err := json.Unmarshal(op.Metadata, &m); err != nil {
+		if bytes.Contains(op.Metadata, []byte(`"newPassword"`)) {
+			op.Metadata = nil
+		}
 		return
 	}
 	if _, ok := m["newPassword"]; ok {
