@@ -1,4 +1,4 @@
-import React, { ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import classnames from "classnames";
 import { format, parseISO } from "date-fns";
 
@@ -39,14 +39,10 @@ interface ICheckerboardVizProps {
   theme?: ChartTheme;
   tooltipFormatter?: TooltipFormatter;
   relativeScale?: boolean;
-  // "gradient" (default) shows the full No data → More ramp. "binary" collapses
-  // the legend to just the filled swatch + "More" — for filters that render as
-  // on/off only, e.g. a single-host uptime view.
+  // "gradient" (default) shows the full No data → More ramp. "binary" renders
+  // "Offline [offline swatch] [online swatch] Online" — for filters that
+  // render as on/off only, e.g. a single-host uptime view.
   legendVariant?: "gradient" | "binary";
-  // Optional trailing node rendered inside the binary legend, to the left of
-  // the "More" label. Ignored when legendVariant is "gradient". Callers use
-  // this for platform-specific context (e.g. an iOS/iPadOS explainer icon).
-  legendInfo?: ReactNode;
 }
 
 // These are calculated at a chart width of 580px and columns.
@@ -66,7 +62,6 @@ const CheckerboardViz = ({
   tooltipFormatter,
   relativeScale = false,
   legendVariant = "gradient",
-  legendInfo,
 }: ICheckerboardVizProps): JSX.Element => {
   const containerRef = useRef<HTMLDivElement>(null);
   const scrollWrapperRef = useRef<HTMLDivElement>(null);
@@ -462,11 +457,14 @@ const CheckerboardViz = ({
           </>
         ) : (
           <>
-            {legendInfo}
-            <span className={`${baseClass}__legend-label`}>More</span>
+            <span className={`${baseClass}__legend-label`}>Offline</span>
+            <span
+              className={`${baseClass}__legend-swatch ${baseClass}__cell--level-0`}
+            />
             <span
               className={`${baseClass}__legend-swatch ${baseClass}__cell--level-5`}
             />
+            <span className={`${baseClass}__legend-label`}>Online</span>
           </>
         )}
       </div>

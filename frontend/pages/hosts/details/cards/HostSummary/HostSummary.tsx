@@ -188,7 +188,20 @@ const HostSummary = ({
       )}
       {showMobileOnlineHistoryRow && (
         <DataSet
-          title="Status"
+          title={
+            isIosOrIpadosHost ? (
+              <TooltipWrapper
+                tipContent="iOS/iPadOS hosts are online anytime they have power and an internet connection (including locked)."
+                position="top"
+                showArrow
+                tipOffset={8}
+              >
+                Status
+              </TooltipWrapper>
+            ) : (
+              "Status"
+            )
+          }
           value={
             <Button
               variant="link"
