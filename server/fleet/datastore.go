@@ -2483,6 +2483,11 @@ type Datastore interface {
 	// MDM enrollment whose device-reported SMBIOS serial matches. Returns a NotFound error when there is none.
 	MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerial(ctx context.Context, hardwareSerial string) (*MDMWindowsEnrolledDevice, error)
 
+	// MDMWindowsConflictingEnrollmentHardwareID returns the mdm_hardware_id of an enrollment already linked to hostUUID
+	// that belongs to hardware other than mdmHardwareID, or "" when the host is unclaimed or claimed by this same
+	// hardware.
+	MDMWindowsConflictingEnrollmentHardwareID(ctx context.Context, hostUUID string, mdmHardwareID string) (string, error)
+
 	// MDMWindowsClaimEnrolledActivity claims the right to record the mdm_enrolled activity for the given Windows MDM
 	// enrollment, returning true for the first caller only.
 	MDMWindowsClaimEnrolledActivity(ctx context.Context, mdmHardwareID string, claimedAt time.Time) (bool, error)

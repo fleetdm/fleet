@@ -1786,6 +1786,27 @@ scan:
 		}
 		return false
 	}
+	// The serial arrives in the device's own DevDetail response and nothing corroborates it, so it must not be able to
+	// take over a host that already belongs to different hardware. Refusing here costs the device nothing: the fleetd
+	// installer is enqueued by MDM device ID, so an unlinked enrollment still receives it, and osquery's
+	// directIngestMDMDeviceIDWindows backstop then links this enrollment to whichever host actually reports this MDM
+	// device ID.
+	conflictingHardwareID, err := svc.ds.MDMWindowsConflictingEnrollmentHardwareID(ctx, host.UUID, enrolledDevice.MDMHardwareID)
+	if err != nil {
+		svc.logger.ErrorContext(ctx, "windows mdm: conflicting enrollment lookup failed",
+			"err", err, "device_id", enrolledDevice.MDMDeviceID)
+		ctxerr.Handle(ctx, err)
+		return false
+	}
+	if conflictingHardwareID != "" {
+		svc.logger.WarnContext(ctx, "windows mdm: refusing to link enrollment to a host already claimed by other hardware",
+			"device_id", enrolledDevice.MDMDeviceID,
+			"hardware_serial", serial,
+			"host_uuid", host.UUID,
+			"claimed_by_hardware_id", conflictingHardwareID)
+		return false
+	}
+
 	updated, err := osquery_utils.LinkWindowsHostMDMEnrollment(ctx, svc.logger, svc.ds, host.ID, host.UUID, enrolledDevice.MDMDeviceID)
 	if err != nil {
 		svc.logger.ErrorContext(ctx, "windows mdm: link by DevDetail failed", "err", err, "device_id", enrolledDevice.MDMDeviceID)

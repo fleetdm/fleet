@@ -5036,6 +5036,13 @@ func TestProcessIncomingMDMCmdsDevDetailLinkage(t *testing.T) {
 		ds.MDMWindowsGetEnrolledDeviceWithDeviceIDFunc = func(_ context.Context, _ string) (*fleet.MDMWindowsEnrolledDevice, error) {
 			return &fleet.MDMWindowsEnrolledDevice{MDMDeviceID: testDeviceID, MDMHardwareID: testHardwareID, MDMEnrollUserID: ""}, nil
 		}
+		// No incumbent holds the host, which is the ordinary case: a first enrollment, or this same hardware
+		// re-enrolling after its upsert cleared host_uuid.
+		ds.MDMWindowsConflictingEnrollmentHardwareIDFunc = func(_ context.Context, hostUUID, mdmHardwareID string) (string, error) {
+			assert.Equal(t, testHostUUID, hostUUID)
+			assert.Equal(t, testHardwareID, mdmHardwareID)
+			return "", nil
+		}
 	}
 
 	t.Run("unlinked enrollment: Get for DevDetail SMBIOSSerialNumber is injected", func(t *testing.T) {
@@ -5084,6 +5091,40 @@ func TestProcessIncomingMDMCmdsDevDetailLinkage(t *testing.T) {
 		assert.True(t, ds.UpdateMDMWindowsEnrollmentsHostUUIDFuncInvoked)
 		assert.Equal(t, testHostUUID, enrolledDevice.HostUUID, "linkage should update in-memory HostUUID")
 		assert.False(t, hasGetForDevDetailSerial(cmds), "after successful linkage, no further Get should be injected")
+	})
+
+	t.Run("serial claims a host already held by other hardware: refused", func(t *testing.T) {
+		svc, ds, _, ctx := newSvc(t)
+		// A second device reporting the victim's serial. Nothing corroborates the claim, so it must not take the host.
+		claimantHardwareID := "claimant-hardware-id"
+		enrolledDevice := &fleet.MDMWindowsEnrolledDevice{MDMDeviceID: testDeviceID, MDMHardwareID: claimantHardwareID, HostUUID: ""}
+		stubLink(t, ds, true)
+		ds.MDMWindowsConflictingEnrollmentHardwareIDFunc = func(_ context.Context, hostUUID, mdmHardwareID string) (string, error) {
+			assert.Equal(t, testHostUUID, hostUUID)
+			assert.Equal(t, claimantHardwareID, mdmHardwareID)
+			return testHardwareID, nil
+		}
+
+		_, err := svc.processIncomingMDMCmds(ctx, enrolledDevice, buildReqMsg(t, serialResults(testSerial)), RequestAuthStateTrusted)
+		require.NoError(t, err, "the session must continue; only the link is refused")
+		assert.True(t, ds.MDMWindowsConflictingEnrollmentHardwareIDFuncInvoked)
+		assert.False(t, ds.UpdateMDMWindowsEnrollmentsHostUUIDFuncInvoked, "the host must not be relinked to the claimant")
+		assert.Empty(t, enrolledDevice.HostUUID, "in-memory HostUUID must not be set from a refused claim")
+		assert.False(t, ds.MDMWindowsSaveUnlinkedEnrollmentHardwareSerialFuncInvoked,
+			"the refused serial must not be persisted, or the orbit reverse-link path inherits the same bad claim")
+	})
+
+	t.Run("conflict lookup fails: link is refused rather than allowed", func(t *testing.T) {
+		svc, ds, _, ctx := newSvc(t)
+		enrolledDevice := &fleet.MDMWindowsEnrolledDevice{MDMDeviceID: testDeviceID, MDMHardwareID: testHardwareID, HostUUID: ""}
+		stubLink(t, ds, true)
+		ds.MDMWindowsConflictingEnrollmentHardwareIDFunc = func(_ context.Context, _, _ string) (string, error) {
+			return "", errors.New("db is down")
+		}
+
+		_, err := svc.processIncomingMDMCmds(ctx, enrolledDevice, buildReqMsg(t, serialResults(testSerial)), RequestAuthStateTrusted)
+		require.NoError(t, err)
+		assert.False(t, ds.UpdateMDMWindowsEnrollmentsHostUUIDFuncInvoked, "an unreadable guard must fail closed")
 	})
 
 	t.Run("serial with no matching host (NotFound): Get is reinjected for retry", func(t *testing.T) {

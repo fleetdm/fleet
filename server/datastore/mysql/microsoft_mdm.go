@@ -400,6 +400,31 @@ func (ds *Datastore) MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerial(ctx c
 	return &devices[0], nil
 }
 
+// MDMWindowsConflictingEnrollmentHardwareID reports whether hostUUID is already claimed by an enrollment belonging to
+// hardware other than mdmHardwareID, returning that hardware's ID so the caller can log which device holds the host.
+func (ds *Datastore) MDMWindowsConflictingEnrollmentHardwareID(ctx context.Context, hostUUID string, mdmHardwareID string) (string, error) {
+	if hostUUID == "" {
+		return "", nil
+	}
+
+	const stmt = `
+		SELECT mdm_hardware_id
+		FROM mdm_windows_enrollments
+		WHERE host_uuid = ? AND mdm_hardware_id != ?
+		ORDER BY id DESC
+		LIMIT 1`
+
+	var conflictingHardwareID string
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &conflictingHardwareID, stmt, hostUUID, mdmHardwareID)
+	switch {
+	case errors.Is(err, sql.ErrNoRows):
+		return "", nil
+	case err != nil:
+		return "", ctxerr.Wrap(ctx, err, "get conflicting windows mdm enrollment hardware id")
+	}
+	return conflictingHardwareID, nil
+}
+
 // GetWindowsEnrollmentDefaultFleet returns the configured default fleet for new user-driven Windows MDM enrollments.
 // Returns (nil, "") when no default is configured (including when the referenced fleet was deleted, which nulls the FK).
 func (ds *Datastore) GetWindowsEnrollmentDefaultFleet(ctx context.Context) (*uint, string, error) {

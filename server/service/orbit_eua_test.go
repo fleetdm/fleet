@@ -351,6 +351,10 @@ func TestEnrollOrbitWindowsReverseLink(t *testing.T) {
 		inner.MDMWindowsClaimEnrolledActivityFunc = func(ctx context.Context, mdmHardwareID string, claimedAt time.Time) (bool, error) {
 			return true, nil
 		}
+		// No incumbent holds the host by default; the conflict subtest overrides this.
+		inner.MDMWindowsConflictingEnrollmentHardwareIDFunc = func(ctx context.Context, hostUUID, mdmHardwareID string) (string, error) {
+			return "", nil
+		}
 		return svc, ds, serverOpts
 	}
 
@@ -461,5 +465,28 @@ func TestEnrollOrbitWindowsReverseLink(t *testing.T) {
 		require.NotNil(t, enrolledActivity.HostSerial)
 		require.Equal(t, testSerial, *enrolledActivity.HostSerial)
 		require.Equal(t, fleet.MDMPlatformMicrosoft, enrolledActivity.MDMPlatform)
+	})
+
+	t.Run("unlinked enrollment claims a host held by other hardware: refused", func(t *testing.T) {
+		svc, ds, _ := newSvc(t)
+		// The serial on the unlinked enrollment was asserted by that device over OMA-DM. If the host it names already
+		// belongs to different hardware, this reverse-link must not hand the host over.
+		ds.MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerialFunc = func(ctx context.Context, serial string) (*fleet.MDMWindowsEnrolledDevice, error) {
+			return &fleet.MDMWindowsEnrolledDevice{
+				ID: 1, MDMDeviceID: "device-1", MDMHardwareID: "claimant-hardware-id", MDMEnrollUserID: "user@example.com",
+			}, nil
+		}
+		ds.MDMWindowsConflictingEnrollmentHardwareIDFunc = func(ctx context.Context, hostUUID, mdmHardwareID string) (string, error) {
+			require.Equal(t, "host-uuid-1", hostUUID)
+			require.Equal(t, "claimant-hardware-id", mdmHardwareID)
+			return "incumbent-hardware-id", nil
+		}
+
+		nodeKey, err := svc.EnrollOrbit(t.Context(), hostInfo, "secret", "")
+		require.NoError(t, err, "orbit enrollment itself must still succeed; only the reverse-link is refused")
+		require.NotEmpty(t, nodeKey)
+		require.True(t, ds.MDMWindowsConflictingEnrollmentHardwareIDFuncInvoked)
+		require.False(t, ds.UpdateMDMWindowsEnrollmentsHostUUIDFuncInvoked, "the host must not be relinked to the claimant")
+		require.False(t, ds.AddHostsToTeamFuncInvoked, "a refused link must not carry the default fleet with it")
 	})
 }
