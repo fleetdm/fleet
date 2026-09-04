@@ -906,6 +906,12 @@ func (svc *Service) UnenrollAndroidHost(ctx context.Context, hostID uint) error 
 		})
 		if err != nil {
 			// If the device no longer exists in Google, treat as already unenrolled.
+			//
+			// Fleet deliberately does not flip host_mdm.enrolled here, and neither do the
+			// other command paths when they map a 404. A single AMAPI 404 is one data point
+			// and can be transient, so acting on it would risk unenrolling a live host.
+			// reconcile_android_devices settles local state from the full device list Google
+			// reports, which is the evidence this decision needs.
 			if androidmgmt.IsNotFoundError(err) {
 				svc.logger.InfoContext(ctx, "android BYO device already deleted, skipping unenroll wipe",
 					"host_id", host.ID, "device_name", deviceName)

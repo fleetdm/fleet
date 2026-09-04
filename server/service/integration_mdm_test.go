@@ -19892,6 +19892,10 @@ func (s *integrationMDMTestSuite) TestAndroidAMAPIErrorStatusMapping() {
 		{"403 unmapped", &googleapi.Error{Code: http.StatusForbidden, Message: "no access"}, http.StatusInternalServerError, http.StatusInternalServerError},
 	}
 
+	// The mock client is shared by the whole suite and there is no SetupTest, so restore
+	// it rather than leaving every later test with a command that fails.
+	t.Cleanup(func() { s.androidAPIClient.InitCommonMocks() })
+
 	for _, ae := range amapiErrors {
 		t.Run(ae.name, func(t *testing.T) {
 			amapiErr := ae.err

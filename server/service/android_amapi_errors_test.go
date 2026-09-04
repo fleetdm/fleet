@@ -27,19 +27,24 @@ func TestAMAPIErrorHTTPStatus(t *testing.T) {
 		amapiErr   *googleapi.Error
 		wantMapped bool
 		wantStatus int
+		// wantBodyContains is the AMAPI-supplied text the client should see. Only
+		// meaningful for mapped statuses.
+		wantBodyContains string
 	}{
-		{"404", &googleapi.Error{Code: http.StatusNotFound, Message: "Not Found"}, true, http.StatusNotFound},
-		{"404 empty message falls back to body", &googleapi.Error{Code: http.StatusNotFound, Body: "device is gone"}, true, http.StatusNotFound},
-		{"500 entity not found in message", &googleapi.Error{Code: http.StatusInternalServerError, Message: "Requested entity was not found"}, true, http.StatusNotFound},
-		{"500 entity not found in body", &googleapi.Error{Code: http.StatusInternalServerError, Body: "Requested entity was not found"}, true, http.StatusNotFound},
-		{"400", &googleapi.Error{Code: http.StatusBadRequest, Message: "invalid command"}, true, http.StatusBadRequest},
-		{"409", &googleapi.Error{Code: http.StatusConflict, Message: "device state incompatible"}, true, http.StatusConflict},
+		{"404", &googleapi.Error{Code: http.StatusNotFound, Message: "Not Found"}, true, http.StatusNotFound, "Not Found"},
+		{"404 empty message falls back to body", &googleapi.Error{Code: http.StatusNotFound, Body: "device is gone"}, true, http.StatusNotFound, "device is gone"},
+		{"500 entity not found in message", &googleapi.Error{Code: http.StatusInternalServerError, Message: "Requested entity was not found"}, true, http.StatusNotFound, "Requested entity was not found"},
+		{"500 entity not found in body", &googleapi.Error{Code: http.StatusInternalServerError, Body: "Requested entity was not found"}, true, http.StatusNotFound, "Requested entity was not found"},
+		{"400", &googleapi.Error{Code: http.StatusBadRequest, Message: "invalid command"}, true, http.StatusBadRequest, "invalid command"},
+		{"409", &googleapi.Error{Code: http.StatusConflict, Message: "device state incompatible"}, true, http.StatusConflict, "device state incompatible"},
 
-		// Unmapped statuses fall through to the caller's ctxerr.Wrap, which is a 500.
-		{"401 falls through", &googleapi.Error{Code: http.StatusUnauthorized, Message: "bad creds"}, false, http.StatusInternalServerError},
-		{"403 falls through", &googleapi.Error{Code: http.StatusForbidden, Message: "no access"}, false, http.StatusInternalServerError},
-		{"429 falls through", &googleapi.Error{Code: http.StatusTooManyRequests, Message: "quota exceeded"}, false, http.StatusInternalServerError},
-		{"500 generic falls through", &googleapi.Error{Code: http.StatusInternalServerError, Message: "boom"}, false, http.StatusInternalServerError},
+		// Unmapped statuses fall through to the caller's ctxerr.Wrap, which is a 500. These
+		// rows pin current behaviour, they do not endorse it: mapping 401/403/429 to their
+		// own statuses is a separate decision, and doing so should update these rows.
+		{"401 falls through", &googleapi.Error{Code: http.StatusUnauthorized, Message: "bad creds"}, false, http.StatusInternalServerError, ""},
+		{"403 falls through", &googleapi.Error{Code: http.StatusForbidden, Message: "no access"}, false, http.StatusInternalServerError, ""},
+		{"429 falls through", &googleapi.Error{Code: http.StatusTooManyRequests, Message: "quota exceeded"}, false, http.StatusInternalServerError, ""},
+		{"500 generic falls through", &googleapi.Error{Code: http.StatusInternalServerError, Message: "boom"}, false, http.StatusInternalServerError, ""},
 	}
 
 	for _, c := range cases {
@@ -50,8 +55,12 @@ func TestAMAPIErrorHTTPStatus(t *testing.T) {
 			mapped := androidmgmt.FleetErrFromAMAPI(c.amapiErr)
 			if !c.wantMapped {
 				require.NoError(t, mapped, "status must not be mapped to a Fleet error type")
-				// The caller falls back to wrapping the raw AMAPI error.
-				mapped = c.amapiErr
+				// Production never encodes the AMAPI error bare: the caller wraps it. Assert
+				// only the shape that actually reaches the HTTP layer.
+				wrapped := httptest.NewRecorder()
+				encodeError(ctx, ctxerr.Wrap(ctx, c.amapiErr, "issuing android command"), wrapped)
+				assert.Equal(t, c.wantStatus, wrapped.Code, "unmapped AMAPI error encoded to the wrong status")
+				return
 			}
 			require.Error(t, mapped)
 
@@ -62,6 +71,14 @@ func TestAMAPIErrorHTTPStatus(t *testing.T) {
 			wrapped := httptest.NewRecorder()
 			encodeError(ctx, ctxerr.Wrap(ctx, mapped, "issuing android command"), wrapped)
 			assert.Equal(t, c.wantStatus, wrapped.Code, "ctxerr-wrapped error encoded to the wrong status")
+
+			// notFoundError implements Internal() so the AMAPI error is logged rather than
+			// returned. A mapped response carries the AMAPI message, never the googleapi
+			// envelope that the pre-fix 500 exposed.
+			for _, body := range []string{bare.Body.String(), wrapped.Body.String()} {
+				assert.NotContains(t, body, "googleapi:", "the AMAPI error envelope must not reach the response")
+				assert.Contains(t, body, c.wantBodyContains)
+			}
 		})
 	}
 }
