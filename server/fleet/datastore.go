@@ -290,6 +290,18 @@ type Datastore interface {
 
 	GetEnrollmentIDsWithPendingMDMAppleCommands(ctx context.Context) ([]string, error)
 
+	// ListNanoEnrollmentIDsForAPNsSweep walks enabled nano_enrollments in
+	// primary key order, one bounded page per call. It returns the enrollment
+	// IDs in the page that are sweep-eligible (silent for longer than
+	// silentFor and belonging to a host with MDM on), the cursor for the next
+	// page, and whether the underlying page was full (pageFull == false means
+	// the pass is complete).
+	ListNanoEnrollmentIDsForAPNsSweep(ctx context.Context, afterID string, batchSize int, silentFor time.Duration) (eligibleIDs []string, nextCursor string, pageFull bool, err error)
+
+	// CountEnabledNanoEnrollments returns the number of nano_enrollments rows
+	// with enabled = 1, used to size sweep batches at the start of each pass.
+	CountEnabledNanoEnrollments(ctx context.Context) (int, error)
+
 	// LabelQueriesForHost returns the (dynamic) label queries that should be executed for the given host.
 	// Results are returned in a map of label id -> query
 	LabelQueriesForHost(ctx context.Context, host *Host) (map[string]string, error)
@@ -2778,6 +2790,15 @@ type Datastore interface {
 	// batched Apple MDM reconciliation cron.
 	SetMDMAppleReconcileCursor(ctx context.Context, cursor string) error
 
+	// GetMDMAppleAPNsSweepState returns the APNs sweep cron's persisted pass
+	// state, or nil when no pass is in progress. The bare mysql.Datastore
+	// always returns nil; the mysqlredis wrapper backs it with Redis.
+	GetMDMAppleAPNsSweepState(ctx context.Context) (*MDMAppleAPNsSweepState, error)
+
+	// SetMDMAppleAPNsSweepState persists the APNs sweep cron's pass state.
+	// A nil state resets it (pass complete).
+	SetMDMAppleAPNsSweepState(ctx context.Context, state *MDMAppleAPNsSweepState) error
+
 	// GetAppleDeclarationReconcileSnapshot is the DDM counterpart of
 	// GetAppleProfileReconcileSnapshot. It returns a consistent snapshot
 	// of the bounded host window, every Apple declaration with its label
@@ -3768,6 +3789,10 @@ type Datastore interface {
 	ScimGroupByDisplayName(ctx context.Context, displayName string) (*ScimGroup, error)
 	// ReplaceScimGroup replaces an existing SCIM group in the database
 	ReplaceScimGroup(ctx context.Context, group *ScimGroup) error
+	// ApplyScimGroupPatch updates an existing SCIM group's attributes and applies
+	// only the membership changes described by deltas, leaving every other member
+	// of the group untouched.
+	ApplyScimGroupPatch(ctx context.Context, group *ScimGroup, deltas ScimGroupMemberDeltas) error
 	// DeleteScimGroup deletes a SCIM group from the database
 	DeleteScimGroup(ctx context.Context, id uint) error
 	// ListScimGroups retrieves a list of SCIM groups with pagination
