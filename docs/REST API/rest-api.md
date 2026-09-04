@@ -16480,7 +16480,7 @@ Updates an existing API-only user that does not have access to the UI. The targe
 
  _Available in Fleet Premium._
 
-Lists Fleet REST API endpoints that an API-only user can be granted access to, via the `api_endpoints` parameter of [Create API-only user](#create-api-only-user).
+Lists Fleet REST API endpoints that an API-only user can be granted access to.
 
 `GET /api/v1/fleet/rest_api`
 
