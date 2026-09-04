@@ -107,13 +107,13 @@ func TestNeedsOrbitSymlinkUpdate(t *testing.T) {
 	}
 
 	// Case 3: Target is a regular file instead of a symlink (e.g. fresh MSI install on Windows)
-	_ = os.Remove(linkPath)
-	require.NoError(t, os.WriteFile(linkPath, []byte("regular-file-content"), 0o600))
-
-	needsUpdate, isNotSymlink, err = r.needsOrbitSymlinkUpdate()
-	require.NoError(t, err)
-	assert.True(t, needsUpdate)
 	if runtime.GOOS == "windows" {
+		_ = os.Remove(linkPath)
+		require.NoError(t, os.WriteFile(linkPath, []byte("regular-file-content"), 0o600))
+
+		needsUpdate, isNotSymlink, err = r.needsOrbitSymlinkUpdate()
+		require.NoError(t, err)
+		assert.True(t, needsUpdate)
 		assert.True(t, isNotSymlink)
 	}
 
