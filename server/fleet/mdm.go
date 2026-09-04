@@ -1455,10 +1455,8 @@ type NanoMDMEnrollmentDetails struct {
 	// Enrollment both produce the "On (manual - personal)" status, so the channel
 	// is the only way to tell them apart.
 	EnrollmentType string `db:"enrollment_type"`
-	// Enabled mirrors nano_enrollments.enabled — bumped to 0 on checkout while
-	// last_seen_at continues to be updated. Callers that use LastMDMSeenTime as
-	// a liveness signal (e.g. Host.LastMDMCheckedInAt for the mobile status
-	// heuristic) must ignore it when Enabled is false.
+	// Enabled is false after checkout, when last_seen_at still keeps updating.
+	// Liveness-signal callers must ignore LastMDMSeenTime in that case.
 	Enabled bool `db:"enabled"`
 }
 

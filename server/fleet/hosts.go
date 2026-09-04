@@ -44,12 +44,10 @@ const (
 	// than their expected checkin interval.
 	OnlineIntervalBuffer = 60
 
-	// MobileOnlineWindow is the window within which a mobile
-	// (iOS/iPadOS/Android) host's most recent MDM activity signal must fall
-	// for it to count as online. Anchored to the iOS/iPadOS MDM refetch
-	// cadence (1 hour; see ListIOSAndIPadOSToRefetch) plus OnlineIntervalBuffer.
-	// The chart bounded context duplicates this in mobileOnlineWindowSeconds
-	// because it can't import server/fleet (arch test enforced).
+	// MobileOnlineWindow bounds the MDM activity signal for mobile hosts to
+	// count as online. Anchored to the 1h iOS/iPadOS MDM refetch cadence plus
+	// OnlineIntervalBuffer. Duplicated in the chart context (mobileOnlineWindowSeconds)
+	// which can't import server/fleet.
 	MobileOnlineWindow = time.Hour + time.Duration(OnlineIntervalBuffer)*time.Second
 
 	// HostIdentiferNotFound is the error message returned when a search for a host by its
@@ -357,14 +355,9 @@ type Host struct {
 	PolicyUpdatedAt time.Time `json:"policy_updated_at" db:"policy_updated_at" csv:"policy_updated_at"` // Time that the host policies were last updated
 	LastEnrolledAt  time.Time `json:"last_enrolled_at" db:"last_enrolled_at" csv:"last_enrolled_at"`    // Time that the host last enrolled
 	SeenTime        time.Time `json:"seen_time" db:"seen_time" csv:"seen_time"`                         // Time that the host was last "seen"
-	// LastMDMCheckedInAt is the most recent MDM check-in for this host, sourced from
-	// nano_enrollments.last_seen_at (Apple only; nil for other platforms and for hosts
-	// with no MDM enrollment). Populated by list-hosts and host-details loaders.
-	// Feeds the mobile branch of Host.Status() so iOS/iPadOS hosts, which don't check
-	// in via osquery, still report accurate online/offline based on MDM activity.
-	// No `omitempty`: HostDetail previously serialized this as `null` for hosts with
-	// no MDM enrollment, and preserving that contract avoids breaking clients that
-	// key on the field's presence.
+	// LastMDMCheckedInAt is nano_enrollments.last_seen_at for active Apple
+	// enrollments; nil elsewhere. Feeds Host.Status()'s mobile branch. No
+	// omitempty: HostDetail already serialized this as null when absent.
 	LastMDMCheckedInAt *time.Time `json:"last_mdm_checked_in_at" db:"last_mdm_checked_in_at" csv:"-"`
 	RefetchRequested   bool       `json:"refetch_requested" db:"refetch_requested" csv:"refetch_requested"`
 	NodeKey            *string    `json:"-" db:"node_key" csv:"-"`
@@ -1330,15 +1323,10 @@ type HostSummaryPlatform struct {
 	HostsCount uint   `json:"hosts_count" db:"total"`
 }
 
-// neverTimestampParsed mirrors the server.NeverTimestamp sentinel written to
-// detail_updated_at before a host's first full detail refetch. Duplicated as a
-// time.Time here so mobileStatus can drop it from the max without importing
-// the server package (which would create a cycle).
-//
-// Parsed at package init, panics on failure so a future edit that misaligns the
-// format string and the literal can't silently degrade to the zero time — which
-// would cause every mobile host with a zero DetailUpdatedAt to have its detail
-// treated as a valid activity signal, false-onlining "never checked in" hosts.
+// neverTimestampParsed mirrors server.NeverTimestamp as a time.Time so
+// mobileStatus can compare against it without importing server (cycle).
+// Panics on parse failure so a format/literal drift can't silently degrade to
+// zero-time and false-online every never-checked-in mobile host.
 var neverTimestampParsed = mustParseNeverTimestamp()
 
 func mustParseNeverTimestamp() time.Time {
@@ -1349,17 +1337,13 @@ func mustParseNeverTimestamp() time.Time {
 	return t
 }
 
-// Status calculates the online status of the host.
-//
-// The logic in this function should remain synchronized with
+// Status calculates the online status of the host. Must stay in sync with
 // filterHostsByStatus, GenerateHostStatusStatistics, and CountHostsInTargets
-// in server/datastore/mysql — desktop and mobile predicates alike.
+// in server/datastore/mysql for both desktop and mobile predicates.
 //
-// Callers that construct a minimal fleet.Host{} (live_queries, scripts,
-// calendar_cron) don't populate LastMDMCheckedInAt. That's safe: those code
-// paths only apply to osquery-capable hosts, so the mobile branch never
-// triggers for them. Mobile hosts loaded through ListHosts / GetHost / the
-// details service will have the field populated by the SQL loader.
+// The mobile branch reads LastMDMCheckedInAt; minimal-Host{} callers
+// (live_queries, scripts, calendar_cron) don't populate it, but those paths
+// only apply to osquery-capable hosts so the mobile branch never fires there.
 //
 // NOTE: As of Fleet 4.15 StatusMIA is deprecated and will be removed in Fleet 5.0
 func (h *Host) Status(now time.Time) HostStatus {
@@ -1383,25 +1367,11 @@ func (h *Host) Status(now time.Time) HostStatus {
 	}
 }
 
-// mobileStatus computes online/offline for iOS/iPadOS/Android hosts, which
-// don't run osquery. Uses the freshest of:
-//   - LastMDMCheckedInAt (from nano_enrollments.last_seen_at; Apple only)
-//   - DetailUpdatedAt, dropping the never-sentinel (Android's primary signal
-//     via status reports; also iOS/iPadOS full-detail refetches)
-//
-// Compared against MobileOnlineWindow. Deliberately no created_at fallback —
-// a freshly enrolled device that has never checked in is offline, matching
-// the chart bounded context's FindOnlineHostIDs predicate.
-//
-// SeenTime is intentionally NOT consulted here even though the SQL predicate
-// (hostMobileOnlineExpr) does read hst.seen_time when present. Rationale:
-// host_seen_times is bumped only by osquery paths (RecordHostLastSeen in
-// server/agentws and server/service/osquery.go). Mobile platforms don't run
-// osquery, so hst.seen_time is always NULL for pure mobile hosts. The list-
-// hosts loader further coalesces that NULL to h.created_at when populating
-// Host.SeenTime, which would make freshly-enrolled mobile hosts look "online"
-// forever. The SQL side reads the raw hst.seen_time and correctly gets NULL,
-// so both predicates agree in practice.
+// mobileStatus is the iOS/iPadOS/Android branch of Status. Takes the freshest
+// of LastMDMCheckedInAt and non-sentinel DetailUpdatedAt against
+// MobileOnlineWindow; no created_at fallback so never-checked-in devices stay
+// offline. SeenTime is skipped: the list loader coalesces hst.seen_time with
+// h.created_at before we see it, which would false-online fresh enrollments.
 func (h *Host) mobileStatus(now time.Time) HostStatus {
 	var latest time.Time
 	if h.LastMDMCheckedInAt != nil {

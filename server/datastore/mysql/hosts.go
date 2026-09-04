@@ -1484,13 +1484,8 @@ func (ds *Datastore) applyHostFilters(
 		batchScriptExecutionJoin, batchScriptExecutionFilter, whereParams = ds.getBatchExecutionFilters(whereParams, opt)
 	}
 
-	// The status filter's online/offline case (filterHostsByStatus) reads
-	// nano_enrollments via alias nesm through hostMobileOnlineExpr; MIA/Missing
-	// reads it via alias nes through hostEffectiveLastSeenExpr. Both joins are
-	// needed when any status filter is active. We also add hostMobileMDMSeenTimeJoin
-	// unconditionally so nesm.last_seen_at is available for populating
-	// Host.LastMDMCheckedInAt on every listed host (feeds Host.Status()'s
-	// mobile branch).
+	// Mobile join is unconditional so Host.LastMDMCheckedInAt gets populated
+	// on every row; nes join only matters for MIA/Missing status filters.
 	hostMDMSeenJoin := hostMobileMDMSeenTimeJoin
 	if opt.StatusFilter.IsValid() {
 		hostMDMSeenJoin += hostMDMSeenTimeJoin
@@ -1728,12 +1723,10 @@ func filterHostsByPolicy(sql string, opt fleet.HostListOptions, params []interfa
 const hostMDMSeenTimeJoin = `
 	LEFT JOIN nano_enrollments nes ON nes.id = h.uuid AND nes.type IN ('Device', 'User Enrollment (Device)')`
 
-// hostMobileMDMSeenTimeJoin is the join used by the mobile online/offline
-// predicate. Distinct from hostMDMSeenTimeJoin because it filters to enabled
-// enrollments only — nano_enrollments.last_seen_at is bumped on checkout too,
-// so a recently-unenrolled device would falsely look online without this.
-// Uses alias `nesm` so it can coexist with hostMDMSeenTimeJoin (alias `nes`)
-// in the same query — MIA/Missing still uses the unfiltered join.
+// hostMobileMDMSeenTimeJoin is the mobile online/offline join. Filters to
+// active enrollments only (nano_enrollments.last_seen_at keeps updating after
+// checkout). Alias nesm coexists with hostMDMSeenTimeJoin's nes so MIA/Missing
+// can still use the unfiltered join.
 const hostMobileMDMSeenTimeJoin = `
 	LEFT JOIN nano_enrollments nesm ON nesm.id = h.uuid AND nesm.enabled = 1 AND nesm.type IN ('Device', 'User Enrollment (Device)')`
 
@@ -1743,17 +1736,14 @@ const hostMobileMDMSeenTimeJoin = `
 // Requires hostMDMSeenTimeJoin (alias nes) and the host_seen_times join (alias hst) to be present.
 const hostEffectiveLastSeenExpr = `COALESCE(GREATEST(COALESCE(hst.seen_time, nes.last_seen_at), COALESCE(nes.last_seen_at, hst.seen_time)), NULLIF(h.detail_updated_at, '` + server.NeverTimestamp + `'), h.created_at)`
 
-// mobileOnlineWindowSeconds is fleet.MobileOnlineWindow expressed in seconds
-// for direct interpolation into INTERVAL clauses.
-const mobileOnlineWindowSeconds = 3600 + fleet.OnlineIntervalBuffer
+// mobileOnlineWindowSeconds derives from fleet.MobileOnlineWindow so the SQL
+// INTERVAL and Host.mobileStatus stay in sync.
+const mobileOnlineWindowSeconds = int(fleet.MobileOnlineWindow / time.Second)
 
-// hostMobileOnlineExpr is the "freshest MDM activity signal" expression for
-// mobile hosts, mirroring the chart bounded context's mobile online predicate
-// (server/chart/internal/mysql/charts.go FindOnlineHostIDs). Differs from
-// hostEffectiveLastSeenExpr by omitting the created_at fallback — a freshly
-// enrolled device that has never checked in is not "online".
-// Requires hostMobileMDMSeenTimeJoin (alias nesm) and the host_seen_times
-// join (alias hst) to be present.
+// hostMobileOnlineExpr is the freshest MDM activity signal for mobile hosts,
+// mirroring FindOnlineHostIDs in server/chart. No created_at fallback: a
+// never-checked-in device stays offline. Requires hostMobileMDMSeenTimeJoin
+// (nesm) and the host_seen_times join (hst).
 const hostMobileOnlineExpr = `COALESCE(GREATEST(COALESCE(hst.seen_time, nesm.last_seen_at), COALESCE(nesm.last_seen_at, hst.seen_time)), NULLIF(h.detail_updated_at, '` + server.NeverTimestamp + `'))`
 
 func filterHostsByStatus(now time.Time, sql string, opt fleet.HostListOptions, params []interface{}) (string, []interface{}) {
@@ -2243,10 +2233,8 @@ func (ds *Datastore) GenerateHostStatusStatistics(ctx context.Context, filter fl
 	// host.Status and CountHostsInTargets - that is, the intervals associated
 	// with each status must be the same.
 
-	// One `now` per CASE arm: MIA, Missing, offline-mobile, offline-desktop,
-	// online-mobile, online-desktop, new. The offline/online cases fan out to
-	// two `?` each so we can compare against the appropriate window per
-	// platform group.
+	// One `now` per `?`: MIA, Missing, offline (mobile + desktop), online
+	// (mobile + desktop), new.
 	args := []any{now, now, now, now, now, now, now}
 	hostDisksJoin := ``
 	lowDiskSelect := `0 low_disk_space`
@@ -3313,6 +3301,11 @@ func (ds *Datastore) MarkHostsSeen(ctx context.Context, hostIDs []uint, t time.T
 //   - Use the provided team filter.
 //   - Search hostname, uuid, hardware_serial, and primary_ip using LIKE (mimics ListHosts behavior)
 //   - An optional list of IDs to omit from the search.
+//
+// Deliberately does not populate LastMDMCheckedInAt: sole caller is the
+// live-query target picker, and mobile hosts can't be live-queried. If a new
+// caller flows results to a mobile-visible surface, add hostMobileMDMSeenTimeJoin
+// + nesm.last_seen_at to keep Host.Status() honest.
 func (ds *Datastore) SearchHosts(ctx context.Context, filter fleet.TeamFilter, matchQuery string, omit ...uint) ([]*fleet.Host, error) {
 	query := `SELECT
     h.id,

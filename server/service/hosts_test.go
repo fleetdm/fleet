@@ -648,11 +648,8 @@ func TestHostDetailsMDMTimestamps(t *testing.T) {
 		})
 	}
 
-	// Checked-out Apple enrollment: last_seen_at is still bumped after checkout,
-	// but Enabled is false. LastMDMCheckedInAt must stay nil so the details
-	// endpoint matches what the list endpoint returns (nesm join filters
-	// enabled=1). LastMDMEnrolledAt is a durable enrollment fact and still flows
-	// through.
+	// Checked-out enrollment: LastMDMCheckedInAt must be nil so /hosts/{id}
+	// matches /hosts (nesm join filters enabled=1).
 	t.Run("checked-out Apple enrollment hides LastMDMCheckedInAt", func(t *testing.T) {
 		ds.GetNanoMDMEnrollmentDetailsFuncInvoked = false
 		ds.GetNanoMDMEnrollmentDetailsFunc = func(ctx context.Context, hostUUID string) (*fleet.NanoMDMEnrollmentDetails, error) {

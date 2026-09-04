@@ -78,6 +78,37 @@ const HostSummary = ({
     />
   );
 
+  const renderStatus = () => {
+    const displayedStatus = getHostStatus(status, mdm?.enrollment_status);
+    const tooltipText = getHostStatusTooltipText(displayedStatus);
+    return (
+      <DataSet
+        title={
+          isIosOrIpadosHost ? (
+            <TooltipWrapper
+              tipContent="iOS/iPadOS hosts are online anytime they have power and an internet connection (including locked)."
+              position="top"
+              showArrow
+              tipOffset={8}
+            >
+              Status
+            </TooltipWrapper>
+          ) : (
+            "Status"
+          )
+        }
+        value={
+          <StatusIndicator
+            value={displayedStatus}
+            tooltip={
+              tooltipText ? { tooltipText, position: "bottom" } : undefined
+            }
+          />
+        }
+      />
+    );
+  };
+
   const renderMaintenanceWindow = ({
     starts_at,
     timezone,
@@ -136,34 +167,7 @@ const HostSummary = ({
       paddingSize="xlarge"
       className={classNames}
     >
-      <DataSet
-        title={
-          isIosOrIpadosHost ? (
-            <TooltipWrapper
-              tipContent="iOS/iPadOS hosts are online anytime they have power and an internet connection (including locked)."
-              position="top"
-              showArrow
-              tipOffset={8}
-            >
-              Status
-            </TooltipWrapper>
-          ) : (
-            "Status"
-          )
-        }
-        value={(() => {
-          const displayedStatus = getHostStatus(status, mdm?.enrollment_status);
-          const tooltipText = getHostStatusTooltipText(displayedStatus);
-          return (
-            <StatusIndicator
-              value={displayedStatus}
-              tooltip={
-                tooltipText ? { tooltipText, position: "bottom" } : undefined
-              }
-            />
-          );
-        })()}
-      />
+      {renderStatus()}
       {showTeam && renderHostTeam()}
       {showIssues && renderIssues()}
       {showBootstrapPackage && bootstrapPackageData?.status && (

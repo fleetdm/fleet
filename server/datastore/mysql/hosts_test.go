@@ -3193,11 +3193,10 @@ func testHostsGenerateStatusStatisticsMobileMDMSeenTime(t *testing.T, ds *Datast
 	assert.Equal(t, h.ID, hosts[0].ID)
 }
 
-// testHostsMobileOnlineOffline covers the online/offline half of the mobile
-// status heuristic — the mirror of testHostsGenerateStatusStatisticsMobileMDMSeenTime
-// which covers the MIA/Missing half. Exercises the ListHosts response's
-// Host.Status(), the filterHostsByStatus SQL predicate (via ListHosts status
-// filter), the GenerateHostStatusStatistics aggregate, and CountHostsInTargets.
+// testHostsMobileOnlineOffline is the online/offline mirror of
+// testHostsGenerateStatusStatisticsMobileMDMSeenTime's MIA/Missing coverage.
+// Exercises Host.Status() on listed rows, the status filter, the aggregate,
+// and CountHostsInTargets in one shot.
 func testHostsMobileOnlineOffline(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 	filter := fleet.TeamFilter{User: test.UserAdmin}
@@ -3231,7 +3230,8 @@ func testHostsMobileOnlineOffline(t *testing.T, ds *Datastore) {
 
 	recent := now.Add(-10 * time.Minute) // well inside 1h + buffer
 	stale := now.Add(-2 * time.Hour)     // well outside 1h + buffer
-	neverTS, _ := time.Parse("2006-01-02 15:04:05", server.NeverTimestamp)
+	neverTS, err := time.Parse("2006-01-02 15:04:05", server.NeverTimestamp)
+	require.NoError(t, err) // guard against a zero-time.Time slipping in silently
 
 	// iOS online via nano_enrollments.last_seen_at.
 	iosOnline := newMobileHost(t, "ios-online", "ios-online-uuid", "ios")
@@ -3262,7 +3262,7 @@ func testHostsMobileOnlineOffline(t *testing.T, ds *Datastore) {
 	iosDisabled := newMobileHost(t, "ios-disabled", "ios-disabled-uuid", "ios")
 	nanoEnroll(t, ds, iosDisabled, false)
 	setNanoLastSeen(t, iosDisabled, recent)
-	_, err := ds.writer(ctx).ExecContext(ctx, `UPDATE nano_enrollments SET enabled = 0 WHERE id = ?`, iosDisabled.UUID)
+	_, err = ds.writer(ctx).ExecContext(ctx, `UPDATE nano_enrollments SET enabled = 0 WHERE id = ?`, iosDisabled.UUID)
 	require.NoError(t, err)
 	setDetailUpdatedAt(t, iosDisabled, neverTS)
 
