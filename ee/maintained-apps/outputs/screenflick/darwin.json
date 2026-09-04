@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "3.3.2",
+      "version": "3.3.3",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.araeliumgroup.screenflick';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.araeliumgroup.screenflick' AND version_compare(bundle_short_version, '3.3.2') < 0);",
-        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.araeliumgroup.screenflick');"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.araeliumgroup.screenflick' AND version_compare(bundle_short_version, '3.3.3') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.araeliumgroup.screenflick' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://store.araelium.com/screenflick/downloads/versions/Screenflick3.3.2.zip",
+      "installer_url": "https://store.araelium.com/screenflick/downloads/versions/Screenflick3.3.3.zip",
       "install_script_ref": "8b696f48",
       "uninstall_script_ref": "14e4684b",
-      "sha256": "5902bd75e1bc8934ba44feca1801522ef943d70c02c56ce8cf61a30eab861619",
+      "sha256": "564768ebfd4db626c460824f4ccaac39de8f136afc715afc0c5e731b07acde46",
       "default_categories": [
         "Productivity"
       ]

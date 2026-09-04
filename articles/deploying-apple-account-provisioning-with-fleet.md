@@ -111,6 +111,8 @@ The Fleet Desktop app that contains the Platform SSO extension isn't installed b
 
 2. Go to **Controls > Setup experience > Install software** and select the Fleet Desktop app so it installs during setup experience.
 
+3. While here, confirm that **Controls > Setup experience > Users** has either **Admin** or **Standard** selected under **End user account** so that the local user account is created on the device. If **None** is selected, the user will hit a gray login screen after going through enrollment and their credentials won't work.
+
 ## Step 5: Create and upload the configuration profile
 
 The extension is activated by a single configuration profile containing 2 payloads: an **Extensible Single Sign-On** payload and an **Associated Domains** payload. Start from the [example profile](https://github.com/fleetdm/fleet/blob/main/docs/solutions/macos/configuration-profiles/fleet-sso-extension-example.mobileconfig) and replace every occurrence of `fleet.example.com` with your Fleet server's domain.

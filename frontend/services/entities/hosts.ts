@@ -572,6 +572,12 @@ export default {
 
     return sendRequest("POST", path);
   },
+  apnsPing: (hostID: number) => {
+    const { HOST_APNS_PING } = endpoints;
+    const path = `${HOST_APNS_PING(hostID)}`;
+
+    return sendRequest("POST", path);
+  },
   search: (searchText: string) => {
     const { HOSTS } = endpoints;
     const path = `${HOSTS}?query=${searchText}`;

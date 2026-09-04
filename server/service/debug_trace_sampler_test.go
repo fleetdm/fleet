@@ -53,7 +53,7 @@ func TestTraceSamplerHandler_GET(t *testing.T) {
 		}, nil
 	}
 
-	handler := MakeDebugHandler(svc, testConfig, discardLogger(), nil, ds)
+	handler := MakeDebugHandler(svc, testConfig, discardLogger(), nil, ds, nil)
 	res := httptest.NewRecorder()
 	handler.ServeHTTP(res, req)
 
@@ -86,7 +86,7 @@ func TestTraceSamplerHandler_PATCH_PersistsChangesAndReturnsRow(t *testing.T) {
 		return nil
 	}
 
-	handler := MakeDebugHandler(svc, testConfig, discardLogger(), nil, ds)
+	handler := MakeDebugHandler(svc, testConfig, discardLogger(), nil, ds, nil)
 	res := httptest.NewRecorder()
 	handler.ServeHTTP(res, req)
 
@@ -131,7 +131,7 @@ func TestTraceSamplerHandler_PATCH_PartialUpdatePreservesOtherFields(t *testing.
 		return nil
 	}
 
-	handler := MakeDebugHandler(svc, testConfig, discardLogger(), nil, ds)
+	handler := MakeDebugHandler(svc, testConfig, discardLogger(), nil, ds, nil)
 	res := httptest.NewRecorder()
 	handler.ServeHTTP(res, req)
 
@@ -152,7 +152,7 @@ func TestTraceSamplerHandler_PATCH_ReadFailureReturns500(t *testing.T) {
 		return nil, errors.New("db unavailable")
 	}
 
-	handler := MakeDebugHandler(svc, testConfig, discardLogger(), nil, ds)
+	handler := MakeDebugHandler(svc, testConfig, discardLogger(), nil, ds, nil)
 	res := httptest.NewRecorder()
 	handler.ServeHTTP(res, req)
 
@@ -173,7 +173,7 @@ func TestTraceSamplerHandler_PATCH_WriteFailureReturns500(t *testing.T) {
 		return errors.New("constraint violation")
 	}
 
-	handler := MakeDebugHandler(svc, testConfig, discardLogger(), nil, ds)
+	handler := MakeDebugHandler(svc, testConfig, discardLogger(), nil, ds, nil)
 	res := httptest.NewRecorder()
 	handler.ServeHTTP(res, req)
 
@@ -187,7 +187,7 @@ func TestTraceSamplerHandler_PATCH_RejectsBadJSON(t *testing.T) {
 		`{"force_full":`) // malformed
 
 	ds := new(mockds.Store)
-	handler := MakeDebugHandler(svc, testConfig, discardLogger(), nil, ds)
+	handler := MakeDebugHandler(svc, testConfig, discardLogger(), nil, ds, nil)
 	res := httptest.NewRecorder()
 	handler.ServeHTTP(res, req)
 
@@ -210,7 +210,7 @@ func TestTraceSamplerHandler_PATCH_RejectsOutOfRangeRatio(t *testing.T) {
 			svc, req := adminAuthedRequest(t, http.MethodPatch,
 				"https://fleetdm.com/debug/trace_sampler", c.body)
 			ds := new(mockds.Store)
-			handler := MakeDebugHandler(svc, testConfig, discardLogger(), nil, ds)
+			handler := MakeDebugHandler(svc, testConfig, discardLogger(), nil, ds, nil)
 			res := httptest.NewRecorder()
 			handler.ServeHTTP(res, req)
 
@@ -225,7 +225,7 @@ func TestTraceSamplerHandler_PATCH_RequiresAtLeastOneField(t *testing.T) {
 	svc, req := adminAuthedRequest(t, http.MethodPatch,
 		"https://fleetdm.com/debug/trace_sampler", `{}`)
 	ds := new(mockds.Store)
-	handler := MakeDebugHandler(svc, testConfig, discardLogger(), nil, ds)
+	handler := MakeDebugHandler(svc, testConfig, discardLogger(), nil, ds, nil)
 	res := httptest.NewRecorder()
 	handler.ServeHTTP(res, req)
 

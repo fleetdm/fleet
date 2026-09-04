@@ -87,7 +87,7 @@ type MissingCustomHostVitalValueError struct {
 	MissingNames []string
 }
 
-func (e MissingCustomHostVitalValueError) Error() string {
+func (e *MissingCustomHostVitalValueError) Error() string {
 	tokens := make([]string, 0, len(e.MissingIDs))
 	for i, id := range e.MissingIDs {
 		var name string
@@ -124,6 +124,7 @@ const (
 	CustomHostVitalEntityAppleDeclaration      CustomHostVitalEntity = "apple_declaration"
 	CustomHostVitalEntityWindowsProfile        CustomHostVitalEntity = "windows_profile"
 	CustomHostVitalEntityAndroidProfile        CustomHostVitalEntity = "android_profile"
+	CustomHostVitalEntityAndroidAppConfig      CustomHostVitalEntity = "android_app_config"
 	CustomHostVitalEntitySoftwareInstaller     CustomHostVitalEntity = "software_installer"
 	CustomHostVitalEntitySetupExperienceScript CustomHostVitalEntity = "setup_experience_script"
 	CustomHostVitalEntityLabel                 CustomHostVitalEntity = "label"
@@ -166,6 +167,8 @@ func (i CustomHostVitalUsedInfo) Message() string {
 		noun, action = "setup experience script", "Please edit or delete the setup experience script and try again."
 	case CustomHostVitalEntityLabel:
 		noun, action = "label", "Please edit or delete the label and try again."
+	case CustomHostVitalEntityAndroidAppConfig:
+		noun, action = "software", "Please edit or clear the software's configuration and try again."
 	}
 	return fmt.Sprintf(
 		"Custom host vital %q (used as $%s%d) is used by the %q %s in the %q fleet. %s",

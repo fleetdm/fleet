@@ -36,6 +36,7 @@ var policyAutomationSuccessActivityTypes = []string{
 	"ran_automation_ticket",
 	"ran_automation_calendar_event",
 	"ran_automation_conditional_access",
+	"resent_configuration_profile",
 }
 
 var policyAutomationActivityTypes = func() []string {
@@ -940,7 +941,13 @@ func (ds *Datastore) GetHostUpcomingActivityMeta(ctx context.Context, hostID uin
 // the next activity, or to a missing call to activateNextUpcomingActivity. It
 // unblocks up to maxHosts found in this situation (by activating the next
 // activity for each host).
-func (ds *Datastore) UnblockHostsUpcomingActivityQueue(ctx context.Context, maxHosts int) (int, error) {
+//
+// When skipFleetInitiated is true (the fleet-initiated release budget is
+// enabled), a host is only considered blocked if it has an unactivated
+// non-fleet-initiated activity: hosts waiting solely on deferred
+// fleet-initiated activities are the release cron's job, and activating them
+// here would bypass its budget.
+func (ds *Datastore) UnblockHostsUpcomingActivityQueue(ctx context.Context, maxHosts int, skipFleetInitiated bool) (int, error) {
 	const findBlockedHostsStmt = `
 		SELECT
 			DISTINCT inactive_ua.host_id
@@ -952,13 +959,55 @@ func (ds *Datastore) UnblockHostsUpcomingActivityQueue(ctx context.Context, maxH
 		WHERE
 			active_ua.host_id IS NULL AND
 			inactive_ua.activated_at IS NULL
+		%s
 		LIMIT ?`
 
+	var fleetInitiatedFilter string
+	if skipFleetInitiated {
+		fleetInitiatedFilter = "AND inactive_ua.fleet_initiated = 0"
+	}
+	stmt := fmt.Sprintf(findBlockedHostsStmt, fleetInitiatedFilter)
+
 	var blockedHostIDs []uint
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &blockedHostIDs, findBlockedHostsStmt, maxHosts); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &blockedHostIDs, stmt, maxHosts); err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "select blocked hosts")
 	}
-	return len(blockedHostIDs), ds.activateNextUpcomingActivityForBatchOfHosts(ctx, blockedHostIDs)
+	return ds.activateNextUpcomingActivityForBatchOfHosts(ctx, blockedHostIDs)
+}
+
+// ReleaseFleetInitiatedUpcomingActivities activates the upcoming activities
+// queue of up to maxHosts hosts that have no activated activity and at least
+// one fleet-initiated activity waiting (enqueued with deferred activation by
+// the policy-automation paths). Hosts with the oldest waiting fleet-initiated
+// activity are released first. It returns the number of hosts released.
+//
+// This is the release valve for the activity.fleet_initiated_release_per_minute
+// budget: enqueue is unthrottled, but hosts only start executing
+// fleet-initiated work at the pace this method is called with.
+func (ds *Datastore) ReleaseFleetInitiatedUpcomingActivities(ctx context.Context, maxHosts int) (int, error) {
+	const findGatedHostsStmt = `
+		SELECT
+			gated_ua.host_id
+		FROM
+			upcoming_activities gated_ua
+			LEFT OUTER JOIN upcoming_activities active_ua ON
+				active_ua.host_id = gated_ua.host_id AND
+				active_ua.activated_at IS NOT NULL
+		WHERE
+			active_ua.host_id IS NULL AND
+			gated_ua.activated_at IS NULL AND
+			gated_ua.fleet_initiated = 1
+		GROUP BY
+			gated_ua.host_id
+		ORDER BY
+			MIN(gated_ua.created_at), gated_ua.host_id
+		LIMIT ?`
+
+	var gatedHostIDs []uint
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &gatedHostIDs, findGatedHostsStmt, maxHosts); err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "select gated hosts")
+	}
+	return ds.activateNextUpcomingActivityForBatchOfHosts(ctx, gatedHostIDs)
 }
 
 // mdmApplePushDeliveryGraceDays is how long an activated command has to reach its device before the
@@ -1217,12 +1266,18 @@ func (ds *Datastore) ActivateNextUpcomingActivityForHost(ctx context.Context, ho
 	return err
 }
 
-func (ds *Datastore) activateNextUpcomingActivityForBatchOfHosts(ctx context.Context, hostIDs []uint) error {
+// activateNextUpcomingActivityForBatchOfHosts activates the next upcoming
+// activity of each host, chunked into batch transactions. It returns the
+// number of hosts whose activation committed, along with any per-host
+// activation errors joined together (partial success returns both a non-zero
+// count and a non-nil error).
+func (ds *Datastore) activateNextUpcomingActivityForBatchOfHosts(ctx context.Context, hostIDs []uint) (int, error) {
 	const maxHostIDsPerBatch = 500
 
 	slices.Sort(hostIDs)              // sorting can help avoid deadlocks
 	hostIDs = slices.Compact(hostIDs) // dedupe IDs (must be sorted first)
 
+	var activated int
 	var errs []error
 	for batch := range slices.Chunk(hostIDs, maxHostIDsPerBatch) {
 		err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
@@ -1233,11 +1288,35 @@ func (ds *Datastore) activateNextUpcomingActivityForBatchOfHosts(ctx context.Con
 			}
 			return nil
 		})
-		if err != nil {
-			errs = append(errs, err)
+		if err == nil {
+			activated += len(batch)
+			continue
+		}
+
+		// The chunk transaction is all-or-nothing: one host whose activation
+		// deterministically fails (e.g. an FK or duplicate-key violation on its
+		// queued row) would roll back every other host in the chunk, and the
+		// callers that select hosts in a deterministic order (the release and
+		// unblock crons) would re-pick the same hosts on every run, wedging the
+		// queue behind the poison host. Retry each host of the failed chunk in
+		// its own transaction so a bad host only loses its own slot.
+		for _, hostID := range batch {
+			hostErr := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+				_, err := ds.activateNextUpcomingActivity(ctx, tx, hostID, "")
+				return err
+			})
+			if hostErr != nil {
+				ds.logger.ErrorContext(ctx, "activate next upcoming activity failed for host; skipping it",
+					"host_id", hostID,
+					"err", hostErr,
+				)
+				errs = append(errs, ctxerr.Wrapf(ctx, hostErr, "activate next activity for host %d", hostID))
+				continue
+			}
+			activated++
 		}
 	}
-	return errors.Join(errs...)
+	return activated, errors.Join(errs...)
 }
 
 // This function activates the next upcoming activity, if any, for the specified host.
@@ -1676,7 +1755,10 @@ INSERT INTO
 SELECT
 	?,
 	execution_id,
-	created_at -- force same timestamp to keep ordering
+	-- distinct, forward-dated timestamps: nanomdm orders the queue by
+	-- created_at alone, and one statement's rows would otherwise tie on the
+	-- column default and be served in arbitrary order
+	NOW(6) + INTERVAL ROW_NUMBER() OVER (ORDER BY priority DESC, created_at ASC, id ASC) MICROSECOND
 FROM
 	upcoming_activities
 WHERE
@@ -1821,11 +1903,17 @@ WHERE
 
 	// best-effort APNs push notification to the host, not critical because we
 	// have a cron job that will retry for hosts with pending MDM commands.
-	if ds.pusher != nil {
+	wrapped, ok := tx.(common_mysql.WrappedExtContext)
+	if ds.pusher == nil || !ok {
+		return nil
+	}
+	// we wrap the APNs Push here, as activate next upcoming is called from many sites
+	// and it's racy to ping before we have committed the transaction.
+	wrapped.AddOnCommitHook(func() {
 		if _, err := ds.pusher.Push(ctx, []string{hostData.UUID}); err != nil {
 			ds.logger.ErrorContext(ctx, "failed to send push notification", "err", err, "hostID", hostID, "hostUUID", hostData.UUID)
 		}
-	}
+	})
 	return nil
 }
 

@@ -100,6 +100,31 @@ func TestWritePathInvalidation(t *testing.T) {
 				invoked: func(ds *mock.Store) bool { return ds.UpdateHostRefetchCriticalQueriesUntilFuncInvoked },
 			},
 			{
+				// Carries disk_encryption_enabled and bitlocker_protection_status, both of which Orbit reads to
+				// decide whether to ask the host to restore BitLocker protection.
+				name: "SetOrUpdateHostDisksEncryption",
+				id:   8,
+				setupMock: func(ds *mock.Store) {
+					ds.SetOrUpdateHostDisksEncryptionFunc = func(_ context.Context, _ uint, _ bool, _ *int) error { return nil }
+				},
+				invoke: func(ctx context.Context, d *Datastore, id uint, _ string) error {
+					return d.SetOrUpdateHostDisksEncryption(ctx, id, true, new(fleet.BitLockerProtectionStatusOn))
+				},
+				invoked: func(ds *mock.Store) bool { return ds.SetOrUpdateHostDisksEncryptionFuncInvoked },
+			},
+			{
+				// Carries tpm_pin_set, which decides whether Fleet asks the end user to create a BitLocker PIN.
+				name: "SetOrUpdateHostDiskTpmPIN",
+				id:   9,
+				setupMock: func(ds *mock.Store) {
+					ds.SetOrUpdateHostDiskTpmPINFunc = func(_ context.Context, _ uint, _ bool) error { return nil }
+				},
+				invoke: func(ctx context.Context, d *Datastore, id uint, _ string) error {
+					return d.SetOrUpdateHostDiskTpmPIN(ctx, id, true)
+				},
+				invoked: func(ds *mock.Store) bool { return ds.SetOrUpdateHostDiskTpmPINFuncInvoked },
+			},
+			{
 				name: "UpdateHostIdentityCertHostIDBySerial",
 				id:   6,
 				setupMock: func(ds *mock.Store) {
@@ -206,6 +231,28 @@ func TestWritePathInvalidation(t *testing.T) {
 			params := fleet.NewAddHostsToTeamParams(new(uint(7)), ids)
 			require.NoError(t, d.AddHostsToTeam(ctx, params))
 			require.True(t, ds.AddHostsToTeamFuncInvoked)
+			for _, nk := range nks {
+				requireCacheMiss(t, d, nk)
+			}
+		})
+
+		t.Run("DeleteTeam invalidates every host in the batch", func(t *testing.T) {
+			t.Cleanup(func() { cleanupHostCacheKeys(t, pool) })
+			ds := new(mock.Store)
+			ids := []uint{20, 21, 22}
+			ds.HostIDsByTeamIDFunc = func(_ context.Context, _ uint) ([]uint, error) {
+				return ids, nil
+			}
+			ds.DeleteTeamFunc = func(_ context.Context, _ uint) error { return nil }
+			d := New(ds, pool, WithHostCache(30*time.Second))
+
+			nks := []string{"nk-flush-a", "nk-flush-b", "nk-flush-c"}
+			for i, nk := range nks {
+				primeCachedHost(t, d, ids[i], nk)
+			}
+
+			require.NoError(t, d.DeleteTeam(ctx, 99))
+			require.True(t, ds.DeleteTeamFuncInvoked)
 			for _, nk := range nks {
 				requireCacheMiss(t, d, nk)
 			}

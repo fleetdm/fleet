@@ -1,6 +1,6 @@
 # Driving automations and reports based on available disk space on macOS
 
-A customer's IT team built a disk space query in Fleet and noticed the numbers didn't match what macOS reports. They were right. The `mounts` table doesn't include purgeable space, so it consistently underreports what's actually available. That gap matters most in two situations: a Mac that won't download or install a software update, and a user who's convinced their disk isn't as full as your dashboard says. The fix for both is a one-line change: swap `mounts` for `disk_space`.
+A customer's IT team built a disk space query in Fleet and noticed the numbers didn't match what macOS reports. They were right. The `mounts` table doesn't include purgeable space, so it consistently underreports what's available. That gap matters most in two situations: a Mac that won't download or install a software update, and a user who's convinced their disk isn't as full as your dashboard says. The fix for both is a one-line change: swap `mounts` for `disk_space`.
 
 ## The problem
 
@@ -10,13 +10,18 @@ The customer's IT team spotted the mismatch immediately:
 
 > "The query doesn't seem to include rewritable disk space."
 
-They asked the right question. macOS actively manages a layer of purgeable storage that sits between “used” and “truly free”, and the OS will reclaim it on demand when an app or installer needs room. From the user's perspective, that space is available. From the file system's perspective, it's already allocated. A disk can read as 90% full in `mounts` while macOS tells the user they have 50 GB free. Both numbers are technically correct, but only one matches what the user experiences, and only one matches what the macOS installer will actually use.
+They asked the right question. macOS actively manages a layer of purgeable storage that sits between "used" and "truly free", and the OS will reclaim it on demand when an app or installer needs room. From the user's perspective, that space is available. From the file system's perspective, it's already allocated. A disk can read as 90% full in `mounts` while macOS tells the user they have 50 GB free. Both numbers are technically correct, but only one matches what the user experiences, and only one matches what the macOS installer will use.
 
 ## Why this is relevant for update compliance
 
-This is where the gap stops being a rounding error and starts causing real problems. macOS won't download or install an update without enough free space to stage it, and Apple doesn't publish hard numbers, but real-world testing puts minor updates at requiring roughly 15 GB free and major upgrades at roughly 35 GB (the installer itself plus working space for the upgrade process). If a host is short on either, the update silently fails to download, gets stuck partway through, or the user dismisses the “not enough space” prompt and moves on.
+This is where the gap stops being a rounding error and starts causing real problems. macOS won't download or install an update without enough free space to stage it, and Apple doesn't publish hard numbers, but real-world testing puts minor updates at requiring roughly 15 GB free and major upgrades at roughly 35 GB (the installer itself plus working space for the upgrade process). If a host is short on either, the update silently fails to download, gets stuck partway through, or the user dismisses the "not enough space" prompt and moves on.
 
-If you're troubleshooting why a fleet of Macs is behind on updates, checking `mounts` can point you in the wrong direction. It's the same undercounting issue: a host might have 30 GB of purgeable cache sitting there, macOS would reclaim it automatically during the update, but `mounts` reports that space as used. You'd have to dig into the host manually to find out it actually has plenty of room. `disk_space` gives you the number that matches what the installer sees, so a host failing a space check is genuinely short on space, not a false alarm from stale cache data.
+If you're troubleshooting why a fleet of Macs is behind on updates, checking `mounts` can point you in the wrong direction. It's the same undercounting issue: a host might have 30 GB of purgeable cache sitting there, macOS would reclaim it automatically during the update, but `mounts` reports that space as used. You'd have to dig into the host manually to find out it has plenty of room. `disk_space` gives you the number that matches what the installer sees, so a host failing a space check is genuinely short on space, not a false alarm from stale cache data.
+
+## Prerequisites
+
+- A Fleet instance with macOS hosts enrolled.
+- Permission to run live queries and create policies in Fleet.
 
 ## Use the disk_space table
 
@@ -28,13 +33,13 @@ Run this query on your macOS hosts:
 SELECT bytes_available FROM disk_space;
 ```
 
-That's it. The `bytes_available` column gives you available disk capacity including purgeable space, matching what your users see in Finder and what the macOS installer will actually have to work with.
+That's it. The `bytes_available` column gives you available disk capacity including purgeable space, matching what your users see in Finder and what the macOS installer will have to work with.
 
 > **Note:** `disk_space` is macOS-only. For cross-platform reporting, you'll still need `mounts` on Linux and Windows, where purgeable space isn't a factor.
 
 ## Build automations and reports
 
-Once your query reflects reality, you can use it for update troubleshooting, not just general alerting.
+Once your query reflects reality, you can use it for update troubleshooting, not only for general alerting.
 
 ### Flag hosts that can't take the next update
 
@@ -58,13 +63,13 @@ Set separate thresholds for minor updates and major upgrades, since they need di
   webhooks_and_tickets_enabled: true
 ```
 
-For major upgrades, raise the threshold to roughly 35 GB and adjust the name and description accordingly. Running both policies side by side tells you at a glance whether a host is behind because of disk space or for some other reason, which saves time when you're chasing down compliance gaps.
+For major upgrades, raise the threshold to roughly 35 GB and adjust the name and description accordingly. Running both policies side by side tells you at a glance whether a host is behind because of disk space or for some other reason, which saves time when you're chasing down compliance gaps.
 
-### Capacity reports
+### Build capacity reports
 
-Schedule `SELECT bytes_available FROM disk_space;` as a report in Fleet. Export the results to build dashboards or feed them into your ITSM tool. The numbers will match what your users report, which means fewer “but my Mac says I have space” tickets landing in your queue.
+Schedule `SELECT bytes_available FROM disk_space;` as a report in Fleet. Export the results to build dashboards or feed them into your ITSM tool. The numbers will match what your users report, which means fewer "but my Mac says I have space" tickets landing in your queue.
 
-### Automated clean-up workflows
+### Automate clean-up workflows
 
 Use Fleet's webhook integrations to trigger action when available space crosses a boundary, before it becomes an update failure. Prompt the user to clean up, open a ticket automatically, or kick off a remediation script that clears known cache locations.
 

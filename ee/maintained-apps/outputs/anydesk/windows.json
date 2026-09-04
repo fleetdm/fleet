@@ -1,0 +1,23 @@
+{
+  "versions": [
+    {
+      "version": "9.7.15",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name = 'AnyDesk' AND publisher = 'AnyDesk Software GmbH';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'AnyDesk' AND publisher = 'AnyDesk Software GmbH' AND version_compare(version, '9.7.15') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'anydesk.exe');"
+      },
+      "installer_url": "https://download.anydesk.com/AnyDesk.exe",
+      "install_script_ref": "e63a0a9f",
+      "uninstall_script_ref": "4c143cd5",
+      "sha256": "no_check",
+      "default_categories": [
+        "Productivity"
+      ]
+    }
+  ],
+  "refs": {
+    "4c143cd5": "# Uninstalls AnyDesk by invoking the installed AnyDesk.exe with --remove.\n# The registry UninstallString runs --uninstall, which opens a GUI prompt;\n# --remove --silent is the unattended equivalent.\n\n$softwareName = \"AnyDesk\"\n\n$machineKey       = 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'\n$machineKey32on64 = 'HKLM:\\SOFTWARE\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'\n\n$exitCode = $null\n\ntry {\n\n[array]$uninstallKeys = Get-ChildItem `\n    -Path @($machineKey, $machineKey32on64) `\n    -ErrorAction SilentlyContinue |\n        ForEach-Object { Get-ItemProperty $_.PSPath }\n\nforeach ($key in $uninstallKeys) {\n    if ($key.DisplayName -ne $softwareName) { continue }\n\n    # Defensive parser for the three UninstallString shapes:\n    #   \"C:\\path with spaces\\AnyDesk.exe\" --uninstall  -> quoted\n    #   C:\\Program Files (x86)\\AnyDesk\\AnyDesk.exe ... -> unquoted with spaces\n    #   MsiExec.exe /X{GUID}                           -> bare token\n    $uninstallCommand = $key.UninstallString\n    $anyDeskExe = $null\n    if ($uninstallCommand -match '^\\s*\"([^\"]+)\"') {\n        $anyDeskExe = $matches[1]\n    } elseif ($uninstallCommand -match '(?i)^\\s*(.+?\\.exe)') {\n        $anyDeskExe = $matches[1]\n    } elseif ($uninstallCommand -match '^\\s*(\\S+)') {\n        $anyDeskExe = $matches[1]\n    }\n\n    if (-not $anyDeskExe -or -not (Test-Path $anyDeskExe)) {\n        Write-Host \"AnyDesk executable not found at: $anyDeskExe\"\n        Exit 1\n    }\n\n    Write-Host \"Uninstall command: $anyDeskExe --remove --silent\"\n    $process = Start-Process -FilePath $anyDeskExe -ArgumentList \"--remove --silent\" -PassThru -Wait\n    $exitCode = $process.ExitCode\n    break\n}\n\n} catch {\n    Write-Host \"Error: $_\"\n    Exit 1\n}\n\nif ($null -eq $exitCode) {\n    Write-Host \"Uninstall entry not found for '$softwareName'.\"\n    Exit 1\n}\n\nWrite-Host \"Uninstall exit code: $exitCode\"\nExit $exitCode\n",
+    "e63a0a9f": "# Learn more about .exe install scripts:\n# http://fleetdm.com/learn-more-about/exe-install-scripts\n#\n# AnyDesk.exe is both the installer and the app: --install takes the target\n# directory and registers the AnyDesk service, so it must run elevated.\n\n$exeFilePath = \"${env:INSTALLER_PATH}\"\n$installDir = Join-Path ${env:ProgramFiles(x86)} \"AnyDesk\"\n\ntry {\n\n$processOptions = @{\n  FilePath = \"$exeFilePath\"\n  ArgumentList = \"--install `\"$installDir`\" --silent --update-auto --create-shortcuts --create-desktop-icon\"\n  PassThru = $true\n  Wait = $true\n}\n\n$process = Start-Process @processOptions\n$exitCode = $process.ExitCode\n\nWrite-Host \"Install exit code: $exitCode\"\nExit $exitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n"
+  }
+}

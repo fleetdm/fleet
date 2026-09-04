@@ -311,14 +311,14 @@ func TestBuildChartScopeResolver(t *testing.T) {
 	}
 
 	t.Run("global off → skip", func(t *testing.T) {
-		scope := buildChartScopeResolver(makeAppCfg(false, true), nil, nil)
+		scope := buildChartScopeResolver(makeAppCfg(false, true), nil, true, nil)
 		skip, disabled := scope("uptime")
 		require.True(t, skip)
 		require.Nil(t, disabled)
 	})
 
 	t.Run("global on, no teams → no scoping", func(t *testing.T) {
-		scope := buildChartScopeResolver(makeAppCfg(true, true), nil, nil)
+		scope := buildChartScopeResolver(makeAppCfg(true, true), nil, true, nil)
 		skip, disabled := scope("uptime")
 		require.False(t, skip)
 		require.Nil(t, disabled)
@@ -328,6 +328,7 @@ func TestBuildChartScopeResolver(t *testing.T) {
 		scope := buildChartScopeResolver(
 			makeAppCfg(true, true),
 			[]*fleet.Team{makeTeam(1, true, true), makeTeam(2, true, true)},
+			true,
 			nil,
 		)
 		skip, disabled := scope("uptime")
@@ -344,6 +345,7 @@ func TestBuildChartScopeResolver(t *testing.T) {
 				makeTeam(3, true, true),
 				makeTeam(4, false, true), // uptime disabled on team 4
 			},
+			true,
 			nil,
 		)
 		skip, disabled := scope("uptime")
@@ -359,6 +361,7 @@ func TestBuildChartScopeResolver(t *testing.T) {
 				makeTeam(2, false, true), // uptime only on team 2
 				makeTeam(3, true, true),
 			},
+			true,
 			nil,
 		)
 		skipU, disabledU := scope("uptime")
@@ -374,6 +377,7 @@ func TestBuildChartScopeResolver(t *testing.T) {
 		scope := buildChartScopeResolver(
 			makeAppCfg(true, false),
 			[]*fleet.Team{makeTeam(1, true, true)},
+			true,
 			nil,
 		)
 		skip, disabled := scope("cve")
@@ -382,8 +386,39 @@ func TestBuildChartScopeResolver(t *testing.T) {
 	})
 
 	t.Run("unknown dataset name falls through to no-scope", func(t *testing.T) {
-		scope := buildChartScopeResolver(makeAppCfg(true, true), nil, nil)
+		scope := buildChartScopeResolver(makeAppCfg(true, true), nil, true, nil)
 		skip, disabled := scope("unknown_dataset")
+		require.False(t, skip)
+		require.Nil(t, disabled)
+	})
+
+	t.Run("free tier skips cve even when the config enables it", func(t *testing.T) {
+		scope := buildChartScopeResolver(
+			makeAppCfg(true, true),
+			[]*fleet.Team{makeTeam(1, true, true)},
+			false,
+			nil,
+		)
+		skip, disabled := scope("cve")
+		require.True(t, skip)
+		require.Nil(t, disabled)
+	})
+
+	t.Run("free tier still collects uptime", func(t *testing.T) {
+		scope := buildChartScopeResolver(
+			makeAppCfg(true, true),
+			[]*fleet.Team{makeTeam(1, true, true), makeTeam(2, false, true)},
+			false,
+			nil,
+		)
+		skip, disabled := scope("uptime")
+		require.False(t, skip)
+		require.ElementsMatch(t, []uint{2}, disabled, "per-fleet uptime scoping is unaffected by the license")
+	})
+
+	t.Run("premium with cve enabled collects it", func(t *testing.T) {
+		scope := buildChartScopeResolver(makeAppCfg(true, true), nil, true, nil)
+		skip, disabled := scope("cve")
 		require.False(t, skip)
 		require.Nil(t, disabled)
 	})
@@ -440,13 +475,14 @@ func TestHostVitalsLabelMembershipCronIDP(t *testing.T) {
 		Value: new("Engineering"),
 	})
 	require.NoError(t, err)
+	raw := json.RawMessage(criteria)
 
 	// Create a global and a team1-scoped IdP host vitals label.
 	globalLabel, err := ds.NewLabel(ctx, &fleet.Label{
 		Name:                "idp-cron-global",
 		LabelType:           fleet.LabelTypeRegular,
 		LabelMembershipType: fleet.LabelMembershipTypeHostVitals,
-		HostVitalsCriteria:  new(json.RawMessage(criteria)),
+		HostVitalsCriteria:  &raw,
 	})
 	require.NoError(t, err)
 	team1Label, err := ds.NewLabel(ctx, &fleet.Label{
@@ -454,7 +490,7 @@ func TestHostVitalsLabelMembershipCronIDP(t *testing.T) {
 		TeamID:              &team1.ID,
 		LabelType:           fleet.LabelTypeRegular,
 		LabelMembershipType: fleet.LabelMembershipTypeHostVitals,
-		HostVitalsCriteria:  new(json.RawMessage(criteria)),
+		HostVitalsCriteria:  &raw,
 	})
 	require.NoError(t, err)
 

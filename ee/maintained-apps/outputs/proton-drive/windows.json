@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "3.0.4",
+      "version": "3.0.6",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Proton Drive' AND publisher = 'Proton AG';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Proton Drive' AND publisher = 'Proton AG' AND version_compare(version, '3.0.4') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Proton Drive' AND publisher = 'Proton AG' AND version_compare(version, '3.0.6') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'proton drive.exe');"
       },
-      "installer_url": "https://proton.me/download/drive/windows/3.0.4/x64/Proton%20Drive%20Setup%203.0.4.exe",
+      "installer_url": "https://proton.me/download/drive/windows/3.0.6/x64/Proton%20Drive%20Setup%203.0.6.exe",
       "install_script_ref": "0bff62f0",
       "uninstall_script_ref": "149e6eb1",
-      "sha256": "dbf3c7780e4158495f36bc94a7a03194d5129b4a8dd95b1e068207e84603472c",
+      "sha256": "ec85c314e274ac55f5e72d17765add7958b5cc8702703c341769973c3d903e84",
       "default_categories": [
         "Productivity"
       ]

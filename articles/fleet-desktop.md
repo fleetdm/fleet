@@ -53,6 +53,82 @@ As a consequence, Fleet Desktop will issue a new token if the current token is:
 
 This change is imperceptible to users, as clicking on the "My device" tray item always uses a valid token. If a user visits an address with an expired token, they will get a message instructing them to click on the tray item again.
 
+## Advanced
+
+### Hide the menu bar icon on macOS
+
+Some Fleet users want to hide the menu bar icon on macOS because of the limited menu bar "real estate." 
+
+If you're enrolling Macs manually, generate a Fleet agent (fleetd) without Fleet Desktop menu bar by excluding the `--fleet-desktop` flag from the `fleetctl package` command.
+
+How to hide the menu bar if you're automatically enrolling Macs via Apple Business:
+
+1. Add this script to Fleet:
+
+```sh
+#!/bin/sh
+
+if [ ! -f "/Library/LaunchDaemons/com.fleetdm.orbit.plist" ]; then
+    echo "Fleet's agent (fleetd) is not installed."
+    exit 1
+fi
+
+/usr/bin/plutil -replace EnvironmentVariables.ORBIT_FLEET_DESKTOP -string "false" /Library/LaunchDaemons/com.fleetdm.orbit.plist
+
+# Reload the LaunchDaemon out-of-band. Bootout-ing it directly from this
+# script would kill this script too, since orbit is what's running it.
+cat << 'EOF' > /private/tmp/fleet-hide-desktop-reload.sh
+#!/bin/sh
+/bin/sleep 15
+/bin/launchctl bootout system /Library/LaunchDaemons/com.fleetdm.orbit.plist
+/bin/launchctl bootstrap system /Library/LaunchDaemons/com.fleetdm.orbit.plist
+/bin/launchctl bootout system /private/tmp/com.fleetdm.reload.plist
+EOF
+chmod 744 /private/tmp/fleet-hide-desktop-reload.sh
+
+cat << 'EOF' > /private/tmp/com.fleetdm.reload.plist
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+    <dict>
+        <key>Label</key>
+        <string>com.fleetdm.reload</string>
+        <key>ProgramArguments</key>
+        <array>
+            <string>/bin/sh</string>
+            <string>/private/tmp/fleet-hide-desktop-reload.sh</string>
+        </array>
+        <key>RunAtLoad</key>
+        <true/>
+    </dict>
+</plist>
+EOF
+
+/bin/launchctl bootstrap system /private/tmp/com.fleetdm.reload.plist
+
+echo "Fleet Desktop menu bar icon will be hidden in about 15 seconds."
+exit 0
+```
+
+This stops the Fleet Desktop process entirely, not just its icon. So, end users lose the menu bar entry point to self-service. If they still need self-service, deploy the [Fleet Desktop app](https://fleetdm.com/software-catalog/fleet-desktop-darwin).
+
+2. Go to a hosts's **Host details** page.
+3. Select **Actions > Run script** and run the hide script.
+
+To run this script automatically across all macOS hosts create a policy in Fleet with the following query:
+
+```sql
+SELECT 1 FROM plist WHERE
+  path = '/Library/LaunchDaemons/com.fleetdm.orbit.plist' AND
+  key = 'EnvironmentVariables' AND
+  subkey = 'ORBIT_FLEET_DESKTOP' AND
+  value = 'false';
+```
+
+Then, add connect hide script to this policy via [policy automations](https://fleetdm.com/guides/policy-automation-run-script). 
+
+Fleet's agent (fleetd) upgrades won't re-show the menu bar icon, because upgrades don't touch the plist the script updates.
+
 <meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="zhumo">
 <meta name="authorFullName" value="Mo Zhu">

@@ -113,7 +113,7 @@ Cap free-text inputs' `maxLength` to the backend column length (check `server/da
 
 ## Validation
 
-**Read [frontend/docs/patterns.md#data-validation](../../frontend/docs/patterns.md#data-validation) before adding or editing form validation — that doc is authoritative.** Fleet diverges from what mainstream React libraries (Formik, react-hook-form, MUI, Ant Design) do by default on submit-button behavior, error timing, error position, and copy tone. Pattern-matching from another React app will land you in these specific mistakes:
+**Read [frontend/docs/patterns.md#data-validation](../../frontend/docs/patterns.md#data-validation) before adding or editing form validation — that doc is authoritative.** Use the `useFormValidation` hook (`frontend/hooks/useFormValidation.ts`) rather than re-implementing the behavior; it encodes all of the rules below. Reference migrations: `UserForm`, `ApiUserForm`. Fleet diverges from what mainstream React libraries (Formik, react-hook-form, MUI, Ant Design) do by default on submit-button behavior, error timing, error position, and copy tone. Pattern-matching from another React app will land you in these specific mistakes:
 - No visible required-field indicator (no `*`, no `(required)` suffix). Users discover requirements via post-interaction errors.
 - Submit button stays enabled with invalid fields. Only disable during in-flight submission, or when the form is disabled by GitOps mode. On click, the handler runs client-side validation first — if invalid, it surfaces errors inline and returns without calling the API.
 - Field errors clear on **focus**, not on typing.
@@ -153,6 +153,19 @@ Editing inside already-gated code (adding a field to a premium-only form, fixing
 
 ## Command palette
 If you edit `frontend/router/paths.ts` or `frontend/router/index.tsx`, add a new MDM connector / singleton config, add a new global create / automation / settings action, or add a new picker action, load the `command-palette` skill before finishing — these changes almost always need a matching entry under `frontend/components/CommandPalette/groups/`. The palette is for navigation and global actions — not per-entity (row-level) operations, bulk-select actions, or per-view UI toggles.
+
+## Test coverage
+
+Ship tests with new reusable components/hooks/utilities (co-located `*.tests.tsx`), bug fixes (one `it("...")` named for the regression, fails without the fix), and new user-visible logic in a widget or page (submit, validation, filter/sort, empty/loading/error, tier/permission). Skip copy-only, styling-only, and presentational refactors.
+
+New reusable code shouldn't lower the frontend function-coverage delta on the PR (Codecov `frontend` flag, informational — see `codecov.yml`). Legacy files without tests are grandfathered; don't retrofit unless you're already touching them.
+
+**Do not:**
+- Snapshot-test as a substitute for behavior assertions.
+- Assert on class names, internal state, or private handlers.
+- Delete a failing test to unblock CI — update the assertion if behavior changed; otherwise the test just caught a regression.
+
+Mechanics (`renderWithSetup` vs `createCustomRenderer`, MSW handlers, entity mocks, semantic queries, `userEvent`, React Query assertion style) live in [frontend/docs/patterns.md#testing](../../frontend/docs/patterns.md#testing).
 
 ## Linting & Formatting
 - ESLint: extends airbnb + typescript-eslint + prettier

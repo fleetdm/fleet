@@ -52,7 +52,7 @@ type MDMAppleCommandIssuer interface {
 	InstallEnterpriseApplication(ctx context.Context, hostUUIDs []string, uuid string, manifestURL string) error
 	DeviceConfigured(ctx context.Context, hostUUID, cmdUUID string) error
 	SetRecoveryLock(ctx context.Context, hostUUIDs []string, cmdUUID string) error
-	RotateRecoveryLock(ctx context.Context, hostUUID string, cmdUUID string) error
+	RotateRecoveryLock(ctx context.Context, hostUUIDs []string, cmdUUID string) error
 	SetAutoAdminPassword(ctx context.Context, hostUUID, guid string, passwordHashPlist []byte, cmdUUID string) error
 	ClearPasscode(ctx context.Context, hostUUID []string, cmdUUID string) error
 }
@@ -1519,9 +1519,9 @@ type MDMAppleMachineInfo struct {
 	Version                         string `plist:"VERSION"`
 }
 
-// macProductRe matches a macOS model identifier such as "MacBookPro18,3", capturing the
+// appleProductRe matches an Apple product model identifier such as "MacBookPro18,3" or "iPhone10,1", capturing the
 // alphabetic family prefix (group 1) and the numeric major version (group 2).
-var macProductRe = regexp.MustCompile(`^([A-Za-z]+)(\d+),\d+$`)
+var appleProductRe = regexp.MustCompile(`^([A-Za-z]+)(\d+),\d+$`)
 
 // appleSiliconMajorThreshold maps each traditional Mac product family to the first major
 // version number that corresponds to an Apple Silicon model. Any major version equal to or
@@ -1537,16 +1537,24 @@ var appleSiliconMajorThreshold = map[string]int{
 	"iMac": 21,
 }
 
+// a11MajorThreshold maps each device (that we support and know has shipped with A11) to the first major version number.
+var a11MajorThreshold = map[string]int{
+	// iPhone 10,1 was the first iPhone with the A11 Bionic chip (iPhone 8, Late 2017).
+	"iPhone": 10,
+	// iPad 8,1 was the first iPad with the A11 Bionic chip (iPad Pro 11-inch, 2018).
+	"iPad": 8,
+}
+
 func IsMacIdentifier(modelIdentifier string) (bool, string, int, error) {
 	if strings.HasPrefix(modelIdentifier, "iPhone") ||
 		strings.HasPrefix(modelIdentifier, "iPod") ||
 		strings.HasPrefix(modelIdentifier, "iPad") {
 		// If the model identifier starts with iPhone, iPod, or iPad, we'll return false with no
-		// error; however, other non-Mac Apple devices like AppleTV will return an error
+		// error; however, other non-Mac Apple devices will also return no, except for invalid product family strings
 		return false, "", 0, nil
 	}
 
-	matches := macProductRe.FindStringSubmatch(modelIdentifier)
+	matches := appleProductRe.FindStringSubmatch(modelIdentifier)
 	if matches == nil {
 		return false, "", 0, fmt.Errorf("unrecognized product identifier format: %q", modelIdentifier)
 	}
@@ -1566,7 +1574,22 @@ func IsMacIdentifier(modelIdentifier string) (bool, string, int, error) {
 		return true, family, major, nil
 	}
 
-	return false, "", 0, fmt.Errorf("failed to detect if model identifier (%q) was mac", modelIdentifier)
+	return false, "", 0, nil
+}
+
+func IsPrefixedIdentifier(modelIdentifier string, prefix string) (bool, string, int, error) {
+	matches := appleProductRe.FindStringSubmatch(modelIdentifier)
+	if matches == nil {
+		return false, "", 0, fmt.Errorf("unrecognized product identifier format: %q", modelIdentifier)
+	}
+
+	if !strings.HasPrefix(modelIdentifier, prefix) {
+		return false, "", 0, nil
+	}
+
+	family := matches[1]
+	major, _ := strconv.Atoi(matches[2])
+	return true, family, major, nil
 }
 
 // IsMacAppleSilicon determines whether the device is an Apple Silicon Mac. If the model identifier
@@ -1597,7 +1620,36 @@ func IsMacAppleSilicon(modelIdentifier string) (bool, error) {
 
 	threshold, ok := appleSiliconMajorThreshold[family]
 	if !ok {
-		return false, fmt.Errorf("unrecognized Mac product family in identifier: %q", modelIdentifier)
+		return false, nil
+	}
+
+	return major >= threshold, nil
+}
+
+func IsA11ChipDevice(modelIdentifier string) (bool, error) {
+	isIPhone, iPhoneFamily, iPhoneMajor, err := IsPrefixedIdentifier(modelIdentifier, "iPhone")
+	if err != nil {
+		return false, err
+	}
+	isIPad, iPadFamily, iPadMajor, err := IsPrefixedIdentifier(modelIdentifier, "iPad")
+	if err != nil {
+		return false, err
+	}
+
+	if !isIPhone && !isIPad {
+		return false, nil
+	}
+
+	major := iPhoneMajor
+	family := iPhoneFamily
+	if isIPad {
+		major = iPadMajor
+		family = iPadFamily
+	}
+
+	threshold, ok := a11MajorThreshold[family]
+	if !ok {
+		return false, nil
 	}
 
 	return major >= threshold, nil
@@ -1709,9 +1761,19 @@ const (
 	EnableLostModeCmdName       = "EnableLostMode"
 	DisableLostModeCmdName      = "DisableLostMode"
 	SetRecoveryLockCmdName      = "SetRecoveryLock"
+	VerifyRecoveryLockCmdName   = "VerifyRecoveryLock"
 	AccountConfigurationCmdName = "AccountConfiguration"
 	SetAutoAdminPasswordCmdName = "SetAutoAdminPassword"
 )
+
+// CancelableAppleMDMRequestTypes are the request types of Apple MDM commands
+// that can be canceled while they are still pending delivery to the device.
+var CancelableAppleMDMRequestTypes = map[string]struct{}{
+	"DeviceLock":          {},
+	"EraseDevice":         {},
+	"ClearPasscode":       {},
+	EnableLostModeCmdName: {},
+}
 
 // PrimaryAccountType represents the type of the primary account for MacOS going through setup experience.
 // Documented at https://developer.apple.com/documentation/devicemanagement/accountconfigurationcommand/command-data.dictionary
@@ -1748,25 +1810,34 @@ type HostLocationData struct {
 
 // HostRecoveryLockPassword represents a recovery lock password for a host.
 type HostRecoveryLockPassword struct {
-	Password     string
+	Password     *string
+	Status       *MDMDeliveryStatus
 	UpdatedAt    time.Time
 	AutoRotateAt *time.Time // When auto-rotation is scheduled (1 hour after password is viewed)
 }
 
 // HostRecoveryLockPasswordPayload contains the data needed to store a recovery lock password.
 type HostRecoveryLockPasswordPayload struct {
-	HostUUID string
-	Password string
+	HostUUID              string
+	Password              string
+	PendingSetCommandUUID string
+}
+
+type HostRecoveryLockPending struct {
+	HasCurrentPassword       bool             `db:"has_current_password"` // Whether or not encrypted_password contains a value
+	PendingSetCommandUUID    *string          `db:"pending_set_command_uuid"`
+	PendingVerifyCommandUUID *string          `db:"pending_verify_command_uuid"`
+	OperationType            MDMOperationType `db:"operation_type"`
+	Retries                  int              `db:"retry"`
 }
 
 // HostRecoveryLockRotationStatus represents the current rotation state for a host's recovery lock.
 type HostRecoveryLockRotationStatus struct {
-	HostUUID            string  // Host UUID
-	HasPassword         bool    // encrypted_password is not null and deleted=0
-	Status              *string // current status (verified, failed, pending, NULL)
-	OperationType       string  // install or remove
-	HasPendingRotation  bool    // pending_encrypted_password is not null
-	PendingErrorMessage *string // error from failed rotation
+	HostUUID           string  // Host UUID
+	HasPassword        bool    // encrypted_password is not null and deleted=0
+	Status             *string // current status (verified, failed, pending, NULL)
+	OperationType      string  // install or remove
+	HasPendingRotation bool    // pending_encrypted_password is not null
 }
 
 // HostAutoRotationInfo contains the minimal host data needed for auto-rotation activity logging.
@@ -1942,4 +2013,13 @@ type AppleSoftwareUpdateHost struct {
 type ComputedAppleSoftwareUpdateHost struct {
 	AppleSoftwareUpdateHost
 	Resend bool
+}
+
+// MDMAppleAPNsSweepState is the APNs sweep cron's persisted position: the
+// keyset cursor of the enrollment walk plus the batch size computed at the
+// start of the pass, so the size rides along with the cursor instead of
+// being recounted every tick. A nil state means no pass is in progress.
+type MDMAppleAPNsSweepState struct {
+	Cursor    string `json:"cursor"`
+	BatchSize int    `json:"batch_size"`
 }

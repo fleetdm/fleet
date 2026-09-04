@@ -258,6 +258,17 @@ jobs:
         sudo killall -HUP mDNSResponder || true
 
 
+    - name: Wait until fleet address is reachable and fleet responds
+      shell: bash
+      run: |
+        # Probe with fleetctl itself (not curl): the tunnel DNS record can lag or flap
+        # on some runners, and a successful curl lookup hasn't guaranteed the next
+        # fleetctl lookup succeeds.
+        until fleetctl get enroll_secret --json > /dev/null 2>&1; do
+          echo "Awaiting until fleet server responds..."
+          sleep 5
+        done
+
     - name: Install fleetd
       run: |
         ARCH=$(uname -m)
@@ -309,7 +320,7 @@ jobs:
         sudo cat /var/log/orbit/*
 
     - name: Checkout
-      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
         fetch-depth: 1
         sparse-checkout: |
@@ -349,6 +360,17 @@ jobs:
         # through one other than eth0.
         for iface in $(ip -o link show | awk -F': ' '{print $2}' | grep -v lo); do
           sudo resolvectl dns "$iface" 1.1.1.1 2>/dev/null || true
+        done
+
+    - name: Wait until fleet address is reachable and fleet responds
+      shell: bash
+      run: |
+        # Probe with fleetctl itself (not curl): the tunnel DNS record can lag or flap
+        # on some runners, and a successful curl lookup hasn't guaranteed the next
+        # fleetctl lookup succeeds.
+        until fleetctl get enroll_secret --json > /dev/null 2>&1; do
+          echo "Awaiting until fleet server responds..."
+          sleep 5
         done
 
     - name: Install Orbit
@@ -449,6 +471,17 @@ jobs:
         npm install -g fleetctl
         fleetctl config set --address ${{ needs.gen.outputs.address }} --token ${{ needs.login.outputs.token }} --tls-skip-verify
 
+    - name: Wait until fleet address is reachable and fleet responds
+      shell: bash
+      run: |
+        # Probe with fleetctl itself (not curl): the tunnel DNS record can lag or flap
+        # on some runners, and a successful curl lookup hasn't guaranteed the next
+        # fleetctl lookup succeeds.
+        until fleetctl get enroll_secret --json > /dev/null 2>&1; do
+          echo "Awaiting until fleet server responds..."
+          sleep 5
+        done
+
     - name: Install WiX toolset (arm runner only)
       if: matrix.runner == 'windows-11-arm'
       shell: powershell
@@ -529,7 +562,7 @@ jobs:
       run: Get-Content "C:\Windows\system32\config\systemprofile\AppData\Local\FleetDM\Orbit\Logs\orbit-osquery.log" -ErrorAction SilentlyContinue
 
     - name: Checkout
-      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
         fetch-depth: 1
         sparse-checkout: |

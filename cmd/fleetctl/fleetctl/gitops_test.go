@@ -846,8 +846,7 @@ software:
 
 	// include the Windows managed local account toggle in the applied controls
 	globalFile := writeGlobalFile(`  windows_settings:
-    managed_local_account_settings:
-      enabled: true`)
+    enable_managed_local_account: true`)
 
 	_ = runAppForTest(t, []string{"gitops", "-f", globalFile})
 
@@ -857,11 +856,218 @@ software:
 	require.Equal(t,
 		[]string{"abcdef12-3456-7890-abcd-ef1234567890", "11111111-2222-3333-4444-555555555555"},
 		(*savedAppConfigPtr).MDM.WindowsEntraClientIDs.Value)
-	require.True(t, (*savedAppConfigPtr).MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value)
+	require.True(t, (*savedAppConfigPtr).MDM.WindowsSettings.EnableManagedLocalAccount.Value)
 
 	// gitops is declarative for the managed local account toggle: re-applying without the key disables it
 	_ = runAppForTest(t, []string{"gitops", "-f", writeGlobalFile("")})
-	require.False(t, (*savedAppConfigPtr).MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value)
+	require.False(t, (*savedAppConfigPtr).MDM.WindowsSettings.EnableManagedLocalAccount.Value)
+}
+
+// Disk encryption and key escrow moved from the flat controls.enable_disk_encryption
+// and controls.windows_require_bitlocker_pin keys to per-platform ones under
+// apple_settings / windows_settings / linux_settings.
+// A file may not carry a flat key and its per-platform equivalent at once.
+func TestGitOpsDiskEncryptionPerPlatform(t *testing.T) {
+	// Cannot run t.Parallel() because it sets environment variables.
+	const (
+		fleetServerURL = "https://fleet.example.com"
+		orgName        = "Fleet GitOps Disk Encryption Test"
+	)
+
+	writeGlobalFile := func(t *testing.T, controls string) string {
+		t.Helper()
+		f, err := os.CreateTemp(t.TempDir(), "*.yml")
+		require.NoError(t, err)
+		_, err = f.WriteString(fmt.Sprintf(`
+controls:
+%s
+queries:
+policies:
+agent_options:
+org_settings:
+  server_settings:
+    server_url: %s
+  org_info:
+    contact_url: https://example.com/contact
+    org_logo_url: ""
+    org_logo_url_light_background: ""
+    org_name: %s
+  secrets:
+    - secret: globalSecret
+software:
+`, controls, fleetServerURL, orgName))
+		require.NoError(t, err)
+		require.NoError(t, f.Close())
+		return f.Name()
+	}
+
+	t.Run("rejects a flat key alongside its per-platform equivalent", func(t *testing.T) {
+		for _, c := range []struct {
+			name     string
+			controls string
+			wantErr  string
+		}{
+			{
+				name: "apple enable",
+				controls: `  enable_disk_encryption: true
+  apple_settings:
+    enable_disk_encryption: true`,
+				wantErr: "controls.apple_settings.enable_disk_encryption and controls.enable_disk_encryption cannot both be set",
+			},
+			{
+				name: "apple escrow",
+				controls: `  enable_disk_encryption: true
+  apple_settings:
+    enable_escrow_disk_encryption_key: true`,
+				wantErr: "controls.apple_settings.enable_escrow_disk_encryption_key and controls.enable_disk_encryption cannot both be set",
+			},
+			{
+				name: "windows enable",
+				controls: `  enable_disk_encryption: true
+  windows_settings:
+    enable_disk_encryption: true`,
+				wantErr: "controls.windows_settings.enable_disk_encryption and controls.enable_disk_encryption cannot both be set",
+			},
+			{
+				name: "linux escrow",
+				controls: `  enable_disk_encryption: true
+  linux_settings:
+    enable_escrow_disk_encryption_key: true`,
+				wantErr: "controls.linux_settings.enable_escrow_disk_encryption_key and controls.enable_disk_encryption cannot both be set",
+			},
+			{
+				name: "bitlocker pin",
+				controls: `  windows_require_bitlocker_pin: true
+  windows_settings:
+    enable_disk_encryption: true
+    require_bitlocker_pin: true`,
+				wantErr: "controls.windows_settings.require_bitlocker_pin and controls.windows_require_bitlocker_pin cannot both be set",
+			},
+		} {
+			t.Run(c.name, func(t *testing.T) {
+				testing_utils.SetupFullGitOpsPremiumServer(t)
+				t.Setenv("FLEET_SERVER_URL", fleetServerURL)
+
+				_, err := runAppNoChecks([]string{"gitops", "-f", writeGlobalFile(t, c.controls)})
+				require.ErrorContains(t, err, c.wantErr)
+			})
+		}
+	})
+
+	// The PIN cannot be required without Windows disk encryption, whichever
+	// spelling the file uses to turn encryption on.
+	t.Run("rejects a BitLocker PIN without Windows disk encryption", func(t *testing.T) {
+		for _, c := range []struct {
+			name     string
+			controls string
+		}{
+			{
+				name: "per-platform encryption off",
+				controls: `  windows_settings:
+    enable_disk_encryption: false
+    require_bitlocker_pin: true`,
+			},
+			{
+				name: "per-platform encryption absent",
+				controls: `  windows_settings:
+    require_bitlocker_pin: true`,
+			},
+			{
+				name: "flat encryption off",
+				controls: `  enable_disk_encryption: false
+  windows_settings:
+    require_bitlocker_pin: true`,
+			},
+			{
+				name: "flat encryption off with flat pin",
+				controls: `  enable_disk_encryption: false
+  windows_require_bitlocker_pin: true`,
+			},
+		} {
+			t.Run(c.name, func(t *testing.T) {
+				testing_utils.SetupFullGitOpsPremiumServer(t)
+				t.Setenv("FLEET_SERVER_URL", fleetServerURL)
+
+				_, err := runAppNoChecks([]string{"gitops", "-f", writeGlobalFile(t, c.controls)})
+				require.ErrorContains(t, err, "controls.windows_settings.enable_disk_encryption must be true if controls.windows_settings.require_bitlocker_pin is true")
+			})
+		}
+	})
+
+	t.Run("applies the per-platform keys", func(t *testing.T) {
+		_, savedAppConfigPtr, _ := testing_utils.SetupFullGitOpsPremiumServer(t)
+		t.Setenv("FLEET_SERVER_URL", fleetServerURL)
+
+		_ = runAppForTest(t, []string{"gitops", "-f", writeGlobalFile(t, `  apple_settings:
+    enable_disk_encryption: true
+    enable_escrow_disk_encryption_key: false
+  windows_settings:
+    enable_disk_encryption: true
+    require_bitlocker_pin: true
+  linux_settings:
+    enable_escrow_disk_encryption_key: true`)})
+
+		mdm := (*savedAppConfigPtr).MDM
+		require.True(t, mdm.MacOSSettings.EnableDiskEncryption.Value)
+		require.False(t, mdm.MacOSSettings.EnableEscrowDiskEncryptionKey.Value)
+		require.True(t, mdm.WindowsSettings.EnableDiskEncryption.Value)
+		require.True(t, mdm.WindowsSettings.RequireBitLockerPIN.Value)
+		require.True(t, mdm.LinuxSettings.EnableEscrowDiskEncryptionKey.Value)
+		// The flat key is virtual: the AND of the four settings.
+		require.False(t, mdm.EnableDiskEncryption.Value)
+	})
+
+	// The deprecated flat key on its own still has to fan out to every platform.
+	t.Run("applies the deprecated flat key", func(t *testing.T) {
+		_, savedAppConfigPtr, _ := testing_utils.SetupFullGitOpsPremiumServer(t)
+		t.Setenv("FLEET_SERVER_URL", fleetServerURL)
+
+		_ = runAppForTest(t, []string{"gitops", "-f", writeGlobalFile(t, "  enable_disk_encryption: true")})
+
+		mdm := (*savedAppConfigPtr).MDM
+		require.True(t, mdm.MacOSSettings.EnableDiskEncryption.Value)
+		require.True(t, mdm.MacOSSettings.EnableEscrowDiskEncryptionKey.Value)
+		require.True(t, mdm.WindowsSettings.EnableDiskEncryption.Value)
+		require.True(t, mdm.LinuxSettings.EnableEscrowDiskEncryptionKey.Value)
+		require.True(t, mdm.EnableDiskEncryption.Value)
+	})
+
+	// A controls block carrying none of these keys used to panic on the
+	// apple_settings type assertion.
+	// GitOps is declarative: settings the file omits are turned off rather than
+	// left at their stored values.
+	t.Run("clears the settings the file omits", func(t *testing.T) {
+		_, savedAppConfigPtr, _ := testing_utils.SetupFullGitOpsPremiumServer(t)
+		t.Setenv("FLEET_SERVER_URL", fleetServerURL)
+
+		mdm := &(*savedAppConfigPtr).MDM
+		mdm.EnableDiskEncryption = optjson.SetBool(true)
+		mdm.MacOSSettings.EnableDiskEncryption = optjson.SetBool(true)
+		mdm.MacOSSettings.EnableEscrowDiskEncryptionKey = optjson.SetBool(true)
+		mdm.WindowsSettings.EnableDiskEncryption = optjson.SetBool(true)
+		mdm.WindowsSettings.RequireBitLockerPIN = optjson.SetBool(true)
+		mdm.RequireBitLockerPIN = optjson.SetBool(true)
+		mdm.LinuxSettings.EnableEscrowDiskEncryptionKey = optjson.SetBool(true)
+
+		_ = runAppForTest(t, []string{"gitops", "-f", writeGlobalFile(t, "  windows_enabled_and_configured: true")})
+
+		mdm = &(*savedAppConfigPtr).MDM
+		require.False(t, mdm.MacOSSettings.EnableDiskEncryption.Value)
+		require.False(t, mdm.MacOSSettings.EnableEscrowDiskEncryptionKey.Value)
+		require.False(t, mdm.WindowsSettings.EnableDiskEncryption.Value)
+		require.False(t, mdm.WindowsSettings.RequireBitLockerPIN.Value)
+		require.False(t, mdm.RequireBitLockerPIN.Value)
+		require.False(t, mdm.LinuxSettings.EnableEscrowDiskEncryptionKey.Value)
+		require.False(t, mdm.EnableDiskEncryption.Value)
+	})
+
+	t.Run("accepts a controls block with no disk encryption keys", func(t *testing.T) {
+		testing_utils.SetupFullGitOpsPremiumServer(t)
+		t.Setenv("FLEET_SERVER_URL", fleetServerURL)
+
+		_, err := runAppNoChecks([]string{"gitops", "-f", writeGlobalFile(t, "  windows_enabled_and_configured: true")})
+		require.NoError(t, err)
+	})
 }
 
 func TestGitOpsExceptionEnforcement(t *testing.T) {
@@ -2544,11 +2750,17 @@ func TestGitOpsFullTeam(t *testing.T) {
 
 	testing_utils.AddLabelMocks(ds)
 
-	ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, teamID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
+	ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, teamID *uint, installers []*fleet.UploadSoftwareInstallerPayload) ([]uint, error) {
 		if teamID != nil && *teamID != 0 {
 			appliedSoftwareInstallers = installers
 		}
-		return nil
+		return nil, nil
+	}
+	ds.GetABMTokenOrgNamesAssociatedByDefaultTeamsFunc = func(ctx context.Context, teamID *uint) ([]string, error) {
+		return nil, nil
+	}
+	ds.GetVPPTokenByTeamIDFunc = func(ctx context.Context, teamID *uint) (*fleet.VPPTokenDB, error) {
+		return nil, nil
 	}
 
 	testing_utils.StartSoftwareInstallerServer(t)
@@ -4711,33 +4923,34 @@ software:
 	workstations := team("💻 Workstations")
 
 	cases := []struct {
-		name             string
-		cfgs             []string
-		extraArgs        []string
-		seedTeamName     string
-		dryRunAssertion  func(t *testing.T, out string, defaultTeamID *uint, err error)
-		realRunAssertion func(t *testing.T, out string, defaultTeamID *uint, err error)
+		name              string
+		cfgs              []string
+		extraArgs         []string
+		seedTeamName      string
+		seedTeamIsDefault bool
+		dryRunAssertion   func(t *testing.T, out string, defaultTeamID *uint, err error)
+		realRunAssertion  func(t *testing.T, out string, defaultTeamID *uint, err error)
 	}{
 		{
 			name: "delete-other-fleets cannot delete the default fleet",
 			cfgs: []string{
-				global(`windows_enrollment:
+				global(`windows_automatic_enrollment:
       default_fleet: "💻 Workstations"`),
 				team("Other team"),
 			},
 			extraArgs:    []string{"--delete-other-fleets"},
 			seedTeamName: "💻 Workstations",
 			dryRunAssertion: func(t *testing.T, out string, defaultTeamID *uint, err error) {
-				require.ErrorContains(t, err, "windows_enrollment default_fleet 💻 Workstations cannot be deleted")
+				require.ErrorContains(t, err, "windows_automatic_enrollment default_fleet 💻 Workstations cannot be deleted")
 			},
 			realRunAssertion: func(t *testing.T, out string, defaultTeamID *uint, err error) {
-				require.ErrorContains(t, err, "windows_enrollment default_fleet 💻 Workstations cannot be deleted")
+				require.ErrorContains(t, err, "windows_automatic_enrollment default_fleet 💻 Workstations cannot be deleted")
 			},
 		},
 		{
 			name: "fleet declared in the same run",
 			cfgs: []string{
-				global(`windows_enrollment:
+				global(`windows_automatic_enrollment:
       default_fleet: "💻 Workstations"`),
 				workstations,
 			},
@@ -4756,28 +4969,50 @@ software:
 		{
 			name: "unknown fleet errors",
 			cfgs: []string{
-				global(`windows_enrollment:
+				global(`windows_automatic_enrollment:
       default_fleet: "Ghosts"`),
 				workstations,
 			},
 			dryRunAssertion: func(t *testing.T, out string, defaultTeamID *uint, err error) {
-				require.ErrorContains(t, err, `windows_enrollment default_fleet "Ghosts" not found in team configs`)
+				require.ErrorContains(t, err, `windows_automatic_enrollment default_fleet "Ghosts" not found in team configs`)
 				assert.Nil(t, defaultTeamID)
 			},
 			realRunAssertion: func(t *testing.T, out string, defaultTeamID *uint, err error) {
-				require.ErrorContains(t, err, `windows_enrollment default_fleet "Ghosts" not found in team configs`)
+				require.ErrorContains(t, err, `windows_automatic_enrollment default_fleet "Ghosts" not found in team configs`)
 				assert.Nil(t, defaultTeamID)
 			},
 		},
 		{
 			name: "empty value is accepted and clears",
 			cfgs: []string{
-				global(`windows_enrollment:
+				global(`windows_automatic_enrollment:
       default_fleet: ""`),
 				workstations,
 			},
 			dryRunAssertion: func(t *testing.T, out string, defaultTeamID *uint, err error) {
 				require.NoError(t, err)
+				assert.Contains(t, out, "[!] gitops dry run succeeded")
+			},
+			realRunAssertion: func(t *testing.T, out string, defaultTeamID *uint, err error) {
+				require.NoError(t, err)
+				assert.Nil(t, defaultTeamID)
+				assert.Contains(t, out, "[!] gitops succeeded")
+			},
+		},
+		{
+			name: "Unassigned is accepted and clears",
+			cfgs: []string{
+				global(`windows_automatic_enrollment:
+      default_fleet: "Unassigned"`),
+				workstations,
+			},
+			seedTeamName:      "Seeded fleet",
+			seedTeamIsDefault: true,
+			dryRunAssertion: func(t *testing.T, out string, defaultTeamID *uint, err error) {
+				require.NoError(t, err)
+				assert.NotNil(t, defaultTeamID, "dry run must not clear the default fleet")
+				assert.NotContains(t, out, "would apply Windows enrollment default fleet",
+					"Unassigned names no fleet, so the apply must not be deferred")
 				assert.Contains(t, out, "[!] gitops dry run succeeded")
 			},
 			realRunAssertion: func(t *testing.T, out string, defaultTeamID *uint, err error) {
@@ -4840,13 +5075,16 @@ software:
 				return nil
 			}
 
+			// Track the persisted default fleet, overriding the helper's stateful default so the test can assert on it directly.
+			var defaultTeamID *uint
+
 			if tt.seedTeamName != "" {
 				seeded := &fleet.Team{ID: 99, Name: tt.seedTeamName}
 				savedTeams[tt.seedTeamName] = &seeded
+				if tt.seedTeamIsDefault {
+					defaultTeamID = &seeded.ID
+				}
 			}
-
-			// Track the persisted default fleet, overriding the helper's stateful default so the test can assert on it directly.
-			var defaultTeamID *uint
 			ds.GetWindowsEnrollmentDefaultFleetFunc = func(ctx context.Context) (*uint, string, error) {
 				if defaultTeamID == nil {
 					return nil, "", nil
@@ -9260,4 +9498,69 @@ software:
 	require.Contains(t, err.Error(), "Microsoft Graph credentials are available in Fleet Premium only",
 		"the license branch must fire rather than surfacing the raw client error")
 	require.Contains(t, err.Error(), filepath.Base(f.Name()), "the message must name the file being applied")
+}
+
+func TestGitOpsPolicyResendConfigurationProfile(t *testing.T) {
+	const (
+		macProfileUUID = "a-mac-profile-uuid"
+		macProfileName = "Password policy - require 10 characters"
+	)
+
+	ds, _, _ := testing_utils.SetupFullGitOpsPremiumServer(t)
+
+	ds.ListMDMConfigProfilesFunc = func(
+		ctx context.Context, teamID *uint, opt fleet.ListOptions,
+	) ([]*fleet.MDMConfigProfilePayload, *fleet.PaginationMetadata, error) {
+		return []*fleet.MDMConfigProfilePayload{
+			{ProfileUUID: macProfileUUID, TeamID: teamID, Name: macProfileName, Platform: "darwin"},
+		}, &fleet.PaginationMetadata{}, nil
+	}
+	ds.LabelIDsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]uint, error) {
+		return map[string]uint{}, nil
+	}
+
+	var appliedSpecs []*fleet.PolicySpec
+	ds.ApplyPolicySpecsFunc = func(ctx context.Context, authorID uint, specs []*fleet.PolicySpec) error {
+		appliedSpecs = append(appliedSpecs, specs...)
+		return nil
+	}
+
+	tmpDir := t.TempDir()
+	profileContents, err := os.ReadFile("./testdata/gitops/lib/macos-password.mobileconfig")
+	require.NoError(t, err)
+	profilePath := filepath.Join(tmpDir, "password.mobileconfig")
+	require.NoError(t, os.WriteFile(profilePath, profileContents, 0o600))
+
+	teamYAMLPath := filepath.Join(tmpDir, "team.yml")
+	require.NoError(t, os.WriteFile(teamYAMLPath, fmt.Appendf(nil, `
+name: Resend Profile Team
+team_settings:
+  secrets:
+    - secret: "ABC"
+queries:
+agent_options:
+software:
+controls:
+  macos_settings:
+    custom_settings:
+      - path: %s
+policies:
+  - name: Resend policy
+    query: "SELECT 1"
+    platform: darwin
+    resend_configuration_profile: %s
+  - name: Plain policy
+    query: "SELECT 2"
+`, profilePath, macProfileName), 0o600))
+
+	_, err = runAppNoChecks([]string{"gitops", "-f", teamYAMLPath})
+	require.NoError(t, err)
+
+	require.Len(t, appliedSpecs, 2)
+	require.Equal(t, "Resend policy", appliedSpecs[0].Name)
+	require.Equal(t, new(macProfileUUID), appliedSpecs[0].ProfileUUID)
+	// A policy without the key sends an empty UUID, which unsets any profile
+	// previously associated with it.
+	require.Equal(t, "Plain policy", appliedSpecs[1].Name)
+	require.Equal(t, new(""), appliedSpecs[1].ProfileUUID)
 }

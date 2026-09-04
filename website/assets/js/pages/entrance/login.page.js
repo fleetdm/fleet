@@ -112,9 +112,22 @@ parasails.registerPage('login', {
         if(cloudResponse.isIcpUser) {
           // For users with a hosted Render trial
           window.gtag('event','fleet_website__sign_up__icp');
+          // Additional conversion tracking
+          window.gtag('event', 'conversion', {
+            'send_to': 'AW-10788733823/aMyECLupkeUcEP-GvJgo',
+            'value': 1.0,
+            'currency': 'USD'
+          });
+
         } else {
           // For users with a local Fleet Premium trial.
           window.gtag('event','fleet_website__sign_up__non_icp');
+          // Additional conversion tracking
+          window.gtag('event', 'conversion', {
+            'send_to': 'AW-10788733823/pk3BCK_XjuUcEP-GvJgo',
+            'value': 1.0,
+            'currency': 'USD'
+          });
         }
       }
 
