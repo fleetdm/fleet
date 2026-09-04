@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "2026.7.0",
+      "version": "2026.8.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.bitwarden.desktop';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.bitwarden.desktop' AND version_compare(bundle_short_version, '2026.7.0') < 0);",
-        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.bitwarden.desktop');"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.bitwarden.desktop' AND version_compare(bundle_short_version, '2026.8.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.bitwarden.desktop' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/bitwarden/clients/releases/download/desktop-v2026.7.0/Bitwarden-2026.7.0-universal.dmg",
+      "installer_url": "https://github.com/bitwarden/clients/releases/download/desktop-v2026.8.0/Bitwarden-2026.8.0-universal.dmg",
       "install_script_ref": "65c7d7ee",
       "uninstall_script_ref": "9b010a8a",
-      "sha256": "50a7c03dc6d172bf0099fc0469f74acffab1624f7aad06d3f56b58b030a5be92",
+      "sha256": "8180ae4bbb2c4686e19ebab897eb661bc4fffbfa3992779d4fb3d2251609f7d1",
       "default_categories": [
         "Productivity"
       ]

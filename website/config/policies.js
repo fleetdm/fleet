@@ -80,8 +80,9 @@ module.exports.policies = {
   'view-partners': true,
   'deliver-webinar-access-request': true,
   'view-download': true,
-  'view-visibility-and-reporting': true,
+  'view-endpoint-governance': true,
   'view-security-and-control': true,
   'view-ai-in-it': true,
   'view-capex-savings': true,
+  'view-configuration-generator': true,
 };

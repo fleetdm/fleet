@@ -584,7 +584,6 @@ The MDM endpoints exist to support the related command-line interface sub-comman
 - [SCEP proxy](#scep-proxy)
 - [Get Android Enterprise signup URL](#get-android-enterprise-signup-url)
 - [Connect Android Enterprise](#connect-android-enterprise)
-- [Delete Android Enterprise](#delete-android-enterprise)
 - [Get Android enrollment token](#get-android-enrollment-token)
 - [Create Android enrollment token](#create-android-enrollment-token)
 - [Get Android Enterprise server-sent event](#get-android-enterprise-server-sent-event)
@@ -1527,21 +1526,6 @@ This is callback URL that will be open after user completes Google's signup flow
 <html><!-- self-closing page --></html>
 ```
 
-### Delete Android Enterprise
-
-> **Experimental feature.** This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
-This endpoint is used to delete Android Enterprise. Once deleted, hosts that belong to Android Enterprise will be un-enrolled and Android MDM features will be turned off.
-
-`DELETE /api/v1/fleet/android_enterprise/`
-
-#### Example
-
-`DELETE /api/v1/fleet/android_enterprise`
-
-##### Default response
-
-`Status: 200`
-
 ### Get Android enrollment token
 
 > **Experimental feature.** This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
@@ -2244,6 +2228,10 @@ If the `name` is not already associated with an existing fleet, this API route c
 | mdm.windows_settings                        | object | body  | The Windows-specific MDM settings.                                                                                                                                                                                                    |
 | mdm.windows_settings.configuration_profiles        | array   | body  | The list of objects consists of a `path` to XML files and `labels_include_all`, `labels_include_any`, or `labels_exclude_any` list of label names.                                                                                                                                                         |
 | scripts                                   | array   | body  | A list of script files to add to this fleet so they can be executed at a later time.                                                                                                                                                 |
+| webhook_settings                          | object | body  | The fleet's webhook settings. Only the keys provided are applied; omitted webhooks are left unchanged.                                                                                                                               |
+| webhook_settings.host_status_webhook      | object | body  | See [`webhook_settings.host_status_webhook`](https://fleetdm.com/docs/rest-api/rest-api#webhook-settings-host-status-webhook2).                                                                                                       |
+| webhook_settings.failing_policies_webhook | object | body  | See [`webhook_settings.failing_policies_webhook`](https://fleetdm.com/docs/rest-api/rest-api#webhook-settings-failing-policies-webhook2).                                                                                             |
+| webhook_settings.host_activities_webhook  | object | body  | See [`webhook_settings.host_activities_webhook`](https://fleetdm.com/docs/rest-api/rest-api#webhook-settings-host-activities-webhook).                                                                                               |
 | software                                   | object   | body  | The fleet's software that will be available for install.  |
 | software.app_store_apps                   | array   | body  | An array of objects with values below. |
 | software.app_store_apps.app_store_id      | string   | body  | ID of the App Store app. |
@@ -3563,6 +3551,7 @@ X-Client-Cert-Serial: <fleet_identity_scep_cert_serial>
         "name": "GoogleChrome.pkg",
         "version": "125.12.2",
         "self_service": true,
+        "has_uninstall_script": true,
         "categories": ["Browsers"],
      	"last_install": {
           "install_uuid": "8bbb8ac2-b254-4387-8cba-4d8a0407368b",
@@ -3864,7 +3853,7 @@ Gets the result of a uninstall performed on a host, viewed from the My device pa
 
 _Available in Fleet Premium_
 
-Lists the policies applied to the current device.
+Lists the policies applied to the current device. Policies are returned in a device-safe representation that excludes the policy author's identity and the raw SQL query.
 
 `GET /api/v1/fleet/device/{token}/policies`
 
@@ -3887,29 +3876,31 @@ Lists the policies applied to the current device.
   "policies": [
     {
       "id": 1,
-      "name": "SomeQuery",
-      "query": "SELECT * FROM foo;",
-      "description": "this is a query",
+      "name": "SomePolicy",
+      "description": "this is a policy",
       "resolution": "fix with these steps...",
       "platform": "windows,linux",
+      "critical": false,
+      "conditional_access_enabled": false,
       "response": "pass"
     },
     {
       "id": 2,
-      "name": "SomeQuery2",
-      "query": "SELECT * FROM bar;",
-      "description": "this is another query",
+      "name": "SomePolicy2",
+      "description": "this is another policy",
       "resolution": "fix with these other steps...",
       "platform": "darwin",
+      "critical": true,
+      "conditional_access_enabled": false,
       "response": "fail"
     },
     {
       "id": 3,
-      "name": "SomeQuery3",
-      "query": "SELECT * FROM baz;",
+      "name": "SomePolicy3",
       "description": "",
-      "resolution": "",
       "platform": "",
+      "critical": false,
+      "conditional_access_enabled": false,
       "response": ""
     }
   ]

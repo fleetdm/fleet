@@ -674,6 +674,13 @@
       "description": "AnyDesk is an app that allows connection to a computer remotely."
     },
     {
+      "name": "AnyDesk",
+      "slug": "anydesk/windows",
+      "platform": "windows",
+      "unique_identifier": "AnyDesk",
+      "description": "AnyDesk is an app that allows connection to a computer remotely."
+    },
+    {
       "name": "Any.do",
       "slug": "anydo/darwin",
       "platform": "darwin",
@@ -924,6 +931,13 @@
       "platform": "windows",
       "unique_identifier": "Azul Zulu JRE",
       "description": "Azul Zulu JRE 25 is a free Java runtime environment (JRE-only build) of OpenJDK 25 from Azul Systems."
+    },
+    {
+      "name": "Microsoft Azure CLI",
+      "slug": "azure-cli/windows",
+      "platform": "windows",
+      "unique_identifier": "Microsoft Azure CLI (64-bit)",
+      "description": "Microsoft Azure CLI is a command-line tool for managing Azure resources."
     },
     {
       "name": "Azure Data Studio",
@@ -2613,6 +2627,13 @@
       "description": "Drivers for DisplayLink docks, adapters and monitors."
     },
     {
+      "name": "DisplayLink USB Graphics Software",
+      "slug": "displaylink/windows",
+      "platform": "windows",
+      "unique_identifier": "DisplayLink Graphics",
+      "description": "Drivers for DisplayLink docks, adapters and monitors."
+    },
+    {
       "name": "dnGrep",
       "slug": "dngrep/windows",
       "platform": "windows",
@@ -3943,6 +3964,13 @@
       "description": "Grammarly Desktop is an AI writing assistant."
     },
     {
+      "name": "Grammarly Desktop",
+      "slug": "grammarly-desktop/windows",
+      "platform": "windows",
+      "unique_identifier": "Grammarly for Windows",
+      "description": "Grammarly Desktop is an AI writing assistant."
+    },
+    {
       "name": "GrandPerspective",
       "slug": "grandperspective/darwin",
       "platform": "darwin",
@@ -4025,6 +4053,13 @@
       "platform": "windows",
       "unique_identifier": "HandBrake",
       "description": "HandBrake is an open-source video transcoder."
+    },
+    {
+      "name": "Harmony SASE",
+      "slug": "harmony-sase/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.safervpn.osx.smb",
+      "description": "Harmony SASE is a zero trust network access platform, formerly Perimeter 81."
     },
     {
       "name": "Hazel",
@@ -4405,32 +4440,18 @@
       "description": "IntelliDock is a hides the Dock when it is overlapped by a window."
     },
     {
-      "name": "IntelliJ IDEA CE",
-      "slug": "intellij-idea-ce/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.jetbrains.intellij.ce",
-      "description": "IntelliJ IDEA CE is a community edition IDE for Java development by JetBrains."
-    },
-    {
-      "name": "IntelliJ IDEA CE",
-      "slug": "intellij-idea-ce/windows",
-      "platform": "windows",
-      "unique_identifier": "IntelliJ IDEA Community Edition",
-      "description": "IntelliJ IDEA CE is a community edition IDE for Java development by JetBrains."
-    },
-    {
-      "name": "IntelliJ IDEA Ultimate",
+      "name": "IntelliJ IDEA",
       "slug": "intellij-idea/darwin",
       "platform": "darwin",
       "unique_identifier": "com.jetbrains.intellij",
-      "description": "IntelliJ IDEA Ultimate is a Java IDE by JetBrains."
+      "description": "IntelliJ IDEA is a Java IDE by JetBrains."
     },
     {
-      "name": "IntelliJ IDEA Ultimate",
+      "name": "IntelliJ IDEA",
       "slug": "intellij-idea/windows",
       "platform": "windows",
       "unique_identifier": "IntelliJ IDEA",
-      "description": "IntelliJ IDEA Ultimate is a Java IDE by JetBrains."
+      "description": "IntelliJ IDEA is a Java IDE by JetBrains."
     },
     {
       "name": "Company Portal",
@@ -4636,6 +4657,13 @@
       "description": "Kdenlive is a free and Open Source Video Editor."
     },
     {
+      "name": "KeePass",
+      "slug": "keepass/windows",
+      "platform": "windows",
+      "unique_identifier": "KeePass Password Safe",
+      "description": "KeePass is a free and open source password manager."
+    },
+    {
       "name": "KeePassXC",
       "slug": "keepassxc/darwin",
       "platform": "darwin",
@@ -4717,6 +4745,13 @@
       "slug": "keystore-explorer/darwin",
       "platform": "darwin",
       "unique_identifier": "org.kse.keystore-explorer",
+      "description": "KeyStore Explorer is a GUI replacement for the Java command-line utilities keytool and jarsigner."
+    },
+    {
+      "name": "KeyStore Explorer",
+      "slug": "keystore-explorer/windows",
+      "platform": "windows",
+      "unique_identifier": "KeyStore Explorer",
       "description": "KeyStore Explorer is a GUI replacement for the Java command-line utilities keytool and jarsigner."
     },
     {
@@ -5392,6 +5427,13 @@
       "description": "Microsoft Azure Storage Explorer is an explorer for Azure Storage."
     },
     {
+      "name": "Microsoft Defender",
+      "slug": "microsoft-defender/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.microsoft.wdav",
+      "description": "Microsoft Defender is an enterprise endpoint protection and antivirus client."
+    },
+    {
       "name": "Microsoft .NET Desktop Runtime 10",
       "slug": "microsoft-dotnet-desktop-runtime-10/windows",
       "platform": "windows",
@@ -5453,6 +5495,13 @@
       "platform": "windows",
       "unique_identifier": "Microsoft 365 Apps",
       "description": "Microsoft Office is a suite of productivity applications including Word, Excel, PowerPoint, and Outlook."
+    },
+    {
+      "name": "Microsoft OLE DB Driver 19 for SQL Server",
+      "slug": "microsoft-ole-db-driver-19/windows",
+      "platform": "windows",
+      "unique_identifier": "Microsoft OLE DB Driver 19 for SQL Server",
+      "description": "Microsoft OLE DB Driver 19 for SQL Server lets applications connect to SQL Server and Azure SQL Database through the OLE DB interface."
     },
     {
       "name": "Microsoft OneNote",
@@ -5726,6 +5775,13 @@
       "platform": "darwin",
       "unique_identifier": "com.electron.mqttx",
       "description": "MQTTX is a cross-platform MQTT 5.0 Desktop Client."
+    },
+    {
+      "name": "mRemoteNG",
+      "slug": "mremoteng/windows",
+      "platform": "windows",
+      "unique_identifier": "mRemoteNG",
+      "description": "mRemoteNG is an open source, multi-protocol, tabbed remote connections manager."
     },
     {
       "name": "Mullvad Browser",
@@ -7149,6 +7205,20 @@
       "description": "RapidWeaver is a web design software."
     },
     {
+      "name": "Raspberry Pi Imager",
+      "slug": "raspberry-pi-imager/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.raspberrypi.rpi-imager",
+      "description": "Raspberry Pi Imager is an imaging utility to install operating systems to a microSD card."
+    },
+    {
+      "name": "Raspberry Pi Imager",
+      "slug": "raspberry-pi-imager/windows",
+      "platform": "windows",
+      "unique_identifier": "Raspberry Pi Imager",
+      "description": "Raspberry Pi Imager is an imaging utility to install operating systems to a microSD card."
+    },
+    {
       "name": "Raycast",
       "slug": "raycast/darwin",
       "platform": "darwin",
@@ -7357,6 +7427,13 @@
       "platform": "darwin",
       "unique_identifier": "com.rightfontapp.RightFont5",
       "description": "RightFont is a font manager that helps preview, install, sync and manage fonts."
+    },
+    {
+      "name": "RingCentral",
+      "slug": "ringcentral/windows",
+      "platform": "windows",
+      "unique_identifier": "RingCentral",
+      "description": "RingCentral is an app for business phone calls, messaging, and video meetings."
     },
     {
       "name": "Rive",
@@ -8934,6 +9011,13 @@
       "description": "UTM is a virtual machines UI using QEMU."
     },
     {
+      "name": "Vagrant",
+      "slug": "vagrant/windows",
+      "platform": "windows",
+      "unique_identifier": "Vagrant",
+      "description": "Vagrant is a tool for building and managing virtual machine environments."
+    },
+    {
       "name": "Vanilla",
       "slug": "vanilla/darwin",
       "platform": "darwin",
@@ -8988,6 +9072,13 @@
       "platform": "darwin",
       "unique_identifier": "org.via.configurator",
       "description": "VIA is a keyboard configurator."
+    },
+    {
+      "name": "Vim",
+      "slug": "vim/windows",
+      "platform": "windows",
+      "unique_identifier": "Vim",
+      "description": "Vim is a text editor."
     },
     {
       "name": "Vimcal",

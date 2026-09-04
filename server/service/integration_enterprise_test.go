@@ -62,6 +62,7 @@ import (
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	mdmtest "github.com/fleetdm/fleet/v4/server/mdm/testing_utils"
 	fleetmock "github.com/fleetdm/fleet/v4/server/mock"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/policies"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	commonCalendar "github.com/fleetdm/fleet/v4/server/service/calendar"
@@ -69,6 +70,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service/contract"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/auth"
 	"github.com/fleetdm/fleet/v4/server/service/osquery_utils"
+	"github.com/fleetdm/fleet/v4/server/service/redis_install_attempts"
 	"github.com/fleetdm/fleet/v4/server/service/redis_lock"
 	"github.com/fleetdm/fleet/v4/server/service/schedule"
 	"github.com/fleetdm/fleet/v4/server/test"
@@ -83,6 +85,36 @@ import (
 	"gopkg.in/guregu/null.v3"
 )
 
+// withDiskEncryptionDefaults fills in the explicit per-platform disk
+// encryption booleans that every team spec apply now persists (settings
+// absent from the spec are stored as explicit false).
+func withDiskEncryptionDefaults(m fleet.TeamMDM) fleet.TeamMDM {
+	if !m.MacOSSettings.EnableDiskEncryption.Valid {
+		m.MacOSSettings.EnableDiskEncryption = optjson.SetBool(false)
+	}
+	if !m.MacOSSettings.EnableEscrowDiskEncryptionKey.Valid {
+		m.MacOSSettings.EnableEscrowDiskEncryptionKey = optjson.SetBool(false)
+	}
+	if !m.WindowsSettings.EnableDiskEncryption.Valid {
+		m.WindowsSettings.EnableDiskEncryption = optjson.SetBool(false)
+	}
+	if !m.LinuxSettings.EnableEscrowDiskEncryptionKey.Valid {
+		m.LinuxSettings.EnableEscrowDiskEncryptionKey = optjson.SetBool(false)
+	}
+	return m
+}
+
+// withCreateDefaults adds the defaults only fleet creation persists on top of
+// withDiskEncryptionDefaults: the canonical BitLocker PIN home is stored as
+// explicit false for new fleets, while edits leave an absent value untouched.
+func withCreateDefaults(m fleet.TeamMDM) fleet.TeamMDM {
+	m = withDiskEncryptionDefaults(m)
+	if !m.WindowsSettings.RequireBitLockerPIN.Valid {
+		m.WindowsSettings.RequireBitLockerPIN = optjson.SetBool(false)
+	}
+	return m
+}
+
 func TestIntegrationsEnterprise(t *testing.T) {
 	testingSuite := new(integrationEnterpriseTestSuite)
 	testingSuite.withServer.s = &testingSuite.Suite
@@ -93,6 +125,7 @@ type integrationEnterpriseTestSuite struct {
 	withServer
 	suite.Suite
 	redisPool              fleet.RedisPool
+	attemptCounter         fleet.SoftwareInstallAttemptCounter
 	calendarSchedule       *schedule.Schedule
 	softwareInstallStore   fleet.SoftwareInstallerStore
 	softwareTitleIconStore fleet.SoftwareTitleIconStore
@@ -103,7 +136,8 @@ type integrationEnterpriseTestSuite struct {
 func (s *integrationEnterpriseTestSuite) SetupSuite() {
 	s.withDS.SetupSuite("integrationEnterpriseTestSuite")
 
-	s.redisPool = redistest.SetupRedis(s.T(), "integration_enterprise", false, false, false)
+	s.redisPool = redistest.SetupRedis(s.T(), s.T().Name(), false, false, false)
+	s.attemptCounter = redis_install_attempts.NewTest(s.T(), s.redisPool)
 	s.lq = live_query_mock.New(s.T())
 	var calendarSchedule *schedule.Schedule
 
@@ -130,11 +164,12 @@ func (s *integrationEnterpriseTestSuite) SetupSuite() {
 		License: &fleet.LicenseInfo{
 			Tier: fleet.TierPremium,
 		},
-		Pool:           s.redisPool,
-		Rs:             pubsub.NewInmemQueryResults(),
-		Lq:             s.lq,
-		Logger:         slog.New(slog.NewTextHandler(os.Stdout, nil)),
-		EnableCachedDS: true,
+		Pool:                  s.redisPool,
+		InstallAttemptCounter: s.attemptCounter,
+		Rs:                    pubsub.NewInmemQueryResults(),
+		Lq:                    s.lq,
+		Logger:                slog.New(slog.NewTextHandler(os.Stdout, nil)),
+		EnableCachedDS:        true,
 		StartCronSchedules: []TestNewScheduleFunc{
 			func(ctx context.Context, ds fleet.Datastore) fleet.NewCronScheduleFunc {
 				return func() (fleet.CronSchedule, error) {
@@ -225,8 +260,8 @@ func (s *integrationEnterpriseTestSuite) clearOktaConditionalAccess() {
 // local account toggle force-defaulted to disabled.
 func defaultExpectedWindowsSettings() fleet.WindowsSettings {
 	return fleet.WindowsSettings{
-		CustomSettings:              optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
-		ManagedLocalAccountSettings: fleet.ManagedLocalAccountSettings{Enabled: optjson.SetBool(false)},
+		CustomSettings:            optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
+		EnableManagedLocalAccount: optjson.SetBool(false),
 	}
 }
 
@@ -315,7 +350,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 		AdditionalQueries:       new(json.RawMessage(`{"foo": "bar"}`)),
 		HistoricalData:          fleet.HistoricalDataSettings{Uptime: true, Vulnerabilities: true},
 	}, team.Config.Features)
-	require.Equal(t, fleet.TeamMDM{
+	require.Equal(t, withCreateDefaults(fleet.TeamMDM{
 		MacOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("14.6.1"),
 			Deadline:       optjson.SetString("2021-01-01"),
@@ -360,7 +395,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
 			Certificates:   optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
 		},
-	}, team.Config.MDM)
+	}), team.Config.MDM)
 
 	// an activity was created for team spec applied
 	s.lastActivityMatches(fleet.ActivityTypeAppliedSpecTeam{}.ActivityName(), fmt.Sprintf(`{"teams": [{"id": %d, "name": %q}], "fleets": [{"id": %d, "name": %q}]}`, team.ID, team.Name, team.ID, team.Name), 0)
@@ -451,7 +486,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 	team, err = s.ds.TeamByName(context.Background(), teamName)
 	require.NoError(t, err)
 	require.Equal(t, applyResp.TeamIDsByName[teamName], team.ID)
-	require.Equal(t, fleet.TeamMDM{
+	require.Equal(t, withCreateDefaults(fleet.TeamMDM{
 		MacOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("14.6.1"),
 			Deadline:       optjson.SetString("2021-01-01"),
@@ -490,12 +525,12 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
 			Certificates:   optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
 		},
-	}, team.Config.MDM)
+	}), team.Config.MDM)
 
 	// get the team via the GET endpoint, check that it properly returns the mdm settings
 	var getTmResp getTeamResponse
 	s.DoJSON("GET", "/api/latest/fleet/teams/"+fmt.Sprint(team.ID), nil, http.StatusOK, &getTmResp)
-	require.Equal(t, fleet.TeamMDM{
+	require.Equal(t, withCreateDefaults(fleet.TeamMDM{
 		MacOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("14.6.1"),
 			Deadline:       optjson.SetString("2021-01-01"),
@@ -534,14 +569,14 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
 			Certificates:   optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
 		},
-	}, getTmResp.Team.Config.MDM)
+	}), getTmResp.Team.Config.MDM)
 
 	// get the team via the list teams endpoint, check that it properly returns the mdm settings
 	var listTmResp listTeamsResponse
 	s.DoJSON("GET", "/api/latest/fleet/teams", nil, http.StatusOK, &listTmResp, "query", teamName)
 	require.True(t, len(listTmResp.Teams) > 0)
 	require.Equal(t, team.ID, listTmResp.Teams[0].ID)
-	require.Equal(t, fleet.TeamMDM{
+	require.Equal(t, withCreateDefaults(fleet.TeamMDM{
 		MacOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("14.6.1"),
 			Deadline:       optjson.SetString("2021-01-01"),
@@ -580,7 +615,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
 			Certificates:   optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
 		},
-	}, listTmResp.Teams[0].Config.MDM)
+	}), listTmResp.Teams[0].Config.MDM)
 
 	// dry-run with invalid agent options
 	agentOpts = json.RawMessage(`{"config": {"nope": 1}}`)
@@ -1477,21 +1512,29 @@ func (s *integrationEnterpriseTestSuite) TestListTeamPoliciesAutomationTypeSoftw
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team.ID), nil, http.StatusOK, &listResp)
 	require.Len(t, listResp.Policies, 3)
 
-	// List with automation_type=software - should return install policy and patch policy only
+	// List with automation_type=software - should return only the install policy, not the patch policy
 	listResp = fleet.ListTeamPoliciesResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team.ID), nil, http.StatusOK, &listResp, "automation_type", "software")
-	require.Len(t, listResp.Policies, 2)
-	policyIDs := []uint{listResp.Policies[0].ID, listResp.Policies[1].ID}
-	assert.Contains(t, policyIDs, installPolicy.Policy.ID)
-	assert.Contains(t, policyIDs, patchPolicy.Policy.ID)
+	require.Len(t, listResp.Policies, 1)
+	assert.Equal(t, installPolicy.Policy.ID, listResp.Policies[0].ID)
 
 	// List with merge_inherited and automation_type=software
 	listResp = fleet.ListTeamPoliciesResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team.ID), nil, http.StatusOK, &listResp, "merge_inherited", "true", "automation_type", "software")
-	require.Len(t, listResp.Policies, 2)
-	policyIDs = []uint{listResp.Policies[0].ID, listResp.Policies[1].ID}
-	assert.Contains(t, policyIDs, installPolicy.Policy.ID)
-	assert.Contains(t, policyIDs, patchPolicy.Policy.ID)
+	require.Len(t, listResp.Policies, 1)
+	assert.Equal(t, installPolicy.Policy.ID, listResp.Policies[0].ID)
+
+	// List with automation_type=patch - should return only the patch policy
+	listResp = fleet.ListTeamPoliciesResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team.ID), nil, http.StatusOK, &listResp, "automation_type", "patch")
+	require.Len(t, listResp.Policies, 1)
+	assert.Equal(t, patchPolicy.Policy.ID, listResp.Policies[0].ID)
+
+	// List with merge_inherited and automation_type=patch
+	listResp = fleet.ListTeamPoliciesResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team.ID), nil, http.StatusOK, &listResp, "merge_inherited", "true", "automation_type", "patch")
+	require.Len(t, listResp.Policies, 1)
+	assert.Equal(t, patchPolicy.Policy.ID, listResp.Policies[0].ID)
 }
 
 func (s *integrationEnterpriseTestSuite) TestNoTeamPolicies() {
@@ -3885,7 +3928,7 @@ func (s *integrationEnterpriseTestSuite) TestWindowsUpdatesTeamConfig() {
 	// settings.
 	var getTmResp getTeamResponse
 	s.DoJSON("GET", "/api/latest/fleet/teams/"+fmt.Sprint(team.ID), nil, http.StatusOK, &getTmResp)
-	require.Equal(t, fleet.TeamMDM{
+	require.Equal(t, withCreateDefaults(fleet.TeamMDM{
 		MacOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.String{Set: true},
 			Deadline:       optjson.String{Set: true},
@@ -3924,7 +3967,7 @@ func (s *integrationEnterpriseTestSuite) TestWindowsUpdatesTeamConfig() {
 			CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
 			Certificates:   optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
 		},
-	}, getTmResp.Team.Config.MDM)
+	}), getTmResp.Team.Config.MDM)
 
 	// only update the deadline
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), map[string]any{
@@ -4165,7 +4208,7 @@ func (s *integrationEnterpriseTestSuite) listRecentExceptionActivities(activityT
 	t := s.T()
 	var listActivities listActivitiesResponse
 	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK,
-		&listActivities, "order_key", "a.id", "order_direction", "desc", "per_page", "10")
+		&listActivities, "order_key", "id", "order_direction", "desc", "per_page", "10")
 	found := map[string]struct{}{}
 	for _, act := range listActivities.Activities {
 		if act.Type != activityType || act.Details == nil {
@@ -4642,7 +4685,7 @@ func (s *integrationEnterpriseTestSuite) TestLinuxDiskEncryption() {
 
 	team, err := s.ds.NewTeam(context.Background(), &fleet.Team{Name: "A team"})
 	require.NoError(t, err)
-	teamID := new(team.ID)
+	teamID := &team.ID
 	teamHost, err := s.ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
@@ -4693,7 +4736,7 @@ func (s *integrationEnterpriseTestSuite) TestLinuxDiskEncryption() {
 	require.Nil(t, getHostResp.Host.MDM.OSSettings)
 
 	// turn on disk encryption enforcement
-	s.Do("POST", "/api/latest/fleet/disk_encryption", updateDiskEncryptionRequest{EnableDiskEncryption: true}, http.StatusNoContent)
+	s.Do("POST", "/api/latest/fleet/disk_encryption", updateDiskEncryptionRequest{EnableDiskEncryption: new(true)}, http.StatusNoContent)
 
 	// should be populated after disk encryption is turned on
 	// from host details
@@ -4776,7 +4819,7 @@ func (s *integrationEnterpriseTestSuite) TestLinuxDiskEncryption() {
 	require.Equal(t, fleet.MDMProfilesSummary{}, profileSummary.MDMProfilesSummary)
 
 	// turn on disk encryption enforcement for team
-	s.Do("POST", "/api/latest/fleet/disk_encryption", updateDiskEncryptionRequest{TeamID: teamID, EnableDiskEncryption: true}, http.StatusNoContent)
+	s.Do("POST", "/api/latest/fleet/disk_encryption", updateDiskEncryptionRequest{TeamID: teamID, EnableDiskEncryption: new(true)}, http.StatusNoContent)
 
 	// should show the Linux host as pending
 	s.DoJSON("GET", "/api/latest/fleet/configuration_profiles/summary", getMDMProfilesSummaryRequest{TeamID: teamID}, http.StatusOK, &profileSummary)
@@ -5208,12 +5251,101 @@ func (s *integrationEnterpriseTestSuite) TestFleetDesktopSettingsAlternativeBrow
 	require.Equal(t, "example.com", acResp.FleetDesktop.AlternativeBrowserHost)
 }
 
+func (s *integrationEnterpriseTestSuite) TestFleetDesktopSettingsSSOEnabled() {
+	t := s.T()
+
+	t.Cleanup(func() {
+		var acResp appConfigResponse
+		s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+			"fleet_desktop": {"sso_enabled": false},
+			"mdm": {"end_user_authentication": {"entity_id": "", "idp_name": "", "metadata": "", "metadata_url": ""}}
+		}`), http.StatusOK, &acResp)
+	})
+
+	// The suite shares app config across tests, so start from a known
+	// unconfigured state instead of relying on test order.
+	appCfg, err := s.ds.AppConfig(t.Context())
+	require.NoError(t, err)
+	appCfg.FleetDesktop.SSOEnabled = false
+	appCfg.MDM.EndUserAuthentication = fleet.MDMEndUserAuthentication{}
+	require.NoError(t, s.ds.SaveAppConfig(t.Context(), appCfg))
+
+	// enabling without a configured IdP is rejected, naming the offending field
+	res := s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{"fleet_desktop":{"sso_enabled":true}}`), http.StatusUnprocessableEntity)
+	name, reason := extractServerErrorNameReason(res.Body)
+	require.Equal(t, "fleet_desktop.sso_enabled", name)
+	require.Contains(t, reason, "Please configure it and try again.")
+
+	var acResp appConfigResponse
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	require.False(t, acResp.FleetDesktop.SSOEnabled)
+
+	// setting the IdP and the flag in the same payload succeeds, since the
+	// prerequisite is checked against the merged config
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"fleet_desktop": {"sso_enabled": true},
+		"mdm": {"end_user_authentication": {
+			"entity_id": "https://localhost:8080",
+			"idp_name": "SimpleSAML",
+			"metadata_url": "https://idp.example.com/metadata"
+		}}
+	}`), http.StatusOK, &acResp)
+	require.True(t, acResp.FleetDesktop.SSOEnabled)
+
+	// the GET response rebuilds FleetDesktopSettings field by field, so verify
+	// the flag survives that path and not just the PATCH echo
+	acResp = appConfigResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	require.True(t, acResp.FleetDesktop.SSOEnabled)
+
+	s.lastActivityMatches(fleet.ActivityTypeEnabledSSOFleetDesktop{}.ActivityName(), "", 0)
+	lastID := s.lastActivityMatches("", "", 0)
+
+	// a PATCH omitting sso_enabled leaves it on and emits no activity
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{"org_info":{"org_name":"Fleet Desktop SSO"}}`), http.StatusOK, &acResp)
+	require.True(t, acResp.FleetDesktop.SSOEnabled)
+	require.Equal(t, lastID, s.lastActivityMatches("", "", 0))
+
+	// re-asserting the same value emits no activity either
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{"fleet_desktop":{"sso_enabled":true}}`), http.StatusOK, &acResp)
+	require.True(t, acResp.FleetDesktop.SSOEnabled)
+	require.Equal(t, lastID, s.lastActivityMatches("", "", 0))
+
+	// reverse guard: the IdP can't be cleared while SSO is enabled
+	res = s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": {"end_user_authentication": {"entity_id": "", "idp_name": "", "metadata": "", "metadata_url": ""}}
+	}`), http.StatusUnprocessableEntity)
+	name, reason = extractServerErrorNameReason(res.Body)
+	require.Equal(t, "mdm.end_user_authentication", name)
+	require.Contains(t, reason, "Please disable it and try again.")
+
+	acResp = appConfigResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	require.True(t, acResp.FleetDesktop.SSOEnabled)
+	require.False(t, acResp.MDM.EndUserAuthentication.IsEmpty())
+
+	// disabling emits the disabled activity, and then the IdP can be cleared
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{"fleet_desktop":{"sso_enabled":false}}`), http.StatusOK, &acResp)
+	require.False(t, acResp.FleetDesktop.SSOEnabled)
+	s.lastActivityMatches(fleet.ActivityTypeDisabledSSOFleetDesktop{}.ActivityName(), "", 0)
+
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": {"end_user_authentication": {"entity_id": "", "idp_name": "", "metadata": "", "metadata_url": ""}}
+	}`), http.StatusOK, &acResp)
+	require.True(t, acResp.MDM.EndUserAuthentication.IsEmpty())
+}
+
 func (s *integrationEnterpriseTestSuite) TestMDMWindowsUpdates() {
 	t := s.T()
 
 	// keep the last activity, to detect newly created ones
 	var activitiesResp listActivitiesResponse
-	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &activitiesResp, "order_key", "a.id", "order_direction", "desc")
+	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &activitiesResp, "order_key", "id", "order_direction", "desc")
 	var lastActivity uint
 	if len(activitiesResp.Activities) > 0 {
 		lastActivity = activitiesResp.Activities[0].ID
@@ -5231,7 +5363,7 @@ func (s *integrationEnterpriseTestSuite) TestMDMWindowsUpdates() {
 
 		// no activity got created
 		activitiesResp = listActivitiesResponse{}
-		s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &activitiesResp, "order_key", "a.id", "order_direction", "desc")
+		s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &activitiesResp, "order_key", "id", "order_direction", "desc")
 		require.Condition(t, func() bool {
 			return (lastActivity == 0 && len(activitiesResp.Activities) == 0) ||
 				(len(activitiesResp.Activities) > 0 && activitiesResp.Activities[0].ID == lastActivity)
@@ -5375,7 +5507,7 @@ func (s *integrationEnterpriseTestSuite) TestMDMAppleOSUpdates() {
 
 	// keep the last activity, to detect newly created ones
 	var activitiesResp listActivitiesResponse
-	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &activitiesResp, "order_key", "a.id", "order_direction", "desc")
+	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &activitiesResp, "order_key", "id", "order_direction", "desc")
 	var lastActivity uint
 	if len(activitiesResp.Activities) > 0 {
 		lastActivity = activitiesResp.Activities[0].ID
@@ -5393,7 +5525,7 @@ func (s *integrationEnterpriseTestSuite) TestMDMAppleOSUpdates() {
 
 		// no activity got created
 		activitiesResp = listActivitiesResponse{}
-		s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &activitiesResp, "order_key", "a.id", "order_direction", "desc")
+		s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &activitiesResp, "order_key", "id", "order_direction", "desc")
 		require.Condition(t, func() bool {
 			return (lastActivity == 0 && len(activitiesResp.Activities) == 0) ||
 				(len(activitiesResp.Activities) > 0 && activitiesResp.Activities[0].ID == lastActivity)
@@ -5821,6 +5953,55 @@ func (s *integrationEnterpriseTestSuite) TestTeamAdminCannotCreateUserInOtherTea
 		},
 	}, http.StatusOK, &resp)
 	require.NotNil(t, resp.User)
+}
+
+func (s *integrationEnterpriseTestSuite) TestDeviceSSOWithoutAppleMDM() {
+	t := s.T()
+
+	if _, ok := os.LookupEnv("SAML_IDP_TEST"); !ok {
+		t.Skip("SSO tests are disabled")
+	}
+
+	var acResp appConfigResponse
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	require.False(t, acResp.MDM.EnabledAndConfigured)
+	originalServerURL := acResp.ServerSettings.ServerURL
+
+	createHostAndDeviceToken(t, s.ds, "device-sso-no-apple-mdm-token")
+
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(`{
+		"server_settings": { "server_url": "https://localhost:8080" },
+		"mdm": {
+			"end_user_authentication": {
+				"entity_id": "mdm.test.com",
+				"idp_name": "SimpleSAML",
+				"metadata_url": "%s"
+			}
+		},
+		"fleet_desktop": { "sso_enabled": true, "alternative_browser_host": "" }
+	}`, testSAMLIDPMetadataURL)), http.StatusOK, &acResp)
+	require.True(t, acResp.FleetDesktop.SSOEnabled)
+	require.Empty(t, acResp.FleetDesktop.AlternativeBrowserHost)
+
+	t.Cleanup(func() {
+		s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(`{
+			"server_settings": { "server_url": %q },
+			"fleet_desktop": { "sso_enabled": false },
+			"mdm": { "end_user_authentication": { "entity_id": "", "idp_name": "", "metadata_url": "" } }
+		}`, originalServerURL)), http.StatusOK, &appConfigResponse{})
+	})
+
+	res := s.LoginDeviceSSOUser("sso_user", "user123#", "device-sso-no-apple-mdm-token")
+	require.Equal(t, "https://localhost:8080/device/device-sso-no-apple-mdm-token", res.Header.Get("Location"))
+
+	var sessionCookie *http.Cookie
+	for _, c := range res.Cookies() {
+		if c.Name == cookieNameDeviceSSOSession {
+			sessionCookie = c
+		}
+	}
+	require.NotNil(t, sessionCookie, "expected a device SSO session even without Apple MDM configured")
+	require.NotEmpty(t, sessionCookie.Value)
 }
 
 func (s *integrationEnterpriseTestSuite) TestSSOJITProvisioning() {
@@ -6646,7 +6827,7 @@ func (s *integrationEnterpriseTestSuite) TestListVulnerabilities() {
 			CVSSScore:        new(float64(7.5)),
 			EPSSProbability:  new(float64(0.5)),
 			CISAKnownExploit: new(true),
-			Published:        new(mockTime),
+			Published:        &mockTime,
 			Description:      "Test CVE 2021-1234",
 		},
 		{
@@ -15249,6 +15430,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 		next:        http.DefaultTransport,
 	}
 	http.DefaultTransport = mockTransport
+
 	// https://downloads.1password.com/mac/1Password-8.10.82-aarch64.zip
 	maintained1, err := s.ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
 		Name:             "1Password",
@@ -16690,7 +16872,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 
 	// Check activity feed
 	var activitiesResp listActivitiesResponse
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities", h.ID), nil, http.StatusOK, &activitiesResp, "order_key", "a.id",
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities", h.ID), nil, http.StatusOK, &activitiesResp, "order_key", "id",
 		"order_direction", "desc")
 	require.NotEmpty(t, activitiesResp.Activities)
 	assert.Equal(t, fleet.ActivityTypeUninstalledSoftware{}.ActivityName(), activitiesResp.Activities[0].Type)
@@ -16736,7 +16918,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 	require.False(t, hostRespFailedUninstall.Host.RefetchRequested, "RefetchRequested should be false after failed software uninstall")
 
 	// Check activity feed
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities", h.ID), nil, http.StatusOK, &activitiesResp, "order_key", "a.id",
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities", h.ID), nil, http.StatusOK, &activitiesResp, "order_key", "id",
 		"order_direction", "desc")
 	require.NotEmpty(t, activitiesResp.Activities)
 	assert.Equal(t, fleet.ActivityTypeUninstalledSoftware{}.ActivityName(), activitiesResp.Activities[0].Type)
@@ -16930,7 +17112,7 @@ func (s *integrationEnterpriseTestSuite) TestSelfServiceSoftwareInstallUninstall
 
 	// Check activity feed
 	var activitiesResp listActivitiesResponse
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities", host1.ID), nil, http.StatusOK, &activitiesResp, "order_key", "a.id",
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities", host1.ID), nil, http.StatusOK, &activitiesResp, "order_key", "id",
 		"order_direction", "desc")
 	require.NotEmpty(t, activitiesResp.Activities)
 	assert.Equal(t, fleet.ActivityTypeUninstalledSoftware{}.ActivityName(), activitiesResp.Activities[0].Type)
@@ -28851,7 +29033,13 @@ func (s *integrationEnterpriseTestSuite) TestFMAAutoUpdateCron() {
 	// mutable: bumping warp.version/installerBytes (+ ComputeSHA) below simulates a
 	// newly published upstream version on the next cron run.
 	const slug = "cloudflare-warp/windows"
-	warp := &fmaTestState{version: "1.0", installerBytes: []byte("abc"), installerPath: "/cloudflare-warp.msi", patchQuery: warpQueryV1}
+	// Non-ASCII on purpose: the migration hashes script_contents in MySQL against
+	// hashes taken over the manifest text, which only agree if the bytes survive.
+	const manifestScript = "#!/bin/sh\n# café — naïve ✓ 你好\ninstaller -pkg \"$TMPDIR/cloudflare-warp.msi\" -target /\n"
+	warp := &fmaTestState{
+		version: "1.0", installerBytes: []byte("abc"), installerPath: "/cloudflare-warp.msi",
+		patchQuery: warpQueryV1, installScript: manifestScript,
+	}
 	startFMAServers(t, s.ds, map[string]*fmaTestState{"/" + slug + ".json": warp})
 
 	// --- helpers ---
@@ -28893,6 +29081,35 @@ func (s *integrationEnterpriseTestSuite) TestFMAAutoUpdateCron() {
 				LEFT JOIN script_contents inst ON inst.id = si.install_script_content_id
 				LEFT JOIN script_contents uninst ON uninst.id = si.uninstall_script_content_id
 				WHERE si.global_or_team_id = ? AND si.title_id = ? AND si.is_active = 1`, teamID, titleID)
+		})
+		return row.Install, row.Uninstall
+	}
+	// LENGTH is bytes, CHAR_LENGTH is characters. Comparing bytes against Go catches
+	// a transcode that reading the text back through the same connection would hide.
+	activeScriptBytes := func(teamID, titleID uint) (bytes int, chars int) {
+		var row struct {
+			Bytes int `db:"stored_bytes"`
+			Chars int `db:"stored_chars"`
+		}
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &row, `
+				SELECT LENGTH(sc.contents) AS stored_bytes, CHAR_LENGTH(sc.contents) AS stored_chars
+				FROM software_installers si
+				JOIN script_contents sc ON sc.id = si.install_script_content_id
+				WHERE si.global_or_team_id = ? AND si.title_id = ? AND si.is_active = 1`, teamID, titleID)
+		})
+		return row.Bytes, row.Chars
+	}
+	activeScriptEditedFlags := func(teamID, titleID uint) (install bool, uninstall bool) {
+		var row struct {
+			Install   bool `db:"install_script_edited"`
+			Uninstall bool `db:"uninstall_script_edited"`
+		}
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &row, `
+				SELECT install_script_edited, uninstall_script_edited
+				FROM software_installers
+				WHERE global_or_team_id = ? AND title_id = ? AND is_active = 1`, teamID, titleID)
 		})
 		return row.Install, row.Uninstall
 	}
@@ -28940,6 +29157,14 @@ func (s *integrationEnterpriseTestSuite) TestFMAAutoUpdateCron() {
 		return resp.Policy.Query
 	}
 	require.Equal(t, warpQueryV1, patchPolicyQuery())
+
+	// The manifest script has to survive the add byte for byte, or the backfill
+	// migration can't recognize it as one Fleet published.
+	gotInstall, _ := activeScripts(team.ID, titleID)
+	require.Equal(t, manifestScript, gotInstall)
+	storedBytes, storedChars := activeScriptBytes(team.ID, titleID)
+	require.Equal(t, len(manifestScript), storedBytes)
+	require.Greater(t, storedBytes, storedChars, "fixture lost its multi-byte characters")
 
 	// === Section A: unpinned advances to the newly published version ===
 	setManifest("2.0", []byte("def"))
@@ -29011,13 +29236,134 @@ func (s *integrationEnterpriseTestSuite) TestFMAAutoUpdateCron() {
 	require.Equal(t, customInstall, gotInstall)
 	require.Equal(t, customUninstall, gotUninstall)
 
-	// A newly published version must keep the custom scripts, not revert to the manifest's.
+	// Scripts spelled out in the batch payload are flagged as edited, so they survive
+	// a newly published version rather than reverting to the manifest's.
+	editedInstall, editedUninstall := activeScriptEditedFlags(team.ID, titleID)
+	require.True(t, editedInstall)
+	require.True(t, editedUninstall)
+
 	setManifest("5.0", []byte("v50"))
 	runCron()
 	require.Equal(t, "5.0", activeTitle(team.ID).SoftwarePackage.Version)
 	gotInstall, gotUninstall = activeScripts(team.ID, titleID)
 	require.Equal(t, customInstall, gotInstall, "custom install script must survive auto-update")
 	require.Equal(t, customUninstall, gotUninstall, "custom uninstall script must survive auto-update")
+	editedInstall, editedUninstall = activeScriptEditedFlags(team.ID, titleID)
+	require.True(t, editedInstall, "the flags carry onto the new version")
+	require.True(t, editedUninstall, "the flags carry onto the new version")
+
+	// === Section F: dropping the scripts from the batch payload hands the app back to Fleet ===
+	var batchRespF batchSetSoftwareInstallersResponse
+	s.DoJSON("POST", "/api/latest/fleet/software/batch",
+		batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{
+			{Slug: new(slug), SelfService: true},
+		}, TeamName: team.Name},
+		http.StatusAccepted, &batchRespF, "team_name", team.Name, "team_id", fmt.Sprint(team.ID))
+	waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team.Name, batchRespF.RequestUUID)
+	editedInstall, editedUninstall = activeScriptEditedFlags(team.ID, titleID)
+	require.False(t, editedInstall)
+	require.False(t, editedUninstall)
+
+	// The manifest scripts now win on the next published version.
+	setManifest("6.0", []byte("v60"))
+	runCron()
+	require.Equal(t, "6.0", activeTitle(team.ID).SoftwarePackage.Version)
+	gotInstall, gotUninstall = activeScripts(team.ID, titleID)
+	require.NotEqual(t, customInstall, gotInstall, "an unedited install script follows the manifest")
+	require.NotEqual(t, customUninstall, gotUninstall, "an unedited uninstall script follows the manifest")
+
+	// === Section G: the update endpoint writes the flags, one script at a time ===
+	const patchedInstall = "echo patched-install"
+	activeInstallerID := func(teamID, titleID uint) uint {
+		var id uint
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &id, `
+				SELECT id FROM software_installers
+				WHERE global_or_team_id = ? AND title_id = ? AND is_active = 1`, teamID, titleID)
+		})
+		return id
+	}
+	s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{
+		TitleID:       titleID,
+		TeamID:        &team.ID,
+		InstallerID:   activeInstallerID(team.ID, titleID),
+		InstallScript: new(patchedInstall),
+		SelfService:   new(true),
+	}, http.StatusOK, "")
+
+	// Read back from MySQL, not from the payload the service handed the datastore.
+	editedInstall, editedUninstall = activeScriptEditedFlags(team.ID, titleID)
+	require.True(t, editedInstall, "the update endpoint marks the script it replaced")
+	require.False(t, editedUninstall, "the untouched script stays unmarked")
+
+	// The install script it just wrote survives the next version, the uninstall doesn't.
+	gotInstall, gotUninstall = activeScripts(team.ID, titleID)
+	require.Equal(t, patchedInstall, gotInstall)
+	setManifest("7.0", []byte("v70"))
+	runCron()
+	require.Equal(t, "7.0", activeTitle(team.ID).SoftwarePackage.Version)
+	patchedUninstall := gotUninstall
+	gotInstall, gotUninstall = activeScripts(team.ID, titleID)
+	require.Equal(t, patchedInstall, gotInstall, "a script the update endpoint marked survives auto-update")
+	require.Equal(t, patchedUninstall, gotUninstall, "the unmarked script follows the manifest")
+	editedInstall, editedUninstall = activeScriptEditedFlags(team.ID, titleID)
+	require.True(t, editedInstall)
+	require.False(t, editedUninstall)
+
+	// A manifest can change a script or a query without publishing a new version.
+	// There is nothing to download then, and the version can't be cached a second
+	// time, so the row that is already there is refreshed in place.
+	cachedRows := func() (count int) {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &count,
+				`SELECT COUNT(*) FROM software_installers WHERE global_or_team_id = ? AND title_id = ?`, team.ID, titleID)
+		})
+		return count
+	}
+	activePatchQuery := func() (query string) {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &query,
+				`SELECT patch_query FROM software_installers WHERE global_or_team_id = ? AND title_id = ? AND is_active = 1`,
+				team.ID, titleID)
+		})
+		return query
+	}
+	rowsBefore := cachedRows()
+	installerBefore := activeInstallerID(team.ID, titleID)
+	s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", host.ID, titleID), installSoftwareRequest{}, http.StatusAccepted)
+
+	warp.installScript = "#!/bin/sh\necho refreshed\n"
+	warp.patchQuery = fmt.Sprintf(warpPatchQueryFmt, "7.0.1")
+	runCron()
+
+	require.Equal(t, "7.0", activeTitle(team.ID).SoftwarePackage.Version, "no version was published")
+	require.Equal(t, rowsBefore, cachedRows(), "the version can't be cached twice")
+	require.Equal(t, installerBefore, activeInstallerID(team.ID, titleID), "refreshed in place")
+	gotInstall, gotUninstall = activeScripts(team.ID, titleID)
+	require.Equal(t, patchedInstall, gotInstall, "the edited script is still left alone")
+	require.Equal(t, warp.installScript, gotUninstall, "the unedited script follows the manifest")
+	require.Equal(t, warp.patchQuery, activePatchQuery(), "the patch query follows the manifest too")
+
+	// The queued install would otherwise have run a script it was never queued against.
+	var canceled bool
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &canceled, `SELECT canceled FROM host_software_installs
+			WHERE host_id = ? ORDER BY created_at DESC LIMIT 1`, host.ID)
+	})
+	require.True(t, canceled)
+
+	// Nothing changed upstream, so a second pass leaves the scripts alone and the
+	// install queued against them keeps running.
+	s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", host.ID, titleID), installSoftwareRequest{}, http.StatusAccepted)
+	runCron()
+	gotInstall, gotUninstall = activeScripts(team.ID, titleID)
+	require.Equal(t, patchedInstall, gotInstall)
+	require.Equal(t, warp.installScript, gotUninstall)
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &canceled, `SELECT canceled FROM host_software_installs
+			WHERE host_id = ? ORDER BY created_at DESC LIMIT 1`, host.ID)
+	})
+	require.False(t, canceled)
 }
 
 func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
@@ -32284,6 +32630,85 @@ func (s *integrationEnterpriseTestSuite) TestPolicyResultsForOutOfScopePoliciesA
 	}
 }
 
+// Enrollment sets label_updated_at to the "never" sentinel and makes labels and policies come due on the same check-in, so an
+// exclude-label-scoped policy must not be handed to (or accepted from) a host that has not yet computed the label's membership --
+// otherwise its automations fire on a host the exclusion was meant to protect.
+func (s *integrationEnterpriseTestSuite) TestPolicyExcludeLabelHeldUntilLabelsReported() {
+	t := s.T()
+	ctx := t.Context()
+
+	var lblResp fleet.CreateLabelResponse
+	s.DoJSON("POST", "/api/latest/fleet/labels", fleet.LabelPayload{Name: uuid.NewString(), Query: "SELECT 1"}, http.StatusOK, &lblResp)
+	lbl := lblResp.Label
+
+	// labels.created_at is second-granular and this test runs well inside one second, so the label report below would tie with
+	// the label's creation and stay (correctly) unknown. Backdate it to the realistic case: the label predates the check-in.
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE labels SET created_at = ? WHERE id = ?`, time.Now().Add(-time.Minute), lbl.ID)
+		return err
+	})
+
+	host, err := s.ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  common_mysql.GetDefaultNonZeroTime(),
+		PolicyUpdatedAt: common_mysql.GetDefaultNonZeroTime(),
+		SeenTime:        time.Now(),
+		LastEnrolledAt:  time.Now(),
+		OsqueryHostID:   new(t.Name()),
+		NodeKey:         new(t.Name()),
+		UUID:            uuid.New().String(),
+		Hostname:        t.Name() + ".local",
+		Platform:        "darwin",
+	})
+	require.NoError(t, err)
+
+	unscoped, err := s.ds.NewGlobalPolicy(ctx, nil, fleet.PolicyPayload{Name: "unscoped-" + t.Name(), Query: "SELECT 1"})
+	require.NoError(t, err)
+	excluded, err := s.ds.NewGlobalPolicy(ctx, nil, fleet.PolicyPayload{
+		Name: "excluded-" + t.Name(), Query: "SELECT 1", LabelsExcludeAny: []string{lbl.Name},
+	})
+	require.NoError(t, err)
+
+	storedPolicyIDs := func() []uint {
+		var ids []uint
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, q, &ids, `SELECT policy_id FROM policy_membership WHERE host_id = ?`, host.ID)
+		})
+		return ids
+	}
+
+	distributedQueries, err := s.ds.PolicyQueriesForHost(ctx, host)
+	require.NoError(t, err)
+	require.Contains(t, distributedQueries, fmt.Sprint(unscoped.ID))
+	require.NotContains(t, distributedQueries, fmt.Sprint(excluded.ID),
+		"exclude-scoped policy sent before the host could evaluate the label")
+
+	// Even if the host reports a failing result for it anyway, ingestion must drop it: everything downstream of this
+	// (script, software, calendar and conditional-access automations) reads the surviving results.
+	var distributedResp submitDistributedQueryResultsResponse
+	s.DoJSON("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(host, map[uint]*bool{
+		unscoped.ID: new(false),
+		excluded.ID: new(false),
+	}), http.StatusOK, &distributedResp)
+	require.Equal(t, []uint{unscoped.ID}, storedPolicyIDs())
+
+	// Once the host has reported its labels and is confirmed not to be a member, the policy applies as normal.
+	s.DoJSON("POST", "/api/osquery/distributed/write",
+		genDistributedReqWithLabelResults(host, map[uint]*bool{lbl.ID: new(false)}), http.StatusOK, &distributedResp)
+
+	host, err = s.ds.Host(ctx, host.ID)
+	require.NoError(t, err)
+	distributedQueries, err = s.ds.PolicyQueriesForHost(ctx, host)
+	require.NoError(t, err)
+	require.Contains(t, distributedQueries, fmt.Sprint(excluded.ID))
+
+	s.DoJSON("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(host, map[uint]*bool{
+		unscoped.ID: new(false),
+		excluded.ID: new(false),
+	}), http.StatusOK, &distributedResp)
+	require.ElementsMatch(t, []uint{unscoped.ID, excluded.ID}, storedPolicyIDs())
+}
+
 // TestQueryLabelsIncludeAll mirrors TestPolicyLabelsIncludeAll for queries (reports),
 // covering the new LabelsIncludeAll field. Reports do not support exclude_any,
 // so the 2-way mutex (include_any vs include_all) is exercised here.
@@ -33902,6 +34327,342 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsContinuousSoftware
 	}, 5*time.Second, 100*time.Millisecond)
 }
 
+func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsFailedInstallsAreLimited() {
+	t := s.T()
+	ctx := context.Background()
+
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+
+	host, err := s.ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now().Add(-1 * time.Minute),
+		OsqueryHostID:   new(t.Name()),
+		NodeKey:         new(t.Name()),
+		UUID:            uuid.New().String(),
+		Hostname:        fmt.Sprintf("%s.local", t.Name()),
+		Platform:        "darwin",
+		TeamID:          &team.ID,
+	})
+	require.NoError(t, err)
+	orbitKey := setOrbitEnrollment(t, host, s.ds)
+	host.OrbitNodeKey = &orbitKey
+
+	// An installer that can never succeed, standing in for the per-user installer on a host with no logged-in user from the report.
+	s.uploadSoftwareInstaller(t, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript: "exit 1",
+		Filename:      "dummy_installer.pkg",
+		TeamID:        &team.ID,
+	}, http.StatusOK, "")
+
+	titlesResp := listSoftwareTitlesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &titlesResp, "query", "DummyApp", "team_id", fmt.Sprintf("%d", team.ID))
+	require.Len(t, titlesResp.SoftwareTitles, 1)
+	titleID := titlesResp.SoftwareTitles[0].ID
+
+	var installerID uint
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &installerID, `SELECT id FROM software_installers WHERE global_or_team_id = ? AND filename = ?`, team.ID, "dummy_installer.pkg")
+	})
+	require.NotZero(t, installerID)
+
+	require.NoError(t, s.attemptCounter.ResetAttempts(ctx, host.ID, installerID))
+
+	policyIDs := make([]uint, 0, 2)
+	for _, name := range []string{"continuous-a", "continuous-b"} {
+		policy, err := s.ds.NewTeamPolicy(ctx, team.ID, nil, fleet.PolicyPayload{
+			Name:                         name,
+			Query:                        "SELECT 1 FROM osquery_info WHERE start_time < 0;",
+			Platform:                     "darwin",
+			ContinuousAutomationsEnabled: true,
+		})
+		require.NoError(t, err)
+
+		var resp fleet.ModifyTeamPolicyResponse
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team.ID, policy.ID), fleet.ModifyTeamPolicyRequest{
+			ModifyPolicyPayload: fleet.ModifyPolicyPayload{
+				SoftwareTitleID: optjson.Any[uint]{Set: true, Valid: true, Value: titleID},
+			},
+		}, http.StatusOK, &resp)
+		policyIDs = append(policyIDs, policy.ID)
+	}
+
+	// Distributed writes carry a result for every policy in scope for the host, the way osquery reports them together from one distributed read.
+	submitPolicyResults := func(passes bool) {
+		results := make(map[uint]*bool, len(policyIDs))
+		for _, policyID := range policyIDs {
+			results[policyID] = new(passes)
+		}
+		var distributedResp submitDistributedQueryResultsResponse
+		s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(host, results), http.StatusOK, &distributedResp)
+	}
+
+	// Empty when nothing was queued, which ends the drain loop below.
+	pendingInstallUUID := func() string {
+		last, err := s.ds.GetHostLastInstallData(ctx, host.ID, installerID)
+		require.NoError(t, err)
+		if last == nil || last.Status == nil || *last.Status != fleet.SoftwareInstallPending {
+			return ""
+		}
+		return last.ExecutionID
+	}
+
+	// The install script always fails, so the exit code reported here is what decides the outcome.
+	reportInstallResult := func(installUUID string, exitCode int) {
+		s.Do("POST", "/api/fleet/orbit/software_install/result", fleet.OrbitPostSoftwareInstallResultRequest{
+			OrbitNodeKey: *host.OrbitNodeKey,
+			HostSoftwareInstallResultPayload: &fleet.HostSoftwareInstallResultPayload{
+				HostID:                host.ID,
+				InstallUUID:           installUUID,
+				InstallScriptExitCode: new(exitCode),
+				InstallScriptOutput:   new("done"),
+			},
+		}, http.StatusNoContent)
+	}
+
+	countInstalls := func() int {
+		var count int
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &count, `SELECT COUNT(*) FROM host_software_installs WHERE host_id = ? AND software_installer_id = ?`, host.ID, installerID)
+		})
+		return count
+	}
+
+	// A failure counts.
+	submitPolicyResults(false)
+	installUUID := pendingInstallUUID()
+	require.NotEmpty(t, installUUID)
+	reportInstallResult(installUUID, 1)
+
+	attempts, err := s.attemptCounter.CountAttempts(ctx, host.ID, installerID)
+	require.NoError(t, err)
+	require.Equal(t, 1, attempts)
+
+	// A later success clears it, so a host that installs and regresses later starts over rather than staying at its old total.
+	submitPolicyResults(false)
+	installUUID = pendingInstallUUID()
+	require.NotEmpty(t, installUUID)
+	reportInstallResult(installUUID, 0)
+
+	attempts, err = s.attemptCounter.CountAttempts(ctx, host.ID, installerID)
+	require.NoError(t, err)
+	require.Zero(t, attempts)
+
+	// The success above puts continuous automations on cooldown for a policy update interval, which would
+	// stop the run below from queueing anything. Dropping the rows lifts it and starts the count at zero.
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `DELETE FROM host_software_installs WHERE host_id = ? AND software_installer_id = ?`, host.ID, installerID)
+		return err
+	})
+	installs := countInstalls()
+	require.Zero(t, installs)
+
+	// One report is one osquery check-in reporting both policies as failing. Report
+	// once more than the limit allows, so the last report has to be turned away.
+	for range fleet.MaxPolicyAutomationInstallAttempts + 1 {
+		submitPolicyResults(false)
+
+		// A report queues one install and each failure queues the next retry, so the
+		// sequence is at most MaxPolicyAutomationRetries deep. Bounded so a sequence
+		// that never ends fails the test instead of hanging it.
+		drained := 0
+		for range fleet.MaxPolicyAutomationRetries + 1 {
+			retryUUID := pendingInstallUUID()
+			if retryUUID == "" {
+				break
+			}
+			reportInstallResult(retryUUID, 1)
+			drained++
+		}
+		require.LessOrEqual(t, drained, fleet.MaxPolicyAutomationRetries)
+	}
+
+	installs = countInstalls()
+	require.Equal(t, fleet.MaxPolicyAutomationInstallAttempts, installs)
+
+	// The count is keyed on the host and installer, so both policies share it.
+	attempts, err = s.attemptCounter.CountAttempts(ctx, host.ID, installerID)
+	require.NoError(t, err)
+	require.Equal(t, fleet.MaxPolicyAutomationInstallAttempts, attempts)
+
+	// The distributed write queues the install before it returns, so a further failing
+	// report either adds one immediately or not at all.
+	submitPolicyResults(false)
+	installs = countInstalls()
+	require.Equal(t, fleet.MaxPolicyAutomationInstallAttempts, installs)
+
+	// Editing the installer clears the count instead of waiting for it to expire.
+	s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{
+		InstallScript: new("exit 0"),
+		Filename:      "dummy_installer.pkg",
+		TitleID:       titleID,
+		TeamID:        &team.ID,
+	}, http.StatusOK, "")
+
+	attempts, err = s.attemptCounter.CountAttempts(ctx, host.ID, installerID)
+	require.NoError(t, err)
+	require.Zero(t, attempts)
+
+	// The count is back to zero, so a failing report queues an install again.
+	installsBeforeReset := countInstalls()
+	submitPolicyResults(false)
+	installs = countInstalls()
+	require.Greater(t, installs, installsBeforeReset)
+
+	installUUID = pendingInstallUUID()
+	require.NotEmpty(t, installUUID)
+	reportInstallResult(installUUID, 1)
+
+	attempts, err = s.attemptCounter.CountAttempts(ctx, host.ID, installerID)
+	require.NoError(t, err)
+	require.Equal(t, 1, attempts)
+}
+
+func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersClearsFailedInstallCount() {
+	t := s.T()
+	ctx := context.Background()
+
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+
+	s.uploadSoftwareInstaller(t, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript: "exit 1",
+		Filename:      "dummy_installer.pkg",
+		TeamID:        &team.ID,
+	}, http.StatusOK, "")
+
+	var installer struct {
+		ID        uint   `db:"id"`
+		StorageID string `db:"storage_id"`
+	}
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &installer, `SELECT id, storage_id FROM software_installers WHERE global_or_team_id = ?`, team.ID)
+	})
+	require.NotZero(t, installer.ID)
+
+	const hostID = 4242
+	_, err = s.attemptCounter.RecordAttempt(ctx, hostID, installer.ID, fleet.PolicyAutomationInstallAttemptExpiry)
+	require.NoError(t, err)
+
+	// The batch matches the already uploaded package by hash, so the installer keeps its
+	// ID and the count recorded against it is cleared instead of waiting for it to expire.
+	var batchResponse batchSetSoftwareInstallersResponse
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{
+		{SHA256: installer.StorageID, InstallScript: "echo edited by batch"},
+	}}, http.StatusAccepted, &batchResponse, "team_name", team.Name)
+	waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team.Name, batchResponse.RequestUUID)
+
+	attempts, err := s.attemptCounter.CountAttempts(ctx, hostID, installer.ID)
+	require.NoError(t, err)
+	require.Zero(t, attempts)
+}
+
+func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsPreInstallFailuresDoNotCount() {
+	t := s.T()
+	ctx := context.Background()
+
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+
+	host, err := s.ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now().Add(-1 * time.Minute),
+		OsqueryHostID:   new(t.Name()),
+		NodeKey:         new(t.Name()),
+		UUID:            uuid.New().String(),
+		Hostname:        fmt.Sprintf("%s.local", t.Name()),
+		Platform:        "darwin",
+		TeamID:          &team.ID,
+	})
+	require.NoError(t, err)
+	orbitKey := setOrbitEnrollment(t, host, s.ds)
+	host.OrbitNodeKey = &orbitKey
+
+	// The install script would succeed, so a failure can only come from the pre-install query.
+	s.uploadSoftwareInstaller(t, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:   "echo ok",
+		PreInstallQuery: "SELECT 1 FROM osquery_info WHERE start_time < 0;",
+		Filename:        "dummy_installer.pkg",
+		TeamID:          &team.ID,
+	}, http.StatusOK, "")
+
+	titlesResp := listSoftwareTitlesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &titlesResp, "query", "DummyApp", "team_id", fmt.Sprintf("%d", team.ID))
+	require.Len(t, titlesResp.SoftwareTitles, 1)
+
+	var installerID uint
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &installerID, `SELECT id FROM software_installers WHERE global_or_team_id = ? AND filename = ?`, team.ID, "dummy_installer.pkg")
+	})
+	require.NotZero(t, installerID)
+
+	require.NoError(t, s.attemptCounter.ResetAttempts(ctx, host.ID, installerID))
+
+	policy, err := s.ds.NewTeamPolicy(ctx, team.ID, nil, fleet.PolicyPayload{
+		Name:                         "pre-install",
+		Query:                        "SELECT 1 FROM osquery_info WHERE start_time < 0;",
+		Platform:                     "darwin",
+		ContinuousAutomationsEnabled: true,
+	})
+	require.NoError(t, err)
+
+	var resp fleet.ModifyTeamPolicyResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team.ID, policy.ID), fleet.ModifyTeamPolicyRequest{
+		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
+			SoftwareTitleID: optjson.Any[uint]{Set: true, Valid: true, Value: titlesResp.SoftwareTitles[0].ID},
+		},
+	}, http.StatusOK, &resp)
+
+	// Report more times than the limit allows, so a counted failure would have stopped the installs.
+	for range fleet.MaxPolicyAutomationInstallAttempts + 2 {
+		var distributedResp submitDistributedQueryResultsResponse
+		s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(host, map[uint]*bool{policy.ID: new(false)}), http.StatusOK, &distributedResp)
+
+		// Report what fleetd reports when the pre-install query returns no rows: the
+		// condition output only, with no install script exit code.
+		// Bounded for the same reason as the limit test: the retry sequence is at most
+		// MaxPolicyAutomationRetries deep, so a sequence that never ends fails here.
+		drained := 0
+		for range fleet.MaxPolicyAutomationRetries + 1 {
+			last, err := s.ds.GetHostLastInstallData(ctx, host.ID, installerID)
+			require.NoError(t, err)
+			if last == nil || last.Status == nil || *last.Status != fleet.SoftwareInstallPending {
+				break
+			}
+			s.Do("POST", "/api/fleet/orbit/software_install/result", fleet.OrbitPostSoftwareInstallResultRequest{
+				OrbitNodeKey: *host.OrbitNodeKey,
+				HostSoftwareInstallResultPayload: &fleet.HostSoftwareInstallResultPayload{
+					HostID:                    host.ID,
+					InstallUUID:               last.ExecutionID,
+					PreInstallConditionOutput: new(""),
+				},
+			}, http.StatusNoContent)
+			drained++
+		}
+		require.LessOrEqual(t, drained, fleet.MaxPolicyAutomationRetries)
+	}
+
+	// A failure before the package is fetched must not count against the limit.
+	attempts, err := s.attemptCounter.CountAttempts(ctx, host.ID, installerID)
+	require.NoError(t, err)
+	require.Zero(t, attempts)
+
+	var installs, ranInstallScript int
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		if err := sqlx.GetContext(ctx, q, &installs, `SELECT COUNT(*) FROM host_software_installs WHERE host_id = ? AND software_installer_id = ?`, host.ID, installerID); err != nil {
+			return err
+		}
+		return sqlx.GetContext(ctx, q, &ranInstallScript, `SELECT COUNT(*) FROM host_software_installs WHERE host_id = ? AND software_installer_id = ? AND install_script_exit_code IS NOT NULL`, host.ID, installerID)
+	})
+	// The install script never runs, and installs keep being queued past the limit.
+	require.Zero(t, ranInstallScript)
+	require.Greater(t, installs, fleet.MaxPolicyAutomationInstallAttempts)
+}
+
 // TestOrbitEnrollWithIdPPopulatesDeviceMapping covers issue #45066: orbit
 // enrolling a Linux or Windows host through the End User Authentication flow
 // must populate host_emails so the hosts list endpoint returns
@@ -34561,7 +35322,7 @@ func (s *integrationEnterpriseTestSuite) TestFMAReplacedInstallerLabelScopeListA
 		InstallScript:        "exit 0",
 		InstallerFile:        tfr,
 		StorageID:            "fma_scope_v1",
-		FleetMaintainedAppID: new(fma.ID),
+		FleetMaintainedAppID: &fma.ID,
 		Filename:             "fma_scope.pkg",
 		Title:                t.Name() + " App",
 		Version:              "1.0",
@@ -35281,9 +36042,9 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareMultiplePackagesInstallPrec
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", hostNeither.ID, titleID), nil, http.StatusBadRequest, &resp)
 }
 
-// TestPolicyAutomationSoftwareInstallerSelection verifies a team policy defaults its install-software
-// automation to the title's first-added package and honors an explicitly chosen software_installer_id.
-func (s *integrationEnterpriseTestSuite) TestPolicyAutomationSoftwareInstallerSelection() {
+// TestPolicyAutomationSoftwarePackageSelection verifies a team policy defaults its install-software
+// automation to the title's first-added package and honors an explicitly chosen software_package_id.
+func (s *integrationEnterpriseTestSuite) TestPolicyAutomationSoftwarePackageSelection() {
 	t := s.T()
 	ctx := context.Background()
 
@@ -35314,12 +36075,13 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationSoftwareInstallerSe
 		require.NoError(t, err)
 		return id
 	}
-	installerA := newPkg("pol-storage-a", "pkgA.deb", "1.0")
-	installerB := newPkg("pol-storage-b", "pkgB.deb", "2.0")
-	require.Less(t, installerA, installerB)
+	packageA := newPkg("pol-storage-a", "pkgA.deb", "1.0")
+	packageB := newPkg("pol-storage-b", "pkgB.deb", "2.0")
+	require.Less(t, packageA, packageB)
 	titleID := getSoftwareTitleID(t, s.ds, "PolicyMultiPkgApp", "deb_packages")
 
-	storedInstallerID := func(policyID uint) uint {
+	// storedPackageID reads the DB column, which is still named software_installer_id.
+	storedPackageID := func(policyID uint) uint {
 		var ids []uint
 		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			return sqlx.SelectContext(ctx, q, &ids, `SELECT software_installer_id FROM policies WHERE id = ?`, policyID)
@@ -35328,42 +36090,42 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationSoftwareInstallerSe
 		return ids[0]
 	}
 
-	// No installer chosen → defaults to first-added.
+	// No package chosen → defaults to first-added.
 	var defResp fleet.TeamPolicyResponse
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", teamID), fleet.TeamPolicyRequest{
 		Name:            "default first-added",
 		Query:           "SELECT 1;",
 		SoftwareTitleID: &titleID,
 	}, http.StatusOK, &defResp)
-	require.Equal(t, installerA, storedInstallerID(defResp.Policy.ID))
+	require.Equal(t, packageA, storedPackageID(defResp.Policy.ID))
 
-	// Explicit installer chosen → honored.
+	// Explicit package chosen → honored.
 	var chosenResp fleet.TeamPolicyResponse
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", teamID), fleet.TeamPolicyRequest{
 		Name:                "explicit choice",
 		Query:               "SELECT 2;",
 		SoftwareTitleID:     &titleID,
-		SoftwareInstallerID: &installerB,
+		SoftwareInstallerID: &packageB,
 	}, http.StatusOK, &chosenResp)
-	require.Equal(t, installerB, storedInstallerID(chosenResp.Policy.ID))
+	require.Equal(t, packageB, storedPackageID(chosenResp.Policy.ID))
 
 	// Modify the first policy to point at the chosen package.
 	var modResp fleet.ModifyTeamPolicyResponse
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", teamID, defResp.Policy.ID), fleet.ModifyTeamPolicyRequest{
 		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
 			SoftwareTitleID:     optjson.Any[uint]{Set: true, Valid: true, Value: titleID},
-			SoftwareInstallerID: optjson.Any[uint]{Set: true, Valid: true, Value: installerB},
+			SoftwareInstallerID: optjson.Any[uint]{Set: true, Valid: true, Value: packageB},
 		},
 	}, http.StatusOK, &modResp)
-	require.Equal(t, installerB, storedInstallerID(defResp.Policy.ID))
+	require.Equal(t, packageB, storedPackageID(defResp.Policy.ID))
 
-	// An installer_id that doesn't belong to the title is rejected.
+	// A package_id that doesn't belong to the title is rejected.
 	var badResp fleet.TeamPolicyResponse
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", teamID), fleet.TeamPolicyRequest{
-		Name:                "bad installer",
+		Name:                "bad package",
 		Query:               "SELECT 3;",
 		SoftwareTitleID:     &titleID,
-		SoftwareInstallerID: new(installerB + 100000),
+		SoftwareInstallerID: new(packageB + 100000),
 	}, http.StatusBadRequest, &badResp)
 }
 
@@ -36015,7 +36777,7 @@ func (s *integrationEnterpriseTestSuite) TestSelfServiceHostVitalsExcludeAnyLabe
 
 	label, _, err := s.ds.Label(ctx, labelResp.Label.Label.ID, fleet.TeamFilter{User: test.UserAdmin})
 	require.NoError(t, err)
-	_, err = s.ds.UpdateLabelMembershipByHostCriteria(ctx, label)
+	_, _, err = s.ds.UpdateLabelMembershipByHostCriteria(ctx, label)
 	require.NoError(t, err)
 
 	hostsInLabel, err := s.ds.ListHostsInLabel(ctx, fleet.TeamFilter{User: test.UserAdmin}, label.ID, fleet.HostListOptions{})

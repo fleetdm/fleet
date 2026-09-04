@@ -42,6 +42,9 @@ AB has three core capabilities that work together to automate device provisionin
 
 Automated Device Enrollment (ADE) streamlines MDM enrollment by handling initial device setup through Apple's activation infrastructure.
 
+ADE enrollment ties a device to your AB account. If a device needs to be permanently removed from your organization's AB (for example, during asset disposal, resale, or transfer to another organization) your MDM can call Apple's Disown Device API to release it. In Fleet, admins can do this directly from the Host details page or via the REST API. Once disowned, the device will no longer automatically enroll through your 
+AB on reset. **This action is irreversible.**
+
 ### Volume purchasing and app distribution
 
 AB provides bulk app and content purchases with remote distribution that doesn't require employees to use personal Apple Accounts on-device. This gives you complete license management with remote deployment capabilities even if users or your organization has disabled the App Store on managed devices.

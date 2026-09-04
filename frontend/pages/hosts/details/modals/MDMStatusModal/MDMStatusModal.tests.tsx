@@ -4,11 +4,22 @@ import { screen, waitFor } from "@testing-library/react";
 import { createCustomRenderer, createMockRouter } from "test/test-utils";
 import { AxiosError } from "axios";
 
+import createMockUser from "__mocks__/userMock";
 import hostAPI from "services/entities/hosts";
 import paths from "router/paths";
+import { internationalTimeFormat } from "utilities/helpers";
+import { notify } from "components/ToastNotification";
 import MDMStatusModal from "./MDMStatusModal";
 
 jest.mock("services/entities/hosts");
+jest.mock("components/ToastNotification", () => ({
+  notify: {
+    success: jest.fn(),
+    error: jest.fn(),
+    batch: jest.fn(),
+    dismiss: jest.fn(),
+  },
+}));
 
 const mockRouter = createMockRouter();
 
@@ -42,9 +53,16 @@ const mockDepAssignmentResponse = {
 };
 
 describe("MDMStatusModal - component", () => {
+  // Rendered as a global admin throughout. The check-in action is expected to
+  // become permission-gated, and these cases should still pass once it is.
   const render = createCustomRenderer({
     withBackendMock: true,
-    context: {},
+    context: {
+      app: {
+        isGlobalAdmin: true,
+        currentUser: createMockUser(),
+      },
+    },
   });
 
   afterEach(() => {
@@ -60,7 +78,12 @@ describe("MDMStatusModal - component", () => {
       <MDMStatusModal
         hostId={3}
         enrollmentStatus="On (manual)"
+        platform="windows"
         router={mockRouter}
+        user={createMockUser()}
+        lastMDMCheckIn=""
+        onSuccessfulCheckIn={jest.fn()}
+        fleetId={null}
         onExit={jest.fn()}
       />
     );
@@ -80,7 +103,11 @@ describe("MDMStatusModal - component", () => {
         enrollmentStatus="On (manual)"
         router={mockRouter}
         isPremiumTier={false}
-        isAppleDevice
+        platform={"darwin"}
+        user={createMockUser()}
+        lastMDMCheckIn=""
+        onSuccessfulCheckIn={jest.fn()}
+        fleetId={null}
         onExit={jest.fn()}
       />
     );
@@ -93,7 +120,11 @@ describe("MDMStatusModal - component", () => {
         enrollmentStatus="On (manual)"
         router={mockRouter}
         isPremiumTier
-        isAppleDevice={false}
+        platform="windows"
+        user={createMockUser()}
+        lastMDMCheckIn=""
+        onSuccessfulCheckIn={jest.fn()}
+        fleetId={null}
         onExit={jest.fn()}
       />
     );
@@ -111,7 +142,11 @@ describe("MDMStatusModal - component", () => {
         enrollmentStatus="On (manual)"
         router={mockRouter}
         isPremiumTier
-        isAppleDevice
+        platform={"darwin"}
+        user={createMockUser()}
+        lastMDMCheckIn=""
+        onSuccessfulCheckIn={jest.fn()}
+        fleetId={null}
         onExit={jest.fn()}
       />
     );
@@ -135,9 +170,14 @@ describe("MDMStatusModal - component", () => {
     render(
       <MDMStatusModal
         hostId={3}
+        platform="windows"
         enrollmentStatus="On (manual)"
         router={mockRouter}
         isPremiumTier
+        user={createMockUser()}
+        lastMDMCheckIn=""
+        onSuccessfulCheckIn={jest.fn()}
+        fleetId={null}
         onExit={jest.fn()}
       />
     );
@@ -170,7 +210,11 @@ describe("MDMStatusModal - component", () => {
         enrollmentStatus="On (manual)"
         router={mockRouter}
         isPremiumTier
-        isAppleDevice
+        platform={"darwin"}
+        user={createMockUser()}
+        lastMDMCheckIn=""
+        onSuccessfulCheckIn={jest.fn()}
+        fleetId={null}
         onExit={jest.fn()}
       />
     );
@@ -200,7 +244,11 @@ describe("MDMStatusModal - component", () => {
         enrollmentStatus="On (manual)"
         router={mockRouter}
         isPremiumTier
-        isAppleDevice
+        platform={"darwin"}
+        user={createMockUser()}
+        lastMDMCheckIn=""
+        onSuccessfulCheckIn={jest.fn()}
+        fleetId={null}
         onExit={jest.fn()}
       />
     );
@@ -220,7 +268,11 @@ describe("MDMStatusModal - component", () => {
         enrollmentStatus="On (manual)"
         router={mockRouter}
         isPremiumTier
-        isAppleDevice
+        platform={"darwin"}
+        user={createMockUser()}
+        lastMDMCheckIn=""
+        onSuccessfulCheckIn={jest.fn()}
+        fleetId={null}
         onExit={jest.fn()}
       />
     );
@@ -246,7 +298,11 @@ describe("MDMStatusModal - component", () => {
         enrollmentStatus="On (manual)"
         router={mockRouter}
         isPremiumTier
-        isAppleDevice
+        platform={"darwin"}
+        user={createMockUser()}
+        lastMDMCheckIn=""
+        onSuccessfulCheckIn={jest.fn()}
+        fleetId={null}
         onExit={jest.fn()}
       />
     );
@@ -271,7 +327,11 @@ describe("MDMStatusModal - component", () => {
         enrollmentStatus="On (manual)"
         router={mockRouter}
         isPremiumTier
-        isAppleDevice
+        platform={"darwin"}
+        user={createMockUser()}
+        lastMDMCheckIn=""
+        onSuccessfulCheckIn={jest.fn()}
+        fleetId={null}
         onExit={jest.fn()}
       />
     );
@@ -298,8 +358,12 @@ describe("MDMStatusModal - component", () => {
         enrollmentStatus="On (manual)"
         router={mockRouter}
         isPremiumTier
-        isAppleDevice
+        platform={"darwin"}
         depProfileError
+        user={createMockUser()}
+        lastMDMCheckIn=""
+        onSuccessfulCheckIn={jest.fn()}
+        fleetId={null}
         onExit={jest.fn()}
       />
     );
@@ -329,8 +393,12 @@ describe("MDMStatusModal - component", () => {
         enrollmentStatus="On (manual)"
         router={router}
         isPremiumTier
-        isAppleDevice
+        platform={"darwin"}
         depProfileError
+        user={createMockUser()}
+        lastMDMCheckIn=""
+        onSuccessfulCheckIn={jest.fn()}
+        fleetId={null}
         onExit={jest.fn()}
       />
     );
@@ -359,8 +427,13 @@ describe("MDMStatusModal - component", () => {
     const { user } = render(
       <MDMStatusModal
         hostId={3}
+        platform="windows"
         enrollmentStatus="On (manual)"
         router={router}
+        user={createMockUser()}
+        lastMDMCheckIn=""
+        onSuccessfulCheckIn={jest.fn()}
+        fleetId={null}
         onExit={jest.fn()}
       />
     );
@@ -392,7 +465,11 @@ describe("MDMStatusModal - component", () => {
         enrollmentStatus="On (manual)"
         router={mockRouter}
         isPremiumTier
-        isAppleDevice
+        platform={"darwin"}
+        user={createMockUser()}
+        lastMDMCheckIn=""
+        onSuccessfulCheckIn={jest.fn()}
+        fleetId={null}
         onExit={jest.fn()}
       />
     );
@@ -416,12 +493,248 @@ describe("MDMStatusModal - component", () => {
         enrollmentStatus="On (manual)"
         router={mockRouter}
         isPremiumTier
-        isAppleDevice
+        platform={"darwin"}
+        user={createMockUser()}
+        lastMDMCheckIn=""
+        onSuccessfulCheckIn={jest.fn()}
+        fleetId={null}
         onExit={onExit}
       />
     );
 
     await user.click(screen.getByRole("button", { name: "Close" }));
     expect(onExit).toHaveBeenCalled();
+  });
+});
+
+describe("MDMStatusModal - MDM check-in", () => {
+  const LAST_CHECK_IN = "2026-02-10T18:30:00Z";
+
+  // The check-in action is gated at observer-or-higher, and the modal reads
+  // the role off its `user` prop rather than app context -- so cases that
+  // exercise the gate have to set both.
+  const MAINTAINER = createMockUser({
+    role: "maintainer",
+    global_role: "maintainer",
+  });
+  const OBSERVER = createMockUser({
+    role: "observer",
+    global_role: "observer",
+  });
+
+  const renderAsAdmin = createCustomRenderer({
+    withBackendMock: true,
+    context: {
+      app: {
+        isGlobalAdmin: true,
+        currentUser: createMockUser(),
+      },
+    },
+  });
+
+  const renderAsMaintainer = createCustomRenderer({
+    withBackendMock: true,
+    context: {
+      app: {
+        isGlobalMaintainer: true,
+        currentUser: MAINTAINER,
+      },
+    },
+  });
+
+  const renderModal = (
+    renderer: typeof renderAsAdmin,
+    props: Partial<React.ComponentProps<typeof MDMStatusModal>> = {}
+  ) =>
+    renderer(
+      <MDMStatusModal
+        hostId={3}
+        enrollmentStatus="On (manual)"
+        router={mockRouter}
+        isPremiumTier
+        platform={"darwin"}
+        user={createMockUser()}
+        lastMDMCheckIn={LAST_CHECK_IN}
+        onSuccessfulCheckIn={jest.fn()}
+        onExit={jest.fn()}
+        fleetId={props.fleetId ?? null}
+        connectedToFleet
+        {...props}
+      />
+    );
+
+  beforeEach(() => {
+    (hostAPI.getDepAssignment as jest.Mock).mockResolvedValue(
+      mockDepAssignmentResponse
+    );
+  });
+
+  afterEach(() => {
+    jest.resetAllMocks();
+  });
+
+  it("renders the last MDM check-in time for an Apple host", async () => {
+    renderModal(renderAsAdmin);
+
+    expect(await screen.findByText("Last MDM check-in")).toBeInTheDocument();
+    expect(
+      screen.getByText(internationalTimeFormat(new Date(LAST_CHECK_IN)))
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /check in now/i })).toBeEnabled();
+  });
+
+  it("renders 'Never' when the host has not checked in yet", async () => {
+    renderModal(renderAsAdmin, { lastMDMCheckIn: "" });
+
+    expect(await screen.findByText("Last MDM check-in")).toBeInTheDocument();
+    expect(screen.getByText("Never")).toBeInTheDocument();
+  });
+
+  it("does not render the check-in button for a non-Apple host", async () => {
+    renderModal(renderAsAdmin, { platform: "windows" });
+
+    // "MDM status" is also the modal title, so settle on the status row's
+    // value instead to know the list rendered.
+    expect(await screen.findByText(/On \(manual\)/i)).toBeInTheDocument();
+    expect(screen.queryByText("Last MDM check-in")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /check in now/i })
+    ).not.toBeInTheDocument();
+  });
+
+  it("pings the host and refreshes host details when 'Check in now' is clicked", async () => {
+    (hostAPI.apnsPing as jest.Mock).mockResolvedValue({});
+    const onSuccessfulCheckIn = jest.fn();
+
+    const { user } = renderModal(renderAsAdmin, { onSuccessfulCheckIn });
+
+    await user.click(
+      await screen.findByRole("button", { name: /check in now/i })
+    );
+
+    await waitFor(() => {
+      expect(onSuccessfulCheckIn).toHaveBeenCalled();
+    });
+    expect(hostAPI.apnsPing).toHaveBeenCalledWith(3);
+    expect(notify.error).not.toHaveBeenCalled();
+  });
+
+  it("pings the host when a global maintainer clicks 'Check in now'", async () => {
+    (hostAPI.apnsPing as jest.Mock).mockResolvedValue({});
+    const onSuccessfulCheckIn = jest.fn();
+
+    const { user } = renderModal(renderAsMaintainer, {
+      user: MAINTAINER,
+      onSuccessfulCheckIn,
+    });
+
+    await user.click(
+      await screen.findByRole("button", { name: /check in now/i })
+    );
+
+    await waitFor(() => {
+      expect(onSuccessfulCheckIn).toHaveBeenCalled();
+    });
+    expect(hostAPI.apnsPing).toHaveBeenCalledWith(3);
+  });
+
+  it("surfaces an error and does not refresh host details when the ping fails", async () => {
+    (hostAPI.apnsPing as jest.Mock).mockRejectedValue(
+      new AxiosError("network error")
+    );
+    const onSuccessfulCheckIn = jest.fn();
+
+    const { user } = renderModal(renderAsAdmin, { onSuccessfulCheckIn });
+
+    await user.click(
+      await screen.findByRole("button", { name: /check in now/i })
+    );
+
+    await waitFor(() => {
+      expect(notify.error).toHaveBeenCalled();
+    });
+    expect(onSuccessfulCheckIn).not.toHaveBeenCalled();
+    // The button has to come back so the admin can retry.
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", { name: /check in now/i })
+      ).toBeEnabled();
+    });
+  });
+
+  it("disables 'Check in now' while the ping is in flight", async () => {
+    (hostAPI.apnsPing as jest.Mock).mockReturnValue(
+      new Promise(() => {
+        // never resolve
+      })
+    );
+
+    const { user } = renderModal(renderAsAdmin);
+
+    const checkInButton = await screen.findByRole("button", {
+      name: /check in now/i,
+    });
+    await user.click(checkInButton);
+
+    await waitFor(() => {
+      expect(checkInButton).toBeDisabled();
+    });
+  });
+
+  it("does not navigate to the hosts list when 'Check in now' is clicked", async () => {
+    (hostAPI.apnsPing as jest.Mock).mockResolvedValue({});
+    const router = createMockRouter();
+
+    const { user } = renderModal(renderAsAdmin, { router });
+
+    await user.click(
+      await screen.findByRole("button", { name: /check in now/i })
+    );
+
+    await waitFor(() => {
+      expect(hostAPI.apnsPing).toHaveBeenCalled();
+    });
+    expect(router.push).not.toHaveBeenCalled();
+  });
+
+  it("offers 'Check in now' to observers and above", async () => {
+    const CHECK_IN_BUTTON = { name: /check in now/i };
+
+    // observers and above can all ping
+    const { unmount } = renderModal(renderAsAdmin);
+    expect(
+      await screen.findByRole("button", CHECK_IN_BUTTON)
+    ).toBeInTheDocument();
+    unmount();
+
+    const { unmount: unmountMaintainer } = renderModal(renderAsMaintainer, {
+      user: MAINTAINER,
+    });
+    expect(
+      await screen.findByRole("button", CHECK_IN_BUTTON)
+    ).toBeInTheDocument();
+    unmountMaintainer();
+
+    renderModal(renderAsAdmin, { user: OBSERVER });
+    expect(await screen.findByText("Last MDM check-in")).toBeInTheDocument();
+    expect(
+      await screen.findByRole("button", CHECK_IN_BUTTON)
+    ).toBeInTheDocument();
+  });
+
+  it("still navigates to filtered hosts when the MDM status row is clicked", async () => {
+    const router = createMockRouter();
+
+    const { user } = renderModal(renderAsAdmin, { router });
+
+    await user.click(await screen.findByText(/On \(manual\)/i));
+
+    await waitFor(() => {
+      expect(router.push).toHaveBeenCalled();
+    });
+    expect((router.push as jest.Mock).mock.calls[0][0]).toContain(
+      "mdm_enrollment_status="
+    );
+    expect(hostAPI.apnsPing).not.toHaveBeenCalled();
   });
 });

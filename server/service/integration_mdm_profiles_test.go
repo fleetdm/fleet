@@ -11,6 +11,7 @@ import (
 	"encoding/xml"
 	"fmt"
 	"io"
+	"math/big"
 	"net/http"
 	"net/url"
 	"sort"
@@ -32,6 +33,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	scepserver "github.com/fleetdm/fleet/v4/server/mdm/scep/server"
+	mdmtesting "github.com/fleetdm/fleet/v4/server/mdm/testing_utils"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/integrationtest/scep_server"
 	"github.com/fleetdm/fleet/v4/server/service/redis_key_value"
@@ -976,6 +978,26 @@ func (s *integrationMDMTestSuite) TestWindowsProfileRetries() {
 		}
 	}
 
+	// A profile with retries left reads as "pending" while Fleet tries again, so it must not also carry the failed
+	// attempt's error. The device's error comes back only once the failure is terminal.
+	profileDetail := func(t *testing.T, name string) string {
+		storedProfs, err := s.ds.GetHostMDMWindowsProfiles(ctx, h.UUID)
+		require.NoError(t, err)
+		for _, p := range storedProfs {
+			if p.Name == name {
+				return p.Detail
+			}
+		}
+		t.Fatalf("profile %s not found for host %s", name, h.UUID)
+		return ""
+	}
+	requireNoDetailWhileRetrying := func(t *testing.T, name string) {
+		require.Empty(t, profileDetail(t, name), "profile %s is waiting on a retry and must not surface an error", name)
+	}
+	requireDetailOnceFailed := func(t *testing.T, name string) {
+		require.NotEmpty(t, profileDetail(t, name), "profile %s ran out of retries and must surface the device error", name)
+	}
+
 	verifyCommands := func(wantProfileInstalls int, status string) {
 		s.awaitTriggerProfileSchedule(t)
 		cmds, err := mdmDevice.StartManagementSession()
@@ -1026,7 +1048,26 @@ func (s *integrationMDMTestSuite) TestWindowsProfileRetries() {
 	})
 
 	retriesBeforeFailure := servermdm.MaxWindowsProfileRetries
-	t.Run(fmt.Sprintf("retries %d time before marking as failed", retriesBeforeFailure), func(t *testing.T) {
+	t.Run(fmt.Sprintf("retries %d times before marking as failed", retriesBeforeFailure), func(t *testing.T) {
+		// A real Windows device acks every command nested inside the <Atomic>, not just the wrapper, and Fleet builds
+		// a failed profile's detail out of those nested statuses. The fixture has to send them for the detail
+		// assertions below to mean anything.
+		appendNestedStatuses := func(c fleet.ProtoCmdOperation, msgID, status string) {
+			nested := append(append([]fleet.SyncMLCmd{}, c.Cmd.ReplaceCommands...), c.Cmd.AddCommands...)
+			for _, n := range nested {
+				cmdRef, verb := n.CmdID.Value, n.XMLName.Local
+				mdmDevice.AppendResponse(fleet.SyncMLCmd{
+					XMLName: xml.Name{Local: fleet.CmdStatus},
+					MsgRef:  &msgID,
+					CmdRef:  &cmdRef,
+					Cmd:     &verb,
+					Data:    &status,
+					Items:   nil,
+					CmdID:   fleet.CmdID{Value: uuid.NewString()},
+				})
+			}
+		}
+
 		s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: testProfiles}, http.StatusNoContent)
 		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			mysqltest.DumpTable(t, q, "host_mdm_windows_profiles")
@@ -1091,8 +1132,15 @@ func (s *integrationMDMTestSuite) TestWindowsProfileRetries() {
 					Items:   nil,
 					CmdID:   fleet.CmdID{Value: uuid.NewString()},
 				})
+				appendNestedStatuses(c, msgID, status)
 			}
-			require.Equal(t, 2, atomicCmds)
+			// The first pass delivers both profiles. N2 is acknowledged and never resent, so every later retry
+			// carries N1 alone.
+			wantAtomicCmds := 1
+			if i == 0 {
+				wantAtomicCmds = 2
+			}
+			require.Equal(t, wantAtomicCmds, atomicCmds)
 			cmds, err = mdmDevice.SendResponse()
 			require.NoError(t, err)
 			// the ack of the message should be the only returned command
@@ -1103,6 +1151,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileRetries() {
 			checkProfilesStatus(t)
 			expectedRetryCounts["N1"] = uint(i + 1) //nolint:gosec // dismiss G115
 			checkRetryCounts(t)
+			requireNoDetailWhileRetrying(t, "N1")
 		}
 
 		// Final run to mark it as failed
@@ -1145,6 +1194,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileRetries() {
 				Items:   nil,
 				CmdID:   fleet.CmdID{Value: uuid.NewString()},
 			})
+			appendNestedStatuses(c, msgID, status)
 		}
 		require.Equal(t, 1, atomicCmds)
 		cmds, err = mdmDevice.SendResponse()
@@ -1157,6 +1207,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileRetries() {
 		checkProfilesStatus(t)
 		expectedRetryCounts["N1"] = servermdm.MaxWindowsProfileRetries
 		checkRetryCounts(t)
+		requireDetailOnceFailed(t, "N1")
 	})
 }
 
@@ -3562,7 +3613,7 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 		"android.json", []byte(`{"passwordPolicies": [{"passwordMinimumLength": true}]}`), s.token, nil)
 	res = s.DoRawWithHeaders("POST", "/api/latest/fleet/configuration_profiles", body.Bytes(), http.StatusBadRequest, headers)
 	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, `Couldn't add. Invalid JSON payload. "passwordPolicies.passwordMinimumLength" format is wrong.`)
+	require.Contains(t, errMsg, `Couldn't add. Invalid JSON payload. "passwordPolicies.0.passwordMinimumLength" format is wrong.`)
 
 	// disallow unknown keys
 	body, headers = generateNewProfileMultipartRequest(t,
@@ -4049,10 +4100,9 @@ func (s *integrationMDMTestSuite) TestUpdateConfigProfile() {
 	// Windows
 	//
 
-	// content-only edit; the uploaded filename is ignored, the profile keeps
-	// its name
+	// an edit keeping the same file name leaves the name alone
 	winContent2 := syncMLForTest("./TestUpdateProfileEdited")
-	res = patchProfile(winUUID, "some-other-filename.xml", winContent2, nil, http.StatusOK)
+	res = patchProfile(winUUID, "update-win-profile.xml", winContent2, nil, http.StatusOK)
 	patchResp = decodePatchResp(res)
 	require.Equal(t, winUUID, patchResp.ProfileUUID)
 	require.Equal(t, winContent2, downloadProfile(winUUID))
@@ -4060,7 +4110,27 @@ func (s *integrationMDMTestSuite) TestUpdateConfigProfile() {
 	require.Equal(t, "update-win-profile", prof.Name)
 	assertEditedActivity(fleet.ActivityTypeEditedWindowsProfile{}.ActivityName(), "update-win-profile", "")
 
-	// labels-only edit
+	// a differently named file renames the profile in place: same UUID, and the
+	// activity reports the new name
+	winContent3 := syncMLForTest("./TestUpdateProfileRenamed")
+	res = patchProfile(winUUID, "update-win-profile-renamed.xml", winContent3, nil, http.StatusOK)
+	patchResp = decodePatchResp(res)
+	require.Equal(t, winUUID, patchResp.ProfileUUID)
+	require.Equal(t, winContent3, downloadProfile(winUUID))
+	prof = getProfile(winUUID)
+	require.Equal(t, "update-win-profile-renamed", prof.Name)
+	assertEditedActivity(fleet.ActivityTypeEditedWindowsProfile{}.ActivityName(), "update-win-profile-renamed", "")
+
+	// renaming onto a name another profile in the fleet holds is rejected, and
+	// leaves the profile untouched
+	winOtherUUID := createProfile("update-win-other.xml", syncMLForTest("./TestUpdateOther"), fleet.MDMWindowsProfileUUIDPrefix)
+	require.NotEmpty(t, winOtherUUID)
+	res = patchProfile(winUUID, "update-win-other.xml", winContent3, nil, http.StatusConflict)
+	require.Contains(t, extractServerErrorText(res.Body), "already exists")
+	require.Equal(t, "update-win-profile-renamed", getProfile(winUUID).Name)
+	require.Equal(t, winContent3, downloadProfile(winUUID))
+
+	// labels-only edit; no file, so the name is left alone
 	res = patchProfile(winUUID, "", nil, map[string][]string{"labels_include_all": {lblA.Name, lblB.Name}}, http.StatusOK)
 	patchResp = decodePatchResp(res)
 	require.Equal(t, winUUID, patchResp.ProfileUUID)
@@ -4072,8 +4142,9 @@ func (s *integrationMDMTestSuite) TestUpdateConfigProfile() {
 		{LabelID: lblA.ID, LabelName: lblA.Name},
 		{LabelID: lblB.ID, LabelName: lblB.Name},
 	}, prof.LabelsIncludeAll)
-	require.Equal(t, winContent2, downloadProfile(winUUID))
-	assertEditedActivity(fleet.ActivityTypeEditedWindowsProfile{}.ActivityName(), "update-win-profile", "")
+	require.Equal(t, "update-win-profile-renamed", prof.Name)
+	require.Equal(t, winContent3, downloadProfile(winUUID))
+	assertEditedActivity(fleet.ActivityTypeEditedWindowsProfile{}.ActivityName(), "update-win-profile-renamed", "")
 
 	//
 	// Apple DDM declaration
@@ -10498,6 +10569,270 @@ func (s *integrationMDMTestSuite) TestProfileEditCancelsUndeliveredInstallComman
 	// the undelivered v1 install must be cancelled so the host doesn't run v1 then v2
 	require.Zero(t, mdmActiveCmdCount(t, s.ds, iOld), "undelivered install command still active after profile edit")
 	require.Equal(t, 1, mdmActiveCmdCount(t, s.ds, iNew), "new install command not active after profile edit")
+}
+
+// acmeProfileForScope builds a profile with a single ACME payload in the given scope.
+func acmeProfileForScope(ident string, scope fleet.PayloadScope) []byte {
+	return []byte(fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadContent</key>
+	<array>
+		<dict>
+			<key>PayloadType</key><string>com.apple.security.acme</string>
+			<key>PayloadIdentifier</key><string>%[1]s.payload</string>
+			<key>PayloadUUID</key><string>%[2]s</string>
+			<key>PayloadVersion</key><integer>1</integer>
+			<key>PayloadDisplayName</key><string>ACME payload</string>
+			<key>DirectoryURL</key><string>https://acme.example.com/directory</string>
+			<key>Subject</key>
+			<array>
+				<array><array><string>CN</string><string>test-device</string></array></array>
+			</array>
+		</dict>
+	</array>
+	<key>PayloadDisplayName</key><string>%[1]s</string>
+	<key>PayloadIdentifier</key><string>%[1]s</string>
+	<key>PayloadType</key><string>Configuration</string>
+	<key>PayloadUUID</key><string>%[3]s</string>
+	<key>PayloadVersion</key><integer>1</integer>
+	<key>PayloadScope</key><string>%[4]s</string>
+</dict>
+</plist>`, ident, uuid.NewString(), uuid.NewString(), scope))
+}
+
+// acmeCertTemplate returns a cert template identifiable by common name.
+func acmeCertTemplate(commonName string) *x509.Certificate {
+	tmpl := mdmtesting.NewTestMDMAppleCertTemplate()
+	tmpl.SerialNumber = big.NewInt(int64(len(commonName)) + 1000)
+	tmpl.Subject.CommonName = commonName
+	return tmpl
+}
+
+// ackProfileInstall drains the channel until it acknowledges wantCmdUUID,
+// returning the next command the server handed back.
+func ackProfileInstall(t *testing.T, d *mdmtest.TestAppleMDMClient, userChannel bool, wantCmdUUID string) *mdm.Command {
+	idle, ack := d.Idle, d.Acknowledge
+	if userChannel {
+		idle, ack = d.UserIdle, d.UserAcknowledge
+	}
+	cmd, err := idle()
+	require.NoError(t, err)
+	for cmd != nil {
+		isTarget := cmd.CommandUUID == wantCmdUUID
+		next, err := ack(cmd.CommandUUID)
+		require.NoError(t, err)
+		if isTarget {
+			return next
+		}
+		cmd = next
+	}
+	require.FailNow(t, "profile command was never delivered", "command uuid %s", wantCmdUUID)
+	return nil
+}
+
+// nanoCertificateListUUIDs returns the CertificateList commands queued against one
+// nano enrollment, telling a device-channel refetch apart from a user-channel one.
+func nanoCertificateListUUIDs(t *testing.T, ds *mysql.Datastore, enrollmentID string) []string {
+	var uuids []string
+	mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(context.Background(), q, &uuids,
+			`SELECT neq.command_uuid
+			 FROM nano_enrollment_queue neq
+			 JOIN nano_commands nc ON neq.command_uuid = nc.command_uuid
+			 WHERE nc.request_type = 'CertificateList' AND neq.id = ?
+			 ORDER BY neq.created_at`, enrollmentID)
+	})
+	return uuids
+}
+
+// hostCertificateScopes maps common name to reported scope, per the host details API.
+func (s *integrationMDMTestSuite) hostCertificateScopes(t *testing.T, hostID uint) map[string]string {
+	var resp listHostCertificatesResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/certificates", hostID), nil, http.StatusOK, &resp)
+	scopes := make(map[string]string, len(resp.Certificates))
+	for _, c := range resp.Certificates {
+		scope := string(c.Source)
+		if c.Username != "" {
+			scope += ":" + c.Username
+		}
+		scopes[c.CommonName] = scope
+	}
+	return scopes
+}
+
+// TestACMECertForUserChannelProfile covers an ACME cert from a user-scoped
+// profile on macOS: it lands in the user's login keychain, which the device
+// channel can't see, so the refetch has to go out on the user channel and the
+// cert has to be recorded under the user's scope.
+func (s *integrationMDMTestSuite) TestACMECertForUserChannelProfile() {
+	t := s.T()
+	ctx := t.Context()
+
+	// Enroll a macOS device and drain the initial (fleetd/CA) profiles.
+	require.NoError(t, s.ds.ApplyEnrollSecrets(ctx, nil, []*fleet.EnrollSecret{{Secret: t.Name()}}))
+	host, mdmDevice := s.enrollHostDrainInitialProfiles(t)
+
+	// User-channel enrollment, as DEP-enrolled macOS devices do automatically.
+	require.NoError(t, mdmDevice.UserEnroll())
+	userEnr, err := s.ds.GetNanoMDMUserEnrollment(ctx, host.UUID)
+	require.NoError(t, err)
+	require.NotNil(t, userEnr, "user enrollment must exist after UserEnroll")
+
+	// Upload a user-scoped ACME profile.
+	const profIdent = "com.fleetdm.test.profile.acme.wifi"
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+		{Name: "ACME-WiFi", Contents: acmeProfileForScope(profIdent, fleet.PayloadScopeUser)},
+	}}, http.StatusNoContent)
+
+	// Trigger profile reconciliation so the cron picks up the new profile.
+	s.awaitTriggerProfileSchedule(t)
+
+	// Verify the profile row was created with scope=User.
+	ok, cmdUUID := hostHasAppleProfileOp(t, s.ds, host.UUID, profIdent, fleet.MDMOperationTypeInstall)
+	require.True(t, ok, "ACME profile should be pending install")
+	require.NotEmpty(t, cmdUUID)
+
+	// Verify the install command is queued to the user enrollment.
+	var queuedEnrollmentID string
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &queuedEnrollmentID,
+			`SELECT id FROM nano_enrollment_queue WHERE command_uuid = ?`, cmdUUID)
+	})
+	require.Equal(t, userEnr.ID, queuedEnrollmentID, "install command must be queued to user enrollment")
+
+	// Acking the install on the user channel fires the certificate refetch.
+	ackProfileInstall(t, mdmDevice, true, cmdUUID)
+
+	// --- The refetch must target the user channel, not the device channel ---
+	require.Empty(t, nanoCertificateListUUIDs(t, s.ds, host.UUID),
+		"no CertificateList may be queued to the device channel: it only reports the system keychain")
+	userCertListUUIDs := nanoCertificateListUUIDs(t, s.ds, userEnr.ID)
+	require.Len(t, userCertListUUIDs, 1,
+		"exactly one CertificateList must be queued to the user channel")
+
+	// --- Answer on the user channel with the login keychain's contents ---
+	cmd, err := mdmDevice.UserIdle()
+	require.NoError(t, err)
+	for cmd != nil && cmd.Command.RequestType != "CertificateList" {
+		cmd, err = mdmDevice.UserAcknowledge(cmd.CommandUUID)
+		require.NoError(t, err)
+	}
+	require.NotNil(t, cmd, "CertificateList must be delivered on user channel")
+	require.Equal(t, userCertListUUIDs[0], cmd.CommandUUID)
+
+	const acmeCN = "acme-user-keychain-cert"
+	_, err = mdmDevice.AcknowledgeUserCertificateList(cmd.CommandUUID,
+		[]*x509.Certificate{acmeCertTemplate(acmeCN)})
+	require.NoError(t, err)
+
+	// --- The cert shows up, attributed to the enrolled user's keychain ---
+	require.Equal(t, "user:"+mdmDevice.Username, s.hostCertificateScopes(t, host.ID)[acmeCN],
+		"ACME cert must show under the enrolled user's scope, not the system keychain")
+
+	// Cleanup must run against the answering enrollment, or the user channel's
+	// refetch rows are never reclaimed.
+	var trackedCommands []fleet.HostMDMCommand
+	trackedCommands, err = s.ds.GetHostMDMCommands(ctx, host.ID)
+	require.NoError(t, err)
+	require.NotContains(t, trackedCommands,
+		fleet.HostMDMCommand{HostID: host.ID, CommandType: fleet.RefetchCertsCommandUUIDPrefix},
+		"refetch certs tracking row must be cleared once the user channel answers")
+}
+
+// TestACMECertUserAndSystemScopedProfilesCoexist covers a host with ACME profiles
+// in both scopes: each channel reports only its own keychain, so neither refetch
+// may clear the other's cert — removals included.
+func (s *integrationMDMTestSuite) TestACMECertUserAndSystemScopedProfilesCoexist() {
+	t := s.T()
+	ctx := t.Context()
+
+	require.NoError(t, s.ds.ApplyEnrollSecrets(ctx, nil, []*fleet.EnrollSecret{{Secret: t.Name()}}))
+	host, mdmDevice := s.enrollHostDrainInitialProfiles(t)
+	require.NoError(t, mdmDevice.UserEnroll())
+	userEnr, err := s.ds.GetNanoMDMUserEnrollment(ctx, host.UUID)
+	require.NoError(t, err)
+	require.NotNil(t, userEnr)
+
+	const (
+		userProfIdent = "com.fleetdm.test.profile.acme.user"
+		sysProfIdent  = "com.fleetdm.test.profile.acme.system"
+		userCN        = "acme-user-keychain-cert"
+		sysCN         = "acme-system-keychain-cert"
+	)
+	userProfile := fleet.MDMProfileBatchPayload{Name: "ACME-User", Contents: acmeProfileForScope(userProfIdent, fleet.PayloadScopeUser)}
+	sysProfile := fleet.MDMProfileBatchPayload{Name: "ACME-System", Contents: acmeProfileForScope(sysProfIdent, fleet.PayloadScopeSystem)}
+
+	// --- Install the user-scoped profile and ingest its login keychain cert ---
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch",
+		batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{userProfile}}, http.StatusNoContent)
+	s.awaitTriggerProfileSchedule(t)
+	ok, userCmdUUID := hostHasAppleProfileOp(t, s.ds, host.UUID, userProfIdent, fleet.MDMOperationTypeInstall)
+	require.True(t, ok)
+	ackProfileInstall(t, mdmDevice, true, userCmdUUID)
+
+	cmd, err := mdmDevice.UserIdle()
+	require.NoError(t, err)
+	for cmd != nil && cmd.Command.RequestType != "CertificateList" {
+		cmd, err = mdmDevice.UserAcknowledge(cmd.CommandUUID)
+		require.NoError(t, err)
+	}
+	require.NotNil(t, cmd, "CertificateList must be delivered on user channel")
+	_, err = mdmDevice.AcknowledgeUserCertificateList(cmd.CommandUUID, []*x509.Certificate{acmeCertTemplate(userCN)})
+	require.NoError(t, err)
+	require.Equal(t, "user:"+mdmDevice.Username, s.hostCertificateScopes(t, host.ID)[userCN])
+
+	// --- Install the system-scoped profile and ingest its system keychain cert ---
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch",
+		batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{userProfile, sysProfile}}, http.StatusNoContent)
+	s.awaitTriggerProfileSchedule(t)
+	ok, sysCmdUUID := hostHasAppleProfileOp(t, s.ds, host.UUID, sysProfIdent, fleet.MDMOperationTypeInstall)
+	require.True(t, ok)
+	ackProfileInstall(t, mdmDevice, false, sysCmdUUID)
+
+	deviceCertListUUIDs := nanoCertificateListUUIDs(t, s.ds, host.UUID)
+	require.Len(t, deviceCertListUUIDs, 1, "system-scoped ACME profile must refetch on the device channel")
+
+	cmd, err = mdmDevice.Idle()
+	require.NoError(t, err)
+	for cmd != nil && cmd.Command.RequestType != "CertificateList" {
+		cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+		require.NoError(t, err)
+	}
+	require.NotNil(t, cmd, "CertificateList must be delivered on device channel")
+	// The device channel reports the system keychain only.
+	_, err = mdmDevice.AcknowledgeCertificateList(mdmDevice.UUID, cmd.CommandUUID, []*x509.Certificate{acmeCertTemplate(sysCN)})
+	require.NoError(t, err)
+
+	scopes := s.hostCertificateScopes(t, host.ID)
+	require.Equal(t, "system", scopes[sysCN], "system keychain cert must be ingested")
+	require.Equal(t, "user:"+mdmDevice.Username, scopes[userCN],
+		"device-channel refetch must not clear the login keychain cert it cannot see")
+
+	// --- Removing the user-scoped profile clears only its own cert ---
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch",
+		batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{sysProfile}}, http.StatusNoContent)
+	s.awaitTriggerProfileSchedule(t)
+	ok, removeCmdUUID := hostHasAppleProfileOp(t, s.ds, host.UUID, userProfIdent, fleet.MDMOperationTypeRemove)
+	require.True(t, ok, "user-scoped profile should be pending removal")
+	ackProfileInstall(t, mdmDevice, true, removeCmdUUID)
+
+	cmd, err = mdmDevice.UserIdle()
+	require.NoError(t, err)
+	for cmd != nil && cmd.Command.RequestType != "CertificateList" {
+		cmd, err = mdmDevice.UserAcknowledge(cmd.CommandUUID)
+		require.NoError(t, err)
+	}
+	require.NotNil(t, cmd, "removal must refetch on the user channel")
+	// The login keychain no longer holds the cert.
+	_, err = mdmDevice.AcknowledgeUserCertificateList(cmd.CommandUUID, nil)
+	require.NoError(t, err)
+
+	scopes = s.hostCertificateScopes(t, host.ID)
+	require.NotContains(t, scopes, userCN, "removed profile's user keychain cert must be cleared")
+	require.Equal(t, "system", scopes[sysCN],
+		"user-channel refetch must not clear the system keychain cert it cannot see")
 }
 
 // TestPolicyAutomationResendConfigurationProfile covers the policy automation that resends a

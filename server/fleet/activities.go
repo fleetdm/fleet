@@ -8,6 +8,15 @@ import (
 	"github.com/fleetdm/fleet/v4/server/activity/api"
 )
 
+// Priorities for the upcoming activities queue (higher activates first).
+// User-initiated activities sit above Fleet-initiated ones (default 0) so a
+// person acting on a host is never queued behind deferred policy-automation
+// work, and setup experience outranks both.
+const (
+	UserInitiatedActivityPriority   = 10
+	SetupExperienceActivityPriority = 100
+)
+
 // ActivityWriteService is the subset of the activity bounded context service
 // used by the legacy service layer for write operations.
 type ActivityWriteService interface {
@@ -354,6 +363,23 @@ func (a ActivityTypeDeletedUser) WasFromAutomation() bool {
 	return a.FromScimUserDeletion
 }
 
+// ActivityTypeScimUserDeprovisionSkipped flags a SCIM deactivation or deletion
+// that could not be matched to a Fleet user because the SCIM record has no
+// email identifiers and no durable link — a corresponding Fleet account may
+// remain active.
+type ActivityTypeScimUserDeprovisionSkipped struct {
+	ScimUserID   uint   `json:"scim_user_id"`
+	ScimUserName string `json:"scim_user_name"`
+}
+
+func (a ActivityTypeScimUserDeprovisionSkipped) ActivityName() string {
+	return "scim_user_deprovision_skipped"
+}
+
+func (a ActivityTypeScimUserDeprovisionSkipped) WasFromAutomation() bool {
+	return true
+}
+
 type ActivityTypeDeletedHost struct {
 	HostID           uint                   `json:"host_id"`
 	HostDisplayName  string                 `json:"host_display_name"`
@@ -436,11 +462,9 @@ func (a ActivityTypeFleetEnrolled) ActivityName() string {
 }
 
 type ActivityTypeMDMEnrolled struct {
-	// HostID is omitted when zero. It is always set for Apple enrollments and
-	// for Windows enrollments where the host is known at enrollment time;
-	// Windows Azure automatic enrollments are linked to their host later (via
-	// the serial reported on the first management session), so their
-	// enrollment activity has no host_id (see #47874).
+	// HostID is omitted when zero, which only happens for activities recorded before it was added to this struct.
+	// Windows Entra automatic enrollments know neither the host nor its serial at enrollment time, so their activity
+	// is deferred until the enrollment is linked to a host rather than recorded without one.
 	HostID           uint    `json:"host_id,omitempty"`
 	HostSerial       *string `json:"host_serial"`
 	HostDisplayName  string  `json:"host_display_name"`
@@ -645,6 +669,9 @@ func (a ActivityTypeDeletedMacosSetupAssistant) ActivityName() string {
 	return "deleted_macos_setup_assistant"
 }
 
+// ActivityTypeEnabledMacosDiskEncryption is deprecated, superseded by
+// ActivityTypeEditedDiskEncryptionSettings; kept only so historical
+// activities still render.
 type ActivityTypeEnabledMacosDiskEncryption struct {
 	TeamID   *uint   `json:"team_id" renameto:"fleet_id"`
 	TeamName *string `json:"team_name" renameto:"fleet_name"`
@@ -654,6 +681,9 @@ func (a ActivityTypeEnabledMacosDiskEncryption) ActivityName() string {
 	return "enabled_macos_disk_encryption"
 }
 
+// ActivityTypeDisabledMacosDiskEncryption is deprecated, superseded by
+// ActivityTypeEditedDiskEncryptionSettings; kept only so historical
+// activities still render.
 type ActivityTypeDisabledMacosDiskEncryption struct {
 	TeamID   *uint   `json:"team_id" renameto:"fleet_id"`
 	TeamName *string `json:"team_name" renameto:"fleet_name"`
@@ -661,6 +691,20 @@ type ActivityTypeDisabledMacosDiskEncryption struct {
 
 func (a ActivityTypeDisabledMacosDiskEncryption) ActivityName() string {
 	return "disabled_macos_disk_encryption"
+}
+
+// ActivityTypeEditedDiskEncryptionSettings is recorded once per platform whose
+// effective disk encryption settings changed. It replaces the deprecated
+// ActivityTypeEnabledMacosDiskEncryption / ActivityTypeDisabledMacosDiskEncryption
+// pair.
+type ActivityTypeEditedDiskEncryptionSettings struct {
+	FleetID   *uint   `json:"fleet_id"`
+	FleetName *string `json:"fleet_name"`
+	Platform  string  `json:"platform"` // "macos" | "windows" | "linux"
+}
+
+func (a ActivityTypeEditedDiskEncryptionSettings) ActivityName() string {
+	return "edited_disk_encryption_settings"
 }
 
 type ActivityTypeSetHostRecoveryLockPassword struct {
@@ -768,6 +812,18 @@ type ActivityTypeDisabledGitOpsMode struct{}
 
 func (a ActivityTypeDisabledGitOpsMode) ActivityName() string {
 	return "disabled_gitops_mode"
+}
+
+type ActivityTypeEnabledSSOFleetDesktop struct{}
+
+func (a ActivityTypeEnabledSSOFleetDesktop) ActivityName() string {
+	return "enabled_sso_fleet_desktop"
+}
+
+type ActivityTypeDisabledSSOFleetDesktop struct{}
+
+func (a ActivityTypeDisabledSSOFleetDesktop) ActivityName() string {
+	return "disabled_sso_fleet_desktop"
 }
 
 // ActivityTypeEditedAccountProvisioning is emitted whenever the Apple account
@@ -1258,6 +1314,13 @@ func (a ActivityTypeInstalledSoftware) HostIDs() []uint {
 	return []uint{a.HostID}
 }
 
+// HostOnly hides patch-when-closed skips from the global activity feed; they
+// stay on the host activity feed. Skips fire on every policy re-eval while the
+// app is open, which is too noisy globally.
+func (a ActivityTypeInstalledSoftware) HostOnly() bool {
+	return a.SkippedInstall
+}
+
 func (a ActivityTypeInstalledSoftware) WasFromAutomation() bool {
 	return a.PolicyID != nil || a.FromSetupExperience
 }
@@ -1730,6 +1793,21 @@ func (a ActivityTypeCanceledRunScript) ActivityName() string {
 }
 
 func (a ActivityTypeCanceledRunScript) HostIDs() []uint {
+	return []uint{a.HostID}
+}
+
+type ActivityTypeCanceledMDMCommand struct {
+	HostID          uint   `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
+	// CommandType is the raw MDM request type, e.g. "DeviceLock".
+	CommandType string `json:"command_type"`
+}
+
+func (a ActivityTypeCanceledMDMCommand) ActivityName() string {
+	return "canceled_mdm_command"
+}
+
+func (a ActivityTypeCanceledMDMCommand) HostIDs() []uint {
 	return []uint{a.HostID}
 }
 
@@ -2523,4 +2601,16 @@ func (a ActivityTypeReleasedDeviceFromAB) ActivityName() string {
 
 func (a ActivityTypeReleasedDeviceFromAB) HostIDs() []uint {
 	return []uint{a.HostID}
+}
+
+type ActivityTypeEnabledAppleBusinessOnlyEnrollment struct{}
+
+func (a ActivityTypeEnabledAppleBusinessOnlyEnrollment) ActivityName() string {
+	return "enabled_apple_business_only_enrollment"
+}
+
+type ActivityTypeDisabledAppleBusinessOnlyEnrollment struct{}
+
+func (a ActivityTypeDisabledAppleBusinessOnlyEnrollment) ActivityName() string {
+	return "disabled_apple_business_only_enrollment"
 }

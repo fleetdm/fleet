@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math"
 	"math/rand"
+	"slices"
 	"sort"
 	"testing"
 	"time"
@@ -40,7 +41,10 @@ func TestQueries(t *testing.T) {
 		{"IsSavedQuery", testIsSavedQuery},
 		{"SaveQueryLabels", testSaveQueryLabels},
 		{"ListScheduledQueriesForAgentsWithLabels", testListScheduledQueriesForAgentsWithLabels},
+		{"QueriesPerHost", testQueriesPerHost},
 		{"HasLabelScopedScheduledQueries", testHasLabelScopedScheduledQueries},
+		{"LabelScopedScheduledQueryScopes", testLabelScopedScheduledQueryScopes},
+		{"QueryLabelsAtomic", testQueryLabelsAtomic},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -309,6 +313,57 @@ func testQueriesGetByName(t *testing.T, ds *Datastore) {
 	_, err = ds.QueryByName(context.Background(), &teamRocket.ID, "xxx")
 	require.Error(t, err)
 	require.True(t, fleet.IsNotFound(err))
+
+	// QueriesByName resolves many (team, name) pairs in one lookup, keeps global
+	// and same-named team queries distinct, and omits names that don't exist.
+	got, err := ds.QueriesByName(context.Background(), []fleet.TeamScopedQueryName{
+		{TeamID: nil, Name: "q1"},              // global q1
+		{TeamID: &teamRocket.ID, Name: "q1"},   // team q1, same name
+		{TeamID: nil, Name: "nope"},            // missing
+		{TeamID: &teamRocket.ID, Name: "nope"}, // missing
+		{TeamID: nil, Name: "q1"},              // duplicate of the first
+	})
+	require.NoError(t, err)
+	require.Len(t, got, 2)
+
+	globalHit := got[fleet.TeamScopedQueryName{TeamID: nil, Name: "q1"}.Key()]
+	require.NotNil(t, globalHit)
+	require.Equal(t, globalQ.ID, globalHit.ID)
+	require.Nil(t, globalHit.TeamID)
+
+	teamHit := got[fleet.TeamScopedQueryName{TeamID: &teamRocket.ID, Name: "q1"}.Key()]
+	require.NotNil(t, teamHit)
+	require.Equal(t, teamRocketQ.ID, teamHit.ID)
+	require.Equal(t, teamRocket.ID, *teamHit.TeamID)
+
+	// A name that exists on one team must not resolve when requested for another
+	// team: the tuple scoping must be exact, not name-only.
+	teamB, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "Team B", Description: "b"})
+	require.NoError(t, err)
+	crossTeam, err := ds.QueriesByName(context.Background(), []fleet.TeamScopedQueryName{
+		{TeamID: &teamB.ID, Name: "q1"}, // q1 exists globally and on teamRocket, not teamB
+	})
+	require.NoError(t, err)
+	require.Empty(t, crossTeam)
+
+	// Forcing a tiny batch size exercises the multi-chunk path: every existing
+	// pair must still resolve across chunk boundaries.
+	defer func(orig int) { queriesByNameBatchSize = orig }(queriesByNameBatchSize)
+	queriesByNameBatchSize = 1
+	chunked, err := ds.QueriesByName(context.Background(), []fleet.TeamScopedQueryName{
+		{TeamID: nil, Name: "q1"},
+		{TeamID: &teamRocket.ID, Name: "q1"},
+		{TeamID: nil, Name: "nope"},
+	})
+	require.NoError(t, err)
+	require.Len(t, chunked, 2)
+	require.NotNil(t, chunked[fleet.TeamScopedQueryName{TeamID: nil, Name: "q1"}.Key()])
+	require.NotNil(t, chunked[fleet.TeamScopedQueryName{TeamID: &teamRocket.ID, Name: "q1"}.Key()])
+
+	// Empty input must not hit the DB and returns an empty map.
+	empty, err := ds.QueriesByName(context.Background(), nil)
+	require.NoError(t, err)
+	require.Empty(t, empty)
 }
 
 func testQueriesDeleteMany(t *testing.T, ds *Datastore) {
@@ -1384,6 +1439,133 @@ func testSaveQueryLabels(t *testing.T, ds *Datastore) {
 	require.Error(t, err)
 }
 
+func testQueriesPerHost(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	user := test.NewUser(t, ds, "Zach", "zwass@fleet.co", true)
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+	otherTeam, err := ds.NewTeam(ctx, &fleet.Team{Name: "team2"})
+	require.NoError(t, err)
+
+	label, err := ds.NewLabel(ctx, &fleet.Label{Name: "label1"})
+	require.NoError(t, err)
+	otherLabel, err := ds.NewLabel(ctx, &fleet.Label{Name: "label2"})
+	require.NoError(t, err)
+
+	hostInLabel := test.NewHost(t, ds, "host1", "10.0.0.1", "asdf", "host1", time.Now())
+	require.NoError(t, ds.AddLabelsToHost(ctx, hostInLabel.ID, []uint{label.ID}))
+	hostInOtherLabel := test.NewHost(t, ds, "host2", "10.0.0.2", "asdg", "host2", time.Now())
+	require.NoError(t, ds.AddLabelsToHost(ctx, hostInOtherLabel.ID, []uint{otherLabel.ID}))
+	hostInBothLabels := test.NewHost(t, ds, "host3", "10.0.0.3", "asdh", "host3", time.Now())
+	require.NoError(t, ds.AddLabelsToHost(ctx, hostInBothLabels.ID, []uint{label.ID, otherLabel.ID}))
+	hostNoLabels := test.NewHost(t, ds, "host4", "10.0.0.4", "asdj", "host4", time.Now())
+
+	hostOnTeam := test.NewHost(t, ds, "host5", "10.0.0.5", "asdk", "host5", time.Now())
+	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{hostOnTeam.ID})))
+	hostOnOtherTeam := test.NewHost(t, ds, "host6", "10.0.0.6", "asdl", "host6", time.Now())
+	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&otherTeam.ID, []uint{hostOnOtherTeam.ID})))
+
+	// Read the team hosts back so their TeamID is the one the service would pass.
+	hostOnTeam, err = ds.Host(ctx, hostOnTeam.ID)
+	require.NoError(t, err)
+	require.Equal(t, team.ID, *hostOnTeam.TeamID)
+	hostOnOtherTeam, err = ds.Host(ctx, hostOnOtherTeam.ID)
+	require.NoError(t, err)
+
+	newQuery := func(t *testing.T, name string, mutate func(*fleet.Query)) *fleet.Query {
+		query := &fleet.Query{
+			Name:     name,
+			Query:    "SELECT 1",
+			AuthorID: &user.ID,
+			Logging:  fleet.LoggingSnapshot,
+			Interval: 10,
+			Saved:    true,
+		}
+		if mutate != nil {
+			mutate(query)
+		}
+		created, err := ds.NewQuery(ctx, query)
+		require.NoError(t, err)
+		return created
+	}
+
+	// Stores results in a report, no automations.
+	global := newQuery(t, "global", nil)
+	// Stores results and streams them.
+	automated := newQuery(t, "automated", func(q *fleet.Query) { q.AutomationsEnabled = true })
+	// Streams results without storing them, which is still a reason to run it.
+	streamOnly := newQuery(t, "stream only", func(q *fleet.Query) {
+		q.AutomationsEnabled = true
+		q.Logging = fleet.LoggingDifferential
+	})
+
+	// Never scheduled for any host: they would neither store nor stream a result.
+	noInterval := newQuery(t, "no interval", func(q *fleet.Query) { q.Interval = 0 })
+	notSaved := newQuery(t, "not saved", func(q *fleet.Query) { q.Saved = false })
+	discardData := newQuery(t, "discard data", func(q *fleet.Query) { q.DiscardData = true })
+	differential := newQuery(t, "differential", func(q *fleet.Query) { q.Logging = fleet.LoggingDifferential })
+
+	includeAny := newQuery(t, "include any", func(q *fleet.Query) {
+		q.LabelsIncludeAny = []fleet.LabelIdent{{LabelName: label.Name}}
+	})
+	includeAll := newQuery(t, "include all", func(q *fleet.Query) {
+		q.LabelsIncludeAll = []fleet.LabelIdent{{LabelName: label.Name}, {LabelName: otherLabel.Name}}
+	})
+	teamQuery := newQuery(t, "team query", func(q *fleet.Query) { q.TeamID = &team.ID })
+	otherTeamQuery := newQuery(t, "other team query", func(q *fleet.Query) { q.TeamID = &otherTeam.ID })
+
+	// Scheduled for every host, whatever its team and labels.
+	unscopedGlobal := []uint{global.ID, automated.ID, streamOnly.ID}
+
+	for _, tc := range []struct {
+		name string
+		host *fleet.Host
+		want []uint
+	}{
+		{
+			name: "host with no labels gets the unscoped global queries",
+			host: hostNoLabels,
+			want: unscopedGlobal,
+		},
+		{
+			name: "host in an include_any label also gets the includeAny query",
+			host: hostInLabel,
+			want: append(slices.Clone(unscopedGlobal), includeAny.ID),
+		},
+		{
+			name: "host in a different label gets neither label-scoped query",
+			host: hostInOtherLabel,
+			want: unscopedGlobal,
+		},
+		{
+			name: "host in every include_all label gets both label-scoped queries",
+			host: hostInBothLabels,
+			want: append(slices.Clone(unscopedGlobal), includeAny.ID, includeAll.ID),
+		},
+		{
+			name: "host on a team gets global queries and its own team's",
+			host: hostOnTeam,
+			want: append(slices.Clone(unscopedGlobal), teamQuery.ID),
+		},
+		{
+			name: "host on another team gets that team's queries instead",
+			host: hostOnOtherTeam,
+			want: append(slices.Clone(unscopedGlobal), otherTeamQuery.ID),
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			queryIDs, err := ds.QueriesPerHost(ctx, tc.host.ID, tc.host.TeamID)
+			require.NoError(t, err)
+			require.ElementsMatch(t, tc.want, queryIDs)
+			require.NotContains(t, queryIDs, noInterval.ID)
+			require.NotContains(t, queryIDs, notSaved.ID)
+			require.NotContains(t, queryIDs, discardData.ID)
+			require.NotContains(t, queryIDs, differential.ID)
+		})
+	}
+}
+
 func testListScheduledQueriesForAgentsWithLabels(t *testing.T, ds *Datastore) {
 	requireQueries := func(t *testing.T, queries []*fleet.Query, names []string) {
 		require.Len(t, queries, len(names))
@@ -1661,4 +1843,162 @@ func testHasLabelScopedScheduledQueries(t *testing.T, ds *Datastore) {
 	has, err = ds.HasLabelScopedScheduledQueries(ctx, &team.ID, true)
 	require.NoError(t, err)
 	assert.False(t, has, "snapshot report with labels should NOT count when queryReportsDisabled=true")
+}
+
+func testLabelScopedScheduledQueryScopes(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	user := test.NewUser(t, ds, "Gabriel", "gabriel@fleet.co", true)
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "etag scopes team"})
+	require.NoError(t, err)
+
+	// empty: no label-scoped scheduled queries anywhere
+	got, err := ds.LabelScopedScheduledQueryScopes(ctx)
+	require.NoError(t, err)
+	require.False(t, got.Global)
+	require.Empty(t, got.TeamIDs)
+
+	// a plain scheduled query (no labels) does not count
+	_, err = ds.NewQuery(ctx, &fleet.Query{
+		Name:     "plain scheduled",
+		Query:    "SELECT 1",
+		AuthorID: &user.ID,
+		Logging:  fleet.LoggingSnapshot,
+		Interval: 10,
+		Saved:    true,
+	})
+	require.NoError(t, err)
+	// a label-scoped query that is NOT scheduled (interval 0) does not count
+	label, err := ds.NewLabel(ctx, &fleet.Label{Name: "etag gate label"})
+	require.NoError(t, err)
+	_, err = ds.NewQuery(ctx, &fleet.Query{
+		Name:             "label scoped unscheduled",
+		Query:            "SELECT 1",
+		AuthorID:         &user.ID,
+		Logging:          fleet.LoggingSnapshot,
+		Interval:         0,
+		Saved:            true,
+		LabelsIncludeAny: []fleet.LabelIdent{{LabelName: label.Name}},
+	})
+	require.NoError(t, err)
+	got, err = ds.LabelScopedScheduledQueryScopes(ctx)
+	require.NoError(t, err)
+	require.False(t, got.Global)
+	require.Empty(t, got.TeamIDs)
+
+	// a TEAM label-scoped scheduled query flags only that team
+	teamScoped, err := ds.NewQuery(ctx, &fleet.Query{
+		Name:             "team label scoped scheduled",
+		Query:            "SELECT 1",
+		AuthorID:         &user.ID,
+		Logging:          fleet.LoggingSnapshot,
+		Interval:         10,
+		Saved:            true,
+		TeamID:           &team.ID,
+		LabelsIncludeAny: []fleet.LabelIdent{{LabelName: label.Name}},
+	})
+	require.NoError(t, err)
+	got, err = ds.LabelScopedScheduledQueryScopes(ctx)
+	require.NoError(t, err)
+	require.False(t, got.Global)
+	require.Equal(t, []uint{team.ID}, got.TeamIDs)
+
+	// a GLOBAL label-scoped scheduled query flags the global scope too
+	globalScoped, err := ds.NewQuery(ctx, &fleet.Query{
+		Name:             "global label scoped scheduled",
+		Query:            "SELECT 1",
+		AuthorID:         &user.ID,
+		Logging:          fleet.LoggingSnapshot,
+		Interval:         10,
+		Saved:            true,
+		LabelsIncludeAny: []fleet.LabelIdent{{LabelName: label.Name}},
+	})
+	require.NoError(t, err)
+	got, err = ds.LabelScopedScheduledQueryScopes(ctx)
+	require.NoError(t, err)
+	require.True(t, got.Global)
+	require.Equal(t, []uint{team.ID}, got.TeamIDs)
+
+	// deleting them clears the answers (query_labels rows cascade)
+	err = ds.DeleteQuery(ctx, globalScoped.TeamID, globalScoped.Name)
+	require.NoError(t, err)
+	err = ds.DeleteQuery(ctx, teamScoped.TeamID, teamScoped.Name)
+	require.NoError(t, err)
+	got, err = ds.LabelScopedScheduledQueryScopes(ctx)
+	require.NoError(t, err)
+	require.False(t, got.Global)
+	require.Empty(t, got.TeamIDs)
+}
+
+// testQueryLabelsAtomic verifies that a query row and its query_labels rows are
+// written in a single transaction. A scheduled query with no query_labels rows
+// targets every host, so a query row that outlives a failed label write (or
+// is visible before its labels are written) leaks a label-scoped query to
+// out-of-scope hosts (#49502).
+func testQueryLabelsAtomic(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	user := test.NewUser(t, ds, "Zach", "zwass@fleet.co", true)
+
+	label1, err := ds.NewLabel(ctx, &fleet.Label{Name: "label1"})
+	require.NoError(t, err)
+
+	hostInLabel := test.NewHost(t, ds, "host1", "10.0.0.1", "asdf", "host1", time.Now())
+	require.NoError(t, ds.AddLabelsToHost(ctx, hostInLabel.ID, []uint{label1.ID}))
+	hostNotInLabel := test.NewHost(t, ds, "host2", "10.0.0.2", "asdg", "host2", time.Now())
+
+	// NewQuery: a label that does not exist must roll back the query row too,
+	// otherwise an unscoped (global) scheduled query would be left behind.
+	_, err = ds.NewQuery(ctx, &fleet.Query{
+		Name:             "scoped",
+		Query:            "SELECT 1",
+		AuthorID:         &user.ID,
+		Logging:          fleet.LoggingSnapshot,
+		Interval:         10,
+		Saved:            true,
+		LabelsIncludeAny: []fleet.LabelIdent{{LabelName: "does-not-exist"}},
+	})
+	require.Error(t, err)
+	_, err = ds.QueryByName(ctx, nil, "scoped")
+	require.Error(t, err)
+	require.True(t, fleet.IsNotFound(err), "query row must not persist when its labels fail to save")
+
+	queries, err := ds.ListScheduledQueriesForAgents(ctx, nil, &hostNotInLabel.ID, false)
+	require.NoError(t, err)
+	require.Empty(t, queries)
+
+	// A valid scoped query is only delivered to hosts in the label.
+	scoped, err := ds.NewQuery(ctx, &fleet.Query{
+		Name:             "scoped",
+		Query:            "SELECT 1",
+		AuthorID:         &user.ID,
+		Logging:          fleet.LoggingSnapshot,
+		Interval:         10,
+		Saved:            true,
+		LabelsIncludeAny: []fleet.LabelIdent{{LabelName: label1.Name}},
+	})
+	require.NoError(t, err)
+
+	queries, err = ds.ListScheduledQueriesForAgents(ctx, nil, &hostInLabel.ID, false)
+	require.NoError(t, err)
+	require.Len(t, queries, 1)
+	queries, err = ds.ListScheduledQueriesForAgents(ctx, nil, &hostNotInLabel.ID, false)
+	require.NoError(t, err)
+	require.Empty(t, queries)
+
+	// SaveQuery: a failed label write must roll back the column updates and
+	// keep the previous labels, so the query never becomes unscoped.
+	scoped.Name = "renamed"
+	scoped.LabelsIncludeAny = []fleet.LabelIdent{{LabelName: "does-not-exist"}}
+	err = ds.SaveQuery(ctx, scoped, false, false)
+	require.Error(t, err)
+
+	reloaded, err := ds.Query(ctx, scoped.ID)
+	require.NoError(t, err)
+	require.Equal(t, "scoped", reloaded.Name)
+	require.Len(t, reloaded.LabelsIncludeAny, 1)
+	require.Equal(t, label1.ID, reloaded.LabelsIncludeAny[0].LabelID)
+
+	queries, err = ds.ListScheduledQueriesForAgents(ctx, nil, &hostNotInLabel.ID, false)
+	require.NoError(t, err)
+	require.Empty(t, queries)
 }
