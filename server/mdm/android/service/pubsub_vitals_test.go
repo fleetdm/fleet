@@ -48,6 +48,7 @@ func TestAndroidDeviceVitals(t *testing.T) {
 			},
 		},
 		NetworkInfo: &androidmanagement.NetworkInfo{
+			Imei: "A1000031212",
 			TelephonyInfos: []*androidmanagement.TelephonyInfo{
 				{PhoneNumber: "+15555550100", CarrierName: "Acme Mobile", IccId: "8901410321111111111"},
 				{PhoneNumber: "+15555550101", CarrierName: "Acme Mobile", ActivationState: "ACTIVATED", ConfigMode: "USER_CONFIGURED"},
@@ -75,6 +76,7 @@ func TestAndroidDeviceVitals(t *testing.T) {
 				BootloaderVersion:     new("slider-1.4-12345678"),
 				SystemUpdateStatus:    new("SECURITY_UPDATE_AVAILABLE"),
 				SecurityPosture:       new("POTENTIALLY_COMPROMISED"),
+				IMEI:                  new("A1000031212"),
 				SecurityPostureDetails: []fleet.MDMAndroidPostureDetail{
 					{SecurityRisk: "COMPROMISED_OS", Advice: []string{"Factory reset the device"}},
 				},
@@ -109,12 +111,15 @@ func TestAndroidDeviceVitals(t *testing.T) {
 			want: fleet.MDMAndroidDeviceVitals{},
 		},
 		{
-			// Belt and braces: even if AMAPI did hand us telephony info for a
-			// personally-owned device, the phone number must not be stored.
-			name: "personally owned device with telephony info drops it",
+			// Belt and braces: even if AMAPI did hand us network info for a
+			// personally-owned device, neither the phone number nor the
+			// hardware radio identifiers must be stored.
+			name: "personally owned device with network info drops it",
 			device: &androidmanagement.Device{
 				Ownership: DeviceOwnershipPersonallyOwned,
 				NetworkInfo: &androidmanagement.NetworkInfo{
+					Imei:           "A1000031212",
+					Meid:           "A00000292788E1",
 					TelephonyInfos: []*androidmanagement.TelephonyInfo{{PhoneNumber: "+15555550100"}},
 				},
 			},
@@ -136,15 +141,43 @@ func TestAndroidDeviceVitals(t *testing.T) {
 			},
 		},
 		{
-			name: "explicitly unspecified ownership keeps the telephony AMAPI sent",
+			name: "explicitly unspecified ownership keeps the network info AMAPI sent",
 			device: &androidmanagement.Device{
 				Ownership: "OWNERSHIP_UNSPECIFIED",
 				NetworkInfo: &androidmanagement.NetworkInfo{
+					Imei:           "A1000031212",
 					TelephonyInfos: []*androidmanagement.TelephonyInfo{{PhoneNumber: "+15555550100"}},
 				},
 			},
 			want: fleet.MDMAndroidDeviceVitals{
+				IMEI:           new("A1000031212"),
 				TelephonyInfos: []fleet.MDMAndroidTelephonyInfo{{PhoneNumber: "+15555550100"}},
+			},
+		},
+		{
+			// A CDMA device reports meid in place of imei, with no telephony
+			// info of its own; the other identifier stays nil rather than "".
+			name: "cdma device reports meid only",
+			device: &androidmanagement.Device{
+				Ownership:   DeviceOwnershipCompanyOwned,
+				NetworkInfo: &androidmanagement.NetworkInfo{Meid: "A00000292788E1"},
+			},
+			want: fleet.MDMAndroidDeviceVitals{MEID: new("A00000292788E1")},
+		},
+		{
+			// Device-reported, so an oversized identifier must be truncated to
+			// the column width like every other string vital.
+			name: "oversized radio identifiers are truncated to the column width",
+			device: &androidmanagement.Device{
+				Ownership: DeviceOwnershipCompanyOwned,
+				NetworkInfo: &androidmanagement.NetworkInfo{
+					Imei: strings.Repeat("1", 300),
+					Meid: strings.Repeat("2", 300),
+				},
+			},
+			want: fleet.MDMAndroidDeviceVitals{
+				IMEI: new(strings.Repeat("1", fleet.MDMAndroidDeviceVitalMaxLength)),
+				MEID: new(strings.Repeat("2", fleet.MDMAndroidDeviceVitalMaxLength)),
 			},
 		},
 		{
@@ -325,6 +358,7 @@ func TestUpdateHostPersistsVitals(t *testing.T) {
 		},
 		Ownership: DeviceOwnershipCompanyOwned,
 		NetworkInfo: &androidmanagement.NetworkInfo{
+			Imei: "A1000031212",
 			TelephonyInfos: []*androidmanagement.TelephonyInfo{
 				{PhoneNumber: "+15555550100", CarrierName: "Acme Mobile"},
 			},
@@ -350,11 +384,12 @@ func TestUpdateHostPersistsVitals(t *testing.T) {
 	require.Equal(t, new("ACTIVE"), gotVitals.EncryptionType)
 	require.Equal(t, new("Google"), gotVitals.Manufacturer)
 	require.Equal(t, new("2026-05-01"), gotVitals.SecurityUpdateVersion)
-	// A company-owned device's telephony info must survive the status-report
-	// path, not just enrollment.
+	// A company-owned device's telephony info and radio identifier must
+	// survive the status-report path, not just enrollment.
 	require.Equal(t,
 		[]fleet.MDMAndroidTelephonyInfo{{PhoneNumber: "+15555550100", CarrierName: "Acme Mobile"}},
 		gotVitals.TelephonyInfos)
+	require.Equal(t, new("A1000031212"), gotVitals.IMEI)
 }
 
 // TestEnrollmentPersistsVitals covers the enrollment wiring: the ENROLLMENT
@@ -367,6 +402,7 @@ func TestEnrollmentPersistsVitals(t *testing.T) {
 		name              string
 		ownership         string
 		wantPhoneNumbers  []fleet.MDMAndroidTelephonyInfo
+		wantIMEI          *string
 		wantAdbEnabled    *bool
 		wantAPILevelIsSet bool
 	}{
@@ -374,14 +410,17 @@ func TestEnrollmentPersistsVitals(t *testing.T) {
 			name:              "company owned",
 			ownership:         DeviceOwnershipCompanyOwned,
 			wantPhoneNumbers:  []fleet.MDMAndroidTelephonyInfo{{PhoneNumber: "+15555550100", CarrierName: "Acme Mobile"}},
+			wantIMEI:          new("A1000031212"),
 			wantAdbEnabled:    new(true),
 			wantAPILevelIsSet: true,
 		},
 		{
-			// A personally-owned host must never carry a phone number.
+			// A personally-owned host must never carry a phone number or a
+			// hardware radio identifier.
 			name:              "personally owned",
 			ownership:         DeviceOwnershipPersonallyOwned,
 			wantPhoneNumbers:  nil,
+			wantIMEI:          nil,
 			wantAdbEnabled:    new(true),
 			wantAPILevelIsSet: true,
 		},
@@ -426,6 +465,7 @@ func TestEnrollmentPersistsVitals(t *testing.T) {
 					EncryptionStatus: "ACTIVE",
 				},
 				NetworkInfo: &androidmanagement.NetworkInfo{
+					Imei: "A1000031212",
 					TelephonyInfos: []*androidmanagement.TelephonyInfo{
 						{PhoneNumber: "+15555550100", CarrierName: "Acme Mobile"},
 					},
@@ -438,6 +478,7 @@ func TestEnrollmentPersistsVitals(t *testing.T) {
 			require.Equal(t, tc.wantAdbEnabled, gotVitals.AdbEnabled)
 			require.Equal(t, new("ACTIVE"), gotVitals.EncryptionType)
 			require.Equal(t, tc.wantPhoneNumbers, gotVitals.TelephonyInfos)
+			require.Equal(t, tc.wantIMEI, gotVitals.IMEI)
 			if tc.wantAPILevelIsSet {
 				require.Equal(t, new(int64(36)), gotVitals.APILevel)
 			}

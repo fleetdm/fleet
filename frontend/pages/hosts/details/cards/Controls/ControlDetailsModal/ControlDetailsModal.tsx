@@ -61,8 +61,18 @@ const ControlDetailsModal = ({
   // to it (an activation predicate excluded the host), so it replaces the
   // sentence. Other statuses keep theirs — the detail may describe a past
   // attempt, since resending only nulls the status until the next cron run.
+  //
+  // Disk encryption on "Action required" is the other exception. The generic
+  // copy for that status names a BitLocker PIN, but the server reaches the same
+  // status for several unrelated reasons (the agent could not add a TPM
+  // protector, the TPM is not ready, a restart is staged) and sends the actual
+  // reason in the detail. Preferring the detail keeps the reason in one place,
+  // server-side, instead of asserting a PIN that may not be required at all.
   const detailReplacesMessage =
-    displayOption?.statusText === "Verified" && !!detailText;
+    !!detailText &&
+    (displayOption?.statusText === "Verified" ||
+      (displayOption?.statusText === "Action required" &&
+        isDiskEncryptionProfile(control.name)));
 
   const renderMessage = () => {
     if (detailReplacesMessage) {

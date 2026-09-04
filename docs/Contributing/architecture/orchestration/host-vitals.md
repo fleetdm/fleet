@@ -58,6 +58,14 @@ UI -> Server -> DB
 
 See the [host details API](https://fleetdm.com/docs/rest-api/rest-api#get-host) documentation for details on collected vitals.
 
+### iOS and iPadOS
+
+iOS and iPadOS hosts don't run the osquery agent, so the collection flow above doesn't apply to them. Their vitals come from the `DeviceInformation` MDM command instead, which Fleet sends on each refetch and whose response it parses and stores.
+
+The set of properties Apple can return, and the OS versions and access rights each requires, are documented in Apple's [`DeviceInformationCommand` queries dictionary](https://developer.apple.com/documentation/devicemanagement/deviceinformationcommand/command-data.dictionary/queries-data.dictionary).
+
+When a device doesn't report a property, Apple usually omits it from the response rather than returning an empty value — though not always, as `MDMOptions` can come back as an empty dictionary. Either way, an absent or empty vital doesn't on its own mean the device lacks the underlying capability, so it's worth confirming against a device known to report the property before concluding it's unsupported.
+
 ## Performance considerations
 
 Host Vitals collection can impact device and server performance, especially for large fleets. The following considerations should be taken into account:
@@ -69,6 +77,7 @@ Host Vitals collection can impact device and server performance, especially for 
 ## Related resources
 
 - [Host details API documentation](https://fleetdm.com/docs/rest-api/rest-api#get-host)
+- [Apple `DeviceInformationCommand` queries dictionary](https://developer.apple.com/documentation/devicemanagement/deviceinformationcommand/command-data.dictionary/queries-data.dictionary) - The properties Apple can return for iOS and iPadOS hosts
 - [Orchestration Product Group Documentation](../../product-groups/orchestration/) - Documentation for the Orchestration product group
 - [Orchestration Development Guides](../../guides/orchestration/) - Guides for Orchestration development
 - [Understanding Host Vitals](../../product-groups/orchestration/understanding-host-vitals.md) - Detailed documentation on host vitals

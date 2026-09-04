@@ -2683,39 +2683,97 @@ describe("Host Actions Dropdown", () => {
       expect(screen.queryByText("Clear passcode")).toBeInTheDocument();
     });
 
-    it("does not render for below maintainer", async () => {
-      const render = createCustomRenderer({
-        context: {
-          app: {
-            isGlobalTechnician: true,
-            isGlobalAdmin: false,
-            isTeamMaintainer: false,
-            isTeamAdmin: false,
-            isPremiumTier: true,
-            isMacMdmEnabledAndConfigured: true,
-            currentUser: createMockUser(),
+    // Technicians can clear passcodes on iOS/iPadOS hosts, globally or on a host
+    // of their own fleet. Android stays admin/maintainer-only, and roles below
+    // technician never see the action.
+    it.each([
+      {
+        case: "renders for a global technician on an iOS host",
+        currentUser: createMockUser(),
+        isGlobalTechnician: true,
+        hostTeamId: 1,
+        hostPlatform: "ios",
+        hostMdmEnrollmentStatus: "On (company-owned)" as const,
+        expectVisible: true,
+      },
+      {
+        case: "renders for a team technician on an iOS host of their fleet",
+        currentUser: createMockUser({
+          global_role: null,
+          teams: [createMockTeam({ id: 1, role: "technician" })],
+        }),
+        isGlobalTechnician: false,
+        hostTeamId: 1,
+        hostPlatform: "ios",
+        hostMdmEnrollmentStatus: "On (company-owned)" as const,
+        expectVisible: true,
+      },
+      {
+        case: "does not render for an observer on an iOS host",
+        currentUser: createMockUser({ global_role: "observer" }),
+        isGlobalTechnician: false,
+        hostTeamId: 1,
+        hostPlatform: "ios",
+        hostMdmEnrollmentStatus: "On (company-owned)" as const,
+        expectVisible: false,
+      },
+      {
+        case: "does not render for a technician on an Android host",
+        currentUser: createMockUser(),
+        isGlobalTechnician: true,
+        hostTeamId: null,
+        hostPlatform: "android",
+        hostMdmEnrollmentStatus: "On (automatic)" as const,
+        expectVisible: false,
+      },
+    ])(
+      "$case",
+      async ({
+        currentUser,
+        isGlobalTechnician,
+        hostTeamId,
+        hostPlatform,
+        hostMdmEnrollmentStatus,
+        expectVisible,
+      }) => {
+        const render = createCustomRenderer({
+          context: {
+            app: {
+              isPremiumTier: true,
+              isMacMdmEnabledAndConfigured: true,
+              isAndroidMdmEnabledAndConfigured: true,
+              isGlobalTechnician,
+              currentUser,
+            },
           },
-        },
-      });
+        });
 
-      const { user } = render(
-        <HostActionsDropdown
-          hostTeamId={1}
-          onSelect={noop}
-          hostStatus="online"
-          hostPlatform="ios"
-          hostMdmEnrollmentStatus="On (company-owned)"
-          isConnectedToFleetMdm
-          hostMdmDeviceStatus="unlocked"
-          hostScriptsEnabled
-        />
-      );
+        const { user } = render(
+          <HostActionsDropdown
+            hostTeamId={hostTeamId}
+            onSelect={noop}
+            hostStatus="online"
+            hostPlatform={hostPlatform}
+            hostMdmEnrollmentStatus={hostMdmEnrollmentStatus}
+            isConnectedToFleetMdm
+            hostMdmDeviceStatus="unlocked"
+            hostScriptsEnabled
+          />
+        );
 
-      // Global technicians see the Transfer action, but Clear passcode must
-      // still be hidden since it requires maintainer or above.
-      await user.click(screen.getByText("Actions"));
-      expect(screen.queryByText("Clear passcode")).not.toBeInTheDocument();
-    });
+        // A role with no actions at all on the host gets no dropdown to open.
+        const actionsButton = screen.queryByText("Actions");
+        if (actionsButton) {
+          await user.click(actionsButton);
+        }
+
+        if (expectVisible) {
+          expect(screen.queryByText("Clear passcode")).toBeInTheDocument();
+        } else {
+          expect(screen.queryByText("Clear passcode")).not.toBeInTheDocument();
+        }
+      }
+    );
 
     it("does not render for non-iOS hosts", async () => {
       const render = createCustomRenderer({

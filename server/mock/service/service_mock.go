@@ -253,7 +253,7 @@ type HostByIdentifierFunc func(ctx context.Context, identifier string, opts flee
 
 type RefetchHostFunc func(ctx context.Context, id uint) (err error)
 
-type CleanupExpiredHostsFunc func(ctx context.Context) ([]fleet.DeletedHostDetails, error)
+type CleanupExpiredHostsBatchFunc func(ctx context.Context, batchSize int) ([]fleet.DeletedHostDetails, error)
 
 type AddHostsToTeamFunc func(ctx context.Context, teamID *uint, hostIDs []uint, skipBulkPending bool) error
 
@@ -763,6 +763,8 @@ type ListMDMCommandsFunc func(ctx context.Context, opts *fleet.MDMCommandListOpt
 
 type SetOrUpdateDiskEncryptionKeyFunc func(ctx context.Context, encryptionKey string, clientError string) error
 
+type SetOrUpdateDiskEncryptionProtectionFunc func(ctx context.Context, outcome fleet.DiskEncryptionProtectionOutcome, clientError string) error
+
 type GetMDMWindowsConfigProfileFunc func(ctx context.Context, profileUUID string) (*fleet.MDMWindowsConfigProfile, error)
 
 type DeleteMDMWindowsConfigProfileFunc func(ctx context.Context, profileUUID string) error
@@ -1007,7 +1009,7 @@ type BatchSetAppleDDMAssetsFunc func(ctx context.Context, teamID *uint, teamName
 
 type ReleaseABDevicesFunc func(ctx context.Context, hostIDs []uint) ([]*fleet.ABReleaseDeviceResponse, error)
 
-type ListMicrosoftGraphCredentialsFunc func(ctx context.Context) ([]*fleet.MicrosoftGraphCredential, error)
+type ListMicrosoftGraphCredentialsFunc func(ctx context.Context) ([]*fleet.MicrosoftGraphCredentialMetadata, error)
 
 type ApplyMicrosoftGraphCredentialsFunc func(ctx context.Context, creds []fleet.MicrosoftGraphCredential, dryRun bool) error
 
@@ -1364,8 +1366,8 @@ type Service struct {
 	RefetchHostFunc        RefetchHostFunc
 	RefetchHostFuncInvoked bool
 
-	CleanupExpiredHostsFunc        CleanupExpiredHostsFunc
-	CleanupExpiredHostsFuncInvoked bool
+	CleanupExpiredHostsBatchFunc        CleanupExpiredHostsBatchFunc
+	CleanupExpiredHostsBatchFuncInvoked bool
 
 	AddHostsToTeamFunc        AddHostsToTeamFunc
 	AddHostsToTeamFuncInvoked bool
@@ -2128,6 +2130,9 @@ type Service struct {
 
 	SetOrUpdateDiskEncryptionKeyFunc        SetOrUpdateDiskEncryptionKeyFunc
 	SetOrUpdateDiskEncryptionKeyFuncInvoked bool
+
+	SetOrUpdateDiskEncryptionProtectionFunc        SetOrUpdateDiskEncryptionProtectionFunc
+	SetOrUpdateDiskEncryptionProtectionFuncInvoked bool
 
 	GetMDMWindowsConfigProfileFunc        GetMDMWindowsConfigProfileFunc
 	GetMDMWindowsConfigProfileFuncInvoked bool
@@ -3322,11 +3327,11 @@ func (s *Service) RefetchHost(ctx context.Context, id uint) (err error) {
 	return s.RefetchHostFunc(ctx, id)
 }
 
-func (s *Service) CleanupExpiredHosts(ctx context.Context) ([]fleet.DeletedHostDetails, error) {
+func (s *Service) CleanupExpiredHostsBatch(ctx context.Context, batchSize int) ([]fleet.DeletedHostDetails, error) {
 	s.mu.Lock()
-	s.CleanupExpiredHostsFuncInvoked = true
+	s.CleanupExpiredHostsBatchFuncInvoked = true
 	s.mu.Unlock()
-	return s.CleanupExpiredHostsFunc(ctx)
+	return s.CleanupExpiredHostsBatchFunc(ctx, batchSize)
 }
 
 func (s *Service) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []uint, skipBulkPending bool) error {
@@ -5107,6 +5112,13 @@ func (s *Service) SetOrUpdateDiskEncryptionKey(ctx context.Context, encryptionKe
 	return s.SetOrUpdateDiskEncryptionKeyFunc(ctx, encryptionKey, clientError)
 }
 
+func (s *Service) SetOrUpdateDiskEncryptionProtection(ctx context.Context, outcome fleet.DiskEncryptionProtectionOutcome, clientError string) error {
+	s.mu.Lock()
+	s.SetOrUpdateDiskEncryptionProtectionFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetOrUpdateDiskEncryptionProtectionFunc(ctx, outcome, clientError)
+}
+
 func (s *Service) GetMDMWindowsConfigProfile(ctx context.Context, profileUUID string) (*fleet.MDMWindowsConfigProfile, error) {
 	s.mu.Lock()
 	s.GetMDMWindowsConfigProfileFuncInvoked = true
@@ -5961,7 +5973,7 @@ func (s *Service) ReleaseABDevices(ctx context.Context, hostIDs []uint) ([]*flee
 	return s.ReleaseABDevicesFunc(ctx, hostIDs)
 }
 
-func (s *Service) ListMicrosoftGraphCredentials(ctx context.Context) ([]*fleet.MicrosoftGraphCredential, error) {
+func (s *Service) ListMicrosoftGraphCredentials(ctx context.Context) ([]*fleet.MicrosoftGraphCredentialMetadata, error) {
 	s.mu.Lock()
 	s.ListMicrosoftGraphCredentialsFuncInvoked = true
 	s.mu.Unlock()

@@ -486,8 +486,9 @@ type Service interface {
 	HostByIdentifier(ctx context.Context, identifier string, opts HostDetailOptions) (*HostDetail, error)
 	// RefetchHost requests a refetch of host details for the provided host.
 	RefetchHost(ctx context.Context, id uint) (err error)
-	// CleanupExpiredHosts cleans up hosts that have exceeded the expiry window and creates activities for each deletion.
-	CleanupExpiredHosts(ctx context.Context) ([]DeletedHostDetails, error)
+	// CleanupExpiredHostsBatch deletes up to batchSize hosts that have exceeded the expiry window and
+	// creates an activity for each deletion. Callers loop until it returns no hosts.
+	CleanupExpiredHostsBatch(ctx context.Context, batchSize int) ([]DeletedHostDetails, error)
 	// AddHostsToTeam adds hosts to an existing team, clearing their team settings if teamID is nil.
 	AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []uint, skipBulkPending bool) error
 	// AddHostsToTeamByFilter adds hosts to an existing team, clearing their team settings if teamID is nil. Hosts are
@@ -1295,6 +1296,10 @@ type Service interface {
 	// Set or update the disk encryption key for a host.
 	SetOrUpdateDiskEncryptionKey(ctx context.Context, encryptionKey, clientError string) error
 
+	// SetOrUpdateDiskEncryptionProtection records the outcome of the agent's attempt to restore disk encryption
+	// protection on a host that was encrypted but unprotected.
+	SetOrUpdateDiskEncryptionProtection(ctx context.Context, outcome DiskEncryptionProtectionOutcome, clientError string) error
+
 	// GetMDMWindowsConfigProfile retrieves the specified configuration profile.
 	GetMDMWindowsConfigProfile(ctx context.Context, profileUUID string) (*MDMWindowsConfigProfile, error)
 
@@ -1705,8 +1710,8 @@ type Service interface {
 	//////////////////////////////////////////////////////////////////////////////
 	// Microsoft Graph
 
-	// ListMicrosoftGraphCredentials returns the stored Microsoft Graph credentials with their per-tenant sync status. Client secrets are masked.
-	ListMicrosoftGraphCredentials(ctx context.Context) ([]*MicrosoftGraphCredential, error)
+	// ListMicrosoftGraphCredentials returns the stored Microsoft Graph credentials with their per-tenant sync status.
+	ListMicrosoftGraphCredentials(ctx context.Context) ([]*MicrosoftGraphCredentialMetadata, error)
 	// ApplyMicrosoftGraphCredentials declaratively reconciles the stored Microsoft Graph credentials to the supplied
 	// list, verifying any new or changed credential against Graph before storing it. A tenant absent from the list is deleted.
 	ApplyMicrosoftGraphCredentials(ctx context.Context, creds []MicrosoftGraphCredential, dryRun bool) error

@@ -272,11 +272,11 @@ export const WINDOWS_DISK_ENCRYPTION_DISPLAY_CONFIG: WindowsDiskEncryptionDispla
   action_required: {
     statusText: "Action required",
     iconName: "pending-outline",
-    // Windows-specific: the end user sets the PIN during encryption.
+    // Defensive fallback only. The server always sends a reason for this status and the details modal prefers it, so
+    // this renders only if that reason is ever missing.
     message: ({ hostDisplayName }) => (
       <>
-        Disk encryption is on, but the end user hasn&apos;t set a BitLocker PIN
-        on <b>{hostDisplayName}</b> yet.
+        Disk encryption on <b>{hostDisplayName}</b> needs attention.
       </>
     ),
   },

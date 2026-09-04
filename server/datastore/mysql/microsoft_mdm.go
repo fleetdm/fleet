@@ -83,6 +83,7 @@ func (ds *Datastore) MDMWindowsGetEnrolledDeviceWithDeviceID(ctx context.Context
 		ztd_registration_id,
 		last_login_status,
 		last_login_status_at,
+		enrolled_activity_at,
 		created_at,
 		updated_at,
 		host_uuid
@@ -225,6 +226,7 @@ func (ds *Datastore) MDMWindowsGetEnrolledDeviceWithHostUUID(ctx context.Context
 		credentials_acknowledged,
 		hardware_serial,
 		ztd_registration_id,
+		enrolled_activity_at,
 		created_at,
 		updated_at,
 		host_uuid
@@ -269,6 +271,7 @@ func (ds *Datastore) MDMWindowsGetUnlinkedEnrolledDeviceWithDeviceName(ctx conte
 		credentials_acknowledged,
 		hardware_serial,
 		ztd_registration_id,
+		enrolled_activity_at,
 		created_at,
 		updated_at,
 		host_uuid
@@ -325,6 +328,35 @@ func (ds *Datastore) MDMWindowsSaveUnlinkedEnrollmentHardwareSerial(ctx context.
 	return nil
 }
 
+// MDMWindowsClaimEnrolledActivity claims the right to record the mdm_enrolled activity for the given enrollment,
+// returning true exactly once per enrollment row. The claim is the UPDATE itself: enrolled_activity_at only moves from
+// NULL to a timestamp, so only the first one to get here sees rows affected.
+func (ds *Datastore) MDMWindowsClaimEnrolledActivity(ctx context.Context, mdmHardwareID string, claimedAt time.Time) (bool, error) {
+	res, err := ds.writer(ctx).ExecContext(ctx,
+		`UPDATE mdm_windows_enrollments SET enrolled_activity_at = ?
+		 WHERE mdm_hardware_id = ? AND enrolled_activity_at IS NULL`,
+		claimedAt, mdmHardwareID)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "claim windows mdm enrolled activity")
+	}
+	aff, err := res.RowsAffected()
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "checking rows affected when claiming windows mdm enrolled activity")
+	}
+	return aff > 0, nil
+}
+
+// MDMWindowsReleaseEnrolledActivityClaim undoes a claim whose activity could not be recorded, so a later session retries.
+func (ds *Datastore) MDMWindowsReleaseEnrolledActivityClaim(ctx context.Context, mdmHardwareID string, claimedAt time.Time) error {
+	if _, err := ds.writer(ctx).ExecContext(ctx,
+		`UPDATE mdm_windows_enrollments SET enrolled_activity_at = NULL
+		 WHERE mdm_hardware_id = ? AND enrolled_activity_at = ?`,
+		mdmHardwareID, claimedAt); err != nil {
+		return ctxerr.Wrap(ctx, err, "release windows mdm enrolled activity claim")
+	}
+	return nil
+}
+
 // MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerial returns the unlinked (host_uuid = "") Windows MDM enrollment whose
 // device-reported SMBIOS serial matches. If more than one unlinked enrollment shares the serial the caller cannot pick
 // safely, so we return NotFound rather than guess, matching WindowsHostLiteByHardwareSerial.
@@ -350,6 +382,7 @@ func (ds *Datastore) MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerial(ctx c
 		credentials_acknowledged,
 		hardware_serial,
 		ztd_registration_id,
+		enrolled_activity_at,
 		created_at,
 		updated_at,
 		host_uuid
@@ -1820,6 +1853,8 @@ func (ds *Datastore) whereBitLockerStatus(ctx context.Context, status fleet.Disk
 		withinGracePeriod     = `(hdek.updated_at IS NOT NULL AND hdek.updated_at >= DATE_SUB(NOW(6), INTERVAL 1 HOUR))`
 		whereProtectionOn     = `(hd.bitlocker_protection_status IS NULL OR hd.bitlocker_protection_status != 0)`
 		whereProtectionOff    = `(hd.bitlocker_protection_status = 0)`
+		// Set only when the agent tried to restore protection and could not, or deliberately deferred.
+		whereProtectionError = `(hd.bitlocker_protection_error IS NOT NULL AND hd.bitlocker_protection_error != '')`
 	)
 
 	whereBitLockerPINSet := `TRUE`
@@ -1859,20 +1894,23 @@ AND (
 AND ` + whereBitLockerPINSet
 
 	case fleet.DiskEncryptionActionRequired:
-		// Action required when:
-		// 1. We _would_ be in verified/verifying but PIN is required and not set, OR
-		// 2. Disk is encrypted and key is escrowed but BitLocker protection is off
-		//    (e.g., suspended for a BIOS update, or a TPM configuration issue)
+		// Action required means a person has to do something. Two ways to get here:
+		// 1. We _would_ be in verified/verifying but a PIN is required and not set, which only the end user can fix, OR
+		// 2. The disk is encrypted with protection off AND the agent reported it cannot restore it, either because
+		//    policy forbids a TPM-only protector, or the TPM is not ready, or it is deferring until a staged restart.
+		// Protection being off on its own is NOT action required: Fleet repairs that itself, so it belongs in enforcing.
 		return whereNotServer + `
 AND NOT ` + whereClientError + `
 AND ` + whereKeyAvailable + `
 AND (` + whereEncrypted + ` OR (NOT ` + whereEncrypted + ` AND ` + whereHostDisksUpdated + ` AND ` + withinGracePeriod + `))
-AND (NOT ` + whereBitLockerPINSet + ` OR (` + whereEncrypted + ` AND ` + whereProtectionOff + `))`
+AND (NOT ` + whereBitLockerPINSet + ` OR (` + whereEncrypted + ` AND ` + whereProtectionOff + ` AND ` + whereProtectionError + `))`
 
 	case fleet.DiskEncryptionEnforcing:
 		// Possible enforcing scenarios:
 		// - we don't have the key
 		// - we have the key and host_disks reported unencrypted before the key was updated or outside the 1-hour grace period after key was updated
+		// - the disk is encrypted but protection is off and the agent has not reported a problem, so Fleet is restoring
+		//   it and no one needs to be told to act
 		return whereNotServer + `
 AND NOT ` + whereClientError + `
 AND (
@@ -1882,6 +1920,12 @@ AND (
             AND (NOT ` + whereHostDisksUpdated + ` OR NOT ` + withinGracePeriod + `)
 		)
 	)
+    OR (` + whereKeyAvailable + `
+        AND ` + whereEncrypted + `
+        AND ` + whereProtectionOff + `
+        AND NOT ` + whereProtectionError + `
+        AND ` + whereBitLockerPINSet + `
+    )
 )`
 
 	case fleet.DiskEncryptionFailed:
@@ -1991,7 +2035,9 @@ SELECT
 	END AS status,
 	COALESCE(client_error, '') as detail,
 	hd.bitlocker_protection_status,
-	COALESCE(hd.tpm_pin_set, false) as tpm_pin_set
+	COALESCE(hd.tpm_pin_set, false) as tpm_pin_set,
+	COALESCE(hd.bitlocker_protection_error, '') as bitlocker_protection_error,
+	COALESCE(hd.bitlocker_protection_outcome, '') as bitlocker_protection_outcome
 FROM
 	host_mdm hmdm
 	LEFT JOIN host_disk_encryption_keys hdek ON hmdm.host_id = hdek.host_id
@@ -2011,10 +2057,12 @@ WHERE
 	)
 
 	var dest struct {
-		Status           fleet.DiskEncryptionStatus `db:"status"`
-		Detail           string                     `db:"detail"`
-		ProtectionStatus *int                       `db:"bitlocker_protection_status"`
-		TpmPinSet        bool                       `db:"tpm_pin_set"`
+		Status            fleet.DiskEncryptionStatus `db:"status"`
+		Detail            string                     `db:"detail"`
+		ProtectionStatus  *int                       `db:"bitlocker_protection_status"`
+		TpmPinSet         bool                       `db:"tpm_pin_set"`
+		ProtectionError   string                     `db:"bitlocker_protection_error"`
+		ProtectionOutcome string                     `db:"bitlocker_protection_outcome"`
 	}
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &dest, stmt, host.ID); err != nil {
 		if err != sql.ErrNoRows {
@@ -2033,14 +2081,35 @@ WHERE
 		dest.Status = fleet.DiskEncryptionFailed
 	}
 
+	protectionOff := dest.ProtectionStatus != nil && *dest.ProtectionStatus == fleet.BitLockerProtectionStatusOff
+	pinMissing := diskEncryptionConfig.BitLockerPINRequired && !dest.TpmPinSet
+
+	deferred := dest.ProtectionOutcome == string(fleet.DiskEncryptionProtectionDeferred)
+
+	var actionRequired *fleet.ActionRequiredState
+	if dest.Status == fleet.DiskEncryptionActionRequired {
+		switch {
+		// The agent is waiting on a restart it will not perform itself, so restarting is the action, and it takes
+		// precedence: nothing else can proceed until it happens.
+		case deferred:
+			actionRequired = new(fleet.ActionRequiredRestart)
+		// Creating a PIN goes through "Change how the drive is unlocked at startup", which Windows only offers on a
+		// protected volume, so while protection is off there is nothing for the end user to do here and the reason
+		// belongs in the detail instead.
+		case pinMissing && !protectionOff:
+			actionRequired = new(fleet.ActionRequiredCreatePIN)
+		}
+	}
+
 	// Build a meaningful detail message for action_required when there's no client error.
 	if dest.Status == fleet.DiskEncryptionActionRequired && dest.Detail == "" {
-		protectionOff := dest.ProtectionStatus != nil && *dest.ProtectionStatus == fleet.BitLockerProtectionStatusOff
-		pinMissing := diskEncryptionConfig.BitLockerPINRequired && !dest.TpmPinSet
-
 		switch {
+		case protectionOff && deferred:
+			dest.Detail = "BitLocker protection is off. Fleet will turn it back on after this host restarts."
+		case protectionOff && dest.ProtectionError != "":
+			dest.Detail = fmt.Sprintf("BitLocker protection is off. Fleet could not turn it back on: %s", dest.ProtectionError)
 		case protectionOff && pinMissing:
-			dest.Detail = "BitLocker protection is off and a required startup PIN is not set. The disk is encrypted but the TPM protector is not active, and a BitLocker PIN must be configured."
+			dest.Detail = "BitLocker protection is off and a startup PIN is required. Windows only offers PIN setup while the volume is protected, so the end user cannot create one until protection is restored."
 		case protectionOff:
 			dest.Detail = "BitLocker protection is off. The disk is encrypted but the TPM protector is not active. This may be due to a suspended BitLocker state or a TPM configuration issue."
 		case pinMissing:
@@ -2049,8 +2118,9 @@ WHERE
 	}
 
 	return &fleet.HostMDMDiskEncryption{
-		Status: &dest.Status,
-		Detail: dest.Detail,
+		Status:         &dest.Status,
+		Detail:         dest.Detail,
+		ActionRequired: actionRequired,
 	}, nil
 }
 

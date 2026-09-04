@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { Command } from "cmdk";
 
 import {
@@ -53,6 +53,9 @@ interface ISoftwarePickerProps {
   currentTeam?: ITeamSummary;
   scope?: SoftwareScope;
   onSelect: (softwareId: number) => void;
+  /** Fires when the results list identity changes, with the cmdk value of
+   *  the first item (or null when empty). See HostPicker for rationale. */
+  onResultsChange?: (firstItemValue: string | null) => void;
 }
 
 const SoftwarePicker = ({
@@ -60,6 +63,7 @@ const SoftwarePicker = ({
   currentTeam,
   scope = "inventory",
   onSelect,
+  onResultsChange,
 }: ISoftwarePickerProps): JSX.Element => {
   const teamId =
     currentTeam && currentTeam.id !== APP_CONTEXT_ALL_TEAMS_ID
@@ -99,6 +103,16 @@ const SoftwarePicker = ({
       }),
     selectItems: (data) => data?.software_titles ?? [],
   });
+
+  const firstItemValue =
+    titles.length > 0 ? `${RESULT_PREFIXES.software}${titles[0].id}` : null;
+  // See HostPicker: key off a full-list signature so a previously
+  // highlighted later row that's no longer in the results doesn't leave
+  // the controlled cmdk value dangling.
+  const itemsSignature = titles.map((t) => t.id).join(",");
+  useEffect(() => {
+    onResultsChange?.(firstItemValue);
+  }, [itemsSignature, firstItemValue, onResultsChange]);
 
   if (isLoading && titles.length === 0) {
     return <div className={`${baseClass}__empty`}>Looking for software...</div>;

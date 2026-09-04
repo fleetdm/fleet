@@ -48,13 +48,15 @@ type ControlsWithTypes struct {
 	WindowsSettings *fleet.WindowsSettings `json:"windows_settings"`
 	AndroidSettings *fleet.AndroidSettings `json:"android_settings"`
 
+	AppleRequireHardwareAttestation  bool `json:"apple_require_hardware_attestation"`
+	OnlyAllowAppleBusinessEnrollment bool `json:"only_allow_apple_business_enrollment"`
+
 	// Remaining keys accept any value for now.
-	MacOSMigration                  any `json:"macos_migration"`
-	WindowsMigrationEnabled         any `json:"windows_migration_enabled"`
-	EnableTurnOnWindowsMDMManually  any `json:"enable_turn_on_windows_mdm_manually"`
-	WindowsEntraTenantIDs           any `json:"windows_entra_tenant_ids"`
-	WindowsEntraClientIDs           any `json:"windows_entra_client_ids"`
-	AppleRequireHardwareAttestation any `json:"apple_require_hardware_attestation"`
+	MacOSMigration                 any `json:"macos_migration"`
+	WindowsMigrationEnabled        any `json:"windows_migration_enabled"`
+	EnableTurnOnWindowsMDMManually any `json:"enable_turn_on_windows_mdm_manually"`
+	WindowsEntraTenantIDs          any `json:"windows_entra_tenant_ids"`
+	WindowsEntraClientIDs          any `json:"windows_entra_client_ids"`
 }
 
 func goTypeToJSON(name string) string {

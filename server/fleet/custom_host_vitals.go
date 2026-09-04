@@ -87,7 +87,7 @@ type MissingCustomHostVitalValueError struct {
 	MissingNames []string
 }
 
-func (e MissingCustomHostVitalValueError) Error() string {
+func (e *MissingCustomHostVitalValueError) Error() string {
 	tokens := make([]string, 0, len(e.MissingIDs))
 	for i, id := range e.MissingIDs {
 		var name string

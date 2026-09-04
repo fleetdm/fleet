@@ -50,6 +50,7 @@ jobs:
     # TODO: This only checks for added files, we should also check for renames,
     # which should be more of an edge case, but they might still happen
     - name: Check migration order
+      id: migration-order
       run: |
         # if the workflow is run during a push event (on merges to main and
         # tags,) use the latest created tag as a reference
@@ -71,6 +72,15 @@ jobs:
           fi
           index=$((index+1))
         done
+
+        # The retry check below only wants migrations that are not on main yet.
+        to_check=""
+        for migration in "${new_migrations[@]:-}"; do
+          if [ -n "$migration" ] && ! git cat-file -e "origin/main:$migration" 2>/dev/null; then
+            to_check="$to_check $migration"
+          fi
+        done
+        echo "new_migrations=$(echo $to_check)" >> "$GITHUB_OUTPUT"
 
     - name: Install Go
       uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
@@ -110,4 +120,20 @@ jobs:
         	echo "❌ fail: hosts foreign keys are not allowed"
         	echo "Ref: https://github.com/fleetdm/fleet/blob/main/handbook/engineering/scaling-fleet.md#foreign-keys-and-locking"
         	exit 1
+        fi
+
+    - name: Check migrations can be retried
+      if: github.event_name == 'pull_request'
+      env:
+        NEW_MIGRATIONS: ${{ steps.migration-order.outputs.new_migrations }}
+      run: |
+        if [ -z "$NEW_MIGRATIONS" ]; then
+          echo "no new migrations"
+          exit 0
+        fi
+
+        echo "checking: $NEW_MIGRATIONS"
+        if ! go run ./tools/migration-retry-check -migrations="$NEW_MIGRATIONS"; then
+          echo "::error::A migration cannot be retried after a partial failure. See the log for which one and how to fix it."
+          exit 1
         fi

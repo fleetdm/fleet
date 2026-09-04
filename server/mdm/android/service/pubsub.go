@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
+	"encoding/json/v2"
 	"fmt"
 	"net/http"
 	"strings"
@@ -16,7 +17,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/worker"
-	"github.com/go-json-experiment/json"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 	"google.golang.org/api/androidmanagement/v1"
@@ -1135,10 +1135,10 @@ func androidDeviceVitals(device *androidmanagement.Device) fleet.MDMAndroidDevic
 		}
 	}
 
-	// AMAPI only reports telephonyInfos for fully managed devices. Fleet drops
-	// it as well on an explicitly personally-owned device, which also clears
-	// numbers left over from a company-owned enrollment if the device comes
-	// back as personally owned.
+	// AMAPI only reports telephonyInfos, imei and meid for fully managed
+	// devices. Fleet drops them as well on an explicitly personally-owned
+	// device, which also clears identifiers left over from a company-owned
+	// enrollment if the device comes back as personally owned.
 	//
 	// Ownership that is absent or OWNERSHIP_UNSPECIFIED is deliberately NOT
 	// treated as personally owned: AMAPI omits the field on some status
@@ -1147,6 +1147,10 @@ func androidDeviceVitals(device *androidmanagement.Device) fleet.MDMAndroidDevic
 	// returns is gated on Fleet's own enrollment record instead, in
 	// getHostDetails.
 	if ni := device.NetworkInfo; ni != nil && device.Ownership != DeviceOwnershipPersonallyOwned {
+		// A device reports imei or meid depending on its radio, not both.
+		vitals.IMEI = optionalVital(ni.Imei)
+		vitals.MEID = optionalVital(ni.Meid)
+
 		for _, info := range ni.TelephonyInfos {
 			if info == nil {
 				continue

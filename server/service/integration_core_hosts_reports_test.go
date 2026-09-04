@@ -1030,6 +1030,16 @@ func (s *integrationTestSuite) TestGetHostDiskEncryption() {
 	})
 	require.NoError(t, err)
 
+	listHostsDiskEncryption := func() map[uint]*bool {
+		var listResp listHostsResponse
+		s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "query", t.Name())
+		byID := make(map[uint]*bool, len(listResp.Hosts))
+		for _, h := range listResp.Hosts {
+			byID[h.ID] = h.DiskEncryptionEnabled
+		}
+		return byID
+	}
+
 	// before any disk encryption is received, all hosts report NULL (even if
 	// some have disk space information, i.e. an entry exists in host_disks).
 	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(context.Background(), hostWin.ID, 44.5, 55.6, 90.0, nil))
@@ -1048,6 +1058,12 @@ func (s *integrationTestSuite) TestGetHostDiskEncryption() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hostLin.ID), nil, http.StatusOK, &getHostResp)
 	require.Equal(t, hostLin.ID, getHostResp.Host.ID)
 	require.Nil(t, getHostResp.Host.DiskEncryptionEnabled)
+
+	listed := listHostsDiskEncryption()
+	require.Len(t, listed, 3)
+	require.Nil(t, listed[hostWin.ID])
+	require.Nil(t, listed[hostMac.ID])
+	require.Nil(t, listed[hostLin.ID])
 
 	// set encrypted for all hosts
 	require.NoError(t, s.ds.SetOrUpdateHostDisksEncryption(context.Background(), hostWin.ID, true, nil))
@@ -1068,6 +1084,11 @@ func (s *integrationTestSuite) TestGetHostDiskEncryption() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hostLin.ID), nil, http.StatusOK, &getHostResp)
 	require.Equal(t, hostLin.ID, getHostResp.Host.ID)
 	require.True(t, *getHostResp.Host.DiskEncryptionEnabled)
+
+	listed = listHostsDiskEncryption()
+	require.Equal(t, new(true), listed[hostWin.ID])
+	require.Equal(t, new(true), listed[hostMac.ID])
+	require.Equal(t, new(true), listed[hostLin.ID])
 
 	// should succeed as we no longer require MDM to access this endpoint, as Linux encryption doesn't require MDM
 	var profiles getMDMProfilesSummaryResponse
@@ -1094,6 +1115,11 @@ func (s *integrationTestSuite) TestGetHostDiskEncryption() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hostLin.ID), nil, http.StatusOK, &getHostResp)
 	require.Equal(t, hostLin.ID, getHostResp.Host.ID)
 	require.Nil(t, getHostResp.Host.DiskEncryptionEnabled)
+
+	listed = listHostsDiskEncryption()
+	require.Equal(t, new(false), listed[hostWin.ID])
+	require.Equal(t, new(false), listed[hostMac.ID])
+	require.Nil(t, listed[hostLin.ID])
 
 	// the orbit endpoint to set the disk encryption key always fails in this
 	// suite because MDM is not configured.
@@ -1237,7 +1263,7 @@ func (s *integrationTestSuite) TestGetHostIOSVitals() {
 	}
 }
 
-// hostAndroidVitalsJSONKeys are the JSON keys of the 13 Android vitals fields
+// hostAndroidVitalsJSONKeys are the JSON keys of the 15 Android vitals fields
 // added to fleet.Host: they must be fully omitted (not present, not null) from
 // the host response for non-Android hosts, or for a field that's absent from
 // the host's host_mdm_android_device_vitals row.
@@ -1245,7 +1271,7 @@ var hostAndroidVitalsJSONKeys = []string{
 	"adb_enabled", "passcode_protected", "play_protect_enabled", "encryption_type",
 	"manufacturer", "security_update_version", "device_kernel_version",
 	"bootloader_version", "system_update_status", "security_posture", "api_level",
-	"security_posture_details", "telephony_infos",
+	"security_posture_details", "telephony_infos", "imei", "meid",
 }
 
 func (s *integrationTestSuite) TestGetHostAndroidVitals() {
@@ -1282,6 +1308,8 @@ func (s *integrationTestSuite) TestGetHostAndroidVitals() {
 		BootloaderVersion:     new("slider-1.4-12345678"),
 		SystemUpdateStatus:    new("SECURITY_UPDATE_AVAILABLE"),
 		SecurityPosture:       new("POTENTIALLY_COMPROMISED"),
+		IMEI:                  new("A1000031212"),
+		MEID:                  new("A00000292788E1"),
 		APILevel:              new(int64(36)),
 		SecurityPostureDetails: []fleet.MDMAndroidPostureDetail{
 			{SecurityRisk: "COMPROMISED_OS", Advice: []string{"Factory reset the device"}},
@@ -1292,7 +1320,7 @@ func (s *integrationTestSuite) TestGetHostAndroidVitals() {
 		},
 	}
 
-	// A fully populated Android host returns all 13 fields, on both GET endpoints.
+	// A fully populated Android host returns all 15 fields, on both GET endpoints.
 	fullHost := newHost("android", "-full")
 	require.NoError(t, s.ds.SetOrUpdateHostMDMAndroidDeviceVitals(ctx, fullHost.UUID, fullVitals))
 
@@ -1303,6 +1331,8 @@ func (s *integrationTestSuite) TestGetHostAndroidVitals() {
 	require.True(t, *getHostResp.Host.AdbEnabled)
 	require.Len(t, getHostResp.Host.SecurityPostureDetails, 1)
 	require.Len(t, getHostResp.Host.TelephonyInfos, 2)
+	require.Equal(t, "A1000031212", *getHostResp.Host.IMEI)
+	require.Equal(t, "A00000292788E1", *getHostResp.Host.MEID)
 
 	hostJSON := s.getHostJSON(fmt.Sprintf("/api/latest/fleet/hosts/%d", fullHost.ID))
 	for _, key := range hostAndroidVitalsJSONKeys {
@@ -1324,7 +1354,7 @@ func (s *integrationTestSuite) TestGetHostAndroidVitals() {
 		assert.Contains(t, identifierJSON, key, "expected key %q in identifier response for fully populated Android host", key)
 	}
 
-	// A non-Android host omits all 13 keys, even though a row exists for it.
+	// A non-Android host omits all 15 keys, even though a row exists for it.
 	// (manufacturer in particular is a plausible-sounding key to leak.)
 	macHost := newHost("darwin", "-macos")
 	require.NoError(t, s.ds.SetOrUpdateHostMDMAndroidDeviceVitals(ctx, macHost.UUID, fullVitals))
@@ -1347,9 +1377,11 @@ func (s *integrationTestSuite) TestGetHostAndroidVitals() {
 	assert.NotContains(t, hostJSON, "adb_enabled")
 	assert.NotContains(t, hostJSON, "security_posture_details")
 	assert.NotContains(t, hostJSON, "telephony_infos")
+	assert.NotContains(t, hostJSON, "imei")
+	assert.NotContains(t, hostJSON, "meid")
 
 	// An Android host with no vitals row yet (hasn't reported since this
-	// shipped) omits all 13 keys, with no error.
+	// shipped) omits all 15 keys, with no error.
 	noRowHost := newHost("android", "-no-row")
 	hostJSON = s.getHostJSON(fmt.Sprintf("/api/latest/fleet/hosts/%d", noRowHost.ID))
 	for _, key := range hostAndroidVitalsJSONKeys {

@@ -32,6 +32,7 @@ func TestStatistics(t *testing.T) {
 		{"FleetMaintainedAppsInUse", testFleetMaintainedAppsInUse},
 		{"GitOpsModeStatistics", testGitOpsModeStatistics},
 		{"FleetMDMEnrolled", testStatisticsFleetMDMEnrolled},
+		{"MDMProfileCounts", testStatisticsMDMProfileCounts},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -110,6 +111,10 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 	// Existing-install defaults applied by migration 20260323144117_AddGitOpsExceptionsToAppConfig
 	// (labels + secrets on, software off) and baked into the dumped test schema.
 	assert.Equal(t, []string{"labels", "secrets"}, stats.GitOpsModeExceptions)
+	assert.Equal(t, 0, stats.NumMDMAppleProfiles)
+	assert.Equal(t, 0, stats.NumMDMWindowsProfiles)
+	assert.Equal(t, 0, stats.NumMDMAppleDeclarations)
+	assert.Equal(t, 0, stats.NumMDMAndroidProfiles)
 
 	firstIdentifier := stats.AnonymousIdentifier
 
@@ -892,4 +897,94 @@ func testStatisticsFleetMDMEnrolled(t *testing.T, ds *Datastore) {
 	assert.True(t, shouldSend)
 	assert.Equal(t, 1, stats.NumHostsFleetMDMEnrolledMacOS)
 	assert.Equal(t, 1, stats.NumHostsFleetMDMEnrolledWindows)
+}
+
+func testStatisticsMDMProfileCounts(t *testing.T, ds *Datastore) {
+	eh := ctxerr.MockHandler{}
+	eh.RetrieveImpl = func(flush bool) ([]*ctxerr.StoredError, error) {
+		return nil, nil
+	}
+	ctx := ctxerr.NewContext(context.Background(), eh)
+
+	premiumLicense := &fleet.LicenseInfo{Tier: fleet.TierPremium, Organization: "Fleet"}
+	fleetConfig := config.FleetConfig{Osquery: config.OsqueryConfig{DetailUpdateInterval: 1 * time.Hour}}
+
+	// Initial state: all profile counts should be zero.
+	stats, shouldSend, err := ds.ShouldSendStatistics(license.NewContext(ctx, premiumLicense), time.Millisecond, fleetConfig)
+	require.NoError(t, err)
+	assert.True(t, shouldSend)
+	assert.Equal(t, 0, stats.NumMDMAppleProfiles)
+	assert.Equal(t, 0, stats.NumMDMWindowsProfiles)
+	assert.Equal(t, 0, stats.NumMDMAppleDeclarations)
+	assert.Equal(t, 0, stats.NumMDMAndroidProfiles)
+
+	markStatisticsStale(t, ctx, ds)
+
+	// Insert Apple configuration profiles.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		for i := 1; i <= 3; i++ {
+			_, err := q.ExecContext(ctx,
+				`INSERT INTO mdm_apple_configuration_profiles (team_id, identifier, name, mobileconfig, checksum, profile_uuid)
+				 VALUES (0, ?, ?, '<plist></plist>', '', ?)`,
+				fmt.Sprintf("com.test.profile%d", i),
+				fmt.Sprintf("Test Profile %d", i),
+				fmt.Sprintf("a%d", i),
+			)
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+
+	// Insert Windows configuration profiles.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		for i := 1; i <= 2; i++ {
+			_, err := q.ExecContext(ctx,
+				`INSERT INTO mdm_windows_configuration_profiles (team_id, name, syncml, profile_uuid)
+				 VALUES (0, ?, '<Replace></Replace>', ?)`,
+				fmt.Sprintf("Win Profile %d", i),
+				fmt.Sprintf("w%d", i),
+			)
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+
+	// Insert Apple declarations.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		for i := 1; i <= 4; i++ {
+			_, err := q.ExecContext(ctx,
+				`INSERT INTO mdm_apple_declarations (team_id, identifier, name, raw_json, declaration_uuid)
+				 VALUES (0, ?, ?, '{}', ?)`,
+				fmt.Sprintf("com.test.decl%d", i),
+				fmt.Sprintf("Test Decl %d", i),
+				fmt.Sprintf("d%d", i),
+			)
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+
+	// Insert Android configuration profiles.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			`INSERT INTO mdm_android_configuration_profiles (team_id, name, raw_json, profile_uuid)
+			 VALUES (0, 'Android Profile 1', '{}', 'n1')`,
+		)
+		return err
+	})
+
+	// Verify the counts match what was inserted.
+	stats, shouldSend, err = ds.ShouldSendStatistics(license.NewContext(ctx, premiumLicense), time.Millisecond, fleetConfig)
+	require.NoError(t, err)
+	assert.True(t, shouldSend)
+	assert.Equal(t, 3, stats.NumMDMAppleProfiles)
+	assert.Equal(t, 2, stats.NumMDMWindowsProfiles)
+	assert.Equal(t, 4, stats.NumMDMAppleDeclarations)
+	assert.Equal(t, 1, stats.NumMDMAndroidProfiles)
 }
