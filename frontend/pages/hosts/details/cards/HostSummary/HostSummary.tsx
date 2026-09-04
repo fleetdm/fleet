@@ -41,7 +41,7 @@ const HostSummary = ({
   isPremiumTier,
   toggleBootstrapPackageModal,
   className,
-}: IHostSummaryProps): JSX.Element | null => {
+}: IHostSummaryProps): JSX.Element => {
   const classNames = classnames(baseClass, className);
 
   const { status, platform, mdm } = summaryData;
@@ -116,7 +116,10 @@ const HostSummary = ({
     );
   };
 
-  const showStatus = !isIosOrIpadosHost && !isAndroidHost;
+  // Now that the API returns real online/offline for mobile hosts (see
+  // #52486), iOS/iPadOS/Android render the same status pill as desktop —
+  // no more mobile-only "View history" workaround row. Status always renders,
+  // so the empty-card guard below is gone.
   const showTeam = !!isPremiumTier;
   const showIssues =
     summaryData.issues?.total_issues_count > 0 &&
@@ -130,40 +133,39 @@ const HostSummary = ({
     !!summaryData.maintenance_window &&
     summaryData.maintenance_window !== DEFAULT_EMPTY_CELL_VALUE;
 
-  // Hide the card entirely when nothing inside it would render (e.g. a Free
-  // tier Android host) — otherwise an empty card sits above the Vitals section.
-  if (
-    !showStatus &&
-    !showTeam &&
-    !showIssues &&
-    !showBootstrapPackage &&
-    !showMaintenanceWindow
-  ) {
-    return null;
-  }
-
   return (
     <Card
       borderRadiusSize="xxlarge"
       paddingSize="xlarge"
       className={classNames}
     >
-      {showStatus && (
-        <DataSet
-          title="Status"
-          value={
-            <StatusIndicator
-              value={getHostStatus(status, mdm?.enrollment_status)}
-              tooltip={{
-                tooltipText: getHostStatusTooltipText(
-                  getHostStatus(status, mdm?.enrollment_status)
-                ),
-                position: "bottom",
-              }}
-            />
-          }
-        />
-      )}
+      <DataSet
+        title={
+          isIosOrIpadosHost ? (
+            <TooltipWrapper
+              tipContent="iOS/iPadOS hosts are online anytime they have power and an internet connection (including locked)."
+              position="top"
+              showArrow
+              tipOffset={8}
+            >
+              Status
+            </TooltipWrapper>
+          ) : (
+            "Status"
+          )
+        }
+        value={
+          <StatusIndicator
+            value={getHostStatus(status, mdm?.enrollment_status)}
+            tooltip={{
+              tooltipText: getHostStatusTooltipText(
+                getHostStatus(status, mdm?.enrollment_status)
+              ),
+              position: "bottom",
+            }}
+          />
+        }
+      />
       {showTeam && renderHostTeam()}
       {showIssues && renderIssues()}
       {showBootstrapPackage && bootstrapPackageData?.status && (
