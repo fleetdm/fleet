@@ -3,6 +3,7 @@ import SettingsSection from "pages/admin/components/SettingsSection";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import Checkbox from "components/forms/fields/Checkbox";
 import InputField from "components/forms/fields/InputField";
+import TooltipWrapper from "components/TooltipWrapper";
 
 import type { IAdvancedSectionProps } from "../../Advanced";
 
@@ -46,13 +47,13 @@ const HostLifecycleSection = ({
           </Checkbox>
         )}
       />
-      {enableHostExpiry && (
-        <GitOpsModeTooltipWrapper
-          position="left"
-          isInputField
-          renderChildren={(disableChildren) => (
+      <GitOpsModeTooltipWrapper
+        position="left"
+        isInputField
+        renderChildren={(disableChildren) => {
+          const hostExpiryWindowField = (
             <InputField
-              disabled={disableChildren}
+              disabled={!enableHostExpiry || disableChildren}
               label="Host expiry window"
               type="number"
               onChange={onInputChange}
@@ -61,9 +62,23 @@ const HostLifecycleSection = ({
               parseTarget
               error={formErrors.hostExpiryWindow}
             />
-          )}
-        />
-      )}
+          );
+
+          return !enableHostExpiry && !disableChildren ? (
+            <TooltipWrapper
+              className="host-expiry-window__disabled-tooltip"
+              tipContent="Enable host expiry to edit this setting."
+              position="top"
+              underline={false}
+              showArrow
+            >
+              {hostExpiryWindowField}
+            </TooltipWrapper>
+          ) : (
+            hostExpiryWindowField
+          );
+        }}
+      />
       {isPremiumTier && (
         <GitOpsModeTooltipWrapper
           position="left"

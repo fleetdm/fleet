@@ -15,6 +15,7 @@ import DropdownWrapper, {
   CustomOptionType,
 } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import TooltipWrapper from "components/TooltipWrapper";
 import CustomLink from "components/CustomLink";
 import { notify } from "components/ToastNotification";
 
@@ -48,7 +49,7 @@ const useSetWindowsMdm = ({
           enable_turn_on_windows_mdm_manually:
             enableMdm && !turnOnProgrammatically,
           windows_enabled_and_configured: enableMdm,
-          // Migration only applies when MDM is on and enrollment is programmatic (the checkbox is hidden otherwise), so
+          // Migration only applies when MDM is on and enrollment is programmatic (the checkbox is disabled otherwise), so
           // derive the value to avoid re-saving a stale "enabled" state.
           windows_migration_enabled:
             enableMdm && turnOnProgrammatically && enableAutoMigration,
@@ -169,6 +170,16 @@ const WindowsMdmPage = ({ router }: IWindowsMdmPageProps) => {
     />
   );
 
+  const migrationCheckbox = (
+    <Checkbox
+      disabled={!turnOnProgrammatically || !mdmOn || gitOpsModeEnabled}
+      value={autoMigration}
+      onChange={onChangeAutoMigration}
+    >
+      Automatically migrate hosts connected to another MDM solution
+    </Checkbox>
+  );
+
   const programmaticToggleTooltip = (
     <>
       When enabled, MDM is turned on when Fleet&apos;s agent is installed. When
@@ -221,16 +232,22 @@ const WindowsMdmPage = ({ router }: IWindowsMdmPageProps) => {
               {defaultFleetDropdown}
             </div>
           )}
-          {isPremiumTier && turnOnProgrammatically && (
+          {isPremiumTier && (
             <div className={`${baseClass}__section`}>
               <h2 className={`${baseClass}__section-title`}>Migration</h2>
-              <Checkbox
-                disabled={!mdmOn || gitOpsModeEnabled}
-                value={autoMigration}
-                onChange={onChangeAutoMigration}
-              >
-                Automatically migrate hosts connected to another MDM solution
-              </Checkbox>
+              {!turnOnProgrammatically ? (
+                <TooltipWrapper
+                  className={`${baseClass}__disabled-tooltip`}
+                  tipContent="Turn on MDM programmatically to automatically migrate hosts."
+                  position="top"
+                  underline={false}
+                  showArrow
+                >
+                  {migrationCheckbox}
+                </TooltipWrapper>
+              ) : (
+                migrationCheckbox
+              )}
             </div>
           )}
           <GitOpsModeTooltipWrapper

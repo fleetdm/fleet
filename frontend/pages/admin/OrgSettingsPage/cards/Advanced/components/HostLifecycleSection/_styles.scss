@@ -1,0 +1,13 @@
+// Wraps the host expiry window input when disabled with an explanatory
+// tooltip; the wrapper must fill the form field's width like the bare
+// control does.
+.host-expiry-window__disabled-tooltip {
+  &.component__tooltip-wrapper {
+    display: block;
+  }
+
+  .component__tooltip-wrapper__element {
+    width: 100%;
+    white-space: normal;
+  }
+}
