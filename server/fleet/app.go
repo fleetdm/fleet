@@ -288,6 +288,11 @@ type MDM struct {
 	// AppleRequireHardwareAttestation indicates whether to require Managed Device Attestation via ACME(including hardware bound keys) for
 	// certain Apple MDM enrollments.
 	AppleRequireHardwareAttestation bool `json:"apple_require_hardware_attestation"`
+	// OnlyAllowAppleBusinessEnrollment restricts Apple MDM enrollment to devices
+	// assigned to Fleet in Apple Business (ADE). Manual, OTA, and account-driven
+	// (BYOD) enrollment are blocked. When combined with AppleRequireHardwareAttestation,
+	// new SCEP issuance is also blocked so only ACME-attested devices can enroll or renew.
+	OnlyAllowAppleBusinessEnrollment bool `json:"only_allow_apple_business_enrollment"`
 
 	WindowsEntraTenantIDs optjson.Slice[string] `json:"windows_entra_tenant_ids"`
 
@@ -338,6 +343,12 @@ type MDM struct {
 	// WARNING: If you add to this struct make sure it's taken into
 	// account in the AppConfig Clone implementation!
 	/////////////////////////////////////////////////////////////////
+}
+
+// IsAppleMDMSCEPBlocked reports whether Apple MDM SCEP endpoints are blocked altogether. This blocks enrollments
+// and renewals, plus those that might have a valid profile lying around with the static SCEP can't enroll.
+func (m MDM) IsAppleMDMSCEPBlocked() bool {
+	return m.OnlyAllowAppleBusinessEnrollment && m.AppleRequireHardwareAttestation
 }
 
 type DiskEncryptionConfig struct {
@@ -2465,8 +2476,9 @@ type DeviceGlobalConfig struct {
 // DeviceGlobalMDMConfig is a subset of AppConfig.MDM with information used by
 // the device endpoints
 type DeviceGlobalMDMConfig struct {
-	EnabledAndConfigured bool `json:"enabled_and_configured"`
-	RequireAllSoftware   bool `json:"require_all_software_macos"`
+	EnabledAndConfigured             bool `json:"enabled_and_configured"`
+	RequireAllSoftware               bool `json:"require_all_software_macos"`
+	OnlyAllowAppleBusinessEnrollment bool `json:"only_allow_apple_business_enrollment"`
 }
 
 // DeviceFeatures is a subset of AppConfig.Features with information used by

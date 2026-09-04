@@ -176,10 +176,9 @@ export const ANDROID_NO_REFETCH_TOOLTIP_MESSAGE = (
     automatically when they change. If changes aren&apos;t appearing,{" "}
     <CustomLink
       url={`${LEARN_MORE_ABOUT_BASE_LINK}/android-manual-sync`}
-      text="learn how to sync manually"
+      text="learn how to sync manually."
       newTab
       variant="tooltip-link"
     />
-    .
   </>
 );

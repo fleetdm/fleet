@@ -1,0 +1,1 @@
+- Fixed a bug where updating a SCIM group's members could silently remove members that the identity provider did not ask to remove.

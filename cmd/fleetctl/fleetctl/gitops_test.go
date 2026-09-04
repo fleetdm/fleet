@@ -9389,12 +9389,10 @@ func TestGitOpsMicrosoftGraphCredentials(t *testing.T) {
 	}
 	// Deletions are computed from the metadata read (which decrypts nothing), so both reads must be backed by the same
 	// store or a removed key looks like "nothing was configured".
-	ds.ListMicrosoftGraphCredentialMetadataFunc = func(ctx context.Context) ([]*fleet.MicrosoftGraphCredential, error) {
-		out := make([]*fleet.MicrosoftGraphCredential, 0, len(stored))
+	ds.ListMicrosoftGraphCredentialMetadataFunc = func(ctx context.Context) ([]*fleet.MicrosoftGraphCredentialMetadata, error) {
+		out := make([]*fleet.MicrosoftGraphCredentialMetadata, 0, len(stored))
 		for _, c := range stored {
-			meta := *c
-			meta.ClientSecret = ""
-			out = append(out, &meta)
+			out = append(out, &c.MicrosoftGraphCredentialMetadata)
 		}
 		return out, nil
 	}

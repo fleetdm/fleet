@@ -1740,6 +1740,17 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateResend() {
 				fleet.CertificateTemplateDelivered, "")
 		}
 
+		// backdateRetry sets updated_at far enough in the past for the exponential backoff
+		// in ListAndroidHostUUIDsWithPendingCertificateTemplates to consider the row eligible.
+		backdateRetry := func() {
+			mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+				_, err := q.ExecContext(ctx,
+					`UPDATE host_certificate_templates SET updated_at = DATE_SUB(NOW(), INTERVAL 1 HOUR) WHERE host_uuid = ? AND certificate_template_id = ?`,
+					host.UUID, certTemplateID)
+				return err
+			})
+		}
+
 		// Fail MaxCertificateInstallRetries times -- each should auto-retry (status resets to pending)
 		for i := range fleet.MaxCertificateInstallRetries {
 			deliverCert()
@@ -1750,6 +1761,9 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateResend() {
 			require.NoError(t, err)
 			require.Equal(t, fleet.CertificateTemplatePending, record.Status, "retry %d should auto-retry", i+1)
 			require.Equal(t, i+1, record.RetryCount)
+
+			// Backdate updated_at so the cron picks up the retried row despite exponential backoff.
+			backdateRetry()
 		}
 
 		// One more failure with retry_count at max -- should be terminal
@@ -1784,7 +1798,7 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateResend() {
 			nil, http.StatusOK, &struct{}{})
 		record, err = s.ds.GetHostCertificateTemplateRecord(ctx, host.UUID, certTemplateID)
 		require.NoError(t, err)
-		require.Equal(t, fleet.MaxCertificateInstallRetries, record.RetryCount, "resend should set retry_count to max")
+		require.Equal(t, fleet.MaxCertificateInstallRetries+1, record.RetryCount, "resend should set retry_count above max to bypass backoff")
 
 		// Deliver and fail once more -- terminal immediately (no auto-retry after resend)
 		deliverCert()
@@ -1806,6 +1820,8 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateResend() {
 		require.NoError(t, err)
 		require.Equal(t, fleet.CertificateTemplatePending, record.Status)
 
+		// Backdate so the cron picks up the retried row despite exponential backoff.
+		backdateRetry()
 		deliverCert()
 		reportCertStatus(string(fleet.MDMDeliveryVerified), nil)
 		record, err = s.ds.GetHostCertificateTemplateRecord(ctx, host.UUID, certTemplateID)

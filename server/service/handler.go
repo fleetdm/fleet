@@ -1406,14 +1406,15 @@ func RegisterAppleMDMProtocolServices(
 	serverURLPrefix string,
 	fleetConfig config.FleetConfig,
 	svc fleet.Service,
+	ds fleet.Datastore,
 ) error {
-	if err := registerSCEP(mux, scepConfig, scepStorage, mdmStorage, logger, fleetConfig); err != nil {
+	if err := registerSCEP(mux, scepConfig, scepStorage, mdmStorage, logger, fleetConfig, ds); err != nil {
 		return fmt.Errorf("scep: %w", err)
 	}
-	if err := registerMDM(mux, mdmStorage, checkinAndCommandService, ddmService, profileService, logger, fleetConfig); err != nil {
+	if err := registerMDM(mux, mdmStorage, checkinAndCommandService, ddmService, profileService, logger, fleetConfig, ds); err != nil {
 		return fmt.Errorf("mdm: %w", err)
 	}
-	if err := registerMDMServiceDiscovery(mux, logger, serverURLPrefix, fleetConfig); err != nil {
+	if err := registerMDMServiceDiscovery(mux, logger, serverURLPrefix, fleetConfig, ds); err != nil {
 		return fmt.Errorf("service discovery: %w", err)
 	}
 	if err := registerPSSO(mux, svc, logger, fleetConfig); err != nil {
@@ -1427,9 +1428,20 @@ func registerMDMServiceDiscovery(
 	logger *slog.Logger,
 	serverURLPrefix string,
 	fleetConfig config.FleetConfig,
+	appCfgGetter fleet.GetsAppConfig,
 ) error {
 	serviceDiscoveryLogger := logger.With("component", "mdm-apple-service-discovery")
 	serviceDiscoveryHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		appCfg, err := appCfgGetter.AppConfig(r.Context())
+		if err != nil {
+			serviceDiscoveryLogger.ErrorContext(r.Context(), "error loading app config for service discovery", "err", err)
+			return
+		} else if appCfg.MDM.OnlyAllowAppleBusinessEnrollment {
+			err := &fleet.ABOnlyEnrollmentForbiddenError{}
+			http.Error(w, err.Error(), err.StatusCode())
+			return
+		}
+
 		var mdmEnrollmentURL string
 		token := r.PathValue("token")
 		if token != "" {
@@ -1443,7 +1455,7 @@ func registerMDMServiceDiscovery(
 		serviceDiscoveryLogger.InfoContext(ctx, "serving MDM service discovery response", "url", mdmEnrollmentURL)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		_, err := fmt.Fprintf(w, `{"Servers":[{"Version": "mdm-byod", "BaseURL": "%s"}]}`, mdmEnrollmentURL)
+		_, err = fmt.Fprintf(w, `{"Servers":[{"Version": "mdm-byod", "BaseURL": "%s"}]}`, mdmEnrollmentURL)
 		if err != nil {
 			serviceDiscoveryLogger.ErrorContext(ctx, "error writing service discovery response", "err", err)
 			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
@@ -1479,6 +1491,7 @@ func registerSCEP(
 	mdmStorage fleet.MDMAppleStore,
 	logger *slog.Logger,
 	fleetConfig config.FleetConfig,
+	appCfgGetter fleet.GetsAppConfig,
 ) error {
 	var signer scepserver.CSRSignerContext = scepserver.SignCSRAdapter(scep_depot.NewSigner(
 		scepStorage,
@@ -1504,8 +1517,11 @@ func registerSCEP(
 
 	scepSlogLogger := logger.With("component", "http-mdm-apple-scep")
 	e := scepserver.MakeServerEndpoints(scepService)
+	e.GetEndpoint = scepserver.ACMEOnlyEnrollmentMiddleware(appCfgGetter)(e.GetEndpoint)
+	e.PostEndpoint = scepserver.ACMEOnlyEnrollmentMiddleware(appCfgGetter)(e.PostEndpoint)
 	e.GetEndpoint = scepserver.EndpointLoggingMiddleware(scepSlogLogger)(e.GetEndpoint)
 	e.PostEndpoint = scepserver.EndpointLoggingMiddleware(scepSlogLogger)(e.PostEndpoint)
+
 	scepHandler := scepserver.MakeHTTPHandler(e, scepService, scepSlogLogger)
 	mux.Handle(apple_mdm.SCEPPath, otel.WrapHandler(scepHandler, apple_mdm.SCEPPath, fleetConfig))
 	return nil
@@ -1571,6 +1587,7 @@ func registerMDM(
 	profileService nanomdm_service.ProfileService,
 	logger *slog.Logger,
 	fleetConfig config.FleetConfig,
+	ds fleet.Datastore,
 ) error {
 	certVerifier := mdmcrypto.NewSCEPVerifier(mdmStorage)
 	mdmLogger := NewNanoMDMLogger(logger.With("component", "http-mdm-apple-mdm"))
@@ -1592,6 +1609,10 @@ func registerMDM(
 	var mdmService nanomdm_service.CheckinAndCommandService = multi.New(mdmLogger, coreMDMService, checkinAndCommandService)
 
 	mdmService = certauth.New(mdmService, mdmStorage, certauth.WithLogger(mdmLogger.With("handler", "cert-auth")))
+	// Wraps the whole chain above (not a multi.New sub-service) so a rejection here is what
+	// the HTTP handler actually returns to the device. See abOnlyEnrollmentCheckinService's
+	// doc comment for why this can't live inside checkinAndCommandService itself.
+	mdmService = newABOnlyEnrollmentCheckinService(mdmService, ds, logger.With("component", "http-mdm-apple-mdm", "handler", "ab-only-enrollment"))
 	var mdmHandler http.Handler = httpmdm.CheckinAndCommandHandler(mdmService, mdmLogger.With("handler", "checkin-command"))
 	verifyDisable, exists := os.LookupEnv("FLEET_MDM_APPLE_SCEP_VERIFY_DISABLE")
 	if exists && (strings.EqualFold(verifyDisable, "true") || verifyDisable == "1") {

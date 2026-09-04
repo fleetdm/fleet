@@ -2602,3 +2602,15 @@ func (a ActivityTypeReleasedDeviceFromAB) ActivityName() string {
 func (a ActivityTypeReleasedDeviceFromAB) HostIDs() []uint {
 	return []uint{a.HostID}
 }
+
+type ActivityTypeEnabledAppleBusinessOnlyEnrollment struct{}
+
+func (a ActivityTypeEnabledAppleBusinessOnlyEnrollment) ActivityName() string {
+	return "enabled_apple_business_only_enrollment"
+}
+
+type ActivityTypeDisabledAppleBusinessOnlyEnrollment struct{}
+
+func (a ActivityTypeDisabledAppleBusinessOnlyEnrollment) ActivityName() string {
+	return "disabled_apple_business_only_enrollment"
+}

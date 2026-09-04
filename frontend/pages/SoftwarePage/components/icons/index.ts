@@ -652,6 +652,7 @@ import MicrosoftEdge from "./png/MicrosoftEdge.png";
 import MicrosoftOdbcDriver17 from "./png/MicrosoftOdbcDriver17.png";
 import MicrosoftOdbcDriver18 from "./png/MicrosoftOdbcDriver18.png";
 import MicrosoftOffice from "./png/MicrosoftOffice.png";
+import MicrosoftOleDbDriver19 from "./png/MicrosoftOleDbDriver19.png";
 import MicrosoftOneNote from "./png/MicrosoftOneNote.png";
 import MicrosoftOutlook from "./png/MicrosoftOutlook.png";
 import MicrosoftPowerPoint from "./png/MicrosoftPowerPoint.png";
@@ -847,6 +848,7 @@ import Raindropio from "./png/Raindropio.png";
 import RancherDesktop from "./png/RancherDesktop.png";
 import RapidApi from "./png/RapidApi.png";
 import Rapidweaver from "./png/Rapidweaver.png";
+import RaspberryPiImager from "./png/RaspberryPiImager.png";
 import Raycast from "./png/Raycast.png";
 import Readest from "./png/Readest.png";
 import RealVncServer from "./png/RealVncServer.png";
@@ -1066,6 +1068,7 @@ import Vellum from "./png/Vellum.png";
 import VernierSpectralAnalysis from "./png/VernierSpectralAnalysis.png";
 import Versions from "./png/Versions.png";
 import Via from "./png/Via.png";
+import Vim from "./png/Vim.png";
 import Vimcal from "./png/Vimcal.png";
 import VirtualBox from "./png/VirtualBox.png";
 import VirtualBuddy from "./png/VirtualBuddy.png";
@@ -1819,6 +1822,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "microsoft odbc driver 17 for sql server": MicrosoftOdbcDriver17,
   "microsoft odbc driver 18 for sql server": MicrosoftOdbcDriver18,
   "microsoft office": MicrosoftOffice,
+  "microsoft ole db driver 19 for sql server": MicrosoftOleDbDriver19,
   "microsoft onenote": MicrosoftOneNote,
   "microsoft outlook": MicrosoftOutlook,
   "microsoft powerpoint": MicrosoftPowerPoint,
@@ -2023,6 +2027,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "rancher desktop": RancherDesktop,
   rapidapi: RapidApi,
   rapidweaver: Rapidweaver,
+  "raspberry pi imager": RaspberryPiImager,
   raycast: Raycast,
   readest: Readest,
   "realvnc connect viewer": VncViewer,
@@ -2243,6 +2248,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "vernier spectral analysis": VernierSpectralAnalysis,
   versions: Versions,
   via: Via,
+  vim: Vim,
   vimcal: Vimcal,
   virtualbox: VirtualBox,
   virtualbuddy: VirtualBuddy,

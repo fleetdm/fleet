@@ -1,0 +1,1 @@
+- Made Android certificate delivery retry logic more robust by increasing automatic retries from 3 to 7 and adding exponential backoff between attempts.

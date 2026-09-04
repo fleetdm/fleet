@@ -3,7 +3,7 @@ package osv
 import (
 	"compress/gzip"
 	"context"
-	"encoding/json"
+	"encoding/json/v2"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -274,7 +274,7 @@ func loadOSVArtifact(ctx context.Context, ver fleet.OSVersion, vulnPath string, 
 	defer gz.Close()
 
 	var artifact OSVArtifact
-	if err := json.NewDecoder(gz).Decode(&artifact); err != nil {
+	if err := json.UnmarshalRead(gz, &artifact); err != nil {
 		return nil, fmt.Errorf("decoding OSV artifact: %w", err)
 	}
 
@@ -651,7 +651,7 @@ func loadRHELOSVArtifact(ctx context.Context, ver fleet.OSVersion, vulnPath stri
 	defer gz.Close()
 
 	var artifact RHELOSVArtifact
-	if err := json.NewDecoder(gz).Decode(&artifact); err != nil {
+	if err := json.UnmarshalRead(gz, &artifact); err != nil {
 		return nil, fmt.Errorf("decoding RHEL OSV artifact: %w", err)
 	}
 

@@ -34,6 +34,10 @@ const DeleteLabelModal = ({
             deleted. You will need to delete the configuration profile first.
           </li>
           <li>
+            Labels that are used in custom software targets will not be deleted.
+            You will need to remove the label from the software targets first.
+          </li>
+          <li>
             Reports and policies that target this label will continue to run,
             but may target different hosts.
           </li>

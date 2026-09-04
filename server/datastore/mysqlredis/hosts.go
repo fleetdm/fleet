@@ -190,8 +190,8 @@ func (d *Datastore) DeleteHosts(ctx context.Context, ids []uint) error {
 	return nil
 }
 
-func (d *Datastore) CleanupExpiredHosts(ctx context.Context) ([]fleet.DeletedHostDetails, error) {
-	details, err := d.Datastore.CleanupExpiredHosts(ctx)
+func (d *Datastore) CleanupExpiredHostsBatch(ctx context.Context, batchSize int) ([]fleet.DeletedHostDetails, error) {
+	details, err := d.Datastore.CleanupExpiredHostsBatch(ctx, batchSize)
 	if err != nil {
 		return details, err
 	}

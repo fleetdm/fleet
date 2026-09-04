@@ -193,7 +193,8 @@ type GitOpsControls struct {
 	AndroidSettings                any `json:"android_settings"`
 	LinuxSettings                  any `json:"linux_settings"`
 
-	AppleRequireHardwareAttestation any `json:"apple_require_hardware_attestation"`
+	AppleRequireHardwareAttestation  any `json:"apple_require_hardware_attestation"`
+	OnlyAllowAppleBusinessEnrollment any `json:"only_allow_apple_business_enrollment"`
 
 	EnableDiskEncryption       any              `json:"enable_disk_encryption"`
 	EnableRecoveryLockPassword any              `json:"enable_recovery_lock_password"`
@@ -214,6 +215,7 @@ func (c GitOpsControls) Set() bool {
 		c.AppleRequireHardwareAttestation != nil || c.EnableTurnOnWindowsMDMManually != nil ||
 		c.WindowsEntraTenantIDs != nil || c.WindowsEntraClientIDs != nil || c.RequireBitLockerPIN != nil ||
 		c.AppleAccountProvisioning != nil ||
+		c.OnlyAllowAppleBusinessEnrollment != nil ||
 		c.NameTemplate != nil || c.LinuxSettings != nil
 }
 

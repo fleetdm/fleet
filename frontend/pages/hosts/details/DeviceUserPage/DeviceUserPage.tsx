@@ -580,8 +580,7 @@ const DeviceUserPage = ({
     }
   };
 
-  const idpFullName = host?.end_users?.[0]?.idp_full_name;
-  const pageHeader = idpFullName ? `${idpFullName}'s device` : "My device";
+  const pageHeader = "My device";
 
   // Updates title that shows up on browser tabs
   useEffect(() => {

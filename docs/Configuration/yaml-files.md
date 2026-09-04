@@ -527,6 +527,8 @@ In addition to configuration profiles, you can upload **assets** which are `.jso
 
 > `activation` is a path to a JSON file containing custom activation criteria for declaration (DDM) profiles. Only supported for Apple declaration profiles (.json with DDM format). If not specified, no custom activation is applied.
 
+> PayloadScope set to "User" in a DDM declaration's top-level JSON is required for user-scoped payloads, see [Custom OS settings](https://fleetdm.com/guides/custom-os-settings#macos) for details.`
+
 
 ### android_settings
 

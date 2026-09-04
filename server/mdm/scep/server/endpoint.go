@@ -7,7 +7,6 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
-	"log/slog"
 	"net/url"
 	"os"
 	"strings"
@@ -272,23 +271,3 @@ type SCEPResponse struct {
 }
 
 func (r SCEPResponse) scepOperation() string { return r.operation }
-
-// EndpointLoggingMiddleware returns an endpoint middleware that logs the
-// duration of each invocation, and the resulting error, if any.
-func EndpointLoggingMiddleware(logger *slog.Logger) endpoint.Middleware {
-	return func(next endpoint.Endpoint) endpoint.Endpoint {
-		return func(ctx context.Context, request any) (response any, err error) {
-			var attrs []slog.Attr
-			if oper, ok := request.(interface {
-				scepOperation() string
-			}); ok {
-				attrs = append(attrs, slog.String("op", oper.scepOperation()))
-			}
-			defer func(begin time.Time) {
-				attrs = append(attrs, slog.Any("error", err), slog.Duration("took", time.Since(begin)))
-				logger.LogAttrs(ctx, slog.LevelInfo, "scep endpoint", attrs...)
-			}(time.Now())
-			return next(ctx, request)
-		}
-	}
-}

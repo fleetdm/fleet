@@ -919,19 +919,18 @@ func (MockClient) GetAppleMDMEnrollmentProfile(teamID uint) (*fleet.MDMAppleSetu
 	return nil, fmt.Errorf("unexpected team ID: %d", teamID)
 }
 
-func (MockClient) GetMicrosoftGraphCredentials() ([]*fleet.MicrosoftGraphCredential, error) {
+func (MockClient) GetMicrosoftGraphCredentials() ([]*fleet.MicrosoftGraphCredentialMetadata, error) {
 	return nil, nil
 }
 
-// graphCredClient returns one stored credential, as the endpoint does once one is configured. The secret comes back
-// masked from the API, so generate-gitops must not emit it.
+// graphCredClient returns one stored credential, as the endpoint does once one is configured. A read carries no
+// secret, so generate-gitops has none to emit and must write a placeholder instead.
 type graphCredClient struct{ MockClient }
 
-func (graphCredClient) GetMicrosoftGraphCredentials() ([]*fleet.MicrosoftGraphCredential, error) {
-	return []*fleet.MicrosoftGraphCredential{{
-		TenantID:     "5b1fc5b6-9502-4cf9-90cf-d0b656eaf7a4",
-		ClientID:     "122349c0-2458-448d-a9ae-f40b81a63213",
-		ClientSecret: fleet.MaskedPassword,
+func (graphCredClient) GetMicrosoftGraphCredentials() ([]*fleet.MicrosoftGraphCredentialMetadata, error) {
+	return []*fleet.MicrosoftGraphCredentialMetadata{{
+		TenantID: "5b1fc5b6-9502-4cf9-90cf-d0b656eaf7a4",
+		ClientID: "122349c0-2458-448d-a9ae-f40b81a63213",
 	}}, nil
 }
 

@@ -28,6 +28,11 @@ func (svc *Service) GetMDMAccountDrivenEnrollmentSSOURL(ctx context.Context, enr
 	if err != nil {
 		return "", ctxerr.Wrap(ctx, err)
 	}
+
+	if appConfig.MDM.OnlyAllowAppleBusinessEnrollment {
+		return "", &fleet.ABOnlyEnrollmentForbiddenError{}
+	}
+
 	url := appConfig.MDMUrl() + "/mdm/apple/account_driven_enroll/sso"
 
 	if enrollmentToken != "" {
@@ -41,6 +46,15 @@ func (svc *Service) GetMDMAppleAccountEnrollmentProfile(ctx context.Context, enr
 	// skipauth: This enrollment endpoint is authenticated only by the enrollment reference.
 	svc.authz.SkipAuthorization(ctx)
 
+	appConfig, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err)
+	}
+
+	if appConfig.MDM.OnlyAllowAppleBusinessEnrollment {
+		return nil, &fleet.ABOnlyEnrollmentForbiddenError{}
+	}
+
 	enrollChallenge, err := svc.ds.ConsumeADUEEnrollmentChallenge(ctx, enrollRef)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "consuming account driven enrollment challenge")
@@ -52,11 +66,6 @@ func (svc *Service) GetMDMAppleAccountEnrollmentProfile(ctx context.Context, enr
 	idpAccount, err := svc.ds.GetMDMIdPAccountByUUID(ctx, enrollChallenge.IdPAccountUUID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting MDM IdP account by UUID")
-	}
-
-	appConfig, err := svc.ds.AppConfig(ctx)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err)
 	}
 
 	topic, err := apple_mdm.MDMPushCertTopic(ctx, svc.ds)

@@ -1,0 +1,1 @@
+* Added third-party integration usage statistics (log destinations, webhook, SSO, SCIM, ticket destination, certificate authority, and Apple account provisioning configuration) and renamed the `googleWorkspaceConfigured` key to `idpGoogleWorkspaceConfigured`.

@@ -516,7 +516,7 @@ func (ds *Datastore) ResendHostCertificateTemplate(ctx context.Context, hostID u
 		WHERE
 			h.id = ? AND
 			hct.certificate_template_id = ?
-		`, fleet.MaxCertificateInstallRetries)
+		`, fleet.MaxCertificateInstallRetries+1)
 
 	const deleteChallenge = `
 		DELETE c FROM
