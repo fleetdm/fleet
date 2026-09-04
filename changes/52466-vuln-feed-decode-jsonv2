@@ -1,0 +1,1 @@
+- Sped up decoding of NVD and OSV vulnerability feed files during vulnerability processing by streaming them with `encoding/json/v2`.

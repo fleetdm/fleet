@@ -3834,28 +3834,29 @@ func hostSoftwareInstalls(ds *Datastore, ctx context.Context, hostID uint) ([]*h
             WHERE rn = 1
         ),
         last_software_install AS (
-            SELECT
-                hsi.execution_id AS last_install_install_uuid,
-                hsi.updated_at AS last_install_installed_at,
-                hsi.software_installer_id AS installer_id,
-                hsi.status AS status
-            FROM
-                host_software_installs hsi
-            LEFT JOIN
-                host_software_installs hsi2 ON hsi.host_id = hsi2.host_id AND
-                    hsi.software_installer_id = hsi2.software_installer_id AND
-                    hsi.uninstall = hsi2.uninstall AND
-                    hsi2.removed = 0 AND
-                    hsi2.canceled = 0 AND
-                    hsi2.host_deleted_at IS NULL AND
-                    (hsi.created_at < hsi2.created_at OR (hsi.created_at = hsi2.created_at AND hsi.id < hsi2.id))
+            SELECT last_install_install_uuid, last_install_installed_at, installer_id, status FROM (
+                SELECT
+                    hsi.execution_id AS last_install_install_uuid,
+                    hsi.updated_at AS last_install_installed_at,
+                    hsi.software_installer_id AS installer_id,
+                    hsi.status AS status,
+                    ROW_NUMBER() OVER (
+                        PARTITION BY hsi.software_installer_id
+                        ORDER BY hsi.created_at DESC, hsi.id DESC
+                    ) AS rn
+                FROM
+                    host_software_installs hsi
+                WHERE
+                    hsi.host_id = ? AND
+                    hsi.removed = 0 AND
+                    hsi.canceled = 0 AND
+                    hsi.uninstall = 0 AND
+                    hsi.host_deleted_at IS NULL
+            ) ranked
             WHERE
-                hsi.host_id = ? AND
-                hsi.removed = 0 AND
-                hsi.canceled = 0 AND
-                hsi.uninstall = 0 AND
-                hsi.host_deleted_at IS NULL AND
-                hsi2.id IS NULL AND
+                rn = 1 AND
+                -- a queued upcoming install supersedes history; checked on the winner
+                -- only since it depends solely on the installer, not the row
                 NOT EXISTS (
                     SELECT 1
                     FROM
@@ -3863,8 +3864,8 @@ func hostSoftwareInstalls(ds *Datastore, ctx context.Context, hostID uint) ([]*h
                     INNER JOIN
                         software_install_upcoming_activities siua ON ua.id = siua.upcoming_activity_id
                     WHERE
-                        ua.host_id = hsi.host_id AND
-                        siua.software_installer_id = hsi.software_installer_id AND
+                        ua.host_id = ? AND
+                        siua.software_installer_id = ranked.installer_id AND
                         ua.activity_type = 'software_install'
                 )
         )
@@ -3900,7 +3901,7 @@ func hostSoftwareInstalls(ds *Datastore, ctx context.Context, hostID uint) ([]*h
 		ORDER BY software_titles.id, matched_installer.id IS NULL, matched_installer.id, lsia.installer_id
     `
 	var softwareInstalls []*hostSoftware
-	err := sqlx.SelectContext(ctx, ds.reader(ctx), &softwareInstalls, softwareInstallsStmt, hostID, hostID)
+	err := sqlx.SelectContext(ctx, ds.reader(ctx), &softwareInstalls, softwareInstallsStmt, hostID, hostID, hostID)
 	if err != nil {
 		return nil, err
 	}
@@ -3932,28 +3933,29 @@ func hostSoftwareUninstalls(ds *Datastore, ctx context.Context, hostID uint) ([]
             WHERE rn = 1
         ),
         last_software_uninstall AS (
-            SELECT
-                hsi.execution_id AS last_uninstall_script_execution_id,
-                hsi.updated_at AS last_uninstall_uninstalled_at,
-                hsi.software_installer_id AS installer_id,
-                hsi.status AS status
-            FROM
-                host_software_installs hsi
-            LEFT JOIN
-                host_software_installs hsi2 ON hsi.host_id = hsi2.host_id AND
-                    hsi.software_installer_id = hsi2.software_installer_id AND
-                    hsi.uninstall = hsi2.uninstall AND
-                    hsi2.removed = 0 AND
-                    hsi2.canceled = 0 AND
-                    hsi2.host_deleted_at IS NULL AND
-                    (hsi.created_at < hsi2.created_at OR (hsi.created_at = hsi2.created_at AND hsi.id < hsi2.id))
+            SELECT last_uninstall_script_execution_id, last_uninstall_uninstalled_at, installer_id, status FROM (
+                SELECT
+                    hsi.execution_id AS last_uninstall_script_execution_id,
+                    hsi.updated_at AS last_uninstall_uninstalled_at,
+                    hsi.software_installer_id AS installer_id,
+                    hsi.status AS status,
+                    ROW_NUMBER() OVER (
+                        PARTITION BY hsi.software_installer_id
+                        ORDER BY hsi.created_at DESC, hsi.id DESC
+                    ) AS rn
+                FROM
+                    host_software_installs hsi
+                WHERE
+                    hsi.host_id = ? AND
+                    hsi.removed = 0 AND
+                    hsi.uninstall = 1 AND
+                    hsi.canceled = 0 AND
+                    hsi.host_deleted_at IS NULL
+            ) ranked
             WHERE
-                hsi.host_id = ? AND
-                hsi.removed = 0 AND
-                hsi.uninstall = 1 AND
-                hsi.canceled = 0 AND
-                hsi.host_deleted_at IS NULL AND
-                hsi2.id IS NULL AND
+                rn = 1 AND
+                -- a queued upcoming uninstall supersedes history; checked on the winner
+                -- only since it depends solely on the installer, not the row
                 NOT EXISTS (
                     SELECT 1
                     FROM
@@ -3961,8 +3963,8 @@ func hostSoftwareUninstalls(ds *Datastore, ctx context.Context, hostID uint) ([]
                     INNER JOIN
                         software_install_upcoming_activities siua ON ua.id = siua.upcoming_activity_id
                     WHERE
-                        ua.host_id = hsi.host_id AND
-                        siua.software_installer_id = hsi.software_installer_id AND
+                        ua.host_id = ? AND
+                        siua.software_installer_id = ranked.installer_id AND
                         ua.activity_type = 'software_uninstall'
                 )
         )
@@ -3996,7 +3998,7 @@ func hostSoftwareUninstalls(ds *Datastore, ctx context.Context, hostID uint) ([]
 		ORDER BY software_titles.id, matched_installer.id IS NULL, matched_installer.id, lsua.installer_id
     `
 	var softwareUninstalls []*hostSoftware
-	err := sqlx.SelectContext(ctx, ds.reader(ctx), &softwareUninstalls, softwareUninstallsStmt, hostID, hostID, hostID)
+	err := sqlx.SelectContext(ctx, ds.reader(ctx), &softwareUninstalls, softwareUninstallsStmt, hostID, hostID, hostID, hostID)
 	if err != nil {
 		return nil, err
 	}
@@ -4675,16 +4677,19 @@ func hostVPPInstalls(ds *Datastore, ctx context.Context, hostID uint, globalOrTe
 				-- vppAppHostStatusNamedQuery(hvsi, ncr, status)
 				%s
 			FROM
-				host_vpp_software_installs hvsi
+				(
+					SELECT ranked_hvsi.*, ROW_NUMBER() OVER (
+						PARTITION BY ranked_hvsi.adam_id, ranked_hvsi.platform
+						ORDER BY ranked_hvsi.created_at DESC, ranked_hvsi.id DESC
+					) AS rn
+					FROM host_vpp_software_installs ranked_hvsi
+					WHERE
+						ranked_hvsi.host_id = :host_id AND
+						ranked_hvsi.removed = 0 AND
+						ranked_hvsi.canceled = 0
+				) hvsi
 			LEFT JOIN
 				nano_command_results ncr ON ncr.command_uuid = hvsi.command_uuid
-			LEFT JOIN
-				host_vpp_software_installs hvsi2 ON hvsi.host_id = hvsi2.host_id AND
-				hvsi.adam_id = hvsi2.adam_id AND
-				hvsi.platform = hvsi2.platform AND
-				hvsi2.removed = 0 AND
-				hvsi2.canceled = 0 AND
-				(hvsi.created_at < hvsi2.created_at OR (hvsi.created_at = hvsi2.created_at AND hvsi.id < hvsi2.id))
 			INNER JOIN
 				vpp_apps_teams vat ON hvsi.adam_id = vat.adam_id AND hvsi.platform = vat.platform AND vat.global_or_team_id = :global_or_team_id
 			INNER JOIN
@@ -4692,16 +4697,15 @@ func hostVPPInstalls(ds *Datastore, ctx context.Context, hostID uint, globalOrTe
 			WHERE
 				-- selfServiceFilter
 				%s
-				hvsi.host_id = :host_id AND
-				hvsi.removed = 0 AND
-				hvsi.canceled = 0 AND
 				-- Android installs never produce nano_command_results (they use Google's
 				-- Android Management API instead of nanoMDM), so ncr is always NULL for
 				-- Android rows. No NCR filter is applied here — all statuses (pending,
 				-- failed, installed) are shown, which is intentional for the host software
 				-- list. Compare with vpp.go / software_installers.go which filter by NCR
 				-- for per-app aggregate counts, different semantics.
-				hvsi2.id IS NULL AND
+				hvsi.rn = 1 AND
+				-- a queued upcoming install supersedes history; checked on the winner
+				-- only since it depends solely on the app, not the row
 				NOT EXISTS (
 					SELECT 1
 					FROM
@@ -4793,25 +4797,28 @@ func hostInHouseInstalls(ds *Datastore, ctx context.Context, hostID uint, global
 		-- inHouseAppHostStatusNamedQuery(hvsi, ncr, status)
 		%s
 	FROM
-		host_in_house_software_installs hihsi
+		(
+			SELECT ranked_hihsi.*, ROW_NUMBER() OVER (
+				PARTITION BY ranked_hihsi.in_house_app_id
+				ORDER BY ranked_hihsi.created_at DESC, ranked_hihsi.id DESC
+			) AS rn
+			FROM host_in_house_software_installs ranked_hihsi
+			WHERE
+				ranked_hihsi.host_id = :host_id AND
+				ranked_hihsi.removed = 0 AND
+				ranked_hihsi.canceled = 0
+		) hihsi
 	LEFT JOIN
 		nano_command_results ncr ON ncr.command_uuid = hihsi.command_uuid
-	LEFT JOIN
-		host_in_house_software_installs hihsi2 ON hihsi.host_id = hihsi2.host_id AND
-			hihsi.in_house_app_id = hihsi2.in_house_app_id AND
-			hihsi2.removed = 0 AND
-			hihsi2.canceled = 0 AND
-			(hihsi.created_at < hihsi2.created_at OR (hihsi.created_at = hihsi2.created_at AND hihsi.id < hihsi2.id))
 	INNER JOIN
 		in_house_apps iha ON hihsi.in_house_app_id = iha.id
 	WHERE
 		-- selfServiceFilter
 		%s
-		hihsi.host_id = :host_id AND
-		hihsi.removed = 0 AND
-		hihsi.canceled = 0 AND
-		hihsi2.id IS NULL AND
+		hihsi.rn = 1 AND
 		iha.global_or_team_id = :global_or_team_id AND
+		-- a queued upcoming install supersedes history; checked on the winner
+		-- only since it depends solely on the app, not the row
 		NOT EXISTS (
 			SELECT 1
 			FROM

@@ -288,6 +288,11 @@ type MDM struct {
 	// AppleRequireHardwareAttestation indicates whether to require Managed Device Attestation via ACME(including hardware bound keys) for
 	// certain Apple MDM enrollments.
 	AppleRequireHardwareAttestation bool `json:"apple_require_hardware_attestation"`
+	// OnlyAllowAppleBusinessEnrollment restricts Apple MDM enrollment to devices
+	// assigned to Fleet in Apple Business (ADE). Manual, OTA, and account-driven
+	// (BYOD) enrollment are blocked. When combined with AppleRequireHardwareAttestation,
+	// new SCEP issuance is also blocked so only ACME-attested devices can enroll or renew.
+	OnlyAllowAppleBusinessEnrollment bool `json:"only_allow_apple_business_enrollment"`
 
 	WindowsEntraTenantIDs optjson.Slice[string] `json:"windows_entra_tenant_ids"`
 
