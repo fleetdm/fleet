@@ -230,7 +230,8 @@ func skipParamBlock(s string) (int, bool) {
 	return 0, false
 }
 
-// skipSingleQuoted returns the offset past a '...' string; '' is a quote.
+// skipSingleQuoted returns the offset past a '...' string, where a doubled
+// quote is a literal one.
 func skipSingleQuoted(s string, i int) int {
 	for i++; i < len(s); i++ {
 		if s[i] != '\'' {

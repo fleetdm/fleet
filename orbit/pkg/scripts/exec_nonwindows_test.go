@@ -202,3 +202,34 @@ func TestExecCmdDoesNotExecuteFleetVariableValues(t *testing.T) {
 		})
 	}
 }
+
+// An older agent decides how to run a script from its first line, so the
+// preamble has to leave that decision unchanged.
+func TestPreambleDoesNotChangeInterpreterChoice(t *testing.T) {
+	pre := variables.Preamble(map[string]string{"HOST_UUID": "ABC"}, variables.DialectPOSIX)
+
+	for _, contents := range []string{
+		"echo hi\n",
+		"#!/bin/sh\necho hi\n",
+		"#!/bin/sh -e\necho hi\n",
+		"#!/bin/bash\necho hi\n",
+		"#!/bin/zsh\necho hi\n",
+		"#!/usr/bin/env bash\necho hi\n",
+		"#!/bin/sh\r\necho hi\r\n",
+		"# not a shebang\necho hi\n",
+	} {
+		t.Run(contents, func(t *testing.T) {
+			withPreamble, err := variables.InsertPreamble(contents, pre, variables.DialectPOSIX)
+			require.NoError(t, err)
+
+			wantDirect, wantErr := fleet.ValidateShebang(contents)
+			gotDirect, gotErr := fleet.ValidateShebang(withPreamble)
+			require.Equal(t, wantErr, gotErr)
+			require.Equal(t, wantDirect, gotDirect)
+
+			wantKind, _, _ := fleet.ShebangInfo(contents)
+			gotKind, _, _ := fleet.ShebangInfo(withPreamble)
+			require.Equal(t, wantKind, gotKind)
+		})
+	}
+}
