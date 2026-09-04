@@ -107,9 +107,11 @@ type StatisticsPayload struct {
 	StatusLogDestination string `json:"statusLogDestination"`
 	AuditLogDestination  string `json:"auditLogDestination"`
 
+	// Vulnerabilities webhooks are a global-only setting, so despite the "any" prefix this tracks
+	// just the one global flag.
 	AnyVulnerabilitiesWebhookEnabled bool `json:"anyVulnerabilitiesWebhookEnabled"`
-	// The Any* webhook flags are true when the webhook is enabled globally or on any fleet,
-	// including "No team".
+	// AnyFailingPoliciesWebhookEnabled and AnyHostActivitiesWebhookEnabled are true when the
+	// webhook is enabled globally or on any fleet, including "No team".
 	AnyFailingPoliciesWebhookEnabled bool `json:"anyFailingPoliciesWebhookEnabled"`
 	AnyHostActivitiesWebhookEnabled  bool `json:"anyHostActivitiesWebhookEnabled"`
 	GlobalActivityWebhookEnabled     bool `json:"globalActivityWebhookEnabled"`

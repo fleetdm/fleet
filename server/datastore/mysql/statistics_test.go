@@ -1023,7 +1023,7 @@ func testStatisticsThirdPartyIntegrations(t *testing.T, ds *Datastore) {
 	eh.RetrieveImpl = func(flush bool) ([]*ctxerr.StoredError, error) {
 		return nil, nil
 	}
-	ctx := ctxerr.NewContext(context.Background(), eh)
+	ctx := ctxerr.NewContext(t.Context(), eh)
 
 	premiumLicense := &fleet.LicenseInfo{Tier: fleet.TierPremium, Organization: "Fleet"}
 	fleetConfig := config.FleetConfig{Osquery: config.OsqueryConfig{DetailUpdateInterval: 1 * time.Hour}}
