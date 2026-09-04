@@ -3039,7 +3039,9 @@ func (svc *Service) persistESPFinalCommands(ctx context.Context, hostUUID string
 
 // removeWindowsDeviceIfAlreadyMDMEnrolled removes the device if already MDM enrolled
 // HW DeviceID is used to check the list of enrolled devices
-func (svc *Service) removeWindowsDeviceIfAlreadyMDMEnrolled(ctx context.Context, secTokenMsg *fleet.RequestSecurityToken, hostUUID string) error {
+func (svc *Service) removeWindowsDeviceIfAlreadyMDMEnrolled(
+	ctx context.Context, secTokenMsg *fleet.RequestSecurityToken, hostUUID string,
+) error {
 	// Getting the HW DeviceID from the RequestSecurityToken msg
 	reqHWDeviceID, err := GetContextItem(secTokenMsg, syncml.ReqSecTokenContextItemHWDevID)
 	if err != nil {

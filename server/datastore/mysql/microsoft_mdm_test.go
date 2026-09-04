@@ -8921,24 +8921,25 @@ func testWindowsProfileRetryOnDeviceFailure(t *testing.T, ds *Datastore) {
 }
 
 // testMDMWindowsGetEnrolledHostUUIDWithHardwareID covers the lookup behind the duplicate hardware ID warning (#50612).
-// It walks the states the warning has to tell apart: unheld, held but not yet linked to a host, and held by a host.
+// It walks the three states the warning has to tell apart: no enrollment for the hardware ID, an enrollment that is
+// not linked to a host yet, and an enrollment linked to a host.
 func testMDMWindowsGetEnrolledHostUUIDWithHardwareID(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 	hwID := uuid.NewString() + uuid.NewString()
 
 	got, err := ds.MDMWindowsGetEnrolledHostUUIDWithHardwareID(ctx, hwID)
 	require.NoError(t, err)
-	require.Empty(t, got, "an unheld hardware ID must not look like a collision")
+	require.Empty(t, got, "a hardware ID with no enrollment must not look like a collision")
 
-	// Held, but not linked to a host yet, which is where an Entra automatic enrollment sits until serial-based
+	// Enrolled, but not linked to a host yet, which is where an Entra automatic enrollment sits until serial-based
 	// linking runs. Reports empty so the caller cannot mistake it for a collision.
 	deviceID := insertWindowsEnrolledDevice(t, ctx, ds, windowsEnrollmentFixture{hardwareID: hwID})
 	got, err = ds.MDMWindowsGetEnrolledHostUUIDWithHardwareID(ctx, hwID)
 	require.NoError(t, err)
 	require.Empty(t, got, "an unlinked enrollment has no host to name")
 
-	// Once linked, the holder is reported. That is the only state the warning fires on.
-	host := test.NewHost(t, ds, "hwid-holder", "10.0.0.31", "hwid-holder-key", "hwid-holder-uuid", time.Now())
+	// Once linked, the host is reported. That is the only state the warning fires on.
+	host := test.NewHost(t, ds, "hwid-enrolled", "10.0.0.31", "hwid-enrolled-key", "hwid-enrolled-uuid", time.Now())
 	_, err = ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, host.UUID, deviceID)
 	require.NoError(t, err)
 	got, err = ds.MDMWindowsGetEnrolledHostUUIDWithHardwareID(ctx, hwID)

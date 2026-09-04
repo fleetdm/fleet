@@ -3576,7 +3576,7 @@ func TestESPReleaseIncludesSkipUserStatusPage(t *testing.T) {
 
 // TestWarnOnWindowsMDMHardwareIDCollision covers the detection added for issue #50612. The enrollment itself is
 // deliberately unchanged: a second host presenting an already-held HW device id still takes over the enrollment, but
-// Fleet now says so, because nothing else in the product reports it.
+// Fleet now says so.
 func TestWarnOnWindowsMDMHardwareIDCollision(t *testing.T) {
 	const (
 		hwID          = "F19B99942A3B9C53679F46017599C1FC4953B9BD3F0BC20FF681D0F93FAE5992"
@@ -3605,14 +3605,13 @@ func TestWarnOnWindowsMDMHardwareIDCollision(t *testing.T) {
 		wantLookup    bool
 		wantCollision bool
 	}{
-		{name: "a different host holds it", enrollingHost: enrollingHost, incumbent: incumbentHost, wantLookup: true, wantCollision: true},
-		{name: "the same host re-enrolls", enrollingHost: enrollingHost, incumbent: enrollingHost, wantLookup: true},
-		// The lookup coalesces "no enrollment holds it" and "an enrollment holds it but is not linked to a host yet"
-		// into the same empty string, so those are one case here. That both DB states resolve to empty is asserted in
-		// testMDMWindowsGetEnrolledHostUUIDWithHardwareID.
-		{name: "no linked host holds it", enrollingHost: enrollingHost, wantLookup: true},
-		// An automatic enrollment carries no host identity, so there is nothing to compare and no lookup to make.
-		{name: "the enrolling host is unknown", incumbent: incumbentHost},
+		{
+			name: "already enrolled to a different host", enrollingHost: enrollingHost, incumbent: incumbentHost,
+			wantLookup: true, wantCollision: true,
+		},
+		{name: "already enrolled to the enrolling host", enrollingHost: enrollingHost, incumbent: enrollingHost, wantLookup: true},
+		{name: "not enrolled to any host", enrollingHost: enrollingHost, wantLookup: true},
+		{name: "enrolling host is unknown, as in an automatic enrollment", incumbent: incumbentHost},
 		{name: "the lookup fails", enrollingHost: enrollingHost, lookupErr: errors.New("db is down"), wantLookup: true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
