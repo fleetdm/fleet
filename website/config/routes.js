@@ -221,6 +221,38 @@ module.exports.routes = {
     }
   },// handles /announcements/foo
 
+  'GET /newsletters': {
+    skipAssets: false,
+    action: 'articles/view-articles',// Meta title and description set in view action
+    locals: {
+      currentSection: 'more',
+    }
+  },
+
+  'GET /newsletters/*': {
+    skipAssets: false,
+    action: 'articles/view-basic-article',// Meta title and description set in view action
+    locals: {
+      currentSection: 'more',
+    }
+  },// handles /newsletters/foo
+
+  'GET /industry-news': {
+    skipAssets: false,
+    action: 'articles/view-articles',// Meta title and description set in view action
+    locals: {
+      currentSection: 'more',
+    }
+  },
+
+  'GET /industry-news/*': {
+    skipAssets: false,
+    action: 'articles/view-basic-article',// Meta title and description set in view action
+    locals: {
+      currentSection: 'more',
+    }
+  },// handles /industry-news/foo
+
   'GET /podcasts': {
     skipAssets: false,
     action: 'articles/view-articles',// Meta title and description set in view action
@@ -649,6 +681,18 @@ module.exports.routes = {
     locals: {
       pageTitleForMeta: 'Capex savings',
       pageDescriptionForMeta: 'Fleet collects real performance data from every device, so you can see which computers need replacing, which ones don\'t, and safely defer refresh cycles.',
+    }
+  },
+
+  'GET /configuration-generator': {
+    action: 'view-configuration-generator'
+  },
+
+  'GET /arch-linux-management': {
+    action: 'view-arch-linux-management',
+    locals: {
+      pageTitleForMeta: 'Arch Linux management',
+      pageDescriptionForMeta: 'Manage Linux devices with full visibility and control. Automate patching, monitor compliance, and unify Linux, macOS, and Windows in one place.',
     }
   },
 
@@ -1256,7 +1300,7 @@ module.exports.routes = {
   'GET /learn-more-about/idp-email': 'https://fleetdm.com/docs/rest-api/rest-api#get-human-device-mapping',
   'GET /learn-more-about/enrolling-hosts': '/docs/using-fleet/adding-hosts',
   'GET /learn-more-about/setup-assistant': '/guides/setup-experience',
-  'GET /learn-more-about/policy-automations': '/docs/using-fleet/automations',
+  'GET /learn-more-about/policy-automations': '/docs/using-fleet/automations#policy-automations',
   'GET /install-wine': 'https://github.com/fleetdm/fleet/blob/main/assets/scripts/install-wine.sh',
   'GET /learn-more-about/creating-service-accounts': 'https://console.cloud.google.com/projectselector2/iam-admin/serviceaccounts/create?walkthrough_id=iam--create-service-account&pli=1#step_index=1',
   'GET /learn-more-about/google-workspace-domains': 'https://admin.google.com/ac/domains/manage',
@@ -1316,6 +1360,7 @@ module.exports.routes = {
   'GET /learn-more-about/troubleshoot-idp-connection': '/guides/foreign-vitals-map-idp-users-to-hosts#verify-connection',
   'GET /learn-more-about/unsigning-configuration-profiles': 'https://fleetdm.com/guides/custom-os-settings#create-configuration-profile',
   'GET /learn-more-about/how-to-connect-android-enterprise': '/guides/android-mdm-setup',
+  'GET /learn-more-about/android-zero-touch-portal': 'https://enterprise.google.com/android/zero-touch/customers',
   'GET /learn-more-about/custom-scep-configuration-profile': '/guides/connect-end-user-to-wifi-with-certificate#step-2-add-scep-configuration-profile-to-fleet2',
   'GET /learn-more-about/ndes-scep-configuration-profile': '/guides/connect-end-user-to-wifi-with-certificate#step-2-add-scep-configuration-profile-to-fleet',
   'GET /learn-more-about/macos-distribution-packages': 'https://scriptingosx.com/2017/09/on-distribution-packages/',
@@ -1375,6 +1420,8 @@ module.exports.routes = {
   'GET /learn-more-about/self-service-categories': '/guides/software-self-service#manage-self-service-categories',
   'GET /learn-more-about/linux-wipe': '/guides/lock-wipe-hosts#linux-wipe-behavior',
   'GET /learn-more-about/configuration-profile-assets': '/articles/custom-os-settings#apple-declarations-ddm',
+  'GET /learn-more-about/android-encryption-status': 'https://developers.google.com/android/management/reference/rest/v1/enterprises.devices#EncryptionStatus',
+  'GET /learn-more-about/release-devices': 'https://developer.apple.com/documentation/devicemanagement/disown-devices',
   'GET /learn-more-about/mdm-enrollment': '/guides/windows-mdm-setup#manual-enrollment',
   'GET /learn-more-about/windows-default-fleet': '/guides/windows-mdm-setup#set-a-default-fleet-for-new-hosts',
   'GET /learn-more-about/device-and-user-scope': '/guides/custom-os-settings#device-and-user-scope',
@@ -1386,6 +1433,7 @@ module.exports.routes = {
   'GET /learn-more-about/removal-behavior': '/guides/custom-os-settings#removal-behavior',
   'GET /learn-more-about/android-manual-sync': '/guides/how-to-manually-sync-an-android-device',
   'GET /learn-more-about/policy-automation-resend-configuration-profile': '/guides/policy-automation-resend-configuration-profile',
+  'GET /learn-more-about/device-attestation': '/guides/what-is-device-attestation',
 
   // Sitemap
   // =============================================================================================================

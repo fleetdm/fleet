@@ -52,7 +52,7 @@ func TestGitOpsTeamSoftwareInstallers(t *testing.T) {
 		{"testdata/gitops/team_software_installer_no_url_multi.yml", "multi_missing_url.yml, list item #1"},
 		{
 			"testdata/gitops/team_software_installer_invalid_self_service_value.yml",
-			"Couldn't edit \"../../fleetctl/testdata/gitops/team_software_installer_invalid_self_service_value.yml\" at \"software.packages.self_service\", expected type bool but got string",
+			"Couldn't edit \"../../fleetctl/testdata/gitops/team_software_installer_invalid_self_service_value.yml\" at \"software.packages.0.self_service\", expected type bool but got string",
 		},
 		{
 			"testdata/gitops/team_software_installer_invalid_both_include_exclude.yml",
@@ -182,11 +182,11 @@ func TestGitOpsTeamSoftwareInstallersQueryEnv(t *testing.T) {
 
 	t.Setenv("QUERY_VAR", "IT_WORKS")
 
-	ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, tmID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
+	ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, tmID *uint, installers []*fleet.UploadSoftwareInstallerPayload) ([]uint, error) {
 		if len(installers) != 0 && installers[0].PreInstallQuery != "select IT_WORKS" {
-			return fmt.Errorf("Missing env var, got %s", installers[0].PreInstallQuery)
+			return nil, fmt.Errorf("Missing env var, got %s", installers[0].PreInstallQuery)
 		}
-		return nil
+		return nil, nil
 	}
 	ds.BatchSetInHouseAppsInstallersFunc = func(ctx context.Context, tmID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
 		return nil
@@ -222,9 +222,9 @@ func TestGitOpsTeamSoftwareInstallersQueryEnv(t *testing.T) {
 func TestGitOpsTeamSoftwareInstallersEmptyPackagesDryRun(t *testing.T) {
 	ds, _, _ := testing_utils.SetupFullGitOpsPremiumServer(t)
 
-	ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, tmID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
+	ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, tmID *uint, installers []*fleet.UploadSoftwareInstallerPayload) ([]uint, error) {
 		t.Errorf("BatchSetSoftwareInstallers must not be called for dry-run with empty packages")
-		return nil
+		return nil, nil
 	}
 	ds.GetTeamsWithInstallerByHashFunc = func(ctx context.Context, sha256, url string) (map[uint][]*fleet.ExistingSoftwareInstaller, error) {
 		t.Errorf("GetTeamsWithInstallerByHash must not be called for dry-run with empty packages")
@@ -441,7 +441,7 @@ func TestGitOpsNoTeamSoftwareInstallers(t *testing.T) {
 		{"testdata/gitops/no_team_software_installer_no_url.yml", "at least one of hash_sha256 or url is required for each software package"},
 		{
 			"testdata/gitops/no_team_software_installer_invalid_self_service_value.yml",
-			"Couldn't edit \"../../fleetctl/testdata/gitops/no-team.yml\" at \"software.packages.self_service\", expected type bool but got string",
+			"Couldn't edit \"../../fleetctl/testdata/gitops/no-team.yml\" at \"software.packages.0.self_service\", expected type bool but got string",
 		},
 		{
 			"testdata/gitops/no_team_software_installer_invalid_both_include_exclude.yml",
@@ -582,7 +582,7 @@ func TestGitOpsTeamVPPApps(t *testing.T) {
 		{"testdata/gitops/team_vpp_valid_app.yml", "VPP token expired", time.Now().Add(-24 * time.Hour), map[string]uint{}},
 		{"testdata/gitops/team_vpp_invalid_app.yml", "app not available on vpp account", time.Now().Add(24 * time.Hour), map[string]uint{}},
 		{
-			"testdata/gitops/team_vpp_incorrect_type.yml", "Couldn't edit \"../../fleetctl/testdata/gitops/team_vpp_incorrect_type.yml\" at \"software.app_store_apps.app_store_id\", expected type string but got number",
+			"testdata/gitops/team_vpp_incorrect_type.yml", "Couldn't edit \"../../fleetctl/testdata/gitops/team_vpp_incorrect_type.yml\" at \"software.app_store_apps.0.app_store_id\", expected type string but got number",
 			time.Now().Add(24 * time.Hour),
 			map[string]uint{},
 		},
@@ -1568,8 +1568,8 @@ func TestGitOpsTeamInHouseAppleConfiguration(t *testing.T) {
 				capturedInstallers = append(capturedInstallers, installers...)
 				return nil
 			}
-			ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, tmID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
-				return nil
+			ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, tmID *uint, installers []*fleet.UploadSoftwareInstallerPayload) ([]uint, error) {
+				return nil, nil
 			}
 			ds.GetTeamsWithInstallerByHashFunc = func(ctx context.Context, sha256, url string) (map[uint][]*fleet.ExistingSoftwareInstaller, error) {
 				return map[uint][]*fleet.ExistingSoftwareInstaller{}, nil

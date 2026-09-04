@@ -488,6 +488,35 @@ func (c *TestAppleMDMClient) fetchEnrollmentProfileFromDesktopURL() error {
 	return c.fetchEnrollmentProfileFromOTAURL()
 }
 
+// setDevModeOverrideRestoring sets a dev_mode env override and returns a
+// function that restores the previous override value (or clears it if none was
+// set). Unlike a bare SetOverride/ClearOverride pair, this does not clobber an
+// override that an enclosing test set for its whole duration when these helpers
+// are called from within that test.
+func setDevModeOverrideRestoring(name, value string) func() {
+	prev := dev_mode.Env(name)
+	dev_mode.SetOverride(name, value)
+	return func() {
+		if prev != "" {
+			dev_mode.SetOverride(name, prev)
+		} else {
+			dev_mode.ClearOverride(name)
+		}
+	}
+}
+
+// disableMachineInfoVerifyRestoring disables MachineInfo signature verification
+// enforcement and returns a function that restores the previous value. The test
+// clients sign device info with throwaway certificates rather than a genuine
+// Apple device identity, so verification cannot be enforced during enrollment.
+func disableMachineInfoVerifyRestoring() func() {
+	prev := apple_mdm.MachineInfoVerificationEnabled()
+	apple_mdm.SetMachineInfoVerification(false)
+	return func() {
+		apple_mdm.SetMachineInfoVerification(prev)
+	}
+}
+
 func (c *TestAppleMDMClient) fetchEnrollmentProfileFromDEPURL() error {
 	di, err := EncodeDeviceInfo(fleet.MDMAppleMachineInfo{
 		Serial:    c.SerialNumber,
@@ -498,6 +527,9 @@ func (c *TestAppleMDMClient) fetchEnrollmentProfileFromDEPURL() error {
 	if err != nil {
 		return fmt.Errorf("test client: encoding device info: %w", err)
 	}
+	// the device info is signed with a throwaway cert, not an Apple device
+	// identity, so signature verification cannot be enforced
+	defer disableMachineInfoVerifyRestoring()()
 	return c.fetchEnrollmentProfile(
 		apple_mdm.EnrollPath+"?token="+c.depURLToken+"&deviceinfo="+di, nil,
 	)
@@ -513,6 +545,9 @@ func (c *TestAppleMDMClient) fetchEnrollmentProfileFromDEPURLUsingPost() error {
 	if err != nil {
 		return fmt.Errorf("test client: encoding device info: %w", err)
 	}
+	// the device info is signed with a throwaway cert, not an Apple device
+	// identity, so signature verification cannot be enforced
+	defer disableMachineInfoVerifyRestoring()()
 	return c.fetchEnrollmentProfile(
 		apple_mdm.EnrollPath+"?token="+c.depURLToken, buf,
 	)
@@ -533,6 +568,9 @@ func (c *TestAppleMDMClient) fetchEnrollmentProfileFromMDMBYODURL() error {
 	if err != nil {
 		return fmt.Errorf("test client: encoding device info: %w", err)
 	}
+	// the device info is signed with a throwaway cert, not an Apple device
+	// identity, so signature verification cannot be enforced
+	defer disableMachineInfoVerifyRestoring()()
 	return c.fetchEnrollmentProfile(
 		apple_mdm.AccountDrivenEnrollPath, buf,
 	)
@@ -658,9 +696,11 @@ func (c *TestAppleMDMClient) fetchOTAProfile(url string) error {
 	if err != nil {
 		return fmt.Errorf("creating mock certificates: %w", err)
 	}
-	dev_mode.SetOverride("FLEET_DEV_MDM_APPLE_DISABLE_DEVICE_INFO_CERT_VERIFY", "1")
+	restoreCertVerify := setDevModeOverrideRestoring("FLEET_DEV_MDM_APPLE_DISABLE_DEVICE_INFO_CERT_VERIFY", "1")
+	restoreMachineInfoVerify := disableMachineInfoVerifyRestoring()
 	body, err = do(mockedCert, mockedKey)
-	dev_mode.ClearOverride("FLEET_DEV_MDM_APPLE_DISABLE_DEVICE_INFO_CERT_VERIFY")
+	restoreMachineInfoVerify()
+	restoreCertVerify()
 	if err != nil {
 		return fmt.Errorf("first OTA request: %w", err)
 	}
@@ -827,6 +867,10 @@ func (c *TestAppleMDMClient) SCEPEnroll() error {
 		return err
 	}
 
+	// the device has a single MDM identity, so a new SCEP cert replaces any
+	// ACME one it previously enrolled with
+	c.acmeCert = nil
+	c.acmeKey = nil
 	c.scepCert = cert
 	c.scepKey = key
 	return nil
@@ -915,6 +959,10 @@ func (c *TestAppleMDMClient) ACMEEnroll() error {
 		return fmt.Errorf("parse x509 ACME certificate: %w", err)
 	}
 
+	// the device has a single MDM identity, so a new ACME cert replaces any
+	// SCEP one it previously enrolled with
+	c.scepCert = nil
+	c.scepKey = nil
 	c.acmeCert = acmeCert
 	// We can reuse the same key we used for the CSR since it's the one that matches the cert
 	c.acmeKey = acmeKey
@@ -1105,6 +1153,23 @@ func (c *TestAppleMDMClient) Acknowledge(cmdUUID string) (*mdm.Command, error) {
 		"Topic":        "com.apple.mgmt.External." + c.Identifier(),
 		"EnrollmentID": "testenrollmentid-" + c.Identifier(),
 		"CommandUUID":  cmdUUID,
+	}
+	if c.UUID != "" {
+		payload["UDID"] = c.UUID
+	}
+	return c.sendAndDecodeCommandResponse(payload)
+}
+
+// AcknowledgeVerifyRecoveryLock acknowledges a VerifyRecoveryLock command and reports the
+// device's verdict. A device acknowledges the command whether or not the password matched
+// and answers in PasswordVerified, so an acknowledgment alone says nothing about the lock.
+func (c *TestAppleMDMClient) AcknowledgeVerifyRecoveryLock(cmdUUID string, passwordVerified bool) (*mdm.Command, error) {
+	payload := map[string]any{
+		"Status":           "Acknowledged",
+		"Topic":            "com.apple.mgmt.External." + c.Identifier(),
+		"EnrollmentID":     "testenrollmentid-" + c.Identifier(),
+		"CommandUUID":      cmdUUID,
+		"PasswordVerified": passwordVerified,
 	}
 	if c.UUID != "" {
 		payload["UDID"] = c.UUID

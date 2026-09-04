@@ -72,6 +72,10 @@ func TestGetOrbitConfigLinuxEscrow(t *testing.T) {
 		ds.IsHostPendingEscrowFunc = func(ctx context.Context, hostID uint) bool {
 			return true
 		}
+		// the notification is gated on the host fleet's Linux escrow setting
+		ds.GetConfigEnableDiskEncryptionFunc = func(ctx context.Context, teamID *uint) (fleet.DiskEncryptionConfig, error) {
+			return fleet.DiskEncryptionConfig{LinuxEscrowEnabled: true}, nil
+		}
 		ds.ClearPendingEscrowFunc = func(ctx context.Context, hostID uint) error {
 			return nil
 		}
@@ -180,6 +184,20 @@ func TestGetOrbitConfigLinuxEscrow(t *testing.T) {
 		require.NoError(t, err)
 		require.True(t, cfg.Notifications.RunDiskEncryptionEscrow)
 		require.True(t, ds.ClearPendingEscrowFuncInvoked)
+	})
+
+	t.Run("escrow turned off after the host went pending", func(t *testing.T) {
+		ds, svc, ctx, _, _ := setupEscrowContext()
+		// escrow can be disabled while a host is already pending; without this
+		// gate the user is prompted for a passphrase that EscrowLUKSData would
+		// then discard
+		ds.GetConfigEnableDiskEncryptionFunc = func(ctx context.Context, teamID *uint) (fleet.DiskEncryptionConfig, error) {
+			return fleet.DiskEncryptionConfig{LinuxEscrowEnabled: false}, nil
+		}
+
+		cfg, err := svc.GetOrbitConfig(ctx)
+		require.NoError(t, err)
+		require.False(t, cfg.Notifications.RunDiskEncryptionEscrow)
 	})
 }
 
@@ -748,6 +766,67 @@ func TestGetOrbitConfigNudge(t *testing.T) {
 	})
 }
 
+func TestGetOrbitConfigWebSocketTransport(t *testing.T) {
+	setupCtx := func(wsEnabled bool) (fleet.Service, context.Context) {
+		ds := new(mock.Store)
+		cfg := config.TestConfig()
+		cfg.WebSocket.TransportEnabled = wsEnabled
+		license := &fleet.LicenseInfo{Tier: fleet.TierPremium}
+		svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil, &TestServerOpts{License: license, SkipCreateTestUsers: true})
+
+		ds.TeamMDMConfigFunc = func(ctx context.Context, teamID uint) (*fleet.TeamMDM, error) {
+			return &fleet.TeamMDM{}, nil
+		}
+		ds.TeamAgentOptionsFunc = func(ctx context.Context, id uint) (*json.RawMessage, error) {
+			return new(json.RawMessage(`{}`)), nil
+		}
+		ds.ListReadyToExecuteScriptsForHostFunc = func(ctx context.Context, hostID uint, onlyShowInternal bool) ([]*fleet.HostScriptResult, error) {
+			return nil, nil
+		}
+		ds.ListReadyToExecuteSoftwareInstallsFunc = func(ctx context.Context, hostID uint) ([]string, error) {
+			return nil, nil
+		}
+		ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, host *fleet.Host) (bool, error) {
+			return false, nil
+		}
+		ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
+			return nil, newNotFoundError()
+		}
+		ds.IsHostPendingEscrowFunc = func(ctx context.Context, hostID uint) bool {
+			return false
+		}
+		ds.GetHostAwaitingConfigurationFunc = func(ctx context.Context, hostUUID string) (bool, error) {
+			return false, nil
+		}
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{}, nil
+		}
+
+		ctx = test.HostContext(ctx, &fleet.Host{
+			OsqueryHostID: new("test"),
+			ID:            1,
+			Platform:      "ubuntu",
+			TeamID:        new(uint(1)),
+		})
+		return svc, ctx
+	}
+
+	t.Run("enabled", func(t *testing.T) {
+		svc, ctx := setupCtx(true)
+		cfg, err := svc.GetOrbitConfig(ctx)
+		require.NoError(t, err)
+		require.NotNil(t, cfg.WebSocketTransport)
+		require.True(t, cfg.WebSocketTransport.Enabled)
+	})
+
+	t.Run("disabled omits the directive", func(t *testing.T) {
+		svc, ctx := setupCtx(false)
+		cfg, err := svc.GetOrbitConfig(ctx)
+		require.NoError(t, err)
+		require.Nil(t, cfg.WebSocketTransport)
+	})
+}
+
 func TestGetOrbitConfigScriptTimeoutFallback(t *testing.T) {
 	setupCtx := func(teamAgentOpts, globalAgentOpts *json.RawMessage) (fleet.Service, context.Context, *mock.Store) {
 		ds := new(mock.Store)
@@ -785,10 +864,10 @@ func TestGetOrbitConfigScriptTimeoutFallback(t *testing.T) {
 		}
 
 		ctx = test.HostContext(ctx, &fleet.Host{
-			OsqueryHostID: ptr.String("test"),
+			OsqueryHostID: new("test"),
 			ID:            1,
 			Platform:      "ubuntu",
-			TeamID:        new(team.ID),
+			TeamID:        &team.ID,
 		})
 		return svc, ctx, ds
 	}
@@ -1869,7 +1948,7 @@ func TestGetOrbitConfigWindowsManagedLocalAccount(t *testing.T) {
 
 		host := &fleet.Host{ID: 1, OsqueryHostID: new("test"), UUID: "host-uuid-1", Platform: "windows"}
 		appCfg := &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true, WindowsEnabledAndConfigured: true}}
-		appCfg.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled = optjson.SetBool(settingEnabled)
+		appCfg.MDM.WindowsSettings.EnableManagedLocalAccount = optjson.SetBool(settingEnabled)
 
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) { return appCfg, nil }
 		ds.ListReadyToExecuteScriptsForHostFunc = func(ctx context.Context, hostID uint, onlyShowInternal bool) ([]*fleet.HostScriptResult, error) {
@@ -1958,7 +2037,7 @@ func TestEscrowWindowsManagedLocalAccountPassword(t *testing.T) {
 			return &fleet.MDMWindowsEnrolledDevice{HostUUID: hostUUID}, nil
 		}
 		appCfg := &fleet.AppConfig{MDM: fleet.MDM{WindowsEnabledAndConfigured: true}}
-		appCfg.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled = optjson.SetBool(settingEnabled)
+		appCfg.MDM.WindowsSettings.EnableManagedLocalAccount = optjson.SetBool(settingEnabled)
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) { return appCfg, nil }
 		ds.SaveHostManagedLocalAccountFromEscrowFunc = func(ctx context.Context, hostUUID, plaintextPassword string) error { return nil }
 		ds.ReportManagedLocalAccountEscrowErrorFunc = func(ctx context.Context, hostUUID, clientError string) error { return nil }

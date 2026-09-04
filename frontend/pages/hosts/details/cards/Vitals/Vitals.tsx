@@ -12,6 +12,7 @@ import {
 } from "interfaces/platform";
 import {
   isBYODAccountDrivenUserEnrollment,
+  wasBYODEnrolled,
   MDM_ENROLLMENT_STATUS_UI_MAP,
 } from "interfaces/mdm";
 import { ROLLING_ARCH_LINUX_VERSIONS } from "interfaces/software";
@@ -363,15 +364,20 @@ export const buildHostVitals = ({
   }
 
   // Device identity
-  if (mdm && isBYODAccountDrivenUserEnrollment(mdm.enrollment_status)) {
-    //  Personal (BYOD) devices do not report their serial numbers, so show the enrollment id instead.
+  if (
+    mdm &&
+    wasBYODEnrolled(mdm.enrollment_status, mdm.is_personal_enrollment)
+  ) {
+    //  Personal (BYOD) devices do not report their serial numbers, so show the enrollment id
+    //  instead. This holds after the host unenrolls too, hence wasBYODEnrolled rather than the
+    //  current enrollment status.
     vitals.push({
       sortKey: "Enrollment ID",
       element: (
         <DataSet
           key="enrollment-id"
           title={
-            <TooltipWrapper tipContent="Enrollment ID is a unique identifier for personal hosts. Personal (BYOD) devices don't report their serial numbers. The Enrollment ID changes with each enrollment.">
+            <TooltipWrapper tipContent="Enrollment ID is a unique identifier for personal hosts. Personal (BYOD) devices don't report their serial numbers. For personal (BYOD) Android hosts, this enrollment ID is stable across unenroll/re-enroll cycles.">
               Enrollment ID
             </TooltipWrapper>
           }
@@ -742,6 +748,9 @@ const Vitals = ({
   onEditCustomHostVital,
 }: IVitalsProps) => {
   const isIosOrIpadosHost = isIPadOrIPhone(vitalsData.platform);
+  // Unlike the Enrollment ID row, this keys off the *current* enrollment status on
+  // purpose: the cap exists because a personally-enrolled device reports few vitals
+  // right now, not because of how it was once enrolled.
   const showExpandedVitals =
     isIosOrIpadosHost &&
     !isBYODAccountDrivenUserEnrollment(mdm?.enrollment_status ?? null);

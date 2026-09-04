@@ -99,6 +99,14 @@ export interface IMunkiData {
 
 export type MacDiskEncryptionActionRequired = "log_out" | "rotate_key";
 
+/** What the END USER can do about a disk encryption problem. Only set when there is something they can do: a Windows
+ * host also reaches action_required when the TPM is not ready or policy forbids a TPM-only protector, and neither is
+ * fixable from the My device page. Absent means show the reason without offering a call to action. */
+export type DiskEncryptionActionRequired =
+  | MacDiskEncryptionActionRequired
+  | "create_pin"
+  | "restart";
+
 export type HostAndroidCertStatus =
   | "verified"
   | "failed"
@@ -130,6 +138,7 @@ export interface IOSSettings {
   disk_encryption: {
     status: DiskEncryptionStatus | null;
     detail: string;
+    action_required?: DiskEncryptionActionRequired | null;
   };
   recovery_lock_password?: {
     status: RecoveryLockPasswordStatus;
@@ -183,6 +192,14 @@ export interface IHostMdmData {
    */
   bootstrap_token_escrowed?: boolean;
   enrollment_status: MdmEnrollmentStatus | null;
+  /**
+   * is_personal_enrollment reports whether the last MDM enrollment Fleet recorded
+   * for the host was personal (BYOD). Unlike enrollment_status it is not cleared
+   * on unenrollment, so BYOD-only UI doesn't flip back once the host unenrolls.
+   * That holds for Android and Apple mobile hosts; on macOS and Windows the fleetd
+   * detail queries re-ingest MDM state and can reset it once the profile is gone.
+   */
+  is_personal_enrollment?: boolean;
   dep_profile_error?: boolean;
   name?: string;
   id?: number;
@@ -395,6 +412,8 @@ export interface IHost {
   policy_updated_at: string;
   last_enrolled_at: string;
   last_mdm_enrolled_at: string;
+  last_mdm_checked_in_at: string | null;
+  last_mdm_enrollment_type?: string | null;
   seen_time: string;
   refetch_requested: boolean;
   refetch_critical_queries_until: string | null;

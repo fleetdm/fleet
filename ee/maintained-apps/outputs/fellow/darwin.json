@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "5.7.2",
+      "version": "5.7.7",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.electron.fellow';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.electron.fellow' AND version_compare(bundle_short_version, '5.7.2') < 0);",
-        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.electron.fellow');"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.electron.fellow' AND version_compare(bundle_short_version, '5.7.7') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.electron.fellow' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://cdn.fellow.app/desktop/5.7.2/darwin/stable/universal/Fellow-5.7.2-universal.dmg",
+      "installer_url": "https://cdn.fellow.app/desktop/5.7.7/darwin/stable/universal/Fellow-5.7.7-universal.dmg",
       "install_script_ref": "fec4efb2",
       "uninstall_script_ref": "8110dadb",
-      "sha256": "04536265c4ef322a2b9c4f32b682f4d3dbf837b43223b50426e51e5671421513",
+      "sha256": "d46b7f3a4e52989402f6e6b9ca12dc86c6f9288ea12c120e116ab5d83fadfd8a",
       "default_categories": [
         "Communication"
       ]

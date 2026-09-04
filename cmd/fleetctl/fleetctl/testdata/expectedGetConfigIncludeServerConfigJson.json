@@ -82,9 +82,10 @@
       "enable_disk_encryption": false,
       "name_template": null,
       "enable_recovery_lock_password": false,
-      "windows_require_bitlocker_pin": null,
+      "windows_require_bitlocker_pin": false,
       "windows_entra_tenant_ids": null,
-      "windows_entra_client_ids": null,"microsoft_graph_credential_invalid":false,
+      "windows_entra_client_ids": null,
+      "microsoft_graph_credential_invalid": false,
       "macos_updates": {
         "minimum_version": null,
         "deadline": null,
@@ -110,6 +111,7 @@
       "windows_migration_enabled": false,
       "enable_turn_on_windows_mdm_manually": false,
       "apple_require_hardware_attestation": false,
+      "only_allow_apple_business_enrollment": false,
       "macos_migration": {
         "enable": false,
         "mode": "",
@@ -153,14 +155,13 @@
         "require_all_software_windows": false,
         "software": null
       },
-      "windows_enrollment": null,
+      "windows_automatic_enrollment": null,
       "windows_settings": {
         "custom_settings": null,
         "enable_disk_encryption": false,
         "configuration_profiles": null,
-        "managed_local_account_settings": {
-          "enabled": false
-        }
+        "enable_managed_local_account": false,
+        "require_bitlocker_pin": false
       },
       "linux_settings": {
         "enable_escrow_disk_encryption_key": false
@@ -194,6 +195,7 @@
     },
     "fleet_desktop": {
       "alternative_browser_host": "",
+      "sso_enabled": false,
       "transparency_url": "https://fleetdm.com/transparency"
     },
     "vulnerability_settings": {

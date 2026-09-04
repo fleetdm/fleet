@@ -6,7 +6,9 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -131,6 +133,23 @@ func TestParseResponseGeneralErrors(t *testing.T) {
 		}
 		err = bc.ParseResponse("GET", "", response, &struct{}{})
 		require.Error(t, err)
+	})
+
+	t.Run("server-provided error name is kept", func(t *testing.T) {
+		bc, err := NewBaseClient("https://test.com", true, "", "", nil, fleet.CapabilityMap{}, nil)
+		require.NoError(t, err)
+		response := &http.Response{
+			StatusCode: http.StatusUnprocessableEntity,
+			Body:       io.NopCloser(bytes.NewBufferString(`{"message": "Validation Failed", "errors": [{"name": "scripts[1]", "reason": "boom"}]}`)),
+		}
+		err = bc.ParseResponse("POST", "/api/latest/fleet/scripts/batch", response, &struct{}{})
+		var scErr *StatusCodeErr
+		require.ErrorAs(t, err, &scErr)
+		require.Equal(t, "scripts[1]", scErr.Name)
+		require.Equal(t, "Validation Failed: boom", scErr.Body)
+		require.Equal(t, http.StatusUnprocessableEntity, scErr.Code)
+		// the name must not leak into the printed message
+		require.NotContains(t, err.Error(), "scripts[1]")
 	})
 }
 
@@ -301,6 +320,61 @@ func TestFileResponseHandlePathTraversal(t *testing.T) {
 		err := fr.Handle(resp)
 		require.NoError(t, err)
 		require.True(t, strings.HasPrefix(fr.DestFilePath, destDir+string(filepath.Separator)))
+	})
+
+	// SkipMediaType is set on the Orbit signed-URL installer download path, where
+	// DestFile carries the server-supplied installer filename. A name that walks
+	// out of DestPath must not reach a file outside the download directory: plant
+	// a canary at the target and confirm the download cannot overwrite it.
+	t.Run("SkipMediaType DestFile cannot escape DestPath", func(t *testing.T) {
+		root := t.TempDir()
+		destDir := filepath.Join(root, "downloads")
+		require.NoError(t, os.Mkdir(destDir, 0o700))
+
+		canary := filepath.Join(root, "target.txt")
+		require.NoError(t, os.WriteFile(canary, []byte("original"), 0o600))
+
+		// "../target.txt" from destDir resolves to the canary one level up.
+		fr := &FileResponse{DestPath: destDir, DestFile: "../target.txt", SkipMediaType: true}
+		resp := &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(strings.NewReader("attacker-controlled")),
+			Header:     http.Header{},
+		}
+
+		require.NoError(t, fr.Handle(resp))
+
+		got, err := os.ReadFile(canary)
+		require.NoError(t, err)
+		require.Equal(t, "original", string(got),
+			"download escaped DestPath and overwrote %q", canary)
+		require.True(t, strings.HasPrefix(fr.DestFilePath, destDir+string(filepath.Separator)),
+			"download must stay within DestPath, got %q", fr.DestFilePath)
+	})
+
+	// Windows treats both "/" and "\" as path separators, so a name using either
+	// must reduce to its base there. On Unix "\" is an ordinary filename
+	// character, so the join simply stays inside DestPath. Either way the write
+	// must land within DestPath; this runs on the Windows CI runner too.
+	t.Run("backslash-separated DestFile stays within DestPath", func(t *testing.T) {
+		root := t.TempDir()
+		destDir := filepath.Join(root, "downloads")
+		require.NoError(t, os.Mkdir(destDir, 0o700))
+
+		fr := &FileResponse{DestPath: destDir, DestFile: `..\installer.pkg`, SkipMediaType: true}
+		resp := &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(strings.NewReader("content")),
+			Header:     http.Header{},
+		}
+
+		err := fr.Handle(resp)
+		require.NoError(t, err)
+		require.True(t, strings.HasPrefix(fr.DestFilePath, destDir+string(filepath.Separator)),
+			"download must stay within DestPath, got %q", fr.DestFilePath)
+		if runtime.GOOS == "windows" {
+			require.Equal(t, "installer.pkg", filepath.Base(fr.DestFilePath))
+		}
 	})
 }
 

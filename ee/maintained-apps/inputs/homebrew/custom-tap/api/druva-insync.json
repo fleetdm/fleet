@@ -6,9 +6,9 @@
   ],
   "desc": "Endpoint data backup and recovery client",
   "homepage": "https://www.druva.com/",
-  "url": "https://downloads.druva.com/downloads/inSync/MAC/8.1.3/inSync-8.1.3-r110967.dmg",
+  "url": "https://downloads.druva.com/downloads/inSync/MAC/8.1.4/inSync-8.1.4-r110973.dmg",
   "url_specs": {},
-  "version": "8.1.3,110967",
+  "version": "8.1.4,110973",
   "autobump": true,
   "no_autobump_message": null,
   "skip_livecheck": true,
@@ -16,7 +16,7 @@
   "bundle_short_version": null,
   "pinned": false,
   "pinned_version": null,
-  "sha256": "316d9e7dc7f23f8307008de9c67504c46f38e648458b75db1ef015879106f85f",
+  "sha256": "c705eeea0ceb7b3022fed577da7dc4725751dd3c383efbb3850e049b5abc137a",
   "artifacts": [
     {
       "uninstall": [
@@ -85,6 +85,6 @@
   "languages": [],
   "ruby_source_path": "Casks/druva-insync.rb",
   "ruby_source_checksum": {
-    "sha256": "906e8a21df9e56e3c94b8eefdbdb246ca8b94b34722fe405594c86edbd4662bb"
+    "sha256": "5b1a276f8335f6aa585e94f6b64fe1c95419c450770ce5cc6af1b7ef890e206b"
   }
 }

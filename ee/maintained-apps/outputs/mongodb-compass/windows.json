@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "1.49.15.0",
+      "version": "1.50.0.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'MongoDB Compass' AND publisher = 'MongoDB Inc';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'MongoDB Compass' AND publisher = 'MongoDB Inc' AND version_compare(version, '1.49.15.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'MongoDB Compass' AND publisher = 'MongoDB Inc' AND version_compare(version, '1.50.0.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'mongodb compass.exe');"
       },
-      "installer_url": "https://github.com/mongodb-js/compass/releases/download/v1.49.15/mongodb-compass-1.49.15-win32-x64.msi",
+      "installer_url": "https://github.com/mongodb-js/compass/releases/download/v1.50.0/mongodb-compass-1.50.0-win32-x64.msi",
       "install_script_ref": "22e48c46",
       "uninstall_script_ref": "2781c2bb",
-      "sha256": "b68cb55de1a310a2a348a35dd6216d83c39dfaef0bc4fb64038776682cf1ecc2",
+      "sha256": "068040195bf340f7ee17a1826630812e9280044bcc41676ce63b43b341468a8a",
       "default_categories": [
         "Developer tools"
       ],

@@ -465,11 +465,8 @@ func TruncateTables(t testing.TB, ds *Datastore, tables ...string) {
 		"DELETE FROM software_categories WHERE team_id != 0")
 	require.NoError(t, err)
 	testing_utils.TruncateTables(t, ds.writer(context.Background()), ds.logger, nonEmptyTables, tables...)
-	// Clear the in-process software title cache so it doesn't retain entries
-	// for titles that were just truncated from the database.
-	ds.clearKnownSoftwareTitleKeys()
-	// Same for the Windows Fleet-maintained app cache, which would otherwise leak
-	// across test cases that share a Datastore.
+	// Clear the in-process Windows Fleet-maintained app cache, which would
+	// otherwise leak across test cases that share a Datastore.
 	ds.clearWindowsFMAMatchesCache()
 }
 

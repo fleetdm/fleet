@@ -275,7 +275,7 @@ func testExpandHostSecrets(t *testing.T, ds *Datastore) {
 	})
 
 	t.Run("expand recovery lock password", func(t *testing.T) {
-		doc := `<dict><key>NewPassword</key><string>$FLEET_HOST_SECRET_RECOVERY_LOCK_PASSWORD</string></dict>`
+		doc := `<dict><key>NewPassword</key><string>$FLEET_HOST_SECRET_RECOVERY_LOCK_PENDING_PASSWORD</string></dict>`
 		expected := `<dict><key>NewPassword</key><string>TEST-PASS-1234</string></dict>`
 		expanded, err := ds.ExpandHostSecrets(ctx, doc, host.UUID)
 		require.NoError(t, err)
@@ -283,7 +283,7 @@ func testExpandHostSecrets(t *testing.T, ds *Datastore) {
 	})
 
 	t.Run("expand with braces syntax", func(t *testing.T) {
-		doc := `Password: ${FLEET_HOST_SECRET_RECOVERY_LOCK_PASSWORD}`
+		doc := `Password: ${FLEET_HOST_SECRET_RECOVERY_LOCK_PENDING_PASSWORD}`
 		expected := `Password: TEST-PASS-1234`
 		expanded, err := ds.ExpandHostSecrets(ctx, doc, host.UUID)
 		require.NoError(t, err)
@@ -345,14 +345,14 @@ func testExpandHostSecrets(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 
 		// When expanded in an XML document, special characters should be escaped
-		doc := `<dict><key>NewPassword</key><string>$FLEET_HOST_SECRET_RECOVERY_LOCK_PASSWORD</string></dict>`
+		doc := `<dict><key>NewPassword</key><string>$FLEET_HOST_SECRET_RECOVERY_LOCK_PENDING_PASSWORD</string></dict>`
 		expected := `<dict><key>NewPassword</key><string>Pass&amp;word&lt;with&gt;special&#34;chars&#39;</string></dict>`
 		expanded, err := ds.ExpandHostSecrets(ctx, doc, hostXML.UUID)
 		require.NoError(t, err)
 		assert.Equal(t, expected, expanded)
 
 		// Non-XML documents should not escape the characters
-		docNonXML := `Password: $FLEET_HOST_SECRET_RECOVERY_LOCK_PASSWORD`
+		docNonXML := `Password: $FLEET_HOST_SECRET_RECOVERY_LOCK_PENDING_PASSWORD`
 		expandedNonXML, err := ds.ExpandHostSecrets(ctx, docNonXML, hostXML.UUID)
 		require.NoError(t, err)
 		assert.Equal(t, `Password: Pass&word<with>special"chars'`, expandedNonXML)

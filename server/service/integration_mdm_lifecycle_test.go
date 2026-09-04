@@ -1578,18 +1578,14 @@ func (s *integrationMDMTestSuite) TestFileVaultProfileUpdatedOnMDMToggle() {
 	}`), http.StatusNoContent)
 
 	// Check that FileVault profile exists in the database
-	var initialProfileID uint
-	var initialTimestamp time.Time
+	var initialProfileUUID, initialChecksum string
 	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return q.QueryRowxContext(context.Background(),
-			`SELECT profile_id, uploaded_at FROM mdm_apple_configuration_profiles 
+			`SELECT profile_uuid, HEX(checksum) FROM mdm_apple_configuration_profiles
 			 WHERE identifier = ? AND team_id = 0`,
-			mobileconfig.FleetFileVaultPayloadIdentifier).Scan(&initialProfileID, &initialTimestamp)
+			mobileconfig.FleetFileVaultPayloadIdentifier).Scan(&initialProfileUUID, &initialChecksum)
 	})
-	require.NotZero(t, initialProfileID, "FileVault profile should exist in database after enabling disk encryption")
-
-	// Wait a moment to ensure timestamp difference will be detectable
-	time.Sleep(100 * time.Millisecond)
+	require.NotEmpty(t, initialProfileUUID, "FileVault profile should exist in database after enabling disk encryption")
 
 	// Turn off Apple MDM
 	s.Do("DELETE", "/api/latest/fleet/mdm/apple/apns_certificate", nil, http.StatusOK)
@@ -1598,21 +1594,25 @@ func (s *integrationMDMTestSuite) TestFileVaultProfileUpdatedOnMDMToggle() {
 	s.appleCoreCertsSetup()
 
 	// Check that FileVault profile still exists and has been updated
-	var updatedProfileID uint
-	var updatedTimestamp time.Time
+	var updatedProfileUUID, updatedChecksum string
 	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return q.QueryRowxContext(context.Background(),
-			`SELECT profile_id, uploaded_at FROM mdm_apple_configuration_profiles 
+			`SELECT profile_uuid, HEX(checksum) FROM mdm_apple_configuration_profiles
 			 WHERE identifier = ? AND team_id = 0`,
-			mobileconfig.FleetFileVaultPayloadIdentifier).Scan(&updatedProfileID, &updatedTimestamp)
+			mobileconfig.FleetFileVaultPayloadIdentifier).Scan(&updatedProfileUUID, &updatedChecksum)
 	})
-	require.NotZero(t, updatedProfileID, "FileVault profile should exist in database after re-enabling MDM")
+	require.NotEmpty(t, updatedProfileUUID, "FileVault profile should exist in database after re-enabling MDM")
 
-	// Verify the profile has been updated (newer timestamp or different profile ID)
-	profileWasUpdated := updatedTimestamp.After(initialTimestamp) || updatedProfileID != initialProfileID
-	require.True(t, profileWasUpdated,
-		"FileVault profile should have been updated when MDM was re-enabled. Initial ID: %d (time: %v), Updated ID: %d (time: %v)",
-		initialProfileID, initialTimestamp, updatedProfileID, updatedTimestamp)
+	// Re-enabling Apple MDM mints a new CA, and a key escrowed against the old
+	// one can no longer be decrypted, so the profile must carry the new
+	// certificate. The checksum is what drives the re-push to every host —
+	// asserting on it rather than on uploaded_at, which has second granularity.
+	require.NotEqual(t, initialChecksum, updatedChecksum,
+		"FileVault profile should carry the new CA certificate after MDM was re-enabled")
+	// the profile is updated in place, so hosts see changed payloads rather than
+	// a different profile
+	require.Equal(t, initialProfileUUID, updatedProfileUUID,
+		"FileVault profile should keep its identity across the MDM toggle")
 
 	// Disable MDM and remove filevault profile, then re-enable
 	s.Do("DELETE", "/api/latest/fleet/mdm/apple/apns_certificate", nil, http.StatusOK)
@@ -1627,14 +1627,14 @@ func (s *integrationMDMTestSuite) TestFileVaultProfileUpdatedOnMDMToggle() {
 	// Turn back on MDM, and see it succesfully creates the profile without fail
 	s.appleCoreCertsSetup()
 
-	var finalProfileID uint
+	var finalProfileUUID string
 	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return q.QueryRowxContext(context.Background(),
-			`SELECT profile_id FROM mdm_apple_configuration_profiles 
+			`SELECT profile_uuid FROM mdm_apple_configuration_profiles
 			 WHERE identifier = ? AND team_id = 0`,
-			mobileconfig.FleetFileVaultPayloadIdentifier).Scan(&finalProfileID)
+			mobileconfig.FleetFileVaultPayloadIdentifier).Scan(&finalProfileUUID)
 	})
-	require.NotZero(t, finalProfileID, "FileVault profile should exist in database after re-enabling MDM when it was previously deleted")
+	require.NotEmpty(t, finalProfileUUID, "FileVault profile should exist in database after re-enabling MDM when it was previously deleted")
 }
 
 // TestSCEPRenewalVsFreshEnrollment verifies the fresh-enrollment-vs-SCEP-renewal disambiguation end to

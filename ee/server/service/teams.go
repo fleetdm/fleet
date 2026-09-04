@@ -9,6 +9,7 @@ import (
 	"maps"
 	"net/http"
 	"net/url"
+	"slices"
 	"strings"
 	"unicode/utf8"
 
@@ -183,6 +184,7 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 	if err != nil {
 		return nil, err
 	}
+	var oldName string
 	if payload.Name != nil {
 		*payload.Name = strings.TrimSpace(*payload.Name)
 		if *payload.Name == "" {
@@ -204,7 +206,7 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 				Message: fmt.Sprintf("A fleet named %q already exists. %s", conflict.Name, teamNameConflictErrMsg),
 			})
 		}
-
+		oldName = team.Name
 		team.Name = *payload.Name
 	}
 	if payload.Description != nil {
@@ -237,8 +239,9 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 		iOSMinVersionUpdated            bool
 		iPadOSMinVersionUpdated         bool
 		windowsUpdatesUpdated           bool
-		macOSDiskEncryptionUpdated      bool
-		macOSFileVaultWasOn             bool
+		macOSSettingsChanged            bool
+		windowsSettingsChanged          bool
+		linuxSettingsChanged            bool
 		recoveryLockPasswordUpdated     bool
 		macOSEnableEndUserAuthUpdated   bool
 		macOSManagedLocalAccountUpdated bool
@@ -341,34 +344,78 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 			}
 		}
 
-		if payload.MDM.EnableDiskEncryption.Valid {
-			// the deprecated flat toggle fans out to every per-platform disk
-			// encryption setting
-			v := payload.MDM.EnableDiskEncryption.Value
-			diskEncryptionUpdated := team.Config.MDM.MacOSSettings.EnableDiskEncryption.Value != v ||
-				team.Config.MDM.MacOSSettings.EnableEscrowDiskEncryptionKey.Value != v ||
-				team.Config.MDM.WindowsSettings.EnableDiskEncryption.Value != v ||
-				team.Config.MDM.LinuxSettings.EnableEscrowDiskEncryptionKey.Value != v
-			if diskEncryptionUpdated && !appCfg.MDM.EnabledAndConfigured && !appCfg.MDM.WindowsEnabledAndConfigured {
-				return nil, fleet.NewInvalidArgumentError("mdm.enable_disk_encryption",
-					"Couldn't update mdm.enable_disk_encryption because neither Apple MDM nor Windows MDM is turned on in Fleet.")
-			}
-			if diskEncryptionUpdated && v && svc.config.Server.PrivateKey == "" {
-				return nil, ctxerr.New(ctx, "Missing required private key. Learn how to configure the private key here: https://fleetdm.com/learn-more-about/fleet-server-private-key")
-			}
-			// The Apple FileVault profile and macOS-named activity only apply when Apple MDM is configured.
-			// On Windows-only deployments the flag still controls BitLocker enforcement via the Windows MDM path.
-			// The FileVault profile covers enforcement and escrow as a whole, so only the
-			// off<->on transition of the pair creates or deletes it.
-			macOSFileVaultWasOn = team.Config.MDM.MacOSSettings.EnableDiskEncryption.Value ||
-				team.Config.MDM.MacOSSettings.EnableEscrowDiskEncryptionKey.Value
-			macOSDiskEncryptionUpdated = macOSFileVaultWasOn != v && appCfg.MDM.EnabledAndConfigured
-			team.Config.MDM.MacOSSettings.EnableDiskEncryption = optjson.SetBool(v)
-			team.Config.MDM.MacOSSettings.EnableEscrowDiskEncryptionKey = optjson.SetBool(v)
-			team.Config.MDM.WindowsSettings.EnableDiskEncryption = optjson.SetBool(v)
-			team.Config.MDM.LinuxSettings.EnableEscrowDiskEncryptionKey = optjson.SetBool(v)
-			team.Config.MDM.EnableDiskEncryption = v
+		// The per-platform disk encryption settings follow PATCH-merge semantics:
+		// an absent field, or one explicitly set to null, keeps its stored value.
+		// The deprecated flat mdm.enable_disk_encryption fans out to all four;
+		// precedence between the flat toggle and a per-platform value sent in the
+		// same request goes to whichever the request actually changes, and
+		// changing both to disagreeing values is a conflict. Mirrors PATCH /config.
+		var incomingMacOSEnable, incomingMacOSEscrow, incomingWindowsEnable, incomingLinuxEscrow optjson.Bool
+		if payload.MDM.MacOSSettings != nil {
+			incomingMacOSEnable = payload.MDM.MacOSSettings.EnableDiskEncryption
+			incomingMacOSEscrow = payload.MDM.MacOSSettings.EnableEscrowDiskEncryptionKey
 		}
+		if payload.MDM.WindowsSettings != nil {
+			incomingWindowsEnable = payload.MDM.WindowsSettings.EnableDiskEncryption
+		}
+		if payload.MDM.LinuxSettings != nil {
+			incomingLinuxEscrow = payload.MDM.LinuxSettings.EnableEscrowDiskEncryptionKey
+		}
+
+		oldDiskEncryption := team.Config.MDM.DiskEncryptionConfig()
+		legacyDiskEncryption := payload.MDM.EnableDiskEncryption
+		// the flat toggle reads as the AND of the four per-platform settings, so
+		// "the request changes it" is measured against that
+		legacyDiskEncryptionChanged := legacyDiskEncryption.Valid &&
+			legacyDiskEncryption.Value != oldDiskEncryption.AllEnabled()
+		var diskEncryptionUpdated, enablingDiskEncryption bool
+		for _, f := range []struct {
+			incoming optjson.Bool
+			target   *optjson.Bool
+			old      bool
+		}{
+			{incomingMacOSEnable, &team.Config.MDM.MacOSSettings.EnableDiskEncryption, oldDiskEncryption.MacOSEnabled},
+			{incomingMacOSEscrow, &team.Config.MDM.MacOSSettings.EnableEscrowDiskEncryptionKey, oldDiskEncryption.MacOSEscrowEnabled},
+			{incomingWindowsEnable, &team.Config.MDM.WindowsSettings.EnableDiskEncryption, oldDiskEncryption.WindowsEnabled},
+			{incomingLinuxEscrow, &team.Config.MDM.LinuxSettings.EnableEscrowDiskEncryptionKey, oldDiskEncryption.LinuxEscrowEnabled},
+		} {
+			incomingChanged := f.incoming.Valid && f.incoming.Value != f.old
+			switch {
+			case incomingChanged && legacyDiskEncryptionChanged && f.incoming.Value != legacyDiskEncryption.Value:
+				// both the deprecated toggle and this per-platform setting are
+				// being changed, to disagreeing values
+				return nil, fleet.NewInvalidArgumentError("mdm.enable_disk_encryption",
+					"conflicts with per-platform disk encryption settings")
+			case incomingChanged:
+				*f.target = f.incoming
+			case legacyDiskEncryption.Valid && (legacyDiskEncryptionChanged || !f.incoming.Valid):
+				// the deprecated toggle fans out: it wins over per-platform values
+				// the request carries but does not change (the common
+				// GET-modify-PATCH round-trip) and fills in absent ones
+				*f.target = optjson.SetBool(legacyDiskEncryption.Value)
+			case f.incoming.Valid:
+				*f.target = f.incoming
+			}
+			diskEncryptionUpdated = diskEncryptionUpdated || f.target.Value != f.old
+			enablingDiskEncryption = enablingDiskEncryption || (f.target.Value && !f.old)
+		}
+
+		if diskEncryptionUpdated && !appCfg.MDM.EnabledAndConfigured && !appCfg.MDM.WindowsEnabledAndConfigured {
+			return nil, fleet.NewInvalidArgumentError("mdm.enable_disk_encryption",
+				"Couldn't update mdm.enable_disk_encryption because neither Apple MDM nor Windows MDM is turned on in Fleet.")
+		}
+		if enablingDiskEncryption && svc.config.Server.PrivateKey == "" {
+			return nil, ctxerr.New(ctx, "Missing required private key. Learn how to configure the private key here: https://fleetdm.com/learn-more-about/fleet-server-private-key")
+		}
+
+		newDiskEncryption := team.Config.MDM.DiskEncryptionConfig()
+		macOSSettingsChanged = newDiskEncryption.MacOSEnabled != oldDiskEncryption.MacOSEnabled ||
+			newDiskEncryption.MacOSEscrowEnabled != oldDiskEncryption.MacOSEscrowEnabled
+		windowsSettingsChanged = newDiskEncryption.WindowsEnabled != oldDiskEncryption.WindowsEnabled
+		linuxSettingsChanged = newDiskEncryption.LinuxEscrowEnabled != oldDiskEncryption.LinuxEscrowEnabled
+		// the flat toggle is virtual (the AND of the four); recompute it so
+		// validation and the saved JSON see the effective value
+		team.Config.MDM.EnableDiskEncryption = newDiskEncryption.AllEnabled()
 
 		if payload.MDM.EnableRecoveryLockPassword.Valid {
 			recoveryLockPasswordUpdated = team.Config.MDM.EnableRecoveryLockPassword != payload.MDM.EnableRecoveryLockPassword.Value
@@ -379,8 +426,31 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 			team.Config.MDM.EnableRecoveryLockPassword = payload.MDM.EnableRecoveryLockPassword.Value
 		}
 
-		if payload.MDM.RequireBitLockerPIN.Valid {
-			team.Config.MDM.RequireBitLockerPIN = payload.MDM.RequireBitLockerPIN.Value
+		// the deprecated top-level windows_require_bitlocker_pin mirrors the
+		// canonical windows_settings.require_bitlocker_pin home
+		var canonicalPIN optjson.Bool
+		if payload.MDM.WindowsSettings != nil {
+			canonicalPIN = payload.MDM.WindowsSettings.RequireBitLockerPIN
+		}
+		incomingPIN, err := fleet.ResolveBitLockerPINAlias(payload.MDM.RequireBitLockerPIN, canonicalPIN)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err)
+		}
+		oldPIN := team.Config.MDM.DiskEncryptionConfig().BitLockerPINRequired
+		if incomingPIN.Valid {
+			if incomingPIN.Value != oldPIN {
+				windowsSettingsChanged = true
+			}
+			team.Config.MDM.RequireBitLockerPIN = incomingPIN.Value
+			team.Config.MDM.WindowsSettings.RequireBitLockerPIN = optjson.SetBool(incomingPIN.Value)
+		}
+
+		// the BitLocker PIN requires the Windows disk encryption setting; the
+		// pre-merge value tells "turning encryption off" apart from "turning the
+		// PIN on"
+		if field, msg := fleet.BitLockerPINRequirementError(oldDiskEncryption.WindowsEnabled,
+			team.Config.MDM.DiskEncryptionConfig()); msg != "" {
+			return nil, fleet.NewInvalidArgumentError(field, msg)
 		}
 
 		if payload.MDM.HostNameTemplate.Set {
@@ -447,14 +517,14 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 			}
 		}
 
-		if payload.MDM.WindowsSettings != nil && payload.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled.Valid {
-			newEnabled := payload.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled
-			windowsManagedLocalAccountUpdated = team.Config.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value != newEnabled.Value
+		if payload.MDM.WindowsSettings != nil && payload.MDM.WindowsSettings.EnableManagedLocalAccount.Valid {
+			newEnabled := payload.MDM.WindowsSettings.EnableManagedLocalAccount
+			windowsManagedLocalAccountUpdated = team.Config.MDM.WindowsSettings.EnableManagedLocalAccount.Value != newEnabled.Value
 			if windowsManagedLocalAccountUpdated && newEnabled.Value && !appCfg.MDM.WindowsEnabledAndConfigured {
-				return nil, fleet.NewInvalidArgumentError("windows_settings.managed_local_account_settings.enabled",
-					"Couldn't update windows_settings.managed_local_account_settings because Windows MDM isn't turned on in Fleet.")
+				return nil, fleet.NewInvalidArgumentError("windows_settings.enable_managed_local_account",
+					"Couldn't update windows_settings.enable_managed_local_account because Windows MDM isn't turned on in Fleet.")
 			}
-			team.Config.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled = newEnabled
+			team.Config.MDM.WindowsSettings.EnableManagedLocalAccount = newEnabled
 		}
 	}
 
@@ -542,6 +612,13 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 	team, err = svc.ds.SaveTeam(ctx, team)
 	if err != nil {
 		return nil, err
+	}
+
+	// oldName is only set when the payload carried a name.
+	if oldName != "" {
+		if err := svc.handleTeamRenameInAppConfig(ctx, appCfg, teamID, oldName, team.Name); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "rename team in app config")
+		}
 	}
 
 	// Emit activities and enqueue scrub jobs for any historical_data sub-key
@@ -673,21 +750,30 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 			return nil, ctxerr.Wrap(ctx, err, "create activity for team macos min version edited")
 		}
 	}
-	if macOSDiskEncryptionUpdated {
-		var act fleet.ActivityDetails
-		if !macOSFileVaultWasOn {
-			act = fleet.ActivityTypeEnabledMacosDiskEncryption{TeamID: &team.ID, TeamName: &team.Name}
-			if err := svc.MDMAppleEnableFileVaultAndEscrow(ctx, &team.ID); err != nil {
-				return nil, ctxerr.Wrap(ctx, err, "enable team filevault and escrow")
-			}
-		} else {
-			act = fleet.ActivityTypeDisabledMacosDiskEncryption{TeamID: &team.ID, TeamName: &team.Name}
-			if err := svc.MDMAppleDisableFileVaultAndEscrow(ctx, &team.ID); err != nil && !fleet.IsNotFound(err) {
-				return nil, ctxerr.Wrap(ctx, err, "disable team filevault and escrow")
-			}
+	// the profile only applies when Apple MDM is configured; on Windows-only
+	// deployments the settings still drive BitLocker via the Windows MDM path
+	if macOSSettingsChanged && appCfg.MDM.EnabledAndConfigured {
+		if err := svc.MDMAppleReconcileFileVaultProfile(ctx, &team.ID); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "reconcile team filevault profile")
 		}
-		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "create activity for team macos disk encryption")
+	}
+	for _, pc := range []struct {
+		platform string
+		changed  bool
+	}{
+		{"macos", macOSSettingsChanged},
+		{"windows", windowsSettingsChanged},
+		{"linux", linuxSettingsChanged},
+	} {
+		if !pc.changed {
+			continue
+		}
+		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeEditedDiskEncryptionSettings{
+			FleetID:   &team.ID,
+			FleetName: &team.Name,
+			Platform:  pc.platform,
+		}); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "create activity for team disk encryption settings")
 		}
 	}
 	if recoveryLockPasswordUpdated {
@@ -717,7 +803,9 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 		}
 	}
 	if windowsManagedLocalAccountUpdated {
-		if err := svc.logEnableManagedLocalAccountActivity(ctx, team.Config.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value, "windows", &team.ID, &team.Name); err != nil {
+		if err := svc.logEnableManagedLocalAccountActivity(
+			ctx, team.Config.MDM.WindowsSettings.EnableManagedLocalAccount.Value, "windows", &team.ID, &team.Name,
+		); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "update windows enable managed local account")
 		}
 	}
@@ -756,6 +844,59 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 	}
 
 	return team, err
+}
+
+func (svc *Service) handleTeamRenameInAppConfig(ctx context.Context, appCfg *fleet.AppConfig, teamID uint, oldName, newName string) error {
+	if oldName == newName {
+		return nil
+	}
+	return svc.rewriteAppConfigTeamNames(ctx, appCfg, teamID,
+		func(t *fleet.MDMAppleABMAssignmentInfo) bool { return t.RenameTeam(oldName, newName) },
+		func(p *fleet.MDMAppleVolumePurchasingProgramInfo) bool { return p.RenameTeam(oldName, newName) },
+	)
+}
+
+// rewriteAppConfigTeamNames applies abm and vpp to the app config entries owned
+// by the tokens this fleet is assigned to, and persists the result only if
+// something actually changed. The fleet names in mdm.apple_business and
+// mdm.volume_purchasing_program are copies; the abm_tokens and vpp_token_teams
+// rows are the source of truth, so they select which entries may be touched.
+func (svc *Service) rewriteAppConfigTeamNames(
+	ctx context.Context,
+	appCfg *fleet.AppConfig,
+	teamID uint,
+	abm func(*fleet.MDMAppleABMAssignmentInfo) bool,
+	vpp func(*fleet.MDMAppleVolumePurchasingProgramInfo) bool,
+) error {
+	orgNames, err := svc.ds.GetABMTokenOrgNamesAssociatedByDefaultTeams(ctx, &teamID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get ABM token org names associated by default teams")
+	}
+	var updated bool
+	for i := range appCfg.MDM.AppleBusinessManager.Value {
+		token := &appCfg.MDM.AppleBusinessManager.Value[i]
+		if slices.Contains(orgNames, token.OrganizationName) && abm(token) {
+			updated = true
+		}
+	}
+
+	vppToken, err := svc.ds.GetVPPTokenByTeamID(ctx, &teamID)
+	if err != nil && !fleet.IsNotFound(err) {
+		return ctxerr.Wrap(ctx, err, "get VPP token by team ID")
+	}
+	if vppToken != nil {
+		for i := range appCfg.MDM.VolumePurchasingProgram.Value {
+			programInfo := &appCfg.MDM.VolumePurchasingProgram.Value[i]
+			if programInfo.Location == vppToken.Location && vpp(programInfo) {
+				updated = true
+			}
+		}
+	}
+
+	if !updated {
+		return nil
+	}
+	return ctxerr.Wrap(ctx, svc.ds.SaveAppConfig(ctx, appCfg), "save app config")
 }
 
 func (svc *Service) ModifyTeamAgentOptions(ctx context.Context, teamID uint, teamOptions json.RawMessage, applyOptions fleet.ApplySpecOptions) (*fleet.Team, error) {
@@ -1001,35 +1142,8 @@ func (svc *Service) DeleteTeam(ctx context.Context, teamID uint) error {
 		}
 	}
 
-	orgNames, err := svc.ds.GetABMTokenOrgNamesAssociatedByDefaultTeams(ctx, &teamID)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "get ABM token org names associated by default teams")
-	}
-
-	// cleanup app config references for the team being deleted
-	if len(orgNames) > 0 {
-		appCfg, err := svc.ds.AppConfig(ctx)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "get app config")
-		}
-		updated := false
-		for _, orgName := range orgNames {
-			for i, token := range appCfg.MDM.AppleBusinessManager.Value {
-				if token.OrganizationName != orgName {
-					// no-op for this org name/token combo
-					continue
-				}
-
-				token.CleanRemovedTeam(name)
-				appCfg.MDM.AppleBusinessManager.Value[i] = token
-				updated = true
-			}
-		}
-		if updated {
-			if err := svc.ds.SaveAppConfig(ctx, appCfg); err != nil {
-				return ctxerr.Wrap(ctx, err, "save app config")
-			}
-		}
+	if err := svc.cleanupStaleAppConfigTeamNames(ctx, teamID, name); err != nil {
+		return ctxerr.Wrap(ctx, err, "cleanup stale app config team names")
 	}
 
 	// If this fleet is the Windows enrollment default, clear it explicitly to revoke the cache.
@@ -1094,6 +1208,17 @@ func (svc *Service) DeleteTeam(ctx context.Context, teamID uint) error {
 		}
 	}
 	return nil
+}
+
+func (svc *Service) cleanupStaleAppConfigTeamNames(ctx context.Context, teamID uint, name string) error {
+	appCfg, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get app config")
+	}
+	return svc.rewriteAppConfigTeamNames(ctx, appCfg, teamID,
+		func(t *fleet.MDMAppleABMAssignmentInfo) bool { return t.CleanRemovedTeam(name) },
+		func(p *fleet.MDMAppleVolumePurchasingProgramInfo) bool { return p.CleanRemovedTeam(name) },
+	)
 }
 
 func (svc *Service) GetTeam(ctx context.Context, teamID uint) (*fleet.Team, error) {
@@ -1618,7 +1743,8 @@ func (svc *Service) createTeamFromSpec(
 	}
 
 	var macOSSettings fleet.MacOSSettings
-	if err := svc.applyTeamMacOSSettings(ctx, spec, &macOSSettings); err != nil {
+	macOSSetFields, err := svc.applyTeamMacOSSettings(ctx, spec, &macOSSettings)
+	if err != nil {
 		return nil, err
 	}
 	macOSSetup := spec.MDM.MacOSSetup
@@ -1655,23 +1781,53 @@ func (svc *Service) createTeamFromSpec(
 		macOSSetup.LockEndUserInfo = optjson.SetBool(macOSSetup.EnableEndUserAuthentication)
 	}
 
-	// resolve the per-platform disk encryption settings for the new team.
-	// The deprecated flat toggle wins when provided (it fans out to every
-	// per-platform setting, preserving its historical semantics); absent
-	// settings default to explicit false.
+	// resolve the per-platform disk encryption settings for the new team:
+	// absent settings default to false; the deprecated flat toggle fans out to
+	// every per-platform setting and conflicts with per-platform values that
+	// disagree.
+	if spec.MDM.EnableDiskEncryption.Valid {
+		v := spec.MDM.EnableDiskEncryption.Value
+		conflict := (macOSSetFields["enable_disk_encryption"] && macOSSettings.EnableDiskEncryption.Value != v) ||
+			(macOSSetFields["enable_escrow_disk_encryption_key"] && macOSSettings.EnableEscrowDiskEncryptionKey.Value != v) ||
+			(spec.MDM.WindowsSettings.EnableDiskEncryption.Valid && spec.MDM.WindowsSettings.EnableDiskEncryption.Value != v) ||
+			(spec.MDM.LinuxSettings.EnableEscrowDiskEncryptionKey.Valid && spec.MDM.LinuxSettings.EnableEscrowDiskEncryptionKey.Value != v)
+		if conflict {
+			return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("mdm.enable_disk_encryption",
+				"conflicts with per-platform disk encryption settings"))
+		}
+		macOSSettings.EnableDiskEncryption = optjson.SetBool(v)
+		macOSSettings.EnableEscrowDiskEncryptionKey = optjson.SetBool(v)
+	}
+	// store explicit booleans so absent keys read as false declaratively
 	macOSSettings.EnableDiskEncryption = optjson.SetBool(macOSSettings.EnableDiskEncryption.Value)
 	macOSSettings.EnableEscrowDiskEncryptionKey = optjson.SetBool(macOSSettings.EnableEscrowDiskEncryptionKey.Value)
 	windowsSettings := spec.MDM.WindowsSettings
-	windowsSettings.EnableDiskEncryption = optjson.SetBool(windowsSettings.EnableDiskEncryption.Value)
-	linuxSettings := spec.MDM.LinuxSettings
-	linuxSettings.EnableEscrowDiskEncryptionKey = optjson.SetBool(linuxSettings.EnableEscrowDiskEncryptionKey.Value)
 	if spec.MDM.EnableDiskEncryption.Valid {
-		v := optjson.SetBool(spec.MDM.EnableDiskEncryption.Value)
-		macOSSettings.EnableDiskEncryption = v
-		macOSSettings.EnableEscrowDiskEncryptionKey = v
-		windowsSettings.EnableDiskEncryption = v
-		linuxSettings.EnableEscrowDiskEncryptionKey = v
+		windowsSettings.EnableDiskEncryption = spec.MDM.EnableDiskEncryption
 	}
+	windowsSettings.EnableDiskEncryption = optjson.SetBool(windowsSettings.EnableDiskEncryption.Value)
+	// the deprecated top-level windows_require_bitlocker_pin mirrors the
+	// canonical windows_settings.require_bitlocker_pin home
+	resolvedPIN, err := fleet.ResolveBitLockerPINAlias(
+		spec.MDM.RequireBitLockerPIN, windowsSettings.RequireBitLockerPIN)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err)
+	}
+	requireBitLockerPIN := resolvedPIN.Value
+	windowsSettings.RequireBitLockerPIN = optjson.SetBool(requireBitLockerPIN)
+	// the BitLocker PIN requires the Windows disk encryption setting; a new
+	// fleet has no previous state, so this is always the "enabling the PIN" case
+	if field, msg := fleet.BitLockerPINRequirementError(false, fleet.DiskEncryptionConfig{
+		WindowsEnabled:       windowsSettings.EnableDiskEncryption.Value,
+		BitLockerPINRequired: requireBitLockerPIN,
+	}); msg != "" {
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError(field, msg))
+	}
+	linuxSettings := spec.MDM.LinuxSettings
+	if spec.MDM.EnableDiskEncryption.Valid {
+		linuxSettings.EnableEscrowDiskEncryptionKey = spec.MDM.EnableDiskEncryption
+	}
+	linuxSettings.EnableEscrowDiskEncryptionKey = optjson.SetBool(linuxSettings.EnableEscrowDiskEncryptionKey.Value)
 	macOSDiskEncryptionOn := macOSSettings.EnableDiskEncryption.Value || macOSSettings.EnableEscrowDiskEncryptionKey.Value
 	anyDiskEncryptionOn := macOSDiskEncryptionOn || windowsSettings.EnableDiskEncryption.Value ||
 		linuxSettings.EnableEscrowDiskEncryptionKey.Value
@@ -1768,7 +1924,7 @@ func (svc *Service) createTeamFromSpec(
 			MDM: fleet.TeamMDM{
 				EnableDiskEncryption:       enableDiskEncryption,
 				EnableRecoveryLockPassword: spec.MDM.EnableRecoveryLockPassword.Value,
-				RequireBitLockerPIN:        spec.MDM.RequireBitLockerPIN.Value,
+				RequireBitLockerPIN:        requireBitLockerPIN,
 				MacOSUpdates:               spec.MDM.MacOSUpdates,
 				IOSUpdates:                 spec.MDM.IOSUpdates,
 				IPadOSUpdates:              spec.MDM.IPadOSUpdates,
@@ -1816,19 +1972,29 @@ func (svc *Service) createTeamFromSpec(
 		}
 	}
 
-	// The FileVault profile can cover both enforcement and key escrow.
 	if macOSDiskEncryptionOn && appCfg.MDM.EnabledAndConfigured {
-		// TODO: Are we missing an activity or anything else for BitLocker here?
-		if err := svc.MDMAppleEnableFileVaultAndEscrow(ctx, &tm.ID); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "enable team filevault and escrow")
+		if err := svc.MDMAppleReconcileFileVaultProfile(ctx, &tm.ID); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "reconcile team filevault profile")
 		}
-
-		if err := svc.NewActivity(
-			ctx,
-			authz.UserFromContext(ctx),
-			fleet.ActivityTypeEnabledMacosDiskEncryption{TeamID: &tm.ID, TeamName: &tm.Name},
-		); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "create activity for team macos disk encryption")
+	}
+	// a new team starts with everything off, so any enabled platform is a change
+	for _, pc := range []struct {
+		platform string
+		changed  bool
+	}{
+		{"macos", macOSDiskEncryptionOn},
+		{"windows", windowsSettings.EnableDiskEncryption.Value || spec.MDM.RequireBitLockerPIN.Value},
+		{"linux", linuxSettings.EnableEscrowDiskEncryptionKey.Value},
+	} {
+		if !pc.changed {
+			continue
+		}
+		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeEditedDiskEncryptionSettings{
+			FleetID:   &tm.ID,
+			FleetName: &tm.Name,
+			Platform:  pc.platform,
+		}); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "create activity for team disk encryption settings")
 		}
 	}
 
@@ -1858,7 +2024,13 @@ func (svc *Service) editTeamFromSpec(
 	secrets []*fleet.EnrollSecret,
 	opts fleet.ApplyTeamSpecOptions,
 ) error {
+	if team == nil {
+		return ctxerr.New(ctx, "editing team from spec: team is nil")
+	}
+
+	var oldName string
 	if !opts.DryRun {
+		oldName = team.Name
 		// We keep the original name for dry run because subsequent dry run calls may need the original name to fetch the team
 		team.Name = spec.Name
 	}
@@ -1947,11 +2119,9 @@ func (svc *Service) editTeamFromSpec(
 		}
 	}
 
-	oldMacOSDiskEncryption := team.Config.MDM.MacOSSettings.EnableDiskEncryption.Value
-	oldMacOSEscrowDiskEncryptionKey := team.Config.MDM.MacOSSettings.EnableEscrowDiskEncryptionKey.Value
-	oldWindowsDiskEncryption := team.Config.MDM.WindowsSettings.EnableDiskEncryption.Value
-	oldLinuxEscrowDiskEncryptionKey := team.Config.MDM.LinuxSettings.EnableEscrowDiskEncryptionKey.Value
-	if err := svc.applyTeamMacOSSettings(ctx, spec, &team.Config.MDM.MacOSSettings); err != nil {
+	oldDiskEncryption := team.Config.MDM.DiskEncryptionConfig()
+	macOSSetFields, err := svc.applyTeamMacOSSettings(ctx, spec, &team.Config.MDM.MacOSSettings)
+	if err != nil {
 		return err
 	}
 
@@ -1964,35 +2134,74 @@ func (svc *Service) editTeamFromSpec(
 		team.Config.MDM.LinuxSettings.EnableEscrowDiskEncryptionKey = spec.MDM.LinuxSettings.EnableEscrowDiskEncryptionKey
 	}
 
-	// the deprecated flat toggle wins when provided: it fans out to every
-	// per-platform setting, preserving its historical semantics
+	// the deprecated flat toggle fans out to every per-platform setting. It
+	// reads as the AND of the four, so "the spec changes it" is measured
+	// against that; a per-platform value the spec changes wins over an
+	// unchanged flat toggle, and both changed to disagreeing values is a
+	// conflict. This mirrors the app config PATCH-merge semantics.
 	if spec.MDM.EnableDiskEncryption.Valid {
-		v := optjson.SetBool(spec.MDM.EnableDiskEncryption.Value)
-		team.Config.MDM.MacOSSettings.EnableDiskEncryption = v
-		team.Config.MDM.MacOSSettings.EnableEscrowDiskEncryptionKey = v
-		team.Config.MDM.WindowsSettings.EnableDiskEncryption = v
-		team.Config.MDM.LinuxSettings.EnableEscrowDiskEncryptionKey = v
+		v := spec.MDM.EnableDiskEncryption.Value
+		legacyChanged := v != (oldDiskEncryption.MacOSEnabled && oldDiskEncryption.MacOSEscrowEnabled &&
+			oldDiskEncryption.WindowsEnabled && oldDiskEncryption.LinuxEscrowEnabled)
+		for _, f := range []struct {
+			provided bool
+			merged   *optjson.Bool
+			old      bool
+		}{
+			{macOSSetFields["enable_disk_encryption"], &team.Config.MDM.MacOSSettings.EnableDiskEncryption, oldDiskEncryption.MacOSEnabled},
+			{macOSSetFields["enable_escrow_disk_encryption_key"], &team.Config.MDM.MacOSSettings.EnableEscrowDiskEncryptionKey, oldDiskEncryption.MacOSEscrowEnabled},
+			{spec.MDM.WindowsSettings.EnableDiskEncryption.Valid, &team.Config.MDM.WindowsSettings.EnableDiskEncryption, oldDiskEncryption.WindowsEnabled},
+			{spec.MDM.LinuxSettings.EnableEscrowDiskEncryptionKey.Valid, &team.Config.MDM.LinuxSettings.EnableEscrowDiskEncryptionKey, oldDiskEncryption.LinuxEscrowEnabled},
+		} {
+			providedChanged := f.provided && f.merged.Value != f.old
+			switch {
+			case providedChanged && legacyChanged && f.merged.Value != v:
+				return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("mdm.enable_disk_encryption",
+					"conflicts with per-platform disk encryption settings"))
+			case providedChanged:
+				// the per-platform value wins, already merged
+			case legacyChanged || !f.provided:
+				*f.merged = optjson.SetBool(v)
+			}
+		}
 	}
 
+	newDiskEncryption := team.Config.MDM.DiskEncryptionConfig()
+	didUpdateMacOSDiskEncryption := newDiskEncryption.MacOSEnabled != oldDiskEncryption.MacOSEnabled ||
+		newDiskEncryption.MacOSEscrowEnabled != oldDiskEncryption.MacOSEscrowEnabled
+	didUpdateWindowsDiskEncryption := newDiskEncryption.WindowsEnabled != oldDiskEncryption.WindowsEnabled
+	didUpdateLinuxDiskEncryption := newDiskEncryption.LinuxEscrowEnabled != oldDiskEncryption.LinuxEscrowEnabled
 	// the flat toggle is virtual: keep the stored value consistent
-	team.Config.MDM.EnableDiskEncryption = team.Config.MDM.MacOSSettings.EnableDiskEncryption.Value &&
-		team.Config.MDM.MacOSSettings.EnableEscrowDiskEncryptionKey.Value &&
-		team.Config.MDM.WindowsSettings.EnableDiskEncryption.Value &&
-		team.Config.MDM.LinuxSettings.EnableEscrowDiskEncryptionKey.Value
+	team.Config.MDM.EnableDiskEncryption = newDiskEncryption.MacOSEnabled && newDiskEncryption.MacOSEscrowEnabled &&
+		newDiskEncryption.WindowsEnabled && newDiskEncryption.LinuxEscrowEnabled
 
-	didUpdateMacOSDiskEncryption := team.Config.MDM.MacOSSettings.EnableDiskEncryption.Value != oldMacOSDiskEncryption ||
-		team.Config.MDM.MacOSSettings.EnableEscrowDiskEncryptionKey.Value != oldMacOSEscrowDiskEncryptionKey
-
-	enablingDiskEncryption := (team.Config.MDM.MacOSSettings.EnableDiskEncryption.Value && !oldMacOSDiskEncryption) ||
-		(team.Config.MDM.MacOSSettings.EnableEscrowDiskEncryptionKey.Value && !oldMacOSEscrowDiskEncryptionKey) ||
-		(team.Config.MDM.WindowsSettings.EnableDiskEncryption.Value && !oldWindowsDiskEncryption) ||
-		(team.Config.MDM.LinuxSettings.EnableEscrowDiskEncryptionKey.Value && !oldLinuxEscrowDiskEncryptionKey)
+	enablingDiskEncryption := (newDiskEncryption.MacOSEnabled && !oldDiskEncryption.MacOSEnabled) ||
+		(newDiskEncryption.MacOSEscrowEnabled && !oldDiskEncryption.MacOSEscrowEnabled) ||
+		(newDiskEncryption.WindowsEnabled && !oldDiskEncryption.WindowsEnabled) ||
+		(newDiskEncryption.LinuxEscrowEnabled && !oldDiskEncryption.LinuxEscrowEnabled)
 	if enablingDiskEncryption && svc.config.Server.PrivateKey == "" {
 		return ctxerr.New(ctx, "Missing required private key. Learn how to configure the private key here: https://fleetdm.com/learn-more-about/fleet-server-private-key")
 	}
 
-	if spec.MDM.RequireBitLockerPIN.Valid {
-		team.Config.MDM.RequireBitLockerPIN = spec.MDM.RequireBitLockerPIN.Value
+	// the deprecated top-level windows_require_bitlocker_pin mirrors the
+	// canonical windows_settings.require_bitlocker_pin home
+	incomingPIN, err := fleet.ResolveBitLockerPINAlias(
+		spec.MDM.RequireBitLockerPIN, spec.MDM.WindowsSettings.RequireBitLockerPIN)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err)
+	}
+	if incomingPIN.Valid {
+		if incomingPIN.Value != oldDiskEncryption.BitLockerPINRequired {
+			didUpdateWindowsDiskEncryption = true
+		}
+		team.Config.MDM.RequireBitLockerPIN = incomingPIN.Value
+		team.Config.MDM.WindowsSettings.RequireBitLockerPIN = optjson.SetBool(incomingPIN.Value)
+	}
+
+	// the BitLocker PIN requires the Windows disk encryption setting
+	if field, msg := fleet.BitLockerPINRequirementError(oldDiskEncryption.WindowsEnabled,
+		team.Config.MDM.DiskEncryptionConfig()); msg != "" {
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError(field, msg))
 	}
 
 	var didUpdateRecoveryLockPassword bool
@@ -2132,14 +2341,14 @@ func (svc *Service) editTeamFromSpec(
 		team.Config.MDM.WindowsSettings.CustomSettings = spec.MDM.WindowsSettings.CustomSettings
 	}
 	var didUpdateWindowsManagedLocalAccount bool
-	if spec.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled.Valid {
-		newWindowsManagedLocalAccount := spec.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled
-		didUpdateWindowsManagedLocalAccount = team.Config.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value != newWindowsManagedLocalAccount.Value
+	if spec.MDM.WindowsSettings.EnableManagedLocalAccount.Valid {
+		newWindowsManagedLocalAccount := spec.MDM.WindowsSettings.EnableManagedLocalAccount
+		didUpdateWindowsManagedLocalAccount = team.Config.MDM.WindowsSettings.EnableManagedLocalAccount.Value != newWindowsManagedLocalAccount.Value
 		if didUpdateWindowsManagedLocalAccount && newWindowsManagedLocalAccount.Value && !windowsEnabledAndConfigured {
-			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("windows_settings.managed_local_account_settings.enabled",
-				"Couldn't enable windows_settings.managed_local_account_settings. "+fleet.ErrWindowsMDMNotConfigured.Error()))
+			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("windows_settings.enable_managed_local_account",
+				"Couldn't enable windows_settings.enable_managed_local_account. "+fleet.ErrWindowsMDMNotConfigured.Error()))
 		}
-		team.Config.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled = newWindowsManagedLocalAccount
+		team.Config.MDM.WindowsSettings.EnableManagedLocalAccount = newWindowsManagedLocalAccount
 	}
 	if spec.MDM.AndroidSettings.CustomSettings.Set {
 		team.Config.MDM.AndroidSettings.CustomSettings = spec.MDM.AndroidSettings.CustomSettings
@@ -2242,6 +2451,17 @@ func (svc *Service) editTeamFromSpec(
 		return err
 	}
 
+	if !opts.DryRun {
+		// Fetch fresh appConfig to avoid masked secrets
+		appCfg, err := svc.ds.AppConfig(ctx)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "get app config")
+		}
+		if err := svc.handleTeamRenameInAppConfig(ctx, appCfg, team.ID, oldName, team.Name); err != nil {
+			return ctxerr.Wrap(ctx, err, "rename team in app config")
+		}
+	}
+
 	// If no secrets are provided and user did not explicitly specify an empty list, do not replace secrets. (#6774)
 	if secrets != nil {
 		if err := svc.ds.ApplyEnrollSecrets(ctx, ptr.Uint(team.ID), secrets); err != nil {
@@ -2271,29 +2491,27 @@ func (svc *Service) editTeamFromSpec(
 	}
 
 	if appCfg.MDM.EnabledAndConfigured && didUpdateMacOSDiskEncryption {
-		// TODO: Are we missing an activity or anything else for BitLocker here?
-		// The FileVault profile can cover both enforcement and key escrow, so
-		// only the off<->on transition of the pair creates or deletes it.
-		macOSDiskEncryptionOn := team.Config.MDM.MacOSSettings.EnableDiskEncryption.Value ||
-			team.Config.MDM.MacOSSettings.EnableEscrowDiskEncryptionKey.Value
-		macOSDiskEncryptionWasOn := oldMacOSDiskEncryption || oldMacOSEscrowDiskEncryptionKey
-		var act fleet.ActivityDetails
-		switch {
-		case macOSDiskEncryptionOn && !macOSDiskEncryptionWasOn:
-			act = fleet.ActivityTypeEnabledMacosDiskEncryption{TeamID: &team.ID, TeamName: &team.Name}
-			if err := svc.MDMAppleEnableFileVaultAndEscrow(ctx, &team.ID); err != nil {
-				return ctxerr.Wrap(ctx, err, "enable team filevault and escrow")
-			}
-		case !macOSDiskEncryptionOn && macOSDiskEncryptionWasOn:
-			act = fleet.ActivityTypeDisabledMacosDiskEncryption{TeamID: &team.ID, TeamName: &team.Name}
-			if err := svc.MDMAppleDisableFileVaultAndEscrow(ctx, &team.ID); err != nil && !fleet.IsNotFound(err) {
-				return ctxerr.Wrap(ctx, err, "disable team filevault and escrow")
-			}
+		if err := svc.MDMAppleReconcileFileVaultProfile(ctx, &team.ID); err != nil {
+			return ctxerr.Wrap(ctx, err, "reconcile team filevault profile")
 		}
-		if act != nil {
-			if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
-				return ctxerr.Wrap(ctx, err, "create activity for team macos disk encryption")
-			}
+	}
+	for _, pc := range []struct {
+		platform string
+		changed  bool
+	}{
+		{"macos", didUpdateMacOSDiskEncryption},
+		{"windows", didUpdateWindowsDiskEncryption},
+		{"linux", didUpdateLinuxDiskEncryption},
+	} {
+		if !pc.changed {
+			continue
+		}
+		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeEditedDiskEncryptionSettings{
+			FleetID:   &team.ID,
+			FleetName: &team.Name,
+			Platform:  pc.platform,
+		}); err != nil {
+			return ctxerr.Wrap(ctx, err, "create activity for team disk encryption settings")
 		}
 	}
 
@@ -2364,7 +2582,7 @@ func (svc *Service) editTeamFromSpec(
 
 	if didUpdateWindowsManagedLocalAccount {
 		if err := svc.logEnableManagedLocalAccountActivity(
-			ctx, team.Config.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value, "windows", &team.ID, &team.Name,
+			ctx, team.Config.MDM.WindowsSettings.EnableManagedLocalAccount.Value, "windows", &team.ID, &team.Name,
 		); err != nil {
 			return err
 		}
@@ -2452,16 +2670,16 @@ func (svc *Service) validateTeamCalendarIntegrations(
 	return nil
 }
 
-func (svc *Service) applyTeamMacOSSettings(ctx context.Context, spec *fleet.TeamSpec, applyUpon *fleet.MacOSSettings) error {
+func (svc *Service) applyTeamMacOSSettings(ctx context.Context, spec *fleet.TeamSpec, applyUpon *fleet.MacOSSettings) (map[string]bool, error) {
 	oldCustomSettings := applyUpon.CustomSettings
 	setFields, err := applyUpon.FromMap(spec.MDM.MacOSSettings)
 	if err != nil {
-		return fleet.NewUserMessageError(err, http.StatusBadRequest)
+		return nil, fleet.NewUserMessageError(err, http.StatusBadRequest)
 	}
 
 	appCfg, err := svc.ds.AppConfig(ctx)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "apply team macos settings")
+		return nil, ctxerr.Wrap(ctx, err, "apply team macos settings")
 	}
 
 	customSettingsChanged := setFields["custom_settings"] &&
@@ -2483,12 +2701,12 @@ func (svc *Service) applyTeamMacOSSettings(ctx context.Context, spec *fleet.Team
 		if !appCfg.MDM.EnabledAndConfigured {
 			// TODO: Address potential edge cases when teams that previously utilized MDM features
 			// are edited later edited when MDM disabled
-			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError(fmt.Sprintf("apple_settings.%s", field),
+			return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError(fmt.Sprintf("apple_settings.%s", field),
 				`Couldn't update apple_settings because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`))
 		}
 	}
 
-	return nil
+	return setFields, nil
 }
 
 // unmarshalWithGlobalDefaults unmarshals features from a team spec, and
@@ -2508,82 +2726,85 @@ func unmarshalWithGlobalDefaults(b *json.RawMessage) (fleet.Features, error) {
 	return *defaults, nil
 }
 
-func (svc *Service) updateTeamMDMDiskEncryption(ctx context.Context, tm *fleet.Team, enable *bool, requireBitLockerPIN *bool) error {
-	var didUpdateEncryption bool
-	var didUpdateRequirePIN bool
-	var macOSFileVaultWasOn bool
-	if enable != nil {
-		// the deprecated flat toggle fans out to every per-platform disk
-		// encryption setting
-		macOSFileVaultWasOn = tm.Config.MDM.MacOSSettings.EnableDiskEncryption.Value ||
-			tm.Config.MDM.MacOSSettings.EnableEscrowDiskEncryptionKey.Value
-		changed := tm.Config.MDM.MacOSSettings.EnableDiskEncryption.Value != *enable ||
-			tm.Config.MDM.MacOSSettings.EnableEscrowDiskEncryptionKey.Value != *enable ||
-			tm.Config.MDM.WindowsSettings.EnableDiskEncryption.Value != *enable ||
-			tm.Config.MDM.LinuxSettings.EnableEscrowDiskEncryptionKey.Value != *enable
-		if changed {
-			if *enable && svc.config.Server.PrivateKey == "" {
-				return ctxerr.New(ctx, "Missing required private key. Learn how to configure the private key here: https://fleetdm.com/learn-more-about/fleet-server-private-key")
-			}
+func (svc *Service) updateTeamMDMDiskEncryption(ctx context.Context, tm *fleet.Team, changes fleet.DiskEncryptionSettingsChanges, requireBitLockerPIN *bool) error {
+	oldDiskEncryption := tm.Config.MDM.DiskEncryptionConfig()
 
-			v := optjson.SetBool(*enable)
-			tm.Config.MDM.MacOSSettings.EnableDiskEncryption = v
-			tm.Config.MDM.MacOSSettings.EnableEscrowDiskEncryptionKey = v
-			tm.Config.MDM.WindowsSettings.EnableDiskEncryption = v
-			tm.Config.MDM.LinuxSettings.EnableEscrowDiskEncryptionKey = v
-			tm.Config.MDM.EnableDiskEncryption = *enable
-			didUpdateEncryption = true
+	enabling := false
+	apply := func(dst *optjson.Bool, v *bool) bool {
+		if v == nil || dst.Value == *v {
+			return false
 		}
+		enabling = enabling || *v
+		*dst = optjson.SetBool(*v)
+		return true
 	}
+	macOSChanged := apply(&tm.Config.MDM.MacOSSettings.EnableDiskEncryption, changes.MacOSEnable)
+	macOSChanged = apply(&tm.Config.MDM.MacOSSettings.EnableEscrowDiskEncryptionKey, changes.MacOSEscrow) || macOSChanged
+	windowsChanged := apply(&tm.Config.MDM.WindowsSettings.EnableDiskEncryption, changes.WindowsEnable)
+	linuxChanged := apply(&tm.Config.MDM.LinuxSettings.EnableEscrowDiskEncryptionKey, changes.LinuxEscrow)
+	// the PIN is updated outside of apply: it doesn't enable key escrow, so it
+	// must not trigger the private-key requirement
 	if requireBitLockerPIN != nil {
-		if tm.Config.MDM.RequireBitLockerPIN != *requireBitLockerPIN {
-			tm.Config.MDM.RequireBitLockerPIN = *requireBitLockerPIN
-			didUpdateRequirePIN = true
+		if oldDiskEncryption.BitLockerPINRequired != *requireBitLockerPIN {
+			windowsChanged = true
 		}
+		// the deprecated top-level key mirrors the canonical
+		// windows_settings.require_bitlocker_pin home
+		tm.Config.MDM.RequireBitLockerPIN = *requireBitLockerPIN
+		tm.Config.MDM.WindowsSettings.RequireBitLockerPIN = optjson.SetBool(*requireBitLockerPIN)
 	}
 
-	if didUpdateEncryption || didUpdateRequirePIN {
-		// the PIN requirement is a BitLocker feature, so it's judged against
-		// the Windows setting, not the all-platforms aggregate
-		windowsEncryptionOn := tm.Config.MDM.WindowsSettings.EnableDiskEncryption.Value
-		if didUpdateEncryption && !windowsEncryptionOn && tm.Config.MDM.RequireBitLockerPIN {
-			return ctxerr.New(ctx, fleet.CantDisableDiskEncryptionIfPINRequiredErrMsg)
-		}
-		if !didUpdateEncryption && !windowsEncryptionOn && tm.Config.MDM.RequireBitLockerPIN {
-			return ctxerr.New(ctx, fleet.CantEnablePINRequiredIfDiskEncryptionEnabled)
-		}
+	if !macOSChanged && !windowsChanged && !linuxChanged {
+		return nil
+	}
 
-		if _, err := svc.ds.SaveTeam(ctx, tm); err != nil {
+	if enabling && svc.config.Server.PrivateKey == "" {
+		return ctxerr.New(ctx, "Missing required private key. Learn how to configure the private key here: https://fleetdm.com/learn-more-about/fleet-server-private-key")
+	}
+
+	// the BitLocker PIN requires the Windows disk encryption setting
+	newDiskEncryption := tm.Config.MDM.DiskEncryptionConfig()
+	if field, msg := fleet.BitLockerPINRequirementError(oldDiskEncryption.WindowsEnabled, newDiskEncryption); msg != "" {
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError(field, msg))
+	}
+
+	// the flat toggle is virtual: keep the stored value consistent
+	tm.Config.MDM.EnableDiskEncryption = newDiskEncryption.MacOSEnabled && newDiskEncryption.MacOSEscrowEnabled &&
+		newDiskEncryption.WindowsEnabled && newDiskEncryption.LinuxEscrowEnabled
+
+	if _, err := svc.ds.SaveTeam(ctx, tm); err != nil {
+		return err
+	}
+
+	if macOSChanged {
+		appCfg, err := svc.ds.AppConfig(ctx)
+		if err != nil {
 			return err
 		}
+		if appCfg.MDM.EnabledAndConfigured {
+			if err := svc.MDMAppleReconcileFileVaultProfile(ctx, &tm.ID); err != nil {
+				return ctxerr.Wrap(ctx, err, "reconcile team filevault profile")
+			}
+		}
+	}
 
-		if didUpdateEncryption {
-			appCfg, err := svc.ds.AppConfig(ctx)
-			if err != nil {
-				return err
-			}
-			// the FileVault profile can cover both enforcement and key
-			// escrow, so only the off<->on transition of the macOS pair
-			// creates or deletes it
-			macOSDiskEncryptionOn := tm.Config.MDM.MacOSSettings.EnableDiskEncryption.Value ||
-				tm.Config.MDM.MacOSSettings.EnableEscrowDiskEncryptionKey.Value
-			if appCfg.MDM.EnabledAndConfigured && macOSDiskEncryptionOn != macOSFileVaultWasOn {
-				var act fleet.ActivityDetails
-				if macOSDiskEncryptionOn {
-					act = fleet.ActivityTypeEnabledMacosDiskEncryption{TeamID: &tm.ID, TeamName: &tm.Name}
-					if err := svc.MDMAppleEnableFileVaultAndEscrow(ctx, &tm.ID); err != nil {
-						return ctxerr.Wrap(ctx, err, "enable team filevault and escrow")
-					}
-				} else {
-					act = fleet.ActivityTypeDisabledMacosDiskEncryption{TeamID: &tm.ID, TeamName: &tm.Name}
-					if err := svc.MDMAppleDisableFileVaultAndEscrow(ctx, &tm.ID); err != nil && !fleet.IsNotFound(err) {
-						return ctxerr.Wrap(ctx, err, "disable team filevault and escrow")
-					}
-				}
-				if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
-					return ctxerr.Wrap(ctx, err, "create activity for team macos disk encryption")
-				}
-			}
+	for _, pc := range []struct {
+		platform string
+		changed  bool
+	}{
+		{"macos", macOSChanged},
+		{"windows", windowsChanged},
+		{"linux", linuxChanged},
+	} {
+		if !pc.changed {
+			continue
+		}
+		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeEditedDiskEncryptionSettings{
+			FleetID:   &tm.ID,
+			FleetName: &tm.Name,
+			Platform:  pc.platform,
+		}); err != nil {
+			return ctxerr.Wrap(ctx, err, "create activity for team disk encryption settings")
 		}
 	}
 	return nil

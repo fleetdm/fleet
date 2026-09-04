@@ -1,0 +1,1 @@
+- Fixed fleetd running the BitLocker encryption path against an already-encrypted volume when the volume's status could not be read, which deleted the volume's key protectors and could leave the host requiring its recovery key at the next restart.

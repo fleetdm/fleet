@@ -64,14 +64,14 @@ func TestValidateAgentOptions(t *testing.T) {
 				"disable_subscribers": true
 			},
 			"options": {"aws_debug": 1}
-		}}`, true, "cannot unmarshal bool into Go struct field .events.disable_subscribers of type []string"},
+		}}`, true, "cannot unmarshal bool into Go struct field osqueryAgentOptions.events.disable_subscribers of type []string"},
 		{"invalid overrides value", `{"overrides":{
 			"platforms": {
 				"linux": {
 					"options": {"aws_debug": true, "events_max": "nope"}
 				}
 			}
-		}}`, true, `cannot unmarshal string into Go struct field osqueryOptions.options.events_max of type uint64`},
+		}}`, true, `cannot unmarshal string into Go struct field osqueryAgentOptions.options.events_max of type uint64`},
 
 		{"valid packs string", `{"config":{
 			"packs": {
@@ -149,12 +149,12 @@ func TestValidateAgentOptions(t *testing.T) {
 		}}`, true, ``},
 		{"setting an invalid value for an os-specific flag", `{"command_line_flags":{
 			"disable_endpointsecurity": "ok"
-		}}`, true, `command-line flags: json: cannot unmarshal string into Go struct field osqueryCommandLineFlags.OsqueryCommandLineFlagsMacOS.disable_endpointsecurity of type bool`},
+		}}`, true, `command-line flags: json: cannot unmarshal string into Go struct field osqueryCommandLineFlags.disable_endpointsecurity of type bool`},
 		{"setting an invalid value for an os-specific option", `{"config":{
 			"options": {
 				"disable_endpointsecurity": "ok"
 			}
-		}}`, true, `common config: json: cannot unmarshal string into Go struct field osqueryOptions.options.OsqueryCommandLineFlagsMacOS.disable_endpointsecurity of type bool`},
+		}}`, true, `common config: json: cannot unmarshal string into Go struct field osqueryAgentOptions.options.disable_endpointsecurity of type bool`},
 		{"setting an empty update_channels", `{
 			"update_channels": null
 		}`, true, `update_channels cannot be null`},

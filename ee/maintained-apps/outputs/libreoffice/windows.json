@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "26.2.5.2",
+      "version": "26.8.0.3",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'LibreOffice %' AND publisher = 'The Document Foundation';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'LibreOffice %' AND publisher = 'The Document Foundation' AND version_compare(version, '26.2.5.2') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'LibreOffice %' AND publisher = 'The Document Foundation' AND version_compare(version, '26.8.0.3') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'libreoffice.exe');"
       },
-      "installer_url": "https://download.documentfoundation.org/libreoffice/stable/26.2.5/win/x86_64/LibreOffice_26.2.5_Win_x86-64.msi",
+      "installer_url": "https://download.documentfoundation.org/libreoffice/stable/26.8.0/win/x86_64/LibreOffice_26.8.0_Win_x86-64.msi",
       "install_script_ref": "22e48c46",
       "uninstall_script_ref": "731830d4",
-      "sha256": "f15ba07bfcb0186986cf3171063506f5d207c11f8cc051ba0d135209e9e915f9",
+      "sha256": "4aa6c6e1895f4055104effcb556bd3362d20c6ad707c149543304f395ef9db95",
       "default_categories": [
         "Productivity"
       ],

@@ -1099,6 +1099,31 @@ function ActiveProcessesPanel({
 
   const [busy, setBusy] = useState<string | null>(null);
   const [ngrokInfo, setNgrokInfo] = useState<NgrokYamlInfo | null>(null);
+  const [pythonLanIp, setPythonLanIp] = useState("");
+
+  // The file server's address only matters while it's up and something else is
+  // dialling it, and it moves with the network — so it's read on the transition
+  // into running rather than polled. Depending on `pythonRunning` also covers
+  // the server already being up when Hangar starts, and clears the stale
+  // address on stop so a later start can't show the previous network's IP.
+  useEffect(() => {
+    if (!pythonRunning) {
+      setPythonLanIp("");
+      return;
+    }
+    let cancelled = false;
+    api
+      .lanIp()
+      .then((ip) => {
+        if (!cancelled) setPythonLanIp(ip);
+      })
+      .catch(() => {
+        if (!cancelled) setPythonLanIp("");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [pythonRunning]);
 
   // Re-parse ngrok.yml whenever its configured path changes.
   useEffect(() => {
@@ -1334,6 +1359,7 @@ function ActiveProcessesPanel({
         />
         <PythonCell
           running={pythonRunning}
+          lanIp={pythonLanIp}
           settings={settings}
           preview={pythonArgs().preview}
           busy={busy?.startsWith("python-") ?? false}
@@ -1621,6 +1647,7 @@ function NgrokCell({
 
 function PythonCell({
   running,
+  lanIp,
   settings,
   preview,
   busy,
@@ -1629,6 +1656,8 @@ function PythonCell({
   onSettings,
 }: {
   running: boolean;
+  /// Host LAN address, or "" when unknown — see the fetch in ServerTab.
+  lanIp: string;
   settings: Settings;
   preview: string;
   busy: boolean;
@@ -1643,7 +1672,10 @@ function PythonCell({
         <ProcRow
           dotState="run"
           name="python http.server"
-          subline={`serving ${cfg.directory ?? "repo root"} on :${cfg.port}`}
+          // Showing the LAN address, not just the port: the reason to run this
+          // is to point another device at it, and on the road the address
+          // changes under you. Falls back to the bare ":port" when unknown.
+          subline={`serving ${cfg.directory ?? "repo root"} on ${lanIp}:${cfg.port}`}
           onStop={onStop}
           busy={busy}
           down={false}

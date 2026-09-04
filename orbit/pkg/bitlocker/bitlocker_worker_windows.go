@@ -115,6 +115,24 @@ func (w *COMWorker) EncryptVolume(targetVolume string) (string, error) {
 	return key, r.err
 }
 
+// HasTPMFamilyProtector reports whether the volume can unseal its key at boot without a recovery password.
+func (w *COMWorker) HasTPMFamilyProtector(targetVolume string) (bool, error) {
+	r := w.exec(func() (any, error) { return hasTPMFamilyProtectorOnCOMThread(targetVolume) })
+	has, _ := r.val.(bool)
+	return has, r.err
+}
+
+// AddTPMProtector adds a TPM-only protector, treating "already exists" as success.
+func (w *COMWorker) AddTPMProtector(targetVolume string) error {
+	return w.exec(func() (any, error) { return nil, addTPMProtectorOnCOMThread(targetVolume) }).err
+}
+
+// EnableProtection turns protection back on for an encrypted volume whose protection is off. It does not decide
+// whether that is safe; see enableProtectionOnCOMThread.
+func (w *COMWorker) EnableProtection(targetVolume string) error {
+	return w.exec(func() (any, error) { return nil, enableProtectionOnCOMThread(targetVolume) }).err
+}
+
 // RotateRecoveryKey rotates the recovery key on an already-encrypted volume.
 // It adds a new Fleet-managed recovery key, removes old recovery key protectors,
 // and returns the new key for escrow. The disk is never decrypted.

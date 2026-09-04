@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "26.4.1",
+      "version": "27.0.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.parallels.desktop.console';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.parallels.desktop.console' AND version_compare(bundle_short_version, '26.4.1') < 0);",
-        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.parallels.desktop.console');"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.parallels.desktop.console' AND version_compare(bundle_short_version, '27.0.1') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.parallels.desktop.console' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://download.parallels.com/desktop/v26/26.4.1-57516/ParallelsDesktop-26.4.1-57516.dmg",
+      "installer_url": "https://download.parallels.com/desktop/v27/27.0.1-58670/ParallelsDesktop-27.0.1-58670.dmg",
       "install_script_ref": "fda51c5d",
       "uninstall_script_ref": "94c626c6",
-      "sha256": "f32a4ff2bf5d522392a9d28c133b0c768dd09b757634f33f301c7cb21d243b1f",
+      "sha256": "65c848410fc5cb32e670bdaeb2dd5802a952b116562660cededdd8c31a37f4fd",
       "default_categories": [
         "Productivity"
       ]

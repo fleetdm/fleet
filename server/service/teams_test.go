@@ -93,6 +93,9 @@ func TestTeamAuth(t *testing.T) {
 	ds.GetABMTokenOrgNamesAssociatedByDefaultTeamsFunc = func(ctx context.Context, teamID *uint) ([]string, error) {
 		return nil, nil
 	}
+	ds.GetVPPTokenByTeamIDFunc = func(ctx context.Context, teamID *uint) (*fleet.VPPTokenDB, error) {
+		return nil, nil
+	}
 
 	testCases := []struct {
 		name                       string

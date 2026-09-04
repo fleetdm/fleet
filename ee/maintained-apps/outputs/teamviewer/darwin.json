@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "15.81.5",
+      "version": "15.81.6",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.teamviewer.TeamViewer';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.teamviewer.TeamViewer' AND version_compare(bundle_short_version, '15.81.5') < 0);",
-        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.teamviewer.TeamViewer');"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.teamviewer.TeamViewer' AND version_compare(bundle_short_version, '15.81.6') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.teamviewer.TeamViewer' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://dl.teamviewer.com/download/version_15x/update/15.81.5/TeamViewer.pkg",
+      "installer_url": "https://dl.teamviewer.com/download/version_15x/update/15.81.6/TeamViewer.pkg",
       "install_script_ref": "c6da4ec6",
       "uninstall_script_ref": "f00ebab2",
-      "sha256": "17bd3fd5f5172451685787ff8292e88178ac132c0d58a0c8064bb32ea201bb92",
+      "sha256": "39692047e9446a1e8d07461ffb22a2ce565d290584c513302e983847816eb2d0",
       "default_categories": [
         "Communication"
       ]

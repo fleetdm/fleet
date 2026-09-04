@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "2.2.5",
+      "version": "2.3.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Clockify' AND publisher = 'CAKE.com Inc.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Clockify' AND publisher = 'CAKE.com Inc.' AND version_compare(version, '2.2.5') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Clockify' AND publisher = 'CAKE.com Inc.' AND version_compare(version, '2.3.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'clockify desktop.exe');"
       },
       "installer_url": "https://clockify.me/downloads/clockify-setup.msi",
       "install_script_ref": "22e48c46",
       "uninstall_script_ref": "f7f14087",
-      "sha256": "5a184139b2c36d0e64fa4c7e6c4fd6de95640ab766b59ce34306267dc3e9c74c",
+      "sha256": "89c3630988ae8711398ce87606461d1fb50803de6445554d6f9bfba9c99cf6f4",
       "default_categories": [
         "Productivity"
       ],

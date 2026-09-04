@@ -1,0 +1,1 @@
+- Added support for the Fleet server's experimental WebSocket notification transport (ADR-0011): when the server enables it, orbit keeps a WebSocket connection to the server, registers itself as osquery's distributed plugin, and performs a distributed read when notified (falling back to polling while disconnected), removing osquery's fixed 10-second distributed/read polling.

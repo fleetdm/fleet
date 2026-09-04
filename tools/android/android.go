@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"encoding/json/jsontext"
+	"encoding/json/v2"
 	"flag"
 	"fmt"
 	"log"
@@ -10,8 +12,6 @@ import (
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/dev_mode"
-	"github.com/go-json-experiment/json"
-	"github.com/go-json-experiment/json/jsontext"
 	"google.golang.org/api/androidmanagement/v1"
 	"google.golang.org/api/option"
 )

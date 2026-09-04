@@ -2,6 +2,7 @@ package fleet
 
 import (
 	"encoding/json"
+	"fmt"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -234,7 +235,7 @@ func TestHostCertificateTemplate(t *testing.T) {
 		require.NoError(t, err)
 		require.Contains(t, string(encoded), `"retrying":false`)
 		require.Contains(t, string(encoded), `"retry_count":0`)
-		require.Contains(t, string(encoded), `"max_retries":3`)
+		require.Contains(t, string(encoded), fmt.Sprintf(`"max_retries":%d`, MaxCertificateInstallRetries))
 	})
 
 	// Removals go through the same conversion but are never retried, so the allowance would be

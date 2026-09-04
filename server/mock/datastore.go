@@ -28,8 +28,19 @@ func (m *Store) EnrollOrbit(ctx context.Context, opts ...fleet.DatastoreEnrollOr
 }
 
 func (m *Store) LoadHostByOrbitNodeKey(ctx context.Context, orbitNodeKey string) (*fleet.Host, error) {
-	return nil, nil
+	if m.LoadHostByOrbitNodeKeyFunc != nil {
+		return m.DataStore.LoadHostByOrbitNodeKey(ctx, orbitNodeKey)
+	}
+	// Default to not-found rather than a nil host with a nil error: callers
+	// dereference the returned host, and "no host matches this orbit node
+	// key" is the meaningful default for tests that don't mock this method.
+	return nil, &mockNotFoundError{}
 }
+
+type mockNotFoundError struct{}
+
+func (e *mockNotFoundError) Error() string    { return "not found" }
+func (e *mockNotFoundError) IsNotFound() bool { return true }
 
 func (m *Store) GetCurrentTime(ctx context.Context) (time.Time, error) {
 	return time.Time{}, nil

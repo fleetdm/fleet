@@ -374,7 +374,7 @@ func (s *MySQLStorage) ExpandHostSecrets(ctx context.Context, document string, e
 	return document, nil
 }
 
-func (s *MySQLStorage) SetRecoveryLockFailed(ctx context.Context, hostUUID string, errorMsg string) error {
+func (s *MySQLStorage) SetRecoveryLockFailed(ctx context.Context, hostUUID string, commandUUID string, errorMsg string) error {
 	s.logger.ErrorContext(ctx, "MySQLStorage.SetRecoveryLockFailed not implemented")
 	return nil
 }

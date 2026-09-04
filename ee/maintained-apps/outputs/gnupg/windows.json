@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "2.5.21",
+      "version": "2.5.22",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'GNU Privacy Guard' AND publisher = 'The GnuPG Project';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'GNU Privacy Guard' AND publisher = 'The GnuPG Project' AND version_compare(version, '2.5.21') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'GNU Privacy Guard' AND publisher = 'The GnuPG Project' AND version_compare(version, '2.5.22') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'gnu privacy guard.exe');"
       },
-      "installer_url": "https://gnupg.org/ftp/gcrypt/binary/gnupg-w32-2.5.21_20260702.exe",
+      "installer_url": "https://gnupg.org/ftp/gcrypt/binary/gnupg-w32-2.5.22_20260831.exe",
       "install_script_ref": "8c2ff75e",
       "uninstall_script_ref": "d1a2230f",
-      "sha256": "6246c925a73167253444afc24a0deb83a3f43b7d636af84d6aaf48a98a62f024",
+      "sha256": "2e5841e345d56f05199351bfcf585d28c6dc2326c8f76962f1e402f41f6d10e9",
       "default_categories": [
         "Security"
       ]
