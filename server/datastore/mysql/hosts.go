@@ -4019,8 +4019,11 @@ func (ds *Datastore) CleanupExpiredHosts(ctx context.Context) ([]fleet.DeletedHo
 	var allIdsToDelete []uint
 	hostIDToExpiryWindow := make(map[uint]int)
 	lastHostIDByScope := make([]uint, len(expiredHostScopes))
+	// A scope that returned fewer rows than requested has no more expired
+	// hosts, so later passes skip it rather than re-running the scan.
+	exhaustedScopes := make([]bool, len(expiredHostScopes))
 	queryExpiredHosts := func(scopeIndex, limit int) error {
-		if limit <= 0 {
+		if limit <= 0 || exhaustedScopes[scopeIndex] {
 			return nil
 		}
 
@@ -4033,19 +4036,13 @@ func (ds *Datastore) CleanupExpiredHosts(ctx context.Context) ([]fleet.DeletedHo
 		}
 		sqlQuery += " ORDER BY h.id LIMIT ?"
 		args = append(args, limit)
-		sqlQuery, args, err = sqlx.In(sqlQuery, args...)
+		sqlQuery, args, err := sqlx.In(sqlQuery, args...)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "building query to get expired host ids")
 		}
 
 		var ids []uint
-		err = ds.writer(ctx).SelectContext(
-			ctx,
-			&ids,
-			sqlQuery,
-			args...,
-		)
-		if err != nil {
+		if err := ds.writer(ctx).SelectContext(ctx, &ids, sqlQuery, args...); err != nil {
 			return ctxerr.Wrap(ctx, err, "getting expired hosts")
 		}
 		for _, id := range ids {
@@ -4053,6 +4050,9 @@ func (ds *Datastore) CleanupExpiredHosts(ctx context.Context) ([]fleet.DeletedHo
 		}
 		if len(ids) > 0 {
 			lastHostIDByScope[scopeIndex] = ids[len(ids)-1]
+		}
+		if len(ids) < limit {
+			exhaustedScopes[scopeIndex] = true
 		}
 		allIdsToDelete = append(allIdsToDelete, ids...)
 		return nil
@@ -4071,8 +4071,7 @@ func (ds *Datastore) CleanupExpiredHosts(ctx context.Context) ([]fleet.DeletedHo
 			break
 		}
 
-		err = queryExpiredHosts(scopeIndex, reservedLimit)
-		if err != nil {
+		if err := queryExpiredHosts(scopeIndex, reservedLimit); err != nil {
 			return nil, err
 		}
 		remainingReservedBudget -= reservedLimit
@@ -4086,8 +4085,7 @@ func (ds *Datastore) CleanupExpiredHosts(ctx context.Context) ([]fleet.DeletedHo
 		}
 
 		previousCount := len(allIdsToDelete)
-		err = queryExpiredHosts(scopeIndex, remainingBatchSize)
-		if err != nil {
+		if err := queryExpiredHosts(scopeIndex, remainingBatchSize); err != nil {
 			return nil, err
 		}
 		remainingBatchSize -= len(allIdsToDelete) - previousCount
@@ -4102,9 +4100,11 @@ func (ds *Datastore) CleanupExpiredHosts(ctx context.Context) ([]fleet.DeletedHo
 		}
 	}
 
-	for _, id := range allIdsToDelete {
-		err = ds.DeleteHost(ctx, id)
-		if err != nil {
+	// Only delete hosts whose details were loaded so the returned slice is an
+	// exact record of what this batch removed; a host that disappeared in
+	// between was deleted (and its activity recorded) by someone else.
+	for _, host := range hostsToDelete {
+		if err := ds.DeleteHost(ctx, host.ID); err != nil {
 			return nil, err
 		}
 	}

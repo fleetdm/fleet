@@ -137,6 +137,7 @@ func TestHosts(t *testing.T) {
 		{"HostsExpiration", testHostsExpiration},
 		{"HostsExpirationBatchSize", testHostsExpirationBatchSize},
 		{"HostsExpirationBatchSizeServicesEveryScope", testHostsExpirationBatchSizeServicesEveryScope},
+		{"HostsExpirationMoreScopesThanBatchSize", testHostsExpirationMoreScopesThanBatchSize},
 		{"IOSHostExpiration", testIOSHostsExpiration},
 		{"DEPHostExpiration", testDEPHostsExpiration},
 		{"AppleMDMHostWithoutOrbitExpiration", testAppleMDMHostsWithoutOrbitExpiration},
@@ -6290,6 +6291,107 @@ func testHostsExpirationBatchSizeServicesEveryScope(t *testing.T, ds *Datastore)
 	}
 	require.ElementsMatch(t, []int{1, 2, 3}, gotExpiryWindows)
 	listHostsCheckCount(t, ds, filter, fleet.HostListOptions{}, 6)
+
+	// Second run: every scope still has hosts, so each keeps its reserved slot.
+	hostDetails, err = ds.CleanupExpiredHosts(ctx)
+	require.NoError(t, err)
+	require.ElementsMatch(t, []int{1, 2, 3}, expiryWindows(hostDetails))
+	listHostsCheckCount(t, ds, filter, fleet.HostListOptions{}, 3)
+
+	// Third run: the team scopes are drained, so the global scope fills the batch.
+	hostDetails, err = ds.CleanupExpiredHosts(ctx)
+	require.NoError(t, err)
+	require.ElementsMatch(t, []int{1, 1, 1}, expiryWindows(hostDetails))
+	listHostsCheckCount(t, ds, filter, fleet.HostListOptions{}, 0)
+
+	hostDetails, err = ds.CleanupExpiredHosts(ctx)
+	require.NoError(t, err)
+	require.Empty(t, hostDetails)
+}
+
+func expiryWindows(details []fleet.DeletedHostDetails) []int {
+	windows := make([]int, 0, len(details))
+	for _, detail := range details {
+		windows = append(windows, detail.HostExpiryWindow)
+	}
+	return windows
+}
+
+// More scopes than the batch size: the reservation pass must still hand out at
+// most one slot per scope and never exceed the batch size in total.
+func testHostsExpirationMoreScopesThanBatchSize(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	previousBatchSize := cleanupExpiredHostsBatchSize
+	cleanupExpiredHostsBatchSize = 2
+	t.Cleanup(func() {
+		cleanupExpiredHostsBatchSize = previousBatchSize
+	})
+
+	ac, err := ds.AppConfig(ctx)
+	require.NoError(t, err)
+	ac.HostExpirySettings.HostExpiryEnabled = true
+	ac.HostExpirySettings.HostExpiryWindow = 1
+	require.NoError(t, ds.SaveAppConfig(ctx, ac))
+
+	newTeam := func(name string, window int) *fleet.Team {
+		team, err := ds.NewTeam(ctx, &fleet.Team{Name: name})
+		require.NoError(t, err)
+		team.Config.HostExpirySettings.HostExpiryEnabled = true
+		team.Config.HostExpirySettings.HostExpiryWindow = window
+		team, err = ds.SaveTeam(ctx, team)
+		require.NoError(t, err)
+		return team
+	}
+	team1 := newTeam("scopes-expiry-team-1", 2)
+	team2 := newTeam("scopes-expiry-team-2", 3)
+
+	createHosts := func(prefix string, teamID *uint) {
+		ids := make([]uint, 0, 2)
+		for i := range 2 {
+			host, err := ds.NewHost(ctx, &fleet.Host{
+				DetailUpdatedAt: time.Now(),
+				LabelUpdatedAt:  time.Now(),
+				PolicyUpdatedAt: time.Now(),
+				SeenTime:        time.Now().Add(-96 * time.Hour),
+				OsqueryHostID:   new(fmt.Sprintf("%s-%d", prefix, i)),
+				NodeKey:         new(fmt.Sprintf("%s-%d", prefix, i)),
+				UUID:            fmt.Sprintf("%s-%d", prefix, i),
+				Hostname:        fmt.Sprintf("%s-%d.local", prefix, i),
+			})
+			require.NoError(t, err)
+			ids = append(ids, host.ID)
+		}
+		if teamID != nil {
+			require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(teamID, ids)))
+		}
+	}
+	createHosts("scopes-global", nil)
+	createHosts("scopes-team-1", &team1.ID)
+	createHosts("scopes-team-2", &team2.ID)
+
+	filter := fleet.TeamFilter{User: test.UserAdmin}
+	listHostsCheckCount(t, ds, filter, fleet.HostListOptions{}, 6)
+
+	// Only the first two scopes get a slot; the third waits.
+	hostDetails, err := ds.CleanupExpiredHosts(ctx)
+	require.NoError(t, err)
+	require.ElementsMatch(t, []int{1, 2}, expiryWindows(hostDetails))
+	listHostsCheckCount(t, ds, filter, fleet.HostListOptions{}, 4)
+
+	hostDetails, err = ds.CleanupExpiredHosts(ctx)
+	require.NoError(t, err)
+	require.ElementsMatch(t, []int{1, 2}, expiryWindows(hostDetails))
+	listHostsCheckCount(t, ds, filter, fleet.HostListOptions{}, 2)
+
+	// The first two scopes are exhausted, so the fill pass reaches the third.
+	hostDetails, err = ds.CleanupExpiredHosts(ctx)
+	require.NoError(t, err)
+	require.ElementsMatch(t, []int{3, 3}, expiryWindows(hostDetails))
+	listHostsCheckCount(t, ds, filter, fleet.HostListOptions{}, 0)
+
+	hostDetails, err = ds.CleanupExpiredHosts(ctx)
+	require.NoError(t, err)
+	require.Empty(t, hostDetails)
 }
 
 func testIOSHostsExpiration(t *testing.T, ds *Datastore) {
