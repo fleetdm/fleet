@@ -25,3 +25,5 @@ func (w *COMWorker) HasTPMFamilyProtector(string) (bool, error) { return false, 
 func (w *COMWorker) AddTPMProtector(string) error { return nil }
 
 func (w *COMWorker) EnableProtection(string) error { return nil }
+
+func (w *COMWorker) ResumeConversion(string) error { return nil }

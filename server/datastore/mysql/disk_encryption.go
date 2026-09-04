@@ -59,6 +59,21 @@ VALUES
 		}
 	}
 
+	// An agent reporting a failure sends no key, and overwriting the stored one with that empty value would take the
+	// only recovery key Fleet can show an admin away from a host that is still encrypted. Record the error on its own
+	// and leave the key, and its decryptable flag, alone.
+	//
+	// The error is what distinguishes this from a caller deliberately clearing the key, which passes an empty key with
+	// no error and must still work (see the backfill in #15068).
+	if incomingKey.Base == "" && clientError != "" && existingKey.Base != "" {
+		_, err = ds.writer(ctx).ExecContext(ctx, `
+UPDATE host_disk_encryption_keys SET client_error = ? WHERE host_id = ?`, clientError, host.ID)
+		if err != nil {
+			return false, ctxerr.Wrap(ctx, err, "updating key client error")
+		}
+		return archived, nil
+	}
+
 	_, err = ds.writer(ctx).ExecContext(ctx, `
 UPDATE host_disk_encryption_keys SET
   /* if the key has changed, set decrypted to its initial value so it can be calculated again if necessary (if null) */

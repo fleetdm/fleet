@@ -11,6 +11,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/google/uuid"
+	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
 
 	"github.com/stretchr/testify/assert"
@@ -25,6 +26,7 @@ func TestDiskEncryption(t *testing.T) {
 	}{
 		{"TestCleanupDiskEncryptionKeysOnTeamChange", testCleanupDiskEncryptionKeysOnTeamChange},
 		{"TestDeleteLUKSData", testDeleteLUKSData},
+		{"TestClientErrorKeepsStoredKey", testClientErrorKeepsStoredKey},
 	}
 
 	for _, c := range cases {
@@ -194,4 +196,104 @@ func testDeleteLUKSData(t *testing.T, ds *Datastore) {
 
 	_, err = ds.GetHostDiskEncryptionKey(ctx, hostOne.ID)
 	require.True(t, fleet.IsNotFound(err))
+}
+
+// testClientErrorKeepsStoredKey covers the case where the agent reports a BitLocker failure, which carries no key.
+// Overwriting the stored key with that empty value takes the only recovery key Fleet can show an admin away from a
+// host that is still encrypted, which is the worst possible moment to lose it.
+func testClientErrorKeepsStoredKey(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	host, err := ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         new("client-error-key"),
+		UUID:            "client-error-key",
+		Hostname:        "client-error-key.local",
+		Platform:        "windows",
+	})
+	require.NoError(t, err)
+
+	readKey := func() (base64Key string, clientError string, decryptable *bool) {
+		var row struct {
+			Base64Encrypted string `db:"base64_encrypted"`
+			ClientError     string `db:"client_error"`
+			Decryptable     *bool  `db:"decryptable"`
+		}
+		require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &row,
+			`SELECT base64_encrypted, client_error, decryptable FROM host_disk_encryption_keys WHERE host_id = ?`, host.ID))
+		return row.Base64Encrypted, row.ClientError, row.Decryptable
+	}
+
+	const escrowed = "the-escrowed-key"
+	_, err = ds.SetOrUpdateHostDiskEncryptionKey(ctx, host, escrowed, "", new(true))
+	require.NoError(t, err)
+	key, clientErr, decryptable := readKey()
+	require.Equal(t, escrowed, key)
+	require.Empty(t, clientErr)
+	require.Equal(t, new(true), decryptable)
+
+	t.Run("an error report keeps the key and its decryptable flag", func(t *testing.T) {
+		_, err := ds.SetOrUpdateHostDiskEncryptionKey(ctx, host, "", "rotation failed", nil)
+		require.NoError(t, err)
+
+		key, clientErr, decryptable := readKey()
+		require.Equal(t, escrowed, key, "the stored key must survive an error report")
+		require.Equal(t, "rotation failed", clientErr)
+		require.Equal(t, new(true), decryptable, "decryptable must not be reset by an error report")
+	})
+
+	t.Run("an empty key with no error still clears the key", func(t *testing.T) {
+		// The error is what separates "the agent failed" from a caller deliberately clearing the key, which has to
+		// keep working. See the backfill in #15068.
+		_, err := ds.SetOrUpdateHostDiskEncryptionKey(ctx, host, "", "", nil)
+		require.NoError(t, err)
+
+		key, clientErr, decryptable := readKey()
+		require.Empty(t, key)
+		require.Empty(t, clientErr)
+		require.Nil(t, decryptable)
+
+		// Put the key back for the subtests that follow.
+		_, err = ds.SetOrUpdateHostDiskEncryptionKey(ctx, host, escrowed, "", new(true))
+		require.NoError(t, err)
+	})
+
+	t.Run("a later success replaces the key and clears the error", func(t *testing.T) {
+		_, err := ds.SetOrUpdateHostDiskEncryptionKey(ctx, host, "a-newer-key", "", new(true))
+		require.NoError(t, err)
+
+		key, clientErr, decryptable := readKey()
+		require.Equal(t, "a-newer-key", key)
+		require.Empty(t, clientErr)
+		require.Equal(t, new(true), decryptable)
+	})
+
+	t.Run("an error report on a host with no key stored is still recorded", func(t *testing.T) {
+		other, err := ds.NewHost(ctx, &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now(),
+			NodeKey:         new("client-error-nokey"),
+			UUID:            "client-error-nokey",
+			Hostname:        "client-error-nokey.local",
+			Platform:        "windows",
+		})
+		require.NoError(t, err)
+
+		_, err = ds.SetOrUpdateHostDiskEncryptionKey(ctx, other, "", "encryption failed", nil)
+		require.NoError(t, err)
+
+		var row struct {
+			Base64Encrypted string `db:"base64_encrypted"`
+			ClientError     string `db:"client_error"`
+		}
+		require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &row,
+			`SELECT base64_encrypted, client_error FROM host_disk_encryption_keys WHERE host_id = ?`, other.ID))
+		require.Empty(t, row.Base64Encrypted)
+		require.Equal(t, "encryption failed", row.ClientError)
+	})
 }
