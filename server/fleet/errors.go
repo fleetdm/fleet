@@ -28,6 +28,7 @@ var (
 	AppleOSVersionUnsupportedMessage             = "The minimum version isn't supported by Apple."
 	AppleOSVersionDeadlineInvalidMessage         = "The deadline isn't a valid date."
 	CantDeleteHostUnverifiedABMMessage           = "Couldn't delete host. Fleet couldn't reach Apple Business to check whether this host is still assigned. Please try again."
+	MyDeviceURLUnsupportedPlatformMessage        = "The My device page is only supported for macOS, Windows, Linux, and iOS/iPadOS hosts."
 	CantTurnOffMDMForWindowsHostsMessage         = "Can't turn off MDM for Windows hosts."
 	CantTurnOffMDMAlreadyTurnedOffMessage        = "Couldn't turn off MDM. This host already has MDM turned off."
 	CantTurnOffMDMForPersonalHostsMessage        = "Couldn't turn off MDM. This command isn't available for personal hosts."
