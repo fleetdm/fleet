@@ -172,14 +172,16 @@ func (ds *Datastore) NewHost(ctx context.Context, host *fleet.Host) (*fleet.Host
 		id, _ := result.LastInsertId()
 		host.ID = uint(id)
 
-		_, err = tx.ExecContext(ctx,
+		_, err = tx.ExecContext(
+			ctx,
 			`INSERT INTO host_seen_times (host_id, seen_time) VALUES (?,?)`,
 			host.ID, host.SeenTime,
 		)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "new host seen time")
 		}
-		_, err = tx.ExecContext(ctx,
+		_, err = tx.ExecContext(
+			ctx,
 			`INSERT INTO host_display_names (host_id, display_name) VALUES (?,?)`,
 			host.ID, host.DisplayName(),
 		)
@@ -238,7 +240,8 @@ func saveHostPackStatsDB(ctx context.Context, db *sqlx.DB, teamID *uint, hostID 
 				if query.WallTimeMs == 0 && query.WallTime != 0 {
 					query.WallTimeMs = query.WallTime * 1000
 				}
-				scheduledQueriesArgs = append(scheduledQueriesArgs,
+				scheduledQueriesArgs = append(
+					scheduledQueriesArgs,
 					teamIDArg,
 					query.ScheduledQueryName,
 
@@ -262,7 +265,8 @@ func saveHostPackStatsDB(ctx context.Context, db *sqlx.DB, teamID *uint, hostID 
 					query.WallTimeMs = query.WallTime * 1000
 				}
 
-				userPacksArgs = append(userPacksArgs,
+				userPacksArgs = append(
+					userPacksArgs,
 					query.PackName,
 					query.ScheduledQueryName,
 
@@ -1864,7 +1868,8 @@ AND (
 	bitlockerStatus := `''`
 	if diskEncryptionConfig.WindowsEnabled {
 		// Count "BitLocker action required" as pending for profile status.
-		bitlockerStatus = fmt.Sprintf(`
+		bitlockerStatus = fmt.Sprintf(
+			`
             CASE WHEN (%s) THEN
                 'bitlocker_pending'
             WHEN (%s) THEN
@@ -2468,7 +2473,8 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, opts ...fleet.DatastoreEnr
 				// This means a orbit host already enrolled at this hosts entry.
 				// This can happen if two devices have duplicate hardware identifiers or
 				// if orbit's node key file was deleted from the device (e.g. uninstall+install).
-				ds.logger.WarnContext(ctx, "orbit host with duplicate identifier has enrolled in Fleet and will overwrite existing host data",
+				ds.logger.WarnContext(
+					ctx, "orbit host with duplicate identifier has enrolled in Fleet and will overwrite existing host data",
 					"identifier", hostInfo.HardwareUUID,
 					"host_id", enrolledHostInfo.ID,
 				)
@@ -2558,7 +2564,8 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, opts ...fleet.DatastoreEnr
 					platform_like
 				) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?)
 			`
-			result, err := tx.ExecContext(ctx, sqlInsert,
+			result, err := tx.ExecContext(
+				ctx, sqlInsert,
 				zeroTime,
 				zeroTime,
 				zeroTime,
@@ -2724,7 +2731,8 @@ func (ds *Datastore) EnrollOsquery(ctx context.Context, opts ...fleet.DatastoreE
 				// This means a osquery host already enrolled at this hosts entry.
 				// This can happen if two devices have duplicate hardware identifiers or
 				// if osquery.db was deleted from the device (e.g. uninstall+install).
-				ds.logger.WarnContext(ctx, "osquery host with duplicate identifier has enrolled in Fleet and will overwrite existing host data",
+				ds.logger.WarnContext(
+					ctx, "osquery host with duplicate identifier has enrolled in Fleet and will overwrite existing host data",
 					"identifier", hardwareUUID,
 					"host_id", enrolledHostInfo.ID,
 				)
@@ -3240,7 +3248,8 @@ func (ds *Datastore) MarkHostsSeen(ctx context.Context, hostIDs []uint, t time.T
 			insertArgs = append(insertArgs, hostID, t)
 		}
 		insertValues := strings.TrimSuffix(strings.Repeat("(?, ?),", len(hostIDs)), ",")
-		query := fmt.Sprintf(`
+		query := fmt.Sprintf(
+			`
 			INSERT INTO host_seen_times (host_id, seen_time) VALUES %s
 			ON DUPLICATE KEY UPDATE seen_time = VALUES(seen_time)`,
 			insertValues,
@@ -3377,7 +3386,8 @@ func (ds *Datastore) HostIDsByIdentifier(ctx context.Context, filter fleet.TeamF
 		return []uint{}, nil
 	}
 
-	sqlStatement := fmt.Sprintf(`
+	sqlStatement := fmt.Sprintf(
+		`
 			SELECT
 				DISTINCT id FROM hosts
 			WHERE
@@ -3408,7 +3418,8 @@ func (ds *Datastore) ListHostsLiteByUUIDs(ctx context.Context, filter fleet.Team
 		return nil, nil
 	}
 
-	stmt := fmt.Sprintf(`
+	stmt := fmt.Sprintf(
+		`
 SELECT
 	h.id,
 	h.created_at,
@@ -4095,17 +4106,6 @@ func (ds *Datastore) CleanupExpiredHosts(ctx context.Context) ([]fleet.DeletedHo
 		err = ds.DeleteHost(ctx, id)
 		if err != nil {
 			return nil, err
-		}
-	}
-
-	if len(allIdsToDelete) > 0 {
-		sqlQuery, args, err := sqlx.In(`DELETE FROM host_seen_times WHERE host_id in (?)`, allIdsToDelete)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "building query to delete host seen times")
-		}
-		_, err = ds.writer(ctx).ExecContext(ctx, sqlQuery, args...)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "deleting expired host seen times")
 		}
 	}
 
@@ -5140,7 +5140,8 @@ func (ds *Datastore) SetOrUpdateHostDisksSpace(ctx context.Context, hostID uint,
 		GigsTotal        float64  `db:"gigs_total_disk_space"`
 		GigsAll          *float64 `db:"gigs_all_disk_space"`
 	}
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &current,
+	err := sqlx.GetContext(
+		ctx, ds.reader(ctx), &current,
 		`SELECT gigs_disk_space_available, percent_disk_space_available, gigs_total_disk_space, gigs_all_disk_space FROM host_disks WHERE host_id = ?`,
 		hostID,
 	)
@@ -5174,7 +5175,8 @@ func (ds *Datastore) SetOrUpdateHostDisksEncryption(ctx context.Context, hostID 
 	// The recorded protection error is cleared in the same statement once it stops being true: either the host reports
 	// protection back on, or it reports the volume is no longer encrypted, which makes "could not restore protection"
 	// meaningless.
-	_, err := ds.writer(ctx).ExecContext(ctx, `
+	_, err := ds.writer(ctx).ExecContext(
+		ctx, `
 		INSERT INTO host_disks (host_id, encrypted, bitlocker_protection_status)
 		VALUES (?, ?, ?)
 		ON DUPLICATE KEY UPDATE
@@ -5228,7 +5230,8 @@ func (ds *Datastore) SetOrUpdateHostOrbitInfo(
 		DesktopVersion sql.NullString `db:"desktop_version"`
 		ScriptsEnabled sql.NullBool   `db:"scripts_enabled"`
 	}
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &current,
+	err := sqlx.GetContext(
+		ctx, ds.reader(ctx), &current,
 		`SELECT version, desktop_version, scripts_enabled FROM host_orbit_info WHERE host_id = ?`,
 		hostID,
 	)
@@ -5366,7 +5369,8 @@ func (ds *Datastore) GetHostManagedAppleID(ctx context.Context, hostID uint) (st
 }
 
 func (ds *Datastore) SetHostManagedAppleID(ctx context.Context, hostID uint, managedAppleID string) error {
-	res, err := ds.writer(ctx).ExecContext(ctx,
+	res, err := ds.writer(ctx).ExecContext(
+		ctx,
 		`UPDATE host_mdm SET managed_apple_id = ? WHERE host_id = ?`,
 		managedAppleID, hostID,
 	)
@@ -5696,7 +5700,8 @@ func (ds *Datastore) generateAggregatedMunkiVersion(ctx context.Context, teamID 
 		return ctxerr.Wrap(ctx, err, "marshaling stats")
 	}
 
-	_, err = ds.writer(ctx).ExecContext(ctx,
+	_, err = ds.writer(ctx).ExecContext(
+		ctx,
 		`
 INSERT INTO aggregated_stats (id, global_stats, type, json_value)
 VALUES (?, ?, ?, ?)
@@ -5813,7 +5818,8 @@ func (ds *Datastore) generateAggregatedMDMStatus(ctx context.Context, teamID *ui
 		return ctxerr.Wrap(ctx, err, "marshaling stats")
 	}
 
-	_, err = ds.writer(ctx).ExecContext(ctx,
+	_, err = ds.writer(ctx).ExecContext(
+		ctx,
 		`
 INSERT INTO aggregated_stats (id, global_stats, type, json_value)
 VALUES (?, ?, ?, ?)
@@ -5877,7 +5883,8 @@ func (ds *Datastore) generateAggregatedMDMSolutions(ctx context.Context, teamID 
 		return ctxerr.Wrap(ctx, err, "marshaling stats")
 	}
 
-	_, err = ds.writer(ctx).ExecContext(ctx,
+	_, err = ds.writer(ctx).ExecContext(
+		ctx,
 		`
 INSERT INTO aggregated_stats (id, global_stats, type, json_value)
 VALUES (?, ?, ?, ?)
@@ -5945,7 +5952,8 @@ func (ds *Datastore) UpdateHostOsqueryIntervals(ctx context.Context, id uint, in
 			logger_tls_period = ?
 		WHERE id = ?
 	`
-	_, err := ds.writer(ctx).ExecContext(ctx, sqlStatement,
+	_, err := ds.writer(ctx).ExecContext(
+		ctx, sqlStatement,
 		intervals.DistributedInterval,
 		intervals.ConfigTLSRefresh,
 		intervals.LoggerTLSPeriod,
@@ -6423,7 +6431,8 @@ func (ds *Datastore) HostIDsByOSID(
 	stmt := dialect.From("host_operating_system").
 		Select("host_id").
 		Where(
-			goqu.C("os_id").Eq(osID)).
+			goqu.C("os_id").Eq(osID),
+		).
 		Order(goqu.I("host_id").Desc()).
 		Offset(uint(offset)).
 		Limit(uint(limit))
@@ -6453,7 +6462,8 @@ func (ds *Datastore) HostIDsByOSVersion(
 		Select("id").
 		Where(
 			goqu.C("platform").Eq(osVersion.Platform),
-			goqu.C("os_version").Eq(osVersion.Name)).
+			goqu.C("os_version").Eq(osVersion.Name),
+		).
 		Order(goqu.I("id").Desc()).
 		Offset(uint(offset)).
 		Limit(uint(limit))
