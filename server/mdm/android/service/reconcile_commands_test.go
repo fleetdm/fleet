@@ -117,6 +117,31 @@ func TestReconcileAndroidCommands(t *testing.T) {
 		}
 	})
 
+	t.Run("newPassword is redacted from raw_result metadata", func(t *testing.T) {
+		cmd := pendingCommandForReconcile("cmd-redact", string(android.MDMAndroidCommandTypeResetPassword), 48*time.Hour)
+		mockDS, client, logger := newReconcileFixture(t, cmd)
+		client.EnterprisesDevicesOperationsGetFunc = func(ctx context.Context, operationName string) (*androidmanagement.Operation, error) {
+			return &androidmanagement.Operation{
+				Name: operationName,
+				Done: true,
+				Metadata: []byte(`{"@type":"type.googleapis.com/google.android.devicemanagement.v1.Command","type":"RESET_PASSWORD","newPassword":"s3cret!","userName":"enterprises/E/users/U"}`),
+			}, nil
+		}
+		var gotRawResult *string
+		mockDS.UpdateMDMAndroidCommandStatusFunc = func(ctx context.Context, commandUUID, status string, errorCode, errorMessage, rawResult *string) error {
+			gotRawResult = rawResult
+			return nil
+		}
+
+		require.NoError(t, reconcileAndroidCommands(t.Context(), &mockDS.DataStore, client, logger, noopNewActivity, reconcileNow, reconcileTestCallInterval))
+
+		require.True(t, mockDS.UpdateMDMAndroidCommandStatusFuncInvoked)
+		require.NotNil(t, gotRawResult)
+		require.NotContains(t, *gotRawResult, "s3cret!", "newPassword value must not appear in raw_result")
+		require.NotContains(t, *gotRawResult, "newPassword", "newPassword key must not appear in raw_result")
+		require.Contains(t, *gotRawResult, "RESET_PASSWORD", "other metadata fields should be preserved")
+	})
+
 	t.Run("operation still running is left pending", func(t *testing.T) {
 		cmd := pendingCommandForReconcile("cmd-running", string(android.MDMAndroidCommandTypeWipe), 48*time.Hour)
 		mockDS, client, logger := newReconcileFixture(t, cmd)

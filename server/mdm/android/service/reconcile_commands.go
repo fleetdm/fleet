@@ -158,6 +158,7 @@ func reconcileAndroidCommands(ctx context.Context, ds fleet.Datastore, client an
 
 		default:
 			status, errCode, errMsg := androidOperationTerminalState(op)
+			redactOperationSensitiveFields(op)
 			var rawResult *string
 			if resultJSON, err := json.Marshal(op); err == nil {
 				s := string(resultJSON)
