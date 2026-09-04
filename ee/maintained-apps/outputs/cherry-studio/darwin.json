@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "2.0.11",
+      "version": "2.0.12",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.kangfenmao.CherryStudio';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.kangfenmao.CherryStudio' AND version_compare(bundle_short_version, '2.0.11') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.kangfenmao.CherryStudio' AND version_compare(bundle_short_version, '2.0.12') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.kangfenmao.CherryStudio' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/CherryHQ/cherry-studio/releases/download/v2.0.11/Cherry-Studio-2.0.11-mac-arm64.dmg",
+      "installer_url": "https://github.com/CherryHQ/cherry-studio/releases/download/v2.0.12/Cherry-Studio-2.0.12-mac-arm64.dmg",
       "install_script_ref": "31529318",
       "uninstall_script_ref": "4e2b7fe0",
-      "sha256": "5117ae19d1228ad9ecab4b051963864740c4e8886a5537966603b9d2640188c0",
+      "sha256": "d1cfadb5bd4087b2ae64b922d791fab538b3de40f448e8c3a47dce2c1fc38da8",
       "default_categories": [
         "Developer tools"
       ]
