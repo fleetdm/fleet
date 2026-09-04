@@ -59,9 +59,9 @@ type StatisticsPayload struct {
 	// configuration has value set for integrations.google_calendar[0].domain
 	// configuration has value set for integrations.google_calendar[0].api_key_json
 	MaintenanceWindowsConfigured bool `json:"maintenanceWindowsConfigured"`
-	// GoogleWorkspaceConfigured is true when a Google Workspace IdP integration is
+	// IDPGoogleWorkspaceConfigured is true when a Google Workspace IdP integration is
 	// configured (integrations.google_workspace[0] has a domain and service account).
-	GoogleWorkspaceConfigured bool `json:"googleWorkspaceConfigured"`
+	IDPGoogleWorkspaceConfigured bool `json:"idpGoogleWorkspaceConfigured"`
 	// The number of hosts with Fleet desktop installed.
 	NumHostsFleetDesktopEnabled int `json:"numHostsFleetDesktopEnabled"`
 	// FleetMaintainedAppsMacOS is an array of Fleet-maintained app slugs being used on macOS
@@ -99,6 +99,34 @@ type StatisticsPayload struct {
 	NumMDMAppleDeclarations int `json:"numMDMAppleDeclarations"`
 	// NumMDMAndroidProfiles is the number of Android configuration profiles defined across all teams
 	NumMDMAndroidProfiles int `json:"numMDMAndroidProfiles"`
+
+	// The *LogDestination fields are the configured server-side log plugins
+	// (osquery.result_log_plugin, osquery.status_log_plugin, activity.audit_log_plugin),
+	// e.g. "filesystem" or "firehose". They come from the server config, not the app config.
+	ResultLogDestination string `json:"resultLogDestination"`
+	StatusLogDestination string `json:"statusLogDestination"`
+	AuditLogDestination  string `json:"auditLogDestination"`
+
+	AnyVulnerabilitiesWebhookEnabled bool `json:"anyVulnerabilitiesWebhookEnabled"`
+	// The Any* webhook flags are true when the webhook is enabled globally or on any fleet,
+	// including "No team".
+	AnyFailingPoliciesWebhookEnabled bool `json:"anyFailingPoliciesWebhookEnabled"`
+	AnyHostActivitiesWebhookEnabled  bool `json:"anyHostActivitiesWebhookEnabled"`
+	GlobalActivityWebhookEnabled     bool `json:"globalActivityWebhookEnabled"`
+
+	// A ticket destination is "configured" when a Jira or Zendesk integration exists in the global
+	// config; fleet-level entries only toggle an already-configured destination.
+	TicketDestinationConfigured bool `json:"ticketDestinationConfigured"`
+	// SSOConfiguredFleetUsers covers logging in to Fleet; SSOConfiguredEndUsers covers end user
+	// authentication during MDM enrollment.
+	SSOConfiguredFleetUsers bool `json:"ssoConfiguredFleetUsers"`
+	SSOConfiguredEndUsers   bool `json:"ssoConfiguredEndUsers"`
+	// Apple account provisioning (Platform SSO).
+	AccountProvisioningConfigured bool `json:"accountProvisioningConfigured"`
+	// IDPSCIMConfigured is true once Fleet has received a SCIM request, the same signal the IdP
+	// settings page uses to report the connection.
+	IDPSCIMConfigured              bool `json:"idpSCIMConfigured"`
+	CertificateAuthorityConfigured bool `json:"certificateAuthorityConfigured"`
 }
 
 type HostsCountByOrbitVersion struct {
