@@ -6,7 +6,7 @@
 
 In Fleet you can add variables in [scripts](https://fleetdm.com/guides/scripts), [configuration profiles](https://fleetdm.com/guides/custom-os-settings), and [host name templates](https://fleetdm.com/guides/rename-hosts-with-a-naming-template). In scripts and configuration profiles, variables are hidden when viewed in the Fleet UI or API. In a host name template, a variable's value becomes the host's name in Fleet and on the device, so it isn't hidden.
 
-Configuration profiles can also use any of Fleet's [built-in variables](https://fleetdm.com/guides/fleet-variables).
+Scripts and configuration profiles can also use any of Fleet's [built-in variables](https://fleetdm.com/guides/fleet-variables).
 
 Script-only packages (.sh, .ps1, .py) also support custom variables (`$FLEET_SECRET_*`). Fleet replaces them with their values when the install script is sent to the host.
 
@@ -41,6 +41,8 @@ Variables are global, meaning they can be used in scripts, configuration profile
       ### Variables to upload to Fleet for use in scripts and profiles. Any variable
       FLEET_SECRET_EXAMPLE_API_TOKEN: ${{ secrets.FLEET_SECRET_EXAMPLE_API_TOKEN }}
 ```
+
+> For GitLab, this typically goes in the `.gitlab-ci.yml` file, and uses `variables:` rather than `env:`.
 
 ### Scripts and configuration profiles
 

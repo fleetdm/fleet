@@ -183,16 +183,32 @@ type HostScriptRequestPayload struct {
 	// SetupExperienceScriptID is the ID of the setup experience script related to this request
 	// payload, if such a script exists.
 	SetupExperienceScriptID *uint `json:"-"`
+	// DeferActivation enqueues the upcoming activity without activating it;
+	// the activity stays invisible to the host until the fleet-initiated
+	// release cron activates it within the configured per-minute budget. Set
+	// by policy-automation paths when activity.fleet_initiated_release_per_minute > 0.
+	DeferActivation bool `json:"-"`
+}
+
+// IsFleetInitiated returns true if the script execution is initiated by Fleet
+// (via a policy automation) rather than by a person.
+func (r HostScriptRequestPayload) IsFleetInitiated() bool {
+	return r.PolicyID != nil
 }
 
 // Priority returns the priority to assign to this activity in the upcoming
-// activities queue. It is the default priority except when the script is part
-// of the setup experience flow.
+// activities queue. Setup experience outranks everything; user-initiated
+// scripts outrank Fleet-initiated ones so they are never queued behind
+// deferred policy-automation activities.
 func (r HostScriptRequestPayload) Priority() int {
-	if r.SetupExperienceScriptID != nil {
-		return 100
+	switch {
+	case r.SetupExperienceScriptID != nil:
+		return SetupExperienceActivityPriority
+	case !r.IsFleetInitiated():
+		return UserInitiatedActivityPriority
+	default:
+		return 0
 	}
-	return 0
 }
 
 func (r HostScriptRequestPayload) ValidateParams(waitForResult time.Duration) error {
@@ -641,13 +657,16 @@ type SoftwareInstallerPayload struct {
 	PreInstallQuery string `json:"pre_install_query"` //nolint:apiparamcheck // SQL precondition for install
 	// InstallScript is the script to run after downloading the installer. For script
 	// packages via "script://" URL, this contains the package content itself.
-	InstallScript      string `json:"install_script"`
-	UninstallScript    string `json:"uninstall_script"`
-	PostInstallScript  string `json:"post_install_script"`
-	SelfService        bool   `json:"self_service"`
-	FleetMaintained    bool   `json:"-"`
-	Filename           string `json:"-"`
-	InstallDuringSetup *bool  `json:"install_during_setup"` // if nil, do not change saved value, otherwise set it
+	InstallScript     string `json:"install_script"`
+	UninstallScript   string `json:"uninstall_script"`
+	PostInstallScript string `json:"post_install_script"`
+	SelfService       bool   `json:"self_service"`
+	FleetMaintained   bool   `json:"-"`
+	// set from whether this request spelled out a script, not from the API
+	InstallScriptEdited   bool   `json:"-"`
+	UninstallScriptEdited bool   `json:"-"`
+	Filename              string `json:"-"`
+	InstallDuringSetup    *bool  `json:"install_during_setup"` // if nil, do not change saved value, otherwise set it
 	// SetupExperiencePlatforms carries non-native cross-platform setup
 	// experience selections. Nil means "no change"; an empty slice clears
 	// all cross-platform selections for this installer.

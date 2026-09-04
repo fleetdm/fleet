@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "4.3.7",
+      "version": "4.3.13",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'dignicy.extraDock';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'dignicy.extraDock' AND version_compare(bundle_short_version, '4.3.7') < 0);",
-        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'dignicy.extraDock');"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'dignicy.extraDock' AND version_compare(bundle_short_version, '4.3.13') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'dignicy.extraDock' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/AppitStudio/extra-dock-updates/releases/download/v4.3.7/extraDock.dmg",
+      "installer_url": "https://github.com/AppitStudio/extra-dock-updates/releases/download/v4.3.13/extraDock.dmg",
       "install_script_ref": "faf78276",
       "uninstall_script_ref": "40adcc1a",
-      "sha256": "d0d735a64e15f66396700e20103a2ec6273584f0580dab92786f5a5d4d759095",
+      "sha256": "2d308c67d7291bf5c6cfa7d322cce7cbc4bb960d350178ca05f0abd1d062dd6a",
       "default_categories": [
         "Productivity"
       ]

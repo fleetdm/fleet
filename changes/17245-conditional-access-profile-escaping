@@ -1,0 +1,1 @@
+* Escaped values interpolated into the conditional access Apple configuration profile so a value containing markup is carried as literal text.

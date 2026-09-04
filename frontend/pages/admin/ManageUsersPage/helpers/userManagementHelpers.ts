@@ -1,8 +1,10 @@
 import { isEqual } from "lodash";
 
 import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
+import { IApiError } from "interfaces/errors";
 import { IInvite } from "interfaces/invite";
 import { IUser, IUpdateUserFormData } from "interfaces/user";
+import { IFormErrors } from "hooks/useFormValidation";
 import { IUserFormData } from "../components/UserForm/UserForm";
 
 type ICurrentUserData = Pick<
@@ -91,7 +93,36 @@ export const roleOptions = ({
   return roles;
 };
 
+/**
+ * Maps a users/invites API failure to inline field errors, or null when the
+ * failure isn't field-specific and belongs in a toast instead.
+ */
+export const getUserFieldErrors = (userErrors: {
+  data: IApiError;
+}): IFormErrors | null => {
+  const reason = userErrors.data.errors?.[0]?.reason ?? "";
+
+  // Check the invite-specific wording first: it also contains "already exists".
+  if (
+    reason.includes("already invited") ||
+    (reason.includes("Invite") && reason.includes("already exists"))
+  ) {
+    return { email: "Enter an email that hasn't already been invited" };
+  }
+  if (reason.includes("already exists") || reason.includes("Duplicate")) {
+    return { email: "Enter an email that isn't already in use" };
+  }
+  if (reason.includes("required criteria")) {
+    return { password: "Enter a password that meets the requirements below" };
+  }
+  if (reason.includes("password too long")) {
+    return { password: "Enter a password with 48 characters or fewer" };
+  }
+  return null;
+};
+
 export default {
   generateUpdateData,
   roleOptions,
+  getUserFieldErrors,
 };

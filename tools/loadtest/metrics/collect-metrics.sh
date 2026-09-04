@@ -10,6 +10,8 @@
 #   -i, --interval RANGE  Lookback interval. Accepts <N>h, <N>m, or a bare integer (treated as hours). Default: 3h
 #   -c, --category CAT    Run category for filing output: baseline | migration | mdm.
 #                         Files output under runs/<category>/<workspace>/. Omit to use runs/<workspace>/.
+#   -n, --note TEXT       Free-form note about this collection (e.g. what was being exercised).
+#                         Embedded as metadata.note; omitted from the JSON when not given.
 #   -o, --output FILE     Output file path (default: runs/[<category>/]<workspace>/<workspace>-<date>Z-<interval>.json)
 #   -r, --region REGION   AWS region (default: us-east-2)
 #   -h, --help            Show this help message
@@ -29,7 +31,7 @@ for cmd in aws jq; do
 done
 
 usage() {
-  sed -n '3,15p' "$0" | sed 's/^# \?//'
+  sed -n '3,17p' "$0" | sed 's/^# \?//'
   exit "${1:-0}"
 }
 
@@ -41,12 +43,14 @@ OUTPUT=""
 REGION="us-east-2"
 INTERVAL_INPUT="3h"
 CATEGORY=""
+NOTE=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     -w|--workspace)  WORKSPACE="$2"; shift 2 ;;
     -i|--interval)   INTERVAL_INPUT="$2"; shift 2 ;;
     -c|--category)   CATEGORY="$2"; shift 2 ;;
+    -n|--note)       NOTE="$2"; shift 2 ;;
     -o|--output)     OUTPUT="$2"; shift 2 ;;
     -r|--region)     REGION="$2"; shift 2 ;;
     -h|--help)       usage 0 ;;
@@ -73,6 +77,20 @@ if [[ -n "$CATEGORY" ]]; then
     baseline|migration|mdm) ;;
     *) echo "Error: --category must be one of: baseline, migration, mdm. Got: '$CATEGORY'" >&2; exit 1 ;;
   esac
+fi
+
+# The note is free-form prose, but it is embedded in JSON that gets committed and
+# rendered in the dashboard, so reject control characters (newlines included) and
+# cap the length to keep runs greppable and the run list legible.
+if [[ -n "$NOTE" ]]; then
+  if [[ "$NOTE" == *$'\n'* || "$NOTE" =~ [[:cntrl:]] ]]; then
+    echo "Error: --note must be a single line without control characters." >&2
+    exit 1
+  fi
+  if [[ "${#NOTE}" -gt 500 ]]; then
+    echo "Error: --note must be 500 characters or fewer (got ${#NOTE})." >&2
+    exit 1
+  fi
 fi
 
 # Parse interval: accept "<N>h", "<N>m", or a bare integer (interpreted as hours).
@@ -175,19 +193,22 @@ ECS_SERVICE_ARNS=$(echo "$ECS_SERVICES_JSON" | jq -r '.serviceArns[]')
 
 FLEET_SERVICE=""
 OSQUERY_PERF_SERVICE=""
+APNS_MOCK_SERVICE=""
 LOADTEST_SERVICES=()
 
 for arn in $ECS_SERVICE_ARNS; do
   svc=$(basename "$arn")
   case "$svc" in
-    fleet)          FLEET_SERVICE="$svc" ;;
-    osquery_perf)   OSQUERY_PERF_SERVICE="$svc" ;;
-    loadtest-*)     LOADTEST_SERVICES+=("$svc") ;;
+    fleet)               FLEET_SERVICE="$svc" ;;
+    osquery_perf)        OSQUERY_PERF_SERVICE="$svc" ;;
+    *apple-apns-mock)    APNS_MOCK_SERVICE="$svc" ;;
+    loadtest-*)          LOADTEST_SERVICES+=("$svc") ;;
   esac
 done
 
 echo "  Fleet Service: ${FLEET_SERVICE:-<not found>}"
 echo "  osquery-perf Service: ${OSQUERY_PERF_SERVICE:-<not found>}"
+echo "  apns-mock Service: ${APNS_MOCK_SERVICE:-<not found>}"
 echo "  Loadtest Services: ${#LOADTEST_SERVICES[@]} found"
 
 # RDS — try both naming patterns
@@ -256,6 +277,24 @@ if [[ -n "$REDIS_REPLICATION_GROUP" ]]; then
   echo "  Redis Nodes: ${REDIS_NODE_IDS[*]:-<none>}"
 fi
 
+# The mock APNs server runs its own ElastiCache rather than sharing Fleet's, so
+# a full-fleet push wave does not perturb the system under test. Only exists
+# when the deployment enabled Apple MDM.
+APNS_REDIS_REPLICATION_GROUP=""
+if aws elasticache describe-replication-groups --replication-group-id "${PREFIX}-apns-mock" --region "$REGION" \
+     --query "ReplicationGroups[0].ReplicationGroupId" --output text 2>/dev/null | grep -q .; then
+  APNS_REDIS_REPLICATION_GROUP="${PREFIX}-apns-mock"
+fi
+
+APNS_REDIS_NODE_IDS=()
+if [[ -n "$APNS_REDIS_REPLICATION_GROUP" ]]; then
+  while IFS= read -r nid; do
+    [[ -n "$nid" ]] && APNS_REDIS_NODE_IDS+=("$nid")
+  done < <(aws elasticache describe-replication-groups --replication-group-id "$APNS_REDIS_REPLICATION_GROUP" --region "$REGION" \
+    --query "ReplicationGroups[0].MemberClusters[]" --output json 2>/dev/null | jq -r '.[]')
+fi
+echo "  apns-mock Redis: ${APNS_REDIS_REPLICATION_GROUP:-<not found>} (${APNS_REDIS_NODE_IDS[*]:-<none>})"
+
 # ALB discovery
 ALB_ARN_SUFFIX=""
 ALB_TG_ARN_SUFFIX=""
@@ -264,7 +303,7 @@ ALB_ARN=$(aws elbv2 describe-load-balancers --region "$REGION" --output json 2>/
   | head -1)
 if [[ -n "$ALB_ARN" ]]; then
   # Extract the suffix after "app/" for CloudWatch dimensions
-  ALB_ARN_SUFFIX=$(echo "$ALB_ARN" | grep -o 'app/.*')
+  ALB_ARN_SUFFIX=$(echo "$ALB_ARN" | grep -o '\(app\|net\)/.*')
   echo "  ALB: $ALB_ARN_SUFFIX"
 
   # Find the target group for the fleet service
@@ -393,6 +432,91 @@ collect_ecs_utilization() {
         data_coverage: (length / $max_points * 100 | round / 100)
       }
     else null end'
+}
+
+# collect_ecs_per_task <cluster> <service> <utilized_metric> <reserved_metric>
+# Container Insights emits one datapoint per task per period, so at the service
+# dimension Average is the mean task and Maximum is the hottest. Both divided by
+# the per-task reservation give the spread across containers, which the
+# service-wide Sum/Sum figure in collect_ecs_utilization averages away. A large
+# spread means the load balancer is not distributing evenly.
+collect_ecs_per_task() {
+  local cluster="$1" service="$2" util_metric="$3" resv_metric="$4"
+  local dims="Name=ClusterName,Value=$cluster Name=ServiceName,Value=$service"
+
+  local util_raw resv_raw
+  util_raw=$(get_metric "ECS/ContainerInsights" "$util_metric" "$dims" 300 Average Maximum)
+  resv_raw=$(get_metric "ECS/ContainerInsights" "$resv_metric" "$dims" 300 Average)
+
+  jq -n --argjson util "$util_raw" --argjson resv "$resv_raw" '
+    ([($resv.Datapoints // [])[].Average] | if length > 0 then (add / length) else null end) as $reserved |
+    [($util.Datapoints // [])[].Average] as $avgs |
+    [($util.Datapoints // [])[].Maximum] as $maxs |
+    if $reserved == null or $reserved <= 0 or ($avgs | length) == 0 then null
+    else
+      (($avgs | add / length) / $reserved * 100) as $a |
+      (($maxs | max) / $reserved * 100) as $m |
+      {
+        avg_pct: ($a * 100 | round / 100),
+        max_pct: ($m * 100 | round / 100),
+        spread_pct: (($m - $a) * 100 | round / 100)
+      }
+    end'
+}
+
+# collect_service_health <cluster> <service>
+# Abnormal stops and start spread scoped to one service. Unlike the
+# cluster-wide loadtest check further down, this filters by service so a
+# restart elsewhere in the cluster is not attributed here.
+collect_service_health() {
+  local cluster="$1" service="$2"
+  local stopped stopped_arns details abnormal=0
+
+  stopped=$(aws ecs list-tasks --cluster "$cluster" --service-name "$service" --desired-status STOPPED \
+    --region "$REGION" --output json 2>/dev/null || echo '{"taskArns":[]}')
+  stopped_arns=$(echo "$stopped" | jq -r '.taskArns[]' | head -50)
+
+  if [[ -n "$stopped_arns" ]]; then
+    details=$(aws ecs describe-tasks --cluster "$cluster" --tasks $stopped_arns \
+      --region "$REGION" --output json 2>/dev/null || echo '{"tasks":[]}')
+    # Both sides are truncated to whole seconds so the CLI's fractional-offset
+    # timestamps compare correctly against START_TIME/END_TIME.
+    abnormal=$(echo "$details" | jq --arg s "$START_TIME" --arg e "$END_TIME" '
+      [.tasks[] | select(.stoppedAt)
+        | select((.stoppedAt | .[0:19]) >= ($s | .[0:19]))
+        | select((.stoppedAt | .[0:19]) <= ($e | .[0:19]))
+        | select([.containers[]? | select(.exitCode > 0)] | length > 0)] | length')
+  fi
+
+  local running running_arns
+  running=$(aws ecs list-tasks --cluster "$cluster" --service-name "$service" --desired-status RUNNING \
+    --region "$REGION" --output json 2>/dev/null || echo '{"taskArns":[]}')
+  running_arns=$(echo "$running" | jq -r '.taskArns[]')
+
+  details='{"tasks":[]}'
+  if [[ -n "$running_arns" ]]; then
+    details=$(aws ecs describe-tasks --cluster "$cluster" --tasks $running_arns \
+      --region "$REGION" --output json 2>/dev/null || echo '{"tasks":[]}')
+  fi
+
+  echo "$details" | jq --arg now "$TIMESTAMP" --argjson abnormal "${abnormal:-0}" '
+    [.tasks[] | select(.startedAt) | {
+      task_id: (.taskArn | split("/") | last),
+      started_at: .startedAt,
+      uptime_min: ((($now | .[0:19] | strptime("%Y-%m-%dT%H:%M:%S") | mktime) -
+                    (.startedAt | .[0:19] | strptime("%Y-%m-%dT%H:%M:%S") | mktime)) / 60
+                   | . * 100 | round / 100)
+    }] | sort_by(.started_at) as $tasks |
+    (if ($tasks | length) > 1
+     then (($tasks | first.uptime_min) - ($tasks | last.uptime_min)) * 100 | round / 100
+     else 0 end) as $spread |
+    {
+      abnormal_stops: $abnormal,
+      running_tasks: ($tasks | length),
+      start_spread_min: $spread,
+      start_spread_alert: ($spread > 10),
+      tasks: $tasks
+    }' 2>/dev/null || echo '{"abnormal_stops": null, "running_tasks": null}'
 }
 
 # ---------------------------------------------------------------------------
@@ -531,6 +655,72 @@ elif [[ ${#LOADTEST_SERVICES[@]} -gt 0 ]]; then
     --arg desired "$lt_desired" \
     --arg count "${#LOADTEST_SERVICES[@]}" \
     '{cpu_utilization: $cpu, memory_utilization: $mem, task_counts: {runningCount: ($running|tonumber), desiredCount: ($desired|tonumber), serviceCount: ($count|tonumber)}}')
+fi
+
+# ---------------------------------------------------------------------------
+# Collect ECS apple-apns-mock metrics
+#
+# The service only exists when the deployment enabled Apple MDM, so an empty
+# object here means "not deployed", not "collection failed".
+#
+# The mock scales horizontally (var.apple_apns_mock_instance_count), so
+# cpu_utilization/memory_utilization are Sum(Utilized)/Sum(Reserved) across
+# every running task -- the service-wide average. per_task carries the mean and
+# hottest single task alongside it, because one saturated container behind a
+# healthy-looking average still drops the SSE streams it holds.
+# ---------------------------------------------------------------------------
+APNS_MOCK_METRICS="{}"
+if [[ -n "$APNS_MOCK_SERVICE" ]]; then
+  echo "  apns-mock: CPU Utilization (Container Insights)..."
+  apnsm_cpu=$(collect_ecs_utilization "$ECS_CLUSTER" "$APNS_MOCK_SERVICE" "CpuUtilized" "CpuReserved")
+
+  echo "  apns-mock: Memory Utilization (Container Insights)..."
+  apnsm_mem=$(collect_ecs_utilization "$ECS_CLUSTER" "$APNS_MOCK_SERVICE" "MemoryUtilized" "MemoryReserved")
+
+  echo "  apns-mock: Per-task CPU/Memory spread..."
+  apnsm_cpu_task=$(collect_ecs_per_task "$ECS_CLUSTER" "$APNS_MOCK_SERVICE" "CpuUtilized" "CpuReserved")
+  apnsm_mem_task=$(collect_ecs_per_task "$ECS_CLUSTER" "$APNS_MOCK_SERVICE" "MemoryUtilized" "MemoryReserved")
+
+  # Every SSE stream is a held connection, so network volume tracks the fan-out
+  # rather than the request count the ALB reports.
+  echo "  apns-mock: Network RX/TX (Container Insights)..."
+  apnsm_rx=$(collect_metric "ECS/ContainerInsights" "NetworkRxBytes" \
+    "Name=ClusterName,Value=$ECS_CLUSTER Name=ServiceName,Value=$APNS_MOCK_SERVICE" Sum Average)
+  apnsm_tx=$(collect_metric "ECS/ContainerInsights" "NetworkTxBytes" \
+    "Name=ClusterName,Value=$ECS_CLUSTER Name=ServiceName,Value=$APNS_MOCK_SERVICE" Sum Average)
+
+  apnsm_tasks=$(aws ecs describe-services --cluster "$ECS_CLUSTER" --services "$APNS_MOCK_SERVICE" --region "$REGION" \
+    --query "services[0].{runningCount:runningCount,desiredCount:desiredCount}" --output json 2>/dev/null || echo '{}')
+
+  # An OOM-killed task takes every stream it held with it, and the devices
+  # reconnect elsewhere, so a restart shows up as a step change in the
+  # remaining tasks rather than an obvious failure.
+  echo "  apns-mock: Container health..."
+  apnsm_health=$(collect_service_health "$ECS_CLUSTER" "$APNS_MOCK_SERVICE")
+
+  apnsm_running=$(echo "$apnsm_tasks" | jq -r '.runningCount // 0')
+  apnsm_stops=$(echo "$apnsm_health" | jq -r '.abnormal_stops // 0')
+  echo "  apns-mock: $apnsm_running running tasks, $apnsm_stops abnormal stops"
+
+  APNS_MOCK_METRICS=$(jq -n \
+    --argjson cpu "$apnsm_cpu" \
+    --argjson mem "$apnsm_mem" \
+    --argjson cpu_task "$apnsm_cpu_task" \
+    --argjson mem_task "$apnsm_mem_task" \
+    --argjson rx "$apnsm_rx" \
+    --argjson tx "$apnsm_tx" \
+    --argjson tasks "$apnsm_tasks" \
+    --argjson health "$apnsm_health" \
+    --arg service "$APNS_MOCK_SERVICE" \
+    '{
+      service: $service,
+      cpu_utilization: $cpu,
+      memory_utilization: $mem,
+      per_task: {cpu: $cpu_task, memory: $mem_task},
+      network: {network_rx_bytes: $rx, network_tx_bytes: $tx},
+      task_counts: $tasks,
+      container_health: $health
+    }')
 fi
 
 # ---------------------------------------------------------------------------
@@ -735,7 +925,7 @@ if [[ -n "$RDS_WRITER_DBI_RESOURCE_ID" ]]; then
     --identifier "$RDS_WRITER_DBI_RESOURCE_ID" \
     --start-time "$START_TIME" \
     --end-time "$END_TIME" \
-    --period-in-seconds 3600 \
+    --period-in-seconds 300 \
     --metric-queries '[{"Metric":"db.load.avg","GroupBy":{"Group":"db.sql_tokenized","Limit":5}}]' \
     --region "$REGION" \
     --output json 2>/dev/null || echo '{}')
@@ -757,7 +947,7 @@ if [[ ${#RDS_READER_DBI_RESOURCE_IDS[@]} -gt 0 ]]; then
       --identifier "$rid" \
       --start-time "$START_TIME" \
       --end-time "$END_TIME" \
-      --period-in-seconds 3600 \
+      --period-in-seconds 300 \
       --metric-queries '[{"Metric":"db.load.avg","GroupBy":{"Group":"db.sql_tokenized","Limit":5}}]' \
       --region "$REGION" \
       --output json 2>/dev/null || echo '{}')
@@ -835,6 +1025,85 @@ if [[ ${#REDIS_NODE_IDS[@]} -gt 0 ]]; then
   done
   REDIS_METRICS="$redis_arr"
   REDIS_EXT="$redis_ext_arr"
+fi
+
+# ---------------------------------------------------------------------------
+# Collect ElastiCache metrics for the mock APNs server's dedicated Redis
+#
+# Every push costs a SET plus a PUBLISH on the receiving instance and a GETDEL
+# on the instance holding the stream, and the announcement fans out to every
+# instance. Load here therefore tracks the push rate and the instance count,
+# not the connection count -- each mock task holds only one subscribe
+# connection plus a small command pool.
+# ---------------------------------------------------------------------------
+APNS_REDIS_METRICS="[]"
+if [[ ${#APNS_REDIS_NODE_IDS[@]} -gt 0 ]]; then
+  apns_redis_arr="[]"
+  apns_redis_idx=1
+  for node_id in "${APNS_REDIS_NODE_IDS[@]}"; do
+    apns_redis_label="apns-redis-${apns_redis_idx}"
+    echo "  $apns_redis_label: CPU, Memory, Connections, Items, Commands..."
+
+    # Redis executes commands on one thread, so EngineCPUUtilization saturates
+    # well before the host-level CPUUtilization does.
+    ar_cpu=$(collect_metric "AWS/ElastiCache" "EngineCPUUtilization" \
+      "Name=CacheClusterId,Value=$node_id" Average Maximum Minimum)
+
+    ar_mem=$(collect_metric "AWS/ElastiCache" "DatabaseMemoryUsagePercentage" \
+      "Name=CacheClusterId,Value=$node_id" Average Maximum Minimum)
+
+    ar_conns=$(collect_metric "AWS/ElastiCache" "CurrConnections" \
+      "Name=CacheClusterId,Value=$node_id" Average Maximum)
+
+    # Pending pushes waiting to be claimed, plus one stats key per instance.
+    # A rising floor means devices are not connecting to collect them.
+    ar_items=$(collect_metric "AWS/ElastiCache" "CurrItems" \
+      "Name=CacheClusterId,Value=$node_id" Average Maximum)
+
+    # Any eviction is a pending push silently dropped before its device
+    # reconnected, so this must stay at zero.
+    ar_evictions=$(collect_metric "AWS/ElastiCache" "Evictions" \
+      "Name=CacheClusterId,Value=$node_id" Sum Maximum)
+
+    # SET/GETDEL/INCR land in StringBasedCmds; PUBLISH/SUBSCRIBE in
+    # PubSubBasedCmds. Together they are the push throughput as Redis saw it.
+    ar_string_cmds=$(collect_metric "AWS/ElastiCache" "StringBasedCmds" \
+      "Name=CacheClusterId,Value=$node_id" Sum Average)
+
+    ar_pubsub_cmds=$(collect_metric "AWS/ElastiCache" "PubSubBasedCmds" \
+      "Name=CacheClusterId,Value=$node_id" Sum Average)
+
+    # Grows with the instance count: every announcement is delivered to every
+    # subscribed instance.
+    ar_net_out=$(collect_metric "AWS/ElastiCache" "NetworkBytesOut" \
+      "Name=CacheClusterId,Value=$node_id" Sum Average)
+
+    apns_node_obj=$(jq -n \
+      --arg node "$apns_redis_label" \
+      --argjson cpu "$ar_cpu" \
+      --argjson mem "$ar_mem" \
+      --argjson conns "$ar_conns" \
+      --argjson items "$ar_items" \
+      --argjson evictions "$ar_evictions" \
+      --argjson string_cmds "$ar_string_cmds" \
+      --argjson pubsub_cmds "$ar_pubsub_cmds" \
+      --argjson net_out "$ar_net_out" \
+      '{
+        node: $node,
+        cpu_utilization: $cpu,
+        memory_utilization: $mem,
+        curr_connections: $conns,
+        curr_items: $items,
+        evictions: $evictions,
+        string_based_cmds: $string_cmds,
+        pubsub_based_cmds: $pubsub_cmds,
+        network_bytes_out: $net_out
+      }')
+    apns_redis_arr=$(echo "$apns_redis_arr" | jq --argjson obj "$apns_node_obj" '. + [$obj]')
+
+    apns_redis_idx=$((apns_redis_idx + 1))
+  done
+  APNS_REDIS_METRICS="$apns_redis_arr"
 fi
 
 # ---------------------------------------------------------------------------
@@ -1228,15 +1497,18 @@ jq -n \
   --arg collected_at "$TIMESTAMP" \
   --arg region "$REGION" \
   --arg interval "${INTERVAL_LABEL}" \
+  --arg note "$NOTE" \
   --arg start_time "$START_TIME" \
   --arg end_time "$END_TIME" \
   --argjson fleet_server "$FLEET_SERVER_METRICS" \
   --argjson loadtest_containers "$LOADTEST_METRICS" \
+  --argjson apns_mock "$APNS_MOCK_METRICS" \
   --argjson rds_writer "$RDS_WRITER_METRICS" \
   --argjson rds_readers "$RDS_READER_METRICS" \
   --argjson rds_pi_writer "$RDS_PI_WRITER" \
   --argjson rds_pi_readers "$RDS_PI_READERS" \
   --argjson redis "$REDIS_METRICS" \
+  --argjson apns_mock_redis "$APNS_REDIS_METRICS" \
   --argjson alb "$ALB_METRICS" \
   --argjson fleet_server_errors "$LOGS_ERRORS" \
   --argjson rds_writer_ext "$RDS_WRITER_EXT" \
@@ -1245,15 +1517,18 @@ jq -n \
   --argjson network "$NETWORK_METRICS" \
   --argjson container_health "$CONTAINER_HEALTH" \
   '{
-    metadata: {
+    # note is only present when --note was passed, so un-annotated runs stay
+    # byte-identical to before.
+    metadata: ({
       workspace: $workspace,
       collected_at: $collected_at,
       region: $region,
       interval: $interval,
       time_window: {start: $start_time, end: $end_time}
-    },
+    } + (if $note == "" then {} else {note: $note} end)),
     fleet_server: $fleet_server,
     loadtest_containers: $loadtest_containers,
+    apns_mock: $apns_mock,
     rds_writer: $rds_writer,
     rds_readers: $rds_readers,
     rds_performance_insights: {
@@ -1261,6 +1536,7 @@ jq -n \
       readers: $rds_pi_readers
     },
     redis: $redis,
+    apns_mock_redis: $apns_mock_redis,
     alb: $alb,
     fleet_server_errors: $fleet_server_errors,
     rds_writer_extended: $rds_writer_ext,
@@ -1282,6 +1558,7 @@ echo ""
 echo "- **Collected:** ${TIMESTAMP}"
 echo "- **Interval:** ${INTERVAL_LABEL}"
 echo "- **Window:** ${START_TIME} to ${END_TIME}"
+[[ -n "$NOTE" ]] && echo "- **Note:** ${NOTE}"
 echo ""
 echo "## Summary (${INTERVAL_LABEL} averages)"
 echo ""
@@ -1300,6 +1577,49 @@ if jq -e '.loadtest_containers.task_counts' "$OUTPUT" >/dev/null 2>&1; then
   lt_mem_avg=$(jq -r '.loadtest_containers.memory_utilization.Average // "N/A"' "$OUTPUT")
   lt_running=$(jq -r '.loadtest_containers.task_counts.runningCount // "N/A"' "$OUTPUT")
   printf "Loadtest:      CPU=%s%%  Mem=%s%%  Containers=%s\n" "$lt_cpu_avg" "$lt_mem_avg" "$lt_running"
+fi
+
+if jq -e '.apns_mock.task_counts' "$OUTPUT" >/dev/null 2>&1; then
+  apnsm_cpu_avg=$(jq -r '.apns_mock.cpu_utilization.Average // "N/A"' "$OUTPUT")
+  apnsm_mem_avg=$(jq -r '.apns_mock.memory_utilization.Average // "N/A"' "$OUTPUT")
+  apnsm_running=$(jq -r '.apns_mock.task_counts.runningCount // "N/A"' "$OUTPUT")
+  printf "apns-mock:     CPU=%s%%  Mem=%s%%  Containers=%s  (averaged across containers)\n" \
+    "$apnsm_cpu_avg" "$apnsm_mem_avg" "$apnsm_running"
+
+  apnsm_tcpu_avg=$(jq -r '.apns_mock.per_task.cpu.avg_pct // "N/A"' "$OUTPUT")
+  apnsm_tcpu_max=$(jq -r '.apns_mock.per_task.cpu.max_pct // "N/A"' "$OUTPUT")
+  apnsm_tmem_avg=$(jq -r '.apns_mock.per_task.memory.avg_pct // "N/A"' "$OUTPUT")
+  apnsm_tmem_max=$(jq -r '.apns_mock.per_task.memory.max_pct // "N/A"' "$OUTPUT")
+  printf "               PerTask CPU avg=%s%% max=%s%%   Mem avg=%s%% max=%s%%\n" \
+    "$apnsm_tcpu_avg" "$apnsm_tcpu_max" "$apnsm_tmem_avg" "$apnsm_tmem_max"
+
+  apnsm_rx_mb=$(jq -r '.apns_mock.network.network_rx_bytes.Sum // "N/A" | if type == "number" then (. / 1048576 * 100 | round / 100 | tostring) + "MB" else . end' "$OUTPUT")
+  apnsm_tx_mb=$(jq -r '.apns_mock.network.network_tx_bytes.Sum // "N/A" | if type == "number" then (. / 1048576 * 100 | round / 100 | tostring) + "MB" else . end' "$OUTPUT")
+  apnsm_h_stops=$(jq -r '.apns_mock.container_health.abnormal_stops // 0' "$OUTPUT")
+  apnsm_h_spread=$(jq -r '.apns_mock.container_health.start_spread_min // "N/A"' "$OUTPUT")
+  printf "               RX=%s  TX=%s  AbnormalStops=%s  StartSpread=%smin" \
+    "$apnsm_rx_mb" "$apnsm_tx_mb" "$apnsm_h_stops" "$apnsm_h_spread"
+  if [[ "$(jq -r '.apns_mock.container_health.start_spread_alert // false' "$OUTPUT")" == "true" ]]; then
+    printf "  ⚠ STAGGERED STARTS"
+  fi
+  printf "\n"
+fi
+
+if jq -e '.apns_mock_redis[0].cpu_utilization' "$OUTPUT" >/dev/null 2>&1; then
+  ar_cpu_avg=$(jq -r '.apns_mock_redis[0].cpu_utilization.Average // "N/A"' "$OUTPUT")
+  ar_cpu_max=$(jq -r '.apns_mock_redis[0].cpu_utilization.Maximum // "N/A"' "$OUTPUT")
+  ar_mem_avg=$(jq -r '.apns_mock_redis[0].memory_utilization.Average // "N/A"' "$OUTPUT")
+  ar_conns_avg=$(jq -r '.apns_mock_redis[0].curr_connections.Average // "N/A"' "$OUTPUT")
+  ar_items_avg=$(jq -r '.apns_mock_redis[0].curr_items.Average // "N/A"' "$OUTPUT")
+  ar_evict=$(jq -r '.apns_mock_redis[0].evictions.Sum // 0' "$OUTPUT")
+  printf "apns Redis:    CPU=%s%% (max %s%%)  Mem=%s%%  Conns=%s  PendingItems=%s  Evictions=%s\n" \
+    "$ar_cpu_avg" "$ar_cpu_max" "$ar_mem_avg" "$ar_conns_avg" "$ar_items_avg" "$ar_evict"
+
+  ar_str_cmds=$(jq -r '.apns_mock_redis[0].string_based_cmds.Sum // "N/A"' "$OUTPUT")
+  ar_ps_cmds=$(jq -r '.apns_mock_redis[0].pubsub_based_cmds.Sum // "N/A"' "$OUTPUT")
+  ar_net_out=$(jq -r '.apns_mock_redis[0].network_bytes_out.Sum // "N/A" | if type == "number" then (. / 1048576 * 100 | round / 100 | tostring) + "MB" else . end' "$OUTPUT")
+  printf "               StringCmds=%s  PubSubCmds=%s  NetOut=%s\n" \
+    "$ar_str_cmds" "$ar_ps_cmds" "$ar_net_out"
 fi
 
 if jq -e '.rds_writer.cpu_utilization' "$OUTPUT" >/dev/null 2>&1; then
@@ -1419,6 +1739,15 @@ echo '```'
 #   Redis Memory              < 70% avg
 #   Loadtest CPU              < 90% avg
 #   Loadtest Memory           < 90% avg
+#   apns-mock CPU             < 90% avg (service-wide)
+#   apns-mock Memory          < 80% avg (service-wide)
+#   apns-mock hottest task CPU < 95%
+#   apns-mock hottest task Mem < 90%
+#   apns-mock Abnormal Stops   == 0
+#   apns-mock Start Spread    < 10 min
+#   apns-mock Redis CPU       < 80% avg
+#   apns-mock Redis Memory    < 70% avg
+#   apns-mock Redis Evictions  == 0
 #   Fleet Server Errors       == 0
 #   IOPS Utilization          < 80% avg
 #   Container Abnormal Stops   == 0
@@ -1462,6 +1791,25 @@ check_threshold "Redis CPU avg"            '.redis[0].cpu_utilization.Average'  
 check_threshold "Redis Memory avg"         '.redis[0].memory_utilization.Average'         lt 70
 check_threshold "Loadtest CPU avg"         '.loadtest_containers.cpu_utilization.Average'  lt 90
 check_threshold "Loadtest Memory avg"      '.loadtest_containers.memory_utilization.Average' lt 90
+
+# apns-mock — no-ops when the service was not deployed (check_threshold skips nulls).
+# Memory is held tighter than the loadtest containers: GOMEMLIMIT sits at 90% of the
+# task limit, and an OOM kill drops every open SSE stream at once.
+check_threshold "apns-mock CPU avg"        '.apns_mock.cpu_utilization.Average'            lt 90
+check_threshold "apns-mock Memory avg"     '.apns_mock.memory_utilization.Average'         lt 80
+
+# The service-wide averages above hide a single saturated container, which is
+# the failure that actually matters: it drops every SSE stream it was holding.
+check_threshold "apns-mock hottest task CPU"    '.apns_mock.per_task.cpu.max_pct'          lt 95
+check_threshold "apns-mock hottest task Memory" '.apns_mock.per_task.memory.max_pct'       lt 90
+check_threshold "apns-mock Abnormal Stops"      '.apns_mock.container_health.abnormal_stops'   eq 0
+check_threshold "apns-mock Start Spread (min)"  '.apns_mock.container_health.start_spread_min' lt 10
+
+# The mock's dedicated Redis. An eviction is a pending push dropped before its
+# device reconnected, so it is never acceptable.
+check_threshold "apns-mock Redis CPU avg"    '.apns_mock_redis[0].cpu_utilization.Average'    lt 80
+check_threshold "apns-mock Redis Memory avg" '.apns_mock_redis[0].memory_utilization.Average' lt 70
+check_threshold "apns-mock Redis Evictions"  '.apns_mock_redis[0].evictions.Sum'              eq 0
 
 # Check each reader
 for reader_label in $(jq -r '.rds_readers[].instance // empty' "$OUTPUT" 2>/dev/null); do

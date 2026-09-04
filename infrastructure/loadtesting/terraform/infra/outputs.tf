@@ -97,3 +97,13 @@ output "apple_apns_mock_hostname" {
   description = "Hostname the Apple APNs mock claims on the internal ALB, or null when var.enable_apple_mdm is false."
   value       = var.enable_apple_mdm ? local.apple_apns_mock_hostname : null
 }
+
+output "redis_endpoint" {
+  description = "Fleet's Redis endpoint. The mock APNs instances have their own; see apple_apns_mock_redis_endpoint."
+  value       = "${module.loadtest.redis.endpoint}:${module.loadtest.redis.port}"
+}
+
+output "apple_apns_mock_redis_endpoint" {
+  description = "Redis the mock APNs instances coordinate through, or null when var.enable_apple_mdm is false."
+  value       = var.enable_apple_mdm ? "${aws_elasticache_replication_group.apple_apns_mock[0].primary_endpoint_address}:6379" : null
+}

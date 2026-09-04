@@ -97,7 +97,7 @@ func TestWorldWritableFlag(t *testing.T) {
 	home := t.TempDir()
 	p := filepath.Join(home, "CLAUDE.md")
 	write(t, p, "rules", 0o666)
-	if err := os.Chmod(p, 0o666); err != nil { // #nosec G302 -- test fixture: intentionally world-writable to exercise world_writable detection
+	if err := os.Chmod(p, 0o666); err != nil { //nolint:gosec // test fixture: intentionally world-writable to exercise world_writable detection
 		t.Fatal(err)
 	}
 	for _, in := range Scan(homes.Home{Dir: home, Username: "t"}) {

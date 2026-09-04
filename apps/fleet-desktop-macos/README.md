@@ -128,6 +128,9 @@ apps/fleet-desktop-macos/
 │   ├── AuthenticationViewController+PSSO.swift        # Registration handler
 │   ├── AuthenticationViewController+Shared.swift      # Payload / key-ID / config helpers
 │   ├── AuthenticationViewController+Networking.swift  # URLSession against Fleet
+│   ├── AuthenticationViewController+UserRegistration.swift  # Interactive user registration (sign-in form → Fleet /token)
+│   ├── PSSOLoginRequest.swift                         # Device-signed login JWS + encrypted password assertion
+│   ├── RegistrationFormView.swift                     # Native username/password form
 │   ├── Info.plist                                     # appex metadata (NSExtension dict)
 │   └── FleetPSSOExtension.entitlements                # Extension entitlements
 ├── fleet-sso-extension-example.mobileconfig          # Example com.apple.extensiblesso profile

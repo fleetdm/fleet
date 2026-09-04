@@ -145,6 +145,9 @@ const DeployModal = ({
         savedAnyChange = true;
       }
 
+      if (savedAnyChange) {
+        notify.success("Successfully updated deploy options.");
+      }
       onSuccess();
       onExit();
     } catch (error) {

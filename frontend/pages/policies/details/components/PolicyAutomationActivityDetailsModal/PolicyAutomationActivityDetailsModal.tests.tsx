@@ -113,6 +113,32 @@ describe("PolicyAutomationActivityDetailsModal", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("explains a patch-when-closed skip instead of showing empty output sections", () => {
+    render(
+      <PolicyAutomationActivityDetailsModal
+        activity={{
+          ...failedSoftwareActivity,
+          details: {
+            policy_id: 123,
+            software_title: "1Password",
+            skipped_install: true,
+          },
+          output: null,
+          pre_install_output: "",
+        }}
+        onCancel={jest.fn()}
+      />
+    );
+
+    expect(screen.getByText("Patch skipped (1Password)")).toBeInTheDocument();
+
+    // Shown inline, the same way a failing row shows its output sections.
+    expect(screen.getByText("Pre-install query output")).toBeInTheDocument();
+    expect(
+      screen.getByText(/Query didn't return result or failed/)
+    ).toBeInTheDocument();
+  });
+
   it("omits the details box when there is no output or error", () => {
     render(
       <PolicyAutomationActivityDetailsModal

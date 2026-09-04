@@ -1,6 +1,7 @@
 package com.fleetdm.agent.scep
 
 import com.fleetdm.agent.GetCertificateTemplateResponse
+import com.fleetdm.agent.redactSecrets
 import org.bouncycastle.asn1.DERPrintableString
 import org.bouncycastle.asn1.pkcs.PKCSObjectIdentifiers
 import org.bouncycastle.asn1.x500.X500Name
@@ -72,7 +73,7 @@ class ScepClientImpl : ScepClient {
             val server = try {
                 URL(scepUrl)
             } catch (e: Exception) {
-                throw ScepNetworkException("Invalid SCEP URL: $scepUrl", e)
+                throw ScepNetworkException("Invalid SCEP URL: ${scepUrl.redactSecrets()}", e)
             }
 
             // OptimisticCertificateVerifier is used intentionally because:

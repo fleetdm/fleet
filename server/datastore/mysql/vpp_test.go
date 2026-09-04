@@ -11,6 +11,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
 	nanomdm_mysql "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/storage/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
@@ -51,6 +52,8 @@ func TestVPP(t *testing.T) {
 		{"VPPInstallEnqueuesConfigurationDict", testVPPInstallEnqueuesConfigurationDict},
 		{"VPPInstallOmitsConfigurationOnMacOS", testVPPInstallOmitsConfigurationOnMacOS},
 		{"VPPInstallEnrollmentChannelRouting", testVPPInstallEnrollmentChannelRouting},
+		{"VPPInstallPushesAfterCommit", testVPPInstallPushesAfterCommit},
+		{"VPPInstallQueueRowNotBackdated", testVPPInstallQueueRowNotBackdated},
 		{"MapAdamIDsPendingInstallVerification", testMapAdamIDsPendingInstallVerification},
 		{"MapAdamIDsRecentInstalls", testMapAdamIDsRecentInstalls},
 		{"MapAdamIDsRecentlyVerifiedInstalls", testMapAdamIDsRecentlyVerifiedInstalls},
@@ -3452,6 +3455,113 @@ func testRetryVPPAppInstallForHost(t *testing.T, ds *Datastore) {
 		require.Equal(t, 1, queueCommandCount)
 		return nil
 	})
+}
+
+// testVPPInstallPushesAfterCommit pins the ordering between the best-effort
+// APNs ping and the transaction that enqueues the command. The ping is
+// registered as an on-commit hook (see nanoEnqueueVPPInstall), so by the time
+// it fires the nano_commands and nano_enrollment_queue rows must be visible on
+// every other connection: a device that checks in on the strength of the ping
+// always finds the command waiting for it.
+func testVPPInstallPushesAfterCommit(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	test.CreateInsertGlobalVPPToken(t, ds)
+
+	host, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:       "push-after-commit-host",
+		UUID:           uuid.NewString(),
+		Platform:       string(fleet.IOSPlatform),
+		HardwareSerial: uuid.NewString(),
+	})
+	require.NoError(t, err)
+	nanoEnroll(t, ds, host, false)
+
+	const adamID = "push_after_commit"
+	setupTestVPPApp(t, ds, adamID, fleet.IOSPlatform)
+	appID := fleet.VPPAppID{AdamID: adamID, Platform: fleet.IOSPlatform}
+
+	const cmdUUID = "push-after-commit-cmd"
+	var (
+		pushedIDs          []string
+		cmdRows, queueRows int
+	)
+	ds.WithPusher(pusherFunc(func(ctx context.Context, ids []string) (map[string]*push.Response, error) {
+		pushedIDs = append(pushedIDs, ids...)
+		// ExecAdhocSQL runs on a connection of its own, outside the enqueue
+		// transaction, so it only sees the command once that transaction has
+		// committed.
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			if err := sqlx.GetContext(ctx, q, &cmdRows,
+				"SELECT COUNT(*) FROM nano_commands WHERE command_uuid = ?", cmdUUID); err != nil {
+				return err
+			}
+			return sqlx.GetContext(ctx, q, &queueRows,
+				"SELECT COUNT(*) FROM nano_enrollment_queue WHERE command_uuid = ?", cmdUUID)
+		})
+		return okPusherFunc(ctx, ids)
+	}))
+	t.Cleanup(func() { ds.WithPusher(nil) })
+
+	require.NoError(t, ds.InsertHostVPPSoftwareInstall(ctx, host.ID, appID, cmdUUID, "evt-push-after-commit", fleet.HostSoftwareInstallOptions{}))
+
+	require.Equal(t, []string{host.UUID}, pushedIDs, "no APNs push for the activated VPP install")
+	require.Equal(t, 1, cmdRows, "push fired before the nano_commands row was committed")
+	require.Equal(t, 1, queueRows, "push fired before the nano_enrollment_queue row was committed")
+}
+
+// testVPPInstallQueueRowNotBackdated ensures we don't backdate VPP installs into the nano commands table.
+func testVPPInstallQueueRowNotBackdated(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	test.CreateInsertGlobalVPPToken(t, ds)
+
+	host, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:       "backdate-host",
+		UUID:           uuid.NewString(),
+		Platform:       string(fleet.IOSPlatform),
+		HardwareSerial: uuid.NewString(),
+	})
+	require.NoError(t, err)
+	nanoEnroll(t, ds, host, false)
+
+	const adamID = "not_backdated"
+	setupTestVPPApp(t, ds, adamID, fleet.IOSPlatform)
+	appID := fleet.VPPAppID{AdamID: adamID, Platform: fleet.IOSPlatform}
+
+	const cmdUUID = "not-backdated-cmd"
+	require.NoError(t, ds.InsertHostVPPSoftwareInstall(ctx, host.ID, appID, cmdUUID, "evt-not-backdated", fleet.HostSoftwareInstallOptions{}))
+
+	install, err := ds.GetHostVPPInstallByCommandUUID(ctx, cmdUUID)
+	require.NoError(t, err)
+	require.NotNil(t, install)
+
+	// Age the upcoming activity the way a long wait behind another install
+	// does. The first attempt's queue row is aged along with it so the
+	// pending-command assertion below can only be satisfied by the re-enqueued
+	// command.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		if _, err := q.ExecContext(ctx,
+			"UPDATE upcoming_activities SET created_at = NOW(6) - INTERVAL 10 DAY WHERE execution_id = ?", cmdUUID); err != nil {
+			return err
+		}
+		_, err := q.ExecContext(ctx,
+			"UPDATE nano_enrollment_queue SET created_at = NOW(6) - INTERVAL 10 DAY WHERE command_uuid = ?", cmdUUID)
+		return err
+	})
+
+	require.NoError(t, ds.RetryVPPInstall(ctx, install))
+
+	var newCmdUUID string
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &newCmdUUID,
+			"SELECT command_uuid FROM host_vpp_software_installs WHERE host_id = ?", host.ID)
+	})
+	require.NotEqual(t, cmdUUID, newCmdUUID)
+
+	// The consequence that matters: the cron that re-pings hosts with pending
+	// commands still sees this host.
+	pendingIDs, err := ds.GetEnrollmentIDsWithPendingMDMAppleCommands(ctx)
+	require.NoError(t, err)
+	require.Contains(t, pendingIDs, host.UUID)
 }
 
 // setupTestVPPApp creates a VPP app for use in datastore tests. Caller is

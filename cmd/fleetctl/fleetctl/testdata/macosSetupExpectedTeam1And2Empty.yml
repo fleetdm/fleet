@@ -22,10 +22,15 @@ spec:
       windows_require_bitlocker_pin: null
       apple_settings:
         configuration_profiles: null
+        enable_disk_encryption: false
+        enable_escrow_disk_encryption_key: false
       windows_settings:
+        require_bitlocker_pin: false
         configuration_profiles: null
-        managed_local_account_settings:
-          enabled: false
+        enable_disk_encryption: false
+        enable_managed_local_account: false
+      linux_settings:
+        enable_escrow_disk_encryption_key: false
       android_settings:
         configuration_profiles: null
         certificates: null
@@ -87,10 +92,15 @@ spec:
       windows_require_bitlocker_pin: null
       macos_settings:
         custom_settings: null
+        enable_disk_encryption: false
+        enable_escrow_disk_encryption_key: false
       windows_settings:
+        require_bitlocker_pin: false
         custom_settings: null
-        managed_local_account_settings:
-          enabled: false
+        enable_disk_encryption: false
+        enable_managed_local_account: false
+      linux_settings:
+        enable_escrow_disk_encryption_key: false
       android_settings:
         custom_settings: null
         certificates: null
@@ -156,10 +166,15 @@ spec:
       windows_require_bitlocker_pin: null
       apple_settings:
         configuration_profiles: null
+        enable_disk_encryption: false
+        enable_escrow_disk_encryption_key: false
       windows_settings:
+        require_bitlocker_pin: false
         configuration_profiles: null
-        managed_local_account_settings:
-          enabled: false
+        enable_disk_encryption: false
+        enable_managed_local_account: false
+      linux_settings:
+        enable_escrow_disk_encryption_key: false
       android_settings:
         configuration_profiles: null
         certificates: null
@@ -213,10 +228,15 @@ spec:
       windows_require_bitlocker_pin: null
       macos_settings:
         custom_settings: null
+        enable_disk_encryption: false
+        enable_escrow_disk_encryption_key: false
       windows_settings:
+        require_bitlocker_pin: false
         custom_settings: null
-        managed_local_account_settings:
-          enabled: false
+        enable_disk_encryption: false
+        enable_managed_local_account: false
+      linux_settings:
+        enable_escrow_disk_encryption_key: false
       android_settings:
         custom_settings: null
         certificates: null

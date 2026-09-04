@@ -7,11 +7,15 @@ apple_settings:
     - labels_exclude_any:
         - Label C
       path: ./lib/profiles/global-macos-json-profile.json
+  enable_disk_encryption: false
+  enable_escrow_disk_encryption_key: true
 windows_settings:
   configuration_profiles:
     - labels_include_any:
         - Label D
       path: ./lib/profiles/global-windows-profile.xml
+  enable_disk_encryption: true
+  require_bitlocker_pin: false
 android_settings:
   configuration_profiles:
     - path: ./lib/profiles/global-android-profile.json
@@ -30,6 +34,8 @@ ipados_updates:
   deadline: "2026-12-31"
   deadline_days:
   update_new_hosts:
+linux_settings:
+  enable_escrow_disk_encryption_key: true
 windows_updates:
   deadline_days: 5
   grace_period_days: 2
@@ -41,10 +47,9 @@ windows_entra_tenant_ids:
 - 9d30f55f-d117-4574-acf0-ff593e3e06e3
 windows_migration_enabled: true
 enable_turn_on_windows_mdm_manually: false
-windows_require_bitlocker_pin: false
 apple_require_hardware_attestation: false
+only_allow_apple_business_enrollment: false
 android_enabled_and_configured: true
-enable_disk_encryption: true
 enable_recovery_lock_password: false
 name_template: ""
 macos_migration: # Available in Fleet Premium

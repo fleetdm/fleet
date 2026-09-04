@@ -5,7 +5,7 @@
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'ch.tripmode.TripMode';",
         "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'ch.tripmode.TripMode' AND version_compare(bundle_short_version, '3.2.4') < 0);",
-        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'ch.tripmode.TripMode');"
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'ch.tripmode.TripMode' AND a.bundle_executable != '');"
       },
       "installer_url": "https://tripmode-updates.ch/app/TripMode-3.2.4-1385.zip",
       "install_script_ref": "64b1ac22",

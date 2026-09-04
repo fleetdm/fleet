@@ -44,7 +44,7 @@ jobs:
           egress-policy: audit
 
       - name: Checkout
-        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
@@ -102,7 +102,7 @@ jobs:
           tar -czf ../desktop.app.tar.gz ./*
 
       - name: Upload desktop.app.tar.gz
-        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: desktop.app.tar.gz
           path: desktop.app.tar.gz
@@ -117,7 +117,7 @@ jobs:
           egress-policy: audit
 
       - name: Checkout
-        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
@@ -134,7 +134,7 @@ jobs:
           make desktop-windows
 
       - name: Upload fleet-desktop.exe
-        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: unsigned-windows
           path: fleet-desktop.exe
@@ -167,7 +167,7 @@ jobs:
           egress-policy: audit
 
       - name: Checkout
-        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
@@ -184,7 +184,7 @@ jobs:
           make desktop-windows-arm64
 
       - name: Upload fleet-desktop.exe
-        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: unsigned-windows-arm64
           path: fleet-desktop.exe
@@ -222,7 +222,7 @@ jobs:
           egress-policy: audit
 
       - name: Checkout
-        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
@@ -245,7 +245,7 @@ jobs:
           subject-path: "desktop.tar.gz"
 
       - name: Upload desktop.tar.gz
-        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: desktop.tar.gz
           path: desktop.tar.gz
@@ -264,7 +264,7 @@ jobs:
           egress-policy: audit
 
       - name: Checkout
-        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
@@ -287,7 +287,7 @@ jobs:
           subject-path: 'desktop.tar.gz'
 
       - name: Upload desktop.tar.gz
-        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: desktop-arm64.tar.gz
           path: desktop.tar.gz

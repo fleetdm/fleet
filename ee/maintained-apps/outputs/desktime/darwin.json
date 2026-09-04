@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "6.2.1",
+      "version": "6.3.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.desktime.DeskTime';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.desktime.DeskTime' AND version_compare(bundle_short_version, '6.2.1') < 0);",
-        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.desktime.DeskTime');"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.desktime.DeskTime' AND version_compare(bundle_short_version, '6.3.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.desktime.DeskTime' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://desktime.com/storage/updates/electro-builder-auto-updater/stable/DeskTime-6.2.1-arm64.dmg",
+      "installer_url": "https://desktime.com/storage/updates/electro-builder-auto-updater/stable/DeskTime-6.3.0-arm64.dmg",
       "install_script_ref": "8fa2f356",
       "uninstall_script_ref": "f4728e2f",
-      "sha256": "2ae730a79aa604272875bbf2476c05b6157a1e1803223263d15a58550456dc42",
+      "sha256": "b0611f8513ee3c1eec6e700d77b9e21bd1ed1a74ea349b7314e1cac2f1a5396d",
       "default_categories": [
         "Productivity"
       ]

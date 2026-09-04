@@ -2204,8 +2204,8 @@ func testUpdateStatusGuardsTerminalStates(t *testing.T, ds *Datastore) {
 			HostUUID:                        hostUUID,
 			Name:                            "sw-" + string(termStatus),
 			Status:                          termStatus,
-			SoftwareInstallerID:             new(installerID),
-			HostSoftwareInstallsExecutionID: new(execID),
+			SoftwareInstallerID:             &installerID,
+			HostSoftwareInstallsExecutionID: &execID,
 		}
 		insertRow(row)
 		updated, err := ds.MaybeUpdateSetupExperienceSoftwareInstallStatus(ctx, hostUUID, execID, fleet.SetupExperienceStatusFailure)
@@ -2322,7 +2322,7 @@ func testSetSetupExperienceTitlesOnlyMarksActiveInstaller(t *testing.T, ds *Data
 	// Create two cached FMA versions via successive GitOps runs. v1.0 ends
 	// up inactive, v2.0 active.
 	for _, version := range []string{"1.0", "2.0"} {
-		err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{
+		_, err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{
 			{
 				FleetMaintainedAppID: &fma.ID,
 				Title:                "pkg_active",

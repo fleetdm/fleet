@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "3.0",
+      "version": "3.0.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'codes.rambo.AirBuddy';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'codes.rambo.AirBuddy' AND version_compare(bundle_short_version, '3.0') < 0);",
-        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'codes.rambo.AirBuddy');"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'codes.rambo.AirBuddy' AND version_compare(bundle_short_version, '3.0.1') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'codes.rambo.AirBuddy' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://su.airbuddy.app/lleMaylxgd/AirBuddy_v3.0-953.dmg",
+      "installer_url": "https://su.airbuddy.app/lleMaylxgd/AirBuddy_v3.0.1-1008.dmg",
       "install_script_ref": "d2a86d92",
       "uninstall_script_ref": "a18b7e7a",
-      "sha256": "ed22f4e08a91bc1c4081893bd9571e0286c25e6e31d502b8a6ae7b93fef37038",
+      "sha256": "0c8e2b7349629f8176d7af8d2460cd06e37d1721edff6a925109914b53992700",
       "default_categories": [
         "Productivity"
       ]

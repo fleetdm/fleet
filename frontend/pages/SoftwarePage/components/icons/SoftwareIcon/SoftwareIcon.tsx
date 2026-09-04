@@ -1,10 +1,11 @@
 import React, { useState } from "react";
 import { useQuery } from "react-query";
 import classnames from "classnames";
-import { SOFTWARE_ICON_SIZES, SoftwareIconSizes } from "styles/var/icon_sizes";
+import { SoftwareIconSizes } from "styles/var/icon_sizes";
 import { AxiosError } from "axios";
 import softwareAPI from "services/entities/software";
 import { getMatchedSoftwareIcon } from "../";
+import MatchedIcon from "../MatchedIcon";
 
 const baseClass = "software-icon";
 
@@ -85,13 +86,11 @@ const SoftwareIcon = ({
     );
   }
 
-  // Fallback: Render a matched SVG icon by software name/source
-  const MatchedIcon = getMatchedSoftwareIcon({ name, source });
+  // Fallback: render the icon matched by software name/source
   return (
     <MatchedIcon
-      width={SOFTWARE_ICON_SIZES[size]}
-      height={SOFTWARE_ICON_SIZES[size]}
-      viewBox="0 0 32 32"
+      icon={getMatchedSoftwareIcon({ name, source })}
+      size={size}
       className={classNames}
     />
   );

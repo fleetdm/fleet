@@ -100,19 +100,21 @@ export const filterSoftwareByCustomCategory = (
   });
 };
 
-// Client-side name-match filter used by the desktop "Install all" count and
-// the mobile tile list. Kept in sync with `SelfServiceTable`'s
-// `searchQueryColumn="name"` (raw name, case-insensitive contains) and the
-// backend `MatchQuery` on `software_titles.name`. Also drives the `query`
-// param sent to install_all so the button installs exactly what the user
-// sees on screen.
+// Client-side match filter used by the desktop `SelfServiceTable`, the mobile
+// tile list, and the "Install all" count. Matches the backend `MatchQuery`
+// columns on `software_titles` (name, bundle_identifier, custom display_name)
+// so a rename-only admin edit is still findable and the Install all button
+// installs exactly what the user sees on screen.
 export const filterSoftwareByQuery = (
   software: IDeviceSoftwareWithUiStatus[],
   query: string | undefined
 ): IDeviceSoftwareWithUiStatus[] => {
   const q = query?.toLowerCase().trim() ?? "";
   if (!q) return software;
-  return software.filter((item) => item.name.toLowerCase().includes(q));
+  return software.filter((item) => {
+    const fields = [item.name, item.display_name, item.bundle_identifier];
+    return fields.some((f) => f?.toLowerCase().includes(q));
+  });
 };
 
 // Keeps only categories that have at least one software item. Membership is

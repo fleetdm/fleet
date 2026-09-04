@@ -118,6 +118,22 @@ func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Du
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "number of hosts enrolled in Fleet MDM")
 		}
+		numMDMAppleProfiles, err := tableRowsCount(ctx, ds.reader(ctx), "mdm_apple_configuration_profiles")
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "number of Apple configuration profiles")
+		}
+		numMDMWindowsProfiles, err := tableRowsCount(ctx, ds.reader(ctx), "mdm_windows_configuration_profiles")
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "number of Windows configuration profiles")
+		}
+		numMDMAppleDeclarations, err := tableRowsCount(ctx, ds.reader(ctx), "mdm_apple_declarations")
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "number of Apple DDM declarations")
+		}
+		numMDMAndroidProfiles, err := tableRowsCount(ctx, ds.reader(ctx), "mdm_android_configuration_profiles")
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "number of Android configuration profiles")
+		}
 
 		stats.NumHostsEnrolled = amountEnrolledHosts
 		stats.NumHostsABMPending = numHostsABMPending
@@ -155,7 +171,11 @@ func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Du
 		}
 		stats.AIFeaturesDisabled = appConfig.ServerSettings.AIFeaturesDisabled
 		stats.MaintenanceWindowsConfigured = len(appConfig.Integrations.GoogleCalendar) > 0 && appConfig.Integrations.GoogleCalendar[0].Domain != "" && !appConfig.Integrations.GoogleCalendar[0].ApiKey.IsEmpty()
-		stats.GoogleWorkspaceConfigured = appConfig.Integrations.IsGoogleWorkspaceConfigured()
+		stats.IDPGoogleWorkspaceConfigured = appConfig.Integrations.IsGoogleWorkspaceConfigured()
+
+		stats.AnyVulnerabilitiesWebhookEnabled = appConfig.WebhookSettings.VulnerabilitiesWebhook.Enable
+		stats.GlobalActivityWebhookEnabled = appConfig.WebhookSettings.ActivitiesWebhook.Enable
+		stats.AnyFailingPoliciesWebhookEnabled = appConfig.WebhookSettings.FailingPoliciesWebhook.Enable
 
 		stats.MaintenanceWindowsEnabled = false
 		teams, err := ds.ListTeams(ctx, fleet.TeamFilter{User: &fleet.User{
@@ -167,7 +187,26 @@ func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Du
 		for _, team := range teams {
 			if team.Config.Integrations.GoogleCalendar != nil && team.Config.Integrations.GoogleCalendar.Enable {
 				stats.MaintenanceWindowsEnabled = true
-				break
+			}
+			if team.Config.WebhookSettings.FailingPoliciesWebhook.Enable {
+				stats.AnyFailingPoliciesWebhookEnabled = true
+			}
+			if team.Config.WebhookSettings.HostActivitiesWebhook != nil && team.Config.WebhookSettings.HostActivitiesWebhook.Enable {
+				stats.AnyHostActivitiesWebhookEnabled = true
+			}
+		}
+
+		// Check if "No team" / "Unassigned" fleet settings enable any webhooks
+		if !stats.AnyFailingPoliciesWebhookEnabled || !stats.AnyHostActivitiesWebhookEnabled {
+			defaultTeamConfig, err := ds.DefaultTeamConfig(ctx)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "default team config")
+			}
+			if defaultTeamConfig.WebhookSettings.FailingPoliciesWebhook.Enable {
+				stats.AnyFailingPoliciesWebhookEnabled = true
+			}
+			if defaultTeamConfig.WebhookSettings.HostActivitiesWebhook != nil && defaultTeamConfig.WebhookSettings.HostActivitiesWebhook.Enable {
+				stats.AnyHostActivitiesWebhookEnabled = true
 			}
 		}
 		stats.NumHostsFleetDesktopEnabled = numHostsFleetDesktopEnabled
@@ -176,6 +215,10 @@ func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Du
 		stats.FleetMaintainedAppsWindows = fleetMaintainedAppsWindows
 		stats.NumHostsFleetMDMEnrolledMacOS = numHostsFleetMDMEnrolledMacOS
 		stats.NumHostsFleetMDMEnrolledWindows = numHostsFleetMDMEnrolledWindows
+		stats.NumMDMAppleProfiles = numMDMAppleProfiles
+		stats.NumMDMWindowsProfiles = numMDMWindowsProfiles
+		stats.NumMDMAppleDeclarations = numMDMAppleDeclarations
+		stats.NumMDMAndroidProfiles = numMDMAndroidProfiles
 
 		stats.ConditionalAccessEnabled, err = ds.conditionalAccessEnabledOnATeam(ctx, teams)
 		if err != nil {
@@ -192,8 +235,32 @@ func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Du
 			return ctxerr.Wrap(ctx, err, "entra conditional access configured")
 		}
 
+		stats.ResultLogDestination = config.Osquery.ResultLogPlugin
+		stats.StatusLogDestination = config.Osquery.StatusLogPlugin
+		stats.AuditLogDestination = config.Activity.AuditLogPlugin
+
+		stats.TicketDestinationConfigured = len(appConfig.Integrations.Jira) > 0 || len(appConfig.Integrations.Zendesk) > 0
+		if appConfig.SSOSettings != nil {
+			stats.SSOConfiguredFleetUsers = appConfig.SSOSettings.EnableSSO
+		}
+		stats.SSOConfiguredEndUsers = !appConfig.MDM.EndUserAuthentication.SSOProviderSettings.IsEmpty()
+		stats.AccountProvisioningConfigured = appConfig.MDM.AppleAccountProvisioning.Configured()
+
+		scimLastRequest, err := ds.ScimLastRequest(ctx)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "scim last request")
+		}
+		stats.IDPSCIMConfigured = scimLastRequest != nil
+
+		certificateAuthorities, err := ds.ListCertificateAuthorities(ctx)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "list certificate authorities")
+		}
+		stats.CertificateAuthorityConfigured = len(certificateAuthorities) > 0
+
 		stats.GitOpsModeEnabled = appConfig.GitOpsConfig.GitopsModeEnabled
 		stats.GitOpsModeExceptions = gitOpsExceptionsList(appConfig.GitOpsConfig.Exceptions)
+		stats.FleetDesktopSSOEnabled = appConfig.FleetDesktop.SSOEnabled
 
 		return nil
 	}

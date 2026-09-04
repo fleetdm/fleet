@@ -1,3 +1,5 @@
+import { compareVersions } from "utilities/helpers";
+
 const booleanAsc = (a: unknown, b: unknown): number => {
   if (!a && !!b) {
     return -1;
@@ -56,6 +58,13 @@ const hasLength = (a: unknown[], b: unknown[]): number => {
   return 0;
 };
 
+// A missing version becomes "", which sorts before any real version.
+const versionAsc = (a: unknown, b: unknown): number =>
+  compareVersions(
+    typeof a === "string" ? a : "",
+    typeof b === "string" ? b : ""
+  );
+
 const POLICY_STATUS_PRECEDENCE = ["actionRequired", "fail", "pass"];
 
 const hostPolicyStatus = (a: unknown, b: unknown): number => {
@@ -78,4 +87,5 @@ export default {
   dateStringsAsc,
   hasLength,
   hostPolicyStatus,
+  versionAsc,
 };

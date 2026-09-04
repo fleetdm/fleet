@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "6.0.2",
+      "version": "6.0.3",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.amazonaws.acvc.osx';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.amazonaws.acvc.osx' AND version_compare(bundle_short_version, '6.0.2') < 0);",
-        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.amazonaws.acvc.osx');"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.amazonaws.acvc.osx' AND version_compare(bundle_short_version, '6.0.3') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.amazonaws.acvc.osx' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://d20adtppz83p9s.cloudfront.net/OSX_ARM64/6.0.2/AWS_VPN_Client_ARM64.pkg",
+      "installer_url": "https://d3c4iklh14o4hj.cloudfront.net/OSX_ARM64/6.0.3/AWS_VPN_Client_ARM64.pkg",
       "install_script_ref": "e3fcbf2c",
       "uninstall_script_ref": "66fca039",
-      "sha256": "0188775963a86946c17e90f102e39b1ac45e1e2df49d4e4d6aa44ca92c0f3116",
+      "sha256": "94b62371a679d05b69edc2c6768b1c2a5652676a5403ce787cbafaeec92cec5a",
       "default_categories": [
         "Productivity"
       ]
