@@ -52,8 +52,6 @@ module.exports = {
       });
       if(!serializedValue) {
         return undefined;
-      } else {
-        console.log(serializedValue);
       }
       try {
         return JSON.parse(serializedValue);
