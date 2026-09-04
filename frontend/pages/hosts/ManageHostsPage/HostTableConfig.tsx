@@ -40,7 +40,7 @@ import {
 } from "interfaces/datatable_config";
 import PATHS from "router/paths";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
-import { getHardwareModelDisplay } from "../helpers";
+import { getHardwareModelDisplay, getHostStatusTooltipText } from "../helpers";
 
 type IHostTableColumnConfig = Column<IHost> & {
   // This is used to prevent these columns from being hidden. This will be
@@ -422,12 +422,20 @@ const allHostTableHeaders = (teamId?: number): IHostTableColumnConfig[] => [
     accessor: "status",
     id: "status",
     Cell: (cellProps: IHostTableStringCellProps) => {
-      // Show "---" for ABM devices with Pending enrollment status
+      // Show "---" for ABM devices with Pending enrollment status, with an
+      // explainer tooltip on the pill.
       if (
         cellProps.row.original.mdm?.enrollment_status === "Pending" &&
         isAppleDevice(cellProps.row.original.platform)
       ) {
-        return <StatusIndicator value={DEFAULT_EMPTY_CELL_VALUE} />;
+        return (
+          <StatusIndicator
+            value={DEFAULT_EMPTY_CELL_VALUE}
+            tooltip={{
+              tooltipText: getHostStatusTooltipText(DEFAULT_EMPTY_CELL_VALUE),
+            }}
+          />
+        );
       }
 
       return <StatusIndicator value={cellProps.cell.value} />;

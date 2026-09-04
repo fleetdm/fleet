@@ -3,6 +3,17 @@ import React from "react";
 import { isAppleDevice } from "interfaces/platform";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 
+// Returns tooltip copy only for the Pending ABM case (`---`). Online/offline
+// pills have no tooltip; the Status column header explains platform semantics.
+export const getHostStatusTooltipText = (
+  status: string
+): string | undefined => {
+  if (status === DEFAULT_EMPTY_CELL_VALUE) {
+    return "Device is pending enrollment in Apple Business and status is not yet available.";
+  }
+  return undefined;
+};
+
 export const getHostStatus = (
   status: string,
   mdmEnrollmentStatus?: string

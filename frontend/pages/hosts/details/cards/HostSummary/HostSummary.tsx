@@ -5,7 +5,7 @@ import { BootstrapPackageStatus } from "interfaces/mdm";
 import { IHostMaintenanceWindow } from "interfaces/host";
 import { isAndroid, isIPadOrIPhone } from "interfaces/platform";
 
-import { getHostStatus } from "pages/hosts/helpers";
+import { getHostStatus, getHostStatusTooltipText } from "pages/hosts/helpers";
 
 import TooltipWrapper from "components/TooltipWrapper";
 import Card from "components/Card";
@@ -116,10 +116,7 @@ const HostSummary = ({
     );
   };
 
-  // Now that the API returns real online/offline for mobile hosts (see
-  // #52486), iOS/iPadOS/Android render the same status pill as desktop —
-  // no more mobile-only "View history" workaround row. Status always renders,
-  // so the empty-card guard below is gone.
+  // Status renders for all platforms now that mobile hosts return real online/offline.
   const showTeam = !!isPremiumTier;
   const showIssues =
     summaryData.issues?.total_issues_count > 0 &&
@@ -154,11 +151,18 @@ const HostSummary = ({
             "Status"
           )
         }
-        value={
-          <StatusIndicator
-            value={getHostStatus(status, mdm?.enrollment_status)}
-          />
-        }
+        value={(() => {
+          const displayedStatus = getHostStatus(status, mdm?.enrollment_status);
+          const tooltipText = getHostStatusTooltipText(displayedStatus);
+          return (
+            <StatusIndicator
+              value={displayedStatus}
+              tooltip={
+                tooltipText ? { tooltipText, position: "bottom" } : undefined
+              }
+            />
+          );
+        })()}
       />
       {showTeam && renderHostTeam()}
       {showIssues && renderIssues()}
