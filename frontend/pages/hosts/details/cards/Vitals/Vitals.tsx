@@ -449,12 +449,15 @@ export const buildHostVitals = ({
     const label = isAdeIDevice
       ? "Show location"
       : getCityCountryLocation(geolocation);
+    const truncatedLabel = (
+      <TooltipTruncatedText value={label} fixedPositionStrategy />
+    );
     const locationValue = toggleLocationModal ? (
       <Button variant="link" onClick={toggleLocationModal}>
-        {label}
+        {truncatedLabel}
       </Button>
     ) : (
-      label
+      truncatedLabel
     );
     vitals.push({
       sortKey: "Location",

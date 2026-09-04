@@ -1,6 +1,9 @@
 import React from "react";
 import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { createCustomRenderer } from "test/test-utils";
+
+import { useCheckTruncatedElement } from "hooks/useCheckTruncatedElement";
 
 import createMockHost, { createMockHostGeolocation } from "__mocks__/hostMock";
 import { createMockHostMdmData } from "__mocks__/mdmMock";
@@ -10,6 +13,16 @@ import { IHostCustomVital } from "interfaces/custom_host_vitals";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 import { normalizeEmptyValues } from "utilities/helpers";
 import Vitals from "./Vitals";
+
+jest.mock("hooks/useCheckTruncatedElement", () => ({
+  useCheckTruncatedElement: jest.fn(),
+}));
+
+const mockedUseCheckTruncatedElement = useCheckTruncatedElement as jest.Mock;
+
+beforeEach(() => {
+  mockedUseCheckTruncatedElement.mockReturnValue(false);
+});
 
 describe("Vitals Card component", () => {
   it("renders the device Hardware model and Serial number for Android hosts that were not enrolled in MDM personally", () => {
@@ -422,6 +435,53 @@ describe("Location vital", () => {
 
     expect(screen.getByText("Location")).toBeInTheDocument();
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
+  });
+
+  describe("when the location is too long to fit", () => {
+    const LONG_CITY =
+      "Llanfairpwllgwyngyllgogerychwyrndrobwllllantysiliogogogoch";
+
+    const hoverLongLocation = async ({
+      withToggle,
+    }: {
+      withToggle: boolean;
+    }) => {
+      mockedUseCheckTruncatedElement.mockReturnValue(true);
+      const user = userEvent.setup();
+      renderLocationVital({
+        withToggle,
+        hostOverrides: {
+          geolocation: createMockHostGeolocation({ city_name: LONG_CITY }),
+        },
+      });
+
+      await user.hover(screen.getByText(`${LONG_CITY}, US`));
+    };
+
+    it("shows a tooltip with the full location on host details", async () => {
+      await hoverLongLocation({ withToggle: true });
+
+      expect(await screen.findByRole("tooltip")).toHaveTextContent(
+        `${LONG_CITY}, US`
+      );
+    });
+
+    it("shows a tooltip with the full location on My device", async () => {
+      await hoverLongLocation({ withToggle: false });
+
+      expect(await screen.findByRole("tooltip")).toHaveTextContent(
+        `${LONG_CITY}, US`
+      );
+    });
+
+    it("shows no tooltip when the location fits", async () => {
+      const user = userEvent.setup();
+      renderLocationVital({ withToggle: true });
+
+      await user.hover(screen.getByText("Minneapolis, US"));
+
+      expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
+    });
   });
 });
 
