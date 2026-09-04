@@ -785,7 +785,7 @@ func TestE2ENanopushProvider(t *testing.T) {
 		nanopush.WithNewClient(func(*tls.Certificate) (*http.Client, error) {
 			return fleethttp.NewClient(), nil
 		}),
-		nanopush.WithExpiration(7*24*time.Hour),
+		nanopush.WithExpiration(30*24*time.Hour),
 		nanopush.WithPushServerURL(srv.URL),
 	)
 	prov, err := factory.NewPushProvider(nil)
