@@ -19871,10 +19871,11 @@ func (s *integrationMDMTestSuite) TestAndroidAMAPIErrorStatusMapping() {
 	enterpriseID, err := s.ds.CreateEnterprise(ctx, s.users["admin1"].ID)
 	require.NoError(t, err)
 	require.NoError(t, s.ds.UpdateEnterprise(ctx, &android.EnterpriseDetails{
-		Enterprise:  android.Enterprise{ID: enterpriseID, EnterpriseID: "ultimate-fake"},
-		SignupName:  "fake",
-		SignupToken: "value",
-		TopicID:     "yep",
+		ID:           enterpriseID,
+		EnterpriseID: "ultimate-fake",
+		SignupName:   "fake",
+		SignupToken:  "value",
+		TopicID:      "yep",
 	}))
 
 	amapiErrors := []struct {
