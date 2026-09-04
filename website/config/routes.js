@@ -1432,6 +1432,7 @@ module.exports.routes = {
   'GET /learn-more-about/removal-behavior': '/guides/custom-os-settings#removal-behavior',
   'GET /learn-more-about/android-manual-sync': '/guides/how-to-manually-sync-an-android-device',
   'GET /learn-more-about/policy-automation-resend-configuration-profile': '/guides/policy-automation-resend-configuration-profile',
+  'GET /learn-more-about/device-attestation': '/guides/what-is-device-attestation',
 
   // Sitemap
   // =============================================================================================================
