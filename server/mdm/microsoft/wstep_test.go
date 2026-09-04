@@ -408,7 +408,7 @@ func TestPopulateClientCertValidityAndNotBefore(t *testing.T) {
 		"NotAfter should match PolicyCertValidityPeriodInSecs from now, got %v", cert.NotAfter)
 
 	// The effective remaining validity from issuance time must closely track PolicyCertValidityPeriodInSecs
-	validityFromNow := cert.NotAfter.Sub(time.Now())
+	validityFromNow := time.Until(cert.NotAfter)
 	require.Greater(t, validityFromNow, expectedValidity-24*time.Hour, "validity must match policy period, not halved by renewal backdating")
 
 	// Verify WstepCertRenewalPeriodInDays matches PolicyCertRenewalPeriodInSecs converted to days
@@ -417,4 +417,3 @@ func TestPopulateClientCertValidityAndNotBefore(t *testing.T) {
 	expectedRenewalDays := fmt.Sprintf("%d", renewalSecs/(24*60*60))
 	require.Equal(t, expectedRenewalDays, syncml.WstepCertRenewalPeriodInDays)
 }
-
