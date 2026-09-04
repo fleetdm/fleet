@@ -164,6 +164,60 @@ func TestMaybeExpandScriptFleetVariables(t *testing.T) {
 		require.Equal(t, "Engineering`touch /tmp/pwned`", fleetVars["FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT"])
 	})
 
+	t.Run("injection payload in a host vital never reaches the script body", func(t *testing.T) {
+		svc, ctx, _ := newSvcAndCtx(fleet.TierPremium)
+		h := *host
+		h.UUID = "ABC`touch /tmp/pwned`"
+
+		contents := "echo \"uuid: $FLEET_VAR_HOST_UUID\""
+		expanded, fleetVars, failMsg, err := svc.maybeExpandScriptFleetVariables(ctx, &h, contents)
+		require.NoError(t, err)
+		require.Empty(t, failMsg)
+		require.Equal(t, contents, expanded)
+		require.Equal(t, "ABC`touch /tmp/pwned`", fleetVars["FLEET_VAR_HOST_UUID"])
+	})
+
+	t.Run("a script run by a non-shell interpreter fails instead of printing the token", func(t *testing.T) {
+		svc, ctx, _ := newSvcAndCtx(fleet.TierPremium)
+		for _, contents := range []string{
+			"#!/usr/bin/env python3\nprint(\"uuid: $FLEET_VAR_HOST_UUID\")\n",
+			"#!/usr/bin/python3\nprint(\"$FLEET_VAR_HOST_HARDWARE_SERIAL\")\n",
+		} {
+			expanded, fleetVars, failMsg, err := svc.maybeExpandScriptFleetVariables(ctx, host, contents)
+			require.NoError(t, err)
+			require.Contains(t, failMsg, "isn't run by a shell")
+			require.Empty(t, expanded)
+			require.Empty(t, fleetVars)
+		}
+
+		// only an unsupported name, so nothing to deliver and nothing to refuse
+		contents := "#!/usr/bin/env python3\nprint(\"$FLEET_VAR_NOT_A_THING\")\n"
+		expanded, fleetVars, failMsg, err := svc.maybeExpandScriptFleetVariables(ctx, host, contents)
+		require.NoError(t, err)
+		require.Empty(t, failMsg)
+		require.Equal(t, contents, expanded)
+		require.Empty(t, fleetVars)
+
+		// a shell shebang still expands from the environment
+		contents = "#!/bin/bash\necho \"$FLEET_VAR_HOST_UUID\"\n"
+		expanded, fleetVars, failMsg, err = svc.maybeExpandScriptFleetVariables(ctx, host, contents)
+		require.NoError(t, err)
+		require.Empty(t, failMsg)
+		require.Equal(t, contents, expanded)
+		require.Equal(t, "ABC-123", fleetVars["FLEET_VAR_HOST_UUID"])
+	})
+
+	t.Run("a host without a platform fails instead of delivering tokens it can't rewrite", func(t *testing.T) {
+		svc, ctx, _ := newSvcAndCtx(fleet.TierPremium)
+		h := *host
+		h.Platform = ""
+		expanded, fleetVars, failMsg, err := svc.maybeExpandScriptFleetVariables(ctx, &h, "echo $FLEET_VAR_HOST_UUID")
+		require.NoError(t, err)
+		require.Contains(t, failMsg, "There is no platform for this host")
+		require.Empty(t, expanded)
+		require.Empty(t, fleetVars)
+	})
+
 	t.Run("missing IdP user is a resolution failure", func(t *testing.T) {
 		svc, ctx, ds := newSvcAndCtx(fleet.TierPremium)
 		mockScimUser(ds, nil)

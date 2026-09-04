@@ -35,7 +35,9 @@ import (
 // are handled correctly because variables.Find returns names longest-first, so
 // each token is rewritten before its prefix is considered.
 func (svc *Service) maybeExpandScriptFleetVariables(ctx context.Context, host *fleet.Host, contents string) (expanded string, fleetVars map[string]string, failureMessage string, err error) {
-	found := variables.Find(contents)
+	found := slices.DeleteFunc(variables.Find(contents), func(v string) bool {
+		return !slices.Contains(fleet.FleetVarsSupportedInScripts, fleet.FleetVarName(v))
+	})
 	if len(found) == 0 {
 		return contents, nil, "", nil
 	}
@@ -44,6 +46,18 @@ func (svc *Service) maybeExpandScriptFleetVariables(ctx context.Context, host *f
 	// validation (e.g. saved before validation shipped, or the license expired)
 	if !license.IsPremium(ctx) {
 		return "", nil, "Fleet couldn't run this script because it uses variables, which require a Fleet Premium license.", nil
+	}
+
+	// A shebang naming a non-shell interpreter runs the file directly, so
+	// nothing expands $FLEET_VAR_* from the script text.
+	if kind, direct, err := fleet.ShebangInfo(contents); err == nil && direct && kind != fleet.ShebangShell {
+		return "", nil, "Fleet couldn't run this script because it uses variables but isn't run by a shell. Read the FLEET_VAR_* environment variables from the script instead.", nil
+	}
+
+	// The platform decides how the tokens are delivered, so without it there is
+	// no safe choice (a Windows host would read them as empty PowerShell variables).
+	if host.Platform == "" {
+		return "", nil, "There is no platform for this host. Fleet couldn't deliver variables to this script.", nil
 	}
 
 	// collect all failures instead of stopping at the first one so the admin
@@ -58,10 +72,6 @@ func (svc *Service) maybeExpandScriptFleetVariables(ctx context.Context, host *f
 	isWindows := fleet.IsWindowsPlatform(host.Platform)
 	hostIDForUUIDCache := map[string]uint{host.UUID: host.ID}
 	for _, v := range found {
-		if !slices.Contains(fleet.FleetVarsSupportedInScripts, fleet.FleetVarName(v)) {
-			continue
-		}
-
 		var value string
 		switch fleet.FleetVarName(v) {
 		case fleet.FleetVarHostUUID:
@@ -80,10 +90,6 @@ func (svc *Service) maybeExpandScriptFleetVariables(ctx context.Context, host *f
 			value = host.Platform
 			if value == "darwin" {
 				value = "macos"
-			}
-			if value == "" {
-				_ = fail(fmt.Sprintf("There is no platform for this host. Fleet couldn't populate $FLEET_VAR_%s.", v))
-				continue
 			}
 		default: // the IdP variables
 			idpValue, _, ok, err := profiles.ResolveHostEndUserIDPValue(ctx, svc.ds, v, host.UUID, hostIDForUUIDCache, fail)
@@ -108,26 +114,35 @@ func (svc *Service) maybeExpandScriptFleetVariables(ctx context.Context, host *f
 		// Deliver the value via the environment instead of splicing it into the
 		// script body, so the interpreter expands it without re-parsing it.
 		resolved["FLEET_VAR_"+v] = value
-		if isWindows {
-			// Rewrite to PowerShell's braced environment syntax for both forms.
-			// The braces make the reference an explicitly delimited token, so a
-			// value followed by other characters (e.g. $FLEET_VAR_HOST_UUID.log)
-			// expands correctly instead of PowerShell reading the suffix as part
-			// of the variable name.
-			braced := "${env:FLEET_VAR_" + v + "}"
-			// The braced form is already delimited by its closing brace.
-			contents = strings.ReplaceAll(contents, "${FLEET_VAR_"+v+"}", braced)
-			// Match the unbraced form only as a complete token (trailing word
-			// boundary), so a supported name that prefixes a longer unsupported
-			// one (e.g. $FLEET_VAR_HOST_UUID vs $FLEET_VAR_HOST_UUID_OLD) is left
-			// untouched. ReplaceAllLiteralString keeps $ in the replacement literal.
-			unbraced := regexp.MustCompile(regexp.QuoteMeta("$FLEET_VAR_"+v) + `\b`)
-			contents = unbraced.ReplaceAllLiteralString(contents, braced)
-		}
 	}
 
 	if len(failures) > 0 {
 		return "", nil, strings.Join(failures, "\n"), nil
 	}
+	if isWindows {
+		contents = rewriteWindowsTokens(contents, resolved)
+	}
 	return contents, resolved, "", nil
+}
+
+// unbracedFleetVarToken matches $FLEET_VAR_NAME up to the end of the name, so
+// a suffix such as .log stays outside the token and a longer unsupported name
+// (e.g. $FLEET_VAR_HOST_UUID_OLD) is matched whole and left alone.
+var unbracedFleetVarToken = regexp.MustCompile(`\$FLEET_VAR_\w+`)
+
+// rewriteWindowsTokens turns each resolved reference into PowerShell's braced
+// environment syntax, since $FLEET_VAR_NAME there names a PowerShell variable
+// rather than an environment variable. The braces keep an adjacent suffix out
+// of the variable name.
+func rewriteWindowsTokens(contents string, resolved map[string]string) string {
+	for name := range resolved {
+		contents = strings.ReplaceAll(contents, "${"+name+"}", "${env:"+name+"}")
+	}
+	return unbracedFleetVarToken.ReplaceAllStringFunc(contents, func(token string) string {
+		name := token[1:]
+		if _, ok := resolved[name]; !ok {
+			return token
+		}
+		return "${env:" + name + "}"
+	})
 }

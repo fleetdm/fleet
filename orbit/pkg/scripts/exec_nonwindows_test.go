@@ -166,19 +166,24 @@ func TestExecCmdSuccess(t *testing.T) {
 // must be expanded by the shell as data, never re-parsed as a command, even
 // when its value contains shell metacharacters.
 func TestExecCmdDoesNotExecuteEnvValues(t *testing.T) {
-	tmpDir := t.TempDir()
-	marker := filepath.Join(tmpDir, "marker")
-	payload := "inject`touch " + marker + "`"
+	// host vitals and IdP values travel the same way, so both names are pinned
+	for _, name := range []string{"FLEET_VAR_HOST_UUID", "FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT"} {
+		t.Run(name, func(t *testing.T) {
+			tmpDir := t.TempDir()
+			marker := filepath.Join(tmpDir, "marker")
+			payload := "inject`touch " + marker + "`"
 
-	scriptPath := filepath.Join(tmpDir, "script.sh")
-	require.NoError(t, os.WriteFile(scriptPath, []byte(`echo "$FLEET_VAR_X"`), os.ModePerm)) //nolint:gosec // ignore non-standard permissions
+			scriptPath := filepath.Join(tmpDir, "script.sh")
+			require.NoError(t, os.WriteFile(scriptPath, []byte(`echo "$`+name+`"`), os.ModePerm)) //nolint:gosec // ignore non-standard permissions
 
-	env := append(os.Environ(), "FLEET_VAR_X="+payload)
-	output, exitCode, err := ExecCmd(context.Background(), scriptPath, env)
-	require.NoError(t, err)
-	require.Equal(t, 0, exitCode)
-	// the value is printed verbatim, proving it was treated as data
-	require.Equal(t, payload, strings.TrimSpace(string(output)))
-	// the embedded command must not have run
-	require.NoFileExists(t, marker)
+			env := append(os.Environ(), name+"="+payload)
+			output, exitCode, err := ExecCmd(context.Background(), scriptPath, env)
+			require.NoError(t, err)
+			require.Equal(t, 0, exitCode)
+			// the value is printed verbatim, proving it was treated as data
+			require.Equal(t, payload, strings.TrimSpace(string(output)))
+			// the embedded command must not have run
+			require.NoFileExists(t, marker)
+		})
+	}
 }
