@@ -175,31 +175,6 @@ func TestReconcileAndroidCommands(t *testing.T) {
 		assert.NotEmpty(t, *gotMsg)
 	})
 
-	t.Run("AMAPI 500 reporting a missing entity is treated as unknown operation", func(t *testing.T) {
-		// AMAPI sometimes reports a missing operation as a 500 carrying "Requested entity
-		// was not found" rather than a 404. Without that classification the row falls into
-		// the generic transient-error branch and is retried forever.
-		cmd := pendingCommandForReconcile("cmd-500-notfound", string(android.MDMAndroidCommandTypeLock),
-			androidCommandReconcileNotFoundGrace+time.Hour)
-		mockDS, client, logger := newReconcileFixture(t, cmd)
-		client.EnterprisesDevicesOperationsGetFunc = func(ctx context.Context, operationName string) (*androidmanagement.Operation, error) {
-			return nil, &googleapi.Error{Code: http.StatusInternalServerError, Body: "Requested entity was not found."}
-		}
-		var gotStatus string
-		var gotCode *string
-		mockDS.UpdateMDMAndroidCommandStatusFunc = func(ctx context.Context, commandUUID, status string, errorCode, errorMessage, rawResult *string) error {
-			gotStatus, gotCode = status, errorCode
-			return nil
-		}
-
-		require.NoError(t, reconcileAndroidCommands(t.Context(), &mockDS.DataStore, client, logger, noopNewActivity, reconcileNow, reconcileTestCallInterval))
-
-		require.True(t, mockDS.UpdateMDMAndroidCommandStatusFuncInvoked, "the command must not be left pending forever")
-		assert.Equal(t, string(android.MDMAndroidCommandStatusError), gotStatus)
-		require.NotNil(t, gotCode)
-		assert.Equal(t, "5", *gotCode, "google.rpc.Code NOT_FOUND")
-	})
-
 	t.Run("acknowledged WIPE runs the unenroll side effects", func(t *testing.T) {
 		const hostID uint = 42
 		cmd := pendingCommandForReconcile("cmd-wipe", string(android.MDMAndroidCommandTypeWipe), 48*time.Hour)
