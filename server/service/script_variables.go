@@ -15,9 +15,8 @@ import (
 )
 
 const (
-	pythonFleetVarsMsg = "Fleet couldn't run this script because Fleet variables aren't supported in Python scripts. Use a shell script, or remove the variable."
-	// PowerShell requires a param() block to be the first statement.
-	powerShellParamBlockMsg = "Fleet couldn't run this script because Fleet variables aren't supported in a PowerShell script that starts with a param() block. Move the param() block, or remove the variable."
+	pythonFleetVarsMsg      = "Fleet couldn't run this script because Fleet variables aren't supported in Python scripts. Use a shell script, or remove the variable."
+	powerShellParamBlockMsg = "Fleet couldn't run this script because Fleet variables aren't supported inside a PowerShell param() block. Use the variable in the script body instead."
 	unsupportedInterpMsg    = "Fleet couldn't run this script because its interpreter isn't supported."
 	noPlatformMsg           = "There is no platform for this host. Fleet couldn't populate Fleet variables."
 )

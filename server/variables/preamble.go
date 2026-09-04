@@ -16,8 +16,8 @@ const (
 	DialectPowerShell
 )
 
-// ErrPowerShellLeadingParamBlock reports that the script opens with a param()
-// block, which PowerShell requires to be the first statement.
+// ErrPowerShellLeadingParamBlock reports that a preamble can't be placed around
+// the script's leading param() block.
 var ErrPowerShellLeadingParamBlock = errors.New("PowerShell script starts with a param() block")
 
 const utf8BOM = "\ufeff"
@@ -112,10 +112,9 @@ func InsertPreamble(contents, preamble string, dialect Dialect) (string, error) 
 	return contents + "\n" + preamble, nil
 }
 
-// powerShellPreamblePos returns the offset to insert a preamble at: after a byte
-// order mark, which breaks the script unless it stays on line 1, and after any
-// using statements, which must precede every other statement. It fails on a
-// leading param() block, which must come first and so leaves nowhere to insert.
+// powerShellPreamblePos returns the offset to insert a preamble at. PowerShell
+// wants a byte order mark, using statements, and a param() block each to come
+// first, so the preamble goes after all of them.
 func powerShellPreamblePos(contents string) (int, error) {
 	pos := 0
 	if strings.HasPrefix(contents, utf8BOM) {
@@ -163,11 +162,104 @@ func powerShellPreamblePos(contents string) (int, error) {
 
 		default:
 			if hasKeyword(trimmed, "param") {
-				return 0, ErrPowerShellLeadingParamBlock
+				n, ok := skipParamBlock(trimmed)
+				// a default can't use a variable the preamble defines below it
+				if !ok || strings.Contains(trimmed[:n], "$FLEET_VAR_") {
+					return 0, ErrPowerShellLeadingParamBlock
+				}
+				return startOfNextLine(contents, pos+n), nil
 			}
 			return insert, nil
 		}
 	}
+}
+
+// startOfNextLine advances past the rest of the line at i.
+func startOfNextLine(s string, i int) int {
+	for i < len(s) && (s[i] == ' ' || s[i] == '\t' || s[i] == '\r') {
+		i++
+	}
+	if i < len(s) && s[i] == '\n' {
+		i++
+	}
+	return i
+}
+
+// skipParamBlock returns the offset past a param(...) block, reporting false
+// when it never closes.
+func skipParamBlock(s string) (int, bool) {
+	i := strings.IndexByte(s, '(')
+	if i < 0 {
+		return 0, false
+	}
+	depth := 0
+	for i < len(s) {
+		switch s[i] {
+		case '(':
+			depth++
+		case ')':
+			depth--
+			if depth == 0 {
+				return i + 1, true
+			}
+		case '\'':
+			i = skipSingleQuoted(s, i)
+			continue
+		case '"':
+			i = skipDoubleQuoted(s, i)
+			continue
+		case '<':
+			if i+1 < len(s) && s[i+1] == '#' {
+				end := strings.Index(s[i:], "#>")
+				if end < 0 {
+					return 0, false
+				}
+				i += end + len("#>")
+				continue
+			}
+		case '#':
+			nl := strings.IndexByte(s[i:], '\n')
+			if nl < 0 {
+				return 0, false
+			}
+			i += nl + 1
+			continue
+		}
+		i++
+	}
+	return 0, false
+}
+
+// skipSingleQuoted returns the offset past a '...' string; '' is a quote.
+func skipSingleQuoted(s string, i int) int {
+	for i++; i < len(s); i++ {
+		if s[i] != '\'' {
+			continue
+		}
+		if i+1 < len(s) && s[i+1] == '\'' {
+			i++
+			continue
+		}
+		return i + 1
+	}
+	return len(s)
+}
+
+// skipDoubleQuoted returns the offset past a "..." string; a backtick escapes.
+func skipDoubleQuoted(s string, i int) int {
+	for i++; i < len(s); i++ {
+		switch s[i] {
+		case '`':
+			i++
+		case '"':
+			if i+1 < len(s) && s[i+1] == '"' {
+				i++
+				continue
+			}
+			return i + 1
+		}
+	}
+	return len(s)
 }
 
 func skipBracketed(s string) (string, bool) {

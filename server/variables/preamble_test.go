@@ -155,7 +155,7 @@ func TestInsertPreamble(t *testing.T) {
 	})
 }
 
-// A preamble above a param() block, a BOM, or a using statement is a parse error.
+// A preamble above a BOM, a using statement, or a param() block is a parse error.
 func TestInsertPreamblePowerShellPlacement(t *testing.T) {
 	const pre = "PRE\r\n"
 	const bom = "\ufeff"
@@ -165,14 +165,30 @@ func TestInsertPreamblePowerShellPlacement(t *testing.T) {
 		contents string
 		want     string // "" means the insert must be refused
 	}{
-		{"leading param", "param($Foo)\r\n", ""},
-		{"uppercase param", "PARAM($Foo)\r\n", ""},
-		{"attribute then param", "[CmdletBinding()]\r\nparam($Foo)\r\n", ""},
-		{"two attributes then param", "[CmdletBinding()]\r\n[OutputType([int])]\r\nparam($Foo)\r\n", ""},
-		{"comments above param", "# c\r\n#Requires -Version 5\r\nparam($Foo)\r\n", ""},
-		{"help block above param", "<#\r\n.SYNOPSIS\r\n#>\r\nparam($Foo)\r\n", ""},
-		{"using above param", "using namespace System.Text\r\nparam($Foo)\r\n", ""},
-		{"bom above param", bom + "param($Foo)\r\n", ""},
+		// a param() block has to stay first, so the preamble goes after it
+		{"leading param", "param($Foo)\r\nWrite-Output hi\r\n",
+			"param($Foo)\r\n" + pre + "Write-Output hi\r\n"},
+		{"uppercase param", "PARAM($Foo)\r\n", "PARAM($Foo)\r\n" + pre},
+		{"attribute then param", "[CmdletBinding()]\r\nparam($Foo)\r\n",
+			"[CmdletBinding()]\r\nparam($Foo)\r\n" + pre},
+		{"two attributes then param", "[CmdletBinding()]\r\n[OutputType([int])]\r\nparam($Foo)\r\n",
+			"[CmdletBinding()]\r\n[OutputType([int])]\r\nparam($Foo)\r\n" + pre},
+		{"comments above param", "# c\r\n#Requires -Version 5\r\nparam($Foo)\r\n",
+			"# c\r\n#Requires -Version 5\r\nparam($Foo)\r\n" + pre},
+		{"help block above param", "<#\r\n.SYNOPSIS\r\n#>\r\nparam($Foo)\r\n",
+			"<#\r\n.SYNOPSIS\r\n#>\r\nparam($Foo)\r\n" + pre},
+		{"using above param", "using namespace System.Text\r\nparam($Foo)\r\n",
+			"using namespace System.Text\r\nparam($Foo)\r\n" + pre},
+		{"bom above param", bom + "param($Foo)\r\n", bom + "param($Foo)\r\n" + pre},
+		{"multiline param", "param(\r\n  [string]$Foo = \"a)b\",\r\n  [int]$N = 2\r\n)\r\nWrite-Output hi\r\n",
+			"param(\r\n  [string]$Foo = \"a)b\",\r\n  [int]$N = 2\r\n)\r\n" + pre + "Write-Output hi\r\n"},
+		{"param with quoted paren", "param($Foo = 'a)b')\r\n", "param($Foo = 'a)b')\r\n" + pre},
+		{"param with comment", "param(\r\n  # note\r\n  $Foo\r\n)\r\n", "param(\r\n  # note\r\n  $Foo\r\n)\r\n" + pre},
+		{"param with block comment", "param(<# note #>$Foo)\r\n", "param(<# note #>$Foo)\r\n" + pre},
+
+		// a default can't reference a variable the preamble defines below it
+		{"param default uses a variable", "param($Foo = $FLEET_VAR_HOST_UUID)\r\n", ""},
+		{"unterminated param", "param($Foo\r\nWrite-Output hi\r\n", ""},
 
 		{"ordinary script", "Write-Output hi\r\n", pre + "Write-Output hi\r\n"},
 		{"empty", "", pre},

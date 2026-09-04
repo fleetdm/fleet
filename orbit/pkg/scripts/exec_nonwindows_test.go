@@ -172,8 +172,9 @@ func TestExecCmdDoesNotExecuteFleetVariableValues(t *testing.T) {
 		name     string
 		value    string
 		contents string
-		// the shebang case never reaches the body, so only safety is checked
-		skipOutput bool
+		// macOS splits shebang arguments and Linux doesn't, so the shebang case
+		// only gets the safety assertion
+		safetyOnly bool
 	}{
 		{"backtick", "Eng`touch " + marker + "`", "#!/bin/sh\nprintf %s \"$FLEET_VAR_HOST_UUID\"\n", false},
 		{"cmd-subst", "Eng$(touch " + marker + ")", "#!/bin/sh\nprintf %s \"$FLEET_VAR_HOST_UUID\"\n", false},
@@ -192,11 +193,12 @@ func TestExecCmdDoesNotExecuteFleetVariableValues(t *testing.T) {
 			require.NoError(t, os.WriteFile(path, []byte(script), 0o600))
 
 			output, _, err := ExecCmd(context.Background(), path, nil)
-			require.NoError(t, err)
 			require.NoFileExists(t, marker)
-			if !tc.skipOutput {
-				require.Equal(t, tc.value, string(output))
+			if tc.safetyOnly {
+				return
 			}
+			require.NoError(t, err)
+			require.Equal(t, tc.value, string(output))
 		})
 	}
 }

@@ -169,12 +169,25 @@ func TestMaybeExpandScriptFleetVariables(t *testing.T) {
 		require.NotContains(t, body, "ABC-123")
 	})
 
-	t.Run("PowerShell param block fails instead of breaking the script", func(t *testing.T) {
+	t.Run("PowerShell param block keeps its place", func(t *testing.T) {
+		svc, ctx, _ := newSvcAndCtx(fleet.TierPremium)
+		h := *host
+		h.Platform = "windows"
+		const body = "param($Foo = \"bar\")\r\nWrite-Output $FLEET_VAR_HOST_UUID\r\n"
+		expanded, failMsg, err := svc.maybeExpandScriptFleetVariables(ctx, &h, body)
+		require.NoError(t, err)
+		require.Empty(t, failMsg)
+		require.Equal(t, "param($Foo = \"bar\")\r\n"+
+			"$FLEET_VAR_HOST_UUID = "+variables.PowerShellCharArray("ABC-123")+"\r\n"+
+			"Write-Output $FLEET_VAR_HOST_UUID\r\n", expanded)
+	})
+
+	t.Run("a variable in a param default fails", func(t *testing.T) {
 		svc, ctx, _ := newSvcAndCtx(fleet.TierPremium)
 		h := *host
 		h.Platform = "windows"
 		expanded, failMsg, err := svc.maybeExpandScriptFleetVariables(ctx, &h,
-			"param($Foo = \"bar\")\r\nWrite-Output $FLEET_VAR_HOST_UUID\r\n")
+			"param($Foo = $FLEET_VAR_HOST_UUID)\r\nWrite-Output $Foo\r\n")
 		require.NoError(t, err)
 		require.Empty(t, expanded)
 		require.Equal(t, powerShellParamBlockMsg, failMsg)
