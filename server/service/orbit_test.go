@@ -2017,6 +2017,55 @@ func TestGetOrbitConfigWindowsManagedLocalAccount(t *testing.T) {
 		require.NoError(t, err)
 		assert.False(t, cfg.Notifications.CreateWindowsManagedLocalAccount)
 	})
+
+	// withRotationRequested puts the host in the state a rotation leaves behind: it has already escrowed a password for
+	// this enrollment, and a rotation is outstanding.
+	withRotationRequested := func(ds *mock.Store, awaiting fleet.WindowsMDMAwaitingConfiguration) {
+		ds.GetMDMWindowsHostConfigStateFunc = func(ctx context.Context, hostUUID string) (*fleet.MDMWindowsHostConfigState, error) {
+			return &fleet.MDMWindowsHostConfigState{
+				AwaitingConfiguration:                awaiting,
+				ManagedLocalAccountEscrowed:          true,
+				ManagedLocalAccountRotationRequested: true,
+			}, nil
+		}
+	}
+
+	// A rotation reuses the create notification: provisioning resets the password of an account fleetd already owns, so
+	// the already-escrowed short-circuit above must not swallow it.
+	t.Run("rotation requested sets it despite being already escrowed", func(t *testing.T) {
+		ds, svc, ctx := setupSvc(t, fleet.TierPremium, true, fleet.WindowsMDMAwaitingConfigurationNone, true)
+		withRotationRequested(ds, fleet.WindowsMDMAwaitingConfigurationNone)
+		cfg, err := svc.GetOrbitConfig(withMLACapability(ctx))
+		require.NoError(t, err)
+		assert.True(t, cfg.Notifications.CreateWindowsManagedLocalAccount)
+	})
+
+	// Turning the setting off stops Fleet creating new accounts. It does not mean refusing to re-secure an account that
+	// is already on the device, which is what macOS does (its rotation command never consults the setting).
+	t.Run("rotation requested sets it even when the setting is off", func(t *testing.T) {
+		ds, svc, ctx := setupSvc(t, fleet.TierPremium, false, fleet.WindowsMDMAwaitingConfigurationNone, true)
+		withRotationRequested(ds, fleet.WindowsMDMAwaitingConfigurationNone)
+		cfg, err := svc.GetOrbitConfig(withMLACapability(ctx))
+		require.NoError(t, err)
+		assert.True(t, cfg.Notifications.CreateWindowsManagedLocalAccount)
+		assert.False(t, ds.TeamMDMConfigFuncInvoked, "an outstanding request short-circuits the setting lookup")
+	})
+
+	t.Run("rotation requested still needs the capability", func(t *testing.T) {
+		ds, svc, ctx := setupSvc(t, fleet.TierPremium, true, fleet.WindowsMDMAwaitingConfigurationNone, true)
+		withRotationRequested(ds, fleet.WindowsMDMAwaitingConfigurationNone)
+		cfg, err := svc.GetOrbitConfig(ctx)
+		require.NoError(t, err)
+		assert.False(t, cfg.Notifications.CreateWindowsManagedLocalAccount)
+	})
+
+	t.Run("rotation requested still needs premium", func(t *testing.T) {
+		ds, svc, ctx := setupSvc(t, fleet.TierFree, true, fleet.WindowsMDMAwaitingConfigurationNone, true)
+		withRotationRequested(ds, fleet.WindowsMDMAwaitingConfigurationNone)
+		cfg, err := svc.GetOrbitConfig(withMLACapability(ctx))
+		require.NoError(t, err)
+		assert.False(t, cfg.Notifications.CreateWindowsManagedLocalAccount)
+	})
 }
 
 // TestEscrowWindowsManagedLocalAccountPassword covers the orbit escrow endpoint: eligibility via Windows MDM enrollment,
@@ -2043,6 +2092,10 @@ func TestEscrowWindowsManagedLocalAccountPassword(t *testing.T) {
 		ds.ReportManagedLocalAccountEscrowErrorFunc = func(ctx context.Context, hostUUID, clientError string) error { return nil }
 		ds.SetMDMWindowsManagedLocalAccountEscrowedFunc = func(ctx context.Context, hostUUID string, escrowed bool) (bool, error) {
 			return escrowed, nil
+		}
+		// No rotation outstanding by default; the rotation cases below override this.
+		ds.ClearMDMWindowsManagedLocalAccountRotationRequestFunc = func(ctx context.Context, hostUUID string) (bool, error) {
+			return false, nil
 		}
 		return ds, svc, ctx, opts
 	}
@@ -2096,6 +2149,58 @@ func TestEscrowWindowsManagedLocalAccountPassword(t *testing.T) {
 		// The flag is cleared so the host keeps being asked and a transient failure self-heals.
 		require.True(t, ds.SetMDMWindowsManagedLocalAccountEscrowedFuncInvoked)
 		require.False(t, escrowedFlag)
+	})
+
+	// A failure while rotating is a different situation from a failure while creating: the host kept the password it
+	// already had, so the escrowed copy still works. The request is retired instead of the escrowed flag being cleared,
+	// which is what stops the same doomed attempt running on every poll.
+	t.Run("client error during a rotation records a failed rotation and stops asking", func(t *testing.T) {
+		ds, svc, ctx, opts := setup(t, true, true)
+		ds.ClearMDMWindowsManagedLocalAccountRotationRequestFunc = func(ctx context.Context, hostUUID string) (bool, error) {
+			return true, nil
+		}
+		var loggedActivities []string
+		opts.ActivityMock.NewActivityFunc = func(_ context.Context, user *activity_api.User, a activity_api.ActivityDetails) error {
+			assert.Nil(t, user, "a device-reported failure has no user behind it")
+			loggedActivities = append(loggedActivities, a.ActivityName())
+			return nil
+		}
+
+		err := svc.EscrowWindowsManagedLocalAccountPassword(ctx, "", "NERR_PasswordTooShort")
+		require.NoError(t, err)
+
+		require.True(t, ds.ReportManagedLocalAccountEscrowErrorFuncInvoked)
+		require.True(t, ds.ClearMDMWindowsManagedLocalAccountRotationRequestFuncInvoked)
+		assert.Equal(t, []string{
+			fleet.ActivityTypeFailedToRotateManagedLocalAccountPassword{}.ActivityName(),
+		}, loggedActivities)
+		assert.False(t, ds.SetMDMWindowsManagedLocalAccountEscrowedFuncInvoked,
+			"the account still exists with a password Fleet knows, so the host must not be asked to create one")
+	})
+
+	t.Run("escrow that completes a rotation retires the request without a created activity", func(t *testing.T) {
+		ds, svc, ctx, opts := setup(t, true, true)
+		ds.ClearMDMWindowsManagedLocalAccountRotationRequestFunc = func(ctx context.Context, hostUUID string) (bool, error) {
+			return true, nil
+		}
+		// Already escrowed for this enrollment, so the flag does not change and no account was created.
+		ds.SetMDMWindowsManagedLocalAccountEscrowedFunc = func(ctx context.Context, hostUUID string, escrowed bool) (bool, error) {
+			return false, nil
+		}
+		activityCount := 0
+		opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, _ activity_api.ActivityDetails) error {
+			activityCount++
+			return nil
+		}
+
+		err := svc.EscrowWindowsManagedLocalAccountPassword(ctx, "rotated-pw", "")
+		require.NoError(t, err)
+
+		require.True(t, ds.SaveHostManagedLocalAccountFromEscrowFuncInvoked)
+		require.True(t, ds.ClearMDMWindowsManagedLocalAccountRotationRequestFuncInvoked)
+		// The rotated activity is logged when the rotation is requested, not when the device confirms it, so this
+		// escrow logs nothing at all.
+		assert.Zero(t, activityCount)
 	})
 
 	t.Run("client error is truncated by rune to fit the column", func(t *testing.T) {

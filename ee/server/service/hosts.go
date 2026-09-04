@@ -785,11 +785,8 @@ func (svc *Service) GetHostManagedAccountPassword(ctx context.Context, hostID ui
 	}
 
 	// Surface the rotation lifecycle alongside the password so the modal can render the auto-rotate / pending-rotation
-	// banner on first open without a separate host-details refetch round-trip. Windows accounts never rotate yet, so their
-	// response omits the rotation fields.
-	if !isWindows {
-		pwd.PendingRotation = acct.PendingRotation
-	}
+	// banner on first open without a separate host-details refetch round-trip.
+	pwd.PendingRotation = acct.PendingRotation
 
 	// Log the activity before applying any view side-effects. If activity
 	// creation fails the endpoint returns an error and the password is not
@@ -803,8 +800,10 @@ func (svc *Service) GetHostManagedAccountPassword(ctx context.Context, hostID ui
 		return nil, ctxerr.Wrap(ctx, err, "create viewed managed local account activity")
 	}
 
-	// Windows accounts do not auto-rotate, so viewing must not arm the rotate timer and AutoRotateAt stays nil.
-	if isWindows {
+	// A rotation already in flight owns the row, so viewing must not arm the timer on top of it: the device is about to
+	// replace this password anyway, and the modal signals that through PendingRotation instead. macOS stages a pending
+	// password and Windows carries a request on its enrollment; PendingRotation covers both.
+	if acct.PendingRotation {
 		return pwd, nil
 	}
 
@@ -824,15 +823,21 @@ func (svc *Service) GetHostManagedAccountPassword(ctx context.Context, hostID ui
 	return pwd, nil
 }
 
-// RotateManagedLocalAccountPassword rotates the macOS managed local admin
-// (`_fleetadmin`) password. When account_uuid is captured we generate a new
-// password, stage it as a pending rotation, and enqueue SetAutoAdminPassword.
-// When account_uuid is missing we record a deferred rotation that the cron
-// will fulfill once the UUID arrives via osquery — the user-actor activity
-// is still logged immediately (the cron must NOT re-log it for these rows).
-// If a rotation is already in flight (pending_encrypted_password IS NOT NULL)
-// the request is rejected with 400 BadRequest; callers should wait for the
-// in-flight rotation to land before retrying.
+// RotateManagedLocalAccountPassword rotates the managed local admin (`_fleetadmin`) password.
+//
+// On macOS: when account_uuid is captured we generate a new password, stage it
+// as a pending rotation, and enqueue SetAutoAdminPassword. When account_uuid is
+// missing we record a deferred rotation that the cron will fulfill once the UUID
+// arrives via osquery — the user-actor activity is still logged immediately (the
+// cron must NOT re-log it for these rows).
+//
+// On Windows: fleetd owns the password, so there is nothing to stage or enqueue.
+// We record a rotation request on the host's MDM enrollment and the next orbit
+// config check-in asks the device to re-provision, which resets the account's
+// password and escrows the new one.
+//
+// Either way, if a rotation is already in flight the request is rejected with
+// 400 BadRequest; callers should wait for it to land before retrying.
 func (svc *Service) RotateManagedLocalAccountPassword(ctx context.Context, hostID uint) error {
 	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
 		return err
@@ -846,11 +851,9 @@ func (svc *Service) RotateManagedLocalAccountPassword(ctx context.Context, hostI
 	if err := svc.authz.Authorize(ctx, fleet.MDMCommandAuthz{TeamID: host.TeamID}, fleet.ActionWrite); err != nil {
 		return err
 	}
-	if fleet.IsWindowsPlatform(host.Platform) {
-		return &fleet.BadRequestError{Message: "Password rotation is not available for Windows hosts."}
-	}
-	if !fleet.IsMacOSPlatform(host.Platform) {
-		return &fleet.BadRequestError{Message: "Host is not a macOS device."}
+	isWindows := fleet.IsWindowsPlatform(host.Platform)
+	if !fleet.IsMacOSPlatform(host.Platform) && !isWindows {
+		return &fleet.BadRequestError{Message: "Host is not a macOS or Windows device."}
 	}
 
 	acct, err := svc.ds.GetHostManagedLocalAccountStatus(ctx, host.UUID)
@@ -865,6 +868,10 @@ func (svc *Service) RotateManagedLocalAccountPassword(ctx context.Context, hostI
 	}
 	if acct.PendingRotation {
 		return &fleet.BadRequestError{Message: "Managed local account password rotation is already in progress for this host."}
+	}
+
+	if isWindows {
+		return svc.rotateWindowsManagedLocalAccountPassword(ctx, host)
 	}
 
 	accountUUID, err := svc.ds.GetManagedLocalAccountUUID(ctx, host.UUID)
@@ -909,6 +916,31 @@ func (svc *Service) RotateManagedLocalAccountPassword(ctx context.Context, hostI
 				"host_uuid", host.UUID, "err", rollbackErr)
 		}
 		return ctxerr.Wrap(ctx, sendErr, "rotate managed local account password")
+	}
+
+	return svc.logRotateManagedLocalAccountActivity(ctx, host)
+}
+
+// rotateWindowsManagedLocalAccountPassword records the request that the host's next orbit config check-in turns into a
+// re-provision notification. There is no command to enqueue and no password to stage, so unlike the macOS path there is
+// no APNs delivery to distinguish from a persistence failure: the request either lands or it does not.
+//
+// The activity is logged with the requesting user as actor once the request is recorded, matching the macOS manual path,
+// which also logs at request time rather than waiting for the device to confirm.
+func (svc *Service) rotateWindowsManagedLocalAccountPassword(ctx context.Context, host *fleet.Host) error {
+	switch err := svc.ds.InitiateWindowsManagedLocalAccountRotation(ctx, host.UUID); {
+	case err == nil:
+	case errors.Is(err, fleet.ErrManagedLocalAccountRotationPending):
+		// Raced with the cron or another request between the PendingRotation check above and here.
+		return &fleet.BadRequestError{Message: "Cannot rotate managed local account password while an operation is pending."}
+	case fleet.IsNotFound(err):
+		// The managed account row was verified moments ago, so this is the enrollment: without one there is no
+		// orbit config check-in to carry the notification.
+		return &fleet.BadRequestError{Message: "Host does not have MDM turned on."}
+	case errors.Is(err, fleet.ErrManagedLocalAccountNotEligible):
+		return &fleet.BadRequestError{Message: "Couldn’t rotate managed local account password. Please try again."}
+	default:
+		return ctxerr.Wrap(ctx, err, "initiate windows managed local account rotation")
 	}
 
 	return svc.logRotateManagedLocalAccountActivity(ctx, host)

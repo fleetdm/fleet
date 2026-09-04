@@ -2084,6 +2084,19 @@ type Datastore interface {
 	// to its host via pending_command_uuid. Returns notFound when no row matches.
 	GetManagedLocalAccountByPendingCommandUUID(ctx context.Context, commandUUID string) (host *Host, err error)
 
+	// InitiateWindowsManagedLocalAccountRotation asks a Windows host to re-provision its managed local account,
+	// recording the request on the host's current MDM enrollment and clearing auto_rotate_at in one transaction.
+	// Unlike the macOS path there is no pending password to stage: fleetd generates one on the device and escrows it.
+	// Returns ErrManagedLocalAccountRotationPending when a rotation is already outstanding,
+	// ErrManagedLocalAccountNotEligible when the row has no password or has failed, and notFound when the host has no
+	// managed local account row or no Windows MDM enrollment.
+	InitiateWindowsManagedLocalAccountRotation(ctx context.Context, hostUUID string) error
+
+	// GetWindowsManagedLocalAccountsForAutoRotation returns up to 100 Windows rows whose auto_rotate_at has elapsed
+	// and which have a password, a current Windows MDM enrollment with no rotation already requested, and a status
+	// other than 'failed'. status='pending' is allowed, as it is for the macOS query.
+	GetWindowsManagedLocalAccountsForAutoRotation(ctx context.Context) ([]HostManagedLocalAccountWindowsRotationInfo, error)
+
 	// InsertMDMAppleBootstrapPackage insterts a new bootstrap package in the
 	// database (or S3 if configured).
 	InsertMDMAppleBootstrapPackage(ctx context.Context, bp *MDMAppleBootstrapPackage, pkgStore MDMBootstrapPackageStore) error
@@ -2445,6 +2458,12 @@ type Datastore interface {
 	// MDM enrollment, which is what stops the server asking it to create the account. Reports whether the value changed, so the caller logs the
 	// created activity only when an account was really created. The flag is per-enrollment: re-enrolling deletes the row and so resets it.
 	SetMDMWindowsManagedLocalAccountEscrowed(ctx context.Context, hostUUID string, escrowed bool) (changed bool, err error)
+
+	// ClearMDMWindowsManagedLocalAccountRotationRequest retires an outstanding managed local account rotation request
+	// on the host's current Windows MDM enrollment, which stops the server asking the device to re-provision. Called
+	// once the device escrows the replacement password or reports that it could not produce one. Reports whether a
+	// request was outstanding, letting the escrow endpoint tell a rotation from a first-time creation.
+	ClearMDMWindowsManagedLocalAccountRotationRequest(ctx context.Context, hostUUID string) (cleared bool, err error)
 
 	// MDMWindowsGetEnrolledDeviceWithHostUUID returns the MDMWindowsEnrolledDevice information for a given HostUUID
 	MDMWindowsGetEnrolledDeviceWithHostUUID(ctx context.Context, hostUUID string) (*MDMWindowsEnrolledDevice, error)

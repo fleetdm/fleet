@@ -92,3 +92,15 @@ func randomIndex(n int) int {
 		}
 	}
 }
+
+// HostManagedLocalAccountWindowsRotationInfo identifies a Windows host whose managed local account password is due for
+// automatic rotation. It carries no account UUID: that addresses a specific macOS account in an MDM command, whereas
+// Windows rotation is a notification fleetd acts on for the one account it owns.
+type HostManagedLocalAccountWindowsRotationInfo struct {
+	HostUUID    string `db:"host_uuid"`
+	HostID      uint   `db:"host_id"`
+	DisplayName string `db:"display_name"`
+	// InitiatedByFleet distinguishes a view-armed rotation, which the cron logs an activity for, from a manual one that
+	// was already logged with the requesting user as actor.
+	InitiatedByFleet bool `db:"initiated_by_fleet"`
+}

@@ -25,6 +25,11 @@ interface IManagedAccountModalProps {
   // We deferred this decision for now because this modal only displays for
   // Admin or Maintainer roles
   canRotatePassword: boolean;
+  /**
+   * The host's reason for a failed rotation, when there is one. The password below is still the
+   * working one in that case, so the failure is shown alongside it rather than in place of it.
+   */
+  rotationError?: string;
   onCancel: () => void;
   onRotate: () => void;
 }
@@ -32,6 +37,7 @@ interface IManagedAccountModalProps {
 const ManagedAccountModal = ({
   hostId,
   canRotatePassword,
+  rotationError,
   onCancel,
   onRotate,
 }: IManagedAccountModalProps) => {
@@ -103,12 +109,25 @@ const ManagedAccountModal = ({
                 Password will rotate once the host acknowledges the request.
               </InfoBanner>
             ) : (
-              autoRotateAt && (
+              // A rotation that failed on the host takes precedence over the auto-rotate hint: the timer is not
+              // armed for a failed row, so there is no upcoming rotation left to promise.
+              (rotationError && (
+                <InfoBanner color="yellow" icon="warning">
+                  <>
+                    Couldn&apos;t rotate password. The password above still
+                    works.
+                    <div className={`${baseClass}__rotation-error`}>
+                      {rotationError}
+                    </div>
+                  </>
+                </InfoBanner>
+              )) ||
+              (autoRotateAt && (
                 <InfoBanner color="yellow">
                   Password rotates automatically after{" "}
                   {monthDayTimeFormat(autoRotateAt)}.
                 </InfoBanner>
-              )
+              ))
             )}
             <div className="modal-cta-wrap">
               <Button onClick={onCancel}>Close</Button>

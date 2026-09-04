@@ -634,13 +634,23 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 			// Ask a capable premium fleetd to create and escrow the Windows managed local admin account when the host's fleet has the
 			// setting enabled. The request stops once the host escrows a password for this enrollment. Re-enrolling deletes the enrollment
 			// row and with it the flag, so a re-imaged device is asked again.
-			if mlaCapable && !state.ManagedLocalAccountEscrowed {
+			//
+			// A rotation request reuses the same notification: provisioning resets the password of an account fleetd already owns, so
+			// asking again is exactly how a password is rotated, and no new fleetd capability is needed for it.
+			if mlaCapable && (!state.ManagedLocalAccountEscrowed || state.ManagedLocalAccountRotationRequested) {
 				if lic, _ := license.FromContext(ctx); lic != nil && lic.IsPremium() {
-					enabled, err := svc.windowsManagedLocalAccountEnabled(ctx, host, appConfig)
-					if err != nil {
-						return fleet.OrbitConfig{}, ctxerr.Wrap(ctx, err, "checking windows managed local account setting")
+					if state.ManagedLocalAccountRotationRequested {
+						// A rotation someone asked for stands even if the setting has since been turned off, matching macOS, where
+						// rotation goes out as an MDM command without consulting the setting at all. Disabling the setting stops Fleet
+						// creating new accounts; it does not mean refusing to re-secure an account already on the device.
+						notifs.CreateWindowsManagedLocalAccount = true
+					} else {
+						enabled, err := svc.windowsManagedLocalAccountEnabled(ctx, host, appConfig)
+						if err != nil {
+							return fleet.OrbitConfig{}, ctxerr.Wrap(ctx, err, "checking windows managed local account setting")
+						}
+						notifs.CreateWindowsManagedLocalAccount = enabled
 					}
-					notifs.CreateWindowsManagedLocalAccount = enabled
 				}
 			}
 
@@ -1718,6 +1728,29 @@ func (svc *Service) EscrowWindowsManagedLocalAccountPassword(ctx context.Context
 		if err := svc.ds.ReportManagedLocalAccountEscrowError(ctx, host.UUID, clientError); err != nil {
 			return ctxerr.Wrap(ctx, err, "report windows managed local account escrow error")
 		}
+
+		// Clearing the request is also how we learn there was one: only an outstanding rotation can be cleared.
+		rotating, err := svc.ds.ClearMDMWindowsManagedLocalAccountRotationRequest(ctx, host.UUID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "clear windows managed local account rotation request after failure")
+		}
+		if rotating {
+			// A failed rotation left the device's password untouched, so the escrowed one still works and the account
+			// still exists. The request is retired rather than the escrowed flag cleared: asking again would re-run
+			// the same attempt every poll, and a standing cause such as a domain password policy would never clear.
+			//
+			// Attributed to Fleet, matching the macOS ack path: the failure surfaces outside any user's request,
+			// whoever originally asked for the rotation.
+			if err := svc.NewActivity(ctx, nil, fleet.ActivityTypeFailedToRotateManagedLocalAccountPassword{
+				HostID:          host.ID,
+				HostDisplayName: host.DisplayName(),
+			}); err != nil {
+				svc.logger.ErrorContext(ctx, "record failed to rotate managed local account activity", "err", err)
+				ctxerr.Handle(ctx, err)
+			}
+			return nil
+		}
+
 		// The device no longer has an account we know the password to, so keep asking it to create one.
 		if _, err := svc.ds.SetMDMWindowsManagedLocalAccountEscrowed(ctx, host.UUID, false); err != nil {
 			return ctxerr.Wrap(ctx, err, "clear windows managed local account escrowed flag")
@@ -1742,6 +1775,13 @@ func (svc *Service) EscrowWindowsManagedLocalAccountPassword(ctx context.Context
 	created, err := svc.ds.SetMDMWindowsManagedLocalAccountEscrowed(ctx, host.UUID, true)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "set windows managed local account escrowed flag")
+	}
+
+	// The rotation, if that is what this was, is done: the replacement password is stored, so stop asking. The rotated
+	// activity is not recorded here, matching macOS, where it is logged when the rotation is requested rather than when
+	// the device confirms it.
+	if _, err := svc.ds.ClearMDMWindowsManagedLocalAccountRotationRequest(ctx, host.UUID); err != nil {
+		return ctxerr.Wrap(ctx, err, "clear windows managed local account rotation request")
 	}
 
 	// The setting or license may have changed between the notification and this escrow. That does not change what we

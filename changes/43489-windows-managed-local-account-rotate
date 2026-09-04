@@ -1,0 +1,2 @@
+* Added the ability to rotate the managed local account password on Windows hosts, from Host details > Actions > Show managed account or the `POST /hosts/:id/managed_account_password/rotate` endpoint. As on macOS, viewing the password also schedules an automatic rotation about an hour later.
+* Windows hosts now keep showing the managed local account password when a rotation fails on the host, along with the reason the host reported. The host keeps its previous password when a rotation fails, so that password still works.

@@ -211,6 +211,56 @@ describe("ManagedAccountModal", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("shows the failed-rotation banner alongside the password, not instead of it", async () => {
+    render(
+      <ManagedAccountModal
+        hostId={7}
+        canRotatePassword
+        rotationError="Resetting password for _fleetadmin failed: NERR_PasswordTooShort (2245)"
+        onCancel={jest.fn()}
+        onRotate={jest.fn()}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText(/Couldn't rotate password/i)).toBeVisible();
+    });
+    // The device's own reason is quoted so the admin can act on it.
+    expect(screen.getByText(/NERR_PasswordTooShort/)).toBeVisible();
+    // The point of the change: a failed rotation must not hide a working password.
+    expect(screen.getByText("_fleetadmin")).toBeVisible();
+    expect(screen.getByText("Rotate password")).toBeVisible();
+  });
+
+  it("prefers the pending banner over a stale rotation error", async () => {
+    (hostAPI.getManagedAccountPassword as jest.Mock).mockResolvedValue({
+      ...mockPasswordResponse,
+      managed_account_password: {
+        ...mockPasswordResponse.managed_account_password,
+        pending_rotation: true,
+      },
+    });
+
+    render(
+      <ManagedAccountModal
+        hostId={7}
+        canRotatePassword
+        rotationError="an earlier failure"
+        onCancel={jest.fn()}
+        onRotate={jest.fn()}
+      />
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(/Password will rotate once the host acknowledges/i)
+      ).toBeVisible();
+    });
+    expect(
+      screen.queryByText(/Couldn't rotate password/i)
+    ).not.toBeInTheDocument();
+  });
+
   it("does not call onRotate when rotate API errors", async () => {
     (hostAPI.rotateManagedLocalAccountPassword as jest.Mock).mockRejectedValue(
       new Error("boom")
