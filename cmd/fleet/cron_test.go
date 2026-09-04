@@ -257,7 +257,8 @@ func TestCleanupExpiredHostsCronJob(t *testing.T) {
 	t.Run("drains until empty", func(t *testing.T) {
 		svc := &servicemock.Service{}
 		calls := 0
-		svc.CleanupExpiredHostsFunc = func(ctx context.Context) ([]fleet.DeletedHostDetails, error) {
+		svc.CleanupExpiredHostsBatchFunc = func(ctx context.Context, batchSize int) ([]fleet.DeletedHostDetails, error) {
+			require.Equal(t, 5, batchSize)
 			calls++
 			if calls == 1 {
 				return []fleet.DeletedHostDetails{{ID: 1}}, nil
@@ -265,7 +266,7 @@ func TestCleanupExpiredHostsCronJob(t *testing.T) {
 			return nil, nil
 		}
 
-		err := cleanupExpiredHostsCronJob(context.Background(), svc, logger, time.Minute)
+		err := cleanupExpiredHostsCronJob(context.Background(), svc, logger, time.Minute, 5)
 		require.NoError(t, err)
 		require.Equal(t, 2, calls)
 	})
@@ -273,7 +274,8 @@ func TestCleanupExpiredHostsCronJob(t *testing.T) {
 	t.Run("stops between batches when runtime budget expires", func(t *testing.T) {
 		svc := &servicemock.Service{}
 		calls := 0
-		svc.CleanupExpiredHostsFunc = func(ctx context.Context) ([]fleet.DeletedHostDetails, error) {
+		svc.CleanupExpiredHostsBatchFunc = func(ctx context.Context, batchSize int) ([]fleet.DeletedHostDetails, error) {
+			require.Equal(t, 5, batchSize)
 			calls++
 			// The batch must not be cancelled by the runtime budget: a batch
 			// that outlives the budget still completes, and the loop stops
@@ -285,7 +287,7 @@ func TestCleanupExpiredHostsCronJob(t *testing.T) {
 			return []fleet.DeletedHostDetails{{ID: 1}}, nil
 		}
 
-		err := cleanupExpiredHostsCronJob(context.Background(), svc, logger, 50*time.Millisecond)
+		err := cleanupExpiredHostsCronJob(context.Background(), svc, logger, 50*time.Millisecond, 5)
 		require.NoError(t, err)
 		require.Equal(t, 1, calls)
 	})
@@ -293,12 +295,13 @@ func TestCleanupExpiredHostsCronJob(t *testing.T) {
 	t.Run("returns error when parent context is cancelled", func(t *testing.T) {
 		svc := &servicemock.Service{}
 		ctx, cancel := context.WithCancel(context.Background())
-		svc.CleanupExpiredHostsFunc = func(ctx context.Context) ([]fleet.DeletedHostDetails, error) {
+		svc.CleanupExpiredHostsBatchFunc = func(ctx context.Context, batchSize int) ([]fleet.DeletedHostDetails, error) {
+			require.Equal(t, 5, batchSize)
 			cancel()
 			return []fleet.DeletedHostDetails{{ID: 1}}, nil
 		}
 
-		err := cleanupExpiredHostsCronJob(ctx, svc, logger, time.Minute)
+		err := cleanupExpiredHostsCronJob(ctx, svc, logger, time.Minute, 5)
 		require.ErrorIs(t, err, context.Canceled)
 	})
 }

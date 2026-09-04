@@ -2782,7 +2782,7 @@ func TestCleanupExpiredHostsActivities(t *testing.T) {
 	prevActivities := mysqltest.ListActivitiesAPI(t, ctx, activitySvc, activity_api.ListOptions{})
 
 	// Run the cleanup service method
-	deletedHosts, err := svc.CleanupExpiredHosts(ctx)
+	deletedHosts, err := svc.CleanupExpiredHostsBatch(ctx, 100)
 	require.NoError(t, err)
 	require.Len(t, deletedHosts, 5, "Should have deleted 5 hosts")
 

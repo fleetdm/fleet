@@ -253,7 +253,7 @@ type HostByIdentifierFunc func(ctx context.Context, identifier string, opts flee
 
 type RefetchHostFunc func(ctx context.Context, id uint) (err error)
 
-type CleanupExpiredHostsFunc func(ctx context.Context) ([]fleet.DeletedHostDetails, error)
+type CleanupExpiredHostsBatchFunc func(ctx context.Context, batchSize int) ([]fleet.DeletedHostDetails, error)
 
 type AddHostsToTeamFunc func(ctx context.Context, teamID *uint, hostIDs []uint, skipBulkPending bool) error
 
@@ -1366,8 +1366,8 @@ type Service struct {
 	RefetchHostFunc        RefetchHostFunc
 	RefetchHostFuncInvoked bool
 
-	CleanupExpiredHostsFunc        CleanupExpiredHostsFunc
-	CleanupExpiredHostsFuncInvoked bool
+	CleanupExpiredHostsBatchFunc        CleanupExpiredHostsBatchFunc
+	CleanupExpiredHostsBatchFuncInvoked bool
 
 	AddHostsToTeamFunc        AddHostsToTeamFunc
 	AddHostsToTeamFuncInvoked bool
@@ -3327,11 +3327,11 @@ func (s *Service) RefetchHost(ctx context.Context, id uint) (err error) {
 	return s.RefetchHostFunc(ctx, id)
 }
 
-func (s *Service) CleanupExpiredHosts(ctx context.Context) ([]fleet.DeletedHostDetails, error) {
+func (s *Service) CleanupExpiredHostsBatch(ctx context.Context, batchSize int) ([]fleet.DeletedHostDetails, error) {
 	s.mu.Lock()
-	s.CleanupExpiredHostsFuncInvoked = true
+	s.CleanupExpiredHostsBatchFuncInvoked = true
 	s.mu.Unlock()
-	return s.CleanupExpiredHostsFunc(ctx)
+	return s.CleanupExpiredHostsBatchFunc(ctx, batchSize)
 }
 
 func (s *Service) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []uint, skipBulkPending bool) error {

@@ -35,7 +35,6 @@ var (
 	hostIssuesInsertBatchSize                = 10000
 	hostIssuesUpdateFailingPoliciesBatchSize = 10000
 	hostsDeleteBatchSize                     = 5000
-	cleanupExpiredHostsBatchSize             = 5000
 )
 
 var (
@@ -2537,7 +2536,7 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, opts ...fleet.DatastoreEnr
 					hostInfo.OsqueryIdentifier, *enrollConfig.IdentityCert.HostID))
 			}
 
-			// Use the canonical "never" sentinel (2000-01-01 UTC) so CleanupExpiredHosts does not immediately delete it.
+			// Use the canonical "never" sentinel (2000-01-01 UTC) so CleanupExpiredHostsBatch does not immediately delete it.
 			zeroTime := common_mysql.GetDefaultNonZeroTime()
 			// Create new host record. We always create newly enrolled hosts with refetch_requested = true
 			// so that the frontend automatically starts background checks to update the page whenever
@@ -3920,7 +3919,11 @@ func (ds *Datastore) ListPoliciesForHost(ctx context.Context, host *fleet.Host) 
 	return policies, nil
 }
 
-func (ds *Datastore) CleanupExpiredHosts(ctx context.Context) ([]fleet.DeletedHostDetails, error) {
+func (ds *Datastore) CleanupExpiredHostsBatch(ctx context.Context, batchSize int) ([]fleet.DeletedHostDetails, error) {
+	if batchSize <= 0 {
+		return nil, ctxerr.Errorf(ctx, "expired hosts batch size must be positive, got %d", batchSize)
+	}
+
 	ac, err := appConfigDB(ctx, ds.reader(ctx))
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting app config")
@@ -4060,7 +4063,7 @@ func (ds *Datastore) CleanupExpiredHosts(ctx context.Context) ([]fleet.DeletedHo
 
 	// Reserve part of the batch for each expiry scope so a large global backlog
 	// does not consume the entire batch before custom-expiry teams are considered.
-	remainingReservedBudget := cleanupExpiredHostsBatchSize
+	remainingReservedBudget := batchSize
 	for scopeIndex := range expiredHostScopes {
 		scopesLeft := len(expiredHostScopes) - scopeIndex
 		reservedLimit := remainingReservedBudget / scopesLeft
@@ -4078,7 +4081,7 @@ func (ds *Datastore) CleanupExpiredHosts(ctx context.Context) ([]fleet.DeletedHo
 	}
 
 	// Fill unused capacity from scopes that still have more expired hosts.
-	remainingBatchSize := cleanupExpiredHostsBatchSize - len(allIdsToDelete)
+	remainingBatchSize := batchSize - len(allIdsToDelete)
 	for scopeIndex := range expiredHostScopes {
 		if remainingBatchSize <= 0 {
 			break

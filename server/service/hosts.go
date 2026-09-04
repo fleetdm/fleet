@@ -1259,9 +1259,8 @@ func (svc *Service) DeleteHost(ctx context.Context, id uint) error {
 	return nil
 }
 
-func (svc *Service) CleanupExpiredHosts(ctx context.Context) ([]fleet.DeletedHostDetails, error) {
-	// Call datastore to get expired hosts and their details
-	hostDetails, err := svc.ds.CleanupExpiredHosts(ctx)
+func (svc *Service) CleanupExpiredHostsBatch(ctx context.Context, batchSize int) ([]fleet.DeletedHostDetails, error) {
+	hostDetails, err := svc.ds.CleanupExpiredHostsBatch(ctx, batchSize)
 	if err != nil {
 		return nil, err
 	}
