@@ -55,6 +55,7 @@ func TestMDMShared(t *testing.T) {
 		{"TestMDMEULA", testMDMEULA},
 		{"TestGetHostCertAssociationsToExpire", testSCEPRenewalHelpers},
 		{"TestSCEPRenewalHelpers", testSCEPRenewalHelpers},
+		{"TestSCEPRenewalExclusion", testSCEPRenewalExclusion},
 		{"TestMDMProfilesSummaryAndHostFilters", testMDMProfilesSummaryAndHostFilters},
 		{"TestIsHostConnectedToFleetMDM", testIsHostConnectedToFleetMDM},
 		{"TestAreHostsConnectedToFleetMDM", testAreHostsConnectedToFleetMDM},
@@ -2668,12 +2669,12 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 			name:      "macos labels include any/all and exclude rules",
 			setupFunc: macosLabeledProfileRulesSetup,
 			wantMac: map[string]*fleet.ExpectedMDMProfile{
-				"T6.1":                         {Identifier: "T6.1"},
-				"T6.2":                         {Identifier: "T6.2"},
-				"include_any_all_match_prof":   {Identifier: "include_any_all_match_prof"},
-				"include_any_one_matches_prof": {Identifier: "include_any_one_matches_prof"},
-				"include_all_all_match_prof":   {Identifier: "include_all_all_match_prof"},
-				"exclude_none_match_prof":      {Identifier: "exclude_none_match_prof"},
+				"T6.1":                                    {Identifier: "T6.1"},
+				"T6.2":                                    {Identifier: "T6.2"},
+				"include_any_all_match_prof":              {Identifier: "include_any_all_match_prof"},
+				"include_any_one_matches_prof":            {Identifier: "include_any_one_matches_prof"},
+				"include_all_all_match_prof":              {Identifier: "include_all_all_match_prof"},
+				"exclude_none_match_prof":                 {Identifier: "exclude_none_match_prof"},
 				"include_all_and_exclude_none_match_prof": {Identifier: "include_all_and_exclude_none_match_prof"},
 				"include_any_and_exclude_none_match_prof": {Identifier: "include_any_and_exclude_none_match_prof"},
 			},
@@ -3405,6 +3406,99 @@ func testSCEPRenewalHelpers(t *testing.T, ds *Datastore) {
 	err = ds.CleanSCEPRenewRefs(ctx, h1.UUID)
 	require.NoError(t, err)
 	checkSCEPRenew(assocs[2], nil)
+}
+
+func testSCEPRenewalExclusion(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	scepDepot, err := ds.NewSCEPDepot()
+	require.NoError(t, err)
+
+	nanoStorage, err := ds.NewMDMAppleMDMStorage()
+	require.NoError(t, err)
+
+	var i int
+	setHost := func(depAssigned bool) *fleet.Host {
+		i++
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			Hostname:       fmt.Sprintf("excl-host%d-name", i),
+			OsqueryHostID:  new(fmt.Sprintf("excl-osquery-%d", i)),
+			NodeKey:        new(fmt.Sprintf("excl-nodekey-%d", i)),
+			UUID:           fmt.Sprintf("excl-uuid-%d", i),
+			HardwareSerial: fmt.Sprintf("excl-serial-%d", i),
+			Platform:       "darwin",
+		})
+		require.NoError(t, err)
+
+		serial, err := scepDepot.Serial()
+		require.NoError(t, err)
+		// expired a year ago, so it always lands in the renewal window
+		notAfter := time.Now().AddDate(-1, 0, 0)
+		cert := &x509.Certificate{
+			SerialNumber: serial,
+			Subject:      pkix.Name{CommonName: "Fleet Identity"},
+			NotBefore:    time.Now().Add(-24 * time.Hour),
+			NotAfter:     notAfter,
+			Raw:          []byte(uuid.NewString()),
+		}
+		require.NoError(t, scepDepot.Put(cert.Subject.CommonName, cert))
+		req := mdm.Request{EnrollID: &mdm.EnrollID{ID: h.UUID}, Context: ctx}
+		require.NoError(t, nanoStorage.AssociateCertHash(&req, certauth.HashCert(cert), notAfter))
+		nanoEnroll(t, ds, h, true)
+
+		if depAssigned {
+			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+				_, err := q.ExecContext(ctx,
+					`INSERT INTO host_dep_assignments (host_id, hardware_serial) VALUES (?, ?)`,
+					h.ID, h.HardwareSerial)
+				return err
+			})
+		}
+		return h
+	}
+
+	excludedAt := func(assoc fleet.SCEPIdentityAssociation) *time.Time {
+		var got *time.Time
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &got,
+				`SELECT renewal_excluded_at FROM nano_cert_auth_associations WHERE id = ? AND sha256 = ?`,
+				assoc.HostUUID, assoc.SHA256)
+		})
+		return got
+	}
+
+	assocsByHostUUID := func() map[string]fleet.SCEPIdentityAssociation {
+		assocs, err := ds.GetHostCertAssociationsToExpire(ctx, 1000, 100)
+		require.NoError(t, err)
+		byUUID := make(map[string]fleet.SCEPIdentityAssociation, len(assocs))
+		for _, assoc := range assocs {
+			byUUID[assoc.HostUUID] = assoc
+		}
+		return byUUID
+	}
+
+	hDEP := setHost(true)
+	hNoDEP := setHost(false)
+
+	// both are up for renewal, and DEP assignment is reported per host.
+	got := assocsByHostUUID()
+	require.Len(t, got, 2)
+	require.True(t, got[hDEP.UUID].DEPAssignedToFleet)
+	require.False(t, got[hNoDEP.UUID].DEPAssignedToFleet)
+
+	// no-op on an empty set
+	require.NoError(t, ds.ExcludeHostCertAssociationsFromRenewal(ctx, nil))
+	require.Nil(t, excludedAt(got[hDEP.UUID]))
+	require.Nil(t, excludedAt(got[hNoDEP.UUID]))
+
+	// excluding one association only stamps that association...
+	require.NoError(t, ds.ExcludeHostCertAssociationsFromRenewal(ctx, []fleet.SCEPIdentityAssociation{got[hNoDEP.UUID]}))
+	require.NotNil(t, excludedAt(got[hNoDEP.UUID]))
+	require.Nil(t, excludedAt(got[hDEP.UUID]))
+
+	// ...and drops it from the next renewal run.
+	afterExclusion := assocsByHostUUID()
+	require.Len(t, afterExclusion, 1)
+	require.Contains(t, afterExclusion, hDEP.UUID)
 }
 
 func testMDMProfilesSummaryAndHostFilters(t *testing.T, ds *Datastore) {
