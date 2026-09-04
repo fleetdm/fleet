@@ -307,6 +307,49 @@ func TestRetryingPusherBreaker(t *testing.T) {
 	require.Zero(t, p.consecutiveFailures)
 }
 
+func TestRetryingPusherBreakerResponseSignals(t *testing.T) {
+	ctx := t.Context()
+
+	t.Run("all-transient response sets open the breaker", func(t *testing.T) {
+		// APNs 5xx storms and GOAWAYs surface as per-device errors with a
+		// nil call-level error; they must still count as outage strikes.
+		inner := &fakeInnerPusher{raw: true, res: map[string]*nanomdm_push.Response{
+			"e1": {Err: transientErr()},
+			"e2": {Err: errors.New("http2: server sent GOAWAY")},
+		}}
+		p, now := newTestRetryingPusher(inner)
+		for range retryBreakerThreshold {
+			_, err := p.Push(ctx, []string{"e1", "e2"})
+			require.NoError(t, err, "call-level error stays nil in this shape")
+		}
+		require.True(t, p.breakerOpenUntil.After(*now), "breaker must open on response-level outage signals")
+	})
+
+	t.Run("a success in the set resets the streak", func(t *testing.T) {
+		inner := &fakeInnerPusher{raw: true, res: map[string]*nanomdm_push.Response{
+			"e1": {Err: transientErr()},
+			"e2": {Id: "ok"},
+		}}
+		p, now := newTestRetryingPusher(inner)
+		for range retryBreakerThreshold + 2 {
+			_, _ = p.Push(ctx, []string{"e1", "e2"})
+		}
+		require.False(t, p.breakerOpenUntil.After(*now))
+		require.Zero(t, p.consecutiveFailures)
+	})
+
+	t.Run("all-permanent rejections are a healthy APNs, not an outage", func(t *testing.T) {
+		inner := &fakeInnerPusher{raw: true, res: map[string]*nanomdm_push.Response{
+			"e1": {Err: fmt.Errorf("push HTTP status: 410: %w", &nanopush.JSONPushError{Reason: APNSReasonUnregistered})},
+		}}
+		p, now := newTestRetryingPusher(inner)
+		for range retryBreakerThreshold + 2 {
+			_, _ = p.Push(ctx, []string{"e1"})
+		}
+		require.False(t, p.breakerOpenUntil.After(*now))
+	})
+}
+
 func TestRetryingPusherStop(t *testing.T) {
 	inner := &fakeInnerPusher{}
 	p := NewRetryingPusher(inner, slog.New(slog.DiscardHandler))

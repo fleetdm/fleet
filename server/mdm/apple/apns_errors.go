@@ -14,6 +14,7 @@ const (
 	APNSReasonBadDeviceToken         = "BadDeviceToken"
 	APNSReasonDeviceTokenNotForTopic = "DeviceTokenNotForTopic"
 	APNSReasonTooManyRequests        = "TooManyRequests"
+	APNSReasonPayloadTooLarge        = "PayloadTooLarge"
 
 	// 403-class reasons: certificate or topic problems that retrying a
 	// device token cannot fix.
@@ -25,6 +26,10 @@ const (
 	APNSReasonMissingProviderToken      = "MissingProviderToken"
 	APNSReasonBadTopic                  = "BadTopic"
 	APNSReasonTopicDisallowed           = "TopicDisallowed"
+	// token-auth-only reasons; unreachable with Fleet's certificate-based
+	// APNs auth, classified for completeness
+	APNSReasonUnrelatedKeyIdInToken      = "UnrelatedKeyIdInToken"      //nolint:revive // Apple's spelling
+	APNSReasonBadEnvironmentKeyIdInToken = "BadEnvironmentKeyIdInToken" //nolint:revive // Apple's spelling
 )
 
 // isPermanentAPNSRejection reports whether a per-device push error is a
@@ -36,7 +41,8 @@ func isPermanentAPNSRejection(err error) bool {
 	case APNSReasonUnregistered, APNSReasonExpiredToken, APNSReasonBadDeviceToken, APNSReasonDeviceTokenNotForTopic,
 		APNSReasonBadCertificate, APNSReasonBadCertificateEnvironment, APNSReasonExpiredProviderToken,
 		APNSReasonForbidden, APNSReasonInvalidProviderToken, APNSReasonMissingProviderToken,
-		APNSReasonBadTopic, APNSReasonTopicDisallowed:
+		APNSReasonBadTopic, APNSReasonTopicDisallowed,
+		APNSReasonPayloadTooLarge, APNSReasonUnrelatedKeyIdInToken, APNSReasonBadEnvironmentKeyIdInToken:
 		return true
 	}
 	return false

@@ -58,6 +58,7 @@ func TestIsPermanentAPNSRejection(t *testing.T) {
 		APNSReasonBadCertificate, APNSReasonBadCertificateEnvironment, APNSReasonExpiredProviderToken,
 		APNSReasonForbidden, APNSReasonInvalidProviderToken, APNSReasonMissingProviderToken,
 		APNSReasonBadTopic, APNSReasonTopicDisallowed,
+		APNSReasonPayloadTooLarge, APNSReasonUnrelatedKeyIdInToken, APNSReasonBadEnvironmentKeyIdInToken,
 	}
 	for _, reason := range permanent {
 		t.Run(reason, func(t *testing.T) {

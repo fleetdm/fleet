@@ -20,10 +20,12 @@ const (
 	retryFlushBatch = 100
 	// retryTick is how often the background loop looks for due retries.
 	retryTick = 5 * time.Second
-	// retryBreakerThreshold consecutive call-level push failures (provider
-	// or APNs outage, not per-device rejections) open the breaker for
-	// retryBreakerCooldown, pausing the retry loop so retries don't pile
-	// onto a down APNs. Fresh enqueue-time pushes are never gated.
+	// retryBreakerThreshold consecutive all-transient push calls — every
+	// response failed transiently (APNs 5xx storm, GOAWAYs), or the call
+	// itself failed — open the breaker for retryBreakerCooldown, pausing
+	// the retry loop so retries don't pile onto a down APNs. Any success or
+	// permanent rejection is a well-formed APNs answer and resets the
+	// streak. Fresh enqueue-time pushes are never gated.
 	retryBreakerThreshold = 5
 	retryBreakerCooldown  = 2 * time.Minute
 )
@@ -104,7 +106,7 @@ func (p *RetryingPusher) Push(ctx context.Context, ids []string) (map[string]*na
 	now := p.clock()
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	p.noteCallResultLocked(ctx, now, err)
+	p.noteCallOutcomeLocked(ctx, now, res, err)
 	for _, id := range ids {
 		r, ok := res[id]
 		switch {
@@ -171,7 +173,11 @@ func (p *RetryingPusher) flushDue(ctx context.Context) {
 	now = p.clock()
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	p.noteCallResultLocked(ctx, now, err)
+	p.noteCallOutcomeLocked(ctx, now, res, err)
+	// A foreground failure during the in-flight push can reset an entry's
+	// ladder, which the stale result below re-escalates by one rung.
+	// Tolerated: the window is milliseconds wide and the cost is one rung of
+	// delay in a flow the sweep already bounds.
 	for _, id := range due {
 		r := res[id]
 		if err != nil && r == nil {
@@ -202,19 +208,38 @@ func (p *RetryingPusher) flushDue(ctx context.Context) {
 	}
 }
 
-// noteCallResultLocked feeds the circuit breaker with a call-level Push
-// outcome. Requires p.mu held.
-func (p *RetryingPusher) noteCallResultLocked(ctx context.Context, now time.Time, err error) {
-	if err == nil {
-		p.consecutiveFailures = 0
-		return
+// noteCallOutcomeLocked feeds the circuit breaker with one inner.Push
+// outcome. A call strikes when it failed outright or when every response
+// failed transiently — the shapes an APNs outage produces, since the
+// provider surfaces 5xx and GOAWAY as per-device errors with a nil
+// call-level error. Any success or permanent rejection is a well-formed
+// APNs answer and resets the streak. Requires p.mu held.
+func (p *RetryingPusher) noteCallOutcomeLocked(ctx context.Context, now time.Time, res map[string]*nanomdm_push.Response, err error) {
+	var transientFailures, healthySignals int
+	for _, r := range res {
+		switch {
+		case r == nil || r.Err == nil:
+			healthySignals++
+		case retryablePushErr(r.Err):
+			transientFailures++
+		default:
+			healthySignals++
+		}
 	}
-	p.consecutiveFailures++
-	if p.consecutiveFailures >= retryBreakerThreshold && !now.Before(p.breakerOpenUntil) {
-		p.breakerOpenUntil = now.Add(retryBreakerCooldown)
+
+	switch {
+	case healthySignals > 0:
 		p.consecutiveFailures = 0
-		p.logger.WarnContext(ctx, "pausing APNs retries, pushes are failing at the provider level",
-			"cooldown", retryBreakerCooldown.String())
+	case err == nil && transientFailures == 0:
+		// no verdicts at all (e.g. the dev nop pusher): not an APNs signal
+	default:
+		p.consecutiveFailures++
+		if p.consecutiveFailures >= retryBreakerThreshold && !now.Before(p.breakerOpenUntil) {
+			p.breakerOpenUntil = now.Add(retryBreakerCooldown)
+			p.consecutiveFailures = 0
+			p.logger.WarnContext(ctx, "pausing APNs retries, pushes are failing at the provider level",
+				"cooldown", retryBreakerCooldown.String())
+		}
 	}
 }
 
