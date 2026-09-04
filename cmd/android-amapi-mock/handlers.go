@@ -379,17 +379,22 @@ func handleWebAppsCreate() http.HandlerFunc {
 
 func handleEnterprisesList(store *deviceStore) http.HandlerFunc {
 	return func(w http.ResponseWriter, _ *http.Request) {
-		store.mu.RLock()
-		seen := make(map[string]bool)
-		for _, d := range store.byESID {
-			if d.EnterpriseID != "" {
-				seen[d.EnterpriseID] = true
-			}
-		}
-		store.mu.RUnlock()
+		known := store.knownEnterprises()
 
-		enterprises := make([]map[string]string, 0, len(seen))
-		for id := range seen {
+		// An empty list is not "no enterprises exist", it is "this mock has not been told about
+		// any yet" — it holds no state across restarts and learns enterprises only from traffic.
+		// Fleet treats a successful list that omits its enterprise as confirmation the
+		// enterprise was deleted, so answering with an empty list here would have it delete its
+		// enterprise records, turn Android MDM off and unenroll every Android host. A failed
+		// list is explicitly treated as a technical problem instead, which is what an unknown
+		// state should look like.
+		if len(known) == 0 {
+			http.Error(w, "mock has not observed any enterprise yet", http.StatusServiceUnavailable)
+			return
+		}
+
+		enterprises := make([]map[string]string, 0, len(known))
+		for _, id := range known {
 			enterprises = append(enterprises, map[string]string{"name": "enterprises/" + id})
 		}
 

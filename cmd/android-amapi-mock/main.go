@@ -18,8 +18,10 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"maps"
 	"net/http"
 	"os"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -63,6 +65,13 @@ type deviceStore struct {
 	deletedESIDs map[string]struct{}
 	deletedNames map[string]struct{}
 
+	// enterprises records every enterprise this mock has been asked about, whether or not a
+	// fake device was ever registered against it. GET /v1/enterprises answers from this rather
+	// than from the registered devices alone: Fleet reads its enterprise missing from that
+	// list as proof the enterprise was deleted, and responds by deleting its own enterprise
+	// records, turning Android MDM off and unenrolling every Android host.
+	enterprises map[string]struct{}
+
 	// policyVersions tracks the latest version for each policy name.
 	// Fleet uses per-device policies named enterprises/{id}/policies/{hostUUID}.
 	// policyVersion is the counter versions are issued from; it is guarded by policyMu so
@@ -78,9 +87,36 @@ func newDeviceStore() *deviceStore {
 		byName:         make(map[string]*fakeDevice),
 		deletedESIDs:   make(map[string]struct{}),
 		deletedNames:   make(map[string]struct{}),
+		enterprises:    make(map[string]struct{}),
 		policyVersions: make(map[string]int64),
 		policyVersion:  1,
 	}
+}
+
+// noteEnterprise records an enterprise the mock has been addressed about.
+func (ds *deviceStore) noteEnterprise(id string) {
+	if id == "" {
+		return
+	}
+	ds.mu.Lock()
+	defer ds.mu.Unlock()
+	ds.enterprises[id] = struct{}{}
+}
+
+// knownEnterprises returns every enterprise the mock has seen, either addressed directly or
+// through a registered fake device.
+func (ds *deviceStore) knownEnterprises() []string {
+	ds.mu.RLock()
+	defer ds.mu.RUnlock()
+
+	seen := make(map[string]struct{}, len(ds.enterprises))
+	maps.Copy(seen, ds.enterprises)
+	for _, d := range ds.byESID {
+		if d.EnterpriseID != "" {
+			seen[d.EnterpriseID] = struct{}{}
+		}
+	}
+	return slices.Collect(maps.Keys(seen))
 }
 
 // nextPolicyVersion issues the next version and records it as the current version of
@@ -279,22 +315,32 @@ func newMux(store *deviceStore, google *googleForwarder, latencyMean time.Durati
 		return simulateLatencyAndErrors(latencyMean, errorRate, h)
 	}
 
+	// noteEnt records the enterprise a request addresses before handling it, so that an
+	// enterprise Fleet is actively using is reported by GET /v1/enterprises even when no fake
+	// device has been registered against it.
+	noteEnt := func(h http.HandlerFunc) http.HandlerFunc {
+		return func(w http.ResponseWriter, r *http.Request) {
+			store.noteEnterprise(r.PathValue("eid"))
+			h(w, r)
+		}
+	}
+
 	// ---- AMAPI: Devices ----
 	fwd := forwardForRealDevice(store, google)
-	mux.HandleFunc("GET /v1/enterprises/{eid}/devices/{did}", fwd(sim(handleDevicesGet(store))))
-	mux.HandleFunc("PATCH /v1/enterprises/{eid}/devices/{did}", fwd(sim(handleDevicesPatch(store))))
-	mux.HandleFunc("DELETE /v1/enterprises/{eid}/devices/{did}", fwd(sim(handleDevicesDelete(store))))
-	mux.HandleFunc("POST /v1/enterprises/{eid}/devices/{did}", fwd(sim(handleIssueCommand(store))))
-	mux.HandleFunc("GET /v1/enterprises/{eid}/devices", sim(handleDevicesList(store, google)))
+	mux.HandleFunc("GET /v1/enterprises/{eid}/devices/{did}", noteEnt(fwd(sim(handleDevicesGet(store)))))
+	mux.HandleFunc("PATCH /v1/enterprises/{eid}/devices/{did}", noteEnt(fwd(sim(handleDevicesPatch(store)))))
+	mux.HandleFunc("DELETE /v1/enterprises/{eid}/devices/{did}", noteEnt(fwd(sim(handleDevicesDelete(store)))))
+	mux.HandleFunc("POST /v1/enterprises/{eid}/devices/{did}", noteEnt(fwd(sim(handleIssueCommand(store)))))
+	mux.HandleFunc("GET /v1/enterprises/{eid}/devices", noteEnt(sim(handleDevicesList(store, google))))
 
 	// ---- AMAPI: Policies ----
-	mux.HandleFunc("PATCH /v1/enterprises/{eid}/policies/{pid}", sim(handlePoliciesPatch(store, google)))
-	mux.HandleFunc("POST /v1/enterprises/{eid}/policies/{pid}", sim(handlePolicyAction(store)))
+	mux.HandleFunc("PATCH /v1/enterprises/{eid}/policies/{pid}", noteEnt(sim(handlePoliciesPatch(store, google))))
+	mux.HandleFunc("POST /v1/enterprises/{eid}/policies/{pid}", noteEnt(sim(handlePolicyAction(store))))
 
 	// ---- AMAPI: Other ----
-	mux.HandleFunc("POST /v1/enterprises/{eid}/enrollmentTokens", sim(forwardOrMock(google, handleEnrollmentTokenCreate())))
-	mux.HandleFunc("GET /v1/enterprises/{eid}/applications/{pkg}", sim(forwardOrMock(google, handleApplicationsGet())))
-	mux.HandleFunc("POST /v1/enterprises/{eid}/webApps", sim(forwardOrMock(google, handleWebAppsCreate())))
+	mux.HandleFunc("POST /v1/enterprises/{eid}/enrollmentTokens", noteEnt(sim(forwardOrMock(google, handleEnrollmentTokenCreate()))))
+	mux.HandleFunc("GET /v1/enterprises/{eid}/applications/{pkg}", noteEnt(sim(forwardOrMock(google, handleApplicationsGet()))))
+	mux.HandleFunc("POST /v1/enterprises/{eid}/webApps", noteEnt(sim(forwardOrMock(google, handleWebAppsCreate()))))
 	mux.HandleFunc("GET /v1/enterprises", sim(forwardOrMock(google, handleEnterprisesList(store))))
 
 	// Catch-all for unmatched /v1/ requests
