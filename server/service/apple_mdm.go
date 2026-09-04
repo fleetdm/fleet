@@ -7202,49 +7202,31 @@ func RenewSCEPCertificates(
 	// We'll set the DB field so they are excluded on the next run.
 	renewalExcludedAssocs := []fleet.SCEPIdentityAssociation{}
 
+	onlyAB, scepBlocked := appConfig.MDM.OnlyAllowAppleBusinessEnrollment, appConfig.MDM.IsAppleMDMSCEPBlocked()
 	for _, assoc := range certAssociations {
-		if appConfig.MDM.IsAppleMDMSCEPBlocked() {
-			// Exclude hosts that can't do ACME - even if they are in AB.
-			if assoc.EnrolledFromMigration || assoc.EnrollmentType == "User Enrollment (Device)" {
-				renewalExcludedAssocs = append(renewalExcludedAssocs, assoc)
+		isUserEnroll := assoc.EnrollmentType == "User Enrollment (Device)"
+		switch {
+		case scepBlocked && assoc.EnrolledFromMigration,
+			isUserEnroll && (scepBlocked || onlyAB),
+			onlyAB && !assoc.DEPAssignedToFleet:
+			renewalExcludedAssocs = append(renewalExcludedAssocs, assoc)
+		case assoc.EnrolledFromMigration:
+			assocsFromMigration = append(assocsFromMigration, assoc)
+		case isUserEnroll:
+			userDeviceAssocs = append(userDeviceAssocs, assoc)
+		default:
+			// Note we don't want to check ACME renewal requirements for hosts that were enrolled from
+			// migration or using account driven user enrollment. Now that those are ruled out we can
+			// append maybeACMEUUIDs.
+			maybeACMEUUIDs = append(maybeACMEUUIDs, assoc.HostUUID)
+
+			if assoc.EnrollReference != "" {
+				assocsWithRefs = append(assocsWithRefs, assoc)
 				continue
 			}
+			assocsWithoutRefs = append(assocsWithoutRefs, assoc)
 		}
 
-		if appConfig.MDM.OnlyAllowAppleBusinessEnrollment {
-			if assoc.EnrolledFromMigration && assoc.DEPAssignedToFleet {
-				// a silent migration can be in DEP.
-				assocsFromMigration = append(assocsFromMigration, assoc)
-				continue
-			}
-
-			// Catch-all renewal exclusion
-			if assoc.EnrollmentType == "User Enrollment (Device)" || !assoc.DEPAssignedToFleet {
-				renewalExcludedAssocs = append(renewalExcludedAssocs, assoc)
-				continue
-			}
-		} else {
-			if assoc.EnrolledFromMigration {
-				assocsFromMigration = append(assocsFromMigration, assoc)
-				continue
-			}
-
-			if assoc.EnrollmentType == "User Enrollment (Device)" {
-				userDeviceAssocs = append(userDeviceAssocs, assoc)
-				continue
-			}
-		}
-
-		// Note we don't want to check ACME renewal requirements for hosts that were enrolled from
-		// migration or using account driven user enrollment. Now that those are ruled out we can
-		// append maybeACMEUUIDs.
-		maybeACMEUUIDs = append(maybeACMEUUIDs, assoc.HostUUID)
-
-		if assoc.EnrollReference != "" {
-			assocsWithRefs = append(assocsWithRefs, assoc)
-			continue
-		}
-		assocsWithoutRefs = append(assocsWithoutRefs, assoc)
 	}
 
 	mdmPushCertTopic, err := assets.APNSTopic(ctx, ds)
@@ -7295,74 +7277,66 @@ func RenewSCEPCertificates(
 			filteredAssocs = append(filteredAssocs, assoc)
 		}
 
-		if len(filteredAssocs) > 0 {
-			// This is the SCEP fallback for non supported ACME, if SCEP is blocked, move the filteredAssocs to renewalExcluded bucket.
-			if !appConfig.MDM.IsAppleMDMSCEPBlocked() {
-				// Bucket the renewals by their (personal, rights) tuple. Every host in
-				// a bucket gets a byte-identical enrollment profile, so we can collapse
-				// them into a single InstallProfile command instead of one per host.
-				// The nano command tables are hot, and in practice there are only two
-				// distinct buckets (company-owned vs. BYOD), so this keeps renewal write
-				// traffic close to the pre-BYOD single-command behaviour.
-				type renewalBucket struct {
-					personal bool
-					rights   int
-				}
-				buckets := make(map[renewalBucket][]fleet.SCEPIdentityAssociation)
-				// Preserve a deterministic order so the commands we enqueue don't depend
-				// on Go's randomized map iteration.
-				bucketOrder := make([]renewalBucket, 0, 2)
-				for _, assoc := range filteredAssocs {
-					personal, rights, err := renewalEnrollmentParams(ctx, ds, assoc.HostUUID)
-					if err != nil {
-						return ctxerr.Wrap(ctx, err, "getting stored enrollment permissions for renewal")
-					}
-					key := renewalBucket{personal: personal, rights: rights}
-					if _, ok := buckets[key]; !ok {
-						bucketOrder = append(bucketOrder, key)
-					}
-
-					if appConfig.MDM.OnlyAllowAppleBusinessEnrollment && (key.personal || !assoc.DEPAssignedToFleet) {
-						// this should technically never happen, but we handle it defensively.
-						// exclude renewal for personal enrollment or non AB assigned when AB Only.
-						renewalExcludedAssocs = append(renewalExcludedAssocs, assoc)
-						continue
-					}
-					buckets[key] = append(buckets[key], assoc)
-				}
-
-				for _, key := range bucketOrder {
-					assocs := buckets[key]
-					// Apple rejects ServerURL changes on profile replacement, so the
-					// renewed URL must match the URL the device was enrolled with.
-					// BYOD devices carry byod=1 in their initial ServerURL (set by
-					// AddPersonalEnrollmentToFleetURL on the OTA/EE path); reapply
-					// the same flag for personal enrollments. Pre-feature and
-					// company-owned devices have personal=false here, leaving
-					// MDMUrl unchanged.
-					renewURL, err := apple_mdm.AddPersonalEnrollmentToFleetURL(appConfig.MDMUrl(), key.personal)
-					if err != nil {
-						return ctxerr.Wrap(ctx, err, "building renewal URL with personal flag")
-					}
-
-					profile, err := apple_mdm.GenerateEnrollmentProfileMobileconfig(
-						appConfig.OrgInfo.OrgName,
-						renewURL,
-						scepChallenge,
-						mdmPushCertTopic,
-						key.rights,
-						false, // renewal: must NOT carry the new-enrollment Subject marker
-					)
-					if err != nil {
-						return ctxerr.Wrap(ctx, err, "generating enrollment profile for hosts without enroll reference")
-					}
-					if err := renewMDMAppleEnrollmentProfile(ctx, ds, commander, logger, assocs, profile, appConfig.OrgInfo.OrgName+" enrollment"); err != nil {
-						return ctxerr.Wrap(ctx, err, "sending profile to hosts without associations")
-					}
-				}
-			} else {
-				renewalExcludedAssocs = append(renewalExcludedAssocs, filteredAssocs...)
+		if len(filteredAssocs) > 0 && !scepBlocked {
+			// Bucket the renewals by their (personal, rights) tuple. Every host in
+			// a bucket gets a byte-identical enrollment profile, so we can collapse
+			// them into a single InstallProfile command instead of one per host.
+			// The nano command tables are hot, and in practice there are only two
+			// distinct buckets (company-owned vs. BYOD), so this keeps renewal write
+			// traffic close to the pre-BYOD single-command behaviour.
+			type renewalBucket struct {
+				personal bool
+				rights   int
 			}
+			buckets := make(map[renewalBucket][]fleet.SCEPIdentityAssociation)
+			// Preserve a deterministic order so the commands we enqueue don't depend
+			// on Go's randomized map iteration.
+			bucketOrder := make([]renewalBucket, 0, 2)
+			for _, assoc := range filteredAssocs {
+				personal, rights, err := renewalEnrollmentParams(ctx, ds, assoc.HostUUID)
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "getting stored enrollment permissions for renewal")
+				}
+				key := renewalBucket{personal: personal, rights: rights}
+				if _, ok := buckets[key]; !ok {
+					bucketOrder = append(bucketOrder, key)
+				}
+
+				buckets[key] = append(buckets[key], assoc)
+			}
+
+			for _, key := range bucketOrder {
+				assocs := buckets[key]
+				// Apple rejects ServerURL changes on profile replacement, so the
+				// renewed URL must match the URL the device was enrolled with.
+				// BYOD devices carry byod=1 in their initial ServerURL (set by
+				// AddPersonalEnrollmentToFleetURL on the OTA/EE path); reapply
+				// the same flag for personal enrollments. Pre-feature and
+				// company-owned devices have personal=false here, leaving
+				// MDMUrl unchanged.
+				renewURL, err := apple_mdm.AddPersonalEnrollmentToFleetURL(appConfig.MDMUrl(), key.personal)
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "building renewal URL with personal flag")
+				}
+
+				profile, err := apple_mdm.GenerateEnrollmentProfileMobileconfig(
+					appConfig.OrgInfo.OrgName,
+					renewURL,
+					scepChallenge,
+					mdmPushCertTopic,
+					key.rights,
+					false, // renewal: must NOT carry the new-enrollment Subject marker
+				)
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "generating enrollment profile for hosts without enroll reference")
+				}
+				if err := renewMDMAppleEnrollmentProfile(ctx, ds, commander, logger, assocs, profile, appConfig.OrgInfo.OrgName+" enrollment"); err != nil {
+					return ctxerr.Wrap(ctx, err, "sending profile to hosts without associations")
+				}
+			}
+		} else {
+			// This is the SCEP fallback for non supported ACME, if SCEP is blocked, move the filteredAssocs to renewalExcluded bucket.
+			renewalExcludedAssocs = append(renewalExcludedAssocs, filteredAssocs...)
 		}
 	}
 
@@ -7430,12 +7404,6 @@ func RenewSCEPCertificates(
 		personal, rights, err := renewalEnrollmentParams(ctx, ds, assoc.HostUUID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "getting stored enrollment permissions for renewal with ref")
-		}
-
-		if appConfig.MDM.OnlyAllowAppleBusinessEnrollment && (personal || !assoc.DEPAssignedToFleet) {
-			// this should technically never happen, but we handle it defensively.
-			renewalExcludedAssocs = append(renewalExcludedAssocs, assoc)
-			continue
 		}
 
 		// Apple rejects ServerURL changes on profile replacement; preserve the

@@ -1391,9 +1391,14 @@ type Datastore interface {
 	// associations that are close to expire and don't have a renewal in
 	// progress based on the provided arguments.
 	GetHostCertAssociationsToExpire(ctx context.Context, expiryDays, limit int) ([]SCEPIdentityAssociation, error)
-
 	// ExcludeHostCertAssociationsFromRenewal, marks each assocs row with renewal_excluded_at to avoid them being picked up and occupying the renew window.
 	ExcludeHostCertAssociationsFromRenewal(ctx context.Context, assocs []SCEPIdentityAssociation) error
+
+	// ClearCertRenewalExclusions clears all certificate renewal exclusions currently set in nano_cert_auth_associations,
+	// so they are picked up on the next run.
+	ClearCertRenewalExclusions(ctx context.Context) error
+	// ResetPendingCertRenewals actively cancels any in-flight certificate renewals.
+	ResetPendingCertRenewals(ctx context.Context) error
 
 	// GetDeviceInfoForACMERenewal retrieves the device information for ACMERenewal based on the provided host UUIDs.
 	GetDeviceInfoForACMERenewal(ctx context.Context, hostUUIDs []string) ([]DeviceInfoForACMERenewal, error)

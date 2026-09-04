@@ -56,6 +56,8 @@ func TestMDMShared(t *testing.T) {
 		{"TestGetHostCertAssociationsToExpire", testSCEPRenewalHelpers},
 		{"TestSCEPRenewalHelpers", testSCEPRenewalHelpers},
 		{"TestSCEPRenewalExclusion", testSCEPRenewalExclusion},
+		{"TestClearCertRenewalExclusions", testClearCertRenewalExclusions},
+		{"TestResetPendingCertRenewals", testResetPendingCertRenewals},
 		{"TestMDMProfilesSummaryAndHostFilters", testMDMProfilesSummaryAndHostFilters},
 		{"TestIsHostConnectedToFleetMDM", testIsHostConnectedToFleetMDM},
 		{"TestAreHostsConnectedToFleetMDM", testAreHostsConnectedToFleetMDM},
@@ -3408,53 +3410,54 @@ func testSCEPRenewalHelpers(t *testing.T, ds *Datastore) {
 	checkSCEPRenew(assocs[2], nil)
 }
 
-func testSCEPRenewalExclusion(t *testing.T, ds *Datastore) {
+// newExpiredSCEPCertHost creates a darwin host with an already-expired identity
+// certificate association, so it always lands in the renewal window. idx must be
+// unique within a test.
+func newExpiredSCEPCertHost(t *testing.T, ds *Datastore, idx int, depAssigned bool) *fleet.Host {
 	ctx := context.Background()
 	scepDepot, err := ds.NewSCEPDepot()
 	require.NoError(t, err)
-
 	nanoStorage, err := ds.NewMDMAppleMDMStorage()
 	require.NoError(t, err)
 
-	var i int
-	setHost := func(depAssigned bool) *fleet.Host {
-		i++
-		h, err := ds.NewHost(ctx, &fleet.Host{
-			Hostname:       fmt.Sprintf("excl-host%d-name", i),
-			OsqueryHostID:  new(fmt.Sprintf("excl-osquery-%d", i)),
-			NodeKey:        new(fmt.Sprintf("excl-nodekey-%d", i)),
-			UUID:           fmt.Sprintf("excl-uuid-%d", i),
-			HardwareSerial: fmt.Sprintf("excl-serial-%d", i),
-			Platform:       "darwin",
-		})
-		require.NoError(t, err)
+	h, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:       fmt.Sprintf("renewal-host%d-name", idx),
+		OsqueryHostID:  new(fmt.Sprintf("renewal-osquery-%d", idx)),
+		NodeKey:        new(fmt.Sprintf("renewal-nodekey-%d", idx)),
+		UUID:           fmt.Sprintf("renewal-uuid-%d", idx),
+		HardwareSerial: fmt.Sprintf("renewal-serial-%d", idx),
+		Platform:       "darwin",
+	})
+	require.NoError(t, err)
 
-		serial, err := scepDepot.Serial()
-		require.NoError(t, err)
-		// expired a year ago, so it always lands in the renewal window
-		notAfter := time.Now().AddDate(-1, 0, 0)
-		cert := &x509.Certificate{
-			SerialNumber: serial,
-			Subject:      pkix.Name{CommonName: "Fleet Identity"},
-			NotBefore:    time.Now().Add(-24 * time.Hour),
-			NotAfter:     notAfter,
-			Raw:          []byte(uuid.NewString()),
-		}
-		require.NoError(t, scepDepot.Put(cert.Subject.CommonName, cert))
-		req := mdm.Request{EnrollID: &mdm.EnrollID{ID: h.UUID}, Context: ctx}
-		require.NoError(t, nanoStorage.AssociateCertHash(&req, certauth.HashCert(cert), notAfter))
-		nanoEnroll(t, ds, h, true)
-
-		if depAssigned {
-			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-				_, err := q.ExecContext(ctx,
-					`INSERT INTO host_dep_assignments (host_id, hardware_serial) VALUES (?, ?)`,
-					h.ID, h.HardwareSerial)
-				return err
-			})
-		}
-		return h
+	serial, err := scepDepot.Serial()
+	require.NoError(t, err)
+	notAfter := time.Now().AddDate(-1, 0, 0)
+	cert := &x509.Certificate{
+		SerialNumber: serial,
+		Subject:      pkix.Name{CommonName: "Fleet Identity"},
+		NotBefore:    time.Now().Add(-24 * time.Hour),
+		NotAfter:     notAfter,
+		Raw:          []byte(uuid.NewString()),
 	}
+	require.NoError(t, scepDepot.Put(cert.Subject.CommonName, cert))
+	req := mdm.Request{EnrollID: &mdm.EnrollID{ID: h.UUID}, Context: ctx}
+	require.NoError(t, nanoStorage.AssociateCertHash(&req, certauth.HashCert(cert), notAfter))
+	nanoEnroll(t, ds, h, true)
+
+	if depAssigned {
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx,
+				`INSERT INTO host_dep_assignments (host_id, hardware_serial) VALUES (?, ?)`,
+				h.ID, h.HardwareSerial)
+			return err
+		})
+	}
+	return h
+}
+
+func testSCEPRenewalExclusion(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
 
 	excludedAt := func(assoc fleet.SCEPIdentityAssociation) *time.Time {
 		var got *time.Time
@@ -3476,8 +3479,8 @@ func testSCEPRenewalExclusion(t *testing.T, ds *Datastore) {
 		return byUUID
 	}
 
-	hDEP := setHost(true)
-	hNoDEP := setHost(false)
+	hDEP := newExpiredSCEPCertHost(t, ds, 1, true)
+	hNoDEP := newExpiredSCEPCertHost(t, ds, 2, false)
 
 	// both are up for renewal, and DEP assignment is reported per host.
 	got := assocsByHostUUID()
@@ -3499,6 +3502,86 @@ func testSCEPRenewalExclusion(t *testing.T, ds *Datastore) {
 	afterExclusion := assocsByHostUUID()
 	require.Len(t, afterExclusion, 1)
 	require.Contains(t, afterExclusion, hDEP.UUID)
+}
+
+func testClearCertRenewalExclusions(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	h1 := newExpiredSCEPCertHost(t, ds, 1, true)
+	h2 := newExpiredSCEPCertHost(t, ds, 2, false)
+
+	assocs, err := ds.GetHostCertAssociationsToExpire(ctx, 1000, 100)
+	require.NoError(t, err)
+	require.Len(t, assocs, 2)
+
+	// no-op when nothing is excluded
+	require.NoError(t, ds.ClearCertRenewalExclusions(ctx))
+
+	require.NoError(t, ds.ExcludeHostCertAssociationsFromRenewal(ctx, assocs))
+	gated, err := ds.GetHostCertAssociationsToExpire(ctx, 1000, 100)
+	require.NoError(t, err)
+	require.Empty(t, gated)
+
+	// clearing puts every excluded association back in the renewal window
+	require.NoError(t, ds.ClearCertRenewalExclusions(ctx))
+	restored, err := ds.GetHostCertAssociationsToExpire(ctx, 1000, 100)
+	require.NoError(t, err)
+	require.Len(t, restored, 2)
+	gotUUIDs := []string{restored[0].HostUUID, restored[1].HostUUID}
+	require.ElementsMatch(t, []string{h1.UUID, h2.UUID}, gotUUIDs)
+}
+
+func testResetPendingCertRenewals(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	h1 := newExpiredSCEPCertHost(t, ds, 1, true)
+	h2 := newExpiredSCEPCertHost(t, ds, 2, true)
+
+	assocs, err := ds.GetHostCertAssociationsToExpire(ctx, 1000, 100)
+	require.NoError(t, err)
+	require.Len(t, assocs, 2)
+
+	// no-op when no renewal is in flight
+	require.NoError(t, ds.ResetPendingCertRenewals(ctx))
+
+	// put a renewal command in flight for each host
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `
+                  INSERT INTO nano_commands (command_uuid, request_type, command)
+                  VALUES ('renew-cmd-1', 'InstallProfile', '<?xml'), ('renew-cmd-2', 'InstallProfile', '<?xml')`)
+		return err
+	})
+	for i, assoc := range assocs {
+		cmdUUID := fmt.Sprintf("renew-cmd-%d", i+1)
+		require.NoError(t, ds.SetCommandForPendingSCEPRenewal(ctx, []fleet.SCEPIdentityAssociation{assoc}, cmdUUID))
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx,
+				`INSERT INTO nano_enrollment_queue (id, command_uuid, active) VALUES (?, ?, 1)`,
+				assoc.HostUUID, cmdUUID)
+			return err
+		})
+	}
+
+	// in-flight renewals are hidden from the next run
+	inFlight, err := ds.GetHostCertAssociationsToExpire(ctx, 1000, 100)
+	require.NoError(t, err)
+	require.Empty(t, inFlight)
+
+	require.NoError(t, ds.ResetPendingCertRenewals(ctx))
+
+	// the queued commands are deactivated...
+	var activeCount int
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &activeCount,
+			`SELECT COUNT(*) FROM nano_enrollment_queue WHERE active = 1`)
+	})
+	require.Zero(t, activeCount)
+
+	// ...and both hosts are eligible for renewal again
+	reset, err := ds.GetHostCertAssociationsToExpire(ctx, 1000, 100)
+	require.NoError(t, err)
+	require.Len(t, reset, 2)
+	require.ElementsMatch(t, []string{h1.UUID, h2.UUID}, []string{reset[0].HostUUID, reset[1].HostUUID})
 }
 
 func testMDMProfilesSummaryAndHostFilters(t *testing.T, ds *Datastore) {
