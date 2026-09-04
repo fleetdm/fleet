@@ -618,6 +618,19 @@ func testFleetMaintainedAppsInUse(t *testing.T, ds *Datastore) {
 		return fleet.FleetMaintainedAppUsage{Name: name, PatchPolicy: patchPolicy, SoftwareAutomation: softwareAutomation}
 	}
 
+	expectMaintainedApps := func(mac, win []fleet.FleetMaintainedAppUsage) {
+		t.Helper()
+		gotMac, gotWin, err := fleetMaintainedAppsInUseDB(ctx, ds.reader(ctx))
+		require.NoError(t, err)
+		require.Equal(t, mac, gotMac)
+		require.Equal(t, win, gotWin)
+	}
+
+	noApps := []fleet.FleetMaintainedAppUsage{}
+	macNoPolicies := []fleet.FleetMaintainedAppUsage{fmaUsage("slack/darwin", false, false), fmaUsage("zoom/darwin", false, false)}
+	macWithPatchPolicies := []fleet.FleetMaintainedAppUsage{fmaUsage("slack/darwin", true, true), fmaUsage("zoom/darwin", true, false)}
+	winNoPolicies := []fleet.FleetMaintainedAppUsage{fmaUsage("microsoft-teams/windows", false, false), fmaUsage("zoom/windows", false, false)}
+
 	// No fleet-maintained apps - should return empty slices (not nil)
 	macOSApps, windowsApps, err := fleetMaintainedAppsInUseDB(ctx, ds.reader(ctx))
 	require.NoError(t, err)
@@ -663,10 +676,7 @@ func testFleetMaintainedAppsInUse(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// Apps exist but no software installers - should still return empty
-	macOSApps, windowsApps, err = fleetMaintainedAppsInUseDB(ctx, ds.reader(ctx))
-	require.NoError(t, err)
-	assert.Empty(t, macOSApps)
-	assert.Empty(t, windowsApps)
+	expectMaintainedApps(noApps, noApps)
 
 	// Create script content (required for software installers)
 	var installScriptID, uninstallScriptID int64
@@ -742,10 +752,7 @@ func testFleetMaintainedAppsInUse(t *testing.T, ds *Datastore) {
 	})
 
 	// Apps with installers - should return correct apps grouped by platform
-	macOSApps, windowsApps, err = fleetMaintainedAppsInUseDB(ctx, ds.reader(ctx))
-	require.NoError(t, err)
-	assert.Equal(t, []fleet.FleetMaintainedAppUsage{fmaUsage("slack/darwin", false, false), fmaUsage("zoom/darwin", false, false)}, macOSApps)
-	assert.Equal(t, []fleet.FleetMaintainedAppUsage{fmaUsage("microsoft-teams/windows", false, false), fmaUsage("zoom/windows", false, false)}, windowsApps)
+	expectMaintainedApps(macNoPolicies, winNoPolicies)
 
 	// Create duplicate installers for same app
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
@@ -758,10 +765,7 @@ func testFleetMaintainedAppsInUse(t *testing.T, ds *Datastore) {
 		`, nil, 0, "zoom-v2.pkg", "2.0", "darwin", installScriptID, uninstallScriptID, "storage6", "[]", appDarwin1.ID, "")
 		return err
 	})
-	macOSApps, windowsApps, err = fleetMaintainedAppsInUseDB(ctx, ds.reader(ctx))
-	require.NoError(t, err)
-	assert.Equal(t, []fleet.FleetMaintainedAppUsage{fmaUsage("slack/darwin", false, false), fmaUsage("zoom/darwin", false, false)}, macOSApps)
-	assert.Equal(t, []fleet.FleetMaintainedAppUsage{fmaUsage("microsoft-teams/windows", false, false), fmaUsage("zoom/windows", false, false)}, windowsApps)
+	expectMaintainedApps(macNoPolicies, winNoPolicies)
 
 	// Create an installer with NULL fleet_maintained_app_id (should be ignored)
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
@@ -776,10 +780,7 @@ func testFleetMaintainedAppsInUse(t *testing.T, ds *Datastore) {
 	})
 
 	// Should return the same results (NULL fleet_maintained_app_id is filtered out)
-	macOSApps, windowsApps, err = fleetMaintainedAppsInUseDB(ctx, ds.reader(ctx))
-	require.NoError(t, err)
-	assert.Equal(t, []fleet.FleetMaintainedAppUsage{fmaUsage("slack/darwin", false, false), fmaUsage("zoom/darwin", false, false)}, macOSApps)
-	assert.Equal(t, []fleet.FleetMaintainedAppUsage{fmaUsage("microsoft-teams/windows", false, false), fmaUsage("zoom/windows", false, false)}, windowsApps)
+	expectMaintainedApps(macNoPolicies, winNoPolicies)
 
 	// Give the darwin apps software titles so patch policies can point at them. Both zoom
 	// installers (the 1.0 and the cached 2.0) share one title, as real FMA versions do.
@@ -817,9 +818,7 @@ func testFleetMaintainedAppsInUse(t *testing.T, ds *Datastore) {
 		return err
 	})
 
-	macOSApps, _, err = fleetMaintainedAppsInUseDB(ctx, ds.reader(ctx))
-	require.NoError(t, err)
-	assert.Equal(t, []fleet.FleetMaintainedAppUsage{fmaUsage("slack/darwin", false, false), fmaUsage("zoom/darwin", false, false)}, macOSApps)
+	expectMaintainedApps(macNoPolicies, winNoPolicies)
 
 	// A patch policy with no software automation, and one with a software automation.
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
@@ -835,10 +834,7 @@ func testFleetMaintainedAppsInUse(t *testing.T, ds *Datastore) {
 		return err
 	})
 
-	macOSApps, windowsApps, err = fleetMaintainedAppsInUseDB(ctx, ds.reader(ctx))
-	require.NoError(t, err)
-	assert.Equal(t, []fleet.FleetMaintainedAppUsage{fmaUsage("slack/darwin", true, true), fmaUsage("zoom/darwin", true, false)}, macOSApps)
-	assert.Equal(t, []fleet.FleetMaintainedAppUsage{fmaUsage("microsoft-teams/windows", false, false), fmaUsage("zoom/windows", false, false)}, windowsApps)
+	expectMaintainedApps(macWithPatchPolicies, winNoPolicies)
 
 	// The same app installed on another team, with no patch policy of its own. The slug must
 	// still appear exactly once, with the booleans OR'd across teams -- this is what the
@@ -856,10 +852,7 @@ func testFleetMaintainedAppsInUse(t *testing.T, ds *Datastore) {
 		return err
 	})
 
-	macOSApps, windowsApps, err = fleetMaintainedAppsInUseDB(ctx, ds.reader(ctx))
-	require.NoError(t, err)
-	assert.Equal(t, []fleet.FleetMaintainedAppUsage{fmaUsage("slack/darwin", true, true), fmaUsage("zoom/darwin", true, false)}, macOSApps)
-	assert.Equal(t, []fleet.FleetMaintainedAppUsage{fmaUsage("microsoft-teams/windows", false, false), fmaUsage("zoom/windows", false, false)}, windowsApps)
+	expectMaintainedApps(macWithPatchPolicies, winNoPolicies)
 
 	// A patch policy scoped to a team must not mark a different team's installer. Use
 	// microsoft-teams, which has no patch policy of its own -- asserting this against an app
@@ -882,9 +875,7 @@ func testFleetMaintainedAppsInUse(t *testing.T, ds *Datastore) {
 			VALUES ('patch teams', 'SELECT 1', '', UNHEX(MD5('patch teams')), 'patch', ?, ?)`, tm.ID, teamsTitleID)
 		return err
 	})
-	_, windowsApps, err = fleetMaintainedAppsInUseDB(ctx, ds.reader(ctx))
-	require.NoError(t, err)
-	assert.Equal(t, []fleet.FleetMaintainedAppUsage{fmaUsage("microsoft-teams/windows", false, false), fmaUsage("zoom/windows", false, false)}, windowsApps)
+	expectMaintainedApps(macWithPatchPolicies, winNoPolicies)
 }
 
 func testPoliciesAutomationEnabledSoftware(t *testing.T, ds *Datastore) {
