@@ -657,6 +657,21 @@ func TestEnterprisesListRecordsEnterpriseFromFailedDeviceRequest(t *testing.T) {
 	assert.Contains(t, rr.Body.String(), "enterprises/"+testEnterpriseID)
 }
 
+// TestNoteEnterpriseIgnoresEmptyID checks that an empty path value is not recorded as an
+// enterprise. Recording it would leave the set non-empty and holding a meaningless ID, which
+// would both report "enterprises/" to Fleet and stop the unknown state from answering 503.
+func TestNoteEnterpriseIgnoresEmptyID(t *testing.T) {
+	store := newDeviceStore()
+	store.noteEnterprise("")
+
+	assert.Empty(t, store.knownEnterprises())
+
+	mux := newMux(store, nil, 0, 0)
+	rr := httptest.NewRecorder()
+	mux.ServeHTTP(rr, httptest.NewRequest("GET", "/v1/enterprises", nil))
+	assert.Equal(t, http.StatusServiceUnavailable, rr.Code)
+}
+
 // TestNoteEnterpriseIsBounded checks that enterprise IDs taken from request paths cannot grow
 // the set without limit, and that an enterprise recorded before the limit is still reported.
 func TestNoteEnterpriseIsBounded(t *testing.T) {
