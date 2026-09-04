@@ -286,8 +286,9 @@ func getDeviceHostEndpoint(ctx context.Context, request interface{}, svc fleet.S
 			// TODO(mna): It currently only returns the Apple enabled and configured,
 			// regardless of the platform of the device. See
 			// https://github.com/fleetdm/fleet/pull/19304#discussion_r1618792410.
-			EnabledAndConfigured: ac.MDM.EnabledAndConfigured,
-			RequireAllSoftware:   requireAllSoftware,
+			EnabledAndConfigured:             ac.MDM.EnabledAndConfigured,
+			RequireAllSoftware:               requireAllSoftware,
+			OnlyAllowAppleBusinessEnrollment: ac.MDM.OnlyAllowAppleBusinessEnrollment,
 		},
 		Features: fleet.DeviceFeatures{
 			EnableSoftwareInventory:       softwareInventoryEnabled,
@@ -921,6 +922,10 @@ func (svc *Service) GetDeviceMDMAppleEnrollmentProfile(ctx context.Context) (*ur
 	cfg, err := svc.ds.AppConfig(ctx)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "fetching app config")
+	}
+
+	if cfg.MDM.OnlyAllowAppleBusinessEnrollment {
+		return nil, &fleet.ABOnlyEnrollmentForbiddenError{}
 	}
 
 	host, ok := hostctx.FromContext(ctx)

@@ -688,6 +688,14 @@ module.exports.routes = {
     action: 'view-configuration-generator'
   },
 
+  'GET /arch-linux-management': {
+    action: 'view-arch-linux-management',
+    locals: {
+      pageTitleForMeta: 'Arch Linux management',
+      pageDescriptionForMeta: 'Manage Linux devices with full visibility and control. Automate patching, monitor compliance, and unify Linux, macOS, and Windows in one place.',
+    }
+  },
+
   //  ╦  ╔═╗╔╗╔╔╦╗╦╔╗╔╔═╗  ╔═╗╔═╗╔═╗╔═╗╔═╗
   //  ║  ╠═╣║║║ ║║║║║║║ ╦  ╠═╝╠═╣║ ╦║╣ ╚═╗
   //  ╩═╝╩ ╩╝╚╝═╩╝╩╝╚╝╚═╝  ╩  ╩ ╩╚═╝╚═╝╚═╝
@@ -1412,11 +1420,13 @@ module.exports.routes = {
   'GET /learn-more-about/self-service-categories': '/guides/software-self-service#manage-self-service-categories',
   'GET /learn-more-about/linux-wipe': '/guides/lock-wipe-hosts#linux-wipe-behavior',
   'GET /learn-more-about/configuration-profile-assets': '/articles/custom-os-settings#apple-declarations-ddm',
+  'GET /learn-more-about/android-encryption-status': 'https://developers.google.com/android/management/reference/rest/v1/enterprises.devices#EncryptionStatus',
   'GET /learn-more-about/release-devices': 'https://developer.apple.com/documentation/devicemanagement/disown-devices',
   'GET /learn-more-about/mdm-enrollment': '/guides/windows-mdm-setup#manual-enrollment',
   'GET /learn-more-about/windows-default-fleet': '/guides/windows-mdm-setup#set-a-default-fleet-for-new-hosts',
   'GET /learn-more-about/device-and-user-scope': '/guides/custom-os-settings#device-and-user-scope',
   'GET /learn-more-about/idp-account-sync': '/guides/deploying-apple-account-provisioning-with-fleet',
+  'GET /learn-more-about/android-encryption-status': 'https://developers.google.com/android/management/reference/rest/v1/enterprises.devices#EncryptionStatus',
   'GET /learn-more-about/security-posture': 'https://developers.google.com/android/management/reference/rest/v1/enterprises.devices#DevicePosture',
   'GET /learn-more-about/software-update-status': 'https://developers.google.com/android/management/reference/rest/v1/enterprises.devices#SystemUpdateInfo',
   'GET /learn-more-about/ddm-activations': '/guides/custom-os-settings#apple-declarations-ddm',
@@ -1424,6 +1434,7 @@ module.exports.routes = {
   'GET /learn-more-about/removal-behavior': '/guides/custom-os-settings#removal-behavior',
   'GET /learn-more-about/android-manual-sync': '/guides/how-to-manually-sync-an-android-device',
   'GET /learn-more-about/policy-automation-resend-configuration-profile': '/guides/policy-automation-resend-configuration-profile',
+  'GET /learn-more-about/device-attestation': '/guides/what-is-device-attestation',
 
   // Sitemap
   // =============================================================================================================

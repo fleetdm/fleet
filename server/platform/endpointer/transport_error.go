@@ -99,6 +99,13 @@ func EncodeError(ctx context.Context, err error, w http.ResponseWriter, domainEn
 		}
 	}
 
+	// NOTE: this matches on the concrete type of the root cause resolved above, so an error
+	// type only maps to its status while it is what ctxerr.Cause returns. An error that
+	// implements the single-error Unwrap is replaced here by whatever it wraps and silently
+	// falls through to 500, however faithfully it implements the interfaces below. Status
+	// carrying types therefore expose their cause through Internal() and, if they need to stay
+	// traversable by errors.Is/As, the Unwrap() []error form, which errors.Unwrap ignores.
+	// See BadRequestError and fleetdm/fleet#52547.
 	switch e := err.(type) {
 	case validationErrorInterface:
 		if statusErr, ok := e.(interface{ Status() int }); ok {

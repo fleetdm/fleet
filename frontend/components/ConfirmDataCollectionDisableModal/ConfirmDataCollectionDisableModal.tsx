@@ -40,14 +40,16 @@ const ConfirmDataCollectionDisableModal = ({
     >
       <>
         <p>{heading}</p>
-        <p>The following dataset(s) will be disabled:</p>
-        <ul className={`${baseClass}__dataset-list`}>
-          {datasets.map((key) => (
-            <li key={key}>
-              <strong>{DATASET_LABEL[key]}</strong>
-            </li>
-          ))}
-        </ul>
+        <div className={`${baseClass}__dataset-block`}>
+          <p>The following dataset(s) will be disabled:</p>
+          <ul className={`${baseClass}__dataset-list`}>
+            {datasets.map((key) => (
+              <li key={key}>
+                <strong>{DATASET_LABEL[key]}</strong>
+              </li>
+            ))}
+          </ul>
+        </div>
         <p>
           Previously collected data will be deleted.{" "}
           <strong>This cannot be undone.</strong>
