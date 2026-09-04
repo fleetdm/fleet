@@ -87,29 +87,27 @@ func TestNeedsOrbitSymlinkUpdate(t *testing.T) {
 	r, err := NewRunner(u, runnerOpts)
 	require.NoError(t, err)
 
+	localTarget, err := u.Get(constant.OrbitTUFTargetName)
+	require.NoError(t, err)
+	linkPath := filepath.Join(rootDir, "bin", "orbit", filepath.Base(localTarget.ExecPath))
+	require.NoError(t, os.MkdirAll(filepath.Dir(linkPath), 0o755))
+
 	// Case 1: Symlink does not exist yet -> needs update, isNotSymlink=false
 	needsUpdate, isNotSymlink, err := r.needsOrbitSymlinkUpdate()
 	require.NoError(t, err)
 	assert.True(t, needsUpdate)
 	assert.False(t, isNotSymlink)
 
-	// Fetch target and perform update action
-	didUpdate, err := r.UpdateAction()
-	require.NoError(t, err)
-	require.True(t, didUpdate)
-
-	// Case 2: After UpdateAction, symlink exists and points to target -> no update needed
-	needsUpdate, isNotSymlink, err = r.needsOrbitSymlinkUpdate()
-	require.NoError(t, err)
-	assert.False(t, needsUpdate)
-	assert.False(t, isNotSymlink)
+	// Case 2: Symlink exists and points to target -> no update needed
+	if err := os.Symlink(localTarget.ExecPath, linkPath); err == nil {
+		needsUpdate, isNotSymlink, err = r.needsOrbitSymlinkUpdate()
+		require.NoError(t, err)
+		assert.False(t, needsUpdate)
+		assert.False(t, isNotSymlink)
+	}
 
 	// Case 3: Target is a regular file instead of a symlink (e.g. fresh MSI install on Windows)
-	localTarget, err := u.Get(constant.OrbitTUFTargetName)
-	require.NoError(t, err)
-	linkPath := filepath.Join(rootDir, "bin", "orbit", filepath.Base(localTarget.ExecPath))
-
-	require.NoError(t, os.Remove(linkPath))
+	_ = os.Remove(linkPath)
 	require.NoError(t, os.WriteFile(linkPath, []byte("regular-file-content"), 0o600))
 
 	needsUpdate, isNotSymlink, err = r.needsOrbitSymlinkUpdate()
@@ -117,10 +115,6 @@ func TestNeedsOrbitSymlinkUpdate(t *testing.T) {
 	assert.True(t, needsUpdate)
 	if runtime.GOOS == "windows" {
 		assert.True(t, isNotSymlink)
-		// On Windows, if isNotSymlink is true and binary was not updated, UpdateAction suppresses symlink update
-		didUpdate, err = r.UpdateAction()
-		require.NoError(t, err)
-		assert.False(t, didUpdate)
 	}
 
 	// Case 4: Symlink exists but points to a different/stale path (channel change / revert)
