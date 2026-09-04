@@ -1,1 +1,0 @@
-- Fixed the **Save** button never activating when adding a package from the software title page while GitOps mode is enabled.

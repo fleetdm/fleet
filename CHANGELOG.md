@@ -1,3 +1,310 @@
+## Fleet 4.92.0 (Sep 01, 2026)
+
+### Bug fixes
+
+* Fixed `fleetctl generate-gitops` failing with an unsupported Content-Type error when the org logo is an SVG.
+- Fixed an issue where deleting an ADE device after turning off Apple Business, could leave orphaned rows.
+* Fixed the fleet and global schedule endpoints accepting reports that belong to a different fleet, and made them return the same "not found" response for a report outside the caller's access as for one that doesn't exist.
+- Added support for running custom Android MDM commands via the Fleet API.
+- Added `created_setup_experience_script` and `deleted_setup_experience_script` activities so that adding, replacing, or removing a setup experience script (via the API or GitOps) is recorded in the audit log.
+- Fixed Fleet-maintained apps selecting the wrong version to be active
+- Fixed the status-filter dropdown's selected-value icon (e.g. the disk encryption, bootstrap package, and policy status filters on the Hosts page) rendering near-black and barely visible in dark mode.
+- Fixed Fleet storing an unusable disk encryption key and logging an escrow activity for macOS hosts that aren't enrolled in Fleet's MDM.
+* Fixed an upgrade failure where a MySQL "Prepared statement needs to be re-prepared" error (1615) aborted a database migration instead of being retried.
+- Fixed UI to show a direct button instead of a single-item dropdown on the Labels page (for users without edit/delete permissions) and the Integrations page (Jira/Zendesk).
+- Updated the macOS enroll modal's "Company-owned" label and helper text to match iOS/iPadOS and Android ("Company-owned (fully-managed)").
+* Reduced the size of the Fleet UI JavaScript bundle by ~89% (14.9 MB to 1.6 MB gzipped) by serving Fleet-maintained app icons as individual static files instead of embedding all ~1,100 of them in the bundle downloaded on every page load.
+* Improved empty state copy on software title detail page when the software is not found in the selected fleet.
+- Fixed styling issues with gap between icons and text across the product.
+* Fixed macOS Fleet-maintained apps with in-bundle login items or background helpers (e.g. 1Password's browser helper) always being detected as open. The Fleet-managed "app is open" check now matches only the app's own executable instead of any process running inside the app bundle.
+- Added the `s3_software_installers_signed_url` configuration option to serve software installer, in-house app, and bootstrap package downloads via GCS presigned URLs (the GCS counterpart to CloudFront URL signing), so clients download directly from object storage instead of streaming through the Fleet server.
+* Fixed the page content shifting left when opening a role dropdown near the bottom of the New user form (`/settings/users/new/human`). Dropdowns now flip upward when there's no room below the trigger.
+- Fixed device-authenticated ("My device") endpoints so that host policies are returned in a device-safe representation that no longer exposes the policy author's name and email or the policy's raw SQL query.
+- Added `linux` as a label platform option, which targets hosts on any Linux distribution.
+* Fixed the delete host endpoint returning inconsistent responses for a host outside the requester's fleet versus one that doesn't exist.
+- Fixed password reset so that case-mutated reset tokens are no longer accepted; tokens are now matched case-sensitively.
+- Fixed an accessibility issue, where the resend button would not show up when focused inside the OS settings modal
+- Windows user-scoped configuration profiles (`./User/...`) are now held in "Pending" until a user signs in, instead of failing during setup. On hosts enrolled by a user (Windows Autopilot, Entra ID) that user releases the hold; on hosts enrolled by installing fleetd, any signed-in user does, and Windows applies the settings to whoever is signed in. User-scoped profiles that already failed on an earlier Fleet version are not resent automatically: after upgrading, resend them once (or edit the profile) and Fleet will deliver them when a user is signed in.
+- Removing a Windows user-scoped configuration profile now waits for a signed-in user as well, instead of being reported as removed while the setting was still applied.
+- Fixed a race condition that allowed a one-time software installer download token to be redeemed more than once when many requests raced concurrently, by making the token consumption atomic.
+* Fixed the macOS "Steam up to date" patch policy always failing on hosts that have the current version of Steam installed. Steam.app ships without a `CFBundleShortVersionString`, so the generated policy now compares `CFBundleVersion`, which agrees with the version Fleet reports in software inventory.
+- Fixed an issue where Homebrew cask metadata for a Fleet-maintained app (macOS) could reach the generated install/uninstall scripts without being escaped for shell use. All cask-controlled values interpolated into generated scripts are now escaped, so shell metacharacters in the metadata are treated as literal text.
+- Fixed self-service reinstall and uninstall buttons remaining disabled after cancelling the uninstall confirmation modal.
+* Fixed an empty summary card rendering above the Vitals section on the host details page for Fleet Free hosts with no summary content (Android, and iOS/iPadOS with no OS settings).
+- Added support for listing and viewing results of Android custom MDM commands via the API and fleetctl CLI.
+- Fixed the host details Vitals card replacing **Enrollment ID** with an empty **Serial number** after a personal (BYOD) Android host is unenrolled.
+- Added `mdm.is_personal_enrollment` to host API responses, reporting whether the last MDM enrollment Fleet recorded for the host was personal (BYOD). Unlike `mdm.enrollment_status`, it is not cleared when the host unenrolls.
+- Fixed host activity queue getting stuck due to database transactions not retrying when getting MySQL error 1615
+- Fixed a bug where a `.sh` or `.py` software package with Windows-style (CRLF) line endings was accepted at upload but failed to install on Linux hosts with a "No such file or directory" error. Line endings are now normalized to Unix-style before the script is stored.
+- Blocked host enrollment with empty or whitespace-only enroll secrets across all enrollment paths (osquery, Orbit, Apple MDM, Android), and removed any pre-existing empty enroll secrets.
+- Fixed the add/edit certificate authority modals showing a generic "Please try again." error instead of the invalid URL error returned by the server. The error now names the certificate authority, for example "Invalid Hydrant URL. Please correct and try again."
+- Fixed error toasts showing an expandable "Raw response" panel containing an empty `{}` when the underlying error carried no details.
+- Fixed an Apple configuration profile that was removed and then added back before the host came online being stripped from the host and reinstalled, instead of staying in place.
+- Fixed tooltips wrapping icons or numeric values (like the Issues count on the host details page) showing a text (I-beam) cursor on hover, which made them look editable; those tooltips now use the default arrow cursor. Underlined-text tooltips are unchanged.
+- Fixed the total amount of retries of a failing software install automation across policy runs not being limited
+- Added activity automations for fleets (Fleet Premium): a per-fleet webhook, configured from the Hosts page, that sends a request to a destination URL whenever an activity linked to one of the fleet's hosts is created.
+- Fixed live query authorization so that an empty team selection is authorized like an omitted one.
+- Added conditional request (etag) support to the osquery config endpoint (`/api/osquery/config`), behind the `osquery.config_etags` server option (`FLEET_OSQUERY_CONFIG_ETAGS`, default off). When it's enabled, agents that send an `etag` field in the request body receive the minimal `{"etag":"ok"}` response when their configuration is unchanged, reducing agent config bandwidth; agents that don't send the field see no change. While it's off, every config request is served exactly as before.
+- Added an `osquery.redis_config_etags` server option (`FLEET_OSQUERY_REDIS_CONFIG_ETAGS`, default off, and requires `osquery.config_etags`): when both are enabled, config check-ins with a matching etag are answered directly from a Redis-backed ETag store, skipping the config build and its database reads entirely. Fleets with uniform configs share one ETag per fleet and platform; fleets with label-scoped reports use isolated per-host ETags invalidated whenever a host's label results are recorded. The short circuit fails open (any Redis error falls back to a full build) and is bypassed automatically for deployments with 2017 packs.
+- Added conditional config request support to `osquery-perf` simulated hosts, including stats for conditional requests and estimated bandwidth saved, for load-testing the above.
+* Added support for `$FLEET_HOST_VITAL_<id>` custom host vital variables in host name templates, including per-host resolution, validation of referenced vital IDs, and automatic re-delivery when a host's vital value changes.
+* Fixed exclude-label-scoped policies running, and their automations firing, on newly enrolled hosts before the host had evaluated the label's membership.
+- Fixed a false-negative vulnerability report where Firefox Developer Edition on macOS was not matched to any CVEs because Fleet generated no CPE for it.
+- Bounded how much of a Google Workspace directory one IdP sync pass pulls, so a very large directory or a misbehaving response can no longer paginate indefinitely or grow server memory without limit. A sync that exceeds a limit fails with an error naming the limit (visible as the last IdP sync status) instead of ingesting a partial directory.
+- Fixed deleting a host that was released from Apple Business reporting success while the host record stayed in Fleet. Fleet now checks the assignment with Apple before deleting, and returns an error instead of reporting success if Apple can't be reached.
+- Reworked the fleets dropdown to make the search input discoverable at 10+ fleets and added an "Add fleet" affordance for global admins.
+- Fixed Windows software whose inventory name includes the version (e.g. "Granola 7.373.2") not matching the Fleet-maintained app's software title, which prevented the uninstall action from appearing and listed each version as its own software title. Applies to Fleet-maintained apps that have been added as an installer. Existing mismatched titles are merged when the app is added, shortly after server startup, and hourly thereafter.
+- Removed the misleading Self-service preview tab from the "Edit appearance" modal for Android apps. Android apps are installed from the Play Store rather than the Fleet self-service web view and updating its appearance will not change anything in Play Store.
+- Added deduplication and out-of-order protection to the Android MDM Pub/Sub notification handler. Duplicate deliveries from Google Pub/Sub no longer re-run the setup experience or emit duplicate activities, and a stale device-deleted notification arriving after a re-enrollment no longer leaves the host stuck showing unenrolled.
+- Added a default fleet for new Windows MDM enrollments (Fleet Premium). IT admins can pick the fleet that hosts enrolling through user-driven Windows MDM enrollment (Windows Autopilot, Entra join) are automatically assigned to. The fleet is assigned before the Autopilot Enrollment Status Page runs, so the default fleet's software, scripts, and configuration profiles apply during out-of-box setup.
+Fixed an issue where label-scoped reports could run on hosts outside the target label (or be skipped for hosts inside it).
+* Added a release budget for Fleet-initiated activities (policy-automation software installs and scripts, and iOS/iPadOS scheduled app updates): they are now queued immediately but released to hosts at a configurable rate (`FLEET_ACTIVITY_FLEET_INITIATED_RELEASE_PER_MINUTE`, default 1000 hosts/minute, 0 = unlimited), spreading out the install-execution and result-ingestion load when an automation fires for many hosts at once. User-initiated activities (self-service installs, admin-run scripts, lock/unlock/wipe, setup experience) are unaffected and now take precedence over queued Fleet-initiated activities on the same host.
+* Fixed an issue where an activity might not be created when an MDM command was enqueued via API
+- Windows devices registered in a connected Microsoft Entra tenant's Autopilot registry now appear in Fleet as pending hosts before they enroll, and become regular hosts on enrollment without creating a duplicate.
+- Improved software ingestion performance at scale by batching `host_software_installed_paths` deletes (previously unbounded single statements).
+* Fixed inconsistent spacing around the enrollment URL on the iOS & iPadOS tab of the **Add hosts** modal, so it now matches the macOS and Android tabs.
+- Added an "Inactive" status with an explanatory tooltip to the Users table for accounts that haven't been used for 30+ days. Regular users are inactive when they haven't logged in (or had session activity) for 30+ days; API-only users are inactive when their token has made no API requests for 30+ days. Fleet now records each user's last login time in a new `last_login_at` field, reports last session activity in a new `last_activity_at` field, and returns a server-computed `status` field (`active`, `inactive`, or `no_access`) from the users API.
+Documented why `safari_extensions` returns empty without Full Disk Access or a `uid` constraint (`users` JOIN/`CROSS JOIN`, or `WHERE uid = ...`), noted the `/Applications`-only scan limitation, fixed standard Safari inventory SQL to include a `users` CROSS JOIN, and replaced legacy `.safariextz` bash equivalents with modern Safari App/Web Extension paths.
+- Fixed a race where a newly created or edited label-scoped query could briefly be delivered to every host (and out-of-scope results stored in its report) because the query row was committed before its labels.
+- Display a descriptive message when script produces empty standard output.
+* Deprecated `fleetdm/bomutils` docker image. Starting in 4.90.0, `fleetctl` does not use `fleetdm/bomutils` to generate `.pkg` fleetd installers.
+* Added the `osquery.config_in_memory_cache` server configuration option and disabled the in-memory cache of the osquery config's scheduled-report section by default; set it to `true` to re-enable the cache.
+- Restricted the manual MDM enrollment profile endpoint (`GET /api/v1/fleet/enrollment_profiles/manual`) to global and fleet-scoped admins and maintainers.
+- Improved SCIM user deactivation to more reliably deprovision the matching Fleet user.
+- Added an audit activity when a deprovisioned SCIM user has no email to match a Fleet account, so operators can spot accounts that may remain active.
+- Improved the hosts report CSV export (`GET /api/v1/fleet/hosts/report`) so that exported cell values are treated as text by spreadsheet applications.
+* Fixed the My device > Self-service search bar not sitting flush right when the "Install all" button isn't rendered.
+- Disabled the **Save** button in the end user migration workflow while a request is in flight.
+- Fixed Fleet no longer recognizing hosts running Omarchy as Linux. Omarchy 4 ships its own `/etc/os-release` and reports `platform=omarchy`, where earlier versions inherited `arch` from Arch Linux and were covered by Fleet's Arch support. Host vitals and software inventory populate again, disk encryption and key escrow are available, policies and labels scoped to `linux` apply, and scripts can be run from the host's Actions menu. Omarchy hosts continue to roll up onto the "Arch Linux" / "rolling" row in Software > OS.
+* Moved toast notifications to the bottom center of the screen so they no longer cover buttons in the bottom-right of pages and modals.
+- Fixed an issue where a second user signing in to a Windows device that was already enrolled via Autopilot would get stuck on the "Account setup" Enrollment Status Page for up to 3 hours.
+- Added a `--bypass-end-user-auth` flag to `fleetctl package` that configures the generated fleetd installer to skip the end-user authentication prompt during enrollment on Linux and Windows hosts (e.g. when the end user already authenticated via another MDM). Requires fleetd v1.60.0 or higher.
+Normalized LocURI values before validation in Windows profile handling.
+* Improved parsing of Apple MachineInfo blobs during Enrollment
+- Fixed the host transfer activity (`transferred_hosts`) to only record host IDs that actually exist, so non-existent host IDs passed to `POST /api/latest/fleet/hosts/transfer` can no longer be injected into the audit trail. No activity is created when none of the requested hosts exist.
+* Added a sortable "Added to Fleet" column to the hosts table, showing when each host last enrolled with Fleet.
+* Fixed sort direction on the "Last seen" and "Last fetched" columns of the hosts table so that sort descending puts the oldest date (biggest "days ago" number) first, matching the visible duration rather than the underlying timestamp.
+- Bounded the Android device reconciliation cron's Google API pagination so a malformed or cycling response can no longer cause an unbounded loop, and added periodic progress logging during pagination.
+- Added a "Patch when closed" option for patch policies that only patches an app on a host if the app is not running.
+* Fixed `GET /api/v1/fleet/hosts/identifier/:identifier` disclosing host details to GitOps users, who are denied on all other host read endpoints. Unlike `GET /api/v1/fleet/hosts/:id`, which returns an error for GitOps users, this endpoint still succeeds and returns the host's `id` (and nothing else), for backwards compatibility with the deprecated Puppet module.
+- Added the ability to cancel a pending Apple MDM lock, wipe, clear passcode, or enable lost mode command before the host receives it, via `DELETE /api/v1/fleet/hosts/:id/commands/:command_uuid`. If the host executes a canceled lock or wipe anyway, Fleet now restores the host's lock/wipe state (including the unlock PIN) when the result arrives.
+- Windows configuration profiles now retry up to 3 times before being marked "Failed", matching Apple. Retries cover profiles the host rejects and profiles whose Fleet-proxied SCEP certificate never arrives. A profile stays "Pending" while Fleet retries.
+- Fleet no longer marks a configuration profile "Failed" when it briefly can't reach the NDES admin URL to fetch a SCEP challenge. The profile stays pending and Fleet tries again. Challenge failures that need an admin to act (invalid credentials, a full password cache, or an account without SCEP enroll permission) still fail the profile immediately with the same message as before.
+- Added `mdm.bootstrap_token_escrowed` to the get host and get host by Fleet Desktop token API responses, so admins can see whether Fleet has escrowed a macOS host's bootstrap token without querying the database directly.
+- Fixed an issue where GitOps could apply MDM SSO configuration values that were invalid.
+* Added collection of additional Android host vitals from AMAPI status reports (USB debugging, passcode set, Google Play Protect, encryption status, manufacturer, security update version, kernel and bootloader version, software update status, API level, security posture, and per-SIM phone numbers), returned by the get host endpoints for Android hosts.
+- Fixed an issue where Observer, Observer+ and Technician could not see the managed account rotation banner.
+- Added marketing name display for Apple devices (macOS, iOS, iPadOS) on the Hosts and Host details pages. The "Hardware model" field now shows human-readable names (e.g. "MacBook Pro (16-inch, 2021)") instead of raw identifiers (e.g. "MacBookPro18,1").
+* Fixed software search to match on `bundle_identifier` and custom `display_name` so admins and end users can find macOS custom packages by their visible name.
+* Updated the macOS disk encryption banner on the Host details and My device pages to tell IT admins and end users that ADE-enrolled hosts escrow their FileVault key automatically on the next refetch, instead of asking the end user to log out.
+* Fixed osquery and orbit config endpoints returning HTTP 500 when a host references a recently deleted team by invalidating the Redis host cache on team deletion.
+- Fixed the turn off MDM modal showing Account-driven User Enrollment re-enrollment instructions for iOS and iPadOS hosts that enrolled with the manual BYOD enrollment link.
+- Fixed a bug where the patch policy for the Windows Git Fleet-maintained app always returned "Pass", even on hosts running an outdated version, so update automations never triggered. The generated query matched `programs.name LIKE 'Git %'`, but Git for Windows registers itself in the registry as exactly `Git`.
+- Improved LocURI validation in Windows profile handling to canonicalize element content before checking.
+- Improved input validation for the Windows MDM enrollment flow.
+- Added Adobe plugins to software inventory: Fleet now detects Adobe Creative Cloud plugins (CEP and UXP extensions) on macOS and Windows hosts and lists them on the Software page and host details with the software type "Plugin (Adobe)", including version and host count.
+- Adobe plugins are excluded from vulnerability scanning, so no vulnerabilities are reported for them. No vulnerability data source maps an Adobe CEP or UXP extension to a CVE; Adobe files CVEs against the host application (Photoshop, Acrobat, and so on), which Fleet already scans.
+- Improved outbound address filtering to cover the unspecified addresses (`0.0.0.0` and `::`), the deprecated IPv4-compatible IPv6 form, and IPv4 addresses reached through a NAT64 prefix.
+- Fixed the software title details response so that installer script contents and managed app configuration are only returned to users authorized to read the installer, and so that a request without a fleet is authorized against "No team" instead of skipping the scope check. This applies to `GET /api/v1/fleet/software/titles/{id}` and to the `software_title` included in `GET /api/v1/fleet/hosts` when filtering by `software_title_id`.
+- Fixed a software title request without a fleet so that it only resolves titles in fleets the requester can see. Previously a title reachable only through a software package, App Store app, or in-house app in another fleet was returned, which told the requester that software they have no access to exists.
+- Fixed device-authenticated ("My device") software uninstall so that it applies the same self-service and label-scope rules as the self-service install path, instead of accepting any package on the host's fleet.
+- Added an experimental WebSocket notification transport for fleetd agents (ADR-0011), disabled by default (enable with the `websocket.transport_enabled` server configuration): connected agents are pushed a "check now" notification when a live query targets them or when interval work (labels, policies, host vitals, refetch) is due, instead of polling `distributed/read` every 10 seconds.
+- Fixed a few edge cases for Apple profile reconciliation when devices respond with NotNow in certain scenarios.
+- Fixed the error returned when a free-tier request sets a premium-only field so that it names the field as it appears in the request payload (for example `critical`) instead of Fleet's internal Go field name (for example `Critical`).
+- Made the per-platform entries in the dashboard "Hosts enrolled" chart keyboard accessible: each platform with hosts is now focusable via Tab, activatable with Enter/Space, has a visible focus indicator, and exposes an accessible name (e.g. "macOS hosts").
+* Fixed policy result ingestion so a host can no longer report results for policies it is not assigned, preventing forged policy membership across fleet, platform, and label scopes.
+- Fixed an edge case where deactivating a SCIM user did not deprovision the matching Fleet user if the user's identifiers were changed in the same request.
+Fixed "Hosts enrolled" chart on the dashboard page to exclude pending hosts from per-platform counts.
+- Fixed Android hosts staying stuck on a pending Lock, Wipe, or Clear passcode when Google never delivered the command's result to Fleet. Fleet now checks the command's outcome directly with Google once a day and updates the host, so the command can be re-issued.
+- Fixed `fleetctl gitops` silently dropping `ios_updates` and `ipados_updates` when it creates a new fleet.
+- Ensured a password reset token can only be used once.
+- Improved `fleetctl generate-gitops` to emit software titles in name order instead of the default `hosts_count` order.
+- Fixed software (packages, App Store apps and in-house apps) targeted with "exclude any" on a host vitals label being hidden from, and blocked for, every host instead of only the label's members.
+- Fixed a bug where the Fleet-maintained app auto-update job could keep an app's previous install script (which references the old installer filename) after downloading a newer version, causing the install to fail.
+- Fixed automatic App Store app updates and policy automations queueing a duplicate install on a host whose upcoming activity queue was not draining. Fleet now skips an app that already has an install waiting in the queue, whether or not it has been sent to the device.
+- Removed the duplicate App Store app installs Fleet had already queued, keeping the most recently queued install of each app on each host. Installs requested from the install button, self-service, or the setup experience are left in place.
+- Fixed policy automations acting on an App Store app added for a platform other than the host's.
+- Fixed the Google Calendar integration scheduling maintenance events over users' Focus Time and Out of office blocks.
+* Fixed data table column headers stretching vertically when the table has no rows (e.g. while refetching from a zero-result search on the My device software page).
+- Fixed ACME certificates deployed via user-scoped profiles not showing on the macOS host details page, and recorded them under the enrolled user's scope instead of the system keychain.
+- Normalized login responses for accounts with MFA enabled to follow authentication best practices.
+- Added a `user_mfa_requested` activity, recorded when valid credentials are submitted for an MFA-enabled account and a verification email is sent.
+- Fixed the Helm chart's Deployment and `fleet-vulnprocessing` CronJob templates so empty/unset entries in `environments` (e.g. the default `FLEET_SERVER_PRIVATE_KEY: ""`) are omitted from the rendered container env list instead of being emitted as an empty-string env var, which previously collided with the same key supplied via `envsFrom` and caused server-side apply to reject the object with a "duplicate entries for key" error.
+- Updated wipe modal for Apple and Windows hosts to call out deleting may remove the Wipe Pending status.
+- Changed duration fields in Fleet server logs (e.g. `took`) to render as human-readable strings with time units (e.g. `"1.116187ms"`) instead of raw nanosecond numbers. Log pipelines that parse these fields numerically will need to be updated.
+* Reduced database load when software installed-path updates hit lock contention: the transaction now fails fast instead of retrying, and the host's next software report reconciles the paths.
+- Updated the macOS CIS benchmark policies to the latest CIS releases: macOS 14 Sonoma v3.1.0, macOS 15 Sequoia v2.1.0, and macOS 26 Tahoe v1.1.0. 
+- Fixed a bug where modifying a label could silently persist a membership change without recording an audit activity when the label's metadata update failed (e.g. renaming to a name that already exists). Label metadata and membership are now saved in a single transaction, so a failed update rolls back both.
+- Fixed an issue where disabled packs could still be applied to hosts in certain targeting configurations.
+- Clarified the Controls > OS updates empty state to say "Apple or Windows MDM must be turned on" and link to MDM settings, so it no longer implies MDM is off when only Android MDM is enabled.
+- Removed an unneeded dependency that does not support Apple M chips.
+- Fixed the SCEP proxy so that Windows profiles using a custom SCEP proxy certificate authority have their one-time Fleet challenge validated before a PKIOperation request is forwarded to the certificate authority. Requests with a missing, incorrect, or expired challenge are now rejected.
+- Disabled the Android MDM "Connect" and "Turn off Android MDM" buttons with a GitOps tooltip when GitOps mode is enabled, matching the Windows MDM behavior.
+- Fixed an issue where `generate-gitops` would export an empty `apple_business` section, if the AB default fleets had only been set via the UI.
+* Fixed a potential resource exhaustion issue in the MSI metadata parser.
+- Added support for `display_name` on Fleet-maintained apps in GitOps.
+- Fixed editing only the username or only the password of an NDES SCEP certificate authority skipping validation against the NDES server. Fleet now verifies the credentials on save and returns an error if they're wrong, instead of saving a broken certificate authority whose misconfiguration only surfaced later as a profile failure on hosts.
+- Fixed editing only the SCEP URL of an NDES SCEP certificate authority failing with a `"password" must be set when modifying an existing certificate authority` error. The password field is now cleared when the SCEP URL changes, so it's re-entered and sent with the update.
+- Fixed an empty username or password being saved on an NDES SCEP certificate authority.
+- Fixed adding or editing a certificate authority with a bad NDES admin URL or credentials showing a generic "Please try again." message instead of "Invalid admin URL or credentials."
+- Fixed updating an NDES SCEP certificate authority with the masked password (`********`) returned by the GET endpoint sending the mask to the NDES server as the literal password and failing with a misleading "invalid credentials" error. The mask is now rejected with an invalid-password error, matching GitOps behavior.
+- Fleet now skips validating NDES credentials against the NDES server when an update leaves the admin URL, username, and password unchanged, so a no-op edit doesn't consume a slot in NDES's password cache.
+- Fixed an unreachable NDES admin URL (timeout, DNS failure, connection refused) being reported as "Invalid admin URL or credentials" when editing an NDES SCEP certificate authority. It's now reported as "Couldn't connect to admin URL."
+- Fixed the Save button staying enabled in the edit certificate authority modal after Fleet clears the unchanged NDES password, which let the form submit an empty password.
+- Added support for enabling/disabling software inventory per-fleet via `PATCH /api/v1/fleet/fleets/{id}` with `{"features": {"enable_software_inventory": <bool>}}`. The key follows PATCH-merge semantics: when omitted, the stored value is unchanged.
+- Split `ListHostSoftware` and `ModifyAppConfig` into smaller helpers so that those packages can be checked by nilaway linter.
+* Added support for Fleet's built-in variables (e.g. `$FLEET_VAR_HOST_END_USER_IDP_USERNAME`) in scripts, including software install, post-install, and uninstall scripts. Variables are resolved per host at execution time and require a Fleet Premium license.
+- Improved the Apple Business success toast shown after editing fleet assignments to name the organization.
+- Fixed the error toast shown when selecting a custom package with an unsupported extension so the friendly message stays on the main line and the extension reason appears in the expandable raw-response panel.
+- Fixed the Fleet-maintained app auto-update cron not updating install and uninstall scripts when it advances an app to a new version.
+* Fixed team-level BitLocker PIN enforcement never reaching Windows hosts when Apple MDM was not configured on the server: the "Create PIN" banner appeared on the My device page, but the queries and MDM command that enable PIN setup were never sent.
+- Orbit enrollment now determines end user authentication requirements from server policy rather than client-advertised capabilities. The `mdm.allow_orbit_end_user_auth_bypass` server setting (enabled by default) controls whether hosts that do not complete end user authentication may enroll into a team that requires it; set it to `false` to strictly enforce end user authentication for all Orbit enrollments.
+- Fixed the SCEP proxy so that a Windows profile pending removal can no longer be used to relay SCEP requests to the configured certificate authority, and so that proxy error responses no longer include the certificate authority's URL.
+- Improved the performance of the configuration profiles status summary (`GET /api/latest/fleet/configuration_profiles/summary`) for Windows hosts so it no longer times out on large fleets.
+* Fixed the hosts list endpoint sometimes returning software title details that didn't match the applied filter.
+- Added support for custom host vitals (`$FLEET_HOST_VITAL_<id>`) in Android configuration profiles and managed app configuration, including per-host value expansion at delivery and automatic resend when a host's value changes.
+- Fixed the policy automations table showing only one host for automation runs that cover multiple hosts.
+- Fixed the SCIM last request telemetry so that authorization failures (403 Forbidden) from unauthorized users are no longer persisted, preventing them from overwriting the admin-visible SCIM status.
+- Fixed query (report) responses so that pack metadata (ID, name, description) is only included when the requesting user is authorized to read packs, preventing cross-fleet pack metadata disclosure via query name collisions.
+- Clarified the failed-install modal copy on Android hosts to explain that the end user can retry via the Google Play Store in their work profile.
+- Moved the host's OS settings table out of the "OS settings" modal into a dedicated **Controls** tab on Host details and My device.
+- Fixed a bug where Windows disk encryption showed a "Resend" action that always failed, since BitLocker enforcement isn't a configuration profile.
+- Enforced API-only endpoint restrictions on the debug routes so a restricted API-only token can no longer reach `/debug/*`.
+- Added the ability to sort the versions table by version on the Software details page.
+- Fixed an issue where the Apple reconciler would queue profiles for deleted hosts, that was pending in Fleet via Apple Business.
+- Fixed Apple hosts losing built-in label memberships during Automated Device Enrollment (ADE), which prevented label-scoped profiles, software, and OS updates from being delivered.
+- Fixed authentication and enrollment tokens (including session, invite, email-change, MFA, host device, and MDM enrollment/installer tokens) so that case-mutated tokens are no longer accepted; these tokens are now matched case-sensitively.
+Added `server.endpoint_request_size_overrides` to configure a max request body size per API endpoint, with the largest of the endpoint's default and the override winning.
+Deprecated `osquery_max_log_write_body_size` and `osquery_max_distributed_write_body_size` in favor of the above config.
+- Improved validation of the `order_key` parameter when listing software, rejecting sort keys that aren't supported instead of passing them through to the query.
+- Fixed deleting a certificate template that doesn't exist returning a 500 internal server error. Users authorized to manage certificate templates now get a 404, and users who aren't get a 403 whether or not the template exists.
+- Fixed getting a certificate template by ID disclosing whether templates a user can't access exist. Reading a template on another fleet now returns a 404, the same as a template that doesn't exist.
+- Fixed an issue where the user-scoped icon wasn't showing for iOS and iPadOS hosts.
+- Fixed the **Save** button never activating when adding a package from the software title page while GitOps mode is enabled.
+- Fixed the label spec endpoints so that the host membership list only includes hosts the requesting user is authorized to see, preventing cross-team host ID disclosure through global manual labels.
+- Fixed an issue where Fleet would show a turn on MDM banner before knowing the device state.
+- Fixed helper text under checkboxes and radio buttons so it aligns with the label instead of the control.
+- Added `token_invalid` to the ABM token API responses and `dep_device_error` (a human-readable message) to `GET /hosts/:id/dep_assignment`, to help identify why a host's Apple Business Manager device lookup or ABM token isn't returning expected data (e.g. a rejected or invalid-signature token, unsigned terms, a server-side error, or the device no longer being assigned to Fleet).
+- Updated button styles across the Fleet UI to use the new bordered secondary and subdued button variants.
+- Renamed the "Program (Windows)" software type to "Application (Windows)", which includes apps installed through the Windows app store.
+- Fixed the Setup experience Users settings to default the account type to "Admin" for fleets whose config predates the setting, instead of showing no selection.
+- Fixed label color for install/post-install/uninstall script fields in software package advanced options to match Fleet's standard form label color.
+- Added a disabled Refetch button with a tooltip on the Host details page for Android hosts, explaining that Android hosts sync data automatically and linking to how to sync manually.
+- Fixed generate-gitops not using .sh and .ps1 extensions for install scripts
+- Windows SCEP profiles now fail with a clear message when the certificate authority challenge contains characters Windows doesn't support (ASN.1 PrintableString), instead of showing "Verified" while no certificate is installed.
+* Fixed editing a Windows configuration profile so that uploading a replacement file with a different name updates the profile's name.
+* Fixed uploading a Windows configuration profile with a file name longer than 255 characters returning a database error.
+- Added a new "End user authentication" setting (`fleet_desktop.sso_enabled`, Fleet Premium) that requires end users to sign in via single sign-on (SSO) before accessing Fleet Desktop's "My device" page.
+- Fixed the confirmation checkbox on the "Clear passcode" host modal rendering in green instead of red, so it now matches the destructive "Clear passcode" button.
+- Removed the unused `jq` binary from the `fleetdm/fleet` Docker image to reduce the image's attack surface and prevent SBOM scanners from flagging `jq` CVEs.
+Enforced API-only endpoint restrictions on chart endpoints.
+- Fixed editing a policy on a large fleet stalling policy and software install result ingestion fleet-wide. The `policy_membership` wipe now runs after the policy update commits instead of inside its transaction, so its row locks are no longer held for the whole wipe. An interrupted wipe is completed by the policy membership cron.
+- Fixed incorrect background color on authentication pages (login, SSO, registration) in dark mode.
+- Fixed autofilled inputs showing a white background in dark mode. The autofill style now uses theme colors instead of a hardcoded white, and covers Firefox via the standard `:autofill` selector.
+- Fixed an App Store or in-house app install that a device acknowledged but never verified leaving the host unable to run anything else. Fleet now fails such an install after 24 hours and releases the host's activity queue, so scripts, software installs, and uninstalls waiting behind it run. The wait is configurable with `FLEET_SERVER_VPP_INSTALL_REAP_TIMEOUT`. An install whose command has not reached the device yet is left alone until it can no longer be delivered.
+- Fixed Fleet holding on to an App Store app verification command after it had nothing left to verify on that host, which delayed verifying the next install on the same host by up to a day.
+- Fixed a bug where a failed macOS Fleet-maintained app install could be reported as successfully installed because the install script did not check the exit code of the command that installed the app. This covers generated install scripts, the custom install scripts used by some apps (including Google Chrome, Zoom, Microsoft Edge, and Webex), and the already-published scripts of frozen apps.
+- Fixed an issue where re-enrolling an Apple device with a different type, e.g. Manual -> ADE, would not update the enrollment type correctly.
+- Fixed long fleet names overflowing the fleets table, fleet detail page header, teams dropdown, and manage enroll secrets modal. Fleet name inputs now cap at 255 characters (matching the database column), and the API and GitOps now return a clear validation error instead of a raw "Data too long" MySQL error when a longer name is submitted.
+- Added 255-character caps to additional user-supplied name and description inputs (API user, custom variable, certificate, label, pack, certificate authority forms) to prevent the same class of overflow bug.
+- Fixed long label names overflowing the Labels card on the host details page.
+* Fixed the misaligned icon in `notify.success`/`notify.error` toast notifications so it sits on the first line of the message on both single- and multi-line toasts.
+- Added per-platform disk encryption settings: enforcement and key escrow for macOS, enforcement for Windows, and key escrow for Linux.
+- Fixed the Docker Desktop macOS Fleet-maintained app not reporting an installed version or "Installed" status on hosts that already have Docker Desktop. The app matched on the embedded Electron bundle identifier (`com.electron.dockerdesktop`) instead of the identifier the installed app reports (`com.docker.docker`), and embedded bundles are excluded from software inventory. Existing Docker Desktop installers are re-pointed to the correct software title on upgrade.
+- Fixed iOS/iPadOS refetch getting blocked when an online device acknowledged a refetch command before Fleet finished recording the command as sent.
+- Improved validation of the `order_key` parameter on `GET /api/v1/fleet/activities` and `GET /api/v1/fleet/hosts/{id}/activities`, rejecting unsupported sort keys.
+- Fixed the script and query editors so that scrolling after a single click no longer selects text instead of scrolling.
+- Configuration profiles scoped by dynamic (query-based) labels now preserve a host's current profile state while the host's membership in a label is still unknown. Any profile changes only happen after the label has been evaluated at the host's next refetch, meaning adding a new exclude(or include-all) label to a profile does not immediately remove it from all hosts who have not run the label's query yet
+- Fixed the self-service "Install all" button so its count and install target scope to the current search query. Previously, typing a search would filter the visible list while "Install all" still counted (and queued) every item in the selected category, including software the search had filtered out.
+- Fixed duplicate software inventory entries (same name, version, and source with the same vulnerabilities but different host counts) that could appear on instances upgraded to Fleet v4.76.0 or later. Existing duplicates are merged during the database migration on upgrade.
+* Added a `useFormValidation` hook as the single source of truth for the documented form validation behavior, and applied it to the new user and new API-only user forms.
+* Fixed form validation on the new/edit user and API-only user forms: field errors no longer appear before a field has been edited, clear as soon as the field is focused, and the "select at least one fleet" error now renders on the selector instead of as a toast.
+* Updated validation error copy on the new/edit user and API-only user forms to the standard wording (e.g. "Enter an email" instead of "Email field must be completed").
+* Fixed the fleet, role, and API access controls staying editable while a user was being saved on the new/edit user and API-only user forms.
+* Escaped values interpolated into the conditional access Apple configuration profile so a value containing markup is carried as literal text.
+* Made MFA login token redemption atomic so a single one-time token can no longer be used to create more than one session under concurrent requests.
+* Fixed built-in labels being overwritten, renamed, or deleted by supplying a label name that differs from the built-in name only in letter casing.
+- Fixed duplicate IdP device mapping ("2 users") shown for a host after it re-enrolled through ADE with end user authentication when its IdP username had previously been set manually. The enrollment now replaces the manually set mapping instead of adding a second one.
+- Added a software package maximum size error message in the UI to fix inconsistent errors across different browsers.
+- Added support for sending blank APNS pings to Apple devices.
+- End users who take too long to sign in during MDM enrollment now see a message saying their session may have timed out, instead of a generic error.
+- Aligned the configuration profiles empty state with the assets tab styling so admin and maintainer users see a consistent empty state.
+* Added support for nested groups in Entra in IdP vitals.
+* Fixed Android MDM commands returning 500 instead of the actual error code from the Google Android Enterprise API.
+- Fixed an issue where an SSO-only invitation could be accepted with a password, creating a local password-authenticated account and bypassing SSO enforcement. The authentication mode is now derived solely from the invite.
+- Fixed the transient empty state shown when changing Self-service search and category filters.
+- Fixed a bug where the batched Apple MDM profile and declaration reconcilers could skip hosts on deployments with more than 5000 Apple MDM hosts and one or more duplicate hosts.
+- Added `--since-commit` and `--commit` flags to the `migration-cleanup` tool, allowing migration rename scans scoped to a commit range on `main` or a single commit, in addition to the existing `--branch` mode.
+- Made vulnerability host count updates recover automatically after an interrupted table swap.
+* Fixed the page content shifting left when opening the Actions dropdown on the last rows of a table (labels, users, fleets), and the resulting jump when a delete modal opened. The dropdown menu now flips upward when there's no room below the trigger.
+- Removed pagination from the "Select API endpoints" search results table (Settings > Users > Add API-only user > Specific API endpoints), relying on the results dropdown's existing scrollbar instead.
+- Ranked "Select API endpoints" search results by relevance (exact match, then prefix, then whole-word, then substring, matched against both name and path) instead of leaving them in an unranked catalog order, and fixed a bug where the table's default sort silently discarded that ranking.
+- Fixed the VPP install details modal retrying the command results request four times when the result isn't available yet and the API returns a 404.
+* Fixed the modify label endpoint so that a dynamic label's membership can no longer be cleared by sending an empty `hosts` or `host_ids` list, which is now rejected like a non-empty one.
+- Fixed a database migration that could take hours to complete on deployments with many host certificates.
+- Fixed activity feed rendering a blank actor for failed iPad VPP installs: auto-update terminal failures now attribute to Fleet, and any install whose initiating admin has since been deleted also renders "Fleet" instead of an empty name.
+- Fixed the OS versions API (`GET /api/latest/fleet/os_versions`) to return a validation error for an unsupported `platform` filter and a "not found" error for an unknown OS version ID, instead of a successful but empty or null-filled response. Also corrected the `max_vulnerabilities` validation message so the `>=` character is no longer returned HTML-escaped.
+- Update DDM asset error message when providing `Authentication` key to inform Fleet defaults to `MDM` authentication.
+- Added the ability to create a managed local admin account on Windows hosts. Requires fleetd 1.60.0 or higher.
+* Improved the error message shown when adding a Fleet-maintained app times out or is canceled by a proxy or load balancer while downloading a large installer.
+- Added a QR code for the enrollment link on the Android and iOS/iPadOS tabs of the **Add hosts** modal, so the enrollment flow can be started by scanning instead of copying the link to a device.
+- Added `host_id` and `host_serial` to the `mdm_enrolled` activity for Apple (macOS, iOS, iPadOS) enrollments, and the activity now appears on the host's activity timeline.
+- Removed mention of osquery when viewing a DDM profile that is verifying.
+- Reduced memory usage of the vulnerabilities cron by streaming NVD matches to the database in bounded chunks instead of holding every matched vulnerability in memory (8.5 GB → 2.1 GB peak on a 22.7M-match fleet), and inserts now start during matching so large fleets no longer exceed the vulnerability processing time limit.
+- Added a clear error message when adding both Mozilla Firefox and Firefox ESR (which share a bundle identifier) to the same fleet, so admins understand only one of them can be added instead of seeing a generic conflict error.
+- Added 29 new iOS/iPadOS device vitals, such as battery level, accessibility settings, cellular technology, cloud backup status, organization info, MDM options, device attestation, and cellular service subscriptions, collected via the existing `DeviceInformation` MDM refetch and shown in the host API response and a new "View all" vitals modal on the host details page. Personal (BYOD) enrollments don't receive these new fields, to avoid exposing information about a device the organization doesn't own.
+- Fixed a Windows configuration profile staying listed on Host details > OS settings when it stopped applying to a host but another profile on that host still enforced all of the same settings. This affected deleting or renaming a profile, and transferring a host between fleets with matching profiles.
+* Fixed the "Software" automation filter on the Policies page to no longer include patch policies. Added a dedicated "Patch" filter option.
+- Fixed an issue where a misleading detail was shown for pending/verifying DDM profiles.
+- Fixed misaligned app icons on the macOS setup experience "Setting up your device" screen.
+* Restricted deleting a fleet to global write permissions (global admin or GitOps), matching the existing restriction on creating one.
+- Fixed a bug where Windows hosts showed a failed enrollment state after the MDM certificate renewal window opened.
+- Fixed uninstalling `.sh` and `.py` script packages from macOS hosts, which was rejected even though installing them there is allowed. The rejection message for other platforms now names them the same way the install message does ("macOS and Linux" rather than "linux").
+- Fixed the "Add software" error for a file whose contents don't match a supported installer format — it no longer says "Couldn't edit software" on an add and no longer implies the file extension is the problem.
+- Fixed software installer validation errors reporting the wrong action verb (add vs. edit).
+- Allowed `.py` script-only packages to be assigned a `setup_experience_platform` (`darwin` or `linux`), matching `.sh`.
+- Added a diagnostic message when an install script can't be run (exit code -1) — e.g. when the interpreter in its shebang is missing on the host — instead of reporting no output.
+- Fixed the install rejection message for `.sh`/`.py` script packages to say they can be installed on macOS and Linux hosts, rather than Linux only.
+- Fixed 502 errors and timeouts on the software install endpoints caused by the hourly Fleet-maintained apps sync taking exclusive row locks on the entire `software` and `software_titles` tables while normalizing software names.
+- Fixed a macOS Fleet-maintained app's name being applied to the iOS and iPadOS apps that share its bundle identifier.
+- Fixed macOS Fleet-maintained app software names not being corrected when the catalog refresh failed.
+- Added a `FLEET_DEV_SKIP_S3_CONFIG` environment variable to skip applying local S3 dev defaults and creating test S3 buckets when running `fleet serve --dev`.
+- Requests denied by an API-only user's endpoint restrictions now return a distinct 403 message ("endpoint not permitted for this API-only user") and are logged at info level with the route and denial reason, so they can be distinguished from role-based permission denials.
+- Updated Go to 1.26.6.
+- Added support for releasing devices from Apple Business inside Fleet.
+- Added the option to keep macOS, iOS, and iPadOS hosts on the latest OS version (Fleet Premium). Setting `minimum_version` to `latest` along with `deadline_days` tells Fleet to automatically track the newest version Apple publishes for each host's hardware and to set the update deadline that many days after the version has been released.
+- Fixed query (report) results submitted to `/api/osquery/log` so that they are only accepted when the query is actually scheduled for the submitting host, preventing an enrolled host from adding rows to reports it was never assigned or from streaming results for those queries to a log destination.
+- Fixed a 500 error during Apple MDM enrollment when a host had no DEP assignment yet (e.g. the enrollment request arrived before the host/DEP assignment row was created or replicated). The OS updates settings lookup now returns a not-found error so enrollment proceeds gracefully instead of failing.
+- Fixed a bug where an Apple configuration profile (DDM declaration) could become undeletable if the set of allowed declaration types changed after the profile was added (for example, when a server configuration flag was toggled). Deleting a profile no longer re-runs upload-time validation.
+- Fixed report descriptions so that newlines are preserved when the description is displayed, instead of being collapsed onto a single line.
+- Fixed false positive vulnerabilities reported for JetBrains `teamcity-cli` installed via Homebrew, which was incorrectly matched to the TeamCity CI server's CPE.
+- Fixed a bug where updating a Fleet-maintained app to a new build that uses the same shortened version did not update the file to the new installer, but did update some fields like install script.
+- Fixed the "Advanced options" reveal button on the Edit software modal not expanding for `.msix` packages (e.g., Claude, Slack on Windows), which prevented users from viewing or editing install/uninstall scripts.
+Fixed long unbreakable words (e.g. file paths in inline code) overflowing the table info side panel on the report and policy editor pages.
+* Fixed the live query results websocket stream returning a different error for a nonexistent campaign versus one owned by another user.
+- Added support for automatically installing in-house apps (`.ipa`) on iOS and iPadOS hosts when they enroll into Fleet.
+- Fixed "Turn off MDM" being available again after it succeeded, which let an offline host be sent duplicate unenroll commands.
+- Fixed the Hosts page so that managed Android hosts display their serial number instead of "Not supported" when one is reported.
+- Fixed built-in and starter library Linux labels being too strict to match derived distributions, so hosts running Pop!_OS, Linux Mint, Zorin OS, Debian, older Fedora releases, Amazon Linux, and SUSE now appear in the Linux labels that apply to them.
+- Fleet now clears dynamic labels and pending commands and software installs when an Android host re-enrolls. Manually assigned labels are preserved, and pending software installs are reported as failed. Past host activities for the host are also cleared unless `preserve_host_activities_on_reenrollment` is enabled.
+- Aligned the configuration profiles and assets empty states for technicians with the shared EmptyState styling.
+- Added support for resending a configuration profile on policy failure as part of a policy automation.
+- Added software upload progress logging to fleetctl GitOps.
+- Fixed a query returning a MySQL error if hit with unsupported platforms, by now returning an empty result.
+- Added tooltips to the "Agent", "Last restarted", and "Status" column headers on the Hosts page explaining which platforms are supported and why.
+- Fixed the "Last restarted" vital showing on ChromeOS hosts, where it's not actually collected.
+- Updated the "Last opened" tooltip on the Host details Software table to explain why it's only supported for native macOS, Windows, and Linux apps and packages.
+- Removed the `cellProps.rows.length === 1` workaround (which suppressed the tooltip whenever the table had exactly one row) by adding the correct CSS, which removes the tooltip overflowing if the host table is only 1 row.
+- Fixed low color contrast on the "Inherited" tag and unified the styling of tags (e.g. "Inherited," "API," "Patch," host filter chips, and host label pills) across the UI to match the design system.
+- Updated the EPSS scores feed to download from its new canonical URL (`epss.empiricalsecurity.com`) instead of relying on the redirect from the old host (`epss.cyentia.com`).
+- Fixed a bug where hosts that re-enrolled via DEP would sometimes have profiles with exclude-any labels attached installed before they had actually reported label results 
+- Fixed an issue where stale fleet names could appear in `mdm.apple_business` after renaming a fleet.
+- Added a severity (CVSS score) filter to the Vulnerability exposure dashboard chart, which now requires Fleet Premium, and updated the severity filter on the **Software**, **Host details**, and **My device** pages so the min and max score inputs appear only when custom severity is selected.
+* Reduced database load when processing osquery result logs by resolving scheduled query names in a single batch lookup instead of one query per result.
+* Reduced the size of the Fleet UI JavaScript bundle by a further ~62% (1.6 MB to 632 KB gzipped) by loading each page's code when its route is opened rather than compiling every page into the bundle downloaded on first load.
+- Updated Go to 1.26.7.
+- Fixed the Fleet-maintained apps auto-update cron job not updating scripts when they change in the manifest without a version change.
+
 ## Fleet 4.90.1 (Aug 14, 2026)
 
 ### Bug fixes
