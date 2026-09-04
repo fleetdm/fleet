@@ -8783,6 +8783,7 @@ This endpoint returns the list of custom MDM commands that have been executed.
 - [List Volume Purchasing Program (VPP) tokens](#list-volume-purchasing-program-vpp-tokens)
 - [Get Android Enterprise](#get-android-enterprise)
 - [Delete Android Enterprise](#delete-android-enterprise)
+- [Get Android zero-touch enrollment configuration](#get-android-zero-touch-enrollment-configuration)
 
 ### Get Apple Push Notification service (APNs)
 
@@ -9014,6 +9015,35 @@ None.
 `Status: 200`
 
 ---
+
+### Get Android zero-touch enrollment configuration
+
+_Available in Fleet Premium_
+
+Get Fleet's Android zero-touch DPC extras JSON to paste into Google's zero-touch enrollment portal. Android MDM must be enabled.
+
+As part of this request, Fleet generates a token w/ 1,000 year expiry. If a token already exists, Fleet doesn't generate a new one.
+
+`GET /api/v1/fleet/android_enterprise/zero_touch_configuration`
+
+#### Parameters
+
+None.
+
+#### Example
+
+`GET /api/v1/fleet/android_enterprise/zero_touch/configuration`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "android.app.extra.PROVISIONING_ADMIN_EXTRAS_BUNDLE": {
+    "com.google.android.apps.work.clouddpc.EXTRA_ENROLLMENT_TOKEN": "<token from Fleet>"
+  }
+}
 
 ## SCIM
 
