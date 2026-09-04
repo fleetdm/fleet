@@ -494,10 +494,6 @@ func (svc *Service) BatchApplyCertificateAuthorities(ctx context.Context, incomi
 		return fleet.NewInvalidArgumentError("gitops", "certificate_authorities: batch apply is intended only for use with gitops")
 	}
 
-	if len(svc.config.Server.PrivateKey) == 0 {
-		return &fleet.BadRequestError{Message: "Server private key must be configured. Learn more: https://fleetdm.com/learn-more-about/fleet-server-private-key"}
-	}
-
 	ops, err := svc.getCertificateAuthoritiesBatchOperations(ctx, incoming)
 	if err != nil {
 		return err
@@ -510,6 +506,15 @@ func (svc *Service) BatchApplyCertificateAuthorities(ctx context.Context, incomi
 
 	if opts.SkipDeletes {
 		ops.Delete = nil
+	}
+
+	if len(ops.Add) == 0 && len(ops.Delete) == 0 && len(ops.Update) == 0 {
+		svc.logger.DebugContext(ctx, "batch apply certificate authorities: no certificate authority changes to apply")
+		return nil
+	}
+
+	if len(svc.config.Server.PrivateKey) == 0 {
+		return &fleet.BadRequestError{Message: "Server private key must be configured. Learn more: https://fleetdm.com/learn-more-about/fleet-server-private-key"}
 	}
 
 	if opts.DryRun {
