@@ -30,6 +30,7 @@ const (
 	selectiveList      = fleet.ActionSelectiveList
 	cancelHostActivity = fleet.ActionCancelHostActivity
 	transferHost       = fleet.ActionTransferHost
+	clearPasscode      = fleet.ActionClearPasscode
 	create             = fleet.ActionCreate
 	readSecrets        = fleet.ActionReadSecrets
 	writeMembers       = fleet.ActionWriteMembers
@@ -2862,6 +2863,23 @@ func TestAuthorizeMDMCommand(t *testing.T) {
 	team1Command := &fleet.MDMCommandAuthz{
 		TeamID: new(uint(1)),
 	}
+	// Clearing a passcode is only granted to technicians on iOS/iPadOS hosts, so
+	// those rules are exercised against both an Apple mobile host and one that
+	// isn't (Android).
+	globalIOSCommand := &fleet.MDMCommandAuthz{
+		Platform: "ios",
+	}
+	team1IOSCommand := &fleet.MDMCommandAuthz{
+		TeamID:   new(uint(1)),
+		Platform: "ipados",
+	}
+	globalAndroidCommand := &fleet.MDMCommandAuthz{
+		Platform: "android",
+	}
+	team1AndroidCommand := &fleet.MDMCommandAuthz{
+		TeamID:   new(uint(1)),
+		Platform: "android",
+	}
 	runTestCases(t, []authTestCase{
 		{user: test.UserNoRoles, object: globalCommand, action: write, allow: false},
 		{user: test.UserNoRoles, object: globalCommand, action: read, allow: false},
@@ -2957,6 +2975,60 @@ func TestAuthorizeMDMCommand(t *testing.T) {
 		{user: test.UserTeamTechnicianTeam2, object: globalCommand, action: read, allow: false},
 		{user: test.UserTeamTechnicianTeam2, object: team1Command, action: write, allow: false},
 		{user: test.UserTeamTechnicianTeam2, object: team1Command, action: read, allow: false},
+
+		// Clearing passcodes is granted to technicians in addition to admins and
+		// maintainers, but not to gitops (unlike the broader write action).
+		{user: test.UserNoRoles, object: globalIOSCommand, action: clearPasscode, allow: false},
+		{user: test.UserNoRoles, object: team1IOSCommand, action: clearPasscode, allow: false},
+		{user: test.UserAdmin, object: globalIOSCommand, action: clearPasscode, allow: true},
+		{user: test.UserAdmin, object: team1IOSCommand, action: clearPasscode, allow: true},
+		{user: test.UserMaintainer, object: globalIOSCommand, action: clearPasscode, allow: true},
+		{user: test.UserMaintainer, object: team1IOSCommand, action: clearPasscode, allow: true},
+		{user: test.UserTechnician, object: globalIOSCommand, action: clearPasscode, allow: true},
+		{user: test.UserTechnician, object: team1IOSCommand, action: clearPasscode, allow: true},
+		{user: test.UserObserver, object: globalIOSCommand, action: clearPasscode, allow: false},
+		{user: test.UserObserver, object: team1IOSCommand, action: clearPasscode, allow: false},
+		{user: test.UserObserverPlus, object: globalIOSCommand, action: clearPasscode, allow: false},
+		{user: test.UserObserverPlus, object: team1IOSCommand, action: clearPasscode, allow: false},
+		{user: test.UserGitOps, object: globalIOSCommand, action: clearPasscode, allow: false},
+		{user: test.UserGitOps, object: team1IOSCommand, action: clearPasscode, allow: false},
+
+		{user: test.UserTeamAdminTeam1, object: globalIOSCommand, action: clearPasscode, allow: false},
+		{user: test.UserTeamAdminTeam1, object: team1IOSCommand, action: clearPasscode, allow: true},
+		{user: test.UserTeamAdminTeam2, object: globalIOSCommand, action: clearPasscode, allow: false},
+		{user: test.UserTeamAdminTeam2, object: team1IOSCommand, action: clearPasscode, allow: false},
+		{user: test.UserTeamMaintainerTeam1, object: globalIOSCommand, action: clearPasscode, allow: false},
+		{user: test.UserTeamMaintainerTeam1, object: team1IOSCommand, action: clearPasscode, allow: true},
+		{user: test.UserTeamMaintainerTeam2, object: globalIOSCommand, action: clearPasscode, allow: false},
+		{user: test.UserTeamMaintainerTeam2, object: team1IOSCommand, action: clearPasscode, allow: false},
+		{user: test.UserTeamTechnicianTeam1, object: globalIOSCommand, action: clearPasscode, allow: false},
+		{user: test.UserTeamTechnicianTeam1, object: team1IOSCommand, action: clearPasscode, allow: true},
+		{user: test.UserTeamTechnicianTeam2, object: globalIOSCommand, action: clearPasscode, allow: false},
+		{user: test.UserTeamTechnicianTeam2, object: team1IOSCommand, action: clearPasscode, allow: false},
+		{user: test.UserTeamObserverTeam1, object: globalIOSCommand, action: clearPasscode, allow: false},
+		{user: test.UserTeamObserverTeam1, object: team1IOSCommand, action: clearPasscode, allow: false},
+		{user: test.UserTeamObserverTeam2, object: globalIOSCommand, action: clearPasscode, allow: false},
+		{user: test.UserTeamObserverTeam2, object: team1IOSCommand, action: clearPasscode, allow: false},
+		{user: test.UserTeamObserverPlusTeam1, object: globalIOSCommand, action: clearPasscode, allow: false},
+		{user: test.UserTeamObserverPlusTeam1, object: team1IOSCommand, action: clearPasscode, allow: false},
+		{user: test.UserTeamObserverPlusTeam2, object: globalIOSCommand, action: clearPasscode, allow: false},
+		{user: test.UserTeamObserverPlusTeam2, object: team1IOSCommand, action: clearPasscode, allow: false},
+		{user: test.UserTeamGitOpsTeam1, object: globalIOSCommand, action: clearPasscode, allow: false},
+		{user: test.UserTeamGitOpsTeam1, object: team1IOSCommand, action: clearPasscode, allow: false},
+		{user: test.UserTeamGitOpsTeam2, object: globalIOSCommand, action: clearPasscode, allow: false},
+		{user: test.UserTeamGitOpsTeam2, object: team1IOSCommand, action: clearPasscode, allow: false},
+
+		// On hosts that aren't iOS/iPadOS (Android), clearing a passcode stays
+		// limited to admins and maintainers.
+		{user: test.UserAdmin, object: globalAndroidCommand, action: clearPasscode, allow: true},
+		{user: test.UserMaintainer, object: globalAndroidCommand, action: clearPasscode, allow: true},
+		{user: test.UserTechnician, object: globalAndroidCommand, action: clearPasscode, allow: false},
+		{user: test.UserObserver, object: globalAndroidCommand, action: clearPasscode, allow: false},
+		{user: test.UserGitOps, object: globalAndroidCommand, action: clearPasscode, allow: false},
+		{user: test.UserTeamAdminTeam1, object: team1AndroidCommand, action: clearPasscode, allow: true},
+		{user: test.UserTeamMaintainerTeam1, object: team1AndroidCommand, action: clearPasscode, allow: true},
+		{user: test.UserTeamTechnicianTeam1, object: team1AndroidCommand, action: clearPasscode, allow: false},
+		{user: test.UserTeamTechnicianTeam2, object: team1AndroidCommand, action: clearPasscode, allow: false},
 	})
 }
 

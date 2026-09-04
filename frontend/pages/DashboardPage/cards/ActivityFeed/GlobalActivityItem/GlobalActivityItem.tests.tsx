@@ -1624,6 +1624,67 @@ describe("Activity Feed", () => {
     ).toBeInTheDocument();
   });
 
+  it("renders a 'mdm_enrolled' type for windows with display name and serial", () => {
+    const activity = createMockActivity({
+      type: ActivityType.MdmEnrolled,
+      details: {
+        mdm_platform: "microsoft",
+        host_display_name: "DESKTOP-ABC",
+        host_serial: "SERIAL123",
+      },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText((_, node) => {
+        return !!node?.innerHTML.endsWith(
+          "Mobile device management (MDM) was turned on for <b>DESKTOP-ABC (SERIAL123) (manual)</b>."
+        );
+      })
+    ).toBeInTheDocument();
+  });
+
+  it("renders a 'mdm_enrolled' type for windows autopilot enrollment as automatic", () => {
+    const activity = createMockActivity({
+      type: ActivityType.MdmEnrolled,
+      details: {
+        mdm_platform: "microsoft",
+        host_display_name: "DESKTOP-ABC",
+        host_serial: "SERIAL123",
+        installed_from_dep: true,
+      },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText((_, node) => {
+        return !!node?.innerHTML.endsWith(
+          "Mobile device management (MDM) was turned on for <b>DESKTOP-ABC (SERIAL123) (automatic)</b>."
+        );
+      })
+    ).toBeInTheDocument();
+  });
+
+  it("renders a 'mdm_enrolled' type for windows without duplicating serial when display name already contains it", () => {
+    const activity = createMockActivity({
+      type: ActivityType.MdmEnrolled,
+      details: {
+        mdm_platform: "microsoft",
+        host_display_name: "DESKTOP-ABC (SERIAL123)",
+        host_serial: "SERIAL123",
+      },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText((_, node) => {
+        return !!node?.innerHTML.endsWith(
+          "Mobile device management (MDM) was turned on for <b>DESKTOP-ABC (SERIAL123) (manual)</b>."
+        );
+      })
+    ).toBeInTheDocument();
+  });
+
   it("renders an 'added_script' type activity for a team", () => {
     const activity = createMockActivity({
       type: ActivityType.AddedScript,

@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
@@ -206,4 +207,30 @@ func (c *Client) GetAppleMDMEnrollmentProfile(teamID uint) (*fleet.MDMAppleSetup
 		return nil, err
 	}
 	return &responseBody.MDMAppleSetupAssistant, nil
+}
+
+// rewrapProfileBatchNameErr surfaces the offending profile's name when the
+// batch-set profiles endpoint rejects one of them. The server puts the name in
+// the error's name field, bare or as "profiles[<name>]", but not in the reason,
+// so fleetctl output could not say which profile failed. Names that don't match
+// a profile in the batch (e.g. "mdm", "labels") are left alone.
+func rewrapProfileBatchNameErr(err error, profiles []fleet.MDMProfileBatchPayload) error {
+	var scErr *StatusCodeErr
+	if !errors.As(err, &scErr) || scErr.Name == "" {
+		return err
+	}
+	name := scErr.Name
+	if inner, ok := strings.CutPrefix(name, "profiles["); ok {
+		inner, ok = strings.CutSuffix(inner, "]")
+		if !ok {
+			return err
+		}
+		name = inner
+	}
+	for _, p := range profiles {
+		if p.Name == name {
+			return fmt.Errorf("profile %q: %w", name, err)
+		}
+	}
+	return err
 }
