@@ -372,12 +372,12 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 		case err == nil:
 			// Same trust as the DevDetail path this mirrors: the serial on the unlinked enrollment was asserted by the
 			// device, so it must not claim a host that already belongs to different hardware.
-			conflictingHardwareID, cErr := svc.ds.MDMWindowsConflictingEnrollmentHardwareID(ctx, host.UUID, device.MDMHardwareID)
+			conflicted, conflictingHardwareID, cErr := svc.ds.MDMWindowsConflictingEnrollmentHardwareID(ctx, host.UUID, device.MDMHardwareID)
 			switch {
 			case cErr != nil:
 				svc.logger.ErrorContext(ctx, "failed to check for conflicting windows mdm enrollment at orbit enroll",
 					"err", cErr, "host_uuid", host.UUID, "device_id", device.MDMDeviceID)
-			case conflictingHardwareID != "":
+			case conflicted:
 				svc.logger.WarnContext(ctx, "refusing to reverse-link windows mdm enrollment to a host already claimed by other hardware",
 					"host_uuid", host.UUID, "device_id", device.MDMDeviceID,
 					"hardware_serial", hostInfo.HardwareSerial, "claimed_by_hardware_id", conflictingHardwareID)

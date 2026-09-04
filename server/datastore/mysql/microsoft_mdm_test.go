@@ -8936,15 +8936,17 @@ func testMDMWindowsConflictingEnrollmentHardwareID(t *testing.T, ds *Datastore) 
 	hostUUID := uuid.New().String()
 
 	t.Run("an unclaimed host has no conflict", func(t *testing.T) {
-		conflict, err := ds.MDMWindowsConflictingEnrollmentHardwareID(ctx, hostUUID, "some-hardware-id")
+		conflicted, conflict, err := ds.MDMWindowsConflictingEnrollmentHardwareID(ctx, hostUUID, "some-hardware-id")
 		require.NoError(t, err)
+		assert.False(t, conflicted)
 		assert.Empty(t, conflict)
 	})
 
 	t.Run("an empty host uuid has no conflict", func(t *testing.T) {
 		// Every enrollment starts unlinked, so an empty UUID must never be reported as claimed by all of them.
-		conflict, err := ds.MDMWindowsConflictingEnrollmentHardwareID(ctx, "", "some-hardware-id")
+		conflicted, conflict, err := ds.MDMWindowsConflictingEnrollmentHardwareID(ctx, "", "some-hardware-id")
 		require.NoError(t, err)
+		assert.False(t, conflicted)
 		assert.Empty(t, conflict)
 	})
 
@@ -8952,17 +8954,19 @@ func testMDMWindowsConflictingEnrollmentHardwareID(t *testing.T, ds *Datastore) 
 	require.NoError(t, ds.MDMWindowsInsertEnrolledDevice(ctx, incumbent))
 
 	t.Run("the same hardware re-enrolling is not a conflict", func(t *testing.T) {
-		conflict, err := ds.MDMWindowsConflictingEnrollmentHardwareID(ctx, hostUUID, incumbent.MDMHardwareID)
+		conflicted, conflict, err := ds.MDMWindowsConflictingEnrollmentHardwareID(ctx, hostUUID, incumbent.MDMHardwareID)
 		require.NoError(t, err)
-		assert.Empty(t, conflict, "a device must always be able to reclaim the host it already holds")
+		assert.False(t, conflicted, "a device must always be able to reclaim the host it already holds")
+		assert.Empty(t, conflict)
 	})
 
 	t.Run("different hardware claiming the same host conflicts", func(t *testing.T) {
 		claimant := newEnrollment("")
 		require.NoError(t, ds.MDMWindowsInsertEnrolledDevice(ctx, claimant))
 
-		conflict, err := ds.MDMWindowsConflictingEnrollmentHardwareID(ctx, hostUUID, claimant.MDMHardwareID)
+		conflicted, conflict, err := ds.MDMWindowsConflictingEnrollmentHardwareID(ctx, hostUUID, claimant.MDMHardwareID)
 		require.NoError(t, err)
+		assert.True(t, conflicted)
 		assert.Equal(t, incumbent.MDMHardwareID, conflict, "the incumbent's hardware id is reported so it can be logged")
 	})
 
@@ -8973,8 +8977,25 @@ func testMDMWindowsConflictingEnrollmentHardwareID(t *testing.T, ds *Datastore) 
 		reEnroll.MDMHardwareID = incumbent.MDMHardwareID
 		require.NoError(t, ds.MDMWindowsInsertEnrolledDevice(ctx, reEnroll))
 
-		conflict, err := ds.MDMWindowsConflictingEnrollmentHardwareID(ctx, hostUUID, "brand-new-hardware-id")
+		conflicted, conflict, err := ds.MDMWindowsConflictingEnrollmentHardwareID(ctx, hostUUID, "brand-new-hardware-id")
 		require.NoError(t, err)
-		assert.Empty(t, conflict, "the incumbent released the host when it re-enrolled")
+		assert.False(t, conflicted, "the incumbent released the host when it re-enrolled")
+		assert.Empty(t, conflict)
+	})
+
+	t.Run("an incumbent with an empty hardware id still conflicts", func(t *testing.T) {
+		// mdm_hardware_id is NOT NULL but not non-empty, and the enrollment request's HWDevID context item is stored
+		// without a non-empty check, so an incumbent can hold a host under an empty hardware id. Reporting the
+		// conflict through the returned string alone would make that incumbent look like "no incumbent" and reopen
+		// exactly the claim this guard exists to refuse.
+		emptyHWHostUUID := uuid.New().String()
+		emptyHWIncumbent := newEnrollment(emptyHWHostUUID)
+		emptyHWIncumbent.MDMHardwareID = ""
+		require.NoError(t, ds.MDMWindowsInsertEnrolledDevice(ctx, emptyHWIncumbent))
+
+		conflicted, conflict, err := ds.MDMWindowsConflictingEnrollmentHardwareID(ctx, emptyHWHostUUID, "claimant-hardware-id")
+		require.NoError(t, err)
+		assert.True(t, conflicted, "an empty-hardware-id incumbent must still block the claim")
+		assert.Empty(t, conflict, "there is no id to log, which is why conflicted is the answer and not this string")
 	})
 }

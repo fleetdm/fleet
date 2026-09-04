@@ -352,8 +352,8 @@ func TestEnrollOrbitWindowsReverseLink(t *testing.T) {
 			return true, nil
 		}
 		// No incumbent holds the host by default; the conflict subtest overrides this.
-		inner.MDMWindowsConflictingEnrollmentHardwareIDFunc = func(ctx context.Context, hostUUID, mdmHardwareID string) (string, error) {
-			return "", nil
+		inner.MDMWindowsConflictingEnrollmentHardwareIDFunc = func(ctx context.Context, hostUUID, mdmHardwareID string) (bool, string, error) {
+			return false, "", nil
 		}
 		return svc, ds, serverOpts
 	}
@@ -476,10 +476,10 @@ func TestEnrollOrbitWindowsReverseLink(t *testing.T) {
 				ID: 1, MDMDeviceID: "device-1", MDMHardwareID: "claimant-hardware-id", MDMEnrollUserID: "user@example.com",
 			}, nil
 		}
-		ds.MDMWindowsConflictingEnrollmentHardwareIDFunc = func(ctx context.Context, hostUUID, mdmHardwareID string) (string, error) {
+		ds.MDMWindowsConflictingEnrollmentHardwareIDFunc = func(ctx context.Context, hostUUID, mdmHardwareID string) (bool, string, error) {
 			require.Equal(t, "host-uuid-1", hostUUID)
 			require.Equal(t, "claimant-hardware-id", mdmHardwareID)
-			return "incumbent-hardware-id", nil
+			return true, "incumbent-hardware-id", nil
 		}
 
 		nodeKey, err := svc.EnrollOrbit(t.Context(), hostInfo, "secret", "")

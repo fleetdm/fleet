@@ -5038,10 +5038,10 @@ func TestProcessIncomingMDMCmdsDevDetailLinkage(t *testing.T) {
 		}
 		// No incumbent holds the host, which is the ordinary case: a first enrollment, or this same hardware
 		// re-enrolling after its upsert cleared host_uuid.
-		ds.MDMWindowsConflictingEnrollmentHardwareIDFunc = func(_ context.Context, hostUUID, mdmHardwareID string) (string, error) {
+		ds.MDMWindowsConflictingEnrollmentHardwareIDFunc = func(_ context.Context, hostUUID, mdmHardwareID string) (bool, string, error) {
 			assert.Equal(t, testHostUUID, hostUUID)
 			assert.Equal(t, testHardwareID, mdmHardwareID)
-			return "", nil
+			return false, "", nil
 		}
 	}
 
@@ -5099,10 +5099,10 @@ func TestProcessIncomingMDMCmdsDevDetailLinkage(t *testing.T) {
 		claimantHardwareID := "claimant-hardware-id"
 		enrolledDevice := &fleet.MDMWindowsEnrolledDevice{MDMDeviceID: testDeviceID, MDMHardwareID: claimantHardwareID, HostUUID: ""}
 		stubLink(t, ds, true)
-		ds.MDMWindowsConflictingEnrollmentHardwareIDFunc = func(_ context.Context, hostUUID, mdmHardwareID string) (string, error) {
+		ds.MDMWindowsConflictingEnrollmentHardwareIDFunc = func(_ context.Context, hostUUID, mdmHardwareID string) (bool, string, error) {
 			assert.Equal(t, testHostUUID, hostUUID)
 			assert.Equal(t, claimantHardwareID, mdmHardwareID)
-			return testHardwareID, nil
+			return true, testHardwareID, nil
 		}
 
 		_, err := svc.processIncomingMDMCmds(ctx, enrolledDevice, buildReqMsg(t, serialResults(testSerial)), RequestAuthStateTrusted)
@@ -5118,8 +5118,8 @@ func TestProcessIncomingMDMCmdsDevDetailLinkage(t *testing.T) {
 		svc, ds, _, ctx := newSvc(t)
 		enrolledDevice := &fleet.MDMWindowsEnrolledDevice{MDMDeviceID: testDeviceID, MDMHardwareID: testHardwareID, HostUUID: ""}
 		stubLink(t, ds, true)
-		ds.MDMWindowsConflictingEnrollmentHardwareIDFunc = func(_ context.Context, _, _ string) (string, error) {
-			return "", errors.New("db is down")
+		ds.MDMWindowsConflictingEnrollmentHardwareIDFunc = func(_ context.Context, _, _ string) (bool, string, error) {
+			return false, "", errors.New("db is down")
 		}
 
 		_, err := svc.processIncomingMDMCmds(ctx, enrolledDevice, buildReqMsg(t, serialResults(testSerial)), RequestAuthStateTrusted)

@@ -1791,14 +1791,14 @@ scan:
 	// installer is enqueued by MDM device ID, so an unlinked enrollment still receives it, and osquery's
 	// directIngestMDMDeviceIDWindows backstop then links this enrollment to whichever host actually reports this MDM
 	// device ID.
-	conflictingHardwareID, err := svc.ds.MDMWindowsConflictingEnrollmentHardwareID(ctx, host.UUID, enrolledDevice.MDMHardwareID)
+	conflicted, conflictingHardwareID, err := svc.ds.MDMWindowsConflictingEnrollmentHardwareID(ctx, host.UUID, enrolledDevice.MDMHardwareID)
 	if err != nil {
 		svc.logger.ErrorContext(ctx, "windows mdm: conflicting enrollment lookup failed",
 			"err", err, "device_id", enrolledDevice.MDMDeviceID)
 		ctxerr.Handle(ctx, err)
 		return false
 	}
-	if conflictingHardwareID != "" {
+	if conflicted {
 		svc.logger.WarnContext(ctx, "windows mdm: refusing to link enrollment to a host already claimed by other hardware",
 			"device_id", enrolledDevice.MDMDeviceID,
 			"hardware_serial", serial,

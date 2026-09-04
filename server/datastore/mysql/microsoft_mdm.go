@@ -401,10 +401,11 @@ func (ds *Datastore) MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerial(ctx c
 }
 
 // MDMWindowsConflictingEnrollmentHardwareID reports whether hostUUID is already claimed by an enrollment belonging to
-// hardware other than mdmHardwareID, returning that hardware's ID so the caller can log which device holds the host.
-func (ds *Datastore) MDMWindowsConflictingEnrollmentHardwareID(ctx context.Context, hostUUID string, mdmHardwareID string) (string, error) {
+// hardware other than mdmHardwareID. The returned ID is only for logging which device holds the host; conflicted is the
+// answer.
+func (ds *Datastore) MDMWindowsConflictingEnrollmentHardwareID(ctx context.Context, hostUUID string, mdmHardwareID string) (conflicted bool, conflictingHardwareID string, err error) {
 	if hostUUID == "" {
-		return "", nil
+		return false, "", nil
 	}
 
 	const stmt = `
@@ -414,15 +415,14 @@ func (ds *Datastore) MDMWindowsConflictingEnrollmentHardwareID(ctx context.Conte
 		ORDER BY id DESC
 		LIMIT 1`
 
-	var conflictingHardwareID string
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &conflictingHardwareID, stmt, hostUUID, mdmHardwareID)
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &conflictingHardwareID, stmt, hostUUID, mdmHardwareID)
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
-		return "", nil
+		return false, "", nil
 	case err != nil:
-		return "", ctxerr.Wrap(ctx, err, "get conflicting windows mdm enrollment hardware id")
+		return false, "", ctxerr.Wrap(ctx, err, "get conflicting windows mdm enrollment hardware id")
 	}
-	return conflictingHardwareID, nil
+	return true, conflictingHardwareID, nil
 }
 
 // GetWindowsEnrollmentDefaultFleet returns the configured default fleet for new user-driven Windows MDM enrollments.
