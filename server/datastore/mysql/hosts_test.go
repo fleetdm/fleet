@@ -3321,11 +3321,13 @@ func testHostsMobileOnlineOffline(t *testing.T, ds *Datastore) {
 	assert.Equal(t, uint(len(expectedOffline)), metrics.OfflineHosts, "target metrics offline")
 }
 
-// TestExplainListHostsMobileJoin dumps the EXPLAIN plan for a ListHosts-shaped
-// query after adding the mobile MDM join. Verifies the `LEFT JOIN
-// nano_enrollments nesm ON nesm.id = h.uuid` uses nano_enrollments's PRIMARY
-// KEY rather than a full scan. Not registered in TestHosts because it runs its
-// own datastore and prints to stdout; run explicitly:
+// TestExplainListHostsMobileJoin asserts the ListHosts-shaped SELECT reaches
+// nano_enrollments via that table's PRIMARY KEY (through nesm.id = h.uuid)
+// rather than a full scan. If a future schema change drops hosts.uuid's
+// index or reshapes the join key, this test fails loudly instead of
+// silently regressing p95 on the /hosts hot path.
+//
+// Runs on its own datastore so it doesn't need to be registered in TestHosts:
 //
 //	MYSQL_TEST=1 go test ./server/datastore/mysql/ -run TestExplainListHostsMobileJoin -count 1 -v
 func TestExplainListHostsMobileJoin(t *testing.T) {
@@ -3364,16 +3366,46 @@ func TestExplainListHostsMobileJoin(t *testing.T) {
 		}
 	}
 
-	// Mirror the shape of ListHosts's SELECT (not the full 100-column list —
-	// EXPLAIN cares about join order and index usage, not select-list width).
-	stmt := `SELECT h.id, h.uuid, h.platform,
+	// Mirror the shape of ListHosts's SELECT. EXPLAIN cares about join order
+	// and index usage, not select-list width, so trim the 100-column list.
+	stmt := `EXPLAIN SELECT h.id, h.uuid, h.platform,
 		COALESCE(hst.seen_time, h.created_at) AS seen_time,
 		nesm.last_seen_at AS last_mdm_checked_in_at
 		FROM hosts h
 		LEFT JOIN host_seen_times hst ON (h.id = hst.host_id)
 		LEFT JOIN nano_enrollments nesm ON nesm.id = h.uuid AND nesm.enabled = 1 AND nesm.type IN ('Device', 'User Enrollment (Device)')`
 
-	explainSQLStatement(os.Stdout, ds.reader(ctx), stmt)
+	// Full column list — sqlx.SelectContext rejects extras it can't scan into.
+	type explainRow struct {
+		ID           sql.NullInt64   `db:"id"`
+		SelectType   sql.NullString  `db:"select_type"`
+		Table        sql.NullString  `db:"table"`
+		Partitions   sql.NullString  `db:"partitions"`
+		Type         sql.NullString  `db:"type"`
+		PossibleKeys sql.NullString  `db:"possible_keys"`
+		Key          sql.NullString  `db:"key"`
+		KeyLen       sql.NullInt64   `db:"key_len"`
+		Ref          sql.NullString  `db:"ref"`
+		Rows         sql.NullInt64   `db:"rows"`
+		Filtered     sql.NullFloat64 `db:"filtered"`
+		Extra        sql.NullString  `db:"Extra"`
+	}
+	var rows []explainRow
+	require.NoError(t, sqlx.SelectContext(ctx, ds.reader(ctx), &rows, stmt))
+
+	// nano_enrollments must be reached via eq_ref on PRIMARY (nesm.id = h.uuid,
+	// where nano_enrollments.id is the PK). Anything else (ALL / index / range)
+	// means the optimizer lost the index and the join degrades at scale.
+	var nesmRow *explainRow
+	for i := range rows {
+		if rows[i].Table.String == "nesm" {
+			nesmRow = &rows[i]
+			break
+		}
+	}
+	require.NotNil(t, nesmRow, "EXPLAIN plan is missing the nesm join row")
+	require.Equal(t, "eq_ref", nesmRow.Type.String, "nano_enrollments join must be eq_ref, got %q", nesmRow.Type.String)
+	require.Equal(t, "PRIMARY", nesmRow.Key.String, "nano_enrollments join must use PRIMARY key, got %q", nesmRow.Key.String)
 }
 
 func testHostsLowDiskSpaceFilterExcludesSentinel(t *testing.T, ds *Datastore) {

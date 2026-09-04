@@ -1455,6 +1455,11 @@ type NanoMDMEnrollmentDetails struct {
 	// Enrollment both produce the "On (manual - personal)" status, so the channel
 	// is the only way to tell them apart.
 	EnrollmentType string `db:"enrollment_type"`
+	// Enabled mirrors nano_enrollments.enabled — bumped to 0 on checkout while
+	// last_seen_at continues to be updated. Callers that use LastMDMSeenTime as
+	// a liveness signal (e.g. Host.LastMDMCheckedInAt for the mobile status
+	// heuristic) must ignore it when Enabled is false.
+	Enabled bool `db:"enabled"`
 }
 
 // MDM SSO initiator constants identify which enrollment flow initiated the SSO

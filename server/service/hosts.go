@@ -2041,7 +2041,14 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 				// Apple platforms
 				details, err := svc.ds.GetNanoMDMEnrollmentDetails(ctx, host.UUID)
 				if details != nil {
-					mdmLastCheckedIn = details.LastMDMSeenTime
+					// LastMDMSeenTime keeps updating on checkout, so gate on
+					// Enabled to match the list-hosts response (nesm join has
+					// `enabled = 1`). Otherwise a recently-unenrolled host would
+					// show a fresh last_mdm_checked_in_at on /hosts/{id} but null
+					// on /hosts.
+					if details.Enabled {
+						mdmLastCheckedIn = details.LastMDMSeenTime
+					}
 					mdmLastEnrollment = details.LastMDMEnrollmentTime
 					mdmHardwareAttested = details.HardwareAttested
 				}

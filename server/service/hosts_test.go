@@ -597,6 +597,9 @@ func TestHostDetailsMDMTimestamps(t *testing.T) {
 			LastMDMSeenTime:        &ts2,
 			HardwareAttested:       false,
 			BootstrapTokenEscrowed: true,
+			// Simulate an active enrollment so the details service surfaces
+			// LastMDMSeenTime into host.LastMDMCheckedInAt.
+			Enabled: true,
 		}, nil
 	}
 
@@ -644,6 +647,31 @@ func TestHostDetailsMDMTimestamps(t *testing.T) {
 			}
 		})
 	}
+
+	// Checked-out Apple enrollment: last_seen_at is still bumped after checkout,
+	// but Enabled is false. LastMDMCheckedInAt must stay nil so the details
+	// endpoint matches what the list endpoint returns (nesm join filters
+	// enabled=1). LastMDMEnrolledAt is a durable enrollment fact and still flows
+	// through.
+	t.Run("checked-out Apple enrollment hides LastMDMCheckedInAt", func(t *testing.T) {
+		ds.GetNanoMDMEnrollmentDetailsFuncInvoked = false
+		ds.GetNanoMDMEnrollmentDetailsFunc = func(ctx context.Context, hostUUID string) (*fleet.NanoMDMEnrollmentDetails, error) {
+			return &fleet.NanoMDMEnrollmentDetails{
+				LastMDMEnrollmentTime: &ts1,
+				LastMDMSeenTime:       &ts2,
+				Enabled:               false,
+			}, nil
+		}
+		host := &fleet.Host{ID: 4, MDM: fleet.MDMHostData{}, Platform: "ipados", UUID: "checked-out-uuid"}
+		hostDetail, err := svc.getHostDetails(
+			test.UserContext(context.Background(), test.UserAdmin),
+			host,
+			fleet.HostDetailOptions{ExcludeSoftware: true},
+		)
+		require.NoError(t, err)
+		require.NotNil(t, hostDetail.LastMDMEnrolledAt)
+		require.Nil(t, hostDetail.LastMDMCheckedInAt, "checked-out enrollment must not expose LastMDMCheckedInAt on /hosts/{id}")
+	})
 }
 
 // mockHostDetailsDatastore stubs out the datastore calls getHostDetails makes
