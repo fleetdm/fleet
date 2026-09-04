@@ -1,5 +1,5 @@
-.host-status-webhook-preview-modal {
-  .modal__content {
+.preview-data-modal {
+  &__preview-modal {
     @include vertical-modal-layout;
   }
 
@@ -13,10 +13,5 @@
 
   pre {
     margin: 0;
-  }
-
-  .flex-end {
-    display: flex;
-    justify-content: flex-end;
   }
 }

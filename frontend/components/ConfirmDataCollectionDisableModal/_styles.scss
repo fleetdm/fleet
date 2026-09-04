@@ -11,6 +11,10 @@
     margin: 0;
   }
 
+  &__dataset-block {
+    @include flex-column-8px-gap;
+  }
+
   &__dataset-list {
     display: flex;
     flex-direction: column;
