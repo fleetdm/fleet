@@ -55,6 +55,8 @@ software:
 
 > **Note:** GitOps doesn't currently expose a field for an uninstall script on script-only packages. If you need one, set it once from the Fleet UI after the package exists; re-running GitOps won't remove it.
 
+> **Tip:** Deploying more than a few printers? Use [`generate-printer-install-scripts.sh`](https://github.com/fleetdm/fleet/blob/main/docs/solutions/macos/scripts/generate-printer-install-scripts.sh) to generate the install script and `packages.yml` entry above for each printer from a CSV (`name,location,uri,display_name` columns).
+
 ## Add the printer
 
 Use this when every host on a fleet needs the same printer, with no end user choice involved.
@@ -81,75 +83,6 @@ controls:
 1. On the host's **Host details** page in Fleet, open the **Activity** tab and confirm the script or profile install shows a success status.
 2. On the host, open **System Settings > Printers & Scanners** and confirm the printer appears.
 3. Print a test page from the host to confirm the driver and connection both work, not just that the queue was created.
-
-## Printer data
-
-Here's a script that takes a .csv as input that outputs 1-to-1 scripts for each printer & the YAML config to `stdout`:
-
-```
-#!/bin/sh
-
-
-# usage: ./configure.fleet.printers.sh <printers.csv>
-# csv columns (header row required): name,location,uri,display_name
-# prints a Fleet-style install script per printer, then a packages.yml block, to stdout
-
-
-# variables
-csvpath="$1"
-divider="--------------------------------------------------------------------------------"
-yamltxt="software:
-  packages:"
-
-
-# exit conditions
-if [ -z "$csvpath" ] || [ ! -r "$csvpath" ]
-then
-    echo "Usage: $0 <printers.csv>. File missing or unreadable. Exiting..." >&2; exit 1
-fi
-
-
-# generate one install script per printer, and collect the packages.yml block
-{
-    read -r header
-    while IFS=',' read -r name location uri display_name
-    do
-        [ -z "$name" ] && continue
-
-        slug="$(printf '%s' "$name" | tr '[:upper:]' '[:lower:]')"
-
-        echo "$divider"
-        echo "# ../lib/macos/scripts/$slug.sh"
-        echo "$divider"
-        cat <<SCRIPT
-
-#!/bin/sh
-
-PRINTER_NAME="$name"
-PRINTER_LOCATION="$location"
-PRINTER_URI="$uri"
-
-/usr/sbin/lpadmin -p "\$PRINTER_NAME" -L "\$PRINTER_LOCATION" -E -v "\$PRINTER_URI" -m everywhere -o printer-is-shared=false
-SCRIPT
-        echo
-
-        yamltxt="$yamltxt
-    - path: ../lib/macos/scripts/$slug.sh
-      display_name: $display_name
-      self_service: true"
-    done
-} < "$csvpath"
-
-
-# print the packages.yml block
-echo "$divider"
-echo "# packages.yml"
-echo "$divider"
-echo "$yamltxt"
-echo "$divider"
-echo
-
-```
 
 ## Troubleshoot
 
