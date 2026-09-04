@@ -2898,10 +2898,10 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     case ActivityType.ReleasedDeviceFromAB: {
       return TAGGED_TEMPLATES.releasedDeviceFromAB(activity);
     }
-    case ActivityType.EnabledOnlyAppleBusinessEnrollment: {
+    case ActivityType.EnabledAppleBusinessOnlyEnrollment: {
       return TAGGED_TEMPLATES.enabledOnlyAppleBusinessEnrollment();
     }
-    case ActivityType.DisabledOnlyAppleBusinessEnrollment: {
+    case ActivityType.DisabledAppleBusinessOnlyEnrollment: {
       return TAGGED_TEMPLATES.disabledOnlyAppleBusinessEnrollment();
     }
     default: {
