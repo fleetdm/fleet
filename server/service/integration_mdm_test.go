@@ -20,6 +20,7 @@ import (
 	"encoding/xml"
 	"errors"
 	"fmt"
+	"github.com/WatchBeam/clock"
 	"io"
 	"log/slog"
 	"math/big"
@@ -17024,7 +17025,7 @@ func (s *integrationMDMTestSuite) TestOTAEnrollment() {
 				s.server.URL,
 				globalSecret,
 				hwModel,
-				mdmtest.WithOTAIdpUUID(uuid.New().String()),
+				mdmtest.WithOTAIdpSession(s.mustBYODIdPSession(t, uuid.New().String())),
 			)
 			err := mdmDevice.Enroll()
 			require.Error(t, err)
@@ -17118,7 +17119,7 @@ func (s *integrationMDMTestSuite) TestOTAEnrollment() {
 			require.Equal(t, specResp.TeamIDsByName["newteam"], *hostByIdentifierResp.Host.TeamID)
 		})
 
-		t.Run("ota enrollment if idp_uuid is not set does not associate host with idp account", func(t *testing.T) {
+		t.Run("ota enrollment without an idp session does not associate host with idp account", func(t *testing.T) {
 			hwModel := "MacBookPro16,1"
 			mdmDevice := mdmtest.NewTestMDMClientAppleOTA(
 				s.server.URL,
@@ -17136,7 +17137,7 @@ func (s *integrationMDMTestSuite) TestOTAEnrollment() {
 			require.Nil(t, account) // We do not fail but return nil for both if not found, and we do not expect an entry here.
 		})
 
-		t.Run("ota enrollment if idp_uuid is set associates host with idp account", func(t *testing.T) {
+		t.Run("ota enrollment with an idp session associates host with idp account", func(t *testing.T) {
 			idpEmail := "test@example.com"
 			err := s.ds.InsertMDMIdPAccount(context.Background(), &fleet.MDMIdPAccount{
 				Username: "test",
@@ -17145,13 +17146,14 @@ func (s *integrationMDMTestSuite) TestOTAEnrollment() {
 			require.NoError(t, err)
 			idpAccount, err := s.ds.GetMDMIdPAccountByEmail(context.Background(), idpEmail)
 			require.NoError(t, err)
+			sessionID := s.mustBYODIdPSession(t, idpAccount.UUID)
 
 			hwModel := "MacBookPro16,1"
 			mdmDevice := mdmtest.NewTestMDMClientAppleOTA(
 				s.server.URL,
 				globalSecret,
 				hwModel,
-				mdmtest.WithOTAIdpUUID(idpAccount.UUID),
+				mdmtest.WithOTAIdpSession(sessionID),
 			)
 			enrollTime := time.Now().UTC().Truncate(time.Second)
 			require.NoError(t, mdmDevice.Enroll())
@@ -17160,6 +17162,52 @@ func (s *integrationMDMTestSuite) TestOTAEnrollment() {
 
 			resp := verifySuccessfulOTAEnrollment(mdmDevice, hwModel, "darwin", enrollTime)
 			verifySuccessfulIdpAssociation(resp.Host.UUID, idpAccount.UUID)
+
+			// the session is single-use: enrolling burned it
+			_, err = shared_mdm.ValidateBYODIdPSession(t.Context(), redis_key_value.New(s.redisPool), clock.C, sessionID)
+			require.ErrorAs(t, err, new(*fleet.AuthRequiredError))
+
+			// a second device presenting the same session enrolls without an account
+			secondDevice := mdmtest.NewTestMDMClientAppleOTA(
+				s.server.URL,
+				globalSecret,
+				hwModel,
+				mdmtest.WithOTAIdpSession(sessionID),
+			)
+			require.NoError(t, secondDevice.Enroll())
+			s.awaitRunAppleMDMWorkerSchedule()
+			resp = verifySuccessfulOTAEnrollment(secondDevice, hwModel, "darwin", enrollTime)
+			hostToIdpMap, err := s.ds.GetMDMIdPAccountsByHostUUIDs(context.Background(), []string{resp.Host.UUID})
+			require.NoError(t, err)
+			require.Nil(t, hostToIdpMap[resp.Host.UUID])
+		})
+
+		t.Run("ota enrollment with a used idp session is refused where authentication is required", func(t *testing.T) {
+			idpEmail := "used@example.com"
+			err := s.ds.InsertMDMIdPAccount(context.Background(), &fleet.MDMIdPAccount{
+				Username: "used",
+				Email:    idpEmail,
+			})
+			require.NoError(t, err)
+			idpAccount, err := s.ds.GetMDMIdPAccountByEmail(context.Background(), idpEmail)
+			require.NoError(t, err)
+			sessionID := s.mustBYODIdPSession(t, idpAccount.UUID)
+			require.NoError(t, shared_mdm.ConsumeBYODIdPSession(t.Context(), redis_key_value.New(s.redisPool), clock.C, sessionID))
+
+			var specResp applyTeamSpecsResponse
+			teamSecret := "team_secret_used_session"
+			teamSpecs := applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{Name: "team used session", Secrets: &[]fleet.EnrollSecret{{Secret: teamSecret}}, MDM: fleet.TeamSpecMDM{MacOSSetup: fleet.MacOSSetup{EnableEndUserAuthentication: true}}}}}
+			s.DoJSON("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK, &specResp)
+
+			mdmDevice := mdmtest.NewTestMDMClientAppleOTA(
+				s.server.URL,
+				teamSecret,
+				"MacBookPro16,1",
+				mdmtest.WithOTAIdpSession(sessionID),
+			)
+			err = mdmDevice.Enroll()
+			require.Error(t, err)
+			require.Contains(t, err.Error(), "403 Forbidden")
 		})
 	})
 }
@@ -22274,20 +22322,24 @@ func (s *integrationMDMTestSuite) TestBYODEnrollmentWithIdPEnabled() {
 	require.NotEmpty(t, location)
 	require.True(t, strings.HasPrefix(location, "/enroll")) // expect to be redirect from /enroll page for BYOD
 
-	// requesting the /enroll page again and simulating the BYOD IdP cookie being set
-	// still redirects to the SSO login if the cookie value does not match the
-	// enrollment reference query string.
+	var byodSession string
+	for _, c := range res.Cookies() {
+		if c.Name == shared_mdm.BYODIdpCookieName {
+			byodSession = c.Value
+		}
+	}
+	require.NotEmpty(t, byodSession)
+
+	// a cookie that merely matches the enrollment reference in the query string
+	// is not an authenticated session and still redirects to the SSO login.
 	res = s.DoRawWithHeaders("GET", "/enroll", nil, http.StatusSeeOther,
-		map[string]string{"Cookie": shared_mdm.BYODIdpCookieName + "=abc"}, "enroll_secret", "idp", "enrollment_reference", "not_matching!")
+		map[string]string{"Cookie": shared_mdm.BYODIdpCookieName + "=abc"}, "enroll_secret", "idp", "enrollment_reference", "abc")
 	location = res.Header.Get("Location")
 	require.NotEmpty(t, location)
 	require.True(t, strings.HasPrefix(location, testSAMLIDPBaseURL+"/simplesaml/"))
 
-	// requesting the /enroll page again and simulating the BYOD IdP cookie being
-	// set renders the download profile page when there is a matching enrollment
-	// reference.
 	res = s.DoRawWithHeaders("GET", "/enroll", nil, http.StatusOK,
-		map[string]string{"Cookie": shared_mdm.BYODIdpCookieName + "=abc"}, "enroll_secret", "idp", "enrollment_reference", "abc")
+		map[string]string{"Cookie": shared_mdm.BYODIdpCookieName + "=" + byodSession}, "enroll_secret", "idp")
 	page, err = io.ReadAll(res.Body)
 	require.NoError(t, err)
 	require.Contains(t, string(page), "How to enroll your Android device to Fleet")
@@ -22341,8 +22393,17 @@ func (s *integrationMDMTestSuite) TestOTAEnrollSSOWithoutAppleDEPProfile() {
 	// The callback should redirect back to the /enroll page (not to ?error=true).
 	require.True(t, strings.HasPrefix(u.Path, "/enroll"), "expected redirect to /enroll, got: %s", location)
 	require.Empty(t, u.Query().Get("error"), "expected no error in redirect, got: %s", location)
-	require.NotEmpty(t, u.Query().Get("enrollment_reference"), "expected enrollment_reference in redirect")
+	require.Empty(t, u.Query().Get("enrollment_reference"), "expected no enrollment_reference in redirect, got: %s", location)
 	require.Equal(t, fleet.SSOInitiatorOTAEnroll, u.Query().Get("initiator"))
+	var byodCookie *http.Cookie
+	for _, c := range res.Cookies() {
+		if c.Name == shared_mdm.BYODIdpCookieName {
+			byodCookie = c
+		}
+	}
+	require.NotNil(t, byodCookie, "expected BYOD IdP session cookie")
+	require.NotEmpty(t, byodCookie.Value)
+	require.Equal(t, int(shared_mdm.BYODIdPSessionTTL.Seconds()), byodCookie.MaxAge)
 }
 
 func (s *integrationMDMTestSuite) TestIOSiPadOSRefetch() {
@@ -28542,4 +28603,12 @@ func (s *integrationMDMTestSuite) TestMDMAppleHostDiskEncryptionEnforceOnly() {
 	require.NoError(t, s.ds.SetHostsDiskEncryptionKeyStatus(ctx, []uint{host.ID}, false, time.Now()))
 	checkHost(fleet.DiskEncryptionVerified, nil)
 	s.checkMDMDiskEncryptionSummaries(t, nil, fleet.MDMDiskEncryptionSummary{Verified: fleet.MDMPlatformsCounts{MacOS: 1}}, true)
+}
+
+// mustBYODIdPSession mints the session the IdP callback would have, so a test can
+// present a valid BYOD cookie without driving the SAML flow.
+func (s *integrationMDMTestSuite) mustBYODIdPSession(t *testing.T, idpAccountUUID string) string {
+	sessionID, err := shared_mdm.CreateBYODIdPSession(t.Context(), redis_key_value.New(s.redisPool), clock.C, idpAccountUUID)
+	require.NoError(t, err)
+	return sessionID
 }

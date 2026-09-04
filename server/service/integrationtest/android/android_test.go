@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"github.com/WatchBeam/clock"
 	"io"
 	"net/http"
 	"testing"
@@ -153,7 +154,7 @@ func testCreateEnrollmentToken(t *testing.T, s *Suite) {
 			secret := "global-no-idp-account" // nolint: gosec
 			createTeamAndSecret(secret, secret, false)
 			resp := s.DoRawWithHeaders(t, "GET", "/api/v1/fleet/android_enterprise/enrollment_token", nil, http.StatusUnprocessableEntity, map[string]string{
-				"Cookie": fmt.Sprintf("%s=%s", shared_mdm.BYODIdpCookieName, "test-uuid"),
+				"Cookie": fmt.Sprintf("%s=%s", shared_mdm.BYODIdpCookieName, mustBYODIdPSession(t, s, "test-uuid")),
 			}, "enroll_secret", secret)
 			je := decodeJsonError(t, resp)
 
@@ -218,7 +219,7 @@ func testCreateEnrollmentToken(t *testing.T, s *Suite) {
 			require.NoError(t, err)
 
 			resp := s.DoRawWithHeaders(t, "GET", "/api/v1/fleet/android_enterprise/enrollment_token", nil, http.StatusOK, map[string]string{
-				"Cookie": fmt.Sprintf("%s=%s", shared_mdm.BYODIdpCookieName, idpAccount.UUID),
+				"Cookie": fmt.Sprintf("%s=%s", shared_mdm.BYODIdpCookieName, mustBYODIdPSession(t, s, idpAccount.UUID)),
 			}, "enroll_secret", globalSecret)
 
 			bodyBytes, err := io.ReadAll(resp.Body)
@@ -247,7 +248,8 @@ func testCreateEnrollmentToken(t *testing.T, s *Suite) {
 			})
 		})
 
-		t.Run("when idp_uuid is passed as query param", func(t *testing.T) {
+		t.Run("when the session cookie is set", func(t *testing.T) {
+			var sessionID string
 			enableAndroidMDM()
 			createTeamAndSecret(globalSecret, globalSecret, true)
 			setupAndroidEnterprise()
@@ -260,13 +262,23 @@ func testCreateEnrollmentToken(t *testing.T, s *Suite) {
 			idpAccount, err := s.DS.GetMDMIdPAccountByEmail(t.Context(), idpEmail)
 			require.NoError(t, err)
 
-			// Pass idp_uuid as query parameter (no cookie). This is the path
-			// used after the BYOD cookie is cleared for fully-managed Android.
+			sessionID = mustBYODIdPSession(t, s, idpAccount.UUID)
 			resp := s.DoRawWithHeaders(t, "GET",
-				fmt.Sprintf("/api/v1/fleet/android_enterprise/enrollment_token?enroll_secret=%s&fully_managed=true&idp_uuid=%s", globalSecret, idpAccount.UUID),
-				nil, http.StatusOK, nil,
+				fmt.Sprintf("/api/v1/fleet/android_enterprise/enrollment_token?enroll_secret=%s&fully_managed=true", globalSecret),
+				nil, http.StatusOK, map[string]string{
+					"Cookie": fmt.Sprintf("%s=%s", shared_mdm.BYODIdpCookieName, sessionID),
+				},
 			)
 			defer resp.Body.Close()
+
+			// a fully managed enrollment ends the browser session with the token
+			var cleared bool
+			for _, c := range resp.Cookies() {
+				if c.Name == shared_mdm.BYODIdpCookieName && c.MaxAge < 0 {
+					cleared = true
+				}
+			}
+			require.True(t, cleared, "expected %s to be cleared", shared_mdm.BYODIdpCookieName)
 
 			bodyBytes, err := io.ReadAll(resp.Body)
 			require.NoError(t, err)
@@ -289,12 +301,16 @@ func testCreateEnrollmentToken(t *testing.T, s *Suite) {
 			require.Equal(t, globalSecret, enrollmentRequest.EnrollSecret)
 			require.Equal(t, idpAccount.UUID, enrollmentRequest.IdpUUID)
 
+			// the session is single-use: minting the token burned it
+			_, err = shared_mdm.ValidateBYODIdPSession(t.Context(), s.KeyValueStore, clock.C, sessionID)
+			require.ErrorAs(t, err, new(*fleet.AuthRequiredError))
+
 			t.Cleanup(func() {
 				mysqltest.TruncateTables(t, s.DS)
 			})
 		})
 
-		t.Run("when idp_uuid query param takes precedence over cookie", func(t *testing.T) {
+		t.Run("when idp_uuid query param is ignored in favor of the cookie", func(t *testing.T) {
 			enableAndroidMDM()
 			createTeamAndSecret(globalSecret, globalSecret, true)
 			setupAndroidEnterprise()
@@ -316,11 +332,11 @@ func testCreateEnrollmentToken(t *testing.T, s *Suite) {
 			paramAccount, err := s.DS.GetMDMIdPAccountByEmail(t.Context(), "param@local.com")
 			require.NoError(t, err)
 
-			// Send both cookie and query param with different UUIDs
+			// the query parameter is not an input; only the session counts
 			resp := s.DoRawWithHeaders(t, "GET",
 				fmt.Sprintf("/api/v1/fleet/android_enterprise/enrollment_token?enroll_secret=%s&fully_managed=true&idp_uuid=%s", globalSecret, paramAccount.UUID),
 				nil, http.StatusOK, map[string]string{
-					"Cookie": fmt.Sprintf("%s=%s", shared_mdm.BYODIdpCookieName, cookieAccount.UUID),
+					"Cookie": fmt.Sprintf("%s=%s", shared_mdm.BYODIdpCookieName, mustBYODIdPSession(t, s, cookieAccount.UUID)),
 				},
 			)
 			defer resp.Body.Close()
@@ -342,7 +358,7 @@ func testCreateEnrollmentToken(t *testing.T, s *Suite) {
 			require.NoError(t, err)
 
 			// Query param UUID should win over cookie UUID
-			require.Equal(t, paramAccount.UUID, enrollmentRequest.IdpUUID)
+			require.Equal(t, cookieAccount.UUID, enrollmentRequest.IdpUUID)
 
 			t.Cleanup(func() {
 				mysqltest.TruncateTables(t, s.DS)
@@ -430,4 +446,12 @@ func decodeJsonError(t *testing.T, response *http.Response) endpointer.JsonError
 	require.NoError(t, err)
 
 	return je
+}
+
+// mustBYODIdPSession mints the session the IdP callback would have, so a test can
+// present a valid BYOD cookie without driving the SAML flow.
+func mustBYODIdPSession(t *testing.T, s *Suite, idpAccountUUID string) string {
+	sessionID, err := shared_mdm.CreateBYODIdPSession(t.Context(), s.KeyValueStore, clock.C, idpAccountUUID)
+	require.NoError(t, err)
+	return sessionID
 }

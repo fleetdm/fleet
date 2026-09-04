@@ -1879,7 +1879,7 @@ func turnOffMDMIfAPNSFailed(ctx context.Context, ds fleet.Datastore, err error, 
 	return true, nil
 }
 
-func GenerateOTAEnrollmentProfileMobileconfig(orgName, fleetURL, enrollSecret, idpUUID string, personal bool) ([]byte, error) {
+func GenerateOTAEnrollmentProfileMobileconfig(orgName, fleetURL, enrollSecret, idpSessionID string, personal bool) ([]byte, error) {
 	path, err := url.JoinPath(fleetURL, "/api/v1/fleet/ota_enrollment")
 	if err != nil {
 		return nil, fmt.Errorf("creating path for ota enrollment url: %w", err)
@@ -1892,8 +1892,8 @@ func GenerateOTAEnrollmentProfileMobileconfig(orgName, fleetURL, enrollSecret, i
 
 	q := enrollURL.Query()
 	q.Set("enroll_secret", enrollSecret)
-	if idpUUID != "" {
-		q.Set("idp_uuid", idpUUID)
+	if idpSessionID != "" {
+		q.Set("idp_session", idpSessionID)
 	}
 	if personal {
 		q.Set("byod", "true")

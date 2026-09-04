@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"html/template"
 	"io"
@@ -10,6 +11,7 @@ import (
 	"net/url"
 	"regexp"
 
+	"github.com/WatchBeam/clock"
 	assetfs "github.com/elazarl/go-bindata-assetfs"
 	shared_mdm "github.com/fleetdm/fleet/v4/pkg/mdm"
 	"github.com/fleetdm/fleet/v4/server/bindata"
@@ -89,6 +91,8 @@ func ServeEndUserEnrollOTA(
 	svc fleet.Service,
 	urlPrefix string,
 	ds fleet.Datastore,
+	kv fleet.KeyValueStore,
+	clk clock.Clock,
 	logger *slog.Logger,
 	serveCSP bool,
 ) http.Handler {
@@ -121,7 +125,7 @@ func ServeEndUserEnrollOTA(
 
 		errorMsg := r.URL.Query().Get("error")
 		if errorMsg != "" {
-			if err := renderEnrollPage(w, appCfg, urlPrefix, "", errorMsg, nonce, ""); err != nil {
+			if err := renderEnrollPage(w, appCfg, urlPrefix, "", errorMsg, nonce); err != nil {
 				herr(ctx, w, err.Error())
 			}
 			return
@@ -129,7 +133,7 @@ func ServeEndUserEnrollOTA(
 
 		enrollSecret := r.URL.Query().Get("enroll_secret")
 		if enrollSecret == "" {
-			if err := renderEnrollPage(w, appCfg, urlPrefix, "", "This URL is invalid. : Enroll secret is invalid. Please contact your IT admin.", nonce, ""); err != nil {
+			if err := renderEnrollPage(w, appCfg, urlPrefix, "", "This URL is invalid. : Enroll secret is invalid. Please contact your IT admin.", nonce); err != nil {
 				herr(ctx, w, err.Error())
 			}
 			return
@@ -142,19 +146,20 @@ func ServeEndUserEnrollOTA(
 			return
 		}
 
+		var cookieIdPRef string
 		if authRequired {
 			// check if authentication cookie is present, in which case we go ahead with
 			// offering the enrollment profile to download.
-			var cookieIdPRef string
-			if byodCookie, _ := r.Cookie(shared_mdm.BYODIdpCookieName); byodCookie != nil {
-				cookieIdPRef = byodCookie.Value
-
-				// if the cookie is present, we should also receive a (matching) enroll reference
-				if cookieIdPRef != "" {
-					enrollRef := r.URL.Query().Get("enrollment_reference")
-					if cookieIdPRef != enrollRef {
-						cookieIdPRef = "" // cookie does not match the enroll reference, so we ignore it and require authentication
-					}
+			if byodCookie, _ := r.Cookie(shared_mdm.BYODIdpCookieName); byodCookie != nil && byodCookie.Value != "" {
+				uuid, err := shared_mdm.ValidateBYODIdPSession(r.Context(), kv, clk, byodCookie.Value)
+				var noSession *fleet.AuthRequiredError
+				switch {
+				case errors.As(err, &noSession):
+				case err != nil:
+					herr(ctx, w, "resolve IdP session err: "+err.Error())
+					return
+				default:
+					cookieIdPRef = uuid
 				}
 			}
 
@@ -173,23 +178,7 @@ func ServeEndUserEnrollOTA(
 		// been successfully completed (we have a cookie with the IdP account
 		// reference).
 
-		// Clear the BYOD IdP cookie now that we are about to render the enrollment page.
-		var idpUUID string
-		fullyManaged := r.URL.Query().Get("fully_managed")
-		if authRequired && (fullyManaged == "true" || fullyManaged == "1") {
-			idpUUID = r.URL.Query().Get("enrollment_reference")
-			http.SetCookie(w, &http.Cookie{
-				Name:     shared_mdm.BYODIdpCookieName,
-				Value:    "",
-				Path:     "/",
-				MaxAge:   -1,
-				Secure:   cookieSecure,
-				HttpOnly: true,
-				SameSite: http.SameSiteLaxMode,
-			})
-		}
-
-		if err := renderEnrollPage(w, appCfg, urlPrefix, enrollSecret, "", nonce, idpUUID); err != nil {
+		if err := renderEnrollPage(w, appCfg, urlPrefix, enrollSecret, "", nonce); err != nil {
 			herr(ctx, w, err.Error())
 			return
 		}
@@ -213,7 +202,7 @@ func generateEnrollOTAURL(fleetURL string, enrollSecret string) (string, error) 
 	return enrollURL.String(), nil
 }
 
-func renderEnrollPage(w io.Writer, appCfg *fleet.AppConfig, urlPrefix, enrollSecret, errorMessage, nonce, idpUUID string) error {
+func renderEnrollPage(w io.Writer, appCfg *fleet.AppConfig, urlPrefix, enrollSecret, errorMessage, nonce string) error {
 	fs := newBinaryFileSystem("/frontend")
 	file, err := fs.Open("templates/enroll-ota.html")
 	if err != nil {
@@ -242,7 +231,6 @@ func renderEnrollPage(w io.Writer, appCfg *fleet.AppConfig, urlPrefix, enrollSec
 		MacMDMEnabled         bool
 		AndroidFeatureEnabled bool
 		CSPNonce              string
-		IdpUUID               string
 	}{
 		URLPrefix:             urlPrefix,
 		EnrollURL:             enrollURL,
@@ -251,7 +239,6 @@ func renderEnrollPage(w io.Writer, appCfg *fleet.AppConfig, urlPrefix, enrollSec
 		MacMDMEnabled:         appCfg.MDM.EnabledAndConfigured,
 		AndroidFeatureEnabled: true,
 		CSPNonce:              nonce,
-		IdpUUID:               idpUUID,
 	}); err != nil {
 		return fmt.Errorf("execute react template: %w", err)
 	}

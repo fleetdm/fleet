@@ -3,6 +3,7 @@ package svctest
 import (
 	"context"
 	"crypto/x509"
+	"github.com/WatchBeam/clock"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -263,7 +264,7 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 	}
 	debugHandler := service.MakeDebugHandler(svc, cfg, logger, errHandler, ds, nil)
 	rootMux.Handle("/debug/", debugHandler)
-	rootMux.Handle("/enroll", service.ServeEndUserEnrollOTA(svc, "", ds, logger, false))
+	rootMux.Handle("/enroll", service.ServeEndUserEnrollOTA(svc, "", ds, redis_key_value.New(redisPool), clock.C, logger, false))
 
 	if len(opts) > 0 && opts[0].EnableSCIM {
 		require.NoError(t, scim.RegisterSCIM(rootMux, ds, svc, logger, &cfg))
