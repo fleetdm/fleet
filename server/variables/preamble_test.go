@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// payloadCorpus is shared with the execution tests. Every entry either executed
+// payloadCorpus is shared with the execution tests: each entry either executed
 // under plain substitution or exercises a quoting edge.
 func payloadCorpus() map[string]string {
 	return map[string]string{ //nolint:gosec // G101: injection payloads, not credentials
@@ -101,8 +101,7 @@ func TestPreamble(t *testing.T) {
 				"LC_ALL=${__fleet_lc}; LANG=${__fleet_lg}; unset __fleet_lc __fleet_lg\n", got)
 	})
 
-	// a missing guard is invisible on a UTF-8-only machine, so assert on the
-	// emitted text as well as executing it
+	// a missing guard is invisible on a UTF-8-only machine
 	t.Run("posix always emits the locale guard", func(t *testing.T) {
 		for name, value := range payloadCorpus() {
 			got := Preamble(map[string]string{"HOST_UUID": value}, DialectPOSIX)
@@ -156,39 +155,64 @@ func TestInsertPreamble(t *testing.T) {
 	})
 }
 
-// A preamble above a param() block is a parse error, not a working script.
-func TestInsertPreamblePowerShellParamBlock(t *testing.T) {
+// A preamble above a param() block, a BOM, or a using statement is a parse error.
+func TestInsertPreamblePowerShellPlacement(t *testing.T) {
+	const pre = "PRE\r\n"
+	const bom = "\ufeff"
+
 	for _, tc := range []struct {
 		name     string
 		contents string
-		refused  bool
+		want     string // "" means the insert must be refused
 	}{
-		{"leading param", "param($Foo = \"bar\")\r\nWrite-Output hi\r\n", true},
-		{"leading param, no space", "param($Foo)\r\n", true},
-		{"uppercase param", "PARAM($Foo)\r\n", true},
-		{"attribute then param", "[CmdletBinding()]\r\nparam($Foo)\r\n", true},
-		{"comments above param", "# c\r\n#Requires -Version 5\r\nparam($Foo)\r\n", true},
-		{"blank lines above param", "\r\n\r\nparam($Foo)\r\n", true},
-		{"block comment", "<#\r\ndoc\r\n#>\r\nWrite-Output hi\r\n", true},
-		{"multiple attributes then param", "[CmdletBinding()]\r\n[OutputType([int])]\r\nparam($Foo)\r\n", true},
-		{"unterminated attribute", "[CmdletBinding(\r\n", true},
-		{"param inside function", "function F { param($a) $a }\r\nWrite-Output hi\r\n", false},
-		{"type accelerator statement", "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12\r\nWrite-Output hi\r\n", false},
-		{"array literal", "[int[]]$a = 1,2\r\nWrite-Output hi\r\n", false},
-		{"parameter-like name", "paramX($Foo)\r\n", false},
-		{"requires only", "#Requires -Version 5\r\nWrite-Output hi\r\n", false},
-		{"ordinary script", "Write-Output hi\r\n", false},
-		{"comment only", "# nothing here\r\n", false},
-		{"empty", "", false},
+		{"leading param", "param($Foo)\r\n", ""},
+		{"uppercase param", "PARAM($Foo)\r\n", ""},
+		{"attribute then param", "[CmdletBinding()]\r\nparam($Foo)\r\n", ""},
+		{"two attributes then param", "[CmdletBinding()]\r\n[OutputType([int])]\r\nparam($Foo)\r\n", ""},
+		{"comments above param", "# c\r\n#Requires -Version 5\r\nparam($Foo)\r\n", ""},
+		{"help block above param", "<#\r\n.SYNOPSIS\r\n#>\r\nparam($Foo)\r\n", ""},
+		{"using above param", "using namespace System.Text\r\nparam($Foo)\r\n", ""},
+		{"bom above param", bom + "param($Foo)\r\n", ""},
+
+		{"ordinary script", "Write-Output hi\r\n", pre + "Write-Output hi\r\n"},
+		{"empty", "", pre},
+		{"comment only", "# nothing\r\n", pre + "# nothing\r\n"},
+		{"requires only", "#Requires -Version 5\r\nWrite-Output hi\r\n",
+			pre + "#Requires -Version 5\r\nWrite-Output hi\r\n"},
+		{"help block, no param", "<#\r\n.SYNOPSIS\r\n#>\r\nWrite-Output hi\r\n",
+			pre + "<#\r\n.SYNOPSIS\r\n#>\r\nWrite-Output hi\r\n"},
+		{"unterminated help block", "<#\r\nWrite-Output hi\r\n", pre + "<#\r\nWrite-Output hi\r\n"},
+		{"param inside function", "function F { param($a) $a }\r\n", pre + "function F { param($a) $a }\r\n"},
+		{"parameter-like name", "paramX($Foo)\r\n", pre + "paramX($Foo)\r\n"},
+		{"type accelerator", "[Net.ServicePointManager]::SecurityProtocol = 1\r\n",
+			pre + "[Net.ServicePointManager]::SecurityProtocol = 1\r\n"},
+		{"array literal", "[int[]]$a = 1,2\r\n", pre + "[int[]]$a = 1,2\r\n"},
+
+		// moving the BOM off line 1 breaks the script
+		{"bom", bom + "Write-Output hi\r\n", bom + pre + "Write-Output hi\r\n"},
+		{"bom and comment", bom + "# c\r\nWrite-Output hi\r\n", bom + pre + "# c\r\nWrite-Output hi\r\n"},
+
+		// using statements must precede every other statement
+		{"using", "using namespace System.Text\r\nWrite-Output hi\r\n",
+			"using namespace System.Text\r\n" + pre + "Write-Output hi\r\n"},
+		{"two using", "using namespace System.Text\r\nusing namespace System.IO\r\nWrite-Output hi\r\n",
+			"using namespace System.Text\r\nusing namespace System.IO\r\n" + pre + "Write-Output hi\r\n"},
+		{"comment then using", "# c\r\nusing namespace System.Text\r\nWrite-Output hi\r\n",
+			"# c\r\nusing namespace System.Text\r\n" + pre + "Write-Output hi\r\n"},
+		{"bom and using", bom + "using namespace System.Text\r\nWrite-Output hi\r\n",
+			bom + "using namespace System.Text\r\n" + pre + "Write-Output hi\r\n"},
+		{"using without trailing newline", "using namespace System.Text",
+			"using namespace System.Text\r\n" + pre},
+		{"using-like name", "usingX 1\r\n", pre + "usingX 1\r\n"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			got, err := InsertPreamble(tc.contents, "PRE\r\n", DialectPowerShell)
-			if tc.refused {
+			got, err := InsertPreamble(tc.contents, pre, DialectPowerShell)
+			if tc.want == "" {
 				require.ErrorIs(t, err, ErrPowerShellLeadingParamBlock)
 				return
 			}
 			require.NoError(t, err)
-			require.Equal(t, "PRE\r\n"+tc.contents, got)
+			require.Equal(t, tc.want, got)
 		})
 	}
 }

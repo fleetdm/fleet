@@ -20,19 +20,19 @@ const (
 // block, which PowerShell requires to be the first statement.
 var ErrPowerShellLeadingParamBlock = errors.New("PowerShell script starts with a param() block")
 
+const utf8BOM = "\ufeff"
+
 // PosixQuote returns value as a single-quoted word. It is only safe inside the
-// LC_ALL=C region Preamble builds: some libc decoders accept 0x27 as a
-// multi-byte trail byte, letting a value ending on a lead byte consume its own
-// closing quote.
+// LC_ALL=C region Preamble builds: some libc decoders accept 0x27 as a multi-byte
+// trail byte, letting a value ending on a lead byte consume its closing quote.
 func PosixQuote(value string) string {
 	return "'" + strings.ReplaceAll(value, "'", `'\''`) + "'"
 }
 
 // PowerShellCharArray returns an expression evaluating to value, built from its
-// UTF-16 code units. Nothing from value reaches the script as source text, so no
-// quoting rule applies to it; PowerShell treats four Unicode code points besides
-// ' as single-quote delimiters. It avoids method calls so it still evaluates
-// under ConstrainedLanguage mode.
+// UTF-16 code units. Nothing from value reaches the script as source text, so the
+// four Unicode code points PowerShell also treats as single quotes can't break
+// out. It avoids method calls so it still evaluates under ConstrainedLanguage.
 func PowerShellCharArray(value string) string {
 	if value == "" {
 		return "''"
@@ -94,10 +94,14 @@ func InsertPreamble(contents, preamble string, dialect Dialect) (string, error) 
 		return contents, nil
 	}
 	if dialect == DialectPowerShell {
-		if hasLeadingParamBlock(contents) {
-			return "", ErrPowerShellLeadingParamBlock
+		pos, err := powerShellPreamblePos(contents)
+		if err != nil {
+			return "", err
 		}
-		return preamble + contents, nil
+		if before := strings.TrimPrefix(contents[:pos], utf8BOM); before != "" && !strings.HasSuffix(before, "\n") {
+			preamble = "\r\n" + preamble
+		}
+		return contents[:pos] + preamble + contents[pos:], nil
 	}
 	if !strings.HasPrefix(contents, "#!") {
 		return preamble + contents, nil
@@ -108,33 +112,60 @@ func InsertPreamble(contents, preamble string, dialect Dialect) (string, error) 
 	return contents + "\n" + preamble, nil
 }
 
-// hasLeadingParamBlock reports whether the first statement is a param() block.
-// Only comments, #Requires and attributes may precede one. A block comment
-// counts as a param block: finding its end needs a real tokenizer.
-func hasLeadingParamBlock(contents string) bool {
-	rest := contents
+// powerShellPreamblePos returns the offset to insert a preamble at: after a byte
+// order mark, which breaks the script unless it stays on line 1, and after any
+// using statements, which must precede every other statement. It fails on a
+// leading param() block, which must come first and so leaves nowhere to insert.
+func powerShellPreamblePos(contents string) (int, error) {
+	pos := 0
+	if strings.HasPrefix(contents, utf8BOM) {
+		pos = len(utf8BOM)
+	}
+	insert := pos
+
 	for {
-		rest = strings.TrimLeft(rest, " \t\r\n")
+		trimmed := strings.TrimLeft(contents[pos:], " \t\r\n")
+		pos = len(contents) - len(trimmed)
 		switch {
-		case rest == "":
-			return false
-		case strings.HasPrefix(rest, "<#"):
-			return true
-		case strings.HasPrefix(rest, "#"):
-			i := strings.IndexByte(rest, '\n')
-			if i < 0 {
-				return false
+		case trimmed == "":
+			return insert, nil
+
+		case strings.HasPrefix(trimmed, "<#"):
+			// block comments do not nest, and PowerShell rejects an unterminated one
+			end := strings.Index(trimmed, "#>")
+			if end < 0 {
+				return insert, nil
 			}
-			rest = rest[i+1:]
-		case strings.HasPrefix(rest, "["):
+			pos += end + len("#>")
+
+		case strings.HasPrefix(trimmed, "#"):
+			nl := strings.IndexByte(trimmed, '\n')
+			if nl < 0 {
+				return insert, nil
+			}
+			pos += nl + 1
+
+		case hasKeyword(trimmed, "using"):
+			nl := strings.IndexByte(trimmed, '\n')
+			if nl < 0 {
+				return len(contents), nil
+			}
+			pos += nl + 1
+			insert = pos
+
+		case strings.HasPrefix(trimmed, "["):
 			// [CmdletBinding()] may precede param(); [Type]::Member is ordinary code
-			after, ok := skipBracketed(rest)
+			after, ok := skipBracketed(trimmed)
 			if !ok {
-				return true
+				return insert, nil
 			}
-			rest = after
+			pos = len(contents) - len(after)
+
 		default:
-			return isParamKeyword(rest)
+			if hasKeyword(trimmed, "param") {
+				return 0, ErrPowerShellLeadingParamBlock
+			}
+			return insert, nil
 		}
 	}
 }
@@ -155,8 +186,8 @@ func skipBracketed(s string) (string, bool) {
 	return "", false
 }
 
-func isParamKeyword(s string) bool {
-	const kw = "param"
+// hasKeyword reports whether s opens with kw as a complete word.
+func hasKeyword(s, kw string) bool {
 	if len(s) < len(kw) || !strings.EqualFold(s[:len(kw)], kw) {
 		return false
 	}
