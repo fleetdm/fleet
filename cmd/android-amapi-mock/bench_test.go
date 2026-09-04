@@ -18,6 +18,9 @@ func BenchmarkDeviceGetParallel(b *testing.B) {
 
 	b.ResetTimer()
 	b.RunParallel(func(pb *testing.PB) {
+		// RunParallel calls this once per worker, so the request below belongs to one
+		// goroutine. It is built outside the loop deliberately: the point of measurement is
+		// lock contention on the store, not request construction.
 		req := httptest.NewRequest("GET", path, nil)
 		for pb.Next() {
 			mux.ServeHTTP(httptest.NewRecorder(), req)

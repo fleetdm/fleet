@@ -589,10 +589,10 @@ func TestGetStateUnknownDeviceReturns404(t *testing.T) {
 
 // TestDevicesListIncludesFakeDevices pins what the reconciler reads: a registered device must
 // be listed, since Fleet marks any enrolled device missing from this list as unenrolled.
-// Fleet reads its enterprise missing from a successful GET /v1/enterprises as proof the
-// enterprise was deleted, and reacts by deleting its enterprise records, turning Android MDM
-// off and unenrolling every Android host. The mock must never produce that answer from a state
-// that only means it has not been told about the enterprise yet.
+// TestEnterprisesListReportsEnterpriseWithoutRegisteredDevices checks that an enterprise in
+// use is reported even with no fake device registered against it. Fleet reads its enterprise
+// missing from a successful list as proof of deletion, and reacts by deleting its enterprise
+// records, turning Android MDM off and unenrolling every Android host.
 func TestEnterprisesListReportsEnterpriseWithoutRegisteredDevices(t *testing.T) {
 	mux, _ := newTestMux(t)
 
@@ -630,8 +630,9 @@ func TestEnterprisesListReportsEnterpriseWithoutRegisteredDevices(t *testing.T) 
 	assert.Equal(t, "enterprises/"+testEnterpriseID, resp.Enterprises[0].Name)
 }
 
-// With nothing observed, the honest answer is "unknown", not "empty". Fleet treats a failed
-// list as a technical problem and leaves its enterprise alone; an empty one it would act on.
+// TestEnterprisesListRefusesToConfirmAnEmptyListItCannotKnow checks that with nothing observed
+// the answer is "unknown", not "empty". Fleet treats a failed list as a technical problem and
+// leaves its enterprise alone; an empty one it would act on.
 func TestEnterprisesListRefusesToConfirmAnEmptyListItCannotKnow(t *testing.T) {
 	mux, _ := newTestMux(t)
 
@@ -640,8 +641,9 @@ func TestEnterprisesListRefusesToConfirmAnEmptyListItCannotKnow(t *testing.T) {
 	assert.Equal(t, http.StatusServiceUnavailable, rr.Code)
 }
 
-// The enterprise an addressed request names is recorded even when that request fails, so a
-// device call for an unknown device does not leave the enterprise unreported.
+// TestEnterprisesListRecordsEnterpriseFromFailedDeviceRequest checks that the enterprise an
+// addressed request names is recorded even when that request fails, so a call for an unknown
+// device does not leave the enterprise unreported.
 func TestEnterprisesListRecordsEnterpriseFromFailedDeviceRequest(t *testing.T) {
 	mux, store := newTestMux(t)
 
@@ -653,6 +655,25 @@ func TestEnterprisesListRecordsEnterpriseFromFailedDeviceRequest(t *testing.T) {
 	mux.ServeHTTP(rr, httptest.NewRequest("GET", "/v1/enterprises", nil))
 	require.Equal(t, http.StatusOK, rr.Code)
 	assert.Contains(t, rr.Body.String(), "enterprises/"+testEnterpriseID)
+}
+
+// TestNoteEnterpriseIsBounded checks that enterprise IDs taken from request paths cannot grow
+// the set without limit, and that an enterprise recorded before the limit is still reported.
+func TestNoteEnterpriseIsBounded(t *testing.T) {
+	store := newDeviceStore()
+
+	store.noteEnterprise(testEnterpriseID)
+	for i := range maxTrackedEnterprises + 100 {
+		store.noteEnterprise(fmt.Sprintf("junk-%d", i))
+	}
+
+	store.entMu.RLock()
+	got := len(store.enterprises)
+	store.entMu.RUnlock()
+	assert.Equal(t, maxTrackedEnterprises, got)
+
+	// The enterprise seen first is still there, so the report Fleet depends on is unaffected.
+	assert.Contains(t, store.knownEnterprises(), testEnterpriseID)
 }
 
 func TestDevicesListIncludesFakeDevices(t *testing.T) {

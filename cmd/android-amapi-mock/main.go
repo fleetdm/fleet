@@ -68,7 +68,8 @@ type deviceStore struct {
 	// enterprises records every enterprise this mock has been addressed about, so that
 	// GET /v1/enterprises can report one that has no registered fake device. It has its own
 	// lock because it is touched by nearly every AMAPI request: sharing mu would put a
-	// store-wide writer in front of every concurrent device lookup.
+	// store-wide writer in front of every concurrent device lookup. Capped at
+	// maxTrackedEnterprises, since the IDs come from request paths.
 	entMu       sync.RWMutex
 	enterprises map[string]struct{}
 
@@ -93,6 +94,12 @@ func newDeviceStore() *deviceStore {
 	}
 }
 
+// maxTrackedEnterprises bounds the set noteEnterprise fills. The IDs are taken from request
+// paths, so an unbounded set would grow with junk from anything that can reach the mock. A load
+// test addresses one enterprise, and the one Fleet is using is recorded on its first request,
+// long before a limit this size is reached.
+const maxTrackedEnterprises = 1000
+
 // noteEnterprise records an enterprise the mock has been addressed about.
 func (ds *deviceStore) noteEnterprise(id string) {
 	if id == "" {
@@ -110,6 +117,9 @@ func (ds *deviceStore) noteEnterprise(id string) {
 
 	ds.entMu.Lock()
 	defer ds.entMu.Unlock()
+	if len(ds.enterprises) >= maxTrackedEnterprises {
+		return
+	}
 	ds.enterprises[id] = struct{}{}
 }
 
