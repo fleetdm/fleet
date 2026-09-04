@@ -4649,7 +4649,7 @@ Returns the information of the specified host.
     "mdm_enrollment_hardware_attested": false,
     "seen_time": "2021-08-19T21:14:58Z",
     "refetch_requested": false,
-    "hostname": "Anna's Google Pixel 9",
+    "hostname": "Anna Chao's Google Pixel 9",
     "uuid": "309a4b7d-0000-0000-8e7f-26ae0815ede8",
     "platform": "android",
     "osquery_version": "",
@@ -4657,12 +4657,14 @@ Returns the information of the specified host.
     "fleet_desktop_version": null,
     "scripts_enabled": null,
     "os_version": "Android 16 (2026-05-01)",
+    "os_update_minimum_version": null,
+    "os_update_deadline": null,
     "build": "",
     "platform_like": "",
     "code_name": "",
     "uptime": 0,
     "memory": 8589934592,
-    "cpu_type": "",
+    "cpu_type": "caiman",
     "cpu_subtype": "",
     "cpu_brand": "",
     "cpu_physical_cores": 0,
@@ -4671,9 +4673,9 @@ Returns the information of the specified host.
     "hardware_model": "Google Pixel 9",
     "hardware_version": "",
     "hardware_serial": "3B241102E5",
-    "computer_name": "Anna's Google Pixel 9",
+    "computer_name": "Anna Chao's Google Pixel 9",
     "timezone": null,
-    "display_name": "Anna's Google Pixel 9",
+    "display_name": "Anna Chao's Google Pixel 9",
     "public_ip": "",
     "primary_ip": "",
     "primary_mac": "",
@@ -4710,7 +4712,7 @@ Returns the information of the specified host.
     "system_update_status": "UP_TO_DATE",
     "telephony_infos": [
       {
-        "phone_number": "+1-123-456-7890",
+        "phone_number": "+15551234567",
         "carrier_name": "Verizon",
         "iccid": "89014103211118510720",
         "activation_state": "ACTIVATED",
@@ -4718,20 +4720,13 @@ Returns the information of the specified host.
       }
     ],
     "status": "online",
-    "display_text": "Anna's Google Pixel 9",
+    "display_text": "Anna Chao's Google Pixel 9",
     "issues": {
       "failing_policies_count": 0,
       "critical_vulnerabilities_count": 0, // Available in Fleet Premium
       "total_issues_count": 0
     },
-    "geolocation": {
-      "country_iso": "US",
-      "city_name": "New York",
-      "geometry": {
-        "type": "point",
-        "coordinates": [40.6799, -74.0028]
-      }
-    },
+    "batteries": [],
     "end_users": [
       {
         "idp_info_updated_at": "2025-03-20T02:02:17Z",
@@ -4842,8 +4837,9 @@ Returns the information of the specified host.
 > - `cellular_technology` is one of `None`, `GSM`, `CDMA`, or `GSM and CDMA`. This will be `unknown` if Apple adds a value in the future that Fleet doesn't recognize.
 > - `device_properties_attestation` is an array of base64-encoded DER certificates forming a chain, leaf first. The chain is anchored to Apple's Enterprise Attestation Root CA, which is not itself included in the array.
 > - Currently, the following are supported only for Android: `adb_enabled`, `api_level`, `bootloader_version`, `device_kernel_version`, `encryption_type`, `imei`, `manufacturer`, `meid`, `passcode_protected`, `play_protect_enabled`, `security_posture`, `security_posture_details`, `security_update_version`, `system_update_status`, and `telephony_infos`.
-> - These Android vitals are collected from the status reports Fleet receives from the [Android Management API](https://developers.google.com/android/management/reference/rest/v1/enterprises.devices) (AMAPI). A vital the device doesn't report is omitted from the response rather than returned as `null`, and a whole group of them is missing unless the policy applied to the host turns on the matching status reporting setting: `deviceSettings` for `adb_enabled`, `encryption_type`, `passcode_protected`, and `play_protect_enabled`, and `securityPosture` for `security_posture` and `security_posture_details`.
-> - `telephony_infos`, `imei`, and `meid` are only returned for company-owned (fully managed) hosts, never for personal (BYOD) enrollments. `telephony_infos` holds one entry per SIM card, so a dual-SIM host reports more than one, and its `activation_state` and `config_mode` describe eSIMs on Android 15 and above only. A host reports either `imei` or `meid` depending on its radio, never both.
+> - These Android vitals are collected from the status reports Fleet receives from the [Android Management API](https://developers.google.com/android/management/reference/rest/v1/enterprises.devices) (AMAPI). A vital the device doesn't report is omitted from the response rather than returned as `null`. A host that hasn't sent a status report yet returns none of them, and a device whose Android version doesn't report a given vital omits just that one.
+> - `telephony_infos`, `imei`, and `meid` are never returned for a personal (BYOD) enrollment. AMAPI only reports them for fully managed devices in the first place, and Fleet gates the response on its own enrollment record so they stay hidden after a BYOD host unenrolls. `telephony_infos` holds one entry per SIM card, so a dual-SIM host reports more than one, and it requires Android 6 or above. Its `activation_state` and `config_mode` describe eSIMs on Android 15 and above only. A host reports either `imei` or `meid` depending on its radio, never both.
+> - `security_posture_details[].advice` holds AMAPI's default, non-localized admin-facing message for each risk. Fleet has no device locale to select a localized variant with, so the localized messages aren't returned.
 > - `encryption_type`, `security_posture`, `system_update_status`, `security_posture_details[].security_risk`, `telephony_infos[].activation_state`, and `telephony_infos[].config_mode` carry AMAPI's raw enum values, such as `ACTIVE`, `AT_RISK`, `UP_TO_DATE`, `UNKNOWN_OS`, `ACTIVATED`, and `ADMIN_CONFIGURED`. AMAPI's "no data" sentinels (`*_UNSPECIFIED` and `UPDATE_STATUS_UNKNOWN`) are omitted from the response instead of being returned.
 > - `security_update_version` is the host's Android security patch level. It's also folded into `os_version`, for example `Android 16 (2026-05-01)`.
 
@@ -5399,20 +5395,22 @@ In Fleet, hostnames are fully qualified domain names (FQDNs). `hostname` (e.g. j
     "mdm_enrollment_hardware_attested": false,
     "seen_time": "2021-08-19T21:14:58Z",
     "refetch_requested": false,
-    "hostname": "Anna's Google Pixel 9",
-    "uuid": "309a4b7d-0000-0000-8e7f-26ae0815ede8",
+    "hostname": "Anna Chao's Google Pixel 9",
+    "uuid": "392547dc-0000-0000-a87a-d701ff75bc65",
     "platform": "android",
     "osquery_version": "",
     "orbit_version": null,
     "fleet_desktop_version": null,
     "scripts_enabled": null,
     "os_version": "Android 16 (2026-05-01)",
+    "os_update_minimum_version": null,
+    "os_update_deadline": null,
     "build": "",
     "platform_like": "",
     "code_name": "",
     "uptime": 0,
     "memory": 8589934592,
-    "cpu_type": "",
+    "cpu_type": "caiman",
     "cpu_subtype": "",
     "cpu_brand": "",
     "cpu_physical_cores": 0,
@@ -5421,9 +5419,9 @@ In Fleet, hostnames are fully qualified domain names (FQDNs). `hostname` (e.g. j
     "hardware_model": "Google Pixel 9",
     "hardware_version": "",
     "hardware_serial": "3B241102E5",
-    "computer_name": "Anna's Google Pixel 9",
+    "computer_name": "Anna Chao's Google Pixel 9",
     "timezone": null,
-    "display_name": "Anna's Google Pixel 9",
+    "display_name": "Anna Chao's Google Pixel 9",
     "public_ip": "",
     "primary_ip": "",
     "primary_mac": "",
@@ -5460,7 +5458,7 @@ In Fleet, hostnames are fully qualified domain names (FQDNs). `hostname` (e.g. j
     "system_update_status": "UP_TO_DATE",
     "telephony_infos": [
       {
-        "phone_number": "+1-123-456-7890",
+        "phone_number": "+15551234567",
         "carrier_name": "Verizon",
         "iccid": "89014103211118510720",
         "activation_state": "ACTIVATED",
@@ -5468,20 +5466,13 @@ In Fleet, hostnames are fully qualified domain names (FQDNs). `hostname` (e.g. j
       }
     ],
     "status": "online",
-    "display_text": "Anna's Google Pixel 9",
+    "display_text": "Anna Chao's Google Pixel 9",
     "issues": {
       "failing_policies_count": 0,
       "critical_vulnerabilities_count": 0, // Available in Fleet Premium
       "total_issues_count": 0
     },
-    "geolocation": {
-      "country_iso": "US",
-      "city_name": "New York",
-      "geometry": {
-        "type": "point",
-        "coordinates": [40.6799, -74.0028]
-      }
-    },
+    "batteries": [],
     "end_users": [
       {
         "idp_info_updated_at": "2025-03-20T02:02:17Z",
@@ -5581,13 +5572,15 @@ In Fleet, hostnames are fully qualified domain names (FQDNs). `hostname` (e.g. j
 
 `browser` and `extension_for` fields are included when set and when empty. `extension_for` will show the browser or Visual Studio Code fork associated with the extension, allowing for differentiation between e.g. an extension installed on Visual Studio Code and one installed on Cursor. `browser` is deprecated, and only shows this information for browser plugins.
 
-> Note: Currently, the following are supported only for iOS/iPadOS: `accessibility_settings`, `app_analytics_enabled`, `awaiting_configuration`, `battery_level`, `bluetooth_mac`, `cellular_technology`, `data_roaming_enabled`, `device_properties_attestation`, `diagnostic_submission_enabled`, `eas_device_identifier`, `is_cloud_backup_enabled`, `is_device_locator_service_enabled`, `is_do_not_disturb_in_effect`, `is_mdm_lost_mode_enabled`, `is_network_tethered`, `itunes_store_account_hash`, `itunes_store_account_is_active`, `last_cloud_backup_date`, `mdm_options`, `model_number`, `modem_firmware_version`, `organization_info`, `personal_hotspot_enabled`, `push_token`, `service_subscriptions`, `supplemental_build_version`, `supplemental_os_version_extra`, `udid`, and `wifi_mac`.
+> Note:
+> - Currently, the following are supported only for iOS/iPadOS: `accessibility_settings`, `app_analytics_enabled`, `awaiting_configuration`, `battery_level`, `bluetooth_mac`, `cellular_technology`, `data_roaming_enabled`, `device_properties_attestation`, `diagnostic_submission_enabled`, `eas_device_identifier`, `is_cloud_backup_enabled`, `is_device_locator_service_enabled`, `is_do_not_disturb_in_effect`, `is_mdm_lost_mode_enabled`, `is_network_tethered`, `itunes_store_account_hash`, `itunes_store_account_is_active`, `last_cloud_backup_date`, `mdm_options`, `model_number`, `modem_firmware_version`, `organization_info`, `personal_hotspot_enabled`, `push_token`, `service_subscriptions`, `supplemental_build_version`, `supplemental_os_version_extra`, `udid`, and `wifi_mac`.
 > - These iOS/iPadOS vitals are collected via Apple's [`DeviceInformation`](https://developer.apple.com/documentation/devicemanagement/deviceinformationcommand/command-data.dictionary/queries-data.dictionary) MDM command. A property the device doesn't report is omitted from the response rather than returned as `null`. The exception is `mdm_options`, which is returned as an empty object when the device reports it with nothing set.
 > - `cellular_technology` is one of `None`, `GSM`, `CDMA`, or `GSM and CDMA`. This will be `unknown` if Apple adds a value in the future that Fleet doesn't recognize.
 > - `device_properties_attestation` is an array of base64-encoded DER certificates forming a chain, leaf first. The chain is anchored to Apple's Enterprise Attestation Root CA, which is not itself included in the array.
 > - Currently, the following are supported only for Android: `adb_enabled`, `api_level`, `bootloader_version`, `device_kernel_version`, `encryption_type`, `imei`, `manufacturer`, `meid`, `passcode_protected`, `play_protect_enabled`, `security_posture`, `security_posture_details`, `security_update_version`, `system_update_status`, and `telephony_infos`.
-> - These Android vitals are collected from the status reports Fleet receives from the [Android Management API](https://developers.google.com/android/management/reference/rest/v1/enterprises.devices) (AMAPI). A vital the device doesn't report is omitted from the response rather than returned as `null`, and a whole group of them is missing unless the policy applied to the host turns on the matching status reporting setting: `deviceSettings` for `adb_enabled`, `encryption_type`, `passcode_protected`, and `play_protect_enabled`, and `securityPosture` for `security_posture` and `security_posture_details`.
-> - `telephony_infos`, `imei`, and `meid` are only returned for company-owned (fully managed) hosts, never for personal (BYOD) enrollments. `telephony_infos` holds one entry per SIM card, so a dual-SIM host reports more than one, and its `activation_state` and `config_mode` describe eSIMs on Android 15 and above only. A host reports either `imei` or `meid` depending on its radio, never both.
+> - These Android vitals are collected from the status reports Fleet receives from the [Android Management API](https://developers.google.com/android/management/reference/rest/v1/enterprises.devices) (AMAPI). A vital the device doesn't report is omitted from the response rather than returned as `null`. A host that hasn't sent a status report yet returns none of them, and a device whose Android version doesn't report a given vital omits just that one.
+> - `telephony_infos`, `imei`, and `meid` are never returned for a personal (BYOD) enrollment. AMAPI only reports them for fully managed devices in the first place, and Fleet gates the response on its own enrollment record so they stay hidden after a BYOD host unenrolls. `telephony_infos` holds one entry per SIM card, so a dual-SIM host reports more than one, and it requires Android 6 or above. Its `activation_state` and `config_mode` describe eSIMs on Android 15 and above only. A host reports either `imei` or `meid` depending on its radio, never both.
+> - `security_posture_details[].advice` holds AMAPI's default, non-localized admin-facing message for each risk. Fleet has no device locale to select a localized variant with, so the localized messages aren't returned.
 > - `encryption_type`, `security_posture`, `system_update_status`, `security_posture_details[].security_risk`, `telephony_infos[].activation_state`, and `telephony_infos[].config_mode` carry AMAPI's raw enum values, such as `ACTIVE`, `AT_RISK`, `UP_TO_DATE`, `UNKNOWN_OS`, `ACTIVATED`, and `ADMIN_CONFIGURED`. AMAPI's "no data" sentinels (`*_UNSPECIFIED` and `UPDATE_STATUS_UNKNOWN`) are omitted from the response instead of being returned.
 > - `security_update_version` is the host's Android security patch level. It's also folded into `os_version`, for example `Android 16 (2026-05-01)`.
 
@@ -5827,9 +5820,7 @@ X-Client-Cert-Serial: <fleet_identity_scep_cert_serial>
 
 > `global_config.mdm.enabled_and_configured` only represents Apple MDM, and will return false if Apple MDM is not configured even if other platforms have MDM enabled and configured.
 
-> Note:
-> - For an Android host, the response also includes the Android-only vitals documented under ["Get host"](#get-host): `adb_enabled`, `api_level`, `bootloader_version`, `device_kernel_version`, `encryption_type`, `imei`, `manufacturer`, `meid`, `passcode_protected`, `play_protect_enabled`, `security_posture`, `security_posture_details`, `security_update_version`, `system_update_status`, and `telephony_infos`. They're omitted for hosts on every other platform, as is any individual vital the device hasn't reported.
-> - `telephony_infos`, `imei`, and `meid` are only returned for company-owned (fully managed) hosts, never for personal (BYOD) enrollments.
+> Note: Android hosts can't be reached through this endpoint. They don't run Fleet Desktop, so they never get a token, and certificate authentication is limited to iOS and iPadOS. To read an Android host's vitals, use ["Get host"](#get-host) or ["Get host by identifier"](#get-host-by-identifier).
 
 ### Delete host
 
