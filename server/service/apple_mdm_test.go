@@ -31,6 +31,7 @@ import (
 	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
@@ -10185,12 +10186,14 @@ func TestAuthenticateMDMAppleDEPEnrollment(t *testing.T) {
 	machineInfo := &fleet.MDMAppleMachineInfo{Serial: "DEPSERIAL", UDID: "dep-udid", Product: "Mac15,7"}
 
 	validToken := func(ctx context.Context, token string) (*fleet.MDMAppleEnrollmentProfile, error) {
+		require.True(t, ctxdb.IsPrimaryRequired(ctx))
 		if token != "valid-token" {
 			return nil, newNotFoundError()
 		}
-		return &fleet.MDMAppleEnrollmentProfile{ID: 1, Token: token}, nil
+		return &fleet.MDMAppleEnrollmentProfile{ID: 1, Token: token, Type: fleet.MDMAppleEnrollmentTypeAutomatic}, nil
 	}
 	assigned := func(ctx context.Context, serial string) ([]*fleet.HostDEPAssignment, error) {
+		require.True(t, ctxdb.IsPrimaryRequired(ctx))
 		return []*fleet.HostDEPAssignment{{HostID: 1}}, nil
 	}
 	resetMocks := func() {
@@ -10203,6 +10206,17 @@ func TestAuthenticateMDMAppleDEPEnrollment(t *testing.T) {
 	t.Run("unknown token fails before any serial lookup", func(t *testing.T) {
 		resetMocks()
 		err := svc.AuthenticateMDMAppleDEPEnrollment(ctx, "unknown-token", machineInfo)
+		var authErr *fleet.AuthFailedError
+		require.ErrorAs(t, err, &authErr)
+		require.False(t, ds.GetHostDEPAssignmentsBySerialFuncInvoked)
+	})
+
+	t.Run("manual enrollment profile token fails", func(t *testing.T) {
+		resetMocks()
+		ds.GetMDMAppleEnrollmentProfileByTokenFunc = func(ctx context.Context, token string) (*fleet.MDMAppleEnrollmentProfile, error) {
+			return &fleet.MDMAppleEnrollmentProfile{ID: 2, Token: token, Type: fleet.MDMAppleEnrollmentTypeManual}, nil
+		}
+		err := svc.AuthenticateMDMAppleDEPEnrollment(ctx, "manual-token", machineInfo)
 		var authErr *fleet.AuthFailedError
 		require.ErrorAs(t, err, &authErr)
 		require.False(t, ds.GetHostDEPAssignmentsBySerialFuncInvoked)

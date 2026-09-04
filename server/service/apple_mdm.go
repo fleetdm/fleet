@@ -32,6 +32,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
@@ -2944,11 +2945,18 @@ func (svc *Service) AuthenticateMDMAppleDEPEnrollment(ctx context.Context, token
 	// skipauth: The enroll profile endpoint is unauthenticated.
 	svc.authz.SkipAuthorization(ctx)
 
-	if _, err := svc.ds.GetMDMAppleEnrollmentProfileByToken(ctx, token); err != nil {
+	// The DEP assignment must reflect the latest ABM sync, not a lagging replica.
+	ctx = ctxdb.RequirePrimary(ctx, true)
+
+	profile, err := svc.ds.GetMDMAppleEnrollmentProfileByToken(ctx, token)
+	if err != nil {
 		if fleet.IsNotFound(err) {
 			return fleet.NewAuthFailedError("enrollment profile not found")
 		}
 		return ctxerr.Wrap(ctx, err, "get enrollment profile")
+	}
+	if profile.Type != fleet.MDMAppleEnrollmentTypeAutomatic {
+		return fleet.NewAuthFailedError("enrollment profile is not for automatic enrollment")
 	}
 
 	if machineInfo == nil {
