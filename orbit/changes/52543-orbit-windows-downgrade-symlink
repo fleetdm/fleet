@@ -1,0 +1,1 @@
+- Fixed an issue on Windows where downgrading Orbit and switching back to the same version prevented the symlink from updating (#52543).
