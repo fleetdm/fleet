@@ -3,6 +3,7 @@ package update
 import (
 	"math/rand"
 	"os"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
@@ -64,6 +65,73 @@ func TestNewRunner(t *testing.T) {
 	didUpdate, err = r2.UpdateAction()
 	require.NoError(t, err)
 	require.False(t, didUpdate)
+}
+
+func TestNeedsOrbitSymlinkUpdate(t *testing.T) {
+	nettest.Run(t)
+
+	rootDir := t.TempDir()
+	updateOpts := DefaultOptions
+	updateOpts.RootDirectory = rootDir
+
+	u, err := NewUpdater(updateOpts)
+	require.NoError(t, err)
+
+	err = u.UpdateMetadata()
+	require.NoError(t, err)
+
+	runnerOpts := RunnerOptions{
+		CheckInterval: 1 * time.Second,
+		Targets:       []string{constant.OrbitTUFTargetName},
+	}
+	r, err := NewRunner(u, runnerOpts)
+	require.NoError(t, err)
+
+	// Case 1: Symlink does not exist yet -> needs update, isNotSymlink=false
+	needsUpdate, isNotSymlink, err := r.needsOrbitSymlinkUpdate()
+	require.NoError(t, err)
+	assert.True(t, needsUpdate)
+	assert.False(t, isNotSymlink)
+
+	// Fetch target and perform update action
+	didUpdate, err := r.UpdateAction()
+	require.NoError(t, err)
+	require.True(t, didUpdate)
+
+	// Case 2: After UpdateAction, symlink exists and points to target -> no update needed
+	needsUpdate, isNotSymlink, err = r.needsOrbitSymlinkUpdate()
+	require.NoError(t, err)
+	assert.False(t, needsUpdate)
+	assert.False(t, isNotSymlink)
+
+	// Case 3: Target is a regular file instead of a symlink (e.g. fresh MSI install on Windows)
+	localTarget, err := u.Get(constant.OrbitTUFTargetName)
+	require.NoError(t, err)
+	linkPath := filepath.Join(rootDir, "bin", "orbit", filepath.Base(localTarget.ExecPath))
+
+	require.NoError(t, os.Remove(linkPath))
+	require.NoError(t, os.WriteFile(linkPath, []byte("regular-file-content"), 0o755))
+
+	needsUpdate, isNotSymlink, err = r.needsOrbitSymlinkUpdate()
+	require.NoError(t, err)
+	assert.True(t, needsUpdate)
+	if runtime.GOOS == "windows" {
+		assert.True(t, isNotSymlink)
+		// On Windows, if isNotSymlink is true and binary was not updated, UpdateAction suppresses symlink update
+		didUpdate, err = r.UpdateAction()
+		require.NoError(t, err)
+		assert.False(t, didUpdate)
+	}
+
+	// Case 4: Symlink exists but points to a different/stale path (channel change / revert)
+	require.NoError(t, os.Remove(linkPath))
+	staleTarget := filepath.Join(rootDir, "stale-orbit")
+	if err := os.Symlink(staleTarget, linkPath); err == nil {
+		needsUpdate, isNotSymlink, err = r.needsOrbitSymlinkUpdate()
+		require.NoError(t, err)
+		assert.True(t, needsUpdate)
+		assert.False(t, isNotSymlink)
+	}
 }
 
 func TestRandomizeDuration(t *testing.T) {
