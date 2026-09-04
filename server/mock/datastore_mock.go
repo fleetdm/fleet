@@ -210,6 +210,10 @@ type LabelsSummaryFunc func(ctx context.Context, filter fleet.TeamFilter) ([]*fl
 
 type GetEnrollmentIDsWithPendingMDMAppleCommandsFunc func(ctx context.Context) ([]string, error)
 
+type ListNanoEnrollmentIDsForAPNsSweepFunc func(ctx context.Context, afterID string, batchSize int, silentFor time.Duration) (eligibleIDs []string, nextCursor string, pageFull bool, err error)
+
+type CountEnabledNanoEnrollmentsFunc func(ctx context.Context) (int, error)
+
 type LabelQueriesForHostFunc func(ctx context.Context, host *fleet.Host) (map[string]string, error)
 
 type ListLabelsForHostFunc func(ctx context.Context, hid uint) ([]*fleet.Label, error)
@@ -1158,35 +1162,35 @@ type GetHostRecoveryLockPasswordFunc func(ctx context.Context, hostUUID string) 
 
 type GetHostRecoveryLockPasswordStatusFunc func(ctx context.Context, hostUUID string) (*fleet.HostMDMRecoveryLockPassword, error)
 
-type GetHostsForRecoveryLockActionFunc func(ctx context.Context) ([]string, error)
+type GetHostsForRecoveryLockActionFunc func(ctx context.Context) (map[string]bool, error)
 
 type RestoreRecoveryLockForReenabledHostsFunc func(ctx context.Context) (int64, error)
 
-type SetRecoveryLockVerifiedFunc func(ctx context.Context, hostUUID string) error
+type SetRecoveryLockVerifiedFunc func(ctx context.Context, hostUUID string, verifyCommandUUID string) error
 
-type SetRecoveryLockFailedFunc func(ctx context.Context, hostUUID string, errorMsg string) error
+type SetRecoveryLockVerifyingFunc func(ctx context.Context, hostUUID string, commandUUID string, pendingVerifyCommandUUID string) error
+
+type SetRecoveryLockVerifyingLastKnownPasswordFunc func(ctx context.Context, hostUUID string, commandUUID string, pendingVerifyCommandUUID string) error
+
+type SetRecoveryLockFailedFunc func(ctx context.Context, hostUUID string, commandUUID string, errorMsg string) error
+
+type RetryRecoveryLockFunc func(ctx context.Context, hostUUID string, commandUUID string) error
+
+type RetryRecoveryLockVerifyFunc func(ctx context.Context, hostUUID string, verifyCommandUUID string, newVerifyCommandUUID string) error
 
 type ClearRecoveryLockPendingStatusFunc func(ctx context.Context, hostUUIDs []string) error
 
-type ClaimHostsForRecoveryLockClearFunc func(ctx context.Context) ([]string, error)
+type ClaimHostsForRecoveryLockClearFunc func(ctx context.Context, clearCommandUUID string) ([]string, error)
 
-type DeleteHostRecoveryLockPasswordFunc func(ctx context.Context, hostUUID string) error
+type DeleteHostRecoveryLockPasswordFunc func(ctx context.Context, hostUUID string, verifyCommandUUID string) error
 
-type GetRecoveryLockOperationTypeFunc func(ctx context.Context, hostUUID string) (fleet.MDMOperationType, error)
-
-type InitiateRecoveryLockRotationFunc func(ctx context.Context, hostUUID string, newPassword string) error
-
-type CompleteRecoveryLockRotationFunc func(ctx context.Context, hostUUID string) error
-
-type FailRecoveryLockRotationFunc func(ctx context.Context, hostUUID string, errorMsg string) error
+type InitiateRecoveryLockRotationFunc func(ctx context.Context, hostUUID string, setCommandUUID string, newPassword string) error
 
 type ClearRecoveryLockRotationFunc func(ctx context.Context, hostUUID string) error
 
 type GetRecoveryLockRotationStatusFunc func(ctx context.Context, hostUUID string) (*fleet.HostRecoveryLockRotationStatus, error)
 
-type HasPendingRecoveryLockRotationFunc func(ctx context.Context, hostUUID string) (bool, error)
-
-type ResetRecoveryLockForRetryFunc func(ctx context.Context, hostUUID string) error
+type GetPendingRecoveryLockFunc func(ctx context.Context, hostUUID string) (*fleet.HostRecoveryLockPending, error)
 
 type MarkRecoveryLockPasswordViewedFunc func(ctx context.Context, hostUUID string) (time.Time, error)
 
@@ -1454,6 +1458,10 @@ type MDMWindowsSaveUnlinkedEnrollmentHardwareSerialFunc func(ctx context.Context
 
 type MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerialFunc func(ctx context.Context, hardwareSerial string) (*fleet.MDMWindowsEnrolledDevice, error)
 
+type MDMWindowsClaimEnrolledActivityFunc func(ctx context.Context, mdmHardwareID string, claimedAt time.Time) (bool, error)
+
+type MDMWindowsReleaseEnrolledActivityClaimFunc func(ctx context.Context, mdmHardwareID string, claimedAt time.Time) error
+
 type GetWindowsEnrollmentDefaultFleetFunc func(ctx context.Context) (fleetID *uint, fleetName string, err error)
 
 type SetWindowsEnrollmentDefaultFleetFunc func(ctx context.Context, fleetID *uint) error
@@ -1575,6 +1583,10 @@ type GetAppleProfileReconcileSnapshotFunc func(ctx context.Context, afterHostUUI
 type GetMDMAppleReconcileCursorFunc func(ctx context.Context) (string, error)
 
 type SetMDMAppleReconcileCursorFunc func(ctx context.Context, cursor string) error
+
+type GetMDMAppleAPNsSweepStateFunc func(ctx context.Context) (*fleet.MDMAppleAPNsSweepState, error)
+
+type SetMDMAppleAPNsSweepStateFunc func(ctx context.Context, state *fleet.MDMAppleAPNsSweepState) error
 
 type GetAppleDeclarationReconcileSnapshotFunc func(ctx context.Context, afterHostUUID string, batchSize int) (hosts []*fleet.AppleHostReconcileInfo, allDecls []*fleet.AppleDeclarationForReconcile, hostLabels map[uint]map[uint]struct{}, currentByHost map[string][]*fleet.MDMAppleHostDeclaration, pageFull bool, err error)
 
@@ -2182,6 +2194,8 @@ type ScimGroupByDisplayNameFunc func(ctx context.Context, displayName string) (*
 
 type ReplaceScimGroupFunc func(ctx context.Context, group *fleet.ScimGroup) error
 
+type ApplyScimGroupPatchFunc func(ctx context.Context, group *fleet.ScimGroup, deltas fleet.ScimGroupMemberDeltas) error
+
 type DeleteScimGroupFunc func(ctx context.Context, id uint) error
 
 type ListScimGroupsFunc func(ctx context.Context, opts fleet.ScimGroupsListOptions) (groups []fleet.ScimGroup, totalResults uint, err error)
@@ -2661,6 +2675,12 @@ type DataStore struct {
 
 	GetEnrollmentIDsWithPendingMDMAppleCommandsFunc        GetEnrollmentIDsWithPendingMDMAppleCommandsFunc
 	GetEnrollmentIDsWithPendingMDMAppleCommandsFuncInvoked bool
+
+	ListNanoEnrollmentIDsForAPNsSweepFunc        ListNanoEnrollmentIDsForAPNsSweepFunc
+	ListNanoEnrollmentIDsForAPNsSweepFuncInvoked bool
+
+	CountEnabledNanoEnrollmentsFunc        CountEnabledNanoEnrollmentsFunc
+	CountEnabledNanoEnrollmentsFuncInvoked bool
 
 	LabelQueriesForHostFunc        LabelQueriesForHostFunc
 	LabelQueriesForHostFuncInvoked bool
@@ -4093,8 +4113,20 @@ type DataStore struct {
 	SetRecoveryLockVerifiedFunc        SetRecoveryLockVerifiedFunc
 	SetRecoveryLockVerifiedFuncInvoked bool
 
+	SetRecoveryLockVerifyingFunc        SetRecoveryLockVerifyingFunc
+	SetRecoveryLockVerifyingFuncInvoked bool
+
+	SetRecoveryLockVerifyingLastKnownPasswordFunc        SetRecoveryLockVerifyingLastKnownPasswordFunc
+	SetRecoveryLockVerifyingLastKnownPasswordFuncInvoked bool
+
 	SetRecoveryLockFailedFunc        SetRecoveryLockFailedFunc
 	SetRecoveryLockFailedFuncInvoked bool
+
+	RetryRecoveryLockFunc        RetryRecoveryLockFunc
+	RetryRecoveryLockFuncInvoked bool
+
+	RetryRecoveryLockVerifyFunc        RetryRecoveryLockVerifyFunc
+	RetryRecoveryLockVerifyFuncInvoked bool
 
 	ClearRecoveryLockPendingStatusFunc        ClearRecoveryLockPendingStatusFunc
 	ClearRecoveryLockPendingStatusFuncInvoked bool
@@ -4105,17 +4137,8 @@ type DataStore struct {
 	DeleteHostRecoveryLockPasswordFunc        DeleteHostRecoveryLockPasswordFunc
 	DeleteHostRecoveryLockPasswordFuncInvoked bool
 
-	GetRecoveryLockOperationTypeFunc        GetRecoveryLockOperationTypeFunc
-	GetRecoveryLockOperationTypeFuncInvoked bool
-
 	InitiateRecoveryLockRotationFunc        InitiateRecoveryLockRotationFunc
 	InitiateRecoveryLockRotationFuncInvoked bool
-
-	CompleteRecoveryLockRotationFunc        CompleteRecoveryLockRotationFunc
-	CompleteRecoveryLockRotationFuncInvoked bool
-
-	FailRecoveryLockRotationFunc        FailRecoveryLockRotationFunc
-	FailRecoveryLockRotationFuncInvoked bool
 
 	ClearRecoveryLockRotationFunc        ClearRecoveryLockRotationFunc
 	ClearRecoveryLockRotationFuncInvoked bool
@@ -4123,11 +4146,8 @@ type DataStore struct {
 	GetRecoveryLockRotationStatusFunc        GetRecoveryLockRotationStatusFunc
 	GetRecoveryLockRotationStatusFuncInvoked bool
 
-	HasPendingRecoveryLockRotationFunc        HasPendingRecoveryLockRotationFunc
-	HasPendingRecoveryLockRotationFuncInvoked bool
-
-	ResetRecoveryLockForRetryFunc        ResetRecoveryLockForRetryFunc
-	ResetRecoveryLockForRetryFuncInvoked bool
+	GetPendingRecoveryLockFunc        GetPendingRecoveryLockFunc
+	GetPendingRecoveryLockFuncInvoked bool
 
 	MarkRecoveryLockPasswordViewedFunc        MarkRecoveryLockPasswordViewedFunc
 	MarkRecoveryLockPasswordViewedFuncInvoked bool
@@ -4528,6 +4548,12 @@ type DataStore struct {
 	MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerialFunc        MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerialFunc
 	MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerialFuncInvoked bool
 
+	MDMWindowsClaimEnrolledActivityFunc        MDMWindowsClaimEnrolledActivityFunc
+	MDMWindowsClaimEnrolledActivityFuncInvoked bool
+
+	MDMWindowsReleaseEnrolledActivityClaimFunc        MDMWindowsReleaseEnrolledActivityClaimFunc
+	MDMWindowsReleaseEnrolledActivityClaimFuncInvoked bool
+
 	GetWindowsEnrollmentDefaultFleetFunc        GetWindowsEnrollmentDefaultFleetFunc
 	GetWindowsEnrollmentDefaultFleetFuncInvoked bool
 
@@ -4710,6 +4736,12 @@ type DataStore struct {
 
 	SetMDMAppleReconcileCursorFunc        SetMDMAppleReconcileCursorFunc
 	SetMDMAppleReconcileCursorFuncInvoked bool
+
+	GetMDMAppleAPNsSweepStateFunc        GetMDMAppleAPNsSweepStateFunc
+	GetMDMAppleAPNsSweepStateFuncInvoked bool
+
+	SetMDMAppleAPNsSweepStateFunc        SetMDMAppleAPNsSweepStateFunc
+	SetMDMAppleAPNsSweepStateFuncInvoked bool
 
 	GetAppleDeclarationReconcileSnapshotFunc        GetAppleDeclarationReconcileSnapshotFunc
 	GetAppleDeclarationReconcileSnapshotFuncInvoked bool
@@ -5619,6 +5651,9 @@ type DataStore struct {
 
 	ReplaceScimGroupFunc        ReplaceScimGroupFunc
 	ReplaceScimGroupFuncInvoked bool
+
+	ApplyScimGroupPatchFunc        ApplyScimGroupPatchFunc
+	ApplyScimGroupPatchFuncInvoked bool
 
 	DeleteScimGroupFunc        DeleteScimGroupFunc
 	DeleteScimGroupFuncInvoked bool
@@ -6572,6 +6607,20 @@ func (s *DataStore) GetEnrollmentIDsWithPendingMDMAppleCommands(ctx context.Cont
 	s.GetEnrollmentIDsWithPendingMDMAppleCommandsFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetEnrollmentIDsWithPendingMDMAppleCommandsFunc(ctx)
+}
+
+func (s *DataStore) ListNanoEnrollmentIDsForAPNsSweep(ctx context.Context, afterID string, batchSize int, silentFor time.Duration) (eligibleIDs []string, nextCursor string, pageFull bool, err error) {
+	s.mu.Lock()
+	s.ListNanoEnrollmentIDsForAPNsSweepFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListNanoEnrollmentIDsForAPNsSweepFunc(ctx, afterID, batchSize, silentFor)
+}
+
+func (s *DataStore) CountEnabledNanoEnrollments(ctx context.Context) (int, error) {
+	s.mu.Lock()
+	s.CountEnabledNanoEnrollmentsFuncInvoked = true
+	s.mu.Unlock()
+	return s.CountEnabledNanoEnrollmentsFunc(ctx)
 }
 
 func (s *DataStore) LabelQueriesForHost(ctx context.Context, host *fleet.Host) (map[string]string, error) {
@@ -9892,7 +9941,7 @@ func (s *DataStore) GetHostRecoveryLockPasswordStatus(ctx context.Context, hostU
 	return s.GetHostRecoveryLockPasswordStatusFunc(ctx, hostUUID)
 }
 
-func (s *DataStore) GetHostsForRecoveryLockAction(ctx context.Context) ([]string, error) {
+func (s *DataStore) GetHostsForRecoveryLockAction(ctx context.Context) (map[string]bool, error) {
 	s.mu.Lock()
 	s.GetHostsForRecoveryLockActionFuncInvoked = true
 	s.mu.Unlock()
@@ -9906,18 +9955,46 @@ func (s *DataStore) RestoreRecoveryLockForReenabledHosts(ctx context.Context) (i
 	return s.RestoreRecoveryLockForReenabledHostsFunc(ctx)
 }
 
-func (s *DataStore) SetRecoveryLockVerified(ctx context.Context, hostUUID string) error {
+func (s *DataStore) SetRecoveryLockVerified(ctx context.Context, hostUUID string, verifyCommandUUID string) error {
 	s.mu.Lock()
 	s.SetRecoveryLockVerifiedFuncInvoked = true
 	s.mu.Unlock()
-	return s.SetRecoveryLockVerifiedFunc(ctx, hostUUID)
+	return s.SetRecoveryLockVerifiedFunc(ctx, hostUUID, verifyCommandUUID)
 }
 
-func (s *DataStore) SetRecoveryLockFailed(ctx context.Context, hostUUID string, errorMsg string) error {
+func (s *DataStore) SetRecoveryLockVerifying(ctx context.Context, hostUUID string, commandUUID string, pendingVerifyCommandUUID string) error {
+	s.mu.Lock()
+	s.SetRecoveryLockVerifyingFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetRecoveryLockVerifyingFunc(ctx, hostUUID, commandUUID, pendingVerifyCommandUUID)
+}
+
+func (s *DataStore) SetRecoveryLockVerifyingLastKnownPassword(ctx context.Context, hostUUID string, commandUUID string, pendingVerifyCommandUUID string) error {
+	s.mu.Lock()
+	s.SetRecoveryLockVerifyingLastKnownPasswordFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetRecoveryLockVerifyingLastKnownPasswordFunc(ctx, hostUUID, commandUUID, pendingVerifyCommandUUID)
+}
+
+func (s *DataStore) SetRecoveryLockFailed(ctx context.Context, hostUUID string, commandUUID string, errorMsg string) error {
 	s.mu.Lock()
 	s.SetRecoveryLockFailedFuncInvoked = true
 	s.mu.Unlock()
-	return s.SetRecoveryLockFailedFunc(ctx, hostUUID, errorMsg)
+	return s.SetRecoveryLockFailedFunc(ctx, hostUUID, commandUUID, errorMsg)
+}
+
+func (s *DataStore) RetryRecoveryLock(ctx context.Context, hostUUID string, commandUUID string) error {
+	s.mu.Lock()
+	s.RetryRecoveryLockFuncInvoked = true
+	s.mu.Unlock()
+	return s.RetryRecoveryLockFunc(ctx, hostUUID, commandUUID)
+}
+
+func (s *DataStore) RetryRecoveryLockVerify(ctx context.Context, hostUUID string, verifyCommandUUID string, newVerifyCommandUUID string) error {
+	s.mu.Lock()
+	s.RetryRecoveryLockVerifyFuncInvoked = true
+	s.mu.Unlock()
+	return s.RetryRecoveryLockVerifyFunc(ctx, hostUUID, verifyCommandUUID, newVerifyCommandUUID)
 }
 
 func (s *DataStore) ClearRecoveryLockPendingStatus(ctx context.Context, hostUUIDs []string) error {
@@ -9927,46 +10004,25 @@ func (s *DataStore) ClearRecoveryLockPendingStatus(ctx context.Context, hostUUID
 	return s.ClearRecoveryLockPendingStatusFunc(ctx, hostUUIDs)
 }
 
-func (s *DataStore) ClaimHostsForRecoveryLockClear(ctx context.Context) ([]string, error) {
+func (s *DataStore) ClaimHostsForRecoveryLockClear(ctx context.Context, clearCommandUUID string) ([]string, error) {
 	s.mu.Lock()
 	s.ClaimHostsForRecoveryLockClearFuncInvoked = true
 	s.mu.Unlock()
-	return s.ClaimHostsForRecoveryLockClearFunc(ctx)
+	return s.ClaimHostsForRecoveryLockClearFunc(ctx, clearCommandUUID)
 }
 
-func (s *DataStore) DeleteHostRecoveryLockPassword(ctx context.Context, hostUUID string) error {
+func (s *DataStore) DeleteHostRecoveryLockPassword(ctx context.Context, hostUUID string, verifyCommandUUID string) error {
 	s.mu.Lock()
 	s.DeleteHostRecoveryLockPasswordFuncInvoked = true
 	s.mu.Unlock()
-	return s.DeleteHostRecoveryLockPasswordFunc(ctx, hostUUID)
+	return s.DeleteHostRecoveryLockPasswordFunc(ctx, hostUUID, verifyCommandUUID)
 }
 
-func (s *DataStore) GetRecoveryLockOperationType(ctx context.Context, hostUUID string) (fleet.MDMOperationType, error) {
-	s.mu.Lock()
-	s.GetRecoveryLockOperationTypeFuncInvoked = true
-	s.mu.Unlock()
-	return s.GetRecoveryLockOperationTypeFunc(ctx, hostUUID)
-}
-
-func (s *DataStore) InitiateRecoveryLockRotation(ctx context.Context, hostUUID string, newPassword string) error {
+func (s *DataStore) InitiateRecoveryLockRotation(ctx context.Context, hostUUID string, setCommandUUID string, newPassword string) error {
 	s.mu.Lock()
 	s.InitiateRecoveryLockRotationFuncInvoked = true
 	s.mu.Unlock()
-	return s.InitiateRecoveryLockRotationFunc(ctx, hostUUID, newPassword)
-}
-
-func (s *DataStore) CompleteRecoveryLockRotation(ctx context.Context, hostUUID string) error {
-	s.mu.Lock()
-	s.CompleteRecoveryLockRotationFuncInvoked = true
-	s.mu.Unlock()
-	return s.CompleteRecoveryLockRotationFunc(ctx, hostUUID)
-}
-
-func (s *DataStore) FailRecoveryLockRotation(ctx context.Context, hostUUID string, errorMsg string) error {
-	s.mu.Lock()
-	s.FailRecoveryLockRotationFuncInvoked = true
-	s.mu.Unlock()
-	return s.FailRecoveryLockRotationFunc(ctx, hostUUID, errorMsg)
+	return s.InitiateRecoveryLockRotationFunc(ctx, hostUUID, setCommandUUID, newPassword)
 }
 
 func (s *DataStore) ClearRecoveryLockRotation(ctx context.Context, hostUUID string) error {
@@ -9983,18 +10039,11 @@ func (s *DataStore) GetRecoveryLockRotationStatus(ctx context.Context, hostUUID 
 	return s.GetRecoveryLockRotationStatusFunc(ctx, hostUUID)
 }
 
-func (s *DataStore) HasPendingRecoveryLockRotation(ctx context.Context, hostUUID string) (bool, error) {
+func (s *DataStore) GetPendingRecoveryLock(ctx context.Context, hostUUID string) (*fleet.HostRecoveryLockPending, error) {
 	s.mu.Lock()
-	s.HasPendingRecoveryLockRotationFuncInvoked = true
+	s.GetPendingRecoveryLockFuncInvoked = true
 	s.mu.Unlock()
-	return s.HasPendingRecoveryLockRotationFunc(ctx, hostUUID)
-}
-
-func (s *DataStore) ResetRecoveryLockForRetry(ctx context.Context, hostUUID string) error {
-	s.mu.Lock()
-	s.ResetRecoveryLockForRetryFuncInvoked = true
-	s.mu.Unlock()
-	return s.ResetRecoveryLockForRetryFunc(ctx, hostUUID)
+	return s.GetPendingRecoveryLockFunc(ctx, hostUUID)
 }
 
 func (s *DataStore) MarkRecoveryLockPasswordViewed(ctx context.Context, hostUUID string) (time.Time, error) {
@@ -10928,6 +10977,20 @@ func (s *DataStore) MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerial(ctx co
 	return s.MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerialFunc(ctx, hardwareSerial)
 }
 
+func (s *DataStore) MDMWindowsClaimEnrolledActivity(ctx context.Context, mdmHardwareID string, claimedAt time.Time) (bool, error) {
+	s.mu.Lock()
+	s.MDMWindowsClaimEnrolledActivityFuncInvoked = true
+	s.mu.Unlock()
+	return s.MDMWindowsClaimEnrolledActivityFunc(ctx, mdmHardwareID, claimedAt)
+}
+
+func (s *DataStore) MDMWindowsReleaseEnrolledActivityClaim(ctx context.Context, mdmHardwareID string, claimedAt time.Time) error {
+	s.mu.Lock()
+	s.MDMWindowsReleaseEnrolledActivityClaimFuncInvoked = true
+	s.mu.Unlock()
+	return s.MDMWindowsReleaseEnrolledActivityClaimFunc(ctx, mdmHardwareID, claimedAt)
+}
+
 func (s *DataStore) GetWindowsEnrollmentDefaultFleet(ctx context.Context) (fleetID *uint, fleetName string, err error) {
 	s.mu.Lock()
 	s.GetWindowsEnrollmentDefaultFleetFuncInvoked = true
@@ -11353,6 +11416,20 @@ func (s *DataStore) SetMDMAppleReconcileCursor(ctx context.Context, cursor strin
 	s.SetMDMAppleReconcileCursorFuncInvoked = true
 	s.mu.Unlock()
 	return s.SetMDMAppleReconcileCursorFunc(ctx, cursor)
+}
+
+func (s *DataStore) GetMDMAppleAPNsSweepState(ctx context.Context) (*fleet.MDMAppleAPNsSweepState, error) {
+	s.mu.Lock()
+	s.GetMDMAppleAPNsSweepStateFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetMDMAppleAPNsSweepStateFunc(ctx)
+}
+
+func (s *DataStore) SetMDMAppleAPNsSweepState(ctx context.Context, state *fleet.MDMAppleAPNsSweepState) error {
+	s.mu.Lock()
+	s.SetMDMAppleAPNsSweepStateFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetMDMAppleAPNsSweepStateFunc(ctx, state)
 }
 
 func (s *DataStore) GetAppleDeclarationReconcileSnapshot(ctx context.Context, afterHostUUID string, batchSize int) (hosts []*fleet.AppleHostReconcileInfo, allDecls []*fleet.AppleDeclarationForReconcile, hostLabels map[uint]map[uint]struct{}, currentByHost map[string][]*fleet.MDMAppleHostDeclaration, pageFull bool, err error) {
@@ -13474,6 +13551,13 @@ func (s *DataStore) ReplaceScimGroup(ctx context.Context, group *fleet.ScimGroup
 	s.ReplaceScimGroupFuncInvoked = true
 	s.mu.Unlock()
 	return s.ReplaceScimGroupFunc(ctx, group)
+}
+
+func (s *DataStore) ApplyScimGroupPatch(ctx context.Context, group *fleet.ScimGroup, deltas fleet.ScimGroupMemberDeltas) error {
+	s.mu.Lock()
+	s.ApplyScimGroupPatchFuncInvoked = true
+	s.mu.Unlock()
+	return s.ApplyScimGroupPatchFunc(ctx, group, deltas)
 }
 
 func (s *DataStore) DeleteScimGroup(ctx context.Context, id uint) error {

@@ -22,13 +22,19 @@ import {
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 import ActionsDropdown from "../../../../../components/ActionsDropdown";
 
+const baseClass = "users-table";
+
 const renderApiUserIndicator = () => {
   return (
-    <Tag tooltip="This user only has API access." size="small">
+    <Tag tooltip="This user only has API access." size="xsmall">
       API
     </Tag>
   );
 };
+
+const renderApiEndpointCount = (count: number) => (
+  <Tag size="xsmall">{`${count} API endpoint${count === 1 ? "" : "s"}`}</Tag>
+);
 
 interface IHeaderProps {
   column: {
@@ -59,6 +65,7 @@ interface IDataColumn {
   title: string;
   Header: ((props: IHeaderProps) => JSX.Element) | string;
   accessor: string;
+  id?: string;
   Cell:
     | ((props: ICellProps) => JSX.Element)
     | ((props: IActionsDropdownProps) => JSX.Element);
@@ -81,6 +88,8 @@ export interface IUserTableData {
   apiId: number;
   type: string;
   api_only: boolean;
+  /** Number of API endpoints this user is restricted to; 0 means unrestricted */
+  apiEndpointCount: number;
 }
 
 // The inactivity window is enforced server-side (see UserInactiveAfter in
@@ -106,8 +115,68 @@ const generateInviteStatus = (invite: IInvite): string =>
     ? "No access"
     : "Invite pending";
 
-// NOTE: cellProps come from react-table
-// more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
+const renderRole = (cellProps: ICellProps) => {
+  if (cellProps.cell.value === "GitOps") {
+    return (
+      <TooltipWrapper
+        tipContent={
+          <>
+            The GitOps role is only available for API-only
+            <br />
+            users. This user has no access to the UI.
+          </>
+        }
+      >
+        GitOps
+      </TooltipWrapper>
+    );
+  }
+  if (cellProps.cell.value === "Observer+") {
+    return (
+      <TooltipWrapper
+        tipContent={
+          <>
+            Users with the Observer+ role have access to all of
+            <br />
+            the same functions as an Observer, with the added
+            <br />
+            ability to run any live report against all hosts.
+          </>
+        }
+      >
+        {cellProps.cell.value}
+      </TooltipWrapper>
+    );
+  }
+  if (cellProps.cell.value === ROLE_VARIOUS) {
+    const { roleGroups } = cellProps.row.original;
+    return (
+      <TooltipWrapper
+        tipContent={roleGroups.map(({ role, names }) => (
+          <span key={role}>
+            <b>{role}:</b> {names.join(", ")}
+            <br />
+          </span>
+        ))}
+        underline={false}
+        showArrow
+        position="top"
+        tipOffset={10}
+        fixedPositionStrategy
+      >
+        <TextCell value={ROLE_VARIOUS} grey italic />
+      </TooltipWrapper>
+    );
+  }
+  return (
+    <TextCell
+      value={cellProps.cell.value}
+      grey={greyCell(cellProps.cell.value)}
+      italic={greyCell(cellProps.cell.value)}
+    />
+  );
+};
+
 const generateTableHeaders = (
   actionSelectHandler: (value: string, user: IUserTableData) => void,
   isPremiumTier: boolean | undefined
@@ -133,69 +202,22 @@ const generateTableHeaders = (
       },
     },
     {
-      title: "Role",
-      Header: "Role",
+      title: "Permissions",
+      Header: "Permissions",
       accessor: "role",
+      // react-table derives the cell/header DOM classes and the sort key from
+      // `id`, so this keeps them as `permissions__*` without renaming the
+      // underlying row field.
+      id: "permissions",
       disableSortBy: true,
       Cell: (cellProps: ICellProps) => {
-        if (cellProps.cell.value === "GitOps") {
-          return (
-            <TooltipWrapper
-              tipContent={
-                <>
-                  The GitOps role is only available for API-only
-                  <br />
-                  users. This user has no access to the UI.
-                </>
-              }
-            >
-              GitOps
-            </TooltipWrapper>
-          );
-        }
-        if (cellProps.cell.value === "Observer+") {
-          return (
-            <TooltipWrapper
-              tipContent={
-                <>
-                  Users with the Observer+ role have access to all of
-                  <br />
-                  the same functions as an Observer, with the added
-                  <br />
-                  ability to run any live report against all hosts.
-                </>
-              }
-            >
-              {cellProps.cell.value}
-            </TooltipWrapper>
-          );
-        }
-        if (cellProps.cell.value === ROLE_VARIOUS) {
-          const { roleGroups } = cellProps.row.original;
-          return (
-            <TooltipWrapper
-              tipContent={roleGroups.map(({ role, names }) => (
-                <span key={role}>
-                  <b>{role}:</b> {names.join(", ")}
-                  <br />
-                </span>
-              ))}
-              underline={false}
-              showArrow
-              position="top"
-              tipOffset={10}
-              fixedPositionStrategy
-            >
-              <TextCell value={ROLE_VARIOUS} grey italic />
-            </TooltipWrapper>
-          );
-        }
+        const { apiEndpointCount } = cellProps.row.original;
+
         return (
-          <TextCell
-            value={cellProps.cell.value}
-            grey={greyCell(cellProps.cell.value)}
-            italic={greyCell(cellProps.cell.value)}
-          />
+          <div className={`${baseClass}__permissions-content`}>
+            {renderRole(cellProps)}
+            {apiEndpointCount > 0 && renderApiEndpointCount(apiEndpointCount)}
+          </div>
         );
       },
     },
@@ -249,15 +271,22 @@ const generateTableHeaders = (
       disableSortBy: true,
       accessor: "actions",
       Cell: (cellProps: IActionsDropdownProps) => (
-        <ActionsDropdown
-          options={cellProps.cell.value}
-          onChange={(value: string) =>
-            actionSelectHandler(value, cellProps.row.original)
-          }
-          placeholder="Actions"
-          menuAlign="right"
-          variant="secondary"
-        />
+        <div
+          role="presentation"
+          onClick={(e) => e.stopPropagation()}
+          onKeyDown={(e) => e.stopPropagation()}
+        >
+          <ActionsDropdown
+            className="row-hover-button"
+            options={cellProps.cell.value}
+            onChange={(value: string) =>
+              actionSelectHandler(value, cellProps.row.original)
+            }
+            placeholder="Actions"
+            menuAlign="right"
+            variant="secondary"
+          />
+        </div>
       ),
     },
   ];
@@ -381,6 +410,7 @@ const enhanceUserData = (
       apiId: user.id,
       type: "user",
       api_only: user.api_only,
+      apiEndpointCount: user.api_endpoints?.length ?? 0,
     };
   });
 };
@@ -405,6 +435,7 @@ const enhanceInviteData = (invites: IInvite[]): IUserTableData[] => {
       apiId: invite.id,
       type: "invite",
       api_only: false, // api only users are created through fleetctl and not invites
+      apiEndpointCount: 0,
     };
   });
 };

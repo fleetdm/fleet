@@ -173,6 +173,7 @@ func TestHosts(t *testing.T) {
 		{"SetOrUpdateHostDisksSpace", testHostsSetOrUpdateHostDisksSpace},
 		{"HostIDsByOSID", testHostIDsByOSID},
 		{"SetOrUpdateHostDisksEncryption", testHostsSetOrUpdateHostDisksEncryption},
+		{"ListHostsDiskEncryption", testHostsListHostsDiskEncryption},
 		{"HostOrder", testHostOrder},
 		{"GetHostMDMCheckinInfo", testHostsGetHostMDMCheckinInfo},
 		{"UnenrollFromMDM", testHostsUnenrollFromMDM},
@@ -10890,6 +10891,60 @@ func testHostsSetOrUpdateHostDisksEncryption(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		require.True(t, *got.DiskEncryptionEnabled)
 	})
+}
+
+func testHostsListHostsDiskEncryption(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	newHost := func(i int, platform string) *fleet.Host {
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now(),
+			NodeKey:         new(fmt.Sprintf("disk-encryption-%d", i)),
+			OsqueryHostID:   new(fmt.Sprintf("disk-encryption-%d", i)),
+			UUID:            fmt.Sprintf("disk-encryption-%d", i),
+			Hostname:        fmt.Sprintf("disk-encryption-%d.local", i),
+			Platform:        platform,
+		})
+		require.NoError(t, err)
+		return h
+	}
+
+	encrypted := newHost(1, "darwin")
+	notEncrypted := newHost(2, "darwin")
+	unknown := newHost(3, "darwin")
+	linuxNotEncrypted := newHost(4, "ubuntu")
+
+	require.NoError(t, ds.SetOrUpdateHostDisksEncryption(ctx, encrypted.ID, true, nil))
+	require.NoError(t, ds.SetOrUpdateHostDisksEncryption(ctx, notEncrypted.ID, false, nil))
+	require.NoError(t, ds.SetOrUpdateHostDisksEncryption(ctx, linuxNotEncrypted.ID, false, nil))
+
+	hosts, err := ds.ListHosts(ctx, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{})
+	require.NoError(t, err)
+
+	byID := make(map[uint]*bool, len(hosts))
+	for _, h := range hosts {
+		byID[h.ID] = h.DiskEncryptionEnabled
+	}
+
+	require.Equal(t, new(true), byID[encrypted.ID])
+	require.Equal(t, new(false), byID[notEncrypted.ID])
+
+	// no host_disks row yet, so encryption status is unknown and omitted
+	_, ok := byID[unknown.ID]
+	require.True(t, ok)
+	require.Nil(t, byID[unknown.ID])
+
+	// matching Host(), an unencrypted Linux host reports unknown rather than false
+	_, ok = byID[linuxNotEncrypted.ID]
+	require.True(t, ok)
+	require.Nil(t, byID[linuxNotEncrypted.ID])
+
+	h, err := ds.Host(ctx, linuxNotEncrypted.ID)
+	require.NoError(t, err)
+	require.Nil(t, h.DiskEncryptionEnabled)
 }
 
 func testHostsGetHostMDMCheckinInfo(t *testing.T, ds *Datastore) {

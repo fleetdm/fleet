@@ -3,8 +3,8 @@
   // we make sure `me` exists.  This ensures we don't have to do `typeof` checks below.
   var me = undefined;
 }
-let replaceBuiltInAuthWithOkta = (sails.config.custom.oktaClientSecret !== undefined);
-if(typeof replaceBuiltInAuthWithOkta === 'undefined') {
+let replaceBuiltInAuthWithSso = (sails.config.custom.ssoClientSecret !== undefined);
+if(typeof replaceBuiltInAuthWithSso === 'undefined') {
 // In case we're displaying the 404 or 500 page and relevant code in the "custom" hook was not able to run,
 // we make sure `me` exists.  This ensures we don't have to do `typeof` checks below.
 }

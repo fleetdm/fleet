@@ -33,6 +33,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/assets"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/sso"
 	"github.com/fleetdm/fleet/v4/server/worker"
 	"github.com/google/uuid"
@@ -2052,7 +2053,7 @@ func (svc *Service) decryptUploadedABMToken(ctx context.Context, token io.Reader
 }
 
 func (svc *Service) ClearPasscode(ctx context.Context, hostID uint) (*fleet.CommandEnqueueResult, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionRead); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
 		return nil, err
 	}
 
@@ -2061,7 +2062,15 @@ func (svc *Service) ClearPasscode(ctx context.Context, hostID uint) (*fleet.Comm
 		return nil, ctxerr.Wrap(ctx, err, "host lite")
 	}
 
-	if err := svc.authz.Authorize(ctx, fleet.MDMCommandAuthz{TeamID: host.TeamID}, fleet.ActionWrite); err != nil {
+	// The platform is part of the authorization input because the policy grants
+	// technicians passcode clearing on iOS/iPadOS only. Mask the failure as
+	// not-found when the caller can't even read the host's MDM commands, so
+	// host IDs outside their visibility can't be probed.
+	notFoundErr := ctxerr.Wrap(ctx, common_mysql.NotFound("Host").WithID(hostID), "clear passcode")
+	if err := svc.authz.AuthorizeOrNotFound(ctx, fleet.MDMCommandAuthz{
+		TeamID:   host.TeamID,
+		Platform: host.Platform,
+	}, fleet.ActionClearPasscode, notFoundErr); err != nil {
 		return nil, err
 	}
 
@@ -2096,7 +2105,10 @@ func (svc *Service) CancelHostMDMCommand(ctx context.Context, hostID uint, comma
 		return ctxerr.Wrap(ctx, err, "host lite")
 	}
 
-	if err := svc.authz.Authorize(ctx, fleet.MDMCommandAuthz{TeamID: host.TeamID}, fleet.ActionWrite); err != nil {
+	// Mask the failure as not-found when the caller can't even read the host's
+	// MDM commands, so host IDs outside their visibility can't be probed.
+	notFoundErr := ctxerr.Wrap(ctx, common_mysql.NotFound("Host").WithID(hostID), "cancel host mdm command")
+	if err := svc.authz.AuthorizeOrNotFound(ctx, fleet.MDMCommandAuthz{TeamID: host.TeamID}, fleet.ActionWrite, notFoundErr); err != nil {
 		return err
 	}
 
@@ -2184,6 +2196,21 @@ func (svc *Service) clearPasscodeApple(ctx context.Context, host *fleet.Host, ap
 	if mdmData.IsPersonalEnrollment {
 		return nil, &fleet.BadRequestError{
 			Message: fleet.CantClearPasscodePersonalHostsMessage,
+		}
+	}
+
+	// The enrollment profile can restrict the Device Lock & Passcode Removal
+	// access right (BYOD manual enrollments); enforce it here rather than
+	// relying on the UI hiding the action, since the API can be called
+	// directly. Missing permissions rows fall back to unrestricted rights,
+	// matching the host details response.
+	perms, err := svc.ds.GetHostMDMAppleEnrollmentPermissions(ctx, host.UUID)
+	if err != nil && !fleet.IsNotFound(err) {
+		return nil, ctxerr.Wrap(ctx, err, "get host mdm apple enrollment permissions")
+	}
+	if perms != nil && perms.AccessRights&apple_mdm.MDMAccessRightDeviceLock == 0 {
+		return nil, &fleet.BadRequestError{
+			Message: fleet.CantClearPasscodeAccessRightsMessage,
 		}
 	}
 

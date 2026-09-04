@@ -392,12 +392,19 @@ type CommandEnqueueResult struct {
 // MDMCommandAuthz is used to check user authorization to read/write an
 // MDM command.
 type MDMCommandAuthz struct {
-	TeamID *uint `json:"team_id" renameto:"fleet_id"` // required for authorization by team
+	TeamID   *uint  `json:"team_id" renameto:"fleet_id"` // required for authorization by team
+	Platform string `json:"platform"`                    // Platform of the targeted host
 }
 
 // SetTeamID implements the TeamIDSetter interface.
 func (m *MDMCommandAuthz) SetTeamID(tid *uint) {
 	m.TeamID = tid
+}
+
+func (m MDMCommandAuthz) ExtraAuthz() (map[string]any, error) {
+	return map[string]any{
+		"is_apple_mobile": IsAppleMobilePlatform(m.Platform),
+	}, nil
 }
 
 // AuthzType implements authz.AuthzTyper.

@@ -1,0 +1,1 @@
+- Updated the wording of JSON type validation errors returned by the API (for example, when applying GitOps or spec files with a value of the wrong type). Array elements are now identified by index, and the field path is omitted for the fields where Go 1.27 no longer reports it.

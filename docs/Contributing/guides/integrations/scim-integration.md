@@ -124,4 +124,5 @@ erDiagram
 
 ## Notes
 
-- Okta and Entra ID do not support nested groups
+- Okta does not support nested groups
+- Entra ID provisions nested groups by sending group-type members (e.g. a PATCH that adds a child group as a member of its parent) rather than flattening them into user members. Fleet stores these direct parent-to-child edges in the `scim_group_group` table and resolves a user's effective (transitive) group membership by walking the graph. A nested group must be assigned to the SCIM app in Entra just like a top-level group; it is not provisioned automatically with its parent.

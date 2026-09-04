@@ -300,13 +300,10 @@ type GenerateGitopsCommand struct {
 
 func generateGitopsCommand() *cli.Command {
 	return &cli.Command{
-		Name:  "generate-gitops",
-		Usage: "Migrate an existing Fleet instance's configuration to GitOps YAML files",
-		Description: "Exports an existing Fleet's configuration " +
-			"(policies, queries, labels, scripts, profiles, team settings, etc.) into GitOps-ready " +
-			"YAML files. Use this to migrate an existing Fleet to GitOps.\n\n" +
-			"If you're getting started with GitOps, use `fleetctl new` instead",
-		Action: createGenerateGitopsAction(nil),
+		Name:        "generate-gitops",
+		Usage:       "Exports existing Fleet configuration to YAML files to migrate an existing Fleet to GitOps",
+		Description: "If you're getting started with GitOps, use `fleetctl new` instead",
+		Action:      createGenerateGitopsAction(nil),
 		Flags: []cli.Flag{
 			configFlag(),
 			contextFlag(),
@@ -1520,6 +1517,7 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 				result[jsonFieldName(mdmT, "WindowsEntraClientIDs")] = cmd.AppConfig.MDM.WindowsEntraClientIDs.Value
 			}
 			result[jsonFieldName(mdmT, "AppleRequireHardwareAttestation")] = cmd.AppConfig.MDM.AppleRequireHardwareAttestation
+			result[jsonFieldName(mdmT, "OnlyAllowAppleBusinessEnrollment")] = cmd.AppConfig.MDM.OnlyAllowAppleBusinessEnrollment
 
 			// apple_account_provisioning is a global-only MDM setting. The IdP
 			// client secret is masked/non-exportable from the API, so emit a TODO
