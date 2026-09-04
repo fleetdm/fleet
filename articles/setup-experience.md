@@ -120,7 +120,7 @@ Each generated password is guaranteed to contain at least one character from eve
 
 Fleet rotates the managed local account password by sending an MDM command to the host. Rotation can be triggered manually by clicking **Rotate password** in the managed account modal, or automatically after the password is viewed.
 
-> Shortly after a host enrolls via DEP, the host's UUID may not yet be known to Fleet. In this case, password rotation is **deferred** until Fleet receives the UUID (typically after the host completes its first check-in). Any pending rotation will proceed automatically once the UUID is available.
+> Shortly after a host enrolls via DEP, the managed account's UUID may not yet be known to Fleet. In this case, password rotation is **deferred** until Fleet receives the UUID (typically after the host completes its first check-in). Any pending rotation will proceed automatically once the UUID is available.
 
 A manual rotation cancels any active auto-rotation timer for that host.
 
