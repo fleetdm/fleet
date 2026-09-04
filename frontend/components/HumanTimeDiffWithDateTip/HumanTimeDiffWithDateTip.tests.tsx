@@ -9,6 +9,7 @@ import {
 
 const EMPTY_STRING = "Unavailable";
 const INVALID_STRING = "Invalid date";
+const NEVER_TOOLTIP = "This host has not reported vitals yet.";
 
 describe("HumanTimeDiffWithDateTip - component", () => {
   it("renders tooltip on hover", async () => {
@@ -43,5 +44,33 @@ describe("HumanTimeDiffWithDateTip - component", () => {
     );
 
     expect(screen.getByText(/never/i)).toBeInTheDocument();
+  });
+
+  it("explains 'Never' on hover when given a never tooltip", async () => {
+    const { user } = renderWithSetup(
+      <HumanTimeDiffWithFleetLaunchCutoff
+        timeString="1970-01-02T00:00:00Z"
+        neverTooltip={NEVER_TOOLTIP}
+      />
+    );
+
+    expect(screen.queryByText(NEVER_TOOLTIP)).not.toBeInTheDocument();
+
+    await user.hover(screen.getByText(/never/i));
+
+    expect(await screen.findByText(NEVER_TOOLTIP)).toBeInTheDocument();
+  });
+
+  it("ignores the never tooltip when the date is after Fleet was created", async () => {
+    const { user } = renderWithSetup(
+      <HumanTimeDiffWithFleetLaunchCutoff
+        timeString="2024-04-27T12:00:00Z"
+        neverTooltip={NEVER_TOOLTIP}
+      />
+    );
+
+    await user.hover(screen.getByText(/years ago/i));
+
+    expect(screen.queryByText(NEVER_TOOLTIP)).not.toBeInTheDocument();
   });
 });

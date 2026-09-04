@@ -9,6 +9,10 @@ import {
   getPrimaryDeviceUser,
 } from "./HostTableConfig";
 
+// react-table's `Column` union includes group columns, which carry no `Cell`,
+// so the property isn't reachable through that type alone.
+type IColumnWithCell = Column<IHost> & { Cell?: React.ElementType };
+
 describe("getPrimaryDeviceUser", () => {
   it("returns no primary email, no suffix, and no tooltip lines when there are no emails", () => {
     expect(getPrimaryDeviceUser([])).toEqual({
@@ -151,7 +155,7 @@ describe("HostTableConfig - User email column", () => {
     });
     const column = columns.find(
       (c) => (c as Column<IHost>).id === "device_mapping"
-    ) as Column<IHost> | undefined;
+    ) as IColumnWithCell | undefined;
     if (!column) throw new Error("device_mapping column not found");
     return column;
   };
@@ -214,7 +218,7 @@ describe("HostTableConfig - Serial number column", () => {
 
   const serialColumn = headers.find(
     (h) => (h as Column<IHost>).id === "hardware_serial"
-  ) as Column<IHost> | undefined;
+  ) as IColumnWithCell | undefined;
 
   if (!serialColumn || typeof serialColumn.Cell !== "function") {
     throw new Error("hardware_serial column or Cell not found");
