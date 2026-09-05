@@ -1,0 +1,1 @@
+- Fleet now logs a warning when a Windows host enrolls in MDM presenting an MDM hardware ID (`HWDevID`) already held by a different host, which takes over that host's enrollment and leaves it unmanaged while still reporting MDM as on. Enrollment behavior is unchanged.

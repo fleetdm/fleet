@@ -2437,6 +2437,10 @@ type Datastore interface {
 	// MDMWindowsInsertEnrolledDevice inserts a new MDMWindowsEnrolledDevice in the database
 	MDMWindowsInsertEnrolledDevice(ctx context.Context, device *MDMWindowsEnrolledDevice) error
 
+	// MDMWindowsGetEnrolledHostUUIDWithHardwareID returns the host uuid that the given MDM hardware ID is currently
+	// enrolled to, or an empty string when no enrollment exists for it or that enrollment is not linked to a host yet.
+	MDMWindowsGetEnrolledHostUUIDWithHardwareID(ctx context.Context, mdmDeviceHWID string) (string, error)
+
 	// MDMWindowsDeleteEnrolledDeviceOnReenrollment deletes a given windows
 	// device enrollment entry from the database using the HW device id.
 	MDMWindowsDeleteEnrolledDeviceOnReenrollment(ctx context.Context, mdmDeviceHWID string) error

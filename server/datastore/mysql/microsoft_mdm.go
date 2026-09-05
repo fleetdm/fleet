@@ -640,6 +640,24 @@ func (ds *Datastore) MDMWindowsInsertEnrolledDevice(ctx context.Context, device 
 	return nil
 }
 
+// MDMWindowsGetEnrolledHostUUIDWithHardwareID returns the host UUID that the given MDM hardware ID is currently
+// enrolled to. It returns an empty string in two cases that the caller does not need to tell apart: no enrollment
+// exists for that hardware ID, or one exists but is not linked to a host yet, which is the normal state for an Entra
+// automatic enrollment before serial-based linking runs.
+func (ds *Datastore) MDMWindowsGetEnrolledHostUUIDWithHardwareID(ctx context.Context, mdmDeviceHWID string) (string, error) {
+	// mdm_hardware_id is unique, so at most one enrollment exists per hardware ID.
+	const stmt = `SELECT COALESCE(host_uuid, '') FROM mdm_windows_enrollments WHERE mdm_hardware_id = ? LIMIT 1`
+
+	var hostUUID string
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &hostUUID, stmt, mdmDeviceHWID); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return "", nil
+		}
+		return "", ctxerr.Wrap(ctx, err, "get host uuid enrolled to windows mdm hardware id")
+	}
+	return hostUUID, nil
+}
+
 // MDMWindowsDeleteEnrolledDeviceOnReenrollment deletes a Windows device
 // enrollment entry from the database using the device's hardware ID as it is
 // re-enrolling. It also cleans up host_mdm_windows_profiles so profile

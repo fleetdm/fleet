@@ -1170,7 +1170,7 @@ func (svc *Service) GetMDMWindowsEnrollResponse(ctx context.Context, secTokenMsg
 	}
 
 	// Removing the device if already MDM enrolled
-	err = svc.removeWindowsDeviceIfAlreadyMDMEnrolled(ctx, secTokenMsg)
+	err = svc.removeWindowsDeviceIfAlreadyMDMEnrolled(ctx, secTokenMsg, hostUUID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "device enroll check")
 	}
@@ -3039,12 +3039,20 @@ func (svc *Service) persistESPFinalCommands(ctx context.Context, hostUUID string
 
 // removeWindowsDeviceIfAlreadyMDMEnrolled removes the device if already MDM enrolled
 // HW DeviceID is used to check the list of enrolled devices
-func (svc *Service) removeWindowsDeviceIfAlreadyMDMEnrolled(ctx context.Context, secTokenMsg *fleet.RequestSecurityToken) error {
+func (svc *Service) removeWindowsDeviceIfAlreadyMDMEnrolled(
+	ctx context.Context, secTokenMsg *fleet.RequestSecurityToken, hostUUID string,
+) error {
 	// Getting the HW DeviceID from the RequestSecurityToken msg
 	reqHWDeviceID, err := GetContextItem(secTokenMsg, syncml.ReqSecTokenContextItemHWDevID)
 	if err != nil {
 		return err
 	}
+
+	// Two distinct machines can present the same HW device id, in which case the delete below hands the incumbent
+	// host's enrollment to the enrolling one and Fleet silently stops managing the incumbent. The enrollment still
+	// proceeds, since a collision is indistinguishable at the wire from the same machine re-enrolling, but nothing
+	// else in the product reports it.
+	svc.warnOnWindowsMDMHardwareIDCollision(ctx, reqHWDeviceID, hostUUID)
 
 	// Device is already enrolled, let's remove it
 	err = svc.ds.MDMWindowsDeleteEnrolledDeviceOnReenrollment(ctx, reqHWDeviceID)
@@ -3056,6 +3064,32 @@ func (svc *Service) removeWindowsDeviceIfAlreadyMDMEnrolled(ctx context.Context,
 	}
 
 	return nil
+}
+
+// warnOnWindowsMDMHardwareIDCollision reports that the MDM hardware ID an enrolling device presented is already held by
+// a different host.
+func (svc *Service) warnOnWindowsMDMHardwareIDCollision(ctx context.Context, hardwareID, hostUUID string) {
+	if hostUUID == "" {
+		return
+	}
+
+	incumbentHostUUID, err := svc.ds.MDMWindowsGetEnrolledHostUUIDWithHardwareID(ctx, hardwareID)
+	if err != nil {
+		svc.logger.WarnContext(ctx, "checking whether a windows mdm hardware id is already held by another host",
+			"err", err, "mdm_hardware_id", hardwareID)
+		return
+	}
+	if incumbentHostUUID == "" || incumbentHostUUID == hostUUID {
+		return
+	}
+
+	svc.logger.WarnContext(ctx,
+		"windows host is enrolling in MDM with a hardware ID already held by another host, which takes over that host's "+
+			"enrollment and leaves it unmanaged",
+		"mdm_hardware_id", hardwareID,
+		"enrolling_host_uuid", hostUUID,
+		"existing_host_uuid", incumbentHostUUID,
+	)
 }
 
 // getDeviceProvisioningInformation returns a valid WapProvisioningDoc

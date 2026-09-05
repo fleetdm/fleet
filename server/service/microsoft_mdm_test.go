@@ -3560,3 +3560,75 @@ func TestESPReleaseIncludesSkipUserStatusPage(t *testing.T) {
 		"release commands must include SkipUserStatusPage=true; without it, a second user "+
 			"signing in to an already-enrolled device hits a fresh Account setup ESP that hangs (#51380)")
 }
+
+// TestWarnOnWindowsMDMHardwareIDCollision covers the detection added for issue #50612. The enrollment itself is
+// deliberately unchanged: a second host presenting an already-held HW device id still takes over the enrollment, but
+// Fleet now says so.
+func TestWarnOnWindowsMDMHardwareIDCollision(t *testing.T) {
+	const (
+		hwID          = "F19B99942A3B9C53679F46017599C1FC4953B9BD3F0BC20FF681D0F93FAE5992"
+		enrollingHost = "7C3BA655-C134-4CA5-A23B-CA8147643DA0"
+		incumbentHost = "A5D3F1A9-1B40-49DC-9D54-B4F558850CB9"
+	)
+
+	// Attributes of the first warning whose message contains want, or nil when nothing matched.
+	warnAttrs := func(h *testutils.TestHandler, want string) map[string]string {
+		for _, r := range h.Records() {
+			if r.Level != slog.LevelWarn || !strings.Contains(r.Message, want) {
+				continue
+			}
+			attrs := make(map[string]string, 3)
+			r.Attrs(func(a slog.Attr) bool { attrs[a.Key] = a.Value.String(); return true })
+			return attrs
+		}
+		return nil
+	}
+
+	for _, tc := range []struct {
+		name          string
+		enrollingHost string
+		incumbent     string
+		lookupErr     error
+		wantLookup    bool
+		wantCollision bool
+	}{
+		{
+			name: "already enrolled to a different host", enrollingHost: enrollingHost, incumbent: incumbentHost,
+			wantLookup: true, wantCollision: true,
+		},
+		{name: "already enrolled to the enrolling host", enrollingHost: enrollingHost, incumbent: enrollingHost, wantLookup: true},
+		{name: "not enrolled to any host", enrollingHost: enrollingHost, wantLookup: true},
+		{name: "enrolling host is unknown, as in an automatic enrollment", incumbent: incumbentHost},
+		{name: "the lookup fails", enrollingHost: enrollingHost, lookupErr: errors.New("db is down"), wantLookup: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ds := new(mock.Store)
+			ds.MDMWindowsGetEnrolledHostUUIDWithHardwareIDFunc = func(_ context.Context, gotHWID string) (string, error) {
+				require.Equal(t, hwID, gotHWID)
+				return tc.incumbent, tc.lookupErr
+			}
+			handler := testutils.NewTestHandler()
+			svc := &Service{ds: ds, logger: slog.New(handler)}
+
+			svc.warnOnWindowsMDMHardwareIDCollision(t.Context(), hwID, tc.enrollingHost)
+
+			require.Equal(t, tc.wantLookup, ds.MDMWindowsGetEnrolledHostUUIDWithHardwareIDFuncInvoked)
+
+			attrs := warnAttrs(handler, "hardware ID already held by another host")
+			if !tc.wantCollision {
+				require.Nil(t, attrs, "this is not a collision and must not be reported as one")
+				if tc.lookupErr != nil {
+					require.NotNil(t, warnAttrs(handler, "checking whether a windows mdm hardware id"),
+						"the lookup failure itself should still be visible")
+				}
+				return
+			}
+			// Whole-map equality so a renamed or extra attribute fails too: this log line is the only signal.
+			require.Equal(t, map[string]string{
+				"mdm_hardware_id":     hwID,
+				"enrolling_host_uuid": tc.enrollingHost,
+				"existing_host_uuid":  tc.incumbent,
+			}, attrs)
+		})
+	}
+}
