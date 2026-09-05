@@ -150,6 +150,15 @@ describe("getUiStatus", () => {
     expect(getUiStatus(sw, true)).toBe("failed_install_installed");
   });
 
+  it("returns 'skipped_install' when the install was a patch-when-closed skip, even if an update would otherwise apply", () => {
+    const sw = createMockHostSoftware({
+      status: "failed_install",
+      skipped_install: true,
+      software_package: createMockHostSoftwarePackage({ version: "2.0.0" }),
+    });
+    expect(getUiStatus(sw, true)).toBe("skipped_install");
+  });
+
   it("returns 'failed_uninstall_update_available' when failed_uninstall and update available", () => {
     const sw = createMockHostSoftware({
       status: "failed_uninstall",

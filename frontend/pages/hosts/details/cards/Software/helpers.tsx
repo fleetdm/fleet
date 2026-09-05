@@ -239,6 +239,11 @@ export const getUiStatus = (
 
   // 1. Failed install states
   if (status === "failed_install") {
+    // A patch-when-closed skip is stored as failed_install; surface it as its
+    // own status instead of "Failed" (matches the policy status page).
+    if (software.skipped_install) {
+      return "skipped_install";
+    }
     if (installerVersion && installed_versions) {
       if (
         installed_versions.some(

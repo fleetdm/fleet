@@ -3811,14 +3811,18 @@ func hostInstalledSoftware(ds *Datastore, ctx context.Context, hostID uint) ([]*
 }
 
 func hostSoftwareInstalls(ds *Datastore, ctx context.Context, hostID uint) ([]*hostSoftware, error) {
+	// skipped_install marks a patch-when-closed skip (the app was open): the row is stored as
+	// failed_install with an empty pre_install_query_output, keyed on the triggering policy's
+	// patch_when_closed flag. Upcoming installs are never skipped, so the union side is a literal 0.
 	softwareInstallsStmt := `
         WITH upcoming_software_install AS (
-            SELECT last_install_install_uuid, last_install_installed_at, installer_id, status FROM (
+            SELECT last_install_install_uuid, last_install_installed_at, installer_id, status, skipped_install FROM (
                 SELECT
                     ua.execution_id AS last_install_install_uuid,
                     ua.created_at AS last_install_installed_at,
                     siua.software_installer_id AS installer_id,
                     'pending_install' AS status,
+                    0 AS skipped_install,
                     ROW_NUMBER() OVER (
                         PARTITION BY siua.software_installer_id, ua.activity_type
                         ORDER BY ua.priority ASC, ua.created_at DESC, ua.id DESC
@@ -3834,18 +3838,26 @@ func hostSoftwareInstalls(ds *Datastore, ctx context.Context, hostID uint) ([]*h
             WHERE rn = 1
         ),
         last_software_install AS (
-            SELECT last_install_install_uuid, last_install_installed_at, installer_id, status FROM (
+            SELECT last_install_install_uuid, last_install_installed_at, installer_id, status, skipped_install FROM (
                 SELECT
                     hsi.execution_id AS last_install_install_uuid,
                     hsi.updated_at AS last_install_installed_at,
                     hsi.software_installer_id AS installer_id,
                     hsi.status AS status,
+                    IF(
+                        hsi.status = 'failed_install'
+                        AND hsi.pre_install_query_output = ''
+                        AND COALESCE(p.patch_when_closed, 0) = 1,
+                        1, 0
+                    ) AS skipped_install,
                     ROW_NUMBER() OVER (
                         PARTITION BY hsi.software_installer_id
                         ORDER BY hsi.created_at DESC, hsi.id DESC
                     ) AS rn
                 FROM
                     host_software_installs hsi
+                LEFT JOIN
+                    policies p ON p.id = hsi.policy_id
                 WHERE
                     hsi.host_id = ? AND
                     hsi.removed = 0 AND
@@ -3879,7 +3891,8 @@ func hostSoftwareInstalls(ds *Datastore, ctx context.Context, hostID uint) ([]*h
 			software_titles.id AS id,
 			lsia.last_install_install_uuid,
 			lsia.last_install_installed_at,
-			lsia.status
+			lsia.status,
+			lsia.skipped_install
 		FROM
 			(SELECT * FROM upcoming_software_install UNION SELECT * FROM last_software_install) AS lsia
 		INNER JOIN
@@ -5296,6 +5309,7 @@ func (a *hostSoftwareTitleAssembler) addRecord(
 	// We should try to move as much of these attributes into the `stmt` query
 	if softwareTitle != nil {
 		softwareTitleRecord.Status = softwareTitle.Status
+		softwareTitleRecord.SkippedInstall = softwareTitle.SkippedInstall
 		softwareTitleRecord.LastInstallInstallUUID = softwareTitle.LastInstallInstallUUID
 		softwareTitleRecord.LastInstallInstalledAt = softwareTitle.LastInstallInstalledAt
 		softwareTitleRecord.LastUninstallScriptExecutionID = softwareTitle.LastUninstallScriptExecutionID
@@ -5589,6 +5603,7 @@ func mergeUninstallDataByInstaller(installDataByTitleInstaller map[uint]map[uint
 		(installData.LastUninstallUninstalledAt == nil ||
 			s.LastUninstallUninstalledAt != nil && s.LastUninstallUninstalledAt.After(*installData.LastUninstallUninstalledAt)) {
 		installData.Status = s.Status
+		installData.SkippedInstall = false
 		installData.LastUninstallUninstalledAt = s.LastUninstallUninstalledAt
 		installData.LastUninstallScriptExecutionID = s.LastUninstallScriptExecutionID
 		installData.ExitCode = s.ExitCode
@@ -5613,6 +5628,7 @@ func applyResolvedInstallerStatus(
 		}
 
 		software.Status = nil
+		software.SkippedInstall = false
 		software.LastInstallInstalledAt = nil
 		software.LastInstallInstallUUID = nil
 		software.LastUninstallUninstalledAt = nil
@@ -5624,6 +5640,7 @@ func applyResolvedInstallerStatus(
 			continue
 		}
 		software.Status = installData.Status
+		software.SkippedInstall = installData.SkippedInstall
 		software.LastInstallInstalledAt = installData.LastInstallInstalledAt
 		software.LastInstallInstallUUID = installData.LastInstallInstallUUID
 		software.LastUninstallUninstalledAt = installData.LastUninstallUninstalledAt
@@ -5722,6 +5739,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 
 			// if the uninstall is more recent than the install, we should update the status
 			bySoftwareTitleID[s.ID].Status = s.Status
+			bySoftwareTitleID[s.ID].SkippedInstall = false
 			bySoftwareTitleID[s.ID].LastUninstallUninstalledAt = s.LastUninstallUninstalledAt
 			bySoftwareTitleID[s.ID].LastUninstallScriptExecutionID = s.LastUninstallScriptExecutionID
 			bySoftwareTitleID[s.ID].ExitCode = s.ExitCode

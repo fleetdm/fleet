@@ -657,6 +657,12 @@ export interface IHostSoftware {
   extension_for?: SoftwareExtensionFor;
   bundle_identifier?: string;
   status: Exclude<SoftwareInstallUninstallStatus, "uninstalled"> | null;
+  /**
+   * True when the most recent install was a patch-when-closed skip (the target
+   * app was open); `status` is then `failed_install`. Rendered as "Patch
+   * skipped" rather than "Failed".
+   */
+  skipped_install?: boolean;
   installed_versions: ISoftwareInstallVersion[] | null;
 }
 
@@ -679,6 +685,7 @@ export const HOST_SOFTWARE_UI_ERROR_STATUSES = [
   "failed_uninstall", // Uninstall attempt failed
   "failed_uninstall_update_available", // Uninstall/update failed; newer installer version available
   "failed_script", // Script package failed to run
+  "skipped_install", // Patch-when-closed skip: target app was open; deferred, not a failure
 ] as const;
 export type HostSoftwareUiErrorStatus = typeof HOST_SOFTWARE_UI_ERROR_STATUSES[number];
 export const isSoftwareErrorStatus = (
