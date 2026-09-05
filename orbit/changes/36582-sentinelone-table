@@ -1,0 +1,1 @@
+- Added a `sentinelone` table to fleetd, reporting the local SentinelOne agent's version, operational state, protection status, daemon health, and management console connection from `sentinelctl status` on macOS, Windows, and Linux. Hosts without SentinelOne installed return no rows.
