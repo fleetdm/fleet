@@ -116,7 +116,7 @@ Android apps can be installed via self-service in the end user's managed Google 
 
 #### Managed configuration
 
-Currently, only the `managedConfiguration` and `workProfileWidgets` options from [ApplicationPolicy - Android Management API](https://developers.google.com/android/management/reference/rest/v1/enterprises.policies#ApplicationPolicy) are supported.
+Currently, only the `managedConfiguration`, `workProfileWidgets`, and `credentialProviderPolicy` options from [ApplicationPolicy - Android Management API](https://developers.google.com/android/management/reference/rest/v1/enterprises.policies#ApplicationPolicy) are supported.
 
 `managedConfiguration` supports any option provided by the app's developer. Each app supports different options. To find the supported options, check the app documentation.
 
@@ -143,6 +143,16 @@ This configuration allows end users to add widgets from the Google Calendar in t
 ```json
 {
   "workProfileWidgets": "WORK_PROFILE_WIDGETS_ALLOWED"
+}
+```
+
+##### Example (1Password)
+
+On Android 14 and above, third-party credential providers are blocked in the work profile unless the app is explicitly allowed. This configuration allows end users to select 1Password as their autofill and passkey (credential) provider in the work profile.
+
+```json
+{
+  "credentialProviderPolicy": "CREDENTIAL_PROVIDER_ALLOWED"
 }
 ```
 

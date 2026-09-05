@@ -51,18 +51,61 @@ describe("getErrorMessage", () => {
     },
   };
 
-  it("returns Android-specific error for managedConfiguration on Android", () => {
-    const result = getErrorMessage(managedConfigErr, false);
+  it("passes through an error that merely mentions managedConfiguration on Android", () => {
+    // Only the backend's key-rejection message shape triggers the Android-specific
+    // message; an arbitrary error naming a key must surface its own reason.
+    expect(getErrorMessage(managedConfigErr, false)).toBe(
+      "invalid managedConfiguration key"
+    );
+  });
+
+  it("passes through an error that merely mentions workProfileWidgets on Android", () => {
+    expect(getErrorMessage(workProfileErr, false)).toBe(
+      "workProfileWidgets is not supported"
+    );
+  });
+
+  it("returns Android-specific error for an unsupported top-level key on Android", () => {
+    const unsupportedKeyErr = {
+      response: {
+        data: {
+          errors: [
+            {
+              name: "base",
+              reason:
+                'Couldn\'t update configuration. Only "managedConfiguration", "workProfileWidgets", and "credentialProviderPolicy" are supported as top-level keys.',
+            },
+          ],
+        },
+      },
+    };
+    const result = getErrorMessage(unsupportedKeyErr, false);
     expect(result).toBeTruthy();
-    // Result is JSX, not a plain string
     expect(typeof result).not.toBe("string");
   });
 
-  it("returns Android-specific error for workProfileWidgets on Android", () => {
-    const result = getErrorMessage(workProfileErr, false);
-    expect(result).toBeTruthy();
-    expect(typeof result).not.toBe("string");
-  });
+  it.each([
+    [
+      "credentialProviderPolicy",
+      'Couldn\'t update configuration. "CREDENTIAL_PROVIDER_DISALLOWED" is not a supported value for "credentialProviderPolicy".',
+    ],
+    [
+      "workProfileWidgets",
+      'Couldn\'t update configuration. "WORK_PROFILE_WIDGETS_MAYBE" is not a supported value for "workProfileWidget".',
+    ],
+  ])(
+    "passes through the %s value validation error on Android",
+    (_key, reason) => {
+      const badValueErr = {
+        response: {
+          data: {
+            errors: [{ name: "base", reason }],
+          },
+        },
+      };
+      expect(getErrorMessage(badValueErr, false)).toBe(reason);
+    }
+  );
 
   it("returns raw reason for managedConfiguration on iOS/iPadOS (not Android-specific message)", () => {
     const result = getErrorMessage(managedConfigErr, true);
