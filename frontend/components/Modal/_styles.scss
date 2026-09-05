@@ -71,6 +71,14 @@
     border-radius: 8px;
     animation: scale-up 150ms ease-out;
 
+    // Container receives focus only as a landing target for keyboard users
+    // (tabIndex=-1). It's not an interactive control, so suppress the
+    // browser's focus ring on the whole modal.
+    &:focus,
+    &:focus-visible {
+      outline: none;
+    }
+
     &.modal__closing {
       animation: scale-down var(--modal-close-duration) ease-in forwards;
     }
