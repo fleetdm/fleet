@@ -275,11 +275,11 @@ Intune uses Windows [CSPs](https://learn.microsoft.com/en-us/windows/client-mana
 > For example, querying the `EnableFirewall` policy yields:  
 >
 > ```powershell
-> NodeUri       : ./Vendor/MSFT/Firewall/MdmStore/PrivateProfile/EnableFirewall
-> ExpectedValue : -1
+> NodeUri: ./Vendor/MSFT/Firewall/MdmStore/PrivateProfile/EnableFirewall
+> ExpectedValue: -1
 >
-> NodeUri       : ./Vendor/MSFT/Firewall/MdmStore/PublicProfile/EnableFirewall
-> ExpectedValue : -1
+> NodeUri: ./Vendor/MSFT/Firewall/MdmStore/PublicProfile/EnableFirewall
+> ExpectedValue: -1
 > ```
 >
 > In these edge cases, you’ll need to verify the actual runtime state (e.g. via `Get‑NetFirewallProfile`) to ensure whether the setting is active.
