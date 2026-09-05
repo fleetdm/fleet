@@ -2562,6 +2562,55 @@ func TestStatusReportAppInstallVerification(t *testing.T) {
 		require.True(t, mockDS.BulkSetVPPInstallsAsFailedFuncInvoked)
 	})
 
+	t.Run("pending app not reported at all stays pending until a later report", func(t *testing.T) {
+		t.Cleanup(func() {
+			mockDS.ListHostMDMAndroidVPPAppsPendingInstallWithVersionFuncInvoked = false
+			mockDS.BulkSetVPPInstallsAsVerifiedFuncInvoked = false
+			mockDS.BulkSetVPPInstallsAsFailedFuncInvoked = false
+		})
+
+		pendingApp := &fleet.HostAndroidVPPSoftwareInstall{
+			AdamID:            "com.example.app",
+			CommandUUID:       "a",
+			AssociatedEventID: "2",
+		}
+		mockDS.ListHostMDMAndroidVPPAppsPendingInstallWithVersionFunc = func(ctx context.Context, hostUUID string, version int64) ([]*fleet.HostAndroidVPPSoftwareInstall, error) {
+			appVersion, _ := strconv.Atoi(pendingApp.AssociatedEventID)
+			if int64(appVersion) <= version {
+				return []*fleet.HostAndroidVPPSoftwareInstall{pendingApp}, nil
+			}
+			return nil, nil
+		}
+
+		var wantVerified []string
+		mockDS.BulkSetVPPInstallsAsVerifiedFunc = func(ctx context.Context, hostID uint, cmdUUIDs []string) error {
+			require.Equal(t, wantVerified, cmdUUIDs)
+			return nil
+		}
+		mockDS.BulkSetVPPInstallsAsFailedFunc = func(ctx context.Context, hostID uint, cmdUUIDs []string) error {
+			require.Empty(t, cmdUUIDs)
+			return nil
+		}
+
+		// The device applied the policy but says nothing about the app, neither an
+		// application report nor a non-compliance report.
+		policyVersion := new(2)
+		statusReport := createStatusAppReportMessage(t, androidDevice.UUID, "test", createAndroidDeviceId("test"), policyVersion, nil, nil)
+		err := svc.ProcessPubSubPush(context.Background(), "value", &statusReport)
+		require.NoError(t, err)
+		require.True(t, mockDS.ListHostMDMAndroidVPPAppsPendingInstallWithVersionFuncInvoked)
+		require.True(t, mockDS.BulkSetVPPInstallsAsFailedFuncInvoked)
+
+		// A later report saying the app is installed must still be able to verify it.
+		wantVerified = []string{pendingApp.CommandUUID}
+		statusReport = createStatusAppReportMessage(t, androidDevice.UUID, "test", createAndroidDeviceId("test"), policyVersion, []*androidmanagement.ApplicationReport{
+			{PackageName: pendingApp.AdamID, State: "INSTALLED"},
+		}, nil)
+		err = svc.ProcessPubSubPush(context.Background(), "value", &statusReport)
+		require.NoError(t, err)
+		require.True(t, mockDS.BulkSetVPPInstallsAsVerifiedFuncInvoked)
+	})
+
 	t.Run("multiple apps in various states", func(t *testing.T) {
 		t.Cleanup(func() {
 			mockDS.ListHostMDMAndroidVPPAppsPendingInstallWithVersionFuncInvoked = false
@@ -2613,7 +2662,6 @@ func TestStatusReportAppInstallVerification(t *testing.T) {
 		commandsToStatus := map[string]fleet.SoftwareInstallerStatus{
 			"a": fleet.SoftwareInstalled,
 			"b": fleet.SoftwareInstalled,
-			"c": fleet.SoftwareInstallFailed,
 			"d": fleet.SoftwareInstallFailed,
 		}
 		mockDS.BulkSetVPPInstallsAsVerifiedFunc = func(ctx context.Context, hostID uint, cmdUUIDs []string) error {
@@ -2621,7 +2669,7 @@ func TestStatusReportAppInstallVerification(t *testing.T) {
 			return nil
 		}
 		mockDS.BulkSetVPPInstallsAsFailedFunc = func(ctx context.Context, hostID uint, cmdUUIDs []string) error {
-			require.ElementsMatch(t, []string{"c", "d"}, cmdUUIDs)
+			require.ElementsMatch(t, []string{"d"}, cmdUUIDs)
 			return nil
 		}
 		mockDS.GetPastActivityDataForAndroidVPPAppInstallFunc = func(ctx context.Context, cmdUUID string, status fleet.SoftwareInstallerStatus) (*fleet.User, *fleet.ActivityInstalledAppStoreApp, error) {
@@ -2632,7 +2680,7 @@ func TestStatusReportAppInstallVerification(t *testing.T) {
 		}
 
 		policyVersion := new(2)
-		// app1 and app2 verified, app3 not reported at all so failed, app4 failed with compliance report
+		// app1 and app2 verified, app3 not reported at all so still pending, app4 failed with compliance report
 		enrollmentMessage := createStatusAppReportMessage(t, androidDevice.UUID, "test", createAndroidDeviceId("test"), policyVersion, []*androidmanagement.ApplicationReport{
 			{PackageName: pendingApps[0].AdamID, State: "INSTALLED"},
 			{PackageName: pendingApps[1].AdamID, State: "INSTALLED"},

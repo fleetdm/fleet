@@ -1731,13 +1731,9 @@ func (svc *Service) verifyDeviceSoftware(ctx context.Context, host *fleet.Host, 
 			continue
 		}
 
-		// no non-compliance report, but also not reported as installed, give it another
-		// chance later if the applied version == requested version? For now, marking as
-		// failed, we don't know how long it might take for the device to receive another
-		// policy, it may never happen.
-		markVerified[packageName] = false
-		svc.logger.ErrorContext(ctx, "Software failed to install without non-compliance report", "host_uuid", hostUUID, "package_name", packageName,
-			"installation_failure_reason", "unknown - no non-compliance report received")
+		// Absent from both reports is not a failure: a real one arrives as a non-compliance
+		// report, so wait for a later message as the in-progress case above does.
+		svc.logger.DebugContext(ctx, "Software not reported as installed or failed yet, will remain pending", "host_uuid", hostUUID, "package_name", packageName)
 	}
 
 	var toVerifyUUIDs, toFailUUIDs []string
