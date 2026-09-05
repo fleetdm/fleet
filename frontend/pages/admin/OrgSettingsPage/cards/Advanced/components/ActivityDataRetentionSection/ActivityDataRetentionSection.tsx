@@ -99,8 +99,8 @@ const ActivityDataRetentionSection = ({
               !disableChildren && (
                 <>
                   When enabled, preserves host activities after a wipe and
-                  re-enrollment. Currently only supported for company-owned (AB)
-                  Apple hosts.{" "}
+                  re-enrollment. Supported for company-owned (AB) Apple hosts
+                  and Android hosts.{" "}
                   <strong>Delete activities &gt; Max activity age </strong>
                   still applies.
                   <br />

@@ -1040,7 +1040,7 @@ fetch_cert -ca <EST-CA-ID> -fleeturl "<Fleet-server-URL>" -csr CustomerUserNetwo
 * On **Windows**, SCEP challenge strings should NOT include `base64` encoding or special characters such as `! @ # $ % ^ & * _`, and Common Names (CN) should NOT include `+` characters.
 * The Windows SCEP client adds ⁠/pkiclient.exe to the SCEP server URL. When using Fleet's SCEP proxy to deploy certificates, Fleet removes it, allowing you to use non-NDES SCEP servers.
 * On **Windows** hosts, Fleet supports one proxied certificate per configuration profile. To deploy multiple certificates to a host, use a separate configuration profile for each certificate.
-* On **Windows** hosts, Fleet verifies proxied SCEP certificates (Custom SCEP proxy and NDES) by observing the issued certificate on the host via osquery, and marks the profile **Failed** if the certificate never appears or if the upstream CA returns an error. This requires osquery 5.23.1 or later on the host. See [Verifying Windows SCEP certificates](#verifying-windows-scep-certificates).
+* On **Windows** hosts, Fleet verifies proxied SCEP certificates (Custom SCEP proxy and NDES) by observing the issued certificate on the host via osquery. If the certificate never appears, or if the upstream CA returns an error, Fleet resends the profile and tries again, up to 3 times, before marking it **Failed**. This requires osquery 5.23.1 or later on the host. See [Verifying Windows SCEP certificates](#verifying-windows-scep-certificates).
 * On **Windows** hosts, Fleet will not remove deployed certificates when configuration profiles are removed from Fleet or when host is transfered to another fleet.
 
 ### Troubleshooting NDES on Windows
@@ -1053,6 +1053,11 @@ If SCEP enrollment fails on a Windows device, the error `0x800B0101` ("A require
 
 If NDES returns `pkiStatus=FAILURE, failInfo=badRequest`, the NDES password cache may be full. Increase the cache size on the NDES server (see [Step 1: Prerequisites for Windows hosts](#step-1-prerequisites-for-windows-hosts)).
 
+Fleet treats challenge-fetch errors differently depending on whether waiting is likely to help:
+
+- **Temporary errors** from the NDES admin URL, such as a timeout or a 5xx while NDES is restarting, leave the profile **Pending**. Fleet tries again on its next attempt and does not use up one of the profile's [retries](#retries).
+- **Errors that need an admin to act** fail the profile right away, with the same message as before: invalid NDES admin credentials, an account without permission to enroll on behalf of others, and a full password cache. A full cache fails immediately on purpose, because retrying into a full cache only adds to the pressure that filled it.
+
 ### How the SCEP proxy works
 
 Fleet acts as a middleman between the host and the NDES or SCEP server. When a host requests a certificate from Fleet, Fleet requests a certificate from the NDES or SCEP server, retrieves the certificate, and sends it back to the host.
@@ -1064,7 +1069,7 @@ In addition, Fleet does the following:
 NDES SCEP proxy:
 
 - Retrieves the one-time challenge password from NDES. The NDES admin password is encrypted in Fleet's database by the [server private key](https://fleetdm.com/docs/configuration/fleet-server-configuration#server-private-key). It cannot be retrieved via the API or the web interface. Retrieving passwords for many hosts at once may cause a bottleneck. To avoid long wait times, we recommend a gradual rollout of SCEP profiles.
-  - Restarting NDES will clear the password cache and may cause outstanding SCEP profiles to fail.
+  - Restarting NDES clears the password cache, which can make a SCEP request that uses an already-issued challenge fail. Fleet retries these profiles with a new challenge, so they usually recover on their own once NDES is back.
 - Resends the configuration profile to the host if the one-time challenge password has expired.
   - If the host has been offline and the one-time challenge password is more than 60 minutes old, Fleet assumes the password has expired and will resend the profile to the host with a new one-time challenge password.
 
@@ -1081,10 +1086,10 @@ SCEP proxy:
 
 When Fleet proxies SCEP certificate issuance for a Windows host (Custom SCEP proxy or Microsoft NDES), it confirms that the certificate was actually issued before reporting the profile as **Verified**. Each host's profile moves through the following statuses, visible on **Host details > OS settings**:
 
-- **Pending**: the profile is queued for delivery to the host.
+- **Pending**: the profile is queued for delivery to the host. A profile that is being retried also shows **Pending**, with no error in **Details**.
 - **Verifying**: the host acknowledged the profile and the SCEP exchange is in progress. Fleet has not yet observed the issued certificate on the host.
 - **Verified**: Fleet observed the issued certificate on the host. Fleet matches the certificate to the profile using the `$FLEET_VAR_SCEP_RENEWAL_ID` value in the certificate's OU.
-- **Failed**: either Fleet's SCEP proxy observed an error from the upstream CA during certificate issuance (for example, `SCEP PKIOperation failed: HTTP 500`), or the certificate was not observed on the host within one hour of delivery (`Fleet did not detect the SCEP certificate on the host after profile was delivered.`).
+- **Failed**: the profile ran out of retries. **Details** shows the last error Fleet saw, either an error the SCEP proxy observed from the upstream CA (for example, `SCEP PKIOperation failed: HTTP 500`) or a certificate that never arrived (`Fleet did not detect the SCEP certificate on the host after profile was delivered.`).
 
 To verify Windows SCEP certificates, Fleet requires:
 
@@ -1092,6 +1097,15 @@ To verify Windows SCEP certificates, Fleet requires:
 - The `$FLEET_VAR_SCEP_RENEWAL_ID` variable in the profile's `SubjectName` OU (also required for [renewal](#renewal)), so Fleet can match the issued certificate to the profile.
 
 For [user-scoped certificates](#user-scoped-certificates), Fleet can only observe the certificate while the target user is signed in, so the profile stays **Verifying** until the user logs in. Fleet assumes a single primary user per Windows host.
+
+### Retries
+
+A certificate that fails to issue is usually a temporary problem: the CA is restarting, the network dropped, or the host was busy. Fleet does not fail the profile on the first error. Instead it puts the profile back in the queue and sends it again, up to 3 times. Only after those retries are used up does the profile move to **Failed**. While Fleet is retrying, the profile shows **Pending** with an empty **Details** column.
+
+Two things do not use up a retry:
+
+- Resending a profile because its one-time challenge expired. This is Fleet refreshing a stale challenge, not a failure to issue.
+- A temporary error from the NDES admin URL when Fleet fetches a challenge (see [Troubleshooting NDES on Windows](#troubleshooting-ndes-on-windows)).
 
 ### How to get the CAThumbprint for Windows SCEP profiles
 
