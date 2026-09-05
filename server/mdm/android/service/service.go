@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strings"
 	"time"
 
@@ -963,6 +964,27 @@ func marshalRawCommand(cmd *androidmanagement.Command) sql.Null[string] {
 		return sql.Null[string]{}
 	}
 	return sql.Null[string]{V: string(b), Valid: true}
+}
+
+var sensitiveMetadataKeyRe = regexp.MustCompile(`"(?:\\u[0-9a-fA-F]{4}|n)ewPassword"\s*:\s*"[^"]*"\s*,?\s*`)
+
+// redactOperationSensitiveFields strips sensitive fields (e.g. newPassword) from
+// the AMAPI Operation metadata before the Operation is persisted as raw_result.
+func redactOperationSensitiveFields(op *androidmanagement.Operation) {
+	if len(op.Metadata) == 0 {
+		return
+	}
+	var m map[string]any
+	if err := json.Unmarshal(op.Metadata, &m); err != nil {
+		op.Metadata = sensitiveMetadataKeyRe.ReplaceAll(op.Metadata, nil)
+		return
+	}
+	if _, ok := m["newPassword"]; ok {
+		delete(m, "newPassword")
+		if b, err := json.Marshal(m); err == nil {
+			op.Metadata = b
+		}
+	}
 }
 
 // resolveAndroidCommandTarget centralizes the host/enterprise/secret lookup shared by all three command-issuing methods
