@@ -1,0 +1,14 @@
+.app-config-form {
+  // Wraps a field when disabled with an explanatory tooltip; the wrapper must
+  // fill the form field's width like the bare control does.
+  &__disabled-tooltip {
+    &.component__tooltip-wrapper {
+      display: block;
+    }
+
+    .component__tooltip-wrapper__element {
+      width: 100%;
+      white-space: normal;
+    }
+  }
+}

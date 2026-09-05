@@ -1,0 +1,21 @@
+.host-lifecycle-section {
+  // "Host expiry window" is a sub-setting of the "Host expiry" checkbox above
+  // it; indent it to align with the checkbox's label rather than its icon.
+  &__host-expiry-window {
+    margin-left: $pad-large;
+  }
+
+  // Wraps the host expiry window input when disabled with an explanatory
+  // tooltip; the wrapper must fill the form field's width like the bare
+  // control does.
+  &__disabled-tooltip {
+    &.component__tooltip-wrapper {
+      display: block;
+    }
+
+    .component__tooltip-wrapper__element {
+      width: 100%;
+      white-space: normal;
+    }
+  }
+}

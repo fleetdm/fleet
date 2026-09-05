@@ -3,8 +3,11 @@ import SettingsSection from "pages/admin/components/SettingsSection";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import Checkbox from "components/forms/fields/Checkbox";
 import InputField from "components/forms/fields/InputField";
+import TooltipWrapper from "components/TooltipWrapper";
 
 import type { IAdvancedSectionProps } from "../../Advanced";
+
+const baseClass = "host-lifecycle-section";
 
 const HostLifecycleSection = ({
   isPremiumTier = false,
@@ -46,24 +49,40 @@ const HostLifecycleSection = ({
           </Checkbox>
         )}
       />
-      {enableHostExpiry && (
+      <div className={`${baseClass}__host-expiry-window`}>
         <GitOpsModeTooltipWrapper
           position="left"
           isInputField
-          renderChildren={(disableChildren) => (
-            <InputField
-              disabled={disableChildren}
-              label="Host expiry window"
-              type="number"
-              onChange={onInputChange}
-              name="hostExpiryWindow"
-              value={hostExpiryWindow}
-              parseTarget
-              error={formErrors.hostExpiryWindow}
-            />
-          )}
+          renderChildren={(disableChildren) => {
+            const hostExpiryWindowField = (
+              <InputField
+                disabled={!enableHostExpiry || disableChildren}
+                label="Host expiry window"
+                type="number"
+                onChange={onInputChange}
+                name="hostExpiryWindow"
+                value={hostExpiryWindow}
+                parseTarget
+                error={formErrors.hostExpiryWindow}
+              />
+            );
+
+            return !enableHostExpiry && !disableChildren ? (
+              <TooltipWrapper
+                className={`${baseClass}__disabled-tooltip`}
+                tipContent="Enable host expiry to edit this setting."
+                position="top"
+                underline={false}
+                showArrow
+              >
+                {hostExpiryWindowField}
+              </TooltipWrapper>
+            ) : (
+              hostExpiryWindowField
+            );
+          }}
         />
-      )}
+      </div>
       {isPremiumTier && (
         <GitOpsModeTooltipWrapper
           position="left"

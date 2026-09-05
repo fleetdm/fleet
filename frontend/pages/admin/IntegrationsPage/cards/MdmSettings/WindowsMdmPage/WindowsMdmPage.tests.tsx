@@ -56,6 +56,19 @@ describe("WindowsMdmPage", () => {
     expect(screen.getByRole("checkbox")).toBeVisible();
   });
 
+  it("disables the Migration checkbox when programmatic enrollment is off", () => {
+    renderPage({
+      enable_turn_on_windows_mdm_manually: true,
+      windows_enabled_and_configured: true,
+    });
+
+    expect(screen.getByText("Migration")).toBeVisible();
+    expect(screen.getByRole("checkbox")).toHaveAttribute(
+      "aria-disabled",
+      "true"
+    );
+  });
+
   it("disables the default fleet dropdown when Fleet is not connected to Entra", () => {
     renderPage({
       windows_enabled_and_configured: true,
@@ -103,7 +116,7 @@ describe("WindowsMdmPage", () => {
   it("does not re-save a stale migration setting when enrollment is manual", async () => {
     (configAPI.updateMDMConfig as jest.Mock).mockResolvedValue({});
     // Inconsistent server state (settable via the API or GitOps): migration
-    // enabled while enrollment is manual, so the Migration checkbox is hidden.
+    // enabled while enrollment is manual, so the Migration checkbox is disabled.
     const { user } = renderPage({
       windows_enabled_and_configured: true,
       enable_turn_on_windows_mdm_manually: true,
@@ -111,7 +124,11 @@ describe("WindowsMdmPage", () => {
       windows_entra_tenant_ids: ["tenant-1"],
     });
 
-    expect(screen.queryByText("Migration")).not.toBeInTheDocument();
+    expect(screen.getByText("Migration")).toBeVisible();
+    expect(screen.getByRole("checkbox")).toHaveAttribute(
+      "aria-disabled",
+      "true"
+    );
     await user.click(screen.getByRole("button", { name: "Save" }));
 
     expect(configAPI.updateMDMConfig).toHaveBeenCalledWith(
