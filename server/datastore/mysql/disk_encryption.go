@@ -65,7 +65,12 @@ VALUES
 	//
 	// The error is what distinguishes this from a caller deliberately clearing the key, which passes an empty key with
 	// no error and must still work (see the backfill in #15068).
-	if incomingKey.Base == "" && clientError != "" && existingKey.Base != "" {
+	//
+	// This deliberately reads nothing from existingKey, which comes from a replica. Under replication lag that read
+	// reports no row, the insert above then fails with a duplicate key and falls through to here, and a condition
+	// consulting existingKey.Base would wrongly take the branch below and clear the key. By this point the row exists
+	// either way, so the UPDATE always matches.
+	if incomingKey.Base == "" && clientError != "" {
 		_, err = ds.writer(ctx).ExecContext(ctx, `
 UPDATE host_disk_encryption_keys SET client_error = ? WHERE host_id = ?`, clientError, host.ID)
 		if err != nil {

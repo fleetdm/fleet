@@ -773,8 +773,13 @@ func (w *windowsMDMBitlockerConfigReceiver) attemptBitlockerEncryption() {
 			if serverErr := w.updateFleetServer("", fmt.Errorf("BitLocker encryption is paused on this host and could not be resumed: %w", err)); serverErr != nil {
 				log.Error().Err(serverErr).Msg("failed to report the paused encryption to Fleet Server")
 			}
+			// A volume that refuses to resume will refuse again in 30 seconds, so back off rather than repeating the
+			// COM call and the same error report on every config poll.
+			w.encryptionRetryAfter = time.Now().Add(w.Frequency)
+			return
 		}
-		// Either way the volume is mid-conversion, so there is nothing further to do on this pass.
+		// The volume is converting again; the next pass sees it in progress and waits.
+		w.encryptionRetryAfter = time.Now().Add(encryptionSuccessBackoff)
 		return
 
 	case bitlocker.ConversionStatusDecryptionPaused:
@@ -787,6 +792,9 @@ func (w *windowsMDMBitlockerConfigReceiver) attemptBitlockerEncryption() {
 		)); serverErr != nil {
 			log.Error().Err(serverErr).Msg("failed to report the paused decryption to Fleet Server")
 		}
+		// Only a person can clear this, and the server keeps asking regardless, so back off instead of re-reporting the
+		// same thing on every config poll.
+		w.encryptionRetryAfter = time.Now().Add(w.Frequency)
 		return
 	}
 

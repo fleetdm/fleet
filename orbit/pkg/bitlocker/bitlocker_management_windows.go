@@ -590,22 +590,12 @@ func rotateRecoveryKeyOnCOMThread(targetVolume string) (string, error) {
 		}
 	}
 
-	// Ensure something can unseal the volume at boot, for pre-encrypted disks that have no such protector. Add a
-	// TPM-only protector only when nothing already qualifies: ProtectKeyWithTPM succeeds on a volume that has a
-	// TPM+PIN protector, and the TPM-only protector it adds then unseals the volume with no PIN, silently removing
-	// pre-boot authentication while the PIN protector remains present to make the host still look compliant.
-	hasProtector, err := vol.hasTPMFamilyProtector()
-	switch {
-	case err != nil:
-		// Adding one blind risks the bypass above, so prefer leaving a pre-encrypted disk without a TPM protector.
-		log.Warn().Err(err).Msg("could not list boot protectors, not adding a TPM protector")
-	case !hasProtector:
-		if err := vol.protectWithTPM(nil); err != nil {
-			// ErrorCodeProtectorExists means one was added between the check and here, which is the desired state.
-			var encErr *EncryptionError
-			if !errors.As(err, &encErr) || encErr.Code() != ErrorCodeProtectorExists {
-				log.Debug().Err(err).Msg("could not add TPM protector, continuing")
-			}
+	// Give pre-encrypted disks something that can unseal at boot, without weakening a volume that already has one.
+	if err := ensureBootUnsealProtector(vol.hasTPMFamilyProtector, func() error { return vol.protectWithTPM(nil) }); err != nil {
+		// ErrorCodeProtectorExists means a protector appeared between the check and the add, which is the desired state.
+		var encErr *EncryptionError
+		if !errors.As(err, &encErr) || encErr.Code() != ErrorCodeProtectorExists {
+			log.Warn().Err(err).Msg("could not ensure a boot protector exists, continuing")
 		}
 	}
 

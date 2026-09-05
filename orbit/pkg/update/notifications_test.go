@@ -1115,16 +1115,19 @@ func TestBitlockerOperations(t *testing.T) {
 			wantReportMatch string
 			wantEncrypt     bool
 			wantRotate      bool
+			// A paused volume stays paused, and the server keeps asking on every 30-second config poll, so these
+			// branches have to start a backoff or they repeat the COM call and the same report forever.
+			wantBackoff bool
 		}{
 			{name: "encryption in progress waits", conversion: bitlocker.ConversionStatusEncryptionInProgress},
 			{name: "decryption in progress waits", conversion: bitlocker.ConversionStatusDecryptionInProgress},
 			{
 				name: "encryption paused is resumed", conversion: bitlocker.ConversionStatusEncryptionPaused,
-				wantResume: true,
+				wantResume: true, wantBackoff: true,
 			},
 			{
 				name: "decryption paused is reported, never resumed", conversion: bitlocker.ConversionStatusDecryptionPaused,
-				wantReport: true, wantReportMatch: "decryption is paused",
+				wantReport: true, wantReportMatch: "decryption is paused", wantBackoff: true,
 			},
 		} {
 			t.Run(tc.name, func(t *testing.T) {
@@ -1153,8 +1156,11 @@ func TestBitlockerOperations(t *testing.T) {
 					}
 				})
 
+				enrollReceiver.encryptionRetryAfter = time.Time{}
 				require.NoError(t, enrollReceiver.Run(makeConfig()))
 
+				require.Equal(t, tc.wantBackoff, enrollReceiver.encryptionRetryAfter.After(time.Now()),
+					"backoff expectation: a paused volume must not be retried on every config poll")
 				require.Equal(t, tc.wantResume, resumeCalled, "resume expectation")
 				require.Equal(t, tc.wantEncrypt, encryptFnCalled, "encrypt expectation")
 				require.Equal(t, tc.wantRotate, rotateKeyFnCalled, "rotate expectation")
@@ -1189,9 +1195,12 @@ func TestBitlockerOperations(t *testing.T) {
 			}
 		})
 
+		enrollReceiver.encryptionRetryAfter = time.Time{}
 		require.NoError(t, enrollReceiver.Run(makeConfig()))
 		require.Contains(t, reported, "encryption is paused")
 		require.Contains(t, reported, "WMI refused")
+		// A volume that refuses to resume refuses again in 30 seconds; back off rather than repeating the report.
+		require.True(t, enrollReceiver.encryptionRetryAfter.After(time.Now()), "a failed resume must start a backoff")
 	})
 }
 

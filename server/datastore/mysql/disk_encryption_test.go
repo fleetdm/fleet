@@ -202,7 +202,7 @@ func testDeleteLUKSData(t *testing.T, ds *Datastore) {
 // Overwriting the stored key with that empty value takes the only recovery key Fleet can show an admin away from a
 // host that is still encrypted, which is the worst possible moment to lose it.
 func testClientErrorKeepsStoredKey(t *testing.T, ds *Datastore) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	host, err := ds.NewHost(ctx, &fleet.Host{
 		DetailUpdatedAt: time.Now(),
