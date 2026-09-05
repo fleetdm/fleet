@@ -58,24 +58,79 @@ type ISelectionCellProps = CellProps<IHost>;
 type IIssuesCellProps = CellProps<IHost, IHost["issues"]>;
 type IDeviceUserCellProps = CellProps<IHost, IHost["device_mapping"]>;
 
-const condenseDeviceUsers = (users: IDeviceUser[]): string[] => {
-  if (!users?.length) {
-    return [];
-  }
-  const condensed =
-    users.length === 4
-      ? users
-          .slice(-4)
+const NEVER_FETCHED_TOOLTIP =
+  "This host has not reported vitals yet, even if it has checked in.";
 
-          .map((u) => u.email)
-          .reverse()
-      : users
-          .slice(-3)
-          .map((u) => u.email)
-          .reverse() || [];
-  return users.length > 4
-    ? condensed.concat(`+${users.length - 3} more`) // TODO: confirm limit
-    : condensed;
+// Max number of individual email lines shown in the tooltip before the
+// remainder collapses into a single "+N more" line.
+const MAX_EMAILS_BEFORE_MORE_LINE = 5;
+
+interface IPrimaryDeviceUser {
+  primaryEmail?: string;
+  suffixCount: number;
+  tooltipLines: string[];
+}
+
+// Both `mdm_idp_accounts` (set at MDM enrollment) and `idp` (set via
+// `PUT /hosts/{id}/device_mapping`) represent IdP-sourced identities and
+// are treated as equivalent by the backend.
+const sourcePriority = (source: string): number => {
+  if (source === "mdm_idp_accounts" || source === "idp") return 0;
+  if (source === "google_chrome_profiles") return 1;
+  return 2;
+};
+
+const getPrimaryDeviceUser = (users: IDeviceUser[]): IPrimaryDeviceUser => {
+  if (!users?.length) {
+    return { primaryEmail: undefined, suffixCount: 0, tooltipLines: [] };
+  }
+
+  // Sort by source priority BEFORE deduping so a first-seen non-IdP row
+  // doesn't shadow a lower-priority `mdm_idp_accounts`/`idp` row for the
+  // same address (the backend orders `device_mapping` by `email, source`,
+  // so this happens for any user who supplies their IdP address via
+  // `PUT /hosts/{id}/device_mapping`). Stable sort preserves API ordering
+  // within a priority band.
+  const byPriority = users
+    .map((u, i) => ({ u, i }))
+    .sort((a, b) => {
+      const pa = sourcePriority(a.u.source);
+      const pb = sourcePriority(b.u.source);
+      return pa === pb ? a.i - b.i : pa - pb;
+    })
+    .map(({ u }) => u);
+
+  const seen = new Set<string>();
+  const uniqueUsers = byPriority.filter((u) => {
+    if (seen.has(u.email)) return false;
+    seen.add(u.email);
+    return true;
+  });
+
+  const primary = uniqueUsers[0];
+  const suffixCount = uniqueUsers.length - 1;
+
+  // No other emails to surface in a tooltip, so leave tooltipLines empty.
+  if (suffixCount === 0) {
+    return { primaryEmail: primary.email, suffixCount, tooltipLines: [] };
+  }
+
+  const orderedEmails = uniqueUsers.map((u) => u.email);
+  const remainder = orderedEmails.length - MAX_EMAILS_BEFORE_MORE_LINE;
+
+  // Only collapse into a "+N more" line when it saves at least two entries;
+  // hiding a single email behind a "+1 more" line is worse UX than showing
+  // it inline.
+  return {
+    primaryEmail: primary.email,
+    suffixCount,
+    tooltipLines:
+      remainder > 1
+        ? orderedEmails
+            .slice(0, MAX_EMAILS_BEFORE_MORE_LINE)
+            .concat(`+${remainder} more`)
+        : orderedEmails,
+  };
 };
 
 const lastSeenTime = (
@@ -214,26 +269,23 @@ const allHostTableHeaders = (teamId?: number): IHostTableColumnConfig[] => [
     id: "device_mapping",
     Cell: (cellProps: IDeviceUserCellProps) => {
       // TODO(android): is android supported?
-      const numUsers = cellProps.cell.value?.length || 0;
-      const users = condenseDeviceUsers(cellProps.cell.value || []);
-      if (users.length > 1) {
-        return (
-          <TooltipWrapper
-            tipContent={tooltipTextWithLineBreaks(users)}
-            underline={false}
-            showArrow
-            position="top"
-            tipOffset={10}
-            fixedPositionStrategy
-          >
-            <TextCell italic value={`${numUsers} users`} />
-          </TooltipWrapper>
-        );
-      }
-      if (users.length === 1) {
-        return <TextCell value={users[0]} />;
-      }
-      return <TextCell />;
+      const { primaryEmail, suffixCount, tooltipLines } = getPrimaryDeviceUser(
+        cellProps.cell.value || []
+      );
+      return (
+        <TooltipTruncatedTextCell
+          value={primaryEmail}
+          tooltip={
+            tooltipLines.length > 0
+              ? tooltipTextWithLineBreaks(tooltipLines)
+              : undefined
+          }
+          suffix={suffixCount > 0 ? `+${suffixCount}` : undefined}
+          justifySuffixEnd
+          alwaysShowTooltip={suffixCount > 0}
+          className="w250"
+        />
+      );
     },
   },
   // UUID
@@ -300,8 +352,12 @@ const allHostTableHeaders = (teamId?: number): IHostTableColumnConfig[] => [
     Cell: (cellProps: IHostTableStringCellProps) => (
       // TODO(android): android doesn't support refetch?
       <TextCell
-        value={{ timeString: cellProps.cell.value }}
-        formatter={HumanTimeDiffWithFleetLaunchCutoff}
+        value={
+          <HumanTimeDiffWithFleetLaunchCutoff
+            timeString={cellProps.cell.value}
+            neverTooltip={NEVER_FETCHED_TOOLTIP}
+          />
+        }
       />
     ),
   },
@@ -857,4 +913,5 @@ export {
   defaultHiddenColumns,
   generateAvailableTableHeaders,
   generateVisibleTableColumns,
+  getPrimaryDeviceUser,
 };

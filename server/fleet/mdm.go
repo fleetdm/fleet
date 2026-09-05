@@ -401,6 +401,12 @@ func (m *MDMCommandAuthz) SetTeamID(tid *uint) {
 	m.TeamID = tid
 }
 
+func (m MDMCommandAuthz) ExtraAuthz() (map[string]any, error) {
+	return map[string]any{
+		"is_apple_mobile": IsAppleMobilePlatform(m.Platform),
+	}, nil
+}
+
 // AuthzType implements authz.AuthzTyper.
 func (m MDMCommandAuthz) AuthzType() string {
 	return "mdm_command"

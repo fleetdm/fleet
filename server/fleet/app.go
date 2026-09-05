@@ -345,6 +345,12 @@ type MDM struct {
 	/////////////////////////////////////////////////////////////////
 }
 
+// IsAppleMDMSCEPBlocked reports whether Apple MDM SCEP endpoints are blocked altogether. This blocks enrollments
+// and renewals, plus those that might have a valid profile lying around with the static SCEP can't enroll.
+func (m MDM) IsAppleMDMSCEPBlocked() bool {
+	return m.OnlyAllowAppleBusinessEnrollment && m.AppleRequireHardwareAttestation
+}
+
 type DiskEncryptionConfig struct {
 	// MacOSEnabled indicates if FileVault enforcement is enabled for macOS hosts.
 	MacOSEnabled bool
@@ -2470,8 +2476,9 @@ type DeviceGlobalConfig struct {
 // DeviceGlobalMDMConfig is a subset of AppConfig.MDM with information used by
 // the device endpoints
 type DeviceGlobalMDMConfig struct {
-	EnabledAndConfigured bool `json:"enabled_and_configured"`
-	RequireAllSoftware   bool `json:"require_all_software_macos"`
+	EnabledAndConfigured             bool `json:"enabled_and_configured"`
+	RequireAllSoftware               bool `json:"require_all_software_macos"`
+	OnlyAllowAppleBusinessEnrollment bool `json:"only_allow_apple_business_enrollment"`
 }
 
 // DeviceFeatures is a subset of AppConfig.Features with information used by
