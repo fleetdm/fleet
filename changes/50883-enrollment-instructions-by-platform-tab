@@ -1,0 +1,1 @@
+- Fixed BYOD enrollment links so the enrollment page renders instructions for the platform tab that generated the link (Android, iOS/iPadOS, or macOS) instead of guessing the platform from the browser that opens it, and added a QR code handoff when an Android or iOS/iPadOS enrollment link is opened on a desktop browser.
