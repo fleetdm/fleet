@@ -2,6 +2,7 @@ import React from "react";
 import { render, screen } from "@testing-library/react";
 
 import { createMockHostMdmProfile } from "__mocks__/hostMock";
+import { FLEET_ANDROID_CERTIFICATE_TEMPLATE_PROFILE_ID } from "interfaces/mdm";
 
 import {
   getDetailGuidance,
@@ -145,6 +146,66 @@ describe("getDetailGuidance", () => {
     expect(screen.getByText(/correct it and resend/)).toBeInTheDocument();
     expect(screen.getByText("DIGICERT_TEST")).toBeInTheDocument();
     expect(screen.getByText("API token")).toBeInTheDocument();
+  });
+});
+
+// Every reason the Fleet Android app reports gets restated without SCEP, CSR, or key pair
+// jargon, since these messages also reach the end user's My device page.
+describe("getDetailGuidance for android certificates", () => {
+  const failedCert = (detail: string) =>
+    createMockHostMdmProfile({
+      profile_uuid: FLEET_ANDROID_CERTIFICATE_TEMPLATE_PROFILE_ID,
+      name: "BeyondCorp",
+      platform: "android",
+      operation_type: "install",
+      status: "failed",
+      certificate_template_id: 4,
+      detail,
+    });
+
+  it.each([
+    [
+      "Network error during SCEP enrollment: Failed to communicate with SCEP server",
+      "Fleet couldn't reach the certificate authority.",
+    ],
+    [
+      "SCEP enrollment failed: challenge rejected",
+      "The certificate authority rejected the request.",
+    ],
+    [
+      "Certificate validation failed: bad chain",
+      "The host couldn't validate the certificate from the certificate authority.",
+    ],
+    [
+      "Failed to generate key pair: keystore error",
+      "The host couldn't generate a private key.",
+    ],
+    [
+      "Failed to create CSR: bad subject",
+      "The host couldn't create a certificate signing request.",
+    ],
+    [
+      "Invalid configuration: missing subject name",
+      "The certificate configuration isn't valid.",
+    ],
+    [
+      "Certificate installation failed for alias 'BeyondCorp': installKeyPair returned false",
+      "The host couldn't install the certificate.",
+    ],
+  ])("restates %j in plain language", (detail, message) => {
+    const guidance = getDetailGuidance(failedCert(detail));
+
+    renderGuidance(guidance);
+
+    expect(screen.getByText(message)).toBeInTheDocument();
+    // The rewrite drops the app's diagnostic text, so the raw detail stays below it.
+    expect(guidance?.supersedesDetail).toBe(false);
+  });
+
+  it("returns null for an unrecognized failure, leaving the reported text to stand alone", () => {
+    expect(
+      getDetailGuidance(failedCert("Unexpected error during enrollment: null"))
+    ).toBeNull();
   });
 });
 
