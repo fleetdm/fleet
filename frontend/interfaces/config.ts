@@ -121,6 +121,7 @@ export interface IMdmConfig {
   microsoft_graph_credential_invalid: boolean;
   windows_automatic_enrollment?: IWindowsAutomaticEnrollment | null;
   apple_account_provisioning?: IAppleAccountProvisioning;
+  only_allow_apple_business_enrollment: boolean;
 }
 
 /** Settings for new user-driven Windows MDM enrollments (Premium only). */
