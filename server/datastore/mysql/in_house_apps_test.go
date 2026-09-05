@@ -41,6 +41,7 @@ func TestInHouseApps(t *testing.T) {
 		{"InHouseAppInstallTokens", testInHouseAppInstallTokens},
 		{"SummaryUpcomingPerHostNoDropout", testInHouseSummaryUpcomingPerHostNoDropout},
 		{"BatchSetInHouseInstallersInstallDuringSetup", testBatchSetInHouseInstallersInstallDuringSetup},
+		{"ManifestURLUsesAppleServerURL", testInHouseAppManifestURLUsesAppleServerURL},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -2193,4 +2194,56 @@ func testBatchSetInHouseInstallersInstallDuringSetup(t *testing.T, ds *Datastore
 	})
 	require.NoError(t, err)
 	require.Equal(t, map[string]bool{"ios": false, "ipados": true}, flagsByPlatform())
+}
+
+func testInHouseAppManifestURLUsesAppleServerURL(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+
+	const (
+		adminURL  = "https://admin.example.com"
+		deviceURL = "https://devices.example.com"
+	)
+	appCfg, err := ds.AppConfig(ctx)
+	require.NoError(t, err)
+	appCfg.ServerSettings.ServerURL = adminURL
+	appCfg.MDM.AppleServerURL = deviceURL
+	require.NoError(t, ds.SaveAppConfig(ctx, appCfg))
+
+	err = ds.BatchSetInHouseAppsInstallers(ctx, nil, []*fleet.UploadSoftwareInstallerPayload{
+		{
+			StorageID:        "ipa0",
+			Filename:         "ipa0.ipa",
+			Title:            "ipa0",
+			Source:           "ios_apps",
+			Version:          "1.0.0",
+			UserID:           user.ID,
+			Platform:         "ios",
+			URL:              "https://example.com/0",
+			ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+			BundleIdentifier: "com.ipa0",
+		},
+	})
+	require.NoError(t, err)
+
+	installers, err := ds.GetSoftwareInstallers(ctx, 0)
+	require.NoError(t, err)
+	require.Len(t, installers, 1)
+	ipa, err := ds.GetInHouseAppMetadataByTeamAndTitleID(ctx, nil, *installers[0].TitleID)
+	require.NoError(t, err)
+
+	host := test.NewHost(t, ds, "host1", "1", "host1key", "host1uuid", time.Now(), test.WithPlatform("ios"))
+	nanoEnroll(t, ds, host, false)
+
+	cmdUUID := createInHouseAppInstallRequest(t, ds, host.ID, ipa.InstallerID, *installers[0].TitleID, user)
+
+	var rawCmd string
+	require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &rawCmd,
+		`SELECT command FROM nano_commands WHERE command_uuid = ?`, cmdUUID))
+
+	// The device fetches the manifest itself, so the command has to carry the
+	// hostname Apple devices reach Fleet on rather than the admin one, which a
+	// split-hostname deployment does not expose to them.
+	require.Contains(t, rawCmd, deviceURL+"/api/latest/fleet/software/titles/")
+	require.NotContains(t, rawCmd, adminURL)
 }
