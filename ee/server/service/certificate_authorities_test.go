@@ -240,8 +240,11 @@ func TestCreatingCertificateAuthorities(t *testing.T) {
 		require.Nil(t, createdCA)
 	})
 
-	t.Run("Batch apply errors when no private key is configured", func(t *testing.T) {
+	t.Run("Batch apply succeeds when no private key is configured and no CA changes exist", func(t *testing.T) {
 		ds := new(mock.Store)
+		ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
+			return &fleet.GroupedCertificateAuthorities{}, nil
+		}
 		authorizer, err := authz.NewAuthorizer()
 		require.NoError(t, err)
 		svc := &Service{
@@ -253,6 +256,37 @@ func TestCreatingCertificateAuthorities(t *testing.T) {
 		ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
 
 		err = svc.BatchApplyCertificateAuthorities(ctx, fleet.GroupedCertificateAuthorities{}, fleet.BatchApplyCertificateAuthoritiesOpts{ViaGitOps: true})
+		require.NoError(t, err)
+	})
+
+	t.Run("Batch apply errors when no private key is configured and CA changes exist", func(t *testing.T) {
+		ds := new(mock.Store)
+		ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
+			return &fleet.GroupedCertificateAuthorities{}, nil
+		}
+		authorizer, err := authz.NewAuthorizer()
+		require.NoError(t, err)
+		svc := &Service{
+			logger: slog.New(slog.NewTextHandler(os.Stdout, nil)),
+			ds:     ds,
+			authz:  authorizer,
+		}
+		svc.config.Server.PrivateKey = ""
+		ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
+
+		err = svc.BatchApplyCertificateAuthorities(ctx, fleet.GroupedCertificateAuthorities{
+			DigiCert: []fleet.DigiCertCA{
+				{
+					Name:                          "DigiCert1",
+					URL:                           digicertURL,
+					APIToken:                      "token",
+					ProfileID:                     "profile",
+					CertificateCommonName:         "cn",
+					CertificateUserPrincipalNames: []string{"upn"},
+					CertificateSeatID:             "seat",
+				},
+			},
+		}, fleet.BatchApplyCertificateAuthoritiesOpts{ViaGitOps: true})
 		require.EqualError(t, err, "Server private key must be configured. Learn more: https://fleetdm.com/learn-more-about/fleet-server-private-key")
 	})
 

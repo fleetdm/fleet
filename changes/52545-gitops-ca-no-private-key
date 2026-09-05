@@ -1,0 +1,1 @@
+- Fixed an issue where GitOps apply failed when no server private key was configured even if no Certificate Authority changes were requested.
