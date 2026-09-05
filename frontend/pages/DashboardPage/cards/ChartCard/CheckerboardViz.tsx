@@ -39,6 +39,10 @@ interface ICheckerboardVizProps {
   theme?: ChartTheme;
   tooltipFormatter?: TooltipFormatter;
   relativeScale?: boolean;
+  // "gradient" (default) shows the full No data → More ramp. "binary" renders
+  // "Offline [offline swatch] [online swatch] Online" — for filters that
+  // render as on/off only, e.g. a single-host uptime view.
+  legendVariant?: "gradient" | "binary";
 }
 
 // These are calculated at a chart width of 580px and columns.
@@ -57,6 +61,7 @@ const CheckerboardViz = ({
   theme = "green",
   tooltipFormatter,
   relativeScale = false,
+  legendVariant = "gradient",
 }: ICheckerboardVizProps): JSX.Element => {
   const containerRef = useRef<HTMLDivElement>(null);
   const scrollWrapperRef = useRef<HTMLDivElement>(null);
@@ -435,18 +440,33 @@ const CheckerboardViz = ({
         </div>
       )}
       <div className={`${baseClass}__legend`}>
-        <span className={`${baseClass}__legend-label`}>No data</span>
-        <span
-          className={`${baseClass}__legend-swatch ${baseClass}__cell--level-0`}
-        />
-        <span className={`${baseClass}__legend-label`}>Less</span>
-        {[1, 2, 3, 4, 5].map((level) => (
-          <span
-            key={level}
-            className={`${baseClass}__legend-swatch ${baseClass}__cell--level-${level}`}
-          />
-        ))}
-        <span className={`${baseClass}__legend-label`}>More</span>
+        {legendVariant === "gradient" ? (
+          <>
+            <span className={`${baseClass}__legend-label`}>No data</span>
+            <span
+              className={`${baseClass}__legend-swatch ${baseClass}__cell--level-0`}
+            />
+            <span className={`${baseClass}__legend-label`}>Less</span>
+            {[1, 2, 3, 4, 5].map((level) => (
+              <span
+                key={level}
+                className={`${baseClass}__legend-swatch ${baseClass}__cell--level-${level}`}
+              />
+            ))}
+            <span className={`${baseClass}__legend-label`}>More</span>
+          </>
+        ) : (
+          <>
+            <span className={`${baseClass}__legend-label`}>Offline</span>
+            <span
+              className={`${baseClass}__legend-swatch ${baseClass}__cell--level-0`}
+            />
+            <span
+              className={`${baseClass}__legend-swatch ${baseClass}__cell--level-5`}
+            />
+            <span className={`${baseClass}__legend-label`}>Online</span>
+          </>
+        )}
       </div>
     </div>
   );
