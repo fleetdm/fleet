@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -10,6 +11,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/test"
+	"github.com/fleetdm/fleet/v4/server/variables"
 	"github.com/stretchr/testify/require"
 )
 
@@ -62,43 +64,192 @@ func TestMaybeExpandScriptFleetVariables(t *testing.T) {
 		}
 	})
 
-	t.Run("host variables expand", func(t *testing.T) {
+	t.Run("host variables are defined, not substituted", func(t *testing.T) {
 		svc, ctx, _ := newSvcAndCtx(fleet.TierPremium)
-		expanded, failMsg, err := svc.maybeExpandScriptFleetVariables(ctx, host,
-			"echo $FLEET_VAR_HOST_UUID $FLEET_VAR_HOST_HARDWARE_SERIAL ${FLEET_VAR_HOST_PLATFORM}")
+		const body = "echo $FLEET_VAR_HOST_UUID $FLEET_VAR_HOST_HARDWARE_SERIAL ${FLEET_VAR_HOST_PLATFORM}"
+		expanded, failMsg, err := svc.maybeExpandScriptFleetVariables(ctx, host, body)
 		require.NoError(t, err)
 		require.Empty(t, failMsg)
-		require.Equal(t, "echo ABC-123 SERIAL-1 macos", expanded)
+		requireVarsDelivered(t, expanded, body, map[string]string{
+			"HOST_UUID": "ABC-123", "HOST_HARDWARE_SERIAL": "SERIAL-1", "HOST_PLATFORM": "macos",
+		})
 	})
 
 	t.Run("platform passes through for linux and windows", func(t *testing.T) {
 		svc, ctx, _ := newSvcAndCtx(fleet.TierPremium)
-		for platform, want := range map[string]string{"ubuntu": "ubuntu", "rhel": "rhel", "windows": "windows"} {
+		for platform, want := range map[string]string{"ubuntu": "ubuntu", "rhel": "rhel"} {
 			h := *host
 			h.Platform = platform
 			expanded, failMsg, err := svc.maybeExpandScriptFleetVariables(ctx, &h, "echo $FLEET_VAR_HOST_PLATFORM")
 			require.NoError(t, err)
 			require.Empty(t, failMsg)
-			require.Equal(t, "echo "+want, expanded)
+			requireVarsDelivered(t, expanded, "echo $FLEET_VAR_HOST_PLATFORM", map[string]string{"HOST_PLATFORM": want})
 		}
 	})
 
-	t.Run("IdP variables expand", func(t *testing.T) {
+	t.Run("IdP variables are defined, not substituted", func(t *testing.T) {
 		svc, ctx, ds := newSvcAndCtx(fleet.TierPremium)
 		mockScimUser(ds, scimUser)
-		expanded, failMsg, err := svc.maybeExpandScriptFleetVariables(ctx, host,
-			"user: $FLEET_VAR_HOST_END_USER_IDP_USERNAME\n"+
-				"email: user_${FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART}@corp.example.com\n"+
-				"name: $FLEET_VAR_HOST_END_USER_IDP_FULL_NAME\n"+
-				"groups: $FLEET_VAR_HOST_END_USER_IDP_GROUPS\n"+
-				"dept: $FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT\n")
+		const body = "user: $FLEET_VAR_HOST_END_USER_IDP_USERNAME\n" +
+			"email: user_${FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART}@corp.example.com\n" +
+			"name: $FLEET_VAR_HOST_END_USER_IDP_FULL_NAME\n" +
+			"groups: $FLEET_VAR_HOST_END_USER_IDP_GROUPS\n" +
+			"dept: $FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT\n"
+		expanded, failMsg, err := svc.maybeExpandScriptFleetVariables(ctx, host, body)
 		require.NoError(t, err)
 		require.Empty(t, failMsg)
-		require.Equal(t, "user: user@example.com\n"+
-			"email: user_user@corp.example.com\n"+
-			"name: Ada Lovelace\n"+
-			"groups: g1,g2\n"+
-			"dept: Engineering\n", expanded)
+		requireVarsDelivered(t, expanded, body, map[string]string{
+			"HOST_END_USER_IDP_USERNAME":            "user@example.com",
+			"HOST_END_USER_IDP_USERNAME_LOCAL_PART": "user",
+			"HOST_END_USER_IDP_FULL_NAME":           "Ada Lovelace",
+			"HOST_END_USER_IDP_GROUPS":              "g1,g2",
+			"HOST_END_USER_IDP_DEPARTMENT":          "Engineering",
+		})
+	})
+
+	// SCIM attributes and the host's own osquery-reported vitals both reach this
+	// resolver, and neither is validated at ingestion.
+	t.Run("interpreter metacharacters never reach the script body", func(t *testing.T) {
+		payloads := map[string]string{
+			"backtick":    "Engineering`touch /tmp/pwned`",
+			"cmd-subst":   "Engineering$(touch /tmp/pwned)",
+			"semicolon":   "Engineering; touch /tmp/pwned",
+			"embedded-sq": "Engineering'; touch /tmp/pwned; echo '",
+			"newline":     "Engineering\ntouch /tmp/pwned",
+			"python":      "X\")\nimport os\nos.system(\"touch /tmp/pwned\")\nprint(\"",
+		}
+		for name, payload := range payloads {
+			t.Run("department/"+name, func(t *testing.T) {
+				svc, ctx, ds := newSvcAndCtx(fleet.TierPremium)
+				u := *scimUser
+				u.Department = &payload
+				mockScimUser(ds, &u)
+				const body = "echo \"dept: $FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT\""
+				expanded, failMsg, err := svc.maybeExpandScriptFleetVariables(ctx, host, body)
+				require.NoError(t, err)
+				require.Empty(t, failMsg)
+				requireVarsDelivered(t, expanded, body, map[string]string{"HOST_END_USER_IDP_DEPARTMENT": payload})
+			})
+
+			t.Run("hardware-serial/"+name, func(t *testing.T) {
+				svc, ctx, _ := newSvcAndCtx(fleet.TierPremium)
+				h := *host
+				h.HardwareSerial = payload
+				const body = "echo \"serial: $FLEET_VAR_HOST_HARDWARE_SERIAL\""
+				expanded, failMsg, err := svc.maybeExpandScriptFleetVariables(ctx, &h, body)
+				require.NoError(t, err)
+				require.Empty(t, failMsg)
+				requireVarsDelivered(t, expanded, body, map[string]string{"HOST_HARDWARE_SERIAL": payload})
+			})
+
+			t.Run("uuid/"+name, func(t *testing.T) {
+				svc, ctx, _ := newSvcAndCtx(fleet.TierPremium)
+				h := *host
+				h.UUID = payload
+				const body = "echo \"uuid: $FLEET_VAR_HOST_UUID\""
+				expanded, failMsg, err := svc.maybeExpandScriptFleetVariables(ctx, &h, body)
+				require.NoError(t, err)
+				require.Empty(t, failMsg)
+				requireVarsDelivered(t, expanded, body, map[string]string{"HOST_UUID": payload})
+			})
+		}
+	})
+
+	t.Run("windows hosts get PowerShell assignments and keep the tokens", func(t *testing.T) {
+		svc, ctx, _ := newSvcAndCtx(fleet.TierPremium)
+		h := *host
+		h.Platform = "windows"
+		const body = "Write-Output \"$FLEET_VAR_HOST_UUID ${FLEET_VAR_HOST_UUID}\""
+		expanded, failMsg, err := svc.maybeExpandScriptFleetVariables(ctx, &h, body)
+		require.NoError(t, err)
+		require.Empty(t, failMsg)
+		require.Equal(t, "$FLEET_VAR_HOST_UUID = "+variables.PowerShellCharArray("ABC-123")+"\r\n"+body, expanded)
+		// the documented token syntax is unchanged on Windows
+		require.Contains(t, expanded, "$FLEET_VAR_HOST_UUID ${FLEET_VAR_HOST_UUID}")
+		require.NotContains(t, body, "ABC-123")
+	})
+
+	t.Run("PowerShell param block keeps its place", func(t *testing.T) {
+		svc, ctx, _ := newSvcAndCtx(fleet.TierPremium)
+		h := *host
+		h.Platform = "windows"
+		const body = "param($Foo = \"bar\")\r\nWrite-Output $FLEET_VAR_HOST_UUID\r\n"
+		expanded, failMsg, err := svc.maybeExpandScriptFleetVariables(ctx, &h, body)
+		require.NoError(t, err)
+		require.Empty(t, failMsg)
+		require.Equal(t, "param($Foo = \"bar\")\r\n"+
+			"$FLEET_VAR_HOST_UUID = "+variables.PowerShellCharArray("ABC-123")+"\r\n"+
+			"Write-Output $FLEET_VAR_HOST_UUID\r\n", expanded)
+	})
+
+	t.Run("a variable in a param default fails", func(t *testing.T) {
+		svc, ctx, _ := newSvcAndCtx(fleet.TierPremium)
+		h := *host
+		h.Platform = "windows"
+		expanded, failMsg, err := svc.maybeExpandScriptFleetVariables(ctx, &h,
+			"param($Foo = $FLEET_VAR_HOST_UUID)\r\nWrite-Output $Foo\r\n")
+		require.NoError(t, err)
+		require.Empty(t, expanded)
+		require.Equal(t, powerShellParamBlockMsg, failMsg)
+	})
+
+	t.Run("python scripts get escaped values", func(t *testing.T) {
+		svc, ctx, _ := newSvcAndCtx(fleet.TierPremium)
+		for _, shebang := range []string{
+			"#!/usr/bin/env python3", "#!/usr/bin/python3", "#!/opt/homebrew/bin/python3.12",
+		} {
+			expanded, failMsg, err := svc.maybeExpandScriptFleetVariables(ctx, host,
+				shebang+"\nprint(\"uuid: $FLEET_VAR_HOST_UUID\")\n")
+			require.NoError(t, err)
+			require.Empty(t, failMsg)
+			require.Equal(t, shebang+"\nprint(\"uuid: "+variables.PythonEscape("ABC-123")+"\")\n", expanded)
+			require.NotContains(t, expanded, "ABC-123")
+		}
+	})
+
+	t.Run("python values carrying source stay literal", func(t *testing.T) {
+		svc, ctx, ds := newSvcAndCtx(fleet.TierPremium)
+		payload := "X\")\nimport os\nos.system(\"touch /tmp/pwned\")\nprint(\""
+		u := *scimUser
+		u.Department = &payload
+		mockScimUser(ds, &u)
+		expanded, failMsg, err := svc.maybeExpandScriptFleetVariables(ctx, host,
+			"#!/usr/bin/env python3\nprint(\"$FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT\")\n")
+		require.NoError(t, err)
+		require.Empty(t, failMsg)
+		require.NotContains(t, expanded, "os.system")
+		require.Contains(t, expanded, variables.PythonEscape(payload))
+	})
+
+	t.Run("python scripts without variables are unchanged", func(t *testing.T) {
+		svc, ctx, _ := newSvcAndCtx(fleet.TierPremium)
+		const contents = "#!/usr/bin/env python3\nprint(\"hello\")\n"
+		expanded, failMsg, err := svc.maybeExpandScriptFleetVariables(ctx, host, contents)
+		require.NoError(t, err)
+		require.Empty(t, failMsg)
+		require.Equal(t, contents, expanded)
+	})
+
+	t.Run("unknown platform fails instead of guessing an interpreter", func(t *testing.T) {
+		svc, ctx, _ := newSvcAndCtx(fleet.TierPremium)
+		h := *host
+		h.Platform = ""
+		expanded, failMsg, err := svc.maybeExpandScriptFleetVariables(ctx, &h, "echo $FLEET_VAR_HOST_UUID")
+		require.NoError(t, err)
+		require.Empty(t, expanded)
+		require.Equal(t, noPlatformMsg, failMsg)
+	})
+
+	t.Run("NUL in a value is a resolution failure", func(t *testing.T) {
+		svc, ctx, ds := newSvcAndCtx(fleet.TierPremium)
+		u := *scimUser
+		u.Department = new("Eng\x00ineering")
+		mockScimUser(ds, &u)
+		expanded, failMsg, err := svc.maybeExpandScriptFleetVariables(ctx, host,
+			"echo $FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT")
+		require.NoError(t, err)
+		require.Empty(t, expanded)
+		require.Contains(t, failMsg, "contains an invalid character")
 	})
 
 	t.Run("missing IdP user is a resolution failure", func(t *testing.T) {
@@ -126,11 +277,18 @@ func TestMaybeExpandScriptFleetVariables(t *testing.T) {
 
 	t.Run("unsupported variable names are left untouched", func(t *testing.T) {
 		svc, ctx, _ := newSvcAndCtx(fleet.TierPremium)
-		contents := "echo $FLEET_VAR_SOMETHING_ELSE and $FLEET_VAR_HOST_UUID"
-		expanded, failMsg, err := svc.maybeExpandScriptFleetVariables(ctx, host, contents)
+		const body = "echo $FLEET_VAR_SOMETHING_ELSE and $FLEET_VAR_HOST_UUID"
+		expanded, failMsg, err := svc.maybeExpandScriptFleetVariables(ctx, host, body)
 		require.NoError(t, err)
 		require.Empty(t, failMsg)
-		require.Equal(t, "echo $FLEET_VAR_SOMETHING_ELSE and ABC-123", expanded)
+		requireVarsDelivered(t, expanded, body, map[string]string{"HOST_UUID": "ABC-123"})
+
+		// only unsupported names means no preamble at all, on any interpreter
+		const onlyUnsupported = "#!/usr/bin/env python3\nprint(\"$FLEET_VAR_SOMETHING_ELSE\")\n"
+		expanded, failMsg, err = svc.maybeExpandScriptFleetVariables(ctx, host, onlyUnsupported)
+		require.NoError(t, err)
+		require.Empty(t, failMsg)
+		require.Equal(t, onlyUnsupported, expanded)
 	})
 
 	t.Run("variables on free license fail instead of expanding", func(t *testing.T) {
@@ -146,6 +304,35 @@ func TestMaybeExpandScriptFleetVariables(t *testing.T) {
 		require.Empty(t, failMsg)
 		require.Equal(t, "echo hello", expanded)
 	})
+}
+
+// requireVarsDelivered asserts each variable is defined in the preamble, that
+// the body still carries its tokens, and that no value leaked into the body.
+func requireVarsDelivered(t *testing.T, expanded, wantBody string, vars map[string]string) {
+	t.Helper()
+	for name, value := range vars {
+		require.Contains(t, expanded, "FLEET_VAR_"+name+"="+variables.PosixQuote(value))
+	}
+	body := stripPreamble(t, expanded)
+	require.Equal(t, wantBody, body)
+	for name, value := range vars {
+		// a value the admin already wrote into the body proves nothing
+		if value != "" && !strings.Contains(wantBody, value) {
+			require.NotContains(t, body, value, "value for %s reached the script body", name)
+		}
+	}
+}
+
+// stripPreamble removes the preamble, which spans more than three lines when a
+// value contains newlines.
+func stripPreamble(t *testing.T, contents string) string {
+	t.Helper()
+	lines := strings.Split(contents, "\n")
+	start := slices.IndexFunc(lines, func(l string) bool { return strings.HasPrefix(l, "__fleet_lc=") })
+	require.GreaterOrEqual(t, start, 0, "no preamble found in %q", contents)
+	end := slices.IndexFunc(lines[start:], func(l string) bool { return strings.HasPrefix(l, "LC_ALL=${__fleet_lc}") })
+	require.GreaterOrEqual(t, end, 0, "unterminated preamble in %q", contents)
+	return strings.Join(slices.Concat(lines[:start], lines[start+end+1:]), "\n")
 }
 
 func splitLines(s string) []string {
@@ -201,7 +388,8 @@ func TestGetHostScriptFleetVariables(t *testing.T) {
 
 		script, err := svc.GetHostScript(ctx, "exec-1")
 		require.NoError(t, err)
-		require.Equal(t, "echo ABC-123 on ubuntu", script.ScriptContents)
+		requireVarsDelivered(t, script.ScriptContents, "echo $FLEET_VAR_HOST_UUID on $FLEET_VAR_HOST_PLATFORM",
+			map[string]string{"HOST_UUID": "ABC-123", "HOST_PLATFORM": "ubuntu"})
 		require.Nil(t, script.ExitCode)
 		require.True(t, ds.ExpandEmbeddedSecretsFuncInvoked)
 	})
@@ -294,9 +482,12 @@ func TestGetSoftwareInstallDetailsFleetVariables(t *testing.T) {
 
 		details, err := svc.GetSoftwareInstallDetails(ctx, "install-1")
 		require.NoError(t, err)
-		require.Equal(t, "install SERIAL-1", details.InstallScript)
-		require.Equal(t, "post ABC-123", details.PostInstallScript)
-		require.Equal(t, "uninstall ubuntu", details.UninstallScript)
+		requireVarsDelivered(t, details.InstallScript, "install $FLEET_VAR_HOST_HARDWARE_SERIAL",
+			map[string]string{"HOST_HARDWARE_SERIAL": "SERIAL-1"})
+		requireVarsDelivered(t, details.PostInstallScript, "post ${FLEET_VAR_HOST_UUID}",
+			map[string]string{"HOST_UUID": "ABC-123"})
+		requireVarsDelivered(t, details.UninstallScript, "uninstall $FLEET_VAR_HOST_PLATFORM",
+			map[string]string{"HOST_PLATFORM": "ubuntu"})
 	})
 
 	t.Run("scripts without variables are unchanged", func(t *testing.T) {

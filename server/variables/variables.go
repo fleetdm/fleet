@@ -93,11 +93,35 @@ func Dedupe(varsWithDupes []string) []string {
 //
 // For example, Replace(content, "HOST_UUID", "123-456") will replace both
 // $FLEET_VAR_HOST_UUID and ${FLEET_VAR_HOST_UUID} with "123-456".
+//
+// It performs no escaping, and must never be used on content an interpreter will
+// execute: the quoting context at the substitution point is unknown, so no
+// escaping is correct there. Use Preamble instead.
 func Replace(contents string, variableName string, value string) string {
 	// Replace both braced and non-braced versions
 	result := strings.ReplaceAll(contents, "$FLEET_VAR_"+variableName, value)
 	result = strings.ReplaceAll(result, "${FLEET_VAR_"+variableName+"}", value)
 	return result
+}
+
+// PythonEscape returns value as Python \U escapes, one per code point, for
+// substitution into Python source, which has no $VAR expansion of its own. Only
+// a backslash, "U" and hex digits reach the script, so the value can't close a
+// string literal, and outside one the leading backslash is a line continuation
+// so the file won't parse. Escaping every character rather than just the
+// dangerous ones is what buys that second property: executable Python needs no
+// quotes at all.
+func PythonEscape(value string) string {
+	const hexDigits = "0123456789abcdef"
+	var b strings.Builder
+	b.Grow(len(value) * 10)
+	for _, r := range value {
+		b.WriteString(`\U`)
+		for shift := 28; shift >= 0; shift -= 4 {
+			b.WriteByte(hexDigits[(r>>shift)&0xf])
+		}
+	}
+	return b.String()
 }
 
 // Contains checks if the given content contains any Fleet variables.

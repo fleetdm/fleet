@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
@@ -13,18 +14,19 @@ import (
 	"github.com/fleetdm/fleet/v4/server/variables"
 )
 
-// maybeExpandScriptFleetVariables resolves supported $FLEET_VAR_* references
-// in contents for the given host. It returns the expanded contents, or a
-// non-empty failureMessage when a variable exists but can't be resolved for
-// this host (one line per failing variable). Unsupported variable names are
-// left untouched: validation rejects them in new content, and content saved
-// before validation shipped must keep working unchanged. Known limit of
-// variables.Replace, accepted because validation rejects unsupported names
-// going forward: in pre-validation content, an unsupported name that extends
-// a supported one (e.g. $FLEET_VAR_HOST_UUID_SUFFIX) has its prefix replaced
-// along with the supported variable. Supported names that extend each other
-// (e.g. ..._IDP_USERNAME and ..._IDP_USERNAME_LOCAL_PART) are safe because
-// variables.Find returns names longest-first and each is replaced in turn.
+const (
+	powerShellParamBlockMsg = "Fleet couldn't run this script because Fleet variables aren't supported inside a PowerShell param() block. Use the variable in the script body instead."
+	unsupportedInterpMsg    = "Fleet couldn't run this script because its interpreter isn't supported."
+	noPlatformMsg           = "There is no platform for this host. Fleet couldn't populate Fleet variables."
+)
+
+// maybeExpandScriptFleetVariables resolves supported $FLEET_VAR_* references in
+// contents for the given host. Values are defined in a preamble, or escaped and
+// substituted for Python, so a value is never parsed as script source. It
+// returns the expanded contents, or a non-empty failureMessage when a variable
+// can't be resolved for this host (one line per failing variable). Unsupported
+// variable names are left untouched: validation rejects them in new content, and
+// content saved before validation shipped must keep working unchanged.
 func (svc *Service) maybeExpandScriptFleetVariables(ctx context.Context, host *fleet.Host, contents string) (expanded string, failureMessage string, err error) {
 	fleetVars := variables.Find(contents)
 	if len(fleetVars) == 0 {
@@ -37,6 +39,21 @@ func (svc *Service) maybeExpandScriptFleetVariables(ctx context.Context, host *f
 		return "", "Fleet couldn't run this script because it uses variables, which require a Fleet Premium license.", nil
 	}
 
+	supported := make([]string, 0, len(fleetVars))
+	for _, v := range fleetVars {
+		if slices.Contains(fleet.FleetVarsSupportedInScripts, fleet.FleetVarName(v)) {
+			supported = append(supported, v)
+		}
+	}
+	if len(supported) == 0 {
+		return contents, "", nil
+	}
+
+	dialect, dialectFailure := scriptFleetVarDialect(host, contents)
+	if dialectFailure != "" {
+		return "", dialectFailure, nil
+	}
+
 	// collect all failures instead of stopping at the first one so the admin
 	// can fix everything in one pass
 	var failures []string
@@ -45,12 +62,9 @@ func (svc *Service) maybeExpandScriptFleetVariables(ctx context.Context, host *f
 		return nil
 	}
 
+	resolved := make(map[string]string, len(supported))
 	hostIDForUUIDCache := map[string]uint{host.UUID: host.ID}
-	for _, v := range fleetVars {
-		if !slices.Contains(fleet.FleetVarsSupportedInScripts, fleet.FleetVarName(v)) {
-			continue
-		}
-
+	for _, v := range supported {
 		var value string
 		switch fleet.FleetVarName(v) {
 		case fleet.FleetVarHostUUID:
@@ -70,10 +84,6 @@ func (svc *Service) maybeExpandScriptFleetVariables(ctx context.Context, host *f
 			if value == "darwin" {
 				value = "macos"
 			}
-			if value == "" {
-				_ = fail(fmt.Sprintf("There is no platform for this host. Fleet couldn't populate $FLEET_VAR_%s.", v))
-				continue
-			}
 		default: // the IdP variables
 			idpValue, _, ok, err := profiles.ResolveHostEndUserIDPValue(ctx, svc.ds, v, host.UUID, hostIDForUUIDCache, fail)
 			if err != nil {
@@ -86,11 +96,55 @@ func (svc *Service) maybeExpandScriptFleetVariables(ctx context.Context, host *f
 			value = idpValue
 		}
 
-		contents = variables.Replace(contents, v, value)
+		// a NUL silently truncates the line for the interpreter
+		if strings.ContainsRune(value, 0) {
+			_ = fail(fmt.Sprintf("The value for $FLEET_VAR_%s contains an invalid character. Fleet couldn't populate it.", v))
+			continue
+		}
+		resolved[v] = value
 	}
 
 	if len(failures) > 0 {
 		return "", strings.Join(failures, "\n"), nil
 	}
-	return contents, "", nil
+	if len(resolved) == 0 {
+		return contents, "", nil
+	}
+
+	if dialect == variables.DialectPython {
+		for name, value := range resolved {
+			contents = variables.Replace(contents, name, variables.PythonEscape(value))
+		}
+		return contents, "", nil
+	}
+
+	expanded, err = variables.InsertPreamble(contents, variables.Preamble(resolved, dialect), dialect)
+	switch {
+	case errors.Is(err, variables.ErrPowerShellLeadingParamBlock):
+		return "", powerShellParamBlockMsg, nil
+	case err != nil:
+		return "", "", ctxerr.Wrap(ctx, err, "insert fleet variable preamble")
+	}
+	return expanded, "", nil
+}
+
+// scriptFleetVarDialect returns the interpreter to write the preamble for, or a
+// message explaining why variables can't be delivered to it. Platform decides
+// first: on Windows fleetd runs the script through PowerShell whatever shebang
+// it carries.
+func scriptFleetVarDialect(host *fleet.Host, contents string) (variables.Dialect, string) {
+	if host.Platform == "" {
+		return 0, noPlatformMsg
+	}
+	if fleet.IsWindowsPlatform(host.Platform) {
+		return variables.DialectPowerShell, ""
+	}
+	kind, _, err := fleet.ShebangInfo(contents)
+	switch {
+	case err != nil:
+		return 0, unsupportedInterpMsg
+	case kind == fleet.ShebangPython:
+		return variables.DialectPython, ""
+	}
+	return variables.DialectPOSIX, ""
 }
