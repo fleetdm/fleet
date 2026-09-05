@@ -106,6 +106,30 @@ func requestFieldName(sf reflect.StructField) string {
 	return name
 }
 
+// optionalValue is implemented by the optjson types, which record whether the
+// payload carried a value separately from the value itself.
+type optionalValue interface {
+	HasValue() bool
+}
+
+// premiumValueSupplied reports whether a premium-tagged field carries a value
+// the caller actually supplied.
+//
+// A type that models an optional value stays non-zero once its key is present,
+// even when that key was null, so the zero check alone reads an explicit null
+// as a supplied value. Such a type answers for itself; anything else is judged
+// by the zero check on its own.
+func premiumValueSupplied(v reflect.Value) bool {
+	if !v.CanInterface() {
+		return true
+	}
+	o, ok := reflect.TypeAssert[optionalValue](v)
+	if !ok {
+		return true
+	}
+	return o.HasValue()
+}
+
 // aliasRulesCache caches the result of ExtractAliasRules by reflect.Type so
 // that the reflection walk happens only once per struct type, not on every
 // request.
@@ -789,7 +813,7 @@ func MakeDecoder(
 					if err != nil {
 						return nil, err
 					}
-					if val && !fp.V.IsZero() {
+					if val && !fp.V.IsZero() && premiumValueSupplied(fp.V) {
 						return nil, &platform_http.BadRequestError{Message: fmt.Sprintf(
 							"option %s requires a premium license",
 							requestFieldName(fp.Sf),
