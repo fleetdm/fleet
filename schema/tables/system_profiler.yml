@@ -34,6 +34,20 @@ examples: |-
   FROM system_profiler sp, JSON_EACH(sp.value->'[0]._items') each
   WHERE data_type = 'SPAudioDataType';
   ```
+
+  Discover Macs that have updated to the lastest macOS version within the last 7 days:
+
+  ```
+  SELECT
+    each.value->>'_name' AS display_name,
+    each.value->>'install_date' AS install_date_raw
+  FROM system_profiler sp, JSON_EACH(sp.value) each
+  WHERE sp.data_type = 'SPInstallHistoryDataType'
+    AND each.value->>'_name' LIKE 'macOS %'
+    AND (strftime('%s','now') - strftime('%s', substr(each.value->>'install_date', 1, 19))) <= 604800
+  ORDER BY install_date_raw DESC
+  LIMIT 1;
+  ```
   
 notes: |-
   The macOS system_profiler binary reports on the hardware and software configuration of a Mac. It generates detailed, plain text, XML or json reports which can be exported from the Terminal or generated as .spx files and read by the macOS System Information.app based on "data types". 
