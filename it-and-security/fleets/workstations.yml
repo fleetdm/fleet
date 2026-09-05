@@ -183,6 +183,7 @@ policies:
   - path: ../lib/macos/policies/remote-login-disabled.yml
   - path: ../lib/macos/policies/screen-lock-inactivity.yml
   - path: ../lib/macos/policies/local-admin-count-reasonable.yml
+  - path: ../lib/macos/policies/update-docker.yml
   # Windows policies
   - path: ../lib/windows/policies/antivirus-signatures-up-to-date.yml
   - path: ../lib/windows/policies/all-windows-updates-installed.yml
@@ -195,6 +196,7 @@ policies:
   - path: ../lib/windows/policies/secure-boot-enabled.yml
   - path: ../lib/windows/policies/remote-desktop-disabled.yml
   - path: ../lib/windows/policies/screen-lock-timeout-configured.yml
+  - path: ../lib/windows/policies/update-docker.yml
   # Linux policies
   - path: ../lib/linux/policies/disk-encryption-check.yml
   - path: ../lib/linux/policies/disk-space-check.yml
