@@ -5220,7 +5220,17 @@ func TestRunMDMCommandAndroid(t *testing.T) {
 				MDM: fleet.MDM{AndroidEnabledAndConfigured: true},
 			}, nil
 		}
+		ds.GetHostMDMFunc = func(_ context.Context, _ uint) (*fleet.HostMDM, error) {
+			return &fleet.HostMDM{Enrolled: true}, nil
+		}
 		return ds
+	}
+
+	// personallyOwned makes the host read back as a BYOD (work profile) enrollment.
+	personallyOwned := func(ds *mock.Store) {
+		ds.GetHostMDMFunc = func(_ context.Context, _ uint) (*fleet.HostMDM, error) {
+			return &fleet.HostMDM{Enrolled: true, IsPersonalEnrollment: true}, nil
+		}
 	}
 
 	t.Run("success creates activity", func(t *testing.T) {
@@ -5388,6 +5398,123 @@ func TestRunMDMCommandAndroid(t *testing.T) {
 		_, err := svc.RunMDMCommand(ctx, encoded, []string{androidHost.UUID})
 		require.Error(t, err)
 		require.ErrorContains(t, err, "Android MDM isn't turned on")
+	})
+
+	// AMAPI accepts these on a BYOD work profile and reports them as running, but the
+	// device never carries them out, so Fleet rejects them up front instead.
+	t.Run("rejects company-owned only commands on a personally-owned host", func(t *testing.T) {
+		for _, rawCmd := range []string{
+			`{"type":"REBOOT"}`,
+			`{"type":"RELINQUISH_OWNERSHIP"}`,
+			`{"type":"START_LOST_MODE"}`,
+			`{"type":"STOP_LOST_MODE"}`,
+			// lowercase must gate too, since the type is normalized before the check
+			`{"type":"reboot"}`,
+			// AMAPI infers the type from these params when it is omitted, so leaving
+			// the type out must not slip past the check
+			`{"startLostModeParams":{"lostMessage":{"defaultMessage":"lost"}}}`,
+			`{"stopLostModeParams":{}}`,
+		} {
+			t.Run(rawCmd, func(t *testing.T) {
+				ds := setupDS(t)
+				personallyOwned(ds)
+				// The command must be rejected before it reaches AMAPI, so record
+				// rather than panic on a call that should never happen.
+				var issued bool
+				androidMock := &mockAndroidService{
+					IssueCustomCommandFunc: func(_ context.Context, _ uint, _ []byte) (*android.MDMAndroidCommand, error) {
+						issued = true
+						return &android.MDMAndroidCommand{CommandUUID: "cmd-uuid", CommandType: "UNEXPECTED"}, nil
+					},
+				}
+				opts := &TestServerOpts{SkipCreateTestUsers: true, AndroidModule: androidMock}
+				svc, ctx := newTestService(t, ds, nil, nil, opts)
+				ctx = test.UserContext(ctx, test.UserAdmin)
+
+				opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, _ activity_api.ActivityDetails) error {
+					return nil
+				}
+
+				encoded := base64.StdEncoding.EncodeToString([]byte(rawCmd))
+				_, err := svc.RunMDMCommand(ctx, encoded, []string{androidHost.UUID})
+				require.Error(t, err)
+				require.ErrorContains(t, err, "This Android command is only supported on company-owned hosts.")
+				var bre *fleet.BadRequestError
+				require.ErrorAs(t, err, &bre)
+				assert.False(t, issued, "the command must not be sent to AMAPI")
+			})
+		}
+	})
+
+	t.Run("allows a command that works on a work profile on a personally-owned host", func(t *testing.T) {
+		ds := setupDS(t)
+		personallyOwned(ds)
+		androidMock := &mockAndroidService{
+			IssueCustomCommandFunc: func(_ context.Context, _ uint, _ []byte) (*android.MDMAndroidCommand, error) {
+				return &android.MDMAndroidCommand{CommandUUID: "cmd-uuid-lock-byod", CommandType: "LOCK"}, nil
+			},
+		}
+		opts := &TestServerOpts{
+			SkipCreateTestUsers: true,
+			AndroidModule:       androidMock,
+			License:             &fleet.LicenseInfo{Tier: fleet.TierPremium},
+		}
+		svc, ctx := newTestService(t, ds, nil, nil, opts)
+		ctx = test.UserContext(ctx, test.UserAdmin)
+
+		opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, _ activity_api.ActivityDetails) error {
+			return nil
+		}
+
+		encoded := base64.StdEncoding.EncodeToString([]byte(`{"type":"LOCK"}`))
+		result, err := svc.RunMDMCommand(ctx, encoded, []string{androidHost.UUID})
+		require.NoError(t, err)
+		assert.Equal(t, "LOCK", result.RequestType)
+	})
+
+	t.Run("allows company-owned only commands when no host_mdm row exists", func(t *testing.T) {
+		ds := setupDS(t)
+		ds.GetHostMDMFunc = func(_ context.Context, _ uint) (*fleet.HostMDM, error) {
+			return nil, newNotFoundError()
+		}
+		androidMock := &mockAndroidService{
+			IssueCustomCommandFunc: func(_ context.Context, _ uint, _ []byte) (*android.MDMAndroidCommand, error) {
+				return &android.MDMAndroidCommand{CommandUUID: "cmd-uuid-reboot", CommandType: "REBOOT"}, nil
+			},
+		}
+		opts := &TestServerOpts{SkipCreateTestUsers: true, AndroidModule: androidMock}
+		svc, ctx := newTestService(t, ds, nil, nil, opts)
+		ctx = test.UserContext(ctx, test.UserAdmin)
+
+		opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, _ activity_api.ActivityDetails) error {
+			return nil
+		}
+
+		encoded := base64.StdEncoding.EncodeToString([]byte(`{"type":"REBOOT"}`))
+		result, err := svc.RunMDMCommand(ctx, encoded, []string{androidHost.UUID})
+		require.NoError(t, err)
+		assert.Equal(t, "REBOOT", result.RequestType)
+	})
+
+	t.Run("does not read host_mdm for commands that are not restricted", func(t *testing.T) {
+		ds := setupDS(t)
+		androidMock := &mockAndroidService{
+			IssueCustomCommandFunc: func(_ context.Context, _ uint, _ []byte) (*android.MDMAndroidCommand, error) {
+				return &android.MDMAndroidCommand{CommandUUID: "cmd-uuid-clear", CommandType: "CLEAR_APP_DATA"}, nil
+			},
+		}
+		opts := &TestServerOpts{SkipCreateTestUsers: true, AndroidModule: androidMock}
+		svc, ctx := newTestService(t, ds, nil, nil, opts)
+		ctx = test.UserContext(ctx, test.UserAdmin)
+
+		opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, _ activity_api.ActivityDetails) error {
+			return nil
+		}
+
+		encoded := base64.StdEncoding.EncodeToString([]byte(`{"type":"CLEAR_APP_DATA"}`))
+		_, err := svc.RunMDMCommand(ctx, encoded, []string{androidHost.UUID})
+		require.NoError(t, err)
+		assert.False(t, ds.GetHostMDMFuncInvoked, "unrestricted commands must not pay for the ownership lookup")
 	})
 }
 
