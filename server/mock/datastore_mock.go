@@ -1458,6 +1458,8 @@ type MDMWindowsSaveUnlinkedEnrollmentHardwareSerialFunc func(ctx context.Context
 
 type MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerialFunc func(ctx context.Context, hardwareSerial string) (*fleet.MDMWindowsEnrolledDevice, error)
 
+type MDMWindowsConflictingEnrollmentHardwareIDFunc func(ctx context.Context, hostUUID string, mdmHardwareID string) (conflicted bool, conflictingHardwareID string, err error)
+
 type MDMWindowsClaimEnrolledActivityFunc func(ctx context.Context, mdmHardwareID string, claimedAt time.Time) (bool, error)
 
 type MDMWindowsReleaseEnrolledActivityClaimFunc func(ctx context.Context, mdmHardwareID string, claimedAt time.Time) error
@@ -4547,6 +4549,9 @@ type DataStore struct {
 
 	MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerialFunc        MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerialFunc
 	MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerialFuncInvoked bool
+
+	MDMWindowsConflictingEnrollmentHardwareIDFunc        MDMWindowsConflictingEnrollmentHardwareIDFunc
+	MDMWindowsConflictingEnrollmentHardwareIDFuncInvoked bool
 
 	MDMWindowsClaimEnrolledActivityFunc        MDMWindowsClaimEnrolledActivityFunc
 	MDMWindowsClaimEnrolledActivityFuncInvoked bool
@@ -10975,6 +10980,13 @@ func (s *DataStore) MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerial(ctx co
 	s.MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerialFuncInvoked = true
 	s.mu.Unlock()
 	return s.MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerialFunc(ctx, hardwareSerial)
+}
+
+func (s *DataStore) MDMWindowsConflictingEnrollmentHardwareID(ctx context.Context, hostUUID string, mdmHardwareID string) (conflicted bool, conflictingHardwareID string, err error) {
+	s.mu.Lock()
+	s.MDMWindowsConflictingEnrollmentHardwareIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.MDMWindowsConflictingEnrollmentHardwareIDFunc(ctx, hostUUID, mdmHardwareID)
 }
 
 func (s *DataStore) MDMWindowsClaimEnrolledActivity(ctx context.Context, mdmHardwareID string, claimedAt time.Time) (bool, error) {

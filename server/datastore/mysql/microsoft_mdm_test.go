@@ -92,6 +92,7 @@ func TestMDMWindows(t *testing.T) {
 		{"TestMDMWindowsInsertCommandSkipsUnenrolledHosts", testMDMWindowsInsertCommandSkipsUnenrolledHosts},
 		{"TestCleanupWindowsMDMCommandQueue", testCleanupWindowsMDMCommandQueue},
 		{"TestMDMWindowsGetUnlinkedEnrolledDeviceWithDeviceName", testMDMWindowsGetUnlinkedEnrolledDeviceWithDeviceName},
+		{"TestMDMWindowsConflictingEnrollmentHardwareID", testMDMWindowsConflictingEnrollmentHardwareID},
 		{"TestWindowsHostLiteByHardwareSerial", testWindowsHostLiteByHardwareSerial},
 		{"TestMDMWindowsUnlinkedEnrollmentHardwareSerial", testMDMWindowsUnlinkedEnrollmentHardwareSerial},
 		{"TestMDMWindowsClaimEnrolledActivity", testMDMWindowsClaimEnrolledActivity},
@@ -8913,4 +8914,99 @@ func testWindowsProfileRetryOnDeviceFailure(t *testing.T, ds *Datastore) {
 
 	// Terminal failures must reach the rollup that GetMDMWindowsProfilesSummary reads.
 	require.Equal(t, string(fleet.MDMDeliveryFailed), readWindowsProfilesStatusRollup(t, ds)[host.UUID])
+}
+
+func testMDMWindowsConflictingEnrollmentHardwareID(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	newEnrollment := func(hostUUID string) *fleet.MDMWindowsEnrolledDevice {
+		return &fleet.MDMWindowsEnrolledDevice{
+			MDMDeviceID:            uuid.New().String(),
+			MDMHardwareID:          uuid.New().String() + uuid.New().String(),
+			MDMDeviceState:         microsoft_mdm.MDMDeviceStateEnrolled,
+			MDMDeviceType:          "CIMClient_Windows",
+			MDMDeviceName:          "DESKTOP-CONFLICT",
+			MDMEnrollType:          "AzureADJoin",
+			MDMEnrollProtoVersion:  "5.0",
+			MDMEnrollClientVersion: "10.0.19045.2965",
+			HostUUID:               hostUUID,
+		}
+	}
+
+	hostUUID := uuid.New().String()
+
+	t.Run("an unclaimed host has no conflict", func(t *testing.T) {
+		conflicted, conflict, err := ds.MDMWindowsConflictingEnrollmentHardwareID(ctx, hostUUID, "some-hardware-id")
+		require.NoError(t, err)
+		assert.False(t, conflicted)
+		assert.Empty(t, conflict)
+	})
+
+	t.Run("an empty host uuid has no conflict", func(t *testing.T) {
+		// Every enrollment starts unlinked, so an empty UUID must never be reported as claimed by all of them.
+		conflicted, conflict, err := ds.MDMWindowsConflictingEnrollmentHardwareID(ctx, "", "some-hardware-id")
+		require.NoError(t, err)
+		assert.False(t, conflicted)
+		assert.Empty(t, conflict)
+	})
+
+	incumbent := newEnrollment(hostUUID)
+	require.NoError(t, ds.MDMWindowsInsertEnrolledDevice(ctx, incumbent))
+
+	t.Run("the same hardware re-enrolling is not a conflict", func(t *testing.T) {
+		conflicted, conflict, err := ds.MDMWindowsConflictingEnrollmentHardwareID(ctx, hostUUID, incumbent.MDMHardwareID)
+		require.NoError(t, err)
+		assert.False(t, conflicted, "a device must always be able to reclaim the host it already holds")
+		assert.Empty(t, conflict)
+	})
+
+	t.Run("different hardware claiming the same host conflicts", func(t *testing.T) {
+		claimant := newEnrollment("")
+		require.NoError(t, ds.MDMWindowsInsertEnrolledDevice(ctx, claimant))
+
+		conflicted, conflict, err := ds.MDMWindowsConflictingEnrollmentHardwareID(ctx, hostUUID, claimant.MDMHardwareID)
+		require.NoError(t, err)
+		assert.True(t, conflicted)
+		assert.Equal(t, incumbent.MDMHardwareID, conflict, "the incumbent's hardware id is reported so it can be logged")
+	})
+
+	t.Run("re-enrolling the same hardware clears the claim", func(t *testing.T) {
+		// This is what keeps legitimate re-enrollment from ever colliding with the guard, so it exercises the path
+		// production actually takes: a re-enrolling device is deleted by hardware ID first
+		// (MDMWindowsDeleteEnrolledDeviceOnReenrollment) and then inserted fresh, rather than upserting in place.
+		rowIDForHardware := func() uint {
+			var id uint
+			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+				return sqlx.GetContext(ctx, q, &id,
+					`SELECT id FROM mdm_windows_enrollments WHERE mdm_hardware_id = ?`, incumbent.MDMHardwareID)
+			})
+			return id
+		}
+		beforeID := rowIDForHardware()
+
+		require.NoError(t, ds.MDMWindowsDeleteEnrolledDeviceOnReenrollment(ctx, incumbent.MDMHardwareID))
+		reEnroll := newEnrollment("")
+		reEnroll.MDMHardwareID = incumbent.MDMHardwareID
+		require.NoError(t, ds.MDMWindowsInsertEnrolledDevice(ctx, reEnroll))
+
+		// The row is replaced rather than updated in place, which is what a real wiped device produced.
+		assert.NotEqual(t, beforeID, rowIDForHardware(), "re-enrollment replaces the row instead of reusing it")
+
+		conflicted, conflict, err := ds.MDMWindowsConflictingEnrollmentHardwareID(ctx, hostUUID, "brand-new-hardware-id")
+		require.NoError(t, err)
+		assert.False(t, conflicted, "the incumbent released the host when it re-enrolled")
+		assert.Empty(t, conflict)
+	})
+
+	t.Run("an incumbent with an empty hardware id still conflicts", func(t *testing.T) {
+		emptyHWHostUUID := uuid.New().String()
+		emptyHWIncumbent := newEnrollment(emptyHWHostUUID)
+		emptyHWIncumbent.MDMHardwareID = ""
+		require.NoError(t, ds.MDMWindowsInsertEnrolledDevice(ctx, emptyHWIncumbent))
+
+		conflicted, conflict, err := ds.MDMWindowsConflictingEnrollmentHardwareID(ctx, emptyHWHostUUID, "claimant-hardware-id")
+		require.NoError(t, err)
+		assert.True(t, conflicted, "an empty-hardware-id incumbent must still block the claim")
+		assert.Empty(t, conflict, "there is no id to log, which is why conflicted is the answer and not this string")
+	})
 }

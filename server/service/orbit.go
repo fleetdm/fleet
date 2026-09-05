@@ -370,14 +370,27 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 			svc.logger.ErrorContext(ctx, "failed to look up unlinked windows mdm enrollment by serial",
 				"err", err, "host_uuid", host.UUID, "hardware_serial", hostInfo.HardwareSerial)
 		case err == nil:
-			if _, err := osquery_utils.LinkWindowsHostMDMEnrollment(ctx, svc.logger, svc.ds, host.ID, host.UUID, device.MDMDeviceID); err != nil {
-				svc.logger.ErrorContext(ctx, "failed to reverse-link windows mdm enrollment at orbit enroll",
-					"err", err, "host_uuid", host.UUID, "device_id", device.MDMDeviceID)
-			} else {
-				// The enrollment predates this host record, so its mdm_enrolled activity was deferred; record it now
-				// that there is a host to attribute it to, rather than waiting for the next management session.
-				device.HostUUID = host.UUID
-				svc.maybeCreateWindowsMDMEnrolledActivity(ctx, device)
+			// Same trust as the DevDetail path this mirrors: the serial on the unlinked enrollment was asserted by the
+			// device, so it must not claim a host that already belongs to different hardware.
+			conflicted, conflictingHardwareID, cErr := svc.ds.MDMWindowsConflictingEnrollmentHardwareID(ctx, host.UUID, device.MDMHardwareID)
+			switch {
+			case cErr != nil:
+				svc.logger.ErrorContext(ctx, "failed to check for conflicting windows mdm enrollment at orbit enroll",
+					"err", cErr, "host_uuid", host.UUID, "device_id", device.MDMDeviceID)
+			case conflicted:
+				svc.logger.WarnContext(ctx, "refusing to reverse-link windows mdm enrollment to a host already claimed by other hardware",
+					"host_uuid", host.UUID, "device_id", device.MDMDeviceID,
+					"hardware_serial", hostInfo.HardwareSerial, "claimed_by_hardware_id", conflictingHardwareID)
+			default:
+				if _, err := osquery_utils.LinkWindowsHostMDMEnrollment(ctx, svc.logger, svc.ds, host.ID, host.UUID, device.MDMDeviceID); err != nil {
+					svc.logger.ErrorContext(ctx, "failed to reverse-link windows mdm enrollment at orbit enroll",
+						"err", err, "host_uuid", host.UUID, "device_id", device.MDMDeviceID)
+				} else {
+					// The enrollment predates this host record, so its mdm_enrolled activity was deferred; record it now
+					// that there is a host to attribute it to, rather than waiting for the next management session.
+					device.HostUUID = host.UUID
+					svc.maybeCreateWindowsMDMEnrolledActivity(ctx, device)
+				}
 			}
 			// A Windows orbit enrollment is not linked when it is not MDM, when it is already linked, or when it is a
 			// programmatic fleetd-first enrollment. Note this matches on serial alone, so the lookup refuses when several
