@@ -574,7 +574,7 @@ func validateConfigProfileFleetVariables(contents string, lic *fleet.LicenseInfo
 		return nil, err
 	}
 
-	return fleetVars, nil
+	return fleet.ResolveDigiCertProfileFleetVariables(fleetVars, groupedCAs.DigiCert), nil
 }
 
 // extensibleSSOProfileContent is the subset of an Apple configuration profile
