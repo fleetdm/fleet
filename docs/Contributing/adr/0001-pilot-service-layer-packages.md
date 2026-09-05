@@ -111,4 +111,4 @@ server/
 
 ## References 📖
 
-* [Android contributor docs](../product-groups/mdm/android-mdm.md)
+* [Android contributor docs](../android-mdm/android-mdm.md)

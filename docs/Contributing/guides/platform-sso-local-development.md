@@ -208,4 +208,4 @@ On the server side, watch the requests hit `/api/mdm/apple/psso/{nonce,registrat
 ## Related
 
 - Extension internals, entitlements, and the CI signing pipeline: [`apps/fleet-desktop-macos/README.md`](../../../apps/fleet-desktop-macos/README.md)
-- Protocol / design decisions: [`docs/Contributing/research/mdm/psso.md`](../research/mdm/psso.md)
+- Protocol / design decisions: [`docs/Contributing/apple-mdm/psso.md`](../apple-mdm/psso.md)
