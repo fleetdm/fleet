@@ -1,5 +1,17 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  This profile is NOT delivered by Fleet directly. It is fetched by devices from
+  raw.githubusercontent.com via the com.apple.configuration.legacy declaration in
+  ../declaration-profiles/Nudge settings.json, gated on a staged macOS update.
+
+  Devices only re-download this file when that declaration changes. After editing
+  anything below, bump the ?v= query parameter on ProfileURL in Nudge settings.json
+  or existing devices will keep the old copy.
+
+  The Nudge background-task allowance lives in nudge-background-task.mobileconfig,
+  which Fleet installs unconditionally.
+-->
 <plist version="1.0">
 <dict>
 	<key>PayloadContent</key>
@@ -8,11 +20,11 @@
 			<key>PayloadDisplayName</key>
 			<string>Nudge Preferences</string>
 			<key>PayloadIdentifier</key>
-			<string>com.fleetdm.nudge.preferences</string>
+			<string>com.fleetdm.nudge-preferences.settings</string>
 			<key>PayloadType</key>
 			<string>com.github.macadmins.Nudge</string>
 			<key>PayloadUUID</key>
-			<string>69B22694-8FF8-40A0-AEE6-D5385BBF765D</string>
+			<string>F5035C68-7254-4A90-913D-928B07892FBE</string>
 			<key>PayloadVersion</key>
 			<integer>1</integer>
 			<key>optionalFeatures</key>
@@ -159,32 +171,11 @@ If you have any questions or need any assistance, please reach out via #help-it 
 				</array>
 			</dict>
 		</dict>
-		<dict>
-			<key>PayloadDisplayName</key>
-			<string>Allow Nudge background tasks</string>
-			<key>PayloadIdentifier</key>
-			<string>com.apple.servicemanagement.9D50FED5-9183-456C-918F-51EBD9E4F95D</string>
-			<key>PayloadType</key>
-			<string>com.apple.servicemanagement</string>
-			<key>PayloadUUID</key>
-			<string>9D50FED5-9183-456C-918F-51EBD9E4F95D</string>
-			<key>PayloadVersion</key>
-			<integer>1</integer>
-			<key>Rules</key>
-			<array>
-				<dict>
-					<key>RuleType</key>
-					<string>BundleIdentifier</string>
-					<key>RuleValue</key>
-					<string>com.github.macadmins.Nudge</string>
-				</dict>
-			</array>
-		</dict>
 	</array>
 	<key>PayloadDisplayName</key>
-	<string>Nudge settings</string>
+	<string>Nudge preferences</string>
 	<key>PayloadIdentifier</key>
-	<string>com.fleetdm.nudge.managed</string>
+	<string>com.fleetdm.profile.nudge-preferences</string>
 	<key>PayloadOrganization</key>
 	<string>Fleet</string>
 	<key>PayloadScope</key>
@@ -192,7 +183,7 @@ If you have any questions or need any assistance, please reach out via #help-it 
 	<key>PayloadType</key>
 	<string>Configuration</string>
 	<key>PayloadUUID</key>
-	<string>4B4C950F-995A-4567-B0B2-9A34EB4C22AC</string>
+	<string>A65C8756-AFF6-4843-B2F4-906283933600</string>
 	<key>PayloadVersion</key>
 	<integer>1</integer>
 </dict>

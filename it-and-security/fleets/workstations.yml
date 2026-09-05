@@ -107,6 +107,12 @@ controls:
       - path: ../lib/macos/configuration-profiles/ensure-show-status-bar-is-enabled.mobileconfig
       - path: ../lib/macos/declaration-profiles/Passcode settings.json
       - path: ../lib/macos/declaration-profiles/Software Update settings.json
+      # Nudge is split in two. The background-task allowance is always installed so the
+      # launch agent stays a managed login item. The preferences are fetched by the device
+      # from raw.githubusercontent.com (see ProfileURL in Nudge settings.json) and only
+      # activate once macOS has staged an update. After editing nudge-preferences.mobileconfig,
+      # bump ?v= on that ProfileURL or devices keep the old copy.
+      - path: ../lib/macos/configuration-profiles/nudge-background-task.mobileconfig
       - path: ../lib/macos/declaration-profiles/Nudge settings.json
         activation: ../lib/macos/declaration-profiles/Nudge activation.json
       - path: ../lib/macos/declaration-profiles/Disk management settings.json
