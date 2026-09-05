@@ -4625,6 +4625,201 @@ Returns the information of the specified host.
 }
 ```
 
+#### Example (Android)
+`GET /api/v1/fleet/hosts/121`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "host": {
+    "created_at": "2021-08-19T02:02:22Z",
+    "updated_at": "2021-08-19T21:14:58Z",
+    "id": 1,
+    "detail_updated_at": "2021-08-19T21:07:53Z",
+    "last_restarted_at": "0001-01-01T00:00:00Z",
+    "software_updated_at": "2020-11-05T05:09:44Z",
+    "label_updated_at": "2021-08-19T21:07:53Z",
+    "policy_updated_at": "2023-06-26T18:33:15Z",
+    "last_enrolled_at": "2021-08-19T02:02:22Z",
+    "last_mdm_checked_in_at": "2023-02-26T22:33:12Z",
+    "last_mdm_enrolled_at": "2023-02-26T22:33:12Z",
+    "mdm_enrollment_hardware_attested": false,
+    "seen_time": "2021-08-19T21:14:58Z",
+    "refetch_requested": false,
+    "hostname": "Anna Chao's Google Pixel 9",
+    "uuid": "309a4b7d-0000-0000-8e7f-26ae0815ede8",
+    "platform": "android",
+    "osquery_version": "",
+    "orbit_version": null,
+    "fleet_desktop_version": null,
+    "scripts_enabled": null,
+    "os_version": "Android 16 (2026-05-01)",
+    "os_update_minimum_version": null,
+    "os_update_deadline": null,
+    "build": "",
+    "platform_like": "",
+    "code_name": "",
+    "uptime": 0,
+    "memory": 8589934592,
+    "cpu_type": "caiman",
+    "cpu_subtype": "",
+    "cpu_brand": "",
+    "cpu_physical_cores": 0,
+    "cpu_logical_cores": 0,
+    "hardware_vendor": "google",
+    "hardware_model": "Google Pixel 9",
+    "hardware_version": "",
+    "hardware_serial": "3B241102E5",
+    "computer_name": "Anna Chao's Google Pixel 9",
+    "timezone": null,
+    "display_name": "Anna Chao's Google Pixel 9",
+    "public_ip": "",
+    "primary_ip": "",
+    "primary_mac": "",
+    "distributed_interval": 0,
+    "config_tls_refresh": 0,
+    "logger_tls_period": 0,
+    "team_id": null,
+    "fleet_id": null,
+    "pack_stats": null,
+    "team_name": null,
+    "fleet_name": null,
+    "gigs_disk_space_available": 92.4,
+    "percent_disk_space_available": 72,
+    "gigs_total_disk_space": 128,
+    "adb_enabled": false,
+    "api_level": 36,
+    "bootloader_version": "caiman-1.0-13984080",
+    "device_kernel_version": "6.1.124-android16-11-g8b6a1e0f4f9a-ab13984080",
+    "encryption_type": "ACTIVE",
+    "imei": "351756051523999",
+    "manufacturer": "Google",
+    "passcode_protected": true,
+    "play_protect_enabled": true,
+    "security_posture": "AT_RISK",
+    "security_posture_details": [
+      {
+        "security_risk": "UNKNOWN_OS",
+        "advice": [
+          "This device is running an unrecognized version of Android. Install a certified build from the device manufacturer."
+        ]
+      }
+    ],
+    "security_update_version": "2026-05-01",
+    "system_update_status": "UP_TO_DATE",
+    "telephony_infos": [
+      {
+        "phone_number": "+15551234567",
+        "carrier_name": "Verizon",
+        "iccid": "89014103211118510720",
+        "activation_state": "ACTIVATED",
+        "config_mode": "ADMIN_CONFIGURED"
+      }
+    ],
+    "status": "online",
+    "display_text": "Anna Chao's Google Pixel 9",
+    "issues": {
+      "failing_policies_count": 0,
+      "critical_vulnerabilities_count": 0, // Available in Fleet Premium
+      "total_issues_count": 0
+    },
+    "batteries": [],
+    "end_users": [
+      {
+        "idp_info_updated_at": "2025-03-20T02:02:17Z",
+        "idp_id": "f26f8649-1e25-42c5-be71-1b1e6de56d3d",
+        "idp_username": "anna@example.com",
+        "idp_full_name": "Anna Chao",
+        "idp_department": "Product",
+        "idp_groups": [
+          "Product",
+          "Designers"
+        ],
+        "other_emails": []
+      }
+    ],
+    "labels": [
+      {
+        "created_at": "2021-08-19T02:02:17Z",
+        "updated_at": "2021-08-19T02:02:17Z",
+        "id": 6,
+        "name": "All Hosts",
+        "description": "All hosts which have enrolled in Fleet",
+        "query": "SELECT 1;",
+        "platform": "",
+        "label_type": "builtin",
+        "label_membership_type": "dynamic"
+      },
+      {
+        "created_at": "2021-08-19T02:02:17Z",
+        "updated_at": "2021-08-19T02:02:17Z",
+        "id": 14,
+        "name": "Android",
+        "description": "All Android hosts",
+        "query": "",
+        "platform": "android",
+        "label_type": "builtin",
+        "label_membership_type": "manual"
+      }
+    ],
+    "packs": [],
+    "policies": [],
+    "software": [
+      {
+        "id": 411,
+        "name": "Gmail",
+        "version": "2026.05.04.123456789",
+        "source": "android_apps",
+        "application_id": "com.google.android.gm",
+        "generated_cpe": "",
+        "vulnerabilities": null,
+        "installed_paths": []
+      },
+      {
+        "id": 412,
+        "name": "Slack",
+        "version": "26.05.10.0",
+        "source": "android_apps",
+        "application_id": "com.Slack",
+        "generated_cpe": "",
+        "vulnerabilities": null,
+        "installed_paths": []
+      }
+    ],
+    "mdm": {
+      "encryption_key_available": false,
+      "enrollment_status": "On (automatic)",
+      "is_personal_enrollment": false,
+      "name": "Fleet",
+      "connected_to_fleet": true,
+      "server_url": "https://acme.com",
+      "device_status": "unlocked",
+      "pending_action": "",
+      "os_settings": {
+        "disk_encryption": {
+          "status": null,
+          "detail": ""
+        }
+      },
+      "profiles": [
+        {
+          "profile_uuid": "g954ec5ea-a334-4825-87b3-937e7e381f24",
+          "name": "Android Wi-Fi Profile",
+          "status": "verified",
+          "operation_type": "install",
+          "scope": null,
+          "managed_local_account": null,
+          "detail": ""
+        }
+      ]
+    }
+  }
+}
+```
+
 `mdm.os_settings.host_name` reports the host name template enforcement status for a macOS, iOS, or iPadOS host. Its `status` is one of `pending`, `verifying`, `verified`, or `failed`, and `detail` carries the error message when the status is `failed`. The object is omitted entirely for hosts that aren't enforced (no template set on the host's fleet or on "Unassigned", non-MDM hosts, and personal (BYOD) enrollments).
 
 `mdm.bootstrap_token_escrowed` indicates whether Fleet has escrowed a [bootstrap token](https://support.apple.com/guide/deployment/use-secure-and-bootstrap-tokens-dep24dbdcf9e/web) for the macOS host. The bootstrap token authorizes certain MDM operations, such as remote wipe and installing OS updates, without requiring a user with a secure token to be logged in. This field is only present for macOS hosts.
@@ -4641,6 +4836,12 @@ Returns the information of the specified host.
 > - These iOS/iPadOS vitals are collected via Apple's [`DeviceInformation`](https://developer.apple.com/documentation/devicemanagement/deviceinformationcommand/command-data.dictionary/queries-data.dictionary) MDM command. A property the device doesn't report is omitted from the response rather than returned as `null`. The exception is `mdm_options`, which is returned as an empty object when the device reports it with nothing set.
 > - `cellular_technology` is one of `None`, `GSM`, `CDMA`, or `GSM and CDMA`. This will be `unknown` if Apple adds a value in the future that Fleet doesn't recognize.
 > - `device_properties_attestation` is an array of base64-encoded DER certificates forming a chain, leaf first. The chain is anchored to Apple's Enterprise Attestation Root CA, which is not itself included in the array.
+> - Currently, the following are supported only for Android: `adb_enabled`, `api_level`, `bootloader_version`, `device_kernel_version`, `encryption_type`, `imei`, `manufacturer`, `meid`, `passcode_protected`, `play_protect_enabled`, `security_posture`, `security_posture_details`, `security_update_version`, `system_update_status`, and `telephony_infos`.
+> - These Android vitals are collected from the status reports Fleet receives from the [Android Management API](https://developers.google.com/android/management/reference/rest/v1/enterprises.devices) (AMAPI). A vital the device doesn't report is omitted from the response rather than returned as `null`. A host that hasn't sent a status report yet returns none of them, and a device whose Android version doesn't report a given vital omits just that one.
+> - `telephony_infos`, `imei`, and `meid` are never returned for a personal (BYOD) enrollment. AMAPI only reports them for fully managed devices in the first place, and Fleet gates the response on its own enrollment record so they stay hidden after a BYOD host unenrolls. `telephony_infos` holds one entry per SIM card, so a dual-SIM host reports more than one, and it requires Android 6 or above. Its `activation_state` and `config_mode` describe eSIMs on Android 15 and above only. A host reports either `imei` or `meid` depending on its radio, never both.
+> - `security_posture_details[].advice` holds AMAPI's default, non-localized admin-facing message for each risk. Fleet has no device locale to select a localized variant with, so the localized messages aren't returned.
+> - `encryption_type`, `security_posture`, `system_update_status`, `security_posture_details[].security_risk`, `telephony_infos[].activation_state`, and `telephony_infos[].config_mode` carry AMAPI's raw enum values, such as `ACTIVE`, `AT_RISK`, `UP_TO_DATE`, `UNKNOWN_OS`, `ACTIVATED`, and `ADMIN_CONFIGURED`. AMAPI's "no data" sentinels (`*_UNSPECIFIED` and `UPDATE_STATUS_UNKNOWN`) are omitted from the response instead of being returned.
+> - `security_update_version` is the host's Android security patch level. It's also folded into `os_version`, for example `Android 16 (2026-05-01)`.
 
 > Note:
 > - `orbit_version: null` means this agent is not a fleetd agent
@@ -5170,16 +5371,218 @@ In Fleet, hostnames are fully qualified domain names (FQDNs). `hostname` (e.g. j
 }
 ```
 
+#### Example (Android)
+`GET /api/v1/fleet/hosts/identifier/392547dc-0000-0000-a87a-d701ff75bc65`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "host": {
+    "created_at": "2021-08-19T02:02:22Z",
+    "updated_at": "2021-08-19T21:14:58Z",
+    "id": 1,
+    "detail_updated_at": "2021-08-19T21:07:53Z",
+    "last_restarted_at": "0001-01-01T00:00:00Z",
+    "software_updated_at": "2020-11-05T05:09:44Z",
+    "label_updated_at": "2021-08-19T21:07:53Z",
+    "policy_updated_at": "2023-06-26T18:33:15Z",
+    "last_enrolled_at": "2021-08-19T02:02:22Z",
+    "last_mdm_checked_in_at": "2023-02-26T22:33:12Z",
+    "last_mdm_enrolled_at": "2023-02-26T22:33:12Z",
+    "mdm_enrollment_hardware_attested": false,
+    "seen_time": "2021-08-19T21:14:58Z",
+    "refetch_requested": false,
+    "hostname": "Anna Chao's Google Pixel 9",
+    "uuid": "392547dc-0000-0000-a87a-d701ff75bc65",
+    "platform": "android",
+    "osquery_version": "",
+    "orbit_version": null,
+    "fleet_desktop_version": null,
+    "scripts_enabled": null,
+    "os_version": "Android 16 (2026-05-01)",
+    "os_update_minimum_version": null,
+    "os_update_deadline": null,
+    "build": "",
+    "platform_like": "",
+    "code_name": "",
+    "uptime": 0,
+    "memory": 8589934592,
+    "cpu_type": "caiman",
+    "cpu_subtype": "",
+    "cpu_brand": "",
+    "cpu_physical_cores": 0,
+    "cpu_logical_cores": 0,
+    "hardware_vendor": "google",
+    "hardware_model": "Google Pixel 9",
+    "hardware_version": "",
+    "hardware_serial": "3B241102E5",
+    "computer_name": "Anna Chao's Google Pixel 9",
+    "timezone": null,
+    "display_name": "Anna Chao's Google Pixel 9",
+    "public_ip": "",
+    "primary_ip": "",
+    "primary_mac": "",
+    "distributed_interval": 0,
+    "config_tls_refresh": 0,
+    "logger_tls_period": 0,
+    "team_id": null,
+    "fleet_id": null,
+    "pack_stats": null,
+    "team_name": null,
+    "fleet_name": null,
+    "gigs_disk_space_available": 92.4,
+    "percent_disk_space_available": 72,
+    "gigs_total_disk_space": 128,
+    "adb_enabled": false,
+    "api_level": 36,
+    "bootloader_version": "caiman-1.0-13984080",
+    "device_kernel_version": "6.1.124-android16-11-g8b6a1e0f4f9a-ab13984080",
+    "encryption_type": "ACTIVE",
+    "imei": "351756051523999",
+    "manufacturer": "Google",
+    "passcode_protected": true,
+    "play_protect_enabled": true,
+    "security_posture": "AT_RISK",
+    "security_posture_details": [
+      {
+        "security_risk": "UNKNOWN_OS",
+        "advice": [
+          "This device is running an unrecognized version of Android. Install a certified build from the device manufacturer."
+        ]
+      }
+    ],
+    "security_update_version": "2026-05-01",
+    "system_update_status": "UP_TO_DATE",
+    "telephony_infos": [
+      {
+        "phone_number": "+15551234567",
+        "carrier_name": "Verizon",
+        "iccid": "89014103211118510720",
+        "activation_state": "ACTIVATED",
+        "config_mode": "ADMIN_CONFIGURED"
+      }
+    ],
+    "status": "online",
+    "display_text": "Anna Chao's Google Pixel 9",
+    "issues": {
+      "failing_policies_count": 0,
+      "critical_vulnerabilities_count": 0, // Available in Fleet Premium
+      "total_issues_count": 0
+    },
+    "batteries": [],
+    "end_users": [
+      {
+        "idp_info_updated_at": "2025-03-20T02:02:17Z",
+        "idp_id": "f26f8649-1e25-42c5-be71-1b1e6de56d3d",
+        "idp_username": "anna@example.com",
+        "idp_full_name": "Anna Chao",
+        "idp_department": "Product",
+        "idp_groups": [
+          "Product",
+          "Designers"
+        ],
+        "other_emails": []
+      }
+    ],
+    "labels": [
+      {
+        "created_at": "2021-08-19T02:02:17Z",
+        "updated_at": "2021-08-19T02:02:17Z",
+        "id": 6,
+        "name": "All Hosts",
+        "description": "All hosts which have enrolled in Fleet",
+        "query": "SELECT 1;",
+        "platform": "",
+        "label_type": "builtin",
+        "label_membership_type": "dynamic"
+      },
+      {
+        "created_at": "2021-08-19T02:02:17Z",
+        "updated_at": "2021-08-19T02:02:17Z",
+        "id": 14,
+        "name": "Android",
+        "description": "All Android hosts",
+        "query": "",
+        "platform": "android",
+        "label_type": "builtin",
+        "label_membership_type": "manual"
+      }
+    ],
+    "packs": [],
+    "policies": [],
+    "software": [
+      {
+        "id": 411,
+        "name": "Gmail",
+        "version": "2026.05.04.123456789",
+        "source": "android_apps",
+        "application_id": "com.google.android.gm",
+        "generated_cpe": "",
+        "vulnerabilities": null,
+        "installed_paths": []
+      },
+      {
+        "id": 412,
+        "name": "Slack",
+        "version": "26.05.10.0",
+        "source": "android_apps",
+        "application_id": "com.Slack",
+        "generated_cpe": "",
+        "vulnerabilities": null,
+        "installed_paths": []
+      }
+    ],
+    "mdm": {
+      "encryption_key_available": false,
+      "enrollment_status": "On (automatic)",
+      "is_personal_enrollment": false,
+      "name": "Fleet",
+      "connected_to_fleet": true,
+      "server_url": "https://acme.com",
+      "device_status": "unlocked",
+      "pending_action": "",
+      "os_settings": {
+        "disk_encryption": {
+          "status": null,
+          "detail": ""
+        }
+      },
+      "profiles": [
+        {
+          "profile_uuid": "g954ec5ea-a334-4825-87b3-937e7e381f24",
+          "name": "Android Wi-Fi Profile",
+          "status": "verified",
+          "operation_type": "install",
+          "scope": null,
+          "managed_local_account": null,
+          "detail": ""
+        }
+      ]
+    }
+  }
+}
+```
+
 > Note: the response above assumes a [GeoIP database is configured](https://fleetdm.com/docs/deploying/configuration#geoip), otherwise the `geolocation` object won't be included.
 
 > Note: `installed_paths` may be blank depending on installer package. For example, on Linux, RPM-installed packages do not provide installed path information.
 
 `browser` and `extension_for` fields are included when set and when empty. `extension_for` will show the browser or Visual Studio Code fork associated with the extension, allowing for differentiation between e.g. an extension installed on Visual Studio Code and one installed on Cursor. `browser` is deprecated, and only shows this information for browser plugins.
 
-> Note: Currently, the following are supported only for iOS/iPadOS: `accessibility_settings`, `app_analytics_enabled`, `awaiting_configuration`, `battery_level`, `bluetooth_mac`, `cellular_technology`, `data_roaming_enabled`, `device_properties_attestation`, `diagnostic_submission_enabled`, `eas_device_identifier`, `is_cloud_backup_enabled`, `is_device_locator_service_enabled`, `is_do_not_disturb_in_effect`, `is_mdm_lost_mode_enabled`, `is_network_tethered`, `itunes_store_account_hash`, `itunes_store_account_is_active`, `last_cloud_backup_date`, `mdm_options`, `model_number`, `modem_firmware_version`, `organization_info`, `personal_hotspot_enabled`, `push_token`, `service_subscriptions`, `supplemental_build_version`, `supplemental_os_version_extra`, `udid`, and `wifi_mac`.
+> Note:
+> - Currently, the following are supported only for iOS/iPadOS: `accessibility_settings`, `app_analytics_enabled`, `awaiting_configuration`, `battery_level`, `bluetooth_mac`, `cellular_technology`, `data_roaming_enabled`, `device_properties_attestation`, `diagnostic_submission_enabled`, `eas_device_identifier`, `is_cloud_backup_enabled`, `is_device_locator_service_enabled`, `is_do_not_disturb_in_effect`, `is_mdm_lost_mode_enabled`, `is_network_tethered`, `itunes_store_account_hash`, `itunes_store_account_is_active`, `last_cloud_backup_date`, `mdm_options`, `model_number`, `modem_firmware_version`, `organization_info`, `personal_hotspot_enabled`, `push_token`, `service_subscriptions`, `supplemental_build_version`, `supplemental_os_version_extra`, `udid`, and `wifi_mac`.
 > - These iOS/iPadOS vitals are collected via Apple's [`DeviceInformation`](https://developer.apple.com/documentation/devicemanagement/deviceinformationcommand/command-data.dictionary/queries-data.dictionary) MDM command. A property the device doesn't report is omitted from the response rather than returned as `null`. The exception is `mdm_options`, which is returned as an empty object when the device reports it with nothing set.
 > - `cellular_technology` is one of `None`, `GSM`, `CDMA`, or `GSM and CDMA`. This will be `unknown` if Apple adds a value in the future that Fleet doesn't recognize.
 > - `device_properties_attestation` is an array of base64-encoded DER certificates forming a chain, leaf first. The chain is anchored to Apple's Enterprise Attestation Root CA, which is not itself included in the array.
+> - Currently, the following are supported only for Android: `adb_enabled`, `api_level`, `bootloader_version`, `device_kernel_version`, `encryption_type`, `imei`, `manufacturer`, `meid`, `passcode_protected`, `play_protect_enabled`, `security_posture`, `security_posture_details`, `security_update_version`, `system_update_status`, and `telephony_infos`.
+> - These Android vitals are collected from the status reports Fleet receives from the [Android Management API](https://developers.google.com/android/management/reference/rest/v1/enterprises.devices) (AMAPI). A vital the device doesn't report is omitted from the response rather than returned as `null`. A host that hasn't sent a status report yet returns none of them, and a device whose Android version doesn't report a given vital omits just that one.
+> - `telephony_infos`, `imei`, and `meid` are never returned for a personal (BYOD) enrollment. AMAPI only reports them for fully managed devices in the first place, and Fleet gates the response on its own enrollment record so they stay hidden after a BYOD host unenrolls. `telephony_infos` holds one entry per SIM card, so a dual-SIM host reports more than one, and it requires Android 6 or above. Its `activation_state` and `config_mode` describe eSIMs on Android 15 and above only. A host reports either `imei` or `meid` depending on its radio, never both.
+> - `security_posture_details[].advice` holds AMAPI's default, non-localized admin-facing message for each risk. Fleet has no device locale to select a localized variant with, so the localized messages aren't returned.
+> - `encryption_type`, `security_posture`, `system_update_status`, `security_posture_details[].security_risk`, `telephony_infos[].activation_state`, and `telephony_infos[].config_mode` carry AMAPI's raw enum values, such as `ACTIVE`, `AT_RISK`, `UP_TO_DATE`, `UNKNOWN_OS`, `ACTIVATED`, and `ADMIN_CONFIGURED`. AMAPI's "no data" sentinels (`*_UNSPECIFIED` and `UPDATE_STATUS_UNKNOWN`) are omitted from the response instead of being returned.
+> - `security_update_version` is the host's Android security patch level. It's also folded into `os_version`, for example `Android 16 (2026-05-01)`.
 
 
 ### Get host by Fleet Desktop token
@@ -5416,6 +5819,8 @@ X-Client-Cert-Serial: <fleet_identity_scep_cert_serial>
 `browser` and `extension_for` fields are included when set and when empty. `extension_for` will show the browser or Visual Studio Code fork associated with the extension, allowing for differentiation between e.g. an extension installed on Visual Studio Code and one installed on Cursor. `browser` is deprecated, and only shows this information for browser plugins.
 
 > `global_config.mdm.enabled_and_configured` only represents Apple MDM, and will return false if Apple MDM is not configured even if other platforms have MDM enabled and configured.
+
+> Note: Android hosts can't be reached through this endpoint. They don't run Fleet Desktop, so they never get a token, and certificate authentication is limited to iOS and iPadOS. To read an Android host's vitals, use ["Get host"](#get-host) or ["Get host by identifier"](#get-host-by-identifier).
 
 ### Delete host
 
