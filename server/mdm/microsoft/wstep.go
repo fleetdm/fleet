@@ -352,7 +352,7 @@ func (m *manager) GetAzureAuthTokenClaims(ctx context.Context, tokenStr string) 
 	}
 
 	if len(tokenStr) == 0 {
-		return AzureData{}, ctxerr.New(ctx, "invalid STS token")
+		return AzureData{}, ctxerr.New(ctx, "empty Azure JWT token")
 	}
 
 	// Decode base64 token

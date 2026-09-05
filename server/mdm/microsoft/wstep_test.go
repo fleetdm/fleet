@@ -427,7 +427,7 @@ func TestGetAzureAuthTokenClaims(t *testing.T) {
 
 	t.Run("rejects empty token", func(t *testing.T) {
 		_, err := m.GetAzureAuthTokenClaims(ctx, "")
-		require.ErrorContains(t, err, "invalid STS token")
+		require.ErrorContains(t, err, "empty Azure JWT token")
 	})
 
 	t.Run("rejects nil manager", func(t *testing.T) {
