@@ -158,6 +158,23 @@ If the PR is not something we want to pursue, thank the contributor, explain the
 
 5. **Testing locally**: For community PRs, reviewers should complete code review first, then check out the PR locally, run it, and verify expected behavior.
 
+These steps boil down to three questions. The second question takes the most review time: understanding the design and deciding whether the change matches how Fleet would have built it.
+
+```mermaid
+flowchart TD
+    A[Community PR opened] --> B{Is this a change we want?}
+    B -- No --> C[Thank the contributor and close the PR]
+    B -- Yes --> D{Is it built the way we would have built it?}
+    D -- "Yes, with small changes" --> E[Request the changes and convert the PR to draft while waiting]
+    E -- Author updates --> D
+    D -- No --> F[Request changes]
+    F -- Author updates --> D
+    F -- "No response after 2 business days" --> G[Convert the PR to draft]
+    D -- Yes --> H{Is this something we want to maintain?}
+    H -- No --> C
+    H -- Yes --> I[Merge and thank the contributor]
+```
+
 
 #### Merge a community pull request
 
@@ -177,7 +194,7 @@ If a community member opens an issue that we can't reproduce leave a comment ask
 
 #### Close a stale community PR
 
-If a community PR hasn't had any updates or response from the author after one week, convert the PR to draft and add a comment tagging the author to let them know they are welcome to push any updates and convert it back to non-draft. After one year, our bot will auto-close it with a comment if it doesn't get updated.
+If a community PR hasn't had any updates or response from the author after two business days, convert the PR to draft and add a comment tagging the author to let them know they are welcome to push any updates and convert it back to non-draft. After one year, our bot will auto-close it with a comment if it doesn't get updated.
 
 
 ### AI tooling
