@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "260831.0.0",
+      "version": "260903.0.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'so.amie.electron-app';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'so.amie.electron-app' AND version_compare(bundle_short_version, '260831.0.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'so.amie.electron-app' AND version_compare(bundle_short_version, '260903.0.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'so.amie.electron-app' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/amieso/electron-releases/releases/download/v260831.0.0/Amie-260831.0.0-arm64-mac.zip",
+      "installer_url": "https://github.com/amieso/electron-releases/releases/download/v260903.0.0/Amie-260903.0.0-arm64-mac.zip",
       "install_script_ref": "be47fa85",
       "uninstall_script_ref": "44125419",
-      "sha256": "024f3b4ab668585c772e94668183d1de8f84904ed6901b2a1026af65a1433372",
+      "sha256": "973952b3b6c5752ff97543096a3cc4bf8a2a7a483636d3675e8edaf47fe58b1b",
       "default_categories": [
         "Productivity"
       ]
