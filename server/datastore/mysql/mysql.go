@@ -10,6 +10,7 @@ import (
 	"net"
 	"os"
 	"regexp"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -42,6 +43,16 @@ import (
 
 const (
 	mySQLTimestampFormat = "2006-01-02 15:04:05" // %Y/%m/%d %H:%M:%S
+
+	// mysqlMaxPlaceholders is MySQL's hard limit on the number of placeholders
+	// in a single prepared statement. Exceeding it fails the statement with
+	// error 1390 ("Prepared statement contains too many placeholders").
+	mysqlMaxPlaceholders = 65535
+
+	// hostIDsFanoutBatchSize bounds how many host IDs (or UUIDs) go into one
+	// `IN (?)` statement, well under mysqlMaxPlaceholders. It matches the
+	// batch size AddHostsToTeam uses for the writes on the same path.
+	hostIDsFanoutBatchSize = 10_000
 
 	// Migration IDs needed for fixing broken migrations that some customers encountered with fleet v4.73.2
 	// See https://github.com/fleetdm/fleet/issues/33562
@@ -1358,6 +1369,53 @@ func (ds *Datastore) optimisticGetOrInsertWithWriter(ctx context.Context, writer
 		return 0, ctxerr.Wrap(ctx, err, "get id from reader")
 	}
 	return id, nil
+}
+
+// selectInBatches runs a read whose only variadic argument is a single
+// `IN (?)` list, splitting ids into batches so the expanded statement stays
+// under mysqlMaxPlaceholders, and concatenates the rows of every batch.
+//
+// Callers whose statement interpolates the list more than once, or mixes it
+// with other arguments, must batch themselves — the placeholder count per
+// batch is then a multiple of the batch size.
+func selectInBatches[T any, ID comparable](
+	ctx context.Context,
+	q sqlx.QueryerContext,
+	stmt string,
+	ids []ID,
+	batchSize int,
+) ([]T, error) {
+	// `IN (?)` matches a repeated id once, so batching must not turn a
+	// duplicate in the caller's list (which is often an unfiltered request
+	// payload) into a duplicate row by splitting the two occurrences across
+	// batches. Only needed once there is more than one batch; skipping it
+	// otherwise keeps the very common single-id reads allocation-free.
+	if len(ids) > batchSize {
+		seen := make(map[ID]struct{}, len(ids))
+		deduped := make([]ID, 0, len(ids))
+		for _, id := range ids {
+			if _, ok := seen[id]; ok {
+				continue
+			}
+			seen[id] = struct{}{}
+			deduped = append(deduped, id)
+		}
+		ids = deduped
+	}
+
+	var results []T
+	for batch := range slices.Chunk(ids, batchSize) {
+		batchStmt, args, err := sqlx.In(stmt, batch)
+		if err != nil {
+			return nil, err
+		}
+		var rows []T
+		if err := sqlx.SelectContext(ctx, q, &rows, batchStmt, args...); err != nil {
+			return nil, err
+		}
+		results = append(results, rows...)
+	}
+	return results, nil
 }
 
 // batchProcessDB abstracts the batch processing logic, for a given payload:
