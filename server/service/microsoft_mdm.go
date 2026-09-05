@@ -1028,6 +1028,10 @@ func (svc *Service) authBinarySecurityToken(ctx context.Context, authToken *flee
 
 	// Validating the Binary Security Token Type used on Automatic Enrollments
 	if authToken.IsAzureJWTToken() {
+		if svc.wstepCertManager == nil {
+			return "", "", 0, ctxerr.New(ctx, "windows mdm identity keypair was not configured")
+		}
+
 		appConfig, err := svc.ds.AppConfig(ctx)
 		if err != nil {
 			return "", "", 0, ctxerr.Wrap(ctx, err, "retrieving app config for auth token validation")
@@ -1044,7 +1048,7 @@ func (svc *Service) authBinarySecurityToken(ctx context.Context, authToken *flee
 		}
 
 		// Validate the JWT Auth token by retreving its claims
-		tokenData, err := microsoft_mdm.GetAzureAuthTokenClaims(ctx, authToken.Content)
+		tokenData, err := svc.wstepCertManager.GetAzureAuthTokenClaims(ctx, authToken.Content)
 		if err != nil {
 			return "", "", 0, fmt.Errorf("binary security token claim failed: %v", err)
 		}

@@ -4,14 +4,20 @@ import (
 	"context"
 	"crypto/sha1" //nolint:gosec
 	"crypto/x509"
+	"encoding/base64"
 	"encoding/hex"
 	"errors"
 	"math/big"
+	"net/http"
+	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
+	"github.com/MicahParks/jwkset"
 	"github.com/fleetdm/fleet/v4/server"
+	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/cryptoutil"
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/stretchr/testify/require"
@@ -369,5 +375,95 @@ func TestAzureDataFromClaims(t *testing.T) {
 		require.NoError(t, err)
 		require.Empty(t, data.UniqueName)
 		require.Equal(t, "user@example.com", data.UPN)
+	})
+}
+
+func TestGetAzureAuthTokenClaims(t *testing.T) {
+	ctx := t.Context()
+	const tid = "6d8769e6-0f8b-418d-b385-1a53968781c9"
+	const kid = "test-kid"
+
+	newTestManager := func(t *testing.T) *manager {
+		var store CertStore
+		m, err := newManager(store, testCert, testKey)
+		require.NoError(t, err)
+		return m
+	}
+	m := newTestManager(t)
+
+	// Serve the manager's identity key as a JWK Set and count fetches.
+	jwk, err := jwkset.NewJWKFromKey(m.identityPrivateKey, jwkset.JWKOptions{
+		Metadata: jwkset.JWKMetadataOptions{KID: kid},
+	})
+	require.NoError(t, err)
+	jwks := jwkset.NewMemoryStorage()
+	require.NoError(t, jwks.KeyWrite(ctx, jwk))
+	jwksJSON, err := jwks.JSONPublic(ctx)
+	require.NoError(t, err)
+
+	var fetches atomic.Int32
+	jwksServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fetches.Add(1)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write(jwksJSON)
+	}))
+	t.Cleanup(jwksServer.Close)
+	dev_mode.SetOverride("FLEET_DEV_AZURE_JWT_JWKS_URI", jwksServer.URL, t)
+
+	signedToken := func(kid string) string {
+		token := jwt.NewWithClaims(jwt.SigningMethodRS256, jwt.MapClaims{
+			"upn": "user@example.com",
+			"tid": tid,
+			"iss": "https://sts.windows.net/" + tid + "/",
+			"aud": "https://fleet.example.com",
+			"scp": "mdm_delegation",
+			"exp": time.Now().Add(10 * time.Minute).Unix(),
+		})
+		token.Header["kid"] = kid
+		signed, err := token.SignedString(m.identityPrivateKey)
+		require.NoError(t, err)
+		return base64.StdEncoding.EncodeToString([]byte(signed))
+	}
+
+	t.Run("rejects empty token", func(t *testing.T) {
+		_, err := m.GetAzureAuthTokenClaims(ctx, "")
+		require.ErrorContains(t, err, "invalid STS token")
+	})
+
+	t.Run("rejects nil manager", func(t *testing.T) {
+		var nilManager *manager
+		_, err := nilManager.GetAzureAuthTokenClaims(ctx, signedToken(kid))
+		require.ErrorContains(t, err, "not configured")
+	})
+
+	t.Run("validates tokens and fetches the JWK Set once", func(t *testing.T) {
+		m := newTestManager(t)
+		before := fetches.Load()
+		for range 3 {
+			data, err := m.GetAzureAuthTokenClaims(ctx, signedToken(kid))
+			require.NoError(t, err)
+			require.Equal(t, "user@example.com", data.UPN)
+			require.Equal(t, tid, data.TenantID)
+			require.Equal(t, []string{"https://fleet.example.com"}, data.Audience)
+		}
+		require.Equal(t, before+1, fetches.Load())
+	})
+
+	t.Run("rejects token signed by unknown key", func(t *testing.T) {
+		m := newTestManager(t)
+		before := fetches.Load()
+		_, err := m.GetAzureAuthTokenClaims(ctx, signedToken("unknown-kid"))
+		require.ErrorIs(t, err, jwkset.ErrKeyNotFound)
+		// The initial fetch plus one refresh triggered by the unknown key ID.
+		require.Equal(t, before+2, fetches.Load())
+	})
+
+	t.Run("rejects tampered token", func(t *testing.T) {
+		tok := signedToken(kid)
+		raw, err := base64.StdEncoding.DecodeString(tok)
+		require.NoError(t, err)
+		tampered := base64.StdEncoding.EncodeToString(append(raw, 'x'))
+		_, err = m.GetAzureAuthTokenClaims(ctx, tampered)
+		require.Error(t, err)
 	})
 }
