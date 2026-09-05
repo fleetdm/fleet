@@ -1,0 +1,1 @@
+- Fixed `fleetctl gitops` temporarily clearing all Volume Purchasing Program and Apple Business Manager token/fleet assignments when the configuration referenced a fleet created in the same run; a run that failed mid-apply left the assignments permanently removed.
