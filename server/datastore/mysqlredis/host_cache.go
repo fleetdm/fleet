@@ -418,7 +418,11 @@ func (d *Datastore) hostCacheClearDirectEntries(ctx context.Context, nodeKey, or
 // to redisSetMembersBatchSize=10000 in hosts.go (whose elements are ~10-byte host IDs). Common practice for
 // pipelined batches is 100-1000; 500 is a defensible middle. Lower if metrics show invalidation causing Redis CPU
 // spikes during bulk team moves; raise if round-trip latency dominates.
-const hostCacheInvalidateBatchSize = 500
+var hostCacheInvalidateBatchSize = 500
+
+// hostCacheRewriteHostBatchSize bounds how many hosts' snapshots the team patch holds in memory at once.
+// A var so tests can cross the chunk boundary without priming hundreds of hosts.
+var hostCacheRewriteHostBatchSize = 500
 
 // invalidateHostIDs efficiently invalidates both cache families for a batch
 // of host IDs. Equivalent to calling hostCacheDeleteByID in a loop but uses
@@ -445,7 +449,7 @@ func (d *Datastore) invalidateHostIDs(ctx context.Context, ids []uint, reason st
 			idxKeys = append(idxKeys, fam.indexKey(id))
 		}
 	}
-	resolved := d.pipelinedMGET(ctx, idxKeys)
+	resolved, _ := d.pipelinedMGET(ctx, idxKeys)
 
 	// Phase 2: build the full DEL key list (payload + negative + reverse index for whichever family was
 	// populated) and issue pipelined DELs.
@@ -472,10 +476,13 @@ func (d *Datastore) invalidateHostIDs(ctx context.Context, ids []uint, reason st
 // Works in both modes via redis.SplitKeysBySlot: in cluster mode keys are grouped by slot (CROSSSLOT-safe)
 // and one MGET per slot group is issued; in standalone mode SplitKeysBySlot returns a single group containing
 // all keys and BindConn is a no-op. Either way the group is further chunked at hostCacheInvalidateBatchSize.
-func (d *Datastore) pipelinedMGET(ctx context.Context, keys []string) []string {
+// The bool reports whether every chunk was read. A failed read leaves empty
+// strings, which a caller cannot tell apart from "not cached" — and the two need
+// opposite handling, since a key we failed to read may still hold a stale value.
+func (d *Datastore) pipelinedMGET(ctx context.Context, keys []string) ([]string, bool) {
 	result := make([]string, len(keys))
 	if len(keys) == 0 {
-		return result
+		return result, true
 	}
 
 	// Slot grouping rearranges keys; this map restores input order.
@@ -484,18 +491,21 @@ func (d *Datastore) pipelinedMGET(ctx context.Context, keys []string) []string {
 		indexOf[k] = i
 	}
 
+	ok := true
 	for _, group := range redis.SplitKeysBySlot(d.pool, keys...) {
 		for len(group) > 0 {
 			n := min(len(group), hostCacheInvalidateBatchSize)
 			chunk := group[:n]
 			group = group[n:]
-			d.mgetChunk(ctx, chunk, indexOf, result)
+			if !d.mgetChunk(ctx, chunk, indexOf, result) {
+				ok = false
+			}
 		}
 	}
-	return result
+	return result, ok
 }
 
-func (d *Datastore) mgetChunk(ctx context.Context, chunk []string, indexOf map[string]int, out []string) {
+func (d *Datastore) mgetChunk(ctx context.Context, chunk []string, indexOf map[string]int, out []string) bool {
 	conn := d.pool.Get()
 	defer conn.Close()
 	// BindConn MUST come before ConfigureDoer. redisc's BindConn expects the raw cluster conn from the pool,
@@ -503,7 +513,7 @@ func (d *Datastore) mgetChunk(ctx context.Context, chunk []string, indexOf map[s
 	// In standalone mode BindConn is a no-op.
 	if err := redis.BindConn(d.pool, conn, chunk...); err != nil {
 		d.recordHostCacheErr(ctx, "get", err)
-		return
+		return false
 	}
 	// ConfigureDoer returns a RetryConn wrapper around conn. We use the wrapper for the Do() call but keep the
 	// `defer conn.Close()` against the raw conn so the lifecycle is explicit and tools don't flag the assignment
@@ -513,7 +523,7 @@ func (d *Datastore) mgetChunk(ctx context.Context, chunk []string, indexOf map[s
 	values, err := redigo.Values(doer.Do("MGET", args...))
 	if err != nil {
 		d.recordHostCacheErr(ctx, "get", err)
-		return
+		return false
 	}
 	for i, v := range values {
 		if i >= len(chunk) {
@@ -526,6 +536,7 @@ func (d *Datastore) mgetChunk(ctx context.Context, chunk []string, indexOf map[s
 			out[indexOf[chunk[i]]] = string(b)
 		}
 	}
+	return true
 }
 
 // pipelinedDEL issues variadic DEL across all keys. Slot-grouped and chunked the same way as pipelinedMGET
@@ -700,4 +711,261 @@ func (d *Datastore) LoadHostByNodeKey(ctx context.Context, nodeKey string) (*fle
 // team name) ride along automatically via the embedded fleet.Host in the cache envelope.
 func (d *Datastore) LoadHostByOrbitNodeKey(ctx context.Context, orbitNodeKey string) (*fleet.Host, error) {
 	return d.loadHostFamily(ctx, orbitCacheFamily, orbitNodeKey, d.Datastore.LoadHostByOrbitNodeKey)
+}
+
+// rewriteTeamOnHostIDs patches team_id on the cached snapshots of a transferred
+// batch instead of deleting them, keeping each entry's existing expiry.
+//
+// Why not just invalidate: a team transfer changes exactly one cached field, but
+// DELing the batch makes every transferred host miss on its next check-in. The
+// whole population then reloads inside one poll interval, so the reader sees the
+// full uncached host-load rate in a burst, and because the reloads all repopulate together
+// their TTLs collapse into one wave that re-fires each TTL period.
+// Patching in place removes the reload entirely and preserves the natural TTL spread.
+//
+// Anything that cannot be patched confidently falls back to the DEL path: an
+// unreadable envelope, a failure to resolve the destination's disk encryption
+// settings, or a write that errored and so may have left the old snapshot in
+// place. A write that XX rejected needs no fallback — that entry had already
+// expired, so there is nothing stale to clear.
+func (d *Datastore) rewriteTeamOnHostIDs(ctx context.Context, ids []uint, teamID *uint) {
+	if !d.hostCacheEnabled || len(ids) == 0 {
+		return
+	}
+
+	// The transfer drops escrowed disk encryption keys for platforms the
+	// destination doesn't escrow for, which is the one other cached field a
+	// transfer can change (orbit family only). Without these settings we can't
+	// tell, so invalidate rather than serve a stale key-available flag.
+	destDiskEncryption, err := d.Datastore.GetConfigEnableDiskEncryption(ctx, teamID)
+	if err != nil {
+		d.recordHostCacheErr(ctx, "get", err)
+		d.invalidateHostIDs(ctx, ids, "team")
+		return
+	}
+
+	var patched, fallback []uint
+	for len(ids) > 0 {
+		n := min(len(ids), hostCacheRewriteHostBatchSize)
+		chunkPatched, chunkFallback := d.rewriteTeamChunk(ctx, ids[:n], teamID, destDiskEncryption)
+		ids = ids[n:]
+		patched = append(patched, chunkPatched...)
+		fallback = append(fallback, chunkFallback...)
+	}
+
+	// Both counts are per host, matching the invalidation counter's semantics: a
+	// host has an entry per family, and each can independently be patched,
+	// skipped, or fall back — so either list can name the same host twice.
+	if fallbackHosts := uniqueHostIDs(fallback); len(fallbackHosts) > 0 {
+		d.invalidateHostIDs(ctx, fallbackHosts, "team")
+	}
+	d.recordHostCacheInvalidations(ctx, "team_rewrite", len(uniqueHostIDs(patched)))
+}
+
+// uniqueHostIDs removes repeats while preserving order.
+func uniqueHostIDs(ids []uint) []uint {
+	if len(ids) < 2 {
+		return ids
+	}
+	seen := make(map[uint]struct{}, len(ids))
+	out := make([]uint, 0, len(ids))
+	for _, id := range ids {
+		if _, dup := seen[id]; dup {
+			continue
+		}
+		seen[id] = struct{}{}
+		out = append(out, id)
+	}
+	return out
+}
+
+// rewriteTeamChunk patches one chunk of host IDs, returning the hosts it patched
+// and the ones that must fall back to invalidation.
+func (d *Datastore) rewriteTeamChunk(
+	ctx context.Context, ids []uint, teamID *uint, destDiskEncryption fleet.DiskEncryptionConfig,
+) (patched, fallback []uint) {
+	families := []cacheFamily{osqueryCacheFamily, orbitCacheFamily}
+	nFam := len(families)
+
+	idxKeys := make([]string, 0, nFam*len(ids))
+	for _, id := range ids {
+		for _, fam := range families {
+			idxKeys = append(idxKeys, fam.indexKey(id))
+		}
+	}
+	resolved, ok := d.pipelinedMGET(ctx, idxKeys)
+	if !ok {
+		// Unresolved keys are indistinguishable from uncached ones, so patching
+		// only what came back would leave the rest holding the old team.
+		return nil, ids
+	}
+
+	// Reverse index -> payload key, so the payloads can be fetched in one pass.
+	type target struct {
+		fam     cacheFamily
+		nodeKey string
+		id      uint
+	}
+	targets := make([]target, 0, len(idxKeys))
+	payloadKeys := make([]string, 0, len(idxKeys))
+	for i, id := range ids {
+		for f, fam := range families {
+			key := resolved[i*nFam+f]
+			if key == "" {
+				continue
+			}
+			targets = append(targets, target{fam: fam, nodeKey: key, id: id})
+			payloadKeys = append(payloadKeys, fam.primaryKey(key))
+		}
+	}
+	if len(targets) == 0 {
+		// Nothing cached for these hosts: clear the reverse index and any negative entries.
+		return nil, ids
+	}
+
+	payloads, ok := d.pipelinedMGET(ctx, payloadKeys)
+	if !ok {
+		// Same reasoning: an unread payload still holds the old snapshot.
+		return nil, ids
+	}
+
+	writes := make([]hostCacheKV, 0, len(targets))
+	for i, t := range targets {
+		raw := payloads[i]
+		if raw == "" {
+			// Expired between the two MGETs; nothing to patch and nothing stale.
+			continue
+		}
+		var env hostCacheEnvelope
+		if err := json.Unmarshal([]byte(raw), &env); err != nil {
+			d.recordHostCacheErr(ctx, "get", err)
+			fallback = append(fallback, t.id)
+			continue
+		}
+		env.TeamID = teamID
+		if t.fam.sfPrefix == orbitCacheFamily.sfPrefix && !escrowKeptOnTransfer(env.Platform, destDiskEncryption) {
+			env.MDM.EncryptionKeyAvailable = false
+		}
+		next, err := json.Marshal(&env)
+		if err != nil {
+			d.recordHostCacheErr(ctx, "set", err)
+			fallback = append(fallback, t.id)
+			continue
+		}
+		writes = append(writes, hostCacheKV{key: t.fam.primaryKey(t.nodeKey), val: next, id: t.id})
+	}
+
+	applied, failed := d.pipelinedSETKeepTTL(ctx, writes)
+	for _, kv := range failed {
+		fallback = append(fallback, kv.id)
+	}
+	for _, kv := range applied {
+		patched = append(patched, kv.id)
+	}
+	return patched, fallback
+}
+
+// escrowKeptOnTransfer mirrors cleanupDiskEncryptionKeysOnTeamChangeDB's
+// per-platform decision so the cached MDM.EncryptionKeyAvailable flag stays in
+// step with the rows the transfer just deleted.
+func escrowKeptOnTransfer(platform string, cfg fleet.DiskEncryptionConfig) bool {
+	switch (&fleet.Host{Platform: platform}).FleetPlatform() {
+	case "darwin":
+		return cfg.MacOSEscrowEnabled
+	case "windows":
+		return cfg.WindowsEnabled
+	case "linux":
+		return cfg.LinuxEscrowEnabled
+	}
+	return false
+}
+
+type hostCacheKV struct {
+	key string
+	val []byte
+	id  uint
+}
+
+// KEEPTTL keeps each entry's existing expiry; a plain SET would reset it and
+// leave the whole batch expiring together. XX drops a key that expired between
+// being read and being written back: without it that SET recreates the entry
+// with no expiry at all, and since the reverse index expired with it, no
+// invalidation could ever find it again. Returns the writes Redis applied, and
+// the ones whose outcome is unknown because the write errored.
+func (d *Datastore) pipelinedSETKeepTTL(ctx context.Context, kvs []hostCacheKV) (applied, failed []hostCacheKV) {
+	if len(kvs) == 0 {
+		return nil, nil
+	}
+	byKey := make(map[string]hostCacheKV, len(kvs))
+	keys := make([]string, 0, len(kvs))
+	for _, kv := range kvs {
+		byKey[kv.key] = kv
+		keys = append(keys, kv.key)
+	}
+	for _, group := range redis.SplitKeysBySlot(d.pool, keys...) {
+		for len(group) > 0 {
+			n := min(len(group), hostCacheInvalidateBatchSize)
+			chunk := group[:n]
+			group = group[n:]
+			chunkApplied, chunkFailed := d.setKeepTTLChunk(ctx, chunk, byKey)
+			applied = append(applied, chunkApplied...)
+			failed = append(failed, chunkFailed...)
+		}
+	}
+	return applied, failed
+}
+
+// SET has no variadic form, so the chunk is pipelined to avoid a round-trip per key.
+func (d *Datastore) setKeepTTLChunk(ctx context.Context, chunk []string, byKey map[string]hostCacheKV) (applied, failed []hostCacheKV) {
+	all := func() []hostCacheKV {
+		out := make([]hostCacheKV, 0, len(chunk))
+		for _, k := range chunk {
+			out = append(out, byKey[k])
+		}
+		return out
+	}
+
+	conn := d.pool.Get()
+	defer conn.Close()
+	// BindConn before ConfigureDoer, see mgetChunk for the rationale.
+	if err := redis.BindConn(d.pool, conn, chunk...); err != nil {
+		d.recordHostCacheErr(ctx, "set", err)
+		return nil, all()
+	}
+	doer := redis.ConfigureDoer(d.pool, conn)
+
+	sent := make([]hostCacheKV, 0, len(chunk))
+	for i, k := range chunk {
+		if err := doer.Send("SET", k, byKey[k].val, "XX", "KEEPTTL"); err != nil {
+			d.recordHostCacheErr(ctx, "set", err)
+			for _, rest := range chunk[i:] {
+				failed = append(failed, byKey[rest])
+			}
+			break
+		}
+		sent = append(sent, byKey[k])
+	}
+	if len(sent) == 0 {
+		return nil, failed
+	}
+	if err := doer.Flush(); err != nil {
+		d.recordHostCacheErr(ctx, "set", err)
+		return nil, append(failed, sent...)
+	}
+
+	applied = make([]hostCacheKV, 0, len(sent))
+	for i, kv := range sent {
+		reply, err := doer.Receive()
+		if err != nil {
+			d.recordHostCacheErr(ctx, "set", err)
+			return applied, append(failed, sent[i:]...)
+		}
+		if reply == nil {
+			// XX rejected the write: the entry expired since it was read, so
+			// there is no stale snapshot to clear and nothing to fall back to.
+			continue
+		}
+		applied = append(applied, kv)
+	}
+	return applied, failed
 }

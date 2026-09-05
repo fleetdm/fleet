@@ -25,7 +25,8 @@ var (
 
 	// hostCacheInvalidations counts cache invalidation operations, labeled by
 	// the write path that triggered the invalidation. Attribute `reason` is
-	// one of: update, enroll, team, delete, cert.
+	// one of: update, enroll, team, delete, cert, team_rewrite (the last being
+	// an in-place team patch that kept the entry rather than dropping it).
 	hostCacheInvalidations metric.Int64Counter
 )
 
