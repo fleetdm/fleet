@@ -3885,6 +3885,105 @@ func TestModifyAppConfigWindowsEnrollment(t *testing.T) {
 	}
 }
 
+// Flipping either Apple Business enrollment restriction changes which hosts are
+// eligible for SCEP renewal, so the stored exclusions and any in-flight renewals
+// have to be dropped for the next cron run to re-evaluate every host.
+func TestModifyAppConfigAppleBusinessEnrollmentCertRenewals(t *testing.T) {
+	admin := &fleet.User{GlobalRole: new(fleet.RoleAdmin)}
+
+	testCases := []struct {
+		name             string
+		oldOnlyAB        bool
+		oldAttestation   bool
+		payload          string
+		expectResetRenew bool
+		expectActivity   string
+		expectNoActivity string
+	}{
+		{
+			name:             "enabling Apple Business only resets renewals",
+			payload:          `{"mdm":{"only_allow_apple_business_enrollment":true}}`,
+			expectResetRenew: true,
+			expectActivity:   "enabled_apple_business_only_enrollment",
+		},
+		{
+			name:             "disabling Apple Business only resets renewals",
+			oldOnlyAB:        true,
+			payload:          `{"mdm":{"only_allow_apple_business_enrollment":false}}`,
+			expectResetRenew: true,
+			expectActivity:   "disabled_apple_business_only_enrollment",
+		},
+		{
+			// Hardware attestation is the other half of IsAppleMDMSCEPBlocked, so it
+			// changes renewal eligibility on its own, with no activity of its own.
+			name:             "toggling hardware attestation resets renewals",
+			payload:          `{"mdm":{"apple_require_hardware_attestation":true}}`,
+			expectResetRenew: true,
+			expectNoActivity: "enabled_apple_business_only_enrollment",
+		},
+		{
+			name:             "re-saving the same values is a no-op",
+			oldOnlyAB:        true,
+			oldAttestation:   true,
+			payload:          `{"mdm":{"only_allow_apple_business_enrollment":true,"apple_require_hardware_attestation":true}}`,
+			expectResetRenew: false,
+			expectNoActivity: "enabled_apple_business_only_enrollment",
+		},
+		{
+			name:             "an unrelated change leaves renewals alone",
+			payload:          `{"org_info":{"org_name":"Test2"}}`,
+			expectResetRenew: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ds := new(mock.Store)
+			opts := &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}}
+			svc, ctx := newTestService(t, ds, nil, nil, opts)
+			ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin})
+
+			var activities []string
+			opts.ActivityMock.NewActivityFunc = func(ctx context.Context, user *activity_api.User, act activity_api.ActivityDetails) error {
+				activities = append(activities, act.ActivityName())
+				return nil
+			}
+
+			dsAppConfig := &fleet.AppConfig{
+				OrgInfo:        fleet.OrgInfo{OrgName: "Test"},
+				ServerSettings: fleet.ServerSettings{ServerURL: "https://example.org"},
+				MDM: fleet.MDM{
+					EnabledAndConfigured:             true,
+					OnlyAllowAppleBusinessEnrollment: tc.oldOnlyAB,
+					AppleRequireHardwareAttestation:  tc.oldAttestation,
+				},
+			}
+			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) { return dsAppConfig, nil }
+			ds.SaveAppConfigFunc = func(ctx context.Context, conf *fleet.AppConfig) error { *dsAppConfig = *conf; return nil }
+			ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error { return nil }
+			ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) { return []*fleet.VPPTokenDB{}, nil }
+			ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) { return []*fleet.ABMToken{}, nil }
+			ds.ClearCertRenewalExclusionsFunc = func(ctx context.Context) error { return nil }
+			ds.ResetPendingCertRenewalsFunc = func(ctx context.Context) error { return nil }
+
+			_, err := svc.ModifyAppConfig(ctx, []byte(tc.payload), fleet.ApplySpecOptions{})
+			require.NoError(t, err)
+
+			// both run together: clearing exclusions without cancelling in-flight
+			// renewals would leave hosts stuck behind a renew_command_uuid.
+			require.Equal(t, tc.expectResetRenew, ds.ClearCertRenewalExclusionsFuncInvoked)
+			require.Equal(t, tc.expectResetRenew, ds.ResetPendingCertRenewalsFuncInvoked)
+
+			if tc.expectActivity != "" {
+				require.Contains(t, activities, tc.expectActivity)
+			}
+			if tc.expectNoActivity != "" {
+				require.NotContains(t, activities, tc.expectNoActivity)
+			}
+		})
+	}
+}
+
 func TestDiskEncryptionPrecedence(t *testing.T) {
 	admin := &fleet.User{GlobalRole: new(fleet.RoleAdmin)}
 

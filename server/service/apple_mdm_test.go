@@ -6979,6 +6979,141 @@ func TestRenewACMECertificatesBranches(t *testing.T) {
 	}
 }
 
+// TestRenewSCEPCertificatesEnrollmentRestrictions covers how the Apple Business
+// enrollment restrictions gate renewals. With both restrictions on SCEP is
+// blocked outright, so every host that can't renew over ACME is excluded from
+// future runs instead. With only the Apple Business restriction on, hosts
+// assigned to Fleet in Apple Business Manager still renew over SCEP.
+func TestRenewSCEPCertificatesEnrollmentRestrictions(t *testing.T) {
+	const (
+		appleSiliconModel = "Mac13,1"
+		acmeMacOSVersion  = "14.0"
+	)
+
+	// acme-capable* are the only hosts GetDeviceInfoForACMERenewal reports back
+	// as attestation-capable below.
+	expiring := []fleet.SCEPIdentityAssociation{
+		{HostUUID: "acme-capable", DEPAssignedToFleet: true},
+		{HostUUID: "acme-capable-with-ref", EnrollReference: "ref1", DEPAssignedToFleet: true},
+		{HostUUID: "scep-only", DEPAssignedToFleet: true},
+		{HostUUID: "scep-only-with-ref", EnrollReference: "ref2", DEPAssignedToFleet: true},
+		{HostUUID: "not-dep-assigned"},
+		{HostUUID: "user-device", EnrollmentType: "User Enrollment (Device)", DEPAssignedToFleet: true},
+		{HostUUID: "from-migration", EnrolledFromMigration: true, DEPAssignedToFleet: true},
+	}
+
+	tests := []struct {
+		name                       string
+		requireHardwareAttestation bool
+		// wantCommands maps a host UUID to the name of the command it must receive.
+		wantCommands map[string]string
+		wantExcluded []string
+	}{
+		{
+			name:                       "Apple Business only and hardware attestation blocks every SCEP renewal",
+			requireHardwareAttestation: true,
+			wantCommands: map[string]string{
+				"acme-capable":          "fl33t ACME enrollment",
+				"acme-capable-with-ref": "fl33t ACME enrollment",
+			},
+			// Everything that can't do ACME is excluded rather than falling back to SCEP.
+			wantExcluded: []string{"scep-only", "scep-only-with-ref", "not-dep-assigned", "user-device", "from-migration"},
+		},
+		{
+			name:                       "Apple Business only alone still renews DEP-assigned hosts over SCEP",
+			requireHardwareAttestation: false,
+			wantCommands: map[string]string{
+				"acme-capable":          "fl33t enrollment",
+				"acme-capable-with-ref": "fl33t enrollment",
+				"scep-only":             "fl33t enrollment",
+				"scep-only-with-ref":    "fl33t enrollment",
+			},
+			// from-migration is DEP assigned, so it goes to the silent migration
+			// bucket instead of being excluded.
+			wantExcluded: []string{"not-dep-assigned", "user-device"},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx, logger, ds, cfg, appleStorage, commander := setupTest(t)
+
+			acmeSvc := &mock.MockACMEService{}
+			acmeSvc.NewACMEEnrollmentFunc = func(ctx context.Context, hostIdentifier string) (string, error) {
+				return uuid.NewString(), nil
+			}
+
+			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+				appCfg := &fleet.AppConfig{}
+				appCfg.OrgInfo.OrgName = "fl33t"
+				appCfg.ServerSettings.ServerURL = "https://foo.example.com"
+				appCfg.MDM.EnabledAndConfigured = true
+				appCfg.MDM.OnlyAllowAppleBusinessEnrollment = true
+				appCfg.MDM.AppleRequireHardwareAttestation = tc.requireHardwareAttestation
+				return appCfg, nil
+			}
+			ds.GetHostCertAssociationsToExpireFunc = func(ctx context.Context, expiryDays int, limit int) ([]fleet.SCEPIdentityAssociation, error) {
+				return expiring, nil
+			}
+			ds.GetDeviceInfoForACMERenewalFunc = func(ctx context.Context, hostUUIDs []string) ([]fleet.DeviceInfoForACMERenewal, error) {
+				var out []fleet.DeviceInfoForACMERenewal
+				for _, uuid := range hostUUIDs {
+					if !strings.HasPrefix(uuid, "acme-capable") {
+						continue
+					}
+					out = append(out, fleet.DeviceInfoForACMERenewal{
+						HostUUID:       uuid,
+						HardwareSerial: "SERIAL-" + uuid,
+						HardwareModel:  appleSiliconModel,
+						OSVersion:      acmeMacOSVersion,
+					})
+				}
+				return out, nil
+			}
+			ds.GetHostMDMAppleEnrollmentPermissionsFunc = func(ctx context.Context, hostUUID string) (*fleet.HostMDMApplePermissions, error) {
+				return nil, nil
+			}
+			ds.SetCommandForPendingSCEPRenewalFunc = func(ctx context.Context, assocs []fleet.SCEPIdentityAssociation, cmdUUID string) error {
+				return nil
+			}
+
+			var gotExcluded []string
+			ds.ExcludeHostCertAssociationsFromRenewalFunc = func(ctx context.Context, assocs []fleet.SCEPIdentityAssociation) error {
+				for _, assoc := range assocs {
+					gotExcluded = append(gotExcluded, assoc.HostUUID)
+				}
+				return nil
+			}
+
+			gotCommands := map[string]string{}
+			appleStorage.EnqueueCommandFunc = func(ctx context.Context, ids []string, cmd *mdm.CommandWithSubtype) (map[string]error, error) {
+				for _, id := range ids {
+					gotCommands[id] = cmd.Name
+				}
+				return map[string]error{}, nil
+			}
+			appleStorage.RetrievePushInfoFunc = func(ctx context.Context, targets []string) (map[string]*mdm.Push, error) {
+				pushes := make(map[string]*mdm.Push, len(targets))
+				for _, id := range targets {
+					pushes[id] = &mdm.Push{PushMagic: "magic" + id, Token: []byte("token" + id), Topic: "topic" + id}
+				}
+				return pushes, nil
+			}
+			appleStorage.RetrievePushCertFunc = func(ctx context.Context, topic string) (*tls.Certificate, string, error) {
+				apnsCert, apnsKey, err := mysqltest.GenerateTestCertBytes(mdmtesting.NewTestMDMAppleCertTemplate())
+				require.NoError(t, err)
+				cert, err := tls.X509KeyPair(apnsCert, apnsKey)
+				return &cert, "", err
+			}
+
+			require.NoError(t, RenewSCEPCertificates(ctx, logger, ds, cfg, commander, acmeSvc))
+
+			require.Equal(t, tc.wantCommands, gotCommands)
+			require.ElementsMatch(t, tc.wantExcluded, gotExcluded)
+		})
+	}
+}
+
 func TestMDMCommandAndReportResultsIOSIPadOSRefetch(t *testing.T) {
 	ctx := context.Background()
 	hostID := uint(42)

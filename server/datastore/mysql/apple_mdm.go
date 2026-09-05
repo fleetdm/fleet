@@ -2111,6 +2111,19 @@ WHERE hm.host_id IN (?)
 		return ctxerr.Wrap(ctx, err, "upsert host dep assignments update installed_from_dep")
 	}
 
+	// null any renewal_excluded_at for the given hosts
+	stmt, args, err = sqlx.In(`UPDATE nano_cert_auth_associations ncaa
+		JOIN hosts h ON h.uuid = ncaa.id
+		SET ncaa.renewal_excluded_at = NULL
+		WHERE h.id IN (?)`, hostIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "upsert host dep assignments null renewal_excluded_at")
+	}
+	_, err = tx.ExecContext(ctx, stmt, args...)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "upsert host dep assignments null renewal_excluded_at")
+	}
+
 	return nil
 }
 
@@ -8727,4 +8740,57 @@ func (ds *Datastore) GetAppleOSUpdateHostByUUID(ctx context.Context, hostUUID st
 		return nil, ctxerr.Wrap(ctx, err, "getting apple os update host by uuid")
 	}
 	return &host, nil
+}
+
+func (ds *Datastore) ExcludeHostCertAssociationsFromRenewal(ctx context.Context, assocs []fleet.SCEPIdentityAssociation) error {
+	if len(assocs) == 0 {
+		return nil
+	}
+
+	args := make([]any, 0, len(assocs)*2)
+	for _, assoc := range assocs {
+		args = append(args, assoc.HostUUID, assoc.SHA256)
+	}
+
+	stmt := fmt.Sprintf(`
+		UPDATE nano_cert_auth_associations
+		SET renewal_excluded_at = NOW()
+		WHERE (id, sha256) IN (%s)`, strings.TrimSuffix(strings.Repeat("(?,?),", len(assocs)), ","))
+
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "excluding host cert associations from renewal")
+	}
+	return nil
+}
+
+func (ds *Datastore) ClearCertRenewalExclusions(ctx context.Context) error {
+	const stmt = `
+		UPDATE nano_cert_auth_associations
+		SET renewal_excluded_at = NULL`
+
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt); err != nil {
+		return ctxerr.Wrap(ctx, err, "clearing cert renewal exclusions")
+	}
+	return nil
+}
+
+func (ds *Datastore) ResetPendingCertRenewals(ctx context.Context) error {
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		// deactivate all renewal commands in the queue
+		if _, err := tx.ExecContext(ctx, `UPDATE nano_enrollment_queue q
+JOIN nano_cert_auth_associations a ON a.renew_command_uuid = q.command_uuid
+SET q.active = 0`); err != nil {
+			return ctxerr.Wrap(ctx, err, "deactivating active cert renewal commands in nano_enrollment_queue")
+		}
+
+		// reset all pending cert renewals
+		const resetStmt = `
+			UPDATE nano_cert_auth_associations
+			SET renew_command_uuid = NULL
+			WHERE renew_command_uuid IS NOT NULL`
+		if _, err := tx.ExecContext(ctx, resetStmt); err != nil {
+			return ctxerr.Wrap(ctx, err, "resetting pending cert renewals")
+		}
+		return nil
+	})
 }

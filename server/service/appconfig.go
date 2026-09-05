@@ -1901,6 +1901,17 @@ func (svc *Service) processSavedAppConfigChanges(
 		}
 	}
 
+	if oldAppConfig.MDM.OnlyAllowAppleBusinessEnrollment != appConfig.MDM.OnlyAllowAppleBusinessEnrollment ||
+		oldAppConfig.MDM.AppleRequireHardwareAttestation != appConfig.MDM.AppleRequireHardwareAttestation {
+		if err := svc.ds.ClearCertRenewalExclusions(ctx); err != nil {
+			return ctxerr.Wrap(ctx, err, "clearing cert renewal exclusions")
+		}
+
+		if err := svc.ds.ResetPendingCertRenewals(ctx); err != nil {
+			return ctxerr.Wrap(ctx, err, "resetting pending cert renewals")
+		}
+	}
+
 	return nil
 }
 
