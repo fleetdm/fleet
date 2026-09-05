@@ -1,0 +1,1 @@
+- Fixed the "Refetch host" and "Refetch host by Fleet Desktop token" API endpoints returning a success response for Android hosts, which never refetch on demand. They now return a 400 explaining that Android hosts sync data automatically. Android hosts left with a pending refetch by earlier versions are cleared, since nothing else ever resets that flag for them.
