@@ -52,6 +52,7 @@ Go and API conventions (ctxerr error wrapping, error types, request/response str
 ## Opening a pull request
 
 - The PR description MUST start from `.github/pull_request_template.md`. When creating a PR (e.g. `gh pr create`), use that file as the body and fill it in — do not open a PR with an empty or freeform description. A CI check (`check-pr-template`) fails PRs whose description is missing the template.
+- Fill in the `**AI assistance:**` line at the top of the template with the tool you are running in and the exact model ID your environment reports (write `unknown` if it does not). Never delete that line.
 
 ## Development commands
 
