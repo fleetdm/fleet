@@ -127,6 +127,12 @@ func (w *COMWorker) AddTPMProtector(targetVolume string) error {
 	return w.exec(func() (any, error) { return nil, addTPMProtectorOnCOMThread(targetVolume) }).err
 }
 
+// ResumeConversion restarts a paused conversion. It resumes a paused decryption as readily as a paused encryption, so
+// callers must establish which one is paused first.
+func (w *COMWorker) ResumeConversion(targetVolume string) error {
+	return w.exec(func() (any, error) { return nil, resumeConversionOnCOMThread(targetVolume) }).err
+}
+
 // EnableProtection turns protection back on for an encrypted volume whose protection is off. It does not decide
 // whether that is safe; see enableProtectionOnCOMThread.
 func (w *COMWorker) EnableProtection(targetVolume string) error {

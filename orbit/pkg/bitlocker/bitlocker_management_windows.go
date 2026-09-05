@@ -236,6 +236,22 @@ func (v *Volume) enableKeyProtectors() error {
 	return nil
 }
 
+// resumeConversion restarts a conversion that was paused. It resumes whichever conversion the volume has paused,
+// encryption or decryption, so the caller has to know which one that is before calling it. Verified on Windows 11
+// 25H2: PauseConversion moves a volume from EncryptionInProgress to EncryptionPaused, and ResumeConversion returns 0
+// and moves it back, with the percentage advancing again.
+// https://learn.microsoft.com/en-us/windows/win32/secprov/resumeconversion-win32-encryptablevolume
+func (v *Volume) resumeConversion() error {
+	resultRaw, err := oleutil.CallMethod(v.handle, "ResumeConversion")
+	if err != nil {
+		return fmt.Errorf("resumeConversion(%s): %w", v.letter, err)
+	}
+	if val, ok := resultRaw.Value().(int32); val != 0 || !ok {
+		return fmt.Errorf("resumeConversion(%s): %w", v.letter, encryptErrHandler(val))
+	}
+	return nil
+}
+
 // deleteKeyProtector removes a single key protector by its ID.
 // https://learn.microsoft.com/en-us/windows/win32/secprov/deletekeyprotector-win32-encryptablevolume
 func (v *Volume) deleteKeyProtector(protectorID string) error {
@@ -574,16 +590,32 @@ func rotateRecoveryKeyOnCOMThread(targetVolume string) (string, error) {
 		}
 	}
 
-	// Ensure a TPM protector exists (some pre-encrypted disks may not have one).
-	if err := vol.protectWithTPM(nil); err != nil {
-		// ErrorCodeProtectorExists is expected if a TPM protector is already present.
+	// Give pre-encrypted disks something that can unseal at boot, without weakening a volume that already has one.
+	if err := ensureBootUnsealProtector(vol.hasTPMFamilyProtector, func() error { return vol.protectWithTPM(nil) }); err != nil {
+		// ErrorCodeProtectorExists means a protector appeared between the check and the add, which is the desired state.
 		var encErr *EncryptionError
 		if !errors.As(err, &encErr) || encErr.Code() != ErrorCodeProtectorExists {
-			log.Debug().Err(err).Msg("could not add TPM protector, continuing")
+			log.Warn().Err(err).Msg("could not ensure a boot protector exists, continuing")
 		}
 	}
 
 	return newRecoveryKey, nil
+}
+
+// hasTPMFamilyProtector reports whether the volume already has a protector that can release the volume master key at
+// boot. Every TPM-family protector qualifies, the PIN variants included: they prompt for a PIN, which is the point,
+// not for the 48-digit recovery password.
+func (v *Volume) hasTPMFamilyProtector() (bool, error) {
+	for _, t := range TPMFamilyProtectorTypes {
+		ids, err := v.getKeyProtectorIDs(t)
+		if err != nil {
+			return false, fmt.Errorf("listing key protectors of type %d: %w", t, err)
+		}
+		if len(ids) > 0 {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 // hasTPMFamilyProtectorOnCOMThread reports whether the volume has a protector that can unseal the key at boot without
@@ -623,6 +655,18 @@ func addTPMProtectorOnCOMThread(targetVolume string) error {
 		return err
 	}
 	return nil
+}
+
+// resumeConversionOnCOMThread restarts the volume's paused conversion. The caller must have established that the
+// paused conversion is an encryption; this resumes a paused decryption just as readily.
+func resumeConversionOnCOMThread(targetVolume string) error {
+	vol, err := bitlockerConnect(targetVolume)
+	if err != nil {
+		return fmt.Errorf("connecting to the volume: %w", err)
+	}
+	defer vol.bitlockerClose()
+
+	return vol.resumeConversion()
 }
 
 // enableProtectionOnCOMThread turns protection back on for a volume that is encrypted but unprotected.
