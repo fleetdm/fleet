@@ -55,8 +55,8 @@ const NoResults = ({
   if (collectingResults && !disabledCaching) {
     const collectingResultsInfo = () => (
       <>
-        Fleet is collecting report results. <br />
-        Check back in about {readableCheckbackTime}.
+        Hosts will start reporting results after they&apos;ve been online for
+        about {readableCheckbackTime}.
       </>
     );
 
