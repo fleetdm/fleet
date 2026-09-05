@@ -56,6 +56,7 @@ import {
 } from "utilities/activityHelpers";
 import { normalizeEmptyValues, wrapFleetHelper } from "utilities/helpers";
 import permissions from "utilities/permissions";
+import local from "utilities/local";
 import {
   DOCUMENT_TITLE_SUFFIX,
   HOST_SUMMARY_DATA,
@@ -189,6 +190,8 @@ const ANDROID_SW_INSTALL_LEARN_MORE_LINK =
   "https://fleetdm.com/learn-more-about/install-google-play-apps";
 
 const ACTIVITY_CARD_DATA_STALE_TIME = 5000; // 5 seconds
+
+const SHOW_MDM_COMMANDS_STORAGE_KEY = "hostDetailsShowMDMCommands";
 
 interface IHostDetailsProps {
   router: InjectedRouter; // v3
@@ -369,7 +372,17 @@ const HostDetailsPage = ({
     "past" | "upcoming"
   >("past");
   const [activityPage, setActivityPage] = useState(0);
-  const [showMDMCommands, setShowMDMCommands] = useState(false);
+  // Per-browser rather than per-user: whether this becomes a shared default is
+  // still open, so keep the fix clear of where the preference ends up living.
+  const [showMDMCommands, setShowMDMCommands] = useState(
+    () => local.getItem(SHOW_MDM_COMMANDS_STORAGE_KEY) === "true"
+  );
+
+  const updateShowMDMCommands = useCallback((show: boolean) => {
+    setActivityPage(0);
+    setShowMDMCommands(show);
+    local.setItem(SHOW_MDM_COMMANDS_STORAGE_KEY, show ? "true" : "false");
+  }, []);
 
   // certificates states
   const [
@@ -1689,14 +1702,8 @@ const HostDetailsPage = ({
                   isUpcomingDisabled={isAndroidHost}
                   showMDMCommandsToggle={canGetMDMCommands}
                   showMDMCommands={showMDMCommands}
-                  onShowMDMCommands={() => {
-                    setActivityPage(0);
-                    setShowMDMCommands(true);
-                  }}
-                  onHideMDMCommands={() => {
-                    setActivityPage(0);
-                    setShowMDMCommands(false);
-                  }}
+                  onShowMDMCommands={() => updateShowMDMCommands(true)}
+                  onHideMDMCommands={() => updateShowMDMCommands(false)}
                   upcomingCount={
                     (upcomingActivities?.count || 0) +
                     (upcomingMDMCommands?.count || 0)
