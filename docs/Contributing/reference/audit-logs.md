@@ -662,13 +662,15 @@ This activity contains the following fields:
 Generated when a host is enrolled in Fleet's MDM.
 
 This activity contains the following fields:
-- "host_id": ID of the host. Omitted when the host is not yet known at enrollment time (Windows Azure automatic enrollments, which are linked to their host when the device reports its serial number on the first management session).
-- "host_serial": Serial number of the host (Apple enrollments only, always empty for Microsoft).
+- "host_id": ID of the host. Omitted from activities generated before Fleet added this field.
+- "host_serial": Serial number of the host. For Apple BYOD (account-driven user) enrollments, which have no serial number, this is the enrollment ID instead. `null` if the serial number is unknown.
 - "host_display_name": Display name of the host.
-- "installed_from_dep": Whether the host was enrolled via DEP (Apple enrollments only, always false for Microsoft).
+- "installed_from_dep": Whether the host was enrolled automatically. `true` for Apple hosts enrolled via DEP, and for Windows hosts enrolled through Microsoft Entra ID during the out-of-box experience (OOBE), such as Windows Autopilot.
 - "mdm_platform": Used to distinguish between Apple and Microsoft enrollments. Can be "apple", "microsoft" or not present. If missing, this value is treated as "apple" for backwards compatibility.
 - "enrollment_id": The unique identifier for MDM BYOD enrollments; null for other enrollments.
 - "platform": The enrolled host's platform
+
+Windows hosts that enroll automatically through Microsoft Entra ID get this activity once it matches the enrollment to a host. This is usually within a minute of the device enrolling, but can be later if the host has not run Fleet's agent (fleetd) yet.
 
 #### Example
 
@@ -1215,6 +1217,18 @@ This activity does not contain any detail fields.
 ## disabled_windows_mdm_migration
 
 Generated when a user disables automatic MDM migration for Windows hosts, if Windows MDM is turned on.
+
+This activity does not contain any detail fields.
+
+## enabled_apple_business_only_enrollment
+
+Generated when a user enables the setting that allows only Apple hosts assigned to Fleet in Apple Business (AB) to turn on MDM.
+
+This activity does not contain any detail fields.
+
+## disabled_apple_business_only_enrollment
+
+Generated when a user disables the setting that allows only Apple hosts assigned to Fleet in Apple Business (AB) to turn on MDM.
 
 This activity does not contain any detail fields.
 

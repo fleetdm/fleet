@@ -1789,6 +1789,7 @@ None.
     "enable_disk_encryption": true,
     "windows_require_bitlocker_pin": false,
     "apple_require_hardware_attestation": false,
+    "only_allow_apple_business_enrollment": false,
     "name_template": "",
     "macos_updates": {
       "minimum_version": "12.3.1",
@@ -2177,6 +2178,7 @@ Modifies the Fleet's configuration with the supplied information.
     "enable_disk_encryption": true,
     "windows_require_bitlocker_pin": false,
     "apple_require_hardware_attestation": false,
+    "only_allow_apple_business_enrollment": false,
     "enable_recovery_lock_password": true,
     "macos_updates": {
       "minimum_version": "12.3.1",
@@ -2848,7 +2850,8 @@ When updating conditional access config, all `conditional_access` fields must ei
 | enable_turn_on_windows_mdm_manually | boolean | _Available in Fleet Premium._ Specifies whether or not to require end users to manually turn on MDM in **Settings > Access work or school**. If `false`, MDM is automatically turned on for all Windows hosts that aren't connected to any MDM solution. |
 | enable_disk_encryption            | boolean | _Available in Fleet Premium._ Hosts that are "Unassigned" will have disk encryption enabled if set to true. |
 | windows_require_bitlocker_pin           | boolean | _Available in Fleet Premium._ End users on Windows hosts that are "Unassigned" will be required to set a BitLocker PIN if set to true. `enable_disk_encryption` must be set to true. When the PIN is set, it's required to unlock Windows host during startup. |
-| apple_require_hardware_attestation | boolean | _Available in Fleet Premium._ Specifies whether or not to require Apple Silicon macOS hosts to complete a device attestation challenge verifying that the hardware serial matches a known host record from ABM as part of DEP enrollment. |
+| apple_require_hardware_attestation | boolean | _Available in Fleet Premium._ Specifies whether or not to require Apple hosts with supported hardware (Apple Silicon Macs, and iPhones and iPads with an A11 Bionic or later chip running iOS/iPadOS 16 or later) to complete a device attestation challenge verifying that the hardware serial matches a known host record from ABM as part of DEP enrollment. Hosts without supported hardware (for example, Intel Macs) enroll with SCEP and aren't attested, unless `only_allow_apple_business_enrollment` is also enabled. In that case, they can't enroll. |
+| only_allow_apple_business_enrollment | boolean | _Available in Fleet Premium._ Specifies whether or not to allow only Apple hosts that are assigned to Fleet in Apple Business (AB) to turn on MDM, through Automated Device Enrollment (ADE). When enabled, manual enrollment, over-the-air (OTA) enrollment, and account-driven user enrollment (BYOD) are blocked. Fleet also stops renewing MDM certificates for enrolled hosts that aren't in AB, so those hosts lose MDM when their certificate expires. If `apple_require_hardware_attestation` is also enabled, only hosts with supported hardware can enroll (SCEP isn't used as a fallback), and enrolled hosts without supported hardware also stop renewing. |
 | enable_recovery_lock_password     | boolean | _Available in Fleet Premium._ Unassigned hosts will have Recovery Lock password enabled if set to true. |
 | name_template                     | string  | _Available in Fleet Premium._ Naming convention applied to "Unassigned" macOS, iOS, and iPadOS hosts. Supports the built-in host identity and IdP end-user variables and custom (`$FLEET_SECRET_*`) variables; certificate authority variables aren't supported. See the [Update host name template](#update-host-name-template) endpoint for the full list. An empty string clears the template. To set the template for a fleet, use that endpoint. |
 | macos_updates         | object  | See [`mdm.macos_updates`](#mdm-macos-updates). |
@@ -2865,7 +2868,9 @@ When updating conditional access config, all `conditional_access` fields must ei
 
 > Note: If `apple_server_url` changes and Apple (macOS, iOS, iPadOS) hosts already have MDM turned on, the end users will have to turn MDM off and back on to use MDM features.
 
-> Note: If `apple_require_hardware_attestation` is enabled and Apple attestation servers are down, macOS Apple Silicon hosts will not be able to enroll.
+> Note: If `apple_require_hardware_attestation` is enabled and Apple attestation servers are down, Apple Silicon Macs and supported iPhones and iPads will not be able to enroll.
+
+> Note: If `only_allow_apple_business_enrollment` is enabled, the [Get manual enrollment profile](#get-manual-enrollment-profile) and [Get Over-the-Air (OTA) enrollment profile](#get-over-the-air-ota-enrollment-profile) endpoints return an error.
 
 <br/>
 
@@ -3021,6 +3026,7 @@ _Available in Fleet Premium._
     "enable_disk_encryption": true,
     "windows_require_bitlocker_pin": false,
     "apple_require_hardware_attestation": false,
+    "only_allow_apple_business_enrollment": false,
     "enable_recovery_lock_password": true,
     "macos_updates": {
       "minimum_version": "12.3.1",
@@ -3482,7 +3488,9 @@ the `software` table.
 
 > `populate_software` returns a lot of data per host when set, and drastically more data when set to `true` on Fleet Premium. If you need vulnerability details for a large number of hosts, consider setting `populate_software` to `without_vulnerability_details` and pulling vulnerability details from the [Get vulnerability](#get-vulnerability) endpoint, as this returns details once per vulnerability rather than once per vulnerability per host.
 
-> Searching with `query` and setting `device_mapping=true` are each expensive, and combining them is more so. If you're using these, the best practice is to reduce the number of results returned using `per_page=50`, to prevent overloading the Fleet server.
+> `populate_end_users` runs several extra database queries for each host in the response. Note that `other_emails` is built from the same data as the `device_mapping` parameter, so there's no need to request both.
+
+> Searching with `query` and setting `device_mapping=true` or `populate_end_users=true` are each expensive, and combining them is more so. If you're using these, the best practice is to reduce the number of results returned using `per_page=50`, to prevent overloading the Fleet server.
 
 #### Parameters
 
@@ -3522,6 +3530,7 @@ the `software` table.
 | populate_software     | string | query | If `false` (or omitted), omits installed software details for each host. If `"without_vulnerability_details"`, include a list of installed software for each host, including which CVEs apply to the installed software versions. `true` adds vulnerability description, CVSS score, and other details when using Fleet Premium. See notes above on performance. |
 | populate_policies     | boolean | query | If `true`, the response will include policy data for each host, including Fleet-maintained policies. |
 | populate_users     | boolean | query | If `true`, the response will include user data for each host. |
+| populate_end_users     | boolean | query | If `true`, the response will include end user data for each host, including identity provider (IdP) details and other emails. |
 | populate_labels     | boolean | query | If `true`, the response will include labels for each host. |
 | include_device_status     | boolean | query | If `true`, the response will include lock and wipe status (`mdm.device_status`) and `mdm.pending_action` information for each host. |
 | profile_uuid | string | query |  **Requires `profile_status`**. The UUID of the profile to download. |
@@ -3553,7 +3562,7 @@ To filter Windows hosts using `os_name` and `os_version`, set `os_name` to the f
 
 #### Example
 
-`GET /api/v1/fleet/hosts?page=0&per_page=100&order_key=hostname&query=2ce&populate_software=true&populate_policies=true&populate_users=true&populate_labels=true&include_device_status=true`
+`GET /api/v1/fleet/hosts?page=0&per_page=100&order_key=hostname&query=2ce&populate_software=true&populate_policies=true&populate_users=true&populate_end_users=true&populate_labels=true&include_device_status=true`
 
 ##### Request query parameters
 
@@ -3621,6 +3630,7 @@ To filter Windows hosts using `os_name` and `os_version`, set `os_name` to the f
       "gigs_disk_space_available": 174.98,
       "percent_disk_space_available": 71,
       "gigs_total_disk_space": 246,
+      "disk_encryption_enabled": true,
       "additional": {},
       "pack_stats": [
         {
@@ -3725,6 +3735,25 @@ To filter Windows hosts using `os_name` and `os_version`, set `os_name` to the f
           "shell": "/sbin/nologin"
         }
       ],
+      "end_users": [
+        {
+          "idp_info_updated_at": "2025-03-20T02:02:17Z",
+          "idp_id": "f26f8649-1e25-42c5-be71-1b1e6de56d3d",
+          "idp_username": "anna@acme.com",
+          "idp_full_name": "Anna Chao",
+          "idp_department": "Product",
+          "idp_groups": [
+            "Product",
+            "Designers"
+          ],
+          "other_emails": [
+            {
+              "email": "anna@example.com",
+              "source": "google_chrome_profiles"
+            }
+          ]
+        }
+      ],
       "labels": [
         {
           "created_at": "2021-08-19T02:02:17Z",
@@ -3766,6 +3795,8 @@ To filter Windows hosts using `os_name` and `os_version`, set `os_name` to the f
 ```
 
 > Note: the response above assumes a [GeoIP database is configured](https://fleetdm.com/docs/deploying/configuration#geoip), otherwise the `geolocation` object won't be included.
+
+> Note: `disk_encryption_enabled` is omitted when Fleet doesn't know the host's disk encryption status, such as when the host hasn't reported it yet. It's also omitted for Linux hosts that report their root volume as unencrypted, because Fleet can't confirm that a Linux host's disk is unencrypted.
 
 Response payload with the `mdm_id` filter provided:
 
@@ -3858,6 +3889,8 @@ If `mdm_id`, `mdm_name` or `mdm_enrollment_status` is specified, then Windows Se
 ### Get hosts summary
 
 Returns the count of all hosts organized by status. `online_count` includes all hosts currently enrolled in Fleet. `offline_count` includes all hosts that haven't checked into Fleet recently. `mia_count` includes all hosts that haven't been seen by Fleet in more than 30 days. `new_count` includes the hosts that have been enrolled to Fleet in the last 24 hours.
+
+For iOS, iPadOS, and Android hosts, which don't run osquery, `online`/`offline` is derived from the most recent of `nano_enrollments.last_seen_at` (Apple, active enrollments only) or `host_seen_times.seen_time`, falling back to `detail_updated_at` when neither is present — within a ~1-hour window, instead of the per-host osquery check-in interval used by other platforms.
 
 `GET /api/v1/fleet/host_summary`
 
@@ -4267,7 +4300,8 @@ Returns the information of the specified host.
       "os_settings": {
         "disk_encryption": {
           "status": "verified",
-          "detail": ""
+          "detail": "",
+          "action_required": null
         },
         "host_name": {
           "status": "verified",
@@ -4627,11 +4661,15 @@ Returns the information of the specified host.
 
 `mdm.os_settings.host_name` reports the host name template enforcement status for a macOS, iOS, or iPadOS host. Its `status` is one of `pending`, `verifying`, `verified`, or `failed`, and `detail` carries the error message when the status is `failed`. The object is omitted entirely for hosts that aren't enforced (no template set on the host's fleet or on "Unassigned", non-MDM hosts, and personal (BYOD) enrollments).
 
+`mdm.os_settings.disk_encryption.action_required` names what the **end user** can do about a disk encryption problem, and is only present when there is something they can do. On Windows it is `create_pin` when BitLocker policy requires a startup PIN the end user hasn't set, and `restart` when Fleet is waiting for a pending restart before turning protection back on. On macOS it is `log_out` or `rotate_key`. It's absent when `status` is `action_required` for a reason the end user can't fix, such as a TPM that isn't ready or a policy that forbids the key protector Fleet needs.
+
 `mdm.bootstrap_token_escrowed` indicates whether Fleet has escrowed a [bootstrap token](https://support.apple.com/guide/deployment/use-secure-and-bootstrap-tokens-dep24dbdcf9e/web) for the macOS host. The bootstrap token authorizes certain MDM operations, such as remote wipe and installing OS updates, without requiring a user with a secure token to be logged in. This field is only present for macOS hosts.
 
 `browser` and `extension_for` fields are included when set and when empty. `extension_for` shows the browser or Visual Studio Code fork associated with the extension, allowing for differentiation between e.g. an extension installed on Visual Studio Code and one installed on Cursor. `browser` is deprecated, and only shows this information for browser plugins.
 
 > Note: the response above assumes a [GeoIP database is configured](https://fleetdm.com/docs/deploying/configuration#geoip), otherwise the `geolocation` object won't be included.
+
+> Note: `disk_encryption_enabled` is omitted when Fleet doesn't know the host's disk encryption status, such as when the host hasn't reported it yet. It's also omitted for Linux hosts that report their root volume as unencrypted, because Fleet can't confirm that a Linux host's disk is unencrypted.
 
 > Note: `installed_paths` may be blank depending on installer package. For example, on Linux, RPM-installed packages do not provide installed path information.
 
@@ -4871,7 +4909,8 @@ In Fleet, hostnames are fully qualified domain names (FQDNs). `hostname` (e.g. j
       "os_settings": {
         "disk_encryption": {
           "status": null,
-          "detail": ""
+          "detail": "",
+          "action_required": null
         }
       },
       "profiles": [
@@ -5172,6 +5211,8 @@ In Fleet, hostnames are fully qualified domain names (FQDNs). `hostname` (e.g. j
 
 > Note: the response above assumes a [GeoIP database is configured](https://fleetdm.com/docs/deploying/configuration#geoip), otherwise the `geolocation` object won't be included.
 
+> Note: `disk_encryption_enabled` is omitted when Fleet doesn't know the host's disk encryption status, such as when the host hasn't reported it yet. It's also omitted for Linux hosts that report their root volume as unencrypted, because Fleet can't confirm that a Linux host's disk is unencrypted.
+
 > Note: `installed_paths` may be blank depending on installer package. For example, on Linux, RPM-installed packages do not provide installed path information.
 
 `browser` and `extension_for` fields are included when set and when empty. `extension_for` will show the browser or Visual Studio Code fork associated with the extension, allowing for differentiation between e.g. an extension installed on Visual Studio Code and one installed on Cursor. `browser` is deprecated, and only shows this information for browser plugins.
@@ -5201,6 +5242,7 @@ This endpoint doesn't require API token authentication. Authentication on macOS,
 | ----- | ------ | ---- | ---------------------------------- |
 | token | string | path | The host's [Fleet Desktop token](https://fleetdm.com/guides/fleet-desktop#secure-fleet-desktop). For macOS, Windows, and Linux, this is a random UUID that rotates hourly. For iOS and iPadOS, this is the host's hardware UUID. |
 | exclude_software | boolean | query | If `true`, the response will not include a list of installed software for the host.     |
+| include_hidden_policies | boolean | query | _Available in Fleet Premium_. If `true`, the response's `policies` list will include policies marked `hidden`. Hidden policies are omitted by default.     |
 
 #### Request headers
 
@@ -5284,13 +5326,19 @@ X-Client-Cert-Serial: <fleet_identity_scep_cert_serial>
     "org_logo_url": "https://example.com/logo.png",
     "org_logo_url_light_background": "https://example.com/logo-light.png",
     "conditional_access_bypassed": false,
+    "issues": {
+      "failing_policies_count": 2,
+      "failing_unhidden_policies_count": 1, // Available in Fleet Premium
+      "total_issues_count": 2
+    },
     "license": {
       "tier": "free",
       "expiration": "2031-01-01T00:00:00Z"
     },
     "global_config": {
       "mdm": {
-        "enabled_and_configured": false
+        "enabled_and_configured": false,
+        "only_allow_apple_business_enrollment": false
       }
     },
     "batteries": [
@@ -5394,7 +5442,8 @@ X-Client-Cert-Serial: <fleet_identity_scep_cert_serial>
       "os_settings": {
         "disk_encryption": {
           "status": "verified",
-          "detail": ""
+          "detail": "",
+          "action_required": null
         }
       },
       "profiles": [
@@ -5414,6 +5463,8 @@ X-Client-Cert-Serial: <fleet_identity_scep_cert_serial>
 ```
 
 `browser` and `extension_for` fields are included when set and when empty. `extension_for` will show the browser or Visual Studio Code fork associated with the extension, allowing for differentiation between e.g. an extension installed on Visual Studio Code and one installed on Cursor. `browser` is deprecated, and only shows this information for browser plugins.
+
+`issues.failing_policies_count` counts all failing policies, including those marked `hidden`. `issues.failing_unhidden_policies_count` (_Available in Fleet Premium_) counts only failing policies that aren't hidden.
 
 > `global_config.mdm.enabled_and_configured` only represents Apple MDM, and will return false if Apple MDM is not configured even if other platforms have MDM enabled and configured.
 
@@ -5756,6 +5807,8 @@ This report includes a subset of host vitals, and simplified policy and vulnerab
   }
 }
 ```
+
+> Note: `disk_encryption_enabled` is omitted when Fleet doesn't know the host's disk encryption status, such as when the host hasn't reported it yet. It's also omitted for Linux hosts that report their root volume as unencrypted, because Fleet can't confirm that a Linux host's disk is unencrypted.
 
 ### Get host's device page URL
 
@@ -8614,6 +8667,8 @@ If the fleet has [Require IdP authentication](https://fleetdm.com/guides/setup-e
 
 To enroll macOS hosts, turn on MDM features, and add [human-device mapping](https://fleetdm.com/guides/foreign-vitals-map-idp-users-to-hosts), use the [manual enrollment profile](#get-manual-enrollment-profile) instead.
 
+If the `only_allow_apple_business_enrollment` setting is enabled, this endpoint returns a `403` error with the message: "Manual enrollment is not available. Only devices assigned through Apple Business can enroll. Please contact your IT administrator."
+
 #### Parameters
 
 | Name              | Type    | In    | Description                                                                      |
@@ -8680,6 +8735,8 @@ X-Content-Type-Options: nosniff
 Retrieves an unsigned manual enrollment profile for macOS hosts. Install this profile on macOS hosts to turn on MDM features manually.
 
 To add [human-device mapping](https://fleetdm.com/guides/foreign-vitals-map-idp-users-to-hosts), [add the end user's email to the enrollment profile](https://fleetdm.com/guides/config-less-fleetd-agent-deployment#using-human-device-mapping).
+
+If the `only_allow_apple_business_enrollment` setting is enabled, this endpoint returns a `400` error with the message: "Manual enrollment is not available because only Apple Business enrollment is allowed for this organization."
 
 `GET /api/v1/fleet/enrollment_profiles/manual`
 
@@ -9516,7 +9573,9 @@ None.
       "apple_id": "apple@example.com",
       "org_name": "Fleet Device Management Inc.",
       "mdm_server_url": "https://example.com/mdm/apple/mdm",
+      "mdm_server_uuid": "8b8a8f1e-3c2d-4e5f-9a6b-7c8d9e0f1a2b",
       "renew_date": "2023-11-29T00:00:00Z",
+      "primary": true,
       "terms_expired": false,
       "macos_fleet": {
         "name": "💻 Workstations",
@@ -9538,7 +9597,9 @@ None.
       "apple_id": "apple@example.com",
       "org_name": "Fleet Device Management Inc.",
       "mdm_server_url": "https://example.com/mdm/apple/mdm",
+      "mdm_server_uuid": "8b8a8f1e-3c2d-4e5f-9a6b-7c8d9e0f1a2b",
       "renew_date": "2023-11-29T00:00:00Z",
+      "primary": true,
       "terms_expired": false,
       "token_invalid": false,
       "macos_team": {
@@ -10665,6 +10726,7 @@ _Available in Fleet Premium_
       "host_count_updated_at": "2023-12-20T15:23:57Z",
       "calendar_events_enabled": true,
       "conditional_access_enabled": true,
+      "hidden": false,
       "labels_include_any": ["Macs on Sonoma"]
     },
     {
@@ -10687,6 +10749,7 @@ _Available in Fleet Premium_
       "host_count_updated_at": "2023-12-20T15:23:57Z",
       "calendar_events_enabled": false,
       "conditional_access_enabled": false,
+      "hidden": true,
       "labels_exclude_any": ["Compliance exclusions", "Workstations (Canary)"],
       "run_script": {
         "name": "Encrypt Windows disk with BitLocker",
@@ -10713,6 +10776,7 @@ _Available in Fleet Premium_
       "host_count_updated_at": "2023-12-20T15:23:57Z",
       "calendar_events_enabled": false,
       "conditional_access_enabled": false,
+      "hidden": false,
       "install_software": {
         "name": "Adobe Acrobat",
         "software_title_id": 1234,
@@ -10773,6 +10837,7 @@ _Available in Fleet Premium_
       "host_count_updated_at": "2023-12-20T15:23:57Z",
       "calendar_events_enabled": false,
       "conditional_access_enabled": false,
+      "hidden": false,
       "fleet_maintained": false,
       "labels_include_any": ["Macs on Sonoma"]
     },
@@ -10795,6 +10860,7 @@ _Available in Fleet Premium_
       "host_count_updated_at": "2023-12-20T15:23:57Z",
       "calendar_events_enabled": false,
       "conditional_access_enabled": false,
+      "hidden": true,
       "fleet_maintained": false
     },
     {
@@ -10966,6 +11032,7 @@ _Available in Fleet Premium_
     "host_count_updated_at": null,
     "calendar_events_enabled": true,
     "conditional_access_enabled": false,
+    "hidden": false,
     "fleet_maintained": false,
     "labels_include_any": ["Macs on Sonoma"],
     "patch_software": {
@@ -11081,6 +11148,7 @@ The semantics for creating a fleet policy are the same as for global policies, s
 | patch_when_closed | boolean | body | _Available in Fleet Premium_. Only applies if `type` is `patch`. If `true`, Fleet adds a read-only pre-install condition that skips the automated install while the app is open. Setting this to `true` also sets `continuous_automations_enabled` to `true`. If `false`, Fleet installs the update the next time the policy fails, whether or not the app is open. |
 | calendar_events_enabled | boolean | body | _Available in Fleet Premium_. Whether to trigger calendar events when policy is failing.                                                                |
 | conditional_access_enabled | boolean | body | _Available in Fleet Premium_. Whether to block single sign-on for end users whose hosts fail this policy.                                              |
+| hidden | boolean | body | _Available in Fleet Premium_. Whether to hide this policy from the **Policies** page in Fleet Desktop. Only one of `hidden` and `conditional_access_enabled` can be `true`. |
 | software_title_id | integer | body | _Available in Fleet Premium_. ID of software title to install if the policy fails. If `software_title_id` is specified and the software has `labels_include_any` or `labels_exclude_any` defined, the policy will inherit this target in addition to specified `platform`.                                                                     |
 | software_installer_id | integer | body | _Available in Fleet Premium_. ID of a specific package of `software_title_id` to install on failure. If omitted, defaults to the title's first-added package. |
 | script_id         | integer | body | _Available in Fleet Premium_. ID of script to run if the policy fails.                                                                 |
@@ -11315,6 +11383,7 @@ _Available in Fleet Premium_
 | critical                | boolean | body | _Available in Fleet Premium_. Mark policy as critical/high impact. Critical policies can never bypass conditional access. |
 | calendar_events_enabled | boolean | body | _Available in Fleet Premium_. Whether to trigger calendar events when policy is failing.                                                                |
 | conditional_access_enabled | boolean | body | _Available in Fleet Premium_. Whether to block single sign-on for end users whose hosts fail this policy.                                              |
+| hidden | boolean | body | _Available in Fleet Premium_. Whether to hide this policy from the **Policies** page in Fleet Desktop. Only one of `hidden` and `conditional_access_enabled` can be `true`. |
 | software_title_id       | integer | body | _Available in Fleet Premium_. ID of software title to install if the policy fails. Set to `null` to remove the automation.                              |
 | software_installer_id   | integer | body | _Available in Fleet Premium_. ID of a specific package of `software_title_id` to install on failure. If omitted, defaults to the title's first-added package.                              |
 | script_id               | integer | body | _Available in Fleet Premium_. ID of script to run if the policy fails. Set to `null` to remove the automation.                                          |
@@ -11375,6 +11444,7 @@ Setting `patch_when_closed` to `false` after it was `true` removes the read-only
     "host_count_updated_at": null,
     "calendar_events_enabled": true,
     "conditional_access_enabled": false,
+    "hidden": false,
     "fleet_maintained": false,
     "install_software": {
       "name": "Adobe Acrobat.app",

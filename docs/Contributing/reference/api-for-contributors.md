@@ -710,7 +710,9 @@ Content-Type: application/octet-stream
     "apple_id": "apple@example.com",
     "org_name": "Fleet Device Management Inc.",
     "mdm_server_url": "https://example.com/mdm/apple/mdm",
+    "mdm_server_uuid": "8b8a8f1e-3c2d-4e5f-9a6b-7c8d9e0f1a2b",
     "renew_date": "2024-10-20T00:00:00Z",
+    "primary": true,
     "terms_expired": false,
     "token_invalid": false,
     "macos_fleet": null,
@@ -723,7 +725,9 @@ Content-Type: application/octet-stream
     "apple_id": "apple@example.com",
     "org_name": "Fleet Device Management Inc.",
     "mdm_server_url": "https://example.com/mdm/apple/mdm",
+    "mdm_server_uuid": "8b8a8f1e-3c2d-4e5f-9a6b-7c8d9e0f1a2b",
     "renew_date": "2024-10-20T00:00:00Z",
+    "primary": true,
     "terms_expired": false,
     "token_invalid": false,
     "macos_fleet": null,
@@ -814,7 +818,9 @@ None.
     "apple_id": "apple@example.com",
     "org_name": "Fleet Device Management Inc.",
     "mdm_server_url": "https://example.com/mdm/apple/mdm",
+    "mdm_server_uuid": "8b8a8f1e-3c2d-4e5f-9a6b-7c8d9e0f1a2b",
     "renew_date": "2024-11-29T00:00:00Z",
+    "primary": true,
     "terms_expired": false,
     "token_invalid": false,
     "macos_fleet": 1,
@@ -827,7 +833,9 @@ None.
     "apple_id": "apple@example.com",
     "org_name": "Fleet Device Management Inc.",
     "mdm_server_url": "https://example.com/mdm/apple/mdm",
+    "mdm_server_uuid": "8b8a8f1e-3c2d-4e5f-9a6b-7c8d9e0f1a2b",
     "renew_date": "2024-11-29T00:00:00Z",
+    "primary": true,
     "terms_expired": false,
     "token_invalid": false,
     "macos_fleet": 1,
@@ -837,6 +845,64 @@ None.
     "ios_team": 2,
     "ipados_team": 3,
     "byod_team": 3
+  }
+}
+```
+
+### Set AB token as primary
+
+`PATCH /api/v1/fleet/ab_tokens/:id/primary`
+
+Fleet uses the primary AB token to verify Managed Apple Account sign-in on hosts that aren't in Apple Business. Hosts that are in Apple Business use their own AB token. If you have one AB token, it's always primary. Setting a new primary clears the previous one.
+
+#### Parameters
+
+| Name | Type | In | Description |
+| ---- | ---- | -- | ----------- |
+| id | integer | path | *Required* The AB token's ID |
+
+#### Example
+
+`PATCH /api/v1/fleet/ab_tokens/2/primary`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "ab_token": {
+    "id": 2,
+    "apple_id": "apple@example.com",
+    "org_name": "Fleet Device Management Inc.",
+    "mdm_server_url": "https://example.com/mdm/apple/mdm",
+    "mdm_server_uuid": "8b8a8f1e-3c2d-4e5f-9a6b-7c8d9e0f1a2b",
+    "renew_date": "2025-10-20T00:00:00Z",
+    "primary": true,
+    "terms_expired": false,
+    "token_invalid": false,
+    "macos_fleet": null,
+    "ios_fleet": null,
+    "ipados_fleet": null,
+    "byod_fleet": null
+  },
+  "abm_token": {
+    "id": 2,
+    "apple_id": "apple@example.com",
+    "org_name": "Fleet Device Management Inc.",
+    "mdm_server_url": "https://example.com/mdm/apple/mdm",
+    "mdm_server_uuid": "8b8a8f1e-3c2d-4e5f-9a6b-7c8d9e0f1a2b",
+    "renew_date": "2025-10-20T00:00:00Z",
+    "primary": true,
+    "terms_expired": false,
+    "token_invalid": false,
+    "macos_fleet": null,
+    "ios_fleet": null,
+    "ipados_fleet": null,
+    "macos_team": null,
+    "ios_team": null,
+    "ipados_team": null,
+    "byod_team": null
   }
 }
 ```
@@ -885,7 +951,9 @@ Content-Type: application/octet-stream
     "apple_id": "apple@example.com",
     "org_name": "Fleet Device Management Inc.",
     "mdm_server_url": "https://example.com/mdm/apple/mdm",
+    "mdm_server_uuid": "8b8a8f1e-3c2d-4e5f-9a6b-7c8d9e0f1a2b",
     "renew_date": "2025-10-20T00:00:00Z",
+    "primary": true,
     "terms_expired": false,
     "token_invalid": false,
     "macos_fleet": null,
@@ -898,7 +966,9 @@ Content-Type: application/octet-stream
     "apple_id": "apple@example.com",
     "org_name": "Fleet Device Management Inc.",
     "mdm_server_url": "https://example.com/mdm/apple/mdm",
+    "mdm_server_uuid": "8b8a8f1e-3c2d-4e5f-9a6b-7c8d9e0f1a2b",
     "renew_date": "2025-10-20T00:00:00Z",
+    "primary": true,
     "terms_expired": false,
     "token_invalid": false,
     "macos_fleet": null,
@@ -3474,6 +3544,7 @@ Gets all information required by Fleet Desktop, this includes things like the nu
 ```json
 {
   "failing_policies_count": 3,
+  "failing_unhidden_policies_count": 1, // Available in Fleet Premium
   "self_service": true,
   "notifications": {
     "needs_mdm_migration": true,
@@ -3494,6 +3565,8 @@ Gets all information required by Fleet Desktop, this includes things like the nu
   }
 }
 ```
+
+`failing_policies_count` counts all failing policies, including those marked `hidden`. `failing_unhidden_policies_count` (_Available in Fleet Premium_) counts only failing policies that aren't hidden, i.e. the failing policies that will actually be shown to the end user on the **Policies** page in Fleet Desktop.
 
 In regards to the `notifications` key:
 
@@ -4696,6 +4769,42 @@ Body: <blob>
   "orbit_node_key":"FbvSsWfTRwXEecUlCBTLmBcjGFAdzqd/",
   "encryption_key": "Zm9vYmFyem9vYmFyZG9vYmFybG9vYmFy",
   "client_error": "example error",
+}
+```
+
+##### Default response
+
+`Status: 204`
+
+---
+
+### Report disk encryption protection outcome
+
+Reports what the agent did about a Windows volume that is encrypted but whose BitLocker protection is off. The agent only calls this endpoint when the server asked it to act, via the `enable_bitlocker_protection` notification in the orbit config.
+
+This endpoint never touches the escrowed recovery key. It records what happened so the host's disk encryption details can tell an admin whether Fleet is still working on the host, what is blocking it, or that a restart is needed.
+
+`POST /api/fleet/orbit/disk_encryption_protection`
+
+##### Parameters
+
+| Name           | Type   | In   | Description                                                                                                                                      |
+| -------------- | ------ | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| orbit_node_key | string | body | The Orbit node key for authentication.                                                                                                           |
+| outcome        | string | body | What the agent did. One of `restored`, `deferred`, or `failed`.                                                                                    |
+| client_error   | string | body | Why protection was not turned back on. Required for `deferred` and `failed`, ignored for `restored`. |
+
+##### Example
+
+`POST /api/fleet/orbit/disk_encryption_protection`
+
+##### Request body
+
+```json
+{
+  "orbit_node_key": "FbvSsWfTRwXEecUlCBTLmBcjGFAdzqd/",
+  "outcome": "failed",
+  "client_error": "BitLocker policy does not allow a TPM-only protector"
 }
 ```
 
