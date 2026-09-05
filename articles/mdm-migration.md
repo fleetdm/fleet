@@ -126,15 +126,36 @@ For hosts that enroll via Apple Business, end users don't need to take action. F
 
 ## Activation Lock
 
-In Fleet, the [Activation Lock](https://support.apple.com/en-us/HT208987) feature is disabled by default for automatically enrolled (ADE) hosts.
+In Fleet, [Activation Lock](https://support.apple.com/en-us/HT208987) is disabled by default for automatically enrolled (ADE) hosts. Apple disallows Activation Lock on supervised devices unless an MDM solution explicitly allows it.
 
-In 2024, Apple added the ability to manage activation lock in Apple Business (AB). For devices that are owned by the business and available in AB, you can [turn off activation lock remotely](https://support.apple.com/en-ca/guide/business/welcome/web).
+In 2024, Apple added the ability to manage Activation Lock in Apple Business (AB). For devices that are owned by the business and available in AB, you can [turn off Activation Lock remotely](https://support.apple.com/en-ca/guide/business/welcome/web). This is the recommended path.
 
-If a device is not available in AB and has Activation Lock enabled, we recommend asking the end user to follow these instructions to disable Activation Lock before migrating the device to Fleet: https://support.apple.com/en-us/HT208987.
+If a device isn't available in AB and has Activation Lock enabled, ask the end user to [turn it off](https://support.apple.com/en-us/HT208987) before migrating the device to Fleet.
 
-If the Activation Lock is enabled, you will need the Activation Lock bypass code to wipe and reuse the Mac successfully.
+### Why migrating Macs is a problem
 
-However, Activation Lock bypass codes can only be retrieved from the Mac up to 30 days after the device is enrolled. This means that when migrating from your old MDM solution, it’s likely that you’ll be unable to retrieve the Activation Lock bypass code.
+For a Mac running macOS 11 or later that's supervised through Device Enrollment, you can't manage Activation Lock until the device is enrolled in an MDM solution. Activation Lock may already be enabled by the time the Mac enrolls in Fleet. In that case you can't turn it off from Fleet, and macOS can't disallow it by default until the user turns it off. See Apple's [Activation Lock on Apple devices](https://support.apple.com/guide/deployment/activation-lock-depf4ab94ef1/web).
+
+Bypass codes are also time-limited. On iPhone and iPad, the code is retrievable for up to 15 days after the device is first supervised, or until an MDM solution retrieves and then explicitly clears it. After that, it can't be retrieved. This means that when migrating from your old MDM solution, you'll often be unable to retrieve the bypass code at all.
+
+### Get the bypass code
+
+Fleet doesn't escrow Activation Lock bypass codes today. To retrieve the device-generated code, send the [Activation Lock bypass code](https://fleetdm.com/mdm-commands/apple-activation-lock-bypass-code) MDM command. The payload XML is on that page.
+
+```bash
+fleetctl mdm run-command --hosts=<HOSTNAME> --payload=./activation-lock-bypass-code.xml
+fleetctl get mdm-commands --host=<HOSTNAME>
+fleetctl get mdm-command-results --id=<COMMAND-UUID>
+```
+
+The code is in the returned payload XML.
+
+### Use the bypass code
+
+With physical possession of the device:
+
+- **iPhone or iPad:** enter the bypass code in the Apple Account password field on the Activation Lock screen, and leave the user name field blank.
+- **Mac:** select **Recovery Assistant** in the menu bar, then select **Activate with MDM key**. The standard Activation Lock screen won't accept the code.
 
 <meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="zhumo">
