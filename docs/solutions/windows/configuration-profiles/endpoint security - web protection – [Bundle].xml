@@ -1,0 +1,36 @@
+<Replace>
+  <!-- ES-006: Defender - Enable Network Protection (value 2 = audit mode) -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/Defender/EnableNetworkProtection</LocURI>
+    </Target>
+    <Data>2</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- ES-006: Browser - Prevent SmartScreen Prompt Override -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/Browser/PreventSmartScreenPromptOverride</LocURI>
+    </Target>
+    <Data>1</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- ES-006: Browser - Prevent SmartScreen Prompt Override for Files -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/Browser/PreventSmartScreenPromptOverrideForFiles</LocURI>
+    </Target>
+    <Data>1</Data>
+  </Item>
+</Replace>

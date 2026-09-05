@@ -1,0 +1,23 @@
+- name: CIS 18.10.93.1.1 - No auto-restart with logged on users
+  platform: windows
+  description: "Ensure 'Do not allow automatic restart with open logged-on user sessions' is set to 'Disabled'. When disabled, the system will automatically restart after updates even with users logged on."
+  resolution: "Run the Windows Update registry configuration script to set this policy."
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU\NoAutoRebootWithLoggedOnUsers' AND data = '0';
+  run_script:
+    path: "../scripts/configure-windows-update-registry.ps1"
+
+- name: WU-OPS-011 - TargetReleaseVersionInfo
+  platform: windows
+  description: "Ensure Windows Update Target Release Version Info is configured. This specifies which Windows version to receive feature updates."
+  resolution: "Run the Windows Update registry configuration script to set the target release version."
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\TargetReleaseVersionInfo' AND length(data) > 0;
+  run_script:
+    path: "../scripts/configure-windows-update-registry.ps1"
+
+- name: WU-OPS-012 - IncludeRecommendedUpdates
+  platform: windows
+  description: "Ensure 'Turn on recommended updates via Automatic Updates' is set to 'Enabled'. Recommended updates include driver and other optional updates."
+  resolution: "Run the Windows Update registry configuration script to enable recommended updates."
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU\IncludeRecommendedUpdates' AND data = '1';
+  run_script:
+    path: "../scripts/configure-windows-update-registry.ps1"
