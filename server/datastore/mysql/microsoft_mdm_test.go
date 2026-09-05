@@ -8971,11 +8971,26 @@ func testMDMWindowsConflictingEnrollmentHardwareID(t *testing.T, ds *Datastore) 
 	})
 
 	t.Run("re-enrolling the same hardware clears the claim", func(t *testing.T) {
-		// The enrollment upsert is keyed on mdm_hardware_id, so a wiped device reuses its row and resets host_uuid.
-		// That is what keeps legitimate re-enrollment from ever colliding with the guard.
+		// This is what keeps legitimate re-enrollment from ever colliding with the guard, so it exercises the path
+		// production actually takes: a re-enrolling device is deleted by hardware ID first
+		// (MDMWindowsDeleteEnrolledDeviceOnReenrollment) and then inserted fresh, rather than upserting in place.
+		rowIDForHardware := func() uint {
+			var id uint
+			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+				return sqlx.GetContext(ctx, q, &id,
+					`SELECT id FROM mdm_windows_enrollments WHERE mdm_hardware_id = ?`, incumbent.MDMHardwareID)
+			})
+			return id
+		}
+		beforeID := rowIDForHardware()
+
+		require.NoError(t, ds.MDMWindowsDeleteEnrolledDeviceOnReenrollment(ctx, incumbent.MDMHardwareID))
 		reEnroll := newEnrollment("")
 		reEnroll.MDMHardwareID = incumbent.MDMHardwareID
 		require.NoError(t, ds.MDMWindowsInsertEnrolledDevice(ctx, reEnroll))
+
+		// The row is replaced rather than updated in place, which is what a real wiped device produced.
+		assert.NotEqual(t, beforeID, rowIDForHardware(), "re-enrollment replaces the row instead of reusing it")
 
 		conflicted, conflict, err := ds.MDMWindowsConflictingEnrollmentHardwareID(ctx, hostUUID, "brand-new-hardware-id")
 		require.NoError(t, err)

@@ -402,7 +402,12 @@ func (ds *Datastore) MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerial(ctx c
 
 // MDMWindowsConflictingEnrollmentHardwareID reports whether hostUUID is already claimed by an enrollment belonging to
 // hardware other than mdmHardwareID. The returned ID is only for logging which device holds the host; conflicted is the
-// answer.
+// answer, because an enrollment may carry an empty mdm_hardware_id and would otherwise be indistinguishable from "no
+// incumbent".
+//
+// A device re-enrolling never conflicts with itself: MDMWindowsDeleteEnrolledDeviceOnReenrollment removes its previous
+// row by hardware ID before the new one is inserted, so its claim on the host is gone before any linking runs. That
+// holds because the hardware ID is stable across a wipe (even when enrolling with a different Entra ID).
 func (ds *Datastore) MDMWindowsConflictingEnrollmentHardwareID(ctx context.Context, hostUUID string, mdmHardwareID string) (conflicted bool, conflictingHardwareID string, err error) {
 	if hostUUID == "" {
 		return false, "", nil
