@@ -583,6 +583,8 @@ SELECT * FROM os_version LIMIT 1
 
 ## os_version_windows
 
+- Description: The query shown is the one sent to hosts running osquery 5.12.0 or later, which report the update build revision (UBR) in `os_version.revision`. Hosts on older versions of osquery are sent an equivalent query that reads the UBR from the Windows registry instead. Windows Server 2012 and 2012 R2 have no UBR at all, and fall back to the `kernel_info` version on either form.
+
 - Platforms: windows
 
 - Query:
@@ -592,11 +594,7 @@ WITH display_version_table AS (
 			FROM registry
 			WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\DisplayVersion'
 		),
-		ubr_table AS (
-			SELECT data AS ubr
-			FROM registry
-			WHERE path ='HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\UBR'
-		),
+		
 		installation_type_table AS (
 			SELECT data AS installation_type
 			FROM registry
@@ -605,57 +603,53 @@ WITH display_version_table AS (
 		SELECT
 			os.name,
 			COALESCE(d.display_version, '') AS display_version,
-			COALESCE(CONCAT((SELECT version FROM os_version), '.', u.ubr), k.version) AS version,
+			CASE WHEN CAST(os.revision AS INTEGER) > 0 THEN os.version || '.' || os.revision ELSE k.version END AS version,
 			COALESCE(it.installation_type, '') AS installation_type
 		FROM
 			os_version os,
 			kernel_info k
 		LEFT JOIN
 			display_version_table d
-		LEFT JOIN
-			ubr_table u
+		
 		LEFT JOIN
 			installation_type_table it
 ```
 
 ## os_windows
 
+- Description: The query shown is the one sent to hosts running osquery 5.12.0 or later, which report the update build revision (UBR) in `os_version.revision`. Hosts on older versions of osquery are sent an equivalent query that reads the UBR from the Windows registry instead. Windows Server 2012 and 2012 R2 have no UBR at all, and fall back to the `kernel_info` version on either form.
+
 - Platforms: windows
 
 - Query:
 ```sql
 WITH display_version_table AS (
-		SELECT data as display_version
-		FROM registry
-		WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\DisplayVersion'
-	),
-	ubr_table AS (
-	SELECT data AS ubr
-	FROM registry
-	WHERE path ='HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\UBR'
-	),
-	installation_type_table AS (
-	SELECT data AS installation_type
-	FROM registry
-	WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\InstallationType'
-	)
-	SELECT
-		os.name,
-		os.platform,
-		os.arch,
-		k.version as kernel_version,
-		COALESCE(CONCAT((SELECT version FROM os_version), '.', u.ubr), k.version) AS version,
-		COALESCE(d.display_version, '') AS display_version,
-		COALESCE(it.installation_type, '') AS installation_type
-	FROM
-		os_version os,
-		kernel_info k
-	LEFT JOIN
-		display_version_table d
-	LEFT JOIN
-		ubr_table u
-	LEFT JOIN
-		installation_type_table it
+			SELECT data as display_version
+			FROM registry
+			WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\DisplayVersion'
+		),
+		
+		installation_type_table AS (
+			SELECT data AS installation_type
+			FROM registry
+			WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\InstallationType'
+		)
+		SELECT
+			os.name,
+			os.platform,
+			os.arch,
+			k.version as kernel_version,
+			CASE WHEN CAST(os.revision AS INTEGER) > 0 THEN os.version || '.' || os.revision ELSE k.version END AS version,
+			COALESCE(d.display_version, '') AS display_version,
+			COALESCE(it.installation_type, '') AS installation_type
+		FROM
+			os_version os,
+			kernel_info k
+		LEFT JOIN
+			display_version_table d
+		
+		LEFT JOIN
+			installation_type_table it
 ```
 
 ## osquery_flags
