@@ -125,6 +125,10 @@ jobs:
         run: |
           yarn prettier:check
 
+      - name: Detect read-after-write patterns
+        run: |
+          bash .github/scripts/detect-read-after-write.sh
+
   lint-icons:
     strategy:
       matrix:

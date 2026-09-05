@@ -23,6 +23,7 @@ jest.mock("components/ToastNotification", () => ({
 const EXISTING_UPPERCASE_ID = "6D8769E6-0F8B-418D-B385-1A53968781C9";
 
 const createTestMockData = (configOverrides: Partial<IConfig>) => ({
+  withBackendMock: true,
   context: {
     app: {
       isPremiumTier: true,

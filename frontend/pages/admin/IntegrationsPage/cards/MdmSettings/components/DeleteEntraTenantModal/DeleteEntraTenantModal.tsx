@@ -2,6 +2,7 @@ import React, { useContext, useState } from "react";
 
 import { AppContext } from "context/app";
 import configAPI from "services/entities/config";
+import useUpdateAppConfig from "hooks/useUpdateAppConfig";
 
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
@@ -18,7 +19,8 @@ const DeleteEntraTenantModal = ({
   tenantId,
   onExit,
 }: IDeleteEntraTenantModalProps) => {
-  const { setConfig, config } = useContext(AppContext);
+  const { config } = useContext(AppContext);
+  const updateAppConfig = useUpdateAppConfig();
 
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -33,7 +35,7 @@ const DeleteEntraTenantModal = ({
           windows_entra_tenant_ids: updatedTenantIds,
         },
       });
-      setConfig(updateData);
+      updateAppConfig(updateData);
       notify.success("Tenant deleted successfully.");
       onExit();
     } catch (err) {

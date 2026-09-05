@@ -5,6 +5,7 @@ import { SingleValue } from "react-select-5";
 import PATHS from "router/paths";
 import configAPI from "services/entities/config";
 import { AppContext } from "context/app";
+import useUpdateAppConfig from "hooks/useUpdateAppConfig";
 
 import MainContent from "components/MainContent/MainContent";
 import Button from "components/buttons/Button";
@@ -39,7 +40,8 @@ const useSetWindowsMdm = ({
   defaultFleet,
   router,
 }: ISetWindowsMdmOptions) => {
-  const { setConfig, isPremiumTier } = useContext(AppContext);
+  const { isPremiumTier } = useContext(AppContext);
+  const updateAppConfig = useUpdateAppConfig();
 
   const updateWindowsMdm = async () => {
     try {
@@ -59,7 +61,7 @@ const useSetWindowsMdm = ({
         },
         true
       );
-      setConfig(updatedConfig);
+      updateAppConfig(updatedConfig);
       notify.success("Windows MDM settings successfully updated.");
     } catch (e) {
       notify.error(getErrorMessage(e), { response: e });
