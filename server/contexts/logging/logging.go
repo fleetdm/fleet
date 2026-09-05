@@ -11,6 +11,7 @@ import (
 	platform_errors "github.com/fleetdm/fleet/v4/server/platform/errors"
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 	kithttp "github.com/go-kit/kit/transport/http"
+	"github.com/google/uuid"
 )
 
 // UserEmailer provides the user's email for logging purposes.
@@ -38,6 +39,10 @@ const loggingKey key = 0
 
 // NewContext creates a new context.Context with a LoggingContext.
 func NewContext(ctx context.Context, logging *LoggingContext) context.Context {
+	// Minted here so every construction site gets one.
+	if logging.RequestID == "" {
+		logging.RequestID = uuid.NewString()
+	}
 	return context.WithValue(ctx, loggingKey, logging)
 }
 
@@ -101,8 +106,10 @@ func WithLevel(ctx context.Context, level slog.Level) context.Context {
 type LoggingContext struct {
 	l sync.Mutex
 
-	StartTime  time.Time
-	Errs       []error
+	StartTime time.Time
+	Errs      []error
+	// RequestID correlates an error response with this log line.
+	RequestID  string
 	Extras     []interface{}
 	SkipUser   bool
 	ForceLevel *slog.Level
@@ -220,8 +227,11 @@ func (l *LoggingContext) Log(ctx context.Context, logger *slog.Logger) {
 		if len(internalErrs) > 0 {
 			attrs = append(attrs, slog.String("internal", internalErrs))
 		}
-		if len(uuids) > 0 {
+		switch {
+		case len(uuids) > 0:
 			attrs = append(attrs, slog.String("uuid", strings.Join(uuids, ",")))
+		case l.RequestID != "":
+			attrs = append(attrs, slog.String("uuid", l.RequestID))
 		}
 	}
 

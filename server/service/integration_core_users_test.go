@@ -21,6 +21,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/ghodss/yaml"
 	"github.com/jmoiron/sqlx"
@@ -42,7 +43,7 @@ func (s *integrationTestSuite) TestDoubleUserCreationErrors() {
 	s.Do("POST", "/api/latest/fleet/users/admin", &params, http.StatusOK)
 	respSecond := s.Do("POST", "/api/latest/fleet/users/admin", &params, http.StatusConflict)
 
-	assertBodyContains(t, respSecond, `Error 1062`)
+	assertBodyContains(t, respSecond, platform_http.GenericErrorMessage)
 }
 
 func (s *integrationTestSuite) TestUserWithoutRoleErrors() {

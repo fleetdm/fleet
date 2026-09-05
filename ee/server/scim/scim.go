@@ -225,7 +225,7 @@ func RegisterSCIM(
 					Required: false,
 				},
 			},
-			Handler: NewUserHandler(ds, svc.NewActivity, scimLogger),
+			Handler: newSanitizedResourceHandler(NewUserHandler(ds, svc.NewActivity, scimLogger), scimLogger),
 		},
 		{
 			ID:          optional.NewString("Group"),
@@ -233,7 +233,7 @@ func RegisterSCIM(
 			Endpoint:    "/Groups",
 			Description: optional.NewString("Group"),
 			Schema:      groupSchema,
-			Handler:     NewGroupHandler(ds, scimLogger),
+			Handler:     newSanitizedResourceHandler(NewGroupHandler(ds, scimLogger), scimLogger),
 		},
 	}
 
