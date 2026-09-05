@@ -458,8 +458,11 @@ const allHostTableHeaders = (teamId?: number): IHostTableColumnConfig[] => [
         <TooltipWrapper
           tipContent={
             <>
-              Only supported on hosts that run Fleet&apos;s agent: macOS,
-              Windows, Linux, and ChromeOS.
+              iOS/iPadOS hosts are online anytime they have power and an
+              internet connection (including locked). macOS, Windows, and Linux
+              hosts can be online when locked (lid closed), but less frequently
+              than when the lid is open. Android hosts are never online when
+              locked.
             </>
           }
           className="status-header"
@@ -475,28 +478,23 @@ const allHostTableHeaders = (teamId?: number): IHostTableColumnConfig[] => [
     accessor: "status",
     id: "status",
     Cell: (cellProps: IHostTableStringCellProps) => {
-      if (isMobilePlatform(cellProps.row.original.platform)) {
-        return NotSupported;
-      }
-
-      // Show "---" for ABM devices with Pending enrollment status
+      // Show "---" for ABM devices with Pending enrollment status, with an
+      // explainer tooltip on the pill.
       if (
         cellProps.row.original.mdm?.enrollment_status === "Pending" &&
         isAppleDevice(cellProps.row.original.platform)
       ) {
-        const tooltip = {
-          tooltipText: getHostStatusTooltipText(DEFAULT_EMPTY_CELL_VALUE),
-        };
         return (
-          <StatusIndicator value={DEFAULT_EMPTY_CELL_VALUE} tooltip={tooltip} />
+          <StatusIndicator
+            value={DEFAULT_EMPTY_CELL_VALUE}
+            tooltip={{
+              tooltipText: getHostStatusTooltipText(DEFAULT_EMPTY_CELL_VALUE),
+            }}
+          />
         );
       }
 
-      const value = cellProps.cell.value;
-      const tooltip = {
-        tooltipText: getHostStatusTooltipText(value),
-      };
-      return <StatusIndicator value={value} tooltip={tooltip} />;
+      return <StatusIndicator value={cellProps.cell.value} />;
     },
   },
   // Issues
