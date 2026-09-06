@@ -1931,6 +1931,38 @@ func TestAndroidStorageExtraction(t *testing.T) {
 		return host, nil
 	}
 
+	// Mocks the re-enrollment (update) path needs on top of the create path.
+	mockDS.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
+		return nil, common_mysql.NotFound("scim user")
+	}
+	mockDS.ListHostDeviceMappingFunc = func(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error) {
+		return nil, nil
+	}
+	mockDS.GetMDMIdPAccountByHostUUIDFunc = func(ctx context.Context, hostUUID string) (*fleet.MDMIdPAccount, error) {
+		return nil, common_mysql.NotFound("mdm idp account")
+	}
+	mockDS.AndroidResetOnReenrollmentFunc = func(ctx context.Context, hostID uint, hostUUID string, preserveActivities bool) ([]*fleet.User, []fleet.ActivityDetails, error) {
+		return nil, nil, nil
+	}
+	mockDS.ClearHostMDMActionsFunc = func(ctx context.Context, hostID uint) error {
+		return nil
+	}
+	mockDS.DeleteAllHostCertificateTemplatesFunc = func(ctx context.Context, hostUUID string) error {
+		return nil
+	}
+	mockDS.CreatePendingCertificateTemplatesForNewHostFunc = func(ctx context.Context, hostUUID string, teamID uint) (int64, error) {
+		return 0, nil
+	}
+	mockDS.SetOrUpdateHostMDMAndroidDeviceVitalsFunc = func(ctx context.Context, hostUUID string, vitals fleet.MDMAndroidDeviceVitals) error {
+		return nil
+	}
+	mockDS.UpdateTeamIDOnAndroidDevicesFunc = func(ctx context.Context, hostUUIDs []string, teamID *uint) error {
+		return nil
+	}
+	mockDS.GetEnterpriseFunc = func(ctx context.Context) (*android.Enterprise, error) {
+		return &android.Enterprise{EnterpriseID: "test-enterprise"}, nil
+	}
+
 	t.Run("extracts storage data from AMAPI device", func(t *testing.T) {
 		createdHost = nil // Reset
 
@@ -1973,6 +2005,75 @@ func TestAndroidStorageExtraction(t *testing.T) {
 		// Available storage and percentage should be -1 (not supported) when only DETECTED events are present
 		require.Equal(t, float64(-1), createdHost.Host.GigsDiskSpaceAvailable, "should set available storage to -1 when MEASURED events are missing")
 		require.Equal(t, float64(-1), createdHost.Host.PercentDiskSpaceAvailable, "should set percent available to -1 when MEASURED events are missing")
+	})
+
+	t.Run("re-enrollment without MEASURED events keeps the stored storage", func(t *testing.T) {
+		existing := &fleet.AndroidHost{
+			Host:   &fleet.Host{ID: 42, UUID: "reenroll-uuid", Platform: "android"},
+			Device: &android.Device{DeviceID: createAndroidDeviceId("reenroll-test"), HostID: 42},
+		}
+		mockDS.AndroidHostLiteFunc = func(ctx context.Context, enterpriseSpecificID string) (*fleet.AndroidHost, error) {
+			return existing, nil
+		}
+		var updatedHost *fleet.AndroidHost
+		mockDS.UpdateAndroidHostFunc = func(ctx context.Context, host *fleet.AndroidHost, fromEnroll, companyOwned bool) error {
+			updatedHost = host
+			return nil
+		}
+		t.Cleanup(func() {
+			mockDS.AndroidHostLiteFunc = func(ctx context.Context, enterpriseSpecificID string) (*fleet.AndroidHost, error) {
+				return nil, common_mysql.NotFound("android host lite mock")
+			}
+		})
+
+		// A re-enrollment payload carries no memory events at all.
+		enrollmentMessage := createEnrollmentMessageWithoutMemoryEvents(t, androidmanagement.Device{
+			Name:                createAndroidDeviceId("reenroll-test"),
+			EnrollmentTokenData: `{"enroll_secret": "global"}`,
+		})
+
+		err := svc.ProcessPubSubPush(context.Background(), "value", enrollmentMessage)
+		require.NoError(t, err)
+
+		require.NotNil(t, updatedHost)
+		// Zero leaves host_disks untouched, so the stored measurement survives. Writing the
+		// -1 sentinel here is what showed a previously measured host as "Not supported".
+		require.Zero(t, updatedHost.Host.GigsDiskSpaceAvailable, "must not overwrite stored available space")
+		require.Zero(t, updatedHost.Host.PercentDiskSpaceAvailable, "must not overwrite stored percentage")
+		require.Zero(t, updatedHost.Host.GigsTotalDiskSpace, "must not overwrite stored total")
+	})
+
+	t.Run("re-enrollment with MEASURED events still updates storage", func(t *testing.T) {
+		existing := &fleet.AndroidHost{
+			Host:   &fleet.Host{ID: 43, UUID: "reenroll-measured-uuid", Platform: "android"},
+			Device: &android.Device{DeviceID: createAndroidDeviceId("reenroll-measured"), HostID: 43},
+		}
+		mockDS.AndroidHostLiteFunc = func(ctx context.Context, enterpriseSpecificID string) (*fleet.AndroidHost, error) {
+			return existing, nil
+		}
+		var updatedHost *fleet.AndroidHost
+		mockDS.UpdateAndroidHostFunc = func(ctx context.Context, host *fleet.AndroidHost, fromEnroll, companyOwned bool) error {
+			updatedHost = host
+			return nil
+		}
+		t.Cleanup(func() {
+			mockDS.AndroidHostLiteFunc = func(ctx context.Context, enterpriseSpecificID string) (*fleet.AndroidHost, error) {
+				return nil, common_mysql.NotFound("android host lite mock")
+			}
+		})
+
+		enrollmentMessage := createEnrollmentMessage(t, androidmanagement.Device{
+			Name:                createAndroidDeviceId("reenroll-measured"),
+			EnrollmentTokenData: `{"enroll_secret": "global"}`,
+		})
+
+		err := svc.ProcessPubSubPush(context.Background(), "value", enrollmentMessage)
+		require.NoError(t, err)
+
+		require.NotNil(t, updatedHost)
+		require.InDelta(t, 128.0, updatedHost.Host.GigsTotalDiskSpace, 0.1)
+		require.InDelta(t, 35.0, updatedHost.Host.GigsDiskSpaceAvailable, 0.1)
+		require.InDelta(t, 27.34, updatedHost.Host.PercentDiskSpaceAvailable, 0.1)
 	})
 
 	t.Run("uses only latest EXTERNAL_STORAGE_DETECTED event", func(t *testing.T) {
@@ -2095,6 +2196,36 @@ func createEnrollmentMessageWithoutMeasuredEvents(t *testing.T, deviceInfo andro
 			"notificationType": string(android.PubSubEnrollment),
 		},
 		Data: encodedData,
+	}
+}
+
+// createEnrollmentMessageWithoutMemoryEvents builds the payload AMAPI sends on enrollment:
+// memory info but no memory events, which only arrive on status reports.
+func createEnrollmentMessageWithoutMemoryEvents(t *testing.T, deviceInfo androidmanagement.Device) *android.PubSubMessage {
+	deviceInfo.HardwareInfo = &androidmanagement.HardwareInfo{
+		EnterpriseSpecificId: strings.ToUpper(uuid.New().String()),
+		Brand:                "TestBrand",
+		Model:                "TestModel",
+		SerialNumber:         "test-serial",
+		Hardware:             "test-hardware",
+	}
+	deviceInfo.SoftwareInfo = &androidmanagement.SoftwareInfo{
+		AndroidBuildNumber: "test-build",
+		AndroidVersion:     "1",
+	}
+	deviceInfo.MemoryInfo = &androidmanagement.MemoryInfo{
+		TotalRam:             int64(8 * 1024 * 1024 * 1024),
+		TotalInternalStorage: int64(64 * 1024 * 1024 * 1024),
+	}
+
+	data, err := json.Marshal(deviceInfo)
+	require.NoError(t, err)
+
+	return &android.PubSubMessage{
+		Attributes: map[string]string{
+			"notificationType": string(android.PubSubEnrollment),
+		},
+		Data: base64.StdEncoding.EncodeToString(data),
 	}
 }
 
