@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "2.36.39",
+      "version": "2.36.40",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'AWS Command Line Interface v2 %' AND publisher = 'Amazon Web Services';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'AWS Command Line Interface v2 %' AND publisher = 'Amazon Web Services' AND version_compare(version, '2.36.39') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'AWS Command Line Interface v2 %' AND publisher = 'Amazon Web Services' AND version_compare(version, '2.36.40') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'aws command line interface v2.exe');"
       },
-      "installer_url": "https://awscli.amazonaws.com/AWSCLIV2-2.36.39.msi",
+      "installer_url": "https://awscli.amazonaws.com/AWSCLIV2-2.36.40.msi",
       "install_script_ref": "22e48c46",
       "uninstall_script_ref": "58bcd016",
-      "sha256": "7e363cab7742151645c24aded1bae5de4647886c90cba9954586156a332e7d37",
+      "sha256": "3fbc882f079ed0954240cdc62d42f3381283ba73ef34888cad8157f2e77c8685",
       "default_categories": [
         "Developer tools"
       ],
