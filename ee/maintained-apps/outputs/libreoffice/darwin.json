@@ -10,7 +10,7 @@
       "installer_url": "https://download.documentfoundation.org/libreoffice/stable/26.2.6/mac/aarch64/LibreOffice_26.2.6_MacOS_aarch64.dmg",
       "install_script_ref": "cdd1906a",
       "uninstall_script_ref": "8faa5ae7",
-      "sha256": "f8d37fca7b7cda5898f77845d599d7820832dcb6614786d8c558367a5633bf96",
+      "sha256": "94bb3248df074c225490a8a6d1d9dc87c7d6783dbb7a8e9f0d0c3d94348552af",
       "default_categories": [
         "Productivity"
       ]
