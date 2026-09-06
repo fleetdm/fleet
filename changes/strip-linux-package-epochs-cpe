@@ -1,0 +1,1 @@
+- Fixed false-positive vulnerabilities on Linux hosts for packages whose version includes an epoch prefix (e.g. `2:4.24.6-1`). The epoch is now stripped before CPE generation, so the upstream version is matched against the NVD instead of a corrupted one.
