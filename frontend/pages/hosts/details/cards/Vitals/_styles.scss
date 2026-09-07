@@ -119,6 +119,26 @@
     }
   }
 
+  &__location {
+    // The value is a link button on host details and a plain string on My
+    // Device. Every box between the grid track and the text defaults to
+    // `min-width: auto`, so without this the text pushes the card wide instead
+    // of letting TooltipTruncatedText ellipsize it.
+    min-width: 0;
+
+    dd,
+    .button--link,
+    .children-wrapper {
+      min-width: 0;
+    }
+
+    // TooltipWrapper sets `cursor: default` on its element, which would
+    // otherwise beat the link button's pointer.
+    .component__tooltip-wrapper__element {
+      cursor: inherit;
+    }
+  }
+
   &__custom-vital-title {
     display: inline-flex;
     align-items: center;
