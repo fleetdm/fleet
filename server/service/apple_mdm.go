@@ -4193,14 +4193,17 @@ type createMDMAppleSetupAssistantRequest struct {
 
 type createMDMAppleSetupAssistantResponse struct {
 	fleet.MDMAppleSetupAssistant
-	Err error `json:"error,omitempty"`
+	// Warnings holds non-fatal messages (e.g. the fleet isn't tied to an ABM token
+	// yet, so the assistant won't take effect) for clients like GitOps to surface.
+	Warnings []string `json:"warnings,omitempty"`
+	Err      error    `json:"error,omitempty"`
 }
 
 func (r createMDMAppleSetupAssistantResponse) Error() error { return r.Err }
 
 func createMDMAppleSetupAssistantEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*createMDMAppleSetupAssistantRequest)
-	asst, err := svc.SetOrUpdateMDMAppleSetupAssistant(ctx, &fleet.MDMAppleSetupAssistant{
+	asst, warnings, err := svc.SetOrUpdateMDMAppleSetupAssistant(ctx, &fleet.MDMAppleSetupAssistant{
 		TeamID:  req.TeamID,
 		Name:    req.Name,
 		Profile: req.EnrollmentProfile,
@@ -4208,15 +4211,15 @@ func createMDMAppleSetupAssistantEndpoint(ctx context.Context, request interface
 	if err != nil {
 		return createMDMAppleSetupAssistantResponse{Err: err}, nil
 	}
-	return createMDMAppleSetupAssistantResponse{MDMAppleSetupAssistant: *asst}, nil
+	return createMDMAppleSetupAssistantResponse{MDMAppleSetupAssistant: *asst, Warnings: warnings}, nil
 }
 
-func (svc *Service) SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, asst *fleet.MDMAppleSetupAssistant) (*fleet.MDMAppleSetupAssistant, error) {
+func (svc *Service) SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, asst *fleet.MDMAppleSetupAssistant) (*fleet.MDMAppleSetupAssistant, []string, error) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)
 
-	return nil, fleet.ErrMissingLicense
+	return nil, nil, fleet.ErrMissingLicense
 }
 
 ////////////////////////////////////////////////////////////////////////////////

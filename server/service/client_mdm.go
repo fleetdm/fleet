@@ -270,14 +270,18 @@ func (c *Client) validateMacOSSetupAssistant(fileName string) ([]byte, error) {
 	return b, nil
 }
 
-func (c *Client) uploadMacOSSetupAssistant(data []byte, teamID *uint, name string) error {
+func (c *Client) uploadMacOSSetupAssistant(data []byte, teamID *uint, name string) ([]string, error) {
 	verb, path := http.MethodPost, "/api/latest/fleet/enrollment_profiles/automatic"
 	request := createMDMAppleSetupAssistantRequest{
 		TeamID:            teamID,
 		Name:              name,
 		EnrollmentProfile: json.RawMessage(data),
 	}
-	return c.authenticatedRequest(request, verb, path, nil)
+	var resp createMDMAppleSetupAssistantResponse
+	if err := c.authenticatedRequest(request, verb, path, &resp); err != nil {
+		return nil, err
+	}
+	return resp.Warnings, nil
 }
 
 func (c *Client) deleteMacOSSetupAssistant(teamID *uint) error {

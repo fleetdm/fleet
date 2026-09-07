@@ -400,18 +400,30 @@ func (d *DEPService) ValidateSetupAssistant(ctx context.Context, team *fleet.Tea
 	}
 
 	if len(orgNames) == 0 {
-		// Then check to see if there are any tokens at all. If there is only 1, we assume we can
-		// use it (the vast majority of deployments will only have a single token).
+		// The fleet isn't tied to any ABM token yet, but validating the profile only
+		// needs a credential to reach Apple's DefineProfile API, and that check is the
+		// same for any token. Use any usable token so validation doesn't fail on a
+		// fleet that will be tied to a token later; the profile defined here is not
+		// assigned to anything. Only error when there is no token at all.
 		toks, err := d.ds.ListABMTokens(ctx)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "listing ABM tokens")
 		}
 
-		if len(toks) != 1 {
-			return ctxerr.New(ctx, "No relevant ABM tokens found. Please set this team as a default team for an ABM token.")
+		if len(toks) == 0 {
+			return ctxerr.New(ctx, "No Apple Business Manager (ABM) token found. Add an ABM token before adding a setup assistant.")
 		}
 
-		orgNames = append(orgNames, toks[0].OrganizationName)
+		// Prefer a token that can actually reach Apple; an invalid or terms-expired
+		// token would fail DefineProfile and block a fleet that has other good tokens.
+		orgName := toks[0].OrganizationName
+		for _, tok := range toks {
+			if !tok.TokenInvalid && !tok.TermsExpired {
+				orgName = tok.OrganizationName
+				break
+			}
+		}
+		orgNames = append(orgNames, orgName)
 	}
 
 	for _, orgName := range orgNames {

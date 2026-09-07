@@ -6002,7 +6002,7 @@ func TestMDMAppleSetupAssistant(t *testing.T) {
 			_, err := svc.GetMDMAppleSetupAssistant(ctx, tt.teamID)
 			checkAuthErr(t, tt.shouldFailRead, err)
 
-			_, err = svc.SetOrUpdateMDMAppleSetupAssistant(ctx, &fleet.MDMAppleSetupAssistant{
+			_, _, err = svc.SetOrUpdateMDMAppleSetupAssistant(ctx, &fleet.MDMAppleSetupAssistant{
 				Name:    "test",
 				Profile: json.RawMessage("{}"),
 				TeamID:  tt.teamID,

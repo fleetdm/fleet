@@ -713,7 +713,7 @@ type MDMCreateEULAFunc func(ctx context.Context, name string, file io.ReadSeeker
 
 type MDMDeleteEULAFunc func(ctx context.Context, token string, dryRun bool) error
 
-type SetOrUpdateMDMAppleSetupAssistantFunc func(ctx context.Context, asst *fleet.MDMAppleSetupAssistant) (*fleet.MDMAppleSetupAssistant, error)
+type SetOrUpdateMDMAppleSetupAssistantFunc func(ctx context.Context, asst *fleet.MDMAppleSetupAssistant) (*fleet.MDMAppleSetupAssistant, []string, error)
 
 type GetMDMAppleSetupAssistantFunc func(ctx context.Context, teamID *uint) (*fleet.MDMAppleSetupAssistant, error)
 
@@ -4937,7 +4937,7 @@ func (s *Service) MDMDeleteEULA(ctx context.Context, token string, dryRun bool) 
 	return s.MDMDeleteEULAFunc(ctx, token, dryRun)
 }
 
-func (s *Service) SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, asst *fleet.MDMAppleSetupAssistant) (*fleet.MDMAppleSetupAssistant, error) {
+func (s *Service) SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, asst *fleet.MDMAppleSetupAssistant) (*fleet.MDMAppleSetupAssistant, []string, error) {
 	s.mu.Lock()
 	s.SetOrUpdateMDMAppleSetupAssistantFuncInvoked = true
 	s.mu.Unlock()
