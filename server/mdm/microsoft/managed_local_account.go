@@ -10,19 +10,10 @@ import (
 	"github.com/hashicorp/go-multierror"
 )
 
-// SendManagedLocalAccountRotationRequests rotates the Windows managed local admin (`_fleetadmin`) password for hosts
-// whose auto_rotate_at has elapsed. It is the Windows counterpart to apple_mdm.SendManagedLocalAccountRotationCommands
-// and runs on the same schedule.
-//
+// SendManagedLocalAccountRotationRequests is the Windows counterpart of apple_mdm.SendManagedLocalAccountRotationCommands.
 // There is no command to enqueue: recording the request is the whole of the work, and the host's next orbit config
-// check-in asks it to re-provision the account, which resets the password and escrows the new one. A benign race (the
-// row's eligibility flipped since the SELECT, the host unenrolled) is debug-logged and skipped rather than failing the
-// cron iteration.
-//
-// Activity logging mirrors the macOS path:
-//   - rows with initiated_by_fleet=1 (view-driven) log with FleetInitiated=true
-//   - rows with initiated_by_fleet=0 (a manual request awaiting its turn) skip logging, because the manual path
-//     already logged the activity with the requesting user as actor
+// check-in asks it to re-provision the account. Benign races (eligibility changed since the SELECT, host unenrolled)
+// are debug-logged and skipped.
 func SendManagedLocalAccountRotationRequests(
 	ctx context.Context,
 	ds fleet.Datastore,
@@ -62,9 +53,8 @@ func SendManagedLocalAccountRotationRequests(
 	return result.ErrorOrNil()
 }
 
-// logManagedLocalAccountRotationActivity logs the rotation activity ONLY for view-driven rows
-// (initiated_by_fleet=1). A row with initiated_by_fleet=0 belongs to a manual request whose activity was already
-// recorded with the requesting user as actor; re-logging here would double-count it.
+// logManagedLocalAccountRotationActivity logs only view-driven rows (initiated_by_fleet=1); a manual request was
+// already logged with the user as actor.
 func logManagedLocalAccountRotationActivity(
 	ctx context.Context,
 	logger *slog.Logger,

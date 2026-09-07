@@ -2806,9 +2806,7 @@ func newManagedLocalAccountRotationSchedule(
 		schedule.WithJob("send_managed_local_account_rotation_commands", func(ctx context.Context) error {
 			return apple_mdm.SendManagedLocalAccountRotationCommands(ctx, ds, commander, logger, newActivityFn)
 		}),
-		// Windows shares the schedule but not the mechanism: there is no MDM command to send, so the job records a
-		// rotation request that the host's next orbit config check-in picks up. Registered separately so one platform
-		// failing does not stop the other from being processed.
+		// Registered separately so one platform failing does not stop the other.
 		schedule.WithJob("send_windows_managed_local_account_rotation_requests", func(ctx context.Context) error {
 			return microsoft_mdm.SendManagedLocalAccountRotationRequests(ctx, ds, logger, newActivityFn)
 		}),

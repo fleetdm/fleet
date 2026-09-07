@@ -2040,9 +2040,8 @@ func TestGetOrbitConfigWindowsManagedLocalAccount(t *testing.T) {
 		assert.True(t, cfg.Notifications.CreateWindowsManagedLocalAccount)
 	})
 
-	// Turning the setting off stops Fleet creating new accounts. It does not mean refusing to re-secure an account that
-	// is already on the device, which is what macOS does (its rotation command never consults the setting). The
-	// setting is off here (settingEnabled=false), so the notification being set is what proves the bypass.
+	// The setting is off here, so the notification being set is what proves an explicit rotation bypasses it, as on
+	// macOS.
 	t.Run("rotation requested sets it even when the setting is off", func(t *testing.T) {
 		ds, svc, ctx := setupSvc(t, fleet.TierPremium, false, fleet.WindowsMDMAwaitingConfigurationNone, true)
 		withRotationRequested(ds, fleet.WindowsMDMAwaitingConfigurationNone)
@@ -2155,9 +2154,8 @@ func TestEscrowWindowsManagedLocalAccountPassword(t *testing.T) {
 		require.False(t, escrowedFlag)
 	})
 
-	// A failure while rotating is a different situation from a failure while creating: the host kept the password it
-	// already had, so the escrowed copy still works. The request is retired instead of the escrowed flag being cleared,
-	// which is what stops the same doomed attempt running on every poll.
+	// A failed rotation retires the request but keeps the escrowed flag: the host kept its password, and clearing the
+	// flag would re-run the same attempt every poll.
 	t.Run("client error during a rotation records a failed rotation and stops asking", func(t *testing.T) {
 		ds, svc, ctx, opts := setup(t, true, true)
 		ds.ClearMDMWindowsManagedLocalAccountRotationRequestFunc = func(ctx context.Context, hostUUID string) (bool, error) {
@@ -2186,10 +2184,8 @@ func TestEscrowWindowsManagedLocalAccountPassword(t *testing.T) {
 			"the account still exists with a password Fleet knows, so the host must not be asked to create one")
 	})
 
-	// fleetd may re-send an identical failure report if the first response was lost. By then the request has already
-	// been retired, so nothing about the request can tell this apart from a first-time creation failure. The escrowed
-	// flag can: the account exists and Fleet holds its password, so the host must still not be asked to recreate it,
-	// and the failure must not be recorded a second time.
+	// fleetd may re-send a failure report if the first response was lost. The request is already retired by then, so
+	// only the escrowed flag can tell this apart from a creation failure.
 	t.Run("a re-sent rotation failure report is idempotent", func(t *testing.T) {
 		ds, svc, ctx, opts := setup(t, true, true)
 		ds.ClearMDMWindowsManagedLocalAccountRotationRequestFunc = func(ctx context.Context, hostUUID string) (bool, error) {
@@ -2232,8 +2228,7 @@ func TestEscrowWindowsManagedLocalAccountPassword(t *testing.T) {
 
 		require.True(t, ds.SaveHostManagedLocalAccountFromEscrowFuncInvoked)
 		require.True(t, ds.ClearMDMWindowsManagedLocalAccountRotationRequestFuncInvoked)
-		// The rotated activity is logged when the rotation is requested, not when the device confirms it, so this
-		// escrow logs nothing at all.
+		// The rotated activity is logged at request time, so this escrow logs nothing.
 		assert.Zero(t, activityCount)
 	})
 

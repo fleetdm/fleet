@@ -226,9 +226,7 @@ describe("ManagedAccountModal", () => {
     await waitFor(() => {
       expect(screen.getByText(/Couldn't rotate password/i)).toBeVisible();
     });
-    // The device's own reason is quoted so the admin can act on it.
     expect(screen.getByText(/NERR_PasswordTooShort/)).toBeVisible();
-    // The point of the change: a failed rotation must not hide a working password.
     expect(screen.getByText("_fleetadmin")).toBeVisible();
     expect(screen.getByText("Rotate password")).toBeVisible();
   });
@@ -264,7 +262,7 @@ describe("ManagedAccountModal", () => {
   });
 
   it("prefers the failure banner over the auto-rotate hint", async () => {
-    // A failed row never has its timer armed, so both being set is a defensive case: the failure must win.
+    // Both set is a defensive case: the failure must win.
     (hostAPI.getManagedAccountPassword as jest.Mock).mockResolvedValue({
       ...mockPasswordResponse,
       managed_account_password: {
@@ -293,8 +291,7 @@ describe("ManagedAccountModal", () => {
   });
 
   it("still shows the failure banner when the host gave no reason", async () => {
-    // The macOS ack path marks a row failed without a reason. The banner is gated on the failure itself so that
-    // case is never a silent nothing.
+    // The macOS ack path marks a row failed without a reason.
     render(
       <ManagedAccountModal
         hostId={7}

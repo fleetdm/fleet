@@ -204,14 +204,11 @@ func (ds *Datastore) SetMDMWindowsManagedLocalAccountEscrowed(ctx context.Contex
 	return changed > 0, nil
 }
 
-// ClearMDMWindowsManagedLocalAccountRotationRequest retires an outstanding rotation request, called once the device has
-// escrowed the replacement password (or reported that it could not produce one).
-//
-// It reports whether a request was actually outstanding, which is how the escrow endpoint tells a rotation apart from a
-// first-time account creation without a separate read: only an outstanding request can be cleared.
+// ClearMDMWindowsManagedLocalAccountRotationRequest retires an outstanding rotation request once the device has
+// escrowed the replacement password or reported a failure. Reporting whether one was outstanding lets the escrow
+// endpoint tell a rotation from a first-time creation without a separate read.
 func (ds *Datastore) ClearMDMWindowsManagedLocalAccountRotationRequest(ctx context.Context, hostUUID string) (bool, error) {
-	// Pinned to the current enrollment by id rather than filtering on the flag first, so a stale extra enrollment row
-	// can never be the one cleared or the one that reports "cleared".
+	// Pinned to the current enrollment by id so a stale enrollment row is never the one cleared.
 	res, err := ds.writer(ctx).ExecContext(ctx,
 		`UPDATE mdm_windows_enrollments SET managed_local_account_rotation_requested = 0
 		 WHERE managed_local_account_rotation_requested = 1

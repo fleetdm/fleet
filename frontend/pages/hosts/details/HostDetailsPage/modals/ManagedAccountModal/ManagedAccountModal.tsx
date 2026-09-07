@@ -25,10 +25,7 @@ interface IManagedAccountModalProps {
   // We deferred this decision for now because this modal only displays for
   // Admin or Maintainer roles
   canRotatePassword: boolean;
-  /**
-   * Whether the host reported that the last rotation failed. The password below is still the last
-   * one Fleet received in that case, so the failure is shown alongside it rather than in place of it.
-   */
+  /** The last rotation failed. The password shown is still the last one Fleet received. */
   rotationFailed?: boolean;
   /** The host's reason for the failure, when it reported one. */
   rotationError?: string;
@@ -91,8 +88,7 @@ const ManagedAccountModal = ({
     justRotated || managedAccountData?.pending_rotation === true;
   const autoRotateAt = managedAccountData?.auto_rotate_at;
 
-  // One banner at a time, in priority order. Gated on booleans rather than on the reason string's truthiness, so a
-  // failure the host reported without a reason still gets a banner instead of silently rendering nothing.
+  // One banner at a time. Gated on booleans, not the reason string, so a failure without a reason still shows.
   const renderRotationBanner = () => {
     if (showPendingRotationBanner) {
       return (
@@ -101,8 +97,7 @@ const ManagedAccountModal = ({
         </InfoBanner>
       );
     }
-    // A failed rotation outranks the auto-rotate hint: the timer is not armed for a failed row, so there is no
-    // upcoming rotation left to promise.
+    // A failed row has no timer armed, so the failure outranks the auto-rotate hint.
     if (rotationFailed) {
       return (
         <InfoBanner color="yellow" icon="warning">

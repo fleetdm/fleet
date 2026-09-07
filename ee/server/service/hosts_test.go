@@ -115,9 +115,8 @@ func TestGetHostManagedAccountPasswordAuth(t *testing.T) {
 	}
 }
 
-// TestRotateWindowsManagedLocalAccountPassword covers the Windows branch of the rotate endpoint: it records a request
-// for the next orbit config check-in rather than enqueuing an MDM command, so the only failures to map are the
-// datastore's typed ones.
+// TestRotateWindowsManagedLocalAccountPassword covers the Windows branch of the rotate endpoint, which maps the
+// datastore's typed errors rather than enqueuing an MDM command.
 func TestRotateWindowsManagedLocalAccountPassword(t *testing.T) {
 	t.Parallel()
 

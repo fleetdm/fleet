@@ -9,12 +9,8 @@ func init() {
 	MigrationClient.AddMigration(Up_20260907212114, Down_20260907212114)
 }
 
-// Up_20260902143818 adds mdm_windows_enrollments.managed_local_account_rotation_requested, which asks a Windows host to
-// re-provision its managed local account so fleetd generates and escrows a new password.
-//
-// It lives on the enrollment row rather than on host_managed_local_account_passwords so the orbit config check-in, which
-// already reads this row once per poll, stays a single indexed lookup. Re-enrolling replaces the row, which clears an
-// outstanding request along with the escrowed flag next to it.
+// Up_20260907212114 adds mdm_windows_enrollments.managed_local_account_rotation_requested. It lives on the enrollment
+// row so the per-poll orbit config read stays a single lookup, and re-enrollment clears a stale request for free.
 func Up_20260907212114(tx *sql.Tx) error {
 	if _, err := tx.Exec(
 		"ALTER TABLE mdm_windows_enrollments " +

@@ -579,8 +579,7 @@ func testManagedLocalAccountGetByPendingCommandUUID(t *testing.T, ds *Datastore)
 // testManagedLocalAccountEscrow walks the Windows escrow lifecycle
 func testManagedLocalAccountEscrow(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
-	// A real host row, so the failure case below exercises the Windows handling rather than falling through to the
-	// stricter macOS one that an unknown platform gets.
+	// A real host row, so the failure case gets Windows handling rather than the stricter default.
 	hostUUID := newWindowsHostWithEnrollment(t, ds, "win-escrow-host")
 
 	require.NoError(t, ds.SaveHostManagedLocalAccountFromEscrow(ctx, hostUUID, "WIN-PASS-1"))
@@ -595,9 +594,7 @@ func testManagedLocalAccountEscrow(t *testing.T, ds *Datastore) {
 	assert.Equal(t, string(fleet.MDMDeliveryVerified), *status.Status)
 	assert.True(t, status.PasswordAvailable)
 
-	// Escrow leaves account_uuid unset: nothing addresses a Windows account by id, which is why Windows rows are
-	// selected for rotation by GetWindowsManagedLocalAccountsForAutoRotation rather than the Apple query that
-	// requires one.
+	// Escrow leaves account_uuid unset, which is why Windows rows have their own auto-rotation query.
 	accountUUID, err := ds.GetManagedLocalAccountUUID(ctx, hostUUID)
 	require.NoError(t, err)
 	assert.Nil(t, accountUUID)
@@ -616,8 +613,7 @@ func testManagedLocalAccountEscrow(t *testing.T, ds *Datastore) {
 	require.NotNil(t, status.Status)
 	assert.Equal(t, string(fleet.MDMDeliveryFailed), *status.Status)
 	assert.Equal(t, "password reset failed", status.Detail)
-	// On Windows the password survives a failure and stays readable: the host keeps whatever password it already had,
-	// so the escrowed copy still works.
+	// On Windows the password stays readable after a failure: the host kept it, so it still works.
 	assert.True(t, status.PasswordAvailable)
 
 	got, err = ds.GetHostManagedLocalAccountPassword(ctx, hostUUID)
@@ -693,9 +689,8 @@ func testManagedLocalAccountSoftDeleteOnReenrollment(t *testing.T, ds *Datastore
 	assertPasswordRetained()
 }
 
-// newWindowsHostWithEnrollment creates a Windows host plus the MDM enrollment row that carries a rotation request, and
-// returns the host's UUID. Both are needed for the Windows rotation path: the enrollment holds the request flag, and
-// the host row is what tells GetHostManagedLocalAccountStatus which platform's failure semantics apply.
+// newWindowsHostWithEnrollment creates a Windows host and its MDM enrollment row and returns the host UUID. The
+// enrollment carries the request flag; the host row supplies the platform.
 func newWindowsHostWithEnrollment(t *testing.T, ds *Datastore, name string) string {
 	ctx := t.Context()
 	h, err := ds.NewHost(ctx, &fleet.Host{
@@ -916,8 +911,7 @@ func testManagedLocalAccountGetWindowsForAutoRotation(t *testing.T, ds *Datastor
 	assert.ElementsMatch(t, []string{eligible}, got)
 }
 
-// setAutoRotateAt backdates (or postpones) a row's rotation deadline so the cron query can be exercised without
-// waiting on the real 65-minute view timer.
+// setAutoRotateAt moves a row's rotation deadline so the cron query can be exercised without waiting on the view timer.
 func setAutoRotateAt(t *testing.T, ds *Datastore, hostUUID string, at time.Time) {
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(t.Context(),

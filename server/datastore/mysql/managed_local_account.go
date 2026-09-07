@@ -188,16 +188,14 @@ func (ds *Datastore) GetHostManagedLocalAccountStatus(ctx context.Context, hostU
 	// password_available is decoupled from rotation lifecycle: a viewed-and-waiting row
 	// still has a usable password even though status='pending'.
 	//
-	// Windows follows the recovery lock password: having a password is enough. A rotation that fails on the device left
-	// the old password in place, so it still logs the admin in, and hiding it defeats the point of a break-glass
-	// account. macOS still hides a failed row; a separate story covers bringing it in line.
+	// Windows keeps a failed row's password visible: the device left the old one in place, so it still works. macOS
+	// still hides it; a separate story covers aligning them.
 	passwordAvailable := row.HasPassword
 	isWindows := row.Platform != nil && fleet.IsWindowsPlatform(*row.Platform)
 	if !isWindows && status == string(fleet.MDMDeliveryFailed) {
 		passwordAvailable = false
 	}
-	// Either platform's in-flight rotation reads as pending to callers: macOS stages a pending password, Windows carries
-	// an outstanding request on its enrollment.
+	// macOS stages a pending password; Windows carries a request on its enrollment. Both read as pending.
 	pendingRotation := row.PendingRotation || (row.RotationRequested != nil && *row.RotationRequested)
 	return &fleet.HostMDMManagedLocalAccount{
 		Status:            &status,
@@ -541,17 +539,9 @@ func (ds *Datastore) GetManagedLocalAccountsForAutoRotation(ctx context.Context)
 	return hosts, nil
 }
 
-// GetWindowsManagedLocalAccountsForAutoRotation returns the Windows rows the cron should rotate. It is separate from
-// GetManagedLocalAccountsForAutoRotation because the eligibility differs on both ends: Windows rows never capture an
-// account_uuid (nothing addresses the account by id), and "already rotating" is an outstanding request on the enrollment
-// rather than a staged pending password.
-//
-// Eligibility:
-//   - auto_rotate_at has elapsed
-//   - encrypted_password present, so there is a current password to replace
-//   - the host is Windows and has a Windows MDM enrollment to carry the notification
-//   - no rotation already requested on that enrollment
-//   - status is not 'failed'; 'pending' is accepted, being a viewed-and-waiting row
+// GetWindowsManagedLocalAccountsForAutoRotation is the Windows counterpart of GetManagedLocalAccountsForAutoRotation.
+// It is separate because Windows rows never capture an account_uuid, and "already rotating" is a request on the
+// enrollment rather than a staged pending password. Failed rows are skipped; 'pending' (viewed and waiting) is not.
 func (ds *Datastore) GetWindowsManagedLocalAccountsForAutoRotation(ctx context.Context) ([]fleet.HostManagedLocalAccountWindowsRotationInfo, error) {
 	stmt := fmt.Sprintf(`
 		SELECT
@@ -584,18 +574,13 @@ func (ds *Datastore) GetWindowsManagedLocalAccountsForAutoRotation(ctx context.C
 	return hosts, nil
 }
 
-// InitiateWindowsManagedLocalAccountRotation asks the device to re-provision its managed local account, the Windows
-// counterpart to InitiateManagedLocalAccountRotation. There is no pending password to stage: fleetd generates one on the
-// device, so all that is recorded is the request itself, plus clearing auto_rotate_at so the cron does not pick the row
-// up again while the device works through it.
-//
-// Both writes land in one transaction: a request the device never sees, or a cleared timer with no request behind it,
-// would each strand the row. Returns ErrManagedLocalAccountRotationPending when a rotation is already outstanding, and
-// notFound when the host has no Windows MDM enrollment or no managed local account row.
+// InitiateWindowsManagedLocalAccountRotation records the request and clears auto_rotate_at in one transaction, so the
+// cron cannot pick the row up while the device works through it. fleetd generates the password on the device, so there
+// is nothing to stage.
 func (ds *Datastore) InitiateWindowsManagedLocalAccountRotation(ctx context.Context, hostUUID string) error {
 	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
-		// Eligibility is read rather than inferred from an UPDATE's row count: MySQL reports rows *changed*, so a row
-		// already sitting at status='pending' with a spent timer would look ineligible when it is merely unchanged.
+		// Read eligibility rather than infer it from RowsAffected, which counts changed rows: a row already at
+		// status='pending' would look ineligible.
 		var acct struct {
 			HasPassword bool           `db:"has_password"`
 			Status      sql.NullString `db:"status"`
@@ -610,18 +595,15 @@ func (ds *Datastore) InitiateWindowsManagedLocalAccountRotation(ctx context.Cont
 		case err != nil:
 			return ctxerr.Wrap(ctx, err, "check windows managed local account rotation eligibility")
 		}
-		// A previous failure does not block a fresh request. Windows keeps a failed row's password visible, so the admin
-		// can see it and ask again; refusing here would leave them an enabled button that always errors. Only the
-		// auto-rotation cron still skips failed rows, so a standing cause is not retried every tick unasked.
+		// A failed row can be rotated again: its password stays visible, so the button stays enabled. Only the cron
+		// skips failed rows.
 		if !acct.HasPassword {
 			return ctxerr.Wrap(ctx, fleet.ErrManagedLocalAccountNotEligible,
 				fmt.Sprintf("host %s (has_password=false status=%v)", hostUUID, acct.Status.String))
 		}
 
-		// Pinned to the current enrollment by id, as the read paths are, rather than filtering on the flag and then
-		// ordering: with more than one enrollment row for a host, a flag-first filter could match a stale row and
-		// report a request that the current enrollment never saw. The derived table is MySQL's requirement for
-		// selecting from the table being updated.
+		// Pin to the current enrollment by id; a flag-first filter could match a stale enrollment row. The derived
+		// table works around MySQL error 1093 (selecting from the table being updated).
 		res, err := tx.ExecContext(ctx,
 			`UPDATE mdm_windows_enrollments SET managed_local_account_rotation_requested = 1
 			 WHERE managed_local_account_rotation_requested = 0
@@ -647,8 +629,7 @@ func (ds *Datastore) InitiateWindowsManagedLocalAccountRotation(ctx context.Cont
 			return ctxerr.Wrap(ctx, fleet.ErrManagedLocalAccountRotationPending, fmt.Sprintf("host %s", hostUUID))
 		}
 
-		// Hand the row to the device: status reflects "waiting on the host", and the timer is spent. client_error is
-		// cleared too, so a previous failure's message does not sit next to a rotation that is now under way.
+		// client_error is cleared so a previous failure's message does not sit next to a rotation now under way.
 		if _, err := tx.ExecContext(ctx, fmt.Sprintf(`
 			UPDATE host_managed_local_account_passwords
 			SET status = '%s', auto_rotate_at = NULL, client_error = ''
