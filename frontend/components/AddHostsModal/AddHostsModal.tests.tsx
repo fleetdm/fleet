@@ -289,10 +289,14 @@ describe("AddHostsModal", () => {
 
     await user.click(screen.getByRole("tab", { name: "iOS & iPadOS" }));
 
-    // Personal (BYOD) is selected by default — URL carries byod=true.
+    // Personal (BYOD) is selected by default — URL carries byod=true, and
+    // always carries platform=ios so the enrollment page never has to guess
+    // this link's platform from the opening device's user agent.
     expect(
       screen.getByDisplayValue(
-        new RegExp(`/enroll\\?enroll_secret=${ENROLL_SECRET}&byod=true$`)
+        new RegExp(
+          `/enroll\\?enroll_secret=${ENROLL_SECRET}&byod=true&platform=ios$`
+        )
       )
     ).toBeInTheDocument();
     const personalQrData = getQrCodeData();
@@ -302,7 +306,7 @@ describe("AddHostsModal", () => {
 
     expect(
       screen.getByDisplayValue(
-        new RegExp(`/enroll\\?enroll_secret=${ENROLL_SECRET}$`)
+        new RegExp(`/enroll\\?enroll_secret=${ENROLL_SECRET}&platform=ios$`)
       )
     ).toBeInTheDocument();
     expect(getQrCodeData()).not.toEqual(personalQrData);

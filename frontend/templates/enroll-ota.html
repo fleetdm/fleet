@@ -878,9 +878,19 @@
 
       // dynmaic content rendering for ios and ipad only
       const setIosIpadContent = (platform) => {
-        if (platform === "ios") {
+        // The Add hosts modal's iOS/iPadOS tab can't know ahead of time
+        // whether the end user opening the link has an iPhone or an iPad,
+        // so it always hints "ios". Prefer the enrolling device's own user
+        // agent for this cosmetic wording/imagery when it clearly is one of
+        // the two; fall back to the hint (e.g. an admin's desktop preview,
+        // where this content is replaced by the QR handoff anyway).
+        const detected = detectUserAgentPlatform();
+        const resolvedPlatform =
+          detected === "ios" || detected === "ipad" ? detected : platform;
+
+        if (resolvedPlatform === "ios") {
           deviceType = "iPhone";
-        } else if (platform === "ipad") {
+        } else if (resolvedPlatform === "ipad") {
           deviceType = "iPad";
         }
 
@@ -891,7 +901,7 @@
           });
 
         // update image src based on OS
-        const osImagePrefix = platform === "ios" ? "ios" : "iPadOS";
+        const osImagePrefix = resolvedPlatform === "ios" ? "ios" : "iPadOS";
         document.querySelector(
           ".profile-downloaded-img"
         ).src = `{{.URLPrefix}}/assets/images/${osImagePrefix}-profile-downloaded.png`;
@@ -1051,8 +1061,14 @@
         // handle rendering for ios and ipad
         if (platform === "ios" || platform === "ipad") {
           if (!MAC_MDM_ENABLED) {
+            // Prefer the enrolling device's own user agent over the link's
+            // platform hint, which the iOS/iPadOS Add hosts tab can't set
+            // precisely since it covers both device types.
+            const detected = detectUserAgentPlatform();
+            const errorPlatform =
+              detected === "ios" || detected === "ipad" ? detected : platform;
             const description = `To enroll your ${
-              platform === "ios" ? "iPhone" : "iPad"
+              errorPlatform === "ios" ? "iPhone" : "iPad"
             } please contact your IT admin.`;
             renderError("Apple MDM is turned off.", description);
             return;

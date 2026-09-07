@@ -2,6 +2,7 @@ import React, { useContext } from "react";
 
 import PATHS from "router/paths";
 import { AppContext } from "context/app";
+import { getPathWithQueryParams } from "utilities/url";
 
 import CustomLink from "components/CustomLink";
 import Radio from "components/forms/fields/Radio";
@@ -17,15 +18,11 @@ const generateUrl = (
   enrollSecret: string,
   enrollType: EnrollmentType
 ) => {
-  const url = `${serverUrl}/enroll?enroll_secret=${encodeURIComponent(
-    enrollSecret
-  )}&platform=android`;
-
-  if (enrollType === "fullyManaged") {
-    return `${url}&fully_managed=true`;
-  }
-
-  return url;
+  return getPathWithQueryParams(`${serverUrl}/enroll`, {
+    enroll_secret: enrollSecret,
+    platform: "android",
+    fully_managed: enrollType === "fullyManaged" ? "true" : undefined,
+  });
 };
 
 const baseClass = "android-panel";

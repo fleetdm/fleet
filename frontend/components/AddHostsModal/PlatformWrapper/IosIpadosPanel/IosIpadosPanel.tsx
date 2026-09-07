@@ -41,11 +41,18 @@ const IosIpadosPanel = ({ enrollSecret }: IosIpadosPanelProps) => {
     );
   }
 
+  // This tab covers both iOS and iPadOS, so the link can't know in advance
+  // which of the two the end user will open it on — "ios" is just a hint
+  // for enroll-ota.html to route into the combined iOS/iPadOS instructions
+  // (and desktop QR handoff) instead of guessing from the previewing
+  // browser's user agent. The enrolling device's own user agent still
+  // decides iPhone- vs iPad-specific wording/images.
   const url = getPathWithQueryParams(
     `${config.server_settings.server_url}/enroll`,
     {
       enroll_secret: enrollSecret,
       byod: enrollmentType === "personal" ? "true" : undefined,
+      platform: "ios",
     }
   );
 
