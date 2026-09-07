@@ -35,7 +35,7 @@ examples: |-
   WHERE data_type = 'SPAudioDataType';
   ```
 
-  Discover Macs that have updated to the lastest macOS version within the last 7 days:
+  Discover Macs that have updated to the latest macOS version within the last 7 days:
 
   ```
   SELECT
