@@ -1,0 +1,14 @@
+# The version in the query below is the newest claude-desktop package available for
+# BOTH amd64 and arm64 in https://downloads.claude.ai/claude-desktop/apt/stable
+# (dists/stable/main/binary-<arch>/Packages). A scheduled Claude routine checks the
+# feed twice daily and opens a PR to bump it; only the version string should change.
+- name: Claude up to date (Linux)
+  query: SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM deb_packages WHERE name = 'claude-desktop' AND version_compare(version, '1.46388.2') < 0);
+  critical: false
+  description: The host may have an outdated version of Claude, potentially risking security vulnerabilities or compatibility issues.
+  resolution: "Claude is managed by IT and is upgraded automatically from Anthropic's apt repository when this policy fails. You can also run `sudo apt update && sudo apt install claude-desktop`, or install the latest version from Self-service. If you are still failing after Refetch completes, drop a note in #help-it."
+  platform: linux
+  labels_include_any:
+    - "Debian-based Linux hosts"
+  run_script:
+    path: ../scripts/update-claude-desktop.sh
