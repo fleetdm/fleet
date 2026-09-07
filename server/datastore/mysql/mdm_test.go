@@ -39,6 +39,7 @@ func TestMDMShared(t *testing.T) {
 		name string
 		fn   func(t *testing.T, ds *Datastore)
 	}{
+		{"TestResetPendingCertRenewals", testResetPendingCertRenewals},
 		{"TestGetDeviceInfoForACMERenewal", testGetDeviceInfoForACMERenewal},
 		{"TestListMDMCommandsByHostIdentifier", testListMDMCommandsByHostIdentifier},
 		{"TestMDMCommands", testMDMCommands},
@@ -57,7 +58,6 @@ func TestMDMShared(t *testing.T) {
 		{"TestSCEPRenewalHelpers", testSCEPRenewalHelpers},
 		{"TestSCEPRenewalExclusion", testSCEPRenewalExclusion},
 		{"TestClearCertRenewalExclusions", testClearCertRenewalExclusions},
-		{"TestResetPendingCertRenewals", testResetPendingCertRenewals},
 		{"TestMDMProfilesSummaryAndHostFilters", testMDMProfilesSummaryAndHostFilters},
 		{"TestIsHostConnectedToFleetMDM", testIsHostConnectedToFleetMDM},
 		{"TestAreHostsConnectedToFleetMDM", testAreHostsConnectedToFleetMDM},
@@ -2671,12 +2671,12 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 			name:      "macos labels include any/all and exclude rules",
 			setupFunc: macosLabeledProfileRulesSetup,
 			wantMac: map[string]*fleet.ExpectedMDMProfile{
-				"T6.1":                         {Identifier: "T6.1"},
-				"T6.2":                         {Identifier: "T6.2"},
-				"include_any_all_match_prof":   {Identifier: "include_any_all_match_prof"},
-				"include_any_one_matches_prof": {Identifier: "include_any_one_matches_prof"},
-				"include_all_all_match_prof":   {Identifier: "include_all_all_match_prof"},
-				"exclude_none_match_prof":      {Identifier: "exclude_none_match_prof"},
+				"T6.1":                                    {Identifier: "T6.1"},
+				"T6.2":                                    {Identifier: "T6.2"},
+				"include_any_all_match_prof":              {Identifier: "include_any_all_match_prof"},
+				"include_any_one_matches_prof":            {Identifier: "include_any_one_matches_prof"},
+				"include_all_all_match_prof":              {Identifier: "include_all_all_match_prof"},
+				"exclude_none_match_prof":                 {Identifier: "exclude_none_match_prof"},
 				"include_all_and_exclude_none_match_prof": {Identifier: "include_all_and_exclude_none_match_prof"},
 				"include_any_and_exclude_none_match_prof": {Identifier: "include_any_and_exclude_none_match_prof"},
 			},
@@ -3414,7 +3414,7 @@ func testSCEPRenewalHelpers(t *testing.T, ds *Datastore) {
 // certificate association, so it always lands in the renewal window. idx must be
 // unique within a test.
 func newExpiredSCEPCertHost(t *testing.T, ds *Datastore, idx int, depAssigned bool) *fleet.Host {
-	ctx := context.Background()
+	ctx := t.Context()
 	scepDepot, err := ds.NewSCEPDepot()
 	require.NoError(t, err)
 	nanoStorage, err := ds.NewMDMAppleMDMStorage()
@@ -3457,7 +3457,7 @@ func newExpiredSCEPCertHost(t *testing.T, ds *Datastore, idx int, depAssigned bo
 }
 
 func testSCEPRenewalExclusion(t *testing.T, ds *Datastore) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	excludedAt := func(assoc fleet.SCEPIdentityAssociation) *time.Time {
 		var got *time.Time
@@ -3505,7 +3505,7 @@ func testSCEPRenewalExclusion(t *testing.T, ds *Datastore) {
 }
 
 func testClearCertRenewalExclusions(t *testing.T, ds *Datastore) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	h1 := newExpiredSCEPCertHost(t, ds, 1, true)
 	h2 := newExpiredSCEPCertHost(t, ds, 2, false)
@@ -3532,7 +3532,7 @@ func testClearCertRenewalExclusions(t *testing.T, ds *Datastore) {
 }
 
 func testResetPendingCertRenewals(t *testing.T, ds *Datastore) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	h1 := newExpiredSCEPCertHost(t, ds, 1, true)
 	h2 := newExpiredSCEPCertHost(t, ds, 2, true)
