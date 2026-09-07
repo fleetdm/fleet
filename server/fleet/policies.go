@@ -546,6 +546,7 @@ type PolicySoftwareInstallerData struct {
 	ID                           uint `db:"id"`
 	InstallerID                  uint `db:"software_installer_id"`
 	ContinuousAutomationsEnabled bool `db:"continuous_automations_enabled"`
+	OverridePreInstallQuery      bool `db:"override_pre_install_query"`
 }
 
 type PolicyVPPData struct {

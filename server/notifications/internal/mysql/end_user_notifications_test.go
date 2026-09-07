@@ -28,6 +28,7 @@ func TestEndUserNotifications(t *testing.T) {
 		{"Verify", testVerifyEndUserNotification},
 		{"Delay", testDelayEndUserNotification},
 		{"ActOn", testActOnEndUserNotification},
+		{"SetStatus", testSetEndUserNotificationStatus},
 		{"Outcome", testSetEndUserNotificationOutcome},
 		{"HostDeleteCascade", testEndUserNotificationHostDeleteCascade},
 	}
@@ -515,6 +516,65 @@ func testActOnEndUserNotification(t *testing.T, env *testEnv) {
 		acted, err := env.ds.ActOnEndUserNotification(ctx, notificationUUID)
 		require.NoError(t, err)
 		assert.False(t, acted)
+	})
+}
+
+func testSetEndUserNotificationStatus(t *testing.T, env *testEnv) {
+	ctx := t.Context()
+	fromActed := []string{api.EndUserNotificationActed}
+	fromOnItsWay := []string{api.EndUserNotificationPending, api.EndUserNotificationDispatched}
+
+	t.Run("an acted notification goes back to dispatched and keeps its displayed_at", func(t *testing.T) {
+		hostID := newDarwinHost(t, env, "set-dispatched", true)
+		notificationUUID := newHostNotification(t, env, hostID, "test_kind",
+			api.EndUserNotificationDispatched, 1, true)
+
+		acted, err := env.ds.ActOnEndUserNotification(ctx, notificationUUID)
+		require.NoError(t, err)
+		require.True(t, acted)
+
+		require.NoError(t, env.ds.SetEndUserNotificationStatus(ctx, notificationUUID,
+			api.EndUserNotificationDispatched, nil, fromActed))
+
+		got, err := env.ds.GetEndUserNotificationByUUID(ctx, notificationUUID)
+		require.NoError(t, err)
+		assert.Equal(t, api.EndUserNotificationDispatched, got.Status)
+		assert.NotNil(t, got.DisplayedAt, "clearing it would put the notification back in the dispatch queue")
+
+		acted, err = env.ds.ActOnEndUserNotification(ctx, notificationUUID)
+		require.NoError(t, err)
+		assert.True(t, acted, "the next press can act on it")
+	})
+
+	t.Run("a dispatched notification fails and records the reason", func(t *testing.T) {
+		hostID := newDarwinHost(t, env, "fail", true)
+		notificationUUID := newHostNotification(t, env, hostID, "test_kind",
+			api.EndUserNotificationDispatched, 1, false)
+
+		require.NoError(t, env.ds.SetEndUserNotificationStatus(ctx, notificationUUID,
+			api.EndUserNotificationFailed, new(api.EndUserNotificationReasonNothingToShow), fromOnItsWay))
+
+		got, err := env.ds.GetEndUserNotificationByUUID(ctx, notificationUUID)
+		require.NoError(t, err)
+		assert.Equal(t, api.EndUserNotificationFailed, got.Status)
+		require.NotNil(t, got.LastReason)
+		assert.Equal(t, api.EndUserNotificationReasonNothingToShow, *got.LastReason)
+	})
+
+	t.Run("a notification in none of the given statuses is left alone", func(t *testing.T) {
+		hostID := newDarwinHost(t, env, "set-status-expired", true)
+		notificationUUID := newHostNotification(t, env, hostID, "test_kind",
+			api.EndUserNotificationExpired, 1, false)
+
+		require.NoError(t, env.ds.SetEndUserNotificationStatus(ctx, notificationUUID,
+			api.EndUserNotificationDispatched, nil, fromActed))
+		require.NoError(t, env.ds.SetEndUserNotificationStatus(ctx, notificationUUID,
+			api.EndUserNotificationFailed, new(api.EndUserNotificationReasonNothingToShow), fromOnItsWay))
+
+		got, err := env.ds.GetEndUserNotificationByUUID(ctx, notificationUUID)
+		require.NoError(t, err)
+		assert.Equal(t, api.EndUserNotificationExpired, got.Status)
+		assert.Nil(t, got.LastReason)
 	})
 }
 

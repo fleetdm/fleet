@@ -50,6 +50,7 @@ type patchNotificationActivityWriter interface {
 type patchNotificationService interface {
 	notifications_api.DelayNotificationService
 	notifications_api.ActOnNotificationService
+	notifications_api.SetNotificationStatusService
 }
 
 type patchNotificationKind struct {
@@ -143,7 +144,15 @@ func (k *patchNotificationKind) renderView(ctx context.Context, notification *no
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "list patch notification apps")
 	}
+	// Fail the notification because it has no apps to display, so Fleet stops sending it.
 	if len(apps) == 0 {
+		err = k.notificationSvc.SetNotificationStatus(ctx, notification.UUID,
+			notifications_api.EndUserNotificationFailed,
+			new(notifications_api.EndUserNotificationReasonNothingToShow),
+			[]string{notifications_api.EndUserNotificationPending, notifications_api.EndUserNotificationDispatched})
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "fail patch notification with no apps")
+		}
 		return nil, ctxerr.Errorf(ctx, "patch notification %s lists no apps", notification.UUID)
 	}
 
@@ -269,13 +278,28 @@ func (k *patchNotificationKind) updateNow(ctx context.Context, notification *not
 		return nil, nil
 	}
 
+	// Mark the notification acted first, so two presses at once can't both queue installs.
+	acted, err := k.notificationSvc.ActOnNotification(ctx, notification.UUID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "act on patch notification")
+	}
+	if !acted {
+		return k.renderView(ctx, notification, true)
+	}
+
 	apps, err := k.ds.ListPatchNotificationApps(ctx, notification.UUID)
 	if err != nil {
+		// Nothing was queued, so undo the act above and let the next press try.
+		setStatusErr := k.notificationSvc.SetNotificationStatus(ctx, notification.UUID, notification.Status, nil,
+			[]string{notifications_api.EndUserNotificationActed})
+		if setStatusErr != nil {
+			k.logger.ErrorContext(ctx, "failed to put the patch notification back",
+				"notification_uuid", notification.UUID, "err", setStatusErr)
+		}
 		return nil, ctxerr.Wrap(ctx, err, "list patch notification apps")
 	}
 
-	// Acted is set only once every app is queued, so a press that fails part way
-	// leaves the notification live for the next one, which skips what this one queued.
+	// A press that fails part way goes back to the status it had, so the next press finishes the rest.
 	var queuedTitleIDs []uint
 	var queueErr error
 	for _, app := range apps {
@@ -301,10 +325,7 @@ func (k *patchNotificationKind) updateNow(ctx context.Context, notification *not
 		}
 
 		if _, err := k.ds.InsertSoftwareInstallRequest(ctx, notification.HostID, *app.SoftwareInstallerID,
-			fleet.HostSoftwareInstallOptions{
-				PolicyID:           app.PolicyID,
-				IgnoreAppOpenQuery: true,
-			},
+			fleet.HostSoftwareInstallOptions{PolicyID: app.PolicyID},
 		); err != nil {
 			queueErr = ctxerr.Wrapf(ctx, err, "insert software install request: host_id=%d, software_installer_id=%d",
 				notification.HostID, *app.SoftwareInstallerID)
@@ -314,15 +335,20 @@ func (k *patchNotificationKind) updateNow(ctx context.Context, notification *not
 		queuedTitleIDs = append(queuedTitleIDs, app.SoftwareTitleID)
 	}
 
-	if err := k.ds.SetPatchNotificationAppsQueued(ctx, notification.UUID, queuedTitleIDs); err != nil {
+	// Stay acted if this write fails, because the installs went out and a second press would repeat them.
+	err = k.ds.SetPatchNotificationAppsQueued(ctx, notification.UUID, queuedTitleIDs)
+	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "set patch notification apps queued")
 	}
 	if queueErr != nil {
+		// back to the status it had, since a pending notification set to dispatched is never sent
+		setStatusErr := k.notificationSvc.SetNotificationStatus(ctx, notification.UUID, notification.Status, nil,
+			[]string{notifications_api.EndUserNotificationActed})
+		if setStatusErr != nil {
+			k.logger.ErrorContext(ctx, "failed to put the patch notification back",
+				"notification_uuid", notification.UUID, "err", setStatusErr)
+		}
 		return nil, queueErr
-	}
-
-	if _, err := k.notificationSvc.ActOnNotification(ctx, notification.UUID); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "act on patch notification")
 	}
 
 	return k.renderView(ctx, notification, true)

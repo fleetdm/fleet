@@ -1879,15 +1879,12 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 		return err
 	}
 
-	// A patch-when-closed or notify-before-patching policy install whose managed app-open query
-	// returned no result means the app was open: a skip, not a failure. Key on the policy flag, not
-	// empty output, so an ordinary empty pre_install_query on a non-managed policy still fails and
-	// counts toward the retry cap.
+	// A policy install that ran the app open query and got no result means the app was open, which is a skip rather than a failure.
 	isAppOpenSkip := false
 	if result.Status() == fleet.SoftwareInstallFailed &&
 		result.PreInstallConditionOutput != nil && *result.PreInstallConditionOutput == "" {
 		if cur, curErr := svc.ds.GetSoftwareInstallResults(ctx, result.InstallUUID); curErr == nil && cur != nil {
-			isAppOpenSkip = cur.PolicyID != nil && (cur.PatchWhenClosed || cur.NotifyBeforePatching)
+			isAppOpenSkip = cur.PolicyID != nil && cur.OverridePreInstallQuery
 		}
 	}
 
@@ -2101,8 +2098,10 @@ func (svc *Service) retryPolicyAutomationSoftwareInstall(ctx context.Context, ho
 		"software_installer_id", installerID,
 		"current_attempt", *hsi.AttemptNumber,
 	)
+	// The retry needs the same app open decision as the attempt it retries.
 	_, err = svc.ds.InsertSoftwareInstallRequest(ctx, host.ID, installerID, fleet.HostSoftwareInstallOptions{
-		PolicyID: hsi.PolicyID,
+		PolicyID:                hsi.PolicyID,
+		OverridePreInstallQuery: hsi.OverridePreInstallQuery,
 	})
 	return err
 }

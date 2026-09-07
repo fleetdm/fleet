@@ -7376,7 +7376,8 @@ func testGetSoftwareInstallDetailsPatchWhenClosed(t *testing.T, ds *Datastore) {
 		optInstaller, optTitle := newInstaller(t, "pwc-"+option)
 		optPol := patchPolicy(t, optTitle, option)
 
-		optExec, err := ds.InsertSoftwareInstallRequest(ctx, optHost.ID, optInstaller, fleet.HostSoftwareInstallOptions{PolicyID: &optPol.ID})
+		optExec, err := ds.InsertSoftwareInstallRequest(ctx, optHost.ID, optInstaller,
+			fleet.HostSoftwareInstallOptions{PolicyID: &optPol.ID, OverridePreInstallQuery: true})
 		require.NoError(t, err)
 		optDetails, err := ds.GetSoftwareInstallDetails(ctx, optExec)
 		require.NoError(t, err)
@@ -7389,6 +7390,10 @@ func testGetSoftwareInstallDetailsPatchWhenClosed(t *testing.T, ds *Datastore) {
 		activatedDetails, err := ds.GetSoftwareInstallDetails(ctx, optExec)
 		require.NoError(t, err)
 		require.Equal(t, managedQuery, activatedDetails.PreInstallCondition, option)
+
+		optResult, err := ds.GetSoftwareInstallResults(ctx, optExec)
+		require.NoError(t, err)
+		require.True(t, optResult.OverridePreInstallQuery, option)
 
 		// Same installer via a manual (non-policy) install: no pre-install condition, because
 		// enabling either option cleared the installer's user query.
@@ -7407,6 +7412,40 @@ func testGetSoftwareInstallDetailsPatchWhenClosed(t *testing.T, ds *Datastore) {
 	forceDetails, err := ds.GetSoftwareInstallDetails(ctx, forceExec)
 	require.NoError(t, err)
 	require.Equal(t, userQuery, forceDetails.PreInstallCondition)
+
+	// An "Update now" install does not use the managed query, so it installs with the app open.
+	ignoreHost := test.NewHost(t, ds, "pwc-host-ignore", "pwc-ip-ignore", "pwc-key-ignore", "pwc-uuid-ignore", time.Now())
+	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{ignoreHost.ID})))
+	ignoreInstaller, ignoreTitle := newInstaller(t, "pwc-ignore")
+	ignorePol := patchPolicy(t, ignoreTitle, "notify")
+
+	ignoreExec, err := ds.InsertSoftwareInstallRequest(ctx, ignoreHost.ID, ignoreInstaller,
+		fleet.HostSoftwareInstallOptions{PolicyID: &ignorePol.ID})
+	require.NoError(t, err)
+	ignoreDetails, err := ds.GetSoftwareInstallDetails(ctx, ignoreExec)
+	require.NoError(t, err)
+	require.False(t, ignoreDetails.OverridePreInstallQuery)
+	require.Empty(t, ignoreDetails.PreInstallCondition)
+
+	_, err = ds.activateNextUpcomingActivity(ctx, ds.writer(ctx), ignoreHost.ID, "")
+	require.NoError(t, err)
+	ignoreActivated, err := ds.GetSoftwareInstallDetails(ctx, ignoreExec)
+	require.NoError(t, err)
+	require.False(t, ignoreActivated.OverridePreInstallQuery)
+	require.Empty(t, ignoreActivated.PreInstallCondition)
+
+	ignoreResult, err := ds.GetSoftwareInstallResults(ctx, ignoreExec)
+	require.NoError(t, err)
+	require.False(t, ignoreResult.OverridePreInstallQuery)
+
+	// A second install queues behind the activated one, so it comes from the upcoming branch.
+	upcomingExec, err := ds.InsertSoftwareInstallRequest(ctx, ignoreHost.ID, ignoreInstaller,
+		fleet.HostSoftwareInstallOptions{PolicyID: &ignorePol.ID, OverridePreInstallQuery: true})
+	require.NoError(t, err)
+	upcomingResult, err := ds.GetSoftwareInstallResults(ctx, upcomingExec)
+	require.NoError(t, err)
+	require.Equal(t, fleet.SoftwareInstallPending, upcomingResult.Status)
+	require.True(t, upcomingResult.OverridePreInstallQuery)
 }
 
 func testSoftwareInstallerAppOpenQueryRoundTrip(t *testing.T, ds *Datastore) {

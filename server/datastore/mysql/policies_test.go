@@ -4963,6 +4963,17 @@ func testTeamPoliciesWithInstaller(t *testing.T, ds *Datastore) {
 	require.Len(t, policiesWithInstallers, 1)
 	require.Equal(t, p2.ID, policiesWithInstallers[0].ID)
 	require.Equal(t, installerID, policiesWithInstallers[0].InstallerID)
+	require.False(t, policiesWithInstallers[0].OverridePreInstallQuery, "neither patch option is on")
+
+	// The flag is on for a policy that skips the install while the app is open.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE policies SET notify_before_patching = 1 WHERE id = ?`, p2.ID)
+		return err
+	})
+	policiesWithInstallers, err = ds.GetPoliciesWithAssociatedInstaller(ctx, team1.ID, []uint{p2.ID})
+	require.NoError(t, err)
+	require.Len(t, policiesWithInstallers, 1)
+	require.True(t, policiesWithInstallers[0].OverridePreInstallQuery)
 
 	// p2 has associated installer but belongs to team1.
 	policiesWithInstallers, err = ds.GetPoliciesWithAssociatedInstaller(ctx, team2.ID, []uint{p2.ID})

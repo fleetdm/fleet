@@ -370,6 +370,22 @@ WHERE uuid = ? AND status IN (?, ?)
 	return rows > 0, nil
 }
 
+func (ds *Datastore) SetEndUserNotificationStatus(ctx context.Context, notificationUUID string, status string, reason *string, whereStatusIn []string) error {
+	stmt, args, err := sqlx.In(`
+UPDATE notifications_end_user
+SET status = ?, last_reason = COALESCE(?, last_reason)
+WHERE uuid = ? AND status IN (?)
+`, status, reason, notificationUUID, whereStatusIn)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "build end user notification status update")
+	}
+
+	if _, err := ds.primary.ExecContext(ctx, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "set end user notification status")
+	}
+	return nil
+}
+
 // SetEndUserNotificationOutcome records how an attempt to display ended. A
 // non-nil nextAttemptAt puts the notification back in the queue, otherwise that
 // was its last attempt.

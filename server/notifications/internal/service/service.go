@@ -123,3 +123,11 @@ func (s *Service) ActOnNotification(ctx context.Context, notificationUUID string
 	}
 	return acted, nil
 }
+
+func (s *Service) SetNotificationStatus(ctx context.Context, notificationUUID string, status string, reason *string, whereStatusIn []string) error {
+	err := s.ds.SetEndUserNotificationStatus(ctx, notificationUUID, status, reason, whereStatusIn)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "set end user notification status")
+	}
+	return nil
+}

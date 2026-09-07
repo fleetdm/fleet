@@ -25,8 +25,11 @@ const (
 // Why the last delivery attempt ended the way it did. Internal only; the UI
 // reads the script's exit code instead.
 const (
-	EndUserNotificationReasonDelayed           = "delayed"
-	EndUserNotificationReasonDeferred          = "deferred"
+	// recorded by Fleet, not mapped from a Fleet Desktop exit code
+	EndUserNotificationReasonDelayed       = "delayed"
+	EndUserNotificationReasonDeferred      = "deferred"
+	EndUserNotificationReasonNothingToShow = "nothing_to_show"
+
 	EndUserNotificationReasonBadInvocation     = "bad_invocation"
 	EndUserNotificationReasonBadConfiguration  = "bad_configuration"
 	EndUserNotificationReasonPageLoadFailed    = "page_load_failed"

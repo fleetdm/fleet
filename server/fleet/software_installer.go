@@ -54,10 +54,9 @@ type SoftwareInstallDetails struct {
 	// MaxRetries is the number of additional attempts allowed after the initial attempt (0 = no retries).
 	MaxRetries uint `json:"max_retries,omitempty"`
 
-	AppOpenQuery         string `json:"-" db:"app_open_query"`
-	PatchWhenClosed      bool   `json:"-" db:"patch_when_closed"`
-	NotifyBeforePatching bool   `json:"-" db:"notify_before_patching"`
-	IgnoreAppOpenQuery   bool   `json:"-" db:"ignore_app_open_query"`
+	AppOpenQuery string `json:"-" db:"app_open_query"`
+	// OverridePreInstallQuery means the install needs to use AppOpenQuery as its pre-install condition.
+	OverridePreInstallQuery bool `json:"-" db:"override_pre_install_query"`
 }
 
 type SoftwareInstallerURL struct {
@@ -533,6 +532,8 @@ type HostSoftwareInstallerResult struct {
 	// NotifyBeforePatching is set from the triggering policy and, like PatchWhenClosed, marks an
 	// empty pre-install result as the app being open rather than a query failure.
 	NotifyBeforePatching bool `json:"-" db:"notify_before_patching"`
+	// OverridePreInstallQuery means this install needs to use the app open query as its pre-install condition.
+	OverridePreInstallQuery bool `json:"-" db:"override_pre_install_query"`
 }
 
 const (
@@ -563,15 +564,14 @@ func (h *HostSoftwareInstallerResult) EnhanceOutputDetails() {
 
 	if h.PreInstallQueryOutput != nil {
 		if *h.PreInstallQueryOutput == "" {
-			// For patch-when-closed and notify-before-patching, an empty result means the app was
-			// open, not a query failure.
+			// An empty result means the app was open only if this attempt ran the app open query.
 			switch {
+			case !h.OverridePreInstallQuery:
+				*h.PreInstallQueryOutput = SoftwareInstallerQueryFailCopy
 			case h.NotifyBeforePatching:
 				*h.PreInstallQueryOutput = SoftwareInstallerAppOpenNotifyCopy
-			case h.PatchWhenClosed:
-				*h.PreInstallQueryOutput = SoftwareInstallerAppOpenCopy
 			default:
-				*h.PreInstallQueryOutput = SoftwareInstallerQueryFailCopy
+				*h.PreInstallQueryOutput = SoftwareInstallerAppOpenCopy
 			}
 			return
 		}
@@ -1396,8 +1396,9 @@ type HostSoftwareInstallOptions struct {
 	// WithRetries indicates the install should be retried on failure (up to
 	// MaxSoftwareInstallAttempts total). Set by host details, self-service,
 	// and setup experience install paths.
-	WithRetries        bool
-	IgnoreAppOpenQuery bool
+	WithRetries bool
+	// OverridePreInstallQuery makes the install use the app open query as its pre-install condition.
+	OverridePreInstallQuery bool
 }
 
 // IsFleetInitiated returns true if the software install is initiated by Fleet.
