@@ -21,8 +21,6 @@ describe("Host Details Banners", () => {
         hostPlatform="darwin"
         mdmEnrollmentStatus="On (automatic)"
         connectedToFleetMdm
-        depAssignedToFleet={false}
-        onlyAllowAppleBusinessEnrollment={false}
         macDiskEncryptionStatus="action_required"
       />
     );
@@ -41,8 +39,6 @@ describe("Host Details Banners", () => {
         hostPlatform="darwin"
         mdmEnrollmentStatus="On (company-owned)"
         connectedToFleetMdm
-        depAssignedToFleet={false}
-        onlyAllowAppleBusinessEnrollment={false}
         macDiskEncryptionStatus="action_required"
       />
     );
@@ -58,8 +54,6 @@ describe("Host Details Banners", () => {
         hostPlatform="darwin"
         mdmEnrollmentStatus="On (manual)"
         connectedToFleetMdm
-        depAssignedToFleet={false}
-        onlyAllowAppleBusinessEnrollment={false}
         macDiskEncryptionStatus="action_required"
       />
     );
@@ -76,8 +70,6 @@ describe("Host Details Banners", () => {
         hostPlatform="darwin"
         mdmEnrollmentStatus="On (automatic)"
         connectedToFleetMdm
-        depAssignedToFleet={false}
-        onlyAllowAppleBusinessEnrollment={false}
         macDiskEncryptionStatus="verifying"
       />
     );
@@ -94,8 +86,6 @@ describe("Host Details Banners", () => {
         hostPlatform="windows"
         mdmEnrollmentStatus="On (manual)"
         connectedToFleetMdm
-        depAssignedToFleet={false}
-        onlyAllowAppleBusinessEnrollment={false}
         macDiskEncryptionStatus={null}
         diskEncryptionOSSetting={{
           status: "action_required",
@@ -114,8 +104,6 @@ describe("Host Details Banners", () => {
         hostPlatform="windows"
         mdmEnrollmentStatus="On (manual)"
         connectedToFleetMdm
-        depAssignedToFleet={false}
-        onlyAllowAppleBusinessEnrollment={false}
         macDiskEncryptionStatus={null}
         diskEncryptionOSSetting={{
           status: "action_required",
@@ -138,8 +126,6 @@ describe("Host Details Banners", () => {
         hostPlatform="windows"
         mdmEnrollmentStatus="On (manual)"
         connectedToFleetMdm
-        depAssignedToFleet={false}
-        onlyAllowAppleBusinessEnrollment={false}
         macDiskEncryptionStatus={null}
         diskEncryptionOSSetting={{
           status: "action_required",
@@ -161,9 +147,7 @@ describe("Host Details Banners", () => {
       <HostDetailsBanners
         hostPlatform="darwin"
         mdmEnrollmentStatus="Off"
-        connectedToFleetMdm
-        depAssignedToFleet={false}
-        onlyAllowAppleBusinessEnrollment={false}
+        connectedToFleetMdm={false}
         macDiskEncryptionStatus={null}
         detailUpdatedAt="0001-01-01T00:00:00Z"
       />
@@ -179,9 +163,7 @@ describe("Host Details Banners", () => {
       <HostDetailsBanners
         hostPlatform="darwin"
         mdmEnrollmentStatus="Off"
-        connectedToFleetMdm
-        depAssignedToFleet={false}
-        onlyAllowAppleBusinessEnrollment={false}
+        connectedToFleetMdm={false}
         macDiskEncryptionStatus={null}
         detailUpdatedAt="2025-01-15T10:00:00Z"
       />

@@ -35,7 +35,7 @@ Apple published [support article 126655 ("Prepare your network environment for s
 
 Apple keeps expanding what DDM can express. Here's what's new in OS 27.
 
-**VPN and network:** VPN configurations can now be delivered as declarative configurations, including IKEv2, IPSec, Always-On, DNS proxy, DNS settings, and relay. Credentials are deliverable as declarative assets with automated renewal. A meaningful step up from managing VPN profiles by hand. See our [guide to deploying VPN with DDM in Fleet](https://fleetdm.com/guides/deploy-vpn-with-declarative-device-management-ddm-in-fleet) for a full walkthrough, including credential hosting and a scope pitfall to avoid.
+**VPN and network:** VPN configurations can now be delivered as declarative configurations, including IKEv2, IPSec, Always-On, DNS proxy, DNS settings, and relay. Credentials are deliverable as declarative assets with automated renewal. A meaningful step up from managing VPN profiles by hand.
 
 **Intelligence, Siri, and keyboard controls:** The `com.apple.configuration.intelligence.settings`, `.external-intelligence.settings`, `.siri.settings`, and `.keyboard.settings` configurations move AI feature management into DDM. The legacy MDM restriction keys for these were deprecated in the 26.4 releases. If you've been putting that migration off, the runway is ending.
 
@@ -73,7 +73,7 @@ Worth knowing about for monitoring and compliance:
 - `security.lockdown-mode`: reports whether Lockdown Mode is active on a supervised device.
 - `mdm.enrollment-type`, `mdm.is-awaiting-configuration`, `mdm.is-return-to-service`, `mdm.is-shared-ipad`, `mdm.push-magic`, `mdm.push-token`: more granular enrollment state visibility.
 
-**AppleCare remote log collection:** Two new MDM commands, `TriggerEnhancedLogCollection` and `CancelEnhancedLogCollection`, enable remote log collection on supervised devices for AppleCare support cases. Apple's documentation specifies an AppleCare Enterprise agreement is required to test this feature in beta releases. See [Trigger AppleCare log collection with a custom MDM command](https://fleetdm.com/guides/trigger-applecare-log-collection) for the Fleet workflow.
+**AppleCare remote log collection:** Two new MDM commands, `TriggerEnhancedLogCollection` and `CancelEnhancedLogCollection`, enable remote log collection on supervised devices for AppleCare support cases. Apple's documentation specifies an AppleCare Enterprise agreement is required to test this feature in beta releases.
 
 ## Intel Mac support timeline
 

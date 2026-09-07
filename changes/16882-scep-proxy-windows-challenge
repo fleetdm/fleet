@@ -1,0 +1,1 @@
+- Fixed the SCEP proxy so that Windows profiles using a custom SCEP proxy certificate authority have their one-time Fleet challenge validated before a PKIOperation request is forwarded to the certificate authority. Requests with a missing, incorrect, or expired challenge are now rejected.

@@ -11,7 +11,7 @@ import useGitOpsMode from "hooks/useGitOpsMode";
 
 import Button from "components/buttons/Button";
 import DataError from "components/DataError";
-import Editor, { EditorMode } from "components/Editor";
+import Editor from "components/Editor";
 import Modal from "components/Modal";
 import ModalFooter from "components/ModalFooter";
 import Spinner from "components/Spinner";
@@ -179,7 +179,7 @@ const EditScriptModal = ({
     }
 
     // Set editing mode based on the file extension.
-    let mode: EditorMode = "sh";
+    let mode = "sh";
     if (scriptName.match(/\.ps1$/)) {
       mode = "powershell";
     } else if (scriptName.match(/\.py$/)) {

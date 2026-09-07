@@ -1,0 +1,1 @@
+* Restricted deleting a fleet to global write permissions (global admin or GitOps), matching the existing restriction on creating one.

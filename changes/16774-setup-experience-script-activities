@@ -1,0 +1,1 @@
+- Added `created_setup_experience_script` and `deleted_setup_experience_script` activities so that adding, replacing, or removing a setup experience script (via the API or GitOps) is recorded in the audit log.

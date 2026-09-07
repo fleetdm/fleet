@@ -1,14 +1,16 @@
-# Custom variables
+# Custom variables in scripts and configuration profiles
 
 <div purpose="embedded-content">
    <iframe src="https://www.youtube.com/embed/VRK-3rN7-aY" frameborder="0" allowfullscreen></iframe>
 </div>
 
-In Fleet you can use custom variables in [scripts](https://fleetdm.com/guides/scripts), [script-only packages](https://fleetdm.com/guides/deploy-software-packages#script-only-packages), [configuration profiles](https://fleetdm.com/guides/custom-os-settings), and [host name templates](https://fleetdm.com/guides/rename-hosts-with-a-naming-template).
+In Fleet you can add variables in [scripts](https://fleetdm.com/guides/scripts), [configuration profiles](https://fleetdm.com/guides/custom-os-settings), and [host name templates](https://fleetdm.com/guides/rename-hosts-with-a-naming-template). In scripts and configuration profiles, variables are hidden when viewed in the Fleet UI or API. In a host name template, a variable's value becomes the host's name in Fleet and on the device, so it isn't hidden.
 
-Scripts and configuration profiles can also use any of Fleet's [built-in variables](https://fleetdm.com/guides/fleet-variables).
+Configuration profiles can also use any of Fleet's [built-in variables](https://fleetdm.com/guides/fleet-variables).
 
-Custom variables use the same value for all hosts. To use unique per-host values, use [custom host vitals](https://fleetdm.com/guides/custom-host-vitals) (`$FLEET_HOST_VITAL_*`) instead.
+Script-only packages (.sh, .ps1, .py) also support custom variables (`$FLEET_SECRET_*`). Fleet replaces them with their values when the install script is sent to the host.
+
+Custom variables hold a single value shared across all hosts. To store a different value per host, use [custom host vitals](https://fleetdm.com/guides/custom-host-vitals) (`$FLEET_HOST_VITAL_*`) instead.
 
 ## Add variables
 

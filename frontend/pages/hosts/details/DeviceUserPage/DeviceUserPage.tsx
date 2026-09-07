@@ -392,9 +392,6 @@ const DeviceUserPage = ({
     host?.platform === "windows" ||
     isMacOS(host?.platform || "");
 
-  const isManualAppleEnrollmentBlocked =
-    globalConfig?.mdm.only_allow_apple_business_enrollment ?? false;
-
   const isFleetMdmManualUnenrolledMac =
     !!globalConfig?.mdm.enabled_and_configured &&
     !!host &&
@@ -460,10 +457,7 @@ const DeviceUserPage = ({
     ["mdm_mandual_enroll_url", deviceAuthToken],
     () => deviceUserAPI.getMdmManualEnrollUrl(deviceAuthToken),
     {
-      enabled:
-        !!deviceAuthToken &&
-        isFleetMdmManualUnenrolledMac &&
-        !isManualAppleEnrollmentBlocked,
+      enabled: !!deviceAuthToken && isFleetMdmManualUnenrolledMac,
       refetchOnMount: false,
       refetchOnReconnect: false,
       refetchOnWindowFocus: false,
@@ -586,7 +580,8 @@ const DeviceUserPage = ({
     }
   };
 
-  const pageHeader = "My device";
+  const idpFullName = host?.end_users?.[0]?.idp_full_name;
+  const pageHeader = idpFullName ? `${idpFullName}'s device` : "My device";
 
   // Updates title that shows up on browser tabs
   useEffect(() => {
@@ -789,10 +784,6 @@ const DeviceUserPage = ({
             mdmManualEnrolmentUrl={mdmManualEnrollUrl}
             lastMdmEnrolledAt={host.last_mdm_enrolled_at}
             detailUpdatedAt={host.detail_updated_at}
-            depAssignedToFleet={host.dep_assigned_to_fleet || false}
-            onlyAllowAppleBusinessEnrollment={
-              !!globalConfig?.mdm.only_allow_apple_business_enrollment
-            }
           />
           <HostHeader
             summaryData={summaryData}

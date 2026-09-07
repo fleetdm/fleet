@@ -1,7 +1,6 @@
 package integrationtest
 
 import (
-	"encoding/json/v2"
 	"fmt"
 	"io"
 	"net/http"
@@ -10,6 +9,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/test/httptest"
+	"github.com/go-json-experiment/json"
 	"github.com/stretchr/testify/require"
 )
 

@@ -200,7 +200,6 @@ export const ModalContent = ({
           value={result.payload}
           readOnly
           enableCopy
-          disableResize
         />
       )}
       {!!result.result && (
@@ -214,7 +213,6 @@ export const ModalContent = ({
           value={result.result}
           readOnly
           enableCopy
-          disableResize
         />
       )}
     </div>

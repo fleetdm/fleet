@@ -1,0 +1,1 @@
+- Disabled the Android MDM "Connect" and "Turn off Android MDM" buttons with a GitOps tooltip when GitOps mode is enabled, matching the Windows MDM behavior.

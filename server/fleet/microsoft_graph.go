@@ -19,11 +19,12 @@ func IsValidEntraGUID(s string) bool {
 	return entraGUIDRegex.MatchString(s)
 }
 
-// MicrosoftGraphCredentialMetadata is a stored credential without its client secret. This is what the read endpoint
-// serializes, so it must never gain a secret field.
-type MicrosoftGraphCredentialMetadata struct {
+// MicrosoftGraphCredential is the Entra app-registration credential Fleet authenticates with when calling Microsoft Graph.
+type MicrosoftGraphCredential struct {
 	TenantID string `json:"tenant_id" db:"tenant_id"`
 	ClientID string `json:"client_id" db:"client_id"`
+	// ClientSecret is write-only. Omitting it on a write means "keep the stored secret".
+	ClientSecret string `json:"client_secret,omitempty" db:"-"`
 
 	// CredentialInvalid is set by the sync when the credential fails to authenticate or is denied, and cleared on the
 	// next successful sync.
@@ -31,19 +32,6 @@ type MicrosoftGraphCredentialMetadata struct {
 	// LastSyncedAt and LastSyncError report the outcome of the most recent sync for this tenant.
 	LastSyncedAt  *time.Time `json:"last_synced_at" db:"last_synced_at"`
 	LastSyncError *string    `json:"last_sync_error" db:"last_sync_error"`
-}
-
-// MicrosoftGraphCredential is the Entra app-registration credential Fleet authenticates with when calling Microsoft
-// Graph: the metadata plus the secret.
-type MicrosoftGraphCredential struct {
-	MicrosoftGraphCredentialMetadata
-
-	// ClientSecret is write-only. Omitting it on a write means "keep the stored secret".
-	ClientSecret string `json:"client_secret,omitempty" db:"-"`
-}
-
-func (c MicrosoftGraphCredential) AuthzType() string {
-	return "microsoft_graph_credential"
 }
 
 // Configured reports whether the credential carries everything needed to mint a token.

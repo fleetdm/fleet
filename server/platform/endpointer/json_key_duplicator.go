@@ -2,8 +2,9 @@ package endpointer
 
 import (
 	"bytes"
-	"encoding/json/jsontext"
 	"io"
+
+	"github.com/go-json-experiment/json/jsontext"
 )
 
 // DuplicateJSONKeysOpts controls optional behavior of DuplicateJSONKeys.

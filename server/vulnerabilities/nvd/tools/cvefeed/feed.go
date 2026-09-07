@@ -22,7 +22,7 @@ import (
 	"bufio"
 	"compress/bzip2"
 	"compress/gzip"
-	"encoding/json/v2"
+	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -55,7 +55,7 @@ func getFeed(in io.Reader) (*schema.NVDCVEFeedJSON10, error) {
 	defer reader.Close()
 
 	var feed schema.NVDCVEFeedJSON10
-	if err := json.UnmarshalRead(reader, &feed); err != nil {
+	if err := json.NewDecoder(reader).Decode(&feed); err != nil {
 		return nil, err
 	}
 	return &feed, nil

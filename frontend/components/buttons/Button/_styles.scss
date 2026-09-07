@@ -100,7 +100,6 @@ $base-class: "button";
 
 .#{$base-class} {
   @include button-pad-8px-16px;
-  box-sizing: border-box;
   transition: color 150ms ease-in-out, background 150ms ease-in-out,
     top 50ms ease-in-out, box-shadow 50ms ease-in-out, border 50ms ease-in-out;
   position: relative;

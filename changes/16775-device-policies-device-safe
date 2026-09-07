@@ -1,0 +1,1 @@
+- Fixed device-authenticated ("My device") endpoints so that host policies are returned in a device-safe representation that no longer exposes the policy author's name and email or the policy's raw SQL query.

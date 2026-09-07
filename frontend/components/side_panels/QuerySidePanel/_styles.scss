@@ -1,9 +1,6 @@
 .query-side-panel {
-  @include vertical-modal-layout;
-
-  > .custom-link {
-    align-self: flex-start;
-  }
+  position: relative;
+  overflow: unset !important; // was unnecessary and broke close button positioning
 
   &__close-button {
     width: 24px;
@@ -41,20 +38,24 @@
   }
 
   &__choose-table {
-    @include flex-column-16px-gap;
+    margin: 0 0 $pad-large;
+
+    .form-field {
+      margin-bottom: $pad-medium;
+    }
   }
 
   &__header {
-    margin: 0;
+    margin: 0 0 $pad-medium;
     font-size: $small;
     font-weight: $bold;
     display: flex;
     align-items: center;
-    gap: $pad-small;
   }
 
   &__table-count {
     line-height: normal;
+    margin-left: $pad-small;
     background-color: $ui-fleet-black-10;
     padding: $pad-xsmall $pad-small;
     border-radius: 8px;
@@ -101,10 +102,6 @@
   &__description {
     font-size: $x-small;
     overflow-wrap: break-word;
-
-    p {
-      margin: 0;
-    }
   }
 
   &__mdm-required {

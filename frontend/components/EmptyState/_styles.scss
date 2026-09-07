@@ -1,19 +1,15 @@
 // EmptyState — decorative ghost-table empty state component.
 // Layout:
-//   .empty-state                    → positioned container (draws nothing itself)
-//     .empty-state__ghost-table     → bordered flex row of ghost columns, masked to fade out
+//   .empty-state                    → positioned container, border, radius, overflow hidden
+//     .empty-state__ghost-table     → flex row of ghost columns (decorative backdrop)
 //       .empty-state__ghost-col     → individual column with header + skeleton rows
-//     .empty-state__content-wrapper → centers the content over the ghost table
-//       .empty-state__content       → content surface (header, info, buttons)
+//     .empty-state__content-wrapper → gradient overlay that fades the ghost table
+//       .empty-state__content       → white content surface (header, info, buttons)
 
 $ghost-row-height: 40px;
 $ghost-skeleton-height: 12px;
 $ghost-skeleton-radius: 4px;
-// The mask fades the ghost table across its full height, so these heights are
-// the element's *visible* height — no transparent tail padding the layout out.
-$ghost-table-height: 270px;
-// The form ghost needs more room: 3 label+input pairs and a button.
-$ghost-form-height: 360px;
+$ghost-table-height: 360px;
 $ghost-cell-padding-x: $pad-large; // 24px, matches Figma
 
 .empty-state {
@@ -21,7 +17,13 @@ $ghost-cell-padding-x: $pad-large; // 24px, matches Figma
   // Span the full width of the parent regardless of its align-items setting.
   // Without this, parents using `align-items: flex-start` (or any non-stretch
   // value) collapse the empty state to its intrinsic content width — see #46370.
+  // box-sizing: border-box so width: 100% + the 1px border doesn't overflow
+  // the parent by 2px in content-box mode (Fleet has no global box-sizing reset).
+  box-sizing: border-box;
   width: 100%;
+  border: 1px solid $ui-fleet-black-10;
+  border-radius: 8px;
+  overflow: hidden;
   height: $ghost-table-height;
 
   // ----------------------------------------------------------
@@ -29,23 +31,7 @@ $ghost-cell-padding-x: $pad-large; // 24px, matches Figma
   // ----------------------------------------------------------
   &__ghost-table {
     display: flex;
-    // border-box so the 1px border doesn't push the layer 2px past the
-    // container in content-box mode (Fleet has no global box-sizing reset).
-    box-sizing: border-box;
     height: 100%;
-    border: 1px solid $ui-fleet-black-10;
-    border-radius: 8px;
-    overflow: hidden;
-
-    // Fade the entire decorative layer — border, dividers and skeletons — down
-    // to nothing. A mask rather than an opaque overlay so the fade is to
-    // whatever is behind the component, which keeps it correct in dark mode.
-    mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.5) 0%, transparent);
-    -webkit-mask-image: linear-gradient(
-      to bottom,
-      rgba(0, 0, 0, 0.5) 0%,
-      transparent
-    );
   }
 
   &__ghost-col {
@@ -92,16 +78,26 @@ $ghost-cell-padding-x: $pad-large; // 24px, matches Figma
     }
   }
 
+  // ----------------------------------------------------------
+  // Veil — gradient overlay that fades the ghost table
+  // Uses color-mix() so the gradient adapts to dark mode automatically
+  // via the --core-fleet-white custom property.
+  // ----------------------------------------------------------
   &__content-wrapper {
     position: absolute;
     inset: 0;
     display: flex;
     align-items: center;
     justify-content: center;
+    background: linear-gradient(
+      to bottom,
+      color-mix(in srgb, var(--core-fleet-white) 50%, transparent) 0%,
+      var(--core-fleet-white) 75%
+    );
   }
 
   // ----------------------------------------------------------
-  // Inner — content surface
+  // Inner — white content surface
   // ----------------------------------------------------------
   &__content {
     display: flex;
@@ -126,12 +122,6 @@ $ghost-cell-padding-x: $pad-large; // 24px, matches Figma
       color: $core-fleet-black;
       margin: 0;
     }
-  }
-
-  &__content-text {
-    display: flex;
-    flex-direction: column;
-    gap: $pad-xsmall; // 4px between text elements
   }
 
   &__info,
@@ -175,7 +165,7 @@ $ghost-cell-padding-x: $pad-large; // 24px, matches Figma
   // Form variant — ghost form fields with a save button
   // ----------------------------------------------------------
   &--form {
-    height: $ghost-form-height;
+    height: $ghost-table-height;
 
     .empty-state__ghost-table {
       display: block;
@@ -218,7 +208,7 @@ $ghost-cell-padding-x: $pad-large; // 24px, matches Figma
   // Small variant — 2 ghost columns instead of 3 (modal use)
   // ----------------------------------------------------------
   &--small {
-    height: 210px;
+    height: 280px;
 
     .empty-state__ghost-col {
       flex: 0 0 40%;

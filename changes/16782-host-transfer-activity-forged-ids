@@ -1,0 +1,1 @@
+- Fixed the host transfer activity (`transferred_hosts`) to only record host IDs that actually exist, so non-existent host IDs passed to `POST /api/latest/fleet/hosts/transfer` can no longer be injected into the audit trail. No activity is created when none of the requested hosts exist.

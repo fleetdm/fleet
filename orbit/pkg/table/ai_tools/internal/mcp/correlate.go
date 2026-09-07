@@ -3,7 +3,6 @@ package mcp
 import (
 	"encoding/json"
 	"path/filepath"
-	"regexp"
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ai_tools/internal/proc"
@@ -61,14 +60,13 @@ func Correlate(declared []Server, snap *proc.Snapshot) []Server {
 		if _, ok := matched[pid]; ok || !isMCPProcess(p.Cmdline) {
 			continue
 		}
-		argv := processArgv(p)
 		s := Server{
-			ServerName: deriveName(argv),
+			ServerName: deriveName(p.Cmdline),
 			Client:     "process",
 			Scope:      "global",
 			Transport:  "stdio",
 			Location:   "local",
-			Command:    argv0(argv),
+			Command:    firstField(p.Cmdline),
 			Source:     "process",
 			Running:    1,
 			PID:        pid,
@@ -78,33 +76,22 @@ func Correlate(declared []Server, snap *proc.Snapshot) []Server {
 		if port := snap.ListenPort(pid); port != 0 {
 			s.ListeningPort = port
 		}
-		s.Args = argsJSON(argv)
+		s.Args = argsJSON(p.Cmdline)
 		s.enrichRisk()
 		declared = append(declared, s)
 	}
 	return declared
 }
 
-// processArgv returns the process's true argv boundaries. gopsutil's Cmdline
-// is those same elements joined with a plain space, so a single quoted
-// argument that itself contains spaces (e.g. the inline script body of
-// `node -e "<script>"`) becomes indistinguishable from several separate
-// arguments once joined. Falling back to strings.Fields(p.Cmdline) is only
-// safe when the platform couldn't supply CmdlineSlice at all.
-func processArgv(p proc.Process) []string {
-	if len(p.CmdlineSlice) > 0 {
-		return p.CmdlineSlice
-	}
-	return strings.Fields(p.Cmdline)
-}
-
-// argsJSON encodes the launch arguments (everything after the executable) as
-// the JSON array the risk logic and table row expect.
-func argsJSON(argv []string) string {
-	if len(argv) <= 1 {
+// argsJSON extracts the launch arguments (everything after the executable) from
+// a process command line and encodes them as the JSON array the risk logic and
+// table row expect.
+func argsJSON(cmdline string) string {
+	fields := strings.Fields(cmdline)
+	if len(fields) <= 1 {
 		return ""
 	}
-	b, err := json.Marshal(argv[1:])
+	b, err := json.Marshal(fields[1:])
 	if err != nil {
 		return ""
 	}
@@ -146,11 +133,12 @@ func baseCmd(cmd string) string {
 	return strings.TrimSuffix(strings.TrimSuffix(b, ".exe"), ".cmd")
 }
 
-func argv0(argv []string) string {
-	if len(argv) == 0 {
+func firstField(cmdline string) string {
+	fields := strings.Fields(cmdline)
+	if len(fields) == 0 {
 		return ""
 	}
-	return argv[0]
+	return fields[0]
 }
 
 func lastSegment(s string) string {
@@ -161,41 +149,16 @@ func lastSegment(s string) string {
 	return s
 }
 
-// scriptPathRe pulls a path-like, extension-terminated token (e.g.
-// "mcp-server.cjs" or "/home/x/.claude-mem/mcp-server.cjs") out of a larger
-// blob of text, so a launcher name can still be recovered when the matching
-// argv element is an inline script body rather than a clean file path.
-var scriptPathRe = regexp.MustCompile(`[^\s'"` + "`" + `()]+\.(?:c?js|mjs|c?ts)\b`)
-
-// looksLikeCode reports whether argv element f is itself inline source (e.g.
-// the body of `node -e "<script>"`) rather than a plain path or flag. Real
-// argv elements never contain these characters; only pasted-in code does.
-func looksLikeCode(f string) bool {
-	return strings.ContainsAny(f, "(){};=`\n")
-}
-
-// deriveName picks the most server-identifying token from an MCP process's
-// argv (e.g. the package after @modelcontextprotocol/, or the launcher
-// filename). argv must be the process's true argument boundaries — not a
-// command line re-split on whitespace, which shreds any single argument
-// that itself contains spaces (inline eval scripts, quoted paths) into
-// arbitrary fragments.
-func deriveName(argv []string) string {
-	for _, f := range argv {
+// deriveName picks the most server-identifying token from an MCP process
+// command line (e.g. the package after @modelcontextprotocol/).
+func deriveName(cmdline string) string {
+	for f := range strings.FieldsSeq(cmdline) {
 		l := strings.ToLower(f)
-		if !strings.Contains(l, "modelcontextprotocol") && !strings.Contains(l, "mcp-server") && !strings.Contains(l, "mcp_server") {
-			continue
-		}
-		if !looksLikeCode(f) {
+		if strings.Contains(l, "modelcontextprotocol") || strings.Contains(l, "mcp-server") || strings.Contains(l, "mcp_server") {
 			return lastSegment(f)
 		}
-		if m := scriptPathRe.FindString(f); m != "" {
-			return lastSegment(m)
-		}
-		// Marker found only inside inline code with no extractable file
-		// path — fall through rather than surface the raw code fragment.
 	}
-	if f := argv0(argv); f != "" {
+	if f := firstField(cmdline); f != "" {
 		return baseCmd(f)
 	}
 	return "unknown"

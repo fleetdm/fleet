@@ -34,9 +34,9 @@ Fleet's roadmap flows in this order (from highest to lowest fidelity):
 
 ### Triage new requests
 
-The Head of Product Design is responsible for going through the inbox on the [🦢 Product design intake & outtake board](https://github.com/orgs/fleetdm/projects/67) and adding the correct [product group](https://fleetdm.com/handbook/company/product-groups#continuous-flow) label.
+The Head of Product Design is responsible for going through the inbox on the [drafting board](https://github.com/orgs/fleetdm/projects/67) and adding the correct [product group](https://fleetdm.com/handbook/company/product-groups#continuous-flow) label.
 
-Once labeled, each Product Designer (PD) is responsible for reviewing the inbox and deciding whether each new request contributes to their [product group's goal](https://fleetdm.com/handbook/company/product-groups#current-product-groups). If yes, the PD adds the `~product-maturity` label so the request is reviewed at the next [unpacking the why](#unpacking-the-why) call. If a request meets a different [criteria for prioritization](https://fleetdm.com/handbook/company/product-groups#criteria-for-prioritization), the PD removes the issue from the drafting board and either prioritizes a [user story or quick win](https://fleetdm.com/handbook/company/product-groups#work-items) to bring through [drafting](https://fleetdm.com/handbook/company/product-groups#drafting), or adds the issue to the [feature fest](https://fleetdm.com/handbook/company/product-groups#feature-fest) board.
+Once labeled, each Product Designer (PD) is responsible for reviewing the inbox on their product group's board and deciding whether each new request contributes to Fleet's [product maturity](https://fleetdm.com/handbook/company/product-maturity-assessment) goals for the current calendar year. If yes, the PD adds the `~product-maturity` label so the request is reviewed at the next [unpacking the why](#unpacking-the-why) call. If a request meets a different [criteria for prioritization](https://fleetdm.com/handbook/company/product-groups#criteria-for-prioritization), the PD removes the "Unpacked" checkbox in the feature request issue and either prioritizes a [user story or quick win](https://fleetdm.com/handbook/company/product-groups#work-items) to bring through [fast draft or full draft](https://fleetdm.com/handbook/company/product-groups#drafting-tracks-full-draft-vs-fast-draft), or removes it from the product group board and adds it to the [feature fest](https://fleetdm.com/handbook/company/product-groups#feature-fest) board.
 
 
 ### Unpacking the why
@@ -50,15 +50,12 @@ If a customer or prospect request is missing a Gong snippet or requires addition
 
 At Fleet, like [GitLab](https://about.gitlab.com/handbook/product-development-flow/#but-wait-isnt-this-waterfall) and [other organizations](https://speakerdeck.com/mikermcneil/i-love-apis), every change to the product's UI gets [wireframed first](https://fleetdm.com/handbook/company/why-this-way#why-do-we-use-a-wireframe-first-approach).
 
-1. Take the top user story that is assigned to you in the "Ready" column of [your product group's board](https://fleetdm.com/handbook/company/product-groups#current-product-groups) and move it to "In progress."
+1. Take the top user story that is assigned to you in the "Ready" column of the [drafting board](https://github.com/orgs/fleetdm/projects/67) and move it to "In progress."
   
 2. Create a new file inside the [Fleet product](https://www.figma.com/files/project/17318630/%F0%9F%94%9C%F0%9F%93%A6-Fleet-EE%C2%AE-(product)?fuid=1234929285759903870) Figma project by duplicating "\[TEMPLATE\] Starter file" (pinned to the top of the project). The starter file includes three predefined pages: "Cover," "Ready," and "Scratchpad."
    -  **Cover**: This page has a component with the issue number and issue name.
    -  **Ready**: Use this page to communicate design reviews and development.
-1. Take the top user story that is assigned to you in the "Drafting" column of [your product group's board](https://fleetdm.com/handbook/company/product-groups#current-product-groups) and create a new file inside the [Fleet product](https://www.figma.com/files/project/17318630/%F0%9F%94%9C%F0%9F%93%A6-Fleet-EE%C2%AE-(product)?fuid=1234929285759903870) Figma project by duplicating "\[TEMPLATE\] Starter file" (pinned to the top of the project). The starter file includes three predefined pages: "Cover," "Ready," and "Scratchpad."
--  **Cover**: This page has a component with the issue number and issue name.
--  **Ready**: Use this page to communicate design reviews and development.
--  **Scratchpad**: Use this page to keep "work in progress" designs that might be useful in the future.
+   -  **Scratchpad**: Use this page to keep "work in progress" designs that might be useful in the future.
 
 3. If the story requires API or YAML file changes, open a pull request (PR) to the reference docs with the proposed design. Pay attention to existing conventions (URL structure, parameter names, response format) and aim to be consistent. Your PR should follow these guidelines:
    - Make a PR against the docs release branch for the version you expect this feature to be in. Docs release branches are named using the format `docs-vX.X.X`, so if you're designing for Fleet 4.61.0, you would make a PR to `docs-v4.61.0`.
@@ -106,9 +103,9 @@ Additionally:
 
 ### Ensure story drafting is complete
 
-Once a story is approved in [design review](https://fleetdm.com/handbook/company/product-groups#design-reviews), the Product Designer brings the story to [user story review](https://fleetdm.com/handbook/company/product-groups#user-story-reviews). Afterwards, the Product Designer assigns the user story to the appropriate Engineering Manager (EM) to help write specs.
+Once a story is approved in [design review](https://fleetdm.com/handbook/company/product-groups#design-reviews), the Product Designer brings the story to [user story review](https://fleetdm.com/handbook/company/product-groups#user-story-reviews). Afterwards, the Product Designer moves the user story to the "Ready to spec" column and assigns the appropriate Tech Lead.
 
-The EM is responsible for bringing the specified user story to "Ready".
+The EM is responsible for moving the user story to the "Specified" and "Estimated" columns.
 
 Before assigning an EM, double-check that the "Product" section of the user story [checklist](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=story&projects=&template=story.md&title=) is complete (no TODOs). 
 
@@ -123,7 +120,7 @@ changing specifications while ensuring that Fleet meets our brand and quality gu
 You'll know it's time for expedited drafting when:
 - The team discovers that a drafted user story is missing crucial information that prevents contributors from continuing the development task.
 - A user story is taking more effort than was originally estimated, and Product Designer (PD) wants to find ways to cut aspects of planned functionality in order to still ship the improvement in the currently scheduled release.
-- A user story hasn't been T-shirt sized and it cannot wait until the next weekly planning.
+- A user story on the drafting board hasn't been T-shirt sized and it cannot wait until the next weekly planning.
 
 What happens during expedited drafting?
 
@@ -176,9 +173,9 @@ If the candidate passes all of these steps then continue with [hiring a new team
 
 ### Confirm and celebrate
 
-The relevant Product Designer (PD) and the Manager of Customer Support and Solutions Architecture (CSA) review the checkboxes in user stories we shipped but haven't closed. Are they done? If not notify relevant contributor to help get them done. If they're done, PD notifies the requester in the story with context on whether they think the entire request is fulfilled or still has some work left (more user stories to be drafted and shipped). [Up to the requester](https://fleetdm.com/handbook/customer-success#communicate-feedback-on-prioritized-customer-requests) to close the story and leave feedback.
+The relevant Product Designer (PD) the Manager of Customer Support and Solutions Architecture (CSA) review the checkboxes in user stories we shipped but haven't closed. Are they done? If not notify relevant contributor to help get them done. If they're done, PD closes the story and notifies the requester in the original request with context on whether they think the request is fulfilled or still has some work left (more user stories to be drafted and shipped). [Up to the requester](https://fleetdm.com/handbook/customer-success#communicate-feedback-on-prioritized-customer-requests) to close the original request and/or leave feedback.
 
-If the story has customer labels, it's up to the Manager of CSA to decide if the request is fulfilled.  If it is, we assign the relevant Customer Success Manager (CSM) and add the `:help-customers` label to move the story to the [🌦️ :help-customers board](https://github.com/orgs/fleetdm/projects/79).
+If the original request is a customer request, it's up to the Manager of CSA to decide if the request is fulfilled.  If it is, we assign the relevant Customer Success Manager (CSM) and add the `:help-customers` label to add the customer request to the [🌦️ :help-customers board](https://github.com/orgs/fleetdm/projects/79).
 
 
 ### Update a company brand front

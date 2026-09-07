@@ -43,9 +43,6 @@ const AppleBusinessManagerSection = ({
             viewDetails={navigateToAppleAutomaticEnrollment}
             isAppleMdmOn={!!config?.mdm.enabled_and_configured}
             configured={!!config?.mdm.apple_bm_enabled_and_configured}
-            onlyAllowAppleBusinessEnrollment={
-              !!config?.mdm.only_allow_apple_business_enrollment
-            }
           />
           <VppCard
             viewDetails={navigateToVppSetup}

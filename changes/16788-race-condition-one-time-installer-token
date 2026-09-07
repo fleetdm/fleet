@@ -1,0 +1,1 @@
+- Fixed a race condition that allowed a one-time software installer download token to be redeemed more than once when many requests raced concurrently, by making the token consumption atomic.

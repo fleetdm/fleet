@@ -84,33 +84,31 @@ const QuerySidePanel = ({
       >
         <Icon name="close" color="ui-fleet-black-50" size="small" />
       </div>
-      <div className={baseClass}>
-        <div className={`${baseClass}__choose-table`}>
-          <h2 className={`${baseClass}__header`}>
-            Tables
-            <span className={`${baseClass}__table-count`}>
-              {osqueryTableNames.length}
-            </span>
-          </h2>
-          {renderTableSelect()}
-        </div>
-        {evented && <EventedTableTag selectedTableName={name} />}
-        {mdmRequired && (
-          <span className={`${baseClass}__mdm-required`}>Requires MDM</span>
-        )}
-        <div className={`${baseClass}__description`}>
-          <FleetMarkdown markdown={description} />
-        </div>
-        <QueryTablePlatforms platforms={platforms} />
-        <QueryTableColumns columns={columns} />
-        {examples && <QueryTableExample example={examples} />}
-        {notes && <QueryTableNotes notes={notes} />}
-        <CustomLink
-          url={`https://www.fleetdm.com/tables/${name}`}
-          text="Source"
-          newTab
-        />
+      <div className={`${baseClass}__choose-table`}>
+        <h2 className={`${baseClass}__header`}>
+          Tables
+          <span className={`${baseClass}__table-count`}>
+            {osqueryTableNames.length}
+          </span>
+        </h2>
+        {renderTableSelect()}
       </div>
+      {evented && <EventedTableTag selectedTableName={name} />}
+      {mdmRequired && (
+        <span className={`${baseClass}__mdm-required`}>Requires MDM</span>
+      )}
+      <div className={`${baseClass}__description`}>
+        <FleetMarkdown markdown={description} />
+      </div>
+      <QueryTablePlatforms platforms={platforms} />
+      <QueryTableColumns columns={columns} />
+      {examples && <QueryTableExample example={examples} />}
+      {notes && <QueryTableNotes notes={notes} />}
+      <CustomLink
+        url={`https://www.fleetdm.com/tables/${name}`}
+        text="Source"
+        newTab
+      />
     </>
   );
 };

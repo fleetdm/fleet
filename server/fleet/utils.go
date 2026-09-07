@@ -2,7 +2,6 @@ package fleet
 
 import (
 	"encoding/json"
-	jsonv2 "encoding/json/v2"
 	"errors"
 	"io"
 	"regexp"
@@ -10,7 +9,6 @@ import (
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/fatih/color"
-	"github.com/fleetdm/fleet/v4/server/platform/jsondecode"
 	"golang.org/x/text/unicode/norm"
 )
 
@@ -49,17 +47,8 @@ func WriteAppleBMTermsExpiredBanner(w io.Writer) {
 // any unknown key is specified in the JSON value, and if there is any trailing
 // byte after the JSON value.
 func JSONStrictDecode(r io.Reader, v interface{}) error {
-	return jsonDecode(r, v, jsondecode.RejectUnknownMembers())
-}
-
-// JSONDecode is JSONStrictDecode without the unknown-key rejection: unrecognized keys are ignored, as
-// with a plain json.Unmarshal. Trailing bytes are still an error.
-func JSONDecode(r io.Reader, v any) error {
-	return jsonDecode(r, v)
-}
-
-func jsonDecode(r io.Reader, v any, opts ...jsonv2.Options) error {
-	dec := jsondecode.NewDecoder(r, opts...)
+	dec := json.NewDecoder(r)
+	dec.DisallowUnknownFields()
 	if err := dec.Decode(v); err != nil {
 		return err
 	}

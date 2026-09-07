@@ -1,0 +1,1 @@
+- Fixed a bug where hosts that re-enrolled via DEP would sometimes have profiles with exclude-any labels attached installed before they had actually reported label results 

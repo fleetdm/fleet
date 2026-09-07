@@ -1,0 +1,1 @@
+- Added a `FLEET_DEV_SKIP_S3_CONFIG` environment variable to skip applying local S3 dev defaults and creating test S3 buckets when running `fleet serve --dev`.

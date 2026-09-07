@@ -1,0 +1,1 @@
+- Fixed the self-service "Install all" button so its count and install target scope to the current search query. Previously, typing a search would filter the visible list while "Install all" still counted (and queued) every item in the selected category, including software the search had filtered out.

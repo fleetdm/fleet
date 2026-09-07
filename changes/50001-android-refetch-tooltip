@@ -1,0 +1,1 @@
+- Added a disabled Refetch button with a tooltip on the Host details page for Android hosts, explaining that Android hosts sync data automatically and linking to how to sync manually.

@@ -338,14 +338,7 @@ const PlatformWrapper = ({
     }
 
     if (packageType === "ios-ipados") {
-      return (
-        <IosIpadosPanel
-          enrollSecret={enrollSecret}
-          isManualAppleEnrollmentsBlocked={
-            config?.mdm.only_allow_apple_business_enrollment || false
-          }
-        />
-      );
+      return <IosIpadosPanel enrollSecret={enrollSecret} />;
     }
 
     if (packageType === "android") {
@@ -353,14 +346,7 @@ const PlatformWrapper = ({
     }
 
     if (packageType === "pkg") {
-      return (
-        <MacosPanel
-          enrollSecret={enrollSecret}
-          isManualAppleEnrollmentsBlocked={
-            config?.mdm.only_allow_apple_business_enrollment || false
-          }
-        />
-      );
+      return <MacosPanel enrollSecret={enrollSecret} />;
     }
 
     if (packageType === "advanced") {

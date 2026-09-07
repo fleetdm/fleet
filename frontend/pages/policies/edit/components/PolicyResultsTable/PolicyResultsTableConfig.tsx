@@ -6,7 +6,7 @@ import { memoize } from "lodash";
 
 import { ColumnInstance } from "react-table";
 
-import StatusIndicatorWithIcon from "components/StatusIndicatorWithIcon";
+import Icon from "components/Icon/Icon";
 import TextCell from "components/TableContainer/DataTable/TextCell/TextCell";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
 
@@ -66,12 +66,21 @@ const generateTableHeaders = (): IDataColumn[] => {
       disableSortBy: false,
       sortType: "hasLength",
       accessor: "query_results",
-      Cell: (cellProps: ICellProps): JSX.Element =>
-        cellProps.cell.value.length ? (
-          <StatusIndicatorWithIcon status="success" value="Pass" />
-        ) : (
-          <StatusIndicatorWithIcon status="error" value="Fail" />
-        ),
+      Cell: (cellProps: ICellProps): JSX.Element => (
+        <>
+          {cellProps.cell.value.length ? (
+            <>
+              <Icon name="success" />
+              <span className="status-header-text">Pass</span>
+            </>
+          ) : (
+            <>
+              <Icon name="error" />
+              <span className="status-header-text">Fail</span>
+            </>
+          )}
+        </>
+      ),
     },
   ];
   return tableHeaders;

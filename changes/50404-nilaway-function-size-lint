@@ -1,0 +1,1 @@
+- Split `ListHostSoftware` and `ModifyAppConfig` into smaller helpers so that those packages can be checked by nilaway linter.

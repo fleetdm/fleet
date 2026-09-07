@@ -1,0 +1,1 @@
+- Added the option to keep macOS, iOS, and iPadOS hosts on the latest OS version (Fleet Premium). Setting `minimum_version` to `latest` along with `deadline_days` tells Fleet to automatically track the newest version Apple publishes for each host's hardware and to set the update deadline that many days after the version has been released.

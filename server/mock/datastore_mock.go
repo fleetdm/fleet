@@ -210,10 +210,6 @@ type LabelsSummaryFunc func(ctx context.Context, filter fleet.TeamFilter) ([]*fl
 
 type GetEnrollmentIDsWithPendingMDMAppleCommandsFunc func(ctx context.Context) ([]string, error)
 
-type ListNanoEnrollmentIDsForAPNsSweepFunc func(ctx context.Context, afterID string, batchSize int, silentFor time.Duration) (eligibleIDs []string, nextCursor string, pageFull bool, err error)
-
-type CountEnabledNanoEnrollmentsFunc func(ctx context.Context) (int, error)
-
 type LabelQueriesForHostFunc func(ctx context.Context, host *fleet.Host) (map[string]string, error)
 
 type ListLabelsForHostFunc func(ctx context.Context, hid uint) ([]*fleet.Label, error)
@@ -480,7 +476,7 @@ type DeleteScheduledQueryFunc func(ctx context.Context, id uint) error
 
 type ScheduledQueryFunc func(ctx context.Context, id uint) (*fleet.ScheduledQuery, error)
 
-type CleanupExpiredHostsBatchFunc func(ctx context.Context, batchSize int) ([]fleet.DeletedHostDetails, error)
+type CleanupExpiredHostsFunc func(ctx context.Context) ([]fleet.DeletedHostDetails, error)
 
 type ScheduledQueryIDsByNameFunc func(ctx context.Context, batchSize int, packAndSchedQueryNames ...[2]string) ([]uint, error)
 
@@ -1520,7 +1516,7 @@ type GetHostMDMProfileInstallStatusFunc func(ctx context.Context, hostUUID strin
 
 type ListMicrosoftGraphCredentialsFunc func(ctx context.Context) ([]*fleet.MicrosoftGraphCredential, error)
 
-type ListMicrosoftGraphCredentialMetadataFunc func(ctx context.Context) ([]*fleet.MicrosoftGraphCredentialMetadata, error)
+type ListMicrosoftGraphCredentialMetadataFunc func(ctx context.Context) ([]*fleet.MicrosoftGraphCredential, error)
 
 type ReplaceMicrosoftGraphCredentialsFunc func(ctx context.Context, upsert []*fleet.MicrosoftGraphCredential, deleteTenantIDs []string) error
 
@@ -1583,10 +1579,6 @@ type GetAppleProfileReconcileSnapshotFunc func(ctx context.Context, afterHostUUI
 type GetMDMAppleReconcileCursorFunc func(ctx context.Context) (string, error)
 
 type SetMDMAppleReconcileCursorFunc func(ctx context.Context, cursor string) error
-
-type GetMDMAppleAPNsSweepStateFunc func(ctx context.Context) (*fleet.MDMAppleAPNsSweepState, error)
-
-type SetMDMAppleAPNsSweepStateFunc func(ctx context.Context, state *fleet.MDMAppleAPNsSweepState) error
 
 type GetAppleDeclarationReconcileSnapshotFunc func(ctx context.Context, afterHostUUID string, batchSize int) (hosts []*fleet.AppleHostReconcileInfo, allDecls []*fleet.AppleDeclarationForReconcile, hostLabels map[uint]map[uint]struct{}, currentByHost map[string][]*fleet.MDMAppleHostDeclaration, pageFull bool, err error)
 
@@ -2194,8 +2186,6 @@ type ScimGroupByDisplayNameFunc func(ctx context.Context, displayName string) (*
 
 type ReplaceScimGroupFunc func(ctx context.Context, group *fleet.ScimGroup) error
 
-type ApplyScimGroupPatchFunc func(ctx context.Context, group *fleet.ScimGroup, deltas fleet.ScimGroupMemberDeltas) error
-
 type DeleteScimGroupFunc func(ctx context.Context, id uint) error
 
 type ListScimGroupsFunc func(ctx context.Context, opts fleet.ScimGroupsListOptions) (groups []fleet.ScimGroup, totalResults uint, err error)
@@ -2676,12 +2666,6 @@ type DataStore struct {
 	GetEnrollmentIDsWithPendingMDMAppleCommandsFunc        GetEnrollmentIDsWithPendingMDMAppleCommandsFunc
 	GetEnrollmentIDsWithPendingMDMAppleCommandsFuncInvoked bool
 
-	ListNanoEnrollmentIDsForAPNsSweepFunc        ListNanoEnrollmentIDsForAPNsSweepFunc
-	ListNanoEnrollmentIDsForAPNsSweepFuncInvoked bool
-
-	CountEnabledNanoEnrollmentsFunc        CountEnabledNanoEnrollmentsFunc
-	CountEnabledNanoEnrollmentsFuncInvoked bool
-
 	LabelQueriesForHostFunc        LabelQueriesForHostFunc
 	LabelQueriesForHostFuncInvoked bool
 
@@ -3081,8 +3065,8 @@ type DataStore struct {
 	ScheduledQueryFunc        ScheduledQueryFunc
 	ScheduledQueryFuncInvoked bool
 
-	CleanupExpiredHostsBatchFunc        CleanupExpiredHostsBatchFunc
-	CleanupExpiredHostsBatchFuncInvoked bool
+	CleanupExpiredHostsFunc        CleanupExpiredHostsFunc
+	CleanupExpiredHostsFuncInvoked bool
 
 	ScheduledQueryIDsByNameFunc        ScheduledQueryIDsByNameFunc
 	ScheduledQueryIDsByNameFuncInvoked bool
@@ -4737,12 +4721,6 @@ type DataStore struct {
 	SetMDMAppleReconcileCursorFunc        SetMDMAppleReconcileCursorFunc
 	SetMDMAppleReconcileCursorFuncInvoked bool
 
-	GetMDMAppleAPNsSweepStateFunc        GetMDMAppleAPNsSweepStateFunc
-	GetMDMAppleAPNsSweepStateFuncInvoked bool
-
-	SetMDMAppleAPNsSweepStateFunc        SetMDMAppleAPNsSweepStateFunc
-	SetMDMAppleAPNsSweepStateFuncInvoked bool
-
 	GetAppleDeclarationReconcileSnapshotFunc        GetAppleDeclarationReconcileSnapshotFunc
 	GetAppleDeclarationReconcileSnapshotFuncInvoked bool
 
@@ -5651,9 +5629,6 @@ type DataStore struct {
 
 	ReplaceScimGroupFunc        ReplaceScimGroupFunc
 	ReplaceScimGroupFuncInvoked bool
-
-	ApplyScimGroupPatchFunc        ApplyScimGroupPatchFunc
-	ApplyScimGroupPatchFuncInvoked bool
 
 	DeleteScimGroupFunc        DeleteScimGroupFunc
 	DeleteScimGroupFuncInvoked bool
@@ -6609,20 +6584,6 @@ func (s *DataStore) GetEnrollmentIDsWithPendingMDMAppleCommands(ctx context.Cont
 	return s.GetEnrollmentIDsWithPendingMDMAppleCommandsFunc(ctx)
 }
 
-func (s *DataStore) ListNanoEnrollmentIDsForAPNsSweep(ctx context.Context, afterID string, batchSize int, silentFor time.Duration) (eligibleIDs []string, nextCursor string, pageFull bool, err error) {
-	s.mu.Lock()
-	s.ListNanoEnrollmentIDsForAPNsSweepFuncInvoked = true
-	s.mu.Unlock()
-	return s.ListNanoEnrollmentIDsForAPNsSweepFunc(ctx, afterID, batchSize, silentFor)
-}
-
-func (s *DataStore) CountEnabledNanoEnrollments(ctx context.Context) (int, error) {
-	s.mu.Lock()
-	s.CountEnabledNanoEnrollmentsFuncInvoked = true
-	s.mu.Unlock()
-	return s.CountEnabledNanoEnrollmentsFunc(ctx)
-}
-
 func (s *DataStore) LabelQueriesForHost(ctx context.Context, host *fleet.Host) (map[string]string, error) {
 	s.mu.Lock()
 	s.LabelQueriesForHostFuncInvoked = true
@@ -7554,11 +7515,11 @@ func (s *DataStore) ScheduledQuery(ctx context.Context, id uint) (*fleet.Schedul
 	return s.ScheduledQueryFunc(ctx, id)
 }
 
-func (s *DataStore) CleanupExpiredHostsBatch(ctx context.Context, batchSize int) ([]fleet.DeletedHostDetails, error) {
+func (s *DataStore) CleanupExpiredHosts(ctx context.Context) ([]fleet.DeletedHostDetails, error) {
 	s.mu.Lock()
-	s.CleanupExpiredHostsBatchFuncInvoked = true
+	s.CleanupExpiredHostsFuncInvoked = true
 	s.mu.Unlock()
-	return s.CleanupExpiredHostsBatchFunc(ctx, batchSize)
+	return s.CleanupExpiredHostsFunc(ctx)
 }
 
 func (s *DataStore) ScheduledQueryIDsByName(ctx context.Context, batchSize int, packAndSchedQueryNames ...[2]string) ([]uint, error) {
@@ -11194,7 +11155,7 @@ func (s *DataStore) ListMicrosoftGraphCredentials(ctx context.Context) ([]*fleet
 	return s.ListMicrosoftGraphCredentialsFunc(ctx)
 }
 
-func (s *DataStore) ListMicrosoftGraphCredentialMetadata(ctx context.Context) ([]*fleet.MicrosoftGraphCredentialMetadata, error) {
+func (s *DataStore) ListMicrosoftGraphCredentialMetadata(ctx context.Context) ([]*fleet.MicrosoftGraphCredential, error) {
 	s.mu.Lock()
 	s.ListMicrosoftGraphCredentialMetadataFuncInvoked = true
 	s.mu.Unlock()
@@ -11416,20 +11377,6 @@ func (s *DataStore) SetMDMAppleReconcileCursor(ctx context.Context, cursor strin
 	s.SetMDMAppleReconcileCursorFuncInvoked = true
 	s.mu.Unlock()
 	return s.SetMDMAppleReconcileCursorFunc(ctx, cursor)
-}
-
-func (s *DataStore) GetMDMAppleAPNsSweepState(ctx context.Context) (*fleet.MDMAppleAPNsSweepState, error) {
-	s.mu.Lock()
-	s.GetMDMAppleAPNsSweepStateFuncInvoked = true
-	s.mu.Unlock()
-	return s.GetMDMAppleAPNsSweepStateFunc(ctx)
-}
-
-func (s *DataStore) SetMDMAppleAPNsSweepState(ctx context.Context, state *fleet.MDMAppleAPNsSweepState) error {
-	s.mu.Lock()
-	s.SetMDMAppleAPNsSweepStateFuncInvoked = true
-	s.mu.Unlock()
-	return s.SetMDMAppleAPNsSweepStateFunc(ctx, state)
 }
 
 func (s *DataStore) GetAppleDeclarationReconcileSnapshot(ctx context.Context, afterHostUUID string, batchSize int) (hosts []*fleet.AppleHostReconcileInfo, allDecls []*fleet.AppleDeclarationForReconcile, hostLabels map[uint]map[uint]struct{}, currentByHost map[string][]*fleet.MDMAppleHostDeclaration, pageFull bool, err error) {
@@ -13551,13 +13498,6 @@ func (s *DataStore) ReplaceScimGroup(ctx context.Context, group *fleet.ScimGroup
 	s.ReplaceScimGroupFuncInvoked = true
 	s.mu.Unlock()
 	return s.ReplaceScimGroupFunc(ctx, group)
-}
-
-func (s *DataStore) ApplyScimGroupPatch(ctx context.Context, group *fleet.ScimGroup, deltas fleet.ScimGroupMemberDeltas) error {
-	s.mu.Lock()
-	s.ApplyScimGroupPatchFuncInvoked = true
-	s.mu.Unlock()
-	return s.ApplyScimGroupPatchFunc(ctx, group, deltas)
 }
 
 func (s *DataStore) DeleteScimGroup(ctx context.Context, id uint) error {

@@ -4,7 +4,6 @@
 package mysqlredis
 
 import (
-	"log/slog"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -28,8 +27,6 @@ type Datastore struct {
 	hostCacheEnabled bool
 	hostCacheTTL     time.Duration
 	hostCacheSF      singleflight.Group
-
-	logger *slog.Logger
 }
 
 // Option is an option that can be passed to New to configure the datastore.
@@ -57,18 +54,10 @@ func WithHostCache(ttl time.Duration) Option {
 	}
 }
 
-// WithLogger sets the logger for the wrapper's own diagnostics; without it
-// they are discarded.
-func WithLogger(logger *slog.Logger) Option {
-	return func(o *Datastore) {
-		o.logger = logger
-	}
-}
-
 // New creates a Datastore that wraps ds and uses pool to execute redis-based
 // operations.
 func New(ds fleet.Datastore, pool fleet.RedisPool, opts ...Option) *Datastore {
-	newDS := &Datastore{Datastore: ds, pool: pool, logger: slog.New(slog.DiscardHandler)}
+	newDS := &Datastore{Datastore: ds, pool: pool}
 	for _, opt := range opts {
 		opt(newDS)
 	}

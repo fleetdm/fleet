@@ -1,0 +1,1 @@
+- Fixed query (report) responses so that pack metadata (ID, name, description) is only included when the requesting user is authorized to read packs, preventing cross-fleet pack metadata disclosure via query name collisions.

@@ -322,7 +322,6 @@ describe("Device User Page", () => {
             mdm: {
               enabled_and_configured: true,
               require_all_software_macos: true,
-              only_allow_apple_business_enrollment: false,
             },
           },
         },
@@ -374,7 +373,6 @@ describe("Device User Page", () => {
             mdm: {
               enabled_and_configured: true,
               require_all_software_macos: true,
-              only_allow_apple_business_enrollment: false,
             },
           },
         },
@@ -451,7 +449,6 @@ describe("Device User Page", () => {
           mdm: {
             enabled_and_configured: true,
             require_all_software_macos: false,
-            only_allow_apple_business_enrollment: false,
           },
           features: {
             enable_software_inventory: true,
@@ -476,7 +473,6 @@ describe("Device User Page", () => {
           mdm: {
             enabled_and_configured: true,
             require_all_software_macos: false,
-            only_allow_apple_business_enrollment: false,
           },
           features: {
             enable_software_inventory: true,
@@ -501,7 +497,6 @@ describe("Device User Page", () => {
           mdm: {
             enabled_and_configured: false,
             require_all_software_macos: false,
-            only_allow_apple_business_enrollment: false,
           },
           features: {
             enable_software_inventory: true,
@@ -527,7 +522,6 @@ describe("Device User Page", () => {
           mdm: {
             enabled_and_configured: true,
             require_all_software_macos: false,
-            only_allow_apple_business_enrollment: false,
           },
           features: {
             enable_software_inventory: true,

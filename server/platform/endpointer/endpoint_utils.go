@@ -225,13 +225,6 @@ func extractAliasRulesRecursive(t reflect.Type, seen map[string]bool, rules *[]A
 	}
 }
 
-// jsonDecodeErr reports a failure to decode a request body. The decoder's message names the offending
-// field, so surfacing it is what lets a caller find the problem; the generic wording is kept for
-// failures that are not about the body's contents.
-func jsonDecodeErr(err error) error {
-	return BadRequestErr(platform_http.NewUserMessageError(err, http.StatusBadRequest).UserMessage(), err)
-}
-
 func BadRequestErr(publicMsg string, internalErr error) error {
 	// ensure timeout errors don't become BadRequestErrors.
 	var opErr *net.OpError
@@ -679,7 +672,7 @@ func MakeDecoder(
 							Gzipped:        gzipped,
 						}
 					}
-					return nil, jsonDecodeErr(err)
+					return nil, BadRequestErr("json decoder error", err)
 				}
 				v = reflect.ValueOf(req)
 			}
@@ -754,7 +747,7 @@ func MakeDecoder(
 					}
 				}
 				if errors.Is(err, io.ErrUnexpectedEOF) {
-					return nil, jsonDecodeErr(err)
+					return nil, BadRequestErr("json decoder error", err)
 				}
 				return nil, err
 			}

@@ -20,14 +20,11 @@ Object.defineProperty(window, "matchMedia", {
     dispatchEvent: jest.fn(),
   })),
 });
-// jsdom has no ResizeObserver, so this is a polyfill, not a test double, and it deliberately avoids jest.fn(). A suite
-// that needs a spy can swap in its own and restore it (see HostsEnrolledCard.tests.tsx).
-const noop = () => undefined;
-global.ResizeObserver = class {
-  observe = noop;
-  unobserve = noop;
-  disconnect = noop;
-};
+global.ResizeObserver = jest.fn().mockImplementation(() => ({
+  observe: jest.fn(),
+  unobserve: jest.fn(),
+  disconnect: jest.fn(),
+}));
 
 // Mock server setup
 beforeAll(() => mockServer.listen());

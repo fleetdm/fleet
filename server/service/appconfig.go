@@ -1889,18 +1889,6 @@ func (svc *Service) processSavedAppConfigChanges(
 		}
 	}
 
-	if oldAppConfig.MDM.OnlyAllowAppleBusinessEnrollment != appConfig.MDM.OnlyAllowAppleBusinessEnrollment {
-		var act fleet.ActivityDetails
-		if appConfig.MDM.OnlyAllowAppleBusinessEnrollment {
-			act = fleet.ActivityTypeEnabledAppleBusinessOnlyEnrollment{}
-		} else {
-			act = fleet.ActivityTypeDisabledAppleBusinessOnlyEnrollment{}
-		}
-		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
-			return ctxerr.Wrap(ctx, err, fmt.Sprintf("create activity %s", act.ActivityName()))
-		}
-	}
-
 	return nil
 }
 
@@ -2499,10 +2487,6 @@ func (svc *Service) validateMDM(
 		oldMdm.WindowsSettings.EnableDiskEncryption.Value, mdm.DiskEncryptionConfig(),
 	); msg != "" {
 		invalid.Append(field, msg)
-	}
-
-	if mdm.OnlyAllowAppleBusinessEnrollment && !lic.IsPremium() {
-		invalid.Append("mdm.only_allow_apple_business_enrollment", ErrMissingLicense.Error())
 	}
 
 	return nil

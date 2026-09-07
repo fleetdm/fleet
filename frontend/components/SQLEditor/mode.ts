@@ -7,7 +7,7 @@ import {
 import {
   sqlBuiltinFunctions,
   sqlDataTypes,
-  sqlHighlightKeywords,
+  sqlKeyWords,
 } from "utilities/sql_tools";
 
 ace.define(
@@ -26,7 +26,7 @@ ace.define(
     var SqlHighlightRules = acequire("./sql_highlight_rules").SqlHighlightRules;
 
     var FleetHighlightRules = function () {
-      var keywords = sqlHighlightKeywords.join("|");
+      var keywords = sqlKeyWords.join("|");
 
       var builtinConstants = "true|false";
 

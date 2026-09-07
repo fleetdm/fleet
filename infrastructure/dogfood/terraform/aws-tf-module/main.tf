@@ -90,7 +90,6 @@ locals {
     FLEET_SERVER_GZIP_RESPONSES     = "true"
     # https://github.com/fleetdm/fleet/issues/38366
     FLEET_MDM_ALLOW_ALL_DECLARATIONS = "true"
-    FLEET_MDM_ALLOW_CUSTOM_ACTIVATIONS = "true"
 
     # Load TLS Certificate for RDS Authentication
     FLEET_MYSQL_TLS_CA                  = local.cert_path

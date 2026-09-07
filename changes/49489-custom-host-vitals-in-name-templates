@@ -1,0 +1,1 @@
+* Added support for `$FLEET_HOST_VITAL_<id>` custom host vital variables in host name templates, including per-host resolution, validation of referenced vital IDs, and automatic re-delivery when a host's vital value changes.

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"slices"
 	"strings"
 	"time"
 
@@ -30,9 +31,11 @@ type BugIssue struct {
 	} `json:"labels"`
 }
 
+var productGroupLabels = []string{"#g-software", "#g-orchestration", "#g-mdm", "#g-supply-chain"}
+
 func (i BugIssue) ProductGroup() string {
 	for _, label := range i.Labels {
-		if strings.HasPrefix(label.Name, "#g-") {
+		if slices.Contains(productGroupLabels, label.Name) {
 			return label.Name
 		}
 	}

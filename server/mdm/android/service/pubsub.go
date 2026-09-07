@@ -5,7 +5,6 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
-	"encoding/json/v2"
 	"fmt"
 	"net/http"
 	"strings"
@@ -17,6 +16,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/worker"
+	"github.com/go-json-experiment/json"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 	"google.golang.org/api/androidmanagement/v1"
@@ -1514,13 +1514,11 @@ func (svc *Service) verifyDevicePolicy(ctx context.Context, hostUUID string, dev
 		var verifiedProfiles []*fleet.MDMAndroidProfilePayload
 		for _, profile := range pendingInstallProfiles {
 			verifiedProfiles = append(verifiedProfiles, &fleet.MDMAndroidProfilePayload{
-				HostUUID:      profile.HostUUID,
-				Status:        &fleet.MDMDeliveryVerified,
-				OperationType: profile.OperationType,
-				ProfileUUID:   profile.ProfileUUID,
-				// The profile is verified, so any detail recorded by an earlier
-				// failed report is stale and must not be carried over.
-				Detail:                  "",
+				HostUUID:                profile.HostUUID,
+				Status:                  &fleet.MDMDeliveryVerified,
+				OperationType:           profile.OperationType,
+				ProfileUUID:             profile.ProfileUUID,
+				Detail:                  profile.Detail,
 				ProfileName:             profile.ProfileName,
 				PolicyRequestUUID:       profile.PolicyRequestUUID,
 				DeviceRequestUUID:       profile.DeviceRequestUUID,
@@ -1604,11 +1602,7 @@ func (svc *Service) verifyDevicePolicy(ctx context.Context, hostUUID string, dev
 		var profiles []*fleet.MDMAndroidProfilePayload
 		for _, profile := range pendingInstallProfiles {
 			status := &fleet.MDMDeliveryVerified
-			// A verified profile has no detail; only a profile that is still
-			// non-compliant carries an error message. Defaulting to the stored
-			// detail would leave a stale failure message on a profile that has
-			// since become compliant.
-			detail := ""
+			detail := profile.Detail
 			canReverify := false
 
 			if nonCompliance, ok := failedProfileUUIDsWithNonCompliances[profile.ProfileUUID]; ok {

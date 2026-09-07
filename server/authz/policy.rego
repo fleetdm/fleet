@@ -1072,7 +1072,7 @@ allow {
 # hosts (not gitops as this is not something that relates to fleetctl gitops).
 allow {
   object.type == "mdm_command"
-  object.is_apple_mobile == true
+  {"ios", "ipados"}[object.platform]
   subject.global_role == [admin, maintainer, technician][_]
   action == clear_passcode
 }
@@ -1081,7 +1081,7 @@ allow {
 allow {
   not is_null(object.team_id)
   object.type == "mdm_command"
-  object.is_apple_mobile == true
+  {"ios", "ipados"}[object.platform]
   team_role(subject, object.team_id) == [admin, maintainer, technician][_]
   action == clear_passcode
 }
@@ -1090,7 +1090,7 @@ allow {
 # (Android).
 allow {
   object.type == "mdm_command"
-  object.is_apple_mobile == false
+  not {"ios", "ipados"}[object.platform]
   subject.global_role == [admin, maintainer][_]
   action == clear_passcode
 }
@@ -1100,7 +1100,7 @@ allow {
 allow {
   not is_null(object.team_id)
   object.type == "mdm_command"
-  object.is_apple_mobile == false
+  not {"ios", "ipados"}[object.platform]
   team_role(subject, object.team_id) == [admin, maintainer][_]
   action == clear_passcode
 }
@@ -1467,16 +1467,6 @@ allow {
   object.type == "conditional_access_microsoft"
   subject.global_role == admin
   action == write
-}
-
-##
-# Microsoft Graph credentials
-##
-# Global admins and gitops can read and write Microsoft Graph credentials.
-allow {
-  object.type == "microsoft_graph_credential"
-  subject.global_role == [admin, gitops][_]
-  action == [read, write][_]
 }
 
 ##

@@ -1,0 +1,1 @@
+- Fixed a bug where an Apple configuration profile (DDM declaration) could become undeletable if the set of allowed declaration types changed after the profile was added (for example, when a server configuration flag was toggled). Deleting a profile no longer re-runs upload-time validation.

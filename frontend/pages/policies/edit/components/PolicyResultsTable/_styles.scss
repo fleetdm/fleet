@@ -41,6 +41,11 @@
         padding-right: 4px;
       }
     }
+    .query_results__cell {
+      .status-header-text {
+        margin-left: 10px;
+      }
+    }
   }
 
   &__empty-table {

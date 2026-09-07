@@ -1,0 +1,1 @@
+- Fixed an accessibility issue, where the resend button would not show up when focused inside the OS settings modal

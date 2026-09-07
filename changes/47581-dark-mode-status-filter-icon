@@ -1,0 +1,1 @@
+- Fixed the status-filter dropdown's selected-value icon (e.g. the disk encryption, bootstrap package, and policy status filters on the Hosts page) rendering near-black and barely visible in dark mode.

@@ -6,10 +6,7 @@ import Button from "components/buttons/Button";
 import { MacDiskEncryptionActionRequired } from "interfaces/host";
 import { IHostBannersBaseProps } from "pages/hosts/details/HostDetailsPage/components/HostDetailsBanners/HostDetailsBanners";
 import CustomLink from "components/CustomLink";
-import {
-  isAppleDevice,
-  isDiskEncryptionSupportedLinuxPlatform,
-} from "interfaces/platform";
+import { isDiskEncryptionSupportedLinuxPlatform } from "interfaces/platform";
 import { isAutomaticDeviceEnrollment } from "interfaces/mdm";
 import { INITIAL_FLEET_DATE } from "utilities/constants";
 
@@ -38,11 +35,9 @@ const DeviceUserBanners = ({
   diskEncryptionOSSetting,
   diskIsEncrypted,
   diskEncryptionKeyAvailable,
-  onlyAllowAppleBusinessEnrollment,
   onTriggerEscrowLinuxKey,
   lastMdmEnrolledAt,
   detailUpdatedAt,
-  depAssignedToFleet,
 }: IDeviceUserBannersProps) => {
   const isMdmUnenrolled =
     mdmEnrollmentStatus === "Off" || mdmEnrollmentStatus === null;
@@ -89,22 +84,6 @@ const DeviceUserBanners = ({
   );
 
   const renderBanner = () => {
-    if (
-      onlyAllowAppleBusinessEnrollment &&
-      !depAssignedToFleet &&
-      isAppleDevice(hostPlatform) &&
-      isMdmUnenrolled
-    ) {
-      return (
-        <InfoBanner color="yellow">
-          Mobile device management (MDM) is off. This device isn&apos;t eligible
-          for MDM because it isn&apos;t assigned to your organization by Apple
-          Business. Contact your IT administrator if you believe this is an
-          error.
-        </InfoBanner>
-      );
-    }
-
     if (showTurnOnAppleMdmBanner) {
       return (
         <InfoBanner color="yellow" cta={turnOnMdmButton}>

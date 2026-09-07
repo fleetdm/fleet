@@ -370,7 +370,8 @@ func toIUpdateCollection(updates []*IUpdate) (*ole.IDispatch, error) {
 		return nil, err
 	}
 	for _, update := range updates {
-		if _, err := oleutil.CallMethod(coll, "Add", update.disp); err != nil { //nolint:staticcheck // SA4023 off-Windows false positive.
+		_, err := oleutil.CallMethod(coll, "Add", update.disp)
+		if err != nil {
 			return nil, err
 		}
 	}

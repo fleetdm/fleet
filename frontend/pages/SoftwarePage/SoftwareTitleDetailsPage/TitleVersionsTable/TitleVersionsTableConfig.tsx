@@ -27,7 +27,7 @@ type IVersionCellProps = IStringCellProps<ISoftwareTitleVersion>;
 type IVulnCellProps = CellProps<ISoftwareTitleVersion, string[] | null>;
 type IHostCountCellProps = INumberCellProps<ISoftwareTitleVersion>;
 type IViewAllHostsLinkProps = CellProps<ISoftwareTitleVersion>;
-type ITableHeaderProps = IHeaderProps<ISoftwareTitleVersion>;
+type IVersionHeaderProps = IHeaderProps<ISoftwareTitleVersion>;
 
 const generateSoftwareTitleVersionsTableConfig = ({
   teamId,
@@ -36,9 +36,10 @@ const generateSoftwareTitleVersionsTableConfig = ({
   const tableHeaders = [
     {
       title: "Version",
-      Header: (cellProps: ITableHeaderProps) => (
+      Header: (cellProps: IVersionHeaderProps) => (
         <HeaderCell
           value="Version"
+          disableSortBy={false}
           isSortedDesc={cellProps.column.isSortedDesc}
         />
       ),
@@ -86,13 +87,8 @@ const generateSoftwareTitleVersionsTableConfig = ({
     },
     {
       title: "Hosts",
-      Header: (cellProps: ITableHeaderProps) => (
-        <HeaderCell
-          value="Hosts"
-          isSortedDesc={cellProps.column.isSortedDesc}
-        />
-      ),
-      disableSortBy: false,
+      Header: "Hosts",
+      disableSortBy: true,
       accessor: "hosts_count",
       Cell: (cellProps: IHostCountCellProps): JSX.Element => (
         <TextCell value={cellProps.cell.value} />

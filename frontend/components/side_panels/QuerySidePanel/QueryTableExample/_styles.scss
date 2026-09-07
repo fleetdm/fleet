@@ -1,14 +1,7 @@
 .query-table-example {
-  @include flex-column-16px-gap;
 
   h3 {
     font-size: $small;
     font-weight: $bold;
-    margin: 0;
-  }
-
-  p,
-  pre {
-    margin: 0;
   }
 }

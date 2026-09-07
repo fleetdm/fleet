@@ -87,6 +87,22 @@ var hostAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
 	// Note: 'h.node_key', 'h.orbit_node_key', 'hdek.base64_encrypted' intentionally EXCLUDED
 }
 
+// deferredJoinOrderKeys lists order keys whose SQL expressions reference
+// LEFT-JOINed adjacency tables or are wrapped in COALESCE, preventing
+// MySQL from using an index for ORDER BY. For these keys, ListHosts uses
+// a two-phase "deferred join" query: Phase 1 fetches sorted host IDs
+// (lightweight filesort), Phase 2 fetches full data for just those IDs.
+// See https://github.com/fleetdm/fleet/issues/46251.
+var deferredJoinOrderKeys = map[string]bool{
+	"team_name":                    true,
+	"issues":                       true,
+	"seen_time":                    true,
+	"software_updated_at":          true,
+	"gigs_disk_space_available":    true,
+	"percent_disk_space_available": true,
+	"gigs_total_disk_space":        true,
+}
+
 // batchScriptHostAllowedOrderKeys for ListBatchScriptHosts endpoint.
 var batchScriptHostAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
 	"display_name": "hdn.display_name",
@@ -1135,6 +1151,13 @@ func amountEnrolledHostsByOSDB(ctx context.Context, db sqlx.QueryerContext) (byO
 }
 
 func (ds *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {
+	// For order keys that sort on LEFT-JOINed/COALESCE expressions, use a
+	// two-phase deferred join: Phase 1 fetches sorted IDs (cheap filesort
+	// on narrow rows), Phase 2 fetches full data for just those IDs.
+	if deferredJoinOrderKeys[opt.ListOptions.OrderKey] {
+		return ds.listHostsDeferred(ctx, filter, opt)
+	}
+
 	sql := `SELECT
     h.id,
     h.osquery_host_id,
@@ -1248,6 +1271,150 @@ func (ds *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt
 	hosts := []*fleet.Host{}
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hosts, sql, params...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "list hosts")
+	}
+	for _, host := range hosts {
+		omitUnknownLinuxDiskEncryption(host)
+	}
+
+	return hosts, nil
+}
+
+// listHostsDeferred implements the deferred join optimization for slow order
+// keys. Phase 1 gets sorted host IDs using a lightweight query (only h.id in
+// the SELECT makes the filesort much cheaper). Phase 2 fetches the full host
+// data for just those IDs.
+func (ds *Datastore) listHostsDeferred(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {
+	// Phase 1: get sorted host IDs. applyHostFilters adds FROM, JOINs,
+	// WHERE, ORDER BY, and LIMIT. The filesort operates on narrow rows
+	// (just h.id + the sort expression) instead of 50+ columns.
+	idSQL := `SELECT h.id `
+	idSQL, idParams, err := ds.applyHostFilters(ctx, opt, idSQL, filter, nil)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list hosts deferred: apply filters for id query")
+	}
+
+	var hostIDs []uint
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hostIDs, idSQL, idParams...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list hosts deferred: select ids")
+	}
+	if len(hostIDs) == 0 {
+		return []*fleet.Host{}, nil
+	}
+
+	// Phase 2: fetch full data for the sorted IDs.
+	orderExpr := hostAllowedOrderKeys[opt.ListOptions.OrderKey]
+	direction := "ASC"
+	if opt.ListOptions.OrderDirection == fleet.OrderDescending {
+		direction = "DESC"
+	}
+
+	failingPoliciesJoin := ""
+	if !opt.DisableIssues {
+		failingPoliciesJoin = `LEFT JOIN host_issues ON h.id = host_issues.host_id`
+	}
+
+	dataSQL := `SELECT
+    h.id,
+    h.osquery_host_id,
+    h.created_at,
+    h.updated_at,
+    h.detail_updated_at,
+    h.node_key,
+    h.hostname,
+    h.uuid,
+    h.platform,
+    h.osquery_version,
+    h.os_version,
+    h.build,
+    h.platform_like,
+    h.code_name,
+    h.uptime,
+    h.memory,
+    h.cpu_type,
+    h.cpu_subtype,
+    h.cpu_brand,
+    h.cpu_physical_cores,
+    h.cpu_logical_cores,
+    h.hardware_vendor,
+    h.hardware_model,
+    h.hardware_version,
+    h.hardware_serial,
+    h.computer_name,
+    h.primary_ip_id,
+    h.distributed_interval,
+    h.logger_tls_period,
+    h.config_tls_refresh,
+    h.primary_ip,
+    h.primary_mac,
+    h.label_updated_at,
+    h.last_enrolled_at,
+    h.refetch_requested,
+    h.refetch_critical_queries_until,
+    h.team_id,
+    h.policy_updated_at,
+    h.public_ip,
+    h.orbit_node_key,
+    COALESCE(hd.gigs_disk_space_available, 0) as gigs_disk_space_available,
+    COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available,
+    COALESCE(hd.gigs_total_disk_space, 0) as gigs_total_disk_space,
+    hd.gigs_all_disk_space,
+    hd.encrypted as disk_encryption_enabled,
+    COALESCE(hst.seen_time, h.created_at) AS seen_time,
+    t.name AS team_name,
+    COALESCE(hu.software_updated_at, h.created_at) AS software_updated_at,
+    h.last_restarted_at,
+    h.timezone,
+    hoi.version AS orbit_version,
+    hoi.desktop_version AS fleet_desktop_version,
+    had.group_tag AS group_tag
+	`
+	dataSQL += hostMDMSelect
+
+	if !opt.DisableIssues {
+		dataSQL += `,
+		COALESCE(host_issues.failing_policies_count, 0) AS failing_policies_count,
+		COALESCE(host_issues.critical_vulnerabilities_count, 0) AS critical_vulnerabilities_count,
+		COALESCE(host_issues.total_issues_count, 0) AS total_issues_count
+		`
+	}
+
+	if opt.DeviceMapping {
+		dataSQL += fmt.Sprintf(`,
+    COALESCE((
+        SELECT CONCAT('[', GROUP_CONCAT(JSON_OBJECT('email', he.email, 'source', %s) ORDER BY he.email, he.source), ']')
+        FROM host_emails he
+        WHERE he.host_id = h.id
+    ), 'null') as device_mapping
+		`, deviceMappingTranslateSourceColumn("he"))
+	}
+
+	idPlaceholders := strings.TrimSuffix(strings.Repeat("?,", len(hostIDs)), ",")
+	dataSQL += fmt.Sprintf(`
+    FROM hosts h
+    LEFT JOIN host_seen_times hst ON (h.id = hst.host_id)
+    LEFT JOIN host_updates hu ON (h.id = hu.host_id)
+    LEFT JOIN teams t ON (h.team_id = t.id)
+    LEFT JOIN host_disks hd ON hd.host_id = h.id
+    LEFT JOIN host_orbit_info hoi ON hoi.host_id = h.id
+    LEFT JOIN host_autopilot_devices had ON had.host_id = h.id AND had.deleted_at IS NULL
+    %s
+    %s
+    WHERE h.id IN (%s)
+    ORDER BY %s %s, h.id %s`,
+		hostMDMJoin,
+		failingPoliciesJoin,
+		idPlaceholders,
+		orderExpr, direction, direction,
+	)
+
+	var dataParams []any
+	for _, id := range hostIDs {
+		dataParams = append(dataParams, id)
+	}
+
+	hosts := []*fleet.Host{}
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hosts, dataSQL, dataParams...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list hosts deferred: select data")
 	}
 	for _, host := range hosts {
 		omitUnknownLinuxDiskEncryption(host)

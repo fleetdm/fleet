@@ -1,0 +1,1 @@
+* Improved the error message shown when adding a Fleet-maintained app times out or is canceled by a proxy or load balancer while downloading a large installer.

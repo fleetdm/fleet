@@ -1,18 +1,13 @@
 .query-table-columns {
-  @include flex-column-16px-gap;
+  margin-bottom: $pad-xlarge;
 
   h3 {
     font-size: $small;
     font-weight: $bold;
-    margin: 0;
   }
 
   &__column-list {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
     list-style: none;
-    margin: 0;
     padding-left: 0;
   }
 }

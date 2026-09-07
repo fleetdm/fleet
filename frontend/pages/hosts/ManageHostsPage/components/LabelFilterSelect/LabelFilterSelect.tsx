@@ -16,7 +16,6 @@ import {
 } from "utilities/constants";
 import Icon from "components/Icon";
 import Spinner from "components/Spinner";
-import TooltipTruncatedText from "components/TooltipTruncatedText";
 
 import CustomLabelGroupHeading from "../CustomLabelGroupHeading";
 import { createDropdownOptions, IEmptyOption, IGroupOption } from "./helpers";
@@ -68,11 +67,7 @@ const formatOptionLabel = (data: ILabel | IEmptyOption) => {
           className="option-icon"
         />
       )}
-      <TooltipTruncatedText
-        className="option-label__text"
-        value={displayText}
-        fixedPositionStrategy
-      />
+      <span>{displayText}</span>
     </div>
   );
 };

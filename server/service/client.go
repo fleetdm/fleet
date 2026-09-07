@@ -2512,11 +2512,6 @@ func (c *Client) DoGitOps(
 			mdmAppConfig["apple_require_hardware_attestation"] = false
 		}
 
-		mdmAppConfig["only_allow_apple_business_enrollment"] = incoming.Controls.OnlyAllowAppleBusinessEnrollment
-		if incoming.Controls.OnlyAllowAppleBusinessEnrollment == nil {
-			mdmAppConfig["only_allow_apple_business_enrollment"] = false
-		}
-
 		mdmAppConfig["android_enabled_and_configured"] = incoming.Controls.AndroidEnabledAndConfigured
 		if incoming.Controls.AndroidEnabledAndConfigured != nil {
 			mdmAppConfig["android_enabled_and_configured"] = incoming.Controls.AndroidEnabledAndConfigured

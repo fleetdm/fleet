@@ -23,12 +23,7 @@ interface ICustomLinkProps {
    *
    * @default "default"
    */
-  variant?:
-    | "tooltip-link"
-    | "banner-link"
-    | "flash-message-link"
-    | "default"
-    | "button";
+  variant?: "tooltip-link" | "banner-link" | "flash-message-link" | "default";
 }
 
 const baseClass = "custom-link";
@@ -90,7 +85,7 @@ const CustomLink = ({
   ) : (
     <>
       {text}
-      {newTab && variant !== "button" && (
+      {newTab && (
         <Icon
           name="external-link"
           className={`${baseClass}__external-icon`}
@@ -105,9 +100,7 @@ const CustomLink = ({
       href={url}
       target={target}
       rel="noopener noreferrer"
-      className={
-        variant === "button" ? "button button--default" : customLinkClass
-      }
+      className={customLinkClass}
       tabIndex={disableKeyboardNavigation ? -1 : 0}
       onClick={handleClick}
     >

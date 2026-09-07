@@ -1,0 +1,1 @@
+- Fixed a database migration that could take hours to complete on deployments with many host certificates.

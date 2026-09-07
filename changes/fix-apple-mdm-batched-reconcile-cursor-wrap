@@ -1,0 +1,1 @@
+- Fixed a bug where the batched Apple MDM profile and declaration reconcilers could skip hosts on deployments with more than 5000 Apple MDM hosts and one or more duplicate hosts.

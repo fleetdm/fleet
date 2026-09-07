@@ -1,0 +1,1 @@
+- Added Windows support for the Fleet-managed local admin account: when the setting is enabled for the host's fleet, fleetd creates the hidden `_fleetadmin` administrator account, keeps it off the sign-in screen, and escrows its password to Fleet.

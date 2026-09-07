@@ -11,7 +11,8 @@
     "lib": ["ES2021.String", "ES2020.Promise"],
     "types": ["*"],
     "paths": {
-      "*": ["./frontend/*"]
+      "*": ["./frontend/*"],
+      "node-sql-parser": ["./node_modules/@sgress454/node-sql-parser"]
     }
   },
   "include": ["./frontend/**/*"],

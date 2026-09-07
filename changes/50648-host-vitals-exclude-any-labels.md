@@ -1,0 +1,1 @@
+- Fixed software (packages, App Store apps and in-house apps) targeted with "exclude any" on a host vitals label being hidden from, and blocked for, every host instead of only the label's members.

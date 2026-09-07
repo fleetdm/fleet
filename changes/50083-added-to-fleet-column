@@ -1,0 +1,2 @@
+* Added a sortable "Added to Fleet" column to the hosts table, showing when each host last enrolled with Fleet.
+* Fixed sort direction on the "Last seen" and "Last fetched" columns of the hosts table so that sort descending puts the oldest date (biggest "days ago" number) first, matching the visible duration rather than the underlying timestamp.

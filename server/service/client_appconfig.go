@@ -42,8 +42,7 @@ func (c *Client) ApplyNoTeamProfiles(profiles []fleet.MDMProfileBatchPayload, op
 		}
 		query += "assume_enabled=true"
 	}
-	err := c.authenticatedRequestWithQuery(map[string]any{"profiles": profiles}, verb, path, nil, query)
-	return rewrapProfileBatchNameErr(err, profiles)
+	return c.authenticatedRequestWithQuery(map[string]interface{}{"profiles": profiles}, verb, path, nil, query)
 }
 
 // GetAppConfig fetches the application config from the server API

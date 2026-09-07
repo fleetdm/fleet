@@ -1,0 +1,1 @@
+- Added support for custom host vitals (`$FLEET_HOST_VITAL_<id>`) in Android configuration profiles and managed app configuration, including per-host value expansion at delivery and automatic resend when a host's value changes.

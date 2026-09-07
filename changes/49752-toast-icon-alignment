@@ -1,0 +1,1 @@
+* Fixed the misaligned icon in `notify.success`/`notify.error` toast notifications so it sits on the first line of the message on both single- and multi-line toasts.

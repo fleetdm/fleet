@@ -77,17 +77,11 @@ parasails.registerPage('articles', {
           apiKey: this.algoliaPublicKey,
           indexName: 'fleetdm',
           container: '#docsearch-query',
-          placeholder: 'Search articles',
+          placeholder: 'Search',
           debug: false,
           clickAnalytics: true,
           searchParameters: {
             facetFilters: ['section:articles']
-          },
-          translations: {
-            button: {
-              buttonText: 'Search articles',
-              buttonAriaLabel: 'Search articles',
-            },
           },
         });
       }

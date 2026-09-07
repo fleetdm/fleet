@@ -7,9 +7,11 @@
   }
 
   &__sync-status {
-    display: flex;
-    align-items: center;
-    gap: $gap-icon-text;
+    @include flex-column-8px-gap;
+  }
+
+  &__sync-error {
+    color: $ui-error;
   }
 
   // button-wrap supplies the flex row and gap. Reversed the same way modal-cta-wrap is, so the primary action stays

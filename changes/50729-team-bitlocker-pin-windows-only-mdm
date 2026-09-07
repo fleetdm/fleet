@@ -1,0 +1,1 @@
+* Fixed team-level BitLocker PIN enforcement never reaching Windows hosts when Apple MDM was not configured on the server: the "Create PIN" banner appeared on the My device page, but the queries and MDM command that enable PIN setup were never sent.

@@ -31,7 +31,6 @@ const createDefaultDeviceResponse = (): IDUPDetails => ({
     mdm: {
       enabled_and_configured: false,
       require_all_software_macos: false,
-      only_allow_apple_business_enrollment: false,
     },
     features: {
       enable_software_inventory: false,
