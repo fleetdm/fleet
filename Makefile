@@ -453,13 +453,21 @@ test: lint test-go test-js
 	@echo "Generate and bundle required Go code and Javascript code"
 generate: clean-assets generate-js generate-go
 
-generate-ci:
+generate-ci: generate-osquery-sql-parser
 	NODE_OPTIONS=--openssl-legacy-provider NODE_ENV=development yarn run webpack
 	make generate-go
 
+# The generated parser is gitignored; it is regenerated here and by the yarn
+# pre-hooks of every script that consumes it (test, lint, storybook). This
+# target is also the way to (re)create the file manually, e.g. to debug it.
+.help-short--generate-osquery-sql-parser:
+	@echo "Generate the osquery SQL parser from its grammar (frontend/utilities/osquery_sql_parser)"
+generate-osquery-sql-parser:
+	yarn generate:osquery-sql-parser
+
 .help-short--generate-js:
 	@echo "Generate and bundle required js code"
-generate-js: clean-assets .prefix
+generate-js: clean-assets .prefix generate-osquery-sql-parser
 	NODE_ENV=production yarn run webpack --progress
 
 .help-short--generate-go:
@@ -474,7 +482,7 @@ generate-go: .prefix
 # run webpack in watch mode to continuously re-generate the bundle
 .help-short--generate-dev:
 	@echo "Generate and bundle required Javascript code in a watch loop"
-generate-dev: .prefix
+generate-dev: .prefix generate-osquery-sql-parser
 	NODE_ENV=development yarn run webpack --progress
 	go run github.com/kevinburke/go-bindata/go-bindata -debug -pkg=bindata -tags full \
 		-o=server/bindata/generated.go \

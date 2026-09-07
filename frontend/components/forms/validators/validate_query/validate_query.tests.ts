@@ -1,6 +1,10 @@
-import { validateQuery, EMPTY_QUERY_ERR, INVALID_SYNTAX_ERR } from ".";
+import {
+  validateQuery,
+  EMPTY_QUERY_ERR,
+  expectedSelectErr,
+  invalidSyntaxOnLineErr,
+} from ".";
 
-const malformedQueries = ["this is not a thing", "SELECT * FROM foo bar baz"];
 const validQueries = [
   "SELECT * FROM users",
   "select i.*, p.resident_size, p.user_time, p.system_time, time.minutes as " +
@@ -12,18 +16,34 @@ const validQueries = [
     "and p.key = 'SUFeedURL' and feed_url like 'http://%') feeds left outer " +
     "join preferences p2 on p2.path = app_path || '/Info.plist' where " +
     "(p2.key = 'CFBundleShortVersionString' OR coalesce(p2.key, '') = '')",
+];
+
+// osquery only executes SELECT statements, so anything else is invalid even
+// when it is well-formed SQLite. Comment-only input belongs here too: it
+// contains no statement at all, and would save and then silently do nothing.
+const nonSelectQueries = [
   'INSERT INTO users (name) values ("Mike")',
   "CREATE TABLE users (LastName varchar(255))",
+  'UPDATE users SET name = "Mike"',
+  "DELETE FROM users",
+  "DROP TABLE users",
+  "ALTER TABLE users ADD COLUMN age int",
+  "ATTACH DATABASE '/tmp/other.db' AS other",
+  'SELECT 1; INSERT INTO users (name) values ("Mike")',
+  "-- just a comment",
+  "/* just a comment */",
 ];
 
 describe("validateQuery", () => {
-  it("rejects malformed queries", () => {
-    malformedQueries.forEach((query) => {
-      const { error, valid } = validateQuery(query);
-
-      expect(valid).toEqual(false);
-      expect(error).toMatch(INVALID_SYNTAX_ERR);
+  it("rejects malformed queries with the error location", () => {
+    expect(validateQuery("this is not a thing")).toEqual({
+      valid: false,
+      error: expectedSelectErr(1),
     });
+
+    const { error, valid } = validateQuery("SELECT * FROM foo bar baz");
+    expect(valid).toEqual(false);
+    expect(error).toEqual(invalidSyntaxOnLineErr(1, 23));
   });
 
   it("rejects blank queries", () => {
@@ -42,9 +62,28 @@ describe("validateQuery", () => {
       expect(error).toBeFalsy();
     });
   });
+
+  it("rejects non-SELECT statements, pointing at the offending line", () => {
+    nonSelectQueries.forEach((query) => {
+      const { error, valid } = validateQuery(query);
+      expect(valid).toEqual(false);
+      expect(error).toEqual(expectedSelectErr(1));
+    });
+
+    // The location reflects the original text, including leading blank lines
+    // and statements after the first semicolon.
+    expect(validateQuery("\n\nDROP TABLE users")).toEqual({
+      valid: false,
+      error: expectedSelectErr(3),
+    });
+    expect(validateQuery("SELECT 1 FROM users;\nDELETE FROM users")).toEqual({
+      valid: false,
+      error: expectedSelectErr(2),
+    });
+  });
 });
 
-describe("node-sql-parser integration", () => {
+describe("osquery_sql_parser integration", () => {
   it("#30109 - allow custom escape characters in LIKE clauses", () => {
     const query = `
 WITH localusers AS (

@@ -247,6 +247,14 @@ During the window of time available to investigate an issue, use the resources a
 
 Note: For non-CSA engaged customer requests, CSE's are responsible for escalations to a CSA as needed. 
 
+If an issue is causing serious problems for a customer and support hasn't found a resolution within **1 business day**, stop investigating solo and escalate to engineering:
+
+1. [File a bug report](#file-a-customer-bug-report) (or locate the existing issue) so the problem is tracked in GitHub, not only in Slack threads.
+2. Add the appropriate [priority label](https://fleetdm.com/handbook/company/product-groups#high-priority-user-stories-and-bugs) and assign the issue to the product group's Engineering Manager so it's prioritized at the next standup.
+3. Keep investigating together with engineering. Escalating isn't handing off; it's adding help.
+
+Don't wait for the issue to become an incident. Escalating on day one gives engineering time to help during business hours instead of scrambling near a deadline or over a weekend.
+
 ### Keep support conversations in one thread
 
 A single issue can sprawl across the customer channel, #help-customers, #help-engineering, and a product group channel, making it hard to track. To keep full context in one place:

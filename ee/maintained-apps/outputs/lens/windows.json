@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "2026.8.270956-latest",
+      "version": "2026.9.20601-latest",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'Lens %' AND publisher = 'Mirantis, Inc.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Lens %' AND publisher = 'Mirantis, Inc.' AND version_compare(version, '2026.8.270956-latest') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Lens %' AND publisher = 'Mirantis, Inc.' AND version_compare(version, '2026.9.20601-latest') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'lens.exe');"
       },
-      "installer_url": "https://downloads.k8slens.dev/ide/Lens%20Setup%202026.8.270956-latest.exe",
+      "installer_url": "https://downloads.k8slens.dev/ide/Lens%20Setup%202026.9.20601-latest.exe",
       "install_script_ref": "c6fa52b0",
       "uninstall_script_ref": "415f448d",
-      "sha256": "e6da7a8f1976c7402564e359aea206814cb9d1d537007c493e01383c2b521b85",
+      "sha256": "af6c3aba1918f29ad23576f0f33af944fb41a6f7644cd68e38501a21e8baf226",
       "default_categories": [
         "Developer tools"
       ]

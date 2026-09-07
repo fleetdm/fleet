@@ -49,8 +49,6 @@ const config = {
     "#minpath": "<rootDir>/node_modules/vfile/lib/minpath.browser.js",
     "#minproc": "<rootDir>/node_modules/vfile/lib/minproc.browser.js",
     "#minurl": "<rootDir>/node_modules/vfile/lib/minurl.browser.js",
-    "^node-sql-parser$":
-      "<rootDir>/node_modules/@sgress454/node-sql-parser/umd/sqlite.umd.js",
     // The editor barrels wrap their component in React.lazy so ace stays out
     // of the entry chunk. jsdom has no chunk to fetch, so that boundary adds no
     // coverage here — only Suspense resolutions landing outside act(), which
@@ -67,6 +65,11 @@ const config = {
       "<rootDir>/frontend/test/fileTransform.js",
   },
   testMatch: ["**/*tests.[jt]s?(x)"],
+  // Setting this replaces Jest's default, so /node_modules/ must be restated.
+  coveragePathIgnorePatterns: [
+    "/node_modules/",
+    "<rootDir>/frontend/utilities/osquery_sql_parser/osquery_sql_parser.generated.js",
+  ],
   setupFilesAfterEnv: ["<rootDir>/frontend/test/test-setup.ts"],
   clearMocks: true,
   testEnvironmentOptions: {
