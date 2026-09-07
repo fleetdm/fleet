@@ -1,16 +1,18 @@
 #!/bin/bash
-# Upgrades Claude Desktop to the newest version in Anthropic's apt repository.
-# Runs as the remediation for the "Claude up to date (Linux)" policy.
+# Upgrades Claude Desktop from Anthropic's apt repository (policy remediation).
 #
-# Normal path: refresh only Anthropic's repo index, then apt-get install.
-# Fallback (repo entry missing, e.g. CLAUDE_DESKTOP_ADD_REPO="false"): download
-# the newest .deb from the package pool, verify its SHA256, and install it.
+# An in-place upgrade while the app is open leaves the old main process spawning
+# helpers from the new binary, so the upgrade is deferred (exit 0) while Claude is
+# running and proceeds once it's closed, or after MAX_DEFER_DAYS regardless.
+# Falls back to the .deb from the package pool if the repo entry is missing.
 
 set -euo pipefail
 
 PKG="claude-desktop"
 REPO="https://downloads.claude.ai/claude-desktop/apt/stable"
 LIST="/etc/apt/sources.list.d/claude-desktop.list"
+MARKER="/var/lib/fleet/claude-desktop-update-deferred"
+MAX_DEFER_DAYS=7
 export DEBIAN_FRONTEND=noninteractive
 APT_OPTS=(-y -o DPkg::Lock::Timeout=300)
 
@@ -22,6 +24,19 @@ fi
 if ! command -v apt-get >/dev/null 2>&1 || ! command -v dpkg >/dev/null 2>&1; then
   echo "[update-claude-desktop] apt-get/dpkg not found. Claude Desktop is only published for Debian-based Linux." >&2
   exit 1
+fi
+
+if pgrep -x "$PKG" >/dev/null 2>&1; then
+  if [ ! -e "$MARKER" ]; then
+    mkdir -p "$(dirname "$MARKER")"
+    touch "$MARKER"
+  fi
+  deferred_for=$(( ( $(date +%s) - $(stat -c %Y "$MARKER") ) / 86400 ))
+  if [ "$deferred_for" -lt "$MAX_DEFER_DAYS" ]; then
+    echo "[update-claude-desktop] Claude is open; deferring the upgrade (deferred for $deferred_for of $MAX_DEFER_DAYS days). Will retry on the next policy run."
+    exit 0
+  fi
+  echo "[update-claude-desktop] Claude is open but the upgrade has been deferred for $deferred_for days; upgrading anyway. The user should relaunch Claude afterwards."
 fi
 
 before="$(dpkg-query -W -f='${Version}' "$PKG" 2>/dev/null || echo none)"
@@ -77,5 +92,6 @@ else
   install_from_pool
 fi
 
+rm -f "$MARKER"
 after="$(dpkg-query -W -f='${Version}' "$PKG" 2>/dev/null || echo none)"
 echo "[update-claude-desktop] $PKG: $before -> $after"
