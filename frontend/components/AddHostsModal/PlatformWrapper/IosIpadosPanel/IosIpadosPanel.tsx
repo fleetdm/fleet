@@ -33,6 +33,10 @@ const IosIpadosPanel = ({
 
   if (!config) return null;
 
+  if (isManualAppleEnrollmentsBlocked) {
+    return renderAppleManualEnrollmentDisabled("iOS & iPadOS");
+  }
+
   if (!isMacMdmEnabledAndConfigured) {
     return (
       <p>
@@ -44,10 +48,6 @@ const IosIpadosPanel = ({
         to enroll iOS & iPadOS hosts.
       </p>
     );
-  }
-
-  if (isManualAppleEnrollmentsBlocked) {
-    return renderAppleManualEnrollmentDisabled("iOS & iPadOS");
   }
 
   const url = getPathWithQueryParams(

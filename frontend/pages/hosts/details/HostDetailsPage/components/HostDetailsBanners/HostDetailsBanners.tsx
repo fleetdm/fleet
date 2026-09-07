@@ -6,11 +6,11 @@ import {
   DiskEncryptionStatus,
   MdmEnrollmentStatus,
   isAutomaticDeviceEnrollment,
-  isEnrolledInMdm,
 } from "interfaces/mdm";
 import { IOSSettings } from "interfaces/host";
 import {
   HostPlatform,
+  isAppleDevice,
   isDiskEncryptionSupportedLinuxPlatform,
 } from "interfaces/platform";
 
@@ -103,7 +103,8 @@ const HostDetailsBanners = ({
   if (
     onlyAllowAppleBusinessEnrollment &&
     !depAssignedToFleet &&
-    mdmEnrollmentStatus === "Off"
+    isMdmUnenrolled &&
+    isAppleDevice(hostPlatform)
   ) {
     return (
       <div className={baseClass}>
@@ -119,8 +120,9 @@ const HostDetailsBanners = ({
 
   if (
     onlyAllowAppleBusinessEnrollment &&
-    isEnrolledInMdm(mdmEnrollmentStatus) &&
-    (!isAutomaticDeviceEnrollment(mdmEnrollmentStatus) || !depAssignedToFleet)
+    isAppleDevice(hostPlatform) &&
+    !depAssignedToFleet &&
+    !isAutomaticDeviceEnrollment(mdmEnrollmentStatus)
   ) {
     return (
       <div className={baseClass}>

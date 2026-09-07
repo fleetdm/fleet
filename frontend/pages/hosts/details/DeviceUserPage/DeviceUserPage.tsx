@@ -392,6 +392,9 @@ const DeviceUserPage = ({
     host?.platform === "windows" ||
     isMacOS(host?.platform || "");
 
+  const isManualAppleEnrollmentBlocked =
+    globalConfig?.mdm.only_allow_apple_business_enrollment ?? false;
+
   const isFleetMdmManualUnenrolledMac =
     !!globalConfig?.mdm.enabled_and_configured &&
     !!host &&
@@ -457,7 +460,10 @@ const DeviceUserPage = ({
     ["mdm_mandual_enroll_url", deviceAuthToken],
     () => deviceUserAPI.getMdmManualEnrollUrl(deviceAuthToken),
     {
-      enabled: !!deviceAuthToken && isFleetMdmManualUnenrolledMac,
+      enabled:
+        !!deviceAuthToken &&
+        isFleetMdmManualUnenrolledMac &&
+        !isManualAppleEnrollmentBlocked,
       refetchOnMount: false,
       refetchOnReconnect: false,
       refetchOnWindowFocus: false,

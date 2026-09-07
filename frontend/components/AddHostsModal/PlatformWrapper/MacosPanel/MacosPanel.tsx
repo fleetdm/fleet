@@ -42,6 +42,10 @@ const MacosPanel = ({
 
   if (!config) return null;
 
+  if (isManualAppleEnrollmentsBlocked) {
+    return renderAppleManualEnrollmentDisabled("macOS");
+  }
+
   if (isMacMdmEnabledAndConfigured) {
     const enrollUrl = getPathWithQueryParams(
       `${config.server_settings.server_url}/enroll`,
@@ -50,10 +54,6 @@ const MacosPanel = ({
         byod: deviceType === "personalBYOD" ? "true" : undefined,
       }
     );
-
-    if (isManualAppleEnrollmentsBlocked) {
-      return renderAppleManualEnrollmentDisabled("macOS");
-    }
 
     return (
       <div className={baseClass}>
