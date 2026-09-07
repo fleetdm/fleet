@@ -1,7 +1,7 @@
 import React, { useCallback, useRef, useState } from "react";
 import { isEqual } from "lodash";
 
-import useFormValidation from "hooks/useFormValidation";
+import useFormValidation, { trimFormData } from "hooks/useFormValidation";
 
 import SettingsSection from "pages/admin/components/SettingsSection";
 import PageDescription from "components/PageDescription";
@@ -91,7 +91,8 @@ const Sso = ({
   );
 
   const hasUnsavedChanges =
-    !isEqual(formData, originalFormData.current) || endUserHasUnsavedChanges;
+    !isEqual(trimFormData(formData), originalFormData.current) ||
+    endUserHasUnsavedChanges;
 
   const handleTabChange = useCallback(
     (index: number) => {

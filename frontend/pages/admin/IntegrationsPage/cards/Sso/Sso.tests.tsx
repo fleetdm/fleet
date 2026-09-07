@@ -76,6 +76,13 @@ describe("Sso - Fleet users", () => {
     expect(confirmSpy).not.toHaveBeenCalled();
   });
 
+  it("does not prompt on tab switch when only whitespace was added", async () => {
+    const { user } = renderSso();
+    await user.type(screen.getByLabelText("Identity provider name"), "   ");
+    await user.click(screen.getByText("End users"));
+    expect(confirmSpy).not.toHaveBeenCalled();
+  });
+
   it("keeps save enabled and shows every error when submitting an invalid form", async () => {
     const handleSubmit = jest.fn().mockResolvedValue(true);
     const render = createTestRenderer();

@@ -6,7 +6,7 @@ import { expandErrorReasonRequired } from "interfaces/errors";
 import { IEndUserAuthentication } from "interfaces/config";
 import configAPI from "services/entities/config";
 import { AppContext } from "context/app";
-import useFormValidation from "hooks/useFormValidation";
+import useFormValidation, { trimFormData } from "hooks/useFormValidation";
 
 import InputField from "components/forms/fields/InputField";
 import Button from "components/buttons/Button/Button";
@@ -62,7 +62,10 @@ const EndUserAuthSection = ({
     validate: validateEndUserAuthForm,
   });
 
-  const hasUnsavedChanges = !isEqual(formData, originalFormData.current);
+  const hasUnsavedChanges = !isEqual(
+    trimFormData(formData),
+    originalFormData.current
+  );
 
   const onFieldChange = (name: keyof IFormDataIdp, value: string) => {
     setField(name, value);

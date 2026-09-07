@@ -193,6 +193,18 @@ describe("EndUserAuthSection", () => {
     expect(onDirtyChange).toHaveBeenLastCalledWith(false);
   });
 
+  it("does not report unsaved changes for whitespace the submit would trim", async () => {
+    const onDirtyChange = jest.fn();
+    const { user } = renderEndUserAuthSection({
+      endUserAuth: CONFIGURED_END_USER_AUTH,
+      onDirtyChange,
+    });
+
+    await user.type(screen.getByLabelText("Identity provider name"), "   ");
+
+    expect(onDirtyChange).toHaveBeenLastCalledWith(false);
+  });
+
   it("stops reporting unsaved changes after a successful save", async () => {
     const onDirtyChange = jest.fn();
     const { user } = renderEndUserAuthSection({
