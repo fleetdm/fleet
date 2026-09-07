@@ -474,6 +474,22 @@ export const HOST_VITALS_DATA = [
   "timezone",
   "mdm_enrollment_hardware_attested",
   "primary_mac",
+  // Android-only vitals. Absent for every other platform, so they're simply
+  // dropped by the pick rather than needing a platform check here.
+  "adb_enabled",
+  "passcode_protected",
+  "play_protect_enabled",
+  "encryption_type",
+  "manufacturer",
+  "security_update_version",
+  "device_kernel_version",
+  "bootloader_version",
+  "system_update_status",
+  "security_posture",
+  "imei",
+  "meid",
+  "api_level",
+  "telephony_infos",
 ];
 
 export const HOST_OSQUERY_DATA = [

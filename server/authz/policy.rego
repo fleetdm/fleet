@@ -1470,6 +1470,16 @@ allow {
 }
 
 ##
+# Microsoft Graph credentials
+##
+# Global admins and gitops can read and write Microsoft Graph credentials.
+allow {
+  object.type == "microsoft_graph_credential"
+  subject.global_role == [admin, gitops][_]
+  action == [read, write][_]
+}
+
+##
 # Certificate Authorities
 ##
 # Global admins and gitops can configure, read, list, and read secrets of certificate authorities.

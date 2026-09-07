@@ -583,6 +583,17 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 		hopt.PopulateUsers = pu
 	}
 
+	populateEndUsers := r.URL.Query().Get("populate_end_users")
+	if populateEndUsers != "" {
+		peu, err := strconv.ParseBool(populateEndUsers)
+		if err != nil {
+			return hopt, ctxerr.Wrap(
+				r.Context(), badRequest(fmt.Sprintf("Invalid boolean parameter populate_end_users: %s", populateEndUsers)),
+			)
+		}
+		hopt.PopulateEndUsers = peu
+	}
+
 	populateLabels := r.URL.Query().Get("populate_labels")
 	if populateLabels != "" {
 		pl, err := strconv.ParseBool(populateLabels)

@@ -122,7 +122,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 			}
 		}
 		if mockDS.ListMicrosoftGraphCredentialMetadataFunc == nil {
-			mockDS.ListMicrosoftGraphCredentialMetadataFunc = func(ctx context.Context) ([]*fleet.MicrosoftGraphCredential, error) {
+			mockDS.ListMicrosoftGraphCredentialMetadataFunc = func(ctx context.Context) ([]*fleet.MicrosoftGraphCredentialMetadata, error) {
 				return nil, nil
 			}
 		}
@@ -621,6 +621,7 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 				"https://test-url.com",
 				cfg,
 				svc,
+				ds,
 			)
 			require.NoError(t, err)
 		}

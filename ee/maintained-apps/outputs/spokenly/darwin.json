@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "2.28.5",
+      "version": "2.29.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'app.spokenly';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'app.spokenly' AND version_compare(bundle_short_version, '2.28.5') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'app.spokenly' AND version_compare(bundle_short_version, '2.29.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'app.spokenly' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://cdn.spokenly.app/releases/macos/Spokenly-2.28.5.dmg",
+      "installer_url": "https://cdn.spokenly.app/releases/macos/Spokenly-2.29.0.dmg",
       "install_script_ref": "11a51e11",
       "uninstall_script_ref": "99a71452",
-      "sha256": "41488cd860bf001f5ba333e6b5788ba3a6e76fa1cb3d0825fad049efe522c3b1",
+      "sha256": "558b283046b423a3b14b127e00ab777b83ee882da2f25a8a641aad6f8e9e85e5",
       "default_categories": [
         "Productivity"
       ]

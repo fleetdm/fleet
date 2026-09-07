@@ -8,6 +8,7 @@ const baseClass = "input-field-hidden-content";
 interface IInputFieldHiddenContentProps {
   value: string;
   name?: string;
+  label?: string;
   className?: string;
   helpText?: string | JSX.Element;
 }
@@ -16,6 +17,7 @@ interface IInputFieldHiddenContentProps {
 const InputFieldHiddenContent = ({
   value,
   name,
+  label,
   className,
   helpText,
 }: IInputFieldHiddenContentProps) => {
@@ -27,6 +29,7 @@ const InputFieldHiddenContent = ({
         readOnly
         inputWrapperClass={`${baseClass}__secret-input`}
         name={name}
+        label={label}
         enableShowSecret
         enableCopy
         type={"password"}
