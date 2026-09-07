@@ -1293,6 +1293,12 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		}
 	}
 
+	// clear cert renewals before saving app config, as doing it after with failure can lead to incorrect renewal attempts.
+	// even if we fail to actually save, this is a safe operation to retry.
+	if err := clearCertRenewals(ctx, svc, oldAppConfig, appConfig); err != nil {
+		return nil, err
+	}
+
 	if err := svc.ds.SaveAppConfig(ctx, appConfig); err != nil {
 		return nil, err
 	}
@@ -1549,19 +1555,6 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		}
 	}
 
-	// clear cert renewals before saving app config, as doing it after with failure can lead to incorrect renewal attempts.
-	// even if we fail to actually save, this is a safe operation to retry.
-	if oldAppConfig.MDM.OnlyAllowAppleBusinessEnrollment != appConfig.MDM.OnlyAllowAppleBusinessEnrollment ||
-		oldAppConfig.MDM.AppleRequireHardwareAttestation != appConfig.MDM.AppleRequireHardwareAttestation {
-		if err := svc.ds.ClearCertRenewalExclusions(ctx); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "clearing cert renewal exclusions")
-		}
-
-		if err := svc.ds.ResetPendingCertRenewals(ctx); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "resetting pending cert renewals")
-		}
-	}
-
 	// retrieve new app config with obfuscated secrets
 	obfuscatedAppConfig, err := svc.ds.AppConfig(ctxdb.RequirePrimary(ctx, true))
 	if err != nil {
@@ -1580,6 +1573,20 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	}
 
 	return obfuscatedAppConfig, nil
+}
+
+func clearCertRenewals(ctx context.Context, svc *Service, oldAppConfig, appConfig *fleet.AppConfig) error {
+	if oldAppConfig.MDM.OnlyAllowAppleBusinessEnrollment != appConfig.MDM.OnlyAllowAppleBusinessEnrollment ||
+		oldAppConfig.MDM.AppleRequireHardwareAttestation != appConfig.MDM.AppleRequireHardwareAttestation {
+		if err := svc.ds.ClearCertRenewalExclusions(ctx); err != nil {
+			return ctxerr.Wrap(ctx, err, "clearing cert renewal exclusions")
+		}
+
+		if err := svc.ds.ResetPendingCertRenewals(ctx); err != nil {
+			return ctxerr.Wrap(ctx, err, "resetting pending cert renewals")
+		}
+	}
+	return nil
 }
 
 // processSavedAppConfigChanges runs the side effects of a completed app config change: it creates the activities for the settings
