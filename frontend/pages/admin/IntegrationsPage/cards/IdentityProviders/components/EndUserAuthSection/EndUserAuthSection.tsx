@@ -1,18 +1,15 @@
-import React, {
-  MutableRefObject,
-  useCallback,
-  useContext,
-  useState,
-} from "react";
+import React, { useContext, useEffect, useRef } from "react";
 import { AxiosResponse } from "axios";
+import { isEqual } from "lodash";
 
 import { expandErrorReasonRequired } from "interfaces/errors";
+import { IEndUserAuthentication } from "interfaces/config";
 import configAPI from "services/entities/config";
 import { AppContext } from "context/app";
+import useFormValidation from "hooks/useFormValidation";
 
 import InputField from "components/forms/fields/InputField";
 import Button from "components/buttons/Button/Button";
-import TooltipWrapper from "components/TooltipWrapper";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 import CustomLink from "components/CustomLink";
@@ -20,28 +17,27 @@ import { notify } from "components/ToastNotification";
 
 import {
   IFormDataIdp,
-  IFormErrorsIdp,
   isEmptyFormData,
-  isMissingAnyRequiredField,
-  trimFormDataIdp,
-  validateFormDataIdp,
+  newFormDataIdp,
+  validateEndUserAuthForm,
 } from "./helpers";
 
 const baseClass = "end-user-auth-section";
 
 export interface IEndUserAuthSectionProps {
-  setDirty: (dirty: boolean) => void;
-  formData: IFormDataIdp;
-  setFormData: React.Dispatch<React.SetStateAction<IFormDataIdp>>;
-  originalFormData: MutableRefObject<IFormDataIdp>;
+  /**
+   * The saved config, from the page's own config query. AppContext holds a
+   * separate copy that the refetch after a save doesn't update, so seeding
+   * from there shows pre-save values once the card remounts.
+   */
+  endUserAuth?: IEndUserAuthentication;
+  onDirtyChange: (hasUnsavedChanges: boolean) => void;
   onSubmit: () => void;
 }
 
 const EndUserAuthSection = ({
-  setDirty,
-  formData,
-  setFormData,
-  originalFormData,
+  endUserAuth,
+  onDirtyChange,
   // Notify parent component of changes, since we're calling our own API
   // rather than using the common config update handler.
   onSubmit: announceChanges,
@@ -49,82 +45,62 @@ const EndUserAuthSection = ({
   const { config, isPremiumTier } = useContext(AppContext);
   const gitOpsModeEnabled = config?.gitops.gitops_mode_enabled;
 
-  const [formErrors, setFormErrors] = useState<IFormErrorsIdp | null>(null);
+  const originalFormData = useRef(newFormDataIdp(endUserAuth));
 
-  const isFormCleared =
-    isEmptyFormData(formData) && !isEmptyFormData(originalFormData.current);
+  const {
+    formData,
+    setField,
+    reset,
+    getError,
+    clearFieldError,
+    validateField,
+    handleSubmit,
+    clearErrors,
+    isSubmitting,
+  } = useFormValidation<IFormDataIdp>({
+    initialFormData: originalFormData.current,
+    validate: validateEndUserAuthForm,
+  });
 
-  const enableSaveButton =
-    isFormCleared || (!isMissingAnyRequiredField(formData) && !formErrors);
+  const hasUnsavedChanges = !isEqual(formData, originalFormData.current);
 
-  const onInputChange = useCallback(
-    ({ name, value }: { name: keyof IFormDataIdp; value: string }) => {
-      const newData = { ...formData, [name]: value };
-      setFormData(newData);
-      setDirty(true);
+  const onFieldChange = (name: keyof IFormDataIdp, value: string) => {
+    setField(name, value);
+    // Emptying the last field is how the configuration gets cleared, and an
+    // empty form is valid, so every required-field error stops applying.
+    if (isEmptyFormData({ ...formData, [name]: value })) {
+      clearErrors();
+    }
+  };
 
-      const newErrors = validateFormDataIdp(newData);
-      if (!newErrors) {
-        // don't wait for onBlur to clear form errors if there are no new errors
-        setFormErrors(null);
-      } else if (formErrors?.[name] && !newErrors[name]) {
-        // don't wait for onBlur to update error on this field
-        setFormErrors(newErrors);
-      } else if (name === "metadata") {
-        // FIXME: See comment to InputField component regarding onBlur prop for textarea. For now,
-        // this check just always updates form errors whenever metadata field changes because
-        // onBlur doesn't currently work for textareas.
-        setFormErrors(newErrors);
-      }
-    },
-    [formData, setFormData, formErrors, setDirty]
-  );
+  useEffect(() => {
+    onDirtyChange(hasUnsavedChanges);
+  }, [hasUnsavedChanges, onDirtyChange]);
 
-  const onBlur = useCallback(() => {
-    const trimmed = trimFormDataIdp(formData);
-    setFormData(trimmed);
-    setFormErrors(validateFormDataIdp(trimmed));
-  }, [formData, setFormData]);
-
-  const onSubmit = useCallback(
-    async (e: React.FormEvent<SubmitEvent>) => {
-      e.preventDefault();
-      const trimmed = trimFormDataIdp(formData);
-      setFormData(trimmed);
-
-      const newErrors = validateFormDataIdp(trimmed);
-      if (newErrors) {
-        setFormErrors(newErrors);
+  const onValidSubmit = async (submitData: IFormDataIdp) => {
+    try {
+      await configAPI.update({
+        mdm: {
+          end_user_authentication: {
+            ...submitData,
+          },
+        },
+      });
+      notify.success("Successfully updated end user authentication.");
+      originalFormData.current = submitData;
+      reset(submitData);
+      announceChanges();
+    } catch (err) {
+      const ae = (typeof err === "object" ? err : {}) as AxiosResponse;
+      if (ae.status === 422) {
+        notify.error(`Couldn't update: ${expandErrorReasonRequired(err)}.`, {
+          response: err,
+        });
         return;
       }
-
-      try {
-        await configAPI.update({
-          mdm: {
-            end_user_authentication: {
-              ...trimmed,
-            },
-          },
-        });
-        notify.success("Successfully updated end user authentication.");
-        originalFormData.current = { ...formData };
-        setDirty(false);
-        // Notify parent component of changes, since we're calling our own API
-        // rather than using the common config update handler.
-        announceChanges();
-      } catch (err) {
-        const ae = (typeof err === "object" ? err : {}) as AxiosResponse;
-        if (ae.status === 422) {
-          notify.error(`Couldn't update: ${expandErrorReasonRequired(err)}.`, {
-            response: err,
-          });
-          return;
-        }
-        notify.error("Couldn't update. Please try again.", { response: err });
-      }
-    },
-    [formData, setFormData, setDirty]
-  );
+      notify.error("Couldn't update. Please try again.", { response: err });
+    }
+  };
 
   const renderContent = () => {
     if (!isPremiumTier) {
@@ -132,7 +108,7 @@ const EndUserAuthSection = ({
     }
 
     return (
-      <form>
+      <form onSubmit={handleSubmit(onValidSubmit)}>
         <p>
           After configuring, head to{" "}
           <strong>
@@ -152,22 +128,24 @@ const EndUserAuthSection = ({
         >
           <InputField
             label="Identity provider name"
-            onChange={onInputChange}
-            onBlur={onBlur}
             name="idp_name"
             value={formData.idp_name}
-            parseTarget
-            error={formErrors?.idp_name}
+            error={getError("idp_name")}
+            onChange={(value: string) => onFieldChange("idp_name", value)}
+            onFocus={() => clearFieldError("idp_name")}
+            onBlur={() => validateField("idp_name")}
+            disabled={isSubmitting}
             tooltip="A required human friendly name for the identity provider that will provide single sign-on authentication."
           />
           <InputField
             label="Entity ID"
-            onChange={onInputChange}
-            onBlur={onBlur}
             name="entity_id"
             value={formData.entity_id}
-            parseTarget
-            error={formErrors?.entity_id}
+            error={getError("entity_id")}
+            onChange={(value: string) => onFieldChange("entity_id", value)}
+            onFocus={() => clearFieldError("entity_id")}
+            onBlur={() => validateField("entity_id")}
+            disabled={isSubmitting}
             tooltip="The Entity ID is a required URI that you use to identify Fleet when configuring the identity provider. Okta calls this Audience Restriction."
           />
           <InputField
@@ -178,40 +156,38 @@ const EndUserAuthSection = ({
                 <b>Metadata URL</b> will be used.
               </>
             }
-            onChange={onInputChange}
-            onBlur={onBlur}
             name="metadata_url"
             value={formData.metadata_url}
-            parseTarget
-            error={formErrors?.metadata_url}
+            error={getError("metadata_url")}
+            onChange={(value: string) => onFieldChange("metadata_url", value)}
+            onFocus={() => clearFieldError("metadata_url")}
+            onBlur={() => validateField("metadata_url")}
+            disabled={isSubmitting}
             tooltip="Metadata URL provided by the identity provider."
           />
           <InputField
             label="Metadata"
             type="textarea"
-            onChange={onInputChange}
             name="metadata"
             value={formData.metadata}
-            parseTarget
-            error={formErrors?.metadata}
+            error={getError("metadata")}
+            onChange={(value: string) => onFieldChange("metadata", value)}
+            onFocus={() => clearFieldError("metadata")}
+            onBlur={() => validateField("metadata")}
+            disabled={isSubmitting}
             tooltip="Metadata XML provided by the identity provider."
           />
         </div>
         <GitOpsModeTooltipWrapper
           renderChildren={(disableChildren) => (
-            <TooltipWrapper
-              tipContent="Complete all required fields to save end user authentication."
-              disableTooltip={enableSaveButton || disableChildren}
-              underline={false}
+            <Button
+              type="submit"
+              disabled={isSubmitting || disableChildren}
+              isLoading={isSubmitting}
+              className="button-wrap"
             >
-              <Button
-                disabled={!enableSaveButton || disableChildren}
-                onClick={onSubmit}
-                className="button-wrap"
-              >
-                Save
-              </Button>
-            </TooltipWrapper>
+              Save
+            </Button>
           )}
         />
       </form>

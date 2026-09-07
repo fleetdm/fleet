@@ -1,4 +1,5 @@
 import { IEndUserAuthentication } from "interfaces/config";
+import { IFormErrors } from "hooks/useFormValidation";
 
 import isURL from "validator/lib/isURL";
 
@@ -22,86 +23,56 @@ export const newFormDataIdp = (
 
 export const isEmptyFormData = (data: IFormDataIdp) => {
   return (
-    !data.idp_name && !data.entity_id && !data.metadata && !data.metadata_url
+    !data.idp_name.trim() &&
+    !data.entity_id.trim() &&
+    !data.metadata.trim() &&
+    !data.metadata_url.trim()
   );
 };
 
-export const isMissingAnyRequiredField = (data: IFormDataIdp) => {
-  return (
-    !data.idp_name || !data.entity_id || (!data.metadata && !data.metadata_url)
-  );
-};
-
-const errorIdpName = (data: IFormDataIdp) => {
-  if (!data.idp_name) {
-    return "Identity provider name must be present.";
-  }
-  return "";
-};
-
-const errorEntityId = (data: IFormDataIdp) => {
-  if (!data.entity_id) {
-    return "Entity ID must be present.";
-  }
-  return "";
-};
-
-const errorMetadataUrl = (data: IFormDataIdp) => {
-  switch (true) {
-    case !data.metadata && !data.metadata_url:
-      return "Metadata or Metadata URL must be present.";
-    case data.metadata_url && !isURL(data.metadata_url):
-      return "Metadata URL is not a valid URL.";
-    case data.metadata_url &&
-      !isURL(data.metadata_url, {
-        require_protocol: true,
-        protocols: ["http", "https"],
-      }):
-      return `Metadata URL must start with a supported protocol (https:// or http://).`;
-    default:
-      return "";
-  }
-};
-
-const errorMetadata = (data: IFormDataIdp) => {
-  if (!data.metadata && !data.metadata_url) {
-    return "Metadata or Metadata URL must be present.";
-  }
-  return "";
-};
-
-const validators = {
-  idp_name: errorIdpName,
-  entity_id: errorEntityId,
-  metadata_url: errorMetadataUrl,
-  metadata: errorMetadata,
-} as const;
-
-export const trimFormDataIdp = (data: IFormDataIdp): IFormDataIdp => ({
+const trimFormDataIdp = (data: IFormDataIdp): IFormDataIdp => ({
   idp_name: data.idp_name.trim(),
   entity_id: data.entity_id.trim(),
   metadata_url: data.metadata_url.trim(),
   metadata: data.metadata.trim(),
 });
 
-export type IFormErrorsIdp = Partial<Record<keyof IFormDataIdp, string>>;
+export const validateEndUserAuthForm = (
+  formData: IFormDataIdp
+): IFormErrors => {
+  const errors: IFormErrors = {};
+  const data = trimFormDataIdp(formData);
 
-export const validateFormDataIdp = (
-  data: IFormDataIdp
-): IFormErrorsIdp | null => {
-  let formErrors: IFormErrorsIdp | null = null;
+  // An entirely empty form is how an admin clears the configuration, so it is
+  // valid — required fields only apply once one of them has a value.
   if (isEmptyFormData(data)) {
-    return formErrors;
+    return errors;
   }
-  Object.entries(validators).forEach(([k, v]) => {
-    const err = v(data);
-    if (err) {
-      if (!formErrors) {
-        formErrors = { [k as keyof IFormDataIdp]: err };
-      } else {
-        formErrors[k as keyof IFormDataIdp] = err;
-      }
+
+  if (!data.idp_name) {
+    errors.idp_name = "Enter an identity provider name";
+  }
+
+  if (!data.entity_id) {
+    errors.entity_id = "Enter an entity ID";
+  }
+
+  if (!data.metadata && !data.metadata_url) {
+    errors.metadata = "Enter metadata or a metadata URL";
+    errors.metadata_url = "Enter metadata or a metadata URL";
+  } else if (data.metadata_url) {
+    if (!isURL(data.metadata_url)) {
+      errors.metadata_url = "Enter a valid metadata URL";
+    } else if (
+      !isURL(data.metadata_url, {
+        require_protocol: true,
+        protocols: ["http", "https"],
+      })
+    ) {
+      errors.metadata_url =
+        "Enter a metadata URL starting with https:// or http://";
     }
-  });
-  return formErrors;
+  }
+
+  return errors;
 };
