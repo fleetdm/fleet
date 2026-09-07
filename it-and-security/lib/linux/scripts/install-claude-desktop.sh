@@ -1,12 +1,6 @@
 #!/bin/bash
 # Installs the newest Claude Desktop from Anthropic's apt package pool on
 # Debian-based hosts (amd64 or arm64).
-#
-# The .deb's own postinst registers Anthropic's apt repository, signing key,
-# and an unattended-upgrades allowlist entry, so after this runs the host
-# can update with `apt-get install claude-desktop` (see update-claude-desktop.sh).
-# Admins can opt out of that by setting CLAUDE_DESKTOP_ADD_REPO="false" in
-# /etc/default/claude-desktop before install.
 
 set -euo pipefail
 
