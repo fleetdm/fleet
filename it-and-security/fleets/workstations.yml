@@ -19,9 +19,7 @@ settings:
       enable_calendar_events: true
       webhook_url: $DOGFOOD_CALENDAR_WEBHOOK_URL
 agent_options:
-  # Linux script-only installs (e.g. Claude Desktop pulls ~145 MB plus recommended
-  # QEMU packages) can exceed the 300 s default on slow links.
-  script_execution_timeout: 900
+  script_execution_timeout: 600
   config:
     options:
       pack_delimiter: /
