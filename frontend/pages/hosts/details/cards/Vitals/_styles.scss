@@ -123,6 +123,11 @@
     display: inline-flex;
     align-items: center;
     gap: $pad-xsmall;
+
+    // Cancel the pencil icon's vertical padding to keep the custom vital aligned with the rest of the grid.
+    .button {
+      margin-block: -$pad-xsmall;
+    }
   }
 
   .text-muted {
