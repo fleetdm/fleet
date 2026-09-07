@@ -149,9 +149,6 @@ const GlobalHostStatusWebhook = ({
     []
   );
 
-  // Wraps a field in a tooltip explaining why it's disabled, matching
-  // DropdownWrapper's disabledTooltipContent pattern — the tooltip triggers
-  // on hovering the control itself, not its label.
   const withDisabledTooltip = (control: JSX.Element) =>
     enableHostStatusWebhook ? (
       control

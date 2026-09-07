@@ -5,9 +5,7 @@
     margin-left: $pad-large;
   }
 
-  // Wraps the host expiry window input when disabled with an explanatory
-  // tooltip; the wrapper must fill the form field's width like the bare
-  // control does.
+  // Must fill the form field's width; TooltipWrapper is otherwise a max-content flex item.
   &__disabled-tooltip {
     &.component__tooltip-wrapper {
       display: block;
