@@ -131,9 +131,10 @@ func TestEnhanceOutputDetails(t *testing.T) {
 		{
 			name: "patch-when-closed empty pre-install output shows app-was-open copy",
 			initial: HostSoftwareInstallerResult{
-				Status:                SoftwareInstallFailed,
-				PreInstallQueryOutput: new(""),
-				PatchWhenClosed:       true,
+				Status:                  SoftwareInstallFailed,
+				PreInstallQueryOutput:   new(""),
+				PatchWhenClosed:         true,
+				OverridePreInstallQuery: true,
 			},
 			expectedPreInstallQueryOutput:   new(SoftwareInstallerAppOpenCopy),
 			expectedOutput:                  nil,
@@ -142,11 +143,23 @@ func TestEnhanceOutputDetails(t *testing.T) {
 		{
 			name: "notify-before-patching empty pre-install output shows the notify copy",
 			initial: HostSoftwareInstallerResult{
+				Status:                  SoftwareInstallFailed,
+				PreInstallQueryOutput:   new(""),
+				NotifyBeforePatching:    true,
+				OverridePreInstallQuery: true,
+			},
+			expectedPreInstallQueryOutput:   new(SoftwareInstallerAppOpenNotifyCopy),
+			expectedOutput:                  nil,
+			expectedPostInstallScriptOutput: nil,
+		},
+		{
+			name: "empty pre-install output on an install that did not run the app open query",
+			initial: HostSoftwareInstallerResult{
 				Status:                SoftwareInstallFailed,
 				PreInstallQueryOutput: new(""),
 				NotifyBeforePatching:  true,
 			},
-			expectedPreInstallQueryOutput:   new(SoftwareInstallerAppOpenNotifyCopy),
+			expectedPreInstallQueryOutput:   new(SoftwareInstallerQueryFailCopy),
 			expectedOutput:                  nil,
 			expectedPostInstallScriptOutput: nil,
 		},

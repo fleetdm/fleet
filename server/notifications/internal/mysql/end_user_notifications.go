@@ -370,11 +370,8 @@ WHERE uuid = ? AND status IN (?, ?)
 	return rows > 0, nil
 }
 
-// RevertEndUserNotificationAction puts an acted notification back to dispatched,
-// for an action that claimed it and then couldn't finish. displayed_at is left
-// alone, unlike a delay: clearing it would put the notification back in the
-// dispatch queue.
-func (ds *Datastore) RevertEndUserNotificationAction(ctx context.Context, notificationUUID string) error {
+// displayed_at is left alone: clearing it would put the notification back in the dispatch queue.
+func (ds *Datastore) SetEndUserNotificationStatusDispatched(ctx context.Context, notificationUUID string) error {
 	const updateStmt = `
 UPDATE notifications_end_user
 SET status = ?
@@ -384,15 +381,13 @@ WHERE uuid = ? AND status = ?
 	if _, err := ds.primary.ExecContext(ctx, updateStmt,
 		api.EndUserNotificationDispatched, notificationUUID, api.EndUserNotificationActed,
 	); err != nil {
-		return ctxerr.Wrap(ctx, err, "revert end user notification action")
+		return ctxerr.Wrap(ctx, err, "set end user notification status dispatched")
 	}
 	return nil
 }
 
-// FailEndUserNotification gives up on a notification that can never be
-// displayed. Only a notification that is still on its way can fail, so this
-// can't disturb one that is already terminal.
-func (ds *Datastore) FailEndUserNotification(ctx context.Context, notificationUUID string, reason string) error {
+// Only a notification still on its way can fail, so a terminal one is left alone.
+func (ds *Datastore) SetEndUserNotificationFailed(ctx context.Context, notificationUUID string, reason string) error {
 	const updateStmt = `
 UPDATE notifications_end_user
 SET status = ?, last_reason = ?

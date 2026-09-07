@@ -28,8 +28,8 @@ func TestEndUserNotifications(t *testing.T) {
 		{"Verify", testVerifyEndUserNotification},
 		{"Delay", testDelayEndUserNotification},
 		{"ActOn", testActOnEndUserNotification},
-		{"RevertAction", testRevertEndUserNotificationAction},
-		{"Fail", testFailEndUserNotification},
+		{"SetStatusDispatched", testSetEndUserNotificationStatusDispatched},
+		{"Fail", testSetEndUserNotificationFailed},
 		{"Outcome", testSetEndUserNotificationOutcome},
 		{"HostDeleteCascade", testEndUserNotificationHostDeleteCascade},
 	}
@@ -520,13 +520,11 @@ func testActOnEndUserNotification(t *testing.T, env *testEnv) {
 	})
 }
 
-// An action that claimed a notification and then couldn't finish gives the
-// claim back, so the next press of Update now can finish the job.
-func testRevertEndUserNotificationAction(t *testing.T, env *testEnv) {
+func testSetEndUserNotificationStatusDispatched(t *testing.T, env *testEnv) {
 	ctx := t.Context()
 
 	t.Run("an acted notification goes back to dispatched and keeps its displayed_at", func(t *testing.T) {
-		hostID := newDarwinHost(t, env, "revert-action", true)
+		hostID := newDarwinHost(t, env, "set-dispatched", true)
 		notificationUUID := newHostNotification(t, env, hostID, "test_kind",
 			api.EndUserNotificationDispatched, 1, true)
 
@@ -534,7 +532,7 @@ func testRevertEndUserNotificationAction(t *testing.T, env *testEnv) {
 		require.NoError(t, err)
 		require.True(t, acted)
 
-		require.NoError(t, env.ds.RevertEndUserNotificationAction(ctx, notificationUUID))
+		require.NoError(t, env.ds.SetEndUserNotificationStatusDispatched(ctx, notificationUUID))
 
 		got, err := env.ds.GetEndUserNotificationByUUID(ctx, notificationUUID)
 		require.NoError(t, err)
@@ -547,11 +545,11 @@ func testRevertEndUserNotificationAction(t *testing.T, env *testEnv) {
 	})
 
 	t.Run("a notification that was never acted on is left alone", func(t *testing.T) {
-		hostID := newDarwinHost(t, env, "revert-action-expired", true)
+		hostID := newDarwinHost(t, env, "set-dispatched-expired", true)
 		notificationUUID := newHostNotification(t, env, hostID, "test_kind",
 			api.EndUserNotificationExpired, 1, false)
 
-		require.NoError(t, env.ds.RevertEndUserNotificationAction(ctx, notificationUUID))
+		require.NoError(t, env.ds.SetEndUserNotificationStatusDispatched(ctx, notificationUUID))
 
 		got, err := env.ds.GetEndUserNotificationByUUID(ctx, notificationUUID)
 		require.NoError(t, err)
@@ -559,9 +557,7 @@ func testRevertEndUserNotificationAction(t *testing.T, env *testEnv) {
 	})
 }
 
-// A notification that can never be displayed fails, so Fleet stops retrying it
-// every minute until it expires.
-func testFailEndUserNotification(t *testing.T, env *testEnv) {
+func testSetEndUserNotificationFailed(t *testing.T, env *testEnv) {
 	ctx := t.Context()
 
 	t.Run("a dispatched notification fails and records the reason", func(t *testing.T) {
@@ -569,7 +565,7 @@ func testFailEndUserNotification(t *testing.T, env *testEnv) {
 		notificationUUID := newHostNotification(t, env, hostID, "test_kind",
 			api.EndUserNotificationDispatched, 1, false)
 
-		require.NoError(t, env.ds.FailEndUserNotification(ctx, notificationUUID,
+		require.NoError(t, env.ds.SetEndUserNotificationFailed(ctx, notificationUUID,
 			api.EndUserNotificationReasonNothingToShow))
 
 		got, err := env.ds.GetEndUserNotificationByUUID(ctx, notificationUUID)
@@ -584,7 +580,7 @@ func testFailEndUserNotification(t *testing.T, env *testEnv) {
 		notificationUUID := newHostNotification(t, env, hostID, "test_kind",
 			api.EndUserNotificationExpired, 1, false)
 
-		require.NoError(t, env.ds.FailEndUserNotification(ctx, notificationUUID,
+		require.NoError(t, env.ds.SetEndUserNotificationFailed(ctx, notificationUUID,
 			api.EndUserNotificationReasonNothingToShow))
 
 		got, err := env.ds.GetEndUserNotificationByUUID(ctx, notificationUUID)

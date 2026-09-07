@@ -533,9 +533,7 @@ type HostSoftwareInstallerResult struct {
 	// NotifyBeforePatching is set from the triggering policy and, like PatchWhenClosed, marks an
 	// empty pre-install result as the app being open rather than a query failure.
 	NotifyBeforePatching bool `json:"-" db:"notify_before_patching"`
-	// OverridePreInstallQuery is decided when the install is queued: it means this attempt ran
-	// the installer's app open query as its pre-install condition, so an empty result means the
-	// app was open.
+	// OverridePreInstallQuery means this install needs to use the app open query as its pre-install condition.
 	OverridePreInstallQuery bool `json:"-" db:"override_pre_install_query"`
 }
 
@@ -567,12 +565,11 @@ func (h *HostSoftwareInstallerResult) EnhanceOutputDetails() {
 
 	if h.PreInstallQueryOutput != nil {
 		if *h.PreInstallQueryOutput == "" {
-			// For patch-when-closed and notify-before-patching, an empty result means the app was
-			// open, not a query failure.
+			// An empty result means the app was open only if this attempt ran the app open query.
 			switch {
-			case h.NotifyBeforePatching:
+			case h.OverridePreInstallQuery && h.NotifyBeforePatching:
 				*h.PreInstallQueryOutput = SoftwareInstallerAppOpenNotifyCopy
-			case h.PatchWhenClosed:
+			case h.OverridePreInstallQuery && h.PatchWhenClosed:
 				*h.PreInstallQueryOutput = SoftwareInstallerAppOpenCopy
 			default:
 				*h.PreInstallQueryOutput = SoftwareInstallerQueryFailCopy

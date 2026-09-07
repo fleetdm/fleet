@@ -1346,8 +1346,7 @@ func TestSaveHostSoftwareInstallResultAppOpenSkip(t *testing.T) {
 	}
 
 	// insertPendingInstall queues a pending policy-automation install, returning its execution id.
-	// overridePreInstallQuery is what InsertSoftwareInstallRequest would have recorded: on for an
-	// install a patch policy queued, off for an install the end user asked for with "Update now".
+	// overridePreInstallQuery is on for a patch policy install, off for an "Update now" install.
 	insertPendingInstall := func(t *testing.T, host *fleet.Host, policyID uint, overridePreInstallQuery bool) string {
 		installUUID := uuid.New().String()
 		mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
@@ -1520,8 +1519,6 @@ func TestSaveHostSoftwareInstallResultAppOpenSkip(t *testing.T) {
 		require.Empty(t, patchNotificationsForHost(t, host.ID))
 	})
 
-	// An install the end user asked for with "Update now" is not app-open-gated, and neither is its
-	// retry: it installs with the app open rather than skipping and notifying the end user again.
 	t.Run("a retry of an Update now install installs with the app open", func(t *testing.T) {
 		host := test.NewHost(t, ds, "update-now-retry-host", "10.0.0.9", uuid.NewString(), uuid.NewString(), time.Now())
 		require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID})))

@@ -50,7 +50,7 @@ type patchNotificationActivityWriter interface {
 type patchNotificationService interface {
 	notifications_api.DelayNotificationService
 	notifications_api.ActOnNotificationService
-	notifications_api.FailNotificationService
+	notifications_api.SetNotificationFailedService
 }
 
 type patchNotificationKind struct {
@@ -144,10 +144,9 @@ func (k *patchNotificationKind) renderView(ctx context.Context, notification *no
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "list patch notification apps")
 	}
-	// A notification listing no apps has nothing to render, so retrying it every
-	// minute until it expires only holds back the other notifications for the host.
+	// Retrying a notification that can never render holds back the other notifications for the host.
 	if len(apps) == 0 {
-		if err := k.notificationSvc.FailNotification(ctx, notification.UUID,
+		if err := k.notificationSvc.SetNotificationFailed(ctx, notification.UUID,
 			notifications_api.EndUserNotificationReasonNothingToShow); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "fail patch notification with no apps")
 		}
@@ -276,9 +275,8 @@ func (k *patchNotificationKind) updateNow(ctx context.Context, notification *not
 		return nil, nil
 	}
 
-	// Claiming the notification is what arbitrates between two presses arriving
-	// at once: nothing later in this function can, since the reads all happen
-	// before either press writes.
+	// The claim is what arbitrates between two presses at once: every read below
+	// happens before either press writes.
 	acted, err := k.notificationSvc.ActOnNotification(ctx, notification.UUID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "act on patch notification")
@@ -289,14 +287,14 @@ func (k *patchNotificationKind) updateNow(ctx context.Context, notification *not
 
 	apps, err := k.ds.ListPatchNotificationApps(ctx, notification.UUID)
 	if err != nil {
-		if revertErr := k.notificationSvc.RevertNotificationAction(ctx, notification.UUID); revertErr != nil {
-			return nil, ctxerr.Wrap(ctx, revertErr, "revert patch notification action")
+		if dispatchedErr := k.notificationSvc.SetNotificationStatusDispatched(ctx, notification.UUID); dispatchedErr != nil {
+			k.logger.ErrorContext(ctx, "failed to put the patch notification back to dispatched",
+				"notification_uuid", notification.UUID, "err", dispatchedErr)
 		}
 		return nil, ctxerr.Wrap(ctx, err, "list patch notification apps")
 	}
 
-	// A press that fails part way gives the claim back, so the notification is
-	// live for the next press, which skips what this one queued.
+	// A press that fails part way gives the claim back, and the next press skips what it queued.
 	var queuedTitleIDs []uint
 	var queueErr error
 	for _, app := range apps {
@@ -335,12 +333,14 @@ func (k *patchNotificationKind) updateNow(ctx context.Context, notification *not
 		queuedTitleIDs = append(queuedTitleIDs, app.SoftwareTitleID)
 	}
 
+	// The claim is kept if this write fails, since the installs already went out unrecorded.
 	if err := k.ds.SetPatchNotificationAppsQueued(ctx, notification.UUID, queuedTitleIDs); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "set patch notification apps queued")
 	}
 	if queueErr != nil {
-		if err := k.notificationSvc.RevertNotificationAction(ctx, notification.UUID); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "revert patch notification action")
+		if err := k.notificationSvc.SetNotificationStatusDispatched(ctx, notification.UUID); err != nil {
+			k.logger.ErrorContext(ctx, "failed to put the patch notification back to dispatched",
+				"notification_uuid", notification.UUID, "err", err)
 		}
 		return nil, queueErr
 	}

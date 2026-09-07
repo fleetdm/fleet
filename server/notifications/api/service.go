@@ -15,7 +15,7 @@ type Service interface {
 	NotificationLookupService
 	DelayNotificationService
 	ActOnNotificationService
-	FailNotificationService
+	SetNotificationFailedService
 	CreateNotificationService
 
 	// ExpireAndQueueNotifications gives up on notifications that are out of
@@ -69,14 +69,11 @@ type DelayNotificationService interface {
 // kind can make a repeated action a no-op, including two arriving at once.
 type ActOnNotificationService interface {
 	ActOnNotification(ctx context.Context, notificationUUID string) (bool, error)
-	// RevertNotificationAction puts a notification that was marked acted back to
-	// dispatched, for an action that claimed it and then couldn't finish.
-	RevertNotificationAction(ctx context.Context, notificationUUID string) error
+	// SetNotificationStatusDispatched gives back a claim an action couldn't finish.
+	SetNotificationStatusDispatched(ctx context.Context, notificationUUID string) error
 }
 
-// FailNotificationService gives up on a notification that can never be
-// displayed, so Fleet stops retrying it. A notification that is already
-// terminal is left alone.
-type FailNotificationService interface {
-	FailNotification(ctx context.Context, notificationUUID string, reason string) error
+// SetNotificationFailedService gives up on a notification that can never be displayed.
+type SetNotificationFailedService interface {
+	SetNotificationFailed(ctx context.Context, notificationUUID string, reason string) error
 }

@@ -7390,6 +7390,10 @@ func testGetSoftwareInstallDetailsPatchWhenClosed(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		require.Equal(t, managedQuery, activatedDetails.PreInstallCondition, option)
 
+		optResult, err := ds.GetSoftwareInstallResults(ctx, optExec)
+		require.NoError(t, err)
+		require.True(t, optResult.OverridePreInstallQuery, option)
+
 		// Same installer via a manual (non-policy) install: no pre-install condition, because
 		// enabling either option cleared the installer's user query.
 		manualExec, err := ds.InsertSoftwareInstallRequest(ctx, optHost.ID, optInstaller, fleet.HostSoftwareInstallOptions{})
@@ -7431,22 +7435,18 @@ func testGetSoftwareInstallDetailsPatchWhenClosed(t *testing.T, ds *Datastore) {
 	require.False(t, ignoreActivated.OverridePreInstallQuery)
 	require.Empty(t, ignoreActivated.PreInstallCondition)
 
-	// Recording the result reads the same stored decision, so an empty pre-install result is told
-	// apart from the app being open by what the install was queued to do.
 	ignoreResult, err := ds.GetSoftwareInstallResults(ctx, ignoreExec)
 	require.NoError(t, err)
 	require.False(t, ignoreResult.OverridePreInstallQuery)
 
-	// A second install queues behind the one already activated, so it is still upcoming and comes
-	// from the other UNION branch.
+	// A second install queues behind the activated one, so it comes from the upcoming branch.
 	upcomingExec, err := ds.InsertSoftwareInstallRequest(ctx, ignoreHost.ID, ignoreInstaller,
 		fleet.HostSoftwareInstallOptions{PolicyID: &ignorePol.ID})
 	require.NoError(t, err)
 	upcomingResult, err := ds.GetSoftwareInstallResults(ctx, upcomingExec)
 	require.NoError(t, err)
 	require.Equal(t, fleet.SoftwareInstallPending, upcomingResult.Status)
-	require.True(t, upcomingResult.OverridePreInstallQuery,
-		"an install the notify-before-patching policy queued runs the app open query")
+	require.True(t, upcomingResult.OverridePreInstallQuery)
 }
 
 func testSoftwareInstallerAppOpenQueryRoundTrip(t *testing.T, ds *Datastore) {

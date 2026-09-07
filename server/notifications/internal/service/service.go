@@ -124,15 +124,15 @@ func (s *Service) ActOnNotification(ctx context.Context, notificationUUID string
 	return acted, nil
 }
 
-func (s *Service) RevertNotificationAction(ctx context.Context, notificationUUID string) error {
-	if err := s.ds.RevertEndUserNotificationAction(ctx, notificationUUID); err != nil {
-		return ctxerr.Wrap(ctx, err, "revert end user notification action")
+func (s *Service) SetNotificationStatusDispatched(ctx context.Context, notificationUUID string) error {
+	if err := s.ds.SetEndUserNotificationStatusDispatched(ctx, notificationUUID); err != nil {
+		return ctxerr.Wrap(ctx, err, "set end user notification status dispatched")
 	}
 	return nil
 }
 
-func (s *Service) FailNotification(ctx context.Context, notificationUUID string, reason string) error {
-	if err := s.ds.FailEndUserNotification(ctx, notificationUUID, reason); err != nil {
+func (s *Service) SetNotificationFailed(ctx context.Context, notificationUUID string, reason string) error {
+	if err := s.ds.SetEndUserNotificationFailed(ctx, notificationUUID, reason); err != nil {
 		return ctxerr.Wrap(ctx, err, "fail end user notification")
 	}
 	return nil

@@ -30,13 +30,13 @@ func (w *capturingActivityWriter) NewActivity(_ context.Context, _ *fleet.User, 
 }
 
 // stubNotificationService stands in for the notifications context. acts is what
-// ActOnNotification reports, so a test can say another request claimed the
+// ActOnNotification reports, so a test can say another press claimed the
 // notification first.
 type stubNotificationService struct {
-	acts          bool
-	actInvoked    bool
-	revertInvoked bool
-	failedReason  string
+	acts                 bool
+	actInvoked           bool
+	setDispatchedInvoked bool
+	failedReason         string
 }
 
 func (s *stubNotificationService) ActOnNotification(_ context.Context, _ string) (bool, error) {
@@ -44,12 +44,12 @@ func (s *stubNotificationService) ActOnNotification(_ context.Context, _ string)
 	return s.acts, nil
 }
 
-func (s *stubNotificationService) RevertNotificationAction(_ context.Context, _ string) error {
-	s.revertInvoked = true
+func (s *stubNotificationService) SetNotificationStatusDispatched(_ context.Context, _ string) error {
+	s.setDispatchedInvoked = true
 	return nil
 }
 
-func (s *stubNotificationService) FailNotification(_ context.Context, _ string, reason string) error {
+func (s *stubNotificationService) SetNotificationFailed(_ context.Context, _ string, reason string) error {
 	s.failedReason = reason
 	return nil
 }
@@ -209,8 +209,7 @@ func TestPatchNotificationUpdateNow(t *testing.T) {
 		alreadyPending bool
 		noInstaller    bool
 		installFails   bool
-		// ActOnNotification: another press of Update now claimed the notification
-		// first, so this one is the one that loses
+		// ActOnNotification: another press claimed the notification first
 		alreadyActed bool
 
 		wantErr       bool
@@ -224,7 +223,6 @@ func TestPatchNotificationUpdateNow(t *testing.T) {
 			wantActionTry: true,
 		},
 		{
-			// two presses arriving at once, so the end user's apps close and update once
 			name:          "a press that loses the claim to another press queues nothing",
 			status:        notifications_api.EndUserNotificationDispatched,
 			alreadyActed:  true,
@@ -250,7 +248,6 @@ func TestPatchNotificationUpdateNow(t *testing.T) {
 			wantActionTry: true,
 		},
 		{
-			// the notification goes back to live so the next press finishes the job
 			name:          "a queueing failure gives the claim on the notification back",
 			status:        notifications_api.EndUserNotificationDispatched,
 			installFails:  true,
@@ -309,11 +306,11 @@ func TestPatchNotificationUpdateNow(t *testing.T) {
 			})
 			if c.wantErr {
 				require.Error(t, err)
-				assert.True(t, notificationSvc.revertInvoked,
+				assert.True(t, notificationSvc.setDispatchedInvoked,
 					"the notification goes back to live so the next press can finish queueing")
 				return
 			}
-			assert.False(t, notificationSvc.revertInvoked)
+			assert.False(t, notificationSvc.setDispatchedInvoked)
 			require.NoError(t, err)
 
 			require.Len(t, installs, c.wantInstalls)
@@ -409,22 +406,20 @@ func TestPatchNotificationUpdateNowResumesAfterFailure(t *testing.T) {
 	_, err := kind.updateNow(context.Background(), notification)
 	require.Error(t, err)
 	require.Equal(t, []uint{firstInstaller}, installed)
-	assert.True(t, notificationSvc.revertInvoked)
+	assert.True(t, notificationSvc.setDispatchedInvoked)
 
 	// the end user presses again, and this time the second app's install works
 	secondInstallerFails = false
-	notificationSvc.revertInvoked = false
+	notificationSvc.setDispatchedInvoked = false
 	_, err = kind.updateNow(context.Background(), notification)
 	require.NoError(t, err)
 	require.Equal(t, []uint{firstInstaller, secondInstaller}, installed,
 		"the first app is not queued a second time")
 	assert.True(t, notificationSvc.actInvoked)
-	assert.False(t, notificationSvc.revertInvoked)
+	assert.False(t, notificationSvc.setDispatchedInvoked)
 }
 
-// A notification whose apps are all gone, which happens when an admin deletes
-// the software title, can never render. It fails rather than being retried
-// every minute for 24 hours.
+// A notification whose apps are gone, after an admin deletes the title, fails rather than retrying.
 func TestPatchNotificationRenderWithNoApps(t *testing.T) {
 	ds := new(mock.Store)
 	notificationSvc := &stubNotificationService{acts: true}
