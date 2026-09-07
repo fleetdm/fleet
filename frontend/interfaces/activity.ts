@@ -386,6 +386,7 @@ export interface IActivityDetails {
   failure_reason?: string;
   user_email?: string;
   user_id?: number;
+  jit?: boolean;
   webhook_url?: string;
   // Policy automation outcomes (failed_automation_*/ran_automation_* activities).
   status_code?: number;

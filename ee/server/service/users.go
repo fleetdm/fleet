@@ -76,7 +76,7 @@ func (svc *Service) GetSSOUser(ctx context.Context, auth fleet.Auth) (*fleet.Use
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "save user")
 		}
-		if err := fleet.LogRoleChangeActivities(ctx, svc, user, oldGlobalRole, oldTeamsRoles, user); err != nil {
+		if err := fleet.LogRoleChangeActivities(ctx, svc, user, oldGlobalRole, oldTeamsRoles, user, true); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "log activities for role change")
 		}
 		return user, nil
