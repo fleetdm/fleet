@@ -452,17 +452,15 @@ describe("Activity Feed", () => {
 
   it("correctly renders a changed_user_global_role type activity for a premium SSO user created by JIT provisioning", () => {
     const activity = createMockActivity({
-      actor_id: 3,
       type: ActivityType.UserChangedGlobalRole,
       details: {
-        user_id: 3,
         user_email: "jit@sso.com",
         role: "observer",
+        jit: true,
       },
     });
     render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
-    // If actor_id is the same as user_id:
     // "<user_email> was assigned the <role> role for all fleets via just-in-time (JIT) provisioning."
     expect(screen.getByText("jit@sso.com")).toBeInTheDocument();
     expect(screen.getByText(/was assigned the/)).toBeInTheDocument();
@@ -542,19 +540,17 @@ describe("Activity Feed", () => {
 
   it("correctly renders a changed_user_team_role type activity when a new SSO team user is created via JIT provisioning", () => {
     const activity = createMockActivity({
-      actor_id: 1,
       actor_full_name: "Ally Admin",
       type: ActivityType.UserChangedTeamRole,
       details: {
-        user_id: 1,
         user_email: "jit@sso.com",
         role: "maintainer",
         team_name: "Test Team",
+        jit: true,
       },
     });
     render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
-    // If actor_id is the same as user_id:
     // "<user_email> was assigned the <role> role for the <team_name> fleet via just-in-time (JIT) provisioning."
     expect(screen.getByText("jit@sso.com")).toBeInTheDocument();
     expect(screen.getByText(/was assigned the/)).toBeInTheDocument();
@@ -615,13 +611,12 @@ describe("Activity Feed", () => {
 
   it("renders a deleted_user_team_role via JIT provisioning", () => {
     const activity = createMockActivity({
-      actor_id: 1,
       actor_full_name: "Jit User",
       type: ActivityType.UserDeletedTeamRole,
       details: {
-        user_id: 1,
         user_email: "jit@sso.com",
         team_name: "Test Team",
+        jit: true,
       },
     });
     render(<GlobalActivityItem activity={activity} isPremiumTier />);
@@ -667,13 +662,12 @@ describe("Activity Feed", () => {
 
   it("renders a deleted_user_global_role via JIT provisioning for premium users", () => {
     const activity = createMockActivity({
-      actor_id: 3,
       actor_full_name: "Jit User",
       type: ActivityType.UserDeletedGlobalRole,
       details: {
-        user_id: 3,
         user_email: "jit@sso.com",
         role: "maintainer",
+        jit: true,
       },
     });
     render(<GlobalActivityItem activity={activity} isPremiumTier />);
