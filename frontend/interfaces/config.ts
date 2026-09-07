@@ -137,6 +137,7 @@ export interface IDeviceGlobalConfig {
   mdm: {
     enabled_and_configured: boolean;
     require_all_software_macos: boolean | null;
+    only_allow_apple_business_enrollment: boolean;
   };
   features: Pick<
     IConfigFeatures,
