@@ -30,15 +30,22 @@ func (w *capturingActivityWriter) NewActivity(_ context.Context, _ *fleet.User, 
 }
 
 // stubNotificationService stands in for the notifications context. acts is what
-// ActOnNotification reports, so a test can say another request acted first.
+// ActOnNotification reports, so a test can say another request claimed the
+// notification first.
 type stubNotificationService struct {
-	acts       bool
-	actInvoked bool
+	acts          bool
+	actInvoked    bool
+	revertInvoked bool
 }
 
 func (s *stubNotificationService) ActOnNotification(_ context.Context, _ string) (bool, error) {
 	s.actInvoked = true
 	return s.acts, nil
+}
+
+func (s *stubNotificationService) RevertNotificationAction(_ context.Context, _ string) error {
+	s.revertInvoked = true
+	return nil
 }
 
 func (s *stubNotificationService) DelayNotification(_ context.Context, _ string, _ time.Time, _ json.RawMessage) error {
@@ -196,6 +203,9 @@ func TestPatchNotificationUpdateNow(t *testing.T) {
 		alreadyPending bool
 		noInstaller    bool
 		installFails   bool
+		// ActOnNotification: another press of Update now claimed the notification
+		// first, so this one is the one that loses
+		alreadyActed bool
 
 		wantErr       bool
 		wantInstalls  int
@@ -205,6 +215,14 @@ func TestPatchNotificationUpdateNow(t *testing.T) {
 			name:          "Update now queues an install per app and acts on the notification",
 			status:        notifications_api.EndUserNotificationDispatched,
 			wantInstalls:  1,
+			wantActionTry: true,
+		},
+		{
+			// two presses arriving at once, so the end user's apps close and update once
+			name:          "a press that loses the claim to another press queues nothing",
+			status:        notifications_api.EndUserNotificationDispatched,
+			alreadyActed:  true,
+			wantInstalls:  0,
 			wantActionTry: true,
 		},
 		{
@@ -226,19 +244,19 @@ func TestPatchNotificationUpdateNow(t *testing.T) {
 			wantActionTry: true,
 		},
 		{
-			// the notification stays live so the next press finishes the job
-			name:          "a queueing failure leaves the notification not acted on",
+			// the notification goes back to live so the next press finishes the job
+			name:          "a queueing failure gives the claim on the notification back",
 			status:        notifications_api.EndUserNotificationDispatched,
 			installFails:  true,
 			wantErr:       true,
-			wantActionTry: false,
+			wantActionTry: true,
 		},
 	}
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			ds := new(mock.Store)
-			notificationSvc := &stubNotificationService{acts: true}
+			notificationSvc := &stubNotificationService{acts: !c.alreadyActed}
 			kind := &patchNotificationKind{
 				ds: ds, notificationSvc: notificationSvc, logger: slog.New(slog.DiscardHandler),
 			}
@@ -285,10 +303,11 @@ func TestPatchNotificationUpdateNow(t *testing.T) {
 			})
 			if c.wantErr {
 				require.Error(t, err)
-				assert.False(t, notificationSvc.actInvoked,
-					"the notification stays live so the next press can finish queueing")
+				assert.True(t, notificationSvc.revertInvoked,
+					"the notification goes back to live so the next press can finish queueing")
 				return
 			}
+			assert.False(t, notificationSvc.revertInvoked)
 			require.NoError(t, err)
 
 			require.Len(t, installs, c.wantInstalls)
@@ -384,15 +403,17 @@ func TestPatchNotificationUpdateNowResumesAfterFailure(t *testing.T) {
 	_, err := kind.updateNow(context.Background(), notification)
 	require.Error(t, err)
 	require.Equal(t, []uint{firstInstaller}, installed)
-	assert.False(t, notificationSvc.actInvoked)
+	assert.True(t, notificationSvc.revertInvoked)
 
 	// the end user presses again, and this time the second app's install works
 	secondInstallerFails = false
+	notificationSvc.revertInvoked = false
 	_, err = kind.updateNow(context.Background(), notification)
 	require.NoError(t, err)
 	require.Equal(t, []uint{firstInstaller, secondInstaller}, installed,
 		"the first app is not queued a second time")
 	assert.True(t, notificationSvc.actInvoked)
+	assert.False(t, notificationSvc.revertInvoked)
 }
 
 // What the activity OnOutcome records: which apps and policies it names, which

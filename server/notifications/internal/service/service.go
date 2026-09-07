@@ -123,3 +123,10 @@ func (s *Service) ActOnNotification(ctx context.Context, notificationUUID string
 	}
 	return acted, nil
 }
+
+func (s *Service) RevertNotificationAction(ctx context.Context, notificationUUID string) error {
+	if err := s.ds.RevertEndUserNotificationAction(ctx, notificationUUID); err != nil {
+		return ctxerr.Wrap(ctx, err, "revert end user notification action")
+	}
+	return nil
+}

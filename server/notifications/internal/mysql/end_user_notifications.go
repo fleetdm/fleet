@@ -370,6 +370,25 @@ WHERE uuid = ? AND status IN (?, ?)
 	return rows > 0, nil
 }
 
+// RevertEndUserNotificationAction puts an acted notification back to dispatched,
+// for an action that claimed it and then couldn't finish. displayed_at is left
+// alone, unlike a delay: clearing it would put the notification back in the
+// dispatch queue.
+func (ds *Datastore) RevertEndUserNotificationAction(ctx context.Context, notificationUUID string) error {
+	const updateStmt = `
+UPDATE notifications_end_user
+SET status = ?
+WHERE uuid = ? AND status = ?
+`
+
+	if _, err := ds.primary.ExecContext(ctx, updateStmt,
+		api.EndUserNotificationDispatched, notificationUUID, api.EndUserNotificationActed,
+	); err != nil {
+		return ctxerr.Wrap(ctx, err, "revert end user notification action")
+	}
+	return nil
+}
+
 // SetEndUserNotificationOutcome records how an attempt to display ended. A
 // non-nil nextAttemptAt puts the notification back in the queue, otherwise that
 // was its last attempt.

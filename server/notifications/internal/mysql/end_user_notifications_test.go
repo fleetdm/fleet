@@ -28,6 +28,7 @@ func TestEndUserNotifications(t *testing.T) {
 		{"Verify", testVerifyEndUserNotification},
 		{"Delay", testDelayEndUserNotification},
 		{"ActOn", testActOnEndUserNotification},
+		{"RevertAction", testRevertEndUserNotificationAction},
 		{"Outcome", testSetEndUserNotificationOutcome},
 		{"HostDeleteCascade", testEndUserNotificationHostDeleteCascade},
 	}
@@ -515,6 +516,45 @@ func testActOnEndUserNotification(t *testing.T, env *testEnv) {
 		acted, err := env.ds.ActOnEndUserNotification(ctx, notificationUUID)
 		require.NoError(t, err)
 		assert.False(t, acted)
+	})
+}
+
+// An action that claimed a notification and then couldn't finish gives the
+// claim back, so the next press of Update now can finish the job.
+func testRevertEndUserNotificationAction(t *testing.T, env *testEnv) {
+	ctx := t.Context()
+
+	t.Run("an acted notification goes back to dispatched and keeps its displayed_at", func(t *testing.T) {
+		hostID := newDarwinHost(t, env, "revert-action", true)
+		notificationUUID := newHostNotification(t, env, hostID, "test_kind",
+			api.EndUserNotificationDispatched, 1, true)
+
+		acted, err := env.ds.ActOnEndUserNotification(ctx, notificationUUID)
+		require.NoError(t, err)
+		require.True(t, acted)
+
+		require.NoError(t, env.ds.RevertEndUserNotificationAction(ctx, notificationUUID))
+
+		got, err := env.ds.GetEndUserNotificationByUUID(ctx, notificationUUID)
+		require.NoError(t, err)
+		assert.Equal(t, api.EndUserNotificationDispatched, got.Status)
+		assert.NotNil(t, got.DisplayedAt, "clearing it would put the notification back in the dispatch queue")
+
+		acted, err = env.ds.ActOnEndUserNotification(ctx, notificationUUID)
+		require.NoError(t, err)
+		assert.True(t, acted, "the next press can claim it")
+	})
+
+	t.Run("a notification that was never acted on is left alone", func(t *testing.T) {
+		hostID := newDarwinHost(t, env, "revert-action-expired", true)
+		notificationUUID := newHostNotification(t, env, hostID, "test_kind",
+			api.EndUserNotificationExpired, 1, false)
+
+		require.NoError(t, env.ds.RevertEndUserNotificationAction(ctx, notificationUUID))
+
+		got, err := env.ds.GetEndUserNotificationByUUID(ctx, notificationUUID)
+		require.NoError(t, err)
+		assert.Equal(t, api.EndUserNotificationExpired, got.Status)
 	})
 }
 

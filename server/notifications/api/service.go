@@ -68,4 +68,7 @@ type DelayNotificationService interface {
 // kind can make a repeated action a no-op, including two arriving at once.
 type ActOnNotificationService interface {
 	ActOnNotification(ctx context.Context, notificationUUID string) (bool, error)
+	// RevertNotificationAction puts a notification that was marked acted back to
+	// dispatched, for an action that claimed it and then couldn't finish.
+	RevertNotificationAction(ctx context.Context, notificationUUID string) error
 }
