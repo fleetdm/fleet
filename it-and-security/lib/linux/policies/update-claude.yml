@@ -1,7 +1,3 @@
-# The version in the query below is the newest claude-desktop package available for
-# BOTH amd64 and arm64 in https://downloads.claude.ai/claude-desktop/apt/stable
-# (dists/stable/main/binary-<arch>/Packages). A scheduled Claude routine checks the
-# feed twice daily and opens a PR to bump it; only the version string should change.
 - name: Claude up to date (Linux)
   query: SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM deb_packages WHERE name = 'claude-desktop' AND version_compare(version, '1.46388.2') < 0);
   critical: false
