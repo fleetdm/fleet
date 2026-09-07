@@ -1,0 +1,97 @@
+name: ai_agent_sessions
+description: |-
+  TODO
+platforms:
+  - darwin
+  - windows
+  - linux
+evented: false
+examples: |-
+  TODO
+notes: |-
+  - This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).
+columns:
+  - name: agent
+    description: Which agent produced the session. Either `"claude_code"`, `"copilot_cli"`, `"cursor"`, `"codex_cli"`, or `"gemini_cli"`.
+    type: text
+    required: true
+  - name: session_id
+    description: The agent's own identifier for the session.
+    type: text
+    required: true
+  - name: username
+    description: Local account the session belongs to; joins to `users.username`.
+    type: text
+    required: true
+  - name: project_path
+    description: Directory the session was started in.
+    type: text
+    required: false
+  - name: git_branch
+    description: Git branch the session ended on.
+    type: text
+    required: false
+  - name: git_repository
+    description: Repository the session was working in.
+    type: text
+    required: false
+  - name: agent_version
+    description: Version of the agent that ran the session.
+    type: text
+    required: false
+  - name: model
+    description: Model that served the session.
+    type: text
+    required: false
+  - name: started_at
+    description: Unix timestamp of the first recorded activity, or `0` if unknown.
+    type: bigint
+    required: false
+  - name: ended_at
+    description: Unix timestamp of the last recorded activity.
+    type: bigint
+    required: false
+  - name: duration_seconds
+    description: Wall-clock span of the session, or `0` if either end is unknown.
+    type: bigint
+    required: false
+  - name: user_messages
+    description: Number of prompts the person typed, excluding tool results fed back to the model.
+    type: BIGINT
+    required: true
+  - name: assistant_messages
+    description: Number of turns the model produced.
+    type: bigint
+    required: false
+  - name: tool_calls
+    description: bigint
+    type: Number of tools the model invoked.
+    required: true
+  - name: input_tokens
+    description: Number of uncached input tokens.
+    type: bigint
+    required: false
+  - name: input_tokens
+    description: Number of uncached input tokens.
+    type: bigint
+    required: false
+  - name: output_tokens
+    description: Number of output tokens.
+    type: bigint
+    required: false
+  - name: cache_read_tokens
+    description: Number of tokens served from the prompt cache.
+    type: bigint
+    required: false
+  - name: cache_write_tokens
+    description: Number of tokens written to the prompt cache.
+    type: bigint
+    required: false
+  - name: transcript_path
+    description: File the metadata was read from.
+    type: text
+    required: true
+  - name: transcript_size_bytes
+    description: Size of the file metadata was read from.
+    type: bigint
+    required: true
