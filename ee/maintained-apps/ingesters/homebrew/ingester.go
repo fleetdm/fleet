@@ -241,6 +241,18 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 			out.UniqueIdentifier, out.Version,
 		)
 	}
+	if input.Token == "microsoft-edge" {
+		// Edge's auto-updater stages downloaded builds under
+		// "<root>/Library/Application Support/Microsoft/EdgeUpdater/" (system-wide
+		// or per-user) and leaves older Microsoft Edge.app bundles there after
+		// applying them; they carry the same bundle identifier at the old version.
+		// The install script removes them, but hosts updated by Edge itself never
+		// run it, so exclude that tree from patch status too.
+		out.Queries.Patched = fmt.Sprintf(
+			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND path NOT LIKE '%%/Library/Application Support/Microsoft/EdgeUpdater/%%' AND version_compare(bundle_short_version, '%s') < 0);",
+			out.UniqueIdentifier, out.Version,
+		)
+	}
 	if input.Token == "sonos" {
 		// Sonos versions its cask by build number (matching CFBundleVersion, e.g.
 		// "90.0.77070" after SonosVersionTransformer), while bundle_short_version is

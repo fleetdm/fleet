@@ -77,6 +77,24 @@ cleanup_backup_files() {
   done
 }
 
+remove_stale_updater_bundles() {
+  # Edge's auto-updater stages downloaded builds under
+  # "Library/Application Support/Microsoft/EdgeUpdater/" (system-wide and
+  # per-user) and leaves older, fully formed Microsoft Edge.app bundles behind
+  # after applying them. osquery's apps table indexes those bundles by their
+  # (old) bundle_short_version and bundle_identifier ('com.microsoft.edgemac'),
+  # so version-based patch policies keep reporting the host as out of date even
+  # after the app in /Applications has been updated. Only the staged app
+  # bundles are removed; the updater itself is left in place, and Edge
+  # re-downloads updates as needed.
+  local root
+  for root in / /Users/*; do
+    local updater_dir="${root%/}/Library/Application Support/Microsoft/EdgeUpdater"
+    [ -d "$updater_dir" ] || continue
+    find "$updater_dir" -type d -name "Microsoft Edge.app" -prune -exec sudo rm -rf {} + 2>/dev/null || true
+  done
+}
+
 # copy to the applications folder
 quit_application 'com.microsoft.edgemac'
 
@@ -100,10 +118,9 @@ fi
 if [ -d "$APPDIR/Microsoft Edge.app" ]; then
 	# Installation successful - ensure no backup files remain
 	cleanup_backup_files
+	remove_stale_updater_bundles
 	echo "Installation verified"
 else
 	echo "Installation failed"
 	exit 1
 fi
-
-
