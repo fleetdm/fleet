@@ -3,7 +3,8 @@ import { Tab, TabList, TabPanel, Tabs } from "react-tabs";
 import TabNav from "components/TabNav";
 import TabText from "components/TabText";
 import CustomLink from "components/CustomLink";
-import { SUPPORT_LINK } from "utilities/constants";
+import EmptyState from "components/EmptyState";
+import { LEARN_MORE_ABOUT_BASE_LINK, SUPPORT_LINK } from "utilities/constants";
 
 import EndUserOSRequirementPreview from "../EndUserOSRequirementPreview";
 import WindowsTargetForm from "../WindowsTargetForm";
@@ -33,6 +34,7 @@ interface IPlatformTabsProps {
   onSelectPlatform: (platform: OSUpdatesTargetPlatform) => void;
   refetchAppConfig: () => void;
   refetchTeamConfig: () => void;
+  isAppleMdmEnabled: boolean;
   isWindowsMdmEnabled: boolean;
   isAndroidMdmEnabled: boolean;
 }
@@ -55,15 +57,19 @@ const PlatformTabs = ({
   onSelectPlatform,
   refetchAppConfig,
   refetchTeamConfig,
+  isAppleMdmEnabled,
   isWindowsMdmEnabled,
   isAndroidMdmEnabled,
 }: IPlatformTabsProps) => {
   // FIXME: This behaves unexpectedly when a user switches tabs or changes the teams dropdown while a form is
   // submitting.
 
-  const platformByIndex: OSUpdatesTargetPlatform[] = isWindowsMdmEnabled
-    ? ["darwin", "windows", "ios", "ipados"]
-    : ["darwin", "ios", "ipados"];
+  const platformByIndex: OSUpdatesTargetPlatform[] = [
+    "darwin",
+    "windows",
+    "ios",
+    "ipados",
+  ];
 
   if (isAndroidMdmEnabled) {
     platformByIndex.push("android");
@@ -80,6 +86,46 @@ const PlatformTabs = ({
   const isIOSConfigured = !!defaultIOSVersion;
   const isIPadOSConfigured = !!defaultIPadOSVersion;
 
+  const appleMdmEmptyState = (platformName: string) => (
+    <div className={`${baseClass}__mdm-empty-state`}>
+      <EmptyState
+        header="Turn on MDM to enforce OS updates"
+        info={
+          <>
+            You must turn on Apple MDM to enforce OS updates for {platformName}{" "}
+            hosts.{" "}
+            <CustomLink
+              url={`${LEARN_MORE_ABOUT_BASE_LINK}/turn-on-apple-mdm`}
+              text="Learn more"
+              newTab
+            />
+          </>
+        }
+        variant="form"
+      />
+    </div>
+  );
+
+  const windowsMdmEmptyState = (
+    <div className={`${baseClass}__mdm-empty-state`}>
+      <EmptyState
+        header="Turn on MDM to enforce OS updates"
+        info={
+          <>
+            You must turn on Windows MDM to enforce OS updates for Windows
+            hosts.{" "}
+            <CustomLink
+              url={`${LEARN_MORE_ABOUT_BASE_LINK}/setup-windows-mdm`}
+              text="Learn more"
+              newTab
+            />
+          </>
+        }
+        variant="form"
+      />
+    </div>
+  );
+
   return (
     <div className={baseClass}>
       <TabNav secondary>
@@ -91,11 +137,9 @@ const PlatformTabs = ({
             <Tab key="macOS" data-text="macOS">
               <TabText showCheck={isMacOSConfigured}>macOS</TabText>
             </Tab>
-            {isWindowsMdmEnabled && (
-              <Tab key="Windows" data-text="Windows">
-                <TabText showCheck={isWindowsConfigured}>Windows</TabText>
-              </Tab>
-            )}
+            <Tab key="Windows" data-text="Windows">
+              <TabText showCheck={isWindowsConfigured}>Windows</TabText>
+            </Tab>
             <Tab key="iOS" data-text="iOS">
               <TabText showCheck={isIOSConfigured}>iOS</TabText>
             </Tab>
@@ -109,73 +153,95 @@ const PlatformTabs = ({
             )}
           </TabList>
           <TabPanel className={`${baseClass}__tab-panel`}>
-            <AppleOSTargetForm
-              currentTeamId={currentTeamId}
-              applePlatform="darwin"
-              defaultMinOsVersion={defaultMacOSVersion}
-              defaultDeadline={defaultMacOSDeadline}
-              defaultDeadlineDays={defaultMacOSDeadlineDays}
-              defaultUpdateNewHosts={defaultMacOSUpdateNewHosts}
-              key={currentTeamId}
-              refetchAppConfig={refetchAppConfig}
-              refetchTeamConfig={refetchTeamConfig}
-            />
-            <div className={`${baseClass}__nudge-preview`}>
-              <EndUserOSRequirementPreview
-                platform={selectedPlatform as OSUpdatesSupportedPlatform}
-              />
-            </div>
-          </TabPanel>
-          {isWindowsMdmEnabled && (
-            <TabPanel className={`${baseClass}__tab-panel`}>
-              <WindowsTargetForm
-                currentTeamId={currentTeamId}
-                defaultDeadlineDays={defaultWindowsDeadlineDays}
-                defaultGracePeriodDays={defaultWindowsGracePeriodDays}
-                key={currentTeamId}
-                refetchAppConfig={refetchAppConfig}
-                refetchTeamConfig={refetchTeamConfig}
-              />
-              <div className={`${baseClass}__nudge-preview`}>
-                <EndUserOSRequirementPreview
-                  platform={selectedPlatform as OSUpdatesSupportedPlatform}
+            {isAppleMdmEnabled ? (
+              <>
+                <AppleOSTargetForm
+                  currentTeamId={currentTeamId}
+                  applePlatform="darwin"
+                  defaultMinOsVersion={defaultMacOSVersion}
+                  defaultDeadline={defaultMacOSDeadline}
+                  defaultDeadlineDays={defaultMacOSDeadlineDays}
+                  defaultUpdateNewHosts={defaultMacOSUpdateNewHosts}
+                  key={currentTeamId}
+                  refetchAppConfig={refetchAppConfig}
+                  refetchTeamConfig={refetchTeamConfig}
                 />
-              </div>
-            </TabPanel>
-          )}
-          <TabPanel className={`${baseClass}__tab-panel`}>
-            <AppleOSTargetForm
-              currentTeamId={currentTeamId}
-              applePlatform="ios"
-              defaultMinOsVersion={defaultIOSVersion}
-              defaultDeadline={defaultIOSDeadline}
-              defaultDeadlineDays={defaultIOSDeadlineDays}
-              key={currentTeamId}
-              refetchAppConfig={refetchAppConfig}
-              refetchTeamConfig={refetchTeamConfig}
-            />
-            <div className={`${baseClass}__nudge-preview`}>
-              <EndUserOSRequirementPreview
-                platform={selectedPlatform as OSUpdatesSupportedPlatform}
-              />
-            </div>
+                <div className={`${baseClass}__nudge-preview`}>
+                  <EndUserOSRequirementPreview
+                    platform={selectedPlatform as OSUpdatesSupportedPlatform}
+                  />
+                </div>
+              </>
+            ) : (
+              appleMdmEmptyState("macOS")
+            )}
           </TabPanel>
           <TabPanel className={`${baseClass}__tab-panel`}>
-            <AppleOSTargetForm
-              currentTeamId={currentTeamId}
-              applePlatform="ipados"
-              defaultMinOsVersion={defaultIPadOSVersion}
-              defaultDeadline={defaultIPadOSDeadline}
-              defaultDeadlineDays={defaultIPadOSDeadlineDays}
-              key={currentTeamId}
-              refetchAppConfig={refetchAppConfig}
-              refetchTeamConfig={refetchTeamConfig}
-            />
-            <div className={`${baseClass}__nudge-preview`}>
-              <EndUserOSRequirementPreview
-                platform={selectedPlatform as OSUpdatesSupportedPlatform}
-              />
-            </div>
+            {isWindowsMdmEnabled ? (
+              <>
+                <WindowsTargetForm
+                  currentTeamId={currentTeamId}
+                  defaultDeadlineDays={defaultWindowsDeadlineDays}
+                  defaultGracePeriodDays={defaultWindowsGracePeriodDays}
+                  key={currentTeamId}
+                  refetchAppConfig={refetchAppConfig}
+                  refetchTeamConfig={refetchTeamConfig}
+                />
+                <div className={`${baseClass}__nudge-preview`}>
+                  <EndUserOSRequirementPreview
+                    platform={selectedPlatform as OSUpdatesSupportedPlatform}
+                  />
+                </div>
+              </>
+            ) : (
+              windowsMdmEmptyState
+            )}
+          </TabPanel>
+          <TabPanel className={`${baseClass}__tab-panel`}>
+            {isAppleMdmEnabled ? (
+              <>
+                <AppleOSTargetForm
+                  currentTeamId={currentTeamId}
+                  applePlatform="ios"
+                  defaultMinOsVersion={defaultIOSVersion}
+                  defaultDeadline={defaultIOSDeadline}
+                  defaultDeadlineDays={defaultIOSDeadlineDays}
+                  key={currentTeamId}
+                  refetchAppConfig={refetchAppConfig}
+                  refetchTeamConfig={refetchTeamConfig}
+                />
+                <div className={`${baseClass}__nudge-preview`}>
+                  <EndUserOSRequirementPreview
+                    platform={selectedPlatform as OSUpdatesSupportedPlatform}
+                  />
+                </div>
+              </>
+            ) : (
+              appleMdmEmptyState("iOS")
+            )}
+          </TabPanel>
+          <TabPanel className={`${baseClass}__tab-panel`}>
+            {isAppleMdmEnabled ? (
+              <>
+                <AppleOSTargetForm
+                  currentTeamId={currentTeamId}
+                  applePlatform="ipados"
+                  defaultMinOsVersion={defaultIPadOSVersion}
+                  defaultDeadline={defaultIPadOSDeadline}
+                  defaultDeadlineDays={defaultIPadOSDeadlineDays}
+                  key={currentTeamId}
+                  refetchAppConfig={refetchAppConfig}
+                  refetchTeamConfig={refetchTeamConfig}
+                />
+                <div className={`${baseClass}__nudge-preview`}>
+                  <EndUserOSRequirementPreview
+                    platform={selectedPlatform as OSUpdatesSupportedPlatform}
+                  />
+                </div>
+              </>
+            ) : (
+              appleMdmEmptyState("iPadOS")
+            )}
           </TabPanel>
           {isAndroidMdmEnabled && (
             <TabPanel className={`${baseClass}__tab-panel`}>

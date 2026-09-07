@@ -6,7 +6,6 @@ import { ApplePlatform } from "interfaces/platform";
 
 import Spinner from "components/Spinner";
 
-import WindowsTargetForm from "../WindowsTargetForm";
 import PlatformTabs from "../PlatformTabs";
 import { OSUpdatesTargetPlatform } from "../../OSUpdates";
 
@@ -230,17 +229,6 @@ const TargetSection = ({
   });
 
   const renderTargetForms = () => {
-    if (isWindowsMdmEnabled && !isAppleMdmEnabled && !isAndroidMdmEnabled) {
-      return (
-        <WindowsTargetForm
-          currentTeamId={currentTeamId}
-          defaultDeadlineDays={defaultWindowsDeadlineDays}
-          defaultGracePeriodDays={defaultWindowsGracePeriodDays}
-          refetchAppConfig={refetchAppConfig}
-          refetchTeamConfig={refetchTeamConfig}
-        />
-      );
-    }
     return (
       <PlatformTabs
         currentTeamId={currentTeamId}
@@ -260,6 +248,7 @@ const TargetSection = ({
         onSelectPlatform={onSelectPlatform}
         refetchAppConfig={refetchAppConfig}
         refetchTeamConfig={refetchTeamConfig}
+        isAppleMdmEnabled={isAppleMdmEnabled}
         isWindowsMdmEnabled={isWindowsMdmEnabled}
         isAndroidMdmEnabled={isAndroidMdmEnabled}
       />
