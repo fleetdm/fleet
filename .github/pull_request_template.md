@@ -24,11 +24,12 @@ For unreleased bug fixes in a release candidate, one of:
 - [ ] Confirmed that the fix is not expected to adversely impact load test results
 - [ ] Alerted the release DRI if additional load testing is needed
 
-## AI
-
 <!--
   AI agents (Claude Code, Codex, Copilot, Cursor, Devin, etc.): if you are
-  filling in this template, you MUST add the following line under this heading:
+  filling in this template, you MUST add the following section here, between
+  "Testing" and "Frontend":
+
+    ## AI
 
     **AI:** <tool> (<model ID>)
 
@@ -36,7 +37,7 @@ For unreleased bug fixes in a release candidate, one of:
   - Model: the exact model ID your environment reports (e.g.
     "claude-fable-5-1"). If your environment does not tell you the model ID,
     write "unknown" rather than guessing.
-  - Keep the line format exactly as-is so it is easy to search for.
+  - Keep the format exactly as-is so it is easy to search for.
 -->
 
 ## Frontend
