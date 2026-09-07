@@ -1,0 +1,1 @@
+- Standardized border-radius to 8px on list, card, and table containers (Card, List, PaginatedList, UploadList, DataTable, and the Policies tables).
