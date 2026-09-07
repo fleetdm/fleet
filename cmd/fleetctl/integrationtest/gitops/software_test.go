@@ -1118,25 +1118,40 @@ func TestGitOpsABMMissingTeamKeepsExistingAssignments(t *testing.T) {
 	ds.GetABMTokenCountFunc = func(ctx context.Context) (int, error) {
 		return 1, nil
 	}
-	// Fresh copy per call: validateABMAssignments mutates the returned tokens. The
-	// token's macOS default fleet is already the existing team before the run.
+	// Fresh copies per call: validateABMAssignments mutates the returned tokens. Token 1
+	// ("Fleet ABM") already points every platform default at the existing team before the
+	// run; token 2 is the newly added one whose default fleet is created in this run.
 	ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
-		return []*fleet.ABMToken{{
-			ID:                 1,
-			OrganizationName:   "Fleet ABM",
-			MacOSDefaultTeamID: new(existingTeam.ID),
-		}}, nil
+		return []*fleet.ABMToken{
+			{
+				ID:                  1,
+				OrganizationName:    "Fleet ABM",
+				MacOSDefaultTeamID:  new(existingTeam.ID),
+				IOSDefaultTeamID:    new(existingTeam.ID),
+				IPadOSDefaultTeamID: new(existingTeam.ID),
+				BYODDefaultTeamID:   new(existingTeam.ID),
+			},
+			{ID: 2, OrganizationName: "Other ABM"},
+		}, nil
 	}
 	type abmSave struct {
-		org   string
-		macos *uint
+		org                      string
+		macos, ios, ipados, byod *uint
 	}
 	var saveCalls []abmSave
 	ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error {
-		saveCalls = append(saveCalls, abmSave{org: tok.OrganizationName, macos: tok.MacOSDefaultTeamID})
+		saveCalls = append(saveCalls, abmSave{
+			org:    tok.OrganizationName,
+			macos:  tok.MacOSDefaultTeamID,
+			ios:    tok.IOSDefaultTeamID,
+			ipados: tok.IPadOSDefaultTeamID,
+			byod:   tok.BYODDefaultTeamID,
+		})
 		return nil
 	}
 
+	// Fleet ABM keeps the existing team on every platform; Other ABM points at the
+	// not-yet-created team, which is what triggers the interim strip/filter path.
 	globalCfg := fmt.Sprintf(`
 policies:
 queries:
@@ -1148,13 +1163,17 @@ org_settings:
       - organization_name: Fleet ABM
         macos_fleet: %q
         ios_fleet: %q
+        ipados_fleet: %q
+        byod_fleet: %q
+      - organization_name: Other ABM
+        macos_fleet: %q
   server_settings:
     server_url: https://example.com
   org_info:
     org_name: Fleet
   secrets:
     - secret: "FLEET_GLOBAL_ENROLL_SECRET"
-`, existingTeamName, newTeamName)
+`, existingTeamName, existingTeamName, existingTeamName, existingTeamName, newTeamName)
 
 	teamCfg := func(name string) string {
 		return fmt.Sprintf(`
@@ -1189,16 +1208,26 @@ software:
 	})
 	require.NoError(t, err)
 
-	// The token's macOS default (an existing team) must survive every save; a save
-	// with it nil means the run had a window — or a permanent state, if interrupted —
-	// with the assignment lost.
+	// Fleet ABM's defaults (all the existing team) must survive every save; a save with
+	// any of them nil means the run had a window — or a permanent state, if interrupted —
+	// with that platform's assignment lost.
 	require.True(t, ds.SaveABMTokenFuncInvoked)
-	require.NotEmpty(t, saveCalls)
+	var fleetABMSaves int
 	for i, call := range saveCalls {
-		if assert.NotNil(t, call.macos, "SaveABMToken call %d (org %s) dropped the existing macOS default fleet", i, call.org) {
-			assert.Equal(t, existingTeam.ID, *call.macos, "SaveABMToken call %d (org %s) changed the existing macOS default fleet", i, call.org)
+		if call.org != "Fleet ABM" {
+			continue
+		}
+		fleetABMSaves++
+		for _, d := range []struct {
+			name string
+			id   *uint
+		}{{"macOS", call.macos}, {"iOS", call.ios}, {"iPadOS", call.ipados}, {"BYOD", call.byod}} {
+			if assert.NotNil(t, d.id, "SaveABMToken call %d dropped Fleet ABM's %s default fleet", i, d.name) {
+				assert.Equal(t, existingTeam.ID, *d.id, "SaveABMToken call %d changed Fleet ABM's %s default fleet", i, d.name)
+			}
 		}
 	}
+	require.NotZero(t, fleetABMSaves, "expected at least one SaveABMToken call for Fleet ABM")
 }
 
 // TestGitOpsNewTeamVPPSharedWithUnsuppliedExistingTeam covers issue #44444: adding

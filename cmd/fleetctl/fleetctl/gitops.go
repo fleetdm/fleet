@@ -1212,7 +1212,10 @@ func checkABMTeamAssignments(config *spec.GitOps, fleetClient *service.Client) (
 					appleBMDefaultTeam = norm.NFC.String(appleBMDefaultTeam)
 					abmTeams = append(abmTeams, appleBMDefaultTeam)
 					usesLegacyConfig = true
-					if _, ok = teamNames[appleBMDefaultTeam]; !ok {
+					// Reserved names ("No team"/"Unassigned"/...) are never returned by
+					// ListTeams but aren't teams to be created either, so don't treat them
+					// as missing.
+					if _, ok = teamNames[appleBMDefaultTeam]; !ok && appleBMDefaultTeam != "" && !fleet.IsReservedTeamName(appleBMDefaultTeam) {
 						missingTeams = append(missingTeams, appleBMDefaultTeam)
 					}
 				}
@@ -1227,7 +1230,7 @@ func checkABMTeamAssignments(config *spec.GitOps, fleetClient *service.Client) (
 									// normalize for Unicode support
 									team = norm.NFC.String(team)
 									abmTeams = append(abmTeams, team)
-									if _, ok := teamNames[team]; !ok {
+									if _, ok := teamNames[team]; !ok && !fleet.IsReservedTeamName(team) {
 										missingTeams = append(missingTeams, team)
 									}
 								}
