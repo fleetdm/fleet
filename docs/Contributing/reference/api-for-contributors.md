@@ -3565,6 +3565,26 @@ Signals the Fleet server to queue up the LUKS disk encryption escrow process (LU
 
 `Status: 204`
 
+##### Escrow already in progress
+
+Orbit is already handling an earlier request for this host, so nothing was queued. The end user has a passphrase prompt open, or dismissed the one they were given, rather than having one on the way. The `Retry-After` header carries the number of seconds until a new request is accepted if Orbit reports nothing further.
+
+`Status: 409`
+
+`Retry-After: 287`
+
+```json
+{
+  "message": "A disk encryption key is already being created for this host.",
+  "errors": [
+    {
+      "name": "base",
+      "reason": "A disk encryption key is already being created for this host."
+    }
+  ]
+}
+```
+
 ---
 
 ### Get the setup experience status for the device
@@ -3667,6 +3687,7 @@ Notifies the server about an agent error, resulting in two outcomes:
 | passphrase | string | body | The LUKS passphrase generated for Fleet (the end user's existing passphrase is not transmitted) |
 | key_slot | int | body | The LUKS key slot ID corresponding to the provided passphrase |
 | salt | string | body | The salt corresponding to the specified LUKS key slot. Provided to track cases where an end user rotates LUKS credentials (at which point we'll no longer be able to decrypt data with the escrowed passphrase). |
+| status | string | body | Progress on the escrow request instead of a result: `prompting` and `escrowing` keep the request marked as in progress while the end user is at the passphrase prompt and while the key slot is created, so a second **Create key** on the My device page does not queue a duplicate; `canceled` and `timed_out` end it without recording a key or an error. If provided, all other request parameters are ignored. Only sent to servers advertising the `linux_escrow_status` capability. |
 
 ##### Example
 
@@ -3681,6 +3702,15 @@ Notifies the server about an agent error, resulting in two outcomes:
   "salt": "d34db33f",
   "key_slot": 1,
   "client_error": ""
+}
+```
+
+##### Request body (status report)
+
+```json
+{
+  "orbit_node_key":"FbvSsWfTRwXEecUlCBTLmBcjGFAdzqd/",
+  "status": "prompting"
 }
 ```
 

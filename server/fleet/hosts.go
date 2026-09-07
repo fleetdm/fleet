@@ -1897,6 +1897,27 @@ type HostMDMCheckinInfo struct {
 	Platform              string `json:"-" db:"platform"`
 }
 
+// HostEscrowState is where a Linux host's LUKS escrow request stands.
+type HostEscrowState struct {
+	// Pending is true while a request is queued and not yet delivered to the agent.
+	Pending bool
+	// SinceLastActivity is how long ago the agent last showed activity on the request (hand-off
+	// or heartbeat), measured on the database clock. Nil when no request is in flight.
+	SinceLastActivity *time.Duration
+}
+
+// InFlightRemaining returns how long the request stays in flight if the agent sends nothing
+// further within window, or zero when it is not in flight.
+func (s *HostEscrowState) InFlightRemaining(window time.Duration) time.Duration {
+	if s == nil || s.SinceLastActivity == nil || *s.SinceLastActivity >= window {
+		return 0
+	}
+	if *s.SinceLastActivity < 0 {
+		return window
+	}
+	return window - *s.SinceLastActivity
+}
+
 type HostDiskEncryptionKey struct {
 	HostID              uint      `json:"-" db:"host_id"`
 	Base64Encrypted     string    `json:"-" db:"base64_encrypted"`

@@ -11487,6 +11487,18 @@ func checkEncryptionKeyStatus(t *testing.T, ds *Datastore, hostID uint, expected
 
 func testLUKSDatastoreFunctions(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
+	escrowState := func(hostID uint) *fleet.HostEscrowState {
+		state, err := ds.GetHostEscrowState(ctx, hostID)
+		require.NoError(t, err)
+		return state
+	}
+	// how long ago the agent last showed activity, or -1 when nothing is in flight
+	sinceActivity := func(hostID uint) time.Duration {
+		if since := escrowState(hostID).SinceLastActivity; since != nil {
+			return *since
+		}
+		return -1
+	}
 
 	host1, err := ds.NewHost(ctx, &fleet.Host{
 		DetailUpdatedAt: time.Now(),
@@ -11529,25 +11541,73 @@ func testLUKSDatastoreFunctions(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// queue shows as pending
-	require.False(t, ds.IsHostPendingEscrow(ctx, host1.ID))
+	require.False(t, escrowState(host1.ID).Pending)
 	err = ds.QueueEscrow(ctx, host1.ID)
 	require.NoError(t, err)
-	require.False(t, ds.IsHostPendingEscrow(ctx, host2.ID))
-	require.True(t, ds.IsHostPendingEscrow(ctx, host1.ID))
+	require.False(t, escrowState(host2.ID).Pending)
+	require.True(t, escrowState(host1.ID).Pending)
 
 	// clear removes pending
 	err = ds.QueueEscrow(ctx, host2.ID)
 	require.NoError(t, err)
 	err = ds.ClearPendingEscrow(ctx, host1.ID)
 	require.NoError(t, err)
-	require.False(t, ds.IsHostPendingEscrow(ctx, host1.ID))
-	require.True(t, ds.IsHostPendingEscrow(ctx, host2.ID))
+	require.False(t, escrowState(host1.ID).Pending)
+	require.True(t, escrowState(host2.ID).Pending)
+
+	// handing the request to the agent puts the escrow in flight, as of now
+	since := sinceActivity(host1.ID)
+	require.GreaterOrEqual(t, since, time.Duration(0))
+	require.Less(t, since, time.Minute)
+	// queued but not yet delivered is not in flight
+	require.Equal(t, time.Duration(-1), sinceActivity(host2.ID))
+	// no row at all is not in flight
+	require.Equal(t, time.Duration(-1), sinceActivity(host3.ID))
+
+	// the last activity ages with the clock
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			`UPDATE host_disk_encryption_keys SET escrow_sent_at = DATE_SUB(escrow_sent_at, INTERVAL 10 MINUTE) WHERE host_id = ?`, host1.ID)
+		return err
+	})
+	require.GreaterOrEqual(t, sinceActivity(host1.ID), 10*time.Minute)
+
+	// re-queueing then delivering starts a fresh in-flight window
+	require.NoError(t, ds.QueueEscrow(ctx, host1.ID))
+	require.NoError(t, ds.ClearPendingEscrow(ctx, host1.ID))
+	require.Less(t, sinceActivity(host1.ID), time.Minute)
 
 	// report escrow error does not remove pending
 	err = ds.ReportEscrowError(ctx, host2.ID, "this broke")
 	require.NoError(t, err)
-	require.True(t, ds.IsHostPendingEscrow(ctx, host2.ID))
+	require.True(t, escrowState(host2.ID).Pending)
 	// TODO confirm error was persisted
+
+	// report escrow error ends the in-flight state
+	require.NoError(t, ds.ReportEscrowError(ctx, host1.ID, "this broke too"))
+	require.Equal(t, time.Duration(-1), sinceActivity(host1.ID))
+
+	// a heartbeat does not revive a host that is no longer in flight
+	require.NoError(t, ds.SetEscrowInFlight(ctx, host1.ID, true))
+	require.Equal(t, time.Duration(-1), sinceActivity(host1.ID))
+
+	// a heartbeat resets the last activity of a host that is in flight
+	require.NoError(t, ds.QueueEscrow(ctx, host1.ID))
+	require.NoError(t, ds.ClearPendingEscrow(ctx, host1.ID))
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			`UPDATE host_disk_encryption_keys SET escrow_sent_at = DATE_SUB(escrow_sent_at, INTERVAL 10 MINUTE) WHERE host_id = ?`, host1.ID)
+		return err
+	})
+	require.NoError(t, ds.SetEscrowInFlight(ctx, host1.ID, true))
+	require.Less(t, sinceActivity(host1.ID), time.Minute)
+
+	// ending the in-flight state leaves the last reported error alone
+	require.NoError(t, ds.SetEscrowInFlight(ctx, host1.ID, false))
+	require.Equal(t, time.Duration(-1), sinceActivity(host1.ID))
+	host1Key, err := ds.GetHostDiskEncryptionKey(ctx, host1.ID)
+	require.NoError(t, err)
+	require.Equal(t, "this broke too", host1Key.ClientError)
 
 	// assert no key stored on hosts with varying no-key-stored states
 	require.NoError(t, ds.AssertHasNoEncryptionKeyStored(ctx, host1.ID))
@@ -11560,13 +11620,19 @@ func testLUKSDatastoreFunctions(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.AssertHasNoEncryptionKeyStored(ctx, host1.ID))
 	require.False(t, keyArchived)
 
-	// persists with passphrase and salt set
+	// a stale client_error must not hide a retry in flight; saving the key ends it
+	require.NoError(t, ds.ClearPendingEscrow(ctx, host2.ID))
+	require.Less(t, sinceActivity(host2.ID), time.Minute)
+	// a request still pending when the key arrives is a stale duplicate; saving the key drops it
+	require.NoError(t, ds.QueueEscrow(ctx, host2.ID))
 	keyArchived, err = ds.SaveLUKSData(ctx, host2, "bazqux", "fuzzmuffin", new(uint(0)))
 	require.NoError(t, err)
 	require.NoError(t, ds.AssertHasNoEncryptionKeyStored(ctx, host1.ID))
 	require.Error(t, ds.AssertHasNoEncryptionKeyStored(ctx, host2.ID))
 	require.True(t, keyArchived)
 	checkLUKSEncryptionKey(t, ds, host2.ID, "bazqux", "fuzzmuffin")
+	require.Equal(t, time.Duration(-1), sinceActivity(host2.ID))
+	require.False(t, escrowState(host2.ID).Pending)
 
 	// persists when host hasn't had anything queued
 	keyArchived, err = ds.SaveLUKSData(ctx, host3, "newstuff", "fuzzball", new(uint(1)))
