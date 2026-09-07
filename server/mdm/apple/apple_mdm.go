@@ -414,14 +414,18 @@ func (d *DEPService) ValidateSetupAssistant(ctx context.Context, team *fleet.Tea
 			return ctxerr.New(ctx, "No Apple Business Manager (ABM) token found. Add an ABM token before adding a setup assistant.")
 		}
 
-		// Prefer a token that can actually reach Apple; an invalid or terms-expired
-		// token would fail DefineProfile and block a fleet that has other good tokens.
-		orgName := toks[0].OrganizationName
+		// Pick a token that can actually reach Apple; an invalid or terms-expired
+		// token would fail DefineProfile with a cryptic error, so fail early with an
+		// actionable message when none is usable.
+		var orgName string
 		for _, tok := range toks {
 			if !tok.TokenInvalid && !tok.TermsExpired {
 				orgName = tok.OrganizationName
 				break
 			}
+		}
+		if orgName == "" {
+			return ctxerr.New(ctx, "All Apple Business Manager (ABM) tokens are invalid or have expired terms. Renew an ABM token before adding a setup assistant.")
 		}
 		orgNames = append(orgNames, orgName)
 	}

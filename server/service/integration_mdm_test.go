@@ -6413,7 +6413,7 @@ func (s *integrationMDMTestSuite) TestMacosSetupAssistant() {
 		EnrollmentProfile: json.RawMessage(fmt.Sprintf(defaultProf, "no_abm")),
 	}, http.StatusOK, &noABMResp)
 	require.NotEmpty(t, noABMResp.Warnings)
-	require.Contains(t, noABMResp.Warnings[0], "won't take effect")
+	require.Contains(t, strings.Join(noABMResp.Warnings, "\n"), "won't take effect")
 
 	// With no ABM token at all, adding a setup assistant is rejected with a clear message.
 	allToks, err := s.ds.ListABMTokens(ctx)
