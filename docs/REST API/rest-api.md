@@ -2785,7 +2785,7 @@ _Available in Fleet Premium._
     "jira": [
       {
         "enable_software_vulnerabilities": false,
-        "enable_failing_poilicies": true,
+        "enable_failing_policies": true,
         "url": "https://jiraserver.com",
         "username": "some_user",
         "api_token": "<TOKEN>",
@@ -15504,7 +15504,7 @@ Omitting `host_activities_webhook` from a `webhook_settings` update leaves the s
     "jira": [
       {
         "enable_software_vulnerabilities": false,
-        "enable_failing_poilicies": true,
+        "enable_failing_policies": true,
         "url": "https://jiraserver.com",
         "username": "some_user",
         "api_token": "<TOKEN>",
