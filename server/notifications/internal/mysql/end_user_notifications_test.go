@@ -29,6 +29,7 @@ func TestEndUserNotifications(t *testing.T) {
 		{"Delay", testDelayEndUserNotification},
 		{"ActOn", testActOnEndUserNotification},
 		{"RevertAction", testRevertEndUserNotificationAction},
+		{"Fail", testFailEndUserNotification},
 		{"Outcome", testSetEndUserNotificationOutcome},
 		{"HostDeleteCascade", testEndUserNotificationHostDeleteCascade},
 	}
@@ -555,6 +556,41 @@ func testRevertEndUserNotificationAction(t *testing.T, env *testEnv) {
 		got, err := env.ds.GetEndUserNotificationByUUID(ctx, notificationUUID)
 		require.NoError(t, err)
 		assert.Equal(t, api.EndUserNotificationExpired, got.Status)
+	})
+}
+
+// A notification that can never be displayed fails, so Fleet stops retrying it
+// every minute until it expires.
+func testFailEndUserNotification(t *testing.T, env *testEnv) {
+	ctx := t.Context()
+
+	t.Run("a dispatched notification fails and records the reason", func(t *testing.T) {
+		hostID := newDarwinHost(t, env, "fail", true)
+		notificationUUID := newHostNotification(t, env, hostID, "test_kind",
+			api.EndUserNotificationDispatched, 1, false)
+
+		require.NoError(t, env.ds.FailEndUserNotification(ctx, notificationUUID,
+			api.EndUserNotificationReasonNothingToShow))
+
+		got, err := env.ds.GetEndUserNotificationByUUID(ctx, notificationUUID)
+		require.NoError(t, err)
+		assert.Equal(t, api.EndUserNotificationFailed, got.Status)
+		require.NotNil(t, got.LastReason)
+		assert.Equal(t, api.EndUserNotificationReasonNothingToShow, *got.LastReason)
+	})
+
+	t.Run("a notification that already expired is left alone", func(t *testing.T) {
+		hostID := newDarwinHost(t, env, "fail-expired", true)
+		notificationUUID := newHostNotification(t, env, hostID, "test_kind",
+			api.EndUserNotificationExpired, 1, false)
+
+		require.NoError(t, env.ds.FailEndUserNotification(ctx, notificationUUID,
+			api.EndUserNotificationReasonNothingToShow))
+
+		got, err := env.ds.GetEndUserNotificationByUUID(ctx, notificationUUID)
+		require.NoError(t, err)
+		assert.Equal(t, api.EndUserNotificationExpired, got.Status)
+		assert.Nil(t, got.LastReason)
 	})
 }
 

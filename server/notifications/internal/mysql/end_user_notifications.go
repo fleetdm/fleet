@@ -389,6 +389,25 @@ WHERE uuid = ? AND status = ?
 	return nil
 }
 
+// FailEndUserNotification gives up on a notification that can never be
+// displayed. Only a notification that is still on its way can fail, so this
+// can't disturb one that is already terminal.
+func (ds *Datastore) FailEndUserNotification(ctx context.Context, notificationUUID string, reason string) error {
+	const updateStmt = `
+UPDATE notifications_end_user
+SET status = ?, last_reason = ?
+WHERE uuid = ? AND status IN (?, ?)
+`
+
+	if _, err := ds.primary.ExecContext(ctx, updateStmt,
+		api.EndUserNotificationFailed, reason, notificationUUID,
+		api.EndUserNotificationPending, api.EndUserNotificationDispatched,
+	); err != nil {
+		return ctxerr.Wrap(ctx, err, "fail end user notification")
+	}
+	return nil
+}
+
 // SetEndUserNotificationOutcome records how an attempt to display ended. A
 // non-nil nextAttemptAt puts the notification back in the queue, otherwise that
 // was its last attempt.

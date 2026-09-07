@@ -130,3 +130,10 @@ func (s *Service) RevertNotificationAction(ctx context.Context, notificationUUID
 	}
 	return nil
 }
+
+func (s *Service) FailNotification(ctx context.Context, notificationUUID string, reason string) error {
+	if err := s.ds.FailEndUserNotification(ctx, notificationUUID, reason); err != nil {
+		return ctxerr.Wrap(ctx, err, "fail end user notification")
+	}
+	return nil
+}

@@ -41,6 +41,7 @@ const (
 	EndUserNotificationReasonScriptsDisabled   = "scripts_disabled"
 	EndUserNotificationReasonURLUnresolved     = "url_unresolved"
 	EndUserNotificationReasonUnexpectedFailure = "unexpected_failure"
+	EndUserNotificationReasonNothingToShow     = "nothing_to_show"
 )
 
 // How long a delayed notification waits. Fleet decides this, not the device.

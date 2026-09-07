@@ -27,6 +27,7 @@ type Datastore interface {
 	// terminal, so only the first call gets true.
 	ActOnEndUserNotification(ctx context.Context, notificationUUID string) (bool, error)
 	RevertEndUserNotificationAction(ctx context.Context, notificationUUID string) error
+	FailEndUserNotification(ctx context.Context, notificationUUID string, reason string) error
 	SetEndUserNotificationOutcome(ctx context.Context, notificationUUID string, outcome api.NotificationOutcome, nextAttemptAt *time.Time) error
 }
 

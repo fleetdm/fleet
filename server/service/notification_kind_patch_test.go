@@ -36,6 +36,7 @@ type stubNotificationService struct {
 	acts          bool
 	actInvoked    bool
 	revertInvoked bool
+	failedReason  string
 }
 
 func (s *stubNotificationService) ActOnNotification(_ context.Context, _ string) (bool, error) {
@@ -45,6 +46,11 @@ func (s *stubNotificationService) ActOnNotification(_ context.Context, _ string)
 
 func (s *stubNotificationService) RevertNotificationAction(_ context.Context, _ string) error {
 	s.revertInvoked = true
+	return nil
+}
+
+func (s *stubNotificationService) FailNotification(_ context.Context, _ string, reason string) error {
+	s.failedReason = reason
 	return nil
 }
 
@@ -414,6 +420,29 @@ func TestPatchNotificationUpdateNowResumesAfterFailure(t *testing.T) {
 		"the first app is not queued a second time")
 	assert.True(t, notificationSvc.actInvoked)
 	assert.False(t, notificationSvc.revertInvoked)
+}
+
+// A notification whose apps are all gone, which happens when an admin deletes
+// the software title, can never render. It fails rather than being retried
+// every minute for 24 hours.
+func TestPatchNotificationRenderWithNoApps(t *testing.T) {
+	ds := new(mock.Store)
+	notificationSvc := &stubNotificationService{acts: true}
+	kind := &patchNotificationKind{
+		ds: ds, notificationSvc: notificationSvc, logger: slog.New(slog.DiscardHandler),
+	}
+	ds.ListPatchNotificationAppsFunc = func(_ context.Context, _ string) ([]fleet.PatchNotificationAppDetail, error) {
+		return nil, nil
+	}
+
+	view, err := kind.Render(context.Background(), &notifications_api.EndUserNotification{
+		UUID: "notification-uuid", HostID: 1,
+		Status:  notifications_api.EndUserNotificationDispatched,
+		Payload: patchNotificationFirstNoticePayload,
+	})
+	require.Error(t, err)
+	assert.Nil(t, view)
+	assert.Equal(t, notifications_api.EndUserNotificationReasonNothingToShow, notificationSvc.failedReason)
 }
 
 // What the activity OnOutcome records: which apps and policies it names, which

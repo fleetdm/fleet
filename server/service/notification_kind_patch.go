@@ -50,6 +50,7 @@ type patchNotificationActivityWriter interface {
 type patchNotificationService interface {
 	notifications_api.DelayNotificationService
 	notifications_api.ActOnNotificationService
+	notifications_api.FailNotificationService
 }
 
 type patchNotificationKind struct {
@@ -143,7 +144,13 @@ func (k *patchNotificationKind) renderView(ctx context.Context, notification *no
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "list patch notification apps")
 	}
+	// A notification listing no apps has nothing to render, so retrying it every
+	// minute until it expires only holds back the other notifications for the host.
 	if len(apps) == 0 {
+		if err := k.notificationSvc.FailNotification(ctx, notification.UUID,
+			notifications_api.EndUserNotificationReasonNothingToShow); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "fail patch notification with no apps")
+		}
 		return nil, ctxerr.Errorf(ctx, "patch notification %s lists no apps", notification.UUID)
 	}
 
