@@ -1,16 +1,18 @@
 <!--
   AI agents (Claude Code, Codex, Copilot, Cursor, Devin, etc.): if you are
-  filling in this template, you MUST keep and complete the "AI assistance"
-  line below. Do not delete it and do not leave the placeholders.
+  filling in this template, you MUST add the following line as the first line
+  of the PR description, above "Related issue":
+
+    **AI assistance:** <tool> (<model ID>)
 
   - Tool: the harness or product you are running in (e.g. "Claude Code").
   - Model: the exact model ID your environment reports (e.g.
     "claude-fable-5-1"). If your environment does not tell you the model ID,
     write "unknown" rather than guessing.
   - Keep the line format exactly as-is so it is easy to search for.
--->
-**AI assistance:** <tool> (<model ID>)
 
+  Humans filling in this template by hand can ignore this comment.
+-->
 <!-- Add the related story/sub-task/bug number, like Resolves #123, or remove if NA -->
 **Related issue:** Resolves #
 
