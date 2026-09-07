@@ -7376,7 +7376,8 @@ func testGetSoftwareInstallDetailsPatchWhenClosed(t *testing.T, ds *Datastore) {
 		optInstaller, optTitle := newInstaller(t, "pwc-"+option)
 		optPol := patchPolicy(t, optTitle, option)
 
-		optExec, err := ds.InsertSoftwareInstallRequest(ctx, optHost.ID, optInstaller, fleet.HostSoftwareInstallOptions{PolicyID: &optPol.ID})
+		optExec, err := ds.InsertSoftwareInstallRequest(ctx, optHost.ID, optInstaller,
+			fleet.HostSoftwareInstallOptions{PolicyID: &optPol.ID, OverridePreInstallQuery: true})
 		require.NoError(t, err)
 		optDetails, err := ds.GetSoftwareInstallDetails(ctx, optExec)
 		require.NoError(t, err)
@@ -7412,16 +7413,15 @@ func testGetSoftwareInstallDetailsPatchWhenClosed(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, userQuery, forceDetails.PreInstallCondition)
 
-	// An end user pressing "Update now" on a patch notification asks to install even with the app
-	// open, so the notify-before-patching policy's managed query is not swapped in. The decision is
-	// stored on the install, so both UNION branches report it the same way.
+	// An install the end user asked for with "Update now" does not use the managed query, so it
+	// installs with the app open.
 	ignoreHost := test.NewHost(t, ds, "pwc-host-ignore", "pwc-ip-ignore", "pwc-key-ignore", "pwc-uuid-ignore", time.Now())
 	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{ignoreHost.ID})))
 	ignoreInstaller, ignoreTitle := newInstaller(t, "pwc-ignore")
 	ignorePol := patchPolicy(t, ignoreTitle, "notify")
 
 	ignoreExec, err := ds.InsertSoftwareInstallRequest(ctx, ignoreHost.ID, ignoreInstaller,
-		fleet.HostSoftwareInstallOptions{PolicyID: &ignorePol.ID, IgnoreAppOpenQuery: true})
+		fleet.HostSoftwareInstallOptions{PolicyID: &ignorePol.ID})
 	require.NoError(t, err)
 	ignoreDetails, err := ds.GetSoftwareInstallDetails(ctx, ignoreExec)
 	require.NoError(t, err)
@@ -7441,7 +7441,7 @@ func testGetSoftwareInstallDetailsPatchWhenClosed(t *testing.T, ds *Datastore) {
 
 	// A second install queues behind the activated one, so it comes from the upcoming branch.
 	upcomingExec, err := ds.InsertSoftwareInstallRequest(ctx, ignoreHost.ID, ignoreInstaller,
-		fleet.HostSoftwareInstallOptions{PolicyID: &ignorePol.ID})
+		fleet.HostSoftwareInstallOptions{PolicyID: &ignorePol.ID, OverridePreInstallQuery: true})
 	require.NoError(t, err)
 	upcomingResult, err := ds.GetSoftwareInstallResults(ctx, upcomingExec)
 	require.NoError(t, err)

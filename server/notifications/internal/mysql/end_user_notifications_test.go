@@ -28,8 +28,7 @@ func TestEndUserNotifications(t *testing.T) {
 		{"Verify", testVerifyEndUserNotification},
 		{"Delay", testDelayEndUserNotification},
 		{"ActOn", testActOnEndUserNotification},
-		{"SetStatusDispatched", testSetEndUserNotificationStatusDispatched},
-		{"Fail", testSetEndUserNotificationFailed},
+		{"SetStatus", testSetEndUserNotificationStatus},
 		{"Outcome", testSetEndUserNotificationOutcome},
 		{"HostDeleteCascade", testEndUserNotificationHostDeleteCascade},
 	}
@@ -520,8 +519,10 @@ func testActOnEndUserNotification(t *testing.T, env *testEnv) {
 	})
 }
 
-func testSetEndUserNotificationStatusDispatched(t *testing.T, env *testEnv) {
+func testSetEndUserNotificationStatus(t *testing.T, env *testEnv) {
 	ctx := t.Context()
+	fromActed := []string{api.EndUserNotificationActed}
+	fromOnItsWay := []string{api.EndUserNotificationPending, api.EndUserNotificationDispatched}
 
 	t.Run("an acted notification goes back to dispatched and keeps its displayed_at", func(t *testing.T) {
 		hostID := newDarwinHost(t, env, "set-dispatched", true)
@@ -532,7 +533,8 @@ func testSetEndUserNotificationStatusDispatched(t *testing.T, env *testEnv) {
 		require.NoError(t, err)
 		require.True(t, acted)
 
-		require.NoError(t, env.ds.SetEndUserNotificationStatusDispatched(ctx, notificationUUID))
+		require.NoError(t, env.ds.SetEndUserNotificationStatus(ctx, notificationUUID,
+			api.EndUserNotificationDispatched, nil, fromActed))
 
 		got, err := env.ds.GetEndUserNotificationByUUID(ctx, notificationUUID)
 		require.NoError(t, err)
@@ -544,29 +546,13 @@ func testSetEndUserNotificationStatusDispatched(t *testing.T, env *testEnv) {
 		assert.True(t, acted, "the next press can claim it")
 	})
 
-	t.Run("a notification that was never acted on is left alone", func(t *testing.T) {
-		hostID := newDarwinHost(t, env, "set-dispatched-expired", true)
-		notificationUUID := newHostNotification(t, env, hostID, "test_kind",
-			api.EndUserNotificationExpired, 1, false)
-
-		require.NoError(t, env.ds.SetEndUserNotificationStatusDispatched(ctx, notificationUUID))
-
-		got, err := env.ds.GetEndUserNotificationByUUID(ctx, notificationUUID)
-		require.NoError(t, err)
-		assert.Equal(t, api.EndUserNotificationExpired, got.Status)
-	})
-}
-
-func testSetEndUserNotificationFailed(t *testing.T, env *testEnv) {
-	ctx := t.Context()
-
 	t.Run("a dispatched notification fails and records the reason", func(t *testing.T) {
 		hostID := newDarwinHost(t, env, "fail", true)
 		notificationUUID := newHostNotification(t, env, hostID, "test_kind",
 			api.EndUserNotificationDispatched, 1, false)
 
-		require.NoError(t, env.ds.SetEndUserNotificationFailed(ctx, notificationUUID,
-			api.EndUserNotificationReasonNothingToShow))
+		require.NoError(t, env.ds.SetEndUserNotificationStatus(ctx, notificationUUID,
+			api.EndUserNotificationFailed, new(api.EndUserNotificationReasonNothingToShow), fromOnItsWay))
 
 		got, err := env.ds.GetEndUserNotificationByUUID(ctx, notificationUUID)
 		require.NoError(t, err)
@@ -575,13 +561,15 @@ func testSetEndUserNotificationFailed(t *testing.T, env *testEnv) {
 		assert.Equal(t, api.EndUserNotificationReasonNothingToShow, *got.LastReason)
 	})
 
-	t.Run("a notification that already expired is left alone", func(t *testing.T) {
-		hostID := newDarwinHost(t, env, "fail-expired", true)
+	t.Run("a notification in none of the given statuses is left alone", func(t *testing.T) {
+		hostID := newDarwinHost(t, env, "set-status-expired", true)
 		notificationUUID := newHostNotification(t, env, hostID, "test_kind",
 			api.EndUserNotificationExpired, 1, false)
 
-		require.NoError(t, env.ds.SetEndUserNotificationFailed(ctx, notificationUUID,
-			api.EndUserNotificationReasonNothingToShow))
+		require.NoError(t, env.ds.SetEndUserNotificationStatus(ctx, notificationUUID,
+			api.EndUserNotificationDispatched, nil, fromActed))
+		require.NoError(t, env.ds.SetEndUserNotificationStatus(ctx, notificationUUID,
+			api.EndUserNotificationFailed, new(api.EndUserNotificationReasonNothingToShow), fromOnItsWay))
 
 		got, err := env.ds.GetEndUserNotificationByUUID(ctx, notificationUUID)
 		require.NoError(t, err)

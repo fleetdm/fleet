@@ -2099,11 +2099,10 @@ func (svc *Service) retryPolicyAutomationSoftwareInstall(ctx context.Context, ho
 		"software_installer_id", installerID,
 		"current_attempt", *hsi.AttemptNumber,
 	)
-	// The retry does what the attempt it retries was queued to do, so an "Update now" install
-	// does not skip and notify again.
+	// The retry needs the same app open decision as the attempt it retries.
 	_, err = svc.ds.InsertSoftwareInstallRequest(ctx, host.ID, installerID, fleet.HostSoftwareInstallOptions{
-		PolicyID:           hsi.PolicyID,
-		IgnoreAppOpenQuery: !hsi.OverridePreInstallQuery,
+		PolicyID:                hsi.PolicyID,
+		OverridePreInstallQuery: hsi.OverridePreInstallQuery,
 	})
 	return err
 }

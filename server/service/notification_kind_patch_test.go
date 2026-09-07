@@ -315,7 +315,7 @@ func TestPatchNotificationUpdateNow(t *testing.T) {
 
 			require.Len(t, installs, c.wantInstalls)
 			for _, opts := range installs {
-				assert.True(t, opts.IgnoreAppOpenQuery, "the end user asked for this, so the app being open must not stop it")
+				assert.False(t, opts.OverridePreInstallQuery, "the end user asked for this, so the app being open must not stop it")
 				require.NotNil(t, opts.PolicyID, "the install keeps its policy so it shows in Automation runs")
 				assert.Equal(t, policyID, *opts.PolicyID)
 			}

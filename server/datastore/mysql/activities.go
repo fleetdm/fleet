@@ -1433,8 +1433,7 @@ func (ds *Datastore) activateNextSoftwareInstallActivity(ctx context.Context, tx
 	const insStmt = `
 INSERT INTO host_software_installs
 	(execution_id, host_id, software_installer_id, user_id, self_service,
-		policy_id, installer_filename, version, software_title_id, software_title_name,
-		override_pre_install_query, attempt_number)
+		policy_id, installer_filename, version, software_title_id, software_title_name, override_pre_install_query, attempt_number)
 SELECT
 	ua.execution_id,
 	ua.host_id,

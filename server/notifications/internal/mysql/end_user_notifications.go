@@ -370,35 +370,22 @@ WHERE uuid = ? AND status IN (?, ?)
 	return rows > 0, nil
 }
 
-// displayed_at is left alone: clearing it would put the notification back in the dispatch queue.
-func (ds *Datastore) SetEndUserNotificationStatusDispatched(ctx context.Context, notificationUUID string) error {
-	const updateStmt = `
+// SetEndUserNotificationStatus moves a notification that is in one of fromStatuses, so a caller
+// can't disturb a notification that moved on since it read it. A nil reason keeps last_reason, and
+// displayed_at is always left alone: clearing it would put the notification back in the dispatch
+// queue.
+func (ds *Datastore) SetEndUserNotificationStatus(ctx context.Context, notificationUUID string, status string, reason *string, fromStatuses []string) error {
+	stmt, args, err := sqlx.In(`
 UPDATE notifications_end_user
-SET status = ?
-WHERE uuid = ? AND status = ?
-`
-
-	if _, err := ds.primary.ExecContext(ctx, updateStmt,
-		api.EndUserNotificationDispatched, notificationUUID, api.EndUserNotificationActed,
-	); err != nil {
-		return ctxerr.Wrap(ctx, err, "set end user notification status dispatched")
+SET status = ?, last_reason = COALESCE(?, last_reason)
+WHERE uuid = ? AND status IN (?)
+`, status, reason, notificationUUID, fromStatuses)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "build end user notification status update")
 	}
-	return nil
-}
 
-// Only a notification still on its way can fail, so a terminal one is left alone.
-func (ds *Datastore) SetEndUserNotificationFailed(ctx context.Context, notificationUUID string, reason string) error {
-	const updateStmt = `
-UPDATE notifications_end_user
-SET status = ?, last_reason = ?
-WHERE uuid = ? AND status IN (?, ?)
-`
-
-	if _, err := ds.primary.ExecContext(ctx, updateStmt,
-		api.EndUserNotificationFailed, reason, notificationUUID,
-		api.EndUserNotificationPending, api.EndUserNotificationDispatched,
-	); err != nil {
-		return ctxerr.Wrap(ctx, err, "fail end user notification")
+	if _, err := ds.primary.ExecContext(ctx, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "set end user notification status")
 	}
 	return nil
 }

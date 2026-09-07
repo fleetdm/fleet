@@ -55,8 +55,7 @@ type SoftwareInstallDetails struct {
 	MaxRetries uint `json:"max_retries,omitempty"`
 
 	AppOpenQuery string `json:"-" db:"app_open_query"`
-	// OverridePreInstallQuery is decided when the install is queued: it means this attempt runs
-	// AppOpenQuery as its pre-install condition instead of the installer's own pre-install query.
+	// OverridePreInstallQuery means the install needs to use AppOpenQuery as its pre-install condition.
 	OverridePreInstallQuery bool `json:"-" db:"override_pre_install_query"`
 }
 
@@ -1397,8 +1396,9 @@ type HostSoftwareInstallOptions struct {
 	// WithRetries indicates the install should be retried on failure (up to
 	// MaxSoftwareInstallAttempts total). Set by host details, self-service,
 	// and setup experience install paths.
-	WithRetries        bool
-	IgnoreAppOpenQuery bool
+	WithRetries bool
+	// OverridePreInstallQuery makes the install use the app open query as its pre-install condition.
+	OverridePreInstallQuery bool
 }
 
 // IsFleetInitiated returns true if the software install is initiated by Fleet.

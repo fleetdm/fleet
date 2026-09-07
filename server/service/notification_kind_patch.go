@@ -146,8 +146,9 @@ func (k *patchNotificationKind) renderView(ctx context.Context, notification *no
 	}
 	// Retrying a notification that can never render holds back the other notifications for the host.
 	if len(apps) == 0 {
-		if err := k.notificationSvc.SetNotificationFailed(ctx, notification.UUID,
-			notifications_api.EndUserNotificationReasonNothingToShow); err != nil {
+		err = k.notificationSvc.SetNotificationFailed(ctx, notification.UUID,
+			notifications_api.EndUserNotificationReasonNothingToShow)
+		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "fail patch notification with no apps")
 		}
 		return nil, ctxerr.Errorf(ctx, "patch notification %s lists no apps", notification.UUID)
@@ -275,8 +276,7 @@ func (k *patchNotificationKind) updateNow(ctx context.Context, notification *not
 		return nil, nil
 	}
 
-	// The claim is what arbitrates between two presses at once: every read below
-	// happens before either press writes.
+	// Only the claim stops two presses at once from both queueing installs.
 	acted, err := k.notificationSvc.ActOnNotification(ctx, notification.UUID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "act on patch notification")
@@ -287,7 +287,8 @@ func (k *patchNotificationKind) updateNow(ctx context.Context, notification *not
 
 	apps, err := k.ds.ListPatchNotificationApps(ctx, notification.UUID)
 	if err != nil {
-		if dispatchedErr := k.notificationSvc.SetNotificationStatusDispatched(ctx, notification.UUID); dispatchedErr != nil {
+		dispatchedErr := k.notificationSvc.SetNotificationStatusDispatched(ctx, notification.UUID)
+		if dispatchedErr != nil {
 			k.logger.ErrorContext(ctx, "failed to put the patch notification back to dispatched",
 				"notification_uuid", notification.UUID, "err", dispatchedErr)
 		}
@@ -320,10 +321,7 @@ func (k *patchNotificationKind) updateNow(ctx context.Context, notification *not
 		}
 
 		if _, err := k.ds.InsertSoftwareInstallRequest(ctx, notification.HostID, *app.SoftwareInstallerID,
-			fleet.HostSoftwareInstallOptions{
-				PolicyID:           app.PolicyID,
-				IgnoreAppOpenQuery: true,
-			},
+			fleet.HostSoftwareInstallOptions{PolicyID: app.PolicyID},
 		); err != nil {
 			queueErr = ctxerr.Wrapf(ctx, err, "insert software install request: host_id=%d, software_installer_id=%d",
 				notification.HostID, *app.SoftwareInstallerID)
@@ -334,13 +332,15 @@ func (k *patchNotificationKind) updateNow(ctx context.Context, notification *not
 	}
 
 	// The claim is kept if this write fails, since the installs already went out unrecorded.
-	if err := k.ds.SetPatchNotificationAppsQueued(ctx, notification.UUID, queuedTitleIDs); err != nil {
+	err = k.ds.SetPatchNotificationAppsQueued(ctx, notification.UUID, queuedTitleIDs)
+	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "set patch notification apps queued")
 	}
 	if queueErr != nil {
-		if err := k.notificationSvc.SetNotificationStatusDispatched(ctx, notification.UUID); err != nil {
+		dispatchedErr := k.notificationSvc.SetNotificationStatusDispatched(ctx, notification.UUID)
+		if dispatchedErr != nil {
 			k.logger.ErrorContext(ctx, "failed to put the patch notification back to dispatched",
-				"notification_uuid", notification.UUID, "err", err)
+				"notification_uuid", notification.UUID, "err", dispatchedErr)
 		}
 		return nil, queueErr
 	}

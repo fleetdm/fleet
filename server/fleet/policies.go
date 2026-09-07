@@ -546,6 +546,8 @@ type PolicySoftwareInstallerData struct {
 	ID                           uint `db:"id"`
 	InstallerID                  uint `db:"software_installer_id"`
 	ContinuousAutomationsEnabled bool `db:"continuous_automations_enabled"`
+	// OverridePreInstallQuery is on for a policy that skips the install while the app is open.
+	OverridePreInstallQuery bool `db:"override_pre_install_query"`
 }
 
 type PolicyVPPData struct {

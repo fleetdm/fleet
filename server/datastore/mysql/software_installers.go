@@ -1931,13 +1931,6 @@ VALUES
 		)
 	)`
 
-		appOpenPolicyStmt = `
-SELECT
-	patch_when_closed OR notify_before_patching
-FROM
-	policies
-WHERE id = ?`
-
 		insertSIUAStmt = `
 INSERT INTO software_install_upcoming_activities
 	(upcoming_activity_id, software_installer_id, policy_id, software_title_id)
@@ -1981,19 +1974,6 @@ VALUES
 	}
 	execID := uuid.NewString()
 
-	// A patch-when-closed or notify-before-patching policy install runs the installer's app open
-	// query instead of its pre-install query, so the install skips while the app is open. The end
-	// user pressing "Update now" on a patch notification sets IgnoreAppOpenQuery, which installs
-	// even with the app open. The decision is recorded per attempt rather than read back from the
-	// policy at install time.
-	var overridePreInstallQuery bool
-	if opts.PolicyID != nil && !opts.IgnoreAppOpenQuery {
-		appOpenErr := sqlx.GetContext(ctx, ds.reader(ctx), &overridePreInstallQuery, appOpenPolicyStmt, *opts.PolicyID)
-		if appOpenErr != nil && !errors.Is(appOpenErr, sql.ErrNoRows) {
-			return "", ctxerr.Wrap(ctx, appOpenErr, "getting patch policy app open options")
-		}
-	}
-
 	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		res, err := tx.ExecContext(ctx, insertUAStmt,
 			hostID,
@@ -2007,7 +1987,7 @@ VALUES
 			installerDetails.TitleName,
 			installerDetails.Source,
 			opts.WithRetries,
-			overridePreInstallQuery,
+			opts.OverridePreInstallQuery,
 			userID,
 		)
 		if err != nil {

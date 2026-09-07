@@ -26,8 +26,7 @@ type Datastore interface {
 	// ActOnEndUserNotification returns false when the notification was already
 	// terminal, so only the first call gets true.
 	ActOnEndUserNotification(ctx context.Context, notificationUUID string) (bool, error)
-	SetEndUserNotificationStatusDispatched(ctx context.Context, notificationUUID string) error
-	SetEndUserNotificationFailed(ctx context.Context, notificationUUID string, reason string) error
+	SetEndUserNotificationStatus(ctx context.Context, notificationUUID string, status string, reason *string, fromStatuses []string) error
 	SetEndUserNotificationOutcome(ctx context.Context, notificationUUID string, outcome api.NotificationOutcome, nextAttemptAt *time.Time) error
 }
 
