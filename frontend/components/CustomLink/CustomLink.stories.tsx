@@ -103,3 +103,11 @@ export const DisabledKeyboardNav: Story = {
     disableKeyboardNavigation: true,
   },
 };
+
+export const ButtonVariant: Story = {
+  args: {
+    url: "https://www.google.com",
+    text: "Button link",
+    variant: "button",
+  },
+};
