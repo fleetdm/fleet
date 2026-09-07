@@ -35,7 +35,7 @@ Apple published [support article 126655 ("Prepare your network environment for s
 
 Apple keeps expanding what DDM can express. Here's what's new in OS 27.
 
-**VPN and network:** VPN configurations can now be delivered as declarative configurations, including IKEv2, IPSec, Always-On, DNS proxy, DNS settings, and relay. Credentials are deliverable as declarative assets with automated renewal. A meaningful step up from managing VPN profiles by hand.
+**VPN and network:** VPN configurations can now be delivered as declarative configurations, including IKEv2, IPSec, Always-On, DNS proxy, DNS settings, and relay. Credentials are deliverable as declarative assets with automated renewal. A meaningful step up from managing VPN profiles by hand. See our [guide to deploying VPN with DDM in Fleet](https://fleetdm.com/guides/deploy-vpn-with-declarative-device-management-ddm-in-fleet) for a full walkthrough, including credential hosting and a scope pitfall to avoid.
 
 **Intelligence, Siri, and keyboard controls:** The `com.apple.configuration.intelligence.settings`, `.external-intelligence.settings`, `.siri.settings`, and `.keyboard.settings` configurations move AI feature management into DDM. The legacy MDM restriction keys for these were deprecated in the 26.4 releases. If you've been putting that migration off, the runway is ending.
 

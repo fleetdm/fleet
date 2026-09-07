@@ -713,7 +713,7 @@ Returns a list of the activities that have been performed in Fleet. For a compre
 
 ### Reset policy results
 
-Clears a policy's pass/fail results, identical to the side effect of editing its query. Immediately sets `passing_host_count` and `failing_host_count` to `0` and wipes membership records so the counts remain `0` until hosts re-report. Pass the `host_id` query parameter to instead reset only a single host's result for the policy.
+Clears a policy's pass/fail results. Fleet does this automatically when you edit the policy's query or swap in a different script, software package, or VPP app (see [Resetting a policy's automation status](https://fleetdm.com/guides/automations#policy-automations)); use this endpoint to do it in a custom automation. Immediately sets `passing_host_count` and `failing_host_count` to `0` and wipes membership records so the counts remain `0` until hosts re-report. Pass the `host_id` query parameter to instead reset only a single host's result for the policy.
 
 `POST /api/v1/fleet/policies/:policy_id/reset`
 
@@ -2785,7 +2785,7 @@ _Available in Fleet Premium._
     "jira": [
       {
         "enable_software_vulnerabilities": false,
-        "enable_failing_poilicies": true,
+        "enable_failing_policies": true,
         "url": "https://jiraserver.com",
         "username": "some_user",
         "api_token": "<TOKEN>",
@@ -12561,7 +12561,7 @@ Returns a list hosts targeted in a batch script run, along with their script exe
 | Name                | Type    | In    | Description                                                                                    |
 | --------------------| ------- | ----- | --------------------------------------------                                                   |
 | batch_execution_id  | string  | path  | **Required**. The ID returned from a batch script run. |
-| status              | string  | query | **Required** Filters to hosts with this script status. Either `"ran"`, `"pending"`, `"errored"`, `"incompatible"`, or "`canceled`". |
+| status              | string  | query | **Required**. Filters to hosts with this script status. Either `"ran"`, `"pending"`, `"errored"`, `"incompatible"`, or "`canceled`". |
 | page                | integer | query | Page number of the results to fetch. |
 | per_page            | integer | query | Results per page. |
 | order_key           | string  | query | What to order results by. Allowed fields are `display_name`, `hostname`, and `updated_at`. |
@@ -12570,7 +12570,7 @@ Returns a list hosts targeted in a batch script run, along with their script exe
 
 #### Example
 
-`GET /api/v1/fleet/scripts/batch/abc-def/host-results?status=ran`
+`GET /api/v1/fleet/scripts/batch/abc-def/host_results?status=ran`
 
 
 ##### Default response
@@ -15504,7 +15504,7 @@ Omitting `host_activities_webhook` from a `webhook_settings` update leaves the s
     "jira": [
       {
         "enable_software_vulnerabilities": false,
-        "enable_failing_poilicies": true,
+        "enable_failing_policies": true,
         "url": "https://jiraserver.com",
         "username": "some_user",
         "api_token": "<TOKEN>",

@@ -159,7 +159,7 @@ func TestHostListOptionsFromRequest(t *testing.T) {
 				"&os_name=osName&os_version=osVersion&os_version_id=5&disable_failing_policies=0&disable_issues=1&macos_settings=verified" +
 				"&macos_settings_disk_encryption=enforcing&os_settings=pending&os_settings_disk_encryption=failed" +
 				"&bootstrap_package=installed&mdm_id=6&mdm_name=mdmName&mdm_enrollment_status=automatic" +
-				"&munki_issue_id=7&low_disk_space=99&vulnerability=CVE-2023-42887&populate_policies=true&profile_uuid=123-abc&profile_status=verified" +
+				"&munki_issue_id=7&low_disk_space=99&vulnerability=CVE-2023-42887&populate_policies=true&populate_end_users=true&profile_uuid=123-abc&profile_status=verified" +
 				"&script_batch_execution_id=some-cool-batch-script-execution-id&script_batch_execution_status=pending" +
 				"&dep_profile_error=true&dep_assign_profile_response=FAILED",
 			hostListOptions: fleet.HostListOptions{
@@ -193,6 +193,7 @@ func TestHostListOptionsFromRequest(t *testing.T) {
 				LowDiskSpaceFilter:                ptr.Int(99),
 				VulnerabilityFilter:               ptr.String("CVE-2023-42887"),
 				PopulatePolicies:                  true,
+				PopulateEndUsers:                  true,
 				ProfileUUIDFilter:                 ptr.String("123-abc"),
 				ProfileStatusFilter:               &verified,
 				BatchScriptExecutionStatusFilter:  fleet.BatchScriptExecutionPending,
@@ -527,6 +528,10 @@ func TestHostListOptionsFromRequest(t *testing.T) {
 			hostListOptions: fleet.HostListOptions{
 				MDMBootstrapPackageFilter: (*fleet.MDMBootstrapPackageStatus)(ptr.String(string(fleet.MDMBootstrapPackageInstalled))),
 			},
+		},
+		"error in populate_end_users (invalid boolean)": {
+			url:          "/foo?populate_end_users=foo",
+			errorMessage: "Invalid boolean parameter populate_end_users",
 		},
 		"error in apple_settings (invalid option)": {
 			url:          "/foo?apple_settings=foo",
