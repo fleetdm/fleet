@@ -1576,6 +1576,9 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 }
 
 func clearCertRenewals(ctx context.Context, svc *Service, oldAppConfig, appConfig *fleet.AppConfig) error {
+	if oldAppConfig == nil || appConfig == nil {
+		return nil
+	}
 	if oldAppConfig.MDM.OnlyAllowAppleBusinessEnrollment != appConfig.MDM.OnlyAllowAppleBusinessEnrollment ||
 		oldAppConfig.MDM.AppleRequireHardwareAttestation != appConfig.MDM.AppleRequireHardwareAttestation {
 		if err := svc.ds.ClearCertRenewalExclusions(ctx); err != nil {
