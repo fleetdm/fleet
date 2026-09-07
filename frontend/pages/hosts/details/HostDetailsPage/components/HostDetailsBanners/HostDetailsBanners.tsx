@@ -6,6 +6,7 @@ import {
   DiskEncryptionStatus,
   MdmEnrollmentStatus,
   isAutomaticDeviceEnrollment,
+  isEnrolledInMdm,
 } from "interfaces/mdm";
 import { IOSSettings } from "interfaces/host";
 import {
@@ -39,6 +40,9 @@ export interface IHostBannersBaseProps {
   lastMdmEnrolledAt?: string;
   /** The timestamp of the last detail update */
   detailUpdatedAt?: string;
+  /** Whether or not this host is assigned to Fleet via DEP */
+  depAssignedToFleet: boolean;
+  onlyAllowAppleBusinessEnrollment: boolean;
 }
 /**
  * Handles the displaying of banners on the host details page
@@ -54,6 +58,8 @@ const HostDetailsBanners = ({
   diskEncryptionKeyAvailable,
   lastMdmEnrolledAt,
   detailUpdatedAt,
+  depAssignedToFleet,
+  onlyAllowAppleBusinessEnrollment,
 }: IHostBannersBaseProps) => {
   const { config } = useContext(AppContext);
 
@@ -94,6 +100,40 @@ const HostDetailsBanners = ({
     </div>
   );
 
+  if (
+    onlyAllowAppleBusinessEnrollment &&
+    !depAssignedToFleet &&
+    mdmEnrollmentStatus === "Off"
+  ) {
+    return (
+      <div className={baseClass}>
+        <InfoBanner color="yellow">
+          This host can&apos;t enroll in Apple MDM. Only current devices listed
+          in Apple Business can enroll. To allow manual enrollment, turn off the
+          &quot;Only allow Apple Business enrollment&quot; setting <br /> in{" "}
+          <strong>Organization settings &gt; Advanced options</strong>.
+        </InfoBanner>
+      </div>
+    );
+  }
+
+  if (
+    onlyAllowAppleBusinessEnrollment &&
+    isEnrolledInMdm(mdmEnrollmentStatus) &&
+    (!isAutomaticDeviceEnrollment(mdmEnrollmentStatus) || !depAssignedToFleet)
+  ) {
+    return (
+      <div className={baseClass}>
+        <InfoBanner color="yellow">
+          This host is no longer eligible for Apple MDM. It was enrolled
+          manually, but only Apple Business devices can enroll now. To allow
+          manual enrollment, turn off the &quot;Only allow Apple Business
+          enrollment&quot; setting in{" "}
+          <strong>Organization settings &gt; Advanced options</strong>.
+        </InfoBanner>
+      </div>
+    );
+  }
   if (showTurnOnMdmInfoBanner) {
     return (
       <div className={baseClass}>

@@ -6,6 +6,7 @@ import { getPathWithQueryParams } from "utilities/url";
 import CustomLink from "components/CustomLink";
 import Radio from "components/forms/fields/Radio";
 import InputField from "components/forms/fields/InputField";
+import { renderAppleManualEnrollmentDisabled } from "components/AddHostsModal/helpers";
 
 type DeviceType = "companyOwned" | "personalBYOD";
 
@@ -23,9 +24,13 @@ const baseClass = "macos-panel";
 
 interface IMacosPanelProps {
   enrollSecret: string;
+  isManualAppleEnrollmentsBlocked: boolean;
 }
 
-const MacosPanel = ({ enrollSecret }: IMacosPanelProps) => {
+const MacosPanel = ({
+  enrollSecret,
+  isManualAppleEnrollmentsBlocked,
+}: IMacosPanelProps) => {
   const { config, isMacMdmEnabledAndConfigured } = useContext(AppContext);
 
   const [deviceType, setDeviceType] = useState<DeviceType>("companyOwned");
@@ -45,6 +50,10 @@ const MacosPanel = ({ enrollSecret }: IMacosPanelProps) => {
         byod: deviceType === "personalBYOD" ? "true" : undefined,
       }
     );
+
+    if (isManualAppleEnrollmentsBlocked) {
+      return renderAppleManualEnrollmentDisabled("macOS");
+    }
 
     return (
       <div className={baseClass}>
