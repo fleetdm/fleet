@@ -6,7 +6,6 @@
   platform: linux
   labels_include_any:
     - "Debian-based Linux hosts"
-  # Re-run every failing report: the script defers while Claude is open.
   continuous_automations_enabled: true
   run_script:
     path: ../scripts/update-claude-desktop.sh
