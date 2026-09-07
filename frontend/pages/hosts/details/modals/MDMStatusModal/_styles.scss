@@ -8,6 +8,7 @@
   }
 
   .list__row {
+    min-height: 28px; // keep same row height for rows with no button
     button {
       visibility: hidden;
     }

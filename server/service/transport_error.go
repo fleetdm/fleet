@@ -6,14 +6,32 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 )
 
-// FleetErrorEncoder handles fleet-specific error encoding for MailError
-// and OsqueryError.
+// FleetErrorEncoder handles fleet-specific error encoding for
+// DeviceSSORequiredError, MailError and OsqueryError.
 func FleetErrorEncoder(ctx context.Context, err error, w http.ResponseWriter, enc *json.Encoder, jsonErr *endpointer.JsonError) bool {
 	switch e := err.(type) {
+	case *fleet.DeviceSSORequiredError:
+		// Used to distinguish a "you need to sign in with your IdP" scenario
+		// apart from a stale device token, which are both 401.
+		w.WriteHeader(http.StatusUnauthorized)
+		jsonErr.Message = e.Error()
+		jsonErr.Errors = []map[string]string{
+			{
+				"name":   "base",
+				"reason": e.Error(),
+			},
+		}
+		enc.Encode(deviceSSORequiredJSONError{ //nolint:errcheck
+			JsonError:   *jsonErr,
+			SSORequired: true,
+		})
+		return true
+
 	case MailError:
 		jsonErr.Message = "Mail Error"
 		jsonErr.Errors = []map[string]string{
@@ -54,6 +72,13 @@ func FleetErrorEncoder(ctx context.Context, err error, w http.ResponseWriter, en
 	}
 
 	return false
+}
+
+// deviceSSORequiredJSONError is the standard error envelope plus the marker the
+// "My device" page keys off of to start the Fleet Desktop SSO flow.
+type deviceSSORequiredJSONError struct {
+	endpointer.JsonError
+	SSORequired bool `json:"sso_required"`
 }
 
 // MailError is set when an error performing mail operations

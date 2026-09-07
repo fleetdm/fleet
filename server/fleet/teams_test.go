@@ -290,8 +290,9 @@ func TestTeamMDMCopy(t *testing.T) {
 	t.Run("copy MacOSSettings", func(t *testing.T) {
 		tm := &TeamMDM{
 			MacOSSettings: MacOSSettings{
-				CustomSettings:                 []MDMProfileSpec{{Path: "a"}, {Path: "b"}},
-				DeprecatedEnableDiskEncryption: ptr.Bool(false),
+				CustomSettings:                []MDMProfileSpec{{Path: "a"}, {Path: "b"}},
+				EnableDiskEncryption:          optjson.SetBool(false),
+				EnableEscrowDiskEncryptionKey: optjson.SetBool(true),
 			},
 		}
 		clone := tm.Copy()
@@ -301,7 +302,6 @@ func TestTeamMDMCopy(t *testing.T) {
 			reflect.ValueOf(tm.MacOSSettings.CustomSettings).Pointer(),
 			reflect.ValueOf(clone.MacOSSettings.CustomSettings).Pointer(),
 		)
-		require.NotSame(t, tm.MacOSSettings.DeprecatedEnableDiskEncryption, clone.MacOSSettings.DeprecatedEnableDiskEncryption)
 	})
 
 	t.Run("copy HostNameTemplate", func(t *testing.T) {

@@ -559,6 +559,13 @@ func TestEnrollmentProfileNewEnrollmentSubjectOUMarker(t *testing.T) {
 		renewal, err := GenerateACMEEnrollmentProfileMobileconfig("Fleet", "https://example.com", "acme-ident", "SERIAL123", "com.foo.bar", MDMAccessRightAll, false)
 		require.NoError(t, err)
 		require.NotContains(t, string(renewal), FleetEnrollmentSubjectOU)
+
+		// The ACME payload gets no %SerialNumber% substitution from the device, so the CN must be
+		// the literal serial to match the order's permanent-identifier at finalize.
+		for _, profile := range [][]byte{fresh, renewal} {
+			require.NotContains(t, string(profile), "%SerialNumber%")
+			require.Contains(t, string(profile), "<string>CN</string>\n\t\t\t\t\t\t<string>SERIAL123</string>")
+		}
 	})
 }
 
@@ -944,11 +951,11 @@ func TestSendRecoveryLockCommands(t *testing.T) {
 		ds.SoftDeleteRecoveryLockPasswordsForUnenrolledHostsFunc = func(ctx context.Context) (int64, error) {
 			return 0, nil
 		}
-		ds.GetHostsForRecoveryLockActionFunc = func(ctx context.Context) ([]string, error) {
+		ds.GetHostsForRecoveryLockActionFunc = func(ctx context.Context) (map[string]bool, error) {
 			return nil, nil
 		}
 		// Mock clear flow - no hosts need clearing
-		ds.ClaimHostsForRecoveryLockClearFunc = func(ctx context.Context) ([]string, error) {
+		ds.ClaimHostsForRecoveryLockClearFunc = func(ctx context.Context, clearCommandUUID string) ([]string, error) {
 			return nil, nil
 		}
 		// Mock auto-rotation - no hosts need auto-rotation
@@ -980,11 +987,11 @@ func TestSendRecoveryLockCommands(t *testing.T) {
 			return 0, nil
 		}
 		hostUUID := "host-uuid-1"
-		ds.GetHostsForRecoveryLockActionFunc = func(ctx context.Context) ([]string, error) {
-			return []string{hostUUID}, nil
+		ds.GetHostsForRecoveryLockActionFunc = func(ctx context.Context) (map[string]bool, error) {
+			return map[string]bool{hostUUID: false}, nil
 		}
 		// Mock clear flow - no hosts need clearing
-		ds.ClaimHostsForRecoveryLockClearFunc = func(ctx context.Context) ([]string, error) {
+		ds.ClaimHostsForRecoveryLockClearFunc = func(ctx context.Context, clearCommandUUID string) ([]string, error) {
 			return nil, nil
 		}
 		// Mock auto-rotation - no hosts need auto-rotation
@@ -1036,11 +1043,11 @@ func TestSendRecoveryLockCommands(t *testing.T) {
 			return 0, nil
 		}
 		hostUUID := "host-uuid-1"
-		ds.GetHostsForRecoveryLockActionFunc = func(ctx context.Context) ([]string, error) {
-			return []string{hostUUID}, nil
+		ds.GetHostsForRecoveryLockActionFunc = func(ctx context.Context) (map[string]bool, error) {
+			return map[string]bool{hostUUID: false}, nil
 		}
 		// Mock clear flow - no hosts need clearing
-		ds.ClaimHostsForRecoveryLockClearFunc = func(ctx context.Context) ([]string, error) {
+		ds.ClaimHostsForRecoveryLockClearFunc = func(ctx context.Context, clearCommandUUID string) ([]string, error) {
 			return nil, nil
 		}
 		// Mock auto-rotation - no hosts need auto-rotation
@@ -1092,11 +1099,11 @@ func TestSendRecoveryLockCommands(t *testing.T) {
 			return 0, nil
 		}
 		hostUUID := "host-uuid-1"
-		ds.GetHostsForRecoveryLockActionFunc = func(ctx context.Context) ([]string, error) {
-			return []string{hostUUID}, nil
+		ds.GetHostsForRecoveryLockActionFunc = func(ctx context.Context) (map[string]bool, error) {
+			return map[string]bool{hostUUID: false}, nil
 		}
 		// Mock clear flow - no hosts need clearing
-		ds.ClaimHostsForRecoveryLockClearFunc = func(ctx context.Context) ([]string, error) {
+		ds.ClaimHostsForRecoveryLockClearFunc = func(ctx context.Context, clearCommandUUID string) ([]string, error) {
 			return nil, nil
 		}
 		// Mock auto-rotation - no hosts need auto-rotation
@@ -1139,7 +1146,7 @@ func TestSendRecoveryLockCommands(t *testing.T) {
 type mockRecoveryLockCommander struct {
 	setRecoveryLockFn    func(ctx context.Context, hostUUIDs []string, cmdUUID string) error
 	clearRecoveryLockFn  func(ctx context.Context, hostUUIDs []string, cmdUUID string) error
-	rotateRecoveryLockFn func(ctx context.Context, hostUUID string, cmdUUID string) error
+	rotateRecoveryLockFn func(ctx context.Context, hostUUIDs []string, cmdUUID string) error
 }
 
 func (m *mockRecoveryLockCommander) SetRecoveryLock(ctx context.Context, hostUUIDs []string, cmdUUID string) error {
@@ -1156,9 +1163,9 @@ func (m *mockRecoveryLockCommander) ClearRecoveryLock(ctx context.Context, hostU
 	return nil
 }
 
-func (m *mockRecoveryLockCommander) RotateRecoveryLock(ctx context.Context, hostUUID string, cmdUUID string) error {
+func (m *mockRecoveryLockCommander) RotateRecoveryLock(ctx context.Context, hostUUIDs []string, cmdUUID string) error {
 	if m.rotateRecoveryLockFn != nil {
-		return m.rotateRecoveryLockFn(ctx, hostUUID, cmdUUID)
+		return m.rotateRecoveryLockFn(ctx, hostUUIDs, cmdUUID)
 	}
 	return nil
 }
@@ -1178,13 +1185,13 @@ func TestSendClearRecoveryLockCommands(t *testing.T) {
 			return 0, nil
 		}
 		// No hosts need SET
-		ds.GetHostsForRecoveryLockActionFunc = func(ctx context.Context) ([]string, error) {
+		ds.GetHostsForRecoveryLockActionFunc = func(ctx context.Context) (map[string]bool, error) {
 			return nil, nil
 		}
 
 		hostUUID := "host-uuid-1"
 		// ClaimHostsForRecoveryLockClear queries verified hosts where config is disabled and marks them pending
-		ds.ClaimHostsForRecoveryLockClearFunc = func(ctx context.Context) ([]string, error) {
+		ds.ClaimHostsForRecoveryLockClearFunc = func(ctx context.Context, clearCommandUUID string) ([]string, error) {
 			return []string{hostUUID}, nil
 		}
 		// Mock auto-rotation - no hosts need auto-rotation
@@ -1217,11 +1224,11 @@ func TestSendClearRecoveryLockCommands(t *testing.T) {
 			return 0, nil
 		}
 		// No hosts need SET
-		ds.GetHostsForRecoveryLockActionFunc = func(ctx context.Context) ([]string, error) {
+		ds.GetHostsForRecoveryLockActionFunc = func(ctx context.Context) (map[string]bool, error) {
 			return nil, nil
 		}
 
-		ds.ClaimHostsForRecoveryLockClearFunc = func(ctx context.Context) ([]string, error) {
+		ds.ClaimHostsForRecoveryLockClearFunc = func(ctx context.Context, clearCommandUUID string) ([]string, error) {
 			return nil, nil
 		}
 		// Mock auto-rotation - no hosts need auto-rotation

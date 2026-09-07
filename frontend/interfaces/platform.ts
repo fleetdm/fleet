@@ -255,6 +255,24 @@ export const isSetupExperiencePlatform = (
   return SETUP_EXPERIENCE_PLATFORMS.includes(s as SetupExperiencePlatform);
 };
 
+// --- Disk encryption settings platforms (Controls > OS settings) ---
+
+export const DISK_ENCRYPTION_SETTINGS_PLATFORMS = [
+  "macos",
+  "windows",
+  "linux",
+] as const;
+
+export type DiskEncryptionSettingsPlatform = typeof DISK_ENCRYPTION_SETTINGS_PLATFORMS[number];
+
+export const isDiskEncryptionSettingsPlatform = (
+  s: string | undefined
+): s is DiskEncryptionSettingsPlatform => {
+  return DISK_ENCRYPTION_SETTINGS_PLATFORMS.includes(
+    s as DiskEncryptionSettingsPlatform
+  );
+};
+
 // -- Vulnerability support by platform --
 
 export const VULN_SUPPORTED_PLATFORMS: Platform[] = [

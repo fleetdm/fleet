@@ -184,6 +184,35 @@ METRIC_DEFS=(
   ".redis[0].memory_utilization.Average|Redis Memory|%|15|30|false|lt|70"
 )
 
+# apple-apns-mock (MDM runs only). Absent from non-MDM runs; compare_metric_set
+# drops any def that is null in the last two files and suppresses the whole
+# section when nothing has data, so no extra guard is needed here.
+# cpu/memory are the service-wide averages across every running container;
+# per_task.*.max_pct is the hottest single one, which the average hides.
+APNS_MOCK_DEFS=(
+  ".apns_mock.cpu_utilization.Average|apns-mock CPU|%|15|30|false|lt|90"
+  ".apns_mock.memory_utilization.Average|apns-mock Memory|%|15|30|false|lt|80"
+  ".apns_mock.per_task.cpu.max_pct|apns-mock CPU (hottest task)|%|20|40|false|lt|95"
+  ".apns_mock.per_task.memory.max_pct|apns-mock Memory (hottest task)|%|20|40|false|lt|90"
+  ".apns_mock.task_counts.runningCount|apns-mock Containers||0|0|false||"
+  ".apns_mock.network.network_tx_bytes.Sum|apns-mock Network TX|bytes|50|100|false||"
+  ".apns_mock.container_health.abnormal_stops|apns-mock Stops||0|0|true|eq|0"
+)
+
+# The mock's dedicated Redis. Load tracks the push rate and instance count, not
+# the connection count -- each task holds one subscribe connection plus a small
+# pool. An eviction is a pending push dropped before its device reconnected.
+APNS_REDIS_DEFS=(
+  ".apns_mock_redis[0].cpu_utilization.Average|apns Redis CPU|%|20|40|false|lt|80"
+  ".apns_mock_redis[0].cpu_utilization.Maximum|apns Redis CPU (max)|%|20|40|false||"
+  ".apns_mock_redis[0].memory_utilization.Average|apns Redis Memory|%|15|30|false|lt|70"
+  ".apns_mock_redis[0].curr_connections.Average|apns Redis Conns||50|100|false||"
+  ".apns_mock_redis[0].curr_items.Average|apns Redis Pending Items||50|100|false||"
+  ".apns_mock_redis[0].evictions.Sum|apns Redis Evictions||0|0|true|eq|0"
+  ".apns_mock_redis[0].string_based_cmds.Sum|apns Redis String Cmds||50|100|false||"
+  ".apns_mock_redis[0].pubsub_based_cmds.Sum|apns Redis PubSub Cmds||50|100|false||"
+)
+
 # ALB metrics
 ALB_DEFS=(
   ".alb.target_response_time.Average|ALB Latency|s|50|100|false||"
@@ -478,6 +507,8 @@ echo "$separator"
 compare_metric_set "Fleet Server" "${METRIC_DEFS[@]:0:3}"
 compare_metric_set "RDS Writer" "${METRIC_DEFS[@]:3:5}"
 compare_metric_set "Redis" "${METRIC_DEFS[@]:8:2}"
+compare_metric_set "apns-mock" "${APNS_MOCK_DEFS[@]}"
+compare_metric_set "apns-mock Redis" "${APNS_REDIS_DEFS[@]}"
 compare_metric_set "ALB" "${ALB_DEFS[@]}"
 compare_metric_set "RDS Writer (extended)" "${RDS_WRITER_EXT_DEFS[@]}"
 compare_metric_set "Aurora Replication" "${RDS_READER_EXT_DEFS[@]}"

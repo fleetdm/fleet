@@ -455,6 +455,15 @@ $max-width: 2560px;
     &:hover {
       color: $ui-fleet-black-75-over;
     }
+    // TooltipTruncatedText's inner element sets `cursor: default`; inherit so
+    // the whole nav-item label reads as clickable.
+    .component__tooltip-wrapper__element {
+      cursor: inherit;
+    }
+  }
+
+  &:has(a):hover {
+    background-color: $ui-fleet-black-5;
   }
 
   &--active {

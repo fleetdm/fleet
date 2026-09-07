@@ -60,7 +60,7 @@ func TestWriteFlagFile(t *testing.T) {
 	err = writeFlagFile(tempDir, flags)
 	require.NoError(t, err)
 
-	diskFlags, err := readFlagFile(tempDir)
+	diskFlags, err := ReadFlagFile(tempDir)
 	require.NoError(t, err)
 	require.NotEmpty(t, diskFlags)
 

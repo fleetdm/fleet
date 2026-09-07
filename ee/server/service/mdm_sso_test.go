@@ -16,6 +16,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/sso"
 	"github.com/stretchr/testify/require"
@@ -52,6 +53,36 @@ func inflateMDMAuthnRequest(t *testing.T, s string) *saml.AuthnRequest {
 	return &req
 }
 
+func mdmSSOTestAppConfig(serverURL string, idpConfigured bool) *fleet.AppConfig {
+	ac := &fleet.AppConfig{ServerSettings: fleet.ServerSettings{ServerURL: serverURL}}
+	if idpConfigured {
+		ac.MDM.EndUserAuthentication.SSOProviderSettings = fleet.SSOProviderSettings{
+			EntityID: "fleet",
+			IDPName:  "TestIDP",
+			Metadata: mdmSSOTestMetadata,
+		}
+	}
+	return ac
+}
+
+func newMDMSSOTestService(t *testing.T, appConfig *fleet.AppConfig, cfg config.FleetConfig) *Service {
+	t.Helper()
+
+	authorizer, err := authz.NewAuthorizer()
+	require.NoError(t, err)
+
+	ds := new(mock.Store)
+	ds.AppConfigFunc = func(_ context.Context) (*fleet.AppConfig, error) { return appConfig, nil }
+
+	return &Service{
+		ds:              ds,
+		logger:          slog.New(slog.NewTextHandler(io.Discard, nil)),
+		authz:           authorizer,
+		config:          cfg,
+		ssoSessionStore: sso.NewSessionStore(redistest.NopRedis()),
+	}
+}
+
 func TestInitiateMDMSSOACSURLWithURLPrefix(t *testing.T) {
 	// With url_prefix set, the MDM ACS callback URL must carry the subpath exactly
 	// once, regardless of whether server_url was configured with or without the
@@ -72,37 +103,12 @@ func TestInitiateMDMSSOACSURLWithURLPrefix(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			ds := new(mock.Store)
-
-			authorizer, err := authz.NewAuthorizer()
-			require.NoError(t, err)
-
 			cfg := config.TestConfig()
 			cfg.Server.URLPrefix = "/apps/fleet"
 
-			svc := &Service{
-				ds:              ds,
-				logger:          slog.New(slog.NewTextHandler(io.Discard, nil)),
-				authz:           authorizer,
-				config:          cfg,
-				ssoSessionStore: sso.NewSessionStore(redistest.NopRedis()),
-			}
+			svc := newMDMSSOTestService(t, mdmSSOTestAppConfig(tc.serverURL, true), cfg)
 
-			appConfig := &fleet.AppConfig{
-				ServerSettings: fleet.ServerSettings{
-					ServerURL: tc.serverURL,
-				},
-			}
-			appConfig.MDM.EndUserAuthentication.SSOProviderSettings = fleet.SSOProviderSettings{
-				EntityID: "fleet",
-				IDPName:  "TestIDP",
-				Metadata: mdmSSOTestMetadata,
-			}
-			ds.AppConfigFunc = func(_ context.Context) (*fleet.AppConfig, error) {
-				return appConfig, nil
-			}
-
-			_, _, idpURL, err := svc.InitiateMDMSSO(context.Background(), "", "", "")
+			_, _, idpURL, err := svc.InitiateMDMSSO(t.Context(), "", "", "")
 			require.NoError(t, err)
 			require.NotEmpty(t, idpURL)
 
@@ -117,6 +123,77 @@ func TestInitiateMDMSSOACSURLWithURLPrefix(t *testing.T) {
 				"https://fleet.example.com/apps/fleet/api/v1/fleet/mdm/sso/callback",
 				authReq.AssertionConsumerServiceURL,
 			)
+		})
+	}
+}
+
+func TestInitiateMDMSSOSetsNoRelayState(t *testing.T) {
+	svc := newMDMSSOTestService(t,
+		mdmSSOTestAppConfig("https://fleet.example.com", true), config.TestConfig())
+
+	for _, initiator := range []string{
+		fleet.SSOInitiatorOTAEnroll,
+		fleet.SSOInitiatorOrbitSetupExperience,
+		fleet.SSOInitiatorAppleMDMSSO,
+		fleet.SSOInitiatorAccountDrivenEnroll,
+		fleet.SSOInitiatorAccountDrivenEnroll + ":cf2b9a1e4d7c8f36b05e91a2d4c7e830f16b5a92",
+	} {
+		t.Run(initiator, func(t *testing.T) {
+			_, _, idpURL, err := svc.InitiateMDMSSO(t.Context(), initiator, "", "host-uuid-1")
+			require.NoError(t, err)
+
+			parsed, err := url.Parse(idpURL)
+			require.NoError(t, err)
+			require.Empty(t, parsed.Query().Get("RelayState"))
+		})
+	}
+}
+
+func TestDeviceSSOErrorURL(t *testing.T) {
+	require.Equal(t,
+		"https://fleet.example.com/device/abc123?sso_error=sso_disabled",
+		deviceSSOErrorURL("https://fleet.example.com/device/abc123", "sso_disabled"))
+
+	// an existing query string is preserved
+	require.Equal(t,
+		"https://fleet.example.com/device/abc123?setup_only=1&sso_error=sso_disabled",
+		deviceSSOErrorURL("https://fleet.example.com/device/abc123?setup_only=1", "sso_disabled"))
+}
+
+func TestMDMSSOCallbackEarlyFailureRedirects(t *testing.T) {
+	testCases := []struct {
+		name          string
+		idpConfigured bool
+		wantRedirect  string
+	}{
+		{
+			name:          "expired handshake",
+			idpConfigured: true,
+			wantRedirect:  "/mdm/sso/callback?error=true&reason=session_expired",
+		},
+		{
+			name:          "any other early failure",
+			idpConfigured: false,
+			wantRedirect:  "/mdm/sso/callback?error=true",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			svc := newMDMSSOTestService(t,
+				mdmSSOTestAppConfig("https://fleet.example.com", tc.idpConfigured), config.TestConfig())
+			redirectURL, byodCookie, deviceSessionID, deviceSessionDuration := svc.MDMSSOCallback(
+				t.Context(), "does-not-exist", []byte("<x/>"))
+
+			require.Equal(t, tc.wantRedirect, redirectURL)
+			require.Empty(t, byodCookie)
+			require.Empty(t, deviceSessionID)
+			require.Zero(t, deviceSessionDuration)
+
+			require.Contains(t, []string{
+				apple_mdm.FleetUISSOCallbackError,
+				apple_mdm.FleetUISSOCallbackSessionExpired,
+			}, redirectURL, "early-failure redirect must be one the endpoint can rewrite")
 		})
 	}
 }

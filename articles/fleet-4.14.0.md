@@ -75,8 +75,8 @@ In 4.14.0, we also:
 Visit our [Update guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in the Fleet docs for instructions on updating to Fleet 4.14.0.
 
 <meta name="category" value="releases">
-<meta name="authorFullName" value="Kathy Satterlee">
-<meta name="authorGitHubUsername" value="ksatter">
+<meta name="authorFullName" value="Ryn Satterlee">
+<meta name="authorGitHubUsername" value="rynsatterlee">
 <meta name="publishedOn" value="2022-05-06">
 <meta name="articleTitle" value="Fleet 4.14.0 adds beta support for automatic ticket creation and improves the live query experience.">
 <meta name="articleImageUrl" value="../website/assets/images/articles/fleet-4.14.0-cover-1600x900@2x.jpg">

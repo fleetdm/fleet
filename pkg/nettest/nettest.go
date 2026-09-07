@@ -74,6 +74,11 @@ func Retryable(err error) bool {
 	return false
 }
 
+// maxNetRetryAttempts bounds retries so a persistently broken remote (e.g. a feed release missing
+// an asset, which reads as a retryable HTTP error) fails the test in minutes, not at the package's
+// 1h timeout with no useful output.
+const maxNetRetryAttempts = 30
+
 // RunWithNetRetry runs the given function and retries in case of network errors (see Retryable).
 func RunWithNetRetry(t *testing.T, fn func() error) error {
 	var err error
@@ -85,6 +90,6 @@ func RunWithNetRetry(t *testing.T, fn func() error) error {
 			return err
 		}
 		return nil
-	}, retry.WithInterval(5*time.Second))
+	}, retry.WithInterval(5*time.Second), retry.WithMaxAttempts(maxNetRetryAttempts))
 	return err
 }

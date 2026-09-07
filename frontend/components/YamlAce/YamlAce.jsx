@@ -5,6 +5,8 @@ import classnames from "classnames";
 
 import "ace-builds/src-noconflict/mode-yaml";
 
+import "utilities/ace_theme";
+
 const baseClass = "yaml-ace";
 
 class YamlAce extends Component {

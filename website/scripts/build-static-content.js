@@ -558,9 +558,19 @@ module.exports = {
               // > This works because HTML in Markdown files is added as-is, while any <meta> tags in codeblocks would have their brackets replaced with HTML entities when they are converted to HTML.
               let embeddedMetadata = {};
               try {
-                for (let tag of (htmlString.match(/<meta[^>]*>/igm)||[])) {
-                  let name = tag.match(/name="([^">]+)"/i)[1];
-                  let value = tag.match(/value="([^">]+)"/i)[1];
+                for (let tag of (htmlString.match(/<meta[^>]*>/igm))||[]) {
+                  let name = tag.match(/name="([^">]+)"/i);
+                  if(!name || !name[1]){
+                    throw new Error(`A <meta> tag is misssing a name attribute. To resolve, Make sure all <meta> tags have a name attribute and try running this script again`);
+                  } else {
+                    name = name[1];
+                  }
+                  let value = tag.match(/value="([^">]+)"/i);
+                  if(!value || !value[1]) {
+                    throw new Error(`A <meta> tag (<meta name="${name}">) is misssing a value attribute. To resolve, add a value attribute to this <meta> tag and try running this script again`);
+                  } else {
+                    value = value[1];
+                  }
                   embeddedMetadata[name] = value;
                 }//∞
               } catch (err) {
@@ -654,7 +664,7 @@ module.exports = {
                   throw new Error(`Failed compiling markdown content: An article page is missing a category meta tag (<meta name="category" value="guides">) at "${path.join(topLvlRepoPath, pageSourcePath)}".  To resolve, add a meta tag with the category of the article`);
                 } else {
                   // Throwing an error if the article has an invalid category.
-                  let validArticleCategories = ['deploy', 'articles', 'security', 'engineering', 'announcements', 'guides', 'releases', 'podcasts', 'report', 'case study', 'comparison', 'whitepaper', 'webinar' ];
+                  let validArticleCategories = ['deploy', 'articles', 'security', 'engineering', 'announcements', 'guides', 'releases', 'podcasts', 'report', 'case study', 'comparison', 'whitepaper', 'webinar', 'newsletter', 'industry news' ];
                   if(!validArticleCategories.includes(embeddedMetadata.category)) {
                     throw new Error(`Failed compiling markdown content: An article page has an invalid category meta tag (<meta name="category" value="${embeddedMetadata.category}">) at "${path.join(topLvlRepoPath, pageSourcePath)}". To resolve, change the meta tag to a valid category, one of: ${validArticleCategories}`);
                   }
@@ -783,7 +793,7 @@ module.exports = {
                   // For article pages, we'll attach the category to the `rootRelativeUrlPath`.
                   rootRelativeUrlPath = (
                     '/' +
-                    (encodeURIComponent(embeddedMetadata.category === 'security' ? 'securing' : embeddedMetadata.category === 'whitepaper' ? 'whitepapers' : embeddedMetadata.category === 'webinar' ? 'webinars' : embeddedMetadata.category === 'case study' ? 'case-study' : embeddedMetadata.category)) + '/' +
+                    (encodeURIComponent(embeddedMetadata.category === 'security' ? 'securing' : embeddedMetadata.category === 'whitepaper' ? 'whitepapers' : embeddedMetadata.category === 'webinar' ? 'webinars' : embeddedMetadata.category === 'case study' ? 'case-study' : embeddedMetadata.category === 'newsletter' ? 'newsletters' : embeddedMetadata.category === 'industry news' ? 'industry-news' : embeddedMetadata.category)) + '/' +
                     (pageUnextensionedUnwhitespacedLowercasedRelPath.split(/\//).map((fileOrFolderName) => encodeURIComponent(fileOrFolderName.replace(/^[0-9]+[\-]+/,'').replace(/\./g, '-'))).join('/'))
                   );
                 }

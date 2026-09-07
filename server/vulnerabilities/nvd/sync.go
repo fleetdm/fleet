@@ -65,7 +65,7 @@ func Sync(ctx context.Context, opts SyncOptions, logger *slog.Logger) error {
 }
 
 const (
-	epssFeedsURL = "https://epss.cyentia.com"
+	epssFeedsURL = "https://epss.empiricalsecurity.com"
 	epssFilename = "epss_scores-current.csv.gz"
 )
 

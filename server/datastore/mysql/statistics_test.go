@@ -32,6 +32,8 @@ func TestStatistics(t *testing.T) {
 		{"FleetMaintainedAppsInUse", testFleetMaintainedAppsInUse},
 		{"GitOpsModeStatistics", testGitOpsModeStatistics},
 		{"FleetMDMEnrolled", testStatisticsFleetMDMEnrolled},
+		{"MDMProfileCounts", testStatisticsMDMProfileCounts},
+		{"ThirdPartyIntegrations", testStatisticsThirdPartyIntegrations},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -106,9 +108,28 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 	assert.False(t, stats.ConditionalAccessEnabled)
 	assert.False(t, stats.EntraConditionalAccessConfigured)
 	assert.False(t, stats.GitOpsModeEnabled)
+	assert.False(t, stats.FleetDesktopSSOEnabled)
 	// Existing-install defaults applied by migration 20260323144117_AddGitOpsExceptionsToAppConfig
 	// (labels + secrets on, software off) and baked into the dumped test schema.
 	assert.Equal(t, []string{"labels", "secrets"}, stats.GitOpsModeExceptions)
+	assert.Equal(t, 0, stats.NumMDMAppleProfiles)
+	assert.Equal(t, 0, stats.NumMDMWindowsProfiles)
+	assert.Equal(t, 0, stats.NumMDMAppleDeclarations)
+	assert.Equal(t, 0, stats.NumMDMAndroidProfiles)
+	assert.Empty(t, stats.ResultLogDestination)
+	assert.Empty(t, stats.StatusLogDestination)
+	assert.Empty(t, stats.AuditLogDestination)
+	assert.False(t, stats.AnyVulnerabilitiesWebhookEnabled)
+	assert.False(t, stats.AnyFailingPoliciesWebhookEnabled)
+	assert.False(t, stats.AnyHostActivitiesWebhookEnabled)
+	assert.False(t, stats.GlobalActivityWebhookEnabled)
+	assert.False(t, stats.TicketDestinationConfigured)
+	assert.False(t, stats.SSOConfiguredFleetUsers)
+	assert.False(t, stats.SSOConfiguredEndUsers)
+	assert.False(t, stats.AccountProvisioningConfigured)
+	assert.False(t, stats.IDPSCIMConfigured)
+	assert.False(t, stats.CertificateAuthorityConfigured)
+	assert.False(t, stats.IDPGoogleWorkspaceConfigured)
 
 	firstIdentifier := stats.AnonymousIdentifier
 
@@ -834,6 +855,7 @@ func testGitOpsModeStatistics(t *testing.T, ds *Datastore) {
 	cfg.GitOpsConfig.Exceptions.Labels = false
 	cfg.GitOpsConfig.Exceptions.Software = false
 	cfg.GitOpsConfig.Exceptions.Secrets = false
+	cfg.FleetDesktop.SSOEnabled = true
 	require.NoError(t, ds.SaveAppConfig(ctx, cfg))
 
 	stats, shouldSend, err = ds.ShouldSendStatistics(license.NewContext(ctx, premiumLicense), time.Millisecond, fleetConfig)
@@ -841,6 +863,7 @@ func testGitOpsModeStatistics(t *testing.T, ds *Datastore) {
 	assert.True(t, shouldSend)
 	assert.False(t, stats.GitOpsModeEnabled)
 	assert.Equal(t, []string{}, stats.GitOpsModeExceptions)
+	assert.True(t, stats.FleetDesktopSSOEnabled)
 }
 
 func testStatisticsFleetMDMEnrolled(t *testing.T, ds *Datastore) {
@@ -889,4 +912,241 @@ func testStatisticsFleetMDMEnrolled(t *testing.T, ds *Datastore) {
 	assert.True(t, shouldSend)
 	assert.Equal(t, 1, stats.NumHostsFleetMDMEnrolledMacOS)
 	assert.Equal(t, 1, stats.NumHostsFleetMDMEnrolledWindows)
+}
+
+func testStatisticsMDMProfileCounts(t *testing.T, ds *Datastore) {
+	eh := ctxerr.MockHandler{}
+	eh.RetrieveImpl = func(flush bool) ([]*ctxerr.StoredError, error) {
+		return nil, nil
+	}
+	ctx := ctxerr.NewContext(context.Background(), eh)
+
+	premiumLicense := &fleet.LicenseInfo{Tier: fleet.TierPremium, Organization: "Fleet"}
+	fleetConfig := config.FleetConfig{Osquery: config.OsqueryConfig{DetailUpdateInterval: 1 * time.Hour}}
+
+	// Initial state: all profile counts should be zero.
+	stats, shouldSend, err := ds.ShouldSendStatistics(license.NewContext(ctx, premiumLicense), time.Millisecond, fleetConfig)
+	require.NoError(t, err)
+	assert.True(t, shouldSend)
+	assert.Equal(t, 0, stats.NumMDMAppleProfiles)
+	assert.Equal(t, 0, stats.NumMDMWindowsProfiles)
+	assert.Equal(t, 0, stats.NumMDMAppleDeclarations)
+	assert.Equal(t, 0, stats.NumMDMAndroidProfiles)
+	assert.Empty(t, stats.ResultLogDestination)
+	assert.Empty(t, stats.StatusLogDestination)
+	assert.Empty(t, stats.AuditLogDestination)
+	assert.False(t, stats.AnyVulnerabilitiesWebhookEnabled)
+	assert.False(t, stats.AnyFailingPoliciesWebhookEnabled)
+	assert.False(t, stats.AnyHostActivitiesWebhookEnabled)
+	assert.False(t, stats.GlobalActivityWebhookEnabled)
+	assert.False(t, stats.TicketDestinationConfigured)
+	assert.False(t, stats.SSOConfiguredFleetUsers)
+	assert.False(t, stats.SSOConfiguredEndUsers)
+	assert.False(t, stats.AccountProvisioningConfigured)
+	assert.False(t, stats.IDPSCIMConfigured)
+	assert.False(t, stats.CertificateAuthorityConfigured)
+	assert.False(t, stats.IDPGoogleWorkspaceConfigured)
+
+	markStatisticsStale(t, ctx, ds)
+
+	// Insert Apple configuration profiles.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		for i := 1; i <= 3; i++ {
+			_, err := q.ExecContext(ctx,
+				`INSERT INTO mdm_apple_configuration_profiles (team_id, identifier, name, mobileconfig, checksum, profile_uuid)
+				 VALUES (0, ?, ?, '<plist></plist>', '', ?)`,
+				fmt.Sprintf("com.test.profile%d", i),
+				fmt.Sprintf("Test Profile %d", i),
+				fmt.Sprintf("a%d", i),
+			)
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+
+	// Insert Windows configuration profiles.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		for i := 1; i <= 2; i++ {
+			_, err := q.ExecContext(ctx,
+				`INSERT INTO mdm_windows_configuration_profiles (team_id, name, syncml, profile_uuid)
+				 VALUES (0, ?, '<Replace></Replace>', ?)`,
+				fmt.Sprintf("Win Profile %d", i),
+				fmt.Sprintf("w%d", i),
+			)
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+
+	// Insert Apple declarations.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		for i := 1; i <= 4; i++ {
+			_, err := q.ExecContext(ctx,
+				`INSERT INTO mdm_apple_declarations (team_id, identifier, name, raw_json, declaration_uuid)
+				 VALUES (0, ?, ?, '{}', ?)`,
+				fmt.Sprintf("com.test.decl%d", i),
+				fmt.Sprintf("Test Decl %d", i),
+				fmt.Sprintf("d%d", i),
+			)
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+
+	// Insert Android configuration profiles.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			`INSERT INTO mdm_android_configuration_profiles (team_id, name, raw_json, profile_uuid)
+			 VALUES (0, 'Android Profile 1', '{}', 'n1')`,
+		)
+		return err
+	})
+
+	// Verify the counts match what was inserted.
+	stats, shouldSend, err = ds.ShouldSendStatistics(license.NewContext(ctx, premiumLicense), time.Millisecond, fleetConfig)
+	require.NoError(t, err)
+	assert.True(t, shouldSend)
+	assert.Equal(t, 3, stats.NumMDMAppleProfiles)
+	assert.Equal(t, 2, stats.NumMDMWindowsProfiles)
+	assert.Equal(t, 4, stats.NumMDMAppleDeclarations)
+	assert.Equal(t, 1, stats.NumMDMAndroidProfiles)
+}
+
+func testStatisticsThirdPartyIntegrations(t *testing.T, ds *Datastore) {
+	eh := ctxerr.MockHandler{}
+	eh.RetrieveImpl = func(flush bool) ([]*ctxerr.StoredError, error) {
+		return nil, nil
+	}
+	ctx := ctxerr.NewContext(t.Context(), eh)
+
+	premiumLicense := &fleet.LicenseInfo{Tier: fleet.TierPremium, Organization: "Fleet"}
+	fleetConfig := config.FleetConfig{Osquery: config.OsqueryConfig{DetailUpdateInterval: 1 * time.Hour}}
+
+	_, err := ds.NewAppConfig(ctx, &fleet.AppConfig{
+		OrgInfo: fleet.OrgInfo{OrgName: "Test", OrgLogoURLDarkMode: "localhost:8080/logo.png"},
+	})
+	require.NoError(t, err)
+
+	stats, shouldSend, err := ds.ShouldSendStatistics(license.NewContext(ctx, premiumLicense), time.Millisecond, fleetConfig)
+	require.NoError(t, err)
+	assert.True(t, shouldSend)
+	assert.Empty(t, stats.ResultLogDestination)
+	assert.Empty(t, stats.StatusLogDestination)
+	assert.Empty(t, stats.AuditLogDestination)
+	assert.False(t, stats.AnyVulnerabilitiesWebhookEnabled)
+	assert.False(t, stats.AnyFailingPoliciesWebhookEnabled)
+	assert.False(t, stats.AnyHostActivitiesWebhookEnabled)
+	assert.False(t, stats.GlobalActivityWebhookEnabled)
+	assert.False(t, stats.TicketDestinationConfigured)
+	assert.False(t, stats.SSOConfiguredFleetUsers)
+	assert.False(t, stats.SSOConfiguredEndUsers)
+	assert.False(t, stats.AccountProvisioningConfigured)
+	assert.False(t, stats.IDPSCIMConfigured)
+	assert.False(t, stats.CertificateAuthorityConfigured)
+	assert.False(t, stats.IDPGoogleWorkspaceConfigured)
+
+	markStatisticsStale(t, ctx, ds)
+
+	// Log destinations come from the server config, not the app config.
+	fleetConfig.Osquery.ResultLogPlugin = "firehose"
+	fleetConfig.Osquery.StatusLogPlugin = "kinesis"
+	fleetConfig.Activity.AuditLogPlugin = "pubsub"
+
+	cfg, err := ds.AppConfig(ctx)
+	require.NoError(t, err)
+	cfg.WebhookSettings.VulnerabilitiesWebhook.Enable = true
+	cfg.WebhookSettings.ActivitiesWebhook.Enable = true
+	cfg.Integrations.Jira = []*fleet.JiraIntegration{{URL: "https://jira.example.com", Username: "user", ProjectKey: "PROJ"}}
+	cfg.Integrations.GoogleWorkspace = []*fleet.GoogleWorkspaceIntegration{{
+		Domain: "example.com",
+		ApiKey: fleet.GoogleCalendarApiKey{Values: map[string]string{"client_email": "svc@example.com"}},
+	}}
+	cfg.SSOSettings = &fleet.SSOSettings{EnableSSO: true}
+	cfg.MDM.EndUserAuthentication.SSOProviderSettings = fleet.SSOProviderSettings{
+		EntityID:    "fleet",
+		MetadataURL: "https://idp.example.com/metadata",
+	}
+	cfg.MDM.AppleAccountProvisioning.OAuthIdPTokenURL = optjson.SetString("https://idp.example.com/oauth2/v1/token")
+	cfg.MDM.AppleAccountProvisioning.OAuthIdPClientID = optjson.SetString("client-id")
+	require.NoError(t, ds.SaveAppConfig(ctx, cfg))
+
+	require.NoError(t, ds.UpdateScimLastRequest(ctx, &fleet.ScimLastRequest{Status: "success"}))
+
+	_, err = ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
+		Type: string(fleet.CATypeHydrant),
+		Name: new("Hydrant CA"),
+		URL:  new("https://hydrant.example.com"),
+	})
+	require.NoError(t, err)
+
+	stats, shouldSend, err = ds.ShouldSendStatistics(license.NewContext(ctx, premiumLicense), time.Millisecond, fleetConfig)
+	require.NoError(t, err)
+	assert.True(t, shouldSend)
+	assert.Equal(t, "firehose", stats.ResultLogDestination)
+	assert.Equal(t, "kinesis", stats.StatusLogDestination)
+	assert.Equal(t, "pubsub", stats.AuditLogDestination)
+	assert.True(t, stats.AnyVulnerabilitiesWebhookEnabled)
+	assert.True(t, stats.GlobalActivityWebhookEnabled)
+	assert.True(t, stats.TicketDestinationConfigured)
+	assert.True(t, stats.SSOConfiguredFleetUsers)
+	assert.True(t, stats.SSOConfiguredEndUsers)
+	assert.True(t, stats.AccountProvisioningConfigured)
+	assert.True(t, stats.IDPSCIMConfigured)
+	assert.True(t, stats.CertificateAuthorityConfigured)
+	assert.True(t, stats.IDPGoogleWorkspaceConfigured)
+	// Neither the global config nor any fleet enables these yet.
+	assert.False(t, stats.AnyFailingPoliciesWebhookEnabled)
+	assert.False(t, stats.AnyHostActivitiesWebhookEnabled)
+
+	markStatisticsStale(t, ctx, ds)
+
+	// A fleet-level webhook is enough to flip the "any" flags.
+	team, err := ds.NewTeam(ctx, &fleet.Team{
+		Name: "webhooks",
+		Config: fleet.TeamConfig{
+			WebhookSettings: fleet.TeamWebhookSettings{
+				FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{Enable: true, DestinationURL: "https://example.com/fp"},
+				HostActivitiesWebhook:  &fleet.HostActivitiesWebhookSettings{Enable: true, DestinationURL: "https://example.com/ha"},
+			},
+		},
+	})
+	require.NoError(t, err)
+
+	stats, shouldSend, err = ds.ShouldSendStatistics(license.NewContext(ctx, premiumLicense), time.Millisecond, fleetConfig)
+	require.NoError(t, err)
+	assert.True(t, shouldSend)
+	assert.True(t, stats.AnyFailingPoliciesWebhookEnabled)
+	assert.True(t, stats.AnyHostActivitiesWebhookEnabled)
+
+	markStatisticsStale(t, ctx, ds)
+
+	// "No team" webhooks are stored separately from the teams table, so they get their own check.
+	require.NoError(t, ds.DeleteTeam(ctx, team.ID))
+
+	stats, shouldSend, err = ds.ShouldSendStatistics(license.NewContext(ctx, premiumLicense), time.Millisecond, fleetConfig)
+	require.NoError(t, err)
+	assert.True(t, shouldSend)
+	require.False(t, stats.AnyFailingPoliciesWebhookEnabled)
+	require.False(t, stats.AnyHostActivitiesWebhookEnabled)
+
+	markStatisticsStale(t, ctx, ds)
+
+	require.NoError(t, ds.SaveDefaultTeamConfig(ctx, &fleet.TeamConfig{
+		WebhookSettings: fleet.TeamWebhookSettings{
+			FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{Enable: true, DestinationURL: "https://example.com/fp"},
+			HostActivitiesWebhook:  &fleet.HostActivitiesWebhookSettings{Enable: true, DestinationURL: "https://example.com/ha"},
+		},
+	}))
+
+	stats, shouldSend, err = ds.ShouldSendStatistics(license.NewContext(ctx, premiumLicense), time.Millisecond, fleetConfig)
+	require.NoError(t, err)
+	assert.True(t, shouldSend)
+	assert.True(t, stats.AnyFailingPoliciesWebhookEnabled)
+	assert.True(t, stats.AnyHostActivitiesWebhookEnabled)
 }

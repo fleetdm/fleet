@@ -32,8 +32,17 @@ Learn how to enforce authentication in the [setup experience guide](https://flee
 
 When wiping and re-enrolling a host, delete the host from Fleet as well. Otherwise, IdP authentication won't be enforced when it re-enrolls.
 
-> If the Fleet agent (fleetd) installed on the host is older than version 1.50.0, IdP authentication won't be enforced.
+> By default, IdP authentication isn't enforced if the Fleet agent (fleetd) installed on the host is older than version 1.50.0. A technical end user can skip authentication by installing an older fleetd or by enrolling via a [script that bypasses authentication](https://github.com/fleetdm/fleet/issues/46644#issuecomment-5026981749). To enforce authentication always, you can disable the [`mdm.allow_orbit_end_user_auth_bypass` Fleet server configuration option](https://fleetdm.com/docs/configuration/fleet-server-configuration#mdm-allow-orbit-end-user-auth-bypass).
 
+### Skip authentication
+
+If end users authenticate before Fleet's agent (fleetd) is installed, for example during [Windows Autopilot] enrollment, you can skip Fleet's authentication window. Add the `--bypass-end-user-auth` flag when you build fleetd:
+
+```bash
+fleetctl package --type msi --fleet-url <your_fleet_url> --enroll-secret <your_enroll_secret> --bypass-end-user-auth
+```
+
+This flag only works if the [`mdm.allow_orbit_end_user_auth_bypass` Fleet server configuration option](https://fleetdm.com/docs/configuration/fleet-server-configuration#mdm-allow-orbit-end-user-auth-bypass) is set to false.
 ## Install software
 
 ### End user experience
@@ -114,31 +123,76 @@ Add setup experience software setup experience:
 
 Fleet also provides a API endpoints for managing setup experience software programmatically. Learn more in Fleet's [API reference](https://fleetdm.com/docs/rest-api/rest-api#update-software-setup-experience).
 
-## Managed local account
-Fleet can create a hidden admin account (_fleetadmin) with a unique password on each Windows host during setup. IT admins can use this account as a break-glass login for troubleshooting.
+## Managed local account (Windows)
 
-This feature is available for Windows hosts that automatically enroll via Azure AD. Manually enrolled hosts are not supported.
+Fleet can create a hidden local admin account (`_fleetadmin`) with a unique password on each Windows host. IT admins can use it as a
+break-glass login for troubleshooting, so you don't have to ship a shared local admin password in an image or a script.
 
-> For macOS managed local accounts, see the [macOS MDM setup guide](https://fleetdm.com/guides/macos-mdm-setup).
+Fleet's agent (fleetd) creates the account, so it doesn't depend on Autopilot or OOBE. Every Windows host enrolled in Fleet MDM gets
+one, including hosts that enrolled before you turned the setting on. This is different from macOS, where the account can only be
+created during Setup Assistant. For macOS, see the
+[setup experience guide](https://fleetdm.com/guides/setup-experience#managed-local-account).
 
-### Enable managed local accounts
-1. Select the team you're configuring (or No team) from the team dropdown.
+Requires Fleet Premium, [Windows MDM](https://fleetdm.com/guides/windows-mdm-setup) turned on, and fleetd 1.60.0 or later. Hosts
+running an earlier fleetd are skipped, and no error is reported for them.
 
-2. Go to **Controls > Setup experience > Users** and click the **Windows** tab.
+### Turn on the managed local account
 
-4. Select **Managed > Create hidden admin**.
+1. Select the fleet you're configuring (or **Unassigned**) from the fleet dropdown.
 
-5. Press **Save**.
+2. Go to **Controls** > **Setup experience** > **Users**, then select the **Windows** tab.
 
-Alternatively, you can enable this using Fleet's REST API or a GitOps workflow.
+3. Check **Create hidden admin**.
 
-Wipe and re-enroll any existing Windows hosts that should receive the account. Hosts enrolled before the feature is turned on won't receive a managed account until they go through the setup experience again.
+4. Press **Save**.
 
-### View the managed account password
-To view the password for a host's managed account, go to Host details > Actions > Show managed account. The password is unique per host and stored securely in Fleet.
+You can also turn it on with Fleet's [REST API](https://fleetdm.com/docs/rest-api/rest-api#modify-configuration) or
+[GitOps](https://fleetdm.com/docs/configuration/yaml-files), using `windows_settings.enable_managed_local_account`.
+
+Hosts create their account on their next check-in, usually within a couple of minutes. Fleet stops asking a host once it has
+reported the password back.
+
+> Turning the setting back off stops Fleet from creating new accounts, but it does not remove accounts that already exist, and it
+> does not delete the stored passwords. Remove those accounts yourself if you no longer want them.
+
+### View the password
+
+Go to **Host details** > **Actions** > **Show managed account**. The password is unique per host and is stored encrypted in Fleet.
 
 ### Sign in as the managed account
-The managed account is hidden from the Windows sign-in screen. To log in as `_fleetadmin`, select **Other user** on the sign-in screen and enter the username and password manually. If the sign-in screen does not show Other user, type `.\\_fleetadmin` in the username field to authenticate against the local machine.
+
+The account is hidden from the Windows sign-in screen and from **Settings** > **Accounts**, so it won't appear in the list of users.
+
+To sign in, select **Other user** on the sign-in screen, then type the username with a `.\` prefix:
+
+```
+.\_fleetadmin
+```
+
+The leading `.\` tells Windows to authenticate against this computer rather than your identity provider. Without it, a host joined to
+Entra treats `_fleetadmin` as a work or school account and the sign-in fails. If the sign-in screen doesn't accept `.\_fleetadmin`,
+try `<computer-name>\_fleetadmin` (for example `DESKTOP-ABC123\_fleetadmin`).
+
+### Troubleshoot the managed local account
+
+If a host doesn't get an account, go to **Host details** > **Actions**. **Show managed account** is disabled when the account
+couldn't be created, and hovering it shows the reason the host reported.
+
+After a failure the host waits an hour before trying again, so it won't recover any sooner than that once you've fixed the cause.
+Restarting the Fleet agent on the host clears that wait.
+
+**The host's password policy rejected the password.** Fleet generates a 29-character password made of uppercase letters, lowercase
+letters, digits, and hyphens, omitting characters that are easy to misread. A host that requires a longer password, or that runs a
+custom password filter, can reject it. Windows reports every policy rejection with the same error, so the reason names the policy
+but not the specific rule. Check the host's minimum password length first, then any custom password filter.
+
+**An account named `_fleetadmin` already exists and Fleet didn't create it.** Fleet identifies its own account by the description
+`Fleet-managed local administrator account.` and refuses to take over an account that has anything else, rather than resetting a
+password and granting admin rights on an account that isn't Fleet's. Rename or remove the other account.
+
+> Don't edit the account's description, and don't rename the account. Fleet uses the description to recognize the account it
+> created, so editing it, including through a GPO, leaves Fleet unable to manage the account. Renaming the account instead leaves
+> the renamed one behind as an ordinary local admin, and Fleet creates a fresh `_fleetadmin` beside it.
 
 ## Recover a Windows host from the setup failure screen
 
@@ -156,6 +210,10 @@ If Shift+F10 produces a blank screen with no console (we've seen this on some hy
 ### Administrator recovery through Fleet
 
 An administrator can push a PowerShell script to the locked-out host through Fleet. The host's Fleet agent (orbit) installs early in setup experience, so it is running in the background even while the device is parked at the failure screen. The script creates a local administrator account, clears the registry values that pin the Enrollment Status Page block, and reboots the device.
+
+> If you've turned on the [managed local account](#managed-local-account-windows), the host already has an admin account you can use.
+> Delete the two account-creation commands from the script below and sign in as `.\_fleetadmin` after the reboot, using the password
+> from **Host details** > **Actions** > **Show managed account**.
 
 ```powershell
 $Username = "IT admin"

@@ -44,8 +44,8 @@ During the release candidate period, the release candidate is deployed to our QA
 
 At the same time as the Fleet server RC, a fleetd release candidate branch is also created at `rc-minor-fleetd-v1.x.x` from `main`, where `1.x.x` is the next minor version after the last released fleetd version (fleetd versioning is separate from Fleet server versioning). No additional feature work is merged into the RC branch without EM and QA approval.
 
-1. Create the release candidate branch from `main` and push it.
-2. Create a release QA issue for the fleetd release.
+1. Create the release candidate branch from `main` and push it. Pushing the branch triggers the [create fleetd release QA issue](https://github.com/fleetdm/fleet/actions/workflows/create-fleetd-release-qa-issue.yml) GitHub Action, which creates the [Release QA (fleetd)](https://github.com/fleetdm/fleet/blob/main/.github/ISSUE_TEMPLATE/release-qa-fleetd.md) issue on the release board.
+2. Confirm the release QA issue was created. If it wasn't, run the workflow manually from the release candidate branch, or create the issue from the template.
 3. Announce the release candidate in Slack.
 
 The same cherry-pick policy applies as for the Fleet server RC. To merge a bug fix into the fleetd release candidate, follow the same process described in [Merge unreleased bug fixes into the release candidate](#merge-unreleased-bug-fixes-into-the-release-candidate).
@@ -65,6 +65,8 @@ Only merge unreleased bug fixes during the release candidate period to minimize 
 4. Create a pull request from your new branch to the release candidate. 
 
 This process ensures your bug fix is included in `main` for future releases, as well as the release candidate branch for the pending release.
+
+> If unreleased bugs are still open 2 business days before the release due date, contact the release ritual DRI and request they push the target release date. Set the new date by estimating how long the remaining bug fixes will take, then adding 2 business days for smoke and load testing. Communicate the new date in the [#help-releases thread](#discuss-release-dates) for the release.
 
 If there is partially merged feature work when the release candidate is created, the previously merged code must be reverted. If there is an exceptional, business-critical need to merge feature work into the release candidate, as determined by the [release ritual DRI](https://fleetdm.com/handbook/engineering#rituals), the release candidate [feature merge exception process](#request-release-candidate-feature-merge-exception) may be followed.
 
@@ -200,7 +202,7 @@ When target release dates are changed on the calendar, the release ritual DRI al
 
 ## Discuss release dates
 
-A single Slack thread is created in the #help-releases channel for every release candidate. Any discussions about release dates should be kept within the release candidate's thread.
+A single Slack thread is created in the #help-releases channel for every release candidate. Discussions in the release candidate's thread should be limited to release dates.
 
 
 ## Handle process exceptions for non-released code
@@ -215,6 +217,25 @@ In these cases there are two differences in our pull request process:
 
 - QA is done before merging the code change to the main branch.
 - Tickets are not moved to "Ready for release". Bugs are closed, and user stories are moved to the product drafting board's "Confirm and celebrate" column.
+
+
+## Server and agent compatibility
+
+The Fleet server and the agent (fleetd) are released independently. Because of this, there will always be hosts running a different version of the agent than the server expects, whether because the server was just upgraded, because the agent was auto-updated first, or because some hosts have not yet received the agent update.
+
+### Keep agents up to date
+
+Running old agents is discouraged. Customers should keep agents on the latest version. If immediate updates are not possible, establish a regular upgrade cadence rather than letting agents fall behind indefinitely.
+
+### Do not break across version boundaries
+
+When a feature requires changes to both the server and the agent, a version mismatch must not break existing functionality. The new feature will not work until both sides are updated, but nothing that previously worked should stop working. This applies in both directions: a newer server with an older agent, and a newer agent with an older server.
+
+### Test compatibility with the previous release
+
+We test and QA each release against the previous version of its counterpart. When a new server version depends on a new agent feature, we verify that agents one version behind keep working. When a new agent version depends on a new server feature, we verify that the agent keeps working against a server one version behind.
+
+For long-term compatibility rules, see the [Fleetd development and release strategy](https://fleetdm.com/docs/contributing/workflows/fleetd-development-and-release-strategy). Server release notes must call out when a feature requires a minimum agent version.
 
 
 <meta name="maintainedBy" value="lukeheath">

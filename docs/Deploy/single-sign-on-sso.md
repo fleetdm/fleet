@@ -6,6 +6,8 @@ To configure SSO, follow steps for your IdP and then complete [Fleet configurati
 
 > JIT SAML implementation supports just-in-time (JIT) user provisioning, as well as both IdP-initiated login and service-initiated (SP) login.
 
+> If you're configuring SSO for both Fleet users (i.e., IT admins who have access to the Fleet console) and end users (to use with [end user authentication](https://fleetdm.com/guides/end-user-authentication)), then create two separate apps in your IdP. The main differences between them will be the name (your choice on that) and the `callback` URL, listed below.
+
 
 ## Okta
 

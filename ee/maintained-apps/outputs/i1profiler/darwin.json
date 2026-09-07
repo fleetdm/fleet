@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "3.8.7.19194",
+      "version": "3.8.7.19247",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.x-rite.i1Profiler';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.x-rite.i1Profiler' AND version_compare(bundle_short_version, '3.8.7.19194') < 0);",
-        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.x-rite.i1Profiler');"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.x-rite.i1Profiler' AND version_compare(bundle_short_version, '3.8.7.19247') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.x-rite.i1Profiler' AND a.bundle_executable != '');"
       },
       "installer_url": "https://downloads.xrite.com/downloads/software/i1Profiler/3.8.7/Mac/i1Profiler.zip",
       "install_script_ref": "8cfe1759",
       "uninstall_script_ref": "9207a0fb",
-      "sha256": "350fcaed0d069e555e1877a05a9910c41df65b5af29d9d3ac2407366c342ef63",
+      "sha256": "4747e4e27d63f448678afdfe0b0f6a75e30aedc6032153edd0d2b96c85095a30",
       "default_categories": [
         "Productivity"
       ]

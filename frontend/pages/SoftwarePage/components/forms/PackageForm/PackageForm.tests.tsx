@@ -1,11 +1,12 @@
 import React from "react";
-import { screen } from "@testing-library/react";
+import { render as renderComponent, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { createCustomRenderer } from "test/test-utils";
 import { createMockSoftwarePackage } from "__mocks__/softwareMock";
 import { notify } from "components/ToastNotification";
 import { IConfig } from "interfaces/config";
+import { AppContext, IAppContext } from "context/app";
 
 import PackageForm from "./PackageForm";
 
@@ -42,6 +43,15 @@ const selectFileOfSize = async (container: HTMLElement, size: number) => {
   Object.defineProperty(file, "size", { value: size });
   const input = container.querySelector("#upload-file") as HTMLInputElement;
   await userEvent.upload(input, file);
+};
+
+const selectFileNamed = async (container: HTMLElement, name: string) => {
+  const file = new File(["installer"], name);
+  const input = container.querySelector("#upload-file") as HTMLInputElement;
+  // Bypass the input's `accept` attribute so we can exercise the client-side
+  // extension-guard path (`getDefaultInstallScript`/`Uninstall`) for files a
+  // drag-and-drop or a browser lenient with MIME sniffing would let through.
+  await userEvent.upload(input, file, { applyAccept: false });
 };
 
 const TARGET_BANNER_COPY = /If multiple packages of the same software target the same host, Fleet will install the one that was added first\./i;
@@ -149,6 +159,120 @@ describe("PackageForm", () => {
 
       expect(errorSpy).not.toHaveBeenCalled();
       expect(screen.getByLabelText("All hosts")).toBeInTheDocument();
+    });
+  });
+
+  describe("Unsupported file extension on add", () => {
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    // Regression: the raw Error was passed as the toast response, so the
+    // main line rendered "Error: unsupported file extension: dmg" and the
+    // expandable panel opened on `{}` (Error's own props are non-enumerable).
+    it("shows a friendly toast with the reason in the response payload when the install-script derivation throws", async () => {
+      const errorSpy = jest.spyOn(notify, "error");
+      const { container } = renderForm();
+
+      await selectFileNamed(container, "test.dmg");
+
+      expect(errorSpy).toHaveBeenCalledWith("Couldn't add.", {
+        response: {
+          data: { message: "unsupported file extension: dmg" },
+        },
+      });
+    });
+
+    // .zip passes the install switch (returns "") but trips the uninstall
+    // switch's default, so this covers the second catch block.
+    it("shows a friendly toast with the reason in the response payload when the uninstall-script derivation throws", async () => {
+      const errorSpy = jest.spyOn(notify, "error");
+      const { container } = renderForm();
+
+      await selectFileNamed(container, "test.zip");
+
+      expect(errorSpy).toHaveBeenCalledWith("Couldn't add.", {
+        response: {
+          data: { message: "unsupported file extension: zip" },
+        },
+      });
+    });
+  });
+
+  describe("GitOps mode with a preselected Custom target", () => {
+    const gitOpsConfig = {
+      gitops: {
+        gitops_mode_enabled: true,
+        repository_url: "https://example.com/repo",
+        exceptions: { labels: false, software: false, secrets: false },
+      },
+    } as Partial<IConfig>;
+
+    // `config` is fetched asynchronously and App renders its children before it
+    // resolves, so GitOps mode is often unknown on the first render. Rendering
+    // through AppContext directly is what lets the config value change after
+    // mount, which `createCustomRenderer` fixes in place.
+    const renderWithConfig = (config: Partial<IConfig> | null) => (
+      <AppContext.Provider
+        value={({ config, isPremiumTier: true } as unknown) as IAppContext}
+      >
+        <PackageForm
+          {...BASE_PROPS}
+          multiPackageContext
+          initialTargetType="Custom"
+        />
+      </AppContext.Provider>
+    );
+
+    it("enables Save even though the target selector is hidden", async () => {
+      const { container } = renderForm(
+        { multiPackageContext: true, initialTargetType: "Custom" },
+        gitOpsConfig
+      );
+
+      await selectFileOfSize(container, 1024);
+
+      // GitOps mode hides the selector, so the user can't pick labels. A
+      // preselected "Custom" would leave Save disabled with nothing on screen
+      // to explain why.
+      expect(screen.queryByLabelText("Custom")).not.toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Save" })).not.toBeDisabled();
+    });
+
+    it("normalizes the target when config arrives after mount", async () => {
+      const { container, rerender } = renderComponent(renderWithConfig(null));
+      rerender(renderWithConfig(gitOpsConfig));
+
+      await selectFileOfSize(container, 1024);
+
+      expect(screen.queryByLabelText("Custom")).not.toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Save" })).not.toBeDisabled();
+    });
+
+    it("enables Save when the file is chosen before config arrives", async () => {
+      // The reverse ordering of the previous test: validation is computed on
+      // file select against the still-preselected "Custom", so normalizing the
+      // target afterwards has to refresh validation too.
+      const { container, rerender } = renderComponent(renderWithConfig(null));
+
+      await selectFileOfSize(container, 1024);
+      rerender(renderWithConfig(gitOpsConfig));
+
+      expect(screen.getByRole("button", { name: "Save" })).not.toBeDisabled();
+    });
+
+    it("keeps requiring labels for a Custom target when GitOps mode is off", async () => {
+      const { container } = renderForm({
+        multiPackageContext: true,
+        initialTargetType: "Custom",
+      });
+
+      await selectFileOfSize(container, 1024);
+
+      // The selector is visible here, so the preselection stands and the
+      // existing "pick at least one label" rule still applies.
+      expect(screen.getByLabelText("Custom")).toBeChecked();
+      expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
     });
   });
 });

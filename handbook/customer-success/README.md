@@ -14,7 +14,7 @@ This handbook page details processes specific to working [with](#contact-us) and
 | Manager of Customer Support and Solutions Architecture | [Dale Ribeiro](https://www.linkedin.com/in/daleribeiro/) _([@ddribeiro](https://github.com/ddribeiro))_
 | Customer Solutions Architect (CSA)    | [Jake Stenger](https://www.linkedin.com/in/jakestenger) _([@jakestenger](https://github.com/jakestenger))_ <br> [Adam Baali](https://uk.linkedin.com/in/adambaali) _([@AdamBaali](https://github.com/AdamBaali))_ <br> [Kitzy](https://linkedin.com/in/kitzy) _([@kitzy](https://github.com/kitzy))_ <br> [Jonathan Porter](https://linkedin.com/in/jp-cpe) _([@jp-cpe](https://github.com/jp-cpe))_
 | Customer Success Manager (CSM)        | [Josh Roskos](https://www.linkedin.com/in/jroskos/) <br> [Mike Pinto](https://www.linkedin.com/in/michael-pinto-a06b4515a/) <br> [Andreas Najjar](https://www.linkedin.com/in/andreasnajjar/) <br> [Sean Hannon](https://www.linkedin.com/in/sean-hannon-73b603105/) <br> [Kelly Kroening](https://www.linkedin.com/in/kelly-kroening)
-| Customer Support Engineer (CSE)       | [Kathy Satterlee](https://www.linkedin.com/in/ksatter/) _([@ksatter](https://github.com/ksatter))_ <br> [Mason Buettner](https://www.linkedin.com/in/mason-buettner-b72959175/) _([@mason-buettner](https://github.com/mason-buettner))_ <br> [Gray Williams](https://linkedin.com/in/gwilliamsuk) _([@grayw](https://github.com/grayw))_ <br> Steven Palmesano _([@spalmesano0](https://github.com/spalmesano0))_
+| Customer Support Engineer (CSE)       | [Ryn Satterlee](https://www.linkedin.com/in/rynsatterlee/) _([@rynsatterlee](https://github.com/rynsatterlee))_ <br> [Mason Buettner](https://www.linkedin.com/in/mason-buettner-b72959175/) _([@mason-buettner](https://github.com/mason-buettner))_ <br> [Gray Williams](https://linkedin.com/in/gwilliamsuk) _([@grayw](https://github.com/grayw))_ <br> Steven Palmesano _([@spalmesano0](https://github.com/spalmesano0))_
 
 ## Contact us
 
@@ -246,6 +246,14 @@ During the window of time available to investigate an issue, use the resources a
   - Contact the developer on-call.
 
 Note: For non-CSA engaged customer requests, CSE's are responsible for escalations to a CSA as needed. 
+
+If an issue is causing serious problems for a customer and support hasn't found a resolution within **1 business day**, stop investigating solo and escalate to engineering:
+
+1. [File a bug report](#file-a-customer-bug-report) (or locate the existing issue) so the problem is tracked in GitHub, not only in Slack threads.
+2. Add the appropriate [priority label](https://fleetdm.com/handbook/company/product-groups#high-priority-user-stories-and-bugs) and assign the issue to the product group's Engineering Manager so it's prioritized at the next standup.
+3. Keep investigating together with engineering. Escalating isn't handing off; it's adding help.
+
+Don't wait for the issue to become an incident. Escalating on day one gives engineering time to help during business hours instead of scrambling near a deadline or over a weekend.
 
 ### Keep support conversations in one thread
 
@@ -613,6 +621,12 @@ When a user requests that we delete all data we have stored about them, their da
         2. Search for the user's email address
         3. Select the user's Stripe customer record
         4. Click the "Actions" dropdown in the upper right corner of the customer profile page and select delete.
+
+
+### Respond to a logo removal request from a customer
+
+1. CSM navigates to the account in Salesforce and changes the "Customer requested logo removal?" field from "No" to "Yes" and adds details about who made the request in the "Logo usage notes" field.
+2. CSM messages the [#help-marketing](https://fleetdm.slack.com/archives/C01ALP02RB5) Slack channel, ccing marketing leadership, with the subject/message "Customer logo removal request" and includes a screenshot and any other necessary details.
 
 
 ### Create a task for a CSA
