@@ -7,6 +7,7 @@ import Checkbox from "components/forms/fields/Checkbox";
 import Button from "components/buttons/Button";
 import { notify } from "components/ToastNotification";
 import RevealButton from "components/buttons/RevealButton";
+import Card from "components/Card";
 
 const baseClass = "advanced-options-form";
 
@@ -58,15 +59,21 @@ const AdvancedOptionsForm = ({
       />
       {showAdvancedOptions && (
         <form onSubmit={handleSubmit}>
-          <Checkbox
-            value={releaseDevice}
-            onChange={() => setReleaseDevice(!releaseDevice)}
+          <Card
+            className={`${baseClass}__settings-card`}
+            color="white"
+            borderRadiusSize="large"
           >
-            <TooltipWrapper tipContent={tooltip}>
-              Release device manually
-            </TooltipWrapper>
-          </Checkbox>
-          <Button type="submit">Save</Button>
+            <Checkbox
+              value={releaseDevice}
+              onChange={() => setReleaseDevice(!releaseDevice)}
+            >
+              <TooltipWrapper tipContent={tooltip}>
+                Release device manually
+              </TooltipWrapper>
+            </Checkbox>
+            <Button type="submit">Save</Button>
+          </Card>
         </form>
       )}
     </div>
