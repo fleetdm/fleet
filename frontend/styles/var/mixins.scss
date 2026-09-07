@@ -162,7 +162,7 @@ $max-width: 2560px;
   font-size: $x-small;
   text-decoration: none;
 
-  &:hover {
+  &:hover:not(.button) {
     color: $core-fleet-black;
   }
 
