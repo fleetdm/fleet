@@ -3388,7 +3388,7 @@ Fleet-desktop-token-authenticated routes are routes used by the [Fleet Desktop](
 
 In Fleet Premium, you can require single sign-on (SSO) in front of these routes.
 
-Every route below is device-authenticated. Most require a session when SSO is on; a few never do (used by fleetd or the Fleet Desktop tray app, which can't complete a browser sign-in), and the rest are exempt while a host is still going through [setup experience](https://fleetdm.com/guides/setup-experience):
+Some routes are always exempt from SSO and others are exempt while a host is still going through [setup experience](https://fleetdm.com/guides/setup-experience):
 
 - [Get Fleet Desktop information](#get-fleet-desktop-information) (`GET /api/v1/fleet/device/{token}/desktop`) — *never requires a session; polled by the Fleet Desktop tray app*
 - [Ping Server with Device Token](#ping-server-with-device-token) (`HEAD /api/v1/fleet/device/{token}/ping`) — *never requires a session; polled by the Fleet Desktop tray app*
