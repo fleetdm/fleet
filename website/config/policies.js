@@ -85,4 +85,5 @@ module.exports.policies = {
   'view-ai-in-it': true,
   'view-capex-savings': true,
   'view-configuration-generator': true,
+  'view-arch-linux-management': true,
 };

@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "9.3.0.4490",
+      "version": "9.4.0.4556",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.lemon.lvoverseas';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.lemon.lvoverseas' AND version_compare(bundle_short_version, '9.3.0.4490') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.lemon.lvoverseas' AND version_compare(bundle_short_version, '9.4.0.4556') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.lemon.lvoverseas' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://sf16-web-tos-buz.capcutstatic.com/obj/capcut-web-buz-sg/packages/CapCut_9_3_0_4490_capcutpc_0_creatortool.dmg",
+      "installer_url": "https://sf16-web-tos-buz.capcutstatic.com/obj/capcut-web-buz-sg/packages/CapCut_9_4_0_4556_capcutpc_0_creatortool.dmg",
       "install_script_ref": "6c43d082",
       "uninstall_script_ref": "465c6a83",
-      "sha256": "8cc8703ca65359e69463c0e464b4661134757be2cda06dee2ffeb06e5238c8cb",
+      "sha256": "e0091b8f95521ef6d5e52606ba99854ec9f794f1aaed3fddf99a4522dd478293",
       "default_categories": [
         "Productivity"
       ]

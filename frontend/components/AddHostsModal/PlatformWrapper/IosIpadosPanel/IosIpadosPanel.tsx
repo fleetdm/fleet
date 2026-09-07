@@ -7,6 +7,7 @@ import { getPathWithQueryParams } from "utilities/url";
 
 import InputField from "components/forms/fields/InputField";
 import Radio from "components/forms/fields/Radio";
+import { renderAppleManualEnrollmentDisabled } from "components/AddHostsModal/helpers";
 
 import EnrollQrCode from "../EnrollQrCode";
 
@@ -16,9 +17,13 @@ const baseClass = "ios-ipados-panel";
 
 interface IosIpadosPanelProps {
   enrollSecret: string;
+  isManualAppleEnrollmentsBlocked: boolean;
 }
 
-const IosIpadosPanel = ({ enrollSecret }: IosIpadosPanelProps) => {
+const IosIpadosPanel = ({
+  enrollSecret,
+  isManualAppleEnrollmentsBlocked,
+}: IosIpadosPanelProps) => {
   const { config, isMacMdmEnabledAndConfigured } = useContext(AppContext);
 
   // Default to "Personal (BYOD)" per #23242 design.
@@ -27,6 +32,10 @@ const IosIpadosPanel = ({ enrollSecret }: IosIpadosPanelProps) => {
   );
 
   if (!config) return null;
+
+  if (isManualAppleEnrollmentsBlocked) {
+    return renderAppleManualEnrollmentDisabled("iOS & iPadOS");
+  }
 
   if (!isMacMdmEnabledAndConfigured) {
     return (

@@ -991,6 +991,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 			appCfg.ServerSettings.ServerURL,
 			config,
 			svc,
+			ds,
 		); err != nil {
 			initFatal(err, "setup mdm apple services")
 		}
@@ -1154,6 +1155,10 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		defer cancel()
 		errs <- func() error {
 			cancelFunc()
+			if stopper, ok := mdmPushService.(interface{ Stop() }); ok {
+				// end the APNs retry loop; pending retries defer to the sweep
+				stopper.Stop()
+			}
 			cleanupCronStatsOnShutdown(ctx, ds, logger, instanceID)
 			launcher.GracefulStop()
 			// Flush any pending OTEL data before shutting down

@@ -9074,6 +9074,13 @@
       "description": "VIA is a keyboard configurator."
     },
     {
+      "name": "Vim",
+      "slug": "vim/windows",
+      "platform": "windows",
+      "unique_identifier": "Vim",
+      "description": "Vim is a text editor."
+    },
+    {
       "name": "Vimcal",
       "slug": "vimcal/darwin",
       "platform": "darwin",

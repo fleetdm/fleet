@@ -1,0 +1,1 @@
+- Added a note to the delete label modal explaining that labels used as custom software targets can't be deleted until they're removed from those targets.

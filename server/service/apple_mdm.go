@@ -2975,21 +2975,41 @@ func (svc *Service) GetMDMAppleEnrollmentProfileByToken(ctx context.Context, tok
 		return nil, ctxerr.Wrap(ctx, err, "extracting topic from APNs cert")
 	}
 
+	depAssignments, err := svc.ds.GetHostDEPAssignmentsBySerial(ctx, machineInfo.Serial)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting DEP assignments by serial")
+	}
+
+	if appConfig.MDM.OnlyAllowAppleBusinessEnrollment {
+		if machineInfo.Serial == "" {
+			// adue enrollment does not have a serial, so fail fast
+			return nil, &fleet.ABOnlyEnrollmentForbiddenError{}
+		}
+
+		// No DEP assignment for this serial, so we fail.
+		if len(depAssignments) == 0 {
+			return nil, &fleet.ABOnlyEnrollmentForbiddenError{}
+		}
+	}
+
 	var requireACME bool
 	if appConfig.MDM.AppleRequireHardwareAttestation {
-		requireACME, err = svc.isMDMAppleACMERequired(ctx, machineInfo)
+		requireACME, err = svc.isMDMAppleACMERequired(ctx, machineInfo, depAssignments)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "checking if ACME enrollment is required")
 		}
 
 		svc.logger.InfoContext(ctx, "hardware attestastion required", "require_acme", requireACME, "product", machineInfo.Product, "serial", machineInfo.Serial)
-
 	}
 
 	var enrollProf []byte
 	if requireACME {
 		enrollProf, err = svc.generateMDMAppleACMEEnrollProfile(ctx, machineInfo.Serial, appConfig.OrgInfo.OrgName, mdmURL, topic)
 	} else {
+		if appConfig.MDM.IsAppleMDMSCEPBlocked() {
+			// do not allow falling through to SCEP when it's blocked via both require acme and only AB enrollments.
+			return nil, &fleet.ABOnlyEnrollmentForbiddenError{}
+		}
 		enrollProf, err = svc.generateMDMAppleSCEPEnrollProfile(ctx, appConfig.OrgInfo.OrgName, mdmURL, topic)
 	}
 
@@ -3023,7 +3043,7 @@ func (svc *Service) NewACMEEnrollment(ctx context.Context, hardwareSerial string
 	return svc.acmeSvc.NewACMEEnrollment(ctx, hardwareSerial)
 }
 
-func (svc *Service) isMDMAppleACMERequired(ctx context.Context, machineInfo *fleet.MDMAppleMachineInfo) (bool, error) {
+func (svc *Service) isMDMAppleACMERequired(ctx context.Context, machineInfo *fleet.MDMAppleMachineInfo, depAssignments []*fleet.HostDEPAssignment) (bool, error) {
 	if machineInfo == nil {
 		return false, ctxerr.New(ctx, "machine info is nil")
 	}
@@ -3043,13 +3063,9 @@ func (svc *Service) isMDMAppleACMERequired(ctx context.Context, machineInfo *fle
 	}
 
 	// we only require ACME if the serial is DEP-assigned to Fleet
-	assignments, err := svc.ds.GetHostDEPAssignmentsBySerial(ctx, machineInfo.Serial)
-	if err != nil {
-		return false, ctxerr.Wrap(ctx, err, "checking DEP assignment status")
-	}
-	svc.logger.InfoContext(ctx, "checking DEP assignment status for ACME requirement", "serial", machineInfo.Serial, "dep_assignments_count", len(assignments))
+	svc.logger.InfoContext(ctx, "checking DEP assignment status for ACME requirement", "serial", machineInfo.Serial, "dep_assignments_count", len(depAssignments))
 
-	return len(assignments) > 0, nil
+	return len(depAssignments) > 0, nil
 }
 
 // isACMESupported checks if the device is supported for ACME enrollment. Fleet supports:
@@ -4931,6 +4947,12 @@ func certIsFromNewEnrollment(cert *x509.Certificate) bool {
 //
 // [1]: https://developer.apple.com/documentation/devicemanagement/authenticate
 func (svc *MDMAppleCheckinAndCommandService) Authenticate(r *mdm.Request, m *mdm.Authenticate) error {
+	// AB-only enrollment enforcement lives in abOnlyEnrollmentCheckinService, which wraps
+	// this service (see handler.go). This service is dispatched as a "sub service" of
+	// multi.New alongside nanomdm's core service — its returned errors are only logged, not
+	// surfaced to the device (see MultiService.runOthers) — so a check here cannot actually
+	// block enrollment.
+
 	var scepRenewalInProgress bool
 	existingDeviceInfo, err := svc.ds.GetHostMDMCheckinInfo(r.Context, r.ID)
 	if err != nil {
@@ -8607,6 +8629,10 @@ func (svc *Service) GetOTAProfile(ctx context.Context, enrollSecret, idpUUID str
 		return nil, ctxerr.Wrap(ctx, err, "getting app config to get org name")
 	}
 
+	if cfg.MDM.OnlyAllowAppleBusinessEnrollment {
+		return nil, &fleet.ABOnlyEnrollmentForbiddenError{}
+	}
+
 	requiresIDPUUID, err := shared_mdm.RequiresEnrollOTAAuthentication(ctx, svc.ds, enrollSecret, cfg.MDM.MacOSSetup.EnableEndUserAuthentication)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "checking if IDP UUID is required for OTA enrollment")
@@ -8762,6 +8788,15 @@ func (svc *Service) MDMAppleProcessOTAEnrollment(
 	// authorization is performed via the enroll secret and the provided certificates
 	svc.authz.SkipAuthorization(ctx)
 
+	appCfg, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "reading app config")
+	}
+
+	if appCfg.MDM.OnlyAllowAppleBusinessEnrollment {
+		return nil, &fleet.ABOnlyEnrollmentForbiddenError{}
+	}
+
 	if len(certificates) == 0 {
 		return nil, authz.ForbiddenWithInternal("no certificates provided", nil, nil, nil)
 	}
@@ -8786,11 +8821,6 @@ func (svc *Service) MDMAppleProcessOTAEnrollment(
 		return nil, fmt.Errorf("loading SCEP challenge from the database: %w", err)
 	}
 	scepChallenge := string(assets[fleet.MDMAssetSCEPChallenge].Value)
-
-	appCfg, err := svc.ds.AppConfig(ctx)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "reading app config")
-	}
 
 	mdmURL := appCfg.MDMUrl()
 
