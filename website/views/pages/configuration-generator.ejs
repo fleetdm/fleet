@@ -25,7 +25,7 @@
           </div>
           <div class="form-group">
             <label for="profile">Instructions</label>
-            <textarea class="form-control" type="textarea" id="profile" placeholder="Make sure users can’t change the system clock." :class="[formErrors.naturalLanguageInstructions ? 'is-invalid' : '']" v-model.trim="formData.naturalLanguageInstructions"></textarea>
+            <textarea class="form-control" type="textarea" id="profile" placeholder="Disable camera access in Firefox" :class="[formErrors.naturalLanguageInstructions ? 'is-invalid' : '']" v-model.trim="formData.naturalLanguageInstructions"></textarea>
             <div class="invalid-feedback" v-if="formErrors.naturalLanguageInstructions" focus-first>Please provide instructions.</div>
           </div>
           <p v-if="cloudError" class="text-danger">Your request could not be processed. Please try again.</p>
