@@ -721,8 +721,7 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 		require.NotNil(t, queuedInstalls[0].PolicyID, "the install keeps its policy so it shows in Automation runs")
 		require.Equal(t, policy.ID, *queuedInstalls[0].PolicyID)
 
-		// the end user pressed "Update now", so the queued install must install even with the app
-		// open: it does not take the notify-before-patching policy's app open query
+		// the end user pressed "Update now", so this install runs with the app open
 		queued, err := s.ds.GetSoftwareInstallDetails(ctx, queuedInstalls[0].ExecutionID)
 		require.NoError(t, err)
 		require.False(t, queued.OverridePreInstallQuery)
@@ -738,10 +737,16 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 		})
 		require.Equal(t, 1, activatedCount, "otherwise the read below is still the queued half")
 
-		// activating copies the queued decision onto the install row, so the answer does not change
+		// activating copies the decision onto the install row
 		activated, err := s.ds.GetSoftwareInstallDetails(ctx, queuedInstalls[0].ExecutionID)
 		require.NoError(t, err)
 		require.False(t, activated.OverridePreInstallQuery)
 		require.Empty(t, activated.PreInstallCondition)
+
+		// the policy option is still on, but this install was not gated on it
+		result, err := s.ds.GetSoftwareInstallResults(ctx, queuedInstalls[0].ExecutionID)
+		require.NoError(t, err)
+		require.True(t, result.NotifyBeforePatching)
+		require.False(t, result.OverridePreInstallQuery)
 	})
 }

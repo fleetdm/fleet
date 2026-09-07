@@ -124,20 +124,10 @@ func (s *Service) ActOnNotification(ctx context.Context, notificationUUID string
 	return acted, nil
 }
 
-func (s *Service) SetNotificationStatusDispatched(ctx context.Context, notificationUUID string) error {
-	err := s.ds.SetEndUserNotificationStatus(ctx, notificationUUID, api.EndUserNotificationDispatched, nil,
-		[]string{api.EndUserNotificationActed})
+func (s *Service) SetNotificationStatus(ctx context.Context, notificationUUID string, status string, reason *string, whereStatusIn []string) error {
+	err := s.ds.SetEndUserNotificationStatus(ctx, notificationUUID, status, reason, whereStatusIn)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "set end user notification status dispatched")
-	}
-	return nil
-}
-
-func (s *Service) SetNotificationFailed(ctx context.Context, notificationUUID string, reason string) error {
-	err := s.ds.SetEndUserNotificationStatus(ctx, notificationUUID, api.EndUserNotificationFailed, &reason,
-		[]string{api.EndUserNotificationPending, api.EndUserNotificationDispatched})
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "set end user notification failed")
+		return ctxerr.Wrap(ctx, err, "set end user notification status")
 	}
 	return nil
 }

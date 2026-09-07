@@ -1879,8 +1879,7 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 		return err
 	}
 
-	// A policy install that ran the app open query and got no result means the app was open: a
-	// skip, not a failure. An ordinary empty pre_install_query still counts toward the retry cap.
+	// A policy install that ran the app open query and got no result means the app was open, which is a skip rather than a failure.
 	isAppOpenSkip := false
 	if result.Status() == fleet.SoftwareInstallFailed &&
 		result.PreInstallConditionOutput != nil && *result.PreInstallConditionOutput == "" {

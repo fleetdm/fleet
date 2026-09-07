@@ -12,8 +12,7 @@ import (
 func TestUp_20260818162738(t *testing.T) {
 	db := applyUpToPrev(t)
 
-	// Seed a policy and an install that pre-date the migration, with timestamps far enough back
-	// that any rewrite of the rows would be obvious.
+	// Seed a policy and an install that pre-date the migration, with old timestamps so a rewrite would show.
 	policyID := execNoErrLastID(
 		t, db,
 		"INSERT INTO policies (name, query, description, checksum, created_at, updated_at) VALUES (?,?,?,?,?,?)",
@@ -49,10 +48,8 @@ func TestUp_20260818162738(t *testing.T) {
 
 	applyNext(t, db)
 
-	// Timestamps survive the migration. They matter because both tables are
-	// ON UPDATE CURRENT_TIMESTAMP: the API serves policies.updated_at, so rewriting rows would make
-	// every policy look freshly edited, and host_software_installs.updated_at throttles continuous
-	// policy automation re-installs.
+	// Both tables are ON UPDATE CURRENT_TIMESTAMP, so a rewrite would make every policy look freshly edited
+	// and reset the continuous automation cooldown.
 	policyCreatedAfter, policyUpdatedAfter := timestamps("policies", policyID)
 	assert.Equal(t, policyCreatedBefore, policyCreatedAfter, "migration must not touch policies.created_at")
 	assert.Equal(t, policyUpdatedBefore, policyUpdatedAfter, "migration must not touch policies.updated_at")

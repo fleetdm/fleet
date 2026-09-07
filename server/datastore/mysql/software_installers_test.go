@@ -7413,8 +7413,7 @@ func testGetSoftwareInstallDetailsPatchWhenClosed(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, userQuery, forceDetails.PreInstallCondition)
 
-	// An install the end user asked for with "Update now" does not use the managed query, so it
-	// installs with the app open.
+	// An "Update now" install does not use the managed query, so it installs with the app open.
 	ignoreHost := test.NewHost(t, ds, "pwc-host-ignore", "pwc-ip-ignore", "pwc-key-ignore", "pwc-uuid-ignore", time.Now())
 	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{ignoreHost.ID})))
 	ignoreInstaller, ignoreTitle := newInstaller(t, "pwc-ignore")

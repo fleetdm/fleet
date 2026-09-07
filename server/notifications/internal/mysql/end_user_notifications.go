@@ -370,16 +370,12 @@ WHERE uuid = ? AND status IN (?, ?)
 	return rows > 0, nil
 }
 
-// SetEndUserNotificationStatus moves a notification that is in one of fromStatuses, so a caller
-// can't disturb a notification that moved on since it read it. A nil reason keeps last_reason, and
-// displayed_at is always left alone: clearing it would put the notification back in the dispatch
-// queue.
-func (ds *Datastore) SetEndUserNotificationStatus(ctx context.Context, notificationUUID string, status string, reason *string, fromStatuses []string) error {
+func (ds *Datastore) SetEndUserNotificationStatus(ctx context.Context, notificationUUID string, status string, reason *string, whereStatusIn []string) error {
 	stmt, args, err := sqlx.In(`
 UPDATE notifications_end_user
 SET status = ?, last_reason = COALESCE(?, last_reason)
 WHERE uuid = ? AND status IN (?)
-`, status, reason, notificationUUID, fromStatuses)
+`, status, reason, notificationUUID, whereStatusIn)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "build end user notification status update")
 	}

@@ -15,7 +15,7 @@ type Service interface {
 	NotificationLookupService
 	DelayNotificationService
 	ActOnNotificationService
-	SetNotificationFailedService
+	SetNotificationStatusService
 	CreateNotificationService
 
 	// ExpireAndQueueNotifications gives up on notifications that are out of
@@ -69,11 +69,9 @@ type DelayNotificationService interface {
 // kind can make a repeated action a no-op, including two arriving at once.
 type ActOnNotificationService interface {
 	ActOnNotification(ctx context.Context, notificationUUID string) (bool, error)
-	// SetNotificationStatusDispatched gives back a claim an action couldn't finish.
-	SetNotificationStatusDispatched(ctx context.Context, notificationUUID string) error
 }
 
-// SetNotificationFailedService gives up on a notification that can never be displayed.
-type SetNotificationFailedService interface {
-	SetNotificationFailed(ctx context.Context, notificationUUID string, reason string) error
+// SetNotificationStatusService sets the status for a notification if its status is in whereStatusIn, optionally changing last_reason.
+type SetNotificationStatusService interface {
+	SetNotificationStatus(ctx context.Context, notificationUUID string, status string, reason *string, whereStatusIn []string) error
 }

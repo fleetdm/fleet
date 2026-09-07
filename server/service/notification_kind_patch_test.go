@@ -29,9 +29,8 @@ func (w *capturingActivityWriter) NewActivity(_ context.Context, _ *fleet.User, 
 	return nil
 }
 
-// stubNotificationService stands in for the notifications context. acts is what
-// ActOnNotification reports, so a test can say another press claimed the
-// notification first.
+// stubNotificationService stands in for the notifications context. acts is what ActOnNotification reports,
+// so a test can say another press got there first.
 type stubNotificationService struct {
 	acts                 bool
 	actInvoked           bool
@@ -44,13 +43,13 @@ func (s *stubNotificationService) ActOnNotification(_ context.Context, _ string)
 	return s.acts, nil
 }
 
-func (s *stubNotificationService) SetNotificationStatusDispatched(_ context.Context, _ string) error {
-	s.setDispatchedInvoked = true
-	return nil
-}
-
-func (s *stubNotificationService) SetNotificationFailed(_ context.Context, _ string, reason string) error {
-	s.failedReason = reason
+func (s *stubNotificationService) SetNotificationStatus(_ context.Context, _ string, status string, reason *string, _ []string) error {
+	switch status {
+	case notifications_api.EndUserNotificationDispatched:
+		s.setDispatchedInvoked = true
+	case notifications_api.EndUserNotificationFailed:
+		s.failedReason = *reason
+	}
 	return nil
 }
 
@@ -209,7 +208,7 @@ func TestPatchNotificationUpdateNow(t *testing.T) {
 		alreadyPending bool
 		noInstaller    bool
 		installFails   bool
-		// ActOnNotification: another press claimed the notification first
+		// ActOnNotification: another press marked the notification acted first
 		alreadyActed bool
 
 		wantErr       bool
@@ -223,7 +222,7 @@ func TestPatchNotificationUpdateNow(t *testing.T) {
 			wantActionTry: true,
 		},
 		{
-			name:          "a press that loses the claim to another press queues nothing",
+			name:          "a second press arriving at the same time queues nothing",
 			status:        notifications_api.EndUserNotificationDispatched,
 			alreadyActed:  true,
 			wantInstalls:  0,
@@ -248,7 +247,7 @@ func TestPatchNotificationUpdateNow(t *testing.T) {
 			wantActionTry: true,
 		},
 		{
-			name:          "a queueing failure gives the claim on the notification back",
+			name:          "a queueing failure puts the notification back to dispatched",
 			status:        notifications_api.EndUserNotificationDispatched,
 			installFails:  true,
 			wantErr:       true,
@@ -307,7 +306,7 @@ func TestPatchNotificationUpdateNow(t *testing.T) {
 			if c.wantErr {
 				require.Error(t, err)
 				assert.True(t, notificationSvc.setDispatchedInvoked,
-					"the notification goes back to live so the next press can finish queueing")
+					"the notification is dispatched again so the next press can finish queueing")
 				return
 			}
 			assert.False(t, notificationSvc.setDispatchedInvoked)

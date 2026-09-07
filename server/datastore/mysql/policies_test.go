@@ -4965,8 +4965,7 @@ func testTeamPoliciesWithInstaller(t *testing.T, ds *Datastore) {
 	require.Equal(t, installerID, policiesWithInstallers[0].InstallerID)
 	require.False(t, policiesWithInstallers[0].OverridePreInstallQuery, "neither patch option is on")
 
-	// A policy that skips the install while the app is open queues its installs with the app open
-	// query as their pre-install condition.
+	// The flag is on for a policy that skips the install while the app is open.
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, `UPDATE policies SET notify_before_patching = 1 WHERE id = ?`, p2.ID)
 		return err

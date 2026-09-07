@@ -543,7 +543,7 @@ func testSetEndUserNotificationStatus(t *testing.T, env *testEnv) {
 
 		acted, err = env.ds.ActOnEndUserNotification(ctx, notificationUUID)
 		require.NoError(t, err)
-		assert.True(t, acted, "the next press can claim it")
+		assert.True(t, acted, "the next press can act on it")
 	})
 
 	t.Run("a dispatched notification fails and records the reason", func(t *testing.T) {
