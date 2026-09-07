@@ -12,6 +12,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
 	nanomdm_mysql "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/storage/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
@@ -27,6 +28,7 @@ func TestInHouseApps(t *testing.T) {
 		name string
 		fn   func(t *testing.T, ds *Datastore)
 	}{
+		{"InHouseAppInstallPushesViaDirectActivation", testInHouseAppInstallPushesViaDirectActivation},
 		{"TestInHouseAppsCrud", testInHouseAppsCrud},
 		{"MultipleTeams", testInHouseAppsMultipleTeams},
 		{"BatchSetInHouseInstallers", testBatchSetInHouseInstallers},
@@ -162,7 +164,8 @@ func testInHouseAppsCrud(t *testing.T, ds *Datastore) {
 				LabelID:   label.ID,
 				LabelName: label.Name,
 			},
-		}}
+		},
+	}
 	cfg := []byte(`<dict><key>k</key><string>v1</string></dict>`)
 	updatePayload := fleet.UpdateSoftwareInstallerPayload{
 		TeamID:          &team.ID,
@@ -390,7 +393,6 @@ func testInHouseAppsMultipleTeams(t *testing.T, ds *Datastore) {
 	err = sqlx.GetContext(ctx, ds.reader(ctx), &count, `SELECT COUNT(id) FROM software_titles`)
 	require.NoError(t, err)
 	require.Equal(t, 2, count)
-
 }
 
 func testInHouseAppsCategories(t *testing.T, ds *Datastore) {
@@ -1857,7 +1859,6 @@ func testInHouseAppsCancelledOnUnenroll(t *testing.T, ds *Datastore) {
 	summary, err = ds.GetSummaryHostInHouseAppInstalls(ctx, ptr.Uint(0), inHouseAppID)
 	require.NoError(t, err)
 	require.Equal(t, fleet.VPPAppStatusSummary{Installed: 0, Pending: 0, Failed: 1}, *summary)
-
 }
 
 // setupTestInHouseApp inserts both iOS and iPadOS rows for the given filename
@@ -2121,4 +2122,52 @@ VALUES (?, ?, ?)`, uaID, appID, titleID)
 	summary, err := ds.GetSummaryHostInHouseAppInstalls(ctx, &team.ID, appID)
 	require.NoError(t, err)
 	require.Equal(t, fleet.VPPAppStatusSummary{Pending: 1}, *summary)
+}
+
+func testInHouseAppInstallPushesViaDirectActivation(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	host := test.NewHost(t, ds, "ipa-direct-activation-host", "ipa-direct-1", "ipa-direct-1-key", "ipa-direct-1-uuid", time.Now())
+	nanoEnroll(t, ds, host, false)
+
+	user := test.NewUser(t, ds, "Direct Activation", "direct-activation@example.com", true)
+
+	payload := fleet.UploadSoftwareInstallerPayload{
+		UserID:           user.ID,
+		Title:            "direct-activation-app",
+		Filename:         "direct-activation.ipa",
+		BundleIdentifier: "com.direct.activation",
+		StorageID:        "direct-activation-storage",
+		Platform:         "ios",
+		Extension:        "ipa",
+		Version:          "1.0.0",
+		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+	}
+	installerID, titleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &payload)
+	require.NoError(t, err)
+
+	var pushedIDs []string
+	ds.WithPusher(pusherFunc(func(ctx context.Context, ids []string) (map[string]*push.Response, error) {
+		pushedIDs = append(pushedIDs, ids...)
+		return okPusherFunc(ctx, ids)
+	}))
+	t.Cleanup(func() { ds.WithPusher(nil) })
+
+	cmd1 := createInHouseAppInstallRequest(t, ds, host.ID, installerID, titleID, user)
+	// cmd2 stays queued behind cmd1, which is still activated.
+	cmd2 := createInHouseAppInstallRequest(t, ds, host.ID, installerID, titleID, user)
+
+	// cmd1's insert already pushed once; isolate the push triggered by activating cmd2.
+	pushedIDs = nil
+
+	// Mirrors production: the activity ACL adapter calls this directly against
+	// ds.writer(ctx) once cmd1 completes, with no surrounding transaction.
+	require.NoError(t, ds.ActivateNextUpcomingActivityForHost(ctx, host.ID, cmd1))
+
+	require.Equal(t, []string{host.UUID}, pushedIDs, "no APNs push when activation runs outside a transaction")
+
+	var cmd2Rows int
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &cmd2Rows, "SELECT COUNT(*) FROM nano_commands WHERE command_uuid = ?", cmd2)
+	})
 }
