@@ -3386,7 +3386,7 @@ currently pending.
 
 Fleet-desktop-token-authenticated routes are routes used by the [Fleet Desktop](https://fleetdm.com/guides/fleet-desktop). Unlike most other routes, Fleet user's API token does not authenticate them. They use a device-specific token.
 
-In Fleet Premium, you can require single sign-on (SSO) in front of these routes. This applies no matter how the device authenticates: token, client certificate, or device UUID, including on iOS and iPadOS.
+In Fleet Premium, you can require single sign-on (SSO) in front of these routes.
 
 Every route below is device-authenticated. Most require a session when SSO is on; a few never do (used by fleetd or the Fleet Desktop tray app, which can't complete a browser sign-in), and the rest are exempt while a host is still going through [setup experience](https://fleetdm.com/guides/setup-experience):
 
