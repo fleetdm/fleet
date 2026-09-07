@@ -19,7 +19,12 @@ import (
 
 const (
 	// scepInstallLocURINode is the Windows SCEP ClientCertificateInstall node in scope-less form.
-	scepInstallLocURINode     = "Vendor/MSFT/ClientCertificateInstall/SCEP"
+	scepInstallLocURINode = "Vendor/MSFT/ClientCertificateInstall/SCEP"
+
+	// WindowsSCEPSubjectNameSuffix ends the LocURI of the SCEP node carrying the certificate's
+	// subject name as an X.500 string.
+	WindowsSCEPSubjectNameSuffix = "/Install/SubjectName"
+
 	WindowsMDMAuthNoncePrefix = "mwenonce:"
 )
 
