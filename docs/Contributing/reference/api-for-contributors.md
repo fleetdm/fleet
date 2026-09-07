@@ -3390,32 +3390,32 @@ In Fleet Premium, you can require single sign-on (SSO) in front of these routes.
 
 Some routes are always exempt from SSO and others are exempt while a host is still going through [setup experience](https://fleetdm.com/guides/setup-experience):
 
-- [Get Fleet Desktop information](#get-fleet-desktop-information) (`GET /api/v1/fleet/device/{token}/desktop`) — *never requires a session; polled by the Fleet Desktop tray app*
-- [Ping Server with Device Token](#ping-server-with-device-token) (`HEAD /api/v1/fleet/device/{token}/ping`) — *never requires a session; polled by the Fleet Desktop tray app*
-- `POST /api/v1/fleet/device/{token}/debug/errors` — *never requires a session; agent error reporting*
-- [Migrate device to Fleet from another MDM solution](#migrate-device-to-fleet-from-another-mdm-solution) (`POST /api/v1/fleet/device/{token}/migrate_mdm`) — *never requires a session*
-- [Get device's transparency URL](#get-devices-transparency-url) (`GET /api/v1/fleet/device/{token}/transparency`) — *never requires a session*
-- [Initiate Fleet Desktop single sign-on](#initiate-fleet-desktop-single-sign-on) (`POST /api/v1/fleet/device/{token}/sso`) — *never requires a session; starts the sign-in flow*
-- `GET /api/v1/fleet/device/{token}` — *requires a session, exempt during [setup experience](https://fleetdm.com/guides/setup-experience)*
-- `POST /api/v1/fleet/device/{token}/refetch` — *requires a session, exempt during setup experience*
-- [Get device's Google Chrome profiles](#get-devices-google-chrome-profiles) (`GET /api/v1/fleet/device/{token}/device_mapping`, deprecated) — *requires a session, exempt during setup experience*
-- [Get device's mobile device management (MDM) and Munki information](#get-devices-mobile-device-management-mdm-and-munki-information) (`GET /api/v1/fleet/device/{token}/macadmins`) — *requires a session, exempt during setup experience*
-- [Get device's policies](#get-devices-policies) (`GET /api/v1/fleet/device/{token}/policies`) — *requires a session, exempt during setup experience*
-- [Get device's software](#get-devices-software) (`GET /api/v1/fleet/device/{token}/software`) — *requires a session, exempt during setup experience*
-- `POST /api/v1/fleet/device/{token}/software/install/{software_title_id}` — *requires a session, exempt during setup experience*
-- [Install all self-service software](#install-all-self-service-software) (`POST /api/v1/fleet/device/{token}/software/install_all`) — *requires a session, exempt during setup experience*
-- [Uninstall software via self-service](#uninstall-software-via-self-service) (`POST /api/v1/fleet/device/{token}/software/uninstall/{software_title_id}`) — *requires a session, exempt during setup experience*
-- [Get device's software install results](#get-devices-software-install-results) (`GET /api/v1/fleet/device/{token}/software/install/{install_uuid}/results`) — *requires a session, exempt during setup experience*
-- [Get uninstall results via self-service](#get-uninstall-results-via-self-service) (`GET /api/v1/fleet/device/{token}/software/uninstall/{execution_id}/results`) — *requires a session, exempt during setup experience*
-- `GET /api/v1/fleet/device/{token}/software/self_service_categories` — *requires a session, exempt during setup experience*
-- [Download device software icon](#download-device-software-icon) (`GET /api/v1/fleet/device/{token}/software/titles/{software_title_id}/icon`) — *requires a session, exempt during setup experience*
-- [Get device's certificates](#get-devices-certificates) (`GET /api/v1/fleet/device/{token}/certificates`) — *requires a session, exempt during setup experience*
-- `POST /api/v1/fleet/device/{token}/setup_experience/status` — *requires a session, exempt during setup experience*
-- `POST /api/v1/fleet/device/{token}/mdm/linux/trigger_escrow` — *requires a session, exempt during setup experience*
-- `POST /api/v1/fleet/device/{token}/bypass_conditional_access` — *requires a session, exempt during setup experience*
-- [Download device's MDM manual enrollment profile](#download-devices-mdm-manual-enrollment-profile) (`GET /api/v1/fleet/device/{token}/mdm/apple/manual_enrollment_profile`) — *requires a session, exempt during setup experience*
-- [Get device's software MDM command results](#get-devices-software-mdm-command-results) (`GET /api/v1/fleet/device/{token}/software/commands/{command_uuid}/results`) — *requires a session, exempt during setup experience*
-- `POST /api/v1/fleet/device/{token}/configuration_profiles/{profile_uuid}/resend` — *requires a session, exempt during setup experience*
+- [Get Fleet Desktop information](#get-fleet-desktop-information) (`GET /api/v1/fleet/device/{token}/desktop`) — *always exempt; polled by the Fleet Desktop tray app*
+- [Ping Server with Device Token](#ping-server-with-device-token) (`HEAD /api/v1/fleet/device/{token}/ping`) — *always exempt; polled by the Fleet Desktop tray app*
+- `POST /api/v1/fleet/device/{token}/debug/errors` — *always exempt; agent error reporting*
+- [Migrate device to Fleet from another MDM solution](#migrate-device-to-fleet-from-another-mdm-solution) (`POST /api/v1/fleet/device/{token}/migrate_mdm`) — *always exempt*
+- [Get device's transparency URL](#get-devices-transparency-url) (`GET /api/v1/fleet/device/{token}/transparency`) — *always exempt*
+- [Initiate Fleet Desktop single sign-on](#initiate-fleet-desktop-single-sign-on) (`POST /api/v1/fleet/device/{token}/sso`) — *always exempt; starts the sign-in flow*
+- `GET /api/v1/fleet/device/{token}` — *exempt during [setup experience](https://fleetdm.com/guides/setup-experience)*
+- `POST /api/v1/fleet/device/{token}/refetch` — *exempt during setup experience*
+- [Get device's Google Chrome profiles](#get-devices-google-chrome-profiles) (`GET /api/v1/fleet/device/{token}/device_mapping`, deprecated) — *exempt during setup experience*
+- [Get device's mobile device management (MDM) and Munki information](#get-devices-mobile-device-management-mdm-and-munki-information) (`GET /api/v1/fleet/device/{token}/macadmins`) — *exempt during setup experience*
+- [Get device's policies](#get-devices-policies) (`GET /api/v1/fleet/device/{token}/policies`) — *exempt during setup experience*
+- [Get device's software](#get-devices-software) (`GET /api/v1/fleet/device/{token}/software`) — *exempt during setup experience*
+- `POST /api/v1/fleet/device/{token}/software/install/{software_title_id}` — *exempt during setup experience*
+- [Install all self-service software](#install-all-self-service-software) (`POST /api/v1/fleet/device/{token}/software/install_all`) — *exempt during setup experience*
+- [Uninstall software via self-service](#uninstall-software-via-self-service) (`POST /api/v1/fleet/device/{token}/software/uninstall/{software_title_id}`) — *exempt during setup experience*
+- [Get device's software install results](#get-devices-software-install-results) (`GET /api/v1/fleet/device/{token}/software/install/{install_uuid}/results`) — *exempt during setup experience*
+- [Get uninstall results via self-service](#get-uninstall-results-via-self-service) (`GET /api/v1/fleet/device/{token}/software/uninstall/{execution_id}/results`) — *exempt during setup experience*
+- `GET /api/v1/fleet/device/{token}/software/self_service_categories` — *exempt during setup experience*
+- [Download device software icon](#download-device-software-icon) (`GET /api/v1/fleet/device/{token}/software/titles/{software_title_id}/icon`) — *exempt during setup experience*
+- [Get device's certificates](#get-devices-certificates) (`GET /api/v1/fleet/device/{token}/certificates`) — *exempt during setup experience*
+- `POST /api/v1/fleet/device/{token}/setup_experience/status` — *exempt during setup experience*
+- `POST /api/v1/fleet/device/{token}/mdm/linux/trigger_escrow` — *exempt during setup experience*
+- `POST /api/v1/fleet/device/{token}/bypass_conditional_access` — *exempt during setup experience*
+- [Download device's MDM manual enrollment profile](#download-devices-mdm-manual-enrollment-profile) (`GET /api/v1/fleet/device/{token}/mdm/apple/manual_enrollment_profile`) — *exempt during setup experience*
+- [Get device's software MDM command results](#get-devices-software-mdm-command-results) (`GET /api/v1/fleet/device/{token}/software/commands/{command_uuid}/results`) — *exempt during setup experience*
+- `POST /api/v1/fleet/device/{token}/configuration_profiles/{profile_uuid}/resend` — *exempt during setup experience*
 
 #### Get device's Google Chrome profiles
 
