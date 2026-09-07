@@ -2288,7 +2288,8 @@ SELECT
 	st.source,
 	hsi.attempt_number,
 	COALESCE(p.patch_when_closed, 0) AS patch_when_closed,
-	COALESCE(p.notify_before_patching, 0) AS notify_before_patching
+	COALESCE(p.notify_before_patching, 0) AS notify_before_patching,
+	hsi.override_pre_install_query
 FROM
 	host_software_installs hsi
 	LEFT JOIN software_titles st ON hsi.software_title_id = st.id
@@ -2324,7 +2325,8 @@ SELECT
 	st.source,
 	NULL AS attempt_number,
 	COALESCE(p.patch_when_closed, 0) AS patch_when_closed,
-	COALESCE(p.notify_before_patching, 0) AS notify_before_patching
+	COALESCE(p.notify_before_patching, 0) AS notify_before_patching,
+	COALESCE(ua.payload->'$.override_pre_install_query', 0) AS override_pre_install_query
 FROM
 	upcoming_activities ua
 	INNER JOIN software_install_upcoming_activities siua

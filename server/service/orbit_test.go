@@ -1346,16 +1346,20 @@ func TestSaveHostSoftwareInstallResultAppOpenSkip(t *testing.T) {
 	}
 
 	// insertPendingInstall queues a pending policy-automation install, returning its execution id.
-	insertPendingInstall := func(t *testing.T, host *fleet.Host, policyID uint) string {
+	// overridePreInstallQuery is what InsertSoftwareInstallRequest would have recorded: on for an
+	// install a patch policy queued, off for an install the end user asked for with "Update now".
+	insertPendingInstall := func(t *testing.T, host *fleet.Host, policyID uint, overridePreInstallQuery bool) string {
 		installUUID := uuid.New().String()
 		mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 			_, err := q.ExecContext(ctx, `
 				INSERT INTO host_software_installs (
 					execution_id, host_id, software_installer_id, policy_id,
-					installer_filename, version, software_title_id, software_title_name
-				) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+					installer_filename, version, software_title_id, software_title_name,
+					override_pre_install_query
+				) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 			`, installUUID, host.ID, installerID, policyID,
-				installerPayload.Filename, installerPayload.Version, titleID, installerPayload.Title)
+				installerPayload.Filename, installerPayload.Version, titleID, installerPayload.Title,
+				overridePreInstallQuery)
 			return err
 		})
 		return installUUID
@@ -1382,7 +1386,7 @@ func TestSaveHostSoftwareInstallResultAppOpenSkip(t *testing.T) {
 	t.Run("app open -> skip, no attempt consumed, no retry, activity flagged", func(t *testing.T) {
 		host := test.NewHost(t, ds, "skip-host", "10.0.0.1", uuid.NewString(), uuid.NewString(), time.Now())
 		require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID})))
-		installUUID := insertPendingInstall(t, host, createFailingPolicy(t, host, "patch_when_closed"))
+		installUUID := insertPendingInstall(t, host, createFailingPolicy(t, host, "patch_when_closed"), true)
 
 		result := &fleet.HostSoftwareInstallResultPayload{
 			HostID:                    host.ID,
@@ -1407,7 +1411,7 @@ func TestSaveHostSoftwareInstallResultAppOpenSkip(t *testing.T) {
 	t.Run("notify before patching -> skip carrying its own output copy", func(t *testing.T) {
 		host := test.NewHost(t, ds, "notify-host", "10.0.0.4", uuid.NewString(), uuid.NewString(), time.Now())
 		require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID})))
-		installUUID := insertPendingInstall(t, host, createFailingPolicy(t, host, "notify_before_patching"))
+		installUUID := insertPendingInstall(t, host, createFailingPolicy(t, host, "notify_before_patching"), true)
 
 		result := &fleet.HostSoftwareInstallResultPayload{
 			HostID:                    host.ID,
@@ -1479,8 +1483,9 @@ func TestSaveHostSoftwareInstallResultAppOpenSkip(t *testing.T) {
 			_, err := q.ExecContext(ctx, `
 				INSERT INTO host_software_installs (
 					execution_id, host_id, software_installer_id, policy_id,
-					installer_filename, version, software_title_id, software_title_name
-				) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+					installer_filename, version, software_title_id, software_title_name,
+					override_pre_install_query
+				) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)
 			`, otherInstallUUID, host.ID, otherInstallerID, createFailingPolicy(t, host, "notify_before_patching"),
 				otherPayload.Filename, otherPayload.Version, otherTitleID, otherPayload.Title)
 			return err
@@ -1489,7 +1494,7 @@ func TestSaveHostSoftwareInstallResultAppOpenSkip(t *testing.T) {
 		// the first skip creates the notification, and the second app is added to
 		// that same notification because Fleet has not sent that notification to
 		// the host yet
-		reportAppOpenSkip(t, host, insertPendingInstall(t, host, createFailingPolicy(t, host, "notify_before_patching")))
+		reportAppOpenSkip(t, host, insertPendingInstall(t, host, createFailingPolicy(t, host, "notify_before_patching"), true))
 		reportAppOpenSkip(t, host, otherInstallUUID)
 
 		notificationUUIDs := patchNotificationsForHost(t, host.ID)
@@ -1510,15 +1515,50 @@ func TestSaveHostSoftwareInstallResultAppOpenSkip(t *testing.T) {
 		host := test.NewHost(t, ds, "no-notification-host", "10.0.0.8", uuid.NewString(), uuid.NewString(), time.Now())
 		require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID})))
 
-		reportAppOpenSkip(t, host, insertPendingInstall(t, host, createFailingPolicy(t, host, "patch_when_closed")))
+		reportAppOpenSkip(t, host, insertPendingInstall(t, host, createFailingPolicy(t, host, "patch_when_closed"), true))
 
 		require.Empty(t, patchNotificationsForHost(t, host.ID))
+	})
+
+	// An install the end user asked for with "Update now" is not app-open-gated, and neither is its
+	// retry: it installs with the app open rather than skipping and notifying the end user again.
+	t.Run("a retry of an Update now install installs with the app open", func(t *testing.T) {
+		host := test.NewHost(t, ds, "update-now-retry-host", "10.0.0.9", uuid.NewString(), uuid.NewString(), time.Now())
+		require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID})))
+		installUUID := insertPendingInstall(t, host, createFailingPolicy(t, host, "notify_before_patching"), false)
+
+		hctx := hostctx.NewContext(ctx, host)
+		require.NoError(t, svc.SaveHostSoftwareInstallResult(hctx, &fleet.HostSoftwareInstallResultPayload{
+			HostID:                host.ID,
+			InstallUUID:           installUUID,
+			InstallScriptExitCode: new(1),
+		}))
+
+		act, ok := installedActivities[installUUID]
+		require.True(t, ok, "an installed_software activity should have been emitted")
+		require.False(t, act.SkippedInstall, "the end user asked for this install, so it failed rather than skipped")
+
+		var retryExecutionIDs []string
+		mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, q, &retryExecutionIDs, `
+				SELECT execution_id FROM upcoming_activities
+				WHERE activity_type = 'software_install' AND host_id = ?`, host.ID)
+		})
+		require.Len(t, retryExecutionIDs, 1, "the failure should queue a retry")
+
+		retry, err := ds.GetSoftwareInstallResults(ctx, retryExecutionIDs[0])
+		require.NoError(t, err)
+		require.False(t, retry.OverridePreInstallQuery,
+			"the retry installs with the app open, like the attempt it retries")
+
+		require.Empty(t, patchNotificationsForHost(t, host.ID),
+			"the end user is not notified again for an update they already asked for")
 	})
 
 	t.Run("regression: ordinary empty pre_install_query fails, counts, and retries", func(t *testing.T) {
 		host := test.NewHost(t, ds, "regress-host", "10.0.0.2", uuid.NewString(), uuid.NewString(), time.Now())
 		require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID})))
-		installUUID := insertPendingInstall(t, host, createFailingPolicy(t, host, ""))
+		installUUID := insertPendingInstall(t, host, createFailingPolicy(t, host, ""), false)
 
 		result := &fleet.HostSoftwareInstallResultPayload{
 			HostID:                    host.ID,
@@ -1547,7 +1587,7 @@ func TestSaveHostSoftwareInstallResultAppOpenSkip(t *testing.T) {
 
 		// More consecutive runs than the retry cap; each is a fresh install the app-open query skips.
 		for range fleet.MaxPolicyAutomationRetries + 2 {
-			installUUID := insertPendingInstall(t, host, policyID)
+			installUUID := insertPendingInstall(t, host, policyID, true)
 			hctx := hostctx.NewContext(ctx, host)
 			require.NoError(t, svc.SaveHostSoftwareInstallResult(hctx, &fleet.HostSoftwareInstallResultPayload{
 				HostID:                    host.ID,

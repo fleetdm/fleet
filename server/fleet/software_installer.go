@@ -533,6 +533,10 @@ type HostSoftwareInstallerResult struct {
 	// NotifyBeforePatching is set from the triggering policy and, like PatchWhenClosed, marks an
 	// empty pre-install result as the app being open rather than a query failure.
 	NotifyBeforePatching bool `json:"-" db:"notify_before_patching"`
+	// OverridePreInstallQuery is decided when the install is queued: it means this attempt ran
+	// the installer's app open query as its pre-install condition, so an empty result means the
+	// app was open.
+	OverridePreInstallQuery bool `json:"-" db:"override_pre_install_query"`
 }
 
 const (

@@ -7430,6 +7430,23 @@ func testGetSoftwareInstallDetailsPatchWhenClosed(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.False(t, ignoreActivated.OverridePreInstallQuery)
 	require.Empty(t, ignoreActivated.PreInstallCondition)
+
+	// Recording the result reads the same stored decision, so an empty pre-install result is told
+	// apart from the app being open by what the install was queued to do.
+	ignoreResult, err := ds.GetSoftwareInstallResults(ctx, ignoreExec)
+	require.NoError(t, err)
+	require.False(t, ignoreResult.OverridePreInstallQuery)
+
+	// A second install queues behind the one already activated, so it is still upcoming and comes
+	// from the other UNION branch.
+	upcomingExec, err := ds.InsertSoftwareInstallRequest(ctx, ignoreHost.ID, ignoreInstaller,
+		fleet.HostSoftwareInstallOptions{PolicyID: &ignorePol.ID})
+	require.NoError(t, err)
+	upcomingResult, err := ds.GetSoftwareInstallResults(ctx, upcomingExec)
+	require.NoError(t, err)
+	require.Equal(t, fleet.SoftwareInstallPending, upcomingResult.Status)
+	require.True(t, upcomingResult.OverridePreInstallQuery,
+		"an install the notify-before-patching policy queued runs the app open query")
 }
 
 func testSoftwareInstallerAppOpenQueryRoundTrip(t *testing.T, ds *Datastore) {
