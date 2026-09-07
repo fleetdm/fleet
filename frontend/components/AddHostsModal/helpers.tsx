@@ -7,7 +7,6 @@ import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 export const renderAppleManualEnrollmentDisabled = (type: string) => {
   return (
     <EmptyState
-      className="blocked-manual-enrollment"
       header="Manual enrollment is disabled"
       width="small"
       info={`${type} enrollment is only available through Apple Business (ADE).`}
