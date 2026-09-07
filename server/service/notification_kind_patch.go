@@ -289,17 +289,17 @@ func (k *patchNotificationKind) updateNow(ctx context.Context, notification *not
 
 	apps, err := k.ds.ListPatchNotificationApps(ctx, notification.UUID)
 	if err != nil {
-		dispatchedErr := k.notificationSvc.SetNotificationStatus(ctx, notification.UUID,
-			notifications_api.EndUserNotificationDispatched, nil,
+		// Nothing was queued, so undo the act above and let the next press try.
+		setStatusErr := k.notificationSvc.SetNotificationStatus(ctx, notification.UUID, notification.Status, nil,
 			[]string{notifications_api.EndUserNotificationActed})
-		if dispatchedErr != nil {
-			k.logger.ErrorContext(ctx, "failed to put the patch notification back to dispatched",
-				"notification_uuid", notification.UUID, "err", dispatchedErr)
+		if setStatusErr != nil {
+			k.logger.ErrorContext(ctx, "failed to put the patch notification back",
+				"notification_uuid", notification.UUID, "err", setStatusErr)
 		}
 		return nil, ctxerr.Wrap(ctx, err, "list patch notification apps")
 	}
 
-	// A press that fails part way goes back to dispatched, so the next press finishes the rest.
+	// A press that fails part way goes back to the status it had, so the next press finishes the rest.
 	var queuedTitleIDs []uint
 	var queueErr error
 	for _, app := range apps {
@@ -341,12 +341,12 @@ func (k *patchNotificationKind) updateNow(ctx context.Context, notification *not
 		return nil, ctxerr.Wrap(ctx, err, "set patch notification apps queued")
 	}
 	if queueErr != nil {
-		dispatchedErr := k.notificationSvc.SetNotificationStatus(ctx, notification.UUID,
-			notifications_api.EndUserNotificationDispatched, nil,
+		// back to the status it had, since a pending notification set to dispatched is never sent
+		setStatusErr := k.notificationSvc.SetNotificationStatus(ctx, notification.UUID, notification.Status, nil,
 			[]string{notifications_api.EndUserNotificationActed})
-		if dispatchedErr != nil {
-			k.logger.ErrorContext(ctx, "failed to put the patch notification back to dispatched",
-				"notification_uuid", notification.UUID, "err", dispatchedErr)
+		if setStatusErr != nil {
+			k.logger.ErrorContext(ctx, "failed to put the patch notification back",
+				"notification_uuid", notification.UUID, "err", setStatusErr)
 		}
 		return nil, queueErr
 	}

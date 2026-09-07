@@ -566,12 +566,12 @@ func (h *HostSoftwareInstallerResult) EnhanceOutputDetails() {
 		if *h.PreInstallQueryOutput == "" {
 			// An empty result means the app was open only if this attempt ran the app open query.
 			switch {
-			case h.OverridePreInstallQuery && h.NotifyBeforePatching:
-				*h.PreInstallQueryOutput = SoftwareInstallerAppOpenNotifyCopy
-			case h.OverridePreInstallQuery && h.PatchWhenClosed:
-				*h.PreInstallQueryOutput = SoftwareInstallerAppOpenCopy
-			default:
+			case !h.OverridePreInstallQuery:
 				*h.PreInstallQueryOutput = SoftwareInstallerQueryFailCopy
+			case h.NotifyBeforePatching:
+				*h.PreInstallQueryOutput = SoftwareInstallerAppOpenNotifyCopy
+			default:
+				*h.PreInstallQueryOutput = SoftwareInstallerAppOpenCopy
 			}
 			return
 		}

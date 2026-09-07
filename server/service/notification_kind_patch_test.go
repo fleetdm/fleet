@@ -29,13 +29,12 @@ func (w *capturingActivityWriter) NewActivity(_ context.Context, _ *fleet.User, 
 	return nil
 }
 
-// stubNotificationService stands in for the notifications context. acts is what ActOnNotification reports,
-// so a test can say another press got there first.
+// stubNotificationService stands in for the notifications context. acts is what ActOnNotification reports, so a test can say another press got there first.
 type stubNotificationService struct {
-	acts                 bool
-	actInvoked           bool
-	setDispatchedInvoked bool
-	failedReason         string
+	acts         bool
+	actInvoked   bool
+	setStatus    string
+	failedReason string
 }
 
 func (s *stubNotificationService) ActOnNotification(_ context.Context, _ string) (bool, error) {
@@ -44,10 +43,8 @@ func (s *stubNotificationService) ActOnNotification(_ context.Context, _ string)
 }
 
 func (s *stubNotificationService) SetNotificationStatus(_ context.Context, _ string, status string, reason *string, _ []string) error {
-	switch status {
-	case notifications_api.EndUserNotificationDispatched:
-		s.setDispatchedInvoked = true
-	case notifications_api.EndUserNotificationFailed:
+	s.setStatus = status
+	if reason != nil {
 		s.failedReason = *reason
 	}
 	return nil
@@ -253,6 +250,14 @@ func TestPatchNotificationUpdateNow(t *testing.T) {
 			wantErr:       true,
 			wantActionTry: true,
 		},
+		{
+			// pending is where "Remind me 5 minutes before" leaves a notification
+			name:          "a queueing failure on a pending notification puts it back to pending",
+			status:        notifications_api.EndUserNotificationPending,
+			installFails:  true,
+			wantErr:       true,
+			wantActionTry: true,
+		},
 	}
 
 	for _, c := range cases {
@@ -305,11 +310,11 @@ func TestPatchNotificationUpdateNow(t *testing.T) {
 			})
 			if c.wantErr {
 				require.Error(t, err)
-				assert.True(t, notificationSvc.setDispatchedInvoked,
-					"the notification is dispatched again so the next press can finish queueing")
+				assert.Equal(t, c.status, notificationSvc.setStatus,
+					"the notification goes back to the status it had so the next press can finish queueing")
 				return
 			}
-			assert.False(t, notificationSvc.setDispatchedInvoked)
+			assert.Empty(t, notificationSvc.setStatus)
 			require.NoError(t, err)
 
 			require.Len(t, installs, c.wantInstalls)
@@ -405,17 +410,17 @@ func TestPatchNotificationUpdateNowResumesAfterFailure(t *testing.T) {
 	_, err := kind.updateNow(context.Background(), notification)
 	require.Error(t, err)
 	require.Equal(t, []uint{firstInstaller}, installed)
-	assert.True(t, notificationSvc.setDispatchedInvoked)
+	assert.Equal(t, notifications_api.EndUserNotificationDispatched, notificationSvc.setStatus)
 
 	// the end user presses again, and this time the second app's install works
 	secondInstallerFails = false
-	notificationSvc.setDispatchedInvoked = false
+	notificationSvc.setStatus = ""
 	_, err = kind.updateNow(context.Background(), notification)
 	require.NoError(t, err)
 	require.Equal(t, []uint{firstInstaller, secondInstaller}, installed,
 		"the first app is not queued a second time")
 	assert.True(t, notificationSvc.actInvoked)
-	assert.False(t, notificationSvc.setDispatchedInvoked)
+	assert.Empty(t, notificationSvc.setStatus)
 }
 
 // A notification whose apps are gone, after an admin deletes the title, fails rather than retrying.

@@ -48,8 +48,7 @@ func TestUp_20260818162738(t *testing.T) {
 
 	applyNext(t, db)
 
-	// Both tables are ON UPDATE CURRENT_TIMESTAMP, so a rewrite would make every policy look freshly edited
-	// and reset the continuous automation cooldown.
+	// Both tables are ON UPDATE CURRENT_TIMESTAMP, so a rewrite would make every policy look freshly edited and reset the install cooldown.
 	policyCreatedAfter, policyUpdatedAfter := timestamps("policies", policyID)
 	assert.Equal(t, policyCreatedBefore, policyCreatedAfter, "migration must not touch policies.created_at")
 	assert.Equal(t, policyUpdatedBefore, policyUpdatedAfter, "migration must not touch policies.updated_at")

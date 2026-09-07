@@ -164,6 +164,18 @@ func TestEnhanceOutputDetails(t *testing.T) {
 			expectedPostInstallScriptOutput: nil,
 		},
 		{
+			// the app was still open when this install ran, even though the policy option is off now
+			name: "empty pre-install output after the patch option was turned off",
+			initial: HostSoftwareInstallerResult{
+				Status:                  SoftwareInstallFailed,
+				PreInstallQueryOutput:   new(""),
+				OverridePreInstallQuery: true,
+			},
+			expectedPreInstallQueryOutput:   new(SoftwareInstallerAppOpenCopy),
+			expectedOutput:                  nil,
+			expectedPostInstallScriptOutput: nil,
+		},
+		{
 			name: "non-managed empty pre-install output shows generic query-fail copy",
 			initial: HostSoftwareInstallerResult{
 				Status:                SoftwareInstallFailed,
