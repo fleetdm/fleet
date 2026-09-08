@@ -118,5 +118,12 @@ echo "DIAG LS dump (root):"; "$LSREGISTER" -dump 2>/dev/null | grep -iE '^\s*pat
 echo "DIAG osqueryi apps (root):"; osqueryi --json "SELECT path, bundle_identifier, bundle_short_version FROM apps WHERE path LIKE '%Monotype%';" 2>&1 | head -30
 echo "DIAG osqueryi direct path:"; osqueryi --json "SELECT path, bundle_identifier FROM apps WHERE path = '$MONOTYPE_APP';" 2>&1 | head -8
 echo "DIAG osqueryi total apps: $(osqueryi --json 'SELECT count(*) AS n FROM apps;' 2>/dev/null)"
+diag_q() { echo "DIAG [$1] main app rows: $(osqueryi --json "SELECT path FROM apps WHERE bundle_identifier = 'com.monotype.monotype-fonts';" 2>/dev/null | tr -d '\n ')"; echo "DIAG [$1] LS dump main: $("$LSREGISTER" -dump 2>/dev/null | grep -cE '^\s*path:.*Application/Monotype Fonts\.app \(')"; }
+diag_q "baseline"
+"$LSREGISTER" -f "/Applications/Monotype Fonts"; echo "DIAG folder lsregister exit=$?"; sleep 2; diag_q "after-folder-lsregister"
+sudo spctl --add "/Applications/Monotype Fonts"; echo "DIAG spctl exit=$?"; diag_q "after-spctl"
+sudo xattr -r -d com.apple.quarantine "/Applications/Monotype Fonts" 2>&1 | head -2; diag_q "after-xattr"
+sleep 8; diag_q "after-8s"
+echo "DIAG running monotype procs:"; pgrep -fl "Monotype" | head -8
 
 relaunch_application 'com.monotype.monotype-fonts'
