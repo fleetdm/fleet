@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "7.1.320",
+      "version": "7.1.330",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.deezer.deezer-desktop';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.deezer.deezer-desktop' AND version_compare(bundle_short_version, '7.1.320') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.deezer.deezer-desktop' AND version_compare(bundle_short_version, '7.1.330') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.deezer.deezer-desktop' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://www.deezer.com/desktop/download/artifact-darwin-x64-7.1.320",
+      "installer_url": "https://www.deezer.com/desktop/download/artifact-darwin-x64-7.1.330",
       "install_script_ref": "40d69a44",
       "uninstall_script_ref": "7a7ca836",
-      "sha256": "c1898eb6c516e9c3ddc70ee4adf0468c08310f8579a9f1cf68ca503069b4df0f",
+      "sha256": "40affae03cae8258e6a8581d5f4a761319dfc6b772a48026bfc6899f12575ca1",
       "default_categories": [
         "Productivity"
       ]

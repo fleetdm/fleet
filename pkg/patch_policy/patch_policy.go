@@ -200,6 +200,7 @@ var windowsOpenQueryOverrides = map[string]string{ //nolint:gosec // G101 false 
 	"7-zip":                        "IN ('7zfm.exe','7zg.exe')",
 	"Amazon Chime":                 "IN ('amazon chime.exe','chime.exe')",
 	"Android Studio":               "= 'studio64.exe'",
+	"Audacity":                     "IN ('audacity.exe','audacity4.exe')",
 	"Beyond Compare":               "= 'bcompare.exe'",
 	"CLion":                        "IN ('clion.exe','clion64.exe')",
 	"DataGrip":                     "IN ('datagrip.exe','datagrip64.exe')",
