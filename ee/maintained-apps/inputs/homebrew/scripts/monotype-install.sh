@@ -107,6 +107,8 @@ sudo installer -pkg "$TMPDIR/MTFInstaller.pkg" -target / || exit $?
 LSREGISTER="/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister"
 MONOTYPE_APP="/Applications/Monotype Fonts/Application/Monotype Fonts.app"
 echo "DIAG whoami=$(id -un) console=$(stat -f %Su /dev/console)"
+for t in 0 5 15; do sleep "$t"; echo "DIAG [pre-lsregister t+${t}s] root main-app rows: $(osqueryi --json "SELECT path FROM apps WHERE bundle_identifier = 'com.monotype.monotype-fonts';" 2>/dev/null | tr -d '\n ')  | root LS entries under folder: $("$LSREGISTER" -dump 2>/dev/null | grep -cE '^\s*path:.*/Applications/Monotype Fonts/')"; done
+echo "DIAG [pre-lsregister] runner main-app rows: $(sudo -u runner osqueryi --json "SELECT path FROM apps WHERE bundle_identifier = 'com.monotype.monotype-fonts';" 2>/dev/null | tr -d '\n ')"
 ls -la "/Applications/Monotype Fonts" "/Applications/Monotype Fonts/Application" 2>&1
 plutil -lint "$MONOTYPE_APP/Contents/Info.plist" 2>&1
 "$LSREGISTER" -f "$MONOTYPE_APP"; echo "DIAG lsregister(root) exit=$?"
