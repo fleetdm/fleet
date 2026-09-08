@@ -250,7 +250,14 @@ const App = ({ children, location, router }: IAppProps): JSX.Element => {
   ]);
 
   useEffect(() => {
-    if (authToken.get() && !location?.pathname.includes("/device/")) {
+    // Skip on `/logout` so the request doesn't race the session-destroy call
+    // and land in the 401 branch below, which hard-reloads and reintroduces
+    // the dark-mode white flash the SPA-navigating logout was meant to fix.
+    if (
+      authToken.get() &&
+      !location?.pathname.includes("/device/") &&
+      !location?.pathname.includes("/logout")
+    ) {
       fetchCurrentUser();
     }
   }, [location?.pathname, fetchCurrentUser]);
