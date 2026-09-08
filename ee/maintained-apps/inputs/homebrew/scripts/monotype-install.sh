@@ -106,10 +106,17 @@ sudo installer -pkg "$TMPDIR/MTFInstaller.pkg" -target / || exit $?
 # reports it before its first launch.
 LSREGISTER="/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister"
 MONOTYPE_APP="/Applications/Monotype Fonts/Application/Monotype Fonts.app"
-"$LSREGISTER" -f "$MONOTYPE_APP" >/dev/null 2>&1 || true
+echo "DIAG whoami=$(id -un) console=$(stat -f %Su /dev/console)"
+ls -la "/Applications/Monotype Fonts" "/Applications/Monotype Fonts/Application" 2>&1
+plutil -lint "$MONOTYPE_APP/Contents/Info.plist" 2>&1
+"$LSREGISTER" -f "$MONOTYPE_APP"; echo "DIAG lsregister(root) exit=$?"
 console_user=$(stat -f "%Su" /dev/console)
 if [[ -n "$console_user" && "$console_user" != "root" && "$console_user" != "loginwindow" ]]; then
-  /bin/launchctl asuser "$(id -u "$console_user")" sudo -u "$console_user" "$LSREGISTER" -f "$MONOTYPE_APP" >/dev/null 2>&1 || true
+  /bin/launchctl asuser "$(id -u "$console_user")" sudo -u "$console_user" "$LSREGISTER" -f "$MONOTYPE_APP"; echo "DIAG lsregister(user) exit=$?"
 fi
+echo "DIAG LS dump (root):"; "$LSREGISTER" -dump 2>/dev/null | grep -iE '^\s*path:.*monotype' | head -10
+echo "DIAG osqueryi apps (root):"; osqueryi --json "SELECT path, bundle_identifier, bundle_short_version FROM apps WHERE path LIKE '%Monotype%';" 2>&1 | head -30
+echo "DIAG osqueryi direct path:"; osqueryi --json "SELECT path, bundle_identifier FROM apps WHERE path = '$MONOTYPE_APP';" 2>&1 | head -8
+echo "DIAG osqueryi total apps: $(osqueryi --json 'SELECT count(*) AS n FROM apps;' 2>/dev/null)"
 
 relaunch_application 'com.monotype.monotype-fonts'
