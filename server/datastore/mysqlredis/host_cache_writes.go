@@ -74,6 +74,26 @@ func (d *Datastore) UpdateHostRefetchCriticalQueriesUntil(ctx context.Context, h
 	return nil
 }
 
+// SetOrUpdateHostDisksEncryption invalidates by host ID after the inner write.
+func (d *Datastore) SetOrUpdateHostDisksEncryption(
+	ctx context.Context, hostID uint, encrypted bool, bitlockerProtectionStatus *int,
+) error {
+	if err := d.Datastore.SetOrUpdateHostDisksEncryption(ctx, hostID, encrypted, bitlockerProtectionStatus); err != nil {
+		return err
+	}
+	d.hostCacheDeleteByID(ctx, hostID, "update")
+	return nil
+}
+
+// SetOrUpdateHostDiskTpmPIN invalidates by host ID after the inner write.
+func (d *Datastore) SetOrUpdateHostDiskTpmPIN(ctx context.Context, hostID uint, pinSet bool) error {
+	if err := d.Datastore.SetOrUpdateHostDiskTpmPIN(ctx, hostID, pinSet); err != nil {
+		return err
+	}
+	d.hostCacheDeleteByID(ctx, hostID, "update")
+	return nil
+}
+
 // EnrollOrbit invalidates for the returned host on successful enrollment. Orbit enrollment may create a new
 // hosts row or update an existing one's orbit_node_key + team_id; in either case the cached snapshot is stale.
 //
