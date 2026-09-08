@@ -182,6 +182,20 @@ To add a GitHub issue to the [Content planning](https://github.com/orgs/fleetdm/
 [Planned content for SEO and GEO optimization](https://airtable.com/appiljMCYUZJGeRmH/tblfNFlpMJrrLe3eH/viwe6rmqbyUm8XFIC?blocks=hide) 
 
 
+### Localize content
+
+To localize content, pick the best Fleetie to do the translation, and refer to the following list of languages to their biggest markets:
+
+- 🇮🇱 Hebrew (Israel)
+- 🇩🇰 Danish (Denmark, the Faroe Islands, Greenland, Southern Schleswig (Schleswig-Holstein) Germany)
+- 🇳🇱 Dutch (Belgium, Suriname, Aruba, Curacao)
+- 🇫🇷 French (France, Quebec/Canada, Luxembourg, Monaco, Democratic Republic of the Congo, Cameroon, New Brunswick/Canada, Switzerland)
+- 🇩🇪 German (Germany, Austria, Switzerland, Liechtenstein)
+- 🇸🇪 Swedish (Sweden)
+- 🇪🇸 Spanish (Spain, Andorra, Colombia, Chile, Argentina, Mexico)
+- 🇧🇦 Bosnian (Bosnia, Croatia, Serbia)
+
+
 <!-- TODO Create Article issue template and update this section of the handbook to reflect reality and add corresponding rituals to engineering.rituals.yml
 
 ### Create an article
