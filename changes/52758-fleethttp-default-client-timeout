@@ -1,1 +1,1 @@
-- Added a default 60 second timeout to outbound HTTP clients so a hung integration endpoint can no longer hold a request open indefinitely.
+- Added a default 60 second timeout to Fleet's outbound HTTP client helper, so a new caller that does not specify a timeout is bounded by default. Existing integrations keep the timeout behavior they had before this change.
