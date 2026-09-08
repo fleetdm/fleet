@@ -3177,7 +3177,7 @@ const (
 // On 304 Not Modified, returns (resp, nil, nil): resp has StatusCode 304 and a
 // closed body, tfr is nil. Callers MUST check resp.StatusCode before using tfr.
 func downloadInstallerURL(ctx context.Context, downloadURL string, ifNoneMatch string, maxInstallerSize int64) (*http.Response, *fleet.TempFileReader, error) {
-	client := fleethttp.NewClient()
+	client := fleethttp.NewClient(fleethttp.WithNoTimeout())
 	client.Transport = fleethttp.NewSizeLimitTransport(maxInstallerSize)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, downloadURL, nil)

@@ -274,7 +274,7 @@ func testOrbitEnrollment(t *testing.T, s *Suite, cert *x509.Certificate, eccPriv
 	clonedRequest.Body = io.NopCloser(bytes.NewReader(reqBody))
 
 	// Send the signed request
-	client := fleethttp.NewClient()
+	client := fleethttp.NewClient(fleethttp.WithNoTimeout())
 	httpResp, err := client.Do(req)
 	require.NoError(t, err)
 	defer httpResp.Body.Close()
@@ -430,7 +430,7 @@ func testOsqueryEnrollment(t *testing.T, s *Suite, cert *x509.Certificate, eccPr
 	require.NoError(t, err)
 
 	// Send the signed request
-	client := fleethttp.NewClient()
+	client := fleethttp.NewClient(fleethttp.WithNoTimeout())
 	httpResp, err := client.Do(req)
 	require.NoError(t, err)
 	defer httpResp.Body.Close()
@@ -686,7 +686,7 @@ func testCertificateRenewal(t *testing.T, s *Suite, existingCert *x509.Certifica
 		err = signer.Sign(req)
 		require.NoError(t, err)
 
-		client := fleethttp.NewClient()
+		client := fleethttp.NewClient(fleethttp.WithNoTimeout())
 		httpResp, err := client.Do(req)
 		require.NoError(t, err)
 		defer httpResp.Body.Close()
@@ -720,7 +720,7 @@ func testCertificateRenewal(t *testing.T, s *Suite, existingCert *x509.Certifica
 		err = signer.Sign(req)
 		require.NoError(t, err)
 
-		client := fleethttp.NewClient()
+		client := fleethttp.NewClient(fleethttp.WithNoTimeout())
 		httpResp, err := client.Do(req)
 		require.NoError(t, err)
 		defer httpResp.Body.Close()
@@ -817,7 +817,7 @@ func testDeleteHostAndReenroll(t *testing.T, s *Suite, cert *x509.Certificate, e
 	err = signer.Sign(req)
 	require.NoError(t, err)
 
-	client := fleethttp.NewClient()
+	client := fleethttp.NewClient(fleethttp.WithNoTimeout())
 	httpResp, err := client.Do(req)
 	require.NoError(t, err)
 	defer httpResp.Body.Close()
@@ -859,7 +859,7 @@ func testDeleteHostAndReenrollOsquery(t *testing.T, s *Suite, cert *x509.Certifi
 	err = signer.Sign(req)
 	require.NoError(t, err)
 
-	client := fleethttp.NewClient()
+	client := fleethttp.NewClient(fleethttp.WithNoTimeout())
 	httpResp, err := client.Do(req)
 	require.NoError(t, err)
 	defer httpResp.Body.Close()
@@ -1076,7 +1076,7 @@ func testWrongCertAuthentication(t *testing.T, s *Suite) {
 		err = signerHost2.Sign(req)
 		require.NoError(t, err)
 
-		client := fleethttp.NewClient()
+		client := fleethttp.NewClient(fleethttp.WithNoTimeout())
 		httpResp, err := client.Do(req)
 		require.NoError(t, err)
 		defer httpResp.Body.Close()
@@ -1099,7 +1099,7 @@ func testWrongCertAuthentication(t *testing.T, s *Suite) {
 		err = localSigner.Sign(req)
 		require.NoError(t, err)
 
-		client := fleethttp.NewClient()
+		client := fleethttp.NewClient(fleethttp.WithNoTimeout())
 		httpResp, err := client.Do(req)
 		require.NoError(t, err)
 		defer httpResp.Body.Close()
@@ -1121,7 +1121,7 @@ func testWrongCertAuthentication(t *testing.T, s *Suite) {
 	err = signerHost1.Sign(req)
 	require.NoError(t, err)
 
-	client := fleethttp.NewClient()
+	client := fleethttp.NewClient(fleethttp.WithNoTimeout())
 	httpResp, err := client.Do(req)
 	require.NoError(t, err)
 	defer httpResp.Body.Close()
@@ -1158,7 +1158,7 @@ func testWrongCertAuthentication(t *testing.T, s *Suite) {
 		err = signerHost2.Sign(req)
 		require.NoError(t, err)
 
-		client := fleethttp.NewClient()
+		client := fleethttp.NewClient(fleethttp.WithNoTimeout())
 		httpResp, err := client.Do(req)
 		require.NoError(t, err)
 		defer httpResp.Body.Close()
@@ -1217,7 +1217,7 @@ func testWrongCertAuthentication(t *testing.T, s *Suite) {
 		err = signerHost1.Sign(req)
 		require.NoError(t, err)
 
-		client := fleethttp.NewClient()
+		client := fleethttp.NewClient(fleethttp.WithNoTimeout())
 		httpResp, err := client.Do(req)
 		require.NoError(t, err)
 		defer httpResp.Body.Close()
@@ -1242,7 +1242,7 @@ func testWrongCertAuthentication(t *testing.T, s *Suite) {
 		err = localSigner.Sign(req)
 		require.NoError(t, err)
 
-		client := fleethttp.NewClient()
+		client := fleethttp.NewClient(fleethttp.WithNoTimeout())
 		httpResp, err := client.Do(req)
 		require.NoError(t, err)
 		defer httpResp.Body.Close()
@@ -1272,7 +1272,7 @@ func testWrongCertAuthentication(t *testing.T, s *Suite) {
 		err = signerHost1.Sign(req)
 		require.NoError(t, err)
 
-		client := fleethttp.NewClient()
+		client := fleethttp.NewClient(fleethttp.WithNoTimeout())
 		httpResp, err := client.Do(req)
 		require.NoError(t, err)
 		defer httpResp.Body.Close()
@@ -1398,7 +1398,7 @@ func testRealSecureHWAndSCEP(t *testing.T, s *Suite) {
 	require.NoError(t, err)
 
 	// Send the signed request
-	client := fleethttp.NewClient()
+	client := fleethttp.NewClient(fleethttp.WithNoTimeout())
 	httpResp, err := client.Do(req)
 	require.NoError(t, err)
 	defer httpResp.Body.Close()

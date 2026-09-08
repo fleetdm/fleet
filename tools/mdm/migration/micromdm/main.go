@@ -87,7 +87,7 @@ func newMicroMDMClient(apiToken, url string) *microMDMClient {
 }
 
 func (m *microMDMClient) doWithRequest(req *http.Request) ([]byte, error) {
-	client := fleethttp.NewClient()
+	client := fleethttp.NewClient(fleethttp.WithNoTimeout())
 
 	resp, err := client.Do(req)
 	if err != nil {

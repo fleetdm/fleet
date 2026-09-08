@@ -219,7 +219,7 @@ func (f *Fleet) waitFleet() error {
 	retryStrategy.MaxInterval = 1 * time.Second
 
 	//nolint:gosec // G107: Ok to trust docker here
-	client := fleethttp.NewClient(fleethttp.WithTLSClientConfig(&tls.Config{InsecureSkipVerify: true}))
+	client := fleethttp.NewClient(fleethttp.WithNoTimeout(), fleethttp.WithTLSClientConfig(&tls.Config{InsecureSkipVerify: true}))
 
 	if err := backoff.Retry(
 		func() error {

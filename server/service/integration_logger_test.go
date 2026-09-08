@@ -184,7 +184,7 @@ func (s *integrationLoggerTestSuite) TestOsqueryEndpointsLogErrors() {
 
 	requestBody := io.NopCloser(bytes.NewBuffer([]byte(`{"node_key":"1234","log_type":"status","data":[}`)))
 	req, _ := http.NewRequest("POST", s.server.URL+"/api/osquery/log", requestBody)
-	client := fleethttp.NewClient()
+	client := fleethttp.NewClient(fleethttp.WithNoTimeout())
 	resp, err := client.Do(req)
 	require.NoError(t, err)
 	jsn := struct {

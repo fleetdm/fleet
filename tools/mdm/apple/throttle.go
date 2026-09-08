@@ -67,7 +67,7 @@ func main() {
 	}
 
 	c := &client{
-		http:    fleethttp.NewClient(),
+		http:    fleethttp.NewClient(fleethttp.WithNoTimeout()),
 		baseURL: strings.TrimRight(*baseURL, "/"),
 		token:   *token,
 		hostID:  *hostID,

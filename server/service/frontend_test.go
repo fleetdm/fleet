@@ -279,7 +279,7 @@ func TestServeEndUserEnrollOTAKeepsSessionForFullyManaged(t *testing.T) {
 		require.NoError(t, err)
 		req.AddCookie(&http.Cookie{Name: shared_mdm.BYODIdpCookieName, Value: sessionID, Secure: true, HttpOnly: true, SameSite: http.SameSiteLaxMode})
 
-		response, err := fleethttp.NewClient(fleethttp.WithFollowRedir(false)).Do(req)
+		response, err := fleethttp.NewClient(fleethttp.WithNoTimeout(), fleethttp.WithFollowRedir(false)).Do(req)
 		require.NoError(t, err)
 		defer response.Body.Close()
 		require.Equal(t, http.StatusOK, response.StatusCode)
@@ -318,7 +318,7 @@ func TestServeEndUserEnrollOTARejectsUnknownSession(t *testing.T) {
 	require.NoError(t, err)
 	req.AddCookie(&http.Cookie{Name: shared_mdm.BYODIdpCookieName, Value: unknown, Secure: true, HttpOnly: true, SameSite: http.SameSiteLaxMode})
 
-	resp, err := fleethttp.NewClient(fleethttp.WithFollowRedir(false)).Do(req)
+	resp, err := fleethttp.NewClient(fleethttp.WithNoTimeout(), fleethttp.WithFollowRedir(false)).Do(req)
 	require.NoError(t, err)
 	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)

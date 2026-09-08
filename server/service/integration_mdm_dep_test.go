@@ -2447,7 +2447,7 @@ func (s *integrationMDMTestSuite) TestEnforceMiniumOSVersion() {
 		}
 
 		// nolint:gosec // this client is used for testing only
-		cc := fleethttp.NewClient(fleethttp.WithTLSClientConfig(&tls.Config{
+		cc := fleethttp.NewClient(fleethttp.WithNoTimeout(), fleethttp.WithTLSClientConfig(&tls.Config{
 			InsecureSkipVerify: true,
 		}))
 		response, err := cc.Do(request)
@@ -2540,7 +2540,7 @@ func (s *integrationMDMTestSuite) TestEnforceMiniumOSVersion() {
 		}
 
 		// nolint:gosec // this client is used for testing only
-		cc := fleethttp.NewClient(fleethttp.WithTLSClientConfig(&tls.Config{
+		cc := fleethttp.NewClient(fleethttp.WithNoTimeout(), fleethttp.WithTLSClientConfig(&tls.Config{
 			InsecureSkipVerify: true,
 		}))
 		response, err := cc.Do(request)

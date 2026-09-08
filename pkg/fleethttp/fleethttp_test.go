@@ -24,15 +24,20 @@ func TestClient(t *testing.T) {
 		nilRedirect bool
 		timeout     time.Duration
 	}{
-		{"default", nil, true, 0},
+		{"default", nil, true, DefaultTimeout},
 		{"timeout", []ClientOpt{WithTimeout(time.Second)}, true, time.Second},
-		{"nofollow", []ClientOpt{WithFollowRedir(false)}, false, 0},
-		{"tlsconfig", []ClientOpt{WithTLSClientConfig(&tls.Config{})}, true, 0},
+		{"notimeout", []ClientOpt{WithNoTimeout()}, true, 0},
+		{"nofollow", []ClientOpt{WithFollowRedir(false)}, false, DefaultTimeout},
+		{"tlsconfig", []ClientOpt{WithTLSClientConfig(&tls.Config{})}, true, DefaultTimeout},
 		{"combined", []ClientOpt{
 			WithTLSClientConfig(&tls.Config{}),
 			WithTimeout(time.Second),
 			WithFollowRedir(false),
 		}, false, time.Second},
+		{"notimeout wins over earlier timeout", []ClientOpt{
+			WithTimeout(time.Second),
+			WithNoTimeout(),
+		}, true, 0},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

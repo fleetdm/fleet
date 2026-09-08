@@ -1,0 +1,1 @@
+- Added a default 60 second timeout to outbound HTTP clients so a hung integration endpoint can no longer hold a request open indefinitely.

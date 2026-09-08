@@ -7387,7 +7387,7 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	cookieSecure = false
 	jar, err := cookiejar.New(nil)
 	require.NoError(t, err)
-	client := fleethttp.NewClient(fleethttp.WithFollowRedir(false), fleethttp.WithCookieJar(jar))
+	client := fleethttp.NewClient(fleethttp.WithNoTimeout(), fleethttp.WithFollowRedir(false), fleethttp.WithCookieJar(jar))
 
 	var resIni initiateSSOResponse
 	iniRes := s.doWithClient(client, "POST", "/api/v1/fleet/mdm/sso", []byte(`{}`), http.StatusOK, nil)
@@ -16849,7 +16849,7 @@ func (s *integrationMDMTestSuite) TestMachineInfoSignatureEnforcement() {
 		require.NoError(t, err)
 		request.Header.Set("x-apple-aspen-deviceinfo", di)
 		// nolint:gosec // this client is used for testing only
-		cc := fleethttp.NewClient(fleethttp.WithTLSClientConfig(&tls.Config{
+		cc := fleethttp.NewClient(fleethttp.WithNoTimeout(), fleethttp.WithTLSClientConfig(&tls.Config{
 			InsecureSkipVerify: true,
 		}))
 		response, err := cc.Do(request)
@@ -16863,7 +16863,7 @@ func (s *integrationMDMTestSuite) TestMachineInfoSignatureEnforcement() {
 		require.NoError(t, err)
 		request.Header.Set("x-apple-aspen-deviceinfo", "not-base64-or-pkcs7!!!")
 		// nolint:gosec // this client is used for testing only
-		cc := fleethttp.NewClient(fleethttp.WithTLSClientConfig(&tls.Config{
+		cc := fleethttp.NewClient(fleethttp.WithNoTimeout(), fleethttp.WithTLSClientConfig(&tls.Config{
 			InsecureSkipVerify: true,
 		}))
 		response, err := cc.Do(request)

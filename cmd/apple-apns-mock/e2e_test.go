@@ -157,7 +157,7 @@ func openEvents(t *testing.T, baseURL, token string) *http.Response {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, baseURL+"/events?token="+token, nil)
 	require.NoError(t, err)
 	// No client timeout: SSE connections are long-lived by design.
-	resp, err := fleethttp.NewClient().Do(req)
+	resp, err := fleethttp.NewClient(fleethttp.WithNoTimeout()).Do(req)
 	require.NoError(t, err)
 	t.Cleanup(func() { resp.Body.Close() })
 	return resp
@@ -754,7 +754,7 @@ func TestE2EDisconnectedStreamIsReapedByKeepalive(t *testing.T) {
 // buford remains in-tree so older clients stay covered.
 func TestE2EBufordCompatibility(t *testing.T) {
 	srv := newTestServer(t)
-	svc := bufordpush.NewService(fleethttp.NewClient(), srv.URL)
+	svc := bufordpush.NewService(fleethttp.NewClient(fleethttp.WithNoTimeout()), srv.URL)
 
 	t.Run("successful push round-trips to a client", func(t *testing.T) {
 		const token = "aabbccddee0a" // nolint:gosec // test token
@@ -785,7 +785,7 @@ func TestE2ENanopushProvider(t *testing.T) {
 	srv := newTestServer(t)
 	factory := nanopush.NewFactory(
 		nanopush.WithNewClient(func(*tls.Certificate) (*http.Client, error) {
-			return fleethttp.NewClient(), nil
+			return fleethttp.NewClient(fleethttp.WithNoTimeout()), nil
 		}),
 		nanopush.WithExpiration(30*24*time.Hour),
 		nanopush.WithPushServerURL(srv.URL),

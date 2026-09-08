@@ -38,7 +38,7 @@ func newSimpleClient(apiToken string) *simpleClient {
 // getDeviceIDBySerial queries the SimpleMDM API to find the device ID by its serial number, see
 // https://api.simplemdm.com/v1#list-all-6
 // func (c *simpleClient) getDeviceIDBySerial(serial string) (uint, error) {
-// 	client := fleethttp.NewClient()
+// 	client := fleethttp.NewClient(fleethttp.WithNoTimeout())
 // 	path := "https://a.simplemdm.com/api/v1/devices"
 // 	if search != "" {
 // 		path += fmt.Sprintf("?search=%s", serial)
@@ -69,7 +69,7 @@ func newSimpleClient(apiToken string) *simpleClient {
 // unenroll sends a request to the SimpleMDM API unenroll a device by its ID, see
 // https://api.simplemdm.com/v1#unenroll
 func (c *simpleClient) unenroll(deviceID uint) error {
-	client := fleethttp.NewClient()
+	client := fleethttp.NewClient(fleethttp.WithNoTimeout())
 	path := fmt.Sprintf("https://a.simplemdm.com/api/v1/devices/%d/unenroll", deviceID)
 	req, err := http.NewRequest("POST", path, nil)
 	if err != nil {

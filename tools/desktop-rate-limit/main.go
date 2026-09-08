@@ -22,7 +22,7 @@ func main() {
 		log.Fatal("missing fleet_url argument")
 	}
 
-	c := fleethttp.NewClient(fleethttp.WithTLSClientConfig(&tls.Config{
+	c := fleethttp.NewClient(fleethttp.WithNoTimeout(), fleethttp.WithTLSClientConfig(&tls.Config{
 		// Ignoring "G402: TLS InsecureSkipVerify set true", this is only used for automated testing.
 		InsecureSkipVerify: true, //nolint:gosec
 	}))

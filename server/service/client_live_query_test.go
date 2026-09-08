@@ -89,7 +89,7 @@ func TestLiveQueryWithContext(t *testing.T) {
 	client := &Client{
 		baseClient: &baseClient{
 			BaseURL:            baseURL,
-			HTTP:               fleethttp.NewClient(),
+			HTTP:               fleethttp.NewClient(fleethttp.WithNoTimeout()),
 			InsecureSkipVerify: false,
 			URLPrefix:          "",
 		},

@@ -261,7 +261,7 @@ func downloadComponents(workflowName string, headBranch string, artifactNames ma
 	}
 	ctx := context.Background()
 	var workflowRun *github.WorkflowRun
-	gc := github.NewClient(fleethttp.NewClient())
+	gc := github.NewClient(fleethttp.NewClient(fleethttp.WithNoTimeout()))
 	for {
 		workflow, _, err := gc.Actions.GetWorkflowByFileName(ctx, "fleetdm", "fleet", workflowName)
 		if err != nil {
@@ -355,7 +355,8 @@ func downloadComponents(workflowName string, headBranch string, artifactNames ma
 	for osName, downloadURL := range urls {
 		outputDir := filepath.Join(outputDirectory, osName)
 		fmt.Printf("Downloading and extracting %s into %s...\n", downloadURL, outputDir)
-		if err := downloadAndExtractZip(fleethttp.NewClient(), githubUsername, githubAPIToken, downloadURL, outputDir); err != nil {
+		httpClient := fleethttp.NewClient(fleethttp.WithNoTimeout())
+		if err := downloadAndExtractZip(httpClient, githubUsername, githubAPIToken, downloadURL, outputDir); err != nil {
 			return err
 		}
 	}
