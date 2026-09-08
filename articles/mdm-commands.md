@@ -147,7 +147,6 @@ For targeting multiple hosts, the `--hosts` option can be populated with comma-s
 
 > Android only supports one host per command: `fleetctl mdm run-command --payload='android-reboot-device.json' --hosts='someAndroidHostname'`.
 
-To prepare the MDM command payload for execution in a Fleet API call, it must be base64-encoded. This is true for Apple, Windows, and Android MDM command payloads.
 
 E.g., 
 
