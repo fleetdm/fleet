@@ -17,11 +17,7 @@ import {
   MDM_ENROLLMENT_STATUS_UI_MAP,
 } from "interfaces/mdm";
 import { ROLLING_ARCH_LINUX_VERSIONS } from "interfaces/software";
-import {
-  DATE_FNS_FORMAT_STRINGS,
-  DEFAULT_EMPTY_CELL_VALUE,
-  BATTERY_TOOLTIP,
-} from "utilities/constants";
+import { DEFAULT_EMPTY_CELL_VALUE, BATTERY_TOOLTIP } from "utilities/constants";
 import {
   humanHostMemory,
   wrapFleetHelper,
@@ -717,11 +713,8 @@ export const buildHostVitals = ({
   if (isIosOrIpadosHost && vitalsData?.timezone) {
     const hasValidTimezone = vitalsData.timezone !== DEFAULT_EMPTY_CELL_VALUE;
     const localTime = hasValidTimezone
-      ? formatInTimeZone(
-          new Date(),
-          vitalsData.timezone,
-          DATE_FNS_FORMAT_STRINGS.dateAtTime
-        )
+      ? // 24-hour clock, matching the auto-update feature's HH:MM time format.
+        formatInTimeZone(new Date(), vitalsData.timezone, "E, MMM d 'at' HH:mm")
       : null;
 
     vitals.push({
@@ -731,19 +724,21 @@ export const buildHostVitals = ({
           key="timezone"
           title="Timezone"
           value={
-            <TooltipTruncatedText
-              value={vitalsData.timezone || DEFAULT_EMPTY_CELL_VALUE}
-              tooltip={
-                localTime && (
+            hasValidTimezone ? (
+              <TooltipWrapper
+                tipContent={
                   <>
                     Local time:
                     <br />
                     {localTime}
                   </>
-                )
-              }
-              alwaysShowTooltip={hasValidTimezone}
-            />
+                }
+              >
+                {vitalsData.timezone}
+              </TooltipWrapper>
+            ) : (
+              DEFAULT_EMPTY_CELL_VALUE
+            )
           }
         />
       ),
