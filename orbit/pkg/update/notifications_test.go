@@ -967,18 +967,33 @@ func TestBitlockerOperations(t *testing.T) {
 			})
 		}
 
-		// Rotating on every restore would also hit the ordinary case of a volume suspended for servicing, whose
-		// protectors were never touched, and would invalidate a recovery key an admin may already hold.
-		t.Run("rotates only when the recovery password is gone", func(t *testing.T) {
+		// One decision, so one table: what the volume looks like going in, and what the agent does about it. Rotating on
+		// every restore would also hit the ordinary case of a volume suspended for servicing, whose protectors were
+		// never touched, and would invalidate a recovery key an admin may already hold. A rotation Fleet cannot
+		// complete must stop the repair instead, because enabling protection anyway is what leaves a host looking
+		// healthy while the key Fleet shows an admin does not open the disk.
+		t.Run("rotates only when the recovery password is gone, and stops the repair when it cannot", func(t *testing.T) {
 			for _, tc := range []struct {
 				name       string
 				hasKey     bool
 				hasKeyErr  error
+				rotateErr  error
+				escrowErr  error
 				wantRotate bool
+				wantEnable bool
+				wantErr    string // empty means the repair is expected to succeed
 			}{
-				{name: "recovery password present, so nothing is rotated", hasKey: true, wantRotate: false},
-				{name: "recovery password missing, so it is rotated", hasKey: false, wantRotate: true},
-				{name: "unknown counts as missing", hasKeyErr: errors.New("WMI unavailable"), wantRotate: true},
+				{name: "recovery password present, so nothing is rotated", hasKey: true, wantEnable: true},
+				{name: "recovery password missing, so it is rotated", wantRotate: true, wantEnable: true},
+				{name: "unknown counts as missing", hasKeyErr: errors.New("WMI unavailable"), wantRotate: true, wantEnable: true},
+				{
+					name: "a failed rotation stops the repair", rotateErr: errors.New("WMI refused"),
+					wantRotate: true, wantErr: "could not rotate the recovery key",
+				},
+				{
+					name: "a failed escrow stops the repair", escrowErr: errors.New("server unreachable"),
+					wantRotate: true, wantErr: "could not send the rotated recovery key to Fleet",
+				},
 			} {
 				t.Run(tc.name, func(t *testing.T) {
 					setupTest()
@@ -986,58 +1001,10 @@ func TestBitlockerOperations(t *testing.T) {
 					enrollReceiver.execGetEncryptionStatusFn = suspended
 					enrollReceiver.execHasTPMProtectorFn = func(string) (bool, error) { return true, nil }
 					enrollReceiver.execHasRecoveryPasswordFn = func(string) (bool, error) { return tc.hasKey, tc.hasKeyErr }
-					enrollReceiver.execEnableProtectionFn = func(string) error { enableCalled = true; return nil }
-
-					require.NoError(t, enrollReceiver.Run(protectionCfg))
-
-					require.Equal(t, tc.wantRotate, rotateKeyFnCalled, "rotating the recovery key")
-					require.Equal(t, tc.wantRotate, clientMock.SetOrUpdateDiskEncryptionKeyInvoked, "escrowing the rotated key")
-					require.True(t, enableCalled, "protection is restored either way")
-					require.Equal(t, fleet.DiskEncryptionProtectionRestored, clientMock.ProtectionOutcome)
-				})
-			}
-		})
-
-		t.Run("adds a TPM protector, then rotates, then enables", func(t *testing.T) {
-			setupTest()
-			var order []string
-			enrollReceiver.execGetEncryptionStatusFn = suspended
-			enrollReceiver.execHasTPMProtectorFn = func(string) (bool, error) { return false, nil }
-			enrollReceiver.execAddTPMProtectorFn = func(string) error { order = append(order, "add"); return nil }
-			enrollReceiver.execRotateRecoveryKeyFn = func(string) (string, error) { order = append(order, "rotate"); return "k", nil }
-			enrollReceiver.execEnableProtectionFn = func(string) error { order = append(order, "enable"); return nil }
-
-			require.NoError(t, enrollReceiver.Run(protectionCfg))
-			require.Equal(t, []string{"add", "rotate", "enable"}, order)
-		})
-
-		// A rotation Fleet cannot complete must stop the repair. Enabling protection anyway is what leaves a host
-		// looking healthy while the key Fleet shows an admin does not open the disk.
-		t.Run("a rotation or escrow failure stops the repair", func(t *testing.T) {
-			for _, tc := range []struct {
-				name            string
-				rotateErr       error
-				escrowErr       error
-				wantErrContains string
-			}{
-				{
-					name:            "rotation fails",
-					rotateErr:       errors.New("WMI refused"),
-					wantErrContains: "could not rotate the recovery key",
-				},
-				{
-					name:            "escrow fails",
-					escrowErr:       errors.New("server unreachable"),
-					wantErrContains: "could not send the rotated recovery key to Fleet",
-				},
-			} {
-				t.Run(tc.name, func(t *testing.T) {
-					setupTest()
-					var enableCalled bool
-					enrollReceiver.execGetEncryptionStatusFn = suspended
-					enrollReceiver.execHasTPMProtectorFn = func(string) (bool, error) { return true, nil }
-					enrollReceiver.execHasRecoveryPasswordFn = func(string) (bool, error) { return false, nil }
-					enrollReceiver.execRotateRecoveryKeyFn = func(string) (string, error) { return "k", tc.rotateErr }
+					enrollReceiver.execRotateRecoveryKeyFn = func(string) (string, error) {
+						rotateKeyFnCalled = true
+						return "rotated-key", tc.rotateErr
+					}
 					enrollReceiver.execEnableProtectionFn = func(string) error { enableCalled = true; return nil }
 					prevEscrow := clientMock.SetOrUpdateDiskEncryptionKeyImpl
 					t.Cleanup(func() { clientMock.SetOrUpdateDiskEncryptionKeyImpl = prevEscrow })
@@ -1047,11 +1014,83 @@ func TestBitlockerOperations(t *testing.T) {
 
 					require.NoError(t, enrollReceiver.Run(protectionCfg))
 
-					require.False(t, enableCalled, "protection must stay off so the host comes back and retries")
-					require.Equal(t, fleet.DiskEncryptionProtectionFailed, clientMock.ProtectionOutcome)
-					require.Contains(t, clientMock.ProtectionClientError, tc.wantErrContains)
+					require.Equal(t, tc.wantRotate, rotateKeyFnCalled, "rotating the recovery key")
+					// The escrow is only reached when a rotation produced a key to send.
+					wantEscrow := tc.wantRotate && tc.rotateErr == nil
+					require.Equal(t, wantEscrow, clientMock.SetOrUpdateDiskEncryptionKeyInvoked, "escrowing the rotated key")
+					require.Equal(t, tc.wantEnable, enableCalled, "restoring protection")
+					if tc.wantErr == "" {
+						require.Equal(t, fleet.DiskEncryptionProtectionRestored, clientMock.ProtectionOutcome)
+					} else {
+						require.Equal(t, fleet.DiskEncryptionProtectionFailed, clientMock.ProtectionOutcome)
+						require.Contains(t, clientMock.ProtectionClientError, tc.wantErr)
+					}
 				})
 			}
+		})
+
+		t.Run("adds a TPM protector, then rotates, then escrows, then enables", func(t *testing.T) {
+			setupTest()
+			var order []string
+			enrollReceiver.execGetEncryptionStatusFn = suspended
+			enrollReceiver.execHasTPMProtectorFn = func(string) (bool, error) { return false, nil }
+			enrollReceiver.execAddTPMProtectorFn = func(string) error { order = append(order, "add"); return nil }
+			enrollReceiver.execRotateRecoveryKeyFn = func(string) (string, error) { order = append(order, "rotate"); return "k", nil }
+			enrollReceiver.execEnableProtectionFn = func(string) error { order = append(order, "enable"); return nil }
+			prevEscrow := clientMock.SetOrUpdateDiskEncryptionKeyImpl
+			t.Cleanup(func() { clientMock.SetOrUpdateDiskEncryptionKeyImpl = prevEscrow })
+			clientMock.SetOrUpdateDiskEncryptionKeyImpl = func(fleet.OrbitHostDiskEncryptionKeyPayload) error {
+				order = append(order, "escrow")
+				return nil
+			}
+
+			require.NoError(t, enrollReceiver.Run(protectionCfg))
+			// Escrow has to land before protection is enabled. Leaving it out of this assertion is what would let a
+			// regression enable protection on a volume whose recovery key Fleet never received.
+			require.Equal(t, []string{"add", "rotate", "escrow", "enable"}, order)
+		})
+
+		// Rotation puts the new protector on the volume before the escrow is attempted, so a second pass would find a
+		// recovery password, skip rotating, and enable protection on a volume whose key Fleet never received. The key
+		// has to survive the failed escrow and be retried.
+		t.Run("a failed escrow is retried on the next pass without rotating again", func(t *testing.T) {
+			setupTest()
+			var rotations, escrows, enables int
+			escrowFails := true
+			enrollReceiver.execGetEncryptionStatusFn = suspended
+			enrollReceiver.execHasTPMProtectorFn = func(string) (bool, error) { return true, nil }
+			// After the first rotation the volume carries a recovery password again, which is the trap.
+			enrollReceiver.execHasRecoveryPasswordFn = func(string) (bool, error) { return rotations > 0, nil }
+			enrollReceiver.execRotateRecoveryKeyFn = func(string) (string, error) { rotations++; return "rotated-key", nil }
+			enrollReceiver.execEnableProtectionFn = func(string) error { enables++; return nil }
+			prevEscrow := clientMock.SetOrUpdateDiskEncryptionKeyImpl
+			t.Cleanup(func() { clientMock.SetOrUpdateDiskEncryptionKeyImpl = prevEscrow })
+			var escrowed string
+			clientMock.SetOrUpdateDiskEncryptionKeyImpl = func(p fleet.OrbitHostDiskEncryptionKeyPayload) error {
+				escrows++
+				if escrowFails {
+					return errors.New("server unreachable")
+				}
+				escrowed = string(p.EncryptionKey)
+				return nil
+			}
+
+			require.NoError(t, enrollReceiver.Run(protectionCfg))
+			require.Equal(t, 1, rotations)
+			require.Equal(t, 1, escrows)
+			require.Zero(t, enables, "protection must not be enabled before the key reaches Fleet")
+			require.Equal(t, "rotated-key", enrollReceiver.pendingRecoveryKey, "the key must survive a failed escrow")
+
+			// Second pass: the server keeps asking because protection is still off.
+			escrowFails = false
+			enrollReceiver.protectionRetryAfter = time.Time{}
+			require.NoError(t, enrollReceiver.Run(protectionCfg))
+
+			require.Equal(t, 1, rotations, "must not rotate a second time and orphan the first key")
+			require.Equal(t, 2, escrows)
+			require.Equal(t, "rotated-key", escrowed, "the key Fleet receives must be the one on the volume")
+			require.Equal(t, 1, enables, "protection is restored only once the key is escrowed")
+			require.Empty(t, enrollReceiver.pendingRecoveryKey, "the held key is cleared after a successful escrow")
 		})
 
 		t.Run("skips a second attempt inside the throttle window", func(t *testing.T) {
