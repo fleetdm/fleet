@@ -8,14 +8,14 @@
 // https://github.com/fleetdm/fleet/issues/22941
 // and can still be useful for debugging purposes.
 //
-// Usage (through the full Fleet push stack — nanomdm push service + buford):
+// Usage (through the full Fleet push stack — nanomdm push service + nanopush):
 //
 //	go run ./tools/mdm/apple/apnspush/main.go -mysql localhost:3306 -server-private-key <key> HOST_UUID1 HOST_UUID2 ...
 //
 // Direct mode: resolves the device token and push magic from the DB, then
-// sends a raw request to APNS itself — no buford, no nanomdm push
-// provider — and dumps Apple's raw response (status, headers, body) so the
-// actual APNS behavior can be inspected:
+// sends a raw request to APNS itself — no nanomdm push provider — and dumps
+// Apple's raw response (status, headers, body) so the actual APNS behavior
+// can be inspected:
 //
 //	go run ./tools/mdm/apple/apnspush/main.go -direct -mysql localhost:3306 -server-private-key <key> HOST_UUID1 ...
 //	... -direct -url https://api.development.push.apple.com ...  # APNS sandbox
@@ -40,13 +40,14 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
-	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push/buford"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push/nanopush"
 	nanomdm_pushsvc "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push/service"
 	"github.com/fleetdm/fleet/v4/server/service"
 )
@@ -54,9 +55,9 @@ import (
 func main() {
 	mysqlAddr := flag.String("mysql", "localhost:3306", "mysql address")
 	serverPrivateKey := flag.String("server-private-key", "", "fleet server's private key (to decrypt MDM assets)")
-	direct := flag.Bool("direct", false, "send raw requests directly to APNS, bypassing buford and the nanomdm push service, and dump the raw responses")
+	direct := flag.Bool("direct", false, "send raw requests directly to APNS, bypassing the nanomdm push service and provider, and dump the raw responses")
 	apnsURL := flag.String("url", "https://api.push.apple.com", "APNS base URL for -direct mode (e.g. https://api.development.push.apple.com for the sandbox, or a mock server)")
-	expiration := flag.Int64("expiration", -1, "apns-expiration header value (unix seconds) for -direct mode; -1 omits the header like Fleet does, 0 means deliver-now-or-discard")
+	expiration := flag.Int64("expiration", -1, "apns-expiration header value (unix seconds) for -direct mode; -1 omits the header, 0 means deliver-now-or-discard")
 	fake := flag.Bool("fake", false, "for -direct mode: UUIDs not found in nano_enrollments are pushed anyway, deriving the mdmtest scheme (token=hex(\"token\"+UUID), magic=\"pushmagic\"+UUID) instead of being skipped")
 	pushType := flag.String("type", "", "apns-push-type header value for -direct mode; if empty, the header is omitted.")
 
@@ -113,11 +114,16 @@ func main() {
 		return
 	}
 
-	pushProviderFactory := buford.NewPushProviderFactory(buford.WithNewClient(func(cert *tls.Certificate) (*http.Client, error) {
-		return fleethttp.NewClient(fleethttp.WithTLSClientConfig(&tls.Config{ // nolint:gosec // complains about TLS min version too low
-			Certificates: []tls.Certificate{*cert},
-		})), nil
-	}))
+	pushProviderFactory := nanopush.NewFactory(
+		nanopush.WithNewClient(func(cert *tls.Certificate) (*http.Client, error) {
+			return fleethttp.NewClient(fleethttp.WithTLSClientConfig(&tls.Config{
+				Certificates: []tls.Certificate{*cert},
+				MinVersion:   tls.VersionTLS12, // Apple APNs requires TLS 1.2+
+			})), nil
+		}),
+		// same default expiration the Fleet server uses (mdm.apple_apns_push_expiration)
+		nanopush.WithExpiration(30*24*time.Hour),
+	)
 
 	nanoMDMLogger := service.NewNanoMDMLogger(logger.With("component", "apple-mdm-push"))
 	pusher := nanomdm_pushsvc.New(mdmStorage, mdmStorage, pushProviderFactory, nanoMDMLogger)
@@ -149,12 +155,13 @@ func pushDirect(ctx context.Context, mdmStorage *mysql.NanoMDMStorage, baseURL s
 		return fmt.Errorf("retrieve push info from DB: %w", err)
 	}
 
-	// Same client the buford path above builds, so -direct exercises the
+	// Same client the full-stack path above builds, so -direct exercises the
 	// transport Fleet actually uses. HTTP/2 comes from ALPN (fleethttp's
 	// transport inherits ForceAttemptHTTP2 from http.DefaultTransport); the
 	// response's Proto is printed below, so a downgrade is visible.
-	client := fleethttp.NewClient(fleethttp.WithTLSClientConfig(&tls.Config{ // nolint:gosec // complains about TLS min version too low
+	client := fleethttp.NewClient(fleethttp.WithTLSClientConfig(&tls.Config{
 		Certificates: []tls.Certificate{*cert},
+		MinVersion:   tls.VersionTLS12, // Apple APNs requires TLS 1.2+
 	}))
 
 	var failed int

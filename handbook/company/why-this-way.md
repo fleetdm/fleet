@@ -211,6 +211,11 @@ Every department organizes their work into [team-based kanban boards](https://gi
 3. **Shared to-do list:** What should I work on next? Who needs help? What important work is blocked? Is that bug fix merged yet? When will it be released? When will that new feature ship? What did I do yesterday?
 
 
+## Why route cross-functional taskings through the team's manager?
+
+At Fleet, taskings that span departments (an OKR, an event, a piece of content, anything that needs another team's involvement) go to that team's manager first, even if you already know who you want to do it. The manager owns their team's priorities and workload, so they need to know what's on it. If they don't, they can't prioritize the work, and they can't hold anyone accountable for delivering it.
+
+
 ## Why agile?
 
 Releasing software [🟢 iteratively](https://fleetdm.com/handbook/company#results) gets changes and improvements into the hands of users faster and generally results in [🔵 software that works](https://fleetdm.com/handbook/company#objectivity). This makes contributors fitter, happier, and more productive.
@@ -401,6 +406,14 @@ Avoid using too many unnecessary words or superlatives, so your writing is short
 <blockquote>
  There exists an exceptionally significant rationale that unequivocally warrants refraining from the utilization of an exceptionally vast multitude of gratuitous, superfluous, surplus verbiage, or excessive superlatives when one is tasked with the composition of official documentation that is destined for perusal and comprehension by our distinguished and highly regarded clientele. When the writer in question opts to employ an excessively copious quantity, or even a modicum of superfluous verbiage that, in truth, does not contribute substantively to the essence and signification of the text, it invariably leads to an undue lengthening of the document and an exponentially augmented level of complexity in terms of comprehensibility.
 </blockquote>
+
+## Why avoid daylight-saving-specific time zone abbreviations?
+
+When scheduling a meeting or referencing a time, use the general time zone abbreviation ("PT," "MT," "CT," "ET") rather than the daylight-saving-specific variant ("PST" or "PDT," "MST" or "MDT," "CST" or "CDT," "EST" or "EDT").
+
+Using "PST" vs. "PDT" (or the equivalent for other US time zones) can cause mistakes. If someone (or an AI tool, or a search engine) pastes or looks up "PST" or "PDT" literally, they may get confused about whether the date in question falls under daylight saving time, since the abbreviation for a fixed time zone changes twice a year while "PT" does not. Using the general abbreviation avoids this ambiguity entirely, since it doesn't force the reader (human or AI) to figure out whether DST applies on that particular date. The same logic applies to any time zone abbreviation that changes with daylight saving time, not just the US ones listed above.
+
+This is analogous to why ISO/IANA time zone identifiers are preferred for precision (e.g., "America/Chicago" or "US Pacific Time") and never something like "Pacific Standard Time" that hardcodes a daylight-saving-time assumption. The general format sidesteps the daylight-saving-time ambiguity altogether.
 
 ## Why roles instead of fully custom RBAC for UI permissions?
 

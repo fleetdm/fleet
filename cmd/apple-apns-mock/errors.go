@@ -2,54 +2,26 @@ package main
 
 import "net/http"
 
-type Statuser interface {
-	Status() int
-}
-
+// apnsError is one of APNs' rejection reasons. The reason string goes into the
+// response body verbatim; see apnsPushError.
 type apnsError struct {
 	reason string
 	status int
 }
 
 func (e *apnsError) Error() string { return e.reason }
-func (e *apnsError) Status() int   { return e.status }
 
-func newAPNSError(reason string, status int) *apnsError {
-	return &apnsError{reason: reason, status: status}
-}
-
-func BadRequestError() *apnsError {
-	return newAPNSError("BadRequest", http.StatusBadRequest)
-}
-
-func InvalidPushTypeError() *apnsError {
-	return newAPNSError("InvalidPushType", http.StatusBadRequest)
-}
-
-func BadDeviceTokenError() *apnsError {
-	return newAPNSError("BadDeviceToken", http.StatusBadRequest)
-}
-
-func MissingDeviceTokenError() *apnsError {
-	return newAPNSError("MissingDeviceToken", http.StatusBadRequest)
-}
-
-func BadExpirationDateError() *apnsError {
-	return newAPNSError("BadExpirationDate", http.StatusBadRequest)
-}
-
-func PayloadEmptyError() *apnsError {
-	return newAPNSError("PayloadEmpty", http.StatusBadRequest)
-}
-
-func BadMessageIdError() *apnsError {
-	return newAPNSError("BadMessageId", http.StatusBadRequest)
-}
-
-func PayloadTooLargeError() *apnsError {
-	return newAPNSError("PayloadTooLarge", http.StatusRequestEntityTooLarge)
-}
-
-func InternalServerError() *apnsError {
-	return newAPNSError("InternalServerError", http.StatusInternalServerError)
-}
+// The reasons this mock returns, matching real APNs status/reason pairs.
+var (
+	errInvalidPushType    = &apnsError{"InvalidPushType", http.StatusBadRequest}
+	errBadDeviceToken     = &apnsError{"BadDeviceToken", http.StatusBadRequest}
+	errMissingDeviceToken = &apnsError{"MissingDeviceToken", http.StatusBadRequest}
+	errBadExpirationDate  = &apnsError{"BadExpirationDate", http.StatusBadRequest}
+	errPayloadEmpty       = &apnsError{"PayloadEmpty", http.StatusBadRequest}
+	errBadMessageID       = &apnsError{"BadMessageId", http.StatusBadRequest}
+	errPayloadTooLarge    = &apnsError{"PayloadTooLarge", http.StatusRequestEntityTooLarge}
+	errInternalServer     = &apnsError{"InternalServerError", http.StatusInternalServerError}
+	// What APNs returns when it cannot take a push right now; used when Redis
+	// is unreachable.
+	errServiceUnavailable = &apnsError{"ServiceUnavailable", http.StatusServiceUnavailable}
+)

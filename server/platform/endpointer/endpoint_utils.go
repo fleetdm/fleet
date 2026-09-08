@@ -115,7 +115,8 @@ var aliasRulesCache sync.Map // reflect.Type → []AliasRule
 // embedded structs) and builds an []AliasRule from fields that carry a
 // `renameto` struct tag. For each such field the json tag's field name
 // becomes OldKey (the current/deprecated name) and the renameto value becomes
-// NewKey (the target name).
+// NewKey (the target name). An optional `renamescope` tag lists the object keys
+// the rename is confined to (see AliasRule.Scope).
 //
 // Only `json` tags are considered; `url` and `query` tags are ignored for now.
 //
@@ -140,18 +141,33 @@ func ExtractAliasRules(iface any) []AliasRule {
 		return cached.([]AliasRule)
 	}
 
-	seen := make(map[AliasRule]bool)
+	seen := make(map[string]bool)
 	var rules []AliasRule
 	extractAliasRulesFromType(t, seen, &rules)
 	aliasRulesCache.Store(t, rules)
 	return rules
 }
 
-func extractAliasRulesFromType(t reflect.Type, seen map[AliasRule]bool, rules *[]AliasRule) {
+func extractAliasRulesFromType(t reflect.Type, seen map[string]bool, rules *[]AliasRule) {
 	// visited tracks types we've already walked to avoid infinite recursion
 	// from cyclic type references (e.g. type Node struct { Children []Node }).
 	visited := make(map[reflect.Type]bool)
 	extractAliasRulesRecursive(t, seen, rules, visited)
+}
+
+// parseRenameScope reads the comma-separated `renamescope` tag listing the object keys a rename is confined to.
+func parseRenameScope(tag reflect.StructTag) []string {
+	raw, ok := tag.Lookup("renamescope")
+	if !ok || raw == "" {
+		return nil
+	}
+	var scope []string
+	for k := range strings.SplitSeq(raw, ",") {
+		if k = strings.TrimSpace(k); k != "" {
+			scope = append(scope, k)
+		}
+	}
+	return scope
 }
 
 // elemType dereferences pointer, slice, array, and map types to find the
@@ -165,7 +181,7 @@ func elemType(t reflect.Type) reflect.Type {
 
 // Recursively extract alias rules from the type t.
 // This should only be called on struct types.
-func extractAliasRulesRecursive(t reflect.Type, seen map[AliasRule]bool, rules *[]AliasRule, visited map[reflect.Type]bool) {
+func extractAliasRulesRecursive(t reflect.Type, seen map[string]bool, rules *[]AliasRule, visited map[reflect.Type]bool) {
 	if visited[t] {
 		return
 	}
@@ -186,9 +202,14 @@ func extractAliasRulesRecursive(t reflect.Type, seen map[AliasRule]bool, rules *
 				// Strip options like ",omitempty" from the json tag.
 				jsonFieldName, _, _ := strings.Cut(jsonTag, ",")
 				if jsonFieldName != "" && jsonFieldName != "-" {
-					rule := AliasRule{OldKey: jsonFieldName, NewKey: newKeyName, Inline: inline}
-					if !seen[rule] {
-						seen[rule] = true
+					rule := AliasRule{
+						OldKey: jsonFieldName,
+						NewKey: newKeyName,
+						Inline: inline,
+						Scope:  parseRenameScope(structField.Tag),
+					}
+					if !seen[rule.key()] {
+						seen[rule.key()] = true
 						*rules = append(*rules, rule)
 					}
 				}
@@ -1076,6 +1097,14 @@ func (e *CommonEndpointer[H]) AppendCustomMiddleware(mws ...endpoint.Middleware)
 func (e *CommonEndpointer[H]) WithCustomMiddlewareAfterAuth(mws ...endpoint.Middleware) *CommonEndpointer[H] {
 	ae := *e
 	ae.CustomMiddlewareAfterAuth = mws
+	return &ae
+}
+
+// AppendCustomMiddlewareAfterAuth adds to the after-auth middleware already set
+// on the endpointer instead of replacing it.
+func (e *CommonEndpointer[H]) AppendCustomMiddlewareAfterAuth(mws ...endpoint.Middleware) *CommonEndpointer[H] {
+	ae := *e
+	ae.CustomMiddlewareAfterAuth = append(slices.Clone(ae.CustomMiddlewareAfterAuth), mws...)
 	return &ae
 }
 

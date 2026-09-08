@@ -12,7 +12,7 @@ If you see an endpoint documented here that you'd like to use, please [file a fe
 - [Get or apply configuration files](#get-or-apply-configuration-files)
 - [Live report](#live-report)
 - [Trigger cron schedule](#trigger-cron-schedule)
-- [Device-authenticated routes](#device-authenticated-routes)
+- [Fleet-desktop-token-authenticated routes](#Fleet-desktop-token-authenticated-routes)
 - [Orbit-authenticated routes](#orbit-authenticated-routes)
 - [Setup](#setup)
 - [Scripts](#scripts)
@@ -2228,6 +2228,10 @@ If the `name` is not already associated with an existing fleet, this API route c
 | mdm.windows_settings                        | object | body  | The Windows-specific MDM settings.                                                                                                                                                                                                    |
 | mdm.windows_settings.configuration_profiles        | array   | body  | The list of objects consists of a `path` to XML files and `labels_include_all`, `labels_include_any`, or `labels_exclude_any` list of label names.                                                                                                                                                         |
 | scripts                                   | array   | body  | A list of script files to add to this fleet so they can be executed at a later time.                                                                                                                                                 |
+| webhook_settings                          | object | body  | The fleet's webhook settings. Only the keys provided are applied; omitted webhooks are left unchanged.                                                                                                                               |
+| webhook_settings.host_status_webhook      | object | body  | See [`webhook_settings.host_status_webhook`](https://fleetdm.com/docs/rest-api/rest-api#webhook-settings-host-status-webhook2).                                                                                                       |
+| webhook_settings.failing_policies_webhook | object | body  | See [`webhook_settings.failing_policies_webhook`](https://fleetdm.com/docs/rest-api/rest-api#webhook-settings-failing-policies-webhook2).                                                                                             |
+| webhook_settings.host_activities_webhook  | object | body  | See [`webhook_settings.host_activities_webhook`](https://fleetdm.com/docs/rest-api/rest-api#webhook-settings-host-activities-webhook).                                                                                               |
 | software                                   | object   | body  | The fleet's software that will be available for install.  |
 | software.app_store_apps                   | array   | body  | An array of objects with values below. |
 | software.app_store_apps.app_store_id      | string   | body  | ID of the App Store app. |
@@ -3382,13 +3386,13 @@ currently pending.
 
 ---
 
-## Fleet-Desktop-token-authenticated routes
+## Fleet-desktop-token-authenticated routes
 
-Fleet-Desktop-token-authenticated routes are routes used by the [Fleet Desktop](https://fleetdm.com/guides/fleet-desktop). Unlike most other routes, an API token does not authenticate them. They use a Fleet Desktop token.
+Fleet-desktop-token-authenticated routes are routes used by the [Fleet Desktop](https://fleetdm.com/guides/fleet-desktop). Unlike most other routes, an API token does not authenticate them. They use a Fleet Desktop token.
 
-If you're using, Fleet Premium, you can require single sign-on (SSO) in front of these routes. When SSO is required, the device token is no longer enough on its own. [Initiate Fleet Desktop single sign-on](#initiate-fleet-desktop-single-sign-on) creates the session, and the `__Host-FLEET_DESKTOP_SESSION` cookie carries it. Fleet binds the session to the host whose device token started the flow. One device's cookie can't unlock another device's page in the same browser.
+If you're using Fleet Premium, you can require single sign-on (SSO) in front of these routes. When SSO is required, the device token is no longer enough on its own. [Initiate Fleet Desktop single sign-on](#initiate-fleet-desktop-single-sign-on) creates the session, and the `__Host-FLEET_DESKTOP_SESSION` cookie carries it. Fleet binds the session to the host whose device token started the flow. One device's cookie can't unlock another device's page in the same browser.
 
-A request without a valid session for that host returns `401` with an `sso_required` marker:
+Some routes are always exempt from SSO and others are exempt while a host is still going through [setup experience](https://fleetdm.com/guides/setup-experience):
 
 ```json
 {
@@ -3406,34 +3410,32 @@ A request without a valid session for that host returns `401` with an `sso_requi
 
 An expired device token also returns `401`. The marker is what tells the **Fleet Desktop > My device** page to start the single sign-on flow instead of reporting an invalid URL. Token errors take precedence, so an invalid token returns `401` with no marker, whatever the session cookie holds.
 
-The follow routes are always reachable without SSO:
-
-- [Get Fleet Desktop information](#get-fleet-desktop-information) and `HEAD /api/v1/fleet/device/{token}/ping`. The Fleet Desktop tray app polls both.
-- [Report an agent error](#report-an-agent-error), which fleetd posts.
-- [Migrate device to Fleet from another MDM solution](#migrate-device-to-fleet-from-another-mdm-solution). The tray app's migration dialog posts this, and it has no browser to complete an IdP round trip in.
-- [Get device's transparency URL](#get-devices-transparency-url), the "About Fleet" redirect. It exposes nothing about the host.
-- [Initiate Fleet Desktop single sign-on](#initiate-fleet-desktop-single-sign-on). This has to be reachable before a session exists.
-
-The following endpoints are reachable without SSO when macOS, Windows, and Linux hosts are running through [setup experience](https://fleetdm.com/guides/setup-experience). After setup finishes, SSO is required:
-
-- [Get device's Google Chrome profiles](#get-devices-google-chrome-profiles)
-- [Get device's mobile device management (MDM) and Munki information](#get-devices-mobile-device-management-mdm-and-munki-information)
-- [Get Fleet Desktop information](#get-fleet-desktop-information)
-- [Initiate Fleet Desktop single sign-on](#initiate-fleet-desktop-single-sign-on)
-- [Get device's software](#get-devices-software)
-- [Get device's software install results](#get-devices-software-install-results)
-- [Get device's software MDM command results](#get-devices-software-mdm-command-results)
-- [Uninstall software via self-service](#uninstall-software-via-self-service)
-- [Get uninstall results via self-service](#get-uninstall-results-via-self-service)
-- [Get device's policies](#get-devices-policies)
-- [Get device's certificate](#get-devices-certificate)
-- [Get device's API features](#get-devices-api-features)
-- [Get device's transparency URL](#get-devices-transparency-url)
-- [Download device's MDM manual enrollment profile](#download-devices-mdm-manual-enrollment-profile)
-- [Send APNs ping to device](#send-apns-ping-to-device)
-- [Migrate device to Fleet from another MDM solution](#migrate-device-to-fleet-from-another-mdm-solution)
-- [Trigger Linux disk encryption escrow](#trigger-linux-disk-encryption-escrow)
-- [Report an agent error](#report-an-agent-error)
+- [Get Fleet Desktop information](#get-fleet-desktop-information) (`GET /api/v1/fleet/device/{token}/desktop`) — *always exempt; polled by the Fleet Desktop tray app*
+- [Ping Server with Device Token](#ping-server-with-device-token) (`HEAD /api/v1/fleet/device/{token}/ping`) — *always exempt; polled by the Fleet Desktop tray app*
+- `POST /api/v1/fleet/device/{token}/debug/errors` — *always exempt; agent error reporting*
+- [Migrate device to Fleet from another MDM solution](#migrate-device-to-fleet-from-another-mdm-solution) (`POST /api/v1/fleet/device/{token}/migrate_mdm`) — *always exempt*
+- [Get device's transparency URL](#get-devices-transparency-url) (`GET /api/v1/fleet/device/{token}/transparency`) — *always exempt*
+- [Initiate Fleet Desktop single sign-on](#initiate-fleet-desktop-single-sign-on) (`POST /api/v1/fleet/device/{token}/sso`) — *always exempt; starts the sign-in flow*
+- `GET /api/v1/fleet/device/{token}` — *exempt during [setup experience](https://fleetdm.com/guides/setup-experience)*
+- `POST /api/v1/fleet/device/{token}/refetch` — *exempt during setup experience*
+- [Get device's Google Chrome profiles](#get-devices-google-chrome-profiles) (`GET /api/v1/fleet/device/{token}/device_mapping`, deprecated) — *exempt during setup experience*
+- [Get device's mobile device management (MDM) and Munki information](#get-devices-mobile-device-management-mdm-and-munki-information) (`GET /api/v1/fleet/device/{token}/macadmins`) — *exempt during setup experience*
+- [Get device's policies](#get-devices-policies) (`GET /api/v1/fleet/device/{token}/policies`) — *exempt during setup experience*
+- [Get device's software](#get-devices-software) (`GET /api/v1/fleet/device/{token}/software`) — *exempt during setup experience*
+- `POST /api/v1/fleet/device/{token}/software/install/{software_title_id}` — *exempt during setup experience*
+- [Install all self-service software](#install-all-self-service-software) (`POST /api/v1/fleet/device/{token}/software/install_all`) — *exempt during setup experience*
+- [Uninstall software via self-service](#uninstall-software-via-self-service) (`POST /api/v1/fleet/device/{token}/software/uninstall/{software_title_id}`) — *exempt during setup experience*
+- [Get device's software install results](#get-devices-software-install-results) (`GET /api/v1/fleet/device/{token}/software/install/{install_uuid}/results`) — *exempt during setup experience*
+- [Get uninstall results via self-service](#get-uninstall-results-via-self-service) (`GET /api/v1/fleet/device/{token}/software/uninstall/{execution_id}/results`) — *exempt during setup experience*
+- `GET /api/v1/fleet/device/{token}/software/self_service_categories` — *exempt during setup experience*
+- [Download device software icon](#download-device-software-icon) (`GET /api/v1/fleet/device/{token}/software/titles/{software_title_id}/icon`) — *exempt during setup experience*
+- [Get device's certificates](#get-devices-certificates) (`GET /api/v1/fleet/device/{token}/certificates`) — *exempt during setup experience*
+- `POST /api/v1/fleet/device/{token}/setup_experience/status` — *exempt during setup experience*
+- `POST /api/v1/fleet/device/{token}/mdm/linux/trigger_escrow` — *exempt during setup experience*
+- `POST /api/v1/fleet/device/{token}/bypass_conditional_access` — *exempt during setup experience*
+- [Download device's MDM manual enrollment profile](#download-devices-mdm-manual-enrollment-profile) (`GET /api/v1/fleet/device/{token}/mdm/apple/manual_enrollment_profile`) — *exempt during setup experience*
+- [Get device's software MDM command results](#get-devices-software-mdm-command-results) (`GET /api/v1/fleet/device/{token}/software/commands/{command_uuid}/results`) — *exempt during setup experience*
+- `POST /api/v1/fleet/device/{token}/configuration_profiles/{profile_uuid}/resend` — *exempt during setup experience*
 
 #### Get device's Google Chrome profiles
 
@@ -3642,6 +3644,7 @@ X-Client-Cert-Serial: <fleet_identity_scep_cert_serial>
         "name": "GoogleChrome.pkg",
         "version": "125.12.2",
         "self_service": true,
+        "has_uninstall_script": true,
         "categories": ["Browsers"],
      	"last_install": {
           "install_uuid": "8bbb8ac2-b254-4387-8cba-4d8a0407368b",
@@ -3943,7 +3946,7 @@ Gets the result of a uninstall performed on a host, viewed from the My device pa
 
 _Available in Fleet Premium_
 
-Lists the policies applied to the current device.
+Lists the policies applied to the current device. Policies are returned in a device-safe representation that excludes the policy author's identity and the raw SQL query.
 
 `GET /api/v1/fleet/device/{token}/policies`
 
@@ -3966,29 +3969,31 @@ Lists the policies applied to the current device.
   "policies": [
     {
       "id": 1,
-      "name": "SomeQuery",
-      "query": "SELECT * FROM foo;",
-      "description": "this is a query",
+      "name": "SomePolicy",
+      "description": "this is a policy",
       "resolution": "fix with these steps...",
       "platform": "windows,linux",
+      "critical": false,
+      "conditional_access_enabled": false,
       "response": "pass"
     },
     {
       "id": 2,
-      "name": "SomeQuery2",
-      "query": "SELECT * FROM bar;",
-      "description": "this is another query",
+      "name": "SomePolicy2",
+      "description": "this is another policy",
       "resolution": "fix with these other steps...",
       "platform": "darwin",
+      "critical": true,
+      "conditional_access_enabled": false,
       "response": "fail"
     },
     {
       "id": 3,
-      "name": "SomeQuery3",
-      "query": "SELECT * FROM baz;",
+      "name": "SomePolicy3",
       "description": "",
-      "resolution": "",
       "platform": "",
+      "critical": false,
+      "conditional_access_enabled": false,
       "response": ""
     }
   ]

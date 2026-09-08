@@ -1,0 +1,14 @@
+{
+  "name": "Microsoft Azure CLI",
+  "slug": "azure-cli/windows",
+  "package_identifier": "Microsoft.AzureCLI",
+  "unique_identifier": "Microsoft Azure CLI (64-bit)",
+  "program_publisher": "Microsoft Corporation",
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/azure_cli_install.ps1",
+  "installer_arch": "x64",
+  "installer_type": "msi",
+  "installer_scope": "machine",
+  "default_categories": [
+    "Developer tools"
+  ]
+}

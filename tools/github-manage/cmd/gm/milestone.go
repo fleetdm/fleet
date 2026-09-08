@@ -417,7 +417,7 @@ var milestoneViewCmd = &cobra.Command{
 
 		// Run the TUI with milestone mode so we can enforce limit and warn when overflow
 		lim, _ := cmd.Flags().GetInt("limit")
-		tui.RunTUI(tui.MilestoneCommand, 0, lim, title)
+		tui.RunTUI(tui.MilestoneCommand, 0, lim, title, false, "")
 		return nil
 	},
 }

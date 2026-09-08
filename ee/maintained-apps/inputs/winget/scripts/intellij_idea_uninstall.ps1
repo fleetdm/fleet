@@ -1,6 +1,6 @@
-# Locates IntelliJ IDEA Ultimate's NSIS uninstaller from the registry and runs
-# it silently. Ultimate's DisplayName is "IntelliJ IDEA <version>" with no
-# edition marker, so exclude the Community and Educational editions (whose
+# Locates IntelliJ IDEA's NSIS uninstaller from the registry and runs it
+# silently. Its DisplayName is "IntelliJ IDEA <version>" with no edition
+# marker, so exclude the Community and Educational editions (whose
 # DisplayNames also start with "IntelliJ IDEA ") to avoid uninstalling the
 # wrong product.
 
@@ -33,7 +33,7 @@ foreach ($key in $uninstallKeys) {
 }
 
 if (-not $selected -or -not $selected.UninstallString) {
-    Write-Host "Uninstall entry not found for IntelliJ IDEA Ultimate"
+    Write-Host "Uninstall entry not found for IntelliJ IDEA"
     Exit 1
 }
 

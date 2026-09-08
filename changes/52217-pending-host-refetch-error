@@ -1,0 +1,1 @@
+- Fixed pending hosts (Apple Business Manager, Windows Autopilot) showing a "Fetching fresh vitals" spinner and a "This host is offline. Please try refetching host vitals later." error on the host details page, even though nobody asked for a refetch.

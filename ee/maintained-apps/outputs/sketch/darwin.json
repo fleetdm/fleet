@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "2026.2.1",
+      "version": "2026.3",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.bohemiancoding.sketch3';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.bohemiancoding.sketch3' AND version_compare(bundle_short_version, '2026.2.1') < 0);",
-        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.bohemiancoding.sketch3');"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.bohemiancoding.sketch3' AND version_compare(bundle_short_version, '2026.3') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.bohemiancoding.sketch3' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://download.sketch.com/sketch-2026.2.1-231087.zip",
+      "installer_url": "https://download.sketch.com/sketch-2026.3-233959.zip",
       "install_script_ref": "d674f21b",
       "uninstall_script_ref": "bcf4e59f",
-      "sha256": "97a0b99a69b562747c9b6c2bd6acc15815ff9297144204816344bece13cd4544",
+      "sha256": "a868d974167ae7b7c20d5edbf71c1430c65412911d19839e9fb35ab3136f3b0e",
       "default_categories": [
         "Productivity"
       ]

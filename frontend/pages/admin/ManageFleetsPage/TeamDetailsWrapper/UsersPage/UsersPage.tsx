@@ -5,7 +5,8 @@ import { AppContext } from "context/app";
 import useTeamIdParam from "hooks/useTeamIdParam";
 import { IApiError } from "interfaces/errors";
 import { INewTeamUsersFormData, ITeam } from "interfaces/team";
-import { IUpdateUserFormData, IUser, IUserFormErrors } from "interfaces/user";
+import { IUpdateUserFormData, IUser } from "interfaces/user";
+import { IFormErrors } from "hooks/useFormValidation";
 import { ITeamSubnavProps } from "interfaces/team_subnav";
 import PATHS from "router/paths";
 import usersAPI from "services/entities/users";
@@ -69,8 +70,8 @@ const UsersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
   const [isUpdatingUsers, setIsUpdatingUsers] = useState(false);
   const [userEditing, setUserEditing] = useState<IUser>();
   const [searchString, setSearchString] = useState("");
-  const [addUserErrors, setAddUserErrors] = useState<IUserFormErrors>({});
-  const [editUserErrors, setEditUserErrors] = useState<IUserFormErrors>({});
+  const [addUserErrors, setAddUserErrors] = useState<IFormErrors>({});
+  const [editUserErrors, setEditUserErrors] = useState<IFormErrors>({});
 
   const toggleAddUserModal = useCallback(() => {
     setShowAddUserModal(!showAddUserModal);
@@ -214,21 +215,11 @@ const UsersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
           toggleCreateUserModal();
         })
         .catch((userErrors: { data: IApiError }) => {
-          if (
-            userErrors.data.errors?.[0].reason.includes(
-              "a user with this account already exists"
-            )
-          ) {
-            setAddUserErrors({
-              email: "A user with this email address already exists",
-            });
-          } else if (
-            userErrors.data.errors?.[0].reason.includes("Invite") &&
-            userErrors.data.errors?.[0].reason.includes("already exists")
-          ) {
-            setAddUserErrors({
-              email: "A user with this email address has already been invited",
-            });
+          const fieldErrors = userManagementHelpers.getUserFieldErrors(
+            userErrors
+          );
+          if (fieldErrors) {
+            setAddUserErrors(fieldErrors);
           } else {
             notify.error("Could not invite user. Please try again.", {
               response: userErrors,
@@ -252,22 +243,11 @@ const UsersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
           toggleCreateUserModal();
         })
         .catch((userErrors: { data: IApiError }) => {
-          if (userErrors.data.errors?.[0].reason.includes("Duplicate")) {
-            setAddUserErrors({
-              email: "A user with this email address already exists",
-            });
-          } else if (
-            userErrors.data.errors?.[0].reason.includes("already invited")
-          ) {
-            setAddUserErrors({
-              email: "A user with this email address has already been invited",
-            });
-          } else if (
-            userErrors.data.errors?.[0].reason.includes("password too long")
-          ) {
-            setAddUserErrors({
-              password: "Password is over the character limit.",
-            });
+          const fieldErrors = userManagementHelpers.getUserFieldErrors(
+            userErrors
+          );
+          if (fieldErrors) {
+            setAddUserErrors(fieldErrors);
           } else {
             notify.error("Could not create user. Please try again.", {
               response: userErrors,
@@ -316,10 +296,11 @@ const UsersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
             toggleEditUserModal();
           })
           .catch((userErrors: { data: IApiError }) => {
-            if (userErrors.data.errors[0].reason.includes("already exists")) {
-              setEditUserErrors({
-                email: "A user with this email address already exists",
-              });
+            const fieldErrors = userManagementHelpers.getUserFieldErrors(
+              userErrors
+            );
+            if (fieldErrors) {
+              setEditUserErrors(fieldErrors);
             } else {
               notify.error(
                 `Could not edit ${userName || "user"}. Please try again.`,

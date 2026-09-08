@@ -88,8 +88,8 @@ The installer created by `fleetctl` isn’t specific to one host. If you have mu
 If you’re managing an enterprise environment, you will likely have a deployment tool like Munki, Jamf Pro, Chef, Ansible, or Puppet to deliver software to your devices. Using your software management tool of choice, you can distribute your osquery installer and add all your devices to Fleet.
 
 <meta name="category" value="guides">
-<meta name="authorFullName" value="Kathy Satterlee">
-<meta name="authorGitHubUsername" value="ksatter">
+<meta name="authorFullName" value="Ryn Satterlee">
+<meta name="authorGitHubUsername" value="rynsatterlee">
 <meta name="publishedOn" value="2022-03-19">
 <meta name="articleTitle" value="How to install osquery and enroll Linux devices into Fleet">
 <meta name="articleImageUrl" value="../website/assets/images/articles/install-osquery-and-enroll-linux-devices-into-fleet-cover-1600x900@2x.jpg">

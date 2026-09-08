@@ -72,7 +72,7 @@ const MacosPanel = ({ enrollSecret }: IMacosPanelProps) => {
             inputWrapperClass={`${baseClass}__enroll-link`}
             name="enroll-link"
             enableCopy
-            label="Send this to your end users:"
+            label="Share this link with your end users:"
             value={enrollUrl}
             helpText={helpText}
           />

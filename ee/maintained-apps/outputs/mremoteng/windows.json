@@ -1,0 +1,23 @@
+{
+  "versions": [
+    {
+      "version": "1.76.20.24615",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name = 'mRemoteNG' AND publisher = 'Next Generation Software';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'mRemoteNG' AND publisher = 'Next Generation Software' AND version_compare(version, '1.76.20.24615') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'mremoteng.exe');"
+      },
+      "installer_url": "https://github.com/mRemoteNG/mRemoteNG/releases/download/v1.76.20/mRemoteNG-Installer-1.76.20.24615.msi",
+      "install_script_ref": "22e48c46",
+      "uninstall_script_ref": "b24c4d37",
+      "sha256": "2c4d1efb90124f885215f88304c9ecc8bbeecc9cca285f6d17baae43b49f6227",
+      "default_categories": [
+        "Utilities"
+      ]
+    }
+  ],
+  "refs": {
+    "22e48c46": "$logFile = \"${env:TEMP}/fleet-install-software.log\"\n\n# MSI exit codes that indicate success. 3010 = ERROR_SUCCESS_REBOOT_REQUIRED,\n# 1641 = ERROR_SUCCESS_REBOOT_INITIATED. Treat these as success rather than failure.\n$successCodes = @(0, 3010, 1641)\n\ntry {\n\n$installProcess = Start-Process msiexec.exe `\n  -ArgumentList \"/quiet /norestart /lv `\"${logFile}`\" /i `\"${env:INSTALLER_PATH}`\"\" `\n  -PassThru -Verb RunAs -Wait\n\nGet-Content $logFile -Tail 500\n\nif ($successCodes -contains $installProcess.ExitCode) {\n  Exit 0\n}\n\nExit $installProcess.ExitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n",
+    "b24c4d37": "# Uninstalls mRemoteNG. The MSI product code changes per build, so the product\n# is looked up in the registry by name and publisher rather than pinned to the\n# build this app shipped.\n\n$softwareName = \"mRemoteNG\"\n$softwarePublisher = \"Next Generation Software\"\n\n$machineKey       = 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'\n$machineKey32on64 = 'HKLM:\\SOFTWARE\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'\n\n# 0 = success, 3010 = reboot required, 1641 = reboot initiated.\n$successCodes = @(0, 3010, 1641)\n\n$exitCode = $null\n\ntry {\n\n[array]$uninstallKeys = Get-ChildItem `\n    -Path @($machineKey, $machineKey32on64) `\n    -ErrorAction SilentlyContinue |\n        ForEach-Object { Get-ItemProperty $_.PSPath }\n\nforeach ($key in $uninstallKeys) {\n    if ($key.DisplayName -ne $softwareName -or $key.Publisher -ne $softwarePublisher) { continue }\n\n    $productCode = $key.PSChildName\n    if ($productCode -notmatch '^\\{[0-9A-Fa-f-]+\\}$') {\n        Write-Host \"Unexpected uninstall key name (not a ProductCode GUID): $productCode\"\n        continue\n    }\n\n    Write-Host \"Uninstalling $softwareName $($key.DisplayVersion) (product code $productCode).\"\n    $process = Start-Process -FilePath \"msiexec.exe\" `\n        -ArgumentList \"/x $productCode /qn /norestart\" `\n        -NoNewWindow -PassThru -Wait\n    $exitCode = $process.ExitCode\n    break\n}\n\n} catch {\n    Write-Host \"Error: $_\"\n    Exit 1\n}\n\nif ($null -eq $exitCode) {\n    Write-Host \"Uninstall entry not found for '$softwareName'.\"\n    Exit 1\n}\n\nWrite-Host \"Uninstall exit code: $exitCode\"\nif ($successCodes -contains $exitCode) { Exit 0 }\nExit $exitCode\n"
+  }
+}

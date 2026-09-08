@@ -232,7 +232,7 @@ module.exports.custom = {
     // Reference, config surface, built-in queries, API, and other documentation
     'docs': ['rachaelshaw', 'noahtalerman', 'eashaw'],// (default for docs)
     'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml': ['rachaelshaw', 'noahtalerman', 'eashaw'],// (standard query library)
-    '/docs/get-started/faq': ['ksatter', 'ddribeiro', 'zayhanlon'],
+    '/docs/get-started/faq': ['rynsatterlee', 'ddribeiro', 'zayhanlon'],
     'docs/solutions': ['ddribeiro', 'allenhouchins'],
     'docs/REST API/rest-api.md': ['rachaelshaw', 'lukeheath'],// (standard query library)
     'schema': ['eashaw', 'lukeheath'],// (Osquery table schema)

@@ -111,6 +111,14 @@ module.exports = {
         pageTitleForMeta = 'Webinars';
         pageDescriptionForMeta = 'Watch Fleet and industry practitioners discuss real-world device management and IT operations.';
         break;
+      case 'newsletters':
+        pageTitleForMeta = 'Newsletters';
+        pageDescriptionForMeta = 'Catch up on past issues of the Fleet newsletter.';
+        break;
+      case 'industry-news':
+        pageTitleForMeta = 'Industry news';
+        pageDescriptionForMeta = 'Device management and security news, and what it means for the devices you manage.';
+        break;
     }
 
 

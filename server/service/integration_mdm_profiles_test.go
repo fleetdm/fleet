@@ -978,6 +978,26 @@ func (s *integrationMDMTestSuite) TestWindowsProfileRetries() {
 		}
 	}
 
+	// A profile with retries left reads as "pending" while Fleet tries again, so it must not also carry the failed
+	// attempt's error. The device's error comes back only once the failure is terminal.
+	profileDetail := func(t *testing.T, name string) string {
+		storedProfs, err := s.ds.GetHostMDMWindowsProfiles(ctx, h.UUID)
+		require.NoError(t, err)
+		for _, p := range storedProfs {
+			if p.Name == name {
+				return p.Detail
+			}
+		}
+		t.Fatalf("profile %s not found for host %s", name, h.UUID)
+		return ""
+	}
+	requireNoDetailWhileRetrying := func(t *testing.T, name string) {
+		require.Empty(t, profileDetail(t, name), "profile %s is waiting on a retry and must not surface an error", name)
+	}
+	requireDetailOnceFailed := func(t *testing.T, name string) {
+		require.NotEmpty(t, profileDetail(t, name), "profile %s ran out of retries and must surface the device error", name)
+	}
+
 	verifyCommands := func(wantProfileInstalls int, status string) {
 		s.awaitTriggerProfileSchedule(t)
 		cmds, err := mdmDevice.StartManagementSession()
@@ -1028,7 +1048,26 @@ func (s *integrationMDMTestSuite) TestWindowsProfileRetries() {
 	})
 
 	retriesBeforeFailure := servermdm.MaxWindowsProfileRetries
-	t.Run(fmt.Sprintf("retries %d time before marking as failed", retriesBeforeFailure), func(t *testing.T) {
+	t.Run(fmt.Sprintf("retries %d times before marking as failed", retriesBeforeFailure), func(t *testing.T) {
+		// A real Windows device acks every command nested inside the <Atomic>, not just the wrapper, and Fleet builds
+		// a failed profile's detail out of those nested statuses. The fixture has to send them for the detail
+		// assertions below to mean anything.
+		appendNestedStatuses := func(c fleet.ProtoCmdOperation, msgID, status string) {
+			nested := append(append([]fleet.SyncMLCmd{}, c.Cmd.ReplaceCommands...), c.Cmd.AddCommands...)
+			for _, n := range nested {
+				cmdRef, verb := n.CmdID.Value, n.XMLName.Local
+				mdmDevice.AppendResponse(fleet.SyncMLCmd{
+					XMLName: xml.Name{Local: fleet.CmdStatus},
+					MsgRef:  &msgID,
+					CmdRef:  &cmdRef,
+					Cmd:     &verb,
+					Data:    &status,
+					Items:   nil,
+					CmdID:   fleet.CmdID{Value: uuid.NewString()},
+				})
+			}
+		}
+
 		s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: testProfiles}, http.StatusNoContent)
 		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			mysqltest.DumpTable(t, q, "host_mdm_windows_profiles")
@@ -1093,8 +1132,15 @@ func (s *integrationMDMTestSuite) TestWindowsProfileRetries() {
 					Items:   nil,
 					CmdID:   fleet.CmdID{Value: uuid.NewString()},
 				})
+				appendNestedStatuses(c, msgID, status)
 			}
-			require.Equal(t, 2, atomicCmds)
+			// The first pass delivers both profiles. N2 is acknowledged and never resent, so every later retry
+			// carries N1 alone.
+			wantAtomicCmds := 1
+			if i == 0 {
+				wantAtomicCmds = 2
+			}
+			require.Equal(t, wantAtomicCmds, atomicCmds)
 			cmds, err = mdmDevice.SendResponse()
 			require.NoError(t, err)
 			// the ack of the message should be the only returned command
@@ -1105,6 +1151,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileRetries() {
 			checkProfilesStatus(t)
 			expectedRetryCounts["N1"] = uint(i + 1) //nolint:gosec // dismiss G115
 			checkRetryCounts(t)
+			requireNoDetailWhileRetrying(t, "N1")
 		}
 
 		// Final run to mark it as failed
@@ -1147,6 +1194,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileRetries() {
 				Items:   nil,
 				CmdID:   fleet.CmdID{Value: uuid.NewString()},
 			})
+			appendNestedStatuses(c, msgID, status)
 		}
 		require.Equal(t, 1, atomicCmds)
 		cmds, err = mdmDevice.SendResponse()
@@ -1159,6 +1207,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileRetries() {
 		checkProfilesStatus(t)
 		expectedRetryCounts["N1"] = servermdm.MaxWindowsProfileRetries
 		checkRetryCounts(t)
+		requireDetailOnceFailed(t, "N1")
 	})
 }
 
@@ -3564,7 +3613,7 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 		"android.json", []byte(`{"passwordPolicies": [{"passwordMinimumLength": true}]}`), s.token, nil)
 	res = s.DoRawWithHeaders("POST", "/api/latest/fleet/configuration_profiles", body.Bytes(), http.StatusBadRequest, headers)
 	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, `Couldn't add. Invalid JSON payload. "passwordPolicies.passwordMinimumLength" format is wrong.`)
+	require.Contains(t, errMsg, `Couldn't add. Invalid JSON payload. "passwordPolicies.0.passwordMinimumLength" format is wrong.`)
 
 	// disallow unknown keys
 	body, headers = generateNewProfileMultipartRequest(t,
@@ -4051,10 +4100,9 @@ func (s *integrationMDMTestSuite) TestUpdateConfigProfile() {
 	// Windows
 	//
 
-	// content-only edit; the uploaded filename is ignored, the profile keeps
-	// its name
+	// an edit keeping the same file name leaves the name alone
 	winContent2 := syncMLForTest("./TestUpdateProfileEdited")
-	res = patchProfile(winUUID, "some-other-filename.xml", winContent2, nil, http.StatusOK)
+	res = patchProfile(winUUID, "update-win-profile.xml", winContent2, nil, http.StatusOK)
 	patchResp = decodePatchResp(res)
 	require.Equal(t, winUUID, patchResp.ProfileUUID)
 	require.Equal(t, winContent2, downloadProfile(winUUID))
@@ -4062,7 +4110,27 @@ func (s *integrationMDMTestSuite) TestUpdateConfigProfile() {
 	require.Equal(t, "update-win-profile", prof.Name)
 	assertEditedActivity(fleet.ActivityTypeEditedWindowsProfile{}.ActivityName(), "update-win-profile", "")
 
-	// labels-only edit
+	// a differently named file renames the profile in place: same UUID, and the
+	// activity reports the new name
+	winContent3 := syncMLForTest("./TestUpdateProfileRenamed")
+	res = patchProfile(winUUID, "update-win-profile-renamed.xml", winContent3, nil, http.StatusOK)
+	patchResp = decodePatchResp(res)
+	require.Equal(t, winUUID, patchResp.ProfileUUID)
+	require.Equal(t, winContent3, downloadProfile(winUUID))
+	prof = getProfile(winUUID)
+	require.Equal(t, "update-win-profile-renamed", prof.Name)
+	assertEditedActivity(fleet.ActivityTypeEditedWindowsProfile{}.ActivityName(), "update-win-profile-renamed", "")
+
+	// renaming onto a name another profile in the fleet holds is rejected, and
+	// leaves the profile untouched
+	winOtherUUID := createProfile("update-win-other.xml", syncMLForTest("./TestUpdateOther"), fleet.MDMWindowsProfileUUIDPrefix)
+	require.NotEmpty(t, winOtherUUID)
+	res = patchProfile(winUUID, "update-win-other.xml", winContent3, nil, http.StatusConflict)
+	require.Contains(t, extractServerErrorText(res.Body), "already exists")
+	require.Equal(t, "update-win-profile-renamed", getProfile(winUUID).Name)
+	require.Equal(t, winContent3, downloadProfile(winUUID))
+
+	// labels-only edit; no file, so the name is left alone
 	res = patchProfile(winUUID, "", nil, map[string][]string{"labels_include_all": {lblA.Name, lblB.Name}}, http.StatusOK)
 	patchResp = decodePatchResp(res)
 	require.Equal(t, winUUID, patchResp.ProfileUUID)
@@ -4074,8 +4142,9 @@ func (s *integrationMDMTestSuite) TestUpdateConfigProfile() {
 		{LabelID: lblA.ID, LabelName: lblA.Name},
 		{LabelID: lblB.ID, LabelName: lblB.Name},
 	}, prof.LabelsIncludeAll)
-	require.Equal(t, winContent2, downloadProfile(winUUID))
-	assertEditedActivity(fleet.ActivityTypeEditedWindowsProfile{}.ActivityName(), "update-win-profile", "")
+	require.Equal(t, "update-win-profile-renamed", prof.Name)
+	require.Equal(t, winContent3, downloadProfile(winUUID))
+	assertEditedActivity(fleet.ActivityTypeEditedWindowsProfile{}.ActivityName(), "update-win-profile-renamed", "")
 
 	//
 	// Apple DDM declaration
