@@ -64,8 +64,6 @@ type patchNotificationKind struct {
 	logger          *slog.Logger
 }
 
-// The patch kind plus the countdown pass its cron job calls, so cmd/fleet can register the kind and
-// schedule the pass from one value.
 type PatchNotificationKind interface {
 	notifications_api.NotificationKind
 	RunPatchNotificationCountdowns(ctx context.Context) error
@@ -127,19 +125,22 @@ func (svc *Service) createPatchNotificationForEndUser(ctx context.Context, host 
 		notificationUUID = created.UUID
 	}
 
-	// the app row goes first, because a notification listing no apps can't render
+	if awaiting == nil {
+		if err := svc.ds.NewPatchNotification(ctx, notificationUUID); err != nil {
+			return ctxerr.Wrap(ctx, err, "create patch notification record")
+		}
+	}
+
+	// The app row goes last because it is what stops a later skip starting over: once it exists,
+	// PatchNotificationExistsForApp returns true and this function returns early. Anything written
+	// after it that failed would stay missing for the life of the notification. A notification left
+	// with no apps is safe by comparison, since Render fails it and the policy opens a new one.
 	if err := svc.ds.AddPatchNotificationApp(ctx, notificationUUID, fleet.PatchNotificationApp{
 		PolicyID:            install.PolicyID,
 		SoftwareTitleID:     *install.SoftwareTitleID,
 		SoftwareInstallerID: install.SoftwareInstallerID,
 	}); err != nil {
 		return ctxerr.Wrap(ctx, err, "add patch notification app")
-	}
-
-	if awaiting == nil {
-		if err := svc.ds.NewPatchNotification(ctx, notificationUUID); err != nil {
-			return ctxerr.Wrap(ctx, err, "create patch notification record")
-		}
 	}
 	return nil
 }
@@ -242,10 +243,10 @@ func (k *patchNotificationKind) OnVerify(ctx context.Context, notification *noti
 	return nil
 }
 
-// The countdown pass sends the reminder whatever the end user pressed, so the button only has to close
-// the toast, which the page does over the bridge. Leaving the row alone is also what stops the button
-// buying more time.
 func (k *patchNotificationKind) OnDelay(ctx context.Context, notification *notifications_api.EndUserNotification) (*notifications_api.NotificationView, error) {
+	// The countdown pass sends the reminder whatever the end user pressed, so the button only has to
+	// close the toast, which the page does over the bridge. Leaving the row alone is also what stops
+	// the button buying more time.
 	return nil, nil
 }
 
@@ -273,9 +274,9 @@ func (k *patchNotificationKind) RunPatchNotificationCountdowns(ctx context.Conte
 	return errors.Join(errs...)
 }
 
-// The reminder goes out once: the re-dispatch leaves the notification pending, and the display after
-// that leaves the reminder flag in the payload, so a second pass fails one of the three checks below.
 func (k *patchNotificationKind) remindBeforePatching(ctx context.Context, countdown fleet.PatchNotificationDue, now time.Time) error {
+	// These three checks are what keep the reminder to one send: the re-dispatch leaves the row
+	// pending, and the display after that leaves the reminder flag in the payload.
 	if countdown.Status != notifications_api.EndUserNotificationDispatched || countdown.DisplayedAt == nil {
 		return nil
 	}
@@ -287,12 +288,12 @@ func (k *patchNotificationKind) remindBeforePatching(ctx context.Context, countd
 		return nil
 	}
 
-	remaining, err := k.verifyPatchNotificationApps(ctx, countdown)
+	remaining, err := k.dropAppsAlreadyUpdated(ctx, countdown)
 	if err != nil {
 		return err
 	}
 
-	// Verify deleted every app, so the notification has to close rather than render nothing.
+	// Nothing is left to warn about, and the notification would now render nothing, so close it.
 	if remaining == 0 {
 		if _, err := k.notificationSvc.ActOnNotification(ctx, countdown.NotificationUUID); err != nil {
 			return ctxerr.Wrap(ctx, err, "act on a patch notification with nothing left to update")
@@ -307,9 +308,10 @@ func (k *patchNotificationKind) remindBeforePatching(ctx context.Context, countd
 }
 
 func (k *patchNotificationKind) patchAtDeadline(ctx context.Context, countdown fleet.PatchNotificationDue, now time.Time) error {
-	// An offline host never saw the countdown run out, so it starts over with a fresh hour on the
-	// same notification rather than being patched on sight.
-	if !countdown.HostOnline {
+	// The end user never saw the notice this deadline belongs to, so the countdown starts over and
+	// they get a fresh hour whenever their host next reaches the screen. A host that went offline and
+	// a reminder still on its way both land here, and both want the same thing.
+	if countdown.DisplayedAt == nil {
 		if err := k.ds.ResetPatchNotification(ctx, countdown.NotificationUUID); err != nil {
 			return ctxerr.Wrap(ctx, err, "clear the deadline of an offline host's patch notification")
 		}
@@ -319,7 +321,7 @@ func (k *patchNotificationKind) patchAtDeadline(ctx context.Context, countdown f
 		return nil
 	}
 
-	remaining, err := k.verifyPatchNotificationApps(ctx, countdown)
+	remaining, err := k.dropAppsAlreadyUpdated(ctx, countdown)
 	if err != nil {
 		return err
 	}
@@ -341,10 +343,7 @@ func (k *patchNotificationKind) patchAtDeadline(ctx context.Context, countdown f
 	return nil
 }
 
-// Inventory is read rather than the policy result: policy_membership.updated_at only moves on a state
-// change and policies re-run on the host's distributed interval, so within the hour the policy answer
-// is usually staler than inventory, which refreshes after any Fleet install and on refetch.
-func (k *patchNotificationKind) verifyPatchNotificationApps(ctx context.Context, countdown fleet.PatchNotificationDue) (int, error) {
+func (k *patchNotificationKind) dropAppsAlreadyUpdated(ctx context.Context, countdown fleet.PatchNotificationDue) (remaining int, err error) {
 	apps, err := k.ds.ListPatchNotificationApps(ctx, countdown.NotificationUUID)
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "list patch notification apps")
@@ -353,6 +352,8 @@ func (k *patchNotificationKind) verifyPatchNotificationApps(ctx context.Context,
 		return 0, nil
 	}
 
+	// Inventory refreshes after any Fleet install and on refetch, so within the hour it is the freshest
+	// record of what the host actually has.
 	installed, err := k.ds.ListSoftwareByHostIDShort(ctx, countdown.HostID)
 	if err != nil {
 		return 0, ctxerr.Wrapf(ctx, err, "list software on host: host_id=%d", countdown.HostID)
@@ -400,8 +401,8 @@ func (k *patchNotificationKind) verifyPatchNotificationApps(ctx context.Context,
 		}
 	}
 
-	// Render builds the toast from this table, so an in-memory filter would leave the reminder naming
-	// an app the end user already updated.
+	// Render builds the toast from this table, so the rows have to go for the reminder to stop naming
+	// apps the end user already updated.
 	if err := k.ds.DeletePatchNotificationApps(ctx, countdown.NotificationUUID, dropped); err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "delete patch notification apps that no longer need updating")
 	}
@@ -457,9 +458,7 @@ func (k *patchNotificationKind) updateNow(ctx context.Context, notification *not
 	return k.renderView(ctx, notification, true)
 }
 
-// The bool reports whether the notification can be put back to the status it had: false once installs
-// have gone out without being recorded, because a second attempt would then install them again.
-func (k *patchNotificationKind) queuePatchNotificationInstalls(ctx context.Context, notificationUUID string, hostID uint) (bool, error) {
+func (k *patchNotificationKind) queuePatchNotificationInstalls(ctx context.Context, notificationUUID string, hostID uint) (canPutBack bool, err error) {
 	apps, err := k.ds.ListPatchNotificationApps(ctx, notificationUUID)
 	if err != nil {
 		return true, ctxerr.Wrap(ctx, err, "list patch notification apps")
@@ -503,6 +502,7 @@ func (k *patchNotificationKind) queuePatchNotificationInstalls(ctx context.Conte
 		queuedTitleIDs = append(queuedTitleIDs, app.SoftwareTitleID)
 	}
 
+	// Once this write fails the installs have gone out unrecorded, so a second attempt would repeat them.
 	if err := k.ds.SetPatchNotificationAppsQueued(ctx, notificationUUID, queuedTitleIDs); err != nil {
 		return false, ctxerr.Wrap(ctx, err, "set patch notification apps queued")
 	}
@@ -537,22 +537,6 @@ func (k *patchNotificationKind) OnOutcome(ctx context.Context, notification *not
 		}
 	}
 
-	status := "failed"
-	var installAt *time.Time
-	if outcome.Displayed {
-		status = "success"
-
-		// Set-once means a reminder's display no-ops and returns the deadline already stored.
-		// notification.DisplayedAt can't stand in for the clock: RecordOutcome loaded that copy before
-		// the outcome write, so it is still nil.
-		deadline, err := k.ds.SetPatchNotificationInstallAt(ctx, notification.UUID,
-			time.Now().UTC().Add(patchNotificationFirstNoticeBefore))
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "set patch notification install at")
-		}
-		installAt = &deadline
-	}
-
 	reminder, err := patchNotificationIsReminder(notification.Payload)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "read patch notification payload")
@@ -560,6 +544,21 @@ func (k *patchNotificationKind) OnOutcome(ctx context.Context, notification *not
 	timeBefore := patchNotificationFirstNoticeBefore
 	if reminder {
 		timeBefore = patchNotificationReminderBefore
+	}
+
+	status := "failed"
+	var installAt *time.Time
+	if outcome.Displayed {
+		status = "success"
+
+		// The deadline is counted from this notice reaching the screen, so the end user gets the whole
+		// lead time the toast promises however long the toast took to get there. notification.DisplayedAt
+		// is still nil here, since RecordOutcome loaded that copy before the outcome write.
+		deadline, err := k.ds.SetPatchNotificationInstallAt(ctx, notification.UUID, time.Now().UTC().Add(timeBefore))
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "set patch notification install at")
+		}
+		installAt = &deadline
 	}
 
 	if err := k.activities.NewActivity(ctx, nil, fleet.ActivityTypeNotifiedEndUserBeforePatching{

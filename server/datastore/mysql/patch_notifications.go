@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"fmt"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -103,13 +102,16 @@ WHERE notification_uuid = ? AND software_title_id IN (?)
 	return nil
 }
 
-// The COALESCE sets the deadline once, so a retry, a re-dispatch or a duplicate script result can't
-// move it. The insert covers a notification whose patch_notifications row was never written, which
-// would otherwise never be patched.
 func (ds *Datastore) SetPatchNotificationInstallAt(ctx context.Context, notificationUUID string, installAt time.Time) (time.Time, error) {
+	// GREATEST means the deadline only ever moves later, so every notice the end user actually sees
+	// gets its full lead time even when the toast takes a while to reach the screen.
+	//
+	// The insert makes the deadline recordable even for a notification with no patch_notifications
+	// row. Creation writes that row first so it is always there, and a notification without one would
+	// otherwise display to the end user and never be patched.
 	const upsertStmt = `
 INSERT INTO patch_notifications (notification_uuid, install_at) VALUES (?, ?)
-ON DUPLICATE KEY UPDATE install_at = COALESCE(install_at, VALUES(install_at))
+ON DUPLICATE KEY UPDATE install_at = GREATEST(COALESCE(install_at, VALUES(install_at)), VALUES(install_at))
 `
 
 	if _, err := ds.writer(ctx).ExecContext(ctx, upsertStmt, notificationUUID, installAt); err != nil {
@@ -139,9 +141,7 @@ func (ds *Datastore) ResetPatchNotification(ctx context.Context, notificationUUI
 }
 
 func (ds *Datastore) ListPatchNotificationsDue(ctx context.Context, cutoff time.Time, limit int) ([]fleet.PatchNotificationDue, error) {
-	// host_online uses the same expression as the online host filter, so the countdown and the host
-	// list agree on what offline means.
-	selectStmt := fmt.Sprintf(`
+	const selectStmt = `
 SELECT
 	pn.notification_uuid,
 	pn.install_at,
@@ -149,12 +149,9 @@ SELECT
 	eun.status,
 	eun.payload,
 	eun.displayed_at,
-	eun.created_at,
-	DATE_ADD(COALESCE(hst.seen_time, h.created_at), INTERVAL LEAST(h.distributed_interval, h.config_tls_refresh) + %d SECOND) > NOW(6) AS host_online
+	eun.created_at
 FROM patch_notifications pn
 	JOIN notifications_end_user eun ON eun.uuid = pn.notification_uuid
-	JOIN hosts h ON h.id = eun.host_id
-	LEFT JOIN host_seen_times hst ON hst.host_id = h.id
 -- a notification with no deadline was never displayed, so it has no countdown to run
 WHERE pn.install_at IS NOT NULL
 	AND pn.install_at <= ?
@@ -162,10 +159,10 @@ WHERE pn.install_at IS NOT NULL
 	AND eun.status IN (?, ?)
 ORDER BY pn.install_at
 LIMIT ?
-`, fleet.OnlineIntervalBuffer)
+`
 
 	var due []fleet.PatchNotificationDue
-	// primary, not the replica: the display that sets the deadline can be seconds old
+	// reads the primary because the display that sets the deadline can be seconds old
 	if err := sqlx.SelectContext(ctx, ds.writer(ctx), &due, selectStmt,
 		cutoff, notifications_api.EndUserNotificationPending, notifications_api.EndUserNotificationDispatched, limit,
 	); err != nil {

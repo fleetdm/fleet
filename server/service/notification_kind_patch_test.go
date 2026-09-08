@@ -111,12 +111,13 @@ func TestCreatePatchNotificationForEndUser(t *testing.T) {
 			wantAppOn: "",
 		},
 		{
-			// the app is recorded first, so the notification still renders
-			name:          "a failure recording the patch notification still leaves the app listed",
+			// Leaving the app unlisted is what lets the next skip start over, since
+			// PatchNotificationExistsForApp is what makes this function return early.
+			name:          "a failure recording the patch notification leaves the app unlisted so it can be retried",
 			newPatchFails: true,
 			wantErr:       true,
 			wantCreated:   true,
-			wantAppOn:     createdUUID,
+			wantAppOn:     "",
 		},
 	}
 
@@ -608,7 +609,6 @@ func TestPatchNotificationCountdowns(t *testing.T) {
 		status        string
 		displayed     bool
 		reminder      bool
-		hostOnline    bool
 		// software inventory by bundle identifier
 		installedVersions map[string]string
 		// GetHostLastInstallData for the first app
@@ -628,7 +628,6 @@ func TestPatchNotificationCountdowns(t *testing.T) {
 			untilDeadline:     4 * time.Minute,
 			status:            notifications_api.EndUserNotificationDispatched,
 			displayed:         true,
-			hostOnline:        true,
 			installedVersions: behind,
 			wantReminder:      true,
 		},
@@ -639,7 +638,6 @@ func TestPatchNotificationCountdowns(t *testing.T) {
 			untilDeadline:     time.Minute,
 			status:            notifications_api.EndUserNotificationPending,
 			displayed:         false,
-			hostOnline:        true,
 			installedVersions: behind,
 		},
 		{
@@ -649,7 +647,6 @@ func TestPatchNotificationCountdowns(t *testing.T) {
 			status:            notifications_api.EndUserNotificationDispatched,
 			displayed:         true,
 			reminder:          true,
-			hostOnline:        true,
 			installedVersions: behind,
 		},
 		{
@@ -657,7 +654,6 @@ func TestPatchNotificationCountdowns(t *testing.T) {
 			untilDeadline:     4 * time.Minute,
 			status:            notifications_api.EndUserNotificationDispatched,
 			displayed:         true,
-			hostOnline:        true,
 			installedVersions: map[string]string{oneBundle: installerVersion, twoBundle: "1.0.0"},
 			wantReminder:      true,
 			wantAppsDropped:   []uint{oneTitleID},
@@ -667,7 +663,6 @@ func TestPatchNotificationCountdowns(t *testing.T) {
 			untilDeadline:     4 * time.Minute,
 			status:            notifications_api.EndUserNotificationDispatched,
 			displayed:         true,
-			hostOnline:        true,
 			installedVersions: map[string]string{oneBundle: installerVersion, twoBundle: "9.0.0"},
 			wantActed:         true,
 			wantAppsDropped:   []uint{oneTitleID, twoTitleID},
@@ -678,7 +673,6 @@ func TestPatchNotificationCountdowns(t *testing.T) {
 			status:            notifications_api.EndUserNotificationDispatched,
 			displayed:         true,
 			reminder:          true,
-			hostOnline:        true,
 			installedVersions: behind,
 			wantActed:         true,
 			wantInstalls:      []uint{oneInstallerID, twoInstallerID},
@@ -690,7 +684,6 @@ func TestPatchNotificationCountdowns(t *testing.T) {
 			status:            notifications_api.EndUserNotificationDispatched,
 			displayed:         true,
 			reminder:          true,
-			hostOnline:        true,
 			installedVersions: behind,
 			lastInstalled:     new(time.Now().UTC()),
 			wantActed:         true,
@@ -703,17 +696,16 @@ func TestPatchNotificationCountdowns(t *testing.T) {
 			status:            notifications_api.EndUserNotificationDispatched,
 			displayed:         true,
 			reminder:          true,
-			hostOnline:        true,
 			installedVersions: behind,
 			alreadyActed:      true,
 			wantActed:         true,
 		},
 		{
-			// the end user never saw the countdown run out, so it starts over
-			name:              "an offline host at the deadline is notified again instead of patched",
+			// An offline host and a reminder still on its way both leave displayed_at unset, and
+			// neither end user has seen the warning, so the countdown starts over for both.
+			name:              "a deadline the end user never saw notifies again instead of patching",
 			untilDeadline:     -time.Minute,
 			status:            notifications_api.EndUserNotificationDispatched,
-			displayed:         true,
 			reminder:          true,
 			installedVersions: behind,
 			wantReset:         true,
@@ -749,7 +741,6 @@ func TestPatchNotificationCountdowns(t *testing.T) {
 					DisplayedAt:      displayed,
 					CreatedAt:        displayedAt.Add(-time.Minute),
 					InstallAt:        time.Now().UTC().Add(c.untilDeadline),
-					HostOnline:       c.hostOnline,
 				}}, nil
 			}
 

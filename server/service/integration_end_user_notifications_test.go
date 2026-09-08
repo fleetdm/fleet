@@ -446,12 +446,17 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 			{ID: "update_now", Label: "Update now"},
 		}, view.Actions, "the reminder swaps Remind for Hide")
 
-		// the reminder's own display reports the deadline already stored rather than
-		// pushing it out another hour
+		// The reminder's display counts from the screen, not from when it was queued, so the end user
+		// always gets the whole five minutes. It is not pushed out by another hour either.
 		postScriptResult(host, *redispatched.ExecutionID, 0)
+		reminderDisplayed := getTestNotification(t, s.ds, notificationUUID)
+		require.NotNil(t, reminderDisplayed.DisplayedAt)
 		afterReminder := getTestInstallAt(t, s.ds, notificationUUID)
 		require.NotNil(t, afterReminder)
-		require.WithinDuration(t, *shortened, *afterReminder, time.Second)
+		require.False(t, afterReminder.Before(reminderDisplayed.DisplayedAt.Add(5*time.Minute)),
+			"the apps must not be queued less than five minutes after the reminder reached the screen")
+		require.True(t, afterReminder.After(*shortened), "the deadline moved out by the reminder's display latency")
+		require.WithinDuration(t, reminderDisplayed.DisplayedAt.Add(5*time.Minute), *afterReminder, time.Second)
 	})
 
 	t.Run("POST delay with no kind registered is a no-op", func(t *testing.T) {
@@ -829,11 +834,6 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 
 		// stand in for the hour passing
 		setTestInstallAt(t, s.ds, notificationUUID, "NOW(6) - INTERVAL 1 MINUTE")
-
-		// createOrbitEnrolledHost backdates seen_time a minute, which is exactly the online window
-		// for a host with no distributed_interval, so say plainly that this host is online. An
-		// offline one restarts its countdown instead of installing.
-		require.NoError(t, s.ds.MarkHostsSeen(ctx, []uint{host.ID}, time.Now()))
 
 		require.NoError(t, s.patchNotificationKind.RunPatchNotificationCountdowns(ctx))
 
