@@ -27,7 +27,7 @@ Want to see how these are coming along at Fleet? We plan everything in the open.
 
 ## 🎓 Upcoming workshops
 
-Fleet workshops are free, run about four hours, and cap at roughly seven people so everyone gets hands-on time. They lead to the Fleet level 1 certificate.
+Fleet workshops are free, run about four hours, and set you on course to becoming a Fleet-certified expert.
 
 - **Apple administrator, Louisville.** September 8, 1pm to 5pm EDT. [Register](https://www.eventbrite.com/e/apple-administrator-workshop-tickets-1997986140330)
 - **GitOps, Washington, DC.** September 10, 1pm to 5pm EDT. [Register](https://www.eventbrite.com/e/gitops-washington-dc-tickets-1992169659078)
