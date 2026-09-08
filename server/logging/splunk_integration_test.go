@@ -125,7 +125,7 @@ func searchSplunk(t *testing.T, marker string) []string {
 	t.Helper()
 
 	searchQuery := fmt.Sprintf(`search index=main "%s" | fields _raw`, marker)
-	client := fleethttp.NewClient(fleethttp.WithNoTimeout(), fleethttp.WithTLSClientConfig(&tls.Config{
+	client := fleethttp.NewClient(fleethttp.WithTLSClientConfig(&tls.Config{
 		InsecureSkipVerify: true, //nolint:gosec // test-only, local Docker Splunk
 	}))
 

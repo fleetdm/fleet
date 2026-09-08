@@ -367,7 +367,7 @@ func TestGzipResponses(t *testing.T) {
 			req, err := http.NewRequest("GET", server.URL+"/api/test-gzip", nil)
 			require.NoError(t, err)
 			req.Header.Set("Accept-Encoding", "gzip")
-			resp, err := fleethttp.NewClient(fleethttp.WithNoTimeout()).Do(req)
+			resp, err := fleethttp.NewClient().Do(req)
 			require.NoError(t, err)
 			defer resp.Body.Close()
 
@@ -380,7 +380,7 @@ func TestGzipResponses(t *testing.T) {
 			// Do NOT set Accept-Encoding header
 			transport := fleethttp.NewTransport()
 			transport.DisableCompression = true // Prevents automatic addition of Accept-Encoding: gzip
-			client := fleethttp.NewClient(fleethttp.WithNoTimeout())
+			client := fleethttp.NewClient()
 			client.Transport = transport
 			resp, err := client.Do(req)
 			require.NoError(t, err)
@@ -404,7 +404,7 @@ func TestGzipResponses(t *testing.T) {
 		req, err := http.NewRequest("GET", server.URL+"/api/test-gzip", nil)
 		require.NoError(t, err)
 		req.Header.Set("Accept-Encoding", "gzip")
-		resp, err := fleethttp.NewClient(fleethttp.WithNoTimeout()).Do(req)
+		resp, err := fleethttp.NewClient().Do(req)
 		require.NoError(t, err)
 		defer resp.Body.Close()
 

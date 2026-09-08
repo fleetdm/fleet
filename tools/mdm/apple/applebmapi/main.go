@@ -80,7 +80,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	depClient := godep.NewClient(depStorage, fleethttp.NewClient(fleethttp.WithNoTimeout()))
+	depClient := godep.NewClient(depStorage, fleethttp.NewClient())
 
 	ctx := context.Background()
 	var res any

@@ -319,7 +319,7 @@ func (ts *withServer) Do(verb, path string, params interface{}, expectedStatusCo
 func (ts *withServer) DoRawWithHeaders(
 	verb string, path string, rawBytes []byte, expectedStatusCode int, headers map[string]string, queryParams ...string,
 ) *http.Response {
-	opts := []fleethttp.ClientOpt{fleethttp.WithNoTimeout()}
+	opts := []fleethttp.ClientOpt{}
 	if expectedStatusCode >= 300 && expectedStatusCode <= 399 {
 		opts = append(opts, fleethttp.WithFollowRedir(false))
 	}
@@ -510,7 +510,6 @@ func (ts *withServer) newSSOTestClient() *http.Client {
 	require.NoError(t, err)
 
 	return fleethttp.NewClient(
-		fleethttp.WithNoTimeout(),
 		fleethttp.WithFollowRedir(false),
 		fleethttp.WithCookieJar(jar),
 	)
@@ -710,7 +709,6 @@ func (ts *withServer) loginSSOUserIDPInitiated(
 	require.NoError(t, err)
 
 	client := fleethttp.NewClient(
-		fleethttp.WithNoTimeout(),
 		fleethttp.WithFollowRedir(false),
 		fleethttp.WithCookieJar(jar),
 	)

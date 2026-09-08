@@ -73,7 +73,7 @@ func testOrbitEnrollAndConfigWithRequiredSignature(t *testing.T, s *Suite) {
 	require.NoError(t, err)
 
 	// Send the signed request
-	client := fleethttp.NewClient(fleethttp.WithNoTimeout())
+	client := fleethttp.NewClient()
 	httpResp, err := client.Do(req)
 	require.NoError(t, err)
 	defer httpResp.Body.Close()

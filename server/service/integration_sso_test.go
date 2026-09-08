@@ -536,7 +536,6 @@ func (s *integrationSSOTestSuite) TestSSOLoginSAMLResponseTampered() {
 	jar, err := cookiejar.New(nil)
 	require.NoError(t, err)
 	client := fleethttp.NewClient(
-		fleethttp.WithNoTimeout(),
 		fleethttp.WithFollowRedir(false),
 		fleethttp.WithCookieJar(jar),
 	)

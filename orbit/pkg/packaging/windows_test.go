@@ -103,7 +103,7 @@ func TestSanitizeVersion(t *testing.T) {
 func TestDownloadAndExtractZip(t *testing.T) {
 	t.Parallel()
 	path := t.TempDir()
-	client := fleethttp.NewClient(fleethttp.WithNoTimeout())
+	client := fleethttp.NewClient()
 	err := downloadAndExtractZip(client, wixDownload, path)
 	require.NoError(t, err)
 	assert.FileExists(t, filepath.Join(path, "heat.exe"))

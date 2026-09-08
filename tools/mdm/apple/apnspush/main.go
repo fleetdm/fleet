@@ -116,7 +116,7 @@ func main() {
 
 	pushProviderFactory := nanopush.NewFactory(
 		nanopush.WithNewClient(func(cert *tls.Certificate) (*http.Client, error) {
-			return fleethttp.NewClient(fleethttp.WithNoTimeout(), fleethttp.WithTLSClientConfig(&tls.Config{
+			return fleethttp.NewClient(fleethttp.WithTLSClientConfig(&tls.Config{
 				Certificates: []tls.Certificate{*cert},
 				MinVersion:   tls.VersionTLS12, // Apple APNs requires TLS 1.2+
 			})), nil
@@ -159,7 +159,7 @@ func pushDirect(ctx context.Context, mdmStorage *mysql.NanoMDMStorage, baseURL s
 	// transport Fleet actually uses. HTTP/2 comes from ALPN (fleethttp's
 	// transport inherits ForceAttemptHTTP2 from http.DefaultTransport); the
 	// response's Proto is printed below, so a downgrade is visible.
-	client := fleethttp.NewClient(fleethttp.WithNoTimeout(), fleethttp.WithTLSClientConfig(&tls.Config{
+	client := fleethttp.NewClient(fleethttp.WithTLSClientConfig(&tls.Config{
 		Certificates: []tls.Certificate{*cert},
 		MinVersion:   tls.VersionTLS12, // Apple APNs requires TLS 1.2+
 	}))

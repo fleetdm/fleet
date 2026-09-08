@@ -57,7 +57,7 @@ func (s *integrationTestSuite) TestSlowOsqueryHost() {
 	req, err := http.NewRequest("POST", server.URL+"/api/v1/osquery/distributed/write", &slowReader{})
 	require.NoError(t, err)
 
-	client := fleethttp.NewClient(fleethttp.WithNoTimeout())
+	client := fleethttp.NewClient()
 
 	resp, err := client.Do(req)
 	require.NoError(t, err)

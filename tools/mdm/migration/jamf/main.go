@@ -102,7 +102,7 @@ func newJamfClient(username, password, url string) (*jamfClient, error) {
 }
 
 func (j *jamfClient) doWithRequest(req *http.Request) ([]byte, error) {
-	client := fleethttp.NewClient(fleethttp.WithNoTimeout())
+	client := fleethttp.NewClient()
 
 	resp, err := client.Do(req)
 	if err != nil {

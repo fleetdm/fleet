@@ -94,7 +94,7 @@ func TestLogin(t *testing.T) {
 		// test logout
 		req, _ := http.NewRequest("POST", server.URL+"/api/latest/fleet/logout", nil)
 		req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", jsn.Token))
-		client := fleethttp.NewClient(fleethttp.WithNoTimeout())
+		client := fleethttp.NewClient()
 		resp, err = client.Do(req)
 		require.Nil(t, err)
 		assert.Equal(t, http.StatusOK, resp.StatusCode, strconv.Itoa(tt.status))
@@ -218,7 +218,7 @@ func TestNoHeaderErrorsDifferently(t *testing.T) {
 	_, _, server := setupAuthTest(t)
 
 	req, _ := http.NewRequest("GET", server.URL+"/api/latest/fleet/users", nil)
-	client := fleethttp.NewClient(fleethttp.WithNoTimeout())
+	client := fleethttp.NewClient()
 	resp, err := client.Do(req)
 	require.Nil(t, err)
 	defer resp.Body.Close()

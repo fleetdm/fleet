@@ -386,7 +386,7 @@ func testCertificateRotation(t *testing.T, s *Suite) {
 	req.Header.Set("X-Client-Cert-Serial", oldSerialHex)
 
 	// Use client that doesn't follow redirects to verify redirect behavior
-	noRedirectClient := fleethttp.NewClient(fleethttp.WithNoTimeout(), fleethttp.WithFollowRedir(false))
+	noRedirectClient := fleethttp.NewClient(fleethttp.WithFollowRedir(false))
 	resp, err := noRedirectClient.Do(req)
 	require.NoError(t, err)
 	resp.Body.Close()

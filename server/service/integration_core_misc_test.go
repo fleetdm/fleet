@@ -63,7 +63,7 @@ func (s *integrationTestSuite) TestMDMAnyMiddlewareAccess() {
 		require.NoError(t, err)
 		req.Header.Set("Authorization", "Bearer "+s.token)
 
-		resp, err := fleethttp.NewClient(fleethttp.WithNoTimeout()).Do(req)
+		resp, err := fleethttp.NewClient().Do(req)
 		require.NoError(t, err)
 		return resp
 	}
