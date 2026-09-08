@@ -42,6 +42,12 @@
       max-width: 688px;
     }
   }
+  [parasails-component='ajax-overlay'] {
+  }
+  [purpose='loading-indicator'] {
+    .loader(@core-vibrant-green);
+  }
+
   [purpose='profile-editor'] {
     position: relative;
     .ace_content {
@@ -129,7 +135,6 @@
     border-radius: var(--spacing-spacing-xxs, 4px);
     border: 1px solid var(--border-border-primary, #E2E4EA);
     background: var(--surface-surface-secondary, #F9FAFC);
-    margin-left: 16px;
     width: 100%;
   }
   li {
