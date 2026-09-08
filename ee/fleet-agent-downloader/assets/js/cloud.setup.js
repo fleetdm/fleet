@@ -13,7 +13,7 @@
 Cloud.setup({
 
   /* eslint-disable */
-  methods: {"logout":{"verb":"GET","url":"/api/v1/account/logout","args":[]},"signupOktaUserOrRedirect":{"verb":"GET","url":"/entrance/signup-okta-user-or-redirect","args":[]},"downloadFleetInstaller":{"verb":"GET","url":"/download-fleet-installer","args":[]}}
+  methods: {"logout":{"verb":"GET","url":"/api/v1/account/logout","args":[]},"signupSsoUserOrRedirect":{"verb":"GET","url":"/entrance/signup-sso-user-or-redirect","args":[]},"downloadFleetInstaller":{"verb":"GET","url":"/download-fleet-installer","args":[]}}
   /* eslint-enable */
 
 });

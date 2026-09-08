@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "154.0",
+      "version": "155.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.mozilla.thunderbird';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.mozilla.thunderbird' AND version_compare(bundle_short_version, '154.0') < 0);",
-        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'org.mozilla.thunderbird');"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.mozilla.thunderbird' AND version_compare(bundle_short_version, '155.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'org.mozilla.thunderbird' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://download-installer.cdn.mozilla.net/pub/thunderbird/releases/154.0/mac/en-US/Thunderbird%20154.0.dmg",
+      "installer_url": "https://download-installer.cdn.mozilla.net/pub/thunderbird/releases/155.0/mac/en-US/Thunderbird%20155.0.dmg",
       "install_script_ref": "7ab956d5",
       "uninstall_script_ref": "25eb0ac3",
-      "sha256": "062855b04554718c499806d112132f723af0e9906a8a9d24bf2a34fb7463bbc9",
+      "sha256": "e840894e590db4bdc569eebd9143e49285433d8c8fb171a1d3bc818fca8afeb9",
       "default_categories": [
         "Productivity"
       ]

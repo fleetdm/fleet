@@ -5,7 +5,7 @@
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.electron.twine';",
         "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.electron.twine' AND version_compare(bundle_short_version, '2.12.0') < 0);",
-        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.electron.twine');"
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.electron.twine' AND a.bundle_executable != '');"
       },
       "installer_url": "https://github.com/klembot/twinejs/releases/download/2.12.0/Twine-2.12.0-macOS.dmg",
       "install_script_ref": "c33abed2",

@@ -75,13 +75,23 @@ parasails.registerComponent('docsNavAndSearch', {
   mounted: async function() {
     let filterForSearch = {};
     if(this.searchFilter){
-      let searchIndexesThatExist = ['docs', 'software', 'queries', 'vitals', 'policies', 'tables', 'handbook', 'controls'];
+      let searchIndexesThatExist = ['docs', 'software', 'queries', 'vitals', 'policies', 'tables', 'controls'];
+      let buttonTextBySearchFilter = {
+        docs: 'Search the docs',
+        software: 'Search software',
+        queries: 'Search reports',
+        vitals: 'Search vitals',
+        policies: 'Search policies',
+        tables: 'Search data tables',
+        controls: 'Search controls'
+      };
       if(!searchIndexesThatExist.includes(this.searchFilter)){
         throw new Error(`Invalid 'searchFilter' value provided to <docs-nav-and-search> component. Please change the searchFilter value to one of: ${searchIndexesThatExist.join(', ')}`);
       }
       filterForSearch = {
         'facetFilters': [`section:${this.searchFilter}`]
       };
+      this.searchBoxLabel = buttonTextBySearchFilter[this.searchFilter];
     }
     if(this.algoliaPublicKey) {
       docsearch({
@@ -89,9 +99,15 @@ parasails.registerComponent('docsNavAndSearch', {
         apiKey: this.algoliaPublicKey,
         indexName: 'fleetdm',
         container: '#docsearch-query',
-        placeholder: 'Search',
+        placeholder: this.searchBoxLabel,
         debug: false,
         searchParameters: filterForSearch,
+        translations: {
+          button: {
+            buttonText: this.searchBoxLabel,
+            buttonAriaLabel: this.searchBoxLabel,
+          },
+        },
       });
     }
   },

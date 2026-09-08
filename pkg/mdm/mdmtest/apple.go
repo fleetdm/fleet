@@ -867,6 +867,10 @@ func (c *TestAppleMDMClient) SCEPEnroll() error {
 		return err
 	}
 
+	// the device has a single MDM identity, so a new SCEP cert replaces any
+	// ACME one it previously enrolled with
+	c.acmeCert = nil
+	c.acmeKey = nil
 	c.scepCert = cert
 	c.scepKey = key
 	return nil
@@ -955,6 +959,10 @@ func (c *TestAppleMDMClient) ACMEEnroll() error {
 		return fmt.Errorf("parse x509 ACME certificate: %w", err)
 	}
 
+	// the device has a single MDM identity, so a new ACME cert replaces any
+	// SCEP one it previously enrolled with
+	c.scepCert = nil
+	c.scepKey = nil
 	c.acmeCert = acmeCert
 	// We can reuse the same key we used for the CSR since it's the one that matches the cert
 	c.acmeKey = acmeKey
@@ -1145,6 +1153,23 @@ func (c *TestAppleMDMClient) Acknowledge(cmdUUID string) (*mdm.Command, error) {
 		"Topic":        "com.apple.mgmt.External." + c.Identifier(),
 		"EnrollmentID": "testenrollmentid-" + c.Identifier(),
 		"CommandUUID":  cmdUUID,
+	}
+	if c.UUID != "" {
+		payload["UDID"] = c.UUID
+	}
+	return c.sendAndDecodeCommandResponse(payload)
+}
+
+// AcknowledgeVerifyRecoveryLock acknowledges a VerifyRecoveryLock command and reports the
+// device's verdict. A device acknowledges the command whether or not the password matched
+// and answers in PasswordVerified, so an acknowledgment alone says nothing about the lock.
+func (c *TestAppleMDMClient) AcknowledgeVerifyRecoveryLock(cmdUUID string, passwordVerified bool) (*mdm.Command, error) {
+	payload := map[string]any{
+		"Status":           "Acknowledged",
+		"Topic":            "com.apple.mgmt.External." + c.Identifier(),
+		"EnrollmentID":     "testenrollmentid-" + c.Identifier(),
+		"CommandUUID":      cmdUUID,
+		"PasswordVerified": passwordVerified,
 	}
 	if c.UUID != "" {
 		payload["UDID"] = c.UUID

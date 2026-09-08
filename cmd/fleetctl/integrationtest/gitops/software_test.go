@@ -52,7 +52,7 @@ func TestGitOpsTeamSoftwareInstallers(t *testing.T) {
 		{"testdata/gitops/team_software_installer_no_url_multi.yml", "multi_missing_url.yml, list item #1"},
 		{
 			"testdata/gitops/team_software_installer_invalid_self_service_value.yml",
-			"Couldn't edit \"../../fleetctl/testdata/gitops/team_software_installer_invalid_self_service_value.yml\" at \"software.packages.self_service\", expected type bool but got string",
+			"Couldn't edit \"../../fleetctl/testdata/gitops/team_software_installer_invalid_self_service_value.yml\" at \"software.packages.0.self_service\", expected type bool but got string",
 		},
 		{
 			"testdata/gitops/team_software_installer_invalid_both_include_exclude.yml",
@@ -441,7 +441,7 @@ func TestGitOpsNoTeamSoftwareInstallers(t *testing.T) {
 		{"testdata/gitops/no_team_software_installer_no_url.yml", "at least one of hash_sha256 or url is required for each software package"},
 		{
 			"testdata/gitops/no_team_software_installer_invalid_self_service_value.yml",
-			"Couldn't edit \"../../fleetctl/testdata/gitops/no-team.yml\" at \"software.packages.self_service\", expected type bool but got string",
+			"Couldn't edit \"../../fleetctl/testdata/gitops/no-team.yml\" at \"software.packages.0.self_service\", expected type bool but got string",
 		},
 		{
 			"testdata/gitops/no_team_software_installer_invalid_both_include_exclude.yml",
@@ -582,7 +582,7 @@ func TestGitOpsTeamVPPApps(t *testing.T) {
 		{"testdata/gitops/team_vpp_valid_app.yml", "VPP token expired", time.Now().Add(-24 * time.Hour), map[string]uint{}},
 		{"testdata/gitops/team_vpp_invalid_app.yml", "app not available on vpp account", time.Now().Add(24 * time.Hour), map[string]uint{}},
 		{
-			"testdata/gitops/team_vpp_incorrect_type.yml", "Couldn't edit \"../../fleetctl/testdata/gitops/team_vpp_incorrect_type.yml\" at \"software.app_store_apps.app_store_id\", expected type string but got number",
+			"testdata/gitops/team_vpp_incorrect_type.yml", "Couldn't edit \"../../fleetctl/testdata/gitops/team_vpp_incorrect_type.yml\" at \"software.app_store_apps.0.app_store_id\", expected type string but got number",
 			time.Now().Add(24 * time.Hour),
 			map[string]uint{},
 		},

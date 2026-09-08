@@ -11,6 +11,7 @@ import (
 	"log/slog"
 	"maps"
 	"math/rand"
+	"reflect"
 	std_slices "slices"
 	"sort"
 	"strconv"
@@ -88,6 +89,9 @@ func TestSoftware(t *testing.T) {
 		{"HostSoftwareInstallUninstallNoDropout", testHostSoftwareInstallUninstallNoDropout},
 		{"HostVPPInstallNoDropout", testHostVPPInstallNoDropout},
 		{"HostInHouseInstallNoDropout", testHostInHouseInstallNoDropout},
+		{"HostSoftwareInstallUninstallLatestPerInstaller", testHostSoftwareInstallUninstallLatestPerInstaller},
+		{"HostVPPInstallLatestPerApp", testHostVPPInstallLatestPerApp},
+		{"HostInHouseInstallLatestPerApp", testHostInHouseInstallLatestPerApp},
 		{"ListHostSoftwareMacOSApplicationsFilter", testListHostSoftwareMacOSApplicationsFilter},
 		{"ListHostSoftwarePaginationWithMultipleInstallers", testListHostSoftwarePaginationWithMultipleInstallers},
 		{"ListLinuxHostSoftware", testListLinuxHostSoftware},
@@ -558,6 +562,74 @@ func testSoftwareLoadSupportsTonsOfCVEs(t *testing.T, ds *Datastore) {
 		case "foo":
 			assert.Len(t, software.Vulnerabilities, 0)
 		}
+	}
+}
+
+// TestCanUseOptimizedListQueryOrderKeys pins which requests take the covering-index
+// path, including the spacing the ordering helper tolerates.
+func TestCanUseOptimizedListQueryOrderKeys(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		orderKey       string
+		withHostCounts bool
+		want           bool
+	}{
+		{"", false, true},                 // default ordering, unchanged
+		{"  ", false, true},               // trims to empty, so still the default
+		{"hosts_count", true, true},       // counts requested and returned
+		{" hosts_count ", true, true},     // same request, just spaced
+		{"hosts_count", false, false},     // counts not returned, so not sortable
+		{" hosts_count ", false, false},   // spacing must not get around that
+		{"name", true, false},             // not the covering index column
+		{"hosts_count,name", true, false}, // multi-column defeats the index
+		{" hosts_count , name ", true, false},
+	} {
+		name := fmt.Sprintf("%q/counts=%v", tc.orderKey, tc.withHostCounts)
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			got := canUseOptimizedListQuery(fleet.SoftwareListOptions{
+				ListOptions:    fleet.ListOptions{OrderKey: tc.orderKey},
+				WithHostCounts: tc.withHostCounts,
+			})
+			require.Equal(t, tc.want, got)
+		})
+	}
+}
+
+func TestAppendOrderByToSelectRequiresAllowlist(t *testing.T) {
+	t.Parallel()
+
+	_, err := appendOrderByToSelect(dialect.From("software"), fleet.ListOptions{OrderKey: "name"}, nil)
+	require.Error(t, err, "a missing allowlist must reject every order key")
+}
+
+// TestSoftwareOrderKeysCoverListedColumns fails when a column is added to the
+// software list without deciding whether it is sortable, so the decision is
+// made deliberately rather than by omission.
+func TestSoftwareOrderKeysCoverListedColumns(t *testing.T) {
+	// Returned by the list, but not selected by its query, so not sortable.
+	notSelected := map[string]struct{}{
+		"last_opened_at": {},
+	}
+
+	sortable := softwareOrderKeys(fleet.SoftwareListOptions{IncludeCVEScores: true, WithHostCounts: true})
+	typ := reflect.TypeFor[fleet.Software]()
+	for field := range typ.Fields() {
+		column := field.Tag.Get("db")
+		if column == "" {
+			continue
+		}
+		_, allowed := sortable[column]
+		_, skipped := notSelected[column]
+
+		if field.Tag.Get("json") == "-" {
+			assert.False(t, allowed, "%s is not returned by the list, so sorting on it would expose it", column)
+			continue
+		}
+		assert.True(t, allowed || skipped,
+			"%s is returned by the list: add it to softwareAllowedOrderKeys, or to notSelected here if the query doesn't select it",
+			column)
 	}
 }
 
@@ -1037,8 +1109,71 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 			}
 
 			_, _, err := ds.ListSoftware(context.Background(), opts)
-			require.Error(t, err, "SQL injection payload should result in column error: %s", payload)
-			require.Contains(t, err.Error(), "Unknown column", "Expected column error for payload: %s", payload)
+			require.Error(t, err, "SQL injection payload should be rejected: %s", payload)
+			// Rejected before reaching the query.
+			require.Contains(t, err.Error(), "invalid order_key", "Expected order key rejection for payload: %s", payload)
+		}
+	})
+
+	t.Run("order key must be a supported sort key", func(t *testing.T) {
+		// Real columns the response doesn't return: sortable only if unguarded.
+		for _, key := range []string{"s.id", "s.title_id", "s.application_id", "vendor_old", "checksum"} {
+			_, _, err := ds.ListSoftware(context.Background(), fleet.SoftwareListOptions{
+				ListOptions: fleet.ListOptions{OrderKey: key},
+			})
+			require.Error(t, err, "order key %q should be rejected", key)
+			require.Contains(t, err.Error(), "invalid order_key", "order key %q", key)
+		}
+
+		// Supported keys, including a multi-column key, keep working.
+		// hosts_count alone goes to the separate query, so pair it with a second
+		// key to stay on this path.
+		for _, key := range []string{"name", "generated_cpe", "cvss_score", "name,version", "hosts_count,name"} {
+			_, _, err := ds.ListSoftware(context.Background(), fleet.SoftwareListOptions{
+				ListOptions:      fleet.ListOptions{OrderKey: key},
+				IncludeCVEScores: true,
+				WithHostCounts:   true,
+			})
+			require.NoError(t, err, "order key %q should be accepted", key)
+		}
+
+		// CVE columns are only selected when scores are included.
+		for _, key := range []string{"cvss_score", "cve_published", "epss_probability", "cisa_known_exploit"} {
+			_, _, err := ds.ListSoftware(context.Background(), fleet.SoftwareListOptions{
+				ListOptions: fleet.ListOptions{OrderKey: key},
+			})
+			require.Error(t, err, "order key %q should be rejected without CVE scores", key)
+			require.Contains(t, err.Error(), "invalid order_key", "order key %q", key)
+		}
+
+		// Same for hosts_count, again paired to stay on this path.
+		for _, key := range []string{"hosts_count", "hosts_count,name"} {
+			_, _, err := ds.ListSoftware(context.Background(), fleet.SoftwareListOptions{
+				ListOptions: fleet.ListOptions{OrderKey: key},
+			})
+			require.Error(t, err, "%q should be rejected without host counts", key)
+			require.Contains(t, err.Error(), "invalid order_key", "order key %q", key)
+		}
+
+		// Not naming an order key still uses the default ordering.
+		_, _, err := ds.ListSoftware(context.Background(), fleet.SoftwareListOptions{})
+		require.NoError(t, err)
+
+		// Whitespace and empty segments around a key are tolerated.
+
+		for _, key := range []string{" name , version ", "name,", ",name"} {
+			_, _, err := ds.ListSoftware(context.Background(), fleet.SoftwareListOptions{
+				ListOptions: fleet.ListOptions{OrderKey: key},
+			})
+			require.NoError(t, err, "order key %q should be accepted", key)
+		}
+
+		// ...and keys that don't depend on them work either way.
+		for _, key := range []string{"name", "generated_cpe"} {
+			_, _, err := ds.ListSoftware(context.Background(), fleet.SoftwareListOptions{
+				ListOptions: fleet.ListOptions{OrderKey: key},
+			})
+			require.NoError(t, err, "order key %q should be accepted", key)
 		}
 	})
 
@@ -12480,6 +12615,7 @@ func TestMatchWindowsFMATitle(t *testing.T) {
 		})
 	}
 }
+
 func testHostSWPaginationWithMultipleFMAVersions(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
@@ -12641,7 +12777,7 @@ func testListHostSoftwareFMAReplacedInstallerOutOfScope(t *testing.T, ds *Datast
 		InstallScript:        "exit 0",
 		InstallerFile:        tfr,
 		StorageID:            "storage_v1",
-		FleetMaintainedAppID: new(fma.ID),
+		FleetMaintainedAppID: &fma.ID,
 		Filename:             "spotify.pkg",
 		Title:                "Spotify",
 		Version:              "1.0",
@@ -12781,7 +12917,7 @@ func testListHostSoftwareFMAReplacedInstallerInScopeShowsActiveMetadata(t *testi
 		InstallScript:        "exit 0",
 		InstallerFile:        tfr,
 		StorageID:            "old_storage",
-		FleetMaintainedAppID: new(fma.ID),
+		FleetMaintainedAppID: &fma.ID,
 		Filename:             "fma.pkg",
 		Title:                "FMA App",
 		Version:              "1.0",
@@ -12878,7 +13014,7 @@ func testInstalledInstallersSqlPicksActiveInstaller(t *testing.T, ds *Datastore)
 		InstallScript:        "exit 0",
 		InstallerFile:        tfr,
 		StorageID:            "iisql_storage_v1",
-		FleetMaintainedAppID: new(fma.ID),
+		FleetMaintainedAppID: &fma.ID,
 		Filename:             "iisql.pkg",
 		Title:                "IISql App",
 		Version:              "1.0",
@@ -12967,7 +13103,7 @@ func testListHostSoftwareUninstallFMAReplacedRespectsActiveInstaller(t *testing.
 		UninstallScript:      "exit 0",
 		InstallerFile:        tfr,
 		StorageID:            "uninst_v1",
-		FleetMaintainedAppID: new(fma.ID),
+		FleetMaintainedAppID: &fma.ID,
 		Filename:             "fma_uninst.pkg",
 		Title:                "FMA Uninst App",
 		Version:              "1.0",
@@ -13085,7 +13221,7 @@ func testListHostSoftwareStmtAvailableSkipsInactiveInstaller(t *testing.T, ds *D
 		InstallScript:        "exit 0",
 		InstallerFile:        tfr,
 		StorageID:            "stmtavail_v1",
-		FleetMaintainedAppID: new(fma.ID),
+		FleetMaintainedAppID: &fma.ID,
 		Filename:             "stmtavail.pkg",
 		Title:                "StmtAvail App",
 		Version:              "1.0",
@@ -13798,6 +13934,245 @@ INSERT INTO in_house_app_upcoming_activities (upcoming_activity_id, in_house_app
 	require.Len(t, installs, 1)
 	require.NotNil(t, installs[0].InHouseAppID)
 	require.Equal(t, appID, *installs[0].InHouseAppID)
+}
+
+// The next three tests pin the "latest attempt per installer/app" semantics of the
+// per-host software detail queries: among a host's non-removed, non-canceled
+// attempts the newest by (created_at, id) wins, newer removed/canceled rows do not
+// shadow an older eligible row, and a queued upcoming activity supersedes history.
+
+// queueUpcomingInstall enqueues a pending install for the host and links it to the
+// installer/app it targets, so the "queued install supersedes history" branch of the
+// per-host software queries can be exercised.
+func queueUpcomingInstall(t *testing.T, ds *Datastore, hostID uint, activityType, execID, linkStmt string, linkArgs ...any) {
+	t.Helper()
+	ctx := t.Context()
+	res, err := ds.writer(ctx).ExecContext(ctx, `
+INSERT INTO upcoming_activities (host_id, priority, fleet_initiated, activity_type, execution_id, payload)
+VALUES (?, 0, 1, ?, ?, JSON_OBJECT('self_service', false))`, hostID, activityType, execID)
+	require.NoError(t, err)
+	uaID, err := res.LastInsertId()
+	require.NoError(t, err)
+	_, err = ds.writer(ctx).ExecContext(ctx, linkStmt, append([]any{uaID}, linkArgs...)...)
+	require.NoError(t, err)
+}
+
+// indexHostSoftware keys rows by a pointer field, requiring it to be set on every row.
+func indexHostSoftware[K comparable](t *testing.T, rows []*hostSoftware, key func(*hostSoftware) *K) map[K]*hostSoftware {
+	t.Helper()
+	byKey := make(map[K]*hostSoftware, len(rows))
+	for _, row := range rows {
+		k := key(row)
+		require.NotNil(t, k)
+		byKey[*k] = row
+	}
+	return byKey
+}
+
+// requireLastInstall checks the reported last install, and its status when want is set.
+func requireLastInstall(t *testing.T, name string, sw *hostSoftware, wantUUID string, wantStatus *fleet.SoftwareInstallerStatus) {
+	t.Helper()
+	require.NotNil(t, sw, name)
+	require.NotNil(t, sw.LastInstallInstallUUID, name)
+	require.Equal(t, wantUUID, *sw.LastInstallInstallUUID, name)
+	if wantStatus != nil {
+		require.NotNil(t, sw.Status, name)
+		require.Equal(t, *wantStatus, *sw.Status, name)
+	}
+}
+
+// latestCase is one installer/app whose reported last install is checked.
+type latestCase[K comparable] struct {
+	name       string
+	key        K
+	wantUUID   string
+	wantStatus *fleet.SoftwareInstallerStatus
+}
+
+func testHostSoftwareInstallUninstallLatestPerInstaller(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	host := test.NewHost(t, ds, "hsilatest", "1", "hsilatestkey", "hsilatestuuid", time.Now())
+	otherHost := test.NewHost(t, ds, "hsilatest2", "1", "hsilatest2key", "hsilatest2uuid", time.Now())
+
+	newInstaller := func(name string) uint {
+		tfr, err := fleet.NewTempFileReader(strings.NewReader("install"), t.TempDir)
+		require.NoError(t, err)
+		installerID, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+			InstallScript: "install", UninstallScript: "uninstall",
+			InstallerFile: tfr, StorageID: name + "-storage", Filename: name + ".pkg",
+			Title: name, Version: "1.0", Source: "apps",
+			UserID: user.ID, ValidatedLabels: &fleet.LabelIdentsWithScope{},
+		})
+		require.NoError(t, err)
+		return installerID
+	}
+	installer1, installer2, installer3 := newInstaller("hsilatest1"), newInstaller("hsilatest2"), newInstaller("hsilatest3")
+
+	base := time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC)
+	seed := func(execID string, hostID, installerID uint, uninstall, removed, canceled bool, exitCode int, createdAt time.Time) {
+		installExit, uninstallExit := any(nil), any(nil)
+		if uninstall {
+			uninstallExit = exitCode
+		} else {
+			installExit = exitCode
+		}
+		_, err := ds.writer(ctx).ExecContext(ctx, `
+INSERT INTO host_software_installs
+	(execution_id, host_id, software_installer_id, user_id, uninstall, removed, canceled, install_script_exit_code, uninstall_script_exit_code, created_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			execID, hostID, installerID, user.ID, uninstall, removed, canceled, installExit, uninstallExit, createdAt)
+		require.NoError(t, err)
+	}
+
+	// installer1: newer canceled/removed rows are ignored both as candidates and as
+	// competitors, and another host's newer attempts don't leak into this host's result.
+	seed("il1-old-ok", host.ID, installer1, false, false, false, 0, base)
+	seed("il1-latest-fail", host.ID, installer1, false, false, false, 1, base.Add(time.Second))
+	seed("il1-canceled", host.ID, installer1, false, false, true, 0, base.Add(2*time.Second))
+	seed("il1-removed", host.ID, installer1, false, true, false, 0, base.Add(3*time.Second))
+	seed("il1-other-host", otherHost.ID, installer1, false, false, false, 0, base.Add(10*time.Second))
+	seed("ul1-old", host.ID, installer1, true, false, false, 1, base)
+	seed("ul1-latest", host.ID, installer1, true, false, false, 1, base.Add(time.Second))
+	seed("ul1-canceled", host.ID, installer1, true, false, true, 1, base.Add(2*time.Second))
+	seed("ul1-other-host", otherHost.ID, installer1, true, false, false, 1, base.Add(10*time.Second))
+	seed("il2-first", host.ID, installer2, false, false, false, 0, base)
+	seed("il2-second", host.ID, installer2, false, false, false, 0, base)
+	seed("il3-history", host.ID, installer3, false, false, false, 0, base)
+	queueUpcomingInstall(t, ds, host.ID, "software_install", "il3-upcoming",
+		`INSERT INTO software_install_upcoming_activities (upcoming_activity_id, software_installer_id) VALUES (?, ?)`, installer3)
+
+	installs, err := hostSoftwareInstalls(ds, ctx, host.ID)
+	require.NoError(t, err)
+	require.Len(t, installs, 3)
+	byInstaller := indexHostSoftware(t, installs, func(sw *hostSoftware) *uint { return sw.InstallerID })
+
+	for _, c := range []latestCase[uint]{
+		{"newest eligible attempt wins", installer1, "il1-latest-fail", new(fleet.SoftwareInstallFailed)},
+		{"identical created_at, higher id breaks the tie", installer2, "il2-second", nil},
+		{"queued upcoming install supersedes history", installer3, "il3-upcoming", new(fleet.SoftwareInstallPending)},
+	} {
+		requireLastInstall(t, c.name, byInstaller[c.key], c.wantUUID, c.wantStatus)
+	}
+
+	uninstalls, err := hostSoftwareUninstalls(ds, ctx, host.ID)
+	require.NoError(t, err)
+	require.Len(t, uninstalls, 1)
+	require.NotNil(t, uninstalls[0].InstallerID)
+	require.Equal(t, installer1, *uninstalls[0].InstallerID)
+	require.NotNil(t, uninstalls[0].LastUninstallScriptExecutionID)
+	require.Equal(t, "ul1-latest", *uninstalls[0].LastUninstallScriptExecutionID)
+	require.NotNil(t, uninstalls[0].Status)
+	require.Equal(t, fleet.SoftwareUninstallFailed, *uninstalls[0].Status)
+}
+
+func testHostVPPInstallLatestPerApp(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	test.CreateInsertGlobalVPPToken(t, ds)
+	host := test.NewHost(t, ds, "vpplatest-host", "1", "vpplatestkey", "vpplatestuuid", time.Now())
+	otherHost := test.NewHost(t, ds, "vpplatest-host2", "1", "vpplatest2key", "vpplatest2uuid", time.Now())
+
+	newApp := func(n string) fleet.VPPAppID {
+		app, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+			Name: "vpplatest" + n, BundleIdentifier: "com.app.vpplatest" + n,
+			AdamID: "adam_vpp_latest_" + n, Platform: fleet.MacOSPlatform,
+		}, nil)
+		require.NoError(t, err)
+		return app.VPPAppID
+	}
+	app1, app2, app3 := newApp("1"), newApp("2"), newApp("3")
+
+	base := time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC)
+	seed := func(cmdUUID string, hostID uint, appID fleet.VPPAppID, removed, canceled bool, createdAt time.Time) {
+		_, err := ds.writer(ctx).ExecContext(ctx, `
+INSERT INTO host_vpp_software_installs (host_id, adam_id, platform, command_uuid, removed, canceled, created_at)
+VALUES (?, ?, ?, ?, ?, ?, ?)`,
+			hostID, appID.AdamID, appID.Platform, cmdUUID, removed, canceled, createdAt)
+		require.NoError(t, err)
+	}
+
+	// app1: newer canceled/removed rows don't shadow the latest eligible attempt, and
+	// another host's newer attempts don't leak into this host's result.
+	seed("vpp1-old", host.ID, app1, false, false, base)
+	seed("vpp1-latest", host.ID, app1, false, false, base.Add(time.Second))
+	seed("vpp1-canceled", host.ID, app1, false, true, base.Add(2*time.Second))
+	seed("vpp1-removed", host.ID, app1, true, false, base.Add(3*time.Second))
+	seed("vpp1-other-host", otherHost.ID, app1, false, false, base.Add(10*time.Second))
+	seed("vpp2-first", host.ID, app2, false, false, base)
+	seed("vpp2-second", host.ID, app2, false, false, base)
+	seed("vpp3-history", host.ID, app3, false, false, base)
+	queueUpcomingInstall(t, ds, host.ID, "vpp_app_install", "vpp3-upcoming",
+		`INSERT INTO vpp_app_upcoming_activities (upcoming_activity_id, adam_id, platform) VALUES (?, ?, ?)`, app3.AdamID, app3.Platform)
+
+	installs, err := hostVPPInstalls(ds, ctx, host.ID, 0, false, true)
+	require.NoError(t, err)
+	require.Len(t, installs, 3)
+	byAdamID := indexHostSoftware(t, installs, func(sw *hostSoftware) *string { return sw.VPPAppAdamID })
+
+	for _, c := range []latestCase[string]{
+		{"newest eligible attempt wins", app1.AdamID, "vpp1-latest", nil},
+		{"identical created_at, higher id breaks the tie", app2.AdamID, "vpp2-second", nil},
+		{"queued upcoming install supersedes history", app3.AdamID, "vpp3-upcoming", new(fleet.SoftwareInstallPending)},
+	} {
+		requireLastInstall(t, c.name, byAdamID[c.key], c.wantUUID, c.wantStatus)
+	}
+}
+
+func testHostInHouseInstallLatestPerApp(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team latest"})
+	require.NoError(t, err)
+	host := test.NewHost(t, ds, "ihalatest-host", "1", "ihalatestkey", "ihalatestuuid", time.Now())
+	otherHost := test.NewHost(t, ds, "ihalatest-host2", "1", "ihalatest2key", "ihalatest2uuid", time.Now())
+	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID, otherHost.ID})))
+
+	newApp := func(n string) uint {
+		appID, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+			TeamID: &team.ID, UserID: user.ID,
+			Title: "ihalatest" + n, Filename: "ihalatest" + n + ".ipa", BundleIdentifier: "com.ihalatest" + n,
+			StorageID: "ihalatest" + n + "-storage", Platform: "ios", Extension: "ipa", Version: "1.0",
+			ValidatedLabels: &fleet.LabelIdentsWithScope{},
+		})
+		require.NoError(t, err)
+		return appID
+	}
+	app1, app2, app3 := newApp("1"), newApp("2"), newApp("3")
+
+	base := time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC)
+	seed := func(cmdUUID string, hostID, appID uint, removed, canceled bool, createdAt time.Time) {
+		_, err := ds.writer(ctx).ExecContext(ctx, `
+INSERT INTO host_in_house_software_installs (host_id, in_house_app_id, command_uuid, platform, removed, canceled, created_at)
+VALUES (?, ?, ?, 'ios', ?, ?, ?)`,
+			hostID, appID, cmdUUID, removed, canceled, createdAt)
+		require.NoError(t, err)
+	}
+
+	// app1: newer canceled/removed rows don't shadow the latest eligible attempt, and
+	// another host's newer attempts don't leak into this host's result.
+	seed("iha1-old", host.ID, app1, false, false, base)
+	seed("iha1-latest", host.ID, app1, false, false, base.Add(time.Second))
+	seed("iha1-canceled", host.ID, app1, false, true, base.Add(2*time.Second))
+	seed("iha1-removed", host.ID, app1, true, false, base.Add(3*time.Second))
+	seed("iha1-other-host", otherHost.ID, app1, false, false, base.Add(10*time.Second))
+	seed("iha2-first", host.ID, app2, false, false, base)
+	seed("iha2-second", host.ID, app2, false, false, base)
+	seed("iha3-history", host.ID, app3, false, false, base)
+	queueUpcomingInstall(t, ds, host.ID, "in_house_app_install", "iha3-upcoming",
+		`INSERT INTO in_house_app_upcoming_activities (upcoming_activity_id, in_house_app_id) VALUES (?, ?)`, app3)
+
+	installs, err := hostInHouseInstalls(ds, ctx, host.ID, team.ID, false, true)
+	require.NoError(t, err)
+	require.Len(t, installs, 3)
+	byAppID := indexHostSoftware(t, installs, func(sw *hostSoftware) *uint { return sw.InHouseAppID })
+
+	for _, c := range []latestCase[uint]{
+		{"newest eligible attempt wins", app1, "iha1-latest", nil},
+		{"identical created_at, higher id breaks the tie", app2, "iha2-second", nil},
+		{"queued upcoming install supersedes history", app3, "iha3-upcoming", new(fleet.SoftwareInstallPending)},
+	} {
+		requireLastInstall(t, c.name, byAppID[c.key], c.wantUUID, c.wantStatus)
+	}
 }
 
 func testCreateIntermediateInstallFailureRecordAfterDeletion(t *testing.T, ds *Datastore) {

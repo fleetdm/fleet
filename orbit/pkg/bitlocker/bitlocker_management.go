@@ -74,4 +74,35 @@ type EncryptionStatus struct {
 type VolumeStatus struct {
 	DriveVolume string            // driveVolume is the identifier of the drive (e.g., "C:").
 	Status      *EncryptionStatus // status holds the encryption status of the volume.
+	// Err is set when the status for this volume could not be read. A volume whose status could not be read must never be treated as
+	// "not encrypted".
+	Err error
+}
+
+// Volume protection status, as returned by GetProtectionStatus.
+// https://learn.microsoft.com/en-us/windows/win32/secprov/getprotectionstatus-win32-encryptablevolume
+const (
+	ProtectionStatusOff int32 = 0
+	ProtectionStatusOn  int32 = 1
+)
+
+// Key protector types for GetKeyProtectors.
+// https://learn.microsoft.com/en-us/windows/win32/secprov/getkeyprotectors-win32-encryptablevolume
+const (
+	KeyProtectorTypeTPM                    int32 = 1
+	KeyProtectorTypeNumericalPassword      int32 = 3
+	KeyProtectorTypeTPMAndPIN              int32 = 4
+	KeyProtectorTypeTPMAndStartupKey       int32 = 5
+	KeyProtectorTypeTPMAndPINAndStartupKey int32 = 6
+)
+
+// TPMFamilyProtectorTypes are the key protector types that can release the volume master key at boot without a human
+// typing the 48-digit recovery password. The PIN variants prompt for a PIN, which is by design and is not a recovery
+// prompt.
+// https://learn.microsoft.com/en-us/windows/win32/secprov/getkeyprotectors-win32-encryptablevolume
+var TPMFamilyProtectorTypes = []int32{
+	KeyProtectorTypeTPM,
+	KeyProtectorTypeTPMAndPIN,
+	KeyProtectorTypeTPMAndStartupKey,
+	KeyProtectorTypeTPMAndPINAndStartupKey,
 }

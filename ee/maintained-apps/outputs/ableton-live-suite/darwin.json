@@ -5,7 +5,7 @@
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.ableton.live';",
         "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.ableton.live' AND version_compare(bundle_short_version, '12.4.5') < 0);",
-        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.ableton.live');"
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.ableton.live' AND a.bundle_executable != '');"
       },
       "installer_url": "https://cdn-downloads.ableton.com/channels/12.4.5/ableton_live_suite_12.4.5_universal.dmg",
       "install_script_ref": "9ea4cfbf",

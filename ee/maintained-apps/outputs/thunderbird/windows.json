@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "154.0",
+      "version": "155.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Mozilla Thunderbird (x64 en-US)' AND publisher = 'Mozilla';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Mozilla Thunderbird (x64 en-US)' AND publisher = 'Mozilla' AND version_compare(version, '154.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Mozilla Thunderbird (x64 en-US)' AND publisher = 'Mozilla' AND version_compare(version, '155.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'thunderbird.exe');"
       },
-      "installer_url": "https://download-installer.cdn.mozilla.net/pub/thunderbird/releases/154.0/win64/en-US/Thunderbird%20Setup%20154.0.exe",
+      "installer_url": "https://download-installer.cdn.mozilla.net/pub/thunderbird/releases/155.0/win64/en-US/Thunderbird%20Setup%20155.0.exe",
       "install_script_ref": "26f2daf8",
       "uninstall_script_ref": "96113731",
-      "sha256": "18ee5928cf6a8b35a582bf4758d03cc3aaf3f33ed3615f54ca15e4029a1371a7",
+      "sha256": "8a42316b94de77faddbcb53d02612dbc6687369be8f629b1752882d4bc2aac33",
       "default_categories": [
         "Productivity"
       ]

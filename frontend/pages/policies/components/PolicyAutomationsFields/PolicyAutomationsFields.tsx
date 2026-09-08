@@ -202,26 +202,26 @@ const PolicyAutomationsFields = forwardRef<
       policy.install_software?.software_title_id ?? null
     );
     // Pins the automation to a specific package on a multi-package title.
-    // When the policy payload doesn't carry `software_installer_id` (VPP
+    // When the policy payload doesn't carry `software_package_id` (VPP
     // titles never do; single-package titles didn't need it), the
     // auto-select effect below resolves to first-added.
-    const [softwareInstallerId, setSoftwareInstallerId] = useState<
-      number | null
-    >(policy.install_software?.software_installer_id ?? null);
+    const [softwarePackageId, setSoftwarePackageId] = useState<number | null>(
+      policy.install_software?.software_package_id ?? null
+    );
     const patchSoftwareTitleId =
       policy.patch_software?.software_title_id ?? null;
     const effectiveInstallSoftware =
       patchOption === undefined ? installSoftware : patchOption !== "manual";
     let effectiveSoftwareTitleId = softwareTitleId;
-    let effectiveSoftwareInstallerId = softwareInstallerId;
+    let effectiveSoftwarePackageId = softwarePackageId;
     if (patchOption !== undefined) {
       effectiveSoftwareTitleId = effectiveInstallSoftware
         ? patchSoftwareTitleId
         : null;
-      effectiveSoftwareInstallerId =
+      effectiveSoftwarePackageId =
         effectiveInstallSoftware &&
         policy.install_software?.software_title_id === patchSoftwareTitleId
-          ? softwareInstallerId
+          ? softwarePackageId
           : null;
     }
     const [scriptId, setScriptId] = useState<number | null>(
@@ -269,7 +269,7 @@ const PolicyAutomationsFields = forwardRef<
         effectiveInstallSoftware &&
         effectiveSoftwareTitleId !== null &&
         (selectedTitlePackages?.length ?? 0) > 0 &&
-        effectiveSoftwareInstallerId === null
+        effectiveSoftwarePackageId === null
       ) {
         // Only reachable when a custom title (with packages[]) is selected
         // but its packages haven't hydrated yet — the auto-select effect
@@ -304,11 +304,11 @@ const PolicyAutomationsFields = forwardRef<
       setSoftwareTitleId(id);
       // A title change invalidates the pinned installer — reset so the
       // auto-select effect can pick first-added on the new title's packages.
-      setSoftwareInstallerId(null);
+      setSoftwarePackageId(null);
       if (id !== null) clearError("install_software");
     };
     const handleSelectPackage = (id: number | null) => {
-      setSoftwareInstallerId(id);
+      setSoftwarePackageId(id);
       if (id !== null) clearError("install_software");
     };
     const handleSelectScript = (id: number | null) => {
@@ -376,7 +376,7 @@ const PolicyAutomationsFields = forwardRef<
     //   1. Fresh title selection: installer id was reset to null in
     //      handleSelectSoftware; pick first-added.
     //   2. Legacy policy load: hydrated with software_title_id but no
-    //      software_installer_id (e.g., policies created before backend
+    //      software_package_id (e.g., policies created before backend
     //      surfaced the field); resolve to first-added on the title's packages.
     //   3. Stale selection: an installer id that no longer appears on the
     //      title's packages (rare — e.g., a race where the package was
@@ -385,14 +385,12 @@ const PolicyAutomationsFields = forwardRef<
     useEffect(() => {
       if (!selectedTitlePackages || selectedTitlePackages.length === 0) return;
       const stillValid =
-        softwareInstallerId !== null &&
-        selectedTitlePackages.some(
-          (p) => p.installer_id === softwareInstallerId
-        );
+        softwarePackageId !== null &&
+        selectedTitlePackages.some((p) => p.installer_id === softwarePackageId);
       if (stillValid) return;
       const first = findFirstAddedPackage(selectedTitlePackages);
-      if (first) setSoftwareInstallerId(first.installer_id);
-    }, [selectedTitlePackages, softwareInstallerId]);
+      if (first) setSoftwarePackageId(first.installer_id);
+    }, [selectedTitlePackages, softwarePackageId]);
 
     const scriptOptions: CustomOptionType[] = useMemo(
       () =>
@@ -429,8 +427,8 @@ const PolicyAutomationsFields = forwardRef<
           (effectiveInstallSoftware !== initialInstallSoftware ||
             effectiveSoftwareTitleId !==
               (policy.install_software?.software_title_id ?? null) ||
-            effectiveSoftwareInstallerId !==
-              (policy.install_software?.software_installer_id ?? null) ||
+            effectiveSoftwarePackageId !==
+              (policy.install_software?.software_package_id ?? null) ||
             runScript !== initialRunScript ||
             scriptId !== (policy.run_script?.id ?? null) ||
             resendConfigProfile !== initialResendConfigProfile ||
@@ -451,11 +449,11 @@ const PolicyAutomationsFields = forwardRef<
                 software_title_id: effectiveInstallSoftware
                   ? effectiveSoftwareTitleId
                   : null,
-                // Send the pinned installer id when install-software is on.
+                // Send the pinned package id when install-software is on.
                 // Null clears the automation or lets the backend select the
-                // Fleet-maintained app's installer when a Patch radio owns it.
-                software_installer_id: effectiveInstallSoftware
-                  ? effectiveSoftwareInstallerId
+                // Fleet-maintained app's package when a Patch radio owns it.
+                software_package_id: effectiveInstallSoftware
+                  ? effectiveSoftwarePackageId
                   : null,
                 script_id: runScript ? scriptId : null,
                 profile_uuid: resendConfigProfile ? profileUUID : null,
@@ -538,7 +536,7 @@ const PolicyAutomationsFields = forwardRef<
                     isDisabled={gitOpsModeEnabled}
                     value={
                       packageOptions.find(
-                        (o) => o.value === String(softwareInstallerId ?? "")
+                        (o) => o.value === String(softwarePackageId ?? "")
                       ) ?? null
                     }
                     options={packageOptions}

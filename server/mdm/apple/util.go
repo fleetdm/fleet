@@ -94,6 +94,23 @@ func IsRecoveryLockPasswordMismatchError(chain []mdm.ErrorChain) bool {
 	return false
 }
 
+// IsRecoveryLockPasswordNotSetError checks if the error chain indicates that the
+// recovery lock password has not been set on the device. This is a terminal error
+// that should not be retried automatically. It comes from the VerifyRecoveryLock command
+//
+// Known error signatures:
+// - MDMClientError (70): "Recovery lock password not set"
+func IsRecoveryLockPasswordNotSetError(chain []mdm.ErrorChain) bool {
+	for _, e := range chain {
+		// MDMClientError 70: "Recovery lock password not set"
+		if e.ErrorDomain == "MDMClientError" && e.ErrorCode == 70 {
+			return true
+		}
+	}
+
+	return false
+}
+
 // IsProfileNotFoundError checks if the error chain indicates that a profile
 // was not found on the device. When this error occurs during a RemoveProfile
 // command, it means the profile is already absent — the desired outcome.

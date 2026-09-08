@@ -810,6 +810,38 @@ func (ts *withServer) lastActivityOfTypeMatches(name, details string, id uint) u
 	return 0
 }
 
+// countHostActivitiesOfType returns how many activities of the given type are on the host's own timeline. Used to
+// assert that an operation records exactly one, or none, which the "last activity" helpers cannot express.
+func (ts *withServer) countHostActivitiesOfType(hostID uint, name string) int {
+	var listActivities listActivitiesResponse
+	ts.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities", hostID), nil, http.StatusOK,
+		&listActivities, "order_key", "id", "order_direction", "desc", "per_page", "1000")
+
+	var count int
+	for _, act := range listActivities.Activities {
+		if act.Type == name {
+			count++
+		}
+	}
+	return count
+}
+
+// countActivitiesOfType returns how many activities of the given type exist. Used to assert that an operation records
+// no activity, which "last activity" helpers cannot express on a suite that shares its database across tests.
+func (ts *withServer) countActivitiesOfType(name string) int {
+	var listActivities listActivitiesResponse
+	ts.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK,
+		&listActivities, "order_key", "id", "order_direction", "desc", "per_page", "10000")
+
+	var count int
+	for _, act := range listActivities.Activities {
+		if act.Type == name {
+			count++
+		}
+	}
+	return count
+}
+
 func (ts *withServer) lastActivityOfTypeDoesNotMatch(name, details string, id uint) {
 	t := ts.s.T()
 

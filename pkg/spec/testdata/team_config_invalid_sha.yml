@@ -59,6 +59,7 @@ controls:
   windows_entra_tenant_ids: []
   windows_entra_client_ids: []
   apple_require_hardware_attestation: false
+  only_allow_apple_business_enrollment: false
 software:
   app_store_apps:
     - app_store_id: "123456"

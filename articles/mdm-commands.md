@@ -7,7 +7,7 @@ MDM commands can be sent to macOS, iOS / iPadOS and Windows hosts managed in Fle
 3. Execute the MDM command by using the `fleetctl` command line interface (CLI) or by sending the payload in a Fleet API call.
 4. If needed, verify the MDM command result with an additional `fleetctl` command or API call.
 
-### Step 1: Create an MDM command payload
+## Step 1: Create an MDM command payload
 
 An MDM command payload can be created in mulitple ways.
 
@@ -69,7 +69,7 @@ In Terminal, execute the following command:
 16F4301E-7A88-42AD-8523-A2F73F9D38FA
 ```
 
-> It's not necessary to add the `CommandUUID` to the MDM command payload, but having it available makes it easier and quicker to verify the MDM command result if a check is needed. 
+> When using `fleetctl mdm run-command`, the command UUID will be replaced by Fleet. If using the API endpoint [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command), it will retain your custom UUID. It's not necessary to add the `CommandUUID` to the MDM command payload, but having it available makes it easier and quicker to verify the MDM command result if a check is needed.
 
 A `.plist` with the `CommandUUID` key / value added will look something like this:
 
@@ -94,7 +94,7 @@ A `.plist` with the `CommandUUID` key / value added will look something like thi
 > If you're trying to remove macOS configuration profiles via the `RemoveProfile` command, note that this endpoint (and `fleetctl run mdm command`) sends commands on the device channel only. User-scoped profiles installed via the user channel cannot be removed this way. In Fleet, in **host details > OS settings** profiles will have an icon indicator <img src="../website/assets/images/articles/user-scope-icon-16x16@2x.png" alt="user-scope-icon" style="display:inline; margin:0; height:16px; width:16px;"> when it is user-scoped.
 
 
-### Step 2: Choose a target host
+## Step 2: Choose a target host
 
 Run the `fleetctl get hosts --mdm` command to get a list of hosts that are enrolled in Fleet and have MDM enabled. This may not be practical in Fleet environments with a large number of hosts without using command line tools to parse the output, e.g.,
 
@@ -120,7 +120,7 @@ Or, something like `jq` for API output:
 
 > You will need a [Fleet API token](https://fleetdm.com/docs/rest-api/rest-api#retrieve-your-api-token) in your `fleetctl` configuration or for any interaction with the Fleet API to work.
 
-### Step 3: Execute the MDM command
+## Step 3: Execute the MDM command
 
 To deliver the MDM command payload with `fleetctl`, use something like the following that:
 
@@ -181,7 +181,7 @@ For targeting multiple hosts, the `"host_uuids"` key / value is a json array tha
 
 `"host_uuids":["some-host-uuid-1","some-host-uuid-2","some-host-uuid-3"]`
 
-### Step 4: Verify the MDM command result
+## Step 4: Verify the MDM command result
 
 To verify the MDM command result with `fleetctl`, use something like the command below:
 
