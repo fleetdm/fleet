@@ -62,7 +62,7 @@ Below is the text to be used as the MDM command payload. Save it as a file and n
 </Exec>
 ```
 
-To reboot an Android host, we can use the [`REBOOT`](https://developers.google.com/android/management/reference/rest/v1/enterprises.devices/issueCommand#CommandType) command.
+To restart an Android host, we can use the [`REBOOT`](https://developers.google.com/android/management/reference/rest/v1/enterprises.devices/issueCommand#CommandType) command.
 
 Below is the text to be used as the MDM command payload. Save it as a file and name it something like `android-reboot-device.json`.
 
