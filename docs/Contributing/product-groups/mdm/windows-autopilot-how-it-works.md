@@ -1,4 +1,4 @@
-# Windows Autopilot: How It Works
+# Windows Autopilot for Beginners
 
 This document teaches how Windows Autopilot enrollment works with Fleet, starting from the simplest overview and progressively adding detail. Each level builds on the previous one.
 
