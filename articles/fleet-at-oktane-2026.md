@@ -8,7 +8,7 @@ Mike will talk about how IT and security teams can bring Linux devices under the
 
 ## Linux and Okta
 
-At the booth, we'll show the work we're doing to bring deeper Linux integrations to Okta, including FastPass. Linux is often the platform left out of device trust rollouts. Fleet already manages Linux hosts alongside macOS and Windows, and we're extending that to Okta device posture and passwordless sign-in so Linux users get the same experience as everyone else.
+At the booth, we'll show the work we're doing to bring deeper Linux integrations to Okta, including FastPass. Linux is often the platform left out of device trust rollouts. Fleet already manages Linux hosts alongside macOS and Windows, and we're partnering with Okta to extend that to device posture and passwordless sign-in so Linux users get the same experience as everyone else.
 
 Come by to see a demo, ask questions, and tell us what your Linux fleet needs from Okta.
 
