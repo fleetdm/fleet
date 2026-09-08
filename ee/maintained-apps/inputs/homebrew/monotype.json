@@ -4,11 +4,6 @@
   "unique_identifier": "com.monotype.monotype-fonts",
   "token": "monotype",
   "installer_format": "zip",
-  "install_script_path": "ee/maintained-apps/inputs/homebrew/scripts/monotype-install.sh",
-  "post_uninstall_scripts": [
-    "sudo rm -rf '/Applications/Monotype Fonts'"
-  ],
-  "default_categories": [
-    "Productivity"
-  ]
+  "post_uninstall_scripts": ["sudo rm -rf '/Applications/Monotype Fonts'"],
+  "default_categories": ["Productivity"]
 }
