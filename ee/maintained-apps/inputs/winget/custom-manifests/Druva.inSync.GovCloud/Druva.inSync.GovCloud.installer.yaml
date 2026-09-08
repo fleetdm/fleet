@@ -1,0 +1,18 @@
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.installer.1.12.0.schema.json
+# Druva does not publish the GovCloud client to winget-pkgs, so this manifest is
+# maintained here. Bump PackageVersion, InstallerUrl and InstallerSha256 together
+# from the GovCloud macOS/Windows entries of https://downloads.druva.com/insync/js/data.json.
+
+PackageIdentifier: Druva.inSync.GovCloud
+PackageVersion: 8.1.3
+InstallerType: wix
+Scope: machine
+UpgradeBehavior: install
+AppsAndFeaturesEntries:
+- UpgradeCode: '{99ADCB07-6ABD-4A1D-AFF6-03649753BAFF}'
+Installers:
+- Architecture: x64
+  InstallerUrl: https://downloads.druva.com/downloads/inSync/Windows/8.1.3_Gov/inSync8.1.3r111022.msi
+  InstallerSha256: 26262935BC7E0A6FE86CD58C7ED9F889C38C1373C0B5388A04B9BD9E8A30108B
+ManifestType: installer
+ManifestVersion: 1.12.0

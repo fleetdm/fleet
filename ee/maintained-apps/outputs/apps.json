@@ -2809,6 +2809,13 @@
       "description": "Druva inSync (GovCloud) is the Druva GovCloud release of the inSync endpoint data protection client."
     },
     {
+      "name": "Druva inSync (GovCloud)",
+      "slug": "druva-insync@govcloud/windows",
+      "platform": "windows",
+      "unique_identifier": "Druva inSync",
+      "description": "Druva inSync (GovCloud) is the Druva GovCloud release of the inSync endpoint data protection client."
+    },
+    {
       "name": "DuckDuckGo",
       "slug": "duckduckgo/darwin",
       "platform": "darwin",

@@ -125,6 +125,7 @@ go run cmd/maintained-apps/main.go --slug="box-drive/windows" --debug
 | `uninstall_script_path`  | string        | Filepath to a custom uninstall script (`.ps1`). Overrides the generated uninstall script. Script must be placed in `inputs/winget/scripts/`. For `.msi` apps, the ingestor automatically generates uninstall scripts. Do not add scripts unless you need to override the generated behavior. For `.exe` apps, you must provide a script to uninstall the app. Scripts for `.exe` apps are vendor-specific. Use the vendor’s documented silent uninstall switch or the registered UninstallString (if available), ensuring the script runs silently and returns the installer’s exit code.                  |
 | `fuzzy_match_name`       | boolean       | If the `unique_identifier` doesn't match the `DisplayName`, use `fuzzy_match_name` to specify that Fleet uses "fuzzy matching" to match the Fleet-maintained app and the inventoried software. For example, for Pritunl, the `unique_identifier` is "Pritunl" and the inventories software's `DisplayName` is "Pritunl Client". With `fuzzy_match_name` set to true, Pritunl app will be matched to the inventories software.  |
 | `requires_client_os`     | boolean       | Set to `true` when the installer refuses to run on Windows Server SKUs (e.g., Dell Display and Peripheral Manager). Fleet's ingestion ignores this field; CI reads it to route validation to the `windows-11-arm` runner (the only GitHub-hosted client-OS Windows runner) instead of the default Windows Server x64 runner.  |
+| `manifest_path`          | string        | Path (relative to the repo root) to a local directory containing `<package_identifier>.installer.yaml` and `<package_identifier>.locale.en-US.yaml` in the winget manifest schema. Used to commit manifests for installers that `microsoft/winget-pkgs` doesn't carry, under [`inputs/winget/custom-manifests/`](inputs/winget/custom-manifests/). See [Ingesting Windows apps that aren't in winget](#ingesting-windows-apps-that-arent-in-winget) below. |
 
 #### Windows troubleshooting
 
@@ -139,6 +140,24 @@ The instructions below are meant to be run on a Windows host. But, you can run m
 - You can author Windows inputs and run the generator on macOS. The ingester is Go code that fetches data from winget/GitHub and works cross‑platform.
 - To find the PackageName and Publisher, you can look in the locale and installer yaml files in the winget-pkgs repo.
 - Validation and testing still require a Windows host (to verify programs.name and to run install/uninstall).
+
+### Ingesting Windows apps that aren't in winget
+
+Some vendors ship an installer that never lands in `microsoft/winget-pkgs` (e.g. the Druva inSync GovCloud client). To ingest one, commit hand-written manifests in the winget schema under [`inputs/winget/custom-manifests/<package_identifier>/`](inputs/winget/custom-manifests/):
+
+```
+custom-manifests/
+└── Druva.inSync.GovCloud/
+    ├── Druva.inSync.GovCloud.installer.yaml
+    └── Druva.inSync.GovCloud.locale.en-US.yaml
+```
+
+1. Pick a `package_identifier` that can't collide with a real winget package (e.g. suffix the vendor's identifier: `Druva.inSync.GovCloud`). Both files and the `PackageIdentifier` field inside them must use it; the ingester rejects a mismatch.
+2. Fill in the installer manifest from the real installer (`msiinfo export <file>.msi Property` for `UpgradeCode`, `ProductVersion` and `Manufacturer`), not from guesswork. Only the fields the ingester reads are needed: `PackageVersion`, `InstallerType`, `Scope`, `AppsAndFeaturesEntries[].UpgradeCode`, and one `Installers[]` entry with `Architecture`, `InstallerUrl` and `InstallerSha256`.
+3. In the app's input manifest (`inputs/winget/<app>.json`), set `manifest_path` to the directory. See `inputs/winget/druva-insync@govcloud.json` for an example.
+4. Generate the output as usual: `go run cmd/maintained-apps/main.go --slug="<app>/windows"`.
+
+Version bumps are manual: update `PackageVersion`, `InstallerUrl` and `InstallerSha256` together, regenerate the output, and commit all three. Apps without `manifest_path` continue to be fetched from `winget-pkgs`.
 
 ## Updating existing Fleet-maintained apps
 

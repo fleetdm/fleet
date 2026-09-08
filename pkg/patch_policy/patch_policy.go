@@ -209,6 +209,7 @@ var windowsOpenQueryOverrides = map[string]string{ //nolint:gosec // G101 false 
 	"DBeaverLite":                  "= 'dbeaver.exe'",
 	"DBeaverUltimate":              "= 'dbeaver.exe'",
 	"Dell Command Update":          "IN ('dellcommandupdate.exe','dcu-cli.exe')",
+	"Druva inSync (GovCloud)":      "= 'druva insync.exe'",
 	"GoLand":                       "IN ('goland.exe','goland64.exe')",
 	"Google Antigravity IDE":       "= 'antigravity.exe'",
 	"Google Chrome":                "= 'chrome.exe'",
