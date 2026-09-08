@@ -308,6 +308,7 @@ import Dockfix from "./png/Dockfix.png";
 import Dockside from "./png/Dockside.png";
 import Dockview from "./png/Dockview.png";
 import Dot from "./png/Dot.png";
+import Dotpeek from "./png/Dotpeek.png";
 import Doughnut from "./png/Doughnut.png";
 import Downie from "./png/Downie.png";
 import DraftableDesktop from "./png/DraftableDesktop.png";
@@ -1480,6 +1481,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   dockside: Dockside,
   dockview: Dockview,
   dot: Dot,
+  dotpeek: Dotpeek,
   doughnut: Doughnut,
   downie: Downie,
   "draftable desktop": DraftableDesktop,
