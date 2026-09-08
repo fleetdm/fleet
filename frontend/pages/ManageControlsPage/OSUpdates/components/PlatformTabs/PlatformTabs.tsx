@@ -8,10 +8,7 @@ import { LEARN_MORE_ABOUT_BASE_LINK, SUPPORT_LINK } from "utilities/constants";
 
 import EndUserOSRequirementPreview from "../EndUserOSRequirementPreview";
 import WindowsTargetForm from "../WindowsTargetForm";
-import {
-  OSUpdatesSupportedPlatform,
-  OSUpdatesTargetPlatform,
-} from "../../OSUpdates";
+import { OSUpdatesTargetPlatform } from "../../OSUpdates";
 import AppleOSTargetForm from "../AppleOSTargetForm";
 
 const baseClass = "platform-tabs";
@@ -167,9 +164,7 @@ const PlatformTabs = ({
                   refetchTeamConfig={refetchTeamConfig}
                 />
                 <div className={`${baseClass}__nudge-preview`}>
-                  <EndUserOSRequirementPreview
-                    platform={selectedPlatform as OSUpdatesSupportedPlatform}
-                  />
+                  <EndUserOSRequirementPreview platform="darwin" />
                 </div>
               </>
             ) : (
@@ -188,9 +183,7 @@ const PlatformTabs = ({
                   refetchTeamConfig={refetchTeamConfig}
                 />
                 <div className={`${baseClass}__nudge-preview`}>
-                  <EndUserOSRequirementPreview
-                    platform={selectedPlatform as OSUpdatesSupportedPlatform}
-                  />
+                  <EndUserOSRequirementPreview platform="windows" />
                 </div>
               </>
             ) : (
@@ -211,9 +204,7 @@ const PlatformTabs = ({
                   refetchTeamConfig={refetchTeamConfig}
                 />
                 <div className={`${baseClass}__nudge-preview`}>
-                  <EndUserOSRequirementPreview
-                    platform={selectedPlatform as OSUpdatesSupportedPlatform}
-                  />
+                  <EndUserOSRequirementPreview platform="ios" />
                 </div>
               </>
             ) : (
@@ -234,9 +225,7 @@ const PlatformTabs = ({
                   refetchTeamConfig={refetchTeamConfig}
                 />
                 <div className={`${baseClass}__nudge-preview`}>
-                  <EndUserOSRequirementPreview
-                    platform={selectedPlatform as OSUpdatesSupportedPlatform}
-                  />
+                  <EndUserOSRequirementPreview platform="ipados" />
                 </div>
               </>
             ) : (
