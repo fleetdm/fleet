@@ -162,16 +162,105 @@ func wingetVersionManifestDirs(contents []*github.RepositoryContent) []*github.R
 }
 
 func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*maintained_apps.FMAManifestApp, error) {
+	// this is the path within the winget GitHub repo where the manifests are located
+	dirPath := path.Join(
+		"manifests",
+		strings.ToLower(input.PackageIdentifier[:1]),
+		strings.ReplaceAll(input.PackageIdentifier, ".", "/"),
+	)
+
+	_, repoContents, _, err := i.githubClient.Repositories.GetContents(ctx,
+		"microsoft",
+		"winget-pkgs",
+		dirPath,
+		i.ghClientOpts,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("get data from winget repo: %w", err)
+	}
+
+	versionDirs := wingetVersionManifestDirs(repoContents)
+	if len(versionDirs) == 0 {
+		return nil, ctxerr.NewWithData(ctx, "no version manifest directories found under package path", map[string]any{
+			"path": dirPath,
+		})
+	}
+
+	// sort the list of directories in descending order
+	slices.SortFunc(versionDirs, func(a, b *github.RepositoryContent) int { return feednvd.SmartVerCmp(b.GetName(), a.GetName()) })
+
+	// Try version directories in descending order. Some packages have nested
+	// grouping directories (e.g. "2020/20.001.30002") that look like version
+	// dirs but don't contain manifest files at the expected depth. Skip those
+	// and fall through to the next candidate.
 	var m installerManifest
 	var l localeManifest
-	var err error
-	if input.ManifestPath != "" {
-		m, l, err = loadLocalManifests(ctx, input)
-	} else {
-		m, l, err = i.fetchManifests(ctx, input)
+	var versionFound bool
+	for _, versionDir := range versionDirs {
+		vName := versionDir.GetName()
+		if vName == "" {
+			continue
+		}
+
+		installerManifestPath := path.Join(
+			dirPath,
+			vName,
+			fmt.Sprintf("%s.installer.yaml", input.PackageIdentifier),
+		)
+
+		fileContents, _, _, err := i.githubClient.Repositories.GetContents(ctx,
+			"microsoft",
+			"winget-pkgs",
+			installerManifestPath,
+			i.ghClientOpts,
+		)
+		if err != nil {
+			// only a genuine 404 may fall through to an older version dir
+			if ghErr, ok := errors.AsType[*github.ErrorResponse](err); ok &&
+				ghErr.Response != nil && ghErr.Response.StatusCode == http.StatusNotFound {
+				i.logger.DebugContext(ctx, "installer manifest not found, trying next version", "version", vName, "err", err)
+				continue
+			}
+			return nil, ctxerr.Wrap(ctx, err, "getting winget installer manifest file contents")
+		}
+
+		contents, err := fileContents.GetContent()
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "extracting installer manifest file contents")
+		}
+
+		if err := yaml.Unmarshal([]byte(contents), &m); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "unmarshaling winget manifest")
+		}
+
+		localeManifestPath := path.Join(dirPath, vName, fmt.Sprintf("%s.locale.en-US.yaml", input.PackageIdentifier))
+		fileContents, _, _, err = i.githubClient.Repositories.GetContents(ctx,
+			"microsoft",
+			"winget-pkgs",
+			localeManifestPath,
+			i.ghClientOpts,
+		)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "getting winget manifest locale file contents")
+		}
+
+		contents, err = fileContents.GetContent()
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "getting locale manifest contents")
+		}
+
+		if err := yaml.Unmarshal([]byte(contents), &l); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "unmarshaling winget locale manifest")
+		}
+
+		versionFound = true
+		break
 	}
-	if err != nil {
-		return nil, err
+
+	if !versionFound {
+		return nil, ctxerr.NewWithData(ctx, "no valid version manifest found for app", map[string]any{
+			"path": dirPath,
+		})
 	}
 
 	var out maintained_apps.FMAManifestApp
@@ -395,146 +484,6 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 	return &out, nil
 }
 
-// fetchManifests reads the newest installer and locale manifests for the input
-// app from microsoft/winget-pkgs.
-func (i *wingetIngester) fetchManifests(ctx context.Context, input inputApp) (installerManifest, localeManifest, error) {
-	var m installerManifest
-	var l localeManifest
-
-	// this is the path within the winget GitHub repo where the manifests are located
-	dirPath := path.Join(
-		"manifests",
-		strings.ToLower(input.PackageIdentifier[:1]),
-		strings.ReplaceAll(input.PackageIdentifier, ".", "/"),
-	)
-
-	_, repoContents, _, err := i.githubClient.Repositories.GetContents(ctx,
-		"microsoft",
-		"winget-pkgs",
-		dirPath,
-		i.ghClientOpts,
-	)
-	if err != nil {
-		return m, l, fmt.Errorf("get data from winget repo: %w", err)
-	}
-
-	versionDirs := wingetVersionManifestDirs(repoContents)
-	if len(versionDirs) == 0 {
-		return m, l, ctxerr.NewWithData(ctx, "no version manifest directories found under package path", map[string]any{
-			"path": dirPath,
-		})
-	}
-
-	// sort the list of directories in descending order
-	slices.SortFunc(versionDirs, func(a, b *github.RepositoryContent) int { return feednvd.SmartVerCmp(b.GetName(), a.GetName()) })
-
-	// Try version directories in descending order. Some packages have nested
-	// grouping directories (e.g. "2020/20.001.30002") that look like version
-	// dirs but don't contain manifest files at the expected depth. Skip those
-	// and fall through to the next candidate.
-	var versionFound bool
-	for _, versionDir := range versionDirs {
-		vName := versionDir.GetName()
-		if vName == "" {
-			continue
-		}
-
-		installerManifestPath := path.Join(
-			dirPath,
-			vName,
-			fmt.Sprintf("%s.installer.yaml", input.PackageIdentifier),
-		)
-
-		fileContents, _, _, err := i.githubClient.Repositories.GetContents(ctx,
-			"microsoft",
-			"winget-pkgs",
-			installerManifestPath,
-			i.ghClientOpts,
-		)
-		if err != nil {
-			// only a genuine 404 may fall through to an older version dir
-			if ghErr, ok := errors.AsType[*github.ErrorResponse](err); ok &&
-				ghErr.Response != nil && ghErr.Response.StatusCode == http.StatusNotFound {
-				i.logger.DebugContext(ctx, "installer manifest not found, trying next version", "version", vName, "err", err)
-				continue
-			}
-			return m, l, ctxerr.Wrap(ctx, err, "getting winget installer manifest file contents")
-		}
-
-		contents, err := fileContents.GetContent()
-		if err != nil {
-			return m, l, ctxerr.Wrap(ctx, err, "extracting installer manifest file contents")
-		}
-
-		if err := yaml.Unmarshal([]byte(contents), &m); err != nil {
-			return m, l, ctxerr.Wrap(ctx, err, "unmarshaling winget manifest")
-		}
-
-		localeManifestPath := path.Join(dirPath, vName, fmt.Sprintf("%s.locale.en-US.yaml", input.PackageIdentifier))
-		fileContents, _, _, err = i.githubClient.Repositories.GetContents(ctx,
-			"microsoft",
-			"winget-pkgs",
-			localeManifestPath,
-			i.ghClientOpts,
-		)
-		if err != nil {
-			return m, l, ctxerr.Wrap(ctx, err, "getting winget manifest locale file contents")
-		}
-
-		contents, err = fileContents.GetContent()
-		if err != nil {
-			return m, l, ctxerr.Wrap(ctx, err, "getting locale manifest contents")
-		}
-
-		if err := yaml.Unmarshal([]byte(contents), &l); err != nil {
-			return m, l, ctxerr.Wrap(ctx, err, "unmarshaling winget locale manifest")
-		}
-
-		versionFound = true
-		break
-	}
-
-	if !versionFound {
-		return m, l, ctxerr.NewWithData(ctx, "no valid version manifest found for app", map[string]any{
-			"path": dirPath,
-		})
-	}
-
-	return m, l, nil
-}
-
-// loadLocalManifests reads the installer and locale manifests from
-// input.ManifestPath instead of winget-pkgs. The manifest's PackageIdentifier
-// must match the input so a misconfigured path can't ingest the wrong app.
-func loadLocalManifests(ctx context.Context, input inputApp) (installerManifest, localeManifest, error) {
-	var m installerManifest
-	var l localeManifest
-
-	installerPath := filepath.Join(input.ManifestPath, input.PackageIdentifier+".installer.yaml")
-	contents, err := os.ReadFile(installerPath)
-	if err != nil {
-		return m, l, ctxerr.Wrap(ctx, err, "reading local winget installer manifest")
-	}
-	if err := yaml.Unmarshal(contents, &m); err != nil {
-		return m, l, ctxerr.Wrap(ctx, err, "unmarshaling local winget installer manifest")
-	}
-	if m.PackageIdentifier != input.PackageIdentifier {
-		return m, l, ctxerr.Errorf(ctx, "local installer manifest PackageIdentifier %q does not match input package_identifier %q (manifest_path: %s)",
-			m.PackageIdentifier, input.PackageIdentifier, input.ManifestPath)
-	}
-
-	localePath := filepath.Join(input.ManifestPath, input.PackageIdentifier+".locale.en-US.yaml")
-	contents, err = os.ReadFile(localePath)
-	if err != nil {
-		return m, l, ctxerr.Wrap(ctx, err, "reading local winget locale manifest")
-	}
-	if err := yaml.Unmarshal(contents, &l); err != nil {
-		return m, l, ctxerr.Wrap(ctx, err, "unmarshaling local winget locale manifest")
-	}
-
-	return m, l, nil
-}
-
 func escapeSQLParam(s string) string {
 	return strings.ReplaceAll(s, "'", "''")
 }
@@ -710,13 +659,6 @@ type inputApp struct {
 	// CI (.github/scripts/partition-fma-apps.sh) reads it to route validation to
 	// the windows-11-arm runner, the only GitHub-hosted client-OS Windows runner.
 	RequiresClientOS bool `json:"requires_client_os"`
-	// ManifestPath optionally points at a local directory (relative to the repo
-	// root) holding `<PackageIdentifier>.installer.yaml` and
-	// `<PackageIdentifier>.locale.en-US.yaml` in the winget manifest schema. Used
-	// to commit manifests for installers that microsoft/winget-pkgs doesn't carry
-	// (see inputs/winget/custom-manifests/). When empty, the ingester fetches
-	// the manifests from winget-pkgs.
-	ManifestPath string `json:"manifest_path"`
 }
 
 type installerManifest struct {
