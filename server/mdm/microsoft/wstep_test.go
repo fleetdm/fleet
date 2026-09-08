@@ -391,11 +391,12 @@ func TestPopulateClientCertValidityAndNotBefore(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, cert)
 
-	// NotBefore should be within 10m clock-skew allowance, not backdated by 180 days (#52601)
-	expectedNotBeforeMin := beforeCall.Add(-10*time.Minute - 5*time.Second)
-	expectedNotBeforeMax := afterCall.Add(-10*time.Minute + 5*time.Second)
+	// NotBefore is backdated only by the clock-skew allowance, not by the 180-day renewal period (#52601)
+	expectedNotBeforeMin := beforeCall.Add(-clientCertClockSkewAllowance - 5*time.Second)
+	expectedNotBeforeMax := afterCall.Add(-clientCertClockSkewAllowance + 5*time.Second)
 	require.True(t, cert.NotBefore.After(expectedNotBeforeMin) && cert.NotBefore.Before(expectedNotBeforeMax),
-		"NotBefore should be ~10m in the past (clock-skew), got %v", cert.NotBefore)
+		"NotBefore should be ~%v in the past (clock-skew), got %v", clientCertClockSkewAllowance, cert.NotBefore)
+	require.Less(t, clientCertClockSkewAllowance, 7*24*time.Hour, "clock-skew allowance must stay far below the renewal period")
 
 	// NotAfter should be derived from syncml.PolicyCertValidityPeriodInSecs
 	validitySecs, err := strconv.ParseInt(syncml.PolicyCertValidityPeriodInSecs, 10, 64)

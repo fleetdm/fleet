@@ -480,6 +480,12 @@ func azureDataFromClaims(ctx context.Context, claims jwt.MapClaims) (AzureData, 
 	}, nil
 }
 
+// clientCertClockSkewAllowance backdates the issued certificate's NotBefore. It is generous on purpose: a host whose clock trails the
+// server (a dual-boot machine reading the RTC as local time, a restored VM snapshot, hardware that has not reached NTP yet) would
+// otherwise reject the certificate as not yet valid. Widening it is free because NotAfter is derived from the issuance time, so neither
+// expiry nor the renewal window moves.
+const clientCertClockSkewAllowance = 24 * time.Hour
+
 // populateClientCert constructs an x509 client certificate template for Windows MDM enrollment,
 // configuring the certificate validity period derived from MDM policy settings.
 func populateClientCert(sn *big.Int, subject string, issuerCert *x509.Certificate, csr *x509.CertificateRequest) (*x509.Certificate, error) {
@@ -488,9 +494,8 @@ func populateClientCert(sn *big.Int, subject string, issuerCert *x509.Certificat
 		return nil, fmt.Errorf("invalid validity time: %w", err)
 	}
 
-	// Minor clock-skew allowance of 10 minutes to accommodate client clock variations
 	now := time.Now()
-	notBefore := now.Add(-10 * time.Minute)
+	notBefore := now.Add(-clientCertClockSkewAllowance)
 	notAfter := now.Add(time.Duration(certValidityPeriodInSecsInt) * time.Second)
 
 	certSubject := pkix.Name{
