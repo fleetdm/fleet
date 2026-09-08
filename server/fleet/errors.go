@@ -599,9 +599,8 @@ func (e ConflictError) StatusCode() int {
 	return http.StatusConflict
 }
 
-// LinuxEscrowInFlightError is returned when a LUKS escrow request is refused because fleetd is
-// already handling one. It is a 409 whose Retry-After header says how long until the in-flight
-// state expires if fleetd sends nothing further.
+// LinuxEscrowInFlightError is the 409 for a LUKS escrow request refused because fleetd is already
+// handling one. Retry-After is how long until that state expires if fleetd sends nothing further.
 type LinuxEscrowInFlightError struct {
 	RetryAfterSeconds int
 }

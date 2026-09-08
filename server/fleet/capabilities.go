@@ -92,7 +92,7 @@ const (
 	// to avoid churning the fleet-escrow key slot on every retry.
 	CapabilityLUKSRecoveryKeyEscrow Capability = "luks_recovery_key_escrow"
 	// CapabilityLinuxEscrowStatus denotes the ability of the server to accept
-	// progress reports (heartbeats, cancellations) for a LUKS escrow request.
+	// LUKS escrow progress reports (OrbitPostLUKSRequest.Status).
 	CapabilityLinuxEscrowStatus Capability = "linux_escrow_status"
 	// CapabilitySetupExperience denotes the ability of the server to support
 	// installing software and running a script during macOS ADE enrollment, and
