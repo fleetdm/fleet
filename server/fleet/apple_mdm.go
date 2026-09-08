@@ -1051,7 +1051,7 @@ func (r *MDMAppleRawDeclaration) ValidateUserProvided() error {
 		return NewInvalidArgumentError(r.Type, "Declaration profile can't include status subscription type. To get host's vitals, please use queries and policies.")
 	}
 
-	if r.Type == "com.apple.configuration.app.managed" || r.Type == "com.apple.configuration.package" {
+	if r.Type == "com.apple.configuration.package" {
 		return NewInvalidArgumentError(r.Type, "Declaration profile can't include software management types. To manage software, please use the Software tab.")
 	}
 
