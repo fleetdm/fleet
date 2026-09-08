@@ -102,7 +102,7 @@ const ManagedAccountModal = ({
       return (
         <InfoBanner color="yellow" icon="warning">
           <>
-            Couldn&apos;t rotate password. The password above still works.
+            Couldn&apos;t rotate password.
             {rotationError && (
               <div className={`${baseClass}__rotation-error`}>
                 {rotationError}
