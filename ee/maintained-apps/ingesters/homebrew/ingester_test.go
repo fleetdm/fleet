@@ -87,7 +87,7 @@ func TestIngestValidations(t *testing.T) {
 				Version: "1.0",
 			}
 
-		case "ok", "1password", "docker-desktop", "steam", "swiftdialog", "teleport-suite", "install_script_path", "uninstall_script_path", "uninstall_script_path_with_pre", "uninstall_script_path_with_post", "patch_policy_path", "open-query":
+		case "ok", "1password", "docker-desktop", "webex", "steam", "swiftdialog", "teleport-suite", "install_script_path", "uninstall_script_path", "uninstall_script_path_with_pre", "uninstall_script_path_with_post", "patch_policy_path", "open-query":
 			cask = brewCask{
 				Token:   appToken,
 				Name:    []string{appToken},
@@ -144,6 +144,7 @@ func TestIngestValidations(t *testing.T) {
 		{"", inputApp{Token: "ok", UniqueIdentifier: "abc", InstallerFormat: "pkg"}},
 		{"", inputApp{Token: "1password", UniqueIdentifier: "com.1password.1password", InstallerFormat: "pkg", Name: "1Password", Slug: "1password/darwin"}},
 		{"", inputApp{Token: "docker-desktop", UniqueIdentifier: "com.docker.docker", InstallerFormat: "dmg", Name: "Docker Desktop", Slug: "docker-desktop/darwin"}},
+		{"", inputApp{Token: "webex", UniqueIdentifier: "Cisco-Systems.Spark", InstallerFormat: "dmg", Name: "Webex", Slug: "webex/darwin"}},
 		{"", inputApp{Token: "firefox@developer-edition", UniqueIdentifier: "org.mozilla.firefoxdeveloperedition", InstallerFormat: "dmg", Name: "Mozilla Firefox Developer Edition", Slug: "firefox@developer-edition/darwin"}},
 		{"", inputApp{Token: "firefox@nightly", UniqueIdentifier: "org.mozilla.nightly", InstallerFormat: "dmg", Name: "Mozilla Firefox Nightly", Slug: "firefox@nightly/darwin"}},
 		{"", inputApp{Token: "steam", UniqueIdentifier: "com.valvesoftware.steam", InstallerFormat: "dmg", Name: "Steam", Slug: "steam/darwin"}},
@@ -187,6 +188,12 @@ func TestIngestValidations(t *testing.T) {
 				require.Equal(t, "SELECT 1 FROM apps WHERE bundle_identifier = 'com.docker.docker';", out.Queries.Exists)
 				require.Equal(t,
 					"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.docker.docker' AND path NOT LIKE '%.back%' AND version_compare(bundle_short_version, '1.0') < 0);",
+					out.Queries.Patched,
+				)
+			case "webex":
+				require.Equal(t, "SELECT 1 FROM apps WHERE bundle_identifier = 'Cisco-Systems.Spark';", out.Queries.Exists)
+				require.Equal(t,
+					"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'Cisco-Systems.Spark' AND path NOT LIKE '%/Library/Application Support/Cisco Spark/Webexteams\\_upgrades\\_%' ESCAPE '\\' AND version_compare(bundle_short_version, '1.0') < 0);",
 					out.Queries.Patched,
 				)
 			case "teleport-suite":
