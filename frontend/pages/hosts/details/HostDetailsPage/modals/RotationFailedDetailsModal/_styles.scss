@@ -1,0 +1,13 @@
+.rotation-failed-details-modal {
+  overflow-wrap: anywhere;
+
+  &__modal-content {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-medium;
+  }
+
+  .reveal-button {
+    width: min-content;
+  }
+}

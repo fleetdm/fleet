@@ -1743,6 +1743,7 @@ func (svc *Service) EscrowWindowsManagedLocalAccountPassword(ctx context.Context
 			if err := svc.NewActivity(ctx, nil, fleet.ActivityTypeFailedToRotateManagedLocalAccountPassword{
 				HostID:          host.ID,
 				HostDisplayName: host.DisplayName(),
+				Detail:          clientError,
 			}); err != nil {
 				svc.logger.ErrorContext(ctx, "record failed to rotate managed local account activity", "err", err)
 				ctxerr.Handle(ctx, err)

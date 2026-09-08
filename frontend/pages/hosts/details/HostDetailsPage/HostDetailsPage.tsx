@@ -141,6 +141,7 @@ import UnenrollMdmModal from "./modals/UnenrollMdmModal";
 import DiskEncryptionKeyModal from "./modals/DiskEncryptionKeyModal";
 import RecoveryLockPasswordModal from "./modals/RecoveryLockPasswordModal";
 import ManagedAccountModal from "./modals/ManagedAccountModal";
+import RotationFailedDetailsModal from "./modals/RotationFailedDetailsModal";
 import HostActionsDropdown from "./HostActionsDropdown/HostActionsDropdown";
 import ControlsCard from "../cards/Controls";
 import { shouldShowControlsTab } from "../cards/Controls/helpers";
@@ -334,6 +335,10 @@ const HostDetailsPage = ({
     enrollmentProfileFailedDetails,
     setEnrollmentProfileFailedDetails,
   ] = useState<Omit<IFailedEnrollmentProfileModalProps, "onDone"> | null>(null);
+  const [rotationFailedDetails, setRotationFailedDetails] = useState<{
+    detail: string;
+    hostDisplayName: string;
+  } | null>(null);
 
   // React Router reuses this component when only host_id changes.
   const [refetchStart, setRefetchStart] = useState<{
@@ -948,6 +953,14 @@ const HostDetailsPage = ({
               host?.display_name || details?.host_display_name || "",
             status: details?.status || "",
             detail: details?.detail || "",
+          });
+          break;
+        case ActivityType.FailedToRotateManagedLocalAccountPassword:
+          // The activity item only offers details when the host reported a reason, so detail is never empty.
+          setRotationFailedDetails({
+            detail: details?.detail || "",
+            hostDisplayName:
+              host?.display_name || details?.host_display_name || "",
           });
           break;
         case ActivityType.FailedEnrollmentProfileRenewal:
@@ -1970,6 +1983,13 @@ const HostDetailsPage = ({
                 isHostTeamMaintainer
               }
               onCancel={() => setShowRecoveryLockPasswordModal(false)}
+            />
+          )}
+          {!!rotationFailedDetails && (
+            <RotationFailedDetailsModal
+              detail={rotationFailedDetails.detail}
+              hostDisplayName={rotationFailedDetails.hostDisplayName}
+              onCancel={() => setRotationFailedDetails(null)}
             />
           )}
           {showManagedAccountModal && host && (

@@ -2166,9 +2166,13 @@ func TestEscrowWindowsManagedLocalAccountPassword(t *testing.T) {
 			return &fleet.MDMWindowsHostConfigState{ManagedLocalAccountEscrowed: true}, nil
 		}
 		var loggedActivities []string
+		var failureDetail string
 		opts.ActivityMock.NewActivityFunc = func(_ context.Context, user *activity_api.User, a activity_api.ActivityDetails) error {
 			assert.Nil(t, user, "a device-reported failure has no user behind it")
 			loggedActivities = append(loggedActivities, a.ActivityName())
+			if failed, ok := a.(fleet.ActivityTypeFailedToRotateManagedLocalAccountPassword); ok {
+				failureDetail = failed.Detail
+			}
 			return nil
 		}
 
@@ -2180,6 +2184,8 @@ func TestEscrowWindowsManagedLocalAccountPassword(t *testing.T) {
 		assert.Equal(t, []string{
 			fleet.ActivityTypeFailedToRotateManagedLocalAccountPassword{}.ActivityName(),
 		}, loggedActivities)
+		assert.Equal(t, "NERR_PasswordTooShort", failureDetail,
+			"the activity carries the device's reason so the feed can show it")
 		assert.False(t, ds.SetMDMWindowsManagedLocalAccountEscrowedFuncInvoked,
 			"the account still exists with a password Fleet knows, so the host must not be asked to create one")
 	})
