@@ -488,9 +488,6 @@ describe("getUiStatus", () => {
     });
   });
 
-  // Regression coverage for #51238: script-only packages with an uninstall
-  // script must surface Install/Reinstall/Uninstall/Installed semantics, not
-  // Run/Rerun/Ran.
   describe("Script packages with uninstall script use install statuses", () => {
     const scriptPackageWithUninstall = createMockHostSoftwarePackage({
       has_uninstall_script: true,
