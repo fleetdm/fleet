@@ -2755,6 +2755,9 @@ func (r mdmAppleEnrollResponse) HijackRender(ctx context.Context, w http.Respons
 func mdmAppleEnrollEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*mdmAppleEnrollRequest)
 
+	// Read from the primary so the whole request sees the latest ABM sync.
+	ctx = ctxdb.RequirePrimary(ctx, true)
+
 	// Authenticate before doing anything with the machine info.
 	if err := svc.AuthenticateMDMAppleDEPEnrollment(ctx, req.Token, req.MachineInfo); err != nil {
 		return mdmAppleEnrollResponse{Err: err}, nil
@@ -2944,9 +2947,6 @@ func (svc *Service) ReconcileMDMAppleEnrollRef(ctx context.Context, enrollRef st
 func (svc *Service) AuthenticateMDMAppleDEPEnrollment(ctx context.Context, token string, machineInfo *fleet.MDMAppleMachineInfo) error {
 	// skipauth: The enroll profile endpoint is unauthenticated.
 	svc.authz.SkipAuthorization(ctx)
-
-	// The DEP assignment must reflect the latest ABM sync, not a lagging replica.
-	ctx = ctxdb.RequirePrimary(ctx, true)
 
 	profile, err := svc.ds.GetMDMAppleEnrollmentProfileByToken(ctx, token)
 	if err != nil {

@@ -3917,15 +3917,17 @@ func (s *integrationMDMTestSuite) TestBlockedEndpointsForABOnlyACMEConfig() {
 			bodyString := string(bodyBytes)
 			assert.Contains(t, bodyString, fmt.Sprintf(`const IS_APPLE_MANUAL_ENROLLMENT_BLOCKED = "%t" == "true"`, isBlocked))
 
+			// a serial with no DEP assignment is rejected by the automatic enrollment
+			// endpoint regardless of this setting
 			encodedSigned := base64.StdEncoding.EncodeToString(signedDeviceInfo)
-			resp = s.DoRawWithHeaders("GET", "/api/mdm/apple/enroll", nil, getUserStatusCode(isBlocked, http.StatusOK), map[string]string{
+			resp = s.DoRawWithHeaders("GET", "/api/mdm/apple/enroll", nil, http.StatusUnauthorized, map[string]string{
 				"x-apple-aspen-deviceinfo": encodedSigned,
 			}, "token", depProfileToken)
-			assertUserFacingResponse(t, resp, isBlocked)
-			resp = s.DoRawWithHeaders("POST", "/api/mdm/apple/enroll", nil, getUserStatusCode(isBlocked, http.StatusOK), map[string]string{
+			require.NoError(t, resp.Body.Close())
+			resp = s.DoRawWithHeaders("POST", "/api/mdm/apple/enroll", nil, http.StatusUnauthorized, map[string]string{
 				"x-apple-aspen-deviceinfo": encodedSigned,
 			}, "token", depProfileToken)
-			assertUserFacingResponse(t, resp, isBlocked)
+			require.NoError(t, resp.Body.Close())
 		})
 	}
 }

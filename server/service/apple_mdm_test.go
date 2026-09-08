@@ -10198,14 +10198,12 @@ func TestAuthenticateMDMAppleDEPEnrollment(t *testing.T) {
 	machineInfo := &fleet.MDMAppleMachineInfo{Serial: "DEPSERIAL", UDID: "dep-udid", Product: "Mac15,7"}
 
 	validToken := func(ctx context.Context, token string) (*fleet.MDMAppleEnrollmentProfile, error) {
-		require.True(t, ctxdb.IsPrimaryRequired(ctx))
 		if token != "valid-token" {
 			return nil, newNotFoundError()
 		}
 		return &fleet.MDMAppleEnrollmentProfile{ID: 1, Token: token, Type: fleet.MDMAppleEnrollmentTypeAutomatic}, nil
 	}
 	assigned := func(ctx context.Context, serial string) ([]*fleet.HostDEPAssignment, error) {
-		require.True(t, ctxdb.IsPrimaryRequired(ctx))
 		return []*fleet.HostDEPAssignment{{HostID: 1}}, nil
 	}
 	resetMocks := func() {
@@ -10288,6 +10286,7 @@ func TestMDMAppleEnrollEndpointAuthenticatesBeforeProcessing(t *testing.T) {
 	newSvc := func(authErr error) *svcmock.Service {
 		svc := &svcmock.Service{}
 		svc.AuthenticateMDMAppleDEPEnrollmentFunc = func(ctx context.Context, token string, mi *fleet.MDMAppleMachineInfo) error {
+			require.True(t, ctxdb.IsPrimaryRequired(ctx))
 			return authErr
 		}
 		svc.CheckMDMAppleEnrollmentWithMinimumOSVersionFunc = func(ctx context.Context, m *fleet.MDMAppleMachineInfo) (*fleet.MDMAppleSoftwareUpdateRequired, error) {
