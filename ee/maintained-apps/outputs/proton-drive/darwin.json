@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "3.0.2",
+      "version": "3.0.3",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'ch.protonmail.drive';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'ch.protonmail.drive' AND version_compare(bundle_short_version, '3.0.2') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'ch.protonmail.drive' AND version_compare(bundle_short_version, '3.0.3') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'ch.protonmail.drive' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://proton.me/download/drive/macos/3.0.2/ProtonDrive-3.0.2.dmg",
+      "installer_url": "https://proton.me/download/drive/macos/3.0.3/ProtonDrive-3.0.3.dmg",
       "install_script_ref": "c00597c0",
       "uninstall_script_ref": "ac89ef74",
-      "sha256": "c6e620053e14e492ee4041de73bf06bd48a9a5ea27d59ffeac3ca373936239c2",
+      "sha256": "e89c467632a91815d5edace10917f8db19a712d7c44dbcc0dbf167b274e63951",
       "default_categories": [
         "Productivity"
       ]

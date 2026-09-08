@@ -2144,6 +2144,75 @@ func TestListHosts(t *testing.T) {
 	require.True(t, ds.LoadHostSoftwareFuncInvoked)
 }
 
+func TestListHostsPopulateEndUsers(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil)
+
+	ds.ListHostsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {
+		return []*fleet.Host{{ID: 1}}, nil
+	}
+	ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
+		require.EqualValues(t, 1, hostID)
+		return &fleet.ScimUser{
+			ExternalID: new("f26f8649"),
+			UserName:   "anna@acme.com",
+			GivenName:  new("Anna"),
+			FamilyName: new("Chao"),
+			Department: new("Product"),
+			Groups:     []fleet.ScimUserGroup{{DisplayName: "Product"}, {DisplayName: "Designers"}},
+		}, nil
+	}
+	ds.ListHostDeviceMappingFunc = func(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error) {
+		require.EqualValues(t, 1, id)
+		return []*fleet.HostDeviceMapping{
+			{HostID: 1, Email: "anna@example.com", Source: "google_chrome_profiles"},
+		}, nil
+	}
+
+	userContext := test.UserContext(ctx, test.UserAdmin)
+
+	hosts, err := svc.ListHosts(userContext, fleet.HostListOptions{})
+	require.NoError(t, err)
+	require.Len(t, hosts, 1)
+	require.Nil(t, hosts[0].EndUsers)
+	require.False(t, ds.ScimUserByHostIDFuncInvoked)
+	require.False(t, ds.ListHostDeviceMappingFuncInvoked)
+
+	hosts, err = svc.ListHosts(userContext, fleet.HostListOptions{PopulateEndUsers: true})
+	require.NoError(t, err)
+	require.Len(t, hosts, 1)
+	require.True(t, ds.ScimUserByHostIDFuncInvoked)
+	require.True(t, ds.ListHostDeviceMappingFuncInvoked)
+
+	require.Len(t, hosts[0].EndUsers, 1)
+	endUser := hosts[0].EndUsers[0]
+	assert.Equal(t, "f26f8649", endUser.IdpID)
+	assert.Equal(t, "anna@acme.com", endUser.IdpUserName)
+	assert.Equal(t, "Anna Chao", endUser.IdpFullName)
+	assert.Equal(t, "Product", endUser.Department)
+	assert.Equal(t, []string{"Product", "Designers"}, endUser.IdpGroups)
+	require.Len(t, endUser.OtherEmails, 1)
+	assert.Equal(t, "anna@example.com", endUser.OtherEmails[0].Email)
+
+	// a host with no IdP user and no emails is still returned
+	ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
+		return nil, newNotFoundError()
+	}
+	ds.ListHostDeviceMappingFunc = func(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error) {
+		return nil, nil
+	}
+	hosts, err = svc.ListHosts(userContext, fleet.HostListOptions{PopulateEndUsers: true})
+	require.NoError(t, err)
+	require.Len(t, hosts, 1)
+	require.Empty(t, hosts[0].EndUsers)
+
+	ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
+		return nil, errors.New("scim boom")
+	}
+	_, err = svc.ListHosts(userContext, fleet.HostListOptions{PopulateEndUsers: true})
+	require.ErrorContains(t, err, "scim boom")
+}
+
 func TestSanitizeCSVFormula(t *testing.T) {
 	t.Parallel()
 
@@ -2782,7 +2851,7 @@ func TestCleanupExpiredHostsActivities(t *testing.T) {
 	prevActivities := mysqltest.ListActivitiesAPI(t, ctx, activitySvc, activity_api.ListOptions{})
 
 	// Run the cleanup service method
-	deletedHosts, err := svc.CleanupExpiredHosts(ctx)
+	deletedHosts, err := svc.CleanupExpiredHostsBatch(ctx, 100)
 	require.NoError(t, err)
 	require.Len(t, deletedHosts, 5, "Should have deleted 5 hosts")
 
@@ -4814,82 +4883,82 @@ func TestLockUnlockWipeHostAuth(t *testing.T) {
 	}
 
 	cases := []struct {
-		name                  string
-		user                  *fleet.User
-		shouldFailGlobalWrite bool
-		shouldFailTeamWrite   bool
+		name          string
+		user          *fleet.User
+		wantGlobalErr error
+		wantTeamErr   error
 	}{
 		{
-			name:                  "global observer",
-			user:                  &fleet.User{GlobalRole: new(fleet.RoleObserver)},
-			shouldFailGlobalWrite: true,
-			shouldFailTeamWrite:   true,
+			name:          "global observer",
+			user:          &fleet.User{GlobalRole: new(fleet.RoleObserver)},
+			wantGlobalErr: test.ErrForbidden,
+			wantTeamErr:   test.ErrForbidden,
 		},
 		{
-			name:                  "team observer",
-			user:                  &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserver}}},
-			shouldFailGlobalWrite: true,
-			shouldFailTeamWrite:   true,
+			name:          "team observer",
+			user:          &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserver}}},
+			wantGlobalErr: test.ErrNotFound,
+			wantTeamErr:   test.ErrForbidden,
 		},
 		{
-			name:                  "global observer plus",
-			user:                  &fleet.User{GlobalRole: new(fleet.RoleObserverPlus)},
-			shouldFailGlobalWrite: true,
-			shouldFailTeamWrite:   true,
+			name:          "global observer plus",
+			user:          &fleet.User{GlobalRole: new(fleet.RoleObserverPlus)},
+			wantGlobalErr: test.ErrForbidden,
+			wantTeamErr:   test.ErrForbidden,
 		},
 		{
-			name:                  "team observer plus",
-			user:                  &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserverPlus}}},
-			shouldFailGlobalWrite: true,
-			shouldFailTeamWrite:   true,
+			name:          "team observer plus",
+			user:          &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserverPlus}}},
+			wantGlobalErr: test.ErrNotFound,
+			wantTeamErr:   test.ErrForbidden,
 		},
 		{
-			name:                  "global admin",
-			user:                  &fleet.User{GlobalRole: new(fleet.RoleAdmin)},
-			shouldFailGlobalWrite: false,
-			shouldFailTeamWrite:   false,
+			name:          "global admin",
+			user:          &fleet.User{GlobalRole: new(fleet.RoleAdmin)},
+			wantGlobalErr: nil,
+			wantTeamErr:   nil,
 		},
 		{
-			name:                  "team admin",
-			user:                  &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleAdmin}}},
-			shouldFailGlobalWrite: true,
-			shouldFailTeamWrite:   false,
+			name:          "team admin",
+			user:          &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleAdmin}}},
+			wantGlobalErr: test.ErrNotFound,
+			wantTeamErr:   nil,
 		},
 		{
-			name:                  "global maintainer",
-			user:                  &fleet.User{GlobalRole: new(fleet.RoleMaintainer)},
-			shouldFailGlobalWrite: false,
-			shouldFailTeamWrite:   false,
+			name:          "global maintainer",
+			user:          &fleet.User{GlobalRole: new(fleet.RoleMaintainer)},
+			wantGlobalErr: nil,
+			wantTeamErr:   nil,
 		},
 		{
-			name:                  "team maintainer",
-			user:                  &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleMaintainer}}},
-			shouldFailGlobalWrite: true,
-			shouldFailTeamWrite:   false,
+			name:          "team maintainer",
+			user:          &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleMaintainer}}},
+			wantGlobalErr: test.ErrNotFound,
+			wantTeamErr:   nil,
 		},
 		{
-			name:                  "team admin wrong team",
-			user:                  &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 42}, Role: fleet.RoleAdmin}}},
-			shouldFailGlobalWrite: true,
-			shouldFailTeamWrite:   true,
+			name:          "team admin wrong team",
+			user:          &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 42}, Role: fleet.RoleAdmin}}},
+			wantGlobalErr: test.ErrNotFound,
+			wantTeamErr:   test.ErrNotFound,
 		},
 		{
-			name:                  "team maintainer wrong team",
-			user:                  &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 42}, Role: fleet.RoleMaintainer}}},
-			shouldFailGlobalWrite: true,
-			shouldFailTeamWrite:   true,
+			name:          "team maintainer wrong team",
+			user:          &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 42}, Role: fleet.RoleMaintainer}}},
+			wantGlobalErr: test.ErrNotFound,
+			wantTeamErr:   test.ErrNotFound,
 		},
 		{
-			name:                  "global gitops",
-			user:                  &fleet.User{GlobalRole: new(fleet.RoleGitOps)},
-			shouldFailGlobalWrite: true,
-			shouldFailTeamWrite:   true,
+			name:          "global gitops",
+			user:          &fleet.User{GlobalRole: new(fleet.RoleGitOps)},
+			wantGlobalErr: test.ErrForbidden,
+			wantTeamErr:   test.ErrForbidden,
 		},
 		{
-			name:                  "team gitops",
-			user:                  &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleGitOps}}},
-			shouldFailGlobalWrite: true,
-			shouldFailTeamWrite:   true,
+			name:          "team gitops",
+			user:          &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleGitOps}}},
+			wantGlobalErr: test.ErrForbidden,
+			wantTeamErr:   test.ErrForbidden,
 		},
 	}
 
@@ -4904,9 +4973,9 @@ func TestLockUnlockWipeHostAuth(t *testing.T) {
 			ctx := viewer.NewContext(ctx, viewer.Viewer{User: tt.user})
 
 			_, err := svc.LockHost(ctx, globalHostID, false)
-			checkAuthErr(t, tt.shouldFailGlobalWrite, err)
+			test.RequireErrKind(t, tt.wantGlobalErr, err)
 			_, err = svc.LockHost(ctx, teamHostID, false)
-			checkAuthErr(t, tt.shouldFailTeamWrite, err)
+			test.RequireErrKind(t, tt.wantTeamErr, err)
 
 			// Pretend we locked the host
 			ds.GetHostLockWipeStatusFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostLockWipeStatus, error) {
@@ -4914,9 +4983,9 @@ func TestLockUnlockWipeHostAuth(t *testing.T) {
 			}
 
 			_, err = svc.UnlockHost(ctx, globalHostID)
-			checkAuthErr(t, tt.shouldFailGlobalWrite, err)
+			test.RequireErrKind(t, tt.wantGlobalErr, err)
 			_, err = svc.UnlockHost(ctx, teamHostID)
-			checkAuthErr(t, tt.shouldFailTeamWrite, err)
+			test.RequireErrKind(t, tt.wantTeamErr, err)
 
 			// Reset so we're now pretending host is unlocked
 			ds.GetHostLockWipeStatusFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostLockWipeStatus, error) {
@@ -4924,9 +4993,9 @@ func TestLockUnlockWipeHostAuth(t *testing.T) {
 			}
 
 			err = svc.WipeHost(ctx, globalHostID, nil)
-			checkAuthErr(t, tt.shouldFailGlobalWrite, err)
+			test.RequireErrKind(t, tt.wantGlobalErr, err)
 			err = svc.WipeHost(ctx, teamHostID, nil)
-			checkAuthErr(t, tt.shouldFailTeamWrite, err)
+			test.RequireErrKind(t, tt.wantTeamErr, err)
 		})
 	}
 }

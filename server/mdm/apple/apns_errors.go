@@ -14,7 +14,56 @@ const (
 	APNSReasonBadDeviceToken         = "BadDeviceToken"
 	APNSReasonDeviceTokenNotForTopic = "DeviceTokenNotForTopic"
 	APNSReasonTooManyRequests        = "TooManyRequests"
+	APNSReasonPayloadTooLarge        = "PayloadTooLarge"
+
+	// 5xx reasons: transient, but Apple documents retrying them no sooner
+	// than 15 minutes after the failure.
+	APNSReasonInternalServerError = "InternalServerError"
+	APNSReasonServiceUnavailable  = "ServiceUnavailable"
+	APNSReasonShutdown            = "Shutdown"
+
+	// 403-class reasons: certificate or topic problems that retrying a
+	// device token cannot fix.
+	APNSReasonBadCertificate            = "BadCertificate"
+	APNSReasonBadCertificateEnvironment = "BadCertificateEnvironment"
+	APNSReasonExpiredProviderToken      = "ExpiredProviderToken"
+	APNSReasonForbidden                 = "Forbidden"
+	APNSReasonInvalidProviderToken      = "InvalidProviderToken"
+	APNSReasonMissingProviderToken      = "MissingProviderToken"
+	APNSReasonBadTopic                  = "BadTopic"
+	APNSReasonTopicDisallowed           = "TopicDisallowed"
+	// token-auth-only reasons; unreachable with Fleet's certificate-based
+	// APNs auth, classified for completeness
+	APNSReasonUnrelatedKeyIdInToken      = "UnrelatedKeyIdInToken"      //nolint:revive // Apple's spelling
+	APNSReasonBadEnvironmentKeyIdInToken = "BadEnvironmentKeyIdInToken" //nolint:revive // Apple's spelling
 )
+
+// isPermanentAPNSRejection reports whether a per-device push error is a
+// rejection that retrying cannot fix: dead or mismatched tokens, or
+// certificate/topic problems. Everything else (429, 5xx, transport errors,
+// GOAWAY) is treated as transient.
+func isPermanentAPNSRejection(err error) bool {
+	switch APNSReason(err) {
+	case APNSReasonUnregistered, APNSReasonExpiredToken, APNSReasonBadDeviceToken, APNSReasonDeviceTokenNotForTopic,
+		APNSReasonBadCertificate, APNSReasonBadCertificateEnvironment, APNSReasonExpiredProviderToken,
+		APNSReasonForbidden, APNSReasonInvalidProviderToken, APNSReasonMissingProviderToken,
+		APNSReasonBadTopic, APNSReasonTopicDisallowed,
+		APNSReasonPayloadTooLarge, APNSReasonUnrelatedKeyIdInToken, APNSReasonBadEnvironmentKeyIdInToken:
+		return true
+	}
+	return false
+}
+
+// isAPNS5xxRejection reports whether a per-device push error carries one of
+// APNs' 5xx reasons, which Apple documents retrying no sooner than 15
+// minutes after the failure.
+func isAPNS5xxRejection(err error) bool {
+	switch APNSReason(err) {
+	case APNSReasonInternalServerError, APNSReasonServiceUnavailable, APNSReasonShutdown:
+		return true
+	}
+	return false
+}
 
 // APNSReason extracts the APNs rejection reason (e.g. "Unregistered",
 // "BadDeviceToken") from a push response error, or "" if the error does not
