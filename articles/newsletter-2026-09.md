@@ -52,7 +52,7 @@ The best way to learn Fleet is by building with it! [Request a workshop]https://
 
 - [Build and validate configuration profiles with AI instead of a GUI](https://fleetdm.com/guides/build-configuration-profiles-with-ai). Generate a profile, check it, and ship it without hunting through a settings screen.
 - [Deploy printers with Fleet](https://fleetdm.com/guides/deploy-printers-with-fleet). Printer setup for macOS, Windows, Linux, iOS, iPadOS, and Android, in one place.
-- [Add Microsoft Store apps to Windows self-service with winget](https://fleetdm.com/guides/build-your-own-windows-self-service-with-winget-and-script-only-packages-guide). Turn winget commands into a self-service catalog your Windows users can install from.
+- [Add Microsoft Store apps to Windows self-service with winget](https://fleetdm.com/guides/build-your-own-windows-self-service-with-winget-and-script-only-packages-guide). Turn `winget` commands into a self-service catalog your Windows users can install from.
 
 ## 💬 From the community
 
