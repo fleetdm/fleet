@@ -18,7 +18,6 @@ import (
 // new one so it's reviewed against those paths before being added here.
 var knownSharedDarwinIdentifiers = map[string]string{
 	"org.mozilla.firefox":    "Mozilla Firefox and Mozilla Firefox ESR",
-	"com.druva.inSyncClient": "Druva inSync and Druva inSync (GovCloud)",
 }
 
 func TestNoUnexpectedSharedDarwinIdentifiers(t *testing.T) {
