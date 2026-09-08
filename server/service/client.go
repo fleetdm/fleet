@@ -2207,6 +2207,14 @@ func allGoogleWorkspaceEntriesEmpty(entries []any) bool {
 	return true
 }
 
+func defaultUnsetToFalse(settings ...*optjson.Bool) {
+	for _, s := range settings {
+		if !s.Valid {
+			*s = optjson.SetBool(false)
+		}
+	}
+}
+
 // DoGitOps applies the GitOps config to Fleet.
 func (c *Client) DoGitOps(
 	ctx context.Context,
@@ -2504,6 +2512,11 @@ func (c *Client) DoGitOps(
 			mdmAppConfig["apple_require_hardware_attestation"] = false
 		}
 
+		mdmAppConfig["only_allow_apple_business_enrollment"] = incoming.Controls.OnlyAllowAppleBusinessEnrollment
+		if incoming.Controls.OnlyAllowAppleBusinessEnrollment == nil {
+			mdmAppConfig["only_allow_apple_business_enrollment"] = false
+		}
+
 		mdmAppConfig["android_enabled_and_configured"] = incoming.Controls.AndroidEnabledAndConfigured
 		if incoming.Controls.AndroidEnabledAndConfigured != nil {
 			mdmAppConfig["android_enabled_and_configured"] = incoming.Controls.AndroidEnabledAndConfigured
@@ -2784,6 +2797,11 @@ func (c *Client) DoGitOps(
 				CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Value: []fleet.MDMProfileSpec{}},
 			}
 		}
+		if incoming.Controls.LinuxSettings != nil {
+			mdmAppConfig["linux_settings"] = incoming.Controls.LinuxSettings
+		} else {
+			mdmAppConfig["linux_settings"] = fleet.LinuxSettings{}
+		}
 		// Put in default values for android_settings
 		if incoming.Controls.AndroidSettings != nil {
 			mdmAppConfig["android_settings"] = incoming.Controls.AndroidSettings
@@ -2809,26 +2827,72 @@ func (c *Client) DoGitOps(
 			}
 		}
 
-		// Put in default value for enable_disk_encryption
-		enableDiskEncryption := false
-		enableRecoveryLockPassword := false
-		requireBitLockerPIN := false
+		macOSSettings := mdmAppConfig["macos_settings"].(fleet.MacOSSettings)
+		windowsSettings := mdmAppConfig["windows_settings"].(fleet.WindowsSettings)
+		linuxSettings := mdmAppConfig["linux_settings"].(fleet.LinuxSettings)
+
 		if incoming.Controls.EnableDiskEncryption != nil {
-			enableDiskEncryption = incoming.Controls.EnableDiskEncryption.(bool)
+			switch {
+			case macOSSettings.EnableDiskEncryption.Set:
+				return nil, errors.New("controls.apple_settings.enable_disk_encryption and controls.enable_disk_encryption cannot both be set")
+			case macOSSettings.EnableEscrowDiskEncryptionKey.Set:
+				return nil, errors.New("controls.apple_settings.enable_escrow_disk_encryption_key and controls.enable_disk_encryption cannot both be set")
+			case windowsSettings.EnableDiskEncryption.Set:
+				return nil, errors.New("controls.windows_settings.enable_disk_encryption and controls.enable_disk_encryption cannot both be set")
+			case linuxSettings.EnableEscrowDiskEncryptionKey.Set:
+				return nil, errors.New("controls.linux_settings.enable_escrow_disk_encryption_key and controls.enable_disk_encryption cannot both be set")
+			}
+		}
+
+		if windowsSettings.RequireBitLockerPIN.Set && incoming.Controls.RequireBitLockerPIN != nil {
+			return nil, errors.New("controls.windows_settings.require_bitlocker_pin and controls.windows_require_bitlocker_pin cannot both be set")
+		}
+
+		enableRecoveryLockPassword := false
+		requireBitLockerPIN := windowsSettings.RequireBitLockerPIN.Value
+		if incoming.Controls.EnableDiskEncryption != nil {
+			mdmAppConfig["enable_disk_encryption"] = incoming.Controls.EnableDiskEncryption.(bool)
 		}
 		if incoming.Controls.EnableRecoveryLockPassword != nil {
 			enableRecoveryLockPassword = incoming.Controls.EnableRecoveryLockPassword.(bool)
 		}
 		if incoming.Controls.RequireBitLockerPIN != nil {
 			requireBitLockerPIN = incoming.Controls.RequireBitLockerPIN.(bool)
-		}
-		if !enableDiskEncryption && requireBitLockerPIN {
-			return nil, errors.New("enable_disk_encryption cannot be false if windows_require_bitlocker_pin is true")
+			mdmAppConfig["windows_require_bitlocker_pin"] = requireBitLockerPIN
 		}
 
-		mdmAppConfig["enable_disk_encryption"] = enableDiskEncryption
+		// BitLocker PIN needs Windows encryption on; deprecated flat toggle is the fallback when the per-platform key is unset.
+		if requireBitLockerPIN {
+			windowsDiskEncryption := windowsSettings.EnableDiskEncryption.Value
+			if !windowsSettings.EnableDiskEncryption.Set && incoming.Controls.EnableDiskEncryption != nil {
+				windowsDiskEncryption = incoming.Controls.EnableDiskEncryption.(bool)
+			}
+			if !windowsDiskEncryption {
+				return nil, errors.New("controls.windows_settings.enable_disk_encryption must be true if controls.windows_settings.require_bitlocker_pin is true")
+			}
+		}
+
+		// A disk encryption setting the file omits is off. The
+		// deprecated flat key fans out to the per-platform settings
+		// server-side, so those are left absent when it is present but
+		// defaulted off when it is not.
+		if incoming.Controls.EnableDiskEncryption == nil {
+			defaultUnsetToFalse(
+				&macOSSettings.EnableDiskEncryption,
+				&macOSSettings.EnableEscrowDiskEncryptionKey,
+				&windowsSettings.EnableDiskEncryption,
+				&linuxSettings.EnableEscrowDiskEncryptionKey,
+			)
+		}
+		if incoming.Controls.RequireBitLockerPIN == nil {
+			defaultUnsetToFalse(&windowsSettings.RequireBitLockerPIN)
+		}
+		defaultUnsetToFalse(&windowsSettings.EnableManagedLocalAccount)
+		mdmAppConfig["macos_settings"] = macOSSettings
+		mdmAppConfig["windows_settings"] = windowsSettings
+		mdmAppConfig["linux_settings"] = linuxSettings
+
 		mdmAppConfig["enable_recovery_lock_password"] = enableRecoveryLockPassword
-		mdmAppConfig["windows_require_bitlocker_pin"] = requireBitLockerPIN
 
 		if incoming.TeamName != nil {
 			team["gitops_filename"] = filename
@@ -3432,34 +3496,47 @@ func (c *Client) doGitOpsCustomHostVitals(config *spec.GitOps, logFn func(format
 // policy by trying each available identifier in order: URL, App Store ID, hash,
 // then FMA slug. Returns the resolved title ID and true if found, or 0 and
 // false if no identifier matched.
+//
+// When the URL or hash lookup succeeds, installerID additionally carries the
+// specific installer_id for that package so the caller can pin the policy to
+// it (avoiding the datastore's first-added fallback for multi-package titles).
+// installerID is nil for AppStoreID and slug matches, which don't map to a
+// single software installer row.
 func resolvePolicySoftwareTitleID(
 	policy *spec.GitOpsPolicySpec,
 	byURL, byAppStoreID, byHash, bySlug map[string]uint,
-) (titleID uint, resolved bool) {
+	installerIDsByURL, installerIDsByHash map[string]uint,
+) (titleID uint, installerID *uint, resolved bool) {
 	if policy.InstallSoftwareURL != "" {
 		if id, ok := byURL[policy.InstallSoftwareURL]; ok {
-			return id, true
+			if instID, ok := installerIDsByURL[policy.InstallSoftwareURL]; ok {
+				return id, &instID, true
+			}
+			return id, nil, true
 		}
 	}
 	if policy.InstallSoftware.Other == nil {
-		return 0, false
+		return 0, nil, false
 	}
 	if policy.InstallSoftware.Other.AppStoreID != "" {
 		if id, ok := byAppStoreID[policy.InstallSoftware.Other.AppStoreID]; ok {
-			return id, true
+			return id, nil, true
 		}
 	}
 	if policy.InstallSoftware.Other.HashSHA256 != "" {
 		if id, ok := byHash[policy.InstallSoftware.Other.HashSHA256]; ok {
-			return id, true
+			if instID, ok := installerIDsByHash[policy.InstallSoftware.Other.HashSHA256]; ok {
+				return id, &instID, true
+			}
+			return id, nil, true
 		}
 	}
 	if policy.InstallSoftware.Other.FleetMaintainedAppSlug != "" {
 		if id, ok := bySlug[policy.InstallSoftware.Other.FleetMaintainedAppSlug]; ok {
-			return id, true
+			return id, nil, true
 		}
 	}
-	return 0, false
+	return 0, nil, false
 }
 
 func (c *Client) doGitOpsPolicies(config *spec.GitOps, teamSoftwareInstallers []fleet.SoftwarePackageResponse, teamVPPApps []fleet.VPPAppResponse, teamScripts []fleet.ScriptResponse, logFn func(format string, args ...interface{}), dryRun bool) error {
@@ -3497,6 +3574,11 @@ func (c *Client) doGitOpsPolicies(config *spec.GitOps, teamSoftwareInstallers []
 		softwareTitleIDsByAppStoreAppID := make(map[string]uint)
 		softwareTitleIDsByHash := make(map[string]uint)
 		softwareTitleIDsBySlug := make(map[string]uint)
+		// Parallel maps keyed by URL/hash but returning the specific installer_id
+		// rather than the title id. Used to pin a policy to the exact package the
+		// GitOps YAML referenced when several packages share a title.
+		installerIDsByURL := make(map[string]uint)
+		installerIDsByHash := make(map[string]uint)
 		for _, softwareInstaller := range teamSoftwareInstallers {
 			if softwareInstaller.TitleID == nil {
 				// Should not happen, but to not panic we just log a warning.
@@ -3508,8 +3590,36 @@ func (c *Client) doGitOpsPolicies(config *spec.GitOps, teamSoftwareInstallers []
 				logFn("[!] software installer without url: fleet_id=%d, title_id=%d\n", *teamID, *softwareInstaller.TitleID)
 				continue
 			}
-			softwareTitleIDsByInstallerURL[softwareInstaller.URL] = *softwareInstaller.TitleID
-			softwareTitleIDsByHash[softwareInstaller.HashSHA256] = *softwareInstaller.TitleID
+			// Normal software installers unconditionally claim their URL/hash for
+			// both the title and installer maps. In-house apps (InstallerID==0,
+			// distinct table) can share a URL or hash with a normal installer; if
+			// they do, we must not let their title id displace the normal
+			// installer's — the applier would then send a pinned installer_id
+			// that doesn't belong to the resolved title and the datastore would
+			// 400. So in-house entries only populate the title map when a normal
+			// installer hasn't already claimed the key (order-agnostic: if the
+			// normal installer iterates later, it unconditionally overwrites).
+			if softwareInstaller.InstallerID != 0 {
+				softwareTitleIDsByInstallerURL[softwareInstaller.URL] = *softwareInstaller.TitleID
+				softwareTitleIDsByHash[softwareInstaller.HashSHA256] = *softwareInstaller.TitleID
+				if softwareInstaller.URL != "" {
+					installerIDsByURL[softwareInstaller.URL] = softwareInstaller.InstallerID
+				}
+				if softwareInstaller.HashSHA256 != "" {
+					installerIDsByHash[softwareInstaller.HashSHA256] = softwareInstaller.InstallerID
+				}
+			} else {
+				if softwareInstaller.URL != "" {
+					if _, taken := installerIDsByURL[softwareInstaller.URL]; !taken {
+						softwareTitleIDsByInstallerURL[softwareInstaller.URL] = *softwareInstaller.TitleID
+					}
+				}
+				if softwareInstaller.HashSHA256 != "" {
+					if _, taken := installerIDsByHash[softwareInstaller.HashSHA256]; !taken {
+						softwareTitleIDsByHash[softwareInstaller.HashSHA256] = *softwareInstaller.TitleID
+					}
+				}
+			}
 
 			if softwareInstaller.Slug != "" {
 				softwareTitleIDsBySlug[softwareInstaller.Slug] = *softwareInstaller.TitleID
@@ -3534,6 +3644,13 @@ func (c *Client) doGitOpsPolicies(config *spec.GitOps, teamSoftwareInstallers []
 
 		for i := range config.Policies {
 			config.Policies[i].SoftwareTitleID = ptr.Uint(0) // 0 unsets the installer
+			// GitOpsPolicySpec embeds PolicySpec, whose SoftwarePackageID field
+			// is JSON-tagged and therefore reachable from user YAML. Any value
+			// left over from the incoming spec would leak through the branches
+			// that don't produce an installerID (AppStoreID, slug, in-house URL
+			// match, unresolved) and either fail the datastore's title/installer
+			// validation or silently pin the wrong package. Reset before resolve.
+			config.Policies[i].SoftwarePackageID = nil
 
 			if config.Policies[i].Type == fleet.PolicyTypePatch && !config.Policies[i].InstallSoftware.IsOther && config.Policies[i].InstallSoftware.Bool {
 				softwareTitleID, ok := softwareTitleIDsBySlug[config.Policies[i].FleetMaintainedAppSlug]
@@ -3555,15 +3672,25 @@ func (c *Client) doGitOpsPolicies(config *spec.GitOps, teamSoftwareInstallers []
 			// both URL and hash are set (from the referenced YAML file). If the primary
 			// identifier (URL) fails, fall back to secondary identifiers rather than
 			// skipping the policy entirely.
-			softwareTitleID, resolved := resolvePolicySoftwareTitleID(
+			softwareTitleID, installerID, resolved := resolvePolicySoftwareTitleID(
 				config.Policies[i],
 				softwareTitleIDsByInstallerURL,
 				softwareTitleIDsByAppStoreAppID,
 				softwareTitleIDsByHash,
 				softwareTitleIDsBySlug,
+				installerIDsByURL,
+				installerIDsByHash,
 			)
 			if resolved {
 				config.Policies[i].SoftwareTitleID = &softwareTitleID
+				// installerID is nil for AppStoreID matches (VPP), slug matches
+				// (FMA), and any URL/hash match that didn't land on a
+				// software_installers row (e.g., in-house apps, which come from a
+				// different table and get InstallerID==0 upstream). Assigning nil
+				// skips the pin and lets the datastore use the title's default
+				// resolution. Unconditional to overwrite the loop-top reset only
+				// when we have a concrete installer to pin against.
+				config.Policies[i].SoftwarePackageID = installerID
 				// Log a warning if URL was set but didn't match (resolved via fallback).
 				if !dryRun && config.Policies[i].InstallSoftwareURL != "" {
 					if _, urlOK := softwareTitleIDsByInstallerURL[config.Policies[i].InstallSoftwareURL]; !urlOK {

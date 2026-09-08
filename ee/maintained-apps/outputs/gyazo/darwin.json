@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "11.0.0",
+      "version": "11.1.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.gyazo.menu';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.gyazo.menu' AND version_compare(bundle_short_version, '11.0.0') < 0);",
-        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.gyazo.menu');"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.gyazo.menu' AND version_compare(bundle_short_version, '11.1.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.gyazo.menu' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://files.gyazo.com/setup/Gyazo-11.0.0.pkg",
+      "installer_url": "https://files.gyazo.com/setup/Gyazo-11.1.0.pkg",
       "install_script_ref": "0ea4a9bb",
       "uninstall_script_ref": "290484a1",
-      "sha256": "c670af8a5781795d39e7c02a1a6a65e3454925cd63c09e1143fc4cc650aaad66",
+      "sha256": "9386f93eba4991847850bc1935a53d0337c97713c5a6114c70c9a292aa3dd02e",
       "default_categories": [
         "Productivity"
       ]

@@ -162,6 +162,7 @@
       "microsoft_graph_credential_invalid": false,
       "windows_require_bitlocker_pin": false,
       "apple_require_hardware_attestation": false,
+      "only_allow_apple_business_enrollment": false,
       "macos_migration": {
         "enable": false,
         "mode": "",
@@ -205,14 +206,12 @@
         "require_all_software_windows": false,
         "software": null
       },
-      "windows_enrollment": null,
+      "windows_automatic_enrollment": null,
       "windows_settings": {
         "custom_settings": null,
         "enable_disk_encryption": false,
         "configuration_profiles": null,
-        "managed_local_account_settings": {
-          "enabled": false
-        },
+        "enable_managed_local_account": false,
         "require_bitlocker_pin": false
       },
       "linux_settings": {

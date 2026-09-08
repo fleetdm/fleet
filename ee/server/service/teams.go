@@ -239,8 +239,6 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 		iOSMinVersionUpdated            bool
 		iPadOSMinVersionUpdated         bool
 		windowsUpdatesUpdated           bool
-		macOSDiskEncryptionUpdated      bool
-		macOSFileVaultWasOn             bool
 		macOSSettingsChanged            bool
 		windowsSettingsChanged          bool
 		linuxSettingsChanged            bool
@@ -411,14 +409,6 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 		}
 
 		newDiskEncryption := team.Config.MDM.DiskEncryptionConfig()
-		// The Apple FileVault profile only applies when Apple MDM is configured.
-		// On Windows-only deployments the settings still control BitLocker
-		// enforcement via the Windows MDM path. The FileVault profile covers
-		// enforcement and escrow as a whole, so only the off<->on transition of
-		// the pair creates or deletes it.
-		macOSFileVaultWasOn = oldDiskEncryption.MacOSEnabled || oldDiskEncryption.MacOSEscrowEnabled
-		macOSFileVaultIsOn := newDiskEncryption.MacOSEnabled || newDiskEncryption.MacOSEscrowEnabled
-		macOSDiskEncryptionUpdated = macOSFileVaultWasOn != macOSFileVaultIsOn && appCfg.MDM.EnabledAndConfigured
 		macOSSettingsChanged = newDiskEncryption.MacOSEnabled != oldDiskEncryption.MacOSEnabled ||
 			newDiskEncryption.MacOSEscrowEnabled != oldDiskEncryption.MacOSEscrowEnabled
 		windowsSettingsChanged = newDiskEncryption.WindowsEnabled != oldDiskEncryption.WindowsEnabled
@@ -527,14 +517,14 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 			}
 		}
 
-		if payload.MDM.WindowsSettings != nil && payload.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled.Valid {
-			newEnabled := payload.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled
-			windowsManagedLocalAccountUpdated = team.Config.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value != newEnabled.Value
+		if payload.MDM.WindowsSettings != nil && payload.MDM.WindowsSettings.EnableManagedLocalAccount.Valid {
+			newEnabled := payload.MDM.WindowsSettings.EnableManagedLocalAccount
+			windowsManagedLocalAccountUpdated = team.Config.MDM.WindowsSettings.EnableManagedLocalAccount.Value != newEnabled.Value
 			if windowsManagedLocalAccountUpdated && newEnabled.Value && !appCfg.MDM.WindowsEnabledAndConfigured {
-				return nil, fleet.NewInvalidArgumentError("windows_settings.managed_local_account_settings.enabled",
-					"Couldn't update windows_settings.managed_local_account_settings because Windows MDM isn't turned on in Fleet.")
+				return nil, fleet.NewInvalidArgumentError("windows_settings.enable_managed_local_account",
+					"Couldn't update windows_settings.enable_managed_local_account because Windows MDM isn't turned on in Fleet.")
 			}
-			team.Config.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled = newEnabled
+			team.Config.MDM.WindowsSettings.EnableManagedLocalAccount = newEnabled
 		}
 	}
 
@@ -760,15 +750,11 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 			return nil, ctxerr.Wrap(ctx, err, "create activity for team macos min version edited")
 		}
 	}
-	if macOSDiskEncryptionUpdated {
-		if !macOSFileVaultWasOn {
-			if err := svc.MDMAppleEnableFileVaultAndEscrow(ctx, &team.ID); err != nil {
-				return nil, ctxerr.Wrap(ctx, err, "enable team filevault and escrow")
-			}
-		} else {
-			if err := svc.MDMAppleDisableFileVaultAndEscrow(ctx, &team.ID); err != nil && !fleet.IsNotFound(err) {
-				return nil, ctxerr.Wrap(ctx, err, "disable team filevault and escrow")
-			}
+	// the profile only applies when Apple MDM is configured; on Windows-only
+	// deployments the settings still drive BitLocker via the Windows MDM path
+	if macOSSettingsChanged && appCfg.MDM.EnabledAndConfigured {
+		if err := svc.MDMAppleReconcileFileVaultProfile(ctx, &team.ID); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "reconcile team filevault profile")
 		}
 	}
 	for _, pc := range []struct {
@@ -817,7 +803,9 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 		}
 	}
 	if windowsManagedLocalAccountUpdated {
-		if err := svc.logEnableManagedLocalAccountActivity(ctx, team.Config.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value, "windows", &team.ID, &team.Name); err != nil {
+		if err := svc.logEnableManagedLocalAccountActivity(
+			ctx, team.Config.MDM.WindowsSettings.EnableManagedLocalAccount.Value, "windows", &team.ID, &team.Name,
+		); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "update windows enable managed local account")
 		}
 	}
@@ -1984,10 +1972,9 @@ func (svc *Service) createTeamFromSpec(
 		}
 	}
 
-	// The FileVault profile can cover both enforcement and key escrow.
 	if macOSDiskEncryptionOn && appCfg.MDM.EnabledAndConfigured {
-		if err := svc.MDMAppleEnableFileVaultAndEscrow(ctx, &tm.ID); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "enable team filevault and escrow")
+		if err := svc.MDMAppleReconcileFileVaultProfile(ctx, &tm.ID); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "reconcile team filevault profile")
 		}
 	}
 	// a new team starts with everything off, so any enabled platform is a change
@@ -2354,14 +2341,14 @@ func (svc *Service) editTeamFromSpec(
 		team.Config.MDM.WindowsSettings.CustomSettings = spec.MDM.WindowsSettings.CustomSettings
 	}
 	var didUpdateWindowsManagedLocalAccount bool
-	if spec.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled.Valid {
-		newWindowsManagedLocalAccount := spec.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled
-		didUpdateWindowsManagedLocalAccount = team.Config.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value != newWindowsManagedLocalAccount.Value
+	if spec.MDM.WindowsSettings.EnableManagedLocalAccount.Valid {
+		newWindowsManagedLocalAccount := spec.MDM.WindowsSettings.EnableManagedLocalAccount
+		didUpdateWindowsManagedLocalAccount = team.Config.MDM.WindowsSettings.EnableManagedLocalAccount.Value != newWindowsManagedLocalAccount.Value
 		if didUpdateWindowsManagedLocalAccount && newWindowsManagedLocalAccount.Value && !windowsEnabledAndConfigured {
-			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("windows_settings.managed_local_account_settings.enabled",
-				"Couldn't enable windows_settings.managed_local_account_settings. "+fleet.ErrWindowsMDMNotConfigured.Error()))
+			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("windows_settings.enable_managed_local_account",
+				"Couldn't enable windows_settings.enable_managed_local_account. "+fleet.ErrWindowsMDMNotConfigured.Error()))
 		}
-		team.Config.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled = newWindowsManagedLocalAccount
+		team.Config.MDM.WindowsSettings.EnableManagedLocalAccount = newWindowsManagedLocalAccount
 	}
 	if spec.MDM.AndroidSettings.CustomSettings.Set {
 		team.Config.MDM.AndroidSettings.CustomSettings = spec.MDM.AndroidSettings.CustomSettings
@@ -2504,19 +2491,8 @@ func (svc *Service) editTeamFromSpec(
 	}
 
 	if appCfg.MDM.EnabledAndConfigured && didUpdateMacOSDiskEncryption {
-		// The FileVault profile can cover both enforcement and key escrow, so
-		// only the off<->on transition of the pair creates or deletes it.
-		macOSDiskEncryptionOn := newDiskEncryption.MacOSEnabled || newDiskEncryption.MacOSEscrowEnabled
-		macOSDiskEncryptionWasOn := oldDiskEncryption.MacOSEnabled || oldDiskEncryption.MacOSEscrowEnabled
-		switch {
-		case macOSDiskEncryptionOn && !macOSDiskEncryptionWasOn:
-			if err := svc.MDMAppleEnableFileVaultAndEscrow(ctx, &team.ID); err != nil {
-				return ctxerr.Wrap(ctx, err, "enable team filevault and escrow")
-			}
-		case !macOSDiskEncryptionOn && macOSDiskEncryptionWasOn:
-			if err := svc.MDMAppleDisableFileVaultAndEscrow(ctx, &team.ID); err != nil && !fleet.IsNotFound(err) {
-				return ctxerr.Wrap(ctx, err, "disable team filevault and escrow")
-			}
+		if err := svc.MDMAppleReconcileFileVaultProfile(ctx, &team.ID); err != nil {
+			return ctxerr.Wrap(ctx, err, "reconcile team filevault profile")
 		}
 	}
 	for _, pc := range []struct {
@@ -2606,7 +2582,7 @@ func (svc *Service) editTeamFromSpec(
 
 	if didUpdateWindowsManagedLocalAccount {
 		if err := svc.logEnableManagedLocalAccountActivity(
-			ctx, team.Config.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value, "windows", &team.ID, &team.Name,
+			ctx, team.Config.MDM.WindowsSettings.EnableManagedLocalAccount.Value, "windows", &team.ID, &team.Name,
 		); err != nil {
 			return err
 		}
@@ -2805,20 +2781,9 @@ func (svc *Service) updateTeamMDMDiskEncryption(ctx context.Context, tm *fleet.T
 		if err != nil {
 			return err
 		}
-		// the FileVault profile can cover both enforcement and key escrow,
-		// so only the off<->on transition of the macOS pair creates or
-		// deletes it
-		macOSDiskEncryptionOn := newDiskEncryption.MacOSEnabled || newDiskEncryption.MacOSEscrowEnabled
-		macOSDiskEncryptionWasOn := oldDiskEncryption.MacOSEnabled || oldDiskEncryption.MacOSEscrowEnabled
-		if appCfg.MDM.EnabledAndConfigured && macOSDiskEncryptionOn != macOSDiskEncryptionWasOn {
-			if macOSDiskEncryptionOn {
-				if err := svc.MDMAppleEnableFileVaultAndEscrow(ctx, &tm.ID); err != nil {
-					return ctxerr.Wrap(ctx, err, "enable team filevault and escrow")
-				}
-			} else {
-				if err := svc.MDMAppleDisableFileVaultAndEscrow(ctx, &tm.ID); err != nil && !fleet.IsNotFound(err) {
-					return ctxerr.Wrap(ctx, err, "disable team filevault and escrow")
-				}
+		if appCfg.MDM.EnabledAndConfigured {
+			if err := svc.MDMAppleReconcileFileVaultProfile(ctx, &tm.ID); err != nil {
+				return ctxerr.Wrap(ctx, err, "reconcile team filevault profile")
 			}
 		}
 	}

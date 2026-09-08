@@ -95,6 +95,12 @@ export default {
 
     return sendRequest("POST", path);
   },
+  apnsPing: (deviceAuthToken: string) => {
+    const { DEVICE_USER_APNS_PING } = endpoints;
+    const path = DEVICE_USER_APNS_PING(deviceAuthToken);
+
+    return sendRequest("POST", path);
+  },
 
   /** Starts the Fleet Desktop SSO flow. Sets the SSO handshake cookie and
    * returns the IdP URL to navigate to; the session cookie is set server-side

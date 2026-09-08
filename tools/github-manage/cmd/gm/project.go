@@ -26,36 +26,19 @@ var projectCmd = &cobra.Command{
 			return
 		}
 
-		tui.RunTUI(tui.ProjectCommand, projectID, limit, "")
+		allIssues, _ := cmd.Flags().GetBool("all-issues")
+		workflow, _ := cmd.Flags().GetString("workflow")
+
+		tui.RunTUI(tui.ProjectCommand, projectID, limit, "", allIssues, workflow)
 	},
 }
 
 func init() {
 	projectCmd.Flags().IntP("limit", "l", 300, "Maximum number of items to fetch")
-	estimatedCmd.Flags().IntP("limit", "l", 500, "Maximum number of items to fetch from drafting project")
+	projectCmd.Flags().BoolP("all-issues", "a", false, "Select all issues once the view is populated")
+	projectCmd.Flags().StringP("workflow", "w", "", "Run this workflow immediately instead of waiting for input (e.g. 'demo')")
 	sprintCmd.Flags().IntP("limit", "l", 300, "Maximum number of items to fetch")
 	sprintCmd.Flags().BoolP("previous", "p", false, "Show previous sprint instead of current")
-}
-
-var estimatedCmd = &cobra.Command{
-	Use:   "estimated [project-id-or-alias]",
-	Short: "Get estimated GitHub issues from the drafting project filtered by project label",
-	Args:  cobra.ExactArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
-		projectID, err := ghapi.ResolveProjectID(args[0])
-		if err != nil {
-			fmt.Printf("Error resolving project: %v\n", err)
-			return
-		}
-
-		limit, err := cmd.Flags().GetInt("limit")
-		if err != nil {
-			fmt.Printf("Error getting limit flag: %v\n", err)
-			return
-		}
-
-		tui.RunTUI(tui.EstimatedCommand, projectID, limit, "")
-	},
 }
 
 // sprintCmd fetches only the issues currently in the active sprint for a project.
@@ -81,10 +64,10 @@ var sprintCmd = &cobra.Command{
 		prev, _ := cmd.Flags().GetBool("previous")
 		if prev {
 			// Pass a mode hint via the search parameter
-			tui.RunTUI(tui.SprintCommand, projectID, limit, "previous")
+			tui.RunTUI(tui.SprintCommand, projectID, limit, "previous", false, "")
 			return
 		}
 
-		tui.RunTUI(tui.SprintCommand, projectID, limit, "")
+		tui.RunTUI(tui.SprintCommand, projectID, limit, "", false, "")
 	},
 }

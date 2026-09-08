@@ -33,6 +33,7 @@ For unreleased bug fixes in a release candidate, one of:
 - [ ] Checked schema for all modified table for columns that will auto-update timestamps during migration.
 - [ ] Confirmed that updating the timestamps is acceptable, and will not cause unwanted side effects.
 - [ ] Ensured the correct collation is explicitly set for character columns (`COLLATE utf8mb4_unicode_ci`).
+- [ ] Ensured the migration can be retried if it was partially applied after a failure.
 
 ## New Fleet configuration settings
 

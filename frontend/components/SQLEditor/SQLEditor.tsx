@@ -18,12 +18,12 @@ import {
   sqlKeyWords,
 } from "utilities/sql_tools";
 import { releaseStuckSelectionOnScroll } from "utilities/ace_editor";
+import "utilities/ace_theme";
 
 import CopyButton from "components/buttons/CopyButton";
 import Icon from "components/Icon";
 
 import "./mode";
-import "./theme";
 
 export interface ISQLEditorProps {
   focus?: boolean;
@@ -105,14 +105,8 @@ const SQLEditor = ({
     // Takes SQL and returns what table(s) are being used
     const checkTableValues = checkTable(value);
 
-    // Update completers if no sql errors or the errors include syntax near table name
-    const updateCompleters =
-      !checkTableValues.error ||
-      checkTableValues.error
-        .toString()
-        .includes("Syntax error found near Identifier (FROM Clause)");
-
-    if (updateCompleters) {
+    // Update completers only when the query parses cleanly.
+    if (!checkTableValues.error) {
       langTools.setCompleters([]); // Reset completers as modifications are additive
 
       // Autocomplete sql keywords, builtin functions, and datatypes

@@ -83,6 +83,13 @@ sequenceDiagram
     end
 ```
 
+### User registration
+
+Between phases 1 and 2 macOS registers the user (`beginUserRegistration`). The extension's job is to persist an `ASAuthorizationProviderExtensionUserLoginConfiguration` naming the IdP username the framework should send as `username` on every login request. Two paths:
+
+- **Setup Assistant (ADE).** The framework has already run the IdP login through Fleet's token endpoint to create the account, so it passes the username in and the extension just saves it.
+- **Already-set-up Mac ("Registration required" banner).** The framework has only collected the *local* password and passes `userName = nil` with `userInteractionEnabled`. The extension must authenticate the user itself: it calls `presentRegistrationViewController`, shows a native username/password form, and verifies the credentials by sending Fleet the same device-signed login request AppSSOAgent would (`/nonce` → `/token`, password in an ECDH-ES/A256GCM embedded assertion). A 2xx means the IdP accepted the password; only then is the username saved and `.success` returned. A 401 is shown inline for retry; cancelling returns `.failed` so macOS keeps the banner and retries later. Saving an unverified username would bind the account to an identity that fails at every unlock.
+
 ## Known limitations
 
 - **OIDC ROPG has provider-specific limitations.** Okta: ROPG must be explicitly enabled on the application and the app must be Native or Service type. Entra: MFA-required users and federated (AD FS) users cannot authenticate via ROPG. These are upstream constraints, not Fleet bugs. Customers in those configurations need an alternative `PSSOIdPClient` backend (LDAP bind or a direct-trust flow).

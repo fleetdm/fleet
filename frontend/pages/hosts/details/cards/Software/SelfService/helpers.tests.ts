@@ -291,6 +291,23 @@ describe("filterSoftwareByQuery", () => {
     ]);
   });
 
+  it("matches on bundle_identifier when name doesn't contain the query", () => {
+    const cisco = makeItem("uninstalled", {
+      name: "acme-secure-client",
+      bundle_identifier: "com.cisco.secureclient.vpn.service",
+    });
+    expect(filterSoftwareByQuery([chrome, cisco], "cisco")).toEqual([cisco]);
+  });
+
+  it("matches on custom display_name when name and bundle don't contain the query", () => {
+    const cisco = makeItem("uninstalled", {
+      name: "acme-secure-client",
+      bundle_identifier: "com.zeta.vpn.service",
+      display_name: "Cisco Secure Client",
+    });
+    expect(filterSoftwareByQuery([chrome, cisco], "cisco")).toEqual([cisco]);
+  });
+
   it("returns [] when nothing matches", () => {
     expect(filterSoftwareByQuery([chrome, firefox], "safari")).toEqual([]);
   });
