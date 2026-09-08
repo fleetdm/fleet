@@ -109,7 +109,8 @@ sequenceDiagram
 - **BinarySecurityToken:** For Autopilot/Entra-joined devices, this is the Entra JWT. Fleet validates it before issuing a certificate.
 - **ZTDID (Zero Touch Device ID):** A GUID Microsoft assigns to each Autopilot-registered device. The device sends it during enrollment. Fleet stores it and uses it to link the MDM enrollment to the Autopilot record.
 - **WSTEP:** The certificate enrollment protocol. Fleet's WSTEP identity key signs the device's CSR, producing a client certificate used for all future management sessions.
-- **Cron sync:** Runs every 5 minutes, calls the Microsoft Graph API, and diffs against Fleet's stored Autopilot records. This is how Fleet knows about devices before they enroll.
+- **Why the cron sync?** Fleet already knows about devices that enroll in its MDM server, but the sync serves three purposes that MDM enrollment alone cannot: **(1)** it creates pending host records for devices registered in Autopilot that haven't been unboxed yet, so admins see their full inventory in Fleet before a single device boots; **(2)** it pulls the group tag from the Autopilot record, which determines which Fleet team the device gets assigned to (the MDM enrollment itself doesn't carry this); **(3)** it detects when a device is removed from Autopilot in Intune and cleans up the Fleet record.
+- **Cron sync:** Runs every 5 minutes, calls the Microsoft Graph API, and diffs against Fleet's stored Autopilot records.
 - **Linking:** Fleet links an enrollment to its Autopilot record first by ZTDID (fast, authoritative), then by serial number as a fallback.
 
 ## Level 4: Setup experience (ESP)
