@@ -1,0 +1,1 @@
+- Software installer downloads by URL now honor Fleet's outbound network settings. To fetch installers from a private or loopback address, set `server_allow_private_network_integrations` or `server_bypass_network_blocking`. This includes installers fetched through a proxy on such an address.

@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 	"unsafe"
@@ -400,6 +401,109 @@ func TestHostnamesMatch(t *testing.T) {
 				require.Equal(t, test.expectedMatch, matched)
 
 			}
+		})
+	}
+}
+
+// sizeLimitedClients covers every way a size-limited client can be built.
+var sizeLimitedClients = map[string]func(maxSize int64) *http.Client{
+	"WithMaxResponseSize": func(maxSize int64) *http.Client {
+		return NewClient(WithTimeout(5*time.Second), WithMaxResponseSize(maxSize))
+	},
+	"NewSizeLimitTransport": func(maxSize int64) *http.Client {
+		cli := NewClient(WithTimeout(5 * time.Second))
+		cli.Transport = NewSizeLimitTransport(maxSize)
+		return cli
+	},
+}
+
+func TestSizeLimitedClientBlocksPrivateNetworks(t *testing.T) {
+	const marker = "loopback-only"
+	const maxSize = 1 << 20
+
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		io.WriteString(w, marker) //nolint:errcheck
+	}))
+	defer ts.Close()
+
+	for name, newClient := range sizeLimitedClients {
+		t.Run(name, func(t *testing.T) {
+			// Control: with blocking off the listener is reachable, so the
+			// assertions below cannot pass on an unreachable address.
+			setBlockingMode(t, BlockingDisabled)
+			resp, err := newClient(maxSize).Get(ts.URL)
+			require.NoError(t, err)
+			body, err := io.ReadAll(resp.Body)
+			resp.Body.Close()
+			require.NoError(t, err)
+			require.Equal(t, marker, string(body))
+
+			for _, mode := range []NetworkBlockingMode{BlockingFull, BlockingPrivateAllowed} {
+				setBlockingMode(t, mode)
+				_, err := newClient(maxSize).Get(ts.URL)
+				require.ErrorIs(t, err, ErrPrivateNetworkBlocked, "mode %v", mode)
+			}
+		})
+	}
+}
+
+func TestSizeLimitedClientEnforcesLimit(t *testing.T) {
+	const maxSize = 1024
+	oversized := strings.Repeat("x", maxSize*2)
+
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/chunked" {
+			// No Content-Length, so the limit can only be enforced while reading.
+			w.Header().Set("Transfer-Encoding", "chunked")
+		}
+		io.WriteString(w, oversized) //nolint:errcheck
+	}))
+	defer ts.Close()
+
+	for name, newClient := range sizeLimitedClients {
+		t.Run(name, func(t *testing.T) {
+			setBlockingMode(t, BlockingDisabled)
+
+			_, err := newClient(maxSize).Get(ts.URL + "/known-length")
+			require.ErrorIs(t, err, ErrMaxSizeExceeded)
+
+			resp, err := newClient(maxSize).Get(ts.URL + "/chunked")
+			require.NoError(t, err)
+			require.EqualValues(t, -1, resp.ContentLength)
+			_, err = io.ReadAll(resp.Body)
+			resp.Body.Close()
+			var maxBytesErr *http.MaxBytesError
+			require.ErrorAs(t, err, &maxBytesErr)
+		})
+	}
+}
+
+// roundTripFunc is deliberately not an *http.Transport, matching how tests
+// stub http.DefaultTransport.
+type roundTripFunc func(*http.Request) (*http.Response, error)
+
+func (f roundTripFunc) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
+
+func TestSizeLimitedClientPreservesDefaultTransportMock(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer ts.Close()
+
+	for name, newClient := range sizeLimitedClients {
+		t.Run(name, func(t *testing.T) {
+			var mocked bool
+			orig := http.DefaultTransport
+			t.Cleanup(func() { http.DefaultTransport = orig })
+			http.DefaultTransport = roundTripFunc(func(r *http.Request) (*http.Response, error) {
+				mocked = true
+				return orig.RoundTrip(r)
+			})
+
+			resp, err := newClient(1 << 20).Get(ts.URL)
+			require.NoError(t, err)
+			resp.Body.Close()
+			require.True(t, mocked, "mock round tripper must stay in the chain")
 		})
 	}
 }

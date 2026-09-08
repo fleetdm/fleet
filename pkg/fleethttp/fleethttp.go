@@ -181,10 +181,11 @@ func privateNetworkBlockingDialContext(dialer *net.Dialer) func(ctx context.Cont
 }
 
 type clientOpts struct {
-	timeout   time.Duration
-	tlsConf   *tls.Config
-	noFollow  bool
-	cookieJar http.CookieJar
+	timeout     time.Duration
+	tlsConf     *tls.Config
+	noFollow    bool
+	cookieJar   http.CookieJar
+	maxRespSize int64
 }
 
 // ClientOpt is the type for the client-specific options.
@@ -221,6 +222,22 @@ func WithCookieJar(jar http.CookieJar) ClientOpt {
 	}
 }
 
+// WithMaxResponseSize caps the size of response bodies the client will read.
+func WithMaxResponseSize(maxSizeBytes int64) ClientOpt {
+	return func(o *clientOpts) {
+		o.maxRespSize = maxSizeBytes
+	}
+}
+
+// defaultBaseTransport falls back to http.DefaultTransport when a test has
+// replaced it with a non-*http.Transport, so mock chains are preserved.
+func defaultBaseTransport() http.RoundTripper {
+	if _, ok := http.DefaultTransport.(*http.Transport); ok {
+		return NewTransport()
+	}
+	return http.DefaultTransport
+}
+
 // NewClient returns an HTTP client configured according to the provided
 // options.
 func NewClient(opts ...ClientOpt) *http.Client {
@@ -243,14 +260,13 @@ func NewClient(opts ...ClientOpt) *http.Client {
 	var baseTransport http.RoundTripper
 	if co.tlsConf != nil {
 		baseTransport = NewTransport(WithTLSConfig(co.tlsConf))
-	} else if _, ok := http.DefaultTransport.(*http.Transport); ok {
-		baseTransport = NewTransport()
 	} else {
-		// http.DefaultTransport is not a *http.Transport (e.g. test mock).
-		// Use it directly to preserve the mock chain.
-		baseTransport = http.DefaultTransport
+		baseTransport = defaultBaseTransport()
 	}
 	cli.Transport = otelhttp.NewTransport(baseTransport)
+	if co.maxRespSize > 0 {
+		cli.Transport = newSizeLimitTransport(cli.Transport, co.maxRespSize)
+	}
 	if co.cookieJar != nil {
 		cli.Jar = co.cookieJar
 	}
@@ -342,18 +358,30 @@ func HostnamesMatch(a, b string) (bool, error) {
 
 type SizeLimitTransport struct {
 	maxSizeBytes int64
+	base         http.RoundTripper
 }
 
 var ErrMaxSizeExceeded = errors.New("response body exceeds max size")
 
+// NewSizeLimitTransport wraps the default base transport. Prefer
+// NewClient(WithMaxResponseSize(n)), which keeps the whole client chain.
 func NewSizeLimitTransport(maxSizeBytes int64) *SizeLimitTransport {
+	return newSizeLimitTransport(defaultBaseTransport(), maxSizeBytes)
+}
+
+func newSizeLimitTransport(base http.RoundTripper, maxSizeBytes int64) *SizeLimitTransport {
 	return &SizeLimitTransport{
 		maxSizeBytes: maxSizeBytes,
+		base:         base,
 	}
 }
 
 func (t *SizeLimitTransport) RoundTrip(req *http.Request) (*http.Response, error) {
-	resp, err := http.DefaultTransport.RoundTrip(req)
+	base := t.base
+	if base == nil {
+		base = defaultBaseTransport()
+	}
+	resp, err := base.RoundTrip(req)
 	if err != nil {
 		return nil, err
 	}
