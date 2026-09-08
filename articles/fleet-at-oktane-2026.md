@@ -18,7 +18,7 @@ Everyone who visits the booth can get a not-for-resale (NFR) license to run Flee
 
 ## Find us
 
-- **Booth:** [BOOTH NUMBER]
+- **Booth:** TBD
 - **Dates:** Tuesday, September 22 through Thursday, September 24, 2026
 - **Venue:** Caesars Forum, Las Vegas
 
