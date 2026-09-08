@@ -191,6 +191,7 @@ To localize content, pick the best fleetie to do the translation, and refer to t
 - 🇫🇷 French (France, Quebec/Canada, Luxembourg, Monaco, Democratic Republic of the Congo, Cameroon, New Brunswick/Canada, Switzerland)
 - 🇵🇹 Portuguese (Brazil, Portugal, Sao Tome and Principe, Angola, Mozambique, Cape Verde)
 - 🇩🇪 German (Germany, Austria, Switzerland, Liechtenstein)
+- 🇮🇳 Marathi (Maharashtra)
 - 🇳🇱 Dutch (the Netherlands, Flemish Region, Belgium, Suriname)
 - 🇸🇪 Swedish (Sweden)
 - 🇮🇱 Hebrew (Israel)
