@@ -79,14 +79,14 @@ sequenceDiagram
 
     rect rgb(255, 250, 235)
         note over Win, Fleet: MS-MDE2 enrollment protocol
-        Win->>Fleet: POST /discovery
+        Win->>Fleet: POST /mdm/microsoft/discovery
         Fleet-->>Win: Enrollment policy URL, enrollment URL
 
-        Win->>Fleet: POST /policy (BinarySecurityToken = Entra JWT)
+        Win->>Fleet: POST /mdm/microsoft/policy (BinarySecurityToken = Entra JWT)
         Fleet-->>Win: Certificate requirements (key length, hash algorithm)
 
         note left of Win: Device generates keypair + CSR
-        Win->>Fleet: POST /enroll (CSR, DeviceID, ZTDID)
+        Win->>Fleet: POST /mdm/microsoft/enroll (CSR, DeviceID, ZTDID)
         note right of Fleet: Fleet signs CSR with WSTEP identity key
         Fleet-->>Win: Signed certificate + management URL
     end
@@ -94,7 +94,7 @@ sequenceDiagram
     note over Win, Fleet: Device is now MDM-enrolled
 
     loop SyncML sessions (mTLS)
-        Win->>Fleet: POST /management (SyncML)
+        Win->>Fleet: POST /mdm/microsoft/management (SyncML)
         Fleet-->>Win: Commands + config profiles
     end
 
@@ -124,22 +124,22 @@ sequenceDiagram
     participant Queue as Unified Queue
 
     note over Win, Fleet: Immediately after enrollment
-    Win->>Fleet: First SyncML session
+    Win->>Fleet: POST /mdm/microsoft/management (first SyncML session)
     Fleet-->>Win: ESP hold (awaiting configuration)
     note right of Win: Device shows "Setting up<br/>your device..."
 
     note over Orbit, Fleet: Orbit comes online
-    Orbit->>Fleet: POST /orbit/enroll
+    Orbit->>Fleet: POST /fleet/orbit/enroll
     Fleet-->>Orbit: orbit_node_key
 
-    Orbit->>Fleet: POST /orbit/config
+    Orbit->>Fleet: POST /fleet/orbit/config
     Fleet-->>Orbit: RunSetupExperience = true
 
-    Orbit->>Fleet: POST /setup_experience/init
+    Orbit->>Fleet: POST /fleet/orbit/setup_experience/init
     Fleet->>Queue: Enqueue software installers
 
     loop Every 30s
-        Orbit->>Fleet: POST /setup_experience/status
+        Orbit->>Fleet: POST /fleet/orbit/setup_experience/status
         Fleet-->>Orbit: pending and completed items
         Fleet->>Queue: Queue next install step
     end
