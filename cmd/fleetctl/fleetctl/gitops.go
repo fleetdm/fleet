@@ -155,9 +155,9 @@ func gitopsCommand() *cli.Command {
 				filename string
 			}
 			var missingVPPTeamsWithApps []missingVPPTeamWithApps
-			// Fleets that configure a setup assistant in this run, for the post-run
-			// ABM coverage advisory.
-			setupAssistantFleets := make(map[string]struct{})
+			// Fleets (name to ID, 0 for "No team") that configure a setup assistant in
+			// this run, for the post-run ABM coverage advisory.
+			setupAssistantFleets := make(map[string]uint)
 
 			// we keep track of team software installers and scripts for correct policy application
 			teamsSoftwareInstallers := make(map[string][]fleet.SoftwarePackageResponse)
@@ -402,17 +402,6 @@ func gitopsCommand() *cli.Command {
 						// being applied here under the global file's baseDir.
 						config.Controls = noTeamControls
 					}
-				}
-
-				// Registration with Apple silently no-ops for a fleet with no ABM token
-				// association, leaving its setup assistant inert; remember which fleets
-				// configure one so the post-run advisory can warn about them.
-				if ms := config.Controls.MacOSSetup; ms != nil && ms.MacOSSetupAssistant.Value != "" {
-					name := fleet.TeamNameNoTeam
-					if config.TeamName != nil {
-						name = *config.TeamName
-					}
-					setupAssistantFleets[norm.NFC.String(name)] = struct{}{}
 				}
 
 				if !appConfig.License.IsPremium() {
@@ -660,6 +649,20 @@ func gitopsCommand() *cli.Command {
 				)
 				if err != nil {
 					return err
+				}
+
+				// Registration with Apple silently no-ops for a fleet with no ABM token
+				// association, leaving its setup assistant inert; remember which fleets
+				// configure one so the post-run advisory can warn about them. DoGitOps
+				// populated config.TeamID for team files (0 stands for "No team"). In
+				// dry-run new teams get no ID, but the advisory doesn't run then anyway.
+				if ms := config.Controls.MacOSSetup; ms != nil && ms.MacOSSetupAssistant.Value != "" {
+					switch {
+					case config.TeamName == nil || config.IsNoTeam():
+						setupAssistantFleets[fleet.TeamNameNoTeam] = 0
+					case config.TeamID != nil:
+						setupAssistantFleets[norm.NFC.String(*config.TeamName)] = *config.TeamID
+					}
 				}
 
 				// Schedule CA deletions as a post-op after all team configs have been processed.
@@ -1259,7 +1262,6 @@ func checkABMTeamAssignments(config *spec.GitOps, fleetClient *service.Client) (
 // warnSetupAssistantsWithoutABMTokens, split out for testing.
 type setupAssistantABMChecker interface {
 	ListABMTokens() ([]*fleet.ABMToken, error)
-	ListTeams(query string) ([]fleet.Team, error)
 	CountHosts(query string) (int, error)
 }
 
@@ -1269,7 +1271,7 @@ type setupAssistantABMChecker interface {
 // becomes a default fleet for a token or receives an ABM host. Best-effort — it
 // must never fail the run, and it runs after the deferred token assignments so the
 // server-side state it reads is final.
-func warnSetupAssistantsWithoutABMTokens(fleetClient setupAssistantABMChecker, fleets map[string]struct{}, logf func(format string, a ...any)) {
+func warnSetupAssistantsWithoutABMTokens(fleetClient setupAssistantABMChecker, fleets map[string]uint, logf func(format string, a ...any)) {
 	tokens, err := fleetClient.ListABMTokens()
 	if err != nil {
 		logf("[!] skipping setup assistant ABM coverage check: %s\n", err)
@@ -1284,30 +1286,11 @@ func warnSetupAssistantsWithoutABMTokens(fleetClient setupAssistantABMChecker, f
 		}
 	}
 
-	var teamIDsByName map[string]uint
 	for _, name := range slices.Sorted(maps.Keys(fleets)) {
 		if _, ok := covered[name]; ok {
 			continue
 		}
-		var teamID uint // 0 filters for "No team" hosts
-		if name != fleet.TeamNameNoTeam {
-			if teamIDsByName == nil {
-				teams, err := fleetClient.ListTeams("")
-				if err != nil {
-					logf("[!] skipping setup assistant ABM coverage check: %s\n", err)
-					return
-				}
-				teamIDsByName = make(map[string]uint, len(teams))
-				for _, tm := range teams {
-					teamIDsByName[norm.NFC.String(tm.Name)] = tm.ID
-				}
-			}
-			id, ok := teamIDsByName[name]
-			if !ok {
-				continue
-			}
-			teamID = id
-		}
+		teamID := fleets[name] // 0 filters for "No team" hosts
 
 		// ABM-enrolled or ABM-pending hosts in the fleet also associate it with a
 		// token. On lookup errors stay silent rather than risk a false warning.
