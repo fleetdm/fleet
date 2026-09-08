@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "2.1.1",
+      "version": "2.2.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'teleportlabs.com.Dayflow';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'teleportlabs.com.Dayflow' AND version_compare(bundle_short_version, '2.1.1') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'teleportlabs.com.Dayflow' AND version_compare(bundle_short_version, '2.2.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'teleportlabs.com.Dayflow' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/JerryZLiu/Dayflow/releases/download/v2.1.1/Dayflow.dmg",
+      "installer_url": "https://github.com/JerryZLiu/Dayflow/releases/download/v2.2.0/Dayflow.dmg",
       "install_script_ref": "9ec4db9b",
       "uninstall_script_ref": "8672edfc",
-      "sha256": "db36cd15929f3ef24f13ee24a7d6dde1a00baa6f8f581b632787174df4db8be2",
+      "sha256": "8ac78be890b590fa3b260b30d22c95b83dfe43b62cffda3ecf9214c05cd37bd5",
       "default_categories": [
         "Productivity"
       ]

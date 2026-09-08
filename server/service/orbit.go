@@ -358,6 +358,7 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 			svc.logger.ErrorContext(ctx, "failed to link windows mdm enrollment to orbit host via EUA token",
 				"err", err, "host_uuid", host.UUID, "device_id", euaDeviceID)
 		}
+		svc.maybeCreateWindowsMDMEnrolledActivityForDevice(ctx, euaDeviceID)
 	} else if platform == "windows" && appConfig.MDM.WindowsEnabledAndConfigured && hostInfo.HardwareSerial != "" {
 		// Reverse link: an automatic (user-driven) Windows MDM enrollment may already exist for this device, created before fleetd was
 		// installed. The OMA-DM session stores the device-reported SMBIOS serial on the unlinked enrollment row; link it now, before
@@ -372,6 +373,11 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 			if _, err := osquery_utils.LinkWindowsHostMDMEnrollment(ctx, svc.logger, svc.ds, host.ID, host.UUID, device.MDMDeviceID); err != nil {
 				svc.logger.ErrorContext(ctx, "failed to reverse-link windows mdm enrollment at orbit enroll",
 					"err", err, "host_uuid", host.UUID, "device_id", device.MDMDeviceID)
+			} else {
+				// The enrollment predates this host record, so its mdm_enrolled activity was deferred; record it now
+				// that there is a host to attribute it to, rather than waiting for the next management session.
+				device.HostUUID = host.UUID
+				svc.maybeCreateWindowsMDMEnrolledActivity(ctx, device)
 			}
 			// A Windows orbit enrollment is not linked when it is not MDM, when it is already linked, or when it is a
 			// programmatic fleetd-first enrollment. Note this matches on serial alone, so the lookup refuses when several

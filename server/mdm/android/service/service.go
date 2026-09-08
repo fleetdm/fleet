@@ -24,6 +24,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/fleetdm/fleet/v4/server/mdm/android/service/androidmgmt"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/google/uuid"
 	"google.golang.org/api/androidmanagement/v1"
 	"google.golang.org/api/googleapi"
@@ -854,16 +855,19 @@ func (svc *Service) UnenrollAndroidHost(ctx context.Context, hostID uint) error 
 		return ctxerr.Wrap(ctx, err, "getting host for android unenrollment")
 	}
 
+	// Check authorization again based on host info for team-based permissions.
+	// Runs before the platform check below, which would otherwise answer for
+	// hosts the caller has no access to.
+	notFoundErr := ctxerr.Wrap(ctx, common_mysql.NotFound("Host").WithID(hostID), "unenroll android host")
+	if err := svc.authz.AuthorizeOrNotFound(ctx, fleet.MDMCommandAuthz{
+		TeamID: host.TeamID,
+	}, fleet.ActionWrite, notFoundErr); err != nil {
+		return err
+	}
+
 	if !fleet.IsAndroidPlatform(host.Platform) {
 		svc.logger.DebugContext(ctx, "Skipping Android unenrollment for non-Android host", "host_id", host.ID, "platform", host.Platform)
 		return nil // no-op for non-Android hosts
-	}
-
-	// Check authorization again based on host info for team-based permissions.
-	if err := svc.authz.Authorize(ctx, fleet.MDMCommandAuthz{
-		TeamID: host.TeamID,
-	}, fleet.ActionWrite); err != nil {
-		return err
 	}
 
 	// Resolve Android device and enterprise
@@ -906,6 +910,12 @@ func (svc *Service) UnenrollAndroidHost(ctx context.Context, hostID uint) error 
 		})
 		if err != nil {
 			// If the device no longer exists in Google, treat as already unenrolled.
+			//
+			// Fleet deliberately does not flip host_mdm.enrolled here, and neither do the
+			// other command paths when they map a 404. A single AMAPI 404 is one data point
+			// and can be transient, so acting on it would risk unenrolling a live host.
+			// reconcile_android_devices settles local state from the full device list Google
+			// reports, which is the evidence this decision needs.
 			if androidmgmt.IsNotFoundError(err) {
 				svc.logger.InfoContext(ctx, "android BYO device already deleted, skipping unenroll wipe",
 					"host_id", host.ID, "device_name", deviceName)
@@ -972,14 +982,17 @@ func (svc *Service) resolveAndroidCommandTarget(ctx context.Context, hostID uint
 		return nil, "", ctxerr.Wrap(ctx, err, "getting host for android "+opLabel)
 	}
 
-	if !fleet.IsAndroidPlatform(host.Platform) {
-		return nil, "", &fleet.BadRequestError{Message: "host is not an Android host"}
+	// Runs before the platform check below, which would otherwise answer for
+	// hosts the caller has no access to.
+	notFoundErr := ctxerr.Wrap(ctx, common_mysql.NotFound("Host").WithID(hostID), "resolve android command target")
+	if err := svc.authz.AuthorizeOrNotFound(ctx, fleet.MDMCommandAuthz{
+		TeamID: host.TeamID,
+	}, fleet.ActionWrite, notFoundErr); err != nil {
+		return nil, "", err
 	}
 
-	if err := svc.authz.Authorize(ctx, fleet.MDMCommandAuthz{
-		TeamID: host.TeamID,
-	}, fleet.ActionWrite); err != nil {
-		return nil, "", err
+	if !fleet.IsAndroidPlatform(host.Platform) {
+		return nil, "", &fleet.BadRequestError{Message: "host is not an Android host"}
 	}
 
 	ah, err := svc.ds.AndroidHostLiteByHostUUID(ctx, host.UUID)

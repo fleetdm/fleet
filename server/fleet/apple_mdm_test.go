@@ -1079,9 +1079,9 @@ func TestIsMacIdentifier(t *testing.T) {
 		{product: "MacBookPro18", wantErr: true},
 		// Garbage input
 		{product: "not-a-model", wantErr: true},
-		// Non-Mac Apple devices that don't start with iPhone/iPod/iPad return an error
-		{product: "AppleTV6,2", wantErr: true},
-		{product: "AppleTV14,1", wantErr: true},
+		// Non-Mac Apple devices that don't start with iPhone/iPod/iPad also returns silently with valid format
+		{product: "AppleTV6,2", want: false},
+		{product: "AppleTV14,1", want: false},
 	}
 
 	for _, tc := range cases {
@@ -1097,91 +1097,107 @@ func TestIsMacIdentifier(t *testing.T) {
 	}
 }
 
-func TestIsMacAppleSilicon(t *testing.T) {
+func TestIsPrefixedIdentifier(t *testing.T) {
 	cases := []struct {
 		product string
-		wantAS  bool
+		prefix  *string
+		want    bool
 		wantErr bool
 	}{
-		// --- MacBookPro ---
-		// x86: last Intel model before Apple Silicon transition
-		{product: "MacBookPro16,1", wantAS: false},
-		{product: "MacBookPro16,4", wantAS: false},
-		// Apple Silicon: first AS model (M1, Late 2020) and later
-		{product: "MacBookPro17,1", wantAS: true},
-		{product: "MacBookPro18,3", wantAS: true},
-		{product: "MacBookPro18,4", wantAS: true},
-
-		// --- MacBookAir ---
-		// x86: last Intel model before Apple Silicon transition
-		{product: "MacBookAir9,1", wantAS: false},
-		// Apple Silicon: first AS model (M1, Late 2020) and later
-		{product: "MacBookAir10,1", wantAS: true},
-		{product: "MacBookAir14,2", wantAS: true},
-
-		// --- Macmini ---
-		// x86: last Intel model before Apple Silicon transition
-		{product: "Macmini8,1", wantAS: false},
-		// Apple Silicon: first AS model (M1, Late 2020) and later
-		{product: "Macmini9,1", wantAS: true},
-		{product: "Macmini9,2", wantAS: true},
-
-		// --- iMac ---
-		// x86: last Intel models before Apple Silicon transition
-		{product: "iMac20,1", wantAS: false},
-		{product: "iMac20,2", wantAS: false},
-		// Apple Silicon: first AS model (M1, Early 2021) and later
-		{product: "iMac21,1", wantAS: true},
-		{product: "iMac21,2", wantAS: true},
-
-		// --- MacBook (no suffix) — all x86, line discontinued before Apple Silicon ---
-		{product: "MacBook10,1", wantAS: false},
-		{product: "MacBook9,1", wantAS: false},
-
-		// --- iMacPro — all x86, discontinued before Apple Silicon ---
-		{product: "iMacPro1,1", wantAS: false},
-
-		// --- MacPro — old numbering, all x86 ---
-		// (the AS Mac Pro uses the "Mac" prefix, e.g. Mac14,8)
-		{product: "MacPro7,1", wantAS: false},
-		{product: "MacPro6,1", wantAS: false},
-
-		// --- Mac (bare prefix) — unified Apple Silicon naming ---
-		// Mac Studio (M1 Ultra, 2022)
-		{product: "Mac13,1", wantAS: true},
-		{product: "Mac13,2", wantAS: true},
-		// Mac Pro (M2 Ultra, 2023)
-		{product: "Mac14,8", wantAS: true},
-		// Mac mini (M4, 2024)
-		{product: "Mac16,10", wantAS: true},
-
-		// --- Non-Mac Apple devices — return false without error ---
-		{product: "iPhone15,2", wantAS: false},
-		{product: "iPhone14,3", wantAS: false},
-		{product: "iPad13,18", wantAS: false},
-		{product: "iPodTouch9,1", wantAS: false},
-
-		// --- Error cases ---
-		// Empty string
+		{product: "MacBookPro18,4", want: false},
+		{product: "iPhone15,2", want: true},
+		{product: "iPad10,1", want: true, prefix: new("iPad")},
+		{product: "iPhone152", wantErr: true},
 		{product: "", wantErr: true},
-		// No comma separator
-		{product: "MacBookPro18", wantErr: true},
-		// Garbage input
-		{product: "not-a-model", wantErr: true},
-		// Non-Mac Apple devices that don't start with iPhone/iPod/iPad return an error
-		{product: "AppleTV6,2", wantErr: true},
-		{product: "AppleTV14,1", wantErr: true},
-		{product: "VirtualMac2,1", wantErr: true},
 	}
-
 	for _, tc := range cases {
 		t.Run(tc.product, func(t *testing.T) {
-			got, err := IsMacAppleSilicon(tc.product)
+			prefix := "iPhone"
+			if tc.prefix != nil {
+				prefix = *tc.prefix
+			}
+			got, _, _, err := IsPrefixedIdentifier(tc.product, prefix)
 			if tc.wantErr {
 				require.Error(t, err)
 			} else {
 				require.NoError(t, err)
-				require.Equal(t, tc.wantAS, got)
+				require.Equal(t, tc.want, got)
+			}
+		})
+	}
+}
+
+func TestMacSiliconAndA11DeviceCheck(t *testing.T) {
+	type asResult struct{ wantAS, wantErr bool }
+	type a11Result struct{ wantA11, wantErr bool }
+
+	cases := []struct {
+		product string
+		as      asResult
+		a11     a11Result
+	}{
+		// --- MacBookPro ---
+		{product: "MacBookPro16,1", as: asResult{wantAS: false}, a11: a11Result{wantA11: false}},
+		{product: "MacBookPro16,4", as: asResult{wantAS: false}, a11: a11Result{wantA11: false}},
+		{product: "MacBookPro17,1", as: asResult{wantAS: true}, a11: a11Result{wantA11: false}},
+		{product: "MacBookPro18,3", as: asResult{wantAS: true}, a11: a11Result{wantA11: false}},
+		{product: "MacBookPro18,4", as: asResult{wantAS: true}, a11: a11Result{wantA11: false}},
+
+		// --- MacBookAir ---
+		{product: "MacBookAir9,1", as: asResult{wantAS: false}, a11: a11Result{wantA11: false}},
+		{product: "MacBookAir10,1", as: asResult{wantAS: true}, a11: a11Result{wantA11: false}},
+		{product: "MacBookAir14,2", as: asResult{wantAS: true}, a11: a11Result{wantA11: false}},
+
+		// --- Macmini ---
+		{product: "Macmini8,1", as: asResult{wantAS: false}, a11: a11Result{wantA11: false}},
+		{product: "Macmini9,1", as: asResult{wantAS: true}, a11: a11Result{wantA11: false}},
+
+		// --- iMac ---
+		{product: "iMac20,1", as: asResult{wantAS: false}, a11: a11Result{wantA11: false}},
+		{product: "iMac20,2", as: asResult{wantAS: false}, a11: a11Result{wantA11: false}},
+		{product: "iMac21,1", as: asResult{wantAS: true}, a11: a11Result{wantA11: false}},
+		{product: "iMac21,2", as: asResult{wantAS: true}, a11: a11Result{wantA11: false}},
+
+		// --- Discontinued x86 lines ---
+		{product: "MacBook10,1", as: asResult{wantAS: false}, a11: a11Result{wantA11: false}},
+		{product: "iMacPro1,1", as: asResult{wantAS: false}, a11: a11Result{wantA11: false}},
+		{product: "MacPro7,1", as: asResult{wantAS: false}, a11: a11Result{wantA11: false}},
+		{product: "MacPro6,1", as: asResult{wantAS: false}, a11: a11Result{wantA11: false}},
+
+		// --- Mac (bare prefix) — all Apple Silicon ---
+		{product: "Mac13,1", as: asResult{wantAS: true}, a11: a11Result{wantA11: false}},
+		{product: "Mac13,2", as: asResult{wantAS: true}, a11: a11Result{wantA11: false}},
+		{product: "Mac14,8", as: asResult{wantAS: true}, a11: a11Result{wantA11: false}},
+		{product: "Mac16,10", as: asResult{wantAS: true}, a11: a11Result{wantA11: false}},
+
+		// --- Non-Mac iOS/iPadOS devices — A11+ capable, not Apple Silicon Macs ---
+		{product: "iPhone10,3", a11: a11Result{wantA11: true}}, // iPhone X — first A11 device
+		{product: "iPhone14,3", a11: a11Result{wantA11: true}},
+		{product: "iPad13,18", a11: a11Result{wantA11: true}},
+		{product: "iPhone8,1", a11: a11Result{wantA11: false}}, // A11 threshold not reached
+
+		// --- Bad  ---
+		{product: "", as: asResult{wantErr: true}, a11: a11Result{wantErr: true}},
+		{product: "MacBookPro18", as: asResult{wantErr: true}, a11: a11Result{wantErr: true}},
+		{product: "not-a-model", as: asResult{wantErr: true}, a11: a11Result{wantErr: true}},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.product, func(t *testing.T) {
+			gotAS, err := IsMacAppleSilicon(tc.product)
+			if tc.as.wantErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, tc.as.wantAS, gotAS)
+			}
+
+			gotA11, err := IsA11ChipDevice(tc.product)
+			if tc.a11.wantErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, tc.a11.wantA11, gotA11)
 			}
 		})
 	}

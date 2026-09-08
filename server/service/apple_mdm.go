@@ -2975,21 +2975,41 @@ func (svc *Service) GetMDMAppleEnrollmentProfileByToken(ctx context.Context, tok
 		return nil, ctxerr.Wrap(ctx, err, "extracting topic from APNs cert")
 	}
 
+	depAssignments, err := svc.ds.GetHostDEPAssignmentsBySerial(ctx, machineInfo.Serial)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting DEP assignments by serial")
+	}
+
+	if appConfig.MDM.OnlyAllowAppleBusinessEnrollment {
+		if machineInfo.Serial == "" {
+			// adue enrollment does not have a serial, so fail fast
+			return nil, &fleet.ABOnlyEnrollmentForbiddenError{}
+		}
+
+		// No DEP assignment for this serial, so we fail.
+		if len(depAssignments) == 0 {
+			return nil, &fleet.ABOnlyEnrollmentForbiddenError{}
+		}
+	}
+
 	var requireACME bool
 	if appConfig.MDM.AppleRequireHardwareAttestation {
-		requireACME, err = svc.isMDMAppleACMERequired(ctx, machineInfo)
+		requireACME, err = svc.isMDMAppleACMERequired(ctx, machineInfo, depAssignments)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "checking if ACME enrollment is required")
 		}
 
 		svc.logger.InfoContext(ctx, "hardware attestastion required", "require_acme", requireACME, "product", machineInfo.Product, "serial", machineInfo.Serial)
-
 	}
 
 	var enrollProf []byte
 	if requireACME {
 		enrollProf, err = svc.generateMDMAppleACMEEnrollProfile(ctx, machineInfo.Serial, appConfig.OrgInfo.OrgName, mdmURL, topic)
 	} else {
+		if appConfig.MDM.IsAppleMDMSCEPBlocked() {
+			// do not allow falling through to SCEP when it's blocked via both require acme and only AB enrollments.
+			return nil, &fleet.ABOnlyEnrollmentForbiddenError{}
+		}
 		enrollProf, err = svc.generateMDMAppleSCEPEnrollProfile(ctx, appConfig.OrgInfo.OrgName, mdmURL, topic)
 	}
 
@@ -3023,7 +3043,7 @@ func (svc *Service) NewACMEEnrollment(ctx context.Context, hardwareSerial string
 	return svc.acmeSvc.NewACMEEnrollment(ctx, hardwareSerial)
 }
 
-func (svc *Service) isMDMAppleACMERequired(ctx context.Context, machineInfo *fleet.MDMAppleMachineInfo) (bool, error) {
+func (svc *Service) isMDMAppleACMERequired(ctx context.Context, machineInfo *fleet.MDMAppleMachineInfo, depAssignments []*fleet.HostDEPAssignment) (bool, error) {
 	if machineInfo == nil {
 		return false, ctxerr.New(ctx, "machine info is nil")
 	}
@@ -3034,7 +3054,7 @@ func (svc *Service) isMDMAppleACMERequired(ctx context.Context, machineInfo *fle
 		return false, nil
 	}
 
-	isSupported, err := isMacACMESupported(machineInfo.Product, machineInfo.OSVersion)
+	isSupported, err := isACMESupported(ctx, svc.logger, machineInfo.Product, machineInfo.OSVersion)
 	if err != nil {
 		return false, ctxerr.Wrap(ctx, err, "checking if device is capable of ACME")
 	} else if !isSupported {
@@ -3043,34 +3063,78 @@ func (svc *Service) isMDMAppleACMERequired(ctx context.Context, machineInfo *fle
 	}
 
 	// we only require ACME if the serial is DEP-assigned to Fleet
-	assignments, err := svc.ds.GetHostDEPAssignmentsBySerial(ctx, machineInfo.Serial)
-	if err != nil {
-		return false, ctxerr.Wrap(ctx, err, "checking DEP assignment status")
-	}
-	svc.logger.InfoContext(ctx, "checking DEP assignment status for ACME requirement", "serial", machineInfo.Serial, "dep_assignments_count", len(assignments))
+	svc.logger.InfoContext(ctx, "checking DEP assignment status for ACME requirement", "serial", machineInfo.Serial, "dep_assignments_count", len(depAssignments))
 
-	return len(assignments) > 0, nil
+	return len(depAssignments) > 0, nil
 }
 
-// isMacACMESupported checks if the device is supported for ACME enrollment. Fleet only
-// supports ACME enrollment for Apple Silicon Macs running macOS 14 or later. Other Apple devices
-// may support ACME enrollment (e.g., iOS on Apple Silicon), but they are not currently supported by Fleet.
-func isMacACMESupported(modelIdentifier string, osVersion string) (bool, error) {
-	// we only require ACME for Apple Silicon Macs
-	if isMacAppleSilicon, err := fleet.IsMacAppleSilicon(modelIdentifier); err != nil {
-		return false, fmt.Errorf("checking if device is Apple Silicon: %w", err)
-	} else if !isMacAppleSilicon {
-		return false, nil
+// isACMESupported checks if the device is supported for ACME enrollment. Fleet supports:
+// Apple Silicon Macs running macOS 14 or later.
+// iPhones with A11 chip or higher, running iOS 16 or later.
+// iPads with A11 chip or higher, running iPadOS 16.1 or later.
+// Other Apple devices
+// may support ACME enrollment (e.g., tvOS on Apple TV), but they are not currently supported by Fleet.
+func isACMESupported(ctx context.Context, logger *slog.Logger, modelIdentifier string, osVersion string) (bool, error) {
+	if isMac, _, _, _ := fleet.IsMacIdentifier(modelIdentifier); isMac {
+		// we only require ACME for Apple Silicon Macs, if the device is a mac.
+		isMacAppleSilicon, err := fleet.IsMacAppleSilicon(modelIdentifier)
+		if err != nil {
+			return false, fmt.Errorf("checking if device is Apple Silicon: %w", err)
+		} else if !isMacAppleSilicon {
+			return false, nil
+		}
+
+		// we only require ACME for Apple Silicon Macs running macOS 14 or later
+		if isLessThanMacOS14, err := apple_mdm.IsLessThanVersion(osVersion, "14.0"); err != nil {
+			return false, fmt.Errorf("checking if device is less than macOS 14: %w", err)
+		} else if isLessThanMacOS14 {
+			return false, nil
+		}
+		return true, nil
 	}
 
-	// we only require ACME for Apple Silicon Macs running macOS 14 or later
-	if isLessThanMacOS14, err := apple_mdm.IsLessThanVersion(osVersion, "14.0"); err != nil {
-		return false, fmt.Errorf("checking if device is less than macOS 14: %w", err)
-	} else if isLessThanMacOS14 {
-		return false, nil
+	isIPhone, _, _, err := fleet.IsPrefixedIdentifier(modelIdentifier, "iPhone")
+	if err != nil {
+		return false, fmt.Errorf("checking if device is an iPhone: %w", err)
+	}
+	if isIPhone {
+		if isA11, err := fleet.IsA11ChipDevice(modelIdentifier); err != nil {
+			return false, fmt.Errorf("checking if device has A11 chip: %w", err)
+		} else if !isA11 {
+			return false, nil
+		}
+
+		// Check for iOS 16.0 or above for iPhones
+		if isLessThaniOS16, err := apple_mdm.IsLessThanVersion(osVersion, "16.0"); err != nil {
+			return false, fmt.Errorf("checking if device is less than iOS 16: %w", err)
+		} else if isLessThaniOS16 {
+			return false, nil
+		}
+
+		return true, nil
 	}
 
-	return true, nil
+	if isIPad, _, _, err := fleet.IsPrefixedIdentifier(modelIdentifier, "iPad"); err != nil {
+		return false, fmt.Errorf("checking if device is an iPad: %w", err)
+	} else if isIPad {
+		if isA11, err := fleet.IsA11ChipDevice(modelIdentifier); err != nil {
+			return false, fmt.Errorf("checking if device has A11 chip: %w", err)
+		} else if !isA11 {
+			return false, nil
+		}
+
+		// Check for iPadOS 16.1 or above for iPads
+		if isLessThaniPadOS16_1, err := apple_mdm.IsLessThanVersion(osVersion, "16.1"); err != nil {
+			return false, fmt.Errorf("checking if device is less than iPadOS 16.1: %w", err)
+		} else if isLessThaniPadOS16_1 {
+			return false, nil
+		}
+
+		return true, nil
+	}
+
+	logger.InfoContext(ctx, "got unknown product family for ACME support check", "model_identifier", modelIdentifier, "os_version", osVersion)
+	return false, nil
 }
 
 func (svc *Service) generateMDMAppleACMEEnrollProfile(ctx context.Context, hardwareSerial string, orgName string, mdmURL string, topic string) ([]byte, error) {
@@ -4883,6 +4947,12 @@ func certIsFromNewEnrollment(cert *x509.Certificate) bool {
 //
 // [1]: https://developer.apple.com/documentation/devicemanagement/authenticate
 func (svc *MDMAppleCheckinAndCommandService) Authenticate(r *mdm.Request, m *mdm.Authenticate) error {
+	// AB-only enrollment enforcement lives in abOnlyEnrollmentCheckinService, which wraps
+	// this service (see handler.go). This service is dispatched as a "sub service" of
+	// multi.New alongside nanomdm's core service — its returned errors are only logged, not
+	// surfaced to the device (see MultiService.runOthers) — so a check here cannot actually
+	// block enrollment.
+
 	var scepRenewalInProgress bool
 	existingDeviceInfo, err := svc.ds.GetHostMDMCheckinInfo(r.Context, r.ID)
 	if err != nil {
@@ -5679,6 +5749,11 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 		res := NewRecoveryLockResult(cmdResult)
 		if err := svc.runCommandHandlers(r.Context, fleet.SetRecoveryLockCmdName, res); err != nil {
 			return nil, ctxerr.Wrap(r.Context, err, "SetRecoveryLock: calling handlers")
+		}
+	case fleet.VerifyRecoveryLockCmdName:
+		res := NewRecoveryLockResult(cmdResult)
+		if err := svc.runCommandHandlers(r.Context, fleet.VerifyRecoveryLockCmdName, res); err != nil {
+			return nil, ctxerr.Wrap(r.Context, err, "VerifyRecoveryLock: calling handlers")
 		}
 
 	case fleet.AccountConfigurationCmdName:
@@ -7076,7 +7151,7 @@ func RenewSCEPCertificates(
 ) error {
 	renewalDisable, exists := os.LookupEnv("FLEET_MDM_APPLE_SCEP_RENEWAL_DISABLE")
 	if exists && (strings.EqualFold(renewalDisable, "true") || renewalDisable == "1") {
-		logger.InfoContext(ctx, "skipping renewal of macOS SCEP certificates as FLEET_MDM_APPLE_SCEP_RENEWAL_DISABLE is set to true")
+		logger.InfoContext(ctx, "skipping renewal of Apple SCEP certificates as FLEET_MDM_APPLE_SCEP_RENEWAL_DISABLE is set to true")
 		return nil
 	}
 
@@ -7085,12 +7160,12 @@ func RenewSCEPCertificates(
 		return fmt.Errorf("reading app config: %w", err)
 	}
 	if !appConfig.MDM.EnabledAndConfigured {
-		logger.DebugContext(ctx, "skipping renewal of macOS SCEP certificates as MDM is not fully configured")
+		logger.DebugContext(ctx, "skipping renewal of Apple SCEP certificates as MDM is not fully configured")
 		return nil
 	}
 
 	if commander == nil {
-		logger.DebugContext(ctx, "skipping renewal of macOS SCEP certificates as apple_mdm.MDMAppleCommander was not provided")
+		logger.DebugContext(ctx, "skipping renewal of Apple SCEP certificates as apple_mdm.MDMAppleCommander was not provided")
 		return nil
 	}
 
@@ -7159,7 +7234,7 @@ func RenewSCEPCertificates(
 		}
 		logErrs := []any{}
 		for _, info := range di {
-			if ok, err := isMacACMESupported(info.HardwareModel, info.OSVersion); err != nil {
+			if ok, err := isACMESupported(ctx, logger, info.HardwareModel, info.OSVersion); err != nil {
 				logErrs = append(logErrs, "host_uuid", info.HostUUID, "error", err)
 			} else if ok {
 				acmeRequiredByHostUUID[info.HostUUID] = info
@@ -8554,6 +8629,10 @@ func (svc *Service) GetOTAProfile(ctx context.Context, enrollSecret, idpUUID str
 		return nil, ctxerr.Wrap(ctx, err, "getting app config to get org name")
 	}
 
+	if cfg.MDM.OnlyAllowAppleBusinessEnrollment {
+		return nil, &fleet.ABOnlyEnrollmentForbiddenError{}
+	}
+
 	requiresIDPUUID, err := shared_mdm.RequiresEnrollOTAAuthentication(ctx, svc.ds, enrollSecret, cfg.MDM.MacOSSetup.EnableEndUserAuthentication)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "checking if IDP UUID is required for OTA enrollment")
@@ -8709,6 +8788,15 @@ func (svc *Service) MDMAppleProcessOTAEnrollment(
 	// authorization is performed via the enroll secret and the provided certificates
 	svc.authz.SkipAuthorization(ctx)
 
+	appCfg, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "reading app config")
+	}
+
+	if appCfg.MDM.OnlyAllowAppleBusinessEnrollment {
+		return nil, &fleet.ABOnlyEnrollmentForbiddenError{}
+	}
+
 	if len(certificates) == 0 {
 		return nil, authz.ForbiddenWithInternal("no certificates provided", nil, nil, nil)
 	}
@@ -8733,11 +8821,6 @@ func (svc *Service) MDMAppleProcessOTAEnrollment(
 		return nil, fmt.Errorf("loading SCEP challenge from the database: %w", err)
 	}
 	scepChallenge := string(assets[fleet.MDMAssetSCEPChallenge].Value)
-
-	appCfg, err := svc.ds.AppConfig(ctx)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "reading app config")
-	}
 
 	mdmURL := appCfg.MDMUrl()
 
@@ -8901,200 +8984,4 @@ func EnsureMDMAppleServiceDiscovery(ctx context.Context, ds fleet.Datastore, dep
 	}
 
 	return nil
-}
-
-///////////////////////////////////////////////////////////////////////////////
-// Apple MDM Recovery Lock Password
-
-// recoveryLockResult wraps mdm.CommandResults to implement fleet.MDMCommandResults
-type recoveryLockResult struct {
-	cmdResult *mdm.CommandResults
-}
-
-func (r *recoveryLockResult) Raw() []byte      { return r.cmdResult.Raw }
-func (r *recoveryLockResult) UUID() string     { return r.cmdResult.CommandUUID }
-func (r *recoveryLockResult) HostUUID() string { return r.cmdResult.UDID } // SetRecoveryLock is device-only, UDID is always present
-
-// NewRecoveryLockResult wraps an mdm.CommandResults to implement fleet.MDMCommandResults
-func NewRecoveryLockResult(cmdResult *mdm.CommandResults) fleet.MDMCommandResults {
-	return &recoveryLockResult{cmdResult: cmdResult}
-}
-
-// NewSetRecoveryLockResultsHandler processes SetRecoveryLock command results.
-// It handles SET (install), CLEAR (remove), and ROTATE operations:
-// - SET: When acknowledged, marks the recovery lock as verified. On error, marks as failed.
-// - CLEAR: When acknowledged, deletes the recovery lock password record. On error, marks as failed.
-// - ROTATE: When acknowledged, moves pending password to active. On error, marks rotation as failed.
-func NewSetRecoveryLockResultsHandler(
-	ds fleet.Datastore,
-	logger *slog.Logger,
-	newActivityFn fleet.NewActivityFunc,
-) fleet.MDMCommandResultsHandler {
-	return func(ctx context.Context, results fleet.MDMCommandResults) error {
-		// Get the underlying result to access status and error chain
-		rlResult, ok := results.(*recoveryLockResult)
-		if !ok {
-			return ctxerr.New(ctx, "SetRecoveryLock handler: unexpected results type")
-		}
-
-		hostUUID := results.HostUUID()
-		status := rlResult.cmdResult.Status
-
-		// Check if this is a rotation (has pending password)
-		hasPendingRotation, err := ds.HasPendingRecoveryLockRotation(ctx, hostUUID)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "SetRecoveryLock handler: check pending rotation")
-		}
-
-		if hasPendingRotation {
-			// This is a rotation result
-			logger.DebugContext(ctx, "SetRecoveryLock rotation result received",
-				"host_uuid", hostUUID,
-				"command_uuid", results.UUID(),
-				"status", status,
-			)
-
-			switch status {
-			case fleet.MDMAppleStatusAcknowledged:
-				// Rotation succeeded - move pending password to active
-				if err := ds.CompleteRecoveryLockRotation(ctx, hostUUID); err != nil {
-					return ctxerr.Wrap(ctx, err, "SetRecoveryLock handler: complete rotation")
-				}
-
-				logger.InfoContext(ctx, "RotateRecoveryLock acknowledged, password rotated",
-					"host_uuid", hostUUID,
-				)
-
-			case fleet.MDMAppleStatusError, fleet.MDMAppleStatusCommandFormatError:
-				errorMsg := apple_mdm.FmtErrorChain(rlResult.cmdResult.ErrorChain)
-				if errorMsg == "" {
-					errorMsg = "RotateRecoveryLock command failed"
-				}
-				if err := ds.FailRecoveryLockRotation(ctx, hostUUID, errorMsg); err != nil {
-					return ctxerr.Wrap(ctx, err, "SetRecoveryLock handler: fail rotation")
-				}
-				logger.WarnContext(ctx, "RotateRecoveryLock command failed",
-					"host_uuid", hostUUID,
-					"error", errorMsg,
-				)
-			}
-
-			return nil
-		}
-
-		// Get the operation type to determine if this was a SET or CLEAR operation
-		opType, err := ds.GetRecoveryLockOperationType(ctx, hostUUID)
-		if err != nil {
-			// If the record doesn't exist, it may have been deleted already - nothing to do
-			if fleet.IsNotFound(err) {
-				logger.DebugContext(ctx, "SetRecoveryLock result received but no password record exists",
-					"host_uuid", hostUUID,
-					"status", status,
-				)
-				return nil
-			}
-			return ctxerr.Wrap(ctx, err, "SetRecoveryLock handler: get operation type")
-		}
-
-		logger.DebugContext(ctx, "SetRecoveryLock command result received",
-			"host_uuid", hostUUID,
-			"command_uuid", results.UUID(),
-			"status", status,
-			"operation_type", opType,
-		)
-
-		switch status {
-		case fleet.MDMAppleStatusAcknowledged:
-			if opType == fleet.MDMOperationTypeRemove {
-				// CLEAR succeeded - delete the password record
-				if err := ds.DeleteHostRecoveryLockPassword(ctx, hostUUID); err != nil {
-					return ctxerr.Wrap(ctx, err, "SetRecoveryLock handler: delete recovery lock password")
-				}
-				logger.InfoContext(ctx, "ClearRecoveryLock acknowledged, password record deleted",
-					"host_uuid", hostUUID,
-				)
-			} else {
-				// SET succeeded - mark as verified
-				if err := ds.SetRecoveryLockVerified(ctx, hostUUID); err != nil {
-					return ctxerr.Wrap(ctx, err, "SetRecoveryLock handler: set recovery lock verified")
-				}
-
-				// Get host info for activity logging - don't fail the operation if this fails
-				var hostID uint
-				var displayName string
-				host, err := ds.HostLiteByIdentifier(ctx, hostUUID)
-				if err != nil {
-					logger.WarnContext(ctx, "SetRecoveryLock handler: failed to get host for activity logging",
-						"host_uuid", hostUUID,
-						"err", err,
-					)
-				} else {
-					hostID = host.ID
-					displayName = host.Hostname
-
-					// Log the activity only if we could identify the host (fleet-initiated via WasFromAutomation)
-					if err := newActivityFn(ctx, nil, fleet.ActivityTypeSetHostRecoveryLockPassword{
-						HostID:          hostID,
-						HostDisplayName: displayName,
-					}); err != nil {
-						logger.WarnContext(ctx, "SetRecoveryLock handler: failed to create activity",
-							"host_uuid", hostUUID,
-							"err", err,
-						)
-					}
-				}
-
-				logger.InfoContext(ctx, "SetRecoveryLock acknowledged, marked verified",
-					"host_uuid", hostUUID,
-					"host_id", hostID,
-				)
-			}
-
-		case fleet.MDMAppleStatusError, fleet.MDMAppleStatusCommandFormatError:
-			errorMsg := apple_mdm.FmtErrorChain(rlResult.cmdResult.ErrorChain)
-			if errorMsg == "" {
-				if opType == fleet.MDMOperationTypeRemove {
-					errorMsg = "ClearRecoveryLock command failed"
-				} else {
-					errorMsg = "SetRecoveryLock command failed"
-				}
-			}
-
-			if opType == fleet.MDMOperationTypeRemove {
-				// CLEAR operation failed
-				// Command format errors are terminal - command is malformed and won't succeed on retry.
-				// Password mismatch errors are also terminal - requires admin intervention.
-				if rlResult.cmdResult.Status == fleet.MDMAppleStatusCommandFormatError ||
-					apple_mdm.IsRecoveryLockPasswordMismatchError(rlResult.cmdResult.ErrorChain) {
-					if err := ds.SetRecoveryLockFailed(ctx, hostUUID, errorMsg); err != nil {
-						return ctxerr.Wrap(ctx, err, "SetRecoveryLock handler: set recovery lock failed")
-					}
-					logger.WarnContext(ctx, "ClearRecoveryLock failed with terminal error",
-						"host_uuid", hostUUID,
-						"error", errorMsg,
-					)
-				} else {
-					// Transient error - reset to install/verified for retry on next cron cycle
-					if err := ds.ResetRecoveryLockForRetry(ctx, hostUUID); err != nil {
-						return ctxerr.Wrap(ctx, err, "SetRecoveryLock handler: reset recovery lock for retry")
-					}
-					logger.InfoContext(ctx, "ClearRecoveryLock failed with transient error, will retry",
-						"host_uuid", hostUUID,
-						"error", errorMsg,
-					)
-				}
-			} else {
-				// SET operation failed - mark as failed
-				if err := ds.SetRecoveryLockFailed(ctx, hostUUID, errorMsg); err != nil {
-					return ctxerr.Wrap(ctx, err, "SetRecoveryLock handler: set recovery lock failed")
-				}
-				logger.WarnContext(ctx, "SetRecoveryLock command failed",
-					"host_uuid", hostUUID,
-					"error", errorMsg,
-				)
-			}
-		}
-
-		return nil
-	}
 }

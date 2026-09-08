@@ -33,6 +33,7 @@ import (
 	mdmlifecycle "github.com/fleetdm/fleet/v4/server/mdm/lifecycle"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/osquery_utils"
 	"github.com/fleetdm/fleet/v4/server/variables"
@@ -1939,6 +1940,10 @@ func (svc *Service) processIncomingMDMCmds(ctx context.Context, enrolledDevice *
 		svc.tryLinkUnlinkedEnrollmentFromDevDetail(ctx, enrolledDevice, reqMsg)
 	}
 
+	// Entra (automatic) enrollments have no host and no serial at enrollment time, so their mdm_enrolled activity is
+	// recorded here instead.
+	svc.maybeCreateWindowsMDMEnrolledActivity(ctx, enrolledDevice)
+
 	// List of CmdRef that need to be re-issued as <Replace> commands
 	// However it's a list of nested Command IDs, and not something we can use directly for command_uuid in windows_mdm_commands
 	alreadyExistsCmdIDs := []string{}
@@ -3207,6 +3212,10 @@ func (svc *Service) storeWindowsMDMEnrolledDevice(ctx context.Context, userID st
 	awaitingConfiguration := fleet.WindowsMDMAwaitingConfigurationNone
 	var awaitingConfigurationAt *time.Time
 	isInOOBE := !reqNotInOOBE
+	// Entra ID + OOBE is Windows' equivalent of an automatic (DEP) enrollment. awaitingConfigurationAt below is set on
+	// this same condition, and windowsMDMEnrollmentInstalledFromDEP reads it back to recover this flag for enrollments
+	// whose activity is deferred, so the two must keep being written together.
+	installedFromDEP := enrollType == fleet.WindowsMDMEnrollTypeAutomatic && isInOOBE
 	if enrollType == fleet.WindowsMDMEnrollTypeAutomatic && isInOOBE {
 		awaitingConfiguration = fleet.WindowsMDMAwaitingConfigurationPending
 		now := time.Now().UTC()
@@ -3245,9 +3254,9 @@ func (svc *Service) storeWindowsMDMEnrolledDevice(ctx context.Context, userID st
 	// any identifier that maps to hosts.uuid. The enrollment row is inserted unlinked; processIncomingMDMCmds asks the
 	// device for its SMBIOS serial number on the first management session and links the row when the device replies.
 	// osquery's directIngestMDMDeviceIDWindows remains as a backstop.
-	displayName := reqDeviceName
-	var serial string
-	var hostID uint
+	//
+	// The mdm_enrolled activity is therefore only recorded here for programmatic (fleetd-driven) enrollments, where the
+	// host (its id and serial) is already known.
 	if hostUUID != "" {
 		mdmLifecycle := mdmlifecycle.New(svc.ds, svc.logger, svc.NewActivity)
 		err = mdmLifecycle.Do(ctx, mdmlifecycle.HostOptions{
@@ -3259,26 +3268,22 @@ func (svc *Service) storeWindowsMDMEnrolledDevice(ctx context.Context, userID st
 			return err
 		}
 
-		// Get the host in order to get the correct display name and serial number for the activity
+		// Get the host in order to get the correct display name and serial number for the activity, and to sync the
+		// post-enrollment host state below.
 		adminTeamFilter := fleet.TeamFilter{
 			User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
 		}
 
 		hosts, err := svc.ds.ListHostsLiteByUUIDs(ctx, adminTeamFilter, []string{hostUUID})
 		if err != nil {
-			// Do not abort; this call was only made to get better data for the activity, so shouldn't
-			// fail the request. We fall back to `reqDeviceName` for the display name in this case.
-			logging.WithExtras(logging.WithNoUser(ctx),
-				"msg", "failed to get host data for windows MDM enrollment activity",
-			)
+			// Do not abort: the device is enrolled either way, and the enrollment is already linked, so the next
+			// management session records the activity and osquery reconciles the host state.
+			svc.logger.WarnContext(ctx, "failed to get host data for windows MDM enrollment activity",
+				"err", err, "host_uuid", hostUUID)
+			ctxerr.Handle(ctx, err)
 		}
 
 		if len(hosts) == 1 {
-			// then we found the host, so use the data from there for the activity
-			displayName = hosts[0].DisplayName()
-			serial = hosts[0].HardwareSerial
-			hostID = hosts[0].ID
-
 			// Flip host_mdm.enrolled = 1 immediately so the Windows profile reconciler selects this host. This covers
 			// fresh enrollment, ESP/OOBE, and the post-disable re-enable cycle. The values written here are the same
 			// shape directIngestMDMWindows writes: discovery URL as server_url, fleet.WellKnownMDMFleet as the name.
@@ -3295,12 +3300,11 @@ func (svc *Service) storeWindowsMDMEnrolledDevice(ctx context.Context, userID st
 					svc.logger.WarnContext(ctx, "resolving Windows MDM discovery URL after enrollment", "err", dErr)
 					ctxerr.Handle(ctx, dErr)
 				} else {
-					installedFromDep := enrollType == fleet.WindowsMDMEnrollTypeAutomatic && isInOOBE
 					if err := svc.ds.SetOrUpdateMDMData(ctx, hosts[0].ID,
 						false, // is_server: osquery corrects later from installation_type
 						true,  // enrolled
 						discoveryURL,
-						installedFromDep,
+						installedFromDEP,
 						fleet.WellKnownMDMFleet,
 						"",    // fleet_enrollment_ref: empty for Windows
 						false, // is_personal_enrollment: always false for Windows
@@ -3318,31 +3322,124 @@ func (svc *Service) storeWindowsMDMEnrolledDevice(ctx context.Context, userID st
 				svc.logger.WarnContext(ctx, "reconciling profiles after Windows MDM enrollment", "err", err)
 				ctxerr.Handle(ctx, err)
 			}
+
+			// The host is known, so the activity carries its id and serial from the outset. Enrollments that miss this
+			// (the lookup above failed) still get one, from maybeCreateWindowsMDMEnrolledActivity on the next session.
+			svc.createWindowsMDMEnrolledActivity(ctx, reqHWDevID, hosts[0], installedFromDEP)
 		}
 
 	}
 
-	err = svc.NewActivity(
-		ctx, nil, &fleet.ActivityTypeMDMEnrolled{
-			// HostID stays zero (omitted) for Azure automatic enrollments: the
-			// enrollment row is unlinked until the device reports its serial on
-			// the first management session, so there is no host to link yet.
-			HostID:          hostID,
-			HostDisplayName: displayName,
-			MDMPlatform:     fleet.MDMPlatformMicrosoft,
-			HostSerial:      &serial,
-			Platform:        "windows",
-		})
+	return nil
+}
+
+// windowsMDMEnrollmentInstalledFromDEP reads back, from a stored enrollment row, the "automatic enrollment" flag that
+// storeWindowsMDMEnrolledDevice computed from the live request. awaiting_configuration_at is written on exactly the
+// same condition and never cleared afterwards.
+func windowsMDMEnrollmentInstalledFromDEP(device *fleet.MDMWindowsEnrolledDevice) bool {
+	return device.AwaitingConfigurationAt != nil
+}
+
+// maybeCreateWindowsMDMEnrolledActivityForDevice is maybeCreateWindowsMDMEnrolledActivity for callers that hold only
+// the MDM device id and so have to load the enrollment row first.
+func (svc *Service) maybeCreateWindowsMDMEnrolledActivityForDevice(ctx context.Context, mdmDeviceID string) {
+	// The link that precedes this call writes host_uuid, so read it back from the primary rather than a replica.
+	device, err := svc.ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctxdb.RequirePrimary(ctx, true), mdmDeviceID)
 	if err != nil {
-		// only logging, the device is enrolled at this point, and we
-		// wouldn't want to fail the request because there was a problem
-		// creating an activity feed item.
-		logging.WithExtras(logging.WithNoUser(ctx),
-			"msg", "failed to generate windows MDM enrolled activity",
-		)
+		svc.logger.WarnContext(ctx, "loading enrollment for deferred windows MDM enrolled activity",
+			"err", err, "device_id", mdmDeviceID)
+		return
+	}
+	svc.maybeCreateWindowsMDMEnrolledActivity(ctx, device)
+}
+
+// maybeCreateWindowsMDMEnrolledActivity records the mdm_enrolled activity for an enrollment whose activity was deferred
+// because the host was unknown at enrollment time, and does nothing once one has been recorded. Calling it on every
+// management session is free in the steady state (the guard below reads the enrollment row the request already loaded)
+// and reaches the database only while an enrollment is linked and unannounced.
+func (svc *Service) maybeCreateWindowsMDMEnrolledActivity(ctx context.Context, device *fleet.MDMWindowsEnrolledDevice) {
+	if device == nil || device.EnrolledActivityAt != nil || device.HostUUID == "" {
+		return
 	}
 
-	return nil
+	adminTeamFilter := fleet.TeamFilter{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}}
+	lookupHost := func(ctx context.Context) ([]*fleet.Host, error) {
+		return svc.ds.ListHostsLiteByUUIDs(ctx, adminTeamFilter, []string{device.HostUUID})
+	}
+	logLookupFailure := func(err error) {
+		// Transient, so leave the claim unspent and let the next session retry.
+		svc.logger.ErrorContext(ctx, "looking up host for deferred windows MDM enrolled activity",
+			"err", err, "device_id", device.MDMDeviceID, "host_uuid", device.HostUUID)
+		ctxerr.Handle(ctx, err)
+	}
+
+	hosts, err := lookupHost(ctx)
+	if err != nil {
+		logLookupFailure(err)
+		return
+	}
+	if len(hosts) != 1 {
+		// Confirm against the primary before acting on "no host" as final: suppressing on a lagging replica would drop
+		// a legitimate activity for good.
+		if hosts, err = lookupHost(ctxdb.RequirePrimary(ctx, true)); err != nil {
+			logLookupFailure(err)
+			return
+		}
+	}
+	if len(hosts) != 1 {
+		// The host was deleted while its enrollment lingered, so there is nothing to attribute the activity to and
+		// never will be. Spend the claim with the zero-time marker ("resolved, nothing recorded") so this stops being retried
+		if _, err := svc.ds.MDMWindowsClaimEnrolledActivity(ctx, device.MDMHardwareID, common_mysql.GetDefaultNonZeroTime()); err != nil {
+			svc.logger.ErrorContext(ctx, "suppressing deferred windows MDM enrolled activity for a deleted host",
+				"err", err, "device_id", device.MDMDeviceID, "host_uuid", device.HostUUID)
+			ctxerr.Handle(ctx, err)
+		}
+		return
+	}
+
+	svc.createWindowsMDMEnrolledActivity(ctx, device.MDMHardwareID, hosts[0], windowsMDMEnrollmentInstalledFromDEP(device))
+}
+
+// createWindowsMDMEnrolledActivity records the mdm_enrolled activity for a Windows enrollment that is known to belong
+// to host, claiming it first so the enrollment gets exactly one such activity no matter how many paths reach here.
+func (svc *Service) createWindowsMDMEnrolledActivity(ctx context.Context, mdmHardwareID string, host *fleet.Host, installedFromDEP bool) {
+	claimedAt := time.Now().UTC()
+	claimed, err := svc.ds.MDMWindowsClaimEnrolledActivity(ctx, mdmHardwareID, claimedAt)
+	if err != nil {
+		svc.logger.ErrorContext(ctx, "claiming windows MDM enrolled activity", "err", err, "hardware_id", mdmHardwareID)
+		ctxerr.Handle(ctx, err)
+		return
+	}
+	if !claimed {
+		return
+	}
+
+	var serial *string
+	if host.HardwareSerial != "" {
+		serial = &host.HardwareSerial
+	}
+
+	if err := svc.NewActivity(ctx, nil, &fleet.ActivityTypeMDMEnrolled{
+		HostID:           host.ID,
+		HostDisplayName:  host.DisplayName(),
+		HostSerial:       serial,
+		InstalledFromDEP: installedFromDEP,
+		MDMPlatform:      fleet.MDMPlatformMicrosoft,
+		Platform:         "windows",
+	}); err != nil {
+		// Give the claim back so a later session retries, otherwise a transient failure here would leave the
+		// enrollment marked as announced and lose the event for good.
+		if relErr := svc.ds.MDMWindowsReleaseEnrolledActivityClaim(ctx, mdmHardwareID, claimedAt); relErr != nil {
+			svc.logger.ErrorContext(ctx, "releasing windows MDM enrolled activity claim after a failed write",
+				"err", relErr, "hardware_id", mdmHardwareID)
+			ctxerr.Handle(ctx, relErr)
+		}
+		// Only logging: the device is enrolled at this point and we wouldn't want to fail the request because there
+		// was a problem creating an activity feed item.
+		svc.logger.ErrorContext(ctx, "failed to generate windows MDM enrolled activity",
+			"err", err, "hardware_id", mdmHardwareID, "host_id", host.ID)
+		ctxerr.Handle(ctx, err)
+	}
 }
 
 // GetContextItem returns the context item from the RequestSecurityToken message

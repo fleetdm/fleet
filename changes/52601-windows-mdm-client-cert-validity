@@ -1,0 +1,1 @@
+- Fixed Windows MDM client certificate backdating where NotBefore was backdated by the 180-day renewal period, properly setting validity to 365 days from issuance with a 10-minute clock-skew allowance and aligning WstepCertRenewalPeriodInDays to 180 days.

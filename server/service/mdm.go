@@ -36,6 +36,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/gorilla/mux"
 
 	"github.com/fleetdm/fleet/v4/server/mdm"
@@ -689,10 +690,10 @@ func (svc *Service) validateAppleMDMCommand(ctx context.Context, rawXMLCmd []byt
 		return nil
 	}
 
-	// Check if this is a SetRecoveryLock command and if any host's team (or the
+	// Check if this is a SetRecoveryLock or VerifyRecoveryLock command and if any host's team (or the
 	// global config for hosts with no team) has recovery lock password enabled
 	// (which means Fleet manages the password).
-	if strings.TrimSpace(cmd.Command.RequestType) == "SetRecoveryLock" {
+	if strings.TrimSpace(cmd.Command.RequestType) == fleet.SetRecoveryLockCmdName || strings.TrimSpace(cmd.Command.RequestType) == fleet.VerifyRecoveryLockCmdName {
 		// Get app config once for hosts with no team
 		var appConfig *fleet.AppConfig
 		for _, h := range hosts {
@@ -4498,9 +4499,10 @@ func (svc *Service) UnenrollMDM(ctx context.Context, hostID uint) error {
 	}
 
 	// Check authorization again based on host info for team-based permissions.
-	if err := svc.authz.Authorize(ctx, fleet.MDMCommandAuthz{
+	notFoundErr := ctxerr.Wrap(ctx, common_mysql.NotFound("Host").WithID(hostID), "unenroll mdm")
+	if err := svc.authz.AuthorizeOrNotFound(ctx, fleet.MDMCommandAuthz{
 		TeamID: host.TeamID,
-	}, fleet.ActionWrite); err != nil {
+	}, fleet.ActionWrite, notFoundErr); err != nil {
 		return err
 	}
 

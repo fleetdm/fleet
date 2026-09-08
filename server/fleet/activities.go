@@ -462,11 +462,9 @@ func (a ActivityTypeFleetEnrolled) ActivityName() string {
 }
 
 type ActivityTypeMDMEnrolled struct {
-	// HostID is omitted when zero. It is always set for Apple enrollments and
-	// for Windows enrollments where the host is known at enrollment time;
-	// Windows Azure automatic enrollments are linked to their host later (via
-	// the serial reported on the first management session), so their
-	// enrollment activity has no host_id (see #47874).
+	// HostID is omitted when zero, which only happens for activities recorded before it was added to this struct.
+	// Windows Entra automatic enrollments know neither the host nor its serial at enrollment time, so their activity
+	// is deferred until the enrollment is linked to a host rather than recorded without one.
 	HostID           uint    `json:"host_id,omitempty"`
 	HostSerial       *string `json:"host_serial"`
 	HostDisplayName  string  `json:"host_display_name"`
@@ -2603,4 +2601,16 @@ func (a ActivityTypeReleasedDeviceFromAB) ActivityName() string {
 
 func (a ActivityTypeReleasedDeviceFromAB) HostIDs() []uint {
 	return []uint{a.HostID}
+}
+
+type ActivityTypeEnabledAppleBusinessOnlyEnrollment struct{}
+
+func (a ActivityTypeEnabledAppleBusinessOnlyEnrollment) ActivityName() string {
+	return "enabled_apple_business_only_enrollment"
+}
+
+type ActivityTypeDisabledAppleBusinessOnlyEnrollment struct{}
+
+func (a ActivityTypeDisabledAppleBusinessOnlyEnrollment) ActivityName() string {
+	return "disabled_apple_business_only_enrollment"
 }

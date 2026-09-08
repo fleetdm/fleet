@@ -3613,7 +3613,7 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 		"android.json", []byte(`{"passwordPolicies": [{"passwordMinimumLength": true}]}`), s.token, nil)
 	res = s.DoRawWithHeaders("POST", "/api/latest/fleet/configuration_profiles", body.Bytes(), http.StatusBadRequest, headers)
 	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, `Couldn't add. Invalid JSON payload. "passwordPolicies.passwordMinimumLength" format is wrong.`)
+	require.Contains(t, errMsg, `Couldn't add. Invalid JSON payload. "passwordPolicies.0.passwordMinimumLength" format is wrong.`)
 
 	// disallow unknown keys
 	body, headers = generateNewProfileMultipartRequest(t,
