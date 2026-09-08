@@ -967,11 +967,6 @@ func TestBitlockerOperations(t *testing.T) {
 			})
 		}
 
-		// One decision, so one table: what the volume looks like going in, and what the agent does about it. Rotating on
-		// every restore would also hit the ordinary case of a volume suspended for servicing, whose protectors were
-		// never touched, and would invalidate a recovery key an admin may already hold. A rotation Fleet cannot
-		// complete must stop the repair instead, because enabling protection anyway is what leaves a host looking
-		// healthy while the key Fleet shows an admin does not open the disk.
 		t.Run("rotates only when the recovery password is gone, and stops the repair when it cannot", func(t *testing.T) {
 			for _, tc := range []struct {
 				name       string
