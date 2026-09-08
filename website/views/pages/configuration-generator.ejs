@@ -5,7 +5,7 @@
         <h1>Configuration robot 🤖</h1>
         <p>Generate OS settings in DDM, CSP, and .mobileconfig format.</p>
       </div>
-      <div v-if="!hasGeneratedProfile">
+      <div v-if="!hasGeneratedProfile || cloudError">
         <div purpose="modal-form">
         <ajax-form :handle-submitting="handleSubmittingForm" :cloud-error.sync="cloudError" :form-errors.sync="formErrors" :form-data="formData" :form-rules="formRules">
           <div class="d-flex flex-row align-items-center mb-3">
@@ -28,15 +28,20 @@
             <textarea class="form-control" type="textarea" id="profile" placeholder="Disable camera access in Firefox" :class="[formErrors.naturalLanguageInstructions ? 'is-invalid' : '']" v-model.trim="formData.naturalLanguageInstructions"></textarea>
             <div class="invalid-feedback" v-if="formErrors.naturalLanguageInstructions" focus-first>Please provide instructions.</div>
           </div>
-          <p v-if="cloudError" class="text-danger">Your request could not be processed. Please try again.</p>
+          <p v-if="cloudError && cloudErrorExplanation" class="text-danger">Your request could not be processed. {{cloudErrorExplanation}}</p>
+          <p v-else-if="cloudError" class="text-danger">Your request could not be processed. Please try again.</p>
           <ajax-button purpose="submit-button" spinner="true" type="submit" :syncing="syncing" class="btn btn-primary mt-4">Generate</ajax-button>
         </ajax-form>
       </div>
       </div>
-      <div v-show="hasGeneratedProfile">
+      <div v-show="hasGeneratedProfile && !cloudError">
+        <ajax-overlay :syncing.sync="syncing" syncing-message="Generating profile" v-if="!cloudError"></ajax-overlay>
         <div class="d-flex flex-column-reverse mb-4">
+          <p v-if="cloudError && cloudErrorExplanation" class="text-danger">Your request could not be processed. {{cloudErrorExplanation}}</p>
+          <p v-else-if="cloudError" class="text-danger">Your request could not be processed. Please try again.</p>
           <div purpose="profile-editor">
             <div id="editor" @paste="getUpdatedValueFromEditor" @input="getUpdatedValueFromEditor" purpose="ace-editor"  mode="xml" :value.sync="generatedOutput"></div>
+
             <div purpose="generate-button" @click="clickEditGeneratedOutput()" v-if="!hideEditButton"><i class="p-3 fa fa-pencil"></i></div>
 
           </div>
