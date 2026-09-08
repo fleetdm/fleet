@@ -53,5 +53,5 @@ If an IT admin deletes a host in the UI/API, and we have a non-deleted entry in 
 
 ## Related resources
 
-- [MDM Product Group Documentation](../mdm/README.md) - Documentation for the MDM product group
-- [MDM Development Guides](../guides/README.md) - Guides for MDM development
+- [MDM Product Group Documentation](../README.md) - Documentation for the MDM product group
+- [MDM Development Guides](../../guides/README.md) - Guides for MDM development

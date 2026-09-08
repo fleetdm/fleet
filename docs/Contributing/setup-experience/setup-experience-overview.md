@@ -127,4 +127,4 @@ flowchart TB
 
 - [Upcoming activities](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/guides/upcoming-activities.md) - How Fleet's unified activity queue works
 - [Software installation architecture](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/software/software-installation.md) - How Fleet installs software on hosts
-- [Automated Device Enrollment](../apple-mdm/automated-device-enrollment.md) - Architecture for ADE
+- [Automated Device Enrollment](../mdm/apple/automated-device-enrollment.md) - Architecture for ADE

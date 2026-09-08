@@ -148,5 +148,5 @@ The profiles names must be unique across all platforms and profile types for a g
 ## Related Resources
 
 - [Original research on DDM](https://docs.google.com/document/d/1FRpIdIShpM4nEhPI5FH0Arqg-NO_e-nBMqXJWjJRnSs/edit?tab=t.0)
-- [MDM Product Group Documentation](../mdm/README.md) - Documentation for the MDM product group
-- [MDM Development Guides](../guides/README.md) - Guides for MDM development
+- [MDM Product Group Documentation](../README.md) - Documentation for the MDM product group
+- [MDM Development Guides](../../guides/README.md) - Guides for MDM development

@@ -1,5 +1,11 @@
 # MDM index
 
+Cross-platform MDM contributor docs live in this directory. Platform-specific docs live in the subdirectories:
+
+- [Apple MDM](apple/README.md) - macOS, iOS, and iPadOS
+- [Windows MDM](windows/README.md)
+- [Android MDM](android/README.md)
+
 ## Knowledge transfer videos
 
 - Roberto's MDM knowledge transfer videos
@@ -37,7 +43,7 @@
 
 ### Android
 
-See the [Android MDM documentation](../android-mdm/android-mdm.md)
+See the [Android MDM documentation](android/android-mdm.md)
 
 ### Development
 
@@ -190,7 +196,7 @@ On every run, we pull the list of added/modified/deleted devices and:
     1. Assign the corresponding JSON profile to each host using ABM's APIs.
 2. If the host was deleted, we soft delete the `host_dep_assignments` entry 
 
-Read [resetting Apple DEP sync cursor](../apple-mdm/resetting-apple-dep-sync-cursor.md) for how to reset the sync cursor.
+Read [resetting Apple DEP sync cursor](apple/resetting-apple-dep-sync-cursor.md) for how to reset the sync cursor.
 
 #### Special case: host in ABM is deleted in Fleet
 

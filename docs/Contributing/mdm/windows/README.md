@@ -8,4 +8,4 @@ Contributor docs for Fleet's Windows MDM feature area.
 
 ## Related
 
-- [Cross-platform MDM](../mdm/README.md)
+- [Cross-platform MDM](../README.md)

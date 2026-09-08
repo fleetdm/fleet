@@ -35,11 +35,11 @@ The MDM architecture integrates with the following components:
 
 ### Apple MDM
 
-See [Apple MDM Architecture](../apple-mdm/apple-mdm-architecture.md) for details on Apple-specific MDM architecture.
+See [Apple MDM Architecture](apple/apple-mdm-architecture.md) for details on Apple-specific MDM architecture.
 
 ### Windows MDM
 
-See [Windows MDM Architecture](../windows-mdm/windows-mdm-architecture.md) for details on Windows-specific MDM architecture.
+See [Windows MDM Architecture](windows/windows-mdm-architecture.md) for details on Windows-specific MDM architecture.
 
 ## Related resources
 

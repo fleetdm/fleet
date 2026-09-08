@@ -32,7 +32,7 @@ Fleet disables MDM push notifications during load tests today, so every simulate
 - Simulated devices hold a long-lived server-sent events (SSE) connection, the mock's stand-in for a real device's persistent APNs courier connection. Each `event: ping` should trigger an MDM check-in.
 - The load balancer gives a device's stream to one instance and Fleet's push for that device to another, so the instances coordinate through Redis. Redis is required; there is no single-instance mode.
 
-The wire contract (request and response shapes, header semantics, error bodies) is documented in [`cmd/apple-apns-mock/README.md`](../../../cmd/apple-apns-mock/README.md) and on the handlers in `cmd/apple-apns-mock/handlers.go`. `TestE2EBufordCompatibility` pins the contract against the actual buford client Fleet uses in production.
+The wire contract (request and response shapes, header semantics, error bodies) is documented in [`cmd/apple-apns-mock/README.md`](../../../../cmd/apple-apns-mock/README.md) and on the handlers in `cmd/apple-apns-mock/handlers.go`. `TestE2EBufordCompatibility` pins the contract against the actual buford client Fleet uses in production.
 
 ## Routing between instances
 

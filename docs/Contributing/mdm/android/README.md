@@ -12,4 +12,4 @@ Contributor docs for Fleet's Android MDM feature area.
 
 ## Related
 
-- [Cross-platform MDM](../mdm/README.md)
+- [Cross-platform MDM](../README.md)

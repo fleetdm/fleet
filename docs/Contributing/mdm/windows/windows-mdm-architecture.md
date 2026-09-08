@@ -83,6 +83,6 @@ Fleet decides whether a profile is user scoped by reading the LocURIs in the com
 
 ## Related resources
 
-- [MDM Product Group Documentation](../mdm/README.md) - Documentation for the MDM product group
-- [MDM Development Guides](../guides/README.md) - Guides for MDM development
+- [MDM Product Group Documentation](../README.md) - Documentation for the MDM product group
+- [MDM Development Guides](../../guides/README.md) - Guides for MDM development
 - [Windows MDM Glossary and Protocol](windows-mdm-glossary-and-protocol.md) - Glossary of Windows MDM terms and protocol details

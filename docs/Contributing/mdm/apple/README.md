@@ -22,6 +22,6 @@ Contributor docs for Fleet's Apple (macOS, iOS, iPadOS) MDM feature area.
 
 ## Related
 
-- [Cross-platform MDM](../mdm/README.md)
-- [Setup experience](../setup-experience/README.md)
-- [Authentication](../authentication/README.md)
+- [Cross-platform MDM](../README.md)
+- [Setup experience](../../setup-experience/README.md)
+- [Authentication](../../authentication/README.md)

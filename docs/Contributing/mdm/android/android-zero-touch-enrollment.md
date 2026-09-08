@@ -62,9 +62,9 @@ Android is the only company-owned platform where Fleet has no zero-touch path.
 
 | Platform | Zero-touch mechanism | Fleet status |
 | --- | --- | --- |
-| macOS / iOS / iPadOS | Apple Automated Device Enrollment (ADE) via Apple Business | Supported. See `docs/Contributing/apple-mdm/automated-device-enrollment.md` |
+| macOS / iOS / iPadOS | Apple Automated Device Enrollment (ADE) via Apple Business | Supported. See `docs/Contributing/mdm/apple/automated-device-enrollment.md` |
 | Android (company-owned) | Google Android zero-touch enrollment | **Not supported — this document** |
-| Windows | Windows Autopilot (via Entra ID) | Supported. See `docs/Contributing/windows-mdm/windows-autopilot.md` and `articles/windows-mdm-setup.md` |
+| Windows | Windows Autopilot (via Entra ID) | Supported. See `docs/Contributing/mdm/windows/windows-autopilot.md` and `articles/windows-mdm-setup.md` |
 | ChromeOS | Chrome zero-touch enrollment (same provisioning API, `deviceType` `DEVICE_TYPE_CHROME_OS`) | Out of scope; Fleet has no ChromeOS MDM |
 
 Zero-touch supports three management modes, differing only in the `allowPersonalUsage` value on the
@@ -918,9 +918,9 @@ new keys.
   service-account linking wait.
 - Extend `articles/android-mdm-setup.md`.
 - REST API reference for the new endpoints.
-- Architecture doc under `docs/Contributing/android-mdm/`, parallel to
-  the Apple `automated-device-enrollment.md` in `docs/Contributing/apple-mdm/`.
-- Update `docs/Contributing/android-mdm/android-mdm.md`.
+- Architecture doc under `docs/Contributing/mdm/android/`, parallel to
+  the Apple `automated-device-enrollment.md` in `docs/Contributing/mdm/apple/`.
+- Update `docs/Contributing/mdm/android/android-mdm.md`.
 
 ## Phased delivery
 
@@ -1093,5 +1093,5 @@ check `googleAuthenticationOptions` first, which is a library bump plus a field.
 - `server/mdm/android/service/pubsub.go:893` — `addNewHost`
 - `server/mdm/android/service/androidmgmt/client.go` — AMAPI client interface
 - `cmd/fleet/cron.go:2515` — Android device reconciler cron pattern
-- `docs/Contributing/apple-mdm/automated-device-enrollment.md` — the Apple analogue
-- `docs/Contributing/android-mdm/android-mdm.md`
+- `docs/Contributing/mdm/apple/automated-device-enrollment.md` — the Apple analogue
+- `docs/Contributing/mdm/android/android-mdm.md`

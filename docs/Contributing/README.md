@@ -15,10 +15,10 @@ Welcome to the Fleet contributor documentation! This documentation is designed t
 
 Docs are organized by feature. Each feature directory holds all of that feature's contributor docs (architecture, guides, and research) with a README index. Feature areas are durable across team reorgs — directories are never named after product groups, and new feature directories are created when a feature gets its first doc.
 
-- [MDM (cross-platform)](mdm/README.md) - Profiles, disk encryption, MDM lifecycle, migrations
-- [Apple MDM](apple-mdm/README.md) - macOS, iOS, and iPadOS device management
-- [Windows MDM](windows-mdm/README.md) - Windows device management and Autopilot
-- [Android MDM](android-mdm/README.md) - Android device management
+- [MDM](mdm/README.md) - Cross-platform MDM: profiles, disk encryption, MDM lifecycle, migrations
+  - [Apple MDM](mdm/apple/README.md) - macOS, iOS, and iPadOS device management
+  - [Windows MDM](mdm/windows/README.md) - Windows device management and Autopilot
+  - [Android MDM](mdm/android/README.md) - Android device management
 - [Setup experience](setup-experience/README.md) - Out-of-the-box enrollment experience
 - [Authentication](authentication/README.md) - End user (IdP) authentication, certificates, device identity
 - [Software](software/README.md) - Software inventory, installation, and updates

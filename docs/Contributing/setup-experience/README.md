@@ -6,5 +6,5 @@ Contributor docs for Fleet's out-of-the-box setup experience (bootstrap packages
 
 ## Related
 
-- [Apple MDM](../apple-mdm/README.md)
+- [Apple MDM](../mdm/apple/README.md)
 - [Software](../software/README.md)
