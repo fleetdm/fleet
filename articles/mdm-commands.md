@@ -22,7 +22,6 @@ You can run any command supported by [Apple's MDM protocol](https://developer.ap
 The end result simply needs to be a standard, plain text file with the correct key / values for obtaining the intended result on the host device.
 
 > Apple's [`DeviceLock`](https://developer.apple.com/documentation/devicemanagement/lock_a_device) and [`EraseDevice`](https://developer.apple.com/documentation/devicemanagement/erase_a_device) commands, Windows's [`RemoteWipe`](https://learn.microsoft.com/en-us/windows/client-management/mdm/remotewipe-csp) commands (`doWipe`, `doWipeProtected`, etc.), and Android's [`LOCK`](https://developers.google.com/android/management/reference/rest/v1/enterprises.devices/issueCommand#CommandType.ENUM_VALUES.LOCK) and [`RESET_PASSWORD`](https://developers.google.com/android/management/reference/rest/v1/enterprises.devices/issueCommand#CommandType.ENUM_VALUES.RESET_PASSWORD) commands, are only available in Fleet Premium. Android's [`WIPE`](https://developers.google.com/android/management/reference/rest/v1/enterprises.devices/issueCommand#CommandType.ENUM_VALUES.WIPE) command is available on Fleet Free for company-owned hosts.
->
 
 ### Examples
 
