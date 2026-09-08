@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
+	"strings"
 	"sync"
 )
 
@@ -218,6 +219,75 @@ func GetProjectItemParents(projectID int) (map[int]int, error) {
 		}
 		cursor = resp.Data.Node.Items.PageInfo.EndCursor
 	}
+}
+
+// splitRepoFullName splits "owner/name" into its parts, falling back to the
+// current directory's repo when empty or malformed.
+func splitRepoFullName(repoFullName string) (string, string, error) {
+	if i := strings.IndexByte(repoFullName, '/'); i > 0 && i < len(repoFullName)-1 {
+		return repoFullName[:i], repoFullName[i+1:], nil
+	}
+	return getRepoOwnerAndName()
+}
+
+// ClosingPRRef identifies a pull request that closes an issue (GitHub's
+// "Development" link), possibly in a different repo than the issue.
+type ClosingPRRef struct {
+	Repo   string // "owner/name"
+	Number int
+	State  string // OPEN, MERGED, or CLOSED
+}
+
+// GetIssueClosingPRs returns the pull requests linked to close an issue, via
+// closing keywords or a manual Development-section link. repoFullName is the
+// ISSUE's repo ("" = current directory's repo).
+func GetIssueClosingPRs(repoFullName string, issueNumber int) ([]ClosingPRRef, error) {
+	owner, name, err := splitRepoFullName(repoFullName)
+	if err != nil {
+		return nil, err
+	}
+	query := `query($owner:String!,$repo:String!,$number:Int!){
+		repository(owner:$owner,name:$repo){
+			issue(number:$number){
+				closedByPullRequestsReferences(first:10, includeClosedPrs:true){
+					nodes{ number state repository{ nameWithOwner } }
+				}
+			}
+		}
+	}`
+	cmd := fmt.Sprintf("gh api graphql -f query='%s' -f owner='%s' -f repo='%s' -F number=%d", query, owner, name, issueNumber)
+	out, err := RunCommandWithRetry(cmd, 3)
+	if err != nil {
+		return nil, err
+	}
+	var resp struct {
+		Data struct {
+			Repository struct {
+				Issue struct {
+					Refs struct {
+						Nodes []struct {
+							Number     int    `json:"number"`
+							State      string `json:"state"`
+							Repository struct {
+								NameWithOwner string `json:"nameWithOwner"`
+							} `json:"repository"`
+						} `json:"nodes"`
+					} `json:"closedByPullRequestsReferences"`
+				} `json:"issue"`
+			} `json:"repository"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(out, &resp); err != nil {
+		return nil, err
+	}
+	var refs []ClosingPRRef
+	for _, n := range resp.Data.Repository.Issue.Refs.Nodes {
+		if n.Number == 0 {
+			continue
+		}
+		refs = append(refs, ClosingPRRef{Repo: n.Repository.NameWithOwner, Number: n.Number, State: n.State})
+	}
+	return refs, nil
 }
 
 // repoOwnerNameCache caches owner/name lookups.

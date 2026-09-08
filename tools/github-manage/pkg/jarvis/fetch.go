@@ -207,6 +207,30 @@ func repoOwner(repo string) string {
 	return "fleetdm"
 }
 
+// repoFromURL extracts "owner/name" from a github.com URL, or "" when it
+// can't. Project boards span repos (e.g. fleetdm/confidential), so an item's
+// URL — not the dashboard's home repo — says where its issue lives.
+func repoFromURL(url string) string {
+	const host = "github.com/"
+	i := strings.Index(url, host)
+	if i < 0 {
+		return ""
+	}
+	parts := strings.SplitN(url[i+len(host):], "/", 3)
+	if len(parts) < 2 || parts[0] == "" || parts[1] == "" {
+		return ""
+	}
+	return parts[0] + "/" + parts[1]
+}
+
+// repoOr returns the repo an issue URL points at, falling back when unparseable.
+func repoOr(url, fallback string) string {
+	if r := repoFromURL(url); r != "" {
+		return r
+	}
+	return fallback
+}
+
 // fetchIssueStatuses reads each assigned issue's project Status column, picking
 // the board that owns its workflow status, and records every project the issue
 // belongs to (with its updatedAt). Best-effort and per-issue: a failure on one
@@ -216,7 +240,7 @@ func fetchIssueStatuses(issues []ghapi.Issue) (statuses map[int]string, projects
 	projects = map[int]int{}
 	issueProjects = map[int][]ProjectRef{}
 	for _, iss := range issues {
-		found, err := ghapi.GetAllIssueProjectStatuses(iss.Number)
+		found, err := ghapi.GetAllIssueProjectStatuses(repoFromURL(iss.URL), iss.Number)
 		if err != nil || len(found) == 0 {
 			continue
 		}

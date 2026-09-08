@@ -740,14 +740,51 @@ func refreshPRByBranchCmd(repo, branch string, issue int) tea.Cmd {
 	}
 }
 
+// refreshPRByIssueCmd discovers a PR linked to an issue via GitHub's Development
+// link (closing keywords or manual link) when we have no recorded branch to look
+// up — e.g. a PR opened since the last full fetch, from an untracked clone. Works
+// like refreshPRByBranchCmd: an open PR is injected into the board, a merged one
+// is recorded against the issue. A no-op (nil msg) when the issue has no PR.
+// issueRepo is the ISSUE's repo; the linked PR may live in a different one.
+func refreshPRByIssueCmd(issueRepo string, issue int) tea.Cmd {
+	return func() tea.Msg {
+		refs, err := ghapi.GetIssueClosingPRs(issueRepo, issue)
+		if err != nil || len(refs) == 0 {
+			return nil
+		}
+		// Prefer an open PR (live work), then a merged one (records "ready for QA").
+		pick := refs[0]
+		for _, r := range refs {
+			if r.State == "OPEN" {
+				pick = r
+				break
+			}
+			if r.State == "MERGED" && pick.State != "OPEN" {
+				pick = r
+			}
+		}
+		pr, err := ghapi.GetPullRequest(pick.Repo, pick.Number)
+		if err != nil {
+			return nil
+		}
+		if !pr.IsDone() {
+			if c, e := ghapi.GetUnresolvedReviewThreadCount(pick.Repo, pr.Number); e == nil {
+				pr.UnresolvedThreads = c
+			}
+		}
+		return itemRefreshedMsg{kind: KindPR, number: pr.Number, pr: &pr, forIssue: issue}
+	}
+}
+
 // refreshIssueCmd re-fetches a single issue's project Status + board memberships,
-// and its open/closed state (so a since-closed issue gets marked done). When
-// project is non-zero (e.g. a Project View row), the status is read from THAT
-// project so it never shows a secondary project's column; otherwise the workflow
-// board is picked heuristically.
+// and its open/closed state (so a since-closed issue gets marked done). repo must
+// be the ISSUE's repo (boards mix repos, e.g. fleetdm/confidential), not the
+// dashboard's. When project is non-zero (e.g. a Project View row), the status is
+// read from THAT project so it never shows a secondary project's column;
+// otherwise the workflow board is picked heuristically.
 func refreshIssueCmd(repo string, number, project int) tea.Cmd {
 	return func() tea.Msg {
-		found, err := ghapi.GetAllIssueProjectStatuses(number)
+		found, err := ghapi.GetAllIssueProjectStatuses(repo, number)
 		if err != nil {
 			return itemRefreshedMsg{kind: KindIssue, number: number, err: err}
 		}
