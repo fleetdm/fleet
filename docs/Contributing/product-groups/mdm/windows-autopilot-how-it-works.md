@@ -126,8 +126,9 @@ sequenceDiagram
 
     note over Win, Fleet: Immediately after enrollment
     Win->>Fleet: POST /mdm/microsoft/management (first SyncML session)
-    Fleet-->>Win: ESP hold (awaiting configuration)
+    Fleet-->>Win: ESP hold + install fleetd command
     note right of Win: Device shows "Setting up<br/>your device..."
+    note right of Win: Device downloads and<br/>installs fleetd (Orbit)
 
     note over Orbit, Fleet: Orbit comes online
     Orbit->>Fleet: POST /fleet/orbit/enroll
@@ -153,6 +154,7 @@ sequenceDiagram
 ```
 
 - **ESP hold:** Fleet sends DMClient CSP commands via SyncML to block OOBE progress. These are sent before Orbit has enrolled.
+- **How Orbit gets installed:** In the first SyncML session, Fleet sends an MDM command telling the device to download and install the fleetd MSI package. Windows executes this while the ESP is displayed. Once installed, Orbit starts as a service and enrolls with Fleet's API.
 - **Orbit** is Fleet's agent. Once installed on the device, it drives the setup experience by polling the server every 30 seconds.
 - **Unified queue:** Fleet's internal job queue that delivers software installs to Orbit in sequence.
 - **3-hour timeout:** Fleet auto-releases the ESP after 3 hours if installation hasn't completed, to prevent the device from being stuck at OOBE indefinitely.
