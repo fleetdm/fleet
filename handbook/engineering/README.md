@@ -78,7 +78,7 @@ All bug fix pull requests should reference the issue they resolve with the issue
 
 #### Route a Fleet-maintained app (FMA) request or bug
 
-When a GitHub issue or request relates to a Fleet-maintained app (FMA), add the `fma` label. That label alone is enough to surface the issue on the [Fleet-maintained apps project board](https://github.com/orgs/fleetdm/projects/116).
+When a GitHub issue or request relates to a Fleet-maintained app (FMA), add the `~fma` label. That label alone is enough to surface the issue on the [Fleet-maintained apps project board](https://github.com/orgs/fleetdm/projects/116).
 
 Do not add the `:help-solutions-consulting` label to FMA-related issues. That label routes to the Solutions Consulting board, not the FMA board.
 
