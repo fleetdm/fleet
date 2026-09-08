@@ -330,7 +330,7 @@ func (ds *Datastore) DelayEndUserNotification(ctx context.Context, notificationU
 	// Terminal notifications are excluded so a delay can't revive a notification
 	// that is already over.
 	//
-	// The lifetime is pushed out because a notification on a countdown can be re-dispatched for longer
+	// The lifetime is pushed out because a notification waiting on a deadline can be re-dispatched for longer
 	// than the lifetime it was created with.
 	const updateStmt = `
 UPDATE notifications_end_user

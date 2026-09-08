@@ -152,7 +152,7 @@ SELECT
 	neu.created_at
 FROM patch_notifications pn
 	JOIN notifications_end_user neu ON neu.uuid = pn.notification_uuid
--- a notification with no deadline was never displayed, so it has no countdown to run
+-- a notification with no deadline was never displayed, so nothing is due for it yet
 WHERE pn.install_at IS NOT NULL
 	AND pn.install_at <= ?
 	-- acted notifications have already been patched, failed and expired ones never will be
@@ -203,7 +203,7 @@ ORDER BY display_name, pna.software_title_id
 }
 
 // ListPatchNotificationAppsForNotifications leaves out the names and icons the toast is built from,
-// because the countdown pass compares versions and queues installs without displaying anything.
+// because RemindAndInstallDuePatches matches versions and queues installs without displaying anything.
 func (ds *Datastore) ListPatchNotificationAppsForNotifications(ctx context.Context, notificationUUIDs []string) (map[string][]fleet.PatchNotificationAppDetail, error) {
 	if len(notificationUUIDs) == 0 {
 		return nil, nil

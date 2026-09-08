@@ -233,8 +233,8 @@ func testPatchNotificationListAppsForNotifications(t *testing.T, ds *Datastore) 
 		SoftwareTitleID: installerTitleID, SoftwareInstallerID: &installerID,
 	}))
 
-	// an app whose installer was deleted still has to be listed, since the countdown has no version to
-	// compare it against and cannot drop it
+	// an app whose installer was deleted still has to be listed, since Fleet has no version of it to
+	// match the host against
 	noInstallerTitleID := newTestSoftwareTitle(t, ds, "Uninstallable App")
 	noInstallerNotification := newPatchNotification(t, ds, noInstallerHost.ID, notifications_api.EndUserNotificationDispatched, 1)
 	require.NoError(t, ds.AddPatchNotificationApp(ctx, noInstallerNotification, fleet.PatchNotificationApp{
@@ -420,7 +420,7 @@ func testPatchNotificationListDue(t *testing.T, ds *Datastore) {
 	}
 
 	// a re-dispatch clears displayed_at, so a notice on its way to the screen still
-	// has to come back: the pass restarts its countdown instead of patching
+	// has to come back: the pass sends the first notice again instead of patching
 	onTheWay := newPatchNotification(t, ds, host.ID, notifications_api.EndUserNotificationPending, 1)
 	setInstallAt(onTheWay, now.Add(-time.Minute))
 
@@ -449,7 +449,7 @@ func testPatchNotificationListDue(t *testing.T, ds *Datastore) {
 	require.Contains(t, byUUID, onTheWay)
 	assert.Nil(t, byUUID[onTheWay].DisplayedAt)
 
-	// the batch is ordered by deadline, so the oldest countdown is handled first
+	// the batch is ordered by deadline, so the oldest deadline is handled first
 	require.Len(t, due, 3)
 	assert.True(t, due[0].InstallAt.Before(due[len(due)-1].InstallAt))
 

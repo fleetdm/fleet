@@ -13,8 +13,8 @@ type PatchNotificationApp struct {
 	SoftwareInstallerID *uint `db:"software_installer_id"`
 }
 
-// A patch notification whose deadline is close enough that the countdown pass has something to do
-// with it: send the reminder, or force the install.
+// A patch notification whose deadline is close enough that Fleet has something to do with it now:
+// send the reminder, or force the install.
 type PatchNotificationDue struct {
 	NotificationUUID string          `db:"notification_uuid"`
 	HostID           uint            `db:"host_id"`

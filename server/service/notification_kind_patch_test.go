@@ -609,7 +609,7 @@ func TestPatchNotificationOnOutcome(t *testing.T) {
 	}
 }
 
-func TestPatchNotificationCountdowns(t *testing.T) {
+func TestRemindAndInstallDuePatches(t *testing.T) {
 	const (
 		hostID           = uint(1)
 		oneTitleID       = uint(10)
@@ -737,7 +737,7 @@ func TestPatchNotificationCountdowns(t *testing.T) {
 		},
 		{
 			// An offline host and a reminder still on its way both leave displayed_at unset, and
-			// neither end user has seen the warning, so the countdown starts over for both.
+			// neither end user has seen the warning, so the deadline starts over for both.
 			name:              "a deadline the end user never saw notifies again instead of patching",
 			untilDeadline:     -time.Minute,
 			status:            notifications_api.EndUserNotificationDispatched,
@@ -767,7 +767,7 @@ func TestPatchNotificationCountdowns(t *testing.T) {
 			var gotCutoff time.Time
 			ds.ListPatchNotificationsDueFunc = func(_ context.Context, cutoff time.Time, limit int) ([]fleet.PatchNotificationDue, error) {
 				gotCutoff = cutoff
-				assert.Equal(t, patchNotificationCountdownBatchSize, limit)
+				assert.Equal(t, duePatchNotificationBatchSize, limit)
 				return []fleet.PatchNotificationDue{{
 					NotificationUUID: "notification-uuid",
 					HostID:           hostID,
@@ -840,10 +840,10 @@ func TestPatchNotificationCountdowns(t *testing.T) {
 			ds.SetPatchNotificationAppsQueuedFunc = func(_ context.Context, _ string, _ []uint) error { return nil }
 			ds.ResetPatchNotificationFunc = func(_ context.Context, _ string) error { return nil }
 
-			require.NoError(t, kind.RunPatchNotificationCountdowns(context.Background()))
+			require.NoError(t, kind.RemindAndInstallDuePatches(context.Background()))
 
 			assert.WithinDuration(t, time.Now().UTC().Add(patchNotificationReminderBefore), gotCutoff, time.Minute,
-				"the pass reads the countdowns that reach their deadline within the reminder's lead time")
+				"the pass reads the notifications that reach their deadline within the reminder's lead time")
 
 			assert.ElementsMatch(t, c.wantInstalls, installs)
 			assert.ElementsMatch(t, c.wantAppsDropped, gotDropped)

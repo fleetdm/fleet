@@ -108,7 +108,7 @@ type TestServerOpts struct {
 	NotificationsSvc notifications_api.Service
 
 	// PatchNotificationKind is populated alongside NotificationsSvc, so tests can
-	// run the countdown pass directly instead of going through the cron.
+	// run RemindAndInstallDuePatches directly instead of going through the cron.
 	PatchNotificationKind PatchNotificationKind
 
 	// NotificationsMock is populated automatically when a test service is built,

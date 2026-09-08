@@ -78,8 +78,8 @@ func getTestInstallAt(t *testing.T, ds *mysql.Datastore, notificationUUID string
 }
 
 // setTestInstallAt moves a deadline, so a test can stand in for the hour passing.
-// installAt is SQL rather than a value, since the rest of the countdown reads the
-// database clock.
+// installAt is SQL rather than a value, since the rest of the deadline handling reads
+// the database clock.
 func setTestInstallAt(t *testing.T, ds *mysql.Datastore, notificationUUID string, installAt string) {
 	t.Helper()
 	mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
@@ -384,9 +384,9 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 			[]byte(`{"action": "verify"}`), http.StatusOK)
 	})
 
-	// The countdown pass sends the reminder whatever the end user pressed, so the
+	// RemindAndInstallDuePatches sends the reminder whatever the end user pressed, so the
 	// button only closes the toast and the deadline it was pressed against stays put.
-	t.Run("POST delay leaves the countdown alone and the reminder still arrives", func(t *testing.T) {
+	t.Run("POST delay leaves the deadline alone and the reminder still arrives", func(t *testing.T) {
 		host := newNotifiableHost(t, "notif-delay-registered")
 		notificationUUID := newRenderableTestNotification(t, s.ds, host.ID, `{"reminder": false}`)
 		dispatch(t)
@@ -394,7 +394,7 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 		require.NotNil(t, dispatched.ExecutionID)
 		_, token := fetchScript(t, host, *dispatched.ExecutionID)
 
-		// exit 0 is what marks it displayed, which is what starts the countdown
+		// exit 0 is what marks it displayed, which is what sets the deadline
 		postScriptResult(host, *dispatched.ExecutionID, 0)
 		displayed := getTestNotification(t, s.ds, notificationUUID)
 		require.NotNil(t, displayed.DisplayedAt)
@@ -417,7 +417,7 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 		setTestInstallAt(t, s.ds, notificationUUID, "NOW(6) + INTERVAL 4 MINUTE")
 		shortened := getTestInstallAt(t, s.ds, notificationUUID)
 		require.NotNil(t, shortened)
-		require.NoError(t, s.patchNotificationKind.RunPatchNotificationCountdowns(ctx))
+		require.NoError(t, s.patchNotificationKind.RemindAndInstallDuePatches(ctx))
 
 		reminded := getTestNotification(t, s.ds, notificationUUID)
 		require.Equal(t, notifications_api.EndUserNotificationPending, reminded.Status)
@@ -429,7 +429,7 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 		require.JSONEq(t, `{"reminder": true}`, string(reminded.Payload))
 
 		// a second pass finds it pending, which is how it knows the reminder went out
-		require.NoError(t, s.patchNotificationKind.RunPatchNotificationCountdowns(ctx))
+		require.NoError(t, s.patchNotificationKind.RemindAndInstallDuePatches(ctx))
 		require.Equal(t, notifications_api.EndUserNotificationPending, getTestNotification(t, s.ds, notificationUUID).Status)
 
 		dispatch(t)
@@ -784,7 +784,7 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 		require.False(t, result.OverridePreInstallQuery)
 	})
 
-	// TestPatchNotificationCountdowns covers which branch the pass takes. This
+	// TestRemindAndInstallDuePatches covers which branch the pass takes. This
 	// covers the ending the pass is there for: the deadline is stored on display,
 	// and once it passes the install is queued with no app open gate.
 	t.Run("the deadline closes and updates the app", func(t *testing.T) {
@@ -820,7 +820,7 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 			PolicyID: &policy.ID, SoftwareTitleID: titleID, SoftwareInstallerID: &installerID,
 		}))
 
-		// the toast on screen is what starts the countdown
+		// the toast on screen is what sets the deadline
 		dispatch(t)
 		dispatched := getTestNotification(t, s.ds, notificationUUID)
 		require.NotNil(t, dispatched.ExecutionID)
@@ -835,7 +835,7 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 		// stand in for the hour passing
 		setTestInstallAt(t, s.ds, notificationUUID, "NOW(6) - INTERVAL 1 MINUTE")
 
-		require.NoError(t, s.patchNotificationKind.RunPatchNotificationCountdowns(ctx))
+		require.NoError(t, s.patchNotificationKind.RemindAndInstallDuePatches(ctx))
 
 		acted := getTestNotification(t, s.ds, notificationUUID)
 		require.Equal(t, notifications_api.EndUserNotificationActed, acted.Status,
@@ -863,7 +863,7 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 		require.Empty(t, queued.PreInstallCondition)
 
 		// a second pass finds nothing to do, since the notification is acted
-		require.NoError(t, s.patchNotificationKind.RunPatchNotificationCountdowns(ctx))
+		require.NoError(t, s.patchNotificationKind.RemindAndInstallDuePatches(ctx))
 		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			return sqlx.SelectContext(ctx, q, &queuedInstalls, `
 				SELECT ua.execution_id, siua.policy_id

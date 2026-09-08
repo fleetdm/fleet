@@ -3272,8 +3272,7 @@ func testListHostLastTitleInstallData(t *testing.T, ds *Datastore) {
 	installedHost := test.NewHost(t, ds, "title-installs-1", "1", "title-installs-1-key", "title-installs-1-uuid", time.Now(), test.WithTeamID(team.ID))
 	untouchedHost := test.NewHost(t, ds, "title-installs-2", "2", "title-installs-2-key", "title-installs-2-uuid", time.Now(), test.WithTeamID(team.ID))
 
-	// two installers of the same software title, which is what a package replaced during a countdown
-	// leaves behind
+	// two installers of the same software title, which is what replacing a package leaves behind
 	firstInstallerID, titleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		InstallScript: "install", StorageID: uuid.NewString(), Filename: "first.pkg",
 		Title: "Replaced App", Version: "1.0.0", Source: "apps", Platform: "darwin",
