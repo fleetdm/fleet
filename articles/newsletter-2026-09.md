@@ -64,7 +64,7 @@ Thanks to everyone who shared what they are building.
 <meta name="authorFullName" value="Allen Houchins">
 <meta name="authorGitHubUsername" value="allenhouchins">
 <meta name="publishedOn" value="2026-09-01">
-<meta name="category" value="newsletters">
+<meta name="category" value="newsletter">
 <meta name="description" value="What shipped in Fleet 4.90.0, what's planned for 4.92.0, upcoming Apple and GitOps workshops, and August's best guides and customer stories.">
 <meta name="newsletterIssue" value="2026-09">
 <meta name="coversPeriod" value="2026-08">
