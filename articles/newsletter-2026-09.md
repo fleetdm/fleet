@@ -1,6 +1,9 @@
 # Fleet newsletter, September 2026
 
-Define a custom host vital once, then use it on every platform Fleet manages, from macOS to Android. Fleet 4.90.0 also opens up every Apple declarative profile and asset, and brings custom BitLocker profiles to Windows. September's release lands on the 11th.
+
+Hello from Fleet! 
+
+You aren't used to seeing a newsletter from us, and honestly, we aren't fans of average marketing emails either. Your inbox is loud enough. So, let's make a deal: we'll skip the fluff, and instead deliver a monthly brief covering all things Fleet, alongside the device management and endpoint security news that every IT admin, security pro, and tech leader needs on their radar.
 
 ## 🚀 What shipped last month
 
@@ -20,7 +23,7 @@ Fleet 4.92.0 is scheduled for September 11. These are planned, not promised, and
 
 Also on deck: custom FileVault and escrow configurations, vulnerability exposure filtering by severity, single sign-on in front of Fleet Desktop's My device page, and more Android host vitals.
 
-Fleet plans releases in the open. The [release planning board](https://github.com/orgs/fleetdm/projects/87/views/10) shows what's queued for the releases after this one.
+Want to see how these are coming along at Fleet? We plan everything in the open. Bookmark our [release planning board](https://github.com/orgs/fleetdm/projects/87/views/10) to keep an eye on the queue and join the discussion!
 
 ## 🎓 Upcoming workshops
 
@@ -48,14 +51,12 @@ The best way to learn Fleet is by building with it! [Request a workshop]https://
 
 ### Guides
 
-- [Manage Fleet during a GitOps outage](https://fleetdm.com/guides/manage-fleet-during-a-gitops-outage). What to do when GitHub Actions is down and your configuration pipeline stops.
 - [Build and validate configuration profiles with AI instead of a GUI](https://fleetdm.com/guides/build-configuration-profiles-with-ai). Generate a profile, check it, and ship it without hunting through a settings screen.
 - [Deploy printers with Fleet](https://fleetdm.com/guides/deploy-printers-with-fleet). Printer setup for macOS, Windows, Linux, iOS, iPadOS, and Android, in one place.
 - [Add Microsoft Store apps to Windows self-service with winget](https://fleetdm.com/guides/build-your-own-windows-self-service-with-winget-and-script-only-packages-guide). Turn winget commands into a self-service catalog your Windows users can install from.
 
 ## 💬 From the community
 
-- [Kitzy](https://www.linkedin.com/in/kitzy/) wrote up [what the extended GitHub Actions outage meant](https://www.linkedin.com/posts/kitzy_todays-extended-github-actions-outage-left-share-7491337261117181952-CEYC) for teams whose device configuration runs through CI, alongside the guide above.
 - [Nicklas Holst Hansen](https://www.linkedin.com/in/nicklas-holst-hansen-9982aa268/) shared [a summer intern project at Sopra Steria Norway](https://www.linkedin.com/posts/nicklas-holst-hansen-9982aa268_kan-man-administrere-linux-laptoper-like-ugcPost-7489649285769289728-46Xf) that managed Linux laptops with Fleet, and [Kevin Maksevicius](https://www.linkedin.com/in/kevin-maksevicius-1a892724a/) followed up with [what the team built](https://www.linkedin.com/posts/kevin-maksevicius-1a892724a_this-summer-i-was-very-lucky-to-lead-my-own-share-7493951654325633024-5TKU).
 
 Thanks to everyone who shared what they are building.
