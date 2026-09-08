@@ -186,14 +186,16 @@ To add a GitHub issue to the [Content planning](https://github.com/orgs/fleetdm/
 
 To localize content, pick the best fleetie to do the translation, and refer to the following list of languages to their biggest markets:
 
+- 🇮🇳 Hindi (India, Fiji, Nepal)
 - 🇪🇸 Spanish (Spain, Andorra, Colombia, Chile, Argentina, Mexico)
 - 🇫🇷 French (France, Quebec/Canada, Luxembourg, Monaco, Democratic Republic of the Congo, Cameroon, New Brunswick/Canada, Switzerland)
+- 🇵🇹 Portuguese (Brazil, Portugal, Sao Tome and Principe, Angola, Mozambique, Cape Verde)
 - 🇩🇪 German (Germany, Austria, Switzerland, Liechtenstein)
 - 🇳🇱 Dutch (the Netherlands, Flemish Region, Belgium, Suriname)
 - 🇸🇪 Swedish (Sweden)
 - 🇮🇱 Hebrew (Israel)
-- 🇩🇰 Danish (Denmark, the Faroe Islands, Greenland, Southern Schleswig (Schleswig-Holstein) Germany)
-- 🇧🇦 Bosnian (Bosnia, Croatia, Serbia)
+- 🇩🇰 Danish (Denmark)
+- 🇧🇦 Bosnian (Bosnia, Croatia, Serbia, Montenegro)
 
 
 <!-- TODO Create Article issue template and update this section of the handbook to reflect reality and add corresponding rituals to engineering.rituals.yml
