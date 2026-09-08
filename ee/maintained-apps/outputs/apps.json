@@ -5721,6 +5721,13 @@
       "description": "MonitorControl is a tool to control external monitor brightness & volume."
     },
     {
+      "name": "Monotype Fonts",
+      "slug": "monotype/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.monotype.monotype-fonts",
+      "description": "Monotype Fonts is a desktop app for finding, activating, and managing fonts from the Monotype Fonts library."
+    },
+    {
       "name": "Moom",
       "slug": "moom/darwin",
       "platform": "darwin",
