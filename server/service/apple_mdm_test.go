@@ -5337,6 +5337,12 @@ func TestUpdateMDMHostNameTemplate(t *testing.T) {
 		svcOpts.ActivityMock.NewActivityFuncInvoked = false
 	}
 
+	teamUserOnOne := func(role string) *fleet.User {
+		ut := fleet.UserTeam{Role: role}
+		ut.Team.ID = 1
+		return &fleet.User{Teams: []fleet.UserTeam{ut}}
+	}
+
 	premiumAdminCtx := func() context.Context {
 		ctx := viewer.NewContext(baseCtx, viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
 		return license.NewContext(ctx, &fleet.LicenseInfo{Tier: fleet.TierPremium})
@@ -5455,6 +5461,63 @@ func TestUpdateMDMHostNameTemplate(t *testing.T) {
 			// the unexpanded placeholder is what gets persisted, never the value
 			require.NotNil(t, savedTeam)
 			require.Equal(t, "WS-$FLEET_SECRET_FOO", savedTeam.Config.MDM.HostNameTemplate)
+		})
+
+		// A resolved template puts the secret's plaintext in host names the whole
+		// fleet can read, so only a caller who may set the value may reference one.
+		t.Run("only callers who can write secret variables may reference one", func(t *testing.T) {
+			ds.ValidateEmbeddedSecretsFunc = func(context.Context, []string) error { return nil }
+			for _, tt := range []struct {
+				name    string
+				user    *fleet.User
+				allowed bool
+			}{
+				{"global admin", &fleet.User{GlobalRole: new(fleet.RoleAdmin)}, true},
+				{"global maintainer", &fleet.User{GlobalRole: new(fleet.RoleMaintainer)}, true},
+				{"global gitops", &fleet.User{GlobalRole: new(fleet.RoleGitOps)}, true},
+				{"team admin", teamUserOnOne(fleet.RoleAdmin), false},
+				{"team maintainer", teamUserOnOne(fleet.RoleMaintainer), false},
+				{"team gitops", teamUserOnOne(fleet.RoleGitOps), false},
+			} {
+				t.Run(tt.name, func(t *testing.T) {
+					resetInvoked()
+					currentTemplate = ""
+					ctx := license.NewContext(viewer.NewContext(baseCtx, viewer.Viewer{User: tt.user}),
+						&fleet.LicenseInfo{Tier: fleet.TierPremium})
+					err := svc.UpdateMDMHostNameTemplate(ctx, new(uint(1)), "WS-$FLEET_SECRET_FOO")
+					if tt.allowed {
+						require.NoError(t, err)
+						require.True(t, ds.SaveTeamFuncInvoked)
+						return
+					}
+					require.Error(t, err)
+					require.Contains(t, err.Error(), "can only be used in a host name template by a global admin")
+					var invalid *fleet.InvalidArgumentError
+					require.ErrorAs(t, err, &invalid)
+					require.False(t, ds.SaveTeamFuncInvoked)
+					require.False(t, ds.BulkUpsertHostDeviceNameEnforcementFuncInvoked)
+				})
+			}
+		})
+
+		t.Run("re-saving the fleet's existing secret template is allowed", func(t *testing.T) {
+			// Re-saving a global admin's template resolves no new secret, so the
+			// check must not break a team admin's no-op save.
+			resetInvoked()
+			currentTemplate = "WS-$FLEET_SECRET_FOO"
+			ds.ValidateEmbeddedSecretsFunc = func(context.Context, []string) error { return nil }
+			teamAdmin := teamUserOnOne(fleet.RoleAdmin)
+			ctx := license.NewContext(viewer.NewContext(baseCtx, viewer.Viewer{User: teamAdmin}),
+				&fleet.LicenseInfo{Tier: fleet.TierPremium})
+
+			require.NoError(t, svc.UpdateMDMHostNameTemplate(ctx, new(uint(1)), "  WS-$FLEET_SECRET_FOO "))
+			require.False(t, ds.SaveTeamFuncInvoked, "an unchanged template is a no-op")
+
+			// changing any part of it is still rejected
+			err := svc.UpdateMDMHostNameTemplate(ctx, new(uint(1)), "X-$FLEET_SECRET_FOO")
+			require.Error(t, err)
+			require.Contains(t, err.Error(), "can only be used in a host name template by a global admin")
+			require.False(t, ds.SaveTeamFuncInvoked)
 		})
 	})
 

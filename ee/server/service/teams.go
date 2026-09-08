@@ -458,7 +458,8 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 			// Only validate (a DB round-trip to confirm referenced secrets exist)
 			// when the template actually changed, mirroring the app-config path.
 			if nameTemplate != "" && nameTemplate != team.Config.MDM.HostNameTemplate {
-				validated, err := fleet.ValidateHostNameTemplateWithSecrets(ctx, svc.ds, nameTemplate)
+				validated, err := fleet.ValidateHostNameTemplateWithSecrets(ctx, svc.ds, nameTemplate,
+					svc.authz.CanWriteSecretVariables(ctx))
 				if err != nil {
 					return nil, ctxerr.Wrap(ctx, err)
 				}
@@ -1837,7 +1838,8 @@ func (svc *Service) createTeamFromSpec(
 
 	nameTemplate := spec.MDM.HostNameTemplate.Value
 	if nameTemplate != "" {
-		validated, err := fleet.ValidateHostNameTemplateWithSecrets(ctx, svc.ds, nameTemplate)
+		validated, err := fleet.ValidateHostNameTemplateWithSecrets(ctx, svc.ds, nameTemplate,
+			svc.authz.CanWriteSecretVariables(ctx))
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err)
 		}
@@ -2220,7 +2222,8 @@ func (svc *Service) editTeamFromSpec(
 		// Only validate (a DB round-trip to confirm referenced secrets exist) when
 		// the template actually changed — GitOps re-applies the spec on every run.
 		if nameTemplate != "" && nameTemplate != team.Config.MDM.HostNameTemplate {
-			validated, err := fleet.ValidateHostNameTemplateWithSecrets(ctx, svc.ds, nameTemplate)
+			validated, err := fleet.ValidateHostNameTemplateWithSecrets(ctx, svc.ds, nameTemplate,
+				svc.authz.CanWriteSecretVariables(ctx))
 			if err != nil {
 				return ctxerr.Wrap(ctx, err)
 			}
