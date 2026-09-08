@@ -137,7 +137,7 @@ const AssetsTab = ({ currentTeamId, router }: IAssetsTabProps) => {
           header="No assets"
           info={
             canAddAsset
-              ? "Add an asset to make it available for reference in Apple DDM declarations."
+              ? "Add assets (data or credentials) to use them in many Apple declaration (DDM) profiles. Apple only."
               : "No assets have been added."
           }
           primaryButton={
@@ -180,7 +180,7 @@ const AssetsTab = ({ currentTeamId, router }: IAssetsTabProps) => {
       <div className={`${baseClass}__tab-header`}>
         <PageDescription
           variant="right-panel"
-          content="Manage assets that provide data or credentials referenced by DDM declarations."
+          content="Add assets (data or credentials) to use them in many Apple declaration (DDM) profiles. Apple only."
         />
         {showAddAssetButton && (
           <GitOpsModeTooltipWrapper
