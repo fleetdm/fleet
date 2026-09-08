@@ -107,9 +107,10 @@ module.exports = {
         description: 'XML .mobileconfig profile that enforces OS settings on macOS devices',
         references: [
           'First-party Apple payloads: https://github.com/apple/device-management/tree/release/mdm/profiles',
-          'Third-party Apple payloads: https://github.com/ProfileManifests/ProfileManifests',
+          'Third-party application payloads: https://github.com/ProfileManifests/ProfileManifests/tree/master/Manifests/ManagedPreferencesApplications',
         ],
         rules: [
+          'If this is an attempt to change a third-party application\'s settings, use that application\'s preference domain -- com.google.Chrome, us.zoom.config and its keys must come from the ProfileManifests reference.',
           // Document shape.
           'Emit valid property list XML: the plist DOCTYPE, plist version="1.0", and correctly typed values.',
           'Include PayloadIdentifier, PayloadType, PayloadUUID, PayloadVersion, and PayloadDisplayName on the root dict and on every dict inside PayloadContent.  The root PayloadType is "Configuration" and PayloadVersion is 1.',
@@ -127,7 +128,7 @@ module.exports = {
           // Structure.
           'Put every key for one payload domain in a single dict inside PayloadContent.  Do not emit several dicts with the same PayloadType.',
           // Third-party payloads.
-          'For a third-party application\'s settings, PayloadType is that application\'s preference domain -- com.google.Chrome, us.zoom.config, and so on -- and its keys come from the ProfileManifests reference rather than Apple\'s payload reference.',
+
         ],
       },
 
