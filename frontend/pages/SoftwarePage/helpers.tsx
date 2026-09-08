@@ -235,27 +235,28 @@ export const getSelfServiceTooltip = (
   if (isIosOrIpadosApp)
     return (
       <>
-        End users can install from self service.
-        <br />
+        End users can install from{" "}
         <CustomLink
           newTab
-          text="Learn how to deploy self service"
+          text="self service"
           variant="tooltip-link"
           url={`${LEARN_MORE_ABOUT_BASE_LINK}/deploy-self-service-to-ios`}
         />
+        .
       </>
     );
 
   return (
     <>
       End users can install from <br />
-      <strong>Fleet Desktop</strong> &gt; <strong>Self service</strong>. <br />
+      <strong>Fleet Desktop</strong> &gt;{" "}
       <CustomLink
         newTab
-        text="Learn more"
+        text="Self service"
         variant="tooltip-link"
         url={`${LEARN_MORE_ABOUT_BASE_LINK}/self-service-software`}
       />
+      .
     </>
   );
 };
@@ -267,7 +268,7 @@ export const getAutoUpdatesTooltip = (startTime: string, endTime: string) => {
       <br />
       targeted hosts will begin updating between
       <br />
-      {startTime} and {endTime} (host&rsquo;s local time).
+      {startTime} and {endTime} (host local time).
     </>
   );
 };

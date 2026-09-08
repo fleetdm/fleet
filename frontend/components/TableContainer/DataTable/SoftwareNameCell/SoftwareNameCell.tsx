@@ -44,7 +44,7 @@ const getPolicyTooltip = (count = 0) =>
     : `${count} policies trigger install.`;
 
 const getAutoUpdateTooltip = (start: string, end: string) =>
-  `Auto updates between ${start} and ${end}.`;
+  `Auto updates between ${start} and ${end} (host local time).`;
 
 const installIconMap: Record<InstallType, InstallIconConfig> = {
   manual: {

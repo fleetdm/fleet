@@ -248,7 +248,9 @@ describe("SoftwareNameCell icon rendering", () => {
     const icon = screen.getByTestId("refresh-icon");
     await userEvent.hover(icon);
     expect(
-      await screen.findByText(/Auto updates between 02:00 and 04:00\./i)
+      await screen.findByText(
+        /Auto updates between 02:00 and 04:00 \(host local time\)\./i
+      )
     ).toBeInTheDocument();
   });
 
@@ -267,7 +269,9 @@ describe("SoftwareNameCell icon rendering", () => {
     const icon = screen.getByTestId("automatic-self-service-icon");
     await userEvent.hover(icon);
     expect(
-      await screen.findByText(/Auto updates between 02:00 and 04:00\./i)
+      await screen.findByText(
+        /Auto updates between 02:00 and 04:00 \(host local time\)\./i
+      )
     ).toBeInTheDocument();
     expect(
       await screen.findByText(/End users can install/i)
@@ -293,7 +297,9 @@ describe("SoftwareNameCell icon rendering", () => {
       await screen.findByText(/2 policies trigger install\./i)
     ).toBeInTheDocument();
     expect(
-      await screen.findByText(/Auto updates between 02:00 and 04:00\./i)
+      await screen.findByText(
+        /Auto updates between 02:00 and 04:00 \(host local time\)\./i
+      )
     ).toBeInTheDocument();
     expect(
       await screen.findByText(/End users can install/i)

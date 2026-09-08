@@ -227,7 +227,7 @@ const SoftwareSummaryCard = ({
             tooltip={
               <>
                 Between {softwareTitle.auto_update_window_start} and{" "}
-                {softwareTitle.auto_update_window_end}.
+                {softwareTitle.auto_update_window_end} (host local time).
               </>
             }
           />
