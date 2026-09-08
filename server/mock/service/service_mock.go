@@ -233,8 +233,6 @@ type AgentOptionsForHostFunc func(ctx context.Context, hostTeamID *uint, hostPla
 
 type AuthenticateDeviceFunc func(ctx context.Context, authToken string) (host *fleet.Host, debug bool, err error)
 
-type AuthenticateDeviceByCertificateFunc func(ctx context.Context, certSerial uint64, hostUUID string) (host *fleet.Host, debug bool, err error)
-
 type AuthenticateIDeviceByURLFunc func(ctx context.Context, urlUUID string) (host *fleet.Host, debug bool, err error)
 
 type StreamHostsFunc func(ctx context.Context, opt fleet.HostListOptions) (hostIterator iter.Seq2[*fleet.Host, error], err error)
@@ -1335,9 +1333,6 @@ type Service struct {
 
 	AuthenticateDeviceFunc        AuthenticateDeviceFunc
 	AuthenticateDeviceFuncInvoked bool
-
-	AuthenticateDeviceByCertificateFunc        AuthenticateDeviceByCertificateFunc
-	AuthenticateDeviceByCertificateFuncInvoked bool
 
 	AuthenticateIDeviceByURLFunc        AuthenticateIDeviceByURLFunc
 	AuthenticateIDeviceByURLFuncInvoked bool
@@ -3255,13 +3250,6 @@ func (s *Service) AuthenticateDevice(ctx context.Context, authToken string) (hos
 	s.AuthenticateDeviceFuncInvoked = true
 	s.mu.Unlock()
 	return s.AuthenticateDeviceFunc(ctx, authToken)
-}
-
-func (s *Service) AuthenticateDeviceByCertificate(ctx context.Context, certSerial uint64, hostUUID string) (host *fleet.Host, debug bool, err error) {
-	s.mu.Lock()
-	s.AuthenticateDeviceByCertificateFuncInvoked = true
-	s.mu.Unlock()
-	return s.AuthenticateDeviceByCertificateFunc(ctx, certSerial, hostUUID)
 }
 
 func (s *Service) AuthenticateIDeviceByURL(ctx context.Context, urlUUID string) (host *fleet.Host, debug bool, err error) {

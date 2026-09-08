@@ -2809,6 +2809,13 @@
       "description": "Druva inSync is a cloud-based product that protects endpoint data."
     },
     {
+      "name": "Druva inSync (GovCloud)",
+      "slug": "druva-insync@govcloud/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.druva.inSyncClient",
+      "description": "Druva inSync (GovCloud) is the Druva GovCloud release of the inSync endpoint data protection client."
+    },
+    {
       "name": "DuckDuckGo",
       "slug": "duckduckgo/darwin",
       "platform": "darwin",
