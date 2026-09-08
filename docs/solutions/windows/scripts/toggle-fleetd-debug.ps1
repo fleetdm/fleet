@@ -23,7 +23,7 @@ if ($imagePath -match '\s--') {
 
     if ($hasDebug) {
         Write-Host "--debug is present: removing it."
-        $imagePath = ($imagePath -replace '\s*--debug\b\s*').Trim()
+        $imagePath = ($imagePath -replace '\s+--debug(?=\s|$)', '').Trim()
     } else {
         Write-Host "--debug is missing: adding it."
         $imagePath = "$imagePath --debug"
