@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "1.18.0",
+      "version": "1.18.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'dev.zed.Zed';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'dev.zed.Zed' AND version_compare(bundle_short_version, '1.18.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'dev.zed.Zed' AND version_compare(bundle_short_version, '1.18.1') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'dev.zed.Zed' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://zed.dev/api/releases/stable/1.18.0/Zed-aarch64.dmg",
+      "installer_url": "https://zed.dev/api/releases/stable/1.18.1/Zed-aarch64.dmg",
       "install_script_ref": "bdea8414",
       "uninstall_script_ref": "0436e2d8",
-      "sha256": "7238f40d37078536a84b94972e441c22cb20d349b9dd28adc845e0dc6ec1d4b4",
+      "sha256": "6c488fc69d538715cb5ba2a99d4a45897e84aca18211a30549291cb90e4b6546",
       "default_categories": [
         "Developer tools"
       ]
