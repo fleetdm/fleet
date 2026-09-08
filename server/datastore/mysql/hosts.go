@@ -1727,6 +1727,11 @@ const hostMDMSeenTimeJoin = `
 // active enrollments only (nano_enrollments.last_seen_at keeps updating after
 // checkout). Alias nesm coexists with hostMDMSeenTimeJoin's nes so MIA/Missing
 // can still use the unfiltered join.
+//
+// enabled = 1 only screens nesm.last_seen_at. detail_updated_at in
+// hostMobileOnlineExpr is not gated on enrollment state, so a checked-out
+// device with a fresh detail_updated_at still reads online for up to
+// MobileOnlineWindow after checkout. See Host.mobileStatus for the Go mirror.
 const hostMobileMDMSeenTimeJoin = `
 	LEFT JOIN nano_enrollments nesm ON nesm.id = h.uuid AND nesm.enabled = 1 AND nesm.type IN ('Device', 'User Enrollment (Device)')`
 
@@ -1744,6 +1749,11 @@ const mobileOnlineWindowSeconds = int(fleet.MobileOnlineWindow / time.Second)
 // mirroring FindOnlineHostIDs in server/chart. No created_at fallback: a
 // never-checked-in device stays offline. Requires hostMobileMDMSeenTimeJoin
 // (nesm) and the host_seen_times join (hst).
+//
+// Folds in raw hst.seen_time (not coalesced with created_at). Benign today
+// because no mobile enrollment path writes host_seen_times; Host.mobileStatus
+// omits SeenTime for that reason. If a mobile write path ever populates
+// host_seen_times, update both sides together or they will disagree.
 const hostMobileOnlineExpr = `COALESCE(GREATEST(COALESCE(hst.seen_time, nesm.last_seen_at), COALESCE(nesm.last_seen_at, hst.seen_time)), NULLIF(h.detail_updated_at, '` + server.NeverTimestamp + `'))`
 
 func filterHostsByStatus(now time.Time, sql string, opt fleet.HostListOptions, params []interface{}) (string, []interface{}) {
@@ -3303,9 +3313,12 @@ func (ds *Datastore) MarkHostsSeen(ctx context.Context, hostIDs []uint, t time.T
 //   - An optional list of IDs to omit from the search.
 //
 // Deliberately does not populate LastMDMCheckedInAt: sole caller is the
-// live-query target picker, and mobile hosts can't be live-queried. If a new
-// caller flows results to a mobile-visible surface, add hostMobileMDMSeenTimeJoin
-// + nesm.last_seen_at to keep Host.Status() honest.
+// live-query target picker, and mobile hosts can't be live-queried. Any
+// mobile row returned here has an incomplete status signal (no MDM
+// last_seen, so mobileStatus reads only DetailUpdatedAt) and should not be
+// treated as authoritative. If a new caller flows results to a
+// mobile-visible surface, add hostMobileMDMSeenTimeJoin + nesm.last_seen_at
+// to keep Host.Status() honest.
 func (ds *Datastore) SearchHosts(ctx context.Context, filter fleet.TeamFilter, matchQuery string, omit ...uint) ([]*fleet.Host, error) {
 	query := `SELECT
     h.id,

@@ -1372,6 +1372,16 @@ func (h *Host) Status(now time.Time) HostStatus {
 // MobileOnlineWindow; no created_at fallback so never-checked-in devices stay
 // offline. SeenTime is skipped: the list loader coalesces hst.seen_time with
 // h.created_at before we see it, which would false-online fresh enrollments.
+//
+// DetailUpdatedAt is NOT gated on enrollment state. The enabled = 1 filter on
+// nesm only screens the MDM signal, so a device that checked out with a fresh
+// detail_updated_at still reads online for up to MobileOnlineWindow after.
+// Intentional: the device was genuinely active recently.
+//
+// Mirrors hostMobileOnlineExpr with one caveat: SQL also folds in raw
+// hst.seen_time (not coalesced with created_at). Benign today because no
+// mobile enrollment path writes host_seen_times. If that changes, this branch
+// must be updated to match or Go and SQL will disagree on those rows.
 func (h *Host) mobileStatus(now time.Time) HostStatus {
 	var latest time.Time
 	if h.LastMDMCheckedInAt != nil {

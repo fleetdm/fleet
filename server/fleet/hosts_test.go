@@ -163,6 +163,15 @@ func TestHostStatusMobile(t *testing.T) {
 			h:    Host{Platform: "ios", DetailUpdatedAt: neverTS},
 			want: StatusOffline,
 		},
+		{
+			// Documents that DetailUpdatedAt is NOT gated on enrollment state.
+			// nesm.enabled = 0 upstream masks LastMDMCheckedInAt to nil, but a
+			// fresh detail_updated_at still reads online for up to
+			// MobileOnlineWindow after checkout.
+			name: "ios online via fresh DetailUpdatedAt with nil LastMDMCheckedInAt (checked-out enrollment)",
+			h:    Host{Platform: "ios", DetailUpdatedAt: recent},
+			want: StatusOnline,
+		},
 	}
 
 	for _, c := range cases {
