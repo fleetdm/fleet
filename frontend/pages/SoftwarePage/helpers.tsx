@@ -238,11 +238,10 @@ export const getSelfServiceTooltip = (
         End users can install from{" "}
         <CustomLink
           newTab
-          text="self service"
+          text="self service."
           variant="tooltip-link"
           url={`${LEARN_MORE_ABOUT_BASE_LINK}/deploy-self-service-to-ios`}
         />
-        .
       </>
     );
 
@@ -252,11 +251,10 @@ export const getSelfServiceTooltip = (
       <strong>Fleet Desktop</strong> &gt;{" "}
       <CustomLink
         newTab
-        text="Self service"
+        text="Self service."
         variant="tooltip-link"
         url={`${LEARN_MORE_ABOUT_BASE_LINK}/self-service-software`}
       />
-      .
     </>
   );
 };
