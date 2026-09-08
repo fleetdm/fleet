@@ -38,15 +38,26 @@ const renderEndUserAuthSection = ({
   endUserAuth = EMPTY_END_USER_AUTH,
   onDirtyChange = noop,
   isPremiumTier = true,
+  gitOpsModeEnabled = false,
 }: {
   endUserAuth?: IEndUserAuthentication;
   onDirtyChange?: (hasUnsavedChanges: boolean) => void;
   isPremiumTier?: boolean;
+  gitOpsModeEnabled?: boolean;
 } = {}) => {
   // Deliberately left holding the empty default: the component must read the
   // saved config from its prop, not from here.
+  const config = createMockConfig();
   const render = createCustomRenderer({
-    context: { app: { isPremiumTier, config: createMockConfig() } },
+    context: {
+      app: {
+        isPremiumTier,
+        config: {
+          ...config,
+          gitops: { ...config.gitops, gitops_mode_enabled: gitOpsModeEnabled },
+        },
+      },
+    },
   });
 
   return render(
@@ -221,6 +232,48 @@ describe("EndUserAuthSection", () => {
     await user.click(screen.getByRole("button", { name: "Save" }));
 
     await waitFor(() => expect(onDirtyChange).toHaveBeenLastCalledWith(false));
+  });
+
+  it("clears the paired metadata error once either field is filled", async () => {
+    const { user } = renderEndUserAuthSection();
+
+    await user.type(screen.getByLabelText("Identity provider name"), "Okta");
+    // Captured before submitting: the error text replaces the field's label.
+    const metadataUrl = screen.getByLabelText("Metadata URL");
+
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    expect(
+      screen.getAllByText("Enter metadata or a metadata URL")
+    ).toHaveLength(2);
+
+    await user.type(metadataUrl, "https://idp.example.com/metadata");
+
+    expect(screen.queryByText("Enter metadata or a metadata URL")).toBeNull();
+    // The errors the change didn't make irrelevant stay put.
+    expect(screen.getByText("Enter an entity ID")).toBeInTheDocument();
+  });
+
+  it("stops reporting unsaved changes when it unmounts", async () => {
+    const onDirtyChange = jest.fn();
+    const { user, unmount } = renderEndUserAuthSection({ onDirtyChange });
+
+    await user.type(screen.getByLabelText("Identity provider name"), "Okta");
+    expect(onDirtyChange).toHaveBeenLastCalledWith(true);
+
+    unmount();
+
+    expect(onDirtyChange).toHaveBeenLastCalledWith(false);
+  });
+
+  it("does not submit in GitOps mode", async () => {
+    const { user } = renderEndUserAuthSection({
+      endUserAuth: CONFIGURED_END_USER_AUTH,
+      gitOpsModeEnabled: true,
+    });
+
+    await user.type(screen.getByLabelText("Entity ID"), "{Enter}");
+
+    expect(updateSpy).not.toHaveBeenCalled();
   });
 
   it("submits trimmed values", async () => {

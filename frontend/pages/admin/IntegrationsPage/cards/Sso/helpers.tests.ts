@@ -86,7 +86,9 @@ describe("Sso helpers", () => {
           ...VALID_FORM_DATA,
           metadataUrl: "idp.example.com/metadata",
         })
-      ).toEqual({ metadataUrl: "Enter a valid metadata URL" });
+      ).toEqual({
+        metadataUrl: "Enter a metadata URL starting with https:// or http://",
+      });
     });
 
     it("validates the IdP image URL only when it has a value", () => {

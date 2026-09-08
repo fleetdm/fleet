@@ -13,13 +13,18 @@ const createTestRenderer = () =>
     context: { app: { isPremiumTier: true } },
   });
 
-const renderSso = (subsection = "fleet-users") => {
+const renderSso = (subsection = "fleet-users", gitOpsModeEnabled = false) => {
   const router = ({ push: jest.fn() } as unknown) as InjectedRouter;
+  const config = createMockConfig();
+  const handleSubmit = jest.fn().mockResolvedValue(true);
   const render = createTestRenderer();
   const { user } = render(
     <Sso
-      appConfig={createMockConfig()}
-      handleSubmit={jest.fn().mockResolvedValue(true)}
+      appConfig={{
+        ...config,
+        gitops: { ...config.gitops, gitops_mode_enabled: gitOpsModeEnabled },
+      }}
+      handleSubmit={handleSubmit}
       isPremiumTier
       isUpdatingSettings={false}
       router={router}
@@ -27,7 +32,7 @@ const renderSso = (subsection = "fleet-users") => {
     />
   );
 
-  return { user, router };
+  return { user, router, handleSubmit };
 };
 
 const confirmSpy = jest.spyOn(window, "confirm");
@@ -74,6 +79,69 @@ describe("Sso - Fleet users", () => {
     await user.click(screen.getByText("End users"));
 
     expect(confirmSpy).not.toHaveBeenCalled();
+  });
+
+  it("clears every error when SSO is turned back off", async () => {
+    const { user } = renderSso();
+
+    const enableSso = screen.getByRole("checkbox", { name: "enableSso" });
+    await user.click(enableSso);
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    expect(
+      screen.getByText("Enter an identity provider name")
+    ).toBeInTheDocument();
+
+    // The checkbox is what makes these fields required, so turning it off is
+    // this form's equivalent of the End users form emptying every field.
+    await user.click(enableSso);
+
+    expect(screen.queryByText("Enter an identity provider name")).toBeNull();
+    expect(screen.queryByText("Enter an entity ID")).toBeNull();
+    expect(screen.queryByText("Enter metadata or a metadata URL")).toBeNull();
+  });
+
+  it("clears the paired metadata error once either field is filled", async () => {
+    const { user } = renderSso();
+
+    await user.click(screen.getByRole("checkbox", { name: "enableSso" }));
+    // Captured before submitting: the error text replaces the field's label.
+    const metadata = screen.getByLabelText("Metadata");
+
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    expect(
+      screen.getAllByText("Enter metadata or a metadata URL")
+    ).toHaveLength(2);
+
+    await user.type(metadata, "<xml />");
+
+    expect(screen.queryByText("Enter metadata or a metadata URL")).toBeNull();
+    // The errors the change didn't make irrelevant stay put.
+    expect(
+      screen.getByText("Enter an identity provider name")
+    ).toBeInTheDocument();
+  });
+
+  it("keeps a metadata URL format error when the other field is filled", async () => {
+    const { user } = renderSso();
+
+    await user.click(screen.getByRole("checkbox", { name: "enableSso" }));
+    const metadata = screen.getByLabelText("Metadata");
+    await user.type(screen.getByLabelText("Metadata URL"), "not a url");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    expect(screen.getByText("Enter a valid metadata URL")).toBeInTheDocument();
+
+    await user.type(metadata, "<xml />");
+
+    // Still applies: the URL is used over the metadata when both are set.
+    expect(screen.getByText("Enter a valid metadata URL")).toBeInTheDocument();
+  });
+
+  it("does not submit in GitOps mode", async () => {
+    const { user, handleSubmit } = renderSso("fleet-users", true);
+
+    await user.type(screen.getByLabelText("Entity ID"), "{Enter}");
+
+    expect(handleSubmit).not.toHaveBeenCalled();
   });
 
   it("does not prompt on tab switch when only whitespace was added", async () => {

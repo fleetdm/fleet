@@ -18,6 +18,7 @@ import { notify } from "components/ToastNotification";
 import {
   IFormDataIdp,
   isEmptyFormData,
+  METADATA_SIBLING,
   newFormDataIdp,
   validateEndUserAuthForm,
 } from "./helpers";
@@ -69,10 +70,21 @@ const EndUserAuthSection = ({
 
   const onFieldChange = (name: keyof IFormDataIdp, value: string) => {
     setField(name, value);
+
     // Emptying the last field is how the configuration gets cleared, and an
     // empty form is valid, so every required-field error stops applying.
     if (isEmptyFormData({ ...formData, [name]: value })) {
       clearErrors();
+      return;
+    }
+
+    // Filling either metadata field satisfies the shared requirement, but blur
+    // only revalidates the field that blurred, so the other keeps a stale copy
+    // of the message. An empty sibling can only be holding that shared error; a
+    // non-empty metadata URL may be holding a format error that still applies.
+    const sibling = METADATA_SIBLING[name];
+    if (value.trim() && sibling && !formData[sibling].trim()) {
+      clearFieldError(sibling);
     }
   };
 
@@ -80,7 +92,15 @@ const EndUserAuthSection = ({
     onDirtyChange(hasUnsavedChanges);
   }, [hasUnsavedChanges, onDirtyChange]);
 
+  useEffect(() => () => onDirtyChange(false), [onDirtyChange]);
+
   const onValidSubmit = async (submitData: IFormDataIdp) => {
+    // The fields and the button are disabled in GitOps mode.
+    // Prevent the form element itself from being submitted.
+    if (gitOpsModeEnabled) {
+      return;
+    }
+
     try {
       await configAPI.update({
         mdm: {
@@ -137,7 +157,7 @@ const EndUserAuthSection = ({
             onChange={(value: string) => onFieldChange("idp_name", value)}
             onFocus={() => clearFieldError("idp_name")}
             onBlur={() => validateField("idp_name")}
-            disabled={isSubmitting}
+            disabled={isSubmitting || gitOpsModeEnabled}
             tooltip="A required human friendly name for the identity provider that will provide single sign-on authentication."
           />
           <InputField
@@ -148,7 +168,7 @@ const EndUserAuthSection = ({
             onChange={(value: string) => onFieldChange("entity_id", value)}
             onFocus={() => clearFieldError("entity_id")}
             onBlur={() => validateField("entity_id")}
-            disabled={isSubmitting}
+            disabled={isSubmitting || gitOpsModeEnabled}
             tooltip="The Entity ID is a required URI that you use to identify Fleet when configuring the identity provider. Okta calls this Audience Restriction."
           />
           <InputField
@@ -165,7 +185,7 @@ const EndUserAuthSection = ({
             onChange={(value: string) => onFieldChange("metadata_url", value)}
             onFocus={() => clearFieldError("metadata_url")}
             onBlur={() => validateField("metadata_url")}
-            disabled={isSubmitting}
+            disabled={isSubmitting || gitOpsModeEnabled}
             tooltip="Metadata URL provided by the identity provider."
           />
           <InputField
@@ -177,7 +197,7 @@ const EndUserAuthSection = ({
             onChange={(value: string) => onFieldChange("metadata", value)}
             onFocus={() => clearFieldError("metadata")}
             onBlur={() => validateField("metadata")}
-            disabled={isSubmitting}
+            disabled={isSubmitting || gitOpsModeEnabled}
             tooltip="Metadata XML provided by the identity provider."
           />
         </div>

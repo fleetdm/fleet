@@ -37,6 +37,17 @@ const trimFormDataIdp = (data: IFormDataIdp): IFormDataIdp => ({
   metadata: data.metadata.trim(),
 });
 
+/**
+ * Either field satisfies the metadata requirement, so they share one error
+ * message. Only `metadata_url` can also hold a URL-format error.
+ */
+export const METADATA_SIBLING: Partial<
+  Record<keyof IFormDataIdp, keyof IFormDataIdp>
+> = {
+  metadata: "metadata_url",
+  metadata_url: "metadata",
+};
+
 export const validateEndUserAuthForm = (
   formData: IFormDataIdp
 ): IFormErrors => {

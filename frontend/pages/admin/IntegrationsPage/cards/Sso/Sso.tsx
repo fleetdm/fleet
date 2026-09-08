@@ -18,7 +18,13 @@ import { Tab, TabList, TabPanel, Tabs } from "react-tabs";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 import { IAppConfigFormProps } from "../../../OrgSettingsPage/cards/constants";
 import EndUserAuthSection from "../IdentityProviders/components/EndUserAuthSection";
-import { ISsoFormData, newSsoFormData, validateSsoForm } from "./helpers";
+import {
+  ISsoFormData,
+  METADATA_SIBLING,
+  newSsoFormData,
+  SsoTextField,
+  validateSsoForm,
+} from "./helpers";
 
 export const AUTH_TARGETS_BY_INDEX = ["fleet-users", "end-users"];
 
@@ -62,7 +68,26 @@ const Sso = ({
 
   const originalFormData = useRef(formData);
 
+  const onFieldChange = (name: SsoTextField, value: string) => {
+    setField(name, value);
+
+    // Filling either metadata field satisfies the shared requirement, but blur
+    // only revalidates the field that blurred, so the other keeps a stale copy
+    // of the message. An empty sibling can only be holding that shared error; a
+    // non-empty metadata URL may be holding a format error that still applies.
+    const sibling = METADATA_SIBLING[name];
+    if (value.trim() && sibling && !formData[sibling].trim()) {
+      clearFieldError(sibling);
+    }
+  };
+
   const onValidSubmit = async (submitData: ISsoFormData) => {
+    // The fields and the button are disabled in GitOps mode, but the form
+    // element itself can still be submitted.
+    if (gitOpsModeEnabled) {
+      return;
+    }
+
     // Formatting of API not UI
     const formDataToSubmit = {
       sso_settings: {
@@ -105,9 +130,6 @@ const Sso = ({
       }
 
       reset(originalFormData.current);
-      // The End users panel unmounts on switch, discarding its own edits, but
-      // the flag it last reported stays behind.
-      setEndUserHasUnsavedChanges(false);
       const newSubsection = AUTH_TARGETS_BY_INDEX[index];
       router.push(
         newSubsection === "end-users"
@@ -131,7 +153,7 @@ const Sso = ({
             onChange={(value: boolean) => commitFields({ enableSso: value })}
             name="enableSso"
             value={enableSso}
-            disabled={isSubmitting}
+            disabled={isSubmitting || gitOpsModeEnabled}
           >
             Enable single sign-on
           </Checkbox>
@@ -140,10 +162,10 @@ const Sso = ({
             name="idpName"
             value={idpName}
             error={getError("idpName")}
-            onChange={(value: string) => setField("idpName", value)}
+            onChange={(value: string) => onFieldChange("idpName", value)}
             onFocus={() => clearFieldError("idpName")}
             onBlur={() => validateField("idpName")}
-            disabled={isSubmitting}
+            disabled={isSubmitting || gitOpsModeEnabled}
             tooltip="A required human friendly name for the identity provider that will provide single sign-on authentication."
           />
           <InputField
@@ -152,10 +174,10 @@ const Sso = ({
             name="entityId"
             value={entityId}
             error={getError("entityId")}
-            onChange={(value: string) => setField("entityId", value)}
+            onChange={(value: string) => onFieldChange("entityId", value)}
             onFocus={() => clearFieldError("entityId")}
             onBlur={() => validateField("entityId")}
-            disabled={isSubmitting}
+            disabled={isSubmitting || gitOpsModeEnabled}
             tooltip="The Entity ID is a required URI that you use to identify Fleet when configuring the identity provider. Okta calls this Audience Restriction."
           />
           <InputField
@@ -163,10 +185,10 @@ const Sso = ({
             name="idpImageUrl"
             value={idpImageUrl}
             error={getError("idpImageUrl")}
-            onChange={(value: string) => setField("idpImageUrl", value)}
+            onChange={(value: string) => onFieldChange("idpImageUrl", value)}
             onFocus={() => clearFieldError("idpImageUrl")}
             onBlur={() => validateField("idpImageUrl")}
-            disabled={isSubmitting}
+            disabled={isSubmitting || gitOpsModeEnabled}
             tooltip={`An optional link to an image such
             as a logo for the identity provider.`}
           />
@@ -176,10 +198,10 @@ const Sso = ({
             name="metadata"
             value={metadata}
             error={getError("metadata")}
-            onChange={(value: string) => setField("metadata", value)}
+            onChange={(value: string) => onFieldChange("metadata", value)}
             onFocus={() => clearFieldError("metadata")}
             onBlur={() => validateField("metadata")}
-            disabled={isSubmitting}
+            disabled={isSubmitting || gitOpsModeEnabled}
             tooltip="Metadata XML provided by the identity provider."
           />
           <InputField
@@ -193,10 +215,10 @@ const Sso = ({
             name="metadataUrl"
             value={metadataUrl}
             error={getError("metadataUrl")}
-            onChange={(value: string) => setField("metadataUrl", value)}
+            onChange={(value: string) => onFieldChange("metadataUrl", value)}
             onFocus={() => clearFieldError("metadataUrl")}
             onBlur={() => validateField("metadataUrl")}
-            disabled={isSubmitting}
+            disabled={isSubmitting || gitOpsModeEnabled}
             tooltip="Metadata URL provided by the identity provider."
           />
           <Checkbox
@@ -205,7 +227,7 @@ const Sso = ({
             }
             name="enableSsoIdpLogin"
             value={enableSsoIdpLogin}
-            disabled={isSubmitting}
+            disabled={isSubmitting || gitOpsModeEnabled}
           >
             Allow SSO login initiated by identity provider
           </Checkbox>
@@ -216,7 +238,7 @@ const Sso = ({
               }
               name="enableJitProvisioning"
               value={enableJitProvisioning}
-              disabled={isSubmitting}
+              disabled={isSubmitting || gitOpsModeEnabled}
               helpText={
                 <>
                   <CustomLink
