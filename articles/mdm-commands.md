@@ -15,6 +15,7 @@ For Apple devices, the payload is a  `.plist` that can be copied like this examp
 
 For Windows, the payload is standard `xml` and command options can be referenced in the [Microsoft CSP Policy docuementation](https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-configuration-service-provider).
 
+For Android, the payload is `json`, matching the request body of the Android Management API's [`issueCommand`](https://developers.google.com/android/management/reference/rest/v1/enterprises.devices/issueCommand) request.
 
 You can run any command supported by [Apple's MDM protocol](https://developer.apple.com/documentation/devicemanagement/commands_and_queries), [Microsoft's MDM protocol](https://learn.microsoft.com/en-us/windows/client-management/mdm/), or the [Android Management API](https://developers.google.com/android/management/reference/rest/v1/enterprises.devices/issueCommand).
 
@@ -22,7 +23,6 @@ The end result simply needs to be a standard, plain text file with the correct k
 
 > Apple's Lock and Wipe commands, and Android's `LOCK` and `RESET_PASSWORD` commands, are only available in Fleet Premium. Android's `WIPE` command is available on Fleet Free for company-owned hosts.
 >
-> Android only supports targeting one host per command.
 
 ### Examples
 
@@ -133,6 +133,8 @@ Or, something like `jq` for API output:
 "$fleet_url/api/v1/fleet/hosts" | jq '.hosts[] | select(.computer_name | contains("someSearchStringHere"))'
 ```
 
+> Android only supports targeting one host per command.
+> 
 > You will need a [Fleet API token](https://fleetdm.com/docs/rest-api/rest-api#retrieve-your-api-token) in your `fleetctl` configuration or for any interaction with the Fleet API to work.
 
 ## Step 3: Execute the MDM command
