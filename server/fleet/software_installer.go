@@ -1041,9 +1041,10 @@ type SoftwarePackageSpec struct {
 	// SetupExperiencePlatform selects the installer for the setup experience,
 	// as a comma-separated string of platforms (e.g. "darwin,linux"),
 	// consistent with the query/policy `platform` field. Additive with
-	// InstallDuringSetup: the native platform is controlled by that bool, the
-	// non-native entries feed the setup_experience_software_installers
-	// cross-table. Only meaningful for packages that produce more than one
+	// InstallDuringSetup for script packages, where either one can select the
+	// native platform; on .ipa the bare boolean means iOS instead. Non-native
+	// entries feed the setup_experience_software_installers cross-table.
+	// Only meaningful for packages that produce more than one
 	// setup experience target: cross-platform scripts (.sh, .py) and .ipa
 	// packages, whose single entry stands for both the iOS and iPadOS titles.
 	SetupExperiencePlatform optjson.String        `json:"setup_experience_platform,omitzero"`

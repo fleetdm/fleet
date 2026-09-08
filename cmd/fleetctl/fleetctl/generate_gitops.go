@@ -2120,6 +2120,24 @@ func generateSoftwareForValidation(client generateGitopsClient, appConfig *fleet
 	return result, installers, vppApps, nil
 }
 
+// setSetupExperienceKeys writes a package's setup experience selection into its
+// spec. A selection that includes a cross-platform target goes entirely into
+// setup_experience_platform, the documented way to name more than one platform.
+func setSetupExperienceKeys(spec map[string]any, nativeSelected bool, crossTargets []string, nativePlatform string) {
+	if len(crossTargets) == 0 {
+		if nativeSelected {
+			spec["setup_experience"] = true
+		}
+		return
+	}
+	platforms := slices.Clone(crossTargets)
+	if nativeSelected && nativePlatform != "" {
+		platforms = append(platforms, nativePlatform)
+	}
+	slices.Sort(platforms)
+	spec["setup_experience_platform"] = strings.Join(platforms, ",")
+}
+
 func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint, teamFilename string, downloadIcons bool) (map[string]interface{}, error) {
 	if !cmd.AppConfig.License.IsPremium() {
 		return nil, nil // software is premium-only
@@ -2188,6 +2206,11 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 				continue
 			}
 			if pkg.Platform == fleet.CanonicalPlatform(crossTarget) {
+				continue
+			}
+			// The listing returns every title selectable for the target platform,
+			// so install_during_setup is what marks a real selection.
+			if pkg.InstallDuringSetup == nil || !*pkg.InstallDuringSetup {
 				continue
 			}
 			// Emit the canonical platform token ("darwin", not "macos") to match
@@ -2270,7 +2293,8 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 		// file, referenced by a single path entry in the fleet file.
 		if len(softwareTitle.Packages) > 1 {
 			_, inSetup := setupSoftwareBySoftwareTitle[softwareTitle.ID]
-			entry, err := cmd.generateMultiPackage(softwareTitle, sw.Name, teamID, teamFilename, downloadIcons, inSetup)
+			crosses := crossPlatformSelectionsByTitleID[softwareTitle.ID]
+			entry, err := cmd.generateMultiPackage(softwareTitle, sw.Name, teamID, teamFilename, downloadIcons, inSetup, crosses)
 			if err != nil {
 				return nil, err
 			}
@@ -2503,12 +2527,8 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 		if softwareTitle.SoftwarePackage != nil {
 			sp := softwareTitle.SoftwarePackage
 			labelKey, labelNames = scopeLabels(sp.LabelsIncludeAny, sp.LabelsExcludeAny, sp.LabelsIncludeAll)
-			if _, exists := setupSoftwareBySoftwareTitle[softwareTitle.ID]; exists {
-				softwareSpec["setup_experience"] = true
-			}
-			if crosses, ok := crossPlatformSelectionsByTitleID[softwareTitle.ID]; ok && len(crosses) > 0 {
-				softwareSpec["setup_experience_platform"] = strings.Join(crosses, ",")
-			}
+			_, nativeSelected := setupSoftwareBySoftwareTitle[softwareTitle.ID]
+			setSetupExperienceKeys(softwareSpec, nativeSelected, crossPlatformSelectionsByTitleID[softwareTitle.ID], sp.Platform)
 			// Never set together with the cross-selection emission above: .ipa
 			// titles can't be cross-selected because the setup experience listing
 			// excludes them for any non-mobile target platform.
@@ -2555,7 +2575,7 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 	return result, nil
 }
 
-func (cmd *GenerateGitopsCommand) generateMultiPackage(title *fleet.SoftwareTitle, swName string, teamID uint, teamFilename string, downloadIcons bool, inSetup bool) (map[string]any, error) {
+func (cmd *GenerateGitopsCommand) generateMultiPackage(title *fleet.SoftwareTitle, swName string, teamID uint, teamFilename string, downloadIcons bool, inSetup bool, crossTargets []string) (map[string]any, error) {
 	// Paths inside the package YAML file are resolved relative to that file, which
 	// lives in lib/<team>/software, so a sibling dir is reached with ../<dir>/<name>.
 	writeSideFile := func(dir string, name string, contents any) string {
@@ -2608,9 +2628,14 @@ func (cmd *GenerateGitopsCommand) generateMultiPackage(title *fleet.SoftwareTitl
 	packageFile := fmt.Sprintf("lib/%s/software/%s.package.yml", teamFilename, generateFilename(swName))
 	cmd.FilesToWrite[packageFile] = items
 	entry := map[string]any{"path": "../" + packageFile}
-	if inSetup {
-		entry["setup_experience"] = true
+	// The fleet-level entry is inherited by every package in the file, so a
+	// title whose packages differ in their setup experience selection can only
+	// round-trip the first-added one.
+	var nativePlatform string
+	if title.SoftwarePackage != nil {
+		nativePlatform = title.SoftwarePackage.Platform
 	}
+	setSetupExperienceKeys(entry, inSetup, crossTargets, nativePlatform)
 	if title.DisplayName != "" {
 		entry["display_name"] = title.DisplayName
 	}

@@ -3193,6 +3193,40 @@ func TestNormalizeSetupExperiencePlatforms(t *testing.T) {
 	}
 }
 
+// TestNativeSelectedForSetupExperience covers how an explicit setup_experience
+// combines with setup_experience_platform. The two are additive for script
+// packages, so generated YAML that carries both keeps the package selected on
+// its own platform. On .ipa the boolean means iOS, not the payload's platform,
+// so unioning it would select both fanned-out rows.
+func TestNativeSelectedForSetupExperience(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name        string
+		extension   string
+		platforms   []string
+		platform    string
+		installFlag *bool
+		want        bool
+	}{
+		{name: "native in list", extension: "sh", platforms: []string{"darwin", "linux"}, platform: "linux", want: true},
+		{name: "native absent, no boolean", extension: "sh", platforms: []string{"darwin"}, platform: "linux", want: false},
+		{name: "native absent, boolean adds it", extension: "sh", platforms: []string{"darwin"}, platform: "linux", installFlag: new(true), want: true},
+		{name: "explicit false does not add it", extension: "sh", platforms: []string{"darwin"}, platform: "linux", installFlag: new(false), want: false},
+		{name: "py behaves like sh", extension: "py", platforms: []string{"darwin"}, platform: "linux", installFlag: new(true), want: true},
+		{name: "ipa boolean does not add the base platform", extension: "ipa", platforms: []string{"ipados"}, platform: "ios", installFlag: new(true), want: false},
+		{name: "ipa pinned list still selects its own platform", extension: "ipa", platforms: []string{"ios"}, platform: "ios", installFlag: new(true), want: true},
+		{name: "empty list clears", extension: "sh", platforms: []string{}, platform: "linux", want: false},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
+			require.Equal(t, c.want, nativeSelectedForSetupExperience(c.extension, c.platforms, c.platform, c.installFlag))
+		})
+	}
+}
+
 // TestSetupExperiencePlatformsForBareIPABoolean is the regression test for the
 // bare setup_experience boolean landing on an arbitrary platform row: on a
 // hash-matched re-apply the base payload can be the iPadOS row, so the boolean

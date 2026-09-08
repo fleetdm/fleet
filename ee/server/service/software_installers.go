@@ -2522,6 +2522,20 @@ func installDuringSetupForFannedOutPlatform(setupPlatforms *[]string, baseInstal
 	}
 }
 
+// nativeSelectedForSetupExperience reports whether an installer's own platform
+// is selected for the setup experience, given its normalized platform list. An
+// explicit setup_experience is additive with that list, so a package naming
+// only non-native targets keeps the selection on its own platform. The
+// exception is .ipa, where a bare setup_experience means iOS rather than this
+// payload's platform and setupExperiencePlatformsForBareIPABoolean has already
+// turned it into a list.
+func nativeSelectedForSetupExperience(extension string, platforms []string, platform string, installDuringSetup *bool) bool {
+	if slices.Contains(platforms, platform) {
+		return true
+	}
+	return extension != "ipa" && ptr.ValOrZero(installDuringSetup)
+}
+
 // normalizeSetupExperiencePlatforms lowercases, deduplicates, and validates
 // the incoming platforms against the extension's allowlist. The "macos" alias
 // is not accepted — only canonical tokens ("darwin", "linux"), consistent with
@@ -3860,9 +3874,6 @@ func (svc *Service) softwareBatchUpload(
 
 			// Canonicalize and reject platforms incompatible with the
 			// installer's extension before the batch reaches the datastore.
-			// When set, this field is authoritative for the installer's setup
-			// experience state — including the native platform, which
-			// overrides whatever setup_experience said on the same payload.
 			if installer.SetupExperiencePlatforms != nil {
 				normalized, err := normalizeSetupExperiencePlatforms(*installer.SetupExperiencePlatforms, installer.Extension)
 				if err != nil {
@@ -3874,7 +3885,8 @@ func (svc *Service) softwareBatchUpload(
 					return errors.New(`Couldn't edit software. "setup_experience_platform" cannot include macOS if "macos_manual_agent_install" is enabled.`)
 				}
 
-				nativeSelected := slices.Contains(normalized, installer.Platform)
+				nativeSelected := nativeSelectedForSetupExperience(
+					installer.Extension, normalized, installer.Platform, installer.InstallDuringSetup)
 				installer.InstallDuringSetup = &nativeSelected
 			}
 
