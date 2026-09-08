@@ -24,11 +24,13 @@ export const INSTALL_DETAILS_STATUS_ICONS: Record<
 
 export const SKIPPED_INSTALL_DETAILS_PREFIX =
   "The app was open. It will update once the user closes it and the ";
-export const SKIPPED_INSTALL_DETAILS_LINK_TEXT = "policy runs again";
+// The trailing period is part of the link text so the sentence-ending
+// punctuation doesn't hang outside the underlined link.
+export const SKIPPED_INSTALL_DETAILS_LINK_TEXT = "policy runs again.";
 export const SKIPPED_INSTALL_DETAILS_LINK_URL =
   "https://fleetdm.com/learn-more-about/policy-automations";
 
-export const SKIPPED_INSTALL_DETAILS = `${SKIPPED_INSTALL_DETAILS_PREFIX}${SKIPPED_INSTALL_DETAILS_LINK_TEXT}.`;
+export const SKIPPED_INSTALL_DETAILS = `${SKIPPED_INSTALL_DETAILS_PREFIX}${SKIPPED_INSTALL_DETAILS_LINK_TEXT}`;
 
 // A skip stores an empty pre-install query output, so there is nothing to echo back.
 export const SKIPPED_PRE_INSTALL_OUTPUT =
