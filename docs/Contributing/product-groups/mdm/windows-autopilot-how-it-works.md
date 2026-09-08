@@ -38,8 +38,12 @@ sequenceDiagram
         note over Admin, Fleet: One-time admin setup
         Admin->>MS: Register Fleet as MDM provider in Entra
         Admin->>MS: Create Autopilot deployment profile in Intune
-        Admin->>MS: Upload device hardware hash to Intune
         Admin->>Fleet: Connect Fleet to Entra (tenant ID, client ID)
+    end
+
+    rect rgb(255, 245, 235)
+        note over Admin, MS: Per-device registration
+        Admin->>MS: Upload device hardware hash to Intune
     end
 
     rect rgb(245, 255, 235)
@@ -53,7 +57,7 @@ sequenceDiagram
     end
 ```
 
-- **Hardware hash** is a device fingerprint (TPM + SMBIOS data) that lets Microsoft's Autopilot service recognize the device before anyone signs in.
+- **Hardware hash** is a device fingerprint (TPM + SMBIOS data) that lets Microsoft's Autopilot service recognize the device before anyone signs in. It must be uploaded per device -- either manually by the admin, in bulk via CSV, or pre-registered by the OEM at purchase.
 - **Entra join** means the device registers itself as an object in Entra ID. Entra's Mobility settings tell the device which MDM to enroll in.
 - The **MDM discovery URL** points to Fleet (e.g. `https://fleet.example.com/api/mdm/microsoft/discovery`).
 
