@@ -36,6 +36,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/gorilla/mux"
 
 	"github.com/fleetdm/fleet/v4/server/mdm"
@@ -4498,9 +4499,10 @@ func (svc *Service) UnenrollMDM(ctx context.Context, hostID uint) error {
 	}
 
 	// Check authorization again based on host info for team-based permissions.
-	if err := svc.authz.Authorize(ctx, fleet.MDMCommandAuthz{
+	notFoundErr := ctxerr.Wrap(ctx, common_mysql.NotFound("Host").WithID(hostID), "unenroll mdm")
+	if err := svc.authz.AuthorizeOrNotFound(ctx, fleet.MDMCommandAuthz{
 		TeamID: host.TeamID,
-	}, fleet.ActionWrite); err != nil {
+	}, fleet.ActionWrite, notFoundErr); err != nil {
 		return err
 	}
 
