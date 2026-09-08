@@ -11,10 +11,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260904125235, Down_20260904125235)
+	MigrationClient.AddMigration(Up_20260908164600, Down_20260908164600)
 }
 
-func Up_20260904125235(tx *sql.Tx) error {
+func Up_20260908164600(tx *sql.Tx) error {
 	_, err := tx.Exec(`
 		CREATE TABLE IF NOT EXISTS nano_seen_times (
 			id varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -84,6 +84,6 @@ func backfillNanoSeenTimes(tx *sql.Tx, increment incrementCountFn) error {
 	}
 }
 
-func Down_20260904125235(tx *sql.Tx) error {
+func Down_20260908164600(tx *sql.Tx) error {
 	return nil
 }

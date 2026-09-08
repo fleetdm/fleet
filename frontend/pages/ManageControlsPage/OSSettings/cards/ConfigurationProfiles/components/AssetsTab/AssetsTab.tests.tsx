@@ -163,7 +163,9 @@ describe("AssetsTab", () => {
     render(<AssetsTab currentTeamId={0} router={createMockRouter()} />);
 
     expect(
-      screen.getByText(/Manage assets that provide data or credentials/i)
+      screen.getByText(
+        /Add assets \(data or credentials\) to use them in many Apple declaration \(DDM\) profiles/i
+      )
     ).toBeInTheDocument();
     expect(
       await screen.findByRole("button", { name: /Add asset$/i })

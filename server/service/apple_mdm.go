@@ -2975,21 +2975,41 @@ func (svc *Service) GetMDMAppleEnrollmentProfileByToken(ctx context.Context, tok
 		return nil, ctxerr.Wrap(ctx, err, "extracting topic from APNs cert")
 	}
 
+	depAssignments, err := svc.ds.GetHostDEPAssignmentsBySerial(ctx, machineInfo.Serial)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting DEP assignments by serial")
+	}
+
+	if appConfig.MDM.OnlyAllowAppleBusinessEnrollment {
+		if machineInfo.Serial == "" {
+			// adue enrollment does not have a serial, so fail fast
+			return nil, &fleet.ABOnlyEnrollmentForbiddenError{}
+		}
+
+		// No DEP assignment for this serial, so we fail.
+		if len(depAssignments) == 0 {
+			return nil, &fleet.ABOnlyEnrollmentForbiddenError{}
+		}
+	}
+
 	var requireACME bool
 	if appConfig.MDM.AppleRequireHardwareAttestation {
-		requireACME, err = svc.isMDMAppleACMERequired(ctx, machineInfo)
+		requireACME, err = svc.isMDMAppleACMERequired(ctx, machineInfo, depAssignments)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "checking if ACME enrollment is required")
 		}
 
 		svc.logger.InfoContext(ctx, "hardware attestastion required", "require_acme", requireACME, "product", machineInfo.Product, "serial", machineInfo.Serial)
-
 	}
 
 	var enrollProf []byte
 	if requireACME {
 		enrollProf, err = svc.generateMDMAppleACMEEnrollProfile(ctx, machineInfo.Serial, appConfig.OrgInfo.OrgName, mdmURL, topic)
 	} else {
+		if appConfig.MDM.IsAppleMDMSCEPBlocked() {
+			// do not allow falling through to SCEP when it's blocked via both require acme and only AB enrollments.
+			return nil, &fleet.ABOnlyEnrollmentForbiddenError{}
+		}
 		enrollProf, err = svc.generateMDMAppleSCEPEnrollProfile(ctx, appConfig.OrgInfo.OrgName, mdmURL, topic)
 	}
 
@@ -3023,7 +3043,7 @@ func (svc *Service) NewACMEEnrollment(ctx context.Context, hardwareSerial string
 	return svc.acmeSvc.NewACMEEnrollment(ctx, hardwareSerial)
 }
 
-func (svc *Service) isMDMAppleACMERequired(ctx context.Context, machineInfo *fleet.MDMAppleMachineInfo) (bool, error) {
+func (svc *Service) isMDMAppleACMERequired(ctx context.Context, machineInfo *fleet.MDMAppleMachineInfo, depAssignments []*fleet.HostDEPAssignment) (bool, error) {
 	if machineInfo == nil {
 		return false, ctxerr.New(ctx, "machine info is nil")
 	}
@@ -3043,13 +3063,9 @@ func (svc *Service) isMDMAppleACMERequired(ctx context.Context, machineInfo *fle
 	}
 
 	// we only require ACME if the serial is DEP-assigned to Fleet
-	assignments, err := svc.ds.GetHostDEPAssignmentsBySerial(ctx, machineInfo.Serial)
-	if err != nil {
-		return false, ctxerr.Wrap(ctx, err, "checking DEP assignment status")
-	}
-	svc.logger.InfoContext(ctx, "checking DEP assignment status for ACME requirement", "serial", machineInfo.Serial, "dep_assignments_count", len(assignments))
+	svc.logger.InfoContext(ctx, "checking DEP assignment status for ACME requirement", "serial", machineInfo.Serial, "dep_assignments_count", len(depAssignments))
 
-	return len(assignments) > 0, nil
+	return len(depAssignments) > 0, nil
 }
 
 // isACMESupported checks if the device is supported for ACME enrollment. Fleet supports:
@@ -4412,7 +4428,7 @@ func (r callbackMDMSSOResponse) HijackRender(ctx context.Context, w http.Respons
 func (r callbackMDMSSOResponse) SetCookies(_ context.Context, w http.ResponseWriter) {
 	deleteSSOCookie(w)
 	if r.byodEnrollCookieValue != "" {
-		setBYODCookie(w, r.byodEnrollCookieValue, 30*60) // valid for 30 minutes
+		setBYODCookie(w, r.byodEnrollCookieValue, int(shared_mdm.BYODIdPSessionTTL.Seconds()))
 	}
 	if r.deviceSSOSessionID != "" {
 		setDeviceSSOSessionCookie(w, r.deviceSSOSessionID, r.deviceSSOSessionDuration)
@@ -4931,6 +4947,12 @@ func certIsFromNewEnrollment(cert *x509.Certificate) bool {
 //
 // [1]: https://developer.apple.com/documentation/devicemanagement/authenticate
 func (svc *MDMAppleCheckinAndCommandService) Authenticate(r *mdm.Request, m *mdm.Authenticate) error {
+	// AB-only enrollment enforcement lives in abOnlyEnrollmentCheckinService, which wraps
+	// this service (see handler.go). This service is dispatched as a "sub service" of
+	// multi.New alongside nanomdm's core service — its returned errors are only logged, not
+	// surfaced to the device (see MultiService.runOthers) — so a check here cannot actually
+	// block enrollment.
+
 	var scepRenewalInProgress bool
 	existingDeviceInfo, err := svc.ds.GetHostMDMCheckinInfo(r.Context, r.ID)
 	if err != nil {
@@ -8546,8 +8568,8 @@ type getOTAProfileRequest struct {
 	EnrollSecret string `query:"enroll_secret"`
 	// Personal indicates the end user chose "Personal (BYOD)" on the /enroll page.
 	// Defaults to false (company-owned) when omitted.
-	Personal bool   `query:"byod"`
-	IdpUUID  string // The UUID of the mdm_idp_account that was used if any, can be empty, will be taken from cookies
+	Personal     bool `query:"byod"`
+	IdpSessionID string
 }
 
 func (getOTAProfileRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
@@ -8568,7 +8590,7 @@ func (getOTAProfileRequest) DecodeRequest(ctx context.Context, r *http.Request) 
 		return &getOTAProfileRequest{
 			EnrollSecret: enrollSecret,
 			Personal:     personal,
-			IdpUUID:      "",
+			IdpSessionID: "",
 		}, nil
 	}
 
@@ -8582,13 +8604,13 @@ func (getOTAProfileRequest) DecodeRequest(ctx context.Context, r *http.Request) 
 	return &getOTAProfileRequest{
 		EnrollSecret: enrollSecret,
 		Personal:     personal,
-		IdpUUID:      boydIdpCookie.Value,
+		IdpSessionID: boydIdpCookie.Value,
 	}, nil
 }
 
 func getOTAProfileEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getOTAProfileRequest)
-	profile, err := svc.GetOTAProfile(ctx, req.EnrollSecret, req.IdpUUID, req.Personal)
+	profile, err := svc.GetOTAProfile(ctx, req.EnrollSecret, req.IdpSessionID, req.Personal)
 	if err != nil {
 		return &getMDMAppleConfigProfileResponse{Err: err}, err
 	}
@@ -8597,14 +8619,31 @@ func getOTAProfileEndpoint(ctx context.Context, request interface{}, svc fleet.S
 	return &getMDMAppleConfigProfileResponse{fileReader: io.NopCloser(reader), fileLength: reader.Size(), fileName: "fleet-mdm-enrollment-profile"}, nil
 }
 
-func (svc *Service) GetOTAProfile(ctx context.Context, enrollSecret, idpUUID string, personal bool) ([]byte, error) {
+func (svc *Service) GetOTAProfile(ctx context.Context, enrollSecret, idpSessionID string, personal bool) ([]byte, error) {
 	// Skip authz as this endpoint is used by end users from their iPhones or iPads; authz is done
 	// by the enroll secret verification below
 	svc.authz.SkipAuthorization(ctx)
 
+	var idpUUID string
+	if idpSessionID != "" {
+		uuid, err := shared_mdm.ValidateBYODIdPSession(ctx, svc.keyValueStore, svc.clock, idpSessionID)
+		var noSession *fleet.AuthRequiredError
+		switch {
+		case errors.As(err, &noSession):
+		case err != nil:
+			return nil, ctxerr.Wrap(ctx, err, "resolving byod idp session")
+		default:
+			idpUUID = uuid
+		}
+	}
+
 	cfg, err := svc.ds.AppConfig(ctx)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting app config to get org name")
+	}
+
+	if cfg.MDM.OnlyAllowAppleBusinessEnrollment {
+		return nil, &fleet.ABOnlyEnrollmentForbiddenError{}
 	}
 
 	requiresIDPUUID, err := shared_mdm.RequiresEnrollOTAAuthentication(ctx, svc.ds, enrollSecret, cfg.MDM.MacOSSetup.EnableEndUserAuthentication)
@@ -8619,7 +8658,12 @@ func (svc *Service) GetOTAProfile(ctx context.Context, enrollSecret, idpUUID str
 		)
 	}
 
-	profBytes, err := apple_mdm.GenerateOTAEnrollmentProfileMobileconfig(cfg.OrgInfo.OrgName, cfg.MDMUrl(), enrollSecret, idpUUID, personal)
+	// the device posts back to the URL in the profile, so the session travels
+	// with it rather than the account it resolved to
+	if idpUUID == "" {
+		idpSessionID = ""
+	}
+	profBytes, err := apple_mdm.GenerateOTAEnrollmentProfileMobileconfig(cfg.OrgInfo.OrgName, cfg.MDMUrl(), enrollSecret, idpSessionID, personal)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "generating ota mobileconfig file")
 	}
@@ -8633,12 +8677,12 @@ func (svc *Service) GetOTAProfile(ctx context.Context, enrollSecret, idpUUID str
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// POST /ota_enrollment?enroll_secret=xyz
+// POST /ota_enrollment?enroll_secret=xyz&idp_session=abc
 ////////////////////////////////////////////////////////////////////////////////
 
 type mdmAppleOTARequest struct {
 	EnrollSecret string `query:"enroll_secret"`
-	IdpUUID      string `query:"idp_uuid"`
+	IdpSessionID string `query:"idp_session"`
 	// Personal is set when the end user chose "Personal (BYOD)" on the /enroll page.
 	// It is propagated through the OTA mobileconfig POST-back URL by GetOTAProfile.
 	Personal     bool
@@ -8655,7 +8699,7 @@ func (mdmAppleOTARequest) DecodeRequest(ctx context.Context, r *http.Request) (i
 		}
 	}
 
-	idpUUID := r.URL.Query().Get("idp_uuid") // Can be empty.
+	idpSessionID := r.URL.Query().Get("idp_session") // Can be empty.
 
 	rawData, err := io.ReadAll(io.LimitReader(r.Body, limit10KiB))
 	if err != nil {
@@ -8693,7 +8737,7 @@ func (mdmAppleOTARequest) DecodeRequest(ctx context.Context, r *http.Request) (i
 	}
 
 	request.EnrollSecret = enrollSecret
-	request.IdpUUID = idpUUID
+	request.IdpSessionID = idpSessionID
 	request.Personal = r.URL.Query().Get("byod") == "true" || r.URL.Query().Get("byod") == "1"
 	request.Certificates = p7.Certificates
 	request.RootSigner = p7.GetOnlySigner()
@@ -8742,7 +8786,7 @@ func (r mdmAppleOTAResponse) HijackRender(ctx context.Context, w http.ResponseWr
 
 func mdmAppleOTAEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*mdmAppleOTARequest)
-	xml, err := svc.MDMAppleProcessOTAEnrollment(ctx, req.Certificates, req.RootSigner, req.EnrollSecret, req.IdpUUID, req.Personal, req.DeviceInfo)
+	xml, err := svc.MDMAppleProcessOTAEnrollment(ctx, req.Certificates, req.RootSigner, req.EnrollSecret, req.IdpSessionID, req.Personal, req.DeviceInfo)
 	if err != nil {
 		return mdmAppleGetInstallerResponse{Err: err}, nil
 	}
@@ -8755,12 +8799,21 @@ func (svc *Service) MDMAppleProcessOTAEnrollment(
 	certificates []*x509.Certificate,
 	rootSigner *x509.Certificate,
 	enrollSecret string,
-	idpUUID string,
+	idpSessionID string,
 	personal bool,
 	deviceInfo fleet.MDMAppleMachineInfo,
 ) ([]byte, error) {
 	// authorization is performed via the enroll secret and the provided certificates
 	svc.authz.SkipAuthorization(ctx)
+
+	appCfg, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "reading app config")
+	}
+
+	if appCfg.MDM.OnlyAllowAppleBusinessEnrollment {
+		return nil, &fleet.ABOnlyEnrollmentForbiddenError{}
+	}
 
 	if len(certificates) == 0 {
 		return nil, authz.ForbiddenWithInternal("no certificates provided", nil, nil, nil)
@@ -8786,11 +8839,6 @@ func (svc *Service) MDMAppleProcessOTAEnrollment(
 		return nil, fmt.Errorf("loading SCEP challenge from the database: %w", err)
 	}
 	scepChallenge := string(assets[fleet.MDMAssetSCEPChallenge].Value)
-
-	appCfg, err := svc.ds.AppConfig(ctx)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "reading app config")
-	}
 
 	mdmURL := appCfg.MDMUrl()
 
@@ -8847,6 +8895,19 @@ func (svc *Service) MDMAppleProcessOTAEnrollment(
 		return nil, ctxerr.Wrap(ctx, err, "generating manual enrollment profile")
 	}
 
+	var idpUUID string
+	if idpSessionID != "" {
+		uuid, err := shared_mdm.ValidateBYODIdPSession(ctx, svc.keyValueStore, svc.clock, idpSessionID)
+		var noSession *fleet.AuthRequiredError
+		switch {
+		case errors.As(err, &noSession):
+		case err != nil:
+			return nil, ctxerr.Wrap(ctx, err, "resolving byod idp session")
+		default:
+			idpUUID = uuid
+		}
+	}
+
 	requiresIdPUUID, err := shared_mdm.RequiresEnrollOTAAuthentication(ctx, svc.ds, enrollSecret, appCfg.MDM.MacOSSetup.EnableEndUserAuthentication)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "checking requirement of ota enrollment authentication")
@@ -8879,6 +8940,13 @@ func (svc *Service) MDMAppleProcessOTAEnrollment(
 	signed, err := mdmcrypto.Sign(ctx, enrollmentProf, svc.ds)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "signing profile")
+	}
+
+	// the host is bound to the account now; the session has done its job
+	if idpUUID != "" {
+		if err := shared_mdm.ConsumeBYODIdPSession(ctx, svc.keyValueStore, svc.clock, idpSessionID); err != nil {
+			logging.WithErr(ctx, err)
+		}
 	}
 
 	softwareUpdateDeviceID := deviceInfo.Product

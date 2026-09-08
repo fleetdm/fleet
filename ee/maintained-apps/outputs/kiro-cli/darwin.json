@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "2.21.0",
+      "version": "2.21.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'dev.kiro.cli';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'dev.kiro.cli' AND version_compare(bundle_short_version, '2.21.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'dev.kiro.cli' AND version_compare(bundle_short_version, '2.21.1') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'dev.kiro.cli' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://desktop-release.q.us-east-1.amazonaws.com/2.21.0/Kiro%20CLI.dmg",
+      "installer_url": "https://desktop-release.q.us-east-1.amazonaws.com/2.21.1/Kiro%20CLI.dmg",
       "install_script_ref": "21bed962",
       "uninstall_script_ref": "ed98f0de",
-      "sha256": "baffdad5d3cdfb4886baf418803104b1ee79e5bb15415f63e49f1c855f01510f",
+      "sha256": "3de3591ba23d44d16d49e8f372c4436c9c18ea446982c900a869193cfa21f85c",
       "default_categories": [
         "Productivity"
       ]

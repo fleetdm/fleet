@@ -488,6 +488,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 			return svc.NewActivity(ctx, user, activity)
 		},
 		config.MDM.AndroidAgent,
+		redis_key_value.New(redisPool),
 	)
 	if err != nil {
 		initFatal(err, "initializing android service")
@@ -887,6 +888,8 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 			svc,
 			config.Server.URLPrefix,
 			ds,
+			redis_key_value.New(redisPool),
+			clock.C,
 			logger,
 			serveCSP,
 		)
@@ -991,6 +994,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 			appCfg.ServerSettings.ServerURL,
 			config,
 			svc,
+			ds,
 		); err != nil {
 			initFatal(err, "setup mdm apple services")
 		}
@@ -1154,6 +1158,10 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		defer cancel()
 		errs <- func() error {
 			cancelFunc()
+			if stopper, ok := mdmPushService.(interface{ Stop() }); ok {
+				// end the APNs retry loop; pending retries defer to the sweep
+				stopper.Stop()
+			}
 			cleanupCronStatsOnShutdown(ctx, ds, logger, instanceID)
 			launcher.GracefulStop()
 			// Flush any pending OTEL data before shutting down
