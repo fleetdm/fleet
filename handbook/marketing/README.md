@@ -186,7 +186,7 @@ To add a GitHub issue to the [Content planning](https://github.com/orgs/fleetdm/
 
 To localize content, pick the best fleetie to do the translation, and refer to the following list of languages to their biggest markets:
 
-- 🇮🇳 Hindi (Uttar Pradesh, Madhya Pradesh, Bihar, Rajasthan, Haryana, Himachal Pradesh, Chhattisgarh, and Jharkhand, Fiji, Nepal)
+- 🇮🇳 Hindi (Delhi, Uttar Pradesh, Madhya Pradesh, Bihar, Rajasthan, Haryana, Himachal Pradesh, Chhattisgarh, and Jharkhand, Fiji, Nepal)
 - 🇪🇸 Spanish (Spain, Andorra, Colombia, Chile, Argentina, Mexico)
 - 🇫🇷 French (France, Quebec/Canada, Luxembourg, Monaco, Democratic Republic of the Congo, Cameroon, New Brunswick/Canada, Switzerland)
 - 🇵🇹 Portuguese (Brazil, Portugal, Sao Tome and Principe, Angola, Mozambique, Cape Verde)
