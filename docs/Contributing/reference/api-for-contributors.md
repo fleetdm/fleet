@@ -3394,22 +3394,6 @@ If you're using Fleet Premium, you can require single sign-on (SSO) in front of 
 
 Some routes are always exempt from SSO and others are exempt while a host is still going through [setup experience](https://fleetdm.com/guides/setup-experience):
 
-```json
-{
-  "message": "Single sign-on required",
-  "errors": [
-    {
-      "name": "base",
-      "reason": "Single sign-on required"
-    }
-  ],
-  "uuid": "e3b0c442-98fc-1c14-9afb-f4c8996fb924",
-  "sso_required": true
-}
-```
-
-An expired device token also returns `401`. The marker is what tells the **Fleet Desktop > My device** page to start the single sign-on flow instead of reporting an invalid URL. Token errors take precedence, so an invalid token returns `401` with no marker, whatever the session cookie holds.
-
 - [Get Fleet Desktop information](#get-fleet-desktop-information) (`GET /api/v1/fleet/device/{token}/desktop`) — *always exempt; polled by the Fleet Desktop tray app*
 - [Ping Server with Device Token](#ping-server-with-device-token) (`HEAD /api/v1/fleet/device/{token}/ping`) — *always exempt; polled by the Fleet Desktop tray app*
 - `POST /api/v1/fleet/device/{token}/debug/errors` — *always exempt; agent error reporting*
