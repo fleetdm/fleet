@@ -236,24 +236,16 @@ func (s *MySQLStorage) StoreTokenUpdate(r *mdm.Request, msg *mdm.TokenUpdate) er
 		return err
 	}
 
-	tx, err := s.db.BeginTx(r.Context, nil)
-	if err != nil {
-		return err
-	}
-	if err := s.storeEnrollment(r, tx, msg, deviceId, userId); err != nil {
-		if rbErr := tx.Rollback(); rbErr != nil {
-			return fmt.Errorf("rollback error: %w; while trying to handle error: %v", rbErr, err)
-		}
-		return err
-	}
-	return tx.Commit()
+	return common_mysql.WithTxx(r.Context, sqlx.NewDb(s.db, ""), func(tx sqlx.ExtContext) error {
+		return s.storeEnrollment(r, tx, msg, deviceId, userId)
+	}, s.logger)
 }
 
 // storeEnrollment upserts the enrollment and its seen time in one transaction: token_update_tally
 // gates first-enrollment work, so a committed tally bump followed by a failed seen-time write would
 // let the device's retry over-count it. The seen time is written here, synchronously, rather than
 // through the async batch because a freshly enrolled host must report a check-in time right away.
-func (s *MySQLStorage) storeEnrollment(r *mdm.Request, tx *sql.Tx, msg *mdm.TokenUpdate, deviceId, userId string) error {
+func (s *MySQLStorage) storeEnrollment(r *mdm.Request, tx sqlx.ExtContext, msg *mdm.TokenUpdate, deviceId, userId string) error {
 	var certSerial int64
 	if r.Certificate != nil {
 		certSerial = r.Certificate.SerialNumber.Int64()
@@ -341,17 +333,9 @@ func (s *MySQLStorage) Disable(r *mdm.Request) error {
 	if r.ParentID != "" {
 		return errors.New("can only disable a device channel")
 	}
-	tx, err := s.db.BeginTx(r.Context, nil)
-	if err != nil {
-		return err
-	}
-	if err := s.disable(r, tx); err != nil {
-		if rbErr := tx.Rollback(); rbErr != nil {
-			return fmt.Errorf("rollback error: %w; while trying to handle error: %v", rbErr, err)
-		}
-		return err
-	}
-	return tx.Commit()
+	return common_mysql.WithTxx(r.Context, sqlx.NewDb(s.db, ""), func(tx sqlx.ExtContext) error {
+		return s.disable(r, tx)
+	}, s.logger)
 }
 
 // disable flips the enrollments off and bumps their seen times in one transaction so a mid-way
@@ -363,21 +347,10 @@ func (s *MySQLStorage) Disable(r *mdm.Request) error {
 // an enrollment re-enabled between the SELECT and the UPDATE gets disabled without a seen-time
 // bump — is accepted: readers only consider seen times of enabled = 1 enrollments, so the
 // missing bump is invisible to them.
-func (s *MySQLStorage) disable(r *mdm.Request, tx *sql.Tx) error {
-	rows, err := tx.QueryContext(r.Context, `SELECT id FROM nano_enrollments WHERE device_id = ? AND enabled = 1 ORDER BY id`, r.ID)
-	if err != nil {
-		return err
-	}
-	defer rows.Close()
+func (s *MySQLStorage) disable(r *mdm.Request, tx sqlx.ExtContext) error {
 	var ids []string
-	for rows.Next() {
-		var id string
-		if err := rows.Scan(&id); err != nil {
-			return err
-		}
-		ids = append(ids, id)
-	}
-	if err := rows.Err(); err != nil {
+	if err := sqlx.SelectContext(r.Context, tx, &ids,
+		`SELECT id FROM nano_enrollments WHERE device_id = ? AND enabled = 1 ORDER BY id`, r.ID); err != nil {
 		return err
 	}
 
@@ -393,7 +366,7 @@ func (s *MySQLStorage) disable(r *mdm.Request, tx *sql.Tx) error {
 		return nil
 	}
 	stmt, args := seenTimesUpsert(ids)
-	_, err = tx.ExecContext(r.Context, stmt, args...)
+	_, err := tx.ExecContext(r.Context, stmt, args...)
 	return err
 }
 
@@ -419,12 +392,7 @@ func (s *MySQLStorage) updateLastSeen(r *mdm.Request) error {
 	return upsertSeenTime(r.Context, s.db, r.ID)
 }
 
-// execer is the subset of *sql.DB and *sql.Tx needed to run a single statement.
-type execer interface {
-	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
-}
-
-func upsertSeenTime(ctx context.Context, db execer, id string) error {
+func upsertSeenTime(ctx context.Context, db sqlx.ExecerContext, id string) error {
 	stmt, args := seenTimesUpsert([]string{id})
 	if _, err := db.ExecContext(ctx, stmt, args...); err != nil {
 		return fmt.Errorf("updating last seen: %w", err)
