@@ -415,6 +415,12 @@ var sizeLimitedClients = map[string]func(maxSize int64) *http.Client{
 		cli.Transport = NewSizeLimitTransport(maxSize)
 		return cli
 	},
+	// Zero value: base is nil, so RoundTrip has to resolve one itself.
+	"SizeLimitTransport literal": func(maxSize int64) *http.Client {
+		cli := NewClient(WithTimeout(5 * time.Second))
+		cli.Transport = &SizeLimitTransport{maxSizeBytes: maxSize}
+		return cli
+	},
 }
 
 func TestSizeLimitedClientBlocksPrivateNetworks(t *testing.T) {

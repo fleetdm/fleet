@@ -223,6 +223,7 @@ func WithCookieJar(jar http.CookieJar) ClientOpt {
 }
 
 // WithMaxResponseSize caps the size of response bodies the client will read.
+// Zero or less disables the cap.
 func WithMaxResponseSize(maxSizeBytes int64) ClientOpt {
 	return func(o *clientOpts) {
 		o.maxRespSize = maxSizeBytes
@@ -263,10 +264,10 @@ func NewClient(opts ...ClientOpt) *http.Client {
 	} else {
 		baseTransport = defaultBaseTransport()
 	}
-	cli.Transport = otelhttp.NewTransport(baseTransport)
 	if co.maxRespSize > 0 {
-		cli.Transport = newSizeLimitTransport(cli.Transport, co.maxRespSize)
+		baseTransport = newSizeLimitTransport(baseTransport, co.maxRespSize)
 	}
+	cli.Transport = otelhttp.NewTransport(baseTransport)
 	if co.cookieJar != nil {
 		cli.Jar = co.cookieJar
 	}
