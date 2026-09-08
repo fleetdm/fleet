@@ -59,7 +59,7 @@ The best way to learn Fleet is by building with it! [Request a workshop]https://
 
 Thanks to everyone who shared what they are building.
 
-<meta name="articleTitle" value="Fleet newsletter, September 2026">
+<meta name="articleTitle" value="Fleet news: September 2026">
 <meta name="authorFullName" value="Allen Houchins">
 <meta name="authorGitHubUsername" value="allenhouchins">
 <meta name="publishedOn" value="2026-09-01">
