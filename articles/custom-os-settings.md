@@ -21,8 +21,9 @@ The following configuration declarations are not supported:
 
 - com.apple.configuration.management.status-subscriptions
 - com.apple.configuration.watch.enrollment
-- com.apple.configuration.app.managed
 - com.apple.configuration.package
+
+> `com.apple.configuration.app.managed` is supported, but the referenced app must already be installed and managed via Fleet's VPP functionality for the configuration to apply on-device.
 
 #### Activations (`com.apple.activation.simple`)
 For advanced setups, you can provide a custom activation instead of having Fleet automatically create the activation when you upload a configuration profile.
