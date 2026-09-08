@@ -1052,7 +1052,12 @@ func (svc *Service) setDiskEncryptionNotifications(
 		needsEncryption := host.DiskEncryptionEnabled != nil && !*host.DiskEncryptionEnabled
 		keyWasDecrypted := encryptionKey != nil && encryptionKey.Decryptable != nil && *encryptionKey.Decryptable
 		encryptedWithoutKey := host.DiskEncryptionEnabled != nil && *host.DiskEncryptionEnabled && !keyWasDecrypted
-		notifs.EnforceBitLockerEncryption = needsEncryption || encryptedWithoutKey
+		// Only the agent can clear a reported error, by reporting a later success, so a host that has one has to keep
+		// being asked. Otherwise a host that reported a problem and then had it fixed, by an admin resuming a paused
+		// conversion for instance, would still hold a decryptable key and a fully encrypted disk, be asked nothing
+		// further, and sit at "Failed" with a stale reason forever. The agent's own backoff bounds the retries.
+		hasReportedError := encryptionKey != nil && encryptionKey.ClientError != ""
+		notifs.EnforceBitLockerEncryption = needsEncryption || encryptedWithoutKey || hasReportedError
 
 		// A host already being told to encrypt is not also told to restore protection: the encrypt path owns the volume.
 		if !notifs.EnforceBitLockerEncryption {
