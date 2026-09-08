@@ -3388,9 +3388,9 @@ currently pending.
 
 ## Fleet-desktop-token-authenticated routes
 
-Fleet-desktop-token-authenticated routes are routes used by the [Fleet Desktop](https://fleetdm.com/guides/fleet-desktop). Unlike most other routes, Fleet user's API token does not authenticate them. They use a device-specific token.
+Fleet-desktop-token-authenticated routes are routes used by the [Fleet Desktop](https://fleetdm.com/guides/fleet-desktop). Unlike most other routes, an API token does not authenticate them. They use a Fleet Desktop token.
 
-In Fleet Premium, you can require single sign-on (SSO) in front of these routes.
+If you're using Fleet Premium, you can require single sign-on (SSO) in front of these routes.
 
 Some routes are always exempt from SSO and others are exempt while a host is still going through [setup experience](https://fleetdm.com/guides/setup-experience):
 
