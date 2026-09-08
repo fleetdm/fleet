@@ -891,13 +891,27 @@ func testMDMWindowsDiskEncryption(t *testing.T, ds *Datastore) {
 				})
 			})
 
-			t.Run("protection_status=0 becomes action_required", func(t *testing.T) {
+			// Protection off on its own is Fleet's job to fix, not the end user's, so it belongs in enforcing.
+			t.Run("protection_status=0 with no reported reason is enforcing", func(t *testing.T) {
+				require.NoError(t, ds.SetOrUpdateHostBitLockerProtectionOutcome(ctx, targetHost.ID, fleet.DiskEncryptionProtectionRestored, ""))
 				setProtectionStatus(t, targetHost.ID, new(fleet.BitLockerProtectionStatusOff))
+				checkExpected(t, nil, hostIDsByDEStatus{
+					fleet.DiskEncryptionVerified:  []uint{hosts[0].ID},
+					fleet.DiskEncryptionEnforcing: []uint{targetHost.ID},
+					fleet.DiskEncryptionFailed:    []uint{hosts[1].ID},
+				})
+			})
+
+			t.Run("protection_status=0 with a reported reason becomes action_required", func(t *testing.T) {
+				setProtectionStatus(t, targetHost.ID, new(fleet.BitLockerProtectionStatusOff))
+				require.NoError(t, ds.SetOrUpdateHostBitLockerProtectionOutcome(ctx, targetHost.ID, fleet.DiskEncryptionProtectionFailed,
+					"could not add a TPM protector, so protection was not re-enabled"))
 				checkExpected(t, nil, hostIDsByDEStatus{
 					fleet.DiskEncryptionVerified:       []uint{hosts[0].ID},
 					fleet.DiskEncryptionActionRequired: []uint{targetHost.ID},
 					fleet.DiskEncryptionFailed:         []uint{hosts[1].ID},
 				})
+				require.NoError(t, ds.SetOrUpdateHostBitLockerProtectionOutcome(ctx, targetHost.ID, fleet.DiskEncryptionProtectionRestored, ""))
 			})
 
 			t.Run("protection_status=NULL treated as on (backward compat)", func(t *testing.T) {
@@ -923,17 +937,92 @@ func testMDMWindowsDiskEncryption(t *testing.T, ds *Datastore) {
 				})
 			})
 
-			t.Run("action_required detail message for protection off", func(t *testing.T) {
+			// action_required tells the UI whether the END USER can do anything. A missing startup PIN qualifies only
+			// while the volume is protected: Windows offers PIN setup through "Change how the drive is unlocked at
+			// startup", which it does not show on an unprotected volume.
+			t.Run("action_required names the end-user action only when there is one", func(t *testing.T) {
+				require.NoError(t, ds.SetOrUpdateHostDisksEncryption(ctx, targetHost.ID, true, new(fleet.BitLockerProtectionStatusOff)))
+				require.NoError(t, ds.SetOrUpdateHostBitLockerProtectionOutcome(ctx, targetHost.ID, fleet.DiskEncryptionProtectionFailed, "the TPM is not ready"))
+				h, err := ds.Host(ctx, targetHost.ID)
+				require.NoError(t, err)
+
+				// PIN not required: nothing the end user can do about an unready TPM.
+				bls, err := ds.GetMDMWindowsBitLockerStatus(ctx, h)
+				require.NoError(t, err)
+				require.Equal(t, fleet.DiskEncryptionActionRequired, *bls.Status)
+				require.Nil(t, bls.ActionRequired)
+
+				require.NoError(t, ds.SetOrUpdateHostBitLockerProtectionOutcome(ctx, targetHost.ID, fleet.DiskEncryptionProtectionRestored, ""))
+				ac.MDM.RequireBitLockerPIN = optjson.SetBool(true)
+				ac.MDM.WindowsSettings.RequireBitLockerPIN = optjson.SetBool(true)
+				require.NoError(t, ds.SaveAppConfig(ctx, ac))
+				defer func() {
+					ac.MDM.RequireBitLockerPIN = optjson.SetBool(false)
+					ac.MDM.WindowsSettings.RequireBitLockerPIN = optjson.SetBool(false)
+					require.NoError(t, ds.SaveAppConfig(ctx, ac))
+				}()
+
+				// PIN required but protection is off: the end user cannot reach the PIN flow, so name no action.
+				bls, err = ds.GetMDMWindowsBitLockerStatus(ctx, h)
+				require.NoError(t, err)
+				require.Equal(t, fleet.DiskEncryptionActionRequired, *bls.Status)
+				require.Nil(t, bls.ActionRequired)
+
+				// PIN required with protection back on: now the end user has a path, so ask them to take it.
+				require.NoError(t, ds.SetOrUpdateHostDisksEncryption(ctx, targetHost.ID, true, new(fleet.BitLockerProtectionStatusOn)))
+				bls, err = ds.GetMDMWindowsBitLockerStatus(ctx, h)
+				require.NoError(t, err)
+				require.Equal(t, fleet.DiskEncryptionActionRequired, *bls.Status)
+				require.NotNil(t, bls.ActionRequired)
+				require.Equal(t, fleet.ActionRequiredCreatePIN, *bls.ActionRequired)
+			})
+
+			// A deferred repair resolves itself once the host restarts, so the named action is the restart rather
+			// than anything to do with a PIN, even on a host that is also missing one.
+			t.Run("a deferred repair asks for a restart", func(t *testing.T) {
+				require.NoError(t, ds.SetOrUpdateHostDisksEncryption(ctx, targetHost.ID, true, new(fleet.BitLockerProtectionStatusOff)))
+				require.NoError(t, ds.SetOrUpdateHostBitLockerProtectionOutcome(ctx, targetHost.ID,
+					fleet.DiskEncryptionProtectionDeferred, "a restart is pending on this host"))
+				h, err := ds.Host(ctx, targetHost.ID)
+				require.NoError(t, err)
+
+				bls, err := ds.GetMDMWindowsBitLockerStatus(ctx, h)
+				require.NoError(t, err)
+				require.Equal(t, fleet.DiskEncryptionActionRequired, *bls.Status)
+				require.NotNil(t, bls.ActionRequired)
+				require.Equal(t, fleet.ActionRequiredRestart, *bls.ActionRequired)
+				require.Contains(t, bls.Detail, "after this host restarts")
+				require.NotContains(t, bls.Detail, "could not turn it back on",
+					"a deliberate deferral must not read as a failure")
+
+				require.NoError(t, ds.SetOrUpdateHostBitLockerProtectionOutcome(ctx, targetHost.ID,
+					fleet.DiskEncryptionProtectionRestored, ""))
+			})
+
+			t.Run("detail message for protection off", func(t *testing.T) {
 				// Restore targetHost to encrypted + protection off
 				require.NoError(t, ds.SetOrUpdateHostDisksEncryption(ctx, targetHost.ID, true, new(fleet.BitLockerProtectionStatusOff)))
+
+				// With no reported reason Fleet is still working on it, so this is enforcing.
 				h, err := ds.Host(ctx, targetHost.ID)
 				require.NoError(t, err)
 				bls, err := ds.GetMDMWindowsBitLockerStatus(ctx, h)
 				require.NoError(t, err)
 				require.NotNil(t, bls)
 				require.NotNil(t, bls.Status)
+				require.Equal(t, fleet.DiskEncryptionEnforcing, *bls.Status)
+
+				// Once the agent says it cannot be repaired, the status escalates and carries that reason verbatim.
+				require.NoError(t, ds.SetOrUpdateHostBitLockerProtectionOutcome(ctx, targetHost.ID, fleet.DiskEncryptionProtectionFailed,
+					"could not add a TPM protector, so protection was not re-enabled: 0x80310066"))
+				bls, err = ds.GetMDMWindowsBitLockerStatus(ctx, h)
+				require.NoError(t, err)
+				require.NotNil(t, bls.Status)
 				require.Equal(t, fleet.DiskEncryptionActionRequired, *bls.Status)
 				require.Contains(t, bls.Detail, "BitLocker protection is off")
+				require.Contains(t, bls.Detail, "0x80310066")
+
+				require.NoError(t, ds.SetOrUpdateHostBitLockerProtectionOutcome(ctx, targetHost.ID, fleet.DiskEncryptionProtectionRestored, ""))
 			})
 		})
 	})

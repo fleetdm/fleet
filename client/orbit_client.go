@@ -881,6 +881,16 @@ func (oc *OrbitClient) SetOrUpdateDiskEncryptionKey(diskEncryptionStatus fleet.O
 	return nil
 }
 
+// SetOrUpdateDiskEncryptionProtection reports what the agent did about a volume that was encrypted but unprotected.
+func (oc *OrbitClient) SetOrUpdateDiskEncryptionProtection(outcome fleet.DiskEncryptionProtectionOutcome, clientError string) error {
+	verb, path := "POST", "/api/fleet/orbit/disk_encryption_protection"
+	var resp fleet.OrbitPostDiskEncryptionProtectionResponse
+	return oc.authenticatedRequest(verb, path, &fleet.OrbitPostDiskEncryptionProtectionRequest{
+		Outcome:     outcome,
+		ClientError: clientError,
+	}, &resp)
+}
+
 const httpTraceTimeFormat = "2006-01-02T15:04:05Z"
 
 var testStdoutHTTPTracer = &httptrace.ClientTrace{
