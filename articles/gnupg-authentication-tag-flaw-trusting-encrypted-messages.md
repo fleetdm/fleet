@@ -27,7 +27,7 @@ It's worth being precise about what's exposed. The flaw lives in gpgsm, the part
 
 ## Confirming the patched build across your fleet
 
-Ubuntu's fix isn't one version number, it's two: gpgsm 2.4.8-4ubuntu3.1 for Ubuntu 26.04 LTS and 2.4.4-2ubuntu17.6 for Ubuntu 24.04 LTS. Fleet's software inventory reports the installed gpgsm version on every Linux host the same way it reports any other package, so checking whether the fix landed is a query, not a guess:
+Ubuntu's fix isn't one version number, it's two: gpgsm 2.4.8-4ubuntu3.1 for Ubuntu 26.04 LTS and 2.4.4-2ubuntu17.6 for Ubuntu 24.04 LTS. A first pass is a straightforward inventory query. Fleet reports the installed gpgsm version on every Linux host the same way it reports any other package:
 
 ```sql
 SELECT name, version FROM deb_packages WHERE name = 'gpgsm';
