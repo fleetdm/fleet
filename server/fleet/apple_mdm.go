@@ -1051,7 +1051,7 @@ func (r *MDMAppleRawDeclaration) ValidateUserProvided() error {
 		return NewInvalidArgumentError(r.Type, "Declaration profile can't include status subscription type. To get host's vitals, please use queries and policies.")
 	}
 
-	if r.Type == "com.apple.configuration.app.managed" || r.Type == "com.apple.configuration.package" {
+	if r.Type == "com.apple.configuration.package" {
 		return NewInvalidArgumentError(r.Type, "Declaration profile can't include software management types. To manage software, please use the Software tab.")
 	}
 
@@ -2013,4 +2013,13 @@ type AppleSoftwareUpdateHost struct {
 type ComputedAppleSoftwareUpdateHost struct {
 	AppleSoftwareUpdateHost
 	Resend bool
+}
+
+// MDMAppleAPNsSweepState is the APNs sweep cron's persisted position: the
+// keyset cursor of the enrollment walk plus the batch size computed at the
+// start of the pass, so the size rides along with the cursor instead of
+// being recounted every tick. A nil state means no pass is in progress.
+type MDMAppleAPNsSweepState struct {
+	Cursor    string `json:"cursor"`
+	BatchSize int    `json:"batch_size"`
 }

@@ -2668,12 +2668,12 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 			name:      "macos labels include any/all and exclude rules",
 			setupFunc: macosLabeledProfileRulesSetup,
 			wantMac: map[string]*fleet.ExpectedMDMProfile{
-				"T6.1":                                    {Identifier: "T6.1"},
-				"T6.2":                                    {Identifier: "T6.2"},
-				"include_any_all_match_prof":              {Identifier: "include_any_all_match_prof"},
-				"include_any_one_matches_prof":            {Identifier: "include_any_one_matches_prof"},
-				"include_all_all_match_prof":              {Identifier: "include_all_all_match_prof"},
-				"exclude_none_match_prof":                 {Identifier: "exclude_none_match_prof"},
+				"T6.1":                         {Identifier: "T6.1"},
+				"T6.2":                         {Identifier: "T6.2"},
+				"include_any_all_match_prof":   {Identifier: "include_any_all_match_prof"},
+				"include_any_one_matches_prof": {Identifier: "include_any_one_matches_prof"},
+				"include_all_all_match_prof":   {Identifier: "include_all_all_match_prof"},
+				"exclude_none_match_prof":      {Identifier: "exclude_none_match_prof"},
 				"include_all_and_exclude_none_match_prof": {Identifier: "include_all_and_exclude_none_match_prof"},
 				"include_any_and_exclude_none_match_prof": {Identifier: "include_any_and_exclude_none_match_prof"},
 			},
@@ -5691,8 +5691,8 @@ func testProfileHasACMEPayloadForCommand(t *testing.T, ds *Datastore) {
 				return err
 			}
 			_, err := q.ExecContext(ctx,
-				`INSERT INTO nano_enrollments (id, device_id, user_id, type, topic, push_magic, token_hex, enabled, last_seen_at)
-				 VALUES (?, ?, ?, 'User', 'topic', 'magic', 'hex', ?, NOW())`,
+				`INSERT INTO nano_enrollments (id, device_id, user_id, type, topic, push_magic, token_hex, enabled)
+				 VALUES (?, ?, ?, 'User', 'topic', 'magic', 'hex', ?)`,
 				enrollmentID, hostUUID, enrollmentID, enabled)
 			return err
 		})

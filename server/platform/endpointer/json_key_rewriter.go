@@ -2,13 +2,12 @@ package endpointer
 
 import (
 	"bytes"
+	"encoding/json/jsontext"
 	"fmt"
 	"io"
 	"slices"
 	"strconv"
 	"strings"
-
-	"github.com/go-json-experiment/json/jsontext"
 )
 
 // AliasConflictError is returned when both the deprecated and new field names

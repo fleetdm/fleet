@@ -1,6 +1,6 @@
 module fleetdm.local/gitops-auto-complete
 
-go 1.26.8
+go 1.27.1
 
 require (
 	github.com/fleetdm/fleet/v4 v4.0.0
@@ -57,7 +57,6 @@ require (
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/fsnotify/fsnotify v1.9.0 // indirect
 	github.com/getsentry/sentry-go v0.18.0 // indirect
-	github.com/go-json-experiment/json v0.0.0-20260214004413-d219187c3433 // indirect
 	github.com/go-kit/kit v0.12.0 // indirect
 	github.com/go-kit/log v0.2.1 // indirect
 	github.com/go-logfmt/logfmt v0.5.1 // indirect

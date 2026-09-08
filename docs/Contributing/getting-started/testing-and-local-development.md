@@ -73,7 +73,7 @@ Check out the [instructions](https://github.com/fleetdm/fleet/tree/main/tools/os
 You must install the [`golangci-lint`](https://golangci-lint.run/) command to run `make test[-go]` or `make lint[-go]`, using:
 
 ```sh
-go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@6008b81b81c690c046ffc3fd5bce896da715d5fd
+go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@27774aaf853a4fd21f1dd5e69439459dc1b26e68
 ```
 
 This installs the version of `golangci-lint` used in our CI environment (currently 2.7.1). Make sure it is available in your `PATH`. To execute the basic unit and integration tests, run the following from the root of the repository:

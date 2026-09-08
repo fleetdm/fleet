@@ -1865,9 +1865,11 @@ WHERE
 		if err := ds.CreateInHouseAppInstallToken(ctx, tx, token, p.SoftwareTitle, tid, hostID); err != nil {
 			return ctxerr.Wrap(ctx, err, "mint in-house app install token")
 		}
+		// The device fetches this itself, so it has to be the URL Apple devices
+		// reach Fleet on, which is a separate hostname when apple_server_url is set.
 		manifestURL := fmt.Sprintf(
 			"%s/api/latest/fleet/software/titles/%d/in_house_app/manifest/%s",
-			appConfig.ServerSettings.ServerURL, p.SoftwareTitle, token)
+			appConfig.MDMUrl(), p.SoftwareTitle, token)
 		cfg := configsByAppID[p.InHouseAppID]
 		if len(cfg) > 0 {
 			substituted, err := apple_mdm.SubstituteFleetVarsInAppConfig(ctx, ds, cfg, subHost)
@@ -1901,19 +1903,24 @@ WHERE
 		return ctxerr.Wrap(ctx, err, "insert nano queue")
 	}
 
-	// best-effort APNs push notification to the host, not critical because we
-	// have a cron job that will retry for hosts with pending MDM commands.
-	wrapped, ok := tx.(common_mysql.WrappedExtContext)
-	if ds.pusher == nil || !ok {
+	if ds.pusher == nil {
 		return nil
 	}
-	// we wrap the APNs Push here, as activate next upcoming is called from many sites
-	// and it's racy to ping before we have committed the transaction.
-	wrapped.AddOnCommitHook(func() {
+
+	switch v := tx.(type) {
+	case common_mysql.WrappedExtContext:
+		v.AddOnCommitHook(func() {
+			if _, err := ds.pusher.Push(ctx, []string{hostData.UUID}); err != nil {
+				ds.logger.ErrorContext(ctx, "failed to send push notification", "err", err, "hostID", hostID, "hostUUID", hostData.UUID)
+			}
+		})
+	case *sqlx.DB:
+		// We are not in a transaction but rather just auto-commit mode, fire the push immediately.
 		if _, err := ds.pusher.Push(ctx, []string{hostData.UUID}); err != nil {
 			ds.logger.ErrorContext(ctx, "failed to send push notification", "err", err, "hostID", hostID, "hostUUID", hostData.UUID)
 		}
-	})
+	}
+
 	return nil
 }
 
