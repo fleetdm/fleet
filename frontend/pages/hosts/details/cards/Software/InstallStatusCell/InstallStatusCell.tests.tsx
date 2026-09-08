@@ -374,7 +374,8 @@ describe("InstallStatusCell - component", () => {
     });
   });
 
-  it("renders 'Patch skipped' status with tooltip and is not clickable", async () => {
+  it("renders 'Patch skipped' status with tooltip and opens install details on click", async () => {
+    const onShowInstallDetails = jest.fn();
     const { user } = renderWithSetup(
       <InstallStatusCell
         software={{
@@ -386,7 +387,7 @@ describe("InstallStatusCell - component", () => {
           ui_status: "skipped_install",
         }}
         onShowUpdateDetails={noop}
-        onShowInstallDetails={noop}
+        onShowInstallDetails={onShowInstallDetails}
         onShowIpaInstallDetails={noop}
         onShowScriptDetails={noop}
         onShowUninstallDetails={noop}
@@ -394,18 +395,17 @@ describe("InstallStatusCell - component", () => {
       />
     );
 
-    expect(screen.getByText("Patch skipped")).toBeInTheDocument();
+    const button = screen.getByRole("button", { name: /patch skipped/i });
+    expect(button).toBeInTheDocument();
     expect(screen.getByTestId("error-outline-icon")).toBeInTheDocument();
 
-    await user.hover(screen.getByText("Patch skipped"));
+    await user.hover(button);
     await waitFor(() => {
       expect(screen.getByText(/The app was open/i)).toBeInTheDocument();
     });
 
-    // A skip is deferred, not a completed action, so nothing to open.
-    expect(
-      screen.queryByRole("button", { name: /patch skipped/i })
-    ).not.toBeInTheDocument();
+    await user.click(button);
+    expect(onShowInstallDetails).toHaveBeenCalledTimes(1);
   });
 
   it("renders 'Failed' for a script-only package that failed to run", async () => {

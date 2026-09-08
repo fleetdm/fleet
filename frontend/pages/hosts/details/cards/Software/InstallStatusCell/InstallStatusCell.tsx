@@ -522,7 +522,7 @@ const InstallStatusCell = ({
       },
       {
         condition: !isScriptPackage, // Still allows click even if no last install to see details modal
-        statuses: ["Failed", "Install (pending)", "Installed"],
+        statuses: ["Failed", "Install (pending)", "Installed", "Patch skipped"],
         onClick: onClickInstallStatus,
       },
       {

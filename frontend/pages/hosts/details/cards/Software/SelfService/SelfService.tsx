@@ -257,7 +257,8 @@ const SoftwareSelfService = ({
         software,
         true,
         hostSoftwareUpdatedAt,
-        recentlyUpdatedSoftwareIds
+        recentlyUpdatedSoftwareIds,
+        true // suppress "Patch skipped" — end-user view keeps the failed_install fallback
       ),
     }));
   }, [selfServiceData, recentlyUpdatedSoftwareIds, hostSoftwareUpdatedAt]);
