@@ -272,11 +272,16 @@ func TestPatchNotificationUpdateNow(t *testing.T) {
 			kind := &patchNotificationKind{
 				ds: ds, notificationSvc: notificationSvc, logger: slog.New(slog.DiscardHandler),
 			}
-			ds.GetHostLastInstallDataFunc = func(_ context.Context, _ uint, _ uint) (*fleet.HostLastInstallData, error) {
+			ds.ListHostLastTitleInstallDataFunc = func(_ context.Context, _ []uint, titleIDs []uint) (map[fleet.HostSoftwareTitleKey][]*fleet.HostLastInstallData, error) {
 				if !c.alreadyPending {
 					return nil, nil
 				}
-				return &fleet.HostLastInstallData{Status: new(fleet.SoftwareInstallPending)}, nil
+				pending := make(map[fleet.HostSoftwareTitleKey][]*fleet.HostLastInstallData, len(titleIDs))
+				for _, id := range titleIDs {
+					pending[fleet.HostSoftwareTitleKey{HostID: hostID, SoftwareTitleID: id}] =
+						[]*fleet.HostLastInstallData{{Status: new(fleet.SoftwareInstallPending)}}
+				}
+				return pending, nil
 			}
 			ds.SetPatchNotificationAppsQueuedFunc = func(_ context.Context, _ string, _ []uint) error { return nil }
 			ds.ListPatchNotificationAppsFunc = func(_ context.Context, _ string) ([]fleet.PatchNotificationAppDetail, error) {
@@ -383,12 +388,13 @@ func TestPatchNotificationUpdateNowResumesAfterFailure(t *testing.T) {
 
 	// the first app's install finishes between the two presses, so it is no
 	// longer pending by the time the second press runs
-	ds.GetHostLastInstallDataFunc = func(_ context.Context, _ uint, installerID uint) (*fleet.HostLastInstallData, error) {
-		_, firstAppQueued := queued[firstTitleID]
-		if installerID == firstInstaller && firstAppQueued {
-			return &fleet.HostLastInstallData{Status: new(fleet.SoftwareInstalled)}, nil
+	ds.ListHostLastTitleInstallDataFunc = func(_ context.Context, hostIDs []uint, _ []uint) (map[fleet.HostSoftwareTitleKey][]*fleet.HostLastInstallData, error) {
+		if _, firstAppQueued := queued[firstTitleID]; !firstAppQueued {
+			return nil, nil
 		}
-		return nil, nil
+		return map[fleet.HostSoftwareTitleKey][]*fleet.HostLastInstallData{
+			{HostID: hostIDs[0], SoftwareTitleID: firstTitleID}: {{Status: new(fleet.SoftwareInstalled)}},
+		}, nil
 	}
 
 	var installed []uint
@@ -547,6 +553,13 @@ func TestPatchNotificationOnOutcome(t *testing.T) {
 			ds.HostLiteByIDFunc = func(_ context.Context, _ uint) (*fleet.HostLite, error) {
 				return &fleet.HostLite{ID: hostID, ComputerName: "Test Host"}, nil
 			}
+			// the deadline the display lands on, which the activity reports back
+			var gotLeadTime time.Duration
+			deadline := time.Now().UTC().Add(time.Hour)
+			ds.SetPatchNotificationInstallAtFunc = func(_ context.Context, _ string, installAt time.Time) (time.Time, error) {
+				gotLeadTime = time.Until(installAt).Round(time.Minute)
+				return deadline, nil
+			}
 
 			writer := &capturingActivityWriter{}
 			kind := &patchNotificationKind{ds: ds, activities: writer, logger: slog.New(slog.DiscardHandler)}
@@ -576,6 +589,18 @@ func TestPatchNotificationOnOutcome(t *testing.T) {
 			assert.Equal(t, notification.UUID, activity.PatchNotificationUUID)
 			assert.Equal(t, c.wantStatus, activity.Status)
 			assert.Equal(t, c.wantTimeBefore, activity.TimeBefore)
+
+			// Only a display sets a deadline, and it is counted from this notice's own lead time so a
+			// reminder does not push it out by another hour.
+			if c.wantStatus != "success" {
+				assert.False(t, ds.SetPatchNotificationInstallAtFuncInvoked)
+				assert.Nil(t, activity.InstallAt)
+			} else {
+				assert.True(t, ds.SetPatchNotificationInstallAtFuncInvoked)
+				assert.Equal(t, time.Duration(c.wantTimeBefore)*time.Second, gotLeadTime)
+				require.NotNil(t, activity.InstallAt)
+				assert.Equal(t, deadline, *activity.InstallAt)
+			}
 			assert.Equal(t, c.outcome.ExecutionID, activity.ScriptExecutionID)
 
 			assert.Equal(t, c.wantTitles, activity.SoftwareTitles)
@@ -592,13 +617,11 @@ func TestPatchNotificationCountdowns(t *testing.T) {
 		oneInstallerID   = uint(20)
 		twoInstallerID   = uint(21)
 		policyID         = uint(30)
-		oneBundle        = "com.example.one"
-		twoBundle        = "com.example.two"
 		installerVersion = "2.0.0"
 	)
 
 	// Both apps are a version behind what their installer would put on the host.
-	behind := map[string]string{oneBundle: "1.0.0", twoBundle: "1.0.0"}
+	behind := map[uint]string{oneTitleID: "1.0.0", twoTitleID: "1.0.0"}
 
 	displayedAt := time.Now().UTC().Add(-55 * time.Minute)
 
@@ -609,9 +632,9 @@ func TestPatchNotificationCountdowns(t *testing.T) {
 		status        string
 		displayed     bool
 		reminder      bool
-		// software inventory by bundle identifier
-		installedVersions map[string]string
-		// GetHostLastInstallData for the first app
+		// software inventory by software title id
+		installedVersions map[uint]string
+		// when Fleet last finished installing the first app, if it did
 		lastInstalled *time.Time
 		// ActOnNotification: an Update now got there first
 		alreadyActed bool
@@ -654,7 +677,7 @@ func TestPatchNotificationCountdowns(t *testing.T) {
 			untilDeadline:     4 * time.Minute,
 			status:            notifications_api.EndUserNotificationDispatched,
 			displayed:         true,
-			installedVersions: map[string]string{oneBundle: installerVersion, twoBundle: "1.0.0"},
+			installedVersions: map[uint]string{oneTitleID: installerVersion, twoTitleID: "1.0.0"},
 			wantReminder:      true,
 			wantAppsDropped:   []uint{oneTitleID},
 		},
@@ -663,9 +686,21 @@ func TestPatchNotificationCountdowns(t *testing.T) {
 			untilDeadline:     4 * time.Minute,
 			status:            notifications_api.EndUserNotificationDispatched,
 			displayed:         true,
-			installedVersions: map[string]string{oneBundle: installerVersion, twoBundle: "9.0.0"},
+			installedVersions: map[uint]string{oneTitleID: installerVersion, twoTitleID: installerVersion},
 			wantActed:         true,
 			wantAppsDropped:   []uint{oneTitleID, twoTitleID},
+		},
+		{
+			// Version strings are not compared, only matched, so a host carrying something other than
+			// what the installer would put down is treated as still needing the update.
+			name:              "an app the host is on a different version of is still updated at the deadline",
+			untilDeadline:     -time.Minute,
+			status:            notifications_api.EndUserNotificationDispatched,
+			displayed:         true,
+			reminder:          true,
+			installedVersions: map[uint]string{oneTitleID: "9.0.0", twoTitleID: "1.0.0"},
+			wantActed:         true,
+			wantInstalls:      []uint{oneInstallerID, twoInstallerID},
 		},
 		{
 			name:              "the deadline closes and updates every app still behind",
@@ -746,10 +781,11 @@ func TestPatchNotificationCountdowns(t *testing.T) {
 
 			// the apps the pass drops stop being listed, the same as deleting their rows does
 			dropped := make(map[uint]struct{})
-			ds.ListPatchNotificationAppsFunc = func(_ context.Context, _ string) ([]fleet.PatchNotificationAppDetail, error) {
+			ds.ListPatchNotificationAppsForNotificationsFunc = func(_ context.Context, uuids []string) (map[string][]fleet.PatchNotificationAppDetail, error) {
+				require.Len(t, uuids, 1, "the batch's apps are read in one statement")
 				all := []fleet.PatchNotificationAppDetail{
-					{SoftwareTitleID: oneTitleID, SoftwareInstallerID: new(oneInstallerID), PolicyID: new(policyID)},
-					{SoftwareTitleID: twoTitleID, SoftwareInstallerID: new(twoInstallerID), PolicyID: new(policyID)},
+					{SoftwareTitleID: oneTitleID, SoftwareInstallerID: new(oneInstallerID), PolicyID: new(policyID), InstallerVersion: installerVersion},
+					{SoftwareTitleID: twoTitleID, SoftwareInstallerID: new(twoInstallerID), PolicyID: new(policyID), InstallerVersion: installerVersion},
 				}
 				listed := make([]fleet.PatchNotificationAppDetail, 0, len(all))
 				for _, app := range all {
@@ -757,7 +793,7 @@ func TestPatchNotificationCountdowns(t *testing.T) {
 						listed = append(listed, app)
 					}
 				}
-				return listed, nil
+				return map[string][]fleet.PatchNotificationAppDetail{uuids[0]: listed}, nil
 			}
 			var gotDropped []uint
 			ds.DeletePatchNotificationAppsFunc = func(_ context.Context, _ string, softwareTitleIDs []uint) error {
@@ -768,24 +804,28 @@ func TestPatchNotificationCountdowns(t *testing.T) {
 				return nil
 			}
 
-			ds.ListSoftwareByHostIDShortFunc = func(_ context.Context, _ uint) ([]fleet.Software, error) {
-				return []fleet.Software{
-					{BundleIdentifier: oneBundle, Version: c.installedVersions[oneBundle]},
-					{BundleIdentifier: twoBundle, Version: c.installedVersions[twoBundle]},
-				}, nil
-			}
-			ds.GetSoftwareInstallerMetadataByIDFunc = func(_ context.Context, id uint) (*fleet.SoftwareInstaller, error) {
-				bundle := oneBundle
-				if id == twoInstallerID {
-					bundle = twoBundle
+			ds.ListHostSoftwareVersionsForTitlesFunc = func(_ context.Context, hostIDs []uint, titleIDs []uint) ([]fleet.HostSoftwareTitleVersion, error) {
+				require.Len(t, hostIDs, 1, "the batch's inventory is read in one statement")
+				versions := make([]fleet.HostSoftwareTitleVersion, 0, len(titleIDs))
+				for _, titleID := range titleIDs {
+					if installed, ok := c.installedVersions[titleID]; ok {
+						versions = append(versions, fleet.HostSoftwareTitleVersion{
+							HostID: hostID, SoftwareTitleID: titleID, Version: installed,
+						})
+					}
 				}
-				return &fleet.SoftwareInstaller{Version: installerVersion, BundleIdentifier: bundle}, nil
+				return versions, nil
 			}
-			ds.GetHostLastInstallDataFunc = func(_ context.Context, _ uint, installerID uint) (*fleet.HostLastInstallData, error) {
-				if c.lastInstalled == nil || installerID != oneInstallerID {
+			ds.ListHostLastTitleInstallDataFunc = func(_ context.Context, hostIDs []uint, _ []uint) (map[fleet.HostSoftwareTitleKey][]*fleet.HostLastInstallData, error) {
+				require.Len(t, hostIDs, 1, "the batch's install history is read in one statement")
+				if c.lastInstalled == nil {
 					return nil, nil
 				}
-				return &fleet.HostLastInstallData{Status: new(fleet.SoftwareInstalled), UpdatedAt: *c.lastInstalled}, nil
+				return map[fleet.HostSoftwareTitleKey][]*fleet.HostLastInstallData{
+					{HostID: hostID, SoftwareTitleID: oneTitleID}: {{
+						Status: new(fleet.SoftwareInstalled), UpdatedAt: *c.lastInstalled,
+					}},
+				}, nil
 			}
 
 			var installs []uint

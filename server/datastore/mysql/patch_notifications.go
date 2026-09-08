@@ -145,18 +145,18 @@ func (ds *Datastore) ListPatchNotificationsDue(ctx context.Context, cutoff time.
 SELECT
 	pn.notification_uuid,
 	pn.install_at,
-	eun.host_id,
-	eun.status,
-	eun.payload,
-	eun.displayed_at,
-	eun.created_at
+	neu.host_id,
+	neu.status,
+	neu.payload,
+	neu.displayed_at,
+	neu.created_at
 FROM patch_notifications pn
-	JOIN notifications_end_user eun ON eun.uuid = pn.notification_uuid
+	JOIN notifications_end_user neu ON neu.uuid = pn.notification_uuid
 -- a notification with no deadline was never displayed, so it has no countdown to run
 WHERE pn.install_at IS NOT NULL
 	AND pn.install_at <= ?
 	-- acted notifications have already been patched, failed and expired ones never will be
-	AND eun.status IN (?, ?)
+	AND neu.status IN (?, ?)
 ORDER BY pn.install_at
 LIMIT ?
 `
@@ -180,11 +180,13 @@ SELECT
 	pna.install_queued,
 	COALESCE(st.name, '') AS name,
 	COALESCE(NULLIF(stdn.display_name, ''), st.name, '') AS display_name,
+	COALESCE(si.version, '') AS installer_version,
 	sti.software_title_id IS NOT NULL AS has_icon
 FROM patch_notification_apps pna
 	JOIN notifications_end_user neu ON neu.uuid = pna.notification_uuid
 	JOIN hosts h ON h.id = neu.host_id
 	LEFT JOIN software_titles st ON st.id = pna.software_title_id
+	LEFT JOIN software_installers si ON si.id = pna.software_installer_id
 	LEFT JOIN software_title_display_names stdn
 		ON stdn.software_title_id = pna.software_title_id AND stdn.team_id = COALESCE(h.team_id, 0)
 	LEFT JOIN software_title_icons sti
@@ -198,4 +200,64 @@ ORDER BY display_name, pna.software_title_id
 		return nil, ctxerr.Wrap(ctx, err, "list patch notification apps")
 	}
 	return apps, nil
+}
+
+// ListPatchNotificationAppsForNotifications leaves out the names and icons the toast is built from,
+// because the countdown pass compares versions and queues installs without displaying anything.
+func (ds *Datastore) ListPatchNotificationAppsForNotifications(ctx context.Context, notificationUUIDs []string) (map[string][]fleet.PatchNotificationAppDetail, error) {
+	if len(notificationUUIDs) == 0 {
+		return nil, nil
+	}
+
+	stmt, args, err := sqlx.In(`
+SELECT
+	pna.notification_uuid,
+	pna.policy_id,
+	pna.software_title_id,
+	pna.software_installer_id,
+	pna.install_queued,
+	COALESCE(si.version, '') AS installer_version
+FROM patch_notification_apps pna
+	LEFT JOIN software_installers si ON si.id = pna.software_installer_id
+WHERE pna.notification_uuid IN (?)
+`, notificationUUIDs)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "build list patch notification apps for notifications statement")
+	}
+
+	var apps []fleet.PatchNotificationAppDetail
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &apps, stmt, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list patch notification apps for notifications")
+	}
+
+	byNotification := make(map[string][]fleet.PatchNotificationAppDetail, len(notificationUUIDs))
+	for _, app := range apps {
+		byNotification[app.NotificationUUID] = append(byNotification[app.NotificationUUID], app)
+	}
+	return byNotification, nil
+}
+
+// ListHostSoftwareVersionsForTitles reports what the given hosts have installed for the given titles.
+// Driven by the index on software.title_id, so it reads only the titles asked for instead of whole
+// inventories.
+func (ds *Datastore) ListHostSoftwareVersionsForTitles(ctx context.Context, hostIDs []uint, softwareTitleIDs []uint) ([]fleet.HostSoftwareTitleVersion, error) {
+	if len(hostIDs) == 0 || len(softwareTitleIDs) == 0 {
+		return nil, nil
+	}
+
+	stmt, args, err := sqlx.In(`
+SELECT hs.host_id, s.title_id, s.version
+FROM software s
+	JOIN host_software hs ON hs.software_id = s.id
+WHERE s.title_id IN (?) AND hs.host_id IN (?)
+`, softwareTitleIDs, hostIDs)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "build list host software versions statement")
+	}
+
+	var versions []fleet.HostSoftwareTitleVersion
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &versions, stmt, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list host software versions for titles")
+	}
+	return versions, nil
 }

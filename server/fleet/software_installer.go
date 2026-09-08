@@ -461,6 +461,12 @@ func (s SoftwareInstallerStatus) IsValid() bool {
 	}
 }
 
+// HostSoftwareTitleKey identifies one software title on one host.
+type HostSoftwareTitleKey struct {
+	HostID          uint
+	SoftwareTitleID uint
+}
+
 // HostLastInstallData contains data for the last installation of a package on a host.
 type HostLastInstallData struct {
 	// ExecutionID is the installation ID of the package on the host.

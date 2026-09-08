@@ -23,6 +23,7 @@ func TestPatchNotifications(t *testing.T) {
 	}{
 		{"ExistsForApp", testPatchNotificationExistsForApp},
 		{"AddAndListApps", testPatchNotificationAddAndListApps},
+		{"ListAppsForNotifications", testPatchNotificationListAppsForNotifications},
 		{"DeleteApps", testPatchNotificationDeleteApps},
 		{"InstallAt", testPatchNotificationInstallAt},
 		{"ListDue", testPatchNotificationListDue},
@@ -207,6 +208,74 @@ func testPatchNotificationAddAndListApps(t *testing.T, ds *Datastore) {
 			`SELECT COUNT(*) FROM patch_notifications WHERE notification_uuid = ?`, notificationUUID)
 	})
 	assert.Zero(t, remaining)
+}
+
+func testPatchNotificationListAppsForNotifications(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	installerHost := test.NewHost(t, ds, "batch-installer-host", "", "batch-installer-key", "batch-installer-uuid", time.Now())
+	noInstallerHost := test.NewHost(t, ds, "batch-no-installer-host", "", "batch-no-installer-key", "batch-no-installer-uuid", time.Now())
+
+	user, err := ds.NewUser(ctx, &fleet.User{
+		Name: "Admin", Password: []byte("p4ssw0rd.123"), Email: "patch-notification-batch@example.com",
+		GlobalRole: new(fleet.RoleAdmin),
+	})
+	require.NoError(t, err)
+
+	installerID, installerTitleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript: "echo", Filename: "batched.pkg", StorageID: uuid.NewString(),
+		Title: "Batched App", Version: "2.0.0", Source: "apps", Platform: "darwin",
+		UserID: user.ID, ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	installerNotification := newPatchNotification(t, ds, installerHost.ID, notifications_api.EndUserNotificationDispatched, 1)
+	require.NoError(t, ds.AddPatchNotificationApp(ctx, installerNotification, fleet.PatchNotificationApp{
+		SoftwareTitleID: installerTitleID, SoftwareInstallerID: &installerID,
+	}))
+
+	// an app whose installer was deleted still has to be listed, since the countdown has no version to
+	// compare it against and cannot drop it
+	noInstallerTitleID := newTestSoftwareTitle(t, ds, "Uninstallable App")
+	noInstallerNotification := newPatchNotification(t, ds, noInstallerHost.ID, notifications_api.EndUserNotificationDispatched, 1)
+	require.NoError(t, ds.AddPatchNotificationApp(ctx, noInstallerNotification, fleet.PatchNotificationApp{
+		SoftwareTitleID: noInstallerTitleID,
+	}))
+
+	// a notification listed with no apps of its own is left out of the map rather than keyed to nothing
+	emptyNotification := newPatchNotification(t, ds, installerHost.ID, notifications_api.EndUserNotificationDispatched, 1)
+
+	byNotification, err := ds.ListPatchNotificationAppsForNotifications(ctx,
+		[]string{installerNotification, noInstallerNotification, emptyNotification})
+	require.NoError(t, err)
+	require.Len(t, byNotification, 2)
+	require.NotContains(t, byNotification, emptyNotification)
+
+	require.Len(t, byNotification[installerNotification], 1)
+	installerApp := byNotification[installerNotification][0]
+	assert.Equal(t, installerNotification, installerApp.NotificationUUID)
+	assert.Equal(t, installerTitleID, installerApp.SoftwareTitleID)
+	require.NotNil(t, installerApp.SoftwareInstallerID)
+	assert.Equal(t, installerID, *installerApp.SoftwareInstallerID)
+	assert.Equal(t, "2.0.0", installerApp.InstallerVersion)
+	assert.False(t, installerApp.InstallQueued)
+
+	require.Len(t, byNotification[noInstallerNotification], 1)
+	noInstallerApp := byNotification[noInstallerNotification][0]
+	assert.Equal(t, noInstallerNotification, noInstallerApp.NotificationUUID)
+	assert.Equal(t, noInstallerTitleID, noInstallerApp.SoftwareTitleID)
+	assert.Nil(t, noInstallerApp.SoftwareInstallerID)
+	assert.Empty(t, noInstallerApp.InstallerVersion)
+
+	// the flag that stops a second attempt queueing the same install twice
+	require.NoError(t, ds.SetPatchNotificationAppsQueued(ctx, installerNotification, []uint{installerTitleID}))
+	byNotification, err = ds.ListPatchNotificationAppsForNotifications(ctx, []string{installerNotification})
+	require.NoError(t, err)
+	require.Len(t, byNotification[installerNotification], 1)
+	assert.True(t, byNotification[installerNotification][0].InstallQueued)
+
+	byNotification, err = ds.ListPatchNotificationAppsForNotifications(ctx, nil)
+	require.NoError(t, err)
+	assert.Empty(t, byNotification)
 }
 
 func testPatchNotificationDeleteApps(t *testing.T, ds *Datastore) {

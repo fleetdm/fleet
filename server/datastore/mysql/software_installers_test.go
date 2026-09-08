@@ -47,6 +47,7 @@ func TestSoftwareInstallers(t *testing.T) {
 		{"DeleteSoftwareInstallerRepointsPolicies", testDeleteSoftwareInstallerRepointsPolicies},
 		{"testDeletePendingSoftwareInstallsForPolicy", testDeletePendingSoftwareInstallsForPolicy},
 		{"GetHostLastInstallData", testGetHostLastInstallData},
+		{"ListHostLastTitleInstallData", testListHostLastTitleInstallData},
 		{"GetOrGenerateSoftwareInstallerTitleID", testGetOrGenerateSoftwareInstallerTitleID},
 		{"BatchSetSoftwareInstallersScopedViaLabels", testBatchSetSoftwareInstallersScopedViaLabels},
 		{"MatchOrCreateSoftwareInstallerWithAutomaticPolicies", testMatchOrCreateSoftwareInstallerWithAutomaticPolicies},
@@ -3260,6 +3261,68 @@ func testGetHostLastInstallData(t *testing.T, ds *Datastore) {
 	host2LastInstall, err = ds.GetHostLastInstallData(ctx, host2.ID, softwareInstallerID2)
 	require.NoError(t, err)
 	require.Nil(t, host2LastInstall)
+}
+
+func testListHostLastTitleInstallData(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "title-installs-team"})
+	require.NoError(t, err)
+	user := test.NewUser(t, ds, "Title Installs", "title-installs@example.com", true)
+	installedHost := test.NewHost(t, ds, "title-installs-1", "1", "title-installs-1-key", "title-installs-1-uuid", time.Now(), test.WithTeamID(team.ID))
+	untouchedHost := test.NewHost(t, ds, "title-installs-2", "2", "title-installs-2-key", "title-installs-2-uuid", time.Now(), test.WithTeamID(team.ID))
+
+	// two installers of the same software title, which is what a package replaced during a countdown
+	// leaves behind
+	firstInstallerID, titleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript: "install", StorageID: uuid.NewString(), Filename: "first.pkg",
+		Title: "Replaced App", Version: "1.0.0", Source: "apps", Platform: "darwin",
+		TeamID: &team.ID, UserID: user.ID, ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+	secondInstallerID, secondTitleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript: "install", StorageID: uuid.NewString(), Filename: "second.pkg",
+		Title: "Replaced App", Version: "2.0.0", Source: "apps", Platform: "darwin",
+		TeamID: &team.ID, UserID: user.ID, ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+	require.NotEqual(t, firstInstallerID, secondInstallerID)
+	require.Equal(t, titleID, secondTitleID)
+
+	// the install through the first installer finished
+	firstExecutionID, err := ds.InsertSoftwareInstallRequest(ctx, installedHost.ID, firstInstallerID, fleet.HostSoftwareInstallOptions{})
+	require.NoError(t, err)
+	_, err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
+		HostID: installedHost.ID, InstallUUID: firstExecutionID, InstallScriptExitCode: new(0),
+	}, nil)
+	require.NoError(t, err)
+
+	// the install through the second installer is still on its way
+	secondExecutionID, err := ds.InsertSoftwareInstallRequest(ctx, installedHost.ID, secondInstallerID, fleet.HostSoftwareInstallOptions{})
+	require.NoError(t, err)
+
+	installsByTitle, err := ds.ListHostLastTitleInstallData(ctx, []uint{installedHost.ID, untouchedHost.ID}, []uint{titleID})
+	require.NoError(t, err)
+
+	// both installs report against the one software title, whichever installer they went through
+	installs := installsByTitle[fleet.HostSoftwareTitleKey{HostID: installedHost.ID, SoftwareTitleID: titleID}]
+	require.Len(t, installs, 2)
+	statusByExecutionID := make(map[string]fleet.SoftwareInstallerStatus, len(installs))
+	for _, install := range installs {
+		require.NotNil(t, install.Status)
+		statusByExecutionID[install.ExecutionID] = *install.Status
+	}
+	assert.Equal(t, fleet.SoftwareInstalled, statusByExecutionID[firstExecutionID])
+	assert.Equal(t, fleet.SoftwareInstallPending, statusByExecutionID[secondExecutionID])
+
+	// a host Fleet has installed nothing on is left out
+	assert.NotContains(t, installsByTitle, fleet.HostSoftwareTitleKey{HostID: untouchedHost.ID, SoftwareTitleID: titleID})
+
+	// a software title with no installer of its own has nothing to report
+	otherTitleID := newTestSoftwareTitle(t, ds, "Uninstallable App")
+	installsByTitle, err = ds.ListHostLastTitleInstallData(ctx, []uint{installedHost.ID}, []uint{otherTitleID})
+	require.NoError(t, err)
+	assert.Empty(t, installsByTitle)
 }
 
 func testGetOrGenerateSoftwareInstallerTitleID(t *testing.T, ds *Datastore) {

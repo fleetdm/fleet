@@ -763,6 +763,13 @@ type Datastore interface {
 	// ListPatchNotificationApps returns a notification's apps, with names and icons
 	// for the host's fleet.
 	ListPatchNotificationApps(ctx context.Context, notificationUUID string) ([]PatchNotificationAppDetail, error)
+	// ListPatchNotificationAppsForNotifications returns the apps of several
+	// notifications at once, keyed by notification uuid, without the names and
+	// icons the toast is displayed with.
+	ListPatchNotificationAppsForNotifications(ctx context.Context, notificationUUIDs []string) (map[string][]PatchNotificationAppDetail, error)
+	// ListHostSoftwareVersionsForTitles reports what the given hosts have installed
+	// for the given software titles.
+	ListHostSoftwareVersionsForTitles(ctx context.Context, hostIDs []uint, softwareTitleIDs []uint) ([]HostSoftwareTitleVersion, error)
 	// DeletePatchNotificationApps drops apps from a notification, so the reminder
 	// stops naming an app the end user already updated.
 	DeletePatchNotificationApps(ctx context.Context, notificationUUID string, softwareTitleIDs []uint) error
@@ -2981,6 +2988,10 @@ type Datastore interface {
 
 	// GetHostLastInstallData returns the data for the last installation of a package on a host.
 	GetHostLastInstallData(ctx context.Context, hostID, installerID uint) (*HostLastInstallData, error)
+	// ListHostLastTitleInstallData is GetHostLastInstallData for many hosts and software
+	// titles at once, grouped by title so an install that went through an installer
+	// since replaced still counts. Same precedence: an upcoming install wins over a past one.
+	ListHostLastTitleInstallData(ctx context.Context, hostIDs []uint, softwareTitleIDs []uint) (map[HostSoftwareTitleKey][]*HostLastInstallData, error)
 
 	// MatchOrCreateSoftwareInstaller matches or creates a new software installer.
 	MatchOrCreateSoftwareInstaller(ctx context.Context, payload *UploadSoftwareInstallerPayload) (installerID, titleID uint, err error)
