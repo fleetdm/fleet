@@ -6593,6 +6593,7 @@ SET
 	apple_id = ?,
 	terms_expired = ?,
 	renew_at = ?,
+	server_uuid = NULLIF(?, ''),
 	token = ?,
 	macos_default_team_id = ?,
 	ios_default_team_id = ?,
@@ -6613,6 +6614,7 @@ WHERE
 		tok.AppleID,
 		tok.TermsExpired,
 		tok.RenewAt.UTC(),
+		tok.ServerUUID,
 		doubleEncTok,
 		tok.MacOSDefaultTeamID,
 		tok.IOSDefaultTeamID,
@@ -6631,8 +6633,8 @@ func (ds *Datastore) InsertABMToken(ctx context.Context, tok *fleet.ABMToken) (*
 	const stmt = `
 INSERT INTO
 	abm_tokens
-	(organization_name, apple_id, terms_expired, renew_at, token, enrollment_url_token, macos_default_team_id, ios_default_team_id, ipados_default_team_id, byod_default_team_id)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	(organization_name, apple_id, terms_expired, renew_at, token, server_uuid, is_default, enrollment_url_token, macos_default_team_id, ios_default_team_id, ipados_default_team_id, byod_default_team_id)
+VALUES (?, ?, ?, ?, ?, NULLIF(?, ''), ?, ?, ?, ?, ?, ?)
 `
 	doubleEncTok, err := encrypt(tok.EncryptedToken, ds.serverPrivateKey)
 	if err != nil {
@@ -6644,27 +6646,43 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		return nil, ctxerr.Wrap(ctx, err, "generating random token for ABM enrollment URL")
 	}
 
-	res, err := ds.writer(ctx).ExecContext(
-		ctx,
-		stmt,
-		tok.OrganizationName,
-		tok.AppleID,
-		tok.TermsExpired,
-		tok.RenewAt,
-		doubleEncTok,
-		urlToken,
-		tok.MacOSDefaultTeamID,
-		tok.IOSDefaultTeamID,
-		tok.IPadOSDefaultTeamID,
-		tok.BYODDefaultTeamID,
-	)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "inserting abm_token")
+	if err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		// First grab a quick count of current ABM token to define it should be a default or not
+		var count int
+		err := tx.QueryRowxContext(ctx, "SELECT COUNT(*) FROM abm_tokens").Scan(&count)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "counting abm_tokens")
+		}
+		if count == 0 {
+			tok.IsDefault = true
+		}
+
+		res, err := tx.ExecContext(
+			ctx,
+			stmt,
+			tok.OrganizationName,
+			tok.AppleID,
+			tok.TermsExpired,
+			tok.RenewAt,
+			doubleEncTok,
+			tok.ServerUUID,
+			tok.IsDefault,
+			urlToken,
+			tok.MacOSDefaultTeamID,
+			tok.IOSDefaultTeamID,
+			tok.IPadOSDefaultTeamID,
+			tok.BYODDefaultTeamID,
+		)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "inserting abm_token")
+		}
+
+		tokenID, _ := res.LastInsertId()
+		tok.ID = uint(tokenID) //nolint:gosec // dismiss G115
+		return nil
+	}); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "inserting abm_token with retry")
 	}
-
-	tokenID, _ := res.LastInsertId()
-
-	tok.ID = uint(tokenID) //nolint:gosec // dismiss G115
 
 	cfg, err := ds.AppConfig(ctx)
 	if err != nil {
@@ -6689,6 +6707,8 @@ SELECT
 	abt.apple_id,
 	abt.terms_expired,
 	abt.token_invalid,
+	COALESCE(abt.server_uuid, '') AS server_uuid,
+	abt.is_default,
 	abt.renew_at,
 	abt.token,
 	abt.enrollment_url_token,
@@ -6777,8 +6797,22 @@ DELETE FROM
 WHERE ID = ?
 		`
 
-	_, err := ds.writer(ctx).ExecContext(ctx, stmt, tokenID)
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		if _, err := tx.ExecContext(ctx, stmt, tokenID); err != nil {
+			return err
+		}
 
+		var count int
+		if err := tx.QueryRowxContext(ctx, "SELECT COUNT(*) FROM abm_tokens").Scan(&count); err != nil {
+			return err
+		}
+		if count != 1 {
+			return nil
+		}
+
+		_, err := tx.ExecContext(ctx, "UPDATE abm_tokens SET is_default = 1")
+		return err
+	})
 	return ctxerr.Wrap(ctx, err, "deleting ABM token")
 }
 
@@ -6799,6 +6833,8 @@ SELECT
 	abt.apple_id,
 	abt.terms_expired,
 	abt.token_invalid,
+	COALESCE(abt.server_uuid, '') AS server_uuid,
+	abt.is_default,
 	abt.renew_at,
 	abt.token,
 	abt.enrollment_url_token,
