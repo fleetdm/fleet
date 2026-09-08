@@ -20,7 +20,7 @@ func TestSendManagedLocalAccountRotationRequests(t *testing.T) {
 		ds.GetWindowsManagedLocalAccountsForAutoRotationFunc = func(ctx context.Context) ([]fleet.HostManagedLocalAccountWindowsRotationInfo, error) {
 			return rows, nil
 		}
-		ds.InitiateWindowsManagedLocalAccountRotationFunc = func(ctx context.Context, hostUUID string) error {
+		ds.InitiateWindowsManagedLocalAccountAutoRotationFunc = func(ctx context.Context, hostUUID string) error {
 			return nil
 		}
 		return ds
@@ -29,7 +29,7 @@ func TestSendManagedLocalAccountRotationRequests(t *testing.T) {
 	t.Run("no rows due is not an error", func(t *testing.T) {
 		ds := setup(nil)
 		require.NoError(t, SendManagedLocalAccountRotationRequests(t.Context(), ds, logger, nil))
-		assert.False(t, ds.InitiateWindowsManagedLocalAccountRotationFuncInvoked)
+		assert.False(t, ds.InitiateWindowsManagedLocalAccountAutoRotationFuncInvoked)
 	})
 
 	t.Run("requests a rotation per row and logs only view-driven ones", func(t *testing.T) {
@@ -40,7 +40,7 @@ func TestSendManagedLocalAccountRotationRequests(t *testing.T) {
 		})
 
 		var asked []string
-		ds.InitiateWindowsManagedLocalAccountRotationFunc = func(ctx context.Context, hostUUID string) error {
+		ds.InitiateWindowsManagedLocalAccountAutoRotationFunc = func(ctx context.Context, hostUUID string) error {
 			asked = append(asked, hostUUID)
 			return nil
 		}
@@ -65,7 +65,7 @@ func TestSendManagedLocalAccountRotationRequests(t *testing.T) {
 			{HostUUID: "uuid-pending", HostID: 1, DisplayName: "WIN-1", InitiatedByFleet: true},
 			{HostUUID: "uuid-ok", HostID: 2, DisplayName: "WIN-2", InitiatedByFleet: true},
 		})
-		ds.InitiateWindowsManagedLocalAccountRotationFunc = func(ctx context.Context, hostUUID string) error {
+		ds.InitiateWindowsManagedLocalAccountAutoRotationFunc = func(ctx context.Context, hostUUID string) error {
 			if hostUUID == "uuid-pending" {
 				// Raced with a manual request between the SELECT and here.
 				return fleet.ErrManagedLocalAccountRotationPending
@@ -89,7 +89,7 @@ func TestSendManagedLocalAccountRotationRequests(t *testing.T) {
 			{HostUUID: "uuid-ok", HostID: 2, DisplayName: "WIN-2", InitiatedByFleet: true},
 		})
 		boom := errors.New("boom")
-		ds.InitiateWindowsManagedLocalAccountRotationFunc = func(ctx context.Context, hostUUID string) error {
+		ds.InitiateWindowsManagedLocalAccountAutoRotationFunc = func(ctx context.Context, hostUUID string) error {
 			if hostUUID == "uuid-broken" {
 				return boom
 			}
@@ -116,6 +116,6 @@ func TestSendManagedLocalAccountRotationRequests(t *testing.T) {
 		}
 
 		require.NoError(t, SendManagedLocalAccountRotationRequests(t.Context(), ds, logger, newActivity))
-		assert.True(t, ds.InitiateWindowsManagedLocalAccountRotationFuncInvoked)
+		assert.True(t, ds.InitiateWindowsManagedLocalAccountAutoRotationFuncInvoked)
 	})
 }

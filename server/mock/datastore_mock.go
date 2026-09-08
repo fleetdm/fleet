@@ -1254,6 +1254,8 @@ type GetManagedLocalAccountByPendingCommandUUIDFunc func(ctx context.Context, co
 
 type InitiateWindowsManagedLocalAccountRotationFunc func(ctx context.Context, hostUUID string) error
 
+type InitiateWindowsManagedLocalAccountAutoRotationFunc func(ctx context.Context, hostUUID string) error
+
 type GetWindowsManagedLocalAccountsForAutoRotationFunc func(ctx context.Context) ([]fleet.HostManagedLocalAccountWindowsRotationInfo, error)
 
 type InsertMDMAppleBootstrapPackageFunc func(ctx context.Context, bp *fleet.MDMAppleBootstrapPackage, pkgStore fleet.MDMBootstrapPackageStore) error
@@ -4247,6 +4249,9 @@ type DataStore struct {
 
 	InitiateWindowsManagedLocalAccountRotationFunc        InitiateWindowsManagedLocalAccountRotationFunc
 	InitiateWindowsManagedLocalAccountRotationFuncInvoked bool
+
+	InitiateWindowsManagedLocalAccountAutoRotationFunc        InitiateWindowsManagedLocalAccountAutoRotationFunc
+	InitiateWindowsManagedLocalAccountAutoRotationFuncInvoked bool
 
 	GetWindowsManagedLocalAccountsForAutoRotationFunc        GetWindowsManagedLocalAccountsForAutoRotationFunc
 	GetWindowsManagedLocalAccountsForAutoRotationFuncInvoked bool
@@ -10276,6 +10281,13 @@ func (s *DataStore) InitiateWindowsManagedLocalAccountRotation(ctx context.Conte
 	s.InitiateWindowsManagedLocalAccountRotationFuncInvoked = true
 	s.mu.Unlock()
 	return s.InitiateWindowsManagedLocalAccountRotationFunc(ctx, hostUUID)
+}
+
+func (s *DataStore) InitiateWindowsManagedLocalAccountAutoRotation(ctx context.Context, hostUUID string) error {
+	s.mu.Lock()
+	s.InitiateWindowsManagedLocalAccountAutoRotationFuncInvoked = true
+	s.mu.Unlock()
+	return s.InitiateWindowsManagedLocalAccountAutoRotationFunc(ctx, hostUUID)
 }
 
 func (s *DataStore) GetWindowsManagedLocalAccountsForAutoRotation(ctx context.Context) ([]fleet.HostManagedLocalAccountWindowsRotationInfo, error) {

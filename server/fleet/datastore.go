@@ -2107,6 +2107,11 @@ type Datastore interface {
 	// when the row has no password, and notFound when the host has no managed local account row or no enrollment.
 	InitiateWindowsManagedLocalAccountRotation(ctx context.Context, hostUUID string) error
 
+	// InitiateWindowsManagedLocalAccountAutoRotation is the cron's variant of InitiateWindowsManagedLocalAccountRotation.
+	// It also returns ErrManagedLocalAccountNotEligible when the row is failed or its auto_rotate_at is not due, checked
+	// on the writer, so a row selected from a lagging replica is not retried.
+	InitiateWindowsManagedLocalAccountAutoRotation(ctx context.Context, hostUUID string) error
+
 	// GetWindowsManagedLocalAccountsForAutoRotation returns up to 100 Windows rows whose auto_rotate_at has elapsed,
 	// that have a password and a current enrollment with no request outstanding, and that are not failed.
 	GetWindowsManagedLocalAccountsForAutoRotation(ctx context.Context) ([]HostManagedLocalAccountWindowsRotationInfo, error)

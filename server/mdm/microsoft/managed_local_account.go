@@ -32,7 +32,7 @@ func SendManagedLocalAccountRotationRequests(
 
 	var result *multierror.Error
 	for _, host := range hosts {
-		if err := ds.InitiateWindowsManagedLocalAccountRotation(ctx, host.HostUUID); err != nil {
+		if err := ds.InitiateWindowsManagedLocalAccountAutoRotation(ctx, host.HostUUID); err != nil {
 			if fleet.IsNotFound(err) ||
 				errors.Is(err, fleet.ErrManagedLocalAccountRotationPending) ||
 				errors.Is(err, fleet.ErrManagedLocalAccountNotEligible) {

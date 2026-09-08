@@ -578,15 +578,28 @@ func (ds *Datastore) GetWindowsManagedLocalAccountsForAutoRotation(ctx context.C
 // cron cannot pick the row up while the device works through it. fleetd generates the password on the device, so there
 // is nothing to stage.
 func (ds *Datastore) InitiateWindowsManagedLocalAccountRotation(ctx context.Context, hostUUID string) error {
+	return ds.initiateWindowsManagedLocalAccountRotation(ctx, hostUUID, false)
+}
+
+// InitiateWindowsManagedLocalAccountAutoRotation is InitiateWindowsManagedLocalAccountRotation for the cron. It
+// re-checks on the writer that the row is due and not failed, since the cron selected it from a possibly lagging
+// replica; the macOS Initiate carries the same guard in its UPDATE.
+func (ds *Datastore) InitiateWindowsManagedLocalAccountAutoRotation(ctx context.Context, hostUUID string) error {
+	return ds.initiateWindowsManagedLocalAccountRotation(ctx, hostUUID, true)
+}
+
+func (ds *Datastore) initiateWindowsManagedLocalAccountRotation(ctx context.Context, hostUUID string, autoRotation bool) error {
 	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
 		// Read eligibility rather than infer it from RowsAffected, which counts changed rows: a row already at
 		// status='pending' would look ineligible.
 		var acct struct {
 			HasPassword bool           `db:"has_password"`
 			Status      sql.NullString `db:"status"`
+			Due         bool           `db:"due"`
 		}
 		switch err := sqlx.GetContext(ctx, tx, &acct, `
-			SELECT encrypted_password IS NOT NULL AS has_password, status
+			SELECT encrypted_password IS NOT NULL AS has_password, status,
+			       auto_rotate_at IS NOT NULL AND auto_rotate_at <= NOW(6) AS due
 			FROM host_managed_local_account_passwords
 			WHERE host_uuid = ? AND deleted = 0
 		`, hostUUID); {
@@ -595,11 +608,15 @@ func (ds *Datastore) InitiateWindowsManagedLocalAccountRotation(ctx context.Cont
 		case err != nil:
 			return ctxerr.Wrap(ctx, err, "check windows managed local account rotation eligibility")
 		}
-		// A failed row can be rotated again: its password stays visible, so the button stays enabled. Only the cron
-		// skips failed rows.
+		// A failed row can be rotated again manually: its password stays visible, so the button stays enabled. Only
+		// the cron skips failed rows.
 		if !acct.HasPassword {
 			return ctxerr.Wrap(ctx, fleet.ErrManagedLocalAccountNotEligible,
 				fmt.Sprintf("host %s (has_password=false status=%v)", hostUUID, acct.Status.String))
+		}
+		if autoRotation && (!acct.Due || acct.Status.String == string(fleet.MDMDeliveryFailed)) {
+			return ctxerr.Wrap(ctx, fleet.ErrManagedLocalAccountNotEligible,
+				fmt.Sprintf("host %s (due=%v status=%v)", hostUUID, acct.Due, acct.Status.String))
 		}
 
 		// Pin to the current enrollment by id; a flag-first filter could match a stale enrollment row. The derived

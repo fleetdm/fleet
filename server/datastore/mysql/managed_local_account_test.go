@@ -818,6 +818,39 @@ func testManagedLocalAccountWindowsRotation(t *testing.T, ds *Datastore) {
 		require.NotNil(t, status.Status)
 		assert.Equal(t, string(fleet.MDMDeliveryPending), *status.Status)
 	})
+
+	t.Run("auto-rotation re-checks due and failed on the writer", func(t *testing.T) {
+		// The cron selects from the replica; the row may have changed by the time it initiates.
+		hostUUID := newWindowsHostWithEnrollment(t, ds, "win-rot-6")
+		require.NoError(t, ds.SaveHostManagedLocalAccountFromEscrow(ctx, hostUUID, "WIN-PASS-1"))
+
+		err := ds.InitiateWindowsManagedLocalAccountAutoRotation(ctx, hostUUID)
+		require.ErrorIs(t, err, fleet.ErrManagedLocalAccountNotEligible, "no timer armed")
+		assert.False(t, rotationRequested(t, ds, hostUUID))
+
+		setAutoRotateAt(t, ds, hostUUID, time.Now().Add(time.Hour))
+		err = ds.InitiateWindowsManagedLocalAccountAutoRotation(ctx, hostUUID)
+		require.ErrorIs(t, err, fleet.ErrManagedLocalAccountNotEligible, "timer not due yet")
+		assert.False(t, rotationRequested(t, ds, hostUUID))
+
+		setAutoRotateAt(t, ds, hostUUID, time.Now().Add(-time.Minute))
+		require.NoError(t, ds.ReportManagedLocalAccountEscrowError(ctx, hostUUID, "policy rejected the password"))
+		err = ds.InitiateWindowsManagedLocalAccountAutoRotation(ctx, hostUUID)
+		require.ErrorIs(t, err, fleet.ErrManagedLocalAccountNotEligible, "failed rows are not retried unasked")
+		assert.False(t, rotationRequested(t, ds, hostUUID))
+
+		// The manual path still accepts the same failed row.
+		require.NoError(t, ds.InitiateWindowsManagedLocalAccountRotation(ctx, hostUUID))
+		assert.True(t, rotationRequested(t, ds, hostUUID))
+		_, err = ds.ClearMDMWindowsManagedLocalAccountRotationRequest(ctx, hostUUID)
+		require.NoError(t, err)
+
+		// Due, not failed: the cron path goes through.
+		require.NoError(t, ds.SaveHostManagedLocalAccountFromEscrow(ctx, hostUUID, "WIN-PASS-2"))
+		setAutoRotateAt(t, ds, hostUUID, time.Now().Add(-time.Minute))
+		require.NoError(t, ds.InitiateWindowsManagedLocalAccountAutoRotation(ctx, hostUUID))
+		assert.True(t, rotationRequested(t, ds, hostUUID))
+	})
 }
 
 func testManagedLocalAccountPlatformPasswordAvailability(t *testing.T, ds *Datastore) {
