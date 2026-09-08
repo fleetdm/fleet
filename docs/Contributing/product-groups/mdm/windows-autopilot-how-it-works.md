@@ -57,7 +57,7 @@ sequenceDiagram
     end
 ```
 
-- **Hardware hash** is a device fingerprint (TPM + SMBIOS data) that lets Microsoft's Autopilot service recognize the device before anyone signs in. It must be registered per device -- either manually by the admin (CSV upload) or by the hardware vendor before shipping (e.g. a company orders laptops from a reseller, provides their Entra tenant ID, and the vendor registers all the hashes into the company's Autopilot before the devices ship).
+- **Hardware hash** is a device fingerprint (TPM + SMBIOS data) that lets Microsoft's Autopilot service recognize the device before anyone signs in. It must be registered per device -- either manually by the admin (CSV upload) or by the OEM before shipping (e.g. a company orders laptops from Dell and provides their Entra tenant ID; Dell registers all the hashes into the company's Autopilot before the devices ship).
 - **Entra join** means the device registers itself as an object in Entra ID. Entra's Mobility settings tell the device which MDM to enroll in.
 - The **MDM discovery URL** points to Fleet (e.g. `https://fleet.example.com/api/mdm/microsoft/discovery`).
 
