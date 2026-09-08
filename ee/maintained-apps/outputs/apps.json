@@ -2690,6 +2690,13 @@
       "description": "Dot is a menu bar calendar with meeting reminders."
     },
     {
+      "name": "dotTrace",
+      "slug": "dottrace/windows",
+      "platform": "windows",
+      "unique_identifier": "JetBrains dotTrace",
+      "description": "dotTrace is a performance profiler for .NET applications."
+    },
+    {
       "name": "Doughnut",
       "slug": "doughnut/darwin",
       "platform": "darwin",
