@@ -33,7 +33,7 @@ Fleet workshops are free, run about four hours, and set you on course to becomin
 - **GitOps, Gothenburg.** September 28, 1pm to 5pm GMT+2. [Register](https://www.eventbrite.com/e/gitops-macsysadmins-tickets-1993054810590)
 - **GitOps, Richmond.** October 13, 1pm to 5pm EDT. [Register](https://www.eventbrite.com/e/gitops-richmond-tickets-1993052268988)
 
-The best way to learn Fleet is by building with it! [Request a workshop](https://fleetdm.com/workshops) in your city to get hands-on experience and earn your certification.
+The best way to learn Fleet is by building with it! [Request a workshop](https://fleetdm.com/contact#gitops) in your city to get hands-on experience and earn your certification.
 
 ## 📖 Worth reading
 
