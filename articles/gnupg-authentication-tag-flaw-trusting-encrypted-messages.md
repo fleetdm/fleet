@@ -47,7 +47,7 @@ Confirming gpgsm's version tells you the flawed check is closed going forward. I
 
 - **Get a demo** to see software inventory and vulnerability matching against your own fleet: [fleetdm.com/contact](https://fleetdm.com/contact)
 - **Explore the software catalog** Fleet already tracks across your hosts: [fleetdm.com/software-catalog](https://fleetdm.com/software-catalog)
-
+- **Filter hosts by CVE** the way this article describes: [fleetdm.com/guides/filtering-software-by-vulnerability](https://fleetdm.com/guides/filtering-software-by-vulnerability)
 ## Sources
 
 - Ubuntu, [USN-8720-1: GnuPG vulnerability](https://ubuntu.com/security/notices/USN-8720-1).
