@@ -37205,7 +37205,7 @@ func (s *integrationEnterpriseTestSuite) TestApplyPolicySpecsScriptValidation() 
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team.ID), nil, http.StatusOK, list)
 	require.Len(t, list.Policies, 1)
 	globalList := &fleet.ListGlobalPoliciesResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/global/policies", nil, http.StatusOK, globalList)
+	s.DoJSON("GET", "/api/v1/fleet/global/policies", nil, http.StatusOK, globalList)
 	for _, p := range globalList.Policies {
 		require.NotEqual(t, "gitops global script", p.Name)
 	}
