@@ -24,9 +24,13 @@ const (
 // contents for the given host. Values are defined in a preamble, or escaped and
 // substituted for Python, so a value is never parsed as script source. It
 // returns the expanded contents, or a non-empty failureMessage when a variable
-// can't be resolved for this host (one line per failing variable). Unsupported
-// variable names are left untouched: validation rejects them in new content, and
-// content saved before validation shipped must keep working unchanged.
+// can't be resolved for this host (one line per failing variable).
+//
+// Unsupported variable names are left untouched, since validation rejects them
+// in new content and content saved before validation shipped must keep working.
+// On the Python path that holds except for an unsupported name that extends a
+// supported one (e.g. $FLEET_VAR_HOST_UUID_LEGACY), whose prefix
+// variables.Replace rewrites along with the supported variable.
 func (svc *Service) maybeExpandScriptFleetVariables(ctx context.Context, host *fleet.Host, contents string) (expanded string, failureMessage string, err error) {
 	fleetVars := variables.Find(contents)
 	if len(fleetVars) == 0 {
@@ -112,7 +116,13 @@ func (svc *Service) maybeExpandScriptFleetVariables(ctx context.Context, host *f
 	}
 
 	if dialect == variables.DialectPython {
-		for name, value := range resolved {
+		// supported is longest-first from variables.Find, which keeps a shorter
+		// name from matching inside a longer token that contains it
+		for _, name := range supported {
+			value, ok := resolved[name]
+			if !ok {
+				continue
+			}
 			contents = variables.Replace(contents, name, variables.PythonEscape(value))
 		}
 		return contents, "", nil

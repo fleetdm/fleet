@@ -207,6 +207,27 @@ func TestMaybeExpandScriptFleetVariables(t *testing.T) {
 		}
 	})
 
+	// HOST_END_USER_IDP_USERNAME is a prefix of HOST_END_USER_IDP_USERNAME_LOCAL_PART,
+	// so replacing the shorter name first corrupts the longer token
+	t.Run("python substitution order does not corrupt overlapping names", func(t *testing.T) {
+		svc, ctx, ds := newSvcAndCtx(fleet.TierPremium)
+		mockScimUser(ds, scimUser)
+		const body = "#!/usr/bin/env python3\n" +
+			"print(\"u: $FLEET_VAR_HOST_END_USER_IDP_USERNAME\")\n" +
+			"print(\"l: $FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART\")\n"
+		want := "#!/usr/bin/env python3\n" +
+			"print(\"u: " + variables.PythonEscape("user@example.com") + "\")\n" +
+			"print(\"l: " + variables.PythonEscape("user") + "\")\n"
+
+		// map iteration order is unspecified, so a single pass can pass by luck
+		for range 100 {
+			expanded, failMsg, err := svc.maybeExpandScriptFleetVariables(ctx, host, body)
+			require.NoError(t, err)
+			require.Empty(t, failMsg)
+			require.Equal(t, want, expanded)
+		}
+	})
+
 	t.Run("python values carrying source stay literal", func(t *testing.T) {
 		svc, ctx, ds := newSvcAndCtx(fleet.TierPremium)
 		payload := "X\")\nimport os\nos.system(\"touch /tmp/pwned\")\nprint(\""

@@ -55,7 +55,7 @@ func PowerShellCharArray(value string) string {
 // Preamble builds the assignments defining vars, keyed by name without the
 // FLEET_VAR_ prefix. Output is ordered by name.
 func Preamble(vars map[string]string, dialect Dialect) string {
-	if len(vars) == 0 {
+	if len(vars) == 0 || dialect == DialectPython {
 		return ""
 	}
 	names := make([]string, 0, len(vars))
