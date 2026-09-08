@@ -33,7 +33,7 @@ Ubuntu's fix isn't one version number, it's two: gpgsm 2.4.8-4ubuntu3.1 for Ubun
 SELECT name, version FROM deb_packages WHERE name = 'gpgsm';
 ```
 
-Compare the returned version against the fixed build for that host's Ubuntu release. Anything older is still running the flawed tag check.
+That tells you what's installed. Deciding whether that's a problem means comparing the result against the correct fixed version for that host's release, since the same version string can be compliant on one release and vulnerable on the other.
 
 ## Turning the check into an ongoing policy
 
