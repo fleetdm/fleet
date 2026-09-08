@@ -184,15 +184,15 @@ To add a GitHub issue to the [Content planning](https://github.com/orgs/fleetdm/
 
 ### Localize content
 
-To localize content, pick the best Fleetie to do the translation, and refer to the following list of languages to their biggest markets:
+To localize content, pick the best fleetie to do the translation, and refer to the following list of languages to their biggest markets:
 
-- 🇮🇱 Hebrew (Israel)
-- 🇩🇰 Danish (Denmark, the Faroe Islands, Greenland, Southern Schleswig (Schleswig-Holstein) Germany)
-- 🇳🇱 Dutch (Belgium, Suriname, Aruba, Curacao)
+- 🇪🇸 Spanish (Spain, Andorra, Colombia, Chile, Argentina, Mexico)
 - 🇫🇷 French (France, Quebec/Canada, Luxembourg, Monaco, Democratic Republic of the Congo, Cameroon, New Brunswick/Canada, Switzerland)
 - 🇩🇪 German (Germany, Austria, Switzerland, Liechtenstein)
+- 🇳🇱 Dutch (Belgium, Suriname, Aruba, Curacao)
 - 🇸🇪 Swedish (Sweden)
-- 🇪🇸 Spanish (Spain, Andorra, Colombia, Chile, Argentina, Mexico)
+- 🇮🇱 Hebrew (Israel)
+- 🇩🇰 Danish (Denmark, the Faroe Islands, Greenland, Southern Schleswig (Schleswig-Holstein) Germany)
 - 🇧🇦 Bosnian (Bosnia, Croatia, Serbia)
 
 
