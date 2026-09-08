@@ -1,4 +1,4 @@
-# What Ubuntu's GnuPG authentication tag flaw means for trusting encrypted messages
+# What Ubuntu's GnuPG vulnerability means for trusting encrypted messages
 
 *A GnuPG bug let attackers craft AES-GCM encrypted messages that gpgsm would treat as authentic without a real authentication tag behind them. Here's how to confirm the patched build reached every host.*
 
