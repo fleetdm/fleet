@@ -1,6 +1,5 @@
 # Fleet newsletter, September 2026
 
-
 Hello from Fleet! 
 
 You aren't used to seeing a newsletter from us, and honestly, we aren't fans of average marketing emails either. Your inbox is loud enough. So, let's make a deal: we'll skip the fluff, and instead deliver a monthly brief covering all things Fleet, alongside the device management and endpoint security news that every IT admin, security pro, and tech leader needs on their radar.
