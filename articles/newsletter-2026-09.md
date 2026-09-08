@@ -1,4 +1,4 @@
-# Fleet newsletter, September 2026
+# Fleet news: September 2026
 
 Hello from Fleet! 
 
