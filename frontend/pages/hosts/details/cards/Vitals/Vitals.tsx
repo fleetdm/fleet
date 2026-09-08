@@ -714,7 +714,7 @@ export const buildHostVitals = ({
     const hasValidTimezone = vitalsData.timezone !== DEFAULT_EMPTY_CELL_VALUE;
     const localTime = hasValidTimezone
       ? // 24-hour clock, matching the auto-update feature's HH:MM time format.
-        formatInTimeZone(new Date(), vitalsData.timezone, "E, MMM d 'at' HH:mm")
+        formatInTimeZone(new Date(), vitalsData.timezone, "HH:mm 'on' E, MMM d")
       : null;
 
     vitals.push({
