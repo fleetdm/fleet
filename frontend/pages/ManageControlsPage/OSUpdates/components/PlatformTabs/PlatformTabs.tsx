@@ -84,43 +84,38 @@ const PlatformTabs = ({
   const isIPadOSConfigured = !!defaultIPadOSVersion;
 
   const appleMdmEmptyState = (platformName: string) => (
-    <div className={`${baseClass}__mdm-empty-state`}>
-      <EmptyState
-        header="Turn on MDM to enforce OS updates"
-        info={
-          <>
-            You must turn on Apple MDM to enforce OS updates for {platformName}{" "}
-            hosts.{" "}
-            <CustomLink
-              url={`${LEARN_MORE_ABOUT_BASE_LINK}/turn-on-apple-mdm`}
-              text="Learn more"
-              newTab
-            />
-          </>
-        }
-        variant="form"
-      />
-    </div>
+    <EmptyState
+      header="Turn on MDM to enforce OS updates"
+      info={
+        <>
+          You must turn on Apple MDM to enforce OS updates for {platformName}{" "}
+          hosts.{" "}
+          <CustomLink
+            url={`${LEARN_MORE_ABOUT_BASE_LINK}/turn-on-apple-mdm`}
+            text="Learn more"
+            newTab
+          />
+        </>
+      }
+      variant="form"
+    />
   );
 
   const windowsMdmEmptyState = (
-    <div className={`${baseClass}__mdm-empty-state`}>
-      <EmptyState
-        header="Turn on MDM to enforce OS updates"
-        info={
-          <>
-            You must turn on Windows MDM to enforce OS updates for Windows
-            hosts.{" "}
-            <CustomLink
-              url={`${LEARN_MORE_ABOUT_BASE_LINK}/setup-windows-mdm`}
-              text="Learn more"
-              newTab
-            />
-          </>
-        }
-        variant="form"
-      />
-    </div>
+    <EmptyState
+      header="Turn on MDM to enforce OS updates"
+      info={
+        <>
+          You must turn on Windows MDM to enforce OS updates for Windows hosts.{" "}
+          <CustomLink
+            url={`${LEARN_MORE_ABOUT_BASE_LINK}/setup-windows-mdm`}
+            text="Learn more"
+            newTab
+          />
+        </>
+      }
+      variant="form"
+    />
   );
 
   return (
@@ -149,7 +144,11 @@ const PlatformTabs = ({
               </Tab>
             )}
           </TabList>
-          <TabPanel className={`${baseClass}__tab-panel`}>
+          <TabPanel
+            className={`${baseClass}__tab-panel${
+              isAppleMdmEnabled ? "" : "--empty"
+            }`}
+          >
             {isAppleMdmEnabled ? (
               <>
                 <AppleOSTargetForm
@@ -171,7 +170,11 @@ const PlatformTabs = ({
               appleMdmEmptyState("macOS")
             )}
           </TabPanel>
-          <TabPanel className={`${baseClass}__tab-panel`}>
+          <TabPanel
+            className={`${baseClass}__tab-panel${
+              isWindowsMdmEnabled ? "" : "--empty"
+            }`}
+          >
             {isWindowsMdmEnabled ? (
               <>
                 <WindowsTargetForm
@@ -190,7 +193,11 @@ const PlatformTabs = ({
               windowsMdmEmptyState
             )}
           </TabPanel>
-          <TabPanel className={`${baseClass}__tab-panel`}>
+          <TabPanel
+            className={`${baseClass}__tab-panel${
+              isAppleMdmEnabled ? "" : "--empty"
+            }`}
+          >
             {isAppleMdmEnabled ? (
               <>
                 <AppleOSTargetForm
