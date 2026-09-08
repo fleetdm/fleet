@@ -7556,17 +7556,24 @@ func (s *integrationEnterpriseTestSuite) TestListSoftware() {
 	require.NoError(t, err)
 
 	software := []fleet.Software{
-		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
+		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions", ExtensionID: "fooextensionid"},
 		{Name: "bar", Version: "0.0.3", Source: "apps"},
+		// A Go binary carries its toolchain version in release and its module path in
+		// extension_id, which is suppressed for this source only.
+		{Name: "air", Version: "v1.48.0", Source: "go_binaries", ExtensionID: "github.com/air-verse/air", Release: "go1.26.1"},
 	}
 	_, err = s.ds.UpdateHostSoftware(ctx, host.ID, software)
 	require.NoError(t, err)
 	require.NoError(t, s.ds.LoadHostSoftware(ctx, host, false))
 
-	bar := host.Software[0]
-	if bar.Name != "bar" {
-		bar = host.Software[1]
+	var bar fleet.HostSoftwareEntry
+	for _, sw := range host.Software {
+		if sw.Name == "bar" {
+			bar = sw
+			break
+		}
 	}
+	require.NotZero(t, bar.ID)
 
 	inserted, err := s.ds.InsertSoftwareVulnerability(
 		ctx, fleet.SoftwareVulnerability{
@@ -7593,13 +7600,15 @@ func (s *integrationEnterpriseTestSuite) TestListSoftware() {
 	s.DoJSON("GET", "/api/latest/fleet/software", nil, http.StatusOK, &resp)
 	require.NotNil(t, resp)
 
-	var fooPayload, barPayload fleet.Software
+	var fooPayload, barPayload, airPayload fleet.Software
 	for _, s := range resp.Software {
 		switch s.Name {
 		case "foo":
 			fooPayload = s
 		case "bar":
 			barPayload = s
+		case "air":
+			airPayload = s
 		default:
 			require.Failf(t, "unrecognized software %s", s.Name)
 
@@ -7615,17 +7624,26 @@ func (s *integrationEnterpriseTestSuite) TestListSoftware() {
 	require.Equal(t, barPayload.Vulnerabilities[0].CVEPublished, new(new(now)))
 	require.Equal(t, barPayload.Vulnerabilities[0].Description, new(new("a long description of the cve")))
 	require.Equal(t, barPayload.Vulnerabilities[0].ResolvedInVersion, new(new("1.2.3")))
+
+	require.Equal(t, "go1.26.1", airPayload.Release)
+	require.Empty(t, airPayload.ExtensionID, "the Go module path must not reach the API")
+	require.Equal(t, "fooextensionid", fooPayload.ExtensionID, "other sources keep their extension id")
 
 	var respVersions listSoftwareVersionsResponse
 	s.DoJSON("GET", "/api/latest/fleet/software/versions", nil, http.StatusOK, &respVersions)
 	require.NotNil(t, resp)
 
-	for _, s := range resp.Software {
+	// Reset so a payload missing from this response can't be satisfied by the value the
+	// software-list loop above left behind.
+	fooPayload, barPayload, airPayload = fleet.Software{}, fleet.Software{}, fleet.Software{}
+	for _, s := range respVersions.Software {
 		switch s.Name {
 		case "foo":
 			fooPayload = s
 		case "bar":
 			barPayload = s
+		case "air":
+			airPayload = s
 		default:
 			require.Failf(t, "unrecognized software %s", s.Name)
 
@@ -7641,6 +7659,10 @@ func (s *integrationEnterpriseTestSuite) TestListSoftware() {
 	require.Equal(t, barPayload.Vulnerabilities[0].CVEPublished, new(new(now)))
 	require.Equal(t, barPayload.Vulnerabilities[0].Description, new(new("a long description of the cve")))
 	require.Equal(t, barPayload.Vulnerabilities[0].ResolvedInVersion, new(new("1.2.3")))
+
+	require.Equal(t, "go1.26.1", airPayload.Release)
+	require.Empty(t, airPayload.ExtensionID, "the Go module path must not reach the API")
+	require.Equal(t, "fooextensionid", fooPayload.ExtensionID, "other sources keep their extension id")
 
 	// vulnerable param required when using vulnerability filters
 	respVersions = listSoftwareVersionsResponse{}

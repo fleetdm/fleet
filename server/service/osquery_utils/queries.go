@@ -1266,15 +1266,26 @@ FROM fleetd_pacman_packages`,
 	// the results of this query are appended to the results of the other software queries.
 }
 
+// softwareGoBinaries collects Go binaries installed with `go install`, reported by fleetd's
+// go_binaries table. Two ecosystem attributes ride in existing columns:
+//   - module_path is stored in extension_id. Used for vulnerability detection and is not
+//     part of a software title's identity, so two binaries built from the same module keep
+//     separate titles and a renamed module keeps one title.
+//   - go_version is stored in release. It is part of the software identity, so the same
+//     binary version built with two toolchains is two software rows: they differ in their
+//     standard-library vulnerabilities and in the version the UI displays.
+//
+// version keeps the leading "v" and the "(devel)" value for `go build` binaries as reported;
+// the vulnerability matcher normalizes and skips them respectively.
 var softwareGoBinaries = DetailQuery{
 	Query: `
 SELECT
   name AS name,
   version AS version,
-  '' AS extension_id,
+  module_path AS extension_id,
   '' AS extension_for,
   'go_binaries' AS source,
-  '' AS release,
+  go_version AS release,
   '' AS vendor,
   '' AS arch,
   installed_path AS installed_path

@@ -54,6 +54,7 @@ func TestSoftware(t *testing.T) {
 		{"HostsByCVE", testHostsByCVE},
 		{"HostVulnSummariesBySoftwareIDs", testHostVulnSummariesBySoftwareIDs},
 		{"UpdateHostSoftware", testUpdateHostSoftware},
+		{"GoBinaries", testSoftwareGoBinaries},
 		{"UpdateHostSoftwareDeadlock", testUpdateHostSoftwareDeadlock},
 		{"UpdateHostSoftwareUpdatesSoftware", testUpdateHostSoftwareUpdatesSoftware},
 		{"UpdateHostSoftwareSameBundleIDDifferentNames", testUpdateHostSoftwareSameBundleIDDifferentNames},
@@ -2035,6 +2036,97 @@ func testUpdateHostSoftwareUpdatesSoftware(t *testing.T, ds *Datastore) {
 		{Name: "new", Version: "0.0.4", HostsCount: 1},
 	}
 	cmpNameVersionCount(expectedSoftware, software)
+}
+
+func testSoftwareGoBinaries(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	host := test.NewHost(t, ds, "gobin", "", "gobinkey", "gobinuuid", time.Now(), test.WithPlatform("darwin"))
+
+	const modulePath = "golang.org/x/tools/gopls"
+	goBinaries := []fleet.Software{
+		{Name: "gopls", Version: "v0.21.1", Source: "go_binaries", ExtensionID: modulePath, Release: "go1.26.1"},
+		{Name: "gopls", Version: "v0.21.1", Source: "go_binaries", ExtensionID: modulePath, Release: "go1.25.4"},
+		// Built with `go build`, so outside module mode: no module path, version "(devel)".
+		{Name: "devtool", Version: "(devel)", Source: "go_binaries", Release: "go1.26.1"},
+		// An RPM package also has a release, so it exercises the same field.
+		{Name: "openssl", Version: "1.1.1k", Source: "rpm_packages", Release: "30.el7", Arch: "x86_64"},
+	}
+	_, err := ds.UpdateHostSoftware(ctx, host.ID, goBinaries)
+	require.NoError(t, err)
+	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
+	require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))
+
+	stored, err := ds.ListSoftwareByHostIDShort(ctx, host.ID)
+	require.NoError(t, err)
+	require.Len(t, stored, len(goBinaries))
+
+	byKey := make(map[string]fleet.Software, len(stored))
+	for _, sw := range stored {
+		byKey[sw.Name+"|"+sw.Version+"|"+sw.Release] = sw
+	}
+
+	newerToolchain, ok := byKey["gopls|v0.21.1|go1.26.1"]
+	require.True(t, ok)
+	require.Equal(t, modulePath, newerToolchain.ExtensionID)
+	olderToolchain, ok := byKey["gopls|v0.21.1|go1.25.4"]
+	require.True(t, ok)
+	require.Equal(t, modulePath, olderToolchain.ExtensionID)
+
+	// The same binary version built with two toolchains is two software rows.
+	require.NotEqual(t, newerToolchain.ID, olderToolchain.ID)
+
+	devel, ok := byKey["devtool|(devel)|go1.26.1"]
+	require.True(t, ok)
+	require.Empty(t, devel.ExtensionID)
+
+	// ...but one title, because neither release nor extension_id is part of a title key.
+	var titleIDs []uint
+	require.NoError(t, sqlx.SelectContext(ctx, ds.reader(ctx), &titleIDs,
+		`SELECT DISTINCT title_id FROM software WHERE name = 'gopls' AND source = 'go_binaries'`))
+	require.Len(t, titleIDs, 1)
+	goplsTitleID := titleIDs[0]
+
+	// A second check-in reporting the same rows must not churn host_software: the
+	// per-check-in diff reads the same identity the checksum is built from.
+	result, err := ds.UpdateHostSoftware(ctx, host.ID, goBinaries)
+	require.NoError(t, err)
+	require.Empty(t, result.Inserted)
+	require.Empty(t, result.Deleted)
+
+	// The titles versions list exposes release for every version that has one.
+	title, err := ds.SoftwareTitleByID(ctx, goplsTitleID, nil, fleet.TeamFilter{User: test.UserAdmin, IncludeObserver: true})
+	require.NoError(t, err)
+	require.Len(t, title.Versions, 2)
+	gotReleases := make([]string, 0, len(title.Versions))
+	for _, v := range title.Versions {
+		gotReleases = append(gotReleases, v.Release)
+	}
+	require.ElementsMatch(t, []string{"go1.26.1", "go1.25.4"}, gotReleases)
+
+	var rpmTitleID uint
+	require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &rpmTitleID,
+		`SELECT title_id FROM software WHERE name = 'openssl' AND source = 'rpm_packages'`))
+	rpmTitle, err := ds.SoftwareTitleByID(ctx, rpmTitleID, nil, fleet.TeamFilter{User: test.UserAdmin, IncludeObserver: true})
+	require.NoError(t, err)
+	require.Len(t, rpmTitle.Versions, 1)
+	require.Equal(t, "30.el7", rpmTitle.Versions[0].Release)
+
+	// The host software list exposes release the same way, per installed version.
+	opts := fleet.HostSoftwareTitleListOptions{
+		ListOptions: fleet.ListOptions{PerPage: 20, OrderKey: "name"},
+	}
+	hostSW, _, err := ds.ListHostSoftware(ctx, host, opts)
+	require.NoError(t, err)
+
+	releasesByTitle := map[string][]string{}
+	for _, sw := range hostSW {
+		for _, v := range sw.InstalledVersions {
+			releasesByTitle[sw.Name] = append(releasesByTitle[sw.Name], v.Release)
+		}
+	}
+	require.ElementsMatch(t, []string{"go1.26.1", "go1.25.4"}, releasesByTitle["gopls"])
+	require.Equal(t, []string{"go1.26.1"}, releasesByTitle["devtool"])
+	require.Equal(t, []string{"30.el7"}, releasesByTitle["openssl"])
 }
 
 func testUpdateHostSoftware(t *testing.T, ds *Datastore) {

@@ -1120,6 +1120,38 @@ func testSoftwareByCVE(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, software, 1)
 	require.Equal(t, expected, software[0])
+
+	// release carries the Go toolchain version for go_binaries and the OS release for an
+	// RPM package.
+	ctx := t.Context()
+	goHost := test.NewHost(t, ds, "gohost", "192.168.1.1", "gohostkey", "gohostuuid", time.Now())
+	_, err = ds.UpdateHostSoftware(ctx, goHost.ID, []fleet.Software{
+		{Name: "air", Version: "v1.48.0", Source: "go_binaries", ExtensionID: "github.com/air-verse/air", Release: "go1.26.1"},
+		{Name: "openssl", Version: "1.1.1k", Source: "rpm_packages", Release: "30.el7"},
+	})
+	require.NoError(t, err)
+	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
+
+	stored, err := ds.ListSoftwareByHostIDShort(ctx, goHost.ID)
+	require.NoError(t, err)
+	require.Len(t, stored, 2)
+
+	var vulns []fleet.SoftwareVulnerability
+	for _, sw := range stored {
+		vulns = append(vulns, fleet.SoftwareVulnerability{SoftwareID: sw.ID, CVE: "CVE-2026-9999"})
+	}
+	_, err = ds.InsertSoftwareVulnerabilities(ctx, vulns, fleet.NVDSource)
+	require.NoError(t, err)
+
+	software, _, err = ds.SoftwareByCVE(ctx, "CVE-2026-9999", nil)
+	require.NoError(t, err)
+	require.Len(t, software, 2)
+	releaseByName := map[string]string{}
+	for _, sw := range software {
+		releaseByName[sw.Name] = sw.Release
+	}
+	require.Equal(t, "go1.26.1", releaseByName["air"])
+	require.Equal(t, "30.el7", releaseByName["openssl"])
 }
 
 func assertHostCounts(t *testing.T, expected []hostCount, actual []fleet.VulnerabilityWithMetadata) {

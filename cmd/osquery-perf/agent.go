@@ -477,6 +477,7 @@ type agent struct {
 	softwareCount                 softwareEntityCount
 	softwareVSCodeExtensionsCount softwareExtraEntityCount
 	softwareAdobePluginsCount     softwareExtraEntityCount
+	softwareGoBinariesCount       entityCount
 	userCount                     entityCount
 	policyPassProb                float64
 	munkiIssueProb                float64
@@ -581,6 +582,7 @@ type agent struct {
 	softwareQueryFailureProb         float64
 	softwareVSCodeExtensionsFailProb float64
 	softwareAdobePluginsFailProb     float64
+	softwareGoBinariesFailProb       float64
 
 	softwareInstaller softwareInstaller
 
@@ -739,10 +741,12 @@ func newAgent(
 	softwareQueryFailureProb float64,
 	softwareVSCodeExtensionsQueryFailureProb float64,
 	softwareAdobePluginsQueryFailureProb float64,
+	softwareGoBinariesQueryFailureProb float64,
 	softwareInstaller softwareInstaller,
 	softwareCount softwareEntityCount,
 	softwareVSCodeExtensionsCount softwareExtraEntityCount,
 	softwareAdobePluginsCount softwareExtraEntityCount,
+	softwareGoBinariesCount entityCount,
 	userCount entityCount,
 	policyPassProb float64,
 	orbitProb float64,
@@ -830,6 +834,7 @@ func newAgent(
 		softwareCount:                 softwareCount,
 		softwareVSCodeExtensionsCount: softwareVSCodeExtensionsCount,
 		softwareAdobePluginsCount:     softwareAdobePluginsCount,
+		softwareGoBinariesCount:       softwareGoBinariesCount,
 		userCount:                     userCount,
 		strings:                       make(map[string]string),
 		policyPassProb:                policyPassProb,
@@ -853,6 +858,7 @@ func newAgent(
 		softwareQueryFailureProb:         softwareQueryFailureProb,
 		softwareVSCodeExtensionsFailProb: softwareVSCodeExtensionsQueryFailureProb,
 		softwareAdobePluginsFailProb:     softwareAdobePluginsQueryFailureProb,
+		softwareGoBinariesFailProb:       softwareGoBinariesQueryFailureProb,
 		softwareInstaller:                softwareInstaller,
 
 		linuxUniqueSoftwareVersion: linuxUniqueSoftwareVersion,
@@ -3096,6 +3102,66 @@ func (a *agent) softwareAdobePlugins() []map[string]string {
 	return plugins
 }
 
+// goBinDir returns the directory `go install` puts binaries in.
+func (a *agent) goBinDir() string {
+	switch a.os {
+	case "windows":
+		return `C:\Users\fleet\go\bin\`
+	case "darwin":
+		return "/Users/fleet/go/bin/"
+	default:
+		return "/home/fleet/go/bin/"
+	}
+}
+
+func (a *agent) goBinary(name, modulePath, baseVersion, alternateVersion, goVersion string) map[string]string {
+	return map[string]string{
+		"name":           name,
+		"version":        a.selectSoftwareVersion(name, baseVersion, alternateVersion),
+		"extension_id":   modulePath,
+		"extension_for":  "",
+		"source":         "go_binaries",
+		"release":        goVersion,
+		"vendor":         "",
+		"arch":           "",
+		"installed_path": a.goBinDir() + name,
+	}
+}
+
+// softwareGoBinaries generates the Go binaries reported by fleetd's go_binaries table,
+// covering the three shapes the real table emits: binaries installed with `go install`, one
+// built with `go build` (version "(devel)" and no module path, because it was built outside
+// module mode), and one name and version built with two toolchains, which Fleet stores as
+// two software rows because release is part of the software checksum.
+func (a *agent) softwareGoBinaries() []map[string]string {
+	if a.softwareGoBinariesCount.common == 0 && a.softwareGoBinariesCount.unique == 0 {
+		return nil
+	}
+
+	modulePath := func(name string) string { return "github.com/fleetdm/osquery-perf/" + name }
+
+	var binaries []map[string]string
+	for i := range a.softwareGoBinariesCount.common {
+		name := fmt.Sprintf("common-go-binary-%d", i)
+		binaries = append(binaries, a.goBinary(name, modulePath(name), "v0.0.1", "v0.0.2", "go1.26.1"))
+	}
+	for i := range a.softwareGoBinariesCount.unique {
+		name := fmt.Sprintf("unique-go-binary-%s-%d", a.CachedString("hostname"), i)
+		binaries = append(binaries, a.goBinary(name, modulePath(name), "v1.1.1", "v1.1.2", "go1.26.1"))
+	}
+
+	develBinary := a.goBinary("devel-go-binary", "", "v0.0.1", "v0.0.2", "go1.26.1")
+	develBinary["version"] = "(devel)"
+	binaries = append(binaries, develBinary)
+
+	if a.softwareGoBinariesCount.common > 0 {
+		name := "common-go-binary-0"
+		binaries = append(binaries, a.goBinary(name, modulePath(name), "v0.0.1", "v0.0.2", "go1.25.4"))
+	}
+
+	return binaries
+}
+
 func selectKernels(kernelList []map[string]string) []map[string]string {
 	// Determine number of kernels based on probability distribution
 	r := rand.Float64()
@@ -3997,6 +4063,15 @@ func (a *agent) processQuery(name, query string, cachedResults *cachedResults) (
 			results = a.softwareAdobePlugins()
 		}
 		return true, results, &ss, nil, nil
+	case name == hostDetailQueryPrefix+"software_go_binaries":
+		ss := fleet.StatusOK
+		if a.softwareGoBinariesFailProb > 0.0 && rand.Float64() <= a.softwareGoBinariesFailProb { //nolint:gosec // ignore weak randomizer
+			ss = fleet.OsqueryStatus(1)
+		}
+		if ss == fleet.StatusOK {
+			results = a.softwareGoBinaries()
+		}
+		return true, results, &ss, nil, nil
 	case name == hostDetailQueryPrefix+"disk_space_unix" || name == hostDetailQueryPrefix+"disk_space_windows":
 		ss := fleet.OsqueryStatus(rand.Intn(2))
 		if ss == fleet.StatusOK {
@@ -4402,6 +4477,7 @@ func main() {
 		softwareQueryFailureProb                 = flag.Float64("software_query_fail_prob", 0.5, "Probability of the software query failing")
 		softwareVSCodeExtensionsQueryFailureProb = flag.Float64("software_vscode_extensions_query_fail_prob", 0.0, "Probability of the software vscode_extensions query failing")
 		softwareAdobePluginsQueryFailureProb     = flag.Float64("software_adobe_plugins_query_fail_prob", 0.0, "Probability of the software adobe_plugins query failing")
+		softwareGoBinariesQueryFailureProb       = flag.Float64("software_go_binaries_query_fail_prob", 0.0, "Probability of the software go_binaries query failing")
 
 		softwareInstallerPreInstallFailureProb = flag.Float64("software_installer_pre_install_fail_prob", 0.05,
 			"Probability of the pre-install query failing")
@@ -4415,6 +4491,7 @@ func main() {
 		commonAdobePluginsSoftwareCount              = flag.Int("common_adobe_plugins_software_count", 5, "Number of common adobe_plugins installed plugins reported to fleet")
 		commonAdobePluginsSoftwareUninstallCount     = flag.Int("common_adobe_plugins_software_uninstall_count", 1, "Number of common adobe_plugins plugins to uninstall")
 		commonAdobePluginsSoftwareUninstallProb      = flag.Float64("common_adobe_plugins_software_uninstall_prob", 0.1, "Probability of uninstalling common_adobe_plugins_software_uninstall_count common plugin/s")
+		commonGoBinariesSoftwareCount                = flag.Int("common_go_binaries_software_count", 5, "Number of common go_binaries binaries reported to fleet")
 		commonSoftwareUninstallCount                 = flag.Int("common_software_uninstall_count", 1, "Number of common software to uninstall")
 		commonVSCodeExtensionsSoftwareUninstallCount = flag.Int("common_vscode_extensions_software_uninstall_count", 1, "Number of common vscode_extensions software to uninstall")
 		commonSoftwareUninstallProb                  = flag.Float64("common_software_uninstall_prob", 0.1, "Probability of uninstalling common_software_uninstall_count unique software/s")
@@ -4425,6 +4502,7 @@ func main() {
 		uniqueAdobePluginsSoftwareCount              = flag.Int("unique_adobe_plugins_software_count", 1, "Number of unique adobe_plugins plugins installed on each host")
 		uniqueAdobePluginsSoftwareUninstallCount     = flag.Int("unique_adobe_plugins_software_uninstall_count", 1, "Number of unique adobe_plugins plugins to uninstall")
 		uniqueAdobePluginsSoftwareUninstallProb      = flag.Float64("unique_adobe_plugins_software_uninstall_prob", 0.1, "Probability of uninstalling unique_adobe_plugins_software_uninstall_count unique plugin/s")
+		uniqueGoBinariesSoftwareCount                = flag.Int("unique_go_binaries_software_count", 1, "Number of unique go_binaries binaries installed on each host")
 		uniqueSoftwareUninstallCount                 = flag.Int("unique_software_uninstall_count", 1, "Number of unique software to uninstall")
 		uniqueVSCodeExtensionsSoftwareUninstallCount = flag.Int("unique_vscode_extensions_software_uninstall_count", 1, "Number of unique vscode_extensions software to uninstall")
 		uniqueSoftwareUninstallProb                  = flag.Float64("unique_software_uninstall_prob", 0.1, "Probability of uninstalling unique_software_uninstall_count common software/s")
@@ -4561,6 +4639,12 @@ func main() {
 	}
 	if *uniqueAdobePluginsSoftwareUninstallCount > *uniqueAdobePluginsSoftwareCount {
 		log.Fatalf("Argument unique_adobe_plugins_software_uninstall_count cannot be bigger than unique_adobe_plugins_software_count")
+	}
+	if *commonGoBinariesSoftwareCount < 0 {
+		log.Fatalf("Argument common_go_binaries_software_count cannot be negative, got %d", *commonGoBinariesSoftwareCount)
+	}
+	if *uniqueGoBinariesSoftwareCount < 0 {
+		log.Fatalf("Argument unique_go_binaries_software_count cannot be negative, got %d", *uniqueGoBinariesSoftwareCount)
 	}
 	if *androidNonComplianceProb < 0 || *androidNonComplianceProb > 1 {
 		log.Fatalf("Argument android_non_compliance_prob must be between 0 and 1, got %f", *androidNonComplianceProb)
@@ -4727,6 +4811,7 @@ func main() {
 			*softwareQueryFailureProb,
 			*softwareVSCodeExtensionsQueryFailureProb,
 			*softwareAdobePluginsQueryFailureProb,
+			*softwareGoBinariesQueryFailureProb,
 			softwareInstaller{
 				preInstallFailureProb:  *softwareInstallerPreInstallFailureProb,
 				installFailureProb:     *softwareInstallerInstallFailureProb,
@@ -4768,6 +4853,10 @@ func main() {
 				commonSoftwareUninstallProb:  *commonAdobePluginsSoftwareUninstallProb,
 				uniqueSoftwareUninstallCount: *uniqueAdobePluginsSoftwareUninstallCount,
 				uniqueSoftwareUninstallProb:  *uniqueAdobePluginsSoftwareUninstallProb,
+			},
+			entityCount{
+				common: *commonGoBinariesSoftwareCount,
+				unique: *uniqueGoBinariesSoftwareCount,
 			},
 			entityCount{
 				common: *commonUserCount,

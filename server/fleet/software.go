@@ -99,7 +99,8 @@ type Software struct {
 	BundleIdentifier string `json:"bundle_identifier,omitempty" db:"bundle_identifier"`
 	// Source is the source of the data (osquery table name).
 	Source string `json:"source" db:"source"`
-	// ExtensionID is the browser extension id (from osquery chrome_extensions and firefox_addons)
+	// ExtensionID is the browser extension id (from osquery chrome_extensions and firefox_addons),
+	// the Adobe plugin bundle id (adobe_plugins), or the Go module path (go_binaries).
 	ExtensionID string `json:"extension_id,omitempty" db:"extension_id"`
 	// ExtensionFor is the host software that this software is an extension for
 	ExtensionFor string `json:"extension_for" db:"extension_for"`
@@ -107,7 +108,8 @@ type Software struct {
 	Browser string `json:"browser"`
 
 	// Release is the version of the OS this software was released on
-	// (e.g. "30.el7" for a CentOS package).
+	// (e.g. "30.el7" for a CentOS package), or the Go toolchain version for go_binaries
+	// (e.g. "go1.26.1").
 	Release string `json:"release,omitempty" db:"release"`
 	// Vendor is the supplier of the software (e.g. "CentOS").
 	Vendor string `json:"vendor,omitempty" db:"vendor"`
@@ -173,6 +175,15 @@ func (s *Software) populateBrowserField() {
 	}
 }
 
+// marshalExtensionID hides the Go module path stored in extension_id for go_binaries: it
+// exists only for vulnerability detection, which reads it from the database.
+func marshalExtensionID(source, extensionID string) string {
+	if source == "go_binaries" {
+		return ""
+	}
+	return extensionID
+}
+
 // MarshalJSON populates the browser field for backwards compatibility then calls the typical
 // MarshalJSON implementation
 func (s *Software) MarshalJSON() ([]byte, error) {
@@ -180,10 +191,12 @@ func (s *Software) MarshalJSON() ([]byte, error) {
 	type Alias Software
 	return json.Marshal(&struct {
 		*Alias
-		LastOpenedAt any `json:"last_opened_at,omitempty"`
+		LastOpenedAt any    `json:"last_opened_at,omitempty"`
+		ExtensionID  string `json:"extension_id,omitempty"`
 	}{
 		Alias:        (*Alias)(s),
 		LastOpenedAt: marshalLastOpenedAt(s.Source, s.LastOpenedAt),
+		ExtensionID:  marshalExtensionID(s.Source, s.ExtensionID),
 	})
 }
 
@@ -270,6 +283,7 @@ type VulnerableSoftware struct {
 	Name              string  `json:"name" db:"name"`
 	Version           string  `json:"version" db:"version"`
 	Source            string  `json:"source" db:"source"`
+	Release           string  `json:"release,omitempty" db:"release"`
 	ExtensionFor      string  `json:"extension_for" db:"extension_for"`
 	GenerateCPE       string  `json:"generated_cpe" db:"generated_cpe"`
 	HostsCount        int     `json:"hosts_count,omitempty" db:"hosts_count"`
@@ -305,6 +319,8 @@ type SoftwareVersion struct {
 	ID uint `db:"id" json:"id"`
 	// Version is the version string we grab for this specific software.
 	Version string `db:"version" json:"version"`
+	// Release is the software's release; see Software.Release.
+	Release string `db:"release" json:"release,omitempty"`
 	// Vulnerabilities is the list of CVE names for vulnerabilities found for this version.
 	Vulnerabilities *SliceString `db:"vulnerabilities" json:"vulnerabilities"`
 	// HostsCount is the number of hosts that use this software version.
@@ -659,11 +675,13 @@ func (hse *HostSoftwareEntry) MarshalJSON() ([]byte, error) {
 	return json.Marshal(&struct {
 		*Alias
 		LastOpenedAt             any                        `json:"last_opened_at,omitempty"`
+		ExtensionID              string                     `json:"extension_id,omitempty"`
 		InstalledPaths           []string                   `json:"installed_paths"`
 		PathSignatureInformation []PathSignatureInformation `json:"signature_information"`
 	}{
 		Alias:                    (*Alias)(&hse.Software),
 		LastOpenedAt:             marshalLastOpenedAt(hse.Source, hse.LastOpenedAt),
+		ExtensionID:              marshalExtensionID(hse.Source, hse.ExtensionID),
 		InstalledPaths:           hse.InstalledPaths,
 		PathSignatureInformation: hse.PathSignatureInformation,
 	})
