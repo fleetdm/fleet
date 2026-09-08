@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import classnames from "classnames";
+import { formatInTimeZone } from "date-fns-tz";
 
 import { IHostCustomVital } from "interfaces/custom_host_vitals";
 import { IHostMdmData, IMunkiData } from "interfaces/host";
@@ -16,7 +17,11 @@ import {
   MDM_ENROLLMENT_STATUS_UI_MAP,
 } from "interfaces/mdm";
 import { ROLLING_ARCH_LINUX_VERSIONS } from "interfaces/software";
-import { DEFAULT_EMPTY_CELL_VALUE, BATTERY_TOOLTIP } from "utilities/constants";
+import {
+  DATE_FNS_FORMAT_STRINGS,
+  DEFAULT_EMPTY_CELL_VALUE,
+  BATTERY_TOOLTIP,
+} from "utilities/constants";
 import {
   humanHostMemory,
   wrapFleetHelper,
@@ -710,6 +715,15 @@ export const buildHostVitals = ({
   }
 
   if (isIosOrIpadosHost && vitalsData?.timezone) {
+    const hasValidTimezone = vitalsData.timezone !== DEFAULT_EMPTY_CELL_VALUE;
+    const localTime = hasValidTimezone
+      ? formatInTimeZone(
+          new Date(),
+          vitalsData.timezone,
+          DATE_FNS_FORMAT_STRINGS.dateAtTime
+        )
+      : null;
+
     vitals.push({
       sortKey: "Timezone",
       element: (
@@ -719,6 +733,16 @@ export const buildHostVitals = ({
           value={
             <TooltipTruncatedText
               value={vitalsData.timezone || DEFAULT_EMPTY_CELL_VALUE}
+              tooltip={
+                localTime && (
+                  <>
+                    Local time:
+                    <br />
+                    {localTime}
+                  </>
+                )
+              }
+              alwaysShowTooltip={hasValidTimezone}
             />
           }
         />
