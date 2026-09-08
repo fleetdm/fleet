@@ -18,6 +18,7 @@ interface ISelectedTeamsFormProps {
   onFormChange: (teams: ITeam[]) => void;
   isApiOnly?: boolean;
   onMenuOpen?: () => void;
+  disabled?: boolean;
 }
 
 const baseClass = "selected-teams-form";
@@ -108,6 +109,7 @@ const SelectedTeamsForm = ({
   onFormChange,
   isApiOnly,
   onMenuOpen,
+  disabled,
 }: ISelectedTeamsFormProps): JSX.Element => {
   const [teamsFormList, updateSelectedTeams] = useSelectedTeamState(
     availableTeams,
@@ -125,6 +127,7 @@ const SelectedTeamsForm = ({
             <Checkbox
               value={isChecked}
               name={name}
+              disabled={disabled}
               onChange={(newValue: boolean) =>
                 updateSelectedTeams(teamItem.id, newValue)
               }
@@ -138,6 +141,7 @@ const SelectedTeamsForm = ({
                 className={`${baseClass}__role-dropdown`}
                 options={roleOptions({ isPremiumTier: true, isApiOnly })}
                 isSearchable={false}
+                isDisabled={disabled}
                 onChange={(newValue: SingleValue<CustomOptionType>) =>
                   updateSelectedTeams(teamItem.id, newValue as CustomOptionType)
                 }

@@ -300,6 +300,63 @@ describe("HostHeader", () => {
       expect(screen.queryByText("Last MDM check-in:")).not.toBeInTheDocument();
     });
 
+    it("shows the MDM check-in row even when last fetched is unavailable", async () => {
+      const { user } = renderWithSetup(
+        <HostHeader
+          summaryData={{
+            ...defaultSummaryData,
+            detail_updated_at: undefined,
+            policy_updated_at: undefined,
+            last_mdm_checked_in_at: LAST_CHECK_IN,
+          }}
+          showRefetchSpinner={false}
+          onRefetchHost={jest.fn()}
+          renderActionsDropdown={renderActionDropdown}
+          hostMdmEnrollmentStatus="On (manual)"
+        />
+      );
+
+      await user.hover(screen.getByText(/Last fetched/i));
+
+      expect(await screen.findByText("Last MDM check-in:")).toBeInTheDocument();
+      expect(
+        screen.getByText(internationalTimeFormat(new Date(LAST_CHECK_IN)))
+      ).toBeInTheDocument();
+      // Empty bold next to "Last fetched:" would look broken; render an
+      // explicit fallback instead.
+      expect(screen.getByText("unavailable")).toBeInTheDocument();
+    });
+
+    it("uses the more recent of detail_updated_at and policy_updated_at as 'Last fetched' (#51820)", async () => {
+      const DETAIL_UPDATED_AT = "2024-04-27T12:00:00Z";
+      const POLICY_UPDATED_AT = "2024-04-27T13:30:00Z"; // 90 min newer
+      const { user } = renderWithSetup(
+        <HostHeader
+          summaryData={{
+            ...defaultSummaryData,
+            detail_updated_at: DETAIL_UPDATED_AT,
+            policy_updated_at: POLICY_UPDATED_AT,
+            last_mdm_checked_in_at: LAST_CHECK_IN,
+          }}
+          showRefetchSpinner={false}
+          onRefetchHost={jest.fn()}
+          renderActionsDropdown={renderActionDropdown}
+          hostMdmEnrollmentStatus="On (manual)"
+        />
+      );
+
+      await user.hover(screen.getByText(/Last fetched/i));
+
+      expect(
+        await screen.findByText(
+          internationalTimeFormat(new Date(POLICY_UPDATED_AT))
+        )
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByText(internationalTimeFormat(new Date(DETAIL_UPDATED_AT)))
+      ).not.toBeInTheDocument();
+    });
+
     it("renders last fetched without a check-in tooltip when the platform reports no check-in field at all", async () => {
       // lodash `pick` drops the key entirely for platforms whose API response
       // omits it, so the header gets `undefined` rather than "---".

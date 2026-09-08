@@ -10,6 +10,7 @@ import {
 import { IOSSettings } from "interfaces/host";
 import {
   HostPlatform,
+  isAppleDevice,
   isDiskEncryptionSupportedLinuxPlatform,
 } from "interfaces/platform";
 
@@ -39,6 +40,9 @@ export interface IHostBannersBaseProps {
   lastMdmEnrolledAt?: string;
   /** The timestamp of the last detail update */
   detailUpdatedAt?: string;
+  /** Whether or not this host is assigned to Fleet via DEP */
+  depAssignedToFleet: boolean;
+  onlyAllowAppleBusinessEnrollment: boolean;
 }
 /**
  * Handles the displaying of banners on the host details page
@@ -54,6 +58,8 @@ const HostDetailsBanners = ({
   diskEncryptionKeyAvailable,
   lastMdmEnrolledAt,
   detailUpdatedAt,
+  depAssignedToFleet,
+  onlyAllowAppleBusinessEnrollment,
 }: IHostBannersBaseProps) => {
   const { config } = useContext(AppContext);
 
@@ -94,6 +100,42 @@ const HostDetailsBanners = ({
     </div>
   );
 
+  if (
+    onlyAllowAppleBusinessEnrollment &&
+    !depAssignedToFleet &&
+    isMdmUnenrolled &&
+    isAppleDevice(hostPlatform)
+  ) {
+    return (
+      <div className={baseClass}>
+        <InfoBanner color="yellow">
+          This host can&apos;t enroll in Apple MDM. Only current devices listed
+          in Apple Business can enroll. To allow manual enrollment, turn off the
+          &quot;Only allow Apple Business enrollment&quot; setting <br /> in{" "}
+          <strong>Organization settings &gt; Advanced options</strong>.
+        </InfoBanner>
+      </div>
+    );
+  }
+
+  if (
+    onlyAllowAppleBusinessEnrollment &&
+    isAppleDevice(hostPlatform) &&
+    !depAssignedToFleet &&
+    !isAutomaticDeviceEnrollment(mdmEnrollmentStatus)
+  ) {
+    return (
+      <div className={baseClass}>
+        <InfoBanner color="yellow">
+          This host is no longer eligible for Apple MDM. It was enrolled
+          manually, but only Apple Business devices can enroll now. To allow
+          manual enrollment, turn off the &quot;Only allow Apple Business
+          enrollment&quot; setting in{" "}
+          <strong>Organization settings &gt; Advanced options</strong>.
+        </InfoBanner>
+      </div>
+    );
+  }
   if (showTurnOnMdmInfoBanner) {
     return (
       <div className={baseClass}>
@@ -163,7 +205,20 @@ const HostDetailsBanners = ({
     hostPlatform === "windows" &&
     diskEncryptionOSSetting?.status === "action_required"
   ) {
-    return actionRequiredBanner;
+    // Fleet is holding the repair until the host restarts, so point the admin at the restart rather than at My device.
+    if (diskEncryptionOSSetting?.action_required === "restart") {
+      return (
+        <div className={baseClass}>
+          <InfoBanner color="yellow">
+            Disk encryption: Requires a restart. Ask the user to restart their
+            device so disk encryption protection can be turned back on.
+          </InfoBanner>
+        </div>
+      );
+    }
+    if (diskEncryptionOSSetting?.action_required === "create_pin") {
+      return actionRequiredBanner;
+    }
   }
 
   return null;

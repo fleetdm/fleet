@@ -163,13 +163,16 @@ func GenerateOpenQuery(platform string, bundleIdentifier string, softwareTitle s
 }
 
 func defaultMacOSOpenQuery(bundleIdentifier string) string {
-	// Resolve the app's install path from its bundle identifier via the apps table, then
-	// match any process running from inside that path.
+	// Resolve the app's install path and CFBundleExecutable from its bundle identifier via
+	// the apps table, then match only the app's own executable. Matching any process inside
+	// the bundle's subtree reports apps with in-bundle login items or background helpers
+	// (e.g. 1Password's browser helper) as permanently open. Bundles without a
+	// CFBundleExecutable report as closed, matching what the subtree join did for them.
 	// alternatives considered:
 	// - get processes by name - requires a lot of manual overrides
 	// - use the running_apps table - not reliable when run through orbit
 	// - use the "app" artifact in the homebrew cask - requires extra code to extract
-	openTemplate := "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = '%s');"
+	openTemplate := "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = '%s' AND a.bundle_executable != '');"
 	return fmt.Sprintf(openTemplate, escapeSQLLiteral(bundleIdentifier))
 }
 
@@ -197,6 +200,7 @@ var windowsOpenQueryOverrides = map[string]string{ //nolint:gosec // G101 false 
 	"7-zip":                        "IN ('7zfm.exe','7zg.exe')",
 	"Amazon Chime":                 "IN ('amazon chime.exe','chime.exe')",
 	"Android Studio":               "= 'studio64.exe'",
+	"Audacity":                     "IN ('audacity.exe','audacity4.exe')",
 	"Beyond Compare":               "= 'bcompare.exe'",
 	"CLion":                        "IN ('clion.exe','clion64.exe')",
 	"DataGrip":                     "IN ('datagrip.exe','datagrip64.exe')",
@@ -206,11 +210,11 @@ var windowsOpenQueryOverrides = map[string]string{ //nolint:gosec // G101 false 
 	"DBeaverLite":                  "= 'dbeaver.exe'",
 	"DBeaverUltimate":              "= 'dbeaver.exe'",
 	"Dell Command Update":          "IN ('dellcommandupdate.exe','dcu-cli.exe')",
+	"dotTrace":                     "IN ('dottrace32.exe','dottrace64.exe','dottrace64a.exe','dottraceviewer32.exe','dottraceviewer64.exe','dottraceviewer64a.exe','jetbrains.dottrace.home.shell.exe')",
 	"GoLand":                       "IN ('goland.exe','goland64.exe')",
 	"Google Antigravity IDE":       "= 'antigravity.exe'",
 	"Google Chrome":                "= 'chrome.exe'",
-	"IntelliJ IDEA CE":             "IN ('idea.exe','idea64.exe')",
-	"IntelliJ IDEA Ultimate":       "IN ('idea.exe','idea64.exe')",
+	"IntelliJ IDEA":                "IN ('idea.exe','idea64.exe')",
 	"JetBrains Toolbox":            "IN ('toolbox.exe','jetbrains-toolbox.exe')",
 	"KNIME Analytics Platform":     "= 'knime.exe'",
 	"KeyStore Explorer":            "= 'kse.exe'",
@@ -235,12 +239,14 @@ var windowsOpenQueryOverrides = map[string]string{ //nolint:gosec // G101 false 
 	"ProtonVPN":                    "IN ('proton vpn.exe','protonvpn.exe')",
 	"PyCharm Community Edition":    "IN ('pycharm.exe','pycharm64.exe')",
 	"PyCharm Professional":         "IN ('pycharm.exe','pycharm64.exe')",
+	"Raspberry Pi Imager":          "= 'rpi-imager.exe'",
 	"Rider":                        "IN ('rider.exe','rider64.exe')",
 	"RStudio":                      "IN ('rgui.exe','rsession.exe','rstudio.exe')",
 	"RubyMine":                     "IN ('rubymine.exe','rubymine64.exe')",
 	"RustRover":                    "IN ('rustrover.exe','rustrover64.exe')",
 	"Spotify":                      "IN ('spotify.exe','spotifywebhelper.exe')",
 	"Sublime Text":                 "= 'sublime_text.exe'",
+	"Vim":                          "IN ('gvim.exe','vim.exe','evim.exe','gview.exe','gvimdiff.exe','view.exe','vimdiff.exe')",
 	"VirtualBox":                   "LIKE 'virtualbox%'",
 	"Wacom Tablet":                 "IN ('wacomdesktopcenter.exe','wacom_tablet.exe')",
 	"WebStorm":                     "IN ('webstorm.exe','webstorm64.exe')",

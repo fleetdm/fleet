@@ -1,0 +1,1 @@
+- Fixed a race where a newly created or edited label-scoped query could briefly be delivered to every host (and out-of-scope results stored in its report) because the query row was committed before its labels.

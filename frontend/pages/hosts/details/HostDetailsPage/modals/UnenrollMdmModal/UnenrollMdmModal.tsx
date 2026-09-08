@@ -6,12 +6,13 @@ import Modal from "components/Modal";
 import { notify } from "components/ToastNotification";
 
 import mdmAPI from "services/entities/mdm";
-import { getErrorReason, hasStatusKey } from "interfaces/errors";
-import { isAndroid, isIPadOrIPhone } from "interfaces/platform";
+import { hasStatusKey } from "interfaces/errors";
+import { isAndroid, isIPadOrIPhone, isMacOS } from "interfaces/platform";
 import {
+  isAccountDrivenUserEnrollment,
   isAutomaticDeviceEnrollment,
-  isBYODAccountDrivenUserEnrollment,
   isBYODManualEnrollment,
+  isPersonalEnrollmentStatus,
   MdmEnrollmentStatus,
 } from "interfaces/mdm";
 
@@ -22,6 +23,13 @@ interface IUnenrollMdmModalProps {
   hostPlatform: string;
   hostName: string;
   enrollmentStatus: MdmEnrollmentStatus | null;
+  /** MDM enrollment channel. Account-Driven User Enrollment re-enrolls through
+   * Apple's "Sign in to Work or School Account" flow; every other personal
+   * enrollment re-enrolls through the enrollment link, and both report the same
+   * enrollmentStatus. */
+  lastMdmEnrollmentType?: string | null;
+  onlyAllowAppleBusinessEnrollment: boolean;
+  depAssignedToFleet: boolean;
   onClose: () => void;
   onSuccess: () => void;
 }
@@ -31,6 +39,9 @@ const UnenrollMdmModal = ({
   hostPlatform,
   hostName,
   enrollmentStatus,
+  lastMdmEnrollmentType,
+  onlyAllowAppleBusinessEnrollment,
+  depAssignedToFleet,
   onClose,
   onSuccess,
 }: IUnenrollMdmModalProps) => {
@@ -61,7 +72,10 @@ const UnenrollMdmModal = ({
       // would send the user in a loop. It also means this page was working from
       // stale data, so refresh it to drop the action.
       if (hasStatusKey(unenrollMdmError) && unenrollMdmError.status === 409) {
-        notify.error(getErrorReason(unenrollMdmError));
+        notify.error(
+          "Couldn't turn off MDM. This host already has MDM turned off.",
+          { response: unenrollMdmError }
+        );
         onSuccess();
         onClose();
       } else {
@@ -80,14 +94,25 @@ const UnenrollMdmModal = ({
   };
 
   const generateIosOrIpadosDescription = () => {
-    if (isBYODManualEnrollment(enrollmentStatus)) {
+    if (onlyAllowAppleBusinessEnrollment) {
+      if (isAutomaticDeviceEnrollment(enrollmentStatus) && depAssignedToFleet) {
+        return (
+          <p>
+            Once MDM is turned off, this host will be able to re-enroll as long
+            as it remains in Apple Business.
+          </p>
+        );
+      }
+
       return (
         <p>
-          To re-enroll, go to <b>Hosts &gt; Add hosts &gt; iOS/iPadOS</b> and
-          share the link with end user.
+          Once MDM is turned off, this host will not be able to re-enroll unless
+          it&apos;s added to Apple Business.
         </p>
       );
-    } else if (isBYODAccountDrivenUserEnrollment(enrollmentStatus)) {
+    }
+
+    if (isAccountDrivenUserEnrollment(lastMdmEnrollmentType)) {
       return (
         <p>
           To re-enroll, ask your end user to navigate to{" "}
@@ -96,6 +121,16 @@ const UnenrollMdmModal = ({
             to Work or School Account...
           </b>{" "}
           on their host and to log in with their work email.
+        </p>
+      );
+    } else if (
+      isBYODManualEnrollment(enrollmentStatus) ||
+      isPersonalEnrollmentStatus(enrollmentStatus)
+    ) {
+      return (
+        <p>
+          To re-enroll, go to <b>Hosts &gt; Add hosts &gt; iOS/iPadOS</b> and
+          share the link with end user.
         </p>
       );
     } else if (isAutomaticDeviceEnrollment(enrollmentStatus)) {
@@ -129,6 +164,40 @@ const UnenrollMdmModal = ({
         </>
       );
     }
+
+    if (isMacOS(hostPlatform) && onlyAllowAppleBusinessEnrollment) {
+      if (isAutomaticDeviceEnrollment(enrollmentStatus) && depAssignedToFleet) {
+        return (
+          <>
+            <p>Settings configured by Fleet will be removed.</p>
+            <p>
+              Once MDM is turned off, this host will be able to re-enroll as
+              long as it remains in Apple Business.
+            </p>
+          </>
+        );
+      }
+
+      return (
+        <>
+          <p>Settings configured by Fleet will be removed.</p>
+          <p>
+            Once MDM is turned off, this host will not be able to re-enroll
+            unless it&apos;s added to Apple Business.
+          </p>
+        </>
+      );
+    }
+
+    if (isMacOS(hostPlatform) && depAssignedToFleet) {
+      return (
+        <>
+          <p>Settings configured by Fleet will be removed.</p>
+          <p>The device will automatically turn on MDM again, unless wiped.</p>
+        </>
+      );
+    }
+
     return (
       <>
         <p>Settings configured by Fleet will be removed.</p>

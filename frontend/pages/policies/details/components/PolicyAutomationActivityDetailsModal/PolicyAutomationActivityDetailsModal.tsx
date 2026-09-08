@@ -11,6 +11,7 @@ import CustomLink from "components/CustomLink";
 import DataSet from "components/DataSet";
 import Textarea from "components/Textarea";
 import Icon from "components/Icon";
+import { SKIPPED_PRE_INSTALL_OUTPUT } from "components/ActivityDetails/InstallDetails/constants";
 import { HumanTimeDiffWithDateTip } from "components/HumanTimeDiffWithDateTip";
 
 import {
@@ -96,7 +97,9 @@ const PolicyAutomationActivityDetailsModal = ({
           <>
             {renderOutputSection(
               "Pre-install query output",
-              activity.pre_install_output
+              activity.details?.skipped_install
+                ? SKIPPED_PRE_INSTALL_OUTPUT
+                : activity.pre_install_output
             )}
             {renderOutputSection("Details", activity.output)}
             {renderOutputSection(

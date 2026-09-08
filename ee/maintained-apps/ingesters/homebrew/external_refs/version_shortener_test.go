@@ -116,6 +116,32 @@ func TestSmallstepAgentVersionTransformer(t *testing.T) {
 	}
 }
 
+func TestRaspberryPiImagerVersionTransformer(t *testing.T) {
+	tcs := []struct {
+		name     string
+		version  string
+		expected string
+		wantErr  bool
+	}{
+		{name: "empty version", version: "", wantErr: true},
+		{name: "numeric version", version: "2.0.11.1", expected: "v2.0.11.1"},
+		{name: "already prefixed", version: "v2.0.11.1", expected: "v2.0.11.1"},
+	}
+
+	for _, tc := range tcs {
+		t.Run(tc.name, func(t *testing.T) {
+			app := &maintained_apps.FMAManifestApp{Version: tc.version, Slug: "raspberry-pi-imager"}
+			result, err := RaspberryPiImagerVersionTransformer(app)
+			if tc.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tc.expected, result.Version)
+		})
+	}
+}
+
 func TestMySQLWorkbenchVersionTransformer(t *testing.T) {
 	tcs := []struct {
 		name     string

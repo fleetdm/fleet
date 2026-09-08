@@ -864,10 +864,10 @@ func TestGetOrbitConfigScriptTimeoutFallback(t *testing.T) {
 		}
 
 		ctx = test.HostContext(ctx, &fleet.Host{
-			OsqueryHostID: ptr.String("test"),
+			OsqueryHostID: new("test"),
 			ID:            1,
 			Platform:      "ubuntu",
-			TeamID:        new(team.ID),
+			TeamID:        &team.ID,
 		})
 		return svc, ctx, ds
 	}

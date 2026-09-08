@@ -27,6 +27,8 @@ type AuthenticateHostFunc func(ctx context.Context, nodeKey string) (host *fleet
 
 type GetClientConfigFunc func(ctx context.Context) (config map[string]interface{}, err error)
 
+type GetClientConfigWithETagFunc func(ctx context.Context, clientETag *string) (*fleet.ClientConfigResult, error)
+
 type GetDistributedQueriesFunc func(ctx context.Context) (queries map[string]string, discovery map[string]string, accelerate uint, err error)
 
 type SubmitDistributedQueryResultsFunc func(ctx context.Context, results fleet.OsqueryDistributedQueryResults, statuses map[string]fleet.OsqueryStatus, messages map[string]string, stats map[string]*fleet.Stats) (err error)
@@ -251,7 +253,7 @@ type HostByIdentifierFunc func(ctx context.Context, identifier string, opts flee
 
 type RefetchHostFunc func(ctx context.Context, id uint) (err error)
 
-type CleanupExpiredHostsFunc func(ctx context.Context) ([]fleet.DeletedHostDetails, error)
+type CleanupExpiredHostsBatchFunc func(ctx context.Context, batchSize int) ([]fleet.DeletedHostDetails, error)
 
 type AddHostsToTeamFunc func(ctx context.Context, teamID *uint, hostIDs []uint, skipBulkPending bool) error
 
@@ -416,6 +418,8 @@ type ModifyTeamEnrollSecretsFunc func(ctx context.Context, teamID uint, secrets 
 type ApplyTeamSpecsFunc func(ctx context.Context, specs []*fleet.TeamSpec, applyOpts fleet.ApplyTeamSpecOptions) (map[string]uint, error)
 
 type SetActivityServiceFunc func(activitySvc fleet.ActivityWriteService)
+
+type SetConfigETagStoreFunc func(store fleet.ConfigETagStore)
 
 type SetACMEServiceFunc func(acmeSvc fleet.ACMEWriteService)
 
@@ -729,7 +733,7 @@ type TriggerLinuxDiskEncryptionEscrowFunc func(ctx context.Context, host *fleet.
 
 type CheckMDMAppleEnrollmentWithMinimumOSVersionFunc func(ctx context.Context, m *fleet.MDMAppleMachineInfo) (*fleet.MDMAppleSoftwareUpdateRequired, error)
 
-type GetOTAProfileFunc func(ctx context.Context, enrollSecret string, idpUUID string, personal bool) ([]byte, error)
+type GetOTAProfileFunc func(ctx context.Context, enrollSecret string, idpSessionID string, personal bool) ([]byte, error)
 
 type TriggerCronScheduleFunc func(ctx context.Context, name string) error
 
@@ -759,6 +763,8 @@ type ListMDMCommandsFunc func(ctx context.Context, opts *fleet.MDMCommandListOpt
 
 type SetOrUpdateDiskEncryptionKeyFunc func(ctx context.Context, encryptionKey string, clientError string) error
 
+type SetOrUpdateDiskEncryptionProtectionFunc func(ctx context.Context, outcome fleet.DiskEncryptionProtectionOutcome, clientError string) error
+
 type GetMDMWindowsConfigProfileFunc func(ctx context.Context, profileUUID string) (*fleet.MDMWindowsConfigProfile, error)
 
 type DeleteMDMWindowsConfigProfileFunc func(ctx context.Context, profileUUID string) error
@@ -773,7 +779,7 @@ type NewMDMActivationUnsupportedProfileFunc func(ctx context.Context, teamID uin
 
 type NewMDMInvalidJSONConfigProfileFunc func(ctx context.Context, teamID uint, err error) error
 
-type UpdateMDMConfigProfileFunc func(ctx context.Context, profileUUID string, profile []byte, labelsInclude []string, labelsMembershipMode fleet.MDMLabelsMode, labelsExcludeAny []string, activation optjson.Slice[byte]) error
+type UpdateMDMConfigProfileFunc func(ctx context.Context, profileUUID string, profileName string, profile []byte, labelsInclude []string, labelsMembershipMode fleet.MDMLabelsMode, labelsExcludeAny []string, activation optjson.Slice[byte]) error
 
 type ListMDMConfigProfilesFunc func(ctx context.Context, teamID *uint, opt fleet.ListOptions) ([]*fleet.MDMConfigProfilePayload, *fleet.PaginationMetadata, error)
 
@@ -1003,7 +1009,7 @@ type BatchSetAppleDDMAssetsFunc func(ctx context.Context, teamID *uint, teamName
 
 type ReleaseABDevicesFunc func(ctx context.Context, hostIDs []uint) ([]*fleet.ABReleaseDeviceResponse, error)
 
-type ListMicrosoftGraphCredentialsFunc func(ctx context.Context) ([]*fleet.MicrosoftGraphCredential, error)
+type ListMicrosoftGraphCredentialsFunc func(ctx context.Context) ([]*fleet.MicrosoftGraphCredentialMetadata, error)
 
 type ApplyMicrosoftGraphCredentialsFunc func(ctx context.Context, creds []fleet.MicrosoftGraphCredential, dryRun bool) error
 
@@ -1020,6 +1026,9 @@ type Service struct {
 
 	GetClientConfigFunc        GetClientConfigFunc
 	GetClientConfigFuncInvoked bool
+
+	GetClientConfigWithETagFunc        GetClientConfigWithETagFunc
+	GetClientConfigWithETagFuncInvoked bool
 
 	GetDistributedQueriesFunc        GetDistributedQueriesFunc
 	GetDistributedQueriesFuncInvoked bool
@@ -1357,8 +1366,8 @@ type Service struct {
 	RefetchHostFunc        RefetchHostFunc
 	RefetchHostFuncInvoked bool
 
-	CleanupExpiredHostsFunc        CleanupExpiredHostsFunc
-	CleanupExpiredHostsFuncInvoked bool
+	CleanupExpiredHostsBatchFunc        CleanupExpiredHostsBatchFunc
+	CleanupExpiredHostsBatchFuncInvoked bool
 
 	AddHostsToTeamFunc        AddHostsToTeamFunc
 	AddHostsToTeamFuncInvoked bool
@@ -1605,6 +1614,9 @@ type Service struct {
 
 	SetActivityServiceFunc        SetActivityServiceFunc
 	SetActivityServiceFuncInvoked bool
+
+	SetConfigETagStoreFunc        SetConfigETagStoreFunc
+	SetConfigETagStoreFuncInvoked bool
 
 	SetACMEServiceFunc        SetACMEServiceFunc
 	SetACMEServiceFuncInvoked bool
@@ -2119,6 +2131,9 @@ type Service struct {
 	SetOrUpdateDiskEncryptionKeyFunc        SetOrUpdateDiskEncryptionKeyFunc
 	SetOrUpdateDiskEncryptionKeyFuncInvoked bool
 
+	SetOrUpdateDiskEncryptionProtectionFunc        SetOrUpdateDiskEncryptionProtectionFunc
+	SetOrUpdateDiskEncryptionProtectionFuncInvoked bool
+
 	GetMDMWindowsConfigProfileFunc        GetMDMWindowsConfigProfileFunc
 	GetMDMWindowsConfigProfileFuncInvoked bool
 
@@ -2519,6 +2534,13 @@ func (s *Service) GetClientConfig(ctx context.Context) (config map[string]interf
 	s.GetClientConfigFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetClientConfigFunc(ctx)
+}
+
+func (s *Service) GetClientConfigWithETag(ctx context.Context, clientETag *string) (*fleet.ClientConfigResult, error) {
+	s.mu.Lock()
+	s.GetClientConfigWithETagFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetClientConfigWithETagFunc(ctx, clientETag)
 }
 
 func (s *Service) GetDistributedQueries(ctx context.Context) (queries map[string]string, discovery map[string]string, accelerate uint, err error) {
@@ -3305,11 +3327,11 @@ func (s *Service) RefetchHost(ctx context.Context, id uint) (err error) {
 	return s.RefetchHostFunc(ctx, id)
 }
 
-func (s *Service) CleanupExpiredHosts(ctx context.Context) ([]fleet.DeletedHostDetails, error) {
+func (s *Service) CleanupExpiredHostsBatch(ctx context.Context, batchSize int) ([]fleet.DeletedHostDetails, error) {
 	s.mu.Lock()
-	s.CleanupExpiredHostsFuncInvoked = true
+	s.CleanupExpiredHostsBatchFuncInvoked = true
 	s.mu.Unlock()
-	return s.CleanupExpiredHostsFunc(ctx)
+	return s.CleanupExpiredHostsBatchFunc(ctx, batchSize)
 }
 
 func (s *Service) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []uint, skipBulkPending bool) error {
@@ -3884,6 +3906,13 @@ func (s *Service) SetActivityService(activitySvc fleet.ActivityWriteService) {
 	s.SetActivityServiceFuncInvoked = true
 	s.mu.Unlock()
 	s.SetActivityServiceFunc(activitySvc)
+}
+
+func (s *Service) SetConfigETagStore(store fleet.ConfigETagStore) {
+	s.mu.Lock()
+	s.SetConfigETagStoreFuncInvoked = true
+	s.mu.Unlock()
+	s.SetConfigETagStoreFunc(store)
 }
 
 func (s *Service) SetACMEService(acmeSvc fleet.ACMEWriteService) {
@@ -4978,11 +5007,11 @@ func (s *Service) CheckMDMAppleEnrollmentWithMinimumOSVersion(ctx context.Contex
 	return s.CheckMDMAppleEnrollmentWithMinimumOSVersionFunc(ctx, m)
 }
 
-func (s *Service) GetOTAProfile(ctx context.Context, enrollSecret string, idpUUID string, personal bool) ([]byte, error) {
+func (s *Service) GetOTAProfile(ctx context.Context, enrollSecret string, idpSessionID string, personal bool) ([]byte, error) {
 	s.mu.Lock()
 	s.GetOTAProfileFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetOTAProfileFunc(ctx, enrollSecret, idpUUID, personal)
+	return s.GetOTAProfileFunc(ctx, enrollSecret, idpSessionID, personal)
 }
 
 func (s *Service) TriggerCronSchedule(ctx context.Context, name string) error {
@@ -5083,6 +5112,13 @@ func (s *Service) SetOrUpdateDiskEncryptionKey(ctx context.Context, encryptionKe
 	return s.SetOrUpdateDiskEncryptionKeyFunc(ctx, encryptionKey, clientError)
 }
 
+func (s *Service) SetOrUpdateDiskEncryptionProtection(ctx context.Context, outcome fleet.DiskEncryptionProtectionOutcome, clientError string) error {
+	s.mu.Lock()
+	s.SetOrUpdateDiskEncryptionProtectionFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetOrUpdateDiskEncryptionProtectionFunc(ctx, outcome, clientError)
+}
+
 func (s *Service) GetMDMWindowsConfigProfile(ctx context.Context, profileUUID string) (*fleet.MDMWindowsConfigProfile, error) {
 	s.mu.Lock()
 	s.GetMDMWindowsConfigProfileFuncInvoked = true
@@ -5132,11 +5168,11 @@ func (s *Service) NewMDMInvalidJSONConfigProfile(ctx context.Context, teamID uin
 	return s.NewMDMInvalidJSONConfigProfileFunc(ctx, teamID, err)
 }
 
-func (s *Service) UpdateMDMConfigProfile(ctx context.Context, profileUUID string, profile []byte, labelsInclude []string, labelsMembershipMode fleet.MDMLabelsMode, labelsExcludeAny []string, activation optjson.Slice[byte]) error {
+func (s *Service) UpdateMDMConfigProfile(ctx context.Context, profileUUID string, profileName string, profile []byte, labelsInclude []string, labelsMembershipMode fleet.MDMLabelsMode, labelsExcludeAny []string, activation optjson.Slice[byte]) error {
 	s.mu.Lock()
 	s.UpdateMDMConfigProfileFuncInvoked = true
 	s.mu.Unlock()
-	return s.UpdateMDMConfigProfileFunc(ctx, profileUUID, profile, labelsInclude, labelsMembershipMode, labelsExcludeAny, activation)
+	return s.UpdateMDMConfigProfileFunc(ctx, profileUUID, profileName, profile, labelsInclude, labelsMembershipMode, labelsExcludeAny, activation)
 }
 
 func (s *Service) ListMDMConfigProfiles(ctx context.Context, teamID *uint, opt fleet.ListOptions) ([]*fleet.MDMConfigProfilePayload, *fleet.PaginationMetadata, error) {
@@ -5937,7 +5973,7 @@ func (s *Service) ReleaseABDevices(ctx context.Context, hostIDs []uint) ([]*flee
 	return s.ReleaseABDevicesFunc(ctx, hostIDs)
 }
 
-func (s *Service) ListMicrosoftGraphCredentials(ctx context.Context) ([]*fleet.MicrosoftGraphCredential, error) {
+func (s *Service) ListMicrosoftGraphCredentials(ctx context.Context) ([]*fleet.MicrosoftGraphCredentialMetadata, error) {
 	s.mu.Lock()
 	s.ListMicrosoftGraphCredentialsFuncInvoked = true
 	s.mu.Unlock()

@@ -1,9 +1,8 @@
 import { IEndUserAuthentication } from "interfaces/config";
 import {
   isEmptyFormData,
-  isMissingAnyRequiredField,
   newFormDataIdp,
-  validateFormDataIdp,
+  validateEndUserAuthForm,
 } from "./helpers";
 
 describe("IdPSection helpers", () => {
@@ -40,158 +39,127 @@ describe("IdPSection helpers", () => {
     });
   });
 
-  describe("isMissingAnyRequiredField", () => {
-    it("returns true if missing any required field", () => {
+  describe("validateEndUserAuthForm", () => {
+    it("returns no errors when all fields are valid", () => {
       expect(
-        isMissingAnyRequiredField({
+        validateEndUserAuthForm({
           entity_id: "entityId",
-          idp_name: "idpImageUrl",
+          idp_name: "idpName",
           metadata: "metadata",
-          metadata_url: "metadataUrl",
+          metadata_url: "https://metadataUrl.com",
         })
-      ).toBe(false); // all fields present
-
-      expect(
-        isMissingAnyRequiredField({
-          entity_id: "",
-          idp_name: "idpImageUrl",
-          metadata: "metadata",
-          metadata_url: "metadataUrl",
-        })
-      ).toBe(true); // entity_id is missing
-
-      expect(
-        isMissingAnyRequiredField({
-          entity_id: "entityId",
-          idp_name: "",
-          metadata: "metadata",
-          metadata_url: "metadataUrl",
-        })
-      ).toBe(true); // idp_name is missing
-
-      expect(
-        isMissingAnyRequiredField({
-          entity_id: "entityId",
-          idp_name: "idpImageUrl",
-          metadata: "",
-          metadata_url: "",
-        })
-      ).toBe(true); // metadata or metadata_url must be present
+      ).toEqual({});
     });
 
-    expect(
-      isMissingAnyRequiredField({
-        entity_id: "entityId",
-        idp_name: "idpImageUrl",
-        metadata: "",
-        metadata_url: "metadataUrl",
-      })
-    ).toBe(false); // metadata is not required if metadata_url is present
-
-    expect(
-      isMissingAnyRequiredField({
-        entity_id: "entityId",
-        idp_name: "idpImageUrl",
-        metadata: "metadata",
-        metadata_url: "",
-      })
-    ).toBe(false); // metadata_url is not required if metadata is present
-  });
-
-  describe("validateFormDataIdP", () => {
-    it("returns expected error messages", () => {
+    it("returns no errors when every field is empty, so the config can be cleared", () => {
       expect(
-        validateFormDataIdp({
-          entity_id: "entityId",
-          idp_name: "idpImageUrl",
-          metadata: "metadata",
-          metadata_url: "https://metadataUrl.com",
-        })
-      ).toEqual(null); // all fields valid
-
-      expect(
-        validateFormDataIdp({
+        validateEndUserAuthForm({
           entity_id: "",
           idp_name: "",
           metadata: "",
           metadata_url: "",
         })
-      ).toEqual(null); // all fields empty is valid (allows clearing settings)
+      ).toEqual({});
+    });
+
+    it("treats whitespace-only fields as empty", () => {
+      expect(
+        validateEndUserAuthForm({
+          entity_id: "  ",
+          idp_name: "   ",
+          metadata: " ",
+          metadata_url: "  ",
+        })
+      ).toEqual({});
 
       expect(
-        validateFormDataIdp({
+        validateEndUserAuthForm({
+          entity_id: "entityId",
+          idp_name: "   ",
+          metadata: "metadata",
+          metadata_url: "",
+        })
+      ).toEqual({ idp_name: "Enter an identity provider name" });
+    });
+
+    it("requires the identity provider name", () => {
+      expect(
+        validateEndUserAuthForm({
           entity_id: "entityId",
           idp_name: "",
           metadata: "metadata",
           metadata_url: "https://metadataUrl.com",
         })
-      ).toEqual({
-        idp_name: "Identity provider name must be present.",
-      });
+      ).toEqual({ idp_name: "Enter an identity provider name" });
+    });
 
+    it("requires the entity ID", () => {
       expect(
-        validateFormDataIdp({
+        validateEndUserAuthForm({
           entity_id: "",
-          idp_name: "idpImageUrl",
+          idp_name: "idpName",
           metadata: "metadata",
           metadata_url: "https://metadataUrl.com",
         })
-      ).toEqual({
-        entity_id: "Entity ID must be present.",
-      });
+      ).toEqual({ entity_id: "Enter an entity ID" });
+    });
 
+    it("requires either metadata or a metadata URL", () => {
       expect(
-        validateFormDataIdp({
+        validateEndUserAuthForm({
           entity_id: "entityId",
-          idp_name: "idpImageUrl",
+          idp_name: "idpName",
           metadata: "",
           metadata_url: "",
         })
       ).toEqual({
-        metadata: "Metadata or Metadata URL must be present.",
-        metadata_url: "Metadata or Metadata URL must be present.",
+        metadata: "Enter metadata or a metadata URL",
+        metadata_url: "Enter metadata or a metadata URL",
       });
+    });
+
+    it("accepts either metadata or a metadata URL on its own", () => {
+      expect(
+        validateEndUserAuthForm({
+          entity_id: "entityId",
+          idp_name: "idpName",
+          metadata: "metadata",
+          metadata_url: "",
+        })
+      ).toEqual({});
 
       expect(
-        validateFormDataIdp({
+        validateEndUserAuthForm({
           entity_id: "entityId",
-          idp_name: "idpImageUrl",
+          idp_name: "idpName",
+          metadata: "",
+          metadata_url: "https://metadataUrl.com",
+        })
+      ).toEqual({});
+    });
+
+    it("rejects a malformed metadata URL", () => {
+      expect(
+        validateEndUserAuthForm({
+          entity_id: "entityId",
+          idp_name: "idpName",
           metadata: "metadata",
           metadata_url: "metadataUrl",
         })
-      ).toEqual({
-        metadata_url: "Metadata URL is not a valid URL.",
-      });
+      ).toEqual({ metadata_url: "Enter a valid metadata URL" });
+    });
 
+    it("rejects a metadata URL without a supported protocol", () => {
       expect(
-        validateFormDataIdp({
+        validateEndUserAuthForm({
           entity_id: "entityId",
-          idp_name: "idpImageUrl",
+          idp_name: "idpName",
           metadata: "metadata",
           metadata_url: "metadataUrl.com",
         })
       ).toEqual({
-        metadata_url:
-          "Metadata URL must start with a supported protocol (https:// or http://).",
+        metadata_url: "Enter a metadata URL starting with https:// or http://",
       });
-
-      expect(
-        validateFormDataIdp({
-          entity_id: "entityId",
-          idp_name: "idpImageUrl",
-          metadata: "metadata",
-          metadata_url: "",
-        })
-      ).toEqual(null); // metadata is not required if metadata_url is present
-
-      expect(
-        validateFormDataIdp({
-          entity_id: "entityId",
-          idp_name: "idpImageUrl",
-          metadata: "",
-          metadata_url: "https://metadataUrl.com",
-        })
-      ).toEqual(null); // metadata is not required if metadata_url is present
     });
   });
 

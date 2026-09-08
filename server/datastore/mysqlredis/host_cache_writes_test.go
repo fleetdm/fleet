@@ -100,6 +100,31 @@ func TestWritePathInvalidation(t *testing.T) {
 				invoked: func(ds *mock.Store) bool { return ds.UpdateHostRefetchCriticalQueriesUntilFuncInvoked },
 			},
 			{
+				// Carries disk_encryption_enabled and bitlocker_protection_status, both of which Orbit reads to
+				// decide whether to ask the host to restore BitLocker protection.
+				name: "SetOrUpdateHostDisksEncryption",
+				id:   8,
+				setupMock: func(ds *mock.Store) {
+					ds.SetOrUpdateHostDisksEncryptionFunc = func(_ context.Context, _ uint, _ bool, _ *int) error { return nil }
+				},
+				invoke: func(ctx context.Context, d *Datastore, id uint, _ string) error {
+					return d.SetOrUpdateHostDisksEncryption(ctx, id, true, new(fleet.BitLockerProtectionStatusOn))
+				},
+				invoked: func(ds *mock.Store) bool { return ds.SetOrUpdateHostDisksEncryptionFuncInvoked },
+			},
+			{
+				// Carries tpm_pin_set, which decides whether Fleet asks the end user to create a BitLocker PIN.
+				name: "SetOrUpdateHostDiskTpmPIN",
+				id:   9,
+				setupMock: func(ds *mock.Store) {
+					ds.SetOrUpdateHostDiskTpmPINFunc = func(_ context.Context, _ uint, _ bool) error { return nil }
+				},
+				invoke: func(ctx context.Context, d *Datastore, id uint, _ string) error {
+					return d.SetOrUpdateHostDiskTpmPIN(ctx, id, true)
+				},
+				invoked: func(ds *mock.Store) bool { return ds.SetOrUpdateHostDiskTpmPINFuncInvoked },
+			},
+			{
 				name: "UpdateHostIdentityCertHostIDBySerial",
 				id:   6,
 				setupMock: func(ds *mock.Store) {
@@ -285,10 +310,10 @@ func TestWritePathInvalidation(t *testing.T) {
 			}
 		})
 
-		t.Run("CleanupExpiredHosts clears cache for each removed host", func(t *testing.T) {
+		t.Run("CleanupExpiredHostsBatch clears cache for each removed host", func(t *testing.T) {
 			t.Cleanup(func() { cleanupHostCacheKeys(t, pool) })
 			ds := new(mock.Store)
-			ds.CleanupExpiredHostsFunc = func(_ context.Context) ([]fleet.DeletedHostDetails, error) {
+			ds.CleanupExpiredHostsBatchFunc = func(_ context.Context, _ int) ([]fleet.DeletedHostDetails, error) {
 				return []fleet.DeletedHostDetails{{ID: 70}, {ID: 71}}, nil
 			}
 			d := New(ds, pool, WithHostCache(30*time.Second))
@@ -297,7 +322,7 @@ func TestWritePathInvalidation(t *testing.T) {
 			for i, nk := range nks {
 				primeCachedHost(t, d, uint(70+i), nk)
 			}
-			_, err := d.CleanupExpiredHosts(ctx)
+			_, err := d.CleanupExpiredHostsBatch(ctx, 100)
 			require.NoError(t, err)
 			for _, nk := range nks {
 				requireCacheMiss(t, d, nk)
