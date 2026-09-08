@@ -168,6 +168,10 @@ describe("AssetsTab", () => {
     expect(
       await screen.findByRole("button", { name: /Add asset$/i })
     ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Learn more/i })).toHaveAttribute(
+      "href",
+      "https://fleetdm.com/learn-more-about/configuration-profile-assets"
+    );
   });
 
   it("renders the list of assets", async () => {
