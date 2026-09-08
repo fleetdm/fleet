@@ -169,6 +169,7 @@ type VulnerabilitySettings struct {
 // hosts when they're ingested during the ABM sync.
 type MDMAppleABMAssignmentInfo struct {
 	OrganizationName string `json:"organization_name"`
+	Default          bool   `json:"default,omitempty"`
 	MacOSTeam        string `json:"macos_team" renameto:"macos_fleet"`
 	IOSTeam          string `json:"ios_team" renameto:"ios_fleet"`
 	IpadOSTeam       string `json:"ipados_team" renameto:"ipados_fleet"`

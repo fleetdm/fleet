@@ -973,3 +973,256 @@ func TestMDMAppleEditedAppleOSUpdatesDeclaration(t *testing.T) {
 		}
 	})
 }
+
+func TestSyncABMTokensToAppConfig(t *testing.T) {
+	t.Parallel()
+
+	abmToken := func(orgName string, isDefault bool, macOSTeam string) *fleet.ABMToken {
+		return &fleet.ABMToken{
+			OrganizationName: orgName,
+			IsDefault:        isDefault,
+			MacOSTeam:        fleet.ABMTokenTeam{Name: macOSTeam},
+			IOSTeam:          fleet.ABMTokenTeam{Name: macOSTeam},
+			IPadOSTeam:       fleet.ABMTokenTeam{Name: macOSTeam},
+			BYODTeam:         fleet.ABMTokenTeam{Name: macOSTeam},
+		}
+	}
+	abmEntry := func(orgName string, isDefault bool, teamName string) fleet.MDMAppleABMAssignmentInfo {
+		return fleet.MDMAppleABMAssignmentInfo{
+			OrganizationName: orgName,
+			Default:          isDefault,
+			MacOSTeam:        teamName,
+			IOSTeam:          teamName,
+			IpadOSTeam:       teamName,
+			BYODTeam:         teamName,
+		}
+	}
+
+	cases := []struct {
+		name    string
+		appCfg  optjson.Slice[fleet.MDMAppleABMAssignmentInfo]
+		tokens  []*fleet.ABMToken
+		want    []fleet.MDMAppleABMAssignmentInfo
+		wantSet bool
+	}{
+		{
+			name:    "creates entry when app config was never set",
+			tokens:  []*fleet.ABMToken{abmToken("org1", true, fleet.TeamNameNoTeam)},
+			want:    []fleet.MDMAppleABMAssignmentInfo{abmEntry("org1", true, "")},
+			wantSet: true,
+		},
+		{
+			name:    "creates entry when app config is set but empty",
+			appCfg:  optjson.SetSlice([]fleet.MDMAppleABMAssignmentInfo{}),
+			tokens:  []*fleet.ABMToken{abmToken("org1", true, "Workstations")},
+			want:    []fleet.MDMAppleABMAssignmentInfo{abmEntry("org1", true, "Workstations")},
+			wantSet: true,
+		},
+		{
+			name:    "creates entry when app config is explicitly null",
+			appCfg:  optjson.Slice[fleet.MDMAppleABMAssignmentInfo]{Set: true, Valid: false},
+			tokens:  []*fleet.ABMToken{abmToken("org1", true, "Workstations")},
+			want:    []fleet.MDMAppleABMAssignmentInfo{abmEntry("org1", true, "Workstations")},
+			wantSet: true,
+		},
+		{
+			name: "updates the matching entry in place",
+			appCfg: optjson.SetSlice([]fleet.MDMAppleABMAssignmentInfo{
+				abmEntry("org1", false, "Stale"),
+			}),
+			tokens:  []*fleet.ABMToken{abmToken("org1", true, "Workstations")},
+			want:    []fleet.MDMAppleABMAssignmentInfo{abmEntry("org1", true, "Workstations")},
+			wantSet: true,
+		},
+		{
+			name: "normalizes No team to an empty team name",
+			appCfg: optjson.SetSlice([]fleet.MDMAppleABMAssignmentInfo{
+				abmEntry("org1", true, "Workstations"),
+			}),
+			tokens:  []*fleet.ABMToken{abmToken("org1", true, fleet.TeamNameNoTeam)},
+			want:    []fleet.MDMAppleABMAssignmentInfo{abmEntry("org1", true, "")},
+			wantSet: true,
+		},
+		{
+			name: "clears a stale default",
+			appCfg: optjson.SetSlice([]fleet.MDMAppleABMAssignmentInfo{
+				abmEntry("org1", true, "Workstations"),
+			}),
+			tokens:  []*fleet.ABMToken{abmToken("org1", false, "Workstations")},
+			want:    []fleet.MDMAppleABMAssignmentInfo{abmEntry("org1", false, "Workstations")},
+			wantSet: true,
+		},
+		{
+			name: "mirrors the default across several tokens, updating and appending",
+			appCfg: optjson.SetSlice([]fleet.MDMAppleABMAssignmentInfo{
+				abmEntry("org1", true, "Workstations"),
+				abmEntry("org2", false, "Servers"),
+			}),
+			tokens: []*fleet.ABMToken{
+				abmToken("org1", false, "Workstations"),
+				abmToken("org2", true, "Servers"),
+				abmToken("org3", false, fleet.TeamNameNoTeam),
+			},
+			want: []fleet.MDMAppleABMAssignmentInfo{
+				abmEntry("org1", false, "Workstations"),
+				abmEntry("org2", true, "Servers"),
+				abmEntry("org3", false, ""),
+			},
+			wantSet: true,
+		},
+		{
+			name: "leaves entries without a matching token untouched",
+			appCfg: optjson.SetSlice([]fleet.MDMAppleABMAssignmentInfo{
+				abmEntry("gone", true, "Workstations"),
+			}),
+			tokens: []*fleet.ABMToken{abmToken("org1", true, "Servers")},
+			want: []fleet.MDMAppleABMAssignmentInfo{
+				abmEntry("gone", true, "Workstations"),
+				abmEntry("org1", true, "Servers"),
+			},
+			wantSet: true,
+		},
+		{
+			name:    "does not duplicate an entry when a token org repeats",
+			appCfg:  optjson.SetSlice([]fleet.MDMAppleABMAssignmentInfo{}),
+			tokens:  []*fleet.ABMToken{abmToken("org1", false, "Servers"), abmToken("org1", true, "Workstations")},
+			want:    []fleet.MDMAppleABMAssignmentInfo{abmEntry("org1", true, "Workstations")},
+			wantSet: true,
+		},
+		{
+			name:    "no tokens leaves the app config alone",
+			appCfg:  optjson.SetSlice([]fleet.MDMAppleABMAssignmentInfo{abmEntry("org1", true, "Workstations")}),
+			tokens:  nil,
+			want:    []fleet.MDMAppleABMAssignmentInfo{abmEntry("org1", true, "Workstations")},
+			wantSet: true,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			appCfg := &fleet.AppConfig{MDM: fleet.MDM{AppleBusinessManager: c.appCfg}}
+
+			syncABMTokensToAppConfig(appCfg, c.tokens)
+
+			assert.Equal(t, c.want, appCfg.MDM.AppleBusinessManager.Value)
+			assert.Equal(t, c.wantSet, appCfg.MDM.AppleBusinessManager.Set)
+			assert.True(t, appCfg.MDM.AppleBusinessManager.Valid)
+		})
+	}
+
+	t.Run("is idempotent", func(t *testing.T) {
+		appCfg := &fleet.AppConfig{}
+		tokens := []*fleet.ABMToken{
+			abmToken("org1", true, "Workstations"),
+			abmToken("org2", false, fleet.TeamNameNoTeam),
+		}
+
+		syncABMTokensToAppConfig(appCfg, tokens)
+		first := append([]fleet.MDMAppleABMAssignmentInfo(nil), appCfg.MDM.AppleBusinessManager.Value...)
+		syncABMTokensToAppConfig(appCfg, tokens)
+
+		assert.Equal(t, first, appCfg.MDM.AppleBusinessManager.Value)
+	})
+}
+
+func TestDeleteABMTokenSyncsAppConfig(t *testing.T) {
+	t.Parallel()
+	authorizer, err := authz.NewAuthorizer()
+	require.NoError(t, err)
+	ctx := test.UserContext(t.Context(), test.UserAdmin)
+
+	// remaining is what ListABMTokens returns after the delete, standing in for
+	// the promotion the datastore performs when a single token is left.
+	setupDeleteTest := func(t *testing.T, entries []fleet.MDMAppleABMAssignmentInfo, remaining []*fleet.ABMToken) (*mock.Store, *Service, **fleet.AppConfig) {
+		ds := new(mock.Store)
+		svc := &Service{ds: ds, authz: authorizer}
+
+		ds.GetABMTokenByIDFunc = func(ctx context.Context, tokenID uint) (*fleet.ABMToken, error) {
+			return &fleet.ABMToken{ID: tokenID, OrganizationName: "org1"}, nil
+		}
+		ds.DeleteABMTokenFunc = func(ctx context.Context, tokenID uint) error {
+			return nil
+		}
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{MDM: fleet.MDM{
+				AppleBMEnabledAndConfigured: true,
+				AppleBusinessManager:        optjson.SetSlice(entries),
+			}}, nil
+		}
+		ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
+			return remaining, nil
+		}
+
+		saved := new(*fleet.AppConfig)
+		ds.SaveAppConfigFunc = func(ctx context.Context, cfg *fleet.AppConfig) error {
+			*saved = cfg
+			return nil
+		}
+
+		return ds, svc, saved
+	}
+
+	t.Run("sole survivor is promoted to default", func(t *testing.T) {
+		entries := []fleet.MDMAppleABMAssignmentInfo{
+			{OrganizationName: "org1", Default: true},
+			{OrganizationName: "org2", MacOSTeam: "Workstations"},
+		}
+		remaining := []*fleet.ABMToken{{
+			ID:               2,
+			OrganizationName: "org2",
+			IsDefault:        true, // the datastore promoted it inside the delete tx
+			MacOSTeam:        fleet.ABMTokenTeam{Name: "Workstations"},
+			IOSTeam:          fleet.ABMTokenTeam{Name: fleet.TeamNameNoTeam},
+			IPadOSTeam:       fleet.ABMTokenTeam{Name: fleet.TeamNameNoTeam},
+			BYODTeam:         fleet.ABMTokenTeam{Name: fleet.TeamNameNoTeam},
+		}}
+		ds, svc, saved := setupDeleteTest(t, entries, remaining)
+
+		require.NoError(t, svc.DeleteABMToken(ctx, 1))
+		require.True(t, ds.SaveAppConfigFuncInvoked)
+
+		appCfg := *saved
+		require.Len(t, appCfg.MDM.AppleBusinessManager.Value, 1)
+		got := appCfg.MDM.AppleBusinessManager.Value[0]
+		assert.Equal(t, "org2", got.OrganizationName)
+		assert.True(t, got.Default, "survivor should inherit the default flag")
+		// the sync rewrites the whole entry, so existing assignments must survive
+		assert.Equal(t, "Workstations", got.MacOSTeam)
+		assert.Empty(t, got.IOSTeam)
+		assert.True(t, appCfg.MDM.AppleBMEnabledAndConfigured)
+	})
+
+	t.Run("no promotion when several tokens remain", func(t *testing.T) {
+		entries := []fleet.MDMAppleABMAssignmentInfo{
+			{OrganizationName: "org1", Default: true},
+			{OrganizationName: "org2"},
+			{OrganizationName: "org3"},
+		}
+		remaining := []*fleet.ABMToken{
+			{ID: 2, OrganizationName: "org2"},
+			{ID: 3, OrganizationName: "org3"},
+		}
+		_, svc, saved := setupDeleteTest(t, entries, remaining)
+
+		require.NoError(t, svc.DeleteABMToken(ctx, 1))
+
+		appCfg := *saved
+		require.Len(t, appCfg.MDM.AppleBusinessManager.Value, 2)
+		for _, got := range appCfg.MDM.AppleBusinessManager.Value {
+			assert.NotEqual(t, "org1", got.OrganizationName, "deleted org entry should be removed")
+			assert.False(t, got.Default, "no token is default once the default one is deleted")
+		}
+		assert.True(t, appCfg.MDM.AppleBMEnabledAndConfigured)
+	})
+
+	t.Run("deleting the last token disables ABM", func(t *testing.T) {
+		entries := []fleet.MDMAppleABMAssignmentInfo{{OrganizationName: "org1", Default: true}}
+		_, svc, saved := setupDeleteTest(t, entries, nil)
+
+		require.NoError(t, svc.DeleteABMToken(ctx, 1))
+
+		appCfg := *saved
+		assert.Empty(t, appCfg.MDM.AppleBusinessManager.Value)
+		assert.False(t, appCfg.MDM.AppleBMEnabledAndConfigured)
+	})
+}

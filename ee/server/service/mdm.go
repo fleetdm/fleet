@@ -1727,6 +1727,45 @@ func (svc *Service) GetMDMManualEnrollmentProfile(ctx context.Context, personal 
 	return mobileConfig, nil
 }
 
+// Syncs the ABM tokens to the app config entry, or creates one if not found.
+// It updates all fields from the authoritative abm_tokens table source.
+func syncABMTokensToAppConfig(appCfg *fleet.AppConfig, tokens []*fleet.ABMToken) {
+	if !appCfg.MDM.AppleBusinessManager.Set || !appCfg.MDM.AppleBusinessManager.Valid {
+		appCfg.MDM.AppleBusinessManager = optjson.SetSlice([]fleet.MDMAppleABMAssignmentInfo{})
+	}
+
+	idxByOrg := make(map[string]int, len(appCfg.MDM.AppleBusinessManager.Value))
+	for i, entry := range appCfg.MDM.AppleBusinessManager.Value {
+		idxByOrg[entry.OrganizationName] = i
+	}
+
+	abmTeamName := func(name string) string {
+		if name == fleet.TeamNameNoTeam {
+			return ""
+		}
+		return name
+	}
+
+	for _, tok := range tokens {
+		entry := fleet.MDMAppleABMAssignmentInfo{
+			OrganizationName: tok.OrganizationName,
+			Default:          tok.IsDefault,
+			MacOSTeam:        abmTeamName(tok.MacOSTeam.Name),
+			IOSTeam:          abmTeamName(tok.IOSTeam.Name),
+			IpadOSTeam:       abmTeamName(tok.IPadOSTeam.Name),
+			BYODTeam:         abmTeamName(tok.BYODTeam.Name),
+		}
+
+		if i, ok := idxByOrg[tok.OrganizationName]; ok {
+			appCfg.MDM.AppleBusinessManager.Value[i] = entry
+			continue
+		}
+
+		appCfg.MDM.AppleBusinessManager.Value = append(appCfg.MDM.AppleBusinessManager.Value, entry)
+		idxByOrg[tok.OrganizationName] = len(appCfg.MDM.AppleBusinessManager.Value) - 1
+	}
+}
+
 func (svc *Service) UploadABMToken(ctx context.Context, token io.Reader) (*fleet.ABMToken, error) {
 	encryptedToken, decryptedToken, err := svc.decryptUploadedABMToken(ctx, token)
 	if err != nil {
@@ -1758,6 +1797,8 @@ func (svc *Service) UploadABMToken(ctx context.Context, token io.Reader) (*fleet
 
 	appCfg.MDM.AppleBMEnabledAndConfigured = true
 
+	syncABMTokensToAppConfig(appCfg, []*fleet.ABMToken{tok})
+
 	if err := svc.ds.SaveAppConfig(ctx, appCfg); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "saving app config after ABM enablement")
 	}
@@ -1779,17 +1820,12 @@ func (svc *Service) DeleteABMToken(ctx context.Context, tokenID uint) error {
 		return ctxerr.Wrap(ctx, err, "removing ABM token")
 	}
 
-	count, err := svc.ds.GetABMTokenCount(ctx)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "getting ABM token count")
-	}
-
 	appCfg, err := svc.ds.AppConfig(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "retrieving app config")
 	}
 
-	// remove the AB entry in appConfig
+	// remove the entry for the deleted org
 	for i, t := range appCfg.MDM.AppleBusinessManager.Value {
 		if t.OrganizationName == token.OrganizationName {
 			appCfg.MDM.AppleBusinessManager.Value = append(appCfg.MDM.AppleBusinessManager.Value[:i], appCfg.MDM.AppleBusinessManager.Value[i+1:]...)
@@ -1797,8 +1833,13 @@ func (svc *Service) DeleteABMToken(ctx context.Context, tokenID uint) error {
 		}
 	}
 
-	if count == 0 {
-		// flip the app config flag
+	tokens, err := svc.ds.ListABMTokens(ctx) // fresh: post-delete, post-promotion
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "listing ABM tokens")
+	}
+	syncABMTokensToAppConfig(appCfg, tokens)
+
+	if len(tokens) == 0 {
 		appCfg.MDM.AppleBMEnabledAndConfigured = false
 	}
 
@@ -1917,65 +1958,7 @@ func (svc *Service) UpdateABMTokenTeams(ctx context.Context, tokenID uint, macOS
 		return nil, ctxerr.Wrap(ctx, err, "retrieving app config")
 	}
 
-	var found bool
-	for i, appCfgToken := range appCfg.MDM.AppleBusinessManager.Value {
-		if appCfgToken.OrganizationName == token.OrganizationName {
-
-			// Clear no team names, so they are presented nicer in gitops.
-			appCfgToken.BYODTeam = token.BYODTeam.Name
-			if token.BYODTeam.Name == fleet.TeamNameNoTeam {
-				appCfgToken.BYODTeam = ""
-			}
-			appCfgToken.MacOSTeam = token.MacOSTeam.Name
-			if token.MacOSTeam.Name == fleet.TeamNameNoTeam {
-				appCfgToken.MacOSTeam = ""
-			}
-			appCfgToken.IOSTeam = token.IOSTeam.Name
-			if token.IOSTeam.Name == fleet.TeamNameNoTeam {
-				appCfgToken.IOSTeam = ""
-			}
-			appCfgToken.IpadOSTeam = token.IPadOSTeam.Name
-			if token.IPadOSTeam.Name == fleet.TeamNameNoTeam {
-				appCfgToken.IpadOSTeam = ""
-			}
-
-			// update the app config with the new team names
-			appCfg.MDM.AppleBusinessManager.Value[i] = appCfgToken
-			found = true
-			break
-		}
-	}
-
-	if !appCfg.MDM.AppleBusinessManager.Set || !appCfg.MDM.AppleBusinessManager.Valid {
-		appCfg.MDM.AppleBusinessManager = optjson.SetSlice([]fleet.MDMAppleABMAssignmentInfo{})
-	}
-
-	if !found {
-		// create a new entry if app config doesn't have one.
-		byodTeam := token.BYODTeam.Name
-		if byodTeam == fleet.TeamNameNoTeam {
-			byodTeam = ""
-		}
-		macosTeam := token.MacOSTeam.Name
-		if macosTeam == fleet.TeamNameNoTeam {
-			macosTeam = ""
-		}
-		iosTeam := token.IOSTeam.Name
-		if iosTeam == fleet.TeamNameNoTeam {
-			iosTeam = ""
-		}
-		ipadosTeam := token.IPadOSTeam.Name
-		if ipadosTeam == fleet.TeamNameNoTeam {
-			ipadosTeam = ""
-		}
-		appCfg.MDM.AppleBusinessManager.Value = append(appCfg.MDM.AppleBusinessManager.Value, fleet.MDMAppleABMAssignmentInfo{
-			OrganizationName: token.OrganizationName,
-			BYODTeam:         byodTeam,
-			MacOSTeam:        macosTeam,
-			IOSTeam:          iosTeam,
-			IpadOSTeam:       ipadosTeam,
-		})
-	}
+	syncABMTokensToAppConfig(appCfg, []*fleet.ABMToken{token})
 
 	if err := svc.ds.SaveAppConfig(ctx, appCfg); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "saving app config after ABM token team update")

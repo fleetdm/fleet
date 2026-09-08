@@ -533,6 +533,16 @@ func (d *DEPService) RunAssigner(ctx context.Context) error {
 
 	var result error
 	for _, token := range tokens {
+		// backfill the abm token server UUID once
+		if token.ServerUUID == "" {
+			acct, err := d.depClient.AccountDetail(ctx, token.OrganizationName)
+			if err != nil {
+				d.logger.WarnContext(ctx, "fetching ABM server UUID", "org_name", token.OrganizationName, "err", err)
+			} else if err := d.ds.SetABMTokenServerUUID(ctx, token.ID, acct.ServerUUID); err != nil {
+				result = multierror.Append(result, err)
+			}
+		}
+
 		var macOSTeam, iosTeam, ipadTeam *fleet.Team
 
 		if token.MacOSDefaultTeamID != nil {
