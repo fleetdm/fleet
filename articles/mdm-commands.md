@@ -203,17 +203,6 @@ For targeting multiple hosts, the `"host_uuids"` key / value is a json array tha
 
 `"host_uuids":["some-host-uuid-1","some-host-uuid-2","some-host-uuid-3"]`
 
-For an Android host, `"host_uuids"` must contain exactly one UUID:
-
-```
-% /usr/bin/curl -LSs \
---request POST \
---header 'Content-Type: application/json' \
---header "Authorization: Bearer $fleet_key" \
---data '{"command":"eyJ0eXBlIjogIlJFQk9PVCJ9","host_uuids":["some-android-host-uuid"]}' \
-"$fleet_url/api/v1/fleet/commands/run"
-```
-
 ## Step 4: Verify the MDM command result
 
 To verify the MDM command result with `fleetctl`, use something like the command below:
