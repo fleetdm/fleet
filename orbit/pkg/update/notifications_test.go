@@ -622,6 +622,7 @@ func TestBitlockerOperations(t *testing.T) {
 
 				return "123456", nil
 			},
+			execHasRecoveryPasswordFn: func(string) (bool, error) { return false, nil },
 			execRotateRecoveryKeyFn: func(string) (string, error) {
 				rotateKeyFnCalled = true
 				if shouldFailKeyRotation {
@@ -959,21 +960,98 @@ func TestBitlockerOperations(t *testing.T) {
 				}
 				// The restore path must never reach the encrypt path, whose first act is deleting every key protector.
 				require.False(t, encryptFnCalled, "restoring protection must never delete key protectors")
-				require.False(t, rotateKeyFnCalled)
-				require.False(t, clientMock.SetOrUpdateDiskEncryptionKeyInvoked, "must not touch the escrowed recovery key")
+				// setupTest reports no recovery password, which is the case this repair exists for, so every pass that
+				// gets as far as enabling protection first rotates and escrows. The decision itself is covered below.
+				require.Equal(t, tc.wantEnable, rotateKeyFnCalled, "rotating the recovery key")
+				require.Equal(t, tc.wantEnable, clientMock.SetOrUpdateDiskEncryptionKeyInvoked, "escrowing the rotated key")
 			})
 		}
 
-		t.Run("adds a TPM protector before enabling when none exists", func(t *testing.T) {
+		// Rotating on every restore would also hit the ordinary case of a volume suspended for servicing, whose
+		// protectors were never touched, and would invalidate a recovery key an admin may already hold.
+		t.Run("rotates only when the recovery password is gone", func(t *testing.T) {
+			for _, tc := range []struct {
+				name       string
+				hasKey     bool
+				hasKeyErr  error
+				wantRotate bool
+			}{
+				{name: "recovery password present, so nothing is rotated", hasKey: true, wantRotate: false},
+				{name: "recovery password missing, so it is rotated", hasKey: false, wantRotate: true},
+				{name: "unknown counts as missing", hasKeyErr: errors.New("WMI unavailable"), wantRotate: true},
+			} {
+				t.Run(tc.name, func(t *testing.T) {
+					setupTest()
+					var enableCalled bool
+					enrollReceiver.execGetEncryptionStatusFn = suspended
+					enrollReceiver.execHasTPMProtectorFn = func(string) (bool, error) { return true, nil }
+					enrollReceiver.execHasRecoveryPasswordFn = func(string) (bool, error) { return tc.hasKey, tc.hasKeyErr }
+					enrollReceiver.execEnableProtectionFn = func(string) error { enableCalled = true; return nil }
+
+					require.NoError(t, enrollReceiver.Run(protectionCfg))
+
+					require.Equal(t, tc.wantRotate, rotateKeyFnCalled, "rotating the recovery key")
+					require.Equal(t, tc.wantRotate, clientMock.SetOrUpdateDiskEncryptionKeyInvoked, "escrowing the rotated key")
+					require.True(t, enableCalled, "protection is restored either way")
+					require.Equal(t, fleet.DiskEncryptionProtectionRestored, clientMock.ProtectionOutcome)
+				})
+			}
+		})
+
+		t.Run("adds a TPM protector, then rotates, then enables", func(t *testing.T) {
 			setupTest()
 			var order []string
 			enrollReceiver.execGetEncryptionStatusFn = suspended
 			enrollReceiver.execHasTPMProtectorFn = func(string) (bool, error) { return false, nil }
 			enrollReceiver.execAddTPMProtectorFn = func(string) error { order = append(order, "add"); return nil }
+			enrollReceiver.execRotateRecoveryKeyFn = func(string) (string, error) { order = append(order, "rotate"); return "k", nil }
 			enrollReceiver.execEnableProtectionFn = func(string) error { order = append(order, "enable"); return nil }
 
 			require.NoError(t, enrollReceiver.Run(protectionCfg))
-			require.Equal(t, []string{"add", "enable"}, order)
+			require.Equal(t, []string{"add", "rotate", "enable"}, order)
+		})
+
+		// A rotation Fleet cannot complete must stop the repair. Enabling protection anyway is what leaves a host
+		// looking healthy while the key Fleet shows an admin does not open the disk.
+		t.Run("a rotation or escrow failure stops the repair", func(t *testing.T) {
+			for _, tc := range []struct {
+				name            string
+				rotateErr       error
+				escrowErr       error
+				wantErrContains string
+			}{
+				{
+					name:            "rotation fails",
+					rotateErr:       errors.New("WMI refused"),
+					wantErrContains: "could not rotate the recovery key",
+				},
+				{
+					name:            "escrow fails",
+					escrowErr:       errors.New("server unreachable"),
+					wantErrContains: "could not send the rotated recovery key to Fleet",
+				},
+			} {
+				t.Run(tc.name, func(t *testing.T) {
+					setupTest()
+					var enableCalled bool
+					enrollReceiver.execGetEncryptionStatusFn = suspended
+					enrollReceiver.execHasTPMProtectorFn = func(string) (bool, error) { return true, nil }
+					enrollReceiver.execHasRecoveryPasswordFn = func(string) (bool, error) { return false, nil }
+					enrollReceiver.execRotateRecoveryKeyFn = func(string) (string, error) { return "k", tc.rotateErr }
+					enrollReceiver.execEnableProtectionFn = func(string) error { enableCalled = true; return nil }
+					prevEscrow := clientMock.SetOrUpdateDiskEncryptionKeyImpl
+					t.Cleanup(func() { clientMock.SetOrUpdateDiskEncryptionKeyImpl = prevEscrow })
+					clientMock.SetOrUpdateDiskEncryptionKeyImpl = func(fleet.OrbitHostDiskEncryptionKeyPayload) error {
+						return tc.escrowErr
+					}
+
+					require.NoError(t, enrollReceiver.Run(protectionCfg))
+
+					require.False(t, enableCalled, "protection must stay off so the host comes back and retries")
+					require.Equal(t, fleet.DiskEncryptionProtectionFailed, clientMock.ProtectionOutcome)
+					require.Contains(t, clientMock.ProtectionClientError, tc.wantErrContains)
+				})
+			}
 		})
 
 		t.Run("skips a second attempt inside the throttle window", func(t *testing.T) {

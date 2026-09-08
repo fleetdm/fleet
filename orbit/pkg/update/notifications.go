@@ -497,6 +497,9 @@ type execGetEncryptionStatusFunc func() (status []bitlocker.VolumeStatus, err er
 // execHasTPMProtectorFunc reports whether the volume has a protector able to unseal the key at boot.
 type execHasTPMProtectorFunc func(volumeID string) (bool, error)
 
+// execHasRecoveryPasswordFunc reports whether the volume has a 48-digit recovery password protector.
+type execHasRecoveryPasswordFunc func(volumeID string) (bool, error)
+
 // execAddTPMProtectorFunc adds a TPM-only protector.
 type execAddTPMProtectorFunc func(volumeID string) error
 
@@ -536,9 +539,10 @@ type windowsMDMBitlockerConfigReceiver struct {
 	execRotateRecoveryKeyFn execRotateRecoveryKeyFunc
 
 	// Protection-restore hooks. Set by the middleware from the COMWorker, or overridden in tests.
-	execHasTPMProtectorFn  execHasTPMProtectorFunc
-	execAddTPMProtectorFn  execAddTPMProtectorFunc
-	execEnableProtectionFn execEnableProtectionFunc
+	execHasTPMProtectorFn     execHasTPMProtectorFunc
+	execHasRecoveryPasswordFn execHasRecoveryPasswordFunc
+	execAddTPMProtectorFn     execAddTPMProtectorFunc
+	execEnableProtectionFn    execEnableProtectionFunc
 
 	// restartPendingFn reports whether a restart is staged. Overridden in tests.
 	restartPendingFn func() (bool, error)
@@ -560,6 +564,7 @@ func ApplyWindowsMDMBitlockerFetcherMiddleware(
 		execGetEncryptionStatusFn: comWorker.GetEncryptionStatus,
 		execRotateRecoveryKeyFn:   comWorker.RotateRecoveryKey,
 		execHasTPMProtectorFn:     comWorker.HasTPMFamilyProtector,
+		execHasRecoveryPasswordFn: comWorker.HasRecoveryPassword,
 		execAddTPMProtectorFn:     comWorker.AddTPMProtector,
 		execEnableProtectionFn:    comWorker.EnableProtection,
 	}
@@ -668,6 +673,37 @@ func (w *windowsMDMBitlockerConfigReceiver) attemptEnableBitlockerProtection() {
 			log.Error().Err(err).Msg("could not add a TPM protector, not restoring protection")
 			w.reportProtectionOutcome(fleet.DiskEncryptionProtectionFailed,
 				fmt.Sprintf("could not add a TPM protector, so protection was not re-enabled: %v", err))
+			w.protectionRetryAfter = time.Now().Add(w.Frequency)
+			return
+		}
+	}
+
+	// Whatever disturbed this volume's protectors may have taken the recovery password with it. Only rotate when the recovery
+	// password is actually gone. This does not cover a recovery password that was replaced rather than removed. Fleet would still
+	// hold a stale key, because it only knows it can decrypt the value it stored, never that the volume still accepts it. Recording
+	// the protector GUID at escrow time would close that gap. Tracked as https://github.com/fleetdm/fleet/issues/40430
+	hasRecoveryPassword, err := w.execHasRecoveryPasswordFn(targetVolume)
+	if err != nil {
+		// Unknown is treated as missing. A needless rotation costs an escrow; a missing recovery password can cost the disk.
+		log.Warn().Err(err).Msg("cannot determine whether a recovery password is present, rotating to be sure")
+		hasRecoveryPassword = false
+	}
+	if !hasRecoveryPassword {
+		log.Info().Msgf("no recovery password on %s, rotating before restoring protection", targetVolume)
+		recoveryKey, err := w.execRotateRecoveryKeyFn(targetVolume)
+		if err != nil {
+			log.Error().Err(err).Msg("could not rotate the recovery key, not restoring protection")
+			w.reportProtectionOutcome(fleet.DiskEncryptionProtectionFailed,
+				fmt.Sprintf("could not rotate the recovery key, so protection was not re-enabled: %v", err))
+			w.protectionRetryAfter = time.Now().Add(w.Frequency)
+			return
+		}
+		if err := w.updateFleetServer(recoveryKey, nil); err != nil {
+			// The volume now carries a key Fleet does not have. Leave protection off so this host comes back here and
+			// rotates again, rather than settling into the state this rotation exists to prevent.
+			log.Error().Err(err).Msg("could not escrow the rotated recovery key, not restoring protection")
+			w.reportProtectionOutcome(fleet.DiskEncryptionProtectionFailed,
+				fmt.Sprintf("could not send the rotated recovery key to Fleet, so protection was not re-enabled: %v", err))
 			w.protectionRetryAfter = time.Now().Add(w.Frequency)
 			return
 		}
