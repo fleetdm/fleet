@@ -124,6 +124,15 @@ diag_q "baseline"
 sudo spctl --add "/Applications/Monotype Fonts"; echo "DIAG spctl exit=$?"; diag_q "after-spctl"
 sudo xattr -r -d com.apple.quarantine "/Applications/Monotype Fonts" 2>&1 | head -2; diag_q "after-xattr"
 sleep 8; diag_q "after-8s"
+VQ="SELECT COALESCE(NULLIF(display_name, ''), NULLIF(bundle_name, ''), NULLIF(bundle_executable, ''), TRIM(name, '.app') ) AS name, path, bundle_short_version, bundle_version FROM apps WHERE bundle_identifier LIKE '%com.monotype.monotype-fonts%' OR LOWER(COALESCE(NULLIF(display_name, ''), NULLIF(bundle_name, ''), NULLIF(bundle_executable, ''), TRIM(name, '.app'))) LIKE LOWER('%Monotype Fonts%') OR path LIKE '%/Applications/Monotype Fonts%'"
+echo "DIAG env HOME=$HOME USER=$USER SUDO_USER=$SUDO_USER"; env | grep -iE '^(HOME|USER|LOGNAME|SUDO|TMPDIR|__CF)' | head
+echo "DIAG [validator query, script env]: $(osqueryi --json "$VQ" 2>/dev/null | grep -c 'Application/Monotype Fonts.app"') main-app rows"
+echo "DIAG [validator query, HOME=/Users/runner]: $(HOME=/Users/runner osqueryi --json "$VQ" 2>/dev/null | grep -c 'Application/Monotype Fonts.app"') main-app rows"
+echo "DIAG [validator query, HOME=/var/root]: $(HOME=/var/root osqueryi --json "$VQ" 2>/dev/null | grep -c 'Application/Monotype Fonts.app"') main-app rows"
+echo "DIAG [validator query, env -i]: $(env -i PATH=/usr/local/bin:/usr/bin:/bin osqueryi --json "$VQ" 2>/dev/null | grep -c 'Application/Monotype Fonts.app"') main-app rows"
+echo "DIAG [validator query, as runner]: $(sudo -u runner osqueryi --json "$VQ" 2>/dev/null | grep -c 'Application/Monotype Fonts.app"') main-app rows"
+echo "DIAG runner LS dump monotype paths:"; sudo -u runner "$LSREGISTER" -dump 2>/dev/null | grep -iE '^\s*path:.*monotype' | head -10
+echo "DIAG [as runner] all monotype rows:"; sudo -u runner osqueryi --json "SELECT path, bundle_identifier FROM apps WHERE path LIKE '%Monotype%';" 2>/dev/null | head -20
 echo "DIAG running monotype procs:"; pgrep -fl "Monotype" | head -8
 
 relaunch_application 'com.monotype.monotype-fonts'
