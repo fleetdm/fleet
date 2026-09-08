@@ -412,12 +412,13 @@ export const getInstallerActionButtonConfig = (
       case "recently_installed":
       case "recently_updated":
         return { text: "Reinstall", icon: "refresh" };
+      // skipped_install joins the update family: a patch-when-closed skip is
+      // a deferred update, so the action button reads "Update" even though the
+      // label column says "Patch skipped".
       case "pending_update":
       case "updating":
       case "update_available":
       case "failed_uninstall_update_available":
-      // A patch-when-closed skip is a deferred update, so the action button
-      // reads "Update" here even though the label column says "Patch skipped".
       case "skipped_install":
         return { text: "Update", icon: "refresh" };
       default:

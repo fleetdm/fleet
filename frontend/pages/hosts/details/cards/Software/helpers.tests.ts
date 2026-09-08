@@ -592,8 +592,8 @@ describe("getSoftwareSubheader", () => {
 
 describe("getInstallerActionButtonConfig", () => {
   it("returns 'Update' for a skipped_install row (a deferred update)", () => {
-    expect(getInstallerActionButtonConfig("install", "skipped_install")).toEqual(
-      { text: "Update", icon: "refresh" }
-    );
+    expect(
+      getInstallerActionButtonConfig("install", "skipped_install")
+    ).toEqual({ text: "Update", icon: "refresh" });
   });
 });
