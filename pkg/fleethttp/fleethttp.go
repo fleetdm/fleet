@@ -180,8 +180,7 @@ func privateNetworkBlockingDialContext(dialer *net.Dialer) func(ctx context.Cont
 	}
 }
 
-// DefaultTimeout is the request timeout applied by NewClient when the caller
-// does not provide WithTimeout or WithNoTimeout.
+// DefaultTimeout is the request timeout applied by NewClient when the caller does not provide WithTimeout or WithNoTimeout.
 const DefaultTimeout = 60 * time.Second
 
 type clientOpts struct {
@@ -201,9 +200,8 @@ func WithTimeout(t time.Duration) ClientOpt {
 	}
 }
 
-// WithNoTimeout removes the DefaultTimeout, leaving the HTTP client without a
-// timeout. Callers that stream large responses or rely on a per-request context
-// deadline need this; everything else should keep the default.
+// WithNoTimeout removes the DefaultTimeout, leaving the HTTP client without a timeout. Callers that stream large responses or
+// rely on a per-request context deadline need this; everything else should keep the default.
 func WithNoTimeout() ClientOpt {
 	return func(o *clientOpts) {
 		o.timeout = 0
