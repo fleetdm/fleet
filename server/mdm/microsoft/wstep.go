@@ -482,7 +482,6 @@ func azureDataFromClaims(ctx context.Context, claims jwt.MapClaims) (AzureData, 
 
 // clientCertClockSkewAllowance backdates the issued certificate's NotBefore. It is generous on purpose: a host whose clock trails the
 // server (a dual-boot machine reading the RTC as local time, a restored VM snapshot, hardware that has not reached NTP yet) would
-// otherwise reject the certificate as not yet valid. Widening it is free because NotAfter is derived from the issuance time, so neither
 // expiry nor the renewal window moves.
 const clientCertClockSkewAllowance = 24 * time.Hour
 
