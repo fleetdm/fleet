@@ -763,6 +763,18 @@ type Datastore interface {
 	// ListPatchNotificationApps returns a notification's apps, with names and icons
 	// for the host's fleet.
 	ListPatchNotificationApps(ctx context.Context, notificationUUID string) ([]PatchNotificationAppDetail, error)
+	// DeletePatchNotificationApps drops apps from a notification, so the reminder
+	// stops naming an app the end user already updated.
+	DeletePatchNotificationApps(ctx context.Context, notificationUUID string, softwareTitleIDs []uint) error
+	// SetPatchNotificationInstallAt records when the patch is forced, unless the
+	// notification already has a deadline, and returns the deadline in effect.
+	SetPatchNotificationInstallAt(ctx context.Context, notificationUUID string, installAt time.Time) (time.Time, error)
+	// ResetPatchNotification clears the deadline, so the next display sets a new one.
+	ResetPatchNotification(ctx context.Context, notificationUUID string) error
+	// ListPatchNotificationsDue returns the notifications still being delivered
+	// whose deadline is at or before the cutoff, along with whether their host is
+	// online.
+	ListPatchNotificationsDue(ctx context.Context, cutoff time.Time, limit int) ([]PatchNotificationDue, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// SoftwareStore

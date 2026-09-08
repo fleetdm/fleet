@@ -21,6 +21,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/apple_apps"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/vpp"
 	notifications_api "github.com/fleetdm/fleet/v4/server/notifications/api"
+	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/service/redis_key_value"
 	"github.com/fleetdm/fleet/v4/server/service/schedule"
 )
@@ -50,6 +51,7 @@ type cronSchedulesDeps struct {
 	androidSvc             android.Service
 	activitySvc            activity_api.Service
 	notificationsSvc       notifications_api.Service
+	patchNotificationKind  service.PatchNotificationKind
 	acmeSvc                acme_api.Service
 	chartSvc               chart_api.Service
 	auditLogger            fleet.JSONLogger
@@ -359,7 +361,7 @@ func registerPremiumCrons(ctx context.Context, deps cronSchedulesDeps) {
 	})
 
 	deps.register("failed to register end user notifications schedule", func() (fleet.CronSchedule, error) {
-		return newEndUserNotificationsSchedule(ctx, deps.instanceID, deps.ds, deps.notificationsSvc, deps.logger)
+		return newEndUserNotificationsSchedule(ctx, deps.instanceID, deps.ds, deps.notificationsSvc, deps.patchNotificationKind, deps.logger)
 	})
 
 	if deps.config.Activity.EnableAuditLog {

@@ -2758,6 +2758,7 @@ func newEndUserNotificationsSchedule(
 	instanceID string,
 	ds fleet.Datastore,
 	notificationsSvc notifications_api.Service,
+	patchNotificationKind service.PatchNotificationKind,
 	logger *slog.Logger,
 ) (*schedule.Schedule, error) {
 	const (
@@ -2765,9 +2766,14 @@ func newEndUserNotificationsSchedule(
 		defaultInterval = 1 * time.Minute
 	)
 	logger = logger.With("cron", name)
+	// The countdown runs first because jobs run in registration order, so a reminder
+	// it queues goes out in this minute rather than the next one.
 	s := schedule.New(
 		ctx, name, instanceID, defaultInterval, ds, ds,
 		schedule.WithLogger(logger),
+		schedule.WithJob("patch_notification_countdowns", func(ctx context.Context) error {
+			return patchNotificationKind.RunPatchNotificationCountdowns(ctx)
+		}),
 		schedule.WithJob("expire_and_queue_notifications", func(ctx context.Context) error {
 			return notificationsSvc.ExpireAndQueueNotifications(ctx)
 		}),

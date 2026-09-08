@@ -548,6 +548,14 @@ type SetPatchNotificationAppsQueuedFunc func(ctx context.Context, notificationUU
 
 type ListPatchNotificationAppsFunc func(ctx context.Context, notificationUUID string) ([]fleet.PatchNotificationAppDetail, error)
 
+type DeletePatchNotificationAppsFunc func(ctx context.Context, notificationUUID string, softwareTitleIDs []uint) error
+
+type SetPatchNotificationInstallAtFunc func(ctx context.Context, notificationUUID string, installAt time.Time) (time.Time, error)
+
+type ResetPatchNotificationFunc func(ctx context.Context, notificationUUID string) error
+
+type ListPatchNotificationsDueFunc func(ctx context.Context, cutoff time.Time, limit int) ([]fleet.PatchNotificationDue, error)
+
 type ListSoftwareForVulnDetectionFunc func(ctx context.Context, filter fleet.VulnSoftwareFilter) ([]fleet.Software, error)
 
 type ListSoftwareForVulnDetectionByOSVersionFunc func(ctx context.Context, osVer fleet.OSVersion) ([]fleet.Software, error)
@@ -3132,6 +3140,18 @@ type DataStore struct {
 
 	ListPatchNotificationAppsFunc        ListPatchNotificationAppsFunc
 	ListPatchNotificationAppsFuncInvoked bool
+
+	DeletePatchNotificationAppsFunc        DeletePatchNotificationAppsFunc
+	DeletePatchNotificationAppsFuncInvoked bool
+
+	SetPatchNotificationInstallAtFunc        SetPatchNotificationInstallAtFunc
+	SetPatchNotificationInstallAtFuncInvoked bool
+
+	ResetPatchNotificationFunc        ResetPatchNotificationFunc
+	ResetPatchNotificationFuncInvoked bool
+
+	ListPatchNotificationsDueFunc        ListPatchNotificationsDueFunc
+	ListPatchNotificationsDueFuncInvoked bool
 
 	ListSoftwareForVulnDetectionFunc        ListSoftwareForVulnDetectionFunc
 	ListSoftwareForVulnDetectionFuncInvoked bool
@@ -7665,6 +7685,34 @@ func (s *DataStore) ListPatchNotificationApps(ctx context.Context, notificationU
 	s.ListPatchNotificationAppsFuncInvoked = true
 	s.mu.Unlock()
 	return s.ListPatchNotificationAppsFunc(ctx, notificationUUID)
+}
+
+func (s *DataStore) DeletePatchNotificationApps(ctx context.Context, notificationUUID string, softwareTitleIDs []uint) error {
+	s.mu.Lock()
+	s.DeletePatchNotificationAppsFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeletePatchNotificationAppsFunc(ctx, notificationUUID, softwareTitleIDs)
+}
+
+func (s *DataStore) SetPatchNotificationInstallAt(ctx context.Context, notificationUUID string, installAt time.Time) (time.Time, error) {
+	s.mu.Lock()
+	s.SetPatchNotificationInstallAtFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetPatchNotificationInstallAtFunc(ctx, notificationUUID, installAt)
+}
+
+func (s *DataStore) ResetPatchNotification(ctx context.Context, notificationUUID string) error {
+	s.mu.Lock()
+	s.ResetPatchNotificationFuncInvoked = true
+	s.mu.Unlock()
+	return s.ResetPatchNotificationFunc(ctx, notificationUUID)
+}
+
+func (s *DataStore) ListPatchNotificationsDue(ctx context.Context, cutoff time.Time, limit int) ([]fleet.PatchNotificationDue, error) {
+	s.mu.Lock()
+	s.ListPatchNotificationsDueFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListPatchNotificationsDueFunc(ctx, cutoff, limit)
 }
 
 func (s *DataStore) ListSoftwareForVulnDetection(ctx context.Context, filter fleet.VulnSoftwareFilter) ([]fleet.Software, error) {

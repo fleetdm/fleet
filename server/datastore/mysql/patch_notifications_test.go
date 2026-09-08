@@ -23,6 +23,9 @@ func TestPatchNotifications(t *testing.T) {
 	}{
 		{"ExistsForApp", testPatchNotificationExistsForApp},
 		{"AddAndListApps", testPatchNotificationAddAndListApps},
+		{"DeleteApps", testPatchNotificationDeleteApps},
+		{"InstallAt", testPatchNotificationInstallAt},
+		{"ListDue", testPatchNotificationListDue},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -204,4 +207,168 @@ func testPatchNotificationAddAndListApps(t *testing.T, ds *Datastore) {
 			`SELECT COUNT(*) FROM patch_notifications WHERE notification_uuid = ?`, notificationUUID)
 	})
 	assert.Zero(t, remaining)
+}
+
+func testPatchNotificationDeleteApps(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	// a host with no fleet, since ListPatchNotificationApps joins display names on COALESCE(h.team_id, 0)
+	host := test.NewHost(t, ds, "delete-apps-host", "", "delete-apps-key", "delete-apps-uuid", time.Now())
+	require.Nil(t, host.TeamID)
+
+	notificationUUID := newPatchNotification(t, ds, host.ID, notifications_api.EndUserNotificationDispatched, 1)
+	updated := newTestSoftwareTitle(t, ds, "Updated App")
+	stillOpen := newTestSoftwareTitle(t, ds, "Still Open App")
+	for _, titleID := range []uint{updated, stillOpen} {
+		require.NoError(t, ds.AddPatchNotificationApp(ctx, notificationUUID,
+			fleet.PatchNotificationApp{SoftwareTitleID: titleID}))
+	}
+
+	// deleting nothing leaves the notification's apps alone
+	require.NoError(t, ds.DeletePatchNotificationApps(ctx, notificationUUID, nil))
+	apps, err := ds.ListPatchNotificationApps(ctx, notificationUUID)
+	require.NoError(t, err)
+	require.Len(t, apps, 2)
+
+	// the app the end user already updated stops being listed, so the reminder can't name it
+	require.NoError(t, ds.DeletePatchNotificationApps(ctx, notificationUUID, []uint{updated}))
+	apps, err = ds.ListPatchNotificationApps(ctx, notificationUUID)
+	require.NoError(t, err)
+	require.Len(t, apps, 1)
+	assert.Equal(t, stillOpen, apps[0].SoftwareTitleID)
+
+	// another notification's copy of the same app is untouched
+	otherUUID := newPatchNotification(t, ds, host.ID, notifications_api.EndUserNotificationDispatched, 1)
+	require.NoError(t, ds.AddPatchNotificationApp(ctx, otherUUID,
+		fleet.PatchNotificationApp{SoftwareTitleID: stillOpen}))
+	require.NoError(t, ds.DeletePatchNotificationApps(ctx, notificationUUID, []uint{stillOpen}))
+	apps, err = ds.ListPatchNotificationApps(ctx, notificationUUID)
+	require.NoError(t, err)
+	assert.Empty(t, apps)
+	apps, err = ds.ListPatchNotificationApps(ctx, otherUUID)
+	require.NoError(t, err)
+	assert.Len(t, apps, 1)
+}
+
+func testPatchNotificationInstallAt(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	host := test.NewHost(t, ds, "install-at-host", "", "install-at-key", "install-at-uuid", time.Now())
+	notificationUUID := newPatchNotification(t, ds, host.ID, notifications_api.EndUserNotificationDispatched, 1)
+
+	// the first display sets the deadline
+	deadline := time.Now().UTC().Add(time.Hour).Truncate(time.Second)
+	stored, err := ds.SetPatchNotificationInstallAt(ctx, notificationUUID, deadline)
+	require.NoError(t, err)
+	assert.WithinDuration(t, deadline, stored, time.Second)
+
+	// the reminder's display, a retry and a duplicate script result all report the
+	// deadline already stored rather than moving it
+	stored, err = ds.SetPatchNotificationInstallAt(ctx, notificationUUID, deadline.Add(time.Hour))
+	require.NoError(t, err)
+	assert.WithinDuration(t, deadline, stored, time.Second)
+
+	// an offline host's restart clears the deadline, so its next display sets a fresh one
+	require.NoError(t, ds.ResetPatchNotification(ctx, notificationUUID))
+	restarted := deadline.Add(2 * time.Hour)
+	stored, err = ds.SetPatchNotificationInstallAt(ctx, notificationUUID, restarted)
+	require.NoError(t, err)
+	assert.WithinDuration(t, restarted, stored, time.Second)
+
+	// a notification whose patch_notifications row was never written still gets a
+	// deadline, otherwise it would never be patched
+	rowless := uuid.NewString()
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `
+			INSERT INTO notifications_end_user (uuid, host_id, status, kind, payload, expires_at)
+			VALUES (?, ?, ?, ?, '{}', NOW(6) + INTERVAL 1 DAY)`,
+			rowless, host.ID, notifications_api.EndUserNotificationDispatched, fleet.PatchNotificationKind)
+		return err
+	})
+	stored, err = ds.SetPatchNotificationInstallAt(ctx, rowless, deadline)
+	require.NoError(t, err)
+	assert.WithinDuration(t, deadline, stored, time.Second)
+
+	// a uuid no notification has cannot hold a deadline
+	_, err = ds.SetPatchNotificationInstallAt(ctx, "no-such-notification", deadline)
+	require.Error(t, err)
+}
+
+func testPatchNotificationListDue(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	now := time.Now().UTC()
+
+	setInstallAt := func(notificationUUID string, installAt time.Time) {
+		t.Helper()
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `UPDATE patch_notifications SET install_at = ? WHERE notification_uuid = ?`,
+				installAt, notificationUUID)
+			return err
+		})
+	}
+
+	// online: seen just now. offline: seen well past the online window.
+	onlineHost := test.NewHost(t, ds, "due-online", "", "due-online-key", "due-online-uuid", now)
+	offlineHost := test.NewHost(t, ds, "due-offline", "", "due-offline-key", "due-offline-uuid", now.Add(-2*time.Hour))
+	require.NoError(t, ds.MarkHostsSeen(ctx, []uint{offlineHost.ID}, now.Add(-2*time.Hour)))
+
+	// 6 minutes out is outside the reminder window, 5 minutes is on its edge, and
+	// the deadline itself is past due
+	tooEarly := newPatchNotification(t, ds, onlineHost.ID, notifications_api.EndUserNotificationDispatched, 1)
+	setInstallAt(tooEarly, now.Add(6*time.Minute))
+	inReminderWindow := newPatchNotification(t, ds, onlineHost.ID, notifications_api.EndUserNotificationDispatched, 1)
+	setInstallAt(inReminderWindow, now.Add(4*time.Minute))
+	pastDeadline := newPatchNotification(t, ds, onlineHost.ID, notifications_api.EndUserNotificationDispatched, 1)
+	setInstallAt(pastDeadline, now.Add(-time.Minute))
+
+	// a notification that was never displayed has no deadline to count down
+	noDeadline := newPatchNotification(t, ds, onlineHost.ID, notifications_api.EndUserNotificationPending, 0)
+
+	// terminal notifications can no longer be patched, so they stay out of the batch
+	terminal := make([]string, 0, 3)
+	for _, status := range []string{
+		notifications_api.EndUserNotificationActed,
+		notifications_api.EndUserNotificationFailed,
+		notifications_api.EndUserNotificationExpired,
+	} {
+		notificationUUID := newPatchNotification(t, ds, onlineHost.ID, status, 1)
+		setInstallAt(notificationUUID, now.Add(-time.Minute))
+		terminal = append(terminal, notificationUUID)
+	}
+
+	offline := newPatchNotification(t, ds, offlineHost.ID, notifications_api.EndUserNotificationDispatched, 1)
+	setInstallAt(offline, now.Add(-time.Minute))
+
+	due, err := ds.ListPatchNotificationsDue(ctx, now.Add(5*time.Minute), 500)
+	require.NoError(t, err)
+
+	byUUID := make(map[string]fleet.PatchNotificationDue, len(due))
+	for _, notification := range due {
+		byUUID[notification.NotificationUUID] = notification
+	}
+	require.Len(t, byUUID, 3)
+	assert.NotContains(t, byUUID, tooEarly)
+	assert.NotContains(t, byUUID, noDeadline)
+	for _, notificationUUID := range terminal {
+		assert.NotContains(t, byUUID, notificationUUID)
+	}
+
+	require.Contains(t, byUUID, inReminderWindow)
+	assert.True(t, byUUID[inReminderWindow].HostOnline)
+	assert.Equal(t, onlineHost.ID, byUUID[inReminderWindow].HostID)
+	assert.Equal(t, notifications_api.EndUserNotificationDispatched, byUUID[inReminderWindow].Status)
+
+	require.Contains(t, byUUID, pastDeadline)
+	assert.True(t, byUUID[pastDeadline].HostOnline)
+
+	// the offline host restarts its countdown instead of being patched on sight
+	require.Contains(t, byUUID, offline)
+	assert.False(t, byUUID[offline].HostOnline)
+
+	// the batch is ordered by deadline, so the oldest countdown is handled first
+	require.Len(t, due, 3)
+	assert.True(t, due[0].InstallAt.Before(due[len(due)-1].InstallAt))
+
+	// the limit caps the batch
+	limited, err := ds.ListPatchNotificationsDue(ctx, now.Add(5*time.Minute), 1)
+	require.NoError(t, err)
+	require.Len(t, limited, 1)
 }

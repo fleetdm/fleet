@@ -35,6 +35,8 @@ type stubNotificationService struct {
 	actInvoked   bool
 	setStatus    string
 	failedReason string
+	delayInvoked bool
+	delayPayload json.RawMessage
 }
 
 func (s *stubNotificationService) ActOnNotification(_ context.Context, _ string) (bool, error) {
@@ -50,7 +52,9 @@ func (s *stubNotificationService) SetNotificationStatus(_ context.Context, _ str
 	return nil
 }
 
-func (s *stubNotificationService) DelayNotification(_ context.Context, _ string, _ time.Time, _ json.RawMessage) error {
+func (s *stubNotificationService) DelayNotification(_ context.Context, _ string, _ time.Time, payload json.RawMessage) error {
+	s.delayInvoked = true
+	s.delayPayload = payload
 	return nil
 }
 
@@ -575,6 +579,257 @@ func TestPatchNotificationOnOutcome(t *testing.T) {
 
 			assert.Equal(t, c.wantTitles, activity.SoftwareTitles)
 			assert.Equal(t, c.wantPolicyIDs, activity.PolicyIDs)
+		})
+	}
+}
+
+func TestPatchNotificationCountdowns(t *testing.T) {
+	const (
+		hostID           = uint(1)
+		oneTitleID       = uint(10)
+		twoTitleID       = uint(11)
+		oneInstallerID   = uint(20)
+		twoInstallerID   = uint(21)
+		policyID         = uint(30)
+		oneBundle        = "com.example.one"
+		twoBundle        = "com.example.two"
+		installerVersion = "2.0.0"
+	)
+
+	// Both apps are a version behind what their installer would put on the host.
+	behind := map[string]string{oneBundle: "1.0.0", twoBundle: "1.0.0"}
+
+	displayedAt := time.Now().UTC().Add(-55 * time.Minute)
+
+	cases := []struct {
+		name string
+		// how far the deadline is from now, negative once it has passed
+		untilDeadline time.Duration
+		status        string
+		displayed     bool
+		reminder      bool
+		hostOnline    bool
+		// software inventory by bundle identifier
+		installedVersions map[string]string
+		// GetHostLastInstallData for the first app
+		lastInstalled *time.Time
+		// ActOnNotification: an Update now got there first
+		alreadyActed bool
+
+		wantReminder bool
+		wantInstalls []uint
+		// the pass tried to take the notification, whether or not it got it
+		wantActed       bool
+		wantReset       bool
+		wantAppsDropped []uint
+	}{
+		{
+			name:              "a notification inside the reminder window is reminded once",
+			untilDeadline:     4 * time.Minute,
+			status:            notifications_api.EndUserNotificationDispatched,
+			displayed:         true,
+			hostOnline:        true,
+			installedVersions: behind,
+			wantReminder:      true,
+		},
+		{
+			// the re-dispatch left it pending, which is how a second pass knows the
+			// reminder already went out
+			name:              "a notification whose reminder is queued is left alone",
+			untilDeadline:     time.Minute,
+			status:            notifications_api.EndUserNotificationPending,
+			displayed:         false,
+			hostOnline:        true,
+			installedVersions: behind,
+		},
+		{
+			// the reminder payload is how a second pass knows the reminder was displayed
+			name:              "a notification whose reminder is on screen is left alone",
+			untilDeadline:     time.Minute,
+			status:            notifications_api.EndUserNotificationDispatched,
+			displayed:         true,
+			reminder:          true,
+			hostOnline:        true,
+			installedVersions: behind,
+		},
+		{
+			name:              "an app updated during the hour is dropped from the reminder",
+			untilDeadline:     4 * time.Minute,
+			status:            notifications_api.EndUserNotificationDispatched,
+			displayed:         true,
+			hostOnline:        true,
+			installedVersions: map[string]string{oneBundle: installerVersion, twoBundle: "1.0.0"},
+			wantReminder:      true,
+			wantAppsDropped:   []uint{oneTitleID},
+		},
+		{
+			name:              "every app updated during the hour means no reminder and nothing to install",
+			untilDeadline:     4 * time.Minute,
+			status:            notifications_api.EndUserNotificationDispatched,
+			displayed:         true,
+			hostOnline:        true,
+			installedVersions: map[string]string{oneBundle: installerVersion, twoBundle: "9.0.0"},
+			wantActed:         true,
+			wantAppsDropped:   []uint{oneTitleID, twoTitleID},
+		},
+		{
+			name:              "the deadline closes and updates every app still behind",
+			untilDeadline:     -time.Minute,
+			status:            notifications_api.EndUserNotificationDispatched,
+			displayed:         true,
+			reminder:          true,
+			hostOnline:        true,
+			installedVersions: behind,
+			wantActed:         true,
+			wantInstalls:      []uint{oneInstallerID, twoInstallerID},
+		},
+		{
+			// a My device self-service update lands before inventory catches up
+			name:              "an app Fleet installed since the notification was created is not installed again",
+			untilDeadline:     -time.Minute,
+			status:            notifications_api.EndUserNotificationDispatched,
+			displayed:         true,
+			reminder:          true,
+			hostOnline:        true,
+			installedVersions: behind,
+			lastInstalled:     new(time.Now().UTC()),
+			wantActed:         true,
+			wantInstalls:      []uint{twoInstallerID},
+			wantAppsDropped:   []uint{oneTitleID},
+		},
+		{
+			name:              "an Update now that got there first stops the deadline installing the same apps again",
+			untilDeadline:     -time.Minute,
+			status:            notifications_api.EndUserNotificationDispatched,
+			displayed:         true,
+			reminder:          true,
+			hostOnline:        true,
+			installedVersions: behind,
+			alreadyActed:      true,
+			wantActed:         true,
+		},
+		{
+			// the end user never saw the countdown run out, so it starts over
+			name:              "an offline host at the deadline is notified again instead of patched",
+			untilDeadline:     -time.Minute,
+			status:            notifications_api.EndUserNotificationDispatched,
+			displayed:         true,
+			reminder:          true,
+			installedVersions: behind,
+			wantReset:         true,
+			wantReminder:      true,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			ds := new(mock.Store)
+			notificationSvc := &stubNotificationService{acts: !c.alreadyActed}
+			kind := &patchNotificationKind{
+				ds: ds, notificationSvc: notificationSvc, logger: slog.New(slog.DiscardHandler),
+			}
+
+			payload := patchNotificationFirstNoticePayload
+			if c.reminder {
+				payload = patchNotificationReminderPayload
+			}
+			var displayed *time.Time
+			if c.displayed {
+				displayed = &displayedAt
+			}
+			var gotCutoff time.Time
+			ds.ListPatchNotificationsDueFunc = func(_ context.Context, cutoff time.Time, limit int) ([]fleet.PatchNotificationDue, error) {
+				gotCutoff = cutoff
+				assert.Equal(t, patchNotificationCountdownBatchSize, limit)
+				return []fleet.PatchNotificationDue{{
+					NotificationUUID: "notification-uuid",
+					HostID:           hostID,
+					Status:           c.status,
+					Payload:          payload,
+					DisplayedAt:      displayed,
+					CreatedAt:        displayedAt.Add(-time.Minute),
+					InstallAt:        time.Now().UTC().Add(c.untilDeadline),
+					HostOnline:       c.hostOnline,
+				}}, nil
+			}
+
+			// the apps the pass drops stop being listed, the same as deleting their rows does
+			dropped := make(map[uint]struct{})
+			ds.ListPatchNotificationAppsFunc = func(_ context.Context, _ string) ([]fleet.PatchNotificationAppDetail, error) {
+				all := []fleet.PatchNotificationAppDetail{
+					{SoftwareTitleID: oneTitleID, SoftwareInstallerID: new(oneInstallerID), PolicyID: new(policyID)},
+					{SoftwareTitleID: twoTitleID, SoftwareInstallerID: new(twoInstallerID), PolicyID: new(policyID)},
+				}
+				listed := make([]fleet.PatchNotificationAppDetail, 0, len(all))
+				for _, app := range all {
+					if _, gone := dropped[app.SoftwareTitleID]; !gone {
+						listed = append(listed, app)
+					}
+				}
+				return listed, nil
+			}
+			var gotDropped []uint
+			ds.DeletePatchNotificationAppsFunc = func(_ context.Context, _ string, softwareTitleIDs []uint) error {
+				for _, titleID := range softwareTitleIDs {
+					dropped[titleID] = struct{}{}
+				}
+				gotDropped = append(gotDropped, softwareTitleIDs...)
+				return nil
+			}
+
+			ds.ListSoftwareByHostIDShortFunc = func(_ context.Context, _ uint) ([]fleet.Software, error) {
+				return []fleet.Software{
+					{BundleIdentifier: oneBundle, Version: c.installedVersions[oneBundle]},
+					{BundleIdentifier: twoBundle, Version: c.installedVersions[twoBundle]},
+				}, nil
+			}
+			ds.GetSoftwareInstallerMetadataByIDFunc = func(_ context.Context, id uint) (*fleet.SoftwareInstaller, error) {
+				bundle := oneBundle
+				if id == twoInstallerID {
+					bundle = twoBundle
+				}
+				return &fleet.SoftwareInstaller{Version: installerVersion, BundleIdentifier: bundle}, nil
+			}
+			ds.GetHostLastInstallDataFunc = func(_ context.Context, _ uint, installerID uint) (*fleet.HostLastInstallData, error) {
+				if c.lastInstalled == nil || installerID != oneInstallerID {
+					return nil, nil
+				}
+				return &fleet.HostLastInstallData{Status: new(fleet.SoftwareInstalled), UpdatedAt: *c.lastInstalled}, nil
+			}
+
+			var installs []uint
+			ds.InsertSoftwareInstallRequestFunc = func(_ context.Context, gotHostID uint, installerID uint, opts fleet.HostSoftwareInstallOptions) (string, error) {
+				assert.Equal(t, hostID, gotHostID)
+				assert.False(t, opts.OverridePreInstallQuery, "the deadline forces the install, so the app being open must not stop it")
+				require.NotNil(t, opts.PolicyID)
+				assert.Equal(t, policyID, *opts.PolicyID)
+				installs = append(installs, installerID)
+				return "", nil
+			}
+			ds.SetPatchNotificationAppsQueuedFunc = func(_ context.Context, _ string, _ []uint) error { return nil }
+			ds.ResetPatchNotificationFunc = func(_ context.Context, _ string) error { return nil }
+
+			require.NoError(t, kind.RunPatchNotificationCountdowns(context.Background()))
+
+			assert.WithinDuration(t, time.Now().UTC().Add(patchNotificationReminderBefore), gotCutoff, time.Minute,
+				"the pass reads the countdowns that reach their deadline within the reminder's lead time")
+
+			assert.ElementsMatch(t, c.wantInstalls, installs)
+			assert.ElementsMatch(t, c.wantAppsDropped, gotDropped)
+			assert.Equal(t, c.wantActed, notificationSvc.actInvoked)
+			assert.Equal(t, c.wantReset, ds.ResetPatchNotificationFuncInvoked)
+
+			if !c.wantReminder {
+				assert.False(t, notificationSvc.delayInvoked)
+				return
+			}
+			require.True(t, notificationSvc.delayInvoked)
+			// the offline restart begins a new hour, so it goes back to the first notice
+			wantPayload := patchNotificationReminderPayload
+			if c.wantReset {
+				wantPayload = patchNotificationFirstNoticePayload
+			}
+			assert.JSONEq(t, string(wantPayload), string(notificationSvc.delayPayload))
 		})
 	}
 }

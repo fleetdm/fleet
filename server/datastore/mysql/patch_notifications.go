@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -80,6 +82,96 @@ WHERE notification_uuid = ? AND software_title_id IN (?)
 		return ctxerr.Wrap(ctx, err, "set patch notification apps queued")
 	}
 	return nil
+}
+
+func (ds *Datastore) DeletePatchNotificationApps(ctx context.Context, notificationUUID string, softwareTitleIDs []uint) error {
+	if len(softwareTitleIDs) == 0 {
+		return nil
+	}
+
+	stmt, args, err := sqlx.In(`
+DELETE FROM patch_notification_apps
+WHERE notification_uuid = ? AND software_title_id IN (?)
+`, notificationUUID, softwareTitleIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "build delete patch notification apps statement")
+	}
+
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "delete patch notification apps")
+	}
+	return nil
+}
+
+// The COALESCE sets the deadline once, so a retry, a re-dispatch or a duplicate script result can't
+// move it. The insert covers a notification whose patch_notifications row was never written, which
+// would otherwise never be patched.
+func (ds *Datastore) SetPatchNotificationInstallAt(ctx context.Context, notificationUUID string, installAt time.Time) (time.Time, error) {
+	const upsertStmt = `
+INSERT INTO patch_notifications (notification_uuid, install_at) VALUES (?, ?)
+ON DUPLICATE KEY UPDATE install_at = COALESCE(install_at, VALUES(install_at))
+`
+
+	if _, err := ds.writer(ctx).ExecContext(ctx, upsertStmt, notificationUUID, installAt); err != nil {
+		return time.Time{}, ctxerr.Wrap(ctx, err, "set patch notification install at")
+	}
+
+	const selectStmt = `SELECT install_at FROM patch_notifications WHERE notification_uuid = ?`
+
+	var stored *time.Time
+	if err := sqlx.GetContext(ctx, ds.writer(ctx), &stored, selectStmt, notificationUUID); err != nil {
+		return time.Time{}, ctxerr.Wrap(ctx, err, "get patch notification install at")
+	}
+	// only reachable if the deadline was cleared between the two statements
+	if stored == nil {
+		return time.Time{}, ctxerr.Errorf(ctx, "patch notification %s has no install at", notificationUUID)
+	}
+	return *stored, nil
+}
+
+func (ds *Datastore) ResetPatchNotification(ctx context.Context, notificationUUID string) error {
+	const updateStmt = `UPDATE patch_notifications SET install_at = NULL WHERE notification_uuid = ?`
+
+	if _, err := ds.writer(ctx).ExecContext(ctx, updateStmt, notificationUUID); err != nil {
+		return ctxerr.Wrap(ctx, err, "reset patch notification")
+	}
+	return nil
+}
+
+func (ds *Datastore) ListPatchNotificationsDue(ctx context.Context, cutoff time.Time, limit int) ([]fleet.PatchNotificationDue, error) {
+	// host_online uses the same expression as the online host filter, so the countdown and the host
+	// list agree on what offline means.
+	selectStmt := fmt.Sprintf(`
+SELECT
+	pn.notification_uuid,
+	pn.install_at,
+	eun.host_id,
+	eun.status,
+	eun.payload,
+	eun.displayed_at,
+	eun.created_at,
+	DATE_ADD(COALESCE(hst.seen_time, h.created_at), INTERVAL LEAST(h.distributed_interval, h.config_tls_refresh) + %d SECOND) > NOW(6) AS host_online
+FROM patch_notifications pn
+	JOIN notifications_end_user eun ON eun.uuid = pn.notification_uuid
+	JOIN hosts h ON h.id = eun.host_id
+	LEFT JOIN host_seen_times hst ON hst.host_id = h.id
+-- a notification with no deadline was never displayed, so it has no countdown to run
+WHERE pn.install_at IS NOT NULL
+	AND pn.install_at <= ?
+	-- acted notifications have already been patched, failed and expired ones never will be
+	AND eun.status IN (?, ?)
+ORDER BY pn.install_at
+LIMIT ?
+`, fleet.OnlineIntervalBuffer)
+
+	var due []fleet.PatchNotificationDue
+	// primary, not the replica: the display that sets the deadline can be seconds old
+	if err := sqlx.SelectContext(ctx, ds.writer(ctx), &due, selectStmt,
+		cutoff, notifications_api.EndUserNotificationPending, notifications_api.EndUserNotificationDispatched, limit,
+	); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list patch notifications due")
+	}
+	return due, nil
 }
 
 func (ds *Datastore) ListPatchNotificationApps(ctx context.Context, notificationUUID string) ([]fleet.PatchNotificationAppDetail, error) {

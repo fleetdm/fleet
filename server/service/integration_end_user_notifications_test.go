@@ -67,6 +67,28 @@ func newRenderableTestNotification(t *testing.T, ds *mysql.Datastore, hostID uin
 	return notificationUUID
 }
 
+func getTestInstallAt(t *testing.T, ds *mysql.Datastore, notificationUUID string) *time.Time {
+	t.Helper()
+	var installAt *time.Time
+	mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(context.Background(), q, &installAt,
+			`SELECT install_at FROM patch_notifications WHERE notification_uuid = ?`, notificationUUID)
+	})
+	return installAt
+}
+
+// setTestInstallAt moves a deadline, so a test can stand in for the hour passing.
+// installAt is SQL rather than a value, since the rest of the countdown reads the
+// database clock.
+func setTestInstallAt(t *testing.T, ds *mysql.Datastore, notificationUUID string, installAt string) {
+	t.Helper()
+	mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(context.Background(),
+			`UPDATE patch_notifications SET install_at = `+installAt+` WHERE notification_uuid = ?`, notificationUUID)
+		return err
+	})
+}
+
 // getTestNotification reads a notification row directly, for asserting on
 // state the bounded context's own HTTP API doesn't expose (e.g. status,
 // execution_id).
@@ -225,7 +247,7 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 		// and nothing else has happened since, so it is the newest one globally
 		var globalFeed listActivitiesResponse
 		s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &globalFeed,
-			"order_key", "a.id", "order_direction", "desc", "per_page", "1")
+			"order_key", "id", "order_direction", "desc", "per_page", "1")
 		require.Len(t, globalFeed.Activities, 1)
 		require.Equal(t, "notified_end_user_before_patching", globalFeed.Activities[0].Type)
 		require.NotNil(t, globalFeed.Activities[0].Details)
@@ -362,7 +384,9 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 			[]byte(`{"action": "verify"}`), http.StatusOK)
 	})
 
-	t.Run("POST delay with a registered kind delays it", func(t *testing.T) {
+	// The countdown pass sends the reminder whatever the end user pressed, so the
+	// button only closes the toast and the deadline it was pressed against stays put.
+	t.Run("POST delay leaves the countdown alone and the reminder still arrives", func(t *testing.T) {
 		host := newNotifiableHost(t, "notif-delay-registered")
 		notificationUUID := newRenderableTestNotification(t, s.ds, host.ID, `{"reminder": false}`)
 		dispatch(t)
@@ -370,29 +394,43 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 		require.NotNil(t, dispatched.ExecutionID)
 		_, token := fetchScript(t, host, *dispatched.ExecutionID)
 
-		// exit 0 is what marks it displayed, which is the point the patch kind
-		// counts its next attempt from
+		// exit 0 is what marks it displayed, which is what starts the countdown
 		postScriptResult(host, *dispatched.ExecutionID, 0)
 		displayed := getTestNotification(t, s.ds, notificationUUID)
 		require.NotNil(t, displayed.DisplayedAt)
+		deadline := getTestInstallAt(t, s.ds, notificationUUID)
+		require.NotNil(t, deadline)
+		require.WithinDuration(t, displayed.DisplayedAt.Add(time.Hour), *deadline, time.Minute)
 
 		s.DoRawNoAuth("POST", fmt.Sprintf("/api/latest/fleet/device/%s/notifications/%s/actions", token, notificationUUID),
 			[]byte(`{"action": "delay"}`), http.StatusOK)
 
-		got := getTestNotification(t, s.ds, notificationUUID)
-		require.Equal(t, notifications_api.EndUserNotificationPending, got.Status)
-		require.NotNil(t, got.ExecutionID, "keeps its execution_id so a late result can still find it")
-		require.Equal(t, *dispatched.ExecutionID, *got.ExecutionID)
-		require.NotNil(t, got.LastReason)
-		require.Equal(t, notifications_api.EndUserNotificationReasonDelayed, *got.LastReason)
-		require.Nil(t, got.DisplayedAt, "the next send records its own display")
+		delayed := getTestNotification(t, s.ds, notificationUUID)
+		require.Equal(t, notifications_api.EndUserNotificationDispatched, delayed.Status)
+		require.NotNil(t, delayed.DisplayedAt, "the toast the end user closed still counts as displayed")
+		require.JSONEq(t, `{"reminder": false}`, string(delayed.Payload))
+		stillDue := getTestInstallAt(t, s.ds, notificationUUID)
+		require.NotNil(t, stillDue)
+		require.WithinDuration(t, *deadline, *stillDue, time.Second, "pressing the button cannot buy more time")
 
-		// the patch kind rejoins the hour-then-five-minutes schedule rather than
-		// starting a fresh wait
-		require.NotNil(t, got.NextAttemptAt)
-		require.WithinDuration(t, displayed.DisplayedAt.Add(55*time.Minute), *got.NextAttemptAt, time.Minute)
+		// stand in for the hour running down to the reminder's lead time
+		setTestInstallAt(t, s.ds, notificationUUID, "NOW(6) + INTERVAL 4 MINUTE")
+		shortened := getTestInstallAt(t, s.ds, notificationUUID)
+		require.NotNil(t, shortened)
+		require.NoError(t, s.patchNotificationKind.RunPatchNotificationCountdowns(ctx))
 
-		require.JSONEq(t, `{"reminder": true}`, string(got.Payload))
+		reminded := getTestNotification(t, s.ds, notificationUUID)
+		require.Equal(t, notifications_api.EndUserNotificationPending, reminded.Status)
+		require.Nil(t, reminded.DisplayedAt, "the next send records its own display")
+		require.NotNil(t, reminded.LastReason)
+		require.Equal(t, notifications_api.EndUserNotificationReasonDelayed, *reminded.LastReason)
+		require.NotNil(t, reminded.ExecutionID, "keeps its execution_id so a late result can still find it")
+		require.Equal(t, *dispatched.ExecutionID, *reminded.ExecutionID)
+		require.JSONEq(t, `{"reminder": true}`, string(reminded.Payload))
+
+		// a second pass finds it pending, which is how it knows the reminder went out
+		require.NoError(t, s.patchNotificationKind.RunPatchNotificationCountdowns(ctx))
+		require.Equal(t, notifications_api.EndUserNotificationPending, getTestNotification(t, s.ds, notificationUUID).Status)
 
 		dispatch(t)
 		redispatched := getTestNotification(t, s.ds, notificationUUID)
@@ -408,21 +446,12 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 			{ID: "update_now", Label: "Update now"},
 		}, view.Actions, "the reminder swaps Remind for Hide")
 
-		// one that was delayed without ever being displayed has no mark to count
-		// from, so it waits a full interval
-		neverShown := newRenderableTestNotification(t, s.ds, host.ID, `{"reminder": false}`)
-		dispatch(t)
-		neverShownDispatched := getTestNotification(t, s.ds, neverShown)
-		require.NotNil(t, neverShownDispatched.ExecutionID)
-		_, neverShownToken := fetchScript(t, host, *neverShownDispatched.ExecutionID)
-
-		s.DoRawNoAuth("POST", fmt.Sprintf("/api/latest/fleet/device/%s/notifications/%s/actions", neverShownToken, neverShown),
-			[]byte(`{"action": "delay"}`), http.StatusOK)
-
-		got = getTestNotification(t, s.ds, neverShown)
-		require.NotNil(t, got.NextAttemptAt)
-		require.WithinDuration(t, time.Now().UTC().Add(notifications_api.EndUserNotificationDelayInterval), *got.NextAttemptAt, time.Minute)
-		require.JSONEq(t, `{"reminder": false}`, string(got.Payload))
+		// the reminder's own display reports the deadline already stored rather than
+		// pushing it out another hour
+		postScriptResult(host, *redispatched.ExecutionID, 0)
+		afterReminder := getTestInstallAt(t, s.ds, notificationUUID)
+		require.NotNil(t, afterReminder)
+		require.WithinDuration(t, *shortened, *afterReminder, time.Second)
 	})
 
 	t.Run("POST delay with no kind registered is a no-op", func(t *testing.T) {
@@ -748,5 +777,100 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 		require.NoError(t, err)
 		require.True(t, result.NotifyBeforePatching)
 		require.False(t, result.OverridePreInstallQuery)
+	})
+
+	// TestPatchNotificationCountdowns covers which branch the pass takes. This
+	// covers the ending the pass is there for: the deadline is stored on display,
+	// and once it passes the install is queued with no app open gate.
+	t.Run("the deadline closes and updates the app", func(t *testing.T) {
+		host := newNotifiableHost(t, "notif-deadline")
+		team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "deadline-team"})
+		require.NoError(t, err)
+		require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID})))
+
+		installerID, _, err := s.ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+			InstallScript: "echo", Filename: "deadline.pkg", StorageID: uuid.NewString(),
+			Title: "Deadline App", Version: "2.0.0", Source: "apps", Platform: "darwin",
+			UserID: s.users["admin1@example.com"].ID,
+			TeamID: &team.ID, ValidatedLabels: &fleet.LabelIdentsWithScope{},
+			BundleIdentifier: "com.example.deadline",
+			AppOpenQuery:     "SELECT 1 FROM processes WHERE name = 'app'",
+		})
+		require.NoError(t, err)
+
+		var titleID uint
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &titleID,
+				`SELECT title_id FROM software_installers WHERE id = ?`, installerID)
+		})
+
+		policy, err := s.ds.NewTeamPolicy(ctx, team.ID, nil, fleet.PolicyPayload{
+			Name: "Deadline App up to date", Query: "SELECT 1;",
+		})
+		require.NoError(t, err)
+
+		notificationUUID := newTestNotification(t, s.ds, host.ID, "patch", `{"reminder": false}`)
+		require.NoError(t, s.ds.NewPatchNotification(ctx, notificationUUID))
+		require.NoError(t, s.ds.AddPatchNotificationApp(ctx, notificationUUID, fleet.PatchNotificationApp{
+			PolicyID: &policy.ID, SoftwareTitleID: titleID, SoftwareInstallerID: &installerID,
+		}))
+
+		// the toast on screen is what starts the countdown
+		dispatch(t)
+		dispatched := getTestNotification(t, s.ds, notificationUUID)
+		require.NotNil(t, dispatched.ExecutionID)
+		postScriptResult(host, *dispatched.ExecutionID, 0)
+
+		displayed := getTestNotification(t, s.ds, notificationUUID)
+		require.NotNil(t, displayed.DisplayedAt)
+		installAt := getTestInstallAt(t, s.ds, notificationUUID)
+		require.NotNil(t, installAt, "the display sets the deadline")
+		require.WithinDuration(t, displayed.DisplayedAt.Add(time.Hour), *installAt, time.Minute)
+
+		// stand in for the hour passing
+		setTestInstallAt(t, s.ds, notificationUUID, "NOW(6) - INTERVAL 1 MINUTE")
+
+		// createOrbitEnrolledHost backdates seen_time a minute, which is exactly the online window
+		// for a host with no distributed_interval, so say plainly that this host is online. An
+		// offline one restarts its countdown instead of installing.
+		require.NoError(t, s.ds.MarkHostsSeen(ctx, []uint{host.ID}, time.Now()))
+
+		require.NoError(t, s.patchNotificationKind.RunPatchNotificationCountdowns(ctx))
+
+		acted := getTestNotification(t, s.ds, notificationUUID)
+		require.Equal(t, notifications_api.EndUserNotificationActed, acted.Status,
+			"the notification is taken before the installs go out, so Update now can't queue them twice")
+
+		var queuedInstalls []struct {
+			ExecutionID string `db:"execution_id"`
+			PolicyID    *uint  `db:"policy_id"`
+		}
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, q, &queuedInstalls, `
+				SELECT ua.execution_id, siua.policy_id
+				FROM upcoming_activities ua
+					JOIN software_install_upcoming_activities siua ON siua.upcoming_activity_id = ua.id
+				WHERE ua.host_id = ?`, host.ID)
+		})
+		require.Len(t, queuedInstalls, 1, "the notification's one app gets one install")
+		require.NotNil(t, queuedInstalls[0].PolicyID, "the install keeps its policy so it shows in Automation runs")
+		require.Equal(t, policy.ID, *queuedInstalls[0].PolicyID)
+
+		// no app open gate, so the app closes and updates
+		queued, err := s.ds.GetSoftwareInstallDetails(ctx, queuedInstalls[0].ExecutionID)
+		require.NoError(t, err)
+		require.False(t, queued.OverridePreInstallQuery)
+		require.Empty(t, queued.PreInstallCondition)
+
+		// a second pass finds nothing to do, since the notification is acted
+		require.NoError(t, s.patchNotificationKind.RunPatchNotificationCountdowns(ctx))
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, q, &queuedInstalls, `
+				SELECT ua.execution_id, siua.policy_id
+				FROM upcoming_activities ua
+					JOIN software_install_upcoming_activities siua ON siua.upcoming_activity_id = ua.id
+				WHERE ua.host_id = ?`, host.ID)
+		})
+		require.Len(t, queuedInstalls, 1)
 	})
 }
