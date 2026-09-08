@@ -1,6 +1,6 @@
 # MDM commands
 
-MDM commands can be sent to macOS, iOS / iPadOS and Windows hosts managed in Fleet using the following general steps:
+MDM commands can be sent to macOS, iOS / iPadOS, Windows, and Android hosts managed in Fleet using the following general steps:
 
 1. Create a payload that functions as the MDM command.
 2. Choose a target host, or, a set of target hosts on which to run the MDM command.
@@ -15,11 +15,15 @@ For Apple devices, the payload is a  `.plist` that can be copied like this examp
 
 For Windows, the payload is standard `xml` and command options can be referenced in the [Microsoft CSP Policy docuementation](https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-configuration-service-provider).
 
-You can run any command supported by [Apple's MDM protocol](https://developer.apple.com/documentation/devicemanagement/commands_and_queries) or [Microsoft's MDM protocol](https://learn.microsoft.com/en-us/windows/client-management/mdm/).
+For Android, the payload is `json`, matching the request body of the Android Management API's [`issueCommand`](https://developers.google.com/android/management/reference/rest/v1/enterprises.devices/issueCommand) request.
+
+You can run any command supported by [Apple's MDM protocol](https://developer.apple.com/documentation/devicemanagement/commands_and_queries), [Microsoft's MDM protocol](https://learn.microsoft.com/en-us/windows/client-management/mdm/), or the [Android Management API](https://developers.google.com/android/management/reference/rest/v1/enterprises.devices/issueCommand).
 
 The end result simply needs to be a standard, plain text file with the correct key / values for obtaining the intended result on the host device.
 
-> Lock and wipe commands are only available in Fleet Premium.
+> Apple's Lock and Wipe commands, and Android's `LOCK` and `RESET_PASSWORD` commands, are only available in Fleet Premium. Android's `WIPE` command is available on Fleet Free for company-owned hosts.
+>
+> Android only supports targeting one host per command.
 
 ### Examples
 
@@ -59,6 +63,18 @@ Below is the text to be used as the MDM command payload. Save it as a file and n
   </Item>
 </Exec>
 ```
+
+To reboot an Android host, we can use the [`REBOOT`](https://developers.google.com/android/management/reference/rest/v1/enterprises.devices/issueCommand#CommandType) command.
+
+Below is the text to be used as the MDM command payload. Save it as a file and name it something like `android-reboot-device.json`.
+
+```json
+{
+  "type": "REBOOT"
+}
+```
+
+Unlike Apple and Windows commands, an Android command payload has no `CommandUUID` field to set. Fleet generates the command's ID for you, and you can find it in the response after running the command (see [Step 3](#step-3-execute-the-mdm-command)).
 
 To prepare an MDM command payload for use with the Fleet API, generate a UUID to be used as the `CommandUUID`, e.g.,
 
@@ -131,7 +147,9 @@ To deliver the MDM command payload with `fleetctl`, use something like the follo
 
 For targeting multiple hosts, the `--hosts` option can be populated with comma-separated values.
 
-To prepare the MDM command payload for execution in a Fleet API call, it must be base64-encoded. This is true for both Apple and Windows MDM command payloads.
+> Android only supports one host per command: `fleetctl mdm run-command --payload='android-reboot-device.json' --hosts='someAndroidHostname'`.
+
+To prepare the MDM command payload for execution in a Fleet API call, it must be base64-encoded. This is true for Apple, Windows, and Android MDM command payloads.
 
 E.g., 
 
@@ -164,6 +182,13 @@ PS C:\Users\username\Desktop> [Convert]::ToBase64String((Get-Content -path "file
 cG9vcXblahblahblah...
 ```
 
+to `base64` encode the Android `.json` payload in Terminal:
+
+```
+% echo '{"type": "REBOOT"}' | base64
+eyJ0eXBlIjogIlJFQk9PVCJ9
+```
+
 To deliver the MDM command payload via the Fleet API, use a command that conforms to the `curl` example below. (This can be achieved with any programmatic solution, e.g., python `requests` or `urllib.request`).
 
 ```
@@ -181,13 +206,26 @@ For targeting multiple hosts, the `"host_uuids"` key / value is a json array tha
 
 `"host_uuids":["some-host-uuid-1","some-host-uuid-2","some-host-uuid-3"]`
 
+For an Android host, `"host_uuids"` must contain exactly one UUID:
+
+```
+% /usr/bin/curl -LSs \
+--request POST \
+--header 'Content-Type: application/json' \
+--header "Authorization: Bearer $fleet_key" \
+--data '{"command":"eyJ0eXBlIjogIlJFQk9PVCJ9","host_uuids":["some-android-host-uuid"]}' \
+"$fleet_url/api/v1/fleet/commands/run"
+```
+
 ## Step 4: Verify the MDM command result
 
 To verify the MDM command result with `fleetctl`, use something like the command below:
 
 `fleetctl get mdm-command-results --id=<insert-command-id>`
 
-If you generated the `CommandUUID`, add that value in the `--id` field. If you did not generate a command ID, one will be added to the MDM command by Fleet and it should appear in a succesful response after execution or in the MDM command results stored in Fleet.
+If you generated the `CommandUUID`, add that value in the `--id` field. If you did not generate a command ID, one will be added to the MDM command by Fleet and it should appear in a succesful response after execution or in the MDM command results stored in Fleet. For Android, Fleet always generates the command ID, since the AMAPI payload has no `CommandUUID` field.
+
+For Android hosts, `command_status` in the [MDM command results](https://fleetdm.com/docs/rest-api/rest-api#get-mdm-command-results) response is `pending` until the device executes the command, `acknowledged` once it succeeds, or `error` if the Android Management API or the device rejects it.
 
 To verify the MDM command result with the Fleet API, use a command that conforms to the `curl` example below:
 
