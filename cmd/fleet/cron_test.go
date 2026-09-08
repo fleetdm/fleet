@@ -21,6 +21,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	mdmmock "github.com/fleetdm/fleet/v4/server/mock/mdm"
+	servicemock "github.com/fleetdm/fleet/v4/server/mock/service"
 	"github.com/fleetdm/fleet/v4/server/test"
 )
 
@@ -250,6 +251,61 @@ func TestCleanupStaleOVALVulnerabilities(t *testing.T) {
 	})
 }
 
+func TestCleanupExpiredHostsCronJob(t *testing.T) {
+	logger := slog.New(slog.DiscardHandler)
+
+	t.Run("drains until empty", func(t *testing.T) {
+		svc := &servicemock.Service{}
+		calls := 0
+		svc.CleanupExpiredHostsBatchFunc = func(ctx context.Context, batchSize int) ([]fleet.DeletedHostDetails, error) {
+			require.Equal(t, 5, batchSize)
+			calls++
+			if calls == 1 {
+				return []fleet.DeletedHostDetails{{ID: 1}}, nil
+			}
+			return nil, nil
+		}
+
+		err := cleanupExpiredHostsCronJob(context.Background(), svc, logger, time.Minute, 5)
+		require.NoError(t, err)
+		require.Equal(t, 2, calls)
+	})
+
+	t.Run("stops between batches when runtime budget expires", func(t *testing.T) {
+		svc := &servicemock.Service{}
+		calls := 0
+		svc.CleanupExpiredHostsBatchFunc = func(ctx context.Context, batchSize int) ([]fleet.DeletedHostDetails, error) {
+			require.Equal(t, 5, batchSize)
+			calls++
+			// The batch must not be cancelled by the runtime budget: a batch
+			// that outlives the budget still completes, and the loop stops
+			// before starting the next one.
+			_, hasDeadline := ctx.Deadline()
+			require.False(t, hasDeadline)
+			time.Sleep(60 * time.Millisecond)
+			require.NoError(t, ctx.Err())
+			return []fleet.DeletedHostDetails{{ID: 1}}, nil
+		}
+
+		err := cleanupExpiredHostsCronJob(context.Background(), svc, logger, 50*time.Millisecond, 5)
+		require.NoError(t, err)
+		require.Equal(t, 1, calls)
+	})
+
+	t.Run("returns error when parent context is cancelled", func(t *testing.T) {
+		svc := &servicemock.Service{}
+		ctx, cancel := context.WithCancel(context.Background())
+		svc.CleanupExpiredHostsBatchFunc = func(ctx context.Context, batchSize int) ([]fleet.DeletedHostDetails, error) {
+			require.Equal(t, 5, batchSize)
+			cancel()
+			return []fleet.DeletedHostDetails{{ID: 1}}, nil
+		}
+
+		err := cleanupExpiredHostsCronJob(ctx, svc, logger, time.Minute, 5)
+		require.ErrorIs(t, err, context.Canceled)
+	})
+}
+
 func TestBuildChartScopeResolver(t *testing.T) {
 	historicalData := func(uptime, vulns bool) fleet.HistoricalDataSettings {
 		return fleet.HistoricalDataSettings{Uptime: uptime, Vulnerabilities: vulns}
@@ -433,13 +489,14 @@ func TestHostVitalsLabelMembershipCronIDP(t *testing.T) {
 		Value: new("Engineering"),
 	})
 	require.NoError(t, err)
+	raw := json.RawMessage(criteria)
 
 	// Create a global and a team1-scoped IdP host vitals label.
 	globalLabel, err := ds.NewLabel(ctx, &fleet.Label{
 		Name:                "idp-cron-global",
 		LabelType:           fleet.LabelTypeRegular,
 		LabelMembershipType: fleet.LabelMembershipTypeHostVitals,
-		HostVitalsCriteria:  new(json.RawMessage(criteria)),
+		HostVitalsCriteria:  &raw,
 	})
 	require.NoError(t, err)
 	team1Label, err := ds.NewLabel(ctx, &fleet.Label{
@@ -447,7 +504,7 @@ func TestHostVitalsLabelMembershipCronIDP(t *testing.T) {
 		TeamID:              &team1.ID,
 		LabelType:           fleet.LabelTypeRegular,
 		LabelMembershipType: fleet.LabelMembershipTypeHostVitals,
-		HostVitalsCriteria:  new(json.RawMessage(criteria)),
+		HostVitalsCriteria:  &raw,
 	})
 	require.NoError(t, err)
 

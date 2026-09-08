@@ -139,8 +139,8 @@ func baseDownloadStoreWithEditedScripts(t *testing.T, activeVersion string, acti
 		return false, "", nil
 	}
 	// No recoverable metadata by default (byte-dedup path).
-	ds.GetSoftwareInstallerMetadataByStorageIDFunc = func(ctx context.Context, storageID string) ([]string, string, error) {
-		return nil, "", nil
+	ds.GetSoftwareInstallerMetadataByStorageIDFunc = func(ctx context.Context, storageID string) (fleet.CachedInstallerMetadata, error) {
+		return fleet.CachedInstallerMetadata{}, nil
 	}
 	// After the insert, the new version is the newest cached one.
 	ds.GetFleetMaintainedVersionsByTitleIDFunc = func(ctx context.Context, tmID *uint, titleID uint) ([]fleet.FleetMaintainedVersion, error) {
@@ -157,7 +157,7 @@ func baseDownloadStoreWithEditedScripts(t *testing.T, activeVersion string, acti
 	// By default the active installer has no custom scripts to carry forward, so the
 	// cron keeps the manifest scripts. nil signals "nothing to preserve". Tests that
 	// exercise custom-script carry-forward override this.
-	ds.GetSoftwareInstallerMetadataByTeamAndTitleIDFunc = func(ctx context.Context, tmID *uint, titleID uint, withScriptContents bool) (*fleet.SoftwareInstaller, error) {
+	ds.GetSoftwareInstallerMetadataByTeamTitleAndInstallerIDFunc = func(ctx context.Context, tmID *uint, titleID uint, installerID uint, withScriptContents bool) (*fleet.SoftwareInstaller, error) {
 		return nil, nil
 	}
 	return ds
@@ -328,8 +328,8 @@ func TestAutoUpdateFetchesManifestOncePerSlug(t *testing.T) {
 	ds.HasFMAInstallerVersionFunc = func(ctx context.Context, tmID *uint, fmaID uint, version string) (bool, string, error) {
 		return false, "", nil
 	}
-	ds.GetSoftwareInstallerMetadataByStorageIDFunc = func(ctx context.Context, storageID string) ([]string, string, error) {
-		return nil, "", nil
+	ds.GetSoftwareInstallerMetadataByStorageIDFunc = func(ctx context.Context, storageID string) (fleet.CachedInstallerMetadata, error) {
+		return fleet.CachedInstallerMetadata{}, nil
 	}
 	ds.InsertFleetMaintainedAppVersionFunc = func(ctx context.Context, activeInstallerID uint, payload *fleet.UploadSoftwareInstallerPayload) (uint, error) {
 		return 13, nil
@@ -344,7 +344,7 @@ func TestAutoUpdateFetchesManifestOncePerSlug(t *testing.T) {
 	ds.MarkFleetMaintainedAppVersionCurrentFunc = func(ctx context.Context, installerID uint) error {
 		return nil
 	}
-	ds.GetSoftwareInstallerMetadataByTeamAndTitleIDFunc = func(ctx context.Context, tmID *uint, titleID uint, withScriptContents bool) (*fleet.SoftwareInstaller, error) {
+	ds.GetSoftwareInstallerMetadataByTeamTitleAndInstallerIDFunc = func(ctx context.Context, tmID *uint, titleID uint, installerID uint, withScriptContents bool) (*fleet.SoftwareInstaller, error) {
 		return nil, nil
 	}
 
@@ -380,8 +380,8 @@ func TestAutoUpdateSubstitutesUninstallScript(t *testing.T) {
 	srv := newFakeManifestServer(t)
 	srv.uninstall = "msiexec /x $PACKAGE_ID /qn"
 	ds := baseDownloadStore(t, "149.0.0", 9)
-	ds.GetSoftwareInstallerMetadataByStorageIDFunc = func(ctx context.Context, storageID string) ([]string, string, error) {
-		return []string{"ABC"}, "", nil
+	ds.GetSoftwareInstallerMetadataByStorageIDFunc = func(ctx context.Context, storageID string) (fleet.CachedInstallerMetadata, error) {
+		return fleet.CachedInstallerMetadata{PackageIDs: []string{"ABC"}, Filename: "cached-installer.msi", Extension: "msi"}, nil
 	}
 	var gotPayload *fleet.UploadSoftwareInstallerPayload
 	ds.InsertFleetMaintainedAppVersionFunc = func(ctx context.Context, activeInstallerID uint, payload *fleet.UploadSoftwareInstallerPayload) (uint, error) {
@@ -394,6 +394,9 @@ func TestAutoUpdateSubstitutesUninstallScript(t *testing.T) {
 	require.NotNil(t, gotPayload)
 	require.NotContains(t, gotPayload.UninstallScript, "$PACKAGE_ID", "placeholder must be substituted")
 	require.Contains(t, gotPayload.UninstallScript, "ABC")
+	// The file was never downloaded, so these come off the same-content row.
+	require.Equal(t, "cached-installer.msi", gotPayload.Filename)
+	require.Equal(t, "msi", gotPayload.Extension)
 }
 
 // [6] A caret pin with a "latest" manifest must not early-return before the real
@@ -436,7 +439,7 @@ func TestAutoUpdateUnsubstitutedUninstallSkipsInsert(t *testing.T) {
 func TestAutoUpdatePreservesEditedScripts(t *testing.T) {
 	newFakeManifestServer(t)
 	ds := baseDownloadStoreWithEditedScripts(t, "149.0.0", 9, true, true)
-	ds.GetSoftwareInstallerMetadataByTeamAndTitleIDFunc = func(ctx context.Context, tmID *uint, titleID uint, withScriptContents bool) (*fleet.SoftwareInstaller, error) {
+	ds.GetSoftwareInstallerMetadataByTeamTitleAndInstallerIDFunc = func(ctx context.Context, tmID *uint, titleID uint, installerID uint, withScriptContents bool) (*fleet.SoftwareInstaller, error) {
 		return &fleet.SoftwareInstaller{
 			InstallScript:         "echo CUSTOM install",
 			UninstallScript:       "echo CUSTOM uninstall",
@@ -464,7 +467,7 @@ func TestAutoUpdateAdoptsManifestScriptsWhenNotEdited(t *testing.T) {
 	ds := baseDownloadStore(t, "149.0.0", 9)
 	// The active installer is always read, but neither flag is set on it, so its
 	// scripts lose to the manifest.
-	ds.GetSoftwareInstallerMetadataByTeamAndTitleIDFunc = func(ctx context.Context, tmID *uint, titleID uint, withScriptContents bool) (*fleet.SoftwareInstaller, error) {
+	ds.GetSoftwareInstallerMetadataByTeamTitleAndInstallerIDFunc = func(ctx context.Context, tmID *uint, titleID uint, installerID uint, withScriptContents bool) (*fleet.SoftwareInstaller, error) {
 		return &fleet.SoftwareInstaller{
 			InstallScript:   "echo STALE install",
 			UninstallScript: "echo STALE uninstall",
@@ -489,7 +492,7 @@ func TestAutoUpdatePicksUpEditsMadeDuringDownload(t *testing.T) {
 	// The candidate says unedited and the active installer says otherwise, which is an
 	// admin editing the script while the installer downloaded.
 	ds := baseDownloadStore(t, "149.0.0", 9)
-	ds.GetSoftwareInstallerMetadataByTeamAndTitleIDFunc = func(ctx context.Context, tmID *uint, titleID uint, withScriptContents bool) (*fleet.SoftwareInstaller, error) {
+	ds.GetSoftwareInstallerMetadataByTeamTitleAndInstallerIDFunc = func(ctx context.Context, tmID *uint, titleID uint, installerID uint, withScriptContents bool) (*fleet.SoftwareInstaller, error) {
 		return &fleet.SoftwareInstaller{
 			InstallScript:       "echo JUST EDITED",
 			UninstallScript:     "echo uninstall",

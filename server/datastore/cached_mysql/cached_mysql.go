@@ -78,6 +78,21 @@ const (
 	defaultFMANamesByIdentifierExpiration = 5 * time.Minute
 )
 
+// MaxConfigInputTTL is the longest default expiration among the cached items
+// that feed the osquery config build: app config, team agent options, the
+// host's packs, and a pack's scheduled queries. The osquery config ETag write
+// fence must outlive it, so that a config assembled from a stale in-memory
+// read can never be published as the current validator. See
+// redis_config_etag.DefaultFenceTTL.
+func MaxConfigInputTTL() time.Duration {
+	return max(
+		defaultAppConfigExpiration,
+		defaultPacksExpiration,
+		defaultScheduledQueriesExpiration,
+		defaultTeamAgentOptionsExpiration,
+	)
+}
+
 // cloneCache wraps the in memory cache with one that clones items before returning them.
 type cloneCache struct {
 	*cache.Cache

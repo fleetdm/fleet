@@ -1,11 +1,11 @@
 {
   "versions": [
     {
-      "version": "226.0.0.0.0",
+      "version": "227.0.0.0.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.facebook.Origami-Studio';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.facebook.Origami-Studio' AND version_compare(bundle_short_version, '226.0.0.0.0') < 0);",
-        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.facebook.Origami-Studio');"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.facebook.Origami-Studio' AND version_compare(bundle_short_version, '227.0.0.0.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.facebook.Origami-Studio' AND a.bundle_executable != '');"
       },
       "installer_url": "https://facebook.com/designtools/origami/",
       "install_script_ref": "9214a7f5",

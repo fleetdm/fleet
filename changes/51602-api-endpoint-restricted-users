@@ -1,0 +1,2 @@
+* Renamed the "Role" column to "Permissions" on the Settings > Users page, and added a badge showing how many API endpoints an API-only user is restricted to.
+* Updated the Settings > Users table so the actions dropdown only appears on row hover and clicking anywhere else in a row opens that user's edit page.

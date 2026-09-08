@@ -175,6 +175,8 @@ func downloadNewVersionIfEligible(
 		return "", err
 	}
 
+	versionAlreadyCached := false
+
 	// For a concrete manifest version the eligibility gates can run up front. For a
 	// "latest" manifest the real version isn't known until the installer is
 	// extracted, so the caret-major and cache checks are deferred until after that.
@@ -193,8 +195,7 @@ func downloadNewVersionIfEligible(
 		// the GitOps path: a rebuilt package (same version, new hash) is downloaded and
 		// replaces them. A manifest without a hash can't be compared, so it downloads again.
 		if versionExists && cachedHash == app.SHA256 {
-			// Nothing to download, and this cached version is what the manifest publishes.
-			return app.Version, nil
+			versionAlreadyCached = true
 		}
 	}
 
@@ -202,7 +203,9 @@ func downloadNewVersionIfEligible(
 	// team cached the same version), skip the HTTP download and reuse the bytes.
 	storageID := app.SHA256
 	needBytes := true
-	if app.SHA256 != noCheckHash && !isLatest {
+	if versionAlreadyCached {
+		needBytes = false
+	} else if app.SHA256 != noCheckHash && !isLatest {
 		exists, err := store.Exists(ctx, app.SHA256)
 		if err != nil {
 			return "", ctxerr.Wrap(ctx, err, "checking installer store")
@@ -212,6 +215,7 @@ func downloadNewVersionIfEligible(
 
 	version := app.Version
 	filename := ""
+	extension := ""
 	upgradeCode := app.UpgradeCode
 	var packageIDs []string
 	var tfr *fleet.TempFileReader
@@ -258,15 +262,18 @@ func downloadNewVersionIfEligible(
 		}
 	} else {
 		// Bytes already cached (possibly only on an inactive row after a rollback):
-		// recover the package IDs and upgrade code from any installer with the same
-		// content hash so the uninstall script can still be substituted.
-		pids, ucode, err := ds.GetSoftwareInstallerMetadataByStorageID(ctx, storageID)
+		// describe them from any installer with the same content hash. The extension
+		// decides how the uninstall script is substituted, and an installer URL often
+		// ends in something that isn't one, so it has to come off the row.
+		cached, err := ds.GetSoftwareInstallerMetadataByStorageID(ctx, storageID)
 		if err != nil {
 			return "", ctxerr.Wrap(ctx, err, "recovering cached installer metadata")
 		}
-		packageIDs = pids
-		if ucode != "" {
-			upgradeCode = ucode
+		packageIDs = cached.PackageIDs
+		filename = cached.Filename
+		extension = cached.Extension
+		if cached.UpgradeCode != "" {
+			upgradeCode = cached.UpgradeCode
 		}
 	}
 
@@ -281,7 +288,7 @@ func downloadNewVersionIfEligible(
 		}
 		// Same as above, except the hash to compare is the one just downloaded.
 		if versionExists && cachedHash == storageID {
-			return version, nil
+			versionAlreadyCached = true
 		}
 	}
 
@@ -290,12 +297,15 @@ func downloadNewVersionIfEligible(
 			filename = path.Base(u.Path)
 		}
 	}
+	if extension == "" {
+		extension = extensionFromFilename(filename)
+	}
 
 	payload := &fleet.UploadSoftwareInstallerPayload{
 		TeamID:          c.TeamID,
 		Version:         version,
 		Filename:        filename,
-		Extension:       extensionFromFilename(filename),
+		Extension:       extension,
 		StorageID:       storageID,
 		URL:             app.InstallerURL,
 		UpgradeCode:     upgradeCode,
@@ -307,12 +317,13 @@ func downloadNewVersionIfEligible(
 		InstallerFile:   tfr,
 	}
 
-	// Carry an admin's scripts across the version bump. Read the active installer
-	// rather than trust the candidate, which was listed before the download and can
-	// be stale. The insert copies the flags off that same row.
+	// Carry an admin's scripts across the version bump. Read the row again rather
+	// than trust the candidate, which was listed before the download and can be
+	// stale. A title can hold more than one active package, so it has to be the
+	// candidate's own row. The insert copies the flags off that same row.
 	payload.InstallScriptEdited = c.InstallScriptEdited
 	payload.UninstallScriptEdited = c.UninstallScriptEdited
-	active, err := ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, c.TeamID, c.TitleID, true)
+	active, err := ds.GetSoftwareInstallerMetadataByTeamTitleAndInstallerID(ctx, c.TeamID, c.TitleID, c.InstallerID, true)
 	if err != nil && !fleet.IsNotFound(err) {
 		return "", ctxerr.Wrap(ctx, err, "getting active installer to preserve custom scripts")
 	}
@@ -332,6 +343,26 @@ func downloadNewVersionIfEligible(
 	if err := preProcessUninstallScript(payload); err != nil {
 		return "", ctxerr.Wrap(ctx, err, "processing uninstall script")
 	}
+
+	// No row to write, so the scripts and queries go onto the one already there.
+	if versionAlreadyCached {
+		if file.PackageIDRegex.MatchString(payload.UninstallScript) ||
+			file.UpgradeCodeRegex.MatchString(payload.UninstallScript) {
+			logger.WarnContext(ctx, "manifest uninstall script has unsubstituted template variables", "slug", c.Slug)
+			return version, nil
+		}
+		if active == nil || (payload.InstallScript == active.InstallScript &&
+			payload.UninstallScript == active.UninstallScript &&
+			payload.PatchQuery == active.PatchQuery && payload.AppOpenQuery == active.AppOpenQuery) {
+			return version, nil
+		}
+		if err := ds.UpdateInstallerScriptsAndQueries(ctx, active.InstallerID, version,
+			payload.InstallScript, payload.UninstallScript, payload.PatchQuery, payload.AppOpenQuery); err != nil {
+			logger.WarnContext(ctx, "refreshing installer scripts and queries", "slug", c.Slug, "err", err)
+		}
+		return version, nil
+	}
+
 	// Refuse to persist a row whose uninstall script still has unsubstituted
 	// template variables (e.g. metadata extraction failed and preProcess silently
 	// no-op'd): promoting it would record uninstalls as succeeding while the app

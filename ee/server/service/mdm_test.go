@@ -346,6 +346,9 @@ func TestClearPasscode(t *testing.T) {
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true}}, nil
 	}
+	ds.GetHostMDMAppleEnrollmentPermissionsFunc = func(ctx context.Context, hostUUID string) (*fleet.HostMDMApplePermissions, error) {
+		return &fleet.HostMDMApplePermissions{HostUUID: hostUUID, AccessRights: apple_mdm.MDMAccessRightAll}, nil
+	}
 
 	// Common mdmStorage mocks for enqueue + push.
 	mdmStorage.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *nanomdm_mdm.CommandWithSubtype) (map[string]error, error) {
@@ -371,9 +374,6 @@ func TestClearPasscode(t *testing.T) {
 	}
 
 	t.Run("authorization", func(t *testing.T) {
-		ds.HostLiteFunc = func(ctx context.Context, hostID uint) (*fleet.Host, error) {
-			return &fleet.Host{ID: hostID, Platform: "ipados"}, nil
-		}
 		ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
 			return &fleet.HostMDM{}, nil
 		}
@@ -381,26 +381,99 @@ func TestClearPasscode(t *testing.T) {
 			return &fleet.NanoMDMEnrollmentDetails{UnlockToken: new("fake-token")}, nil
 		}
 
+		team1 := new(uint(1))
+
 		cases := []struct {
-			desc              string
-			user              *fleet.User
-			shoudFailWithAuth bool
+			desc       string
+			user       *fleet.User
+			hostTeamID *uint
+			wantErr    error
 		}{
-			{"no role", test.UserNoRoles, true},
-			{"observer", test.UserObserver, true},
-			{"observer+", test.UserObserverPlus, true},
-			{"technician", test.UserTechnician, true},
-			{"gitops", test.UserGitOps, true},
-			{"maintainer", test.UserMaintainer, false},
-			{"admin", test.UserAdmin, false},
+			{"no role", test.UserNoRoles, nil, test.ErrForbidden},
+			{"observer", test.UserObserver, nil, test.ErrForbidden},
+			{"observer+", test.UserObserverPlus, nil, test.ErrForbidden},
+			{"technician", test.UserTechnician, nil, nil},
+			{"gitops", test.UserGitOps, nil, test.ErrForbidden},
+			{"maintainer", test.UserMaintainer, nil, nil},
+			{"admin", test.UserAdmin, nil, nil},
+			{"team 1 technician", test.UserTeamTechnicianTeam1, team1, nil},
+			{"team 1 admin", test.UserTeamAdminTeam1, team1, nil},
+			{"team 1 observer", test.UserTeamObserverTeam1, team1, test.ErrForbidden},
+			{"team 2 technician", test.UserTeamTechnicianTeam2, team1, test.ErrNotFound},
 		}
 		for _, c := range cases {
 			t.Run(c.desc, func(t *testing.T) {
+				ds.HostLiteFunc = func(ctx context.Context, hostID uint) (*fleet.Host, error) {
+					return &fleet.Host{ID: hostID, Platform: "ipados", TeamID: c.hostTeamID}, nil
+				}
+
 				ctx := test.UserContext(t.Context(), c.user)
 				_, err := svc.ClearPasscode(ctx, 1)
-				checkAuthErr(t, c.shoudFailWithAuth, err)
+				test.RequireErrKind(t, c.wantErr, err)
 			})
 		}
+	})
+
+	t.Run("access rights disallow clear passcode", func(t *testing.T) {
+		ds.HostLiteFunc = func(ctx context.Context, hostID uint) (*fleet.Host, error) {
+			return &fleet.Host{ID: hostID, UUID: "host-uuid-rights", Platform: "ipados"}, nil
+		}
+		ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
+			return &fleet.HostMDM{}, nil
+		}
+		ds.GetHostMDMAppleEnrollmentPermissionsFunc = func(ctx context.Context, hostUUID string) (*fleet.HostMDMApplePermissions, error) {
+			return &fleet.HostMDMApplePermissions{
+				HostUUID:     hostUUID,
+				AccessRights: apple_mdm.MDMAccessRightAll &^ apple_mdm.MDMAccessRightDeviceLock,
+			}, nil
+		}
+		t.Cleanup(func() {
+			ds.GetHostMDMAppleEnrollmentPermissionsFunc = func(ctx context.Context, hostUUID string) (*fleet.HostMDMApplePermissions, error) {
+				return &fleet.HostMDMApplePermissions{HostUUID: hostUUID, AccessRights: apple_mdm.MDMAccessRightAll}, nil
+			}
+		})
+
+		ctx := test.UserContext(t.Context(), test.UserAdmin)
+		_, err := svc.ClearPasscode(ctx, 1)
+		require.Error(t, err)
+		var badReq *fleet.BadRequestError
+		require.ErrorAs(t, err, &badReq)
+		require.Contains(t, badReq.Message, fleet.CantClearPasscodeAccessRightsMessage)
+	})
+
+	t.Run("authorization non-Apple-mobile platforms", func(t *testing.T) {
+		ds.HostLiteFunc = func(ctx context.Context, hostID uint) (*fleet.Host, error) {
+			return &fleet.Host{ID: hostID, Platform: "android"}, nil
+		}
+
+		// Technicians can only clear passcodes on iOS/iPadOS hosts; Android still
+		// requires full MDM command write.
+		ctx := test.UserContext(t.Context(), test.UserTechnician)
+		_, err := svc.ClearPasscode(ctx, 1)
+		checkAuthErr(t, true, err)
+
+		// Same for macOS: it is not an Apple mobile platform, so technicians are
+		// denied at the authorization gate rather than by platform validation.
+		ds.HostLiteFunc = func(ctx context.Context, hostID uint) (*fleet.Host, error) {
+			return &fleet.Host{ID: hostID, Platform: "darwin"}, nil
+		}
+		_, err = svc.ClearPasscode(ctx, 1)
+		checkAuthErr(t, true, err)
+
+		ds.HostLiteFunc = func(ctx context.Context, hostID uint) (*fleet.Host, error) {
+			return &fleet.Host{ID: hostID, Platform: "android"}, nil
+		}
+
+		// Admin passes authorization and fails on Android MDM not being configured,
+		// proving the gate itself lets admins through.
+		ctx = test.UserContext(t.Context(), test.UserAdmin)
+		_, err = svc.ClearPasscode(ctx, 1)
+		require.Error(t, err)
+		var forbiddenError *authz.Forbidden
+		require.NotErrorAs(t, err, &forbiddenError)
+		var badReq *fleet.BadRequestError
+		require.ErrorAs(t, err, &badReq)
+		require.Contains(t, badReq.Message, fleet.AndroidMDMNotConfiguredMessage)
 	})
 
 	t.Run("happy path ipados", func(t *testing.T) {
