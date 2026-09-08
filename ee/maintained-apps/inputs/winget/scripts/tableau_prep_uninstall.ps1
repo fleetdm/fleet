@@ -20,7 +20,15 @@ try {
 
 $selected = $null
 foreach ($key in $uninstallKeys) {
-    if ($key.DisplayName -and $key.DisplayName -like $softwareNameLike -and $key.Publisher -like $publisherLike) {
+    # The bundle and the MSI it installs register under the same DisplayName and
+    # publisher, and only the bundle's uninstaller removes both. BundleUpgradeCode
+    # and QuietUninstallString are written by the bundle and not by the MSI, so
+    # requiring one of them selects the bundle. Dropping that condition selects
+    # the MSI entry instead, whose recorded command ("MsiExec.exe /I{...}") is an
+    # install and hangs indefinitely.
+    if ($key.DisplayName -and $key.DisplayName -like $softwareNameLike -and
+        $key.Publisher -like $publisherLike -and
+        ($key.BundleUpgradeCode -or $key.QuietUninstallString)) {
         $selected = $key
         break
     }
