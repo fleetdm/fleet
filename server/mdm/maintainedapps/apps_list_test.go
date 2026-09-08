@@ -17,7 +17,7 @@ import (
 // (see https://github.com/fleetdm/fleet/issues/42445). The test below fails on any
 // new one so it's reviewed against those paths before being added here.
 var knownSharedDarwinIdentifiers = map[string]string{
-	"org.mozilla.firefox":    "Mozilla Firefox and Mozilla Firefox ESR",
+	"org.mozilla.firefox": "Mozilla Firefox and Mozilla Firefox ESR",
 }
 
 func TestNoUnexpectedSharedDarwinIdentifiers(t *testing.T) {
