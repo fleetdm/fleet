@@ -126,5 +126,5 @@ Supported flags are:
   -key string
     	Key used to decrypt the assets
   -value string
-    	Encrypted value to be decrypted
+    	Encrypted value to be decrypted either base64 or hex encoded
 ```

@@ -26,7 +26,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/assets"
 	"github.com/fleetdm/fleet/v4/server/mdm/cryptoutil"
-	"github.com/secDre4mer/pkcs7"
+	"github.com/smallstep/pkcs7"
 )
 
 const (
@@ -69,7 +69,7 @@ var (
 
 func setupSharedFlags() {
 	for _, fs := range []*flag.FlagSet{exportCmd, importCmd, rolloverCmd, decryptCmd} {
-		fs.StringVar(&flagKey, "key", "", "Key used to encrypt the assets")
+		fs.StringVar(&flagKey, "key", "", "Key used to encrypt/decrypt the assets")
 		fs.StringVar(&flagDir, "dir", "", "Directory to put the exported assets")
 		fs.StringVar(&flagDBUser, "db-user", testUsername, "Username used to connect to the MySQL instance")
 		fs.StringVar(&flagDBPass, "db-password", testPassword, "Password used to connect to the MySQL instance")
@@ -411,11 +411,12 @@ export FLEET_MDM_APPLE_BM_KEY=%[1]s/abm_key.key
 		}
 
 		ds := setupDS(flagKey, flagDBUser, flagDBPass, flagDBAddress, flagDBName)
+		defer ds.Close()
 		if err := decrypt(ds, flagKey, flagDecryptValue); err != nil {
 			log.Fatal("failed to decrypt value: ", err)
 		}
 	default:
-		log.Fatalf("invalid subcommand %s, valid subcommands: import, export, rollover-ca-cert", os.Args[1]) //nolint:gosec // dismiss G107
+		log.Fatalf("invalid subcommand %s, valid subcommands: import, export, rollover-ca-cert, decrypt", os.Args[1]) //nolint:gosec // dismiss G107
 	}
 }
 
@@ -446,10 +447,10 @@ func decrypt(ds *mysql.Datastore, privateKey, value string) error {
 			decrypted, err := mdm.DecryptBase64CMSWithCerts(b64, key, certs)
 			if err != nil {
 				failures = append(failures, fmt.Sprintf("%s/CMS: %v", c.encoding, err))
-				continue
+			} else {
+				fmt.Printf("Decrypted value: %s\n", decrypted)
+				return nil
 			}
-			fmt.Printf("Decrypted value: %s\n", decrypted)
-			return nil
 		}
 
 		if len(c.raw) < aesGCMOverhead {
