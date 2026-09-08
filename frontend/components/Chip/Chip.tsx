@@ -14,6 +14,9 @@ interface IChipProps {
   className?: string;
   onClick?: () => void;
   tooltip?: React.ReactNode;
+  /** Forwarded to TooltipWrapper. Set false when the tooltip has manual
+   * `<br />`s or inline links so the auto-balancer doesn't fight the layout. */
+  tooltipTextBalanced?: boolean;
 }
 
 const Chip = ({
@@ -23,6 +26,7 @@ const Chip = ({
   className,
   onClick,
   tooltip,
+  tooltipTextBalanced,
 }: IChipProps) => {
   const classNames = classnames(
     baseClass,
@@ -61,6 +65,7 @@ const Chip = ({
       underline={false}
       showArrow
       tipOffset={8}
+      textBalanced={tooltipTextBalanced}
     >
       {chip}
     </TooltipWrapper>

@@ -189,6 +189,7 @@ const SoftwareSummaryCard = ({
               isIpadOrIphoneSoftwareSource(softwareTitle.source),
               isAndroidSoftwareSource(softwareTitle.source)
             )}
+            tooltipTextBalanced={false}
           />
         )}
         {showAutoInstallChip && (

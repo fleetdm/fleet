@@ -186,6 +186,7 @@ export const InstallIconWithTooltip = ({
         position="top"
         tipOffset={12}
         fixedPositionStrategy
+        textBalanced={false}
       >
         <Icon
           name={iconName}
