@@ -193,6 +193,8 @@ To localize content, pick the best fleetie to do the translation, and refer to t
 - 🇩🇪 German (Germany, Austria, Switzerland, Liechtenstein)
 - ळ Marathi (Maharashtra)
 - ಠ Kannada (Karnataka)
+- 🇲🇾 Malay (Malaysia)
+- 🇷🇴 Romanian (Romania, Moldova)
 - 🇳🇱 Dutch (the Netherlands, Flemish Region, Belgium, Suriname)
 - 🇸🇪 Swedish (Sweden)
 - 🇮🇱 Hebrew (Israel)
