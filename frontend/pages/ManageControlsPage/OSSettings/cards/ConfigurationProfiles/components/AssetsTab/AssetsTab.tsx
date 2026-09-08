@@ -185,8 +185,8 @@ const AssetsTab = ({ currentTeamId, router }: IAssetsTabProps) => {
           variant="right-panel"
           content={
             <>
-              Add assets (data or credentials) to use them in Apple declaration (DDM)
-              profiles. Apple only.{" "}
+              Add assets (data or credentials) to use them in Apple declaration
+              (DDM) profiles. Apple only.{" "}
               <CustomLink
                 url={`${LEARN_MORE_ABOUT_BASE_LINK}/configuration-profile-assets`}
                 text="Learn more"
