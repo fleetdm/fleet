@@ -13,7 +13,6 @@
   type: patch
   fleet_maintained_app_slug: 1password/windows
   install_software: true
-  patch_when_closed: true
   labels_include_any:
     - x86 Windows hosts with 1Password installed
 - name: Claude up to date (Windows)
@@ -67,7 +66,6 @@
   type: patch
   fleet_maintained_app_slug: okta-verify/windows
   install_software: true
-  patch_when_closed: true
   labels_include_any:
     - x86 Windows hosts with Okta Verify installed
 - name: Adobe Acrobat Reader up to date (Windows)
@@ -77,6 +75,5 @@
   type: patch
   fleet_maintained_app_slug: adobe-acrobat-reader/windows
   install_software: true
-  patch_when_closed: true
   labels_include_any:
     - x86 Windows hosts with Adobe Acrobat Reader installed

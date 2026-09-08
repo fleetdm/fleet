@@ -13,7 +13,6 @@
   type: patch
   fleet_maintained_app_slug: 1password/darwin
   install_software: true
-  patch_when_closed: true
   labels_include_any:
     - Macs with 1Password installed
 - name: Brave Browser up to date
@@ -77,7 +76,6 @@
   type: patch
   fleet_maintained_app_slug: okta-verify/darwin
   install_software: true
-  patch_when_closed: true
   labels_include_any:
     - Macs with Okta Verify installed
 - name: Santa up to date
@@ -86,7 +84,6 @@
   type: patch
   fleet_maintained_app_slug: santa/darwin
   install_software: true
-  patch_when_closed: true
   labels_include_any:
     - Macs with Santa installed
 - name: Fleet Desktop up to date
@@ -95,7 +92,6 @@
   type: patch
   fleet_maintained_app_slug: fleet-desktop/darwin
   install_software: true
-  patch_when_closed: true
   labels_include_any:
     - Macs with Fleet Desktop.app installed
 - name: Claude up to date (macOS)
@@ -284,7 +280,6 @@
   type: patch
   fleet_maintained_app_slug: nudge/darwin
   install_software: true
-  patch_when_closed: true
   labels_include_any:
     - Macs with Nudge installed
 - name: Adobe Acrobat Reader up to date (macOS)
@@ -294,7 +289,6 @@
   type: patch
   fleet_maintained_app_slug: adobe-acrobat-reader/darwin
   install_software: true
-  patch_when_closed: true
   labels_include_any:
     - Macs with Adobe Acrobat Reader installed
 - name: Adobe Acrobat Pro up to date
@@ -304,6 +298,5 @@
   type: patch
   fleet_maintained_app_slug: adobe-acrobat-pro/darwin
   install_software: true
-  patch_when_closed: true
   labels_include_any:
     - Macs with Adobe Acrobat Pro installed
