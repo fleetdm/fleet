@@ -7462,7 +7462,7 @@ This permanently removes the host from your AB, and cannot be added back automat
       "host_id": 57,
       "status": "failed",
       "error": "Host is not enrolled in Apple Business"
-    },
+    }
   ]
 }
 ```
