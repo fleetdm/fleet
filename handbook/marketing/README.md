@@ -189,7 +189,7 @@ To localize content, pick the best fleetie to do the translation, and refer to t
 - 🇪🇸 Spanish (Spain, Andorra, Colombia, Chile, Argentina, Mexico)
 - 🇫🇷 French (France, Quebec/Canada, Luxembourg, Monaco, Democratic Republic of the Congo, Cameroon, New Brunswick/Canada, Switzerland)
 - 🇩🇪 German (Germany, Austria, Switzerland, Liechtenstein)
-- 🇳🇱 Dutch (Belgium, Suriname, Aruba, Curacao)
+- 🇳🇱 Dutch (the Netherlands, Belgium, Suriname, Aruba, Curacao)
 - 🇸🇪 Swedish (Sweden)
 - 🇮🇱 Hebrew (Israel)
 - 🇩🇰 Danish (Denmark, the Faroe Islands, Greenland, Southern Schleswig (Schleswig-Holstein) Germany)
