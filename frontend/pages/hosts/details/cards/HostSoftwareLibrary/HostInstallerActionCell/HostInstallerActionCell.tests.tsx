@@ -618,6 +618,29 @@ describe("HostInstallerActionCell component", () => {
     expect(uninstallBtn.closest("button")).not.toBeDisabled();
   });
 
+  it('renders Update (not Install) for "skipped_install" ui_status — the label column shows "Patch skipped", but the action is still a deferred update', () => {
+    render(
+      <HostInstallerActionCell
+        software={{
+          ...defaultSoftware,
+          status: "failed_install",
+          skipped_install: true,
+          ui_status: "skipped_install",
+        }}
+        onClickInstallAction={noop}
+        onClickUninstallAction={noop}
+        baseClass={baseClass}
+        hostScriptsEnabled
+        hostMDMEnrolled
+      />
+    );
+
+    const installBtn = screen.getByTestId(`${baseClass}__install-button--test`);
+    expect(installBtn).toHaveTextContent("Update");
+    expect(screen.getByTestId("refresh-icon")).toBeInTheDocument();
+    expect(installBtn.closest("button")).not.toBeDisabled();
+  });
+
   it('renders Reinstall and Uninstall for "uninstalling" ui_status', () => {
     render(
       <HostInstallerActionCell
