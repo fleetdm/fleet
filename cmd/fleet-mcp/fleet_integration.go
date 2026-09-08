@@ -32,6 +32,30 @@ type FleetClient struct {
 	baseURL    string
 	apiKey     string
 	httpClient *http.Client
+	// liveQueryClient is used only for the blocking single-host live query
+	// endpoint (POST /hosts/:id/query), which Fleet holds open for up to
+	// FLEET_LIVE_QUERY_REST_PERIOD — longer than httpClient's timeout allows.
+	// It shares httpClient's Transport. Nil falls back to httpClient.
+	liveQueryClient *http.Client
+}
+
+// liveQueryTimeoutMargin is added to the server-side wait for the live query
+// client's timeout, covering request setup and the response write after the
+// server-side wait elapses.
+const liveQueryTimeoutMargin = 30 * time.Second
+
+// maxSingleHostBlock caps the server-side wait this timeout is derived from.
+// FLEET_LIVE_QUERY_REST_PERIOD is also the multi-host campaign's wait budget,
+// set far above anything a server blocks for (900s in render.yaml) so fleet-wide
+// queries outlast asleep hosts; uncapped, that budget would let one stalled
+// connection hang for 15 minutes. Fleet's own period must stay under the request
+// timeout of any proxy in front of it, so real values are tens of seconds.
+const maxSingleHostBlock = 120 * time.Second
+
+// singleHostQueryTimeout bounds the blocking POST /hosts/:id/query client.
+// liveQueryDeadline() stays uncapped for the campaign path.
+func singleHostQueryTimeout() time.Duration {
+	return min(liveQueryDeadline(), maxSingleHostBlock) + liveQueryTimeoutMargin
 }
 
 // PlatformBreakdown represents platform distribution data
@@ -113,6 +137,10 @@ func NewFleetClient(baseURL, apiKey string, tlsSkipVerify bool, caFile string) *
 		apiKey:  apiKey,
 		httpClient: &http.Client{
 			Timeout:   30 * time.Second,
+			Transport: transport,
+		},
+		liveQueryClient: &http.Client{
+			Timeout:   singleHostQueryTimeout(),
 			Transport: transport,
 		},
 	}
@@ -2016,7 +2044,9 @@ func intersectHostsByID(a, b []Endpoint) []Endpoint {
 // runAdHocSingleHost uses POST /api/v1/fleet/hosts/:id/query (Fleet 4.43+ synchronous REST).
 func (fc *FleetClient) runAdHocSingleHost(ctx context.Context, hostID uint, sql string, endpointByID map[uint]Endpoint) (*LiveQueryResult, error) {
 	endpointPath := fmt.Sprintf("/api/v1/fleet/hosts/%d/query", hostID)
-	resp, err := fc.makeFleetRequest(ctx, "POST", endpointPath, AdHocQueryRequest{Query: sql})
+	// Fleet blocks on this endpoint until the host reports or
+	// FLEET_LIVE_QUERY_REST_PERIOD elapses, so use the long-timeout client.
+	resp, err := fc.makeFleetRequestWith(ctx, fc.liveQueryClient, "POST", endpointPath, AdHocQueryRequest{Query: sql})
 	if err != nil {
 		return nil, fmt.Errorf("ad hoc query failed: %w", err)
 	}
@@ -2085,6 +2115,15 @@ func endpointMatchesHostname(ep Endpoint, name string) bool {
 // shipper. We now log only the method and the path before the query string
 // so the route shape is observable without exposing identifiers.
 func (fc *FleetClient) makeFleetRequest(ctx context.Context, method, endpoint string, body interface{}) (*http.Response, error) {
+	return fc.makeFleetRequestWith(ctx, fc.httpClient, method, endpoint, body)
+}
+
+// makeFleetRequestWith is makeFleetRequest using the given client; a nil
+// client falls back to fc.httpClient.
+func (fc *FleetClient) makeFleetRequestWith(ctx context.Context, client *http.Client, method, endpoint string, body interface{}) (*http.Response, error) {
+	if client == nil {
+		client = fc.httpClient
+	}
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -2113,7 +2152,7 @@ func (fc *FleetClient) makeFleetRequest(ctx context.Context, method, endpoint st
 	pathOnly, _, _ := strings.Cut(endpoint, "?")
 	logrus.Debugf("%s %s", method, pathOnly)
 
-	resp, err := fc.httpClient.Do(req)
+	resp, err := client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to make request to Fleet API: %w", err)
 	}
