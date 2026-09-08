@@ -76,7 +76,7 @@ The engineering output and architecture DRI reviews and triages engineering-init
 All bug fix pull requests should reference the issue they resolve with the issue number in the description. Please do not use any [automated words](https://docs.github.com/en/issues/tracking-your-work-with-issues/linking-a-pull-request-to-an-issue#linking-a-pull-request-to-an-issue-using-a-keyword) since we don't want the issues to auto-close when the PR is merged.
 
 
-#### Route a Fleet-maintained app (FMA) request
+#### Route a Fleet-maintained app (FMA) request or bug
 
 When a GitHub issue or request relates to a Fleet-maintained app (FMA), add the `fma` label. That label alone is enough to surface the issue on the [Fleet-maintained apps project board](https://github.com/orgs/fleetdm/projects/116).
 
