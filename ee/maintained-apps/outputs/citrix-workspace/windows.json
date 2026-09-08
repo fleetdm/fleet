@@ -3,8 +3,8 @@
     {
       "version": "26.3.10.69",
       "queries": {
-        "exists": "SELECT 1 FROM programs WHERE name = 'Citrix Workspace Inside' AND publisher = 'Citrix Systems, Inc.' AND install_source NOT LIKE '%\\Ctx-%';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Citrix Workspace Inside' AND publisher = 'Citrix Systems, Inc.' AND install_source NOT LIKE '%\\Ctx-%' AND version_compare(version, '26.3.10.69') < 0);",
+        "exists": "SELECT 1 FROM programs WHERE name LIKE 'Citrix Workspace ____ (x64)' AND publisher = 'Citrix Systems, Inc.' AND EXISTS (SELECT 1 FROM programs WHERE name = 'Citrix Workspace Inside' AND publisher = 'Citrix Systems, Inc.' AND install_source NOT LIKE '%\\Ctx-%');",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Citrix Workspace ____ (x64)' AND publisher = 'Citrix Systems, Inc.' AND EXISTS (SELECT 1 FROM programs WHERE name = 'Citrix Workspace Inside' AND publisher = 'Citrix Systems, Inc.' AND install_source NOT LIKE '%\\Ctx-%') AND version_compare(version, '26.3.10.69') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'citrix workspace.exe');"
       },
       "installer_url": "https://downloadplugins.citrix.com/ReceiverUpdates/Prod/Receiver/Win/CitrixWorkspaceApp_x64_26.3.10.69.exe",
