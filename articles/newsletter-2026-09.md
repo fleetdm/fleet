@@ -28,7 +28,6 @@ Want to see how these are coming along at Fleet? We plan everything in the open.
 
 Fleet workshops are free, run about four hours, and set you on course to becoming a Fleet-certified expert.
 
-- **Apple administrator, Louisville.** September 8, 1pm to 5pm EDT. [Register](https://www.eventbrite.com/e/apple-administrator-workshop-tickets-1997986140330)
 - **GitOps, Washington, DC.** September 10, 1pm to 5pm EDT. [Register](https://www.eventbrite.com/e/gitops-washington-dc-tickets-1992169659078)
 - **GitOps speed run, Kansas City.** September 24, 8:30am to 10:30am CDT. [Register](https://www.eventbrite.com/e/speed-run-gitops-jnuc-tickets-1992170088362)
 - **GitOps, Gothenburg.** September 28, 1pm to 5pm GMT+2. [Register](https://www.eventbrite.com/e/gitops-macsysadmins-tickets-1993054810590)
