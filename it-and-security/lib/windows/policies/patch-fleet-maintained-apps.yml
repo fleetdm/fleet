@@ -4,6 +4,7 @@
   type: patch
   fleet_maintained_app_slug: slack/windows
   install_software: false
+  patch_when_closed: true
   labels_include_any:
     - x86 Windows hosts with Slack installed
 - name: 1Password up to date (Windows)
@@ -20,6 +21,7 @@
   type: patch
   fleet_maintained_app_slug: claude/windows
   install_software: false
+  patch_when_closed: true
   labels_include_any:
     - x86 Windows hosts with Claude installed
 - name: Firefox up to date (Windows)
@@ -28,6 +30,7 @@
   type: patch
   fleet_maintained_app_slug: firefox/windows
   install_software: false
+  patch_when_closed: true
   labels_include_any:
     - x86 Windows hosts with Firefox installed
 - name: Google Chrome up to date (Windows)
@@ -36,6 +39,7 @@
   type: patch
   fleet_maintained_app_slug: google-chrome/windows
   install_software: false
+  patch_when_closed: true
   labels_include_any:
     - x86 Windows hosts with Google Chrome installed
 - name: Zoom up to date (Windows)
@@ -44,6 +48,7 @@
   type: patch
   fleet_maintained_app_slug: zoom/windows
   install_software: false
+  patch_when_closed: true
   labels_include_any:
     - x86 Windows hosts with Zoom installed
 - name: Visual Studio Code up to date (Windows)
@@ -52,6 +57,7 @@
   type: patch
   fleet_maintained_app_slug: visual-studio-code/windows
   install_software: false
+  patch_when_closed: true
   labels_include_any:
     - x86 Windows hosts with Visual Studio Code installed
 - name: Okta Verify up to date (Windows)
