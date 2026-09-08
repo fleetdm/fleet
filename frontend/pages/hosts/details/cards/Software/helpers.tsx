@@ -220,8 +220,11 @@ export const getUiStatus = (
   const recentUserActionDetected =
     recentlyUpdatedIds && recentlyUpdatedIds.has(software.id);
 
-  // 0. Script Packages states
-  if (isScriptPackage) {
+  // 0. Script Packages states — only when there's no uninstall script.
+  // Script packages with an uninstall script fall through to the regular
+  // install statuses so the UI shows Install/Reinstall/Uninstall/Installed
+  // instead of Run/Rerun/Ran.
+  if (isScriptPackage && !software.software_package?.has_uninstall_script) {
     if (status === "failed_install") {
       return "failed_script";
     }
