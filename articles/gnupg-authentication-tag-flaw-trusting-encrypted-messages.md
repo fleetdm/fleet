@@ -13,7 +13,7 @@
 
 <a purpose="cta-button" href="https://fleetdm.com/software-catalog">See software inventory in Fleet</a>
 
-Ubuntu shipped [USN-8720-1](https://ubuntu.com/security/notices/USN-8720-1) on September 3, 2026, fixing a flaw in how gpgsm, GnuPG's S/MIME (CMS) component, validates authentication tags on messages encrypted with AES-GCM. The bug, tracked as CVE-2026-57062, meant gpgsm didn't properly enforce that an AES-GCM authentication tag was long enough to actually prove anything, which let a specially crafted CMS message slip past the integrity check its encryption was supposed to guarantee.
+Ubuntu shipped [USN-8720-1](https://ubuntu.com/security/notices/USN-8720-1) on September 3, 2026, patching a vulnerability in how gpgsm checks authentication tags on messages encrypted with AES-GCM. The bug, tracked as [CVE-2026-57062](https://nvd.nist.gov/vuln/detail/CVE-2026-57062), meant gpgsm didn't enforce that the tag was actually long enough to prove anything, which the advisory says could let attackers bypass the message integrity check gpgsm is supposed to perform.
 
 That's a quieter kind of failure than a typical crypto bug. Nothing crashes and no error appears. A message that should have been rejected as tampered gets treated as authentic instead.
 
