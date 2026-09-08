@@ -4294,7 +4294,7 @@ Returns the information of the specified host.
           "managed_local_account": "",
           "detail": "",
           "self_service": false,
-          "hidden": true
+          "": true
         }
       ]
     }
@@ -8407,7 +8407,7 @@ For requests with 100+ profiles, requests will take 5+ seconds.
 | display_name            | string  | Required for Windows and declaration (DDM) profiles. It's not supported for .mobileconfig profiles. Instead, the profiles `PayloadDisplayName` is used. |
 | activation              | string  | _Available in Fleet Premium_. The Base64 encoded activation criteria for the profile. Only supported for declaration (DDM) profiles. For all other profile types, this value is `null`. |
 | self_service            | boolean | Specifies if the profile should be opt-in for end users (no forced install). Supported for .mobileconfig profiles. Default is `false`. |
-| hidden.                 | boolean | Specifies if the profile should be hidden from end users on Fleet Desktop. `self_service` must be set to `false` (force install of profile) to use this option. |
+| hidden                  | boolean | Specifies if the profile should be hidden from end users on Fleet Desktop. `self_service` must be set to `false` (force install of profile) to use this option. |
 
 For each `profile`, `labels_exclude_any` can be combined with either `labels_include_all` or `labels_include_any`, but `labels_include_all` and `labels_include_any` cannot be combined with each other. If neither is set, all hosts on the specified platform are targeted.
 
