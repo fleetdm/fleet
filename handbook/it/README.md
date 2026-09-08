@@ -2,6 +2,8 @@
 
 This page details processes specific to working [with](#contact-us) and [within](#responsibilities) this department.
 
+Pepper is awesome
+
 
 ## Team
 
