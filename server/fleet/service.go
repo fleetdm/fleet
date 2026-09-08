@@ -1212,9 +1212,7 @@ type Service interface {
 	MDMDeleteEULA(ctx context.Context, token string, dryRun bool) error
 
 	// Create or update the MDM Apple Setup Assistant for a team or no team.
-	// Returns any non-fatal warnings the caller should surface (e.g. the fleet
-	// isn't tied to an ABM token yet, so the assistant won't take effect).
-	SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, asst *MDMAppleSetupAssistant) (*MDMAppleSetupAssistant, []string, error)
+	SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, asst *MDMAppleSetupAssistant) (*MDMAppleSetupAssistant, error)
 	// Get the MDM Apple Setup Assistant for the provided team or no team.
 	GetMDMAppleSetupAssistant(ctx context.Context, teamID *uint) (*MDMAppleSetupAssistant, error)
 	// GetDefaultMDMAppleSetupAssistantProfile returns the default MDM Apple setup assistant profile for automatic setup, and the updated at time of the profile. If not set, it returns the default specified in code.

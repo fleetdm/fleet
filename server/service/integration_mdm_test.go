@@ -6384,8 +6384,7 @@ func (s *integrationMDMTestSuite) TestMacosSetupAssistant() {
 
 	// Try with a team that has no relevant ABM tokens. Even with a second, unrelated
 	// token present (so there is no single obvious token to use), validation succeeds
-	// using any token, and the response warns that the assistant won't take effect
-	// until the team is tied to a token.
+	// using any token.
 	teamNoABM, err := s.ds.NewTeam(ctx, &fleet.Team{
 		Name:        t.Name() + "no_abm",
 		Description: "no abm",
@@ -6412,11 +6411,24 @@ func (s *integrationMDMTestSuite) TestMacosSetupAssistant() {
 		Name:              "profile_name_missing",
 		EnrollmentProfile: json.RawMessage(fmt.Sprintf(defaultProf, "no_abm")),
 	}, http.StatusOK, &noABMResp)
-	require.NotEmpty(t, noABMResp.Warnings)
-	require.Contains(t, strings.Join(noABMResp.Warnings, "\n"), "won't take effect")
+
+	// With every token invalid or terms-expired, adding a setup assistant fails with
+	// an actionable message instead of a cryptic Apple error.
+	allToks, err := s.ds.ListABMTokens(ctx)
+	require.NoError(t, err)
+	for _, tok := range allToks {
+		_, err = s.ds.SetABMTokenTermsExpiredForOrgName(ctx, tok.OrganizationName, true)
+		require.NoError(t, err)
+	}
+	r = s.Do("POST", "/api/latest/fleet/enrollment_profiles/automatic", createMDMAppleSetupAssistantRequest{
+		TeamID:            &teamNoABM.ID,
+		Name:              "profile_name_missing",
+		EnrollmentProfile: json.RawMessage(fmt.Sprintf(defaultProf, "no_usable_tokens")),
+	}, http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(r.Body), "All Apple Business Manager (ABM) tokens are invalid or have expired terms")
 
 	// With no ABM token at all, adding a setup assistant is rejected with a clear message.
-	allToks, err := s.ds.ListABMTokens(ctx)
+	allToks, err = s.ds.ListABMTokens(ctx)
 	require.NoError(t, err)
 	for _, tok := range allToks {
 		require.NoError(t, s.ds.DeleteABMToken(ctx, tok.ID))

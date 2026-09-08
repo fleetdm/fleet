@@ -687,9 +687,9 @@ func (svc *Service) MDMGetEULAMetadata(ctx context.Context) (*fleet.MDMEULA, err
 	return eula, nil
 }
 
-func (svc *Service) SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, asst *fleet.MDMAppleSetupAssistant) (*fleet.MDMAppleSetupAssistant, []string, error) {
+func (svc *Service) SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, asst *fleet.MDMAppleSetupAssistant) (*fleet.MDMAppleSetupAssistant, error) {
 	if err := svc.authz.Authorize(ctx, asst, fleet.ActionWrite); err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	// In order to validate if a configuration_web_url can be set for this setup
@@ -702,31 +702,31 @@ func (svc *Service) SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, asst 
 		var err error
 		tm, err = svc.ds.TeamWithExtras(ctx, *asst.TeamID) // TODO see if we can convert to TeamLite
 		if err != nil {
-			return nil, nil, ctxerr.Wrap(ctx, err, "get team")
+			return nil, ctxerr.Wrap(ctx, err, "get team")
 		}
 		teamName = &tm.Name
 		endUserAuthEnabled = tm.Config.MDM.MacOSSetup.EnableEndUserAuthentication
 	} else {
 		appCfg, err := svc.ds.AppConfig(ctx)
 		if err != nil {
-			return nil, nil, ctxerr.Wrap(ctx, err, "getting app config")
+			return nil, ctxerr.Wrap(ctx, err, "getting app config")
 		}
 		endUserAuthEnabled = appCfg.MDM.MacOSSetup.EnableEndUserAuthentication
 	}
 
 	var m map[string]any
 	if err := json.Unmarshal(asst.Profile, &m); err != nil {
-		return nil, nil, ctxerr.Wrap(ctx, err, "json unmarshal setup assistant profile")
+		return nil, ctxerr.Wrap(ctx, err, "json unmarshal setup assistant profile")
 	}
 	if _, ok := m["configuration_web_url"]; ok && endUserAuthEnabled {
-		return nil, nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("profile", `Couldn't edit macos_setup_assistant. First, disable end user authentication before adding an automatic enrollment (DEP) profile with a configuration_web_url.`))
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("profile", `Couldn't edit macos_setup_assistant. First, disable end user authentication before adding an automatic enrollment (DEP) profile with a configuration_web_url.`))
 	}
 
 	if _, ok := m["url"]; ok {
-		return nil, nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("profile", `Couldn't edit macos_setup_assistant. The automatic enrollment profile can't include url.`))
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("profile", `Couldn't edit macos_setup_assistant. The automatic enrollment profile can't include url.`))
 	}
 	if _, ok := m["await_device_configured"]; ok {
-		return nil, nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("profile", `Couldn't edit macos_setup_assistant. The profile can't include "await_device_configured" option.`))
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("profile", `Couldn't edit macos_setup_assistant. The profile can't include "await_device_configured" option.`))
 	}
 
 	// must read the existing setup assistant first to detect if it did change
@@ -734,7 +734,7 @@ func (svc *Service) SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, asst 
 	// changed activity is not created if the same assistant was uploaded).
 	prevAsst, err := svc.ds.GetMDMAppleSetupAssistant(ctx, asst.TeamID)
 	if err != nil && !fleet.IsNotFound(err) {
-		return nil, nil, ctxerr.Wrap(ctx, err, "get previous setup assistant")
+		return nil, ctxerr.Wrap(ctx, err, "get previous setup assistant")
 	}
 
 	validateIncomingSetupAssistant := true
@@ -743,7 +743,7 @@ func (svc *Service) SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, asst 
 	if prevAsst != nil && asst.Name == prevAsst.Name {
 		var m2 map[string]any
 		if err := json.Unmarshal(prevAsst.Profile, &m2); err != nil {
-			return nil, nil, ctxerr.Wrap(ctx, err, "json unmarshal previous setup assistant profile")
+			return nil, ctxerr.Wrap(ctx, err, "json unmarshal previous setup assistant profile")
 		}
 		if reflect.DeepEqual(m, m2) {
 			validateIncomingSetupAssistant = false
@@ -754,13 +754,13 @@ func (svc *Service) SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, asst 
 		// Validate the profile with Apple's API. Don't save the profile if it isn't valid.
 		err = svc.depService.ValidateSetupAssistant(ctx, tm, asst, "")
 		if err != nil {
-			return nil, nil, fleet.NewInvalidArgumentError("profile", err.Error())
+			return nil, fleet.NewInvalidArgumentError("profile", err.Error())
 		}
 	}
 
 	newAsst, err := svc.ds.SetOrUpdateMDMAppleSetupAssistant(ctx, asst)
 	if err != nil {
-		return nil, nil, ctxerr.Wrap(ctx, err, "set or update setup assistant")
+		return nil, ctxerr.Wrap(ctx, err, "set or update setup assistant")
 	}
 
 	// if the name is the same and the content did not change, uploaded at will stay the same
@@ -771,7 +771,7 @@ func (svc *Service) SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, asst 
 			svc.logger,
 			worker.MacosSetupAssistantProfileChanged,
 			newAsst.TeamID); err != nil {
-			return nil, nil, ctxerr.Wrap(ctx, err, "enqueue macos setup assistant profile changed job")
+			return nil, ctxerr.Wrap(ctx, err, "enqueue macos setup assistant profile changed job")
 		}
 
 		if err := svc.NewActivity(
@@ -780,23 +780,11 @@ func (svc *Service) SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, asst 
 				TeamName: teamName,
 				Name:     newAsst.Name,
 			}); err != nil {
-			return nil, nil, ctxerr.Wrap(ctx, err, "create activity for changed macos setup assistant")
+			return nil, ctxerr.Wrap(ctx, err, "create activity for changed macos setup assistant")
 		}
 	}
 
-	// The assistant is saved, but it only takes effect once the fleet is tied to an
-	// ABM token. If it isn't, registration with Apple silently skips, so warn the
-	// admin instead of leaving the config quietly inert. This is advisory only, so a
-	// lookup failure here must not fail the save or skip the work queued above.
-	var warnings []string
-	orgNames, err := svc.ds.GetABMTokenOrgNamesAssociatedWithTeam(ctx, asst.TeamID)
-	if err != nil {
-		svc.logger.ErrorContext(ctx, "checking ABM tokens associated with team for setup assistant warning", "err", err)
-	} else if len(orgNames) == 0 {
-		warnings = append(warnings, "Setup assistant saved but won't take effect until this fleet is a default fleet for an Apple Business Manager (ABM) token or has an ABM-enrolled host.")
-	}
-
-	return newAsst, warnings, nil
+	return newAsst, nil
 }
 
 func (svc *Service) GetMDMAppleSetupAssistant(ctx context.Context, teamID *uint) (*fleet.MDMAppleSetupAssistant, error) {
@@ -1473,7 +1461,7 @@ func (svc *Service) getOrCreatePreassignTeam(ctx context.Context, groups []strin
 			return nil, ctxerr.Wrap(ctx, err, "get global setup assistant")
 
 		}
-		_, _, err = svc.SetOrUpdateMDMAppleSetupAssistant(ctx, &fleet.MDMAppleSetupAssistant{
+		_, err = svc.SetOrUpdateMDMAppleSetupAssistant(ctx, &fleet.MDMAppleSetupAssistant{
 			TeamID:  &team.ID,
 			Name:    asst.Name,
 			Profile: asst.Profile,

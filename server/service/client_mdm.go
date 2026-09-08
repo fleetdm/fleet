@@ -55,6 +55,23 @@ func (c *Client) CountABMTokens() (int, error) {
 	return responseBody.Count, err
 }
 
+// ListABMTokens retrieves the ABM tokens with their default fleet assignments.
+func (c *Client) ListABMTokens() ([]*fleet.ABMToken, error) {
+	verb, path := "GET", "/api/latest/fleet/ab_tokens"
+	var responseBody listABMTokensResponse
+	err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, "")
+	return responseBody.Tokens, err
+}
+
+// CountHosts returns the number of hosts matching the given raw query string
+// (e.g. "team_id=1&mdm_enrollment_status=pending").
+func (c *Client) CountHosts(query string) (int, error) {
+	verb, path := "GET", "/api/latest/fleet/hosts/count"
+	var responseBody countHostsResponse
+	err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, query)
+	return responseBody.Count, err
+}
+
 // RequestAppleCSR requests a signed CSR from the Fleet server and returns the
 // CSR bytes
 func (c *Client) RequestAppleCSR() ([]byte, error) {
@@ -270,18 +287,14 @@ func (c *Client) validateMacOSSetupAssistant(fileName string) ([]byte, error) {
 	return b, nil
 }
 
-func (c *Client) uploadMacOSSetupAssistant(data []byte, teamID *uint, name string) ([]string, error) {
+func (c *Client) uploadMacOSSetupAssistant(data []byte, teamID *uint, name string) error {
 	verb, path := http.MethodPost, "/api/latest/fleet/enrollment_profiles/automatic"
 	request := createMDMAppleSetupAssistantRequest{
 		TeamID:            teamID,
 		Name:              name,
 		EnrollmentProfile: json.RawMessage(data),
 	}
-	var resp createMDMAppleSetupAssistantResponse
-	if err := c.authenticatedRequest(request, verb, path, &resp); err != nil {
-		return nil, err
-	}
-	return resp.Warnings, nil
+	return c.authenticatedRequest(request, verb, path, nil)
 }
 
 func (c *Client) deleteMacOSSetupAssistant(teamID *uint) error {
