@@ -2457,6 +2457,7 @@ func newMaintainedAppsAutoUpdateSchedule(
 		name            = string(fleet.CronMaintainedAppsAutoUpdate)
 		defaultInterval = 1 * time.Hour
 		priorJobDiff    = -(defaultInterval - 30*time.Second)
+		maxRunTime      = 55 * time.Minute
 	)
 
 	logger = logger.With("cron", name)
@@ -2466,7 +2467,10 @@ func newMaintainedAppsAutoUpdateSchedule(
 		// ensures it runs a few seconds after Fleet is started
 		schedule.WithDefaultPrevRunCreatedAt(time.Now().Add(priorJobDiff)),
 		schedule.WithJob("maintained_apps_auto_update", func(ctx context.Context) error {
-			return eeservice.AutoUpdateFleetMaintainedApps(ctx, ds, softwareInstallStore, logger)
+			workCtx, cancel := context.WithTimeout(ctx, maxRunTime)
+			defer cancel()
+
+			return eeservice.AutoUpdateFleetMaintainedApps(workCtx, ds, softwareInstallStore, logger)
 		}),
 	)
 

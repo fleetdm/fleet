@@ -48,7 +48,15 @@ func AutoUpdateFleetMaintainedApps(ctx context.Context, ds fleet.Datastore, soft
 	manifests := map[string]*manifestEntry{}
 
 	for _, c := range candidates {
-		if err := autoUpdateOneFleetMaintainedApp(ctx, ds, softwareInstallStore, client, logger, c, manifests); err != nil {
+		// Each app can take up to InstallerTimeout to download, so a run over many apps can outlast the
+		// budget the caller gave it. Stop here rather than working through the rest; the next run resumes.
+		err = ctx.Err()
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "auto-updating fleet-maintained apps")
+		}
+
+		err = autoUpdateOneFleetMaintainedApp(ctx, ds, softwareInstallStore, client, logger, c, manifests)
+		if err != nil {
 			logger.ErrorContext(ctx, "auto-updating fleet-maintained app",
 				"title_id", c.TitleID, "team_id", teamIDForLog(c.TeamID), "slug", c.Slug, "err", err)
 		}

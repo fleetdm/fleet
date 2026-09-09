@@ -1450,6 +1450,8 @@ type fmaTestState struct {
 	// placeholder when empty; set it to vary the script across builds (a real FMA
 	// script embeds the versioned installer filename, so a rebuild changes it).
 	installScript string
+	// installerDelay holds each installer download for this long, standing in for a slow but reachable CDN.
+	installerDelay time.Duration
 }
 
 func (s *fmaTestState) ComputeSHA(b []byte) {
@@ -1482,6 +1484,13 @@ func startFMAServers(t *testing.T, ds fleet.Datastore, states map[string]*fmaTes
 
 		for _, state := range states {
 			if state.installerPath == r.URL.Path {
+				if state.installerDelay > 0 {
+					select {
+					case <-time.After(state.installerDelay):
+					case <-r.Context().Done():
+						return
+					}
+				}
 				_, _ = w.Write(state.installerBytes)
 				return
 			}
