@@ -1,6 +1,6 @@
 import { IconNames } from "components/icons";
 import {
-  SoftwareInstallUninstallStatus,
+  SoftwareInstallDetailsStatus,
   EnhancedSoftwareInstallUninstallStatus,
   SoftwareInstallStatus,
 } from "interfaces/software";
@@ -8,7 +8,7 @@ import {
 // Install/Uninstall helpers
 
 export const INSTALL_DETAILS_STATUS_ICONS: Record<
-  SoftwareInstallUninstallStatus, // former is superset of latter, latter included in union for type system
+  SoftwareInstallDetailsStatus,
   IconNames
 > = {
   pending_install: "pending-outline",
@@ -17,10 +17,25 @@ export const INSTALL_DETAILS_STATUS_ICONS: Record<
   failed_install: "error",
   pending_uninstall: "pending-outline",
   failed_uninstall: "error",
+  // Same "!" glyph as a failure, but the call site renders it muted grey
+  // (ui-fleet-black-50): a skip is deferred (app was open), not an error.
+  skipped_install: "error-outline",
 } as const;
 
+export const SKIPPED_INSTALL_DETAILS_PREFIX =
+  "The app was open. It will update once the user closes it and the ";
+export const SKIPPED_INSTALL_DETAILS_LINK_TEXT = "policy runs again";
+export const SKIPPED_INSTALL_DETAILS_LINK_URL =
+  "https://fleetdm.com/learn-more-about/policy-automations";
+
+export const SKIPPED_INSTALL_DETAILS = `${SKIPPED_INSTALL_DETAILS_PREFIX}${SKIPPED_INSTALL_DETAILS_LINK_TEXT}.`;
+
+// A skip stores an empty pre-install query output, so there is nothing to echo back.
+export const SKIPPED_PRE_INSTALL_OUTPUT =
+  "Query didn't return result or failed\nThe app was open";
+
 const INSTALL_DETAILS_STATUS_PREDICATES: Record<
-  EnhancedSoftwareInstallUninstallStatus,
+  EnhancedSoftwareInstallUninstallStatus | "skipped_install",
   string
 > = {
   pending_install: "is installing or will install",
@@ -32,6 +47,7 @@ const INSTALL_DETAILS_STATUS_PREDICATES: Record<
   pending_script: "is running or will run",
   failed_script: "failed to run",
   ran_script: "ran",
+  skipped_install: "skipped install of",
 } as const;
 
 export const getInstallDetailsStatusPredicate = (

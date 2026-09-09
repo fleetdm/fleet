@@ -44,9 +44,8 @@ const ReportUpdatedCell = ({
               <TooltipWrapper
                 tipContent={
                   <>
-                    Results from this report are not reported in Fleet.
-                    <br />
-                    Data is being sent to your log destination.
+                    Results from this report are not reported in Fleet. Data is
+                    being sent to your log destination.
                   </>
                 }
                 position="top"

@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
-import { api, type RepoProbe, type Settings } from "../lib/tauri";
+import { api, type RepoProbe, type Settings } from "../lib/ipc";
+import { updateServer } from "../lib/servers";
 import logoUrl from "../assets/logo.png";
 import { DepCheckSection } from "./DepCheck";
+import { copyText } from "../lib/clipboard";
 
 const FLEET_CLONE_CMD = "git clone https://github.com/fleetdm/fleet.git";
 
@@ -64,12 +66,15 @@ export function FirstRunGate({
       // when present; absent → leave config unset (env / dev defaults).
       const detectedConfig =
         !skip && selected ? await api.detectFleetConfig(selected) : null;
-      const s: Settings = {
-        ...baseline,
-        repo_path: skip ? null : selected,
-        fleet_serve: { ...baseline.fleet_serve, config_path: detectedConfig },
-        first_run_complete: true,
-      };
+      // Seed the first server's worktree + config (baseline is already
+      // migrated, so servers[0] exists).
+      const firstId = baseline.servers[0]?.id ?? baseline.active_server_id;
+      const seeded = updateServer(baseline, firstId, (srv) => ({
+        ...srv,
+        worktree_path: skip ? null : selected,
+        fleet_serve: { ...srv.fleet_serve, config_path: detectedConfig },
+      }));
+      const s: Settings = { ...seeded, first_run_complete: true };
       await api.saveSettings(s);
       onComplete(s);
     } catch (e) {
@@ -248,9 +253,13 @@ export function FirstRunGate({
 function NoRepoFound() {
   const [copied, setCopied] = useState(false);
   async function copy() {
-    await navigator.clipboard.writeText(FLEET_CLONE_CMD);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
+    try {
+      await copyText(FLEET_CLONE_CMD);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch (e) {
+      console.error("copy failed", e);
+    }
   }
   return (
     <div

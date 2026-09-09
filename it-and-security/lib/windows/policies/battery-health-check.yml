@@ -1,4 +1,4 @@
-- name: Windows - Battery healthy
+- name: Battery healthy (Windows)
   query: SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM battery WHERE designed_capacity > 0 AND CAST(max_capacity AS REAL) / designed_capacity <= 0.80);
   critical: false
   description: >-

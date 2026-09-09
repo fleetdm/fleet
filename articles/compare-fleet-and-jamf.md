@@ -2,7 +2,7 @@
 
 ### Fleet
 
-Fleet is an Apple-oriented, modern, transparent device management solution with multi-platform support for Linux, macOS, iOS, iPadOS, Windows, Android and Chromebook devices. Fleet has an API-first design with built-in GitOps console management. Fleet is based on open-source technology providing near real-time reporting, comprehensive device control and automated remediation capabilities.
+Fleet is a modern and open device management solution with multi-platform support for Linux, macOS, iOS, iPadOS, Windows, Android and Chromebook devices. Fleet has an API-first design with built-in GitOps console management. Fleet is based on open-source technology providing near real-time reporting, comprehensive device control and automated remediation capabilities.
 
 ### Jamf
 

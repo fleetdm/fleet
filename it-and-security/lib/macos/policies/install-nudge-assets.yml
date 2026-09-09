@@ -1,4 +1,4 @@
-- name: macOS - Nudge assets installed
+- name: Nudge assets installed
   query: SELECT 1 WHERE EXISTS (SELECT 1 FROM package_receipts WHERE package_id = "com.fleetdm.Nudge.assets");
   critical: true
   description: This policy ensures the Nudge assets are installed.

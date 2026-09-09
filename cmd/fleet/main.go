@@ -111,28 +111,30 @@ func applyDevFlags(cfg *config.FleetConfig) {
 	// that match our default dev setup.
 	setIfEmpty(&cfg.Mysql.Password, "insecure")
 
-	setIfEmpty(&cfg.S3.CarvesBucket, "carves-dev")
-	setIfEmpty(&cfg.S3.CarvesRegion, "localhost")
-	setIfEmpty(&cfg.S3.CarvesPrefix, "dev-prefix")
-	setIfEmpty(&cfg.S3.CarvesEndpointURL, "http://localhost:9000")
-	setIfEmpty(&cfg.S3.CarvesAccessKeyID, "locals3")
-	setIfEmpty(&cfg.S3.CarvesSecretAccessKey, "locals3")
-	if cfg.S3.CarvesAccessKeyID == "locals3" && cfg.S3.CarvesSecretAccessKey == "locals3" {
-		// can't rely on zero values
-		cfg.S3.CarvesDisableSSL = true
-		cfg.S3.CarvesForceS3PathStyle = true
-	}
+	if useS3DevConfig() {
+		setIfEmpty(&cfg.S3.CarvesBucket, "carves-dev")
+		setIfEmpty(&cfg.S3.CarvesRegion, "localhost")
+		setIfEmpty(&cfg.S3.CarvesPrefix, "dev-prefix")
+		setIfEmpty(&cfg.S3.CarvesEndpointURL, "http://localhost:9000")
+		setIfEmpty(&cfg.S3.CarvesAccessKeyID, "locals3")
+		setIfEmpty(&cfg.S3.CarvesSecretAccessKey, "locals3")
+		if cfg.S3.CarvesAccessKeyID == "locals3" && cfg.S3.CarvesSecretAccessKey == "locals3" {
+			// can't rely on zero values
+			cfg.S3.CarvesDisableSSL = true
+			cfg.S3.CarvesForceS3PathStyle = true
+		}
 
-	setIfEmpty(&cfg.S3.SoftwareInstallersBucket, "software-installers-dev")
-	setIfEmpty(&cfg.S3.SoftwareInstallersRegion, "localhost")
-	setIfEmpty(&cfg.S3.SoftwareInstallersPrefix, "dev-prefix")
-	setIfEmpty(&cfg.S3.SoftwareInstallersEndpointURL, "http://localhost:9000")
-	setIfEmpty(&cfg.S3.SoftwareInstallersAccessKeyID, "locals3")
-	setIfEmpty(&cfg.S3.SoftwareInstallersSecretAccessKey, "locals3")
-	if cfg.S3.SoftwareInstallersAccessKeyID == "locals3" && cfg.S3.SoftwareInstallersSecretAccessKey == "locals3" {
-		// can't rely on zero values
-		cfg.S3.SoftwareInstallersDisableSSL = true
-		cfg.S3.SoftwareInstallersForceS3PathStyle = true
+		setIfEmpty(&cfg.S3.SoftwareInstallersBucket, "software-installers-dev")
+		setIfEmpty(&cfg.S3.SoftwareInstallersRegion, "localhost")
+		setIfEmpty(&cfg.S3.SoftwareInstallersPrefix, "dev-prefix")
+		setIfEmpty(&cfg.S3.SoftwareInstallersEndpointURL, "http://localhost:9000")
+		setIfEmpty(&cfg.S3.SoftwareInstallersAccessKeyID, "locals3")
+		setIfEmpty(&cfg.S3.SoftwareInstallersSecretAccessKey, "locals3")
+		if cfg.S3.SoftwareInstallersAccessKeyID == "locals3" && cfg.S3.SoftwareInstallersSecretAccessKey == "locals3" {
+			// can't rely on zero values
+			cfg.S3.SoftwareInstallersDisableSSL = true
+			cfg.S3.SoftwareInstallersForceS3PathStyle = true
+		}
 	}
 }
 

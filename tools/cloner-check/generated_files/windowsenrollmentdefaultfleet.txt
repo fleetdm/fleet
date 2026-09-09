@@ -1,0 +1,2 @@
+github.com/fleetdm/fleet/v4/server/fleet/WindowsEnrollmentDefaultFleet	FleetID	*uint
+github.com/fleetdm/fleet/v4/server/fleet/WindowsEnrollmentDefaultFleet	FleetName	string

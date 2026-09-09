@@ -1,4 +1,7 @@
-import { SetupExperiencePlatform } from "interfaces/platform";
+import {
+  DiskEncryptionSettingsPlatform,
+  SetupExperiencePlatform,
+} from "interfaces/platform";
 import URL_PREFIX from "./url_prefix";
 
 const INTEGRATIONS_PREFIX = `${URL_PREFIX}/settings/integrations`;
@@ -15,6 +18,9 @@ export default {
   CONTROLS_ASSETS: `${URL_PREFIX}/controls/os-settings/assets`,
   CONTROLS_CERTIFICATES: `${URL_PREFIX}/controls/os-settings/certificates`,
   CONTROLS_DISK_ENCRYPTION: `${URL_PREFIX}/controls/os-settings/disk-encryption`,
+  CONTROLS_DISK_ENCRYPTION_PLATFORM: (
+    platform: DiskEncryptionSettingsPlatform
+  ) => `${URL_PREFIX}/controls/os-settings/disk-encryption/${platform}`,
   CONTROLS_PASSWORDS: `${URL_PREFIX}/controls/os-settings/passwords`,
   CONTROLS_HOST_NAME_TEMPLATE: `${URL_PREFIX}/controls/os-settings/host-name-template`,
   CONTROLS_SETUP_EXPERIENCE: `${URL_PREFIX}/controls/setup-experience`,
@@ -64,6 +70,7 @@ export default {
   ADMIN_INTEGRATIONS_MDM_ANDROID: `${INTEGRATIONS_PREFIX}/mdm/android`,
   ADMIN_INTEGRATIONS_APPLE_BUSINESS_MANAGER: `${INTEGRATIONS_PREFIX}/mdm/ab`,
   ADMIN_INTEGRATIONS_AUTOMATIC_ENROLLMENT_WINDOWS: `${INTEGRATIONS_PREFIX}/automatic-enrollment/windows`,
+  ADMIN_INTEGRATIONS_MICROSOFT_GRAPH: `${INTEGRATIONS_PREFIX}/mdm/microsoft-graph`,
   ADMIN_INTEGRATIONS_SCEP: `${INTEGRATIONS_PREFIX}/mdm/scep`,
   ADMIN_INTEGRATIONS_CALENDARS: `${INTEGRATIONS_PREFIX}/calendars`,
   ADMIN_INTEGRATIONS_CHANGE_MANAGEMENT: `${INTEGRATIONS_PREFIX}/change-management`,
@@ -166,6 +173,9 @@ export default {
   HOST_SCRIPTS: (id: number): string => {
     return `${URL_PREFIX}/hosts/${id}/scripts`;
   },
+  HOST_CONTROLS: (id: number): string => {
+    return `${URL_PREFIX}/hosts/${id}/controls`;
+  },
   HOST_SOFTWARE: (id: number): string => {
     return `${URL_PREFIX}/hosts/${id}/software`;
   },
@@ -188,6 +198,9 @@ export default {
   },
   DEVICE_USER_DETAILS_SELF_SERVICE: (deviceAuthToken: string): string => {
     return `${URL_PREFIX}/device/${deviceAuthToken}/self-service`;
+  },
+  DEVICE_USER_DETAILS_CONTROLS: (deviceAuthToken: string): string => {
+    return `${URL_PREFIX}/device/${deviceAuthToken}/controls`;
   },
   DEVICE_USER_DETAILS_SOFTWARE: (deviceAuthToken: string): string => {
     return `${URL_PREFIX}/device/${deviceAuthToken}/software`;

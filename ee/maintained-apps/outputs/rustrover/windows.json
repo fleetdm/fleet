@@ -1,15 +1,16 @@
 {
   "versions": [
     {
-      "version": "2026.2",
+      "version": "2026.2.2",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'RustRover %' AND publisher = 'JetBrains s.r.o.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'RustRover %' AND publisher = 'JetBrains s.r.o.' AND version_compare(version, '262.8665.323') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'RustRover %' AND publisher = 'JetBrains s.r.o.' AND version_compare(version, '262.10315.167') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) IN ('rustrover.exe','rustrover64.exe'));"
       },
-      "installer_url": "https://download.jetbrains.com/rustrover/RustRover-2026.2.exe",
+      "installer_url": "https://download.jetbrains.com/rustrover/RustRover-2026.2.2.exe",
       "install_script_ref": "02283015",
       "uninstall_script_ref": "95b47a15",
-      "sha256": "6751b5216f5202bbef8a0734a86277215d68e4e66ac8b9c3479d4276a7b4f6c0",
+      "sha256": "a75903a8db043f61d1eda33416b79c76a9196b300531652df13bdcd1b42f626e",
       "default_categories": [
         "Developer tools"
       ]

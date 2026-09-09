@@ -104,10 +104,10 @@ ulimit -n 64000
 
 Set up MDM on your server. To extract the SCEP challenge, you can use the [MDM asset extractor](https://github.com/fleetdm/fleet/tree/main/tools/mdm/assets).
 
-For your server, disable Apple push notifications since we will be using devices with fake UUIDs:
+For your server, configure a custom Apple push notifications URL since we will be using devices with fake UUIDs:
 
 ```
-export FLEET_DEV_MDM_APPLE_DISABLE_PUSH=1
+export FLEET_DEV_MDM_APPLE_PUSH_SERVER_URL=http://localhost:8378
 ```
 
 Example of running the agent with MDM. Note that `enroll_secret` is not needed for iPhone/iPad devices:
@@ -119,6 +119,12 @@ go run agent.go --os_templates ipad_13.18,iphone_14.6 --host_count 10 --mdm_scep
 `mdm_prob` determines the probability of MDM enrollment for each host. The default is 0 (0%). You can set it to 1.0 to ensure all hosts enroll in MDM.
 
 `mdm_user_prob` determines the probability of MDM user enrollment for each host. The default is 0 (0%). You can set it to 1.0 to ensure all hosts enroll in MDM user enrollment. This probability stacks with `mdm_prob`. So this probability is based on the hosts who end up MDM enrolling.
+
+`mdm_ios_byod_prob` determines the probability that a simulated iOS/iPadOS device (`iphone_14.6`, `ipad_13.18`, `iphone_17` templates) reports as a personal (BYOD) enrollment, which omits the newer device vitals fields from its `DeviceInformation` ack, matching what Fleet's server asks a real BYOD device for. The default is 0 (all simulated iOS/iPadOS devices report the full vitals set).
+
+`mdm_apns_url` sets the mock APNs server URL for the simulated Apple MDM devices. It is required when using iPhone/iPad templates and required when using macOS templates with a non-zero `mdm_prob`.
+
+`mdm_cancelable_command_ack_delay` makes simulated Apple devices log when they fetch a cancelable MDM command (lock, wipe, clear passcode, enable lost mode) and wait the given duration before acknowledging it. This opens a window to cancel an already-delivered command (`DELETE /api/v1/fleet/hosts/:id/commands/:command_uuid`) and observe the server restoring the host's lock/wipe state when the acknowledgment arrives anyway. The default is 0 (acknowledge immediately, no behavior change).
 
 ### Apple Platform SSO (PSSO)
 
@@ -148,6 +154,74 @@ go run agent.go --host_count 100 --mdm_prob 1.0 --mdm_scep_challenge <challenge>
   --mdm_psso_prob 0.5 --mdm_psso_client_id <client-id> \
   --mdm_psso_username loadtest@example.com --mdm_psso_password <password> \
   --mdm_psso_interval 4h --mdm_psso_login_prob 1.0 --mdm_psso_key_prob 0.1
+```
+
+### Synthetically reproducing MDM device protocol failures
+
+#### NotNow'ing profiles
+
+> Currently only supported for macOS and `InstallProfile` commands
+
+To force an osquery-perf agent to respond with `NotNow` once to an `InstallProfile` command, the payload has to contain `NotNow` anywhere in the profile. It will NotNow once, then acknowledge it on next check-in. To force a new `NotNow` response, you have to change the `ProfileIdentifier`.
+
+#### Forcing a certain error code and failure for InstallApplication
+
+> Currently only supported for macOS.
+
+To force a certain ErrorCode and failure for an `InstallApplication` command, the `iTunesStoreID` payload field has to have a value below 100_000. The agent will respond with a failure and the specified error code, which helps QA and repro logic scenarios on certain error codes.
+
+## Conditional Config Request (ETag) Support
+
+The agent can simulate the native osquery conditional config request
+lifecycle. The validator travels in the JSON bodies: an enabled agent sends
+an `"etag"` field in the config request body (empty on its first request),
+stores the server-assigned `"etag"` value from each full config response, and
+treats the constant `{"etag":"ok"}` response as "unchanged", retaining the
+installed scheduled-query state.
+
+- `--config_tls_etag`: default `false`, enable native osquery conditional config requests
+
+This feature is **off by default** because osquery-perf is designed for load
+testing, and enabling it reduces bandwidth without necessarily reducing
+backend load. Opt in with `--config_tls_etag=true` to measure bandwidth
+savings.
+
+The etag is in-memory only — a restarted osquery-perf process starts with a
+full fetch for every simulated host. The value is stored on receipt, before
+the config is processed, mirroring the real osquery client: a config the
+agent fails to process is confirmed unchanged on later check-ins rather than
+re-downloaded. The server's value is authoritative and opaque; a local
+SHA-256 of the canonical (etag-less) body is compared only as a diagnostic
+(mismatches are counted but do not affect behavior).
+
+Stats logged every 10 seconds include:
+
+- `config full responses`: full config responses received
+- `config not-modified responses`: `{"etag":"ok"}` responses received
+- `conditional config requests`: requests that echoed a non-empty etag
+- `config response body bytes`: total downloaded config body bytes
+- `estimated config body bytes avoided`: body bytes saved by not-modified responses
+- `estimated config body savings pct`: percentage of logical body bytes avoided
+- `config etag drift`: times the server's etag disagreed with the locally calculated hash
+
+### Example control/treatment run
+
+Run a control (no etag) and treatment (etag enabled) against the same Fleet
+server to measure bandwidth savings:
+
+```
+# Control: no etag, every request downloads the full config
+go run agent.go --config_tls_etag=false --host_count 100 --config_interval 1m ...
+
+# Treatment: etag enabled, unchanged configs get the minimal body
+go run agent.go --config_tls_etag=true --host_count 100 --config_interval 1m ...
+```
+
+Compare the `config response body bytes` and `estimated config body savings pct`
+from the stats logs. For a config-dominant profile, use:
+
+```
+--orbit_prob 0.0 --mdm_prob 0.0 --config_interval 1m --query_interval 24h --logger_tls_period 24h
 ```
 
 ## Installing software

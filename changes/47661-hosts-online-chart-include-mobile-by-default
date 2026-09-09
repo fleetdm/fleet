@@ -1,1 +1,0 @@
-- Removed the default platform filter on the "hosts online" chart, so iOS, iPadOS, and Android hosts are now included by default alongside desktop platforms.

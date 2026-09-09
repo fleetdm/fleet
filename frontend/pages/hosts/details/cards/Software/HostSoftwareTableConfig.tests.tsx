@@ -13,7 +13,6 @@ describe("HostSoftwareTableConfig - Last opened column", () => {
     router: mockRouter,
     teamId: 1,
     onShowInventoryVersions: noop,
-    platform: "windows",
   });
 
   const lastOpenedColumn = headers.find((h) => h.id === "Last opened") as any;

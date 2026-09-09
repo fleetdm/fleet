@@ -26,8 +26,9 @@ type MDMProfileLabelRef struct {
 	LabelID   *uint
 	CreatedAt time.Time
 	// LabelMembershipType mirrors labels.label_membership_type: 0=dynamic, 1=manual, 2=host_vitals (see LabelMembershipType in
-	// labels.go). Needed by the exclude-any handler so dynamic labels that were created after a host's last label_updated_at are
-	// treated as "results not yet reported" instead of "host is not a member"; manual and host-vitals labels skip that timing check.
+	// labels.go). Needed by the include-all and exclude-any handlers so dynamic labels that were created after a host's last
+	// label_updated_at are treated as "results not yet reported" (preserving the entity's current state on the host) instead of
+	// "host is not a member"; manual and host-vitals labels skip that timing check.
 	LabelMembershipType int
 }
 

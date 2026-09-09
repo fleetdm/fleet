@@ -5,12 +5,14 @@ import { hasLicenseExpired } from "utilities/helpers";
 import { AppContext } from "context/app";
 
 import AppleBMTermsMessage from "components/MDM/AppleBMTermsMessage";
+import AppleBMTokenInvalidMessage from "components/MDM/AppleBMTokenInvalidMessage";
 import LicenseExpirationBanner from "components/LicenseExpirationBanner";
 import ApplePNCertRenewalMessage from "components/MDM/ApplePNCertRenewalMessage";
 import AppleBMRenewalMessage from "components/MDM/AppleBMRenewalMessage";
 import AndroidEnterpriseDeletedMessage from "components/MDM/AndroidEnterpriseDeletedMessage";
 
 import VppRenewalMessage from "./banners/VppRenewalMessage";
+import MicrosoftGraphCredentialInvalidMessage from "./banners/MicrosoftGraphCredentialInvalidMessage";
 
 export interface IMainContentConfig {
   renderedBanner: boolean;
@@ -43,6 +45,8 @@ const MainContent = ({
     isAppleBmExpired,
     isVppExpired,
     needsAbmTermsRenewal,
+    hasInvalidABMToken,
+    invalidAbmTokenOrgNames,
     willAppleBmExpire,
     willApplePnsExpire,
     willVppExpire,
@@ -68,8 +72,14 @@ const MainContent = ({
         banner = <AppleBMRenewalMessage expired={isAppleBmExpired} />;
       } else if (needsAbmTermsRenewal) {
         banner = <AppleBMTermsMessage />;
+      } else if (hasInvalidABMToken) {
+        banner = (
+          <AppleBMTokenInvalidMessage orgNames={invalidAbmTokenOrgNames} />
+        );
       } else if (isVppExpired || willVppExpire) {
         banner = <VppRenewalMessage expired={isVppExpired} />;
+      } else if (config?.mdm.microsoft_graph_credential_invalid) {
+        banner = <MicrosoftGraphCredentialInvalidMessage />;
       } else if (isFleetLicenseExpired) {
         banner = <LicenseExpirationBanner />;
       }

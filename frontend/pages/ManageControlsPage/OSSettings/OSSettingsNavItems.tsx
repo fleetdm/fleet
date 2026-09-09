@@ -17,6 +17,9 @@ export interface IOSSettingsCommonProps {
   /** handler that fires when a change occures on the section (e.g. disk encryption
    * enabled, profile uploaded) */
   onMutation: () => void;
+  /** Platform sub-route segment (`os-settings/:section/:platform`); only the
+   * disk encryption card has platform tabs. */
+  urlPlatformParam?: string;
 }
 
 type IOSSettingsCardProps = IDiskEncryptionProps | IConfigurationProfilesProps;

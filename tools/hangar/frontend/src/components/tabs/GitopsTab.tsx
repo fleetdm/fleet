@@ -11,8 +11,9 @@ import {
   type ProcEvent,
   type ResolvedBinary,
   type Settings,
-} from "../../lib/tauri";
+} from "../../lib/ipc";
 import { noAutocorrect } from "../../lib/noAutocorrect";
+import { activeServer } from "../../lib/servers";
 
 /// Stable proc ids — only one apply and one generate at a time, so the
 /// existing process manager's "no duplicate id" check is the lock.
@@ -51,7 +52,7 @@ export function GitopsTab({
   goToSettings: () => void;
 }) {
   const gitopsDir = settings.gitops_dir;
-  const repoPath = settings.repo_path;
+  const repoPath = activeServer(settings).worktree_path;
 
   const [scan, setScan] = useState<GitopsDirScan | null>(null);
   const [scanError, setScanError] = useState<string | null>(null);

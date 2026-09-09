@@ -190,6 +190,85 @@ func TestCheckBackupName(t *testing.T) {
 	}
 }
 
+func TestSanitizeSegment(t *testing.T) {
+	cases := map[string]string{
+		"s2":            "s2",
+		"my-server_01":  "my-server_01",
+		"..":            "",       // dots dropped -> can't produce . or ..
+		"../evil":       "evil",   // no separator survives -> single safe segment
+		"a/b":           "ab",     // slash dropped -> can't escape the segment
+		"na.me":         "name",   // dots dropped
+		"  spaced  ":    "spaced", // spaces dropped
+		"!@#$":          "",
+		"UUID-abc-123":  "UUID-abc-123",
+	}
+	for in, want := range cases {
+		if got := sanitizeSegment(in); got != want {
+			t.Errorf("sanitizeSegment(%q) = %q, want %q", in, got, want)
+		}
+	}
+}
+
+func TestServerBackupsDir(t *testing.T) {
+	// Empty-after-sanitize ids are rejected before any filesystem access.
+	for _, bad := range []string{"", "..", "!!!", "///"} {
+		if _, err := ServerBackupsDir(bad); err == nil {
+			t.Errorf("ServerBackupsDir(%q) should error", bad)
+		}
+	}
+	// Happy path: lands under <data>/db-backups/<id>, with no traversal.
+	dir, err := ServerBackupsDir("s2")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if filepath.Base(dir) != "s2" || filepath.Base(filepath.Dir(dir)) != "db-backups" {
+		t.Errorf("dir = %q, want .../db-backups/s2", dir)
+	}
+	if contains(dir, "..") {
+		t.Errorf("dir must not contain ..: %q", dir)
+	}
+}
+
+// The central location addresses backups by directory (not repo). Verify the
+// dir-based ops work on an arbitrary directory and return dir-relative names.
+func TestBackupOpsInArbitraryDir(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "central", "s2")
+	if _, err := EnsureDir(dir); err != nil {
+		t.Fatal(err)
+	}
+	// EnsureDir must NOT write a .gitignore (app-data isn't a git repo).
+	if _, err := os.Stat(filepath.Join(dir, ".gitignore")); !os.IsNotExist(err) {
+		t.Error("EnsureDir should not write .gitignore")
+	}
+
+	chk, err := CheckBackupNameInDir(dir, "snap")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if chk.FinalName != "snap.sql.gz" || chk.RelativePath != "snap.sql.gz" {
+		t.Errorf("check = %+v, want bare filename as RelativePath", chk)
+	}
+
+	dump := filepath.Join(dir, chk.FinalName)
+	write(t, dump, "x")
+	list, err := ListBackupsInDir(dir)
+	if err != nil || len(list) != 1 || list[0].Name != "snap.sql.gz" {
+		t.Fatalf("ListBackupsInDir = %+v, err %v", list, err)
+	}
+	if err := DeleteBackupInDir(dir, dump); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(dump); !os.IsNotExist(err) {
+		t.Error("dump not deleted")
+	}
+	// Confinement still holds for the dir-based delete.
+	outside := filepath.Join(t.TempDir(), "x.sql.gz")
+	write(t, outside, "x")
+	if err := DeleteBackupInDir(dir, outside); err == nil {
+		t.Error("should refuse to delete outside the given dir")
+	}
+}
+
 func write(t *testing.T, path, body string) {
 	t.Helper()
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {

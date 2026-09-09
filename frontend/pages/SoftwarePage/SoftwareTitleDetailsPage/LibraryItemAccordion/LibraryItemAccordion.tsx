@@ -108,6 +108,10 @@ export interface ILibraryItemAccordionProps {
   /** Click on the labels list in the expanded panel — opens the edit software
    * modal. Wired as a CustomLink-style underline button via TruncatedTextList. */
   onLabelsClick?: () => void;
+  /** Click handler for the pencil "Edit" button in the expanded panel — opens
+   * the same edit software modal reached via the label-count badge. Gated on
+   * `canEditSoftware`; when omitted the button is hidden. */
+  onEditClick?: () => void;
   onDownloadClick?: () => void;
   onTrashClick?: () => void;
 
@@ -166,6 +170,7 @@ const LibraryItemAccordion = ({
   onBadgeClick,
   onLabelCountClick,
   onLabelsClick,
+  onEditClick,
   onDownloadClick,
   onTrashClick,
   canActivateMultiplePackages = false,
@@ -232,8 +237,8 @@ const LibraryItemAccordion = ({
           size="small"
           onClick={handleBadgeClick(onBadgeClick)}
           className={`${baseClass}__badge-button`}
+          icon={iconName}
         >
-          <Icon name={iconName} />
           <span>{label}</span>
         </Button>
       );
@@ -280,9 +285,8 @@ const LibraryItemAccordion = ({
           onClick={handleBadgeClick(onClick)}
           className={`${baseClass}__icon-button`}
           ariaLabel={ariaLabel}
-        >
-          <Icon name={iconName} />
-        </Button>
+          icon={iconName}
+        />
       ) : (
         <Icon name={iconName} />
       )}
@@ -354,8 +358,8 @@ const LibraryItemAccordion = ({
                 size="small"
                 onClick={handleBadgeClick(onLabelCountClick)}
                 className={`${baseClass}__badge-button`}
+                icon="tag"
               >
-                <Icon name="tag" />
                 <span>{labelCount}</span>
               </Button>
             ) : (
@@ -375,8 +379,8 @@ const LibraryItemAccordion = ({
               size="small"
               onClick={handleBadgeClick(onLabelCountClick)}
               className={`${baseClass}__badge-button`}
+              icon="tag"
             >
-              <Icon name="tag" />
               <span>{ALL_HOSTS_LABEL}</span>
             </Button>
           ) : (
@@ -574,14 +578,13 @@ const LibraryItemAccordion = ({
 
   const renderTrashButtonBody = (disabled: boolean) => (
     <Button
-      variant="subdued"
+      variant="secondary"
       disabled={disabled}
       onClick={onTrashClick}
       ariaLabel="Delete this version"
       className={`${baseClass}__trash-button`}
-    >
-      <Icon name="trash" />
-    </Button>
+      icon="trash"
+    />
   );
 
   // GitOps-lock the trash button for installer types whose mutations should
@@ -727,15 +730,23 @@ const LibraryItemAccordion = ({
           </div>
 
           <div className={`${baseClass}__actions-column`}>
+            {canEditSoftware && onEditClick && (
+              <Button
+                variant="secondary"
+                onClick={onEditClick}
+                ariaLabel="Edit software"
+                className={`${baseClass}__edit-button`}
+                icon="pencil"
+              />
+            )}
             {canDownload && (
               <Button
-                variant="subdued"
+                variant="secondary"
                 onClick={onDownloadClick}
                 ariaLabel="Download installer"
                 className={`${baseClass}__download-button`}
-              >
-                <Icon name="download" />
-              </Button>
+                icon="download"
+              />
             )}
             {canEditSoftware && renderTrashButton()}
           </div>

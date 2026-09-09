@@ -395,6 +395,8 @@ const DEFAULT_FLEET_MAINTAINED_APP_DETAILS_MOCK: IFleetMaintainedAppDetails = {
   post_install_script: 'echo "Installed"',
   uninstall_script:
     "#!/bin/sh\n\n# Fleet extracts and saves package IDs\npkg_ids=$PACKAGE_ID",
+  automatic_install_query:
+    "SELECT 1 FROM apps WHERE bundle_identifier = 'com.example.test-app';",
   slug: "applications/test-app",
   url: "http://www.testurl1234abcd.com/testapp",
   categories: ["Browsers"],

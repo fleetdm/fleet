@@ -3,7 +3,6 @@ import React from "react";
 import ListItem from "components/ListItem";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import Button from "components/buttons/Button";
-import Icon from "components/Icon";
 
 const baseClass = "entra-client-ids-list-item";
 
@@ -30,9 +29,8 @@ const EntraClientIDsListItem = ({
               className={`${baseClass}__action-button`}
               variant="subdued"
               ariaLabel={`Delete Microsoft Entra client ID ${clientId}`}
-            >
-              <Icon name="trash" />
-            </Button>
+              icon="trash"
+            />
           )}
         />
       }

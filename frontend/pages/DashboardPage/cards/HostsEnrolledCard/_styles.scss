@@ -23,7 +23,7 @@
   // Note: recharts portals tick labels out of .recharts-cartesian-axis into a
   // .recharts-zIndex-layer_* group, so we target via .recharts-wrapper.
   .recharts-wrapper text {
-    fill: $ui-fleet-black-50;
+    fill: $ui-fleet-black-75;
   }
 
   // Pointer cursor only on rows with hosts. The component adds these classes
@@ -33,19 +33,28 @@
     cursor: pointer;
   }
 
+  // Clickable platform labels are keyboard-operable buttons (see #48214). Give
+  // them a visible focus indicator when reached via keyboard: an outline ring
+  // plus a darker label fill to further set the focused row apart from the
+  // muted inactive ticks. This must be excluded from the recharts outline
+  // suppression below so the ring actually renders.
+  &__tick--clickable:focus-visible {
+    outline: 1px solid $core-focused-outline;
+    outline-offset: 2px;
+    fill: $core-fleet-black;
+  }
+
   &__tooltip {
-    background: $core-fleet-black;
-    color: $core-fleet-white;
-    padding: $pad-small $pad-medium;
-    border-radius: $border-radius;
-    font-size: $xx-small;
+    @include tooltip-text;
+
     box-shadow: 0px 2px 6px rgba(0, 0, 0, 0.1);
+    // Bar hover shows short "N hosts" / "X% of fleet" values that fit on one
+    // line each; keep them from wrapping so the tooltip stays compact.
     white-space: nowrap;
   }
 
   &__tooltip-label {
     margin-bottom: $pad-xsmall;
-    opacity: 0.8;
   }
 
   &__tooltip-value {
@@ -54,18 +63,19 @@
 
   &__tooltip-share {
     margin-top: $pad-xsmall;
-    opacity: 0.8;
   }
 
   // Suppress browser focus/click outlines on the chart wrapper, SVG surface,
   // and individual bar rectangles. Recharts wraps each bar in a focusable
-  // <rect> and the chart surface itself is focusable when interactive.
+  // <rect> and the chart surface itself is focusable when interactive. Mouse
+  // focus (`:focus:not(:focus-visible)`) is also suppressed on the clickable
+  // ticks so click-and-hold doesn't flash the browser's default blue ring;
+  // keyboard focus keeps the Fleet ring from the `:focus-visible` rule above.
   .recharts-wrapper,
   .recharts-surface,
   .recharts-bar-rectangle,
   .recharts-rectangle,
-  .recharts-wrapper *:focus,
-  .recharts-wrapper *:focus-visible {
+  .recharts-wrapper *:focus:not(:focus-visible) {
     outline: none !important;
   }
 }

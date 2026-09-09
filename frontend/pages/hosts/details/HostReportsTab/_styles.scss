@@ -106,6 +106,9 @@
     font-size: $small;
     font-weight: $bold;
     margin: 0;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
   }
 
   &__last-updated {
@@ -119,16 +122,6 @@
     color: $ui-fleet-black-75;
     margin: $pad-xsmall 0 0;
     overflow-wrap: anywhere;
-  }
-
-  &__clipped-badge {
-    .pill-badge__element {
-      background: transparent;
-      font-size: $xx-small;
-      color: $ui-fleet-black-75;
-      border: 1px solid $ui-fleet-black-25;
-      padding: $pad-small;
-    }
   }
 
   &__data-grid {

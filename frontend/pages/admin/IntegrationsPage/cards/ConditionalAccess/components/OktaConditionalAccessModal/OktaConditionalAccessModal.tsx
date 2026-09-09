@@ -11,7 +11,6 @@ import InputField from "components/forms/fields/InputField";
 import CustomLink from "components/CustomLink";
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
-import Icon from "components/Icon";
 import TooltipWrapper from "components/TooltipWrapper";
 import { IInputFieldParseTarget } from "interfaces/form_field";
 import { getErrorReason } from "interfaces/errors";
@@ -307,8 +306,10 @@ const OktaConditionalAccessModal = ({
             onClick={onDownloadSigningCert}
             isLoading={isDownloadingCert}
             disabled={isDownloadingCert}
+            icon="download"
+            iconPosition="right"
           >
-            Download certificate <Icon name="download" />
+            <span>Download certificate</span>
           </Button>
         </div>
 

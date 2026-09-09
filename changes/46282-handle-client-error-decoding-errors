@@ -1,1 +1,0 @@
-- Fixed an issue where ACME urls would throw a 500 error on malformed URLs.

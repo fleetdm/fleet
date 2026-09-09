@@ -1,0 +1,23 @@
+{
+  "versions": [
+    {
+      "version": "6.1.6",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name LIKE 'Spyder %' AND publisher = 'Spyder-IDE';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Spyder %' AND publisher = 'Spyder-IDE' AND version_compare(version, '6.1.6') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'spyder.exe');"
+      },
+      "installer_url": "https://github.com/spyder-ide/spyder/releases/download/v6.1.6/Spyder-Windows-x86_64.exe",
+      "install_script_ref": "6831586d",
+      "uninstall_script_ref": "1fb72c38",
+      "sha256": "6e2f4abb7bfe4a6130fc8e053b571daad00289329af7ed135f46c82a9b325512",
+      "default_categories": [
+        "Developer tools"
+      ]
+    }
+  ],
+  "refs": {
+    "1fb72c38": "$softwareName = \"Spyder\"\n$softwareNameLike = \"*$softwareName*\"\n# Registry publisher from the winget manifest's AppsAndFeaturesEntries, which\n# differs from the package Publisher (\"Spyder Project Contributors and others\").\n$publisher = \"Spyder-IDE\"\n$uninstallArgs = \"/S\"\n\n$machineKey = 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'\n$machineKey32on64 = 'HKLM:\\SOFTWARE\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'\n$exitCode = 0\n\ntry {\n    [array]$uninstallKeys = Get-ChildItem -Path @($machineKey, $machineKey32on64) -ErrorAction SilentlyContinue |\n        ForEach-Object { Get-ItemProperty $_.PSPath }\n\n    $foundUninstaller = $false\n    foreach ($key in $uninstallKeys) {\n        if ($key.DisplayName -like $softwareNameLike -and $key.Publisher -eq $publisher) {\n            $foundUninstaller = $true\n            $uninstallCommand = if ($key.QuietUninstallString) { $key.QuietUninstallString } else { $key.UninstallString }\n            if ($uninstallCommand -match '^\\s*\"([^\"]+)\"\\s*(.*)$') {\n                $uninstallCommand = $Matches[1]; if ($Matches[2]) { $uninstallArgs = \"$($Matches[2]) $uninstallArgs\".Trim() }\n            } elseif ($uninstallCommand -match '(?i)^\\s*(.+?\\.exe)\\s*(.*)$') {\n                $uninstallCommand = $Matches[1]; if ($Matches[2]) { $uninstallArgs = \"$($Matches[2]) $uninstallArgs\".Trim() }\n            }\n            Write-Host \"Uninstall command: $uninstallCommand\"; Write-Host \"Uninstall args: $uninstallArgs\"\n            $processOptions = @{ FilePath = $uninstallCommand; PassThru = $true; Wait = $true }\n            if ($uninstallArgs -ne '') { $processOptions.ArgumentList = $uninstallArgs }\n            $process = Start-Process @processOptions\n            $exitCode = $process.ExitCode; Write-Host \"Uninstall exit code: $exitCode\"; break\n        }\n    }\n    if (-not $foundUninstaller) { Write-Host \"Uninstaller for '$softwareName' not found.\"; Exit 0 }\n} catch { Write-Host \"Error: $_\"; Exit 1 }\n\nExit $exitCode\n",
+    "6831586d": "# Learn more about .exe install scripts:\n# http://fleetdm.com/learn-more-about/exe-install-scripts\n\n$exeFilePath = \"${env:INSTALLER_PATH}\"\n\ntry {\n\n# Spyder uses NSIS installer\n$processOptions = @{\n  FilePath = \"$exeFilePath\"\n  ArgumentList = \"/S\"\n  PassThru = $true\n  Wait = $true\n}\n\n$process = Start-Process @processOptions\n$exitCode = $process.ExitCode\n\nWrite-Host \"Install exit code: $exitCode\"\nExit $exitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n"
+  }
+}

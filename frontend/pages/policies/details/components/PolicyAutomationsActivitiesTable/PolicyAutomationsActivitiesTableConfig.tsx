@@ -15,7 +15,7 @@ import { HumanTimeDiffWithDateTip } from "components/HumanTimeDiffWithDateTip";
 
 import {
   getAutomationRunDisplayName,
-  getAutomationStatusIconName,
+  getAutomationStatusIcon,
   getDetailOutputText,
 } from "./helpers";
 
@@ -39,9 +39,10 @@ const generateColumnConfigs = (
     accessor: (row) => row.type,
     Cell: (cellProps: ICellProps) => {
       const activity = cellProps.row.original;
+      const statusIcon = getAutomationStatusIcon(activity);
       return (
         <div className={`${baseClass}__automation-cell`}>
-          <Icon name={getAutomationStatusIconName(activity.status)} />
+          <Icon name={statusIcon.name} color={statusIcon.color} />
           <TooltipTruncatedText value={getAutomationRunDisplayName(activity)} />
         </div>
       );

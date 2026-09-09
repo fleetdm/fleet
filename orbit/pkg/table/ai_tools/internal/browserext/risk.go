@@ -20,8 +20,11 @@ func hasBroadHostPerms(patterns []string) bool {
 	return false
 }
 
-// Chromium Manifest::Location values we treat as trusted-origin.
+// Chromium Manifest::Location values we act on: kInvalidLocation — which is also
+// the Go zero value, so it covers a Preferences entry with no "location" key —
+// and the two we treat as trusted-origin.
 const (
+	chromiumLocUnknown   = 0
 	chromiumLocInternal  = 1
 	chromiumLocComponent = 5
 )
@@ -29,14 +32,23 @@ const (
 // chromiumSideloaded reports whether a Chromium extension was installed outside
 // the Web Store (unpacked/dev, external, or policy-forced). Conservative: when
 // both signals are unknown it returns false to avoid false positives.
+//
+// A trusted location is checked first and wins over from_webstore. The browser
+// installs its own first-party components (Edge Copilot Bridge, for instance),
+// so by definition they are never web-store-installed and always report
+// from_webstore:false — checking that signal first would make the trusted-origin
+// exemption unreachable and flag every built-in component as sideloaded.
 func chromiumSideloaded(fromWebstore, location int) bool {
+	if location == chromiumLocInternal || location == chromiumLocComponent {
+		return false
+	}
 	if fromWebstore == 0 { // explicitly not from the web store
 		return true
 	}
-	if location != 0 && location != chromiumLocInternal && location != chromiumLocComponent {
-		return true
-	}
-	return false
+	// The trusted locations already returned above, so any location we can read
+	// at this point is one an ordinary install does not land in; only an
+	// unreadable location is left alone.
+	return location != chromiumLocUnknown
 }
 
 // geckoSideloaded reports whether a Gecko addon is unsigned/temporary or was

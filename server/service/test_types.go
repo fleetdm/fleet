@@ -4,9 +4,12 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"crypto/x509"
+	"fmt"
 	"log/slog"
 	"net/http"
+	"strings"
 	"sync"
+	"time"
 
 	"github.com/WatchBeam/clock"
 	android_mock "github.com/fleetdm/fleet/v4/server/mdm/android/mock"
@@ -20,6 +23,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
+	"github.com/fleetdm/fleet/v4/server/microsoft/msgraph"
 	"github.com/fleetdm/fleet/v4/server/service/async"
 )
 
@@ -62,6 +66,7 @@ type TestServerOpts struct {
 	Rs                              fleet.QueryResultStore
 	Lq                              fleet.LiveQueryStore
 	Pool                            fleet.RedisPool
+	InstallAttemptCounter           fleet.SoftwareInstallAttemptCounter
 	FailingPolicySet                fleet.FailingPolicySet
 	Clock                           clock.Clock
 	Task                            *async.Task
@@ -99,6 +104,9 @@ type TestServerOpts struct {
 	// ActivityMock is populated automatically when a test service is built.
 	// After setup, tests can use it to intercept or assert on activity creation.
 	ActivityMock *fleet_mock.MockActivityService
+
+	// MicrosoftGraphClientFactory overrides the Graph client used to verify a credential on config write.
+	MicrosoftGraphClientFactory msgraph.ClientFactory
 
 	ACMECertCA  *x509.Certificate
 	ACMECertKey *ecdsa.PrivateKey
@@ -180,4 +188,80 @@ func (m *memFailingPolicySet) ListSets() ([]uint, error) {
 		policyIDs = append(policyIDs, policyID)
 	}
 	return policyIDs, nil
+}
+
+// memSoftwareInstallAttemptCounter is an in-memory fleet.SoftwareInstallAttemptCounter used by tests.
+type memSoftwareInstallAttemptCounter struct {
+	mMu sync.RWMutex
+	m   map[string]memInstallAttempt
+}
+
+// memInstallAttempt mirrors a Redis key holding a count with a TTL: recording refreshes
+// the deadline, and the count is gone once it passes.
+type memInstallAttempt struct {
+	count     int
+	expiresAt time.Time
+}
+
+var _ fleet.SoftwareInstallAttemptCounter = (*memSoftwareInstallAttemptCounter)(nil)
+
+// NewMemSoftwareInstallAttemptCounter returns a new in-memory SoftwareInstallAttemptCounter.
+func NewMemSoftwareInstallAttemptCounter() *memSoftwareInstallAttemptCounter {
+	return &memSoftwareInstallAttemptCounter{
+		m: make(map[string]memInstallAttempt),
+	}
+}
+
+func memInstallAttemptKey(hostID uint, softwareInstallerID uint) string {
+	return fmt.Sprintf("%d:%d", softwareInstallerID, hostID)
+}
+
+func (m *memSoftwareInstallAttemptCounter) RecordAttempt(ctx context.Context, hostID uint, softwareInstallerID uint, expireIn time.Duration) (int, error) {
+	m.mMu.Lock()
+	defer m.mMu.Unlock()
+
+	now := time.Now()
+	key := memInstallAttemptKey(hostID, softwareInstallerID)
+	attempt := m.m[key]
+	if now.After(attempt.expiresAt) {
+		attempt.count = 0
+	}
+	attempt.count++
+	attempt.expiresAt = now.Add(expireIn)
+	m.m[key] = attempt
+	return attempt.count, nil
+}
+
+func (m *memSoftwareInstallAttemptCounter) CountAttempts(ctx context.Context, hostID uint, softwareInstallerID uint) (int, error) {
+	m.mMu.RLock()
+	defer m.mMu.RUnlock()
+
+	attempt := m.m[memInstallAttemptKey(hostID, softwareInstallerID)]
+	if time.Now().After(attempt.expiresAt) {
+		return 0, nil
+	}
+	return attempt.count, nil
+}
+
+func (m *memSoftwareInstallAttemptCounter) ResetAttempts(ctx context.Context, hostID uint, softwareInstallerID uint) error {
+	m.mMu.Lock()
+	defer m.mMu.Unlock()
+
+	delete(m.m, memInstallAttemptKey(hostID, softwareInstallerID))
+	return nil
+}
+
+func (m *memSoftwareInstallAttemptCounter) ResetInstallerAttempts(ctx context.Context, softwareInstallerIDs []uint) error {
+	m.mMu.Lock()
+	defer m.mMu.Unlock()
+
+	for _, softwareInstallerID := range softwareInstallerIDs {
+		installerPrefix := fmt.Sprintf("%d:", softwareInstallerID)
+		for key := range m.m {
+			if strings.HasPrefix(key, installerPrefix) {
+				delete(m.m, key)
+			}
+		}
+	}
+	return nil
 }

@@ -36,6 +36,7 @@ import {
   CUSTOM_HOST_VITAL_CRITERION,
   LabelHostVitalsCriterion,
   LabelMembershipType,
+  LabelPlatform,
 } from "interfaces/label";
 import { IHost } from "interfaces/host";
 import { IInputFieldParseTarget } from "interfaces/form_field";
@@ -50,7 +51,6 @@ import InputField from "components/forms/fields/InputField";
 import Dropdown from "components/forms/fields/Dropdown";
 import Button from "components/buttons/Button";
 import SQLEditor from "components/SQLEditor";
-import Icon from "components/Icon";
 import TargetsInput from "components/TargetsInput";
 import Radio from "components/forms/fields/Radio";
 import PlatformField from "../components/PlatformField";
@@ -95,7 +95,7 @@ export interface INewLabelFormData {
   type: LabelMembershipType;
   // dynamic
   labelQuery: string;
-  platform: string;
+  platform: LabelPlatform;
 
   // host vitals
   vital: LabelHostVitalsCriterion; // TODO - make use of recursive `LabelHostVitalsCriteria` type in future iterations to support logical combinations of different criteria
@@ -513,9 +513,13 @@ const NewLabelPage = ({
               label="Query"
               labelActionComponent={
                 showOpenSidebarButton ? (
-                  <Button variant="subdued" onClick={onOpenSidebar}>
+                  <Button
+                    variant="subdued"
+                    onClick={onOpenSidebar}
+                    icon="info"
+                    iconPosition="right"
+                  >
                     Schema
-                    <Icon name="info" size="small" />
                   </Button>
                 ) : null
               }

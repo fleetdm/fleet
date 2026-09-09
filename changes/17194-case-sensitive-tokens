@@ -1,0 +1,1 @@
+- Fixed authentication and enrollment tokens (including session, invite, email-change, MFA, host device, and MDM enrollment/installer tokens) so that case-mutated tokens are no longer accepted; these tokens are now matched case-sensitively.

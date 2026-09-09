@@ -87,7 +87,7 @@ After publishing your private app in the Google Play Console, you can add it to 
  
 ## Install, edit, and delete custom app
 
-Learn how to install, edit, and delete the app in the [Install app store apps guide](https://fleetdm.com/guides/install-app-store-apps#install-an-app).
+Learn how to install, edit, and delete the app in the [Install app store apps guide](https://fleetdm.com/guides/install-app-store-apps#google-play-android2).
 
 ## Update new version in Google Play Console
 

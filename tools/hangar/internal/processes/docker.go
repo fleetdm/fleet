@@ -17,16 +17,45 @@ func dockerCmd(args ...string) *exec.Cmd {
 	return shellpath.Command("docker", args...)
 }
 
+// composeArgs prefixes a `compose [-p project] <rest...>` argv. An empty
+// project falls back to docker's default (the cwd's basename), preserving
+// single-server behavior.
+func composeArgs(project string, rest ...string) []string {
+	args := []string{"compose"}
+	if project != "" {
+		args = append(args, "-p", project)
+	}
+	return append(args, rest...)
+}
+
+// composeProjectFromArgs extracts the `-p` / `--project-name` value from a
+// stored compose argv, so a teardown can target the same project the spawn
+// used. Returns "" when none is present.
+func composeProjectFromArgs(args []string) string {
+	for i, a := range args {
+		if a == "-p" || a == "--project-name" {
+			if i+1 < len(args) {
+				return args[i+1]
+			}
+		}
+		if v, ok := strings.CutPrefix(a, "--project-name="); ok {
+			return v
+		}
+	}
+	return ""
+}
+
 func str(v any) string {
 	s, _ := v.(string)
 	return s
 }
 
-// DockerComposeStatus runs `docker compose ps --format json` in cwd. A
-// ran-but-failed command (e.g. no compose file) yields "not running"; only a
-// spawn failure (docker missing) is an error.
-func DockerComposeStatus(cwd string) (DockerStatus, error) {
-	cmd := dockerCmd("compose", "ps", "--format", "json")
+// DockerComposeStatus runs `docker compose [-p project] ps --format json` in
+// cwd. A ran-but-failed command (e.g. no compose file) yields "not running";
+// only a spawn failure (docker missing) is an error. project scopes the query
+// to one server's stack; "" uses the default (cwd-basename) project.
+func DockerComposeStatus(cwd, project string) (DockerStatus, error) {
+	cmd := dockerCmd(composeArgs(project, "ps", "--format", "json")...)
 	cmd.Dir = cwd
 	out, err := cmd.Output()
 	if err != nil {
@@ -65,9 +94,9 @@ func DockerComposeStatus(cwd string) (DockerStatus, error) {
 	return DockerStatus{Running: running, Containers: containers}, nil
 }
 
-// DockerComposeRestart runs `docker compose restart` in cwd.
-func DockerComposeRestart(cwd string) (string, error) {
-	cmd := dockerCmd("compose", "restart")
+// DockerComposeRestart runs `docker compose [-p project] restart` in cwd.
+func DockerComposeRestart(cwd, project string) (string, error) {
+	cmd := dockerCmd(composeArgs(project, "restart")...)
 	cmd.Dir = cwd
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &stdout, &stderr
@@ -81,23 +110,30 @@ func DockerComposeRestart(cwd string) (string, error) {
 	return stdout.String(), nil
 }
 
+// dockerComposeProcID is the legacy single-server compose row id, kept as the
+// default when a caller doesn't pass an explicit (per-server) id.
 const dockerComposeProcID = "docker-compose-up"
 
-// DockerComposeDown runs `docker compose down` in cwd, flipping the
-// docker-compose-up row to stopping for the duration so the UI doesn't flash
-// "not running" while containers tear down.
-func (m *Manager) DockerComposeDown(cwd string) (string, error) {
-	m.setComposeState("stopping", true, false)
-	m.emitState(dockerComposeProcID, "stopping", nil, nil)
+// DockerComposeDown runs `docker compose [-p project] down` in cwd, flipping
+// the given compose row (id) to stopping for the duration so the UI doesn't
+// flash "not running" while containers tear down. id is the per-server
+// `<serverID>:docker-compose-up` process id; an empty id targets the legacy
+// default row.
+func (m *Manager) DockerComposeDown(id, cwd, project string) (string, error) {
+	if id == "" {
+		id = dockerComposeProcID
+	}
+	m.setComposeState(id, "stopping", true, false)
+	m.emitState(id, "stopping", nil, nil)
 
-	cmd := dockerCmd("compose", "down")
+	cmd := dockerCmd(composeArgs(project, "down")...)
 	cmd.Dir = cwd
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &stdout, &stderr
 	runErr := cmd.Run()
 
-	m.setComposeState("done", false, true)
-	m.emitState(dockerComposeProcID, "done", nil, nil)
+	m.setComposeState(id, "done", false, true)
+	m.emitState(id, "done", nil, nil)
 
 	if runErr != nil {
 		var ee *exec.ExitError
@@ -109,12 +145,12 @@ func (m *Manager) DockerComposeDown(cwd string) (string, error) {
 	return stdout.String(), nil
 }
 
-// setComposeState mutates the docker-compose-up row if present. When stamp is
+// setComposeState mutates the given compose row if present. When stamp is
 // true it also sets ended_at.
-func (m *Manager) setComposeState(state string, userStopped, stamp bool) {
+func (m *Manager) setComposeState(id, state string, userStopped, stamp bool) {
 	m.stateMu.Lock()
 	defer m.stateMu.Unlock()
-	info := m.procs[dockerComposeProcID]
+	info := m.procs[id]
 	if info == nil {
 		return
 	}
@@ -133,16 +169,19 @@ func (m *Manager) setComposeState(state string, userStopped, stamp bool) {
 // the row is often "done" already — running down here is idempotent.
 func (m *Manager) dockerComposeDownFor(id string) error {
 	m.stateMu.Lock()
-	var cwd string
+	var cwd, project string
 	if info := m.procs[id]; info != nil {
 		cwd = info.Cwd
+	}
+	if a, ok := m.lastArgs[id]; ok {
+		project = composeProjectFromArgs(a.Args)
 	}
 	m.stateMu.Unlock()
 	if cwd == "" {
 		return nil
 	}
 
-	cmd := dockerCmd("compose", "down")
+	cmd := dockerCmd(composeArgs(project, "down")...)
 	cmd.Dir = cwd
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &stdout, &stderr

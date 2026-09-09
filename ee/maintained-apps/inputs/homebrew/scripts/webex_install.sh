@@ -115,13 +115,24 @@ remove_stale_upgrade_bundles() {
 # extract contents
 MOUNT_POINT=$(mktemp -d /tmp/dmg_mount_XXXXXX)
 yes | hdiutil attach -plist -nobrowse -readonly -mountpoint "$MOUNT_POINT" "$INSTALLER_PATH" || exit 1
-sudo cp -R "$MOUNT_POINT"/* "$TMPDIR"
+if ! sudo cp -R "$MOUNT_POINT"/* "$TMPDIR"; then
+	hdiutil detach "$MOUNT_POINT" || true
+	exit 1
+fi
 hdiutil detach "$MOUNT_POINT" || true
 # copy to the applications folder
 quit_and_track_application 'Cisco-Systems.Spark'
 if [ -d "$APPDIR/Webex.app" ]; then
-	sudo mv "$APPDIR/Webex.app" "$TMPDIR/Webex.app.bkp"
+	sudo mv "$APPDIR/Webex.app" "$TMPDIR/Webex.app.bkp" || exit $?
 fi
-sudo cp -R "$TMPDIR/Webex.app" "$APPDIR"
+if ! sudo cp -R "$TMPDIR/Webex.app" "$APPDIR"; then
+	# remove the partial copy so a failed install isn't inventoried as the new
+	# version, then restore the previous version if there was one
+	sudo rm -rf "$APPDIR/Webex.app"
+	if [ -d "$TMPDIR/Webex.app.bkp" ]; then
+		sudo mv "$TMPDIR/Webex.app.bkp" "$APPDIR/Webex.app"
+	fi
+	exit 1
+fi
 remove_stale_upgrade_bundles
 relaunch_application 'Cisco-Systems.Spark'

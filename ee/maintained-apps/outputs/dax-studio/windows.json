@@ -1,15 +1,16 @@
 {
   "versions": [
     {
-      "version": "3.5.2",
+      "version": "3.6.1",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'DAX Studio %' AND publisher = 'DAX Studio';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'DAX Studio %' AND publisher = 'DAX Studio' AND version_compare(version, '3.5.2') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'DAX Studio %' AND publisher = 'DAX Studio' AND version_compare(version, '3.6.1') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'daxstudio.exe');"
       },
-      "installer_url": "https://github.com/DaxStudio/DaxStudio/releases/download/v3.5.2/DaxStudio_3_5_2_setup.exe",
+      "installer_url": "https://github.com/DaxStudio/DaxStudio/releases/download/v3.6.1/DaxStudio_3_6_1_setup.exe",
       "install_script_ref": "efa942ae",
       "uninstall_script_ref": "23e6b8df",
-      "sha256": "19745500cea14beca2aebdd48e0f09f9903f2e46e3f57eac215f33b0c8c8bae7",
+      "sha256": "c3eb48bb6ff331a57d06fd61f31e48e12985e5836d36ac4ef237564e68c0b189",
       "default_categories": [
         "Developer tools"
       ]

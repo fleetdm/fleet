@@ -1,4 +1,4 @@
-- name: macOS - Fleet Desktop.app launch agent installed
+- name: Fleet Desktop.app launch agent installed
   query: SELECT 1 FROM file WHERE path = '/Library/LaunchAgents/com.fleetdm.fleet-desktop-hidden.plist' LIMIT 1;
   critical: false
   description: Ensures the Fleet Desktop.app launch agent plist is present on disk after the MDM profile is delivered.

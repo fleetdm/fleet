@@ -1,15 +1,16 @@
 {
   "versions": [
     {
-      "version": "12.20.0.7320",
+      "version": "12.21.0.7344",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'HeidiSQL%' AND publisher = 'Ansgar Becker';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'HeidiSQL%' AND publisher = 'Ansgar Becker' AND version_compare(version, '12.20.0.7320') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'HeidiSQL%' AND publisher = 'Ansgar Becker' AND version_compare(version, '12.21.0.7344') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'heidisql.exe');"
       },
-      "installer_url": "https://github.com/HeidiSQL/HeidiSQL/releases/download/v12.20/HeidiSQL_12.20.0.7320_Setup.exe",
+      "installer_url": "https://github.com/HeidiSQL/HeidiSQL/releases/download/v12.21/HeidiSQL_12.21.0.7344_Setup.exe",
       "install_script_ref": "38d3f7b8",
       "uninstall_script_ref": "71bb5d85",
-      "sha256": "b811c5fcc43a8703dc567e0b9b3b86e01cf7a05a53b05addc38c5055549387fa",
+      "sha256": "97acf0344313c11bb89c001425a615722b745669e5ffd542e732c418a00e22ed",
       "default_categories": [
         "Developer tools"
       ]

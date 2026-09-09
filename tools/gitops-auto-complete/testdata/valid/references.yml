@@ -1,0 +1,15 @@
+# File-reference forms that must validate: path on section values and packages, and
+# path/paths (a single glob string) on policies, labels, reports, and yara_rules.
+org_settings:
+  yara_rules:
+    - path: ../lib/yara/rule.yar
+policies:
+  - path: ../lib/policies/one.yml
+  - paths: "../lib/policies/*.yml"
+labels:
+  - paths: "../lib/labels/*.yml"
+reports:
+  - path: ../lib/reports/one.yml
+software:
+  packages:
+    - path: ../lib/software/pkg.yml

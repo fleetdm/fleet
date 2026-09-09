@@ -64,11 +64,15 @@ module.exports = {
       '/podcasts',// « article category page
       '/whitepapers',// « article category page
       '/webinars',// « article category page
+      '/newsletters',// « article category page
+      '/industry-news',// « article category page
       // Product category pages:
       '/orchestration',
       '/device-management',
       '/software-management',
       '/infrastructure-as-code',
+      '/endpoint-governance',
+      '/ai',
       // Other stuff:
       // > Note: /handbook overview page is already included amongst the markdown pages
       // > Note: Same for /docs

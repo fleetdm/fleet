@@ -43,15 +43,17 @@ const SelfServiceFilters = ({
           onChange={onCategoryChange}
         />
       )}
-      {installAllSlot && (
-        <div className={`${baseClass}__install-all`}>{installAllSlot}</div>
-      )}
-      <div className={`${baseClass}__search`}>
-        <SearchField
-          placeholder="Search by name"
-          onChange={onSearchQueryChange}
-          defaultValue={query}
-        />
+      <div className={`${baseClass}__actions`}>
+        {installAllSlot && (
+          <div className={`${baseClass}__install-all`}>{installAllSlot}</div>
+        )}
+        <div className={`${baseClass}__search`}>
+          <SearchField
+            placeholder="Search by name"
+            onChange={onSearchQueryChange}
+            defaultValue={query}
+          />
+        </div>
       </div>
     </div>
   );

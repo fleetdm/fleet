@@ -4,7 +4,8 @@
       "version": "1.0.54",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Smartsheet' AND publisher = 'Smartsheet';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Smartsheet' AND publisher = 'Smartsheet' AND version_compare(version, '1.0.54') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Smartsheet' AND publisher = 'Smartsheet' AND version_compare(version, '1.0.54') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'smartsheet.exe');"
       },
       "installer_url": "https://builds.desktopapp.smartsheet.com/public/win32/Smartsheet-setup.exe",
       "install_script_ref": "45257f64",

@@ -1,2 +1,0 @@
-- Fixed the "Missing hosts" summary card not showing on the Fleet Free dashboard when a platform other than "All" was selected.
-- Added an "Operating systems" card to the dashboard when Linux or Android is selected.

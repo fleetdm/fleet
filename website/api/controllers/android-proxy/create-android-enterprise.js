@@ -135,6 +135,7 @@ module.exports = {
 
       // Now create the new enterprise for this Fleet server.
       // [?]: https://googleapis.dev/nodejs/googleapis/latest/androidmanagement/classes/Resource$Enterprises.html#create
+      sails.androidProxyApiRequestCount++;// Count this Android Management API request toward the per-minute total logged in api/hooks/custom/index.js.
       let createEnterpriseResponse = await androidManagementConnection.enterprises.create({
         agreementAccepted: true,
         enterpriseToken: enterpriseToken,

@@ -29,6 +29,7 @@ interface IHostActionsDropdownProps {
   recoveryLockPasswordAvailable?: boolean;
   isManagedLocalAccountEnabled?: boolean;
   managedAccountStatus?: string | null;
+  managedAccountDetail?: string;
   managedAccountPasswordAvailable?: boolean;
   /**
    * BYOD permission gates from the host MDM payload. Undefined when the host's
@@ -57,6 +58,7 @@ const HostActionsDropdown = ({
   recoveryLockPasswordAvailable = false,
   isManagedLocalAccountEnabled = false,
   managedAccountStatus,
+  managedAccountDetail,
   managedAccountPasswordAvailable = false,
   wipeAllowed,
   lockAllowed,
@@ -121,6 +123,7 @@ const HostActionsDropdown = ({
     recoveryLockPasswordAvailable,
     isManagedLocalAccountEnabled,
     managedAccountStatus,
+    managedAccountDetail,
     managedAccountPasswordAvailable,
     wipeAllowed,
     lockAllowed,

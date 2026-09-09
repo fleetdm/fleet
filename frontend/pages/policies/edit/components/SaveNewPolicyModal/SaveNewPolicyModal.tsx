@@ -386,6 +386,7 @@ const SaveNewPolicyModal = ({
               automationsConfig={automationsConfig}
               globalConfig={globalConfig}
               fleetName={fleetName}
+              selectedPlatforms={platformSelector.getSelectedPlatforms()}
             />
           </div>
         ) : (
@@ -394,8 +395,9 @@ const SaveNewPolicyModal = ({
               variant="secondary"
               type="button"
               onClick={() => setShowAutomations(true)}
+              icon="plus"
             >
-              <Icon name="plus" /> Add automations
+              Add automations
             </Button>
           </div>
         )}

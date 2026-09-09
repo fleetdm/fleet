@@ -1,0 +1,1 @@
+- Fixed false positive vulnerabilities reported for JetBrains `teamcity-cli` installed via Homebrew, which was incorrectly matched to the TeamCity CI server's CPE.

@@ -165,6 +165,68 @@ export class FileChange {
     }
 }
 
+/**
+ * Worktree is one entry from `git worktree list --porcelain`. Multi-server
+ * Hangar runs each server from its own worktree so they can build/run
+ * different branches simultaneously while sharing one .git.
+ */
+export class Worktree {
+    "path": string;
+
+    /**
+     * commit SHA the worktree is at
+     */
+    "head": string;
+
+    /**
+     * short branch name; nil if detached/bare
+     */
+    "branch": string | null;
+    "detached": boolean;
+    "bare": boolean;
+    "locked": boolean;
+
+    /**
+     * the primary (non-linked) worktree
+     */
+    "is_main": boolean;
+
+    /** Creates a new Worktree instance. */
+    constructor($$source: Partial<Worktree> = {}) {
+        if (!("path" in $$source)) {
+            this["path"] = "";
+        }
+        if (!("head" in $$source)) {
+            this["head"] = "";
+        }
+        if (!("branch" in $$source)) {
+            this["branch"] = null;
+        }
+        if (!("detached" in $$source)) {
+            this["detached"] = false;
+        }
+        if (!("bare" in $$source)) {
+            this["bare"] = false;
+        }
+        if (!("locked" in $$source)) {
+            this["locked"] = false;
+        }
+        if (!("is_main" in $$source)) {
+            this["is_main"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new Worktree instance from a string or object.
+     */
+    static createFrom($$source: any = {}): Worktree {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new Worktree($$parsedSource as Partial<Worktree>);
+    }
+}
+
 // Private type creation functions
 const $$createType0 = CommitInfo.createFrom;
 const $$createType1 = $Create.Nullable($$createType0);

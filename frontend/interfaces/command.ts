@@ -16,6 +16,27 @@ export interface ICommand {
 }
 
 /**
+ * Apple MDM command types that can be canceled while still pending delivery.
+ * Keep in sync with CancelableAppleMDMRequestTypes (server/fleet/apple_mdm.go).
+ */
+const CANCELABLE_REQUEST_TYPES = [
+  "DeviceLock",
+  "EraseDevice",
+  "ClearPasscode",
+  "EnableLostMode",
+] as const;
+
+/**
+ * Whether a command is eligible for cancellation. Deferred (NotNow) commands
+ * still list as pending and remain cancelable.
+ */
+export const isCancelableCommand = (command: ICommand): boolean =>
+  command.command_status === "pending" &&
+  (CANCELABLE_REQUEST_TYPES as readonly string[]).includes(
+    command.request_type
+  );
+
+/**
  * Shape of an mdm command result object returned by the Fleet API.
  */
 export interface ICommandResult {

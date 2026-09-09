@@ -10,6 +10,7 @@ import (
 	"github.com/crewjam/saml"
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
 const cacheLifetimeSeconds = uint(300) // in seconds (5 minutes)
@@ -35,6 +36,7 @@ func CreateAuthorizationRequest(
 	sessionStore SessionStore,
 	originalURL string,
 	sessionTTLSeconds uint,
+	relayState fleet.SSORelayState,
 	requestData SSORequestData,
 ) (sessionID string, idpURL string, err error) {
 	idpURL, err = getDestinationURL(samlProvider.IDPMetadata)
@@ -83,8 +85,7 @@ func CreateAuthorizationRequest(
 		return "", "", fmt.Errorf("caching SSO session while creating auth request: %w", err)
 	}
 
-	relayState := "" // Fleet currently doesn't use/set RelayState
-	idpRedirectURL, err := samlAuthRequest.Redirect(relayState, samlProvider)
+	idpRedirectURL, err := samlAuthRequest.Redirect(string(relayState), samlProvider)
 	if err != nil {
 		return "", "", ctxerr.Wrap(ctx, err, "generating redirect")
 	}

@@ -6,6 +6,7 @@ import { getPathWithQueryParams } from "utilities/url";
 import CustomLink from "components/CustomLink";
 import Radio from "components/forms/fields/Radio";
 import InputField from "components/forms/fields/InputField";
+import { renderAppleManualEnrollmentDisabled } from "components/AddHostsModal/helpers";
 
 type DeviceType = "companyOwned" | "personalBYOD";
 
@@ -23,14 +24,27 @@ const baseClass = "macos-panel";
 
 interface IMacosPanelProps {
   enrollSecret: string;
+  isManualAppleEnrollmentsBlocked: boolean;
 }
 
-const MacosPanel = ({ enrollSecret }: IMacosPanelProps) => {
+const MacosPanel = ({
+  enrollSecret,
+  isManualAppleEnrollmentsBlocked,
+}: IMacosPanelProps) => {
   const { config, isMacMdmEnabledAndConfigured } = useContext(AppContext);
 
   const [deviceType, setDeviceType] = useState<DeviceType>("companyOwned");
 
+  const helpText =
+    "When the end user navigates to this URL, the enrollment profile " +
+    "will download in their browser. End users will have to install the profile " +
+    "to enroll to Fleet.";
+
   if (!config) return null;
+
+  if (isManualAppleEnrollmentsBlocked) {
+    return renderAppleManualEnrollmentDisabled("macOS");
+  }
 
   if (isMacMdmEnabledAndConfigured) {
     const enrollUrl = getPathWithQueryParams(
@@ -54,7 +68,7 @@ const MacosPanel = ({ enrollSecret }: IMacosPanelProps) => {
               onChange={() => setDeviceType("personalBYOD")}
             />
             <Radio
-              label="Company-owned"
+              label="Company-owned (fully-managed)"
               id="company-owned"
               checked={deviceType === "companyOwned"}
               value="companyOwned"
@@ -67,8 +81,9 @@ const MacosPanel = ({ enrollSecret }: IMacosPanelProps) => {
             inputWrapperClass={`${baseClass}__enroll-link`}
             name="enroll-link"
             enableCopy
-            label="Send this to your end users:"
+            label="Share this link with your end users:"
             value={enrollUrl}
+            helpText={helpText}
           />
         </form>
       </div>

@@ -15,7 +15,7 @@ type Service interface {
 	EnterpriseSignupSSE(ctx context.Context) (chan string, error)
 
 	// CreateEnrollmentToken creates an enrollment token for a new Android device.
-	CreateEnrollmentToken(ctx context.Context, enrollSecret, idpUUID string, fullyManaged bool) (*EnrollmentToken, error)
+	CreateEnrollmentToken(ctx context.Context, enrollSecret, idpSessionID string, fullyManaged bool) (*EnrollmentToken, error)
 	ProcessPubSubPush(ctx context.Context, token string, message *PubSubMessage) error
 
 	// UnenrollAndroidHost triggers unenrollment (work profile removal) for the given Android host ID.
@@ -35,6 +35,12 @@ type Service interface {
 	// WipeAndroidHost issues an AMAPI WIPE command. COBO-only; callers in the service layer reject BYO before reaching
 	// here. Persists the row in mdm_android_commands and writes host_mdm_actions.wipe_ref.
 	WipeAndroidHost(ctx context.Context, hostID uint) error
+
+	// IssueCustomCommand issues an arbitrary AMAPI command (the raw JSON from the API request) against
+	// the given host. It persists the command in mdm_android_commands with raw_command populated but
+	// does NOT update host_mdm_actions (custom commands have no UI state). Returns the persisted
+	// command so the caller can read CommandUUID and CommandType for the API response.
+	IssueCustomCommand(ctx context.Context, hostID uint, rawJSON []byte) (*MDMAndroidCommand, error)
 
 	EnterprisesApplications(ctx context.Context, enterpriseName, applicationID string) (*androidmanagement.Application, error)
 	AddAppsToAndroidPolicy(ctx context.Context, enterpriseName string, appPolicies []*androidmanagement.ApplicationPolicy, hostUUIDs map[string]string) (map[string]*MDMAndroidPolicyRequest, error)

@@ -11,6 +11,8 @@ module.exports = {
     state: { type: 'string' },
     city: { type: 'string' },
     country: { type: 'string'},
+    numberOfEmployees: {type: 'number'},
+    website: {type: 'string'},
   },
 
 
@@ -23,7 +25,7 @@ module.exports = {
   },
 
 
-  fn: async function ({state, city, country}) {
+  fn: async function ({state, city, country, numberOfEmployees, website}) {
 
     if(!country) {
       // IF a country is not provided, throw an error and log the provided inputs to help us debug the issue.
@@ -46,6 +48,8 @@ module.exports = {
     if(state) { apexInputs.append('state', state); }
     if(country) { apexInputs.append('country', country); }
     if(city) { apexInputs.append('city', city); }
+    if(website) { apexInputs.append('website', website); }
+    if(numberOfEmployees) { apexInputs.append('numberOfEmployees', numberOfEmployees); }
 
     let territoryInformation = await sails.helpers.flow.build(async ()=>{
       return await salesforceConnection.apex.get(`/territory-lookup?${apexInputs.toString()}`);

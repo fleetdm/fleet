@@ -11,6 +11,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 )
@@ -147,6 +148,9 @@ func (svc *Service) SetSetupExperienceScript(ctx context.Context, teamID *uint, 
 			return ctxerr.Wrap(ctx, err, "validating referenced custom host vitals")
 		}
 		return fleet.NewInvalidArgumentError("script", err.Error())
+	}
+	if err := fleet.ValidateFleetVariablesInScript(script.ScriptContents, license.IsPremium(ctx)); err != nil {
+		return err
 	}
 
 	// setup experience is only supported for macOS currently so we need to override the file
@@ -408,6 +412,17 @@ func (svc *Service) SetupExperienceNextStep(ctx context.Context, host *fleet.Hos
 					return false, ctxerr.Wrap(ctx, err, "updating setup experience with vpp install command uuid")
 				}
 			}
+		case sw.InHouseAppID != nil:
+			// In-house apps only install during setup experience on iOS/iPadOS,
+			// which is driven in one pass by the worker and never reaches this
+			// poll-driven flow. Fail the item instead of letting it fall through
+			// the switch silently and stall the queue.
+			sw.Status = fleet.SetupExperienceStatusFailure
+			sw.Error = new("In-house apps can only be installed during setup experience on iOS and iPadOS.")
+			if err := svc.ds.UpdateSetupExperienceStatusResult(ctx, sw); err != nil {
+				return false, ctxerr.Wrap(ctx, err, "updating setup experience status result to failure")
+			}
+			svc.logger.ErrorContext(ctx, "unexpected in-house app setup experience item in poll-driven flow", "status_id", sw.ID)
 		}
 	case softwareRunning == 0 && len(scriptsPending) > 0:
 		// enqueue scripts

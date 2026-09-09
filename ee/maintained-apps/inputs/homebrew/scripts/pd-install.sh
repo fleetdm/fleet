@@ -100,7 +100,7 @@ relaunch_application() {
 # first, then mount the embedded DMG and copy whichever .app it contains. This
 # keeps the script version-agnostic across Homebrew bumps.
 EXTRACT_DIR=$(mktemp -d /tmp/pd_extract_XXXXXX)
-unzip -q "$INSTALLER_PATH" -d "$EXTRACT_DIR"
+unzip -q "$INSTALLER_PATH" -d "$EXTRACT_DIR" || exit $?
 DMG_PATH=$(find "$EXTRACT_DIR" -maxdepth 2 -name "*.dmg" | head -1)
 if [ -z "$DMG_PATH" ]; then
   echo "No DMG found inside the Pd archive" >&2
@@ -118,8 +118,17 @@ APP_NAME=$(basename "$APP_BUNDLE")
 # copy to the applications folder
 quit_and_track_application 'org.puredata.pd.pd-gui'
 if [ -d "$APPDIR/$APP_NAME" ]; then
-	sudo mv "$APPDIR/$APP_NAME" "$TMPDIR/$APP_NAME.bkp"
+	sudo mv "$APPDIR/$APP_NAME" "$TMPDIR/$APP_NAME.bkp" || exit $?
 fi
-sudo cp -R "$APP_BUNDLE" "$APPDIR"
+if ! sudo cp -R "$APP_BUNDLE" "$APPDIR"; then
+  # remove the partial copy so a failed install isn't inventoried as the new
+  # version, then restore the previous version if there was one
+  sudo rm -rf "$APPDIR/$APP_NAME"
+  if [ -d "$TMPDIR/$APP_NAME.bkp" ]; then
+    sudo mv "$TMPDIR/$APP_NAME.bkp" "$APPDIR/$APP_NAME"
+  fi
+  hdiutil detach "$MOUNT_POINT" || true
+  exit 1
+fi
 hdiutil detach "$MOUNT_POINT" || true
 relaunch_application 'org.puredata.pd.pd-gui'

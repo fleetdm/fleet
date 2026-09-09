@@ -44,6 +44,9 @@
     overflow: hidden;
     width: fit-content;
     white-space: nowrap;
+    position: relative;
+    left: 50%;
+    transform: translateX(-50%);
   }
   [purpose='option-container'] {
     height: 57.6px;
@@ -102,6 +105,7 @@
     [purpose='button-row'] {
       display: flex;
       flex-direction: row;
+      justify-content: flex-start;
     }
   }
 
@@ -812,9 +816,6 @@
     h1 {
       font-size: 48px;
       max-width: 640px;
-      &.vm {
-        max-width: unset;
-      }
     }
   }
   [purpose='newsletter-banner'] {
@@ -1219,6 +1220,14 @@
         height: 405px;
       }
     }
+    [purpose='bottom-cta'] {
+      h1 {
+        font-size: 32px;
+      }
+    }
+    [purpose='option-container'] {
+      height: 40px;
+    }
   }
   //  ███████╗███╗   ███╗
   //  ██╔════╝████╗ ████║
@@ -1236,7 +1245,7 @@
     [purpose='homepage-hero'] {
       // height: 100%;
       // padding: 48px 27px 330px 24px;
-      height: 540px;
+      height: 600px;
     }
     [purpose='hero-container'] {
       background: linear-gradient(180deg, #FFF 0%, #EEF7F8 150px);
@@ -1250,7 +1259,19 @@
     [purpose='hero-text'] {
       width: 100%;
       max-width: 100%;
+      h1 {
+        text-align: center;
+        max-width: 480px;
+        font-size: 48px;
+        margin: 0 auto 24px;
+      }
+      [purpose='hero-subtitle'] {
+        text-align: center;
+        max-width: 600px;
+        margin: 0 auto 24px;
+      }
       [purpose='button-row'] {
+        justify-content: center;
         [purpose='cta-button'] {
           width: unset;
         }
@@ -1412,11 +1433,7 @@
         height: 304px;
       }
     }
-    [purpose='bottom-cta'] {
-      h1 {
-        font-size: 48px;
-      }
-    }
+
   }
   //  ██╗  ██╗███████╗
   //  ╚██╗██╔╝██╔════╝
@@ -1430,7 +1447,28 @@
       font-size: 24px;
     }
     [purpose='option-container'] {
-      height: 38.4px;
+      height: 80px;
+    }
+    [purpose='hero-ticker-option'], [purpose='bottom-cta-ticker-option'] {
+      color: #515774;
+      visibility: hidden;
+      height: 0px;
+      transform: translateY(80px);
+      transition: transform 0.3s ease-in-out;
+      &.visible {
+        // opacity: 1;
+        visibility: visible;
+        position: relative;
+        transition: transform 0.3s ease-in-out;
+        transform: translateY(0%);
+      }
+      &.animating-out {
+        visibility: visible;
+        transform: translateY(-80px);
+      }
+    }
+    [purpose='ticker-container'] {
+      white-space: unset;
     }
     [purpose='feature-cards'] {
       display: flex;
@@ -1445,7 +1483,8 @@
 
     [purpose='hero-text'] {
       h1 {
-        font-size: 24px;
+        max-width: 360px;
+        font-size: 36px;
       }
     }
     [purpose='homepage-content'] {
@@ -1614,12 +1653,32 @@
     // h4 {
     //   font-size: 12px;
     // }
+    [purpose='option-container'] {
+      height: 68px;
+    }
+    [purpose='hero-ticker-option'], [purpose='bottom-cta-ticker-option'] {
+      color: #515774;
+      visibility: hidden;
+      height: 0px;
+      transform: translateY(104px);
+      transition: transform 0.3s ease-in-out;
+      &.visible {
+        // opacity: 1;
+        visibility: visible;
+        position: relative;
+        transition: transform 0.3s ease-in-out;
+        transform: translateY(0%);
+      }
+      &.animating-out {
+        visibility: visible;
+        transform: translateY(-104px);
+      }
+    }
     [purpose='announcement-banner'] {
       br {
         display: block;
       }
     }
-
     [purpose='feature-table'] {
       [purpose='feature-name'] {
         height: unset;
@@ -1632,16 +1691,14 @@
       padding-top: 44px;
       padding-left: 16px;
       padding-right: 17px;
-      padding-bottom: 200px;
+      padding-bottom: 240px;
       height: unset;
     }
 
     [purpose='hero-background-image'] {
       background-size: auto 265px;
     }
-    [purpose='ticker-container'] {
-      white-space: unset;
-    }
+
     [purpose='hero-text'] {
       p {
         font-size: 16px;
@@ -1663,7 +1720,7 @@
 
     [purpose='bottom-cta'] {
       h1 {
-        font-size: 32px;
+        font-size: 28px;
       }
       h4 {
         font-size: 12px;

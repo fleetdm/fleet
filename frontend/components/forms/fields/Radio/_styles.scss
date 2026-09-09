@@ -3,6 +3,9 @@
 
 .radio {
   font-size: $x-small;
+  display: flex;
+  flex-direction: column;
+  gap: $pad-xsmall;
 
   // this includes the control button and the radio label text
   &__radio-control {
@@ -72,7 +75,8 @@
 
   &__help-text {
     @include help-text;
-    margin-top: $pad-xxsmall;
+    // aligns helper text with the radio label instead of the radio control
+    padding-left: px-to-rem(28);
   }
 
   &__disabled {

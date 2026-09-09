@@ -4,12 +4,17 @@ import {
   useListRef,
   type RowComponentProps,
 } from "react-window";
-import { api, type LogEntry, type LogWindow } from "../../lib/tauri";
+import {
+  api,
+  type LogEntry,
+  type LogWindow,
+  type ServerProfile,
+} from "../../lib/ipc";
+import { serveChannel } from "../../lib/servers";
 import { noAutocorrect } from "../../lib/noAutocorrect";
+import { copyText } from "../../lib/clipboard";
 
 type Level = "debug" | "info" | "warn" | "error";
-
-const SOURCE = "fleet-serve" as const;
 
 const WINDOWS: { label: string; ms: number | null }[] = [
   { label: "1m", ms: 60_000 },
@@ -41,7 +46,10 @@ const LOG_MIN_ROW_WIDTH_PX = 600;
 // flipping follow off.
 const FOLLOW_BOTTOM_TOLERANCE_PX = 40;
 
-export function LogsTab() {
+export function LogsTab({ server }: { server: ServerProfile }) {
+  // Logs are per-server: each server's fleet-serve output lives in its own
+  // structured channel (fleet-serve-<id>).
+  const SOURCE = serveChannel(server.id);
   const [windowMs, setWindowMs] = useState<number | null>(10 * 60_000);
   const [search, setSearch] = useState("");
   const [levels, setLevels] = useState<Set<Level>>(new Set(DEFAULT_LEVELS));
@@ -73,7 +81,7 @@ export function LogsTab() {
     const filename = `${SOURCE}-${snapshotStamp(new Date())}.log`;
     let clipboardOk = false;
     try {
-      await navigator.clipboard.writeText(text);
+      await copyText(text);
       clipboardOk = true;
     } catch (e) {
       // Webview may refuse clipboard in some configurations — fail the
@@ -120,7 +128,7 @@ export function LogsTab() {
     const id = window.setInterval(refresh, POLL_MS);
     return () => window.clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [windowMs, debouncedSearch, levels, follow]);
+  }, [windowMs, debouncedSearch, levels, follow, SOURCE]);
 
   // Auto-scroll to bottom when following and new lines come in. With
   // the virtualized list we drive this via the imperative API rather

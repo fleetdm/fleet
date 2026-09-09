@@ -42,7 +42,6 @@ import {
 import Dropdown from "components/forms/fields/Dropdown";
 import Button from "components/buttons/Button";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
-import Icon from "components/Icon/Icon";
 import { abmIssueTooltip } from "pages/DashboardPage/cards/ABMIssueHosts/ABMIssueHosts";
 
 import FilterPill from "../FilterPill";
@@ -233,9 +232,9 @@ const HostsFilterBlock = ({
                           variant="secondary"
                           size="small"
                           disabled={disableChildren}
-                        >
-                          <Icon name="pencil" size="small" />
-                        </Button>
+                          icon="pencil"
+                          ariaLabel="Edit label"
+                        />
                       )
                     }
                     <Button
@@ -244,9 +243,9 @@ const HostsFilterBlock = ({
                       variant="secondary"
                       size="small"
                       disabled={disableChildren}
-                    >
-                      <Icon name="trash" size="small" />
-                    </Button>
+                      icon="trash"
+                      ariaLabel="Delete label"
+                    />
                   </>
                 )}
               />

@@ -4,7 +4,8 @@
       "version": "1.2.835.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Session Manager Plugin' AND publisher = 'Amazon Web Services';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Session Manager Plugin' AND publisher = 'Amazon Web Services' AND version_compare(version, '1.2.835.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Session Manager Plugin' AND publisher = 'Amazon Web Services' AND version_compare(version, '1.2.835.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'aws session manager plugin.exe');"
       },
       "installer_url": "https://s3.amazonaws.com/session-manager-downloads/plugin/1.2.835.0/windows/SessionManagerPluginSetup.exe",
       "install_script_ref": "07286e2d",

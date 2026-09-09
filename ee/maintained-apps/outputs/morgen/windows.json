@@ -4,7 +4,8 @@
       "version": "4.0.6",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Morgen' AND publisher = 'Morgen AG';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Morgen' AND publisher = 'Morgen AG' AND version_compare(version, '4.0.6') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Morgen' AND publisher = 'Morgen AG' AND version_compare(version, '4.0.6') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'morgen.exe');"
       },
       "installer_url": "https://download.todesktop.com/210203cqcj00tw1/Morgen%20Setup%204.0.6%20-%20Build%20260519by9gmr661-x64.exe",
       "install_script_ref": "de703749",

@@ -1,1 +1,0 @@
-- Removed the `fleetdm/bomutils` Docker dependency for generating macOS `.pkg` fleetd installers; the Bill of Materials and xar archive are now written by pure-Go code, so `fleetctl package --type pkg` no longer requires Docker, `mkbom`, or `xar`.

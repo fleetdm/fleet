@@ -87,6 +87,12 @@ func NewSlogLogger(opts Options) *slog.Logger {
 // replaceAttr customizes slog output to maintain backward compatibility
 // with go-kit/log format.
 func replaceAttr(groups []string, a slog.Attr) slog.Attr {
+	// Render durations with a unit (e.g. "1.116187ms") instead of raw
+	// nanoseconds. Applies inside groups too, unlike the key-based rules below.
+	if a.Value.Kind() == slog.KindDuration {
+		return slog.String(a.Key, a.Value.Duration().String())
+	}
+
 	// Only modify top-level attributes (not in groups)
 	if len(groups) > 0 {
 		return a

@@ -560,6 +560,24 @@ func ValidateEnabledActivitiesWebhook(webhook ActivitiesWebhookSettings, invalid
 	}
 }
 
+func ValidateEnabledHostActivitiesWebhook(webhook HostActivitiesWebhookSettings, invalid *InvalidArgumentError) {
+	if webhook.Enable {
+		if webhook.DestinationURL == "" {
+			invalid.Append(
+				"webhook_settings.host_activities_webhook.destination_url", "destination_url is required to enable the host activities webhook",
+			)
+		} else {
+			if u, err := url.ParseRequestURI(webhook.DestinationURL); err != nil {
+				invalid.Append("webhook_settings.host_activities_webhook.destination_url", err.Error())
+			} else if (u.Scheme != "https" && u.Scheme != "http") || u.Host == "" {
+				invalid.Append(
+					"webhook_settings.host_activities_webhook.destination_url", "destination_url must be https or http, and have a host",
+				)
+			}
+		}
+	}
+}
+
 // ValidateEnabledHostStatusIntegrations checks that the host status integrations
 // is properly configured if enabled. It adds any error it finds to the invalid
 // argument error, that can then be checked after the call for errors using

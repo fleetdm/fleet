@@ -15,6 +15,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 )
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -131,6 +132,10 @@ func (svc *Service) RunHostScript(ctx context.Context, request *fleet.HostScript
 		if err := fleet.ValidateEmbeddedSecretsAndCustomHostVitals(ctx, svc.ds, []string{request.ScriptContents}); err != nil {
 			svc.authz.SkipAuthorization(ctx)
 			return nil, fleet.NewInvalidArgumentError("script", err.Error())
+		}
+		if err := fleet.ValidateFleetVariablesInScript(request.ScriptContents, license.IsPremium(ctx)); err != nil {
+			svc.authz.SkipAuthorization(ctx)
+			return nil, err
 		}
 	}
 
@@ -414,6 +419,10 @@ func (svc *Service) NewScript(ctx context.Context, teamID *uint, name string, r 
 		return nil, fleet.NewInvalidArgumentError("script", err.Error())
 	}
 
+	if err := fleet.ValidateFleetVariablesInScript(script.ScriptContents, license.IsPremium(ctx)); err != nil {
+		return nil, err
+	}
+
 	if err := script.ValidateNewScript(); err != nil {
 		return nil, fleet.NewInvalidArgumentError("script", err.Error())
 	}
@@ -617,6 +626,10 @@ func (svc *Service) UpdateScript(ctx context.Context, scriptID uint, r io.Reader
 		return nil, fleet.NewInvalidArgumentError("script", err.Error())
 	}
 
+	if err := fleet.ValidateFleetVariablesInScript(scriptContents, license.IsPremium(ctx)); err != nil {
+		return nil, err
+	}
+
 	if err := fleet.ValidateHostScriptContents(scriptContents, true); err != nil {
 		return nil, fleet.NewInvalidArgumentError("script", err.Error())
 	}
@@ -750,6 +763,21 @@ func (svc *Service) BatchSetScripts(ctx context.Context, maybeTmID *uint, maybeT
 		if err := script.ValidateNewScript(); err != nil {
 			return nil, ctxerr.Wrap(ctx,
 				fleet.NewInvalidArgumentError(fmt.Sprintf("scripts[%d]", i), err.Error()))
+		}
+
+		// unlike the embedded secrets validation below, this is a static check,
+		// so it runs before the post-loop dryRun return to surface errors on
+		// gitops dry runs (like the rest of this loop, it is skipped when a dry
+		// run targets a team that doesn't exist yet)
+		if err := fleet.ValidateFleetVariablesInScript(script.ScriptContents, license.IsPremium(ctx)); err != nil {
+			// re-key validation errors on the indexed field, matching the rest
+			// of this loop, so callers can tell which script failed
+			var argErr *fleet.InvalidArgumentError
+			if errors.As(err, &argErr) && len(argErr.Invalid()) > 0 {
+				return nil, ctxerr.Wrap(ctx,
+					fleet.NewInvalidArgumentError(fmt.Sprintf("scripts[%d]", i), argErr.Invalid()[0]["reason"]))
+			}
+			return nil, ctxerr.Wrap(ctx, err, "validate fleet variables in script")
 		}
 
 		if byName[script.Name] {
@@ -1295,7 +1323,8 @@ func (svc *Service) WipeHost(ctx context.Context, hostID uint, _ *fleet.MDMWipeM
 	// Authorize again with team loaded now that we have the host's team_id.
 	// Authorize as "execute mdm_command", which is the correct access
 	// requirement and is what happens for macOS platforms.
-	if err := svc.authz.Authorize(ctx, fleet.MDMCommandAuthz{TeamID: host.TeamID}, fleet.ActionWrite); err != nil {
+	notFoundErr := ctxerr.Wrap(ctx, common_mysql.NotFound("Host").WithID(hostID), "wipe host")
+	if err := svc.authz.AuthorizeOrNotFound(ctx, fleet.MDMCommandAuthz{TeamID: host.TeamID}, fleet.ActionWrite, notFoundErr); err != nil {
 		return err
 	}
 

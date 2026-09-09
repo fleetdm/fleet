@@ -8,7 +8,7 @@ import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
 import CustomLink from "components/CustomLink";
-import { isAndroid } from "interfaces/platform";
+import { isAndroid, isAppleDevice } from "interfaces/platform";
 
 const baseClass = "wipe-modal";
 
@@ -34,6 +34,7 @@ const WipeModal = ({
   const [lockChecked, setLockChecked] = React.useState(false);
   const [isWiping, setIsWiping] = React.useState(false);
   const isAndroidHost = isAndroid(hostPlatform);
+  const isAppleHost = isAppleDevice(hostPlatform);
 
   const onWipe = async () => {
     setIsWiping(true);
@@ -63,6 +64,12 @@ const WipeModal = ({
     <Modal className={baseClass} title="Wipe" onExit={onClose}>
       <div className={`${baseClass}__modal-content`}>
         {!isLinuxHost && <p>All content will be erased on this host.</p>}
+        {(isWindowsHost || isAppleHost) && (
+          <p>
+            Deleting the host before the wipe executes may hide the Wipe Pending
+            status, but it will still be wiped on MDM check-in.
+          </p>
+        )}
         {isWindowsHost && (
           <p>
             To use the host again, you will have to do a Windows reinstall from

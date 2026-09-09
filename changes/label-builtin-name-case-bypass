@@ -1,0 +1,1 @@
+* Fixed built-in labels being overwritten, renamed, or deleted by supplying a label name that differs from the built-in name only in letter casing.

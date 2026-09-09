@@ -1,12 +1,14 @@
 package update
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
 	"syscall"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 )
@@ -119,7 +121,16 @@ func TestCheckExecRealBinary(t *testing.T) {
 		}
 		// A script that exits 0 for any args (including --help).
 		require.NoError(t, os.WriteFile(execPath, []byte("#!/bin/sh\nexit 0\n"), 0o755)) // #nosec G306
-		require.NoError(t, u.CheckExec(target))
+		// Retry ETXTBSY: a child forked by a parallel test can briefly inherit
+		// the WriteFile fd, making exec fail (golang/go#22315).
+		var err error
+		for range 100 {
+			if err = u.CheckExec(target); !errors.Is(err, syscall.ETXTBSY) {
+				break
+			}
+			time.Sleep(10 * time.Millisecond)
+		}
+		require.NoError(t, err)
 	})
 
 	t.Run("corrupt binary fails the exec check", func(t *testing.T) {
@@ -127,7 +138,15 @@ func TestCheckExecRealBinary(t *testing.T) {
 		// fork/exec with a format error on every platform: ENOEXEC ("exec format
 		// error") on Linux/macOS, ERROR_BAD_EXE_FORMAT on Windows.
 		require.NoError(t, os.WriteFile(execPath, []byte("\x00\x01\x02not a binary"), 0o755)) // #nosec G306
-		err := u.CheckExec(target)
+		// Retry ETXTBSY (see above): without it a transient ETXTBSY would
+		// satisfy require.Error without exercising the format-error path.
+		var err error
+		for range 100 {
+			if err = u.CheckExec(target); !errors.Is(err, syscall.ETXTBSY) {
+				break
+			}
+			time.Sleep(10 * time.Millisecond)
+		}
 		require.Error(t, err)
 	})
 }

@@ -1,0 +1,1 @@
+- Added `apfs_crypto_users` table (macOS) to report APFS cryptographic users, including Secure Token / volume-owner status, so admins can find hosts where no local user owns the volume.

@@ -4,7 +4,8 @@
       "version": "7.23.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'WinRAR %' AND publisher = 'win.rar GmbH';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'WinRAR %' AND publisher = 'win.rar GmbH' AND version_compare(version, '7.23.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'WinRAR %' AND publisher = 'win.rar GmbH' AND version_compare(version, '7.23.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'winrar.exe');"
       },
       "installer_url": "https://www.rarlab.com/rar/winrar-x64-723.exe",
       "install_script_ref": "5879db33",

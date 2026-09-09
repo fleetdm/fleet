@@ -6,17 +6,37 @@ export type TabId =
   | "fleetctl"
   | "gitops"
   | "osquery-perf"
+  | "scep"
+  | "mdm-assets"
+  | "tuf"
   | "settings";
 
-const TABS: { id: TabId; label: string }[] = [
+// Tabs whose content is scoped to the active server — the top server pills
+// drive these.
+const SERVER_TABS: { id: TabId; label: string }[] = [
   { id: "git", label: "Git" },
   { id: "server", label: "Server" },
   { id: "logs", label: "Logs" },
   { id: "database", label: "Database" },
+];
+
+// Global tabs: shared services / tools that don't depend on the active server.
+const GLOBAL_TABS: { id: TabId; label: string }[] = [
   { id: "fleetctl", label: "fleetctl" },
   { id: "gitops", label: "GitOps" },
   { id: "osquery-perf", label: "osquery-perf" },
+  { id: "scep", label: "SCEP" },
+  { id: "mdm-assets", label: "MDM assets" },
+  { id: "tuf", label: "TUF" },
 ];
+
+const SERVER_TAB_IDS = new Set<TabId>(SERVER_TABS.map((t) => t.id));
+
+// isServerScopedTab reports whether a tab's content depends on the active
+// server (so callers can, e.g., dim the server switcher on global tabs).
+export function isServerScopedTab(id: TabId): boolean {
+  return SERVER_TAB_IDS.has(id);
+}
 
 export function TabBar({
   active,
@@ -36,19 +56,37 @@ export function TabBar({
         padding: "0 var(--pad-medium)",
       }}
     >
-      <div style={{ display: "flex", flex: 1, minWidth: 0 }}>
-        {TABS.map((t) => {
-          const isActive = t.id === active;
-          return (
-            <button
-              key={t.id}
-              onClick={() => onChange(t.id)}
-              className={`tab-btn${isActive ? " is-active" : ""}`}
-            >
-              {t.label}
-            </button>
-          );
-        })}
+      <div
+        style={{ display: "flex", flex: 1, minWidth: 0, alignItems: "stretch" }}
+      >
+        {SERVER_TABS.map((t) => (
+          <button
+            key={t.id}
+            onClick={() => onChange(t.id)}
+            className={`tab-btn${t.id === active ? " is-active" : ""}`}
+          >
+            {t.label}
+          </button>
+        ))}
+        <div
+          aria-hidden
+          style={{
+            width: 1,
+            alignSelf: "center",
+            height: "50%",
+            margin: "0 8px",
+            background: "var(--app-border)",
+          }}
+        />
+        {GLOBAL_TABS.map((t) => (
+          <button
+            key={t.id}
+            onClick={() => onChange(t.id)}
+            className={`tab-btn${t.id === active ? " is-active" : ""}`}
+          >
+            {t.label}
+          </button>
+        ))}
       </div>
       <button
         onClick={() => onChange("settings")}

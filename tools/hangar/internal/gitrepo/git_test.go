@@ -1,6 +1,9 @@
 package gitrepo
 
 import (
+	"os"
+	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -180,4 +183,106 @@ func TestParseBranchesQuery(t *testing.T) {
 	if len(got) != 1 || got[0].Name != "rc-minor-fleet-v4.50.0" {
 		t.Fatalf("RC query should bypass grouping: %+v", got)
 	}
+}
+
+func TestParseWorktrees(t *testing.T) {
+	raw := strings.Join([]string{
+		"worktree /Users/me/fleet",
+		"HEAD aaaa1111",
+		"branch refs/heads/main",
+		"",
+		"worktree /Users/me/fleet-n1",
+		"HEAD bbbb2222",
+		"branch refs/heads/rc-minor-fleet-v4.86.0",
+		"",
+		"worktree /Users/me/detached",
+		"HEAD cccc3333",
+		"detached",
+		"",
+	}, "\n")
+	wts := parseWorktrees(raw)
+	if len(wts) != 3 {
+		t.Fatalf("got %d worktrees, want 3", len(wts))
+	}
+	if !wts[0].IsMain || wts[0].Branch == nil || *wts[0].Branch != "main" {
+		t.Errorf("main worktree wrong: %+v", wts[0])
+	}
+	if wts[1].IsMain || wts[1].Branch == nil || *wts[1].Branch != "rc-minor-fleet-v4.86.0" {
+		t.Errorf("linked worktree wrong: %+v", wts[1])
+	}
+	if !wts[2].Detached || wts[2].Branch != nil {
+		t.Errorf("detached worktree should have nil branch: %+v", wts[2])
+	}
+	if wts[2].Head != "cccc3333" {
+		t.Errorf("detached head = %q", wts[2].Head)
+	}
+}
+
+func TestParseWorktreesEmpty(t *testing.T) {
+	if got := parseWorktrees(""); len(got) != 0 {
+		t.Errorf("empty input should yield no worktrees, got %d", len(got))
+	}
+}
+
+// End-to-end against a real throwaway repo: add a worktree on a branch, see it
+// listed, then remove it. Skips if git isn't on PATH.
+func TestWorktreeAddListRemove(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git not available")
+	}
+	repo := t.TempDir()
+	gitInit(t, repo)
+
+	wtPath := filepath.Join(t.TempDir(), "wt-feature")
+	if _, err := AddWorktree(repo, wtPath, "feature-x"); err != nil {
+		t.Fatalf("AddWorktree: %v", err)
+	}
+	wts, err := ListWorktrees(repo)
+	if err != nil {
+		t.Fatalf("ListWorktrees: %v", err)
+	}
+	var found *Worktree
+	for i := range wts {
+		if wts[i].Path == wtPath || filepath.Base(wts[i].Path) == "wt-feature" {
+			found = &wts[i]
+		}
+	}
+	if found == nil {
+		t.Fatalf("added worktree not listed: %+v", wts)
+	}
+	if found.Branch == nil || *found.Branch != "feature-x" {
+		t.Errorf("worktree branch = %v, want feature-x", found.Branch)
+	}
+	if _, err := RemoveWorktree(repo, wtPath, true); err != nil {
+		t.Fatalf("RemoveWorktree: %v", err)
+	}
+	wts, _ = ListWorktrees(repo)
+	for _, w := range wts {
+		if filepath.Base(w.Path) == "wt-feature" {
+			t.Errorf("worktree still listed after remove: %+v", w)
+		}
+	}
+}
+
+// gitInit makes a minimal repo with one commit and a "feature-x" branch.
+func gitInit(t *testing.T, dir string) {
+	t.Helper()
+	run := func(args ...string) {
+		t.Helper()
+		cmd := exec.Command("git", append([]string{"-C", dir}, args...)...)
+		cmd.Env = append(os.Environ(),
+			"GIT_AUTHOR_NAME=t", "GIT_AUTHOR_EMAIL=t@t",
+			"GIT_COMMITTER_NAME=t", "GIT_COMMITTER_EMAIL=t@t",
+		)
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v\n%s", args, err, out)
+		}
+	}
+	run("init", "-b", "main")
+	if err := os.WriteFile(filepath.Join(dir, "README.md"), []byte("hi\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	run("add", ".")
+	run("commit", "-m", "init")
+	run("branch", "feature-x")
 }

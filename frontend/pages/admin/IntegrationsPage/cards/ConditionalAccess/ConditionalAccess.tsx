@@ -9,7 +9,6 @@ import configAPI from "services/entities/config";
 
 import CustomLink from "components/CustomLink";
 import SectionHeader from "components/SectionHeader";
-import Icon from "components/Icon";
 import { IconNames } from "components/icons";
 import { notify } from "components/ToastNotification";
 
@@ -369,9 +368,13 @@ const ConditionalAccess = () => {
         iconName={oktaConfigured ? "success" : undefined}
         cta={
           oktaConfigured ? (
-            <Button variant="subdued" onClick={handleOktaDelete}>
+            <Button
+              variant="subdued"
+              onClick={handleOktaDelete}
+              icon="trash"
+              iconPosition="right"
+            >
               Delete
-              <Icon name="trash" color="ui-fleet-black-75" />
             </Button>
           ) : (
             <Button onClick={toggleOktaModal}>Connect</Button>
@@ -436,9 +439,13 @@ const ConditionalAccess = () => {
     let entraCta: React.JSX.Element | undefined;
     if (entraIsConfigured) {
       entraCta = (
-        <Button variant="subdued" onClick={handleEntraDelete}>
+        <Button
+          variant="subdued"
+          onClick={handleEntraDelete}
+          icon="trash"
+          iconPosition="right"
+        >
           Delete
-          <Icon name="trash" color="ui-fleet-black-75" />
         </Button>
       );
     } else if (!entraIsAwaitingOAuth) {
@@ -536,10 +543,11 @@ const ConditionalAccess = () => {
                 tipContent={
                   <>
                     Bypassing is valid for a single login attempt and is tracked
-                    in audit logs. Critical policies can never be bypassed.{" "}
-                    <em>
+                    in audit logs. Critical policies can never be bypassed.
+                    <br />
+                    <i>
                       (Default: <strong>On</strong>)
-                    </em>
+                    </i>
                   </>
                 }
                 showArrow={false}

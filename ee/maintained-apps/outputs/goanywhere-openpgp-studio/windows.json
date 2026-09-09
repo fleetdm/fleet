@@ -4,7 +4,8 @@
       "version": "1.2.3",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'GoAnywhere OpenPGP Studio' AND publisher = 'Fortra';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'GoAnywhere OpenPGP Studio' AND publisher = 'Fortra' AND version_compare(version, '1.2.3') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'GoAnywhere OpenPGP Studio' AND publisher = 'Fortra' AND version_compare(version, '1.2.3') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'goanywhere openpgp studio.exe');"
       },
       "installer_url": "https://static.goanywhere.com/releases/goanywhere/openpgpstudio/gapgpstudio1_2_3_windows-x64.exe",
       "install_script_ref": "d871f28a",

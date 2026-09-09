@@ -23,6 +23,9 @@ type ddmMethods struct {
 	IncrementConfigurationErrors  func()
 	IncrementConfigurationSuccess func()
 
+	IncrementManagementErrors  func()
+	IncrementManagementSuccess func()
+
 	IncrementActivationErrors  func()
 	IncrementActivationSuccess func()
 
@@ -72,7 +75,7 @@ func (a *agent) doDeclarativeManagement(cmd *mdm.Command, methods ddmMethods) {
 		}
 
 		// Check each manifest item against cached tokens, fetch changed ones.
-		currentTokens = make(map[string]string, len(items.Declarations.Activations)+len(items.Declarations.Configurations)+len(items.Declarations.Assets))
+		currentTokens = make(map[string]string, len(items.Declarations.Activations)+len(items.Declarations.Configurations)+len(items.Declarations.Assets)+len(items.Declarations.Management))
 		for _, d := range items.Declarations.Activations {
 			currentTokens[d.Identifier] = d.ServerToken
 			if methods.getDeclTokens()[d.Identifier] != d.ServerToken {
@@ -97,6 +100,16 @@ func (a *agent) doDeclarativeManagement(cmd *mdm.Command, methods ddmMethods) {
 			currentTokens[d.Identifier] = d.ServerToken
 			if methods.getDeclTokens()[d.Identifier] != d.ServerToken {
 				if err := a.ddmFetchDeclaration("configuration", d.Identifier, methods); err != nil {
+					return
+				}
+				changed = true
+			}
+		}
+
+		for _, d := range items.Declarations.Management {
+			currentTokens[d.Identifier] = d.ServerToken
+			if methods.getDeclTokens()[d.Identifier] != d.ServerToken {
+				if err := a.ddmFetchDeclaration("management", d.Identifier, methods); err != nil {
 					return
 				}
 				changed = true
@@ -219,6 +232,14 @@ func (a *agent) ddmFetchDeclaration(kind, identifier string, methods ddmMethods)
 			return err
 		}
 		methods.IncrementAssetSuccess()
+	case "management":
+		var decl fleet.MDMAppleDeclaration
+		if err := json.Unmarshal(body, &decl); err != nil {
+			log.Printf("DDM %s unmarshal failed: %s", path, err)
+			a.ddmIncrementDeclError(kind, methods)
+			return err
+		}
+		methods.IncrementManagementSuccess()
 	}
 	return nil
 }
@@ -231,6 +252,8 @@ func (a *agent) ddmIncrementDeclError(kind string, methods ddmMethods) {
 		methods.IncrementConfigurationErrors()
 	case "asset":
 		methods.IncrementAssetErrors()
+	case "management":
+		methods.IncrementManagementErrors()
 	}
 }
 
@@ -257,6 +280,16 @@ func (a *agent) ddmSendStatus(items *fleet.MDMAppleDDMDeclarationItemsResponse, 
 	for _, d := range items.Declarations.Configurations {
 		report.StatusItems.Management.Declarations.Configurations = append(
 			report.StatusItems.Management.Declarations.Configurations,
+			fleet.MDMAppleDDMStatusDeclaration{
+				Active: true, Valid: fleet.MDMAppleDeclarationValid,
+				Identifier: d.Identifier, ServerToken: d.ServerToken,
+			},
+		)
+	}
+
+	for _, d := range items.Declarations.Management {
+		report.StatusItems.Management.Declarations.Management = append(
+			report.StatusItems.Management.Declarations.Management,
 			fleet.MDMAppleDDMStatusDeclaration{
 				Active: true, Valid: fleet.MDMAppleDeclarationValid,
 				Identifier: d.Identifier, ServerToken: d.ServerToken,

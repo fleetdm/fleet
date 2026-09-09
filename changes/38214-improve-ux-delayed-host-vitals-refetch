@@ -1,1 +1,0 @@
-- Updated the message shown when refetching a host's vitals takes longer than expected to reflect uncertainty rather than failure, on the host details page, the My device page, and the dashboard's "Welcome to Fleet" card.

@@ -40,18 +40,34 @@ func TestHasBroadHostPerms(t *testing.T) {
 
 func TestChromiumSideloaded(t *testing.T) {
 	// fromWebstore: -1 unknown, 0 no, 1 yes. location: 0 unknown, 1 internal, 4 unpacked, 5 component, 10 external.
+	// Exhaustive over those two sets. Keep it that way — the outcome turns on
+	// which of the two signals is consulted first, so a reordering can silently
+	// change a case no test covers.
 	cases := []struct {
 		fw, loc int
 		want    bool
 	}{
 		{1, 1, false},  // store + internal
-		{0, 1, true},   // explicitly not webstore
+		{1, 5, false},  // store + component
+		{1, 0, false},  // store-flagged, location unreadable -> nothing anomalous
+		{-1, 1, false}, // internal, store signal unknown
 		{-1, 4, true},  // unpacked
 		{-1, 10, true}, // external/policy
 		{-1, 5, false}, // component
 		{-1, 0, false}, // both unknown -> conservative, no flag
 		{1, 4, true},   // store-flagged but unpacked location -> still anomalous
 		{1, 10, true},  // store-flagged but external/policy location -> still anomalous
+
+		// A trusted location wins over from_webstore: the browser installs its
+		// own first-party components itself, so they always report
+		// from_webstore:false and must not be called sideloaded.
+		{0, 1, false}, // first-party internal component
+		{0, 5, false}, // first-party component (e.g. Edge Copilot Bridge)
+
+		// from_webstore:false still flags anything without a trusted location.
+		{0, 0, true},  // not from the store, location unknown
+		{0, 4, true},  // not from the store, unpacked
+		{0, 10, true}, // not from the store, external/policy
 	}
 	for _, c := range cases {
 		if got := chromiumSideloaded(c.fw, c.loc); got != c.want {
@@ -129,12 +145,21 @@ func TestCollectChromiumProfile(t *testing.T) {
 		`{"name":"Claude Dev","version":"9.9.9","manifest_version":3,"permissions":["<all_urls>"]}`)
 	unpackedID := "cccccccccccccccccccccccccccccccc"
 
-	// Secure Preferences: AI ext not-from-webstore (sideloaded), unpacked entry.
+	// First-party browser component: installed by the browser itself, so
+	// from_webstore is false and location is 5 (component). Preferences-only,
+	// like a real built-in. Must NOT be flagged sideloaded. Carries broad host
+	// perms so the assertion below can tell "sideloaded token suppressed" apart
+	// from "risk never computed at all".
+	componentID := "dddddddddddddddddddddddddddddddd"
+
+	// Secure Preferences: AI ext not-from-webstore and externally installed
+	// (sideloaded), unpacked entry, and a trusted first-party component.
 	prefs := map[string]any{
 		"extensions": map[string]any{
 			"settings": map[string]any{
-				aiID:       map[string]any{"from_webstore": false, "location": 1},
-				unpackedID: map[string]any{"location": 4, "path": unpackedSrc, "manifest": map[string]any{"name": "Claude Dev", "version": "9.9.9", "permissions": []string{"<all_urls>"}}},
+				aiID:        map[string]any{"from_webstore": false, "location": 10},
+				unpackedID:  map[string]any{"location": 4, "path": unpackedSrc, "manifest": map[string]any{"name": "Claude Dev", "version": "9.9.9", "permissions": []string{"<all_urls>"}}},
+				componentID: map[string]any{"from_webstore": false, "location": 5, "manifest": map[string]any{"name": "Edge Copilot Bridge", "version": "1.2.3", "permissions": []string{"<all_urls>"}}},
 			},
 		},
 	}
@@ -174,6 +199,16 @@ func TestCollectChromiumProfile(t *testing.T) {
 	}
 	if up.Name != "Claude Dev" || up.SHA256 == "" || !contains(up.RiskFlags, "sideloaded_unverified") {
 		t.Errorf("unpacked ext wrong: %+v", up)
+	}
+	comp, ok := by[componentID]
+	if !ok {
+		t.Fatal("first-party component (Preferences-only) not recovered")
+	}
+	// Exact match, not a negated substring check: the component must lose the
+	// sideloaded token and keep every other flag it earns. A negated contains()
+	// would also pass if risk were never computed for this row at all.
+	if comp.RiskFlags != "broad_host_permissions" {
+		t.Errorf("RiskFlags=%q want %q — a trusted first-party component drops only the sideloaded token", comp.RiskFlags, "broad_host_permissions")
 	}
 }
 

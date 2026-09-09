@@ -19,7 +19,7 @@ import (
 // per-host value map, so service-layer tests don't need a real DB.
 func fakeExpandCustomHostVitals(valueByID map[uint]string) func(context.Context, uint, string) (string, error) {
 	return func(_ context.Context, _ uint, document string) (string, error) {
-		refIDs := fleet.ContainsCustomHostVitalIDs(document)
+		refIDs := fleet.FindCustomHostVitalIDs(document)
 		if len(refIDs) == 0 {
 			return document, nil
 		}
@@ -98,7 +98,7 @@ func TestCreateScriptValidatesCustomHostVitals(t *testing.T) {
 	ds.ValidateReferencedCustomHostVitalsFunc = func(ctx context.Context, documents []string) error {
 		want := map[uint]struct{}{}
 		for _, d := range documents {
-			for _, id := range fleet.ContainsCustomHostVitalIDs(d) {
+			for _, id := range fleet.FindCustomHostVitalIDs(d) {
 				want[id] = struct{}{}
 			}
 		}

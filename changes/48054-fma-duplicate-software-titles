@@ -1,1 +1,0 @@
-- Fixed a bug where adding Windows software via GitOps could create a duplicate software title when a host had already reported the same program.

@@ -103,12 +103,22 @@ func (m *mockHostProvider) GetHostLite(ctx context.Context, hostID uint) (*activ
 type mockDataProviders struct {
 	*mockUserProvider
 	*mockHostProvider
-	webhookConfig *activity.ActivitiesWebhookSettings
-	webhookErr    error
+	webhookConfig      *activity.ActivitiesWebhookSettings
+	webhookErr         error
+	hostWebhooks       []activity.HostActivitiesWebhook
+	hostWebhooksErr    error
+	hostWebhooksCalled bool
+	hostWebhookHostIDs []uint
 }
 
 func (m *mockDataProviders) GetActivitiesWebhookConfig(ctx context.Context) (*activity.ActivitiesWebhookSettings, error) {
 	return m.webhookConfig, m.webhookErr
+}
+
+func (m *mockDataProviders) GetHostActivitiesWebhooks(ctx context.Context, hostIDs []uint) ([]activity.HostActivitiesWebhook, error) {
+	m.hostWebhooksCalled = true
+	m.hostWebhookHostIDs = hostIDs
+	return m.hostWebhooks, m.hostWebhooksErr
 }
 
 func (m *mockDataProviders) ActivateNextUpcomingActivity(ctx context.Context, hostID uint, fromCompletedExecID string) error {

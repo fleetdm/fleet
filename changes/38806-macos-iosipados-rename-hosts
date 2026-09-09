@@ -1,6 +1,0 @@
-* Added the ability to enforce a host naming template on macOS, iOS, and iPadOS hosts under Controls > OS settings > Host names, for a fleet or for "No team" (Fleet Premium).
-* Added `POST /api/v1/fleet/host_name_template` to set or clear the naming template (`fleet_id` omitted or `0` targets "No team"); an empty template clears it without renaming any host.
-* Added a `name_template` key under `controls` in GitOps for fleets and "No team", and included it in `fleetctl generate-gitops` output.
-* Added a "Host name" row with enforcement status (Enforcing, Verifying, Verified, Failed) to the host details OS settings modal, including a resend action via `POST /api/v1/fleet/hosts/{id}/name_template/resend`.
-* Added host name enforcement statuses to the Controls OS settings aggregate cards and the `os_settings` host filter.
-* Added the `edited_host_name_template` activity.

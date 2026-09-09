@@ -28,7 +28,7 @@ To maintain an accurate picture of our performance and make sure our weekly fore
 
 ## Sales territory assignments
 
-For current sales territory assignments, see the [Sales Territory Assignments slide deck (confidential)](https://docs.google.com/presentation/d/1EMXbv-i6IcO/edit?slide=id.p#slide=id.p).
+For current sales territory assignments, see the ["GTM territory assignments"](https://fleetdm.com/handbook/company/go-to-market-operations#gtm-territory assignments).
 
 
 ## Responsibilities
@@ -159,6 +159,25 @@ The “Attributed to” field is associated with a Salesforce user. The opportun
 - Outbound-Specialist: If the opportunity was created as a result of the Solutions Specialist’s outbound efforts, update the field with the Specialist’s name.
 - Channel: If a deal was referred to us from a Channel Partner (deal-reg approved by Channel Manager), update the field with the Channel Manager’s name.
 - All other sources: For opportunities that do not fall under any of the above categories, e.g., opportunities created based on inbound leads, digital ads, brand, events, GitOps workshops, organic web traffic, etc, update the field with the Integrations Admin user.
+
+
+### Record Solutions Specialist-attributed meetings delivered
+
+The Solutions Specialist is responsible for recording partner and prospect meetings they've booked through outbound efforts. 
+
+To record first meetings related to opportunities [attributed to](#update-salesforce-attributed-to-field-on-an-opportunity) a Solutions Specialist, the Specialist will: 
+
+1. Navigate to the relavent opportunity and record the date and time of the first meeting in the "First meeting date" field.
+
+2. If the prospect attends the meeting, check the "First meeting attended?" checkbox on the Salesforce opportunity. 
+
+To record Partner meetings:
+
+1. Navigate to the relavent partner account and record the date and time of the first meeting in the "Partner meeting date" field.
+
+2. Add the contact that booked the meeting to the "Converting attendee" field.
+
+3. If the Partner attends the meeting, check the "Partner meeting attended?" checkbox on the Salesforce account.
 
 
 ### Process the help-solutions-specialist Slack channel

@@ -4,7 +4,8 @@
       "version": "26.0.2.17",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'AVS Media Player %' AND publisher = 'Ascensio System SIA';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'AVS Media Player %' AND publisher = 'Ascensio System SIA' AND version_compare(version, '26.0.2.17') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'AVS Media Player %' AND publisher = 'Ascensio System SIA' AND version_compare(version, '26.0.2.17') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'avs media player.exe');"
       },
       "installer_url": "https://downloads.avs4you.com/distributives/AVSMediaPlayer.exe",
       "install_script_ref": "a41cd8d5",

@@ -12,6 +12,8 @@ const buildAutomationsItems = (
     canManageSoftwareAutomations,
     canManagePolicyAutomations,
     canManageReportAutomations,
+    canManageHostActivityAutomations,
+    isPremiumTier,
     hasTeamSelected,
     isPrimoMode,
     withTeamId,
@@ -52,6 +54,31 @@ const buildAutomationsItems = (
             keywords: [
               "manage automations",
               "activity feed",
+              "webhook",
+              "audit log",
+            ],
+          },
+        ]
+      : []),
+
+    // Manage automations — host activities (per-fleet setting on the Hosts
+    // page; Premium, admins). Only surfaced when a specific fleet or "No
+    // fleet" is selected: withTeamId adds no fleet_id on "All fleets", where
+    // the destination shows the option disabled.
+    ...(canManageHostActivityAutomations &&
+    isPremiumTier &&
+    (hasTeamSelected || isUnassigned)
+      ? [
+          {
+            id: "manage-host-activity-automations",
+            label: "Manage host activity automations",
+            group: "Automations" as const,
+            path: withTeamId(
+              `${paths.MANAGE_HOSTS}?manage_activity_automations=1`
+            ),
+            keywords: [
+              "manage activity automations",
+              "host activities",
               "webhook",
               "audit log",
             ],

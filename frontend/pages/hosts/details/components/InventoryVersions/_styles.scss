@@ -25,9 +25,12 @@
   }
 
   // Fill the row so TruncatedTextList has a bounded width to measure against.
+  // min-width sets the narrowest width where a "CVE-YYYY-NNNNN, +N more" row
+  // still fits — below that, flex-wrap on the parent bumps Vulnerabilities to
+  // its own row so it doesn't get squeezed by neighboring DataSets.
   &__vulnerabilities {
     flex: 1;
-    min-width: 0;
+    min-width: 200px;
 
     // dd is display:flex, so TruncatedTextList's outer div would size to its
     // content by default and truncate too early. Stretch it to fill.

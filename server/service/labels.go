@@ -107,10 +107,8 @@ func (svc *Service) NewLabel(ctx context.Context, p fleet.LabelPayload) (*fleet.
 		return nil, nil, err
 	}
 
-	for name := range fleet.ReservedLabelNames() {
-		if label.Name == name {
-			return nil, nil, fleet.NewInvalidArgumentError("name", fmt.Sprintf("cannot add label '%s' because it conflicts with the name of a built-in label", name))
-		}
+	if reserved, ok := fleet.IsReservedLabelName(label.Name); ok {
+		return nil, nil, fleet.NewInvalidArgumentError("name", fmt.Sprintf("cannot add label '%s' because it conflicts with the name of a built-in label", reserved))
 	}
 
 	// For a manual label, resolve the target hosts and verify the caller is
@@ -264,12 +262,12 @@ func (svc *Service) ModifyLabel(ctx context.Context, id uint, payload fleet.Modi
 	if label.LabelType == fleet.LabelTypeBuiltIn {
 		return nil, nil, fleet.NewInvalidArgumentError("label_type", fmt.Sprintf("cannot modify built-in label '%s'", label.Name))
 	}
+	if label.LabelMembershipType != fleet.LabelMembershipTypeManual && (payload.Hosts != nil || payload.HostIDs != nil) {
+		return nil, nil, fleet.NewInvalidArgumentError("hosts", `"hosts" or "host_ids" can only be provided for a manual label`)
+	}
 	if payload.Name != nil {
-		// Check if the new name is a reserved label name
-		for name := range fleet.ReservedLabelNames() {
-			if *payload.Name == name {
-				return nil, nil, fleet.NewInvalidArgumentError("name", fmt.Sprintf("cannot rename label to '%s' because it conflicts with the name of a built-in label", name))
-			}
+		if reserved, ok := fleet.IsReservedLabelName(*payload.Name); ok {
+			return nil, nil, fleet.NewInvalidArgumentError("name", fmt.Sprintf("cannot rename label to '%s' because it conflicts with the name of a built-in label", reserved))
 		}
 		label.Name = *payload.Name
 	}
@@ -288,10 +286,6 @@ func (svc *Service) ModifyLabel(ctx context.Context, id uint, payload fleet.Modi
 		// If an empry list was provided, create an empty list of IDs
 		// so that we can remove all hosts from the label.
 		hostIDs = make([]uint, 0)
-	}
-
-	if len(hostIDs) > 0 && label.LabelMembershipType != fleet.LabelMembershipTypeManual {
-		return nil, nil, fleet.NewInvalidArgumentError("hosts", "cannot provide a list of hosts for a dynamic label")
 	}
 
 	// Verify the caller is authorized to write labels to each target host
@@ -568,11 +562,9 @@ func (svc *Service) DeleteLabel(ctx context.Context, name string) error {
 	}
 
 	// check if the label is a built-in label
-	for n := range fleet.ReservedLabelNames() {
-		if n == name {
-			svc.SkipAuth(ctx)
-			return fleet.NewInvalidArgumentError("name", fmt.Sprintf("cannot delete built-in label '%s'", name))
-		}
+	if reserved, ok := fleet.IsReservedLabelName(name); ok {
+		svc.SkipAuth(ctx)
+		return fleet.NewInvalidArgumentError("name", fmt.Sprintf("cannot delete built-in label '%s'", reserved))
 	}
 
 	filter := fleet.TeamFilter{User: vc.User}
@@ -648,10 +640,8 @@ func (svc *Service) DeleteLabelByID(ctx context.Context, id uint) error {
 	if label.LabelType == fleet.LabelTypeBuiltIn {
 		return fleet.NewInvalidArgumentError("label_type", fmt.Sprintf("cannot delete built-in label '%s'", label.Name))
 	}
-	for name := range fleet.ReservedLabelNames() {
-		if label.Name == name {
-			return fleet.NewInvalidArgumentError("name", fmt.Sprintf("cannot delete built-in label '%s'", label.Name))
-		}
+	if reserved, ok := fleet.IsReservedLabelName(label.Name); ok {
+		return fleet.NewInvalidArgumentError("name", fmt.Sprintf("cannot delete built-in label '%s'", reserved))
 	}
 
 	if err := svc.ds.DeleteLabel(ctx, label.Name, filter); err != nil {
@@ -727,15 +717,13 @@ func (svc *Service) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpe
 			builtInSpecNames = append(builtInSpecNames, spec.Name)
 			continue
 		}
-		for name := range fleet.ReservedLabelNames() {
-			if spec.Name == name {
-				return fleet.NewUserMessageError(
-					ctxerr.Errorf(
-						ctx,
-						"cannot add label '%s' because it conflicts with the name of a built-in label",
-						name,
-					), http.StatusUnprocessableEntity)
-			}
+		if reserved, ok := fleet.IsReservedLabelName(spec.Name); ok {
+			return fleet.NewUserMessageError(
+				ctxerr.Errorf(
+					ctx,
+					"cannot add label '%s' because it conflicts with the name of a built-in label",
+					reserved,
+				), http.StatusUnprocessableEntity)
 		}
 
 		if slices.Contains(namesToMove, spec.Name) {

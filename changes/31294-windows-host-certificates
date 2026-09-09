@@ -1,2 +1,0 @@
-- Added the certificates list to the host details page for Windows hosts, showing each certificate's scope (System or
-  User). This requires osquery 5.23.1 or higher on the host.

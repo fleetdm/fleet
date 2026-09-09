@@ -14,6 +14,7 @@ import (
 	"github.com/fleetdm/fleet/v4/cmd/fleetctl/fleetctl/fleetctltest"
 	"github.com/fleetdm/fleet/v4/cmd/fleetctl/fleetctl/testing_utils"
 	"github.com/fleetdm/fleet/v4/pkg/file"
+	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
@@ -35,7 +36,7 @@ func TestGitOpsTeamSoftwareInstallers(t *testing.T) {
 	}{
 		{"testdata/gitops/team_software_installer_not_found.yml", "Please make sure that URLs are reachable from your Fleet server."},
 		{"testdata/gitops/team_software_installer_install_script_secret.yml", "environment variable \"FLEET_SECRET_NAME\" not set"},
-		{"testdata/gitops/team_software_installer_unsupported.yml", "The file should be .pkg, .msi, .exe, .zip, .deb, .rpm, .tar.gz, .sh, .py, .ipa or .ps1."},
+		{"testdata/gitops/team_software_installer_unsupported.yml", "The file's content doesn't match a supported installer format. Supported types: .pkg, .msi, .exe, .zip, .deb, .rpm, .tar.gz, .sh, .py, .ipa or .ps1."},
 		{"testdata/gitops/team_software_installer_too_large.yml", "The maximum file size is 513MiB"},
 		{"testdata/gitops/team_software_installer_valid.yml", ""},
 		{"testdata/gitops/team_software_installer_subdir.yml", ""},
@@ -51,7 +52,7 @@ func TestGitOpsTeamSoftwareInstallers(t *testing.T) {
 		{"testdata/gitops/team_software_installer_no_url_multi.yml", "multi_missing_url.yml, list item #1"},
 		{
 			"testdata/gitops/team_software_installer_invalid_self_service_value.yml",
-			"Couldn't edit \"../../fleetctl/testdata/gitops/team_software_installer_invalid_self_service_value.yml\" at \"software.packages.self_service\", expected type bool but got string",
+			"Couldn't edit \"../../fleetctl/testdata/gitops/team_software_installer_invalid_self_service_value.yml\" at \"software.packages.0.self_service\", expected type bool but got string",
 		},
 		{
 			"testdata/gitops/team_software_installer_invalid_both_include_exclude.yml",
@@ -181,11 +182,11 @@ func TestGitOpsTeamSoftwareInstallersQueryEnv(t *testing.T) {
 
 	t.Setenv("QUERY_VAR", "IT_WORKS")
 
-	ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, tmID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
+	ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, tmID *uint, installers []*fleet.UploadSoftwareInstallerPayload) ([]uint, error) {
 		if len(installers) != 0 && installers[0].PreInstallQuery != "select IT_WORKS" {
-			return fmt.Errorf("Missing env var, got %s", installers[0].PreInstallQuery)
+			return nil, fmt.Errorf("Missing env var, got %s", installers[0].PreInstallQuery)
 		}
-		return nil
+		return nil, nil
 	}
 	ds.BatchSetInHouseAppsInstallersFunc = func(ctx context.Context, tmID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
 		return nil
@@ -221,9 +222,9 @@ func TestGitOpsTeamSoftwareInstallersQueryEnv(t *testing.T) {
 func TestGitOpsTeamSoftwareInstallersEmptyPackagesDryRun(t *testing.T) {
 	ds, _, _ := testing_utils.SetupFullGitOpsPremiumServer(t)
 
-	ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, tmID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
+	ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, tmID *uint, installers []*fleet.UploadSoftwareInstallerPayload) ([]uint, error) {
 		t.Errorf("BatchSetSoftwareInstallers must not be called for dry-run with empty packages")
-		return nil
+		return nil, nil
 	}
 	ds.GetTeamsWithInstallerByHashFunc = func(ctx context.Context, sha256, url string) (map[uint][]*fleet.ExistingSoftwareInstaller, error) {
 		t.Errorf("GetTeamsWithInstallerByHash must not be called for dry-run with empty packages")
@@ -427,7 +428,7 @@ func TestGitOpsNoTeamSoftwareInstallers(t *testing.T) {
 		wantErr    string
 	}{
 		{"testdata/gitops/no_team_software_installer_not_found.yml", "Please make sure that URLs are reachable from your Fleet server."},
-		{"testdata/gitops/no_team_software_installer_unsupported.yml", "The file should be .pkg, .msi, .exe, .zip, .deb, .rpm, .tar.gz, .sh, .py, .ipa or .ps1."},
+		{"testdata/gitops/no_team_software_installer_unsupported.yml", "The file's content doesn't match a supported installer format. Supported types: .pkg, .msi, .exe, .zip, .deb, .rpm, .tar.gz, .sh, .py, .ipa or .ps1."},
 		{"testdata/gitops/no_team_software_installer_too_large.yml", "The maximum file size is 513MiB"},
 		{"testdata/gitops/no_team_software_installer_valid.yml", ""},
 		{"testdata/gitops/no_team_software_installer_subdir.yml", ""},
@@ -440,7 +441,7 @@ func TestGitOpsNoTeamSoftwareInstallers(t *testing.T) {
 		{"testdata/gitops/no_team_software_installer_no_url.yml", "at least one of hash_sha256 or url is required for each software package"},
 		{
 			"testdata/gitops/no_team_software_installer_invalid_self_service_value.yml",
-			"Couldn't edit \"../../fleetctl/testdata/gitops/no-team.yml\" at \"software.packages.self_service\", expected type bool but got string",
+			"Couldn't edit \"../../fleetctl/testdata/gitops/no-team.yml\" at \"software.packages.0.self_service\", expected type bool but got string",
 		},
 		{
 			"testdata/gitops/no_team_software_installer_invalid_both_include_exclude.yml",
@@ -581,7 +582,7 @@ func TestGitOpsTeamVPPApps(t *testing.T) {
 		{"testdata/gitops/team_vpp_valid_app.yml", "VPP token expired", time.Now().Add(-24 * time.Hour), map[string]uint{}},
 		{"testdata/gitops/team_vpp_invalid_app.yml", "app not available on vpp account", time.Now().Add(24 * time.Hour), map[string]uint{}},
 		{
-			"testdata/gitops/team_vpp_incorrect_type.yml", "Couldn't edit \"../../fleetctl/testdata/gitops/team_vpp_incorrect_type.yml\" at \"software.app_store_apps.app_store_id\", expected type string but got number",
+			"testdata/gitops/team_vpp_incorrect_type.yml", "Couldn't edit \"../../fleetctl/testdata/gitops/team_vpp_incorrect_type.yml\" at \"software.app_store_apps.0.app_store_id\", expected type string but got number",
 			time.Now().Add(24 * time.Hour),
 			map[string]uint{},
 		},
@@ -934,6 +935,299 @@ software:
 	// Both teams should have had their VPP apps deferred and re-applied.
 	assert.Contains(t, buf.String(), fmt.Sprintf(fleetctl.ReapplyingTeamForVPPAppsMsg, existingTeamName))
 	assert.Contains(t, buf.String(), fmt.Sprintf(fleetctl.ReapplyingTeamForVPPAppsMsg, newTeamName))
+}
+
+// TestGitOpsVPPMissingTeamKeepsExistingAssignments covers issue #51687: when the VPP
+// config references a team that doesn't exist yet, the interim config applied before
+// teams are created must keep every assignment to an existing team. Previously the
+// whole VPP section was held back, which the server received as an empty list and
+// answered by clearing ALL token/team assignments — a run that failed before the
+// end-of-run re-apply (e.g. on an unrelated error) left them wiped permanently.
+func TestGitOpsVPPMissingTeamKeepsExistingAssignments(t *testing.T) {
+	testing_utils.StartAndServeVPPServer(t)
+	ds, _, savedTeams := testing_utils.SetupFullGitOpsPremiumServer(t)
+	renewDate := time.Now().Add(24 * time.Hour)
+	token, err := test.CreateVPPTokenEncoded(renewDate, "fleet", "ca")
+	require.NoError(t, err)
+
+	existingTeamName := "Existing Team"
+	newTeamName := "New Team"
+
+	existingTeam := &fleet.Team{ID: 42, Name: existingTeamName}
+	savedTeams[existingTeamName] = &existingTeam
+
+	ds.GetLabelSpecsFunc = func(ctx context.Context, filter fleet.TeamFilter) ([]*fleet.LabelSpec, error) {
+		return nil, nil
+	}
+	ds.GetVPPAppsFunc = func(ctx context.Context, teamID *uint) ([]fleet.VPPAppResponse, error) {
+		return []fleet.VPPAppResponse{}, nil
+	}
+	ds.GetABMTokenCountFunc = func(ctx context.Context) (int, error) {
+		return 0, nil
+	}
+	ds.GetCertificateTemplatesByTeamIDFunc = func(ctx context.Context, teamID uint, options fleet.ListOptions) ([]*fleet.CertificateTemplateResponseSummary, *fleet.PaginationMetadata, error) {
+		return []*fleet.CertificateTemplateResponseSummary{}, &fleet.PaginationMetadata{}, nil
+	}
+	ds.ListCertificateAuthoritiesFunc = func(ctx context.Context) ([]*fleet.CertificateAuthoritySummary, error) {
+		return nil, nil
+	}
+
+	// The token is already assigned to the existing team before the run.
+	vppToken := &fleet.VPPTokenDB{
+		ID:          1,
+		OrgName:     "Fleet",
+		Location:    "Earth",
+		RenewDate:   renewDate,
+		Token:       string(token),
+		Teams:       []fleet.TeamTuple{{ID: existingTeam.ID, Name: existingTeamName}},
+		CountryCode: "us",
+	}
+	tokensByTeams := map[uint]*fleet.VPPTokenDB{existingTeam.ID: vppToken}
+	var updateCalls [][]uint
+	ds.UpdateVPPTokenTeamsFunc = func(ctx context.Context, id uint, teams []uint) (*fleet.VPPTokenDB, error) {
+		updateCalls = append(updateCalls, teams)
+		for _, teamID := range teams {
+			tokensByTeams[teamID] = vppToken
+		}
+		return vppToken, nil
+	}
+	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
+		return []*fleet.VPPTokenDB{vppToken}, nil
+	}
+	ds.GetVPPTokenByTeamIDFunc = func(ctx context.Context, teamID *uint) (*fleet.VPPTokenDB, error) {
+		if teamID == nil {
+			return vppToken, nil
+		}
+		token, ok := tokensByTeams[*teamID]
+		if !ok {
+			return nil, sql.ErrNoRows
+		}
+		return token, nil
+	}
+	ds.GetSoftwareCategoryNameToIDMapFunc = func(ctx context.Context, teamID uint, names []string) (map[string]uint, error) {
+		return map[string]uint{}, nil
+	}
+	ds.InsertOrReplaceMDMConfigAssetFunc = func(ctx context.Context, asset fleet.MDMConfigAsset) error {
+		return nil
+	}
+	ds.HardDeleteMDMConfigAssetFunc = func(ctx context.Context, assetName fleet.MDMAssetName) error {
+		return nil
+	}
+	ds.TeamLiteFunc = func(ctx context.Context, id uint) (*fleet.TeamLite, error) {
+		return &fleet.TeamLite{}, nil
+	}
+
+	globalCfg := fmt.Sprintf(`
+policies:
+queries:
+agent_options:
+controls:
+org_settings:
+  mdm:
+    volume_purchasing_program:
+      - location: Earth
+        teams:
+          - %q
+          - %q
+  server_settings:
+    server_url: https://example.com
+  org_info:
+    org_name: Fleet
+  secrets:
+    - secret: "FLEET_GLOBAL_ENROLL_SECRET"
+`, existingTeamName, newTeamName)
+
+	teamCfg := func(name string) string {
+		return fmt.Sprintf(`
+name: %q
+team_settings:
+  secrets:
+    - secret: "%s-secret"
+  features:
+    enable_host_users: true
+    enable_software_inventory: true
+  host_expiry_settings:
+    host_expiry_enabled: true
+    host_expiry_window: 30
+agent_options:
+controls:
+policies:
+queries:
+software:
+`, name, name)
+	}
+
+	tmpDir := t.TempDir()
+	globalFile := filepath.Join(tmpDir, "default.yml")
+	require.NoError(t, os.WriteFile(globalFile, []byte(globalCfg), 0o644))
+	existingTeamFile := filepath.Join(tmpDir, "existing-team.yml")
+	require.NoError(t, os.WriteFile(existingTeamFile, []byte(teamCfg(existingTeamName)), 0o644))
+	newTeamFile := filepath.Join(tmpDir, "new-team.yml")
+	require.NoError(t, os.WriteFile(newTeamFile, []byte(teamCfg(newTeamName)), 0o644))
+
+	_, err = fleetctltest.RunAppNoChecks([]string{
+		"gitops", "-f", globalFile, "-f", existingTeamFile, "-f", newTeamFile,
+	})
+	require.NoError(t, err)
+
+	// The existing team's assignment must be present in every write; a write without
+	// it means the run had a window (or a permanent state, if interrupted) with the
+	// assignment lost.
+	require.True(t, ds.UpdateVPPTokenTeamsFuncInvoked)
+	for i, call := range updateCalls {
+		assert.Contains(t, call, existingTeam.ID,
+			"UpdateVPPTokenTeams call %d dropped the existing team's assignment", i)
+	}
+}
+
+// TestGitOpsABMMissingTeamKeepsExistingAssignments is the apple_business analog of
+// TestGitOpsVPPMissingTeamKeepsExistingAssignments (issue #51687): when an ABM entry
+// references a team that doesn't exist yet, the interim config must keep every
+// default-fleet assignment that points at an existing team. Previously the section was
+// held back, reached the server as an empty list, and cleared every token's defaults.
+func TestGitOpsABMMissingTeamKeepsExistingAssignments(t *testing.T) {
+	ds, _, savedTeams := testing_utils.SetupFullGitOpsPremiumServer(t)
+
+	existingTeamName := "Existing Team"
+	newTeamName := "New Team"
+
+	existingTeam := &fleet.Team{ID: 42, Name: existingTeamName}
+	savedTeams[existingTeamName] = &existingTeam
+
+	ds.GetLabelSpecsFunc = func(ctx context.Context, filter fleet.TeamFilter) ([]*fleet.LabelSpec, error) {
+		return nil, nil
+	}
+	ds.GetVPPAppsFunc = func(ctx context.Context, teamID *uint) ([]fleet.VPPAppResponse, error) {
+		return []fleet.VPPAppResponse{}, nil
+	}
+	ds.GetCertificateTemplatesByTeamIDFunc = func(ctx context.Context, teamID uint, options fleet.ListOptions) ([]*fleet.CertificateTemplateResponseSummary, *fleet.PaginationMetadata, error) {
+		return []*fleet.CertificateTemplateResponseSummary{}, &fleet.PaginationMetadata{}, nil
+	}
+	ds.ListCertificateAuthoritiesFunc = func(ctx context.Context) ([]*fleet.CertificateAuthoritySummary, error) {
+		return nil, nil
+	}
+	ds.InsertOrReplaceMDMConfigAssetFunc = func(ctx context.Context, asset fleet.MDMConfigAsset) error {
+		return nil
+	}
+	ds.HardDeleteMDMConfigAssetFunc = func(ctx context.Context, assetName fleet.MDMAssetName) error {
+		return nil
+	}
+	ds.TeamLiteFunc = func(ctx context.Context, id uint) (*fleet.TeamLite, error) {
+		return &fleet.TeamLite{}, nil
+	}
+	ds.GetABMTokenCountFunc = func(ctx context.Context) (int, error) {
+		return 1, nil
+	}
+	// Fresh copies per call: validateABMAssignments mutates the returned tokens. Token 1
+	// ("Fleet ABM") already points every platform default at the existing team before the
+	// run; token 2 is the newly added one whose default fleet is created in this run.
+	ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
+		return []*fleet.ABMToken{
+			{
+				ID:                  1,
+				OrganizationName:    "Fleet ABM",
+				MacOSDefaultTeamID:  new(existingTeam.ID),
+				IOSDefaultTeamID:    new(existingTeam.ID),
+				IPadOSDefaultTeamID: new(existingTeam.ID),
+				BYODDefaultTeamID:   new(existingTeam.ID),
+			},
+			{ID: 2, OrganizationName: "Other ABM"},
+		}, nil
+	}
+	type abmSave struct {
+		org                      string
+		macos, ios, ipados, byod *uint
+	}
+	var saveCalls []abmSave
+	ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error {
+		saveCalls = append(saveCalls, abmSave{
+			org:    tok.OrganizationName,
+			macos:  tok.MacOSDefaultTeamID,
+			ios:    tok.IOSDefaultTeamID,
+			ipados: tok.IPadOSDefaultTeamID,
+			byod:   tok.BYODDefaultTeamID,
+		})
+		return nil
+	}
+
+	// Fleet ABM keeps the existing team on every platform; Other ABM points at the
+	// not-yet-created team, which is what triggers the interim strip/filter path.
+	globalCfg := fmt.Sprintf(`
+policies:
+queries:
+agent_options:
+controls:
+org_settings:
+  mdm:
+    apple_business:
+      - organization_name: Fleet ABM
+        macos_fleet: %q
+        ios_fleet: %q
+        ipados_fleet: %q
+        byod_fleet: %q
+      - organization_name: Other ABM
+        macos_fleet: %q
+  server_settings:
+    server_url: https://example.com
+  org_info:
+    org_name: Fleet
+  secrets:
+    - secret: "FLEET_GLOBAL_ENROLL_SECRET"
+`, existingTeamName, existingTeamName, existingTeamName, existingTeamName, newTeamName)
+
+	teamCfg := func(name string) string {
+		return fmt.Sprintf(`
+name: %q
+team_settings:
+  secrets:
+    - secret: "%s-secret"
+  features:
+    enable_host_users: true
+    enable_software_inventory: true
+  host_expiry_settings:
+    host_expiry_enabled: true
+    host_expiry_window: 30
+agent_options:
+controls:
+policies:
+queries:
+software:
+`, name, name)
+	}
+
+	tmpDir := t.TempDir()
+	globalFile := filepath.Join(tmpDir, "default.yml")
+	require.NoError(t, os.WriteFile(globalFile, []byte(globalCfg), 0o644))
+	existingTeamFile := filepath.Join(tmpDir, "existing-team.yml")
+	require.NoError(t, os.WriteFile(existingTeamFile, []byte(teamCfg(existingTeamName)), 0o644))
+	newTeamFile := filepath.Join(tmpDir, "new-team.yml")
+	require.NoError(t, os.WriteFile(newTeamFile, []byte(teamCfg(newTeamName)), 0o644))
+
+	_, err := fleetctltest.RunAppNoChecks([]string{
+		"gitops", "-f", globalFile, "-f", existingTeamFile, "-f", newTeamFile,
+	})
+	require.NoError(t, err)
+
+	// Fleet ABM's defaults (all the existing team) must survive every save; a save with
+	// any of them nil means the run had a window — or a permanent state, if interrupted —
+	// with that platform's assignment lost.
+	require.True(t, ds.SaveABMTokenFuncInvoked)
+	var fleetABMSaves int
+	for i, call := range saveCalls {
+		if call.org != "Fleet ABM" {
+			continue
+		}
+		fleetABMSaves++
+		for _, d := range []struct {
+			name string
+			id   *uint
+		}{{"macOS", call.macos}, {"iOS", call.ios}, {"iPadOS", call.ipados}, {"BYOD", call.byod}} {
+			if assert.NotNil(t, d.id, "SaveABMToken call %d dropped Fleet ABM's %s default fleet", i, d.name) {
+				assert.Equal(t, existingTeam.ID, *d.id, "SaveABMToken call %d changed Fleet ABM's %s default fleet", i, d.name)
+			}
+		}
+	}
+	require.NotZero(t, fleetABMSaves, "expected at least one SaveABMToken call for Fleet ABM")
 }
 
 // TestGitOpsNewTeamVPPSharedWithUnsuppliedExistingTeam covers issue #44444: adding
@@ -1567,8 +1861,8 @@ func TestGitOpsTeamInHouseAppleConfiguration(t *testing.T) {
 				capturedInstallers = append(capturedInstallers, installers...)
 				return nil
 			}
-			ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, tmID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
-				return nil
+			ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, tmID *uint, installers []*fleet.UploadSoftwareInstallerPayload) ([]uint, error) {
+				return nil, nil
 			}
 			ds.GetTeamsWithInstallerByHashFunc = func(ctx context.Context, sha256, url string) (map[uint][]*fleet.ExistingSoftwareInstaller, error) {
 				return map[uint][]*fleet.ExistingSoftwareInstaller{}, nil
@@ -1607,4 +1901,73 @@ func TestGitOpsTeamInHouseAppleConfiguration(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestGitOpsSoftwareDownloadProgress(t *testing.T) {
+	testing_utils.StartSoftwareInstallerServer(t)
+	dev_mode.SetOverride("FLEET_DEV_BATCH_RETRY_INTERVAL", "1s")
+	t.Cleanup(func() { dev_mode.ClearOverride("FLEET_DEV_BATCH_RETRY_INTERVAL") })
+
+	file := "../../fleetctl/testdata/gitops/team_software_installer_valid.yml"
+
+	// The batch needs these to get as far as downloading; the harness doesn't set them.
+	setupSoftwareMocks := func(t *testing.T) map[string]**fleet.Team {
+		ds, _, savedTeams := testing_utils.SetupFullGitOpsPremiumServer(t)
+		ds.GetTeamsWithInstallerByHashFunc = func(ctx context.Context, sha256, url string) (map[uint][]*fleet.ExistingSoftwareInstaller, error) {
+			return map[uint][]*fleet.ExistingSoftwareInstaller{}, nil
+		}
+		ds.GetInstallerByTeamAndURLFunc = func(ctx context.Context, teamID *uint, url string) (*fleet.ExistingSoftwareInstaller, error) {
+			return nil, nil
+		}
+		ds.GetSoftwareCategoryNameToIDMapFunc = func(ctx context.Context, teamID uint, names []string) (map[string]uint, error) {
+			return map[string]uint{}, nil
+		}
+		return savedTeams
+	}
+
+	t.Run("a package Fleet downloads reports its progress", func(t *testing.T) {
+		setupSoftwareMocks(t)
+
+		out, err := fleetctltest.RunAppNoChecks([]string{"gitops", "-f", file})
+		require.NoError(t, err)
+		require.Contains(t, out.String(), "[+] applying 2 software packages for fleet "+teamName+"\n")
+		require.Contains(t, out.String(), "[+] downloading software package - ruby.deb ...\n")
+		require.Contains(t, out.String(), "[+] downloaded software package - ruby.deb\n")
+		require.Contains(t, out.String(), "[+] applied 2 software packages for fleet "+teamName+"\n")
+	})
+
+	t.Run("a dry run for an existing fleet reports the same progress", func(t *testing.T) {
+		// A dry run for a fleet that doesn't exist yet never starts a batch, so there is
+		// nothing to download and nothing to report.
+		savedTeams := setupSoftwareMocks(t)
+		team := &fleet.Team{ID: 1, Name: teamName}
+		savedTeams[teamName] = &team
+
+		out, err := fleetctltest.RunAppNoChecks([]string{"gitops", "--dry-run", "-f", file})
+		require.NoError(t, err)
+		require.Contains(t, out.String(), "[+] downloading software package - ruby.deb ...\n")
+		require.Contains(t, out.String(), "[+] downloaded software package - ruby.deb\n")
+		require.Contains(t, out.String(), "[+] would've applied 2 software packages for fleet "+teamName+"\n")
+	})
+
+	t.Run("a script package stays out of the progress, since nothing is downloaded for it", func(t *testing.T) {
+		setupSoftwareMocks(t)
+
+		out, err := fleetctltest.RunAppNoChecks([]string{"gitops", "-f", "../../fleetctl/testdata/gitops/team_software_script_package.yml"})
+		require.NoError(t, err)
+		// The counts prove the script package was in the batch, not just missing from it.
+		require.Contains(t, out.String(), "[+] applying 2 software packages for fleet "+teamName+"\n")
+		require.Contains(t, out.String(), "[+] downloaded software package - ruby.deb\n")
+		require.NotContains(t, out.String(), "install_ruby.sh")
+		require.Contains(t, out.String(), "[+] applied 2 software packages for fleet "+teamName+"\n")
+	})
+
+	t.Run("a package Fleet can't download reports the failure", func(t *testing.T) {
+		setupSoftwareMocks(t)
+
+		out, err := fleetctltest.RunAppNoChecks([]string{"gitops", "-f", "../../fleetctl/testdata/gitops/team_software_installer_not_found.yml"})
+		require.Error(t, err)
+		require.Contains(t, out.String(), "Error: could not download software package notfound.deb\n")
+		require.NotContains(t, out.String(), "[+] downloaded software package - notfound.deb")
+	})
 }

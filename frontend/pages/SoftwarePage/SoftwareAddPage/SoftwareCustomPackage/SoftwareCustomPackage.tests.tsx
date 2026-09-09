@@ -16,12 +16,12 @@ describe("GitOpsCustomPackageBanner", () => {
     ).toBeInTheDocument();
   });
 
-  it("renders the YAML docs link pointing at learn-more-about/software-yaml", () => {
+  it("renders the YAML docs link pointing at learn-more-about/yaml-software", () => {
     render(<GitOpsCustomPackageBanner />);
     const link = screen.getByRole("link", { name: /YAML docs/i });
     expect(link).toHaveAttribute(
       "href",
-      expect.stringMatching(/learn-more-about\/software-yaml$/)
+      expect.stringMatching(/learn-more-about\/yaml-software$/)
     );
     expect(link).toHaveAttribute("target", "_blank");
   });

@@ -1,4 +1,4 @@
-- name: Windows - Remote Desktop disabled
+- name: Remote Desktop disabled
   query: |-
     SELECT 1 FROM registry
     WHERE key = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Terminal Server'

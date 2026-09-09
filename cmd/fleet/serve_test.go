@@ -26,6 +26,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/tokenpki"
@@ -38,7 +39,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/otel/sdk/resource"
-	semconv "go.opentelemetry.io/otel/semconv/v1.40.0"
+	semconv "go.opentelemetry.io/otel/semconv/v1.41.0"
 )
 
 // safeStore is a wrapper around mock.Store to allow for concurrent calling to
@@ -106,6 +107,7 @@ func TestMaybeSendStatistics(t *testing.T) {
 			NumSoftwareCVEs:                      105,
 			NumTeams:                             9,
 			NumPolicies:                          0,
+			NumPoliciesAutomationEnabledSoftware: 7,
 			NumQueries:                           200,
 			NumLabels:                            3,
 			SoftwareInventoryEnabled:             true,
@@ -120,20 +122,41 @@ func TestMaybeSendStatistics(t *testing.T) {
 					fleet.HostsCountByOSVersion{Version: "1.2.3", NumEnrolled: 22},
 				},
 			},
-			HostsEnrolledByOrbitVersion:     []fleet.HostsCountByOrbitVersion{},
-			HostsEnrolledByOsqueryVersion:   []fleet.HostsCountByOsqueryVersion{},
-			StoredErrors:                    []byte(`[]`),
-			Organization:                    "Fleet",
-			AIFeaturesDisabled:              true,
-			MaintenanceWindowsEnabled:       true,
-			MaintenanceWindowsConfigured:    true,
-			NumHostsFleetDesktopEnabled:     1984,
-			FleetMaintainedAppsMacOS:        []string{"1password/darwin"},
-			FleetMaintainedAppsWindows:      []string{"google-chrome/windows"},
-			GitOpsModeEnabled:               true,
-			GitOpsModeExceptions:            []string{"labels", "software", "secrets"},
-			NumHostsFleetMDMEnrolledMacOS:   12,
-			NumHostsFleetMDMEnrolledWindows: 34,
+			HostsEnrolledByOrbitVersion:   []fleet.HostsCountByOrbitVersion{},
+			HostsEnrolledByOsqueryVersion: []fleet.HostsCountByOsqueryVersion{},
+			StoredErrors:                  []byte(`[]`),
+			Organization:                  "Fleet",
+			AIFeaturesDisabled:            true,
+			MaintenanceWindowsEnabled:     true,
+			MaintenanceWindowsConfigured:  true,
+			NumHostsFleetDesktopEnabled:   1984,
+			FleetMaintainedAppsMacOS: []fleet.FleetMaintainedAppUsage{
+				{Name: "1password/darwin", PatchPolicy: true, SoftwareAutomation: false},
+			},
+			FleetMaintainedAppsWindows: []fleet.FleetMaintainedAppUsage{
+				{Name: "google-chrome/windows", PatchPolicy: true, SoftwareAutomation: true},
+			},
+			GitOpsModeEnabled:                true,
+			GitOpsModeExceptions:             []string{"labels", "software", "secrets"},
+			FleetDesktopSSOEnabled:           true,
+			NumHostsFleetMDMEnrolledMacOS:    12,
+			NumHostsFleetMDMEnrolledWindows:  34,
+			ResultLogDestination:             "firehose",
+			StatusLogDestination:             "filesystem",
+			AuditLogDestination:              "kinesis",
+			AnyVulnerabilitiesWebhookEnabled: true,
+			AnyFailingPoliciesWebhookEnabled: true,
+			AnyHostActivitiesWebhookEnabled:  true,
+			GlobalActivityWebhookEnabled:     true,
+			TicketDestinationConfigured:      true,
+			SSOConfiguredFleetUsers:          true,
+			SSOConfiguredEndUsers:            true,
+			AccountProvisioningConfigured:    true,
+			IDPSCIMConfigured:                true,
+			IDPGoogleWorkspaceConfigured:     true,
+			CertificateAuthorityConfigured:   true,
+			OktaConditionalAccessConfigured:  true,
+			EntraConditionalAccessConfigured: true,
 		}, true, nil
 	}
 	recorded := false
@@ -152,7 +175,7 @@ func TestMaybeSendStatistics(t *testing.T) {
 	require.NoError(t, err)
 	assert.True(t, recorded)
 	require.True(t, cleanedup)
-	assert.JSONEq(t, `{"anonymousIdentifier":"ident","fleetVersion":"1.2.3","licenseTier":"premium","organization":"Fleet","numHostsEnrolled":999,"numHostsABMPending":888,"numUsers":99,"numSoftwareVersions":100,"numHostSoftwares":101,"numSoftwareTitles":102,"numHostSoftwareInstalledPaths":103,"numSoftwareCPEs":104,"numSoftwareCVEs":105,"numTeams":9,"numPolicies":0,"numQueries":200,"numLabels":3,"softwareInventoryEnabled":true,"vulnDetectionEnabled":true,"systemUsersEnabled":true,"hostsStatusWebHookEnabled":true,"mdmMacOsEnabled":false,"hostExpiryEnabled":false,"mdmWindowsEnabled":false,"mdmRecoveryLockPasswordEnabled":false,"liveQueryDisabled":false,"numWeeklyActiveUsers":111,"numWeeklyPolicyViolationDaysActual":0,"numWeeklyPolicyViolationDaysPossible":0,"hostsEnrolledByOperatingSystem":{"linux":[{"version":"1.2.3","numEnrolled":22}]},"hostsEnrolledByOrbitVersion":[],"hostsEnrolledByOsqueryVersion":[],"storedErrors":[],"numHostsNotResponding":0,"aiFeaturesDisabled":true,"maintenanceWindowsEnabled":true,"maintenanceWindowsConfigured":true,"googleWorkspaceConfigured":false,"numHostsFleetDesktopEnabled":1984,"fleetMaintainedAppsMacOS":["1password/darwin"],"fleetMaintainedAppsWindows":["google-chrome/windows"],"conditionalAccessEnabled":false,"oktaConditionalAccessConfigured":false,"conditionalAccessBypassDisabled":false,"entraConditionalAccessConfigured":false,"gitOpsModeEnabled":true,"gitOpsModeExceptions":["labels","software","secrets"],"numHostsFleetMDMEnrolledMacOS":12,"numHostsFleetMDMEnrolledWindows":34}`, requestBody)
+	assert.JSONEq(t, `{"anonymousIdentifier":"ident","fleetVersion":"1.2.3","licenseTier":"premium","organization":"Fleet","numHostsEnrolled":999,"numHostsABMPending":888,"numUsers":99,"numSoftwareVersions":100,"numHostSoftwares":101,"numSoftwareTitles":102,"numHostSoftwareInstalledPaths":103,"numSoftwareCPEs":104,"numSoftwareCVEs":105,"numTeams":9,"numPolicies":0,"numPoliciesAutomationEnabledSoftware":7,"numQueries":200,"numLabels":3,"softwareInventoryEnabled":true,"vulnDetectionEnabled":true,"systemUsersEnabled":true,"hostsStatusWebHookEnabled":true,"mdmMacOsEnabled":false,"hostExpiryEnabled":false,"mdmWindowsEnabled":false,"mdmAndroidEnabled":false,"mdmRecoveryLockPasswordEnabled":false,"liveQueryDisabled":false,"numWeeklyActiveUsers":111,"numWeeklyPolicyViolationDaysActual":0,"numWeeklyPolicyViolationDaysPossible":0,"hostsEnrolledByOperatingSystem":{"linux":[{"version":"1.2.3","numEnrolled":22}]},"hostsEnrolledByOrbitVersion":[],"hostsEnrolledByOsqueryVersion":[],"storedErrors":[],"numHostsNotResponding":0,"aiFeaturesDisabled":true,"maintenanceWindowsEnabled":true,"maintenanceWindowsConfigured":true,"idpGoogleWorkspaceConfigured":true,"numHostsFleetDesktopEnabled":1984,"fleetDesktopSSOEnabled":true,"fleetMaintainedAppsMacOS":[{"name":"1password/darwin","patchPolicy":true,"softwareAutomation":false}],"fleetMaintainedAppsWindows":[{"name":"google-chrome/windows","patchPolicy":true,"softwareAutomation":true}],"conditionalAccessEnabled":false,"oktaConditionalAccessConfigured":true,"conditionalAccessBypassDisabled":false,"entraConditionalAccessConfigured":true,"gitOpsModeEnabled":true,"gitOpsModeExceptions":["labels","software","secrets"],"numHostsFleetMDMEnrolledMacOS":12,"numHostsFleetMDMEnrolledWindows":34,"numMDMAppleProfiles":0,"numMDMWindowsProfiles":0,"numMDMAppleDeclarations":0,"numMDMAndroidProfiles":0,"resultLogDestination":"firehose","statusLogDestination":"filesystem","auditLogDestination":"kinesis","anyVulnerabilitiesWebhookEnabled":true,"anyFailingPoliciesWebhookEnabled":true,"anyHostActivitiesWebhookEnabled":true,"globalActivityWebhookEnabled":true,"ticketDestinationConfigured":true,"ssoConfiguredFleetUsers":true,"ssoConfiguredEndUsers":true,"accountProvisioningConfigured":true,"idpSCIMConfigured":true,"certificateAuthorityConfigured":true}`, requestBody)
 }
 
 func TestMaybeSendStatisticsSkipsSendingIfNotNeeded(t *testing.T) {
@@ -1329,12 +1352,12 @@ func TestHostVitalsLabelMembershipJob(t *testing.T) {
 	}
 
 	numCalls := 0
-	ds.UpdateLabelMembershipByHostCriteriaFunc = func(ctx context.Context, hvl fleet.HostVitalsLabel) (*fleet.Label, error) {
+	ds.UpdateLabelMembershipByHostCriteriaFunc = func(ctx context.Context, hvl fleet.HostVitalsLabel) (*fleet.Label, []uint, error) {
 		label := hvl.GetLabel()
 		// Only the host vitals label should be processed.
 		require.Equal(t, label, labels[2])
 		numCalls++
-		return nil, nil
+		return nil, nil, nil
 	}
 
 	err := cronHostVitalsLabelMembership(ctx, ds)
@@ -1348,7 +1371,8 @@ func TestHostVitalsLabelMembershipJob(t *testing.T) {
 // the semconv version we import. A mismatch (e.g. after a dependabot SDK bump that doesn't
 // update our semconv import) causes a runtime error on server startup.
 func TestOTELResourceCreation(t *testing.T) {
-	res, err := resource.New(t.Context(),
+	res, err := resource.New(
+		t.Context(),
 		resource.WithSchemaURL(semconv.SchemaURL),
 		resource.WithAttributes(
 			semconv.ServiceName("fleet-test"),
@@ -1413,6 +1437,18 @@ func TestArgsToString(t *testing.T) {
 			assert.Equal(t, tc.want, argsToString(tc.args))
 		})
 	}
+}
+
+func TestUseS3DevConfig(t *testing.T) {
+	t.Run("skip flag set", func(t *testing.T) {
+		dev_mode.SetOverride("FLEET_DEV_SKIP_S3_CONFIG", "1", t)
+		assert.False(t, useS3DevConfig())
+	})
+
+	t.Run("skip flag unset", func(t *testing.T) {
+		dev_mode.SetOverride("FLEET_DEV_SKIP_S3_CONFIG", "0", t)
+		assert.True(t, useS3DevConfig())
+	})
 }
 
 func TestGetTLSConfig(t *testing.T) {

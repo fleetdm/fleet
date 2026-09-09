@@ -41,6 +41,13 @@ linters:
         - G704 # SSRF via taint analysis.
         - G705 # XSS via taint analysis.
         - G706 # Log injection via taint analysis.
+        # Added by the v2.11.3 -> v2.13.2 upgrade (Go 1.27); excluded from the full lint in
+        # .golangci.yml because existing code has not been audited against them yet.
+        - G120 # Unbounded form parsing in HTTP handlers.
+        - G124 # http.Cookie missing or insecure Secure/HttpOnly/SameSite attribute.
+        - G404 # Weak random number generator.
+        - G709 # Unsafe deserialization via taint analysis.
+        - G710 # Open redirect via taint analysis.
     depguard:
       rules:
         no-old-rand:
@@ -48,6 +55,13 @@ linters:
           deny:
             - pkg: math/rand$
               desc: Use math/rand/v2 instead
+        no-plist-forks:
+          list-mode: lax
+          deny:
+            - pkg: howett.net/plist
+              desc: Use github.com/micromdm/plist instead
+            - pkg: github.com/groob/plist
+              desc: Use github.com/micromdm/plist instead
     custom:
       nilaway:
         type: module

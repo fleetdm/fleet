@@ -2,13 +2,17 @@ package main
 
 import (
 	"embed"
+	"fmt"
 	"log/slog"
 	"os"
+	"strings"
 	"sync/atomic"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/wailsapp/wails/v3/pkg/events"
 
+	"github.com/fleetdm/fleet/tools/hangar/internal/applog"
+	"github.com/fleetdm/fleet/tools/hangar/internal/buildinfo"
 	"github.com/fleetdm/fleet/tools/hangar/internal/paths"
 	"github.com/fleetdm/fleet/tools/hangar/internal/processes"
 	"github.com/fleetdm/fleet/tools/hangar/internal/shellpath"
@@ -23,6 +27,16 @@ var assets embed.FS
 var trayIcon []byte
 
 func main() {
+	// `--version` answers "which build is this?" without launching the GUI —
+	// the only way to check a bundle someone handed you:
+	//   "/Applications/Fleet Hangar.app/Contents/MacOS/fleet-hangar" --version
+	if len(os.Args) > 1 && (os.Args[1] == "--version" || os.Args[1] == "-v") {
+		fmt.Println("Fleet Hangar", buildinfo.Current().Summary())
+		return
+	}
+
+	// Bootstrap logging, replaced by the app log as soon as we know where it
+	// goes. Only the two failures below can happen before that.
 	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelInfo})))
 
 	logDir, err := paths.LogDir()
@@ -35,6 +49,10 @@ func main() {
 		slog.Error("resolve data dir", "err", err)
 		os.Exit(1)
 	}
+
+	// From here on everything — including whatever the Go runtime prints on
+	// its way out if this process dies unexpectedly — lands in hangar.log.
+	session := applog.Setup(logDir)
 	slog.Info("starting Fleet Hangar", "bundleID", paths.BundleID, "logDir", logDir, "dataDir", dataDir)
 
 	// Warm the login-shell PATH (so the first spawn doesn't pay the probe
@@ -50,6 +68,19 @@ func main() {
 	emitter := &wailsEmitter{}
 	pm := processes.New(logDir, dataDir, emitter)
 
+	// Fold the managed processes into each heartbeat: when Hangar goes away on
+	// its own, this is what says what was running at the time — and whether
+	// the fleet server someone was mid-test against went with it.
+	session.SetStats(func() []any {
+		var running []string
+		for _, p := range pm.ListProcesses() {
+			if p.State == "running" || p.State == "stopping" {
+				running = append(running, p.ID)
+			}
+		}
+		return []any{"running_procs", strings.Join(running, ",")}
+	})
+
 	var app *application.App
 	var tray *trayController
 
@@ -64,6 +95,9 @@ func main() {
 				intentionalQuit.Store(true)
 				app.Quit()
 			})),
+			application.NewService(services.NewScepService(pm)),
+			application.NewService(&services.MdmAssetsService{}),
+			application.NewService(services.NewTufService(pm)),
 			application.NewService(services.NewTrayService(func(s traymenu.State) {
 				if tray != nil {
 					tray.update(s)
@@ -95,8 +129,15 @@ func main() {
 		// confirm flow, which calls ShutdownNow when the user confirms.
 		ShouldQuit: func() bool {
 			if intentionalQuit.Load() {
+				// AppKit terminates the process inside this call (app.Quit()
+				// is [NSApp terminate:]), so app.Run() never returns and no
+				// deferred cleanup in main runs. This is the last Go code on
+				// the way out, and so the only place a deliberate exit can be
+				// recorded — without it every quit reads as a crash.
+				session.Close("user quit")
 				return true
 			}
+			slog.Info("quit requested; asking the frontend to confirm")
 			app.Event.Emit("app:quit-requested")
 			return false
 		},
@@ -123,6 +164,9 @@ func main() {
 		}
 		e.Cancel()
 		win.Hide()
+		// Worth a line: "Hangar disappeared" is also what hiding to the tray
+		// looks like to someone who didn't mean to close the window.
+		slog.Info("window closed; hiding to tray")
 	})
 
 	// macOS dock-icon click while no window is visible → bring it back.
@@ -131,10 +175,14 @@ func main() {
 	})
 
 	tray = newTrayController(app, trayIcon)
+	logLifecycle(app)
 
 	slog.Info("running")
 	if err := app.Run(); err != nil {
 		slog.Error("application exited with error", "err", err)
+		session.Close("run error: " + err.Error())
 		os.Exit(1)
 	}
+	// Reached only if the event loop stops without AppKit terminating us.
+	session.Close("event loop returned")
 }

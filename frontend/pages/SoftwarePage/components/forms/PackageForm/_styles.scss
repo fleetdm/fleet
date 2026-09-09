@@ -64,6 +64,6 @@
   &__action-buttons {
     display: flex;
     flex-direction: row-reverse;
-    gap: $pad-large;
+    gap: $gap-action-elements;
   }
 }

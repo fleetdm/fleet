@@ -39,6 +39,13 @@ type s3store struct {
 	prefix           string
 	cloudFrontConfig *config.S3CloudFrontConfig
 	gcs              bool
+	// signedURL, when true, makes Sign() return a presigned GET URL generated
+	// with this store's client/credentials (used for GCS, where there is no
+	// CloudFront-style signer). Gated by config and validated to require a GCS
+	// endpoint.
+	signedURL bool
+	// presignClient is built once when signedURL is enabled and reused by Sign().
+	presignClient *s3.PresignClient
 }
 
 type installerNotFoundError struct{}
@@ -57,6 +64,21 @@ func (p installerNotFoundError) IsNotFound() bool {
 func newS3Store(cfg config.S3ConfigInternal) (*s3store, error) {
 	var opts []func(*aws_config.LoadOptions) error
 	gcsEndpoint := cfg.EndpointURL != "" && isGCS(cfg.EndpointURL)
+
+	// SignedURL presigns with SigV4 HMAC credentials, but GCSIAMAuth swaps those
+	// for placeholder static credentials plus bearer-token middleware that
+	// presigning drops (APIOptions is cleared when presigning). The two together
+	// would produce presigned URLs that can't authenticate, so reject the
+	// combination up front.
+	if cfg.SignedURL && cfg.GCSIAMAuth {
+		return nil, errors.New("software installers signed URL cannot be combined with gcs iam auth; configure HMAC credentials (access key/secret) for presigning")
+	}
+
+	// An STS assume-role provider likewise replaces the HMAC credentials with
+	// temporary AWS credentials GCS can't verify, so reject that combination too.
+	if cfg.SignedURL && cfg.StsAssumeRoleArn != "" {
+		return nil, errors.New("software installers signed URL cannot be combined with sts assume role; configure HMAC credentials (access key/secret) for presigning")
+	}
 
 	if cfg.GCSIAMAuth {
 		switch {
@@ -170,12 +192,27 @@ func newS3Store(cfg config.S3ConfigInternal) (*s3store, error) {
 		}
 	})
 
+	// Build the presign client once and reuse it in Sign(). Clear the inherited
+	// APIOptions: the GCS workarounds (ignoreSigningHeaders, disableTrailingChecksum)
+	// insert middleware at the "Signing" step, which the presign stack lacks, and
+	// they only matter for real upload/download requests.
+	var presignClient *s3.PresignClient
+	if cfg.SignedURL {
+		presignClient = s3.NewPresignClient(s3Client, func(po *s3.PresignOptions) {
+			po.ClientOptions = append(po.ClientOptions, func(o *s3.Options) {
+				o.APIOptions = nil
+			})
+		})
+	}
+
 	return &s3store{
 		s3Client:         s3Client,
 		bucket:           cfg.Bucket,
 		prefix:           cfg.Prefix,
 		cloudFrontConfig: cfg.CloudFrontConfig,
 		gcs:              gcsEndpoint,
+		signedURL:        cfg.SignedURL,
+		presignClient:    presignClient,
 	}, nil
 }
 

@@ -48,6 +48,36 @@ type BackupNameCheck struct {
 
 func backupsDir(repo string) string { return filepath.Join(repo, backupsDirName) }
 
+// ServerBackupsDir returns the central, per-server backups directory:
+// <app-data>/db-backups/<serverID>. Unlike the per-worktree dir it survives
+// worktree teardown, and lets one server browse/restore another's dumps.
+// serverID is reduced to a single safe path segment.
+func ServerBackupsDir(serverID string) (string, error) {
+	seg := sanitizeSegment(serverID)
+	if seg == "" {
+		return "", errors.New("server id has no usable characters")
+	}
+	data, err := paths.DataDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(data, backupsDirName, seg), nil
+}
+
+// sanitizeSegment keeps only characters safe for a single path component
+// (letters, digits, underscore, dash). Dropping dots means "." / ".." can't
+// be produced, so the segment can never escape the backups root.
+func sanitizeSegment(s string) string {
+	var b strings.Builder
+	for _, r := range s {
+		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') ||
+			(r >= '0' && r <= '9') || r == '_' || r == '-' {
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
+}
+
 // metaPathFor appends ".json" to the full backup filename so list/delete
 // don't have to re-parse anything (foo.sql.gz -> foo.sql.gz.json).
 func metaPathFor(backupPath string) string { return backupPath + ".json" }
@@ -55,11 +85,22 @@ func metaPathFor(backupPath string) string { return backupPath + ".json" }
 // BackupsDir returns the (unguaranteed) backups directory path.
 func BackupsDir(repo string) string { return backupsDir(repo) }
 
-// EnsureBackupsDir creates the backups dir (with its .gitignore) and returns it.
+// EnsureBackupsDir creates the per-repo backups dir (with its .gitignore) and
+// returns it.
 func EnsureBackupsDir(repo string) (string, error) {
 	dir := backupsDir(repo)
 	if err := ensureDirWithGitignore(dir); err != nil {
 		return "", err
+	}
+	return dir, nil
+}
+
+// EnsureDir creates an arbitrary backups directory and returns it. Used for the
+// central app-data location, which isn't a git repo, so no .gitignore is
+// written.
+func EnsureDir(dir string) (string, error) {
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return "", fmt.Errorf("creating %s: %w", dir, err)
 	}
 	return dir, nil
 }
@@ -98,10 +139,14 @@ func mtimeMS(path string) uint64 {
 	return uint64(fi.ModTime().UnixMilli())
 }
 
-// ListBackups returns all *.sql.gz dumps in the backups dir, newest first,
-// with sidecar metadata attached. A missing dir yields an empty list.
+// ListBackups returns the dumps in <repo>/db-backups. See ListBackupsInDir.
 func ListBackups(repo string) ([]BackupEntry, error) {
-	dir := backupsDir(repo)
+	return ListBackupsInDir(backupsDir(repo))
+}
+
+// ListBackupsInDir returns all *.sql.gz dumps in dir, newest first, with
+// sidecar metadata attached. A missing dir yields an empty list.
+func ListBackupsInDir(dir string) ([]BackupEntry, error) {
 	entries, err := os.ReadDir(dir)
 	if errors.Is(err, os.ErrNotExist) {
 		return []BackupEntry{}, nil
@@ -162,11 +207,16 @@ func trimToNil(s *string) *string {
 	return &t
 }
 
-// DeleteBackup removes a dump (and its sidecar) after verifying it lives
-// under <repo>/db-backups and has the backup extension. The repo is passed
-// explicitly so we can't be coerced into deleting outside the project.
+// DeleteBackup removes a dump (and its sidecar) under <repo>/db-backups.
+// See DeleteBackupInDir.
 func DeleteBackup(repo, path string) error {
-	dir := backupsDir(repo)
+	return DeleteBackupInDir(backupsDir(repo), path)
+}
+
+// DeleteBackupInDir removes a dump (and its sidecar) after verifying it lives
+// under dir and has the backup extension. dir is passed explicitly so we can't
+// be coerced into deleting outside the intended backups directory.
+func DeleteBackupInDir(dir, path string) error {
 	// Clean the frontend-supplied path first: HasPathPrefix compares raw
 	// components, so without this a ".." traversal like
 	// "<dir>/../db-backups-evil/x.sql.gz" would pass the prefix check (its
@@ -193,10 +243,23 @@ func DeleteBackup(repo, path string) error {
 	return nil
 }
 
-// CheckBackupName validates a user-supplied backup name and reports the
-// final ".sql.gz" filename, whether it already exists, and its repo-relative
-// path. Allowed characters: letters, digits, dot, underscore, dash.
+// CheckBackupName validates a name against <repo>/db-backups and returns a
+// repo-relative path (<db-backups>/<name>) for callers that join it onto the
+// repo. See CheckBackupNameInDir.
 func CheckBackupName(repo, rawName string) (BackupNameCheck, error) {
+	c, err := CheckBackupNameInDir(backupsDir(repo), rawName)
+	if err != nil {
+		return c, err
+	}
+	c.RelativePath = backupsDirName + "/" + c.FinalName
+	return c, nil
+}
+
+// CheckBackupNameInDir validates a user-supplied backup name and reports the
+// final ".sql.gz" filename, whether it already exists in dir, and the filename
+// as RelativePath (callers join it onto dir). Allowed characters: letters,
+// digits, dot, underscore, dash.
+func CheckBackupNameInDir(dir, rawName string) (BackupNameCheck, error) {
 	trimmed := strings.TrimRight(strings.TrimSpace(rawName), "/")
 	stem := strings.TrimSuffix(trimmed, backupExt)
 	if stem == "" {
@@ -211,12 +274,12 @@ func CheckBackupName(repo, rawName string) (BackupNameCheck, error) {
 		}
 	}
 	finalName := stem + backupExt
-	full := filepath.Join(backupsDir(repo), finalName)
+	full := filepath.Join(dir, finalName)
 	_, statErr := os.Stat(full)
 	return BackupNameCheck{
 		FinalName:    finalName,
 		Exists:       statErr == nil,
-		RelativePath: backupsDirName + "/" + finalName,
+		RelativePath: finalName,
 	}, nil
 }
 

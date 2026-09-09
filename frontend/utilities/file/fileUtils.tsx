@@ -102,3 +102,51 @@ export interface IFileDetails {
   name: string;
   description?: React.ReactNode;
 }
+
+// Both tables match the ones go-units gives the server, so the two agree at
+// every magnitude rather than only up to terabytes.
+const DECIMAL_ABBREVIATIONS = [
+  "B",
+  "kB",
+  "MB",
+  "GB",
+  "TB",
+  "PB",
+  "EB",
+  "ZB",
+  "YB",
+];
+const BINARY_ABBREVIATIONS = [
+  "B",
+  "KiB",
+  "MiB",
+  "GiB",
+  "TiB",
+  "PiB",
+  "EiB",
+  "ZiB",
+  "YiB",
+];
+
+const formatWithBase = (
+  bytes: number,
+  base: number,
+  abbreviations: string[]
+) => {
+  let size = bytes;
+  let abbreviationIndex = 0;
+  while (size >= base && abbreviationIndex < abbreviations.length - 1) {
+    size /= base;
+    abbreviationIndex += 1;
+  }
+  // 4 significant digits with trailing zeros dropped, matching Go's "%.4g"
+  return `${Number(size.toPrecision(4))}${abbreviations[abbreviationIndex]}`;
+};
+
+// Returns a human readable size, like the server's installersize.Human function
+export const formatFileSize = (bytes: number) => {
+  const decimal = formatWithBase(bytes, 1000, DECIMAL_ABBREVIATIONS);
+  const binary = formatWithBase(bytes, 1024, BINARY_ABBREVIATIONS);
+
+  return binary.length < decimal.length ? binary : decimal;
+};

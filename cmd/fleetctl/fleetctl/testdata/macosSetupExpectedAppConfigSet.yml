@@ -11,6 +11,7 @@ spec:
   fleet_desktop:
     transparency_url: https://fleetdm.com/transparency
     alternative_browser_host: ""
+    sso_enabled: false
   host_expiry_settings:
     host_expiry_enabled: false
     host_expiry_window: 0
@@ -48,23 +49,35 @@ spec:
     enable_disk_encryption: false
     name_template: null
     enable_recovery_lock_password: false
-    windows_require_bitlocker_pin: null
+    windows_require_bitlocker_pin: false
     windows_migration_enabled: false
     enable_turn_on_windows_mdm_manually: false
     windows_entra_tenant_ids: null
     windows_entra_client_ids: null
+    microsoft_graph_credential_invalid: false
     apple_require_hardware_attestation: false
+    only_allow_apple_business_enrollment: false
     macos_migration:
       enable: false
       mode: ""
       webhook_url: ""
     macos_settings:
       custom_settings: null
+      enable_disk_encryption: false
+      enable_escrow_disk_encryption_key: false
     apple_settings:
       configuration_profiles: null
+      enable_disk_encryption: false
+      enable_escrow_disk_encryption_key: false
+    windows_automatic_enrollment: null
     windows_settings:
+      require_bitlocker_pin: false
       custom_settings: null
+      enable_disk_encryption: false
       configuration_profiles: null
+      enable_managed_local_account: false
+    linux_settings:
+      enable_escrow_disk_encryption_key: false
     android_settings:
       custom_settings: null
       configuration_profiles: null
@@ -97,14 +110,17 @@ spec:
       software: null
     macos_updates:
       deadline: null
+      deadline_days: null
       minimum_version: null
       update_new_hosts: null
     ios_updates:
       deadline: null
+      deadline_days: null
       minimum_version: null
       update_new_hosts: null
     ipados_updates:
       deadline: null
+      deadline_days: null
       minimum_version: null
       update_new_hosts: null
     windows_updates:

@@ -1,0 +1,1 @@
+- Fixed the error returned when a free-tier request sets a premium-only field so that it names the field as it appears in the request payload (for example `critical`) instead of Fleet's internal Go field name (for example `Critical`).

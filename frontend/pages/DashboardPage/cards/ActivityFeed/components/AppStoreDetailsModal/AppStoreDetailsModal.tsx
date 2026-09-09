@@ -53,7 +53,7 @@ const AppStoreDetailsModal = ({
           value={details.app_store_id}
         />
         <DataSet
-          title="Self-Service"
+          title="Self service"
           value={details.self_service ? "Yes" : "No"}
         />
         <DataSet

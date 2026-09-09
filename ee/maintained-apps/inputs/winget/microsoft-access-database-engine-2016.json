@@ -1,0 +1,12 @@
+{
+  "name": "Microsoft Access Database Engine 2016 Redistributable",
+  "slug": "microsoft-access-database-engine-2016/windows",
+  "package_identifier": "Microsoft.AccessDatabaseEngine2016",
+  "unique_identifier": "Microsoft Access database engine 2016 (English)",
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/microsoft_access_database_engine_2016_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/microsoft_access_database_engine_2016_uninstall.ps1",
+  "installer_arch": "x64",
+  "installer_type": "portable",
+  "installer_scope": "",
+  "default_categories": ["Developer tools"]
+}

@@ -65,7 +65,13 @@ func parsePIDs(raw string) []uint32 {
 // detected turns PIDs into DetectedProcess entries. dedup drops repeats
 // (keeping first); exclude (nonzero) skips a pid (e.g. our own). cmd
 // resolves each pid's command line.
-func detected(pids []uint32, dedup bool, exclude uint32, cmd func(uint32) string) []DetectedProcess {
+//
+// PIDs that have already exited are skipped: pgrep/lsof can match a process
+// that's mid-teardown (exactly the state right after stopping a server), and a
+// dead process is neither killable nor a real orphan. This keeps the scan
+// self-consistent — it reports only live matches, matching what a re-scan a
+// moment later would show.
+func detected(pids []uint32, dedup bool, exclude uint32, alive func(uint32) bool, cmd func(uint32) string) []DetectedProcess {
 	var out []DetectedProcess
 	seen := map[uint32]bool{}
 	for _, pid := range pids {
@@ -78,7 +84,15 @@ func detected(pids []uint32, dedup bool, exclude uint32, cmd func(uint32) string
 			}
 			seen[pid] = true
 		}
-		out = append(out, DetectedProcess{PID: pid, Command: cmd(pid)})
+		if !alive(pid) {
+			continue
+		}
+		c := cmd(pid)
+		if c == "(process exited)" {
+			// Raced: exited between the liveness check and reading its command.
+			continue
+		}
+		out = append(out, DetectedProcess{PID: pid, Command: c})
 	}
 	return out
 }
@@ -103,7 +117,7 @@ func ScanPort(port uint16) ([]DetectedProcess, error) {
 	if err != nil {
 		return nil, err
 	}
-	return detected(parsePIDs(raw), true, 0, pidCommand), nil
+	return detected(parsePIDs(raw), true, 0, pidAlive, pidCommand), nil
 }
 
 // ScanPattern lists processes whose full command line matches pattern,
@@ -113,7 +127,7 @@ func ScanPattern(pattern string) ([]DetectedProcess, error) {
 	if err != nil {
 		return nil, err
 	}
-	return detected(parsePIDs(raw), false, uint32(os.Getpid()), pidCommand), nil
+	return detected(parsePIDs(raw), false, uint32(os.Getpid()), pidAlive, pidCommand), nil
 }
 
 func signalPID(pid uint32, sig syscall.Signal) error {

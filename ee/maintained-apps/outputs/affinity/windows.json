@@ -4,7 +4,8 @@
       "version": "3.2.3.4646",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Affinity' AND publisher = 'Canva';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Affinity' AND publisher = 'Canva' AND version_compare(version, '3.2.3.4646') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Affinity' AND publisher = 'Canva' AND version_compare(version, '3.2.3.4646') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'affinity.exe');"
       },
       "installer_url": "https://affinity-update.serif.com/windows/3/studio/retail/Affinity-Affinity-Store-x64-4646-3a9aed7b269d9fec6fddc78dd56847089f173fe7.msix",
       "install_script_ref": "9e9c1496",

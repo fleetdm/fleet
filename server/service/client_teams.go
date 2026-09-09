@@ -96,7 +96,8 @@ func (c *Client) ApplyTeamProfiles(tmName string, profiles []fleet.MDMProfileBat
 	if opts.DryRunAssumptions != nil && opts.DryRunAssumptions.WindowsEnabledAndConfigured.Valid {
 		query.Add("assume_enabled", strconv.FormatBool(opts.DryRunAssumptions.WindowsEnabledAndConfigured.Value))
 	}
-	return c.authenticatedRequestWithQuery(map[string]interface{}{"profiles": profiles}, verb, path, nil, query.Encode())
+	err = c.authenticatedRequestWithQuery(map[string]any{"profiles": profiles}, verb, path, nil, query.Encode())
+	return rewrapProfileBatchNameErr(err, profiles)
 }
 
 // applyDDMAssets sets the complete desired set of Apple DDM assets for the
@@ -125,16 +126,21 @@ func (c *Client) ApplyTeamScripts(tmName string, scripts []fleet.ScriptPayload, 
 
 	var resp fleet.BatchSetScriptsResponse
 	err = c.authenticatedRequestWithQuery(map[string]interface{}{"scripts": scripts}, verb, path, &resp, query.Encode())
-	return resp.Scripts, err
+	return resp.Scripts, rewrapScriptBatchIndexErr(err, scripts)
 }
 
-func (c *Client) ApplyTeamSoftwareInstallers(tmName string, softwareInstallers []fleet.SoftwareInstallerPayload, opts fleet.ApplySpecOptions) ([]fleet.SoftwarePackageResponse, []fleet.DeletedSoftwarePackage, []string, error) {
+func (c *Client) ApplyTeamSoftwareInstallers(
+	tmName string,
+	softwareInstallers []fleet.SoftwareInstallerPayload,
+	opts fleet.ApplySpecOptions,
+	logFn func(format string, args ...any),
+) ([]fleet.SoftwarePackageResponse, []fleet.DeletedSoftwarePackage, []string, error) {
 	query, err := url.ParseQuery(opts.RawQuery())
 	if err != nil {
 		return nil, nil, nil, err
 	}
 	query.Add("fleet_name", tmName)
-	return c.applySoftwareInstallers(softwareInstallers, query, opts.DryRun)
+	return c.applySoftwareInstallers(softwareInstallers, query, opts.DryRun, logFn)
 }
 
 func (c *Client) ApplyTeamAppStoreAppsAssociation(tmName string, vppBatchPayload []fleet.VPPBatchPayload, opts fleet.ApplySpecOptions) ([]fleet.VPPAppResponse, []string, error) {

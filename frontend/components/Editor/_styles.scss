@@ -2,8 +2,7 @@
   position: relative; // needed for copy button
 
   &__label {
-    font-size: $x-small;
-    font-weight: $bold;
+    @include form-label;
 
     &--error {
       color: $core-vibrant-red;

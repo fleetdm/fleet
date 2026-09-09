@@ -4,7 +4,8 @@
       "version": "2.1.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Geany' AND publisher = 'The Geany developer team';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Geany' AND publisher = 'The Geany developer team' AND version_compare(version, '2.1.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Geany' AND publisher = 'The Geany developer team' AND version_compare(version, '2.1.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'geany.exe');"
       },
       "installer_url": "https://github.com/geany/geany/releases/download/2.1.0/geany-2.1_setup.exe",
       "install_script_ref": "8fe7f8a3",

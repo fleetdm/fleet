@@ -67,6 +67,17 @@ type User struct {
 	MFAEnabled bool    `json:"mfa_enabled" db:"mfa_enabled"`
 	GlobalRole *string `json:"global_role" db:"global_role"`
 	APIOnly    bool    `json:"api_only" db:"api_only"`
+	// LastLoginAt is the last time the user logged in (i.e. the last time a
+	// session was created for the user). It is nil if the user has never
+	// logged in (or hasn't logged in since the column was introduced).
+	LastLoginAt *time.Time `json:"last_login_at" db:"last_login_at"`
+	// LastActivityAt is the last time the user made an authenticated request
+	// with one of its live sessions. This is the inactivity signal for
+	// API-only users, whose long-lived token session is created once but
+	// accessed on every request. It is computed from live sessions, which are
+	// deleted on logout and expiry, so it is nil when the user has no live
+	// session.
+	LastActivityAt *time.Time `json:"last_activity_at" db:"last_activity_at"`
 
 	// Teams is the teams this user has roles in. For users with a global role, Teams is expected to be empty.
 	Teams []UserTeam `json:"teams" renameto:"fleets"`
@@ -80,6 +91,59 @@ type User struct {
 	// APIEndpoints if this user is an API-only user, this returns
 	// a list of all end-points the user has access to.
 	APIEndpoints []APIEndpointRef `json:"api_endpoints,omitempty"`
+
+	// Status is the account's activity status, computed at read time by
+	// ComputeStatus (see UserStatus). It is not stored in the database and is
+	// only populated by the list users and get user service methods; other
+	// responses carrying a user (create, modify, me, ...) omit it from JSON.
+	Status UserStatus `json:"status,omitempty" db:"-"`
+}
+
+// UserStatus is the activity status of a user account, computed at read time
+// from the user's roles and last login/activity timestamps.
+type UserStatus string
+
+const (
+	// UserStatusActive means the account was seen within UserInactiveAfter.
+	UserStatusActive = UserStatus("active")
+	// UserStatusInactive means the account hasn't logged in or had session
+	// activity for UserInactiveAfter or more.
+	UserStatusInactive = UserStatus("inactive")
+	// UserStatusNoAccess means the account has no global role and no team
+	// roles.
+	UserStatusNoAccess = UserStatus("no_access")
+)
+
+// UserInactiveAfter is the period without login or session activity after
+// which a user account is considered inactive.
+const UserInactiveAfter = 30 * 24 * time.Hour
+
+// ComputeStatus returns the user's activity status as of now.
+//
+// The user was last seen at the most recent of LastActivityAt (the signal for
+// API-only users, whose long-lived token session is accessed on every
+// request) and LastLoginAt, falling back to CreatedAt for users who have
+// never logged in (including accounts that predate last login tracking).
+//
+// NOTE: it must be called on a user with its full team memberships loaded
+// (before any scoping/filtering of Teams), otherwise a user could be
+// misreported as having no access.
+func (u *User) ComputeStatus(now time.Time) UserStatus {
+	if u.GlobalRole == nil && len(u.Teams) == 0 {
+		return UserStatusNoAccess
+	}
+
+	lastSeen := u.CreatedAt
+	if u.LastLoginAt != nil && u.LastLoginAt.After(lastSeen) {
+		lastSeen = *u.LastLoginAt
+	}
+	if u.LastActivityAt != nil && u.LastActivityAt.After(lastSeen) {
+		lastSeen = *u.LastActivityAt
+	}
+	if now.Sub(lastSeen) >= UserInactiveAfter {
+		return UserStatusInactive
+	}
+	return UserStatusActive
 }
 
 type UserSettings struct {

@@ -3,7 +3,7 @@
   "slug": "git/windows",
   "package_identifier": "Git.Git",
   "unique_identifier": "Git",
-  "fuzzy_match_name": true,
+  "fuzzy_match_name": "Git%",
   "installer_arch": "x64",
   "installer_type": "exe",
   "installer_scope": "machine",

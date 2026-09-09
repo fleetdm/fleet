@@ -38,13 +38,13 @@ describe("getSelfServiceTooltip", () => {
     render(tooltip as React.ReactElement);
 
     expect(
-      screen.getByText(/End users can install from self-service\./i)
+      screen.getByText(/End users can install from self service\./i)
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("link", { name: /Learn how to deploy self-service/i })
+      screen.getByRole("link", { name: /Learn how to deploy self service/i })
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("link", { name: /Learn how to deploy self-service/i })
+      screen.getByRole("link", { name: /Learn how to deploy self service/i })
     ).toHaveAttribute(
       "href",
       expect.stringContaining("/deploy-self-service-to-ios")

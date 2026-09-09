@@ -1,15 +1,16 @@
 {
   "versions": [
     {
-      "version": "4.15.0",
+      "version": "4.16.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'Airtame %' AND publisher = 'Airtame';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Airtame %' AND publisher = 'Airtame' AND version_compare(version, '4.15.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Airtame %' AND publisher = 'Airtame' AND version_compare(version, '4.16.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'airtame.exe');"
       },
-      "installer_url": "https://downloads.airtame.com/app/latest/win/Airtame-4.15.0-setup.exe",
+      "installer_url": "https://airtame-app.b-cdn.net/app/latest/win/Airtame-4.16.0-setup.exe",
       "install_script_ref": "8a919fae",
       "uninstall_script_ref": "1e649d42",
-      "sha256": "1c627548a1cea11e1998c6814b5d731ee6a955db3253d244cc0ccfb95d52edd7",
+      "sha256": "51e587e7db5519ea34b1a817b89b701678917b54b97fe90eebbe67971fa836ec",
       "default_categories": [
         "Productivity"
       ]

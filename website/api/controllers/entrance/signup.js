@@ -138,15 +138,16 @@ the account verification message.)`,
       return { employer: undefined, person: undefined};
     });
 
-
+    let isIcpUser = false;
     let fleetPremiumTrialType = 'local trial';
     if(enrichmentInformation.employer && enrichmentInformation.employer.numberOfEmployees > 700) {
       fleetPremiumTrialType = 'render trial';
+      isIcpUser = true;
     }//ﬁ
 
-    if(emailDomain === 'fleetdm.com') {
-      fleetPremiumTrialType = 'render trial';
-    }//ﬁ
+    // if(emailDomain === 'fleetdm.com') {
+    //   fleetPremiumTrialType = 'render trial';
+    // }//ﬁ
 
     let thirtyDaysFromNowAt = Date.now() + (1000 * 60 * 60 * 24 * 30);
     let trialLicenseKeyForThisUser = await sails.helpers.createLicenseKey.with({
@@ -246,6 +247,7 @@ the account verification message.)`,
         eventType: 'Intent signal',
         intentSignal: 'Signed up for a fleetdm.com account',
         relatedCampaign: recordDetails.mostRecentCampaign,
+        eventSource: 'Website - Sign up',
       }).intercept((err)=>{
         return new Error(`Could not create an historical event. Full error: ${require('util').inspect(err)}`);
       });
@@ -278,7 +280,9 @@ the account verification message.)`,
     } else {
       sails.log.info('Skipping new account email verification... (since `verifyEmailAddresses` is disabled)');
     }
-    return;
+    return {
+      isIcpUser
+    };
 
   }
 

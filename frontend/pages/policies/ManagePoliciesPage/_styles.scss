@@ -60,25 +60,7 @@
   &__action-button-container {
     display: flex;
     align-items: flex-start;
-  }
-
-  &__advanced-button {
-    margin-right: $pad-medium;
-  }
-
-  &__sandbox-info {
-    margin-top: $pad-large;
-    margin-bottom: $pad-xxlarge;
-
-    p {
-      font-size: $x-small;
-      margin: 0;
-      margin-bottom: $pad-medium;
-    }
-
-    p:last-child {
-      margin-bottom: 0;
-    }
+    gap: $gap-action-elements;
   }
 
   &__add-policy-link {
@@ -165,10 +147,6 @@
               font-style: normal;
               text-align: center;
             }
-          }
-
-          .inherited-badge {
-            overflow: initial;
           }
         }
       }

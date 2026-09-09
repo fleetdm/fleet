@@ -75,7 +75,7 @@ const defaultTableHeaders: IDataColumn[] = [
     },
   },
   {
-    title: "macOS hosts",
+    title: "Hosts",
     Header: (cellProps: IHeaderProps) => (
       <HeaderCell
         value={cellProps.column.title}
@@ -84,41 +84,7 @@ const defaultTableHeaders: IDataColumn[] = [
       />
     ),
     disableSortBy: true,
-    accessor: "macosHosts",
-    Cell: ({ cell: { value: aggregateCount } }: ICellProps) => {
-      return (
-        <div className="disk-encryption-table__aggregate-table-data">
-          <TextCell value={aggregateCount} />
-        </div>
-      );
-    },
-  },
-  {
-    title: "Windows hosts",
-    Header: (cellProps: IHeaderProps) => (
-      <HeaderCell
-        value={cellProps.column.title}
-        isSortedDesc={cellProps.column.isSortedDesc}
-        disableSortBy
-      />
-    ),
-    disableSortBy: true,
-    accessor: "windowsHosts",
-    Cell: ({ cell: { value: aggregateCount } }: ICellProps) => {
-      return <TextCell value={aggregateCount} />;
-    },
-  },
-  {
-    title: "Linux hosts",
-    Header: (cellProps: IHeaderProps) => (
-      <HeaderCell
-        value={cellProps.column.title}
-        isSortedDesc={cellProps.column.isSortedDesc}
-        disableSortBy
-      />
-    ),
-    disableSortBy: true,
-    accessor: "linuxHosts",
+    accessor: "hosts",
     Cell: ({ cell: { value: aggregateCount } }: ICellProps) => {
       return <TextCell value={aggregateCount} />;
     },
@@ -157,8 +123,7 @@ const STATUS_CELL_VALUES: Record<DiskEncryptionStatus, IStatusCellValue> = {
     statusName: "successPartial",
     value: "verifying",
     tooltip:
-      "These hosts acknowledged the MDM command to turn on disk encryption. Fleet is verifying with " +
-      "osquery and retrieving the disk encryption key. This may take up to one hour.",
+      "These hosts acknowledged the MDM command to turn on disk encryption. Fleet is verifying with osquery and retrieving the disk encryption key. This may take up to one hour.",
   },
   action_required: {
     displayName: "Action required",
@@ -202,22 +167,40 @@ const STATUS_ORDER = [
   "removing_enforcement",
 ] as const;
 
+/** Enforce-only (macOS enforce on, escrow off) hosts never send Fleet a key,
+ * so these statuses drop the key phrasing. */
+const ENFORCE_ONLY_STATUS_TOOLTIPS: Partial<
+  Record<DiskEncryptionStatus, string>
+> = {
+  verified:
+    "These hosts turned disk encryption on. Fleet verified with osquery.",
+  verifying:
+    "These hosts acknowledged the MDM command to turn on disk encryption. Fleet is verifying with osquery. This may take up to one hour.",
+};
+
 export const generateTableData = (
+  platform: keyof IDiskEncryptionStatusAggregate,
   data?: IDiskEncryptionSummaryResponse,
-  currentTeamId?: number
+  currentTeamId?: number,
+  isMacOSEnforceOnly = false
 ) => {
   if (!data) return [];
 
   const rowFromStatusEntry = (
     status: DiskEncryptionStatus,
     statusAggregate: IDiskEncryptionStatusAggregate
-  ) => ({
-    status: STATUS_CELL_VALUES[status],
-    macosHosts: statusAggregate.macos,
-    windowsHosts: statusAggregate.windows,
-    linuxHosts: statusAggregate.linux,
-    teamId: currentTeamId,
-  });
+  ) => {
+    const enforceOnlyTooltip = isMacOSEnforceOnly
+      ? ENFORCE_ONLY_STATUS_TOOLTIPS[status]
+      : undefined;
+    return {
+      status: enforceOnlyTooltip
+        ? { ...STATUS_CELL_VALUES[status], tooltip: enforceOnlyTooltip }
+        : STATUS_CELL_VALUES[status],
+      hosts: statusAggregate[platform],
+      teamId: currentTeamId,
+    };
+  };
 
   return STATUS_ORDER.map((status) => rowFromStatusEntry(status, data[status]));
 };

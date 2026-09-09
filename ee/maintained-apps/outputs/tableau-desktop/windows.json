@@ -4,7 +4,8 @@
       "version": "24.3.965",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'Tableau 20%' AND publisher = 'Tableau Software, LLC';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Tableau 20%' AND publisher = 'Tableau Software, LLC' AND version_compare(version, '24.3.965') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Tableau 20%' AND publisher = 'Tableau Software, LLC' AND version_compare(version, '24.3.965') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'tableau desktop.exe');"
       },
       "installer_url": "https://downloads.tableau.com/esdalt/2024.3.4/TableauDesktop-64bit-2024-3-4.exe",
       "install_script_ref": "e460cb4a",

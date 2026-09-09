@@ -114,7 +114,7 @@ CrowdStrike provides [documentation for additional flags](https://github.com/cro
 
 3. Click **Add software**.
 
-## Windows CrowdStrike Falcon installation
+## Windows CrowdStrike Falcon MSI installation
 
 ### 1. Create a post-install script
 
@@ -137,7 +137,20 @@ Exit $installProcess.ExitCode
 }
 ```
 
-If you are using the .exe package, you will need to use the following post-install script:
+>CrowdStrike provides [documentation for additional flags](https://github.com/crowdstrike/falcon-scripts/tree/main/powershell/install) here.
+
+### 2. Add the Falcon Sensor to your software library
+
+1. In Fleet, go to **Software > Add software > Custom package** to upload the Falcon Sensor installer.
+2. Click **Advanced options**, then paste the activation script from the previous step into **Post-install script**, making sure to set the `$FalconCid` variable.
+3. Click **Add software**.
+
+
+## Windows CrowdStrike Falcon EXE installation
+
+### 1. Create an install script
+
+To activate a host in the CrowdStrike tenant, a script must be excuted during CrowdStrike Falcon installation to collect the **Customer ID**. Use this script on Windows with the **Customer ID** string copied from your CrowdStrike tenant above:
 
 ```
 $logFile = "${env:TEMP}\fleet-install-software.log"
@@ -153,10 +166,33 @@ try {
 
 >CrowdStrike provides [documentation for additional flags](https://github.com/crowdstrike/falcon-scripts/tree/main/powershell/install) here.
 
+### 2. Create an uninstall script
+
+```
+$logFile = "${env:TEMP}\fleet-uninstall-software.log"
+$uninstallPath = "${env:ProgramFiles}\CrowdStrike\CSFalconService.exe"
+
+try {
+    if (Test-Path $uninstallPath) {
+        $uninstallProcess = Start-Process -FilePath $uninstallPath `
+            -ArgumentList "/uninstall /quiet" `
+            -Wait -PassThru
+        Get-Content $logFile -Tail 500 -ErrorAction SilentlyContinue
+        Exit $uninstallProcess.ExitCode
+    }
+    Exit 1
+} catch {
+    Write-Host "Error: $_"
+    Exit 1
+}
+```
+
+>CrowdStrike provides [documentation for additional flags](https://github.com/crowdstrike/falcon-scripts/tree/main/powershell/install) here.
+
 ### 2. Add the Falcon Sensor to your software library
 
 1. In Fleet, go to **Software > Add software > Custom package** to upload the Falcon Sensor installer.
-2. Click **Advanced options**, then paste the activation script from the previous step into **Post-install script**, making sure to set the `$FalconCid` variable.
+2. Paste the install script from the previous step into **install script**, making sure to set the customer ID. And the uninstall script, into **Uninstall script**.
 3. Click **Add software**.
 
 ## Conclusion

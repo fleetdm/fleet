@@ -34,8 +34,12 @@ SDK="$(xcrun --show-sdk-path)"
 
 # --- Host app -------------------------------------------------------------
 SOURCES=(
+    "$SRC_DIR/cli.swift"
+    "$SRC_DIR/FleetErrorPage.swift"
     "$SRC_DIR/FleetService.swift"
     "$SRC_DIR/BrowserWindow.swift"
+    "$SRC_DIR/ToastWindow.swift"
+    "$SRC_DIR/NotifyCommand.swift"
     "$SRC_DIR/FleetDesktopApp.swift"
 )
 SWIFT_FLAGS=(-sdk "$SDK" -parse-as-library -O)
@@ -90,6 +94,9 @@ EXT_SOURCES=(
     "$EXT_SRC_DIR/AuthenticationViewController+PSSO.swift"
     "$EXT_SRC_DIR/AuthenticationViewController+Shared.swift"
     "$EXT_SRC_DIR/AuthenticationViewController+Networking.swift"
+    "$EXT_SRC_DIR/AuthenticationViewController+UserRegistration.swift"
+    "$EXT_SRC_DIR/PSSOLoginRequest.swift"
+    "$EXT_SRC_DIR/RegistrationFormView.swift"
 )
 EXT_SWIFT_FLAGS=(
     -sdk "$SDK" -parse-as-library -O

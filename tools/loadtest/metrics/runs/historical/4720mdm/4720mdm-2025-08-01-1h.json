@@ -1,0 +1,114 @@
+{
+  "metadata": {
+    "workspace": "4720mdm",
+    "collected_at": "2025-08-01T00:00:00Z",
+    "interval": "1h",
+    "release": "4.72.0",
+    "category": "mdm",
+    "source": "spreadsheet-backfill",
+    "sheet_row": 29
+  },
+  "fleet_server": {
+    "cpu_utilization": {
+      "Average": 18.0
+    },
+    "memory_utilization": {
+      "Average": 25.0
+    },
+    "task_counts": {
+      "runningCount": 20
+    }
+  },
+  "loadtest_containers": {
+    "cpu_utilization": {
+      "Average": 44.0
+    },
+    "memory_utilization": {
+      "Average": 22.0
+    },
+    "task_counts": {
+      "runningCount": 10
+    }
+  },
+  "rds_writer": {
+    "instance": "writer",
+    "cpu_utilization": {
+      "Average": 1.0
+    },
+    "write_iops": {
+      "Average": 300.0,
+      "Maximum": 400.0
+    },
+    "deadlocks": null
+  },
+  "rds_writer_extended": {
+    "threads_running": {
+      "average": 2.5,
+      "maximum": 3.0
+    },
+    "iops_utilization": null
+  },
+  "rds_readers": [
+    {
+      "instance": "reader-1",
+      "cpu_utilization": {
+        "Average": 1.0
+      },
+      "read_iops": {
+        "Average": 2.0
+      }
+    }
+  ],
+  "rds_readers_extended": [
+    {
+      "instance": "reader-1",
+      "threads_running": {
+        "average": 2.5,
+        "maximum": 4.0
+      }
+    }
+  ],
+  "redis": [
+    {
+      "node": "redis-1",
+      "cpu_utilization": {
+        "Average": 1.95,
+        "Maximum": 2.2
+      },
+      "memory_utilization": {
+        "Average": 2.3
+      }
+    }
+  ],
+  "fleet_server_errors": {
+    "error_count": null
+  },
+  "backfill": {
+    "source": "Fleet release load testing results (Google Sheet), manual-logging era",
+    "purpose": "Ticket #27390",
+    "one_click": null,
+    "notes": "Error message happens when adding osquery-perf hosts. There \u2026",
+    "raw": {
+      "full_day": "yes",
+      "fleet_containers": "20",
+      "loadtest_containers": "10",
+      "fleet_cpu": "~18%",
+      "fleet_mem": "~25%",
+      "errors": "{\"component\":\"service\",\"err\":\"invalid source \",\"level\":\"erro\u2026",
+      "writer_top_sql": "INSERT INTO `host_seen_ti\u2026",
+      "writer_cpu": "~1%",
+      "writer_sessions": "2-3",
+      "writer_iops": "200-400",
+      "reader_top_sql": "SELECT `h` . `id` , `h` .\u2026",
+      "reader_cpu": "~1%",
+      "reader_sessions": "1-4",
+      "reader_iops": "~2",
+      "redis_cpu": "1.7-2.2%",
+      "redis_mem": "2.30%",
+      "osquery_uptime": "100%",
+      "osquery_cpu": "44%",
+      "osquery_mem": "22%",
+      "deadlocks": ".04 - .08"
+    }
+  }
+}

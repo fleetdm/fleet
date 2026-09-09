@@ -1,1 +1,0 @@
-- Added the ability to upload multiple custom packages (up to 10) for the same software title on a team, so IT admins can deploy different versions or architectures (for example, Arm vs. Intel builds or staged rollouts) to label-scoped hosts instead of splitting them across teams. When a host matches more than one package, the first-added package is installed.

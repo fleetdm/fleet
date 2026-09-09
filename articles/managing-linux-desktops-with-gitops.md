@@ -62,7 +62,7 @@ Fleet has a friendly UI and CLI to support traditional MDM workflows, and both b
 
 - **Declarative YAML configuration:** Every aspect of Fleet's configuration can be declaratively expressed as YAML. Fleet reconciles its current configuration to match this codified configuration. Defined resources are created, and undefined resources are removed or reset to default values.
 - **Vendor-agnostic workflow tooling:** The `fleetctl gitops` command deploys configuration to the Fleet instance. Since this is a native CLI command, this approach is supported on any CI/CD tool or workflow engine. The `fleetctl gitops` command also provides a dry-run option for pull or merge requests.
-- **Starter GitOps repository with CI/CD pipelines:** Fleet provides [a GitOps template repository](https://github.com/fleetdm/fleet-gitops) with everything that you need to get started. The repository contains the necessary CI/CD scripts for GitHub Actions and GitLab CI/CD pipelines. It also ships with a recommended directory structure to enable organized and reusable code. This lets you get started quickly with GitOps best practices.
+- **Scaffolding you can generate in one command:** The `fleetctl new` command creates a starter GitOps repository with everything you need to get started. It includes the CI/CD scripts for GitHub Actions and GitLab pipelines, along with a recommended directory structure for organized, reusable code. This lets you get started quickly with GitOps best practices.
 - **Dedicated GitOps user role:** Fleet has a purpose-built GitOps role for API-only users. This role has specific authorization rules that enable configuration management. However, it can't access the Fleet UI. This ensures separation of concerns between human operators and automation.
 - **GitOps mode:** One of the biggest challenges with GitOps is avoiding configuration drift or manual changes. Fleet's UI can be placed into read-only mode to prevent any changes that don't go through your code repository.
 - **Migration tooling:** The `fleetctl generate-gitops` command exports your current configuration into GitOps-ready YAML files. This allows you to quickly adopt GitOps without redefining your entire configuration. Migrating an existing Fleet environment involves running a single command.
@@ -95,17 +95,18 @@ The steps below assume that you are using GitHub, but the process is largely the
 
 A key tenet of IaC best practices is a central code repository. This acts as the "single source of truth" for infrastructure configuration. The automation run within this repository must also have access to your Fleet environment. Let's start with this initial configuration, which you only need to do once.
 
-Fleet provides a starter repository with a directory structure and automation scripts. Clone this repository:
+The `fleetctl new` command generates a starter repository with a directory structure and automation scripts. Run it and follow the prompts:
 
 ```bash
-git clone git@github.com:fleetdm/fleet-gitops.git
+fleetctl new
 ```
 
-Create a new repository in your GitHub account and update the Git origin to point at your repository:
+By default, this creates an `it-and-security` directory. Create a new repository in your GitHub account, then point the generated directory at it and push:
 
 ```bash
-cd fleet-gitops
-git remote set-url origin git@github.com:my-organization/fleet-test.git
+cd it-and-security
+git init -b main
+git remote add origin git@github.com:my-organization/fleet-config.git
 ```
 
 Create a service account user to access the Fleet API. The service account user can have global access, or you can scope access to a specific fleet. Both options are shown below:
@@ -126,16 +127,16 @@ The GitHub Action must have environment information and credentials to make API 
    * Set `FLEET_URL` to the URL of your Fleet instance. For example, `https://fleet.example.com`
    * Set `FLEET_API_TOKEN` to the API token for the service account user
 
-This configuration provides everything needed for a basic GitOps configuration. The template repository provides two default fleets: "Personal mobile devices" and "Workstations". These are defined in `fleets/personal-mobile-devices.yml` and `fleets/workstations.yml`. You can keep these or create your own fleets according to your naming conventions.
+This configuration provides everything needed for a basic GitOps configuration. The generated repository provides two default fleets: "Personal mobile devices" and "Workstations". These are defined in `fleets/personal-mobile-devices.yml` and `fleets/workstations.yml`. You can keep these or create your own fleets according to your naming conventions.
 
-The template repository also provides an initial directory structure for configuration. The `lib/` directory tree provides a solid foundation for developing modular configuration as code. Fleet supports referencing YAML files by path. This enables clean code that can be reused across fleets:
+The generated repository also includes an initial directory structure for configuration. You can define labels in `default.yml` or in files under `labels/`, and per-platform content like policies, scripts, and software lives under `platforms/` (for example, `platforms/linux/`). Fleet supports referencing YAML files by path. This enables clean code that can be reused across fleets:
 
 ```yaml
 # Partial code snippet from fleets/workstations.yml
 ...
 controls:
   scripts:
-    - path: ../lib/linux/scripts/fix-sudoers.sh
+    - path: ../platforms/linux/scripts/fix-sudoers.sh
 ```
 
 Next, we will build on this structure to deploy changes to Fleet.
@@ -147,9 +148,9 @@ Implementing this policy requires labels, a policy definition, and a control. Ea
 Add or modify each of the files below to implement the policy:
 
 - `default.yml`: This file contains default settings that apply across fleets. This is where we define labels.
-- `fleets/workstations.yml`: This file contains configuration for the "Workstations" fleet. This is where we reference the policy and the control script. We can reference these from the `lib/` directory, which allows us to develop clean, reusable code. This code can be reused in other fleets.
-- `lib/linux/policies/internal-certificate.yml`: This file contains the policy definition and supporting query. The YAML keys will look familiar, since they are nearly identical to the fields in the web interface.
-- `lib/linux/scripts/install-internal-ca.sh`: This is a simple, distribution-agnostic script to remediate policy violations. It deploys the certificate on a host and updates the host's certificate store.
+- `fleets/workstations.yml`: This file contains configuration for the "Workstations" fleet. This is where we reference the policy and the control script. We can reference these from the `platforms/` directory, which allows us to develop clean, reusable code. This code can be reused in other fleets.
+- `platforms/linux/policies/internal-certificate.yml`: This file contains the policy definition and supporting query. The YAML keys will look familiar, since they are nearly identical to the fields in the web interface.
+- `platforms/linux/scripts/install-internal-ca.sh`: This is a simple, distribution-agnostic script to remediate policy violations. It deploys the certificate on a host and updates the host's certificate store.
 
 Each configuration file is shown below.
 
@@ -181,20 +182,20 @@ labels:
 # fleets/workstations.yml
 name: "💻 Workstations"
 policies:
-  - path: ../lib/linux/policies/internal-certificate.yml
+  - path: ../platforms/linux/policies/internal-certificate.yml
 reports:
 agent_options:
 controls:
   scripts:
-    - path: ../lib/linux/scripts/install-internal-ca.sh
+    - path: ../platforms/linux/scripts/install-internal-ca.sh
 software:
 team_settings:
 ```
 
-**lib/linux/policies/internal-certificate.yml**
+**platforms/linux/policies/internal-certificate.yml**
 
 ```yaml
-# lib/linux/policies/internal-certificate.yml
+# platforms/linux/policies/internal-certificate.yml
 - name: Internal CA Certificate
   description: This policy checks if the internal CA certificate is present on hosts using the SHA1 of the certificate.
   resolution: The issue should be automatically remediated. Contact the IT helpdesk if you continue to have issues.
@@ -211,11 +212,11 @@ team_settings:
 
 > **Warning:** This configuration installs a specific root CA. Only use this in a lab environment. Never install a CA certificate from the internet onto a production machine unless you own the private key and understand the trust implications.
 
-**lib/linux/scripts/install-internal-ca.sh**
+**platforms/linux/scripts/install-internal-ca.sh**
 
 ```bash
 #!/bin/bash
-# lib/linux/scripts/install-internal-ca.sh
+# platforms/linux/scripts/install-internal-ca.sh
 set -euo pipefail
 
 CERT_NAME="internal-ca"
@@ -335,7 +336,7 @@ labels:
 ```
 
 ```yaml
-# lib/linux/policies/internal-certificate.yml
+# platforms/linux/policies/internal-certificate.yml
 - name: Internal CA Certificate
   description: This policy checks if the internal CA certificate is present on hosts using the SHA1 of the certificate.
   resolution: The issue should be automatically remediated. Contact the IT helpdesk if you continue to have issues.
@@ -389,7 +390,7 @@ To learn more about Fleet or to get a demo [contact us](https://fleetdm.com/cont
 
 ## Additional resources
 
-- [Fleet starter repository](https://github.com/fleetdm/fleet-gitops)
+- [fleetctl CLI](https://fleetdm.com/guides/fleetctl)
 - [GitOps landing page](https://fleetdm.com/infrastructure-as-code)
 - [GitOps YAML file documentation](https://fleetdm.com/docs/configuration/yaml-files)
 

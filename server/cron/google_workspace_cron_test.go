@@ -219,6 +219,45 @@ func TestGoogleWorkspaceSyncEmptyPullDoesNotDelete(t *testing.T) {
 	assert.Empty(t, r.deletedGroups, "empty pull must not wipe groups")
 }
 
+// TestGoogleWorkspaceSyncLimitErrorDoesNotDelete pins the invariant the directory
+// sync limits rely on: a pull that hits a limit must abort, leaving existing IdP
+// data alone. Reconciliation treats the pull as authoritative, so a limit that
+// truncated instead of erroring would delete every record past it.
+func TestGoogleWorkspaceSyncLimitErrorDoesNotDelete(t *testing.T) {
+	existingUser := scimUser("g1", "alice@example.com", "Engineering", true)
+	existingUser.ID = 1
+	existingGroup := fleet.ScimGroup{ID: 5, ExternalID: new("grp1"), DisplayName: "Engineering"}
+
+	for _, tc := range []struct {
+		name string
+		dir  *fakeDirectory
+	}{
+		{
+			name: "users limit",
+			dir:  &fakeDirectory{usersErr: errors.New("exceeded the limit of 500000 users; raise google_workspace.max_users to sync this domain")},
+		},
+		{
+			name: "groups limit",
+			dir: &fakeDirectory{
+				users:     []*fleet.ScimUser{gwUser("g1", "alice@example.com", "Engineering", true)},
+				groupsErr: errors.New("exceeded the limit of 100000 groups; raise google_workspace.max_groups to sync this domain"),
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			r := newSyncRecorder(gwAppConfig(), []fleet.ScimUser{existingUser}, []fleet.ScimGroup{existingGroup})
+
+			err := runSync(t, r, tc.dir)
+			require.Error(t, err)
+			assert.Empty(t, r.deletedUsers, "a limit error must not delete users")
+			assert.Empty(t, r.deletedGroups, "a limit error must not delete groups")
+			require.NotNil(t, r.lastRequest)
+			assert.Equal(t, "error", r.lastRequest.Status)
+			assert.Contains(t, r.lastRequest.Details, "raise google_workspace.max_")
+		})
+	}
+}
+
 func TestGoogleWorkspaceSyncDirectoryErrorRecordsStatus(t *testing.T) {
 	r := newSyncRecorder(gwAppConfig(), nil, nil)
 	dir := &fakeDirectory{usersErr: errors.New("delegation not authorized")}

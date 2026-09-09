@@ -31,6 +31,7 @@
       "gigs_all_disk_space": null,
       "gigs_disk_space_available": 0,
       "gigs_total_disk_space": 0,
+      "hardware_marketing_name": "",
       "hardware_model": "",
       "hardware_serial": "",
       "hardware_vendor": "",
@@ -50,6 +51,7 @@
         "dep_profile_error": false,
         "encryption_key_available": false,
         "enrollment_status": null,
+        "is_personal_enrollment": false,
         "name": "",
         "server_url": null
       },
@@ -104,6 +106,7 @@
       "gigs_all_disk_space": null,
       "gigs_disk_space_available": 0,
       "gigs_total_disk_space": 0,
+      "hardware_marketing_name": "",
       "hardware_model": "",
       "hardware_serial": "",
       "hardware_vendor": "",
@@ -123,6 +126,7 @@
         "dep_profile_error": false,
         "encryption_key_available": false,
         "enrollment_status": null,
+        "is_personal_enrollment": false,
         "name": "",
         "server_url": null
       },

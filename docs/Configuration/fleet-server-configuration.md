@@ -689,9 +689,9 @@ Per-endpoint max request body size overrides using human-readable sizes (e.g. 50
 - Config file format:
   ```yaml
   server:
-  endpoint_request_size_overrides:
-    - endpoint: "/api/_version_/fleet/software/titles/{title_id:[0-9]+}/available_for_install"
-      max_request_size: "50MiB"
+    endpoint_request_size_overrides:
+      - endpoint: "/api/_version_/fleet/software/titles/{title_id:[0-9]+}/available_for_install"
+        max_request_size: "50MiB"
   ```
 
 ### server_tls
@@ -800,6 +800,20 @@ Setting to true will disable the origin check.
   server:
     websockets_allow_unsafe_origin: true
   ```
+
+### server_allow_private_network_integrations
+
+Allows Fleet's HTTP client to make outbound requests to RFC 1918 and other private network addresses. Enable this if  Fleet needs to reach an integration over HTTP. (Examples include SSO/IdP, EJBCA, Jira, or SCEP server, or an `HTTP_PROXY`/`HTTPS_PROXY` hosted on a private network.)
+
+This does not affect the always-blocked loopback (`127.0.0.0/8`) and cloud metadata (`169.254.0.0/16`) ranges.
+
+- Default value: `false`
+- Environment variable: `FLEET_SERVER_ALLOW_PRIVATE_NETWORK_INTEGRATIONS`
+- Config file format:
+```yaml
+server:
+  allow_private_network_integrations: true
+```
 
 ### server_force_h2c
 
@@ -1435,6 +1449,22 @@ Options are [`filesystem`](#filesystem), [`firehose`](#firehose), [`kinesis`](#k
   ```yaml
   activity:
     audit_log_plugin: firehose
+  ```
+
+### activity_fleet_initiated_release_per_minute
+
+Maximum number of hosts whose Fleet-initiated activities (policy automation software installs and script runs, and iOS/iPadOS scheduled app updates) are released for execution per minute. Fleet-initiated activities are queued immediately, but hosts start executing them at this rate, spreading out the software install and script result load when a policy automation fires for many hosts at once (for example, after a policy's query or software is edited). User-initiated activities (self-service installs, admin-run scripts, setup experience) are not affected.
+
+The limit paces how many *idle* hosts start Fleet-initiated work each minute. A host that is already working through its activity queue continues to its next queued activity as each one completes, without waiting for the next release window — including a host a user just acted on (for example, running a script), since a person acting on a host takes precedence over pacing.
+
+Tune this down during recovery or heavy GitOps pushes, or up where rollout speed matters more than load smoothing. Set to `0` to disable the limit and start Fleet-initiated activities immediately.
+
+- Default value: `1000`
+- Environment variable: `FLEET_ACTIVITY_FLEET_INITIATED_RELEASE_PER_MINUTE`
+- Config file format:
+  ```yaml
+  activity:
+    fleet_initiated_release_per_minute: 500
   ```
 
 ## Logging (Fleet server logging)
@@ -2763,6 +2793,8 @@ Optionally, if you're using a third-party to manage AWS resources, this is the A
 
 ## S3
 
+> If you're hosting Fleet on Render (or any service that doesn't offer S3-compatible storage and is not a multi-container deployment) or building Fleet locally, use the `FLEET_SOFTWARE_INSTALLER_STORE_DIR` environment variable (no YAML or flag equivalent) to store software installers and bootstrap packages on local disk instead. If you're hosting Fleet in AWS, GCP or any other large-scale deployment, use an S3 compatible object store (below) because local storage won't work for multi-container deployments.
+
 ### s3_software_installers_bucket
 
 *Available in Fleet Premium.*
@@ -2968,6 +3000,24 @@ Private key for URL signing. If `s3_software_installers_cloudfront_url` is set, 
       ------BEGIN BEGIN RSA PRIVATE KEY-----
       3126756bd0c54fbc90c9928ef59e7037af8983afd10048929ae5
       7473e62c7aed...
+  ```
+
+### s3_software_installers_gcs_signed_url
+
+*Available in Fleet Premium.*
+
+When `true`, Fleet uses [signed URLs](https://docs.cloud.google.com/storage/docs/access-control/signed-urls) that embed a cryptographic key in the download URL that is used by the Fleet agent to download the installer to the host. This enables download of large packages (over 50MB), which is a [limitation of the HTTP 1 protocol](https://github.com/fleetdm/fleet/issues/37352). Uploads of large packages are only supported via [YAML](https://fleetdm.com/docs/configuration/yaml-files). Fleet UI support is [coming soon](https://github.com/fleetdm/fleet/issues/49554).
+
+This option doesn't work when `s3_carves_gcs_iam_auth` is enabled. Please configure HMAC credentials (`s3_software_installers_access_key_id` and `s3_software_installers_secret_access_key`) instead. 
+
+Use this only with `s3_carves_endpoint_url` set to `https://storage.googleapis.com`.
+
+- Default value: false
+- Environment variable: `FLEET_S3_SOFTWARE_INSTALLERS_GCS_SIGNED_URL`
+- Config file format:
+  ```yaml
+  s3:
+    software_installers_gcS_signed_url: true
   ```
 
 ### s3_carves_bucket
@@ -3629,7 +3679,7 @@ The content of the Windows WSTEP identity certificate. An X.509 certificate, PEM
       -----END CERTIFICATE-----
   ```
 
-If your WSTEP certificate/key pair was compromised and you change the pair, the disk encryption keys will no longer be viewable on all macOS hosts' **Host details** page until you turn disk encryption off and back on.
+Fleet encrypts Windows BitLocker recovery keys with this certificate before storing them. If you change the certificate/key pair, every key escrowed against the old pair becomes permanently unrecoverable. Back up your pair, and treat replacing it as key loss for every Windows host that has already escrowed a key. Fleet doesn't detect this on its own. Viewing one of these keys on the **Host details** page returns an error rather than an incorrect key. To make affected hosts escrow a fresh key, move them to a team with disk encryption turned off, then move them back.
 
 ### mdm.windows_wstep_identity_key_bytes
 
@@ -3692,27 +3742,31 @@ If you have an [Apple Developer account that is enabled as an MDM vendor](https:
     apple_vpp_app_metadata_api_bearer_token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ92eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6Ikp
   ```
 
-### mdm.enable_custom_filevault
+### mdm.enable_custom_disk_encryption
 
-> `mdm.enable_custom_os_updates_and_filevault` is deprecated as of Fleet 4.87.0. Custom OS updates will be enabled for all, for FileVault you can use `mdm.enable_custom_filevault` instead. When set to `true`, it enables both custom OS update and FileVault profiles (equivalent to setting both replacement options to `true`). Maintained for backwards compatibility.
+> `mdm.enable_custom_filevault` is deprecated as of Fleet 4.90.0 and `mdm.enable_custom_os_updates_and_filevault` is deprecated as of Fleet 4.87.0. Both are maintained for backwards compatibility. Please use `mdm.enable_custom_disk_encryption` instead. As of Fleet 4.87.0, custom OS updates are enabled by default.
 
 *Available in Fleet Premium.*
 
-Allows users to add custom Apple MDM profiles for FileVault management, including [FDEFileVault](https://developer.apple.com/documentation/devicemanagement/fdefilevault), [FDEFileVaultOptions](https://developer.apple.com/documentation/devicemanagement/fdefilevaultoptions), and [FDERecoveryKeyEscrow](https://developer.apple.com/documentation/devicemanagement/fderecoverykeyescrow) configuration profiles
+For macOS, allows users to add custom macOS [configuration profiles](https://fleetdm.com/guides/custom-os-settings) for FileVault, including [FDEFileVault](https://developer.apple.com/documentation/devicemanagement/fdefilevault), [FDEFileVaultOptions](https://developer.apple.com/documentation/devicemanagement/fdefilevaultoptions), and [FDERecoveryKeyEscrow](https://developer.apple.com/documentation/devicemanagement/fderecoverykeyescrow) configuration profiles.
 
-> Enabling this option may cause conflicts between your custom FileVault configuration profiles and the profiles Fleet manages under the hood for disk encryption.
+For Windows, allows users to add custom Windows profiles for BitLocker.
+
+> Enabling this option may cause conflicts between your custom disk encryption configuration profiles and the profiles Fleet manages under the hood when [Fleet's disk encryption](https://fleetdm.com/guides/enforce-disk-encryption) is enabled.
+
+See the [Custom disk encryption profiles guide](https://fleetdm.com/guides/custom-disk-encryption-profiles) for step-by-step instructions.
 
 - Default value: `false`
-- Environment variable: `FLEET_MDM_ENABLE_CUSTOM_FILEVAULT`
+- Environment variable: `FLEET_MDM_ENABLE_CUSTOM_DISK_ENCRYPTION`
 - Config file format:
   ```yaml
   mdm:
-    enable_custom_filevault: false
+    enable_custom_disk_encryption: false
   ```
 
 ### mdm.allow_all_declarations
 
-> Enable this feature flag to deploy any device-scoped, configuration [declaration (DDM profile)](https://developer.apple.com/documentation/devicemanagement/devicemanagement-declarations) with Fleet. Assets and user-scoped declarations are [coming in Fleet 4.90](https://github.com/fleetdm/fleet/issues/38986). At the same time, Fleet will enable this feature flag out-of-the-box.
+> Enable this feature flag to deploy any device-scoped, configuration [declaration (DDM profile)](https://developer.apple.com/documentation/devicemanagement/devicemanagement-declarations) with Fleet. Assets and user-scoped declarations are [coming in Fleet 4.90](https://github.com/fleetdm/fleet/issues/38986). At the same time, Fleet will enable this feature flag out-of-the-box. Custom activations require [`mdm.allow_custom_activations`](#mdm-allow-custom-activations).
 
 If disabled (default), Fleet doesn't allow [these configurations](https://github.com/fleetdm/fleet/blob/9589631a7f25a342ed24571c08deffbc959661ec/server/fleet/apple_mdm.go#L704-L717).
 
@@ -3726,6 +3780,40 @@ Enabling this bypasses checks for forbidden declaration types, reserved identifi
   ```yaml
   mdm:
     allow_all_declarations: true
+  ```
+
+### mdm.allow_custom_activations
+
+*Available in Fleet Premium.*
+
+> On macOS 26.5, an invalid predicate can leave a host unmanageable, and you can't recover it remotely. Apple tracks this as FB24193230. Test each predicate on one host before you add the profile to more hosts.
+
+Allows users to add custom [activations](https://developer.apple.com/documentation/devicemanagement/activationsimple) to Apple configuration declarations (DDM profiles), using the API or GitOps. Apple defines predicate syntax, so Fleet can't check a predicate before it reaches a host.
+
+You can remove an activation you already added, whether or not this setting is turned on.
+
+- Default value: `false`
+- Environment variable: `FLEET_MDM_ALLOW_CUSTOM_ACTIVATIONS`
+- Config file format:
+  ```yaml
+  mdm:
+    allow_custom_activations: true
+  ```
+
+### mdm.allow_orbit_end_user_auth_bypass
+
+When a team requires [end user authentication](https://fleetdm.com/guides/end-user-authentication), Fleet gates Linux and Windows Orbit enrollment on end user authentication. `fleetd`/Orbit versions that predate end user authentication support cannot complete that flow, and installers built with `fleetctl package --bypass-end-user-auth` intentionally skip it.
+
+By default (`true`), Fleet allows those hosts to enroll into a team that requires end user authentication without completing it. Set this to `false` to strictly enforce end user authentication for all Orbit enrollments — hosts that do not complete end user authentication (including `--bypass-end-user-auth` installers and pre-end-user-auth agents) are then blocked.
+
+Hosts that already enrolled before end user authentication was enabled are always allowed to re-enroll regardless of this setting. Windows hosts that present a valid end-user-auth token from MDM enrollment always complete end user authentication regardless of this setting.
+
+- Default value: `true`
+- Environment variable: `FLEET_MDM_ALLOW_ORBIT_END_USER_AUTH_BYPASS`
+- Config file format:
+  ```yaml
+  mdm:
+    allow_orbit_end_user_auth_bypass: false
   ```
 
 ### fleet_allow_bootstrap_package_during_migration

@@ -22,6 +22,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/api/androidmanagement/v1"
+	"google.golang.org/api/googleapi"
 )
 
 // sha256 of "TestBrand:test-serial". Will need to be updated if our test enrollment message changes
@@ -844,6 +845,114 @@ func TestStatusReportPolicyValidation(t *testing.T) {
 		require.True(t, mockDS.ListHostMDMAndroidProfilesPendingOrFailedInstallWithVersionFuncInvoked)
 		require.True(t, mockDS.BulkUpsertMDMAndroidHostProfilesFuncInvoked)
 		require.True(t, mockDS.BulkDeleteMDMAndroidHostProfilesFuncInvoked)
+	})
+
+	t.Run("stale failure detail is cleared once a profile is verified", func(t *testing.T) {
+		policyVersion := new(1)
+		policyRequestUUID := uuid.NewString()
+
+		const staleDetail = "\"passwordPolicies\" setting couldn't apply to a host.\nReason: USER_ACTION. Other settings are applied."
+		// The message the status report below must produce for the profile that
+		// is still failing.
+		const freshDetail = "\"cameraDisabled\" setting couldn't apply to a host.\nReason: USER_ACTION. Other settings are applied."
+
+		// Both profiles failed on an earlier status report, so the stored rows
+		// still carry the failure message.
+		nowCompliantProfile := &fleet.MDMAndroidProfilePayload{
+			ProfileUUID:             uuid.NewString(),
+			ProfileName:             "require-separate-work-lock-test",
+			HostUUID:                androidDevice.UUID,
+			Status:                  &fleet.MDMDeliveryFailed,
+			OperationType:           fleet.MDMOperationTypeInstall,
+			IncludedInPolicyVersion: policyVersion,
+			PolicyRequestUUID:       &policyRequestUUID,
+			Detail:                  staleDetail,
+			CanReverify:             true,
+		}
+
+		stillFailingProfile := &fleet.MDMAndroidProfilePayload{
+			ProfileUUID:             uuid.NewString(),
+			ProfileName:             "disable-camera-test",
+			HostUUID:                androidDevice.UUID,
+			Status:                  &fleet.MDMDeliveryFailed,
+			OperationType:           fleet.MDMOperationTypeInstall,
+			IncludedInPolicyVersion: policyVersion,
+			PolicyRequestUUID:       &policyRequestUUID,
+			Detail:                  staleDetail,
+			CanReverify:             true,
+		}
+
+		mockDS.GetAndroidPolicyRequestByUUIDFunc = func(ctx context.Context, id string) (*android.MDMAndroidPolicyRequest, error) {
+			if id != policyRequestUUID {
+				return nil, errors.New("something went wrong")
+			}
+			payload, err := json.Marshal(map[string]any{
+				"policy": map[string]any{
+					"passwordPolicies": []map[string]any{},
+					"cameraDisabled":   true,
+				},
+				"metadata": map[string]any{
+					"settings_origin": map[string]string{
+						"passwordPolicies": nowCompliantProfile.ProfileUUID,
+						"cameraDisabled":   stillFailingProfile.ProfileUUID,
+					},
+				},
+			})
+			require.NoError(t, err)
+			return &android.MDMAndroidPolicyRequest{Payload: payload}, nil
+		}
+		mockDS.ListHostMDMAndroidProfilesPendingOrFailedInstallWithVersionFunc = func(ctx context.Context, hostUUID string, version int64) ([]*fleet.MDMAndroidProfilePayload, error) {
+			return []*fleet.MDMAndroidProfilePayload{nowCompliantProfile, stillFailingProfile}, nil
+		}
+		mockDS.ListHostMDMAndroidVPPAppsPendingInstallWithVersionFunc = func(ctx context.Context, hostUUID string, version int64) ([]*fleet.HostAndroidVPPSoftwareInstall, error) {
+			return nil, nil
+		}
+		mockDS.BulkDeleteMDMAndroidHostProfilesFunc = func(ctx context.Context, hostUUID string, policyVersionID int64) error {
+			return nil
+		}
+
+		// The device still reports one non-compliant setting, but it no longer
+		// belongs to nowCompliantProfile: that profile must be verified with an
+		// empty detail, while the other one gets a fresh failure message.
+		mockDS.BulkUpsertMDMAndroidHostProfilesFunc = func(ctx context.Context, payload []*fleet.MDMAndroidProfilePayload) error {
+			require.Len(t, payload, 2)
+			for _, profile := range payload {
+				switch profile.ProfileUUID {
+				case nowCompliantProfile.ProfileUUID:
+					require.Equal(t, fleet.MDMDeliveryVerified, *profile.Status)
+					require.Empty(t, profile.Detail)
+				case stillFailingProfile.ProfileUUID:
+					require.Equal(t, fleet.MDMDeliveryFailed, *profile.Status)
+					// Rebuilt from the current report rather than carried over
+					// from the previous failure.
+					require.Equal(t, freshDetail, profile.Detail)
+				default:
+					require.Fail(t, "unexpected profile upserted")
+				}
+			}
+			return nil
+		}
+
+		statusReport := createStatusReportMessage(t, androidDevice.UUID, "test", createAndroidDeviceId("test-policy"), policyVersion,
+			[]*androidmanagement.NonComplianceDetail{{SettingName: "cameraDisabled", NonComplianceReason: "USER_ACTION"}})
+		require.NoError(t, svc.ProcessPubSubPush(context.Background(), "value", &statusReport))
+		require.True(t, mockDS.BulkUpsertMDMAndroidHostProfilesFuncInvoked)
+		mockDS.BulkUpsertMDMAndroidHostProfilesFuncInvoked = false
+
+		// The device now reports no non-compliance at all, so every profile is
+		// verified and no stale detail may survive.
+		mockDS.BulkUpsertMDMAndroidHostProfilesFunc = func(ctx context.Context, payload []*fleet.MDMAndroidProfilePayload) error {
+			require.Len(t, payload, 2)
+			for _, profile := range payload {
+				require.Equal(t, fleet.MDMDeliveryVerified, *profile.Status)
+				require.Empty(t, profile.Detail)
+			}
+			return nil
+		}
+
+		statusReport = createStatusReportMessage(t, androidDevice.UUID, "test", createAndroidDeviceId("test-policy"), policyVersion, nil)
+		require.NoError(t, svc.ProcessPubSubPush(context.Background(), "value", &statusReport))
+		require.True(t, mockDS.BulkUpsertMDMAndroidHostProfilesFuncInvoked)
 	})
 }
 
@@ -2675,12 +2784,13 @@ func TestPubSubCommand(t *testing.T) {
 			return stored, nil
 		}
 		var capturedStatus string
-		var capturedErrCode, capturedErrMsg *string
-		mockDS.UpdateMDMAndroidCommandStatusFunc = func(ctx context.Context, commandUUID, status string, errorCode, errorMessage *string) error {
+		var capturedErrCode, capturedErrMsg, capturedRawResult *string
+		mockDS.UpdateMDMAndroidCommandStatusFunc = func(ctx context.Context, commandUUID, status string, errorCode, errorMessage, rawResult *string) error {
 			require.Equal(t, stored.CommandUUID, commandUUID)
 			capturedStatus = status
 			capturedErrCode = errorCode
 			capturedErrMsg = errorMessage
+			capturedRawResult = rawResult
 			return nil
 		}
 
@@ -2691,6 +2801,42 @@ func TestPubSubCommand(t *testing.T) {
 		require.Equal(t, string(android.MDMAndroidCommandStatusAcknowledged), capturedStatus)
 		require.Nil(t, capturedErrCode)
 		require.Nil(t, capturedErrMsg)
+		require.NotNil(t, capturedRawResult, "raw_result should be stored on status update")
+		require.Contains(t, *capturedRawResult, stored.OperationName, "raw_result should contain the operation name")
+		require.Contains(t, *capturedRawResult, `"done":true`, "raw_result should contain done:true")
+	})
+
+	t.Run("newPassword is redacted from raw_result metadata", func(t *testing.T) {
+		svc, mockDS := newSvc(t)
+
+		stored := &android.MDMAndroidCommand{
+			CommandUUID:   "cmd-uuid-redact",
+			HostUUID:      "host-uuid",
+			OperationName: "enterprises/E/devices/D/operations/redact-1",
+			CommandType:   string(android.MDMAndroidCommandTypeResetPassword),
+			Status:        string(android.MDMAndroidCommandStatusPending),
+		}
+		mockDS.GetMDMAndroidCommandByOperationNameFunc = func(ctx context.Context, opName string) (*android.MDMAndroidCommand, error) {
+			return stored, nil
+		}
+		var capturedRawResult *string
+		mockDS.UpdateMDMAndroidCommandStatusFunc = func(ctx context.Context, commandUUID, status string, errorCode, errorMessage, rawResult *string) error {
+			capturedRawResult = rawResult
+			return nil
+		}
+
+		op := androidmanagement.Operation{
+			Name:     stored.OperationName,
+			Done:     true,
+			Metadata: googleapi.RawMessage(`{"@type":"type.googleapis.com/google.android.devicemanagement.v1.Command","type":"RESET_PASSWORD","newPassword":"s3cret!","userName":"enterprises/E/users/U"}`),
+		}
+		msg := makeMessage(t, op)
+		require.NoError(t, svc.ProcessPubSubPush(t.Context(), validToken, msg))
+
+		require.NotNil(t, capturedRawResult)
+		require.NotContains(t, *capturedRawResult, "s3cret!", "newPassword value must not appear in raw_result")
+		require.NotContains(t, *capturedRawResult, "newPassword", "newPassword key must not appear in raw_result")
+		require.Contains(t, *capturedRawResult, "RESET_PASSWORD", "other metadata fields should be preserved")
 	})
 
 	t.Run("pending -> error on op.Error set", func(t *testing.T) {
@@ -2707,7 +2853,8 @@ func TestPubSubCommand(t *testing.T) {
 			return stored, nil
 		}
 		var capturedStatus, capturedCode, capturedMsg string
-		mockDS.UpdateMDMAndroidCommandStatusFunc = func(ctx context.Context, commandUUID, status string, errorCode, errorMessage *string) error {
+		var capturedRawResult *string
+		mockDS.UpdateMDMAndroidCommandStatusFunc = func(ctx context.Context, commandUUID, status string, errorCode, errorMessage, rawResult *string) error {
 			capturedStatus = status
 			if errorCode != nil {
 				capturedCode = *errorCode
@@ -2715,6 +2862,7 @@ func TestPubSubCommand(t *testing.T) {
 			if errorMessage != nil {
 				capturedMsg = *errorMessage
 			}
+			capturedRawResult = rawResult
 			return nil
 		}
 
@@ -2728,6 +2876,9 @@ func TestPubSubCommand(t *testing.T) {
 		require.Equal(t, string(android.MDMAndroidCommandStatusError), capturedStatus)
 		require.Equal(t, "13", capturedCode)
 		require.Equal(t, "device does not support WIPE", capturedMsg)
+		require.NotNil(t, capturedRawResult, "raw_result should be stored even on error")
+		require.Contains(t, *capturedRawResult, `"done":true`, "raw_result should contain done:true")
+		require.Contains(t, *capturedRawResult, "device does not support WIPE", "raw_result should contain the error message")
 	})
 
 	t.Run("already-terminal status is not re-transitioned", func(t *testing.T) {
@@ -2742,7 +2893,7 @@ func TestPubSubCommand(t *testing.T) {
 		mockDS.GetMDMAndroidCommandByOperationNameFunc = func(ctx context.Context, opName string) (*android.MDMAndroidCommand, error) {
 			return stored, nil
 		}
-		mockDS.UpdateMDMAndroidCommandStatusFunc = func(ctx context.Context, commandUUID, status string, errorCode, errorMessage *string) error {
+		mockDS.UpdateMDMAndroidCommandStatusFunc = func(ctx context.Context, commandUUID, status string, errorCode, errorMessage, rawResult *string) error {
 			t.Fatalf("UpdateMDMAndroidCommandStatus should not be called for terminal row")
 			return nil
 		}
@@ -2802,7 +2953,7 @@ func TestPubSubCommand(t *testing.T) {
 			mockDS.GetMDMAndroidCommandByOperationNameFunc = func(ctx context.Context, opName string) (*android.MDMAndroidCommand, error) {
 				return stored, nil
 			}
-			mockDS.UpdateMDMAndroidCommandStatusFunc = func(ctx context.Context, commandUUID, status string, errorCode, errorMessage *string) error {
+			mockDS.UpdateMDMAndroidCommandStatusFunc = func(ctx context.Context, commandUUID, status string, errorCode, errorMessage, rawResult *string) error {
 				t.Fatalf("UpdateMDMAndroidCommandStatus must not be called for a terminal row")
 				return nil
 			}
@@ -2854,7 +3005,7 @@ func TestPubSubCommand(t *testing.T) {
 		mockDS.GetMDMAndroidCommandByOperationNameFunc = func(ctx context.Context, opName string) (*android.MDMAndroidCommand, error) {
 			return stored, nil
 		}
-		mockDS.UpdateMDMAndroidCommandStatusFunc = func(ctx context.Context, commandUUID, status string, errorCode, errorMessage *string) error {
+		mockDS.UpdateMDMAndroidCommandStatusFunc = func(ctx context.Context, commandUUID, status string, errorCode, errorMessage, rawResult *string) error {
 			return nil
 		}
 		mockDS.AndroidHostLiteByHostUUIDFunc = func(ctx context.Context, hostUUID string) (*fleet.AndroidHost, error) {
@@ -2921,7 +3072,7 @@ func TestPubSubCommand(t *testing.T) {
 			t.Fatalf("lookup should be skipped when op.Done is false")
 			return nil, nil
 		}
-		mockDS.UpdateMDMAndroidCommandStatusFunc = func(ctx context.Context, commandUUID, status string, errorCode, errorMessage *string) error {
+		mockDS.UpdateMDMAndroidCommandStatusFunc = func(ctx context.Context, commandUUID, status string, errorCode, errorMessage, rawResult *string) error {
 			t.Fatalf("status update should be skipped when op.Done is false")
 			return nil
 		}

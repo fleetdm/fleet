@@ -92,6 +92,10 @@ func (m *mockDataProviders) GetActivitiesWebhookConfig(ctx context.Context) (*ac
 	return &activity.ActivitiesWebhookSettings{Enable: false}, nil
 }
 
+func (m *mockDataProviders) GetHostActivitiesWebhooks(ctx context.Context, hostIDs []uint) ([]activity.HostActivitiesWebhook, error) {
+	return nil, nil
+}
+
 func (m *mockDataProviders) ActivateNextUpcomingActivity(ctx context.Context, hostID uint, fromCompletedExecID string) error {
 	return nil
 }

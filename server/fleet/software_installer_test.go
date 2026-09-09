@@ -184,6 +184,30 @@ func TestSoftwareInstallerPlatformFromExtension(t *testing.T) {
 	}
 }
 
+func TestAllowedSetupExperiencePlatformsForExtension(t *testing.T) {
+	testCases := []struct {
+		ext      string
+		expected []string
+	}{
+		{".py", []string{"darwin", "linux"}},
+		{"py", []string{"darwin", "linux"}},
+		{".sh", []string{"darwin", "linux"}},
+		{"sh", []string{"darwin", "linux"}},
+		{".ps1", nil},
+		{"ps1", nil},
+		{".exe", nil},
+		{"exe", nil},
+		{"", nil},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.ext, func(t *testing.T) {
+			result := AllowedSetupExperiencePlatformsForExtension(tc.ext)
+			require.Equal(t, tc.expected, result)
+		})
+	}
+}
+
 func TestSofwareInstallerSourceFromExtensionAndName(t *testing.T) {
 	testCases := []struct {
 		ext      string
@@ -448,6 +472,28 @@ func TestValidateTitlePackages(t *testing.T) {
 				return
 			}
 			require.ErrorContains(t, err, tc.wantErr)
+		})
+	}
+}
+
+func TestHostSoftwareInstallOptionsIsFleetInitiated(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		desc string
+		opts HostSoftwareInstallOptions
+		want bool
+	}{
+		{"user-initiated", HostSoftwareInstallOptions{}, false},
+		{"self-service", HostSoftwareInstallOptions{SelfService: true}, false},
+		{"policy automation", HostSoftwareInstallOptions{PolicyID: new(uint(1))}, true},
+		{"scheduled updates", HostSoftwareInstallOptions{ForScheduledUpdates: true}, true},
+		{"setup experience", HostSoftwareInstallOptions{ForSetupExperience: true}, true},
+		{"self-service wins over setup experience", HostSoftwareInstallOptions{ForSetupExperience: true, SelfService: true}, false},
+	}
+	for _, c := range cases {
+		t.Run(c.desc, func(t *testing.T) {
+			require.Equal(t, c.want, c.opts.IsFleetInitiated())
 		})
 	}
 }

@@ -4,7 +4,8 @@
       "version": "1.2.6",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'YubiKey Manager' AND publisher = 'Yubico AB';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'YubiKey Manager' AND publisher = 'Yubico AB' AND version_compare(version, '1.2.6') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'YubiKey Manager' AND publisher = 'Yubico AB' AND version_compare(version, '1.2.6') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'yubikey manager.exe');"
       },
       "installer_url": "https://developers.yubico.com/yubikey-manager-qt/Releases/yubikey-manager-qt-1.2.6-win64.exe",
       "install_script_ref": "64dd4e97",

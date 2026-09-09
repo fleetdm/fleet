@@ -24,12 +24,26 @@ export function DBCheckBackupName(repo: string, rawName: string): $CancellablePr
     });
 }
 
+export function DBCheckBackupNameInDir(dir: string, rawName: string): $CancellablePromise<db$0.BackupNameCheck> {
+    return $Call.ByID(3335411731, dir, rawName).then(($result: any) => {
+        return $$createType0($result);
+    });
+}
+
 export function DBDeleteBackup(repo: string, path: string): $CancellablePromise<void> {
     return $Call.ByID(2008341311, repo, path);
 }
 
+export function DBDeleteBackupInDir(dir: string, path: string): $CancellablePromise<void> {
+    return $Call.ByID(2978607675, dir, path);
+}
+
 export function DBEnsureBackupsDir(repo: string): $CancellablePromise<string> {
     return $Call.ByID(1435668538, repo);
+}
+
+export function DBEnsureDir(dir: string): $CancellablePromise<string> {
+    return $Call.ByID(2320421451, dir);
 }
 
 export function DBListBackups(repo: string): $CancellablePromise<db$0.BackupEntry[]> {
@@ -38,8 +52,21 @@ export function DBListBackups(repo: string): $CancellablePromise<db$0.BackupEntr
     });
 }
 
+export function DBListBackupsInDir(dir: string): $CancellablePromise<db$0.BackupEntry[]> {
+    return $Call.ByID(714434161, dir).then(($result: any) => {
+        return $$createType2($result);
+    });
+}
+
 export function DBSaveBackupMeta(path: string, branch: string | null, note: string | null): $CancellablePromise<void> {
     return $Call.ByID(3348188512, path, branch, note);
+}
+
+/**
+ * DBServerBackupsDir returns the central backups dir for a server id.
+ */
+export function DBServerBackupsDir(serverID: string): $CancellablePromise<string> {
+    return $Call.ByID(3625335299, serverID);
 }
 
 // Private type creation functions

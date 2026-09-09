@@ -21,7 +21,6 @@ parasails.registerPage('contact', {
       firstName: {required: true},
       lastName: {required: true},
       organization: {required: true},
-      primaryBuyingSituation: {required: true},
       numberOfHosts: {required: true},
     },
     // Contact form rules
@@ -79,20 +78,12 @@ parasails.registerPage('contact', {
       // Otherwise, default to the formToShow value from the page's controller.
       this.formToDisplay = this.formToShow;
     }
-    if(this.primaryBuyingSituation && !['vm', 'eo-it', 'eo-security', 'mdm'].includes(this.primaryBuyingSituation)){ // If the user has a priamry buying situation set in their sesssion, pre-fill the form.
-      // Note: this will be overriden if the user is logged in and has a primaryBuyingSituation set in the database.
-      this.$set(this.formData, 'primaryBuyingSituation', this.primaryBuyingSituation);
-    }
 
     if(this.me){// prefill from database
       this.formDataToPrefillForLoggedInUsers.emailAddress = this.me.emailAddress;
       this.formDataToPrefillForLoggedInUsers.firstName = this.me.firstName;
       this.formDataToPrefillForLoggedInUsers.lastName = this.me.lastName;
       this.formDataToPrefillForLoggedInUsers.organization = this.me.organization;
-      // Only prefil this information if the user has this value set to a value that is not VM.
-      if(this.me.primaryBuyingSituation &&  !['vm', 'eo-it', 'eo-security', 'mdm'].includes(this.me.primaryBuyingSituation)) {
-        this.formDataToPrefillForLoggedInUsers.primaryBuyingSituation = this.me.primaryBuyingSituation;
-      }
       this.formData = _.clone(this.formDataToPrefillForLoggedInUsers);
       this.psychologicalStage = this.me.psychologicalStage;
     }
@@ -174,7 +165,6 @@ parasails.registerPage('contact', {
           name: this.formData.firstName +' '+ this.formData.lastName,
           company: this.formData.organization,
           how_many_hostsdevices_do_you_want_to_manage: this.formData.numberOfHosts,// eslint-disable-line camelcase
-          what_will_you_be_using_fleet_for: this.formData.primaryBuyingSituation,// eslint-disable-line camelcase
         });
         qualified('showFormExperience', 'experience-1772126772950');
       }

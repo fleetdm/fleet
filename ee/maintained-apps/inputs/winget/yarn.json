@@ -1,0 +1,10 @@
+{
+  "name": "Yarn",
+  "slug": "yarn/windows",
+  "package_identifier": "Yarn.Yarn",
+  "unique_identifier": "Yarn",
+  "installer_arch": "x86",
+  "installer_type": "msi",
+  "installer_scope": "machine",
+  "default_categories": ["Developer tools"]
+}

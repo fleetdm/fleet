@@ -7,7 +7,6 @@ import { IConfig } from "interfaces/config";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 
 import Button from "components/buttons/Button";
-import Icon from "components/Icon/Icon";
 import RevealButton from "components/buttons/RevealButton";
 import InputField from "components/forms/fields/InputField";
 import TooltipWrapper from "components/TooltipWrapper";
@@ -201,9 +200,10 @@ const PlatformWrapper = ({
                 variant="secondary"
                 className={`${baseClass}__fleet-certificate-download`}
                 onClick={onDownloadCertificate}
+                icon="download"
+                iconPosition="right"
               >
                 Download
-                <Icon name="download" size="small" />
               </Button>
             </p>
           ) : (
@@ -338,7 +338,14 @@ const PlatformWrapper = ({
     }
 
     if (packageType === "ios-ipados") {
-      return <IosIpadosPanel enrollSecret={enrollSecret} />;
+      return (
+        <IosIpadosPanel
+          enrollSecret={enrollSecret}
+          isManualAppleEnrollmentsBlocked={
+            config?.mdm.only_allow_apple_business_enrollment || false
+          }
+        />
+      );
     }
 
     if (packageType === "android") {
@@ -346,7 +353,14 @@ const PlatformWrapper = ({
     }
 
     if (packageType === "pkg") {
-      return <MacosPanel enrollSecret={enrollSecret} />;
+      return (
+        <MacosPanel
+          enrollSecret={enrollSecret}
+          isManualAppleEnrollmentsBlocked={
+            config?.mdm.only_allow_apple_business_enrollment || false
+          }
+        />
+      );
     }
 
     if (packageType === "advanced") {
@@ -382,7 +396,6 @@ const PlatformWrapper = ({
             showText="Plain osquery"
             caretPosition="after"
             onClick={() => setShowPlainOsquery((prev) => !prev)}
-            variant="secondary"
           />
           {showPlainOsquery && (
             <>
@@ -394,9 +407,13 @@ const PlatformWrapper = ({
                   Osquery uses an enroll secret to authenticate with the Fleet
                   server.
                   <br />
-                  <Button variant="secondary" onClick={onDownloadEnrollSecret}>
+                  <Button
+                    variant="secondary"
+                    onClick={onDownloadEnrollSecret}
+                    icon="download"
+                    iconPosition="right"
+                  >
                     Download
-                    <Icon name="download" size="small" />
                   </Button>
                 </p>
               </div>
@@ -415,9 +432,13 @@ const PlatformWrapper = ({
                       {fetchCertificateError}
                     </span>
                   ) : (
-                    <Button variant="secondary" onClick={onDownloadFlagfile}>
+                    <Button
+                      variant="secondary"
+                      onClick={onDownloadFlagfile}
+                      icon="download"
+                      iconPosition="right"
+                    >
                       Download
-                      <Icon name="download" size="small" />
                     </Button>
                   )}
                 </p>

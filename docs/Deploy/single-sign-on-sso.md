@@ -6,6 +6,8 @@ To configure SSO, follow steps for your IdP and then complete [Fleet configurati
 
 > JIT SAML implementation supports just-in-time (JIT) user provisioning, as well as both IdP-initiated login and service-initiated (SP) login.
 
+> If you're configuring SSO for both Fleet users (i.e., IT admins who have access to the Fleet console) and end users (to use with [end user authentication](https://fleetdm.com/guides/end-user-authentication)), then create two separate apps in your IdP. The main differences between them will be the name (your choice on that) and the `callback` URL, listed below.
+
 
 ## Okta
 
@@ -169,9 +171,9 @@ After generating the XML file, upload it to your identity provider according to 
 
 ## Fleet configuration
 
-To configure SSO in Fleet head to **Settings > Integrations > Single sign-on (SSO) > Fleet users**.
+To configure SSO in Fleet head to **Settings > Integrations > Authentication (SSO) > Fleet users**.
 
-If you're configuring IdP authentication for setup experience head to **Settings > Integrations > Single sign-on (SSO) > End users**.
+If you're configuring end user authentication head to **Settings > Integrations > Authentication (SSO) > End users**.
 
 - **Identity provider name** - A human-readable name of the IdP. This is rendered on the login page.
 
@@ -189,7 +191,7 @@ If you're configuring IdP authentication for setup experience head to **Settings
 
 `Applies only to Fleet Premium`
 
-Fleet can automatically create users using just-in-time (JIT) provisioning. To enable this, go to **Settings > Integrations > Single sign-on (SSO) > Fleet users** and check **Create user and sync permissions on login**.
+Fleet can automatically create users using just-in-time (JIT) provisioning. To enable this, go to **Settings > Integrations > Authentication (SSO) > Fleet users** and check **Create user and sync permissions on login**.
 
 When enabled, Fleet will automatically create an account when a user logs in for the first time with the configured SSO. The new account's email and full name are copied from the user data in the SSO response.
 
@@ -289,9 +291,15 @@ When SCIM is configured with your IdP, Fleet automatically deletes a user's Flee
 
 Fleet requires the `userName`, `email`, `givenName`, and `familyName` attributes to be mapped from your IdP for Fleet users. In Okta, are typically mapped from `userName`, `user.email`, `user.firstName`, and `user.lastName` respectively.
 
-If the user is later reactivated in the IdP, Fleet will automatically recreate the account on the user’s next SSO login, as long as **Create user and sync permissions on login** in **Settings > Integrations > Single sign-on (SSO)** is enabled.
+If the user is later reactivated in the IdP, Fleet will automatically recreate the account on the user’s next SSO login, as long as **Create user and sync permissions on login** in **Settings > Integrations > Authentication (SSO)** is enabled.
 
 No manual intervention is required. This applies only to SSO-authenticated users. API-only and password-authenticated users are not affected.
+
+Fleet deletes the account instead of marking it inactive. Fleet has no deactivated user state, so a deprovisioned user no longer appears in **Settings > Users** or in the response from the [list users](https://fleetdm.com/docs/rest-api/rest-api#list-users) endpoint.
+
+Fleet records each deprovisioning as a `deleted_user` activity in the [audit log](https://fleetdm.com/docs/using-fleet/audit-logs). Fleet is the author of this activity, not the admin who configured SCIM.
+
+Using a compliance tool that reviews access by reading Fleet's user list? Treat a user's absence from the list as deprovisioning. The audit log has the record of when it happened.
 
 
 ## Email two-factor authentication (2FA)

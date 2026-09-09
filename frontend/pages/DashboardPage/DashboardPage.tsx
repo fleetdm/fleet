@@ -402,15 +402,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
       setSoftwareTitleDetail(
         <LastUpdatedText
           lastUpdatedAt={software.counts_updated_at}
-          customTooltipText={
-            <>
-              Fleet periodically queries all hosts to
-              <br />
-              retrieve software. Click to view
-              <br />
-              hosts for the most up-to-date lists.
-            </>
-          }
+          customTooltipText="Fleet periodically queries all hosts to retrieve software. Click to view hosts for the most up-to-date lists."
         />
       );
     } else if (!isViewingVulnerableSoftware) {

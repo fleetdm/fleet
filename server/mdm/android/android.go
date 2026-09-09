@@ -93,9 +93,11 @@ type MDMAndroidCommand struct {
 	HostUUID      string           `db:"host_uuid"`
 	OperationName string           `db:"operation_name"`
 	CommandType   string           `db:"command_type"`
+	RawCommand    sql.Null[string] `db:"raw_command"`
 	Status        string           `db:"status"`
 	ErrorCode     sql.Null[string] `db:"error_code"`
 	ErrorMessage  sql.Null[string] `db:"error_message"`
+	RawResult     sql.Null[string] `db:"raw_result"`
 	CreatedAt     time.Time        `db:"created_at"`
 	UpdatedAt     time.Time        `db:"updated_at"`
 }
@@ -110,6 +112,11 @@ const (
 	MDMAndroidCommandTypeResetPassword MDMAndroidCommandType = "RESET_PASSWORD"
 	MDMAndroidCommandTypeWipe          MDMAndroidCommandType = "WIPE"
 )
+
+// AndroidMDMRequiresPremiumCmdMessage is the error message displayed by fleetctl mdm
+// run-command when a Premium license is required for an Android command. Keep in sync
+// with the androidMDMPremiumCommands set in server/service/mdm.go.
+const AndroidMDMRequiresPremiumCmdMessage = "Missing or invalid license. LOCK and RESET_PASSWORD commands are available in Fleet Premium only."
 
 // MDMAndroidCommandStatus is the lifecycle state of an MDMAndroidCommand row.
 type MDMAndroidCommandStatus string

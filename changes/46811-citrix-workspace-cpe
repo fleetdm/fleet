@@ -1,1 +1,0 @@
-- Fixed vulnerability detection for Citrix Workspace on Windows by normalizing the software version (e.g. `25.7.1.6` to `2507.1.6`) for Citrix Workspace entries whose name does not include the `YYMM` release, so the generated CPE matches NVD.

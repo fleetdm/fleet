@@ -1,0 +1,85 @@
+.vitals-modal {
+  &__vitals {
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    gap: 0;
+
+    // Let each row's dt/dd become direct children of the grid above,
+    // instead of being laid out inside their own .data-set flex box.
+    .data-set {
+      display: contents;
+    }
+
+    // Scoped through .data-set to outrank card styles that set their own dd
+    // margin (e.g. .vitals-card__mdm-status), which would offset that row's
+    // border from the label column's.
+    .data-set dt,
+    .data-set dd {
+      margin: 0;
+      padding: 10px 0;
+      border-bottom: 1px solid $ui-fleet-black-10;
+    }
+
+    .data-set dt {
+      padding-right: $pad-large;
+    }
+
+    // Grid items default to min-width: auto, which refuses to shrink below the
+    // content's intrinsic width — so TooltipTruncatedText would never truncate
+    // and a long value would widen the column instead.
+    .data-set dd {
+      min-width: 0;
+    }
+
+    .data-set:first-child {
+      dt,
+      dd {
+        padding-top: 0;
+      }
+    }
+
+    .data-set:last-child {
+      dt,
+      dd {
+        padding-bottom: 0;
+        border-bottom: none;
+      }
+    }
+  }
+
+  // Nested-dict vitals render as their own aligned label/value grid so the
+  // sub-labels line up regardless of length.
+  &__nested {
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    gap: $pad-xsmall $pad-small;
+  }
+
+  &__nested-label {
+    color: $ui-fleet-black-75;
+  }
+
+  &__nested-value {
+    // OrganizationAddress uses \n for line breaks (per Apple's docs).
+    white-space: pre-line;
+  }
+
+  // Dual-SIM devices report multiple subscriptions; each is its own
+  // tooltip-wrapped line.
+  &__subscriptions {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: $pad-xsmall;
+  }
+
+  &__lines {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-xsmall;
+  }
+
+  .component__tooltip-wrapper__element {
+    line-height: inherit;
+  }
+}

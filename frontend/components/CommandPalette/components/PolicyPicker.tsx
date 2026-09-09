@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { Command } from "cmdk";
 
 import { APP_CONTEXT_ALL_TEAMS_ID, ITeamSummary } from "interfaces/team";
@@ -10,7 +10,7 @@ import {
   IPolicyStats,
 } from "interfaces/policy";
 import CriticalPolicyBadge from "components/CriticalPolicyBadge";
-import PillBadge from "components/PillBadge";
+import Tag from "components/Tag";
 import { PATCH_TOOLTIP_CONTENT } from "components/SoftwareInstallPolicyBadges/SoftwareInstallPolicyBadges";
 
 import usePickerSearch from "./usePickerSearch";
@@ -28,6 +28,9 @@ interface IPolicyPickerProps {
   /** Critical-policy badge is Premium-only (matches PoliciesTable). */
   isPremiumTier?: boolean;
   onSelect: (policyId: number) => void;
+  /** Fires when the results list identity changes, with the cmdk value of
+   *  the first item (or null when empty). See HostPicker for rationale. */
+  onResultsChange?: (firstItemValue: string | null) => void;
 }
 
 const PolicyPicker = ({
@@ -35,6 +38,7 @@ const PolicyPicker = ({
   currentTeam,
   isPremiumTier = false,
   onSelect,
+  onResultsChange,
 }: IPolicyPickerProps): JSX.Element => {
   const teamId =
     currentTeam && currentTeam.id !== APP_CONTEXT_ALL_TEAMS_ID
@@ -69,6 +73,14 @@ const PolicyPicker = ({
     },
     selectItems: (data) => data?.policies ?? [],
   });
+
+  const firstItemValue =
+    policies.length > 0 ? `${RESULT_PREFIXES.policy}${policies[0].id}` : null;
+  // See HostPicker.
+  const itemsSignature = policies.map((p) => p.id).join(",");
+  useEffect(() => {
+    onResultsChange?.(firstItemValue);
+  }, [itemsSignature, firstItemValue, onResultsChange]);
 
   if (isLoading && policies.length === 0) {
     return <div className={`${baseClass}__empty`}>Looking for policies...</div>;
@@ -110,12 +122,14 @@ const PolicyPicker = ({
               </span>
               {showCriticalBadge && <CriticalPolicyBadge />}
               {showPatchBadge && (
-                <PillBadge tipContent={PATCH_TOOLTIP_CONTENT}>Patch</PillBadge>
+                <Tag tooltip={PATCH_TOOLTIP_CONTENT} size="small">
+                  Patch
+                </Tag>
               )}
               {showInheritedBadge && (
-                <PillBadge tipContent="This policy runs on all hosts.">
+                <Tag tooltip="This policy runs on all hosts." size="small">
                   Inherited
-                </PillBadge>
+                </Tag>
               )}
             </div>
           </Command.Item>

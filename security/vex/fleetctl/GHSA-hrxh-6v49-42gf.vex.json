@@ -1,0 +1,26 @@
+{
+  "@context": "https://openvex.dev/ns/v0.2.0",
+  "@id": "https://openvex.dev/docs/public/vex-8a1235b55d3b4853fa1f50bd3e7dbe33274eb48b92c813b6d5727ff0eb6f691a",
+  "author": "@lucasmrod",
+  "timestamp": "2026-07-27T14:10:31-03:00",
+  "version": 1,
+  "statements": [
+    {
+      "vulnerability": {
+        "name": "GHSA-hrxh-6v49-42gf"
+      },
+      "timestamp": "2026-07-27T14:10:31-03:00",
+      "products": [
+        {
+          "@id": "fleetctl"
+        },
+        {
+          "@id": "pkg:golang/google.golang.org/grpc"
+        }
+      ],
+      "status": "not_affected",
+      "status_notes": "The vulnerabilities affect the xDS RBAC authorization engine and the HTTP/2 server transport of gRPC-Go; fleetctl does not run a gRPC server nor use xDS (grpc is a transitive dependency used by the Fleet server).",
+      "justification": "vulnerable_code_not_in_execute_path"
+    }
+  ]
+}

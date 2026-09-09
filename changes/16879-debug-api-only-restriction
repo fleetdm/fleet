@@ -1,0 +1,1 @@
+- Enforced API-only endpoint restrictions on the debug routes so a restricted API-only token can no longer reach `/debug/*`.

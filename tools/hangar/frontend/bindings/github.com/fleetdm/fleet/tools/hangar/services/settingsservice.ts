@@ -13,7 +13,20 @@ import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Cr
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
+import * as buildinfo$0 from "../internal/buildinfo/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
 import * as settings$0 from "../internal/settings/models.js";
+
+/**
+ * BuildInfo identifies the running build, so whoever has the app open can read
+ * off which one it is without going near a terminal.
+ */
+export function BuildInfo(): $CancellablePromise<buildinfo$0.Info> {
+    return $Call.ByID(1904600861).then(($result: any) => {
+        return $$createType0($result);
+    });
+}
 
 /**
  * DetectFleetConfig returns the relative serve-config name in the repo root
@@ -28,7 +41,51 @@ export function DetectFleetConfig(repo: string): $CancellablePromise<string> {
  */
 export function GetSettings(): $CancellablePromise<settings$0.Settings> {
     return $Call.ByID(3703475196).then(($result: any) => {
-        return $$createType0($result);
+        return $$createType1($result);
+    });
+}
+
+/**
+ * LanIP is the host's current LAN IPv4, for the surfaces that show an address
+ * another device has to dial (SCEP enrollment URLs, the python file server).
+ * Empty means "unknown" — see netinfo.LanIP.
+ */
+export function LanIP(): $CancellablePromise<string> {
+    return $Call.ByID(421620667);
+}
+
+/**
+ * NewScepProfile returns a fresh SCEP launch profile (unique id, next free port
+ * starting at 2016, challenge/debug defaults), leaving name/depot for the caller
+ * to fill before saving. The slot is derived from the currently-saved profiles
+ * so id/port never collide.
+ */
+export function NewScepProfile(): $CancellablePromise<settings$0.ScepProfile> {
+    return $Call.ByID(486642461).then(($result: any) => {
+        return $$createType2($result);
+    });
+}
+
+/**
+ * NewServerProfile returns a fresh server profile for the next free slot
+ * (canonical-but-offset ports, compose project, color, serve config), leaving
+ * name/worktree for the caller to fill before saving. Errors if the server cap
+ * is already reached. The slot is derived from the currently-saved servers so
+ * the new ports/project/ID never collide.
+ */
+export function NewServerProfile(): $CancellablePromise<settings$0.ServerProfile> {
+    return $Call.ByID(3299702313).then(($result: any) => {
+        return $$createType3($result);
+    });
+}
+
+/**
+ * NgrokTunnels returns the currently-running ngrok tunnels (with public URLs)
+ * from ngrok's local API. Empty when ngrok isn't running.
+ */
+export function NgrokTunnels(): $CancellablePromise<settings$0.NgrokRunningTunnel[]> {
+    return $Call.ByID(2264745687).then(($result: any) => {
+        return $$createType5($result);
     });
 }
 
@@ -51,7 +108,7 @@ export function OpenURL(url: string): $CancellablePromise<void> {
  */
 export function ParseNgrokYml(path: string): $CancellablePromise<settings$0.NgrokYamlInfo> {
     return $Call.ByID(488399815, path).then(($result: any) => {
-        return $$createType1($result);
+        return $$createType6($result);
     });
 }
 
@@ -61,7 +118,7 @@ export function ParseNgrokYml(path: string): $CancellablePromise<settings$0.Ngro
  */
 export function ProbeFleetRepo(path: string): $CancellablePromise<settings$0.RepoProbe[]> {
     return $Call.ByID(984256957, path).then(($result: any) => {
-        return $$createType3($result);
+        return $$createType8($result);
     });
 }
 
@@ -87,7 +144,12 @@ export function WriteTextFile(path: string, contents: string): $CancellablePromi
 }
 
 // Private type creation functions
-const $$createType0 = settings$0.Settings.createFrom;
-const $$createType1 = settings$0.NgrokYamlInfo.createFrom;
-const $$createType2 = settings$0.RepoProbe.createFrom;
-const $$createType3 = $Create.Array($$createType2);
+const $$createType0 = buildinfo$0.Info.createFrom;
+const $$createType1 = settings$0.Settings.createFrom;
+const $$createType2 = settings$0.ScepProfile.createFrom;
+const $$createType3 = settings$0.ServerProfile.createFrom;
+const $$createType4 = settings$0.NgrokRunningTunnel.createFrom;
+const $$createType5 = $Create.Array($$createType4);
+const $$createType6 = settings$0.NgrokYamlInfo.createFrom;
+const $$createType7 = settings$0.RepoProbe.createFrom;
+const $$createType8 = $Create.Array($$createType7);

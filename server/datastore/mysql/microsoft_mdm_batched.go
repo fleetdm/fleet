@@ -151,7 +151,8 @@ func (ds *Datastore) listWindowsProfilesForReconcileTransaction(
 		profileUUIDs = append(profileUUIDs, r.ProfileUUID)
 	}
 
-	// Load label assignments, joining labels to get membership type and label creation time (needed by the exclude-any handler).
+	// Load label assignments, joining labels to get membership type and label creation time (needed by the include-all and
+	// exclude-any handlers' unknown-membership rule).
 	// Broken labels (label_id IS NULL after the LEFT JOIN, i.e. the label was deleted) are retained so the handlers can
 	// disqualify/exempt the profile.
 	//

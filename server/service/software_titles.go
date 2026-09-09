@@ -181,7 +181,15 @@ func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get license")
 	}
-	if license.IsPremium() {
+	// A nil teamID resolves to "no team" below, a scope the check above skips.
+	// Omit the installer data rather than failing, so this path doesn't turn the
+	// status code into a signal about titles the caller can't otherwise reach.
+	includeInstallers := license.IsPremium()
+	if includeInstallers && teamID == nil {
+		includeInstallers = svc.authz.Authorize(ctx, &fleet.AuthzSoftwareInventory{TeamID: teamID}, fleet.ActionRead) == nil
+	}
+
+	if includeInstallers {
 		// add software installer data if needed
 		if software.SoftwareInstallersCount > 0 {
 			pkgs, err := svc.ds.GetSoftwarePackagesByTeamAndTitleID(ctx, teamID, id)
@@ -235,7 +243,7 @@ func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 					// Populate FleetMaintainedVersions/pin/patch policy for FMA titles.
 					// An FMA title has a single active package, so this runs on it.
 					if pkg.FleetMaintainedAppID != nil {
-						fmaVersions, err := svc.ds.GetFleetMaintainedVersionsByTitleID(ctx, teamID, id, false)
+						fmaVersions, err := svc.ds.GetFleetMaintainedVersionsByTitleID(ctx, teamID, id)
 						if err != nil {
 							return nil, ctxerr.Wrap(ctx, err, "get fleet maintained versions")
 						}
@@ -253,6 +261,12 @@ func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 							return nil, ctxerr.Wrap(ctx, err, "get patch policy")
 						}
 						pkg.PatchPolicy = patchPolicy
+
+						// While patch_when_closed is on, the pre-install query is Fleet's managed
+						// app open query, shown read-only.
+						if patchPolicy != nil && patchPolicy.PatchWhenClosed {
+							pkg.PreInstallQuery = pkg.AppOpenQuery
+						}
 					}
 				}
 
@@ -323,7 +337,41 @@ func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 		}
 	}
 
+	svc.filterInstallerDetailsForUser(ctx, teamID, software)
+
 	return software, nil
+}
+
+// filterInstallerDetailsForUser clears the installer fields governed by
+// installable_entity read. This response embeds the full installer, so without
+// it a caller holding only software_inventory read would see script bodies and
+// managed app configuration that every other installer route withholds.
+func (svc *Service) filterInstallerDetailsForUser(ctx context.Context, teamID *uint, title *fleet.SoftwareTitle) {
+	if title == nil {
+		return
+	}
+	if err := svc.authz.Authorize(ctx, &fleet.SoftwareInstaller{TeamID: teamID}, fleet.ActionRead); err == nil {
+		return
+	}
+
+	filterInstaller := func(installer *fleet.SoftwareInstaller) {
+		installer.InstallScript = ""
+		installer.UninstallScript = ""
+		installer.PostInstallScript = ""
+		installer.PreInstallQuery = ""
+		installer.Configuration = nil
+	}
+
+	// Packages holds copies while SoftwarePackage is a pointer, so filter both.
+	for i := range title.Packages {
+		filterInstaller(&title.Packages[i])
+	}
+	if title.SoftwarePackage != nil {
+		filterInstaller(title.SoftwarePackage)
+	}
+	if title.AppStoreApp != nil {
+		title.AppStoreApp.Configuration = nil
+	}
 }
 
 func (svc *Service) SoftwareTitleNameForHostFilter(ctx context.Context, id uint, teamID *uint) (name, displayName string, err error) {

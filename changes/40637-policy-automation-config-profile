@@ -1,0 +1,1 @@
+- Added support for resending a configuration profile on policy failure as part of a policy automation.

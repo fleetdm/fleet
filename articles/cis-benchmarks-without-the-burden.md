@@ -68,7 +68,7 @@ The benchmark tells you how devices should be configured. Fleet tells you, at an
 
 <meta name="articleTitle" value="Benchmarks without the burden: continuous CIS compliance">
 <meta name="authorFullName" value="Dhruv Majumdar">
-<meta name="authorGitHubUsername" value="drvcodenta">
+<meta name="authorGitHubUsername" value="karmine05">
 <meta name="category" value="articles">
 <meta name="publishedOn" value="2026-06-11">
 <meta name="description" value="Adopting CIS benchmarks isn't the same as meeting them. Fleet verifies CIS compliance continuously from live device state across macOS and Windows.">

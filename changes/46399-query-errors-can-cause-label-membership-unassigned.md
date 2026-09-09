@@ -1,1 +1,0 @@
-- Fixed label membership being incorrectly cleared when a label's query errors out on a host (e.g. the extension socket is unavailable) instead of returning zero rows; existing membership is now left unchanged when a label query fails.

@@ -51,6 +51,7 @@ export interface ICommandPaletteContext {
    *  technicians, whom the destination page won't let manage report
    *  automations, so this narrower flag gates `manage-report-automations`. */
   canManageReportAutomations?: boolean;
+  canManageHostActivityAutomations?: boolean;
   /** Mirrors Variables.tsx `canEdit` — only global admins and global
    *  maintainers can create custom variables. canWrite includes team
    *  roles and technicians, which the destination page rejects, so

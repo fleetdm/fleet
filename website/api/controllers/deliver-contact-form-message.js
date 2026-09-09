@@ -121,6 +121,7 @@ Fleet Premium subscription details:
           intentSignal: 'Submitted the "Send a message" form',
           eventContent: message,
           relatedCampaign: recordDetails.mostRecentCampaign,
+          eventSource: 'Website - Contact forms',
         }).intercept((err)=>{
           return new Error(`Could not create an historical event. Full error: ${require('util').inspect(err)}`);
         });

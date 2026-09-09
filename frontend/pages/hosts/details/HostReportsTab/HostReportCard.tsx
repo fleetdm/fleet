@@ -12,7 +12,7 @@ import { IconNames } from "components/icons";
 import InfoBanner from "components/InfoBanner";
 import ActionsDropdown from "components/ActionsDropdown";
 import { IDropdownOption } from "interfaces/dropdownOption";
-import PillBadge from "components/PillBadge";
+import Tag from "components/Tag";
 import TooltipTruncatedText from "components/TooltipTruncatedText";
 import { Colors } from "styles/var/colors";
 
@@ -154,10 +154,11 @@ const HostReportCard = ({
             className={`${baseClass}__view-full-report`}
             variant="subdued"
             size="small"
+            icon="chevron-right"
+            iconPosition="right"
             onClick={() => onShowDetails(report)}
           >
             View full report
-            <Icon name="chevron-right" color={ICON_COLOR} />
           </Button>
         </ReportBanner>
       );
@@ -171,7 +172,9 @@ const HostReportCard = ({
       <div className={`${baseClass}__header`}>
         <div className={`${baseClass}__header-left`}>
           <div className={`${baseClass}__title-row`}>
-            <h3 className={`${baseClass}__name`}>{report.name}</h3>
+            <h3 className={`${baseClass}__name`}>
+              <TooltipTruncatedText value={report.name} fixedPositionStrategy />
+            </h3>
             {renderLastUpdated()}
           </div>
           {report.description && (
@@ -180,13 +183,10 @@ const HostReportCard = ({
         </div>
         <div className={`${baseClass}__header-right`}>
           {report.report_clipped && (
-            <PillBadge
-              className={`${baseClass}__clipped-badge`}
-              tipContent="This report has paused saving results. If automations are enabled, results are still sent to your log destination."
-            >
+            <Tag tooltip="This report has paused saving results. If automations are enabled, results are still sent to your log destination.">
               <Icon size="small" name="warning" color={ICON_COLOR} />
               Report clipped
-            </PillBadge>
+            </Tag>
           )}
           <ActionsDropdown
             options={actionOptions}

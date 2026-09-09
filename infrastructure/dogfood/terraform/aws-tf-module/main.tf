@@ -90,6 +90,7 @@ locals {
     FLEET_SERVER_GZIP_RESPONSES     = "true"
     # https://github.com/fleetdm/fleet/issues/38366
     FLEET_MDM_ALLOW_ALL_DECLARATIONS = "true"
+    FLEET_MDM_ALLOW_CUSTOM_ACTIVATIONS = "true"
 
     # Load TLS Certificate for RDS Authentication
     FLEET_MYSQL_TLS_CA                  = local.cert_path
@@ -390,6 +391,40 @@ module "main" {
       enabled = true
     }
     idle_timeout = 905
+
+    # Only serve requests addressed to the canonical hostname. Any other Host
+    # (raw ALB IP, spoofed Host, scanners) is rejected at the edge with a 403 so
+    # that hostname-scoped WAF rules cannot be bypassed by hitting the load
+    # balancer directly.
+    #
+    # This is done with two listener rules rather than by overriding the default
+    # action: the underlying terraform-aws-modules/alb module always emits a
+    # forward default action, so the lower-priority catch-all rule below is what
+    # actually rejects non-canonical traffic (the default action is never hit).
+    https_listener_rules = [
+      {
+        priority = 100
+        conditions = [{
+          host_headers = ["dogfood.fleetdm.com"]
+        }]
+        actions = [{
+          type               = "forward"
+          target_group_index = 0
+        }]
+      },
+      {
+        priority = 200
+        conditions = [{
+          path_patterns = ["/*"]
+        }]
+        actions = [{
+          type         = "fixed-response"
+          content_type = "text/plain"
+          message_body = "Forbidden"
+          status_code  = "403"
+        }]
+      },
+    ]
     #    extra_target_groups = [
     #      {
     #        name             = module.saml_auth_proxy.name

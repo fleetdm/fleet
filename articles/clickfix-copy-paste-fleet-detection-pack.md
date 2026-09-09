@@ -449,7 +449,7 @@ About the author: [Dhruv Majumdar](https://www.linkedin.com/in/neondhruv) is Fle
 
 <meta name="articleTitle" value="ClickFix copy/paste social engineering: threat brief and Fleet detection pack">
 <meta name="authorFullName" value="Dhruv Majumdar">
-<meta name="authorGitHubUsername" value="drvcodenta">
+<meta name="authorGitHubUsername" value="karmine05">
 <meta name="category" value="security">
 <meta name="publishedOn" value="2026-05-26">
 <meta name="description" value="Threat brief and Fleet/osquery detection guide for the ClickFix copy/paste social-engineering technique on Windows and macOS.">

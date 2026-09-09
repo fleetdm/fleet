@@ -166,7 +166,7 @@ const buildSettingsItems = (ctx: ICommandPaletteContext): ICommandItem[] => {
           ? [
               {
                 id: "settings-int-certificate-authorities",
-                label: "Certificate enrollment",
+                label: "Certificate authorities",
                 path: paths.ADMIN_INTEGRATIONS_CERTIFICATE_AUTHORITIES,
                 keywords: [
                   "scep",

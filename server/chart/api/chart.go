@@ -75,17 +75,19 @@ type DatasetStore interface {
 	// platform-specific predicate. Non-mobile (osquery) hosts use the product's
 	// standard online predicate (host_seen_times.seen_time within the host's own
 	// check-in interval). Mobile hosts (iOS, iPadOS, Android), which only check
-	// in via MDM, use their MDM activity signal (nano_enrollments.last_seen_at,
+	// in via MDM, use their MDM activity signal (nano_seen_times.seen_time,
 	// falling back to detail_updated_at) within a fixed mobile online window.
 	// Used by datasets like uptime.
 	FindOnlineHostIDs(ctx context.Context, now time.Time, disabledFleetIDs []uint) ([]uint, error)
 
-	// AffectedHostIDsByCVE returns host IDs grouped by CVE, scoped to the given
-	// cves set. nil or empty cves returns an empty map — callers must pass the
-	// CVE set they want to collect for. Unresolved-only is implicit in the
-	// underlying joins: a host's software/OS row transitions when it upgrades
-	// past the vulnerable version, so the join naturally stops matching.
-	AffectedHostIDsByCVE(ctx context.Context, disabledFleetIDs []uint, cves []string) (map[string][]uint, error)
+	// AffectedHostIDsByCVE returns a bitmap of affected host IDs per CVE,
+	// scoped to the given cves set. nil or empty cves returns an empty map —
+	// callers must pass the CVE set they want to collect for. Unresolved-only
+	// is implicit in the underlying joins: a host's software/OS row transitions
+	// when it upgrades past the vulnerable version, so the join naturally
+	// stops matching. Bitmaps are returned in op form, ready to pass to
+	// RecordBucketData.
+	AffectedHostIDsByCVE(ctx context.Context, disabledFleetIDs []uint, cves []string) (map[string]*roaring.Bitmap, error)
 
 	// CollectibleCVEs returns every CVE ID, at all severities, on the curated
 	// set of tracked software unioned with all operating-system vulnerabilities.
@@ -177,8 +179,9 @@ type RequestOpts struct {
 	// no bound. The frontend converts its 0–100 % input before sending.
 	EPSSMin *float64
 	EPSSMax *float64
-	// Severity (CVSS) bounds are accepted but ignored this round — the service
-	// forces critical-only [9.0, 10.0]. See the severity TODO in the service.
+	// Severity bounds are CVSS v3 base scores, 0.0–10.0; nil means no bound on
+	// that side, which drops the predicate rather than widening it to the full
+	// range.
 	SeverityMin *float64
 	SeverityMax *float64
 	// ExcludeCVEs is a subtractive filter — these CVEs are removed from the

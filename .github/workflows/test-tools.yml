@@ -7,7 +7,8 @@ on:
     paths:
       - 'tools/dibble/**'
       - 'tools/upgrade/**'
-      # dibble and upgrade pin the parent module via `replace github.com/fleetdm/fleet/v4 => ../..`, so a
+      - 'tools/gitops-auto-complete/**'
+      # These tools pin the parent module via `replace github.com/fleetdm/fleet/v4 => ../..`, so a
       # change to the root module's dependency graph can leave their go.mod and go.sum out of sync. Trigger on
       # the root go.mod/go.sum too, so the same change that bumps a root dependency is forced to re-tidy them.
       - 'go.mod'
@@ -17,6 +18,7 @@ on:
     paths:
       - 'tools/dibble/**'
       - 'tools/upgrade/**'
+      - 'tools/gitops-auto-complete/**'
       - 'go.mod'
       - 'go.sum'
       - '.github/workflows/test-tools.yml'
@@ -24,7 +26,7 @@ on:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
-  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.head_ref || github.ref }}
   cancel-in-progress: true
 
 defaults:
@@ -52,6 +54,9 @@ jobs:
           - tool: upgrade
             dir: tools/upgrade
             run_tests: false
+          - tool: gitops-auto-complete
+            dir: tools/gitops-auto-complete
+            run_tests: false
     steps:
       - name: Harden Runner
         uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
@@ -59,7 +64,7 @@ jobs:
           egress-policy: audit
 
       - name: Checkout code
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 

@@ -1,9 +1,9 @@
 - name: All rhel-based (rpm) hosts
   automations_enabled: false
-  description: Collects all rhel-based hosts.
+  description: Collects all RPM-based hosts, including the Red Hat and SUSE families.
   discard_data: false
   interval: 300
   logging: snapshot
   observer_can_run: true
   platform: linux
-  query: SELECT * FROM os_version WHERE platform_like = 'rhel';
+  query: SELECT * FROM os_version WHERE platform = 'rhel' OR platform_like LIKE '%rhel%' OR platform_like LIKE '%fedora%' OR platform_like LIKE '%suse%';

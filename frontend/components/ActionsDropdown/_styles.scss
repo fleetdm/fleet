@@ -10,8 +10,14 @@
   display: flex;
   align-items: center;
 
+  // Anchors the absolutely positioned select container to the trigger button
+  // (see the `container` style in ActionsDropdown.tsx).
+  &--icon-trigger {
+    position: relative;
+  }
+
   button .children-wrapper {
-    gap: $pad-xsmall;
+    gap: $pad-small;
 
     .actions-dropdown__icon svg {
       transition: transform 0.25s ease;
@@ -30,4 +36,10 @@
 // and rely on grey :focus for keyboard accessibility
 .actions-dropdown__option:focus-visible {
   outline: none;
+}
+
+// Drop the stale highlight for as long as a disabled option is hovered.
+.actions-dropdown-select__menu-list:has(.actions-dropdown-select__option--is-disabled:hover)
+  .actions-dropdown-select__option--is-focused {
+  background-color: transparent;
 }

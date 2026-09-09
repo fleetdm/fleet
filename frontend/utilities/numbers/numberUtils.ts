@@ -14,4 +14,7 @@ const isValidNumber = (
   );
 };
 
-export default { isValidNumber };
+const hasAtMostOneDecimal = (n: number) =>
+  Number((n * 10).toFixed(0)) / 10 === n;
+
+export default { isValidNumber, hasAtMostOneDecimal };

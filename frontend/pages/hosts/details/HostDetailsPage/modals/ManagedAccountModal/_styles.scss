@@ -7,9 +7,7 @@
   }
 
   &__label {
-    font-size: $x-small;
-    font-weight: $bold;
-    color: $core-fleet-black;
+    @include form-label;
   }
 
   &__value {

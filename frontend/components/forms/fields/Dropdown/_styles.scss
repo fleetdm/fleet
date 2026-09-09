@@ -142,6 +142,15 @@
     background-color: $core-fleet-white;
   }
 
+  // Theme the selected-value icon at rest. Without this the icon falls back to
+  // its near-black default (SVG fill or #333), which is fine on the light
+  // control but barely visible against the dark-mode control (#47581). The
+  // hover/open rules below shift it to the -over shade for interaction
+  // feedback.
+  .dropdown__custom-value .dropdown__icon svg path {
+    fill: $ui-fleet-black-75;
+  }
+
   &.is-open {
     .dropdown__custom-arrow .dropdown__icon {
       svg {

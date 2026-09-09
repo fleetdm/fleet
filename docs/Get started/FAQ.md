@@ -75,7 +75,7 @@ Fleet supports the following operating system versions on hosts.
 | macOS      | 14+ (Sonoma)                            |
 | iOS/iPadOS | 17+                                     |
 | Windows    | Pro and Enterprise 10 21H2 (E) (LTS)+, Server 2012+    |
-| Linux      | CentOS 7.1+, Ubuntu 20.04+, Fedora 38+, Amazon Linux 2+, Debian 11+, Red Hat Enterprise Linux (RHEL) 7+, openSUSE 15.6+, Arch Linux, Omarchy |
+| Linux      | CentOS 7.1+, Ubuntu 20.04+, Fedora 38+, Amazon Linux 2+, Debian 11+, Red Hat Enterprise Linux (RHEL) 7+, openSUSE 15.6+, Arch Linux, Omarchy, CachyOS, Zorin OS 16+ |
 | ChromeOS   | 112.0.5615.134+                         |
 | Android    | 14+                                     |
 
@@ -342,6 +342,20 @@ The following are reasons why a host may not be updating a policy's response:
 If your device is showing up as an offline host in the Fleet instance, and you're sure that the computer has osquery running, we recommend trying the following:
 
 * Try unenrolling and re-enrolling the host. You can do this by uninstalling osquery on the host and then enrolling your device again using one of the [recommended methods](https://fleetdm.com/docs/using-fleet/adding-hosts).
+
+### Why aren't my hosts being deleted after the host expiry window?
+
+Some hosts are exempt from host expiry, and the window isn't measured against the **Last fetched** column. Check the following:
+
+* Is the host assigned to Fleet in Apple Business or Windows Autopilot? Host expiry skips those hosts, on any platform. This includes hosts that are still **Pending** because they haven't enrolled yet. Fleet keeps them so they can enroll when the device is set up. The exemption lifts once the host is unassigned or released in Apple Business.
+
+* Is the host still checking in? Fleet measures the window from the host's most recent check-in. A check-in is either an osquery check-in from Fleet's agent (fleetd) or an MDM check-in, whichever is more recent. **Last fetched** is a different timestamp. It's the last time the host reported vitals, so a host can show a stale **Last fetched** and still be checking in. That host won't expire. This is common on iOS and iPadOS hosts, which report vitals over MDM.
+
+* Is host expiry turned on? Setting a window isn't enough. Turn on host expiry in **Settings > Organization settings > Advanced options**, or on the fleet. Turning it off on a fleet doesn't exempt that fleet. It tells the fleet to use the organization setting instead.
+
+* Has it run yet? Host expiry runs hourly. Expired hosts appear in the activity feed as host deletions. That's the quickest way to confirm host expiry is running. You can also trigger a run with `fleetctl trigger --name=cleanups_then_aggregation`.
+
+For the settings themselves, see [`host_expiry_settings`](https://fleetdm.com/docs/configuration/yaml-files#host-expiry-settings) in the YAML files reference.
 
 ### How does Fleet deal with IP duplication?
 

@@ -358,7 +358,8 @@ const PolicyDetailsPage = ({
                   name={firstAutomation.graphicName}
                   className={
                     firstAutomation.graphicName === "file-sh" ||
-                    firstAutomation.graphicName === "file-ps1"
+                    firstAutomation.graphicName === "file-ps1" ||
+                    firstAutomation.graphicName === "file-configuration-profile"
                       ? "scale-40-24"
                       : ""
                   }
@@ -430,8 +431,10 @@ const PolicyDetailsPage = ({
                         );
                     }}
                     disabled={!!disabledLiveQuery}
+                    icon="run"
+                    iconPosition="right"
                   >
-                    Run policy <Icon name="run" />
+                    Run policy
                   </Button>
                 )}
                 {canEditPolicy && (

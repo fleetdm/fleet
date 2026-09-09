@@ -1,1 +1,0 @@
-- Added a check for duplicate patch policies when applying GitOps.

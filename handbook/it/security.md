@@ -638,7 +638,7 @@ Google Workspace makes it easy for users to add tools to their workflows while h
 
 This level of security allows users to authenticate to web applications with their Google accounts. This exposes little information beyond what they would provide in a form to create an account, and it protects confidential data while keeping everything managed.
 
->To get an application added to Fleet's Google Workspace security configuration, create an issue and assign it to the security team in [this repository](https://github.com/fleetdm/confidential/issues). You'll need to include: the client ID in text (not a screenshot) in your issue. This is processed quickly (about 1-2 days) by the Head of Security. The Head of Security will do the research on permissions the app is requesting and determine approval for the app.
+>To get an application added to Fleet's Google Workspace security configuration, create an issue with the :help-it label so it lands on the :globe_with_meridians: IT kanban board. You'll need to include the client ID in text (not a screenshot), the name of the app, and what you'll use it for. IT reviews the OAuth scopes the app is requesting, grants the least privilege needed, and approves or denies the request. This is processed quickly (about 1-2 business days).
 
 We mark every Google Service as *restricted* and recommend that anyone using Google Workspace mark at least the following as restricted in *Security/API Control/Google Services*:
 * Google Drive
@@ -1679,11 +1679,68 @@ Fleet policy requires:
 - The risk register is monitored quarterly to assess compliance with the above policy, and document newly discovered or created risks.
 
 
+### Risk scoring rubric
+
+Every risk in the risk register is rated on two scales, and the two ratings are multiplied together (`likelihood × impact`) to produce the risk score. The score determines the risk level, the corrective action timeline, and whether approval is required to accept the risk instead of mitigating it.
+
+Likelihood — how likely the risk is to occur:
+
+| Rating | Likelihood      |
+| ------ | --------------- |
+| 1      | Very unlikely   |
+| 2      | Unlikely        |
+| 3      | Somewhat likely |
+| 4      | Likely          |
+| 5      | Very likely     |
+
+Impact — the consequences to Fleet if the risk occurs:
+
+| Rating | Impact           |
+| ------ | ---------------- |
+| 1      | Very low impact  |
+| 2      | Low impact       |
+| 3      | Medium impact    |
+| 4      | High impact      |
+| 5      | Very high impact |
+
+Risk level by score:
+
+| Score   | Risk level |
+| ------- | ---------- |
+| 1–6     | Low        |
+| 7–19    | Medium     |
+| 20–25   | High       |
+
+Scores for every combination of likelihood and impact:
+
+| Impact ↓ / Likelihood → | 1 Very unlikely | 2 Unlikely   | 3 Somewhat likely | 4 Likely     | 5 Very likely |
+| ----------------------- | --------------- | ------------ | ----------------- | ------------ | ------------- |
+| **5 Very high**         | 5 (Low)         | 10 (Medium)  | 15 (Medium)       | 20 (High)    | 25 (High)     |
+| **4 High**              | 4 (Low)         | 8 (Medium)   | 12 (Medium)       | 16 (Medium)  | 20 (High)     |
+| **3 Medium**            | 3 (Low)         | 6 (Low)      | 9 (Medium)        | 12 (Medium)  | 15 (Medium)   |
+| **2 Low**               | 2 (Low)         | 4 (Low)      | 6 (Low)           | 8 (Medium)   | 10 (Medium)   |
+| **1 Very low**          | 1 (Low)         | 2 (Low)      | 3 (Low)           | 4 (Low)      | 5 (Low)       |
+
+
 ### Acceptable Risk Levels
 
 Risks that are either low impact or low probability are generally considered acceptable.
 
 All other risks must be individually reviewed and managed.
+
+
+### Risk mitigation and approval
+
+Whether a risk requires mitigation, and who must approve accepting it, is determined by its risk level:
+
+| Risk level               | Mitigation                                                        | Approval to accept the risk instead of mitigating it                 |
+| ------------------------ | ----------------------------------------------------------------- | -------------------------------------------------------------------- |
+| Low (1–6), Medium (7–19) | Not required. Mitigate within the corrective action timeline below on a best-effort basis. | None. Acceptance is recorded in the risk register by the risk owner. |
+| High (20–25)             | Required. A documented treatment plan with an owner and due date.  | Fleet's Head of Security and CIO.                                    |
+
+- Accepting a high risk requires a documented business justification, the compensating controls in place, and an expiration date no longer than one year from the date of approval. Accepted risks must be reviewed and re-evaluated on or before the expiration date.
+- Mitigation work that will not complete within the corrective action timeline below must be treated as an accepted risk for the remaining period and approved accordingly.
+- Rescoring a risk to a lower level requires the same approval as accepting it at its original level.
 
 
 ### Risk corrective action timelines

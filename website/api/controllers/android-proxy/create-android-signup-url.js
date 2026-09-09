@@ -63,6 +63,7 @@ module.exports = {
       let { google } = require('googleapis');
       let androidManagementConnection = google.androidmanagement({version: 'v1', auth: androidManagementAuthClient});
       // [?] https://googleapis.dev/nodejs/googleapis/latest/androidmanagement/classes/Resource$Signupurls.html#create
+      sails.androidProxyApiRequestCount++;// Count this Android Management API request toward the per-minute total logged in api/hooks/custom/index.js.
       let createSignupUrlResponse = await androidManagementConnection.signupUrls.create({
         // The callback URL that the admin will be redirected to after successfully creating an enterprise. Before redirecting there the system will add a query parameter to this URL named enterpriseToken which will contain an opaque token to be used for the create enterprise request. The URL will be parsed then reformatted in order to add the enterpriseToken parameter, so there may be some minor formatting changes.
         callbackUrl: callbackUrl,

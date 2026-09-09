@@ -1,4 +1,4 @@
-- name: Windows - Windows Defender compliance check
+- name: Windows Defender compliance check
   query: |
     WITH defender_service AS (
         SELECT

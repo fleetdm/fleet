@@ -1,1 +1,0 @@
-* Added a long-lived immutable `Cache-Control` header to content-hashed static assets under `/assets/` so browsers and CDNs can cache them across loads instead of refetching the JS/CSS bundle from origin every time.

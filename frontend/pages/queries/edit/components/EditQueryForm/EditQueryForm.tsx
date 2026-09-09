@@ -434,11 +434,13 @@ const EditQueryForm = ({
     }
 
     return (
-      <Button variant="subdued" onClick={onOpenSchemaSidebar}>
-        <>
-          Schema
-          <Icon name="info" size="small" />
-        </>
+      <Button
+        variant="subdued"
+        onClick={onOpenSchemaSidebar}
+        icon="info"
+        iconPosition="right"
+      >
+        Schema
       </Button>
     );
   };
@@ -538,7 +540,6 @@ const EditQueryForm = ({
           hideText="Hide SQL"
           showText="Show SQL"
           onClick={() => setShowQueryEditor(!showQueryEditor)}
-          variant="secondary"
         />
       )}
       {showQueryEditor && (
@@ -563,7 +564,7 @@ const EditQueryForm = ({
         <div className={`button-wrap ${baseClass}__button-wrap--new-query`}>
           <TooltipWrapper
             className="live-query-button-tooltip"
-            tipContent="Live reports are disabled in organization settings"
+            tipContent="Live reports are disabled in organization settings."
             disableTooltip={!disabledLiveQuery}
             position="top"
             showArrow
@@ -580,8 +581,10 @@ const EditQueryForm = ({
                 );
               }}
               disabled={disabledLiveQuery}
+              icon="run"
+              iconPosition="right"
             >
-              Live report <Icon name="run" />
+              Live report
             </Button>
           </TooltipWrapper>
         </div>
@@ -692,8 +695,8 @@ const EditQueryForm = ({
                       <TooltipWrapper
                         tipContent={
                           <>
-                            Automations and reporting will be paused <br />
-                            for this report until an interval is set.
+                            Automations and reporting will be paused for this
+                            report until an interval is set.
                           </>
                         }
                         position="right"
@@ -782,7 +785,6 @@ const EditQueryForm = ({
                 showText="Advanced options"
                 caretPosition="after"
                 onClick={toggleAdvancedOptions}
-                variant="secondary"
               />
               {showAdvancedOptions && (
                 <>
@@ -854,7 +856,7 @@ const EditQueryForm = ({
             )}
             <TooltipWrapper
               className="live-query-button-tooltip"
-              tipContent="Live reports are disabled in organization settings"
+              tipContent="Live reports are disabled in organization settings."
               disableTooltip={!disabledLiveQuery}
               position="top"
               showArrow
@@ -884,8 +886,10 @@ const EditQueryForm = ({
                   );
                 }}
                 disabled={disabledLiveQuery}
+                icon="run"
+                iconPosition="right"
               >
-                Live report <Icon name="run" />
+                Live report
               </Button>
             </TooltipWrapper>
           </div>

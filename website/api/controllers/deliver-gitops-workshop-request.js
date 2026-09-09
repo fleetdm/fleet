@@ -74,7 +74,7 @@ module.exports = {
         emailAddress: emailAddress,
         firstName: firstName,
         lastName: lastName,
-        contactSource: 'Website - GitOps',
+        contactSource: 'Website - Workshop request',
         description: descriptionForCrmUpdate,
         marketingAttributionCookie: attributionCookieOrUndefined
       }).intercept((err)=>{
@@ -85,6 +85,8 @@ module.exports = {
       await sails.helpers.salesforce.createCampaignMember.with({
         salesforceContactId: recordDetails.salesforceContactId,
         salesforceCampaignId: '701UG00000bLCLpYAO',// 2026_01-FE-GitOps_Workshop_Interest Campaign
+      }).tolerate((err)=>{
+        sails.log.warn(`When a user (${firstName} ${lastName}, email: ${emailAddress}) submitted the GitOps workshop request form, an error occurred when adding this user to a Salesforce campaign. Full error: ${require('util').inspect(err)}`);
       });
 
       if(!recordDetails.salesforceAccountId) {
@@ -98,12 +100,13 @@ module.exports = {
         intentSignal: 'Submitted the "GitOps workshop request" form',
         eventContent: descriptionForCrmUpdate,
         relatedCampaign: recordDetails.mostRecentCampaign,
+        eventSource: 'Website - Workshop request',
       }).intercept((err)=>{
         return new Error(`Could not create an historical event. Full error: ${require('util').inspect(err)}`);
       });
 
     }).tolerate((err)=>{
-      sails.log.warn(`When a user (${firstName} ${lastName}, email: ${emailAddress}) submitted the gitops workshop request form, an error occured when updating CRM records for this user.\n Submission information: ${descriptionForCrmUpdate.split('Submission information:')[1]}\n Full error: ${require('util').inspect(err)}`);
+      sails.log.warn(`When a user (${firstName} ${lastName}, email: ${emailAddress}) submitted the gitops workshop request form, an error occurred when updating CRM records for this user.\n Submission information: ${descriptionForCrmUpdate.split('Submission information:')[1]}\n Full error: ${require('util').inspect(err)}`);
     });
 
 

@@ -3,10 +3,22 @@ import AppKit
 @main
 struct FleetDesktopMain {
     static func main() {
-        let app = NSApplication.shared
-        let delegate = AppDelegate()
-        app.delegate = delegate
-        app.run()
+        // Dispatched before AppDelegate is installed, so a subcommand never touches the
+        // single-instance guard, the fleet:// handler, the main menu or FleetService.
+        switch CLI.route(Array(CommandLine.arguments.dropFirst())) {
+        case .runGUI:
+            let app = NSApplication.shared
+            let delegate = AppDelegate()
+            app.delegate = delegate
+            app.run()
+
+        case .notify(let options):
+            NotifyCommand.run(options)
+
+        case .usage(let text, let code):
+            CLI.emit(text, toStderr: code != 0)
+            exit(code)
+        }
     }
 }
 
@@ -90,11 +102,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// Whether another instance of this bundle (with a lower PID — the primary) is
     /// already running. Comparing PIDs makes the choice deterministic if two
     /// instances ever launch simultaneously: the lowest PID stays, the rest exit.
+    ///
+    /// Only `.regular` instances count. A `notify` toast runs from this same bundle as
+    /// an `.accessory` process, and without this filter the GUI would mistake it for the
+    /// primary and exit(0) — so clicking the Dock icon while a toast was up did nothing.
     private func isAlreadyRunningElsewhere() -> Bool {
         guard let bundleID = Bundle.main.bundleIdentifier else { return false }
         let mine = NSRunningApplication.current.processIdentifier
         return NSRunningApplication.runningApplications(withBundleIdentifier: bundleID)
-            .contains { $0.processIdentifier < mine }
+            .contains { $0.processIdentifier < mine && $0.activationPolicy == .regular }
     }
 
     /// Hands a fleet:// deep link to the primary instance over a distributed
@@ -121,11 +137,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// Bring the primary instance forward, then exit immediately. A secondary has
     /// created no windows or timers, so exit(0) is clean and skips any further
     /// delegate callbacks.
+    ///
+    /// Filtered to `.regular` for the same reason as `isAlreadyRunningElsewhere()`:
+    /// a headless `notify` process has no window to activate.
     private func activatePrimaryAndTerminate() -> Never {
         if let bundleID = Bundle.main.bundleIdentifier {
             let mine = NSRunningApplication.current.processIdentifier
             NSRunningApplication.runningApplications(withBundleIdentifier: bundleID)
-                .filter { $0.processIdentifier != mine }
+                .filter { $0.processIdentifier != mine && $0.activationPolicy == .regular }
                 .min(by: { $0.processIdentifier < $1.processIdentifier })?
                 .activate(options: [.activateAllWindows])
         }

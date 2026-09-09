@@ -12,7 +12,7 @@ $logFile = "${env:TEMP}/fleet-install-software.log"
 try {
 
 $installProcess = Start-Process msiexec.exe `
-  -ArgumentList "/quiet /norestart /lv ${logFile} ALLUSERS=1 MSIINSTALLPERUSER=`"`" /i `"${env:INSTALLER_PATH}`"" `
+  -ArgumentList "/quiet /norestart /lv `"${logFile}`" ALLUSERS=1 MSIINSTALLPERUSER=`"`" /i `"${env:INSTALLER_PATH}`"" `
   -PassThru -Verb RunAs -Wait
 
 Get-Content $logFile -Tail 500

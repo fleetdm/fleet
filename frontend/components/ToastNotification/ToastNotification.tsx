@@ -52,7 +52,7 @@ const ToastNotification = ({
   return (
     <Toaster
       className={classes}
-      position="bottom-right"
+      position="bottom-center"
       visibleToasts={VISIBLE_TOASTS}
     />
   );

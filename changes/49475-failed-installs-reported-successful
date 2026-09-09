@@ -1,1 +1,0 @@
-- Fixed a bug where a failed software install was reported as successfully installed when the install script exited with an error but a post-install script exited successfully.

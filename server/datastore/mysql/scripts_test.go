@@ -783,6 +783,23 @@ func testGetHostScriptDetails(t *testing.T, ds *Datastore) {
 		require.Equal(t, "script-6.ps1", res[0].Name)
 	})
 
+	t.Run("linux distributions are filtered to shell scripts", func(t *testing.T) {
+		// A platform Fleet does not recognize as Unix-like falls through to the
+		// unfiltered branch and leaks Windows scripts into the host's script list.
+		for _, platform := range []string{"ubuntu", "arch", "omarchy"} {
+			t.Run(platform, func(t *testing.T) {
+				res, _, err := ds.GetHostScriptDetails(ctx, 42, nil, fleet.ListOptions{}, platform)
+				require.NoError(t, err)
+				gotNames := make([]string, 0, len(res))
+				for _, r := range res {
+					gotNames = append(gotNames, r.Name)
+				}
+				require.ElementsMatch(t, names, gotNames)
+				require.NotContains(t, gotNames, "script-6.ps1")
+			})
+		}
+	})
+
 	t.Run("can check if pending host script results exist", func(t *testing.T) {
 		insertResults(t, 42, scripts[2], now.Add(-2*time.Minute), "execution-3-4", nil)
 		r, err := ds.IsExecutionPendingForHost(ctx, 42, scripts[2].ID)

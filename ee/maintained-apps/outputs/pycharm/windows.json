@@ -1,15 +1,16 @@
 {
   "versions": [
     {
-      "version": "2024.3.5",
+      "version": "2024.3.6.1",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'PyCharm %' AND name NOT LIKE 'PyCharm Community Edition%' AND publisher = 'JetBrains s.r.o.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'PyCharm %' AND name NOT LIKE 'PyCharm Community Edition%' AND publisher = 'JetBrains s.r.o.' AND version_compare(version, '243.26053.29') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'PyCharm %' AND name NOT LIKE 'PyCharm Community Edition%' AND publisher = 'JetBrains s.r.o.' AND version_compare(version, '243.26574.109') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) IN ('pycharm.exe','pycharm64.exe'));"
       },
-      "installer_url": "https://download.jetbrains.com/python/pycharm-professional-2024.3.5.exe",
+      "installer_url": "https://download.jetbrains.com/python/pycharm-professional-2024.3.6.1.exe",
       "install_script_ref": "60d9c96b",
       "uninstall_script_ref": "38654711",
-      "sha256": "5f6e7fe6cc1b0519544c6ede96264a96b46579ebd0039519d541c576103d962a",
+      "sha256": "741df96e5548e31e5ab43313ab21750f8e1bbcc741b752bc4d0d58de46005065",
       "default_categories": [
         "Developer tools"
       ]

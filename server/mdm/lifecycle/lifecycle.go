@@ -249,13 +249,18 @@ func (t *HostLifecycle) turnOnApple(ctx context.Context, opts HostOptions) error
 	// create MDM enrolled activity if not in the middle of a SCEP renewal
 	if !info.SCEPRenewalInProgress {
 		mdmEnrolledActivity := &fleet.ActivityTypeMDMEnrolled{
+			HostID:           info.HostID,
 			HostDisplayName:  info.DisplayName,
 			InstalledFromDEP: info.DEPAssignedToFleet,
 			MDMPlatform:      fleet.MDMPlatformApple,
 			Platform:         info.Platform,
 		}
 		if nanoEnroll.Type == userEnrollmentDeviceType {
-			mdmEnrolledActivity.EnrollmentID = ptr.String(opts.UserEnrollmentID)
+			// Account-driven user (BYOD) enrollments have no hardware serial, so
+			// report the enrollment ID as the serial too, keeping host_serial
+			// populated for automations regardless of enrollment type.
+			mdmEnrolledActivity.EnrollmentID = new(opts.UserEnrollmentID)
+			mdmEnrolledActivity.HostSerial = new(opts.UserEnrollmentID)
 		} else {
 			mdmEnrolledActivity.HostSerial = ptr.String(info.HardwareSerial)
 		}
@@ -339,14 +344,25 @@ func (t *HostLifecycle) deleteApple(ctx context.Context, opts HostOptions) error
 	ac, err := t.ds.AppConfig(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "get app config")
-	} else if !ac.MDM.AppleBMEnabledAndConfigured {
-		// if ABM is not enabled and configured, nothing more to do
-		return nil
 	}
 
 	dep, err := t.ds.GetHostDEPAssignment(ctx, opts.Host.ID)
 	if err != nil && !fleet.IsNotFound(err) {
 		return ctxerr.Wrap(ctx, err, "get host dep assignment")
+	}
+
+	if !ac.MDM.AppleBMEnabledAndConfigured {
+		if fleet.IsNotFound(err) || dep == nil || dep.DeletedAt != nil {
+			// Nothing to delete
+			return nil
+		}
+
+		// If ABM is not enabled and configured, mark the host_dep_assignments row as deleted to avoid orphaned rows.
+		if err = t.ds.MarkHostDEPAssignmentDeleted(ctx, opts.Host.ID); err != nil {
+			return ctxerr.Wrap(ctx, err, "mark host dep assignment deleted")
+		}
+
+		return nil
 	}
 
 	if dep != nil && dep.DeletedAt == nil {

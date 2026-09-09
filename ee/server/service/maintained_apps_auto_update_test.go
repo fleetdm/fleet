@@ -14,8 +14,8 @@ import (
 )
 
 func TestAutoUpdateFleetMaintainedApps(t *testing.T) {
-	// Cached versions for the title, semver-sorted newest-first (as the real
-	// datastore returns them with byVersion=true).
+	// Cached versions for the title, most recently downloaded first (as the real
+	// datastore returns them).
 	versions := []fleet.FleetMaintainedVersion{
 		{ID: 12, Version: "149.0.2"},
 		{ID: 11, Version: "147.0.9"},
@@ -95,7 +95,7 @@ func TestAutoUpdateFleetMaintainedApps(t *testing.T) {
 				}
 				return tc.pin, nil
 			}
-			ds.GetFleetMaintainedVersionsByTitleIDFunc = func(ctx context.Context, tmID *uint, titleID uint, byVersion bool) ([]fleet.FleetMaintainedVersion, error) {
+			ds.GetFleetMaintainedVersionsByTitleIDFunc = func(ctx context.Context, tmID *uint, titleID uint) ([]fleet.FleetMaintainedVersion, error) {
 				return tc.cached, nil
 			}
 
@@ -140,7 +140,7 @@ func TestAutoUpdateFleetMaintainedAppsContinuesPastError(t *testing.T) {
 		}
 		return nil, sql.ErrNoRows
 	}
-	ds.GetFleetMaintainedVersionsByTitleIDFunc = func(ctx context.Context, tmID *uint, titleID uint, byVersion bool) ([]fleet.FleetMaintainedVersion, error) {
+	ds.GetFleetMaintainedVersionsByTitleIDFunc = func(ctx context.Context, tmID *uint, titleID uint) ([]fleet.FleetMaintainedVersion, error) {
 		return []fleet.FleetMaintainedVersion{{ID: 21, Version: "2.0.0"}}, nil
 	}
 	var flippedTitle uint

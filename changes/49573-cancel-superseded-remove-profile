@@ -1,0 +1,1 @@
+- Fixed an Apple configuration profile that was removed and then added back before the host came online being stripped from the host and reinstalled, instead of staying in place.

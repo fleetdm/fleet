@@ -1,0 +1,1 @@
+- Fixed an issue where disabled packs could still be applied to hosts in certain targeting configurations.

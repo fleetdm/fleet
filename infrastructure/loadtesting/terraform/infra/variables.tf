@@ -109,3 +109,49 @@ variable "enable_otel" {
   type        = bool
   default     = false
 }
+
+variable "apple_apns_mock_cpu" {
+  description = "Fargate CPU units for each mock APNs task."
+  type        = number
+  default     = 1024
+}
+
+variable "apple_apns_mock_memory" {
+  description = "Fargate memory (MiB) for each mock APNs task. GOMEMLIMIT is derived from this at 90%."
+  type        = number
+  default     = 2048
+}
+
+variable "apple_apns_mock_redis_instance_size" {
+  description = "Node type for the mock APNs Redis."
+  type        = string
+  default     = "cache.t4g.small"
+}
+
+variable "apple_apns_mock_redis_instance_count" {
+  description = "Nodes in the mock APNs Redis. Extra nodes are read replicas, and every operation here is a write to the primary, so they add failover rather than throughput."
+  type        = number
+  default     = 1
+
+  validation {
+    condition     = var.apple_apns_mock_redis_instance_count >= 1
+    error_message = "var.apple_apns_mock_redis_instance_count must be greater than or equal to 1."
+  }
+}
+
+variable "apple_apns_mock_instance_count" {
+  description = "Number of mock APNs instances. They share state through Redis, so Fleet can push to any of them. Plan on 75k-100k SSE connections per instance."
+  type        = number
+  default     = 1
+}
+
+variable "enable_apple_mdm" {
+  description = <<-EOT
+    Spin up the mock Apple APNs push server and point the Fleet server's
+    pushes at it. When false, pushes are disabled outright
+    (FLEET_DEV_MDM_APPLE_DISABLE_PUSH) so that a loadtest never sends traffic
+    to real Apple infrastructure.
+  EOT
+  type        = bool
+  default     = false
+}

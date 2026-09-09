@@ -101,7 +101,6 @@ const SettingUpYourDevice = ({
               hideText="Details"
               caretPosition="after"
               onClick={() => setShowError(!showError)}
-              variant="secondary"
             />
             {showError && (
               <Textarea variant="code">{failedSoftware.error}</Textarea>

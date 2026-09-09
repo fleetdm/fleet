@@ -1,6 +1,13 @@
 .vitals-card {
   @include vertical-card-layout;
 
+  &__header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: $pad-medium;
+  }
+
   .date-tooltip {
     cursor: pointer;
   }
@@ -71,6 +78,13 @@
     }
   }
 
+  // TooltipWrapper pulls its dashed underline into the element's last pixel
+  // with a negative margin, which DataSet's `dd` then clips away. Keep the
+  // border inside the box so the hover affordance survives on every vital.
+  .component__tooltip-wrapper__underline {
+    margin-bottom: 0;
+  }
+
   &__os-version-tooltip {
     min-width: 0;
 
@@ -105,10 +119,35 @@
     }
   }
 
+  &__location {
+    // The value is a link button on host details and a plain string on My
+    // Device. Every box between the grid track and the text defaults to
+    // `min-width: auto`, so without this the text pushes the card wide instead
+    // of letting TooltipTruncatedText ellipsize it.
+    min-width: 0;
+
+    dd,
+    .button--link,
+    .children-wrapper {
+      min-width: 0;
+    }
+
+    // TooltipWrapper sets `cursor: default` on its element, which would
+    // otherwise beat the link button's pointer.
+    .component__tooltip-wrapper__element {
+      cursor: inherit;
+    }
+  }
+
   &__custom-vital-title {
     display: inline-flex;
     align-items: center;
     gap: $pad-xsmall;
+
+    // Cancel the pencil icon's vertical padding to keep the custom vital aligned with the rest of the grid.
+    .button {
+      margin-block: -$pad-xsmall;
+    }
   }
 
   .text-muted {

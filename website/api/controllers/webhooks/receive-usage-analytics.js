@@ -31,6 +31,7 @@ module.exports = {
     organization: { type: 'string', defaultsTo: 'unknown', description: 'For Fleet Premium deployments, the organization registered with the license.', },
     mdmMacOsEnabled: {type: 'boolean', defaultsTo: false},
     mdmWindowsEnabled: {type: 'boolean', defaultsTo: false},
+    mdmAndroidEnabled: {type: 'boolean', defaultsTo: false},
     liveQueryDisabled: {type: 'boolean', defaultsTo: false},
     hostExpiryEnabled: {type: 'boolean', defaultsTo: false},
     numSoftwareVersions: {type: 'number', defaultsTo: 0},
@@ -53,6 +54,9 @@ module.exports = {
     conditionalAccessEnabled: {type: 'boolean', defaultsTo: false},
     gitOpsModeEnabled: {type: 'boolean', defaultsTo: false},
     gitOpsModeExceptions: {type: ['string'], defaultsTo: [] },
+    fleetDesktopSSOEnabled: {type: 'boolean', defaultsTo: false},
+    numHostsFleetMDMEnrolledMacOS: {type: 'number', defaultsTo: 0 },
+    numHostsFleetMDMEnrolledWindows: {type: 'number', defaultsTo: 0 },
   },
 
 

@@ -4,7 +4,8 @@
       "version": "2.4",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'HP Prime Virtual Calculator';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'HP Prime Virtual Calculator' AND version_compare(version, '2.4') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'HP Prime Virtual Calculator' AND version_compare(version, '2.4') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'hp prime virtual calculator.exe');"
       },
       "installer_url": "https://updates.moravia-consulting.com/HP_Prime_Virtual_Calculator_x64_2025_09_15.exe",
       "install_script_ref": "198b4efd",

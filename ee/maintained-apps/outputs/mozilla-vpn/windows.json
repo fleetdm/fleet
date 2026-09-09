@@ -4,7 +4,8 @@
       "version": "2.39.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Mozilla VPN' AND publisher = 'Mozilla Corporation';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Mozilla VPN' AND publisher = 'Mozilla Corporation' AND version_compare(version, '2.39.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Mozilla VPN' AND publisher = 'Mozilla Corporation' AND version_compare(version, '2.39.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'mozilla vpn.exe');"
       },
       "installer_url": "https://archive.mozilla.org/pub/vpn/releases/2.39.0/windows/MozillaVPN.msi",
       "install_script_ref": "c02fc638",

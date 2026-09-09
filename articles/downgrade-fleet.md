@@ -23,6 +23,24 @@ Follow these steps to downgrade your Fleet instance from Fleet Premium.
 2. For each policy that belongs to a fleet, copy the **Name**, **Description**, **Resolve**, and **Query**. Then, select **All fleets** in the top dropdown, select **Add a policy**, select **Create your own policy**, paste each item in the appropriate field, and select **Save**.
 3. Delete each policy that belongs to a fleet because they will no longer run on any hosts following the downgrade process.
 
+## Move all fleet-level scripts to "Unassigned"
+
+Scripts are configured per fleet and won't be accessible after your fleets are deleted. Move them to "Unassigned" so they remain available following the downgrade.
+
+1. Head to the **Controls > Scripts** page in the Fleet UI and select a fleet from the dropdown at the top of the page.
+2. For each script that belongs to a fleet, select the download icon to save a copy.
+3. Select **Unassigned** in the top dropdown, then select **Add script** and upload each script you saved.
+4. **Optional:** Delete each script that belongs to a fleet because they will no longer be accessible in the Fleet UI following the downgrade process.
+
+## Move all fleet-level configuration profiles and assets to "Unassigned"
+
+Configuration profiles and assets are configured per fleet and won't be applied after your fleets are deleted. Move them to "Unassigned" so they continue to apply to your hosts following the downgrade.
+
+1. Head to the **Controls > OS settings > Configuration profiles** page in the Fleet UI. Select either **Profiles** or **Assets** in the menu, and select a fleet from the dropdown at the top of the page.
+2. For each configuration profile or assset that belongs to a fleet, select the download icon to save a copy.
+3. Select **Unassigned** in the top dropdown, then upload each configuration profile and/or asset you saved.
+4. **Optional:** Delete each configuration profile and asset that belongs to a fleet because they will no longer be applied following the downgrade process.
+
 ## Back up your fleets
 
 1. Run the `fleetctl get fleets > fleets.yml` command. Save the `fleets.yml` file so you can restore your fleets if you upgrade again later.

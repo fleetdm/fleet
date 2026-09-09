@@ -49,6 +49,7 @@ func scanApps(homesList []homes.Home) []App {
 			}
 			out = append(out, App{
 				Name:           k.name,
+				DisplayName:    firstNonEmpty(info.BundleName, strings.TrimSuffix(e.Name(), ".app")),
 				BundleID:       info.BundleID,
 				Version:        firstNonEmpty(info.ShortVersion, info.BundleVersion),
 				Path:           appPath,

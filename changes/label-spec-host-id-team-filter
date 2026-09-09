@@ -1,0 +1,1 @@
+- Fixed the label spec endpoints so that the host membership list only includes hosts the requesting user is authorized to see, preventing cross-team host ID disclosure through global manual labels.

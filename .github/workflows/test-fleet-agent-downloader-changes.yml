@@ -32,7 +32,7 @@ jobs:
       with:
         egress-policy: audit
 
-    - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
         persist-credentials: false
 
@@ -55,7 +55,7 @@ jobs:
     - run: rm -f .eslintrc.js
 
     # Get dependencies (including dev deps)
-    - run: cd ee/fleet-agent-downloader/ && npm install
+    - run: cd ee/fleet-agent-downloader/ && npm ci
 
     # Run sanity checks
     - run: cd ee/fleet-agent-downloader/ && npm test
