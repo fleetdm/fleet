@@ -495,9 +495,15 @@ mock: .prefix
 	go generate github.com/fleetdm/fleet/v4/server/mock github.com/fleetdm/fleet/v4/server/mock/mockresult github.com/fleetdm/fleet/v4/server/service/mock github.com/fleetdm/fleet/v4/server/mdm/android/mock
 generate-mock: mock
 
+.help-short--fleet-mcp-generate:
+	@echo "Run go generate for the fleet-mcp module"
+generate-fleet-mcp: .prefix
+	cd cmd/fleet-mcp && go generate ./...
+
+
 .help-short--doc:
 	@echo "Generate updated API documentation for activities, osquery flags"
-doc: .prefix
+doc: .prefix generate-fleet-mcp
 	go generate github.com/fleetdm/fleet/v4/server/fleet
 	go generate github.com/fleetdm/fleet/v4/server/service/osquery_utils
 

@@ -241,11 +241,46 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 			out.UniqueIdentifier, out.Version,
 		)
 	}
+	if input.Token == "webex" {
+		// Webex's auto-updater stages fully formed Webex.app bundles under
+		// "~/Library/Application Support/Cisco Spark/Webexteams_upgrades_*" and can
+		// leave older ones behind (or re-download them between FMA installs). They
+		// share the real app's bundle identifier at a stale version, so exclude
+		// them from patch status rather than relying on the install script's cleanup.
+		// Match from /Library so any home directory location works; ESCAPE keeps the
+		// underscores literal (they are single-character wildcards in LIKE).
+		out.Queries.Patched = fmt.Sprintf(
+			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND path NOT LIKE '%%/Library/Application Support/Cisco Spark/Webexteams\\_upgrades\\_%%' ESCAPE '\\' AND version_compare(bundle_short_version, '%s') < 0);",
+			out.UniqueIdentifier, out.Version,
+		)
+	}
+	if input.Token == "teleport-suite" {
+		// Teleport's client-tools auto-updater caches older tsh.app bundles under
+		// ~/.tsh/bin/<uuid>-update-pkg-v2/*.pkg/Payload/; they report the same bundle
+		// identifier as /Applications/tsh.app at their old version. Only the default
+		// tools dir is excluded; TELEPORT_HOME/TELEPORT_TOOLS_DIR overrides are not.
+		out.Queries.Patched = fmt.Sprintf(
+			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND path NOT LIKE '%%/.tsh/bin/%%' AND version_compare(bundle_short_version, '%s') < 0);",
+			out.UniqueIdentifier, out.Version,
+		)
+	}
 	if input.Token == "sonos" {
 		// Sonos versions its cask by build number (matching CFBundleVersion, e.g.
 		// "90.0.77070" after SonosVersionTransformer), while bundle_short_version is
 		// the unrelated marketing version (e.g. "17.2.3"). Compare bundle_version so
 		// patch status reflects the actual installed build.
+		out.Queries.Patched = fmt.Sprintf(
+			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND version_compare(bundle_version, '%s') < 0);",
+			out.UniqueIdentifier, out.Version,
+		)
+	}
+	if input.Token == "i1profiler" {
+		// X-Rite versions the cask by CFBundleVersion (e.g. "3.8.7.19247"), while
+		// i1Profiler.app's CFBundleShortVersionString is only the marketing version
+		// ("3.8.7"), so version_compare(bundle_short_version, <cask version>) < 0 is
+		// always true and the default patch policy can never pass. Compare
+		// bundle_version so patch status tracks the installed build; software
+		// inventory still reports the short version.
 		out.Queries.Patched = fmt.Sprintf(
 			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND version_compare(bundle_version, '%s') < 0);",
 			out.UniqueIdentifier, out.Version,

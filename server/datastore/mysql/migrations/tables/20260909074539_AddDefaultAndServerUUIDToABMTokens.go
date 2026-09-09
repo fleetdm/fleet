@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260908113251, Down_20260908113251)
+	MigrationClient.AddMigration(Up_20260909074539, Down_20260909074539)
 }
 
-func Up_20260908113251(tx *sql.Tx) error {
+func Up_20260909074539(tx *sql.Tx) error {
 	if _, err := tx.Exec(`ALTER TABLE abm_tokens
 		ADD COLUMN server_uuid VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
 		ADD COLUMN is_default TINYINT(1) NOT NULL DEFAULT 0;`); err != nil {
@@ -29,6 +29,6 @@ func Up_20260908113251(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20260908113251(tx *sql.Tx) error {
+func Down_20260909074539(tx *sql.Tx) error {
 	return nil
 }

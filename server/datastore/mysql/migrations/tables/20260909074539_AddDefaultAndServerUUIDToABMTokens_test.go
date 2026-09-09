@@ -14,7 +14,7 @@ func insertABMToken(t *testing.T, db *sqlx.DB, orgName string) int64 {
 	)
 }
 
-func TestUp_20260908113251(t *testing.T) {
+func TestUp_20260909074539(t *testing.T) {
 	t.Run("no tokens does not error", func(t *testing.T) {
 		db := applyUpToPrev(t)
 		applyNext(t, db)
