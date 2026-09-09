@@ -4,7 +4,7 @@
 
 ## Key takeaways
 
-- **Authenticated encryption stops meaning anything if the "authenticated" part is skippable.** AES-GCM's authentication tag exists to prove a ciphertext wasn't tampered with in transit; gpgsm's flawed validation let attackers supply a tag far shorter than the algorithm requires and still pass verification.
+--**Authenticated encryption stops proving anything if the "authenticated" part is skippable.** AES-GCM's authentication tag exists to prove a ciphertext wasn't tampered with in transit; gpgsm's flawed validation let a tag far shorter than AES-GCM requires pass anyway, letting crafted ciphertext through the exact check meant to catch it.
 - **This is an S/MIME bug, not a PGP one.** CVE-2026-57062 lives in gpgsm, GnuPG's CMS and S/MIME component, so it's about handling CMS-wrapped and S/MIME-encrypted content specifically, not classic OpenPGP-format encryption.
 - **The fix is release-specific, so "patched" isn't one number.** Ubuntu shipped gpgsm 2.4.8-4ubuntu3.1 for 26.04 LTS and 2.4.4-2ubuntu17.6 for 24.04 LTS, two different target versions depending on which release a host runs.
 - **You can confirm the exact gpgsm build on every host without asking around.** Fleet's software inventory reports the installed gpgsm version the same way it reports any other package, so confirming the patch landed is a query, not an assumption.
@@ -37,7 +37,7 @@ That tells you what's installed. Deciding whether that's a problem means compari
 
 ## Turning the check into an ongoing policy
 
-A one-time query answers "are we patched today." A saved Fleet policy answers it every day going forward, checking new and existing hosts against the correct fixed version for their release without anyone re-running the query when the next GnuPG advisory lands. Because Fleet policies live in Git as YAML and deploy through the same GitOps workflow as the rest of your configuration, updating the target version is a reviewable pull request, not a console edit somebody has to remember to make.
+A live report answers "are we patched right now." A saved Fleet policy answers it every hour going forward, checking every host, new or existing, against the fixed version for its OS release. And because Fleet policies can live in Git as YAML and deploy through the same GitOps workflow as the rest of your configuration, updating the target version is a reviewable pull request.
 
 ## The patch protects what comes next, not what already happened
 
