@@ -55,6 +55,8 @@ Setting `command_line_flags` to an empty value (`{}` or `null`) is not the same 
 - If `command_line_flags` isn't present in your agent options, Fleet leaves each host's osquery flags as they are. Flags that shipped with the fleetd installer, or were set locally on the host, are preserved.
 - If `command_line_flags` is set to `{}` or `null`, Fleet clears all local osquery flags on your hosts. On each host, fleetd empties the `osquery.flags` file and restarts osquery without those flags.
 
+The `host_identifier` and `database_path` flags can't be set in `command_line_flags` because fleetd manages them. The `extensions_autoload` flag can be set, but not together with the [`extensions`](#extensions) key, because fleetd uses that flag to load the extensions it manages.
+
 To see a description for all available settings, first [enroll your host](https://fleetdm.com/guides/enroll-hosts) to Fleet. Then, open your **Terminal** app and run `sudo orbit shell` to open an interactive osquery shell. Then run the following osquery query:
 
 ```
