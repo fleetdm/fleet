@@ -2,7 +2,9 @@ import React from "react";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 
 import { createMockHostMdmProfile } from "__mocks__/hostMock";
+import { renderWithSetup } from "test/test-utils";
 
+import { FLEET_ANDROID_CERTIFICATE_TEMPLATE_PROFILE_ID } from "interfaces/mdm";
 import {
   HOST_NAME_SYNTHETIC_PROFILE_UUID,
   REC_LOCK_SYNTHETIC_PROFILE_UUID,
@@ -110,6 +112,111 @@ describe("OSSettingsResendCell", () => {
 
     expect(
       screen.queryByRole("button", { name: "Rotate" })
+    ).not.toBeInTheDocument();
+  });
+
+  describe("Android certificate row", () => {
+    it.each(["delivering", "delivered"] as const)(
+      "renders a resend button when the certificate is stuck in %s (Enforcing)",
+      (status) => {
+        render(
+          <OSSettingsResendCell
+            canResendProfiles
+            profile={createMockHostMdmProfile({
+              platform: "android",
+              profile_uuid: FLEET_ANDROID_CERTIFICATE_TEMPLATE_PROFILE_ID,
+              certificate_template_id: 1,
+              operation_type: "install",
+              status,
+            })}
+            resendRequest={noop}
+          />
+        );
+
+        expect(
+          screen.getByRole("button", { name: "Resend" })
+        ).toBeInTheDocument();
+      }
+    );
+
+    it("does not render a resend button when the certificate is still pending", () => {
+      render(
+        <OSSettingsResendCell
+          canResendProfiles
+          profile={createMockHostMdmProfile({
+            platform: "android",
+            profile_uuid: FLEET_ANDROID_CERTIFICATE_TEMPLATE_PROFILE_ID,
+            certificate_template_id: 1,
+            operation_type: "install",
+            status: "pending",
+          })}
+          resendRequest={noop}
+        />
+      );
+
+      expect(
+        screen.queryByRole("button", { name: "Resend" })
+      ).not.toBeInTheDocument();
+    });
+
+    it("does not treat a non-certificate Android profile stuck in delivering as resendable", () => {
+      render(
+        <OSSettingsResendCell
+          canResendProfiles
+          profile={createMockHostMdmProfile({
+            platform: "android",
+            profile_uuid: "some-other-profile-uuid",
+            operation_type: "install",
+            status: "delivering",
+          })}
+          resendRequest={noop}
+        />
+      );
+
+      expect(
+        screen.queryByRole("button", { name: "Resend" })
+      ).not.toBeInTheDocument();
+    });
+  });
+
+  it("shows a disabled resend button with a tooltip for an Android configuration profile", async () => {
+    const { user } = renderWithSetup(
+      <OSSettingsResendCell
+        canResendProfiles={false}
+        showDisabledResendForAndroidProfile
+        profile={createMockHostMdmProfile({
+          platform: "android",
+          status: "failed",
+        })}
+        resendRequest={noop}
+      />
+    );
+
+    const resendButton = screen.getByRole("button", { name: "Resend" });
+    expect(resendButton).toBeDisabled();
+
+    await user.hover(resendButton);
+
+    expect(
+      await screen.findByText(/Fleet can't resend this configuration profile/i)
+    ).toBeInTheDocument();
+  });
+
+  it("does not show a disabled resend button when showDisabledResendForAndroidProfile is false", () => {
+    render(
+      <OSSettingsResendCell
+        canResendProfiles={false}
+        showDisabledResendForAndroidProfile={false}
+        profile={createMockHostMdmProfile({
+          platform: "android",
+          status: "failed",
+        })}
+        resendRequest={noop}
+      />
+    );
+
+    expect(
+      screen.queryByRole("button", { name: "Resend" })
     ).not.toBeInTheDocument();
   });
 
