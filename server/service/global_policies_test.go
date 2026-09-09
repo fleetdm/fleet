@@ -821,7 +821,7 @@ func TestResetPolicyEmitsActivity(t *testing.T) {
 		ds, svc, ctx, opts := newSvc(nil)
 		ds.HostLiteFunc = func(_ context.Context, id uint) (*fleet.Host, error) {
 			require.Equal(t, hostID, id)
-			return &fleet.Host{ID: id, Hostname: "host-42.local"}, nil
+			return &fleet.Host{ID: id}, nil
 		}
 		ds.ClearHostPolicyMembershipForPoliciesFunc = func(_ context.Context, gotHostID uint, policyIDs []uint) error {
 			require.Equal(t, hostID, gotHostID)
@@ -848,8 +848,6 @@ func TestResetPolicyEmitsActivity(t *testing.T) {
 		require.True(t, ok)
 		require.NotNil(t, act.HostID)
 		require.Equal(t, hostID, *act.HostID)
-		require.NotNil(t, act.HostDisplayName)
-		require.Equal(t, "host-42.local", *act.HostDisplayName)
 	})
 
 	t.Run("host-scoped reset with unknown host is not found", func(t *testing.T) {

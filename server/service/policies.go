@@ -74,7 +74,6 @@ func (svc Service) ResetPolicy(ctx context.Context, policyID uint, hostID *uint)
 	}
 
 	var activityHostID *uint
-	var activityHostName *string
 	if hostID != nil {
 		host, err := svc.ds.HostLite(ctx, *hostID)
 		if err != nil {
@@ -88,7 +87,6 @@ func (svc Service) ResetPolicy(ctx context.Context, policyID uint, hostID *uint)
 			return ctxerr.Wrap(ctx, err, "reset host policy automation attempts")
 		}
 		activityHostID = &host.ID
-		activityHostName = new(host.DisplayName())
 	} else if err := svc.ds.ResetPolicy(ctx, policyID); err != nil {
 		return ctxerr.Wrap(ctx, err, "reset policy")
 	}
@@ -115,12 +113,11 @@ func (svc Service) ResetPolicy(ctx context.Context, policyID uint, hostID *uint)
 	}
 
 	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeResetPolicy{
-		ID:              policy.ID,
-		Name:            policy.Name,
-		TeamID:          activityTeamID,
-		TeamName:        teamName,
-		HostID:          activityHostID,
-		HostDisplayName: activityHostName,
+		ID:       policy.ID,
+		Name:     policy.Name,
+		TeamID:   activityTeamID,
+		TeamName: teamName,
+		HostID:   activityHostID,
 	}); err != nil {
 		return ctxerr.Wrap(ctx, err, "create activity for policy reset")
 	}

@@ -179,9 +179,8 @@ type ActivityTypeResetPolicy struct {
 	Name     string  `json:"policy_name"`
 	TeamID   *int64  `json:"team_id,omitempty" renameto:"fleet_id"`
 	TeamName *string `json:"team_name,omitempty" renameto:"fleet_name"`
-	// HostID and HostDisplayName are set only when the reset was scoped to a single host.
-	HostID          *uint   `json:"host_id,omitempty"`
-	HostDisplayName *string `json:"host_display_name,omitempty"`
+	// HostID is set only when the reset was scoped to a single host.
+	HostID *uint `json:"host_id,omitempty"`
 }
 
 func (a ActivityTypeResetPolicy) ActivityName() string {

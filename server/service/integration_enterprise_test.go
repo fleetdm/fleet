@@ -35751,8 +35751,8 @@ func (s *integrationEnterpriseTestSuite) TestResetPolicy() {
 	require.Equal(t, uint(0), getHostScopedResp.Policy.PassingHostCount)
 
 	s.lastActivityMatches("reset_policy", fmt.Sprintf(
-		`{"policy_id":%d,"policy_name":"reset-test-host-scoped","team_id":-1,"fleet_id":-1,"host_id":%d,"host_display_name":%q}`,
-		hostScopedPolicy.ID, globalHost.ID, globalHost.DisplayName(),
+		`{"policy_id":%d,"policy_name":"reset-test-host-scoped","team_id":-1,"fleet_id":-1,"host_id":%d}`,
+		hostScopedPolicy.ID, globalHost.ID,
 	), 0)
 
 	// 404 for a nonexistent host.
