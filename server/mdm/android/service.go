@@ -69,6 +69,10 @@ type Service interface {
 
 	// CreateAndroidWebApp creates a new web app for the given enterprise.
 	CreateAndroidWebApp(ctx context.Context, enterpriseName string, app *androidmanagement.WebApp) (*androidmanagement.WebApp, error)
+
+	// GetZeroTouchConfiguration returns the DPC extras JSON for zero-touch enrollment.
+	// Creates a long-lived reusable enrollment token on first call; returns the existing one on subsequent calls.
+	GetZeroTouchConfiguration(ctx context.Context) (*ZeroTouchConfigurationResponse, error)
 }
 
 // /////////////////////////////////////////////
@@ -104,5 +108,11 @@ type EnterpriseSignupResponse struct {
 
 type EnrollmentTokenResponse struct {
 	*EnrollmentToken
+	DefaultResponse
+}
+
+type ZeroTouchConfigurationResponse struct {
+	DPCExtras string `json:"dpc_extras"`
+	ExpiresAt string `json:"expires_at"`
 	DefaultResponse
 }

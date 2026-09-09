@@ -1,0 +1,53 @@
+package tables
+
+import (
+	"testing"
+	"time"
+
+	"github.com/stretchr/testify/require"
+)
+
+func TestUp_20260908192830(t *testing.T) {
+	db := applyUpToPrev(t)
+	applyNext(t, db)
+
+	expiresAt := time.Now().Add(100 * 365 * 24 * time.Hour)
+
+	// Insert a token with no team (unassigned)
+	_, err := db.Exec(`
+		INSERT INTO android_zero_touch_tokens (team_id, token_name, token_value, enroll_secret, expires_at)
+		VALUES (NULL, 'enterprises/LC00test/enrollmentTokens/abc123', 'tokenvalue123', 'secret1', ?)`,
+		expiresAt,
+	)
+	require.NoError(t, err)
+
+	// Insert a token for a specific team
+	_, err = db.Exec(`
+		INSERT INTO android_zero_touch_tokens (team_id, token_name, token_value, enroll_secret, expires_at)
+		VALUES (1, 'enterprises/LC00test/enrollmentTokens/ghi789', 'tokenvalue789', 'secret3', ?)`,
+		expiresAt,
+	)
+	require.NoError(t, err)
+
+	// Verify the unique key prevents a second token for the same team
+	_, err = db.Exec(`
+		INSERT INTO android_zero_touch_tokens (team_id, token_name, token_value, enroll_secret, expires_at)
+		VALUES (1, 'enterprises/LC00test/enrollmentTokens/dup', 'tokenvaluedup', 'secret4', ?)`,
+		expiresAt,
+	)
+	require.Error(t, err, "unique key should prevent duplicate team_id")
+
+	// Read back and verify values
+	var (
+		tokenName  string
+		tokenValue string
+		secret     string
+	)
+	err = db.QueryRow(`
+		SELECT token_name, token_value, enroll_secret
+		FROM android_zero_touch_tokens WHERE team_id IS NULL`).Scan(&tokenName, &tokenValue, &secret)
+	require.NoError(t, err)
+	require.Equal(t, "enterprises/LC00test/enrollmentTokens/abc123", tokenName)
+	require.Equal(t, "tokenvalue123", tokenValue)
+	require.Equal(t, "secret1", secret)
+}

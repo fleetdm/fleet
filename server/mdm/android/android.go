@@ -43,6 +43,17 @@ type EnrollmentToken struct {
 	EnrollmentQRCode string `json:"android_enrollment_qr_code"`
 }
 
+type ZeroTouchToken struct {
+	ID           uint      `db:"id" json:"id"`
+	TeamID       *uint     `db:"team_id" json:"team_id"`
+	TokenName    string    `db:"token_name" json:"token_name"`
+	TokenValue   string    `db:"token_value" json:"token_value"`
+	EnrollSecret string    `db:"enroll_secret" json:"enroll_secret"`
+	ExpiresAt    time.Time `db:"expires_at" json:"expires_at"`
+	CreatedAt    time.Time `db:"created_at" json:"created_at"`
+	UpdatedAt    time.Time `db:"updated_at" json:"updated_at"`
+}
+
 type Device struct {
 	ID                   uint       `db:"id"`
 	HostID               uint       `db:"host_id"`

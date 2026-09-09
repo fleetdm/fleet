@@ -12,6 +12,7 @@ func MySQLTables() []string {
 	return []string{
 		"android_enterprises",
 		"android_devices",
+		"android_zero_touch_tokens",
 	}
 }
 
@@ -26,4 +27,12 @@ type Datastore interface {
 
 	CreateDeviceTx(ctx context.Context, tx sqlx.ExtContext, device *Device) (*Device, error)
 	UpdateDeviceTx(ctx context.Context, tx sqlx.ExtContext, device *Device) error
+
+	// GetZeroTouchEnrollmentToken returns the zero-touch enrollment token for the given team.
+	// Pass nil for the "Unassigned" (no team) token. Returns a not-found error if none exists.
+	GetZeroTouchEnrollmentToken(ctx context.Context, teamID *uint) (*ZeroTouchToken, error)
+	// CreateZeroTouchEnrollmentToken inserts a new zero-touch enrollment token.
+	CreateZeroTouchEnrollmentToken(ctx context.Context, token *ZeroTouchToken) (*ZeroTouchToken, error)
+	// DeleteZeroTouchEnrollmentTokens deletes all zero-touch enrollment tokens.
+	DeleteZeroTouchEnrollmentTokens(ctx context.Context) error
 }
