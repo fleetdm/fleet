@@ -117,6 +117,42 @@ func TestSCEPSubjectNameQuoting(t *testing.T) {
 			wantData:      `user+idp@example.com`,
 		},
 		{
+			// The ";" ending a character reference is part of the reference, not an attribute
+			// boundary. Splitting there would cut the value short and leave " Co" as an attribute.
+			name:          "character reference in the value is not a separator",
+			data:          `CN=$FLEET_VAR_HOST_UUID &amp; Co,O=Fleet QA`,
+			resolvedValue: "host-uuid-1234",
+			wantData:      `CN="host-uuid-1234 &amp; Co",O=Fleet QA`,
+		},
+		{
+			// Windows sees the decoded document, so a reference spelling a separator is one.
+			name:          "character reference spelling a separator splits the attributes",
+			data:          `CN=$FLEET_VAR_HOST_UUID&#44;O=Fleet QA`,
+			resolvedValue: "host-uuid-1234",
+			wantData:      `CN="host-uuid-1234"&#44;O=Fleet QA`,
+		},
+		{
+			name:          "hexadecimal character reference separator is recognized too",
+			data:          `CN=$FLEET_VAR_HOST_UUID&#x2C;O=Fleet QA`,
+			resolvedValue: "host-uuid-1234",
+			wantData:      `CN="host-uuid-1234"&#x2C;O=Fleet QA`,
+		},
+		{
+			// The quote still has to be doubled when the boundary was written as a reference.
+			name:          "crafted value is contained across a character reference separator",
+			data:          `CN=$FLEET_VAR_HOST_UUID&#44;O=Fleet QA`,
+			resolvedValue: `Evil", CN=admin`,
+			wantData:      `CN="Evil&#34;&#34;, CN=admin"&#44;O=Fleet QA`,
+		},
+		{
+			// The admin doubled these themselves, so they already say what they mean to Windows.
+			// Only a substituted quote, which arrives as "&#34;", is Fleet's to double.
+			name:          "quote entities the admin wrote are left as written",
+			data:          `CN="Jane &quot;&quot;JD&quot;&quot; Doe",OU=$FLEET_VAR_HOST_UUID`,
+			resolvedValue: "host-uuid-1234",
+			wantData:      `CN="Jane &quot;&quot;JD&quot;&quot; Doe",OU="host-uuid-1234"`,
+		},
+		{
 			name:          "cdata wrapped subject name is quoted inside the section",
 			data:          `<![CDATA[CN=$FLEET_VAR_HOST_UUID,O=Fleet QA]]>`,
 			resolvedValue: "user+idp@example.com",
@@ -255,22 +291,32 @@ func TestSCEPSubjectNameQuotingTargeting(t *testing.T) {
 
 func TestIndexDNSeparator(t *testing.T) {
 	tests := []struct {
-		name string
-		dn   string
-		want int
+		name      string
+		dn        string
+		want      int
+		wantWidth int
 	}{
 		{name: "no separator", dn: `CN=a`, want: -1},
-		{name: "comma", dn: `CN=a,O=b`, want: 4},
-		{name: "plus", dn: `CN=a+OU=b`, want: 4},
-		{name: "semicolon", dn: `CN=a;O=b`, want: 4},
-		{name: "separators inside quotes are skipped", dn: `CN="Doe, Jane+X;Y",O=b`, want: 18},
+		{name: "comma", dn: `CN=a,O=b`, want: 4, wantWidth: 1},
+		{name: "plus", dn: `CN=a+OU=b`, want: 4, wantWidth: 1},
+		{name: "semicolon", dn: `CN=a;O=b`, want: 4, wantWidth: 1},
+		{name: "separators inside quotes are skipped", dn: `CN="Doe, Jane+X;Y",O=b`, want: 18, wantWidth: 1},
 		{name: "unterminated quote hides the rest", dn: `CN="Doe, Jane,O=b`, want: -1},
-		{name: "first of several", dn: `CN=a,OU=b;O=c`, want: 4},
+		{name: "first of several", dn: `CN=a,OU=b;O=c`, want: 4, wantWidth: 1},
+		{name: "reference terminator is not a separator", dn: `CN=a &amp; b,O=c`, want: 12, wantWidth: 1},
+		{name: "decimal reference separator", dn: `CN=a&#44;O=b`, want: 4, wantWidth: 5},
+		{name: "hexadecimal reference separator", dn: `CN=a&#x2C;O=b`, want: 4, wantWidth: 6},
+		{name: "uppercase hexadecimal reference separator", dn: `CN=a&#X3B;O=b`, want: 4, wantWidth: 6},
+		{name: "reference separator inside quotes is skipped", dn: `CN="a&#44;b",O=c`, want: 12, wantWidth: 1},
+		{name: "quote reference does not bound a value", dn: `CN=&#34;a,O=b`, want: 9, wantWidth: 1},
+		{name: "ampersand that opens no reference is text", dn: `CN=a & b; O=c`, want: 8, wantWidth: 1},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			require.Equal(t, tt.want, indexDNSeparator(tt.dn))
+			offset, width := indexDNSeparator(tt.dn)
+			require.Equal(t, tt.want, offset)
+			require.Equal(t, tt.wantWidth, width)
 		})
 	}
 }

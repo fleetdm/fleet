@@ -5,7 +5,9 @@ import (
 	"errors"
 	"io"
 	"slices"
+	"strconv"
 	"strings"
+	"unicode"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/variables"
@@ -22,6 +24,11 @@ import (
 // is quoted then, whatever it turns out to hold. Quoting a value that needed no quoting parses
 // identically, and deciding per value would mean recovering boundaries that substitution has
 // already destroyed. A second pass afterwards doubles any quote that arrived inside those quotes.
+//
+// Windows reads the decoded profile, so both passes read a character reference the way Windows will,
+// with one exception that separates Fleet's writing from the admin's: a raw quote bounds a value,
+// and an escaped one is content. Fleet only ever substitutes an escaped quote, so the second pass
+// can double what it substituted and leave what the admin wrote alone.
 
 const (
 	cdataOpen  = "<![CDATA["
@@ -35,14 +42,15 @@ func mapDNAttributes(dn string, transform func(attribute string) string) string 
 	var b strings.Builder
 	b.Grow(len(dn))
 	for rest := dn; ; {
-		i := indexDNSeparator(rest)
+		i, width := indexDNSeparator(rest)
 		if i < 0 {
 			b.WriteString(transform(rest))
 			return b.String()
 		}
 		b.WriteString(transform(rest[:i]))
-		b.WriteByte(rest[i])
-		rest = rest[i+1:]
+		// Written back as the admin spelled it, character reference and all.
+		b.WriteString(rest[i : i+width])
+		rest = rest[i+width:]
 	}
 }
 
@@ -68,28 +76,97 @@ func doubleAttributeQuotes(attribute string) string {
 	if !found || !isQuoted(trimmed) {
 		return attribute
 	}
-	return key + `="` + quoteDoubler.Replace(trimmed[1:len(trimmed)-1]) + `"`
+	return key + `="` + doubleSubstitutedQuotes(trimmed[1:len(trimmed)-1]) + `"`
 }
 
 func isQuoted(s string) bool {
 	return len(s) >= 2 && s[0] == '"' && s[len(s)-1] == '"'
 }
 
-// indexDNSeparator returns the offset of the first ",", "+" or ";" that falls outside a quoted
-// value, or -1. An unterminated quote hides everything after it.
-func indexDNSeparator(dn string) int {
+// indexDNSeparator returns the offset and byte length of the first ",", "+" or ";" that falls
+// outside a quoted value, or -1. An unterminated quote hides everything after it.
+//
+// Windows decodes the profile before parsing the DN, so a separator can be spelled as a character
+// reference and a reference's own ";" is not one. Both passes read references the same way, so the
+// attributes they see stay the same across the substitution between them.
+func indexDNSeparator(dn string) (offset, width int) {
 	inQuotes := false
-	for i := 0; i < len(dn); i++ {
-		switch dn[i] {
-		case '"':
-			inQuotes = !inQuotes
-		case ',', '+', ';':
-			if !inQuotes {
-				return i
+	for i := 0; i < len(dn); {
+		if n := xmlRefLen(dn[i:]); n > 0 {
+			if !inQuotes && isDNSeparator(xmlRefASCII(dn[i:i+n])) {
+				return i, n
 			}
+			// A reference for a quote stays content: only a raw quote bounds a value, which is
+			// what lets the pass below tell a substituted quote from the quoting around it.
+			i += n
+			continue
+		}
+		switch {
+		case dn[i] == '"':
+			inQuotes = !inQuotes
+		case !inQuotes && isDNSeparator(dn[i]):
+			return i, 1
+		}
+		i++
+	}
+	return -1, 0
+}
+
+func isDNSeparator(c byte) bool {
+	return c == ',' || c == '+' || c == ';'
+}
+
+// xmlRefLen returns the length of the XML character reference at the start of s, or 0 if there
+// isn't one. A "&" that opens no reference is ordinary text, so the ";" of "A &amp; B; C" ends a
+// reference while the one in "A & B; C" separates attributes.
+func xmlRefLen(s string) int {
+	if len(s) == 0 || s[0] != '&' {
+		return 0
+	}
+	end := strings.IndexByte(s, ';')
+	if end < 2 {
+		return 0
+	}
+	for i := 1; i < end; i++ {
+		if !isXMLRefByte(s[i]) {
+			return 0
 		}
 	}
-	return -1
+	return end + 1
+}
+
+func isXMLRefByte(c byte) bool {
+	return c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' ||
+		c == '#' || c == '.' || c == '-' || c == '_' || c == ':'
+}
+
+// xmlRefASCII returns the ASCII character a reference stands for, or 0. Every separator is ASCII,
+// and so is a quote, so anything wider is content whatever it decodes to. The named forms give 0
+// as well: XML predefines only "&amp;", "&lt;", "&gt;", "&apos;" and "&quot;", none of which is DN
+// syntax, and any other name would have failed the parse that got us here.
+func xmlRefASCII(ref string) byte {
+	digits, ok := strings.CutPrefix(ref[:len(ref)-1], "&#")
+	if !ok {
+		return 0
+	}
+	base := 10
+	if hex, isHex := cutAnyPrefix(digits, "x", "X"); isHex {
+		digits, base = hex, 16
+	}
+	code, err := strconv.ParseUint(digits, base, 32)
+	if err != nil || code > unicode.MaxASCII {
+		return 0
+	}
+	return byte(code)
+}
+
+func cutAnyPrefix(s string, prefixes ...string) (after string, found bool) {
+	for _, prefix := range prefixes {
+		if after, found = strings.CutPrefix(s, prefix); found {
+			return after, true
+		}
+	}
+	return s, false
 }
 
 // carriesSubstitution reports whether Fleet will replace something in this value. Host vitals count:
@@ -98,12 +175,18 @@ func carriesSubstitution(value string) bool {
 	return variables.Find(value) != nil || fleet.FindCustomHostVitalIDs(value) != nil
 }
 
-// quoteDoubler doubles a quote inside a quoted value. Only the entity spellings are covered: a raw
-// quote cannot appear inside a value, since that is what bounds it.
-var quoteDoubler = strings.NewReplacer(
-	"&#34;", "&#34;&#34;",
-	"&quot;", "&quot;&quot;",
-)
+// substitutedQuote is how a quote inside a substituted value reaches the profile: every path that
+// substitutes one escapes it with xml.EscapeText, which spells a quote this way and no other. So a
+// quote in this spelling is content Fleet put there, while a raw quote or a "&quot;" is the admin's
+// own X.500 writing, already saying what they meant it to say.
+const substitutedQuote = "&#34;"
+
+// doubleSubstitutedQuotes writes each substituted quote twice, which is how X.500 holds a quote
+// inside a quoted value. Left single, the first one would end the value and turn the rest of it
+// into attributes of the certificate's subject.
+func doubleSubstitutedQuotes(value string) string {
+	return strings.ReplaceAll(value, substitutedQuote, substitutedQuote+substitutedQuote)
+}
 
 // transformSCEPSubjectNameData applies transformAttribute to each attribute of every SCEP
 // SubjectName <Data>, leaving every other byte of the profile untouched.
