@@ -1,1 +1,0 @@
-- Fixed fleetd ignoring a Windows volume whose BitLocker startup protectors had been deleted while protection stayed on. fleetd now adds a protector that can unlock the disk at startup, leaving BitLocker protection itself untouched, so the host no longer boots to the recovery key prompt.
