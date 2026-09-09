@@ -114,6 +114,7 @@ module.exports = {
           'Third-party application payloads: https://github.com/ProfileManifests/ProfileManifests/tree/master/Manifests/ManagedPreferencesApplications',
         ],
         rules: [
+          // Third-party payloads.
           'If this is an attempt to change a third-party application\'s settings, use that application\'s preference domain -- com.google.Chrome, us.zoom.config and its keys must come from the ProfileManifests reference.',
           // Document shape.
           'Emit valid property list XML: the plist DOCTYPE, plist version="1.0", and correctly typed values.',
@@ -131,7 +132,7 @@ module.exports = {
           'PayloadDisplayName on the root is what an end user sees in System Settings, and some MDMs use it as the profile name.  Make it human-readable and specific to what the profile does.',
           // Structure.
           'Put every key for one payload domain in a single dict inside PayloadContent.  Do not emit several dicts with the same PayloadType.',
-          // Third-party payloads.
+
 
         ],
       },
