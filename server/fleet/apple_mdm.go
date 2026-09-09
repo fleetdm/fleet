@@ -903,6 +903,8 @@ type SCEPIdentityAssociation struct {
 	// EnrollmentType is nano_enrollment.type and should be examined to determine
 	// the proper enrollment profile.
 	EnrollmentType string `db:"type"`
+	// DEPAssignedToFleet indicates whether the device is assigned to the fleet via AB.
+	DEPAssignedToFleet bool `db:"dep_assigned_to_fleet"`
 }
 
 type DeviceInfoForACMERenewal struct {
@@ -1051,7 +1053,7 @@ func (r *MDMAppleRawDeclaration) ValidateUserProvided() error {
 		return NewInvalidArgumentError(r.Type, "Declaration profile can't include status subscription type. To get host's vitals, please use queries and policies.")
 	}
 
-	if r.Type == "com.apple.configuration.app.managed" || r.Type == "com.apple.configuration.package" {
+	if r.Type == "com.apple.configuration.package" {
 		return NewInvalidArgumentError(r.Type, "Declaration profile can't include software management types. To manage software, please use the Software tab.")
 	}
 

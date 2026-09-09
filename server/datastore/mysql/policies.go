@@ -1754,6 +1754,9 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 		if spec.ProfileUUID != nil && *spec.ProfileUUID != "" && spec.Team == "" {
 			return ctxerr.Wrap(ctx, errProfileUUIDOnGlobalPolicy, "create policy from spec")
 		}
+		if spec.ScriptID != nil && *spec.ScriptID != 0 && spec.Team == "" {
+			return ctxerr.Wrap(ctx, errScriptIDOnGlobalPolicy, "create policy from spec")
+		}
 
 		if spec.FleetMaintainedAppSlug != "" {
 			var fmaTitleID *uint
@@ -1972,6 +1975,13 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 				if spec.ScriptID != nil && *spec.ScriptID == 0 {
 					scriptID = nil
 				}
+				if scriptID != nil {
+					// Same reasoning as the profile check below: this path never
+					// reaches assertTeamMatches, and global specs were rejected above.
+					if err := assertTeamMatches(ctx, tx, *teamID, nil, scriptID, nil, nil); err != nil {
+						return ctxerr.Wrap(ctx, err, "apply policy specs")
+					}
+				}
 
 				resendProf, err := fleet.ResolvePolicyResendProfile(spec.ProfileUUID)
 				if err != nil {
@@ -2189,6 +2199,20 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 func amountPoliciesDB(ctx context.Context, db sqlx.QueryerContext) (int, error) {
 	var amount int
 	err := sqlx.GetContext(ctx, db, &amount, `SELECT count(*) FROM policies`)
+	if err != nil {
+		return 0, err
+	}
+	return amount, nil
+}
+
+// amountPoliciesAutomationEnabledSoftwareDB counts the policies with a software automation,
+// reusing the predicate behind the automation_type=software filter so the two can't drift.
+//
+// CountPolicies isn't reusable here: it counts a single team, and skips the automation filter
+// entirely when no team is given.
+func amountPoliciesAutomationEnabledSoftwareDB(ctx context.Context, db sqlx.QueryerContext) (int, error) {
+	var amount int
+	err := sqlx.GetContext(ctx, db, &amount, `SELECT count(*) FROM policies p WHERE `+policiesSoftwareAutomationClause)
 	if err != nil {
 		return 0, err
 	}
@@ -3248,6 +3272,11 @@ func (ds *Datastore) GetPatchPolicy(ctx context.Context, teamID *uint, titleID u
 	return &policy, nil
 }
 
+// policiesSoftwareAutomationClause is the predicate behind the automation_type=software
+// filter, shared so the usage statistic can't drift from it. Requires the policies table
+// to be aliased as `p`.
+const policiesSoftwareAutomationClause = `(p.software_installer_id IS NOT NULL OR p.vpp_apps_teams_id IS NOT NULL)`
+
 func (ds *Datastore) createAutomationClause(ctx context.Context, automationType fleet.PolicyAutomationType, teamID uint) (string, []any, error) {
 	// TODO: improve filtering by "other"
 	if automationType == fleet.PolicyAutomationTypeOther {
@@ -3270,7 +3299,7 @@ func (ds *Datastore) createAutomationClause(ctx context.Context, automationType 
 
 	switch automationType {
 	case fleet.PolicyAutomationTypeSoftware:
-		return " AND (p.software_installer_id IS NOT NULL OR p.vpp_apps_teams_id IS NOT NULL)", nil, nil
+		return " AND " + policiesSoftwareAutomationClause, nil, nil
 	case fleet.PolicyAutomationTypePatch:
 		return " AND p.type = 'patch'", nil, nil
 	case fleet.PolicyAutomationTypeScripts:

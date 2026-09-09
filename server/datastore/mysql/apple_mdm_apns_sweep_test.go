@@ -36,8 +36,9 @@ func TestAPNsSweep(t *testing.T) {
 	setLastSeen := func(enrollmentID string, silentFor time.Duration) {
 		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 			_, err := q.ExecContext(ctx,
-				`UPDATE nano_enrollments SET last_seen_at = DATE_SUB(NOW(), INTERVAL ? SECOND) WHERE id = ?`,
-				int(silentFor.Seconds()), enrollmentID)
+				`INSERT INTO nano_seen_times (id, seen_time) VALUES (?, DATE_SUB(NOW(), INTERVAL ? SECOND))
+				 ON DUPLICATE KEY UPDATE seen_time = VALUES(seen_time)`,
+				enrollmentID, int(silentFor.Seconds()))
 			return err
 		})
 	}
@@ -56,7 +57,7 @@ func TestAPNsSweep(t *testing.T) {
 	setLastSeen(hEligibleUser.UUID, 25*time.Hour)
 	setLastSeen(userEnrollmentID, 25*time.Hour)
 
-	// seen recently: walked but not eligible (nanoEnroll sets last_seen_at ~now).
+	// seen recently: walked but not eligible (nanoEnroll seeds a seen time of ~now).
 	hRecent := newHost(3, "ios")
 	nanoEnroll(t, ds, hRecent, false)
 	setHostMDMOn(hRecent)
@@ -76,6 +77,15 @@ func TestAPNsSweep(t *testing.T) {
 	nanoEnroll(t, ds, hMDMOff, false)
 	setLastSeen(hMDMOff.UUID, 25*time.Hour)
 
+	// MDM on but no seen-time row at all: never heard from, so eligible.
+	hNeverSeen := newHost(6, "darwin")
+	nanoEnroll(t, ds, hNeverSeen, false)
+	setHostMDMOn(hNeverSeen)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `DELETE FROM nano_seen_times WHERE id = ?`, hNeverSeen.UUID)
+		return err
+	})
+
 	// enrollment with no matching hosts row: walked but not eligible.
 	const orphanID = "sweep-uuid-99-orphan"
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
@@ -84,15 +94,16 @@ func TestAPNsSweep(t *testing.T) {
 			return err
 		}
 		_, err := q.ExecContext(ctx, `
-			INSERT INTO nano_enrollments (id, device_id, type, topic, push_magic, token_hex, last_seen_at)
-			VALUES (?, ?, 'Device', 'topic', 'magic', 'aa', DATE_SUB(NOW(), INTERVAL 25 HOUR))`,
+			INSERT INTO nano_enrollments (id, device_id, type, topic, push_magic, token_hex)
+			VALUES (?, ?, 'Device', 'topic', 'magic', 'aa')`,
 			orphanID, orphanID)
 		return err
 	})
+	setLastSeen(orphanID, 25*time.Hour)
 
-	wantEligible := []string{hEligible.UUID, hEligibleUser.UUID, userEnrollmentID}
-	// enabled rows walked: hEligible, hEligibleUser (device + user), hRecent, hMDMOff, orphan.
-	const enabledRows = 6
+	wantEligible := []string{hEligible.UUID, hEligibleUser.UUID, userEnrollmentID, hNeverSeen.UUID}
+	// enabled rows walked: hEligible, hEligibleUser (device + user), hRecent, hMDMOff, hNeverSeen, orphan.
+	const enabledRows = 7
 
 	t.Run("eligibility matrix in one page", func(t *testing.T) {
 		eligible, next, pageFull, err := ds.ListNanoEnrollmentIDsForAPNsSweep(ctx, "", 100, 24*time.Hour)
@@ -120,8 +131,8 @@ func TestAPNsSweep(t *testing.T) {
 			require.Greater(t, next, cursor, "cursor must advance")
 			cursor = next
 		}
-		// 6 enabled rows at batch size 2 = 3 full pages, then one empty page
-		// that reports the pass complete.
+		// 7 enabled rows at batch size 2 = 3 full pages, then a short final
+		// page that reports the pass complete.
 		require.Equal(t, enabledRows/2+1, pages)
 		require.ElementsMatch(t, wantEligible, allEligible)
 	})
