@@ -1,6 +1,7 @@
 package jarvis
 
 import (
+	"fmt"
 	"sort"
 	"strings"
 	"time"
@@ -34,6 +35,7 @@ type ProjectRef struct {
 	Number    int    `json:"number"`
 	UpdatedAt string `json:"updated_at"` // RFC3339; "" if unknown
 	Title     string `json:"title,omitempty"`
+	Status    string `json:"status,omitempty"` // the issue's Status column on THIS board
 }
 
 // Fetch gathers the user's PRs, review requests, and assigned issues from the
@@ -71,7 +73,7 @@ func Fetch(repo string, limit int, primaryProjects []string, role string) (Fetch
 	notifications, _ := ghapi.GetNotifications(repo)
 	sessions, _ := DiscoverSessions(30)
 
-	statuses, projects, issueProjects := fetchIssueStatuses(issues)
+	statuses, projects, issueProjects := fetchIssueStatuses(statusTargets(issues, notifications, repo))
 
 	// Project View (top section): per configured primary project, the issues
 	// assigned to you + a Ready-backlog count. Its issues are excluded from the
@@ -235,31 +237,71 @@ func repoOr(url, fallback string) string {
 // the board that owns its workflow status, and records every project the issue
 // belongs to (with its updatedAt). Best-effort and per-issue: a failure on one
 // issue leaves it absent rather than failing the whole fetch.
-func fetchIssueStatuses(issues []ghapi.Issue) (statuses map[int]string, projects map[int]int, issueProjects map[int][]ProjectRef) {
+func fetchIssueStatuses(targets []issueStatusTarget) (statuses map[int]string, projects map[int]int, issueProjects map[int][]ProjectRef) {
 	statuses = map[int]string{}
 	projects = map[int]int{}
 	issueProjects = map[int][]ProjectRef{}
-	for _, iss := range issues {
-		found, err := ghapi.GetAllIssueProjectStatuses(repoFromURL(iss.URL), iss.Number)
+	for _, t := range targets {
+		found, err := ghapi.GetAllIssueProjectStatuses(t.repo, t.number)
 		if err != nil || len(found) == 0 {
 			continue
 		}
 		var refs []ProjectRef
 		for pid, ps := range found {
 			if ps.Present {
-				refs = append(refs, ProjectRef{Number: pid, UpdatedAt: ps.UpdatedAt, Title: ps.Title})
+				refs = append(refs, ProjectRef{Number: pid, UpdatedAt: ps.UpdatedAt, Title: ps.Title, Status: ps.Status})
 			}
 		}
 		if len(refs) > 0 {
-			issueProjects[iss.Number] = refs
+			issueProjects[t.number] = refs
 		}
 		pid, status := pickWorkflowStatus(found)
 		if status != "" || pid != 0 {
-			statuses[iss.Number] = status
-			projects[iss.Number] = pid
+			statuses[t.number] = status
+			projects[t.number] = pid
 		}
 	}
 	return statuses, projects, issueProjects
+}
+
+// issueStatusTarget identifies an issue whose project statuses should be read.
+type issueStatusTarget struct {
+	repo   string // "owner/name"; "" falls back to the cwd repo
+	number int
+}
+
+// statusTargets lists the issues to read project statuses for: the user's
+// assigned issues plus issue-kind notifications (gap-filler items like
+// "mentioned you" aren't assigned to the user, but still need their board
+// membership for the team emoji and group status shown on their rows).
+func statusTargets(issues []ghapi.Issue, notifications []ghapi.Notification, fallbackRepo string) []issueStatusTarget {
+	seen := map[string]bool{}
+	var out []issueStatusTarget
+	add := func(repo string, number int) {
+		if number == 0 {
+			return
+		}
+		key := fmt.Sprintf("%s#%d", repo, number)
+		if seen[key] {
+			return
+		}
+		seen[key] = true
+		out = append(out, issueStatusTarget{repo: repo, number: number})
+	}
+	for _, iss := range issues {
+		add(repoOr(iss.URL, fallbackRepo), iss.Number)
+	}
+	for _, n := range notifications {
+		if n.IsPR() {
+			continue
+		}
+		repo := n.Repository.FullName
+		if repo == "" {
+			repo = fallbackRepo
+		}
+		add(repo, n.Number())
+	}
+	return out
 }
 
 // workflowKeywords are the substrings that identify a board's workflow Status

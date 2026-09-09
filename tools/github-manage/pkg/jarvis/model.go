@@ -797,7 +797,7 @@ func refreshIssueCmd(repo string, number, project int) tea.Cmd {
 		var refs []ProjectRef
 		for p, ps := range found {
 			if ps.Present {
-				refs = append(refs, ProjectRef{Number: p, UpdatedAt: ps.UpdatedAt, Title: ps.Title})
+				refs = append(refs, ProjectRef{Number: p, UpdatedAt: ps.UpdatedAt, Title: ps.Title, Status: ps.Status})
 			}
 		}
 		closed := false
