@@ -90,10 +90,10 @@ export const getLabelModalData = (policy: IPolicy): ILabelModalData => {
   let excludeScopeLabel: string | undefined;
   if (policy.labels_exclude_any?.length) {
     excludeLabels = policy.labels_exclude_any;
-    excludeScopeLabel = "exclude any";
+    excludeScopeLabel = "have any";
   } else if (policy.labels_exclude_all?.length) {
     excludeLabels = policy.labels_exclude_all;
-    excludeScopeLabel = "exclude all";
+    excludeScopeLabel = "have all";
   }
 
   return { includeLabels, includeScopeLabel, excludeLabels, excludeScopeLabel };

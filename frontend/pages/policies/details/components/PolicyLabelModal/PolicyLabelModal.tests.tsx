@@ -51,13 +51,13 @@ describe("PolicyLabelModal", () => {
     render(
       <PolicyLabelModal
         excludeLabels={EXCLUDE_LABELS}
-        excludeScopeLabel="exclude all"
+        excludeScopeLabel="have all"
         onClose={jest.fn()}
       />
     );
 
     expect(screen.getByText(/Policy excludes hosts that/)).toBeInTheDocument();
-    expect(screen.getByText("exclude all")).toBeInTheDocument();
+    expect(screen.getByText("have all")).toBeInTheDocument();
     expect(screen.getByText("Servers")).toBeInTheDocument();
 
     expect(
@@ -71,7 +71,7 @@ describe("PolicyLabelModal", () => {
         includeLabels={INCLUDE_LABELS}
         includeScopeLabel="have all"
         excludeLabels={EXCLUDE_LABELS}
-        excludeScopeLabel="exclude any"
+        excludeScopeLabel="have any"
         onClose={jest.fn()}
       />
     );
@@ -79,7 +79,7 @@ describe("PolicyLabelModal", () => {
     expect(screen.getByText(/Policy targets hosts that/)).toBeInTheDocument();
     expect(screen.getByText("have all")).toBeInTheDocument();
     expect(screen.getByText(/Policy excludes hosts that/)).toBeInTheDocument();
-    expect(screen.getByText("exclude any")).toBeInTheDocument();
+    expect(screen.getByText("have any")).toBeInTheDocument();
     expect(screen.getByText("Engineering")).toBeInTheDocument();
     expect(screen.getByText("Servers")).toBeInTheDocument();
   });
