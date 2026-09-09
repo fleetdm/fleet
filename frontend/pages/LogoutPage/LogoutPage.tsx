@@ -16,9 +16,9 @@ const LogoutPage = ({ router }: ILogoutPageProps) => {
       try {
         await sessionsAPI.destroy();
         authToken.remove();
-        // Prefer SPA navigation over a full reload: a reload paints the
-        // viewport white until bundle.js reapplies body.dark-mode, which
-        // dark-mode users see as the whole page flashing white.
+        // SPA-navigate, not a reload: on a reload body.dark-mode isn't set
+        // until bundle.js runs, so dark-mode users see the viewport flash
+        // white during the gap.
         router.replace(PATHS.LOGIN);
       } catch (response) {
         console.error(response);
@@ -28,7 +28,7 @@ const LogoutPage = ({ router }: ILogoutPageProps) => {
     };
 
     logoutUser();
-  }, []);
+  }, [router]);
 
   return null;
 };
