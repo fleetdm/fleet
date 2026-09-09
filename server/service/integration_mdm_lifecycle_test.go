@@ -1802,3 +1802,97 @@ func (s *integrationMDMTestSuite) TestSCEPRenewalVsFreshEnrollment() {
 		require.Greater(t, lastEnrolledActivityID(), firstEnrollID, "a fresh ACME re-enrollment must emit a new mdm_enrolled activity")
 	})
 }
+
+// Flipping either Apple Business enrollment restriction changes which hosts may
+// renew over SCEP, so saving the app config must drop the stored exclusions and
+// cancel in-flight renewals, letting the next cron run re-evaluate every host.
+func (s *integrationMDMTestSuite) TestAppleBusinessEnrollmentTogglesResetCertRenewals() {
+	t := s.T()
+	ctx := t.Context()
+
+	mdmDevice := mdmtest.NewTestMDMClientAppleDirect(mdmtest.AppleEnrollInfo{
+		SCEPChallenge: s.scepChallenge,
+		SCEPURL:       s.server.URL + apple_mdm.SCEPPath,
+		MDMURL:        s.server.URL + apple_mdm.MDMPath,
+	}, "MacBookPro16,1")
+	require.NoError(t, mdmDevice.Enroll())
+
+	// the device is manually enrolled, so it has no ABM assignment
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			`UPDATE nano_cert_auth_associations SET cert_not_valid_after = ? WHERE id = ?`,
+			time.Now().AddDate(-1, 0, 0), mdmDevice.UUID)
+		return err
+	})
+
+	setABMOnly := func(enabled bool) {
+		s.Do("PATCH", "/api/latest/fleet/config",
+			json.RawMessage(fmt.Sprintf(`{"mdm":{"only_allow_apple_business_enrollment":%t}}`, enabled)),
+			http.StatusOK)
+	}
+
+	renewalState := func() (renewCmdUUID *string, excludedAt *time.Time) {
+		var row struct {
+			RenewCommandUUID  *string    `db:"renew_command_uuid"`
+			RenewalExcludedAt *time.Time `db:"renewal_excluded_at"`
+		}
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &row,
+				`SELECT renew_command_uuid, renewal_excluded_at FROM nano_cert_auth_associations WHERE id = ?`,
+				mdmDevice.UUID)
+		})
+		return row.RenewCommandUUID, row.RenewalExcludedAt
+	}
+
+	cert, key, err := generateCertWithAPNsTopic()
+	require.NoError(t, err)
+	fleetCfg := config.TestConfig()
+	config.SetTestMDMConfig(s.T(), &fleetCfg, cert, key, "")
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+	runRenewals := func() {
+		require.NoError(t, RenewSCEPCertificates(ctx, logger, s.ds, &fleetCfg, s.mdmCommander, s.acmeSvc))
+	}
+
+	// with no restrictions, the expiring cert renews over SCEP and the
+	// association is marked with the renewal command.
+	runRenewals()
+	renewCmdUUID, excludedAt := renewalState()
+	require.NotNil(t, renewCmdUUID)
+	require.Nil(t, excludedAt)
+
+	// turning the restriction on cancels that in-flight renewal
+	setABMOnly(true)
+	renewCmdUUID, excludedAt = renewalState()
+	require.Nil(t, renewCmdUUID)
+	require.Nil(t, excludedAt)
+	var queueActive int
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &queueActive,
+			`SELECT COUNT(*) FROM nano_enrollment_queue WHERE id = ? AND active = 1`, mdmDevice.UUID)
+	})
+	require.Zero(t, queueActive)
+
+	// the next run re-evaluates the host and, since it isn't in ABM, excludes it
+	runRenewals()
+	renewCmdUUID, excludedAt = renewalState()
+	require.Nil(t, renewCmdUUID)
+	require.NotNil(t, excludedAt)
+
+	// while excluded it stays out of the renewal window
+	assocs, err := s.ds.GetHostCertAssociationsToExpire(ctx, 1000, 100)
+	require.NoError(t, err)
+	require.Empty(t, assocs)
+
+	// turning the restriction back off clears the exclusion so the host is
+	// eligible again
+	setABMOnly(false)
+	renewCmdUUID, excludedAt = renewalState()
+	require.Nil(t, renewCmdUUID)
+	require.Nil(t, excludedAt)
+
+	assocs, err = s.ds.GetHostCertAssociationsToExpire(ctx, 1000, 100)
+	require.NoError(t, err)
+	require.Len(t, assocs, 1)
+	require.Equal(t, mdmDevice.UUID, assocs[0].HostUUID)
+	require.False(t, assocs[0].DEPAssignedToFleet)
+}
