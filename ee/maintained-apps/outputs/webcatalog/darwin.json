@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "78.4.0",
+      "version": "78.5.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.webcatalog.jordan';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.webcatalog.jordan' AND version_compare(bundle_short_version, '78.4.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.webcatalog.jordan' AND version_compare(bundle_short_version, '78.5.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.webcatalog.jordan' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://cdn-2.webcatalog.io/webcatalog/WebCatalog-78.4.0-universal.dmg",
+      "installer_url": "https://cdn-2.webcatalog.io/webcatalog/WebCatalog-78.5.0-universal.dmg",
       "install_script_ref": "23e707d7",
       "uninstall_script_ref": "6ca374e8",
-      "sha256": "3c9e2c985f14224a552e5dfb545f546bbfb9ac7d8f78730621eacf250b9f26bc",
+      "sha256": "80b2ee871a811fb4522d4d8ac05678a25d9d219c05838755090b0285feeae067",
       "default_categories": [
         "Productivity"
       ]
