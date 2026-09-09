@@ -286,7 +286,7 @@ func (k *patchNotificationKind) RemindAndInstallDuePatches(ctx context.Context) 
 	}
 	softwareTitleIDs = server.RemoveDuplicatesFromSlice(softwareTitleIDs)
 
-	versions, err := k.ds.ListHostSoftwareVersionsForTitles(ctx, hostIDs, softwareTitleIDs)
+	versions, err := k.ds.ListSoftwareTitleVersionsForHosts(ctx, hostIDs, softwareTitleIDs)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "list host software versions for the batch")
 	}
@@ -296,7 +296,7 @@ func (k *patchNotificationKind) RemindAndInstallDuePatches(ctx context.Context) 
 		installedVersions[key] = append(installedVersions[key], version.Version)
 	}
 
-	installsByTitle, err := k.ds.ListHostLastTitleInstallData(ctx, hostIDs, softwareTitleIDs)
+	installsByTitle, err := k.ds.ListLastTitleInstallDataForHosts(ctx, hostIDs, softwareTitleIDs)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "list host last title install data for the batch")
 	}
@@ -478,7 +478,7 @@ func (k *patchNotificationKind) updateNow(ctx context.Context, notification *not
 	for _, app := range apps {
 		softwareTitleIDs = append(softwareTitleIDs, app.SoftwareTitleID)
 	}
-	installsByTitle, err := k.ds.ListHostLastTitleInstallData(ctx, []uint{notification.HostID}, softwareTitleIDs)
+	installsByTitle, err := k.ds.ListLastTitleInstallDataForHosts(ctx, []uint{notification.HostID}, softwareTitleIDs)
 	if err != nil {
 		k.putPatchNotificationBack(ctx, notification)
 		return nil, ctxerr.Wrapf(ctx, err, "list host last title install data: host_id=%d", notification.HostID)

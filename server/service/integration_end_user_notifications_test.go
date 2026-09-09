@@ -255,10 +255,8 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 	})
 
 	t.Run("GET returns the view the notification's kind builds", func(t *testing.T) {
-		// The view carries the org's own logos, so give the org one of each. Each
-		// mode-aware field has a deprecated twin that Fleet rejects the config for
-		// disagreeing with, so both move together, and whatever another test left
-		// behind is put back afterwards.
+		// each mode-aware logo field has a deprecated twin, and the config is rejected when the two
+		// disagree, so both move together and are restored afterwards
 		setOrgLogos := func(light, dark string) {
 			s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(`{
 				"org_info": {
@@ -613,10 +611,7 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 		require.NotContains(t, resp.ScriptContents, token)
 	})
 
-	// TestPatchNotificationUpdateNow covers which installs get queued. This covers
-	// what the unified queue does with those installs: an install keeps its policy
-	// but not the app open query the policy would otherwise add, both while the
-	// install is upcoming and once the install is activated.
+	// the install keeps its policy but not the app open query, both while upcoming and once activated
 	t.Run("update now queues an install that runs with the app open", func(t *testing.T) {
 		host := newNotifiableHost(t, "notif-update-now")
 		team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "update-now-team"})
@@ -709,9 +704,6 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 		require.False(t, result.OverridePreInstallQuery)
 	})
 
-	// TestRemindAndInstallDuePatches covers which branch the pass takes. This
-	// covers the ending the pass is there for: the deadline is stored on display,
-	// and once it passes the install is queued with no app open gate.
 	// First notification, delay, reminder, then the install at install_at. A second host is included
 	// so each pass handles a batch of two with separate install_at values.
 	t.Run("a displayed notification is reminded and then installed at install_at", func(t *testing.T) {
@@ -720,6 +712,8 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 		require.NoError(t, err)
 		require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID})))
 
+		// a real installer and policy, so the install queued at install_at is a real one with an app
+		// open query it has to ignore
 		installerID, _, err := s.ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 			InstallScript: "echo", Filename: "deadline.pkg", StorageID: uuid.NewString(),
 			Title: "Deadline App", Version: "2.0.0", Source: "apps", Platform: "darwin",
@@ -769,7 +763,7 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 			return queued
 		}
 
-		// install_at comes from displayed_at, so it is null until the script result arrives.
+		// install_at comes from displayed_at, so it is null until the script result arrives
 		dispatch(t)
 		dispatched := getTestNotification(t, s.ds, notificationUUID)
 		require.NotNil(t, dispatched.ExecutionID)
@@ -781,19 +775,21 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 		require.NotNil(t, otherDispatched.ExecutionID)
 		postScriptResult(otherHost, *otherDispatched.ExecutionID, 0)
 
+		// exit 0 records displayed_at, and install_at follows it an hour out
 		displayed := getTestNotification(t, s.ds, notificationUUID)
 		require.NotNil(t, displayed.DisplayedAt)
 		deadline := getTestInstallAt(t, s.ds, notificationUUID)
 		require.NotNil(t, deadline)
 		require.WithinDuration(t, displayed.DisplayedAt.Add(time.Hour), *deadline, time.Minute)
 
+		// the second host gets its own install_at from its own displayed_at
 		otherDisplayed := getTestNotification(t, s.ds, otherUUID)
 		require.NotNil(t, otherDisplayed.DisplayedAt)
 		otherDeadline := getTestInstallAt(t, s.ds, otherUUID)
 		require.NotNil(t, otherDeadline)
 		require.WithinDuration(t, otherDisplayed.DisplayedAt.Add(time.Hour), *otherDeadline, time.Minute)
 
-		// the delay action does not move install_at
+		// the end user closes the toast, which leaves the install_at just set above alone
 		s.DoRawNoAuth("POST", fmt.Sprintf("/api/latest/fleet/device/%s/notifications/%s/actions", token, notificationUUID),
 			[]byte(`{"action": "delay"}`), http.StatusOK)
 
@@ -805,7 +801,7 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 		require.NotNil(t, stillDue)
 		require.WithinDuration(t, *deadline, *stillDue, time.Second, "the delay action does not move install_at")
 
-		// into the reminder window. The other host stays an hour out and must not be re-dispatched.
+		// stand in for the hour running down. The other host keeps its hour and must be left alone.
 		setTestInstallAt(t, s.ds, notificationUUID, "NOW(6) + INTERVAL 4 MINUTE")
 		shortened := getTestInstallAt(t, s.ds, notificationUUID)
 		require.NotNil(t, shortened)
@@ -829,6 +825,7 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 		require.NoError(t, s.patchNotificationKind.RemindAndInstallDuePatches(ctx))
 		require.Equal(t, notifications_api.EndUserNotificationPending, getTestNotification(t, s.ds, notificationUUID).Status)
 
+		// the reminder goes out on the next dispatch, rendering the 5 minute copy
 		dispatch(t)
 		redispatched := getTestNotification(t, s.ds, notificationUUID)
 		require.NotNil(t, redispatched.ExecutionID)
@@ -850,11 +847,12 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 		afterReminder := getTestInstallAt(t, s.ds, notificationUUID)
 		require.NotNil(t, afterReminder)
 		require.False(t, afterReminder.Before(reminderDisplayed.DisplayedAt.Add(5*time.Minute)),
-			"the apps must not be queued less than five minutes after the reminder reached the screen")
-		require.True(t, afterReminder.After(*shortened), "the deadline moved out by the reminder's display latency")
+			"install_at is never less than 5 minutes after the reminder's displayed_at")
+		require.True(t, afterReminder.After(*shortened), "install_at moved out to follow the reminder's displayed_at")
 		require.WithinDuration(t, reminderDisplayed.DisplayedAt.Add(5*time.Minute), *afterReminder, time.Second)
 
-		// one pass, two notifications: this one installs, the other only reminds
+		// one pass over both: the first is past install_at and installs, the second has just reached
+		// its reminder window
 		setTestInstallAt(t, s.ds, notificationUUID, "NOW(6) - INTERVAL 1 MINUTE")
 		setTestInstallAt(t, s.ds, otherUUID, "NOW(6) + INTERVAL 4 MINUTE")
 		require.NoError(t, s.patchNotificationKind.RemindAndInstallDuePatches(ctx))

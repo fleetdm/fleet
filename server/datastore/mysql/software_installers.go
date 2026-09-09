@@ -4870,7 +4870,7 @@ func deletePinnedVersionDB(ctx context.Context, ex sqlx.ExtContext, globalOrTeam
 	return err
 }
 
-func (ds *Datastore) ListHostLastTitleInstallData(ctx context.Context, hostIDs []uint, softwareTitleIDs []uint) (map[fleet.HostSoftwareTitleKey][]*fleet.HostLastInstallData, error) {
+func (ds *Datastore) ListLastTitleInstallDataForHosts(ctx context.Context, hostIDs []uint, softwareTitleIDs []uint) (map[fleet.HostSoftwareTitleKey][]*fleet.HostLastInstallData, error) {
 	if len(hostIDs) == 0 || len(softwareTitleIDs) == 0 {
 		return nil, nil
 	}
@@ -4918,7 +4918,10 @@ WITH latest_past_install AS (
 		hsi.execution_id,
 		hsi.status,
 		hsi.updated_at,
-		ROW_NUMBER() OVER (PARTITION BY hsi.host_id, hsi.software_installer_id ORDER BY hsi.id DESC) AS row_num
+		ROW_NUMBER() OVER (
+			PARTITION BY hsi.host_id, hsi.software_installer_id
+			ORDER BY hsi.id DESC
+		) AS row_num
 	FROM host_software_installs hsi
 	WHERE hsi.canceled = 0 AND hsi.host_id IN (?) AND hsi.software_installer_id IN (?)
 )
@@ -4935,7 +4938,10 @@ WITH latest_upcoming_install AS (
 		ua.execution_id,
 		'pending_install' AS status,
 		ua.updated_at,
-		ROW_NUMBER() OVER (PARTITION BY ua.host_id, siua.software_installer_id ORDER BY ua.id DESC) AS row_num
+		ROW_NUMBER() OVER (
+			PARTITION BY ua.host_id, siua.software_installer_id
+			ORDER BY ua.id DESC
+		) AS row_num
 	FROM upcoming_activities ua
 		JOIN software_install_upcoming_activities siua ON siua.upcoming_activity_id = ua.id
 	WHERE ua.activity_type = 'software_install' AND ua.host_id IN (?) AND siua.software_installer_id IN (?)
@@ -4985,10 +4991,10 @@ WHERE row_num = 1
 	return installsByTitle, nil
 }
 
-// ListHostSoftwareVersionsForTitles reports what the given hosts have installed for the given titles.
+// ListSoftwareTitleVersionsForHosts reports what the given hosts have installed for the given titles.
 // Driven by the index on software.title_id, so it reads only the titles asked for instead of whole
 // inventories.
-func (ds *Datastore) ListHostSoftwareVersionsForTitles(ctx context.Context, hostIDs []uint, softwareTitleIDs []uint) ([]fleet.HostSoftwareTitleVersion, error) {
+func (ds *Datastore) ListSoftwareTitleVersionsForHosts(ctx context.Context, hostIDs []uint, softwareTitleIDs []uint) ([]fleet.HostSoftwareTitleVersion, error) {
 	if len(hostIDs) == 0 || len(softwareTitleIDs) == 0 {
 		return nil, nil
 	}

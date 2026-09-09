@@ -271,7 +271,7 @@ func TestPatchNotificationUpdateNow(t *testing.T) {
 			kind := &patchNotificationKind{
 				ds: ds, notificationSvc: notificationSvc, logger: slog.New(slog.DiscardHandler),
 			}
-			ds.ListHostLastTitleInstallDataFunc = func(_ context.Context, _ []uint, titleIDs []uint) (map[fleet.HostSoftwareTitleKey][]*fleet.HostLastInstallData, error) {
+			ds.ListLastTitleInstallDataForHostsFunc = func(_ context.Context, _ []uint, titleIDs []uint) (map[fleet.HostSoftwareTitleKey][]*fleet.HostLastInstallData, error) {
 				if !c.alreadyPending {
 					return nil, nil
 				}
@@ -387,7 +387,7 @@ func TestPatchNotificationUpdateNowResumesAfterFailure(t *testing.T) {
 
 	// the first app's install finishes between the two presses, so it is no
 	// longer pending by the time the second press runs
-	ds.ListHostLastTitleInstallDataFunc = func(_ context.Context, hostIDs []uint, _ []uint) (map[fleet.HostSoftwareTitleKey][]*fleet.HostLastInstallData, error) {
+	ds.ListLastTitleInstallDataForHostsFunc = func(_ context.Context, hostIDs []uint, _ []uint) (map[fleet.HostSoftwareTitleKey][]*fleet.HostLastInstallData, error) {
 		if _, firstAppQueued := queued[firstTitleID]; !firstAppQueued {
 			return nil, nil
 		}
@@ -774,7 +774,7 @@ func TestRemindAndInstallDuePatches(t *testing.T) {
 			}
 
 			var versionReads int
-			ds.ListHostSoftwareVersionsForTitlesFunc = func(_ context.Context, hostIDs []uint, titleIDs []uint) ([]fleet.HostSoftwareTitleVersion, error) {
+			ds.ListSoftwareTitleVersionsForHostsFunc = func(_ context.Context, hostIDs []uint, titleIDs []uint) ([]fleet.HostSoftwareTitleVersion, error) {
 				versionReads++
 				versions := make([]fleet.HostSoftwareTitleVersion, 0, len(titleIDs))
 				for _, titleID := range titleIDs {
@@ -787,7 +787,7 @@ func TestRemindAndInstallDuePatches(t *testing.T) {
 				return versions, nil
 			}
 			var installDataReads int
-			ds.ListHostLastTitleInstallDataFunc = func(_ context.Context, hostIDs []uint, _ []uint) (map[fleet.HostSoftwareTitleKey][]*fleet.HostLastInstallData, error) {
+			ds.ListLastTitleInstallDataForHostsFunc = func(_ context.Context, hostIDs []uint, _ []uint) (map[fleet.HostSoftwareTitleKey][]*fleet.HostLastInstallData, error) {
 				installDataReads++
 				if c.lastInstalled == nil {
 					return nil, nil

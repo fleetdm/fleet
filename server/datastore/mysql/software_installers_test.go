@@ -3302,7 +3302,7 @@ func testBatchInstallVerificationReads(t *testing.T, ds *Datastore) {
 	secondExecutionID, err := ds.InsertSoftwareInstallRequest(ctx, installedHost.ID, secondInstallerID, fleet.HostSoftwareInstallOptions{})
 	require.NoError(t, err)
 
-	installsByTitle, err := ds.ListHostLastTitleInstallData(ctx, []uint{installedHost.ID, untouchedHost.ID}, []uint{titleID})
+	installsByTitle, err := ds.ListLastTitleInstallDataForHosts(ctx, []uint{installedHost.ID, untouchedHost.ID}, []uint{titleID})
 	require.NoError(t, err)
 
 	// both installs report against the one software title, whichever installer they went through
@@ -3321,7 +3321,7 @@ func testBatchInstallVerificationReads(t *testing.T, ds *Datastore) {
 
 	// a software title with no installer of its own has nothing to report
 	otherTitleID := newTestSoftwareTitle(t, ds, "Uninstallable App")
-	installsByTitle, err = ds.ListHostLastTitleInstallData(ctx, []uint{installedHost.ID}, []uint{otherTitleID})
+	installsByTitle, err = ds.ListLastTitleInstallDataForHosts(ctx, []uint{installedHost.ID}, []uint{otherTitleID})
 	require.NoError(t, err)
 	require.Empty(t, installsByTitle)
 
@@ -3335,7 +3335,7 @@ func testBatchInstallVerificationReads(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	versions, err := ds.ListHostSoftwareVersionsForTitles(ctx,
+	versions, err := ds.ListSoftwareTitleVersionsForHosts(ctx,
 		[]uint{installedHost.ID, untouchedHost.ID}, []uint{titleID})
 	require.NoError(t, err)
 
@@ -3348,10 +3348,10 @@ func testBatchInstallVerificationReads(t *testing.T, ds *Datastore) {
 	require.ElementsMatch(t, []string{"1.0.0", "2.0.0"}, installedVersions)
 
 	// neither an empty host list nor an empty title list reads the whole table
-	versions, err = ds.ListHostSoftwareVersionsForTitles(ctx, nil, []uint{titleID})
+	versions, err = ds.ListSoftwareTitleVersionsForHosts(ctx, nil, []uint{titleID})
 	require.NoError(t, err)
 	require.Empty(t, versions)
-	versions, err = ds.ListHostSoftwareVersionsForTitles(ctx, []uint{installedHost.ID}, nil)
+	versions, err = ds.ListSoftwareTitleVersionsForHosts(ctx, []uint{installedHost.ID}, nil)
 	require.NoError(t, err)
 	require.Empty(t, versions)
 }
