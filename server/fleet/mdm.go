@@ -200,7 +200,7 @@ type ABMToken struct {
 	TokenInvalid     bool      `db:"token_invalid" json:"token_invalid"`
 	// ServerUUID is Apple's identifier for this MDM server in Apple Business,
 	// returned by the DEP AccountDetail API. Empty until fetched.
-	ServerUUID string `db:"server_uuid" json:"-"`
+	ServerUUID string `db:"server_uuid" json:"mdm_server_uuid"`
 	// IsDefault marks the token used for GetToken, and other cases where we need to pass a default token.
 	IsDefault bool `db:"is_default" json:"default"`
 
