@@ -443,6 +443,8 @@ func GoogleWorkspaceExclusionMiddleware(ds fleet.Datastore, logger *slog.Logger,
 // These details can be used as a debug tool by the Fleet admin to see if SCIM integration is working.
 func LastRequestMiddleware(ds fleet.Datastore, logger *slog.Logger, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx, detailHolder := withScimDetail(r.Context())
+		r = r.WithContext(ctx)
 		multi := newMultiResponseWriter(w)
 		next.ServeHTTP(multi, r)
 
@@ -470,12 +472,18 @@ func LastRequestMiddleware(ds fleet.Datastore, logger *slog.Logger, next http.Ha
 			return
 		case multi.statusCode >= 400:
 			status = "error"
-			// Attempt to parse the response body as a SCIM error.
-			var parsedScimError scimerrors.ScimError
-			if err := json.Unmarshal(multi.body.Bytes(), &parsedScimError); err == nil {
-				details = parsedScimError.Detail
-			} else {
-				details = multi.body.String()
+			switch {
+			case detailHolder.detail != "":
+				// the client response is generic; the holder still has the real detail
+				details = detailHolder.detail
+			default:
+				// Attempt to parse the response body as a SCIM error.
+				var parsedScimError scimerrors.ScimError
+				if err := json.Unmarshal(multi.body.Bytes(), &parsedScimError); err == nil {
+					details = parsedScimError.Detail
+				} else {
+					details = multi.body.String()
+				}
 			}
 			if multi.statusCode == scimerrors.ScimErrorInvalidValue.Status && details == scimerrors.ScimErrorInvalidValue.Detail &&
 				strings.Contains(r.URL.Path, "/Users") {

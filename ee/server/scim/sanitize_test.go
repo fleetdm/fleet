@@ -75,6 +75,7 @@ func TestSanitizedResourceHandler(t *testing.T) {
 			ctx := logging.NewContext(t.Context(), &logging.LoggingContext{})
 			logCtx, ok := logging.FromContext(ctx)
 			require.True(t, ok)
+			ctx, detailHolder := withScimDetail(ctx)
 			req := httptest.NewRequest(http.MethodPut, "/Groups/42", nil).WithContext(ctx)
 
 			_, err := h.Replace(req, "42", scim.ResourceAttributes{})
@@ -86,8 +87,10 @@ func TestSanitizedResourceHandler(t *testing.T) {
 				require.Contains(t, scimErr.Detail, platform_http.GenericErrorMessage)
 				require.Contains(t, scimErr.Detail, logCtx.RequestID)
 				require.NotContains(t, scimErr.Detail, "scim_user_group")
+				require.Contains(t, detailHolder.detail, "scim_user_group")
 				return
 			}
+			require.Empty(t, detailHolder.detail)
 			require.Equal(t, tc.want, err)
 			// Delete returns only an error, so it gets its own pass.
 			require.Equal(t, tc.want, h.Delete(req, "42"))

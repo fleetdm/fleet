@@ -12,6 +12,24 @@ import (
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 )
 
+// scimDetailHolder carries the real error detail past the sanitized client
+// response so LastRequestMiddleware can record it for the admin.
+type scimDetailHolder struct{ detail string }
+
+type scimDetailKeyType struct{}
+
+var scimDetailKey scimDetailKeyType
+
+func withScimDetail(ctx context.Context) (context.Context, *scimDetailHolder) {
+	h := &scimDetailHolder{}
+	return context.WithValue(ctx, scimDetailKey, h), h
+}
+
+func scimDetailFromContext(ctx context.Context) *scimDetailHolder {
+	h, _ := ctx.Value(scimDetailKey).(*scimDetailHolder)
+	return h
+}
+
 // sanitizedResourceHandler keeps datastore detail out of SCIM responses.
 // errors.CheckScimError turns anything that is not already a ScimError into a 500
 // whose detail is err.Error().
@@ -43,6 +61,9 @@ func (h sanitizedResourceHandler) sanitize(ctx context.Context, op string, err e
 		detail = fmt.Sprintf("%s (%s)", detail, logCtx.RequestID)
 	}
 	h.logger.ErrorContext(ctx, "scim handler error", attrs...)
+	if holder := scimDetailFromContext(ctx); holder != nil {
+		holder.detail = err.Error()
+	}
 
 	return scimerrors.ScimError{
 		Status: http.StatusInternalServerError,
