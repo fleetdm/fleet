@@ -47,7 +47,8 @@ policies:
 ```
 
 <meta name="articleTitle" value="Automatically resend configuration profiles">
-<meta name="authorFullName" value="Fleet">
+<meta name="authorFullName" value="Mel Pike">
+<meta name="authorGitHubUsername" value="melpike">
 <meta name="category" value="guides">
 <meta name="publishedOn" value="2026-08-13">
 <meta name="description" value="A guide to automatically resending configuration profiles when hosts fail a policy in Fleet.">
