@@ -5,6 +5,8 @@ parasails.registerPage('configuration-generator', {
   data: {
     generatedOutput: ``,
     parsedItemsInProfile: [],
+    anticipatedItemsInProfile: [],
+    showLoadingOverlay: false,
     deliveryNotes: undefined,
     formData: {
       profileType: 'ddm'
@@ -42,7 +44,6 @@ parasails.registerPage('configuration-generator', {
     //…
   },
   mounted: async function() {
-    this._setUpAceEditor();
     //…
   },
 
@@ -52,8 +53,13 @@ parasails.registerPage('configuration-generator', {
   methods: {
     handleSubmittingForm: async function() {
       console.time('Profile generation');
+      this._resetGeneratedProfile();
       this.syncing = true;
       this.hasGeneratedProfile = true;
+      this.showLoadingOverlay = true;
+      this.$nextTick(()=>{
+        this._setUpAceEditor();
+      });
       io.socket.request({
         method: 'post',
         url: '/api/v1/get-llm-generated-configuration-profile',
@@ -73,22 +79,45 @@ parasails.registerPage('configuration-generator', {
         }
       });
       // Detach first, so that retrying after an error doesn't leave duplicate listeners attached.
+      io.socket.off('settingsPreview', this._onSettingsPreview);
       io.socket.off('profileGenerated', this._onProfileGenerated);
       io.socket.off('error', this._onProfileGenerationError);
+      io.socket.on('settingsPreview', this._onSettingsPreview);
       io.socket.on('profileGenerated', this._onProfileGenerated);
       io.socket.on('error', this._onProfileGenerationError);
+    },
+    _resetGeneratedProfile: function() {
+      this.generatedOutput = '';
+      this.parsedItemsInProfile = [];
+      this.anticipatedItemsInProfile = [];
+      this.deliveryNotes = undefined;
+      this.filenameOfGeneratedProfile = undefined;
+      this.cloudErrorExplanation = undefined;
+      this.hideEditButton = false;
+    },
+    _onSettingsPreview: function(response) {
+      if(!this.syncing) {
+        return;
+      }
+      this.anticipatedItemsInProfile = response.settings;
+      this.showLoadingOverlay = false;
+      io.socket.off('settingsPreview', this._onSettingsPreview);
     },
     _onProfileGenerated: function(response) {
       console.log('Profile generated!: ', response);
       this.generatedOutput = response.result.profile;
+      this.showLoadingOverlay = false;
+      this.anticipatedItemsInProfile = [];
       this.filenameOfGeneratedProfile = response.result.profileFilename;
       this.deliveryNotes = response.result.deliveryNotes;
       this.parsedItemsInProfile = response.result.items;
       this.hasGeneratedProfile = true;
-      ace.edit('editor').setValue(response.result.profile);
+      let editor = ace.edit('editor');
+      editor.setValue(response.result.profile, -1);
+      editor.resize(true);
       this.modal = '';
       this.syncing = false;
-      // Disable the socket event listener after we display the results.
+      io.socket.off('settingsPreview', this._onSettingsPreview);
       io.socket.off('profileGenerated', this._onProfileGenerated);
     },
     _onProfileGenerationError: function(response) {
@@ -102,6 +131,9 @@ parasails.registerPage('configuration-generator', {
       }
       this.cloudError = response.error;
       this.syncing = false;
+      this.showLoadingOverlay = false;
+      this.anticipatedItemsInProfile = [];
+      io.socket.off('settingsPreview', this._onSettingsPreview);
       io.socket.off('error', this._onProfileGenerationError);
     },
     closeModal: async function() {
@@ -136,7 +168,10 @@ parasails.registerPage('configuration-generator', {
         minLines: this.minLines ? this.minLines : 20 ,
         maxLines:  this.maxLines ? this.maxLines : 40 ,
       });
+      editor.setValue('', -1);
       editor.setReadOnly(true);
+      editor.renderer.$fontMetrics.checkForSizeChanges();
+      editor.resize(true);
     },
   }
 });

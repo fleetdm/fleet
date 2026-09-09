@@ -71,6 +71,9 @@ module.exports = {
 
       'csp': {
         description: 'CSP XML profile that enforces OS settings on Windows devices',
+        // How the triage prompt describes a setting the references below actually cover.  Kept
+        // next to those references so the two cannot drift apart.
+        firstPartySettingDescription: 'a node in a Microsoft-published CSP',
         // Reference corpora, mirrored from the Configuration Profiles and DDM sections of
         // .claude/skills/fleet-gitops/SKILL.md at the repo root.  Kept in sync by hand: the
         // skill is written for an agent that can fetch these, and will evolve for that
@@ -105,6 +108,7 @@ module.exports = {
 
       'mobileconfig': {
         description: 'XML .mobileconfig profile that enforces OS settings on macOS devices',
+        firstPartySettingDescription: 'a key in an Apple-published payload',
         references: [
           'First-party Apple payloads: https://github.com/apple/device-management/tree/release/mdm/profiles',
           'Third-party application payloads: https://github.com/ProfileManifests/ProfileManifests/tree/master/Manifests/ManagedPreferencesApplications',
@@ -134,6 +138,7 @@ module.exports = {
 
       'ddm': {
         description: 'Apple DDM declaration in JSON format that enforces OS settings on macOS devices',
+        firstPartySettingDescription: 'a key in an Apple-published declaration type',
         references: [
           'Apple DDM declaration types, keys, and values: https://github.com/apple/device-management/tree/release/declarative/declarations',
         ],
@@ -213,31 +218,133 @@ If a configuration profile cannot be generated from the provided instructions, r
     ${naturalLanguageInstructions}
     \`\`\``;
     // console.log(configurationProfilePrompt);
-    let configurationProfileGenerationResult = await sails.helpers.ai.prompt.with({
-      systemPrompt: systemPrompt,
-      prompt: configurationProfilePrompt,
-      baseModel: 'claude-sonnet-5',
+
+    // The acceptance test for a generation result, applied twice: once to decide whether the
+    // speculative draft below can be used, and once to whatever is actually returned.
+    let isUsableProfile = (result)=>{
+      return !!result &&
+        !result.couldNotGenerateProfile &&
+        !!result.configurationProfile &&
+        !!result.profileFilename &&
+        !!result.settingsEnforced;
+    };
+
+    let generateWithTheLargerModel = async ()=>{
+      return await sails.helpers.ai.prompt.with({
+        systemPrompt: systemPrompt,
+        prompt: configurationProfilePrompt,
+        baseModel: 'claude-sonnet-5',
+        expectJson: true,
+      })
+      .intercept((err)=>{
+        sails.log.warn(`When trying generate a configuration profile for a user, an error occurred. Full error: ${require('util').inspect(err, {depth: 2})}`);
+        if(this.req.isSocket){
+          // If this request was from a socket and an error occurs, broadcast an 'error' event and unsubscribe the socket from this room.
+          sails.sockets.broadcast(roomId, 'error', {error: 'couldNotGenerateProfile'});
+          sails.sockets.leave(this.req, roomId);
+        }
+        return 'couldNotGenerateProfile';
+      });
+    };
+
+    // Two Haiku calls go out at once.
+    //
+    // The draft is the full generation prompt, sent speculatively.  On the common path -- a
+    // setting the published platform reference covers -- it is the answer, and it lands several
+    // times faster than Sonnet would.  On the third-party path it is thrown away, because a
+    // vendor's preference keys are the settings a smaller model is most likely to recall wrong,
+    // and a wrong key deploys cleanly and enforces nothing.
+    //
+    // Kicked off before the triage call is awaited: a Sails deferred does not start until
+    // something awaits it, so this wrapper is what makes the two calls concurrent rather than
+    // sequential.
+    let draftProfilePromise = (async ()=>{
+      return await sails.helpers.ai.prompt.with({
+        systemPrompt: systemPrompt,
+        prompt: configurationProfilePrompt,
+        baseModel: 'claude-haiku-4-5',
+        expectJson: true,
+      })
+      .tolerate((err)=>{
+        // Tolerated rather than intercepted: this draft is optional, and its failure only means
+        // the request takes the escalated path it would have taken anyway.
+        sails.log.warn(`When trying to generate a draft configuration profile with the smaller model, an error occurred. Falling back to the larger model. Full error: ${require('util').inspect(err, {depth: 2})}`);
+        return undefined;
+      });
+    })();
+
+    // The triage call answers one question -- does this request need a setting the published
+    // platform reference does not cover -- and returns in about a second, which is what lets the
+    // interface show the admin what the profile will contain while it is still being written.
+    let triageSystemPrompt = `Return ONLY a raw JSON object.  Do not include \`\`\`json, \`\`\`, or any markdown formatting.  Do not include any explanation or text before or after the JSON.  Your entire response must be valid JSON.
+
+An IT admin has asked for a ${promptConfig.description}, and another model is already writing it.  You do not write the profile.  You answer one question about the request, quickly, plus name the settings the profile is likely to enforce so the admin has something to read while it is generated.
+
+The question: does satisfying this request require a setting that is not ${promptConfig.firstPartySettingDescription}?
+
+Answer true when a setting the request needs is defined by an application vendor -- Chrome, Firefox, Zoom, Slack, Microsoft Office -- and documented in that application's own preference manifest rather than in the platform vendor's published reference.  Answer false when every setting the request needs is ${promptConfig.firstPartySettingDescription}.  When you cannot tell which of the two a setting is, answer true: a wrong "false" writes the profile from a reference that does not describe the setting.
+
+"anticipatedSettings" is a preview, replaced by the real settings the moment the profile arrives.  A best guess is useful there and a long list is not, so name the settings this request asks for and nothing else, and return an empty array when you cannot name them.
+
+Respond in JSON with this data shape:
+{
+  "requiresAThirdPartyApplicationReference": true,
+  "anticipatedSettings": [
+    {
+      // The name (key) of the setting you expect the profile to enforce. e.g., LoginwindowText
+      "name": "TODO",
+      // The value you expect it to be set to.
+      "value": "TODO"
+    },
+    {...}
+  ]
+}
+`;
+
+    let triageResult = await sails.helpers.ai.prompt.with({
+      systemPrompt: triageSystemPrompt,
+      prompt: `Here are the instructions from an IT admin:
+    \`\`\`
+    ${naturalLanguageInstructions}
+    \`\`\``,
+      baseModel: 'claude-haiku-4-5',
       expectJson: true,
     })
-    .intercept((err)=>{
-      sails.log.warn(`When trying generate a configuration profile for a user, an error occurred. Full error: ${require('util').inspect(err, {depth: 2})}`);
-      if(this.req.isSocket){
-        // If this request was from a socket and an error occurs, broadcast an 'error' event and unsubscribe the socket from this room.
-        sails.sockets.broadcast(roomId, 'error', {error: 'couldNotGenerateProfile'});
-        sails.sockets.leave(this.req, roomId);
-      }
-      return 'couldNotGenerateProfile';
+    .tolerate((err)=>{
+      sails.log.warn(`When trying to triage a user's configuration profile instructions, an error occurred. Full error: ${require('util').inspect(err, {depth: 2})}`);
+      return undefined;
     });
+
+    // Filtered because this is model output rendered straight into the page: a bare string in the
+    // array would render as an empty row rather than as nothing.
+    let anticipatedSettings = _.filter(triageResult ? triageResult.anticipatedSettings || [] : [], (setting)=>{
+      return _.isObject(setting) && setting.name;
+    });
+    if(this.req.isSocket && anticipatedSettings.length > 0) {
+      sails.sockets.broadcast(roomId, 'settingsPreview', {settings: anticipatedSettings});
+    }
+
+    // A triage call that failed leaves the question unanswered, and escalating is the safe answer
+    // to an unanswered question: the larger model still writes a correct first-party profile,
+    // while the smaller one writes a plausible-looking wrong third-party profile.
+    let needsAReferenceTheSmallerModelIsLikelyToRecallWrong = !triageResult || !!triageResult.requiresAThirdPartyApplicationReference;
+
+    let configurationProfileGenerationResult;
+    if(!needsAReferenceTheSmallerModelIsLikelyToRecallWrong) {
+      configurationProfileGenerationResult = await draftProfilePromise;
+    }
+    // Escalate when the draft was discarded, when it errored, or when it came back unusable.  On
+    // the third-party path this starts without awaiting the draft: it is known to be going in the
+    // bin the moment triage answers, so waiting would add its latency to the slow path for nothing.
+    if(!isUsableProfile(configurationProfileGenerationResult)) {
+      configurationProfileGenerationResult = await generateWithTheLargerModel();
+    }
+
     // sails.log(configurationProfileGenerationResult);
     // let jsonResult = JSON.parse(configurationProfileGenerationResult);
     // console.log(configurationProfileGenerationResult);
     // All done.
-    if(
-      configurationProfileGenerationResult.couldNotGenerateProfile ||
-      !configurationProfileGenerationResult.configurationProfile ||
-      !configurationProfileGenerationResult.profileFilename ||
-      !configurationProfileGenerationResult.settingsEnforced
-    ) {
+    if(!isUsableProfile(configurationProfileGenerationResult)) {
       if(this.req.isSocket){
         if(configurationProfileGenerationResult.reasonWhyAProfileCouldNotBeGenerated){
           sails.sockets.broadcast(roomId, 'error', {error: 'couldNotGenerateProfile', reason: configurationProfileGenerationResult.reasonWhyAProfileCouldNotBeGenerated});

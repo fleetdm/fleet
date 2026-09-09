@@ -35,25 +35,34 @@
       </div>
       </div>
       <div v-show="hasGeneratedProfile && !cloudError">
-        <ajax-overlay :syncing.sync="syncing" syncing-message="Generating profile" v-if="!cloudError"></ajax-overlay>
         <div class="d-flex flex-column-reverse mb-4">
           <p v-if="cloudError && cloudErrorExplanation" class="text-danger">Your request could not be processed. {{cloudErrorExplanation}}</p>
           <p v-else-if="cloudError" class="text-danger">Your request could not be processed. Please try again.</p>
           <div purpose="profile-editor">
             <div id="editor" @paste="getUpdatedValueFromEditor" @input="getUpdatedValueFromEditor" purpose="ace-editor"  mode="xml" :value.sync="generatedOutput"></div>
 
-            <div purpose="generate-button" @click="clickEditGeneratedOutput()" v-if="!hideEditButton"><i class="p-3 fa fa-pencil"></i></div>
+            <div purpose="generate-button" @click="clickEditGeneratedOutput()" v-if="!hideEditButton && !syncing"><i class="p-3 fa fa-pencil"></i></div>
 
+            <div purpose="pending-profile" v-if="syncing">
+              <p class="mb-0">Writing the profile</p>
+              <span purpose="loading-indicator">
+                <span class="loading-dot dot1"></span>
+                <span class="loading-dot dot2"></span>
+                <span class="loading-dot dot3"></span>
+                <span class="loading-dot dot4"></span>
+              </span>
+            </div>
           </div>
-          <div purpose="enforced-settings" class="mb-3">
-            <p><strong>Settings enforced:</strong></p>
-            <div v-for="item in parsedItemsInProfile">
+          <div purpose="enforced-settings" class="mb-3" v-if="parsedItemsInProfile.length || anticipatedItemsInProfile.length">
+            <p v-if="parsedItemsInProfile.length"><strong>Settings enforced:</strong></p>
+            <p v-else><strong>Settings this profile will probably enforce:</strong></p>
+            <div v-for="item in (parsedItemsInProfile.length ? parsedItemsInProfile : anticipatedItemsInProfile)">
               <p>{{item.name}}: {{item.value}}</p>
             </div>
             <p v-if="deliveryNotes"><strong>Deployment note:</strong> {{deliveryNotes}}</p>
           </div>
         </div>
-        <p><a @click="clickDownloadResult()">Download</a> this profile and deploy it using Fleet, Jamf, Intune or Airwatch.</p>
+        <p v-if="!syncing"><a @click="clickDownloadResult()">Download</a> this profile and deploy it using Fleet, Jamf, Intune or Airwatch.</p>
       </div>
     </div>
   </div>
