@@ -1,0 +1,107 @@
+// The native ToastWindow supplies the outer shadow and rounded corners, so
+// the card adds no shadow and the page stays transparent.
+
+.device-notification-page {
+  background: transparent;
+  margin: 0;
+  padding: 0;
+
+  &__card {
+    background-color: $core-fleet-white;
+    color: $core-fleet-black;
+    border-radius: $border-radius-large;
+    padding: $pad-large;
+    @include flex-column-24px-gap;
+  }
+
+  &__header {
+    @include flex-column-8px-gap;
+  }
+
+  &__logo.org-logo-icon {
+    margin-right: auto;
+    flex-shrink: 0;
+    width: 28px;
+    height: 28px;
+    min-height: 28px;
+    max-height: 28px;
+    padding: 0;
+    object-fit: contain;
+
+    &.default-fleet-logo {
+      transform: none;
+    }
+  }
+
+  &__title {
+    font-size: $small;
+    font-weight: $bold;
+    margin: 0;
+  }
+
+  &__description {
+    font-size: $x-small;
+    margin: 0;
+    color: $ui-fleet-black-75;
+  }
+
+  // Cap at 4.5 rows for a "more below" affordance; suppress hover (rows aren't clickable).
+  .list__list {
+    max-height: calc(4.5 * 48px);
+    overflow-y: auto;
+  }
+
+  .list__row {
+    height: 32px;
+
+    &:hover {
+      background: $core-fleet-white;
+    }
+
+    .software-icon {
+      width: 32px;
+      height: 32px;
+      flex-shrink: 0;
+
+      > svg,
+      > img {
+        width: 32px;
+        height: 32px;
+      }
+    }
+  }
+
+  &__item-left {
+    display: flex;
+    align-items: center;
+    gap: $pad-small;
+    min-width: 0;
+    flex: 1;
+  }
+
+  &__item-name {
+    flex: 1;
+    min-width: 0;
+    font-size: $x-small;
+  }
+
+  &__item-status {
+    font-size: $x-small;
+    color: $ui-fleet-black-75;
+    flex-shrink: 0;
+  }
+
+  &__actions {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: $pad-small;
+  }
+
+  &__action-error {
+    // Strip DataError's stand-alone-page padding so the actions row keeps a stable height.
+    .data-error__header--single-line {
+      padding: 0;
+    }
+  }
+}

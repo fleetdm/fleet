@@ -198,6 +198,12 @@ export default {
   DEVICE_TRANSPARENCY: (deviceAuthToken: string): string => {
     return `${URL_PREFIX}/api/v1/fleet/device/${deviceAuthToken}/transparency`;
   },
+  DEVICE_NOTIFICATION: (
+    deviceAuthToken: string,
+    notificationUuid: string
+  ): string => {
+    return `${URL_PREFIX}/device/${deviceAuthToken}/notifications/${notificationUuid}`;
+  },
 
   FLEET_DETAILS_USERS: (teamId?: number): string => {
     if (teamId !== undefined && teamId > 0) {
