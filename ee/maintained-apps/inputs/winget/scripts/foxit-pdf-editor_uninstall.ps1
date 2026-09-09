@@ -14,9 +14,10 @@ $machineKey32on64 = 'HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion
 $successCodes = @(0, 3010, 1641)
 
 function Get-Entries {
-    [array]$keys = Get-ChildItem -Path @($machineKey, $machineKey32on64) -ErrorAction SilentlyContinue |
-        ForEach-Object { Get-ItemProperty $_.PSPath -ErrorAction SilentlyContinue }
-    return [array]($keys | Where-Object { $_.DisplayName -eq $softwareName })
+    # Always yields a real (possibly empty) array so callers never iterate over $null.
+    $keys = @(Get-ChildItem -Path @($machineKey, $machineKey32on64) -ErrorAction SilentlyContinue |
+        ForEach-Object { Get-ItemProperty -LiteralPath $_.PSPath -ErrorAction SilentlyContinue })
+    return @($keys | Where-Object { $_ -and $_.DisplayName -eq $softwareName })
 }
 
 function Get-UninstallExe {
@@ -45,8 +46,8 @@ foreach ($p in @("FoxitPDFEditor", "FoxitPhantomPDF", "FoxitUpdater", "FoxitPDFE
 }
 Start-Sleep -Seconds 3
 
-$entries = Get-Entries
-if (-not $entries) {
+$entries = @(Get-Entries)
+if ($entries.Count -eq 0) {
     Write-Host "Uninstall entry not found for '$softwareName'."
     Exit 1
 }
@@ -66,7 +67,7 @@ foreach ($entry in $entries) {
 }
 
 # Any MSI entry still registered (older installs, or a bundle that could not run).
-foreach ($entry in Get-Entries) {
+foreach ($entry in @(Get-Entries)) {
     if ($entry.UninstallString -notmatch '(?i)msiexec') { continue }
     $productCode = Get-ProductCode $entry
     if (-not $productCode) {
@@ -82,10 +83,11 @@ foreach ($entry in Get-Entries) {
 }
 
 # A bundle whose cached uninstaller is gone leaves a dangling registration.
-foreach ($entry in Get-Entries) {
+foreach ($entry in @(Get-Entries)) {
     if ($entry.UninstallString -match '(?i)msiexec') { continue }
     $exe = Get-UninstallExe $entry.UninstallString
     if ($exe -and (Test-Path -LiteralPath $exe)) { continue }
+    if (-not $entry.PSPath) { continue }
     Write-Host "Removing orphaned registration: $($entry.PSChildName)"
     Remove-Item -LiteralPath $entry.PSPath -Recurse -Force -ErrorAction SilentlyContinue
 }
@@ -95,7 +97,7 @@ foreach ($entry in Get-Entries) {
     Exit 1
 }
 
-if (Get-Entries) {
+if (@(Get-Entries).Count -gt 0) {
     Write-Host "'$softwareName' is still registered after uninstall."
     if ($exitCode -eq 0) { $exitCode = 1 }
 }
