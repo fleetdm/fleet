@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"crypto/x509"
-	"encoding/json"
 	"fmt"
 	"io"
 	"log/slog"
@@ -16,6 +15,7 @@ import (
 	eu "github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 	"github.com/fleetdm/fleet/v4/server/platform/http/multipartform"
+	"github.com/fleetdm/fleet/v4/server/platform/jsondecode"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/auth"
 	"github.com/go-kit/kit/endpoint"
 	kithttp "github.com/go-kit/kit/transport/http"
@@ -114,7 +114,7 @@ func parseCustomTags(urlTagValue string, r *http.Request, field reflect.Value) (
 }
 
 func jsonDecode(body io.Reader, req any) error {
-	return json.NewDecoder(body).Decode(req)
+	return jsondecode.NewDecoder(body).Decode(req)
 }
 
 func isBodyDecoder(v reflect.Value) bool {
@@ -231,8 +231,6 @@ func newDeviceSSOExemptEndpointer(svc fleet.Service, logger *slog.Logger, opts [
 func deviceAuthenticatedEndpointer(svc fleet.Service, logger *slog.Logger, opts []kithttp.ServerOption, r *mux.Router,
 	ssoGate bool, versions ...string,
 ) *eu.CommonEndpointer[handlerFunc] {
-	// Extract certificate serial from X-Client-Cert-Serial header for certificate-based auth
-	opts = append(opts, kithttp.ServerBefore(extractCertSerialFromHeader))
 	// Make the Fleet Desktop device SSO session available to the auth middleware
 	opts = append(opts, kithttp.ServerBefore(extractDeviceSSOSessionFromCookie))
 	// Inject the fleet.CapabilitiesHeader header to the response for device endpoints

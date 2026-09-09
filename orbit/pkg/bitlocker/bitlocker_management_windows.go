@@ -636,6 +636,21 @@ func hasTPMFamilyProtectorOnCOMThread(targetVolume string) (bool, error) {
 	return false, nil
 }
 
+// hasRecoveryPasswordOnCOMThread reports whether the volume has a numerical password protector
+func hasRecoveryPasswordOnCOMThread(targetVolume string) (bool, error) {
+	vol, err := bitlockerConnect(targetVolume)
+	if err != nil {
+		return false, fmt.Errorf("connecting to the volume: %w", err)
+	}
+	defer vol.bitlockerClose()
+
+	ids, err := vol.getKeyProtectorIDs(KeyProtectorTypeNumericalPassword)
+	if err != nil {
+		return false, fmt.Errorf("listing recovery password protectors: %w", err)
+	}
+	return len(ids) > 0, nil
+}
+
 // addTPMProtectorOnCOMThread adds a TPM-only protector. ErrorCodeProtectorExists means the desired state is already
 // satisfied and is reported as success.
 func addTPMProtectorOnCOMThread(targetVolume string) error {

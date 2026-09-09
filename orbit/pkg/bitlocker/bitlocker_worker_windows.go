@@ -122,6 +122,13 @@ func (w *COMWorker) HasTPMFamilyProtector(targetVolume string) (bool, error) {
 	return has, r.err
 }
 
+// HasRecoveryPassword reports whether the volume has a 48-digit recovery password protector.
+func (w *COMWorker) HasRecoveryPassword(targetVolume string) (bool, error) {
+	r := w.exec(func() (any, error) { return hasRecoveryPasswordOnCOMThread(targetVolume) })
+	has, _ := r.val.(bool)
+	return has, r.err
+}
+
 // AddTPMProtector adds a TPM-only protector, treating "already exists" as success.
 func (w *COMWorker) AddTPMProtector(targetVolume string) error {
 	return w.exec(func() (any, error) { return nil, addTPMProtectorOnCOMThread(targetVolume) }).err

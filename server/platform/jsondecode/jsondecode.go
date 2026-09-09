@@ -105,10 +105,17 @@ func translate(err error, root any) error {
 	}
 }
 
+// errUnexpectedEOF carries encoding/json's wording for a truncated document while staying matchable as
+// io.ErrUnexpectedEOF, which callers use to tell a truncated body apart from an exhausted size limit.
+type errUnexpectedEOF struct{}
+
+func (errUnexpectedEOF) Error() string { return "unexpected end of JSON input" }
+func (errUnexpectedEOF) Unwrap() error { return io.ErrUnexpectedEOF }
+
 // syntaxError restates a jsontext syntax error in encoding/json's wording.
 func syntaxError(err error) error {
 	if errors.Is(err, io.ErrUnexpectedEOF) {
-		return errors.New("unexpected end of JSON input")
+		return errUnexpectedEOF{}
 	}
 	msg := err.Error()
 	if i := strings.LastIndex(msg, "jsontext: "); i >= 0 {

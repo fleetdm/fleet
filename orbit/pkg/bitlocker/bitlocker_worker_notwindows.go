@@ -22,6 +22,8 @@ func (w *COMWorker) RotateRecoveryKey(string) (string, error) { return "", nil }
 
 func (w *COMWorker) HasTPMFamilyProtector(string) (bool, error) { return false, nil }
 
+func (w *COMWorker) HasRecoveryPassword(string) (bool, error) { return false, nil }
+
 func (w *COMWorker) AddTPMProtector(string) error { return nil }
 
 func (w *COMWorker) EnableProtection(string) error { return nil }

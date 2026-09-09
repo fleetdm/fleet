@@ -162,7 +162,7 @@ $max-width: 2560px;
   font-size: $x-small;
   text-decoration: none;
 
-  &:hover {
+  &:hover:not(.button--default) {
     color: $core-fleet-black;
   }
 
@@ -250,6 +250,12 @@ $max-width: 2560px;
   display: flex;
   flex-direction: column;
   gap: $pad-small;
+}
+
+@mixin flex-column-4px-gap {
+  display: flex;
+  flex-direction: column;
+  gap: $pad-xsmall;
 }
 
 @mixin vertical-form-layout {

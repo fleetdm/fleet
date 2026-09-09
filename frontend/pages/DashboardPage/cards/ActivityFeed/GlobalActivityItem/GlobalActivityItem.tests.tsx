@@ -2732,4 +2732,30 @@ describe("Activity Feed", () => {
     expect(screen.getByText("DeviceLock")).toBeInTheDocument();
     expect(screen.getByText("Anna's MacBook Pro")).toBeInTheDocument();
   });
+
+  it("renders enabled apple business enrollment activity", () => {
+    const activity = createMockActivity({
+      type: ActivityType.EnabledAppleBusinessOnlyEnrollment,
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText("enabled Apple Business only enrollment", {
+        exact: false,
+      })
+    ).toBeInTheDocument();
+  });
+
+  it("renders disabled apple business enrollment activity", () => {
+    const activity = createMockActivity({
+      type: ActivityType.DisabledAppleBusinessOnlyEnrollment,
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText("disabled Apple Business only enrollment", {
+        exact: false,
+      })
+    ).toBeInTheDocument();
+  });
 });
