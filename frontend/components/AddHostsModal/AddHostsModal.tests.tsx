@@ -216,7 +216,7 @@ describe("AddHostsModal", () => {
     expect(screen.getByTestId("enroll-qr-code")).toBeInTheDocument();
   });
 
-  it("updates the android qr code when the enrollment type changes", async () => {
+  it("hides the android qr code when company-owned is selected", async () => {
     const render = createCustomRenderer({
       withBackendMock: true,
       context: {
@@ -245,8 +245,7 @@ describe("AddHostsModal", () => {
         new RegExp(`/enroll\\?enroll_secret=${ENROLL_SECRET}$`)
       )
     ).toBeInTheDocument();
-    const workProfileQrData = getQrCodeData();
-    expect(workProfileQrData).toBeTruthy();
+    expect(getQrCodeData()).toBeTruthy();
 
     await user.click(screen.getByLabelText("Company-owned (fully-managed)"));
 
@@ -257,7 +256,10 @@ describe("AddHostsModal", () => {
         )
       )
     ).toBeInTheDocument();
-    expect(getQrCodeData()).not.toEqual(workProfileQrData);
+    expect(
+      screen.queryByText("To test, scan the QR code:")
+    ).not.toBeInTheDocument();
+    expect(screen.queryByTestId("enroll-qr-code")).not.toBeInTheDocument();
   });
 
   it("updates the ios & ipadOS qr code when the enrollment type changes", async () => {
