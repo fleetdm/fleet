@@ -47,7 +47,7 @@ func TestSoftwareInstallers(t *testing.T) {
 		{"DeleteSoftwareInstallerRepointsPolicies", testDeleteSoftwareInstallerRepointsPolicies},
 		{"testDeletePendingSoftwareInstallsForPolicy", testDeletePendingSoftwareInstallsForPolicy},
 		{"GetHostLastInstallData", testGetHostLastInstallData},
-		{"ListHostLastTitleInstallData", testListHostLastTitleInstallData},
+		{"BatchInstallVerificationReads", testBatchInstallVerificationReads},
 		{"GetOrGenerateSoftwareInstallerTitleID", testGetOrGenerateSoftwareInstallerTitleID},
 		{"BatchSetSoftwareInstallersScopedViaLabels", testBatchSetSoftwareInstallersScopedViaLabels},
 		{"MatchOrCreateSoftwareInstallerWithAutomaticPolicies", testMatchOrCreateSoftwareInstallerWithAutomaticPolicies},
@@ -3263,7 +3263,9 @@ func testGetHostLastInstallData(t *testing.T, ds *Datastore) {
 	require.Nil(t, host2LastInstall)
 }
 
-func testListHostLastTitleInstallData(t *testing.T, ds *Datastore) {
+// The two batch reads RemindAndInstallDuePatches does before deciding whether a software title
+// still needs updating: the host's install requests, and the host's software inventory.
+func testBatchInstallVerificationReads(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
 	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "title-installs-team"})
@@ -3296,7 +3298,7 @@ func testListHostLastTitleInstallData(t *testing.T, ds *Datastore) {
 	}, nil)
 	require.NoError(t, err)
 
-	// the install through the second installer is still on its way
+	// the second install request is still pending
 	secondExecutionID, err := ds.InsertSoftwareInstallRequest(ctx, installedHost.ID, secondInstallerID, fleet.HostSoftwareInstallOptions{})
 	require.NoError(t, err)
 
@@ -3322,6 +3324,36 @@ func testListHostLastTitleInstallData(t *testing.T, ds *Datastore) {
 	installsByTitle, err = ds.ListHostLastTitleInstallData(ctx, []uint{installedHost.ID}, []uint{otherTitleID})
 	require.NoError(t, err)
 	assert.Empty(t, installsByTitle)
+
+	// The host's software inventory, the second read RemindAndInstallDuePatches does. A software
+	// title with two versions in host_software returns both rows, since the caller treats the title
+	// as up to date only when every version matches the installer's.
+	_, err = ds.UpdateHostSoftware(ctx, installedHost.ID, []fleet.Software{
+		{Name: "Replaced App", Version: "1.0.0", Source: "apps"},
+		{Name: "Replaced App", Version: "2.0.0", Source: "apps"},
+		{Name: "Unrelated App", Version: "9.9.9", Source: "apps"},
+	})
+	require.NoError(t, err)
+
+	versions, err := ds.ListHostSoftwareVersionsForTitles(ctx,
+		[]uint{installedHost.ID, untouchedHost.ID}, []uint{titleID})
+	require.NoError(t, err)
+
+	installedVersions := make([]string, 0, len(versions))
+	for _, version := range versions {
+		assert.Equal(t, installedHost.ID, version.HostID, "the host with no inventory reports nothing")
+		assert.Equal(t, titleID, version.SoftwareTitleID, "a title that wasn't asked for stays out")
+		installedVersions = append(installedVersions, version.Version)
+	}
+	assert.ElementsMatch(t, []string{"1.0.0", "2.0.0"}, installedVersions)
+
+	// neither an empty host list nor an empty title list reads the whole table
+	versions, err = ds.ListHostSoftwareVersionsForTitles(ctx, nil, []uint{titleID})
+	require.NoError(t, err)
+	assert.Empty(t, versions)
+	versions, err = ds.ListHostSoftwareVersionsForTitles(ctx, []uint{installedHost.ID}, nil)
+	require.NoError(t, err)
+	assert.Empty(t, versions)
 }
 
 func testGetOrGenerateSoftwareInstallerTitleID(t *testing.T, ds *Datastore) {

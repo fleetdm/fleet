@@ -25,14 +25,6 @@ type PatchNotificationDue struct {
 	InstallAt        time.Time       `db:"install_at"`
 }
 
-// What a host has installed for one software title. A title can have more than one row when several
-// copies are installed.
-type HostSoftwareTitleVersion struct {
-	HostID          uint   `db:"host_id"`
-	SoftwareTitleID uint   `db:"title_id"`
-	Version         string `db:"version"`
-}
-
 type PatchNotificationAppDetail struct {
 	// NotificationUUID is only set when the apps of several notifications are listed at once.
 	NotificationUUID string `db:"notification_uuid"`

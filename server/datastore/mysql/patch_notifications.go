@@ -236,28 +236,3 @@ WHERE pna.notification_uuid IN (?)
 	}
 	return byNotification, nil
 }
-
-// ListHostSoftwareVersionsForTitles reports what the given hosts have installed for the given titles.
-// Driven by the index on software.title_id, so it reads only the titles asked for instead of whole
-// inventories.
-func (ds *Datastore) ListHostSoftwareVersionsForTitles(ctx context.Context, hostIDs []uint, softwareTitleIDs []uint) ([]fleet.HostSoftwareTitleVersion, error) {
-	if len(hostIDs) == 0 || len(softwareTitleIDs) == 0 {
-		return nil, nil
-	}
-
-	stmt, args, err := sqlx.In(`
-SELECT hs.host_id, s.title_id, s.version
-FROM software s
-	JOIN host_software hs ON hs.software_id = s.id
-WHERE s.title_id IN (?) AND hs.host_id IN (?)
-`, softwareTitleIDs, hostIDs)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "build list host software versions statement")
-	}
-
-	var versions []fleet.HostSoftwareTitleVersion
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &versions, stmt, args...); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "list host software versions for titles")
-	}
-	return versions, nil
-}

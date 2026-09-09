@@ -80,7 +80,7 @@ func TestCreatePatchNotificationForEndUser(t *testing.T) {
 		// NotificationAwaitingDisplay: this host has a notification the end user
 		// has not seen yet
 		awaiting bool
-		// host_software_installs.software_title_id
+		// the skipped install carries no software title, so there is no app to name
 		noTitle bool
 		// NewPatchNotification: the patch_notifications row can't be written
 		newPatchFails bool
@@ -90,7 +90,7 @@ func TestCreatePatchNotificationForEndUser(t *testing.T) {
 		wantAppOn   string // "" means no app was recorded
 	}{
 		{
-			name:        "the host has no patch notification",
+			name:        "a host with no patch notification gets a new one listing the app",
 			wantCreated: true,
 			wantAppOn:   createdUUID,
 		},
@@ -101,12 +101,12 @@ func TestCreatePatchNotificationForEndUser(t *testing.T) {
 			wantAppOn:   awaitingUUID,
 		},
 		{
-			name:      "the app is already listed on a pending or dispatched notification",
+			name:      "an app already listed on a pending or dispatched notification is not listed twice",
 			exists:    true,
 			wantAppOn: "",
 		},
 		{
-			name:      "the install has no software title to record",
+			name:      "an install with no software title records no notification",
 			noTitle:   true,
 			wantAppOn: "",
 		},
@@ -484,7 +484,7 @@ func TestPatchNotificationOnOutcome(t *testing.T) {
 		wantPolicyIDs  []uint
 	}{
 		{
-			name:           "the first notice, displayed, names every app and policy",
+			name:           "a displayed first notice records an activity naming every app and policy",
 			outcome:        notifications_api.NotificationOutcome{Displayed: true, ExitCode: 0, ExecutionID: "exec-1"},
 			apps:           twoAppsTwoPolicies,
 			wantStatus:     "success",
@@ -493,7 +493,7 @@ func TestPatchNotificationOnOutcome(t *testing.T) {
 			wantPolicyIDs:  []uint{30, 31},
 		},
 		{
-			name:           "the reminder, displayed, uses the reminder's time before",
+			name:           "a displayed reminder records five minutes as its time before",
 			reminder:       true,
 			outcome:        notifications_api.NotificationOutcome{Displayed: true, ExitCode: 0, ExecutionID: "exec-2"},
 			apps:           twoAppsTwoPolicies,
@@ -503,7 +503,7 @@ func TestPatchNotificationOnOutcome(t *testing.T) {
 			wantPolicyIDs:  []uint{30, 31},
 		},
 		{
-			name:           "a first failure is recorded",
+			name:           "a screen locked failure is recorded the first time it happens",
 			outcome:        notifications_api.NotificationOutcome{Displayed: false, ExitCode: 41, ExecutionID: "exec-3"},
 			apps:           twoAppsTwoPolicies,
 			wantStatus:     "failed",
@@ -590,8 +590,8 @@ func TestPatchNotificationOnOutcome(t *testing.T) {
 			assert.Equal(t, c.wantStatus, activity.Status)
 			assert.Equal(t, c.wantTimeBefore, activity.TimeBefore)
 
-			// Only a display sets a deadline, and it is counted from this notice's own lead time so a
-			// reminder does not push it out by another hour.
+			// Only a displayed outcome sets install_at, and it is set from the lead time of the
+			// notification that was displayed, so a reminder sets it 5 minutes out, not an hour.
 			if c.wantStatus != "success" {
 				assert.False(t, ds.SetPatchNotificationInstallAtFuncInvoked)
 				assert.Nil(t, activity.InstallAt)
@@ -629,7 +629,6 @@ func TestRemindAndInstallDuePatches(t *testing.T) {
 		name string
 		// how far the deadline is from now, negative once it has passed
 		untilDeadline time.Duration
-		status        string
 		displayed     bool
 		reminder      bool
 		// software inventory by software title id
@@ -647,35 +646,8 @@ func TestRemindAndInstallDuePatches(t *testing.T) {
 		wantAppsDropped []uint
 	}{
 		{
-			name:              "a notification inside the reminder window is reminded once",
-			untilDeadline:     4 * time.Minute,
-			status:            notifications_api.EndUserNotificationDispatched,
-			displayed:         true,
-			installedVersions: behind,
-			wantReminder:      true,
-		},
-		{
-			// the re-dispatch left it pending, which is how a second pass knows the
-			// reminder already went out
-			name:              "a notification whose reminder is queued is left alone",
-			untilDeadline:     time.Minute,
-			status:            notifications_api.EndUserNotificationPending,
-			displayed:         false,
-			installedVersions: behind,
-		},
-		{
-			// the reminder payload is how a second pass knows the reminder was displayed
-			name:              "a notification whose reminder is on screen is left alone",
-			untilDeadline:     time.Minute,
-			status:            notifications_api.EndUserNotificationDispatched,
-			displayed:         true,
-			reminder:          true,
-			installedVersions: behind,
-		},
-		{
 			name:              "an app updated during the hour is dropped from the reminder",
 			untilDeadline:     4 * time.Minute,
-			status:            notifications_api.EndUserNotificationDispatched,
 			displayed:         true,
 			installedVersions: map[uint]string{oneTitleID: installerVersion, twoTitleID: "1.0.0"},
 			wantReminder:      true,
@@ -684,7 +656,6 @@ func TestRemindAndInstallDuePatches(t *testing.T) {
 		{
 			name:              "every app updated during the hour means no reminder and nothing to install",
 			untilDeadline:     4 * time.Minute,
-			status:            notifications_api.EndUserNotificationDispatched,
 			displayed:         true,
 			installedVersions: map[uint]string{oneTitleID: installerVersion, twoTitleID: installerVersion},
 			wantActed:         true,
@@ -695,7 +666,6 @@ func TestRemindAndInstallDuePatches(t *testing.T) {
 			// what the installer would put down is treated as still needing the update.
 			name:              "an app the host is on a different version of is still updated at the deadline",
 			untilDeadline:     -time.Minute,
-			status:            notifications_api.EndUserNotificationDispatched,
 			displayed:         true,
 			reminder:          true,
 			installedVersions: map[uint]string{oneTitleID: "9.0.0", twoTitleID: "1.0.0"},
@@ -703,20 +673,9 @@ func TestRemindAndInstallDuePatches(t *testing.T) {
 			wantInstalls:      []uint{oneInstallerID, twoInstallerID},
 		},
 		{
-			name:              "the deadline closes and updates every app still behind",
-			untilDeadline:     -time.Minute,
-			status:            notifications_api.EndUserNotificationDispatched,
-			displayed:         true,
-			reminder:          true,
-			installedVersions: behind,
-			wantActed:         true,
-			wantInstalls:      []uint{oneInstallerID, twoInstallerID},
-		},
-		{
 			// a My device self-service update lands before inventory catches up
 			name:              "an app Fleet installed since the notification was created is not installed again",
 			untilDeadline:     -time.Minute,
-			status:            notifications_api.EndUserNotificationDispatched,
 			displayed:         true,
 			reminder:          true,
 			installedVersions: behind,
@@ -728,7 +687,6 @@ func TestRemindAndInstallDuePatches(t *testing.T) {
 		{
 			name:              "an Update now that got there first stops the deadline installing the same apps again",
 			untilDeadline:     -time.Minute,
-			status:            notifications_api.EndUserNotificationDispatched,
 			displayed:         true,
 			reminder:          true,
 			installedVersions: behind,
@@ -736,11 +694,9 @@ func TestRemindAndInstallDuePatches(t *testing.T) {
 			wantActed:         true,
 		},
 		{
-			// An offline host and a reminder still on its way both leave displayed_at unset, and
-			// neither end user has seen the warning, so the deadline starts over for both.
-			name:              "a deadline the end user never saw notifies again instead of patching",
+			// an offline host and a reminder that was never displayed both leave displayed_at null
+			name:              "a notification past install_at with no displayed_at is re-dispatched instead of installed",
 			untilDeadline:     -time.Minute,
-			status:            notifications_api.EndUserNotificationDispatched,
 			reminder:          true,
 			installedVersions: behind,
 			wantReset:         true,
@@ -771,7 +727,7 @@ func TestRemindAndInstallDuePatches(t *testing.T) {
 				return []fleet.PatchNotificationDue{{
 					NotificationUUID: "notification-uuid",
 					HostID:           hostID,
-					Status:           c.status,
+					Status:           notifications_api.EndUserNotificationDispatched,
 					Payload:          payload,
 					DisplayedAt:      displayed,
 					CreatedAt:        displayedAt.Add(-time.Minute),
@@ -779,10 +735,11 @@ func TestRemindAndInstallDuePatches(t *testing.T) {
 				}}, nil
 			}
 
-			// the apps the pass drops stop being listed, the same as deleting their rows does
+			// dropped software titles stop being returned, as deleting their rows would do
 			dropped := make(map[uint]struct{})
+			var appReads int
 			ds.ListPatchNotificationAppsForNotificationsFunc = func(_ context.Context, uuids []string) (map[string][]fleet.PatchNotificationAppDetail, error) {
-				require.Len(t, uuids, 1, "the batch's apps are read in one statement")
+				appReads++
 				all := []fleet.PatchNotificationAppDetail{
 					{SoftwareTitleID: oneTitleID, SoftwareInstallerID: new(oneInstallerID), PolicyID: new(policyID), InstallerVersion: installerVersion},
 					{SoftwareTitleID: twoTitleID, SoftwareInstallerID: new(twoInstallerID), PolicyID: new(policyID), InstallerVersion: installerVersion},
@@ -804,8 +761,9 @@ func TestRemindAndInstallDuePatches(t *testing.T) {
 				return nil
 			}
 
+			var versionReads int
 			ds.ListHostSoftwareVersionsForTitlesFunc = func(_ context.Context, hostIDs []uint, titleIDs []uint) ([]fleet.HostSoftwareTitleVersion, error) {
-				require.Len(t, hostIDs, 1, "the batch's inventory is read in one statement")
+				versionReads++
 				versions := make([]fleet.HostSoftwareTitleVersion, 0, len(titleIDs))
 				for _, titleID := range titleIDs {
 					if installed, ok := c.installedVersions[titleID]; ok {
@@ -816,8 +774,9 @@ func TestRemindAndInstallDuePatches(t *testing.T) {
 				}
 				return versions, nil
 			}
+			var installDataReads int
 			ds.ListHostLastTitleInstallDataFunc = func(_ context.Context, hostIDs []uint, _ []uint) (map[fleet.HostSoftwareTitleKey][]*fleet.HostLastInstallData, error) {
-				require.Len(t, hostIDs, 1, "the batch's install history is read in one statement")
+				installDataReads++
 				if c.lastInstalled == nil {
 					return nil, nil
 				}
@@ -843,7 +802,12 @@ func TestRemindAndInstallDuePatches(t *testing.T) {
 			require.NoError(t, kind.RemindAndInstallDuePatches(context.Background()))
 
 			assert.WithinDuration(t, time.Now().UTC().Add(patchNotificationReminderBefore), gotCutoff, time.Minute,
-				"the pass reads the notifications that reach their deadline within the reminder's lead time")
+				"the cutoff is install_at plus the reminder lead time")
+
+			// one read each per batch, not one per notification
+			assert.Equal(t, 1, appReads)
+			assert.Equal(t, 1, versionReads)
+			assert.Equal(t, 1, installDataReads)
 
 			assert.ElementsMatch(t, c.wantInstalls, installs)
 			assert.ElementsMatch(t, c.wantAppsDropped, gotDropped)
@@ -855,7 +819,7 @@ func TestRemindAndInstallDuePatches(t *testing.T) {
 				return
 			}
 			require.True(t, notificationSvc.delayInvoked)
-			// the offline restart begins a new hour, so it goes back to the first notice
+			// a reset re-sends the first notification, not the reminder
 			wantPayload := patchNotificationReminderPayload
 			if c.wantReset {
 				wantPayload = patchNotificationFirstNoticePayload

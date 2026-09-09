@@ -71,10 +71,9 @@ func testPatchNotificationExistsForApp(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 	host := test.NewHost(t, ds, "exists-host", "", "exists-key", "exists-uuid", time.Now())
 
-	// a pending or dispatched notification still has its apps to install, so a
-	// second skip for one of those apps is dropped. A failed or expired
-	// notification never installed them, and an acted notification already
-	// queued the installs, so a later skip starts a new notification either way.
+	// A pending or dispatched notification has not queued its install requests yet, so a second
+	// app-open skip for one of its software titles is dropped. A failed, expired or acted
+	// notification will not queue them, so a later skip creates a new notification instead.
 	stillCounts := map[string]bool{
 		notifications_api.EndUserNotificationPending:    true,
 		notifications_api.EndUserNotificationDispatched: true,
@@ -101,7 +100,7 @@ func testPatchNotificationExistsForApp(t *testing.T, ds *Datastore) {
 		assert.False(t, exists)
 	}
 
-	// an app that no notification lists
+	// a software title no notification lists at all is not reported as existing
 	exists, err := ds.PatchNotificationExistsForApp(ctx, host.ID, newTestSoftwareTitle(t, ds, "unlisted"))
 	require.NoError(t, err)
 	assert.False(t, exists)
@@ -148,8 +147,8 @@ func testPatchNotificationAddAndListApps(t *testing.T, ds *Datastore) {
 	// adding the same app again does nothing rather than failing
 	require.NoError(t, ds.AddPatchNotificationApp(ctx, notificationUUID, app))
 
-	// the host's fleet has no display name or icon for this software title, so
-	// the app's display name falls back to the software title's name
+	// the host's fleet has no display name or icon for this software title, so display_name falls
+	// back to the software title's name
 	apps, err := ds.ListPatchNotificationApps(ctx, notificationUUID)
 	require.NoError(t, err)
 	require.Len(t, apps, 1)
@@ -233,8 +232,8 @@ func testPatchNotificationListAppsForNotifications(t *testing.T, ds *Datastore) 
 		SoftwareTitleID: installerTitleID, SoftwareInstallerID: &installerID,
 	}))
 
-	// an app whose installer was deleted still has to be listed, since Fleet has no version of it to
-	// match the host against
+	// Deleting an installer nulls patch_notification_apps.software_installer_id rather than removing
+	// the row, so the app still comes back, with no installer id and no installer version.
 	noInstallerTitleID := newTestSoftwareTitle(t, ds, "Uninstallable App")
 	noInstallerNotification := newPatchNotification(t, ds, noInstallerHost.ID, notifications_api.EndUserNotificationDispatched, 1)
 	require.NoError(t, ds.AddPatchNotificationApp(ctx, noInstallerNotification, fleet.PatchNotificationApp{
@@ -266,7 +265,7 @@ func testPatchNotificationListAppsForNotifications(t *testing.T, ds *Datastore) 
 	assert.Nil(t, noInstallerApp.SoftwareInstallerID)
 	assert.Empty(t, noInstallerApp.InstallerVersion)
 
-	// the flag that stops a second attempt queueing the same install twice
+	// install_queued, which stops a second attempt queueing the same install request
 	require.NoError(t, ds.SetPatchNotificationAppsQueued(ctx, installerNotification, []uint{installerTitleID}))
 	byNotification, err = ds.ListPatchNotificationAppsForNotifications(ctx, []string{installerNotification})
 	require.NoError(t, err)
@@ -298,14 +297,14 @@ func testPatchNotificationDeleteApps(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, apps, 2)
 
-	// the app the end user already updated stops being listed, so the reminder can't name it
+	// a software title that no longer needs updating stops being returned, so the reminder omits it
 	require.NoError(t, ds.DeletePatchNotificationApps(ctx, notificationUUID, []uint{updated}))
 	apps, err = ds.ListPatchNotificationApps(ctx, notificationUUID)
 	require.NoError(t, err)
 	require.Len(t, apps, 1)
 	assert.Equal(t, stillOpen, apps[0].SoftwareTitleID)
 
-	// another notification's copy of the same app is untouched
+	// another notification's row for the same software title is untouched
 	otherUUID := newPatchNotification(t, ds, host.ID, notifications_api.EndUserNotificationDispatched, 1)
 	require.NoError(t, ds.AddPatchNotificationApp(ctx, otherUUID,
 		fleet.PatchNotificationApp{SoftwareTitleID: stillOpen}))
@@ -323,34 +322,33 @@ func testPatchNotificationInstallAt(t *testing.T, ds *Datastore) {
 	host := test.NewHost(t, ds, "install-at-host", "", "install-at-key", "install-at-uuid", time.Now())
 	notificationUUID := newPatchNotification(t, ds, host.ID, notifications_api.EndUserNotificationDispatched, 1)
 
-	// the first display sets the deadline
+	// the first displayed_at sets install_at
 	deadline := time.Now().UTC().Add(time.Hour).Truncate(time.Second)
 	stored, err := ds.SetPatchNotificationInstallAt(ctx, notificationUUID, deadline)
 	require.NoError(t, err)
 	assert.WithinDuration(t, deadline, stored, time.Second)
 
-	// an earlier deadline never wins, so a duplicate script result or a retry can't cut the lead
-	// time the end user was promised short
+	// an earlier install_at is ignored, so a duplicate script result or a retry cannot shorten the
+	// lead time
 	stored, err = ds.SetPatchNotificationInstallAt(ctx, notificationUUID, deadline.Add(-time.Minute))
 	require.NoError(t, err)
 	assert.WithinDuration(t, deadline, stored, time.Second)
 
-	// a later one does, which is how a reminder that took a while to reach the screen still leaves
-	// its full five minutes before the apps close
+	// a later install_at is stored, which is how a reminder displayed late keeps its full 5 minutes
 	pushedOut := deadline.Add(time.Minute)
 	stored, err = ds.SetPatchNotificationInstallAt(ctx, notificationUUID, pushedOut)
 	require.NoError(t, err)
 	assert.WithinDuration(t, pushedOut, stored, time.Second)
 
-	// an offline host's restart clears the deadline, so its next display sets a fresh one
+	// resetting clears install_at, so the next displayed_at sets it again
 	require.NoError(t, ds.ResetPatchNotification(ctx, notificationUUID))
 	restarted := deadline.Add(-2 * time.Hour)
 	stored, err = ds.SetPatchNotificationInstallAt(ctx, notificationUUID, restarted)
 	require.NoError(t, err)
 	assert.WithinDuration(t, restarted, stored, time.Second)
 
-	// a notification whose patch_notifications row was never written still gets a
-	// deadline, otherwise it would never be patched
+	// a notification with no patch_notifications row gets one inserted, so it still records an
+	// install_at
 	rowless := uuid.NewString()
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, `
@@ -363,7 +361,7 @@ func testPatchNotificationInstallAt(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assert.WithinDuration(t, deadline, stored, time.Second)
 
-	// a uuid no notification has cannot hold a deadline
+	// a uuid with no notification row fails the foreign key
 	_, err = ds.SetPatchNotificationInstallAt(ctx, "no-such-notification", deadline)
 	require.Error(t, err)
 }
@@ -392,13 +390,13 @@ func testPatchNotificationListDue(t *testing.T, ds *Datastore) {
 
 	host := test.NewHost(t, ds, "due-host", "", "due-key", "due-uuid", now)
 
-	// 6 minutes out is outside the reminder window, 5 minutes is on its edge, and
-	// the deadline itself is past due
+	// A deadline 6 minutes out is outside the reminder window, one exactly 5 minutes out sits on its
+	// edge and is included, and one already past is due to install.
 	tooEarly := newPatchNotification(t, ds, host.ID, notifications_api.EndUserNotificationDispatched, 1)
 	setInstallAt(tooEarly, now.Add(6*time.Minute))
 	markDisplayed(tooEarly)
 	inReminderWindow := newPatchNotification(t, ds, host.ID, notifications_api.EndUserNotificationDispatched, 1)
-	setInstallAt(inReminderWindow, now.Add(4*time.Minute))
+	setInstallAt(inReminderWindow, now.Add(5*time.Minute))
 	markDisplayed(inReminderWindow)
 	pastDeadline := newPatchNotification(t, ds, host.ID, notifications_api.EndUserNotificationDispatched, 1)
 	setInstallAt(pastDeadline, now.Add(-time.Minute))
@@ -419,10 +417,10 @@ func testPatchNotificationListDue(t *testing.T, ds *Datastore) {
 		terminal = append(terminal, notificationUUID)
 	}
 
-	// a re-dispatch clears displayed_at, so a notice on its way to the screen still
-	// has to come back: the pass sends the first notice again instead of patching
-	onTheWay := newPatchNotification(t, ds, host.ID, notifications_api.EndUserNotificationPending, 1)
-	setInstallAt(onTheWay, now.Add(-time.Minute))
+	// a re-dispatched notification is pending with a null displayed_at, and is still returned so the
+	// caller can clear install_at and re-dispatch the first notification
+	notDisplayed := newPatchNotification(t, ds, host.ID, notifications_api.EndUserNotificationPending, 1)
+	setInstallAt(notDisplayed, now.Add(-time.Minute))
 
 	due, err := ds.ListPatchNotificationsDue(ctx, now.Add(5*time.Minute), 500)
 	require.NoError(t, err)
@@ -446,8 +444,8 @@ func testPatchNotificationListDue(t *testing.T, ds *Datastore) {
 	require.Contains(t, byUUID, pastDeadline)
 	assert.NotNil(t, byUUID[pastDeadline].DisplayedAt)
 
-	require.Contains(t, byUUID, onTheWay)
-	assert.Nil(t, byUUID[onTheWay].DisplayedAt)
+	require.Contains(t, byUUID, notDisplayed)
+	assert.Nil(t, byUUID[notDisplayed].DisplayedAt)
 
 	// the batch is ordered by deadline, so the oldest deadline is handled first
 	require.Len(t, due, 3)

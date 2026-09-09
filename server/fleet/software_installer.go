@@ -467,6 +467,14 @@ type HostSoftwareTitleKey struct {
 	SoftwareTitleID uint
 }
 
+// What a host has installed for one software title. A title can have more than one row when several
+// copies are installed.
+type HostSoftwareTitleVersion struct {
+	HostID          uint   `db:"host_id"`
+	SoftwareTitleID uint   `db:"title_id"`
+	Version         string `db:"version"`
+}
+
 // HostLastInstallData contains data for the last installation of a package on a host.
 type HostLastInstallData struct {
 	// ExecutionID is the installation ID of the package on the host.
