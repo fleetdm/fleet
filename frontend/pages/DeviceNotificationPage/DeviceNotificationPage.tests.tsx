@@ -295,7 +295,6 @@ describe("DeviceNotificationPage", () => {
 
     const light = renderPage();
 
-    // Wait for the MSW response to replace the TEMP fallback logo urls.
     await waitFor(() => {
       const src = light.container
         .querySelector(`.${baseClass}__logo`)

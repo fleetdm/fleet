@@ -32,8 +32,8 @@ interface IDeviceNotificationPageProps {
   params: IDeviceNotificationPageParams;
 }
 
-// The server sends inline `**bold**` in title and description. This is the
-// only markup, so a small splitter is cheaper than pulling in react-markdown.
+// Title/description carry inline `**bold**` as the only markup. Avoid pulling
+// in react-markdown for one construct.
 const renderBoldMarkup = (text: string): React.ReactNode => {
   const parts = text.split(/(\*\*[^*]+\*\*)/g);
   return parts.map((part, i) => {
@@ -46,10 +46,6 @@ const renderBoldMarkup = (text: string): React.ReactNode => {
   });
 };
 
-// Rendered as the child of Fleet's <List> row (`.list__row`), which owns the
-// row's flex layout, padding, and dividers. We supply the left slot
-// (icon + name) and the optional right slot (status), split by List's
-// `justify-content: space-between`.
 const renderNotificationItemRow = (item: INotificationItem) => (
   <>
     <span className={`${baseClass}__item-left`}>
@@ -97,11 +93,8 @@ const DeviceNotificationPage = ({
         notification_uuid
       ),
     {
-      // One-shot fetch — the toast opens, fetches once, and dismisses. Server
-      // owns retries via exit codes. We DO want refetchOnMount at its default
-      // (`true`) because the toast reopens every ~55 minutes with a fresh
-      // device auth token (tokens rotate every 30m), and we should never
-      // serve a cached view from a previous open.
+      // Keep refetchOnMount at its default: the toast reopens with a fresh
+      // 30-min auth token, and a cached view from a previous open would be stale.
       retry: false,
       refetchOnReconnect: false,
       refetchOnWindowFocus: false,
@@ -125,14 +118,11 @@ const DeviceNotificationPage = ({
       }),
     {
       onSuccess: (updatedView, { action, isPrimary }) => {
-        // Server owns the post-action state (e.g. Installing…). Replace the
-        // cached view so re-render happens without a follow-up GET.
+        // Server returns the post-action view; write it back so we re-render
+        // without a follow-up GET.
         queryClient.setQueryData(queryKey, updatedView);
-        // `dismiss` id always closes the toast, regardless of position — the
-        // server reuses it for any "close" action, including the lone `Hide`
-        // in the Installing state where positionally it would otherwise be
-        // the primary. Only real primary CTAs (e.g. `update_now`) keep the
-        // window open.
+        // `dismiss` id always closes, even when it's positionally primary
+        // (e.g. the lone `Hide` in the Installing state).
         const shouldClose = action.id === "dismiss" || !isPrimary;
         postBridgeMessage(shouldClose ? "dismiss" : "primary");
       },
@@ -155,11 +145,8 @@ const DeviceNotificationPage = ({
   useEffect(() => {
     const node = cardRef.current;
     if (!node || !data) return undefined;
-    // Native ToastWindow starts at 525x318 and resizes to fit the card. Every
-    // height change (list scroll, action swap after update_now) posts back so
-    // the window follows without an assumed fixed height. Use `offsetHeight`
-    // (border box) so the reported height includes the card's 24px padding —
-    // `contentRect.height` reports the content box and would clip the buttons.
+    // Use `offsetHeight` (border box) so the reported height includes the
+    // card's padding; `contentRect.height` reports content box and clips buttons.
     const observer = new ResizeObserver(() => {
       postBridgeMessage("resize", { height: node.offsetHeight });
     });

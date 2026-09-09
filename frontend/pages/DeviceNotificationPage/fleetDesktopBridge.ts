@@ -4,9 +4,7 @@ import {
   IBridgeMessage,
 } from "interfaces/device_notification";
 
-// Fleet Desktop's WKWebView injects `window.webkit.messageHandlers.fleetDesktop`.
-// The same page opened in a normal browser during development does not have it,
-// so every bridge call must guard for the handler being absent.
+// The WKWebView handler is absent in a normal browser (dev), so guard every call.
 declare global {
   interface Window {
     webkit?: {

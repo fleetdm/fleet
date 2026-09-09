@@ -1,10 +1,7 @@
-// Layout matches the Figma toast (nodes 5546:42302 for the frame, 5546:42315
-// for the list). The native ToastWindow supplies the outer shadow and window
-// corners (ToastWindow.swift:43,47), so the card doesn't add its own shadow.
+// The native ToastWindow supplies the outer shadow and rounded corners, so
+// the card adds no shadow and the page stays transparent.
 
 .device-notification-page {
-  // Page background stays transparent — the native window supplies rounded
-  // corners; a page-level background would square them off.
   background: transparent;
   margin: 0;
   padding: 0;
@@ -21,7 +18,6 @@
     @include flex-column-8px-gap;
   }
 
-  // `margin-right: auto` holds the bottom-left slot; `.org-logo-icon` qualifier outranks that component's default sizing.
   &__logo.org-logo-icon {
     margin-right: auto;
     flex-shrink: 0;
@@ -49,11 +45,7 @@
     color: $ui-fleet-black-75;
   }
 
-  // Item list is Fleet's <List> — it owns the rounded container, border, and
-  // per-row dividers. Toast-scoped overrides only: cap the height so 4.5 rows
-  // show (the half row is the "more below" affordance from Figma dev note
-  // 5546:42433), suppress the default row hover (toast rows aren't clickable),
-  // and bump SoftwareIcon to Figma's 32×32 (no preset for it).
+  // Cap at 4.5 rows for a "more below" affordance; suppress hover (rows aren't clickable).
   .list__list {
     max-height: calc(4.5 * 48px);
     overflow-y: auto;
@@ -106,12 +98,8 @@
     gap: $pad-small;
   }
 
-  // The error slot sits immediately left of the buttons so showing it doesn't
-  // shift the row vertically.
   &__action-error {
-    // DataError's single-line variant ships with $pad-large vertical padding
-    // for stand-alone page use. Strip it here so the icon+text sits flush
-    // against the buttons and the actions row keeps a stable height.
+    // Strip DataError's stand-alone-page padding so the actions row keeps a stable height.
     .data-error__header--single-line {
       padding: 0;
     }
