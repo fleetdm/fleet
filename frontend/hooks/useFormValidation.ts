@@ -93,9 +93,9 @@ interface IUseFormValidationReturn<TFormData> {
   isDirty: boolean;
 }
 
-const trimFormData = <TFormData>(
+export const trimFormData = <TFormData>(
   formData: TFormData,
-  skipTrim: readonly string[]
+  skipTrim: readonly string[] = []
 ): TFormData => {
   const trimmed = { ...formData } as Record<string, unknown>;
   Object.keys(trimmed).forEach((key) => {
