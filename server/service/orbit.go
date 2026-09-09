@@ -93,6 +93,18 @@ func (svc *Service) AuthenticateOrbitHost(ctx context.Context, orbitNodeKey stri
 	return host, svc.debugEnabledForHost(ctx, host.ID), nil
 }
 
+// euaTokenError records the underlying error on the log line and returns the
+// uniform OrbitError shape the rest of EnrollOrbit uses, so an EUA token failure
+// is answered with the same status and body as any other enroll failure. A
+// cancelled request is passed through so the transport still answers 499.
+func euaTokenError(ctx context.Context, err error, msg string) error {
+	if errors.Is(err, context.Canceled) {
+		return ctxerr.Wrap(ctx, err, msg)
+	}
+	recordErrorDetail(ctx, err)
+	return fleet.OrbitError{Message: msg}
+}
+
 // processWindowsEUAToken validates a Fleet-signed EUA token from the Windows MSI
 // installer, ensures the IdP account exists, and returns the UPN, device ID,
 // and IdP account UUID. The actual host_mdm_idp_accounts row is written by
@@ -122,7 +134,7 @@ func (svc *Service) processWindowsEUAToken(ctx context.Context, hostUUID string,
 				"device_id", deviceID, "host_uuid", hostUUID)
 			return "", "", "", fleet.NewOrbitIDPAuthRequiredError()
 		}
-		return "", "", "", enrollError(ctx, err, "getting windows mdm enrollment for EUA token")
+		return "", "", "", euaTokenError(ctx, err, "getting windows mdm enrollment for EUA token")
 	}
 
 	// Fetch or create the mdm_idp_accounts row for this email.
@@ -130,20 +142,20 @@ func (svc *Service) processWindowsEUAToken(ctx context.Context, hostUUID string,
 	// that may have been populated by SCIM provisioning.
 	acct, err := svc.ds.GetMDMIdPAccountByEmail(ctx, upn)
 	if err != nil && !fleet.IsNotFound(err) {
-		return "", "", "", enrollError(ctx, err, "getting mdm idp account by email for EUA token")
+		return "", "", "", euaTokenError(ctx, err, "getting mdm idp account by email for EUA token")
 	}
 	if fleet.IsNotFound(err) {
 		if err := svc.ds.InsertMDMIdPAccount(ctx, &fleet.MDMIdPAccount{Email: upn, Username: upn}); err != nil {
-			return "", "", "", enrollError(ctx, err, "inserting mdm idp account for EUA token")
+			return "", "", "", euaTokenError(ctx, err, "inserting mdm idp account for EUA token")
 		}
 		// Re-fetch to get the UUID assigned by the DB.
 		acct, err = svc.ds.GetMDMIdPAccountByEmail(ctx, upn)
 		if err != nil {
-			return "", "", "", enrollError(ctx, err, "re-fetching mdm idp account after insert for EUA token")
+			return "", "", "", euaTokenError(ctx, err, "re-fetching mdm idp account after insert for EUA token")
 		}
 	}
 	if acct == nil {
-		return "", "", "", ctxerr.New(ctx, "mdm idp account not found for EUA token")
+		return "", "", "", fleet.OrbitError{Message: "mdm idp account not found for EUA token"}
 	}
 
 	return upn, deviceID, acct.UUID, nil

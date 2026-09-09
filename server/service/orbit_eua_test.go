@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"log/slog"
 	"strings"
 	"testing"
@@ -180,6 +181,26 @@ func TestProcessWindowsEUAToken(t *testing.T) {
 		require.Equal(t, testDeviceID, deviceID)
 		require.Equal(t, testAcctUUID, idpAcctUUID)
 		require.True(t, ds.GetMDMIdPAccountByEmailFuncInvoked, "should still fetch idp account even when enrollment has host_uuid")
+	})
+
+	t.Run("a datastore failure returns a generic OrbitError without the underlying detail", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc := newTestServiceWithWSTEP(t, ds)
+		token := makeToken(t, svc, testUPN, testDeviceID)
+
+		ds.MDMWindowsGetEnrolledDeviceWithDeviceIDFunc = func(ctx context.Context, mdmDeviceID string) (*fleet.MDMWindowsEnrolledDevice, error) {
+			return nil, fmt.Errorf("idp_accounts read failed: %w", context.DeadlineExceeded)
+		}
+
+		_, _, _, err := svc.processWindowsEUAToken(context.Background(), testHostUUID, token)
+		require.Error(t, err)
+		// same OrbitError shape as every other EnrollOrbit failure, with a generic
+		// message; the underlying error stays on the log line, not in the response
+		var orbitErr fleet.OrbitError
+		require.ErrorAs(t, err, &orbitErr)
+		require.Equal(t, "getting windows mdm enrollment for EUA token", orbitErr.Message)
+		require.NotContains(t, orbitErr.Message, "idp_accounts")
+		require.NotEqual(t, "END_USER_AUTH_REQUIRED", orbitErr.Message)
 	})
 
 	t.Run("invalid token falls back to END_USER_AUTH_REQUIRED", func(t *testing.T) {

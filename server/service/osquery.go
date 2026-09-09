@@ -160,7 +160,7 @@ func (svc *Service) EnrollOsquery(ctx context.Context, enrollSecret, hostIdentif
 	identityCert, err := svc.ds.GetHostIdentityCertByName(ctx, hostIdentifier)
 	if err != nil && !fleet.IsNotFound(err) {
 		recordErrorDetail(ctx, err)
-		return "", fleet.OrbitError{Message: "loading certificate"}
+		return "", newOsqueryErrorWithInvalidNode("loading certificate")
 	}
 
 	// If an identity certificate exists for this host, make sure the request had an HTTP message signature with the matching certificate.
