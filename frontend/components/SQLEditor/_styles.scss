@@ -71,6 +71,7 @@
 
   .ace_scroller {
     padding-left: 4px;
+    overscroll-behavior-x: contain;
   }
 
   .ace_placeholder {

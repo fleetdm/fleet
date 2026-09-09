@@ -1,5 +1,10 @@
 .yaml-ace {
   max-height: 408px;
+
+  .ace_scroller {
+    overscroll-behavior-x: contain;
+  }
+
   &__wrapper {
     &--error {
       .ace-fleet {
