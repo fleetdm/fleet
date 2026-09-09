@@ -9002,7 +9002,7 @@ None.
 
 #### Example
 
-`GET /api/v1/fleet/android_enterprise/zero_touch/configuration`
+`GET /api/v1/fleet/android_enterprise/zero_touch_configuration`
 
 ##### Default response
 
@@ -9014,6 +9014,9 @@ None.
     "com.google.android.apps.work.clouddpc.EXTRA_ENROLLMENT_TOKEN": "<token from Fleet>"
   }
 }
+```
+
+---
 
 ## SCIM
 
