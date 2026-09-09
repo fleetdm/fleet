@@ -116,7 +116,9 @@ type Service struct {
 // ConditionalAccessMicrosoftProxy is the interface of the Microsoft compliance proxy.
 type ConditionalAccessMicrosoftProxy interface {
 	// Create creates the integration on the MS proxy and returns the consent URL.
-	Create(ctx context.Context, tenantID string) (*conditional_access_microsoft_proxy.CreateResponse, error)
+	// The platforms parameter indicates which host platforms are enrolled so the
+	// proxy can skip platform-specific setup steps that don't apply.
+	Create(ctx context.Context, tenantID string, platforms []string) (*conditional_access_microsoft_proxy.CreateResponse, error)
 	// Get returns the integration settings.
 	Get(ctx context.Context, tenantID string, secret string) (*conditional_access_microsoft_proxy.GetResponse, error)
 	// Delete deprovisions the tenant on Microsoft and deletes the integration in the proxy service.

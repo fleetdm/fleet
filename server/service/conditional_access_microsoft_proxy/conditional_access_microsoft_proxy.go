@@ -38,7 +38,8 @@ func New(uri string, originGetter func() (string, error)) (*Proxy, error) {
 }
 
 type createRequest struct {
-	TenantID string `json:"entraTenantId"`
+	TenantID  string   `json:"entraTenantId"`
+	Platforms []string `json:"platforms,omitempty"`
 }
 
 // CreateResponse returns the tenant ID and the secret of the created integration
@@ -49,11 +50,14 @@ type CreateResponse struct {
 }
 
 // Create creates the integration on the MS proxy and returns the consent URL.
-func (p *Proxy) Create(ctx context.Context, tenantID string) (*CreateResponse, error) {
+// The platforms parameter indicates which host platforms (e.g. "darwin", "windows")
+// are enrolled in the Fleet instance so the proxy can skip platform-specific setup
+// steps that don't apply.
+func (p *Proxy) Create(ctx context.Context, tenantID string, platforms []string) (*CreateResponse, error) {
 	var createResponse CreateResponse
 	if err := p.post(
 		"/api/v1/microsoft-compliance-partner",
-		createRequest{TenantID: tenantID},
+		createRequest{TenantID: tenantID, Platforms: platforms},
 		&createResponse,
 	); err != nil {
 		return nil, fmt.Errorf("create integration failed: %w", err)

@@ -24431,7 +24431,7 @@ type mockedConditionalAccessMicrosoftProxy struct {
 	) (*conditional_access_microsoft_proxy.GetMessageStatusResponse, error)
 }
 
-func (m *mockedConditionalAccessMicrosoftProxy) Create(ctx context.Context, tenantID string) (*conditional_access_microsoft_proxy.CreateResponse, error) {
+func (m *mockedConditionalAccessMicrosoftProxy) Create(ctx context.Context, tenantID string, platforms []string) (*conditional_access_microsoft_proxy.CreateResponse, error) {
 	return m.createResponse, nil
 }
 

@@ -113,154 +113,164 @@ module.exports = {
 
 
 
-      // (2025-05-14) Testing note: If a request after this request fails, the request to create a policy will return a 409 error on subsequent runs.
-      // Now send a request to create a new compliance policy on the tenant.
-      let createPolicyResponse = await sails.helpers.http.sendHttpRequest.with({
-        method: 'POST',
-        url: `${tenantDataSyncUrl}/PartnerCompliancePolicies?api-version=1.6`,
-        headers: {
-          'Authorization': `Bearer ${manageApiAccessToken}`,
-          'Content-Type': 'application/json'
-        },
-        body: {
-          DisplayName: 'Fleet compliance policy',
-          Description: 'Compliance policy managed by Fleet',
-          Platform: 'macOS',
-          PartnerManagedCompliance: true
-        }
-      }).tolerate({raw:{statusCode: 409}}, async ()=>{
-        // If a partner compliance policy already exists, send a request to get all policies and return the previously created policy.
-        let getPoliciesResponse = await sails.helpers.http.sendHttpRequest.with({
-          method: 'GET',
+      // Check if macOS hosts are enrolled in this Fleet instance. If not,
+      // skip the macOS compliance partner policy creation (which would fail on
+      // Windows-only tenants that have no macOS/Intune setup). See #50624.
+      let tenantPlatforms = informationAboutThisTenant.platforms || ['darwin', 'windows'];
+      let hasMacOS = Array.isArray(tenantPlatforms) && tenantPlatforms.includes('darwin');
+
+      if(hasMacOS) {
+        // (2025-05-14) Testing note: If a request after this request fails, the request to create a policy will return a 409 error on subsequent runs.
+        // Now send a request to create a new compliance policy on the tenant.
+        let createPolicyResponse = await sails.helpers.http.sendHttpRequest.with({
+          method: 'POST',
           url: `${tenantDataSyncUrl}/PartnerCompliancePolicies?api-version=1.6`,
           headers: {
             'Authorization': `Bearer ${manageApiAccessToken}`,
             'Content-Type': 'application/json'
+          },
+          body: {
+            DisplayName: 'Fleet compliance policy',
+            Description: 'Compliance policy managed by Fleet',
+            Platform: 'macOS',
+            PartnerManagedCompliance: true
           }
+        }).tolerate({raw:{statusCode: 409}}, async ()=>{
+          // If a partner compliance policy already exists, send a request to get all policies and return the previously created policy.
+          let getPoliciesResponse = await sails.helpers.http.sendHttpRequest.with({
+            method: 'GET',
+            url: `${tenantDataSyncUrl}/PartnerCompliancePolicies?api-version=1.6`,
+            headers: {
+              'Authorization': `Bearer ${manageApiAccessToken}`,
+              'Content-Type': 'application/json'
+            }
+          });
+          return getPoliciesResponse;
+        }).intercept(async (err)=>{
+          await MicrosoftComplianceTenant.updateOne({id: informationAboutThisTenant.id}).set({setupError:  `${require('util').inspect(err, {depth: null})}`});
+          sails.log.warn(`An error occurred when creating a new compliance policy on a Microsoft compliance tenant. Full error: ${require('util').inspect(err, {depth: 3})}`);
+          return {redirect: fleetInstanceUrlToRedirectTo };
         });
-        return getPoliciesResponse;
-      }).intercept(async (err)=>{
-        await MicrosoftComplianceTenant.updateOne({id: informationAboutThisTenant.id}).set({setupError:  `${require('util').inspect(err, {depth: null})}`});
-        sails.log.warn(`An error occurred when creating a new compliance policy on a Microsoft compliance tenant. Full error: ${require('util').inspect(err, {depth: 3})}`);
-        return {redirect: fleetInstanceUrlToRedirectTo };
-      });
 
-      // Log responses from Micrsoft APIs for Fleet's integration
-      if(informationAboutThisTenant.fleetInstanceUrl === 'https://dogfood.fleetdm.com') {
-        sails.log.info(`Microsoft proxy: receive-redirect-from-microsoft created/found a compliance policy: ${createPolicyResponse.body}`);
-      }
-
-      // Example response:
-      // HTTP/1.1 201 Created
-      // {
-      //   “odata.metadata”: “…”,
-      //   “odata.id”: “…”,
-      //   “odata.etag”: “…”,
-      //   “Id”: “<GuidValue>”
-      //   "DisplayName": "Partner compliance policy",
-      //   “Description”: “Policy description”,
-      //   “Platform”: “iOS”,
-      //   “PartnerPolicyId”: “<GuidValue>”,
-      //   “PartnerManagedCompliance”: true
-      // }
-
-      // Get the id of the new policy from the API response.
-
-
-      let parsedPoliciesResponse;
-      // If Microsoft returned an empty body, surface a friendlier error rather than blowing up on JSON.parse.
-      // This can happen when the tenant is in a partial-setup state from a previous attempt, or when required API permissions haven't been consented on the enterprise app registration.
-      if(!createPolicyResponse.body) {
-        sails.log.warn(`Microsoft's PartnerCompliancePolicies API returned an empty response body for tenant ${informationAboutThisTenant.entraTenantId}. Status: ${createPolicyResponse.statusCode}. Response headers: ${require('util').inspect(createPolicyResponse.headers, {depth: 1})}`);
-        await MicrosoftComplianceTenant.updateOne({id: informationAboutThisTenant.id}).set({setupError: `Microsoft's PartnerCompliancePolicies API returned an empty response (HTTP ${createPolicyResponse.statusCode}). This may indicate a partial setup state from a previous attempt, or missing API permissions on the Fleet enterprise app registration.`});
-        throw {redirect: fleetInstanceUrlToRedirectTo };
-      }
-      try {
-        parsedPoliciesResponse = JSON.parse(createPolicyResponse.body);
-      } catch(err){
-        sails.log.warn(`An error occured when parsing the JSON response body from the PartnerCompliancePolicies endpoint for a microsoft compliance tenant. Status: ${createPolicyResponse.statusCode}. Body length: ${createPolicyResponse.body.length}. Body snippet: ${String(createPolicyResponse.body).slice(0, 200)}. Full error:`, err);
-        await MicrosoftComplianceTenant.updateOne({id: informationAboutThisTenant.id}).set({setupError:  `Could not parse response from Microsoft's PartnerCompliancePolicies API (HTTP ${createPolicyResponse.statusCode}). Underlying error: ${require('util').inspect(err, {depth: null})}`});
-        throw {redirect: fleetInstanceUrlToRedirectTo };
-      }
-      // Defensive check: Microsoft may return a well-formed but unexpected response shape (missing `value` array) for certain tenant configurations.
-      if(!parsedPoliciesResponse.value || !Array.isArray(parsedPoliciesResponse.value) || parsedPoliciesResponse.value.length === 0){
-        sails.log.warn(`The response body from PartnerCompliancePolicies did not contain the expected 'value' array for tenant ${informationAboutThisTenant.entraTenantId}. Parsed response: ${require('util').inspect(parsedPoliciesResponse, {depth: 2})}`);
-        await MicrosoftComplianceTenant.updateOne({id: informationAboutThisTenant.id}).set({setupError: `Microsoft's PartnerCompliancePolicies API returned an unexpected response shape (missing 'value' array). This may indicate a partial setup state or missing API permissions on the Fleet enterprise app registration.`});
-        throw {redirect: fleetInstanceUrlToRedirectTo };
-      }
-      let createdPolicyId = parsedPoliciesResponse.value[0].Id;
-
-      // Use the Microsoft Graph API to retreive the ID of the "Fleet conditional access" Entra ID group that the customer created to assign the policy to.
-      let groupResponse = await sails.helpers.http.sendHttpRequest.with({
-        method: 'GET',
-        url: `https://graph.microsoft.com/v1.0/groups?$filter=${encodeURIComponent(`displayName eq 'Fleet conditional access'`)}`,
-        headers: {
-          'Authorization': `Bearer ${graphAccessToken}`
+        // Log responses from Micrsoft APIs for Fleet's integration
+        if(informationAboutThisTenant.fleetInstanceUrl === 'https://dogfood.fleetdm.com') {
+          sails.log.info(`Microsoft proxy: receive-redirect-from-microsoft created/found a compliance policy: ${createPolicyResponse.body}`);
         }
-      }).intercept(async (err)=>{
-        await MicrosoftComplianceTenant.updateOne({id: informationAboutThisTenant.id}).set({setupError:  `${require('util').inspect(err, {depth: null})}`});
-        sails.log.warn(`An error occurred when sending a request to find the "Fleet conditional access" Entra ID group on a Microsoft compliance tenant. Full error: ${require('util').inspect(err, {depth: 3})}`);
-        return {redirect: fleetInstanceUrlToRedirectTo };
-      });
 
-      // Log responses from Micrsoft APIs for Fleet's integration.
-      if(informationAboutThisTenant.fleetInstanceUrl === 'https://dogfood.fleetdm.com') {
-        sails.log.info(`Microsoft proxy: receive-redirect-from-microsoft created/found a entra ID group: ${groupResponse.body}`);
-      }
-      // Get the ID returned in the response.
-      let parsedGroupResponse;
-      // If Microsoft's Graph API returned an empty body, surface a friendlier error rather than blowing up on JSON.parse.
-      if(!groupResponse.body) {
-        sails.log.warn(`Microsoft's Graph API returned an empty response body when searching for the "Fleet conditional access" group on tenant ${informationAboutThisTenant.entraTenantId}. Status: ${groupResponse.statusCode}. Response headers: ${require('util').inspect(groupResponse.headers, {depth: 1})}`);
-        await MicrosoftComplianceTenant.updateOne({id: informationAboutThisTenant.id}).set({setupError: `Microsoft's Graph API returned an empty response (HTTP ${groupResponse.statusCode}) when searching for the "Fleet conditional access" group. This may indicate missing API permissions on the Fleet enterprise app registration.`});
-        throw {redirect: fleetInstanceUrlToRedirectTo };
-      }
-      try {
-        parsedGroupResponse = JSON.parse(groupResponse.body);
-      } catch(err){
-        sails.log.warn(`An error occured when parsing the JSON response body returned by the Microsoft graph API for a new Microsoft compliance tenant. Status: ${groupResponse.statusCode}. Body length: ${groupResponse.body.length}. Body snippet: ${String(groupResponse.body).slice(0, 200)}. Full error:`, err);
-        await MicrosoftComplianceTenant.updateOne({id: informationAboutThisTenant.id}).set({setupError:  `Could not parse response from Microsoft's Graph API (HTTP ${groupResponse.statusCode}). Underlying error: ${require('util').inspect(err, {depth: null})}`});
-        throw {redirect: fleetInstanceUrlToRedirectTo };
-      }
+        // Example response:
+        // HTTP/1.1 201 Created
+        // {
+        //   “odata.metadata”: “…”,
+        //   “odata.id”: “…”,
+        //   “odata.etag”: “…”,
+        //   “Id”: “<GuidValue>”
+        //   “DisplayName”: “Partner compliance policy”,
+        //   “Description”: “Policy description”,
+        //   “Platform”: “iOS”,
+        //   “PartnerPolicyId”: “<GuidValue>”,
+        //   “PartnerManagedCompliance”: true
+        // }
 
-      // If the response from the Microsoft Graph API did not contain any groups, log a warning and save a setup error on the database record for this tenant.
-      if(!parsedGroupResponse.value || !Array.isArray(parsedGroupResponse.value) || parsedGroupResponse.value.length === 0){
-        sails.log.warn(`When an Entra tenant (${informationAboutThisTenant.fleetInstanceUrl}) tried setting up a conditional access integration, no "Fleet conditional access" Entra ID group was found on this Entra tenant.`);
-        // IMPORTANT: Don't change the below setupError value. The error string is checked by the Fleet UI frontend.
-        await MicrosoftComplianceTenant.updateOne({id: informationAboutThisTenant.id}).set({setupError:  `No "Fleet conditional access" Entra ID group was found on this Entra tenant.`});
-        throw {redirect: fleetInstanceUrlToRedirectTo };
-      }
-
-      let groupId = parsedGroupResponse.value[0].id;
+        // Get the id of the new policy from the API response.
 
 
-      // Send a request to assign the new compliance policy to the "Fleet conditional access" group.
-      let assignPolicyResponse = await sails.helpers.http.sendHttpRequest.with({
-        method: 'POST',
-        url: `${tenantDataSyncUrl}/PartnerCompliancePolicies(guid'${encodeURIComponent(createdPolicyId)}')/Assign?api-version=1.6`,
-        headers: {
-          'Authorization': `Bearer ${manageApiAccessToken}`,
-          'Content-Type': 'application/json'
-        },
-        body: {
-          assignments: [
-            groupId
-          ]
+        let parsedPoliciesResponse;
+        // If Microsoft returned an empty body, surface a friendlier error rather than blowing up on JSON.parse.
+        // This can happen when the tenant is in a partial-setup state from a previous attempt, or when required API permissions haven't been consented on the enterprise app registration.
+        if(!createPolicyResponse.body) {
+          sails.log.warn(`Microsoft's PartnerCompliancePolicies API returned an empty response body for tenant ${informationAboutThisTenant.entraTenantId}. Status: ${createPolicyResponse.statusCode}. Response headers: ${require('util').inspect(createPolicyResponse.headers, {depth: 1})}`);
+          await MicrosoftComplianceTenant.updateOne({id: informationAboutThisTenant.id}).set({setupError: `Microsoft's PartnerCompliancePolicies API returned an empty response (HTTP ${createPolicyResponse.statusCode}). This may indicate a partial setup state from a previous attempt, or missing API permissions on the Fleet enterprise app registration.`});
+          throw {redirect: fleetInstanceUrlToRedirectTo };
         }
-      }).intercept(async (err)=>{
-        await MicrosoftComplianceTenant.updateOne({id: informationAboutThisTenant.id}).set({setupError:  `${require('util').inspect(err, {depth: null})}`});
-        sails.log.warn(`An error occurred when sending a assign a new compliance policy to "Fleet conditional access" group on a Microsoft compliance tenant. Full error: ${require('util').inspect(err, {depth: 3})}`);
-        return {redirect: fleetInstanceUrlToRedirectTo };
-      });
-      // Example response:
-      // {
-      //   “odata.metadata”: “…”,
-      //   "value": “{\”assignments\":[\"GuidValue\",\"GuidValue\"]}”
-      // }
+        try {
+          parsedPoliciesResponse = JSON.parse(createPolicyResponse.body);
+        } catch(err){
+          sails.log.warn(`An error occured when parsing the JSON response body from the PartnerCompliancePolicies endpoint for a microsoft compliance tenant. Status: ${createPolicyResponse.statusCode}. Body length: ${createPolicyResponse.body.length}. Body snippet: ${String(createPolicyResponse.body).slice(0, 200)}. Full error:`, err);
+          await MicrosoftComplianceTenant.updateOne({id: informationAboutThisTenant.id}).set({setupError:  `Could not parse response from Microsoft's PartnerCompliancePolicies API (HTTP ${createPolicyResponse.statusCode}). Underlying error: ${require('util').inspect(err, {depth: null})}`});
+          throw {redirect: fleetInstanceUrlToRedirectTo };
+        }
+        // Defensive check: Microsoft may return a well-formed but unexpected response shape (missing `value` array) for certain tenant configurations.
+        if(!parsedPoliciesResponse.value || !Array.isArray(parsedPoliciesResponse.value) || parsedPoliciesResponse.value.length === 0){
+          sails.log.warn(`The response body from PartnerCompliancePolicies did not contain the expected 'value' array for tenant ${informationAboutThisTenant.entraTenantId}. Parsed response: ${require('util').inspect(parsedPoliciesResponse, {depth: 2})}`);
+          await MicrosoftComplianceTenant.updateOne({id: informationAboutThisTenant.id}).set({setupError: `Microsoft's PartnerCompliancePolicies API returned an unexpected response shape (missing 'value' array). This may indicate a partial setup state or missing API permissions on the Fleet enterprise app registration.`});
+          throw {redirect: fleetInstanceUrlToRedirectTo };
+        }
+        let createdPolicyId = parsedPoliciesResponse.value[0].Id;
 
-      // Log responses from Micrsoft APIs for Fleet's integration.
-      if(informationAboutThisTenant.fleetInstanceUrl === 'https://dogfood.fleetdm.com') {
-        sails.log.info(`Microsoft proxy: receive-redirect-from-microsoft assigned a compliance policy: ${assignPolicyResponse.body}`);
+        // Use the Microsoft Graph API to retreive the ID of the “Fleet conditional access” Entra ID group that the customer created to assign the policy to.
+        let groupResponse = await sails.helpers.http.sendHttpRequest.with({
+          method: 'GET',
+          url: `https://graph.microsoft.com/v1.0/groups?$filter=${encodeURIComponent(`displayName eq 'Fleet conditional access'`)}`,
+          headers: {
+            'Authorization': `Bearer ${graphAccessToken}`
+          }
+        }).intercept(async (err)=>{
+          await MicrosoftComplianceTenant.updateOne({id: informationAboutThisTenant.id}).set({setupError:  `${require('util').inspect(err, {depth: null})}`});
+          sails.log.warn(`An error occurred when sending a request to find the “Fleet conditional access” Entra ID group on a Microsoft compliance tenant. Full error: ${require('util').inspect(err, {depth: 3})}`);
+          return {redirect: fleetInstanceUrlToRedirectTo };
+        });
+
+        // Log responses from Micrsoft APIs for Fleet's integration.
+        if(informationAboutThisTenant.fleetInstanceUrl === 'https://dogfood.fleetdm.com') {
+          sails.log.info(`Microsoft proxy: receive-redirect-from-microsoft created/found a entra ID group: ${groupResponse.body}`);
+        }
+        // Get the ID returned in the response.
+        let parsedGroupResponse;
+        // If Microsoft's Graph API returned an empty body, surface a friendlier error rather than blowing up on JSON.parse.
+        if(!groupResponse.body) {
+          sails.log.warn(`Microsoft's Graph API returned an empty response body when searching for the “Fleet conditional access” group on tenant ${informationAboutThisTenant.entraTenantId}. Status: ${groupResponse.statusCode}. Response headers: ${require('util').inspect(groupResponse.headers, {depth: 1})}`);
+          await MicrosoftComplianceTenant.updateOne({id: informationAboutThisTenant.id}).set({setupError: `Microsoft's Graph API returned an empty response (HTTP ${groupResponse.statusCode}) when searching for the “Fleet conditional access” group. This may indicate missing API permissions on the Fleet enterprise app registration.`});
+          throw {redirect: fleetInstanceUrlToRedirectTo };
+        }
+        try {
+          parsedGroupResponse = JSON.parse(groupResponse.body);
+        } catch(err){
+          sails.log.warn(`An error occured when parsing the JSON response body returned by the Microsoft graph API for a new Microsoft compliance tenant. Status: ${groupResponse.statusCode}. Body length: ${groupResponse.body.length}. Body snippet: ${String(groupResponse.body).slice(0, 200)}. Full error:`, err);
+          await MicrosoftComplianceTenant.updateOne({id: informationAboutThisTenant.id}).set({setupError:  `Could not parse response from Microsoft's Graph API (HTTP ${groupResponse.statusCode}). Underlying error: ${require('util').inspect(err, {depth: null})}`});
+          throw {redirect: fleetInstanceUrlToRedirectTo };
+        }
+
+        // If the response from the Microsoft Graph API did not contain any groups, log a warning and save a setup error on the database record for this tenant.
+        if(!parsedGroupResponse.value || !Array.isArray(parsedGroupResponse.value) || parsedGroupResponse.value.length === 0){
+          sails.log.warn(`When an Entra tenant (${informationAboutThisTenant.fleetInstanceUrl}) tried setting up a conditional access integration, no “Fleet conditional access” Entra ID group was found on this Entra tenant.`);
+          // IMPORTANT: Don't change the below setupError value. The error string is checked by the Fleet UI frontend.
+          await MicrosoftComplianceTenant.updateOne({id: informationAboutThisTenant.id}).set({setupError:  `No “Fleet conditional access” Entra ID group was found on this Entra tenant.`});
+          throw {redirect: fleetInstanceUrlToRedirectTo };
+        }
+
+        let groupId = parsedGroupResponse.value[0].id;
+
+
+        // Send a request to assign the new compliance policy to the “Fleet conditional access” group.
+        let assignPolicyResponse = await sails.helpers.http.sendHttpRequest.with({// eslint-disable-line no-unused-vars
+          method: 'POST',
+          url: `${tenantDataSyncUrl}/PartnerCompliancePolicies(guid'${encodeURIComponent(createdPolicyId)}')/Assign?api-version=1.6`,
+          headers: {
+            'Authorization': `Bearer ${manageApiAccessToken}`,
+            'Content-Type': 'application/json'
+          },
+          body: {
+            assignments: [
+              groupId
+            ]
+          }
+        }).intercept(async (err)=>{
+          await MicrosoftComplianceTenant.updateOne({id: informationAboutThisTenant.id}).set({setupError:  `${require('util').inspect(err, {depth: null})}`});
+          sails.log.warn(`An error occurred when sending a assign a new compliance policy to “Fleet conditional access” group on a Microsoft compliance tenant. Full error: ${require('util').inspect(err, {depth: 3})}`);
+          return {redirect: fleetInstanceUrlToRedirectTo };
+        });
+        // Example response:
+        // {
+        //   “odata.metadata”: “…”,
+        //   “value”: “{\”assignments\”:[\”GuidValue\”,\”GuidValue\”]}”
+        // }
+
+        // Log responses from Micrsoft APIs for Fleet's integration.
+        if(informationAboutThisTenant.fleetInstanceUrl === 'https://dogfood.fleetdm.com') {
+          sails.log.info(`Microsoft proxy: receive-redirect-from-microsoft assigned a compliance policy: ${assignPolicyResponse.body}`);
+        }
+      } else {
+        sails.log.info(`Microsoft proxy: skipping macOS compliance partner policy creation for tenant ${informationAboutThisTenant.entraTenantId} (platforms: ${JSON.stringify(tenantPlatforms)})`);
       }
 
       // Update the database record to show that setup was completed for this compliance tenant.

@@ -69,8 +69,21 @@ func (svc *Service) ConditionalAccessMicrosoftCreateIntegration(ctx context.Cont
 	//	- There's an integration already with a different TenantID and has not been setup.
 	//
 
+	// Determine which platforms have enrolled hosts so the proxy can skip
+	// platform-specific setup steps that don't apply (e.g. macOS compliance
+	// partner registration on a Windows-only tenant).
+	platforms, err := svc.ds.GetConditionalAccessEligiblePlatforms(ctx)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "failed to get conditional access eligible platforms")
+	}
+	// Default to both platforms when no hosts are enrolled yet so the
+	// integration is fully provisioned for any future enrollments.
+	if len(platforms) == 0 {
+		platforms = []string{"darwin", "windows"}
+	}
+
 	// Create integration on the proxy.
-	proxyCreateResponse, err := svc.conditionalAccessMicrosoftProxy.Create(ctx, tenantID)
+	proxyCreateResponse, err := svc.conditionalAccessMicrosoftProxy.Create(ctx, tenantID, platforms)
 	if err != nil {
 		return "", ctxerr.Wrap(ctx, err, "failed to create integration in proxy")
 	}

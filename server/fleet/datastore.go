@@ -3834,6 +3834,10 @@ type Datastore interface {
 	// The integration is created as "not done".
 	// Currently only one integration can be configured, so this method replaces any existing integration.
 	ConditionalAccessMicrosoftCreateIntegration(ctx context.Context, tenantID, proxyServerSecret string) error
+	// GetConditionalAccessEligiblePlatforms returns the list of host platforms
+	// (e.g. "darwin", "windows") that have at least one enrolled host eligible
+	// for conditional access.
+	GetConditionalAccessEligiblePlatforms(ctx context.Context) ([]string, error)
 	// ConditionalAccessMicrosoftGet returns the current Conditional Access integration.
 	// Returns a NotFoundError error if there's none.
 	ConditionalAccessMicrosoftGet(ctx context.Context) (*ConditionalAccessMicrosoftIntegration, error)

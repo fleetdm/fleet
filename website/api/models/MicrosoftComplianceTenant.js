@@ -56,7 +56,13 @@ module.exports = {
     setupError: {
       type: 'string',
       description: 'The last error logged from a Microsoft API during the initial setup of the complaince tenant (If there were any)',
-    }
+    },
+
+    platforms: {
+      type: 'json',
+      defaultsTo: ['darwin', 'windows'],
+      description: 'The host platforms enrolled in the Fleet instance at setup time (e.g. ["darwin", "windows"]). Used to skip platform-specific setup steps that do not apply.',
+    },
 
     //  ╔═╗╔╦╗╔╗ ╔═╗╔╦╗╔═╗
     //  ║╣ ║║║╠╩╗║╣  ║║╚═╗

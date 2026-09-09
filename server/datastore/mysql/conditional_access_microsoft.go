@@ -62,6 +62,16 @@ func getConditionalAccessMicrosoft(ctx context.Context, q sqlx.QueryerContext) (
 	return &integration, nil
 }
 
+func (ds *Datastore) GetConditionalAccessEligiblePlatforms(ctx context.Context) ([]string, error) {
+	var platforms []string
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &platforms,
+		`SELECT DISTINCT platform FROM hosts WHERE platform IN ('darwin', 'windows')`,
+	); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting conditional access eligible platforms")
+	}
+	return platforms, nil
+}
+
 func (ds *Datastore) ConditionalAccessMicrosoftDelete(ctx context.Context) error {
 	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
 		// Currently only one global integration is supported.

@@ -2220,6 +2220,8 @@ type CleanupExpiredChallengesFunc func(ctx context.Context) (int64, error)
 
 type ConditionalAccessMicrosoftCreateIntegrationFunc func(ctx context.Context, tenantID string, proxyServerSecret string) error
 
+type GetConditionalAccessEligiblePlatformsFunc func(ctx context.Context) ([]string, error)
+
 type ConditionalAccessMicrosoftGetFunc func(ctx context.Context) (*fleet.ConditionalAccessMicrosoftIntegration, error)
 
 type ConditionalAccessMicrosoftMarkSetupDoneFunc func(ctx context.Context) error
@@ -5694,6 +5696,9 @@ type DataStore struct {
 
 	ConditionalAccessMicrosoftCreateIntegrationFunc        ConditionalAccessMicrosoftCreateIntegrationFunc
 	ConditionalAccessMicrosoftCreateIntegrationFuncInvoked bool
+
+	GetConditionalAccessEligiblePlatformsFunc        GetConditionalAccessEligiblePlatformsFunc
+	GetConditionalAccessEligiblePlatformsFuncInvoked bool
 
 	ConditionalAccessMicrosoftGetFunc        ConditionalAccessMicrosoftGetFunc
 	ConditionalAccessMicrosoftGetFuncInvoked bool
@@ -13652,6 +13657,13 @@ func (s *DataStore) ConditionalAccessMicrosoftCreateIntegration(ctx context.Cont
 	s.ConditionalAccessMicrosoftCreateIntegrationFuncInvoked = true
 	s.mu.Unlock()
 	return s.ConditionalAccessMicrosoftCreateIntegrationFunc(ctx, tenantID, proxyServerSecret)
+}
+
+func (s *DataStore) GetConditionalAccessEligiblePlatforms(ctx context.Context) ([]string, error) {
+	s.mu.Lock()
+	s.GetConditionalAccessEligiblePlatformsFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetConditionalAccessEligiblePlatformsFunc(ctx)
 }
 
 func (s *DataStore) ConditionalAccessMicrosoftGet(ctx context.Context) (*fleet.ConditionalAccessMicrosoftIntegration, error) {

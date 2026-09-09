@@ -12,6 +12,10 @@ module.exports = {
       type: 'string',
       required: true,
     },
+    platforms: {
+      type: 'json',
+      description: 'Host platforms enrolled in the Fleet instance (e.g. ["darwin", "windows"]). Defaults to both if not provided.',
+    },
   },
 
 
@@ -22,7 +26,7 @@ module.exports = {
   },
 
 
-  fn: async function ({entraTenantId}) {
+  fn: async function ({entraTenantId, platforms}) {
 
     // Return a badRequest response if the origin header is missing.
     if(!this.req.get('origin')) {// Note: req.get() is case insensitive.
@@ -47,6 +51,7 @@ module.exports = {
       entraTenantId: entraTenantId,
       fleetInstanceUrl: this.req.get('origin'),
       setupCompleted: false,
+      platforms: platforms || ['darwin', 'windows'],
     })
     .fetch()
     .intercept('E_UNIQUE', 'connectionAlreadyExists');
