@@ -4392,14 +4392,20 @@ WHERE
 	hda.deleted_at IS NULL
 `
 
-	stmt, args, err := sqlx.In(stmt, hostIDs)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "prepare statement arguments")
-	}
-
 	var serials []string
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &serials, stmt, args...); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "list mdm apple dep serials")
+	if err := common_mysql.BatchProcessSimple(hostIDs, hostIDsFanoutBatchSize, func(batch []uint) error {
+		inStmt, args, err := sqlx.In(stmt, batch)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "prepare statement arguments")
+		}
+		var batchSerials []string
+		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &batchSerials, inStmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "list mdm apple dep serials")
+		}
+		serials = append(serials, batchSerials...)
+		return nil
+	}); err != nil {
+		return nil, err
 	}
 	return serials, nil
 }
