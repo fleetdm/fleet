@@ -159,7 +159,7 @@ func TestZeroTouchDriftDetection(t *testing.T) {
 		}, nil
 	}
 	fleetDS.Store.GetEnrollSecretsFunc = func(_ context.Context, _ *uint) ([]*fleet.EnrollSecret, error) {
-		return []*fleet.EnrollSecret{{Secret: "new-rotated-secret"}}, nil
+		return []*fleet.EnrollSecret{{Secret: "new-rotated-secret"}}, nil //nolint:gosec // test data
 	}
 
 	resp, err := svc.GetZeroTouchConfiguration(adminCtx(t), nil)
