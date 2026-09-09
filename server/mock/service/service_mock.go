@@ -233,8 +233,6 @@ type AgentOptionsForHostFunc func(ctx context.Context, hostTeamID *uint, hostPla
 
 type AuthenticateDeviceFunc func(ctx context.Context, authToken string) (host *fleet.Host, debug bool, err error)
 
-type AuthenticateDeviceByCertificateFunc func(ctx context.Context, certSerial uint64, hostUUID string) (host *fleet.Host, debug bool, err error)
-
 type AuthenticateIDeviceByURLFunc func(ctx context.Context, urlUUID string) (host *fleet.Host, debug bool, err error)
 
 type StreamHostsFunc func(ctx context.Context, opt fleet.HostListOptions) (hostIterator iter.Seq2[*fleet.Host, error], err error)
@@ -733,7 +731,7 @@ type TriggerLinuxDiskEncryptionEscrowFunc func(ctx context.Context, host *fleet.
 
 type CheckMDMAppleEnrollmentWithMinimumOSVersionFunc func(ctx context.Context, m *fleet.MDMAppleMachineInfo) (*fleet.MDMAppleSoftwareUpdateRequired, error)
 
-type GetOTAProfileFunc func(ctx context.Context, enrollSecret string, idpUUID string, personal bool) ([]byte, error)
+type GetOTAProfileFunc func(ctx context.Context, enrollSecret string, idpSessionID string, personal bool) ([]byte, error)
 
 type TriggerCronScheduleFunc func(ctx context.Context, name string) error
 
@@ -1335,9 +1333,6 @@ type Service struct {
 
 	AuthenticateDeviceFunc        AuthenticateDeviceFunc
 	AuthenticateDeviceFuncInvoked bool
-
-	AuthenticateDeviceByCertificateFunc        AuthenticateDeviceByCertificateFunc
-	AuthenticateDeviceByCertificateFuncInvoked bool
 
 	AuthenticateIDeviceByURLFunc        AuthenticateIDeviceByURLFunc
 	AuthenticateIDeviceByURLFuncInvoked bool
@@ -3257,13 +3252,6 @@ func (s *Service) AuthenticateDevice(ctx context.Context, authToken string) (hos
 	return s.AuthenticateDeviceFunc(ctx, authToken)
 }
 
-func (s *Service) AuthenticateDeviceByCertificate(ctx context.Context, certSerial uint64, hostUUID string) (host *fleet.Host, debug bool, err error) {
-	s.mu.Lock()
-	s.AuthenticateDeviceByCertificateFuncInvoked = true
-	s.mu.Unlock()
-	return s.AuthenticateDeviceByCertificateFunc(ctx, certSerial, hostUUID)
-}
-
 func (s *Service) AuthenticateIDeviceByURL(ctx context.Context, urlUUID string) (host *fleet.Host, debug bool, err error) {
 	s.mu.Lock()
 	s.AuthenticateIDeviceByURLFuncInvoked = true
@@ -5007,11 +4995,11 @@ func (s *Service) CheckMDMAppleEnrollmentWithMinimumOSVersion(ctx context.Contex
 	return s.CheckMDMAppleEnrollmentWithMinimumOSVersionFunc(ctx, m)
 }
 
-func (s *Service) GetOTAProfile(ctx context.Context, enrollSecret string, idpUUID string, personal bool) ([]byte, error) {
+func (s *Service) GetOTAProfile(ctx context.Context, enrollSecret string, idpSessionID string, personal bool) ([]byte, error) {
 	s.mu.Lock()
 	s.GetOTAProfileFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetOTAProfileFunc(ctx, enrollSecret, idpUUID, personal)
+	return s.GetOTAProfileFunc(ctx, enrollSecret, idpSessionID, personal)
 }
 
 func (s *Service) TriggerCronSchedule(ctx context.Context, name string) error {

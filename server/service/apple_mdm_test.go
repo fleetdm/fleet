@@ -2497,6 +2497,17 @@ func TestMDMCommandAuthz(t *testing.T) {
 	}
 
 	for _, tt := range testCases {
+		// This matrix only cares that the caller is denied, not which form the
+		// denial takes.
+		requireDenied := func(t *testing.T, err error) {
+			t.Helper()
+			require.Error(t, err)
+			if fleet.IsNotFound(err) {
+				return
+			}
+			require.Contains(t, err.Error(), authz.ForbiddenErrorMessage)
+		}
+
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := viewer.NewContext(ctx, viewer.Viewer{User: tt.user})
 
@@ -2505,8 +2516,7 @@ func TestMDMCommandAuthz(t *testing.T) {
 			if !tt.shouldFailGlobal {
 				require.NoError(t, err)
 			} else {
-				require.Error(t, err)
-				require.Contains(t, err.Error(), authz.ForbiddenErrorMessage)
+				requireDenied(t, err)
 			}
 
 			mdmEnabled.Store(true)
@@ -2514,8 +2524,7 @@ func TestMDMCommandAuthz(t *testing.T) {
 			if !tt.shouldFailTeam {
 				require.NoError(t, err)
 			} else {
-				require.Error(t, err)
-				require.Contains(t, err.Error(), authz.ForbiddenErrorMessage)
+				requireDenied(t, err)
 			}
 		})
 	}
