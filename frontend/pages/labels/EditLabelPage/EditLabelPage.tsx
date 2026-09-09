@@ -164,7 +164,6 @@ const EditLabelPage = ({ routeParams, router }: IEditLabelPageProps) => {
         defaultDescription={label.description}
         defaultTargetedHosts={targetedHosts}
         teamName={label.team_name || null}
-        isEditing
         onSave={onUpdateLabel}
         onCancel={onCancelEdit}
       />

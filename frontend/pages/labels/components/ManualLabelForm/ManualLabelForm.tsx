@@ -39,7 +39,6 @@ interface IManualLabelFormProps {
   defaultName?: string;
   defaultDescription?: string;
   defaultTargetedHosts?: IHost[];
-  isEditing?: boolean;
   teamName: string | null;
   onSave: (formData: IManualLabelFormData) => void;
   onCancel: () => void;
@@ -49,7 +48,6 @@ const ManualLabelForm = ({
   defaultName = "",
   defaultDescription = "",
   defaultTargetedHosts = [],
-  isEditing = false,
   teamName,
   onSave,
   onCancel,
@@ -132,10 +130,6 @@ const ManualLabelForm = ({
   const resultsTableConfig = generateTableHeaders();
   const selectedHostsTableConfig = generateTableHeaders(onHostRemove);
 
-  // Only editing gets the split gate. Creating a label is a definition change, so GitOps mode
-  // still locks the whole form there.
-  const gitOpsLocksDefinitionOnly = isEditing;
-
   return (
     <div className={baseClass}>
       <LabelForm
@@ -145,7 +139,7 @@ const ManualLabelForm = ({
         onCancel={onCancel}
         onSave={onSaveNewLabel}
         immutableFields={teamName ? ["fleets"] : []}
-        gitOpsLocksDefinitionOnly={gitOpsLocksDefinitionOnly}
+        gitOpsLocksDefinitionOnly
         additionalFields={
           <>
             <TargetsInput
@@ -161,7 +155,7 @@ const ManualLabelForm = ({
               setSearchText={onChangeSearchQuery}
               handleRowSelect={onHostSelect}
             />
-            {gitOpsLocksDefinitionOnly && labelsGitOpsManaged && (
+            {labelsGitOpsManaged && (
               <span className="form-field__help-text">
                 Omitting <b>hosts</b> in YAML preserves these hosts. Setting{" "}
                 <b>hosts</b> in YAML replaces them on the next GitOps run.{" "}
