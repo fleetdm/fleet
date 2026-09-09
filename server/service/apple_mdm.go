@@ -7277,7 +7277,13 @@ func RenewSCEPCertificates(
 
 	// Exclude renewal for the associations that were skipped.
 	if len(renewalExcludedAssocs) > 0 {
-		logger.InfoContext(ctx, "excluding host cert associations from renewal", "count", len(renewalExcludedAssocs))
+		logger.InfoContext(ctx, "excluding host cert associations from renewal", "count", len(renewalExcludedAssocs), "host_uuids", func() []string {
+			uuids := make([]string, 0, len(renewalExcludedAssocs))
+			for _, assoc := range renewalExcludedAssocs {
+				uuids = append(uuids, assoc.HostUUID)
+			}
+			return uuids
+		}())
 		if err := ds.ExcludeHostCertAssociationsFromRenewal(ctx, renewalExcludedAssocs); err != nil {
 			return ctxerr.Wrap(ctx, err, "excluding host cert associations from renewal")
 		}
