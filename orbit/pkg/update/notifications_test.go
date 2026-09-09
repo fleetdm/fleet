@@ -1106,18 +1106,18 @@ func TestBitlockerOperations(t *testing.T) {
 
 	// A running conversion finishes on its own, so waiting is correct. A paused one never does, and treating the two
 	// alike left hosts at "Enforcing" forever with nothing reported. See #52159.
+	// A running conversion finishes on its own, so waiting is right. A paused one never does: it holds until something
+	// resumes it, and the server keeps asking on every 30-second config poll, so these branches must back off or they
+	// repeat the COM call and the same report forever.
 	t.Run("conversion status decides whether to wait, resume, or report", func(t *testing.T) {
 		for _, tc := range []struct {
-			name            string
-			conversion      int32
-			wantResume      bool
-			wantReport      bool
-			wantReportMatch string
-			wantEncrypt     bool
-			wantRotate      bool
-			// A paused volume stays paused, and the server keeps asking on every 30-second config poll, so these
-			// branches have to start a backoff or they repeat the COM call and the same report forever.
+			name        string
+			conversion  int32
+			resumeErr   error
+			wantResume  bool
 			wantBackoff bool
+			// Substrings the reported reason must contain. Empty means nothing is reported at all.
+			wantReport []string
 		}{
 			{name: "encryption in progress waits", conversion: bitlocker.ConversionStatusEncryptionInProgress},
 			{name: "decryption in progress waits", conversion: bitlocker.ConversionStatusDecryptionInProgress},
@@ -1126,81 +1126,49 @@ func TestBitlockerOperations(t *testing.T) {
 				wantResume: true, wantBackoff: true,
 			},
 			{
+				name: "a failed resume is reported", conversion: bitlocker.ConversionStatusEncryptionPaused,
+				resumeErr: errors.New("WMI refused"), wantResume: true, wantBackoff: true,
+				wantReport: []string{"encryption is paused", "WMI refused"},
+			},
+			{
 				name: "decryption paused is reported, never resumed", conversion: bitlocker.ConversionStatusDecryptionPaused,
-				wantReport: true, wantReportMatch: "decryption is paused", wantBackoff: true,
+				wantBackoff: true, wantReport: []string{"decryption is paused"},
 			},
 		} {
 			t.Run(tc.name, func(t *testing.T) {
 				setupTest()
 				var resumeCalled bool
-				var reported string
-				enrollReceiver.execResumeConversionFn = func(string) error {
-					resumeCalled = true
-					return nil
-				}
+				enrollReceiver.execResumeConversionFn = func(string) error { resumeCalled = true; return tc.resumeErr }
 				enrollReceiver.execGetEncryptionStatusFn = func() ([]bitlocker.VolumeStatus, error) {
 					return []bitlocker.VolumeStatus{
 						{DriveVolume: "C:", Status: &bitlocker.EncryptionStatus{ConversionStatus: tc.conversion}},
 					}, nil
 				}
+				var reported string
+				prevEscrow := clientMock.SetOrUpdateDiskEncryptionKeyImpl
+				t.Cleanup(func() { clientMock.SetOrUpdateDiskEncryptionKeyImpl = prevEscrow })
 				clientMock.SetOrUpdateDiskEncryptionKeyImpl = func(p fleet.OrbitHostDiskEncryptionKeyPayload) error {
 					reported = p.ClientError
 					return nil
 				}
-				t.Cleanup(func() {
-					clientMock.SetOrUpdateDiskEncryptionKeyImpl = func(fleet.OrbitHostDiskEncryptionKeyPayload) error {
-						if shouldFailServerUpdate {
-							return errors.New("server error")
-						}
-						return nil
-					}
-				})
 
 				enrollReceiver.encryptionRetryAfter = time.Time{}
 				require.NoError(t, enrollReceiver.Run(makeConfig()))
 
+				require.Equal(t, tc.wantResume, resumeCalled, "resuming the conversion")
 				require.Equal(t, tc.wantBackoff, enrollReceiver.encryptionRetryAfter.After(time.Now()),
-					"backoff expectation: a paused volume must not be retried on every config poll")
-				require.Equal(t, tc.wantResume, resumeCalled, "resume expectation")
-				require.Equal(t, tc.wantEncrypt, encryptFnCalled, "encrypt expectation")
-				require.Equal(t, tc.wantRotate, rotateKeyFnCalled, "rotate expectation")
-				if tc.wantReport {
-					require.Contains(t, reported, tc.wantReportMatch)
-				} else {
+					"a paused volume must not be retried on every config poll")
+				// Whatever the state, a conversion in flight must never reach the encrypt or rotate paths.
+				require.False(t, encryptFnCalled, "encrypt")
+				require.False(t, rotateKeyFnCalled, "rotate")
+				for _, want := range tc.wantReport {
+					require.Contains(t, reported, want)
+				}
+				if len(tc.wantReport) == 0 {
 					require.Empty(t, reported, "nothing should be reported")
 				}
 			})
 		}
-	})
-
-	t.Run("a failed resume of a paused encryption is reported", func(t *testing.T) {
-		setupTest()
-		var reported string
-		enrollReceiver.execResumeConversionFn = func(string) error { return errors.New("WMI refused") }
-		enrollReceiver.execGetEncryptionStatusFn = func() ([]bitlocker.VolumeStatus, error) {
-			return []bitlocker.VolumeStatus{
-				{DriveVolume: "C:", Status: &bitlocker.EncryptionStatus{ConversionStatus: bitlocker.ConversionStatusEncryptionPaused}},
-			}, nil
-		}
-		clientMock.SetOrUpdateDiskEncryptionKeyImpl = func(p fleet.OrbitHostDiskEncryptionKeyPayload) error {
-			reported = p.ClientError
-			return nil
-		}
-		t.Cleanup(func() {
-			clientMock.SetOrUpdateDiskEncryptionKeyImpl = func(fleet.OrbitHostDiskEncryptionKeyPayload) error {
-				if shouldFailServerUpdate {
-					return errors.New("server error")
-				}
-				return nil
-			}
-		})
-
-		enrollReceiver.encryptionRetryAfter = time.Time{}
-		require.NoError(t, enrollReceiver.Run(makeConfig()))
-		require.Contains(t, reported, "encryption is paused")
-		require.Contains(t, reported, "WMI refused")
-		// A volume that refuses to resume refuses again in 30 seconds; back off rather than repeating the report.
-		require.True(t, enrollReceiver.encryptionRetryAfter.After(time.Now()), "a failed resume must start a backoff")
 	})
 }
 
