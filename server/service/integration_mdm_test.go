@@ -1698,6 +1698,8 @@ func (s *integrationMDMTestSuite) createAppleMobileHostThenDEPEnrollMDM(platform
 	require.NoError(t, err)
 	require.Equal(t, dbZeroTime, fleetHost.LastEnrolledAt)
 
+	s.createDEPAssignmentForHost(t, fleetHost)
+
 	depURLToken := loadEnrollmentProfileDEPToken(t, s.ds)
 	mdmDevice := mdmtest.NewTestMDMClientAppleDEPFromDevice(s.server.URL, depURLToken, serial, model)
 	mdmDevice.SerialNumber = serial
@@ -1705,6 +1707,19 @@ func (s *integrationMDMTestSuite) createAppleMobileHostThenDEPEnrollMDM(platform
 	require.NoError(t, err)
 
 	return fleetHost, mdmDevice
+}
+
+// createDEPAssignmentForHost records the host as DEP-assigned to Fleet, as the
+// DEP sync would, so it can enroll through the automatic enrollment endpoint.
+func (s *integrationMDMTestSuite) createDEPAssignmentForHost(t *testing.T, host *fleet.Host) {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(t.Context(), `
+			INSERT INTO host_dep_assignments (host_id, hardware_serial)
+			VALUES (?, ?)
+			ON DUPLICATE KEY UPDATE deleted_at = NULL, hardware_serial = VALUES(hardware_serial)`,
+			host.ID, host.HardwareSerial)
+		return err
+	})
 }
 
 func (s *integrationMDMTestSuite) createAppleMobileHostThenEnrollMDM(platform string) (*fleet.Host, *mdmtest.TestAppleMDMClient) {
@@ -16810,8 +16825,9 @@ func (s *integrationMDMTestSuite) TestEnrollmentProfilesWithSpecialChars() {
 	})
 	require.NoError(t, err)
 
+	s.createDEPAssignmentForHost(t, host)
 	di, err := mdmtest.EncodeDeviceInfo(fleet.MDMAppleMachineInfo{
-		Serial:                 uuid.New().String(),
+		Serial:                 host.HardwareSerial,
 		UDID:                   host.UUID,
 		Product:                "Mac13,1",
 		SoftwareUpdateDeviceID: "bogus-update-id",

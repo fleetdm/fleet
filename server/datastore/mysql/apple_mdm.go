@@ -7286,7 +7286,7 @@ FROM
 JOIN
 	host_dep_assignments hdep ON h.id = host_id
 WHERE
-	h.hardware_serial = ? AND deleted_at IS NULL
+	h.hardware_serial = ? AND deleted_at IS NULL AND h.platform IN ('darwin', 'ios', 'ipados')
 LIMIT 1`
 
 	var dest struct {
@@ -7295,10 +7295,11 @@ LIMIT 1`
 	}
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &dest, stmt, serial); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			// The host may not have a DEP assignment yet (e.g. the enrollment
-			// request arrived before the host/DEP assignment row was created or
-			// replicated). Return a not-found error so callers can skip the OS
-			// updates check and allow enrollment to proceed.
+			// The host may not be an Apple host, or may not have a DEP assignment
+			// yet (e.g. the enrollment request arrived before the host/DEP
+			// assignment row was created or replicated). Return a not-found error
+			// so callers can skip the OS updates check and allow enrollment to
+			// proceed.
 			return "", nil, ctxerr.Wrap(ctx, notFound("Host").WithName(serial), "getting team id for host")
 		}
 		return "", nil, ctxerr.Wrap(ctx, err, "getting team id for host")
