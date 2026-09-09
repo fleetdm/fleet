@@ -1104,11 +1104,7 @@ func TestBitlockerOperations(t *testing.T) {
 		require.False(t, encryptFnCalled, "must not encrypt against an unreadable volume")
 	})
 
-	// A running conversion finishes on its own, so waiting is correct. A paused one never does, and treating the two
-	// alike left hosts at "Enforcing" forever with nothing reported. See #52159.
-	// A running conversion finishes on its own, so waiting is right. A paused one never does: it holds until something
-	// resumes it, and the server keeps asking on every 30-second config poll, so these branches must back off or they
-	// repeat the COM call and the same report forever.
+	// A running conversion finishes on its own, so waiting is correct. A paused one never does.
 	t.Run("conversion status decides whether to wait, resume, or report", func(t *testing.T) {
 		for _, tc := range []struct {
 			name        string
