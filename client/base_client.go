@@ -73,9 +73,11 @@ func (bc *BaseClient) ParseResponse(verb, path string, response *http.Response, 
 			break
 		}
 
+		name, reason := ExtractServerErrorNameReason(response.Body)
 		e := &StatusCodeErr{
 			Code: response.StatusCode,
-			Body: ExtractServerErrorText(response.Body),
+			Body: reason,
+			Name: name,
 		}
 		return fmt.Errorf("%s %s received status %w", verb, path, e)
 	}

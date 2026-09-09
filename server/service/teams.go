@@ -247,13 +247,15 @@ type applyTeamSpecsRequest struct {
 }
 
 func (req *applyTeamSpecsRequest) DecodeBody(ctx context.Context, r io.Reader, u url.Values, c []*x509.Certificate) error {
-	if err := fleet.JSONStrictDecode(r, req); err != nil {
-		err = fleet.NewUserMessageError(err, http.StatusBadRequest)
-		if !req.Force || !fleet.IsJSONUnknownFieldError(err) {
-			// only unknown field errors can be forced at this point (other errors
-			// can be forced later, after agent options' validations)
-			return ctxerr.Wrap(ctx, err, "strict decode team specs")
-		}
+	// force accepts specs containing unknown fields, so decode without rejecting them rather than
+	// decoding strictly and ignoring the resulting error. Every other error still has to surface, and
+	// other kinds of error can be forced later, after agent options' validations.
+	decode := fleet.JSONStrictDecode
+	if req.Force {
+		decode = fleet.JSONDecode
+	}
+	if err := decode(r, req); err != nil {
+		return ctxerr.Wrap(ctx, fleet.NewUserMessageError(err, http.StatusBadRequest), "strict decode team specs")
 	}
 
 	// the MacOSSettings field must be validated separately, since it

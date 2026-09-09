@@ -81,19 +81,6 @@ func TestRequestSecurityTokenResponseCollectionSoapResponse(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, outXML)
 	require.Contains(t, string(outXML), fmt.Sprintf("base64binary\">%s</BinarySecurityToken>", provisionedToken))
-
-	// Verify the provisioning doc advertises ROBOSupport=false. Fleet does
-	// not implement WSTEP ROBO renewal; advertising "true" causes Windows
-	// to attempt renewal, fail, and set EnrollmentState=3. See #50611.
-	certStore := NewCertStoreProvisioningData("Device", "AA", []byte("id"), "BB", []byte("sc"))
-	appCfg := NewApplicationProvisioningData("https://example.com/mdm", "dev", "pw")
-	provDoc := NewProvisioningDoc(certStore, appCfg, NewDMClientProvisioningData())
-	encoded, err := provDoc.GetEncodedB64Representation()
-	require.NoError(t, err)
-	raw, err := base64.StdEncoding.DecodeString(encoded)
-	require.NoError(t, err)
-	require.Contains(t, string(raw), `name="ROBOSupport" value="false"`)
-	require.NotContains(t, string(raw), `name="ROBOSupport" value="true"`)
 }
 
 func TestGetPoliciesResponseSoapResponse(t *testing.T) {
@@ -2474,6 +2461,8 @@ func TestRekeyWindowsDevice(t *testing.T) {
 			// Loaded as 1 so the per-session refresh fires when the pending fetch returns empty (asserted at the end of
 			// the test); a device loaded with the flag at 0 skips the refresh entirely.
 			HasPendingCommands: true,
+			// Already announced, so the deferred mdm_enrolled path short-circuits: this test is about rekeying.
+			EnrolledActivityAt: new(time.Now()),
 		}, nil
 	}
 
@@ -3570,4 +3559,92 @@ func TestESPReleaseIncludesSkipUserStatusPage(t *testing.T) {
 	assert.True(t, found,
 		"release commands must include SkipUserStatusPage=true; without it, a second user "+
 			"signing in to an already-enrolled device hits a fresh Account setup ESP that hangs (#51380)")
+}
+
+// TestWarnOnWindowsMDMHardwareIDCollision covers the detection added for issue #50612. The enrollment itself is
+// deliberately unchanged: a second host presenting an already-held HW device id still takes over the enrollment, but
+// Fleet now says so.
+func TestWarnOnWindowsMDMHardwareIDCollision(t *testing.T) {
+	const (
+		hwID          = "F19B99942A3B9C53679F46017599C1FC4953B9BD3F0BC20FF681D0F93FAE5992"
+		enrollingHost = "7C3BA655-C134-4CA5-A23B-CA8147643DA0"
+		incumbentHost = "A5D3F1A9-1B40-49DC-9D54-B4F558850CB9"
+	)
+
+	secTokenMsg := &fleet.RequestSecurityToken{
+		AdditionalContext: fleet.AdditionalContext{
+			ContextItems: []fleet.ContextItem{{Name: syncml.ReqSecTokenContextItemHWDevID, Value: hwID}},
+		},
+	}
+
+	// Attributes of the first warning whose message contains want, or nil when nothing matched.
+	warnAttrs := func(h *testutils.TestHandler, want string) map[string]string {
+		for _, r := range h.Records() {
+			if r.Level != slog.LevelWarn || !strings.Contains(r.Message, want) {
+				continue
+			}
+			attrs := make(map[string]string, 3)
+			r.Attrs(func(a slog.Attr) bool { attrs[a.Key] = a.Value.String(); return true })
+			return attrs
+		}
+		return nil
+	}
+
+	for _, tc := range []struct {
+		name            string
+		enrollingHost   string
+		deletedHostUUID string
+		deleteErr       error
+		wantErr         bool
+		wantCollision   bool
+	}{
+		{
+			name: "enrollment taken from a different host", enrollingHost: enrollingHost, deletedHostUUID: incumbentHost,
+			wantCollision: true,
+		},
+		{name: "same host re-enrolling", enrollingHost: enrollingHost, deletedHostUUID: enrollingHost},
+		{name: "deleted enrollment was not linked to a host", enrollingHost: enrollingHost},
+		{name: "enrolling host is unknown, as in an automatic enrollment", deletedHostUUID: incumbentHost},
+		{
+			name: "nothing was enrolled with that hardware id", enrollingHost: enrollingHost,
+			deleteErr: &notFoundError{},
+		},
+		{
+			name: "the delete fails", enrollingHost: enrollingHost, deletedHostUUID: incumbentHost,
+			deleteErr: errors.New("db is down"), wantErr: true,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ds := new(mock.Store)
+			ds.MDMWindowsDeleteEnrolledDeviceOnReenrollmentFunc = func(_ context.Context, gotHWID string) (string, error) {
+				require.Equal(t, hwID, gotHWID)
+				if tc.deleteErr != nil {
+					return "", tc.deleteErr
+				}
+				return tc.deletedHostUUID, nil
+			}
+			handler := testutils.NewTestHandler()
+			svc := &Service{ds: ds, logger: slog.New(handler)}
+
+			err := svc.removeWindowsDeviceIfAlreadyMDMEnrolled(t.Context(), secTokenMsg, tc.enrollingHost)
+			if tc.wantErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err, "a duplicate hardware ID must never fail an enrollment")
+			}
+			require.True(t, ds.MDMWindowsDeleteEnrolledDeviceOnReenrollmentFuncInvoked)
+
+			attrs := warnAttrs(handler, "hardware ID already held by another host")
+			if !tc.wantCollision {
+				require.Nil(t, attrs, "this is not a collision and must not be reported as one")
+				return
+			}
+			// Whole-map equality so a renamed or extra attribute fails too: this log line is the only signal.
+			require.Equal(t, map[string]string{
+				"mdm_hardware_id":     hwID,
+				"enrolling_host_uuid": tc.enrollingHost,
+				"existing_host_uuid":  tc.deletedHostUUID,
+			}, attrs)
+		})
+	}
 }

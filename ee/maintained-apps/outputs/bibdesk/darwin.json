@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "1.9.12",
+      "version": "1.9.13",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'edu.ucsd.cs.mmccrack.bibdesk';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'edu.ucsd.cs.mmccrack.bibdesk' AND version_compare(bundle_short_version, '1.9.12') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'edu.ucsd.cs.mmccrack.bibdesk' AND version_compare(bundle_short_version, '1.9.13') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'edu.ucsd.cs.mmccrack.bibdesk' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://downloads.sourceforge.net/bibdesk/BibDesk/BibDesk-1.9.12/BibDesk-1.9.12.dmg",
+      "installer_url": "https://downloads.sourceforge.net/bibdesk/BibDesk/BibDesk-1.9.13/BibDesk-1.9.13.dmg",
       "install_script_ref": "fdca5901",
       "uninstall_script_ref": "fd5e9adb",
-      "sha256": "a32e553d5214e2b87d941bb8678b00fb9958c80ac271d9dd7cd7c24cc0e9caa3",
+      "sha256": "0435887d5f3fc7ae7ed735515a1290cf6efc479afeae755c1d1d0693c008004b",
       "default_categories": [
         "Productivity"
       ]

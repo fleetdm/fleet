@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "3.1.0",
+      "version": "3.1.2",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.calibrite.profiler';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.calibrite.profiler' AND version_compare(bundle_short_version, '3.1.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.calibrite.profiler' AND version_compare(bundle_short_version, '3.1.2') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.calibrite.profiler' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/LUMESCA/calibrite-profiler-releases/releases/download/v3.1.0/calibrite-PROFILER-3.1.0.dmg",
+      "installer_url": "https://github.com/LUMESCA/calibrite-profiler-releases/releases/download/v3.1.2/calibrite-PROFILER-3.1.2.dmg",
       "install_script_ref": "c040fef0",
       "uninstall_script_ref": "ba37be89",
-      "sha256": "a35392f3d43562ab03f2e0a20f8befe6d4329fd2c8fb4d27279efda92125db60",
+      "sha256": "b976a74bbe10aca00794aac225f3f7ca594e039ee82960793da526c3d097a52e",
       "default_categories": [
         "Productivity"
       ]
