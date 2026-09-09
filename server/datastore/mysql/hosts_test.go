@@ -1863,6 +1863,13 @@ func testHostsListMDM(t *testing.T, ds *Datastore) {
 		gotIDs = append(gotIDs, h.ID)
 	}
 	assert.ElementsMatch(t, []uint{hostIDs[0], hostIDs[1], hostIDs[2], hostIDs[10], hostIDs[11]}, gotIDs)
+
+	// exclude_pending: returns all hosts except the one pending MDM enrollment.
+	// This includes hosts with no MDM data and unenrolled hosts (unlike the other
+	// MDM filters which restrict to MDM-managed platforms only). Regression test
+	// for #48880 drill-down.
+	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{MDMEnrollmentStatusFilter: fleet.MDMEnrollStatusExcludePending}, 12)
+	assert.Equal(t, 12, len(hosts))
 }
 
 func testListHostsDEPFilters(t *testing.T, ds *Datastore) {

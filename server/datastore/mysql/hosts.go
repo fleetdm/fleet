@@ -1677,6 +1677,12 @@ func filterHostsByMDM(sql string, opt fleet.HostListOptions, params []interface{
 			sql += ` AND hmdm.enrolled = 0 AND hmdm.installed_from_dep = 1`
 		case fleet.MDMEnrollStatusUnenrolled:
 			sql += ` AND hmdm.enrolled = 0 AND hmdm.installed_from_dep = 0`
+		case fleet.MDMEnrollStatusExcludePending:
+			// Exclude hosts with pending MDM enrollment but include all platforms
+			// (including those with no MDM data). Used by the dashboard "Hosts enrolled"
+			// chart drill-down so the list matches the chart counts.
+			sql += ` AND (hmdm.enrollment_status IS NULL OR hmdm.enrollment_status != 'Pending')`
+			return sql, params
 		}
 	}
 	if opt.MDMNameFilter != nil || opt.MDMIDFilter != nil || opt.MDMEnrollmentStatusFilter != "" {

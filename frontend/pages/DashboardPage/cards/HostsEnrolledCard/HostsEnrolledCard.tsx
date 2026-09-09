@@ -203,6 +203,7 @@ const HostsEnrolledCard = ({
     router.push(
       getPathWithQueryParams(PATHS.MANAGE_HOSTS_LABEL(labelId), {
         fleet_id: currentTeamId,
+        mdm_enrollment_status: "exclude_pending",
       })
     );
   };

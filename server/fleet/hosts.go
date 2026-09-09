@@ -117,8 +117,9 @@ const (
 	MDMEnrollStatusAutomatic  = MDMEnrollStatus("automatic")
 	MDMEnrollStatusPending    = MDMEnrollStatus("pending")
 	MDMEnrollStatusUnenrolled = MDMEnrollStatus("unenrolled")
-	MDMEnrollStatusEnrolled   = MDMEnrollStatus("enrolled") // combination of "manual", "automatic" and "personal"
-	MDMEnrollStatusPersonal   = MDMEnrollStatus("personal")
+	MDMEnrollStatusEnrolled       = MDMEnrollStatus("enrolled")        // combination of "manual", "automatic" and "personal"
+	MDMEnrollStatusPersonal       = MDMEnrollStatus("personal")
+	MDMEnrollStatusExcludePending = MDMEnrollStatus("exclude_pending") // all hosts except pending MDM enrollment
 )
 
 // OSSettingsStatus defines the possible statuses of the host's OS settings, which is derived from the

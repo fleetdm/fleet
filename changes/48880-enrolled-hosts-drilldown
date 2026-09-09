@@ -1,0 +1,1 @@
+Fixed "Hosts enrolled" chart drill-down on the dashboard to exclude pending hosts from the filtered host list.
