@@ -12,7 +12,9 @@ import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
 
 import SoftwareNameCell from "components/TableContainer/DataTable/SoftwareNameCell";
-import VersionCell from "pages/SoftwarePage/components/tables/VersionCell";
+import VersionCell, {
+  VersionsColumnCell,
+} from "pages/SoftwarePage/components/tables/VersionCell";
 import { ISWUninstallDetailsParentState } from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
 
 import InstallStatusCell from "../../../InstallStatusCell/InstallStatusCell";
@@ -25,10 +27,6 @@ type ITableStringCellProps = IStringCellProps<IDeviceSoftwareWithUiStatus>;
 type IStatusCellProps = CellProps<
   IDeviceSoftwareWithUiStatus,
   IDeviceSoftwareWithUiStatus["ui_status"]
->;
-type IVersionsCellProps = CellProps<
-  IDeviceSoftwareWithUiStatus,
-  IDeviceSoftwareWithUiStatus["installed_versions"]
 >;
 type IAvailableVersionCellProps = CellProps<
   IDeviceSoftwareWithUiStatus,
@@ -135,9 +133,7 @@ export const generateSoftwareTableHeaders = ({
       // need to access the same data. This is not supported with a string
       // accessor.
       accessor: (originalRow) => originalRow.installed_versions,
-      Cell: (cellProps: IVersionsCellProps) => {
-        return <VersionCell versions={cellProps.cell.value} />;
-      },
+      Cell: VersionsColumnCell,
     },
     {
       Header: "Available version",
@@ -150,7 +146,10 @@ export const generateSoftwareTableHeaders = ({
         const installerData =
           softwareTitle.software_package ?? softwareTitle.app_store_app;
         return (
-          <VersionCell versions={[{ version: installerData?.version || "" }]} />
+          <VersionCell
+            versions={[{ version: installerData?.version || "" }]}
+            source={cellProps.row.original.source}
+          />
         );
       },
     },

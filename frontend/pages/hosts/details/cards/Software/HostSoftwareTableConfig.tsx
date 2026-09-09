@@ -21,7 +21,7 @@ import TooltipWrapper from "components/TooltipWrapper";
 import { HumanTimeDiffWithDateTip } from "components/HumanTimeDiffWithDateTip";
 
 import VulnerabilitiesCell from "pages/SoftwarePage/components/tables/VulnerabilitiesCell";
-import VersionCell from "pages/SoftwarePage/components/tables/VersionCell";
+import { VersionsColumnCell } from "pages/SoftwarePage/components/tables/VersionCell";
 import { getVulnerabilities } from "pages/SoftwarePage/SoftwareInventory/SoftwareInventoryTable/helpers";
 import { getAutomaticInstallPoliciesCount } from "pages/SoftwarePage/helpers";
 import TooltipTruncatedTextCell from "components/TableContainer/DataTable/TooltipTruncatedTextCell";
@@ -107,9 +107,7 @@ export const generateSoftwareTableHeaders = ({
       // need to access the same data. This is not supported with a string
       // accessor.
       accessor: (originalRow) => originalRow.installed_versions,
-      Cell: (cellProps: IInstalledVersionsCellProps) => {
-        return <VersionCell versions={cellProps.cell.value} />;
-      },
+      Cell: VersionsColumnCell,
     },
     {
       Header: "Type",

@@ -19,7 +19,9 @@ import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCel
 import { ISWUninstallDetailsParentState } from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
 import SoftwareNameCell from "components/TableContainer/DataTable/SoftwareNameCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
-import VersionCell from "pages/SoftwarePage/components/tables/VersionCell";
+import VersionCell, {
+  VersionsColumnCell,
+} from "pages/SoftwarePage/components/tables/VersionCell";
 import AndroidLatestVersionWithTooltip from "components/MDM/AndroidLatestVersionWithTooltip";
 import HostInstallerActionCell from "../HostInstallerActionCell";
 import InstallStatusCell from "../../Software/InstallStatusCell";
@@ -167,9 +169,7 @@ export const generateHostSWLibraryTableHeaders = ({
       // need to access the same data. This is not supported with a string
       // accessor.
       accessor: (originalRow) => originalRow.installed_versions,
-      Cell: (cellProps: IVersionsCellProps) => {
-        return <VersionCell versions={cellProps.cell.value} />;
-      },
+      Cell: VersionsColumnCell,
     },
     {
       Header: "Library version",
@@ -206,7 +206,10 @@ export const generateHostSWLibraryTableHeaders = ({
         }
 
         return (
-          <VersionCell versions={[{ version: installerData?.version || "" }]} />
+          <VersionCell
+            versions={[{ version: installerData?.version || "" }]}
+            source={cellProps.row.original.source}
+          />
         );
       },
     },
