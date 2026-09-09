@@ -821,7 +821,8 @@ type Service interface {
 	DeleteGlobalPolicies(ctx context.Context, ids []uint) ([]uint, error)
 	ModifyGlobalPolicy(ctx context.Context, id uint, p ModifyPolicyPayload) (*Policy, error)
 	GetPolicyByID(ctx context.Context, policyID uint) (*Policy, error)
-	ResetPolicy(ctx context.Context, policyID uint) error
+	// ResetPolicy clears a policy's pass/fail results for all hosts, or for a single host when hostID is set.
+	ResetPolicy(ctx context.Context, policyID uint, hostID *uint) error
 	ListPolicyAutomationActivities(ctx context.Context, policyID uint, opts ListOptions, status string) ([]*PolicyAutomationActivity, *PaginationMetadata, error)
 	ApplyPolicySpecs(ctx context.Context, policies []*PolicySpec) error
 	CountGlobalPolicies(ctx context.Context, matchQuery string, platform string) (int, error)

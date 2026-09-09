@@ -35723,6 +35723,40 @@ func (s *integrationEnterpriseTestSuite) TestResetPolicy() {
 	// Both endpoints are documented under /api/v1 and must be routed there too.
 	s.Do("POST", fmt.Sprintf("/api/v1/fleet/policies/%d/reset", globalPolicy.ID), nil, http.StatusOK)
 	s.Do("GET", fmt.Sprintf("/api/v1/fleet/policies/%d/automation_activities", globalPolicy.ID), nil, http.StatusOK)
+
+	// --- host-scoped reset (?host_id=) ---
+	createHostScopedResp := fleet.GlobalPolicyResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/policies", fleet.GlobalPolicyRequest{
+		Name:  "reset-test-host-scoped",
+		Query: "SELECT 1;",
+	}, http.StatusOK, &createHostScopedResp)
+	hostScopedPolicy := createHostScopedResp.Policy
+
+	for _, h := range []*fleet.Host{globalHost, noTeamHost} {
+		s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
+			h, map[uint]*bool{hostScopedPolicy.ID: new(false)},
+		), http.StatusOK, new(submitDistributedQueryResultsResponse))
+	}
+	require.NoError(t, s.ds.UpdateHostPolicyCounts(ctx))
+	getHostScopedResp := fleet.GetPolicyByIDResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/policies/%d", hostScopedPolicy.ID), nil, http.StatusOK, &getHostScopedResp)
+	require.Equal(t, uint(2), getHostScopedResp.Policy.FailingHostCount)
+
+	// Reset only globalHost's result; noTeamHost's failing result must survive.
+	s.Do("POST", fmt.Sprintf("/api/v1/fleet/policies/%d/reset?host_id=%d", hostScopedPolicy.ID, globalHost.ID), nil, http.StatusOK)
+	require.NoError(t, s.ds.UpdateHostPolicyCounts(ctx))
+	getHostScopedResp = fleet.GetPolicyByIDResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/policies/%d", hostScopedPolicy.ID), nil, http.StatusOK, &getHostScopedResp)
+	require.Equal(t, uint(1), getHostScopedResp.Policy.FailingHostCount)
+	require.Equal(t, uint(0), getHostScopedResp.Policy.PassingHostCount)
+
+	s.lastActivityMatches("reset_policy", fmt.Sprintf(
+		`{"policy_id":%d,"policy_name":"reset-test-host-scoped","team_id":-1,"fleet_id":-1,"host_id":%d,"host_display_name":%q}`,
+		hostScopedPolicy.ID, globalHost.ID, globalHost.DisplayName(),
+	), 0)
+
+	// 404 for a nonexistent host.
+	s.Do("POST", fmt.Sprintf("/api/latest/fleet/policies/%d/reset?host_id=999999", hostScopedPolicy.ID), nil, http.StatusNotFound)
 }
 
 // TestSoftwareMultiplePackagesInstallPrecedence verifies install-time first-added precedence when a

@@ -58,11 +58,11 @@ func (svc Service) GetPolicyByID(ctx context.Context, policyID uint) (*fleet.Pol
 
 func resetPolicyEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*fleet.ResetPolicyRequest)
-	err := svc.ResetPolicy(ctx, req.PolicyID)
+	err := svc.ResetPolicy(ctx, req.PolicyID, req.HostID)
 	return fleet.ResetPolicyResponse{Err: err}, nil
 }
 
-func (svc Service) ResetPolicy(ctx context.Context, policyID uint) error {
+func (svc Service) ResetPolicy(ctx context.Context, policyID uint, hostID *uint) error {
 	// Load first to authorize against the policy's actual team.
 	policy, err := svc.ds.Policy(ctx, policyID)
 	if err != nil {
@@ -73,7 +73,23 @@ func (svc Service) ResetPolicy(ctx context.Context, policyID uint) error {
 		return err
 	}
 
-	if err := svc.ds.ResetPolicy(ctx, policyID); err != nil {
+	var activityHostID *uint
+	var activityHostName *string
+	if hostID != nil {
+		host, err := svc.ds.HostLite(ctx, *hostID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "load host for policy reset")
+		}
+		policyIDs := []uint{policyID}
+		if err := svc.ds.ClearHostPolicyMembershipForPolicies(ctx, host.ID, policyIDs); err != nil {
+			return ctxerr.Wrap(ctx, err, "reset host policy result")
+		}
+		if err := svc.ds.ResetPolicyAutomationRetryAttemptsForHost(ctx, host.ID, policyIDs); err != nil {
+			return ctxerr.Wrap(ctx, err, "reset host policy automation attempts")
+		}
+		activityHostID = &host.ID
+		activityHostName = new(host.DisplayName())
+	} else if err := svc.ds.ResetPolicy(ctx, policyID); err != nil {
 		return ctxerr.Wrap(ctx, err, "reset policy")
 	}
 
@@ -99,10 +115,12 @@ func (svc Service) ResetPolicy(ctx context.Context, policyID uint) error {
 	}
 
 	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeResetPolicy{
-		ID:       policy.ID,
-		Name:     policy.Name,
-		TeamID:   activityTeamID,
-		TeamName: teamName,
+		ID:              policy.ID,
+		Name:            policy.Name,
+		TeamID:          activityTeamID,
+		TeamName:        teamName,
+		HostID:          activityHostID,
+		HostDisplayName: activityHostName,
 	}); err != nil {
 		return ctxerr.Wrap(ctx, err, "create activity for policy reset")
 	}
