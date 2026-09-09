@@ -3019,6 +3019,7 @@ func (ds *Datastore) LoadHostByOrbitNodeKey(ctx context.Context, nodeKey string)
       IF(hdep.host_id AND ISNULL(hdep.deleted_at), true, false) AS dep_assigned_to_fleet,
       hd.encrypted as disk_encryption_enabled,
       hd.bitlocker_protection_status,
+      hd.bitlocker_boot_protector_set,
       COALESCE(hd.tpm_pin_set, false) as tpm_pin_set,
       COALESCE(hdek.decryptable, false) as encryption_key_available,
       t.name as team_name,
@@ -5230,6 +5231,18 @@ func (ds *Datastore) SetOrUpdateHostDiskTpmPIN(ctx context.Context, hostID uint,
 		`UPDATE host_disks SET tpm_pin_set = ? WHERE host_id = ?`,
 		`INSERT INTO host_disks (tpm_pin_set, host_id) VALUES (?, ?)`,
 		pinSet, hostID,
+	)
+}
+
+// SetOrUpdateHostDiskBootProtector records whether the volume has a key protector that can release the volume master
+// key at boot. A volume that has none boots straight to the 48-digit recovery prompt, which Fleet cannot otherwise see
+// while BitLocker protection is on.
+func (ds *Datastore) SetOrUpdateHostDiskBootProtector(ctx context.Context, hostID uint, bootProtectorSet bool) error {
+	return ds.updateOrInsert(
+		ctx,
+		`UPDATE host_disks SET bitlocker_boot_protector_set = ? WHERE host_id = ?`,
+		`INSERT INTO host_disks (bitlocker_boot_protector_set, host_id) VALUES (?, ?)`,
+		bootProtectorSet, hostID,
 	)
 }
 

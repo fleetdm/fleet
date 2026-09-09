@@ -3655,6 +3655,48 @@ var bitlockerPolicyQueries = map[string]DetailQuery{
 			return ds.MDMWindowsInsertCommandForHosts(ctx, []string{host.UUID}, cmd)
 		},
 	},
+	// Protectors can be deleted while BitLocker protection stays on. The volume then boots straight to the 48-digit
+	// recovery prompt, and nothing else Fleet collects can see it: protection still reads as on and the disk still reads
+	// as encrypted, so the host would otherwise report as verified.
+	"bitlocker_boot_protector_verify": {
+		Platforms: []string{"windows"},
+		// We only want to run this query iff:
+		// - BitLocker is not an optional component (is built in) OR is an optional component and enabled.
+		Discovery: `
+			WITH should_run(yes) AS (
+			SELECT
+				(
+					-- BitLocker is an optional feature but enabled
+					EXISTS(SELECT 1 FROM windows_optional_features WHERE name = 'BitLocker' AND state = 1)
+					-- BitLocker is built in, so it won't appear as an optional feature
+					OR NOT EXISTS(SELECT 1 FROM windows_optional_features WHERE name = 'BitLocker')
+				)
+			)
+			SELECT 1 FROM should_run WHERE yes = 1`,
+		Query: `
+			SELECT EXISTS(
+				SELECT 1
+				FROM bitlocker_key_protectors
+				-- 1, 4, 5, 6 are the TPM-family protectors; 2 is an external startup key on a USB stick, which unlocks a
+				-- volume at boot on a machine with no trusted TPM. Keep in sync with bitlocker.BootUnsealProtectorTypes.
+				WHERE drive_letter = 'C:' AND key_protector_type IN (1,2,4,5,6)
+				LIMIT 1
+			) AS criteria
+			WHERE criteria = 1`,
+		DirectIngestFunc: func(
+			ctx context.Context,
+			logger *slog.Logger,
+			host *fleet.Host,
+			ds fleet.Datastore,
+			rows []map[string]string,
+		) error {
+			if host == nil || host.UUID == "" {
+				logger.DebugContext(ctx, "Ingestion not run, host is nil or UUID is empty", "query", "bitlocker_boot_protector_verify")
+				return nil
+			}
+			return ds.SetOrUpdateHostDiskBootProtector(ctx, host.ID, len(rows) > 0)
+		},
+	},
 }
 
 var tpmPINQueries = map[string]DetailQuery{

@@ -822,6 +822,8 @@ func TestBitlockerOperations(t *testing.T) {
 			restartErr      error
 			wantAdd         bool
 			wantEnable      bool
+			// wantRotateOnly marks a repair that rotates and escrows but must leave protection itself alone.
+			wantRotateOnly  bool
 			wantOutcome     fleet.DiskEncryptionProtectionOutcome
 			wantErrContains string
 			wantBackoff     bool
@@ -921,10 +923,22 @@ func TestBitlockerOperations(t *testing.T) {
 				hasProtector: true,
 			},
 			{
-				name:         "does nothing when protection is already on",
+				name:         "does nothing when protection is already on and the volume can unseal at boot",
 				status:       statusFor(bitlocker.ConversionStatusFullyEncrypted, bitlocker.ProtectionStatusOn),
 				hasProtector: true,
 				wantBackoff:  true,
+			},
+			{
+				// Deleting the TPM protectors leaves protection on with only a recovery password, so the volume boots
+				// straight to the 48-digit prompt. There is a protector to add but nothing to re-enable.
+				name:           "adds a protector without re-enabling when protection is already on",
+				status:         statusFor(bitlocker.ConversionStatusFullyEncrypted, bitlocker.ProtectionStatusOn),
+				wantAdd:        true,
+				wantRotateOnly: true,
+				wantOutcome:    fleet.DiskEncryptionProtectionRestored,
+				wantBackoff:    true,
+				shortBackoff:   true,
+				reason:         "protection is already on, so it must not be re-enabled",
 			},
 		} {
 			t.Run(tc.name, func(t *testing.T) {
@@ -961,9 +975,11 @@ func TestBitlockerOperations(t *testing.T) {
 				// The restore path must never reach the encrypt path, whose first act is deleting every key protector.
 				require.False(t, encryptFnCalled, "restoring protection must never delete key protectors")
 				// setupTest reports no recovery password, which is the case this repair exists for, so every pass that
-				// gets as far as enabling protection first rotates and escrows. The decision itself is covered below.
-				require.Equal(t, tc.wantEnable, rotateKeyFnCalled, "rotating the recovery key")
-				require.Equal(t, tc.wantEnable, clientMock.SetOrUpdateDiskEncryptionKeyInvoked, "escrowing the rotated key")
+				// gets past the protector step rotates and escrows, whether or not it goes on to enable protection.
+				// The decision itself is covered below.
+				wantRotate := tc.wantEnable || tc.wantRotateOnly
+				require.Equal(t, wantRotate, rotateKeyFnCalled, "rotating the recovery key")
+				require.Equal(t, wantRotate, clientMock.SetOrUpdateDiskEncryptionKeyInvoked, "escrowing the rotated key")
 			})
 		}
 

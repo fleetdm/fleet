@@ -19,11 +19,12 @@ func TestShouldEnableBitLockerProtection(t *testing.T) {
 	protectionOn := fleet.BitLockerProtectionStatusOn
 
 	for _, tc := range []struct {
-		name         string
-		encrypted    *bool
-		protection   *int
-		tpmPINSet    bool
-		wantNotified bool
+		name          string
+		encrypted     *bool
+		protection    *int
+		bootProtector *bool
+		tpmPINSet     bool
+		wantNotified  bool
 	}{
 		{
 			name:         "encrypted and protection off is the case this exists for",
@@ -32,7 +33,23 @@ func TestShouldEnableBitLockerProtection(t *testing.T) {
 			wantNotified: true,
 		},
 		{
-			name:       "protection on needs nothing",
+			name:          "protection on with something able to unseal at boot needs nothing",
+			encrypted:     new(true),
+			protection:    &protectionOn,
+			bootProtector: new(true),
+		},
+		{
+			// Deleting the TPM protectors leaves protection on, so protection status alone cannot see this. The volume
+			// boots straight to the 48-digit prompt.
+			name:          "protection on with nothing able to unseal at boot still needs repair",
+			encrypted:     new(true),
+			protection:    &protectionOn,
+			bootProtector: new(false),
+			wantNotified:  true,
+		},
+		{
+			// An agent that does not report protectors leaves this nil, which must never trigger a repair.
+			name:       "protection on and protectors not reported is never acted on",
 			encrypted:  new(true),
 			protection: &protectionOn,
 		},
@@ -64,6 +81,7 @@ func TestShouldEnableBitLockerProtection(t *testing.T) {
 			host := &fleet.Host{
 				DiskEncryptionEnabled:     tc.encrypted,
 				BitLockerProtectionStatus: tc.protection,
+				BitLockerBootProtectorSet: tc.bootProtector,
 				TPMPINSet:                 tc.tpmPINSet,
 			}
 			require.Equal(t, tc.wantNotified, shouldEnableBitLockerProtection(host))

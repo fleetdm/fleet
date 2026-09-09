@@ -1866,6 +1866,10 @@ func (ds *Datastore) whereBitLockerStatus(ctx context.Context, status fleet.Disk
 		whereProtectionOff    = `(hd.bitlocker_protection_status = 0)`
 		// Set only when the agent tried to restore protection and could not, or deliberately deferred.
 		whereProtectionError = `(hd.bitlocker_protection_error IS NOT NULL AND hd.bitlocker_protection_error != '')`
+		// Protectors can be deleted while protection stays on, leaving a volume that boots to the recovery prompt. NULL
+		// means the host has not reported yet, which must read as "no problem" so agents that do not send it are unaffected.
+		whereBootProtectorSet     = `(hd.bitlocker_boot_protector_set IS NULL OR hd.bitlocker_boot_protector_set = 1)`
+		whereBootProtectorMissing = `(hd.bitlocker_boot_protector_set IS NOT NULL AND hd.bitlocker_boot_protector_set = 0)`
 	)
 
 	whereBitLockerPINSet := `TRUE`
@@ -1880,13 +1884,16 @@ func (ds *Datastore) whereBitLockerStatus(ctx context.Context, status fleet.Disk
 
 	switch status {
 	case fleet.DiskEncryptionVerified:
-		// Verified requires protection to be on (or unknown/NULL for backward compatibility).
+		// Verified requires protection to be on (or unknown/NULL for backward compatibility), and requires something
+		// on the volume to be able to unseal at boot. Protection being on is not enough on its own: a volume whose
+		// protectors were deleted still reports protection on, and is one restart from the recovery prompt.
 		return whereNotServer + `
 AND NOT ` + whereClientError + `
 AND ` + whereKeyAvailable + `
 AND ` + whereEncrypted + `
 AND ` + whereHostDisksUpdated + `
 AND ` + whereProtectionOn + `
+AND ` + whereBootProtectorSet + `
 AND ` + whereBitLockerPINSet
 
 	case fleet.DiskEncryptionVerifying:
@@ -1899,7 +1906,7 @@ AND ` + whereBitLockerPINSet
 AND NOT ` + whereClientError + `
 AND ` + whereKeyAvailable + `
 AND (
-    (` + whereEncrypted + ` AND NOT ` + whereHostDisksUpdated + ` AND ` + whereProtectionOn + `)
+    (` + whereEncrypted + ` AND NOT ` + whereHostDisksUpdated + ` AND ` + whereProtectionOn + ` AND ` + whereBootProtectorSet + `)
     OR (NOT ` + whereEncrypted + ` AND ` + whereHostDisksUpdated + ` AND ` + withinGracePeriod + `)
 )
 AND ` + whereBitLockerPINSet
@@ -1908,13 +1915,17 @@ AND ` + whereBitLockerPINSet
 		// Action required means a person has to do something. Two ways to get here:
 		// 1. We _would_ be in verified/verifying but a PIN is required and not set, which only the end user can fix, OR
 		// 2. The disk is encrypted with protection off AND the agent reported it cannot restore it, either because
-		//    policy forbids a TPM-only protector, or the TPM is not ready, or it is deferring until a staged restart.
+		//    policy forbids a TPM-only protector, or the TPM is not ready, or it is deferring until a staged restart, OR
+		// 3. The disk is encrypted with protection on but nothing can unseal it at boot AND the agent reported it
+		//    cannot add a protector, so the next restart lands on the recovery prompt and only a person can prevent it.
 		// Protection being off on its own is NOT action required: Fleet repairs that itself, so it belongs in enforcing.
 		return whereNotServer + `
 AND NOT ` + whereClientError + `
 AND ` + whereKeyAvailable + `
 AND (` + whereEncrypted + ` OR (NOT ` + whereEncrypted + ` AND ` + whereHostDisksUpdated + ` AND ` + withinGracePeriod + `))
-AND (NOT ` + whereBitLockerPINSet + ` OR (` + whereEncrypted + ` AND ` + whereProtectionOff + ` AND ` + whereProtectionError + `))`
+AND (NOT ` + whereBitLockerPINSet + `
+     OR (` + whereEncrypted + ` AND ` + whereProtectionOff + ` AND ` + whereProtectionError + `)
+     OR (` + whereEncrypted + ` AND ` + whereProtectionOn + ` AND ` + whereBootProtectorMissing + ` AND ` + whereProtectionError + `))`
 
 	case fleet.DiskEncryptionEnforcing:
 		// Possible enforcing scenarios:
@@ -1922,6 +1933,8 @@ AND (NOT ` + whereBitLockerPINSet + ` OR (` + whereEncrypted + ` AND ` + wherePr
 		// - we have the key and host_disks reported unencrypted before the key was updated or outside the 1-hour grace period after key was updated
 		// - the disk is encrypted but protection is off and the agent has not reported a problem, so Fleet is restoring
 		//   it and no one needs to be told to act
+		// - the disk is encrypted and protection is on, but nothing can unseal it at boot, so Fleet is adding a
+		//   protector before the next restart lands the user at the recovery prompt
 		return whereNotServer + `
 AND NOT ` + whereClientError + `
 AND (
@@ -1934,6 +1947,13 @@ AND (
     OR (` + whereKeyAvailable + `
         AND ` + whereEncrypted + `
         AND ` + whereProtectionOff + `
+        AND NOT ` + whereProtectionError + `
+        AND ` + whereBitLockerPINSet + `
+    )
+    OR (` + whereKeyAvailable + `
+        AND ` + whereEncrypted + `
+        AND ` + whereProtectionOn + `
+        AND ` + whereBootProtectorMissing + `
         AND NOT ` + whereProtectionError + `
         AND ` + whereBitLockerPINSet + `
     )
@@ -2047,6 +2067,7 @@ SELECT
 	COALESCE(client_error, '') as detail,
 	hd.bitlocker_protection_status,
 	COALESCE(hd.tpm_pin_set, false) as tpm_pin_set,
+	hd.bitlocker_boot_protector_set,
 	COALESCE(hd.bitlocker_protection_error, '') as bitlocker_protection_error,
 	COALESCE(hd.bitlocker_protection_outcome, '') as bitlocker_protection_outcome
 FROM
@@ -2072,6 +2093,7 @@ WHERE
 		Detail            string                     `db:"detail"`
 		ProtectionStatus  *int                       `db:"bitlocker_protection_status"`
 		TpmPinSet         bool                       `db:"tpm_pin_set"`
+		BootProtectorSet  *bool                      `db:"bitlocker_boot_protector_set"`
 		ProtectionError   string                     `db:"bitlocker_protection_error"`
 		ProtectionOutcome string                     `db:"bitlocker_protection_outcome"`
 	}
@@ -2094,6 +2116,8 @@ WHERE
 
 	protectionOff := dest.ProtectionStatus != nil && *dest.ProtectionStatus == fleet.BitLockerProtectionStatusOff
 	pinMissing := diskEncryptionConfig.BitLockerPINRequired && !dest.TpmPinSet
+	// nil means the host has not reported, which reads as "no problem".
+	bootProtectorMissing := dest.BootProtectorSet != nil && !*dest.BootProtectorSet
 
 	deferred := dest.ProtectionOutcome == string(fleet.DiskEncryptionProtectionDeferred)
 
@@ -2105,9 +2129,10 @@ WHERE
 		case deferred:
 			actionRequired = new(fleet.ActionRequiredRestart)
 		// Creating a PIN goes through "Change how the drive is unlocked at startup", which Windows only offers on a
-		// protected volume, so while protection is off there is nothing for the end user to do here and the reason
-		// belongs in the detail instead.
-		case pinMissing && !protectionOff:
+		// protected volume that already has a TPM protector. While protection is off, or while the volume has no
+		// protector able to unseal at boot, the option is simply not there, so there is nothing for the end user to do
+		// and the reason belongs in the detail instead. Fleet adds the missing protector, which puts the option back.
+		case pinMissing && !protectionOff && !bootProtectorMissing:
 			actionRequired = new(fleet.ActionRequiredCreatePIN)
 		}
 	}
@@ -2123,6 +2148,10 @@ WHERE
 			dest.Detail = "BitLocker protection is off and a startup PIN is required. Windows only offers PIN setup while the volume is protected, so the end user cannot create one until protection is restored."
 		case protectionOff:
 			dest.Detail = "BitLocker protection is off. The disk is encrypted but the TPM protector is not active. This may be due to a suspended BitLocker state or a TPM configuration issue."
+		case bootProtectorMissing && dest.ProtectionError != "":
+			dest.Detail = fmt.Sprintf("BitLocker has no protector that can unlock this disk at startup, so the next restart will ask for the recovery key. Fleet could not add one: %s", dest.ProtectionError)
+		case bootProtectorMissing && pinMissing:
+			dest.Detail = "BitLocker has no protector that can unlock this disk at startup, so the next restart will ask for the recovery key, and Windows offers no way to create a PIN until one exists. Fleet is adding a protector."
 		case pinMissing:
 			dest.Detail = "A required BitLocker startup PIN is not set. The disk is encrypted but a PIN must be configured for compliance."
 		}

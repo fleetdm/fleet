@@ -637,18 +637,17 @@ func (w *windowsMDMBitlockerConfigReceiver) attemptEnableBitlockerProtection() {
 		return
 	}
 
-	//  Require the volume to be fully encrypted with protection off.
+	// Require the volume to be fully encrypted. Nothing below is safe or meaningful on a volume mid-conversion.
 	if status.ConversionStatus != bitlocker.ConversionStatusFullyEncrypted {
 		log.Info().Msgf("not restoring protection, volume %s is not fully encrypted (conversion status: %d)",
 			targetVolume, status.ConversionStatus)
 		return
 	}
 
-	if status.ProtectionStatus != bitlocker.ProtectionStatusOff {
-		log.Debug().Msg("BitLocker protection is already on, nothing to restore")
-		w.protectionRetryAfter = time.Now().Add(w.Frequency)
-		return
-	}
+	// Protection being on does not mean the volume is healthy. Deleting the TPM and TPM+PIN protectors leaves protection
+	// on with only a recovery password, and that volume boots straight to the 48-digit prompt. In that case there is a
+	// protector to add but nothing to re-enable, so the work below runs and the enable step is skipped.
+	protectionAlreadyOn := status.ProtectionStatus != bitlocker.ProtectionStatusOff
 
 	// Defer while a restart is staged, because enabling protection re-seals the key to the current boot measurements and a staged
 	// update would then change them. A pending restart is the actionable fact even when the protector state cannot be read.
@@ -676,6 +675,11 @@ func (w *windowsMDMBitlockerConfigReceiver) attemptEnableBitlockerProtection() {
 		log.Error().Err(err).Msg("cannot determine whether a boot protector is present, not restoring protection")
 		w.reportProtectionOutcome(fleet.DiskEncryptionProtectionFailed,
 			fmt.Sprintf("could not determine whether a boot protector is present: %v", err))
+		w.protectionRetryAfter = time.Now().Add(w.Frequency)
+		return
+	}
+	if hasProtector && protectionAlreadyOn {
+		log.Debug().Msg("BitLocker protection is already on and the volume can unseal at boot, nothing to repair")
 		w.protectionRetryAfter = time.Now().Add(w.Frequency)
 		return
 	}
@@ -729,15 +733,18 @@ func (w *windowsMDMBitlockerConfigReceiver) attemptEnableBitlockerProtection() {
 		w.pendingRecoveryKey = ""
 	}
 
-	// Finally, enable protection.
-	if err := w.execEnableProtectionFn(targetVolume); err != nil {
-		log.Error().Err(err).Msg("failed to restore BitLocker protection")
-		w.reportProtectionOutcome(fleet.DiskEncryptionProtectionFailed, err.Error())
-		w.protectionRetryAfter = time.Now().Add(w.Frequency)
-		return
+	// Finally, enable protection, unless it was on the whole time and only a protector was missing.
+	if !protectionAlreadyOn {
+		if err := w.execEnableProtectionFn(targetVolume); err != nil {
+			log.Error().Err(err).Msg("failed to restore BitLocker protection")
+			w.reportProtectionOutcome(fleet.DiskEncryptionProtectionFailed, err.Error())
+			w.protectionRetryAfter = time.Now().Add(w.Frequency)
+			return
+		}
+		log.Info().Msgf("restored BitLocker protection on %s", targetVolume)
+	} else {
+		log.Info().Msgf("restored a boot protector on %s, protection was already on", targetVolume)
 	}
-
-	log.Info().Msgf("restored BitLocker protection on %s", targetVolume)
 	w.reportProtectionOutcome(fleet.DiskEncryptionProtectionRestored, "")
 	w.protectionRetryAfter = time.Now().Add(protectionSuccessBackoff)
 }
