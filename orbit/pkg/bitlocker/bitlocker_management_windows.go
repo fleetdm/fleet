@@ -237,9 +237,7 @@ func (v *Volume) enableKeyProtectors() error {
 }
 
 // resumeConversion restarts a conversion that was paused. It resumes whichever conversion the volume has paused,
-// encryption or decryption, so the caller has to know which one that is before calling it. Verified on Windows 11
-// 25H2: PauseConversion moves a volume from EncryptionInProgress to EncryptionPaused, and ResumeConversion returns 0
-// and moves it back, with the percentage advancing again.
+// encryption or decryption, so the caller has to know which one that is before calling it.
 // https://learn.microsoft.com/en-us/windows/win32/secprov/resumeconversion-win32-encryptablevolume
 func (v *Volume) resumeConversion() error {
 	resultRaw, err := oleutil.CallMethod(v.handle, "ResumeConversion")
@@ -603,8 +601,7 @@ func rotateRecoveryKeyOnCOMThread(targetVolume string) (string, error) {
 }
 
 // hasTPMFamilyProtector reports whether the volume already has a protector that can release the volume master key at
-// boot. Every TPM-family protector qualifies, the PIN variants included: they prompt for a PIN, which is the point,
-// not for the 48-digit recovery password.
+// boot. Every TPM-family protector qualifies.
 func (v *Volume) hasTPMFamilyProtector() (bool, error) {
 	for _, t := range TPMFamilyProtectorTypes {
 		ids, err := v.getKeyProtectorIDs(t)

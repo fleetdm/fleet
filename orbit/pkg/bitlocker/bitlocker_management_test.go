@@ -8,8 +8,7 @@ import (
 )
 
 // A TPM-only protector unseals the volume with no user input, so adding one to a volume that already has a TPM+PIN
-// protector silently removes pre-boot authentication. That is the bug this function exists to prevent, and it cannot
-// be caught on a non-Windows CI runner any other way. See #52159.
+// protector silently removes pre-boot authentication.
 func TestEnsureBootUnsealProtector(t *testing.T) {
 	listErr := errors.New("WMI unavailable")
 

@@ -519,9 +519,7 @@ type windowsMDMBitlockerConfigReceiver struct {
 	EncryptionResult DiskEncryptionKeySetter
 
 	// encryptionRetryAfter throttles the encrypt/rotate path after it succeeds. It only has to outlast the server
-	// asking again from a read taken before the escrow landed, so it is short. A failed attempt deliberately does not
-	// set it: several failures clear on their own, such as a GPO reinstating the OSEncryptionType value this path
-	// deletes, and waiting one out would strand the host.
+	// asking again from a read taken before the escrow landed, so it is short.
 	encryptionRetryAfter time.Time
 
 	// pendingRecoveryKey holds a rotated recovery key that was not yet
@@ -606,8 +604,7 @@ const protectionSuccessBackoff = 5 * time.Minute
 // encryptionSuccessBackoff is how long the agent waits after a successful encryption, rotation, or escrow. It exists
 // only so that a server request built from a read taken before the escrow landed does not make the agent rotate a
 // second time and churn the volume's protectors. The server stops asking as soon as it sees the escrowed key, so this
-// does not need to be long, and making it long is what left migrated hosts sitting at "Enforcing" for an hour with
-// nothing reported. See #49278.
+// does not need to be long.
 const encryptionSuccessBackoff = 5 * time.Minute
 
 // attemptEnableBitlockerProtection turns protection back on for a volume that is encrypted but unprotected.
@@ -758,8 +755,7 @@ func (w *windowsMDMBitlockerConfigReceiver) attemptBitlockerEncryption() {
 	}
 
 	// A conversion that is running will finish on its own, so waiting is right. A conversion that is *paused* will not:
-	// it holds until something resumes it, and treating the two alike is what left hosts sitting at "Enforcing"
-	// indefinitely with nothing reported. See #52159.
+	// it holds until something resumes it.
 	switch encryptionStatus.ConversionStatus {
 	case bitlocker.ConversionStatusEncryptionInProgress, bitlocker.ConversionStatusDecryptionInProgress:
 		log.Debug().Msgf("skipping encryption as the disk is not available. Disk conversion status: %d", encryptionStatus.ConversionStatus)
@@ -784,16 +780,14 @@ func (w *windowsMDMBitlockerConfigReceiver) attemptBitlockerEncryption() {
 
 	case bitlocker.ConversionStatusDecryptionPaused:
 		// Resuming would finish the decryption Fleet is trying to prevent, and encrypting is refused with
-		// FVE_E_NOT_DECRYPTED while the volume is partly decrypted. Neither is Fleet's call to make, so report it and
-		// let an admin decide.
+		// FVE_E_NOT_DECRYPTED while the volume is partly decrypted. Report it and let an admin decide.
 		log.Error().Msgf("BitLocker decryption is paused on %s, which Fleet will not resume or override", targetVolume)
 		if serverErr := w.updateFleetServer("", errors.New(
 			"a BitLocker decryption is paused on this host. Fleet cannot encrypt the disk until the decryption is resumed and completed, or the volume is re-encrypted",
 		)); serverErr != nil {
 			log.Error().Err(serverErr).Msg("failed to report the paused decryption to Fleet Server")
 		}
-		// Only a person can clear this, and the server keeps asking regardless, so back off instead of re-reporting the
-		// same thing on every config poll.
+		// Only a person can clear this, and the server keeps asking regardless, so back off.
 		w.encryptionRetryAfter = time.Now().Add(w.Frequency)
 		return
 	}
