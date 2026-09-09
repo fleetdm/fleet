@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20260901174312(t *testing.T) {
+func TestUp_20260908152437(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	// Seed a vitals row from before the radio identifiers existed, to make

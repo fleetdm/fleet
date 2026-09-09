@@ -45,6 +45,7 @@ var Funcs = map[string][]func(*maintained_apps.FMAManifestApp) (*maintained_apps
 	"onedrive/darwin":               {OneDriveVersionShortener},
 	"pd/darwin":                     {PdVersionTransformer},
 	"smallstepagent/darwin":         {SmallstepAgentVersionTransformer},
+	"raspberry-pi-imager/darwin":    {RaspberryPiImagerVersionTransformer},
 	"sonos/darwin":                  {SonosVersionTransformer},
 	"harmony-sase/darwin":           {HarmonySASEVersionShortener},
 	"visual-studio-code/darwin":     {VSCodeUniversalInstaller},
