@@ -192,74 +192,40 @@ slate for orbit to attempt to encrypt the disk again:
 `manage-bde -off C:`
 
 ### LUKS (Linux)
-Fleet can escrow disk encryption keys for Linux hosts that had LUKS2 encryption enabled during
-installation, on the platforms listed in `Host.IsLUKSSupported` (Ubuntu and its derivatives, Fedora,
-Arch and its derivatives). Escrow starts when the end user clicks **Create key** on the My device
-page. Fleet queues the request only if key escrow is enabled for the host's fleet, the platform is
-supported, the disk is already encrypted, and orbit is new enough. Orbit then prompts the user for
-their existing passphrase, uses it to add a key slot holding a randomly generated passphrase, and
-escrows that new passphrase on the server.
+Fleet can escrow disk encryption keys for Ubuntu, Kubuntu, and Fedora Linux hosts that had LUKS2
+encryption enabled during installation. Fleet will only initiate the escrow process on hosts running
+eligible operating systems and for which encryption has already been enabled and will not prompt
+users on ineligible hosts. Once the process is initiated, Fleet Desktop will prompt the user to
+enter their encryption passphrase which is then used to create a new keyslot, the passphrase for
+which orbit randomly generates and escrows on the server.
 
 ```mermaid
 sequenceDiagram
         actor Admin
         participant fleet as Fleet server
-        participant desktop as Fleet Desktop<br>(My device page)
+        participant host as Linux Host
         participant fleetd as orbit
-        participant host as Linux host
+        participant desktop as Fleet Desktop
         actor user as End User
         user->>host: Encrypt disk during OS installation
-        Admin->>fleet: Enable disk encryption and Linux key escrow for the fleet
-        host->>fleet: Enroll, osquery reports disk encryption status
-        desktop->>user: Show "Disk encryption" banner with Create key
-        user->>desktop: Click Create key
-        desktop->>fleet: POST /device/{token}/mdm/linux/trigger_escrow
-        fleet->>fleet: Validate (escrow enabled, supported platform,<br>disk encrypted, orbit 1.36.0 or newer, no key stored,<br>not already pending or in flight)
-        fleet->>fleet: Set reset_requested
-        fleetd->>fleet: Poll orbit config
-        fleet->>fleetd: notifs.RunDiskEncryptionEscrow = true
-        fleet->>fleet: Clear reset_requested, set escrow_sent_at (in flight)
-        fleetd->>user: Prompt for passphrase (zenity/kdialog, 1 min timeout)
-        loop Periodically while prompting or escrowing (fleetd with linux_escrow_status)
-            fleetd->>fleet: POST /orbit/luks_data status=prompting or escrowing
-            fleet->>fleet: Refresh escrow_sent_at
-        end
-        alt Passphrase entered
-            user->>fleetd: Enter passphrase
-            fleetd->>host: Validate passphrase, add key slot with a<br>random passphrase, read its salt
-            fleetd->>fleet: POST /orbit/luks_data (passphrase, salt, key slot)<br>or client_error
-            fleet->>fleet: Encrypt and store key, clear escrow_sent_at<br>and reset_requested
-            fleetd->>user: Show success dialog
-            user->>desktop: Refetch, banner clears
-        else Prompt dismissed or timed out
-            fleetd->>fleet: POST /orbit/luks_data status=canceled or timed_out<br>(fleetd with linux_escrow_status, otherwise nothing is sent)
-            fleet->>fleet: Clear escrow_sent_at
-        end
+        Admin->>fleet: Enable disk encryption
+        host->>fleet: Enroll in Fleet
+        fleet->>host: Orbit/osquery installed
+        fleetd->>fleet: request vitals queries
+        fleet->>fleetd: Return reports including encryption status
+        fleetd->>fleet: return report data including encryption status
+        fleet->>fleetd: Enable notifs.RunDiskEncryptionEscrow in orbit<br>config because Host is encrypted but no<br>key is escrowed or host is not encrypted
+        fleetd->>desktop: Trigger user key escrow dialog
+        desktop->>user: Prompt user to enter passphrase
+        user->>desktop: Enter encryption passphrase
+        desktop->>fleetd: Send user passphrase to orbit
+        fleetd->>fleetd: Generate new random passphrase
+        fleetd->>host: Use user passphrase to create new<br>keyslot with random passphrase
+        fleetd->>fleet: Encrypt and send new passphrase
+        fleet->>fleetd: Disable notifs.RunDiskEncryptionEscrow in orbit<br>config because Host is encrypted and a<br>key is escrowed
 ```
 
 As with Windows, there is no periodic decryptability check for Linux.
-
-Serving the notification to orbit marks the escrow as in flight by setting `escrow_sent_at` on
-`host_disk_encryption_keys`. The escrow stays in flight for `LinuxEscrowInFlightWindow` after the
-last sign of life from orbit, and while it is, clicking **Create key** again queues nothing, so the
-end user is not prompted twice. The trigger endpoint answers `409 Conflict` instead of the usual
-`204`, with a `Retry-After` header carrying the seconds left in the window, and the My device page
-uses both to point the end user at the prompt orbit already opened and to say how long to wait
-before trying again. A key or an error reported through `luks_data` ends the in-flight state
-immediately.
-
-Orbit can also report progress through the `status` field of `luks_data` when the server advertises
-the `linux_escrow_status` capability. `prompting` and `escrowing` heartbeats refresh `escrow_sent_at`,
-so the state survives passphrase retries and the slow key slot creation under orbit's CPU quota.
-`canceled` and `timed_out` end it without touching `client_error`, so the host is not shown as
-failed and the end user can retry at once. Older orbit versions report none of this, which is what
-the window covers: without a heartbeat, a prompt they dismissed or let time out stays in flight until
-`LinuxEscrowInFlightWindow` expires.
-
-If the window expires while the end user is still at the prompt and they click **Create key**
-again, a duplicate request is queued behind the one in progress. Storing the escrowed key clears
-`reset_requested` as well as `escrow_sent_at`. No new request can be accepted once a key is stored,
-so anything still pending at that point is a stale duplicate and must not reach orbit.
 
 #### TPM-backed FDE (Ubuntu 26 and later)
 
