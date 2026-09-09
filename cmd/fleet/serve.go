@@ -67,6 +67,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/acme"
 	acme_api "github.com/fleetdm/fleet/v4/server/mdm/acme/api"
 	acme_bootstrap "github.com/fleetdm/fleet/v4/server/mdm/acme/bootstrap"
+	ee_android "github.com/fleetdm/fleet/v4/ee/server/mdm/android"
 	android_service "github.com/fleetdm/fleet/v4/server/mdm/android/service"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/cryptoutil"
@@ -494,6 +495,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	if err != nil {
 		initFatal(err, "initializing android service")
 	}
+	eeAndroidSvc := ee_android.NewService(androidSvc)
 
 	orgLogoStore := initOrgLogoStore(ctx, config.S3, mds, logger)
 
@@ -839,7 +841,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		}
 
 		apiHandler = service.MakeHandler(svc, config, httpLogger, limiterStore, redisPool, carveStore,
-			[]endpointer.HandlerRoutesFunc{android_service.GetRoutes(svc, androidSvc), activityRoutes, acmeRoutes, chartRoutes}, extra...)
+			[]endpointer.HandlerRoutesFunc{android_service.GetRoutes(svc, eeAndroidSvc), activityRoutes, acmeRoutes, chartRoutes}, extra...)
 
 		// SCIM endpoints are served by a prefix-mounted handler (see
 		// scim.RegisterSCIM) that gorilla/mux can't introspect, so surface

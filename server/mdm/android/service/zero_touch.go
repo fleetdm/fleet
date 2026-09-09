@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
-	licensectx "github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"google.golang.org/api/androidmanagement/v1"
@@ -29,11 +28,6 @@ func (svc *Service) GetZeroTouchConfiguration(ctx context.Context) (*android.Zer
 	// Admin-only
 	if err := svc.authz.Authorize(ctx, &android.Enterprise{}, fleet.ActionWrite); err != nil {
 		return nil, err
-	}
-
-	// Premium only
-	if !licensectx.IsPremium(ctx) {
-		return nil, fleet.ErrMissingLicense
 	}
 
 	// Android MDM must be configured
