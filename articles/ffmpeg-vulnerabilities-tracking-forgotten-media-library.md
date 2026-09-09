@@ -1,4 +1,4 @@
-# What 13 new FFmpeg vulnerabilities mean for tracking a media library most teams forget they run
+# Ubuntu patched FFmpeg but most devices never got the memo
 
 *Ubuntu patched 13 FFmpeg vulnerabilities in a media library quietly bundled inside countless internal tools, and every one of the fixes ships only through Ubuntu Pro's Extended Security Maintenance. Here's how to find every host running a vulnerable build regardless of whether you know FFmpeg is even installed.*
 
