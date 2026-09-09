@@ -8469,7 +8469,14 @@
       "slug": "tableau-prep/darwin",
       "platform": "darwin",
       "unique_identifier": "com.tableau.Tableau-Prep-tableau-2026-1",
-      "description": "Tableau Prep is a combine, shape, and clean your data for analysis."
+      "description": "Tableau Prep is a data preparation tool for combining, shaping, and cleaning data for analysis in Tableau."
+    },
+    {
+      "name": "Tableau Prep",
+      "slug": "tableau-prep/windows",
+      "platform": "windows",
+      "unique_identifier": "Tableau Prep Builder",
+      "description": "Tableau Prep is a data preparation tool for combining, shaping, and cleaning data for analysis in Tableau."
     },
     {
       "name": "Tableau Desktop",
