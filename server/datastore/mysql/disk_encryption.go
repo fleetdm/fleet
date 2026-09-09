@@ -232,7 +232,7 @@ FROM host_disk_encryption_keys WHERE host_id = ?`, hostID)
 	return state, nil
 }
 
-func (ds *Datastore) ClearPendingEscrow(ctx context.Context, hostID uint) error {
+func (ds *Datastore) MarkEscrowSentToAgent(ctx context.Context, hostID uint) error {
 	_, err := ds.writer(ctx).ExecContext(ctx, `
 UPDATE host_disk_encryption_keys SET reset_requested = FALSE, escrow_sent_at = NOW(6) WHERE host_id = ?`, hostID)
 	return err

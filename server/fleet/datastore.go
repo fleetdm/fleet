@@ -1398,8 +1398,9 @@ type Datastore interface {
 	// GetHostEscrowState reports whether a LUKS escrow request is queued for the host and how long
 	// ago the agent last showed activity on one in flight. A host with no row has the zero state.
 	GetHostEscrowState(ctx context.Context, hostID uint) (*HostEscrowState, error)
-	// ClearPendingEscrow marks the queued escrow request as handed to the agent (in flight).
-	ClearPendingEscrow(ctx context.Context, hostID uint) error
+	// MarkEscrowSentToAgent moves the queued escrow request to in flight: it clears the pending
+	// flag so the notification is delivered once, and stamps when the agent took it.
+	MarkEscrowSentToAgent(ctx context.Context, hostID uint) error
 	// SetEscrowInFlight records agent activity on an escrow request. With inFlight true it
 	// extends the in-flight state, but only for a host that is still in flight. With inFlight
 	// false it ends the state without recording a key or an error (dismissed or timed-out prompt).

@@ -77,7 +77,7 @@ func TestGetOrbitConfigLinuxEscrow(t *testing.T) {
 		ds.GetConfigEnableDiskEncryptionFunc = func(ctx context.Context, teamID *uint) (fleet.DiskEncryptionConfig, error) {
 			return fleet.DiskEncryptionConfig{LinuxEscrowEnabled: true}, nil
 		}
-		ds.ClearPendingEscrowFunc = func(ctx context.Context, hostID uint) error {
+		ds.MarkEscrowSentToAgentFunc = func(ctx context.Context, hostID uint) error {
 			return nil
 		}
 
@@ -166,25 +166,25 @@ func TestGetOrbitConfigLinuxEscrow(t *testing.T) {
 		cfg, err := svc.GetOrbitConfig(ctx)
 		require.NoError(t, err)
 		require.True(t, cfg.Notifications.RunDiskEncryptionEscrow)
-		require.True(t, ds.ClearPendingEscrowFuncInvoked)
+		require.True(t, ds.MarkEscrowSentToAgentFuncInvoked)
 
 		// with team
-		ds.ClearPendingEscrowFuncInvoked = false
+		ds.MarkEscrowSentToAgentFuncInvoked = false
 		host.TeamID = ptr.Uint(team.ID)
 		cfg, err = svc.GetOrbitConfig(ctx)
 		require.NoError(t, err)
 		require.True(t, cfg.Notifications.RunDiskEncryptionEscrow)
-		require.True(t, ds.ClearPendingEscrowFuncInvoked)
+		require.True(t, ds.MarkEscrowSentToAgentFuncInvoked)
 
 		// ignore clear escrow errors
-		ds.ClearPendingEscrowFuncInvoked = false
-		ds.ClearPendingEscrowFunc = func(ctx context.Context, hostID uint) error {
+		ds.MarkEscrowSentToAgentFuncInvoked = false
+		ds.MarkEscrowSentToAgentFunc = func(ctx context.Context, hostID uint) error {
 			return errors.New("clear pending escrow")
 		}
 		cfg, err = svc.GetOrbitConfig(ctx)
 		require.NoError(t, err)
 		require.True(t, cfg.Notifications.RunDiskEncryptionEscrow)
-		require.True(t, ds.ClearPendingEscrowFuncInvoked)
+		require.True(t, ds.MarkEscrowSentToAgentFuncInvoked)
 	})
 
 	t.Run("escrow turned off after the host went pending", func(t *testing.T) {

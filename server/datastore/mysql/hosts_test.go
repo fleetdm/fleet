@@ -11550,7 +11550,7 @@ func testLUKSDatastoreFunctions(t *testing.T, ds *Datastore) {
 	// clear removes pending
 	err = ds.QueueEscrow(ctx, host2.ID)
 	require.NoError(t, err)
-	err = ds.ClearPendingEscrow(ctx, host1.ID)
+	err = ds.MarkEscrowSentToAgent(ctx, host1.ID)
 	require.NoError(t, err)
 	require.False(t, escrowState(host1.ID).Pending)
 	require.True(t, escrowState(host2.ID).Pending)
@@ -11574,7 +11574,7 @@ func testLUKSDatastoreFunctions(t *testing.T, ds *Datastore) {
 
 	// re-queueing then delivering starts a fresh in-flight window
 	require.NoError(t, ds.QueueEscrow(ctx, host1.ID))
-	require.NoError(t, ds.ClearPendingEscrow(ctx, host1.ID))
+	require.NoError(t, ds.MarkEscrowSentToAgent(ctx, host1.ID))
 	require.Less(t, sinceActivity(host1.ID), time.Minute)
 
 	// report escrow error does not remove pending
@@ -11593,7 +11593,7 @@ func testLUKSDatastoreFunctions(t *testing.T, ds *Datastore) {
 
 	// a heartbeat resets the last activity of a host that is in flight
 	require.NoError(t, ds.QueueEscrow(ctx, host1.ID))
-	require.NoError(t, ds.ClearPendingEscrow(ctx, host1.ID))
+	require.NoError(t, ds.MarkEscrowSentToAgent(ctx, host1.ID))
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx,
 			`UPDATE host_disk_encryption_keys SET escrow_sent_at = DATE_SUB(escrow_sent_at, INTERVAL 10 MINUTE) WHERE host_id = ?`, host1.ID)
@@ -11621,7 +11621,7 @@ func testLUKSDatastoreFunctions(t *testing.T, ds *Datastore) {
 	require.False(t, keyArchived)
 
 	// a stale client_error must not hide a retry in flight; saving the key ends it
-	require.NoError(t, ds.ClearPendingEscrow(ctx, host2.ID))
+	require.NoError(t, ds.MarkEscrowSentToAgent(ctx, host2.ID))
 	require.Less(t, sinceActivity(host2.ID), time.Minute)
 	// a request still pending when the key arrives is a stale duplicate; saving the key drops it
 	require.NoError(t, ds.QueueEscrow(ctx, host2.ID))
