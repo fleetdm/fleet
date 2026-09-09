@@ -76,7 +76,12 @@ const installIconMap: Record<InstallType, InstallIconConfig> = {
           {automaticInstallPoliciesCount > 0 && (
             <>{getPolicyTooltip(automaticInstallPoliciesCount)}</>
           )}
-          {automaticInstallPoliciesCount > 0 && showAutoUpdate && <br />}
+          {automaticInstallPoliciesCount > 0 && showAutoUpdate && (
+            <>
+              <br />
+              <br />
+            </>
+          )}
           {showAutoUpdate && (
             <>
               {getAutoUpdateTooltip(autoUpdateWindowStart, autoUpdateWindowEnd)}
@@ -104,11 +109,13 @@ const installIconMap: Record<InstallType, InstallIconConfig> = {
             <>
               {getPolicyTooltip(automaticInstallPoliciesCount)}
               <br />
+              <br />
             </>
           )}
           {showAutoUpdate && (
             <>
               {getAutoUpdateTooltip(autoUpdateWindowStart, autoUpdateWindowEnd)}
+              <br />
               <br />
             </>
           )}
