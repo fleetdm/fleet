@@ -2948,6 +2948,12 @@ func (svc *Service) AuthenticateMDMAppleDEPEnrollment(ctx context.Context, token
 	// skipauth: The enroll profile endpoint is unauthenticated.
 	svc.authz.SkipAuthorization(ctx)
 
+	if machineInfo == nil {
+		return &fleet.BadRequestError{
+			Message: "missing deviceinfo",
+		}
+	}
+
 	profile, err := svc.ds.GetMDMAppleEnrollmentProfileByToken(ctx, token)
 	if err != nil {
 		if fleet.IsNotFound(err) {
@@ -2957,12 +2963,6 @@ func (svc *Service) AuthenticateMDMAppleDEPEnrollment(ctx context.Context, token
 	}
 	if profile.Type != fleet.MDMAppleEnrollmentTypeAutomatic {
 		return fleet.NewAuthFailedError("enrollment profile is not for automatic enrollment")
-	}
-
-	if machineInfo == nil {
-		return &fleet.BadRequestError{
-			Message: "missing deviceinfo",
-		}
 	}
 
 	// Only devices currently assigned to Fleet in ABM may enroll through this path.

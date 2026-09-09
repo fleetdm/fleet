@@ -10242,11 +10242,12 @@ func TestAuthenticateMDMAppleDEPEnrollment(t *testing.T) {
 		require.False(t, ds.GetHostDEPAssignmentsBySerialFuncInvoked)
 	})
 
-	t.Run("valid token without machine info is a bad request", func(t *testing.T) {
+	t.Run("missing machine info is a bad request before any lookup", func(t *testing.T) {
 		resetMocks()
 		err := svc.AuthenticateMDMAppleDEPEnrollment(ctx, "valid-token", nil)
 		var badReq *fleet.BadRequestError
 		require.ErrorAs(t, err, &badReq)
+		require.False(t, ds.GetMDMAppleEnrollmentProfileByTokenFuncInvoked)
 		require.False(t, ds.GetHostDEPAssignmentsBySerialFuncInvoked)
 	})
 
