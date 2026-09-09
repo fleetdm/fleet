@@ -1,7 +1,6 @@
 package mysql
 
 import (
-	"context"
 	"testing"
 	"time"
 
@@ -49,7 +48,7 @@ func getTestABMTokenRow(t *testing.T, ds *Datastore, tokenID uint) (isDefault bo
 		IsDefault  bool    `db:"is_default"`
 		ServerUUID *string `db:"server_uuid"`
 	}
-	err := sqlx.GetContext(context.Background(), ds.writer(context.Background()), &row,
+	err := sqlx.GetContext(t.Context(), ds.writer(t.Context()), &row,
 		"SELECT is_default, server_uuid FROM abm_tokens WHERE id = ?", tokenID)
 	require.NoError(t, err)
 	return row.IsDefault, row.ServerUUID
@@ -164,11 +163,10 @@ func testSetABMTokenServerUUID(t *testing.T, ds *Datastore) {
 	require.NotNil(t, serverUUID)
 	require.Equal(t, "server-uuid-1-updated", *serverUUID)
 
-	// an empty value is stored as-is
+	// an empty value is nulled
 	require.NoError(t, ds.SetABMTokenServerUUID(ctx, tok1.ID, ""))
 	_, serverUUID = getTestABMTokenRow(t, ds, tok1.ID)
-	require.NotNil(t, serverUUID)
-	require.Empty(t, *serverUUID)
+	require.Nil(t, serverUUID)
 
 	// setting the default flag is unaffected by the server UUID update
 	isDefault, _ := getTestABMTokenRow(t, ds, tok1.ID)

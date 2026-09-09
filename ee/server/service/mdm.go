@@ -1727,8 +1727,8 @@ func (svc *Service) GetMDMManualEnrollmentProfile(ctx context.Context, personal 
 	return mobileConfig, nil
 }
 
-// Syncs the ABM tokens to the app config entry, or creates one if not found.
-// It updates all fields from the authoritative abm_tokens table source.
+// syncABMTokensToAppConfig upserts app config ABM entries for the provided tokens.
+// Callers that need strict syncing (including deletions) must pass the full token list.
 func syncABMTokensToAppConfig(appCfg *fleet.AppConfig, tokens []*fleet.ABMToken) {
 	if !appCfg.MDM.AppleBusinessManager.Set || !appCfg.MDM.AppleBusinessManager.Valid {
 		appCfg.MDM.AppleBusinessManager = optjson.SetSlice([]fleet.MDMAppleABMAssignmentInfo{})

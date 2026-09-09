@@ -6647,16 +6647,13 @@ VALUES (?, ?, ?, ?, ?, NULLIF(?, ''), ?, ?, ?, ?, ?, ?)
 	}
 
 	if err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		// First grab a quick count of current ABM token to define it should be a default or not
+		// Only the first ABM token inserted is default.
 		var count int
-		err := tx.QueryRowxContext(ctx, "SELECT COUNT(*) FROM abm_tokens").Scan(&count)
-		if err != nil {
+		if err := tx.QueryRowxContext(ctx, "SELECT COUNT(*) FROM abm_tokens").Scan(&count); err != nil {
 			return ctxerr.Wrap(ctx, err, "counting abm_tokens")
 		}
-		if count == 0 {
-			tok.IsDefault = true
-		}
 
+		tok.IsDefault = count == 0
 		res, err := tx.ExecContext(
 			ctx,
 			stmt,
