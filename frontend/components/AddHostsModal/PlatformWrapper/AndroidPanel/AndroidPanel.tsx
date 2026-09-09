@@ -94,7 +94,7 @@ const AndroidPanel = ({ enrollSecret }: IAndroidPanelProps) => {
           name="enroll-link"
           value={url}
         />
-        <EnrollQrCode url={url} />
+        {enrollmentType === "workProfile" && <EnrollQrCode url={url} />}
       </form>
     </div>
   );
