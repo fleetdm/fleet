@@ -1,0 +1,1 @@
+- Fixed the `POST /api/v1/fleet/policies/:policy_id/reset` and `GET /api/v1/fleet/policies/:policy_id/automation_activities` endpoints returning 404 (they were only routed under `/api/2022-04` and `/api/latest`).

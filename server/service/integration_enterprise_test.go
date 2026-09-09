@@ -35719,6 +35719,10 @@ func (s *integrationEnterpriseTestSuite) TestResetPolicy() {
 
 	// 404 for a nonexistent policy.
 	s.Do("POST", "/api/latest/fleet/policies/999999/reset", nil, http.StatusNotFound)
+
+	// Both endpoints are documented under /api/v1 and must be routed there too.
+	s.Do("POST", fmt.Sprintf("/api/v1/fleet/policies/%d/reset", globalPolicy.ID), nil, http.StatusOK)
+	s.Do("GET", fmt.Sprintf("/api/v1/fleet/policies/%d/automation_activities", globalPolicy.ID), nil, http.StatusOK)
 }
 
 // TestSoftwareMultiplePackagesInstallPrecedence verifies install-time first-added precedence when a
