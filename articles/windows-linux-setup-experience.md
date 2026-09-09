@@ -159,6 +159,21 @@ reported the password back.
 
 Go to **Host details** > **Actions** > **Show managed account**. The password is unique per host and is stored encrypted in Fleet.
 
+### Rotate the password
+
+Go to **Host details** > **Actions** > **Show managed account**, then press **Rotate password**. Fleet also rotates the password
+automatically about an hour after someone views it.
+
+Fleet asks the host to generate a new password, set it, and report it back, so a rotation finishes on the host's next check-in
+rather than immediately. Fleet keeps showing the current password until the new one arrives.
+
+If the host can't set the new password, the managed account modal says the rotation failed, and Fleet keeps showing the last
+password it received. The reason the host reported is on the failed rotation entry in **Host details** > **Activity**.
+
+Fleet does not try again on its own. The request is cleared and the automatic rotation timer is turned off, so nothing changes
+until someone presses **Rotate password** again. Fix the cause first: see Troubleshoot the managed local account below for the
+failures a host can report.
+
 ### Sign in as the managed account
 
 The account is hidden from the Windows sign-in screen and from **Settings** > **Accounts**, so it won't appear in the list of users.
