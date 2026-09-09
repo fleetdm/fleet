@@ -95,11 +95,10 @@ const EditLabelPage = ({ routeParams, router }: IEditLabelPageProps) => {
   const onUpdateLabel = async (
     formData: IDynamicLabelFormData | IManualLabelFormData
   ) => {
-    // Git owns a GitOps-managed manual label's definition, so send only the membership the user
-    // edited. Echoing name and description back could overwrite a change made in git since this
-    // page loaded.
-    const membershipOnly =
-      labelsGitOpsManaged && label?.label_membership_type === "manual";
+    // Git owns a GitOps-managed label's definition, so send only the membership the user edited.
+    // Echoing name and description back could overwrite a change made in git since this page
+    // loaded. labelsAPI.update applies this to manual form data only.
+    const membershipOnly = labelsGitOpsManaged;
 
     try {
       await labelsAPI.update(labelId, formData, { membershipOnly });

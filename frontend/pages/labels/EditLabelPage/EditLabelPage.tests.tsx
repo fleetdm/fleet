@@ -8,6 +8,7 @@ import {
   getLabelHostsHandler,
 } from "test/handlers/label-handlers";
 import createMockConfig from "__mocks__/configMock";
+import { createMockLabel } from "__mocks__/labelsMock";
 import labelsAPI from "services/entities/labels";
 
 import EditLabelPage from "./EditLabelPage";
@@ -106,8 +107,6 @@ describe("EditLabelPage", () => {
   });
 
   describe("saving a manual label", () => {
-    // createMockConfig supplies the fields MainContent reads (license, MDM); the AppContext
-    // value replaces initialState wholesale rather than merging into it.
     const gitOpsContext = {
       app: {
         config: createMockConfig({
@@ -124,22 +123,10 @@ describe("EditLabelPage", () => {
       app: { config: createMockConfig() },
     };
 
-    const renderManualLabelPage = (context?: Record<string, unknown>) => {
+    const renderManualLabelPage = (context: typeof gitOpsContext) => {
       mockServer.use(getLabelHandler({ label_membership_type: "manual" }));
-      mockServer.use(
-        getLabelHostsHandler([
-          {
-            id: 1,
-            hostname: "hosty numero uno",
-            display_name: "Test host #1",
-            hardware_serial: "test-serial-1",
-          },
-        ])
-      );
-      const render = createCustomRenderer({
-        withBackendMock: true,
-        ...(context ? { context } : {}),
-      });
+      mockServer.use(getLabelHostsHandler([]));
+      const render = createCustomRenderer({ withBackendMock: true, context });
       return render(
         <EditLabelPage
           {...generateMockRouterProps({ routeParams: { label_id: "1" } })}
@@ -148,7 +135,9 @@ describe("EditLabelPage", () => {
     };
 
     beforeEach(() => {
-      jest.spyOn(labelsAPI, "update").mockResolvedValue({ label: {} } as never);
+      jest
+        .spyOn(labelsAPI, "update")
+        .mockResolvedValue({ label: createMockLabel() });
     });
 
     afterEach(() => {
