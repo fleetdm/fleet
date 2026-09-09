@@ -12,7 +12,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	android_mock "github.com/fleetdm/fleet/v4/server/mdm/android/mock"
-	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/api/androidmanagement/v1"
@@ -32,6 +31,11 @@ func setupZeroTouchService(t *testing.T) (*Service, *AndroidMockDS, *android_moc
 	return svc.(*Service), fleetDS, &androidAPIClient
 }
 
+func adminCtx(t *testing.T) context.Context {
+	t.Helper()
+	return viewer.NewContext(t.Context(), viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
+}
+
 func TestZeroTouchAuth(t *testing.T) {
 	svc, fleetDS, _ := setupZeroTouchService(t)
 
@@ -40,9 +44,13 @@ func TestZeroTouchAuth(t *testing.T) {
 	}
 	fleetDS.Store.GetZeroTouchEnrollmentTokenFunc = func(_ context.Context, _ *uint) (*android.ZeroTouchToken, error) {
 		return &android.ZeroTouchToken{
-			TokenValue: "existing-token",
-			ExpiresAt:  time.Now().Add(100 * 365 * 24 * time.Hour),
+			TokenValue:           "existing-token",
+			EmbeddedEnrollSecret: "test-secret",
+			ExpiresAt:            time.Now().Add(100 * 365 * 24 * time.Hour),
 		}, nil
+	}
+	fleetDS.Store.GetEnrollSecretsFunc = func(_ context.Context, _ *uint) ([]*fleet.EnrollSecret, error) {
+		return []*fleet.EnrollSecret{{Secret: "test-secret"}}, nil
 	}
 
 	testCases := []struct {
@@ -52,49 +60,49 @@ func TestZeroTouchAuth(t *testing.T) {
 	}{
 		{
 			"global admin",
-			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+			&fleet.User{GlobalRole: new(fleet.RoleAdmin)},
 			false,
 		},
 		{
 			"global maintainer",
-			&fleet.User{GlobalRole: ptr.String(fleet.RoleMaintainer)},
+			&fleet.User{GlobalRole: new(fleet.RoleMaintainer)},
 			true,
 		},
 		{
 			"global gitops",
-			&fleet.User{GlobalRole: ptr.String(fleet.RoleGitOps)},
+			&fleet.User{GlobalRole: new(fleet.RoleGitOps)},
 			true,
 		},
 		{
 			"global observer",
-			&fleet.User{GlobalRole: ptr.String(fleet.RoleObserver)},
+			&fleet.User{GlobalRole: new(fleet.RoleObserver)},
 			true,
 		},
 		{
 			"global observer+",
-			&fleet.User{GlobalRole: ptr.String(fleet.RoleObserverPlus)},
+			&fleet.User{GlobalRole: new(fleet.RoleObserverPlus)},
 			true,
 		},
 		{
 			"team admin",
-			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleAdmin}}},
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleAdmin}}}, //nolint:modernize // mixed keyed/unkeyed not allowed
 			true,
 		},
 		{
 			"team maintainer",
-			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleMaintainer}}},
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleMaintainer}}}, //nolint:modernize // mixed keyed/unkeyed not allowed
 			true,
 		},
 		{
 			"team observer",
-			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserver}}},
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserver}}}, //nolint:modernize // mixed keyed/unkeyed not allowed
 			true,
 		},
 	}
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
-			ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: tt.user})
-			_, err := svc.GetZeroTouchConfiguration(ctx)
+			ctx := viewer.NewContext(t.Context(), viewer.Viewer{User: tt.user})
+			_, err := svc.GetZeroTouchConfiguration(ctx, nil)
 			checkAuthErr(t, tt.shouldFail, err)
 		})
 	}
@@ -107,8 +115,7 @@ func TestZeroTouchAndroidNotConfigured(t *testing.T) {
 		return &fleet.AppConfig{MDM: fleet.MDM{AndroidEnabledAndConfigured: false}}, nil
 	}
 
-	ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
-	_, err := svc.GetZeroTouchConfiguration(ctx)
+	_, err := svc.GetZeroTouchConfiguration(adminCtx(t), nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "Android MDM is NOT configured")
 }
@@ -122,17 +129,43 @@ func TestZeroTouchReturnsExistingToken(t *testing.T) {
 	fleetDS.Store.GetZeroTouchEnrollmentTokenFunc = func(_ context.Context, teamID *uint) (*android.ZeroTouchToken, error) {
 		assert.Nil(t, teamID, "should query for unassigned team")
 		return &android.ZeroTouchToken{
-			TokenValue: "existing-token-value",
-			ExpiresAt:  time.Now().Add(100 * 365 * 24 * time.Hour),
+			TokenValue:           "existing-token-value",
+			EmbeddedEnrollSecret: "matching-secret",
+			ExpiresAt:            time.Now().Add(100 * 365 * 24 * time.Hour),
 		}, nil
 	}
+	fleetDS.Store.GetEnrollSecretsFunc = func(_ context.Context, _ *uint) ([]*fleet.EnrollSecret, error) {
+		return []*fleet.EnrollSecret{{Secret: "matching-secret"}}, nil
+	}
 
-	ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
-	resp, err := svc.GetZeroTouchConfiguration(ctx)
+	resp, err := svc.GetZeroTouchConfiguration(adminCtx(t), nil)
 	require.NoError(t, err)
 	assert.Contains(t, resp.DPCExtras, "existing-token-value")
 	assert.True(t, fleetDS.Store.GetZeroTouchEnrollmentTokenFuncInvoked)
 	assert.False(t, fleetDS.Store.CreateZeroTouchEnrollmentTokenFuncInvoked)
+}
+
+func TestZeroTouchDriftDetection(t *testing.T) {
+	svc, fleetDS, _ := setupZeroTouchService(t)
+
+	fleetDS.Store.AppConfigFunc = func(_ context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{MDM: fleet.MDM{AndroidEnabledAndConfigured: true}}, nil
+	}
+	fleetDS.Store.GetZeroTouchEnrollmentTokenFunc = func(_ context.Context, _ *uint) (*android.ZeroTouchToken, error) {
+		return &android.ZeroTouchToken{
+			TokenValue:           "existing-token-value",
+			EmbeddedEnrollSecret: "old-secret",
+			ExpiresAt:            time.Now().Add(100 * 365 * 24 * time.Hour),
+		}, nil
+	}
+	fleetDS.Store.GetEnrollSecretsFunc = func(_ context.Context, _ *uint) ([]*fleet.EnrollSecret, error) {
+		return []*fleet.EnrollSecret{{Secret: "new-rotated-secret"}}, nil
+	}
+
+	resp, err := svc.GetZeroTouchConfiguration(adminCtx(t), nil)
+	require.NoError(t, err)
+	assert.Contains(t, resp.DPCExtras, "existing-token-value")
+	assert.Contains(t, resp.Warning, "enroll secret has changed")
 }
 
 func TestZeroTouchCreatesTokenWhenNoneExists(t *testing.T) {
@@ -168,14 +201,13 @@ func TestZeroTouchCreatesTokenWhenNoneExists(t *testing.T) {
 	fleetDS.Store.CreateZeroTouchEnrollmentTokenFunc = func(_ context.Context, token *android.ZeroTouchToken) (*android.ZeroTouchToken, error) {
 		assert.Equal(t, "enterprises/LC00test/enrollmentTokens/abc123", token.TokenName)
 		assert.Equal(t, "new-token-value", token.TokenValue)
-		assert.Equal(t, "global-secret", token.EnrollSecret)
+		assert.Equal(t, "global-secret", token.EmbeddedEnrollSecret)
 		assert.Nil(t, token.TeamID)
 		token.ID = 1
 		return token, nil
 	}
 
-	ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
-	resp, err := svc.GetZeroTouchConfiguration(ctx)
+	resp, err := svc.GetZeroTouchConfiguration(adminCtx(t), nil)
 	require.NoError(t, err)
 	assert.Contains(t, resp.DPCExtras, "new-token-value")
 	assert.Contains(t, resp.DPCExtras, "EXTRA_ENROLLMENT_TOKEN")
@@ -199,10 +231,9 @@ func TestZeroTouchNoEnrollSecret(t *testing.T) {
 		return []*fleet.EnrollSecret{}, nil
 	}
 
-	ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
-	_, err := svc.GetZeroTouchConfiguration(ctx)
+	_, err := svc.GetZeroTouchConfiguration(adminCtx(t), nil)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "No global enroll secret found")
+	assert.Contains(t, err.Error(), "No enroll secret found")
 }
 
 func TestZeroTouchTokenDeletedOnEnterpriseDelete(t *testing.T) {
@@ -222,8 +253,7 @@ func TestZeroTouchTokenDeletedOnEnterpriseDelete(t *testing.T) {
 		return &android.Enterprise{EnterpriseID: "LC00test"}, nil
 	}
 
-	ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
-	err := svc.DeleteEnterprise(ctx)
+	err := svc.DeleteEnterprise(adminCtx(t))
 	require.NoError(t, err)
 	assert.True(t, tokenDeleted, "zero-touch tokens should be deleted when enterprise is deleted")
 }

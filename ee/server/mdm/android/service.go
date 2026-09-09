@@ -19,9 +19,9 @@ func NewService(svc android.Service) *Service {
 	return &Service{Service: svc}
 }
 
-func (svc *Service) GetZeroTouchConfiguration(ctx context.Context) (*android.ZeroTouchConfigurationResponse, error) {
+func (svc *Service) GetZeroTouchConfiguration(ctx context.Context, teamID *uint) (*android.ZeroTouchConfigurationResponse, error) {
 	if !licensectx.IsPremium(ctx) {
 		return nil, fleet.ErrMissingLicense
 	}
-	return svc.Service.GetZeroTouchConfiguration(ctx)
+	return svc.Service.GetZeroTouchConfiguration(ctx, teamID)
 }

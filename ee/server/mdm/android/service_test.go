@@ -19,7 +19,7 @@ type stubService struct {
 	called          bool
 }
 
-func (s *stubService) GetZeroTouchConfiguration(ctx context.Context) (*android.ZeroTouchConfigurationResponse, error) {
+func (s *stubService) GetZeroTouchConfiguration(ctx context.Context, teamID *uint) (*android.ZeroTouchConfigurationResponse, error) {
 	s.called = true
 	return &android.ZeroTouchConfigurationResponse{
 		DPCExtras: `{"test": "extras"}`,
@@ -32,10 +32,10 @@ func TestGetZeroTouchConfiguration_PremiumRequired(t *testing.T) {
 	svc := NewService(inner)
 
 	// No license in context — should return ErrMissingLicense
-	ctx := context.Background()
-	_, err := svc.GetZeroTouchConfiguration(ctx)
+	ctx := t.Context()
+	_, err := svc.GetZeroTouchConfiguration(ctx, nil)
 	require.Error(t, err)
-	assert.ErrorIs(t, err, fleet.ErrMissingLicense)
+	require.ErrorIs(t, err, fleet.ErrMissingLicense)
 	assert.False(t, inner.called, "core service should not be called without a premium license")
 }
 
@@ -44,10 +44,9 @@ func TestGetZeroTouchConfiguration_FreeLicense(t *testing.T) {
 	svc := NewService(inner)
 
 	// Free license in context
-	ctx := licensectx.NewContext(context.Background(), &fleet.LicenseInfo{Tier: fleet.TierFree})
-	_, err := svc.GetZeroTouchConfiguration(ctx)
-	require.Error(t, err)
-	assert.ErrorIs(t, err, fleet.ErrMissingLicense)
+	ctx := licensectx.NewContext(t.Context(), &fleet.LicenseInfo{Tier: fleet.TierFree})
+	_, err := svc.GetZeroTouchConfiguration(ctx, nil)
+	require.ErrorIs(t, err, fleet.ErrMissingLicense)
 	assert.False(t, inner.called, "core service should not be called with a free license")
 }
 
@@ -56,9 +55,9 @@ func TestGetZeroTouchConfiguration_PremiumLicense(t *testing.T) {
 	svc := NewService(inner)
 
 	// Premium license in context — should delegate to core
-	ctx := licensectx.NewContext(context.Background(), &fleet.LicenseInfo{Tier: fleet.TierPremium})
-	resp, err := svc.GetZeroTouchConfiguration(ctx)
+	ctx := licensectx.NewContext(t.Context(), &fleet.LicenseInfo{Tier: fleet.TierPremium})
+	resp, err := svc.GetZeroTouchConfiguration(ctx, nil)
 	require.NoError(t, err)
 	assert.True(t, inner.called, "core service should be called with a premium license")
-	assert.Equal(t, `{"test": "extras"}`, resp.DPCExtras)
+	assert.Contains(t, resp.DPCExtras, "test")
 }

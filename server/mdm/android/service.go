@@ -72,7 +72,8 @@ type Service interface {
 
 	// GetZeroTouchConfiguration returns the DPC extras JSON for zero-touch enrollment.
 	// Creates a long-lived reusable enrollment token on first call; returns the existing one on subsequent calls.
-	GetZeroTouchConfiguration(ctx context.Context) (*ZeroTouchConfigurationResponse, error)
+	// teamID is the fleet to enroll devices into; nil means "Unassigned."
+	GetZeroTouchConfiguration(ctx context.Context, teamID *uint) (*ZeroTouchConfigurationResponse, error)
 }
 
 // /////////////////////////////////////////////
@@ -114,5 +115,6 @@ type EnrollmentTokenResponse struct {
 type ZeroTouchConfigurationResponse struct {
 	DPCExtras string `json:"dpc_extras"`
 	ExpiresAt string `json:"expires_at"`
+	Warning   string `json:"warning,omitempty"`
 	DefaultResponse
 }

@@ -16,16 +16,15 @@ import (
 // zeroTouchTokenDuration is ~100 years in seconds.
 const zeroTouchTokenDuration = "3153600000s"
 
-func zeroTouchConfigurationEndpoint(ctx context.Context, _ interface{}, svc android.Service) fleet.Errorer {
-	resp, err := svc.GetZeroTouchConfiguration(ctx)
+func zeroTouchConfigurationEndpoint(ctx context.Context, _ any, svc android.Service) fleet.Errorer {
+	resp, err := svc.GetZeroTouchConfiguration(ctx, nil)
 	if err != nil {
 		return android.DefaultResponse{Err: err}
 	}
 	return resp
 }
 
-func (svc *Service) GetZeroTouchConfiguration(ctx context.Context) (*android.ZeroTouchConfigurationResponse, error) {
-	// Admin-only
+func (svc *Service) GetZeroTouchConfiguration(ctx context.Context, teamID *uint) (*android.ZeroTouchConfigurationResponse, error) {
 	if err := svc.authz.Authorize(ctx, &android.Enterprise{}, fleet.ActionWrite); err != nil {
 		return nil, err
 	}
@@ -41,12 +40,21 @@ func (svc *Service) GetZeroTouchConfiguration(ctx context.Context) (*android.Zer
 	}
 
 	// Check if a token already exists
-	existing, err := svc.ds.GetZeroTouchEnrollmentToken(ctx, nil)
+	existing, err := svc.ds.GetZeroTouchEnrollmentToken(ctx, teamID)
 	if err != nil && !fleet.IsNotFound(err) {
 		return nil, ctxerr.Wrap(ctx, err, "getting existing zero-touch token")
 	}
 	if existing != nil {
-		return buildDPCExtrasResponse(existing), nil
+		resp := buildDPCExtrasResponse(existing)
+		// Check if the embedded enroll secret still matches the current one
+		enrollSecrets, err := svc.fleetDS.GetEnrollSecrets(ctx, teamID)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "getting enroll secrets for drift check")
+		}
+		if len(enrollSecrets) == 0 || enrollSecrets[0].Secret != existing.EmbeddedEnrollSecret {
+			resp.Warning = "The enroll secret has changed since the zero-touch token was created. Please regenerate the zero-touch configuration."
+		}
+		return resp, nil
 	}
 
 	// No token exists — create one via AMAPI
@@ -61,13 +69,12 @@ func (svc *Service) GetZeroTouchConfiguration(ctx context.Context) (*android.Zer
 	}
 	_ = svc.androidAPIClient.SetAuthenticationSecret(secret)
 
-	// Get a global enroll secret to embed in the token
-	enrollSecrets, err := svc.fleetDS.GetEnrollSecrets(ctx, nil)
+	enrollSecrets, err := svc.fleetDS.GetEnrollSecrets(ctx, teamID)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "getting global enroll secrets")
+		return nil, ctxerr.Wrap(ctx, err, "getting enroll secrets")
 	}
 	if len(enrollSecrets) == 0 {
-		return nil, &fleet.BadRequestError{Message: "No global enroll secret found. Please create one before setting up zero-touch enrollment."}
+		return nil, &fleet.BadRequestError{Message: "No enroll secret found. Please create one before setting up zero-touch enrollment."}
 	}
 	enrollSecret := enrollSecrets[0].Secret
 
@@ -96,10 +103,11 @@ func (svc *Service) GetZeroTouchConfiguration(ctx context.Context) (*android.Zer
 	}
 
 	token := &android.ZeroTouchToken{
-		TokenName:    amapiToken.Name,
-		TokenValue:   amapiToken.Value,
-		EnrollSecret: enrollSecret,
-		ExpiresAt:    expiresAt,
+		TeamID:               teamID,
+		TokenName:            amapiToken.Name,
+		TokenValue:           amapiToken.Value,
+		EmbeddedEnrollSecret: enrollSecret,
+		ExpiresAt:            expiresAt,
 	}
 	token, err = svc.ds.CreateZeroTouchEnrollmentToken(ctx, token)
 	if err != nil {
