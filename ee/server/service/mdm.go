@@ -15,6 +15,7 @@ import (
 	"net/http"
 	"net/url"
 	"reflect"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -1854,8 +1855,7 @@ func (svc *Service) DeleteABMToken(ctx context.Context, tokenID uint) error {
 		tokensByOrg[t.OrganizationName] = struct{}{}
 	}
 
-	for i := len(appCfg.MDM.AppleBusinessManager.Value) - 1; i >= 0; i-- {
-		t := appCfg.MDM.AppleBusinessManager.Value[i]
+	for i, t := range slices.Backward(appCfg.MDM.AppleBusinessManager.Value) {
 		if _, ok := tokensByOrg[t.OrganizationName]; !ok {
 			appCfg.MDM.AppleBusinessManager.Value = append(appCfg.MDM.AppleBusinessManager.Value[:i], appCfg.MDM.AppleBusinessManager.Value[i+1:]...)
 		}
