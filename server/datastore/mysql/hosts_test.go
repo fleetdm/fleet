@@ -11700,10 +11700,7 @@ func testHostsSetOrUpdateHostDisksEncryptionKey(t *testing.T, ds *Datastore) {
 	require.False(t, keyArchived)
 	checkEncryptionKeyStatus(t, ds, host3.ID, "abc", ptr.Bool(true))
 
-	// Client error, the error is recorded and the stored key is kept. This behaviour was reversed when the only
-	// Windows flow was encrypting a fresh disk, where there was never a valid key to lose. Fleet now also rotates the
-	// key on disks that arrived already encrypted, so a failure there arrives on a host whose stored key is still the
-	// volume's own recovery password, and discarding it removes the admin's only way back into the disk.
+	// Client error, the error is recorded and the stored key is kept.
 	keyArchived, err = ds.SetOrUpdateHostDiskEncryptionKey(context.Background(), host3, "", "fail", nil)
 	require.NoError(t, err)
 	require.False(t, keyArchived)
