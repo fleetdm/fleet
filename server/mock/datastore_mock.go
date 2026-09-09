@@ -712,6 +712,8 @@ type SavePolicyFunc func(ctx context.Context, p *fleet.Policy, shouldRemoveAllPo
 
 type ResetPolicyFunc func(ctx context.Context, policyID uint) error
 
+type ResetPolicyForHostFunc func(ctx context.Context, hostID uint, policyID uint) error
+
 type ListGlobalPoliciesFunc func(ctx context.Context, opts fleet.ListOptions, platform string) ([]*fleet.Policy, error)
 
 type PoliciesByIDFunc func(ctx context.Context, ids []uint) (map[uint]*fleet.Policy, error)
@@ -3426,6 +3428,9 @@ type DataStore struct {
 
 	ResetPolicyFunc        ResetPolicyFunc
 	ResetPolicyFuncInvoked bool
+
+	ResetPolicyForHostFunc        ResetPolicyForHostFunc
+	ResetPolicyForHostFuncInvoked bool
 
 	ListGlobalPoliciesFunc        ListGlobalPoliciesFunc
 	ListGlobalPoliciesFuncInvoked bool
@@ -8359,6 +8364,13 @@ func (s *DataStore) ResetPolicy(ctx context.Context, policyID uint) error {
 	s.ResetPolicyFuncInvoked = true
 	s.mu.Unlock()
 	return s.ResetPolicyFunc(ctx, policyID)
+}
+
+func (s *DataStore) ResetPolicyForHost(ctx context.Context, hostID uint, policyID uint) error {
+	s.mu.Lock()
+	s.ResetPolicyForHostFuncInvoked = true
+	s.mu.Unlock()
+	return s.ResetPolicyForHostFunc(ctx, hostID, policyID)
 }
 
 func (s *DataStore) ListGlobalPolicies(ctx context.Context, opts fleet.ListOptions, platform string) ([]*fleet.Policy, error) {

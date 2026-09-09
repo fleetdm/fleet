@@ -528,21 +528,36 @@ func (ds *Datastore) ResetPolicyAutomationRetryAttemptsForHost(ctx context.Conte
 		return nil
 	}
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		q, args, err := sqlx.In(resetScriptAttemptsStmt, hostID, policyIDs)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "building reset host script attempts query")
+		return resetHostPolicyAutomationAttempts(ctx, tx, hostID, policyIDs)
+	})
+}
+
+func resetHostPolicyAutomationAttempts(ctx context.Context, tx sqlx.ExtContext, hostID uint, policyIDs []uint) error {
+	q, args, err := sqlx.In(resetScriptAttemptsStmt, hostID, policyIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "building reset host script attempts query")
+	}
+	if _, err := tx.ExecContext(ctx, q, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "reset host script attempts")
+	}
+	q, args, err = sqlx.In(resetInstallAttemptsStmt, hostID, policyIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "building reset host install attempts query")
+	}
+	if _, err := tx.ExecContext(ctx, q, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "reset host install attempts")
+	}
+	return nil
+}
+
+func (ds *Datastore) ResetPolicyForHost(ctx context.Context, hostID, policyID uint) error {
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		if _, err := tx.ExecContext(ctx,
+			`DELETE FROM policy_membership WHERE host_id = ? AND policy_id = ?`, hostID, policyID,
+		); err != nil {
+			return ctxerr.Wrap(ctx, err, "clear host policy membership")
 		}
-		if _, err := tx.ExecContext(ctx, q, args...); err != nil {
-			return ctxerr.Wrap(ctx, err, "reset host script attempts")
-		}
-		q, args, err = sqlx.In(resetInstallAttemptsStmt, hostID, policyIDs)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "building reset host install attempts query")
-		}
-		if _, err := tx.ExecContext(ctx, q, args...); err != nil {
-			return ctxerr.Wrap(ctx, err, "reset host install attempts")
-		}
-		return nil
+		return resetHostPolicyAutomationAttempts(ctx, tx, hostID, []uint{policyID})
 	})
 }
 

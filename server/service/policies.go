@@ -79,12 +79,19 @@ func (svc Service) ResetPolicy(ctx context.Context, policyID uint, hostID *uint)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "load host for policy reset")
 		}
-		policyIDs := []uint{policyID}
-		if err := svc.ds.ClearHostPolicyMembershipForPolicies(ctx, host.ID, policyIDs); err != nil {
-			return ctxerr.Wrap(ctx, err, "reset host policy result")
+		// A team policy only applies to hosts on that team. Treat other hosts as not
+		// found so a team-scoped caller cannot probe host IDs outside their team.
+		if policy.TeamID != nil {
+			hostTeamID := uint(0)
+			if host.TeamID != nil {
+				hostTeamID = *host.TeamID
+			}
+			if hostTeamID != *policy.TeamID {
+				return ctxerr.Wrap(ctx, newNotFoundError(), "host is not in the policy's fleet")
+			}
 		}
-		if err := svc.ds.ResetPolicyAutomationRetryAttemptsForHost(ctx, host.ID, policyIDs); err != nil {
-			return ctxerr.Wrap(ctx, err, "reset host policy automation attempts")
+		if err := svc.ds.ResetPolicyForHost(ctx, host.ID, policyID); err != nil {
+			return ctxerr.Wrap(ctx, err, "reset policy for host")
 		}
 		activityHostID = &host.ID
 	} else if err := svc.ds.ResetPolicy(ctx, policyID); err != nil {

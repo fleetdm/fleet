@@ -35757,6 +35757,9 @@ func (s *integrationEnterpriseTestSuite) TestResetPolicy() {
 
 	// 404 for a nonexistent host.
 	s.Do("POST", fmt.Sprintf("/api/latest/fleet/policies/%d/reset?host_id=999999", hostScopedPolicy.ID), nil, http.StatusNotFound)
+
+	// 404 for a host outside a team policy's team.
+	s.Do("POST", fmt.Sprintf("/api/latest/fleet/policies/%d/reset?host_id=%d", teamPolicy.ID, noTeamHost.ID), nil, http.StatusNotFound)
 }
 
 // TestSoftwareMultiplePackagesInstallPrecedence verifies install-time first-added precedence when a

@@ -823,14 +823,9 @@ func TestResetPolicyEmitsActivity(t *testing.T) {
 			require.Equal(t, hostID, id)
 			return &fleet.Host{ID: id}, nil
 		}
-		ds.ClearHostPolicyMembershipForPoliciesFunc = func(_ context.Context, gotHostID uint, policyIDs []uint) error {
+		ds.ResetPolicyForHostFunc = func(_ context.Context, gotHostID, gotPolicyID uint) error {
 			require.Equal(t, hostID, gotHostID)
-			require.Equal(t, []uint{policyID}, policyIDs)
-			return nil
-		}
-		ds.ResetPolicyAutomationRetryAttemptsForHostFunc = func(_ context.Context, gotHostID uint, policyIDs []uint) error {
-			require.Equal(t, hostID, gotHostID)
-			require.Equal(t, []uint{policyID}, policyIDs)
+			require.Equal(t, policyID, gotPolicyID)
 			return nil
 		}
 		var capturedActivity activity_api.ActivityDetails
@@ -841,8 +836,7 @@ func TestResetPolicyEmitsActivity(t *testing.T) {
 
 		require.NoError(t, svc.ResetPolicy(ctx, policyID, new(hostID)))
 		require.False(t, ds.ResetPolicyFuncInvoked, "all-host reset must not run for a host-scoped request")
-		require.True(t, ds.ClearHostPolicyMembershipForPoliciesFuncInvoked)
-		require.True(t, ds.ResetPolicyAutomationRetryAttemptsForHostFuncInvoked)
+		require.True(t, ds.ResetPolicyForHostFuncInvoked)
 
 		act, ok := capturedActivity.(fleet.ActivityTypeResetPolicy)
 		require.True(t, ok)
@@ -860,8 +854,34 @@ func TestResetPolicyEmitsActivity(t *testing.T) {
 		require.Error(t, err)
 		require.True(t, fleet.IsNotFound(err))
 		require.False(t, ds.ResetPolicyFuncInvoked)
-		require.False(t, ds.ClearHostPolicyMembershipForPoliciesFuncInvoked)
+		require.False(t, ds.ResetPolicyForHostFuncInvoked)
 		require.False(t, opts.ActivityMock.NewActivityFuncInvoked)
+	})
+
+	t.Run("host-scoped reset of a team policy rejects a host on another team", func(t *testing.T) {
+		policyTeamID := uint(1)
+		ds, svc, ctx, opts := newSvc(&policyTeamID)
+		ds.HostLiteFunc = func(_ context.Context, id uint) (*fleet.Host, error) {
+			return &fleet.Host{ID: id, TeamID: new(uint(2))}, nil
+		}
+
+		err := svc.ResetPolicy(ctx, policyID, new(uint(42)))
+		require.Error(t, err)
+		require.True(t, fleet.IsNotFound(err))
+		require.False(t, ds.ResetPolicyForHostFuncInvoked)
+		require.False(t, opts.ActivityMock.NewActivityFuncInvoked)
+	})
+
+	t.Run("host-scoped reset of a no-team policy accepts a host with no team", func(t *testing.T) {
+		noTeamID := uint(0)
+		ds, svc, ctx, _ := newSvc(&noTeamID)
+		ds.HostLiteFunc = func(_ context.Context, id uint) (*fleet.Host, error) {
+			return &fleet.Host{ID: id}, nil
+		}
+		ds.ResetPolicyForHostFunc = func(_ context.Context, _, _ uint) error { return nil }
+
+		require.NoError(t, svc.ResetPolicy(ctx, policyID, new(uint(42))))
+		require.True(t, ds.ResetPolicyForHostFuncInvoked)
 	})
 }
 
