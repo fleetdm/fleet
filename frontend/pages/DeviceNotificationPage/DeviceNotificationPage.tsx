@@ -1,9 +1,11 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "react-query";
 
 import Button from "components/buttons/Button";
 import DataError from "components/DataError";
 import List from "components/List";
+// @ts-ignore
+import OrgLogoIcon from "components/icons/OrgLogoIcon";
 import TooltipTruncatedText from "components/TooltipTruncatedText";
 import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
 import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
@@ -14,6 +16,8 @@ import {
   INotificationItem,
   INotificationView,
 } from "interfaces/device_notification";
+
+import { isDarkMode } from "utilities/theme";
 
 import { postBridgeMessage } from "./fleetDesktopBridge";
 
@@ -68,6 +72,16 @@ const DeviceNotificationPage = ({
   const readyPostedRef = useRef(false);
   const cardRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
+  const [darkMode, setDarkMode] = useState(() => isDarkMode());
+
+  useEffect(() => {
+    const onThemeChange = (e: Event) => {
+      setDarkMode((e as CustomEvent).detail.dark);
+    };
+    window.addEventListener("fleet-theme-change", onThemeChange);
+    return () =>
+      window.removeEventListener("fleet-theme-change", onThemeChange);
+  }, []);
 
   const queryKey = [
     "device-notification",
@@ -161,6 +175,9 @@ const DeviceNotificationPage = ({
   const actions = view.actions;
   const primaryAction = actions[actions.length - 1];
   const secondaryActions = actions.slice(0, -1);
+  const orgLogoURL = darkMode
+    ? view.org_logo_url_dark_mode
+    : view.org_logo_url_light_mode;
 
   return (
     <div className={baseClass}>
@@ -179,13 +196,7 @@ const DeviceNotificationPage = ({
           renderItemRow={renderNotificationItemRow}
         />
         <div className={`${baseClass}__actions`}>
-          <picture className={`${baseClass}__logo`}>
-            <source
-              srcSet={view.org_logo_url_dark_mode}
-              media="(prefers-color-scheme: dark)"
-            />
-            <img src={view.org_logo_url_light_mode} alt="" />
-          </picture>
+          <OrgLogoIcon className={`${baseClass}__logo`} src={orgLogoURL} />
           {isPostError && (
             <div className={`${baseClass}__action-error`} role="alert">
               <DataError

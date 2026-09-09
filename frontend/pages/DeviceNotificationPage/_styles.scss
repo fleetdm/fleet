@@ -21,17 +21,19 @@
     @include flex-column-8px-gap;
   }
 
-  // `margin-right: auto` holds the bottom-left slot; buttons stay right-aligned.
-  &__logo {
+  // `margin-right: auto` holds the bottom-left slot; `.org-logo-icon` qualifier outranks that component's default sizing.
+  &__logo.org-logo-icon {
     margin-right: auto;
     flex-shrink: 0;
     width: 28px;
     height: 28px;
+    min-height: 28px;
+    max-height: 28px;
+    padding: 0;
+    object-fit: contain;
 
-    img {
-      width: 28px;
-      height: 28px;
-      object-fit: contain;
+    &.default-fleet-logo {
+      transform: none;
     }
   }
 

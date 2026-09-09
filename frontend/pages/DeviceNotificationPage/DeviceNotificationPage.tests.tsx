@@ -14,6 +14,8 @@ import {
 
 import DeviceNotificationPage from "./DeviceNotificationPage";
 
+const baseClass = "device-notification-page";
+
 const renderPage = () => {
   const render = createCustomRenderer({ withBackendMock: true });
   return render(
@@ -38,6 +40,7 @@ describe("DeviceNotificationPage", () => {
 
   afterEach(() => {
     delete window.webkit;
+    localStorage.removeItem("fleet-theme");
   });
 
   it("renders the fetched notification and posts `ready` once", async () => {
@@ -280,7 +283,7 @@ describe("DeviceNotificationPage", () => {
     expect(dismissCalls).toHaveLength(0);
   });
 
-  it("renders both light-mode and dark-mode logo sources", async () => {
+  it("renders the light-mode logo in light mode and the dark-mode logo in dark mode", async () => {
     mockServer.use(
       customDeviceNotificationHandler(
         createMockNotificationView({
@@ -290,15 +293,45 @@ describe("DeviceNotificationPage", () => {
       )
     );
 
-    const { container } = renderPage();
+    const light = renderPage();
 
     // Wait for the MSW response to replace the TEMP fallback logo urls.
     await waitFor(() => {
-      const src = container.querySelector("picture img")?.getAttribute("src");
+      const src = light.container
+        .querySelector(`.${baseClass}__logo`)
+        ?.getAttribute("src");
       expect(src).toBe("https://example.com/light.png");
     });
-    const source = container.querySelector("source");
-    expect(source?.getAttribute("srcset")).toBe("https://example.com/dark.png");
-    expect(source?.getAttribute("media")).toBe("(prefers-color-scheme: dark)");
+    light.unmount();
+
+    localStorage.setItem("fleet-theme", "dark");
+    const dark = renderPage();
+
+    await waitFor(() => {
+      const src = dark.container
+        .querySelector(`.${baseClass}__logo`)
+        ?.getAttribute("src");
+      expect(src).toBe("https://example.com/dark.png");
+    });
+  });
+
+  // An org that never uploaded a logo gets empty urls from the server, and OrgLogoIcon
+  // substitutes Fleet's own logo rather than rendering a broken image.
+  it("renders Fleet's logo when the org has not set one", async () => {
+    mockServer.use(
+      customDeviceNotificationHandler(
+        createMockNotificationView({
+          org_logo_url_light_mode: "",
+          org_logo_url_dark_mode: "",
+        })
+      )
+    );
+
+    const { container } = renderPage();
+
+    await waitFor(() => {
+      const logo = container.querySelector(`.${baseClass}__logo`);
+      expect(logo).toHaveClass("default-fleet-logo");
+    });
   });
 });
