@@ -420,7 +420,7 @@ Although details on how to format and meta tag a blog are in [the writing handbo
 To add a company as a competitor, e.g. so that we don't spend money to advertise to them unnecessarily:
 
 1. Update [this spreadsheet in Fleet's feature chart / competitors database](https://docs.google.com/spreadsheets/d/1zwr59MpruIw4dsV-Qbk8xFbMrbHAV3qaRJDWM7-YrwU/edit?gid=611626809#gid=611626809) so that the team is aware of subsidaries, parent companies, and which category this company competes in.
-2. Update LinkedIn ads so that we don't advertise to this competitor by updating [this spreadsheet used for uploading to LI ads](TODO) and then reupload it to the [matched audience for competitors](TODO).
+2. Update LinkedIn ads so that we don't advertise to this competitor by updating [this spreadsheet used for uploading to LI ads](https://docs.google.com/spreadsheets/d/1VqG87Jxtwn7dX94yJW2E2338zBtVrg9hLXSiBLtFhPA/edit?gid=1226811520#gid=1226811520) and then reupload it to the [matched audience for competitors](https://www.linkedin.com/campaignmanager/accounts/509911695/audiences/matched/88570054/matched-companies?businessId=personal).
 
 
 ## Rituals
