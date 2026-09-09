@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20260907212114(t *testing.T) {
+func TestUp_20260909142539(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	// An enrollment that predates the column, to prove the default applies to existing rows.
