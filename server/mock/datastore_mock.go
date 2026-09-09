@@ -550,8 +550,6 @@ type ListPatchNotificationAppsFunc func(ctx context.Context, notificationUUID st
 
 type ListPatchNotificationAppsForNotificationsFunc func(ctx context.Context, notificationUUIDs []string) (map[string][]fleet.PatchNotificationAppDetail, error)
 
-type ListSoftwareTitleVersionsForHostsFunc func(ctx context.Context, hostIDs []uint, softwareTitleIDs []uint) ([]fleet.HostSoftwareTitleVersion, error)
-
 type DeletePatchNotificationAppsFunc func(ctx context.Context, notificationUUID string, softwareTitleIDs []uint) error
 
 type SetPatchNotificationInstallAtFunc func(ctx context.Context, notificationUUID string, installAt time.Time) (time.Time, error)
@@ -1689,6 +1687,8 @@ type ListReadyToExecuteSoftwareInstallsFunc func(ctx context.Context, hostID uin
 type GetHostLastInstallDataFunc func(ctx context.Context, hostID uint, installerID uint) (*fleet.HostLastInstallData, error)
 
 type ListLastTitleInstallDataForHostsFunc func(ctx context.Context, hostIDs []uint, softwareTitleIDs []uint) (map[fleet.HostSoftwareTitleKey][]*fleet.HostLastInstallData, error)
+
+type ListSoftwareTitleVersionsForHostsFunc func(ctx context.Context, hostIDs []uint, softwareTitleIDs []uint) ([]fleet.HostSoftwareTitleVersion, error)
 
 type MatchOrCreateSoftwareInstallerFunc func(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) (installerID uint, titleID uint, err error)
 
@@ -3149,9 +3149,6 @@ type DataStore struct {
 
 	ListPatchNotificationAppsForNotificationsFunc        ListPatchNotificationAppsForNotificationsFunc
 	ListPatchNotificationAppsForNotificationsFuncInvoked bool
-
-	ListSoftwareTitleVersionsForHostsFunc        ListSoftwareTitleVersionsForHostsFunc
-	ListSoftwareTitleVersionsForHostsFuncInvoked bool
 
 	DeletePatchNotificationAppsFunc        DeletePatchNotificationAppsFunc
 	DeletePatchNotificationAppsFuncInvoked bool
@@ -4859,6 +4856,9 @@ type DataStore struct {
 
 	ListLastTitleInstallDataForHostsFunc        ListLastTitleInstallDataForHostsFunc
 	ListLastTitleInstallDataForHostsFuncInvoked bool
+
+	ListSoftwareTitleVersionsForHostsFunc        ListSoftwareTitleVersionsForHostsFunc
+	ListSoftwareTitleVersionsForHostsFuncInvoked bool
 
 	MatchOrCreateSoftwareInstallerFunc        MatchOrCreateSoftwareInstallerFunc
 	MatchOrCreateSoftwareInstallerFuncInvoked bool
@@ -7707,13 +7707,6 @@ func (s *DataStore) ListPatchNotificationAppsForNotifications(ctx context.Contex
 	s.ListPatchNotificationAppsForNotificationsFuncInvoked = true
 	s.mu.Unlock()
 	return s.ListPatchNotificationAppsForNotificationsFunc(ctx, notificationUUIDs)
-}
-
-func (s *DataStore) ListSoftwareTitleVersionsForHosts(ctx context.Context, hostIDs []uint, softwareTitleIDs []uint) ([]fleet.HostSoftwareTitleVersion, error) {
-	s.mu.Lock()
-	s.ListSoftwareTitleVersionsForHostsFuncInvoked = true
-	s.mu.Unlock()
-	return s.ListSoftwareTitleVersionsForHostsFunc(ctx, hostIDs, softwareTitleIDs)
 }
 
 func (s *DataStore) DeletePatchNotificationApps(ctx context.Context, notificationUUID string, softwareTitleIDs []uint) error {
@@ -11697,6 +11690,13 @@ func (s *DataStore) ListLastTitleInstallDataForHosts(ctx context.Context, hostID
 	s.ListLastTitleInstallDataForHostsFuncInvoked = true
 	s.mu.Unlock()
 	return s.ListLastTitleInstallDataForHostsFunc(ctx, hostIDs, softwareTitleIDs)
+}
+
+func (s *DataStore) ListSoftwareTitleVersionsForHosts(ctx context.Context, hostIDs []uint, softwareTitleIDs []uint) ([]fleet.HostSoftwareTitleVersion, error) {
+	s.mu.Lock()
+	s.ListSoftwareTitleVersionsForHostsFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListSoftwareTitleVersionsForHostsFunc(ctx, hostIDs, softwareTitleIDs)
 }
 
 func (s *DataStore) MatchOrCreateSoftwareInstaller(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) (installerID uint, titleID uint, err error) {
