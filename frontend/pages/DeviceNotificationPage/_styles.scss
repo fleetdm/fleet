@@ -21,10 +21,7 @@
     @include flex-column-8px-gap;
   }
 
-  // App/org logo sits in the bottom-left slot of the actions row.
-  // `margin-right: auto` eats free space to its right so the logo hugs the
-  // left edge while the error slot and buttons stay packed on the right
-  // under `justify-content: flex-end`. Uses <picture> for dark-mode swap.
+  // `margin-right: auto` holds the bottom-left slot; buttons stay right-aligned.
   &__logo {
     margin-right: auto;
     flex-shrink: 0;

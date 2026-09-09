@@ -26,6 +26,13 @@ export const postBridgeMessage = (
 ): void => {
   const handler = window.webkit?.messageHandlers?.fleetDesktop;
   if (!handler) {
+    if (process.env.NODE_ENV !== "production") {
+      // eslint-disable-next-line no-console
+      console.debug("[fleet-desktop-bridge] window.webkit handler missing", {
+        action,
+        payload,
+      });
+    }
     return;
   }
   const message: IBridgeMessage = { v: BRIDGE_VERSION, action, payload };
