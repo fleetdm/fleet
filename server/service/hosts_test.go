@@ -5584,8 +5584,7 @@ func TestSetDiskEncryptionNotifications(t *testing.T) {
 	})
 
 	// Only the agent can clear an error it reported, by reporting a later success, so a host carrying one has to keep
-	// being asked even when its disk already looks compliant. Otherwise a host whose problem was fixed outside Fleet,
-	// an admin resuming a paused conversion for instance, sits at "Failed" with a stale reason forever.
+	// being asked.
 	t.Run("a reported error keeps the host being asked", func(t *testing.T) {
 		appConfig := &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true, WindowsEnabledAndConfigured: true}}
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {

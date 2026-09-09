@@ -111,12 +111,6 @@ var TPMFamilyProtectorTypes = []int32{
 
 // ensureBootUnsealProtector adds a TPM-only protector when, and only when, the volume has nothing that can already
 // release the volume master key at boot.
-//
-// Adding one unconditionally is a security regression rather than a harmless no-op. ProtectKeyWithTPM succeeds on a
-// volume that already carries a TPM+PIN protector, and the TPM-only protector it adds then unseals the volume with no
-// PIN, so the host silently stops asking for one while still reporting a PIN as set. See #52159.
-//
-// The two operations are parameters so this decision can be tested without COM, which is available only on Windows.
 func ensureBootUnsealProtector(hasBootProtector func() (bool, error), addTPMProtector func() error) error {
 	has, err := hasBootProtector()
 	if err != nil {
