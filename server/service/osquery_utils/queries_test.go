@@ -5245,3 +5245,59 @@ func TestWindowsEnrollmentDefaultFleetSkipsPendingAutopilotHost(t *testing.T) {
 		})
 	}
 }
+
+// This ingester is the only source of the signal that drives the missing-boot-protector repair, so a silent failure
+// here means Fleet never asks the agent to fix a volume that would boot to the recovery prompt.
+func TestBitlockerBootProtectorVerifyDirectIngest(t *testing.T) {
+	host := &fleet.Host{ID: 42, UUID: "host-uuid"}
+
+	for _, tt := range []struct {
+		name    string
+		host    *fleet.Host
+		rows    []map[string]string
+		dsErr   error
+		wantSet *bool
+		wantErr bool
+	}{
+		{name: "nil host stores nothing", host: nil},
+		{name: "empty UUID host stores nothing", host: &fleet.Host{ID: 42, UUID: ""}},
+		{
+			// The query returns no rows when nothing on the volume can unseal it at boot, which is the case this exists for.
+			name: "no rows records that no boot protector is present",
+			host: host, rows: nil, wantSet: new(false),
+		},
+		{
+			name: "a row records that a boot protector is present",
+			host: host, rows: []map[string]string{{"criteria": "1"}}, wantSet: new(true),
+		},
+		{
+			name: "a datastore failure is propagated rather than swallowed",
+			host: host, rows: nil, dsErr: errors.New("write failed"), wantSet: new(false), wantErr: true,
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			ds := new(mock.Store)
+			var got *bool
+			ds.SetOrUpdateHostDiskBootProtectorFunc = func(_ context.Context, hostID uint, set bool) error {
+				require.Equal(t, tt.host.ID, hostID)
+				got = &set
+				return tt.dsErr
+			}
+
+			err := bitlockerPolicyQueries["bitlocker_boot_protector_verify"].DirectIngestFunc(
+				t.Context(), slog.New(slog.DiscardHandler), tt.host, ds, tt.rows)
+			if tt.wantErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
+
+			if tt.wantSet == nil {
+				require.Nil(t, got, "must not write for a host it cannot identify")
+				return
+			}
+			require.NotNil(t, got)
+			require.Equal(t, *tt.wantSet, *got)
+		})
+	}
+}

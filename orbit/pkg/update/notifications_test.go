@@ -940,6 +940,19 @@ func TestBitlockerOperations(t *testing.T) {
 				shortBackoff:   true,
 				reason:         "protection is already on, so it must not be re-enabled",
 			},
+			{
+				// Deferring here would wait for the very restart that drops the end user at the recovery prompt, which
+				// is the outcome this repair exists to prevent. Nothing is being re-sealed, so there is nothing to defer.
+				name:           "a pending restart does not defer the repair when protection is already on",
+				status:         statusFor(bitlocker.ConversionStatusFullyEncrypted, bitlocker.ProtectionStatusOn),
+				restartPending: true,
+				wantAdd:        true,
+				wantRotateOnly: true,
+				wantOutcome:    fleet.DiskEncryptionProtectionRestored,
+				wantBackoff:    true,
+				shortBackoff:   true,
+				reason:         "protection is already on, so it must not be re-enabled",
+			},
 		} {
 			t.Run(tc.name, func(t *testing.T) {
 				setupTest()
@@ -1038,6 +1051,41 @@ func TestBitlockerOperations(t *testing.T) {
 					}
 				})
 			}
+		})
+
+		t.Run("retries a failed escrow on the next pass once the protector is in place", func(t *testing.T) {
+			setupTest()
+			// Protection is already on, so the repair only adds a protector. On the second pass the volume looks
+			// healthy, and without the held-key guard the run would return early and strand the rotated key, leaving
+			// Fleet holding one the volume no longer accepts.
+			protectedNoProtector := statusFor(bitlocker.ConversionStatusFullyEncrypted, bitlocker.ProtectionStatusOn)
+			enrollReceiver.execGetEncryptionStatusFn = protectedNoProtector
+			hasProtector := false
+			enrollReceiver.execHasBootUnsealProtectorFn = func(string) (bool, error) { return hasProtector, nil }
+			enrollReceiver.execAddTPMProtectorFn = func(string) error { hasProtector = true; return nil }
+			enrollReceiver.execHasRecoveryPasswordFn = func(string) (bool, error) { return false, nil }
+			enrollReceiver.execRotateRecoveryKeyFn = func(string) (string, error) { return "rotated-key", nil }
+			escrowFails := true
+			var escrowed []string
+			prevEscrow := clientMock.SetOrUpdateDiskEncryptionKeyImpl
+			t.Cleanup(func() { clientMock.SetOrUpdateDiskEncryptionKeyImpl = prevEscrow })
+			clientMock.SetOrUpdateDiskEncryptionKeyImpl = func(p fleet.OrbitHostDiskEncryptionKeyPayload) error {
+				if escrowFails {
+					return errors.New("server unreachable")
+				}
+				escrowed = append(escrowed, string(p.EncryptionKey))
+				return nil
+			}
+
+			require.NoError(t, enrollReceiver.Run(protectionCfg))
+			require.Empty(t, escrowed, "the first pass must fail to escrow")
+			require.Equal(t, "rotated-key", enrollReceiver.pendingRecoveryKey, "the key has to be held for the retry")
+
+			escrowFails = false
+			enrollReceiver.protectionRetryAfter = time.Time{}
+			require.NoError(t, enrollReceiver.Run(protectionCfg))
+			require.Equal(t, []string{"rotated-key"}, escrowed, "the held key must be escrowed on the next pass")
+			require.Empty(t, enrollReceiver.pendingRecoveryKey, "a successful escrow clears the held key")
 		})
 
 		t.Run("adds a TPM protector, then rotates, then escrows, then enables", func(t *testing.T) {

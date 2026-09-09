@@ -54,6 +54,14 @@ func TestShouldEnableBitLockerProtection(t *testing.T) {
 			protection: &protectionOn,
 		},
 		{
+			// Protectors can be reported while protection status is not. Acting on an unknown protection status is
+			// how protectors get destroyed, so a missing boot protector is not enough on its own.
+			name:          "unknown protection status is not acted on even with no boot protector",
+			encrypted:     new(true),
+			protection:    nil,
+			bootProtector: new(false),
+		},
+		{
 			name:       "not encrypted is the encryption flow's job, not this one",
 			encrypted:  new(false),
 			protection: &protectionOff,

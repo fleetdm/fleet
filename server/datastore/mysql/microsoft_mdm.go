@@ -1923,7 +1923,7 @@ AND ` + whereBitLockerPINSet
 AND NOT ` + whereClientError + `
 AND ` + whereKeyAvailable + `
 AND (` + whereEncrypted + ` OR (NOT ` + whereEncrypted + ` AND ` + whereHostDisksUpdated + ` AND ` + withinGracePeriod + `))
-AND (NOT ` + whereBitLockerPINSet + `
+AND ((NOT ` + whereBitLockerPINSet + ` AND NOT ` + whereBootProtectorMissing + `)
      OR (` + whereEncrypted + ` AND ` + whereProtectionOff + ` AND ` + whereProtectionError + `)
      OR (` + whereEncrypted + ` AND ` + whereProtectionOn + ` AND ` + whereBootProtectorMissing + ` AND ` + whereProtectionError + `))`
 
@@ -1934,7 +1934,9 @@ AND (NOT ` + whereBitLockerPINSet + `
 		// - the disk is encrypted but protection is off and the agent has not reported a problem, so Fleet is restoring
 		//   it and no one needs to be told to act
 		// - the disk is encrypted and protection is on, but nothing can unseal it at boot, so Fleet is adding a
-		//   protector before the next restart lands the user at the recovery prompt
+		//   protector before the next restart lands the user at the recovery prompt. This branch deliberately does not
+		//   require the PIN to be set: Windows offers no way to create one until a protector exists, so a missing PIN
+		//   here is not something a person can act on and the host belongs in enforcing until the repair lands.
 		return whereNotServer + `
 AND NOT ` + whereClientError + `
 AND (
@@ -1955,7 +1957,6 @@ AND (
         AND ` + whereProtectionOn + `
         AND ` + whereBootProtectorMissing + `
         AND NOT ` + whereProtectionError + `
-        AND ` + whereBitLockerPINSet + `
     )
 )`
 
@@ -2149,7 +2150,7 @@ WHERE
 		case protectionOff:
 			dest.Detail = "BitLocker protection is off. The disk is encrypted but the TPM protector is not active. This may be due to a suspended BitLocker state or a TPM configuration issue."
 		case bootProtectorMissing && dest.ProtectionError != "":
-			dest.Detail = fmt.Sprintf("BitLocker has no protector that can unlock this disk at startup, so the next restart will ask for the recovery key. Fleet could not add one: %s", dest.ProtectionError)
+			dest.Detail = fmt.Sprintf("BitLocker has no protector that can unlock this disk at startup, so the next restart will ask for the recovery key. Fleet could not repair it: %s", dest.ProtectionError)
 		case bootProtectorMissing && pinMissing:
 			dest.Detail = "BitLocker has no protector that can unlock this disk at startup, so the next restart will ask for the recovery key, and Windows offers no way to create a PIN until one exists. Fleet is adding a protector."
 		case pinMissing:

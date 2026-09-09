@@ -3600,7 +3600,7 @@ var bitlockerPolicyQueries = map[string]DetailQuery{
 		// We only want to run this query iff:
 		// - BitLocker is not an optional component (is built in) OR is an optional component and enabled.
 		// - And no protector that can release the volume master key at boot exists, so the agent has to create one.
-		// - And the volume is fully encrypted with protection off, the only state this repairs.
+		// - And the volume is fully encrypted, whether or not protection is currently on.
 		Discovery: `
 			WITH should_run(yes) AS (
 			SELECT
@@ -3611,8 +3611,10 @@ var bitlockerPolicyQueries = map[string]DetailQuery{
 				-- 1, 4, 5, 6 are the TPM-family protectors; 2 is an external startup key on a USB stick, which unlocks a
 				-- volume at boot on a machine with no trusted TPM. Keep in sync with bitlocker.BootUnsealProtectorTypes.
 				AND NOT EXISTS(SELECT 1 FROM bitlocker_key_protectors WHERE drive_letter = 'C:' AND key_protector_type IN (1,2,4,5,6))
-				-- Volume is encrypted with protection off
-				AND EXISTS(SELECT 1 FROM bitlocker_info WHERE drive_letter = 'C:' AND protection_status = 0 AND conversion_status = 1)
+				-- Volume is fully encrypted. Protection status is deliberately not constrained: a volume can be
+				-- protected and still have nothing able to unseal it at boot, and that host needs the policy relaxed
+				-- just as much, otherwise its repair fails forever on a policy that forbids a TPM-only protector.
+				AND EXISTS(SELECT 1 FROM bitlocker_info WHERE drive_letter = 'C:' AND conversion_status = 1)
 			)
 			SELECT 1 FROM should_run WHERE yes = 1`,
 		Query: "SELECT data FROM registry WHERE path='HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\FVE\\UseTPM'",

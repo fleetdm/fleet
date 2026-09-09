@@ -1019,8 +1019,12 @@ func shouldEnableBitLockerProtection(host *fleet.Host) bool {
 	}
 
 	// Protection is on, but nothing on the volume can release the key at boot, so the next restart lands the end user
-	// at the 48-digit recovery prompt. The agent adds a protector without touching protection itself.
-	return host.BitLockerBootProtectorSet != nil && !*host.BitLockerBootProtectorSet
+	// at the 48-digit recovery prompt. The agent adds a protector without touching protection itself. Protection has to
+	// be positively reported as on: an unknown status is not evidence of anything, and the same caution applies here as
+	// above.
+	return host.BitLockerProtectionStatus != nil &&
+		*host.BitLockerProtectionStatus == fleet.BitLockerProtectionStatusOn &&
+		host.BitLockerBootProtectorSet != nil && !*host.BitLockerBootProtectorSet
 }
 
 func (svc *Service) setDiskEncryptionNotifications(
