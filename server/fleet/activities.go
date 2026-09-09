@@ -1316,6 +1316,13 @@ func (a ActivityTypeInstalledSoftware) HostIDs() []uint {
 	return []uint{a.HostID}
 }
 
+// HostOnly hides patch-when-closed skips from the global activity feed; they
+// stay on the host activity feed. Skips fire on every policy re-eval while the
+// app is open, which is too noisy globally.
+func (a ActivityTypeInstalledSoftware) HostOnly() bool {
+	return a.SkippedInstall
+}
+
 func (a ActivityTypeInstalledSoftware) WasFromAutomation() bool {
 	return a.PolicyID != nil || a.FromSetupExperience
 }
