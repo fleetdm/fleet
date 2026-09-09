@@ -3608,7 +3608,9 @@ var bitlockerPolicyQueries = map[string]DetailQuery{
 					EXISTS(SELECT 1 FROM windows_optional_features WHERE name = 'BitLocker' AND state = 1)
 					OR NOT EXISTS(SELECT 1 FROM windows_optional_features WHERE name = 'BitLocker')
 				)
-				AND NOT EXISTS(SELECT 1 FROM bitlocker_key_protectors WHERE drive_letter = 'C:' AND key_protector_type IN (1,4,5,6))
+				-- 1, 4, 5, 6 are the TPM-family protectors; 2 is an external startup key on a USB stick, which unlocks a
+				-- volume at boot on a machine with no trusted TPM. Keep in sync with bitlocker.BootUnsealProtectorTypes.
+				AND NOT EXISTS(SELECT 1 FROM bitlocker_key_protectors WHERE drive_letter = 'C:' AND key_protector_type IN (1,2,4,5,6))
 				-- Volume is encrypted with protection off
 				AND EXISTS(SELECT 1 FROM bitlocker_info WHERE drive_letter = 'C:' AND protection_status = 0 AND conversion_status = 1)
 			)
