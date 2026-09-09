@@ -1,2 +1,3 @@
 - Added the Go module path and Go toolchain version to Go binaries in software inventory.
+- Added vulnerability detection for Go binaries in software inventory, using the Go vulnerability database (https://vuln.go.dev).
 - Fixed Go binaries, npm packages, and other non-package software being compared against Linux distro advisories when their name matched a `deb` or `rpm` package.
