@@ -2,6 +2,7 @@ import React, { useContext, useState } from "react";
 
 import { AppContext } from "context/app";
 import configAPI from "services/entities/config";
+import useUpdateAppConfig from "hooks/useUpdateAppConfig";
 
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
@@ -18,7 +19,8 @@ const DeleteEntraClientIdModal = ({
   clientId,
   onExit,
 }: IDeleteEntraClientIdModalProps) => {
-  const { setConfig, config } = useContext(AppContext);
+  const { config } = useContext(AppContext);
+  const updateAppConfig = useUpdateAppConfig();
 
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -33,7 +35,7 @@ const DeleteEntraClientIdModal = ({
           windows_entra_client_ids: updatedClientIds,
         },
       });
-      setConfig(updateData);
+      updateAppConfig(updateData);
       notify.success("Client ID deleted successfully.");
       onExit();
     } catch (err) {

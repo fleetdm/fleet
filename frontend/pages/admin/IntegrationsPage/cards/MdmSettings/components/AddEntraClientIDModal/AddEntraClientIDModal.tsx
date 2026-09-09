@@ -2,6 +2,7 @@ import React, { useState, useContext } from "react";
 
 import { AppContext } from "context/app";
 import configAPI from "services/entities/config";
+import useUpdateAppConfig from "hooks/useUpdateAppConfig";
 
 import InputField from "components/forms/fields/InputField";
 import Modal from "components/Modal";
@@ -22,7 +23,8 @@ interface IAddEntraClientIdModalProps {
 }
 
 const AddEntraClientIdModal = ({ onExit }: IAddEntraClientIdModalProps) => {
-  const { setConfig, config } = useContext(AppContext);
+  const { config } = useContext(AppContext);
+  const updateAppConfig = useUpdateAppConfig();
 
   const [isAdding, setIsAdding] = React.useState(false);
   const [formData, setFormData] = React.useState<IAddClientIdFormData>({
@@ -69,7 +71,7 @@ const AddEntraClientIdModal = ({ onExit }: IAddEntraClientIdModalProps) => {
             windows_entra_client_ids: [...currentClientIds, clientId],
           },
         });
-        setConfig(updateData);
+        updateAppConfig(updateData);
         notify.success("Successfully added client ID");
         onExit();
       } catch (error) {

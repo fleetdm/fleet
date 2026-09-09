@@ -11,6 +11,7 @@ import teamsAPI, {
   ILoadTeamResponse,
   IUpdateTeamFormData,
 } from "services/entities/teams";
+import useUpdateAppConfig from "hooks/useUpdateAppConfig";
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import {
@@ -57,7 +58,8 @@ const AutomationsModal = ({
   onExit,
 }: IAutomationsModalProps): JSX.Element | null => {
   const queryClient = useQueryClient();
-  const { setConfig, isPremiumTier } = useContext(AppContext);
+  const { isPremiumTier } = useContext(AppContext);
+  const updateAppConfig = useUpdateAppConfig();
 
   const otherFormRef = useRef<
     IAutomationFormHandle<IOtherWorkflowsModalSubmit>
@@ -108,10 +110,6 @@ const AutomationsModal = ({
     ? "Okta or Microsoft Entra"
     : "Okta";
 
-  const updateGlobalConfigCache = (updatedConfig: IConfig) => {
-    queryClient.setQueryData(["config"], updatedConfig);
-    setConfig(updatedConfig);
-  };
   const updateTeamConfigCache = (updatedTeamResponse: ILoadTeamResponse) => {
     queryClient.setQueryData(["teams", teamIdForApi], updatedTeamResponse);
   };
@@ -136,7 +134,7 @@ const AutomationsModal = ({
         // Global ("All teams"): only Other is editable.
         if (otherData) {
           const updatedConfig = await configAPI.update(otherData);
-          updateGlobalConfigCache(updatedConfig);
+          updateAppConfig(updatedConfig);
         }
       } else if (teamIdForApi === API_NO_TEAM_ID) {
         // "No team": webhook_settings live on the team record and
@@ -169,7 +167,7 @@ const AutomationsModal = ({
                   conditional_access_enabled: caData.enabled,
                 },
               })
-              .then(updateGlobalConfigCache)
+              .then(updateAppConfig)
           );
         }
         await Promise.all(promises);

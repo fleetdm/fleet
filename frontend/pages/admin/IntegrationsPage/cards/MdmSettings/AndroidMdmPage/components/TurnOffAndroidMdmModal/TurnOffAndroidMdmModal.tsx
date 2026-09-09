@@ -1,10 +1,10 @@
-import React, { useCallback, useContext, useState } from "react";
+import React, { useCallback, useState } from "react";
 import { InjectedRouter } from "react-router";
 import { useQueryClient } from "react-query";
 
 import PATHS from "router/paths";
 import mdmAndroidAPI from "services/entities/mdm_android";
-import { AppContext } from "context/app";
+import useUpdateAppConfig from "hooks/useUpdateAppConfig";
 import { IConfig } from "interfaces/config";
 
 import Modal from "components/Modal";
@@ -23,8 +23,8 @@ const TurnOffAndroidMdmModal = ({
   onExit,
   router,
 }: ITurnOffAndroidMdmModalProps) => {
-  const { setConfig } = useContext(AppContext);
   const queryClient = useQueryClient();
+  const updateAppConfig = useUpdateAppConfig();
 
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -48,12 +48,11 @@ const TurnOffAndroidMdmModal = ({
         ...prevConfig,
         mdm: { ...prevConfig.mdm, android_enabled_and_configured: false },
       };
-      setConfig(patched);
-      queryClient.setQueryData(["config"], patched);
+      updateAppConfig(patched);
     }
     notify.success("Android MDM turned off successfully.");
     router.push(PATHS.ADMIN_INTEGRATIONS_MDM);
-  }, [onExit, queryClient, router, setConfig]);
+  }, [onExit, queryClient, router, updateAppConfig]);
 
   return (
     <Modal title="Turn off Android MDM" className={baseClass} onExit={onExit}>

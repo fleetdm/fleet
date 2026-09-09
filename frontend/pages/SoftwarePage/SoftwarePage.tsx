@@ -1,6 +1,6 @@
 import React, { useCallback, useContext, useEffect, useState } from "react";
 import { InjectedRouter } from "react-router";
-import { useQuery } from "react-query";
+import { useQuery, useQueryClient } from "react-query";
 import { Tab, TabList, Tabs } from "react-tabs";
 
 import PATHS from "router/paths";
@@ -14,6 +14,7 @@ import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
 import { ISoftwareApiParams } from "services/entities/software";
 import { AppContext } from "context/app";
 import useTeamIdParam from "hooks/useTeamIdParam";
+import useUpdateAppConfig from "hooks/useUpdateAppConfig";
 import {
   convertParamsToSnakeCase,
   getPathWithQueryParams,
@@ -144,6 +145,8 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
     isTeamMaintainer,
     isPremiumTier,
   } = useContext(AppContext);
+  const queryClient = useQueryClient();
+  const updateAppConfig = useUpdateAppConfig();
 
   const isPrimoMode =
     globalConfigFromContext?.partnerships?.enable_primo || false;
@@ -211,7 +214,6 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
     data: softwareConfig,
     error: softwareConfigError,
     isFetching: isFetchingSoftwareConfig,
-    refetch: refetchSoftwareConfig,
   } = useQuery<
     IConfig | ILoadTeamResponse,
     Error,
@@ -278,11 +280,13 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
     configSoftwareAutomations: ISoftwareAutomations
   ) => {
     try {
-      const request = configAPI.update(configSoftwareAutomations);
-      await request.then(() => {
-        notify.success("Successfully updated vulnerability automations.");
-        refetchSoftwareConfig();
-      });
+      const updatedConfig = await configAPI.update(configSoftwareAutomations);
+      updateAppConfig(updatedConfig);
+      queryClient.setQueryData(
+        [{ scope: "softwareConfig", teamId: teamIdForApi }],
+        updatedConfig
+      );
+      notify.success("Successfully updated vulnerability automations.");
     } catch {
       notify.error(
         "Could not update vulnerability automations. Please try again."

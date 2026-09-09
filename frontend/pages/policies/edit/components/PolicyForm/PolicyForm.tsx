@@ -401,11 +401,14 @@ const PolicyForm = ({
     }
     setIsAddingAutomation(true);
     try {
-      await teamPoliciesAPI.update(policyIdForEdit as number, {
-        team_id: storedPolicy.team_id,
-        software_title_id: storedPolicy.patch_software.software_title_id,
-      });
-      queryClient.invalidateQueries(["policy", policyIdForEdit]);
+      const { policy: updatedPolicy } = await teamPoliciesAPI.update(
+        policyIdForEdit as number,
+        {
+          team_id: storedPolicy.team_id,
+          software_title_id: storedPolicy.patch_software.software_title_id,
+        }
+      );
+      queryClient.setQueryData(["policy", policyIdForEdit], updatedPolicy);
       notify.success("Automation added.");
     } catch (e) {
       notify.error("Couldn't set automation. Please try again.", {

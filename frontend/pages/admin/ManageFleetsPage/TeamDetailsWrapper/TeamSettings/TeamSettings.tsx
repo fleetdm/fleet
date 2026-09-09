@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 
-import { useQuery } from "react-query";
+import { useQuery, useQueryClient } from "react-query";
 
 import useTeamIdParam from "hooks/useTeamIdParam";
 
@@ -123,6 +123,7 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
   const [formErrors, setFormErrors] = useState<Record<string, string | null>>(
     {}
   );
+  const queryClient = useQueryClient();
   const [
     showHostStatusWebhookPreviewModal,
     setShowHostStatusWebhookPreviewModal,
@@ -173,7 +174,6 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
   const {
     data: teamConfig,
     isLoading: isLoadingTeamConfig,
-    refetch: refetchTeamConfig,
     error: errorLoadTeamConfig,
   } = useQuery<ILoadTeamResponse, Error, ITeamConfig>(
     ["teamConfig", teamIdForApi],
@@ -327,9 +327,9 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
         },
         teamIdForApi
       )
-      .then(() => {
+      .then((response) => {
+        queryClient.setQueryData(["teamConfig", teamIdForApi], response);
         notify.success("Successfully updated settings.");
-        refetchTeamConfig();
         setIsInitialTeamConfig(false);
         setConfirmModalOpen(false);
       })
@@ -342,7 +342,7 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
       .finally(() => {
         setUpdatingTeamSettings(false);
       });
-  }, [formData, globalHostExpiryEnabled, refetchTeamConfig, teamIdForApi]);
+  }, [formData, globalHostExpiryEnabled, queryClient, teamIdForApi]);
 
   const updateTeamSettings = useCallback(
     (evt: React.MouseEvent<HTMLFormElement>) => {

@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useContext } from "react";
-import { useQuery } from "react-query";
+import { useQuery, useQueryClient } from "react-query";
 import { useErrorHandler } from "react-error-boundary";
 import { InjectedRouter } from "react-router";
 import { Tab, TabList, Tabs } from "react-tabs";
@@ -101,6 +101,7 @@ const TeamDetailsWrapper = ({
     setCurrentUser,
     config,
   } = useContext(AppContext);
+  const queryClient = useQueryClient();
 
   const {
     currentTeamId,
@@ -171,11 +172,11 @@ const TeamDetailsWrapper = ({
   );
   const currentTeamDetails = teams?.find((team) => team.id === teamIdForApi);
 
-  const {
-    isLoading: isTeamSecretsLoading,
-    data: teamSecrets,
-    refetch: refetchTeamSecrets,
-  } = useQuery<IEnrollSecretsResponse, Error, IEnrollSecret[]>(
+  const { isLoading: isTeamSecretsLoading, data: teamSecrets } = useQuery<
+    IEnrollSecretsResponse,
+    Error,
+    IEnrollSecret[]
+  >(
     ["team secrets", teamIdForApi],
     () => {
       return enrollSecretsAPI.getTeamEnrollSecrets(teamIdForApi);
@@ -246,10 +247,15 @@ const TeamDetailsWrapper = ({
     }
     setIsUpdatingSecret(true);
     try {
-      await enrollSecretsAPI.modifyTeamEnrollSecrets(teamIdForApi, newSecrets);
-      refetchTeamSecrets();
+      const response = await enrollSecretsAPI.modifyTeamEnrollSecrets(
+        teamIdForApi,
+        newSecrets
+      );
+      queryClient.setQueryData(["team secrets", teamIdForApi], response);
 
       toggleSecretEditorModal();
+      // Team list may show a secret count — separate resource, still needs
+      // a refetch until the backend returns updated team on secret modify.
       isPremiumTier && refetchTeams();
       notify.success(
         `Successfully ${selectedSecret ? "edited" : "added"} enroll secret.`
@@ -276,9 +282,14 @@ const TeamDetailsWrapper = ({
     );
     setIsUpdatingSecret(true);
     try {
-      await enrollSecretsAPI.modifyTeamEnrollSecrets(teamIdForApi, newSecrets);
-      refetchTeamSecrets();
+      const response = await enrollSecretsAPI.modifyTeamEnrollSecrets(
+        teamIdForApi,
+        newSecrets
+      );
+      queryClient.setQueryData(["team secrets", teamIdForApi], response);
       toggleDeleteSecretModal();
+      // Team list may show a secret count — separate resource, still needs
+      // a refetch until the backend returns updated team on secret modify.
       refetchTeams();
       notify.success(`Successfully deleted enroll secret.`);
     } catch (error) {
@@ -325,14 +336,26 @@ const TeamDetailsWrapper = ({
 
       setIsUpdatingTeams(true);
       try {
-        await teamsAPI.update(updatedAttrs, teamIdForApi);
+        const response = await teamsAPI.update(updatedAttrs, teamIdForApi);
+        // Splice the updated team into the cached teams list so we don't
+        // trigger a re-read that could return stale data under replica lag.
+        const cached = queryClient.getQueryData<ILoadTeamsResponse>(["teams"]);
+        if (cached) {
+          queryClient.setQueryData<ILoadTeamsResponse>(["teams"], {
+            ...cached,
+            teams: cached.teams.map((t) =>
+              t.id === teamIdForApi ? response.team : t
+            ),
+          });
+        }
+        setBackendValidators({});
+        // Fresh /me since team memberships / display names on the current
+        // user can change as a side effect of a team rename.
+        refetchMe();
+        toggleRenameFleetModal();
         notify.success(
           `Successfully updated fleet name to ${updatedAttrs?.name}`
         );
-        setBackendValidators({});
-        refetchTeams();
-        refetchMe();
-        toggleRenameFleetModal();
       } catch (response) {
         console.error(response);
         const errorObject = formatErrorResponse(response);
@@ -361,7 +384,7 @@ const TeamDetailsWrapper = ({
       currentTeamDetails,
       toggleRenameFleetModal,
       teamIdForApi,
-      refetchTeams,
+      queryClient,
       refetchMe,
     ]
   );
