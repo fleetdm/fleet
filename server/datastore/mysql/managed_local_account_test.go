@@ -937,11 +937,22 @@ func testManagedLocalAccountGetWindowsForAutoRotation(t *testing.T, ds *Datastor
 	rows, err := ds.GetWindowsManagedLocalAccountsForAutoRotation(ctx)
 	require.NoError(t, err)
 
-	got := make([]string, 0, len(rows))
+	// Membership rather than an exact set: the subtests share one datastore, so asserting the whole result would
+	// couple this to whatever rows the others leave behind.
+	got := make(map[string]struct{}, len(rows))
 	for _, r := range rows {
-		got = append(got, r.HostUUID)
+		got[r.HostUUID] = struct{}{}
 	}
-	assert.ElementsMatch(t, []string{eligible}, got)
+	_, hasEligible := got[eligible]
+	_, hasNotDue := got[notDue]
+	_, hasFailed := got[failed]
+	_, hasOutstanding := got[outstanding]
+	_, hasMac := got[macH.UUID]
+	assert.True(t, hasEligible, "due host should be returned")
+	assert.False(t, hasNotDue, "host whose timer has not elapsed should not be returned")
+	assert.False(t, hasFailed, "failed host should not be returned")
+	assert.False(t, hasOutstanding, "host with a rotation already requested should not be returned")
+	assert.False(t, hasMac, "macOS host belongs to the Apple query")
 }
 
 // setAutoRotateAt moves a row's rotation deadline so the cron query can be exercised without waiting on the view timer.

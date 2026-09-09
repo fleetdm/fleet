@@ -13,6 +13,8 @@ import (
 )
 
 func TestSendManagedLocalAccountRotationRequests(t *testing.T) {
+	t.Parallel()
+
 	logger := slog.New(slog.DiscardHandler)
 
 	setup := func(rows []fleet.HostManagedLocalAccountWindowsRotationInfo) *mock.Store {

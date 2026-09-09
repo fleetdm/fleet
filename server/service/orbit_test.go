@@ -2020,10 +2020,10 @@ func TestGetOrbitConfigWindowsManagedLocalAccount(t *testing.T) {
 
 	// withRotationRequested puts the host in the state a rotation leaves behind: it has already escrowed a password for
 	// this enrollment, and a rotation is outstanding.
-	withRotationRequested := func(ds *mock.Store, awaiting fleet.WindowsMDMAwaitingConfiguration) {
+	withRotationRequested := func(ds *mock.Store) {
 		ds.GetMDMWindowsHostConfigStateFunc = func(ctx context.Context, hostUUID string) (*fleet.MDMWindowsHostConfigState, error) {
 			return &fleet.MDMWindowsHostConfigState{
-				AwaitingConfiguration:                awaiting,
+				AwaitingConfiguration:                fleet.WindowsMDMAwaitingConfigurationNone,
 				ManagedLocalAccountEscrowed:          true,
 				ManagedLocalAccountRotationRequested: true,
 			}, nil
@@ -2034,7 +2034,7 @@ func TestGetOrbitConfigWindowsManagedLocalAccount(t *testing.T) {
 	// the already-escrowed short-circuit above must not swallow it.
 	t.Run("rotation requested sets it despite being already escrowed", func(t *testing.T) {
 		ds, svc, ctx := setupSvc(t, fleet.TierPremium, true, fleet.WindowsMDMAwaitingConfigurationNone, true)
-		withRotationRequested(ds, fleet.WindowsMDMAwaitingConfigurationNone)
+		withRotationRequested(ds)
 		cfg, err := svc.GetOrbitConfig(withMLACapability(ctx))
 		require.NoError(t, err)
 		assert.True(t, cfg.Notifications.CreateWindowsManagedLocalAccount)
@@ -2044,7 +2044,7 @@ func TestGetOrbitConfigWindowsManagedLocalAccount(t *testing.T) {
 	// macOS.
 	t.Run("rotation requested sets it even when the setting is off", func(t *testing.T) {
 		ds, svc, ctx := setupSvc(t, fleet.TierPremium, false, fleet.WindowsMDMAwaitingConfigurationNone, true)
-		withRotationRequested(ds, fleet.WindowsMDMAwaitingConfigurationNone)
+		withRotationRequested(ds)
 		cfg, err := svc.GetOrbitConfig(withMLACapability(ctx))
 		require.NoError(t, err)
 		assert.True(t, cfg.Notifications.CreateWindowsManagedLocalAccount)
@@ -2052,7 +2052,7 @@ func TestGetOrbitConfigWindowsManagedLocalAccount(t *testing.T) {
 
 	t.Run("rotation requested still needs the capability", func(t *testing.T) {
 		ds, svc, ctx := setupSvc(t, fleet.TierPremium, true, fleet.WindowsMDMAwaitingConfigurationNone, true)
-		withRotationRequested(ds, fleet.WindowsMDMAwaitingConfigurationNone)
+		withRotationRequested(ds)
 		cfg, err := svc.GetOrbitConfig(ctx)
 		require.NoError(t, err)
 		assert.False(t, cfg.Notifications.CreateWindowsManagedLocalAccount)
@@ -2060,7 +2060,7 @@ func TestGetOrbitConfigWindowsManagedLocalAccount(t *testing.T) {
 
 	t.Run("rotation requested still needs premium", func(t *testing.T) {
 		ds, svc, ctx := setupSvc(t, fleet.TierFree, true, fleet.WindowsMDMAwaitingConfigurationNone, true)
-		withRotationRequested(ds, fleet.WindowsMDMAwaitingConfigurationNone)
+		withRotationRequested(ds)
 		cfg, err := svc.GetOrbitConfig(withMLACapability(ctx))
 		require.NoError(t, err)
 		assert.False(t, cfg.Notifications.CreateWindowsManagedLocalAccount)
