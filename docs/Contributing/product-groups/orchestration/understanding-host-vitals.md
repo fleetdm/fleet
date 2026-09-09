@@ -762,10 +762,10 @@ SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND na
 SELECT
   name AS name,
   version AS version,
-  '' AS extension_id,
+  module_path AS extension_id,
   '' AS extension_for,
   'go_binaries' AS source,
-  '' AS release,
+  go_version AS release,
   '' AS vendor,
   '' AS arch,
   installed_path AS installed_path
