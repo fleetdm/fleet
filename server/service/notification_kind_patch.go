@@ -378,7 +378,7 @@ func (k *patchNotificationKind) remindOrInstallDuePatch(
 
 		var installedByFleet bool
 		for _, install := range installsByTitle[appKey] {
-			if install.Status != nil && *install.Status == fleet.SoftwareInstalled && install.UpdatedAt.After(duePatch.CreatedAt) {
+			if install.Status != nil && *install.Status == fleet.SoftwareInstalled && install.UpdatedAt.After(app.CreatedAt) {
 				installedByFleet = true
 				break
 			}
@@ -596,10 +596,12 @@ func (k *patchNotificationKind) OnOutcome(ctx context.Context, notification *not
 	var installAt *time.Time
 	if outcome.Displayed {
 		status = "success"
-
-		// The deadline is counted from this notice reaching the screen, so the end user gets the whole
-		// lead time the toast promises however long the toast took to get there. notification.DisplayedAt
-		// is still nil here, since RecordOutcome loaded that copy before the outcome write.
+	}
+	// install_at follows displayed_at, which the notifications context only records while the
+	// notification is still dispatched. A result from a superseded script arriving after a delay or
+	// an update_now must not move install_at. notification.DisplayedAt is nil either way here, since
+	// RecordOutcome loaded that copy before the outcome write.
+	if outcome.Displayed && notification.Status == notifications_api.EndUserNotificationDispatched {
 		deadline, err := k.ds.SetPatchNotificationInstallAt(ctx, notification.UUID, time.Now().UTC().Add(timeBefore))
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "set patch notification install at")

@@ -329,22 +329,17 @@ func (ds *Datastore) DelayEndUserNotification(ctx context.Context, notificationU
 	//
 	// Terminal notifications are excluded so a delay can't revive a notification
 	// that is already over.
-	//
-	// The lifetime is pushed out because a notification waiting on a deadline can be re-dispatched for longer
-	// than the lifetime it was created with.
 	const updateStmt = `
 UPDATE notifications_end_user
 SET status = ?, next_attempt_at = ?, last_reason = ?, displayed_at = NULL,
-	payload = COALESCE(?, payload),
-	expires_at = GREATEST(expires_at, NOW(6) + INTERVAL ? SECOND)
+	payload = COALESCE(?, payload)
 WHERE uuid = ?
 	AND status NOT IN (?, ?, ?)
 	AND expires_at > NOW(6)
 `
 
 	if _, err := ds.primary.ExecContext(ctx, updateStmt,
-		api.EndUserNotificationPending, nextAttemptAt, api.EndUserNotificationReasonDelayed, payload,
-		int(api.EndUserNotificationMaxLifetime.Seconds()), notificationUUID,
+		api.EndUserNotificationPending, nextAttemptAt, api.EndUserNotificationReasonDelayed, payload, notificationUUID,
 		api.EndUserNotificationExpired, api.EndUserNotificationFailed, api.EndUserNotificationActed,
 	); err != nil {
 		return ctxerr.Wrap(ctx, err, "delay end user notification")

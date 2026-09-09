@@ -148,8 +148,7 @@ SELECT
 	neu.host_id,
 	neu.status,
 	neu.payload,
-	neu.displayed_at,
-	neu.created_at
+	neu.displayed_at
 FROM patch_notifications pn
 	JOIN notifications_end_user neu ON neu.uuid = pn.notification_uuid
 -- a notification with no deadline was never displayed, so nothing is due for it yet
@@ -157,6 +156,8 @@ WHERE pn.install_at IS NOT NULL
 	AND pn.install_at <= ?
 	-- acted notifications have already been patched, failed and expired ones never will be
 	AND neu.status IN (?, ?)
+	-- before install_at the only thing to do is remind, and only a displayed notification gets one
+	AND (pn.install_at <= NOW(6) OR (neu.status = ? AND neu.displayed_at IS NOT NULL))
 ORDER BY pn.install_at
 LIMIT ?
 `
@@ -164,7 +165,8 @@ LIMIT ?
 	var due []fleet.PatchNotificationDue
 	// reads the primary because the display that sets the deadline can be seconds old
 	if err := sqlx.SelectContext(ctx, ds.writer(ctx), &due, selectStmt,
-		cutoff, notifications_api.EndUserNotificationPending, notifications_api.EndUserNotificationDispatched, limit,
+		cutoff, notifications_api.EndUserNotificationPending, notifications_api.EndUserNotificationDispatched,
+		notifications_api.EndUserNotificationDispatched, limit,
 	); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "list patch notifications due")
 	}
@@ -216,6 +218,7 @@ SELECT
 	pna.software_title_id,
 	pna.software_installer_id,
 	pna.install_queued,
+	pna.created_at,
 	COALESCE(si.version, '') AS installer_version
 FROM patch_notification_apps pna
 	LEFT JOIN software_installers si ON si.id = pna.software_installer_id

@@ -3313,17 +3313,17 @@ func testBatchInstallVerificationReads(t *testing.T, ds *Datastore) {
 		require.NotNil(t, install.Status)
 		statusByExecutionID[install.ExecutionID] = *install.Status
 	}
-	assert.Equal(t, fleet.SoftwareInstalled, statusByExecutionID[firstExecutionID])
-	assert.Equal(t, fleet.SoftwareInstallPending, statusByExecutionID[secondExecutionID])
+	require.Equal(t, fleet.SoftwareInstalled, statusByExecutionID[firstExecutionID])
+	require.Equal(t, fleet.SoftwareInstallPending, statusByExecutionID[secondExecutionID])
 
 	// a host Fleet has installed nothing on is left out
-	assert.NotContains(t, installsByTitle, fleet.HostSoftwareTitleKey{HostID: untouchedHost.ID, SoftwareTitleID: titleID})
+	require.NotContains(t, installsByTitle, fleet.HostSoftwareTitleKey{HostID: untouchedHost.ID, SoftwareTitleID: titleID})
 
 	// a software title with no installer of its own has nothing to report
 	otherTitleID := newTestSoftwareTitle(t, ds, "Uninstallable App")
 	installsByTitle, err = ds.ListHostLastTitleInstallData(ctx, []uint{installedHost.ID}, []uint{otherTitleID})
 	require.NoError(t, err)
-	assert.Empty(t, installsByTitle)
+	require.Empty(t, installsByTitle)
 
 	// The host's software inventory, the second read RemindAndInstallDuePatches does. A software
 	// title with two versions in host_software returns both rows, since the caller treats the title
@@ -3341,19 +3341,19 @@ func testBatchInstallVerificationReads(t *testing.T, ds *Datastore) {
 
 	installedVersions := make([]string, 0, len(versions))
 	for _, version := range versions {
-		assert.Equal(t, installedHost.ID, version.HostID, "the host with no inventory reports nothing")
-		assert.Equal(t, titleID, version.SoftwareTitleID, "a title that wasn't asked for stays out")
+		require.Equal(t, installedHost.ID, version.HostID, "the host with no inventory reports nothing")
+		require.Equal(t, titleID, version.SoftwareTitleID, "a title that wasn't asked for stays out")
 		installedVersions = append(installedVersions, version.Version)
 	}
-	assert.ElementsMatch(t, []string{"1.0.0", "2.0.0"}, installedVersions)
+	require.ElementsMatch(t, []string{"1.0.0", "2.0.0"}, installedVersions)
 
 	// neither an empty host list nor an empty title list reads the whole table
 	versions, err = ds.ListHostSoftwareVersionsForTitles(ctx, nil, []uint{titleID})
 	require.NoError(t, err)
-	assert.Empty(t, versions)
+	require.Empty(t, versions)
 	versions, err = ds.ListHostSoftwareVersionsForTitles(ctx, []uint{installedHost.ID}, nil)
 	require.NoError(t, err)
-	assert.Empty(t, versions)
+	require.Empty(t, versions)
 }
 
 func testGetOrGenerateSoftwareInstallerTitleID(t *testing.T, ds *Datastore) {

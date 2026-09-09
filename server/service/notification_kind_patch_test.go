@@ -12,7 +12,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	notifications_api "github.com/fleetdm/fleet/v4/server/notifications/api"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -137,9 +136,9 @@ func TestCreatePatchNotificationForEndUser(t *testing.T) {
 				return &notifications_api.EndUserNotification{UUID: awaitingUUID}, nil
 			}
 			notificationsSvc.CreateNotificationFunc = func(_ context.Context, notification *notifications_api.EndUserNotification) (*notifications_api.EndUserNotification, error) {
-				assert.Equal(t, hostID, notification.HostID)
-				assert.Equal(t, fleet.PatchNotificationKind, notification.Kind)
-				assert.JSONEq(t, `{"reminder":false}`, string(notification.Payload))
+				require.Equal(t, hostID, notification.HostID)
+				require.Equal(t, fleet.PatchNotificationKind, notification.Kind)
+				require.JSONEq(t, `{"reminder":false}`, string(notification.Payload))
 				require.NotNil(t, notification.ExpiresAt, "a notification with no expiry never gives up")
 				return &notifications_api.EndUserNotification{UUID: createdUUID}, nil
 			}
@@ -176,16 +175,16 @@ func TestCreatePatchNotificationForEndUser(t *testing.T) {
 				require.NoError(t, err)
 			}
 
-			assert.Equal(t, c.wantCreated, notificationsSvc.CreateNotificationFuncInvoked)
-			assert.Equal(t, c.wantCreated, ds.NewPatchNotificationFuncInvoked)
-			assert.Equal(t, c.wantAppOn, addedTo)
+			require.Equal(t, c.wantCreated, notificationsSvc.CreateNotificationFuncInvoked)
+			require.Equal(t, c.wantCreated, ds.NewPatchNotificationFuncInvoked)
+			require.Equal(t, c.wantAppOn, addedTo)
 
 			if c.wantAppOn != "" {
-				assert.Equal(t, titleID, addedApp.SoftwareTitleID)
+				require.Equal(t, titleID, addedApp.SoftwareTitleID)
 				require.NotNil(t, addedApp.SoftwareInstallerID)
-				assert.Equal(t, installerID, *addedApp.SoftwareInstallerID)
+				require.Equal(t, installerID, *addedApp.SoftwareInstallerID)
 				require.NotNil(t, addedApp.PolicyID)
-				assert.Equal(t, policyID, *addedApp.PolicyID)
+				require.Equal(t, policyID, *addedApp.PolicyID)
 			}
 		})
 	}
@@ -298,8 +297,8 @@ func TestPatchNotificationUpdateNow(t *testing.T) {
 
 			var installs []fleet.HostSoftwareInstallOptions
 			ds.InsertSoftwareInstallRequestFunc = func(_ context.Context, gotHostID uint, gotInstallerID uint, opts fleet.HostSoftwareInstallOptions) (string, error) {
-				assert.Equal(t, hostID, gotHostID)
-				assert.Equal(t, installerID, gotInstallerID)
+				require.Equal(t, hostID, gotHostID)
+				require.Equal(t, installerID, gotInstallerID)
 				if c.installFails {
 					return "", errors.New("insert failed")
 				}
@@ -320,30 +319,30 @@ func TestPatchNotificationUpdateNow(t *testing.T) {
 			})
 			if c.wantErr {
 				require.Error(t, err)
-				assert.Equal(t, c.status, notificationSvc.setStatus,
+				require.Equal(t, c.status, notificationSvc.setStatus,
 					"the notification goes back to the status it had so the next press can finish queueing")
 				return
 			}
-			assert.Empty(t, notificationSvc.setStatus)
+			require.Empty(t, notificationSvc.setStatus)
 			require.NoError(t, err)
 
 			require.Len(t, installs, c.wantInstalls)
 			for _, opts := range installs {
-				assert.False(t, opts.OverridePreInstallQuery, "the end user asked for this, so the app being open must not stop it")
+				require.False(t, opts.OverridePreInstallQuery, "the end user asked for this, so the app being open must not stop it")
 				require.NotNil(t, opts.PolicyID, "the install keeps its policy so it shows in Automation runs")
-				assert.Equal(t, policyID, *opts.PolicyID)
+				require.Equal(t, policyID, *opts.PolicyID)
 			}
-			assert.Equal(t, c.wantActionTry, notificationSvc.actInvoked)
+			require.Equal(t, c.wantActionTry, notificationSvc.actInvoked)
 
 			if !c.wantActionTry {
-				assert.Nil(t, view, "nothing changed, so the notification renders as it was")
+				require.Nil(t, view, "nothing changed, so the notification renders as it was")
 				return
 			}
 
 			// the returned view is what the end user sees without a second request
 			require.NotNil(t, view)
 			require.Len(t, view.Items, 1)
-			assert.Equal(t, "Installing...", view.Items[0].Status)
+			require.Equal(t, "Installing...", view.Items[0].Status)
 			require.Equal(t, []notifications_api.NotificationAction{
 				{ID: patchNotificationActionDismiss, Label: "Hide"},
 			}, view.Actions, "the apps are already installing, so only Hide is offered")
@@ -421,7 +420,7 @@ func TestPatchNotificationUpdateNowResumesAfterFailure(t *testing.T) {
 	_, err := kind.updateNow(context.Background(), notification)
 	require.Error(t, err)
 	require.Equal(t, []uint{firstInstaller}, installed)
-	assert.Equal(t, notifications_api.EndUserNotificationDispatched, notificationSvc.setStatus)
+	require.Equal(t, notifications_api.EndUserNotificationDispatched, notificationSvc.setStatus)
 
 	// the end user presses again, and this time the second app's install works
 	secondInstallerFails = false
@@ -430,8 +429,8 @@ func TestPatchNotificationUpdateNowResumesAfterFailure(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, []uint{firstInstaller, secondInstaller}, installed,
 		"the first app is not queued a second time")
-	assert.True(t, notificationSvc.actInvoked)
-	assert.Empty(t, notificationSvc.setStatus)
+	require.True(t, notificationSvc.actInvoked)
+	require.Empty(t, notificationSvc.setStatus)
 }
 
 // A notification whose apps are gone, after an admin deletes the title, fails rather than retrying.
@@ -451,8 +450,8 @@ func TestPatchNotificationRenderWithNoApps(t *testing.T) {
 		Payload: patchNotificationFirstNoticePayload,
 	})
 	require.Error(t, err)
-	assert.Nil(t, view)
-	assert.Equal(t, notifications_api.EndUserNotificationReasonNothingToShow, notificationSvc.failedReason)
+	require.Nil(t, view)
+	require.Equal(t, notifications_api.EndUserNotificationReasonNothingToShow, notificationSvc.failedReason)
 }
 
 // What the activity OnOutcome records: which apps and policies it names, which
@@ -570,13 +569,14 @@ func TestPatchNotificationOnOutcome(t *testing.T) {
 			}
 			notification := &notifications_api.EndUserNotification{
 				UUID: "notification-uuid", HostID: hostID, Payload: payload, LastExitCode: c.lastExitCode,
+				Status: notifications_api.EndUserNotificationDispatched,
 			}
 
 			err := kind.OnOutcome(context.Background(), notification, c.outcome)
 			require.NoError(t, err)
 
 			if c.wantNoActivity {
-				assert.False(t, writer.invoked)
+				require.False(t, writer.invoked)
 				return
 			}
 
@@ -584,27 +584,27 @@ func TestPatchNotificationOnOutcome(t *testing.T) {
 			activity, ok := writer.activity.(fleet.ActivityTypeNotifiedEndUserBeforePatching)
 			require.True(t, ok)
 
-			assert.Equal(t, hostID, activity.HostID)
-			assert.Equal(t, "Test Host", activity.HostDisplayName)
-			assert.Equal(t, notification.UUID, activity.PatchNotificationUUID)
-			assert.Equal(t, c.wantStatus, activity.Status)
-			assert.Equal(t, c.wantTimeBefore, activity.TimeBefore)
+			require.Equal(t, hostID, activity.HostID)
+			require.Equal(t, "Test Host", activity.HostDisplayName)
+			require.Equal(t, notification.UUID, activity.PatchNotificationUUID)
+			require.Equal(t, c.wantStatus, activity.Status)
+			require.Equal(t, c.wantTimeBefore, activity.TimeBefore)
 
 			// Only a displayed outcome sets install_at, and it is set from the lead time of the
 			// notification that was displayed, so a reminder sets it 5 minutes out, not an hour.
 			if c.wantStatus != "success" {
-				assert.False(t, ds.SetPatchNotificationInstallAtFuncInvoked)
-				assert.Nil(t, activity.InstallAt)
+				require.False(t, ds.SetPatchNotificationInstallAtFuncInvoked)
+				require.Nil(t, activity.InstallAt)
 			} else {
-				assert.True(t, ds.SetPatchNotificationInstallAtFuncInvoked)
-				assert.Equal(t, time.Duration(c.wantTimeBefore)*time.Second, gotLeadTime)
+				require.True(t, ds.SetPatchNotificationInstallAtFuncInvoked)
+				require.Equal(t, time.Duration(c.wantTimeBefore)*time.Second, gotLeadTime)
 				require.NotNil(t, activity.InstallAt)
-				assert.Equal(t, deadline, *activity.InstallAt)
+				require.Equal(t, deadline, *activity.InstallAt)
 			}
-			assert.Equal(t, c.outcome.ExecutionID, activity.ScriptExecutionID)
+			require.Equal(t, c.outcome.ExecutionID, activity.ScriptExecutionID)
 
-			assert.Equal(t, c.wantTitles, activity.SoftwareTitles)
-			assert.Equal(t, c.wantPolicyIDs, activity.PolicyIDs)
+			require.Equal(t, c.wantTitles, activity.SoftwareTitles)
+			require.Equal(t, c.wantPolicyIDs, activity.PolicyIDs)
 		})
 	}
 }
@@ -624,6 +624,7 @@ func TestRemindAndInstallDuePatches(t *testing.T) {
 	behind := map[uint]string{oneTitleID: "1.0.0", twoTitleID: "1.0.0"}
 
 	displayedAt := time.Now().UTC().Add(-55 * time.Minute)
+	appAddedAt := time.Now().UTC().Add(-50 * time.Minute)
 
 	cases := []struct {
 		name string
@@ -674,15 +675,27 @@ func TestRemindAndInstallDuePatches(t *testing.T) {
 		},
 		{
 			// a My device self-service update lands before inventory catches up
-			name:              "an app Fleet installed since the notification was created is not installed again",
+			name:              "an app Fleet installed since it was added to the notification is not installed again",
 			untilDeadline:     -time.Minute,
 			displayed:         true,
 			reminder:          true,
 			installedVersions: behind,
-			lastInstalled:     new(time.Now().UTC()),
+			lastInstalled:     new(appAddedAt.Add(time.Minute)),
 			wantActed:         true,
 			wantInstalls:      []uint{twoInstallerID},
 			wantAppsDropped:   []uint{oneTitleID},
+		},
+		{
+			// the app was added because its policy failed after that install, so the install is no
+			// evidence that it is up to date
+			name:              "an app Fleet installed before it was added to the notification is still installed",
+			untilDeadline:     -time.Minute,
+			displayed:         true,
+			reminder:          true,
+			installedVersions: behind,
+			lastInstalled:     new(appAddedAt.Add(-time.Minute)),
+			wantActed:         true,
+			wantInstalls:      []uint{oneInstallerID, twoInstallerID},
 		},
 		{
 			name:              "an Update now that got there first stops the deadline installing the same apps again",
@@ -723,14 +736,13 @@ func TestRemindAndInstallDuePatches(t *testing.T) {
 			var gotCutoff time.Time
 			ds.ListPatchNotificationsDueFunc = func(_ context.Context, cutoff time.Time, limit int) ([]fleet.PatchNotificationDue, error) {
 				gotCutoff = cutoff
-				assert.Equal(t, duePatchNotificationBatchSize, limit)
+				require.Equal(t, duePatchNotificationBatchSize, limit)
 				return []fleet.PatchNotificationDue{{
 					NotificationUUID: "notification-uuid",
 					HostID:           hostID,
 					Status:           notifications_api.EndUserNotificationDispatched,
 					Payload:          payload,
 					DisplayedAt:      displayed,
-					CreatedAt:        displayedAt.Add(-time.Minute),
 					InstallAt:        time.Now().UTC().Add(c.untilDeadline),
 				}}, nil
 			}
@@ -741,8 +753,8 @@ func TestRemindAndInstallDuePatches(t *testing.T) {
 			ds.ListPatchNotificationAppsForNotificationsFunc = func(_ context.Context, uuids []string) (map[string][]fleet.PatchNotificationAppDetail, error) {
 				appReads++
 				all := []fleet.PatchNotificationAppDetail{
-					{SoftwareTitleID: oneTitleID, SoftwareInstallerID: new(oneInstallerID), PolicyID: new(policyID), InstallerVersion: installerVersion},
-					{SoftwareTitleID: twoTitleID, SoftwareInstallerID: new(twoInstallerID), PolicyID: new(policyID), InstallerVersion: installerVersion},
+					{SoftwareTitleID: oneTitleID, SoftwareInstallerID: new(oneInstallerID), PolicyID: new(policyID), InstallerVersion: installerVersion, CreatedAt: appAddedAt},
+					{SoftwareTitleID: twoTitleID, SoftwareInstallerID: new(twoInstallerID), PolicyID: new(policyID), InstallerVersion: installerVersion, CreatedAt: appAddedAt},
 				}
 				listed := make([]fleet.PatchNotificationAppDetail, 0, len(all))
 				for _, app := range all {
@@ -789,10 +801,10 @@ func TestRemindAndInstallDuePatches(t *testing.T) {
 
 			var installs []uint
 			ds.InsertSoftwareInstallRequestFunc = func(_ context.Context, gotHostID uint, installerID uint, opts fleet.HostSoftwareInstallOptions) (string, error) {
-				assert.Equal(t, hostID, gotHostID)
-				assert.False(t, opts.OverridePreInstallQuery, "the deadline forces the install, so the app being open must not stop it")
+				require.Equal(t, hostID, gotHostID)
+				require.False(t, opts.OverridePreInstallQuery, "the deadline forces the install, so the app being open must not stop it")
 				require.NotNil(t, opts.PolicyID)
-				assert.Equal(t, policyID, *opts.PolicyID)
+				require.Equal(t, policyID, *opts.PolicyID)
 				installs = append(installs, installerID)
 				return "", nil
 			}
@@ -801,21 +813,21 @@ func TestRemindAndInstallDuePatches(t *testing.T) {
 
 			require.NoError(t, kind.RemindAndInstallDuePatches(context.Background()))
 
-			assert.WithinDuration(t, time.Now().UTC().Add(patchNotificationReminderBefore), gotCutoff, time.Minute,
+			require.WithinDuration(t, time.Now().UTC().Add(patchNotificationReminderBefore), gotCutoff, time.Minute,
 				"the cutoff is install_at plus the reminder lead time")
 
 			// one read each per batch, not one per notification
-			assert.Equal(t, 1, appReads)
-			assert.Equal(t, 1, versionReads)
-			assert.Equal(t, 1, installDataReads)
+			require.Equal(t, 1, appReads)
+			require.Equal(t, 1, versionReads)
+			require.Equal(t, 1, installDataReads)
 
-			assert.ElementsMatch(t, c.wantInstalls, installs)
-			assert.ElementsMatch(t, c.wantAppsDropped, gotDropped)
-			assert.Equal(t, c.wantActed, notificationSvc.actInvoked)
-			assert.Equal(t, c.wantReset, ds.ResetPatchNotificationFuncInvoked)
+			require.ElementsMatch(t, c.wantInstalls, installs)
+			require.ElementsMatch(t, c.wantAppsDropped, gotDropped)
+			require.Equal(t, c.wantActed, notificationSvc.actInvoked)
+			require.Equal(t, c.wantReset, ds.ResetPatchNotificationFuncInvoked)
 
 			if !c.wantReminder {
-				assert.False(t, notificationSvc.delayInvoked)
+				require.False(t, notificationSvc.delayInvoked)
 				return
 			}
 			require.True(t, notificationSvc.delayInvoked)
@@ -824,7 +836,7 @@ func TestRemindAndInstallDuePatches(t *testing.T) {
 			if c.wantReset {
 				wantPayload = patchNotificationFirstNoticePayload
 			}
-			assert.JSONEq(t, string(wantPayload), string(notificationSvc.delayPayload))
+			require.JSONEq(t, string(wantPayload), string(notificationSvc.delayPayload))
 		})
 	}
 }

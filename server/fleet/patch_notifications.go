@@ -21,7 +21,6 @@ type PatchNotificationDue struct {
 	Status           string          `db:"status"`
 	Payload          json.RawMessage `db:"payload"`
 	DisplayedAt      *time.Time      `db:"displayed_at"`
-	CreatedAt        time.Time       `db:"created_at"`
 	InstallAt        time.Time       `db:"install_at"`
 }
 
@@ -39,4 +38,6 @@ type PatchNotificationAppDetail struct {
 	DisplayName         string `db:"display_name"`
 	HasIcon             bool   `db:"has_icon"`
 	InstallQueued       bool   `db:"install_queued"`
+	// CreatedAt is when the app was added to the notification
+	CreatedAt time.Time `db:"created_at"`
 }

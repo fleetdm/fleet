@@ -776,8 +776,8 @@ type Datastore interface {
 	// ResetPatchNotification clears the deadline, so the next display sets a new one.
 	ResetPatchNotification(ctx context.Context, notificationUUID string) error
 	// ListPatchNotificationsDue returns the notifications still being delivered
-	// whose deadline is at or before the cutoff, along with whether their host is
-	// online.
+	// whose install_at is at or before the cutoff and that the caller can act on:
+	// past install_at, or displayed and waiting on their reminder.
 	ListPatchNotificationsDue(ctx context.Context, cutoff time.Time, limit int) ([]PatchNotificationDue, error)
 
 	///////////////////////////////////////////////////////////////////////////////
