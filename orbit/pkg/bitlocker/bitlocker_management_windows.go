@@ -589,7 +589,7 @@ func rotateRecoveryKeyOnCOMThread(targetVolume string) (string, error) {
 	}
 
 	// Give pre-encrypted disks something that can unseal at boot, without weakening a volume that already has one.
-	if err := ensureBootUnsealProtector(vol.hasTPMFamilyProtector, func() error { return vol.protectWithTPM(nil) }); err != nil {
+	if err := ensureBootUnsealProtector(vol.hasBootUnsealProtector, func() error { return vol.protectWithTPM(nil) }); err != nil {
 		// ErrorCodeProtectorExists means a protector appeared between the check and the add, which is the desired state.
 		var encErr *EncryptionError
 		if !errors.As(err, &encErr) || encErr.Code() != ErrorCodeProtectorExists {
@@ -600,10 +600,10 @@ func rotateRecoveryKeyOnCOMThread(targetVolume string) (string, error) {
 	return newRecoveryKey, nil
 }
 
-// hasTPMFamilyProtector reports whether the volume already has a protector that can release the volume master key at
-// boot. Every TPM-family protector qualifies.
-func (v *Volume) hasTPMFamilyProtector() (bool, error) {
-	for _, t := range TPMFamilyProtectorTypes {
+// hasBootUnsealProtector reports whether the volume already has a protector that can release the volume master key at
+// boot. Every TPM-family protector qualifies, and so does an external startup key on a machine without a trusted TPM.
+func (v *Volume) hasBootUnsealProtector() (bool, error) {
+	for _, t := range BootUnsealProtectorTypes {
 		ids, err := v.getKeyProtectorIDs(t)
 		if err != nil {
 			return false, fmt.Errorf("listing key protectors of type %d: %w", t, err)
@@ -615,16 +615,16 @@ func (v *Volume) hasTPMFamilyProtector() (bool, error) {
 	return false, nil
 }
 
-// hasTPMFamilyProtectorOnCOMThread reports whether the volume has a protector that can unseal the key at boot without
-// a recovery password being typed in. Any TPM-family protector qualifies.
-func hasTPMFamilyProtectorOnCOMThread(targetVolume string) (bool, error) {
+// hasBootUnsealProtectorOnCOMThread reports whether the volume has a protector that can unseal the key at boot without
+// a recovery password being typed in. Any TPM-family protector qualifies, and so does an external startup key.
+func hasBootUnsealProtectorOnCOMThread(targetVolume string) (bool, error) {
 	vol, err := bitlockerConnect(targetVolume)
 	if err != nil {
 		return false, fmt.Errorf("connecting to the volume: %w", err)
 	}
 	defer vol.bitlockerClose()
 
-	for _, t := range TPMFamilyProtectorTypes {
+	for _, t := range BootUnsealProtectorTypes {
 		ids, err := vol.getKeyProtectorIDs(t)
 		if err != nil {
 			return false, fmt.Errorf("listing key protectors of type %d: %w", t, err)

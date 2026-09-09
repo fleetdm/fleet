@@ -92,18 +92,19 @@ const (
 // https://learn.microsoft.com/en-us/windows/win32/secprov/getkeyprotectors-win32-encryptablevolume
 const (
 	KeyProtectorTypeTPM                    int32 = 1
+	KeyProtectorTypeExternalKey            int32 = 2
 	KeyProtectorTypeNumericalPassword      int32 = 3
 	KeyProtectorTypeTPMAndPIN              int32 = 4
 	KeyProtectorTypeTPMAndStartupKey       int32 = 5
 	KeyProtectorTypeTPMAndPINAndStartupKey int32 = 6
 )
 
-// TPMFamilyProtectorTypes are the key protector types that can release the volume master key at boot without a human
-// typing the 48-digit recovery password. The PIN variants prompt for a PIN, which is by design and is not a recovery
-// prompt.
+// BootUnsealProtectorTypes are the key protector types that can release the volume master key at boot without a human typing the
+// 48-digit recovery password. The PIN and startup key variants prompt the user, which is by design and is not a recovery prompt.
 // https://learn.microsoft.com/en-us/windows/win32/secprov/getkeyprotectors-win32-encryptablevolume
-var TPMFamilyProtectorTypes = []int32{
+var BootUnsealProtectorTypes = []int32{
 	KeyProtectorTypeTPM,
+	KeyProtectorTypeExternalKey,
 	KeyProtectorTypeTPMAndPIN,
 	KeyProtectorTypeTPMAndStartupKey,
 	KeyProtectorTypeTPMAndPINAndStartupKey,

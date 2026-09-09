@@ -115,9 +115,10 @@ func (w *COMWorker) EncryptVolume(targetVolume string) (string, error) {
 	return key, r.err
 }
 
-// HasTPMFamilyProtector reports whether the volume can unseal its key at boot without a recovery password.
-func (w *COMWorker) HasTPMFamilyProtector(targetVolume string) (bool, error) {
-	r := w.exec(func() (any, error) { return hasTPMFamilyProtectorOnCOMThread(targetVolume) })
+// HasBootUnsealProtector reports whether the volume can unseal its key at boot without a recovery password, whether
+// through the TPM or through an external startup key.
+func (w *COMWorker) HasBootUnsealProtector(targetVolume string) (bool, error) {
+	r := w.exec(func() (any, error) { return hasBootUnsealProtectorOnCOMThread(targetVolume) })
 	has, _ := r.val.(bool)
 	return has, r.err
 }

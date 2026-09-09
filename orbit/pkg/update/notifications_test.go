@@ -931,7 +931,7 @@ func TestBitlockerOperations(t *testing.T) {
 				setupTest()
 				var addCalled, enableCalled bool
 				enrollReceiver.execGetEncryptionStatusFn = tc.status
-				enrollReceiver.execHasTPMProtectorFn = func(string) (bool, error) { return tc.hasProtector, tc.hasProtectorErr }
+				enrollReceiver.execHasBootUnsealProtectorFn = func(string) (bool, error) { return tc.hasProtector, tc.hasProtectorErr }
 				enrollReceiver.execAddTPMProtectorFn = func(string) error { addCalled = true; return tc.addErr }
 				enrollReceiver.execEnableProtectionFn = func(string) error { enableCalled = true; return tc.enableErr }
 				enrollReceiver.restartPendingFn = func() (bool, error) { return tc.restartPending, tc.restartErr }
@@ -994,7 +994,7 @@ func TestBitlockerOperations(t *testing.T) {
 					setupTest()
 					var enableCalled bool
 					enrollReceiver.execGetEncryptionStatusFn = suspended
-					enrollReceiver.execHasTPMProtectorFn = func(string) (bool, error) { return true, nil }
+					enrollReceiver.execHasBootUnsealProtectorFn = func(string) (bool, error) { return true, nil }
 					enrollReceiver.execHasRecoveryPasswordFn = func(string) (bool, error) { return tc.hasKey, tc.hasKeyErr }
 					enrollReceiver.execRotateRecoveryKeyFn = func(string) (string, error) {
 						rotateKeyFnCalled = true
@@ -1028,7 +1028,7 @@ func TestBitlockerOperations(t *testing.T) {
 			setupTest()
 			var order []string
 			enrollReceiver.execGetEncryptionStatusFn = suspended
-			enrollReceiver.execHasTPMProtectorFn = func(string) (bool, error) { return false, nil }
+			enrollReceiver.execHasBootUnsealProtectorFn = func(string) (bool, error) { return false, nil }
 			enrollReceiver.execAddTPMProtectorFn = func(string) error { order = append(order, "add"); return nil }
 			enrollReceiver.execRotateRecoveryKeyFn = func(string) (string, error) { order = append(order, "rotate"); return "k", nil }
 			enrollReceiver.execEnableProtectionFn = func(string) error { order = append(order, "enable"); return nil }
@@ -1053,7 +1053,7 @@ func TestBitlockerOperations(t *testing.T) {
 			var rotations, escrows, enables int
 			escrowFails := true
 			enrollReceiver.execGetEncryptionStatusFn = suspended
-			enrollReceiver.execHasTPMProtectorFn = func(string) (bool, error) { return true, nil }
+			enrollReceiver.execHasBootUnsealProtectorFn = func(string) (bool, error) { return true, nil }
 			// After the first rotation the volume carries a recovery password again, which is the trap.
 			enrollReceiver.execHasRecoveryPasswordFn = func(string) (bool, error) { return rotations > 0, nil }
 			enrollReceiver.execRotateRecoveryKeyFn = func(string) (string, error) { rotations++; return "rotated-key", nil }
@@ -1092,7 +1092,7 @@ func TestBitlockerOperations(t *testing.T) {
 			setupTest()
 			var enableCalls int
 			enrollReceiver.execGetEncryptionStatusFn = suspended
-			enrollReceiver.execHasTPMProtectorFn = func(string) (bool, error) { return true, nil }
+			enrollReceiver.execHasBootUnsealProtectorFn = func(string) (bool, error) { return true, nil }
 			enrollReceiver.execEnableProtectionFn = func(string) error { enableCalls++; return nil }
 
 			require.NoError(t, enrollReceiver.Run(protectionCfg))

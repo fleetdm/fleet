@@ -20,7 +20,6 @@ import (
 	"encoding/xml"
 	"errors"
 	"fmt"
-	"github.com/WatchBeam/clock"
 	"io"
 	"log/slog"
 	"math/big"
@@ -40,6 +39,8 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/WatchBeam/clock"
 
 	"github.com/MicahParks/jwkset"
 	"github.com/davecgh/go-spew/spew"
@@ -10997,10 +10998,12 @@ func (s *integrationMDMTestSuite) TestHostDiskEncryptionKey() {
 		ClientError:  "fail",
 	}, http.StatusNoContent)
 
+	// The error is recorded, but the stored key and its decryptable flag are kept.
 	hdek, err = s.ds.GetHostDiskEncryptionKey(ctx, host.ID)
 	require.NoError(t, err)
-	require.Nil(t, hdek.Decryptable)
-	require.Empty(t, hdek.Base64Encrypted)
+	require.NotNil(t, hdek.Decryptable)
+	require.True(t, *hdek.Decryptable)
+	require.NotEmpty(t, hdek.Base64Encrypted)
 
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &hostResp)
 	require.Nil(t, hostResp.Host.DiskEncryptionEnabled) // the disk encryption status of the host is not set by the orbit request

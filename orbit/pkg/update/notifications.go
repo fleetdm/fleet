@@ -494,8 +494,8 @@ type execEncryptVolumeFunc func(volumeID string) (recoveryKey string, err error)
 // encryption status of a volume, and an error if the operation fails.
 type execGetEncryptionStatusFunc func() (status []bitlocker.VolumeStatus, err error)
 
-// execHasTPMProtectorFunc reports whether the volume has a protector able to unseal the key at boot.
-type execHasTPMProtectorFunc func(volumeID string) (bool, error)
+// execHasBootUnsealProtectorFunc reports whether the volume has a protector able to unseal the key at boot.
+type execHasBootUnsealProtectorFunc func(volumeID string) (bool, error)
 
 // execHasRecoveryPasswordFunc reports whether the volume has a 48-digit recovery password protector.
 type execHasRecoveryPasswordFunc func(volumeID string) (bool, error)
@@ -546,10 +546,10 @@ type windowsMDMBitlockerConfigReceiver struct {
 	execResumeConversionFn execResumeConversionFunc
 
 	// Protection-restore hooks. Set by the middleware from the COMWorker, or overridden in tests.
-	execHasTPMProtectorFn     execHasTPMProtectorFunc
-	execHasRecoveryPasswordFn execHasRecoveryPasswordFunc
-	execAddTPMProtectorFn     execAddTPMProtectorFunc
-	execEnableProtectionFn    execEnableProtectionFunc
+	execHasBootUnsealProtectorFn execHasBootUnsealProtectorFunc
+	execHasRecoveryPasswordFn    execHasRecoveryPasswordFunc
+	execAddTPMProtectorFn        execAddTPMProtectorFunc
+	execEnableProtectionFn       execEnableProtectionFunc
 
 	// restartPendingFn reports whether a restart is staged. Overridden in tests.
 	restartPendingFn func() (bool, error)
@@ -565,16 +565,16 @@ func ApplyWindowsMDMBitlockerFetcherMiddleware(
 	comWorker *bitlocker.COMWorker,
 ) fleet.OrbitConfigReceiver {
 	return &windowsMDMBitlockerConfigReceiver{
-		Frequency:                 frequency,
-		EncryptionResult:          encryptionResult,
-		execEncryptVolumeFn:       comWorker.EncryptVolume,
-		execGetEncryptionStatusFn: comWorker.GetEncryptionStatus,
-		execRotateRecoveryKeyFn:   comWorker.RotateRecoveryKey,
-		execResumeConversionFn:    comWorker.ResumeConversion,
-		execHasTPMProtectorFn:     comWorker.HasTPMFamilyProtector,
-		execHasRecoveryPasswordFn: comWorker.HasRecoveryPassword,
-		execAddTPMProtectorFn:     comWorker.AddTPMProtector,
-		execEnableProtectionFn:    comWorker.EnableProtection,
+		Frequency:                    frequency,
+		EncryptionResult:             encryptionResult,
+		execEncryptVolumeFn:          comWorker.EncryptVolume,
+		execGetEncryptionStatusFn:    comWorker.GetEncryptionStatus,
+		execRotateRecoveryKeyFn:      comWorker.RotateRecoveryKey,
+		execResumeConversionFn:       comWorker.ResumeConversion,
+		execHasBootUnsealProtectorFn: comWorker.HasBootUnsealProtector,
+		execHasRecoveryPasswordFn:    comWorker.HasRecoveryPassword,
+		execAddTPMProtectorFn:        comWorker.AddTPMProtector,
+		execEnableProtectionFn:       comWorker.EnableProtection,
 	}
 }
 
@@ -671,16 +671,16 @@ func (w *windowsMDMBitlockerConfigReceiver) attemptEnableBitlockerProtection() {
 	}
 
 	// Never enable protection on a volume that cannot unseal at boot, adding a TPM if absent.
-	hasProtector, err := w.execHasTPMProtectorFn(targetVolume)
+	hasProtector, err := w.execHasBootUnsealProtectorFn(targetVolume)
 	if err != nil {
-		log.Error().Err(err).Msg("cannot determine whether a TPM protector is present, not restoring protection")
+		log.Error().Err(err).Msg("cannot determine whether a boot protector is present, not restoring protection")
 		w.reportProtectionOutcome(fleet.DiskEncryptionProtectionFailed,
-			fmt.Sprintf("could not determine whether a TPM protector is present: %v", err))
+			fmt.Sprintf("could not determine whether a boot protector is present: %v", err))
 		w.protectionRetryAfter = time.Now().Add(w.Frequency)
 		return
 	}
 	if !hasProtector {
-		log.Info().Msg("no TPM-family protector present, adding one before restoring protection")
+		log.Info().Msg("no protector can unseal this volume at boot, adding a TPM protector before restoring protection")
 		if err := w.execAddTPMProtectorFn(targetVolume); err != nil {
 			// Policy can forbid a TPM-only protector, in which case a startup PIN has to be enrolled by the end user
 			// and Fleet cannot repair this host.
