@@ -108,6 +108,7 @@ Here's an example profile with `$FLEET_SECRET_CERT_PASSWORD` and `$FLEET_SECRET_
 
 - **Apple MDM profiles**: Fleet secret variables (`$FLEET_SECRET_*`) cannot be used in the `PayloadDisplayName` field of Apple configuration profiles. This field becomes the visible name of the profile and using secrets here could expose sensitive information. Place secrets in other fields like `PayloadDescription`, `Password`, or `PayloadContent` instead.
 - **Host name templates**: A custom variable used in a [host name template](https://fleetdm.com/guides/rename-hosts-with-a-naming-template) isn't hidden — its value becomes the host's name in Fleet and on the device. Only use custom variables for values that are safe to display (for example, a site or location code).
+- **Windows SCEP subject names**: In a Windows SCEP profile's `SubjectName`, Fleet quotes a `$FLEET_VAR_*` value so Windows reads it as one attribute. Fleet inserts a `$FLEET_SECRET_*` value as written. If that value contains `,`, `+`, `;`, or `"`, the device rejects the certificate request. Use a value without those characters.
 - After changing a variable used by a Windows profile, that profile is currently not re-sent to the device when the GitHub action (or GitLab pipeline) runs: [story #27351](https://github.com/fleetdm/fleet/issues/27351)
 - Fleet does not hide the secret in script results. Don't print/echo your secrets to the console output.
 - There is no way to explicitly delete a secret variable. Instead, you can overwrite it with any value.
