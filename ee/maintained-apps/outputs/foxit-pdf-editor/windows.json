@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "14.0.6.33584",
+      "version": "14.0.7.33751",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Foxit PDF Editor' AND publisher = 'Foxit Software Inc.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Foxit PDF Editor' AND publisher = 'Foxit Software Inc.' AND version_compare(version, '14.0.6.33584') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Foxit PDF Editor' AND publisher = 'Foxit Software Inc.' AND version_compare(version, '14.0.7.33751') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'foxit pdf editor.exe');"
       },
-      "installer_url": "https://cdn01.foxitsoftware.com/product/Editor/desktop/win/14.0.6/FoxitPDFEditor1406_L10N_Setup_x64.exe",
+      "installer_url": "https://cdn01.foxitsoftware.com/product/Editor/desktop/win/14.0.7/FoxitPDFEditor1407_L10N_Setup_x64.exe",
       "install_script_ref": "a6208245",
       "uninstall_script_ref": "5d55608a",
-      "sha256": "e62e746cfadb8288a5c2887bfbb25a88d75b8498709eefaa61f00dea74321f8e",
+      "sha256": "d8444d2996c7574857a7e928d072b61fbc5ddb5a2cfeb15f71cea0c5e0aad05f",
       "default_categories": [
         "Productivity"
       ]
