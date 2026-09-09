@@ -1848,6 +1848,19 @@ func (svc *Service) DeleteABMToken(ctx context.Context, tokenID uint) error {
 	}
 	syncABMTokensToAppConfig(appCfg, tokens)
 
+	// Lastly we delete any dangling appCfg entries that are not in the fresh token list
+	tokensByOrg := make(map[string]struct{}, len(tokens))
+	for _, t := range tokens {
+		tokensByOrg[t.OrganizationName] = struct{}{}
+	}
+
+	for i := len(appCfg.MDM.AppleBusinessManager.Value) - 1; i >= 0; i-- {
+		t := appCfg.MDM.AppleBusinessManager.Value[i]
+		if _, ok := tokensByOrg[t.OrganizationName]; !ok {
+			appCfg.MDM.AppleBusinessManager.Value = append(appCfg.MDM.AppleBusinessManager.Value[:i], appCfg.MDM.AppleBusinessManager.Value[i+1:]...)
+		}
+	}
+
 	if len(tokens) == 0 {
 		appCfg.MDM.AppleBMEnabledAndConfigured = false
 	}

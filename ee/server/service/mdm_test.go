@@ -857,6 +857,7 @@ func TestUpdateABMTokenTeams(t *testing.T) {
 		assert.Equal(t, validTeamName, appCfgToken.IpadOSTeam)
 	})
 }
+
 func TestMDMAppleEditedAppleOSUpdatesDeclaration(t *testing.T) {
 	ctx := context.Background()
 	teamID := uint(1)
@@ -1224,5 +1225,22 @@ func TestDeleteABMTokenSyncsAppConfig(t *testing.T) {
 		appCfg := *saved
 		assert.Empty(t, appCfg.MDM.AppleBusinessManager.Value)
 		assert.False(t, appCfg.MDM.AppleBMEnabledAndConfigured)
+	})
+
+	t.Run("cleans up any dangling appCfg entries", func(t *testing.T) {
+		entries := []fleet.MDMAppleABMAssignmentInfo{
+			{OrganizationName: "org1", Default: true},
+			{OrganizationName: "org2"},
+		}
+		remaining := []*fleet.ABMToken{{ID: 2, OrganizationName: "org2"}}
+		_, svc, saved := setupDeleteTest(t, entries, remaining)
+
+		require.NoError(t, svc.DeleteABMToken(ctx, 1))
+
+		appCfg := *saved
+		require.Len(t, appCfg.MDM.AppleBusinessManager.Value, 1)
+		got := appCfg.MDM.AppleBusinessManager.Value[0]
+		assert.Equal(t, "org2", got.OrganizationName)
+		assert.False(t, got.Default)
 	})
 }
