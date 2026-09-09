@@ -1162,7 +1162,7 @@ Can be configured for "All fleets" (`org_settings`). Use API to configure Zendes
 
 _Available in Fleet Premium._
 
-This section lets you configure your [certificate authorities (CA)](https://fleetdm.com/guides/certificate-authorities) to help your end users connect to Wi-Fi and VPN.
+This section lets you configure your [certificate authorities (CA)](https://fleetdm.com/guides/connect-end-user-to-wifi-with-certificate) to help your end users connect to Wi-Fi and VPN.
 
 #### Example
 
@@ -1225,6 +1225,8 @@ org_settings:
 Can only be configured for "All fleets" (`org_settings`).
 
 #### ndes_scep_proxy
+
+Used to connect both Microsoft NDES and Okta CAs, since Okta uses NDES under the hood.
 
 - `url` is the URL of the NDES SCEP endpoint (default: `""`).
 - `admin_url` is the URL of the NDES admin endpoint (default: `""`).
