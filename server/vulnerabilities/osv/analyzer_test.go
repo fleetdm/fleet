@@ -11,7 +11,9 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/oval"
 	"github.com/stretchr/testify/require"
 )
 
@@ -854,4 +856,27 @@ func TestMatchSoftwareToRHELOSV(t *testing.T) {
 		result := matchSoftwareToRHELOSV(software, artifact)
 		require.Empty(t, result)
 	})
+}
+
+// TestAnalyzeOSVScopesToPackageSources guards the source filter: without it a Go binary or npm
+// package named like a distro package is compared against distro advisories.
+func TestAnalyzeOSVScopesToPackageSources(t *testing.T) {
+	ds := new(mock.Store)
+
+	var requestedSources []string
+	ds.ListSoftwareForVulnDetectionByOSVersionFunc = func(
+		ctx context.Context, osVer fleet.OSVersion, sources []string,
+	) ([]fleet.Software, error) {
+		requestedSources = sources
+		return nil, nil
+	}
+
+	ver := fleet.OSVersion{Platform: "ubuntu", Name: "Ubuntu 22.04.1 LTS"}
+	matcher := func([]fleet.Software) []fleet.SoftwareVulnerability { return nil }
+
+	_, err := analyzeOSV(t.Context(), ds, ver, fleet.UbuntuOSVSource, matcher, false, slog.New(slog.DiscardHandler))
+	require.NoError(t, err)
+
+	require.Equal(t, oval.SupportedSoftwareSources, requestedSources)
+	require.ElementsMatch(t, []string{"deb_packages", "rpm_packages"}, requestedSources)
 }

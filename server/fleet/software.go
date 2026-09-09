@@ -291,10 +291,12 @@ type VulnerableSoftware struct {
 }
 
 type VulnSoftwareFilter struct {
-	HostID      *uint
-	Name        string // LIKE filter
-	Source      string // exact match
-	KernelsOnly bool   // filter to kernel packages only (for RHEL goval-dictionary scanning)
+	HostID *uint
+	Name   string // LIKE filter
+	// Sources restricts the results to these sources. Package scanners set it so a binary
+	// that happens to share a distro package's name is never compared as one.
+	Sources     []string
+	KernelsOnly bool // filter to kernel packages only (for RHEL goval-dictionary scanning)
 }
 
 type SliceString []string

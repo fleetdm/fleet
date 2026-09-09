@@ -14,6 +14,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	feednvd "github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/cvefeed/nvd"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/oval"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/utils"
 )
 
@@ -65,8 +66,10 @@ func analyzeOSV(
 	logger *slog.Logger,
 ) ([]fleet.SoftwareVulnerability, error) {
 	// Get distinct software for this OS version (replaces per-host ListSoftwareForVulnDetection).
+	// Scoped to the package sources OSV covers: a Go binary or npm package that happens to share
+	// a distro package's name must not be compared against distro advisories.
 	softwareStart := time.Now().UTC()
-	software, err := ds.ListSoftwareForVulnDetectionByOSVersion(ctx, ver)
+	software, err := ds.ListSoftwareForVulnDetectionByOSVersion(ctx, ver, oval.SupportedSoftwareSources)
 	if err != nil {
 		return nil, fmt.Errorf("listing software for OS version: %w", err)
 	}

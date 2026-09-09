@@ -92,9 +92,9 @@ func getCVEMatchingRules() CVEMatchingRules {
 
 func (r CVEMatchingRule) match(ctx context.Context, ds fleet.Datastore) ([]fleet.SoftwareVulnerability, error) {
 	var vulns []fleet.SoftwareVulnerability
-	filter := fleet.VulnSoftwareFilter{
-		Name:   r.NameLikeMatch,
-		Source: r.SourceMatch,
+	filter := fleet.VulnSoftwareFilter{Name: r.NameLikeMatch}
+	if r.SourceMatch != "" {
+		filter.Sources = []string{r.SourceMatch}
 	}
 	software, err := ds.ListSoftwareForVulnDetection(ctx, filter)
 	if err != nil {

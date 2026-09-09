@@ -71,8 +71,12 @@ func Analyze(
 		foundInBatch := make(map[uint][]fleet.SoftwareVulnerability)
 		for _, hostID := range hostIDs {
 			hostID := hostID
+			// Scoped to the package sources goval-dictionary covers: a Go binary or npm
+			// package that happens to share a distro package's name must not be compared
+			// against distro definitions.
 			software, err := ds.ListSoftwareForVulnDetection(ctx, fleet.VulnSoftwareFilter{
 				HostID:      &hostID,
+				Sources:     oval.SupportedSoftwareSources,
 				KernelsOnly: kernelsOnly,
 			})
 			if err != nil {

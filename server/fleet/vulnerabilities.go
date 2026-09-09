@@ -118,6 +118,8 @@ type Vulnerability interface {
 	Key() string
 }
 
+// VulnerabilitySource identifies which data source produced a vulnerability. Values are
+// stored in software_cve.source and os_vulnerabilities.source, so only append.
 type VulnerabilitySource int
 
 const (
@@ -132,6 +134,7 @@ const (
 	UbuntuOSVSource
 	RHELOSVSource
 	AndroidOSVSource
+	GoVulnDBSource
 )
 
 type VulnerabilityWithMetadata struct {

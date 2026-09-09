@@ -73,7 +73,13 @@ func Analyze(
 
 		for _, hostID := range hostIDs {
 			hostID := hostID
-			software, err := ds.ListSoftwareForVulnDetection(ctx, fleet.VulnSoftwareFilter{HostID: &hostID})
+			// Scoped to the package sources OVAL covers: a Go binary or npm package that
+			// happens to share a distro package's name must not be compared against distro
+			// definitions.
+			software, err := ds.ListSoftwareForVulnDetection(ctx, fleet.VulnSoftwareFilter{
+				HostID:  &hostID,
+				Sources: SupportedSoftwareSources,
+			})
 			if err != nil {
 				return nil, err
 			}

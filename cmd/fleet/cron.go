@@ -40,6 +40,7 @@ import (
 	androidvuln "github.com/fleetdm/fleet/v4/server/vulnerabilities/android"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/customcve"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/goval_dictionary"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/govulndb"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/macoffice"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/msrc"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd"
@@ -237,6 +238,10 @@ func scanVulnerabilities(
 	logger.InfoContext(ctx, "phase completed", "phase", "win_office", "elapsed", time.Since(phaseStart))
 
 	phaseStart = time.Now()
+	goVulnDBVulns := checkGoVulnDBVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "", startTime)
+	logger.InfoContext(ctx, "phase completed", "phase", "govulndb", "elapsed", time.Since(phaseStart))
+
+	phaseStart = time.Now()
 	customVulns := checkCustomVulnerabilities(ctx, ds, logger, vulnAutomationEnabled != "", startTime)
 	logger.InfoContext(ctx, "phase completed", "phase", "custom", "elapsed", time.Since(phaseStart))
 
@@ -280,6 +285,7 @@ func scanVulnerabilities(
 	vulns = append(vulns, macOfficeVulns...)
 	vulns = append(vulns, winOfficeVulns...)
 	vulns = append(vulns, govalDictVulns...)
+	vulns = append(vulns, goVulnDBVulns...)
 	vulns = append(vulns, customVulns...)
 
 	var recentV []fleet.SoftwareVulnerability
@@ -809,6 +815,44 @@ func checkGovalDictionaryVulnerabilities(
 	analyzeSpan.End()
 
 	return results
+}
+
+// checkGoVulnDBVulnerabilities matches Go binaries against the Go vulnerability database.
+// Go binaries are excluded from NVD (see nvd.TranslateSoftwareToCPE): advisories there are
+// keyed on module path, which a binary's name does not imply.
+func checkGoVulnDBVulnerabilities(
+	ctx context.Context,
+	ds fleet.Datastore,
+	logger *slog.Logger,
+	vulnPath string,
+	config *config.VulnerabilitiesConfig,
+	collectVulns bool,
+	startTime time.Time,
+) []fleet.SoftwareVulnerability {
+	ctx, span := tracer.Start(ctx, "vuln.check_govulndb")
+	defer span.End()
+
+	if !config.DisableDataSync {
+		syncCtx, syncSpan := tracer.Start(ctx, "vuln.govulndb.sync")
+		artifact, err := govulndb.Refresh(syncCtx, vulnPath)
+		if err != nil {
+			errHandler(syncCtx, logger, "updating Go vulnerability database", err)
+		} else {
+			logger.DebugContext(syncCtx, "finished sync Go vulnerability database", "artifact", artifact)
+		}
+		syncSpan.End()
+	}
+
+	analyzeCtx, analyzeSpan := tracer.Start(ctx, "vuln.govulndb.analyze")
+	defer analyzeSpan.End()
+
+	// Analyze logs its own completion details.
+	r, err := govulndb.Analyze(analyzeCtx, ds, vulnPath, collectVulns, startTime, logger)
+	if err != nil {
+		errHandler(analyzeCtx, logger, "analyzing go binaries for vulnerabilities", err)
+	}
+
+	return r
 }
 
 func checkNVDVulnerabilities(

@@ -75,6 +75,13 @@ func loadSoftware(
 	err = json.Unmarshal(contents, &fixtures)
 	require.NoError(t, err)
 
+	// The analyzer only lists software from the package sources OVAL covers, so the
+	// fixtures have to carry the source their platform would report.
+	source := "rpm_packages"
+	if p.IsUbuntu() {
+		source = "deb_packages"
+	}
+
 	var software []fleet.Software
 	for _, fi := range fixtures {
 		software = append(software, fleet.Software{
@@ -82,6 +89,7 @@ func loadSoftware(
 			Version: fi.Version,
 			Release: fi.Release,
 			Arch:    fi.Arch,
+			Source:  source,
 		})
 	}
 	_, err = ds.UpdateHostSoftware(ctx, h.ID, software)

@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"compress/gzip"
 	"context"
 	"crypto/tls"
 	"crypto/x509"
@@ -34,6 +35,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/service/schedule/scheduletest"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/govulndb"
 	"github.com/jmoiron/sqlx"
 	"github.com/smallstep/pkcs7"
 	"github.com/stretchr/testify/assert"
@@ -890,6 +892,71 @@ func TestScanVulnerabilitiesMkdirFailsIfVulnPathIsFile(t *testing.T) {
 	ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: fleet.TierPremium})
 	err = scanVulnerabilities(ctx, ds, logger, &config, appConfig, fileVulnPath)
 	require.ErrorContains(t, err, "create vulnerabilities databases directory: mkdir")
+}
+
+// TestCheckGoVulnDBVulnerabilities covers the cron's wiring of the Go vulnerability database:
+// that the analyzer runs against the artifact in the databases path, writes under the right
+// source, and hands its results back so vulnerability automations fire for them.
+func TestCheckGoVulnDBVulnerabilities(t *testing.T) {
+	vulnPath := t.TempDir()
+
+	artifact := govulndb.Artifact{
+		SchemaVersion: "1",
+		Generated:     time.Now().UTC(),
+		Modules: map[string][]govulndb.Advisory{
+			"github.com/example/tool": {
+				{
+					ID:     "GO-2024-1234",
+					CVEs:   []string{"CVE-2024-1234"},
+					Ranges: []govulndb.VersionRange{{Introduced: "0", Fixed: "1.49.0"}},
+				},
+			},
+		},
+	}
+
+	f, err := os.Create(filepath.Join(vulnPath, "govulndb-2026-09-09.json.gz"))
+	require.NoError(t, err)
+	gz := gzip.NewWriter(f)
+	require.NoError(t, json.NewEncoder(gz).Encode(artifact))
+	require.NoError(t, gz.Close())
+	require.NoError(t, f.Close())
+
+	ds := new(mock.Store)
+	ds.AllSoftwareIteratorFunc = func(ctx context.Context, query fleet.SoftwareIterQueryOptions) (fleet.SoftwareIterator, error) {
+		require.Equal(t, []string{"go_binaries"}, query.IncludedSources)
+		return &softwareIterator{softwares: []*fleet.Software{
+			{ID: 1, Name: "tool", Version: "v1.48.0", Source: "go_binaries", ExtensionID: "github.com/example/tool"},
+		}}, nil
+	}
+
+	var insertedSource fleet.VulnerabilitySource
+	ds.InsertSoftwareVulnerabilitiesFunc = func(
+		ctx context.Context, vulns []fleet.SoftwareVulnerability, source fleet.VulnerabilitySource,
+	) ([]fleet.SoftwareVulnerability, error) {
+		insertedSource = source
+		return vulns, nil
+	}
+	ds.DeleteOutOfDateVulnerabilitiesFunc = func(
+		ctx context.Context, source fleet.VulnerabilitySource, olderThan time.Time,
+	) error {
+		require.Equal(t, fleet.GoVulnDBSource, source)
+		return nil
+	}
+
+	// DisableDataSync keeps the cron from reaching GitHub for a fresher artifact.
+	cfg := config.VulnerabilitiesConfig{DatabasesPath: vulnPath, DisableDataSync: true}
+
+	vulns := checkGoVulnDBVulnerabilities(
+		t.Context(), ds, slog.New(slog.DiscardHandler), vulnPath, &cfg, true, time.Now(),
+	)
+
+	require.Equal(t, fleet.GoVulnDBSource, insertedSource)
+	require.Len(t, vulns, 1)
+	require.Equal(t, uint(1), vulns[0].SoftwareID)
+	require.Equal(t, "CVE-2024-1234", vulns[0].CVE)
+	require.NotNil(t, vulns[0].ResolvedInVersion)
+	require.Equal(t, "v1.49.0", *vulns[0].ResolvedInVersion)
+	require.True(t, ds.DeleteOutOfDateVulnerabilitiesFuncInvoked)
 }
 
 func TestCronVulnerabilitiesSkipMkdirIfDisabled(t *testing.T) {

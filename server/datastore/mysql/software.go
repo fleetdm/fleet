@@ -3596,9 +3596,11 @@ func (ds *Datastore) ListSoftwareForVulnDetection(
 		args = append(args, "%"+filters.Name+"%")
 	}
 
-	if filters.Source != "" {
-		conditions = append(conditions, "s.source = ?")
-		args = append(args, filters.Source)
+	if len(filters.Sources) > 0 {
+		conditions = append(conditions, fmt.Sprintf("s.source IN (%s)", strings.TrimSuffix(strings.Repeat("?,", len(filters.Sources)), ",")))
+		for _, src := range filters.Sources {
+			args = append(args, src)
+		}
 	}
 
 	if filters.KernelsOnly {
@@ -3623,7 +3625,12 @@ const softwareVulnDetectionBatchSize = 10000
 func (ds *Datastore) ListSoftwareForVulnDetectionByOSVersion(
 	ctx context.Context,
 	osVer fleet.OSVersion,
+	sources []string,
 ) ([]fleet.Software, error) {
+	if len(sources) == 0 {
+		return nil, ctxerr.New(ctx, "no software sources given")
+	}
+
 	var softwareIDs []uint
 	err := sqlx.SelectContext(ctx, ds.reader(ctx), &softwareIDs, `
 		SELECT DISTINCT hs.software_id
@@ -3639,6 +3646,8 @@ func (ds *Datastore) ListSoftwareForVulnDetectionByOSVersion(
 		return nil, nil
 	}
 
+	sourcePlaceholders := strings.TrimSuffix(strings.Repeat("?,", len(sources)), ",")
+
 	var result []fleet.Software
 	if err := common_mysql.BatchProcessSimple(softwareIDs, softwareVulnDetectionBatchSize, func(batch []uint) error {
 		placeholders := strings.TrimSuffix(strings.Repeat("?,", len(batch)), ",")
@@ -3646,11 +3655,14 @@ func (ds *Datastore) ListSoftwareForVulnDetectionByOSVersion(
 			SELECT s.id, s.name, s.version, s.release, s.arch, COALESCE(cpe.cpe, '') AS generated_cpe
 			FROM software s
 			LEFT JOIN software_cpe cpe ON s.id = cpe.software_id
-			WHERE s.id IN (%s)
-		`, placeholders)
-		args := make([]any, len(batch))
-		for i, id := range batch {
-			args[i] = id
+			WHERE s.id IN (%s) AND s.source IN (%s)
+		`, placeholders, sourcePlaceholders)
+		args := make([]any, 0, len(batch)+len(sources))
+		for _, id := range batch {
+			args = append(args, id)
+		}
+		for _, src := range sources {
+			args = append(args, src)
 		}
 		var batchResult []fleet.Software
 		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &batchResult, query, args...); err != nil {

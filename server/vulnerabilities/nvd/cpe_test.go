@@ -472,9 +472,10 @@ func TestTranslateSoftwareToCPE(t *testing.T) {
 }
 
 // TestTranslateSoftwareToCPEExcludedSources tests that software from sources Fleet does not
-// scan for vulnerabilities never reaches the CPE translation step. Adobe plugins are excluded
-// because no CVE data source maps an Adobe CEP/UXP extension to a CVE, so any match would be
-// a false positive borrowed from the host Adobe application.
+// scan for vulnerabilities with NVD never reaches the CPE translation step. Adobe plugins are
+// excluded because no CVE data source maps an Adobe CEP/UXP extension to a CVE, so any match
+// would be a false positive borrowed from the host Adobe application. Go binaries are excluded
+// because they are matched by module path against the Go vulnerability database instead.
 func TestTranslateSoftwareToCPEExcludedSources(t *testing.T) {
 	tempDir := t.TempDir()
 
@@ -500,6 +501,7 @@ func TestTranslateSoftwareToCPEExcludedSources(t *testing.T) {
 	require.Contains(t, excludedSources[0], "adobe_plugins")
 	require.Contains(t, excludedSources[0], "ios_apps")
 	require.Contains(t, excludedSources[0], "ipados_apps")
+	require.Contains(t, excludedSources[0], "go_binaries")
 }
 
 // TestTranslateSoftwareToCPEIgnoreEmptyVersion tests that TranslateSoftwareToCPE ignores
