@@ -159,9 +159,9 @@ const DeviceNotificationPage = ({
   }
 
   const view = data;
-  const actions = view.actions;
+  const { actions } = view;
   const primaryAction = actions[actions.length - 1];
-  const secondaryActions = actions.slice(0, -1);
+  const secondaryAction = actions.length > 1 ? actions[0] : null;
   const orgLogoURL = darkMode
     ? view.org_logo_url_dark_mode
     : view.org_logo_url_light_mode;
@@ -193,20 +193,20 @@ const DeviceNotificationPage = ({
               />
             </div>
           )}
-          {secondaryActions.map((action) => (
+          {secondaryAction && (
             <Button
-              key={action.id}
               variant="subdued"
               size="small"
               disabled={isPosting}
-              onClick={() => postAction({ action, isPrimary: false })}
+              onClick={() =>
+                postAction({ action: secondaryAction, isPrimary: false })
+              }
             >
-              {action.label}
+              {secondaryAction.label}
             </Button>
-          ))}
+          )}
           {primaryAction && (
             <Button
-              key={primaryAction.id}
               size="small"
               disabled={isPosting}
               onClick={() =>
