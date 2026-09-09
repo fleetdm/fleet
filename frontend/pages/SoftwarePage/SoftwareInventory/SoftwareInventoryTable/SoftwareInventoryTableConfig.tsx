@@ -141,7 +141,10 @@ const generateTableHeaders = (
       disableSortBy: true,
       accessor: "versions",
       Cell: (cellProps: IVersionsCellProps) => (
-        <VersionCell versions={cellProps.cell.value} />
+        <VersionCell
+          versions={cellProps.cell.value}
+          source={cellProps.row.original.source}
+        />
       ),
     },
     {

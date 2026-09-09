@@ -1,1 +1,1 @@
-- Added the Go module path and Go toolchain version to Go binaries in software inventory.
+- Added the Go module path and Go toolchain version to Go binaries in software inventory. Go binaries now show a Go icon, and their version includes the toolchain they were built with (for example, `v0.21.1 (go1.26.1)`).

@@ -447,6 +447,7 @@ import Glyphs from "./png/Glyphs.png";
 import Gnupg from "./png/Gnupg.png";
 import Go from "./png/Go.png";
 import Go2Shell from "./png/Go2Shell.png";
+import GoBinary from "./GoBinary";
 import GoanywhereOpenpgpStudio from "./png/GoanywhereOpenpgpStudio.png";
 import Godot from "./png/Godot.png";
 import Godspeed from "./png/Godspeed.png";
@@ -2381,6 +2382,7 @@ export const SOFTWARE_SOURCE_TO_ICON_MAP = {
   vscode_extensions: Extension,
   jetbrains_plugins: Extension,
   adobe_plugins: AdobePlugin,
+  go_binaries: GoBinary,
 } as const;
 
 /**
@@ -2412,11 +2414,12 @@ const matchStrictNameSourceToIcon = ({
  * Sources whose own icon wins over any name match, strict or loose, because their names
  * collide with the application they extend. An Adobe plugin named "Adobe Creative Cloud
  * Libraries" is a plugin, not Creative Cloud, and one named "Zoom" is a plugin, not Zoom,
- * so showing the other application's icon would misrepresent the row. Other extension
- * sources keep matching on name first, so e.g. a VSCode extension named "Docker" still
- * gets the Docker icon.
+ * so showing the other application's icon would misrepresent the row. Go binaries are the
+ * same case: the name is whatever the module called its command, so one named "zoom" or
+ * "slack" is a Go binary, not the application. Other extension sources keep matching on
+ * name first, so e.g. a VSCode extension named "Docker" still gets the Docker icon.
  */
-const SOURCE_ICON_OVERRIDES_NAME = ["adobe_plugins"];
+const SOURCE_ICON_OVERRIDES_NAME = ["adobe_plugins", "go_binaries"];
 
 /**
  * This returns the icon component for a given software name and source. If a strict match is found,

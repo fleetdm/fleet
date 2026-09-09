@@ -49,6 +49,7 @@ export interface ISoftware {
   installed_paths?: string[];
   extension_for?: string;
   vendor?: string;
+  release?: string;
   icon_url: string | null; // Only available on team view if an admin uploaded an icon to a team's software
 }
 
@@ -62,6 +63,7 @@ export type IVulnerabilitySoftware = Omit<
 export interface ISoftwareTitleVersion {
   id: number;
   version: string;
+  release?: string;
   vulnerabilities: string[] | null; // TODO: does this return null or is it omitted?
   hosts_count?: number;
 }
@@ -279,7 +281,10 @@ export interface ISoftwareVersion {
   bundle_identifier?: string; // e.g., "com.figma.Desktop"
   source: SoftwareSource;
   extension_for: SoftwareExtensionFor;
-  release: string; // TODO: on software/verions/:id?
+  /** The OS release the package was built for (e.g. "30.el7" for an RPM), or the Go
+   * toolchain version for `go_binaries` (e.g. "go1.26.1"). Only rendered for Go
+   * binaries — see formatSoftwareVersion. */
+  release: string;
   vendor: string;
   arch: string; // e.g., "x86_64" // TODO: on software/verions/:id?
   generated_cpe: string;
@@ -422,6 +427,25 @@ const EXTENSION_FOR_TYPE_CONVERSION = {
 export type SoftwareExtensionFor =
   | keyof typeof EXTENSION_FOR_TYPE_CONVERSION
   | "";
+
+/** Renders a software version for display. For `go_binaries`, `release` carries the Go
+ * toolchain version, which is part of what identifies the row: the same binary version
+ * built with two toolchains is two software rows with different standard-library
+ * vulnerabilities. Every other source renders the plain version.
+ *
+ * Version entries carry no source of their own — `installed_versions[]` omits it over the
+ * wire and a title's versions never had it — so a caller mapping a list passes the row's:
+ * `versions?.map((v) => formatSoftwareVersion({ ...v, source }))`. */
+export const formatSoftwareVersion = ({
+  version,
+  release,
+  source,
+}: {
+  version: string;
+  release?: string;
+  source?: string;
+}) =>
+  source === "go_binaries" && release ? `${version} (${release})` : version;
 
 export const formatSoftwareType = ({
   source,
@@ -608,6 +632,7 @@ export interface ISoftwareLastUninstall {
 
 export interface ISoftwareInstallVersion {
   version: string;
+  release?: string;
   bundle_identifier: string;
   last_opened_at?: string;
   vulnerabilities: string[] | null;

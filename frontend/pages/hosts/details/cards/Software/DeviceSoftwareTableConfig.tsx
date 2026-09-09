@@ -61,7 +61,12 @@ export const generateSoftwareTableHeaders = (): ISoftwareTableConfig[] => {
       // accessor.
       accessor: (originalRow) => originalRow.installed_versions,
       Cell: (cellProps: IInstalledVersionsCellProps) => {
-        return <VersionCell versions={cellProps.cell.value} />;
+        return (
+          <VersionCell
+            versions={cellProps.cell.value}
+            source={cellProps.row.original.source}
+          />
+        );
       },
     },
     {
