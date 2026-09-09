@@ -165,7 +165,7 @@ func TestZeroTouchDriftDetection(t *testing.T) {
 	resp, err := svc.GetZeroTouchConfiguration(adminCtx(t), nil)
 	require.NoError(t, err)
 	assert.Contains(t, resp.DPCExtras, "existing-token-value")
-	assert.Contains(t, resp.Warning, "enroll secret has changed")
+	assert.Contains(t, resp.Warning, "enroll secret embedded in this zero-touch token no longer exists")
 }
 
 func TestZeroTouchCreatesTokenWhenNoneExists(t *testing.T) {

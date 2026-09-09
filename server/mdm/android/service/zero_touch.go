@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
@@ -39,6 +40,8 @@ func (svc *Service) GetZeroTouchConfiguration(ctx context.Context, teamID *uint)
 			"Android MDM is NOT configured").WithStatus(http.StatusNotFound)
 	}
 
+	ctx = ctxdb.RequirePrimary(ctx, true)
+
 	// Check if a token already exists
 	existing, err := svc.ds.GetZeroTouchEnrollmentToken(ctx, teamID)
 	if err != nil && !fleet.IsNotFound(err) {
@@ -46,13 +49,19 @@ func (svc *Service) GetZeroTouchConfiguration(ctx context.Context, teamID *uint)
 	}
 	if existing != nil {
 		resp := buildDPCExtrasResponse(existing)
-		// Check if the embedded enroll secret still matches the current one
 		enrollSecrets, err := svc.fleetDS.GetEnrollSecrets(ctx, teamID)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "getting enroll secrets for drift check")
 		}
-		if len(enrollSecrets) == 0 || enrollSecrets[0].Secret != existing.EmbeddedEnrollSecret {
-			resp.Warning = "The enroll secret has changed since the zero-touch token was created. Please regenerate the zero-touch configuration."
+		found := false
+		for _, s := range enrollSecrets {
+			if s.Secret == existing.EmbeddedEnrollSecret {
+				found = true
+				break
+			}
+		}
+		if !found {
+			resp.Warning = "The enroll secret embedded in this zero-touch token no longer exists. Please regenerate the zero-touch configuration."
 		}
 		return resp, nil
 	}
