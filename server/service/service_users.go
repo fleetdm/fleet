@@ -10,6 +10,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
+
 func (svc *Service) CreateInitialUser(ctx context.Context, p fleet.UserPayload) (*fleet.User, error) {
 	// skipauth: Only the initial user creation should be allowed to skip
 	// authorization (because there is not yet a user context to check against).
@@ -69,7 +70,7 @@ func (svc *Service) NewUser(ctx context.Context, p fleet.UserPayload) (*fleet.Us
 	); err != nil {
 		return nil, err
 	}
-	if err := fleet.LogRoleChangeActivities(ctx, svc, adminUser, nil, nil, user, false); err != nil {
+	if err := fleet.LogRoleChangeActivities(ctx, svc, adminUser, nil, nil, user, fleet.IsJITContext(ctx)); err != nil {
 		return nil, err
 	}
 

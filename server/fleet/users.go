@@ -1,6 +1,7 @@
 package fleet
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -11,6 +12,19 @@ import (
 	"github.com/fleetdm/fleet/v4/server"
 	"golang.org/x/crypto/bcrypt"
 )
+
+type ctxKeyJIT struct{}
+
+// ContextWithJIT marks the context as originating from JIT SSO provisioning.
+func ContextWithJIT(ctx context.Context) context.Context {
+	return context.WithValue(ctx, ctxKeyJIT{}, true)
+}
+
+// IsJITContext returns true if the context was marked as JIT provisioning.
+func IsJITContext(ctx context.Context) bool {
+	v, _ := ctx.Value(ctxKeyJIT{}).(bool)
+	return v
+}
 
 // ErrLastGlobalAdmin is returned when an operation would remove the last global admin.
 var ErrLastGlobalAdmin = errors.New("cannot remove the last global admin")
