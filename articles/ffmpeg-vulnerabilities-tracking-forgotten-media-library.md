@@ -65,5 +65,5 @@ FFmpeg being everywhere is exactly why "we'll patch it when we notice" doesn't h
 <meta name="authorFullName" value="Aube Paul">
 <meta name="authorGitHubUsername" value="robinedev">
 <meta name="category" value="industry news">
-<meta name="publishedOn" value="2026-09-03">
+<meta name="publishedOn" value="2026-09-09">
 <meta name="description" value="Ubuntu patched 13 FFmpeg bugs, some fixed only via Ubuntu Pro. See how to find every host running a vulnerable build with Fleet.">
