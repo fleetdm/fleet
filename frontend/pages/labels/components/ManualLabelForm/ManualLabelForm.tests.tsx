@@ -60,7 +60,10 @@ describe("ManualLabelForm", () => {
       },
     };
 
-    it("should keep host membership editable while editing a label managed in git", async () => {
+    // Field-level locking is LabelForm's contract, covered in LabelForm.tests.tsx. This pins the
+    // isEditing -> gitOpsLocksDefinitionOnly wiring: with the flag off Save is gated, the click is
+    // a no-op, and onSave never fires.
+    it("should submit host membership when editing a label managed in git", async () => {
       const render = createCustomRenderer({
         withBackendMock: true,
         context: gitOpsContext,
@@ -86,15 +89,7 @@ describe("ManualLabelForm", () => {
         />
       );
 
-      // git owns the definition
-      expect(screen.getByLabelText("Name")).toBeDisabled();
-      expect(screen.getByLabelText("Description")).toBeDisabled();
-
-      // ...but membership is managed here
-      const saveButton = screen.getByRole("button", { name: "Save" });
-      expect(saveButton).toBeEnabled();
-
-      await user.click(saveButton);
+      await user.click(screen.getByRole("button", { name: "Save" }));
 
       expect(onSave).toHaveBeenCalledWith({ name, description, targetedHosts });
     });

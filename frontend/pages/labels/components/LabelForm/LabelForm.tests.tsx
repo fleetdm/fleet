@@ -155,7 +155,9 @@ describe("LabelForm", () => {
   });
 
   describe("GitOps mode", () => {
-    it("should disable Save when git owns the whole form", () => {
+    // Default path: dynamic and host vitals labels, plus label creation. Save only unlocks when
+    // ManualLabelForm passes gitOpsLocksDefinitionOnly on the edit page.
+    it("should keep Save gated when gitOpsLocksDefinitionOnly is not set", () => {
       renderInGitOpsMode(
         <LabelForm
           onSave={noop}

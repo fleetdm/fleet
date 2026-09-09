@@ -21,10 +21,7 @@ interface ILabelFormProps {
   teamName: string | null;
   onCancel: () => void;
   immutableFields: string[];
-  /** In GitOps mode, lock only the name and description rather than the whole form, leaving
-   * `additionalFields` and Save enabled. Manual labels use this so their host membership stays
-   * editable: GitOps preserves membership when a label's YAML omits the `hosts` key, so git can
-   * own the definition while membership is managed here. */
+  /** In GitOps mode, lock only the name and description rather than the whole form, for manual labels. */
   gitOpsLocksDefinitionOnly?: boolean;
   onSave: (formData: ILabelFormData, isValid: boolean) => void;
 }
