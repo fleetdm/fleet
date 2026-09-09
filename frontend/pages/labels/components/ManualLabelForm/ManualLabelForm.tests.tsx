@@ -47,4 +47,47 @@ describe("ManualLabelForm", () => {
       targetedHosts,
     });
   });
+
+  describe("GitOps mode", () => {
+    const gitOpsContext = {
+      app: {
+        config: {
+          gitops: {
+            gitops_mode_enabled: true,
+            repository_url: "https://github.com/example/fleet-gitops",
+          },
+        },
+      },
+    };
+
+    it("should submit host membership when editing a label managed in GitOps", async () => {
+      const render = createCustomRenderer({
+        withBackendMock: true,
+        context: gitOpsContext,
+      });
+      const onSave = jest.fn();
+
+      const name = "Remediation exclusion";
+      const description = "Hosts temporarily excluded";
+      const targetedHosts = [
+        createMockHost({ id: 1 }),
+        createMockHost({ id: 2 }),
+      ];
+
+      const { user } = render(
+        <ManualLabelForm
+          onSave={onSave}
+          onCancel={noop}
+          defaultName={name}
+          defaultDescription={description}
+          defaultTargetedHosts={targetedHosts}
+          teamName={null}
+        />
+      );
+
+      await user.click(screen.getByRole("button", { name: "Save" }));
+
+      expect(onSave).toHaveBeenCalledWith({ name, description, targetedHosts });
+    });
+  });
 });
