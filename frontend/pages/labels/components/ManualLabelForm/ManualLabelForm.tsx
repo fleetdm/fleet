@@ -163,8 +163,8 @@ const ManualLabelForm = ({
             />
             {gitOpsLocksDefinitionOnly && labelsGitOpsManaged && (
               <span className="form-field__help-text">
-                Hosts are managed here. If this label&apos;s YAML sets a{" "}
-                <b>hosts</b> key, the next GitOps run replaces them.{" "}
+                Omitting <b>hosts</b> in YAML preserves these hosts. Setting{" "}
+                <b>hosts</b> in YAML replaces them on the next GitOps run.{" "}
                 <CustomLink
                   newTab
                   text="Learn more"
