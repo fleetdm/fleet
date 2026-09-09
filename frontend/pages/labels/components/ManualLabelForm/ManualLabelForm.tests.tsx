@@ -47,4 +47,67 @@ describe("ManualLabelForm", () => {
       targetedHosts,
     });
   });
+
+  describe("GitOps mode", () => {
+    const gitOpsContext = {
+      app: {
+        config: {
+          gitops: {
+            gitops_mode_enabled: true,
+            repository_url: "https://github.com/example/fleet-gitops",
+          },
+        },
+      },
+    };
+
+    it("should keep host membership editable while editing a label managed in git", async () => {
+      const render = createCustomRenderer({
+        withBackendMock: true,
+        context: gitOpsContext,
+      });
+      const onSave = jest.fn();
+
+      const name = "Remediation exclusion";
+      const description = "Hosts temporarily excluded";
+      const targetedHosts = [
+        createMockHost({ id: 1 }),
+        createMockHost({ id: 2 }),
+      ];
+
+      const { user } = render(
+        <ManualLabelForm
+          isEditing
+          onSave={onSave}
+          onCancel={noop}
+          defaultName={name}
+          defaultDescription={description}
+          defaultTargetedHosts={targetedHosts}
+          teamName={null}
+        />
+      );
+
+      // git owns the definition
+      expect(screen.getByLabelText("Name")).toBeDisabled();
+      expect(screen.getByLabelText("Description")).toBeDisabled();
+
+      // ...but membership is managed here
+      const saveButton = screen.getByRole("button", { name: "Save" });
+      expect(saveButton).toBeEnabled();
+
+      await user.click(saveButton);
+
+      expect(onSave).toHaveBeenCalledWith({ name, description, targetedHosts });
+    });
+
+    it("should disable Save when creating a label while git owns labels", () => {
+      const render = createCustomRenderer({
+        withBackendMock: true,
+        context: gitOpsContext,
+      });
+
+      render(<ManualLabelForm onSave={noop} onCancel={noop} teamName={null} />);
+
+      expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
+    });
+  });
 });

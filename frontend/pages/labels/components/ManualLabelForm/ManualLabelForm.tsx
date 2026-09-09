@@ -5,7 +5,9 @@ import { useDebouncedCallback } from "use-debounce";
 
 import { IHost } from "interfaces/host";
 import targetsAPI, { ITargetsSearchResponse } from "services/entities/targets";
+import useGitOpsMode from "hooks/useGitOpsMode";
 
+import CustomLink from "components/CustomLink";
 import TargetsInput from "components/TargetsInput";
 
 import LabelForm from "../LabelForm";
@@ -18,6 +20,8 @@ export const LABEL_TARGET_HOSTS_INPUT_LABEL = "Select hosts";
 const LABEL_TARGET_HOSTS_INPUT_PLACEHOLDER =
   "Search name, hostname, or serial number";
 const DEBOUNCE_DELAY = 500;
+const LABEL_YAML_DOCS_URL =
+  "https://fleetdm.com/docs/configuration/yaml-files#labels";
 
 export interface IManualLabelFormData {
   name: string;
@@ -35,6 +39,7 @@ interface IManualLabelFormProps {
   defaultName?: string;
   defaultDescription?: string;
   defaultTargetedHosts?: IHost[];
+  isEditing?: boolean;
   teamName: string | null;
   onSave: (formData: IManualLabelFormData) => void;
   onCancel: () => void;
@@ -44,10 +49,12 @@ const ManualLabelForm = ({
   defaultName = "",
   defaultDescription = "",
   defaultTargetedHosts = [],
+  isEditing = false,
   teamName,
   onSave,
   onCancel,
 }: IManualLabelFormProps) => {
+  const { gitOpsModeEnabled: labelsGitOpsManaged } = useGitOpsMode("labels");
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [isDebouncing, setIsDebouncing] = useState(false);
@@ -125,6 +132,10 @@ const ManualLabelForm = ({
   const resultsTableConfig = generateTableHeaders();
   const selectedHostsTableConfig = generateTableHeaders(onHostRemove);
 
+  // Only editing gets the split gate. Creating a label is a definition change, so GitOps mode
+  // still locks the whole form there.
+  const gitOpsLocksDefinitionOnly = isEditing;
+
   return (
     <div className={baseClass}>
       <LabelForm
@@ -134,20 +145,34 @@ const ManualLabelForm = ({
         onCancel={onCancel}
         onSave={onSaveNewLabel}
         immutableFields={teamName ? ["fleets"] : []}
+        gitOpsLocksDefinitionOnly={gitOpsLocksDefinitionOnly}
         additionalFields={
-          <TargetsInput
-            label={LABEL_TARGET_HOSTS_INPUT_LABEL}
-            placeholder={LABEL_TARGET_HOSTS_INPUT_PLACEHOLDER}
-            searchText={searchQuery}
-            searchResultsTableConfig={resultsTableConfig}
-            selectedHostsTableConifg={selectedHostsTableConfig}
-            isTargetsLoading={isLoadingSearchResults || isDebouncing}
-            hasFetchError={isErrorSearchResults}
-            searchResults={searchResults ?? []}
-            targetedHosts={targetedHosts}
-            setSearchText={onChangeSearchQuery}
-            handleRowSelect={onHostSelect}
-          />
+          <>
+            <TargetsInput
+              label={LABEL_TARGET_HOSTS_INPUT_LABEL}
+              placeholder={LABEL_TARGET_HOSTS_INPUT_PLACEHOLDER}
+              searchText={searchQuery}
+              searchResultsTableConfig={resultsTableConfig}
+              selectedHostsTableConifg={selectedHostsTableConfig}
+              isTargetsLoading={isLoadingSearchResults || isDebouncing}
+              hasFetchError={isErrorSearchResults}
+              searchResults={searchResults ?? []}
+              targetedHosts={targetedHosts}
+              setSearchText={onChangeSearchQuery}
+              handleRowSelect={onHostSelect}
+            />
+            {gitOpsLocksDefinitionOnly && labelsGitOpsManaged && (
+              <span className="form-field__help-text">
+                Hosts are managed here. If this label&apos;s YAML sets a{" "}
+                <b>hosts</b> key, the next GitOps run replaces them.{" "}
+                <CustomLink
+                  newTab
+                  text="Learn more"
+                  url={LABEL_YAML_DOCS_URL}
+                />
+              </span>
+            )}
+          </>
         }
       />
     </div>
