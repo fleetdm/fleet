@@ -410,6 +410,7 @@ The [Product Design](https://fleetdm.com/handbook/product-design#team) holds reg
 
 We use Figma for virtually all our design work. This includes the Fleet product, our website, and our marketing collateral. 
 
+- **Requesting access:** Access to Figma should be requested through [Vanta](https://www.vanta.com/).
 - **Fleet product:** All product design work is done in the [Fleet product](https://www.figma.com/files/project/17318630/%F0%9F%94%9C%F0%9F%93%A6-Fleet-EE%C2%AE-(product)?fuid=1234929285759903870) Figma project.  
 See [📖Product#Working with Figma](https://fleetdm.com/handbook/product#working-with-figma) for more details.
 - **Fleet website:** All website design work is done in the [fleetdm.com (current, dev-ready)](https://www.figma.com/file/yLP0vJ8Ms4GbCoofLwptwS/%E2%9C%85-fleetdm.com-(current%2C-dev-ready)?node-id=794%3A373) Figma file.
