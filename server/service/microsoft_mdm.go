@@ -3048,14 +3048,8 @@ func (svc *Service) removeWindowsDeviceIfAlreadyMDMEnrolled(
 		return err
 	}
 
-	// Two distinct machines can present the same HW device id, in which case the delete below hands the incumbent
-	// host's enrollment to the enrolling one and Fleet silently stops managing the incumbent. The enrollment still
-	// proceeds, since a collision is indistinguishable at the wire from the same machine re-enrolling, but nothing
-	// else in the product reports it.
-	svc.warnOnWindowsMDMHardwareIDCollision(ctx, reqHWDeviceID, hostUUID)
-
 	// Device is already enrolled, let's remove it
-	err = svc.ds.MDMWindowsDeleteEnrolledDeviceOnReenrollment(ctx, reqHWDeviceID)
+	deletedHostUUID, err := svc.ds.MDMWindowsDeleteEnrolledDeviceOnReenrollment(ctx, reqHWDeviceID)
 	if err != nil {
 		if fleet.IsNotFound(err) {
 			return nil
@@ -3063,23 +3057,15 @@ func (svc *Service) removeWindowsDeviceIfAlreadyMDMEnrolled(
 		return err
 	}
 
+	svc.warnOnWindowsMDMHardwareIDCollision(ctx, reqHWDeviceID, hostUUID, deletedHostUUID)
+
 	return nil
 }
 
-// warnOnWindowsMDMHardwareIDCollision reports that the MDM hardware ID an enrolling device presented is already held by
-// a different host.
-func (svc *Service) warnOnWindowsMDMHardwareIDCollision(ctx context.Context, hardwareID, hostUUID string) {
-	if hostUUID == "" {
-		return
-	}
-
-	incumbentHostUUID, err := svc.ds.MDMWindowsGetEnrolledHostUUIDWithHardwareID(ctx, hardwareID)
-	if err != nil {
-		svc.logger.WarnContext(ctx, "checking whether a windows mdm hardware id is already held by another host",
-			"err", err, "mdm_hardware_id", hardwareID)
-		return
-	}
-	if incumbentHostUUID == "" || incumbentHostUUID == hostUUID {
+// warnOnWindowsMDMHardwareIDCollision reports that the enrollment just deleted for the hardware ID the enrolling device
+// presented belonged to a different host.
+func (svc *Service) warnOnWindowsMDMHardwareIDCollision(ctx context.Context, hardwareID, hostUUID, deletedHostUUID string) {
+	if hostUUID == "" || deletedHostUUID == "" || deletedHostUUID == hostUUID {
 		return
 	}
 
@@ -3088,7 +3074,7 @@ func (svc *Service) warnOnWindowsMDMHardwareIDCollision(ctx context.Context, har
 			"enrollment and leaves it unmanaged",
 		"mdm_hardware_id", hardwareID,
 		"enrolling_host_uuid", hostUUID,
-		"existing_host_uuid", incumbentHostUUID,
+		"existing_host_uuid", deletedHostUUID,
 	)
 }
 

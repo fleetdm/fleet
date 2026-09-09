@@ -3571,6 +3571,12 @@ func TestWarnOnWindowsMDMHardwareIDCollision(t *testing.T) {
 		incumbentHost = "A5D3F1A9-1B40-49DC-9D54-B4F558850CB9"
 	)
 
+	secTokenMsg := &fleet.RequestSecurityToken{
+		AdditionalContext: fleet.AdditionalContext{
+			ContextItems: []fleet.ContextItem{{Name: syncml.ReqSecTokenContextItemHWDevID, Value: hwID}},
+		},
+	}
+
 	// Attributes of the first warning whose message contains want, or nil when nothing matched.
 	warnAttrs := func(h *testutils.TestHandler, want string) map[string]string {
 		for _, r := range h.Records() {
@@ -3585,49 +3591,59 @@ func TestWarnOnWindowsMDMHardwareIDCollision(t *testing.T) {
 	}
 
 	for _, tc := range []struct {
-		name          string
-		enrollingHost string
-		incumbent     string
-		lookupErr     error
-		wantLookup    bool
-		wantCollision bool
+		name            string
+		enrollingHost   string
+		deletedHostUUID string
+		deleteErr       error
+		wantErr         bool
+		wantCollision   bool
 	}{
 		{
-			name: "already enrolled to a different host", enrollingHost: enrollingHost, incumbent: incumbentHost,
-			wantLookup: true, wantCollision: true,
+			name: "enrollment taken from a different host", enrollingHost: enrollingHost, deletedHostUUID: incumbentHost,
+			wantCollision: true,
 		},
-		{name: "already enrolled to the enrolling host", enrollingHost: enrollingHost, incumbent: enrollingHost, wantLookup: true},
-		{name: "not enrolled to any host", enrollingHost: enrollingHost, wantLookup: true},
-		{name: "enrolling host is unknown, as in an automatic enrollment", incumbent: incumbentHost},
-		{name: "the lookup fails", enrollingHost: enrollingHost, lookupErr: errors.New("db is down"), wantLookup: true},
+		{name: "same host re-enrolling", enrollingHost: enrollingHost, deletedHostUUID: enrollingHost},
+		{name: "deleted enrollment was not linked to a host", enrollingHost: enrollingHost},
+		{name: "enrolling host is unknown, as in an automatic enrollment", deletedHostUUID: incumbentHost},
+		{
+			name: "nothing was enrolled with that hardware id", enrollingHost: enrollingHost,
+			deleteErr: &notFoundError{},
+		},
+		{
+			name: "the delete fails", enrollingHost: enrollingHost, deletedHostUUID: incumbentHost,
+			deleteErr: errors.New("db is down"), wantErr: true,
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			ds := new(mock.Store)
-			ds.MDMWindowsGetEnrolledHostUUIDWithHardwareIDFunc = func(_ context.Context, gotHWID string) (string, error) {
+			ds.MDMWindowsDeleteEnrolledDeviceOnReenrollmentFunc = func(_ context.Context, gotHWID string) (string, error) {
 				require.Equal(t, hwID, gotHWID)
-				return tc.incumbent, tc.lookupErr
+				if tc.deleteErr != nil {
+					return "", tc.deleteErr
+				}
+				return tc.deletedHostUUID, nil
 			}
 			handler := testutils.NewTestHandler()
 			svc := &Service{ds: ds, logger: slog.New(handler)}
 
-			svc.warnOnWindowsMDMHardwareIDCollision(t.Context(), hwID, tc.enrollingHost)
-
-			require.Equal(t, tc.wantLookup, ds.MDMWindowsGetEnrolledHostUUIDWithHardwareIDFuncInvoked)
+			err := svc.removeWindowsDeviceIfAlreadyMDMEnrolled(t.Context(), secTokenMsg, tc.enrollingHost)
+			if tc.wantErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err, "a duplicate hardware ID must never fail an enrollment")
+			}
+			require.True(t, ds.MDMWindowsDeleteEnrolledDeviceOnReenrollmentFuncInvoked)
 
 			attrs := warnAttrs(handler, "hardware ID already held by another host")
 			if !tc.wantCollision {
 				require.Nil(t, attrs, "this is not a collision and must not be reported as one")
-				if tc.lookupErr != nil {
-					require.NotNil(t, warnAttrs(handler, "checking whether a windows mdm hardware id"),
-						"the lookup failure itself should still be visible")
-				}
 				return
 			}
 			// Whole-map equality so a renamed or extra attribute fails too: this log line is the only signal.
 			require.Equal(t, map[string]string{
 				"mdm_hardware_id":     hwID,
 				"enrolling_host_uuid": tc.enrollingHost,
-				"existing_host_uuid":  tc.incumbent,
+				"existing_host_uuid":  tc.deletedHostUUID,
 			}, attrs)
 		})
 	}

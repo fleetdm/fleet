@@ -1434,9 +1434,7 @@ type WSTEPAssociateCertHashFunc func(ctx context.Context, deviceUUID string, has
 
 type MDMWindowsInsertEnrolledDeviceFunc func(ctx context.Context, device *fleet.MDMWindowsEnrolledDevice) error
 
-type MDMWindowsGetEnrolledHostUUIDWithHardwareIDFunc func(ctx context.Context, mdmDeviceHWID string) (string, error)
-
-type MDMWindowsDeleteEnrolledDeviceOnReenrollmentFunc func(ctx context.Context, mdmDeviceHWID string) error
+type MDMWindowsDeleteEnrolledDeviceOnReenrollmentFunc func(ctx context.Context, mdmDeviceHWID string) (string, error)
 
 type MDMWindowsGetEnrolledDeviceWithDeviceIDFunc func(ctx context.Context, mdmDeviceID string) (*fleet.MDMWindowsEnrolledDevice, error)
 
@@ -4513,9 +4511,6 @@ type DataStore struct {
 
 	MDMWindowsInsertEnrolledDeviceFunc        MDMWindowsInsertEnrolledDeviceFunc
 	MDMWindowsInsertEnrolledDeviceFuncInvoked bool
-
-	MDMWindowsGetEnrolledHostUUIDWithHardwareIDFunc        MDMWindowsGetEnrolledHostUUIDWithHardwareIDFunc
-	MDMWindowsGetEnrolledHostUUIDWithHardwareIDFuncInvoked bool
 
 	MDMWindowsDeleteEnrolledDeviceOnReenrollmentFunc        MDMWindowsDeleteEnrolledDeviceOnReenrollmentFunc
 	MDMWindowsDeleteEnrolledDeviceOnReenrollmentFuncInvoked bool
@@ -10898,14 +10893,7 @@ func (s *DataStore) MDMWindowsInsertEnrolledDevice(ctx context.Context, device *
 	return s.MDMWindowsInsertEnrolledDeviceFunc(ctx, device)
 }
 
-func (s *DataStore) MDMWindowsGetEnrolledHostUUIDWithHardwareID(ctx context.Context, mdmDeviceHWID string) (string, error) {
-	s.mu.Lock()
-	s.MDMWindowsGetEnrolledHostUUIDWithHardwareIDFuncInvoked = true
-	s.mu.Unlock()
-	return s.MDMWindowsGetEnrolledHostUUIDWithHardwareIDFunc(ctx, mdmDeviceHWID)
-}
-
-func (s *DataStore) MDMWindowsDeleteEnrolledDeviceOnReenrollment(ctx context.Context, mdmDeviceHWID string) error {
+func (s *DataStore) MDMWindowsDeleteEnrolledDeviceOnReenrollment(ctx context.Context, mdmDeviceHWID string) (string, error) {
 	s.mu.Lock()
 	s.MDMWindowsDeleteEnrolledDeviceOnReenrollmentFuncInvoked = true
 	s.mu.Unlock()
