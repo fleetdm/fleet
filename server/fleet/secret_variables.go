@@ -38,7 +38,7 @@ func ValidateSecretVariableName(name string) error {
 // SecretVariableIdentifier holds identifier information about a secret variable (skipping the actual contents/value).
 type SecretVariableIdentifier struct {
 	ID        uint      `json:"id" db:"id"`
-	Name      string    `json:"name" name:"name"`
+	Name      string    `json:"name" db:"name"`
 	CreatedAt time.Time `json:"created_at" db:"created_at"`
 	UpdatedAt time.Time `json:"updated_at" db:"updated_at"`
 }
