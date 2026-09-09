@@ -927,16 +927,14 @@ func (d *Datastore) setKeepTTLChunk(ctx context.Context, chunk []string, byKey m
 
 	conn := d.pool.Get()
 	defer conn.Close()
-	// BindConn before ConfigureDoer, see mgetChunk for the rationale.
 	if err := redis.BindConn(d.pool, conn, chunk...); err != nil {
 		d.recordHostCacheErr(ctx, "set", err)
 		return nil, all()
 	}
-	doer := redis.ConfigureDoer(d.pool, conn)
 
 	sent := make([]hostCacheKV, 0, len(chunk))
 	for i, k := range chunk {
-		if err := doer.Send("SET", k, byKey[k].val, "XX", "KEEPTTL"); err != nil {
+		if err := conn.Send("SET", k, byKey[k].val, "XX", "KEEPTTL"); err != nil {
 			d.recordHostCacheErr(ctx, "set", err)
 			for _, rest := range chunk[i:] {
 				failed = append(failed, byKey[rest])
@@ -948,14 +946,14 @@ func (d *Datastore) setKeepTTLChunk(ctx context.Context, chunk []string, byKey m
 	if len(sent) == 0 {
 		return nil, failed
 	}
-	if err := doer.Flush(); err != nil {
+	if err := conn.Flush(); err != nil {
 		d.recordHostCacheErr(ctx, "set", err)
 		return nil, append(failed, sent...)
 	}
 
 	applied = make([]hostCacheKV, 0, len(sent))
 	for i, kv := range sent {
-		reply, err := doer.Receive()
+		reply, err := conn.Receive()
 		if err != nil {
 			d.recordHostCacheErr(ctx, "set", err)
 			return applied, append(failed, sent[i:]...)
