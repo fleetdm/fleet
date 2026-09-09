@@ -217,7 +217,6 @@ describe("ManagedAccountModal", () => {
         hostId={7}
         canRotatePassword
         rotationFailed
-        rotationError="Resetting password for _fleetadmin failed: NERR_PasswordTooShort (2245)"
         onCancel={jest.fn()}
         onRotate={jest.fn()}
       />
@@ -226,12 +225,11 @@ describe("ManagedAccountModal", () => {
     await waitFor(() => {
       expect(screen.getByText(/Couldn't rotate password/i)).toBeVisible();
     });
-    expect(screen.getByText(/NERR_PasswordTooShort/)).toBeVisible();
     expect(screen.getByText("_fleetadmin")).toBeVisible();
     expect(screen.getByText("Rotate password")).toBeVisible();
   });
 
-  it("prefers the pending banner over a stale rotation error", async () => {
+  it("prefers the pending banner over a stale failure", async () => {
     (hostAPI.getManagedAccountPassword as jest.Mock).mockResolvedValue({
       ...mockPasswordResponse,
       managed_account_password: {
@@ -245,7 +243,6 @@ describe("ManagedAccountModal", () => {
         hostId={7}
         canRotatePassword
         rotationFailed
-        rotationError="an earlier failure"
         onCancel={jest.fn()}
         onRotate={jest.fn()}
       />
@@ -276,7 +273,6 @@ describe("ManagedAccountModal", () => {
         hostId={7}
         canRotatePassword
         rotationFailed
-        rotationError="policy rejected it"
         onCancel={jest.fn()}
         onRotate={jest.fn()}
       />
@@ -288,24 +284,6 @@ describe("ManagedAccountModal", () => {
     expect(
       screen.queryByText(/Password rotates automatically after/i)
     ).not.toBeInTheDocument();
-  });
-
-  it("still shows the failure banner when the host gave no reason", async () => {
-    // The macOS ack path marks a row failed without a reason.
-    render(
-      <ManagedAccountModal
-        hostId={7}
-        canRotatePassword
-        rotationFailed
-        onCancel={jest.fn()}
-        onRotate={jest.fn()}
-      />
-    );
-
-    await waitFor(() => {
-      expect(screen.getByText(/Couldn't rotate password/i)).toBeVisible();
-    });
-    expect(screen.getByText("_fleetadmin")).toBeVisible();
   });
 
   it("does not call onRotate when rotate API errors", async () => {

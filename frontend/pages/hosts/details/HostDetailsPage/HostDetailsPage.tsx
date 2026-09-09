@@ -2004,9 +2004,6 @@ const HostDetailsPage = ({
               rotationFailed={
                 host.mdm.os_settings?.managed_local_account?.status === "failed"
               }
-              rotationError={
-                host.mdm.os_settings?.managed_local_account?.detail
-              }
               onCancel={() => {
                 setShowManagedAccountModal(false);
                 // Opening the modal triggers a "viewed managed account"

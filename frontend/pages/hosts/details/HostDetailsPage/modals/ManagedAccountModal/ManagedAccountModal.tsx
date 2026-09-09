@@ -25,10 +25,9 @@ interface IManagedAccountModalProps {
   // We deferred this decision for now because this modal only displays for
   // Admin or Maintainer roles
   canRotatePassword: boolean;
-  /** The last rotation failed. The password shown is still the last one Fleet received. */
+  /** The last rotation failed. The password shown is still the last one Fleet received. The reason the host
+   * reported is shown on the failure activity instead, not here. */
   rotationFailed?: boolean;
-  /** The host's reason for the failure, when it reported one. */
-  rotationError?: string;
   onCancel: () => void;
   onRotate: () => void;
 }
@@ -37,7 +36,6 @@ const ManagedAccountModal = ({
   hostId,
   canRotatePassword,
   rotationFailed = false,
-  rotationError,
   onCancel,
   onRotate,
 }: IManagedAccountModalProps) => {
@@ -101,14 +99,7 @@ const ManagedAccountModal = ({
     if (rotationFailed) {
       return (
         <InfoBanner color="yellow" icon="warning">
-          <>
-            Couldn&apos;t rotate password.
-            {rotationError && (
-              <div className={`${baseClass}__rotation-error`}>
-                {rotationError}
-              </div>
-            )}
-          </>
+          Couldn&apos;t rotate password.
         </InfoBanner>
       );
     }
