@@ -532,6 +532,26 @@ describe("getUiStatus", () => {
       });
       expect(getUiStatus(sw, true)).toBe("uninstalled");
     });
+
+    it("returns 'failed_install' (not 'failed_install_installed') when installed_versions is an empty array", () => {
+      const sw = createMockHostSoftware({
+        status: "failed_install",
+        source: "ps1_packages",
+        software_package: scriptPackageWithUninstall,
+        installed_versions: [],
+      });
+      expect(getUiStatus(sw, true)).toBe("failed_install");
+    });
+
+    it("returns 'failed_uninstall' (not 'failed_uninstall_installed') when installed_versions is an empty array", () => {
+      const sw = createMockHostSoftware({
+        status: "failed_uninstall",
+        source: "ps1_packages",
+        software_package: scriptPackageWithUninstall,
+        installed_versions: [],
+      });
+      expect(getUiStatus(sw, true)).toBe("failed_uninstall");
+    });
   });
 });
 

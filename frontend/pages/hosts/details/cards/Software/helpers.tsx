@@ -241,8 +241,11 @@ export const getUiStatus = (
   }
 
   // 1. Failed install states
+  // Require length > 0: empty array is truthy, so `installed_versions: []`
+  // would otherwise render "Installed" for a package that was never installed
+  // (matters for script packages, which never populate installed_versions).
   if (status === "failed_install") {
-    if (installerVersion && installed_versions) {
+    if (installerVersion && installed_versions && installed_versions.length > 0) {
       if (
         installed_versions.some(
           (iv) => compareVersions(iv.version, installerVersion) === -1
@@ -259,7 +262,7 @@ export const getUiStatus = (
 
   // 2. Failed uninstall states
   if (status === "failed_uninstall") {
-    if (installerVersion && installed_versions) {
+    if (installerVersion && installed_versions && installed_versions.length > 0) {
       if (
         installed_versions.some(
           (iv) => compareVersions(iv.version, installerVersion) === -1
