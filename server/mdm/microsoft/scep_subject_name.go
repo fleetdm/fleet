@@ -4,7 +4,6 @@ import (
 	"encoding/xml"
 	"errors"
 	"io"
-	"slices"
 	"strconv"
 	"strings"
 	"unicode"
@@ -203,6 +202,12 @@ func transformSCEPSubjectNameData(profileContents string, transformAttribute fun
 	b.Grow(len(profileContents))
 	var prev int64
 	for _, span := range spans {
+		// Spans come out in document order and apart from each other. Skipping one that doesn't
+		// costs that profile its quoting, which Windows will reject on its own; slicing backwards
+		// would panic, and this runs over every host's profiles on one pass.
+		if span.start < prev || span.end < span.start {
+			continue
+		}
 		lead, dn, trail := unwrapCDATA(profileContents[span.start:span.end])
 		b.WriteString(profileContents[prev:span.start])
 		b.WriteString(lead + mapDNAttributes(dn, transformAttribute) + trail)
@@ -246,10 +251,14 @@ func scepSubjectNameDataSpans(profileContents string) ([]dataSpan, error) {
 		locURI    string
 		itemSpans []dataSpan
 		dataStart int64
+		// Nesting either element is malformed, but it passes upload validation, so both are counted
+		// rather than assumed away: only the outermost of each is read, and the value of a nested
+		// <Data> stays part of the value around it.
+		itemDepth int
+		dataDepth int
 		// Trails the decoder by one token, so at an end element it marks where the content ended.
 		prevOffset int64
 	)
-	inItem := func() bool { return slices.Contains(stack, "Item") }
 	for {
 		offsetBeforeToken := prevOffset
 		token, err := dec.Token()
@@ -264,26 +273,36 @@ func scepSubjectNameDataSpans(profileContents string) ([]dataSpan, error) {
 			stack = append(stack, t.Name.Local)
 			switch t.Name.Local {
 			case "Item":
-				locURI = ""
-				itemSpans = nil
+				itemDepth++
+				if itemDepth == 1 {
+					locURI = ""
+					itemSpans = nil
+				}
 			case "Data":
-				if inItem() {
-					dataStart = dec.InputOffset()
+				if itemDepth > 0 {
+					dataDepth++
+					if dataDepth == 1 {
+						dataStart = dec.InputOffset()
+					}
 				}
 			}
 		case xml.CharData:
-			if inItem() && inTargetLocURI(stack) {
+			if itemDepth > 0 && inTargetLocURI(stack) {
 				locURI += string(t)
 			}
 		case xml.EndElement:
 			switch t.Name.Local {
 			case "Item":
-				if isSCEPSubjectNameLocURI(locURI) {
+				if itemDepth == 1 && isSCEPSubjectNameLocURI(locURI) {
 					spans = append(spans, itemSpans...)
 				}
+				itemDepth--
 			case "Data":
-				if inItem() {
-					itemSpans = append(itemSpans, dataSpan{start: dataStart, end: offsetBeforeToken})
+				if itemDepth > 0 {
+					if dataDepth == 1 {
+						itemSpans = append(itemSpans, dataSpan{start: dataStart, end: offsetBeforeToken})
+					}
+					dataDepth--
 				}
 			}
 			// The decoder is strict, so every end element closes the element on top of the stack.

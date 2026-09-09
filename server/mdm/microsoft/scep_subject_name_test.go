@@ -192,6 +192,41 @@ func TestSCEPSubjectNameQuoting(t *testing.T) {
 	}
 }
 
+// A profile can nest <Data> or <Item> and still pass upload validation. Delivery preprocesses every
+// Windows profile on one pass, so a panic here would stop every host's profiles, not just this one.
+func TestSCEPSubjectNameNestedElements(t *testing.T) {
+	target := `<Target><LocURI>` + testDeviceSubjectNameLocURI + `</LocURI></Target>`
+
+	tests := []struct {
+		name    string
+		profile string
+		want    string
+	}{
+		{
+			// The value runs to the end of the outermost <Data>, nested markup and all. Windows
+			// rejects a subject name shaped like this, but that is its own profile's failure.
+			name:    "data nested in the subject name data",
+			profile: `<Add><Item>` + target + `<Data>CN=$FLEET_VAR_HOST_UUID<Data>x</Data></Data></Item></Add>`,
+			want:    `<Add><Item>` + target + `<Data>CN="host-1<Data>x</Data>"</Data></Item></Add>`,
+		},
+		{
+			// Both LocURIs still read as a subject name, so both values are quoted rather than one
+			// of them going out bare.
+			name:    "item nested in the item",
+			profile: `<Add><Item>` + target + `<Data>CN=$FLEET_VAR_HOST_UUID</Data><Item>` + target + `<Data>CN=$FLEET_VAR_HOST_UUID</Data></Item></Item></Add>`,
+			want:    `<Add><Item>` + target + `<Data>CN="host-1"</Data><Item>` + target + `<Data>CN="host-1"</Data></Item></Item></Add>`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			require.NotPanics(t, func() {
+				require.Equal(t, tt.want, deliverSubjectName(t, tt.profile, "host-1"))
+			})
+		})
+	}
+}
+
 func TestSCEPSubjectNameQuotingXMLShapes(t *testing.T) {
 	const dn = `CN=$FLEET_VAR_HOST_UUID,O=Fleet QA`
 	const quotedDN = `CN="user+idp@example.com",O=Fleet QA`
