@@ -1,6 +1,10 @@
 import React from "react";
 
-import { ISoftwareTitleVersion } from "interfaces/software";
+import {
+  formatSoftwareVersion,
+  ISoftwareTitleVersion,
+  SoftwareSource,
+} from "interfaces/software";
 import PATHS from "router/paths";
 import { getPathWithQueryParams } from "utilities/url";
 
@@ -21,6 +25,9 @@ import VulnerabilitiesCell from "../../components/tables/VulnerabilitiesCell";
 interface ISoftwareTitleVersionsTableConfigProps {
   teamId?: number;
   isIPadOSOrIOSApp: boolean;
+  /** The title's source. Versions don't carry one, and a title has exactly one, so
+   * it applies to every row. Only used for formatting; see formatSoftwareVersion. */
+  source: SoftwareSource;
 }
 
 type IVersionCellProps = IStringCellProps<ISoftwareTitleVersion>;
@@ -32,6 +39,7 @@ type ITableHeaderProps = IHeaderProps<ISoftwareTitleVersion>;
 const generateSoftwareTitleVersionsTableConfig = ({
   teamId,
   isIPadOSOrIOSApp,
+  source,
 }: ISoftwareTitleVersionsTableConfigProps) => {
   const tableHeaders = [
     {
@@ -50,7 +58,7 @@ const generateSoftwareTitleVersionsTableConfig = ({
           // renders desired empty state
           return <TextCell />;
         }
-        const { id } = cellProps.row.original;
+        const { id, version, release } = cellProps.row.original;
         const softwareVersionDetailsPath = getPathWithQueryParams(
           PATHS.SOFTWARE_VERSION_DETAILS(id.toString()),
           { fleet_id: teamId }
@@ -60,7 +68,7 @@ const generateSoftwareTitleVersionsTableConfig = ({
           <LinkCell
             className="name-link"
             path={softwareVersionDetailsPath}
-            value={cellProps.cell.value}
+            value={formatSoftwareVersion({ version, release, source })}
           />
         );
       },

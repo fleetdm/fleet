@@ -5,7 +5,7 @@ import { InjectedRouter } from "react-router";
 import { Row } from "react-table";
 import PATHS from "router/paths";
 
-import { ISoftwareTitleVersion } from "interfaces/software";
+import { ISoftwareTitleVersion, SoftwareSource } from "interfaces/software";
 import { GITHUB_NEW_ISSUE_LINK } from "utilities/constants";
 import { getPathWithQueryParams } from "utilities/url";
 
@@ -69,6 +69,8 @@ const NoVersionsDetected = (isAvailableForInstall = false): JSX.Element => {
 interface ITitleVersionsTableProps {
   router: InjectedRouter;
   data: ISoftwareTitleVersion[];
+  /** The title's source, needed to render each version; see TitleVersionsTableConfig. */
+  source: SoftwareSource;
   isLoading: boolean;
   teamIdForApi?: number;
   isIPadOSOrIOSApp: boolean;
@@ -85,6 +87,7 @@ interface IRowProps extends Row {
 const TitleVersionsTable = ({
   router,
   data,
+  source,
   isLoading,
   teamIdForApi,
   isIPadOSOrIOSApp,
@@ -109,8 +112,9 @@ const TitleVersionsTable = ({
       generateSoftwareTitleVersionsTableConfig({
         teamId: teamIdForApi,
         isIPadOSOrIOSApp,
+        source,
       }),
-    [teamIdForApi, isIPadOSOrIOSApp]
+    [teamIdForApi, isIPadOSOrIOSApp, source]
   );
 
   const renderVersionsCount = () => (

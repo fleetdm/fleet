@@ -168,7 +168,12 @@ export const generateHostSWLibraryTableHeaders = ({
       // accessor.
       accessor: (originalRow) => originalRow.installed_versions,
       Cell: (cellProps: IVersionsCellProps) => {
-        return <VersionCell versions={cellProps.cell.value} />;
+        return (
+          <VersionCell
+            versions={cellProps.cell.value}
+            source={cellProps.row.original.source}
+          />
+        );
       },
     },
     {
@@ -206,7 +211,10 @@ export const generateHostSWLibraryTableHeaders = ({
         }
 
         return (
-          <VersionCell versions={[{ version: installerData?.version || "" }]} />
+          <VersionCell
+            versions={[{ version: installerData?.version || "" }]}
+            source={cellProps.row.original.source}
+          />
         );
       },
     },

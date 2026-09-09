@@ -5,6 +5,7 @@ import { InjectedRouter } from "react-router";
 import { getPathWithQueryParams } from "utilities/url";
 import {
   formatSoftwareType,
+  formatSoftwareVersion,
   ISoftwareVersion,
   ISoftwareVulnerability,
 } from "interfaces/software";
@@ -70,7 +71,7 @@ const generateTableHeaders = (
       disableSortBy: true,
       accessor: "version",
       Cell: (cellProps: ITableStringCellProps) => (
-        <TextCell value={cellProps.cell.value} />
+        <TextCell value={formatSoftwareVersion(cellProps.row.original)} />
       ),
     },
     {

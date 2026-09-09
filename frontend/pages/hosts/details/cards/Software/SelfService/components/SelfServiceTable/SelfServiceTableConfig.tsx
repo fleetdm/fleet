@@ -136,7 +136,12 @@ export const generateSoftwareTableHeaders = ({
       // accessor.
       accessor: (originalRow) => originalRow.installed_versions,
       Cell: (cellProps: IVersionsCellProps) => {
-        return <VersionCell versions={cellProps.cell.value} />;
+        return (
+          <VersionCell
+            versions={cellProps.cell.value}
+            source={cellProps.row.original.source}
+          />
+        );
       },
     },
     {
@@ -150,7 +155,10 @@ export const generateSoftwareTableHeaders = ({
         const installerData =
           softwareTitle.software_package ?? softwareTitle.app_store_app;
         return (
-          <VersionCell versions={[{ version: installerData?.version || "" }]} />
+          <VersionCell
+            versions={[{ version: installerData?.version || "" }]}
+            source={cellProps.row.original.source}
+          />
         );
       },
     },

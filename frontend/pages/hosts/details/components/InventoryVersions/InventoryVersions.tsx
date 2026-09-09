@@ -6,6 +6,7 @@ import { dateAgo } from "utilities/date_format";
 import {
   SoftwareExtensionFor,
   formatSoftwareType,
+  formatSoftwareVersion,
   INSTALLABLE_SOURCE_PLATFORM_CONVERSION,
   IHostSoftware,
   ISoftwareInstallVersion,
@@ -56,7 +57,13 @@ const InventoryVersion = ({
       <div className={`${baseClass}__row`}>
         <DataSet
           title="Version"
-          value={version.version || DEFAULT_EMPTY_CELL_VALUE}
+          value={
+            formatSoftwareVersion({
+              version: version.version,
+              release: version.release,
+              source,
+            }) || DEFAULT_EMPTY_CELL_VALUE
+          }
           textOnly
         />
         <DataSet
