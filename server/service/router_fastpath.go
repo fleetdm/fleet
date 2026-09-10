@@ -1,9 +1,7 @@
 package service
 
 import (
-	"context"
 	"fmt"
-	"log/slog"
 	"net/http"
 	"path"
 	"regexp"
@@ -89,16 +87,14 @@ var (
 // route-agnostic wrappers gorilla applies through Use; they are applied again here because a request served by the fast path
 // never enters the gorilla router.
 //
-// If any route cannot be promoted safely the whole fast path is dropped and the gorilla router is returned unchanged, so a
-// route added later can only cost throughput, never correctness or a failed startup.
-func newFastPathHandler(r *mux.Router, middlewares []mux.MiddlewareFunc, cfg config.FleetConfig,
-	logger *slog.Logger,
-) http.Handler {
+// A route that cannot be promoted safely panics. The route table is fixed at compile time -- Fleet registers every route
+// unconditionally except one literal websocket path -- so this is a programming error with the same blast radius as the
+// endpoint catalog validation serve.go already panics on, and every test that calls MakeHandler reaches it. Degrading to a
+// warning instead would let the fast path ship silently switched off, which is exactly how it reached a running server once.
+func newFastPathHandler(r *mux.Router, middlewares []mux.MiddlewareFunc, cfg config.FleetConfig) http.Handler {
 	fast, err := buildFastPathMux(r, middlewares, cfg)
 	if err != nil {
-		logger.WarnContext(context.Background(),
-			"stdlib fast-path router disabled, falling back to gorilla/mux for all routes", "err", err)
-		return r
+		panic(fmt.Sprintf("building the stdlib fast-path router: %v", err))
 	}
 	return &fastPathHandler{fast: fast, router: r}
 }

@@ -161,7 +161,7 @@ func MakeHandler(
 
 	r := mux.NewRouter()
 
-	fastPathEnabled := !config.Server.DisableFastRouter
+	fastPathEnabled := true
 	if config.Logging.TracingEnabled {
 		if config.OTELEnabled() {
 			r.Use(otmiddleware.Middleware(
@@ -217,7 +217,7 @@ func MakeHandler(
 	if !fastPathEnabled {
 		return r
 	}
-	return newFastPathHandler(r, middlewares, config, logger)
+	return newFastPathHandler(r, middlewares, config)
 }
 
 // PrometheusMetricsHandler wraps the provided handler with prometheus metrics

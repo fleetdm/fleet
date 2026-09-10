@@ -137,7 +137,7 @@ func TestFastPathMatchesGorillaForEveryRoute(t *testing.T) {
 	}))
 	require.Greater(t, len(samples), 400, "expected the full route table to be walked")
 
-	handler := newFastPathHandler(router, nil, config.TestConfig(), slog.New(slog.DiscardHandler))
+	handler := newFastPathHandler(router, nil, config.TestConfig())
 	require.IsType(t, &fastPathHandler{}, handler, "no route should have been rejected by the stdlib mux")
 
 	for _, s := range samples {
@@ -153,7 +153,7 @@ func TestFastPathMatchesGorillaForEveryRoute(t *testing.T) {
 // template it replaced, or matches the same but answers differently. All of them have to reach gorilla.
 func TestFastPathMatchesGorillaForRejectedRequests(t *testing.T) {
 	router := newRouterForTest(t)
-	handler := newFastPathHandler(router, nil, config.TestConfig(), slog.New(slog.DiscardHandler))
+	handler := newFastPathHandler(router, nil, config.TestConfig())
 
 	cases := []struct {
 		name         string
@@ -210,7 +210,7 @@ func TestFastPathServesHotAgentRoutes(t *testing.T) {
 		})
 		return nil
 	}))
-	handler := newFastPathHandler(router, nil, config.TestConfig(), slog.New(slog.DiscardHandler))
+	handler := newFastPathHandler(router, nil, config.TestConfig())
 
 	for _, c := range []struct{ method, path, wantTemplate string }{
 		{"POST", "/api/osquery/distributed/write", "/api/osquery/distributed/write"},
@@ -258,7 +258,7 @@ func TestFastPathAppliesRouterMiddlewareInGorillaOrder(t *testing.T) {
 		w.WriteHeader(http.StatusOK)
 	})).Methods("GET").Name("get_config")
 
-	handler := newFastPathHandler(router, middlewares, config.TestConfig(), slog.New(slog.DiscardHandler))
+	handler := newFastPathHandler(router, middlewares, config.TestConfig())
 	require.IsType(t, &fastPathHandler{}, handler)
 
 	viaGorilla := httptest.NewRecorder()
@@ -369,7 +369,7 @@ func TestFastPathSurvivesFeatureRoutes(t *testing.T) {
 		route.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write([]byte(name)) })
 		return nil
 	}))
-	handler := newFastPathHandler(router, nil, config.TestConfig(), slog.New(slog.DiscardHandler))
+	handler := newFastPathHandler(router, nil, config.TestConfig())
 	require.IsType(t, &fastPathHandler{}, handler)
 
 	// A duplicate registration resolves the way gorilla resolves it: first one registered wins.
@@ -381,28 +381,24 @@ func TestFastPathSurvivesFeatureRoutes(t *testing.T) {
 	}
 }
 
-// TestFastPathDisabledByConfig checks the escape hatch returns the plain gorilla router.
-func TestFastPathDisabledByConfig(t *testing.T) {
-	ds := new(mock.Store)
-	svc, _ := newTestService(t, ds, nil, nil)
-	limitStore, _ := memstore.New(0)
-	cfg := config.TestConfig()
-	cfg.Server.DisableFastRouter = true
-
-	h := MakeHandler(svc, cfg, slog.New(slog.DiscardHandler), limitStore, nil, nil, nil)
-	require.IsType(t, &mux.Router{}, h)
-}
-
-// TestFastPathFallsBackWhenARouteIsAmbiguous checks the fail-safe: a conflicting route disables the fast path rather than
-// panicking at startup or silently mis-routing.
-func TestFastPathFallsBackWhenARouteIsAmbiguous(t *testing.T) {
+// TestFastPathPanicsWhenARouteIsAmbiguous pins the loud failure. A route the stdlib mux cannot disambiguate is a programming
+// error in a compile-time-fixed route table, so it has to stop the server rather than silently switch the fast path off, and
+// the message has to tell the developer what to do about it.
+func TestFastPathPanicsWhenARouteIsAmbiguous(t *testing.T) {
 	router := mux.NewRouter()
 	noop := http.HandlerFunc(func(http.ResponseWriter, *http.Request) {})
-	router.Handle("/api/v1/fleet/hosts/{id:[0-9]+}/software", noop).Methods("GET").Name("a")
-	router.Handle("/api/v1/fleet/hosts/identifier/{identifier}", noop).Methods("GET").Name("b")
+	router.Handle("/api/v1/fleet/hosts/{id:[0-9]+}/software", noop).Methods("GET").Name("get_host_software")
+	router.Handle("/api/v1/fleet/hosts/identifier/{identifier}", noop).Methods("GET").Name("get_host_by_identifier")
 
-	h := newFastPathHandler(router, nil, config.TestConfig(), slog.New(slog.DiscardHandler))
-	require.Same(t, router, h, "an ambiguous route should disable the fast path, not break the server")
+	defer func() {
+		r := recover()
+		require.NotNil(t, r, "an ambiguous route must stop the server, not degrade quietly")
+		msg, ok := r.(string)
+		require.True(t, ok)
+		require.Contains(t, msg, "get_host_by_identifier", "the panic must name the offending route")
+		require.Contains(t, msg, "fastPathExcluded", "the panic must name the fix")
+	}()
+	newFastPathHandler(router, nil, config.TestConfig())
 }
 
 func TestIsCanonicalPath(t *testing.T) {

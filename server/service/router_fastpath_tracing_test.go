@@ -45,7 +45,7 @@ func TestFastPathSpanNamesMatchGorillaTemplates(t *testing.T) {
 		route.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
 		return nil
 	}))
-	handler := newFastPathHandler(router, nil, cfg, slog.New(slog.DiscardHandler))
+	handler := newFastPathHandler(router, nil, cfg)
 	require.IsType(t, &fastPathHandler{}, handler)
 
 	cases := []struct {
