@@ -455,10 +455,6 @@ type Service interface {
 	// AuthenticateDevice loads host identified by the device's auth token.
 	// Returns an error if the auth token doesn't exist.
 	AuthenticateDevice(ctx context.Context, authToken string) (host *Host, debug bool, err error)
-	// AuthenticateDeviceByCertificate loads host identified by certificate serial and UUID.
-	// This is used for iOS/iPadOS devices accessing My Device page via client certificates.
-	// Returns an error if the certificate doesn't match the host or if the host is not iOS/iPadOS.
-	AuthenticateDeviceByCertificate(ctx context.Context, certSerial uint64, hostUUID string) (host *Host, debug bool, err error)
 	// AuthenticateIDeviceByURL loads host identified by the URL UUID.
 	// This is used for iOS/iPadOS devices (iDevices) accessing endpoints via a unique URL parameter.
 	// Returns an error if the UUID doesn't exist or if the host is not iOS/iPadOS.
@@ -1046,6 +1042,11 @@ type Service interface {
 	// each host in the specified team (or, if no team is specified, each host that is not assigned
 	// to any team).
 	GetMDMAppleProfilesSummary(ctx context.Context, teamID *uint) (*MDMProfilesSummary, error)
+
+	// AuthenticateMDMAppleDEPEnrollment validates an automatic (DEP) enrollment
+	// request: the token must match the automatic enrollment profile and the
+	// device's serial must currently be DEP-assigned to Fleet.
+	AuthenticateMDMAppleDEPEnrollment(ctx context.Context, enrollmentToken string, machineInfo *MDMAppleMachineInfo) error
 
 	// GetMDMAppleEnrollmentProfileByToken returns the Apple enrollment from its secret token.
 	GetMDMAppleEnrollmentProfileByToken(ctx context.Context, enrollmentToken string, enrollmentRef string, machineInfo *MDMAppleMachineInfo) (profile []byte, err error)

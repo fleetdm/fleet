@@ -618,6 +618,10 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 					logger: logger,
 				},
 				commander,
+				&MDMAppleGetTokenService{
+					ds:     ds,
+					logger: logger,
+				},
 				"https://test-url.com",
 				cfg,
 				svc,
