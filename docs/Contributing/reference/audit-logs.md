@@ -130,6 +130,31 @@ This activity contains the following fields:
 }
 ```
 
+## reset_policy
+
+Generated when resetting a policy's results, either for all hosts or for a single host.
+
+This activity contains the following fields:
+- "policy_id": the ID of the reset policy.
+- "policy_name": the name of the reset policy.
+- "fleet_id": the ID of the fleet the policy belongs to. Use -1 for global policies, 0 for "no fleet" policies.
+- "fleet_name": the name of the fleet the policy belongs to. null for global policies and "no fleet" policies.
+- "host_id": the ID of the host whose result was reset. Only present when the reset was scoped to a single host.
+
+#### Example
+
+```json
+{
+	"policy_id": 123,
+	"policy_name": "foo",
+	"team_id": 1,
+	"team_name": "Workstations",
+	"fleet_id": 1,
+	"fleet_name": "Workstations",
+	"host_id": 42
+}
+```
+
 ## applied_spec_policy
 
 Generated when applying policy specs.
