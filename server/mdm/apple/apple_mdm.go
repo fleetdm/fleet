@@ -1330,6 +1330,7 @@ var enrollmentProfileMobileconfigTemplate = template.Must(template.New("").Funcs
 			<array>
 				<string>com.apple.mdm.per-user-connections</string>
 				<string>com.apple.mdm.bootstraptoken</string>
+				<string>com.apple.mdm.token</string>
 			</array>
 			<key>ServerURL</key>
 			<string>{{ .ServerURL }}</string>
@@ -1412,6 +1413,7 @@ var accountDrivenUserEnrollmentProfileMobileconfigTemplate = template.Must(templ
 				<string>UserEnrollment</string>
 				<string>com.apple.mdm.per-user-connections</string>
 				<string>com.apple.mdm.bootstraptoken</string>
+				<string>com.apple.mdm.token</string>
 			</array>
 			<key>ServerURL</key>
 			<string>{{ .ServerURL }}</string>
@@ -1498,6 +1500,7 @@ var acmeEnrollmentProfileMobileconfigTemplate = template.Must(template.New("").F
 			<array>
 				<string>com.apple.mdm.per-user-connections</string>
 				<string>com.apple.mdm.bootstraptoken</string>
+				<string>com.apple.mdm.token</string>
 			</array>
 			<key>ServerURL</key>
 			<string>{{ .ServerURL | xml }}</string>
