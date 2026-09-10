@@ -3591,6 +3591,22 @@ var luksVerifyQueryIngester = func(decrypter func(string) (string, error)) func(
 	}
 }
 
+// bitLockerPresent matches a host where BitLocker can be used at all: it is either built in, and so never appears as
+// an optional feature, or it appears and is enabled. Every BitLocker discovery clause starts from this.
+const bitLockerPresent = `(
+					EXISTS(SELECT 1 FROM windows_optional_features WHERE name = 'BitLocker' AND state = 1)
+					OR NOT EXISTS(SELECT 1 FROM windows_optional_features WHERE name = 'BitLocker')
+				)`
+
+// bitLockerPresentDiscovery is the complete discovery clause for a query whose only precondition is that BitLocker is
+// usable on the host.
+var bitLockerPresentDiscovery = fmt.Sprintf(`
+			WITH should_run(yes) AS (
+			SELECT
+				%s
+			)
+			SELECT 1 FROM should_run WHERE yes = 1`, bitLockerPresent)
+
 // bitlockerPolicyQueries run wherever Fleet enforces Windows disk encryption, whether or not a startup PIN is required.
 var bitlockerPolicyQueries = map[string]DetailQuery{
 	// An admin, third-party software, or a previous MDM can leave a volume encrypted but unprotected while policy forbids the
@@ -3601,22 +3617,16 @@ var bitlockerPolicyQueries = map[string]DetailQuery{
 		// - BitLocker is not an optional component (is built in) OR is an optional component and enabled.
 		// - And no protector that can release the volume master key at boot exists, so the agent has to create one.
 		// - And the volume is fully encrypted, whether or not protection is currently on.
-		Discovery: `
+		Discovery: fmt.Sprintf(`
 			WITH should_run(yes) AS (
 			SELECT
-				(
-					EXISTS(SELECT 1 FROM windows_optional_features WHERE name = 'BitLocker' AND state = 1)
-					OR NOT EXISTS(SELECT 1 FROM windows_optional_features WHERE name = 'BitLocker')
-				)
-				-- 1, 4, 5, 6 are the TPM-family protectors; 2 is an external startup key on a USB stick, which unlocks a
-				-- volume at boot on a machine with no trusted TPM. Keep in sync with bitlocker.BootUnsealProtectorTypes.
+				%s
+				-- 1, 4, 5, 6 are the TPM-family protectors; 2 is an external startup key on a USB stick.
 				AND NOT EXISTS(SELECT 1 FROM bitlocker_key_protectors WHERE drive_letter = 'C:' AND key_protector_type IN (1,2,4,5,6))
-				-- Volume is fully encrypted. Protection status is deliberately not constrained: a volume can be
-				-- protected and still have nothing able to unseal it at boot, and that host needs the policy relaxed
-				-- just as much, otherwise its repair fails forever on a policy that forbids a TPM-only protector.
+				-- Volume is fully encrypted.
 				AND EXISTS(SELECT 1 FROM bitlocker_info WHERE drive_letter = 'C:' AND conversion_status = 1)
 			)
-			SELECT 1 FROM should_run WHERE yes = 1`,
+			SELECT 1 FROM should_run WHERE yes = 1`, bitLockerPresent),
 		Query: "SELECT data FROM registry WHERE path='HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\FVE\\UseTPM'",
 		DirectIngestFunc: func(
 			ctx context.Context,
@@ -3659,24 +3669,12 @@ var bitlockerPolicyQueries = map[string]DetailQuery{
 			return ds.MDMWindowsInsertCommandForHosts(ctx, []string{host.UUID}, cmd)
 		},
 	},
-	// Protectors can be deleted while BitLocker protection stays on. The volume then boots straight to the 48-digit
-	// recovery prompt, and nothing else Fleet collects can see it: protection still reads as on and the disk still reads
-	// as encrypted, so the host would otherwise report as verified.
+	// Protectors can be deleted while BitLocker protection stays on.
 	"bitlocker_boot_protector_verify": {
 		Platforms: []string{"windows"},
 		// We only want to run this query iff:
 		// - BitLocker is not an optional component (is built in) OR is an optional component and enabled.
-		Discovery: `
-			WITH should_run(yes) AS (
-			SELECT
-				(
-					-- BitLocker is an optional feature but enabled
-					EXISTS(SELECT 1 FROM windows_optional_features WHERE name = 'BitLocker' AND state = 1)
-					-- BitLocker is built in, so it won't appear as an optional feature
-					OR NOT EXISTS(SELECT 1 FROM windows_optional_features WHERE name = 'BitLocker')
-				)
-			)
-			SELECT 1 FROM should_run WHERE yes = 1`,
+		Discovery: bitLockerPresentDiscovery,
 		Query: `
 			SELECT EXISTS(
 				SELECT 1
@@ -3713,15 +3711,10 @@ var tpmPINQueries = map[string]DetailQuery{
 		// - BitLocker is not an optional component (is built in) OR is an optional component and enabled.
 		// - And a TPM PIN is not yet set.
 		// - And the volume is encrypted (to avoid errors while trying to apply the policy).
-		Discovery: `
+		Discovery: fmt.Sprintf(`
 			WITH should_run(yes) AS (
 			SELECT
-				(
-					-- BitLocker is an optional feature but enabled
-					EXISTS(SELECT 1 FROM windows_optional_features WHERE name = 'BitLocker' AND state = 1)
-					-- BitLocker is built in, so it won't appear as an optional feature
-					OR NOT EXISTS(SELECT 1 FROM windows_optional_features WHERE name = 'BitLocker')
-				)
+				%s
 				-- PIN is already set, so regardless of the current config, we don't need to enforce it:
 				-- 4: TPM And PIN.
 				-- 6: TPM And PIN And Startup key.
@@ -3729,7 +3722,7 @@ var tpmPINQueries = map[string]DetailQuery{
 				-- Volume is encrypted
 				AND EXISTS(SELECT 1 FROM bitlocker_info WHERE drive_letter = 'C:' AND protection_status = 1)
 			)
-			SELECT 1 FROM should_run WHERE yes = 1`,
+			SELECT 1 FROM should_run WHERE yes = 1`, bitLockerPresent),
 		Query: "SELECT data FROM registry WHERE path='HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\FVE\\UseTPMPIN'",
 		DirectIngestFunc: func(
 			ctx context.Context,
@@ -3775,17 +3768,7 @@ var tpmPINQueries = map[string]DetailQuery{
 		Platforms: []string{"windows"},
 		// We only want to run this query iff:
 		// - BitLocker is not an optional component (is built in) OR is an optional component and enabled.
-		Discovery: `
-			WITH should_run(yes) AS (
-			SELECT
-				(
-					-- BitLocker is an optional feature but enabled
-					EXISTS(SELECT 1 FROM windows_optional_features WHERE name = 'BitLocker' AND state = 1)
-					-- BitLocker is built in, so it won't appear as an optional feature
-					OR NOT EXISTS(SELECT 1 FROM windows_optional_features WHERE name = 'BitLocker')
-				)
-			)
-			SELECT 1 FROM should_run WHERE yes = 1`,
+		Discovery: bitLockerPresentDiscovery,
 		Query: `
 			SELECT EXISTS(
 				SELECT 1
