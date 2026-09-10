@@ -103,6 +103,7 @@ func newFastPathHandler(r *mux.Router, middlewares []mux.MiddlewareFunc, cfg con
 
 func buildFastPathMux(r *mux.Router, middlewares []mux.MiddlewareFunc, cfg config.FleetConfig) (*http.ServeMux, error) {
 	fast := http.NewServeMux()
+	claimed := make(map[string]struct{})
 
 	err := r.Walk(func(route *mux.Route, _ *mux.Router, _ []*mux.Route) error {
 		tpl, err := route.GetPathTemplate()
@@ -142,10 +143,17 @@ func buildFastPathMux(r *mux.Router, middlewares []mux.MiddlewareFunc, cfg confi
 		}
 
 		for _, pattern := range stdlibPatterns(tpl) {
+			full := method + " " + pattern
+			if _, taken := claimed[full]; taken {
+				// Two routes registered the same method and path. gorilla dispatches to whichever came first, so the
+				// fast path keeps the first and ignores this one.
+				continue
+			}
 			bridged := newFastPathRoute(tpl, method, versionSegment(tpl, pattern), varNames, matchers, wrapped, r)
-			if err := handleNoConflict(fast, method+" "+pattern, bridged); err != nil {
+			if err := handleNoConflict(fast, full, bridged); err != nil {
 				return fmt.Errorf("route %s: %w", route.GetName(), err)
 			}
+			claimed[full] = struct{}{}
 		}
 		return nil
 	})
@@ -279,6 +287,10 @@ func charsetMatcher(set string) func(string) bool {
 // stdlibPatterns converts a gorilla template into stdlib ServeMux patterns. The fleetversion alternation becomes one pattern
 // per literal version so an unknown version is still a 404 at the router. Other constraints are dropped from the pattern and
 // enforced by varMatchers instead.
+//
+// Versions are deduplicated. A bounded context that lists "latest" in its own version set gets it appended a second time by
+// the endpointer, producing a template like {fleetversion:(?:v1|latest|latest)}; the repeat is invisible to a regex but would
+// otherwise register the same stdlib pattern twice.
 func stdlibPatterns(tpl string) []string {
 	base := constrainedVar.ReplaceAllString(tpl, "{$1}")
 	m := fleetVersionVar.FindStringSubmatch(tpl)
@@ -286,8 +298,9 @@ func stdlibPatterns(tpl string) []string {
 		return []string{base}
 	}
 	versions := strings.Split(m[1], "|")
+	slices.Sort(versions)
 	patterns := make([]string, 0, len(versions))
-	for _, version := range versions {
+	for _, version := range slices.Compact(versions) {
 		patterns = append(patterns, strings.Replace(base, "{fleetversion}", version, 1))
 	}
 	return patterns

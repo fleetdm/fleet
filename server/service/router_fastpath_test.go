@@ -13,6 +13,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
+	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/require"
 	"github.com/throttled/throttled/v2/store/memstore"
@@ -293,6 +294,59 @@ func TestFastPathHandlerIsIntrospectableByEndpointValidation(t *testing.T) {
 		return
 	}
 	require.EqualError(t, wrapped, direct.Error(), "validating the wrapped handler must see the same route table")
+}
+
+// TestStdlibPatternsDedupesVersions covers the template a bounded context produces when it lists "latest" in its own version
+// set: the endpointer appends "latest" a second time, and the repeated alternative must not become a repeated pattern.
+func TestStdlibPatternsDedupesVersions(t *testing.T) {
+	patterns := stdlibPatterns("/api/{fleetversion:(?:v1|latest|latest)}/fleet/activities")
+	require.Equal(t, []string{
+		"/api/latest/fleet/activities",
+		"/api/v1/fleet/activities",
+	}, patterns)
+}
+
+// TestFastPathSurvivesFeatureRoutes is the regression test for the bounded contexts. MakeHandler is called with feature route
+// functions the way cmd/fleet does, including one that repeats "latest" in its version set and one that re-registers a path the
+// core handler already owns. Neither may knock the fast path out.
+func TestFastPathSurvivesFeatureRoutes(t *testing.T) {
+	ds := new(mock.Store)
+	svc, _ := newTestService(t, ds, nil, nil)
+	limitStore, _ := memstore.New(0)
+	noop := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusTeapot) })
+
+	featureRoutes := []endpointer.HandlerRoutesFunc{
+		// "latest" appears in the version list and is appended again by the endpointer, as the activity context does.
+		func(r *mux.Router, _ []kithttp.ServerOption) {
+			r.Handle("/api/{fleetversion:(?:v1|latest|latest)}/fleet/activities", noop).
+				Methods("GET").Name("feature_activities")
+		},
+		// A second context claiming a path the core handler already registered.
+		func(r *mux.Router, _ []kithttp.ServerOption) {
+			r.Handle("/api/{fleetversion:(?:v1|2022-04|latest)}/fleet/config", noop).
+				Methods("GET").Name("feature_duplicate_config")
+		},
+	}
+
+	h := MakeHandler(svc, config.TestConfig(), slog.New(slog.DiscardHandler), limitStore, nil, nil, featureRoutes)
+	require.IsType(t, &fastPathHandler{}, h, "feature routes must not disable the fast path")
+
+	router := h.(*fastPathHandler).Router()
+	require.NoError(t, router.Walk(func(route *mux.Route, _ *mux.Router, _ []*mux.Route) error {
+		name := route.GetName()
+		route.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write([]byte(name)) })
+		return nil
+	}))
+	handler := newFastPathHandler(router, nil, config.TestConfig(), slog.New(slog.DiscardHandler))
+	require.IsType(t, &fastPathHandler{}, handler)
+
+	// A duplicate registration resolves the way gorilla resolves it: first one registered wins.
+	for _, path := range []string{"/api/latest/fleet/activities", "/api/v1/fleet/activities", "/api/latest/fleet/config"} {
+		wantCode, wantBody, _ := responseFor(router, "GET", path)
+		gotCode, gotBody, _ := responseFor(handler, "GET", path)
+		require.Equalf(t, wantCode, gotCode, "status differs for GET %s", path)
+		require.Equalf(t, wantBody, gotBody, "dispatch differs for GET %s", path)
+	}
 }
 
 // TestFastPathDisabledByConfig checks the escape hatch returns the plain gorilla router.
