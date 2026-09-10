@@ -5246,8 +5246,7 @@ func TestWindowsEnrollmentDefaultFleetSkipsPendingAutopilotHost(t *testing.T) {
 	}
 }
 
-// This ingester is the only source of the signal that drives the missing-boot-protector repair, so a silent failure
-// here means Fleet never asks the agent to fix a volume that would boot to the recovery prompt.
+// This ingester is the only source of the signal that drives the missing-boot-protector repair.
 func TestBitlockerBootProtectorVerifyDirectIngest(t *testing.T) {
 	host := &fleet.Host{ID: 42, UUID: "host-uuid"}
 
@@ -5270,8 +5269,6 @@ func TestBitlockerBootProtectorVerifyDirectIngest(t *testing.T) {
 			host: host, rows: []map[string]string{{"criteria": "1"}}, wantSet: new(true),
 		},
 		{
-			// The extension returns zero rows and no error when its PowerShell call produces nothing. Writing false
-			// here would move a healthy host to enforcing, so the column has to be left unknown instead.
 			name: "no rows leaves the column alone rather than claiming no protector",
 			host: host, rows: nil,
 		},

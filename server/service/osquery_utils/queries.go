@@ -3672,20 +3672,12 @@ var bitlockerPolicyQueries = map[string]DetailQuery{
 	// Protectors can be deleted while BitLocker protection stays on.
 	"bitlocker_boot_protector_verify": {
 		Platforms: []string{"windows"},
-		// We only want to run this query iff:
-		// - BitLocker is not an optional component (is built in) OR is an optional component and enabled.
 		Discovery: bitLockerPresentDiscovery,
-		// Always returns exactly one row carrying the answer, rather than encoding it in the row count. The
-		// bitlocker_key_protectors extension returns zero rows and no error when its PowerShell call produces no
-		// output, so a row-count encoding cannot tell "this volume has no boot protector" from "the protector list
-		// could not be read", and guessing the first would move a healthy host to enforcing and ask the agent to
-		// repair it.
 		Query: `
 			SELECT EXISTS(
 				SELECT 1
 				FROM bitlocker_key_protectors
-				-- 1, 4, 5, 6 are the TPM-family protectors; 2 is an external startup key on a USB stick, which unlocks a
-				-- volume at boot on a machine with no trusted TPM. Keep in sync with bitlocker.BootUnsealProtectorTypes.
+				-- 1, 4, 5, 6 are the TPM-family protectors; 2 is an external startup key on a USB stick.
 				WHERE drive_letter = 'C:' AND key_protector_type IN (1,2,4,5,6)
 			) AS criteria`,
 		DirectIngestFunc: func(
