@@ -190,10 +190,9 @@ To localize content, pick the best fleetie to do the translation, and refer to t
 - 🇪🇸 Spanish (Spain, Andorra, Colombia, Chile, Argentina, Mexico)
 - 🇫🇷 French (France, Quebec/Canada, Luxembourg, Monaco, Democratic Republic of the Congo, Cameroon, New Brunswick/Canada, Switzerland)
 - 🇵🇹 Portuguese (Brazil, Portugal, Sao Tome and Principe, Angola, Mozambique, Cape Verde)
-- 🇷🇺 Russian (Russia)
+- 🇷🇺 Russian (Russia) (while Fleet is unable to advertise or do business with organizations in Russia, Belarus, and other markets with export controls, Fleet still advertises to native speakers of every supported language in every market where Fleet can do business, around the world)
 - 🇩🇪 German (Germany, Austria, Switzerland, Liechtenstein)
 - ळ Marathi (Maharashtra)
-- 🇮🇳 Gujarati (Gujarat)
 - ಠ Kannada (Karnataka)
 - 🇲🇾 Malay (Malaysia)
 - 🇷🇴 Romanian (Romania, Moldova)
@@ -201,7 +200,6 @@ To localize content, pick the best fleetie to do the translation, and refer to t
 - 🇸🇪 Swedish (Sweden)
 - 🇮🇱 Hebrew (Israel)
 - 🇩🇰 Danish (Denmark)
-- 🇧🇦 Bosnian (Bosnia, Croatia, Serbia, Montenegro)
 
 
 <!-- TODO Create Article issue template and update this section of the handbook to reflect reality and add corresponding rituals to engineering.rituals.yml
