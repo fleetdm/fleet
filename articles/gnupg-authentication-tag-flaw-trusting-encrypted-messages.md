@@ -1,6 +1,6 @@
 # Ubuntu's GnuPG Vulnerability: Can You Still Trust Encrypted Messages?
 
-* A GnuPG vulnerability let attackers craft encrypted messages that gpgsm would trust as authentic, even without a real authentication tag behind them. Here's what it means and how to check the patched build reached every host.*
+*A GnuPG vulnerability let attackers craft encrypted messages that gpgsm would trust as authentic, even without a real authentication tag behind them. Here's what it means and how to check the patched build reached every host.*
 
 ## Key takeaways
 
