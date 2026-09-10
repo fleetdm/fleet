@@ -2252,6 +2252,7 @@ const ManageHostsPage = ({
             softwareStatus,
             mdmId,
             mdmEnrollmentStatus,
+            status,
             lowDiskSpaceHosts,
             osVersionId,
             osName,
