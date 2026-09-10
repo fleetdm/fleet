@@ -676,6 +676,7 @@ import Mockoon from "./png/Mockoon.png";
 import ModernCsv from "./png/ModernCsv.png";
 import MongoDbCompass from "./png/MongoDbCompass.png";
 import Monitorcontrol from "./png/Monitorcontrol.png";
+import MonotypeFonts from "./png/MonotypeFonts.png";
 import Moom from "./png/Moom.png";
 import Moonlight from "./png/Moonlight.png";
 import Morgen from "./png/Morgen.png";
@@ -1852,6 +1853,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "modern csv": ModernCsv,
   "mongodb compass": MongoDbCompass,
   monitorcontrol: Monitorcontrol,
+  "monotype fonts": MonotypeFonts,
   moom: Moom,
   moonlight: Moonlight,
   morgen: Morgen,
