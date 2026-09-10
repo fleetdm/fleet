@@ -773,8 +773,6 @@ type Datastore interface {
 	// SetPatchNotificationInstallAt moves when the patch is forced out to installAt,
 	// never earlier, and returns the deadline in effect.
 	SetPatchNotificationInstallAt(ctx context.Context, notificationUUID string, installAt time.Time) (time.Time, error)
-	// ResetPatchNotification clears the deadline, so the next display sets a new one.
-	ResetPatchNotification(ctx context.Context, notificationUUID string) error
 	// ListPatchNotificationsDue returns the notifications still being delivered
 	// whose install_at is at or before the cutoff and that the caller can act on:
 	// past install_at, or displayed and waiting on their reminder.

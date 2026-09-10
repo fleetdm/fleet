@@ -131,15 +131,6 @@ ON DUPLICATE KEY UPDATE install_at = GREATEST(COALESCE(install_at, VALUES(instal
 	return *stored, nil
 }
 
-func (ds *Datastore) ResetPatchNotification(ctx context.Context, notificationUUID string) error {
-	const updateStmt = `UPDATE patch_notifications SET install_at = NULL WHERE notification_uuid = ?`
-
-	if _, err := ds.writer(ctx).ExecContext(ctx, updateStmt, notificationUUID); err != nil {
-		return ctxerr.Wrap(ctx, err, "reset patch notification")
-	}
-	return nil
-}
-
 func (ds *Datastore) ListPatchNotificationsDue(ctx context.Context, cutoff time.Time, limit int) ([]fleet.PatchNotificationDue, error) {
 	const selectStmt = `
 SELECT
@@ -156,8 +147,8 @@ WHERE pn.install_at IS NOT NULL
 	AND pn.install_at <= ?
 	-- acted notifications have already been patched, failed and expired ones never will be
 	AND neu.status IN (?, ?)
-	-- before install_at the only thing to do is remind, and only a displayed notification gets one
-	AND (pn.install_at <= NOW(6) OR (neu.status = ? AND neu.displayed_at IS NOT NULL))
+	-- a notice that has not been displayed is owed nothing, whatever its deadline says
+	AND neu.displayed_at IS NOT NULL
 ORDER BY pn.install_at
 LIMIT ?
 `
@@ -165,8 +156,7 @@ LIMIT ?
 	var due []fleet.PatchNotificationDue
 	// reads the primary because the display that sets the deadline can be seconds old
 	if err := sqlx.SelectContext(ctx, ds.writer(ctx), &due, selectStmt,
-		cutoff, notifications_api.EndUserNotificationPending, notifications_api.EndUserNotificationDispatched,
-		notifications_api.EndUserNotificationDispatched, limit,
+		cutoff, notifications_api.EndUserNotificationPending, notifications_api.EndUserNotificationDispatched, limit,
 	); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "list patch notifications due")
 	}

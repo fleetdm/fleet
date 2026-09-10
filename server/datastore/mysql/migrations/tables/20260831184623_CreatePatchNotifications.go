@@ -14,7 +14,6 @@ func Up_20260831184623(tx *sql.Tx) error {
 CREATE TABLE IF NOT EXISTS patch_notifications (
   notification_uuid VARCHAR(36) COLLATE utf8mb4_unicode_ci NOT NULL,
   install_at        DATETIME(6) NULL DEFAULT NULL,
-  reminder_sent_at  DATETIME(6) NULL DEFAULT NULL,
   PRIMARY KEY (notification_uuid),
   KEY idx_patch_notifications_install_at (install_at),
   CONSTRAINT fk_patch_notifications_notification_uuid FOREIGN KEY (notification_uuid)

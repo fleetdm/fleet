@@ -643,7 +643,6 @@ func TestRemindAndInstallDuePatches(t *testing.T) {
 		wantInstalls []uint
 		// the pass tried to take the notification, whether or not it got it
 		wantActed       bool
-		wantReset       bool
 		wantAppsDropped []uint
 	}{
 		{
@@ -698,6 +697,16 @@ func TestRemindAndInstallDuePatches(t *testing.T) {
 			wantInstalls:      []uint{oneInstallerID, twoInstallerID},
 		},
 		{
+			// A pass that misses the reminder window leaves the first notice on screen with the
+			// deadline already gone. The apps must not close without the 5 minute warning, so the
+			// reminder is sent late rather than skipped.
+			name:              "a deadline reached with the first notice still displayed sends the reminder",
+			untilDeadline:     -time.Minute,
+			displayed:         true,
+			installedVersions: behind,
+			wantReminder:      true,
+		},
+		{
 			name:              "an Update now that got there first stops the deadline installing the same apps again",
 			untilDeadline:     -time.Minute,
 			displayed:         true,
@@ -707,13 +716,12 @@ func TestRemindAndInstallDuePatches(t *testing.T) {
 			wantActed:         true,
 		},
 		{
-			// an offline host and a reminder that was never displayed both leave displayed_at null
-			name:              "a notification past install_at with no displayed_at is re-dispatched instead of installed",
+			// an offline host and a reminder still on its way both leave displayed_at null, and
+			// neither has been seen, so the pass waits for the reminder to reach the screen
+			name:              "a notification past install_at with no displayed_at does nothing",
 			untilDeadline:     -time.Minute,
 			reminder:          true,
 			installedVersions: behind,
-			wantReset:         true,
-			wantReminder:      true,
 		},
 	}
 
@@ -809,7 +817,6 @@ func TestRemindAndInstallDuePatches(t *testing.T) {
 				return "", nil
 			}
 			ds.SetPatchNotificationAppsQueuedFunc = func(_ context.Context, _ string, _ []uint) error { return nil }
-			ds.ResetPatchNotificationFunc = func(_ context.Context, _ string) error { return nil }
 
 			require.NoError(t, kind.RemindAndInstallDuePatches(context.Background()))
 
@@ -824,19 +831,13 @@ func TestRemindAndInstallDuePatches(t *testing.T) {
 			require.ElementsMatch(t, c.wantInstalls, installs)
 			require.ElementsMatch(t, c.wantAppsDropped, gotDropped)
 			require.Equal(t, c.wantActed, notificationSvc.actInvoked)
-			require.Equal(t, c.wantReset, ds.ResetPatchNotificationFuncInvoked)
 
 			if !c.wantReminder {
 				require.False(t, notificationSvc.delayInvoked)
 				return
 			}
 			require.True(t, notificationSvc.delayInvoked)
-			// a reset re-sends the first notification, not the reminder
-			wantPayload := patchNotificationReminderPayload
-			if c.wantReset {
-				wantPayload = patchNotificationFirstNoticePayload
-			}
-			require.JSONEq(t, string(wantPayload), string(notificationSvc.delayPayload))
+			require.JSONEq(t, string(patchNotificationReminderPayload), string(notificationSvc.delayPayload))
 		})
 	}
 }

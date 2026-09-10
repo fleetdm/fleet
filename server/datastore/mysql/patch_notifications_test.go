@@ -341,13 +341,6 @@ func testPatchNotificationInstallAt(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.WithinDuration(t, pushedOut, stored, time.Second)
 
-	// resetting clears install_at, so the next displayed_at sets it again
-	require.NoError(t, ds.ResetPatchNotification(ctx, notificationUUID))
-	restarted := deadline.Add(-2 * time.Hour)
-	stored, err = ds.SetPatchNotificationInstallAt(ctx, notificationUUID, restarted)
-	require.NoError(t, err)
-	require.WithinDuration(t, restarted, stored, time.Second)
-
 	// a notification with no patch_notifications row gets one inserted, so it still records an
 	// install_at
 	rowless := uuid.NewString()
@@ -418,13 +411,10 @@ func testPatchNotificationListDue(t *testing.T, ds *Datastore) {
 		terminal = append(terminal, notificationUUID)
 	}
 
-	// a re-dispatched notification is pending with a null displayed_at, and is still returned so the
-	// caller can clear install_at and re-dispatch the first notification
+	// a re-dispatched reminder has a null displayed_at until it is displayed, and nothing is owed on
+	// it either side of install_at
 	notDisplayed := newPatchNotification(t, ds, host.ID, notifications_api.EndUserNotificationPending, 1)
 	setInstallAt(notDisplayed, now.Add(-time.Minute))
-
-	// its reminder already re-dispatched, so it is pending before install_at with nothing left to do
-	// until install_at passes
 	reminderQueued := newPatchNotification(t, ds, host.ID, notifications_api.EndUserNotificationPending, 1)
 	setInstallAt(reminderQueued, now.Add(time.Minute))
 
@@ -435,10 +425,11 @@ func testPatchNotificationListDue(t *testing.T, ds *Datastore) {
 	for _, notification := range due {
 		byUUID[notification.NotificationUUID] = notification
 	}
-	require.Len(t, byUUID, 3)
+	require.Len(t, byUUID, 2)
 	require.NotContains(t, byUUID, tooEarly)
 	require.NotContains(t, byUUID, noDeadline)
 	require.NotContains(t, byUUID, reminderQueued)
+	require.NotContains(t, byUUID, notDisplayed)
 	for _, notificationUUID := range terminal {
 		require.NotContains(t, byUUID, notificationUUID)
 	}
@@ -451,11 +442,8 @@ func testPatchNotificationListDue(t *testing.T, ds *Datastore) {
 	require.Contains(t, byUUID, pastDeadline)
 	require.NotNil(t, byUUID[pastDeadline].DisplayedAt)
 
-	require.Contains(t, byUUID, notDisplayed)
-	require.Nil(t, byUUID[notDisplayed].DisplayedAt)
-
 	// the batch is ordered by deadline, so the oldest deadline is handled first
-	require.Len(t, due, 3)
+	require.Len(t, due, 2)
 	require.True(t, due[0].InstallAt.Before(due[len(due)-1].InstallAt))
 
 	// the limit caps the batch

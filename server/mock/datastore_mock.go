@@ -554,8 +554,6 @@ type DeletePatchNotificationAppsFunc func(ctx context.Context, notificationUUID 
 
 type SetPatchNotificationInstallAtFunc func(ctx context.Context, notificationUUID string, installAt time.Time) (time.Time, error)
 
-type ResetPatchNotificationFunc func(ctx context.Context, notificationUUID string) error
-
 type ListPatchNotificationsDueFunc func(ctx context.Context, cutoff time.Time, limit int) ([]fleet.PatchNotificationDue, error)
 
 type ListSoftwareForVulnDetectionFunc func(ctx context.Context, filter fleet.VulnSoftwareFilter) ([]fleet.Software, error)
@@ -3155,9 +3153,6 @@ type DataStore struct {
 
 	SetPatchNotificationInstallAtFunc        SetPatchNotificationInstallAtFunc
 	SetPatchNotificationInstallAtFuncInvoked bool
-
-	ResetPatchNotificationFunc        ResetPatchNotificationFunc
-	ResetPatchNotificationFuncInvoked bool
 
 	ListPatchNotificationsDueFunc        ListPatchNotificationsDueFunc
 	ListPatchNotificationsDueFuncInvoked bool
@@ -7721,13 +7716,6 @@ func (s *DataStore) SetPatchNotificationInstallAt(ctx context.Context, notificat
 	s.SetPatchNotificationInstallAtFuncInvoked = true
 	s.mu.Unlock()
 	return s.SetPatchNotificationInstallAtFunc(ctx, notificationUUID, installAt)
-}
-
-func (s *DataStore) ResetPatchNotification(ctx context.Context, notificationUUID string) error {
-	s.mu.Lock()
-	s.ResetPatchNotificationFuncInvoked = true
-	s.mu.Unlock()
-	return s.ResetPatchNotificationFunc(ctx, notificationUUID)
 }
 
 func (s *DataStore) ListPatchNotificationsDue(ctx context.Context, cutoff time.Time, limit int) ([]fleet.PatchNotificationDue, error) {

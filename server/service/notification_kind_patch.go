@@ -320,35 +320,24 @@ func (k *patchNotificationKind) remindOrInstallDuePatch(
 	installsByTitle map[fleet.HostSoftwareTitleKey][]*fleet.HostLastInstallData,
 	now time.Time,
 ) error {
-	// decide whether to send a reminder notification or force the app installs
-	var shouldSendReminder bool
-	if duePatch.InstallAt.After(now) {
-		shouldSendReminder = true
+	// A re-dispatch clears displayed_at, so a null one means the reminder has been queued but not
+	// displayed yet.
+	if duePatch.DisplayedAt == nil {
+		return nil
 	}
 
-	if shouldSendReminder {
-		// no reminder for a notice that is queued or not yet on screen
-		if duePatch.DisplayedAt == nil || duePatch.Status != notifications_api.EndUserNotificationDispatched {
+	notificationIsReminder, err := patchNotificationIsReminder(duePatch.Payload)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "read patch notification payload")
+	}
+
+	// Which notice was displayed last decides what happens next.
+	if !notificationIsReminder {
+		if duePatch.Status != notifications_api.EndUserNotificationDispatched {
 			return nil
 		}
-		notificationIsReminder, err := patchNotificationIsReminder(duePatch.Payload)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "read patch notification payload")
-		}
-		// the reminder already went out
-		if notificationIsReminder {
-			return nil
-		}
-	} else if duePatch.DisplayedAt == nil {
-		// the end user never saw this notice, so the deadline starts over from the next display
-		err := k.ds.ResetPatchNotification(ctx, duePatch.NotificationUUID)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "clear the deadline of a patch notification the end user has not seen")
-		}
-		err = k.notificationSvc.DelayNotification(ctx, duePatch.NotificationUUID, now, patchNotificationFirstNoticePayload)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "restart a patch notification the end user has not seen")
-		}
+	} else if now.Before(duePatch.InstallAt) {
+		// the reminder was displayed and its five minutes are not up
 		return nil
 	}
 
@@ -398,7 +387,7 @@ func (k *patchNotificationKind) remindOrInstallDuePatch(
 		}
 	}
 
-	if shouldSendReminder {
+	if !notificationIsReminder {
 		// nothing left to update, so the notification closes instead of reminding
 		if len(remaining) == 0 {
 			_, err := k.notificationSvc.ActOnNotification(ctx, duePatch.NotificationUUID)
