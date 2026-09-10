@@ -3435,6 +3435,7 @@ None.
 - [Get host's software](#get-hosts-software)
 - [Get hosts report in CSV](#get-hosts-report-in-csv)
 - [Get host's disk encryption key](#get-hosts-disk-encryption-key)
+- [Rotate host's disk encryption key](#rotate-hosts-disk-encryption-key)
 - [Get host's Recovery Lock password](#get-hosts-recovery-lock-password)
 - [Get host's certificates](#get-hosts-certificates)
 - [Lock host](#lock-host)
@@ -6696,6 +6697,34 @@ The host will only return a key if its disk encryption status is "Verified." Get
   }
 }
 ```
+
+### Rotate host's disk encryption key
+
+_Available in Fleet Premium_
+
+Rotates the FileVault recovery key for a macOS host by sending an MDM `RotateFileVaultKey` command. The new key is picked up within ~60 minutes via the hourly osquery detail query.
+
+Requirements:
+- macOS host enrolled in Fleet MDM
+- Both disk encryption and key escrow enabled for the host's fleet
+- The host's current key must be decryptable by Fleet
+
+POST /api/v1/fleet/hosts/:id/encryption_key/rotate
+
+#### Parameters
+
+| Name                          | Type    | In    | Description                                                                                        |
+| ----------------------------- | ------  | ----  | --------------------------------------------------------------------------------------             |
+| id                            | integer | path  | **Required**. The host ID to rotate the disk encryption key for.                                   |
+
+#### Example
+
+`POST /api/v1/fleet/hosts/:id/encryption_key/rotate`
+
+##### Default response
+
+`Status: 200`
+
 ### Get host's Recovery Lock password
 
 Retrieves the Recovery Lock password for a host.
