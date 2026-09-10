@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"net/http"
 	"testing"
 	"time"
 
@@ -556,13 +557,34 @@ func TestTriggerLinuxDiskEncryptionEscrow(t *testing.T) {
 	t.Run("no-op on already pending", func(t *testing.T) {
 		ds := new(mock.Store)
 		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}, SkipCreateTestUsers: true})
-		ds.IsHostPendingEscrowFunc = func(ctx context.Context, hostID uint) bool {
-			return true
+		ds.GetHostEscrowStateFunc = func(ctx context.Context, hostID uint) (*fleet.HostEscrowState, error) {
+			return &fleet.HostEscrowState{Pending: true}, nil
 		}
 
 		err := svc.TriggerLinuxDiskEncryptionEscrow(ctx, &fleet.Host{ID: 1})
 		require.NoError(t, err)
-		require.True(t, ds.IsHostPendingEscrowFuncInvoked)
+		require.True(t, ds.GetHostEscrowStateFuncInvoked)
+	})
+
+	t.Run("conflict while the agent is still prompting for the previous request", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}, SkipCreateTestUsers: true})
+		ds.GetHostEscrowStateFunc = func(ctx context.Context, hostID uint) (*fleet.HostEscrowState, error) {
+			require.Equal(t, uint(1), hostID)
+			since := fleet.LinuxEscrowInFlightWindow - (90*time.Second + 300*time.Millisecond)
+			return &fleet.HostEscrowState{SinceLastActivity: &since}, nil
+		}
+
+		err := svc.TriggerLinuxDiskEncryptionEscrow(ctx, &fleet.Host{ID: 1})
+		var inFlightErr *fleet.LinuxEscrowInFlightError
+		require.ErrorAs(t, err, &inFlightErr)
+		require.Equal(t, http.StatusConflict, inFlightErr.StatusCode())
+		require.Equal(t, fleet.LinuxEscrowInFlightMessage, inFlightErr.Error())
+		// rounded up so the caller never retries a moment too early
+		require.Equal(t, 91, inFlightErr.RetryAfter())
+		require.True(t, ds.GetHostEscrowStateFuncInvoked)
+		require.False(t, ds.QueueEscrowFuncInvoked)
+		require.False(t, ds.ReportEscrowErrorFuncInvoked)
 	})
 
 	t.Run("encryption key is already escrowed", func(t *testing.T) {
@@ -578,8 +600,8 @@ func TestTriggerLinuxDiskEncryptionEscrow(t *testing.T) {
 		}
 
 		orbitInfo := &fleet.HostOrbitInfo{Version: fleet.MinOrbitLUKSVersion}
-		ds.IsHostPendingEscrowFunc = func(ctx context.Context, hostID uint) bool {
-			return false
+		ds.GetHostEscrowStateFunc = func(ctx context.Context, hostID uint) (*fleet.HostEscrowState, error) {
+			return &fleet.HostEscrowState{}, nil
 		}
 		ds.GetHostOrbitInfoFunc = func(ctx context.Context, id uint) (*fleet.HostOrbitInfo, error) {
 			return orbitInfo, nil
@@ -596,8 +618,8 @@ func TestTriggerLinuxDiskEncryptionEscrow(t *testing.T) {
 	t.Run("validation failures", func(t *testing.T) {
 		ds := new(mock.Store)
 		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}, SkipCreateTestUsers: true})
-		ds.IsHostPendingEscrowFunc = func(ctx context.Context, hostID uint) bool {
-			return false
+		ds.GetHostEscrowStateFunc = func(ctx context.Context, hostID uint) (*fleet.HostEscrowState, error) {
+			return &fleet.HostEscrowState{}, nil
 		}
 		var reportedErrors []string
 		host := &fleet.Host{ID: 1, Platform: "rhel", OSVersion: "Red Hat Enterprise Linux 9.0.0"}
@@ -611,7 +633,7 @@ func TestTriggerLinuxDiskEncryptionEscrow(t *testing.T) {
 		// invalid platform
 		err := svc.TriggerLinuxDiskEncryptionEscrow(ctx, host)
 		require.ErrorContains(t, err, "Fleet does not yet support creating LUKS disk encryption keys on this platform.")
-		require.True(t, ds.IsHostPendingEscrowFuncInvoked)
+		require.True(t, ds.GetHostEscrowStateFuncInvoked)
 
 		// valid platform, no-team, encryption not enabled
 		host.OSVersion = "Fedora 32.0.0"
@@ -658,8 +680,8 @@ func TestTriggerLinuxDiskEncryptionEscrow(t *testing.T) {
 	t.Run("validation success", func(t *testing.T) {
 		ds := new(mock.Store)
 		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}, SkipCreateTestUsers: true})
-		ds.IsHostPendingEscrowFunc = func(ctx context.Context, hostID uint) bool {
-			return false
+		ds.GetHostEscrowStateFunc = func(ctx context.Context, hostID uint) (*fleet.HostEscrowState, error) {
+			return &fleet.HostEscrowState{}, nil
 		}
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 			return &fleet.AppConfig{MDM: fleet.MDM{

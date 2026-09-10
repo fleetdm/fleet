@@ -531,7 +531,10 @@ type Service interface {
 	GetMunkiIssue(ctx context.Context, munkiIssueID uint) (*MunkiIssue, error)
 
 	HostEncryptionKey(ctx context.Context, id uint) (*HostDiskEncryptionKey, error)
-	EscrowLUKSData(ctx context.Context, passphrase string, salt string, keySlot *uint, clientError string, keyType string) error
+	// EscrowLUKSData stores a LUKS key or a client error. A non-empty status instead records
+	// orbit's progress on the request: prompting and escrowing keep it in flight, canceled and
+	// timed_out end it without a key or an error.
+	EscrowLUKSData(ctx context.Context, passphrase string, salt string, keySlot *uint, clientError string, keyType string, status string) error
 
 	// EscrowWindowsManagedLocalAccountPassword stores the device-generated password that Windows fleetd escrows after
 	// creating the managed local admin account. When clientError is set no password is stored; the account is marked failed
@@ -1236,6 +1239,8 @@ type Service interface {
 
 	GetMDMManualEnrollmentProfile(ctx context.Context, personal bool) ([]byte, error)
 
+	// TriggerLinuxDiskEncryptionEscrow queues a LUKS escrow request for the host. It returns a
+	// ConflictError when fleetd is already handling an earlier request, in which case nothing is queued.
 	TriggerLinuxDiskEncryptionEscrow(ctx context.Context, host *Host) error
 
 	// CheckMDMAppleEnrollmentWithMinimumOSVersion checks if the minimum OS version is met for a MDM enrollment
@@ -1939,6 +1944,13 @@ const (
 	BatchSetSoftwareInstallersStatusFailed = "failed"
 	// MinOrbitLUKSVersion is the earliest version of Orbit that can escrow LUKS passphrases
 	MinOrbitLUKSVersion = "1.36.0"
+	// LinuxEscrowInFlightWindow is how long a LUKS escrow request blocks re-triggering after the
+	// last sign of life from fleetd (hand-off or heartbeat). A fleetd that heartbeats must do so
+	// well inside this window; one that also reports cancellations makes the window matter only
+	// for older agents and crashes. The prompt itself times out after a minute.
+	LinuxEscrowInFlightWindow = 5 * time.Minute
+	// LinuxEscrowInFlightMessage is the ConflictError message returned while a LUKS escrow request is in flight.
+	LinuxEscrowInFlightMessage = "A disk encryption key is already being created for this host."
 	// MFALinkTTL is how long MFA verification links stay active
 	MFALinkTTL = time.Minute * 15
 )
