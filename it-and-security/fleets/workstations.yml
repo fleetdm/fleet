@@ -107,6 +107,7 @@ controls:
       - path: ../lib/macos/configuration-profiles/ensure-show-status-bar-is-enabled.mobileconfig
       - path: ../lib/macos/declaration-profiles/Passcode settings.json
       - path: ../lib/macos/declaration-profiles/Software Update settings.json
+      # Nudge configuration #
       # The preferences are fetched by the device from ProfileURL in Nudge settings.json and only activate
       # once macOS has staged an update. The ProfileURL is pinned to a commit SHA: after editing nudge-preferences.mobileconfig, commit it,
       # then update the SHA in that URL to the new commit or devices keep the old copy.
