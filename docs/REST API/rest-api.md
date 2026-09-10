@@ -13162,6 +13162,8 @@ A software title can have more than one package. The `packages` array lists all 
 
 > For optimal performance, we recommend Fleet Premium users set `without_vulnerability_details` to `true` whenever possible. If set to `false` a large amount of data will be included in the response. If you need vulnerability details, consider using the [Get vulnerability](#get-vulnerability) endpoint.
 
+> A request without pagination parameters returns at most 10,000 versions. Use `page` and `per_page` to retrieve the rest; `count` in the response is the total number of versions matching the request.
+
 Get a list of all software versions.
 
 `GET /api/v1/fleet/software/versions`
@@ -13171,7 +13173,7 @@ Get a list of all software versions.
 | Name                    | Type    | In    | Description                                                                                                                                                                |
 | ----------------------- | ------- | ----- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | page                    | integer | query | Page number of the results to fetch.                                                                                                                                       |
-| per_page                | integer | query | Results per page.                                                                                                                                                          |
+| per_page                | integer | query | Results per page. If no pagination parameters are specified, defaults to 10,000.                                                                                            |
 | order_key               | string  | query | What to order results by. Allowed fields are `name`, `hosts_count`, `cve_published`, `cvss_score`, `epss_probability` and `cisa_known_exploit`. Default is `hosts_count` (descending).      |
 | order_direction         | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`.                                              |
 | query                   | string  | query | Search query keywords. Searchable fields include `name`, `version`, and `cve`.                                                                                             |
