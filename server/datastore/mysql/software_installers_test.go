@@ -1101,9 +1101,11 @@ func testGetSoftwareInstallResult(t *testing.T, ds *Datastore) {
 			res, err := ds.GetSoftwareInstallResults(ctx, installUUID)
 			require.NoError(t, err)
 			require.NotNil(t, res.UpdatedAt)
-			require.Less(t, beforeInstallRequest, res.CreatedAt)
+			// MySQL writes these off its own clock, which can sit a fraction of a millisecond behind
+			// the one time.Now() reads, so compare with a tolerance rather than strictly ordering them
+			require.WithinDuration(t, beforeInstallRequest, res.CreatedAt, time.Minute)
 			createdAt := res.CreatedAt
-			require.Less(t, beforeInstallRequest, *res.UpdatedAt)
+			require.WithinDuration(t, beforeInstallRequest, *res.UpdatedAt, time.Minute)
 
 			beforeInstallResult := time.Now()
 			_, err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
@@ -1168,7 +1170,7 @@ func testGetSoftwareInstallResult(t *testing.T, ds *Datastore) {
 			require.NotNil(t, res.CreatedAt)
 			require.Equal(t, createdAt, res.CreatedAt)
 			require.NotNil(t, res.UpdatedAt)
-			require.Less(t, beforeInstallResult, *res.UpdatedAt)
+			require.WithinDuration(t, beforeInstallResult, *res.UpdatedAt, time.Minute)
 		})
 	}
 }
@@ -3298,8 +3300,9 @@ func testBatchInstallVerificationReads(t *testing.T, ds *Datastore) {
 	}, nil)
 	require.NoError(t, err)
 
-	// the second install request is still pending
-	secondExecutionID, err := ds.InsertSoftwareInstallRequest(ctx, installedHost.ID, secondInstallerID, fleet.HostSoftwareInstallOptions{})
+	// the second install request is still pending, and runs the app open query as a policy install does
+	secondExecutionID, err := ds.InsertSoftwareInstallRequest(ctx, installedHost.ID, secondInstallerID,
+		fleet.HostSoftwareInstallOptions{OverridePreInstallQuery: true})
 	require.NoError(t, err)
 
 	installsByTitle, err := ds.ListLastTitleInstallDataForHosts(ctx, []uint{installedHost.ID, untouchedHost.ID}, []uint{titleID})
@@ -3309,12 +3312,19 @@ func testBatchInstallVerificationReads(t *testing.T, ds *Datastore) {
 	installs := installsByTitle[fleet.HostSoftwareTitleKey{HostID: installedHost.ID, SoftwareTitleID: titleID}]
 	require.Len(t, installs, 2)
 	statusByExecutionID := make(map[string]fleet.SoftwareInstallerStatus, len(installs))
+	overrideByExecutionID := make(map[string]bool, len(installs))
 	for _, install := range installs {
 		require.NotNil(t, install.Status)
 		statusByExecutionID[install.ExecutionID] = *install.Status
+		overrideByExecutionID[install.ExecutionID] = install.OverridePreInstallQuery
 	}
 	require.Equal(t, fleet.SoftwareInstalled, statusByExecutionID[firstExecutionID])
 	require.Equal(t, fleet.SoftwareInstallPending, statusByExecutionID[secondExecutionID])
+
+	// the patch countdown reads override_pre_install_query to tell an install that would skip while
+	// the app is open from one it can wait on
+	require.False(t, overrideByExecutionID[firstExecutionID])
+	require.True(t, overrideByExecutionID[secondExecutionID])
 
 	// a host Fleet has installed nothing on is left out
 	require.NotContains(t, installsByTitle, fleet.HostSoftwareTitleKey{HostID: untouchedHost.ID, SoftwareTitleID: titleID})

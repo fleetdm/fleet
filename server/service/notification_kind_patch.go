@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"slices"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server"
@@ -521,14 +522,11 @@ func (k *patchNotificationKind) queuePatchNotificationInstalls(
 			continue
 		}
 
-		// leave out an app whose install is already on its way, whoever requested it
-		var installPending bool
-		for _, install := range installsByTitle[fleet.HostSoftwareTitleKey{HostID: hostID, SoftwareTitleID: app.SoftwareTitleID}] {
-			if install.Status != nil && *install.Status == fleet.SoftwareInstallPending {
-				installPending = true
-				break
-			}
-		}
+		// an install carrying override_pre_install_query would skip while the app is open, so it needs to be queued again
+		titleKey := fleet.HostSoftwareTitleKey{HostID: hostID, SoftwareTitleID: app.SoftwareTitleID}
+		installPending := slices.ContainsFunc(installsByTitle[titleKey], func(install *fleet.HostLastInstallData) bool {
+			return install.Status != nil && *install.Status == fleet.SoftwareInstallPending && !install.OverridePreInstallQuery
+		})
 		if installPending {
 			queuedTitleIDs = append(queuedTitleIDs, app.SoftwareTitleID)
 			continue

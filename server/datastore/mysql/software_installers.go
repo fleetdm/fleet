@@ -2709,7 +2709,8 @@ func (ds *Datastore) getLatestUpcomingInstall(ctx context.Context, hostID, insta
 SELECT
 	execution_id,
 	'pending_install' AS status,
-	updated_at
+	updated_at,
+	payload->'$.override_pre_install_query' IS TRUE AS override_pre_install_query
 FROM
 	upcoming_activities
 WHERE
@@ -2736,7 +2737,8 @@ func (ds *Datastore) getLatestPastInstall(ctx context.Context, hostID, installer
 SELECT
 	execution_id,
 	status,
-	updated_at
+	updated_at,
+	override_pre_install_query
 FROM
 	host_software_installs
 WHERE
@@ -4918,6 +4920,7 @@ WITH latest_past_install AS (
 		hsi.execution_id,
 		hsi.status,
 		hsi.updated_at,
+		hsi.override_pre_install_query,
 		ROW_NUMBER() OVER (
 			PARTITION BY hsi.host_id, hsi.software_installer_id
 			ORDER BY hsi.id DESC
@@ -4925,7 +4928,7 @@ WITH latest_past_install AS (
 	FROM host_software_installs hsi
 	WHERE hsi.canceled = 0 AND hsi.host_id IN (?) AND hsi.software_installer_id IN (?)
 )
-SELECT host_id, software_installer_id, execution_id, status, updated_at
+SELECT host_id, software_installer_id, execution_id, status, updated_at, override_pre_install_query
 FROM latest_past_install
 WHERE row_num = 1
 `
@@ -4938,6 +4941,7 @@ WITH latest_upcoming_install AS (
 		ua.execution_id,
 		'pending_install' AS status,
 		ua.updated_at,
+		ua.payload->'$.override_pre_install_query' IS TRUE AS override_pre_install_query,
 		ROW_NUMBER() OVER (
 			PARTITION BY ua.host_id, siua.software_installer_id
 			ORDER BY ua.id DESC
@@ -4946,17 +4950,18 @@ WITH latest_upcoming_install AS (
 		JOIN software_install_upcoming_activities siua ON siua.upcoming_activity_id = ua.id
 	WHERE ua.activity_type = 'software_install' AND ua.host_id IN (?) AND siua.software_installer_id IN (?)
 )
-SELECT host_id, software_installer_id, execution_id, status, updated_at
+SELECT host_id, software_installer_id, execution_id, status, updated_at, override_pre_install_query
 FROM latest_upcoming_install
 WHERE row_num = 1
 `
 
 	type lastInstallRow struct {
-		HostID      uint                           `db:"host_id"`
-		InstallerID uint                           `db:"software_installer_id"`
-		ExecutionID string                         `db:"execution_id"`
-		Status      *fleet.SoftwareInstallerStatus `db:"status"`
-		UpdatedAt   time.Time                      `db:"updated_at"`
+		HostID                  uint                           `db:"host_id"`
+		InstallerID             uint                           `db:"software_installer_id"`
+		ExecutionID             string                         `db:"execution_id"`
+		Status                  *fleet.SoftwareInstallerStatus `db:"status"`
+		UpdatedAt               time.Time                      `db:"updated_at"`
+		OverridePreInstallQuery bool                           `db:"override_pre_install_query"`
 	}
 
 	type hostInstaller struct {
@@ -4979,7 +4984,12 @@ WHERE row_num = 1
 		}
 		for _, row := range rows {
 			lastInstalls[hostInstaller{hostID: row.HostID, installerID: row.InstallerID}] =
-				&fleet.HostLastInstallData{ExecutionID: row.ExecutionID, Status: row.Status, UpdatedAt: row.UpdatedAt}
+				&fleet.HostLastInstallData{
+					ExecutionID:             row.ExecutionID,
+					Status:                  row.Status,
+					UpdatedAt:               row.UpdatedAt,
+					OverridePreInstallQuery: row.OverridePreInstallQuery,
+				}
 		}
 	}
 

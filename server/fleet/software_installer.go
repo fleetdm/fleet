@@ -486,6 +486,8 @@ type HostLastInstallData struct {
 	// requests the host refetch; it is used to throttle continuous policy automation
 	// re-installs (see continuousAutomationOnCooldown).
 	UpdatedAt time.Time `db:"updated_at"`
+	// OverridePreInstallQuery means the install runs the app open query as its pre-install condition
+	OverridePreInstallQuery bool `db:"override_pre_install_query"`
 }
 
 // HostSoftwareInstaller represents a software installer package that has been installed on a host.

@@ -638,6 +638,10 @@ func TestRemindAndInstallDuePatches(t *testing.T) {
 		lastInstalled *time.Time
 		// the first app's install request fails, which must not stop the second being queued
 		firstInstallFails bool
+		// an install for the first app is already on the host's queue
+		pendingInstall bool
+		// that pending install runs the app open query, so it skips while the app is open
+		pendingInstallSkipsWhenOpen bool
 		// ActOnNotification: an Update now got there first
 		alreadyActed bool
 		// the notification is already acted, which an earlier pass stopping part way through leaves behind
@@ -677,7 +681,8 @@ func TestRemindAndInstallDuePatches(t *testing.T) {
 			wantInstalls:      []uint{oneInstallerID, twoInstallerID},
 		},
 		{
-			// a My device self-service update lands before inventory catches up
+			// Fleet's own install record catches a My device self-service update before the host's
+			// software inventory has refreshed to show it
 			name:              "an app Fleet installed since it was added to the notification is not installed again",
 			untilDeadline:     -time.Minute,
 			displayed:         true,
@@ -689,8 +694,8 @@ func TestRemindAndInstallDuePatches(t *testing.T) {
 			wantAppsDropped:   []uint{oneTitleID},
 		},
 		{
-			// the app was added because its policy failed after that install, so the install is no
-			// evidence that it is up to date
+			// the app was added after Fleet's install finished, because its policy failed anyway, so
+			// that install is no evidence the app is up to date
 			name:              "an app Fleet installed before it was added to the notification is still installed",
 			untilDeadline:     -time.Minute,
 			displayed:         true,
@@ -701,9 +706,9 @@ func TestRemindAndInstallDuePatches(t *testing.T) {
 			wantInstalls:      []uint{oneInstallerID, twoInstallerID},
 		},
 		{
-			// A pass that misses the reminder window leaves the first notice on screen with the
-			// deadline already gone. The apps must not close without the 5 minute warning, so the
-			// reminder is sent late rather than skipped.
+			// a pass that misses the reminder window leaves the first notice as the last one
+			// displayed with install_at already past, and the reminder is sent late rather than
+			// skipped so the apps never close without their 5 minute warning
 			name:              "a deadline reached with the first notice still displayed sends the reminder",
 			untilDeadline:     -time.Minute,
 			displayed:         true,
@@ -711,7 +716,6 @@ func TestRemindAndInstallDuePatches(t *testing.T) {
 			wantReminder:      true,
 		},
 		{
-			// one installer Fleet cannot queue must not take the rest of the host's apps with it
 			name:              "an app whose install request fails does not stop the others being queued",
 			untilDeadline:     -time.Minute,
 			displayed:         true,
@@ -720,6 +724,29 @@ func TestRemindAndInstallDuePatches(t *testing.T) {
 			firstInstallFails: true,
 			wantActed:         true,
 			wantInstalls:      []uint{twoInstallerID},
+		},
+		{
+			name:              "an app with an install already pending is not queued again",
+			untilDeadline:     -time.Minute,
+			displayed:         true,
+			reminder:          true,
+			installedVersions: behind,
+			pendingInstall:    true,
+			wantActed:         true,
+			wantInstalls:      []uint{twoInstallerID},
+		},
+		{
+			// The policy queues its installs with the app open query attached, so a pending one of
+			// those skips for the same reason the deadline exists.
+			name:                        "an app whose pending install skips while the app is open is queued anyway",
+			untilDeadline:               -time.Minute,
+			displayed:                   true,
+			reminder:                    true,
+			installedVersions:           behind,
+			pendingInstall:              true,
+			pendingInstallSkipsWhenOpen: true,
+			wantActed:                   true,
+			wantInstalls:                []uint{oneInstallerID, twoInstallerID},
 		},
 		{
 			// if an earlier pass set the status to acted and then stopped before queueing, the apps
@@ -830,13 +857,23 @@ func TestRemindAndInstallDuePatches(t *testing.T) {
 			var installDataReads int
 			ds.ListLastTitleInstallDataForHostsFunc = func(_ context.Context, hostIDs []uint, _ []uint) (map[fleet.HostSoftwareTitleKey][]*fleet.HostLastInstallData, error) {
 				installDataReads++
-				if c.lastInstalled == nil {
+				firstAppInstalls := make([]*fleet.HostLastInstallData, 0, 2)
+				if c.lastInstalled != nil {
+					firstAppInstalls = append(firstAppInstalls, &fleet.HostLastInstallData{
+						Status: new(fleet.SoftwareInstalled), UpdatedAt: *c.lastInstalled,
+					})
+				}
+				if c.pendingInstall {
+					firstAppInstalls = append(firstAppInstalls, &fleet.HostLastInstallData{
+						Status:                  new(fleet.SoftwareInstallPending),
+						OverridePreInstallQuery: c.pendingInstallSkipsWhenOpen,
+					})
+				}
+				if len(firstAppInstalls) == 0 {
 					return nil, nil
 				}
 				return map[fleet.HostSoftwareTitleKey][]*fleet.HostLastInstallData{
-					{HostID: hostID, SoftwareTitleID: oneTitleID}: {{
-						Status: new(fleet.SoftwareInstalled), UpdatedAt: *c.lastInstalled,
-					}},
+					{HostID: hostID, SoftwareTitleID: oneTitleID}: firstAppInstalls,
 				}, nil
 			}
 
