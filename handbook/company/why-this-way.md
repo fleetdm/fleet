@@ -356,6 +356,19 @@ Many companies encourage salespeople to ["spray and pray"](https://www.linkedin.
 - **Step up.** We look at the [🟠 big picture](https://fleetdm.com/handbook/company#ownership).  The goal is for the organization using Fleet to be successful, as well as the individuals who decide to use or buy the product.  There are multiple versions of Fleet, and so many ways to "do" open-source security and IT.  It is in the company's best interest to help engineers pick the right one; even if that's Fleet Free, or another solution altogether.  We think about our customer's needs like they are our own.
 
 
+## Why short emails?
+
+Fleet has extremely high conviction about the importance of short emails that never bundle multiple links or questions into one message.
+
+People are inundated with noise.  When an email asks for more than one thing, whether that's two questions, or a question plus a link to review, the reader has to make a decision about which to tackle first, or how to respond to all of it at once.  That's often enough friction to make them put it off.  They mark it as unread, meaning to come back to it later, and the email quietly turns from a quick reply into homework.
+
+You can see the same pattern when assigning tasks internally.  Even a simple, five-minute task gets deprioritized if it's bundled together with other asks, because now it isn't one small thing anymore, it's a list.
+
+That's why a good email (internal or external) makes exactly one ask, links to at most one thing, and gets straight to the point.  If there's a second topic, it deserves its own email, sent separately.
+
+> _**Source:** [Why short emails?](https://docs.google.com/document/d/1MPj4WPFPr5uSbrGoymAjjijdBSAyEB2Tq6qFxs9UKV0/edit?tab=t.0)_
+
+
 ## Why work with customer X?
 
 At Fleet, we inspire ourselves to be helpers to everyone, even if some might disagree with their personal beliefs or particular OKRs of their organization.  Fleet is open source so everyone can use it and contribute.  And the company is built by different contributors from many walks of life and with unique perspectives.
