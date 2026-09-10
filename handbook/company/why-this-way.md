@@ -364,6 +364,8 @@ Instead, give people one link, one attachment, or one question at a time, so the
 
 Adding more than one thing to an email adds work to the recipient's plate, lowers the odds they read the whole thing, and makes it easier to procrastinate on responding.  Give people one thing to do per email.  Just one.
 
+Learn more: [one thing per email](https://docs.google.com/document/d/1MPj4WPFPr5u.../edit?tab=t.0)
+
 
 ## Why work with customer X?
 
