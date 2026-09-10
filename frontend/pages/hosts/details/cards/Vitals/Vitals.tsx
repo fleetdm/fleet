@@ -736,6 +736,8 @@ export const buildHostVitals = ({
                   </>
                 }
                 alwaysShowTooltip
+                showArrow={false}
+                tooltipPosition="bottom-start"
               />
             ) : (
               DEFAULT_EMPTY_CELL_VALUE
