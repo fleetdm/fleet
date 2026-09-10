@@ -151,11 +151,9 @@ func (s *MDMAppleGetTokenService) signMAIDToken(ctx context.Context, logger *slo
 
 	token := jwt.NewWithClaims(jwt.SigningMethodRS256, &appleMAIDTokenClaims{
 		TokenServiceType: fleet.TokenServiceTypeMAID,
-		RegisteredClaims: jwt.RegisteredClaims{
-			Issuer:   signingToken.ServerUUID,
-			IssuedAt: jwt.NewNumericDate(time.Now()),
-			ID:       uuid.New().String(),
-		},
+		Issuer:           signingToken.ServerUUID,
+		IssuedAt:         jwt.NewNumericDate(time.Now()),
+		ID:               uuid.New().String(),
 	})
 
 	signedToken, err := token.SignedString(key)

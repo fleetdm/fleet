@@ -13,7 +13,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/mock"
-	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
@@ -52,7 +51,7 @@ func getTokenRequest(t *testing.T, svc *MDMAppleGetTokenService, serviceType str
 	t.Helper()
 	return svc.GetToken(
 		&mdm.Request{Context: t.Context()},
-		&mdm.GetToken{Enrollment: mdm.Enrollment{UDID: testGetTokenUDID}, TokenServiceType: serviceType},
+		&mdm.GetToken{UDID: testGetTokenUDID, TokenServiceType: serviceType},
 	)
 }
 
@@ -100,7 +99,7 @@ func TestMDMAppleGetTokenSigningTokenSelection(t *testing.T) {
 			name:        "DEP assigned host uses its own token",
 			serviceType: fleet.TokenServiceTypeMAID,
 			setup: func(ds *mock.Store) {
-				depAssignedHost(ds, ptr.Uint(2))
+				depAssignedHost(ds, new(uint(2)))
 				ds.GetABMTokenByIDFunc = func(ctx context.Context, tokenID uint) (*fleet.ABMToken, error) {
 					return &fleet.ABMToken{ID: tokenID, ServerUUID: "dep-server-uuid"}, nil
 				}
@@ -132,7 +131,7 @@ func TestMDMAppleGetTokenSigningTokenSelection(t *testing.T) {
 
 			resp, err := getTokenRequest(t, svc, c.serviceType)
 			if c.wantIssuer == "" {
-				require.Error(t, err)
+				require.ErrorContains(t, err, "HTTP status 400 (Bad Request)")
 				return
 			}
 

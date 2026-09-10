@@ -573,7 +573,7 @@ func TestEnrollmentProfileNewEnrollmentSubjectOUMarker(t *testing.T) {
 // device never sends the GetToken check-in that Fleet answers for com.apple.maid.
 // We know we can easily add capabilities on a renewing profile, so we enforce it for all types.
 func TestEnrollmentProfileServerCapabilities(t *testing.T) {
-	const tokenCapability = "com.apple.mdm.token"
+	const tokenCapability = "com.apple.mdm.token" // nolint:gosec // not a credential
 
 	requireTokenCapability := func(t *testing.T, profile []byte) {
 		t.Helper()
