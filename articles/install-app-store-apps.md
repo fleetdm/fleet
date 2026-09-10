@@ -111,6 +111,14 @@ This example Zoom configuration ensures that the end user has only the SSO login
 </dict>
 ```
 
+#### Converting unmanaged iOS/iPadOS apps to managed
+
+When the end user installs the app, admin can take over management by installing it through Fleet. On manually enrolled iOS/iPadOS hosts end users get prompt to accept the management.
+
+If the end users reject the prompt, the app will show up in the inventory as managed. Sometimes it is there for 5 minutes, sometimes it stucks for 24 hours. Apple returns the app in the `InstalledApplicationsList` MDM command, even though it's not managed.
+
+You can double-check by sending [ManagedApplicationList](https://developer.apple.com/documentation/devicemanagement/managed-application-list-command) as a [custom MDM command](https://fleetdm.com/guides/mdm-commands). This command returns a `Status` for apps that are considered as managed. So for example, sometimes you will see `ManagementRejected` which means that end user rejected the prompt.
+
 ### Google Play (Android)
 
 Android apps can be installed via self-service in the end user's managed Google Play Store (work profile).
