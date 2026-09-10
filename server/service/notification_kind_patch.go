@@ -104,6 +104,23 @@ func (svc *Service) createPatchNotificationForEndUser(ctx context.Context, host 
 		return nil
 	}
 
+	// A skip reported after another install for the app was queued is a stale attempt, and that other
+	// install is what patches the app. The reported install's own queue row is already deleted by the
+	// time its result is recorded, so a pending install here is always a different one.
+	var lastInstall *fleet.HostLastInstallData
+	if install.SoftwareInstallerID != nil {
+		lastInstall, err = svc.ds.GetHostLastInstallData(ctx, host.ID, *install.SoftwareInstallerID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "get host last install data for a skipped patch")
+		}
+	}
+	if lastInstall != nil && lastInstall.Status != nil && *lastInstall.Status == fleet.SoftwareInstallPending {
+		svc.logger.InfoContext(ctx, "not notifying about a skipped patch whose app already has an install queued",
+			"host_id", host.ID, "install_uuid", install.InstallUUID, "software_title_id", *install.SoftwareTitleID,
+			"pending_execution_id", lastInstall.ExecutionID)
+		return nil
+	}
+
 	awaiting, err := svc.notificationsSvc.NotificationAwaitingDisplay(ctx, host.ID, fleet.PatchNotificationKind)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "get patch notification awaiting first dispatch for host")
@@ -528,6 +545,19 @@ func (k *patchNotificationKind) queuePatchNotificationInstalls(
 			return install.Status != nil && *install.Status == fleet.SoftwareInstallPending && !install.OverridePreInstallQuery
 		})
 		if installPending {
+			queuedTitleIDs = append(queuedTitleIDs, app.SoftwareTitleID)
+			continue
+		}
+
+		// The app was updated after it joined the notification, so there is nothing left to install. Only
+		// Fleet's install history is read, not the host's software inventory, which still reports the old
+		// version for minutes after an install.
+		installedSinceJoining := slices.ContainsFunc(installsByTitle[titleKey], func(install *fleet.HostLastInstallData) bool {
+			return install.Status != nil && *install.Status == fleet.SoftwareInstalled && install.UpdatedAt.After(app.CreatedAt)
+		})
+		if installedSinceJoining {
+			k.logger.InfoContext(ctx, "not installing a patch notification app that was already updated",
+				"notification_uuid", notificationUUID, "software_title_id", app.SoftwareTitleID)
 			queuedTitleIDs = append(queuedTitleIDs, app.SoftwareTitleID)
 			continue
 		}

@@ -5732,3 +5732,72 @@ func TestProcessSoftwareForNewlyFailingPoliciesSuppressedDuringSetupExperience(t
 		require.True(t, insertCalled, "outside setup experience the policy automation installs normally")
 	})
 }
+
+// A patch policy whose app is on a displayed patch notification queues no install, because that
+// notification's countdown is what installs the app. The install it would queue skips while the app
+// is open, and that skip opens a second notification once the first one is acted on.
+func TestProcessSoftwareForNewlyFailingPoliciesPatchNotification(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestServiceWithConfig(t, ds, config.TestConfig(), nil, nil, &TestServerOpts{})
+	svcImpl := svc.(validationMiddleware).Service.(*Service)
+
+	const (
+		policyID    = uint(1)
+		installerID = uint(100)
+		hostID      = uint(42)
+	)
+	titleID := uint(7)
+
+	var canSkipWhileAppIsOpen bool
+	ds.GetPoliciesWithAssociatedInstallerFunc = func(_ context.Context, _ uint, _ []uint) ([]fleet.PolicySoftwareInstallerData, error) {
+		return []fleet.PolicySoftwareInstallerData{{
+			ID:                      policyID,
+			InstallerID:             installerID,
+			OverridePreInstallQuery: canSkipWhileAppIsOpen,
+		}}, nil
+	}
+	ds.GetSoftwareInstallerMetadataByIDFunc = func(_ context.Context, _ uint) (*fleet.SoftwareInstaller, error) {
+		return &fleet.SoftwareInstaller{InstallerID: installerID, TitleID: &titleID, Platform: "darwin"}, nil
+	}
+	ds.IsSoftwareInstallerLabelScopedFunc = func(_ context.Context, _, _ uint) (bool, error) {
+		return true, nil
+	}
+	ds.GetHostLastInstallDataFunc = func(_ context.Context, _, _ uint) (*fleet.HostLastInstallData, error) {
+		return nil, nil
+	}
+	var appHasDisplayedPatchNotification bool
+	ds.DisplayedPatchNotificationExistsForAppFunc = func(_ context.Context, _ uint, _ uint) (bool, error) {
+		return appHasDisplayedPatchNotification, nil
+	}
+	var insertCalled bool
+	ds.InsertSoftwareInstallRequestFunc = func(_ context.Context, _, _ uint, _ fleet.HostSoftwareInstallOptions) (string, error) {
+		insertCalled = true
+		return "exec-uuid", nil
+	}
+
+	orbitKey := "orbit-key"
+	failing := map[uint]*bool{policyID: new(false)}
+	newlyFailing := map[uint]struct{}{policyID: {}}
+
+	// a notification the end user has seen lists the app, so its countdown installs it
+	canSkipWhileAppIsOpen = true
+	appHasDisplayedPatchNotification = true
+	insertCalled = false
+	require.NoError(t, svcImpl.processSoftwareForNewlyFailingPolicies(ctx, hostID, nil, "darwin", &orbitKey, "", failing, newlyFailing))
+	require.False(t, insertCalled, "a displayed patch notification already covers this app, so no second install should queue")
+
+	// no displayed notification lists the app, so the policy automation installs it
+	appHasDisplayedPatchNotification = false
+	insertCalled = false
+	require.NoError(t, svcImpl.processSoftwareForNewlyFailingPolicies(ctx, hostID, nil, "darwin", &orbitKey, "", failing, newlyFailing))
+	require.True(t, insertCalled, "an app with no displayed patch notification should install")
+
+	// an install that cannot skip never opens a notification, so the check is not made
+	canSkipWhileAppIsOpen = false
+	appHasDisplayedPatchNotification = true
+	insertCalled = false
+	ds.DisplayedPatchNotificationExistsForAppFuncInvoked = false
+	require.NoError(t, svcImpl.processSoftwareForNewlyFailingPolicies(ctx, hostID, nil, "darwin", &orbitKey, "", failing, newlyFailing))
+	require.True(t, insertCalled, "an install that cannot skip should not be held back by a notification")
+	require.False(t, ds.DisplayedPatchNotificationExistsForAppFuncInvoked)
+}

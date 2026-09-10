@@ -2264,6 +2264,21 @@ func (svc *Service) processSoftwareForNewlyFailingPolicies(
 			continue
 		}
 
+		// A patch notification the end user has seen is counting down to installing this app, so a second
+		// install queued here would skip while the app is open and open a second notification for it. One
+		// that has not displayed has no deadline and may never get one, so it does not hold the install back.
+		var appHasDisplayedPatchNotification bool
+		if failingPolicyWithInstaller.OverridePreInstallQuery {
+			appHasDisplayedPatchNotification, err = svc.ds.DisplayedPatchNotificationExistsForApp(ctx, hostID, softwareInstallerTitleID_)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "check whether a displayed patch notification lists this app")
+			}
+		}
+		if appHasDisplayedPatchNotification {
+			logger.DebugContext(ctx, "skipping policy automation install; a displayed patch notification is counting down to install this app")
+			continue
+		}
+
 		// Throttle continuous policy automation re-installs: if this policy fired only
 		// because continuous_automations_enabled is set (not a pass→fail transition)
 		// and we already queued a successful install within the policy update interval,
