@@ -140,14 +140,29 @@ SELECT
 	neu.status,
 	neu.payload,
 	neu.displayed_at
-FROM patch_notifications pn
+FROM
+	patch_notifications pn
 	JOIN notifications_end_user neu ON neu.uuid = pn.notification_uuid
 -- a notification with no deadline was never displayed, so nothing is due for it yet
-WHERE pn.install_at IS NOT NULL
+WHERE
+	pn.install_at IS NOT NULL
 	AND pn.install_at <= ?
-	-- acted notifications have already been patched, failed and expired ones never will be
-	AND neu.status IN (?, ?)
-	-- a notice that has not been displayed is owed nothing, whatever its deadline says
+	-- failed and expired notifications will never be patched
+	AND (
+		-- still being delivered
+		neu.status IN (?, ?)
+		-- or acted on and left with an app whose install never queued
+		OR (
+			neu.status = ?
+			AND EXISTS (
+				SELECT 1
+				FROM patch_notification_apps unhandled
+				WHERE unhandled.notification_uuid = pn.notification_uuid AND unhandled.install_queued = 0
+			)
+		)
+	)
+	-- the reminder needs a displayed first notice and the install needs a displayed reminder, so a
+	-- null displayed_at rules out both
 	AND neu.displayed_at IS NOT NULL
 ORDER BY pn.install_at
 LIMIT ?
@@ -156,7 +171,8 @@ LIMIT ?
 	var due []fleet.PatchNotificationDue
 	// reads the primary because the display that sets the deadline can be seconds old
 	if err := sqlx.SelectContext(ctx, ds.writer(ctx), &due, selectStmt,
-		cutoff, notifications_api.EndUserNotificationPending, notifications_api.EndUserNotificationDispatched, limit,
+		cutoff, notifications_api.EndUserNotificationPending, notifications_api.EndUserNotificationDispatched,
+		notifications_api.EndUserNotificationActed, limit,
 	); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "list patch notifications due")
 	}

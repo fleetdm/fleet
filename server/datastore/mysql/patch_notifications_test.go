@@ -411,12 +411,31 @@ func testPatchNotificationListDue(t *testing.T, ds *Datastore) {
 		terminal = append(terminal, notificationUUID)
 	}
 
-	// a re-dispatched reminder has a null displayed_at until it is displayed, and nothing is owed on
-	// it either side of install_at
+	// a re-dispatched reminder has a null displayed_at until it is displayed, so it stays out of the
+	// batch either side of install_at
 	notDisplayed := newPatchNotification(t, ds, host.ID, notifications_api.EndUserNotificationPending, 1)
 	setInstallAt(notDisplayed, now.Add(-time.Minute))
 	reminderQueued := newPatchNotification(t, ds, host.ID, notifications_api.EndUserNotificationPending, 1)
 	setInstallAt(reminderQueued, now.Add(time.Minute))
+
+	// an app left unhandled on an acted notification is what a pass stopping between acting and
+	// queueing leaves behind, so this notification comes back to be finished
+	actedUnhandled := newPatchNotification(t, ds, host.ID, notifications_api.EndUserNotificationActed, 1)
+	setInstallAt(actedUnhandled, now.Add(-time.Minute))
+	markDisplayed(actedUnhandled)
+	require.NoError(t, ds.AddPatchNotificationApp(ctx, actedUnhandled, fleet.PatchNotificationApp{
+		SoftwareTitleID: newTestSoftwareTitle(t, ds, "Unhandled App"),
+	}))
+
+	// every app handled, so the acted notification has nothing left to queue
+	actedHandled := newPatchNotification(t, ds, host.ID, notifications_api.EndUserNotificationActed, 1)
+	setInstallAt(actedHandled, now.Add(-time.Minute))
+	markDisplayed(actedHandled)
+	handledTitleID := newTestSoftwareTitle(t, ds, "Handled App")
+	require.NoError(t, ds.AddPatchNotificationApp(ctx, actedHandled, fleet.PatchNotificationApp{
+		SoftwareTitleID: handledTitleID,
+	}))
+	require.NoError(t, ds.SetPatchNotificationAppsQueued(ctx, actedHandled, []uint{handledTitleID}))
 
 	due, err := ds.ListPatchNotificationsDue(ctx, now.Add(5*time.Minute), 500)
 	require.NoError(t, err)
@@ -425,11 +444,13 @@ func testPatchNotificationListDue(t *testing.T, ds *Datastore) {
 	for _, notification := range due {
 		byUUID[notification.NotificationUUID] = notification
 	}
-	require.Len(t, byUUID, 2)
+	require.Len(t, byUUID, 3)
 	require.NotContains(t, byUUID, tooEarly)
 	require.NotContains(t, byUUID, noDeadline)
 	require.NotContains(t, byUUID, reminderQueued)
 	require.NotContains(t, byUUID, notDisplayed)
+	require.NotContains(t, byUUID, actedHandled)
+	require.Contains(t, byUUID, actedUnhandled)
 	for _, notificationUUID := range terminal {
 		require.NotContains(t, byUUID, notificationUUID)
 	}
@@ -443,7 +464,7 @@ func testPatchNotificationListDue(t *testing.T, ds *Datastore) {
 	require.NotNil(t, byUUID[pastDeadline].DisplayedAt)
 
 	// the batch is ordered by deadline, so the oldest deadline is handled first
-	require.Len(t, due, 2)
+	require.Len(t, due, 3)
 	require.True(t, due[0].InstallAt.Before(due[len(due)-1].InstallAt))
 
 	// the limit caps the batch

@@ -404,13 +404,17 @@ func (k *patchNotificationKind) remindOrInstallDuePatch(
 		return nil
 	}
 
-	// set the notification's status to acted before queueing, so a simultaneous Update now press cannot queue the same installs
+	// Moving the status to acted is what claims the queueing, so an Update now press and this pass
+	// cannot both send the same installs.
+	isStatusActed := duePatch.Status == notifications_api.EndUserNotificationActed
 	actedInThisPass, err := k.notificationSvc.ActOnNotification(ctx, duePatch.NotificationUUID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "act on patch notification")
 	}
-	// nothing is left to install
-	if !actedInThisPass || len(remaining) == 0 {
+	// Not claiming the queueing has two causes. Acted at read time is an earlier pass that stopped
+	// part way, which this one finishes. Acted only now is an Update now press, which queues the
+	// installs instead. Or verify dropped every app.
+	if (!actedInThisPass && !isStatusActed) || len(remaining) == 0 {
 		return nil
 	}
 
@@ -500,16 +504,19 @@ func (k *patchNotificationKind) queuePatchNotificationInstalls(
 	apps []fleet.PatchNotificationAppDetail,
 	installsByTitle map[fleet.HostSoftwareTitleKey][]*fleet.HostLastInstallData,
 ) (installsRecorded bool, err error) {
-	// record what was queued even when the loop breaks, so the next attempt finishes the rest
+	// install_queued records that an app has been dealt with, whether that meant queueing an install
+	// or deciding not to. An app left unmarked is one this pass could not queue, which is what tells
+	// a later pass the notification was acted on with installs still to go out.
 	var queuedTitleIDs []uint
-	var queueErr error
+	var queueErrs []error
 	for _, app := range apps {
 		if app.SoftwareInstallerID == nil {
 			k.logger.InfoContext(ctx, "skipping patch notification install for software with no installer",
 				"notification_uuid", notificationUUID, "software_title_id", app.SoftwareTitleID)
+			queuedTitleIDs = append(queuedTitleIDs, app.SoftwareTitleID)
 			continue
 		}
-		// queued by an earlier attempt that failed before it finished
+		// this app was dealt with by an earlier attempt
 		if app.InstallQueued {
 			continue
 		}
@@ -523,14 +530,18 @@ func (k *patchNotificationKind) queuePatchNotificationInstalls(
 			}
 		}
 		if installPending {
+			queuedTitleIDs = append(queuedTitleIDs, app.SoftwareTitleID)
 			continue
 		}
 
 		// OverridePreInstallQuery stays false, so the app open check does not stop the install
 		_, insertErr := k.ds.InsertSoftwareInstallRequest(ctx, hostID, *app.SoftwareInstallerID, fleet.HostSoftwareInstallOptions{PolicyID: app.PolicyID})
 		if insertErr != nil {
-			queueErr = ctxerr.Wrapf(ctx, insertErr, "insert software install request: host_id=%d, software_installer_id=%d", hostID, *app.SoftwareInstallerID)
-			break
+			// One app Fleet cannot queue must not hold up the rest. This app stays unmarked below,
+			// which is what brings the notification back to be finished.
+			queueErrs = append(queueErrs, ctxerr.Wrapf(ctx, insertErr,
+				"insert software install request: host_id=%d, software_installer_id=%d", hostID, *app.SoftwareInstallerID))
+			continue
 		}
 
 		queuedTitleIDs = append(queuedTitleIDs, app.SoftwareTitleID)
@@ -541,7 +552,7 @@ func (k *patchNotificationKind) queuePatchNotificationInstalls(
 	if err != nil {
 		return false, ctxerr.Wrap(ctx, err, "set patch notification apps queued")
 	}
-	return true, queueErr
+	return true, errors.Join(queueErrs...)
 }
 
 func (k *patchNotificationKind) OnOutcome(ctx context.Context, notification *notifications_api.EndUserNotification, outcome notifications_api.NotificationOutcome) error {

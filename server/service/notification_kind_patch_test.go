@@ -636,8 +636,12 @@ func TestRemindAndInstallDuePatches(t *testing.T) {
 		installedVersions map[uint]string
 		// when Fleet last finished installing the first app, if it did
 		lastInstalled *time.Time
+		// the first app's install request fails, which must not stop the second being queued
+		firstInstallFails bool
 		// ActOnNotification: an Update now got there first
 		alreadyActed bool
+		// the notification is already acted, which an earlier pass stopping part way through leaves behind
+		statusActed bool
 
 		wantReminder bool
 		wantInstalls []uint
@@ -707,6 +711,31 @@ func TestRemindAndInstallDuePatches(t *testing.T) {
 			wantReminder:      true,
 		},
 		{
+			// one installer Fleet cannot queue must not take the rest of the host's apps with it
+			name:              "an app whose install request fails does not stop the others being queued",
+			untilDeadline:     -time.Minute,
+			displayed:         true,
+			reminder:          true,
+			installedVersions: behind,
+			firstInstallFails: true,
+			wantActed:         true,
+			wantInstalls:      []uint{twoInstallerID},
+		},
+		{
+			// if an earlier pass set the status to acted and then stopped before queueing, the apps
+			// are still unhandled. ActOnNotification returns false against that status, and
+			// isStatusActed is what lets this pass carry on and queue them.
+			name:              "an acted notification with an app still unhandled has its installs queued",
+			untilDeadline:     -time.Minute,
+			displayed:         true,
+			reminder:          true,
+			statusActed:       true,
+			alreadyActed:      true,
+			installedVersions: behind,
+			wantActed:         true,
+			wantInstalls:      []uint{oneInstallerID, twoInstallerID},
+		},
+		{
 			name:              "an Update now that got there first stops the deadline installing the same apps again",
 			untilDeadline:     -time.Minute,
 			displayed:         true,
@@ -741,6 +770,10 @@ func TestRemindAndInstallDuePatches(t *testing.T) {
 			if c.displayed {
 				displayed = &displayedAt
 			}
+			status := notifications_api.EndUserNotificationDispatched
+			if c.statusActed {
+				status = notifications_api.EndUserNotificationActed
+			}
 			var gotCutoff time.Time
 			ds.ListPatchNotificationsDueFunc = func(_ context.Context, cutoff time.Time, limit int) ([]fleet.PatchNotificationDue, error) {
 				gotCutoff = cutoff
@@ -748,7 +781,7 @@ func TestRemindAndInstallDuePatches(t *testing.T) {
 				return []fleet.PatchNotificationDue{{
 					NotificationUUID: "notification-uuid",
 					HostID:           hostID,
-					Status:           notifications_api.EndUserNotificationDispatched,
+					Status:           status,
 					Payload:          payload,
 					DisplayedAt:      displayed,
 					InstallAt:        time.Now().UTC().Add(c.untilDeadline),
@@ -813,12 +846,25 @@ func TestRemindAndInstallDuePatches(t *testing.T) {
 				require.False(t, opts.OverridePreInstallQuery, "the deadline forces the install, so the app being open must not stop it")
 				require.NotNil(t, opts.PolicyID)
 				require.Equal(t, policyID, *opts.PolicyID)
+				if c.firstInstallFails && installerID == oneInstallerID {
+					return "", errors.New("insert failed")
+				}
 				installs = append(installs, installerID)
 				return "", nil
 			}
-			ds.SetPatchNotificationAppsQueuedFunc = func(_ context.Context, _ string, _ []uint) error { return nil }
+			var markedQueued []uint
+			ds.SetPatchNotificationAppsQueuedFunc = func(_ context.Context, _ string, softwareTitleIDs []uint) error {
+				markedQueued = append(markedQueued, softwareTitleIDs...)
+				return nil
+			}
 
-			require.NoError(t, kind.RemindAndInstallDuePatches(context.Background()))
+			passErr := kind.RemindAndInstallDuePatches(context.Background())
+			if c.firstInstallFails {
+				require.Error(t, passErr)
+				require.NotContains(t, markedQueued, oneTitleID, "the app that failed stays unmarked so a later pass retries it")
+			} else {
+				require.NoError(t, passErr)
+			}
 
 			require.WithinDuration(t, time.Now().UTC().Add(patchNotificationReminderBefore), gotCutoff, time.Minute,
 				"the cutoff is install_at plus the reminder lead time")
