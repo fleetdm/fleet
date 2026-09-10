@@ -29218,7 +29218,7 @@ func (s *integrationEnterpriseTestSuite) TestFMAAutoUpdateCronTimeBudget() {
 
 	var teamResp teamResponse
 	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{
-		TeamPayload: fleet.TeamPayload{Name: new("team_" + t.Name())},
+		Name: new("team_" + t.Name()),
 	}, http.StatusOK, &teamResp)
 	team := *teamResp.Team
 
@@ -29235,10 +29235,14 @@ func (s *integrationEnterpriseTestSuite) TestFMAAutoUpdateCronTimeBudget() {
 
 	// Every app publishes a new version at once, so each app in the run needs its own slow download.
 	for i, slug := range slugs {
-		state := states["/"+slug+".json"]
-		state.version = "2.0"
-		state.installerBytes = []byte(fmt.Sprintf("v2-%d", i))
+		state := &fmaTestState{
+			version:        "2.0",
+			installerBytes: []byte(fmt.Sprintf("v2-%d", i)),
+			installerPath:  fmt.Sprintf("/fma-%d.msi", i),
+			installerDelay: downloadDelay,
+		}
 		state.ComputeSHA(state.installerBytes)
+		states["/"+slug+".json"] = state
 	}
 
 	// A run whose budget covers about one download must give up when the budget is gone instead of walking the whole list.
