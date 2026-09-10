@@ -5198,10 +5198,6 @@ func (ds *Datastore) SetOrUpdateHostDisksEncryption(ctx context.Context, hostID 
 		ON DUPLICATE KEY UPDATE
 			encrypted = VALUES(encrypted),
 			bitlocker_protection_status = VALUES(bitlocker_protection_status),
-			/* Protection reading as on no longer means the volume is healthy: it can be protected and still have nothing
-			   able to unseal it at boot. Clearing the reported reason in that state would erase a real repair failure on
-			   every detail ingest and bounce the host between action required and enforcing, so keep it until a
-			   protector is actually observed. */
 			bitlocker_protection_error = IF((VALUES(bitlocker_protection_status) = ? AND NOT (bitlocker_boot_protector_set <=> 0)) OR NOT VALUES(encrypted), NULL, bitlocker_protection_error),
 			bitlocker_protection_outcome = IF((VALUES(bitlocker_protection_status) = ? AND NOT (bitlocker_boot_protector_set <=> 0)) OR NOT VALUES(encrypted), NULL, bitlocker_protection_outcome),
 			updated_at = CURRENT_TIMESTAMP(6)`,
@@ -5238,9 +5234,7 @@ func (ds *Datastore) SetOrUpdateHostDiskTpmPIN(ctx context.Context, hostID uint,
 	)
 }
 
-// SetOrUpdateHostDiskBootProtector records whether the volume has a key protector that can release the volume master
-// key at boot. A volume that has none boots straight to the 48-digit recovery prompt, which Fleet cannot otherwise see
-// while BitLocker protection is on.
+// SetOrUpdateHostDiskBootProtector records whether the volume has a key protector that can release the volume master key at boot.
 func (ds *Datastore) SetOrUpdateHostDiskBootProtector(ctx context.Context, hostID uint, bootProtectorSet bool) error {
 	return ds.updateOrInsert(
 		ctx,
