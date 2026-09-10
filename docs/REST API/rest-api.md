@@ -9391,11 +9391,11 @@ Edit managed local account enforcement settings for eligible hosts.
 
 ### Run MDM command
 
-> `POST /api/v1/fleet/mdm/apple/enqueue` API endpoint is deprecated as of Fleet 4.40. It is maintained for backward compatibility. Please use the new API endpoint below. [Archived documentation](https://github.com/fleetdm/fleet/blob/fleet-v4.39.0/docs/REST%20API/rest-api.md#run-custom-mdm-command) is available for the deprecated endpoint.
-
 This endpoint tells Fleet to run a custom MDM command on the targeted macOS, iOS, iPadOS, Windows, or Android hosts the next time they come online.
 
-> This endpoint accepts a maximum request body size of 2MiB.
+Apple and Windows MDM command payloads prepare the MDM command payloads must be base64-encoded.
+
+This endpoint accepts a maximum request body size of 2MiB.
 
 `POST /api/v1/fleet/commands/run`
 
