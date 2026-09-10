@@ -140,6 +140,7 @@ This activity contains the following fields:
 - "fleet_id": the ID of the fleet the policy belongs to. Use -1 for global policies, 0 for "no fleet" policies.
 - "fleet_name": the name of the fleet the policy belongs to. null for global policies and "no fleet" policies.
 - "host_id": the ID of the host whose result was reset. Only present when the reset was scoped to a single host.
+- "host_display_name": the display name of the host whose result was reset. Only present when the reset was scoped to a single host.
 
 #### Example
 
@@ -151,7 +152,8 @@ This activity contains the following fields:
 	"team_name": "Workstations",
 	"fleet_id": 1,
 	"fleet_name": "Workstations",
-	"host_id": 42
+	"host_id": 42,
+	"host_display_name": "Anna's MacBook Pro"
 }
 ```
 
