@@ -3,6 +3,7 @@
 
 const { spawnSync } = require("child_process");
 const {
+  chmodSync,
   existsSync,
   lstatSync,
   mkdirSync,
@@ -85,6 +86,9 @@ const install = async () => {
     if (!platform.startsWith("windows") && !(stat.mode & 0o111)) {
       throw new Error(`${binName} in archive ${url} is not executable`);
     }
+    // mkdtempSync creates the directory as 0700; keep it traversable for other users when
+    // installed as root (sudo npm install -g fleetctl), like the plain mkdirSync it replaced.
+    chmodSync(tmpDir, 0o755);
     renameSync(tmpDir, installDir);
   } catch (err) {
     rmSync(tmpDir, { recursive: true, force: true });
