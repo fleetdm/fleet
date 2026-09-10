@@ -30,6 +30,7 @@ interface IAdvancedConfigFormData {
   disableAIFeatures: boolean;
   disableQueryReports: boolean;
   requireHardwareAttestation: boolean;
+  onlyAllowAppleBusinessEnrollment: boolean;
   preserveHostActivitiesOnReenrollment: boolean;
   disableHostsActive: boolean;
   disableVulnerabilities: boolean;
@@ -127,6 +128,8 @@ const Advanced = ({
       appConfig.server_settings.query_reports_disabled || false,
     requireHardwareAttestation:
       appConfig.mdm?.apple_require_hardware_attestation || false,
+    onlyAllowAppleBusinessEnrollment:
+      appConfig.mdm.only_allow_apple_business_enrollment,
     preserveHostActivitiesOnReenrollment:
       appConfig.activity_expiry_settings
         .preserve_host_activities_on_reenrollment || false,
@@ -204,6 +207,8 @@ const Advanced = ({
       mdm: {
         apple_server_url: formData.mdmAppleServerURL,
         apple_require_hardware_attestation: formData.requireHardwareAttestation,
+        only_allow_apple_business_enrollment:
+          formData.onlyAllowAppleBusinessEnrollment,
       },
       sso_settings: {
         sso_server_url: formData.ssoUserURL,

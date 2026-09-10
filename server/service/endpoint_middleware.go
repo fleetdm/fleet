@@ -6,10 +6,8 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
-	"strconv"
 	"strings"
 
-	"github.com/fleetdm/fleet/v4/server/contexts/certserial"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/devicesso"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
@@ -22,23 +20,6 @@ import (
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/go-kit/kit/endpoint"
 )
-
-// extractCertSerialFromHeader extracts certificate serial from X-Client-Cert-Serial
-// header (set by load balancer during mTLS) for iOS/iPadOS device authentication.
-func extractCertSerialFromHeader(ctx context.Context, r *http.Request) context.Context {
-	serialStr := r.Header.Get("X-Client-Cert-Serial")
-	if serialStr == "" {
-		return ctx
-	}
-
-	serial, err := strconv.ParseUint(serialStr, 10, 64)
-	if err != nil {
-		// Force cert auth on parse error instead of falling back to token auth.
-		return certserial.NewContext(ctx, 0)
-	}
-
-	return certserial.NewContext(ctx, serial)
-}
 
 // extractDeviceSSOSessionFromCookie stashes the Fleet Desktop device SSO session
 // ID in the context.
@@ -87,21 +68,15 @@ func authenticatedDevice(svc fleet.Service, logger *slog.Logger, next endpoint.E
 		var debug bool
 		var authnMethod authz_ctx.AuthenticationMethod
 
-		if certSerial, ok := certserial.FromContext(ctx); ok {
-			// Header presence signals cert auth intent, even if serial is invalid.
-			host, debug, err = svc.AuthenticateDeviceByCertificate(ctx, certSerial, identifier)
-			authnMethod = authz_ctx.AuthnDeviceCertificate
+		// Try token auth first (hot path for Fleet Desktop).
+		host, debug, err = svc.AuthenticateDevice(ctx, identifier)
+		if err == nil {
+			authnMethod = authz_ctx.AuthnDeviceToken
 		} else {
-			// Try token auth first (hot path for Fleet Desktop).
-			host, debug, err = svc.AuthenticateDevice(ctx, identifier)
-			if err == nil {
-				authnMethod = authz_ctx.AuthnDeviceToken
-			} else {
-				// Fallback to UUID auth for iOS/iPadOS self-service via URL.
-				// The identifier (from {token}) is treated as the device UUID.
-				host, debug, err = svc.AuthenticateIDeviceByURL(ctx, identifier)
-				authnMethod = authz_ctx.AuthnDeviceURL
-			}
+			// Fallback to UUID auth for iOS/iPadOS self-service via URL.
+			// The identifier (from {token}) is treated as the device UUID.
+			host, debug, err = svc.AuthenticateIDeviceByURL(ctx, identifier)
+			authnMethod = authz_ctx.AuthnDeviceURL
 		}
 
 		if err != nil {
@@ -138,8 +113,8 @@ func authenticatedDevice(svc fleet.Service, logger *slog.Logger, next endpoint.E
 }
 
 // requireDeviceSSOSession enforces the Fleet Desktop SSO gate. It runs after
-// authenticatedDevice, so it applies however the host was identified: token,
-// client certificate or device UUID in the URL.
+// authenticatedDevice, so it applies however the host was identified: token or
+// device UUID in the URL.
 //
 // Rejections count toward the device routes' error limiter like any other
 // failure. A browser only sees one before it starts the SSO flow, so sustained

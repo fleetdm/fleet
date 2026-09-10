@@ -1136,10 +1136,8 @@ const HostDetailsPage = ({
         hostStatus={host.status}
         hostMdmDeviceStatus={hostMdmDeviceStatus}
         hostMdmEnrollmentStatus={host.mdm.enrollment_status}
-        doesStoreEncryptionKey={
-          host.mdm.encryption_key_available ||
-          !!host.mdm.encryption_key_archived
-        }
+        isEncryptionKeyAvailable={host.mdm.encryption_key_available}
+        isEncryptionKeyArchived={!!host.mdm.encryption_key_archived}
         isConnectedToFleetMdm={host.mdm?.connected_to_fleet}
         isDEPAssignedToFleet={host.dep_assigned_to_fleet}
         hostScriptsEnabled={host.scripts_enabled}
@@ -1591,6 +1589,10 @@ const HostDetailsPage = ({
               diskEncryptionKeyAvailable={host?.mdm.encryption_key_available}
               lastMdmEnrolledAt={host?.last_mdm_enrolled_at}
               detailUpdatedAt={host?.detail_updated_at}
+              depAssignedToFleet={host?.dep_assigned_to_fleet || false}
+              onlyAllowAppleBusinessEnrollment={
+                config?.mdm.only_allow_apple_business_enrollment || false
+              }
             />
           )}
           <div className={`${baseClass}__header-links`}>
@@ -1934,6 +1936,10 @@ const HostDetailsPage = ({
               hostName={host.display_name}
               enrollmentStatus={host.mdm.enrollment_status}
               lastMdmEnrollmentType={host.last_mdm_enrollment_type}
+              onlyAllowAppleBusinessEnrollment={
+                config?.mdm.only_allow_apple_business_enrollment || false
+              }
+              depAssignedToFleet={host.dep_assigned_to_fleet}
               onClose={toggleUnenrollMdmModal}
               onSuccess={() => {
                 // The server marks the host unenrolled immediately, so refresh

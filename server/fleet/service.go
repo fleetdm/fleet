@@ -455,10 +455,6 @@ type Service interface {
 	// AuthenticateDevice loads host identified by the device's auth token.
 	// Returns an error if the auth token doesn't exist.
 	AuthenticateDevice(ctx context.Context, authToken string) (host *Host, debug bool, err error)
-	// AuthenticateDeviceByCertificate loads host identified by certificate serial and UUID.
-	// This is used for iOS/iPadOS devices accessing My Device page via client certificates.
-	// Returns an error if the certificate doesn't match the host or if the host is not iOS/iPadOS.
-	AuthenticateDeviceByCertificate(ctx context.Context, certSerial uint64, hostUUID string) (host *Host, debug bool, err error)
 	// AuthenticateIDeviceByURL loads host identified by the URL UUID.
 	// This is used for iOS/iPadOS devices (iDevices) accessing endpoints via a unique URL parameter.
 	// Returns an error if the UUID doesn't exist or if the host is not iOS/iPadOS.
@@ -1047,6 +1043,11 @@ type Service interface {
 	// to any team).
 	GetMDMAppleProfilesSummary(ctx context.Context, teamID *uint) (*MDMProfilesSummary, error)
 
+	// AuthenticateMDMAppleDEPEnrollment validates an automatic (DEP) enrollment
+	// request: the token must match the automatic enrollment profile and the
+	// device's serial must currently be DEP-assigned to Fleet.
+	AuthenticateMDMAppleDEPEnrollment(ctx context.Context, enrollmentToken string, machineInfo *MDMAppleMachineInfo) error
+
 	// GetMDMAppleEnrollmentProfileByToken returns the Apple enrollment from its secret token.
 	GetMDMAppleEnrollmentProfileByToken(ctx context.Context, enrollmentToken string, enrollmentRef string, machineInfo *MDMAppleMachineInfo) (profile []byte, err error)
 
@@ -1243,7 +1244,7 @@ type Service interface {
 	// GetOTAProfile gets the OTA (over-the-air) profile for a given team based on the enroll secret provided.
 	// personal indicates whether the end user selected "Personal (BYOD)" on the /enroll page; it is
 	// baked into the POST-back URL so the OTA enrollment handler can set the correct access rights.
-	GetOTAProfile(ctx context.Context, enrollSecret, idpUUID string, personal bool) ([]byte, error)
+	GetOTAProfile(ctx context.Context, enrollSecret, idpSessionID string, personal bool) ([]byte, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// CronSchedulesService
