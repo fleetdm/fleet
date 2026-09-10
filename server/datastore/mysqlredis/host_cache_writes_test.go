@@ -3,12 +3,15 @@ package mysqlredis
 import (
 	"context"
 	"errors"
+	"fmt"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	redigo "github.com/gomodule/redigo/redis"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -24,11 +27,57 @@ func primeCachedHost(t *testing.T, d *Datastore, id uint, nk string) {
 	require.Equal(t, hostCacheLookupHit, result, "primeCachedHost failed to prime %q", nk)
 }
 
+// hostCacheTTLOf returns the remaining TTL in seconds for key (-1 = no expiry,
+// -2 = missing), used to assert that the in-place team patch keeps the entry's
+// original expiry rather than resetting it.
+func hostCacheTTLOf(t *testing.T, pool fleet.RedisPool, key string) int {
+	t.Helper()
+	conn := pool.Get()
+	defer conn.Close()
+	ttl, err := redigo.Int(conn.Do("TTL", key))
+	require.NoError(t, err)
+	return ttl
+}
+
 func requireCacheMiss(t *testing.T, d *Datastore, nk string) {
 	t.Helper()
 	_, result := d.hostCacheGetByNodeKey(t.Context(), nk)
 	require.Equal(t, hostCacheLookupMiss, result, "expected miss for %q, got %v", nk, result)
 }
+
+// failAfterPool delegates to a real pool but breaks specific connections: every
+// Get past healthyGets fails, or — when failOnlyNth is set — just that one Get
+// fails and the rest succeed. The team patch reads the reverse index and the
+// payloads in separate passes, each of which can span several round trips, so
+// tests need to choose exactly which read breaks.
+type failAfterPool struct {
+	fleet.RedisPool
+	healthyGets *int32
+	failOnlyNth int32 // 1-based Get to fail; 0 means "use healthyGets instead"
+	gets        *int32
+}
+
+func (p failAfterPool) Get() redigo.Conn {
+	if p.failOnlyNth > 0 {
+		if atomic.AddInt32(p.gets, 1) == p.failOnlyNth {
+			return failingConn{}
+		}
+		return p.RedisPool.Get()
+	}
+	if atomic.AddInt32(p.healthyGets, -1) < 0 {
+		return failingConn{}
+	}
+	return p.RedisPool.Get()
+}
+
+type failingConn struct{}
+
+func (failingConn) Close() error                   { return nil }
+func (failingConn) Err() error                     { return errors.New("redis is down") }
+func (failingConn) Do(string, ...any) (any, error) { return nil, errors.New("redis is down") }
+func (failingConn) Send(string, ...any) error      { return errors.New("redis is down") }
+func (failingConn) Flush() error                   { return errors.New("redis is down") }
+func (failingConn) Receive() (any, error)          { return nil, errors.New("redis is down") }
 
 func TestWritePathInvalidation(t *testing.T) {
 	runTest := func(t *testing.T, pool fleet.RedisPool) {
@@ -216,10 +265,17 @@ func TestWritePathInvalidation(t *testing.T) {
 			require.Equal(t, hostCacheLookupMiss, after, "EnrollOrbit must clear the pre-enrollment negative cache")
 		})
 
-		t.Run("AddHostsToTeam invalidates every host in the batch", func(t *testing.T) {
+		t.Run("AddHostsToTeam patches team_id in place and keeps the entry's expiry", func(t *testing.T) {
+			// The whole point of patching rather than DELing: no transferred host
+			// misses on its next check-in, so a bulk transfer can't stampede the
+			// reader, and each entry keeps its staggered expiry instead of
+			// collapsing the batch into one synchronized TTL wave.
 			t.Cleanup(func() { cleanupHostCacheKeys(t, pool) })
 			ds := new(mock.Store)
 			ds.AddHostsToTeamFunc = func(_ context.Context, _ *fleet.AddHostsToTeamParams) error { return nil }
+			ds.GetConfigEnableDiskEncryptionFunc = func(_ context.Context, _ *uint) (fleet.DiskEncryptionConfig, error) {
+				return fleet.DiskEncryptionConfig{MacOSEscrowEnabled: true, WindowsEnabled: true, LinuxEscrowEnabled: true}, nil
+			}
 			d := New(ds, pool, WithHostCache(30*time.Second))
 
 			nks := []string{"nk-team-a", "nk-team-b", "nk-team-c"}
@@ -227,13 +283,147 @@ func TestWritePathInvalidation(t *testing.T) {
 			for i, nk := range nks {
 				primeCachedHost(t, d, ids[i], nk)
 			}
+			ttlBefore := hostCacheTTLOf(t, pool, hostCacheKeyByNodeKey(nks[0]))
 
 			params := fleet.NewAddHostsToTeamParams(new(uint(7)), ids)
 			require.NoError(t, d.AddHostsToTeam(ctx, params))
 			require.True(t, ds.AddHostsToTeamFuncInvoked)
+
 			for _, nk := range nks {
-				requireCacheMiss(t, d, nk)
+				h, result := d.hostCacheGetByNodeKey(ctx, nk)
+				require.Equal(t, hostCacheLookupHit, result, "entry for %q must survive the transfer", nk)
+				require.NotNil(t, h.TeamID)
+				require.Equal(t, uint(7), *h.TeamID, "cached team_id must reflect the transfer")
+				require.Equal(t, "primed-"+nk, h.Hostname, "the rest of the snapshot must be preserved")
 			}
+
+			ttlAfter := hostCacheTTLOf(t, pool, hostCacheKeyByNodeKey(nks[0]))
+			require.NotEqual(t, -1, ttlAfter, "entry must keep an expiry, not become persistent")
+			require.LessOrEqual(t, ttlAfter, ttlBefore, "KEEPTTL must not extend the entry's life")
+			require.Greater(t, ttlAfter, ttlBefore-5, "expiry must be preserved, not reset")
+		})
+
+		t.Run("the team patch never resurrects an entry that expired since it was read", func(t *testing.T) {
+			// The payload is read and written back as two separate Redis round
+			// trips. If the entry expires in between, writing it back without XX
+			// recreates it with no expiry at all — and its reverse index expired
+			// with it, so no later invalidation could reach it: the host would
+			// authenticate from a frozen snapshot forever.
+			t.Cleanup(func() { cleanupHostCacheKeys(t, pool) })
+			d := New(new(mock.Store), pool, WithHostCache(30*time.Second))
+
+			gone := hostCacheKeyByNodeKey("nk-expired-mid-rewrite")
+			applied, failed := d.pipelinedSETKeepTTL(ctx, []hostCacheKV{{key: gone, val: []byte(`{"id":42}`), id: 42}})
+
+			require.Empty(t, applied, "a key that no longer exists must not count as patched")
+			require.Empty(t, failed, "an expired entry is not a failure: there is nothing stale to invalidate")
+			conn := pool.Get()
+			defer conn.Close()
+			exists, err := redigo.Int(conn.Do("EXISTS", gone))
+			require.NoError(t, err)
+			require.Equal(t, 0, exists, "the write must not recreate the expired key")
+		})
+
+		t.Run("the team patch keeps the expiry of entries that are still alive", func(t *testing.T) {
+			t.Cleanup(func() { cleanupHostCacheKeys(t, pool) })
+			d := New(new(mock.Store), pool, WithHostCache(30*time.Second))
+
+			nk := "nk-still-alive"
+			primeCachedHost(t, d, 43, nk)
+			key := hostCacheKeyByNodeKey(nk)
+			ttlBefore := hostCacheTTLOf(t, pool, key)
+
+			applied, failed := d.pipelinedSETKeepTTL(ctx, []hostCacheKV{{key: key, val: []byte(`{"id":43}`), id: 43}})
+
+			require.Len(t, applied, 1)
+			require.Empty(t, failed)
+			ttlAfter := hostCacheTTLOf(t, pool, key)
+			require.NotEqual(t, -1, ttlAfter, "entry must keep an expiry")
+			require.LessOrEqual(t, ttlAfter, ttlBefore)
+		})
+
+		t.Run("one expired family does not invalidate the host's other family", func(t *testing.T) {
+			// An expired entry needs no fallback, so the sibling entry that was
+			// patched successfully must survive: treating expiry as a failure
+			// would drop it and put the host back on the reload path.
+			t.Cleanup(func() { cleanupHostCacheKeys(t, pool) })
+			ds := new(mock.Store)
+			ds.AddHostsToTeamFunc = func(_ context.Context, _ *fleet.AddHostsToTeamParams) error { return nil }
+			ds.GetConfigEnableDiskEncryptionFunc = func(_ context.Context, _ *uint) (fleet.DiskEncryptionConfig, error) {
+				return fleet.DiskEncryptionConfig{MacOSEscrowEnabled: true}, nil
+			}
+			d := New(ds, pool, WithHostCache(30*time.Second))
+
+			nk, onk := "nk-two-families", "onk-two-families"
+			d.hostCachePutByNodeKey(ctx, &fleet.Host{ID: 44, NodeKey: &nk, Hostname: "primed"})
+			d.hostCachePutByOrbitNodeKey(ctx, &fleet.Host{ID: 44, OrbitNodeKey: &onk, Hostname: "primed"})
+
+			// Stand in for the orbit payload expiring between the read and the write.
+			conn := pool.Get()
+			_, err := conn.Do("DEL", hostCacheKeyByOrbitNodeKey(onk))
+			require.NoError(t, err)
+			conn.Close()
+
+			require.NoError(t, d.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(new(uint(7)), []uint{44})))
+
+			h, result := d.hostCacheGetByNodeKey(ctx, nk)
+			require.Equal(t, hostCacheLookupHit, result, "the surviving family must stay cached")
+			require.NotNil(t, h.TeamID)
+			require.Equal(t, uint(7), *h.TeamID)
+		})
+
+		t.Run("AddHostsToTeam patches a batch larger than one chunk", func(t *testing.T) {
+			t.Cleanup(func() { cleanupHostCacheKeys(t, pool) })
+			ds := new(mock.Store)
+			ds.AddHostsToTeamFunc = func(_ context.Context, _ *fleet.AddHostsToTeamParams) error { return nil }
+			ds.GetConfigEnableDiskEncryptionFunc = func(_ context.Context, _ *uint) (fleet.DiskEncryptionConfig, error) {
+				return fleet.DiskEncryptionConfig{MacOSEscrowEnabled: true}, nil
+			}
+			d := New(ds, pool, WithHostCache(30*time.Second))
+
+			// Shrink the chunk instead of priming hundreds of hosts: the point is
+			// crossing the boundary, and a large prime storms the pool with short-
+			// lived connections that later tests then trip over.
+			defer func(orig int) { hostCacheRewriteHostBatchSize = orig }(hostCacheRewriteHostBatchSize)
+			hostCacheRewriteHostBatchSize = 4
+
+			const total = 10
+			ids := make([]uint, 0, total)
+			nks := make([]string, 0, total)
+			for i := range total {
+				id := uint(5000 + i)
+				nk := fmt.Sprintf("nk-chunked-%d", id)
+				primeCachedHost(t, d, id, nk)
+				ids = append(ids, id)
+				nks = append(nks, nk)
+			}
+
+			require.NoError(t, d.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(new(uint(7)), ids)))
+
+			for i, nk := range nks {
+				h, result := d.hostCacheGetByNodeKey(ctx, nk)
+				require.Equal(t, hostCacheLookupHit, result, "host %d (index %d) must stay cached", ids[i], i)
+				require.NotNil(t, h.TeamID)
+				require.Equal(t, uint(7), *h.TeamID, "host %d (index %d) must be patched", ids[i], i)
+			}
+		})
+
+		t.Run("AddHostsToTeam falls back to invalidation when the destination config is unavailable", func(t *testing.T) {
+			// A transfer can drop escrowed disk encryption keys, which is cached
+			// in the orbit family. If we can't tell whether it did, dropping the
+			// entry is the only safe move.
+			t.Cleanup(func() { cleanupHostCacheKeys(t, pool) })
+			ds := new(mock.Store)
+			ds.AddHostsToTeamFunc = func(_ context.Context, _ *fleet.AddHostsToTeamParams) error { return nil }
+			ds.GetConfigEnableDiskEncryptionFunc = func(_ context.Context, _ *uint) (fleet.DiskEncryptionConfig, error) {
+				return fleet.DiskEncryptionConfig{}, errors.New("boom")
+			}
+			d := New(ds, pool, WithHostCache(30*time.Second))
+
+			nk := "nk-team-fallback"
+			primeCachedHost(t, d, 13, nk)
+			require.NoError(t, d.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(new(uint(7)), []uint{13})))
+			requireCacheMiss(t, d, nk)
 		})
 
 		t.Run("DeleteTeam invalidates every host in the batch", func(t *testing.T) {
@@ -445,4 +635,85 @@ func TestWritePathInvalidation(t *testing.T) {
 		pool := redistest.SetupRedis(t, hostCacheTestCleanupPrefix, true, true, false)
 		runTest(t, pool)
 	})
+}
+
+// TestHostCacheReadFailureFallback runs on its own Redis database: it wraps the
+// pool with a fault-injecting double, and the shared pool is in use by the rest
+// of the package's tests.
+func TestHostCacheReadFailureFallback(t *testing.T) {
+	pool := redistest.SetupRedis(t, hostCacheKeyPrefix, false, false, false)
+	ctx := t.Context()
+
+	t.Cleanup(func() { cleanupHostCacheKeys(t, pool) })
+	// Every Get fails, standing in for Redis being unreachable. Wrapping the
+	// shared pool rather than building a second one: a pool of our own would
+	// have to be closed, and closing it disturbs the pool the rest of this
+	// package's tests are using.
+	noHealthyGets := int32(0)
+	d := New(new(mock.Store), failAfterPool{RedisPool: pool, healthyGets: &noHealthyGets}, WithHostCache(30*time.Second))
+
+	values, ok := d.pipelinedMGET(ctx, []string{"any-key"})
+	require.False(t, ok, "an unreachable Redis must report the read as failed")
+	require.Equal(t, []string{""}, values, "which is otherwise indistinguishable from a miss")
+
+	patched, fallback := d.rewriteTeamChunk(ctx, []uint{60}, new(uint(7)), fleet.DiskEncryptionConfig{})
+	require.Empty(t, patched)
+	require.Equal(t, []uint{60}, fallback, "the host must be routed to invalidation")
+
+	// The index read succeeds and the payload read fails: the entries are
+	// still there holding the old team, so skipping them would strand them.
+	live := New(new(mock.Store), pool, WithHostCache(30*time.Second))
+	nk := "nk-payload-read-fails"
+	primeCachedHost(t, live, 61, nk)
+
+	budget := int32(1) // one healthy Get: the index MGET, not the payload MGET
+	flaky := New(new(mock.Store), failAfterPool{RedisPool: pool, healthyGets: &budget}, WithHostCache(30*time.Second))
+	patched, fallback = flaky.rewriteTeamChunk(ctx, []uint{61}, new(uint(7)), fleet.DiskEncryptionConfig{})
+	require.Empty(t, patched, "an unread payload must not count as patched")
+	require.Equal(t, []uint{61}, fallback, "it must fall back to invalidation instead of being skipped")
+
+	// Partial index read: enough hosts that the index MGET spans two Redis
+	// round trips, with only the first succeeding. The hosts behind the
+	// failed half resolve to nothing, which is indistinguishable from being
+	// uncached, so without the check they would be silently skipped while
+	// the rest got patched.
+	// Shrink the Redis chunk so the index MGET spans two round trips.
+	defer func(orig int) { hostCacheInvalidateBatchSize = orig }(hostCacheInvalidateBatchSize)
+	hostCacheInvalidateBatchSize = 4
+
+	const spansTwoChunks = 6
+	ids := make([]uint, 0, spansTwoChunks)
+	for i := range spansTwoChunks {
+		id := uint(7000 + i)
+		primeCachedHost(t, live, id, fmt.Sprintf("nk-partial-%d", id))
+		ids = append(ids, id)
+	}
+
+	// Fail only the second Get — the index MGET's second round trip — so the
+	// payload reads still succeed and cannot mask the gap.
+	gets := int32(0)
+	flaky = New(new(mock.Store), failAfterPool{RedisPool: pool, failOnlyNth: 2, gets: &gets}, WithHostCache(30*time.Second))
+	patched, fallback = flaky.rewriteTeamChunk(ctx, ids, new(uint(7)), fleet.DiskEncryptionConfig{})
+	require.Empty(t, patched, "a partially-read index must not patch the half that resolved")
+	require.Equal(t, ids, fallback, "every host in the chunk must fall back")
+}
+
+func TestUniqueHostIDs(t *testing.T) {
+	// A host has an entry per cache family, so a failure that hits both would
+	// otherwise name it twice: duplicate Redis deletes and a doubled count.
+	for _, tc := range []struct {
+		name string
+		in   []uint
+		want []uint
+	}{
+		{"empty", nil, nil},
+		{"single", []uint{7}, []uint{7}},
+		{"both families of one host", []uint{7, 7}, []uint{7}},
+		{"keeps first-seen order", []uint{9, 7, 9, 8, 7}, []uint{9, 7, 8}},
+		{"already unique", []uint{1, 2, 3}, []uint{1, 2, 3}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			require.Equal(t, tc.want, uniqueHostIDs(tc.in))
+		})
+	}
 }
