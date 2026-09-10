@@ -5262,17 +5262,27 @@ func TestBitlockerBootProtectorVerifyDirectIngest(t *testing.T) {
 		{name: "nil host stores nothing", host: nil},
 		{name: "empty UUID host stores nothing", host: &fleet.Host{ID: 42, UUID: ""}},
 		{
-			// The query returns no rows when nothing on the volume can unseal it at boot, which is the case this exists for.
-			name: "no rows records that no boot protector is present",
-			host: host, rows: nil, wantSet: new(false),
+			name: "criteria 0 records that no boot protector is present",
+			host: host, rows: []map[string]string{{"criteria": "0"}}, wantSet: new(false),
 		},
 		{
-			name: "a row records that a boot protector is present",
+			name: "criteria 1 records that a boot protector is present",
 			host: host, rows: []map[string]string{{"criteria": "1"}}, wantSet: new(true),
 		},
 		{
+			// The extension returns zero rows and no error when its PowerShell call produces nothing. Writing false
+			// here would move a healthy host to enforcing, so the column has to be left unknown instead.
+			name: "no rows leaves the column alone rather than claiming no protector",
+			host: host, rows: nil,
+		},
+		{
+			name: "more rows than expected also leaves the column alone",
+			host: host, rows: []map[string]string{{"criteria": "1"}, {"criteria": "0"}},
+		},
+		{
 			name: "a datastore failure is propagated rather than swallowed",
-			host: host, rows: nil, dsErr: errors.New("write failed"), wantSet: new(false), wantErr: true,
+			host: host, rows: []map[string]string{{"criteria": "0"}}, dsErr: errors.New("write failed"),
+			wantSet: new(false), wantErr: true,
 		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {

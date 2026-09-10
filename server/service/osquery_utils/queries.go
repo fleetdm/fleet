@@ -3675,6 +3675,11 @@ var bitlockerPolicyQueries = map[string]DetailQuery{
 		// We only want to run this query iff:
 		// - BitLocker is not an optional component (is built in) OR is an optional component and enabled.
 		Discovery: bitLockerPresentDiscovery,
+		// Always returns exactly one row carrying the answer, rather than encoding it in the row count. The
+		// bitlocker_key_protectors extension returns zero rows and no error when its PowerShell call produces no
+		// output, so a row-count encoding cannot tell "this volume has no boot protector" from "the protector list
+		// could not be read", and guessing the first would move a healthy host to enforcing and ask the agent to
+		// repair it.
 		Query: `
 			SELECT EXISTS(
 				SELECT 1
@@ -3682,9 +3687,7 @@ var bitlockerPolicyQueries = map[string]DetailQuery{
 				-- 1, 4, 5, 6 are the TPM-family protectors; 2 is an external startup key on a USB stick, which unlocks a
 				-- volume at boot on a machine with no trusted TPM. Keep in sync with bitlocker.BootUnsealProtectorTypes.
 				WHERE drive_letter = 'C:' AND key_protector_type IN (1,2,4,5,6)
-				LIMIT 1
-			) AS criteria
-			WHERE criteria = 1`,
+			) AS criteria`,
 		DirectIngestFunc: func(
 			ctx context.Context,
 			logger *slog.Logger,
@@ -3696,7 +3699,14 @@ var bitlockerPolicyQueries = map[string]DetailQuery{
 				logger.DebugContext(ctx, "Ingestion not run, host is nil or UUID is empty", "query", "bitlocker_boot_protector_verify")
 				return nil
 			}
-			return ds.SetOrUpdateHostDiskBootProtector(ctx, host.ID, len(rows) > 0)
+			// Anything other than the single expected row means the answer is unknown. Leave the column alone: NULL
+			// already reads as "nothing to act on" everywhere downstream.
+			if len(rows) != 1 {
+				logger.DebugContext(ctx, "Ingestion not run, unexpected row count",
+					"query", "bitlocker_boot_protector_verify", "rows", len(rows))
+				return nil
+			}
+			return ds.SetOrUpdateHostDiskBootProtector(ctx, host.ID, rows[0]["criteria"] == "1")
 		},
 	},
 }
