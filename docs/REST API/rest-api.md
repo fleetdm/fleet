@@ -3266,7 +3266,7 @@ Delete all global enroll secrets.
 
 ### Get fleet-level enroll secrets
 
-Returns the fleet's enroll secrets. `android_zero_touch_enrollment_token` is included alongside the secret it was generated from if an Android zero-touch enrollment token ([Get Android zero-touch enrollment configuration](#get-android-zero-touch-enrollment-configuration)) has been generated for the fleet. It's omitted entirely if no such token exists yet.
+Returns the fleet's enroll secrets.
 
 `GET /api/v1/fleet/fleets/:id/secrets`
 
@@ -3289,8 +3289,7 @@ None.
       "created_at": "2021-06-16T22:05:49Z",
       "secret": "aFtH2Nq09hrvi73ErlWNQfa7M53D3rPR",
       "team_id": 1,
-      "fleet_id": 1,
-      "android_zero_touch_enrollment_token": "L82SqXRuruJ8CxdX"
+      "fleet_id": 1
     }
   ]
 }
