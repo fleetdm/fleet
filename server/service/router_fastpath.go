@@ -46,7 +46,8 @@ func (h *fastPathHandler) Router() *mux.Router { return h.router }
 // apart only through a regex constraint on a path variable, which a stdlib pattern cannot express and which the stdlib mux
 // rejects as an ambiguous registration:
 //
-//   - "/hosts/identifier/{identifier}" against "/hosts/{id:[0-9]+}/<subresource>"
+//   - "/hosts/identifier/{identifier}" against "/hosts/{id:[0-9]+}/<subresource>", including the subresource the activity
+//     bounded context registers rather than the core handler
 //   - "/scripts/batch/summary/{id}" against "/scripts/batch/{id}/host_results"
 //   - the two spellings of the host profile resend route
 //
@@ -54,6 +55,7 @@ func (h *fastPathHandler) Router() *mux.Router { return h.router }
 // that belong to the one that left. TestFastPathExclusionsCoverEveryAmbiguousRoute keeps the list in sync with the route table.
 var fastPathExcluded = map[string]struct{}{
 	"GET /api/_version_/fleet/hosts/identifier/{identifier}":                                 {},
+	"GET /api/_version_/fleet/hosts/{id}/activities":                                         {},
 	"GET /api/_version_/fleet/hosts/{id}/certificates":                                       {},
 	"GET /api/_version_/fleet/hosts/{id}/configuration_profiles":                             {},
 	"GET /api/_version_/fleet/hosts/{id}/dep_assignment":                                     {},

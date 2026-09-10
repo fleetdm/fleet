@@ -9,10 +9,17 @@ import (
 	"strings"
 	"testing"
 
+	activity_bootstrap "github.com/fleetdm/fleet/v4/server/activity/bootstrap"
 	apiendpoints "github.com/fleetdm/fleet/v4/server/api_endpoints"
+	chart_bootstrap "github.com/fleetdm/fleet/v4/server/chart/bootstrap"
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/fleet"
+	acme_bootstrap "github.com/fleetdm/fleet/v4/server/mdm/acme/bootstrap"
+	android_service "github.com/fleetdm/fleet/v4/server/mdm/android/service"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
+	platform_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
+	"github.com/go-kit/kit/endpoint"
 	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/require"
@@ -27,7 +34,8 @@ func newRouterForTest(t *testing.T) *mux.Router {
 	ds := new(mock.Store)
 	svc, _ := newTestService(t, ds, nil, nil)
 	limitStore, _ := memstore.New(0)
-	h := MakeHandler(svc, config.TestConfig(), slog.New(slog.DiscardHandler), limitStore, nil, nil, nil)
+	h := MakeHandler(svc, config.TestConfig(), slog.New(slog.DiscardHandler), limitStore, nil, nil,
+		productionFeatureRoutes(t, svc))
 	provider, ok := h.(interface{ Router() *mux.Router })
 	require.True(t, ok, "MakeHandler should return the fast-path handler by default")
 	router := provider.Router()
@@ -43,6 +51,30 @@ func newRouterForTest(t *testing.T) *mux.Router {
 		return nil
 	}))
 	return router
+}
+
+// productionFeatureRoutes returns the same feature-route set cmd/fleet/serve.go passes to MakeHandler: the Android, activity,
+// ACME, and chart bounded contexts. Their dependencies are zero valued because these tests only register routes and never
+// serve them -- every handler is replaced before a request is made. Registering the real sets is what keeps the routing tests
+// honest: with nil here they covered only the core table and missed the activity context's route template, which took the
+// whole fast path down at startup.
+func productionFeatureRoutes(t *testing.T, fleetSvc fleet.Service) []endpointer.HandlerRoutesFunc {
+	t.Helper()
+	logger := slog.New(slog.DiscardHandler)
+	conns := &platform_mysql.DBConnections{}
+	// The endpointer panics on a nil auth middleware, and these endpoints are registered but never invoked.
+	passthrough := func(next endpoint.Endpoint) endpoint.Endpoint { return next }
+
+	_, activityRoutes := activity_bootstrap.New(conns, nil, nil, logger)
+	_, acmeRoutes := acme_bootstrap.New(conns, nil, nil, logger)
+	_, chartRoutes := chart_bootstrap.New(conns, nil, nil, logger)
+
+	return []endpointer.HandlerRoutesFunc{
+		android_service.GetRoutes(fleetSvc, nil),
+		activityRoutes(passthrough),
+		acmeRoutes(passthrough),
+		chartRoutes(passthrough),
+	}
 }
 
 func formatVars(vars map[string]string) string {
