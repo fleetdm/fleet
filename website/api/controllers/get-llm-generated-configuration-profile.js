@@ -169,8 +169,7 @@ module.exports = {
 
 You generate a ${promptConfig.description} from an IT admin's instructions.
 
-Draw setting names, types, and allowed values from these published references:
-${promptConfig.references.map((reference)=>`- ${reference}`).join('\n    ')}
+Draw setting names, types, and allowed values from the published references named in the request.
 
 When generating the profile:
 ${numberedRules}
@@ -212,7 +211,22 @@ If a configuration profile cannot be generated from the provided instructions, r
 `;
 
 
+    // The references live in the user turn, not the system prompt.  Web fetch will only open a URL that has already
+    // appeared in the conversation, and a URL that appears only in the system prompt does not count -- put them here
+    // and the model can read the reference instead of recalling it.  A tree URL works as an entry point, since a URL
+    // found in a fetch result is itself fetchable.
+    // https://platform.claude.com/docs/en/agents-and-tools/tool-use/web-fetch-tool#url-validation
     let configurationProfilePrompt = `Given these instructions from an IT admin, generate a ${promptConfig.description}.
+
+    Draw setting names, types, and allowed values from these published references:
+    ${promptConfig.references.map((reference)=>`- ${reference}`).join('\n    ')}
+
+    To read one of these, fetch the index URL, find the entry whose "name" matches the payload type,
+    preference domain, or declaration you need, then fetch that entry's "download_url" exactly as the index spells
+    it.  You can only fetch a URL that is written in this message or that came back from a fetch you already made:
+    a URL you assemble yourself is refused before it is tried, so never edit a "download_url" or guess a file path.
+    If a reference genuinely cannot be read, say so in "reasonWhyAProfileCouldNotBeGenerated" rather than pretending
+    you read it.
 
     Here are the instructions:
     \`\`\`
@@ -220,33 +234,6 @@ If a configuration profile cannot be generated from the provided instructions, r
     \`\`\``;
     // console.log(configurationProfilePrompt);
 
-    // The acceptance test for a generation result, applied twice: once to decide whether the
-    // speculative draft below can be used, and once to whatever is actually returned.
-    let isUsableProfile = (result)=>{
-      return !!result &&
-        !result.couldNotGenerateProfile &&
-        !!result.configurationProfile &&
-        !!result.profileFilename &&
-        !!result.settingsEnforced;
-    };
-
-    let generateWithTheLargerModel = async ()=>{
-      return await sails.helpers.ai.prompt.with({
-        systemPrompt: systemPrompt,
-        prompt: configurationProfilePrompt,
-        baseModel: 'claude-sonnet-5',
-        expectJson: true,
-      })
-      .intercept((err)=>{
-        sails.log.warn(`When trying generate a configuration profile for a user, an error occurred. Full error: ${require('util').inspect(err, {depth: 2})}`);
-        if(this.req.isSocket){
-          // If this request was from a socket and an error occurs, broadcast an 'error' event and unsubscribe the socket from this room.
-          sails.sockets.broadcast(roomId, 'error', {error: 'couldNotGenerateProfile'});
-          sails.sockets.leave(this.req, roomId);
-        }
-        return 'couldNotGenerateProfile';
-      });
-    };
 
     // Two Haiku calls go out at once.
     //
@@ -259,20 +246,6 @@ If a configuration profile cannot be generated from the provided instructions, r
     // Kicked off before the triage call is awaited: a Sails deferred does not start until
     // something awaits it, so this wrapper is what makes the two calls concurrent rather than
     // sequential.
-    let draftProfilePromise = (async ()=>{
-      return await sails.helpers.ai.prompt.with({
-        systemPrompt: systemPrompt,
-        prompt: configurationProfilePrompt,
-        baseModel: 'claude-haiku-4-5',
-        expectJson: true,
-      })
-      .tolerate((err)=>{
-        // Tolerated rather than intercepted: this draft is optional, and its failure only means
-        // the request takes the escalated path it would have taken anyway.
-        sails.log.warn(`When trying to generate a draft configuration profile with the smaller model, an error occurred. Falling back to the larger model. Full error: ${require('util').inspect(err, {depth: 2})}`);
-        return undefined;
-      });
-    })();
 
     // The triage call answers one question -- does this request need a setting the published
     // platform reference does not cover -- and returns in about a second, which is what lets the
@@ -332,20 +305,60 @@ Respond in JSON with this data shape:
 
     let configurationProfileGenerationResult;
     if(!needsAReferenceTheSmallerModelIsLikelyToRecallWrong) {
-      configurationProfileGenerationResult = await draftProfilePromise;
+      configurationProfileGenerationResult = await sails.helpers.ai.prompt.with({
+        systemPrompt: systemPrompt,
+        prompt: configurationProfilePrompt,
+        baseModel: 'claude-haiku-4-5',
+        expectJson: true,
+      })
+      .tolerate((err)=>{
+        // Tolerated rather than intercepted: this draft is optional, and its failure only means
+        // the request takes the escalated path it would have taken anyway.
+        sails.log.warn(`When trying to generate a draft configuration profile with the smaller model, an error occurred. Falling back to the larger model. Full error: ${require('util').inspect(err, {depth: 2})}`);
+        return undefined;
+      });
     }
     // Escalate when the draft was discarded, when it errored, or when it came back unusable.  On
     // the third-party path this starts without awaiting the draft: it is known to be going in the
     // bin the moment triage answers, so waiting would add its latency to the slow path for nothing.
-    if(!isUsableProfile(configurationProfileGenerationResult)) {
-      configurationProfileGenerationResult = await generateWithTheLargerModel();
+    if(!!configurationProfileGenerationResult &&
+        !configurationProfileGenerationResult.couldNotGenerateProfile &&
+        !!configurationProfileGenerationResult.configurationProfile &&
+        !!configurationProfileGenerationResult.profileFilename &&
+        !!configurationProfileGenerationResult.settingsEnforced
+        ) {
+      configurationProfileGenerationResult = await sails.helpers.ai.promptWithFetch.with({
+        systemPrompt: systemPrompt,
+        prompt: configurationProfilePrompt,
+        baseModel: 'claude-sonnet-5',
+        expectJson: true,
+        // Only on the escalated path.  This is the call that exists because a setting could not be recalled with
+        // confidence, and it is the only one whose latency budget has room for a fetch.
+        enableWebFetch: true,
+        // naturalLanguageInstructions is free text from an anonymous visitor, and web fetch opens URLs that appear in
+        // the prompt.  Without this list, a URL pasted into the instructions makes this endpoint fetch it.
+        webFetchAllowedDomains: ['github.com', 'raw.githubusercontent.com', 'learn.microsoft.com', 'developer.apple.com'],
+      })
+      .intercept((err)=>{
+        sails.log.warn(`When trying generate a configuration profile for a user, an error occurred. Full error: ${require('util').inspect(err, {depth: 2})}`);
+        if(this.req.isSocket){
+          // If this request was from a socket and an error occurs, broadcast an 'error' event and unsubscribe the socket from this room.
+          sails.sockets.broadcast(roomId, 'error', {error: 'couldNotGenerateProfile'});
+          sails.sockets.leave(this.req, roomId);
+        }
+        return 'couldNotGenerateProfile';
+      });
     }
 
     // sails.log(configurationProfileGenerationResult);
     // let jsonResult = JSON.parse(configurationProfileGenerationResult);
     // console.log(configurationProfileGenerationResult);
     // All done.
-    if(!isUsableProfile(configurationProfileGenerationResult)) {
+    if(!!configurationProfileGenerationResult &&
+        !configurationProfileGenerationResult.couldNotGenerateProfile &&
+        !!configurationProfileGenerationResult.configurationProfile &&
+        !!configurationProfileGenerationResult.profileFilename &&
+        !!configurationProfileGenerationResult.settingsEnforced) {
       if(this.req.isSocket){
         if(configurationProfileGenerationResult.reasonWhyAProfileCouldNotBeGenerated){
           sails.sockets.broadcast(roomId, 'error', {error: 'couldNotGenerateProfile', reason: configurationProfileGenerationResult.reasonWhyAProfileCouldNotBeGenerated});
