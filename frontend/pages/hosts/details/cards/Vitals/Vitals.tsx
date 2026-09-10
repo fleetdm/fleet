@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import classnames from "classnames";
-import { formatInTimeZone } from "date-fns-tz";
+import { intlFormat } from "date-fns";
 
 import { IHostCustomVital } from "interfaces/custom_host_vitals";
 import { IHostMdmData, IMunkiData } from "interfaces/host";
@@ -713,8 +713,21 @@ export const buildHostVitals = ({
   if (isIosOrIpadosHost && vitalsData?.timezone) {
     const hasValidTimezone = vitalsData.timezone !== DEFAULT_EMPTY_CELL_VALUE;
     const localTime = hasValidTimezone
-      ? // 24-hour clock, matching the auto-update feature's HH:MM time format.
-        formatInTimeZone(new Date(), vitalsData.timezone, "HH:mm 'on' E, MMM d")
+      ? // Same date/time format used elsewhere in the app (internationalTimeFormat
+        // in utilities/helpers.tsx), just scoped to the host's timezone here.
+        intlFormat(
+          new Date(),
+          {
+            year: "numeric",
+            month: "numeric",
+            day: "numeric",
+            hour: "numeric",
+            minute: "numeric",
+            second: "numeric",
+            timeZone: vitalsData.timezone,
+          },
+          { locale: window.navigator.languages[0] }
+        )
       : null;
 
     vitals.push({
