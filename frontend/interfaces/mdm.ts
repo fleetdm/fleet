@@ -168,6 +168,9 @@ export type ProfilePlatform =
   | "linux"
   | "android";
 
+// Checks if MDM is configured for a given platform.
+// It will return false for platforms that do not have MDM as a concept.
+// It will return false on a missing config.
 export const isMDMConfiguredForPlatform = (
   platform: ProfilePlatform,
   mdmConfig: IMdmConfig | undefined
@@ -188,7 +191,7 @@ export const isMDMConfiguredForPlatform = (
     return mdmConfig.android_enabled_and_configured;
   }
 
-  // Other platform types does not have MDM.
+  // Other platform types do not have MDM.
   return false;
 };
 

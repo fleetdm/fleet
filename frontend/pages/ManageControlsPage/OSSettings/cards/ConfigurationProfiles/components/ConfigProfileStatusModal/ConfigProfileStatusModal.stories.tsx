@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-empty-function */
 import React from "react";
 import { Meta, StoryObj } from "@storybook/react";
 import { AppContext } from "context/app";
@@ -33,8 +34,8 @@ const meta: Meta<typeof ConfigProfileStatusModal> = {
     name: "Storybook Profile",
     teamId: 0,
     uuid: "apple-profile",
-    onClickResend: undefined,
-    onExit: undefined,
+    onClickResend: () => {},
+    onExit: () => {},
     platform: "darwin",
   },
   argTypes: {
