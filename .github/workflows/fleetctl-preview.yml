@@ -1,4 +1,8 @@
 # Tests the `fleetctl preview` command with latest npm released version of fleetctl.
+#
+# This workflow intentionally installs fleetctl with `npm install -g fleetctl` even though
+# other workflows use install-fleetctl.sh: it is the only CI coverage of the npm package
+# (tools/fleetctl-npm), so keep it on npm.
 name: Test fleetctl preview
 
 on:

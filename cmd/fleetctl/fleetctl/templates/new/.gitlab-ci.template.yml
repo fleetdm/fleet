@@ -1,5 +1,5 @@
 fleet-gitops:
-  image: node:22
+  image: debian:bookworm-slim
   variables:
     FLEET_DRY_RUN_ONLY: true
   rules:
@@ -12,16 +12,17 @@ fleet-gitops:
         FLEET_DRY_RUN_ONLY: false
   before_script:
     - apt-get -qq update
-    - apt-get install -y 'jq=1.6-2.1*'
+    - apt-get install -y curl 'jq=1.6-2.1*'
   script:
     - >
       FLEET_VERSION="$(curl "$FLEET_URL/api/v1/fleet/version" --header "Authorization: Bearer $FLEET_API_TOKEN" --fail --silent | jq --raw-output '.version')"
     - >
       if [[ -n "$FLEET_VERSION" ]] ; then
-        npm install -g "fleetctl@$FLEET_VERSION" || npm install -g fleetctl
+        curl -fsSL https://fleetdm.com/resources/install-fleetctl.sh | FLEETCTL_VERSION="$FLEET_VERSION" bash || curl -fsSL https://fleetdm.com/resources/install-fleetctl.sh | bash
       else
         echo "Failed to get Fleet version from $FLEET_URL, installing latest version of fleetctl"
-        npm install -g fleetctl
+        curl -fsSL https://fleetdm.com/resources/install-fleetctl.sh | bash
       fi
+    - export PATH="$HOME/.fleetctl:$PATH"
     - fleetctl config set --address $FLEET_URL --token $FLEET_API_TOKEN
     - ./.github/fleet-gitops/gitops.sh

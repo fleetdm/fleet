@@ -51,9 +51,9 @@ sudo npm install -g fleetctl
 
 ### Upgrading fleetctl
 
-If you used npm to install fleetctl, fleetctl will update itself the next time you run it.
+To upgrade fleetctl, install it again from the [fleetdm.com/download page](https://fleetdm.com/download) or [GitHub](https://github.com/fleetdm/fleet/releases). Match the version of fleetctl to the version of your Fleet server.
 
-You can also install the latest version of the binary from [GitHub](https://github.com/fleetdm/fleet/releases).
+If you used npm to install fleetctl, it updates itself the next time you run it.
 
 ## Usage
 

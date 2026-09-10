@@ -65,7 +65,10 @@ runs:
         fi
 
         echo "Installing fleetctl v$INSTALL_VERSION..."
-        npm install -g "fleetctl@$INSTALL_VERSION" || npm install -g fleetctl@latest
+        # Fall back to the latest release when no fleetctl release matches the server version.
+        curl -fsSL https://fleetdm.com/resources/install-fleetctl.sh | FLEETCTL_VERSION="$INSTALL_VERSION" bash \
+          || curl -fsSL https://fleetdm.com/resources/install-fleetctl.sh | bash
+        echo "$HOME/.fleetctl" >> "$GITHUB_PATH"
 
     - name: Configure fleetctl
       shell: bash
