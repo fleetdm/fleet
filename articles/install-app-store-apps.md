@@ -98,7 +98,7 @@ To confirm whether an app is actually managed, send [ManagedApplicationList](htt
 - `PromptingForManagement`: the end user hasn't answered the prompt yet.
 - `ManagementRejected`: the end user declined the prompt, and the app is not managed.
 
-If the end user declined, installing the app again from **Host details** won't prompt them a second time. Apple acknowledges the command and does nothing. To retry, ask the end user to delete the app, then install it through Fleet again.
+If the end user declined, installing the app again from **Host details** usually prompts them a second time. Sometimes the prompt doesn't show up, and Apple acknowledges the command without doing anything. If that happens, ask the end user to delete the app, then install it through Fleet again.
 
 > **Note:** If the app wasn't already installed and the end user declines the prompt, the app never appears in the host's software inventory, and the install fails verification after 10 minutes.
 
