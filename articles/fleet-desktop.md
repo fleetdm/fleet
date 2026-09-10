@@ -129,6 +129,14 @@ Then, add connect hide script to this policy via [policy automations](https://fl
 
 Fleet's agent (fleetd) upgrades won't re-show the menu bar icon, because upgrades don't touch the plist the script updates.
 
+### Single sign-on (SSO) for Fleet-Desktop-token-authenticated routes
+
+_Available in Fleet Premium_
+
+Fleet Desktop's API routes authenticate with a per-device token, not your Fleet API token. Turning on [`fleet_desktop.sso_enabled`](https://fleetdm.com/docs/configuration/yaml-files#fleet-desktop) adds a second requirement: signing in through your IdP.
+
+See the [Fleet-desktop-token-authenticated routes reference](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/reference/api-for-contributors.md#fleet-desktop-token-authenticated-routes) for how the session requirement, error responses, and exemptions (including during [setup experience](https://fleetdm.com/guides/setup-experience)) work.
+
 <meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="zhumo">
 <meta name="authorFullName" value="Mo Zhu">
