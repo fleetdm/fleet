@@ -1220,22 +1220,21 @@ func (svc *Service) mdmSSOHandleCallbackAuth(
 	}
 
 	// if nil after two attempts, return an error.
-	if ssoErr != nil && auth == nil {
+	if auth == nil {
+		reason := "no assertion returned for SAML response"
+		if ssoErr != nil {
+			reason = ssoErr.Error()
+		}
 		// We actually don't return 401 to clients and instead return an HTML page with /login?status=error,
 		// but to be consistent we will return fleet.AuthFailedError which is used for unauthorized access.
-		return "", "", "", "", sso.SSORequestData{}, ctxerr.Wrap(ctx, fleet.NewAuthFailedError(ssoErr.Error()))
+		return "", "", "", "", sso.SSORequestData{}, ctxerr.Wrap(ctx, fleet.NewAuthFailedError(reason))
 	}
 
-	// Store information for automatic account population/creation
-	//
-	// For now, we just grab whatever comes before the `@` in UserID, which
-	// must be an email.
-	//
-	// For more details, check https://github.com/fleetdm/fleet/issues/10744#issuecomment-1540605146
-	username, _, found := strings.Cut(auth.UserID(), "@")
-	if !found {
+	// Store information for automatic account population/creation, see
+	// https://github.com/fleetdm/fleet/issues/10744#issuecomment-1540605146
+	username := fleet.EmailLocalPart(auth.UserID())
+	if username == auth.UserID() {
 		svc.logger.InfoContext(ctx, "IdP UserID doesn't look like an email, using raw value", "component", "mdm-sso-callback")
-		username = auth.UserID()
 	}
 
 	err = svc.ds.InsertMDMIdPAccount(ctx, &fleet.MDMIdPAccount{
