@@ -801,8 +801,8 @@ type Datastore interface {
 	// used for vulnerability detection populated (id, name, version, cpe_id, cpe)
 	ListSoftwareForVulnDetection(ctx context.Context, filter VulnSoftwareFilter) ([]Software, error)
 	// ListSoftwareForVulnDetectionByOSVersion returns all distinct software installed on hosts
-	// matching the given OS version.
-	ListSoftwareForVulnDetectionByOSVersion(ctx context.Context, osVer OSVersion) ([]Software, error)
+	// matching the given OS version, restricted to the given software sources.
+	ListSoftwareForVulnDetectionByOSVersion(ctx context.Context, osVer OSVersion, sources []string) ([]Software, error)
 	ListSoftwareVulnerabilitiesByHostIDsSource(ctx context.Context, hostIDs []uint, source VulnerabilitySource) (map[uint][]SoftwareVulnerability, error)
 	// ListSoftwareVulnerabilitiesBySoftwareIDs returns vulnerabilities for the given software IDs
 	// filtered by source. Queries software_cve directly without joining through host_software.
