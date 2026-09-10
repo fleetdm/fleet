@@ -21,12 +21,14 @@ type Datastore interface {
 	SetEndUserNotificationsDispatched(ctx context.Context, notifications []*api.EndUserNotification) error
 	DeferEndUserNotificationsForHosts(ctx context.Context, hostIDs []uint) error
 	ExpireEndUserNotifications(ctx context.Context) (int64, error)
+	DeleteExpiredEndUserNotifications(ctx context.Context, olderThan time.Time, limit int) (int64, error)
 	VerifyEndUserNotification(ctx context.Context, notificationUUID string, displayedAt time.Time) error
 	DelayEndUserNotification(ctx context.Context, notificationUUID string, nextAttemptAt time.Time, payload json.RawMessage) error
 	// ActOnEndUserNotification returns false when the notification was already
 	// terminal, so only the first call gets true.
 	ActOnEndUserNotification(ctx context.Context, notificationUUID string) (bool, error)
 	SetEndUserNotificationStatus(ctx context.Context, notificationUUID string, status string, reason *string, whereStatusIn []string) error
+	FailEndUserNotificationsForHost(ctx context.Context, hostID uint, reason string) error
 	SetEndUserNotificationOutcome(ctx context.Context, notificationUUID string, outcome api.NotificationOutcome, nextAttemptAt *time.Time) error
 }
 

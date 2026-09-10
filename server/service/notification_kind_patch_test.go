@@ -76,6 +76,8 @@ func TestCreatePatchNotificationForEndUser(t *testing.T) {
 		// PatchNotificationExistsForApp: a pending or dispatched notification
 		// already lists this app and has not queued its installs
 		exists bool
+		// GetHostLastInstallData: the status of another install for this app, which is what a stale skip from a policy re-fire finds
+		otherInstallStatus *fleet.SoftwareInstallerStatus
 		// NotificationAwaitingDisplay: this host has a notification the end user
 		// has not seen yet
 		awaiting bool
@@ -105,6 +107,18 @@ func TestCreatePatchNotificationForEndUser(t *testing.T) {
 			wantAppOn: "",
 		},
 		{
+			name:               "an app that already has an install queued is not notified about again",
+			otherInstallStatus: new(fleet.SoftwareInstallPending),
+			wantAppOn:          "",
+		},
+		{
+			// the notification that queued that install is acted, so it no longer lists the app
+			name:               "an app whose last install failed gets a new notification",
+			otherInstallStatus: new(fleet.SoftwareInstallFailed),
+			wantCreated:        true,
+			wantAppOn:          createdUUID,
+		},
+		{
 			name:      "an install with no software title records no notification",
 			noTitle:   true,
 			wantAppOn: "",
@@ -128,6 +142,12 @@ func TestCreatePatchNotificationForEndUser(t *testing.T) {
 
 			ds.PatchNotificationExistsForAppFunc = func(_ context.Context, _ uint, _ uint) (bool, error) {
 				return c.exists, nil
+			}
+			ds.GetHostLastInstallDataFunc = func(_ context.Context, _ uint, _ uint) (*fleet.HostLastInstallData, error) {
+				if c.otherInstallStatus == nil {
+					return nil, nil
+				}
+				return &fleet.HostLastInstallData{ExecutionID: "other-install-uuid", Status: c.otherInstallStatus}, nil
 			}
 			notificationsSvc.NotificationAwaitingDisplayFunc = func(_ context.Context, _ uint, _ string) (*notifications_api.EndUserNotification, error) {
 				if !c.awaiting {
@@ -200,6 +220,7 @@ func TestPatchNotificationUpdateNow(t *testing.T) {
 		installerID = uint(20)
 		policyID    = uint(30)
 	)
+	appJoinedAt := time.Now().UTC().Add(-time.Hour)
 
 	cases := []struct {
 		name   string
@@ -207,8 +228,10 @@ func TestPatchNotificationUpdateNow(t *testing.T) {
 		// GetHostLastInstallData: the app is already on the host's queue, which is
 		// what a second press of Update now finds
 		alreadyPending bool
-		noInstaller    bool
-		installFails   bool
+		// ListLastTitleInstallDataForHosts: when Fleet last installed this app, nil when it never did
+		lastInstalledAt *time.Time
+		noInstaller     bool
+		installFails    bool
 		// ActOnNotification: another press marked the notification acted first
 		alreadyActed bool
 
@@ -234,6 +257,20 @@ func TestPatchNotificationUpdateNow(t *testing.T) {
 			status:         notifications_api.EndUserNotificationDispatched,
 			alreadyPending: true,
 			wantActionTry:  true,
+		},
+		{
+			name:            "an app updated after it joined the notification is not installed again",
+			status:          notifications_api.EndUserNotificationDispatched,
+			lastInstalledAt: new(appJoinedAt.Add(time.Minute)),
+			wantInstalls:    0,
+			wantActionTry:   true,
+		},
+		{
+			name:            "an app last updated before it joined the notification is still installed",
+			status:          notifications_api.EndUserNotificationDispatched,
+			lastInstalledAt: new(appJoinedAt.Add(-time.Minute)),
+			wantInstalls:    1,
+			wantActionTry:   true,
 		},
 		{
 			name:   "Update now on a failed or expired notification queues nothing",
@@ -272,15 +309,21 @@ func TestPatchNotificationUpdateNow(t *testing.T) {
 				ds: ds, notificationSvc: notificationSvc, logger: slog.New(slog.DiscardHandler),
 			}
 			ds.ListLastTitleInstallDataForHostsFunc = func(_ context.Context, _ []uint, titleIDs []uint) (map[fleet.HostSoftwareTitleKey][]*fleet.HostLastInstallData, error) {
-				if !c.alreadyPending {
+				var lastInstall *fleet.HostLastInstallData
+				switch {
+				case c.alreadyPending:
+					lastInstall = &fleet.HostLastInstallData{Status: new(fleet.SoftwareInstallPending)}
+				case c.lastInstalledAt != nil:
+					lastInstall = &fleet.HostLastInstallData{Status: new(fleet.SoftwareInstalled), UpdatedAt: *c.lastInstalledAt}
+				default:
 					return nil, nil
 				}
-				pending := make(map[fleet.HostSoftwareTitleKey][]*fleet.HostLastInstallData, len(titleIDs))
+				byTitle := make(map[fleet.HostSoftwareTitleKey][]*fleet.HostLastInstallData, len(titleIDs))
 				for _, id := range titleIDs {
-					pending[fleet.HostSoftwareTitleKey{HostID: hostID, SoftwareTitleID: id}] =
-						[]*fleet.HostLastInstallData{{Status: new(fleet.SoftwareInstallPending)}}
+					byTitle[fleet.HostSoftwareTitleKey{HostID: hostID, SoftwareTitleID: id}] =
+						[]*fleet.HostLastInstallData{lastInstall}
 				}
-				return pending, nil
+				return byTitle, nil
 			}
 			ds.SetPatchNotificationAppsQueuedFunc = func(_ context.Context, _ string, _ []uint) error { return nil }
 			ds.ListPatchNotificationAppsFunc = func(_ context.Context, _ string) ([]fleet.PatchNotificationAppDetail, error) {
@@ -288,6 +331,7 @@ func TestPatchNotificationUpdateNow(t *testing.T) {
 					SoftwareTitleID:     titleID,
 					SoftwareInstallerID: new(installerID),
 					PolicyID:            new(policyID),
+					CreatedAt:           appJoinedAt,
 				}
 				if c.noInstaller {
 					app.SoftwareInstallerID = nil

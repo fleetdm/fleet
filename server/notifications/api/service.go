@@ -17,10 +17,15 @@ type Service interface {
 	ActOnNotificationService
 	SetNotificationStatusService
 	CreateNotificationService
+	FailNotificationsForHostService
 
 	// ExpireAndQueueNotifications gives up on notifications that are out of
 	// time, then queues a script for each one that is due.
 	ExpireAndQueueNotifications(ctx context.Context) error
+
+	// CleanupNotifications deletes notifications whose expiry passed more than
+	// EndUserNotificationRetention ago.
+	CleanupNotifications(ctx context.Context) error
 
 	RenderNotificationForHost(ctx context.Context, hostID uint, notificationUUID string) (*NotificationView, error)
 
@@ -74,4 +79,12 @@ type ActOnNotificationService interface {
 // SetNotificationStatusService sets the status for a notification if its status is in whereStatusIn, optionally changing last_reason.
 type SetNotificationStatusService interface {
 	SetNotificationStatus(ctx context.Context, notificationUUID string, status string, reason *string, whereStatusIn []string) error
+}
+
+// FailNotificationsForHostService gives up on every notification queued for a
+// host. A wiped host has been erased, so nothing it was queued to display is
+// still worth showing, and leaving one in dispatched would block the host once
+// it comes back.
+type FailNotificationsForHostService interface {
+	FailNotificationsForHost(ctx context.Context, hostID uint, reason string) error
 }

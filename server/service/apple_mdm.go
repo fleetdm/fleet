@@ -50,6 +50,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/cryptoutil"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/profiles"
+	notifications_api "github.com/fleetdm/fleet/v4/server/notifications/api"
 
 	nano_service "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/service"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
@@ -4587,7 +4588,9 @@ type MDMAppleCheckinAndCommandService struct {
 	commandHandlers map[string][]fleet.MDMCommandResultsHandler
 	keyValueStore   fleet.AdvancedKeyValueStore
 	newActivityFn   mdmlifecycle.NewActivityFunc
-	isPremium       bool
+	// notificationsSvc is only needed to give up on a wiped host's end user notifications.
+	notificationsSvc fleet.NotificationsWriteService
+	isPremium        bool
 }
 
 func NewMDMAppleCheckinAndCommandService(
@@ -4598,18 +4601,20 @@ func NewMDMAppleCheckinAndCommandService(
 	logger *slog.Logger,
 	keyValueStore fleet.AdvancedKeyValueStore,
 	newActivityFn mdmlifecycle.NewActivityFunc,
+	notificationsSvc fleet.NotificationsWriteService,
 ) *MDMAppleCheckinAndCommandService {
 	mdmLifecycle := mdmlifecycle.New(ds, logger, newActivityFn)
 	return &MDMAppleCheckinAndCommandService{
-		ds:              ds,
-		commander:       commander,
-		logger:          logger,
-		mdmLifecycle:    mdmLifecycle,
-		vppInstaller:    vppInstaller,
-		isPremium:       isPremium,
-		commandHandlers: map[string][]fleet.MDMCommandResultsHandler{},
-		keyValueStore:   keyValueStore,
-		newActivityFn:   newActivityFn,
+		ds:               ds,
+		commander:        commander,
+		logger:           logger,
+		mdmLifecycle:     mdmLifecycle,
+		vppInstaller:     vppInstaller,
+		isPremium:        isPremium,
+		commandHandlers:  map[string][]fleet.MDMCommandResultsHandler{},
+		keyValueStore:    keyValueStore,
+		newActivityFn:    newActivityFn,
+		notificationsSvc: notificationsSvc,
 	}
 }
 
@@ -4821,6 +4826,14 @@ func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.
 
 			if err := svc.ds.MDMAppleResetOnReenrollment(r.Context, r.ID, appCfg.ActivityExpirySettings.PreserveHostActivitiesOnReenrollment); err != nil {
 				return ctxerr.Wrap(r.Context, err, "resetting enrollment on re-enrollment", "host_uuid", r.ID)
+			}
+
+			// MDMAppleResetOnReenrollment cancels every upcoming activity, which for an erased
+			// device includes any notify script. A wipe Fleet never saw the result of would
+			// otherwise leave a notification in dispatched, blocking this host for 24 hours.
+			err = svc.notificationsSvc.FailNotificationsForHost(r.Context, info.HostID, notifications_api.EndUserNotificationReasonHostWiped)
+			if err != nil {
+				return ctxerr.Wrap(r.Context, err, "fail end user notifications on re-enrollment")
 			}
 		}
 
@@ -5205,6 +5218,10 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 				}
 				if _, err := svc.ds.BatchCancelAllHostUpcomingActivities(r.Context, host.ID); err != nil {
 					return nil, ctxerr.Wrap(r.Context, err, "cancel upcoming activities after wipe")
+				}
+				err = svc.notificationsSvc.FailNotificationsForHost(r.Context, host.ID, notifications_api.EndUserNotificationReasonHostWiped)
+				if err != nil {
+					return nil, ctxerr.Wrap(r.Context, err, "fail end user notifications after wipe")
 				}
 			}
 			return nil, nil

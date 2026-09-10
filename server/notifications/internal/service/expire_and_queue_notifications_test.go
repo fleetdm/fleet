@@ -19,10 +19,22 @@ type mockDatastore struct {
 	due        []*api.EndUserNotification
 	dispatched []*api.EndUserNotification
 	deferred   []uint
+
+	// how many expired notifications are left to delete, and the limit each delete asked for
+	deletable     int64
+	deleteBatches []int
 }
 
 func (m *mockDatastore) ExpireEndUserNotifications(ctx context.Context) (int64, error) {
 	return 0, nil
+}
+
+func (m *mockDatastore) DeleteExpiredEndUserNotifications(_ context.Context, _ time.Time, limit int) (int64, error) {
+	m.deleteBatches = append(m.deleteBatches, limit)
+
+	deleted := min(m.deletable, int64(limit))
+	m.deletable -= deleted
+	return deleted, nil
 }
 
 func (m *mockDatastore) ListEndUserNotificationsToDispatch(ctx context.Context, limit int) ([]*api.EndUserNotification, error) {
@@ -62,6 +74,10 @@ func (m *mockDatastore) ActOnEndUserNotification(context.Context, string) (bool,
 }
 
 func (m *mockDatastore) SetEndUserNotificationStatus(context.Context, string, string, *string, []string) error {
+	return nil
+}
+
+func (m *mockDatastore) FailEndUserNotificationsForHost(context.Context, uint, string) error {
 	return nil
 }
 

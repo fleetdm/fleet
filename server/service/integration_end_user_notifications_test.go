@@ -452,6 +452,61 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 		require.NotNil(t, second.ExecutionID, "the second notification should dispatch once the first is no longer in flight")
 	})
 
+	// Canceling the notify script leaves nothing to report an outcome, so the notification has to be
+	// moved out of dispatched: while it sits there it blocks every notification for the host and
+	// makes the next skip for the same software title find a notification that never arrives.
+	t.Run("canceling the notify script frees both the host and the software title for a new notification", func(t *testing.T) {
+		host := newNotifiableHost(t, "notif-cancel")
+		notificationUUID := newTestNotification(t, s.ds, host.ID, fleet.PatchNotificationKind, `{"reminder": false}`)
+		require.NoError(t, s.ds.NewPatchNotification(ctx, notificationUUID))
+
+		var titleID uint
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			if _, err := q.ExecContext(ctx,
+				`INSERT INTO software_titles (name, source) VALUES ('Cancel App', 'apps')`); err != nil {
+				return err
+			}
+			return sqlx.GetContext(ctx, q, &titleID,
+				`SELECT id FROM software_titles WHERE name = 'Cancel App' AND source = 'apps'`)
+		})
+		require.NoError(t, s.ds.AddPatchNotificationApp(ctx, notificationUUID,
+			fleet.PatchNotificationApp{SoftwareTitleID: titleID}))
+
+		dispatch(t)
+		dispatched := getTestNotification(t, s.ds, notificationUUID)
+		require.NotNil(t, dispatched.ExecutionID)
+
+		// an admin cancels the notify script from the host's upcoming queue
+		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming/%s", host.ID, *dispatched.ExecutionID),
+			nil, http.StatusNoContent)
+
+		canceled := getTestNotification(t, s.ds, notificationUUID)
+		require.Equal(t, notifications_api.EndUserNotificationFailed, canceled.Status)
+		require.NotNil(t, canceled.LastReason)
+		require.Equal(t, notifications_api.EndUserNotificationReasonCanceled, *canceled.LastReason)
+
+		// the next app open skip for the same software title is not dropped as already covered
+		exists, err := s.ds.PatchNotificationExistsForApp(ctx, host.ID, titleID)
+		require.NoError(t, err)
+		require.False(t, exists)
+
+		// and the host is no longer held behind a dispatch that never arrives
+		nextUUID := newTestNotification(t, s.ds, host.ID, fleet.PatchNotificationKind, `{"reminder": false}`)
+		dispatch(t)
+		next := getTestNotification(t, s.ds, nextUUID)
+		require.NotNil(t, next.ExecutionID, "a canceled notification should not hold up the host's queue")
+
+		// the canceled notify script stays out of the activity feed, the same as a reported one.
+		// The host has no other script in its queue, so any canceled_run_script here is this one.
+		var past listActivitiesResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities", host.ID), nil, http.StatusOK, &past)
+		canceledScriptActivity := (fleet.ActivityTypeCanceledRunScript{}).ActivityName()
+		for _, act := range past.Activities {
+			require.NotEqual(t, canceledScriptActivity, act.Type,
+				"canceling a notification's script is not a canceled script run")
+		}
+	})
+
 	t.Run("the queued script is in the host's upcoming queue but never its past activities", func(t *testing.T) {
 		host := newNotifiableHost(t, "notif-activities")
 		notificationUUID := newTestNotification(t, s.ds, host.ID, "patch", `{"title": "hello"}`)
@@ -880,5 +935,162 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 		// acted is the guard against a second install request
 		require.NoError(t, s.patchNotificationKind.RemindAndInstallDuePatches(ctx))
 		require.Len(t, queuedInstalls(host.ID), 1)
+	})
+
+	// One policy run queues installs for two apps. The open app skips and opens a notification, the
+	// closed app installs and asks for a refetch, and that refetch re-runs the policies while the
+	// notification is still being shown. That sequence used to open a second notification.
+	t.Run("a refetch during a patch notification does not open a second notification", func(t *testing.T) {
+		host := newNotifiableHost(t, "notif-refetch")
+		team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "refetch-team"})
+		require.NoError(t, err)
+		require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID})))
+
+		// two patch policies, each with its own installer, the way a fleet with two out of date apps looks
+		newPatchPolicy := func(t *testing.T, name string) (uint, uint) {
+			installerID, _, err := s.ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+				InstallScript: "echo", Filename: name + ".pkg", StorageID: uuid.NewString(),
+				Title: name, Version: "2.0.0", Source: "apps", Platform: "darwin",
+				UserID: s.users["admin1@example.com"].ID,
+				TeamID: &team.ID, ValidatedLabels: &fleet.LabelIdentsWithScope{},
+				AppOpenQuery: "SELECT 1 FROM processes WHERE name = 'app'",
+			})
+			require.NoError(t, err)
+			policy, err := s.ds.NewTeamPolicy(ctx, team.ID, nil, fleet.PolicyPayload{
+				Name: name + " up to date", Query: "SELECT 1;",
+			})
+			require.NoError(t, err)
+			mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+				_, err := q.ExecContext(ctx, `
+					UPDATE policies
+					SET notify_before_patching = 1, continuous_automations_enabled = 1, software_installer_id = ?
+					WHERE id = ?`, installerID, policy.ID)
+				return err
+			})
+			return policy.ID, installerID
+		}
+		openAppPolicyID, openAppInstallerID := newPatchPolicy(t, "Open App")
+		closedAppPolicyID, closedAppInstallerID := newPatchPolicy(t, "Closed App")
+
+		bothFailing := map[uint]*bool{openAppPolicyID: new(false), closedAppPolicyID: new(false)}
+
+		// the install the host is running right now, since the queue activates one at a time
+		activatedInstall := func(t *testing.T) (string, uint) {
+			var activated []struct {
+				ExecutionID string `db:"execution_id"`
+				InstallerID uint   `db:"software_installer_id"`
+			}
+			mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+				return sqlx.SelectContext(ctx, q, &activated, `
+					SELECT ua.execution_id, siua.software_installer_id
+					FROM upcoming_activities ua
+						JOIN software_install_upcoming_activities siua ON siua.upcoming_activity_id = ua.id
+					WHERE ua.host_id = ? AND ua.activated_at IS NOT NULL`, host.ID)
+			})
+			require.Len(t, activated, 1)
+			return activated[0].ExecutionID, activated[0].InstallerID
+		}
+
+		// an empty pre install condition output is the app open skip orbit reports
+		postInstallResult := func(t *testing.T, executionID string, appWasOpen bool) {
+			payload := &fleet.HostSoftwareInstallResultPayload{HostID: host.ID, InstallUUID: executionID}
+			if appWasOpen {
+				payload.PreInstallConditionOutput = new("")
+			} else {
+				payload.PreInstallConditionOutput = new("1")
+				payload.InstallScriptExitCode = new(0)
+				payload.InstallScriptOutput = new("ok")
+			}
+			s.Do("POST", "/api/fleet/orbit/software_install/result", fleet.OrbitPostSoftwareInstallResultRequest{
+				OrbitNodeKey: *host.OrbitNodeKey, HostSoftwareInstallResultPayload: payload,
+			}, http.StatusNoContent)
+		}
+
+		// an activated install has a row in both tables, so the union counts attempts rather than rows
+		countInstalls := func(t *testing.T, installerID uint) int {
+			var count int
+			mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+				return sqlx.GetContext(ctx, q, &count, `
+					SELECT COUNT(*) FROM (
+						SELECT ua.execution_id
+						FROM upcoming_activities ua
+							JOIN software_install_upcoming_activities siua ON siua.upcoming_activity_id = ua.id
+						WHERE ua.host_id = ? AND siua.software_installer_id = ?
+						UNION
+						SELECT execution_id FROM host_software_installs
+						WHERE host_id = ? AND software_installer_id = ?
+					) attempts`,
+					host.ID, installerID, host.ID, installerID)
+			})
+			return count
+		}
+
+		patchNotifications := func(t *testing.T) []string {
+			var uuids []string
+			mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+				return sqlx.SelectContext(ctx, q, &uuids, `
+					SELECT uuid FROM notifications_end_user WHERE host_id = ? AND kind = ? ORDER BY id`,
+					host.ID, fleet.PatchNotificationKind)
+			})
+			return uuids
+		}
+
+		// both policies fail on the same policy run, so both apps get an install that can skip
+		var distributedResp submitDistributedQueryResultsResponse
+		s.DoJSON("POST", "/api/osquery/distributed/write",
+			genDistributedReqWithPolicyResults(host, bothFailing), http.StatusOK, &distributedResp)
+		require.Equal(t, 1, countInstalls(t, openAppInstallerID))
+		require.Equal(t, 1, countInstalls(t, closedAppInstallerID))
+
+		// the queue runs them one at a time: the open app skips, the closed app installs
+		for range 2 {
+			executionID, installerID := activatedInstall(t)
+			postInstallResult(t, executionID, installerID == openAppInstallerID)
+		}
+
+		notificationUUIDs := patchNotifications(t)
+		require.Len(t, notificationUUIDs, 1, "the app that skipped opens one notification")
+		apps, err := s.ds.ListPatchNotificationApps(ctx, notificationUUIDs[0])
+		require.NoError(t, err)
+		require.Len(t, apps, 1, "the app that installed is not notified about")
+		require.NotNil(t, apps[0].SoftwareInstallerID)
+		require.Equal(t, openAppInstallerID, *apps[0].SoftwareInstallerID)
+
+		// the successful install asks for a refetch, which is what re-runs the policies while the notification is open
+		refetchedHost, err := s.ds.Host(ctx, host.ID)
+		require.NoError(t, err)
+		require.True(t, refetchedHost.RefetchRequested)
+
+		// the notification's script is queued before the refetch's policy run, so it runs first
+		dispatch(t)
+		dispatched := getTestNotification(t, s.ds, notificationUUIDs[0])
+		require.NotNil(t, dispatched.ExecutionID)
+		_, token := fetchScript(t, host, *dispatched.ExecutionID)
+
+		// The refetch's policy run finds both policies still failing. The notification has not reached
+		// the end user yet, so it has no deadline and the policy is still free to try the install. That
+		// install waits behind the notification's script.
+		s.DoJSON("POST", "/api/osquery/distributed/write",
+			genDistributedReqWithPolicyResults(host, bothFailing), http.StatusOK, &distributedResp)
+		require.Equal(t, 2, countInstalls(t, openAppInstallerID))
+		require.Equal(t, 1, countInstalls(t, closedAppInstallerID), "the app that installed is on the continuous automation cooldown")
+
+		postScriptResult(host, *dispatched.ExecutionID, 0)
+		displayed := getTestNotification(t, s.ds, notificationUUIDs[0])
+		require.NotNil(t, displayed.DisplayedAt)
+
+		var view notifications_api.NotificationView
+		s.DoJSONWithoutAuth("POST", fmt.Sprintf("/api/latest/fleet/device/%s/notifications/%s/actions", token, notificationUUIDs[0]),
+			json.RawMessage(`{"action": "update_now"}`), http.StatusOK, &view)
+		require.Equal(t, notifications_api.EndUserNotificationActed, getTestNotification(t, s.ds, notificationUUIDs[0]).Status)
+		require.Equal(t, 3, countInstalls(t, openAppInstallerID), "Update now queues the install the end user asked for")
+
+		// the policy's install is ahead of the forced one in the queue, so its skip is reported after the
+		// notification was acted on and while the forced install is still waiting
+		refiredExecutionID, refiredInstallerID := activatedInstall(t)
+		require.Equal(t, openAppInstallerID, refiredInstallerID)
+		postInstallResult(t, refiredExecutionID, true)
+		require.Equal(t, notificationUUIDs, patchNotifications(t),
+			"a skip from the policy's own install must not open a second notification")
 	})
 }

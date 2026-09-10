@@ -300,6 +300,28 @@ WHERE displayed_at IS NULL
 	return expired + stuck, nil
 }
 
+// DeleteExpiredEndUserNotifications deletes up to limit notifications that expired before olderThan.
+// The patch notification tables cascade from this one, so their rows are deleted with it.
+func (ds *Datastore) DeleteExpiredEndUserNotifications(ctx context.Context, olderThan time.Time, limit int) (int64, error) {
+	// expires_at, not status: a notification the end user displayed and never acted on stays dispatched, so expires_at is the only column that says it needs to be deleted.
+	const deleteStmt = `
+DELETE FROM notifications_end_user
+WHERE expires_at < ?
+ORDER BY expires_at
+LIMIT ?
+`
+
+	res, err := ds.primary.ExecContext(ctx, deleteStmt, olderThan, limit)
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "delete expired end user notifications")
+	}
+	deleted, err := res.RowsAffected()
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "count deleted end user notifications")
+	}
+	return deleted, nil
+}
+
 // Only while the notification is still out: a result arriving after the end
 // user delayed it belongs to a send that is already over.
 const verifyEndUserNotificationStmt = `
@@ -368,6 +390,25 @@ WHERE uuid = ? AND status IN (?, ?)
 		return false, ctxerr.Wrap(ctx, err, "rows affected acting on end user notification")
 	}
 	return rows > 0, nil
+}
+
+// FailEndUserNotificationsForHost gives up on every notification queued for a
+// host, whether or not one is in flight. A notification that already reached the
+// end user is left alone, since it describes something that really happened.
+func (ds *Datastore) FailEndUserNotificationsForHost(ctx context.Context, hostID uint, reason string) error {
+	const updateStmt = `
+UPDATE notifications_end_user
+SET status = ?, last_reason = ?
+WHERE host_id = ? AND status IN (?, ?)
+`
+
+	if _, err := ds.primary.ExecContext(ctx, updateStmt,
+		api.EndUserNotificationFailed, reason, hostID,
+		api.EndUserNotificationPending, api.EndUserNotificationDispatched,
+	); err != nil {
+		return ctxerr.Wrap(ctx, err, "fail end user notifications for host")
+	}
+	return nil
 }
 
 func (ds *Datastore) SetEndUserNotificationStatus(ctx context.Context, notificationUUID string, status string, reason *string, whereStatusIn []string) error {

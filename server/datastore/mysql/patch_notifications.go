@@ -36,6 +36,32 @@ LIMIT 1
 	return exists, nil
 }
 
+func (ds *Datastore) DisplayedPatchNotificationExistsForApp(ctx context.Context, hostID uint, softwareTitleID uint) (bool, error) {
+	// displayed_at is what sets install_at, so only a displayed notification has a deadline to install on
+	const selectStmt = `
+SELECT 1
+FROM patch_notification_apps pna
+	JOIN notifications_end_user neu ON neu.uuid = pna.notification_uuid
+WHERE neu.host_id = ?
+	AND neu.status = ?
+	AND neu.displayed_at IS NOT NULL
+	AND pna.software_title_id = ?
+LIMIT 1
+`
+
+	var exists bool
+	// the primary, because the display that starts the countdown can be seconds old
+	if err := sqlx.GetContext(ctx, ds.writer(ctx), &exists, selectStmt,
+		hostID, notifications_api.EndUserNotificationDispatched, softwareTitleID,
+	); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return false, nil
+		}
+		return false, ctxerr.Wrap(ctx, err, "check displayed patch notification exists for app")
+	}
+	return exists, nil
+}
+
 func (ds *Datastore) NewPatchNotification(ctx context.Context, notificationUUID string) error {
 	const insertStmt = `INSERT INTO patch_notifications (notification_uuid) VALUES (?)`
 
@@ -186,6 +212,7 @@ SELECT
 	pna.software_title_id,
 	pna.software_installer_id,
 	pna.install_queued,
+	pna.created_at,
 	COALESCE(st.name, '') AS name,
 	COALESCE(NULLIF(stdn.display_name, ''), st.name, '') AS display_name,
 	COALESCE(si.version, '') AS installer_version,

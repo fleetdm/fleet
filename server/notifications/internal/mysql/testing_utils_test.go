@@ -44,6 +44,7 @@ func newTestEnv(t *testing.T) *testEnv {
 func (env *testEnv) TruncateTables(t testing.TB) {
 	t.Helper()
 	mysql_testing_utils.TruncateTables(t, env.db, slog.New(slog.DiscardHandler), nil,
+		"patch_notification_apps", "patch_notifications", "software_titles",
 		"notifications_end_user", "upcoming_activities", "host_orbit_info", "hosts")
 }
 
@@ -83,4 +84,40 @@ func (env *testEnv) DeleteHost(t testing.TB, hostID uint) {
 	t.Helper()
 	_, err := env.db.ExecContext(context.Background(), `DELETE FROM hosts WHERE id = ?`, hostID)
 	require.NoError(t, err)
+}
+
+// InsertPatchNotification writes the patch_notifications and patch_notification_apps rows the notify-before-patching kind creates. Those tables live in server/datastore/mysql, but deleting a notification here is what removes them.
+func (env *testEnv) InsertPatchNotification(t testing.TB, notificationUUID string, softwareTitleName string) {
+	t.Helper()
+	ctx := context.Background()
+
+	res, err := env.db.ExecContext(ctx,
+		`INSERT INTO software_titles (name, source) VALUES (?, 'apps')`, softwareTitleName)
+	require.NoError(t, err)
+	softwareTitleID, err := res.LastInsertId()
+	require.NoError(t, err)
+
+	_, err = env.db.ExecContext(ctx,
+		`INSERT INTO patch_notifications (notification_uuid) VALUES (?)`, notificationUUID)
+	require.NoError(t, err)
+
+	_, err = env.db.ExecContext(ctx,
+		`INSERT INTO patch_notification_apps (notification_uuid, software_title_id) VALUES (?, ?)`,
+		notificationUUID, softwareTitleID)
+	require.NoError(t, err)
+}
+
+func (env *testEnv) CountPatchNotificationRows(t testing.TB, notificationUUID string) (int, int) {
+	t.Helper()
+	ctx := context.Background()
+
+	var notifications int
+	require.NoError(t, sqlx.GetContext(ctx, env.db, &notifications,
+		`SELECT COUNT(*) FROM patch_notifications WHERE notification_uuid = ?`, notificationUUID))
+
+	var apps int
+	require.NoError(t, sqlx.GetContext(ctx, env.db, &apps,
+		`SELECT COUNT(*) FROM patch_notification_apps WHERE notification_uuid = ?`, notificationUUID))
+
+	return notifications, apps
 }

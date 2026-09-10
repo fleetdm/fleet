@@ -29,6 +29,8 @@ const (
 	EndUserNotificationReasonDelayed       = "delayed"
 	EndUserNotificationReasonDeferred      = "deferred"
 	EndUserNotificationReasonNothingToShow = "nothing_to_show"
+	EndUserNotificationReasonCanceled      = "canceled"
+	EndUserNotificationReasonHostWiped     = "host_wiped"
 
 	EndUserNotificationReasonBadInvocation     = "bad_invocation"
 	EndUserNotificationReasonBadConfiguration  = "bad_configuration"
@@ -62,6 +64,9 @@ const EndUserNotificationMaxLifetime = 24 * time.Hour
 // on it. A host that never answers (wiped, fleetd removed) holds up every
 // notification behind it.
 const EndUserNotificationStuckDispatchTimeout = 24 * time.Hour
+
+// How long an expired notification is kept before it is deleted. The activity feed records what the end user did and has its own retention.
+const EndUserNotificationRetention = 30 * 24 * time.Hour
 
 type EndUserNotification struct {
 	ID            uint            `db:"id"`

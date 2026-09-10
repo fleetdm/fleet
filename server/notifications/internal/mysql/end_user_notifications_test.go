@@ -25,10 +25,13 @@ func TestEndUserNotifications(t *testing.T) {
 		{"SetDispatched", testSetEndUserNotificationsDispatched},
 		{"DeferForHosts", testDeferEndUserNotificationsForHosts},
 		{"Expire", testExpireEndUserNotifications},
+		{"DeleteExpired", testDeleteExpiredEndUserNotifications},
+		{"DeleteExpiredLimit", testDeleteExpiredEndUserNotificationsLimit},
 		{"Verify", testVerifyEndUserNotification},
 		{"Delay", testDelayEndUserNotification},
 		{"ActOn", testActOnEndUserNotification},
 		{"SetStatus", testSetEndUserNotificationStatus},
+		{"FailForHost", testFailEndUserNotificationsForHost},
 		{"Outcome", testSetEndUserNotificationOutcome},
 		{"HostDeleteCascade", testEndUserNotificationHostDeleteCascade},
 	}
@@ -452,6 +455,70 @@ func testExpireEndUserNotifications(t *testing.T, env *testEnv) {
 	assertStatus(recentlyDispatchedUUID, api.EndUserNotificationDispatched)
 }
 
+func testDeleteExpiredEndUserNotifications(t *testing.T, env *testEnv) {
+	ctx := t.Context()
+	hostID := newDarwinHost(t, env, "delete-expired", true)
+
+	olderThan := time.Now().UTC().Add(-api.EndUserNotificationRetention)
+	pastRetention := olderThan.Add(-time.Hour)
+	withinRetention := olderThan.Add(time.Hour)
+	notYetExpired := time.Now().UTC().Add(time.Hour)
+
+	// expired long enough ago to need deleting, and a patch notification, so it also has rows in the two patch tables
+	expiredPatchUUID := env.InsertNotification(t, hostID, "notify_before_patching", nil, &pastRetention)
+	env.InsertPatchNotification(t, expiredPatchUUID, "Old patch app")
+
+	// expired, but still within retention
+	recentlyExpiredUUID := env.InsertNotification(t, hostID, "k", nil, &withinRetention)
+
+	// not expired yet
+	unexpiredUUID := env.InsertNotification(t, hostID, "k", nil, &notYetExpired)
+
+	// past retention and displayed. No sweep moves a displayed notification off dispatched, so expires_at is the only column that says it needs to be deleted.
+	displayedUUID := env.InsertNotification(t, hostID, "k", nil, &pastRetention)
+	require.NoError(t, env.ds.SetEndUserNotificationsDispatched(ctx, withExecutionID(t, env, displayedUUID, hostID)))
+	require.NoError(t, env.ds.VerifyEndUserNotification(ctx, displayedUUID, time.Now()))
+
+	deleted, err := env.ds.DeleteExpiredEndUserNotifications(ctx, olderThan, 100)
+	require.NoError(t, err)
+	assert.EqualValues(t, 2, deleted)
+
+	_, err = env.ds.GetEndUserNotificationByUUID(ctx, expiredPatchUUID)
+	assert.True(t, platform_errors.IsNotFound(err), "a notification past retention is deleted")
+
+	_, err = env.ds.GetEndUserNotificationByUUID(ctx, displayedUUID)
+	assert.True(t, platform_errors.IsNotFound(err), "a notification the end user displayed and never acted on is deleted")
+
+	patchNotifications, patchApps := env.CountPatchNotificationRows(t, expiredPatchUUID)
+	assert.Zero(t, patchNotifications, "the patch notification row is deleted with its notification")
+	assert.Zero(t, patchApps, "the patch notification app row is deleted with its notification")
+
+	_, err = env.ds.GetEndUserNotificationByUUID(ctx, recentlyExpiredUUID)
+	require.NoError(t, err, "a notification still within retention is kept")
+
+	_, err = env.ds.GetEndUserNotificationByUUID(ctx, unexpiredUUID)
+	require.NoError(t, err, "a notification that has not expired is kept")
+}
+
+func testDeleteExpiredEndUserNotificationsLimit(t *testing.T, env *testEnv) {
+	ctx := t.Context()
+	hostID := newDarwinHost(t, env, "delete-expired-limit", true)
+
+	olderThan := time.Now().UTC().Add(-api.EndUserNotificationRetention)
+	pastRetention := olderThan.Add(-time.Hour)
+	for range 5 {
+		env.InsertNotification(t, hostID, "k", nil, &pastRetention)
+	}
+
+	deleted, err := env.ds.DeleteExpiredEndUserNotifications(ctx, olderThan, 2)
+	require.NoError(t, err)
+	assert.EqualValues(t, 2, deleted, "one delete takes no more expired notifications than the limit")
+
+	deleted, err = env.ds.DeleteExpiredEndUserNotifications(ctx, olderThan, 100)
+	require.NoError(t, err)
+	assert.EqualValues(t, 3, deleted, "the next delete takes the remaining expired notifications")
+}
+
 func testVerifyEndUserNotification(t *testing.T, env *testEnv) {
 	ctx := t.Context()
 	hostID := newDarwinHost(t, env, "verify", true)
@@ -575,6 +642,78 @@ func testSetEndUserNotificationStatus(t *testing.T, env *testEnv) {
 		require.NoError(t, err)
 		assert.Equal(t, api.EndUserNotificationExpired, got.Status)
 		assert.Nil(t, got.LastReason)
+	})
+}
+
+func testFailEndUserNotificationsForHost(t *testing.T, env *testEnv) {
+	ctx := t.Context()
+
+	t.Run("a wiped host gives up on the notifications it had not delivered", func(t *testing.T) {
+		hostID := newDarwinHost(t, env, "wipe", true)
+		pendingUUID := newHostNotification(t, env, hostID, "test_kind",
+			api.EndUserNotificationPending, 0, false)
+		dispatchedUUID := newHostNotification(t, env, hostID, "test_kind",
+			api.EndUserNotificationDispatched, 1, false)
+
+		require.NoError(t, env.ds.FailEndUserNotificationsForHost(ctx, hostID, api.EndUserNotificationReasonHostWiped))
+
+		gotPending, err := env.ds.GetEndUserNotificationByUUID(ctx, pendingUUID)
+		require.NoError(t, err)
+		assert.Equal(t, api.EndUserNotificationFailed, gotPending.Status)
+		require.NotNil(t, gotPending.LastReason)
+		assert.Equal(t, api.EndUserNotificationReasonHostWiped, *gotPending.LastReason)
+
+		gotDispatched, err := env.ds.GetEndUserNotificationByUUID(ctx, dispatchedUUID)
+		require.NoError(t, err)
+		assert.Equal(t, api.EndUserNotificationFailed, gotDispatched.Status)
+		require.NotNil(t, gotDispatched.LastReason)
+		assert.Equal(t, api.EndUserNotificationReasonHostWiped, *gotDispatched.LastReason)
+
+		// neither failed notification is still in dispatched, so the host is not blocked
+		nextUUID := newHostNotification(t, env, hostID, "test_kind",
+			api.EndUserNotificationPending, 0, false)
+		due, err := env.ds.ListEndUserNotificationsToDispatch(ctx, 500)
+		require.NoError(t, err)
+		var dueForHost []string
+		for _, notification := range due {
+			if notification.HostID == hostID {
+				dueForHost = append(dueForHost, notification.UUID)
+			}
+		}
+		assert.Equal(t, []string{nextUUID}, dueForHost)
+	})
+
+	t.Run("a notification that already reached the end user is left alone", func(t *testing.T) {
+		hostID := newDarwinHost(t, env, "wipe-acted", true)
+		actedUUID := newHostNotification(t, env, hostID, "test_kind",
+			api.EndUserNotificationActed, 1, true)
+
+		require.NoError(t, env.ds.FailEndUserNotificationsForHost(ctx, hostID, api.EndUserNotificationReasonHostWiped))
+
+		got, err := env.ds.GetEndUserNotificationByUUID(ctx, actedUUID)
+		require.NoError(t, err)
+		assert.Equal(t, api.EndUserNotificationActed, got.Status, "it describes something that really happened")
+		assert.Nil(t, got.LastReason)
+	})
+
+	t.Run("another host's notifications are not touched", func(t *testing.T) {
+		wipedHostID := newDarwinHost(t, env, "wipe-scoped", true)
+		otherHostID := newDarwinHost(t, env, "wipe-scoped-other", true)
+		wipedUUID := newHostNotification(t, env, wipedHostID, "test_kind",
+			api.EndUserNotificationDispatched, 1, false)
+		otherUUID := newHostNotification(t, env, otherHostID, "test_kind",
+			api.EndUserNotificationDispatched, 1, false)
+
+		require.NoError(t, env.ds.FailEndUserNotificationsForHost(ctx, wipedHostID, api.EndUserNotificationReasonHostWiped))
+
+		gotWiped, err := env.ds.GetEndUserNotificationByUUID(ctx, wipedUUID)
+		require.NoError(t, err)
+		assert.Equal(t, api.EndUserNotificationFailed, gotWiped.Status)
+
+		gotOther, err := env.ds.GetEndUserNotificationByUUID(ctx, otherUUID)
+		require.NoError(t, err)
+		assert.Equal(t, api.EndUserNotificationDispatched, gotOther.Status)
+		assert.Nil(t, gotOther.LastReason)
 	})
 }
 

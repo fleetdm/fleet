@@ -21,6 +21,7 @@ func TestPatchNotifications(t *testing.T) {
 		fn   func(t *testing.T, ds *Datastore)
 	}{
 		{"ExistsForApp", testPatchNotificationExistsForApp},
+		{"DisplayedExistsForApp", testPatchNotificationDisplayedExistsForApp},
 		{"AddAndListApps", testPatchNotificationAddAndListApps},
 		{"ListAppsForNotifications", testPatchNotificationListAppsForNotifications},
 		{"DeleteApps", testPatchNotificationDeleteApps},
@@ -105,6 +106,48 @@ func testPatchNotificationExistsForApp(t *testing.T, ds *Datastore) {
 	require.False(t, exists)
 }
 
+func testPatchNotificationDisplayedExistsForApp(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	host := test.NewHost(t, ds, "displayed-host", "", "displayed-key", "displayed-uuid", time.Now())
+
+	// Only a dispatched notification the end user has seen is counting down to an install. One that
+	// has not displayed has no deadline, and an acted one has already queued what it is going to.
+	cases := []struct {
+		name       string
+		status     string
+		displayed  bool
+		wantExists bool
+	}{
+		{"a dispatched notification the end user has seen is reported for the app", notifications_api.EndUserNotificationDispatched, true, true},
+		{"a dispatched notification nobody has seen is not reported", notifications_api.EndUserNotificationDispatched, false, false},
+		{"a pending notification is not reported", notifications_api.EndUserNotificationPending, false, false},
+		{"an acted notification is not reported", notifications_api.EndUserNotificationActed, true, false},
+	}
+
+	for _, c := range cases {
+		titleID := newTestSoftwareTitle(t, ds, "displayed-app-"+c.name)
+		notificationUUID := newPatchNotification(t, ds, host.ID, c.status, 0)
+		require.NoError(t, ds.AddPatchNotificationApp(ctx, notificationUUID,
+			fleet.PatchNotificationApp{SoftwareTitleID: titleID}))
+		if c.displayed {
+			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+				_, err := q.ExecContext(ctx,
+					`UPDATE notifications_end_user SET displayed_at = NOW(6) WHERE uuid = ?`, notificationUUID)
+				return err
+			})
+		}
+
+		exists, err := ds.DisplayedPatchNotificationExistsForApp(ctx, host.ID, titleID)
+		require.NoError(t, err)
+		require.Equal(t, c.wantExists, exists, c.name)
+	}
+
+	// a software title no notification lists at all is not reported as existing
+	exists, err := ds.DisplayedPatchNotificationExistsForApp(ctx, host.ID, newTestSoftwareTitle(t, ds, "displayed-unlisted"))
+	require.NoError(t, err)
+	require.False(t, exists)
+}
+
 func testPatchNotificationAddAndListApps(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 	host := test.NewHost(t, ds, "apps-host", "", "apps-key", "apps-uuid", time.Now())
@@ -159,6 +202,8 @@ func testPatchNotificationAddAndListApps(t *testing.T, ds *Datastore) {
 	require.Equal(t, "Notified App", apps[0].Name)
 	require.Equal(t, "Notified App", apps[0].DisplayName)
 	require.False(t, apps[0].HasIcon)
+	// created_at is what tells a later install that the app no longer needs updating
+	require.WithinDuration(t, time.Now().UTC(), apps[0].CreatedAt, time.Minute)
 
 	// give the software title a display name and an icon in the host's fleet
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
