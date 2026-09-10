@@ -35751,9 +35751,26 @@ func (s *integrationEnterpriseTestSuite) TestResetPolicy() {
 	require.Equal(t, uint(0), getHostScopedResp.Policy.PassingHostCount)
 
 	s.lastActivityMatches("reset_policy", fmt.Sprintf(
-		`{"policy_id":%d,"policy_name":"reset-test-host-scoped","team_id":-1,"fleet_id":-1,"host_id":%d}`,
-		hostScopedPolicy.ID, globalHost.ID,
+		`{"policy_id":%d,"policy_name":"reset-test-host-scoped","team_id":-1,"fleet_id":-1,"host_id":%d,"host_display_name":%q}`,
+		hostScopedPolicy.ID, globalHost.ID, globalHost.DisplayName(),
 	), 0)
+
+	// A host-scoped reset shows up in that host's activity feed; policy-wide resets don't
+	// get linked to any host.
+	resetActivityType := fleet.ActivityTypeResetPolicy{}.ActivityName()
+	countResetActivities := func(hostID uint) int {
+		var hostActivities listActivitiesResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities", hostID), nil, http.StatusOK, &hostActivities)
+		n := 0
+		for _, a := range hostActivities.Activities {
+			if a.Type == resetActivityType {
+				n++
+			}
+		}
+		return n
+	}
+	require.Equal(t, 1, countResetActivities(globalHost.ID))
+	require.Equal(t, 0, countResetActivities(noTeamHost.ID))
 
 	// 404 for a nonexistent host.
 	s.Do("POST", fmt.Sprintf("/api/latest/fleet/policies/%d/reset?host_id=999999", hostScopedPolicy.ID), nil, http.StatusNotFound)
