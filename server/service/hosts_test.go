@@ -5048,6 +5048,42 @@ func TestSuppressAndroidBYODWipeStatus(t *testing.T) {
 // Android hosts, since Wipe is COBO-only (BYO uses Unenroll). The non-Android license gate is already covered by the
 // free-tier TestPremiumEndpointsWithoutLicense integration test, and the Premium BYO rejection by
 // TestAndroidLockWipeClearPasscode; this guards the same rejection in the core implementation.
+// A caller who can list hosts but has no access to the host's fleet must not be
+// able to tell an existing host from a missing one.
+func TestHostMDMEndpointsMaskCrossFleetDenial(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil)
+
+	const teamHostID = 1
+	teamHost := &fleet.Host{ID: teamHostID, TeamID: new(uint(1)), Platform: "android", UUID: "android-uuid"}
+	ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+		return teamHost, nil
+	}
+	ds.HostLiteFunc = mock.HostLiteFunc(ds.HostFunc)
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true, AndroidEnabledAndConfigured: true}}, nil
+	}
+	ds.GetHostLockWipeStatusFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostLockWipeStatus, error) {
+		return &fleet.HostLockWipeStatus{}, nil
+	}
+
+	otherFleet := fleet.Team{ID: 2}
+	otherFleetUser := &fleet.User{Teams: []fleet.UserTeam{{Team: otherFleet, Role: fleet.RoleAdmin}}}
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: otherFleetUser})
+
+	t.Run("UnenrollMDM", func(t *testing.T) {
+		err := svc.UnenrollMDM(ctx, teamHostID)
+		require.Error(t, err)
+		require.True(t, fleet.IsNotFound(err), "expected a not-found error, got %v", err)
+	})
+
+	t.Run("WipeHost", func(t *testing.T) {
+		err := svc.WipeHost(ctx, teamHostID, nil)
+		require.Error(t, err)
+		require.True(t, fleet.IsNotFound(err), "expected a not-found error, got %v", err)
+	})
+}
+
 func TestWipeHostFreeTierAndroidBYORejected(t *testing.T) {
 	ds := new(mock.Store)
 	// Default newTestService license is Fleet Free.

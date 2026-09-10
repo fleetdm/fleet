@@ -2111,6 +2111,19 @@ WHERE hm.host_id IN (?)
 		return ctxerr.Wrap(ctx, err, "upsert host dep assignments update installed_from_dep")
 	}
 
+	// null any renewal_excluded_at for the given hosts
+	stmt, args, err = sqlx.In(`UPDATE nano_cert_auth_associations ncaa
+		JOIN hosts h ON h.uuid = ncaa.id
+		SET ncaa.renewal_excluded_at = NULL
+		WHERE h.id IN (?)`, hostIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "upsert host dep assignments null renewal_excluded_at")
+	}
+	_, err = tx.ExecContext(ctx, stmt, args...)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "upsert host dep assignments null renewal_excluded_at")
+	}
+
 	return nil
 }
 
@@ -4379,14 +4392,20 @@ WHERE
 	hda.deleted_at IS NULL
 `
 
-	stmt, args, err := sqlx.In(stmt, hostIDs)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "prepare statement arguments")
-	}
-
 	var serials []string
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &serials, stmt, args...); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "list mdm apple dep serials")
+	if err := common_mysql.BatchProcessSimple(hostIDs, hostIDsFanoutBatchSize, func(batch []uint) error {
+		inStmt, args, err := sqlx.In(stmt, batch)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "prepare statement arguments")
+		}
+		var batchSerials []string
+		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &batchSerials, inStmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "list mdm apple dep serials")
+		}
+		serials = append(serials, batchSerials...)
+		return nil
+	}); err != nil {
+		return nil, err
 	}
 	return serials, nil
 }
@@ -7273,7 +7292,7 @@ FROM
 JOIN
 	host_dep_assignments hdep ON h.id = host_id
 WHERE
-	h.hardware_serial = ? AND deleted_at IS NULL
+	h.hardware_serial = ? AND deleted_at IS NULL AND h.platform IN ('darwin', 'ios', 'ipados')
 LIMIT 1`
 
 	var dest struct {
@@ -7282,10 +7301,11 @@ LIMIT 1`
 	}
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &dest, stmt, serial); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			// The host may not have a DEP assignment yet (e.g. the enrollment
-			// request arrived before the host/DEP assignment row was created or
-			// replicated). Return a not-found error so callers can skip the OS
-			// updates check and allow enrollment to proceed.
+			// The host may not be an Apple host, or may not have a DEP assignment
+			// yet (e.g. the enrollment request arrived before the host/DEP
+			// assignment row was created or replicated). Return a not-found error
+			// so callers can skip the OS updates check and allow enrollment to
+			// proceed.
 			return "", nil, ctxerr.Wrap(ctx, notFound("Host").WithName(serial), "getting team id for host")
 		}
 		return "", nil, ctxerr.Wrap(ctx, err, "getting team id for host")
@@ -7588,11 +7608,12 @@ func (ds *Datastore) GetNanoMDMEnrollmentDetails(ctx context.Context, hostUUID s
 	// those same lines authenticate_at gets updated only at the authenticate step during the
 	// enroll process and as such is a good indicator of the last enrollment or reenrollment.
 	query := `
-	SELECT nd.authenticate_at, ne.last_seen_at, ne.hardware_attested, nd.unlock_token,
+	SELECT nd.authenticate_at, nst.seen_time AS last_seen_at, ne.hardware_attested, nd.unlock_token,
 	  nd.bootstrap_token_b64 IS NOT NULL AS bootstrap_token_escrowed,
 	  ne.type AS enrollment_type
 	FROM nano_devices nd
 	  INNER JOIN nano_enrollments ne ON ne.id = nd.id
+	  LEFT JOIN nano_seen_times nst ON nst.id = ne.id
 	WHERE ne.type IN ('Device', 'User Enrollment (Device)') AND nd.id = ?`
 	err := sqlx.SelectContext(ctx, ds.reader(ctx), &res, query, hostUUID)
 
@@ -8727,4 +8748,76 @@ func (ds *Datastore) GetAppleOSUpdateHostByUUID(ctx context.Context, hostUUID st
 		return nil, ctxerr.Wrap(ctx, err, "getting apple os update host by uuid")
 	}
 	return &host, nil
+}
+
+func (ds *Datastore) ExcludeHostCertAssociationsFromRenewal(ctx context.Context, assocs []fleet.SCEPIdentityAssociation) error {
+	if len(assocs) == 0 {
+		return nil
+	}
+
+	args := make([]any, 0, len(assocs)*2)
+	for _, assoc := range assocs {
+		args = append(args, assoc.HostUUID, assoc.SHA256)
+	}
+
+	stmt := fmt.Sprintf(`
+		UPDATE nano_cert_auth_associations
+		SET renewal_excluded_at = NOW()
+		WHERE (id, sha256) IN (%s)`, strings.TrimSuffix(strings.Repeat("(?,?),", len(assocs)), ","))
+
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "excluding host cert associations from renewal")
+	}
+	return nil
+}
+
+func (ds *Datastore) ClearCertRenewalExclusions(ctx context.Context) error {
+	const stmt = `
+		UPDATE nano_cert_auth_associations
+		SET renewal_excluded_at = NULL
+		WHERE renewal_excluded_at IS NOT NULL`
+
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt); err != nil {
+		return ctxerr.Wrap(ctx, err, "clearing cert renewal exclusions")
+	}
+	return nil
+}
+
+func (ds *Datastore) ResetPendingCertRenewals(ctx context.Context) error {
+	const batchSize = 1000
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		for {
+			var cmdUUIDs []string
+			if err := sqlx.SelectContext(ctx, tx, &cmdUUIDs, `SELECT renew_command_uuid FROM nano_cert_auth_associations
+        		WHERE renew_command_uuid IS NOT NULL LIMIT ?`, batchSize); err != nil {
+				return ctxerr.Wrap(ctx, err, "selecting pending cert renewals")
+			}
+
+			if len(cmdUUIDs) == 0 {
+				return nil
+			}
+
+			// deactivate batched renewal commands in the queue
+			stmt, args, err := sqlx.In(`UPDATE nano_enrollment_queue q
+				SET q.active = 0 WHERE command_uuid IN (?)`, cmdUUIDs)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "building query for deactivating active cert renewal commands in nano_enrollment_queue")
+			}
+			if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+				return ctxerr.Wrap(ctx, err, "deactivating active cert renewal commands in nano_enrollment_queue")
+			}
+
+			stmt, args, err = sqlx.In(`UPDATE nano_cert_auth_associations
+				SET renew_command_uuid = NULL
+				WHERE renew_command_uuid IN (?)`, cmdUUIDs)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "building query for resetting pending cert renewals")
+			}
+
+			// reset all pending cert renewals
+			if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+				return ctxerr.Wrap(ctx, err, "resetting pending cert renewals")
+			}
+		}
+	})
 }
