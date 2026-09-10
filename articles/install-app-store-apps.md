@@ -84,6 +84,24 @@ Currently, Apple App Store (VPP) apps can't be uninstalled via Fleet. If the app
 
 > VPP apps on iOS/iPadOS hosts will be uninstalled when the host has MDM features turned off.
 
+#### Convert unmanaged iOS and iPadOS apps to managed
+
+If an end user already installed an app from the App Store, you can take over management by installing the same app through Fleet. Managing the app lets you apply [managed configuration](#ios-and-ipados-managed-configuration) and makes sure the app is removed when the host is unenrolled.
+
+On supervised hosts (enrolled automatically via Apple Business Manager), the app becomes managed silently. On hosts that aren't supervised (manual or BYOD enrollment), the end user is prompted to allow management. If the end user declines, the app stays unmanaged.
+
+> **Warning:** Fleet can't currently tell that the end user declined. Apple returns the app in the `InstalledApplicationList` MDM command as if it were managed, so Fleet reports the install as successful and lists the app in the host's software inventory. The app may drop out of inventory within minutes, or stay for up to 24 hours. In the meantime, managed configuration isn't applied and the app won't be removed when the host is unenrolled. Fleet plans to use the app's real management status to report these installs as failed. Follow [this issue](https://github.com/fleetdm/fleet/issues/52923) for progress.
+
+To confirm whether an app is actually managed, send [ManagedApplicationList](https://developer.apple.com/documentation/devicemanagement/managed-application-list-command) as a [custom MDM command](https://fleetdm.com/guides/mdm-commands). The response includes a `Status` for each app Fleet tried to manage:
+
+- `Managed`: the app is managed by Fleet.
+- `PromptingForManagement`: the end user hasn't answered the prompt yet.
+- `ManagementRejected`: the end user declined the prompt, and the app is not managed.
+
+If the end user declined, installing the app again from **Host details** won't prompt them a second time. Apple acknowledges the command and does nothing. To retry, ask the end user to delete the app, then install it through Fleet again.
+
+> **Note:** If the app wasn't already installed and the end user declines the prompt, the app never appears in the host's software inventory, and the install fails verification after 10 minutes.
+
 #### Updating iOS and iPadOS apps in Single App Mode (kiosk)
 
 [AppLock](https://developer.apple.com/documentation/devicemanagement/applock) forces the selected app to open on the supervised device and prevents the use of other apps.
@@ -110,14 +128,6 @@ This example Zoom configuration ensures that the end user has only the SSO login
   <string>example</string>
 </dict>
 ```
-
-#### Converting unmanaged iOS/iPadOS apps to managed
-
-When the end user installs the app, admin can take over management by installing it through Fleet. On manually enrolled iOS/iPadOS hosts end users get prompt to accept the management.
-
-If the end users reject the prompt, the app will show up in the inventory as managed. Sometimes it is there for 5 minutes, sometimes it stucks for 24 hours. Apple returns the app in the `InstalledApplicationsList` MDM command, even though it's not managed.
-
-You can double-check by sending [ManagedApplicationList](https://developer.apple.com/documentation/devicemanagement/managed-application-list-command) as a [custom MDM command](https://fleetdm.com/guides/mdm-commands). This command returns a `Status` for apps that are considered as managed. So for example, sometimes you will see `ManagementRejected` which means that end user rejected the prompt.
 
 ### Google Play (Android)
 
