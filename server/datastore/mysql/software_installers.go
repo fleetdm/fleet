@@ -4730,16 +4730,12 @@ func (ds *Datastore) checkSoftwareConflictsByIdentifier(ctx context.Context, pay
 			return conflict(fleet.SoftwareAlreadyHasVPPAppMessage)
 		}
 
-		if payload.FleetMaintainedAppID != nil {
-			existingName, conflicts, err := ds.checkConflictingFleetMaintainedAppExists(ctx, payload)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "check for conflicting fleet-maintained app")
-			}
-			if conflicts {
-				return ctxerr.Wrap(ctx, fleet.ConflictError{
-					Message: fmt.Sprintf(fleet.CantAddConflictingFMAMessage, existingName, payload.Title),
-				}, "different fleet-maintained app already exists on the title")
-			}
+		if err := ds.checkConflictingFleetMaintainedApp(ctx, payload); err != nil {
+			return err
+		}
+	case "windows":
+		if err := ds.checkConflictingFleetMaintainedApp(ctx, payload); err != nil {
+			return err
 		}
 	}
 
@@ -4844,28 +4840,68 @@ func (ds *Datastore) checkFleetMaintainedAppExists(ctx context.Context, payload 
 	return exists, nil
 }
 
+// checkConflictingFleetMaintainedApp rejects adding an FMA to a title that a different FMA
+// already owns on the same team. An FMA title has exactly one active installer, so a second
+// FMA on it would fight the first over which version is live; refusing it here gives a clear
+// message instead of the duplicate-key error the insert would otherwise raise.
+func (ds *Datastore) checkConflictingFleetMaintainedApp(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) error {
+	if payload.FleetMaintainedAppID == nil {
+		return nil
+	}
+	existingName, conflicts, err := ds.checkConflictingFleetMaintainedAppExists(ctx, payload)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "check for conflicting fleet-maintained app")
+	}
+	if conflicts {
+		return ctxerr.Wrap(ctx, fleet.ConflictError{
+			Message: fmt.Sprintf(fleet.CantAddConflictingFMAMessage, existingName, payload.Title),
+		}, "different fleet-maintained app already exists on the title")
+	}
+	return nil
+}
+
 // checkConflictingFleetMaintainedAppExists reports whether the team has an installer for a different
-// FMA on the same macOS title (two FMAs sharing a bundle identifier, e.g. Firefox and Firefox ESR),
-// returning that app's name. Versions of the same app don't conflict. Unlike
-// checkFleetMaintainedAppExists (custom package vs. FMA), this compares FMA IDs. FleetMaintainedAppID
-// must be non-nil — a NULL in the != comparison matches nothing.
+// FMA on the same title, returning that app's name. Two FMAs share a title through a common bundle
+// identifier on macOS (Firefox and Firefox ESR) or a common registry DisplayName on Windows (the x64
+// and ARM64 Firefox Nightly MSIX both register as "Firefox Nightly"). Versions of the same app don't
+// conflict. Unlike checkFleetMaintainedAppExists (custom package vs. FMA), this compares FMA IDs.
+// FleetMaintainedAppID must be non-nil — a NULL in the != comparison matches nothing.
 func (ds *Datastore) checkConflictingFleetMaintainedAppExists(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) (string, bool, error) {
-	if payload.FleetMaintainedAppID == nil || payload.BundleIdentifier == "" {
+	if payload.FleetMaintainedAppID == nil {
 		return "", false, nil
 	}
 
-	const stmt = `
-		SELECT fma.name
-		FROM software_installers si
-		JOIN software_titles st ON st.id = si.title_id
-		JOIN fleet_maintained_apps fma ON fma.id = si.fleet_maintained_app_id
-		WHERE si.global_or_team_id = ? AND st.source = ? AND st.bundle_identifier = ?
-			AND si.fleet_maintained_app_id != ?
-		LIMIT 1`
+	var stmt string
+	var args []any
+	switch {
+	case payload.BundleIdentifier != "":
+		stmt = `
+			SELECT fma.name
+			FROM software_installers si
+			JOIN software_titles st ON st.id = si.title_id
+			JOIN fleet_maintained_apps fma ON fma.id = si.fleet_maintained_app_id
+			WHERE si.global_or_team_id = ? AND st.source = ? AND st.bundle_identifier = ?
+				AND si.fleet_maintained_app_id != ?
+			LIMIT 1`
+		args = []any{ptr.ValOrZero(payload.TeamID), payload.Source, payload.BundleIdentifier, *payload.FleetMaintainedAppID}
+	case payload.Platform == "windows":
+		// Same title resolution as softwareInstallerTitleSelect: name, or upgrade code when set.
+		stmt = `
+			SELECT fma.name
+			FROM software_installers si
+			JOIN software_titles st ON st.id = si.title_id
+			JOIN fleet_maintained_apps fma ON fma.id = si.fleet_maintained_app_id
+			WHERE si.global_or_team_id = ? AND st.source = ?
+				AND (st.name = ? OR (st.upgrade_code != '' AND st.upgrade_code = ?))
+				AND si.fleet_maintained_app_id != ?
+			LIMIT 1`
+		args = []any{ptr.ValOrZero(payload.TeamID), payload.Source, payload.Title, payload.UpgradeCode, *payload.FleetMaintainedAppID}
+	default:
+		return "", false, nil
+	}
 
 	var name string
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &name, stmt,
-		ptr.ValOrZero(payload.TeamID), payload.Source, payload.BundleIdentifier, *payload.FleetMaintainedAppID)
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &name, stmt, args...)
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
 		return "", false, nil

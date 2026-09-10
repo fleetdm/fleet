@@ -57,6 +57,7 @@ func TestSoftwareInstallers(t *testing.T) {
 		{"GetTeamsWithInstallerByHash", testGetTeamsWithInstallerByHash},
 		{"MatchOrCreateSoftwareInstallerDuplicateHash", testMatchOrCreateSoftwareInstallerDuplicateHash},
 		{"MatchOrCreateSoftwareInstallerConflictingFMA", testMatchOrCreateSoftwareInstallerConflictingFMA},
+		{"MatchOrCreateSoftwareInstallerConflictingFMAWindows", testMatchOrCreateSoftwareInstallerConflictingFMAWindows},
 		{"BatchSetSoftwareInstallersSetupExperienceSideEffects", testBatchSetSoftwareInstallersSetupExperienceSideEffects},
 		{"EditDeleteSoftwareInstallersActivateNextActivity", testEditDeleteSoftwareInstallersActivateNextActivity},
 		{"BatchSetSoftwareInstallersActivateNextActivity", testBatchSetSoftwareInstallersActivateNextActivity},
@@ -5187,6 +5188,75 @@ func testMatchOrCreateSoftwareInstallerConflictingFMA(t *testing.T, ds *Datastor
 
 	// A new version of the SAME FMA must still be allowed (version pinning must not regress).
 	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, mkFMA(firefox.ID, "Mozilla Firefox", "ff-154", "154.0"))
+	require.NoError(t, err)
+}
+
+func testMatchOrCreateSoftwareInstallerConflictingFMAWindows(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+	otherTeam, err := ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + " other"})
+	require.NoError(t, err)
+
+	// The x64 and ARM64 Firefox Nightly MSIX both register as "Firefox Nightly", so
+	// they are distinct FMAs resolving to one Windows title.
+	nightly, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name: "Mozilla Firefox Nightly", Slug: "firefox@nightly/windows", Platform: "windows", UniqueIdentifier: "Firefox Nightly",
+	})
+	require.NoError(t, err)
+	nightlyARM, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name: "Mozilla Firefox Nightly (ARM64)", Slug: "firefox@nightly-arm64/windows", Platform: "windows", UniqueIdentifier: "Firefox Nightly",
+	})
+	require.NoError(t, err)
+	// Developer Edition's DisplayName carries the architecture, so its two FMAs are separate titles.
+	devEdARM, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name: "Mozilla Firefox Developer Edition (ARM64)", Slug: "firefox@developer-edition-arm64/windows", Platform: "windows",
+		UniqueIdentifier: "Firefox Developer Edition (AArch64 en-US)",
+	})
+	require.NoError(t, err)
+
+	mkFMA := func(teamID uint, appID uint, title, storage, version string) *fleet.UploadSoftwareInstallerPayload {
+		tfr, err := fleet.NewTempFileReader(strings.NewReader(storage), t.TempDir)
+		require.NoError(t, err)
+		return &fleet.UploadSoftwareInstallerPayload{
+			InstallerFile:        tfr,
+			Extension:            "msix",
+			StorageID:            storage,
+			Filename:             storage + ".msix",
+			Title:                title,
+			Version:              version,
+			Source:               "programs",
+			Platform:             "windows",
+			FleetMaintainedAppID: new(appID),
+			UserID:               user.ID,
+			ValidatedLabels:      &fleet.LabelIdentsWithScope{},
+			TeamID:               &teamID,
+		}
+	}
+
+	// Add x64 Nightly → success.
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, mkFMA(team.ID, nightly.ID, "Firefox Nightly", "nightly-x64", "157.2609.908.0"))
+	require.NoError(t, err)
+
+	// ARM64 Nightly is a different FMA on the same title → rejected with the specific
+	// message, both at the same version (which would otherwise hit the dedup unique key)
+	// and at a different one (which would otherwise insert a second active row).
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, mkFMA(team.ID, nightlyARM.ID, "Firefox Nightly", "nightly-arm64", "157.2609.908.0"))
+	require.ErrorContains(t, err, "Only one of Mozilla Firefox Nightly or Firefox Nightly can be added to the same fleet")
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, mkFMA(team.ID, nightlyARM.ID, "Firefox Nightly", "nightly-arm64-next", "157.2609.1001.0"))
+	require.ErrorContains(t, err, "Only one of Mozilla Firefox Nightly or Firefox Nightly can be added to the same fleet")
+
+	// A new version of the SAME FMA must still be allowed.
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, mkFMA(team.ID, nightly.ID, "Firefox Nightly", "nightly-x64-next", "157.2609.1001.0"))
+	require.NoError(t, err)
+
+	// A different title on the same team is unaffected.
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, mkFMA(team.ID, devEdARM.ID, "Firefox Developer Edition (AArch64 en-US)", "deved-arm64", "156.0"))
+	require.NoError(t, err)
+
+	// The conflict is per team: ARM64 Nightly can be added to a team that has no Nightly.
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, mkFMA(otherTeam.ID, nightlyARM.ID, "Firefox Nightly", "nightly-arm64", "157.2609.908.0"))
 	require.NoError(t, err)
 }
 
