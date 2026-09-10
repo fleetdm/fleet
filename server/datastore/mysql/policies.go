@@ -562,7 +562,12 @@ func (ds *Datastore) ResetPolicyForHost(ctx context.Context, hostID, policyID ui
 		return err
 	}
 	// Outside the transaction so the aggregate reads don't extend the membership row locks.
-	return ds.refreshPolicyCounts(ctx, policyID)
+	// The reset is already committed, so a failed refresh only leaves the counts stale
+	// until the next cron run; don't report the reset itself as failed.
+	if err := ds.refreshPolicyCounts(ctx, policyID); err != nil {
+		ds.logger.ErrorContext(ctx, "refresh policy counts after host reset", "policy_id", policyID, "host_id", hostID, "err", err)
+	}
+	return nil
 }
 
 // resetPolicyAutomationAttempts resets all attempt numbers for script and software install executions
