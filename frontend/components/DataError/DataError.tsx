@@ -9,6 +9,8 @@ import { Padding } from "styles/var/padding";
 const baseClass = "data-error";
 
 interface IDataErrorProps {
+  /** The title text displayed instead of the generic "Something's gone wrong" if set */
+  title?: string;
   /** the description text displayed under the header */
   description?: string;
   /** Excludes the link that asks user to create an issue. Defaults to `false` */
@@ -31,9 +33,11 @@ interface IDataErrorProps {
   selfCenter?: boolean;
 }
 
+const DEFAULT_TITLE = "Something's gone wrong";
 const DEFAULT_DESCRIPTION = "Refresh the page or log in again.";
 
 const DataError = ({
+  title = DEFAULT_TITLE,
   description = DEFAULT_DESCRIPTION,
   excludeIssueLink = false,
   children,
@@ -79,9 +83,7 @@ const DataError = ({
           }`}
         >
           <Graphic name="data-error" />
-          <div className={`${baseClass}__header`}>
-            Something&apos;s gone wrong.
-          </div>
+          <div className={`${baseClass}__header`}>{title}</div>
           {children || (
             <>
               <div className={`${baseClass}__description`}>
@@ -114,7 +116,7 @@ const DataError = ({
         <div className={`${baseClass}__content`}>
           <span className={`${baseClass}__header`}>
             <Icon name="error" />
-            Something&apos;s gone wrong.
+            {title}
           </span>
 
           <>

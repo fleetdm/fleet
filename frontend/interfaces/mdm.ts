@@ -1,6 +1,6 @@
-import { IConfigServerSettings } from "./config";
+import { IConfigServerSettings, IMdmConfig } from "./config";
 import { HostAndroidCertStatus, IHostDevice, IHostMdmData } from "./host";
-import { isAppleDevice } from "./platform";
+import { isAndroid, isAppleDevice, isWindows } from "./platform";
 
 export interface IMdmApple {
   common_name: string;
@@ -167,6 +167,45 @@ export type ProfilePlatform =
   | "ipados"
   | "linux"
   | "android";
+
+export const isMDMConfiguredForPlatform = (
+  platform: ProfilePlatform,
+  mdmConfig: IMdmConfig | undefined
+) => {
+  if (!mdmConfig) {
+    return false;
+  }
+
+  if (isWindows(platform)) {
+    return mdmConfig.windows_enabled_and_configured;
+  }
+
+  if (isAppleDevice(platform)) {
+    return mdmConfig.enabled_and_configured;
+  }
+
+  if (isAndroid(platform)) {
+    return mdmConfig.android_enabled_and_configured;
+  }
+
+  // Other platform types does not have MDM.
+  return false;
+};
+
+export const platformToMDMLabel = (platform: ProfilePlatform) => {
+  switch (platform) {
+    case "android":
+      return "Android";
+    case "darwin":
+    case "ios":
+    case "ipados":
+      return "Apple";
+    case "windows":
+      return "Windows";
+    default:
+      return "Unknown";
+  }
+};
 
 export interface IProfileLabel {
   name: string;
