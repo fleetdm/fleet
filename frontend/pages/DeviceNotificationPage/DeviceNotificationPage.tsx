@@ -121,10 +121,13 @@ const DeviceNotificationPage = ({
         // Server returns the post-action view; write it back so we re-render
         // without a follow-up GET.
         queryClient.setQueryData(queryKey, updatedView);
-        // `dismiss` id always closes, even when it's positionally primary
-        // (e.g. the lone `Hide` in the Installing state).
+        // Swift's `case "primary"` fades the toast out, so ANY close-intent
+        // action posts `dismiss`. `update_now` (primary, non-dismiss id) stays
+        // open — ResizeObserver posts `resize` when the Installing view lands.
         const shouldClose = action.id === "dismiss" || !isPrimary;
-        postBridgeMessage(shouldClose ? "dismiss" : "primary");
+        if (shouldClose) {
+          postBridgeMessage("dismiss");
+        }
       },
     }
   );
