@@ -147,7 +147,9 @@ func Test_logRoleChangeActivitiesJIT(t *testing.T) {
 	require.Empty(t, recorded)
 
 	recorded = recorded[:0]
-	noRole := &fleet.User{ID: 1, Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: "observer"}}}
+	teamRole := fleet.UserTeam{Role: "observer"}
+	teamRole.ID = 1
+	noRole := &fleet.User{ID: 1, Teams: []fleet.UserTeam{teamRole}}
 	require.NoError(t, fleet.LogRoleChangeActivities(ctx, svc, user, ptr.String("admin"), nil, noRole, false))
 	require.Len(t, recorded, 2)
 	require.Equal(t, "deleted_user_global_role", recorded[0].name)
