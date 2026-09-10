@@ -22,20 +22,22 @@ const BalancedTipContent = ({ children }: { children: React.ReactNode }) => {
     const el = ref.current;
     if (!el) return undefined;
 
-    // Measurement can race with (a) floating-ui repositioning the tooltip and
-    // (b) web-font loading changing bold/italic run widths. A single RAF fires
-    // before either has settled on first hover, so `widest` sometimes locks in
-    // near max-width and the tooltip stays wide until the next hover. Re-run
-    // the measurement after each likely settle point (double-RAF for layout,
-    // fonts.ready for font loading) — the latest measurement wins.
+    // Measurement can race with (a) floating-ui repositioning the tooltip,
+    // (b) web-font loading changing bold/italic run widths, and (c) balance
+    // needing multiple layout passes to converge as the container shrinks
+    // around each measurement. Re-run measurement iteratively until width
+    // stabilizes, with a small iteration cap to prevent runaway.
     let disposed = false;
+    let lastAppliedWidth = -1;
+    let iteration = 0;
+    const MAX_ITERATIONS = 6;
 
     const measure = () => {
       if (disposed) return;
-      // Clear our prior explicit width so wrap uses the tooltip's max-width.
+      // Clear our prior explicit width so balance re-runs against the outer
+      // tooltip's max-width. Force a reflow via offsetWidth so the browser
+      // recomputes the balanced layout before we sample rects.
       el.style.width = "";
-      // Force a reflow so the browser applies text-wrap: balance under the
-      // cleared width before we sample rects.
       void el.offsetWidth;
       const range = document.createRange();
       range.selectNodeContents(el);
@@ -52,8 +54,8 @@ const BalancedTipContent = ({ children }: { children: React.ReactNode }) => {
       // Inline replaced elements (<svg>, <img>, <video>, <canvas>, <iframe>)
       // don't participate in Range text rects — they render as self-contained
       // visual boxes, so a line ending in e.g. a CustomLink external-link
-      // icon would otherwise be measured short by the icon's width. Add their
-      // bounding rects into the same per-line grouping.
+      // icon would otherwise be measured short by the icon's width. Add
+      // their bounding rects into the same per-line grouping.
       const rects: DOMRect[] = Array.from(range.getClientRects());
       el.querySelectorAll("svg, img, video, canvas, iframe").forEach(
         (child) => {
@@ -81,26 +83,39 @@ const BalancedTipContent = ({ children }: { children: React.ReactNode }) => {
         const lineWidth = right - left;
         if (lineWidth > widest) widest = lineWidth;
       });
-      if (widest > 0) {
-        el.style.width = `${Math.ceil(widest)}px`;
+      if (widest <= 0) return;
+      const next = Math.ceil(widest);
+      // Stop when we've stopped shrinking. Balance can produce slightly
+      // narrower widths as the container shrinks around each measurement;
+      // we keep going as long as it does, then lock in.
+      if (next >= lastAppliedWidth && lastAppliedWidth !== -1) {
+        // Restore the previous (narrower) width and stop.
+        el.style.width = `${lastAppliedWidth}px`;
+        return;
+      }
+      lastAppliedWidth = next;
+      el.style.width = `${next}px`;
+      iteration += 1;
+      if (iteration < MAX_ITERATIONS) {
+        requestAnimationFrame(measure);
       }
     };
 
-    // Double-RAF gives layout + floating-ui a full paint cycle to settle.
-    const raf1 = requestAnimationFrame(() => {
-      measure();
-      requestAnimationFrame(measure);
-    });
+    const raf1 = requestAnimationFrame(measure);
 
-    // Fonts loading after mount reflows bold/italic runs. Re-measure once
-    // fonts.ready resolves. Safe to skip when the API is missing.
+    // Fonts loading after mount reflows bold/italic runs. Reset and re-run
+    // the convergence loop once fonts.ready resolves. Safe to skip when the
+    // API is missing.
     if (
       typeof document !== "undefined" &&
       document.fonts &&
       document.fonts.ready
     ) {
       document.fonts.ready.then(() => {
-        if (!disposed) requestAnimationFrame(measure);
+        if (disposed) return;
+        lastAppliedWidth = -1;
+        iteration = 0;
+        requestAnimationFrame(measure);
       });
     }
 
