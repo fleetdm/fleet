@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import classnames from "classnames";
+import { toZonedTime } from "date-fns-tz";
 
 import { IHostCustomVital } from "interfaces/custom_host_vitals";
 import { IHostMdmData, IMunkiData } from "interfaces/host";
@@ -713,7 +714,10 @@ export const buildHostVitals = ({
   if (isIosOrIpadosHost && vitalsData?.timezone) {
     const hasValidTimezone = vitalsData.timezone !== DEFAULT_EMPTY_CELL_VALUE;
     const localTime = hasValidTimezone
-      ? internationalTimeFormat(new Date(), { timeZone: vitalsData.timezone })
+      ? // toZonedTime shifts the instant so its epoch value reads as the
+        // host's timezone under the system's own default-timezone formatting,
+        // letting internationalTimeFormat run unmodified/as-is elsewhere.
+        internationalTimeFormat(toZonedTime(new Date(), vitalsData.timezone))
       : null;
 
     vitals.push({
