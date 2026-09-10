@@ -4116,6 +4116,14 @@ type Datastore interface {
 	SetAppleOSUpdateTargetsAndResend(ctx context.Context, targets []*ComputedAppleSoftwareUpdateHost) error
 	// GetAppleOSUpdateHostByUUID retrieves stored Apple software update configuration for a given host by its UUID.
 	GetAppleOSUpdateHostByUUID(ctx context.Context, hostUUID string) (*AppleSoftwareUpdateHost, error)
+	// SetABMTokenDefault marks tokenID as the default ABM token and clears the
+	// flag on every other token. Returns a not-found error if tokenID doesn't exist.
+	SetABMTokenDefault(ctx context.Context, tokenID uint) error
+	// ClearABMTokenDefault clears the default flag. No-op when exactly one token
+	// exists, because a sole token is always default.
+	ClearABMTokenDefault(ctx context.Context) error
+	// SetABMTokenServerUUID stores Apple's server_uuid for the token.
+	SetABMTokenServerUUID(ctx context.Context, tokenID uint, serverUUID string) error
 }
 
 type AndroidDatastore interface {

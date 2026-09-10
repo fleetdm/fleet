@@ -2400,6 +2400,12 @@ type SetAppleOSUpdateTargetsAndResendFunc func(ctx context.Context, targets []*f
 
 type GetAppleOSUpdateHostByUUIDFunc func(ctx context.Context, hostUUID string) (*fleet.AppleSoftwareUpdateHost, error)
 
+type SetABMTokenDefaultFunc func(ctx context.Context, tokenID uint) error
+
+type ClearABMTokenDefaultFunc func(ctx context.Context) error
+
+type SetABMTokenServerUUIDFunc func(ctx context.Context, tokenID uint, serverUUID string) error
+
 type DataStore struct {
 	AppConfigFunc        AppConfigFunc
 	AppConfigFuncInvoked bool
@@ -5964,6 +5970,15 @@ type DataStore struct {
 
 	GetAppleOSUpdateHostByUUIDFunc        GetAppleOSUpdateHostByUUIDFunc
 	GetAppleOSUpdateHostByUUIDFuncInvoked bool
+
+	SetABMTokenDefaultFunc        SetABMTokenDefaultFunc
+	SetABMTokenDefaultFuncInvoked bool
+
+	ClearABMTokenDefaultFunc        ClearABMTokenDefaultFunc
+	ClearABMTokenDefaultFuncInvoked bool
+
+	SetABMTokenServerUUIDFunc        SetABMTokenServerUUIDFunc
+	SetABMTokenServerUUIDFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -14282,4 +14297,25 @@ func (s *DataStore) GetAppleOSUpdateHostByUUID(ctx context.Context, hostUUID str
 	s.GetAppleOSUpdateHostByUUIDFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetAppleOSUpdateHostByUUIDFunc(ctx, hostUUID)
+}
+
+func (s *DataStore) SetABMTokenDefault(ctx context.Context, tokenID uint) error {
+	s.mu.Lock()
+	s.SetABMTokenDefaultFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetABMTokenDefaultFunc(ctx, tokenID)
+}
+
+func (s *DataStore) ClearABMTokenDefault(ctx context.Context) error {
+	s.mu.Lock()
+	s.ClearABMTokenDefaultFuncInvoked = true
+	s.mu.Unlock()
+	return s.ClearABMTokenDefaultFunc(ctx)
+}
+
+func (s *DataStore) SetABMTokenServerUUID(ctx context.Context, tokenID uint, serverUUID string) error {
+	s.mu.Lock()
+	s.SetABMTokenServerUUIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetABMTokenServerUUIDFunc(ctx, tokenID, serverUUID)
 }

@@ -130,6 +130,7 @@ github.com/fleetdm/fleet/v4/pkg/optjson/Slice[github.com/fleetdm/fleet/v4/server
 github.com/fleetdm/fleet/v4/pkg/optjson/Slice[github.com/fleetdm/fleet/v4/server/fleet.MDMAppleABMAssignmentInfo]	Valid	bool
 github.com/fleetdm/fleet/v4/pkg/optjson/Slice[github.com/fleetdm/fleet/v4/server/fleet.MDMAppleABMAssignmentInfo]	Value	[]fleet.MDMAppleABMAssignmentInfo
 github.com/fleetdm/fleet/v4/server/fleet/MDMAppleABMAssignmentInfo	OrganizationName	string
+github.com/fleetdm/fleet/v4/server/fleet/MDMAppleABMAssignmentInfo	Default	bool
 github.com/fleetdm/fleet/v4/server/fleet/MDMAppleABMAssignmentInfo	MacOSTeam	string
 github.com/fleetdm/fleet/v4/server/fleet/MDMAppleABMAssignmentInfo	IOSTeam	string
 github.com/fleetdm/fleet/v4/server/fleet/MDMAppleABMAssignmentInfo	IpadOSTeam	string

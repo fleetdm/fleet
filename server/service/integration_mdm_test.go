@@ -20,7 +20,6 @@ import (
 	"encoding/xml"
 	"errors"
 	"fmt"
-	"github.com/WatchBeam/clock"
 	"io"
 	"log/slog"
 	"math/big"
@@ -40,6 +39,8 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/WatchBeam/clock"
 
 	"github.com/MicahParks/jwkset"
 	"github.com/davecgh/go-spew/spew"
@@ -950,6 +951,11 @@ func (s *integrationMDMTestSuite) TearDownTest() {
 	appCfg.MDM.AndroidEnabledAndConfigured = true
 
 	appCfg.MDM.EndUserAuthentication = fleet.MDMEndUserAuthentication{} // Reset end user auth
+
+	// abm_tokens is truncated below, so the app config entries referencing them
+	// must go too, otherwise the next test's config PATCH fails validation with
+	// "token with organization name X doesn't exist"
+	appCfg.MDM.AppleBusinessManager = optjson.Slice[fleet.MDMAppleABMAssignmentInfo]{}
 
 	// ensure the server URL is constant
 	appCfg.ServerSettings.ServerURL = s.server.URL
