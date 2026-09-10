@@ -38,6 +38,32 @@ func TestMakeVersionShortener(t *testing.T) {
 	}
 }
 
+func TestMakeVersionShortenerKeep2(t *testing.T) {
+	shortener := makeVersionShortener(2)
+
+	tcs := []struct {
+		name     string
+		version  string
+		slug     string
+		expected string
+	}{
+		{name: "android studio", version: "2025.3.2.6", slug: "android-studio", expected: "2025.3"},
+		{name: "microsoft auto update", version: "4.82.26020434", slug: "microsoft-auto-update", expected: "4.82"},
+		{name: "opera", version: "129.0.5823.28", slug: "opera", expected: "129.0"},
+		{name: "twingate", version: "2026.29.22575", slug: "twingate", expected: "2026.29"},
+		{name: "microsoft 365 copilot", version: "1.2608.0301", slug: "microsoft-365-copilot", expected: "1.2608"},
+	}
+
+	for _, tc := range tcs {
+		t.Run(tc.name, func(t *testing.T) {
+			app := &maintained_apps.FMAManifestApp{Version: tc.version, Slug: tc.slug}
+			result, err := shortener(app)
+			require.NoError(t, err)
+			assert.Equal(t, tc.expected, result.Version)
+		})
+	}
+}
+
 func TestMakeVersionShortenerKeep3(t *testing.T) {
 	shortener := makeVersionShortener(3)
 
@@ -106,6 +132,32 @@ func TestSmallstepAgentVersionTransformer(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			app := &maintained_apps.FMAManifestApp{Version: tc.version, Slug: "smallstepagent"}
 			result, err := SmallstepAgentVersionTransformer(app)
+			if tc.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tc.expected, result.Version)
+		})
+	}
+}
+
+func TestRaspberryPiImagerVersionTransformer(t *testing.T) {
+	tcs := []struct {
+		name     string
+		version  string
+		expected string
+		wantErr  bool
+	}{
+		{name: "empty version", version: "", wantErr: true},
+		{name: "numeric version", version: "2.0.11.1", expected: "v2.0.11.1"},
+		{name: "already prefixed", version: "v2.0.11.1", expected: "v2.0.11.1"},
+	}
+
+	for _, tc := range tcs {
+		t.Run(tc.name, func(t *testing.T) {
+			app := &maintained_apps.FMAManifestApp{Version: tc.version, Slug: "raspberry-pi-imager"}
+			result, err := RaspberryPiImagerVersionTransformer(app)
 			if tc.wantErr {
 				require.Error(t, err)
 				return

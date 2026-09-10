@@ -5,7 +5,7 @@
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'io.tailscale.ipn.macsys';",
         "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'io.tailscale.ipn.macsys' AND version_compare(bundle_short_version, '1.102.3') < 0);",
-        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'io.tailscale.ipn.macsys');"
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'io.tailscale.ipn.macsys' AND a.bundle_executable != '');"
       },
       "installer_url": "https://pkgs.tailscale.com/stable/Tailscale-1.102.3-macos.pkg",
       "install_script_ref": "56f47ca8",

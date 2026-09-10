@@ -2,12 +2,12 @@ import React, { useState, useCallback, useEffect, useMemo } from "react";
 import { InjectedRouter, Params } from "react-router/lib/Router";
 import { useQuery } from "react-query";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
-import useIsMobileWidth from "hooks/useIsMobileWidth";
 import { AxiosError } from "axios";
 
 import { pick } from "lodash";
 
 import classNames from "classnames";
+import useIsMobileWidth from "hooks/useIsMobileWidth";
 
 import deviceUserAPI, {
   IGetDeviceCertsApiParams,
@@ -31,6 +31,7 @@ import {
 } from "interfaces/platform";
 import { IHostSoftware } from "interfaces/software";
 import { ISetupStep } from "interfaces/setup";
+import { hasStatusKey } from "interfaces/errors";
 
 import shouldShowUnsupportedScreen from "layouts/UnsupportedScreenSize/helpers";
 
@@ -55,25 +56,13 @@ import {
 
 import UnsupportedScreenSize from "layouts/UnsupportedScreenSize";
 
+import { canTriggerAPNSPing } from "interfaces/mdm";
 import HostSummaryCard from "../cards/HostSummary";
 import VitalsCard from "../cards/Vitals";
 import SoftwareCard from "../cards/Software";
 import PoliciesCard from "../cards/Policies";
-import InfoModal from "./InfoModal";
-import {
-  getErrorMessage,
-  hasRemainingSetupSteps,
-  isSoftwareScriptSetup,
-  isIPhone,
-  isIPad,
-  isRecentlyEnrolled,
-} from "./helpers";
-import useDeviceSSO from "./useDeviceSSO";
 
 import PolicyDetailsModal from "../cards/Policies/HostPoliciesTable/PolicyDetailsModal";
-import AutoEnrollMdmModal from "./AutoEnrollMdmModal";
-import BitLockerPinModal from "./BitLockerPinModal";
-import CreateLinuxKeyModal from "./CreateLinuxKeyModal";
 import ControlsCard from "../cards/Controls";
 import { shouldShowControlsTab } from "../cards/Controls/helpers";
 import {
@@ -84,19 +73,41 @@ import BootstrapPackageModal from "../HostDetailsPage/modals/BootstrapPackageMod
 import { parseHostSoftwareQueryParams } from "../cards/Software/HostSoftware";
 import { parseSelfServiceQueryParams } from "../cards/Software/SelfService/SelfService";
 import SelfService from "../cards/Software/SelfService";
-import DeviceUserBanners from "./components/DeviceUserBanners";
 import CertificateDetailsModal from "../modals/CertificateDetailsModal";
 import CertificatesCard from "../cards/Certificates";
 import UserCard from "../cards/User";
 import HostHeader from "../cards/HostHeader/HostHeader";
 import InventoryVersionsModal from "../modals/InventoryVersionsModal";
 import { REFETCH_HOST_DETAILS_POLLING_INTERVAL } from "../HostDetailsPage/HostDetailsPage";
+import DeviceUserBanners from "./components/DeviceUserBanners";
+import CreateLinuxKeyModal from "./CreateLinuxKeyModal";
+import BitLockerPinModal from "./BitLockerPinModal";
+import AutoEnrollMdmModal from "./AutoEnrollMdmModal";
+import useDeviceSSO from "./useDeviceSSO";
+import {
+  getErrorMessage,
+  hasRemainingSetupSteps,
+  isSoftwareScriptSetup,
+  isIPhone,
+  isIPad,
+  isRecentlyEnrolled,
+} from "./helpers";
+import InfoModal from "./InfoModal";
 
 import SettingUpYourDevice from "./components/SettingUpYourDevice";
 import InfoButton from "./components/InfoButton";
 import BypassModal from "./BypassModal";
 
 const baseClass = "device-user";
+
+const getRetryAfterSeconds = (e: unknown): number | undefined => {
+  if (typeof e !== "object" || e === null || !("headers" in e)) {
+    return undefined;
+  }
+  const headers = (e as { headers?: Record<string, unknown> }).headers;
+  const seconds = Number(headers?.["retry-after"]);
+  return Number.isFinite(seconds) && seconds > 0 ? seconds : undefined;
+};
 
 const fullWidthCardClass = `${baseClass}__card--full-width`;
 
@@ -163,6 +174,10 @@ const DeviceUserPage = ({
   const [isTriggeringCreateLinuxKey, setIsTriggeringCreateLinuxKey] = useState(
     false
   );
+  const [isEscrowInFlight, setIsEscrowInFlight] = useState(false);
+  const [escrowRetryAfterSeconds, setEscrowRetryAfterSeconds] = useState<
+    number | undefined
+  >();
   const [
     hostSWForInventoryVersions,
     setHostSWForInventoryVersions,
@@ -391,6 +406,9 @@ const DeviceUserPage = ({
     host?.platform === "windows" ||
     isMacOS(host?.platform || "");
 
+  const isManualAppleEnrollmentBlocked =
+    globalConfig?.mdm.only_allow_apple_business_enrollment ?? false;
+
   const isFleetMdmManualUnenrolledMac =
     !!globalConfig?.mdm.enabled_and_configured &&
     !!host &&
@@ -456,7 +474,10 @@ const DeviceUserPage = ({
     ["mdm_mandual_enroll_url", deviceAuthToken],
     () => deviceUserAPI.getMdmManualEnrollUrl(deviceAuthToken),
     {
-      enabled: !!deviceAuthToken && isFleetMdmManualUnenrolledMac,
+      enabled:
+        !!deviceAuthToken &&
+        isFleetMdmManualUnenrolledMac &&
+        !isManualAppleEnrollmentBlocked,
       refetchOnMount: false,
       refetchOnReconnect: false,
       refetchOnWindowFocus: false,
@@ -537,6 +558,14 @@ const DeviceUserPage = ({
   const onRefetchHost = useCallback(async () => {
     if (!host) return;
     setShowRefetchSpinner(true);
+
+    // Trigger APNS ping independently of the main refetch
+    if (canTriggerAPNSPing(host)) {
+      deviceUserAPI.apnsPing(deviceAuthToken).catch((error) => {
+        notify.error("Failed to send APNS ping", { response: error });
+      });
+    }
+
     try {
       await deviceUserAPI.refetch(deviceAuthToken);
       setRefetchStartTime(Date.now());
@@ -571,8 +600,7 @@ const DeviceUserPage = ({
     }
   };
 
-  const idpFullName = host?.end_users?.[0]?.idp_full_name;
-  const pageHeader = idpFullName ? `${idpFullName}'s device` : "My device";
+  const pageHeader = "My device";
 
   // Updates title that shows up on browser tabs
   useEffect(() => {
@@ -589,6 +617,8 @@ const DeviceUserPage = ({
 
   const onTriggerEscrowLinuxKey = async () => {
     setIsTriggeringCreateLinuxKey(true);
+    // reset before the request so a previous in-flight answer never flashes while loading
+    setIsEscrowInFlight(false);
     // modal opens in loading state
     setShowCreateLinuxKeyModal(true);
     try {
@@ -596,8 +626,14 @@ const DeviceUserPage = ({
         deviceAuthToken
       );
     } catch (e) {
-      notify.error("Failed to trigger key creation.", { response: e });
-      setShowCreateLinuxKeyModal(false);
+      // 409: fleetd is already handling an earlier request, so no new pop-up is coming
+      if (hasStatusKey(e) && e.status === 409) {
+        setIsEscrowInFlight(true);
+        setEscrowRetryAfterSeconds(getRetryAfterSeconds(e));
+      } else {
+        notify.error("Failed to trigger key creation.", { response: e });
+        setShowCreateLinuxKeyModal(false);
+      }
     } finally {
       setIsTriggeringCreateLinuxKey(false);
     }
@@ -775,6 +811,10 @@ const DeviceUserPage = ({
             mdmManualEnrolmentUrl={mdmManualEnrollUrl}
             lastMdmEnrolledAt={host.last_mdm_enrolled_at}
             detailUpdatedAt={host.detail_updated_at}
+            depAssignedToFleet={host.dep_assigned_to_fleet || false}
+            onlyAllowAppleBusinessEnrollment={
+              !!globalConfig?.mdm.only_allow_apple_business_enrollment
+            }
           />
           <HostHeader
             summaryData={summaryData}
@@ -962,6 +1002,8 @@ const DeviceUserPage = ({
         {showCreateLinuxKeyModal && !!host && (
           <CreateLinuxKeyModal
             isTriggeringCreateLinuxKey={isTriggeringCreateLinuxKey}
+            isEscrowInFlight={isEscrowInFlight}
+            retryAfterSeconds={escrowRetryAfterSeconds}
             onExit={() => {
               setShowCreateLinuxKeyModal(false);
             }}

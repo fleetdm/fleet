@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -144,7 +145,7 @@ func gitopsCommand() *cli.Command {
 			var originalVPPConfig []any
 			var teamNames []string
 			var teamDryRunAssumptions *fleet.TeamSpecsDryRunAssumptions
-			var abmTeams, vppTeams, missingVPPTeams []string
+			var abmTeams, missingABMTeams, vppTeams, missingVPPTeams []string
 			var hasMissingABMTeam, usesLegacyABMConfig bool
 			var windowsEnrollmentDefaultFleet string
 			var windowsEnrollmentFleetMissing bool
@@ -154,6 +155,9 @@ func gitopsCommand() *cli.Command {
 				filename string
 			}
 			var missingVPPTeamsWithApps []missingVPPTeamWithApps
+			// Fleets (name to ID, 0 for "No team") that configure a setup assistant in
+			// this run, for the post-run ABM coverage advisory.
+			setupAssistantFleets := make(map[string]uint)
 
 			// we keep track of team software installers and scripts for correct policy application
 			teamsSoftwareInstallers := make(map[string][]fleet.SoftwarePackageResponse)
@@ -525,10 +529,11 @@ func gitopsCommand() *cli.Command {
 				// grab some information to help us determine allowed/restricted actions and
 				// when to perform the associations.
 				if isGlobalConfig && totalFilenames > 1 && !(totalFilenames == 2 && noTeamPresent) && appConfig.License.IsPremium() {
-					abmTeams, hasMissingABMTeam, usesLegacyABMConfig, err = checkABMTeamAssignments(config, fleetClient)
+					abmTeams, missingABMTeams, usesLegacyABMConfig, err = checkABMTeamAssignments(config, fleetClient)
 					if err != nil {
 						return err
 					}
+					hasMissingABMTeam = len(missingABMTeams) > 0
 
 					vppTeams, missingVPPTeams, err = checkVPPTeamAssignments(config, fleetClient)
 					if err != nil {
@@ -544,12 +549,16 @@ func gitopsCommand() *cli.Command {
 								if appleBM, ok := mdmMap["apple_business"]; ok {
 									if bmSettings, ok := appleBM.([]any); ok {
 										originalABMConfig = bmSettings
+										// Some referenced fleets are only created later in this run, and the server
+										// rejects a config naming unknown fleets. Holding the key back entirely is
+										// not an option either: an absent key is normalized to an empty list (see
+										// DoGitOps), which the server takes as "clear every token's default fleets".
+										// So apply the config with only the missing fleet references blanked, keeping
+										// all existing assignments; the original config is applied after teams are
+										// processed.
+										mdmMap["apple_business"] = abmConfigWithoutMissingFleets(bmSettings, missingABMTeams)
 									}
 								}
-
-								// If team is not found, we need to remove the AppleBMDefaultTeam from
-								// the global config, and then apply it after teams are processed
-								mdmMap["apple_business"] = nil
 								mdmMap["apple_bm_default_team"] = ""
 							}
 						}
@@ -561,12 +570,13 @@ func gitopsCommand() *cli.Command {
 								if vpp, ok := mdmMap["volume_purchasing_program"]; ok {
 									if vppSettings, ok := vpp.([]any); ok {
 										originalVPPConfig = vppSettings
+										// Same idea as apple_business above: an absent key is normalized to an
+										// empty list, which wipes every token's fleet assignments. Apply the config
+										// with only the missing fleets filtered out, keeping assignments to existing
+										// fleets; the original config is applied after teams are processed.
+										mdmMap["volume_purchasing_program"] = vppConfigWithoutMissingFleets(vppSettings, missingVPPTeams)
 									}
 								}
-
-								// If a team is not found, we need to remove the VPP config from
-								// the global config and then apply it after teams are processed
-								mdmMap["volume_purchasing_program"] = nil
 							}
 						}
 					}
@@ -584,17 +594,18 @@ func gitopsCommand() *cli.Command {
 							if mdmMap, ok := mdm.(map[string]any); ok {
 								// The referenced fleet may be created later in this run. Deleting the key makes the first apply a no-op for this
 								// setting (an omitted key keeps the stored value); it is applied separately after teams are processed.
-								delete(mdmMap, "windows_enrollment")
+								delete(mdmMap, "windows_automatic_enrollment")
 							}
 						}
 					}
 				}
 
 				// Teams need a VPP token before VPP apps can be applied. When some VPP
-				// teams don't exist yet, the VPP config is temporarily removed from the
-				// global config, which clears all VPP token assignments. To avoid
-				// "No available VPP Token" errors, we defer app_store_apps for every
-				// team in the VPP config and re-apply them after tokens are reassigned.
+				// teams don't exist yet, the interim config applied above filters them
+				// out, so their token assignment only lands with the end-of-run re-apply.
+				// To avoid "No available VPP Token" errors in the meantime, defer
+				// app_store_apps for every team in the VPP config and re-apply them
+				// after tokens are reassigned.
 				if !isGlobalConfig && len(missingVPPTeams) > 0 && len(config.Software.AppStoreApps) > 0 {
 					if slices.Contains(vppTeams, *config.TeamName) {
 						missingVPPTeamsWithApps = append(missingVPPTeamsWithApps, missingVPPTeamWithApps{
@@ -645,6 +656,20 @@ func gitopsCommand() *cli.Command {
 				)
 				if err != nil {
 					return err
+				}
+
+				// Registration with Apple silently no-ops for a fleet with no ABM token
+				// association, leaving its setup assistant inert; remember which fleets
+				// configure one so the post-run advisory can warn about them. DoGitOps
+				// populated config.TeamID for team files (0 stands for "No team"). In
+				// dry-run new teams get no ID, but the advisory doesn't run then anyway.
+				if ms := config.Controls.MacOSSetup; ms != nil && ms.MacOSSetupAssistant.Value != "" {
+					switch {
+					case config.TeamName == nil || config.IsNoTeam():
+						setupAssistantFleets[fleet.TeamNameNoTeam] = 0
+					case config.TeamID != nil:
+						setupAssistantFleets[norm.NFC.String(*config.TeamName)] = *config.TeamID
+					}
 				}
 
 				// Schedule CA deletions as a post-op after all team configs have been processed.
@@ -708,6 +733,12 @@ func gitopsCommand() *cli.Command {
 				}
 			}
 
+			// Setup assistants were applied and token assignments are final; warn about
+			// any fleet whose assistant won't take effect (no ABM token association).
+			if !flDryRun && len(setupAssistantFleets) > 0 {
+				warnSetupAssistantsWithoutABMTokens(fleetClient, setupAssistantFleets, logf)
+			}
+
 			if flDeleteOtherTeams && appConfig.License.IsPremium() { // skip team deletion for non-premium users
 				teams, err := fleetClient.ListTeams("")
 				if err != nil {
@@ -725,7 +756,7 @@ func gitopsCommand() *cli.Command {
 							return fmt.Errorf("volume_purchasing_program team %s cannot be deleted", team.Name)
 						}
 						if windowsEnrollmentDefaultFleet != "" && norm.NFC.String(team.Name) == windowsEnrollmentDefaultFleet {
-							return fmt.Errorf("windows_enrollment default_fleet %s cannot be deleted", team.Name)
+							return fmt.Errorf("windows_automatic_enrollment default_fleet %s cannot be deleted", team.Name)
 						}
 						if flDryRun {
 							_, _ = fmt.Fprintf(c.App.Writer, "[!] would've deleted team %s\n", team.Name)
@@ -1162,7 +1193,7 @@ func extractControlsForNoTeam(flFilenames cli.StringSlice, appConfig *fleet.Enri
 // 3. Performs validations according to the spec for both the new and the
 // deprecated key used for this setting.
 func checkABMTeamAssignments(config *spec.GitOps, fleetClient *service.Client) (
-	abmTeams []string, missingTeam bool, usesLegacyConfig bool, err error,
+	abmTeams []string, missingTeams []string, usesLegacyConfig bool, err error,
 ) {
 	if mdm, ok := config.OrgSettings["mdm"]; ok {
 		if mdmMap, ok := mdm.(map[string]any); ok {
@@ -1173,25 +1204,25 @@ func checkABMTeamAssignments(config *spec.GitOps, fleetClient *service.Client) (
 			appleBM, hasNewConfig := mdmMap["apple_business"]
 
 			if hasLegacyConfig && hasNewConfig {
-				return nil, false, false, errors.New(fleet.AppleABMDefaultTeamDeprecatedMessage)
+				return nil, nil, false, errors.New(fleet.AppleABMDefaultTeamDeprecatedMessage)
 			}
 
 			abmToks, err := fleetClient.CountABMTokens()
 			if err != nil {
-				return nil, false, false, err
+				return nil, nil, false, err
 			}
 
 			if hasLegacyConfig && abmToks > 1 {
-				return nil, false, false, errors.New(fleet.AppleABMDefaultTeamDeprecatedMessage)
+				return nil, nil, false, errors.New(fleet.AppleABMDefaultTeamDeprecatedMessage)
 			}
 
 			if !hasLegacyConfig && !hasNewConfig {
-				return nil, false, false, nil
+				return nil, nil, false, nil
 			}
 
 			teams, err := fleetClient.ListTeams("")
 			if err != nil {
-				return nil, false, false, err
+				return nil, nil, false, err
 			}
 			teamNames := map[string]struct{}{}
 			for _, tm := range teams {
@@ -1204,8 +1235,11 @@ func checkABMTeamAssignments(config *spec.GitOps, fleetClient *service.Client) (
 					appleBMDefaultTeam = norm.NFC.String(appleBMDefaultTeam)
 					abmTeams = append(abmTeams, appleBMDefaultTeam)
 					usesLegacyConfig = true
-					if _, ok = teamNames[appleBMDefaultTeam]; !ok {
-						missingTeam = true
+					// Reserved names ("No team"/"Unassigned"/...) are never returned by
+					// ListTeams but aren't teams to be created either, so don't treat them
+					// as missing.
+					if _, ok = teamNames[appleBMDefaultTeam]; !ok && appleBMDefaultTeam != "" && !fleet.IsReservedTeamName(appleBMDefaultTeam) {
+						missingTeams = append(missingTeams, appleBMDefaultTeam)
 					}
 				}
 			}
@@ -1214,13 +1248,13 @@ func checkABMTeamAssignments(config *spec.GitOps, fleetClient *service.Client) (
 				if settingMap, ok := appleBM.([]any); ok {
 					for _, item := range settingMap {
 						if cfg, ok := item.(map[string]any); ok {
-							for _, teamConfigKey := range []string{"macos_fleet", "ios_fleet", "ipados_fleet"} {
+							for _, teamConfigKey := range []string{"macos_fleet", "ios_fleet", "ipados_fleet", "byod_fleet"} {
 								if team, ok := cfg[teamConfigKey].(string); ok && team != "" {
 									// normalize for Unicode support
 									team = norm.NFC.String(team)
 									abmTeams = append(abmTeams, team)
-									if _, ok := teamNames[team]; !ok {
-										missingTeam = true
+									if _, ok := teamNames[team]; !ok && !fleet.IsReservedTeamName(team) {
+										missingTeams = append(missingTeams, team)
 									}
 								}
 							}
@@ -1231,7 +1265,121 @@ func checkABMTeamAssignments(config *spec.GitOps, fleetClient *service.Client) (
 		}
 	}
 
-	return abmTeams, missingTeam, usesLegacyConfig, nil
+	return abmTeams, missingTeams, usesLegacyConfig, nil
+}
+
+// abmConfigWithoutMissingFleets returns a copy of the apple_business config with
+// references to not-yet-created fleets blanked out, so the initial apply keeps every
+// other token/fleet default intact.
+func abmConfigWithoutMissingFleets(bmSettings []any, missingTeams []string) []any {
+	missing := make(map[string]struct{}, len(missingTeams))
+	for _, name := range missingTeams {
+		missing[name] = struct{}{}
+	}
+	interim := make([]any, 0, len(bmSettings))
+	for _, item := range bmSettings {
+		cfg, ok := item.(map[string]any)
+		if !ok {
+			interim = append(interim, item)
+			continue
+		}
+		cp := make(map[string]any, len(cfg))
+		maps.Copy(cp, cfg)
+		for _, teamConfigKey := range []string{"macos_fleet", "ios_fleet", "ipados_fleet", "byod_fleet"} {
+			if team, ok := cp[teamConfigKey].(string); ok {
+				if _, isMissing := missing[norm.NFC.String(team)]; isMissing {
+					cp[teamConfigKey] = ""
+				}
+			}
+		}
+		interim = append(interim, cp)
+	}
+	return interim
+}
+
+// vppConfigWithoutMissingFleets returns a copy of the volume_purchasing_program
+// config with not-yet-created fleets filtered out of each token's fleet list, so the
+// initial apply keeps every assignment to an existing fleet intact.
+func vppConfigWithoutMissingFleets(vppSettings []any, missingTeams []string) []any {
+	missing := make(map[string]struct{}, len(missingTeams))
+	for _, name := range missingTeams {
+		missing[name] = struct{}{}
+	}
+	interim := make([]any, 0, len(vppSettings))
+	for _, item := range vppSettings {
+		cfg, ok := item.(map[string]any)
+		if !ok {
+			interim = append(interim, item)
+			continue
+		}
+		cp := make(map[string]any, len(cfg))
+		maps.Copy(cp, cfg)
+		if fleets, ok := cp["fleets"].([]any); ok {
+			kept := make([]any, 0, len(fleets))
+			for _, f := range fleets {
+				if name, ok := f.(string); ok {
+					if _, isMissing := missing[norm.NFC.String(name)]; isMissing {
+						continue
+					}
+				}
+				kept = append(kept, f)
+			}
+			cp["fleets"] = kept
+		}
+		interim = append(interim, cp)
+	}
+	return interim
+}
+
+// setupAssistantABMChecker is the subset of the API client used by
+// warnSetupAssistantsWithoutABMTokens, split out for testing.
+type setupAssistantABMChecker interface {
+	ListABMTokens() ([]*fleet.ABMToken, error)
+	CountHosts(query string) (int, error)
+}
+
+// warnSetupAssistantsWithoutABMTokens prints an advisory for each fleet that has a
+// setup assistant configured but no ABM token association: registration with Apple
+// silently no-ops for those fleets, so the assistant stays inert until the fleet
+// becomes a default fleet for a token or receives an ABM host. Best-effort — it
+// must never fail the run, and it runs after the deferred token assignments so the
+// server-side state it reads is final.
+func warnSetupAssistantsWithoutABMTokens(fleetClient setupAssistantABMChecker, fleets map[string]uint, logf func(format string, a ...any)) {
+	tokens, err := fleetClient.ListABMTokens()
+	if err != nil {
+		logf("[!] skipping setup assistant ABM coverage check: %s\n", err)
+		return
+	}
+	// A token with no default set for a platform reports "No team" for it, which
+	// matches the server treating such tokens as associated with "No team".
+	covered := make(map[string]struct{}, len(tokens)*4)
+	for _, tok := range tokens {
+		for _, tm := range []fleet.ABMTokenTeam{tok.MacOSTeam, tok.IOSTeam, tok.IPadOSTeam, tok.BYODTeam} {
+			covered[norm.NFC.String(tm.Name)] = struct{}{}
+		}
+	}
+
+	for _, name := range slices.Sorted(maps.Keys(fleets)) {
+		if _, ok := covered[name]; ok {
+			continue
+		}
+		teamID := fleets[name] // 0 filters for "No team" hosts
+
+		// ABM-enrolled or ABM-pending hosts in the fleet also associate it with a
+		// token. On lookup errors stay silent rather than risk a false warning.
+		hasABMHost := false
+		for _, status := range []fleet.MDMEnrollStatus{fleet.MDMEnrollStatusPending, fleet.MDMEnrollStatusAutomatic} {
+			count, err := fleetClient.CountHosts(fmt.Sprintf("team_id=%d&mdm_enrollment_status=%s", teamID, status))
+			if err != nil || count > 0 {
+				hasABMHost = true
+				break
+			}
+		}
+		if hasABMHost {
+			continue
+		}
+		logf("[!] fleet %s: setup assistant saved, but it won't take effect until this fleet is a default fleet for an Apple Business Manager (ABM) token or has an ABM-enrolled host\n", name)
+	}
 }
 
 // knownTeamNamesForTokenAssignment returns the set of team names that count as
@@ -1317,9 +1465,9 @@ func applyABMTokenAssignmentIfNeeded(
 	return nil
 }
 
-// checkWindowsEnrollmentAssignment reads org_settings.mdm.windows_enrollment.default_fleet and reports whether the referenced
-// fleet doesn't exist in Fleet yet (it may be created later in the same gitops run). Returns an empty name when the section or
-// the value is absent.
+// checkWindowsEnrollmentAssignment reads org_settings.mdm.windows_automatic_enrollment.default_fleet and reports whether the
+// referenced fleet doesn't exist in Fleet yet (it may be created later in the same gitops run). Returns an empty name when the
+// section or the value is absent.
 func checkWindowsEnrollmentAssignment(config *spec.GitOps, fleetClient *service.Client) (defaultFleet string, missingTeam bool, err error) {
 	mdm, ok := config.OrgSettings["mdm"]
 	if !ok {
@@ -1329,7 +1477,7 @@ func checkWindowsEnrollmentAssignment(config *spec.GitOps, fleetClient *service.
 	if !ok {
 		return "", false, nil
 	}
-	we, ok := mdmMap["windows_enrollment"]
+	we, ok := mdmMap["windows_automatic_enrollment"]
 	if !ok {
 		return "", false, nil
 	}
@@ -1356,8 +1504,8 @@ func checkWindowsEnrollmentAssignment(config *spec.GitOps, fleetClient *service.
 	return name, true, nil
 }
 
-// applyWindowsEnrollmentAssignmentIfNeeded applies the deferred org_settings.mdm.windows_enrollment.default_fleet once teams have
-// been processed, failing if the referenced fleet still doesn't exist.
+// applyWindowsEnrollmentAssignmentIfNeeded applies the deferred org_settings.mdm.windows_automatic_enrollment.default_fleet once
+// teams have been processed, failing if the referenced fleet still doesn't exist.
 func applyWindowsEnrollmentAssignmentIfNeeded(
 	ctx *cli.Context,
 	teamNames []string,
@@ -1370,7 +1518,7 @@ func applyWindowsEnrollmentAssignmentIfNeeded(
 		return err
 	}
 	if _, ok := knownTeams[norm.NFC.String(defaultFleet)]; !ok {
-		return fmt.Errorf("windows_enrollment default_fleet %q not found in team configs", defaultFleet)
+		return fmt.Errorf("windows_automatic_enrollment default_fleet %q not found in team configs", defaultFleet)
 	}
 	if flDryRun {
 		_, _ = fmt.Fprint(ctx.App.Writer, "[!] would apply Windows enrollment default fleet\n")
@@ -1379,7 +1527,7 @@ func applyWindowsEnrollmentAssignmentIfNeeded(
 	_, _ = fmt.Fprintf(ctx.App.Writer, "[+] applying Windows enrollment default fleet\n")
 	appConfigUpdate := map[string]map[string]any{
 		"mdm": {
-			"windows_enrollment": map[string]any{"default_fleet": defaultFleet},
+			"windows_automatic_enrollment": map[string]any{"default_fleet": defaultFleet},
 		},
 	}
 	if err := fleetClient.ApplyAppConfig(appConfigUpdate, fleet.ApplySpecOptions{}); err != nil {

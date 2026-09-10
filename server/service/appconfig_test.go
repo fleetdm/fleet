@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/http/httputil"
@@ -24,6 +25,7 @@ import (
 	mdmtest "github.com/fleetdm/fleet/v4/server/mdm/testing_utils"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
+	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/jmoiron/sqlx"
@@ -1363,9 +1365,9 @@ func TestMDMConfig(t *testing.T) {
 			VolumePurchasingProgram: optjson.Slice[fleet.MDMAppleVolumePurchasingProgramInfo]{Set: true, Value: []fleet.MDMAppleVolumePurchasingProgramInfo{}},
 			WindowsUpdates:          fleet.WindowsUpdates{DeadlineDays: optjson.Int{Set: true}, GracePeriodDays: optjson.Int{Set: true}},
 			WindowsSettings: fleet.WindowsSettings{
-				CustomSettings:              optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
-				ManagedLocalAccountSettings: fleet.ManagedLocalAccountSettings{Enabled: optjson.SetBool(false)},
-				RequireBitLockerPIN:         optjson.Bool{Set: true},
+				CustomSettings:            optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
+				EnableManagedLocalAccount: optjson.SetBool(false),
+				RequireBitLockerPIN:       optjson.Bool{Set: true},
 			},
 			AndroidSettings: fleet.AndroidSettings{
 				CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
@@ -3490,54 +3492,54 @@ func TestModifyAppConfigManagedLocalAccount(t *testing.T) {
 		},
 		{
 			name:               "windows: enabling managed local account persists and fires activity",
-			patch:              `{"mdm": {"windows_settings": {"managed_local_account_settings": {"enabled": true}}}}`,
+			patch:              `{"mdm": {"windows_settings": {"enable_managed_local_account": true}}}`,
 			wantActivities:     []string{"enabled_managed_local_account:windows"},
 			wantWindowsEnabled: true,
 		},
 		{
 			name:           "windows: disabling managed local account persists and fires activity",
 			startWindows:   true,
-			patch:          `{"mdm": {"windows_settings": {"managed_local_account_settings": {"enabled": false}}}}`,
+			patch:          `{"mdm": {"windows_settings": {"enable_managed_local_account": false}}}`,
 			wantActivities: []string{"disabled_managed_local_account:windows"},
 		},
 		{
 			name:               "windows: null managed local account enabled means not provided",
 			startWindows:       true,
-			patch:              `{"mdm": {"windows_settings": {"managed_local_account_settings": {"enabled": null}}}}`,
+			patch:              `{"mdm": {"windows_settings": {"enable_managed_local_account": null}}}`,
 			wantWindowsEnabled: true,
 		},
 		{
 			name:  "windows: managed local account no-op change fires no activity",
-			patch: `{"mdm": {"windows_settings": {"managed_local_account_settings": {"enabled": false}}}}`,
+			patch: `{"mdm": {"windows_settings": {"enable_managed_local_account": false}}}`,
 		},
 		{
 			name:               "enabling managed local account on both platforms in one payload fires one activity per platform",
-			patch:              `{"mdm": {"macos_setup": {"enable_managed_local_account": true}, "windows_settings": {"managed_local_account_settings": {"enabled": true}}}}`,
+			patch:              `{"mdm": {"macos_setup": {"enable_managed_local_account": true}, "windows_settings": {"enable_managed_local_account": true}}}`,
 			wantActivities:     []string{"enabled_managed_local_account:darwin", "enabled_managed_local_account:windows"},
 			wantWindowsEnabled: true,
 		},
 		{
 			name:     "windows: enabling managed local account requires premium",
 			freeTier: true,
-			patch:    `{"mdm": {"windows_settings": {"managed_local_account_settings": {"enabled": true}}}}`,
+			patch:    `{"mdm": {"windows_settings": {"enable_managed_local_account": true}}}`,
 			wantErr:  "missing or invalid license",
 		},
 		{
 			name:           "windows: disabling managed local account is allowed without premium (license downgrade)",
 			freeTier:       true,
 			startWindows:   true,
-			patch:          `{"mdm": {"windows_settings": {"managed_local_account_settings": {"enabled": false}}}}`,
+			patch:          `{"mdm": {"windows_settings": {"enable_managed_local_account": false}}}`,
 			wantActivities: []string{"disabled_managed_local_account:windows"},
 		},
 		{
 			name:          "windows: enabling managed local account requires Windows MDM",
 			windowsMDMOff: true,
-			patch:         `{"mdm": {"windows_settings": {"managed_local_account_settings": {"enabled": true}}}}`,
-			wantErr:       "windows_settings.managed_local_account_settings",
+			patch:         `{"mdm": {"windows_settings": {"enable_managed_local_account": true}}}`,
+			wantErr:       "windows_settings.enable_managed_local_account",
 		},
 		{
 			name:    "windows: managed local account with end_user_local_account_type rejected",
-			patch:   `{"mdm": {"windows_settings": {"managed_local_account_settings": {"enabled": true}, "end_user_local_account_type": "admin"}}}`,
+			patch:   `{"mdm": {"windows_settings": {"enable_managed_local_account": true, "end_user_local_account_type": "admin"}}}`,
 			wantErr: "end_user_local_account_type",
 		},
 	}
@@ -3564,7 +3566,7 @@ func TestModifyAppConfigManagedLocalAccount(t *testing.T) {
 			dsAppConfig.MDM.EnabledAndConfigured = !tt.appleMDMOff
 			dsAppConfig.MDM.WindowsEnabledAndConfigured = !tt.windowsMDMOff
 			dsAppConfig.MDM.MacOSSetup.EnableManagedLocalAccount = optjson.SetBool(tt.startMacOS)
-			dsAppConfig.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled = optjson.SetBool(tt.startWindows)
+			dsAppConfig.MDM.WindowsSettings.EnableManagedLocalAccount = optjson.SetBool(tt.startWindows)
 
 			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) { return dsAppConfig, nil }
 			ds.SaveAppConfigFunc = func(ctx context.Context, conf *fleet.AppConfig) error {
@@ -3597,7 +3599,7 @@ func TestModifyAppConfigManagedLocalAccount(t *testing.T) {
 			}
 			require.NoError(t, err)
 			require.Equal(t, tt.wantActivities, gotActivities)
-			require.Equal(t, tt.wantWindowsEnabled, dsAppConfig.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value)
+			require.Equal(t, tt.wantWindowsEnabled, dsAppConfig.MDM.WindowsSettings.EnableManagedLocalAccount.Value)
 		})
 	}
 }
@@ -3706,7 +3708,7 @@ func TestModifyAppConfigWindowsEnrollment(t *testing.T) {
 		{
 			name:             "set to existing fleet",
 			licenseTier:      fleet.TierPremium,
-			payload:          `{"mdm":{"windows_enrollment":{"default_fleet":"Workstations"}}}`,
+			payload:          `{"mdm":{"windows_automatic_enrollment":{"default_fleet":"Workstations"}}}`,
 			expectSet:        true,
 			expectSetTo:      &teamID,
 			expectActivity:   true,
@@ -3715,7 +3717,7 @@ func TestModifyAppConfigWindowsEnrollment(t *testing.T) {
 		{
 			name:             "unchanged value writes nothing",
 			licenseTier:      fleet.TierPremium,
-			payload:          `{"mdm":{"windows_enrollment":{"default_fleet":"Workstations"}}}`,
+			payload:          `{"mdm":{"windows_automatic_enrollment":{"default_fleet":"Workstations"}}}`,
 			currentTeamID:    &teamID,
 			expectSet:        false,
 			expectActivity:   false,
@@ -3724,7 +3726,7 @@ func TestModifyAppConfigWindowsEnrollment(t *testing.T) {
 		{
 			name:           "clear with empty string",
 			licenseTier:    fleet.TierPremium,
-			payload:        `{"mdm":{"windows_enrollment":{"default_fleet":""}}}`,
+			payload:        `{"mdm":{"windows_automatic_enrollment":{"default_fleet":""}}}`,
 			currentTeamID:  &teamID,
 			expectSet:      true,
 			expectSetTo:    nil,
@@ -3733,7 +3735,7 @@ func TestModifyAppConfigWindowsEnrollment(t *testing.T) {
 		{
 			name:           "clear with Unassigned",
 			licenseTier:    fleet.TierPremium,
-			payload:        `{"mdm":{"windows_enrollment":{"default_fleet":"Unassigned"}}}`,
+			payload:        `{"mdm":{"windows_automatic_enrollment":{"default_fleet":"Unassigned"}}}`,
 			currentTeamID:  &teamID,
 			expectSet:      true,
 			expectSetTo:    nil,
@@ -3742,7 +3744,7 @@ func TestModifyAppConfigWindowsEnrollment(t *testing.T) {
 		{
 			name:           "clear with Unassigned in a different case",
 			licenseTier:    fleet.TierPremium,
-			payload:        `{"mdm":{"windows_enrollment":{"default_fleet":"unassigned"}}}`,
+			payload:        `{"mdm":{"windows_automatic_enrollment":{"default_fleet":"unassigned"}}}`,
 			currentTeamID:  &teamID,
 			expectSet:      true,
 			expectSetTo:    nil,
@@ -3751,14 +3753,14 @@ func TestModifyAppConfigWindowsEnrollment(t *testing.T) {
 		{
 			name:           "clear with Unassigned when already cleared writes nothing",
 			licenseTier:    fleet.TierPremium,
-			payload:        `{"mdm":{"windows_enrollment":{"default_fleet":"Unassigned"}}}`,
+			payload:        `{"mdm":{"windows_automatic_enrollment":{"default_fleet":"Unassigned"}}}`,
 			expectSet:      false,
 			expectActivity: false,
 		},
 		{
 			name:           "clear with Unassigned allowed without premium",
 			licenseTier:    fleet.TierFree,
-			payload:        `{"mdm":{"windows_enrollment":{"default_fleet":"Unassigned"}}}`,
+			payload:        `{"mdm":{"windows_automatic_enrollment":{"default_fleet":"Unassigned"}}}`,
 			currentTeamID:  &teamID,
 			expectSet:      true,
 			expectSetTo:    nil,
@@ -3767,19 +3769,19 @@ func TestModifyAppConfigWindowsEnrollment(t *testing.T) {
 		{
 			name:        "unknown fleet name is invalid",
 			licenseTier: fleet.TierPremium,
-			payload:     `{"mdm":{"windows_enrollment":{"default_fleet":"Nope"}}}`,
+			payload:     `{"mdm":{"windows_automatic_enrollment":{"default_fleet":"Nope"}}}`,
 			expectErr:   `fleet "Nope" doesn't exist`,
 		},
 		{
 			name:        "premium required to set",
 			licenseTier: fleet.TierFree,
-			payload:     `{"mdm":{"windows_enrollment":{"default_fleet":"Workstations"}}}`,
+			payload:     `{"mdm":{"windows_automatic_enrollment":{"default_fleet":"Workstations"}}}`,
 			expectErr:   "missing or invalid license",
 		},
 		{
 			name:             "unchanged value tolerated without premium",
 			licenseTier:      fleet.TierFree,
-			payload:          `{"mdm":{"windows_enrollment":{"default_fleet":"Workstations"}}}`,
+			payload:          `{"mdm":{"windows_automatic_enrollment":{"default_fleet":"Workstations"}}}`,
 			currentTeamID:    &teamID,
 			expectSet:        false,
 			expectActivity:   false,
@@ -3796,7 +3798,7 @@ func TestModifyAppConfigWindowsEnrollment(t *testing.T) {
 		{
 			name:           "null keeps the persisted setting",
 			licenseTier:    fleet.TierPremium,
-			payload:        `{"mdm":{"windows_enrollment":null}}`,
+			payload:        `{"mdm":{"windows_automatic_enrollment":null}}`,
 			currentTeamID:  &teamID,
 			expectSet:      false,
 			expectActivity: false,
@@ -3804,7 +3806,7 @@ func TestModifyAppConfigWindowsEnrollment(t *testing.T) {
 		{
 			name:           "null tolerated without premium",
 			licenseTier:    fleet.TierFree,
-			payload:        `{"mdm":{"windows_enrollment":null}}`,
+			payload:        `{"mdm":{"windows_automatic_enrollment":null}}`,
 			currentTeamID:  &teamID,
 			expectSet:      false,
 			expectActivity: false,
@@ -3812,7 +3814,7 @@ func TestModifyAppConfigWindowsEnrollment(t *testing.T) {
 		{
 			name:           "clear with empty string allowed without premium",
 			licenseTier:    fleet.TierFree,
-			payload:        `{"mdm":{"windows_enrollment":{"default_fleet":""}}}`,
+			payload:        `{"mdm":{"windows_automatic_enrollment":{"default_fleet":""}}}`,
 			currentTeamID:  &teamID,
 			expectSet:      true,
 			expectSetTo:    nil,
@@ -3877,8 +3879,107 @@ func TestModifyAppConfigWindowsEnrollment(t *testing.T) {
 			} else {
 				require.NotContains(t, activities, "edited_windows_enrollment_default_fleet")
 			}
-			require.Equal(t, tc.expectStoredName, dsAppConfig.MDM.WindowsEnrollment.Value.DefaultFleet,
+			require.Equal(t, tc.expectStoredName, dsAppConfig.MDM.WindowsAutomaticEnrollment.Value.DefaultFleet,
 				"the app config JSON must store the canonical fleet name")
+		})
+	}
+}
+
+// Flipping either Apple Business enrollment restriction changes which hosts are
+// eligible for SCEP renewal, so the stored exclusions and any in-flight renewals
+// have to be dropped for the next cron run to re-evaluate every host.
+func TestModifyAppConfigAppleBusinessEnrollmentCertRenewals(t *testing.T) {
+	admin := &fleet.User{GlobalRole: new(fleet.RoleAdmin)}
+
+	testCases := []struct {
+		name             string
+		oldOnlyAB        bool
+		oldAttestation   bool
+		payload          string
+		expectResetRenew bool
+		expectActivity   string
+		expectNoActivity string
+	}{
+		{
+			name:             "enabling Apple Business only resets renewals",
+			payload:          `{"mdm":{"only_allow_apple_business_enrollment":true}}`,
+			expectResetRenew: true,
+			expectActivity:   "enabled_apple_business_only_enrollment",
+		},
+		{
+			name:             "disabling Apple Business only resets renewals",
+			oldOnlyAB:        true,
+			payload:          `{"mdm":{"only_allow_apple_business_enrollment":false}}`,
+			expectResetRenew: true,
+			expectActivity:   "disabled_apple_business_only_enrollment",
+		},
+		{
+			// Hardware attestation is the other half of IsAppleMDMSCEPBlocked, so it
+			// changes renewal eligibility on its own, with no activity of its own.
+			name:             "toggling hardware attestation resets renewals",
+			payload:          `{"mdm":{"apple_require_hardware_attestation":true}}`,
+			expectResetRenew: true,
+			expectNoActivity: "enabled_apple_business_only_enrollment",
+		},
+		{
+			name:             "re-saving the same values is a no-op",
+			oldOnlyAB:        true,
+			oldAttestation:   true,
+			payload:          `{"mdm":{"only_allow_apple_business_enrollment":true,"apple_require_hardware_attestation":true}}`,
+			expectResetRenew: false,
+			expectNoActivity: "enabled_apple_business_only_enrollment",
+		},
+		{
+			name:             "an unrelated change leaves renewals alone",
+			payload:          `{"org_info":{"org_name":"Test2"}}`,
+			expectResetRenew: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ds := new(mock.Store)
+			opts := &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}}
+			svc, ctx := newTestService(t, ds, nil, nil, opts)
+			ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin})
+
+			var activities []string
+			opts.ActivityMock.NewActivityFunc = func(ctx context.Context, user *activity_api.User, act activity_api.ActivityDetails) error {
+				activities = append(activities, act.ActivityName())
+				return nil
+			}
+
+			dsAppConfig := &fleet.AppConfig{
+				OrgInfo:        fleet.OrgInfo{OrgName: "Test"},
+				ServerSettings: fleet.ServerSettings{ServerURL: "https://example.org"},
+				MDM: fleet.MDM{
+					EnabledAndConfigured:             true,
+					OnlyAllowAppleBusinessEnrollment: tc.oldOnlyAB,
+					AppleRequireHardwareAttestation:  tc.oldAttestation,
+				},
+			}
+			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) { return dsAppConfig, nil }
+			ds.SaveAppConfigFunc = func(ctx context.Context, conf *fleet.AppConfig) error { *dsAppConfig = *conf; return nil }
+			ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error { return nil }
+			ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) { return []*fleet.VPPTokenDB{}, nil }
+			ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) { return []*fleet.ABMToken{}, nil }
+			ds.ClearCertRenewalExclusionsFunc = func(ctx context.Context) error { return nil }
+			ds.ResetPendingCertRenewalsFunc = func(ctx context.Context) error { return nil }
+
+			_, err := svc.ModifyAppConfig(ctx, []byte(tc.payload), fleet.ApplySpecOptions{})
+			require.NoError(t, err)
+
+			// both run together: clearing exclusions without cancelling in-flight
+			// renewals would leave hosts stuck behind a renew_command_uuid.
+			require.Equal(t, tc.expectResetRenew, ds.ClearCertRenewalExclusionsFuncInvoked)
+			require.Equal(t, tc.expectResetRenew, ds.ResetPendingCertRenewalsFuncInvoked)
+
+			if tc.expectActivity != "" {
+				require.Contains(t, activities, tc.expectActivity)
+			}
+			if tc.expectNoActivity != "" {
+				require.NotContains(t, activities, tc.expectNoActivity)
+			}
 		})
 	}
 }
@@ -3994,4 +4095,40 @@ func TestDiskEncryptionPrecedence(t *testing.T) {
 			tc.check(t, dsAppConfig.MDM)
 		})
 	}
+}
+
+// TestWindowsEnableManagedLocalAccountKeyIsNotAliased pins the `renamescope` on MacOSSetup.EnableManagedLocalAccount.
+// Alias rules are keyed by bare key name, so without the scope the Apple toggle's macos_setup→setup_experience rename
+// would also rewrite the identically named Windows toggle.
+func TestWindowsEnableManagedLocalAccountKeyIsNotAliased(t *testing.T) {
+	rules := endpointer.ExtractAliasRules(appConfigResponse{})
+	require.NotEmpty(t, rules)
+
+	windowsSettings := func(t *testing.T, b []byte) map[string]any {
+		t.Helper()
+		var out map[string]any
+		require.NoError(t, json.Unmarshal(b, &out))
+		return out["mdm"].(map[string]any)["windows_settings"].(map[string]any)
+	}
+
+	t.Run("response encoding leaves the Windows toggle single-named", func(t *testing.T) {
+		var ac fleet.AppConfig
+		ac.MDM.WindowsSettings.EnableManagedLocalAccount = optjson.SetBool(true)
+		body, err := json.Marshal(ac)
+		require.NoError(t, err)
+
+		ws := windowsSettings(t, endpointer.DuplicateJSONKeys(body, rules))
+		assert.Equal(t, true, ws["enable_managed_local_account"])
+		assert.NotContains(t, ws, "enable_create_local_admin_account")
+	})
+
+	t.Run("request decoding keeps the Windows toggle off the deprecated list", func(t *testing.T) {
+		body := `{"mdm": {"windows_settings": {"enable_managed_local_account": true}}}`
+		r := endpointer.NewJSONKeyRewriteReader(strings.NewReader(body), rules)
+		out, err := io.ReadAll(r)
+		require.NoError(t, err)
+
+		assert.Equal(t, true, windowsSettings(t, out)["enable_managed_local_account"])
+		assert.Empty(t, r.UsedDeprecatedKeys())
+	})
 }

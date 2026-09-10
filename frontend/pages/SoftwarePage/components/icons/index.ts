@@ -308,6 +308,8 @@ import Dockfix from "./png/Dockfix.png";
 import Dockside from "./png/Dockside.png";
 import Dockview from "./png/Dockview.png";
 import Dot from "./png/Dot.png";
+import Dotpeek from "./png/Dotpeek.png";
+import Dottrace from "./png/Dottrace.png";
 import Doughnut from "./png/Doughnut.png";
 import Downie from "./png/Downie.png";
 import DraftableDesktop from "./png/DraftableDesktop.png";
@@ -646,11 +648,13 @@ import MerlinProject from "./png/MerlinProject.png";
 import Microsoft365Copilot from "./png/Microsoft365Copilot.png";
 import MicrosoftAutoUpdate from "./png/MicrosoftAutoUpdate.png";
 import MicrosoftAzureStorageExplorer from "./png/MicrosoftAzureStorageExplorer.png";
+import MicrosoftDefender from "./png/MicrosoftDefender.png";
 import MicrosoftDotnetRuntime from "./png/MicrosoftDotnetRuntime.png";
 import MicrosoftEdge from "./png/MicrosoftEdge.png";
 import MicrosoftOdbcDriver17 from "./png/MicrosoftOdbcDriver17.png";
 import MicrosoftOdbcDriver18 from "./png/MicrosoftOdbcDriver18.png";
 import MicrosoftOffice from "./png/MicrosoftOffice.png";
+import MicrosoftOleDbDriver19 from "./png/MicrosoftOleDbDriver19.png";
 import MicrosoftOneNote from "./png/MicrosoftOneNote.png";
 import MicrosoftOutlook from "./png/MicrosoftOutlook.png";
 import MicrosoftPowerPoint from "./png/MicrosoftPowerPoint.png";
@@ -673,6 +677,7 @@ import Mockoon from "./png/Mockoon.png";
 import ModernCsv from "./png/ModernCsv.png";
 import MongoDbCompass from "./png/MongoDbCompass.png";
 import Monitorcontrol from "./png/Monitorcontrol.png";
+import MonotypeFonts from "./png/MonotypeFonts.png";
 import Moom from "./png/Moom.png";
 import Moonlight from "./png/Moonlight.png";
 import Morgen from "./png/Morgen.png";
@@ -846,6 +851,7 @@ import Raindropio from "./png/Raindropio.png";
 import RancherDesktop from "./png/RancherDesktop.png";
 import RapidApi from "./png/RapidApi.png";
 import Rapidweaver from "./png/Rapidweaver.png";
+import RaspberryPiImager from "./png/RaspberryPiImager.png";
 import Raycast from "./png/Raycast.png";
 import Readest from "./png/Readest.png";
 import RealVncServer from "./png/RealVncServer.png";
@@ -890,7 +896,7 @@ import Sabnzbd from "./png/Sabnzbd.png";
 import Safari from "./Safari";
 import SafeExamBrowser from "./png/SafeExamBrowser.png";
 import Sanesidebuttons from "./png/Sanesidebuttons.png";
-import Santa from "./Santa";
+import Santa from "./png/Santa.png";
 import ScaleFt from "./png/ScaleFt.png";
 import ScMenu from "./png/ScMenu.png";
 import Scratch from "./png/Scratch.png";
@@ -1058,12 +1064,14 @@ import Updf from "./png/Updf.png";
 import Upscayl from "./png/Upscayl.png";
 import UsageApp from "./png/UsageApp.png";
 import Utm from "./png/Utm.png";
+import Vagrant from "./png/Vagrant.png";
 import Vanilla from "./png/Vanilla.png";
 import VcRedistX64 from "./png/VcRedistX64.png";
 import Vellum from "./png/Vellum.png";
 import VernierSpectralAnalysis from "./png/VernierSpectralAnalysis.png";
 import Versions from "./png/Versions.png";
 import Via from "./png/Via.png";
+import Vim from "./png/Vim.png";
 import Vimcal from "./png/Vimcal.png";
 import VirtualBox from "./png/VirtualBox.png";
 import VirtualBuddy from "./png/VirtualBuddy.png";
@@ -1475,6 +1483,8 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   dockside: Dockside,
   dockview: Dockview,
   dot: Dot,
+  dotpeek: Dotpeek,
+  dottrace: Dottrace,
   doughnut: Doughnut,
   downie: Downie,
   "draftable desktop": DraftableDesktop,
@@ -1811,11 +1821,13 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "microsoft auto update": MicrosoftAutoUpdate,
   "microsoft autoupdate": MicrosoftAutoUpdate,
   "microsoft azure storage explorer": MicrosoftAzureStorageExplorer,
+  "microsoft defender": MicrosoftDefender,
   "microsoft edge": Edge,
   "microsoft excel": Excel,
   "microsoft odbc driver 17 for sql server": MicrosoftOdbcDriver17,
   "microsoft odbc driver 18 for sql server": MicrosoftOdbcDriver18,
   "microsoft office": MicrosoftOffice,
+  "microsoft ole db driver 19 for sql server": MicrosoftOleDbDriver19,
   "microsoft onenote": MicrosoftOneNote,
   "microsoft outlook": MicrosoftOutlook,
   "microsoft powerpoint": MicrosoftPowerPoint,
@@ -1843,6 +1855,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "modern csv": ModernCsv,
   "mongodb compass": MongoDbCompass,
   monitorcontrol: Monitorcontrol,
+  "monotype fonts": MonotypeFonts,
   moom: Moom,
   moonlight: Moonlight,
   morgen: Morgen,
@@ -2020,6 +2033,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "rancher desktop": RancherDesktop,
   rapidapi: RapidApi,
   rapidweaver: Rapidweaver,
+  "raspberry pi imager": RaspberryPiImager,
   raycast: Raycast,
   readest: Readest,
   "realvnc connect viewer": VncViewer,
@@ -2234,11 +2248,13 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   upscayl: Upscayl,
   usage: UsageApp,
   utm: Utm,
+  vagrant: Vagrant,
   vanilla: Vanilla,
   vellum: Vellum,
   "vernier spectral analysis": VernierSpectralAnalysis,
   versions: Versions,
   via: Via,
+  vim: Vim,
   vimcal: Vimcal,
   virtualbox: VirtualBox,
   virtualbuddy: VirtualBuddy,

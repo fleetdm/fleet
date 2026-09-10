@@ -3613,7 +3613,7 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 		"android.json", []byte(`{"passwordPolicies": [{"passwordMinimumLength": true}]}`), s.token, nil)
 	res = s.DoRawWithHeaders("POST", "/api/latest/fleet/configuration_profiles", body.Bytes(), http.StatusBadRequest, headers)
 	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, `Couldn't add. Invalid JSON payload. "passwordPolicies.passwordMinimumLength" format is wrong.`)
+	require.Contains(t, errMsg, `Couldn't add. Invalid JSON payload. "passwordPolicies.0.passwordMinimumLength" format is wrong.`)
 
 	// disallow unknown keys
 	body, headers = generateNewProfileMultipartRequest(t,
@@ -4100,10 +4100,9 @@ func (s *integrationMDMTestSuite) TestUpdateConfigProfile() {
 	// Windows
 	//
 
-	// content-only edit; the uploaded filename is ignored, the profile keeps
-	// its name
+	// an edit keeping the same file name leaves the name alone
 	winContent2 := syncMLForTest("./TestUpdateProfileEdited")
-	res = patchProfile(winUUID, "some-other-filename.xml", winContent2, nil, http.StatusOK)
+	res = patchProfile(winUUID, "update-win-profile.xml", winContent2, nil, http.StatusOK)
 	patchResp = decodePatchResp(res)
 	require.Equal(t, winUUID, patchResp.ProfileUUID)
 	require.Equal(t, winContent2, downloadProfile(winUUID))
@@ -4111,7 +4110,27 @@ func (s *integrationMDMTestSuite) TestUpdateConfigProfile() {
 	require.Equal(t, "update-win-profile", prof.Name)
 	assertEditedActivity(fleet.ActivityTypeEditedWindowsProfile{}.ActivityName(), "update-win-profile", "")
 
-	// labels-only edit
+	// a differently named file renames the profile in place: same UUID, and the
+	// activity reports the new name
+	winContent3 := syncMLForTest("./TestUpdateProfileRenamed")
+	res = patchProfile(winUUID, "update-win-profile-renamed.xml", winContent3, nil, http.StatusOK)
+	patchResp = decodePatchResp(res)
+	require.Equal(t, winUUID, patchResp.ProfileUUID)
+	require.Equal(t, winContent3, downloadProfile(winUUID))
+	prof = getProfile(winUUID)
+	require.Equal(t, "update-win-profile-renamed", prof.Name)
+	assertEditedActivity(fleet.ActivityTypeEditedWindowsProfile{}.ActivityName(), "update-win-profile-renamed", "")
+
+	// renaming onto a name another profile in the fleet holds is rejected, and
+	// leaves the profile untouched
+	winOtherUUID := createProfile("update-win-other.xml", syncMLForTest("./TestUpdateOther"), fleet.MDMWindowsProfileUUIDPrefix)
+	require.NotEmpty(t, winOtherUUID)
+	res = patchProfile(winUUID, "update-win-other.xml", winContent3, nil, http.StatusConflict)
+	require.Contains(t, extractServerErrorText(res.Body), "already exists")
+	require.Equal(t, "update-win-profile-renamed", getProfile(winUUID).Name)
+	require.Equal(t, winContent3, downloadProfile(winUUID))
+
+	// labels-only edit; no file, so the name is left alone
 	res = patchProfile(winUUID, "", nil, map[string][]string{"labels_include_all": {lblA.Name, lblB.Name}}, http.StatusOK)
 	patchResp = decodePatchResp(res)
 	require.Equal(t, winUUID, patchResp.ProfileUUID)
@@ -4123,8 +4142,9 @@ func (s *integrationMDMTestSuite) TestUpdateConfigProfile() {
 		{LabelID: lblA.ID, LabelName: lblA.Name},
 		{LabelID: lblB.ID, LabelName: lblB.Name},
 	}, prof.LabelsIncludeAll)
-	require.Equal(t, winContent2, downloadProfile(winUUID))
-	assertEditedActivity(fleet.ActivityTypeEditedWindowsProfile{}.ActivityName(), "update-win-profile", "")
+	require.Equal(t, "update-win-profile-renamed", prof.Name)
+	require.Equal(t, winContent3, downloadProfile(winUUID))
+	assertEditedActivity(fleet.ActivityTypeEditedWindowsProfile{}.ActivityName(), "update-win-profile-renamed", "")
 
 	//
 	// Apple DDM declaration
@@ -6874,9 +6894,11 @@ func (s *integrationMDMTestSuite) TestOTAProfile() {
 		require.NoError(t, err)
 
 		idpUUID := uuid.New()
+		sessionID := s.mustBYODIdPSession(t, idpUUID.String())
 		resp := s.DoRawWithHeaders("GET", "/api/latest/fleet/enrollment_profiles/ota", j, http.StatusOK, map[string]string{
-			"Cookie": fmt.Sprintf("%s=%s", shared_mdm.BYODIdpCookieName, idpUUID.String()),
+			"Cookie": fmt.Sprintf("%s=%s", shared_mdm.BYODIdpCookieName, sessionID),
 		}, "enroll_secret", globalEnrollSec)
+
 		require.NotZero(t, resp.ContentLength)
 		require.Contains(t, resp.Header.Get("Content-Disposition"), `attachment;filename="fleet-mdm-enrollment-profile.mobileconfig"`)
 		require.Contains(t, resp.Header.Get("Content-Type"), "application/x-apple-aspen-config")
@@ -6886,7 +6908,17 @@ func (s *integrationMDMTestSuite) TestOTAProfile() {
 		require.NoError(t, err)
 		require.Equal(t, resp.ContentLength, int64(len(b)))
 		require.Contains(t, string(b), "com.fleetdm.fleet.mdm.apple.ota")
-		require.Contains(t, string(b), fmt.Sprintf("%s/api/v1/fleet/ota_enrollment?enroll_secret=%s&amp;idp_uuid=%s", cfg.ServerSettings.ServerURL, escSec, idpUUID.String()))
+		require.Contains(t, string(b), fmt.Sprintf("%s/api/v1/fleet/ota_enrollment?enroll_secret=%s&amp;idp_session=%s", cfg.ServerSettings.ServerURL, escSec, url.QueryEscape(sessionID)))
+		require.NotContains(t, string(b), idpUUID.String())
+
+		// the raw account reference is not a session, so the profile carries no account
+		resp = s.DoRawWithHeaders("GET", "/api/latest/fleet/enrollment_profiles/ota", j, http.StatusOK, map[string]string{
+			"Cookie": fmt.Sprintf("%s=%s", shared_mdm.BYODIdpCookieName, idpUUID.String()),
+		}, "enroll_secret", globalEnrollSec)
+		defer resp.Body.Close()
+		b, err = io.ReadAll(resp.Body)
+		require.NoError(t, err)
+		require.NotContains(t, string(b), idpUUID.String())
 		require.Contains(t, string(b), cfg.OrgInfo.OrgName)
 	})
 
@@ -6901,7 +6933,7 @@ func (s *integrationMDMTestSuite) TestOTAProfile() {
 		require.Equal(t, resp.ContentLength, int64(len(b)))
 		require.Contains(t, string(b), "com.fleetdm.fleet.mdm.apple.ota")
 		require.Contains(t, string(b), fmt.Sprintf("%s/api/v1/fleet/ota_enrollment?enroll_secret=%s", cfg.ServerSettings.ServerURL, escSec))
-		require.NotContains(t, string(b), "idp_uuid=")
+		require.NotContains(t, string(b), "idp_session=")
 		require.Contains(t, string(b), cfg.OrgInfo.OrgName)
 	})
 

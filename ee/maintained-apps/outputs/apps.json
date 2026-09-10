@@ -2690,6 +2690,20 @@
       "description": "Dot is a menu bar calendar with meeting reminders."
     },
     {
+      "name": "dotPeek",
+      "slug": "dotpeek/windows",
+      "platform": "windows",
+      "unique_identifier": "JetBrains dotPeek",
+      "description": "dotPeek is a free .NET decompiler and assembly browser by JetBrains."
+    },
+    {
+      "name": "dotTrace",
+      "slug": "dottrace/windows",
+      "platform": "windows",
+      "unique_identifier": "JetBrains dotTrace",
+      "description": "dotTrace is a performance profiler for .NET applications."
+    },
+    {
       "name": "Doughnut",
       "slug": "doughnut/darwin",
       "platform": "darwin",
@@ -2800,6 +2814,13 @@
       "platform": "windows",
       "unique_identifier": "Druva inSync",
       "description": "Druva inSync is a cloud-based product that protects endpoint data."
+    },
+    {
+      "name": "Druva inSync (GovCloud)",
+      "slug": "druva-insync@govcloud/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.druva.inSyncClient",
+      "description": "Druva inSync (GovCloud) is the Druva GovCloud release of the inSync endpoint data protection client."
     },
     {
       "name": "DuckDuckGo",
@@ -5427,6 +5448,13 @@
       "description": "Microsoft Azure Storage Explorer is an explorer for Azure Storage."
     },
     {
+      "name": "Microsoft Defender",
+      "slug": "microsoft-defender/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.microsoft.wdav",
+      "description": "Microsoft Defender is an enterprise endpoint protection and antivirus client."
+    },
+    {
       "name": "Microsoft .NET Desktop Runtime 10",
       "slug": "microsoft-dotnet-desktop-runtime-10/windows",
       "platform": "windows",
@@ -5488,6 +5516,13 @@
       "platform": "windows",
       "unique_identifier": "Microsoft 365 Apps",
       "description": "Microsoft Office is a suite of productivity applications including Word, Excel, PowerPoint, and Outlook."
+    },
+    {
+      "name": "Microsoft OLE DB Driver 19 for SQL Server",
+      "slug": "microsoft-ole-db-driver-19/windows",
+      "platform": "windows",
+      "unique_identifier": "Microsoft OLE DB Driver 19 for SQL Server",
+      "description": "Microsoft OLE DB Driver 19 for SQL Server lets applications connect to SQL Server and Azure SQL Database through the OLE DB interface."
     },
     {
       "name": "Microsoft OneNote",
@@ -5698,6 +5733,13 @@
       "platform": "darwin",
       "unique_identifier": "me.guillaumeb.MonitorControl",
       "description": "MonitorControl is a tool to control external monitor brightness & volume."
+    },
+    {
+      "name": "Monotype Fonts",
+      "slug": "monotype/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.monotype.monotype-fonts",
+      "description": "Monotype Fonts is a desktop app for finding, activating, and managing fonts from the Monotype Fonts library."
     },
     {
       "name": "Moom",
@@ -7191,6 +7233,20 @@
       "description": "RapidWeaver is a web design software."
     },
     {
+      "name": "Raspberry Pi Imager",
+      "slug": "raspberry-pi-imager/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.raspberrypi.rpi-imager",
+      "description": "Raspberry Pi Imager is an imaging utility to install operating systems to a microSD card."
+    },
+    {
+      "name": "Raspberry Pi Imager",
+      "slug": "raspberry-pi-imager/windows",
+      "platform": "windows",
+      "unique_identifier": "Raspberry Pi Imager",
+      "description": "Raspberry Pi Imager is an imaging utility to install operating systems to a microSD card."
+    },
+    {
       "name": "Raycast",
       "slug": "raycast/darwin",
       "platform": "darwin",
@@ -8427,7 +8483,14 @@
       "slug": "tableau-prep/darwin",
       "platform": "darwin",
       "unique_identifier": "com.tableau.Tableau-Prep-tableau-2026-1",
-      "description": "Tableau Prep is a combine, shape, and clean your data for analysis."
+      "description": "Tableau Prep is a data preparation tool for combining, shaping, and cleaning data for analysis in Tableau."
+    },
+    {
+      "name": "Tableau Prep",
+      "slug": "tableau-prep/windows",
+      "platform": "windows",
+      "unique_identifier": "Tableau Prep Builder",
+      "description": "Tableau Prep is a data preparation tool for combining, shaping, and cleaning data for analysis in Tableau."
     },
     {
       "name": "Tableau Desktop",
@@ -8983,6 +9046,13 @@
       "description": "UTM is a virtual machines UI using QEMU."
     },
     {
+      "name": "Vagrant",
+      "slug": "vagrant/windows",
+      "platform": "windows",
+      "unique_identifier": "Vagrant",
+      "description": "Vagrant is a tool for building and managing virtual machine environments."
+    },
+    {
       "name": "Vanilla",
       "slug": "vanilla/darwin",
       "platform": "darwin",
@@ -9037,6 +9107,13 @@
       "platform": "darwin",
       "unique_identifier": "org.via.configurator",
       "description": "VIA is a keyboard configurator."
+    },
+    {
+      "name": "Vim",
+      "slug": "vim/windows",
+      "platform": "windows",
+      "unique_identifier": "Vim",
+      "description": "Vim is a text editor."
     },
     {
       "name": "Vimcal",

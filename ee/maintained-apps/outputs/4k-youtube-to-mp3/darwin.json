@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "26.3.1",
+      "version": "26.3.2",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.openmedia.4kyoutubetomp3';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.openmedia.4kyoutubetomp3' AND version_compare(bundle_short_version, '26.3.1') < 0);",
-        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.openmedia.4kyoutubetomp3');"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.openmedia.4kyoutubetomp3' AND version_compare(bundle_short_version, '26.3.2') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.openmedia.4kyoutubetomp3' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://dl.4kdownload.com/app/4kyoutubetomp3_26.3.1_arm64.dmg",
+      "installer_url": "https://dl.4kdownload.com/app/4kyoutubetomp3_26.3.2_arm64.dmg",
       "install_script_ref": "86bee2e4",
       "uninstall_script_ref": "cf77ddf4",
-      "sha256": "0587e8536dd29b844b8fc64c3c01fc1574847d1292cd0be96477ba2215283103",
+      "sha256": "b5b789585c456f8668a4067b508cc703d918e1564eeac14c7f3960c03799eec5",
       "default_categories": [
         "Productivity"
       ]

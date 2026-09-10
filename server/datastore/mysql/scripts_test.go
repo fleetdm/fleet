@@ -786,7 +786,7 @@ func testGetHostScriptDetails(t *testing.T, ds *Datastore) {
 	t.Run("linux distributions are filtered to shell scripts", func(t *testing.T) {
 		// A platform Fleet does not recognize as Unix-like falls through to the
 		// unfiltered branch and leaks Windows scripts into the host's script list.
-		for _, platform := range []string{"ubuntu", "arch", "omarchy"} {
+		for _, platform := range []string{"ubuntu", "arch", "omarchy", "amd-ryzen-ai-developer-platform"} {
 			t.Run(platform, func(t *testing.T) {
 				res, _, err := ds.GetHostScriptDetails(ctx, 42, nil, fleet.ListOptions{}, platform)
 				require.NoError(t, err)

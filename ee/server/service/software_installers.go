@@ -886,6 +886,10 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 				payload.SelfService = &existingInstaller.SelfService
 			}
 
+			// Once a script is manually edited it can't be undone by the update endpoint.
+			payload.InstallScriptEdited = existingInstaller.InstallScriptEdited || dirty["InstallScript"]
+			payload.UninstallScriptEdited = existingInstaller.UninstallScriptEdited || dirty["UninstallScript"]
+
 			// Get the hosts that are NOT in label scope currently (before the update happens)
 			var hostsNotInScope map[uint]struct{}
 			if dirty["Labels"] {
@@ -2240,7 +2244,6 @@ func (svc *Service) UninstallSoftwareTitle(ctx context.Context, hostID uint, sof
 	host, err := svc.ds.Host(ctx, hostID)
 
 	fromMyDevicePage := svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceToken) ||
-		svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceCertificate) ||
 		svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceURL)
 
 	if err != nil {
@@ -2407,7 +2410,6 @@ func (svc *Service) insertSoftwareUninstallRequest(ctx context.Context, executio
 
 func (svc *Service) GetSoftwareInstallResults(ctx context.Context, resultUUID string) (*fleet.HostSoftwareInstallerResult, error) {
 	if svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceToken) ||
-		svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceCertificate) ||
 		svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceURL) {
 		return svc.getDeviceSoftwareInstallResults(ctx, resultUUID)
 	}
@@ -3140,6 +3142,10 @@ func (svc *Service) softwareInstallerPayloadFromSlug(ctx context.Context, payloa
 	if app.SHA256 != noCheckHash {
 		payload.SHA256 = app.SHA256
 	}
+	// A script spelled out in the request is an admin customization; falling back to
+	// the manifest is not.
+	payload.InstallScriptEdited = payload.InstallScript != ""
+	payload.UninstallScriptEdited = payload.UninstallScript != ""
 	if payload.InstallScript == "" {
 		payload.InstallScript = app.InstallScript
 	}
@@ -3169,7 +3175,7 @@ const (
 // On 304 Not Modified, returns (resp, nil, nil): resp has StatusCode 304 and a
 // closed body, tfr is nil. Callers MUST check resp.StatusCode before using tfr.
 func downloadInstallerURL(ctx context.Context, downloadURL string, ifNoneMatch string, maxInstallerSize int64) (*http.Response, *fleet.TempFileReader, error) {
-	client := fleethttp.NewClient()
+	client := fleethttp.NewClient(fleethttp.WithNoTimeout())
 	client.Transport = fleethttp.NewSizeLimitTransport(maxInstallerSize)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, downloadURL, nil)
@@ -3443,6 +3449,8 @@ func (svc *Service) softwareBatchUpload(
 				PreInstallQuery:          p.PreInstallQuery,
 				PostInstallScript:        p.PostInstallScript,
 				UninstallScript:          p.UninstallScript,
+				InstallScriptEdited:      p.InstallScriptEdited,
+				UninstallScriptEdited:    p.UninstallScriptEdited,
 				SelfService:              p.SelfService,
 				UserID:                   userID,
 				URL:                      p.URL,

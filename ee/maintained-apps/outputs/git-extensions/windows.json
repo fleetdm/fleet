@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "7.2.0.92",
+      "version": "7.2.1.7",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'Git Extensions %' AND publisher = 'Git Extensions Team';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Git Extensions %' AND publisher = 'Git Extensions Team' AND version_compare(version, '7.2.0.92') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Git Extensions %' AND publisher = 'Git Extensions Team' AND version_compare(version, '7.2.1.7') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'git extensions.exe');"
       },
-      "installer_url": "https://github.com/gitextensions/gitextensions/releases/download/v7.2.0/GitExtensions-x64-7.2.0.92-501f831.msi",
+      "installer_url": "https://github.com/gitextensions/gitextensions/releases/download/v7.2.1/GitExtensions-x64-7.2.1.7-0aea2d6df.msi",
       "install_script_ref": "22e48c46",
       "uninstall_script_ref": "f2c9527a",
-      "sha256": "32b9a9997bb36b36d14c9fe06c9a7a521b8234280dc21e19c22db29fcaf0cbbe",
+      "sha256": "3d8043608fcb211b1ee26250dd1d5f0c596c82891230e8ea22549e3012c32475",
       "default_categories": [
         "Developer tools"
       ],
