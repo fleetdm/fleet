@@ -162,8 +162,6 @@ func TestWritePathInvalidation(t *testing.T) {
 				invoked: func(ds *mock.Store) bool { return ds.SetOrUpdateHostDisksEncryptionFuncInvoked },
 			},
 			{
-				// Carries bitlocker_boot_protector_set. A stale snapshot here withholds the repair for a volume that
-				// would otherwise boot to the recovery prompt.
 				name: "SetOrUpdateHostDiskBootProtector",
 				id:   10,
 				setupMock: func(ds *mock.Store) {
