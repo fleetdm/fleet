@@ -2059,6 +2059,18 @@ const TAGGED_TEMPLATES = {
     );
   },
   resetPolicy: (activity: IActivity) => {
+    // A host-scoped reset is described by the host; the policy's fleet scope
+    // ("globally", "on the X fleet") would read as if all hosts were reset.
+    if (activity.details?.host_display_name) {
+      return (
+        <>
+          {" "}
+          reset the policy <b>{activity.details.policy_name}</b> for host{" "}
+          <b>{activity.details.host_display_name}</b>.
+        </>
+      );
+    }
+
     let teamText;
     if (activity.details?.team_id === -1) {
       teamText = " globally";
@@ -2080,20 +2092,10 @@ const TAGGED_TEMPLATES = {
       teamText = "";
     }
 
-    const hostText = activity.details?.host_display_name ? (
-      <>
-        {" "}
-        for host <b>{activity.details.host_display_name}</b>
-      </>
-    ) : (
-      ""
-    );
-
     return (
       <>
         {" "}
         reset the policy <b>{activity.details?.policy_name}</b>
-        {hostText}
         {teamText}.
       </>
     );

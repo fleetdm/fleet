@@ -44,7 +44,7 @@ describe("Activity Feed", () => {
     expect(screen.queryByText(/for host/i)).not.toBeInTheDocument();
   });
 
-  it("renders a host-scoped reset_policy activity with the host name", () => {
+  it("renders a host-scoped reset_policy activity with the host name and no fleet scope", () => {
     const activity = createMockActivity({
       type: ActivityType.ResetPolicy,
       details: {
@@ -59,7 +59,8 @@ describe("Activity Feed", () => {
 
     expect(screen.getByText(/for host/i, { exact: false })).toBeInTheDocument();
     expect(screen.getByText("Anna's MacBook")).toBeInTheDocument();
-    expect(screen.getByText("Workstations")).toBeInTheDocument();
+    expect(screen.queryByText("Workstations")).not.toBeInTheDocument();
+    expect(screen.queryByText(/globally/i)).not.toBeInTheDocument();
   });
 
   it("renders a default activity for activities without a specific message", () => {
