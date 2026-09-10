@@ -358,15 +358,9 @@ Many companies encourage salespeople to ["spray and pray"](https://www.linkedin.
 
 ## Why short emails?
 
-Fleet has extremely high conviction about the importance of short emails that never bundle multiple links or questions into one message.
+Short emails that avoid bundling multiple links or questions get read. Ask for more than one thing at a time, and the email gets procrastinated on, marked as unread, and turns into homework instead of a quick reply.
 
-People are inundated with noise.  When an email asks for more than one thing, whether that's two questions, or a question plus a link to review, the reader has to make a decision about which to tackle first, or how to respond to all of it at once.  That's often enough friction to make them put it off.  They mark it as unread, meaning to come back to it later, and the email quietly turns from a quick reply into homework.
-
-You can see the same pattern when assigning tasks internally.  Even a simple, five-minute task gets deprioritized if it's bundled together with other asks, because now it isn't one small thing anymore, it's a list.
-
-That's why a good email (internal or external) makes exactly one ask, links to at most one thing, and gets straight to the point.  If there's a second topic, it deserves its own email, sent separately.
-
-> _**Source:** [Why short emails?](https://docs.google.com/document/d/1MPj4WPFPr5uSbrGoymAjjijdBSAyEB2Tq6qFxs9UKV0/edit?tab=t.0)_
+Learn more in this whiteboard: docs.google.com/document/d/1MPj4WPFPr5u…/edit?tab=t.0
 
 
 ## Why work with customer X?
