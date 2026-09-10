@@ -656,6 +656,9 @@ type UploadSoftwareInstallerPayload struct {
 	UserID               uint
 	URL                  string
 	FleetMaintainedAppID *uint
+	// FMAName is the FMA's catalog name, for user-facing errors. Title is the
+	// software title name, which on Windows is often the registry DisplayName instead.
+	FMAName string
 	// RollbackVersion is the version to pin as "active" for a fleet-maintained app.
 	// If empty, the latest version is used.
 	RollbackVersion string
@@ -699,6 +702,14 @@ type UploadSoftwareInstallerPayload struct {
 	AppOpenQuery          string
 	InstallScriptEdited   bool
 	UninstallScriptEdited bool
+}
+
+// FMADisplayName returns the name to show users for a Fleet-maintained app payload.
+func (p *UploadSoftwareInstallerPayload) FMADisplayName() string {
+	if p.FMAName != "" {
+		return p.FMAName
+	}
+	return p.Title
 }
 
 // SoftwareInstallerLookupRow projects the columns needed to resolve an
@@ -1375,7 +1386,7 @@ func ValidateTitlePackages(payloads []*UploadSoftwareInstallerPayload, teamName 
 		if p.FleetMaintainedAppID != nil {
 			if _, seen := seenFMA[*p.FleetMaintainedAppID]; !seen {
 				seenFMA[*p.FleetMaintainedAppID] = struct{}{}
-				fmaNames = append(fmaNames, p.Title)
+				fmaNames = append(fmaNames, p.FMADisplayName())
 			}
 			continue
 		}
@@ -1385,8 +1396,8 @@ func ValidateTitlePackages(payloads []*UploadSoftwareInstallerPayload, teamName 
 		}
 		seenHash[p.StorageID] = struct{}{}
 	}
-	// Two FMAs on one title share a bundle identifier (e.g. Firefox and Firefox ESR): same
-	// inventory app, so only one can be added.
+	// Two FMAs on one title share a bundle identifier (Firefox and Firefox ESR) or a Windows
+	// DisplayName (x64 and ARM64 Firefox Nightly): same inventory app, so only one can be added.
 	if len(fmaNames) > 1 {
 		return ConflictError{Message: fmt.Sprintf(CantAddConflictingFMAMessage, fmaNames[0], fmaNames[1])}
 	}

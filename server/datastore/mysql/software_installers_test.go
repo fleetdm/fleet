@@ -5192,7 +5192,7 @@ func testMatchOrCreateSoftwareInstallerConflictingFMA(t *testing.T, ds *Datastor
 }
 
 func testMatchOrCreateSoftwareInstallerConflictingFMAWindows(t *testing.T, ds *Datastore) {
-	ctx := context.Background()
+	ctx := t.Context()
 	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
 	team, err := ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
 	require.NoError(t, err)
@@ -5215,8 +5215,21 @@ func testMatchOrCreateSoftwareInstallerConflictingFMAWindows(t *testing.T, ds *D
 		UniqueIdentifier: "Firefox Developer Edition (AArch64 en-US)",
 	})
 	require.NoError(t, err)
+	// MSI-based FMAs resolve their title by upgrade code; the installer title is the FMA name.
+	jdk17, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name: "Amazon Corretto 17", Slug: "corretto@17/windows", Platform: "windows", UniqueIdentifier: "Amazon Corretto JDK",
+	})
+	require.NoError(t, err)
+	jdk21, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name: "Amazon Corretto 21", Slug: "corretto@21/windows", Platform: "windows", UniqueIdentifier: "Amazon Corretto JDK",
+	})
+	require.NoError(t, err)
+	jdk17Alt, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name: "Amazon Corretto 17 (alt)", Slug: "corretto@17-alt/windows", Platform: "windows", UniqueIdentifier: "Amazon Corretto JDK",
+	})
+	require.NoError(t, err)
 
-	mkFMA := func(teamID uint, appID uint, title, storage, version string) *fleet.UploadSoftwareInstallerPayload {
+	mkFMA := func(teamID uint, app *fleet.MaintainedApp, title, upgradeCode, storage, version string) *fleet.UploadSoftwareInstallerPayload {
 		tfr, err := fleet.NewTempFileReader(strings.NewReader(storage), t.TempDir)
 		require.NoError(t, err)
 		return &fleet.UploadSoftwareInstallerPayload{
@@ -5225,10 +5238,12 @@ func testMatchOrCreateSoftwareInstallerConflictingFMAWindows(t *testing.T, ds *D
 			StorageID:            storage,
 			Filename:             storage + ".msix",
 			Title:                title,
+			UpgradeCode:          upgradeCode,
 			Version:              version,
 			Source:               "programs",
 			Platform:             "windows",
-			FleetMaintainedAppID: new(appID),
+			FleetMaintainedAppID: new(app.ID),
+			FMAName:              app.Name,
 			UserID:               user.ID,
 			ValidatedLabels:      &fleet.LabelIdentsWithScope{},
 			TeamID:               &teamID,
@@ -5236,28 +5251,39 @@ func testMatchOrCreateSoftwareInstallerConflictingFMAWindows(t *testing.T, ds *D
 	}
 
 	// Add x64 Nightly → success.
-	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, mkFMA(team.ID, nightly.ID, "Firefox Nightly", "nightly-x64", "157.2609.908.0"))
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, mkFMA(team.ID, nightly, "Firefox Nightly", "", "nightly-x64", "157.2609.908.0"))
 	require.NoError(t, err)
 
 	// ARM64 Nightly is a different FMA on the same title → rejected with the specific
 	// message, both at the same version (which would otherwise hit the dedup unique key)
-	// and at a different one (which would otherwise insert a second active row).
-	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, mkFMA(team.ID, nightlyARM.ID, "Firefox Nightly", "nightly-arm64", "157.2609.908.0"))
-	require.ErrorContains(t, err, "Only one of Mozilla Firefox Nightly or Firefox Nightly can be added to the same fleet")
-	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, mkFMA(team.ID, nightlyARM.ID, "Firefox Nightly", "nightly-arm64-next", "157.2609.1001.0"))
-	require.ErrorContains(t, err, "Only one of Mozilla Firefox Nightly or Firefox Nightly can be added to the same fleet")
+	// and at a different one (which would otherwise insert a second active row). The
+	// message names both FMAs, not the shared installer title.
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, mkFMA(team.ID, nightlyARM, "Firefox Nightly", "", "nightly-arm64", "157.2609.908.0"))
+	require.ErrorContains(t, err, "Only one of Mozilla Firefox Nightly or Mozilla Firefox Nightly (ARM64) can be added to the same fleet")
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, mkFMA(team.ID, nightlyARM, "Firefox Nightly", "", "nightly-arm64-next", "157.2609.1001.0"))
+	require.ErrorContains(t, err, "Only one of Mozilla Firefox Nightly or Mozilla Firefox Nightly (ARM64) can be added to the same fleet")
 
 	// A new version of the SAME FMA must still be allowed.
-	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, mkFMA(team.ID, nightly.ID, "Firefox Nightly", "nightly-x64-next", "157.2609.1001.0"))
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, mkFMA(team.ID, nightly, "Firefox Nightly", "", "nightly-x64-next", "157.2609.1001.0"))
 	require.NoError(t, err)
 
 	// A different title on the same team is unaffected.
-	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, mkFMA(team.ID, devEdARM.ID, "Firefox Developer Edition (AArch64 en-US)", "deved-arm64", "156.0"))
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, mkFMA(team.ID, devEdARM, "Firefox Developer Edition (AArch64 en-US)", "", "deved-arm64", "156.0"))
 	require.NoError(t, err)
 
 	// The conflict is per team: ARM64 Nightly can be added to a team that has no Nightly.
-	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, mkFMA(otherTeam.ID, nightlyARM.ID, "Firefox Nightly", "nightly-arm64", "157.2609.908.0"))
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, mkFMA(otherTeam.ID, nightlyARM, "Firefox Nightly", "", "nightly-arm64", "157.2609.908.0"))
 	require.NoError(t, err)
+
+	// Upgrade-code titles: a different FMA with a different upgrade code is a different title
+	// even when the names would otherwise collide, so it is allowed...
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, mkFMA(team.ID, jdk17, "Amazon Corretto 17", "{JDK-17}", "corretto-17", "17.0.12"))
+	require.NoError(t, err)
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, mkFMA(team.ID, jdk21, "Amazon Corretto 17", "{JDK-21}", "corretto-21", "21.0.4"))
+	require.NoError(t, err)
+	// ...while a different FMA sharing the upgrade code resolves to the same title and is rejected.
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, mkFMA(team.ID, jdk17Alt, "Amazon Corretto 17 (alt)", "{JDK-17}", "corretto-17-alt", "17.0.12"))
+	require.ErrorContains(t, err, "Only one of Amazon Corretto 17 or Amazon Corretto 17 (alt) can be added to the same fleet")
 }
 
 func testAddSoftwareTitleToMatchingSoftware(t *testing.T, ds *Datastore) {
