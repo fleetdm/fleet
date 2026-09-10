@@ -132,17 +132,22 @@ interface IInstallIconWithTooltipProps {
 // A row can be "automatic" via a policy-triggered install or a VPP scheduled
 // auto-update. Either signal promotes the icon to the automatic family so the
 // visual language stays consistent with the details page chip. Auto-updates
-// only counts when the window is fully populated — otherwise the tooltip
-// would render with no window text and the icon would look unexplained.
+// only counts when the window is fully populated AND the row is iOS/iPadOS —
+// the auto-update cron in apple_mdm.go only acts on ios_apps / ipados_apps
+// sources, so promoting the icon for a macOS VPP row would misrepresent it.
 const getInstallIconType = (
   isSelfService: boolean,
   automaticInstallPoliciesCount = 0,
   autoUpdateEnabled = false,
   autoUpdateWindowStart?: string,
-  autoUpdateWindowEnd?: string
+  autoUpdateWindowEnd?: string,
+  isIosOrIpadosApp = false
 ): InstallType => {
   const hasValidAutoUpdate =
-    autoUpdateEnabled && !!autoUpdateWindowStart && !!autoUpdateWindowEnd;
+    autoUpdateEnabled &&
+    !!autoUpdateWindowStart &&
+    !!autoUpdateWindowEnd &&
+    isIosOrIpadosApp;
   const isAutomatic = automaticInstallPoliciesCount > 0 || hasValidAutoUpdate;
   if (isAutomatic) {
     return isSelfService ? "automaticSelfService" : "automatic";
@@ -165,7 +170,8 @@ export const InstallIconWithTooltip = ({
     automaticInstallPoliciesCount,
     autoUpdateEnabled,
     autoUpdateWindowStart,
-    autoUpdateWindowEnd
+    autoUpdateWindowEnd,
+    isIosOrIpadosApp
   );
 
   // Don't show installer icon on host software library page
@@ -193,7 +199,6 @@ export const InstallIconWithTooltip = ({
         position="top"
         tipOffset={12}
         fixedPositionStrategy
-        textBalanced={false}
       >
         <Icon
           name={iconName}

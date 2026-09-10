@@ -241,6 +241,7 @@ describe("SoftwareNameCell icon rendering", () => {
       <SoftwareNameCell
         {...defaultProps}
         hasInstaller
+        isIosOrIpadosApp
         autoUpdateEnabled
         autoUpdateWindowStart="02:00"
         autoUpdateWindowEnd="04:00"
@@ -269,6 +270,7 @@ describe("SoftwareNameCell icon rendering", () => {
         {...defaultProps}
         hasInstaller
         isSelfService
+        isIosOrIpadosApp
         autoUpdateEnabled
         autoUpdateWindowStart="02:00"
         autoUpdateWindowEnd="04:00"
@@ -300,6 +302,7 @@ describe("SoftwareNameCell icon rendering", () => {
         {...defaultProps}
         hasInstaller
         isSelfService
+        isIosOrIpadosApp
         automaticInstallPoliciesCount={2}
         autoUpdateEnabled
         autoUpdateWindowStart="02:00"

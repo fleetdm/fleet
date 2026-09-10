@@ -38,7 +38,9 @@ const BalancedTipContent = ({ children }: { children: React.ReactNode }) => {
       // tooltip's max-width. Force a reflow via offsetWidth so the browser
       // recomputes the balanced layout before we sample rects.
       el.style.width = "";
-      void el.offsetWidth;
+      // Reading a layout property forces the browser to apply the cleared
+      // width + text-wrap: balance before we sample rects.
+      el.getBoundingClientRect();
       const range = document.createRange();
       range.selectNodeContents(el);
       // jsdom (Jest) doesn't implement Range.getClientRects, so measurement
@@ -78,7 +80,7 @@ const BalancedTipContent = ({ children }: { children: React.ReactNode }) => {
         left: number;
         right: number;
       }> = [];
-      for (const item of centersSorted) {
+      centersSorted.forEach((item) => {
         const last = lines[lines.length - 1];
         if (last && Math.abs(item.center - last.center) < fuzz) {
           if (item.left < last.left) last.left = item.left;
@@ -86,12 +88,12 @@ const BalancedTipContent = ({ children }: { children: React.ReactNode }) => {
         } else {
           lines.push({ ...item });
         }
-      }
+      });
       let widest = 0;
-      for (const line of lines) {
+      lines.forEach((line) => {
         const lineWidth = line.right - line.left;
         if (lineWidth > widest) widest = lineWidth;
-      }
+      });
       if (widest <= 0) return;
       const next = Math.ceil(widest);
       // Stop when we've stopped shrinking. Balance can produce slightly
@@ -137,10 +139,7 @@ const BalancedTipContent = ({ children }: { children: React.ReactNode }) => {
   // inline-block so the wrapper has its own measurable box and the tooltip's
   // `width: max-content` shrinks to the wrapper's explicit width once set.
   return (
-    <div
-      ref={ref}
-      style={{ display: "inline-block", textWrap: "balance" }}
-    >
+    <div ref={ref} style={{ display: "inline-block", textWrap: "balance" }}>
       {children}
     </div>
   );

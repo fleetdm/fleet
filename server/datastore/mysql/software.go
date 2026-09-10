@@ -7314,12 +7314,9 @@ func (ds *Datastore) hydrateHostSoftwareAutoUpdateFields(
 	}
 	for _, s := range software {
 		if r, ok := byTitle[s.ID]; ok {
-			enabled := r.Enabled
-			start := r.StartTime
-			end := r.EndTime
-			s.AutoUpdateEnabled = &enabled
-			s.AutoUpdateStartTime = &start
-			s.AutoUpdateEndTime = &end
+			s.AutoUpdateEnabled = new(r.Enabled)
+			s.AutoUpdateStartTime = new(r.StartTime)
+			s.AutoUpdateEndTime = new(r.EndTime)
 		}
 	}
 	return nil

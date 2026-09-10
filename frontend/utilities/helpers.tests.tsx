@@ -142,11 +142,11 @@ describe("helpers utilities", () => {
 
     it("renders 24-hour source times in 12-hour form for US locale", () => {
       setLanguage("en-US");
-      // Non-breaking space ( ) appears between the number and AM/PM in
-      // some ICU versions; matching just the substring keeps the assertion
-      // portable across Node/ICU versions.
-      expect(internationalTimeOnlyFormat("02:00")).toMatch(/2:00[\s  ]?AM/i);
-      expect(internationalTimeOnlyFormat("14:30")).toMatch(/2:30[\s  ]?PM/i);
+      // A narrow no-break space (U+202F) or NBSP (U+00A0) may appear
+      // between the number and AM/PM in some ICU versions; match any
+      // whitespace via \\s? to stay portable across Node/ICU versions.
+      expect(internationalTimeOnlyFormat("02:00")).toMatch(/2:00\s?AM/i);
+      expect(internationalTimeOnlyFormat("14:30")).toMatch(/2:30\s?PM/i);
     });
 
     it("keeps 24-hour form for a 24-hour locale (de-DE)", () => {
@@ -174,8 +174,8 @@ describe("helpers utilities", () => {
 
     it("handles edge times 00:00 and 23:59", () => {
       setLanguage("en-US");
-      expect(internationalTimeOnlyFormat("00:00")).toMatch(/12:00[\s  ]?AM/i);
-      expect(internationalTimeOnlyFormat("23:59")).toMatch(/11:59[\s  ]?PM/i);
+      expect(internationalTimeOnlyFormat("00:00")).toMatch(/12:00\s?AM/i);
+      expect(internationalTimeOnlyFormat("23:59")).toMatch(/11:59\s?PM/i);
     });
   });
 });
