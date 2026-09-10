@@ -29,6 +29,7 @@ func TestEndUserNotifications(t *testing.T) {
 		{"Delay", testDelayEndUserNotification},
 		{"ActOn", testActOnEndUserNotification},
 		{"SetStatus", testSetEndUserNotificationStatus},
+		{"FailForHost", testFailEndUserNotificationsForHost},
 		{"Outcome", testSetEndUserNotificationOutcome},
 		{"HostDeleteCascade", testEndUserNotificationHostDeleteCascade},
 	}
@@ -575,6 +576,78 @@ func testSetEndUserNotificationStatus(t *testing.T, env *testEnv) {
 		require.NoError(t, err)
 		assert.Equal(t, api.EndUserNotificationExpired, got.Status)
 		assert.Nil(t, got.LastReason)
+	})
+}
+
+func testFailEndUserNotificationsForHost(t *testing.T, env *testEnv) {
+	ctx := t.Context()
+
+	t.Run("a wiped host gives up on the notifications it had not delivered", func(t *testing.T) {
+		hostID := newDarwinHost(t, env, "wipe", true)
+		pendingUUID := newHostNotification(t, env, hostID, "test_kind",
+			api.EndUserNotificationPending, 0, false)
+		dispatchedUUID := newHostNotification(t, env, hostID, "test_kind",
+			api.EndUserNotificationDispatched, 1, false)
+
+		require.NoError(t, env.ds.FailEndUserNotificationsForHost(ctx, hostID, api.EndUserNotificationReasonHostWiped))
+
+		gotPending, err := env.ds.GetEndUserNotificationByUUID(ctx, pendingUUID)
+		require.NoError(t, err)
+		assert.Equal(t, api.EndUserNotificationFailed, gotPending.Status)
+		require.NotNil(t, gotPending.LastReason)
+		assert.Equal(t, api.EndUserNotificationReasonHostWiped, *gotPending.LastReason)
+
+		gotDispatched, err := env.ds.GetEndUserNotificationByUUID(ctx, dispatchedUUID)
+		require.NoError(t, err)
+		assert.Equal(t, api.EndUserNotificationFailed, gotDispatched.Status)
+		require.NotNil(t, gotDispatched.LastReason)
+		assert.Equal(t, api.EndUserNotificationReasonHostWiped, *gotDispatched.LastReason)
+
+		// neither failed notification is still in dispatched, so the host is not blocked
+		nextUUID := newHostNotification(t, env, hostID, "test_kind",
+			api.EndUserNotificationPending, 0, false)
+		due, err := env.ds.ListEndUserNotificationsToDispatch(ctx, 500)
+		require.NoError(t, err)
+		var dueForHost []string
+		for _, notification := range due {
+			if notification.HostID == hostID {
+				dueForHost = append(dueForHost, notification.UUID)
+			}
+		}
+		assert.Equal(t, []string{nextUUID}, dueForHost)
+	})
+
+	t.Run("a notification that already reached the end user is left alone", func(t *testing.T) {
+		hostID := newDarwinHost(t, env, "wipe-acted", true)
+		actedUUID := newHostNotification(t, env, hostID, "test_kind",
+			api.EndUserNotificationActed, 1, true)
+
+		require.NoError(t, env.ds.FailEndUserNotificationsForHost(ctx, hostID, api.EndUserNotificationReasonHostWiped))
+
+		got, err := env.ds.GetEndUserNotificationByUUID(ctx, actedUUID)
+		require.NoError(t, err)
+		assert.Equal(t, api.EndUserNotificationActed, got.Status, "it describes something that really happened")
+		assert.Nil(t, got.LastReason)
+	})
+
+	t.Run("another host's notifications are not touched", func(t *testing.T) {
+		wipedHostID := newDarwinHost(t, env, "wipe-scoped", true)
+		otherHostID := newDarwinHost(t, env, "wipe-scoped-other", true)
+		wipedUUID := newHostNotification(t, env, wipedHostID, "test_kind",
+			api.EndUserNotificationDispatched, 1, false)
+		otherUUID := newHostNotification(t, env, otherHostID, "test_kind",
+			api.EndUserNotificationDispatched, 1, false)
+
+		require.NoError(t, env.ds.FailEndUserNotificationsForHost(ctx, wipedHostID, api.EndUserNotificationReasonHostWiped))
+
+		gotWiped, err := env.ds.GetEndUserNotificationByUUID(ctx, wipedUUID)
+		require.NoError(t, err)
+		assert.Equal(t, api.EndUserNotificationFailed, gotWiped.Status)
+
+		gotOther, err := env.ds.GetEndUserNotificationByUUID(ctx, otherUUID)
+		require.NoError(t, err)
+		assert.Equal(t, api.EndUserNotificationDispatched, gotOther.Status)
+		assert.Nil(t, gotOther.LastReason)
 	})
 }
 

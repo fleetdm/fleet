@@ -29,6 +29,8 @@ const (
 	EndUserNotificationReasonDelayed       = "delayed"
 	EndUserNotificationReasonDeferred      = "deferred"
 	EndUserNotificationReasonNothingToShow = "nothing_to_show"
+	EndUserNotificationReasonCanceled      = "canceled"
+	EndUserNotificationReasonHostWiped     = "host_wiped"
 
 	EndUserNotificationReasonBadInvocation     = "bad_invocation"
 	EndUserNotificationReasonBadConfiguration  = "bad_configuration"

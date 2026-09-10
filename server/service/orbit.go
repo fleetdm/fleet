@@ -25,6 +25,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
+	notifications_api "github.com/fleetdm/fleet/v4/server/notifications/api"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/osquery_utils"
 	"github.com/fleetdm/fleet/v4/server/worker"
@@ -1348,6 +1349,12 @@ func (svc *Service) SaveHostScriptResult(ctx context.Context, result *fleet.Host
 			if hsr.ExitCode != nil && *hsr.ExitCode == 0 {
 				if _, err := svc.ds.BatchCancelAllHostUpcomingActivities(ctx, host.ID); err != nil {
 					return ctxerr.Wrap(ctx, err, "cancel upcoming activities after wipe")
+				}
+				// the host has been erased, so nothing it was queued to notify about is still worth
+				// showing, and one left in dispatched would block the host once it comes back
+				err = svc.notificationsSvc.FailNotificationsForHost(ctx, host.ID, notifications_api.EndUserNotificationReasonHostWiped)
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "fail end user notifications after wipe")
 				}
 			}
 			fallthrough

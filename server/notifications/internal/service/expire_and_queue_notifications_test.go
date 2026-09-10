@@ -65,6 +65,10 @@ func (m *mockDatastore) SetEndUserNotificationStatus(context.Context, string, st
 	return nil
 }
 
+func (m *mockDatastore) FailEndUserNotificationsForHost(context.Context, uint, string) error {
+	return nil
+}
+
 func (m *mockDatastore) SetEndUserNotificationOutcome(context.Context, string, api.NotificationOutcome, *time.Time) error {
 	return nil
 }

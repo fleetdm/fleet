@@ -32,6 +32,7 @@ import (
 	mdmlifecycle "github.com/fleetdm/fleet/v4/server/mdm/lifecycle"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
+	notifications_api "github.com/fleetdm/fleet/v4/server/notifications/api"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/osquery_utils"
 	"github.com/fleetdm/fleet/v4/server/variables"
@@ -1776,6 +1777,10 @@ func (svc *Service) processIncomingMDMCmds(ctx context.Context, enrolledDevice *
 				}
 				if _, err := svc.ds.BatchCancelAllHostUpcomingActivities(ctx, host.ID); err != nil {
 					return ctxerr.Wrap(ctx, err, "cancel upcoming activities after wipe")
+				}
+				err = svc.notificationsSvc.FailNotificationsForHost(ctx, host.ID, notifications_api.EndUserNotificationReasonHostWiped)
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "fail end user notifications after wipe")
 				}
 			}
 		}

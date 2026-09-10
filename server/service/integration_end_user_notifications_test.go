@@ -452,6 +452,61 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 		require.NotNil(t, second.ExecutionID, "the second notification should dispatch once the first is no longer in flight")
 	})
 
+	// Canceling the notify script leaves nothing to report an outcome, so the notification has to be
+	// moved out of dispatched: while it sits there it blocks every notification for the host and
+	// makes the next skip for the same software title find a notification that never arrives.
+	t.Run("canceling the notify script frees both the host and the software title for a new notification", func(t *testing.T) {
+		host := newNotifiableHost(t, "notif-cancel")
+		notificationUUID := newTestNotification(t, s.ds, host.ID, fleet.PatchNotificationKind, `{"reminder": false}`)
+		require.NoError(t, s.ds.NewPatchNotification(ctx, notificationUUID))
+
+		var titleID uint
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			if _, err := q.ExecContext(ctx,
+				`INSERT INTO software_titles (name, source) VALUES ('Cancel App', 'apps')`); err != nil {
+				return err
+			}
+			return sqlx.GetContext(ctx, q, &titleID,
+				`SELECT id FROM software_titles WHERE name = 'Cancel App' AND source = 'apps'`)
+		})
+		require.NoError(t, s.ds.AddPatchNotificationApp(ctx, notificationUUID,
+			fleet.PatchNotificationApp{SoftwareTitleID: titleID}))
+
+		dispatch(t)
+		dispatched := getTestNotification(t, s.ds, notificationUUID)
+		require.NotNil(t, dispatched.ExecutionID)
+
+		// an admin cancels the notify script from the host's upcoming queue
+		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming/%s", host.ID, *dispatched.ExecutionID),
+			nil, http.StatusNoContent)
+
+		canceled := getTestNotification(t, s.ds, notificationUUID)
+		require.Equal(t, notifications_api.EndUserNotificationFailed, canceled.Status)
+		require.NotNil(t, canceled.LastReason)
+		require.Equal(t, notifications_api.EndUserNotificationReasonCanceled, *canceled.LastReason)
+
+		// the next app open skip for the same software title is not dropped as already covered
+		exists, err := s.ds.PatchNotificationExistsForApp(ctx, host.ID, titleID)
+		require.NoError(t, err)
+		require.False(t, exists)
+
+		// and the host is no longer held behind a dispatch that never arrives
+		nextUUID := newTestNotification(t, s.ds, host.ID, fleet.PatchNotificationKind, `{"reminder": false}`)
+		dispatch(t)
+		next := getTestNotification(t, s.ds, nextUUID)
+		require.NotNil(t, next.ExecutionID, "a canceled notification should not hold up the host's queue")
+
+		// the canceled notify script stays out of the activity feed, the same as a reported one.
+		// The host has no other script in its queue, so any canceled_run_script here is this one.
+		var past listActivitiesResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities", host.ID), nil, http.StatusOK, &past)
+		canceledScriptActivity := (fleet.ActivityTypeCanceledRunScript{}).ActivityName()
+		for _, act := range past.Activities {
+			require.NotEqual(t, canceledScriptActivity, act.Type,
+				"canceling a notification's script is not a canceled script run")
+		}
+	})
+
 	t.Run("the queued script is in the host's upcoming queue but never its past activities", func(t *testing.T) {
 		host := newNotifiableHost(t, "notif-activities")
 		notificationUUID := newTestNotification(t, s.ds, host.ID, "patch", `{"title": "hello"}`)

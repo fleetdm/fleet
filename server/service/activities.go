@@ -10,6 +10,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/vpp"
+	notifications_api "github.com/fleetdm/fleet/v4/server/notifications/api"
 )
 
 func (svc *Service) GetActivitiesWebhookSettings(ctx context.Context) (fleet.ActivitiesWebhookSettings, error) {
@@ -186,6 +187,30 @@ func (svc *Service) CancelHostUpcomingActivity(ctx context.Context, hostID uint,
 	pastAct, err := svc.ds.CancelHostUpcomingActivity(ctx, hostID, executionID)
 	if err != nil {
 		return err
+	}
+
+	// The notify script is the only thing that reports an end user notification's outcome, so
+	// canceling it leaves the notification in dispatched until the 24h stuck sweep. While it sits
+	// there the host receives no notifications at all and the next skip for the same software title
+	// is dropped as already covered, so failing the notification here lifts both. Best-effort like
+	// the VPP seat release below: a failure is logged rather than blocking the cancel response. A
+	// script that doesn't belong to a notification comes back not found.
+	notificationUUID, notificationErr := svc.notificationsSvc.NotificationUUIDForExecution(ctx, executionID)
+	if notificationErr != nil && !fleet.IsNotFound(notificationErr) {
+		svc.logger.ErrorContext(ctx, "failed to look up the end user notification a canceled script belongs to",
+			"err", notificationErr, "host_id", host.ID, "execution_id", executionID)
+	}
+	if notificationErr == nil {
+		err = svc.notificationsSvc.SetNotificationStatus(ctx, notificationUUID,
+			notifications_api.EndUserNotificationFailed,
+			new(notifications_api.EndUserNotificationReasonCanceled),
+			[]string{notifications_api.EndUserNotificationDispatched})
+		if err != nil {
+			svc.logger.ErrorContext(ctx, "failed to fail the end user notification whose script was canceled",
+				"err", err, "host_id", host.ID, "execution_id", executionID, "notification_uuid", notificationUUID)
+		}
+		// a notification's script is held back from the activity feed, canceled or reported
+		pastAct = nil
 	}
 
 	if pastAct != nil {
