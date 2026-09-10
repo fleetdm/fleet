@@ -3038,9 +3038,9 @@ spec:
 apiVersion: v1
 kind: query
 spec:
-  name: Get CrowdStrike Falcon sensor status
+  name: Get CrowdStrike sensor status
   platform: darwin, linux, windows
-  description: Reports whether the CrowdStrike Falcon sensor is running on each host by looking for its processes (com.crowdstrike.falcon.Agent or falcond on macOS, falcon-sensor on Linux, CSFalconService on Windows). Hosts that report "no" have no sensor running.
+  description: Reports whether the CrowdStrike sensor is running on each host by looking for its processes (com.crowdstrike.falcon.Agent or falcond on macOS, falcon-sensor on Linux, CSFalconService on Windows). Hosts that report "no" have no sensor running.
   query: |
     SELECT
       CASE WHEN COUNT(*) > 0 THEN 'yes' ELSE 'no' END AS crowdstrike_running,
