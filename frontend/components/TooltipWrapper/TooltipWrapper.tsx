@@ -45,19 +45,12 @@ const BalancedTipContent = ({ children }: { children: React.ReactNode }) => {
       // is a no-op there — balancing is a visual concern with no test
       // coverage to preserve.
       if (typeof range.getClientRects !== "function") return;
-      // Range.getClientRects returns one rect per text run per line, so a
-      // line containing text plus a nested <strong>/<em>/<b> produces
-      // multiple narrower rects. We collect rects from three sources:
-      //   1. Range text rects for text inside the wrapper.
-      //   2. Inline replaced elements (<svg>, <img>, <video>, <canvas>,
-      //      <iframe>) — these render as self-contained visual boxes and
-      //      never appear in Range text rects, so a line ending in e.g. a
-      //      CustomLink external-link icon would otherwise be measured
-      //      short by the icon's width.
-      //   3. Inline-flex / inline-block anchors — their outer box includes
-      //      internal `gap` / padding that isn't captured by summing child
-      //      text + child SVG rects. Adding the anchor's outer bounding
-      //      rect covers that gap.
+      // Three widest-line quirks a naive `range.getClientRects()` misses:
+      // inline replaced elements (svg/img/…) never appear in Range rects,
+      // an inline-flex anchor's `gap` is nowhere in its children's rects,
+      // and a flex-centered icon's `top` differs from surrounding text
+      // baseline. Fix: also read bounding rects for `svg, img, …, a`, and
+      // group by vertical center (not `top`) with a half-line-height fuzz.
       const rects: DOMRect[] = Array.from(range.getClientRects());
       el.querySelectorAll("svg, img, video, canvas, iframe, a").forEach(
         (child) => {
@@ -65,13 +58,6 @@ const BalancedTipContent = ({ children }: { children: React.ReactNode }) => {
           if (rect.width > 0) rects.push(rect);
         }
       );
-      // Group rects by visual line. Naive `Math.round(rect.top)` bucketing
-      // splits an inline-flex CustomLink's flex-centered SVG (with a
-      // slightly different `top` than the surrounding text baseline) into a
-      // separate "line" — so the last line's width misses the icon. Group
-      // by vertical center with a half-line fuzz instead: two rects belong
-      // to the same visual line when their centers are within ~half a line
-      // height of each other.
       const style = window.getComputedStyle(el);
       const parsedLineHeight = parseFloat(style.lineHeight);
       const fontSize = parseFloat(style.fontSize) || 12;
