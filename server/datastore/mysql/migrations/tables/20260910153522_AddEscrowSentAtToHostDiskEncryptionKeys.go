@@ -6,11 +6,11 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260909231555, Down_20260909231555)
+	MigrationClient.AddMigration(Up_20260910153522, Down_20260910153522)
 }
 
 // escrow_sent_at marks when a LUKS escrow request was handed to fleetd; cleared when fleetd reports a result.
-func Up_20260909231555(tx *sql.Tx) error {
+func Up_20260910153522(tx *sql.Tx) error {
 	if columnExists(tx, "host_disk_encryption_keys", "escrow_sent_at") {
 		return nil
 	}
@@ -23,6 +23,6 @@ func Up_20260909231555(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20260909231555(tx *sql.Tx) error {
+func Down_20260910153522(tx *sql.Tx) error {
 	return nil
 }
