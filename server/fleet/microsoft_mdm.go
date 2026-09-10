@@ -915,6 +915,9 @@ type MDMWindowsHostConfigState struct {
 	FleetdSyncCapable bool
 	// ManagedLocalAccountEscrowed is true once the device has escrowed a managed local account password for this enrollment.
 	ManagedLocalAccountEscrowed bool
+	// ManagedLocalAccountRotationRequested asks the device to re-provision the account even though a password is already
+	// escrowed. Cleared once it escrows the replacement.
+	ManagedLocalAccountRotationRequested bool
 }
 
 type MDMWindowsEnrolledDevice struct {

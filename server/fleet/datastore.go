@@ -2109,6 +2109,21 @@ type Datastore interface {
 	// to its host via pending_command_uuid. Returns notFound when no row matches.
 	GetManagedLocalAccountByPendingCommandUUID(ctx context.Context, commandUUID string) (host *Host, err error)
 
+	// InitiateWindowsManagedLocalAccountRotation records a rotation request on the host's current Windows MDM
+	// enrollment and clears auto_rotate_at in one transaction. A failed row may be rotated again. Returns
+	// ErrManagedLocalAccountRotationPending when a rotation is already outstanding, ErrManagedLocalAccountNotEligible
+	// when the row has no password, and notFound when the host has no managed local account row or no enrollment.
+	InitiateWindowsManagedLocalAccountRotation(ctx context.Context, hostUUID string) error
+
+	// InitiateWindowsManagedLocalAccountAutoRotation is the cron's variant of InitiateWindowsManagedLocalAccountRotation.
+	// It also returns ErrManagedLocalAccountNotEligible when the row is failed or its auto_rotate_at is not due, checked
+	// on the writer, so a row selected from a lagging replica is not retried.
+	InitiateWindowsManagedLocalAccountAutoRotation(ctx context.Context, hostUUID string) error
+
+	// GetWindowsManagedLocalAccountsForAutoRotation returns up to 100 Windows rows whose auto_rotate_at has elapsed,
+	// that have a password and a current enrollment with no request outstanding, and that are not failed.
+	GetWindowsManagedLocalAccountsForAutoRotation(ctx context.Context) ([]HostManagedLocalAccountWindowsRotationInfo, error)
+
 	// InsertMDMAppleBootstrapPackage insterts a new bootstrap package in the
 	// database (or S3 if configured).
 	InsertMDMAppleBootstrapPackage(ctx context.Context, bp *MDMAppleBootstrapPackage, pkgStore MDMBootstrapPackageStore) error
@@ -2470,6 +2485,10 @@ type Datastore interface {
 	// MDM enrollment, which is what stops the server asking it to create the account. Reports whether the value changed, so the caller logs the
 	// created activity only when an account was really created. The flag is per-enrollment: re-enrolling deletes the row and so resets it.
 	SetMDMWindowsManagedLocalAccountEscrowed(ctx context.Context, hostUUID string, escrowed bool) (changed bool, err error)
+
+	// ClearMDMWindowsManagedLocalAccountRotationRequest retires an outstanding rotation request on the host's current
+	// Windows MDM enrollment and reports whether there was one.
+	ClearMDMWindowsManagedLocalAccountRotationRequest(ctx context.Context, hostUUID string) (cleared bool, err error)
 
 	// MDMWindowsGetEnrolledDeviceWithHostUUID returns the MDMWindowsEnrolledDevice information for a given HostUUID
 	MDMWindowsGetEnrolledDeviceWithHostUUID(ctx context.Context, hostUUID string) (*MDMWindowsEnrolledDevice, error)
