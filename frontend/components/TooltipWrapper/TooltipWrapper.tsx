@@ -4,30 +4,32 @@ import { Tooltip as ReactTooltip5, PlacesType } from "react-tooltip-5";
 
 import { uniqueId } from "lodash";
 
-/** Renders tooltip content as-is, but on mount applies `text-wrap: balance`
- * to the tooltip's root element and measures the widest balanced line to set
- * an explicit width on the root — so the tooltip's background hugs the
- * balanced text. CSS alone can't shrink the container: the intrinsic width of
- * a `text-wrap: balance` box is computed as if wrap were `normal`, so it
- * stays at `max-width` even when the balanced text is narrower. */
+/** Renders tooltip content inside a measurable inline-block wrapper: applies
+ * `text-wrap: balance`, measures the widest balanced line via Range rects
+ * (plus inline replaced elements like SVG/IMG that don't participate in Range
+ * text runs), then sets an explicit width on the wrapper so the tooltip's
+ * background hugs the balanced text. CSS alone can't shrink the container:
+ * the intrinsic width of a `text-wrap: balance` box is computed as if wrap
+ * were `normal`, so it stays at `max-width` even when the balanced text is
+ * narrower. Applying width to an internal element (rather than the tooltip
+ * root) sidesteps react-tooltip-5 rewriting the root's `style` attribute on
+ * every position update. The outer tooltip's `width: max-content` then
+ * shrinks to this wrapper's explicit width. */
 const BalancedTipContent = ({ children }: { children: React.ReactNode }) => {
-  const ref = useRef<HTMLSpanElement>(null);
+  const ref = useRef<HTMLDivElement>(null);
 
   useLayoutEffect(() => {
     const el = ref.current;
     if (!el) return undefined;
-    const root = el.parentElement;
-    if (!root) return undefined;
 
     // react-tooltip positions/sizes the tip via floating-ui after mount, so
     // measuring synchronously here can land while the tooltip is still at
     // (0, 0) with an initial width. Defer to the next frame.
     const rafId = requestAnimationFrame(() => {
-      // Clear any prior explicit width so wrap uses the mixin's max-width.
-      root.style.width = "";
-      root.style.textWrap = "balance";
+      // Clear any prior explicit width so wrap uses the tooltip's max-width.
+      el.style.width = "";
       const range = document.createRange();
-      range.selectNodeContents(root);
+      range.selectNodeContents(el);
       // jsdom (Jest) doesn't implement Range.getClientRects, so measurement is
       // a no-op there — balancing is a visual concern with no test coverage
       // to preserve.
@@ -45,12 +47,12 @@ const BalancedTipContent = ({ children }: { children: React.ReactNode }) => {
       // would otherwise be measured short by the icon's width. Add their
       // bounding rects into the same per-line grouping.
       const rects: DOMRect[] = Array.from(range.getClientRects());
-      root
-        .querySelectorAll("svg, img, video, canvas, iframe")
-        .forEach((el) => {
-          const rect = el.getBoundingClientRect();
+      el.querySelectorAll("svg, img, video, canvas, iframe").forEach(
+        (child) => {
+          const rect = child.getBoundingClientRect();
           if (rect.width > 0) rects.push(rect);
-        });
+        }
+      );
       const lineBounds = new Map<number, { left: number; right: number }>();
       for (let i = 0; i < rects.length; i += 1) {
         const rect = rects[i];
@@ -72,22 +74,22 @@ const BalancedTipContent = ({ children }: { children: React.ReactNode }) => {
         if (lineWidth > widest) widest = lineWidth;
       });
       if (widest > 0) {
-        const style = window.getComputedStyle(root);
-        const padLeft = parseFloat(style.paddingLeft) || 0;
-        const padRight = parseFloat(style.paddingRight) || 0;
-        root.style.width = `${Math.ceil(widest + padLeft + padRight)}px`;
+        el.style.width = `${Math.ceil(widest)}px`;
       }
     });
 
     return () => cancelAnimationFrame(rafId);
   }, [children]);
 
-  // display: contents so this span leaves no layout box — its children render
-  // as direct children of the tooltip root, and `el.parentElement` is that root.
+  // inline-block so the wrapper has its own measurable box and the tooltip's
+  // `width: max-content` shrinks to the wrapper's explicit width once set.
   return (
-    <span ref={ref} style={{ display: "contents" }}>
+    <div
+      ref={ref}
+      style={{ display: "inline-block", textWrap: "balance" }}
+    >
       {children}
-    </span>
+    </div>
   );
 };
 
