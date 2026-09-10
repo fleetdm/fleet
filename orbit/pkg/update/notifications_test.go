@@ -608,6 +608,11 @@ func TestBitlockerOperations(t *testing.T) {
 			Frequency:            time.Hour, // doesn't matter for this test
 			encryptionRetryAfter: time.Now().Add(-2 * time.Hour),
 			EncryptionResult:     clientMock,
+			// Default to a server new enough to record an error without discarding the key. The gate itself is
+			// covered separately below.
+			capabilitiesFetcher: func() fleet.CapabilityMap {
+				return fleet.CapabilityMap{fleet.CapabilityDiskEncryptionErrorKeepsKey: {}}
+			},
 			execGetEncryptionStatusFn: func() ([]bitlocker.VolumeStatus, error) {
 				// Default: an ordinary unencrypted host. This has to state C: is fully decrypted.
 				return []bitlocker.VolumeStatus{
@@ -1288,6 +1293,8 @@ func TestBitlockerOperations(t *testing.T) {
 			resumeErr   error
 			wantResume  bool
 			wantBackoff bool
+			// serverDiscardsKey models a server too old to record an error without wiping the stored key.
+			serverDiscardsKey bool
 			// Substrings the reported reason must contain. Empty means nothing is reported at all.
 			wantReport []string
 		}{
@@ -1306,9 +1313,23 @@ func TestBitlockerOperations(t *testing.T) {
 				name: "decryption paused is reported, never resumed", conversion: bitlocker.ConversionStatusDecryptionPaused,
 				wantBackoff: true, wantReport: []string{"decryption is paused"},
 			},
+			{
+				// A server without the capability overwrites the escrowed key with the empty value this report carries,
+				// so staying silent leaves the admin with a key rather than none. The backoff still applies, otherwise
+				// the volume would be re-examined on every config poll.
+				name: "nothing is reported to a server that would discard the key", conversion: bitlocker.ConversionStatusDecryptionPaused,
+				serverDiscardsKey: true, wantBackoff: true,
+			},
+			{
+				name: "a failed resume is not reported to a server that would discard the key", conversion: bitlocker.ConversionStatusEncryptionPaused,
+				resumeErr: errors.New("WMI refused"), serverDiscardsKey: true, wantResume: true, wantBackoff: true,
+			},
 		} {
 			t.Run(tc.name, func(t *testing.T) {
 				setupTest()
+				if tc.serverDiscardsKey {
+					enrollReceiver.capabilitiesFetcher = func() fleet.CapabilityMap { return fleet.CapabilityMap{} }
+				}
 				var resumeCalled bool
 				enrollReceiver.execResumeConversionFn = func(string) error { resumeCalled = true; return tc.resumeErr }
 				enrollReceiver.execGetEncryptionStatusFn = func() ([]bitlocker.VolumeStatus, error) {

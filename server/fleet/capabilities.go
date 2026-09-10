@@ -111,19 +111,25 @@ const (
 	CapabilityWindowsMDMSync Capability = "windows_mdm_sync"
 	// CapabilityWindowsManagedLocalAccount is set when fleetd can create and hide the Windows managed local admin account and escrow its password.
 	CapabilityWindowsManagedLocalAccount Capability = "windows_managed_local_account"
+	// CapabilityDiskEncryptionErrorKeepsKey denotes that the server records a disk encryption client error without
+	// discarding the key it already holds. Servers without it overwrite the stored key with the empty value carried by
+	// such a report, so orbit must not send an error with no key to one: the host stays encrypted while the admin loses
+	// the only recovery key Fleet can show them.
+	CapabilityDiskEncryptionErrorKeepsKey Capability = "disk_encryption_error_keeps_key"
 )
 
 func GetServerOrbitCapabilities() CapabilityMap {
 	return CapabilityMap{
-		CapabilityOrbitEndpoints:            {},
-		CapabilityTokenRotation:             {},
-		CapabilityEndUserEmail:              {},
-		CapabilityEscrowBuddy:               {},
-		CapabilityLinuxDiskEncryptionEscrow: {},
-		CapabilityLUKSRecoveryKeyEscrow:     {},
-		CapabilitySetupExperience:           {},
-		CapabilityWebSetupExperience:        {},
-		CapabilityMacOSWebSetupExperience:   {},
+		CapabilityOrbitEndpoints:              {},
+		CapabilityTokenRotation:               {},
+		CapabilityEndUserEmail:                {},
+		CapabilityEscrowBuddy:                 {},
+		CapabilityLinuxDiskEncryptionEscrow:   {},
+		CapabilityLUKSRecoveryKeyEscrow:       {},
+		CapabilitySetupExperience:             {},
+		CapabilityWebSetupExperience:          {},
+		CapabilityMacOSWebSetupExperience:     {},
+		CapabilityDiskEncryptionErrorKeepsKey: {},
 	}
 }
 

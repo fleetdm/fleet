@@ -554,6 +554,10 @@ type windowsMDMBitlockerConfigReceiver struct {
 	// restartPendingFn reports whether a restart is staged. Overridden in tests.
 	restartPendingFn func() (bool, error)
 
+	// capabilitiesFetcher reports what the server supports, so a report that would cost the host its escrowed key is
+	// withheld from a server too old to handle it. Overridden in tests.
+	capabilitiesFetcher func() fleet.CapabilityMap
+
 	// protectionRetryAfter throttles the protection restore path. A host that cannot be repaired, because policy forbids a
 	// TPM-only protector or the TPM is not ready, would otherwise retry on every config poll forever.
 	protectionRetryAfter time.Time
@@ -563,10 +567,12 @@ func ApplyWindowsMDMBitlockerFetcherMiddleware(
 	frequency time.Duration,
 	encryptionResult DiskEncryptionKeySetter,
 	comWorker *bitlocker.COMWorker,
+	capabilitiesFetcher func() fleet.CapabilityMap,
 ) fleet.OrbitConfigReceiver {
 	return &windowsMDMBitlockerConfigReceiver{
 		Frequency:                    frequency,
 		EncryptionResult:             encryptionResult,
+		capabilitiesFetcher:          capabilitiesFetcher,
 		execEncryptVolumeFn:          comWorker.EncryptVolume,
 		execGetEncryptionStatusFn:    comWorker.GetEncryptionStatus,
 		execRotateRecoveryKeyFn:      comWorker.RotateRecoveryKey,
@@ -833,9 +839,9 @@ func (w *windowsMDMBitlockerConfigReceiver) attemptBitlockerEncryption() {
 		log.Info().Msgf("BitLocker encryption is paused on %s, resuming it", targetVolume)
 		if err := w.execResumeConversionFn(targetVolume); err != nil {
 			log.Error().Err(err).Msg("could not resume the paused BitLocker encryption")
-			if serverErr := w.updateFleetServer("", fmt.Errorf("BitLocker encryption is paused on this host and could not be resumed: %w", err)); serverErr != nil {
-				log.Error().Err(serverErr).Msg("failed to report the paused encryption to Fleet Server")
-			}
+			w.reportKeylessError(
+				fmt.Errorf("BitLocker encryption is paused on this host and could not be resumed: %w", err),
+				"the paused encryption")
 			// A volume that refuses to resume will refuse again in 30 seconds, so back off rather than repeating the
 			// COM call and the same error report on every config poll.
 			w.encryptionRetryAfter = time.Now().Add(w.Frequency)
@@ -848,12 +854,10 @@ func (w *windowsMDMBitlockerConfigReceiver) attemptBitlockerEncryption() {
 	case bitlocker.ConversionStatusDecryptionPaused:
 		// Resuming would finish the decryption Fleet is trying to prevent, and encrypting is refused with
 		// FVE_E_NOT_DECRYPTED while the volume is partly decrypted. Report it and let an admin decide.
-		log.Error().Msgf("BitLocker decryption is paused on %s, which Fleet will not resume or override", targetVolume)
-		if serverErr := w.updateFleetServer("", errors.New(
+		log.Warn().Msgf("BitLocker decryption is paused on %s, which Fleet will not resume or override", targetVolume)
+		w.reportKeylessError(errors.New(
 			"a BitLocker decryption is paused on this host. Fleet cannot encrypt the disk until the decryption is resumed and completed, or the volume is re-encrypted",
-		)); serverErr != nil {
-			log.Error().Err(serverErr).Msg("failed to report the paused decryption to Fleet Server")
-		}
+		), "the paused decryption")
 		// Only a person can clear this, and the server keeps asking regardless, so back off.
 		w.encryptionRetryAfter = time.Now().Add(w.Frequency)
 		return
@@ -965,6 +969,21 @@ func (w *windowsMDMBitlockerConfigReceiver) isMisreportedDecryptionError(err *bi
 	return err.Code() == bitlocker.ErrorCodeNotDecrypted &&
 		status != nil &&
 		status.ConversionStatus == bitlocker.ConversionStatusFullyDecrypted
+}
+
+// reportKeylessError reports a failure that carries no recovery key, but only to a server that will keep the key it
+// already holds. An older server overwrites the stored key with the empty value in this payload, which is worse than
+// staying silent: the volume is still encrypted, and the admin loses the only key Fleet can show them. A missing
+// fetcher is treated the same way, because guessing wrong here costs a recovery key.
+func (w *windowsMDMBitlockerConfigReceiver) reportKeylessError(err error, what string) {
+	if w.capabilitiesFetcher == nil || !w.capabilitiesFetcher().Has(fleet.CapabilityDiskEncryptionErrorKeepsKey) {
+		log.Warn().Err(err).Msgf(
+			"not reporting %s to Fleet: this server would discard the host's escrowed recovery key", what)
+		return
+	}
+	if serverErr := w.updateFleetServer("", err); serverErr != nil {
+		log.Error().Err(serverErr).Msgf("failed to report %s to Fleet Server", what)
+	}
 }
 
 func (w *windowsMDMBitlockerConfigReceiver) updateFleetServer(key string, err error) error {

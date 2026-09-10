@@ -615,8 +615,8 @@ func (v *Volume) hasBootUnsealProtector() (bool, error) {
 	return false, nil
 }
 
-// hasBootUnsealProtectorOnCOMThread reports whether the volume has a protector that can unseal the key at boot without
-// a recovery password being typed in. Any TPM-family protector qualifies, and so does an external startup key.
+// hasBootUnsealProtectorOnCOMThread connects to the volume and answers the same question as hasBootUnsealProtector,
+// for callers that hold no Volume of their own.
 func hasBootUnsealProtectorOnCOMThread(targetVolume string) (bool, error) {
 	vol, err := bitlockerConnect(targetVolume)
 	if err != nil {
@@ -624,16 +624,7 @@ func hasBootUnsealProtectorOnCOMThread(targetVolume string) (bool, error) {
 	}
 	defer vol.bitlockerClose()
 
-	for _, t := range BootUnsealProtectorTypes {
-		ids, err := vol.getKeyProtectorIDs(t)
-		if err != nil {
-			return false, fmt.Errorf("listing key protectors of type %d: %w", t, err)
-		}
-		if len(ids) > 0 {
-			return true, nil
-		}
-	}
-	return false, nil
+	return vol.hasBootUnsealProtector()
 }
 
 // hasRecoveryPasswordOnCOMThread reports whether the volume has a numerical password protector
