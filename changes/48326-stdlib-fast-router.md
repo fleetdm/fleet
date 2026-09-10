@@ -1,0 +1,1 @@
+- Reduced Fleet server CPU spent on HTTP route matching. Requests are now matched by a path trie in front of the existing router, instead of testing a regular expression against each of ~550 routes in registration order. Agent endpoints, which registered late and paid the most, match 20-130x faster, and each request allocates ~900 fewer bytes. Routing behavior is unchanged.
