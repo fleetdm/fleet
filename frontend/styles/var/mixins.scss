@@ -216,9 +216,6 @@ $max-width: 2560px;
   z-index: 100;
   line-height: 1.375;
   white-space: initial;
-  // Not portaled to <body> — it renders inline at the anchor's DOM position, so
-  // it otherwise inherits text-align from whatever ancestor it happens to be
-  // in (e.g. a right-aligned table actions column).
   text-align: left;
 
   // Hyphenated words will still break at hyphens first
