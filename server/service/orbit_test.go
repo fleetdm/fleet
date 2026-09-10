@@ -16,6 +16,7 @@ import (
 	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/capabilities"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
@@ -2163,6 +2164,7 @@ func TestEscrowWindowsManagedLocalAccountPassword(t *testing.T) {
 		}
 		// A rotation only ever happens on a host that has already escrowed.
 		ds.GetMDMWindowsHostConfigStateFunc = func(ctx context.Context, hostUUID string) (*fleet.MDMWindowsHostConfigState, error) {
+			require.True(t, ctxdb.IsPrimaryRequired(ctx), "escrowed flag must be read from the primary")
 			return &fleet.MDMWindowsHostConfigState{ManagedLocalAccountEscrowed: true}, nil
 		}
 		var loggedActivities []string
@@ -2198,6 +2200,7 @@ func TestEscrowWindowsManagedLocalAccountPassword(t *testing.T) {
 			return false, nil // already cleared by the first report
 		}
 		ds.GetMDMWindowsHostConfigStateFunc = func(ctx context.Context, hostUUID string) (*fleet.MDMWindowsHostConfigState, error) {
+			require.True(t, ctxdb.IsPrimaryRequired(ctx), "escrowed flag must be read from the primary")
 			return &fleet.MDMWindowsHostConfigState{ManagedLocalAccountEscrowed: true}, nil
 		}
 		activityCount := 0

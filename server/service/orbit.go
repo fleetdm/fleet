@@ -1752,8 +1752,8 @@ func (svc *Service) EscrowWindowsManagedLocalAccountPassword(ctx context.Context
 
 		// Decide on the escrowed flag, not on the just-consumed request: once a password is escrowed the account works,
 		// and un-escrowing on a failure would re-run the same attempt every poll. It also makes a re-sent failure
-		// report idempotent.
-		state, err := svc.ds.GetMDMWindowsHostConfigState(ctx, host.UUID)
+		// report idempotent. Primary read: the flag was written moments ago, and a stale replica would un-escrow it.
+		state, err := svc.ds.GetMDMWindowsHostConfigState(ctxdb.RequirePrimary(ctx, true), host.UUID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "read windows managed local account escrowed flag after failure")
 		}
