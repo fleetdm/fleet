@@ -7,6 +7,7 @@ import { InjectedRouter } from "react-router";
 import PATHS from "router/paths";
 import { getPathWithQueryParams } from "utilities/url";
 import { pluralize } from "utilities/strings/stringUtils";
+import { internationalTimeOnlyFormat } from "utilities/helpers";
 import { AppContext } from "context/app";
 import { useSoftwareInstaller } from "hooks/useSoftwareInstallerMeta";
 import {
@@ -164,7 +165,13 @@ const SoftwareSummaryCard = ({
   // chips since they're single-package — the flag is owned by the page.
   const showSelfServiceChip = isSelfService && !canActivateMultiplePackages;
   const showAutoInstallChip = hasLinkedPolicies && !canActivateMultiplePackages;
-  const showAutoUpdateChip = isAppleVpp && !!softwareTitle.auto_update_enabled;
+  // Requires the full window; without both times the tooltip would render
+  // as a bare "Between  and  (host local time)." — bail rather than show.
+  const showAutoUpdateChip =
+    isAppleVpp &&
+    !!softwareTitle.auto_update_enabled &&
+    !!softwareTitle.auto_update_window_start &&
+    !!softwareTitle.auto_update_window_end;
   const canEditAutoUpdateConfig =
     !!softwareTitle.app_store_app && isIosOrIpadosApp && canManageSoftware;
 
@@ -227,8 +234,15 @@ const SoftwareSummaryCard = ({
             }
             tooltip={
               <>
-                Between {softwareTitle.auto_update_window_start} and{" "}
-                {softwareTitle.auto_update_window_end} (host local time).
+                Between{" "}
+                {internationalTimeOnlyFormat(
+                  softwareTitle.auto_update_window_start ?? ""
+                )}{" "}
+                and{" "}
+                {internationalTimeOnlyFormat(
+                  softwareTitle.auto_update_window_end ?? ""
+                )}{" "}
+                (host local time).
               </>
             }
           />

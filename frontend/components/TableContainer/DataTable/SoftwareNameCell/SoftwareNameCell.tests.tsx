@@ -2,6 +2,7 @@ import React from "react";
 import userEvent from "@testing-library/user-event";
 import { screen } from "@testing-library/react";
 import { createCustomRenderer, createMockRouter } from "test/test-utils";
+import { internationalTimeOnlyFormat } from "utilities/helpers";
 import SoftwareNameCell from "./SoftwareNameCell";
 
 const mockRouter = createMockRouter();
@@ -249,7 +250,14 @@ describe("SoftwareNameCell icon rendering", () => {
     await userEvent.hover(icon);
     expect(
       await screen.findByText(
-        /Auto updates between 02:00 and 04:00 \(host local time\)\./i
+        new RegExp(
+          `Auto updates between ${internationalTimeOnlyFormat(
+            "02:00"
+          )} and ${internationalTimeOnlyFormat(
+            "04:00"
+          )} \\(host local time\\)\\.`,
+          "i"
+        )
       )
     ).toBeInTheDocument();
   });
@@ -270,7 +278,14 @@ describe("SoftwareNameCell icon rendering", () => {
     await userEvent.hover(icon);
     expect(
       await screen.findByText(
-        /Auto updates between 02:00 and 04:00 \(host local time\)\./i
+        new RegExp(
+          `Auto updates between ${internationalTimeOnlyFormat(
+            "02:00"
+          )} and ${internationalTimeOnlyFormat(
+            "04:00"
+          )} \\(host local time\\)\\.`,
+          "i"
+        )
       )
     ).toBeInTheDocument();
     expect(
@@ -298,7 +313,14 @@ describe("SoftwareNameCell icon rendering", () => {
     ).toBeInTheDocument();
     expect(
       await screen.findByText(
-        /Auto updates between 02:00 and 04:00 \(host local time\)\./i
+        new RegExp(
+          `Auto updates between ${internationalTimeOnlyFormat(
+            "02:00"
+          )} and ${internationalTimeOnlyFormat(
+            "04:00"
+          )} \\(host local time\\)\\.`,
+          "i"
+        )
       )
     ).toBeInTheDocument();
     expect(

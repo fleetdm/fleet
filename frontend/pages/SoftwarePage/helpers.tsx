@@ -22,6 +22,7 @@ import {
 import { IDropdownOption } from "interfaces/dropdownOption";
 
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
+import { internationalTimeOnlyFormat } from "utilities/helpers";
 
 import CustomLink from "components/CustomLink";
 
@@ -227,7 +228,7 @@ export const getSelfServiceTooltip = (
   if (isAndroidPlayStoreApp) {
     return (
       <>
-        End users can install from the <strong>Play Store</strong> <br />
+        End users can install from the <strong>Play Store</strong>
         in their work profile.
       </>
     );
@@ -247,8 +248,7 @@ export const getSelfServiceTooltip = (
 
   return (
     <>
-      End users can install from <br />
-      <strong>Fleet Desktop</strong> &gt;{" "}
+      End users can install from <strong>Fleet Desktop</strong> &gt;{" "}
       <CustomLink
         newTab
         text="Self service"
@@ -262,11 +262,9 @@ export const getSelfServiceTooltip = (
 export const getAutoUpdatesTooltip = (startTime: string, endTime: string) => {
   return (
     <>
-      When a new version is available,
-      <br />
-      targeted hosts will begin updating between
-      <br />
-      {startTime} and {endTime} (host local time).
+      When a new version is available, targeted hosts will begin updating
+      between {internationalTimeOnlyFormat(startTime)} and{" "}
+      {internationalTimeOnlyFormat(endTime)} (host local time).
     </>
   );
 };

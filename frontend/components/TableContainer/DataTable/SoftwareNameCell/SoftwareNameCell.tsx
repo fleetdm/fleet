@@ -5,6 +5,7 @@ import {
   getSelfServiceTooltip,
   getDisplayedSoftwareName,
 } from "pages/SoftwarePage/helpers";
+import { internationalTimeOnlyFormat } from "utilities/helpers";
 
 import TooltipWrapper from "components/TooltipWrapper";
 import Icon from "components/Icon";
@@ -44,7 +45,9 @@ const getPolicyTooltip = (count = 0) =>
     : `${count} policies trigger install.`;
 
 const getAutoUpdateTooltip = (start: string, end: string) =>
-  `Auto updates between ${start} and ${end} (host local time).`;
+  `Auto updates between ${internationalTimeOnlyFormat(
+    start
+  )} and ${internationalTimeOnlyFormat(end)} (host local time).`;
 
 const installIconMap: Record<InstallType, InstallIconConfig> = {
   manual: {
@@ -128,13 +131,19 @@ interface IInstallIconWithTooltipProps {
 
 // A row can be "automatic" via a policy-triggered install or a VPP scheduled
 // auto-update. Either signal promotes the icon to the automatic family so the
-// visual language stays consistent with the details page chip.
+// visual language stays consistent with the details page chip. Auto-updates
+// only counts when the window is fully populated — otherwise the tooltip
+// would render with no window text and the icon would look unexplained.
 const getInstallIconType = (
   isSelfService: boolean,
   automaticInstallPoliciesCount = 0,
-  autoUpdateEnabled = false
+  autoUpdateEnabled = false,
+  autoUpdateWindowStart?: string,
+  autoUpdateWindowEnd?: string
 ): InstallType => {
-  const isAutomatic = automaticInstallPoliciesCount > 0 || autoUpdateEnabled;
+  const hasValidAutoUpdate =
+    autoUpdateEnabled && !!autoUpdateWindowStart && !!autoUpdateWindowEnd;
+  const isAutomatic = automaticInstallPoliciesCount > 0 || hasValidAutoUpdate;
   if (isAutomatic) {
     return isSelfService ? "automaticSelfService" : "automatic";
   }
@@ -154,7 +163,9 @@ export const InstallIconWithTooltip = ({
   const iconType = getInstallIconType(
     isSelfService,
     automaticInstallPoliciesCount,
-    autoUpdateEnabled
+    autoUpdateEnabled,
+    autoUpdateWindowStart,
+    autoUpdateWindowEnd
   );
 
   // Don't show installer icon on host software library page
