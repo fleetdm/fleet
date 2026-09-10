@@ -608,8 +608,6 @@ func TestBitlockerOperations(t *testing.T) {
 			Frequency:            time.Hour, // doesn't matter for this test
 			encryptionRetryAfter: time.Now().Add(-2 * time.Hour),
 			EncryptionResult:     clientMock,
-			// Default to a server new enough to record an error without discarding the key. The gate itself is
-			// covered separately below.
 			capabilitiesFetcher: func() fleet.CapabilityMap {
 				return fleet.CapabilityMap{fleet.CapabilityDiskEncryptionErrorKeepsKey: {}}
 			},
@@ -934,8 +932,6 @@ func TestBitlockerOperations(t *testing.T) {
 				wantBackoff:  true,
 			},
 			{
-				// Deleting the TPM protectors leaves protection on with only a recovery password, so the volume boots
-				// straight to the 48-digit prompt. There is a protector to add but nothing to re-enable.
 				name:           "adds a protector without re-enabling when protection is already on",
 				status:         statusFor(bitlocker.ConversionStatusFullyEncrypted, bitlocker.ProtectionStatusOn),
 				wantAdd:        true,
@@ -946,8 +942,6 @@ func TestBitlockerOperations(t *testing.T) {
 				reason:         "protection is already on, so it must not be re-enabled",
 			},
 			{
-				// Deferring here would wait for the very restart that drops the end user at the recovery prompt, which
-				// is the outcome this repair exists to prevent. Nothing is being re-sealed, so there is nothing to defer.
 				name:           "a pending restart does not defer the repair when protection is already on",
 				status:         statusFor(bitlocker.ConversionStatusFullyEncrypted, bitlocker.ProtectionStatusOn),
 				restartPending: true,
@@ -1060,9 +1054,7 @@ func TestBitlockerOperations(t *testing.T) {
 
 		t.Run("retries a failed escrow on the next pass once the protector is in place", func(t *testing.T) {
 			setupTest()
-			// Protection is already on, so the repair only adds a protector. On the second pass the volume looks
-			// healthy, and without the held-key guard the run would return early and strand the rotated key, leaving
-			// Fleet holding one the volume no longer accepts.
+			// Protection is already on, so the repair only adds a protector. On the second pass the volume looks healthy.
 			protectedNoProtector := statusFor(bitlocker.ConversionStatusFullyEncrypted, bitlocker.ProtectionStatusOn)
 			enrollReceiver.execGetEncryptionStatusFn = protectedNoProtector
 			hasProtector := false
@@ -1315,8 +1307,7 @@ func TestBitlockerOperations(t *testing.T) {
 			},
 			{
 				// A server without the capability overwrites the escrowed key with the empty value this report carries,
-				// so staying silent leaves the admin with a key rather than none. The backoff still applies, otherwise
-				// the volume would be re-examined on every config poll.
+				// so staying silent leaves the admin with a key rather than none.
 				name: "nothing is reported to a server that would discard the key", conversion: bitlocker.ConversionStatusDecryptionPaused,
 				serverDiscardsKey: true, wantBackoff: true,
 			},

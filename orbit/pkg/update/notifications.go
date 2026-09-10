@@ -618,10 +618,7 @@ const protectionSuccessBackoff = 5 * time.Minute
 // does not need to be long.
 const encryptionSuccessBackoff = 5 * time.Minute
 
-// attemptEnableBitlockerProtection turns protection back on for a volume that is encrypted but unprotected.
-// repairFailureCost describes what a failed repair actually cost the host. The restore path leaves protection off,
-// but the protection-on path never touched protection, so saying it "was not re-enabled" there would send an admin
-// looking for a problem that does not exist.
+// repairFailureCost describes what a failed repair actually cost the host.
 func repairFailureCost(protectionAlreadyOn bool) string {
 	if protectionAlreadyOn {
 		return "so the volume still has nothing that can unseal it at boot"
@@ -629,6 +626,7 @@ func repairFailureCost(protectionAlreadyOn bool) string {
 	return "so protection was not re-enabled"
 }
 
+// attemptEnableBitlockerProtection turns protection back on for a volume that is encrypted but unprotected.
 func (w *windowsMDMBitlockerConfigReceiver) attemptEnableBitlockerProtection() {
 	if now := time.Now(); now.Before(w.protectionRetryAfter) {
 		log.Info().Msgf("skipped BitLocker protection restore, next attempt after %s",
@@ -661,17 +659,12 @@ func (w *windowsMDMBitlockerConfigReceiver) attemptEnableBitlockerProtection() {
 	}
 
 	// Protection being on does not mean the volume is healthy. Deleting the TPM and TPM+PIN protectors leaves protection
-	// on with only a recovery password, and that volume boots straight to the 48-digit prompt. In that case there is a
-	// protector to add but nothing to re-enable, so the work below runs and the enable step is skipped.
+	// on with only a recovery password, and that volume boots straight to the 48-digit prompt.
 	protectionAlreadyOn := status.ProtectionStatus != bitlocker.ProtectionStatusOff
 
-	// Defer while a restart is staged, because enabling protection re-seals the key to the current boot measurements and a staged
-	// update would then change them. A pending restart is the actionable fact even when the protector state cannot be read.
-	//
-	// This does not apply when protection is already on. There is nothing to re-seal in that case, only a protector to add, and
-	// the pending restart is precisely what would drop the end user at the recovery prompt. Waiting for it would guarantee the
-	// outcome this repair exists to prevent, so the repair runs now and takes its chances with the boot measurements.
 	if !protectionAlreadyOn {
+		// Defer while a restart is staged, because enabling protection re-seals the key to the current boot measurements and a staged
+		// update would then change them. A pending restart is the actionable fact even when the protector state cannot be read.
 		restartPending := w.restartPendingFn
 		if restartPending == nil {
 			restartPending = isRestartPending
@@ -701,7 +694,7 @@ func (w *windowsMDMBitlockerConfigReceiver) attemptEnableBitlockerProtection() {
 		return
 	}
 	// A held recovery key means a previous pass rotated but could not escrow it, so there is still work to do even
-	// though the volume now looks healthy. Returning here would strand that key and leave Fleet holding a stale one.
+	// though the volume now looks healthy.
 	if hasProtector && protectionAlreadyOn && w.pendingRecoveryKey == "" {
 		log.Debug().Msg("BitLocker protection is already on and the volume can unseal at boot, nothing to repair")
 		w.protectionRetryAfter = time.Now().Add(w.Frequency)
