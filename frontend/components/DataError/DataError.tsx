@@ -33,7 +33,7 @@ interface IDataErrorProps {
   selfCenter?: boolean;
 }
 
-const DEFAULT_TITLE = "Something's gone wrong";
+const DEFAULT_TITLE = "Something's gone wrong.";
 const DEFAULT_DESCRIPTION = "Refresh the page or log in again.";
 
 const DataError = ({
