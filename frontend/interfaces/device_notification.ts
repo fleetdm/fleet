@@ -29,7 +29,7 @@ export interface INotificationView {
 }
 
 /** JS → Swift bridge message ids. Distinct from server-side action ids. */
-export type BridgeAction = "ready" | "resize" | "primary" | "dismiss" | "error";
+export type BridgeAction = "ready" | "resize" | "dismiss" | "error";
 
 /** Bump when the bridge envelope shape changes; Swift keys off `v` to route. */
 export const BRIDGE_VERSION = 1 as const;

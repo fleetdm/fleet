@@ -165,7 +165,7 @@ describe("DeviceNotificationPage", () => {
     expect(secondary.className).toMatch(/button--subdued/);
   });
 
-  it("posts `primary` bridge and transitions to Installing on the primary action", async () => {
+  it("transitions to Installing on update_now and posts no close-triggering bridge", async () => {
     mockServer.use(
       customDeviceNotificationHandler(
         createMockNotificationView({
@@ -188,14 +188,12 @@ describe("DeviceNotificationPage", () => {
     const installing = await screen.findAllByText("Installing…");
     expect(installing.length).toBeGreaterThan(0);
 
-    expect(postMessage).toHaveBeenCalledWith(
-      expect.objectContaining({ action: "primary" })
+    // Both `primary` and `dismiss` fade the toast out in Swift, so update_now
+    // must post neither — the window has to stay open on the Installing view.
+    const closingCalls = postMessage.mock.calls.filter(
+      ([msg]) => msg.action === "primary" || msg.action === "dismiss"
     );
-    // update_now keeps the window open — no dismiss bridge on this path.
-    const dismissCalls = postMessage.mock.calls.filter(
-      ([msg]) => msg.action === "dismiss"
-    );
-    expect(dismissCalls).toHaveLength(0);
+    expect(closingCalls).toHaveLength(0);
   });
 
   it("posts `dismiss` bridge on a secondary action", async () => {
