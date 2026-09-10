@@ -930,9 +930,11 @@ type GetHostArchivedDiskEncryptionKeyFunc func(ctx context.Context, host *fleet.
 
 type IsHostDiskEncryptionKeyArchivedFunc func(ctx context.Context, hostID uint) (bool, error)
 
-type IsHostPendingEscrowFunc func(ctx context.Context, hostID uint) bool
+type GetHostEscrowStateFunc func(ctx context.Context, hostID uint) (*fleet.HostEscrowState, error)
 
-type ClearPendingEscrowFunc func(ctx context.Context, hostID uint) error
+type MarkEscrowSentToAgentFunc func(ctx context.Context, hostID uint) error
+
+type SetEscrowInFlightFunc func(ctx context.Context, hostID uint, inFlight bool) error
 
 type ReportEscrowErrorFunc func(ctx context.Context, hostID uint, err string) error
 
@@ -3774,11 +3776,14 @@ type DataStore struct {
 	IsHostDiskEncryptionKeyArchivedFunc        IsHostDiskEncryptionKeyArchivedFunc
 	IsHostDiskEncryptionKeyArchivedFuncInvoked bool
 
-	IsHostPendingEscrowFunc        IsHostPendingEscrowFunc
-	IsHostPendingEscrowFuncInvoked bool
+	GetHostEscrowStateFunc        GetHostEscrowStateFunc
+	GetHostEscrowStateFuncInvoked bool
 
-	ClearPendingEscrowFunc        ClearPendingEscrowFunc
-	ClearPendingEscrowFuncInvoked bool
+	MarkEscrowSentToAgentFunc        MarkEscrowSentToAgentFunc
+	MarkEscrowSentToAgentFuncInvoked bool
+
+	SetEscrowInFlightFunc        SetEscrowInFlightFunc
+	SetEscrowInFlightFuncInvoked bool
 
 	ReportEscrowErrorFunc        ReportEscrowErrorFunc
 	ReportEscrowErrorFuncInvoked bool
@@ -9174,18 +9179,25 @@ func (s *DataStore) IsHostDiskEncryptionKeyArchived(ctx context.Context, hostID 
 	return s.IsHostDiskEncryptionKeyArchivedFunc(ctx, hostID)
 }
 
-func (s *DataStore) IsHostPendingEscrow(ctx context.Context, hostID uint) bool {
+func (s *DataStore) GetHostEscrowState(ctx context.Context, hostID uint) (*fleet.HostEscrowState, error) {
 	s.mu.Lock()
-	s.IsHostPendingEscrowFuncInvoked = true
+	s.GetHostEscrowStateFuncInvoked = true
 	s.mu.Unlock()
-	return s.IsHostPendingEscrowFunc(ctx, hostID)
+	return s.GetHostEscrowStateFunc(ctx, hostID)
 }
 
-func (s *DataStore) ClearPendingEscrow(ctx context.Context, hostID uint) error {
+func (s *DataStore) MarkEscrowSentToAgent(ctx context.Context, hostID uint) error {
 	s.mu.Lock()
-	s.ClearPendingEscrowFuncInvoked = true
+	s.MarkEscrowSentToAgentFuncInvoked = true
 	s.mu.Unlock()
-	return s.ClearPendingEscrowFunc(ctx, hostID)
+	return s.MarkEscrowSentToAgentFunc(ctx, hostID)
+}
+
+func (s *DataStore) SetEscrowInFlight(ctx context.Context, hostID uint, inFlight bool) error {
+	s.mu.Lock()
+	s.SetEscrowInFlightFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetEscrowInFlightFunc(ctx, hostID, inFlight)
 }
 
 func (s *DataStore) ReportEscrowError(ctx context.Context, hostID uint, err string) error {

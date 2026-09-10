@@ -70,14 +70,14 @@ func TestGetOrbitConfigLinuxEscrow(t *testing.T) {
 		ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
 			return nil, nil
 		}
-		ds.IsHostPendingEscrowFunc = func(ctx context.Context, hostID uint) bool {
-			return true
+		ds.GetHostEscrowStateFunc = func(ctx context.Context, hostID uint) (*fleet.HostEscrowState, error) {
+			return &fleet.HostEscrowState{Pending: true}, nil
 		}
 		// the notification is gated on the host fleet's Linux escrow setting
 		ds.GetConfigEnableDiskEncryptionFunc = func(ctx context.Context, teamID *uint) (fleet.DiskEncryptionConfig, error) {
 			return fleet.DiskEncryptionConfig{LinuxEscrowEnabled: true}, nil
 		}
-		ds.ClearPendingEscrowFunc = func(ctx context.Context, hostID uint) error {
+		ds.MarkEscrowSentToAgentFunc = func(ctx context.Context, hostID uint) error {
 			return nil
 		}
 
@@ -166,25 +166,25 @@ func TestGetOrbitConfigLinuxEscrow(t *testing.T) {
 		cfg, err := svc.GetOrbitConfig(ctx)
 		require.NoError(t, err)
 		require.True(t, cfg.Notifications.RunDiskEncryptionEscrow)
-		require.True(t, ds.ClearPendingEscrowFuncInvoked)
+		require.True(t, ds.MarkEscrowSentToAgentFuncInvoked)
 
 		// with team
-		ds.ClearPendingEscrowFuncInvoked = false
+		ds.MarkEscrowSentToAgentFuncInvoked = false
 		host.TeamID = ptr.Uint(team.ID)
 		cfg, err = svc.GetOrbitConfig(ctx)
 		require.NoError(t, err)
 		require.True(t, cfg.Notifications.RunDiskEncryptionEscrow)
-		require.True(t, ds.ClearPendingEscrowFuncInvoked)
+		require.True(t, ds.MarkEscrowSentToAgentFuncInvoked)
 
 		// ignore clear escrow errors
-		ds.ClearPendingEscrowFuncInvoked = false
-		ds.ClearPendingEscrowFunc = func(ctx context.Context, hostID uint) error {
+		ds.MarkEscrowSentToAgentFuncInvoked = false
+		ds.MarkEscrowSentToAgentFunc = func(ctx context.Context, hostID uint) error {
 			return errors.New("clear pending escrow")
 		}
 		cfg, err = svc.GetOrbitConfig(ctx)
 		require.NoError(t, err)
 		require.True(t, cfg.Notifications.RunDiskEncryptionEscrow)
-		require.True(t, ds.ClearPendingEscrowFuncInvoked)
+		require.True(t, ds.MarkEscrowSentToAgentFuncInvoked)
 	})
 
 	t.Run("escrow turned off after the host went pending", func(t *testing.T) {
@@ -236,14 +236,14 @@ func TestOrbitLUKSDataSave(t *testing.T) {
 		}
 
 		// test reporting client errors
-		err := svc.EscrowLUKSData(ctx, "foo", "bar", nil, expectedErrorMessage, "")
+		err := svc.EscrowLUKSData(ctx, "foo", "bar", nil, expectedErrorMessage, "", "")
 		require.NoError(t, err)
 		require.True(t, ds.ReportEscrowErrorFuncInvoked)
 
 		// blank passphrase
 		ds.ReportEscrowErrorFuncInvoked = false
 		expectedErrorMessage = "passphrase, salt, and key_slot must be provided to escrow LUKS data"
-		err = svc.EscrowLUKSData(ctx, "", "bar", new(uint(0)), "", "")
+		err = svc.EscrowLUKSData(ctx, "", "bar", new(uint(0)), "", "", "")
 		require.Error(t, err)
 		require.True(t, ds.ReportEscrowErrorFuncInvoked)
 
@@ -270,7 +270,7 @@ func TestOrbitLUKSDataSave(t *testing.T) {
 		}
 
 		// with no salt
-		err = svc.EscrowLUKSData(ctx, passphrase, salt, keySlot, "", "")
+		err = svc.EscrowLUKSData(ctx, passphrase, salt, keySlot, "", "", "")
 		require.Error(t, err)
 		require.True(t, ds.ReportEscrowErrorFuncInvoked)
 		require.False(t, ds.SaveLUKSDataFuncInvoked)
@@ -278,7 +278,7 @@ func TestOrbitLUKSDataSave(t *testing.T) {
 		// with no key slot
 		ds.ReportEscrowErrorFuncInvoked = false
 		salt = "baz"
-		err = svc.EscrowLUKSData(ctx, passphrase, salt, keySlot, "", "")
+		err = svc.EscrowLUKSData(ctx, passphrase, salt, keySlot, "", "", "")
 		require.Error(t, err)
 		require.True(t, ds.ReportEscrowErrorFuncInvoked)
 		require.False(t, ds.SaveLUKSDataFuncInvoked)
@@ -286,7 +286,7 @@ func TestOrbitLUKSDataSave(t *testing.T) {
 		// with salt and key slot
 		keySlot = ptr.Uint(0)
 		ds.ReportEscrowErrorFuncInvoked = false
-		err = svc.EscrowLUKSData(ctx, passphrase, salt, keySlot, "", "")
+		err = svc.EscrowLUKSData(ctx, passphrase, salt, keySlot, "", "", "")
 		require.NoError(t, err)
 		require.False(t, ds.ReportEscrowErrorFuncInvoked)
 		require.True(t, ds.SaveLUKSDataFuncInvoked)
@@ -343,7 +343,7 @@ func TestOrbitLUKSDataSave(t *testing.T) {
 		}
 
 		// A recovery key requires no salt or key slot.
-		err := svc.EscrowLUKSData(ctx, recoveryKey, "", nil, "", fleet.LUKSKeyTypeRecoveryKey)
+		err := svc.EscrowLUKSData(ctx, recoveryKey, "", nil, "", fleet.LUKSKeyTypeRecoveryKey, "")
 		require.NoError(t, err)
 		require.False(t, ds.ReportEscrowErrorFuncInvoked)
 		require.True(t, ds.SaveLUKSDataFuncInvoked)
@@ -351,7 +351,7 @@ func TestOrbitLUKSDataSave(t *testing.T) {
 
 		// A recovery key escrow with no key still fails validation.
 		ds.SaveLUKSDataFuncInvoked = false
-		err = svc.EscrowLUKSData(ctx, "", "", nil, "", fleet.LUKSKeyTypeRecoveryKey)
+		err = svc.EscrowLUKSData(ctx, "", "", nil, "", fleet.LUKSKeyTypeRecoveryKey, "")
 		require.Error(t, err)
 		require.False(t, ds.SaveLUKSDataFuncInvoked)
 
@@ -359,13 +359,13 @@ func TestOrbitLUKSDataSave(t *testing.T) {
 		// silently discarded — those fields are meaningless when snapd owns the
 		// LUKS key slots, and accepting them would hide client bugs.
 		ds.SaveLUKSDataFuncInvoked = false
-		err = svc.EscrowLUKSData(ctx, recoveryKey, "some-salt", nil, "", fleet.LUKSKeyTypeRecoveryKey)
+		err = svc.EscrowLUKSData(ctx, recoveryKey, "some-salt", nil, "", fleet.LUKSKeyTypeRecoveryKey, "")
 		require.Error(t, err)
 		require.False(t, ds.SaveLUKSDataFuncInvoked)
 
 		ds.SaveLUKSDataFuncInvoked = false
 		strayKeySlot := uint(0)
-		err = svc.EscrowLUKSData(ctx, recoveryKey, "", &strayKeySlot, "", fleet.LUKSKeyTypeRecoveryKey)
+		err = svc.EscrowLUKSData(ctx, recoveryKey, "", &strayKeySlot, "", fleet.LUKSKeyTypeRecoveryKey, "")
 		require.Error(t, err)
 		require.False(t, ds.SaveLUKSDataFuncInvoked)
 	})
@@ -398,7 +398,7 @@ func TestOrbitLUKSDataSave(t *testing.T) {
 		cfg.Server.PrivateKey = ""
 		svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil, &TestServerOpts{License: license, SkipCreateTestUsers: true})
 		ctx = test.HostContext(ctx, host)
-		err := svc.EscrowLUKSData(ctx, "foo", "bar", new(uint(0)), "", "")
+		err := svc.EscrowLUKSData(ctx, "foo", "bar", new(uint(0)), "", "", "")
 		require.Error(t, err)
 		require.True(t, ds.ReportEscrowErrorFuncInvoked)
 
@@ -407,7 +407,7 @@ func TestOrbitLUKSDataSave(t *testing.T) {
 		cfg.Server.PrivateKey = "invalid"
 		svc, ctx = newTestServiceWithConfig(t, ds, cfg, nil, nil, &TestServerOpts{License: license, SkipCreateTestUsers: true})
 		ctx = test.HostContext(ctx, host)
-		err = svc.EscrowLUKSData(ctx, "foo", "bar", new(uint(0)), "", "")
+		err = svc.EscrowLUKSData(ctx, "foo", "bar", new(uint(0)), "", "", "")
 		require.Error(t, err)
 		require.True(t, ds.ReportEscrowErrorFuncInvoked)
 	})
@@ -438,8 +438,8 @@ func TestGetOrbitConfigNudge(t *testing.T) {
 		ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, host *fleet.Host) (bool, error) {
 			return true, nil
 		}
-		ds.IsHostPendingEscrowFunc = func(ctx context.Context, hostID uint) bool {
-			return false
+		ds.GetHostEscrowStateFunc = func(ctx context.Context, hostID uint) (*fleet.HostEscrowState, error) {
+			return &fleet.HostEscrowState{Pending: false}, nil
 		}
 
 		ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
@@ -517,8 +517,8 @@ func TestGetOrbitConfigNudge(t *testing.T) {
 		ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, host *fleet.Host) (bool, error) {
 			return true, nil
 		}
-		ds.IsHostPendingEscrowFunc = func(ctx context.Context, hostID uint) bool {
-			return false
+		ds.GetHostEscrowStateFunc = func(ctx context.Context, hostID uint) (*fleet.HostEscrowState, error) {
+			return &fleet.HostEscrowState{Pending: false}, nil
 		}
 
 		ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
@@ -613,8 +613,8 @@ func TestGetOrbitConfigNudge(t *testing.T) {
 		ds.GetHostAwaitingConfigurationFunc = func(ctx context.Context, hostUUID string) (bool, error) {
 			return false, nil
 		}
-		ds.IsHostPendingEscrowFunc = func(ctx context.Context, hostID uint) bool {
-			return false
+		ds.GetHostEscrowStateFunc = func(ctx context.Context, hostID uint) (*fleet.HostEscrowState, error) {
+			return &fleet.HostEscrowState{Pending: false}, nil
 		}
 
 		checkEmptyNudgeConfig := func(h *fleet.Host) {
@@ -693,8 +693,8 @@ func TestGetOrbitConfigNudge(t *testing.T) {
 				ConnectedToFleet: true,
 			}, nil
 		}
-		ds.IsHostPendingEscrowFunc = func(ctx context.Context, hostID uint) bool {
-			return false
+		ds.GetHostEscrowStateFunc = func(ctx context.Context, hostID uint) (*fleet.HostEscrowState, error) {
+			return &fleet.HostEscrowState{Pending: false}, nil
 		}
 
 		appCfg := &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true}}
@@ -793,8 +793,8 @@ func TestGetOrbitConfigWebSocketTransport(t *testing.T) {
 		ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
 			return nil, newNotFoundError()
 		}
-		ds.IsHostPendingEscrowFunc = func(ctx context.Context, hostID uint) bool {
-			return false
+		ds.GetHostEscrowStateFunc = func(ctx context.Context, hostID uint) (*fleet.HostEscrowState, error) {
+			return &fleet.HostEscrowState{Pending: false}, nil
 		}
 		ds.GetHostAwaitingConfigurationFunc = func(ctx context.Context, hostUUID string) (bool, error) {
 			return false, nil
@@ -853,8 +853,8 @@ func TestGetOrbitConfigScriptTimeoutFallback(t *testing.T) {
 		ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
 			return nil, newNotFoundError()
 		}
-		ds.IsHostPendingEscrowFunc = func(ctx context.Context, hostID uint) bool {
-			return false
+		ds.GetHostEscrowStateFunc = func(ctx context.Context, hostID uint) (*fleet.HostEscrowState, error) {
+			return &fleet.HostEscrowState{Pending: false}, nil
 		}
 		ds.GetHostAwaitingConfigurationFunc = func(ctx context.Context, hostUUID string) (bool, error) {
 			return false, nil
@@ -1541,8 +1541,8 @@ func TestGetOrbitConfigWindowsSetupExperience(t *testing.T) {
 		ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, h *fleet.Host) (bool, error) {
 			return true, nil
 		}
-		ds.IsHostPendingEscrowFunc = func(ctx context.Context, hostID uint) bool {
-			return false
+		ds.GetHostEscrowStateFunc = func(ctx context.Context, hostID uint) (*fleet.HostEscrowState, error) {
+			return &fleet.HostEscrowState{Pending: false}, nil
 		}
 		ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
 			return &fleet.HostMDM{Enrolled: true, Name: fleet.WellKnownMDMFleet, ConnectedToFleet: true}, nil
@@ -1957,7 +1957,9 @@ func TestGetOrbitConfigWindowsManagedLocalAccount(t *testing.T) {
 		}
 		ds.ListReadyToExecuteSoftwareInstallsFunc = func(ctx context.Context, hostID uint) ([]string, error) { return nil, nil }
 		ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, h *fleet.Host) (bool, error) { return true, nil }
-		ds.IsHostPendingEscrowFunc = func(ctx context.Context, hostID uint) bool { return false }
+		ds.GetHostEscrowStateFunc = func(ctx context.Context, hostID uint) (*fleet.HostEscrowState, error) {
+			return &fleet.HostEscrowState{Pending: false}, nil
+		}
 		ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
 			return &fleet.HostMDM{Enrolled: true, Name: fleet.WellKnownMDMFleet, ConnectedToFleet: true}, nil
 		}
@@ -2439,4 +2441,50 @@ func TestEnrollOrbitEndUserAuthBypass(t *testing.T) {
 		require.Contains(t, err.Error(), "END_USER_AUTH_REQUIRED")
 		require.False(t, ds.EnrollOrbitFuncInvoked, "the flag bypass must not fire when an EUA token is present")
 	})
+}
+
+func TestEscrowLUKSDataStatus(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}, SkipCreateTestUsers: true})
+	hostCtx := test.HostContext(ctx, &fleet.Host{ID: 1, Platform: "ubuntu"})
+
+	var gotInFlight []bool
+	ds.SetEscrowInFlightFunc = func(ctx context.Context, hostID uint, inFlight bool) error {
+		require.Equal(t, uint(1), hostID)
+		gotInFlight = append(gotInFlight, inFlight)
+		return nil
+	}
+	ds.ReportEscrowErrorFunc = func(ctx context.Context, hostID uint, err string) error {
+		return nil
+	}
+	reset := func() {
+		gotInFlight = nil
+		ds.SetEscrowInFlightFuncInvoked, ds.ReportEscrowErrorFuncInvoked = false, false
+	}
+
+	for _, status := range []string{fleet.LinuxEscrowStatusPrompting, fleet.LinuxEscrowStatusEscrowing} {
+		reset()
+		require.NoError(t, svc.EscrowLUKSData(hostCtx, "", "", nil, "", "", status), status)
+		require.Equal(t, []bool{true}, gotInFlight, status)
+	}
+
+	for _, status := range []string{fleet.LinuxEscrowStatusCanceled, fleet.LinuxEscrowStatusTimedOut} {
+		reset()
+		require.NoError(t, svc.EscrowLUKSData(hostCtx, "", "", nil, "", "", status), status)
+		require.Equal(t, []bool{false}, gotInFlight, status)
+	}
+
+	// a status report is not an escrow result, so the other fields are ignored
+	reset()
+	require.NoError(t, svc.EscrowLUKSData(hostCtx, "", "", nil, "some client error", "", fleet.LinuxEscrowStatusPrompting))
+	require.Equal(t, []bool{true}, gotInFlight)
+	require.False(t, ds.ReportEscrowErrorFuncInvoked)
+
+	reset()
+	var bre *fleet.BadRequestError
+	require.ErrorAs(t, svc.EscrowLUKSData(hostCtx, "", "", nil, "", "", "bogus"), &bre)
+	require.False(t, ds.SetEscrowInFlightFuncInvoked)
+	require.False(t, ds.ReportEscrowErrorFuncInvoked)
+
+	require.Error(t, svc.EscrowLUKSData(ctx, "", "", nil, "", "", fleet.LinuxEscrowStatusPrompting), "no host in context")
 }

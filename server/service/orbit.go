@@ -706,10 +706,13 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		notifs.PendingScriptExecutionIDs = execIDs
 	}
 
-	notifs.RunDiskEncryptionEscrow = host.IsLUKSSupported() &&
-		host.DiskEncryptionEnabled != nil &&
-		*host.DiskEncryptionEnabled &&
-		svc.ds.IsHostPendingEscrow(ctx, host.ID)
+	if host.IsLUKSSupported() && host.DiskEncryptionEnabled != nil && *host.DiskEncryptionEnabled {
+		escrow, err := svc.ds.GetHostEscrowState(ctx, host.ID)
+		if err != nil {
+			return fleet.OrbitConfig{}, ctxerr.Wrap(ctx, err, "getting host escrow state for linux escrow")
+		}
+		notifs.RunDiskEncryptionEscrow = escrow.Pending
+	}
 	if notifs.RunDiskEncryptionEscrow {
 		// Escrow can be turned off after a host is already pending; without this
 		// the user is asked for their passphrase and EscrowLUKSData then discards
@@ -827,7 +830,7 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 
 		// only unset this flag once we know there were no errors so this notification will be picked up by the agent
 		if notifs.RunDiskEncryptionEscrow {
-			_ = svc.ds.ClearPendingEscrow(ctx, host.ID)
+			_ = svc.ds.MarkEscrowSentToAgent(ctx, host.ID)
 		}
 
 		mergedFlags, debugLogging, err := resolveOrbitDebugLogging(ctx, host, opts.CommandLineStartUpFlags)
@@ -909,7 +912,7 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 
 	// only unset this flag once we know there were no errors so this notification will be picked up by the agent
 	if notifs.RunDiskEncryptionEscrow {
-		_ = svc.ds.ClearPendingEscrow(ctx, host.ID)
+		_ = svc.ds.MarkEscrowSentToAgent(ctx, host.ID)
 	}
 
 	mergedFlags, debugLogging, err := resolveOrbitDebugLogging(ctx, host, opts.CommandLineStartUpFlags)
@@ -1645,19 +1648,23 @@ func (svc *Service) SetOrUpdateDiskEncryptionKey(ctx context.Context, encryption
 
 func postOrbitLUKSEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*fleet.OrbitPostLUKSRequest)
-	if err := svc.EscrowLUKSData(ctx, req.Passphrase, req.Salt, req.KeySlot, req.ClientError, req.KeyType); err != nil {
+	if err := svc.EscrowLUKSData(ctx, req.Passphrase, req.Salt, req.KeySlot, req.ClientError, req.KeyType, req.Status); err != nil {
 		return fleet.OrbitPostLUKSResponse{Err: err}, nil
 	}
 	return fleet.OrbitPostLUKSResponse{}, nil
 }
 
-func (svc *Service) EscrowLUKSData(ctx context.Context, passphrase string, salt string, keySlot *uint, clientError string, keyType string) error {
+func (svc *Service) EscrowLUKSData(ctx context.Context, passphrase string, salt string, keySlot *uint, clientError string, keyType string, status string) error {
 	// this is not a user-authenticated endpoint
 	svc.authz.SkipAuthorization(ctx)
 
 	host, ok := hostctx.FromContext(ctx)
 	if !ok {
 		return newOsqueryError("internal error: missing host from request context")
+	}
+
+	if status != "" {
+		return svc.reportLinuxEscrowStatus(ctx, host.ID, status)
 	}
 
 	if clientError != "" {
@@ -1705,6 +1712,17 @@ func (svc *Service) EscrowLUKSData(ctx context.Context, passphrase string, salt 
 	}
 
 	return nil
+}
+
+func (svc *Service) reportLinuxEscrowStatus(ctx context.Context, hostID uint, status string) error {
+	switch status {
+	case fleet.LinuxEscrowStatusPrompting, fleet.LinuxEscrowStatusEscrowing:
+		return svc.ds.SetEscrowInFlight(ctx, hostID, true)
+	case fleet.LinuxEscrowStatusCanceled, fleet.LinuxEscrowStatusTimedOut:
+		return svc.ds.SetEscrowInFlight(ctx, hostID, false)
+	default:
+		return &fleet.BadRequestError{Message: fmt.Sprintf("unknown LUKS escrow status %q", status)}
+	}
 }
 
 /////////////////////////////////////////////////////////////////////////////////
