@@ -18,6 +18,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	mdmtesting "github.com/fleetdm/fleet/v4/server/mdm/testing_utils"
+	notifications_api "github.com/fleetdm/fleet/v4/server/notifications/api"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
@@ -289,6 +290,9 @@ func (s *integrationMDMTestSuite) TestWipeMacOSCancelsUpcomingActivities() {
 	// orbit enrollment is required so that /scripts/run is accepted
 	setOrbitEnrollment(t, host, s.ds)
 
+	// queue a notification for the host, which the wipe gives up on along with the activities
+	notificationUUID := newTestNotification(t, s.ds, host.ID, fleet.PatchNotificationKind, `{"reminder": false}`)
+
 	// enqueue two upcoming script-run activities
 	var runResp fleet.RunScriptResponse
 	s.DoJSON("POST", "/api/latest/fleet/scripts/run",
@@ -341,6 +345,12 @@ func (s *integrationMDMTestSuite) TestWipeMacOSCancelsUpcomingActivities() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", host.ID),
 		nil, http.StatusOK, &listResp)
 	require.Empty(t, listResp.Activities)
+
+	// the notify script that would have reported this notification's outcome went with them
+	wiped := getTestNotification(t, s.ds, notificationUUID)
+	require.Equal(t, notifications_api.EndUserNotificationFailed, wiped.Status)
+	require.NotNil(t, wiped.LastReason)
+	require.Equal(t, notifications_api.EndUserNotificationReasonCanceled, *wiped.LastReason)
 }
 
 func (s *integrationMDMTestSuite) TestWipeMacOSUserChannelErrorKeepsUpcomingActivities() {

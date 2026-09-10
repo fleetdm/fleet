@@ -124,6 +124,14 @@ func (s *Service) ActOnNotification(ctx context.Context, notificationUUID string
 	return acted, nil
 }
 
+func (s *Service) FailNotificationsForHost(ctx context.Context, hostID uint, reason string) error {
+	err := s.ds.FailEndUserNotificationsForHost(ctx, hostID, reason)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "fail end user notifications for host")
+	}
+	return nil
+}
+
 func (s *Service) SetNotificationStatus(ctx context.Context, notificationUUID string, status string, reason *string, whereStatusIn []string) error {
 	err := s.ds.SetEndUserNotificationStatus(ctx, notificationUUID, status, reason, whereStatusIn)
 	if err != nil {

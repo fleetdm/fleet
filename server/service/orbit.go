@@ -1346,8 +1346,9 @@ func (svc *Service) SaveHostScriptResult(ctx context.Context, result *fleet.Host
 			// cancel them silently before falling through to record the
 			// "ran script" activity for the wipe itself.
 			if hsr.ExitCode != nil && *hsr.ExitCode == 0 {
-				if _, err := svc.ds.BatchCancelAllHostUpcomingActivities(ctx, host.ID); err != nil {
-					return ctxerr.Wrap(ctx, err, "cancel upcoming activities after wipe")
+				err = cancelActivitiesAndNotificationsForHost(ctx, svc.ds, svc.notificationsSvc, host.ID)
+				if err != nil {
+					return err
 				}
 			}
 			fallthrough

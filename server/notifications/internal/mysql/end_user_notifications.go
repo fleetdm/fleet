@@ -370,6 +370,22 @@ WHERE uuid = ? AND status IN (?, ?)
 	return rows > 0, nil
 }
 
+func (ds *Datastore) FailEndUserNotificationsForHost(ctx context.Context, hostID uint, reason string) error {
+	const updateStmt = `
+UPDATE notifications_end_user
+SET status = ?, last_reason = ?
+WHERE host_id = ? AND status IN (?, ?)
+`
+
+	if _, err := ds.primary.ExecContext(ctx, updateStmt,
+		api.EndUserNotificationFailed, reason, hostID,
+		api.EndUserNotificationPending, api.EndUserNotificationDispatched,
+	); err != nil {
+		return ctxerr.Wrap(ctx, err, "fail end user notifications for host")
+	}
+	return nil
+}
+
 func (ds *Datastore) SetEndUserNotificationStatus(ctx context.Context, notificationUUID string, status string, reason *string, whereStatusIn []string) error {
 	stmt, args, err := sqlx.In(`
 UPDATE notifications_end_user

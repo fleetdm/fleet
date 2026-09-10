@@ -17,6 +17,7 @@ type Service interface {
 	ActOnNotificationService
 	SetNotificationStatusService
 	CreateNotificationService
+	FailNotificationsForHostService
 
 	// ExpireAndQueueNotifications gives up on notifications that are out of
 	// time, then queues a script for each one that is due.
@@ -74,4 +75,10 @@ type ActOnNotificationService interface {
 // SetNotificationStatusService sets the status for a notification if its status is in whereStatusIn, optionally changing last_reason.
 type SetNotificationStatusService interface {
 	SetNotificationStatus(ctx context.Context, notificationUUID string, status string, reason *string, whereStatusIn []string) error
+}
+
+// FailNotificationsForHostService sets a host's pending and dispatched
+// notifications to failed.
+type FailNotificationsForHostService interface {
+	FailNotificationsForHost(ctx context.Context, hostID uint, reason string) error
 }
