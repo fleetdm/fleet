@@ -386,6 +386,12 @@ $shadow-transition-width: 16px;
             }
           }
         }
+
+        // fixes the Agent column tooltip's dashed underline getting clipped
+        // by .text-cell's overflow: hidden
+        .agent-cell-tooltip-wrapper {
+          overflow: visible;
+        }
         .w400 {
           max-width: 352px; // 400px - 48px padding
           min-width: 100%;

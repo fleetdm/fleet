@@ -691,6 +691,7 @@ const allHostTableHeaders = (teamId?: number): IHostTableColumnConfig[] => [
         <TextCell
           value={
             <TooltipWrapper
+              className="agent-cell-tooltip-wrapper"
               tipContent={
                 <>
                   osquery: {osquery_version}
