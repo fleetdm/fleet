@@ -1403,6 +1403,7 @@ func RegisterAppleMDMProtocolServices(
 	checkinAndCommandService nanomdm_service.CheckinAndCommandService,
 	ddmService nanomdm_service.DeclarativeManagement,
 	profileService nanomdm_service.ProfileService,
+	getTokenService nanomdm_service.GetToken,
 	serverURLPrefix string,
 	fleetConfig config.FleetConfig,
 	svc fleet.Service,
@@ -1411,7 +1412,7 @@ func RegisterAppleMDMProtocolServices(
 	if err := registerSCEP(mux, scepConfig, scepStorage, mdmStorage, logger, fleetConfig, ds); err != nil {
 		return fmt.Errorf("scep: %w", err)
 	}
-	if err := registerMDM(mux, mdmStorage, checkinAndCommandService, ddmService, profileService, logger, fleetConfig, ds); err != nil {
+	if err := registerMDM(mux, mdmStorage, checkinAndCommandService, ddmService, profileService, getTokenService, logger, fleetConfig, ds); err != nil {
 		return fmt.Errorf("mdm: %w", err)
 	}
 	if err := registerMDMServiceDiscovery(mux, logger, serverURLPrefix, fleetConfig, ds); err != nil {
@@ -1585,6 +1586,7 @@ func registerMDM(
 	checkinAndCommandService nanomdm_service.CheckinAndCommandService,
 	ddmService nanomdm_service.DeclarativeManagement,
 	profileService nanomdm_service.ProfileService,
+	getTokenService nanomdm_service.GetToken,
 	logger *slog.Logger,
 	fleetConfig config.FleetConfig,
 	ds fleet.Datastore,
@@ -1601,7 +1603,9 @@ func registerMDM(
 	// the device.
 	// 5. Run actual MDM service operation (checkin handler or command and results handler).
 	coreMDMService := nanomdm.New(mdmStorage, nanomdm.WithLogger(mdmLogger), nanomdm.WithDeclarativeManagement(ddmService),
-		nanomdm.WithProfileService(profileService), nanomdm.WithUserAuthenticate(checkinAndCommandService))
+		nanomdm.WithProfileService(profileService), nanomdm.WithUserAuthenticate(checkinAndCommandService),
+		nanomdm.WithGetToken(getTokenService))
+
 	// NOTE: it is critical that the coreMDMService runs first, as the first
 	// service in the multi-service feature is run to completion _before_ running
 	// the other ones in parallel. This way, subsequent services have access to

@@ -2023,3 +2023,15 @@ type MDMAppleAPNsSweepState struct {
 	Cursor    string `json:"cursor"`
 	BatchSize int    `json:"batch_size"`
 }
+
+// The following consts represents which GetToken[1] service types are supported by Fleet for Apple MDM.
+//
+// [1] https://developer.apple.com/documentation/devicemanagement/get-token#Discussion
+const (
+	TokenServiceTypeMAID = "com.apple.maid"
+)
+
+const (
+	TokenSourceDefault       = "default"
+	TokenSourceDEPAssignment = "dep_assignment"
+)
