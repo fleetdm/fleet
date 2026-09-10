@@ -64,7 +64,13 @@ DOWNLOAD_URL="${GITHUB_RELEASES}/download/fleet-v${FLEETCTL_VERSION}/${ARCHIVE}.
 CHECKSUMS_URL="${GITHUB_RELEASES}/download/fleet-v${FLEETCTL_VERSION}/checksums.txt"
 
 TMP_DIR="$(mktemp -d)"
-trap 'rm -rf "$TMP_DIR"' EXIT
+STAGED=""
+cleanup() {
+  rm -rf "$TMP_DIR"
+  [[ -n "$STAGED" ]] && rm -f "$STAGED"
+  return 0
+}
+trap cleanup EXIT
 
 echo "Downloading fleetctl ${FLEETCTL_VERSION} for ${OS_DISPLAY_NAME}..."
 curl -sSfL "$DOWNLOAD_URL" -o "${TMP_DIR}/${ARCHIVE}.tar.gz" \
@@ -90,17 +96,18 @@ fi
 tar -xzf "${TMP_DIR}/${ARCHIVE}.tar.gz" -C "$TMP_DIR" --strip-components=1 "${ARCHIVE}/fleetctl"
 [[ -f "${TMP_DIR}/fleetctl" ]] || fail "fleetctl binary not found in ${ARCHIVE}.tar.gz."
 
-# Stage next to the destination so the final rename is atomic and never leaves a partial binary.
+# Stage next to the destination (created exclusively by mktemp, so the name can't be guessed)
+# and verify the new binary runs before the atomic rename replaces any existing fleetctl.
 mkdir -p "$FLEETCTL_INSTALL_DIR"
-STAGED="${FLEETCTL_INSTALL_DIR}/.fleetctl.tmp.$$"
+STAGED="$(mktemp "${FLEETCTL_INSTALL_DIR}/.fleetctl.XXXXXX")"
 cp "${TMP_DIR}/fleetctl" "$STAGED"
 chmod 0755 "$STAGED"
-mv -f "$STAGED" "${FLEETCTL_INSTALL_DIR}/fleetctl"
 
-INSTALLED_VERSION="$("${FLEETCTL_INSTALL_DIR}/fleetctl" --version 2>/dev/null | sed -n '1s/^fleetctl - version //p' || true)"
-if [[ "$INSTALLED_VERSION" != "$FLEETCTL_VERSION" ]]; then
-  fail "installed fleetctl at ${FLEETCTL_INSTALL_DIR}/fleetctl does not run or reports version \"${INSTALLED_VERSION}\" instead of ${FLEETCTL_VERSION}."
+STAGED_VERSION="$("$STAGED" --version 2>/dev/null | sed -n '1s/^fleetctl - version //p' || true)"
+if [[ "$STAGED_VERSION" != "$FLEETCTL_VERSION" ]]; then
+  fail "downloaded fleetctl does not run on this system or reports version \"${STAGED_VERSION}\" instead of ${FLEETCTL_VERSION}. Any existing fleetctl in ${FLEETCTL_INSTALL_DIR} was left unchanged."
 fi
+mv -f "$STAGED" "${FLEETCTL_INSTALL_DIR}/fleetctl"
 
 echo "fleetctl ${FLEETCTL_VERSION} installed successfully in ${FLEETCTL_INSTALL_DIR}"
 case ":${PATH}:" in
