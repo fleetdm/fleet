@@ -34,6 +34,7 @@ import (
 	"github.com/fleetdm/fleet/v4/ee/server/service/scep"
 	"github.com/fleetdm/fleet/v4/server/acl/acmeacl"
 	"github.com/fleetdm/fleet/v4/server/acl/activityacl"
+	"github.com/fleetdm/fleet/v4/server/acl/chartacl"
 	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	activity_bootstrap "github.com/fleetdm/fleet/v4/server/activity/bootstrap"
 	apiendpoints "github.com/fleetdm/fleet/v4/server/api_endpoints"
@@ -555,7 +556,7 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 			&common_mysql.DBConnections{},
 			nil,
 			nil,
-			fleet.ExpandPlatform,
+			chartacl.ExpandPlatform,
 			logger,
 		)
 		noopAuth := func(next endpoint.Endpoint) endpoint.Endpoint { return next }

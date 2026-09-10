@@ -378,7 +378,7 @@ mocks elsewhere can crash if an interface method is missing.
 
 Related code outside this tree:
 
-- `server/acl/chartacl/` — anti-corruption layer (viewer adapter).
+- `server/acl/chartacl/` — anti-corruption layer (viewer and platform expander adapters).
 - `cmd/fleet/serve.go` — `createChartBoundedContext`, dataset registration.
 - `cmd/fleet/cron.go` — collection schedule, scope resolver, cleanup.
 - `server/worker/chart_scrub.go` — scrub worker jobs.

@@ -49,8 +49,7 @@ type CollectScopeFn func(datasetName string) (skip bool, disabledFleetIDs []uint
 // PlatformExpanderFn maps one platform filter value to the hosts.platform
 // values it covers. Linux hosts store their distro ("ubuntu", "rhel", ...) in
 // hosts.platform, never "linux", so the caller must expand that family; other
-// platforms map to themselves. Fleet's fleet.ExpandPlatform is the production
-// implementation.
+// platforms map to themselves. Implemented in server/acl/chartacl.
 type PlatformExpanderFn func(platform string) []string
 
 // ViewerProvider exposes authorization-relevant information about the current
