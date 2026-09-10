@@ -47,6 +47,7 @@ func TestSoftwareInstallers(t *testing.T) {
 		{"DeleteSoftwareInstallerRepointsPolicies", testDeleteSoftwareInstallerRepointsPolicies},
 		{"testDeletePendingSoftwareInstallsForPolicy", testDeletePendingSoftwareInstallsForPolicy},
 		{"GetHostLastInstallData", testGetHostLastInstallData},
+		{"BatchInstallVerificationReads", testBatchInstallVerificationReads},
 		{"GetOrGenerateSoftwareInstallerTitleID", testGetOrGenerateSoftwareInstallerTitleID},
 		{"BatchSetSoftwareInstallersScopedViaLabels", testBatchSetSoftwareInstallersScopedViaLabels},
 		{"MatchOrCreateSoftwareInstallerWithAutomaticPolicies", testMatchOrCreateSoftwareInstallerWithAutomaticPolicies},
@@ -1100,9 +1101,11 @@ func testGetSoftwareInstallResult(t *testing.T, ds *Datastore) {
 			res, err := ds.GetSoftwareInstallResults(ctx, installUUID)
 			require.NoError(t, err)
 			require.NotNil(t, res.UpdatedAt)
-			require.Less(t, beforeInstallRequest, res.CreatedAt)
+			// MySQL writes these off its own clock, which can sit a fraction of a millisecond behind
+			// the one time.Now() reads, so compare with a tolerance rather than strictly ordering them
+			require.WithinDuration(t, beforeInstallRequest, res.CreatedAt, time.Minute)
 			createdAt := res.CreatedAt
-			require.Less(t, beforeInstallRequest, *res.UpdatedAt)
+			require.WithinDuration(t, beforeInstallRequest, *res.UpdatedAt, time.Minute)
 
 			beforeInstallResult := time.Now()
 			_, err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
@@ -1167,7 +1170,7 @@ func testGetSoftwareInstallResult(t *testing.T, ds *Datastore) {
 			require.NotNil(t, res.CreatedAt)
 			require.Equal(t, createdAt, res.CreatedAt)
 			require.NotNil(t, res.UpdatedAt)
-			require.Less(t, beforeInstallResult, *res.UpdatedAt)
+			require.WithinDuration(t, beforeInstallResult, *res.UpdatedAt, time.Minute)
 		})
 	}
 }
@@ -3260,6 +3263,107 @@ func testGetHostLastInstallData(t *testing.T, ds *Datastore) {
 	host2LastInstall, err = ds.GetHostLastInstallData(ctx, host2.ID, softwareInstallerID2)
 	require.NoError(t, err)
 	require.Nil(t, host2LastInstall)
+}
+
+// The two batch reads RemindAndInstallDuePatches does before deciding whether a software title
+// still needs updating: the host's install requests, and the host's software inventory.
+func testBatchInstallVerificationReads(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "title-installs-team"})
+	require.NoError(t, err)
+	user := test.NewUser(t, ds, "Title Installs", "title-installs@example.com", true)
+	installedHost := test.NewHost(t, ds, "title-installs-1", "1", "title-installs-1-key", "title-installs-1-uuid", time.Now(), test.WithTeamID(team.ID))
+	untouchedHost := test.NewHost(t, ds, "title-installs-2", "2", "title-installs-2-key", "title-installs-2-uuid", time.Now(), test.WithTeamID(team.ID))
+
+	// two installers of the same software title, which is what replacing a package leaves behind
+	firstInstallerID, titleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript: "install", StorageID: uuid.NewString(), Filename: "first.pkg",
+		Title: "Replaced App", Version: "1.0.0", Source: "apps", Platform: "darwin",
+		TeamID: &team.ID, UserID: user.ID, ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+	secondInstallerID, secondTitleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript: "install", StorageID: uuid.NewString(), Filename: "second.pkg",
+		Title: "Replaced App", Version: "2.0.0", Source: "apps", Platform: "darwin",
+		TeamID: &team.ID, UserID: user.ID, ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+	require.NotEqual(t, firstInstallerID, secondInstallerID)
+	require.Equal(t, titleID, secondTitleID)
+
+	// the install through the first installer finished
+	firstExecutionID, err := ds.InsertSoftwareInstallRequest(ctx, installedHost.ID, firstInstallerID, fleet.HostSoftwareInstallOptions{})
+	require.NoError(t, err)
+	_, err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
+		HostID: installedHost.ID, InstallUUID: firstExecutionID, InstallScriptExitCode: new(0),
+	}, nil)
+	require.NoError(t, err)
+
+	// the second install request is still pending, and runs the app open query as a policy install does
+	secondExecutionID, err := ds.InsertSoftwareInstallRequest(ctx, installedHost.ID, secondInstallerID,
+		fleet.HostSoftwareInstallOptions{OverridePreInstallQuery: true})
+	require.NoError(t, err)
+
+	installsByTitle, err := ds.ListLastTitleInstallDataForHosts(ctx, []uint{installedHost.ID, untouchedHost.ID}, []uint{titleID})
+	require.NoError(t, err)
+
+	// both installs report against the one software title, whichever installer they went through
+	installs := installsByTitle[fleet.HostSoftwareTitleKey{HostID: installedHost.ID, SoftwareTitleID: titleID}]
+	require.Len(t, installs, 2)
+	statusByExecutionID := make(map[string]fleet.SoftwareInstallerStatus, len(installs))
+	overrideByExecutionID := make(map[string]bool, len(installs))
+	for _, install := range installs {
+		require.NotNil(t, install.Status)
+		statusByExecutionID[install.ExecutionID] = *install.Status
+		overrideByExecutionID[install.ExecutionID] = install.OverridePreInstallQuery
+	}
+	require.Equal(t, fleet.SoftwareInstalled, statusByExecutionID[firstExecutionID])
+	require.Equal(t, fleet.SoftwareInstallPending, statusByExecutionID[secondExecutionID])
+
+	// the patch countdown reads override_pre_install_query to tell an install that would skip while
+	// the app is open from one it can wait on
+	require.False(t, overrideByExecutionID[firstExecutionID])
+	require.True(t, overrideByExecutionID[secondExecutionID])
+
+	// a host Fleet has installed nothing on is left out
+	require.NotContains(t, installsByTitle, fleet.HostSoftwareTitleKey{HostID: untouchedHost.ID, SoftwareTitleID: titleID})
+
+	// a software title with no installer of its own has nothing to report
+	otherTitleID := newTestSoftwareTitle(t, ds, "Uninstallable App")
+	installsByTitle, err = ds.ListLastTitleInstallDataForHosts(ctx, []uint{installedHost.ID}, []uint{otherTitleID})
+	require.NoError(t, err)
+	require.Empty(t, installsByTitle)
+
+	// The host's software inventory, the second read RemindAndInstallDuePatches does. A software
+	// title with two versions in host_software returns both rows, since the caller treats the title
+	// as up to date only when every version matches the installer's.
+	_, err = ds.UpdateHostSoftware(ctx, installedHost.ID, []fleet.Software{
+		{Name: "Replaced App", Version: "1.0.0", Source: "apps"},
+		{Name: "Replaced App", Version: "2.0.0", Source: "apps"},
+		{Name: "Unrelated App", Version: "9.9.9", Source: "apps"},
+	})
+	require.NoError(t, err)
+
+	versions, err := ds.ListSoftwareTitleVersionsForHosts(ctx,
+		[]uint{installedHost.ID, untouchedHost.ID}, []uint{titleID})
+	require.NoError(t, err)
+
+	installedVersions := make([]string, 0, len(versions))
+	for _, version := range versions {
+		require.Equal(t, installedHost.ID, version.HostID, "the host with no inventory reports nothing")
+		require.Equal(t, titleID, version.SoftwareTitleID, "a title that wasn't asked for stays out")
+		installedVersions = append(installedVersions, version.Version)
+	}
+	require.ElementsMatch(t, []string{"1.0.0", "2.0.0"}, installedVersions)
+
+	// neither an empty host list nor an empty title list reads the whole table
+	versions, err = ds.ListSoftwareTitleVersionsForHosts(ctx, nil, []uint{titleID})
+	require.NoError(t, err)
+	require.Empty(t, versions)
+	versions, err = ds.ListSoftwareTitleVersionsForHosts(ctx, []uint{installedHost.ID}, nil)
+	require.NoError(t, err)
+	require.Empty(t, versions)
 }
 
 func testGetOrGenerateSoftwareInstallerTitleID(t *testing.T, ds *Datastore) {

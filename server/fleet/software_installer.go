@@ -461,6 +461,20 @@ func (s SoftwareInstallerStatus) IsValid() bool {
 	}
 }
 
+// HostSoftwareTitleKey identifies one software title on one host.
+type HostSoftwareTitleKey struct {
+	HostID          uint
+	SoftwareTitleID uint
+}
+
+// What a host has installed for one software title. A title can have more than one row when several
+// copies are installed.
+type HostSoftwareTitleVersion struct {
+	HostID          uint   `db:"host_id"`
+	SoftwareTitleID uint   `db:"title_id"`
+	Version         string `db:"version"`
+}
+
 // HostLastInstallData contains data for the last installation of a package on a host.
 type HostLastInstallData struct {
 	// ExecutionID is the installation ID of the package on the host.
@@ -472,6 +486,8 @@ type HostLastInstallData struct {
 	// requests the host refetch; it is used to throttle continuous policy automation
 	// re-installs (see continuousAutomationOnCooldown).
 	UpdatedAt time.Time `db:"updated_at"`
+	// OverridePreInstallQuery means the install runs the app open query as its pre-install condition
+	OverridePreInstallQuery bool `db:"override_pre_install_query"`
 }
 
 // HostSoftwareInstaller represents a software installer package that has been installed on a host.

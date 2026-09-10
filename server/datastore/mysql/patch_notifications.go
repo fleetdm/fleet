@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -82,6 +83,102 @@ WHERE notification_uuid = ? AND software_title_id IN (?)
 	return nil
 }
 
+func (ds *Datastore) DeletePatchNotificationApps(ctx context.Context, notificationUUID string, softwareTitleIDs []uint) error {
+	if len(softwareTitleIDs) == 0 {
+		return nil
+	}
+
+	stmt, args, err := sqlx.In(`
+DELETE FROM patch_notification_apps
+WHERE notification_uuid = ? AND software_title_id IN (?)
+`, notificationUUID, softwareTitleIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "build delete patch notification apps statement")
+	}
+
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "delete patch notification apps")
+	}
+	return nil
+}
+
+func (ds *Datastore) SetPatchNotificationInstallAt(ctx context.Context, notificationUUID string, installAt time.Time) (time.Time, error) {
+	// GREATEST means the deadline only ever moves later, so every notice the end user actually sees
+	// gets its full lead time even when the toast takes a while to reach the screen.
+	//
+	// The insert makes the deadline recordable even for a notification with no patch_notifications
+	// row. Creation writes that row first so it is always there, and a notification without one would
+	// otherwise display to the end user and never be patched.
+	const upsertStmt = `
+INSERT INTO patch_notifications (notification_uuid, install_at) VALUES (?, ?)
+ON DUPLICATE KEY UPDATE install_at = GREATEST(COALESCE(install_at, VALUES(install_at)), VALUES(install_at))
+`
+
+	if _, err := ds.writer(ctx).ExecContext(ctx, upsertStmt, notificationUUID, installAt); err != nil {
+		return time.Time{}, ctxerr.Wrap(ctx, err, "set patch notification install at")
+	}
+
+	const selectStmt = `SELECT install_at FROM patch_notifications WHERE notification_uuid = ?`
+
+	var stored *time.Time
+	if err := sqlx.GetContext(ctx, ds.writer(ctx), &stored, selectStmt, notificationUUID); err != nil {
+		return time.Time{}, ctxerr.Wrap(ctx, err, "get patch notification install at")
+	}
+	// only reachable if the deadline was cleared between the two statements
+	if stored == nil {
+		return time.Time{}, ctxerr.Errorf(ctx, "patch notification %s has no install at", notificationUUID)
+	}
+	return *stored, nil
+}
+
+func (ds *Datastore) ListPatchNotificationsDue(ctx context.Context, cutoff time.Time, limit int) ([]fleet.PatchNotificationDue, error) {
+	const selectStmt = `
+SELECT
+	pn.notification_uuid,
+	pn.install_at,
+	neu.host_id,
+	neu.status,
+	neu.payload,
+	neu.displayed_at
+FROM
+	patch_notifications pn
+	JOIN notifications_end_user neu ON neu.uuid = pn.notification_uuid
+-- a notification with no deadline was never displayed, so nothing is due for it yet
+WHERE
+	pn.install_at IS NOT NULL
+	AND pn.install_at <= ?
+	-- failed and expired notifications will never be patched
+	AND (
+		-- still being delivered
+		neu.status IN (?, ?)
+		-- or acted on and left with an app whose install never queued
+		OR (
+			neu.status = ?
+			AND EXISTS (
+				SELECT 1
+				FROM patch_notification_apps unhandled
+				WHERE unhandled.notification_uuid = pn.notification_uuid AND unhandled.install_queued = 0
+			)
+		)
+	)
+	-- the reminder needs a displayed first notice and the install needs a displayed reminder, so a
+	-- null displayed_at rules out both
+	AND neu.displayed_at IS NOT NULL
+ORDER BY pn.install_at
+LIMIT ?
+`
+
+	var due []fleet.PatchNotificationDue
+	// reads the primary because the display that sets the deadline can be seconds old
+	if err := sqlx.SelectContext(ctx, ds.writer(ctx), &due, selectStmt,
+		cutoff, notifications_api.EndUserNotificationPending, notifications_api.EndUserNotificationDispatched,
+		notifications_api.EndUserNotificationActed, limit,
+	); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list patch notifications due")
+	}
+	return due, nil
+}
+
 func (ds *Datastore) ListPatchNotificationApps(ctx context.Context, notificationUUID string) ([]fleet.PatchNotificationAppDetail, error) {
 	const selectStmt = `
 SELECT
@@ -91,11 +188,13 @@ SELECT
 	pna.install_queued,
 	COALESCE(st.name, '') AS name,
 	COALESCE(NULLIF(stdn.display_name, ''), st.name, '') AS display_name,
+	COALESCE(si.version, '') AS installer_version,
 	sti.software_title_id IS NOT NULL AS has_icon
 FROM patch_notification_apps pna
 	JOIN notifications_end_user neu ON neu.uuid = pna.notification_uuid
 	JOIN hosts h ON h.id = neu.host_id
 	LEFT JOIN software_titles st ON st.id = pna.software_title_id
+	LEFT JOIN software_installers si ON si.id = pna.software_installer_id
 	LEFT JOIN software_title_display_names stdn
 		ON stdn.software_title_id = pna.software_title_id AND stdn.team_id = COALESCE(h.team_id, 0)
 	LEFT JOIN software_title_icons sti
@@ -109,4 +208,40 @@ ORDER BY display_name, pna.software_title_id
 		return nil, ctxerr.Wrap(ctx, err, "list patch notification apps")
 	}
 	return apps, nil
+}
+
+// ListPatchNotificationAppsForNotifications leaves out the names and icons the toast is built from,
+// because RemindAndInstallDuePatches matches versions and queues installs without displaying anything.
+func (ds *Datastore) ListPatchNotificationAppsForNotifications(ctx context.Context, notificationUUIDs []string) (map[string][]fleet.PatchNotificationAppDetail, error) {
+	if len(notificationUUIDs) == 0 {
+		return nil, nil
+	}
+
+	stmt, args, err := sqlx.In(`
+SELECT
+	pna.notification_uuid,
+	pna.policy_id,
+	pna.software_title_id,
+	pna.software_installer_id,
+	pna.install_queued,
+	pna.created_at,
+	COALESCE(si.version, '') AS installer_version
+FROM patch_notification_apps pna
+	LEFT JOIN software_installers si ON si.id = pna.software_installer_id
+WHERE pna.notification_uuid IN (?)
+`, notificationUUIDs)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "build list patch notification apps for notifications statement")
+	}
+
+	var apps []fleet.PatchNotificationAppDetail
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &apps, stmt, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list patch notification apps for notifications")
+	}
+
+	byNotification := make(map[string][]fleet.PatchNotificationAppDetail, len(notificationUUIDs))
+	for _, app := range apps {
+		byNotification[app.NotificationUUID] = append(byNotification[app.NotificationUUID], app)
+	}
+	return byNotification, nil
 }

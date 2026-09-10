@@ -3,10 +3,13 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
+	"slices"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server"
 	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -22,6 +25,9 @@ const (
 const (
 	patchNotificationFirstNoticeBefore = time.Hour
 	patchNotificationReminderBefore    = 5 * time.Minute
+
+	// how many due patch notifications one cron pass reads
+	duePatchNotificationBatchSize = 500
 )
 
 // Which of the two notices the notification is for. In the payload because that
@@ -60,12 +66,17 @@ type patchNotificationKind struct {
 	logger          *slog.Logger
 }
 
+type PatchNotificationKind interface {
+	notifications_api.NotificationKind
+	RemindAndInstallDuePatches(ctx context.Context) error
+}
+
 func NewPatchNotificationKind(
 	ds fleet.Datastore,
 	activities patchNotificationActivityWriter,
 	notificationSvc patchNotificationService,
 	logger *slog.Logger,
-) notifications_api.NotificationKind {
+) PatchNotificationKind {
 	return &patchNotificationKind{
 		ds:              ds,
 		activities:      activities,
@@ -116,19 +127,22 @@ func (svc *Service) createPatchNotificationForEndUser(ctx context.Context, host 
 		notificationUUID = created.UUID
 	}
 
-	// the app row goes first, because a notification listing no apps can't render
+	if awaiting == nil {
+		if err := svc.ds.NewPatchNotification(ctx, notificationUUID); err != nil {
+			return ctxerr.Wrap(ctx, err, "create patch notification record")
+		}
+	}
+
+	// The app row goes last because it is what stops a later skip starting over: once it exists,
+	// PatchNotificationExistsForApp returns true and this function returns early. Anything written
+	// after it that failed would stay missing for the life of the notification. A notification left
+	// with no apps is safe by comparison, since Render fails it and the policy opens a new one.
 	if err := svc.ds.AddPatchNotificationApp(ctx, notificationUUID, fleet.PatchNotificationApp{
 		PolicyID:            install.PolicyID,
 		SoftwareTitleID:     *install.SoftwareTitleID,
 		SoftwareInstallerID: install.SoftwareInstallerID,
 	}); err != nil {
 		return ctxerr.Wrap(ctx, err, "add patch notification app")
-	}
-
-	if awaiting == nil {
-		if err := svc.ds.NewPatchNotification(ctx, notificationUUID); err != nil {
-			return ctxerr.Wrap(ctx, err, "create patch notification record")
-		}
 	}
 	return nil
 }
@@ -231,28 +245,185 @@ func (k *patchNotificationKind) OnVerify(ctx context.Context, notification *noti
 	return nil
 }
 
-// TODO: should there be a grace period where we install no matter what?
 func (k *patchNotificationKind) OnDelay(ctx context.Context, notification *notifications_api.EndUserNotification) (*notifications_api.NotificationView, error) {
-	untilReminder := patchNotificationFirstNoticeBefore - patchNotificationReminderBefore
+	// RemindAndInstallDuePatches sends the reminder whatever the end user pressed, so the button only
+	// has to close the toast, which the page does over the bridge. Leaving the row alone is also what
+	// stops the button buying more time.
+	return nil, nil
+}
 
+func (k *patchNotificationKind) RemindAndInstallDuePatches(ctx context.Context) error {
 	now := time.Now().UTC()
-	nextAttemptAt := now.Add(notifications_api.EndUserNotificationDelayInterval)
-	payload := patchNotificationFirstNoticePayload
-	if notification.DisplayedAt != nil {
-		if fromDisplay := notification.DisplayedAt.Add(untilReminder); fromDisplay.After(now) {
-			nextAttemptAt = fromDisplay
-			payload = patchNotificationReminderPayload
+
+	duePatches, err := k.ds.ListPatchNotificationsDue(ctx, now.Add(patchNotificationReminderBefore), duePatchNotificationBatchSize)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "list patch notifications due")
+	}
+	if len(duePatches) == 0 {
+		return nil
+	}
+
+	notificationUUIDs := make([]string, 0, len(duePatches))
+	hostIDs := make([]uint, 0, len(duePatches))
+	for _, duePatch := range duePatches {
+		notificationUUIDs = append(notificationUUIDs, duePatch.NotificationUUID)
+		hostIDs = append(hostIDs, duePatch.HostID)
+	}
+
+	// The apps, the inventory and the install history of every due patch in the batch, read up front so
+	// the loop below does writes and installs rather than a handful of reads per notification.
+	appsByNotification, err := k.ds.ListPatchNotificationAppsForNotifications(ctx, notificationUUIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "list patch notification apps for the batch")
+	}
+
+	// The same title comes up once per host notified about it, so the IN list is deduplicated. The due
+	// patches are walked rather than the map, which would put the list in a different order every pass.
+	var softwareTitleIDs []uint
+	for _, duePatch := range duePatches {
+		for _, app := range appsByNotification[duePatch.NotificationUUID] {
+			softwareTitleIDs = append(softwareTitleIDs, app.SoftwareTitleID)
+		}
+	}
+	softwareTitleIDs = server.RemoveDuplicatesFromSlice(softwareTitleIDs)
+
+	versions, err := k.ds.ListSoftwareTitleVersionsForHosts(ctx, hostIDs, softwareTitleIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "list host software versions for the batch")
+	}
+	installedVersions := make(map[fleet.HostSoftwareTitleKey][]string, len(versions))
+	for _, version := range versions {
+		key := fleet.HostSoftwareTitleKey{HostID: version.HostID, SoftwareTitleID: version.SoftwareTitleID}
+		installedVersions[key] = append(installedVersions[key], version.Version)
+	}
+
+	installsByTitle, err := k.ds.ListLastTitleInstallDataForHosts(ctx, hostIDs, softwareTitleIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "list host last title install data for the batch")
+	}
+
+	// One notification failing must not hold up the rest of the batch.
+	var errs []error
+	for _, duePatch := range duePatches {
+		err = k.remindOrInstallDuePatch(ctx, duePatch, appsByNotification[duePatch.NotificationUUID], installedVersions, installsByTitle, now)
+		if err != nil {
+			errs = append(errs, ctxerr.Wrapf(ctx, err, "notification_uuid=%s", duePatch.NotificationUUID))
+		}
+	}
+	return errors.Join(errs...)
+}
+
+func (k *patchNotificationKind) remindOrInstallDuePatch(
+	ctx context.Context,
+	duePatch fleet.PatchNotificationDue,
+	apps []fleet.PatchNotificationAppDetail,
+	installedVersions map[fleet.HostSoftwareTitleKey][]string,
+	installsByTitle map[fleet.HostSoftwareTitleKey][]*fleet.HostLastInstallData,
+	now time.Time,
+) error {
+	// A re-dispatch clears displayed_at, so a null one means the reminder has been queued but not
+	// displayed yet.
+	if duePatch.DisplayedAt == nil {
+		return nil
+	}
+
+	notificationIsReminder, err := patchNotificationIsReminder(duePatch.Payload)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "read patch notification payload")
+	}
+
+	// Which notice was displayed last decides what happens next.
+	if !notificationIsReminder {
+		if duePatch.Status != notifications_api.EndUserNotificationDispatched {
+			return nil
+		}
+	} else if now.Before(duePatch.InstallAt) {
+		// the reminder was displayed and its five minutes are not up
+		return nil
+	}
+
+	// leave out the apps updated since the notification was created, so the reminder stops naming them and nothing is queued for them
+	var alreadyUpdatedTitleIDs []uint
+	remaining := make([]fleet.PatchNotificationAppDetail, 0, len(apps))
+	for _, app := range apps {
+		if app.SoftwareInstallerID == nil {
+			remaining = append(remaining, app)
+			continue
+		}
+
+		appKey := fleet.HostSoftwareTitleKey{HostID: duePatch.HostID, SoftwareTitleID: app.SoftwareTitleID}
+
+		installed := installedVersions[appKey]
+		upToDate := len(installed) > 0
+		for _, installedVersion := range installed {
+			if installedVersion != app.InstallerVersion {
+				upToDate = false
+				break
+			}
+		}
+		if upToDate {
+			alreadyUpdatedTitleIDs = append(alreadyUpdatedTitleIDs, app.SoftwareTitleID)
+			continue
+		}
+
+		var installedByFleet bool
+		for _, install := range installsByTitle[appKey] {
+			if install.Status != nil && *install.Status == fleet.SoftwareInstalled && install.UpdatedAt.After(app.CreatedAt) {
+				installedByFleet = true
+				break
+			}
+		}
+		if installedByFleet {
+			alreadyUpdatedTitleIDs = append(alreadyUpdatedTitleIDs, app.SoftwareTitleID)
+			continue
+		}
+		remaining = append(remaining, app)
+	}
+
+	// Render builds the toast from these rows, so updated apps stop being named
+	if len(alreadyUpdatedTitleIDs) > 0 {
+		err := k.ds.DeletePatchNotificationApps(ctx, duePatch.NotificationUUID, alreadyUpdatedTitleIDs)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "delete patch notification apps that no longer need updating")
 		}
 	}
 
-	if err := k.notificationSvc.DelayNotification(ctx, notification.UUID, nextAttemptAt, payload); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "delay patch notification")
+	if !notificationIsReminder {
+		// nothing left to update, so the notification closes instead of reminding
+		if len(remaining) == 0 {
+			_, err := k.notificationSvc.ActOnNotification(ctx, duePatch.NotificationUUID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "act on a patch notification with nothing left to update")
+			}
+		} else {
+			// re-send the notification with the reminder payload, so the end user gets the 5 minute notice
+			err := k.notificationSvc.DelayNotification(ctx, duePatch.NotificationUUID, now, patchNotificationReminderPayload)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "send patch notification reminder")
+			}
+		}
+		return nil
 	}
 
-	// The delay wrote the payload the view's copy comes from, so carry it over
-	// instead of reading the row again.
-	notification.Payload = payload
-	return k.renderView(ctx, notification, false)
+	// Moving the status to acted is what claims the queueing, so an Update now press and this pass
+	// cannot both send the same installs.
+	isStatusActed := duePatch.Status == notifications_api.EndUserNotificationActed
+	actedInThisPass, err := k.notificationSvc.ActOnNotification(ctx, duePatch.NotificationUUID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "act on patch notification")
+	}
+	// Not claiming the queueing has two causes. Acted at read time is an earlier pass that stopped
+	// part way, which this one finishes. Acted only now is an Update now press, which queues the
+	// installs instead. Or verify dropped every app.
+	if (!actedInThisPass && !isStatusActed) || len(remaining) == 0 {
+		return nil
+	}
+
+	_, err = k.queuePatchNotificationInstalls(ctx, duePatch.NotificationUUID, duePatch.HostID, remaining, installsByTitle)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "queue patch notification installs at the deadline")
+	}
+	return nil
 }
 
 func (k *patchNotificationKind) OnAction(ctx context.Context, notification *notifications_api.EndUserNotification, actionID string) (*notifications_api.NotificationView, error) {
@@ -279,79 +450,107 @@ func (k *patchNotificationKind) updateNow(ctx context.Context, notification *not
 	}
 
 	// Mark the notification acted first, so two presses at once can't both queue installs.
-	acted, err := k.notificationSvc.ActOnNotification(ctx, notification.UUID)
+	actedInThisRequest, err := k.notificationSvc.ActOnNotification(ctx, notification.UUID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "act on patch notification")
 	}
-	if !acted {
+	if !actedInThisRequest {
 		return k.renderView(ctx, notification, true)
 	}
 
+	// The deadline pass has the install history from the verify it just did. Update now has done no
+	// such read, so it makes the same one: without it the pending check in the queue below cannot tell
+	// "no install" from "not looked up".
 	apps, err := k.ds.ListPatchNotificationApps(ctx, notification.UUID)
 	if err != nil {
 		// Nothing was queued, so undo the act above and let the next press try.
-		setStatusErr := k.notificationSvc.SetNotificationStatus(ctx, notification.UUID, notification.Status, nil,
-			[]string{notifications_api.EndUserNotificationActed})
-		if setStatusErr != nil {
-			k.logger.ErrorContext(ctx, "failed to put the patch notification back",
-				"notification_uuid", notification.UUID, "err", setStatusErr)
-		}
+		k.putPatchNotificationBack(ctx, notification)
 		return nil, ctxerr.Wrap(ctx, err, "list patch notification apps")
 	}
 
-	// A press that fails part way goes back to the status it had, so the next press finishes the rest.
-	var queuedTitleIDs []uint
-	var queueErr error
+	softwareTitleIDs := make([]uint, 0, len(apps))
 	for _, app := range apps {
-		if app.SoftwareInstallerID == nil {
-			k.logger.InfoContext(ctx, "skipping patch notification install for software with no installer",
-				"notification_uuid", notification.UUID, "software_title_id", app.SoftwareTitleID)
-			continue
-		}
-		// queued by an earlier press that failed before it finished
-		if app.InstallQueued {
-			continue
-		}
-
-		// check if this install is already queued
-		lastInstall, err := k.ds.GetHostLastInstallData(ctx, notification.HostID, *app.SoftwareInstallerID)
-		if err != nil {
-			queueErr = ctxerr.Wrapf(ctx, err, "get host last install data: host_id=%d, software_installer_id=%d",
-				notification.HostID, *app.SoftwareInstallerID)
-			break
-		}
-		if lastInstall != nil && lastInstall.Status != nil && *lastInstall.Status == fleet.SoftwareInstallPending {
-			continue
-		}
-
-		if _, err := k.ds.InsertSoftwareInstallRequest(ctx, notification.HostID, *app.SoftwareInstallerID,
-			fleet.HostSoftwareInstallOptions{PolicyID: app.PolicyID},
-		); err != nil {
-			queueErr = ctxerr.Wrapf(ctx, err, "insert software install request: host_id=%d, software_installer_id=%d",
-				notification.HostID, *app.SoftwareInstallerID)
-			break
-		}
-
-		queuedTitleIDs = append(queuedTitleIDs, app.SoftwareTitleID)
+		softwareTitleIDs = append(softwareTitleIDs, app.SoftwareTitleID)
 	}
-
-	// Stay acted if this write fails, because the installs went out and a second press would repeat them.
-	err = k.ds.SetPatchNotificationAppsQueued(ctx, notification.UUID, queuedTitleIDs)
+	installsByTitle, err := k.ds.ListLastTitleInstallDataForHosts(ctx, []uint{notification.HostID}, softwareTitleIDs)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "set patch notification apps queued")
+		k.putPatchNotificationBack(ctx, notification)
+		return nil, ctxerr.Wrapf(ctx, err, "list host last title install data: host_id=%d", notification.HostID)
 	}
+
+	installsRecorded, queueErr := k.queuePatchNotificationInstalls(ctx, notification.UUID, notification.HostID, apps, installsByTitle)
 	if queueErr != nil {
-		// back to the status it had, since a pending notification set to dispatched is never sent
-		setStatusErr := k.notificationSvc.SetNotificationStatus(ctx, notification.UUID, notification.Status, nil,
-			[]string{notifications_api.EndUserNotificationActed})
-		if setStatusErr != nil {
-			k.logger.ErrorContext(ctx, "failed to put the patch notification back",
-				"notification_uuid", notification.UUID, "err", setStatusErr)
+		// hand the notification back only when what went out was recorded, so the next press finishes the rest
+		if installsRecorded {
+			k.putPatchNotificationBack(ctx, notification)
 		}
 		return nil, queueErr
 	}
 
 	return k.renderView(ctx, notification, true)
+}
+
+func (k *patchNotificationKind) putPatchNotificationBack(ctx context.Context, notification *notifications_api.EndUserNotification) {
+	err := k.notificationSvc.SetNotificationStatus(ctx, notification.UUID, notification.Status, nil, []string{notifications_api.EndUserNotificationActed})
+	if err != nil {
+		k.logger.ErrorContext(ctx, "failed to put the patch notification back",
+			"notification_uuid", notification.UUID, "err", err)
+	}
+}
+
+func (k *patchNotificationKind) queuePatchNotificationInstalls(
+	ctx context.Context,
+	notificationUUID string,
+	hostID uint,
+	apps []fleet.PatchNotificationAppDetail,
+	installsByTitle map[fleet.HostSoftwareTitleKey][]*fleet.HostLastInstallData,
+) (installsRecorded bool, err error) {
+	// install_queued records that an app has been dealt with, whether that meant queueing an install
+	// or deciding not to. An app left unmarked is one this pass could not queue, which is what tells
+	// a later pass the notification was acted on with installs still to go out.
+	var queuedTitleIDs []uint
+	var queueErrs []error
+	for _, app := range apps {
+		if app.SoftwareInstallerID == nil {
+			k.logger.InfoContext(ctx, "skipping patch notification install for software with no installer",
+				"notification_uuid", notificationUUID, "software_title_id", app.SoftwareTitleID)
+			queuedTitleIDs = append(queuedTitleIDs, app.SoftwareTitleID)
+			continue
+		}
+		// this app was dealt with by an earlier attempt
+		if app.InstallQueued {
+			continue
+		}
+
+		// an install carrying override_pre_install_query would skip while the app is open, so it needs to be queued again
+		titleKey := fleet.HostSoftwareTitleKey{HostID: hostID, SoftwareTitleID: app.SoftwareTitleID}
+		installPending := slices.ContainsFunc(installsByTitle[titleKey], func(install *fleet.HostLastInstallData) bool {
+			return install.Status != nil && *install.Status == fleet.SoftwareInstallPending && !install.OverridePreInstallQuery
+		})
+		if installPending {
+			queuedTitleIDs = append(queuedTitleIDs, app.SoftwareTitleID)
+			continue
+		}
+
+		// OverridePreInstallQuery stays false, so the app open check does not stop the install
+		_, insertErr := k.ds.InsertSoftwareInstallRequest(ctx, hostID, *app.SoftwareInstallerID, fleet.HostSoftwareInstallOptions{PolicyID: app.PolicyID})
+		if insertErr != nil {
+			// One app Fleet cannot queue must not hold up the rest. This app stays unmarked below,
+			// which is what brings the notification back to be finished.
+			queueErrs = append(queueErrs, ctxerr.Wrapf(ctx, insertErr,
+				"insert software install request: host_id=%d, software_installer_id=%d", hostID, *app.SoftwareInstallerID))
+			continue
+		}
+
+		queuedTitleIDs = append(queuedTitleIDs, app.SoftwareTitleID)
+	}
+
+	// the installs are already out, so a failure here leaves them unrecorded and a second attempt would repeat them
+	err = k.ds.SetPatchNotificationAppsQueued(ctx, notificationUUID, queuedTitleIDs)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "set patch notification apps queued")
+	}
+	return true, errors.Join(queueErrs...)
 }
 
 func (k *patchNotificationKind) OnOutcome(ctx context.Context, notification *notifications_api.EndUserNotification, outcome notifications_api.NotificationOutcome) error {
@@ -382,11 +581,6 @@ func (k *patchNotificationKind) OnOutcome(ctx context.Context, notification *not
 		}
 	}
 
-	status := "failed"
-	if outcome.Displayed {
-		status = "success"
-	}
-
 	reminder, err := patchNotificationIsReminder(notification.Payload)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "read patch notification payload")
@@ -396,6 +590,23 @@ func (k *patchNotificationKind) OnOutcome(ctx context.Context, notification *not
 		timeBefore = patchNotificationReminderBefore
 	}
 
+	status := "failed"
+	var installAt *time.Time
+	if outcome.Displayed {
+		status = "success"
+	}
+	// install_at follows displayed_at, which the notifications context only records while the
+	// notification is still dispatched. A result from a superseded script arriving after a delay or
+	// an update_now must not move install_at. notification.DisplayedAt is nil either way here, since
+	// RecordOutcome loaded that copy before the outcome write.
+	if outcome.Displayed && notification.Status == notifications_api.EndUserNotificationDispatched {
+		deadline, err := k.ds.SetPatchNotificationInstallAt(ctx, notification.UUID, time.Now().UTC().Add(timeBefore))
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "set patch notification install at")
+		}
+		installAt = &deadline
+	}
+
 	if err := k.activities.NewActivity(ctx, nil, fleet.ActivityTypeNotifiedEndUserBeforePatching{
 		HostID:                notification.HostID,
 		HostDisplayName:       host.DisplayName(),
@@ -403,6 +614,7 @@ func (k *patchNotificationKind) OnOutcome(ctx context.Context, notification *not
 		SoftwareTitles:        softwareTitles,
 		PolicyIDs:             policyIDs,
 		TimeBefore:            int(timeBefore.Seconds()),
+		InstallAt:             installAt,
 		Status:                status,
 		ScriptExecutionID:     outcome.ExecutionID,
 	}); err != nil {

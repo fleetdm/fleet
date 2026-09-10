@@ -67,6 +67,28 @@ func newRenderableTestNotification(t *testing.T, ds *mysql.Datastore, hostID uin
 	return notificationUUID
 }
 
+func getTestInstallAt(t *testing.T, ds *mysql.Datastore, notificationUUID string) *time.Time {
+	t.Helper()
+	var installAt *time.Time
+	mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(context.Background(), q, &installAt,
+			`SELECT install_at FROM patch_notifications WHERE notification_uuid = ?`, notificationUUID)
+	})
+	return installAt
+}
+
+// setTestInstallAt moves a deadline, so a test can stand in for the hour passing.
+// installAt is SQL rather than a value, since the rest of the deadline handling reads
+// the database clock.
+func setTestInstallAt(t *testing.T, ds *mysql.Datastore, notificationUUID string, installAt string) {
+	t.Helper()
+	mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(context.Background(),
+			`UPDATE patch_notifications SET install_at = `+installAt+` WHERE notification_uuid = ?`, notificationUUID)
+		return err
+	})
+}
+
 // getTestNotification reads a notification row directly, for asserting on
 // state the bounded context's own HTTP API doesn't expose (e.g. status,
 // execution_id).
@@ -157,7 +179,7 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 		require.Equal(t, []string{*dispatched.ExecutionID}, orbitResp.Notifications.PendingScriptExecutionIDs)
 	})
 
-	t.Run("exit 0 records displayed_at", func(t *testing.T) {
+	t.Run("a notify script that exits 0 marks the notification displayed", func(t *testing.T) {
 		host := newNotifiableHost(t, "notif-exit0")
 		notificationUUID := newTestNotification(t, s.ds, host.ID, "patch", `{"title": "hello"}`)
 		dispatch(t)
@@ -173,7 +195,7 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 		require.EqualValues(t, 0, *got.LastExitCode)
 	})
 
-	t.Run("exit 41 schedules a retry", func(t *testing.T) {
+	t.Run("a notify script that exits 41 on a locked screen schedules a retry", func(t *testing.T) {
 		host := newNotifiableHost(t, "notif-exit41")
 		notificationUUID := newTestNotification(t, s.ds, host.ID, "patch", `{"title": "hello"}`)
 		dispatch(t)
@@ -190,7 +212,7 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 		require.NotNil(t, got.NextAttemptAt)
 	})
 
-	t.Run("exit 2 is a terminal failure", func(t *testing.T) {
+	t.Run("a notify script that exits 2 fails the notification with no retry", func(t *testing.T) {
 		host := newNotifiableHost(t, "notif-exit2")
 		notificationUUID := newTestNotification(t, s.ds, host.ID, "patch", `{"title": "hello"}`)
 		dispatch(t)
@@ -225,7 +247,7 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 		// and nothing else has happened since, so it is the newest one globally
 		var globalFeed listActivitiesResponse
 		s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &globalFeed,
-			"order_key", "a.id", "order_direction", "desc", "per_page", "1")
+			"order_key", "id", "order_direction", "desc", "per_page", "1")
 		require.Len(t, globalFeed.Activities, 1)
 		require.Equal(t, "notified_end_user_before_patching", globalFeed.Activities[0].Type)
 		require.NotNil(t, globalFeed.Activities[0].Details)
@@ -233,10 +255,8 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 	})
 
 	t.Run("GET returns the view the notification's kind builds", func(t *testing.T) {
-		// The view carries the org's own logos, so give the org one of each. Each
-		// mode-aware field has a deprecated twin that Fleet rejects the config for
-		// disagreeing with, so both move together, and whatever another test left
-		// behind is put back afterwards.
+		// each mode-aware logo field has a deprecated twin, and the config is rejected when the two
+		// disagree, so both move together and are restored afterwards
 		setOrgLogos := func(light, dark string) {
 			s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(`{
 				"org_info": {
@@ -350,7 +370,7 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 
 	// TODO: verify is currently a stub (see apply_action.go), so this only
 	// confirms the action is accepted, not that it records anything.
-	t.Run("POST verify is accepted", func(t *testing.T) {
+	t.Run("a device posting the verify action gets a 200", func(t *testing.T) {
 		host := newNotifiableHost(t, "notif-verify")
 		notificationUUID := newRenderableTestNotification(t, s.ds, host.ID, `{"reminder": false}`)
 		dispatch(t)
@@ -362,70 +382,7 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 			[]byte(`{"action": "verify"}`), http.StatusOK)
 	})
 
-	t.Run("POST delay with a registered kind delays it", func(t *testing.T) {
-		host := newNotifiableHost(t, "notif-delay-registered")
-		notificationUUID := newRenderableTestNotification(t, s.ds, host.ID, `{"reminder": false}`)
-		dispatch(t)
-		dispatched := getTestNotification(t, s.ds, notificationUUID)
-		require.NotNil(t, dispatched.ExecutionID)
-		_, token := fetchScript(t, host, *dispatched.ExecutionID)
-
-		// exit 0 is what marks it displayed, which is the point the patch kind
-		// counts its next attempt from
-		postScriptResult(host, *dispatched.ExecutionID, 0)
-		displayed := getTestNotification(t, s.ds, notificationUUID)
-		require.NotNil(t, displayed.DisplayedAt)
-
-		s.DoRawNoAuth("POST", fmt.Sprintf("/api/latest/fleet/device/%s/notifications/%s/actions", token, notificationUUID),
-			[]byte(`{"action": "delay"}`), http.StatusOK)
-
-		got := getTestNotification(t, s.ds, notificationUUID)
-		require.Equal(t, notifications_api.EndUserNotificationPending, got.Status)
-		require.NotNil(t, got.ExecutionID, "keeps its execution_id so a late result can still find it")
-		require.Equal(t, *dispatched.ExecutionID, *got.ExecutionID)
-		require.NotNil(t, got.LastReason)
-		require.Equal(t, notifications_api.EndUserNotificationReasonDelayed, *got.LastReason)
-		require.Nil(t, got.DisplayedAt, "the next send records its own display")
-
-		// the patch kind rejoins the hour-then-five-minutes schedule rather than
-		// starting a fresh wait
-		require.NotNil(t, got.NextAttemptAt)
-		require.WithinDuration(t, displayed.DisplayedAt.Add(55*time.Minute), *got.NextAttemptAt, time.Minute)
-
-		require.JSONEq(t, `{"reminder": true}`, string(got.Payload))
-
-		dispatch(t)
-		redispatched := getTestNotification(t, s.ds, notificationUUID)
-		require.NotNil(t, redispatched.ExecutionID)
-		_, reminderToken := fetchScript(t, host, *redispatched.ExecutionID)
-
-		var view notifications_api.NotificationView
-		s.DoJSONWithoutAuth("GET", fmt.Sprintf("/api/latest/fleet/device/%s/notifications/%s", reminderToken, notificationUUID),
-			nil, http.StatusOK, &view)
-		require.Contains(t, view.Description, "**5 minutes**")
-		require.Equal(t, []notifications_api.NotificationAction{
-			{ID: "dismiss", Label: "Hide"},
-			{ID: "update_now", Label: "Update now"},
-		}, view.Actions, "the reminder swaps Remind for Hide")
-
-		// one that was delayed without ever being displayed has no mark to count
-		// from, so it waits a full interval
-		neverShown := newRenderableTestNotification(t, s.ds, host.ID, `{"reminder": false}`)
-		dispatch(t)
-		neverShownDispatched := getTestNotification(t, s.ds, neverShown)
-		require.NotNil(t, neverShownDispatched.ExecutionID)
-		_, neverShownToken := fetchScript(t, host, *neverShownDispatched.ExecutionID)
-
-		s.DoRawNoAuth("POST", fmt.Sprintf("/api/latest/fleet/device/%s/notifications/%s/actions", neverShownToken, neverShown),
-			[]byte(`{"action": "delay"}`), http.StatusOK)
-
-		got = getTestNotification(t, s.ds, neverShown)
-		require.NotNil(t, got.NextAttemptAt)
-		require.WithinDuration(t, time.Now().UTC().Add(notifications_api.EndUserNotificationDelayInterval), *got.NextAttemptAt, time.Minute)
-		require.JSONEq(t, `{"reminder": false}`, string(got.Payload))
-	})
-
-	t.Run("POST delay with no kind registered is a no-op", func(t *testing.T) {
+	t.Run("a delay action on a notification with no registered kind changes nothing", func(t *testing.T) {
 		host := newNotifiableHost(t, "notif-delay-unregistered")
 		notificationUUID := newTestNotification(t, s.ds, host.ID, "some_unregistered_kind", `{"title": "hello"}`)
 		dispatch(t)
@@ -654,10 +611,7 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 		require.NotContains(t, resp.ScriptContents, token)
 	})
 
-	// TestPatchNotificationUpdateNow covers which installs get queued. This covers
-	// what the unified queue does with those installs: an install keeps its policy
-	// but not the app open query the policy would otherwise add, both while the
-	// install is upcoming and once the install is activated.
+	// the install keeps its policy but not the app open query, both while upcoming and once activated
 	t.Run("update now queues an install that runs with the app open", func(t *testing.T) {
 		host := newNotifiableHost(t, "notif-update-now")
 		team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "update-now-team"})
@@ -748,5 +702,183 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 		require.NoError(t, err)
 		require.True(t, result.NotifyBeforePatching)
 		require.False(t, result.OverridePreInstallQuery)
+	})
+
+	// First notification, delay, reminder, then the install at install_at. A second host is included
+	// so each pass handles a batch of two with separate install_at values.
+	t.Run("a displayed notification is reminded and then installed at install_at", func(t *testing.T) {
+		host := newNotifiableHost(t, "notif-deadline")
+		team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "deadline-team"})
+		require.NoError(t, err)
+		require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID})))
+
+		// a real installer and policy, so the install queued at install_at is a real one with an app
+		// open query it has to ignore
+		installerID, _, err := s.ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+			InstallScript: "echo", Filename: "deadline.pkg", StorageID: uuid.NewString(),
+			Title: "Deadline App", Version: "2.0.0", Source: "apps", Platform: "darwin",
+			UserID: s.users["admin1@example.com"].ID,
+			TeamID: &team.ID, ValidatedLabels: &fleet.LabelIdentsWithScope{},
+			BundleIdentifier: "com.example.deadline",
+			AppOpenQuery:     "SELECT 1 FROM processes WHERE name = 'app'",
+		})
+		require.NoError(t, err)
+
+		var titleID uint
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &titleID,
+				`SELECT title_id FROM software_installers WHERE id = ?`, installerID)
+		})
+
+		policy, err := s.ds.NewTeamPolicy(ctx, team.ID, nil, fleet.PolicyPayload{
+			Name: "Deadline App up to date", Query: "SELECT 1;",
+		})
+		require.NoError(t, err)
+
+		notificationUUID := newTestNotification(t, s.ds, host.ID, fleet.PatchNotificationKind, `{"reminder": false}`)
+		require.NoError(t, s.ds.NewPatchNotification(ctx, notificationUUID))
+		require.NoError(t, s.ds.AddPatchNotificationApp(ctx, notificationUUID, fleet.PatchNotificationApp{
+			PolicyID: &policy.ID, SoftwareTitleID: titleID, SoftwareInstallerID: &installerID,
+		}))
+
+		otherHost := newNotifiableHost(t, "notif-deadline-other")
+		otherUUID := newRenderableTestNotification(t, s.ds, otherHost.ID, `{"reminder": false}`)
+
+		queuedInstalls := func(hostID uint) []struct {
+			ExecutionID string `db:"execution_id"`
+			PolicyID    *uint  `db:"policy_id"`
+		} {
+			t.Helper()
+			var queued []struct {
+				ExecutionID string `db:"execution_id"`
+				PolicyID    *uint  `db:"policy_id"`
+			}
+			mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+				return sqlx.SelectContext(ctx, q, &queued, `
+					SELECT ua.execution_id, siua.policy_id
+					FROM upcoming_activities ua
+						JOIN software_install_upcoming_activities siua ON siua.upcoming_activity_id = ua.id
+					WHERE ua.host_id = ?`, hostID)
+			})
+			return queued
+		}
+
+		// install_at comes from displayed_at, so it is null until the script result arrives
+		dispatch(t)
+		dispatched := getTestNotification(t, s.ds, notificationUUID)
+		require.NotNil(t, dispatched.ExecutionID)
+		require.Nil(t, getTestInstallAt(t, s.ds, notificationUUID), "install_at is null until the notification is displayed")
+		_, token := fetchScript(t, host, *dispatched.ExecutionID)
+		postScriptResult(host, *dispatched.ExecutionID, 0)
+
+		otherDispatched := getTestNotification(t, s.ds, otherUUID)
+		require.NotNil(t, otherDispatched.ExecutionID)
+		postScriptResult(otherHost, *otherDispatched.ExecutionID, 0)
+
+		// exit 0 records displayed_at, and install_at follows it an hour out
+		displayed := getTestNotification(t, s.ds, notificationUUID)
+		require.NotNil(t, displayed.DisplayedAt)
+		deadline := getTestInstallAt(t, s.ds, notificationUUID)
+		require.NotNil(t, deadline)
+		require.WithinDuration(t, displayed.DisplayedAt.Add(time.Hour), *deadline, time.Minute)
+
+		// the second host gets its own install_at from its own displayed_at
+		otherDisplayed := getTestNotification(t, s.ds, otherUUID)
+		require.NotNil(t, otherDisplayed.DisplayedAt)
+		otherDeadline := getTestInstallAt(t, s.ds, otherUUID)
+		require.NotNil(t, otherDeadline)
+		require.WithinDuration(t, otherDisplayed.DisplayedAt.Add(time.Hour), *otherDeadline, time.Minute)
+
+		// the end user closes the toast, which leaves the install_at just set above alone
+		s.DoRawNoAuth("POST", fmt.Sprintf("/api/latest/fleet/device/%s/notifications/%s/actions", token, notificationUUID),
+			[]byte(`{"action": "delay"}`), http.StatusOK)
+
+		delayed := getTestNotification(t, s.ds, notificationUUID)
+		require.Equal(t, notifications_api.EndUserNotificationDispatched, delayed.Status)
+		require.NotNil(t, delayed.DisplayedAt, "the delay action leaves displayed_at set")
+		require.JSONEq(t, `{"reminder": false}`, string(delayed.Payload))
+		stillDue := getTestInstallAt(t, s.ds, notificationUUID)
+		require.NotNil(t, stillDue)
+		require.WithinDuration(t, *deadline, *stillDue, time.Second, "the delay action does not move install_at")
+
+		// stand in for the hour running down. The other host keeps its hour and must be left alone.
+		setTestInstallAt(t, s.ds, notificationUUID, "NOW(6) + INTERVAL 4 MINUTE")
+		shortened := getTestInstallAt(t, s.ds, notificationUUID)
+		require.NotNil(t, shortened)
+		require.NoError(t, s.patchNotificationKind.RemindAndInstallDuePatches(ctx))
+
+		reminded := getTestNotification(t, s.ds, notificationUUID)
+		require.Equal(t, notifications_api.EndUserNotificationPending, reminded.Status)
+		require.Nil(t, reminded.DisplayedAt, "the re-dispatch clears displayed_at so the reminder records its own")
+		require.NotNil(t, reminded.LastReason)
+		require.Equal(t, notifications_api.EndUserNotificationReasonDelayed, *reminded.LastReason)
+		require.NotNil(t, reminded.ExecutionID, "execution_id is kept so a late script result still resolves the notification")
+		require.Equal(t, *dispatched.ExecutionID, *reminded.ExecutionID)
+		require.JSONEq(t, `{"reminder": true}`, string(reminded.Payload))
+
+		untouched := getTestNotification(t, s.ds, otherUUID)
+		require.Equal(t, notifications_api.EndUserNotificationDispatched, untouched.Status,
+			"the other host's install_at is outside the reminder window")
+		require.JSONEq(t, `{"reminder": false}`, string(untouched.Payload))
+
+		// pending is the guard against a second reminder
+		require.NoError(t, s.patchNotificationKind.RemindAndInstallDuePatches(ctx))
+		require.Equal(t, notifications_api.EndUserNotificationPending, getTestNotification(t, s.ds, notificationUUID).Status)
+
+		// the reminder goes out on the next dispatch, rendering the 5 minute copy
+		dispatch(t)
+		redispatched := getTestNotification(t, s.ds, notificationUUID)
+		require.NotNil(t, redispatched.ExecutionID)
+		_, reminderToken := fetchScript(t, host, *redispatched.ExecutionID)
+
+		var view notifications_api.NotificationView
+		s.DoJSONWithoutAuth("GET", fmt.Sprintf("/api/latest/fleet/device/%s/notifications/%s", reminderToken, notificationUUID),
+			nil, http.StatusOK, &view)
+		require.Contains(t, view.Description, "**5 minutes**")
+		require.Equal(t, []notifications_api.NotificationAction{
+			{ID: "dismiss", Label: "Hide"},
+			{ID: "update_now", Label: "Update now"},
+		}, view.Actions, "the reminder swaps Remind for Hide")
+
+		// a late reminder moves install_at out rather than losing part of its 5 minutes
+		postScriptResult(host, *redispatched.ExecutionID, 0)
+		reminderDisplayed := getTestNotification(t, s.ds, notificationUUID)
+		require.NotNil(t, reminderDisplayed.DisplayedAt)
+		afterReminder := getTestInstallAt(t, s.ds, notificationUUID)
+		require.NotNil(t, afterReminder)
+		require.False(t, afterReminder.Before(reminderDisplayed.DisplayedAt.Add(5*time.Minute)),
+			"install_at is never less than 5 minutes after the reminder's displayed_at")
+		require.True(t, afterReminder.After(*shortened), "install_at moved out to follow the reminder's displayed_at")
+		require.WithinDuration(t, reminderDisplayed.DisplayedAt.Add(5*time.Minute), *afterReminder, time.Second)
+
+		// one pass over both: the first is past install_at and installs, the second has just reached
+		// its reminder window
+		setTestInstallAt(t, s.ds, notificationUUID, "NOW(6) - INTERVAL 1 MINUTE")
+		setTestInstallAt(t, s.ds, otherUUID, "NOW(6) + INTERVAL 4 MINUTE")
+		require.NoError(t, s.patchNotificationKind.RemindAndInstallDuePatches(ctx))
+
+		acted := getTestNotification(t, s.ds, notificationUUID)
+		require.Equal(t, notifications_api.EndUserNotificationActed, acted.Status,
+			"the notification is acted before the install requests are queued, so update_now cannot queue them again")
+
+		otherReminded := getTestNotification(t, s.ds, otherUUID)
+		require.Equal(t, notifications_api.EndUserNotificationPending, otherReminded.Status)
+		require.JSONEq(t, `{"reminder": true}`, string(otherReminded.Payload))
+		require.Empty(t, queuedInstalls(otherHost.ID), "the other host is re-dispatched, not installed")
+
+		installs := queuedInstalls(host.ID)
+		require.Len(t, installs, 1, "the notification's one software title gets one install request")
+		require.NotNil(t, installs[0].PolicyID, "the install request keeps its policy id")
+		require.Equal(t, policy.ID, *installs[0].PolicyID)
+
+		// no override_pre_install_query, so the app open query never runs
+		queued, err := s.ds.GetSoftwareInstallDetails(ctx, installs[0].ExecutionID)
+		require.NoError(t, err)
+		require.False(t, queued.OverridePreInstallQuery)
+		require.Empty(t, queued.PreInstallCondition)
+
+		// acted is the guard against a second install request
+		require.NoError(t, s.patchNotificationKind.RemindAndInstallDuePatches(ctx))
+		require.Len(t, queuedInstalls(host.ID), 1)
 	})
 }

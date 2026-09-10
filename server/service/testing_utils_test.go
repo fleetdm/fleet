@@ -544,10 +544,12 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 			logger,
 		)
 		svc.SetNotificationsService(notificationsSvc)
-		notificationsSvc.RegisterKind(NewPatchNotificationKind(ds, svc, notificationsSvc, logger))
+		patchNotificationKind := NewPatchNotificationKind(ds, svc, notificationsSvc, logger)
+		notificationsSvc.RegisterKind(patchNotificationKind)
 		notificationsAuthMiddleware := DeviceAuthMiddleware(svc, logger, notifications.NewHostContext)
 		opts[0].FeatureRoutes = append(opts[0].FeatureRoutes, notificationsRoutesFn(notificationsAuthMiddleware))
 		opts[0].NotificationsSvc = notificationsSvc
+		opts[0].PatchNotificationKind = patchNotificationKind
 	} else {
 		_, notificationsRoutesFn := notifications_bootstrap.New(
 			&common_mysql.DBConnections{},

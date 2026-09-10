@@ -100,7 +100,8 @@ type withServer struct {
 
 	fleetSvc fleet.Service
 
-	notificationsSvc notifications_api.Service
+	notificationsSvc      notifications_api.Service
+	patchNotificationKind PatchNotificationKind
 }
 
 func (ts *withServer) SetupSuite(dbName string) {
@@ -127,6 +128,7 @@ func (ts *withServer) SetupSuite(dbName string) {
 	ts.cachedAdminToken = ts.token
 	ts.redisPool = redisPool
 	ts.notificationsSvc = opts.NotificationsSvc
+	ts.patchNotificationKind = opts.PatchNotificationKind
 }
 
 func (ts *withServer) TearDownSuite() {

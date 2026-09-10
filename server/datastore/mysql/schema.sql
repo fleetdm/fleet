@@ -2763,6 +2763,7 @@ CREATE TABLE `patch_notification_apps` (
   `software_title_id` int unsigned NOT NULL,
   `software_installer_id` int unsigned DEFAULT NULL,
   `install_queued` tinyint(1) NOT NULL DEFAULT '0',
+  `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   PRIMARY KEY (`notification_uuid`,`software_title_id`),
   KEY `idx_patch_notification_apps_policy` (`policy_id`),
   KEY `idx_patch_notification_apps_software_installer` (`software_installer_id`),
@@ -2778,7 +2779,6 @@ CREATE TABLE `patch_notification_apps` (
 CREATE TABLE `patch_notifications` (
   `notification_uuid` varchar(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `install_at` datetime(6) DEFAULT NULL,
-  `reminder_sent_at` datetime(6) DEFAULT NULL,
   PRIMARY KEY (`notification_uuid`),
   KEY `idx_patch_notifications_install_at` (`install_at`),
   CONSTRAINT `fk_patch_notifications_notification_uuid` FOREIGN KEY (`notification_uuid`) REFERENCES `notifications_end_user` (`uuid`) ON DELETE CASCADE

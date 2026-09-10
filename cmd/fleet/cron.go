@@ -2758,6 +2758,7 @@ func newEndUserNotificationsSchedule(
 	instanceID string,
 	ds fleet.Datastore,
 	notificationsSvc notifications_api.Service,
+	patchNotificationKind service.PatchNotificationKind,
 	logger *slog.Logger,
 ) (*schedule.Schedule, error) {
 	const (
@@ -2770,6 +2771,9 @@ func newEndUserNotificationsSchedule(
 		schedule.WithLogger(logger),
 		schedule.WithJob("expire_and_queue_notifications", func(ctx context.Context) error {
 			return notificationsSvc.ExpireAndQueueNotifications(ctx)
+		}),
+		schedule.WithJob("remind_and_install_due_patches", func(ctx context.Context) error {
+			return patchNotificationKind.RemindAndInstallDuePatches(ctx)
 		}),
 	)
 

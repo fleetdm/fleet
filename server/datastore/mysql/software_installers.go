@@ -2709,7 +2709,8 @@ func (ds *Datastore) getLatestUpcomingInstall(ctx context.Context, hostID, insta
 SELECT
 	execution_id,
 	'pending_install' AS status,
-	updated_at
+	updated_at,
+	payload->'$.override_pre_install_query' IS TRUE AS override_pre_install_query
 FROM
 	upcoming_activities
 WHERE
@@ -2736,7 +2737,8 @@ func (ds *Datastore) getLatestPastInstall(ctx context.Context, hostID, installer
 SELECT
 	execution_id,
 	status,
-	updated_at
+	updated_at,
+	override_pre_install_query
 FROM
 	host_software_installs
 WHERE
@@ -4868,4 +4870,158 @@ func deletePinnedVersionDB(ctx context.Context, ex sqlx.ExtContext, globalOrTeam
 		DELETE FROM software_title_team_pins WHERE team_id = ? AND title_id = ?
 	`, globalOrTeamID, titleID)
 	return err
+}
+
+func (ds *Datastore) ListLastTitleInstallDataForHosts(ctx context.Context, hostIDs []uint, softwareTitleIDs []uint) (map[fleet.HostSoftwareTitleKey][]*fleet.HostLastInstallData, error) {
+	if len(hostIDs) == 0 || len(softwareTitleIDs) == 0 {
+		return nil, nil
+	}
+
+	// The install tables are indexed on (host_id, software_installer_id), so the titles are turned into
+	// installers first instead of filtering on the nullable software_title_id columns. Replaced
+	// installers come along, which is the point: an install that went through the installer a title had
+	// an hour ago still counts as that app being installed.
+	const installersStmt = `SELECT si.id, si.title_id FROM software_installers si WHERE si.title_id IN (?)`
+
+	stmt, args, err := sqlx.In(installersStmt, softwareTitleIDs)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "build list installers for titles statement")
+	}
+
+	var installerRows []struct {
+		InstallerID uint `db:"id"`
+		TitleID     uint `db:"title_id"`
+	}
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &installerRows, stmt, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list installers for titles")
+	}
+	if len(installerRows) == 0 {
+		return nil, nil
+	}
+
+	titleIDsByInstaller := make(map[uint]uint, len(installerRows))
+	installerIDs := make([]uint, 0, len(installerRows))
+	for _, row := range installerRows {
+		titleIDsByInstaller[row.InstallerID] = row.TitleID
+		installerIDs = append(installerIDs, row.InstallerID)
+	}
+	slices.Sort(installerIDs)
+
+	// Same two reads GetHostLastInstallData does, over every host and installer at once. The window
+	// picks the latest row per pair, which is what MAX(id) picks for a single pair. It orders by id
+	// alone rather than by created_at first the way hostSoftwareInstalls does, because created_at is
+	// taken when the inserting statement starts and can leave a row with a lower id carrying a later
+	// timestamp, and this has to pick the row GetHostLastInstallData would.
+	const pastStmt = `
+WITH latest_past_install AS (
+	SELECT
+		hsi.host_id,
+		hsi.software_installer_id,
+		hsi.execution_id,
+		hsi.status,
+		hsi.updated_at,
+		hsi.override_pre_install_query,
+		ROW_NUMBER() OVER (
+			PARTITION BY hsi.host_id, hsi.software_installer_id
+			ORDER BY hsi.id DESC
+		) AS row_num
+	FROM host_software_installs hsi
+	WHERE hsi.canceled = 0 AND hsi.host_id IN (?) AND hsi.software_installer_id IN (?)
+)
+SELECT host_id, software_installer_id, execution_id, status, updated_at, override_pre_install_query
+FROM latest_past_install
+WHERE row_num = 1
+`
+
+	const upcomingStmt = `
+WITH latest_upcoming_install AS (
+	SELECT
+		ua.host_id,
+		siua.software_installer_id,
+		ua.execution_id,
+		'pending_install' AS status,
+		ua.updated_at,
+		ua.payload->'$.override_pre_install_query' IS TRUE AS override_pre_install_query,
+		ROW_NUMBER() OVER (
+			PARTITION BY ua.host_id, siua.software_installer_id
+			ORDER BY ua.id DESC
+		) AS row_num
+	FROM upcoming_activities ua
+		JOIN software_install_upcoming_activities siua ON siua.upcoming_activity_id = ua.id
+	WHERE ua.activity_type = 'software_install' AND ua.host_id IN (?) AND siua.software_installer_id IN (?)
+)
+SELECT host_id, software_installer_id, execution_id, status, updated_at, override_pre_install_query
+FROM latest_upcoming_install
+WHERE row_num = 1
+`
+
+	type lastInstallRow struct {
+		HostID                  uint                           `db:"host_id"`
+		InstallerID             uint                           `db:"software_installer_id"`
+		ExecutionID             string                         `db:"execution_id"`
+		Status                  *fleet.SoftwareInstallerStatus `db:"status"`
+		UpdatedAt               time.Time                      `db:"updated_at"`
+		OverridePreInstallQuery bool                           `db:"override_pre_install_query"`
+	}
+
+	type hostInstaller struct {
+		hostID      uint
+		installerID uint
+	}
+
+	// Past first so upcoming lands on top of it, which is the precedence GetHostLastInstallData reads
+	// them in.
+	lastInstalls := make(map[hostInstaller]*fleet.HostLastInstallData)
+	for _, selectStmt := range []string{pastStmt, upcomingStmt} {
+		stmt, args, err := sqlx.In(selectStmt, hostIDs, installerIDs)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "build list host last title install data statement")
+		}
+
+		var rows []lastInstallRow
+		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, stmt, args...); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "list host last title install data")
+		}
+		for _, row := range rows {
+			lastInstalls[hostInstaller{hostID: row.HostID, installerID: row.InstallerID}] =
+				&fleet.HostLastInstallData{
+					ExecutionID:             row.ExecutionID,
+					Status:                  row.Status,
+					UpdatedAt:               row.UpdatedAt,
+					OverridePreInstallQuery: row.OverridePreInstallQuery,
+				}
+		}
+	}
+
+	installsByTitle := make(map[fleet.HostSoftwareTitleKey][]*fleet.HostLastInstallData, len(lastInstalls))
+	for key, lastInstall := range lastInstalls {
+		titleKey := fleet.HostSoftwareTitleKey{HostID: key.hostID, SoftwareTitleID: titleIDsByInstaller[key.installerID]}
+		installsByTitle[titleKey] = append(installsByTitle[titleKey], lastInstall)
+	}
+	return installsByTitle, nil
+}
+
+// ListSoftwareTitleVersionsForHosts reports what the given hosts have installed for the given titles.
+// Driven by the index on software.title_id, so it reads only the titles asked for instead of whole
+// inventories.
+func (ds *Datastore) ListSoftwareTitleVersionsForHosts(ctx context.Context, hostIDs []uint, softwareTitleIDs []uint) ([]fleet.HostSoftwareTitleVersion, error) {
+	if len(hostIDs) == 0 || len(softwareTitleIDs) == 0 {
+		return nil, nil
+	}
+
+	stmt, args, err := sqlx.In(`
+SELECT hs.host_id, s.title_id, s.version
+FROM software s
+	JOIN host_software hs ON hs.software_id = s.id
+WHERE s.title_id IN (?) AND hs.host_id IN (?)
+`, softwareTitleIDs, hostIDs)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "build list host software versions statement")
+	}
+
+	var versions []fleet.HostSoftwareTitleVersion
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &versions, stmt, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list host software versions for titles")
+	}
+	return versions, nil
 }
