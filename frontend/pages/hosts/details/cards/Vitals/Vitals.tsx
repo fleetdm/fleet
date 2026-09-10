@@ -729,7 +729,6 @@ export const buildHostVitals = ({
           value={
             hasValidTimezone ? (
               <TooltipWrapper
-                tooltipClass="vitals-card__tooltip--left-aligned"
                 tipContent={
                   <>
                     <b>Local time:</b> {localTime}
