@@ -53,8 +53,8 @@ Confirming gpgsm's version tells you the flawed check is closed going forward. I
 - Ubuntu, [USN-8720-1: GnuPG vulnerability](https://ubuntu.com/security/notices/USN-8720-1).
 
 <meta name="articleTitle" value="What Ubuntu's GnuPG authentication tag flaw means for trusting encrypted messages">
-<meta name="authorFullName" value="Allen Houchins">
-<meta name="authorGitHubUsername" value="allenhouchins">
+<meta name="authorFullName" value="Aube Paul">
+<meta name="authorGitHubUsername" value="robinedev">
 <meta name="category" value="industry news">
 <meta name="publishedOn" value="2026-09-03">
 <meta name="description" value="A GnuPG bug let tampered S/MIME messages pass integrity checks. See how to confirm the patched gpgsm build reached every host.">
