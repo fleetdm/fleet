@@ -728,15 +728,15 @@ export const buildHostVitals = ({
           title="Timezone"
           value={
             hasValidTimezone ? (
-              <TooltipWrapper
-                tipContent={
+              <TooltipTruncatedText
+                value={vitalsData.timezone}
+                tooltip={
                   <>
                     <b>Local time:</b> {localTime}
                   </>
                 }
-              >
-                {vitalsData.timezone}
-              </TooltipWrapper>
+                alwaysShowTooltip
+              />
             ) : (
               DEFAULT_EMPTY_CELL_VALUE
             )
