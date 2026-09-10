@@ -1995,6 +1995,10 @@ func (svc *Service) SetABMTokenDefault(ctx context.Context, tokenID uint, isDefa
 		return nil, err
 	}
 
+	// reads here decide what gets written (token count, app config sync), so
+	// don't risk stale replica reads
+	ctx = ctxdb.RequirePrimary(ctx, true)
+
 	token, err := svc.ds.GetABMTokenByID(ctx, tokenID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get ABM token to set default")

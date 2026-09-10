@@ -1102,7 +1102,8 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	// with GET /ab_tokens.
 	if defaultABMTokenID == nil && appConfig.MDM.AppleBusinessManager.Set && appConfig.MDM.AppleBusinessManager.Valid &&
 		len(appConfig.MDM.AppleBusinessManager.Value) == 1 {
-		count, err := svc.ds.GetABMTokenCount(ctx)
+		// this count decides what gets saved, so don't risk a stale replica read
+		count, err := svc.ds.GetABMTokenCount(ctxdb.RequirePrimary(ctx, true))
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "counting ABM tokens")
 		}
