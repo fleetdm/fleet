@@ -102,10 +102,10 @@ func (s *MDMAppleGetTokenService) getSigningToken(ctx context.Context, identifie
 
 	// if we have a DEP assignment, then force that token if there is any issues, we will not fall back to the default token.
 	if depAssignment != nil && depAssignment.DeletedAt == nil {
-		s.logger.InfoContext(ctx, "Getting signing token from DEP assignment", "identifier", identifier, "abm_token_id", *depAssignment.ABMTokenID)
 		if depAssignment.ABMTokenID == nil {
 			return nil, "", nanomdm_service.NewHTTPStatusError(http.StatusBadRequest, ctxerr.New(ctx, "host has DEP assignment but no AB token ID"))
 		}
+		s.logger.InfoContext(ctx, "Getting signing token from DEP assignment", "identifier", identifier, "abm_token_id", *depAssignment.ABMTokenID)
 
 		abToken, err := s.ds.GetABMTokenByID(ctx, *depAssignment.ABMTokenID)
 		if err != nil && !fleet.IsNotFound(err) {
