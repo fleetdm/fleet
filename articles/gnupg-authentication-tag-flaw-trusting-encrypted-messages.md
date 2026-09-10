@@ -1,0 +1,60 @@
+# Ubuntu's GnuPG Vulnerability: Can You Still Trust Encrypted Messages?
+
+*A GnuPG vulnerability let attackers craft encrypted messages that gpgsm would trust as authentic, even without a real authentication tag behind them. Here's what it means and how to check the patched build reached every host.*
+
+## Key takeaways
+
+- **Authenticated encryption stops proving anything if the "authenticated" part is skippable.** AES-GCM's authentication tag exists to prove a ciphertext wasn't tampered with in transit; gpgsm's flawed validation let a tag far shorter than AES-GCM requires pass anyway, letting crafted ciphertext through the exact check meant to catch it.
+- **This is an S/MIME bug, not a PGP one.** CVE-2026-57062 lives in gpgsm, GnuPG's CMS and S/MIME component, so it's about handling CMS-wrapped and S/MIME-encrypted content specifically, not classic OpenPGP-format encryption.
+- **The fix is release-specific, so "patched" isn't one number.** Ubuntu shipped gpgsm 2.4.8-4ubuntu3.1 for 26.04 LTS and 2.4.4-2ubuntu17.6 for 24.04 LTS, two different target versions depending on which release a host runs.
+- **You can confirm the exact gpgsm build on every host without asking around.** Fleet's software inventory reports the installed gpgsm version the same way it reports any other package, so confirming the patch landed is a query, not an assumption.
+- **A version check only protects messages processed after the patch.** Anything gpgsm accepted as authentic before the fix landed can't be retroactively re-verified, so a host that was exposed during that window needs more than a version bump.
+- **Saved as a policy, this stops being a one-time question.** A Fleet policy comparing installed gpgsm against the patched build for each release answers "are we covered" continuously instead of just the day someone remembered to check.
+
+<a purpose="cta-button" href="https://fleetdm.com/software-catalog">See software inventory in Fleet</a>
+
+Ubuntu shipped [USN-8720-1](https://ubuntu.com/security/notices/USN-8720-1) on September 3, 2026, patching a vulnerability in how gpgsm checks authentication tags on messages encrypted with AES-GCM. The bug, tracked as [CVE-2026-57062](https://nvd.nist.gov/vuln/detail/CVE-2026-57062), meant gpgsm didn't enforce that the tag was actually long enough to prove anything, which the advisory says could let attackers bypass the message integrity check gpgsm is supposed to perform.
+
+That's a quieter kind of failure than a typical crypto bug. Nothing crashes and no error appears. A message that should have been rejected as tampered gets treated as authentic instead.
+
+## Why a short authentication tag defeats the point of AES-GCM
+
+AES-GCM is an authenticated encryption mode: alongside the encrypted content, it produces a tag that proves the ciphertext wasn't modified after encryption. If a decryptor doesn't enforce a real tag length, an attacker can craft ciphertext with an authentication field too short to carry any cryptographic weight and have it accepted anyway. Ubuntu's fix tightens that check, enforcing a valid tag length and rejecting non-AEAD ciphers during AuthEnvelopedData processing, so a message either carries genuine proof of integrity or gets rejected outright.
+
+## This affects S/MIME handling, not classic PGP
+
+It's worth being precise about what's exposed. The flaw lives in gpgsm, the part of GnuPG that handles CMS and S/MIME, not the OpenPGP-format encryption most people associate with GnuPG. If your workflows use gpgsm to verify signed or encrypted S/MIME mail or CMS-wrapped payloads, this bug is relevant. If they don't touch S/MIME at all, this specific flaw isn't your exposure, though keeping gpgsm current is still worth doing.
+
+## Confirming the patched build across your fleet
+
+Ubuntu's fix isn't one version number, it's two: gpgsm 2.4.8-4ubuntu3.1 for Ubuntu 26.04 LTS and 2.4.4-2ubuntu17.6 for Ubuntu 24.04 LTS. A first pass is a straightforward inventory query. Fleet reports the installed gpgsm version on every Linux host the same way it reports any other package:
+
+```sql
+SELECT name, version FROM deb_packages WHERE name = 'gpgsm';
+```
+
+That tells you what's installed. Deciding whether that's a problem means comparing the result against the correct fixed version for that host's release, since the same version string can be compliant on one release and vulnerable on the other.
+
+## Turning the check into an ongoing policy
+
+A live report answers "are we patched right now." A saved Fleet policy answers it every hour going forward, checking every host, new or existing, against the fixed version for its OS release. And because Fleet policies can live in Git as YAML and deploy through the same GitOps workflow as the rest of your configuration, updating the target version is a reviewable pull request.
+
+## The patch protects what comes next, not what already happened
+
+Confirming gpgsm's version tells you the flawed check is closed going forward. It doesn't tell you whether a tampered message was accepted as authentic before the patch landed. If a host processed CMS or S/MIME messages during the exposure window, treat anything decrypted or verified during that window as unconfirmed until you can re-establish its integrity some other way.
+
+## See it live
+
+- **Get a demo** to see software inventory and vulnerability matching against your own fleet: [fleetdm.com/contact](https://fleetdm.com/contact)
+- **Explore the software catalog** Fleet already tracks across your hosts: [fleetdm.com/software-catalog](https://fleetdm.com/software-catalog)
+- **Filter hosts by CVE** the way this article describes: [fleetdm.com/guides/filtering-software-by-vulnerability](https://fleetdm.com/guides/filtering-software-by-vulnerability)
+## Sources
+
+- Ubuntu, [USN-8720-1: GnuPG vulnerability](https://ubuntu.com/security/notices/USN-8720-1).
+
+<meta name="articleTitle" value="What Ubuntu's GnuPG authentication tag flaw means for trusting encrypted messages">
+<meta name="authorFullName" value="Aube Paul">
+<meta name="authorGitHubUsername" value="robinedev">
+<meta name="category" value="industry news">
+<meta name="publishedOn" value="2026-09-03">
+<meta name="description" value="A GnuPG bug let tampered S/MIME messages pass integrity checks. See how to confirm the patched gpgsm build reached every host.">

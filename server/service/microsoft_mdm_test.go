@@ -3560,3 +3560,91 @@ func TestESPReleaseIncludesSkipUserStatusPage(t *testing.T) {
 		"release commands must include SkipUserStatusPage=true; without it, a second user "+
 			"signing in to an already-enrolled device hits a fresh Account setup ESP that hangs (#51380)")
 }
+
+// TestWarnOnWindowsMDMHardwareIDCollision covers the detection added for issue #50612. The enrollment itself is
+// deliberately unchanged: a second host presenting an already-held HW device id still takes over the enrollment, but
+// Fleet now says so.
+func TestWarnOnWindowsMDMHardwareIDCollision(t *testing.T) {
+	const (
+		hwID          = "F19B99942A3B9C53679F46017599C1FC4953B9BD3F0BC20FF681D0F93FAE5992"
+		enrollingHost = "7C3BA655-C134-4CA5-A23B-CA8147643DA0"
+		incumbentHost = "A5D3F1A9-1B40-49DC-9D54-B4F558850CB9"
+	)
+
+	secTokenMsg := &fleet.RequestSecurityToken{
+		AdditionalContext: fleet.AdditionalContext{
+			ContextItems: []fleet.ContextItem{{Name: syncml.ReqSecTokenContextItemHWDevID, Value: hwID}},
+		},
+	}
+
+	// Attributes of the first warning whose message contains want, or nil when nothing matched.
+	warnAttrs := func(h *testutils.TestHandler, want string) map[string]string {
+		for _, r := range h.Records() {
+			if r.Level != slog.LevelWarn || !strings.Contains(r.Message, want) {
+				continue
+			}
+			attrs := make(map[string]string, 3)
+			r.Attrs(func(a slog.Attr) bool { attrs[a.Key] = a.Value.String(); return true })
+			return attrs
+		}
+		return nil
+	}
+
+	for _, tc := range []struct {
+		name            string
+		enrollingHost   string
+		deletedHostUUID string
+		deleteErr       error
+		wantErr         bool
+		wantCollision   bool
+	}{
+		{
+			name: "enrollment taken from a different host", enrollingHost: enrollingHost, deletedHostUUID: incumbentHost,
+			wantCollision: true,
+		},
+		{name: "same host re-enrolling", enrollingHost: enrollingHost, deletedHostUUID: enrollingHost},
+		{name: "deleted enrollment was not linked to a host", enrollingHost: enrollingHost},
+		{name: "enrolling host is unknown, as in an automatic enrollment", deletedHostUUID: incumbentHost},
+		{
+			name: "nothing was enrolled with that hardware id", enrollingHost: enrollingHost,
+			deleteErr: &notFoundError{},
+		},
+		{
+			name: "the delete fails", enrollingHost: enrollingHost, deletedHostUUID: incumbentHost,
+			deleteErr: errors.New("db is down"), wantErr: true,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ds := new(mock.Store)
+			ds.MDMWindowsDeleteEnrolledDeviceOnReenrollmentFunc = func(_ context.Context, gotHWID string) (string, error) {
+				require.Equal(t, hwID, gotHWID)
+				if tc.deleteErr != nil {
+					return "", tc.deleteErr
+				}
+				return tc.deletedHostUUID, nil
+			}
+			handler := testutils.NewTestHandler()
+			svc := &Service{ds: ds, logger: slog.New(handler)}
+
+			err := svc.removeWindowsDeviceIfAlreadyMDMEnrolled(t.Context(), secTokenMsg, tc.enrollingHost)
+			if tc.wantErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err, "a duplicate hardware ID must never fail an enrollment")
+			}
+			require.True(t, ds.MDMWindowsDeleteEnrolledDeviceOnReenrollmentFuncInvoked)
+
+			attrs := warnAttrs(handler, "hardware ID already held by another host")
+			if !tc.wantCollision {
+				require.Nil(t, attrs, "this is not a collision and must not be reported as one")
+				return
+			}
+			// Whole-map equality so a renamed or extra attribute fails too: this log line is the only signal.
+			require.Equal(t, map[string]string{
+				"mdm_hardware_id":     hwID,
+				"enrolling_host_uuid": tc.enrollingHost,
+				"existing_host_uuid":  tc.deletedHostUUID,
+			}, attrs)
+		})
+	}
+}

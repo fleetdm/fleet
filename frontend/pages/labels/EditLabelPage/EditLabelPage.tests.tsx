@@ -1,12 +1,15 @@
 import React from "react";
 
-import { screen } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import { createCustomRenderer } from "test/test-utils";
 import mockServer from "test/mock-server";
 import {
   getLabelHandler,
   getLabelHostsHandler,
 } from "test/handlers/label-handlers";
+import createMockConfig from "__mocks__/configMock";
+import { createMockLabel } from "__mocks__/labelsMock";
+import labelsAPI from "services/entities/labels";
 
 import EditLabelPage from "./EditLabelPage";
 
@@ -101,5 +104,74 @@ describe("EditLabelPage", () => {
     // expect host info to be on the page
     await screen.findByText("Test host #1");
     await screen.findByText("Test host #2");
+  });
+
+  describe("saving a manual label", () => {
+    const gitOpsContext = {
+      app: {
+        config: createMockConfig({
+          gitops: {
+            gitops_mode_enabled: true,
+            repository_url: "https://github.com/example/fleet-gitops",
+            exceptions: { labels: false, software: false, secrets: false },
+          },
+        }),
+      },
+    };
+
+    const noGitOpsContext = {
+      app: { config: createMockConfig() },
+    };
+
+    const renderManualLabelPage = (context: typeof gitOpsContext) => {
+      mockServer.use(getLabelHandler({ label_membership_type: "manual" }));
+      mockServer.use(getLabelHostsHandler([]));
+      const render = createCustomRenderer({ withBackendMock: true, context });
+      return render(
+        <EditLabelPage
+          {...generateMockRouterProps({ routeParams: { label_id: "1" } })}
+        />
+      );
+    };
+
+    beforeEach(() => {
+      jest
+        .spyOn(labelsAPI, "update")
+        .mockResolvedValue({ label: createMockLabel() });
+    });
+
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it("sends a membership-only update for a GitOps-managed manual label", async () => {
+      const { user } = renderManualLabelPage(gitOpsContext);
+
+      await screen.findByText("Select hosts");
+      await user.click(screen.getByRole("button", { name: "Save" }));
+
+      await waitFor(() => {
+        expect(labelsAPI.update).toHaveBeenCalledWith(
+          1,
+          expect.anything(),
+          expect.objectContaining({ membershipOnly: true })
+        );
+      });
+    });
+
+    it("sends the full update when GitOps mode is off", async () => {
+      const { user } = renderManualLabelPage(noGitOpsContext);
+
+      await screen.findByText("Select hosts");
+      await user.click(screen.getByRole("button", { name: "Save" }));
+
+      await waitFor(() => {
+        expect(labelsAPI.update).toHaveBeenCalledWith(
+          1,
+          expect.anything(),
+          expect.objectContaining({ membershipOnly: false })
+        );
+      });
+    });
   });
 });

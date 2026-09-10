@@ -400,18 +400,34 @@ func (d *DEPService) ValidateSetupAssistant(ctx context.Context, team *fleet.Tea
 	}
 
 	if len(orgNames) == 0 {
-		// Then check to see if there are any tokens at all. If there is only 1, we assume we can
-		// use it (the vast majority of deployments will only have a single token).
+		// The fleet isn't tied to any ABM token yet, but validating the profile only
+		// needs a credential to reach Apple's DefineProfile API, and that check is the
+		// same for any token. Use any usable token so validation doesn't fail on a
+		// fleet that will be tied to a token later; the profile defined here is not
+		// assigned to anything. Only error when there is no token at all.
 		toks, err := d.ds.ListABMTokens(ctx)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "listing ABM tokens")
 		}
 
-		if len(toks) != 1 {
-			return ctxerr.New(ctx, "No relevant ABM tokens found. Please set this team as a default team for an ABM token.")
+		if len(toks) == 0 {
+			return ctxerr.New(ctx, "No Apple Business Manager (ABM) token found. Add an ABM token before adding a setup assistant.")
 		}
 
-		orgNames = append(orgNames, toks[0].OrganizationName)
+		// Pick a token that can actually reach Apple; an invalid or terms-expired
+		// token would fail DefineProfile with a cryptic error, so fail early with an
+		// actionable message when none is usable.
+		var orgName string
+		for _, tok := range toks {
+			if !tok.TokenInvalid && !tok.TermsExpired {
+				orgName = tok.OrganizationName
+				break
+			}
+		}
+		if orgName == "" {
+			return ctxerr.New(ctx, "All Apple Business Manager (ABM) tokens are invalid or have expired terms. Renew an ABM token before adding a setup assistant.")
+		}
+		orgNames = append(orgNames, orgName)
 	}
 
 	for _, orgName := range orgNames {
@@ -533,6 +549,16 @@ func (d *DEPService) RunAssigner(ctx context.Context) error {
 
 	var result error
 	for _, token := range tokens {
+		// backfill the abm token server UUID once
+		if token.ServerUUID == "" {
+			acct, err := d.depClient.AccountDetail(ctx, token.OrganizationName)
+			if err != nil {
+				d.logger.WarnContext(ctx, "fetching ABM server UUID", "org_name", token.OrganizationName, "err", err)
+			} else if err := d.ds.SetABMTokenServerUUID(ctx, token.ID, acct.ServerUUID); err != nil {
+				result = multierror.Append(result, err)
+			}
+		}
+
 		var macOSTeam, iosTeam, ipadTeam *fleet.Team
 
 		if token.MacOSDefaultTeamID != nil {
@@ -1060,7 +1086,8 @@ func logCountsForResults(deviceResults map[string]string) (out []interface{}) {
 // changes, and flag the ABM token's token_invalid field whenever Apple
 // rejects the token or reports its signature as invalid.
 func NewDEPClient(storage godep.ClientStorage, updater fleet.ABMTermsUpdater, logger *slog.Logger) *godep.Client {
-	return godep.NewClient(storage, fleethttp.NewClient(), godep.WithAfterHook(func(ctx context.Context, reqErr error) error {
+	httpClient := fleethttp.NewClient(fleethttp.WithNoTimeout())
+	return godep.NewClient(storage, httpClient, godep.WithAfterHook(func(ctx context.Context, reqErr error) error {
 		// to check for ABM terms expired, we must have an ABM token organization
 		// name and NOT a raw ABM token in the context (as the presence of a raw
 		// ABM token means that the token is new, hasn't been saved in the DB yet
@@ -1304,6 +1331,7 @@ var enrollmentProfileMobileconfigTemplate = template.Must(template.New("").Funcs
 			<array>
 				<string>com.apple.mdm.per-user-connections</string>
 				<string>com.apple.mdm.bootstraptoken</string>
+				<string>com.apple.mdm.token</string>
 			</array>
 			<key>ServerURL</key>
 			<string>{{ .ServerURL }}</string>
@@ -1386,6 +1414,7 @@ var accountDrivenUserEnrollmentProfileMobileconfigTemplate = template.Must(templ
 				<string>UserEnrollment</string>
 				<string>com.apple.mdm.per-user-connections</string>
 				<string>com.apple.mdm.bootstraptoken</string>
+				<string>com.apple.mdm.token</string>
 			</array>
 			<key>ServerURL</key>
 			<string>{{ .ServerURL }}</string>
@@ -1472,6 +1501,7 @@ var acmeEnrollmentProfileMobileconfigTemplate = template.Must(template.New("").F
 			<array>
 				<string>com.apple.mdm.per-user-connections</string>
 				<string>com.apple.mdm.bootstraptoken</string>
+				<string>com.apple.mdm.token</string>
 			</array>
 			<key>ServerURL</key>
 			<string>{{ .ServerURL | xml }}</string>
