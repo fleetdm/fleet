@@ -2293,7 +2293,7 @@ const TAGGED_TEMPLATES = {
     ) : (
       <></>
     );
-    return <>edited enroll secret{postFix}.</>;
+    return <>edited enroll secrets{postFix}.</>;
   },
   addedMicrosoftEntraTenant: (activity: IActivity) => {
     const tenantId = activity.details?.tenant_id;
