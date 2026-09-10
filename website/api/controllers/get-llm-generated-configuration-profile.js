@@ -50,7 +50,7 @@ module.exports = {
       'Generate a profile that any MDM can deliver.  Use only syntax defined by Apple, Microsoft, or Google -- never a vendor-specific variable, placeholder, or extension, and never Fleet-specific syntax such as $FLEET_SECRET_ or FLEET_VAR_.  A vendor placeholder the delivering MDM does not recognize is shipped to the device as a literal value.',
       'Reproduce user-supplied identifiers character for character, including case: SSIDs, profile names, certificate subjects, domain names.  Never re-capitalize, trim, or reword them.  An SSID differing by one letter\'s case deploys cleanly and matches nothing.',
       'Use only settings you can attribute to a specific published source (an Apple payload key, a Windows CSP node, or an Apple declaration type).  If the instructions cannot be satisfied that way, do not approximate -- return the "couldNotGenerateProfile" shape instead.',
-      'You have no network access and cannot open any URL.  Never state or imply that you validated this profile against a reference, a schema, or a linter.  "documentationUrl" is where a human can check your work, not evidence that you checked it.',
+      // 'You have no network access and cannot open any URL.  Never state or imply that you validated this profile against a reference, a schema, or a linter.  "documentationUrl" is where a human can check your work, not evidence that you checked it.',
       'Enforce only what the instructions ask for.  The only settings you may add beyond the request are ones the requested setting depends on, and each of those must be called out in "caveats".',
       'Write credentials the admin supplied as literals, since the profile is unusable without them.  Do not invent a placeholder.  Note in "deliveryNotes" that the file contains a cleartext credential.',
       'When a platform requires a companion artifact the profile cannot contain -- a DDM activation declaration, a referenced asset declaration -- generate the configuration itself and describe the companion in "deliveryNotes".',
@@ -246,6 +246,20 @@ If a configuration profile cannot be generated from the provided instructions, r
     // Kicked off before the triage call is awaited: a Sails deferred does not start until
     // something awaits it, so this wrapper is what makes the two calls concurrent rather than
     // sequential.
+    let draftProfilePromise = (async ()=>{
+      return await sails.helpers.ai.prompt.with({
+        systemPrompt: systemPrompt,
+        prompt: configurationProfilePrompt,
+        baseModel: 'claude-haiku-4-5',
+        expectJson: true,
+      })
+      .tolerate((err)=>{
+        // Tolerated rather than intercepted: this draft is optional, and its failure only means
+        // the request takes the escalated path it would have taken anyway.
+        sails.log.warn(`When trying to generate a draft configuration profile with the smaller model, an error occurred. Falling back to the larger model. Full error: ${require('util').inspect(err, {depth: 2})}`);
+        return undefined;
+      });
+    })();
 
     // The triage call answers one question -- does this request need a setting the published
     // platform reference does not cover -- and returns in about a second, which is what lets the
@@ -274,7 +288,7 @@ Respond in JSON with this data shape:
   ]
 }
 `;
-
+    console.time('triage prompt');
     let triageResult = await sails.helpers.ai.prompt.with({
       systemPrompt: triageSystemPrompt,
       prompt: `Here are the instructions from an IT admin:
@@ -288,7 +302,7 @@ Respond in JSON with this data shape:
       sails.log.warn(`When trying to triage a user's configuration profile instructions, an error occurred. Full error: ${require('util').inspect(err, {depth: 2})}`);
       return undefined;
     });
-
+    console.timeEnd('triage prompt');
     // Filtered because this is model output rendered straight into the page: a bare string in the
     // array would render as an empty row rather than as nothing.
     let anticipatedSettings = _.filter(triageResult ? triageResult.anticipatedSettings || [] : [], (setting)=>{
@@ -297,7 +311,7 @@ Respond in JSON with this data shape:
     if(this.req.isSocket && anticipatedSettings.length > 0) {
       sails.sockets.broadcast(roomId, 'settingsPreview', {settings: anticipatedSettings});
     }
-
+    console.log(`requiresAThirdPartyApplicationReference ${triageResult ? triageResult.requiresAThirdPartyApplicationReference : '(triage failed)'}`);
     // A triage call that failed leaves the question unanswered, and escalating is the safe answer
     // to an unanswered question: the larger model still writes a correct first-party profile,
     // while the smaller one writes a plausible-looking wrong third-party profile.
@@ -305,28 +319,19 @@ Respond in JSON with this data shape:
 
     let configurationProfileGenerationResult;
     if(!needsAReferenceTheSmallerModelIsLikelyToRecallWrong) {
-      configurationProfileGenerationResult = await sails.helpers.ai.prompt.with({
-        systemPrompt: systemPrompt,
-        prompt: configurationProfilePrompt,
-        baseModel: 'claude-haiku-4-5',
-        expectJson: true,
-      })
-      .tolerate((err)=>{
-        // Tolerated rather than intercepted: this draft is optional, and its failure only means
-        // the request takes the escalated path it would have taken anyway.
-        sails.log.warn(`When trying to generate a draft configuration profile with the smaller model, an error occurred. Falling back to the larger model. Full error: ${require('util').inspect(err, {depth: 2})}`);
-        return undefined;
-      });
+      console.log('Awaiting the speculative haiku draft');
+      configurationProfileGenerationResult = await draftProfilePromise;
     }
     // Escalate when the draft was discarded, when it errored, or when it came back unusable.  On
     // the third-party path this starts without awaiting the draft: it is known to be going in the
     // bin the moment triage answers, so waiting would add its latency to the slow path for nothing.
-    if(!!configurationProfileGenerationResult &&
-        !configurationProfileGenerationResult.couldNotGenerateProfile &&
-        !!configurationProfileGenerationResult.configurationProfile &&
-        !!configurationProfileGenerationResult.profileFilename &&
-        !!configurationProfileGenerationResult.settingsEnforced
+    if(!configurationProfileGenerationResult ||
+        configurationProfileGenerationResult.couldNotGenerateProfile ||
+        !configurationProfileGenerationResult.configurationProfile ||
+        !configurationProfileGenerationResult.profileFilename ||
+        !configurationProfileGenerationResult.settingsEnforced
         ) {
+      console.log('Sending instructions to sonnet with webfetch');
       configurationProfileGenerationResult = await sails.helpers.ai.promptWithFetch.with({
         systemPrompt: systemPrompt,
         prompt: configurationProfilePrompt,
@@ -354,13 +359,15 @@ Respond in JSON with this data shape:
     // let jsonResult = JSON.parse(configurationProfileGenerationResult);
     // console.log(configurationProfileGenerationResult);
     // All done.
-    if(!!configurationProfileGenerationResult &&
-        !configurationProfileGenerationResult.couldNotGenerateProfile &&
-        !!configurationProfileGenerationResult.configurationProfile &&
-        !!configurationProfileGenerationResult.profileFilename &&
-        !!configurationProfileGenerationResult.settingsEnforced) {
+    if(!configurationProfileGenerationResult ||
+        configurationProfileGenerationResult.couldNotGenerateProfile ||
+        !configurationProfileGenerationResult.configurationProfile ||
+        !configurationProfileGenerationResult.profileFilename ||
+        !configurationProfileGenerationResult.settingsEnforced) {
       if(this.req.isSocket){
-        if(configurationProfileGenerationResult.reasonWhyAProfileCouldNotBeGenerated){
+        // Guarded: an escalation that returned nothing at all lands here too, and reading a
+        // property off it would throw instead of reporting the failure.
+        if(configurationProfileGenerationResult && configurationProfileGenerationResult.reasonWhyAProfileCouldNotBeGenerated){
           sails.sockets.broadcast(roomId, 'error', {error: 'couldNotGenerateProfile', reason: configurationProfileGenerationResult.reasonWhyAProfileCouldNotBeGenerated});
         } else {
           sails.sockets.broadcast(roomId, 'error', {error: 'couldNotGenerateProfile'});
