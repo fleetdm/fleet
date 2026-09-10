@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/mdm"
+	"github.com/fleetdm/fleet/v4/server/platform/jsondecode"
 	"github.com/fleetdm/fleet/v4/server/variables"
 	"google.golang.org/api/androidmanagement/v1"
 )
@@ -94,7 +95,8 @@ func (m *MDMAndroidConfigProfile) ValidateUserProvided(isPremium bool) error {
 		}
 	}
 
-	if err := json.Unmarshal(m.RawJSON, &androidmanagement.Policy{}); err != nil {
+	// This only checks that every value has the right type.
+	if err := jsondecode.Unmarshal(m.RawJSON, &androidmanagement.Policy{}); err != nil {
 		return parseAndroidProfileValidationError(err)
 	}
 
@@ -106,11 +108,9 @@ func (m *MDMAndroidConfigProfile) ValidateUserProvided(isPremium bool) error {
 }
 
 func parseAndroidProfileValidationError(err error) error {
-	var typeErr *json.UnmarshalTypeError
-
 	// Check for type mismatches (e.g., array where object expected)
-	if errors.As(err, &typeErr) {
-		fieldPath := typeErr.Field
+	if jsondecode.IsTypeError(err) {
+		fieldPath := jsondecode.FieldPath(err)
 		if fieldPath == "" {
 			fieldPath = "<root>"
 		}

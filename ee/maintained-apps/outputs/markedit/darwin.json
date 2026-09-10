@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "1.34.0",
+      "version": "1.35.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'app.cyan.markedit';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'app.cyan.markedit' AND version_compare(bundle_short_version, '1.34.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'app.cyan.markedit' AND version_compare(bundle_short_version, '1.35.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'app.cyan.markedit' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/MarkEdit-app/MarkEdit/releases/download/v1.34.0/MarkEdit-1.34.0.dmg",
+      "installer_url": "https://github.com/MarkEdit-app/MarkEdit/releases/download/v1.35.0/MarkEdit-1.35.0.dmg",
       "install_script_ref": "d9059f8f",
       "uninstall_script_ref": "be802818",
-      "sha256": "e38962edcca263e31d947987212f25ecc25d85af7f848dcb0cc31587d0332b76",
+      "sha256": "15c4930969b411de98c3397094d3815b40463781dd01161581f26f54d6108e7e",
       "default_categories": [
         "Productivity"
       ]

@@ -6,15 +6,15 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260901174312, Down_20260901174312)
+	MigrationClient.AddMigration(Up_20260908152437, Down_20260908152437)
 }
 
-// Up_20260901174312 adds the hardware radio identifiers AMAPI reports in
+// Up_20260908152437 adds the hardware radio identifiers AMAPI reports in
 // networkInfo — imei for GSM devices, meid for CDMA ones — to
 // host_mdm_android_device_vitals. A device reports at most one of the two, and
 // neither is reported for personally-owned devices, so both default to NULL
 // like the rest of the vitals columns.
-func Up_20260901174312(tx *sql.Tx) error {
+func Up_20260908152437(tx *sql.Tx) error {
 	_, err := tx.Exec(`
 ALTER TABLE host_mdm_android_device_vitals
   ADD COLUMN imei varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
@@ -26,6 +26,6 @@ ALTER TABLE host_mdm_android_device_vitals
 	return nil
 }
 
-func Down_20260901174312(tx *sql.Tx) error {
+func Down_20260908152437(tx *sql.Tx) error {
 	return nil
 }

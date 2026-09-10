@@ -263,6 +263,9 @@ type HostListOptions struct {
 	// PopulatePolicies adds the `Policies` array field to all Hosts returned.
 	PopulatePolicies bool
 
+	// PopulateEndUsers adds the `EndUsers` array field to all Hosts returned
+	PopulateEndUsers bool
+
 	// PopulateUsers adds the `Users` array field to all Hosts returned
 	PopulateUsers bool
 
@@ -402,6 +405,9 @@ type Host struct {
 
 	// Users currently in the host
 	Users []HostUser `json:"users,omitempty" csv:"-"`
+
+	// EndUsers is the list of end users associated with the host. Only populated when PopulateEndUsers is set.
+	EndUsers []HostEndUser `json:"end_users,omitempty" csv:"-"`
 
 	GigsDiskSpaceAvailable    float64 `json:"gigs_disk_space_available" db:"gigs_disk_space_available" csv:"gigs_disk_space_available"`
 	PercentDiskSpaceAvailable float64 `json:"percent_disk_space_available" db:"percent_disk_space_available" csv:"percent_disk_space_available"`
@@ -1238,7 +1244,6 @@ type HostDetail struct {
 
 	// MaintenanceWindow contains the host user's calendar IANA timezone and the start time of the next scheduled maintenance window.
 	MaintenanceWindow *HostMaintenanceWindow `json:"maintenance_window,omitempty"`
-	EndUsers          []HostEndUser          `json:"end_users,omitempty"`
 
 	CustomHostVitals []HostCustomHostVital `json:"custom_host_vitals,omitempty"`
 
@@ -1890,6 +1895,27 @@ type HostMDMCheckinInfo struct {
 	SCEPRenewalInProgress bool   `json:"-" db:"scep_renewal_in_progress"`
 	MigrationInProgress   bool   `json:"-" db:"migration_in_progress"`
 	Platform              string `json:"-" db:"platform"`
+}
+
+// HostEscrowState is where a Linux host's LUKS escrow request stands.
+type HostEscrowState struct {
+	// Pending is true while a request is queued and not yet delivered to the agent.
+	Pending bool
+	// SinceLastActivity is how long ago the agent last showed activity on the request (hand-off
+	// or heartbeat), measured on the database clock. Nil when no request is in flight.
+	SinceLastActivity *time.Duration
+}
+
+// InFlightRemaining returns how long the request stays in flight if the agent sends nothing
+// further within window, or zero when it is not in flight.
+func (s *HostEscrowState) InFlightRemaining(window time.Duration) time.Duration {
+	if s == nil || s.SinceLastActivity == nil || *s.SinceLastActivity >= window {
+		return 0
+	}
+	if *s.SinceLastActivity < 0 {
+		return window
+	}
+	return window - *s.SinceLastActivity
 }
 
 type HostDiskEncryptionKey struct {

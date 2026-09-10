@@ -599,6 +599,21 @@ func (e ConflictError) StatusCode() int {
 	return http.StatusConflict
 }
 
+// LinuxEscrowInFlightError is returned when a LUKS escrow request is refused because fleetd is
+// already handling one. It is a 409 whose Retry-After header says how long until the in-flight
+// state expires if fleetd sends nothing further.
+type LinuxEscrowInFlightError struct {
+	RetryAfterSeconds int
+}
+
+func (e LinuxEscrowInFlightError) Error() string { return LinuxEscrowInFlightMessage }
+
+// StatusCode implements the kithttp.StatusCoder interface.
+func (e LinuxEscrowInFlightError) StatusCode() int { return http.StatusConflict }
+
+// RetryAfter implements platform_http.ErrWithRetryAfter.
+func (e LinuxEscrowInFlightError) RetryAfter() int { return e.RetryAfterSeconds }
+
 // IsConflict implements the conflict interface for middleware compatibility
 func (e ConflictError) IsConflict() bool {
 	return true
@@ -619,3 +634,25 @@ type VPPIconAvailable struct {
 func (e *VPPIconAvailable) Error() string {
 	return fmt.Sprintf("VPP icon available at: %s", e.IconURL)
 }
+
+// ABOnlyEnrollmentForbiddenError is returned by device-facing enrollment
+// endpoints when only Apple Business enrollment is allowed.
+type ABOnlyEnrollmentForbiddenError struct {
+	ErrorWithUUID
+	InternalErr error
+}
+
+func (e *ABOnlyEnrollmentForbiddenError) Error() string {
+	return "Manual enrollment is not available. Only devices assigned through Apple Business can enroll. Please contact your IT administrator."
+}
+
+func (e *ABOnlyEnrollmentForbiddenError) StatusCode() int { return http.StatusForbidden }
+
+func (e *ABOnlyEnrollmentForbiddenError) Internal() string {
+	if e.InternalErr != nil {
+		return e.InternalErr.Error()
+	}
+	return ""
+}
+
+const AdminOnlyEnrollmentForbiddenErrMsg = "Manual enrollment is not available because only Apple Business enrollment is allowed for this organization."

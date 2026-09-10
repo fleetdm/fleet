@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "2.4",
+      "version": "2.4.2",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'HP Prime Virtual Calculator';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'HP Prime Virtual Calculator' AND version_compare(version, '2.4') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'HP Prime Virtual Calculator' AND version_compare(version, '2.4.2') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'hp prime virtual calculator.exe');"
       },
-      "installer_url": "https://updates.moravia-consulting.com/HP_Prime_Virtual_Calculator_x64_2025_09_15.exe",
+      "installer_url": "https://updates.moravia-consulting.com/HP_Prime_Virtual_Calculator_x64_2026_09_09.exe",
       "install_script_ref": "198b4efd",
       "uninstall_script_ref": "489cd493",
-      "sha256": "de9a063ef839eea85e75d78c77a688d2bd9d373542514864a87db8dd4ba9ca58",
+      "sha256": "8653a27d099d78e4fcdd5504dbca46373381d3646391f3364116eada02fbb6a9",
       "default_categories": [
         "Productivity"
       ]

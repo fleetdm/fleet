@@ -5,7 +5,9 @@ import { useDebouncedCallback } from "use-debounce";
 
 import { IHost } from "interfaces/host";
 import targetsAPI, { ITargetsSearchResponse } from "services/entities/targets";
+import useGitOpsMode from "hooks/useGitOpsMode";
 
+import CustomLink from "components/CustomLink";
 import TargetsInput from "components/TargetsInput";
 
 import LabelForm from "../LabelForm";
@@ -18,6 +20,8 @@ export const LABEL_TARGET_HOSTS_INPUT_LABEL = "Select hosts";
 const LABEL_TARGET_HOSTS_INPUT_PLACEHOLDER =
   "Search name, hostname, or serial number";
 const DEBOUNCE_DELAY = 500;
+const LABEL_YAML_DOCS_URL =
+  "https://fleetdm.com/docs/configuration/yaml-files#labels";
 
 export interface IManualLabelFormData {
   name: string;
@@ -48,6 +52,7 @@ const ManualLabelForm = ({
   onSave,
   onCancel,
 }: IManualLabelFormProps) => {
+  const { gitOpsModeEnabled: labelsGitOpsManaged } = useGitOpsMode("labels");
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [isDebouncing, setIsDebouncing] = useState(false);
@@ -134,20 +139,34 @@ const ManualLabelForm = ({
         onCancel={onCancel}
         onSave={onSaveNewLabel}
         immutableFields={teamName ? ["fleets"] : []}
+        gitOpsLocksDefinitionOnly
         additionalFields={
-          <TargetsInput
-            label={LABEL_TARGET_HOSTS_INPUT_LABEL}
-            placeholder={LABEL_TARGET_HOSTS_INPUT_PLACEHOLDER}
-            searchText={searchQuery}
-            searchResultsTableConfig={resultsTableConfig}
-            selectedHostsTableConifg={selectedHostsTableConfig}
-            isTargetsLoading={isLoadingSearchResults || isDebouncing}
-            hasFetchError={isErrorSearchResults}
-            searchResults={searchResults ?? []}
-            targetedHosts={targetedHosts}
-            setSearchText={onChangeSearchQuery}
-            handleRowSelect={onHostSelect}
-          />
+          <>
+            <TargetsInput
+              label={LABEL_TARGET_HOSTS_INPUT_LABEL}
+              placeholder={LABEL_TARGET_HOSTS_INPUT_PLACEHOLDER}
+              searchText={searchQuery}
+              searchResultsTableConfig={resultsTableConfig}
+              selectedHostsTableConifg={selectedHostsTableConfig}
+              isTargetsLoading={isLoadingSearchResults || isDebouncing}
+              hasFetchError={isErrorSearchResults}
+              searchResults={searchResults ?? []}
+              targetedHosts={targetedHosts}
+              setSearchText={onChangeSearchQuery}
+              handleRowSelect={onHostSelect}
+            />
+            {labelsGitOpsManaged && (
+              <span className="form-field__help-text">
+                Omitting <b>hosts</b> in YAML preserves these hosts. Setting{" "}
+                <b>hosts</b> in YAML replaces them on the next GitOps run.{" "}
+                <CustomLink
+                  newTab
+                  text="Learn more"
+                  url={LABEL_YAML_DOCS_URL}
+                />
+              </span>
+            )}
+          </>
         }
       />
     </div>

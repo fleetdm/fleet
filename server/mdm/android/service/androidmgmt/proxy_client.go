@@ -57,7 +57,7 @@ func NewProxyClient(ctx context.Context, logger *slog.Logger, licenseKey string,
 		option.WithLogger(slogLogger),
 		// The API key is required to exist but not used by this client. Instead, we use the FleetServerSecret as a bearer token.
 		option.WithAPIKey("not_used"),
-		option.WithHTTPClient(fleethttp.NewClient()),
+		option.WithHTTPClient(fleethttp.NewClient(fleethttp.WithNoTimeout())),
 	)
 	if err != nil {
 		logger.ErrorContext(ctx, "creating android management service", "err", err)
@@ -107,7 +107,7 @@ func (p *ProxyClient) EnterprisesCreate(ctx context.Context, req EnterprisesCrea
 		Enterprise      androidmanagement.Enterprise `json:"enterprise"`
 	}
 
-	client := fleethttp.NewClient()
+	client := fleethttp.NewClient(fleethttp.WithNoTimeout())
 	pe := proxyEnterprise{
 		FleetLicenseKey: p.licenseKey,
 		PubSubPushURL:   req.PubSubPushURL,
