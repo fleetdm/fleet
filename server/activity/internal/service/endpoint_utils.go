@@ -23,7 +23,7 @@ const (
 	defaultPerPage = 20
 
 	// maxPerPage is the maximum allowed value for per_page.
-	maxPerPage = 10000
+	maxPerPage = platform_http.MaxPerPage
 )
 
 // encodeResponse encodes the response as JSON.
