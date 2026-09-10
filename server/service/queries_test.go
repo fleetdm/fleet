@@ -10,6 +10,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/live_query/live_query_mock"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/stretchr/testify/assert"
@@ -838,7 +839,7 @@ func TestQueryAuth(t *testing.T) {
 			_, err = svc.GetQuery(ctx, tt.qid)
 			checkAuthErr(t, tt.shouldFailRead, err)
 
-			_, err = svc.QueryReportIsClipped(ctx, tt.qid, fleet.DefaultMaxQueryReportRows)
+			_, err = svc.QueryReportIsClipped(ctx, tt.qid)
 			checkAuthErr(t, tt.shouldFailRead, err)
 
 			_, _, _, _, err = svc.ListQueries(ctx, fleet.ListOptions{}, query.TeamID, nil, false, nil)
@@ -933,7 +934,10 @@ func TestQueryResponsesFilterUnauthorizedPacks(t *testing.T) {
 
 func TestQueryReportIsClipped(t *testing.T) {
 	ds := new(mock.Store)
-	svc, ctx := newTestService(t, ds, nil, nil)
+	lq := live_query_mock.New(t)
+	hostCount := 0
+	lq.GetQueryReportsHostCountOverride = func() (int, error) { return hostCount, nil }
+	svc, ctx := newTestService(t, ds, nil, lq)
 	viewerCtx := viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{
 		ID:         1,
 		GlobalRole: ptr.String(fleet.RoleAdmin),
@@ -942,11 +946,14 @@ func TestQueryReportIsClipped(t *testing.T) {
 	ds.QueryFunc = func(ctx context.Context, queryID uint) (*fleet.Query, error) {
 		return &fleet.Query{}, nil
 	}
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
 	ds.ResultCountForQueryFunc = func(ctx context.Context, queryID uint) (int, error) {
 		return 0, nil
 	}
 
-	isClipped, err := svc.QueryReportIsClipped(viewerCtx, 1, fleet.DefaultMaxQueryReportRows)
+	isClipped, err := svc.QueryReportIsClipped(viewerCtx, 1)
 	require.NoError(t, err)
 	require.False(t, isClipped)
 
@@ -954,9 +961,30 @@ func TestQueryReportIsClipped(t *testing.T) {
 		return fleet.DefaultMaxQueryReportRows, nil
 	}
 
-	isClipped, err = svc.QueryReportIsClipped(viewerCtx, 1, fleet.DefaultMaxQueryReportRows)
+	isClipped, err = svc.QueryReportIsClipped(viewerCtx, 1)
 	require.NoError(t, err)
 	require.True(t, isClipped)
+
+	// The cap is raised to the host count when there are more hosts than the configured cap.
+	hostCount = fleet.DefaultMaxQueryReportRows + 1
+	isClipped, err = svc.QueryReportIsClipped(viewerCtx, 1)
+	require.NoError(t, err)
+	require.False(t, isClipped)
+
+	ds.ResultCountForQueryFunc = func(ctx context.Context, queryID uint) (int, error) {
+		return hostCount, nil
+	}
+	isClipped, err = svc.QueryReportIsClipped(viewerCtx, 1)
+	require.NoError(t, err)
+	require.True(t, isClipped)
+
+	// A configured cap above the host count still applies.
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{ServerSettings: fleet.ServerSettings{QueryReportCap: hostCount + 1}}, nil
+	}
+	isClipped, err = svc.QueryReportIsClipped(viewerCtx, 1)
+	require.NoError(t, err)
+	require.False(t, isClipped)
 }
 
 func TestQueryReportReturnsNilIfDiscardDataIsTrue(t *testing.T) {
@@ -972,7 +1000,7 @@ func TestQueryReportReturnsNilIfDiscardDataIsTrue(t *testing.T) {
 			DiscardData: true,
 		}, nil
 	}
-	ds.QueryResultRowsFunc = func(ctx context.Context, queryID uint, opts fleet.TeamFilter) ([]*fleet.ScheduledQueryResultRow, error) {
+	ds.QueryResultRowsFunc = func(ctx context.Context, queryID uint, filter fleet.TeamFilter, opts fleet.ListOptions) ([]*fleet.ScheduledQueryResultRow, int, *fleet.PaginationMetadata, error) {
 		return []*fleet.ScheduledQueryResultRow{
 			{
 				QueryID:     1,
@@ -980,10 +1008,10 @@ func TestQueryReportReturnsNilIfDiscardDataIsTrue(t *testing.T) {
 				Data:        ptr.RawMessage(json.RawMessage(`{"foo": "bar"}`)),
 				LastFetched: time.Now(),
 			},
-		}, nil
+		}, 1, nil, nil
 	}
 
-	results, reportClipped, err := svc.GetQueryReportResults(viewerCtx, 1, nil)
+	results, _, _, reportClipped, err := svc.GetQueryReportResults(viewerCtx, 1, nil, fleet.ListOptions{})
 	require.NoError(t, err)
 	require.Nil(t, results)
 	require.False(t, reportClipped)
@@ -1061,7 +1089,7 @@ func TestInheritedQueryReportTeamPermissions(t *testing.T) {
 			Data:        ptr.RawMessage([]byte(`{"model": "USB Keyboard", "vendor": "Apple Inc."}`)),
 		},
 	}
-	_, err = ds.OverwriteQueryResultRows(ctx, host2Row, fleet.DefaultMaxQueryReportRows)
+	_, err = ds.OverwriteQueryResultRows(ctx, host2Row, fleet.DefaultMaxQueryReportRows, 0)
 	require.NoError(t, err)
 	host1Row := []*fleet.ScheduledQueryResultRow{
 		{
@@ -1071,7 +1099,7 @@ func TestInheritedQueryReportTeamPermissions(t *testing.T) {
 			Data:        ptr.RawMessage([]byte(`{"model": "USB Mouse", "vendor": "Apple Inc."}`)),
 		},
 	}
-	_, err = ds.OverwriteQueryResultRows(ctx, host1Row, fleet.DefaultMaxQueryReportRows)
+	_, err = ds.OverwriteQueryResultRows(ctx, host1Row, fleet.DefaultMaxQueryReportRows, 0)
 	require.NoError(t, err)
 
 	team2Admin := &fleet.User{
@@ -1083,7 +1111,7 @@ func TestInheritedQueryReportTeamPermissions(t *testing.T) {
 		},
 	}
 
-	queryReportResults, _, err := svc.GetQueryReportResults(viewer.NewContext(ctx, viewer.Viewer{User: team2Admin}), globalQuery.ID, &team2.ID)
+	queryReportResults, _, _, _, err := svc.GetQueryReportResults(viewer.NewContext(ctx, viewer.Viewer{User: team2Admin}), globalQuery.ID, &team2.ID, fleet.ListOptions{})
 	require.NoError(t, err)
 	require.Len(t, queryReportResults, 1)
 
@@ -1146,7 +1174,7 @@ func TestInheritedQueryReportTeamPermissions(t *testing.T) {
 
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
-			queryReportResults, _, err := svc.GetQueryReportResults(viewer.NewContext(ctx, viewer.Viewer{User: tt.user}), globalQuery.ID, &team2.ID)
+			queryReportResults, _, _, _, err := svc.GetQueryReportResults(viewer.NewContext(ctx, viewer.Viewer{User: tt.user}), globalQuery.ID, &team2.ID, fleet.ListOptions{})
 			require.NoError(t, err)
 			require.Len(t, queryReportResults, 0)
 		})

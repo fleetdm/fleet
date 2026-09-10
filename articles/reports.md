@@ -46,9 +46,9 @@ How to view a report:
 
 3. If you want to download the report, select **Export results** to save it as a CSV.
 
-Fleet stores up to 1,000 results per report. If the count stays below this limit, Fleet updates the report each time hosts send new data.
+Fleet stores up to 1,000 results per report, or one result per host if you have more than 1,000 hosts. If the count stays below this limit, Fleet updates the report each time hosts send new data.
 
-If the results exceed 1,000, Fleet stops updating the report. To start collecting data again, clear the stored results from the report's page. Go to **Advanced options**, uncheck **Store data**, and select **Save**. Then check **Store data** and select **Save** again.
+When the report is full, Fleet keeps updating results for hosts that are already in the report, but doesn't add results from other hosts. To start collecting data from all hosts again, clear the stored results from the report's page. Go to **Advanced options**, uncheck **Store data**, and select **Save**. Then check **Store data** and select **Save** again.
 
 > You can change the 1,000-result limit by setting [`server_settings.report_cap`](https://fleetdm.com/docs/rest-api/rest-api#server-settings).
 

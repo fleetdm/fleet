@@ -182,7 +182,7 @@ const HostReportCard = ({
         </div>
         <div className={`${baseClass}__header-right`}>
           {report.report_clipped && (
-            <Tag tooltip="This report has paused saving results. If automations are enabled, results are still sent to your log destination.">
+            <Tag tooltip="This report is full and isn't saving results from hosts that aren't in it yet. If automations are enabled, results are still sent to your log destination.">
               <Icon size="small" name="warning" color={ICON_COLOR} />
               Report clipped
             </Tag>

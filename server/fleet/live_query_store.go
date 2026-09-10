@@ -37,4 +37,12 @@ type LiveQueryStore interface {
 	// DeleteQueryResultsCount deletes the query results count for a query.
 	// Used when deleting a query, to remove the Redis key.
 	DeleteQueryResultsCount(queryID uint) error
+
+	// SetQueryReportsHostCount stores the total number of hosts, used to raise
+	// the query report cap so that reports are never capped below one row per host.
+	// Refreshed by the query results cleanup cron job.
+	SetQueryReportsHostCount(count int) error
+	// GetQueryReportsHostCount returns the host count stored by
+	// SetQueryReportsHostCount, or 0 if it has not been set yet.
+	GetQueryReportsHostCount() (int, error)
 }

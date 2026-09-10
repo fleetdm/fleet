@@ -12,10 +12,12 @@ import (
 type MockLiveQuery struct {
 	mock.Mock
 	fleet.LiveQueryStore
-	GetQueryResultsCountsOverride   func(queryIDs []uint) (map[uint]int, error)
-	IncrQueryResultsCountsOverride  func(queryIDsToAmounts map[uint]int) error
-	SetQueryResultsCountOverride    func(queryID uint, count int) error
-	DeleteQueryResultsCountOverride func(queryID uint) error
+	GetQueryResultsCountsOverride    func(queryIDs []uint) (map[uint]int, error)
+	IncrQueryResultsCountsOverride   func(queryIDsToAmounts map[uint]int) error
+	SetQueryResultsCountOverride     func(queryID uint, count int) error
+	DeleteQueryResultsCountOverride  func(queryID uint) error
+	SetQueryReportsHostCountOverride func(count int) error
+	GetQueryReportsHostCountOverride func() (int, error)
 }
 
 var _ fleet.LiveQueryStore = (*MockLiveQuery)(nil)
@@ -96,4 +98,20 @@ func (m *MockLiveQuery) DeleteQueryResultsCount(queryID uint) error {
 		return m.DeleteQueryResultsCountOverride(queryID)
 	}
 	return nil
+}
+
+// SetQueryReportsHostCount mocks the live query store SetQueryReportsHostCount method.
+func (m *MockLiveQuery) SetQueryReportsHostCount(count int) error {
+	if m.SetQueryReportsHostCountOverride != nil {
+		return m.SetQueryReportsHostCountOverride(count)
+	}
+	return nil
+}
+
+// GetQueryReportsHostCount mocks the live query store GetQueryReportsHostCount method.
+func (m *MockLiveQuery) GetQueryReportsHostCount() (int, error) {
+	if m.GetQueryReportsHostCountOverride != nil {
+		return m.GetQueryReportsHostCountOverride()
+	}
+	return 0, nil
 }

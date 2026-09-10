@@ -484,7 +484,7 @@ type CleanupExpiredHostsBatchFunc func(ctx context.Context, batchSize int) ([]fl
 
 type ScheduledQueryIDsByNameFunc func(ctx context.Context, batchSize int, packAndSchedQueryNames ...[2]string) ([]uint, error)
 
-type QueryResultRowsFunc func(ctx context.Context, queryID uint, filter fleet.TeamFilter) ([]*fleet.ScheduledQueryResultRow, error)
+type QueryResultRowsFunc func(ctx context.Context, queryID uint, filter fleet.TeamFilter, opts fleet.ListOptions) ([]*fleet.ScheduledQueryResultRow, int, *fleet.PaginationMetadata, error)
 
 type QueryResultRowsForHostFunc func(ctx context.Context, queryID uint, hostID uint) ([]*fleet.ScheduledQueryResultRow, error)
 
@@ -492,7 +492,7 @@ type ResultCountForQueryFunc func(ctx context.Context, queryID uint) (int, error
 
 type ResultCountForQueryAndHostFunc func(ctx context.Context, queryID uint, hostID uint) (int, error)
 
-type OverwriteQueryResultRowsFunc func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows int) (int, error)
+type OverwriteQueryResultRowsFunc func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows int, currentCount int) (int, error)
 
 type CleanupDiscardedQueryResultsFunc func(ctx context.Context) error
 
@@ -7628,11 +7628,11 @@ func (s *DataStore) ScheduledQueryIDsByName(ctx context.Context, batchSize int, 
 	return s.ScheduledQueryIDsByNameFunc(ctx, batchSize, packAndSchedQueryNames...)
 }
 
-func (s *DataStore) QueryResultRows(ctx context.Context, queryID uint, filter fleet.TeamFilter) ([]*fleet.ScheduledQueryResultRow, error) {
+func (s *DataStore) QueryResultRows(ctx context.Context, queryID uint, filter fleet.TeamFilter, opts fleet.ListOptions) ([]*fleet.ScheduledQueryResultRow, int, *fleet.PaginationMetadata, error) {
 	s.mu.Lock()
 	s.QueryResultRowsFuncInvoked = true
 	s.mu.Unlock()
-	return s.QueryResultRowsFunc(ctx, queryID, filter)
+	return s.QueryResultRowsFunc(ctx, queryID, filter, opts)
 }
 
 func (s *DataStore) QueryResultRowsForHost(ctx context.Context, queryID uint, hostID uint) ([]*fleet.ScheduledQueryResultRow, error) {
@@ -7656,11 +7656,11 @@ func (s *DataStore) ResultCountForQueryAndHost(ctx context.Context, queryID uint
 	return s.ResultCountForQueryAndHostFunc(ctx, queryID, hostID)
 }
 
-func (s *DataStore) OverwriteQueryResultRows(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows int) (int, error) {
+func (s *DataStore) OverwriteQueryResultRows(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows int, currentCount int) (int, error) {
 	s.mu.Lock()
 	s.OverwriteQueryResultRowsFuncInvoked = true
 	s.mu.Unlock()
-	return s.OverwriteQueryResultRowsFunc(ctx, rows, maxQueryReportRows)
+	return s.OverwriteQueryResultRowsFunc(ctx, rows, maxQueryReportRows, currentCount)
 }
 
 func (s *DataStore) CleanupDiscardedQueryResults(ctx context.Context) error {

@@ -4080,7 +4080,10 @@ func (svc *Service) SubmitResultLogs(ctx context.Context, logs []json.RawMessage
 	// so that the logs are not lost and osquery retries on its next log interval.
 	//
 
-	var queryReportsDisabled bool
+	var (
+		queryReportsDisabled bool
+		maxQueryReportRows   int
+	)
 	appConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {
 		svc.logger.ErrorContext(ctx, "getting app config", "err", err)
@@ -4090,6 +4093,9 @@ func (svc *Service) SubmitResultLogs(ctx context.Context, logs []json.RawMessage
 		queryReportsDisabled = true
 	} else {
 		queryReportsDisabled = appConfig.ServerSettings.QueryReportsDisabled
+		if !queryReportsDisabled {
+			maxQueryReportRows = svc.queryReportCap(ctx, appConfig.ServerSettings)
+		}
 	}
 
 	unmarshaledResults, queriesDBData := svc.preProcessOsqueryResults(ctx, logs, queryReportsDisabled)
@@ -4102,7 +4108,6 @@ func (svc *Service) SubmitResultLogs(ctx context.Context, logs []json.RawMessage
 	svc.dropResultsNotScheduledForHost(ctx, unmarshaledResults, queriesDBData)
 
 	if !queryReportsDisabled {
-		maxQueryReportRows := appConfig.ServerSettings.GetQueryReportCap()
 		svc.saveResultLogsToQueryReports(ctx, unmarshaledResults, queriesDBData, maxQueryReportRows)
 	}
 
@@ -4284,16 +4289,14 @@ func (svc *Service) saveResultLogsToQueryReports(
 			continue
 		}
 
-		// Check Redis counter for approximate count (fast, distributed check).
-		if queryResultCounts != nil {
-			if count := queryResultCounts[dbQuery.ID]; count > maxQueryReportRows {
-				continue
-			}
-		}
+		// Approximate count from Redis; the datastore decides whether replacing
+		// this host's rows fits under the cap, so a full report keeps updating
+		// for hosts already in it.
+		currentCount := queryResultCounts[dbQuery.ID]
 
 		var rowsAdded int
 		var err error
-		if rowsAdded, err = svc.overwriteResultRows(ctx, result, dbQuery.ID, host.ID, maxQueryReportRows); err != nil {
+		if rowsAdded, err = svc.overwriteResultRows(ctx, result, dbQuery.ID, host.ID, maxQueryReportRows, currentCount); err != nil {
 			svc.logger.ErrorContext(ctx, "overwrite results", "err", err, "query_id", dbQuery.ID, "host_id", host.ID)
 			continue
 		}
@@ -4437,14 +4440,20 @@ func transformEventFormatToSnapshotFormat(results []*fleet.ScheduledQueryResult)
 // The "snapshot" array in a ScheduledQueryResult can contain multiple rows.
 // Each row is saved as a separate ScheduledQueryResultRow, i.e. a result could contain
 // many USB Devices or a result could contain all user accounts on a host.
-func (svc *Service) overwriteResultRows(ctx context.Context, result *fleet.ScheduledQueryResult, queryID, hostID uint, maxQueryReportRows int) (int, error) {
+func (svc *Service) overwriteResultRows(ctx context.Context, result *fleet.ScheduledQueryResult, queryID, hostID uint, maxQueryReportRows, currentCount int) (int, error) {
 	fetchTime := time.Now()
 
-	rows := make([]*fleet.ScheduledQueryResultRow, 0, len(result.Snapshot))
+	snapshot := result.Snapshot
+	if size := snapshotSize(snapshot); size > maxQueryReportSnapshotBytes {
+		svc.logger.DebugContext(ctx, "query report result too large, storing only fetch time", "query_id", queryID, "host_id", hostID, "size", size)
+		snapshot = nil
+	}
+
+	rows := make([]*fleet.ScheduledQueryResultRow, 0, len(snapshot))
 
 	// If the snapshot is empty, we still want to save a row with a null value
 	// to capture LastFetched.
-	if len(result.Snapshot) == 0 {
+	if len(snapshot) == 0 {
 		rows = append(rows, &fleet.ScheduledQueryResultRow{
 			QueryID:     queryID,
 			HostID:      hostID,
@@ -4453,7 +4462,7 @@ func (svc *Service) overwriteResultRows(ctx context.Context, result *fleet.Sched
 		})
 	}
 
-	for _, snapshotItem := range result.Snapshot {
+	for _, snapshotItem := range snapshot {
 		row := &fleet.ScheduledQueryResultRow{
 			QueryID:     queryID,
 			HostID:      hostID,
@@ -4463,16 +4472,25 @@ func (svc *Service) overwriteResultRows(ctx context.Context, result *fleet.Sched
 		rows = append(rows, row)
 	}
 
-	var rowsAdded int
-	var err error
-	if rowsAdded, err = svc.ds.OverwriteQueryResultRows(ctx, rows, maxQueryReportRows); err != nil {
+	rowsAdded, err := svc.ds.OverwriteQueryResultRows(ctx, rows, maxQueryReportRows, currentCount)
+	if err != nil {
 		return rowsAdded, ctxerr.Wrap(ctx, err, "overwriting query result rows")
 	}
-	// If we only inserted an error row, don't count it against the limit.
-	if len(result.Snapshot) == 0 {
-		rowsAdded--
-	}
 	return rowsAdded, nil
+}
+
+// maxQueryReportSnapshotBytes bounds the serialized size of one host's result
+// for one report, since the row cap alone doesn't bound storage.
+const maxQueryReportSnapshotBytes = 1 << 20 // 1 MiB
+
+func snapshotSize(snapshot []*json.RawMessage) int {
+	size := 0
+	for _, item := range snapshot {
+		if item != nil {
+			size += len(*item)
+		}
+	}
+	return size
 }
 
 // getMostRecentResults returns only the most recent result per query.

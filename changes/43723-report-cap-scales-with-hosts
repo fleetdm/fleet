@@ -1,0 +1,5 @@
+- Raised the report cap to the number of hosts when that is higher than `report_cap`, so reports that return one result per host are never clipped.
+- Reports that reach the cap now keep updating results for hosts already in the report instead of pausing entirely; only results from hosts not yet in the report are skipped.
+- Stopped storing a host's result for a report when it is larger than 1 MiB; only the fetch time is recorded.
+- Added `page`, `per_page`, `order_key`, `order_direction` and `query` parameters to `GET /api/v1/fleet/reports/:id/report`, and a `count` field to its response. Without `per_page` the endpoint still returns all results, now ordered by `last_fetched` descending.
+- The report results page now paginates, sorts and searches server-side instead of loading every result into the browser.

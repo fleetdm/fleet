@@ -2207,13 +2207,13 @@ func (s *integrationTestSuite) TestListHostReports() {
 	_, err = s.ds.OverwriteQueryResultRows(ctx, []*fleet.ScheduledQueryResultRow{
 		{QueryID: qAlpha.ID, HostID: host.ID, LastFetched: earlier, Data: new(json.RawMessage(`{"col":"older"}`))},
 		{QueryID: qAlpha.ID, HostID: host.ID, LastFetched: now, Data: new(json.RawMessage(`{"col":"newest"}`))},
-	}, fleet.DefaultMaxQueryReportRows)
+	}, fleet.DefaultMaxQueryReportRows, 0)
 	require.NoError(t, err)
 
 	// Insert one result row for qDiscard (only appears when include_reports_dont_store_results=true).
 	_, err = s.ds.OverwriteQueryResultRows(ctx, []*fleet.ScheduledQueryResultRow{
 		{QueryID: qDiscard.ID, HostID: host.ID, LastFetched: now, Data: new(json.RawMessage(`{"col":"discarded"}`))},
-	}, fleet.DefaultMaxQueryReportRows)
+	}, fleet.DefaultMaxQueryReportRows, 0)
 	require.NoError(t, err)
 
 	url := fmt.Sprintf("/api/latest/fleet/hosts/%d/reports", host.ID)

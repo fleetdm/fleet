@@ -2298,12 +2298,7 @@ func getHostQueryReportEndpoint(ctx context.Context, request interface{}, svc fl
 		return getHostQueryReportResponse{Err: err}, nil
 	}
 
-	appConfig, err := svc.AppConfigObfuscated(ctx)
-	if err != nil {
-		return getHostQueryReportResponse{Err: err}, nil
-	}
-
-	isClipped, err := svc.QueryReportIsClipped(ctx, req.QueryID, appConfig.ServerSettings.GetQueryReportCap())
+	isClipped, err := svc.QueryReportIsClipped(ctx, req.QueryID)
 	if err != nil {
 		return getHostQueryReportResponse{Err: err}, nil
 	}
@@ -2434,7 +2429,7 @@ func (svc *Service) ListHostReports(
 	if err != nil {
 		return nil, 0, nil, ctxerr.Wrap(ctx, err, "get app config")
 	}
-	maxQueryReportRows := appConfig.ServerSettings.GetQueryReportCap()
+	maxQueryReportRows := svc.queryReportCap(ctx, appConfig.ServerSettings)
 
 	// This end-point is always paginated; metadata is required for HasNextResults.
 	opts.ListOptions.IncludeMetadata = true

@@ -18,8 +18,10 @@ import (
 // OverwriteQueryResultRows overwrites the query result rows for a given query and host.
 // It deletes existing rows for the host/query and inserts the new rows.
 // If the incoming result set has more than the row limit, it bails early without storing anything.
+// If replacing the host's rows would push the query's total above maxQueryReportRows, nothing is
+// changed: hosts already in the report keep updating, hosts not yet in it are skipped once it's full.
 // Excess rows across all hosts are cleaned up by a separate cron job.
-func (ds *Datastore) OverwriteQueryResultRows(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows int) (rowsAdded int, err error) {
+func (ds *Datastore) OverwriteQueryResultRows(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows, currentCount int) (rowsAdded int, err error) {
 	if len(rows) == 0 {
 		return 0, nil
 	}
@@ -29,20 +31,31 @@ func (ds *Datastore) OverwriteQueryResultRows(ctx context.Context, rows []*fleet
 		return 0, nil
 	}
 
+	newDataRows := 0
+	for _, row := range rows {
+		if row.Data != nil {
+			newDataRows++
+		}
+	}
+
 	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		// Since we assume all rows have the same queryID, take it from the first row
 		queryID := rows[0].QueryID
 		hostID := rows[0].HostID
 
+		var existingDataRows int
+		countStmt := `SELECT COUNT(*) FROM query_results WHERE query_id = ? AND host_id = ? AND has_data = 1`
+		if err := sqlx.GetContext(ctx, tx, &existingDataRows, countStmt, queryID, hostID); err != nil {
+			return ctxerr.Wrap(ctx, err, "counting existing query results for host")
+		}
+		if currentCount-existingDataRows+newDataRows > maxQueryReportRows {
+			return nil
+		}
+
 		// Delete rows based on the specific queryID and hostID
 		deleteStmt := `DELETE FROM query_results WHERE host_id = ? AND query_id = ?`
-		result, err := tx.ExecContext(ctx, deleteStmt, hostID, queryID)
-		if err != nil {
+		if _, err := tx.ExecContext(ctx, deleteStmt, hostID, queryID); err != nil {
 			return ctxerr.Wrap(ctx, err, "deleting query results for host")
-		}
-		deletedRows, err := result.RowsAffected()
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "getting rows affected for delete")
 		}
 
 		// Insert the new rows
@@ -58,41 +71,115 @@ func (ds *Datastore) OverwriteQueryResultRows(ctx context.Context, rows []*fleet
 		INSERT IGNORE INTO query_results (query_id, host_id, last_fetched, data) VALUES
 	` + strings.Join(valueStrings, ",")
 
-		result, err = tx.ExecContext(ctx, insertStmt, valueArgs...)
-		if err != nil {
+		if _, err := tx.ExecContext(ctx, insertStmt, valueArgs...); err != nil {
 			return ctxerr.Wrap(ctx, err, "inserting new rows")
 		}
-		insertedRows, err := result.RowsAffected()
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "getting rows affected for insert")
-		}
 
-		rowsAdded = int(insertedRows - deletedRows)
+		rowsAdded = newDataRows - existingDataRows
 		return nil
 	})
 
 	return rowsAdded, ctxerr.Wrap(ctx, err, "overwriting query result rows")
 }
 
+// queryResultRowsAllowedOrderKeys are the built-in order keys for QueryResultRows.
+// Any other key is treated as a result column name and sorted through the
+// sort_value column selected alongside the row, so the column name is always a
+// bound parameter and never part of the SQL text. Built-in keys take precedence
+// over result columns with the same name.
+var queryResultRowsAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
+	"last_fetched": "qr.last_fetched",
+	"host_name":    "COALESCE(NULLIF(h.computer_name, ''), h.hostname)",
+	"host_id":      "qr.host_id",
+	"id":           "qr.id",
+}
+
+const queryResultColumnOrderKey = "sort_value"
+
+// queryResultRowWithSort adds the result-column sort value to a row so sqlx has a
+// destination for it; it is never returned to callers.
+type queryResultRowWithSort struct {
+	fleet.ScheduledQueryResultRow
+	SortValue *string `db:"sort_value"`
+}
+
 // TODO(lucas): Any chance we can store hostname in the query_results table?
 // (to avoid having to left join hosts).
-// QueryResultRows returns the query result rows for a given query
-func (ds *Datastore) QueryResultRows(ctx context.Context, queryID uint, filter fleet.TeamFilter) ([]*fleet.ScheduledQueryResultRow, error) {
-	selectStmt := fmt.Sprintf(`
-		SELECT qr.query_id, qr.host_id, qr.last_fetched, qr.data,
-			h.hostname, h.computer_name, h.hardware_model, h.hardware_serial
-			FROM query_results qr
-			LEFT JOIN hosts h ON (qr.host_id=h.id)
-			WHERE query_id = ? AND has_data = 1 AND %s
-		`, ds.whereFilterHostsByTeams(filter, "h"))
+// QueryResultRows returns the query result rows for a given query.
+func (ds *Datastore) QueryResultRows(ctx context.Context, queryID uint, filter fleet.TeamFilter, opts fleet.ListOptions) ([]*fleet.ScheduledQueryResultRow, int, *fleet.PaginationMetadata, error) {
+	whereClause := fmt.Sprintf(`
+		FROM query_results qr
+		LEFT JOIN hosts h ON (qr.host_id=h.id)
+		WHERE qr.query_id = ? AND qr.has_data = 1 AND %s
+	`, ds.whereFilterHostsByTeams(filter, "h"))
+	whereArgs := []any{queryID}
 
-	results := []*fleet.ScheduledQueryResultRow{}
-	err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, selectStmt, queryID)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "selecting query result rows")
+	if match := strings.TrimSpace(opts.MatchQuery); match != "" {
+		// JSON_SEARCH uses LIKE semantics but compares with the binary JSON
+		// collation, so lowercase both sides to keep the search case-insensitive
+		// like the host name columns are.
+		pattern := likePattern(match)
+		whereClause += ` AND (h.hostname LIKE ? OR h.computer_name LIKE ? OR JSON_SEARCH(LOWER(qr.data), 'one', ?) IS NOT NULL)`
+		whereArgs = append(whereArgs, pattern, pattern, strings.ToLower(pattern))
 	}
 
-	return results, nil
+	// Sorting by a result column extracts it into sort_value with the column name
+	// bound as a parameter; JSON_QUOTE builds a valid path member for any name.
+	sortValueExpr := "NULL"
+	var sortValueArgs []any
+	allowedKeys := queryResultRowsAllowedOrderKeys
+	if key := opts.OrderKey; key != "" {
+		if _, ok := allowedKeys[key]; !ok {
+			sortValueExpr = "JSON_UNQUOTE(JSON_EXTRACT(qr.data, CONCAT('$.', JSON_QUOTE(?))))"
+			sortValueArgs = []any{key}
+			allowedKeys = maps.Clone(queryResultRowsAllowedOrderKeys)
+			allowedKeys[key] = queryResultColumnOrderKey
+		}
+		// Result columns and timestamps aren't unique, so break ties deterministically.
+		opts.TestSecondaryOrderKey = "id"
+	}
+
+	listStmt := `
+		SELECT qr.query_id, qr.host_id, qr.last_fetched, qr.data,
+			h.hostname, h.computer_name, h.hardware_model, h.hardware_serial,
+			` + sortValueExpr + ` AS sort_value
+	` + whereClause
+	listArgs := append(append([]any{}, sortValueArgs...), whereArgs...)
+	pagedStmt, pagedArgs, err := appendListOptionsWithCursorToSQLSecure(listStmt, listArgs, &opts, allowedKeys)
+	if err != nil {
+		return nil, 0, nil, ctxerr.Wrap(ctx, err, "apply list options for query result rows")
+	}
+
+	dbReader := ds.reader(ctx)
+	var rowsWithSort []queryResultRowWithSort
+	if err := sqlx.SelectContext(ctx, dbReader, &rowsWithSort, pagedStmt, pagedArgs...); err != nil {
+		return nil, 0, nil, ctxerr.Wrap(ctx, err, "selecting query result rows")
+	}
+	results := make([]*fleet.ScheduledQueryResultRow, 0, len(rowsWithSort))
+	for i := range rowsWithSort {
+		results = append(results, &rowsWithSort[i].ScheduledQueryResultRow)
+	}
+
+	var total int
+	if err := sqlx.GetContext(ctx, dbReader, &total, "SELECT COUNT(*) "+whereClause, whereArgs...); err != nil {
+		return nil, 0, nil, ctxerr.Wrap(ctx, err, "counting query result rows")
+	}
+
+	var metadata *fleet.PaginationMetadata
+	if opts.IncludeMetadata {
+		metadata = &fleet.PaginationMetadata{
+			HasPreviousResults: opts.Page > 0,
+			TotalResults:       uint(total), //nolint:gosec // dismiss G115
+		}
+		if len(results) > int(opts.PerPage) { //nolint:gosec // dismiss G115
+			metadata.HasNextResults = true
+			results = results[:len(results)-1]
+		}
+	}
+
+	// total is also returned on its own because callers need it when metadata is
+	// not requested (per_page unset).
+	return results, total, metadata, nil
 }
 
 // ResultCountForQuery counts the query report rows for a given query

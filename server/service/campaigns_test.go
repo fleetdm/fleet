@@ -57,6 +57,14 @@ func (q nopLiveQuery) DeleteQueryResultsCount(uint) error {
 	return nil
 }
 
+func (q nopLiveQuery) SetQueryReportsHostCount(int) error {
+	return nil
+}
+
+func (q nopLiveQuery) GetQueryReportsHostCount() (int, error) {
+	return 0, nil
+}
+
 func (q nopLiveQuery) LiveQueryStore() fleet.LiveQueryStore {
 	return q
 }
