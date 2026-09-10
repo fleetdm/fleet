@@ -22,29 +22,37 @@ const BalancedTipContent = ({ children }: { children: React.ReactNode }) => {
     const el = ref.current;
     if (!el) return undefined;
 
-    // react-tooltip positions/sizes the tip via floating-ui after mount, so
-    // measuring synchronously here can land while the tooltip is still at
-    // (0, 0) with an initial width. Defer to the next frame.
-    const rafId = requestAnimationFrame(() => {
-      // Clear any prior explicit width so wrap uses the tooltip's max-width.
+    // Measurement can race with (a) floating-ui repositioning the tooltip and
+    // (b) web-font loading changing bold/italic run widths. A single RAF fires
+    // before either has settled on first hover, so `widest` sometimes locks in
+    // near max-width and the tooltip stays wide until the next hover. Re-run
+    // the measurement after each likely settle point (double-RAF for layout,
+    // fonts.ready for font loading) — the latest measurement wins.
+    let disposed = false;
+
+    const measure = () => {
+      if (disposed) return;
+      // Clear our prior explicit width so wrap uses the tooltip's max-width.
       el.style.width = "";
+      // Force a reflow so the browser applies text-wrap: balance under the
+      // cleared width before we sample rects.
+      void el.offsetWidth;
       const range = document.createRange();
       range.selectNodeContents(el);
-      // jsdom (Jest) doesn't implement Range.getClientRects, so measurement is
-      // a no-op there — balancing is a visual concern with no test coverage
-      // to preserve.
+      // jsdom (Jest) doesn't implement Range.getClientRects, so measurement
+      // is a no-op there — balancing is a visual concern with no test
+      // coverage to preserve.
       if (typeof range.getClientRects !== "function") return;
-      // Range.getClientRects returns one rect per text run per line, so a line
-      // containing text plus a nested <strong>/<em>/<b> produces multiple
-      // narrower rects. Taking the widest single rect would under-measure the
-      // line width. Group rects by their top edge (visual line) and compute
-      // each line's true width from the leftmost/rightmost extents, then pick
-      // the widest line.
+      // Range.getClientRects returns one rect per text run per line, so a
+      // line containing text plus a nested <strong>/<em>/<b> produces
+      // multiple narrower rects. Group rects by their top edge (visual line)
+      // and compute each line's true width from the leftmost/rightmost
+      // extents, then pick the widest line.
       //
       // Inline replaced elements (<svg>, <img>, <video>, <canvas>, <iframe>)
       // don't participate in Range text rects — they render as self-contained
-      // visual boxes, so a line ending in e.g. a CustomLink external-link icon
-      // would otherwise be measured short by the icon's width. Add their
+      // visual boxes, so a line ending in e.g. a CustomLink external-link
+      // icon would otherwise be measured short by the icon's width. Add their
       // bounding rects into the same per-line grouping.
       const rects: DOMRect[] = Array.from(range.getClientRects());
       el.querySelectorAll("svg, img, video, canvas, iframe").forEach(
@@ -76,9 +84,30 @@ const BalancedTipContent = ({ children }: { children: React.ReactNode }) => {
       if (widest > 0) {
         el.style.width = `${Math.ceil(widest)}px`;
       }
+    };
+
+    // Double-RAF gives layout + floating-ui a full paint cycle to settle.
+    const raf1 = requestAnimationFrame(() => {
+      measure();
+      requestAnimationFrame(measure);
     });
 
-    return () => cancelAnimationFrame(rafId);
+    // Fonts loading after mount reflows bold/italic runs. Re-measure once
+    // fonts.ready resolves. Safe to skip when the API is missing.
+    if (
+      typeof document !== "undefined" &&
+      document.fonts &&
+      document.fonts.ready
+    ) {
+      document.fonts.ready.then(() => {
+        if (!disposed) requestAnimationFrame(measure);
+      });
+    }
+
+    return () => {
+      disposed = true;
+      cancelAnimationFrame(raf1);
+    };
   }, [children]);
 
   // inline-block so the wrapper has its own measurable box and the tooltip's
