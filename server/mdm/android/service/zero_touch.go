@@ -128,6 +128,8 @@ func (svc *Service) GetZeroTouchConfiguration(ctx context.Context, teamID *uint)
 
 func buildDPCExtrasResponse(token *android.ZeroTouchToken) *android.ZeroTouchConfigurationResponse {
 	dpcExtras := fmt.Sprintf(`{
+  "android.app.extra.PROVISIONING_DEVICE_ADMIN_COMPONENT_NAME": "com.google.android.apps.work.clouddpc/.receivers.CloudDeviceAdminReceiver",
+  "android.app.extra.PROVISIONING_DEVICE_ADMIN_SIGNATURE_CHECKSUM": "I5YvS0O5hXY46mb01BlRjq4oJJGs2kuUcHvVkAPEXlg",
   "android.app.extra.PROVISIONING_ADMIN_EXTRAS_BUNDLE": {
     "com.google.android.apps.work.clouddpc.EXTRA_ENROLLMENT_TOKEN": %q
   }
