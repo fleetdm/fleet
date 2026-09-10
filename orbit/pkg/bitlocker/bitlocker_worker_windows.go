@@ -115,9 +115,10 @@ func (w *COMWorker) EncryptVolume(targetVolume string) (string, error) {
 	return key, r.err
 }
 
-// HasTPMFamilyProtector reports whether the volume can unseal its key at boot without a recovery password.
-func (w *COMWorker) HasTPMFamilyProtector(targetVolume string) (bool, error) {
-	r := w.exec(func() (any, error) { return hasTPMFamilyProtectorOnCOMThread(targetVolume) })
+// HasBootUnsealProtector reports whether the volume can unseal its key at boot without a recovery password, whether
+// through the TPM or through an external startup key.
+func (w *COMWorker) HasBootUnsealProtector(targetVolume string) (bool, error) {
+	r := w.exec(func() (any, error) { return hasBootUnsealProtectorOnCOMThread(targetVolume) })
 	has, _ := r.val.(bool)
 	return has, r.err
 }
@@ -132,6 +133,12 @@ func (w *COMWorker) HasRecoveryPassword(targetVolume string) (bool, error) {
 // AddTPMProtector adds a TPM-only protector, treating "already exists" as success.
 func (w *COMWorker) AddTPMProtector(targetVolume string) error {
 	return w.exec(func() (any, error) { return nil, addTPMProtectorOnCOMThread(targetVolume) }).err
+}
+
+// ResumeConversion restarts a paused conversion. It resumes a paused decryption as readily as a paused encryption, so
+// callers must establish which one is paused first.
+func (w *COMWorker) ResumeConversion(targetVolume string) error {
+	return w.exec(func() (any, error) { return nil, resumeConversionOnCOMThread(targetVolume) }).err
 }
 
 // EnableProtection turns protection back on for an encrypted volume whose protection is off. It does not decide

@@ -5633,6 +5633,44 @@ func TestSetDiskEncryptionNotifications(t *testing.T) {
 		require.False(t, notifs.RotateDiskEncryptionKey)
 	})
 
+	// Only the agent can clear an error it reported, by reporting a later success, so a host carrying one has to keep
+	// being asked.
+	t.Run("a reported error keeps the host being asked", func(t *testing.T) {
+		appConfig := &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true, WindowsEnabledAndConfigured: true}}
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return appConfig, nil
+		}
+		mdmInfo := &fleet.HostMDM{IsServer: false}
+		// Encrypted, with a key Fleet can decrypt: nothing else would ask this host to do anything.
+		host := &fleet.Host{ID: 1, Platform: "windows", DiskEncryptionEnabled: new(true), OsqueryHostID: new("foo")}
+
+		for _, tc := range []struct {
+			name        string
+			clientError string
+			want        bool
+		}{
+			{name: "no reported error, so the host is left alone", clientError: "", want: false},
+			{name: "a reported error keeps enforcement on", clientError: "a BitLocker decryption is paused on this host", want: true},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				ds.GetHostDiskEncryptionKeyFunc = func(ctx context.Context, id uint) (*fleet.HostDiskEncryptionKey, error) {
+					return &fleet.HostDiskEncryptionKey{
+						HostID:          id,
+						Base64Encrypted: "a-key",
+						Decryptable:     new(true),
+						ClientError:     tc.clientError,
+					}, nil
+				}
+
+				notifs := &fleet.OrbitConfigNotifications{}
+				err := svc.setDiskEncryptionNotifications(ctx, notifs, host, appConfig,
+					fleet.DiskEncryptionConfig{WindowsEnabled: true}, true, mdmInfo)
+				require.NoError(t, err)
+				require.Equal(t, tc.want, notifs.EnforceBitLockerEncryption)
+			})
+		}
+	})
+
 	t.Run("macOS rotation follows escrow, not enforcement", func(t *testing.T) {
 		appConfig := &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true}}
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
