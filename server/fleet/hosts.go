@@ -1401,6 +1401,7 @@ var HostLinuxOSs = []string{
 	"coreos",
 	"cachyos",
 	"omarchy",
+	"amd-ryzen-ai-developer-platform",
 }
 
 // HostNeitherDebNorRpmPackageOSs are the list of known Linux platforms that support neither DEB nor RPM packages
@@ -1421,15 +1422,16 @@ var HostNeitherDebNorRpmPackageOSs = map[string]struct{}{
 
 // HostDebPackageOSs are the list of known Linux platforms that support DEB packages
 var HostDebPackageOSs = map[string]struct{}{
-	"linux":     {}, // let DEBs through if we're looking at a generic Linux host
-	"ubuntu":    {},
-	"zorin":     {},
-	"debian":    {},
-	"kali":      {},
-	"pop":       {},
-	"linuxmint": {},
-	"tuxedo":    {},
-	"neon":      {},
+	"linux":                           {}, // let DEBs through if we're looking at a generic Linux host
+	"ubuntu":                          {},
+	"zorin":                           {},
+	"debian":                          {},
+	"kali":                            {},
+	"pop":                             {},
+	"linuxmint":                       {},
+	"tuxedo":                          {},
+	"neon":                            {},
+	"amd-ryzen-ai-developer-platform": {},
 }
 
 // HostRpmPackageOSs are the list of known Linux platforms that support RPM packages
