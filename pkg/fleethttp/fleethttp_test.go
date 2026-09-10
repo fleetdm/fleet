@@ -2,6 +2,7 @@ package fleethttp
 
 import (
 	"crypto/tls"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -407,4 +408,47 @@ func TestHostnamesMatch(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestClientTimeoutBehavior verifies the timeout options are wired to http.Client.Timeout and actually abort a slow response, rather
+// than only being recorded on the struct.
+func TestClientTimeoutBehavior(t *testing.T) {
+	// The handler blocks until the test releases it, so the only thing that can end the request is the client timeout.
+	release := make(chan struct{})
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		select {
+		case <-release:
+		case <-r.Context().Done():
+		}
+		w.WriteHeader(http.StatusOK)
+	}))
+	t.Cleanup(func() {
+		close(release)
+		srv.Close()
+	})
+
+	t.Run("timeout aborts a slow response", func(t *testing.T) {
+		_, err := NewClient(WithTimeout(100 * time.Millisecond)).Get(srv.URL)
+		require.Error(t, err)
+		var netErr interface{ Timeout() bool }
+		require.True(t, errors.As(err, &netErr) && netErr.Timeout(), "expected a timeout error, got %v", err)
+	})
+
+	t.Run("no timeout waits for the response", func(t *testing.T) {
+		cli := NewClient(WithNoTimeout())
+		assert.Zero(t, cli.Timeout)
+		done := make(chan error, 1)
+		go func() {
+			resp, err := cli.Get(srv.URL)
+			if resp != nil {
+				resp.Body.Close()
+			}
+			done <- err
+		}()
+		select {
+		case err := <-done:
+			t.Fatalf("request should still be in flight, got %v", err)
+		case <-time.After(300 * time.Millisecond):
+		}
+	})
 }
