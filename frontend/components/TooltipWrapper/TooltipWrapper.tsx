@@ -47,42 +47,65 @@ const BalancedTipContent = ({ children }: { children: React.ReactNode }) => {
       if (typeof range.getClientRects !== "function") return;
       // Range.getClientRects returns one rect per text run per line, so a
       // line containing text plus a nested <strong>/<em>/<b> produces
-      // multiple narrower rects. Group rects by their top edge (visual line)
-      // and compute each line's true width from the leftmost/rightmost
-      // extents, then pick the widest line.
-      //
-      // Inline replaced elements (<svg>, <img>, <video>, <canvas>, <iframe>)
-      // don't participate in Range text rects — they render as self-contained
-      // visual boxes, so a line ending in e.g. a CustomLink external-link
-      // icon would otherwise be measured short by the icon's width. Add
-      // their bounding rects into the same per-line grouping.
+      // multiple narrower rects. We collect rects from three sources:
+      //   1. Range text rects for text inside the wrapper.
+      //   2. Inline replaced elements (<svg>, <img>, <video>, <canvas>,
+      //      <iframe>) — these render as self-contained visual boxes and
+      //      never appear in Range text rects, so a line ending in e.g. a
+      //      CustomLink external-link icon would otherwise be measured
+      //      short by the icon's width.
+      //   3. Inline-flex / inline-block anchors — their outer box includes
+      //      internal `gap` / padding that isn't captured by summing child
+      //      text + child SVG rects. Adding the anchor's outer bounding
+      //      rect covers that gap.
       const rects: DOMRect[] = Array.from(range.getClientRects());
-      el.querySelectorAll("svg, img, video, canvas, iframe").forEach(
+      el.querySelectorAll("svg, img, video, canvas, iframe, a").forEach(
         (child) => {
           const rect = child.getBoundingClientRect();
           if (rect.width > 0) rects.push(rect);
         }
       );
-      const lineBounds = new Map<number, { left: number; right: number }>();
-      for (let i = 0; i < rects.length; i += 1) {
-        const rect = rects[i];
-        if (rect.width !== 0) {
-          // Round to bucket sub-pixel variation on the same visual line.
-          const lineKey = Math.round(rect.top);
-          const bounds = lineBounds.get(lineKey);
-          if (bounds) {
-            if (rect.left < bounds.left) bounds.left = rect.left;
-            if (rect.right > bounds.right) bounds.right = rect.right;
-          } else {
-            lineBounds.set(lineKey, { left: rect.left, right: rect.right });
-          }
+      // Group rects by visual line. Naive `Math.round(rect.top)` bucketing
+      // splits an inline-flex CustomLink's flex-centered SVG (with a
+      // slightly different `top` than the surrounding text baseline) into a
+      // separate "line" — so the last line's width misses the icon. Group
+      // by vertical center with a half-line fuzz instead: two rects belong
+      // to the same visual line when their centers are within ~half a line
+      // height of each other.
+      const style = window.getComputedStyle(el);
+      const parsedLineHeight = parseFloat(style.lineHeight);
+      const fontSize = parseFloat(style.fontSize) || 12;
+      const lineHeight = Number.isFinite(parsedLineHeight)
+        ? parsedLineHeight
+        : fontSize * 1.375;
+      const fuzz = lineHeight / 2;
+      const centersSorted = rects
+        .filter((r) => r.width !== 0)
+        .map((r) => ({
+          center: r.top + r.height / 2,
+          left: r.left,
+          right: r.right,
+        }))
+        .sort((a, b) => a.center - b.center);
+      const lines: Array<{
+        center: number;
+        left: number;
+        right: number;
+      }> = [];
+      for (const item of centersSorted) {
+        const last = lines[lines.length - 1];
+        if (last && Math.abs(item.center - last.center) < fuzz) {
+          if (item.left < last.left) last.left = item.left;
+          if (item.right > last.right) last.right = item.right;
+        } else {
+          lines.push({ ...item });
         }
       }
       let widest = 0;
-      lineBounds.forEach(({ left, right }) => {
-        const lineWidth = right - left;
+      for (const line of lines) {
+        const lineWidth = line.right - line.left;
         if (lineWidth > widest) widest = lineWidth;
-      });
+      }
       if (widest <= 0) return;
       const next = Math.ceil(widest);
       // Stop when we've stopped shrinking. Balance can produce slightly
