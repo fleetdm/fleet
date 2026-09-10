@@ -35742,9 +35742,9 @@ func (s *integrationEnterpriseTestSuite) TestResetPolicy() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/policies/%d", hostScopedPolicy.ID), nil, http.StatusOK, &getHostScopedResp)
 	require.Equal(t, uint(2), getHostScopedResp.Policy.FailingHostCount)
 
-	// Reset only globalHost's result; noTeamHost's failing result must survive.
+	// Reset only globalHost's result; noTeamHost's failing result must survive and the
+	// counts must reflect it immediately, without waiting for the counts cron.
 	s.Do("POST", fmt.Sprintf("/api/v1/fleet/policies/%d/reset?host_id=%d", hostScopedPolicy.ID, globalHost.ID), nil, http.StatusOK)
-	require.NoError(t, s.ds.UpdateHostPolicyCounts(ctx))
 	getHostScopedResp = fleet.GetPolicyByIDResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/policies/%d", hostScopedPolicy.ID), nil, http.StatusOK, &getHostScopedResp)
 	require.Equal(t, uint(1), getHostScopedResp.Policy.FailingHostCount)

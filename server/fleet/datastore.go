@@ -1043,7 +1043,7 @@ type Datastore interface {
 	// and resets automation retry attempts, identical to a query-change side-effect.
 	ResetPolicy(ctx context.Context, policyID uint) error
 	// ResetPolicyForHost clears a single host's pass/fail result for the policy and
-	// resets its automation retry attempts, atomically.
+	// resets its automation retry attempts atomically, then refreshes the policy's counts.
 	ResetPolicyForHost(ctx context.Context, hostID, policyID uint) error
 
 	ListGlobalPolicies(ctx context.Context, opts ListOptions, platform string) ([]*Policy, error)
