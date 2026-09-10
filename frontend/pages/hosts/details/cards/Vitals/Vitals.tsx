@@ -729,11 +729,11 @@ export const buildHostVitals = ({
           value={
             hasValidTimezone ? (
               <TooltipWrapper
+                tooltipClass="vitals-card__tooltip--left-aligned"
                 tipContent={
-                  // Left-align to match the Hardware model tooltip's style.
-                  <div style={{ textAlign: "left" }}>
+                  <>
                     <b>Local time:</b> {localTime}
-                  </div>
+                  </>
                 }
               >
                 {vitalsData.timezone}
