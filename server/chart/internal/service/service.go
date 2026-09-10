@@ -32,17 +32,19 @@ type Service struct {
 	authz     platform_authz.Authorizer
 	store     types.Datastore
 	viewer    api.ViewerProvider
+	expand    api.PlatformExpanderFn
 	datasets  map[string]api.Dataset
 	hostCache *hostFilterCache
 	logger    *slog.Logger
 }
 
 // NewService creates a new chart service.
-func NewService(authz platform_authz.Authorizer, store types.Datastore, viewerProvider api.ViewerProvider, logger *slog.Logger) *Service {
+func NewService(authz platform_authz.Authorizer, store types.Datastore, viewerProvider api.ViewerProvider, expandPlatform api.PlatformExpanderFn, logger *slog.Logger) *Service {
 	return &Service{
 		authz:     authz,
 		store:     store,
 		viewer:    viewerProvider,
+		expand:    expandPlatform,
 		datasets:  make(map[string]api.Dataset),
 		hostCache: newHostFilterCache(hostFilterCacheTTL),
 		logger:    logger,
@@ -149,7 +151,7 @@ func (s *Service) GetChartData(ctx context.Context, metric string, opts api.Requ
 	hostFilter := &types.HostFilter{
 		TeamIDs:        effectiveTeamIDs(opts.TeamID, isGlobal, viewerTeamIDs),
 		LabelIDs:       opts.LabelIDs,
-		Platforms:      opts.Platforms,
+		Platforms:      s.expandPlatforms(opts.Platforms),
 		IncludeHostIDs: opts.IncludeHostIDs,
 		ExcludeHostIDs: opts.ExcludeHostIDs,
 	}
@@ -219,6 +221,21 @@ func (s *Service) GetChartData(ctx context.Context, metric string, opts api.Requ
 		},
 		Data: data,
 	}, nil
+}
+
+// expandPlatforms resolves platform families (e.g. "linux") into the
+// hosts.platform values the SQL filter must match. Runs before the host filter
+// cache so the cache key and the query both see the expanded list; the
+// response still echoes the platforms the caller asked for.
+func (s *Service) expandPlatforms(platforms []string) []string {
+	if s.expand == nil || len(platforms) == 0 {
+		return platforms
+	}
+	expanded := make([]string, 0, len(platforms))
+	for _, p := range platforms {
+		expanded = append(expanded, s.expand(p)...)
+	}
+	return expanded
 }
 
 func validateScoreBounds(label string, minScore, maxScore *float64, lo, hi float64) error {

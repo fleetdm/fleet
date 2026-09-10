@@ -137,6 +137,7 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 			&common_mysql.DBConnections{},
 			nil,
 			nil,
+			nil,
 			logger,
 		)
 		noopAuth := func(next endpoint.Endpoint) endpoint.Endpoint { return next }
