@@ -175,10 +175,7 @@ const generateTableHeaders = (
       Header: (cellProps: ITableHeaderProps) => (
         <HeaderCell
           value={
-            <TooltipWrapper
-              tipContent="Hosts with any version installed."
-              position="bottom"
-            >
+            <TooltipWrapper tipContent="Hosts with any version installed.">
               Hosts
             </TooltipWrapper>
           }

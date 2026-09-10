@@ -942,6 +942,12 @@ type AssertHasNoEncryptionKeyStoredFunc func(ctx context.Context, hostID uint) e
 
 type GetHostCertAssociationsToExpireFunc func(ctx context.Context, expiryDays int, limit int) ([]fleet.SCEPIdentityAssociation, error)
 
+type ExcludeHostCertAssociationsFromRenewalFunc func(ctx context.Context, assocs []fleet.SCEPIdentityAssociation) error
+
+type ClearCertRenewalExclusionsFunc func(ctx context.Context) error
+
+type ResetPendingCertRenewalsFunc func(ctx context.Context) error
+
 type GetDeviceInfoForACMERenewalFunc func(ctx context.Context, hostUUIDs []string) ([]fleet.DeviceInfoForACMERenewal, error)
 
 type SetCommandForPendingSCEPRenewalFunc func(ctx context.Context, assocs []fleet.SCEPIdentityAssociation, cmdUUID string) error
@@ -1434,7 +1440,7 @@ type WSTEPAssociateCertHashFunc func(ctx context.Context, deviceUUID string, has
 
 type MDMWindowsInsertEnrolledDeviceFunc func(ctx context.Context, device *fleet.MDMWindowsEnrolledDevice) error
 
-type MDMWindowsDeleteEnrolledDeviceOnReenrollmentFunc func(ctx context.Context, mdmDeviceHWID string) error
+type MDMWindowsDeleteEnrolledDeviceOnReenrollmentFunc func(ctx context.Context, mdmDeviceHWID string) (string, error)
 
 type MDMWindowsGetEnrolledDeviceWithDeviceIDFunc func(ctx context.Context, mdmDeviceID string) (*fleet.MDMWindowsEnrolledDevice, error)
 
@@ -2393,6 +2399,12 @@ type ListAppleOSUpdateHostsForReconcileFunc func(ctx context.Context, cursor str
 type SetAppleOSUpdateTargetsAndResendFunc func(ctx context.Context, targets []*fleet.ComputedAppleSoftwareUpdateHost) error
 
 type GetAppleOSUpdateHostByUUIDFunc func(ctx context.Context, hostUUID string) (*fleet.AppleSoftwareUpdateHost, error)
+
+type SetABMTokenDefaultFunc func(ctx context.Context, tokenID uint) error
+
+type ClearABMTokenDefaultFunc func(ctx context.Context) error
+
+type SetABMTokenServerUUIDFunc func(ctx context.Context, tokenID uint, serverUUID string) error
 
 type DataStore struct {
 	AppConfigFunc        AppConfigFunc
@@ -3771,6 +3783,15 @@ type DataStore struct {
 
 	GetHostCertAssociationsToExpireFunc        GetHostCertAssociationsToExpireFunc
 	GetHostCertAssociationsToExpireFuncInvoked bool
+
+	ExcludeHostCertAssociationsFromRenewalFunc        ExcludeHostCertAssociationsFromRenewalFunc
+	ExcludeHostCertAssociationsFromRenewalFuncInvoked bool
+
+	ClearCertRenewalExclusionsFunc        ClearCertRenewalExclusionsFunc
+	ClearCertRenewalExclusionsFuncInvoked bool
+
+	ResetPendingCertRenewalsFunc        ResetPendingCertRenewalsFunc
+	ResetPendingCertRenewalsFuncInvoked bool
 
 	GetDeviceInfoForACMERenewalFunc        GetDeviceInfoForACMERenewalFunc
 	GetDeviceInfoForACMERenewalFuncInvoked bool
@@ -5949,6 +5970,15 @@ type DataStore struct {
 
 	GetAppleOSUpdateHostByUUIDFunc        GetAppleOSUpdateHostByUUIDFunc
 	GetAppleOSUpdateHostByUUIDFuncInvoked bool
+
+	SetABMTokenDefaultFunc        SetABMTokenDefaultFunc
+	SetABMTokenDefaultFuncInvoked bool
+
+	ClearABMTokenDefaultFunc        ClearABMTokenDefaultFunc
+	ClearABMTokenDefaultFuncInvoked bool
+
+	SetABMTokenServerUUIDFunc        SetABMTokenServerUUIDFunc
+	SetABMTokenServerUUIDFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -9166,6 +9196,27 @@ func (s *DataStore) GetHostCertAssociationsToExpire(ctx context.Context, expiryD
 	return s.GetHostCertAssociationsToExpireFunc(ctx, expiryDays, limit)
 }
 
+func (s *DataStore) ExcludeHostCertAssociationsFromRenewal(ctx context.Context, assocs []fleet.SCEPIdentityAssociation) error {
+	s.mu.Lock()
+	s.ExcludeHostCertAssociationsFromRenewalFuncInvoked = true
+	s.mu.Unlock()
+	return s.ExcludeHostCertAssociationsFromRenewalFunc(ctx, assocs)
+}
+
+func (s *DataStore) ClearCertRenewalExclusions(ctx context.Context) error {
+	s.mu.Lock()
+	s.ClearCertRenewalExclusionsFuncInvoked = true
+	s.mu.Unlock()
+	return s.ClearCertRenewalExclusionsFunc(ctx)
+}
+
+func (s *DataStore) ResetPendingCertRenewals(ctx context.Context) error {
+	s.mu.Lock()
+	s.ResetPendingCertRenewalsFuncInvoked = true
+	s.mu.Unlock()
+	return s.ResetPendingCertRenewalsFunc(ctx)
+}
+
 func (s *DataStore) GetDeviceInfoForACMERenewal(ctx context.Context, hostUUIDs []string) ([]fleet.DeviceInfoForACMERenewal, error) {
 	s.mu.Lock()
 	s.GetDeviceInfoForACMERenewalFuncInvoked = true
@@ -10888,7 +10939,7 @@ func (s *DataStore) MDMWindowsInsertEnrolledDevice(ctx context.Context, device *
 	return s.MDMWindowsInsertEnrolledDeviceFunc(ctx, device)
 }
 
-func (s *DataStore) MDMWindowsDeleteEnrolledDeviceOnReenrollment(ctx context.Context, mdmDeviceHWID string) error {
+func (s *DataStore) MDMWindowsDeleteEnrolledDeviceOnReenrollment(ctx context.Context, mdmDeviceHWID string) (string, error) {
 	s.mu.Lock()
 	s.MDMWindowsDeleteEnrolledDeviceOnReenrollmentFuncInvoked = true
 	s.mu.Unlock()
@@ -14246,4 +14297,25 @@ func (s *DataStore) GetAppleOSUpdateHostByUUID(ctx context.Context, hostUUID str
 	s.GetAppleOSUpdateHostByUUIDFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetAppleOSUpdateHostByUUIDFunc(ctx, hostUUID)
+}
+
+func (s *DataStore) SetABMTokenDefault(ctx context.Context, tokenID uint) error {
+	s.mu.Lock()
+	s.SetABMTokenDefaultFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetABMTokenDefaultFunc(ctx, tokenID)
+}
+
+func (s *DataStore) ClearABMTokenDefault(ctx context.Context) error {
+	s.mu.Lock()
+	s.ClearABMTokenDefaultFuncInvoked = true
+	s.mu.Unlock()
+	return s.ClearABMTokenDefaultFunc(ctx)
+}
+
+func (s *DataStore) SetABMTokenServerUUID(ctx context.Context, tokenID uint, serverUUID string) error {
+	s.mu.Lock()
+	s.SetABMTokenServerUUIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetABMTokenServerUUIDFunc(ctx, tokenID, serverUUID)
 }

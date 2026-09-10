@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "2026.9.0",
+      "version": "2026.9.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'io.robbie.HomeAssistant';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'io.robbie.HomeAssistant' AND version_compare(bundle_short_version, '2026.9.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'io.robbie.HomeAssistant' AND version_compare(bundle_short_version, '2026.9.1') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'io.robbie.HomeAssistant' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/home-assistant/iOS/releases/download/release%2F2026.9.0%2F2026.2874/home-assistant-mac.zip",
+      "installer_url": "https://github.com/home-assistant/iOS/releases/download/release%2F2026.9.1%2F2026.2985/home-assistant-mac.zip",
       "install_script_ref": "3485600f",
       "uninstall_script_ref": "b46351a1",
-      "sha256": "760fca25e5801355bc29869a63b8441699ac07dd039f6955b397995c1508ab27",
+      "sha256": "63e44280b8f0b8b56ef0f8b7bf5f400e83f51d4e2300f78784a9926d466ee0bf",
       "default_categories": [
         "Productivity"
       ]

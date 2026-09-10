@@ -644,7 +644,8 @@ func (ds *Datastore) MDMWindowsInsertEnrolledDevice(ctx context.Context, device 
 // enrollment entry from the database using the device's hardware ID as it is
 // re-enrolling. It also cleans up host_mdm_windows_profiles so profile
 // delivery statuses are reset for the new enrollment.
-func (ds *Datastore) MDMWindowsDeleteEnrolledDeviceOnReenrollment(ctx context.Context, mdmDeviceHWID string) error {
+// It returns the host UUID the deleted enrollment was linked to, if any.
+func (ds *Datastore) MDMWindowsDeleteEnrolledDeviceOnReenrollment(ctx context.Context, mdmDeviceHWID string) (string, error) {
 	const (
 		delStmt         = "DELETE FROM mdm_windows_enrollments WHERE mdm_hardware_id = ?"
 		loadStmt        = "SELECT host_uuid FROM mdm_windows_enrollments WHERE mdm_hardware_id = ? LIMIT 1"
@@ -659,11 +660,17 @@ func (ds *Datastore) MDMWindowsDeleteEnrolledDeviceOnReenrollment(ctx context.Co
 		delUpcomingStmt = `DELETE ua FROM upcoming_activities ua JOIN hosts h ON h.id = ua.host_id WHERE h.uuid = ?`
 	)
 
-	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+	// Assigned inside the transaction, which withRetryTxx may run more than once, so it is reset on every attempt.
+	var deletedHostUUID string
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		deletedHostUUID = ""
+
 		var hostUUID sql.NullString
 		switch err := sqlx.GetContext(ctx, tx, &hostUUID, loadStmt, mdmDeviceHWID); err {
 		case nil:
 			if hostUUID.Valid {
+				deletedHostUUID = hostUUID.String
+
 				// Clear lock/wipe status
 				if _, err := tx.ExecContext(ctx, delActionsStmt, hostUUID.String); err != nil {
 					return ctxerr.Wrap(ctx, err, "delete host_mdm_actions for host")
@@ -711,6 +718,10 @@ func (ds *Datastore) MDMWindowsDeleteEnrolledDeviceOnReenrollment(ctx context.Co
 
 		return ctxerr.Wrap(ctx, notFound("MDMWindowsEnrolledDevice"))
 	})
+	if err != nil {
+		return "", err
+	}
+	return deletedHostUUID, nil
 }
 
 // MDMWindowsDeleteEnrolledDeviceWithDeviceID deletes a given
