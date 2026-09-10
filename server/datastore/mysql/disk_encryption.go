@@ -59,6 +59,18 @@ VALUES
 		}
 	}
 
+	// An agent reporting a failure sends no key, and overwriting the stored one with that empty value would take the
+	// only recovery key Fleet can show an admin away from a host that is still encrypted. Record the error on its own
+	// and leave the key, and its decryptable flag, alone.
+	if incomingKey.Base == "" && clientError != "" {
+		_, err = ds.writer(ctx).ExecContext(ctx, `
+UPDATE host_disk_encryption_keys SET client_error = ? WHERE host_id = ?`, clientError, host.ID)
+		if err != nil {
+			return false, ctxerr.Wrap(ctx, err, "updating key client error")
+		}
+		return archived, nil
+	}
+
 	_, err = ds.writer(ctx).ExecContext(ctx, `
 UPDATE host_disk_encryption_keys SET
   /* if the key has changed, set decrypted to its initial value so it can be calculated again if necessary (if null) */
@@ -184,7 +196,10 @@ UPDATE host_disk_encryption_keys SET
   base64_encrypted = ?,
   base64_encrypted_salt = ?,
   key_slot = ?,
-  client_error = ''
+  client_error = '',
+  escrow_sent_at = NULL,
+  /* a request still pending once a key exists can only be a stale duplicate: new ones are refused while a key is stored */
+  reset_requested = FALSE
 WHERE host_id = ?
 `, incomingKey.Base, incomingKey.Salt, incomingKey.KeySlot, host.ID)
 	if err != nil {
@@ -193,22 +208,53 @@ WHERE host_id = ?
 	return archived, nil
 }
 
-func (ds *Datastore) IsHostPendingEscrow(ctx context.Context, hostID uint) bool {
-	var pendingEscrowCount uint
-	_ = sqlx.GetContext(ctx, ds.reader(ctx), &pendingEscrowCount, `
-          SELECT COUNT(*) FROM host_disk_encryption_keys WHERE host_id = ? AND reset_requested = TRUE`, hostID)
-	return pendingEscrowCount > 0
+func (ds *Datastore) GetHostEscrowState(ctx context.Context, hostID uint) (*fleet.HostEscrowState, error) {
+	// client_error is deliberately not consulted: a stale error from an earlier attempt must not
+	// hide a retry in flight.
+	var row struct {
+		Pending     bool   `db:"reset_requested"`
+		SinceMicros *int64 `db:"since_micros"`
+	}
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &row, `
+SELECT reset_requested, TIMESTAMPDIFF(MICROSECOND, escrow_sent_at, NOW(6)) AS since_micros
+FROM host_disk_encryption_keys WHERE host_id = ?`, hostID)
+	switch {
+	case errors.Is(err, sql.ErrNoRows):
+		return &fleet.HostEscrowState{}, nil
+	case err != nil:
+		return nil, ctxerr.Wrap(ctx, err, "getting host escrow state")
+	}
+	state := &fleet.HostEscrowState{Pending: row.Pending}
+	if row.SinceMicros != nil {
+		since := time.Duration(*row.SinceMicros) * time.Microsecond
+		state.SinceLastActivity = &since
+	}
+	return state, nil
 }
 
-func (ds *Datastore) ClearPendingEscrow(ctx context.Context, hostID uint) error {
-	_, err := ds.writer(ctx).ExecContext(ctx, `UPDATE host_disk_encryption_keys SET reset_requested = FALSE WHERE host_id = ?`, hostID)
+func (ds *Datastore) MarkEscrowSentToAgent(ctx context.Context, hostID uint) error {
+	_, err := ds.writer(ctx).ExecContext(ctx, `
+UPDATE host_disk_encryption_keys SET reset_requested = FALSE, escrow_sent_at = NOW(6) WHERE host_id = ?`, hostID)
 	return err
+}
+
+func (ds *Datastore) SetEscrowInFlight(ctx context.Context, hostID uint, inFlight bool) error {
+	stmt := `UPDATE host_disk_encryption_keys SET escrow_sent_at = NULL WHERE host_id = ?`
+	if inFlight {
+		// only a host still in flight is refreshed, so a late heartbeat cannot revive a finished escrow
+		stmt = `UPDATE host_disk_encryption_keys SET escrow_sent_at = NOW(6) WHERE host_id = ? AND escrow_sent_at IS NOT NULL`
+	}
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, hostID); err != nil {
+		return ctxerr.Wrap(ctx, err, "setting in-flight host escrow")
+	}
+	return nil
 }
 
 func (ds *Datastore) ReportEscrowError(ctx context.Context, hostID uint, errorMessage string) error {
 	_, err := ds.writer(ctx).ExecContext(ctx, `
 INSERT INTO host_disk_encryption_keys
-  (host_id, base64_encrypted, client_error) VALUES (?, '', ?) ON DUPLICATE KEY UPDATE client_error = VALUES(client_error)
+  (host_id, base64_encrypted, client_error) VALUES (?, '', ?)
+ON DUPLICATE KEY UPDATE client_error = VALUES(client_error), escrow_sent_at = NULL
 `, hostID, errorMessage)
 	return err
 }
