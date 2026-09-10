@@ -925,8 +925,6 @@ func testMDMWindowsDiskEncryption(t *testing.T, ds *Datastore) {
 				})
 			})
 
-			// Protectors can be deleted while protection stays on. Protection status alone cannot see that, so without
-			// the boot protector signal the host reports verified while one restart from the recovery prompt.
 			t.Run("protection on with nothing able to unseal at boot is enforcing, not verified", func(t *testing.T) {
 				setProtectionStatus(t, targetHost.ID, new(fleet.BitLockerProtectionStatusOn))
 				require.NoError(t, ds.SetOrUpdateHostDiskBootProtector(ctx, targetHost.ID, false))

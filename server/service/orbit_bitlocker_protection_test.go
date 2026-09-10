@@ -39,8 +39,6 @@ func TestShouldEnableBitLockerProtection(t *testing.T) {
 			bootProtector: new(true),
 		},
 		{
-			// Deleting the TPM protectors leaves protection on, so protection status alone cannot see this. The volume
-			// boots straight to the 48-digit prompt.
 			name:          "protection on with nothing able to unseal at boot still needs repair",
 			encrypted:     new(true),
 			protection:    &protectionOn,
@@ -48,14 +46,13 @@ func TestShouldEnableBitLockerProtection(t *testing.T) {
 			wantNotified:  true,
 		},
 		{
-			// An agent that does not report protectors leaves this nil, which must never trigger a repair.
+			// An agent that does not report protectors leaves this nil, which must not trigger a repair.
 			name:       "protection on and protectors not reported is never acted on",
 			encrypted:  new(true),
 			protection: &protectionOn,
 		},
 		{
-			// Protectors can be reported while protection status is not. Acting on an unknown protection status is
-			// how protectors get destroyed, so a missing boot protector is not enough on its own.
+			// Protectors can be reported while protection status is not.
 			name:          "unknown protection status is not acted on even with no boot protector",
 			encrypted:     new(true),
 			protection:    nil,
