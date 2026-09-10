@@ -25,6 +25,8 @@ func TestEndUserNotifications(t *testing.T) {
 		{"SetDispatched", testSetEndUserNotificationsDispatched},
 		{"DeferForHosts", testDeferEndUserNotificationsForHosts},
 		{"Expire", testExpireEndUserNotifications},
+		{"DeleteExpired", testDeleteExpiredEndUserNotifications},
+		{"DeleteExpiredLimit", testDeleteExpiredEndUserNotificationsLimit},
 		{"Verify", testVerifyEndUserNotification},
 		{"Delay", testDelayEndUserNotification},
 		{"ActOn", testActOnEndUserNotification},
@@ -451,6 +453,70 @@ func testExpireEndUserNotifications(t *testing.T, env *testEnv) {
 	assertStatus(pastNoExpiryUUID, api.EndUserNotificationPending)
 	assertStatus(stuckDispatchedUUID, api.EndUserNotificationExpired)
 	assertStatus(recentlyDispatchedUUID, api.EndUserNotificationDispatched)
+}
+
+func testDeleteExpiredEndUserNotifications(t *testing.T, env *testEnv) {
+	ctx := t.Context()
+	hostID := newDarwinHost(t, env, "delete-expired", true)
+
+	olderThan := time.Now().UTC().Add(-api.EndUserNotificationRetention)
+	pastRetention := olderThan.Add(-time.Hour)
+	withinRetention := olderThan.Add(time.Hour)
+	notYetExpired := time.Now().UTC().Add(time.Hour)
+
+	// expired long enough ago to need deleting, and a patch notification, so it also has rows in the two patch tables
+	expiredPatchUUID := env.InsertNotification(t, hostID, "notify_before_patching", nil, &pastRetention)
+	env.InsertPatchNotification(t, expiredPatchUUID, "Old patch app")
+
+	// expired, but still within retention
+	recentlyExpiredUUID := env.InsertNotification(t, hostID, "k", nil, &withinRetention)
+
+	// not expired yet
+	unexpiredUUID := env.InsertNotification(t, hostID, "k", nil, &notYetExpired)
+
+	// past retention and displayed. No sweep moves a displayed notification off dispatched, so expires_at is the only column that says it needs to be deleted.
+	displayedUUID := env.InsertNotification(t, hostID, "k", nil, &pastRetention)
+	require.NoError(t, env.ds.SetEndUserNotificationsDispatched(ctx, withExecutionID(t, env, displayedUUID, hostID)))
+	require.NoError(t, env.ds.VerifyEndUserNotification(ctx, displayedUUID, time.Now()))
+
+	deleted, err := env.ds.DeleteExpiredEndUserNotifications(ctx, olderThan, 100)
+	require.NoError(t, err)
+	assert.EqualValues(t, 2, deleted)
+
+	_, err = env.ds.GetEndUserNotificationByUUID(ctx, expiredPatchUUID)
+	assert.True(t, platform_errors.IsNotFound(err), "a notification past retention is deleted")
+
+	_, err = env.ds.GetEndUserNotificationByUUID(ctx, displayedUUID)
+	assert.True(t, platform_errors.IsNotFound(err), "a notification the end user displayed and never acted on is deleted")
+
+	patchNotifications, patchApps := env.CountPatchNotificationRows(t, expiredPatchUUID)
+	assert.Zero(t, patchNotifications, "the patch notification row is deleted with its notification")
+	assert.Zero(t, patchApps, "the patch notification app row is deleted with its notification")
+
+	_, err = env.ds.GetEndUserNotificationByUUID(ctx, recentlyExpiredUUID)
+	require.NoError(t, err, "a notification still within retention is kept")
+
+	_, err = env.ds.GetEndUserNotificationByUUID(ctx, unexpiredUUID)
+	require.NoError(t, err, "a notification that has not expired is kept")
+}
+
+func testDeleteExpiredEndUserNotificationsLimit(t *testing.T, env *testEnv) {
+	ctx := t.Context()
+	hostID := newDarwinHost(t, env, "delete-expired-limit", true)
+
+	olderThan := time.Now().UTC().Add(-api.EndUserNotificationRetention)
+	pastRetention := olderThan.Add(-time.Hour)
+	for range 5 {
+		env.InsertNotification(t, hostID, "k", nil, &pastRetention)
+	}
+
+	deleted, err := env.ds.DeleteExpiredEndUserNotifications(ctx, olderThan, 2)
+	require.NoError(t, err)
+	assert.EqualValues(t, 2, deleted, "one delete takes no more expired notifications than the limit")
+
+	deleted, err = env.ds.DeleteExpiredEndUserNotifications(ctx, olderThan, 100)
+	require.NoError(t, err)
+	assert.EqualValues(t, 3, deleted, "the next delete takes the remaining expired notifications")
 }
 
 func testVerifyEndUserNotification(t *testing.T, env *testEnv) {

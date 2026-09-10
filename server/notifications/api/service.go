@@ -23,6 +23,10 @@ type Service interface {
 	// time, then queues a script for each one that is due.
 	ExpireAndQueueNotifications(ctx context.Context) error
 
+	// CleanupNotifications deletes notifications whose expiry passed more than
+	// EndUserNotificationRetention ago.
+	CleanupNotifications(ctx context.Context) error
+
 	RenderNotificationForHost(ctx context.Context, hostID uint, notificationUUID string) (*NotificationView, error)
 
 	// ApplyAction carries out what an end user chose to do with one of the

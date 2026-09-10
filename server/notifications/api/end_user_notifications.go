@@ -65,6 +65,9 @@ const EndUserNotificationMaxLifetime = 24 * time.Hour
 // notification behind it.
 const EndUserNotificationStuckDispatchTimeout = 24 * time.Hour
 
+// How long an expired notification is kept before it is deleted. The activity feed records what the end user did and has its own retention.
+const EndUserNotificationRetention = 30 * 24 * time.Hour
+
 type EndUserNotification struct {
 	ID            uint            `db:"id"`
 	UUID          string          `db:"uuid"`

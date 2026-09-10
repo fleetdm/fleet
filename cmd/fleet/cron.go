@@ -1329,6 +1329,7 @@ func newCleanupsAndAggregationSchedule(
 	softwareTitleIconStore fleet.SoftwareTitleIconStore,
 	androidSvc android.Service,
 	activitySvc activity_api.Service,
+	notificationsSvc notifications_api.Service,
 	acmeSvc acme_api.Service,
 	chartSvc chart_api.Service,
 ) (*schedule.Schedule, error) {
@@ -1619,6 +1620,9 @@ func newCleanupsAndAggregationSchedule(
 		}),
 		schedule.WithJob("cleanup_chart_data", func(ctx context.Context) error {
 			return chartSvc.CleanupData(ctx, 30)
+		}),
+		schedule.WithJob("cleanup_end_user_notifications", func(ctx context.Context) error {
+			return notificationsSvc.CleanupNotifications(ctx)
 		}),
 	)
 

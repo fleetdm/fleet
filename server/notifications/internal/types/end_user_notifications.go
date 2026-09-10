@@ -21,6 +21,7 @@ type Datastore interface {
 	SetEndUserNotificationsDispatched(ctx context.Context, notifications []*api.EndUserNotification) error
 	DeferEndUserNotificationsForHosts(ctx context.Context, hostIDs []uint) error
 	ExpireEndUserNotifications(ctx context.Context) (int64, error)
+	DeleteExpiredEndUserNotifications(ctx context.Context, olderThan time.Time, limit int) (int64, error)
 	VerifyEndUserNotification(ctx context.Context, notificationUUID string, displayedAt time.Time) error
 	DelayEndUserNotification(ctx context.Context, notificationUUID string, nextAttemptAt time.Time, payload json.RawMessage) error
 	// ActOnEndUserNotification returns false when the notification was already

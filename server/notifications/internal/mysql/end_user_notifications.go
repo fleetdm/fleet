@@ -300,6 +300,28 @@ WHERE displayed_at IS NULL
 	return expired + stuck, nil
 }
 
+// DeleteExpiredEndUserNotifications deletes up to limit notifications that expired before olderThan.
+// The patch notification tables cascade from this one, so their rows are deleted with it.
+func (ds *Datastore) DeleteExpiredEndUserNotifications(ctx context.Context, olderThan time.Time, limit int) (int64, error) {
+	// expires_at, not status: a notification the end user displayed and never acted on stays dispatched, so expires_at is the only column that says it needs to be deleted.
+	const deleteStmt = `
+DELETE FROM notifications_end_user
+WHERE expires_at < ?
+ORDER BY expires_at
+LIMIT ?
+`
+
+	res, err := ds.primary.ExecContext(ctx, deleteStmt, olderThan, limit)
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "delete expired end user notifications")
+	}
+	deleted, err := res.RowsAffected()
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "count deleted end user notifications")
+	}
+	return deleted, nil
+}
+
 // Only while the notification is still out: a result arriving after the end
 // user delayed it belongs to a send that is already over.
 const verifyEndUserNotificationStmt = `
