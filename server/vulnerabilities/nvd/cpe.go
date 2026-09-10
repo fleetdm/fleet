@@ -868,7 +868,9 @@ func TranslateSoftwareToCPE(
 			// and Adobe plugins, for which no vulnerability data source exists: CVEs for Adobe
 			// CEP/UXP extensions are only ever filed against the host Adobe application, so any
 			// match here would be a false positive pinned to the wrong version.
-			ExcludedSources: append(oval.SupportedSoftwareSources, "ios_apps", "ipados_apps", "adobe_plugins"),
+			// Go binaries are matched by module path against the Go vulnerability database
+			// instead.
+			ExcludedSources: append(oval.SupportedSoftwareSources, "ios_apps", "ipados_apps", "adobe_plugins", "go_binaries"),
 		},
 	)
 	if err != nil {
