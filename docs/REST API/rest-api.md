@@ -4294,7 +4294,7 @@ Returns the information of the specified host.
           "managed_local_account": "",
           "detail": "",
           "self_service": false,
-          "": true
+          "hidden": true
         }
       ]
     }
