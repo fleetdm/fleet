@@ -30,6 +30,9 @@ const (
 	// StatusMissing means the host is missing for 30 days. It is identical
 	// with StatusMIA, but StatusMIA is deprecated.
 	StatusMissing = HostStatus("missing")
+	// StatusEnrolled is a filter-only value (never a host's computed status): every host
+	// except those pending MDM enrollment, which exist in Fleet before they enroll.
+	StatusEnrolled = HostStatus("enrolled")
 
 	// NewDuration if a host has been created within this time period it's
 	// considered new.
@@ -51,7 +54,7 @@ const (
 
 func (s HostStatus) IsValid() bool {
 	switch s {
-	case StatusOnline, StatusOffline, StatusNew, StatusMissing, StatusMIA:
+	case StatusOnline, StatusOffline, StatusNew, StatusMissing, StatusMIA, StatusEnrolled:
 		return true
 	default:
 		return false
