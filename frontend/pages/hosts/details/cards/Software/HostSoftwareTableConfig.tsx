@@ -132,6 +132,7 @@ export const generateSoftwareTableHeaders = ({
                 apps don&apos;t report this information.
               </>
             }
+            fixedPositionStrategy
           >
             Last opened
           </TooltipWrapper>
