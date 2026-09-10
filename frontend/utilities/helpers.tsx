@@ -615,7 +615,11 @@ export const humanLastSeen = (lastSeen: string): string => {
   return timeAgo(new Date(lastSeen), { addSuffix: true });
 };
 
-export const internationalTimeFormat = (date: number | Date): string => {
+export const internationalTimeFormat = (
+  date: number | Date,
+  opts?: { timeZone?: string; includeSeconds?: boolean }
+): string => {
+  const { timeZone, includeSeconds = true } = opts ?? {};
   return intlFormat(
     date,
     {
@@ -624,7 +628,8 @@ export const internationalTimeFormat = (date: number | Date): string => {
       day: "numeric",
       hour: "numeric",
       minute: "numeric",
-      second: "numeric",
+      ...(includeSeconds && { second: "numeric" }),
+      ...(timeZone && { timeZone }),
     },
     { locale: window.navigator.languages[0] }
   );
