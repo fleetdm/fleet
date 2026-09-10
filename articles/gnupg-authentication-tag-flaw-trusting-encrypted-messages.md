@@ -1,10 +1,10 @@
-#Ubuntu's GnuPG Vulnerability: Can You Still Trust Encrypted Messages?
+# Ubuntu's GnuPG Vulnerability: Can You Still Trust Encrypted Messages?
 
-*A GnuPG vulnerability let attackers craft encrypted messages that gpgsm would trust as authentic, even without a real authentication tag behind them. Here's what it means and how to check the patched build reached every host.*
+* A GnuPG vulnerability let attackers craft encrypted messages that gpgsm would trust as authentic, even without a real authentication tag behind them. Here's what it means and how to check the patched build reached every host.*
 
 ## Key takeaways
 
---**Authenticated encryption stops proving anything if the "authenticated" part is skippable.** AES-GCM's authentication tag exists to prove a ciphertext wasn't tampered with in transit; gpgsm's flawed validation let a tag far shorter than AES-GCM requires pass anyway, letting crafted ciphertext through the exact check meant to catch it.
+- **Authenticated encryption stops proving anything if the "authenticated" part is skippable.** AES-GCM's authentication tag exists to prove a ciphertext wasn't tampered with in transit; gpgsm's flawed validation let a tag far shorter than AES-GCM requires pass anyway, letting crafted ciphertext through the exact check meant to catch it.
 - **This is an S/MIME bug, not a PGP one.** CVE-2026-57062 lives in gpgsm, GnuPG's CMS and S/MIME component, so it's about handling CMS-wrapped and S/MIME-encrypted content specifically, not classic OpenPGP-format encryption.
 - **The fix is release-specific, so "patched" isn't one number.** Ubuntu shipped gpgsm 2.4.8-4ubuntu3.1 for 26.04 LTS and 2.4.4-2ubuntu17.6 for 24.04 LTS, two different target versions depending on which release a host runs.
 - **You can confirm the exact gpgsm build on every host without asking around.** Fleet's software inventory reports the installed gpgsm version the same way it reports any other package, so confirming the patch landed is a query, not an assumption.
