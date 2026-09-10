@@ -1,10 +1,10 @@
-# AMD's Ryzen AI Halo chips created an endpoint category your inventory doesn't have
+# Microsoft's Project Zenith puts new AI PCs on your network. Can your inventory see them?
 
-*Microsoft's Project Zenith turns Windows 11 machines with 64GB of unified memory into local AI development rigs. They're still endpoints, and most inventory tools have no idea they exist yet.*
+*[Microsoft's Project Zenith ](https://blogs.windows.com/windowsdeveloper/2026/09/04/announcing-project-zenith-the-ready-to-code-windows-experience/)turns Windows 11 machines with 64GB of unified memory into local AI development rigs. They're still endpoints, and most inventory tools have no idea what's running on them yet.*
 
 ## Key takeaways
 
-- **Project Zenith is a new class of developer hardware, not a lab experiment.** Microsoft's ready-to-code Windows 11 setup runs AI models over 30 billion parameters locally, starting on AMD's Ryzen AI Halo chips, and it ships to real developer desks.
+- **Project Zenith is a new class of developer hardware, not a lab experiment.** Microsoft's ready-to-code Windows 11 setup runs AI models over 30 billion parameters locally, starting on [Ryzen AI Halo](https://www.amd.com/en/products/processors/desktops/ryzen/ryzen-ai-halo.html) chips, and it ships to real developer desks.
 - **The hardware requirements are steep and specific.** Qualifying machines need at least 64GB of unified memory and 250GB/s or more of memory bandwidth, a spec profile that stands out from a typical laptop fleet.
 - **A machine that skips procurement can skip inventory too.** A developer-class PC bought outside the usual refresh cycle, or built by hand from an AMD dev kit, is exactly the kind of device that doesn't show up in a spreadsheet nobody remembered to update.
 - **Fleet already reports the hardware that flags this category.** CPU model, total memory, and OS version are part of Fleet's standard host details for every enrolled device, so a 64GB Ryzen AI Halo machine identifies itself the same way any other host does.
@@ -44,13 +44,14 @@ Every new hardware category, from BYOD phones to Chromebooks to now local-AI dev
 - **Explore the software catalog** Fleet already builds from every host: [fleetdm.com/software-catalog](https://fleetdm.com/software-catalog)
 
 ## Sources
-
+- Microsoft, [Announcing Project Zenith: The ready-to-code Windows experience on developer-class devices](https://blogs.windows.com/windowsdeveloper/2026/09/04/announcing-project-zenith-the-ready-to-code-windows-experience/).
+- AMD, [Ryzen AI Halo for AI developers](https://www.amd.com/en/products/processors/desktops/ryzen/ryzen-ai-halo.html).
 - Help Net Security, [Microsoft's Project Zenith puts large AI models directly on developer PCs](https://www.helpnetsecurity.com/2026/09/08/microsoft-project-zenith-windows-11-experience/).
 - TechRepublic, [Microsoft Project Zenith: Windows Developer PCs Will Come Ready to Code](https://www.techrepublic.com/article/news-microsoft-project-zenith-windows-developer-pcs/).
 
-<meta name="articleTitle" value="AMD's Ryzen AI Halo chips created an endpoint category your inventory doesn't have">
-<meta name="authorFullName" value="Allen Houchins">
-<meta name="authorGitHubUsername" value="allenhouchins">
+<meta name="articleTitle" value="Microsoft's Project Zenith puts new AI PCs on your network. Can your inventory see them?">
+<meta name="authorFullName" value="Aube Paul">
+<meta name="authorGitHubUsername" value="robinedev">
 <meta name="category" value="industry news">
 <meta name="publishedOn" value="2026-09-09">
 <meta name="description" value="Project Zenith puts 64GB AI dev PCs on Ryzen AI Halo chips in developers' hands. Here's how to make sure your inventory sees them.">
