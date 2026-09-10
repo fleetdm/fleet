@@ -10,6 +10,7 @@ const (
 	testDeviceSubjectNameLocURI = "./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/SubjectName"
 	testUserSubjectNameLocURI   = "./User/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/SubjectName"
 	testSANLocURI               = "./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/SubjectAlternativeNames"
+	testChallengeLocURI         = "./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/Challenge"
 )
 
 func testSyncMLItem(locURI, data string) string {
@@ -196,6 +197,7 @@ func TestSCEPSubjectNameQuoting(t *testing.T) {
 // Windows profile on one pass, so a panic here would stop every host's profiles, not just this one.
 func TestSCEPSubjectNameNestedElements(t *testing.T) {
 	target := `<Target><LocURI>` + testDeviceSubjectNameLocURI + `</LocURI></Target>`
+	challengeTarget := `<Target><LocURI>` + testChallengeLocURI + `</LocURI></Target>`
 
 	tests := []struct {
 		name    string
@@ -210,11 +212,25 @@ func TestSCEPSubjectNameNestedElements(t *testing.T) {
 			want:    `<Add><Item>` + target + `<Data>CN="host-1<Data>x</Data>"</Data></Item></Add>`,
 		},
 		{
-			// Both LocURIs still read as a subject name, so both values are quoted rather than one
-			// of them going out bare.
+			// A nested item is read as part of no item at all, so the value it holds is left alone
+			// and the item around it still gets the target it wrote.
 			name:    "item nested in the item",
 			profile: `<Add><Item>` + target + `<Data>CN=$FLEET_VAR_HOST_UUID</Data><Item>` + target + `<Data>CN=$FLEET_VAR_HOST_UUID</Data></Item></Item></Add>`,
-			want:    `<Add><Item>` + target + `<Data>CN="host-1"</Data><Item>` + target + `<Data>CN="host-1"</Data></Item></Item></Add>`,
+			want:    `<Add><Item>` + target + `<Data>CN="host-1"</Data><Item>` + target + `<Data>CN=host-1</Data></Item></Item></Add>`,
+		},
+		{
+			// The nested item's target used to run onto the end of this one's, leaving a real
+			// subject name looking like something else and going out unquoted.
+			name:    "nested item with another target leaves this one's subject name quoted",
+			profile: `<Add><Item>` + target + `<Data>CN=$FLEET_VAR_HOST_UUID</Data><Item>` + challengeTarget + `<Data>pw=$FLEET_VAR_HOST_UUID</Data></Item></Item></Add>`,
+			want:    `<Add><Item>` + target + `<Data>CN="host-1"</Data><Item>` + challengeTarget + `<Data>pw=host-1</Data></Item></Item></Add>`,
+		},
+		{
+			// The reverse: a nested subject name used to reach back out and quote the challenge
+			// this item carries, which would go to the CA with the quotes in it.
+			name:    "nested subject name item leaves this one's challenge alone",
+			profile: `<Add><Item>` + challengeTarget + `<Data>pw=$FLEET_VAR_HOST_UUID</Data><Item>` + target + `<Data>CN=$FLEET_VAR_HOST_UUID</Data></Item></Item></Add>`,
+			want:    `<Add><Item>` + challengeTarget + `<Data>pw=host-1</Data><Item>` + target + `<Data>CN=host-1</Data></Item></Item></Add>`,
 		},
 	}
 

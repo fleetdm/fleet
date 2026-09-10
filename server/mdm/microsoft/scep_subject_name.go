@@ -252,8 +252,9 @@ func scepSubjectNameDataSpans(profileContents string) ([]dataSpan, error) {
 		itemSpans []dataSpan
 		dataStart int64
 		// Nesting either element is malformed, but it passes upload validation, so both are counted
-		// rather than assumed away: only the outermost of each is read, and the value of a nested
-		// <Data> stays part of the value around it.
+		// rather than assumed away. Only an outermost <Item> is read, target and values together,
+		// so a nested one can neither take the target of the item around it nor add its own to it.
+		// The value of a nested <Data> stays part of the value around it.
 		itemDepth int
 		dataDepth int
 		// Trails the decoder by one token, so at an end element it marks where the content ended.
@@ -279,7 +280,7 @@ func scepSubjectNameDataSpans(profileContents string) ([]dataSpan, error) {
 					itemSpans = nil
 				}
 			case "Data":
-				if itemDepth > 0 {
+				if itemDepth == 1 {
 					dataDepth++
 					if dataDepth == 1 {
 						dataStart = dec.InputOffset()
@@ -287,7 +288,7 @@ func scepSubjectNameDataSpans(profileContents string) ([]dataSpan, error) {
 				}
 			}
 		case xml.CharData:
-			if itemDepth > 0 && inTargetLocURI(stack) {
+			if itemDepth == 1 && inTargetLocURI(stack) {
 				locURI += string(t)
 			}
 		case xml.EndElement:
@@ -298,7 +299,7 @@ func scepSubjectNameDataSpans(profileContents string) ([]dataSpan, error) {
 				}
 				itemDepth--
 			case "Data":
-				if itemDepth > 0 {
+				if itemDepth == 1 {
 					if dataDepth == 1 {
 						itemSpans = append(itemSpans, dataSpan{start: dataStart, end: offsetBeforeToken})
 					}
