@@ -32,13 +32,25 @@ const BalancedTipContent = ({ children }: { children: React.ReactNode }) => {
       // a no-op there — balancing is a visual concern with no test coverage
       // to preserve.
       if (typeof range.getClientRects !== "function") return;
-      const rects = range.getClientRects();
       // Range.getClientRects returns one rect per text run per line, so a line
       // containing text plus a nested <strong>/<em>/<b> produces multiple
       // narrower rects. Taking the widest single rect would under-measure the
       // line width. Group rects by their top edge (visual line) and compute
       // each line's true width from the leftmost/rightmost extents, then pick
       // the widest line.
+      //
+      // Inline replaced elements (<svg>, <img>, <video>, <canvas>, <iframe>)
+      // don't participate in Range text rects — they render as self-contained
+      // visual boxes, so a line ending in e.g. a CustomLink external-link icon
+      // would otherwise be measured short by the icon's width. Add their
+      // bounding rects into the same per-line grouping.
+      const rects: DOMRect[] = Array.from(range.getClientRects());
+      root
+        .querySelectorAll("svg, img, video, canvas, iframe")
+        .forEach((el) => {
+          const rect = el.getBoundingClientRect();
+          if (rect.width > 0) rects.push(rect);
+        });
       const lineBounds = new Map<number, { left: number; right: number }>();
       for (let i = 0; i < rects.length; i += 1) {
         const rect = rects[i];
