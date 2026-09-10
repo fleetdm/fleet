@@ -45,6 +45,7 @@ func TestIsLUKSSupported(t *testing.T) {
 		{platform: "omarchy", expected: true},
 		// Linux platforms without LUKS support, and non-Linux platforms.
 		{platform: "debian", expected: false},
+		{platform: "amd-ryzen-ai-developer-platform", expected: false},
 		{platform: "darwin", expected: false},
 		{platform: "windows", expected: false},
 	} {
@@ -187,6 +188,10 @@ func TestPlatformFromHost(t *testing.T) {
 		},
 		{
 			host:        "omarchy",
+			expPlatform: "linux",
+		},
+		{
+			host:        "amd-ryzen-ai-developer-platform",
 			expPlatform: "linux",
 		},
 		{
