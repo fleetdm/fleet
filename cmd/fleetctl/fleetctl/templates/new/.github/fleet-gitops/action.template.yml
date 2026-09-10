@@ -18,7 +18,9 @@ runs:
     - name: Install fleetctl
       shell: bash
       working-directory: ${{ inputs.working-directory }}
-      run: |
+      # github-env: the GITHUB_PATH write below appends the runner-controlled constant
+      # $HOME/.fleetctl, not any user-supplied value, so it cannot inject a path.
+      run: | # zizmor: ignore[github-env]
         FLEET_URL="${FLEET_URL%/}"
         FLEET_VERSION="$(curl "$FLEET_URL/api/v1/fleet/version" --header "Authorization: Bearer $FLEET_API_TOKEN" --fail --silent | jq --raw-output '.version')"
         DEFAULT_FLEETCTL_VERSION="latest"
