@@ -1,0 +1,1 @@
+- Fixed an issue where a Windows configuration profile could be added with an empty or whitespace-only name, for example by uploading a file named `.xml`. These uploads are now rejected with "Profile name can't be empty."
