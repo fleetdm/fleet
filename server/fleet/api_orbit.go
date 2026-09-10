@@ -282,6 +282,9 @@ type OrbitPostLUKSRequest struct {
 	// LUKSKeyTypePassphrase means the legacy passphrase-in-a-key-slot path;
 	// LUKSKeyTypeRecoveryKey means a TPM-backed FDE recovery key (no Salt/KeySlot).
 	KeyType string `json:"key_type"`
+	// Status reports progress on the escrow request instead of a result. When set, every other
+	// field is ignored. Only sent to servers advertising CapabilityLinuxEscrowStatus.
+	Status string `json:"status"`
 }
 
 func (r *OrbitPostLUKSRequest) SetOrbitNodeKey(nodeKey string) {
@@ -298,6 +301,15 @@ type OrbitPostLUKSResponse struct {
 
 func (r OrbitPostLUKSResponse) Error() error { return r.Err }
 func (r OrbitPostLUKSResponse) Status() int  { return http.StatusNoContent }
+
+// Values for OrbitPostLUKSRequest.Status. The first two are heartbeats that keep the request in
+// flight; the last two end it without a key or an error.
+const (
+	LinuxEscrowStatusPrompting = "prompting"
+	LinuxEscrowStatusEscrowing = "escrowing"
+	LinuxEscrowStatusCanceled  = "canceled"
+	LinuxEscrowStatusTimedOut  = "timed_out"
+)
 
 /////////////////////////////////////////////////////////////////////////////////
 // Post Orbit Windows managed local account password

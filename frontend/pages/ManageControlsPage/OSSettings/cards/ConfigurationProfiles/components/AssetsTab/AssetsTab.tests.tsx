@@ -164,7 +164,7 @@ describe("AssetsTab", () => {
 
     expect(
       screen.getByText(
-        /Add assets \(data or credentials\) to use them in many Apple declaration \(DDM\) profiles/i
+        /Add assets \(data or credentials\) to use them in Apple declaration \(DDM\) profiles/i
       )
     ).toBeInTheDocument();
     expect(

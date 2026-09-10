@@ -898,6 +898,64 @@ func TestNewGlobalPolicyQueryIDAuth(t *testing.T) {
 	}
 }
 
+func TestApplyPolicySpecsScriptID(t *testing.T) {
+	setupDS := func() *mock.Store {
+		ds := new(mock.Store)
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{}, nil
+		}
+		ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
+			return &fleet.Team{ID: 1, Name: name}, nil
+		}
+		ds.ApplyPolicySpecsFunc = func(ctx context.Context, authorID uint, specs []*fleet.PolicySpec) error {
+			return nil
+		}
+		return ds
+	}
+	adminCtx := func(ctx context.Context) context.Context {
+		return viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{
+			ID:         1,
+			GlobalRole: new(fleet.RoleAdmin),
+		}})
+	}
+	spec := func(team string, scriptID *uint) *fleet.PolicySpec {
+		return &fleet.PolicySpec{
+			Name:     "script spec policy",
+			Query:    "SELECT 1;",
+			Team:     team,
+			Platform: "darwin",
+			ScriptID: scriptID,
+		}
+	}
+
+	// "All fleets" (empty team) cannot carry a script.
+	t.Run("global spec rejects script_id", func(t *testing.T) {
+		ds := setupDS()
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{
+			License: &fleet.LicenseInfo{Tier: fleet.TierPremium},
+		})
+
+		err := svc.ApplyPolicySpecs(adminCtx(ctx), []*fleet.PolicySpec{spec("", new(uint(1)))})
+		require.ErrorContains(t, err, errPolicyAllFleetsForScripts)
+		require.False(t, ds.ApplyPolicySpecsFuncInvoked)
+	})
+
+	// script_id: 0 means "no script", so it is fine on a global spec; team
+	// ownership of a real script is the datastore's job.
+	t.Run("zero and team script_id pass through", func(t *testing.T) {
+		ds := setupDS()
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{
+			License: &fleet.LicenseInfo{Tier: fleet.TierPremium},
+		})
+
+		err := svc.ApplyPolicySpecs(adminCtx(ctx), []*fleet.PolicySpec{spec("", new(uint(0)))})
+		require.NoError(t, err)
+		err = svc.ApplyPolicySpecs(adminCtx(ctx), []*fleet.PolicySpec{spec("team1", new(uint(1)))})
+		require.NoError(t, err)
+		require.True(t, ds.ApplyPolicySpecsFuncInvoked)
+	})
+}
+
 func TestApplyPolicySpecsResendConfigProfile(t *testing.T) {
 	const (
 		teamName  = "team1"

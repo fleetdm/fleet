@@ -43,6 +43,11 @@ import (
 const (
 	mySQLTimestampFormat = "2006-01-02 15:04:05" // %Y/%m/%d %H:%M:%S
 
+	// hostIDsFanoutBatchSize bounds how many host IDs (or UUIDs) go into one
+	// `IN (?)` statement, well under MySQL's 65,535 placeholder limit. It
+	// matches the batch size AddHostsToTeam uses for the writes on the same path.
+	hostIDsFanoutBatchSize = 10_000
+
 	// Migration IDs needed for fixing broken migrations that some customers encountered with fleet v4.73.2
 	// See https://github.com/fleetdm/fleet/issues/33562
 	fleet4732BadMigrationID1  = 20250918154557 // was 20250918154557_AddKernelHostCountsIndexForVulnQueries.go

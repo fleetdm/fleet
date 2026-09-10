@@ -488,6 +488,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 			return svc.NewActivity(ctx, user, activity)
 		},
 		config.MDM.AndroidAgent,
+		redis_key_value.New(redisPool),
 	)
 	if err != nil {
 		initFatal(err, "initializing android service")
@@ -887,6 +888,8 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 			svc,
 			config.Server.URLPrefix,
 			ds,
+			redis_key_value.New(redisPool),
+			clock.C,
 			logger,
 			serveCSP,
 		)
@@ -936,6 +939,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	if len(config.Server.PrivateKey) > 0 {
 		commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
 		ddmService := service.NewMDMAppleDDMService(ds, logger)
+		getTokenService := service.NewMDMAppleGetTokenService(ds, logger)
 		vppInstaller := svc.(fleet.AppleMDMVPPInstaller)
 		mdmCheckinAndCommandService := service.NewMDMAppleCheckinAndCommandService(
 			ds,
@@ -988,6 +992,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 			mdmCheckinAndCommandService,
 			ddmService,
 			commander,
+			getTokenService,
 			appCfg.ServerSettings.ServerURL,
 			config,
 			svc,

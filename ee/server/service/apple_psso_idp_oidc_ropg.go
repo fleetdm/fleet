@@ -82,7 +82,7 @@ func (c PSSOOIDCROPGClient) ValidatePasswordAndGetClaims(ctx context.Context, us
 
 	client := c.HTTPClient
 	if client == nil {
-		client = fleethttp.NewClient()
+		client = fleethttp.NewClient(fleethttp.WithNoTimeout())
 	}
 	resp, err := client.Do(req)
 	if err != nil {

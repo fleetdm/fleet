@@ -91,6 +91,9 @@ const (
 	// error, so orbit must gate the snapd/TPM-backed FDE escrow path on it
 	// to avoid churning the fleet-escrow key slot on every retry.
 	CapabilityLUKSRecoveryKeyEscrow Capability = "luks_recovery_key_escrow"
+	// CapabilityLinuxEscrowStatus denotes the ability of the server to accept
+	// progress reports (heartbeats, cancellations) for a LUKS escrow request.
+	CapabilityLinuxEscrowStatus Capability = "linux_escrow_status"
 	// CapabilitySetupExperience denotes the ability of the server to support
 	// installing software and running a script during macOS ADE enrollment, and
 	// the ability of the client to show the corresponding UI to support that
@@ -121,6 +124,7 @@ func GetServerOrbitCapabilities() CapabilityMap {
 		CapabilityEscrowBuddy:               {},
 		CapabilityLinuxDiskEncryptionEscrow: {},
 		CapabilityLUKSRecoveryKeyEscrow:     {},
+		CapabilityLinuxEscrowStatus:         {},
 		CapabilitySetupExperience:           {},
 		CapabilityWebSetupExperience:        {},
 		CapabilityMacOSWebSetupExperience:   {},
