@@ -61,7 +61,9 @@ func AutoUpdateFleetMaintainedApps(ctx context.Context, ds fleet.Datastore, soft
 				"title_id", c.TitleID, "team_id", teamIDForLog(c.TeamID), "slug", c.Slug, "err", err)
 		}
 	}
-	return nil
+
+	// The loop check above never sees a budget that ran out during the last app, so report that here.
+	return ctxerr.Wrap(ctx, ctx.Err(), "auto-updating fleet-maintained apps")
 }
 
 func autoUpdateOneFleetMaintainedApp(
