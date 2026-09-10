@@ -258,3 +258,28 @@ func updateAppConfigJSON(tx *sql.Tx, fn func(config *fleet.AppConfig) error) err
 
 	return nil
 }
+
+type indexDef struct {
+	name    string
+	columns string
+}
+
+// addIndexesTx adds the given indexes to table in one ALTER, skipping any that
+// already exist so a failed migration can be rerun.
+func addIndexesTx(tx *sql.Tx, table string, indexes ...indexDef) error {
+	var clauses []string
+	for _, idx := range indexes {
+		if indexExistsTx(tx, table, idx.name) {
+			continue
+		}
+		clauses = append(clauses, fmt.Sprintf("ADD INDEX %s (%s)", idx.name, idx.columns))
+	}
+	if len(clauses) == 0 {
+		return nil
+	}
+	stmt := fmt.Sprintf("ALTER TABLE %s %s, ALGORITHM=INPLACE, LOCK=NONE", table, strings.Join(clauses, ", "))
+	if _, err := tx.Exec(stmt); err != nil {
+		return fmt.Errorf("failed to add indexes to %s: %w", table, err)
+	}
+	return nil
+}

@@ -1,0 +1,1 @@
+- Added hourly cleanup of completed Apple MDM commands to keep the associated tables from growing without bound
