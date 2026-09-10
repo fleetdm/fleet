@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import classnames from "classnames";
+import { formatInTimeZone } from "date-fns-tz";
 
 import { IHostCustomVital } from "interfaces/custom_host_vitals";
 import { IHostMdmData, IMunkiData } from "interfaces/host";
@@ -22,7 +23,6 @@ import {
   wrapFleetHelper,
   removeOSPrefix,
   compareVersions,
-  internationalTimeFormat,
 } from "utilities/helpers";
 import { getHardwareModelDisplay } from "pages/hosts/helpers";
 
@@ -713,10 +713,8 @@ export const buildHostVitals = ({
   if (isIosOrIpadosHost && vitalsData?.timezone) {
     const hasValidTimezone = vitalsData.timezone !== DEFAULT_EMPTY_CELL_VALUE;
     const localTime = hasValidTimezone
-      ? internationalTimeFormat(new Date(), {
-          timeZone: vitalsData.timezone,
-          includeSeconds: false,
-        })
+      ? // 24-hour clock, matching the auto-update feature's HH:MM time format.
+        formatInTimeZone(new Date(), vitalsData.timezone, "HH:mm 'on' E, MMM d")
       : null;
 
     vitals.push({
