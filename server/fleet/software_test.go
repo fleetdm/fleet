@@ -1175,3 +1175,52 @@ func TestSoftwareCategoryReferenceMatches(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateSoftwareSources(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		sources []string
+		wantErr string
+	}{
+		{
+			name:    "nil is unscoped, not invalid",
+			sources: nil,
+		},
+		{
+			name:    "empty is unscoped, not invalid",
+			sources: []string{},
+		},
+		{
+			name:    "distinct sources",
+			sources: []string{"deb_packages", "rpm_packages"},
+		},
+		{
+			name:    "single source",
+			sources: []string{"go_binaries"},
+		},
+		{
+			name:    "empty entry",
+			sources: []string{"deb_packages", ""},
+			wantErr: "empty software source",
+		},
+		{
+			name:    "only an empty entry",
+			sources: []string{""},
+			wantErr: "empty software source",
+		},
+		{
+			name:    "duplicate entry",
+			sources: []string{"deb_packages", "rpm_packages", "deb_packages"},
+			wantErr: `duplicate software source "deb_packages"`,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			err := ValidateSoftwareSources(tc.sources)
+			if tc.wantErr == "" {
+				require.NoError(t, err)
+				return
+			}
+			require.ErrorContains(t, err, tc.wantErr)
+		})
+	}
+}

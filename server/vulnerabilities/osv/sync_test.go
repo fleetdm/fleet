@@ -9,138 +9,98 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/vulnrepo"
 	"github.com/stretchr/testify/require"
 )
 
-func TestRemoveOldOSVArtifacts(t *testing.T) {
-	// Create a temporary directory for testing
-	tmpDir := t.TempDir()
-
+func TestRemoveOldArtifacts(t *testing.T) {
 	today := time.Date(2026, 3, 30, 0, 0, 0, 0, time.UTC)
 
-	// Create some test files
-	currentFile := filepath.Join(tmpDir, "osv-ubuntu-2204-2026-03-30.json.gz")
-	oldFile := filepath.Join(tmpDir, "osv-ubuntu-2204-2026-03-29.json.gz")
-	otherFile := filepath.Join(tmpDir, "some-other-file.json")
-
-	for _, file := range []string{currentFile, oldFile, otherFile} {
-		err := os.WriteFile(file, []byte("test"), 0o644)
-		require.NoError(t, err)
+	tests := []struct {
+		name     string
+		prefix   string
+		upToDate []string
+		files    []string
+		dirs     []string
+		wantGone []string
+	}{
+		{
+			name:     "removes older artifacts of up-to-date versions only",
+			prefix:   OSVFilePrefix,
+			upToDate: []string{"2204"},
+			files: []string{
+				"osv-ubuntu-2204-2026-03-30.json.gz",
+				"osv-ubuntu-2204-2026-03-29.json.gz",
+				"osv-ubuntu-2204-2026-03-28.json.gz",
+				// 2404's download failed, so its last-known-good artifact has to survive.
+				"osv-ubuntu-2404-2026-03-29.json.gz",
+				"osv-ubuntu-2204-delta-2026-03-29.json.gz",
+				"some-other-file.json",
+			},
+			dirs:     []string{"osv-ubuntu-2204-2026-03-01.json.gz"},
+			wantGone: []string{"osv-ubuntu-2204-2026-03-29.json.gz", "osv-ubuntu-2204-2026-03-28.json.gz"},
+		},
+		{
+			// The cron ran on March 30 but the release only carried March 29 artifacts, so every
+			// version is NotInRelease rather than up to date and nothing may be removed.
+			name:   "nothing up to date leaves everything in place",
+			prefix: OSVFilePrefix,
+			files:  []string{"osv-ubuntu-2404-2026-03-29.json.gz"},
+		},
+		{
+			name:     "other families are not touched",
+			prefix:   OSVRHELFilePrefix,
+			upToDate: []string{"9"},
+			files: []string{
+				"osv-rhel-9-2026-03-30.json.gz",
+				"osv-rhel-9-2026-03-29.json.gz",
+				"osv-rhel-8-2026-03-29.json.gz",
+				"osv-ubuntu-2204-2026-03-29.json.gz",
+				"osv-android-16-2026-03-29.json.gz",
+			},
+			wantGone: []string{"osv-rhel-9-2026-03-29.json.gz"},
+		},
 	}
 
-	// Create a directory that matches the OSV pattern
-	osvDir := filepath.Join(tmpDir, "osv-ubuntu-test.json.gz")
-	err := os.Mkdir(osvDir, 0o755)
-	require.NoError(t, err)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := t.TempDir()
+			for _, f := range tt.files {
+				require.NoError(t, os.WriteFile(filepath.Join(dir, f), []byte("test"), 0o644))
+			}
+			for _, d := range tt.dirs {
+				require.NoError(t, os.Mkdir(filepath.Join(dir, d), 0o755))
+			}
 
-	// Run the cleanup with 2204 as successfully downloaded (should remove old file but keep current)
-	err = removeOldOSVArtifacts(today, tmpDir, []string{"2204"})
-	require.NoError(t, err)
+			require.NoError(t, removeOldArtifacts(tt.prefix, today, dir, tt.upToDate))
 
-	// Check that old file was removed
-	_, err = os.Stat(oldFile)
-	require.True(t, os.IsNotExist(err))
-
-	// Check that current file still exists
-	_, err = os.Stat(currentFile)
-	require.NoError(t, err)
-
-	// Check that other file still exists (should not be touched)
-	_, err = os.Stat(otherFile)
-	require.NoError(t, err)
-
-	// Check that directory still exists (should be skipped, not removed)
-	stat, err := os.Stat(osvDir)
-	require.NoError(t, err)
-	require.True(t, stat.IsDir())
+			gone := make(map[string]struct{}, len(tt.wantGone))
+			for _, f := range tt.wantGone {
+				gone[f] = struct{}{}
+			}
+			for _, f := range append(tt.files, tt.dirs...) {
+				_, err := os.Stat(filepath.Join(dir, f))
+				if _, want := gone[f]; want {
+					require.Truef(t, os.IsNotExist(err), "%s should have been removed", f)
+				} else {
+					require.NoErrorf(t, err, "%s should have been kept", f)
+				}
+			}
+		})
+	}
 }
 
-func TestRemoveOldOSVArtifactsPreservesFailedVersions(t *testing.T) {
-	tmpDir := t.TempDir()
-	today := time.Date(2026, 3, 30, 0, 0, 0, 0, time.UTC)
+func TestArtifactFilename(t *testing.T) {
+	date := time.Date(2026, 4, 8, 0, 0, 0, 0, time.UTC)
 
-	// Create artifacts for two versions, both old and new
-	files := []string{
-		"osv-ubuntu-2204-2026-03-30.json.gz", // Today's 22.04 (just downloaded)
-		"osv-ubuntu-2204-2026-03-29.json.gz", // Yesterday's 22.04 (should be removed)
-		"osv-ubuntu-2404-2026-03-29.json.gz", // Yesterday's 24.04 (should be KEPT - download failed)
+	for _, tt := range []struct{ prefix, version, want string }{
+		{OSVFilePrefix, "2204", "osv-ubuntu-2204-2026-04-08.json.gz"},
+		{OSVRHELFilePrefix, "10", "osv-rhel-10-2026-04-08.json.gz"},
+		{OSVAndroidFilePrefix, "8.1", "osv-android-8.1-2026-04-08.json.gz"},
+		{OSVAndroidFilePrefix, "12L", "osv-android-12L-2026-04-08.json.gz"},
+	} {
+		require.Equal(t, tt.want, artifactFilename(tt.prefix, tt.version, date))
 	}
-
-	for _, file := range files {
-		err := os.WriteFile(filepath.Join(tmpDir, file), []byte("test"), 0o644)
-		require.NoError(t, err)
-	}
-
-	// Only 2204 downloaded successfully, 2404 failed
-	err := removeOldOSVArtifacts(today, tmpDir, []string{"2204"})
-	require.NoError(t, err)
-
-	// Today's 2204 should still exist
-	_, err = os.Stat(filepath.Join(tmpDir, "osv-ubuntu-2204-2026-03-30.json.gz"))
-	require.NoError(t, err)
-
-	// Old 2204 should be removed (new one downloaded)
-	_, err = os.Stat(filepath.Join(tmpDir, "osv-ubuntu-2204-2026-03-29.json.gz"))
-	require.True(t, os.IsNotExist(err))
-
-	// Old 2404 should be PRESERVED (download failed, need last-known-good)
-	_, err = os.Stat(filepath.Join(tmpDir, "osv-ubuntu-2404-2026-03-29.json.gz"))
-	require.NoError(t, err, "old 2404 artifact should be preserved when download fails")
-}
-
-func TestRemoveOldOSVArtifactsWithSkippedVersions(t *testing.T) {
-	tmpDir := t.TempDir()
-	today := time.Date(2026, 3, 30, 0, 0, 0, 0, time.UTC)
-
-	// Artifact for 2204 already exists with correct checksum (will be skipped)
-	files := []string{
-		"osv-ubuntu-2204-2026-03-30.json.gz", // Today's 22.04 (already exists, will be skipped)
-		"osv-ubuntu-2204-2026-03-29.json.gz", // Yesterday's 22.04 (should be REMOVED even though skipped)
-		"osv-ubuntu-2204-2026-03-28.json.gz", // Day before yesterday's 22.04 (should be REMOVED)
-	}
-
-	for _, file := range files {
-		err := os.WriteFile(filepath.Join(tmpDir, file), []byte("test"), 0o644)
-		require.NoError(t, err)
-	}
-
-	err := removeOldOSVArtifacts(today, tmpDir, []string{"2204"})
-	require.NoError(t, err)
-
-	// Today's 2204 should still exist
-	_, err = os.Stat(filepath.Join(tmpDir, "osv-ubuntu-2204-2026-03-30.json.gz"))
-	require.NoError(t, err, "current artifact should be preserved")
-
-	// Old 2204 files should be REMOVED (this is the bug fix!)
-	_, err = os.Stat(filepath.Join(tmpDir, "osv-ubuntu-2204-2026-03-29.json.gz"))
-	require.True(t, os.IsNotExist(err), "old artifact from yesterday should be removed even when version was skipped")
-
-	_, err = os.Stat(filepath.Join(tmpDir, "osv-ubuntu-2204-2026-03-28.json.gz"))
-	require.True(t, os.IsNotExist(err), "old artifact from day before should be removed even when version was skipped")
-}
-
-func TestRemoveOldOSVArtifactsDateBoundaryRace(t *testing.T) {
-	tmpDir := t.TempDir()
-	// now is April 10 but the release only created April 9 artifacts.
-	today := time.Date(2026, 4, 10, 0, 5, 0, 0, time.UTC)
-
-	files := []string{
-		"osv-ubuntu-2404-2026-04-09.json.gz", // Yesterday's artifact (only one available)
-	}
-
-	for _, file := range files {
-		err := os.WriteFile(filepath.Join(tmpDir, file), []byte("test"), 0o644)
-		require.NoError(t, err)
-	}
-
-	// 2404 is in NotInRelease, not Skipped
-	// so removeOldOSVArtifacts should not touch it
-	err := removeOldOSVArtifacts(today, tmpDir, []string{})
-	require.NoError(t, err)
-
-	// Yesterday's artifact must still exist since the version wasn't in the successful set
-	_, err = os.Stat(filepath.Join(tmpDir, "osv-ubuntu-2404-2026-04-09.json.gz"))
-	require.NoError(t, err, "old artifact must be preserved when version is not in release")
 }
 
 func TestGetNeededUbuntuVersions(t *testing.T) {
@@ -276,116 +236,14 @@ func TestGetNeededRHELVersions(t *testing.T) {
 	}
 }
 
-func TestRemoveOldRHELOSVArtifacts(t *testing.T) {
-	tmpDir := t.TempDir()
-	today := time.Date(2026, 4, 8, 0, 0, 0, 0, time.UTC)
-
-	files := []string{
-		"osv-rhel-9-2026-04-08.json.gz",      // today — keep
-		"osv-rhel-9-2026-04-07.json.gz",      // yesterday — remove
-		"osv-rhel-8-2026-04-07.json.gz",      // yesterday, different version, not in successful — keep
-		"osv-ubuntu-2204-2026-04-07.json.gz", // ubuntu — not touched
-		"some-other-file.json",               // unrelated — not touched
-	}
-
-	for _, file := range files {
-		require.NoError(t, os.WriteFile(filepath.Join(tmpDir, file), []byte("test"), 0o644))
-	}
-
-	err := removeOldRHELOSVArtifacts(today, tmpDir, []string{"9"})
-	require.NoError(t, err)
-
-	// Today's RHEL 9 — kept
-	_, err = os.Stat(filepath.Join(tmpDir, "osv-rhel-9-2026-04-08.json.gz"))
-	require.NoError(t, err)
-
-	// Yesterday's RHEL 9 — removed (successfully downloaded today)
-	_, err = os.Stat(filepath.Join(tmpDir, "osv-rhel-9-2026-04-07.json.gz"))
-	require.True(t, os.IsNotExist(err))
-
-	// Yesterday's RHEL 8 — kept (not in successful list, last-known-good)
-	_, err = os.Stat(filepath.Join(tmpDir, "osv-rhel-8-2026-04-07.json.gz"))
-	require.NoError(t, err)
-
-	// Ubuntu artifact — not touched
-	_, err = os.Stat(filepath.Join(tmpDir, "osv-ubuntu-2204-2026-04-07.json.gz"))
-	require.NoError(t, err)
-
-	// Other file — not touched
-	_, err = os.Stat(filepath.Join(tmpDir, "some-other-file.json"))
-	require.NoError(t, err)
-}
-
-func TestRHELOSVFilename(t *testing.T) {
-	date := time.Date(2026, 4, 8, 0, 0, 0, 0, time.UTC)
-
-	tests := []struct {
-		version  string
-		expected string
-	}{
-		{"9", "osv-rhel-9-2026-04-08.json.gz"},
-		{"8", "osv-rhel-8-2026-04-08.json.gz"},
-		{"10", "osv-rhel-10-2026-04-08.json.gz"},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.version, func(t *testing.T) {
-			require.Equal(t, tt.expected, rhelOSVFilename(tt.version, date))
-		})
-	}
-}
-
-func TestOSVFilename(t *testing.T) {
-	date := time.Date(2026, 3, 30, 0, 0, 0, 0, time.UTC)
-
-	tests := []struct {
-		ubuntuVersion string
-		expected      string
-	}{
-		{"2204", "osv-ubuntu-2204-2026-03-30.json.gz"},
-		{"2004", "osv-ubuntu-2004-2026-03-30.json.gz"},
-		{"1804", "osv-ubuntu-1804-2026-03-30.json.gz"},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.ubuntuVersion, func(t *testing.T) {
-			result := osvFilename(tt.ubuntuVersion, date)
-			require.Equal(t, tt.expected, result)
-		})
-	}
-}
-
-func TestComputeFileSHA256(t *testing.T) {
-	tmpDir := t.TempDir()
-	testFile := filepath.Join(tmpDir, "test.txt")
-
-	// Write test content
-	testContent := []byte("test content")
-	err := os.WriteFile(testFile, testContent, 0o644)
-	require.NoError(t, err)
-
-	// Compute SHA256
-	digest, err := computeFileSHA256(testFile)
-	require.NoError(t, err)
-
-	// Expected digest for "test content"
-	// echo -n "test content" | sha256sum
-	// 6ae8a75555209fd6c44157c0aed8016e763ff435a19cf186f76863140143ff72
-	expected := "sha256:6ae8a75555209fd6c44157c0aed8016e763ff435a19cf186f76863140143ff72"
-	require.Equal(t, expected, digest)
-
-	_, err = computeFileSHA256(filepath.Join(tmpDir, "nonexistent.txt"))
-	require.Error(t, err)
-}
-
 func TestSyncOSVFaultTolerance(t *testing.T) {
 	tmpDir := t.TempDir()
 	date := time.Date(2026, 4, 1, 0, 0, 0, 0, time.UTC)
 
 	// Create a mock release with only some artifacts available
-	release := &ReleaseInfo{
+	release := &vulnrepo.Release{
 		TagName: "cve-202604010000",
-		Assets: map[string]*AssetInfo{
+		Assets: map[string]*vulnrepo.Asset{
 			"osv-ubuntu-2204-2026-04-01.json.gz": {
 				Name:   "osv-ubuntu-2204-2026-04-01.json.gz",
 				ID:     12345,
@@ -401,7 +259,7 @@ func TestSyncOSVFaultTolerance(t *testing.T) {
 		return errors.New("mock download failure")
 	}
 
-	result, err := syncOSVWithDownloader(context.Background(), tmpDir, versions, date, release, mockDownload, osvFilename)
+	result, err := syncOSVWithDownloader(context.Background(), tmpDir, OSVFilePrefix, versions, date, release, mockDownload)
 	require.Error(t, err)
 	require.NotNil(t, result)
 
@@ -421,13 +279,13 @@ func TestSyncOSVChecksumMatch(t *testing.T) {
 	require.NoError(t, err)
 
 	// Compute the digest
-	digest, err := computeFileSHA256(testFile)
+	digest, err := vulnrepo.FileSHA256(testFile)
 	require.NoError(t, err)
 
 	// Create a mock release with matching digest
-	release := &ReleaseInfo{
+	release := &vulnrepo.Release{
 		TagName: "cve-202604010000",
-		Assets: map[string]*AssetInfo{
+		Assets: map[string]*vulnrepo.Asset{
 			filename: {
 				Name:   filename,
 				ID:     12345,
@@ -436,7 +294,7 @@ func TestSyncOSVChecksumMatch(t *testing.T) {
 		},
 	}
 
-	result, err := SyncOSV(context.Background(), tmpDir, []string{"2204"}, date, release)
+	result, err := syncArtifacts(context.Background(), tmpDir, OSVFilePrefix, []string{"2204"}, date, release)
 	require.NoError(t, err)
 	require.NotNil(t, result)
 
@@ -446,7 +304,7 @@ func TestSyncOSVChecksumMatch(t *testing.T) {
 }
 
 func TestSyncOSVPartialFailureNotReturnedAsError(t *testing.T) {
-	// Documents the behavior RefreshAll guards against: SyncOSV reports per-
+	// Documents the behavior RefreshAll guards against: syncArtifacts reports per-
 	// version failures via SyncResult.Failed but does NOT return an error when
 	// some downloads succeed.
 	tmpDir := t.TempDir()
@@ -455,9 +313,9 @@ func TestSyncOSVPartialFailureNotReturnedAsError(t *testing.T) {
 	good := "osv-ubuntu-2204-2026-04-01.json.gz"
 	bad := "osv-ubuntu-2404-2026-04-01.json.gz"
 
-	release := &ReleaseInfo{
+	release := &vulnrepo.Release{
 		TagName: "cve-202604010000",
-		Assets: map[string]*AssetInfo{
+		Assets: map[string]*vulnrepo.Asset{
 			good: {Name: good, ID: 1},
 			bad:  {Name: bad, ID: 2},
 		},
@@ -470,8 +328,8 @@ func TestSyncOSVPartialFailureNotReturnedAsError(t *testing.T) {
 		return os.WriteFile(dstPath, []byte("ok"), 0o644)
 	}
 
-	result, err := syncOSVWithDownloader(context.Background(), tmpDir, []string{"2204", "2404"}, date, release, mockDownload, osvFilename)
-	require.NoError(t, err, "SyncOSV does not return error on partial failure")
+	result, err := syncOSVWithDownloader(context.Background(), tmpDir, OSVFilePrefix, []string{"2204", "2404"}, date, release, mockDownload)
+	require.NoError(t, err, "syncArtifacts does not return error on partial failure")
 	require.Contains(t, result.Downloaded, "2204")
 	require.Contains(t, result.Failed, "2404")
 }
@@ -502,9 +360,9 @@ func TestIsOSVReleaseAsset(t *testing.T) {
 }
 
 func TestVersionsFromRelease(t *testing.T) {
-	release := &ReleaseInfo{
+	release := &vulnrepo.Release{
 		TagName: "cve-202604270000",
-		Assets: map[string]*AssetInfo{
+		Assets: map[string]*vulnrepo.Asset{
 			"osv-ubuntu-2204-2026-04-27.json.gz": {Name: "osv-ubuntu-2204-2026-04-27.json.gz"},
 			"osv-ubuntu-2404-2026-04-27.json.gz": {Name: "osv-ubuntu-2404-2026-04-27.json.gz"},
 			"osv-rhel-8-2026-04-27.json.gz":      {Name: "osv-rhel-8-2026-04-27.json.gz"},
@@ -514,18 +372,13 @@ func TestVersionsFromRelease(t *testing.T) {
 		},
 	}
 
-	ubuntu, rhel, android := versionsFromRelease(release)
-	require.ElementsMatch(t, []string{"2204", "2404"}, ubuntu)
-	require.ElementsMatch(t, []string{"8", "9"}, rhel)
-	require.ElementsMatch(t, []string{"15", "16"}, android)
-}
+	versions := versionsFromRelease(release)
+	require.Len(t, versions, 3)
+	require.ElementsMatch(t, []string{"2204", "2404"}, versions[OSVFilePrefix])
+	require.ElementsMatch(t, []string{"8", "9"}, versions[OSVRHELFilePrefix])
+	require.ElementsMatch(t, []string{"15", "16"}, versions[OSVAndroidFilePrefix])
 
-func TestVersionsFromReleaseEmpty(t *testing.T) {
-	release := &ReleaseInfo{TagName: "cve-202604270000", Assets: map[string]*AssetInfo{}}
-	ubuntu, rhel, android := versionsFromRelease(release)
-	require.Empty(t, ubuntu)
-	require.Empty(t, rhel)
-	require.Empty(t, android)
+	require.Empty(t, versionsFromRelease(&vulnrepo.Release{Assets: map[string]*vulnrepo.Asset{}}))
 }
 
 func TestVersionFromAssetName(t *testing.T) {
@@ -549,8 +402,8 @@ func TestVersionFromAssetName(t *testing.T) {
 }
 
 func TestReleaseDateFromAssets(t *testing.T) {
-	release := &ReleaseInfo{
-		Assets: map[string]*AssetInfo{
+	release := &vulnrepo.Release{
+		Assets: map[string]*vulnrepo.Asset{
 			"osv-ubuntu-2204-2026-04-27.json.gz": {Name: "osv-ubuntu-2204-2026-04-27.json.gz"},
 		},
 	}
@@ -559,54 +412,9 @@ func TestReleaseDateFromAssets(t *testing.T) {
 	require.True(t, ok)
 	require.Equal(t, time.Date(2026, 4, 27, 0, 0, 0, 0, time.UTC), d)
 
-	emptyRelease := &ReleaseInfo{Assets: map[string]*AssetInfo{}}
+	emptyRelease := &vulnrepo.Release{Assets: map[string]*vulnrepo.Asset{}}
 	_, ok = releaseDateFromAssets(emptyRelease)
 	require.False(t, ok)
-}
-
-func TestRemoveOldAndroidOSVArtifacts(t *testing.T) {
-	tmpDir := t.TempDir()
-	today := time.Date(2026, 7, 15, 0, 0, 0, 0, time.UTC)
-
-	files := []string{
-		"osv-android-16-2026-07-15.json.gz",  // today — keep
-		"osv-android-16-2026-07-14.json.gz",  // yesterday — remove
-		"osv-android-15-2026-07-14.json.gz",  // yesterday, different version, not in successful — keep
-		"osv-rhel-9-2026-07-14.json.gz",      // rhel — not touched
-		"osv-ubuntu-2204-2026-07-14.json.gz", // ubuntu — not touched
-		"some-other-file.json",               // unrelated — not touched
-	}
-
-	for _, file := range files {
-		require.NoError(t, os.WriteFile(filepath.Join(tmpDir, file), []byte("test"), 0o644))
-	}
-
-	err := removeOldAndroidOSVArtifacts(today, tmpDir, []string{"16"})
-	require.NoError(t, err)
-
-	// Today's Android 16 — kept
-	_, err = os.Stat(filepath.Join(tmpDir, "osv-android-16-2026-07-15.json.gz"))
-	require.NoError(t, err)
-
-	// Yesterday's Android 16 — removed (successfully downloaded today)
-	_, err = os.Stat(filepath.Join(tmpDir, "osv-android-16-2026-07-14.json.gz"))
-	require.True(t, os.IsNotExist(err))
-
-	// Yesterday's Android 15 — kept (not in successful list)
-	_, err = os.Stat(filepath.Join(tmpDir, "osv-android-15-2026-07-14.json.gz"))
-	require.NoError(t, err)
-
-	// RHEL artifact — not touched
-	_, err = os.Stat(filepath.Join(tmpDir, "osv-rhel-9-2026-07-14.json.gz"))
-	require.NoError(t, err)
-
-	// Ubuntu artifact — not touched
-	_, err = os.Stat(filepath.Join(tmpDir, "osv-ubuntu-2204-2026-07-14.json.gz"))
-	require.NoError(t, err)
-
-	// Other file — not touched
-	_, err = os.Stat(filepath.Join(tmpDir, "some-other-file.json"))
-	require.NoError(t, err)
 }
 
 // TestRefreshAndroidUsesReleaseDate guards the regression where RefreshAndroid
@@ -619,10 +427,10 @@ func TestRefreshAndroidUsesReleaseDate(t *testing.T) {
 	releaseDate := time.Date(2026, 7, 14, 0, 0, 0, 0, time.UTC)
 	now := time.Date(2026, 7, 16, 0, 0, 0, 0, time.UTC)
 
-	assetName := androidOSVFilename("16", releaseDate)
-	release := &ReleaseInfo{
+	assetName := artifactFilename(OSVAndroidFilePrefix, "16", releaseDate)
+	release := &vulnrepo.Release{
 		TagName: "cve-202607140000",
-		Assets: map[string]*AssetInfo{
+		Assets: map[string]*vulnrepo.Asset{
 			assetName: {Name: assetName, ID: 1},
 		},
 	}
@@ -633,26 +441,26 @@ func TestRefreshAndroidUsesReleaseDate(t *testing.T) {
 
 	// Using the release date finds the asset and downloads it.
 	dir := t.TempDir()
-	result, err := syncOSVWithDownloader(context.Background(), dir, []string{"16"}, releaseDate, release, mockDownload, androidOSVFilename)
+	result, err := syncOSVWithDownloader(context.Background(), dir, OSVAndroidFilePrefix, []string{"16"}, releaseDate, release, mockDownload)
 	require.NoError(t, err)
 	require.Contains(t, result.Downloaded, "16")
 	require.Empty(t, result.NotInRelease)
 
 	// Using "now" (different from the release date) misses the asset entirely.
 	nowDir := t.TempDir()
-	nowResult, err := syncOSVWithDownloader(context.Background(), nowDir, []string{"16"}, now, release, mockDownload, androidOSVFilename)
+	nowResult, err := syncOSVWithDownloader(context.Background(), nowDir, OSVAndroidFilePrefix, []string{"16"}, now, release, mockDownload)
 	require.NoError(t, err)
 	require.Contains(t, nowResult.NotInRelease, "16")
 	require.Empty(t, nowResult.Downloaded)
 
 	// Cleanup with the release date preserves the just-downloaded artifact...
-	require.NoError(t, removeOldAndroidOSVArtifacts(releaseDate, dir, []string{"16"}))
+	require.NoError(t, removeOldArtifacts(OSVAndroidFilePrefix, releaseDate, dir, []string{"16"}))
 	_, err = os.Stat(filepath.Join(dir, assetName))
 	require.NoError(t, err, "release-dated artifact must be preserved")
 
 	// ...whereas cleaning up with "now" would delete it, since its date suffix
 	// doesn't match and version 16 is in the successful set.
-	require.NoError(t, removeOldAndroidOSVArtifacts(now, dir, []string{"16"}))
+	require.NoError(t, removeOldArtifacts(OSVAndroidFilePrefix, now, dir, []string{"16"}))
 	_, err = os.Stat(filepath.Join(dir, assetName))
 	require.True(t, os.IsNotExist(err), "cleanup keyed on now wrongly deletes the release-dated artifact")
 }
@@ -707,26 +515,6 @@ func TestGetNeededAndroidVersions(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result := getNeededAndroidVersions(tt.oses)
 			require.ElementsMatch(t, tt.expected, result)
-		})
-	}
-}
-
-func TestAndroidOSVFilename(t *testing.T) {
-	date := time.Date(2026, 7, 15, 0, 0, 0, 0, time.UTC)
-
-	tests := []struct {
-		version  string
-		expected string
-	}{
-		{"16", "osv-android-16-2026-07-15.json.gz"},
-		{"14", "osv-android-14-2026-07-15.json.gz"},
-		{"8.1", "osv-android-8.1-2026-07-15.json.gz"},
-		{"12L", "osv-android-12L-2026-07-15.json.gz"},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.version, func(t *testing.T) {
-			require.Equal(t, tt.expected, androidOSVFilename(tt.version, date))
 		})
 	}
 }
