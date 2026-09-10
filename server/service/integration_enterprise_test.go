@@ -4776,11 +4776,67 @@ func (s *integrationEnterpriseTestSuite) TestLinuxDiskEncryption() {
 	s.DoJSON("POST", "/api/fleet/orbit/config", fleet.OrbitGetConfigRequest{OrbitNodeKey: orbitKey}, http.StatusOK, &secondOrbitResponse)
 	require.False(t, secondOrbitResponse.Notifications.RunDiskEncryptionEscrow)
 
+	// the agent is now prompting; triggering again must not re-queue, and the response says so
+	res = s.DoRawNoAuth("POST", fmt.Sprintf("/api/latest/fleet/device/%s/mdm/linux/trigger_escrow", deviceToken), nil, http.StatusConflict)
+	require.Contains(t, extractServerErrorText(res.Body), fleet.LinuxEscrowInFlightMessage)
+	res.Body.Close()
+	retryAfter, err := strconv.Atoi(res.Header.Get("Retry-After"))
+	require.NoError(t, err)
+	require.Positive(t, retryAfter)
+	require.LessOrEqual(t, retryAfter, int(fleet.LinuxEscrowInFlightWindow.Seconds()))
+	var inFlightOrbitResponse fleet.OrbitGetConfigResponse
+	s.DoJSON("POST", "/api/fleet/orbit/config", fleet.OrbitGetConfigRequest{OrbitNodeKey: orbitKey}, http.StatusOK, &inFlightOrbitResponse)
+	require.False(t, inFlightOrbitResponse.Notifications.RunDiskEncryptionEscrow)
+
+	// a heartbeat from the agent keeps the escrow in flight past the window
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(t.Context(), `UPDATE host_disk_encryption_keys SET escrow_sent_at = DATE_SUB(escrow_sent_at, INTERVAL 1 HOUR) WHERE host_id = ?`, noTeamHost.ID)
+		return err
+	})
+	s.Do("POST", "/api/fleet/orbit/luks_data", fleet.OrbitPostLUKSRequest{
+		OrbitNodeKey: *noTeamHost.OrbitNodeKey,
+		Status:       fleet.LinuxEscrowStatusPrompting,
+	}, http.StatusNoContent)
+	res = s.DoRawNoAuth("POST", fmt.Sprintf("/api/latest/fleet/device/%s/mdm/linux/trigger_escrow", deviceToken), nil, http.StatusConflict)
+	res.Body.Close()
+
+	// a canceled prompt ends the in-flight state without recording an error, so a retry
+	// queues immediately and the host's encryption status is left as it was
+	var beforeCancel, afterCancel getMDMDiskEncryptionSummaryResponse
+	s.DoJSON("GET", "/api/latest/fleet/disk_encryption", getMDMDiskEncryptionSummaryRequest{}, http.StatusOK, &beforeCancel)
+	s.Do("POST", "/api/fleet/orbit/luks_data", fleet.OrbitPostLUKSRequest{
+		OrbitNodeKey: *noTeamHost.OrbitNodeKey,
+		Status:       fleet.LinuxEscrowStatusCanceled,
+	}, http.StatusNoContent)
+	s.DoJSON("GET", "/api/latest/fleet/disk_encryption", getMDMDiskEncryptionSummaryRequest{}, http.StatusOK, &afterCancel)
+	require.Equal(t, *beforeCancel.MDMDiskEncryptionSummary, *afterCancel.MDMDiskEncryptionSummary)
+	res = s.DoRawNoAuth("POST", fmt.Sprintf("/api/latest/fleet/device/%s/mdm/linux/trigger_escrow", deviceToken), nil, http.StatusNoContent)
+	res.Body.Close()
+	var canceledOrbitResponse fleet.OrbitGetConfigResponse
+	s.DoJSON("POST", "/api/fleet/orbit/config", fleet.OrbitGetConfigRequest{OrbitNodeKey: orbitKey}, http.StatusOK, &canceledOrbitResponse)
+	require.True(t, canceledOrbitResponse.Notifications.RunDiskEncryptionEscrow)
+
 	// set an error first; the successful write should overwrite that
 	s.Do("POST", "/api/fleet/orbit/luks_data", fleet.OrbitPostLUKSRequest{
 		OrbitNodeKey: *noTeamHost.OrbitNodeKey,
 		ClientError:  "Houston, we had a problem",
 	}, http.StatusNoContent)
+
+	// a report from the agent ends the in-flight state, so a retry queues immediately
+	res = s.DoRawNoAuth("POST", fmt.Sprintf("/api/latest/fleet/device/%s/mdm/linux/trigger_escrow", deviceToken), nil, http.StatusNoContent)
+	res.Body.Close()
+	var retriggerOrbitResponse fleet.OrbitGetConfigResponse
+	s.DoJSON("POST", "/api/fleet/orbit/config", fleet.OrbitGetConfigRequest{OrbitNodeKey: orbitKey}, http.StatusOK, &retriggerOrbitResponse)
+	require.True(t, retriggerOrbitResponse.Notifications.RunDiskEncryptionEscrow)
+
+	// the in-flight window expired while the user was still typing and they clicked Create key
+	// again, so a stale request is pending when the key finally arrives
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(t.Context(), `UPDATE host_disk_encryption_keys SET escrow_sent_at = DATE_SUB(escrow_sent_at, INTERVAL 1 HOUR) WHERE host_id = ?`, noTeamHost.ID)
+		return err
+	})
+	res = s.DoRawNoAuth("POST", fmt.Sprintf("/api/latest/fleet/device/%s/mdm/linux/trigger_escrow", deviceToken), nil, http.StatusNoContent)
+	res.Body.Close()
 
 	// upload LUKS data
 	keySlot := new(uint(1))
@@ -4790,6 +4846,11 @@ func (s *integrationEnterpriseTestSuite) TestLinuxDiskEncryption() {
 		Salt:         "the team i like lost",
 		KeySlot:      keySlot,
 	}, http.StatusNoContent)
+
+	// saving the key drops the stale request, so the user is not prompted again
+	var afterKeyOrbitResponse fleet.OrbitGetConfigResponse
+	s.DoJSON("POST", "/api/fleet/orbit/config", fleet.OrbitGetConfigRequest{OrbitNodeKey: orbitKey}, http.StatusOK, &afterKeyOrbitResponse)
+	require.False(t, afterKeyOrbitResponse.Notifications.RunDiskEncryptionEscrow)
 
 	// confirm verified
 	s.DoJSON("GET", "/api/latest/fleet/disk_encryption", getMDMDiskEncryptionSummaryRequest{}, http.StatusOK, &summary)
@@ -36178,7 +36239,11 @@ func (s *integrationEnterpriseTestSuite) TestScriptFleetVariablesExecution() {
 			s.DoJSON("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: h.ID, ScriptContents: contents}, http.StatusAccepted, &runResp)
 
 			fetched := orbitFetchScript(t, h, runResp.ExecutionID)
-			require.Equal(t, fmt.Sprintf("echo serial=%s uuid=%s plat=ubuntu", h.HardwareSerial, h.UUID), fetched.ScriptContents)
+			requireVarsDelivered(t, fetched.ScriptContents, contents, map[string]string{
+				"HOST_HARDWARE_SERIAL": h.HardwareSerial,
+				"HOST_UUID":            h.UUID,
+				"HOST_PLATFORM":        "ubuntu",
+			})
 			require.Nil(t, fetched.ExitCode)
 
 			// stored contents stay unexpanded
@@ -36256,15 +36321,20 @@ func (s *integrationEnterpriseTestSuite) TestScriptFleetVariablesExecution() {
 			return err
 		})
 
+		const contents = "user=$FLEET_VAR_HOST_END_USER_IDP_USERNAME local=user_${FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART}@corp.com dept=$FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT"
 		var runResp fleet.RunScriptResponse
 		s.DoJSON("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{
 			HostID:         host2.ID,
-			ScriptContents: "user=$FLEET_VAR_HOST_END_USER_IDP_USERNAME local=user_${FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART}@corp.com dept=$FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT",
+			ScriptContents: contents,
 		}, http.StatusAccepted, &runResp)
 
 		fetched := orbitFetchScript(t, host2, runResp.ExecutionID)
 		require.Nil(t, fetched.ExitCode)
-		require.Equal(t, "user=jane.doe@example.com ($FLEET_SECRET_INJECTED) local=user_jane.doe@corp.com dept=Engineering", fetched.ScriptContents)
+		requireVarsDelivered(t, fetched.ScriptContents, contents, map[string]string{
+			"HOST_END_USER_IDP_USERNAME":            "jane.doe@example.com ($FLEET_SECRET_INJECTED)",
+			"HOST_END_USER_IDP_USERNAME_LOCAL_PART": "jane.doe",
+			"HOST_END_USER_IDP_DEPARTMENT":          "Engineering",
+		})
 	})
 
 	t.Run("sync run surfaces the resolution failure", func(t *testing.T) {

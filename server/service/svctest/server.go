@@ -3,13 +3,14 @@ package svctest
 import (
 	"context"
 	"crypto/x509"
-	"github.com/WatchBeam/clock"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"testing"
 	"time"
+
+	"github.com/WatchBeam/clock"
 
 	"github.com/fleetdm/fleet/v4/ee/server/scim"
 	"github.com/fleetdm/fleet/v4/ee/server/service/condaccess"
@@ -196,6 +197,7 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 				checkInAndCommand,
 				service.NewMDMAppleDDMService(ds, logger),
 				commander,
+				service.NewMDMAppleGetTokenService(ds, logger),
 				"https://test-url.com",
 				cfg,
 				svc,
