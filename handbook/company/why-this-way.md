@@ -358,9 +358,9 @@ Many companies encourage salespeople to ["spray and pray"](https://www.linkedin.
 
 ## Why short emails?
 
-Short emails that stick to a single ask tend to get better responses, since everyone's inbox is already overwhelming. When an email bundles in more than one link or question, it's easy to put off, leave marked as unread, and start to feel more like homework than something quick to act on.
+Short emails that stick to a single ask tend to get better responses, since everyone's inbox is already overwhelming. When an email bundles in more than one link or question, it's easy to put off, leave marked as unread, and start to feel more like homework than something to act quickly on. 
 
-Learn more in this [whiteboard](https://docs.google.com/document/d/1MPj4WPFPr5uSbrGoymAjjijdBSAyEB2Tq6qFxs9UKV0/edit?tab=t.0).
+Learn more in this [confidential whiteboard](https://docs.google.com/document/d/1MPj4WPFPr5uSbrGoymAjjijdBSAyEB2Tq6qFxs9UKV0/edit?tab=t.0).
 
 
 ## Why work with customer X?
