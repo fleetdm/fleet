@@ -364,7 +364,7 @@ mocks elsewhere can crash if an interface method is missing.
 |------|--------------|
 | `blob.go` | Bitmap encode/decode, storage-form vs op-form, set ops |
 | `datasets.go` | `UptimeDataset`, `CVEDataset` — the `Dataset` implementations |
-| `api/service.go` | `Service`, `ViewerProvider`, `CollectScopeFn` |
+| `api/service.go` | `Service`, `ViewerProvider`, `CollectScopeFn`, `PlatformExpanderFn` |
 | `api/chart.go` | `Dataset`, `DatasetStore`, `SampleStrategy`, request/response types |
 | `api/http/types.go` | HTTP wire DTOs |
 | `internal/types/chart.go` | `Datastore` interface, `HostFilter` (nil/empty semantics) |
