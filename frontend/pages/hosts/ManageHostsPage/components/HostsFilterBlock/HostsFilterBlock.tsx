@@ -3,7 +3,6 @@ import React, { useContext } from "react";
 import { dateAgo } from "utilities/date_format";
 
 import { AppContext } from "context/app";
-import { HostStatusFilter } from "interfaces/host";
 import { ILabel } from "interfaces/label";
 import {
   formatOperatingSystemDisplayName,
@@ -74,7 +73,6 @@ interface IHostsFilterBlockProps {
     softwareVersionId?: number;
     mdmId?: number;
     mdmEnrollmentStatus?: MdmEnrollmentFilterValue;
-    status?: HostStatusFilter;
     lowDiskSpaceHosts?: number;
     osVersionId?: string;
     osName?: string;
@@ -139,7 +137,6 @@ const HostsFilterBlock = ({
     softwareVersionId,
     mdmId,
     mdmEnrollmentStatus,
-    status,
     lowDiskSpaceHosts,
     osVersionId,
     osName,
@@ -445,18 +442,6 @@ const HostsFilterBlock = ({
     return null;
   };
 
-  // Only the "enrolled" status gets a pill: users land on it from the dashboard
-  // chart, whereas the other statuses are only ever picked from the dropdown.
-  const showEnrolledStatusPill = status === "enrolled";
-
-  const renderEnrolledStatusFilterBlock = () => (
-    <FilterPill
-      label="Status: Enrolled"
-      tooltipDescription="Hosts that have enrolled to Fleet. Excludes hosts pending enrollment."
-      onClear={() => handleClearFilter(["status"])}
-    />
-  );
-
   const renderLowDiskSpaceFilterBlock = () => {
     const TooltipDescription = (
       <span>
@@ -693,7 +678,6 @@ const HostsFilterBlock = ({
 
   if (
     showSelectedLabel ||
-    showEnrolledStatusPill ||
     policyId ||
     macSettingsStatus ||
     softwareId ||
@@ -744,16 +728,8 @@ const HostsFilterBlock = ({
               {renderLabelFilterPill()} {renderOsSettingsBlock()}
             </>
           );
-        case showSelectedLabel && showEnrolledStatusPill:
-          return (
-            <>
-              {renderLabelFilterPill()} {renderEnrolledStatusFilterBlock()}
-            </>
-          );
         case showSelectedLabel:
           return renderLabelFilterPill();
-        case showEnrolledStatusPill:
-          return renderEnrolledStatusFilterBlock();
         case !!policyId:
           return renderPoliciesFilterBlock();
         case !!macSettingsStatus:
