@@ -4,6 +4,7 @@
 const { spawnSync } = require("child_process");
 const {
   existsSync,
+  lstatSync,
   mkdirSync,
   mkdtempSync,
   renameSync,
@@ -75,8 +76,14 @@ const install = async () => {
     // Strip the outer directory when extracting. Just get the binary.
     await pipeline(response.data, extract({ strip: 1, cwd: tmpDir }));
 
-    if (!existsSync(join(tmpDir, binName))) {
-      throw new Error(`archive ${url} does not contain ${binName}`);
+    // Validate before caching: a bad entry here would otherwise be reused on every later run.
+    const extracted = join(tmpDir, binName);
+    const stat = existsSync(extracted) ? lstatSync(extracted) : null;
+    if (!stat || !stat.isFile()) {
+      throw new Error(`archive ${url} does not contain a ${binName} file`);
+    }
+    if (!platform.startsWith("windows") && !(stat.mode & 0o111)) {
+      throw new Error(`${binName} in archive ${url} is not executable`);
     }
     renameSync(tmpDir, installDir);
   } catch (err) {
