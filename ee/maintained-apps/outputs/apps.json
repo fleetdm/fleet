@@ -2690,6 +2690,13 @@
       "description": "Dot is a menu bar calendar with meeting reminders."
     },
     {
+      "name": "dotPeek",
+      "slug": "dotpeek/windows",
+      "platform": "windows",
+      "unique_identifier": "JetBrains dotPeek",
+      "description": "dotPeek is a free .NET decompiler and assembly browser by JetBrains."
+    },
+    {
       "name": "dotTrace",
       "slug": "dottrace/windows",
       "platform": "windows",
@@ -5726,6 +5733,13 @@
       "platform": "darwin",
       "unique_identifier": "me.guillaumeb.MonitorControl",
       "description": "MonitorControl is a tool to control external monitor brightness & volume."
+    },
+    {
+      "name": "Monotype Fonts",
+      "slug": "monotype/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.monotype.monotype-fonts",
+      "description": "Monotype Fonts is a desktop app for finding, activating, and managing fonts from the Monotype Fonts library."
     },
     {
       "name": "Moom",

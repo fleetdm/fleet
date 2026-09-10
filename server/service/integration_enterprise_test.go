@@ -36967,3 +36967,68 @@ func (s *integrationEnterpriseTestSuite) TestTeamPolicyResendConfigProfileCRUD()
 		require.Contains(t, extractServerErrorText(res.Body), "does not belong to team ID")
 	})
 }
+
+func (s *integrationEnterpriseTestSuite) TestApplyPolicySpecsScriptValidation() {
+	t := s.T()
+	ctx := t.Context()
+
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+	otherTeam, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "-other"})
+	require.NoError(t, err)
+
+	newScript := func(name string, teamID *uint) *fleet.Script {
+		script, err := s.ds.NewScript(ctx, &fleet.Script{
+			Name:           name,
+			ScriptContents: "echo",
+			TeamID:         teamID,
+		})
+		require.NoError(t, err)
+		return script
+	}
+	teamScript := newScript("spec-team.sh", &team.ID)
+	otherTeamScript := newScript("spec-other-team.sh", &otherTeam.ID)
+
+	const specURL = "/api/latest/fleet/spec/policies"
+	spec := func(name, teamName string, scriptID uint) fleet.ApplyPolicySpecsRequest {
+		return fleet.ApplyPolicySpecsRequest{
+			Specs: []*fleet.PolicySpec{{
+				Name:     name,
+				Query:    "SELECT 1;",
+				Platform: "darwin",
+				Team:     teamName,
+				ScriptID: new(scriptID),
+			}},
+		}
+	}
+
+	// A script on the policy's own team is accepted.
+	s.Do("POST", specURL, spec("gitops script", team.Name, teamScript.ID), http.StatusOK)
+	list := &fleet.ListTeamPoliciesResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team.ID), nil, http.StatusOK, list)
+	require.Len(t, list.Policies, 1)
+	require.NotNil(t, list.Policies[0].RunScript)
+	require.Equal(t, teamScript.ID, list.Policies[0].RunScript.ID)
+
+	// A spec with no team cannot carry a script.
+	res := s.Do("POST", specURL, spec("gitops global script", "", teamScript.ID), http.StatusBadRequest)
+	require.Contains(t, extractServerErrorText(res.Body), "cannot have script_id set")
+
+	// A script owned by another team is rejected.
+	res = s.Do("POST", specURL, spec("gitops cross team script", team.Name, otherTeamScript.ID), http.StatusBadRequest)
+	require.Contains(t, extractServerErrorText(res.Body), "does not belong to team ID")
+
+	// A script that does not exist is rejected with a clear message rather than a database error.
+	res = s.Do("POST", specURL, spec("gitops missing script", team.Name, otherTeamScript.ID+999), http.StatusBadRequest)
+	require.Contains(t, extractServerErrorText(res.Body), "does not exist")
+
+	// None of the rejected specs created a policy.
+	list = &fleet.ListTeamPoliciesResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team.ID), nil, http.StatusOK, list)
+	require.Len(t, list.Policies, 1)
+	globalList := &fleet.ListGlobalPoliciesResponse{}
+	s.DoJSON("GET", "/api/v1/fleet/global/policies", nil, http.StatusOK, globalList)
+	for _, p := range globalList.Policies {
+		require.NotEqual(t, "gitops global script", p.Name)
+	}
+}

@@ -1059,6 +1059,7 @@ func TestHostDetailsOSSettings(t *testing.T) {
 			}
 		})
 	}
+
 }
 
 // Fragile test: This test is fragile because of the large reliance on Datastore mocks. Consider refactoring test/logic or removing the test. It may be slowing us down more than helping us.
@@ -4356,12 +4357,15 @@ func TestHostEncryptionKey(t *testing.T) {
 		passphrase := "this_is_a_passphrase"
 		base64EncryptedKey, err := mdm.EncryptAndEncode(passphrase, symmetricKey)
 		require.NoError(t, err)
+		base64ArchivedKey, err := mdm.EncryptAndEncode("previous_passphrase", symmetricKey)
+		require.NoError(t, err)
 
 		ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
 			return host, nil
 		}
+		// A decryptable archived key is always present: Linux must never fall back to it.
 		ds.GetHostArchivedDiskEncryptionKeyFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostArchivedDiskEncryptionKey, error) {
-			return &fleet.HostArchivedDiskEncryptionKey{}, nil
+			return &fleet.HostArchivedDiskEncryptionKey{Base64Encrypted: base64ArchivedKey}, nil
 		}
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) { // needed for new activity
 			return &fleet.AppConfig{}, nil
@@ -4375,15 +4379,25 @@ func TestHostEncryptionKey(t *testing.T) {
 		require.Error(t, err, "private key is unavailable")
 		require.Nil(t, key)
 
-		// error when key is not set
+		// not found when the verify query deleted the key
 		ds.GetHostDiskEncryptionKeyFunc = func(ctx context.Context, id uint) (*fleet.HostDiskEncryptionKey, error) {
-			return &fleet.HostDiskEncryptionKey{}, nil
+			return nil, newNotFoundError()
 		}
 		fleetCfg.Server.PrivateKey = symmetricKey
 		svc, ctx = newTestServiceWithConfig(t, ds, fleetCfg, nil, nil)
 		ctx = test.UserContext(ctx, test.UserAdmin)
 		key, err = svc.HostEncryptionKey(ctx, 1)
-		require.Error(t, err, "host encryption key is not set")
+		require.True(t, fleet.IsNotFound(err), "expected not found, got: %v", err)
+		require.Nil(t, key)
+
+		// not found when a new escrow is queued but the key hasn't arrived yet
+		ds.GetHostDiskEncryptionKeyFunc = func(ctx context.Context, id uint) (*fleet.HostDiskEncryptionKey, error) {
+			return &fleet.HostDiskEncryptionKey{}, nil
+		}
+		svc, ctx = newTestServiceWithConfig(t, ds, fleetCfg, nil, nil)
+		ctx = test.UserContext(ctx, test.UserAdmin)
+		key, err = svc.HostEncryptionKey(ctx, 1)
+		require.True(t, fleet.IsNotFound(err), "expected not found, got: %v", err)
 		require.Nil(t, key)
 
 		// error when key is not set
