@@ -1121,6 +1121,11 @@ type Service interface {
 	// UpdateABMTokenTeams updates the default macOS, iOS, iPadOS, and BYOD team IDs for a given ABM token.
 	UpdateABMTokenTeams(ctx context.Context, tokenID uint, macOSTeamID, iOSTeamID, iPadOSTeamID, byodTeamID *uint) (*ABMToken, error)
 
+	// SetABMTokenDefault marks the given ABM token as the default one used to
+	// sign GetToken responses for devices not enrolled through ABM, or unsets
+	// it so no token is the default.
+	SetABMTokenDefault(ctx context.Context, tokenID uint, isDefault bool) (*ABMToken, error)
+
 	// DeleteABMToken deletes the given ABM token.
 	DeleteABMToken(ctx context.Context, tokenID uint) error
 

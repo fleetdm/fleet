@@ -1,0 +1,1 @@
+- Added the ability to set or unset the default Apple Business (AB) token via a new PATCH /ab_tokens/:id/default endpoint and via GitOps (`default: true` on an `apple_business` entry), with GitOps clearing the default when several tokens exist and none is marked.

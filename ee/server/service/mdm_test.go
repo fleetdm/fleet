@@ -858,6 +858,144 @@ func TestUpdateABMTokenTeams(t *testing.T) {
 	})
 }
 
+func TestSetABMTokenDefault(t *testing.T) {
+	t.Parallel()
+	ds := new(mock.Store)
+	authorizer, err := authz.NewAuthorizer()
+	require.NoError(t, err)
+	svc := Service{ds: ds, authz: authorizer}
+
+	tokA := &fleet.ABMToken{ID: 1, OrganizationName: "Org A"}
+	tokB := &fleet.ABMToken{ID: 2, OrganizationName: "Org B"}
+	tokenCount := 2
+
+	resetState := func(defaultID uint) {
+		tokA.IsDefault = tokA.ID == defaultID
+		tokB.IsDefault = tokB.ID == defaultID
+		ds.SetABMTokenDefaultFuncInvoked = false
+		ds.ClearABMTokenDefaultFuncInvoked = false
+		ds.SaveAppConfigFuncInvoked = false
+	}
+
+	ds.GetABMTokenByIDFunc = func(ctx context.Context, tokenID uint) (*fleet.ABMToken, error) {
+		switch tokenID {
+		case tokA.ID:
+			return tokA, nil
+		case tokB.ID:
+			return tokB, nil
+		}
+		return nil, &notFoundError{}
+	}
+	ds.SetABMTokenDefaultFunc = func(ctx context.Context, tokenID uint) error {
+		tokA.IsDefault = tokA.ID == tokenID
+		tokB.IsDefault = tokB.ID == tokenID
+		return nil
+	}
+	ds.ClearABMTokenDefaultFunc = func(ctx context.Context) error {
+		tokA.IsDefault = false
+		tokB.IsDefault = false
+		return nil
+	}
+	ds.GetABMTokenCountFunc = func(ctx context.Context) (int, error) {
+		return tokenCount, nil
+	}
+	ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
+		return []*fleet.ABMToken{tokA, tokB}[:tokenCount], nil
+	}
+	appCfg := &fleet.AppConfig{MDM: fleet.MDM{AppleBusinessManager: optjson.SetSlice([]fleet.MDMAppleABMAssignmentInfo{
+		{OrganizationName: tokA.OrganizationName},
+		{OrganizationName: tokB.OrganizationName},
+	})}}
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return appCfg, nil
+	}
+	var updatedAppCfg *fleet.AppConfig
+	ds.SaveAppConfigFunc = func(ctx context.Context, cfg *fleet.AppConfig) error {
+		updatedAppCfg = cfg
+		return nil
+	}
+
+	appCfgDefaults := func() map[string]bool {
+		m := make(map[string]bool)
+		for _, e := range updatedAppCfg.MDM.AppleBusinessManager.Value {
+			m[e.OrganizationName] = e.Default
+		}
+		return m
+	}
+
+	t.Run("only admins are authorized", func(t *testing.T) {
+		cases := []struct {
+			desc    string
+			user    *fleet.User
+			wantErr error
+		}{
+			{"no role", test.UserNoRoles, test.ErrForbidden},
+			{"observer", test.UserObserver, test.ErrForbidden},
+			{"observer+", test.UserObserverPlus, test.ErrForbidden},
+			{"maintainer", test.UserMaintainer, test.ErrForbidden},
+			{"gitops", test.UserGitOps, test.ErrForbidden},
+			{"admin", test.UserAdmin, nil},
+		}
+		for _, c := range cases {
+			t.Run(c.desc, func(t *testing.T) {
+				resetState(tokA.ID)
+				ctx := test.UserContext(t.Context(), c.user)
+				_, err := svc.SetABMTokenDefault(ctx, tokB.ID, true)
+				test.RequireErrKind(t, c.wantErr, err)
+			})
+		}
+	})
+
+	adminCtx := test.UserContext(t.Context(), test.UserAdmin)
+
+	t.Run("unknown token id is not found", func(t *testing.T) {
+		resetState(tokA.ID)
+		_, err := svc.SetABMTokenDefault(adminCtx, 999, true)
+		require.Error(t, err)
+		require.True(t, fleet.IsNotFound(err))
+	})
+
+	t.Run("setting default moves it from the other token", func(t *testing.T) {
+		resetState(tokA.ID)
+		token, err := svc.SetABMTokenDefault(adminCtx, tokB.ID, true)
+		require.NoError(t, err)
+		assert.True(t, token.IsDefault)
+		assert.True(t, ds.SetABMTokenDefaultFuncInvoked)
+		require.True(t, ds.SaveAppConfigFuncInvoked)
+		assert.Equal(t, map[string]bool{"Org A": false, "Org B": true}, appCfgDefaults())
+	})
+
+	t.Run("unsetting the default clears it", func(t *testing.T) {
+		resetState(tokB.ID)
+		token, err := svc.SetABMTokenDefault(adminCtx, tokB.ID, false)
+		require.NoError(t, err)
+		assert.False(t, token.IsDefault)
+		assert.True(t, ds.ClearABMTokenDefaultFuncInvoked)
+		require.True(t, ds.SaveAppConfigFuncInvoked)
+		assert.Equal(t, map[string]bool{"Org A": false, "Org B": false}, appCfgDefaults())
+	})
+
+	t.Run("unsetting a non-default token is a no-op", func(t *testing.T) {
+		resetState(tokA.ID)
+		token, err := svc.SetABMTokenDefault(adminCtx, tokB.ID, false)
+		require.NoError(t, err)
+		assert.False(t, token.IsDefault)
+		assert.False(t, ds.SetABMTokenDefaultFuncInvoked)
+		assert.False(t, ds.ClearABMTokenDefaultFuncInvoked)
+		assert.False(t, ds.SaveAppConfigFuncInvoked)
+	})
+
+	t.Run("unsetting the only token's default is rejected", func(t *testing.T) {
+		tokenCount = 1
+		t.Cleanup(func() { tokenCount = 2 })
+		resetState(tokA.ID)
+		_, err := svc.SetABMTokenDefault(adminCtx, tokA.ID, false)
+		require.Error(t, err)
+		require.ErrorContains(t, err, "always the default")
+		assert.False(t, ds.ClearABMTokenDefaultFuncInvoked)
+	})
+}
+
 func TestMDMAppleEditedAppleOSUpdatesDeclaration(t *testing.T) {
 	ctx := context.Background()
 	teamID := uint(1)

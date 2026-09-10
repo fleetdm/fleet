@@ -1092,9 +1092,23 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		return nil, ctxerr.Wrap(ctx, err, "validating MDM config")
 	}
 
-	abmAssignments, err := svc.validateABMAssignments(ctx, &newAppConfig.MDM, &oldAppConfig.MDM, invalid, lic)
+	abmAssignments, defaultABMTokenID, err := svc.validateABMAssignments(ctx, &newAppConfig.MDM, &oldAppConfig.MDM, invalid, lic)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "validating ABM token assignments")
+	}
+
+	// A lone ABM token is always the default even when the config doesn't mark
+	// it, so reflect that in the stored config to keep GET /config consistent
+	// with GET /ab_tokens.
+	if defaultABMTokenID == nil && appConfig.MDM.AppleBusinessManager.Set && appConfig.MDM.AppleBusinessManager.Valid &&
+		len(appConfig.MDM.AppleBusinessManager.Value) == 1 {
+		count, err := svc.ds.GetABMTokenCount(ctx)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "counting ABM tokens")
+		}
+		if count == 1 {
+			appConfig.MDM.AppleBusinessManager.Value[0].Default = true
+		}
 	}
 
 	var vppAssignments map[uint][]uint
@@ -1514,12 +1528,35 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 				}
 			}
 		}
+		// An explicitly empty apple_business also clears the default, like it
+		// clears the default fleets above. A lone token is always the default,
+		// so leave it alone then.
+		if len(toks) > 1 {
+			if err := svc.ds.ClearABMTokenDefault(ctx); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "clearing default ABM token")
+			}
+		}
 	}
 
 	if (appConfig.MDM.AppleBusinessManager.Set && appConfig.MDM.AppleBusinessManager.Valid) || appConfig.MDM.DeprecatedAppleBMDefaultTeam != "" {
 		for _, tok := range abmAssignments {
 			if err := svc.ds.SaveABMToken(ctx, tok); err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "saving ABM token assignments")
+			}
+		}
+	}
+
+	if newAppConfig.MDM.AppleBusinessManager.Set && newAppConfig.MDM.AppleBusinessManager.Valid && len(newAppConfig.MDM.AppleBusinessManager.Value) > 0 {
+		switch {
+		case defaultABMTokenID != nil:
+			if err := svc.ds.SetABMTokenDefault(ctx, *defaultABMTokenID); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "setting default ABM token")
+			}
+		case len(toks) > 1:
+			// No entry marked default: with several tokens that means "no
+			// default". A lone token is always the default, so leave it then.
+			if err := svc.ds.ClearABMTokenDefault(ctx); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "clearing default ABM token")
 			}
 		}
 	}
@@ -2581,35 +2618,35 @@ func (svc *Service) validateABMAssignments(
 	mdm, oldMdm *fleet.MDM,
 	invalid *fleet.InvalidArgumentError,
 	lic *fleet.LicenseInfo,
-) ([]*fleet.ABMToken, error) {
+) (tokensToSave []*fleet.ABMToken, defaultTokenID *uint, err error) {
 	if mdm.DeprecatedAppleBMDefaultTeam != "" && mdm.AppleBusinessManager.Set && mdm.AppleBusinessManager.Valid {
 		invalid.Append("mdm.apple_bm_default_team", fleet.AppleABMDefaultTeamDeprecatedMessage)
-		return nil, nil
+		return nil, nil, nil
 	}
 
 	if name := mdm.DeprecatedAppleBMDefaultTeam; name != "" && name != oldMdm.DeprecatedAppleBMDefaultTeam {
 		if !lic.IsPremium() {
 			invalid.Append("mdm.apple_bm_default_team", ErrMissingLicense.Error())
-			return nil, nil
+			return nil, nil, nil
 		}
 		team, err := svc.ds.TeamByName(ctx, name)
 		if err != nil {
 			invalid.Append("mdm.apple_bm_default_team", "team name not found")
-			return nil, nil
+			return nil, nil, nil
 		}
 		tokens, err := svc.ds.ListABMTokens(ctx)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 
 		if len(tokens) > 1 {
 			invalid.Append("mdm.apple_bm_default_team", fleet.AppleABMDefaultTeamDeprecatedMessage)
-			return nil, nil
+			return nil, nil, nil
 		}
 
 		if len(tokens) == 0 {
 			invalid.Append("mdm.apple_bm_default_team", "no ABM tokens found")
-			return nil, nil
+			return nil, nil, nil
 		}
 
 		tok := tokens[0]
@@ -2617,18 +2654,18 @@ func (svc *Service) validateABMAssignments(
 		tok.IOSDefaultTeamID = &team.ID
 		tok.IPadOSDefaultTeamID = &team.ID
 		tok.BYODDefaultTeamID = &team.ID
-		return []*fleet.ABMToken{tok}, nil
+		return []*fleet.ABMToken{tok}, nil, nil
 	}
 
 	if mdm.AppleBusinessManager.Set && len(mdm.AppleBusinessManager.Value) > 0 {
 		if !lic.IsPremium() {
 			invalid.Append("mdm.apple_business", ErrMissingLicense.Error())
-			return nil, nil
+			return nil, nil, nil
 		}
 
 		teams, err := svc.ds.TeamsSummary(ctx)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		teamsByName := map[string]*uint{"": nil, "No team": nil}
 		for _, tm := range teams {
@@ -2636,7 +2673,7 @@ func (svc *Service) validateABMAssignments(
 		}
 		tokens, err := svc.ds.ListABMTokens(ctx)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		tokensByName := map[string]*fleet.ABMToken{}
 		for _, token := range tokens {
@@ -2652,18 +2689,27 @@ func (svc *Service) validateABMAssignments(
 			tokensByName[token.OrganizationName] = token
 		}
 
-		var tokensToSave []*fleet.ABMToken
 		for _, bm := range mdm.AppleBusinessManager.Value {
+			if bm.Default {
+				if defaultTokenID != nil {
+					invalid.Append("mdm.apple_business", "only one Apple Business Manager (ABM) token can be the default")
+					return nil, nil, nil
+				}
+				if tok, ok := tokensByName[norm.NFC.String(bm.OrganizationName)]; ok {
+					defaultTokenID = &tok.ID
+				}
+			}
+
 			for _, tmName := range []string{bm.MacOSTeam, bm.IOSTeam, bm.IpadOSTeam, bm.BYODTeam} {
 				if _, ok := teamsByName[norm.NFC.String(tmName)]; !ok {
 					invalid.Appendf("mdm.apple_business", "team %s doesn't exist", tmName)
-					return nil, nil
+					return nil, nil, nil
 				}
 			}
 
 			if _, ok := tokensByName[norm.NFC.String(bm.OrganizationName)]; !ok {
 				invalid.Appendf("mdm.apple_business", "token with organization name %s doesn't exist", bm.OrganizationName)
-				return nil, nil
+				return nil, nil, nil
 			}
 
 			tok := tokensByName[bm.OrganizationName]
@@ -2674,10 +2720,10 @@ func (svc *Service) validateABMAssignments(
 			tokensToSave = append(tokensToSave, tok)
 		}
 
-		return tokensToSave, nil
+		return tokensToSave, defaultTokenID, nil
 	}
 
-	return nil, nil
+	return nil, nil, nil
 }
 
 func (svc *Service) validateVPPAssignments(
