@@ -26,12 +26,8 @@ describe("ResetPasswordForm - component", () => {
 
     await user.click(screen.getByRole("button", { name: "Reset password" }));
 
-    const passwordError = screen.getByText(
-      "New password field must be completed"
-    );
-    const passwordConfirmError = screen.getByText(
-      "New password confirmation field must be completed"
-    );
+    const passwordError = screen.getByText("Enter a new password");
+    const passwordConfirmError = screen.getByText("Confirm your new password");
     expect(passwordError).toBeInTheDocument();
     expect(passwordConfirmError).toBeInTheDocument();
     expect(submitSpy).not.toHaveBeenCalled();
@@ -45,9 +41,7 @@ describe("ResetPasswordForm - component", () => {
     await user.type(screen.getByPlaceholderText("New password"), newPassword);
     await user.click(screen.getByRole("button", { name: "Reset password" }));
 
-    const passwordError = screen.getByText(
-      "New password confirmation field must be completed"
-    );
+    const passwordError = screen.getByText("Confirm your new password");
 
     expect(passwordError).toBeInTheDocument();
     expect(submitSpy).not.toHaveBeenCalled();
@@ -64,9 +58,7 @@ describe("ResetPasswordForm - component", () => {
     );
     await user.click(screen.getByRole("button", { name: "Reset password" }));
 
-    const passwordError = screen.getByText(
-      "New password field must be completed"
-    );
+    const passwordError = screen.getByText("Enter a new password");
     expect(passwordError).toBeInTheDocument();
     expect(submitSpy).not.toHaveBeenCalled();
   });
@@ -82,7 +74,7 @@ describe("ResetPasswordForm - component", () => {
       "not my new password"
     );
     await user.click(screen.getByRole("button", { name: "Reset password" }));
-    const passwordError = screen.getByText("Passwords do not match");
+    const passwordError = screen.getByText("Match the password above");
 
     expect(passwordError).toBeInTheDocument();
     expect(submitSpy).not.toHaveBeenCalled();
@@ -105,7 +97,7 @@ describe("ResetPasswordForm - component", () => {
     await user.click(screen.getByRole("button", { name: "Reset password" }));
 
     const passwordError = screen.getByText(
-      "Password must meet the criteria below"
+      "Enter a password with at least 1 number and 1 symbol"
     );
     expect(passwordError).toBeInTheDocument();
     expect(submitSpy).not.toHaveBeenCalled();
