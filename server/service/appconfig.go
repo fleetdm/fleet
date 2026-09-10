@@ -1506,88 +1506,13 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		}
 	}
 
-	tokensInCfg := make(map[string]struct{})
-	for _, t := range newAppConfig.MDM.AppleBusinessManager.Value {
-		tokensInCfg[t.OrganizationName] = struct{}{}
-	}
-
-	toks, err := svc.ds.ListABMTokens(ctx)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "listing ABM tokens")
-	}
-
-	if newAppConfig.MDM.AppleBusinessManager.Set && len(newAppConfig.MDM.AppleBusinessManager.Value) == 0 {
-		for _, tok := range toks {
-			if _, ok := tokensInCfg[tok.OrganizationName]; !ok {
-				tok.MacOSDefaultTeamID = nil
-				tok.IOSDefaultTeamID = nil
-				tok.IPadOSDefaultTeamID = nil
-				tok.BYODDefaultTeamID = nil
-				if err := svc.ds.SaveABMToken(ctx, tok); err != nil {
-					return nil, ctxerr.Wrap(ctx, err, "saving ABM token assignments")
-				}
-			}
-		}
-		// An explicitly empty apple_business also clears the default, like it
-		// clears the default fleets above. A lone token is always the default,
-		// so leave it alone then.
-		if len(toks) > 1 {
-			if err := svc.ds.ClearABMTokenDefault(ctx); err != nil {
-				return nil, ctxerr.Wrap(ctx, err, "clearing default ABM token")
-			}
-		}
-	}
-
-	if (appConfig.MDM.AppleBusinessManager.Set && appConfig.MDM.AppleBusinessManager.Valid) || appConfig.MDM.DeprecatedAppleBMDefaultTeam != "" {
-		for _, tok := range abmAssignments {
-			if err := svc.ds.SaveABMToken(ctx, tok); err != nil {
-				return nil, ctxerr.Wrap(ctx, err, "saving ABM token assignments")
-			}
-		}
-	}
-
-	if newAppConfig.MDM.AppleBusinessManager.Set && newAppConfig.MDM.AppleBusinessManager.Valid && len(newAppConfig.MDM.AppleBusinessManager.Value) > 0 {
-		switch {
-		case defaultABMTokenID != nil:
-			if err := svc.ds.SetABMTokenDefault(ctx, *defaultABMTokenID); err != nil {
-				return nil, ctxerr.Wrap(ctx, err, "setting default ABM token")
-			}
-		case len(toks) > 1:
-			// No entry marked default: with several tokens that means "no
-			// default". A lone token is always the default, so leave it then.
-			if err := svc.ds.ClearABMTokenDefault(ctx); err != nil {
-				return nil, ctxerr.Wrap(ctx, err, "clearing default ABM token")
-			}
-		}
+	if err := svc.applyABMTokenAssignments(ctx, newAppConfig, appConfig, abmAssignments, defaultABMTokenID); err != nil {
+		return nil, err
 	}
 
 	if vppAssignmentsDefined {
-		// 1. Reset teams for VPP tokens that exist in Fleet but aren't present in the config being passed
-		clear(tokensInCfg)
-		for _, t := range newAppConfig.MDM.VolumePurchasingProgram.Value {
-			tokensInCfg[t.Location] = struct{}{}
-		}
-		vppToks, err := svc.ds.ListVPPTokens(ctx)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "listing VPP tokens")
-		}
-		for _, tok := range vppToks {
-			if _, ok := tokensInCfg[tok.Location]; !ok {
-				tok.Teams = nil
-				if _, err := svc.ds.UpdateVPPTokenTeams(ctx, tok.ID, nil); err != nil {
-					return nil, ctxerr.Wrap(ctx, err, "saving VPP token teams")
-				}
-			}
-		}
-		// 2. Set VPP assignments that are defined in the config.
-		for tokenID, tokenTeams := range vppAssignments {
-			if _, err := svc.ds.UpdateVPPTokenTeams(ctx, tokenID, tokenTeams); err != nil {
-				var errTokConstraint fleet.ErrVPPTokenTeamConstraint
-				if errors.As(err, &errTokConstraint) {
-					return nil, ctxerr.Wrap(ctx, fleet.NewUserMessageError(errTokConstraint, http.StatusConflict))
-				}
-				return nil, ctxerr.Wrap(ctx, err, "saving ABM token assignments")
-			}
+		if err := svc.applyVPPTokenAssignments(ctx, newAppConfig, vppAssignments); err != nil {
+			return nil, err
 		}
 	}
 
@@ -1609,6 +1534,110 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	}
 
 	return obfuscatedAppConfig, nil
+}
+
+// applyABMTokenAssignments persists the ABM token changes computed while validating an app config
+// change: default fleet assignments and the default token. It runs after SaveAppConfig has
+// committed, so returning an error here leaves the new configuration persisted.
+func (svc *Service) applyABMTokenAssignments(
+	ctx context.Context,
+	newAppConfig fleet.AppConfig,
+	appConfig *fleet.AppConfig,
+	abmAssignments []*fleet.ABMToken,
+	defaultABMTokenID *uint,
+) error {
+	tokensInCfg := make(map[string]struct{})
+	for _, t := range newAppConfig.MDM.AppleBusinessManager.Value {
+		tokensInCfg[t.OrganizationName] = struct{}{}
+	}
+
+	toks, err := svc.ds.ListABMTokens(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "listing ABM tokens")
+	}
+
+	if newAppConfig.MDM.AppleBusinessManager.Set && len(newAppConfig.MDM.AppleBusinessManager.Value) == 0 {
+		for _, tok := range toks {
+			if _, ok := tokensInCfg[tok.OrganizationName]; !ok {
+				tok.MacOSDefaultTeamID = nil
+				tok.IOSDefaultTeamID = nil
+				tok.IPadOSDefaultTeamID = nil
+				tok.BYODDefaultTeamID = nil
+				if err := svc.ds.SaveABMToken(ctx, tok); err != nil {
+					return ctxerr.Wrap(ctx, err, "saving ABM token assignments")
+				}
+			}
+		}
+		// An explicitly empty apple_business also clears the default, like it
+		// clears the default fleets above. A lone token is always the default,
+		// so leave it alone then.
+		if len(toks) > 1 {
+			if err := svc.ds.ClearABMTokenDefault(ctx); err != nil {
+				return ctxerr.Wrap(ctx, err, "clearing default ABM token")
+			}
+		}
+	}
+
+	if (appConfig.MDM.AppleBusinessManager.Set && appConfig.MDM.AppleBusinessManager.Valid) || appConfig.MDM.DeprecatedAppleBMDefaultTeam != "" {
+		for _, tok := range abmAssignments {
+			if err := svc.ds.SaveABMToken(ctx, tok); err != nil {
+				return ctxerr.Wrap(ctx, err, "saving ABM token assignments")
+			}
+		}
+	}
+
+	if newAppConfig.MDM.AppleBusinessManager.Set && newAppConfig.MDM.AppleBusinessManager.Valid && len(newAppConfig.MDM.AppleBusinessManager.Value) > 0 {
+		switch {
+		case defaultABMTokenID != nil:
+			if err := svc.ds.SetABMTokenDefault(ctx, *defaultABMTokenID); err != nil {
+				return ctxerr.Wrap(ctx, err, "setting default ABM token")
+			}
+		case len(toks) > 1:
+			// No entry marked default: with several tokens that means "no
+			// default". A lone token is always the default, so leave it then.
+			if err := svc.ds.ClearABMTokenDefault(ctx); err != nil {
+				return ctxerr.Wrap(ctx, err, "clearing default ABM token")
+			}
+		}
+	}
+
+	return nil
+}
+
+// applyVPPTokenAssignments persists the VPP token fleet assignments computed while validating an
+// app config change. Like applyABMTokenAssignments, it runs after SaveAppConfig has committed.
+func (svc *Service) applyVPPTokenAssignments(
+	ctx context.Context,
+	newAppConfig fleet.AppConfig,
+	vppAssignments map[uint][]uint,
+) error {
+	// 1. Reset teams for VPP tokens that exist in Fleet but aren't present in the config being passed
+	tokensInCfg := make(map[string]struct{})
+	for _, t := range newAppConfig.MDM.VolumePurchasingProgram.Value {
+		tokensInCfg[t.Location] = struct{}{}
+	}
+	vppToks, err := svc.ds.ListVPPTokens(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "listing VPP tokens")
+	}
+	for _, tok := range vppToks {
+		if _, ok := tokensInCfg[tok.Location]; !ok {
+			tok.Teams = nil
+			if _, err := svc.ds.UpdateVPPTokenTeams(ctx, tok.ID, nil); err != nil {
+				return ctxerr.Wrap(ctx, err, "saving VPP token teams")
+			}
+		}
+	}
+	// 2. Set VPP assignments that are defined in the config.
+	for tokenID, tokenTeams := range vppAssignments {
+		if _, err := svc.ds.UpdateVPPTokenTeams(ctx, tokenID, tokenTeams); err != nil {
+			if errTokConstraint, ok := errors.AsType[fleet.ErrVPPTokenTeamConstraint](err); ok {
+				return ctxerr.Wrap(ctx, fleet.NewUserMessageError(errTokConstraint, http.StatusConflict))
+			}
+			return ctxerr.Wrap(ctx, err, "saving ABM token assignments")
+		}
+	}
+	return nil
 }
 
 func clearCertRenewals(ctx context.Context, svc *Service, oldAppConfig, appConfig *fleet.AppConfig) error {
