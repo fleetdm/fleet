@@ -23,18 +23,18 @@ Fleet collects software inventory for the software types below. Each table says 
 
 ## Operating systems
 
-| Platform | Collected |
-| --- | --- |
-| macOS | ✅ |
-| Windows 10, 11, and Server | ✅ |
-| ChromeOS | ✅ |
-| Android | ✅ |
-| iOS and iPadOS | ✅ |
-| Linux | ✅ On recognized distributions. See the table below. |
+| Platform | Collected | Data collected | Vulnerabilities |
+| --- | --- | --- | --- |
+| macOS | ✅ | Name, version, architecture, and kernel version. | ✅ |
+| Windows 10, 11, and Server | ✅ | Name, version, display version (such as 23H2), architecture, and installation type. | ✅ Matched against Microsoft security bulletins. |
+| ChromeOS | ✅ | Name, version, and architecture. | ❌ |
+| Android | ✅ | Name and version. | ✅ Matched against the Android security patch level. |
+| iOS and iPadOS | ✅ | Name and version. | ❌ |
+| Linux | ✅ On recognized distributions. See the table below. | Name, version, architecture, and kernel version. | ✅ Kernel vulnerabilities, on supported distributions. |
 
 ### Linux distributions
 
-✅\* means Fleet collects software on the distribution, with a caveat in the notes below the table.
+✅\* means Fleet collects software on the distribution, with a caveat in the notes below the table. Kernel vulnerability coverage varies by distribution. See [Linux coverage](https://fleetdm.com/guides/vulnerability-processing#linux-coverage).
 
 | Distribution | Collected |
 | --- | --- |
@@ -86,8 +86,6 @@ Fleet collects software inventory for the software types below. Each table says 
 | Bazzite, Bluefin, and Aurora | ❌ |
 | Ubuntu Core | ❌ |
 | Any other distribution | ❌ |
-
-**Vulnerabilities:** Fleet detects OS vulnerabilities on macOS, Windows, Android, and supported Linux kernels. ChromeOS, iOS, and iPadOS aren't matched. Linux coverage varies by distribution. See [Linux coverage](https://fleetdm.com/guides/vulnerability-processing#linux-coverage).
 
 - Fedora, Rocky Linux, AlmaLinux, and Oracle Linux report as RHEL because they ship `/etc/redhat-release`. Fleet shows them under RHEL on the **Software** > **OS** page.
 - NVIDIA DGX OS reports as Ubuntu (DGX OS 7 as Ubuntu 24.04, DGX OS 6 as Ubuntu 22.04) because its `/etc/os-release` is Ubuntu's. Fleet doesn't read `/etc/dgx-release`, so the host appears as Ubuntu on the **Software** > **OS** page and the DGX OS version isn't reported. DGX Spark is arm64; use the `arm64` fleetd package.
