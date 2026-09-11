@@ -38,7 +38,7 @@ sequenceDiagram
         note over Admin, Fleet: One-time admin setup
         Admin->>MS: Register Fleet as MDM provider in Entra
         Admin->>MS: Create Autopilot deployment profile in Intune
-        Admin->>Fleet: Connect Fleet to Entra (tenant ID, client ID)
+        Admin->>Fleet: Connect Fleet to Entra (tenant ID, client ID, client secret)
     end
 
     rect rgb(255, 245, 235)
@@ -93,7 +93,7 @@ sequenceDiagram
 
     note over Win, Fleet: Device is now MDM-enrolled
 
-    loop SyncML sessions (mTLS)
+    loop SyncML sessions (OMA-DM MD5 digest auth)
         Win->>Fleet: POST /mdm/microsoft/management (SyncML)
         Fleet-->>Win: Commands + config profiles
     end
@@ -102,16 +102,16 @@ sequenceDiagram
         note over Cron, MS: Background sync (every 5 min)
         Cron->>MS: Graph API: list Autopilot devices
         MS-->>Cron: Device list (serial, ZTDID, group tag)
-        Cron->>Fleet: Link enrolled device to Autopilot record by ZTDID
+        Cron->>Fleet: Create or refresh pending host records
     end
 ```
 
 - **BinarySecurityToken:** For Autopilot/Entra-joined devices, this is the Entra JWT. Fleet validates it before issuing a certificate.
 - **ZTDID (Zero Touch Device ID):** A GUID Microsoft assigns to each Autopilot-registered device. The device sends it during enrollment. Fleet stores it and uses it to link the MDM enrollment to the Autopilot record.
-- **WSTEP:** The certificate enrollment protocol. Fleet's WSTEP identity key signs the device's CSR, producing a client certificate used for all future management sessions.
-- **Why the cron sync?** Fleet already knows about devices that enroll in its MDM server, but the sync serves three purposes that MDM enrollment alone cannot: **(1)** it creates pending host records for devices registered in Autopilot that haven't been unboxed yet, so admins see their full inventory in Fleet before a single device boots; **(2)** it pulls the group tag from the Autopilot record, which determines which Fleet team the device gets assigned to (the MDM enrollment itself doesn't carry this); **(3)** it detects when a device is removed from Autopilot in Intune and cleans up the Fleet record.
+- **WSTEP:** The certificate enrollment protocol. Fleet's WSTEP identity key signs the device's CSR and returns the client certificate in the provisioning doc. Fleet does not use this certificate to authenticate management sessions: SyncML sessions use OMA-DM MD5 digest credentials that Fleet provisions at enrollment and rekeys on the first check-in. Certificate renewal is advertised but not implemented yet ([#52492](https://github.com/fleetdm/fleet/issues/52492)), and signed SyncML messages are not verified yet ([#48771](https://github.com/fleetdm/fleet/issues/48771)).
+- **Why the cron sync?** Fleet already knows about devices that enroll in its MDM server, but the sync serves three purposes that MDM enrollment alone cannot: **(1)** it creates pending host records for devices registered in Autopilot that haven't been unboxed yet, so admins see their full inventory in Fleet before a single device boots; **(2)** it stores the Autopilot group tag on the host for display (group tags don't drive fleet assignment yet; pending hosts land in the Windows enrollment default fleet); **(3)** it detects when a device is removed from Autopilot in Intune and cleans up the Fleet record.
 - **Cron sync:** Runs every 5 minutes, calls the Microsoft Graph API, and diffs against Fleet's stored Autopilot records.
-- **Linking:** Fleet links an enrollment to its Autopilot record first by ZTDID (fast, authoritative), then by serial number as a fallback.
+- **Linking:** During the first SyncML session, Fleet links the enrollment to its pending host first by ZTDID (fast, authoritative), then by serial number as a fallback.
 
 ## Level 4: Setup experience (ESP)
 
@@ -148,17 +148,17 @@ sequenceDiagram
 
     note over Queue, Orbit: Software installs delivered via unified queue
 
-    Orbit->>Fleet: All items complete
-    Fleet-->>Win: Release ESP
+    Win->>Fleet: Next SyncML check-in
+    Fleet-->>Win: Release ESP (all items complete)
     note right of Win: User reaches desktop
 ```
 
-- **ESP hold:** Fleet sends DMClient CSP commands via SyncML to block OOBE progress. These are sent before Orbit has enrolled.
+- **ESP hold:** Fleet sends DMClient CSP and EnrollmentStatusTracking CSP commands via SyncML to block OOBE progress. These are sent before Orbit has enrolled.
 - **How Orbit gets installed:** In the first SyncML session, Fleet sends an MDM command telling the device to download and install the fleetd MSI package. Windows executes this while the ESP is displayed. Once installed, Orbit starts as a service and enrolls with Fleet's API.
 - **Orbit** is Fleet's agent. Once installed on the device, it drives the setup experience by polling the server every 30 seconds.
 - **Unified queue:** Fleet's internal job queue that delivers software installs to Orbit in sequence.
-- **3-hour timeout:** Fleet auto-releases the ESP after 3 hours if installation hasn't completed, to prevent the device from being stuck at OOBE indefinitely.
-- **User-scoped profiles** are held until after ESP completes and a user is signed in, because Windows rejects user-scope writes during OOBE.
+- **3-hour timeout:** If setup hasn't completed after 3 hours, Fleet fails the ESP with an error screen instead of releasing. The device offers Reset, plus Continue anyway unless the fleet requires all software.
+- **User-scoped profiles** are held until the device reports a signed-in Entra user via the `LoginStatus` alert, because Windows rejects user-scope writes until a user MDM context exists.
 
 ## Glossary
 
@@ -171,7 +171,7 @@ sequenceDiagram
 | ZTDID | Zero Touch Device ID: Autopilot device GUID assigned by Microsoft |
 | WSTEP | Certificate enrollment protocol (Fleet signs the device's CSR) |
 | SyncML | XML protocol for MDM command exchange between device and server |
-| mTLS | Mutual TLS: both device and server authenticate with certificates |
+| MD5 digest auth | OMA-DM application-level authentication (username, password, nonce) that Fleet uses for SyncML sessions |
 | Graph API | Microsoft's REST API; Fleet uses it to list Autopilot devices |
 | Hardware hash | TPM + SMBIOS fingerprint that uniquely identifies a device to Autopilot |
 | CSP | Configuration Service Provider: Windows interface for reading/writing device settings |
