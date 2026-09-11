@@ -2428,7 +2428,7 @@ Modifies the Fleet's configuration with the supplied information.
 | live_reporting_disabled           | boolean | Whether the live reporting capabilities are disabled.                                       |
 | discard_reports_data              | boolean | Whether storing report results are disabled.                                                |
 | ai_features_disabled              | boolean | Whether AI features are disabled.                                                           |
-| report_cap                        | integer | The maximum number of results to store per report before the report is clipped. If increasing this cap, we recommend enabling reports for one report at time and monitoring your infrastructure. (Default: `1000`) |
+| report_cap                        | integer | The maximum number of results to store per report before the report is clipped. If the number of hosts is higher than this cap, Fleet uses the number of hosts instead, so a report that returns one result per host is never clipped. If increasing this cap, we recommend enabling reports for one report at time and monitoring your infrastructure. (Default: `1000`) |
 
 > Note: If `server_url` changes, hosts that enrolled to the old URL will need to re-enroll, or they will no longer communicate with Fleet. Before re-enrolling Android hosts, you'll need to turn Android MDM off and back on to point Google to the new `server_url`.
 
@@ -11828,14 +11828,19 @@ Returns a specific report's data.
 
 #### Parameters
 
-| Name      | Type    | In    | Description                                                                               |
-| --------- | ------- | ----- | ----------------------------------------------------------------------------------------- |
-| id        | integer | path  | **Required**. The ID of the desired query.                                                |
-| fleet_id   | integer | query | Filter the query report to only include hosts that are associated with the fleet specified |
+| Name            | Type    | In    | Description                                                                               |
+| --------------- | ------- | ----- | ----------------------------------------------------------------------------------------- |
+| id              | integer | path  | **Required**. The ID of the desired report.                                               |
+| fleet_id        | integer | query | Filter the report to only include hosts that are associated with the fleet specified.     |
+| query           | string  | query | Search query keywords. Matches the host's display name and any result column value.       |
+| page            | integer | query | Page number of the results to fetch. Only applies when `per_page` is set.                 |
+| per_page        | integer | query | Results per page. If omitted, all results are returned and `meta` is not included.        |
+| order_key       | string  | query | What to order results by. Valid options are `"last_fetched"`, `"host_name"`, `"host_id"`, or the name of a result column. Result column values are sorted as strings, and the built-in options take precedence over a result column with the same name. Default is `"last_fetched"`. |
+| order_direction | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"desc"`. |
 
 #### Example
 
-`GET /api/v1/fleet/reports/31/report`
+`GET /api/v1/fleet/reports/31/report?per_page=5`
 
 ##### Default response
 
@@ -11846,6 +11851,11 @@ Returns a specific report's data.
   "query_id": 31,
   "report_id": 31,
   "report_clipped": false,
+  "count": 12,
+  "meta": {
+    "has_next_results": true,
+    "has_previous_results": false
+  },
   "results": [
     {
       "host_id": 1,
@@ -11896,11 +11906,16 @@ Returns a specific report's data.
 }
 ```
 
-If a query has no results stored, then `results` will be an empty array:
+`count` is the total number of results matching the request across all pages.
+
+If a report has no results stored, then `results` will be an empty array:
 
 ```json
 {
   "query_id": 32,
+  "report_id": 32,
+  "report_clipped": false,
+  "count": 0,
   "results": []
 }
 ```
