@@ -31,6 +31,7 @@ Below is the JSON payload that is sent to Fleet Device Management Inc:
   "mdmAndroidEnabled": false,
   "numHostsFleetMDMEnrolledMacOS": 999,
   "numHostsFleetMDMEnrolledWindows": 999,
+  "numHostsABMPending": 999,
   "numMDMAppleProfiles": 999,
   "numMDMWindowsProfiles": 999,
   "numMDMAppleDeclarations": 999,
