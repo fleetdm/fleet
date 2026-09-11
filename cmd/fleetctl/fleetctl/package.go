@@ -259,6 +259,13 @@ func packageCommand() *cli.Command {
 				EnvVars:     []string{"FLEETCTL_OSQUERY_DB"},
 				Destination: &opt.OsqueryDB,
 			},
+			&cli.UintFlag{
+				Name:        "cpu-quota",
+				Usage:       "CPU quota, as a percentage of one CPU core, that systemd enforces on fleetd (only available with '--type' deb, rpm, or pkg.tar.zst)",
+				Value:       20,
+				EnvVars:     []string{"FLEETCTL_CPU_QUOTA"},
+				Destination: &opt.CPUQuota,
+			},
 			&cli.StringFlag{
 				Name:        "outfile",
 				Usage:       "Output file for the generated package",
@@ -322,6 +329,17 @@ func packageCommand() *cli.Command {
 
 			if opt.OsqueryDB != "" && !isAbsolutePath(opt.OsqueryDB, c.String("type")) {
 				return fmt.Errorf("--osquery-db must be an absolute path: %q", opt.OsqueryDB)
+			}
+
+			if c.IsSet("cpu-quota") {
+				switch c.String("type") {
+				case "deb", "rpm", "pkg.tar.zst":
+				default:
+					return errors.New("--cpu-quota is only supported for deb/rpm/pkg.tar.zst packages")
+				}
+				if opt.CPUQuota == 0 {
+					return errors.New("--cpu-quota must be greater than 0")
+				}
 			}
 
 			if runtime.GOOS == "windows" && c.String("type") != "msi" {
