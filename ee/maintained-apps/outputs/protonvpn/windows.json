@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "5.1.7",
+      "version": "5.1.8",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'Proton VPN %' AND publisher = 'Proton AG';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Proton VPN %' AND publisher = 'Proton AG' AND version_compare(version, '5.1.7') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Proton VPN %' AND publisher = 'Proton AG' AND version_compare(version, '5.1.8') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) IN ('proton vpn.exe','protonvpn.exe'));"
       },
-      "installer_url": "https://vpn.protondownload.com/download/ProtonVPN_v5.1.7_x64.exe",
+      "installer_url": "https://vpn.protondownload.com/download/ProtonVPN_v5.1.8_x64.exe",
       "install_script_ref": "db724da1",
       "uninstall_script_ref": "28451661",
-      "sha256": "ab8c87d7db3cb76271df72186c1af0831362671b145acc449a8443a415379c8a",
+      "sha256": "c7e9d52fd4d3b65ff8ea83c24dbbe3f4ad9b3726739cf645ce15b9e24edc4aa4",
       "default_categories": [
         "Productivity"
       ]

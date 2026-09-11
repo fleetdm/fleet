@@ -4,6 +4,5 @@
   "token": "dbeaver-enterprise",
   "installer_format": "dmg",
   "slug": "dbeaver-enterprise/darwin",
-  "default_categories": ["Developer tools"],
-  "frozen": true
+  "default_categories": ["Developer tools"]
 }

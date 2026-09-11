@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/dialog"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/siderolabs/go-blockdevice/v2/encryption"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -109,10 +110,12 @@ func TestPromptAndValidatePassphraseValidatesAgainstAnySlot(t *testing.T) {
 			return slot == encryption.AnyKeyslot && string(passphrase) == string(correct)
 		},
 	}
-	lr := &LuksRunner{notifier: dlg}
+	escrower := newStatusEscrower()
+	lr := &LuksRunner{escrower: escrower, notifier: dlg}
 
-	got, err := lr.promptAndValidatePassphrase(ctx, dev, "/dev/sda")
+	got, outcome, err := lr.promptAndValidatePassphrase(ctx, dev, "/dev/sda")
 	require.NoError(t, err)
+	assert.Equal(t, promptEntered, outcome)
 	assert.Equal(t, correct, got)
 
 	// The passphrase must have been validated against any slot, not slot 0.
@@ -120,6 +123,8 @@ func TestPromptAndValidatePassphraseValidatesAgainstAnySlot(t *testing.T) {
 	assert.Equal(t, encryption.AnyKeyslot, dev.checkedSlots[0])
 	// User was only prompted once, no retry.
 	assert.Equal(t, []string{entryDialogText}, dlg.shownText)
+	// The server learns the slow key slot work is starting.
+	assert.Equal(t, []string{fleet.LinuxEscrowStatusEscrowing}, escrower.sentStatuses())
 }
 
 // TestPromptAndValidatePassphraseRetries verifies that an incorrect passphrase
@@ -138,15 +143,19 @@ func TestPromptAndValidatePassphraseRetries(t *testing.T) {
 			return string(passphrase) == string(correct)
 		},
 	}
-	lr := &LuksRunner{notifier: dlg}
+	escrower := newStatusEscrower()
+	lr := &LuksRunner{escrower: escrower, notifier: dlg}
 
-	got, err := lr.promptAndValidatePassphrase(ctx, dev, "/dev/sda")
+	got, outcome, err := lr.promptAndValidatePassphrase(ctx, dev, "/dev/sda")
 	require.NoError(t, err)
+	assert.Equal(t, promptEntered, outcome)
 	assert.Equal(t, correct, got)
 
 	assert.Len(t, dev.checkedSlots, 2)
 	// First prompt used the initial copy, second used the retry copy.
 	assert.Equal(t, []string{entryDialogText, retryEntryDialogText}, dlg.shownText)
+	// The re-prompt and the acceptance each keep the server's in-flight state alive.
+	assert.Equal(t, []string{fleet.LinuxEscrowStatusPrompting, fleet.LinuxEscrowStatusEscrowing}, escrower.sentStatuses())
 }
 
 // TestPromptAndValidatePassphraseCanceled verifies that an empty entry (user
@@ -157,10 +166,11 @@ func TestPromptAndValidatePassphraseCanceled(t *testing.T) {
 
 	dlg := &fakeDialog{entries: []scriptedEntry{{value: nil}}}
 	dev := &fakeLUKSDevice{}
-	lr := &LuksRunner{notifier: dlg}
+	lr := &LuksRunner{escrower: &fakeEscrower{}, notifier: dlg}
 
-	got, err := lr.promptAndValidatePassphrase(ctx, dev, "/dev/sda")
+	got, outcome, err := lr.promptAndValidatePassphrase(ctx, dev, "/dev/sda")
 	require.NoError(t, err)
+	assert.Equal(t, promptCanceled, outcome)
 	assert.Nil(t, got)
 	assert.Empty(t, dev.checkedSlots)
 }
@@ -177,10 +187,11 @@ func TestPromptAndValidatePassphraseCanceledDuringRetry(t *testing.T) {
 	dev := &fakeLUKSDevice{
 		validIn: func(_ int, _ []byte) bool { return false },
 	}
-	lr := &LuksRunner{notifier: dlg}
+	lr := &LuksRunner{escrower: &fakeEscrower{}, notifier: dlg}
 
-	got, err := lr.promptAndValidatePassphrase(ctx, dev, "/dev/sda")
+	got, outcome, err := lr.promptAndValidatePassphrase(ctx, dev, "/dev/sda")
 	require.NoError(t, err)
+	assert.Equal(t, promptCanceled, outcome)
 	assert.Nil(t, got)
 	assert.Len(t, dev.checkedSlots, 1)
 }
@@ -193,12 +204,50 @@ func TestPromptAndValidatePassphraseCheckKeyError(t *testing.T) {
 
 	dlg := &fakeDialog{entries: []scriptedEntry{{value: []byte("whatever")}}}
 	dev := &fakeLUKSDevice{checkErr: errors.New("cryptsetup boom")}
-	lr := &LuksRunner{notifier: dlg}
+	lr := &LuksRunner{escrower: &fakeEscrower{}, notifier: dlg}
 
-	got, err := lr.promptAndValidatePassphrase(ctx, dev, "/dev/sda")
+	got, _, err := lr.promptAndValidatePassphrase(ctx, dev, "/dev/sda")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "Failed validating passphrase")
 	assert.Nil(t, got)
+}
+
+func TestRunPassphraseEscrowReportsClosedPrompt(t *testing.T) {
+	ctx := t.Context()
+	cases := []struct {
+		name         string
+		entry        scriptedEntry
+		expected     string
+		expectedInfo []string
+	}{
+		{"canceled", scriptedEntry{err: dialog.ErrCanceled}, fleet.LinuxEscrowStatusCanceled, nil},
+		{"empty entry", scriptedEntry{value: nil}, fleet.LinuxEscrowStatusCanceled, nil},
+		// a timeout also tells the end user how to start over
+		{"timed out", scriptedEntry{err: dialog.ErrTimeout}, fleet.LinuxEscrowStatusTimedOut, []string{timeoutMessage}},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			escrower := newStatusEscrower()
+			dlg := &fakeDialog{entries: []scriptedEntry{c.entry}}
+			lr := New(escrower)
+			lr.notifier = dlg
+
+			require.NoError(t, lr.runPassphraseEscrow(ctx, &fakeLUKSDevice{}, "/dev/sda"))
+			assert.Equal(t, []string{c.expected}, escrower.sentStatuses())
+			assert.Empty(t, escrower.responses, "a closed prompt is not an escrow result")
+			assert.Equal(t, c.expectedInfo, dlg.infoTexts)
+		})
+	}
+
+	t.Run("nothing is sent to a server without the capability", func(t *testing.T) {
+		escrower := &fakeEscrower{}
+		lr := New(escrower)
+		lr.notifier = &fakeDialog{entries: []scriptedEntry{{err: dialog.ErrCanceled}}}
+
+		require.NoError(t, lr.runPassphraseEscrow(ctx, &fakeLUKSDevice{}, "/dev/sda"))
+		assert.Empty(t, escrower.sentStatuses())
+		assert.Empty(t, escrower.responses)
+	})
 }
 
 // TestPassphraseIsValidEmpty verifies the short-circuit: an empty passphrase is
