@@ -35,7 +35,7 @@ We'll deploy a certificate with a dynamic SCEP challenge. To deploy certificates
   
 ### Step 2: Connect Fleet to Okta's CA
 
-1. In Fleet, head to **Settings > Integrations > Certificate enrollment**.
+1. In Fleet, head to **Settings > Integrations > Certificate authorities**.
 2. Select the **Add CA** button and select **Okta CA or Microsoft NDES** in the dropdown. Okta uses NDES under the hood.
 3. Enter your **SCEP URL**, **Admin URL**, and **Username** and **Password**.
 4. Select **Add CA**. Your Okta CA should appear in the list in Fleet.
