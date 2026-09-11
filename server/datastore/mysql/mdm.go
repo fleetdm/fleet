@@ -3185,8 +3185,8 @@ func reconcileHostEmailsFromMdmIdpAccountsDB(ctx context.Context, tx sqlx.ExtCon
 // getMDMIdPAccountsByHostIDs returns the IdP account linked to each of the given
 // hosts, keyed by host id. Hosts with no linked account are absent from the
 // result; host_mdm_idp_accounts is unique on host_uuid, so a host has at most one.
-// getHostIDsByMDMIdPAccountUUIDs returns every host enrolled with one of the
-// given IdP accounts, whether or not it has a SCIM user.
+// getHostIDsByMDMIdPAccountUUIDs returns every host enrolled with the accounts,
+// SCIM-linked or not.
 func getHostIDsByMDMIdPAccountUUIDs(ctx context.Context, q sqlx.QueryerContext, acctUUIDs []string) ([]uint, error) {
 	if len(acctUUIDs) == 0 {
 		return nil, nil

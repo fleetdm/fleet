@@ -3449,6 +3449,35 @@ func testReplaceScimUserRenameUpdatesHostIdPMapping(t *testing.T, ds *Datastore)
 		require.Equal(t, otherName, otherAcct.Email)
 	})
 
+	t.Run("account of another SCIM user behind a reassigned host is left alone", func(t *testing.T) {
+		// the host reassigned to Bob still points at Alice's account
+		const aliceName = "alice.r@example.com"
+		const bobOld, bobNew = "bob@example.com", "robert@example.com"
+		alice := newScimIdPMappingHost(t, ds, "reassign1", "alice.r", aliceName, aliceName)
+		host2 := newScimIdPMappingHostOnly(t, ds, "reassign2")
+		require.NoError(t, ds.AssociateHostMDMIdPAccount(ctx, host2.UUID, alice.acct.UUID))
+		requireHostIdPDeviceMapping(t, ds, host2.ID, aliceName)
+
+		bobID, err := ds.CreateScimUser(ctx, &fleet.ScimUser{UserName: bobOld})
+		require.NoError(t, err)
+		require.NoError(t, ds.SetOrUpdateIDPHostDeviceMapping(ctx, host2.ID, bobOld))
+		_, err = ds.SetOrUpdateHostSCIMUserMapping(ctx, host2.ID, bobID)
+		require.NoError(t, err)
+		require.Equal(t, alice.acct.UUID, hostMDMIdPAccountUUID(t, ds, host2.UUID))
+
+		_, err = ds.ReplaceScimUser(ctx, &fleet.ScimUser{ID: bobID, UserName: bobNew})
+		require.NoError(t, err)
+
+		requireHostIdPDeviceMapping(t, ds, host2.ID, bobNew)
+		require.Equal(t, alice.acct.UUID, hostMDMIdPAccountUUID(t, ds, host2.UUID))
+
+		acct, err := ds.GetMDMIdPAccountByUUID(ctx, alice.acct.UUID)
+		require.NoError(t, err)
+		require.Equal(t, aliceName, acct.Email)
+		require.Equal(t, "alice.r", acct.Username)
+		requireHostIdPDeviceMapping(t, ds, alice.host.ID, aliceName)
+	})
+
 	t.Run("manually set mapping without an IdP account is renamed in place", func(t *testing.T) {
 		// IdP username set via the API before the SCIM user existed: manual "idp"
 		// row, no account link
@@ -3615,8 +3644,7 @@ func testReplaceScimUserRenameResendsEmailIdPProfiles(t *testing.T, ds *Datastor
 	assertHostProfileStatus(t, ds, other.host.UUID,
 		hostProfileStatus{profEmail.ProfileUUID, fleet.MDMDeliveryVerifying})
 
-	// a host on the same IdP account with no SCIM link (a BYOD phone enrolled
-	// after the SCIM user existed) moves with the account and is resent too
+	// a host on the same IdP account without a SCIM link moves with the account
 	const sharedOld, sharedNew = "mia@example.com", "mia.chen@example.com"
 	shared := newScimIdPMappingHost(t, ds, "resendshared", "mia", sharedOld, sharedOld)
 	unlinked := newScimIdPMappingHostOnly(t, ds, "resendunlinked")
@@ -3637,12 +3665,10 @@ func testReplaceScimUserRenameResendsEmailIdPProfiles(t *testing.T, ds *Datastor
 	assertHostProfileStatus(t, ds, unlinked.UUID,
 		hostProfileStatus{profEmail.ProfileUUID, fleet.MDMDeliveryPending},
 		hostProfileStatus{profNone.ProfileUUID, fleet.MDMDeliveryVerifying})
-	// still no SCIM link: only the mapping and its dependent profile moved
 	_, err = ds.ScimUserByHostID(ctx, unlinked.ID)
 	require.True(t, fleet.IsNotFound(err))
 
-	// a host with only a manual mapping has no value for the IdP email variable,
-	// so the rename moves its mapping but resends nothing
+	// a manual-only mapping is not a source for the IdP email variable: no resend
 	const manualOld, manualNew = "noah@example.com", "noah.kim@example.com"
 	manual := newScimIdPMappingHostOnly(t, ds, "resendmanualonly")
 	require.NoError(t, ds.SetOrUpdateIDPHostDeviceMapping(ctx, manual.ID, manualOld))

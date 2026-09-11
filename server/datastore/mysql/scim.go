@@ -383,12 +383,10 @@ func (ds *Datastore) ReplaceScimUser(ctx context.Context, user *fleet.ScimUser) 
 			return err
 		}
 
-		// the hosts whose IdP email actually moved, not merely those a rename could
-		// have moved: a mapping an operator pointed elsewhere, or a host with no
-		// mapping at all, leaves the value every dependent profile resolves untouched
+		// only hosts whose IdP email actually moved need the email profiles resent
 		var idpEmailChangedHostIDs []uint
 		if renamedBetweenEmails {
-			idpEmailChangedHostIDs, err = reconcileHostIdPMappingsForIdPEmailChange(ctx, tx, ds.logger, hostIDs, old.UserName, user.UserName)
+			idpEmailChangedHostIDs, err = reconcileHostIdPMappingsForIdPEmailChange(ctx, tx, ds.logger, user.ID, hostIDs, old.UserName, user.UserName)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "reconcile host idp mappings for idp email change")
 			}
@@ -409,15 +407,14 @@ func (ds *Datastore) ReplaceScimUser(ctx context.Context, user *fleet.ScimUser) 
 }
 
 // reconcileHostIdPMappingsForIdPEmailChange renames the host IdP device mapping
-// and the mdm_idp_accounts row it derives from. Only rows still carrying the old
-// identity are touched, so a manual mapping for another user is left alone.
-//
-// Returns the hosts whose authenticated mapping actually moved, which is what
-// decides where profiles resolving the IdP email need resending.
+// and the mdm_idp_accounts row it derives from, leaving alone rows that no
+// longer carry the old identity and accounts of other SCIM users. Returns the
+// hosts whose authenticated mapping moved.
 func reconcileHostIdPMappingsForIdPEmailChange(
 	ctx context.Context,
 	tx sqlx.ExtContext,
 	logger *slog.Logger,
+	scimUserID uint,
 	hostIDs []uint,
 	oldEmail, newEmail string,
 ) ([]uint, error) {
@@ -445,15 +442,26 @@ func reconcileHostIdPMappingsForIdPEmailChange(
 			// linked to the SCIM user without an IdP-authenticated enrollment
 			continue
 		}
+		if _, seen := acctsByUUID[acct.UUID]; seen {
+			continue
+		}
+		// a host reassigned from the User card still points at its enrollment account
+		owned, err := mdmIdPAccountBelongsToScimUser(ctx, tx, logger, acct, scimUserID)
+		if err != nil {
+			return nil, err
+		}
+		if !owned {
+			logger.InfoContext(ctx, "scim user rename: skip mdm idp account of another scim user", "host_id", hostID,
+				"account_uuid", acct.UUID, "account_email", acct.Email, "scim_user_id", scimUserID)
+			continue
+		}
 		if acct.Email != "" {
 			oldIdentities[acct.Email] = struct{}{}
 		}
 		acctsByUUID[acct.UUID] = acct
 	}
 
-	// an account is renamed for every host enrolled with it, so its other hosts
-	// must move too, including ones without a SCIM link: a BYOD phone enrolled
-	// after the user existed, or a Mac whose link a re-enrollment dropped
+	// the account rename reaches every host enrolled with it, SCIM-linked or not
 	acctUUIDs := slices.Sorted(maps.Keys(acctsByUUID))
 	acctHostIDs, err := getHostIDsByMDMIdPAccountUUIDs(ctx, tx, acctUUIDs)
 	if err != nil {
@@ -474,6 +482,22 @@ func reconcileHostIdPMappingsForIdPEmailChange(
 		}
 	}
 	return renameHostIdPEmails(ctx, tx, logger, hostIDs, slices.Sorted(maps.Keys(oldIdentities)), newEmail)
+}
+
+// mdmIdPAccountBelongsToScimUser is true when the account resolves to that SCIM
+// user or to none: the user's own row is already renamed in this transaction, so
+// its account resolves to nobody.
+func mdmIdPAccountBelongsToScimUser(ctx context.Context, tx sqlx.ExtContext, logger *slog.Logger, acct *fleet.MDMIdPAccount, scimUserID uint) (bool, error) {
+	owner, err := scimUserByUserNameOrEmail(ctx, tx, logger, acct.Username, acct.Email)
+	switch {
+	case fleet.IsNotFound(err):
+		return true, nil
+	case err != nil:
+		return false, ctxerr.Wrap(ctx, err, "resolve mdm idp account scim user")
+	case owner == nil: // several SCIM users share the address
+		return false, nil
+	}
+	return owner.ID == scimUserID, nil
 }
 
 // renameMDMIdPAccount renames one IdP account so the next enrollment reconcile
@@ -531,8 +555,7 @@ func renameMDMIdPAccount(
 }
 
 // renameHostIdPEmails rewrites both mapping sources and returns the hosts whose
-// authenticated row moved: the IdP email fleet variable resolves from the
-// mdm_idp_accounts source only, so a manual row changing says nothing about it.
+// authenticated row moved, the only source the IdP email variable resolves from.
 func renameHostIdPEmails(
 	ctx context.Context,
 	tx sqlx.ExtContext,
@@ -542,8 +565,8 @@ func renameHostIdPEmails(
 	newEmail string,
 ) ([]uint, error) {
 	selStmt, selArgs, err := sqlx.In(
-		`SELECT DISTINCT host_id FROM host_emails WHERE host_id IN (?) AND source = ? AND email IN (?) ORDER BY host_id`,
-		hostIDs, fleet.DeviceMappingMDMIdpAccounts, oldIdentities)
+		`SELECT DISTINCT host_id FROM host_emails WHERE host_id IN (?) AND source = ? AND email IN (?) AND email <> ? ORDER BY host_id`,
+		hostIDs, fleet.DeviceMappingMDMIdpAccounts, oldIdentities, newEmail)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "prepare select host idp device mappings arguments")
 	}
@@ -1710,11 +1733,9 @@ func getHostIDsHavingScimIDPUsers(ctx context.Context, tx sqlx.ExtContext, scimU
 	return hostIDs, nil
 }
 
-// triggerResendProfilesForIDPUserChange resends profiles reading the SCIM user's
-// attributes on scimHostIDs, and profiles reading the IdP email on
-// idpEmailChangedHostIDs, the hosts whose authenticated mapping a rename moved.
-// The two sets differ: a host on the renamed IdP account may have no SCIM link,
-// and a SCIM-linked host may have a mapping the rename left alone.
+// triggerResendProfilesForIDPUserChange resends SCIM attribute profiles on
+// scimHostIDs and IdP email profiles on idpEmailChangedHostIDs; a host can be in
+// either set without being in the other.
 func triggerResendProfilesForIDPUserChange(ctx context.Context, tx sqlx.ExtContext, scimHostIDs, idpEmailChangedHostIDs []uint) ([]fleet.ActivityTypeResentCertificate, error) {
 	vars := []fleet.FleetVarName{
 		fleet.FleetVarHostEndUserIDPUsername,
@@ -1741,8 +1762,7 @@ func triggerResendProfilesForIDPUserChange(ctx context.Context, tx sqlx.ExtConte
 	if err := triggerResendProfilesUsingVariables(ctx, tx, idpEmailChangedHostIDs, emailVars); err != nil {
 		return nil, err
 	}
-	// a template using both a SCIM attribute and the IdP email on a host in
-	// both sets is selected twice; one activity per resend
+	// a template using both kinds of variable is selected twice
 	seen := make(map[[2]uint]struct{}, len(resentCerts))
 	for _, c := range resentCerts {
 		seen[[2]uint{c.HostID, c.CertificateTemplateID}] = struct{}{}
