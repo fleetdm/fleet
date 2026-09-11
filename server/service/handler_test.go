@@ -31,7 +31,8 @@ func TestAPIRoutesConflicts(t *testing.T) {
 	svc, _ := newTestService(t, ds, nil, nil)
 	limitStore, _ := memstore.New(0)
 	cfg := config.TestConfig()
-	h := MakeHandler(svc, cfg, slog.New(slog.DiscardHandler), limitStore, nil, nil, nil)
+	h, err := MakeHandler(svc, cfg, slog.New(slog.DiscardHandler), limitStore, nil, nil, nil)
+	require.NoError(t, err)
 	router := h.(interface{ Router() *mux.Router }).Router()
 
 	type testCase struct {
@@ -48,7 +49,7 @@ func TestAPIRoutesConflicts(t *testing.T) {
 	// conflicts with it and took precedence - a route conflict. The route's name
 	// is used to name the sub-test for that route.
 	status := 200
-	err := router.Walk(func(route *mux.Route, router *mux.Router, ancestores []*mux.Route) error {
+	err = router.Walk(func(route *mux.Route, router *mux.Router, ancestores []*mux.Route) error {
 		_, path, err := mockRouteHandler(route, status)
 		if path == "" || err != nil { // failure or no method set
 			return err
@@ -85,13 +86,14 @@ func TestAPIRoutesMetrics(t *testing.T) {
 
 	svc, _ := newTestService(t, ds, nil, nil)
 	limitStore, _ := memstore.New(0)
-	h := MakeHandler(svc, config.TestConfig(), slog.New(slog.DiscardHandler), limitStore, nil, nil, nil)
+	h, err := MakeHandler(svc, config.TestConfig(), slog.New(slog.DiscardHandler), limitStore, nil, nil, nil)
+	require.NoError(t, err)
 	router := h.(interface{ Router() *mux.Router }).Router()
 
 	// replace all handlers with mocks, and collect the requests to make to each
 	// route.
 	var reqs []*http.Request
-	err := router.Walk(func(route *mux.Route, router *mux.Router, ancestores []*mux.Route) error {
+	err = router.Walk(func(route *mux.Route, router *mux.Router, ancestores []*mux.Route) error {
 		verb, path, err := mockRouteHandler(route, http.StatusOK)
 		if path == "" || err != nil { // failure or no method set
 			return err

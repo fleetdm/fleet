@@ -38,14 +38,16 @@ func TestFastPathSpanNamesMatchGorillaTemplates(t *testing.T) {
 	ds := new(mock.Store)
 	svc, _ := newTestService(t, ds, nil, nil)
 	limitStore, _ := memstore.New(0)
-	h := MakeHandler(svc, cfg, slog.New(slog.DiscardHandler), limitStore, nil, nil, productionFeatureRoutes(t, svc))
+	h, err := MakeHandler(svc, cfg, slog.New(slog.DiscardHandler), limitStore, nil, nil, productionFeatureRoutes(t, svc))
+	require.NoError(t, err)
 	router := h.(interface{ Router() *mux.Router }).Router()
 
 	require.NoError(t, router.Walk(func(route *mux.Route, _ *mux.Router, _ []*mux.Route) error {
 		route.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
 		return nil
 	}))
-	handler := newFastPathHandler(router, nil, cfg)
+	handler, err := newFastPathHandler(router, nil, cfg)
+	require.NoError(t, err)
 	require.IsType(t, &fastPathHandler{}, handler)
 
 	cases := []struct {

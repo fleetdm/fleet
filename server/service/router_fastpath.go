@@ -87,12 +87,12 @@ var (
 // registered and after addMetrics, because the handlers it promotes are the fully wrapped ones. middlewares are the
 // route-agnostic wrappers gorilla applies through Use; they are applied again here because a request served by the fast path
 // never enters the gorilla router.
-func newFastPathHandler(r *mux.Router, middlewares []mux.MiddlewareFunc, cfg config.FleetConfig) http.Handler {
+func newFastPathHandler(r *mux.Router, middlewares []mux.MiddlewareFunc, cfg config.FleetConfig) (http.Handler, error) {
 	fast, err := buildFastPathMux(r, middlewares, cfg)
 	if err != nil {
-		panic(fmt.Sprintf("building the stdlib fast-path router: %v", err))
+		return nil, fmt.Errorf("building the stdlib fast-path router: %w", err)
 	}
-	return &fastPathHandler{fast: fast, router: r}
+	return &fastPathHandler{fast: fast, router: r}, nil
 }
 
 func buildFastPathMux(r *mux.Router, middlewares []mux.MiddlewareFunc, cfg config.FleetConfig) (*http.ServeMux, error) {
@@ -144,7 +144,7 @@ func buildFastPathMux(r *mux.Router, middlewares []mux.MiddlewareFunc, cfg confi
 				continue
 			}
 			bridged := newFastPathRoute(tpl, method, versionSegment(tpl, pattern), varNames, matchers, wrapped, r)
-			if err := handleNoConflict(fast, full, bridged); err != nil {
+			if err := tryRegister(fast, full, bridged); err != nil {
 				return fmt.Errorf("route %s: %w", route.GetName(), err)
 			}
 			claimed[full] = struct{}{}
@@ -160,14 +160,24 @@ func buildFastPathMux(r *mux.Router, middlewares []mux.MiddlewareFunc, cfg confi
 	return fast, nil
 }
 
-// handleNoConflict registers a pattern, turning the panic the stdlib mux raises for an ambiguous registration into an error.
-// Reaching it means a new route overlaps an existing one in a way only a regex constraint can separate, and that both halves
-// need an entry in fastPathExcluded.
-func handleNoConflict(m *http.ServeMux, pattern string, h http.Handler) (err error) {
+// conflictPanic is the phrase net/http uses when two registered patterns overlap without one being more specific.
+const conflictPanic = "conflicts with pattern"
+
+// tryRegister registers a pattern on the stdlib mux
+func tryRegister(m *http.ServeMux, pattern string, h http.Handler) (err error) {
 	defer func() {
-		if r := recover(); r != nil {
-			err = fmt.Errorf("%q is ambiguous on a stdlib ServeMux and needs an entry in fastPathExcluded: %v", pattern, r)
+		r := recover()
+		if r == nil {
+			return
 		}
+		// net/http panics with the error registerErr returned. Anything else did not come from pattern registration and is
+		// not ours to reinterpret.
+		panicErr, ok := r.(error)
+		if !ok || !strings.Contains(panicErr.Error(), conflictPanic) {
+			panic(r)
+		}
+		// recover into a named return
+		err = fmt.Errorf("%q is ambiguous on a stdlib ServeMux and needs an entry in fastPathExcluded: %w", pattern, panicErr)
 	}()
 	m.Handle(pattern, h)
 	return nil
