@@ -4,7 +4,8 @@
       "version": "5.11.1.164",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Crestron AirMedia Machine-Wide Installer' AND publisher = 'Crestron Electronics, Inc.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Crestron AirMedia Machine-Wide Installer' AND publisher = 'Crestron Electronics, Inc.' AND version_compare(version, '5.11.1.164') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Crestron AirMedia Machine-Wide Installer' AND publisher = 'Crestron Electronics, Inc.' AND version_compare(version, '5.11.1.164') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'crestron airmedia.exe');"
       },
       "installer_url": "https://www.crestron.com/software_files_public/am-100/airmedia_windows_5.11.1.164.msi",
       "install_script_ref": "22e48c46",

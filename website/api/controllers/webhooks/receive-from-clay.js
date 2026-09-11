@@ -113,6 +113,7 @@ module.exports = {
     duplicateContactOrAccountFound: {description: 'A contact or account could not be created because a duplicate record exists.', statusCode: 409 },
     couldNotCreateContactOrAccount: { description: 'A contact or account could not be created in the CRM using the provided information.' },
     couldNotCreateActivity: { description: 'An error occured when trying to create a historical event record in the CRM' },
+    invalidWebhookSecret: {description: 'This webhook request could not be verified.', responseType: 'unauthorized'},
   },
 
 
@@ -124,7 +125,7 @@ module.exports = {
     }
 
     if(webhookSecret !== sails.config.custom.clayWebhookSecret){
-      throw new Error('Received unexpected webhook request with webhookSecret set to: '+webhookSecret);
+      throw 'invalidWebhookSecret';
     }
 
 

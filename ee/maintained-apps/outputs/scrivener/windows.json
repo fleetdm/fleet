@@ -4,7 +4,8 @@
       "version": "3.1.6.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Scrivener' AND publisher = 'Literature and Latte';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Scrivener' AND publisher = 'Literature and Latte' AND version_compare(version, '3.1.6.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Scrivener' AND publisher = 'Literature and Latte' AND version_compare(version, '3.1.6.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'scrivener.exe');"
       },
       "installer_url": "https://www.literatureandlatte.com/downloads/win-legacy/Scrivener-3160-installer.exe",
       "install_script_ref": "d73c982c",

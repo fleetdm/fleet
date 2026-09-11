@@ -4,7 +4,8 @@
       "version": "0.12.2",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.sproutcube.Shortcat';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.sproutcube.Shortcat' AND version_compare(bundle_short_version, '0.12.2') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.sproutcube.Shortcat' AND version_compare(bundle_short_version, '0.12.2') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.sproutcube.Shortcat' AND a.bundle_executable != '');"
       },
       "installer_url": "https://files.shortcat.app/releases/v0.12.2/Shortcat.zip",
       "install_script_ref": "3f590cb4",

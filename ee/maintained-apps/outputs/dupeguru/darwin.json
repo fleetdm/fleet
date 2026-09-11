@@ -4,7 +4,8 @@
       "version": "4.3.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.hardcoded-software.dupeguru';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.hardcoded-software.dupeguru' AND version_compare(bundle_short_version, '4.3.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.hardcoded-software.dupeguru' AND version_compare(bundle_short_version, '4.3.1') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.hardcoded-software.dupeguru' AND a.bundle_executable != '');"
       },
       "installer_url": "https://github.com/arsenetar/dupeguru/releases/download/4.3.1/dupeguru_macOS_Qt_4.3.1.zip",
       "install_script_ref": "c2208102",

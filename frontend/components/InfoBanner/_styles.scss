@@ -24,6 +24,12 @@
 
   &__leading-icon {
     flex-shrink: 0;
+    // Override .icon's `align-self: center` so a wrapping message keeps the
+    // icon lined up with the first line of text. The one-line-tall band +
+    // `align-items: center` centers the 16px svg on the first line of copy.
+    align-self: flex-start;
+    align-items: center;
+    height: calc(#{$x-small} * #{$line-height});
   }
 
   &__info {

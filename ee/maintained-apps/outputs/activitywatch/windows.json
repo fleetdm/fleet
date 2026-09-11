@@ -4,7 +4,8 @@
       "version": "0.13.2",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'ActivityWatch' AND publisher = 'ActivityWatch Contributors';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'ActivityWatch' AND publisher = 'ActivityWatch Contributors' AND version_compare(version, '0.13.2') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'ActivityWatch' AND publisher = 'ActivityWatch Contributors' AND version_compare(version, '0.13.2') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'activitywatch.exe');"
       },
       "installer_url": "https://github.com/ActivityWatch/activitywatch/releases/download/v0.13.2/activitywatch-v0.13.2-windows-x86_64-setup.exe",
       "install_script_ref": "c9e9cc94",

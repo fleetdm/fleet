@@ -4,7 +4,8 @@
       "version": "1.38.1",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'ImHex' AND publisher = 'WerWolv';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'ImHex' AND publisher = 'WerWolv' AND version_compare(version, '1.38.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'ImHex' AND publisher = 'WerWolv' AND version_compare(version, '1.38.1') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'imhex.exe');"
       },
       "installer_url": "https://github.com/WerWolv/ImHex/releases/download/v1.38.1/imhex-1.38.1-Windows-x86_64.msi",
       "install_script_ref": "22e48c46",

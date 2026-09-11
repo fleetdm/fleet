@@ -575,3 +575,190 @@ func TestMakeDecoderGzipBomb(t *testing.T) {
 		assert.Equal(t, int64(42), ple.MaxRequestSize, "MaxRequestSize from inner error must be preserved")
 	})
 }
+
+// TestMakeEndpointRequestSizeOverride asserts the precedence between a
+// route's own resolved limit and a configured EndpointRequestSizeOverrides entry.
+// The override only wins when it's larger, and it's never consulted
+// for routes that opt out entirely via SkipRequestBodySizeLimit (-1).
+func TestMakeEndpointRequestSizeOverride(t *testing.T) {
+	const path = "/some/path"
+
+	cases := []struct {
+		desc          string
+		routeLimit    int64
+		skipLimit     bool
+		globalDefault int64
+		overrides     map[string]int64
+		expectedLimit int64
+	}{
+		{
+			desc:          "No override: falls back to global default",
+			globalDefault: 10,
+			expectedLimit: 10,
+		},
+		{
+			desc:          "Override lower than resolved default: default wins",
+			globalDefault: 10,
+			overrides:     map[string]int64{path: 5},
+			expectedLimit: 10,
+		},
+		{
+			desc:          "Override higher than resolved default: override wins",
+			globalDefault: 10,
+			overrides:     map[string]int64{path: 100},
+			expectedLimit: 100,
+		},
+		{
+			desc:          "Override higher than route's own literal: override wins",
+			routeLimit:    20,
+			globalDefault: 10,
+			overrides:     map[string]int64{path: 100},
+			expectedLimit: 100,
+		},
+		{
+			desc:          "Override lower than route's own literal: literal wins",
+			routeLimit:    20,
+			globalDefault: 10,
+			overrides:     map[string]int64{path: 15},
+			expectedLimit: 20,
+		},
+		{
+			desc:          "Skip limit (-1): override is ignored entirely",
+			skipLimit:     true,
+			globalDefault: 10,
+			overrides:     map[string]int64{path: 100},
+			expectedLimit: -1,
+		},
+		{
+			desc:          "No matching override entry: unaffected",
+			globalDefault: 10,
+			overrides:     map[string]int64{"/some/other/path": 100},
+			expectedLimit: 10,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.desc, func(t *testing.T) {
+			oldDefault := platform_http.MaxRequestBodySize
+			oldOverrides := platform_http.EndpointRequestSizeOverrides
+			t.Cleanup(func() {
+				platform_http.MaxRequestBodySize = oldDefault
+				platform_http.EndpointRequestSizeOverrides = oldOverrides
+			})
+			platform_http.MaxRequestBodySize = c.globalDefault
+			platform_http.EndpointRequestSizeOverrides = c.overrides
+
+			var limitPassed int64
+			r := mux.NewRouter()
+			ce := &CommonEndpointer[testHandlerFunc]{
+				EP: nopEP{},
+				MakeDecoderFn: func(iface any, requestBodySizeLimit int64) kithttp.DecodeRequestFunc {
+					limitPassed = requestBodySizeLimit
+					return func(ctx context.Context, r *http.Request) (any, error) {
+						return nopRequest{}, nil
+					}
+				},
+				EncodeFn: func(ctx context.Context, w http.ResponseWriter, i any) error {
+					w.WriteHeader(http.StatusOK)
+					return nil
+				},
+				AuthMiddleware: func(next endpoint.Endpoint) endpoint.Endpoint { return next },
+				Router:         r,
+			}
+
+			handler := func(ctx context.Context, request any) (platform_http.Errorer, error) {
+				return nopResponse{}, nil
+			}
+			switch {
+			case c.skipLimit:
+				ce.SkipRequestBodySizeLimit().POST(path, handler, nil)
+			case c.routeLimit != 0:
+				ce.WithRequestBodySizeLimit(c.routeLimit).POST(path, handler, nil)
+			default:
+				ce.POST(path, handler, nil)
+			}
+
+			assert.Equal(t, c.expectedLimit, limitPassed)
+		})
+	}
+}
+
+func TestRequestFieldName(t *testing.T) {
+	type tagged struct {
+		Plain     string `json:"plain"`
+		WithOpts  string `json:"with_opts,omitempty"`
+		Skipped   string `json:"-"`
+		OnlyOpts  string `json:",omitempty"`
+		EmptyTag  string `json:""`
+		NoJSONTag string
+		OtherTags string `url:"other_tags"`
+	}
+
+	ty := reflect.TypeFor[tagged]()
+
+	for _, tc := range []struct {
+		field string
+		want  string
+	}{
+		{field: "Plain", want: "plain"},
+		{field: "WithOpts", want: "with_opts"},
+		// The rest have no name a client could have sent, so the Go field name
+		// is all that's left to report.
+		{field: "Skipped", want: "Skipped"},
+		{field: "OnlyOpts", want: "OnlyOpts"},
+		{field: "EmptyTag", want: "EmptyTag"},
+		{field: "NoJSONTag", want: "NoJSONTag"},
+		{field: "OtherTags", want: "OtherTags"},
+	} {
+		t.Run(tc.field, func(t *testing.T) {
+			sf, ok := ty.FieldByName(tc.field)
+			require.True(t, ok)
+			assert.Equal(t, tc.want, requestFieldName(sf))
+		})
+	}
+}
+
+type premiumGatedRequest struct {
+	Critical    bool   `json:"critical,omitempty" premium:"true"`
+	ProfileUUID string `json:"profile_uuid" premium:"true"`
+	Untagged    string `premium:"true"`
+	Free        string `json:"free"`
+}
+
+func TestMakeDecoderPremiumErrorNamesTheJSONField(t *testing.T) {
+	decode := MakeDecoder(premiumGatedRequest{}, defaultJSONUnmarshal, nil, nil, nil, nil, -1)
+
+	// No license in the context, so these decode as free-tier requests.
+	decodeBody := func(t *testing.T, body string) error {
+		t.Helper()
+		r := httptest.NewRequest("POST", "/", strings.NewReader(body))
+		_, err := decode(t.Context(), r)
+		return err
+	}
+
+	t.Run("names the field as the caller wrote it", func(t *testing.T) {
+		for _, tc := range []struct {
+			body string
+			want string
+		}{
+			{body: `{"critical":true}`, want: "option critical requires a premium license"},
+			{body: `{"profile_uuid":"abc"}`, want: "option profile_uuid requires a premium license"},
+		} {
+			err := decodeBody(t, tc.body)
+			require.Error(t, err)
+			// Naming the Go field sends the caller looking for a key that isn't
+			// in the payload they sent.
+			require.ErrorContains(t, err, tc.want)
+		}
+	})
+
+	t.Run("falls back to the Go field name when there is no json tag", func(t *testing.T) {
+		err := decodeBody(t, `{"Untagged":"x"}`)
+		require.Error(t, err)
+		require.ErrorContains(t, err, "option Untagged requires a premium license")
+	})
+
+	t.Run("a field that is not premium gated still decodes", func(t *testing.T) {
+		require.NoError(t, decodeBody(t, `{"free":"ok"}`))
+	})
+}

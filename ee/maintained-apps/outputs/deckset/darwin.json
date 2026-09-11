@@ -4,7 +4,8 @@
       "version": "2.0.51",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.unsignedinteger.Deckset-Paddle';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.unsignedinteger.Deckset-Paddle' AND version_compare(bundle_short_version, '2.0.51') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.unsignedinteger.Deckset-Paddle' AND version_compare(bundle_short_version, '2.0.51') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.unsignedinteger.Deckset-Paddle' AND a.bundle_executable != '');"
       },
       "installer_url": "https://dl.decksetapp.com/Deckset+2.0.51+(2807).dmg",
       "install_script_ref": "d6687ea7",

@@ -4,7 +4,8 @@
       "version": "1.10.8",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.seriflabs.affinityphoto';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.seriflabs.affinityphoto' AND version_compare(bundle_short_version, '1.10.8') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.seriflabs.affinityphoto' AND version_compare(bundle_short_version, '1.10.8') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.seriflabs.affinityphoto' AND a.bundle_executable != '');"
       },
       "installer_url": "https://affinity-update.s3.amazonaws.com/mac/retail/Affinity%20Photo-1.10.8.app.zip",
       "install_script_ref": "e97a663f",

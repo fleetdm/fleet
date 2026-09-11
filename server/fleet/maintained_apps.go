@@ -18,10 +18,12 @@ type MaintainedApp struct {
 	UniqueIdentifier      string   `json:"-" db:"unique_identifier"`
 	InstallScript         string   `json:"install_script,omitempty" db:"install_script"`
 	UninstallScript       string   `json:"uninstall_script,omitempty" db:"uninstall_script"`
-	AutomaticInstallQuery string   `json:"-" db:"pre_install_query"`
+	AutomaticInstallQuery string   `json:"automatic_install_query,omitempty" db:"pre_install_query"` //nolint:apiparamcheck // SQL query for automatic install
 	Categories            []string `json:"categories"`
 	UpgradeCode           string   `json:"upgrade_code,omitempty" db:"upgrade_code"`
 	PatchQuery            string   `json:"-" db:"patch_query"`
+	AppOpenQuery          string   `json:"-" db:"app_open_query"`
+
 	// TitleName is the name of the software title this app's installer owns, which is
 	// not necessarily Name: a Windows app's title is never renamed when the catalog
 	// name changes (the darwin reconcile passes are platform-scoped, and the installer

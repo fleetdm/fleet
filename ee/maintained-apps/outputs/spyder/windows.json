@@ -4,7 +4,8 @@
       "version": "6.1.6",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'Spyder %' AND publisher = 'Spyder-IDE';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Spyder %' AND publisher = 'Spyder-IDE' AND version_compare(version, '6.1.6') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Spyder %' AND publisher = 'Spyder-IDE' AND version_compare(version, '6.1.6') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'spyder.exe');"
       },
       "installer_url": "https://github.com/spyder-ide/spyder/releases/download/v6.1.6/Spyder-Windows-x86_64.exe",
       "install_script_ref": "6831586d",

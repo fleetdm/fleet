@@ -29,6 +29,7 @@ interface IAdvancedOptionsFieldsProps {
   onChangeUninstallScript: (value?: string) => void;
   gitopsCompatible?: boolean;
   gitOpsModeEnabled?: boolean;
+  patchWhenClosed?: boolean;
 }
 
 const AdvancedOptionsFields = ({
@@ -52,6 +53,7 @@ const AdvancedOptionsFields = ({
   onChangeUninstallScript,
   gitopsCompatible = false,
   gitOpsModeEnabled = false,
+  patchWhenClosed = false,
 }: IAdvancedOptionsFieldsProps) => {
   const classNames = classnames(baseClass, className);
 
@@ -87,8 +89,20 @@ const AdvancedOptionsFields = ({
         maxLines={10}
         onChange={onChangePreInstallQuery}
         labelActionComponent={renderLabelComponent()}
-        helpText="Software will be installed only if the query returns results."
-        readOnly={disableFields}
+        helpText={
+          <>
+            Software will be installed only if the query returns results.
+            {patchWhenClosed && (
+              <>
+                {" "}
+                Pre-install query won&apos;t run when install is triggered via
+                self-service, manually on the host, or during the setup
+                experience.
+              </>
+            )}
+          </>
+        }
+        readOnly={disableFields || patchWhenClosed}
       />
       <Editor
         wrapEnabled

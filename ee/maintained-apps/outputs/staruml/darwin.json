@@ -4,7 +4,8 @@
       "version": "6.3.4",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'io.staruml.staruml';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'io.staruml.staruml' AND version_compare(bundle_short_version, '6.3.4') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'io.staruml.staruml' AND version_compare(bundle_short_version, '6.3.4') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'io.staruml.staruml' AND a.bundle_executable != '');"
       },
       "installer_url": "https://files.staruml.io/releases-v6/StarUML-6.3.4-arm64.dmg",
       "install_script_ref": "02f91885",

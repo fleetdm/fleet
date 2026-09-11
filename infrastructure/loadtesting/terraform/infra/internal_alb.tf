@@ -31,6 +31,13 @@ resource "aws_lb" "internal" {
     prefix  = local.customer
     enabled = true
   }
+
+  # log_s3_bucket_id only carries a dependency on the bucket itself, not on its
+  # bucket policy. Enabling access logs makes ELB test-write to the bucket, so
+  # without this the internal ALB (which has few other dependencies and is
+  # therefore scheduled early) can be created before the log delivery policy is
+  # attached and fail with "Access Denied for bucket: <prefix>-alb-logs".
+  depends_on = [module.logging_alb]
 }
 
 resource "aws_lb_listener" "internal" {

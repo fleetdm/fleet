@@ -24,6 +24,7 @@ import {
   countUninstalledForInstallAll,
   filterCategoriesWithSoftware,
   filterSoftwareByCustomCategory,
+  filterSoftwareByQuery,
   hasInProgressInstallAllItems,
 } from "../helpers";
 
@@ -52,7 +53,10 @@ export interface ISelfServiceCardProps {
   router: InjectedRouter;
   pathname: string;
   isMobileView?: boolean;
-  onClickInstallAction: (softwareId: number, isScriptPackage?: boolean) => void;
+  onClickInstallAction: (
+    softwareId: number,
+    isScriptPackage?: boolean
+  ) => Promise<boolean> | void;
   onInstallAllSuccess?: () => void;
 }
 
@@ -112,14 +116,30 @@ const SelfServiceCard = ({
     [enhancedSoftware, visibleCategories, queryParams.category_id]
   );
 
+  // Trim the URL-supplied search once here so the desktop table filter, mobile
+  // list, install-all count, and install-all POST all share identical
+  // semantics. Without this, a deep-linked or trailing-space query like
+  // `?query=%20fox%20` would leave react-table matching the raw value while
+  // the helper/API used the trimmed one, contradicting the on-screen count.
+  const normalizedQuery = queryParams.query?.trim() ?? "";
+
+  // The install-all button count and target must match what's on screen. Layer
+  // the search filter on top of the category filter so `uninstalledCount` and
+  // the request sent to install_all both reflect the filtered subset.
+  const softwareInSelectedCategoryMatchingQuery = useMemo(
+    () => filterSoftwareByQuery(softwareInSelectedCategory, normalizedQuery),
+    [softwareInSelectedCategory, normalizedQuery]
+  );
+
   const uninstalledCount = useMemo(
-    () => countUninstalledForInstallAll(softwareInSelectedCategory),
-    [softwareInSelectedCategory]
+    () =>
+      countUninstalledForInstallAll(softwareInSelectedCategoryMatchingQuery),
+    [softwareInSelectedCategoryMatchingQuery]
   );
 
   const hasInProgress = useMemo(
-    () => hasInProgressInstallAllItems(softwareInSelectedCategory),
-    [softwareInSelectedCategory]
+    () => hasInProgressInstallAllItems(softwareInSelectedCategoryMatchingQuery),
+    [softwareInSelectedCategoryMatchingQuery]
   );
 
   const onClientSidePaginationChange = useCallback(
@@ -241,14 +261,14 @@ const SelfServiceCard = ({
     );
   }
 
-  // Search query filter required for mobile view only ( desktop view has filter built into TableContainer)
-  const filteredSoftware = isMobileView
-    ? softwareInSelectedCategory.filter((software) => {
-        const query = queryParams.query?.toLowerCase().trim() ?? "";
-        if (!query) return true;
-        return software.name.toLowerCase().includes(query);
-      })
-    : softwareInSelectedCategory;
+  // Filter at this layer for both desktop and mobile. Two reasons: (1) the match
+  // spans name, bundle_identifier, and custom display_name (the same columns the
+  // backend MatchQuery searches), and TableContainer's built-in searchQueryColumn
+  // is single-column, so we pre-filter here to widen it. (2) the empty state
+  // stays in sync with the current search query. TableContainer's client-side
+  // filter is debounced separately from the search field and briefly reported
+  // the previous zero-result count when the URL query changed.
+  const filteredSoftware = softwareInSelectedCategoryMatchingQuery;
 
   // The button is shown on desktop ONLY when a specific category is selected
   // (`category_id` is defined). On the unfiltered "All" view we suppress it so a
@@ -262,6 +282,7 @@ const SelfServiceCard = ({
         hasInProgressInCategory={hasInProgress}
         deviceToken={deviceToken}
         categoryId={queryParams.category_id}
+        query={normalizedQuery}
         onSuccess={() => onInstallAllSuccess?.()}
       />
     ) : null;
@@ -318,7 +339,7 @@ const SelfServiceCard = ({
         <SelfServiceTable
           baseClass={baseClass}
           contactUrl={contactUrl}
-          queryParams={queryParams}
+          queryParams={{ ...queryParams, query: normalizedQuery }}
           enhancedSoftware={filteredSoftware}
           selfServiceData={selfServiceData}
           tableConfig={tableConfig}

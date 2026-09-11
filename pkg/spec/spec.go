@@ -71,6 +71,8 @@ type Group struct {
 	UsersRoles             *fleet.UsersRoleSpec
 	TeamsDryRunAssumptions *fleet.TeamSpecsDryRunAssumptions
 	CertificateAuthorities *fleet.GroupedCertificateAuthorities
+	// MicrosoftGraphCredentials is applied through its own endpoint rather than the app config.
+	MicrosoftGraphCredentials *[]fleet.MicrosoftGraphCredential
 }
 
 // Metadata holds the metadata for a single YAML section/item.

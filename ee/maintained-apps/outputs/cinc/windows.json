@@ -4,7 +4,8 @@
       "version": "23.5.1040",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'Cinc Workstation v%' AND publisher = 'Cinc Project <maintainers@cinc.sh>';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Cinc Workstation v%' AND publisher = 'Cinc Project <maintainers@cinc.sh>' AND version_compare(version, '23.5.1040') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Cinc Workstation v%' AND publisher = 'Cinc Project <maintainers@cinc.sh>' AND version_compare(version, '23.5.1040') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'cinc workstation.exe');"
       },
       "installer_url": "https://downloads.cinc.sh/files/stable/cinc-workstation/23.5.1040/windows/2012r2/cinc-workstation-23.5.1040-1-x64.msi",
       "install_script_ref": "22e48c46",

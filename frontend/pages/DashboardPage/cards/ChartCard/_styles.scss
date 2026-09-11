@@ -139,17 +139,13 @@
   }
 
   &__tooltip {
-    background: $core-fleet-black;
-    color: $core-fleet-white;
-    padding: $pad-small $pad-medium;
-    border-radius: $border-radius;
-    font-size: $xx-small;
+    @include tooltip-text;
+
     box-shadow: 0px 2px 6px rgba(0, 0, 0, 0.1);
   }
 
   &__tooltip-label {
     margin-bottom: $pad-xsmall;
-    opacity: 0.8;
   }
 
   &__tooltip-value {
@@ -168,7 +164,6 @@
 
   &__tooltip-section-header {
     font-weight: $regular;
-    opacity: 0.8;
   }
 
   &__tooltip-section-line {

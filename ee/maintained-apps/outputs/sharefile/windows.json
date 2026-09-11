@@ -4,7 +4,8 @@
       "version": "25.9.2.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'ShareFile For Windows' AND publisher = 'ShareFile';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'ShareFile For Windows' AND publisher = 'ShareFile' AND version_compare(version, '25.9.2.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'ShareFile For Windows' AND publisher = 'ShareFile' AND version_compare(version, '25.9.2.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'sharefile.exe');"
       },
       "installer_url": "https://dl.sharefile.com/sfwin-msi/ShareFileForWindows_x64_v25.9.2.0.msi",
       "install_script_ref": "22e48c46",

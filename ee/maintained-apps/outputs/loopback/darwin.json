@@ -1,10 +1,11 @@
 {
   "versions": [
     {
-      "version": "2.4.10",
+      "version": "2.5.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.rogueamoeba.Loopback';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.rogueamoeba.Loopback' AND version_compare(bundle_short_version, '2.4.10') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.rogueamoeba.Loopback' AND version_compare(bundle_short_version, '2.5.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.rogueamoeba.Loopback' AND a.bundle_executable != '');"
       },
       "installer_url": "https://cdn.rogueamoeba.com/loopback/download/Loopback.zip",
       "install_script_ref": "e7c273f8",

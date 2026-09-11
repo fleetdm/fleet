@@ -1,15 +1,16 @@
 {
   "versions": [
     {
-      "version": "17.0.20.0",
+      "version": "17.0.20.10",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'IBM Semeru Runtime Open Edition (JDK)%' AND publisher = 'Semeru' AND version LIKE '17.%';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'IBM Semeru Runtime Open Edition (JDK)%' AND publisher = 'Semeru' AND version LIKE '17.%' AND version_compare(version, '17.0.20.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'IBM Semeru Runtime Open Edition (JDK)%' AND publisher = 'Semeru' AND version LIKE '17.%' AND version_compare(version, '17.0.20.10') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'ibm semeru runtime open edition jdk 17.exe');"
       },
-      "installer_url": "https://github.com/ibmruntimes/semeru17-binaries/releases/download/jdk-17.0.20.0/ibm-semeru-open-jdk_x64_windows_17.0.20.0.msi",
+      "installer_url": "https://github.com/ibmruntimes/semeru17-binaries/releases/download/jdk-17.0.20.10/ibm-semeru-open-jdk_x64_windows_17.0.20.10.msi",
       "install_script_ref": "22e48c46",
       "uninstall_script_ref": "03940015",
-      "sha256": "d9bef02cc3d51715d731c67468018f6b42d463398d59e725410d1692a1387f55",
+      "sha256": "941d5908d32ddd7f0defaf2e3b9ad19c3adccf4a7bfd46e1831ed049e9e4ed2c",
       "default_categories": [
         "Developer tools"
       ],

@@ -4,7 +4,8 @@
       "version": "5.13.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'UltiMaker Cura' AND publisher = 'UltiMaker';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'UltiMaker Cura' AND publisher = 'UltiMaker' AND version_compare(version, '5.13.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'UltiMaker Cura' AND publisher = 'UltiMaker' AND version_compare(version, '5.13.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'ultimaker cura.exe');"
       },
       "installer_url": "https://github.com/Ultimaker/Cura/releases/download/5.13.0/UltiMaker-Cura-5.13.0-win64-X64.msi",
       "install_script_ref": "22e48c46",

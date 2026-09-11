@@ -555,6 +555,54 @@ func TestApplyPolicySpecsLabelScopeRequiresPremium(t *testing.T) {
 	require.False(t, ds.ApplyPolicySpecsFuncInvoked)
 }
 
+func TestApplyPolicySpecsPatchWhenClosedRequiresPremium(t *testing.T) {
+	newDS := func() *mock.Store {
+		ds := new(mock.Store)
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{}, nil
+		}
+		ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
+			return &fleet.Team{ID: 1, Name: name}, nil
+		}
+		ds.ApplyPolicySpecsFunc = func(ctx context.Context, authorID uint, specs []*fleet.PolicySpec) error {
+			return nil
+		}
+		return ds
+	}
+
+	// patch_when_closed requires a patch-type team policy.
+	patchSpec := func() *fleet.PolicySpec {
+		return &fleet.PolicySpec{
+			Name:            "patch policy",
+			Team:            "team1",
+			Type:            fleet.PolicyTypePatch,
+			PatchWhenClosed: true,
+		}
+	}
+
+	testAdmin := fleet.User{ID: 1, GlobalRole: new(fleet.RoleAdmin)}
+
+	// A free-tier caller can't apply patch_when_closed, and we never reach the datastore.
+	t.Run("free tier rejected", func(t *testing.T) {
+		ds := newDS()
+		svc, ctx := newTestService(t, ds, nil, nil)
+		viewerCtx := viewer.NewContext(ctx, viewer.Viewer{User: &testAdmin})
+		err := svc.ApplyPolicySpecs(viewerCtx, []*fleet.PolicySpec{patchSpec()})
+		require.ErrorIs(t, err, fleet.ErrMissingLicense)
+		require.False(t, ds.ApplyPolicySpecsFuncInvoked)
+	})
+
+	// A premium caller applies it successfully.
+	t.Run("premium accepted", func(t *testing.T) {
+		ds := newDS()
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}})
+		viewerCtx := viewer.NewContext(ctx, viewer.Viewer{User: &testAdmin})
+		err := svc.ApplyPolicySpecs(viewerCtx, []*fleet.PolicySpec{patchSpec()})
+		require.NoError(t, err)
+		require.True(t, ds.ApplyPolicySpecsFuncInvoked)
+	})
+}
+
 func TestApplyPolicySpecsDefaultType(t *testing.T) {
 	ds := new(mock.Store)
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
@@ -679,7 +727,7 @@ func TestResetPolicyAuth(t *testing.T) {
 			}
 			ctx := viewer.NewContext(baseCtx, viewer.Viewer{User: tt.user})
 
-			err := svc.ResetPolicy(ctx, policyID)
+			err := svc.ResetPolicy(ctx, policyID, nil)
 			checkAuthErr(t, tt.shouldFailWrite, err)
 			if !tt.shouldFailWrite {
 				require.True(t, ds.ResetPolicyFuncInvoked)
@@ -699,7 +747,7 @@ func TestResetPolicyNotFound(t *testing.T) {
 	user := &fleet.User{GlobalRole: new(fleet.RoleAdmin)}
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: user})
 
-	err := svc.ResetPolicy(ctx, 999)
+	err := svc.ResetPolicy(ctx, 999, nil)
 	require.Error(t, err)
 	require.True(t, fleet.IsNotFound(err))
 }
@@ -733,7 +781,7 @@ func TestResetPolicyEmitsActivity(t *testing.T) {
 			return nil
 		}
 
-		require.NoError(t, svc.ResetPolicy(ctx, policyID))
+		require.NoError(t, svc.ResetPolicy(ctx, policyID, nil))
 		require.True(t, ds.ResetPolicyFuncInvoked)
 		require.True(t, opts.ActivityMock.NewActivityFuncInvoked)
 
@@ -755,7 +803,7 @@ func TestResetPolicyEmitsActivity(t *testing.T) {
 			return nil
 		}
 
-		require.NoError(t, svc.ResetPolicy(ctx, policyID))
+		require.NoError(t, svc.ResetPolicy(ctx, policyID, nil))
 		require.True(t, ds.ResetPolicyFuncInvoked)
 		require.True(t, opts.ActivityMock.NewActivityFuncInvoked)
 
@@ -766,6 +814,77 @@ func TestResetPolicyEmitsActivity(t *testing.T) {
 		require.NotNil(t, act.TeamID)
 		require.Equal(t, int64(0), *act.TeamID)
 		require.Nil(t, act.TeamName)
+	})
+
+	t.Run("host-scoped reset only touches that host and records it", func(t *testing.T) {
+		const hostID = uint(42)
+		ds, svc, ctx, opts := newSvc(nil)
+		ds.HostLiteFunc = func(_ context.Context, id uint) (*fleet.Host, error) {
+			require.Equal(t, hostID, id)
+			return &fleet.Host{ID: id, Hostname: "host-42.local"}, nil
+		}
+		ds.ResetPolicyForHostFunc = func(_ context.Context, gotHostID, gotPolicyID uint) error {
+			require.Equal(t, hostID, gotHostID)
+			require.Equal(t, policyID, gotPolicyID)
+			return nil
+		}
+		var capturedActivity activity_api.ActivityDetails
+		opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, a activity_api.ActivityDetails) error {
+			capturedActivity = a
+			return nil
+		}
+
+		require.NoError(t, svc.ResetPolicy(ctx, policyID, new(hostID)))
+		require.False(t, ds.ResetPolicyFuncInvoked, "all-host reset must not run for a host-scoped request")
+		require.True(t, ds.ResetPolicyForHostFuncInvoked)
+
+		act, ok := capturedActivity.(fleet.ActivityTypeResetPolicy)
+		require.True(t, ok)
+		require.NotNil(t, act.HostID)
+		require.Equal(t, hostID, *act.HostID)
+		require.NotNil(t, act.HostDisplayName)
+		require.Equal(t, "host-42.local", *act.HostDisplayName)
+		require.Equal(t, []uint{hostID}, act.HostIDs())
+	})
+
+	t.Run("host-scoped reset with unknown host is not found", func(t *testing.T) {
+		ds, svc, ctx, opts := newSvc(nil)
+		ds.HostLiteFunc = func(_ context.Context, _ uint) (*fleet.Host, error) {
+			return nil, &notFoundError{}
+		}
+
+		err := svc.ResetPolicy(ctx, policyID, new(uint(999)))
+		require.Error(t, err)
+		require.True(t, fleet.IsNotFound(err))
+		require.False(t, ds.ResetPolicyFuncInvoked)
+		require.False(t, ds.ResetPolicyForHostFuncInvoked)
+		require.False(t, opts.ActivityMock.NewActivityFuncInvoked)
+	})
+
+	t.Run("host-scoped reset of a team policy rejects a host on another team", func(t *testing.T) {
+		policyTeamID := uint(1)
+		ds, svc, ctx, opts := newSvc(&policyTeamID)
+		ds.HostLiteFunc = func(_ context.Context, id uint) (*fleet.Host, error) {
+			return &fleet.Host{ID: id, TeamID: new(uint(2))}, nil
+		}
+
+		err := svc.ResetPolicy(ctx, policyID, new(uint(42)))
+		require.Error(t, err)
+		require.True(t, fleet.IsNotFound(err))
+		require.False(t, ds.ResetPolicyForHostFuncInvoked)
+		require.False(t, opts.ActivityMock.NewActivityFuncInvoked)
+	})
+
+	t.Run("host-scoped reset of a no-team policy accepts a host with no team", func(t *testing.T) {
+		noTeamID := uint(0)
+		ds, svc, ctx, _ := newSvc(&noTeamID)
+		ds.HostLiteFunc = func(_ context.Context, id uint) (*fleet.Host, error) {
+			return &fleet.Host{ID: id}, nil
+		}
+		ds.ResetPolicyForHostFunc = func(_ context.Context, _, _ uint) error { return nil }
+
+		require.NoError(t, svc.ResetPolicy(ctx, policyID, new(uint(42))))
+		require.True(t, ds.ResetPolicyForHostFuncInvoked)
 	})
 }
 
@@ -848,4 +967,163 @@ func TestNewGlobalPolicyQueryIDAuth(t *testing.T) {
 			require.Equal(t, tc.wantQueryLoaded, ds.QueryFuncInvoked)
 		})
 	}
+}
+
+func TestApplyPolicySpecsScriptID(t *testing.T) {
+	setupDS := func() *mock.Store {
+		ds := new(mock.Store)
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{}, nil
+		}
+		ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
+			return &fleet.Team{ID: 1, Name: name}, nil
+		}
+		ds.ApplyPolicySpecsFunc = func(ctx context.Context, authorID uint, specs []*fleet.PolicySpec) error {
+			return nil
+		}
+		return ds
+	}
+	adminCtx := func(ctx context.Context) context.Context {
+		return viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{
+			ID:         1,
+			GlobalRole: new(fleet.RoleAdmin),
+		}})
+	}
+	spec := func(team string, scriptID *uint) *fleet.PolicySpec {
+		return &fleet.PolicySpec{
+			Name:     "script spec policy",
+			Query:    "SELECT 1;",
+			Team:     team,
+			Platform: "darwin",
+			ScriptID: scriptID,
+		}
+	}
+
+	// "All fleets" (empty team) cannot carry a script.
+	t.Run("global spec rejects script_id", func(t *testing.T) {
+		ds := setupDS()
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{
+			License: &fleet.LicenseInfo{Tier: fleet.TierPremium},
+		})
+
+		err := svc.ApplyPolicySpecs(adminCtx(ctx), []*fleet.PolicySpec{spec("", new(uint(1)))})
+		require.ErrorContains(t, err, errPolicyAllFleetsForScripts)
+		require.False(t, ds.ApplyPolicySpecsFuncInvoked)
+	})
+
+	// script_id: 0 means "no script", so it is fine on a global spec; team
+	// ownership of a real script is the datastore's job.
+	t.Run("zero and team script_id pass through", func(t *testing.T) {
+		ds := setupDS()
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{
+			License: &fleet.LicenseInfo{Tier: fleet.TierPremium},
+		})
+
+		err := svc.ApplyPolicySpecs(adminCtx(ctx), []*fleet.PolicySpec{spec("", new(uint(0)))})
+		require.NoError(t, err)
+		err = svc.ApplyPolicySpecs(adminCtx(ctx), []*fleet.PolicySpec{spec("team1", new(uint(1)))})
+		require.NoError(t, err)
+		require.True(t, ds.ApplyPolicySpecsFuncInvoked)
+	})
+}
+
+func TestApplyPolicySpecsResendConfigProfile(t *testing.T) {
+	const (
+		teamName  = "team1"
+		teamID    = uint(1)
+		appleUUID = fleet.MDMAppleProfileUUIDPrefix + "1111"
+	)
+
+	setupDS := func() *mock.Store {
+		ds := new(mock.Store)
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{}, nil
+		}
+		ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
+			return &fleet.Team{ID: teamID, Name: name}, nil
+		}
+		return ds
+	}
+
+	adminCtx := func(ctx context.Context) context.Context {
+		return viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{
+			ID:         1,
+			GlobalRole: new(fleet.RoleAdmin),
+		}})
+	}
+
+	spec := func(team string, profileUUID *string) *fleet.PolicySpec {
+		return &fleet.PolicySpec{
+			Name:        "resend spec policy",
+			Query:       "SELECT 1;",
+			Team:        team,
+			Platform:    "darwin",
+			ProfileUUID: profileUUID,
+		}
+	}
+
+	// A team spec carrying a profile UUID reaches the datastore untouched — the
+	// service layer does not split the columns, the datastore dispatches on prefix.
+	t.Run("team spec passes profile_uuid through", func(t *testing.T) {
+		ds := setupDS()
+		var captured []*fleet.PolicySpec
+		ds.ApplyPolicySpecsFunc = func(ctx context.Context, authorID uint, specs []*fleet.PolicySpec) error {
+			captured = specs
+			return nil
+		}
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{
+			License: &fleet.LicenseInfo{Tier: fleet.TierPremium},
+		})
+
+		err := svc.ApplyPolicySpecs(adminCtx(ctx), []*fleet.PolicySpec{spec(teamName, new(appleUUID))})
+		require.NoError(t, err)
+		require.True(t, ds.ApplyPolicySpecsFuncInvoked)
+		require.Len(t, captured, 1)
+		require.NotNil(t, captured[0].ProfileUUID)
+		require.Equal(t, appleUUID, *captured[0].ProfileUUID)
+	})
+
+	// "All fleets" (empty team) cannot carry a resend profile.
+	t.Run("global spec rejects profile_uuid", func(t *testing.T) {
+		ds := setupDS()
+		ds.ApplyPolicySpecsFunc = func(ctx context.Context, authorID uint, specs []*fleet.PolicySpec) error {
+			return nil
+		}
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{
+			License: &fleet.LicenseInfo{Tier: fleet.TierPremium},
+		})
+
+		err := svc.ApplyPolicySpecs(adminCtx(ctx), []*fleet.PolicySpec{spec("", new(appleUUID))})
+		require.Error(t, err)
+		require.ErrorContains(t, err, errPolicyAllFleetsForProfiles)
+		require.False(t, ds.ApplyPolicySpecsFuncInvoked)
+	})
+
+	// PolicySpec has no premium struct tag and the decoder does not reach into the
+	// spec slice, so ApplyPolicySpecs needs its own explicit license check.
+	t.Run("profile_uuid requires premium", func(t *testing.T) {
+		ds := setupDS()
+		ds.ApplyPolicySpecsFunc = func(ctx context.Context, authorID uint, specs []*fleet.PolicySpec) error {
+			return nil
+		}
+		// Free license.
+		svc, ctx := newTestService(t, ds, nil, nil)
+
+		err := svc.ApplyPolicySpecs(adminCtx(ctx), []*fleet.PolicySpec{spec(teamName, new(appleUUID))})
+		require.ErrorIs(t, err, fleet.ErrMissingLicense)
+		require.False(t, ds.ApplyPolicySpecsFuncInvoked)
+	})
+
+	// Without a profile UUID, a free-tier spec is unaffected.
+	t.Run("no profile_uuid does not require premium", func(t *testing.T) {
+		ds := setupDS()
+		ds.ApplyPolicySpecsFunc = func(ctx context.Context, authorID uint, specs []*fleet.PolicySpec) error {
+			return nil
+		}
+		svc, ctx := newTestService(t, ds, nil, nil)
+
+		err := svc.ApplyPolicySpecs(adminCtx(ctx), []*fleet.PolicySpec{spec(teamName, nil)})
+		require.NoError(t, err)
+		require.True(t, ds.ApplyPolicySpecsFuncInvoked)
+	})
 }

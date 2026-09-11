@@ -149,7 +149,7 @@ func (svc Service) CountGlobalPolicies(ctx context.Context, matchQuery string, p
 		return 0, ctxerr.Wrap(ctx, err)
 	}
 
-	count, err := svc.ds.CountPolicies(ctx, nil, matchQuery, "", platform)
+	count, err := svc.ds.CountPolicies(ctx, nil, matchQuery, fleet.PolicyAutomationTypeNone, platform)
 	if err != nil {
 		return 0, err
 	}
@@ -254,8 +254,11 @@ func (svc Service) removeGlobalPoliciesFromWebhookConfig(ctx context.Context, id
 /////////////////////////////////////////////////////////////////////////////////
 
 const (
-	errPolicyAllFleetsForConditionalAccess     = "\"All fleets\" policy cannot have conditional_access_enabled set"
-	errPolicyAllFleetsForContinuousAutomations = "\"All fleets\" policy cannot have continuous_automations_enabled set"
+	errPolicyAllFleetsForConditionalAccess          = "\"All fleets\" policy cannot have conditional_access_enabled set"
+	errPolicyAllFleetsForContinuousAutomations      = "\"All fleets\" policy cannot have continuous_automations_enabled set"
+	errPolicyAllFleetsForProfiles                   = "\"All fleets\" policy cannot have profile_uuid set"
+	errPolicyAllFleetsForScripts                    = "\"All fleets\" policy cannot have script_id set"
+	errPatchWhenClosedRequiresContinuousAutomations = "If \"patch_when_closed\" is true, \"continuous_automations_enabled\" can't be set to false."
 )
 
 func modifyGlobalPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
@@ -292,7 +295,7 @@ func (svc *Service) ResetAutomation(ctx context.Context, teamIDs, policyIDs []ui
 		pIDs[id] = struct{}{}
 	}
 	for _, teamID := range teamIDs {
-		p1, p2, err := svc.ds.ListTeamPolicies(ctx, teamID, fleet.ListOptions{}, fleet.ListOptions{}, "", "")
+		p1, p2, err := svc.ds.ListTeamPolicies(ctx, teamID, fleet.ListOptions{}, fleet.ListOptions{}, fleet.PolicyAutomationTypeNone, "")
 		if err != nil {
 			return err
 		}
@@ -484,6 +487,18 @@ func (svc *Service) ApplyPolicySpecs(ctx context.Context, policies []*fleet.Poli
 			})
 		}
 
+		if policy.Team == "" && policy.ProfileUUID != nil && *policy.ProfileUUID != "" {
+			return ctxerr.Wrap(ctx, &fleet.BadRequestError{
+				Message: fmt.Sprintf("policy spec payload verification: %s", errPolicyAllFleetsForProfiles),
+			})
+		}
+
+		if policy.Team == "" && policy.ScriptID != nil && *policy.ScriptID != 0 {
+			return ctxerr.Wrap(ctx, &fleet.BadRequestError{
+				Message: fmt.Sprintf("policy spec payload verification: %s", errPolicyAllFleetsForScripts),
+			})
+		}
+
 		if err := policy.Verify(); err != nil {
 			return ctxerr.Wrap(ctx, &fleet.BadRequestError{
 				Message: fmt.Sprintf("policy spec payload verification: %s", err),
@@ -496,6 +511,15 @@ func (svc *Service) ApplyPolicySpecs(ctx context.Context, policies []*fleet.Poli
 
 		// ContinuousAutomationsEnabled is premium-only.
 		if policy.ContinuousAutomationsEnabled && !license.IsPremium(ctx) {
+			return fleet.ErrMissingLicense
+		}
+
+		// PatchWhenClosed is premium-only.
+		if policy.PatchWhenClosed && !license.IsPremium(ctx) {
+			return fleet.ErrMissingLicense
+		}
+
+		if policy.ProfileUUID != nil && !license.IsPremium(ctx) {
 			return fleet.ErrMissingLicense
 		}
 

@@ -408,12 +408,7 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
               onBlur={onHostStatusWebhookUrlBlur}
               error={formErrors.host_status_webhook_destination_url}
               disabled={gitopsModeEnabled}
-              tooltip={
-                <p>
-                  Provide a URL to deliver <br />
-                  the webhook request to.
-                </p>
-              }
+              tooltip={<>Provide a URL to deliver the webhook request to.</>}
             />
             <Dropdown
               label="Host status webhook %"

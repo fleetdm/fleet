@@ -1,0 +1,1 @@
+- Improved Windows MDM host linking so the hardware serial a device reports cannot associate its enrollment with a host that a different device's enrollment already manages. Re-enrolling the same device is unaffected.

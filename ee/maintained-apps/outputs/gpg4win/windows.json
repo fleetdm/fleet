@@ -4,7 +4,8 @@
       "version": "5.1.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'Gpg4win %' AND publisher = 'The Gpg4win Project';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Gpg4win %' AND publisher = 'The Gpg4win Project' AND version_compare(version, '5.1.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Gpg4win %' AND publisher = 'The Gpg4win Project' AND version_compare(version, '5.1.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'gpg4win.exe');"
       },
       "installer_url": "https://files.gpg4win.org/gpg4win-5.1.0.exe",
       "install_script_ref": "33dd6930",

@@ -46,4 +46,7 @@ func TestScanAppsRejectsExecutableTraversal(t *testing.T) {
 	if msty.execPath != "" {
 		t.Errorf("execPath = %q, want empty (traversal CFBundleExecutable must be rejected)", msty.execPath)
 	}
+	if msty.DisplayName != "Msty" {
+		t.Errorf("DisplayName = %q, want the bundle's real name \"Msty\"", msty.DisplayName)
+	}
 }

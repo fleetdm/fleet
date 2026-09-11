@@ -4,7 +4,8 @@
       "version": "1.67",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'CPUID HWMonitor%' AND publisher = 'CPUID, Inc.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'CPUID HWMonitor%' AND publisher = 'CPUID, Inc.' AND version_compare(version, '1.67') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'CPUID HWMonitor%' AND publisher = 'CPUID, Inc.' AND version_compare(version, '1.67') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'hwmonitor.exe');"
       },
       "installer_url": "https://download.cpuid.com/hwmonitor/hwmonitor_1.67.exe",
       "install_script_ref": "4424c050",

@@ -1,0 +1,1 @@
+- Requests denied by an API-only user's endpoint restrictions now return a distinct 403 message ("endpoint not permitted for this API-only user") and are logged at info level with the route and denial reason, so they can be distinguished from role-based permission denials.

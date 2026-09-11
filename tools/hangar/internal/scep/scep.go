@@ -19,7 +19,6 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
-	"net"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -218,20 +217,4 @@ func InitCA(ctx context.Context, binPath, depot string, params InitCAParams) err
 		return fmt.Errorf("ca -init: %s", msg)
 	}
 	return nil
-}
-
-// LanIP returns the host's primary outbound IPv4 (what Fleet SCEP URLs should
-// use), matching `ipconfig getifaddr en0` in practice. Empty on failure.
-func LanIP() string {
-	// A UDP "connect" picks the source IP via the routing table without sending
-	// any packets.
-	conn, err := net.Dial("udp", "8.8.8.8:80")
-	if err != nil {
-		return ""
-	}
-	defer conn.Close()
-	if addr, ok := conn.LocalAddr().(*net.UDPAddr); ok {
-		return addr.IP.String()
-	}
-	return ""
 }

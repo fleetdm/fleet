@@ -1,7 +1,10 @@
 import React from "react";
 import { render, screen } from "@testing-library/react";
 
-import { createMockGetCommandsResponse } from "__mocks__/commandMock";
+import {
+  createMockCommand,
+  createMockGetCommandsResponse,
+} from "__mocks__/commandMock";
 
 import CommandFeed from "./CommandFeed";
 
@@ -72,5 +75,68 @@ describe("CommandFeed", () => {
 
     expect(screen.getByText("Previous")).toBeInTheDocument();
     expect(screen.getByText("Next")).toBeInTheDocument();
+  });
+
+  it("renders a cancel button only on cancelable pending commands when onCancelCommand is provided", () => {
+    const commands = createMockGetCommandsResponse({
+      results: [
+        createMockCommand({
+          command_uuid: "lock-uuid",
+          request_type: "DeviceLock",
+        }),
+        createMockCommand({
+          command_uuid: "profile-uuid",
+          request_type: "InstallProfile",
+        }),
+      ],
+    });
+
+    render(
+      <CommandFeed
+        commands={commands}
+        {...defaultProps}
+        onCancelCommand={jest.fn()}
+      />
+    );
+
+    expect(
+      screen.getAllByRole("button", { name: "cancel action" })
+    ).toHaveLength(1);
+  });
+
+  it("does not render cancel buttons on already-run commands even when onCancelCommand is provided", () => {
+    const commands = createMockGetCommandsResponse({
+      results: [
+        createMockCommand({
+          request_type: "DeviceLock",
+          command_status: "ran",
+          status: "Acknowledged",
+        }),
+      ],
+    });
+
+    render(
+      <CommandFeed
+        commands={commands}
+        {...defaultProps}
+        onCancelCommand={jest.fn()}
+      />
+    );
+
+    expect(
+      screen.queryByRole("button", { name: "cancel action" })
+    ).not.toBeInTheDocument();
+  });
+
+  it("does not render cancel buttons without onCancelCommand", () => {
+    const commands = createMockGetCommandsResponse({
+      results: [createMockCommand({ request_type: "DeviceLock" })],
+    });
+
+    render(<CommandFeed commands={commands} {...defaultProps} />);
+
+    expect(
+      screen.queryByRole("button", { name: "cancel action" })
+    ).not.toBeInTheDocument();
   });
 });

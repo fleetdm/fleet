@@ -6,11 +6,10 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
-	"strconv"
 	"strings"
 
-	"github.com/fleetdm/fleet/v4/server/contexts/certserial"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/devicesso"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/contexts/osqueryauth"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -22,21 +21,14 @@ import (
 	"github.com/go-kit/kit/endpoint"
 )
 
-// extractCertSerialFromHeader extracts certificate serial from X-Client-Cert-Serial
-// header (set by load balancer during mTLS) for iOS/iPadOS device authentication.
-func extractCertSerialFromHeader(ctx context.Context, r *http.Request) context.Context {
-	serialStr := r.Header.Get("X-Client-Cert-Serial")
-	if serialStr == "" {
+// extractDeviceSSOSessionFromCookie stashes the Fleet Desktop device SSO session
+// ID in the context.
+func extractDeviceSSOSessionFromCookie(ctx context.Context, r *http.Request) context.Context {
+	cookie, err := r.Cookie(cookieNameDeviceSSOSession)
+	if err != nil {
 		return ctx
 	}
-
-	serial, err := strconv.ParseUint(serialStr, 10, 64)
-	if err != nil {
-		// Force cert auth on parse error instead of falling back to token auth.
-		return certserial.NewContext(ctx, 0)
-	}
-
-	return certserial.NewContext(ctx, serial)
+	return devicesso.NewContext(ctx, cookie.Value)
 }
 
 func logJSON(ctx context.Context, logger *slog.Logger, v any, key string) {
@@ -66,7 +58,7 @@ func instrumentHostLogger(ctx context.Context, hostID uint, extras ...interface{
 // provided in the request, and attaches the corresponding host to the
 // context for the request.
 func authenticatedDevice(svc fleet.Service, logger *slog.Logger, next endpoint.Endpoint) endpoint.Endpoint {
-	authDeviceFunc := func(ctx context.Context, request interface{}) (interface{}, error) {
+	authDeviceFunc := func(ctx context.Context, request any) (any, error) {
 		identifier, err := getDeviceAuthToken(request)
 		if err != nil {
 			return nil, err
@@ -76,21 +68,15 @@ func authenticatedDevice(svc fleet.Service, logger *slog.Logger, next endpoint.E
 		var debug bool
 		var authnMethod authz_ctx.AuthenticationMethod
 
-		if certSerial, ok := certserial.FromContext(ctx); ok {
-			// Header presence signals cert auth intent, even if serial is invalid.
-			host, debug, err = svc.AuthenticateDeviceByCertificate(ctx, certSerial, identifier)
-			authnMethod = authz_ctx.AuthnDeviceCertificate
+		// Try token auth first (hot path for Fleet Desktop).
+		host, debug, err = svc.AuthenticateDevice(ctx, identifier)
+		if err == nil {
+			authnMethod = authz_ctx.AuthnDeviceToken
 		} else {
-			// Try token auth first (hot path for Fleet Desktop).
-			host, debug, err = svc.AuthenticateDevice(ctx, identifier)
-			if err == nil {
-				authnMethod = authz_ctx.AuthnDeviceToken
-			} else {
-				// Fallback to UUID auth for iOS/iPadOS self-service via URL.
-				// The identifier (from {token}) is treated as the device UUID.
-				host, debug, err = svc.AuthenticateIDeviceByURL(ctx, identifier)
-				authnMethod = authz_ctx.AuthnDeviceURL
-			}
+			// Fallback to UUID auth for iOS/iPadOS self-service via URL.
+			// The identifier (from {token}) is treated as the device UUID.
+			host, debug, err = svc.AuthenticateIDeviceByURL(ctx, identifier)
+			authnMethod = authz_ctx.AuthnDeviceURL
 		}
 
 		if err != nil {
@@ -124,6 +110,31 @@ func authenticatedDevice(svc fleet.Service, logger *slog.Logger, next endpoint.E
 		return resp, nil
 	}
 	return middleware_log.Logged(authDeviceFunc)
+}
+
+// requireDeviceSSOSession enforces the Fleet Desktop SSO gate. It runs after
+// authenticatedDevice, so it applies however the host was identified: token or
+// device UUID in the URL.
+//
+// Rejections count toward the device routes' error limiter like any other
+// failure. A browser only sees one before it starts the SSO flow, so sustained
+// volume here is a scanner rather than an end user.
+func requireDeviceSSOSession(svc fleet.Service) endpoint.Middleware {
+	return func(next endpoint.Endpoint) endpoint.Endpoint {
+		return func(ctx context.Context, request any) (any, error) {
+			host, ok := hostctx.FromContext(ctx)
+			if !ok {
+				return nil, ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("internal error: missing host from request context"))
+			}
+
+			sessionID := devicesso.FromContext(ctx)
+			if err := svc.RequireDeviceSSOSession(ctx, host, sessionID); err != nil {
+				logging.WithErr(ctx, err)
+				return nil, err
+			}
+			return next(ctx, request)
+		}
+	}
 }
 
 func getDeviceAuthToken(r interface{}) (string, error) {

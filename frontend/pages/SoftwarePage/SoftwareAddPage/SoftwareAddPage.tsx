@@ -122,7 +122,7 @@ const SoftwareAddPage = ({
             />
           </div>
           <h1>Add software</h1>
-          <PageDescription content="Add software to your library. You can add it to self-service later." />
+          <PageDescription content="Add software to your library. You can add it to self service later." />
           <TabNav>
             <Tabs
               selectedIndex={getTabIndex(location?.pathname || "")}

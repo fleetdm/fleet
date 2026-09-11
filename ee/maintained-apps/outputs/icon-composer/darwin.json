@@ -4,7 +4,8 @@
       "version": "1.2",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.apple.IconComposer';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.apple.IconComposer' AND version_compare(bundle_short_version, '1.2') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.apple.IconComposer' AND version_compare(bundle_short_version, '1.2') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.apple.IconComposer' AND a.bundle_executable != '');"
       },
       "installer_url": "https://devimages-cdn.apple.com/design/resources/download/Icon-Composer-1.2.dmg",
       "install_script_ref": "9e1dcea8",

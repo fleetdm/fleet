@@ -9,6 +9,16 @@
         <li>The integration currently only supports macOS and Windows hosts.</li>
         <li>We are currently unable to provide screen lock status. In Vanta, all hosts will appear as false. <a href="/queries/screen-lock-enabled-mac-os" target="_blank">Use this query for macOS hosts</a>, and <a href="/queries/screen-lock-enabled-windows" target="_blank">this query for Windows hosts</a> to see the true list of hosts with screen lock turned on via MDM.</li>
         <li>This integration is only available to Fleet Premium customers.</li>
+        <li>To reduce risk, set the API-only user's <strong>API access</strong> to <strong>Specific API endpoints</strong> instead of <strong>All API endpoints</strong>. This integration only needs these five read-only endpoints:
+          <ul>
+            <li>Get current user &mdash; <code>GET /api/v1/fleet/me</code></li>
+            <li>Get Fleet configuration &mdash; <code>GET /api/v1/fleet/config</code></li>
+            <li>List users &mdash; <code>GET /api/v1/fleet/users</code></li>
+            <li>List hosts &mdash; <code>GET /api/v1/fleet/hosts</code></li>
+            <li>Get host &mdash; <code>GET /api/v1/fleet/hosts/:id</code></li>
+          </ul>
+          Scoping endpoints limits the blast radius if the token leaks. It does not grant permissions the user's role forbids, so the user still needs the Admin role.
+        </li>
       </ul>
     </div>
     <div class="card card-body" purpose="vanta-form">

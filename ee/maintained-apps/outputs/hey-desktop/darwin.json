@@ -1,15 +1,16 @@
 {
   "versions": [
     {
-      "version": "1.3.3",
+      "version": "1.3.7",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.hey.app.desktop';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.hey.app.desktop' AND version_compare(bundle_short_version, '1.3.3') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.hey.app.desktop' AND version_compare(bundle_short_version, '1.3.7') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.hey.app.desktop' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://hey.com/desktop/HEY-1.3.3-arm64-mac.zip",
+      "installer_url": "https://hey.com/desktop/HEY-1.3.7-arm64-mac.zip",
       "install_script_ref": "18afb1ae",
       "uninstall_script_ref": "4b55afa9",
-      "sha256": "dd20814f404850484721db5af932b1ef7e5335b4208a9e8e42421703096f049c",
+      "sha256": "39e1342c4f6aee1b4bb5202ffe723828e15a36f77869f89d9a05633c7b90780f",
       "default_categories": [
         "Productivity"
       ]

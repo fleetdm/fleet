@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"fmt"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -107,7 +106,7 @@ func (svc *Service) AddFleetMaintainedApp(
 		app.SHA256 = gotHash
 	}
 
-	extension := strings.TrimLeft(filepath.Ext(filename), ".")
+	extension := extensionFromFilename(filename)
 
 	installScript = file.Dos2UnixNewlines(installScript)
 	if installScript == "" {
@@ -197,6 +196,7 @@ func (svc *Service) AddFleetMaintainedApp(
 		Categories:            app.Categories,
 		URL:                   app.InstallerURL,
 		PatchQuery:            app.PatchQuery,
+		AppOpenQuery:          app.AppOpenQuery,
 	}
 
 	categories, catIDs, err := svc.removeDuplicateOrMissingCategories(ctx, ptr.ValOrZero(payload.TeamID), payload.Categories)

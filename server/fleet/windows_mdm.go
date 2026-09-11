@@ -10,6 +10,7 @@ import (
 	"slices"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
@@ -113,6 +114,9 @@ func (m *MDMWindowsConfigProfile) ValidateUserProvided(allowCustomDiskEncryption
 	fleetNames := mdm.FleetReservedProfileNames()
 	if _, ok := fleetNames[m.Name]; ok {
 		return fmt.Errorf("Profile name %q is not allowed.", m.Name)
+	}
+	if utf8.RuneCountInString(m.Name) > MaxProfileNameLength {
+		return errors.New(MaxProfileNameLengthErrMsg + ".")
 	}
 
 	validator := newWindowsProfileValidator(m.SyncML, allowCustomDiskEncryption)
@@ -430,7 +434,7 @@ func newWindowsSCEPProfileValidator() *windowsSCEPProfileValidator {
 }
 
 func (v windowsSCEPProfileValidator) normalizeSCEPLocURI(locURI string) string {
-	normalized := canonicalizeSCEPScope(locURI)
+	normalized := CanonicalizeSCEPScope(locURI)
 	// Accept braces version of the Fleet Var, and normalize it to the non-braces for validation.
 	return strings.ReplaceAll(normalized, FleetVarSCEPWindowsCertificateID.WithBraces(), FleetVarSCEPWindowsCertificateID.WithPrefix())
 }
@@ -532,9 +536,9 @@ func IsWindowsSCEPLocURI(locURI string) bool {
 		strings.HasPrefix(locURI, "./User/Vendor/MSFT/ClientCertificateInstall/SCEP/")
 }
 
-// canonicalizeSCEPScope rewrites a SCEP ClientCertificateInstall LocURI to its explicit scoped form so the SCEP validations
+// CanonicalizeSCEPScope rewrites a SCEP ClientCertificateInstall LocURI to its explicit scoped form so the SCEP validations
 // (which key off the "./Device/"/"./User/" prefix) can't be bypassed by a scope-less spelling. Non-SCEP LocURIs are returned unchanged.
-func canonicalizeSCEPScope(locURI string) string {
+func CanonicalizeSCEPScope(locURI string) string {
 	// CanonicalLocURI strips the device scope to the bare "Vendor/MSFT/..." form and preserves explicit user scope as
 	// "User/Vendor/MSFT/...".
 	canon := CanonicalLocURI(locURI)
@@ -606,6 +610,10 @@ type MDMWindowsProfilePayload struct {
 	// PreviousInstalledChecksum is the checksum of the version this host currently has installed, set by the reconciler only when an
 	// install is triggered because the profile content changed (a modify, not a fresh install).
 	PreviousInstalledChecksum []byte `db:"-"`
+	// UserChannelRejected is set when Fleet parses a device's SyncML results. It becomes true when at least one failed command in the
+	// profile targeted a user-channel LocURI (canonical prefix User/) and its status code is one of an allow-list of "no user context
+	// available" rejections that Windows was empirically observed to return. Transient, never persisted.
+	UserChannelRejected bool `db:"-"`
 }
 
 // MDMWindowsProfileVersionKey identifies one retained prior version of a Windows config profile.
@@ -644,6 +652,8 @@ type MDMWindowsBulkUpsertHostProfilePayload struct {
 	Status        *MDMDeliveryStatus
 	Detail        string
 	Checksum      []byte
+	// HeldForUserContext marks a user-scoped profile the reconciler deliberately did not send because the host has no MDM user context yet.
+	HeldForUserContext bool
 }
 
 type MDMWindowsProfileContents struct {

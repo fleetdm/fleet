@@ -4,7 +4,8 @@
       "version": "2.4.1400.90",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Egnyte WebEdit' AND publisher = 'Egnyte, Inc';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Egnyte WebEdit' AND publisher = 'Egnyte, Inc' AND version_compare(version, '2.4.1400.90') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Egnyte WebEdit' AND publisher = 'Egnyte, Inc' AND version_compare(version, '2.4.1400.90') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'egnyte webedit.exe');"
       },
       "installer_url": "https://egnyte-cdn.egnyte.com/webedit/win/en-us/2.4.14/EgnyteWebEdit_2.4.14_90.msi",
       "install_script_ref": "22e48c46",

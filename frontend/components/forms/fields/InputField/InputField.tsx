@@ -57,6 +57,8 @@ export interface IInputFieldProps {
   min?: string | number;
   /** Only effective on input type number */
   max?: string | number;
+  /** Only effective on textarea elements */
+  disableResize?: boolean;
 }
 
 const InputField = ({
@@ -84,6 +86,7 @@ const InputField = ({
   helpText = "",
   enableShowSecret = false,
   enableCopy = false,
+  disableResize = false,
   ignore1password = true,
   step,
   min,
@@ -128,7 +131,7 @@ const InputField = ({
       <div
         className={`${baseClass}__copy-wrapper ${baseClass}__copy-wrapper--text-area`}
       >
-        <CopyButton copyText={copyText} variant="subdued" size="small" />
+        <CopyButton copyText={copyText} variant="secondary" size="small" />
       </div>
     );
   };
@@ -190,6 +193,10 @@ const InputField = ({
       { "copy-enabled": enableCopy }
     );
 
+    const textAreaInputClasses = classnames(inputClasses, {
+      [`${baseClass}__textarea--resize-disabled`]: disableResize,
+    });
+
     return (
       <FormField
         {...formFieldProps}
@@ -203,7 +210,7 @@ const InputField = ({
             onChange={onInputChange}
             onBlur={onBlur}
             onFocus={onFocus}
-            className={inputClasses}
+            className={textAreaInputClasses}
             disabled={readOnly || disabled}
             placeholder={placeholder}
             ref={(r) => {

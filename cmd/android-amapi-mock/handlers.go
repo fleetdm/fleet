@@ -9,27 +9,67 @@ import (
 	"sort"
 	"strconv"
 
+	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/google/uuid"
 )
 
 // ---- Coordination API handlers ----
 
+// registerRequest is the coordination API's registration body. It is deliberately narrower
+// than fakeDevice: only these fields come from the agent, so pending commands and pending
+// certificates can't be injected through it.
+type registerRequest struct {
+	EnterpriseSpecificID string `json:"enterprise_specific_id"`
+	DeviceName           string `json:"device_name"`
+	EnterpriseID         string `json:"enterprise_id"`
+	// PolicyName and PolicyVersion are sent only by a device registering again after this
+	// process lost its state; they carry the policy the device last observed.
+	PolicyName    string `json:"policy_name"`
+	PolicyVersion int64  `json:"policy_version"`
+}
+
 func handleRegister(store *deviceStore) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var d fakeDevice
-		if err := json.NewDecoder(r.Body).Decode(&d); err != nil {
+		var req registerRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			http.Error(w, "invalid json: "+err.Error(), http.StatusBadRequest)
 			return
 		}
-		if d.EnterpriseSpecificID == "" || d.DeviceName == "" {
+		if req.EnterpriseSpecificID == "" || req.DeviceName == "" {
 			http.Error(w, "enterprise_specific_id and device_name required", http.StatusBadRequest)
 			return
 		}
-		d.PolicyVersion = 0
-		if d.EnterpriseID != "" {
-			d.PolicyName = fmt.Sprintf("enterprises/%s/policies/default", d.EnterpriseID)
+		d := fakeDevice{
+			EnterpriseSpecificID: req.EnterpriseSpecificID,
+			DeviceName:           req.DeviceName,
+			EnterpriseID:         req.EnterpriseID,
+			PolicyName:           req.PolicyName,
+			PolicyVersion:        req.PolicyVersion,
 		}
-		store.register(&d)
+		// A device that registers again after this process lost its state (restart) reports the
+		// policy it last observed, so it doesn't tell Fleet its applied policy regressed.
+		//
+		// A version outside the restorable range is a bug in the caller rather than recovered
+		// state, and must not be reported to Fleet: Fleet verifies profiles whose
+		// included_in_policy_version is <= the applied version, so an absurdly high version
+		// would flip every pending profile to Verified. Drop the reported policy in that case;
+		// store.register then keeps whatever policy it already has for the device, or starts a
+		// new device on the default policy.
+		if d.PolicyVersion < 0 || d.PolicyVersion > maxRestorablePolicyVersion {
+			log.Printf("Ignoring out-of-range policy version %d reported by device %s", d.PolicyVersion, d.EnterpriseSpecificID) // #nosec G706 -- load testing tool
+			d.PolicyName = ""
+			d.PolicyVersion = 0
+		} else if d.PolicyName != "" {
+			store.raisePolicyVersionCounter(d.PolicyVersion)
+		}
+
+		// A device Fleet deleted through AMAPI was genuinely unenrolled; letting it register
+		// again would resurrect it and re-enroll the host.
+		if !store.register(&d) {
+			http.Error(w, "device was deleted", http.StatusGone)
+			return
+		}
 		log.Printf("Registered fake device: %s (name: %s)", d.EnterpriseSpecificID, d.DeviceName)
 		w.WriteHeader(http.StatusOK)
 	}
@@ -40,6 +80,12 @@ func handleGetState(store *deviceStore) http.HandlerFunc {
 		esid := r.PathValue("esid")
 		d := store.getByESID(esid)
 		if d == nil {
+			// Distinguish "this process forgot the device" (the agent should register again)
+			// from "Fleet deleted the device" (the agent must stop).
+			if store.wasDeleted(esid) {
+				http.Error(w, "device was deleted", http.StatusGone)
+				return
+			}
 			http.Error(w, "device not found", http.StatusNotFound)
 			return
 		}
@@ -47,10 +93,16 @@ func handleGetState(store *deviceStore) http.HandlerFunc {
 		d.mu.Lock()
 		policyVersion := d.PolicyVersion
 		if d.PolicyName != "" {
-			if v := store.getPolicyVersion(d.PolicyName); v > 0 {
+			// Report the higher of the version this process issued for the policy and the
+			// version the device already observed (which is higher after a restart, since the
+			// version counter starts over). Reporting a lower version would tell Fleet the
+			// device's applied policy went backwards, and Fleet only verifies profiles whose
+			// included_in_policy_version is <= the applied version — so profiles delivered
+			// before the restart would be stuck Pending.
+			if v := store.getPolicyVersion(d.PolicyName); v > policyVersion {
 				policyVersion = v
-				d.PolicyVersion = v
 			}
+			d.PolicyVersion = policyVersion
 		}
 		state := struct {
 			PolicyVersion       int64    `json:"policy_version"`
@@ -122,11 +174,14 @@ func handleDevicesPatch(store *deviceStore) http.HandlerFunc {
 		var appliedVersion int64
 		if d != nil {
 			d.mu.Lock()
-			if reqBody.PolicyName != "" {
+			if reqBody.PolicyName != "" && reqBody.PolicyName != d.PolicyName {
+				// The version the device holds belongs to the policy it is moving off of.
 				d.PolicyName = reqBody.PolicyName
+				d.PolicyVersion = 0
 			}
 			if d.PolicyName != "" {
-				appliedVersion = store.getPolicyVersion(d.PolicyName)
+				// As in handleGetState, never lower the version the device already observed.
+				appliedVersion = max(d.PolicyVersion, store.getPolicyVersion(d.PolicyName))
 				d.PolicyVersion = appliedVersion
 			}
 			d.mu.Unlock()
@@ -144,13 +199,9 @@ func handleDevicesDelete(store *deviceStore) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		name := deviceName(r)
 
-		store.mu.Lock()
-		if d, ok := store.byName[name]; ok {
-			delete(store.byName, name)
-			delete(store.byESID, d.EnterpriseSpecificID)
+		if d, ok := store.markDeleted(name); ok {
 			log.Printf("Deleted fake device: %q (ESID: %q)", name, d.EnterpriseSpecificID) // #nosec G706 -- load testing tool
 		}
-		store.mu.Unlock()
 
 		w.Header().Set("Content-Type", "application/json")
 		fmt.Fprint(w, "{}")
@@ -245,7 +296,7 @@ func handleDevicesList(store *deviceStore, google *googleForwarder) http.Handler
 func handlePoliciesPatch(store *deviceStore, google *googleForwarder) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		name := policyName(r)
-		hostUUID := r.PathValue("pid")
+		hostUUID := policyID(r)
 
 		// Check if this policy is for a fake device (hostUUID == enterpriseSpecificID).
 		// If it's not a fake device and we have Google credentials, forward to real AMAPI.
@@ -256,8 +307,7 @@ func handlePoliciesPatch(store *deviceStore, google *googleForwarder) http.Handl
 			return
 		}
 
-		version := policyVersionCounter.Add(1)
-		store.setPolicyVersion(name, version)
+		version := store.nextPolicyVersion(name)
 
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(map[string]any{
@@ -271,7 +321,9 @@ func handlePoliciesPatch(store *deviceStore, google *googleForwarder) http.Handl
 func handlePolicyAction(store *deviceStore) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		name := policyName(r)
-		pid := r.PathValue("pid")
+		// policyID strips the action suffix, without which the device lookup in
+		// extractAndStoreCertTemplateIDs never matches.
+		hostUUID := policyID(r)
 
 		// Try to extract cert template IDs from the request body
 		var bodyBytes []byte
@@ -279,11 +331,10 @@ func handlePolicyAction(store *deviceStore) http.HandlerFunc {
 			bodyBytes, _ = io.ReadAll(r.Body)
 		}
 		if len(bodyBytes) > 0 {
-			extractAndStoreCertTemplateIDs(store, pid, bodyBytes)
+			extractAndStoreCertTemplateIDs(store, hostUUID, bodyBytes)
 		}
 
-		version := policyVersionCounter.Add(1)
-		store.setPolicyVersion(name, version)
+		version := store.nextPolicyVersion(name)
 
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(map[string]any{
@@ -361,43 +412,39 @@ func extractAndStoreCertTemplateIDs(store *deviceStore, hostUUID string, body []
 		return
 	}
 
+	// Keep looking after a change that carries no install operation: returning early here
+	// dropped certificates that were listed in a later change.
+	var certIDs []uint
 	for _, change := range req.Changes {
 		if change.Application.ManagedConfiguration == nil {
 			continue
 		}
-		var config struct {
-			CertificateTemplateIDs []struct {
-				ID        uint   `json:"id"`
-				Status    string `json:"status"`
-				Operation string `json:"operation"`
-			} `json:"certificate_templates"`
-		}
+		var config android.AgentManagedConfiguration
 		if err := json.Unmarshal(change.Application.ManagedConfiguration, &config); err != nil {
 			continue
 		}
-		if len(config.CertificateTemplateIDs) == 0 {
-			continue
-		}
 
-		var certIDs []uint
 		for _, ct := range config.CertificateTemplateIDs {
-			if ct.Operation == "install" {
+			if ct.Operation == string(fleet.MDMOperationTypeInstall) {
 				certIDs = append(certIDs, ct.ID)
 			}
 		}
-		if len(certIDs) == 0 {
-			return
-		}
-
-		// The hostUUID from the policy path is the enterpriseSpecificID for android devices.
-		d := store.getByESID(hostUUID)
-		if d != nil {
-			d.mu.Lock()
-			d.PendingCertificates = certIDs
-			d.mu.Unlock()
-		}
+	}
+	if len(certIDs) == 0 {
 		return
 	}
+
+	// The hostUUID from the policy path is the enterpriseSpecificID for android devices.
+	// A real device's policy action reaches this handler too (it is never forwarded), so
+	// this is expected in a mixed real + fake run.
+	d := store.getByESID(hostUUID)
+	if d == nil {
+		log.Printf("Policy %q is not a registered fake device; dropping %d pending certificate(s)", hostUUID, len(certIDs)) // #nosec G706 -- load testing tool
+		return
+	}
+	d.mu.Lock()
+	d.PendingCertificates = certIDs
+	d.mu.Unlock()
 }
 
 func handleCatchAll(_ *googleForwarder) http.HandlerFunc {

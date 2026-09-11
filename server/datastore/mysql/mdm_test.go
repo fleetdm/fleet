@@ -39,6 +39,9 @@ func TestMDMShared(t *testing.T) {
 		name string
 		fn   func(t *testing.T, ds *Datastore)
 	}{
+		{"TestResetPendingCertRenewals", testResetPendingCertRenewals},
+		{"TestGetDeviceInfoForACMERenewal", testGetDeviceInfoForACMERenewal},
+		{"TestListMDMCommandsByHostIdentifier", testListMDMCommandsByHostIdentifier},
 		{"TestMDMCommands", testMDMCommands},
 		{"TestListMDMCommandsWithTeamFilter", testListMDMCommandsWithTeamFilter},
 		{"TestListMDMCommandsOrderKeys", testListMDMCommandsOrderKeys},
@@ -53,6 +56,8 @@ func TestMDMShared(t *testing.T) {
 		{"TestMDMEULA", testMDMEULA},
 		{"TestGetHostCertAssociationsToExpire", testSCEPRenewalHelpers},
 		{"TestSCEPRenewalHelpers", testSCEPRenewalHelpers},
+		{"TestSCEPRenewalExclusion", testSCEPRenewalExclusion},
+		{"TestClearCertRenewalExclusions", testClearCertRenewalExclusions},
 		{"TestMDMProfilesSummaryAndHostFilters", testMDMProfilesSummaryAndHostFilters},
 		{"TestIsHostConnectedToFleetMDM", testIsHostConnectedToFleetMDM},
 		{"TestAreHostsConnectedToFleetMDM", testAreHostsConnectedToFleetMDM},
@@ -67,6 +72,8 @@ func TestMDMShared(t *testing.T) {
 		{"TestProfileHasACMEPayloadForCommand", testProfileHasACMEPayloadForCommand},
 		{"TestOktaCACleanupTargetForInstallCommand", testOktaCACleanupTargetForInstallCommand},
 		{"TestRenewMDMManagedCertificatesNullType", testRenewMDMManagedCertificatesNullType},
+		{"TestGetMDMCommandPlatformAndroid", testGetMDMCommandPlatformAndroid},
+		{"TestListMDMCommandsAndroid", testListMDMCommandsAndroid},
 	}
 
 	for _, c := range cases {
@@ -2664,12 +2671,12 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 			name:      "macos labels include any/all and exclude rules",
 			setupFunc: macosLabeledProfileRulesSetup,
 			wantMac: map[string]*fleet.ExpectedMDMProfile{
-				"T6.1":                                    {Identifier: "T6.1"},
-				"T6.2":                                    {Identifier: "T6.2"},
-				"include_any_all_match_prof":              {Identifier: "include_any_all_match_prof"},
-				"include_any_one_matches_prof":            {Identifier: "include_any_one_matches_prof"},
-				"include_all_all_match_prof":              {Identifier: "include_all_all_match_prof"},
-				"exclude_none_match_prof":                 {Identifier: "exclude_none_match_prof"},
+				"T6.1":                         {Identifier: "T6.1"},
+				"T6.2":                         {Identifier: "T6.2"},
+				"include_any_all_match_prof":   {Identifier: "include_any_all_match_prof"},
+				"include_any_one_matches_prof": {Identifier: "include_any_one_matches_prof"},
+				"include_all_all_match_prof":   {Identifier: "include_all_all_match_prof"},
+				"exclude_none_match_prof":      {Identifier: "exclude_none_match_prof"},
 				"include_all_and_exclude_none_match_prof": {Identifier: "include_all_and_exclude_none_match_prof"},
 				"include_any_and_exclude_none_match_prof": {Identifier: "include_any_and_exclude_none_match_prof"},
 			},
@@ -3403,6 +3410,180 @@ func testSCEPRenewalHelpers(t *testing.T, ds *Datastore) {
 	checkSCEPRenew(assocs[2], nil)
 }
 
+// newExpiredSCEPCertHost creates a darwin host with an already-expired identity
+// certificate association, so it always lands in the renewal window. idx must be
+// unique within a test.
+func newExpiredSCEPCertHost(t *testing.T, ds *Datastore, idx int, depAssigned bool) *fleet.Host {
+	ctx := t.Context()
+	scepDepot, err := ds.NewSCEPDepot()
+	require.NoError(t, err)
+	nanoStorage, err := ds.NewMDMAppleMDMStorage()
+	require.NoError(t, err)
+
+	h, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:       fmt.Sprintf("renewal-host%d-name", idx),
+		OsqueryHostID:  new(fmt.Sprintf("renewal-osquery-%d", idx)),
+		NodeKey:        new(fmt.Sprintf("renewal-nodekey-%d", idx)),
+		UUID:           fmt.Sprintf("renewal-uuid-%d", idx),
+		HardwareSerial: fmt.Sprintf("renewal-serial-%d", idx),
+		Platform:       "darwin",
+	})
+	require.NoError(t, err)
+
+	serial, err := scepDepot.Serial()
+	require.NoError(t, err)
+	notAfter := time.Now().AddDate(-1, 0, 0)
+	cert := &x509.Certificate{
+		SerialNumber: serial,
+		Subject:      pkix.Name{CommonName: "Fleet Identity"},
+		NotBefore:    time.Now().Add(-24 * time.Hour),
+		NotAfter:     notAfter,
+		Raw:          []byte(uuid.NewString()),
+	}
+	require.NoError(t, scepDepot.Put(cert.Subject.CommonName, cert))
+	req := mdm.Request{EnrollID: &mdm.EnrollID{ID: h.UUID}, Context: ctx}
+	require.NoError(t, nanoStorage.AssociateCertHash(&req, certauth.HashCert(cert), notAfter))
+	nanoEnroll(t, ds, h, true)
+
+	if depAssigned {
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx,
+				`INSERT INTO host_dep_assignments (host_id, hardware_serial) VALUES (?, ?)`,
+				h.ID, h.HardwareSerial)
+			return err
+		})
+	}
+	return h
+}
+
+func testSCEPRenewalExclusion(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	excludedAt := func(assoc fleet.SCEPIdentityAssociation) *time.Time {
+		var got *time.Time
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &got,
+				`SELECT renewal_excluded_at FROM nano_cert_auth_associations WHERE id = ? AND sha256 = ?`,
+				assoc.HostUUID, assoc.SHA256)
+		})
+		return got
+	}
+
+	assocsByHostUUID := func() map[string]fleet.SCEPIdentityAssociation {
+		assocs, err := ds.GetHostCertAssociationsToExpire(ctx, 1000, 100)
+		require.NoError(t, err)
+		byUUID := make(map[string]fleet.SCEPIdentityAssociation, len(assocs))
+		for _, assoc := range assocs {
+			byUUID[assoc.HostUUID] = assoc
+		}
+		return byUUID
+	}
+
+	hDEP := newExpiredSCEPCertHost(t, ds, 1, true)
+	hNoDEP := newExpiredSCEPCertHost(t, ds, 2, false)
+
+	// both are up for renewal, and DEP assignment is reported per host.
+	got := assocsByHostUUID()
+	require.Len(t, got, 2)
+	require.True(t, got[hDEP.UUID].DEPAssignedToFleet)
+	require.False(t, got[hNoDEP.UUID].DEPAssignedToFleet)
+
+	// no-op on an empty set
+	require.NoError(t, ds.ExcludeHostCertAssociationsFromRenewal(ctx, nil))
+	require.Nil(t, excludedAt(got[hDEP.UUID]))
+	require.Nil(t, excludedAt(got[hNoDEP.UUID]))
+
+	// excluding one association only stamps that association...
+	require.NoError(t, ds.ExcludeHostCertAssociationsFromRenewal(ctx, []fleet.SCEPIdentityAssociation{got[hNoDEP.UUID]}))
+	require.NotNil(t, excludedAt(got[hNoDEP.UUID]))
+	require.Nil(t, excludedAt(got[hDEP.UUID]))
+
+	// ...and drops it from the next renewal run.
+	afterExclusion := assocsByHostUUID()
+	require.Len(t, afterExclusion, 1)
+	require.Contains(t, afterExclusion, hDEP.UUID)
+}
+
+func testClearCertRenewalExclusions(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	h1 := newExpiredSCEPCertHost(t, ds, 1, true)
+	h2 := newExpiredSCEPCertHost(t, ds, 2, false)
+
+	assocs, err := ds.GetHostCertAssociationsToExpire(ctx, 1000, 100)
+	require.NoError(t, err)
+	require.Len(t, assocs, 2)
+
+	// no-op when nothing is excluded
+	require.NoError(t, ds.ClearCertRenewalExclusions(ctx))
+
+	require.NoError(t, ds.ExcludeHostCertAssociationsFromRenewal(ctx, assocs))
+	gated, err := ds.GetHostCertAssociationsToExpire(ctx, 1000, 100)
+	require.NoError(t, err)
+	require.Empty(t, gated)
+
+	// clearing puts every excluded association back in the renewal window
+	require.NoError(t, ds.ClearCertRenewalExclusions(ctx))
+	restored, err := ds.GetHostCertAssociationsToExpire(ctx, 1000, 100)
+	require.NoError(t, err)
+	require.Len(t, restored, 2)
+	gotUUIDs := []string{restored[0].HostUUID, restored[1].HostUUID}
+	require.ElementsMatch(t, []string{h1.UUID, h2.UUID}, gotUUIDs)
+}
+
+func testResetPendingCertRenewals(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	h1 := newExpiredSCEPCertHost(t, ds, 1, true)
+	h2 := newExpiredSCEPCertHost(t, ds, 2, true)
+
+	assocs, err := ds.GetHostCertAssociationsToExpire(ctx, 1000, 100)
+	require.NoError(t, err)
+	require.Len(t, assocs, 2)
+
+	// no-op when no renewal is in flight
+	require.NoError(t, ds.ResetPendingCertRenewals(ctx))
+
+	// put a renewal command in flight for each host
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `
+                  INSERT INTO nano_commands (command_uuid, request_type, command)
+                  VALUES ('renew-cmd-1', 'InstallProfile', '<?xml'), ('renew-cmd-2', 'InstallProfile', '<?xml')`)
+		return err
+	})
+	for i, assoc := range assocs {
+		cmdUUID := fmt.Sprintf("renew-cmd-%d", i+1)
+		require.NoError(t, ds.SetCommandForPendingSCEPRenewal(ctx, []fleet.SCEPIdentityAssociation{assoc}, cmdUUID))
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx,
+				`INSERT INTO nano_enrollment_queue (id, command_uuid, active) VALUES (?, ?, 1)`,
+				assoc.HostUUID, cmdUUID)
+			return err
+		})
+	}
+
+	// in-flight renewals are hidden from the next run
+	inFlight, err := ds.GetHostCertAssociationsToExpire(ctx, 1000, 100)
+	require.NoError(t, err)
+	require.Empty(t, inFlight)
+
+	require.NoError(t, ds.ResetPendingCertRenewals(ctx))
+
+	// the queued commands are deactivated...
+	var activeCount int
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &activeCount,
+			`SELECT COUNT(*) FROM nano_enrollment_queue WHERE active = 1`)
+	})
+	require.Zero(t, activeCount)
+
+	// ...and both hosts are eligible for renewal again
+	reset, err := ds.GetHostCertAssociationsToExpire(ctx, 1000, 100)
+	require.NoError(t, err)
+	require.Len(t, reset, 2)
+	require.ElementsMatch(t, []string{h1.UUID, h2.UUID}, []string{reset[0].HostUUID, reset[1].HostUUID})
+}
+
 func testMDMProfilesSummaryAndHostFilters(t *testing.T, ds *Datastore) {
 	// TODO: Expand this test to include:
 	// - more scenarios for windows
@@ -4021,6 +4202,56 @@ func testAreHostsConnectedToFleetMDM(t *testing.T, ds *Datastore) {
 		linuxHost.UUID:                      false,
 		disconnectedWithoutCheckoutMac.UUID: false,
 		disconnectedWithoutCheckoutWin.UUID: false,
+	}, connectedMap)
+
+	// Android: enrolled host should be connected
+	connectedAndroid, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:      "android-test-connected",
+		OsqueryHostID: new("osquery-android-connected"),
+		NodeKey:       new("node-key-android-connected"),
+		UUID:          uuid.NewString(),
+		Platform:      "android",
+	})
+	require.NoError(t, err)
+	err = ds.SetOrUpdateMDMData(ctx, connectedAndroid.ID, false, true, "https://android.example.com", true, "Android", "", false)
+	require.NoError(t, err)
+
+	// Android: host without MDM enrollment should not be connected
+	notConnectedAndroid, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:      "android-test-not-connected",
+		OsqueryHostID: new("osquery-android-not-connected"),
+		NodeKey:       new("node-key-android-not-connected"),
+		UUID:          uuid.NewString(),
+		Platform:      "android",
+	})
+	require.NoError(t, err)
+
+	// Android: unenrolled host (enrolled=false) should not be connected
+	unenrolledAndroid, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:      "android-test-unenrolled",
+		OsqueryHostID: new("osquery-android-unenrolled"),
+		NodeKey:       new("node-key-android-unenrolled"),
+		UUID:          uuid.NewString(),
+		Platform:      "android",
+	})
+	require.NoError(t, err)
+	err = ds.SetOrUpdateMDMData(ctx, unenrolledAndroid.ID, false, false, "", false, "", "", false)
+	require.NoError(t, err)
+
+	connectedMap, err = ds.AreHostsConnectedToFleetMDM(ctx, []*fleet.Host{
+		connectedMac,
+		connectedWin,
+		connectedAndroid,
+		notConnectedAndroid,
+		unenrolledAndroid,
+	})
+	require.NoError(t, err)
+	require.Equal(t, map[string]bool{
+		connectedMac.UUID:        true,
+		connectedWin.UUID:        true,
+		connectedAndroid.UUID:    true,
+		notConnectedAndroid.UUID: false,
+		unenrolledAndroid.UUID:   false,
 	}, connectedMap)
 }
 
@@ -5604,16 +5835,51 @@ func testProfileHasACMEPayloadForCommand(t *testing.T, ds *Datastore) {
 		return profileUUID
 	}
 
-	mkHostProfileLink := func(t *testing.T, hostUUID, profileUUID, commandUUID string) {
+	mkHostProfileLinkWithScope := func(t *testing.T, hostUUID, profileUUID, commandUUID string, scope fleet.PayloadScope) {
 		t.Helper()
 		require.NoError(t, ds.BulkUpsertMDMAppleHostProfiles(ctx, []*fleet.MDMAppleBulkUpsertHostProfilePayload{{
 			ProfileUUID:   profileUUID,
 			HostUUID:      hostUUID,
 			Checksum:      []byte("0123456789abcdef"),
-			Scope:         fleet.PayloadScopeSystem,
+			Scope:         scope,
 			OperationType: fleet.MDMOperationTypeInstall,
 			CommandUUID:   commandUUID,
 		}}))
+	}
+
+	mkHostProfileLink := func(t *testing.T, hostUUID, profileUUID, commandUUID string) {
+		t.Helper()
+		mkHostProfileLinkWithScope(t, hostUUID, profileUUID, commandUUID, fleet.PayloadScopeSystem)
+	}
+
+	// mkUserEnrollment gives the host a user channel, keyed as nanomdm keys them.
+	mkUserEnrollment := func(t *testing.T, hostUUID, userID string, enabled bool) string {
+		t.Helper()
+		enrollmentID := hostUUID + ":" + userID
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			if _, err := q.ExecContext(ctx,
+				`INSERT IGNORE INTO nano_devices (id, serial_number, authenticate) VALUES (?, ?, ?)`,
+				hostUUID, hostUUID, "test"); err != nil {
+				return err
+			}
+			if _, err := q.ExecContext(ctx,
+				`INSERT IGNORE INTO nano_users (id, device_id, user_short_name, user_long_name) VALUES (?, ?, ?, ?)`,
+				enrollmentID, hostUUID, "alice", "Alice"); err != nil {
+				return err
+			}
+			_, err := q.ExecContext(ctx,
+				`INSERT INTO nano_enrollments (id, device_id, user_id, type, topic, push_magic, token_hex, enabled)
+				 VALUES (?, ?, ?, 'User', 'topic', 'magic', 'hex', ?)`,
+				enrollmentID, hostUUID, enrollmentID, enabled)
+			return err
+		})
+		t.Cleanup(func() {
+			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+				_, err := q.ExecContext(ctx, `DELETE FROM nano_enrollments WHERE id = ?`, enrollmentID)
+				return err
+			})
+		})
+		return enrollmentID
 	}
 
 	acmeXML := []byte(`<?xml version="1.0"?><plist><dict><key>PayloadContent</key><array><dict><key>PayloadType</key><string>com.apple.security.acme</string></dict></array></dict></plist>`)
@@ -5684,6 +5950,43 @@ func testProfileHasACMEPayloadForCommand(t *testing.T, ds *Datastore) {
 		got, err := ds.ProfileHasACMEPayloadForCommand(ctx, host.UUID, cmdUUID)
 		require.NoError(t, err)
 		require.True(t, got.HasACMEPayload, "remove-op upsert must not reset the flag")
+	})
+
+	t.Run("system-scoped profile reports no user enrollment", func(t *testing.T) {
+		mkUserEnrollment(t, host.UUID, uuid.NewString(), true)
+		profUUID := mkProfile(t, "acme-system-scope", acmeXML)
+		cmdUUID := uuid.NewString()
+		mkHostProfileLinkWithScope(t, host.UUID, profUUID, cmdUUID, fleet.PayloadScopeSystem)
+
+		got, err := ds.ProfileHasACMEPayloadForCommand(ctx, host.UUID, cmdUUID)
+		require.NoError(t, err)
+		require.Equal(t, fleet.PayloadScopeSystem, got.Scope)
+		// Resolved only for user-scoped profiles.
+		require.Empty(t, got.UserEnrollmentID)
+	})
+
+	t.Run("user-scoped profile resolves the active user enrollment", func(t *testing.T) {
+		enrollmentID := mkUserEnrollment(t, host.UUID, uuid.NewString(), true)
+		profUUID := mkProfile(t, "acme-user-scope", acmeXML)
+		cmdUUID := uuid.NewString()
+		mkHostProfileLinkWithScope(t, host.UUID, profUUID, cmdUUID, fleet.PayloadScopeUser)
+
+		got, err := ds.ProfileHasACMEPayloadForCommand(ctx, host.UUID, cmdUUID)
+		require.NoError(t, err)
+		require.Equal(t, fleet.PayloadScopeUser, got.Scope)
+		require.Equal(t, enrollmentID, got.UserEnrollmentID)
+	})
+
+	t.Run("user-scoped profile ignores disabled user enrollments", func(t *testing.T) {
+		mkUserEnrollment(t, host.UUID, uuid.NewString(), false)
+		profUUID := mkProfile(t, "acme-user-scope-disabled", acmeXML)
+		cmdUUID := uuid.NewString()
+		mkHostProfileLinkWithScope(t, host.UUID, profUUID, cmdUUID, fleet.PayloadScopeUser)
+
+		got, err := ds.ProfileHasACMEPayloadForCommand(ctx, host.UUID, cmdUUID)
+		require.NoError(t, err)
+		require.Equal(t, fleet.PayloadScopeUser, got.Scope)
+		require.Empty(t, got.UserEnrollmentID, "a disabled enrollment cannot answer a CertificateList")
 	})
 
 	t.Run("unknown command returns not found", func(t *testing.T) {
@@ -5914,4 +6217,186 @@ func testRenewMDMManagedCertificatesNullType(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.NotNil(t, ndesProfileDetail)
 	require.Equal(t, fleet.CAConfigNDES, ndesProfileDetail.Type)
+}
+
+func testListMDMCommandsByHostIdentifier(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	t.Run("non-supported platforms return empty list", func(t *testing.T) {
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			Hostname:      "non-supported-platform-host",
+			OsqueryHostID: new("osquery-linux-unsupported"),
+			NodeKey:       new("node-key-linux-unsupported"),
+			UUID:          uuid.NewString(),
+			Platform:      "linux",
+		})
+		require.NoError(t, err)
+
+		commands, _, _, err := ds.listMDMCommandsByHostIdentifier(ctx, fleet.TeamFilter{
+			User:            test.UserAdmin,
+			IncludeObserver: true,
+		}, &fleet.MDMCommandListOptions{Filters: fleet.MDMCommandFilters{
+			HostIdentifier: h.UUID,
+		}})
+		require.NoError(t, err)
+		require.Empty(t, commands)
+	})
+}
+
+func testGetMDMCommandPlatformAndroid(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// Insert an Android command directly into mdm_android_commands.
+	cmdUUID := uuid.NewString()
+	_, err := ds.writer(ctx).ExecContext(ctx, `
+		INSERT INTO mdm_android_commands (command_uuid, host_uuid, operation_name, command_type, status)
+		VALUES (?, ?, ?, ?, ?)`,
+		cmdUUID, "host-uuid-platform", "enterprises/E/devices/D/operations/plat-1", "REBOOT", "pending")
+	require.NoError(t, err)
+
+	p, err := ds.GetMDMCommandPlatform(ctx, cmdUUID)
+	require.NoError(t, err)
+	assert.Equal(t, "android", p)
+
+	// Non-existent command returns not found.
+	_, err = ds.GetMDMCommandPlatform(ctx, "does-not-exist")
+	require.Error(t, err)
+	require.True(t, fleet.IsNotFound(err))
+}
+
+func testListMDMCommandsAndroid(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// Create an Android host.
+	host, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:      "android-list-test",
+		OsqueryHostID: new("osquery-android-list"),
+		NodeKey:       new("node-key-android-list"),
+		UUID:          uuid.NewString(),
+		Platform:      "android",
+	})
+	require.NoError(t, err)
+
+	// Insert Android commands.
+	for i, cmdType := range []string{"REBOOT", "LOCK", "REBOOT"} {
+		status := "pending"
+		if i == 0 {
+			status = "acknowledged"
+		}
+		_, err := ds.writer(ctx).ExecContext(ctx, `
+			INSERT INTO mdm_android_commands (command_uuid, host_uuid, operation_name, command_type, status)
+			VALUES (?, ?, ?, ?, ?)`,
+			uuid.NewString(), host.UUID,
+			fmt.Sprintf("enterprises/E/devices/D/operations/list-%d", i),
+			cmdType, status)
+		require.NoError(t, err)
+	}
+
+	// List by host identifier (host-scoped path).
+	cmds, _, _, err := ds.ListMDMCommands(ctx, fleet.TeamFilter{User: &fleet.User{GlobalRole: new("admin")}}, &fleet.MDMCommandListOptions{
+		Filters:     fleet.MDMCommandFilters{HostIdentifier: host.UUID},
+		ListOptions: fleet.ListOptions{PerPage: 10},
+	})
+	require.NoError(t, err)
+	require.Len(t, cmds, 3)
+
+	// Verify all commands belong to our host.
+	for _, cmd := range cmds {
+		assert.Equal(t, host.UUID, cmd.HostUUID)
+		assert.NotEmpty(t, cmd.CommandUUID)
+		assert.NotEmpty(t, cmd.RequestType)
+	}
+
+	// Filter by request type.
+	cmds, _, _, err = ds.ListMDMCommands(ctx, fleet.TeamFilter{User: &fleet.User{GlobalRole: new("admin")}}, &fleet.MDMCommandListOptions{
+		Filters:     fleet.MDMCommandFilters{HostIdentifier: host.UUID, RequestType: "LOCK"},
+		ListOptions: fleet.ListOptions{PerPage: 10},
+	})
+	require.NoError(t, err)
+	require.Len(t, cmds, 1)
+	assert.Equal(t, "LOCK", cmds[0].RequestType)
+
+	// List all commands (non-host-scoped path) — should include our Android commands.
+	cmds, _, _, err = ds.ListMDMCommands(ctx, fleet.TeamFilter{User: &fleet.User{GlobalRole: new("admin")}}, &fleet.MDMCommandListOptions{
+		ListOptions: fleet.ListOptions{PerPage: 100},
+	})
+	require.NoError(t, err)
+
+	// Find our Android commands in the results.
+	var androidCount int
+	for _, cmd := range cmds {
+		if cmd.HostUUID == host.UUID {
+			androidCount++
+		}
+	}
+	assert.Equal(t, 3, androidCount, "expected 3 Android commands in all-hosts listing")
+}
+
+func testGetDeviceInfoForACMERenewal(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	encTok := uuid.NewString()
+	abmToken, err := ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: "unused", EncryptedToken: []byte(encTok), RenewAt: time.Now().Add(365 * 24 * time.Hour)})
+	require.NoError(t, err)
+
+	newHost := func(name, model, osName, osVersion string, depAssigned bool) *fleet.Host {
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			Hostname:       name,
+			OsqueryHostID:  new("osquery-" + name),
+			NodeKey:        new("nodekey-" + name),
+			UUID:           "uuid-" + name,
+			HardwareSerial: "serial-" + name,
+			HardwareModel:  model,
+			Platform:       "darwin",
+		})
+		require.NoError(t, err)
+		// NewHost does not persist hardware_model
+		require.NoError(t, ds.UpdateHost(ctx, h))
+
+		if osName != "" {
+			require.NoError(t, ds.UpdateHostOperatingSystem(ctx, h.ID, fleet.OperatingSystem{
+				Name:     osName,
+				Version:  osVersion,
+				Platform: "darwin",
+			}))
+		}
+		if depAssigned {
+			require.NoError(t, ds.UpsertMDMAppleHostDEPAssignments(ctx, []fleet.Host{*h}, abmToken.ID, make(map[uint]time.Time)))
+		}
+		return h
+	}
+
+	macOS := newHost("mac", "MacBookPro18,1", "macOS", "14.5.0", true)
+	iOS := newHost("ios", "iPhone14,2", "iOS", "17.5.1", true)
+	iPadOS := newHost("ipad", "iPad13,1", "iPadOS", "17.5.1", true)
+	// not eligible: no DEP assignment
+	noDEP := newHost("nodep", "MacBookPro18,1", "macOS", "14.5.0", false)
+	// not eligible: DEP-assigned but no operating system recorded
+	noOS := newHost("noos", "MacBookPro18,1", "", "", true)
+	// not eligible: DEP-assigned but not an Apple OS
+	otherOS := newHost("other", "ThinkPad", "Ubuntu", "22.04 LTS", true)
+	// not eligible: DEP assignment was deleted
+	deletedDEP := newHost("deleted", "MacBookPro18,1", "macOS", "14.5.0", true)
+	require.NoError(t, ds.DeleteHostDEPAssignments(ctx, abmToken.ID, []string{deletedDEP.HardwareSerial}))
+
+	// no host UUIDs returns an empty result without hitting the DB
+	got, err := ds.GetDeviceInfoForACMERenewal(ctx, nil)
+	require.NoError(t, err)
+	require.Empty(t, got)
+
+	// unknown host UUID returns nothing
+	got, err = ds.GetDeviceInfoForACMERenewal(ctx, []string{"no-such-uuid"})
+	require.NoError(t, err)
+	require.Empty(t, got)
+
+	// only the eligible hosts are returned, with their device info
+	got, err = ds.GetDeviceInfoForACMERenewal(ctx, []string{
+		macOS.UUID, iOS.UUID, iPadOS.UUID, noDEP.UUID, noOS.UUID, otherOS.UUID, deletedDEP.UUID,
+	})
+	require.NoError(t, err)
+	require.ElementsMatch(t, []fleet.DeviceInfoForACMERenewal{
+		{HostUUID: macOS.UUID, HardwareSerial: macOS.HardwareSerial, HardwareModel: "MacBookPro18,1", OSVersion: "14.5.0"},
+		{HostUUID: iOS.UUID, HardwareSerial: iOS.HardwareSerial, HardwareModel: "iPhone14,2", OSVersion: "17.5.1"},
+		{HostUUID: iPadOS.UUID, HardwareSerial: iPadOS.HardwareSerial, HardwareModel: "iPad13,1", OSVersion: "17.5.1"},
+	}, got)
 }

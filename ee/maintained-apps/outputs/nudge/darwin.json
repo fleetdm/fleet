@@ -4,7 +4,8 @@
       "version": "2.1.3.81860",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.github.macadmins.Nudge';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.github.macadmins.Nudge' AND version_compare(bundle_short_version, '2.1.3.81860') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.github.macadmins.Nudge' AND version_compare(bundle_short_version, '2.1.3.81860') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.github.macadmins.Nudge' AND a.bundle_executable != '');"
       },
       "installer_url": "https://github.com/macadmins/nudge/releases/download/v2.1.3.81860/Nudge-2.1.3.81860.pkg",
       "install_script_ref": "aa291dac",

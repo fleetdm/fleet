@@ -254,7 +254,7 @@ spec:
   name: Get installed macOS software
   platform: darwin
   description: Get all software installed on a macOS computer, including apps, browser plugins, and installed packages. Note that this does not include other running processes in the processes table.
-  query: SELECT name AS name, bundle_short_version AS version, 'Application (macOS)' AS type, 'apps' AS source FROM apps UNION SELECT name AS name, version AS version, 'Package (Python)' AS type, 'python_packages' AS source FROM python_packages UNION SELECT name AS name, version AS version, 'Browser plugin (Chrome)' AS type, 'chrome_extensions' AS source FROM chrome_extensions UNION SELECT name AS name, version AS version, 'Browser plugin (Firefox)' AS type, 'firefox_addons' AS source FROM firefox_addons UNION SELECT name As name, version AS version, 'Browser plugin (Safari)' AS type, 'safari_extensions' AS source FROM safari_extensions UNION SELECT name AS name, version AS version, 'Package (Homebrew)' AS type, 'homebrew_packages' AS source FROM homebrew_packages;
+  query: SELECT name AS name, bundle_short_version AS version, 'Application (macOS)' AS type, 'apps' AS source FROM apps UNION SELECT name AS name, version AS version, 'Package (Python)' AS type, 'python_packages' AS source FROM python_packages UNION SELECT name AS name, version AS version, 'Browser plugin (Chrome)' AS type, 'chrome_extensions' AS source FROM chrome_extensions UNION SELECT name AS name, version AS version, 'Browser plugin (Firefox)' AS type, 'firefox_addons' AS source FROM firefox_addons UNION SELECT safari_extensions.name AS name, safari_extensions.version AS version, 'Browser plugin (Safari)' AS type, 'safari_extensions' AS source FROM users CROSS JOIN safari_extensions USING (uid) UNION SELECT name AS name, version AS version, 'Package (Homebrew)' AS type, 'homebrew_packages' AS source FROM homebrew_packages;
   purpose: Informational
   tags: inventory, built-in
   contributors: zwass
@@ -264,8 +264,8 @@ kind: report
 spec:
   name: Get installed Safari extensions
   platform: darwin
-  description: Retrieves the list of installed Safari Extensions for all users in the target system.
-  query: SELECT safari_extensions.* FROM users join safari_extensions USING (uid);
+  description: Retrieves installed Safari App Extensions and Web Extensions for all users. Requires Full Disk Access for osquery. Unlike bash plist enumeration, this table only returns extensions whose .appex is under /Applications.
+  query: SELECT safari_extensions.* FROM users CROSS JOIN safari_extensions USING (uid);
   purpose: Informational
   tags: browser, built-in, inventory
   contributors: zwass

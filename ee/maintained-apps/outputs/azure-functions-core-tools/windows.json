@@ -1,15 +1,16 @@
 {
   "versions": [
     {
-      "version": "4.12.1",
+      "version": "4.13.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'Azure Functions Core Tools %' AND publisher = 'Microsoft';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Azure Functions Core Tools %' AND publisher = 'Microsoft' AND version_compare(version, '4.12.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Azure Functions Core Tools %' AND publisher = 'Microsoft' AND version_compare(version, '4.13.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'azure functions core tools.exe');"
       },
-      "installer_url": "https://github.com/Azure/azure-functions-core-tools/releases/download/4.12.1/func-cli-4.12.1-x64.msi",
+      "installer_url": "https://github.com/Azure/azure-functions-core-tools/releases/download/4.13.0/func-cli-4.13.0-x64.msi",
       "install_script_ref": "49fc2740",
       "uninstall_script_ref": "8d96b1b8",
-      "sha256": "dc3ce68c15d7923057befd9515d53e70b100734980067e71af77620b3af7e461",
+      "sha256": "60c4fe33df379d6099967e1af38be5d3db84b06cf381579e6149fbff6e4f4295",
       "default_categories": [
         "Developer tools"
       ],

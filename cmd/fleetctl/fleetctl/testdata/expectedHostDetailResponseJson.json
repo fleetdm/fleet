@@ -39,6 +39,7 @@
     "last_enrolled_at": "0001-01-01T00:00:00Z",
     "last_mdm_checked_in_at": null,
     "last_mdm_enrolled_at": null,
+    "last_mdm_enrollment_type": null,
     "last_restarted_at": "0001-01-01T00:00:00Z",
     "logger_tls_period": 0,
     "mdm": {
@@ -48,6 +49,7 @@
       "encryption_key_archived": false,
       "encryption_key_available": false,
       "enrollment_status": null,
+      "is_personal_enrollment": false,
       "name": "",
       "pending_action": "",
       "server_url": null
@@ -78,6 +80,7 @@
         "fleet_id": 1,
         "id": 1,
         "name": "query1",
+        "patch_when_closed": false,
         "platform": "",
         "query": "select 1 from osquery_info where start_time \u003e 1;",
         "resolution": "Some resolution",
@@ -99,6 +102,7 @@
         "fleet_id": null,
         "id": 2,
         "name": "query2",
+        "patch_when_closed": false,
         "platform": "",
         "query": "select 1 from osquery_info where start_time \u003e 1;",
         "response": "fails",

@@ -361,6 +361,21 @@ func (ds *Datastore) SaveInHouseAppUpdates(ctx context.Context, payload *fleet.U
 
 func (ds *Datastore) DeleteInHouseApp(ctx context.Context, id uint) error {
 	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		// Bail early when the app is selected for setup experience, before the
+		// cleanup below cancels pending installs in transactions of its own. A
+		// plain read keeps the row unlocked during that cascade; the guarded
+		// DELETE below still catches a concurrent selection.
+		var installDuringSetup bool
+		switch err := sqlx.GetContext(ctx, tx, &installDuringSetup,
+			`SELECT install_during_setup FROM in_house_apps WHERE id = ?`, id); {
+		case errors.Is(err, sql.ErrNoRows):
+			return notFound("InHouseApp").WithID(id)
+		case err != nil:
+			return ctxerr.Wrap(ctx, err, "check if in-house app is installed during setup")
+		case installDuringSetup:
+			return errDeleteInstallerInstalledDuringSetup
+		}
+
 		err := ds.RemovePendingInHouseAppInstalls(ctx, id)
 		if err != nil && !fleet.IsNotFound(err) {
 			return ctxerr.Wrap(ctx, err, "delete in house app: remove pending in house app installs")
@@ -372,9 +387,23 @@ func (ds *Datastore) DeleteInHouseApp(ctx context.Context, id uint) error {
 			return ctxerr.Wrap(ctx, err, "delete software title display name")
 		}
 
-		_, err = tx.ExecContext(ctx, `DELETE FROM in_house_apps WHERE id = ?`, id)
+		res, err := tx.ExecContext(ctx, `DELETE FROM in_house_apps WHERE id = ? AND install_during_setup = 0`, id)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "delete in house app")
+		}
+		if rows, _ := res.RowsAffected(); rows == 0 {
+			// either selected for setup experience or deleted concurrently
+			// between the check above and here
+			var installDuringSetup bool
+			switch err := sqlx.GetContext(ctx, tx, &installDuringSetup,
+				`SELECT install_during_setup FROM in_house_apps WHERE id = ?`, id); {
+			case errors.Is(err, sql.ErrNoRows):
+				return notFound("InHouseApp").WithID(id)
+			case err != nil:
+				return ctxerr.Wrap(ctx, err, "check why in-house app was not deleted")
+			default:
+				return errDeleteInstallerInstalledDuringSetup
+			}
 		}
 		return nil
 	})
@@ -442,11 +471,11 @@ upcoming AS (
 -- NOTE if you change this logic make sure to change inHouseAppHostStatusNamedQuery accordingly
 past AS (
 	SELECT
-		hihsi.host_id,
+		ranked.host_id,
 		CASE
-			WHEN hihsi.verification_at IS NOT NULL THEN
+			WHEN ranked.verification_at IS NOT NULL THEN
 				:software_status_installed
-			WHEN hihsi.verification_failed_at IS NOT NULL THEN
+			WHEN ranked.verification_failed_at IS NOT NULL THEN
 				:software_status_failed
 			WHEN ncr.status = :mdm_status_error OR ncr.status = :mdm_status_format_error THEN
 				:software_status_failed
@@ -455,28 +484,35 @@ past AS (
 			ELSE
 				NULL -- either pending or not installed via in-house App
 		END AS status
-	FROM
-		host_in_house_software_installs hihsi
-		JOIN hosts h ON host_id = h.id
-		-- LEFT JOIN so Fleet-side pre-flight failures (unresolvable
-		-- managed-config Fleet variable) survive — those never enqueue an MDM
-		-- command, so no ncr row exists. The CASE above maps
-		-- verification_failed_at IS NOT NULL to failed before any ncr.status
-		-- branch is evaluated.
-		LEFT JOIN nano_command_results ncr ON ncr.id = h.uuid AND ncr.command_uuid = hihsi.command_uuid
-		LEFT JOIN host_in_house_software_installs hihsi2
-			ON hihsi.host_id = hihsi2.host_id AND
-				 hihsi.in_house_app_id = hihsi2.in_house_app_id AND
-				 hihsi2.removed = 0 AND
-				 hihsi2.canceled = 0 AND
-				 (hihsi.created_at < hihsi2.created_at OR (hihsi.created_at = hihsi2.created_at AND hihsi.id < hihsi2.id))
+	FROM (
+		SELECT
+			hihsi.host_id,
+			hihsi.command_uuid,
+			hihsi.verification_at,
+			hihsi.verification_failed_at,
+			h.uuid AS host_uuid,
+			ROW_NUMBER() OVER (
+				PARTITION BY hihsi.host_id
+				ORDER BY hihsi.created_at DESC, hihsi.id DESC
+			) AS rn
+		FROM
+			host_in_house_software_installs hihsi
+			JOIN hosts h ON hihsi.host_id = h.id
+		WHERE
+			hihsi.in_house_app_id = :in_house_app_id
+			AND (h.team_id = :team_id OR (h.team_id IS NULL AND :team_id = 0))
+			AND hihsi.removed = 0
+			AND hihsi.canceled = 0
+	) ranked
+	-- LEFT JOIN so Fleet-side pre-flight failures (unresolvable
+	-- managed-config Fleet variable) survive — those never enqueue an MDM
+	-- command, so no ncr row exists. The CASE above maps
+	-- verification_failed_at IS NOT NULL to failed before any ncr.status
+	-- branch is evaluated.
+	LEFT JOIN nano_command_results ncr ON ncr.id = ranked.host_uuid AND ncr.command_uuid = ranked.command_uuid
 	WHERE
-		hihsi2.id IS NULL
-		AND hihsi.in_house_app_id = :in_house_app_id
-		AND (h.team_id = :team_id OR (h.team_id IS NULL AND :team_id = 0))
-		AND hihsi.host_id NOT IN (SELECT host_id FROM upcoming) -- antijoin to exclude hosts with upcoming activities
-		AND hihsi.removed = 0
-		AND hihsi.canceled = 0
+		ranked.rn = 1
+		AND ranked.host_id NOT IN (SELECT host_id FROM upcoming) -- antijoin to exclude hosts with upcoming activities
 )
 
 -- count each status
@@ -590,8 +626,12 @@ VALUES
 			return ctxerr.Wrap(ctx, err, "insert in house app install request join table")
 		}
 
-		if _, err := ds.activateNextUpcomingActivity(ctx, tx, hostID, ""); err != nil {
-			return ctxerr.Wrap(ctx, err, "activate next activity")
+		// deferred activations are picked up by the fleet-initiated release
+		// cron within its per-minute budget
+		if !opts.DeferActivation {
+			if _, err := ds.activateNextUpcomingActivity(ctx, tx, hostID, ""); err != nil {
+				return ctxerr.Wrap(ctx, err, "activate next activity")
+			}
 		}
 		return nil
 	})
@@ -1020,9 +1060,10 @@ INSERT INTO in_house_apps (
 	platform,
 	bundle_identifier,
 	self_service,
-	url
+	url,
+	install_during_setup
 ) VALUES (
-  ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+  ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, COALESCE(?, false)
 )
 ON DUPLICATE KEY UPDATE
   filename = VALUES(filename),
@@ -1031,7 +1072,8 @@ ON DUPLICATE KEY UPDATE
   platform = VALUES(platform),
   bundle_identifier = VALUES(bundle_identifier),
   self_service = VALUES(self_service),
-  url = VALUES(url)
+  url = VALUES(url),
+  install_during_setup = COALESCE(?, install_during_setup)
 `
 
 	const loadInHouseInstallerID = `
@@ -1377,6 +1419,8 @@ WHERE
 				installer.BundleIdentifier,
 				installer.SelfService,
 				installer.URL,
+				installer.InstallDuringSetup,
+				installer.InstallDuringSetup,
 			}
 			upsertQuery := insertNewOrEditedInstaller
 			if len(existing) > 0 && existing[0].IsPackageModified { // update uploaded_at for updated installer package
@@ -1536,7 +1580,8 @@ WHERE
 	if err != nil {
 		return err
 	}
-	return ds.activateNextUpcomingActivityForBatchOfHosts(ctx, activateAffectedHostIDs)
+	_, err = ds.activateNextUpcomingActivityForBatchOfHosts(ctx, activateAffectedHostIDs)
+	return err
 }
 
 func (ds *Datastore) runInHouseUpdateSideEffectsInTransaction(ctx context.Context, tx sqlx.ExtContext, installerID uint, wasMetadataUpdated bool, wasPackageUpdated bool) (affectedHostIDs []uint, err error) {

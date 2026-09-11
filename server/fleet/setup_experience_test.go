@@ -157,6 +157,61 @@ func TestSetupExperienceStatusResultIsValid(t *testing.T) {
 			Valid: false,
 			Name:  "policy_gated on script (no software installer)",
 		},
+		{
+			Case: SetupExperienceStatusResult{
+				InHouseAppID: id,
+			},
+			Valid: true,
+			Name:  "just in-house app",
+		},
+		{
+			Case: SetupExperienceStatusResult{
+				InHouseAppID:    id,
+				NanoCommandUUID: str,
+			},
+			Valid: true,
+			Name:  "in-house app and result",
+		},
+		{
+			Case: SetupExperienceStatusResult{
+				InHouseAppID:                    id,
+				HostSoftwareInstallsExecutionID: str,
+			},
+			Valid: false,
+			Name:  "in-house app and installer secondary",
+		},
+		{
+			Case: SetupExperienceStatusResult{
+				InHouseAppID:      id,
+				ScriptExecutionID: str,
+			},
+			Valid: false,
+			Name:  "in-house app and script secondary",
+		},
+		{
+			Case: SetupExperienceStatusResult{
+				InHouseAppID: id,
+				VPPAppTeamID: id,
+			},
+			Valid: false,
+			Name:  "in-house app and vpp",
+		},
+		{
+			Case: SetupExperienceStatusResult{
+				InHouseAppID:        id,
+				SoftwareInstallerID: id,
+			},
+			Valid: false,
+			Name:  "in-house app and installer",
+		},
+		{
+			Case: SetupExperienceStatusResult{
+				InHouseAppID: id,
+				PolicyGated:  true,
+			},
+			Valid: false,
+			Name:  "policy_gated on in-house app (no software installer)",
+		},
 	} {
 		err := tc.Case.IsValid()
 		if tc.Valid {

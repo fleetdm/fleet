@@ -4,7 +4,8 @@
       "version": "3.11.5",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'gPodder' AND publisher = 'The gPodder Team';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'gPodder' AND publisher = 'The gPodder Team' AND version_compare(version, '3.11.5') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'gPodder' AND publisher = 'The gPodder Team' AND version_compare(version, '3.11.5') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'gpodder.exe');"
       },
       "installer_url": "https://github.com/gpodder/gpodder/releases/download/3.11.5/windows-gpodder-3.11.5-installer.exe",
       "install_script_ref": "d02fa30e",

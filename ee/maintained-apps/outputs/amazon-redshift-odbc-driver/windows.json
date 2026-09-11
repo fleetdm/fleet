@@ -4,7 +4,8 @@
       "version": "2.1.9.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Amazon Redshift ODBC Driver 64-bit' AND publisher = 'Amazon Web Services, Inc.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Amazon Redshift ODBC Driver 64-bit' AND publisher = 'Amazon Web Services, Inc.' AND version_compare(version, '2.1.9.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Amazon Redshift ODBC Driver 64-bit' AND publisher = 'Amazon Web Services, Inc.' AND version_compare(version, '2.1.9.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'amazon redshift odbc driver.exe');"
       },
       "installer_url": "https://s3.amazonaws.com/redshift-downloads/drivers/odbc/2.1.9.0/AmazonRedshiftODBC64-2.1.9.0.msi",
       "install_script_ref": "22e48c46",

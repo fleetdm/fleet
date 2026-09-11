@@ -14,8 +14,8 @@ import (
 )
 
 func TestAutoUpdateFleetMaintainedApps(t *testing.T) {
-	// Cached versions for the title, semver-sorted newest-first (as the real
-	// datastore returns them with byVersion=true).
+	// Cached versions for the title, most recently downloaded first (as the real
+	// datastore returns them).
 	versions := []fleet.FleetMaintainedVersion{
 		{ID: 12, Version: "149.0.2"},
 		{ID: 11, Version: "147.0.9"},
@@ -95,7 +95,7 @@ func TestAutoUpdateFleetMaintainedApps(t *testing.T) {
 				}
 				return tc.pin, nil
 			}
-			ds.GetFleetMaintainedVersionsByTitleIDFunc = func(ctx context.Context, tmID *uint, titleID uint, byVersion bool) ([]fleet.FleetMaintainedVersion, error) {
+			ds.GetFleetMaintainedVersionsByTitleIDFunc = func(ctx context.Context, tmID *uint, titleID uint) ([]fleet.FleetMaintainedVersion, error) {
 				return tc.cached, nil
 			}
 
@@ -140,7 +140,7 @@ func TestAutoUpdateFleetMaintainedAppsContinuesPastError(t *testing.T) {
 		}
 		return nil, sql.ErrNoRows
 	}
-	ds.GetFleetMaintainedVersionsByTitleIDFunc = func(ctx context.Context, tmID *uint, titleID uint, byVersion bool) ([]fleet.FleetMaintainedVersion, error) {
+	ds.GetFleetMaintainedVersionsByTitleIDFunc = func(ctx context.Context, tmID *uint, titleID uint) ([]fleet.FleetMaintainedVersion, error) {
 		return []fleet.FleetMaintainedVersion{{ID: 21, Version: "2.0.0"}}, nil
 	}
 	var flippedTitle uint
@@ -157,4 +157,30 @@ func TestAutoUpdateFleetMaintainedAppsContinuesPastError(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, ds.SetFleetMaintainedAppActiveInstallerFuncInvoked)
 	require.Equal(t, uint(2), flippedTitle)
+}
+
+func TestAutoUpdateFleetMaintainedAppsReportsCancelDuringLastApp(t *testing.T) {
+	ds := new(mock.Store)
+	teamID := uint(1)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	ds.ListFleetMaintainedAppActiveInstallersFunc = func(ctx context.Context) ([]fleet.FMAAutoUpdateCandidate, error) {
+		return []fleet.FMAAutoUpdateCandidate{
+			{TeamID: &teamID, TitleID: 1, InstallerID: 9, Slug: "only/darwin"},
+		}, nil
+	}
+	// The budget runs out while the last app is in flight, so no later pass through the loop sees it.
+	ds.GetPinnedVersionFunc = func(ctx context.Context, tmID *uint, titleID uint) (*string, error) {
+		cancel()
+		return nil, sql.ErrNoRows
+	}
+	// Already on the newest cached version, so the app itself is a no-op and only the budget is left to report.
+	ds.GetFleetMaintainedVersionsByTitleIDFunc = func(ctx context.Context, tmID *uint, titleID uint) ([]fleet.FleetMaintainedVersion, error) {
+		return []fleet.FleetMaintainedVersion{{ID: 9, Version: "1.0"}}, nil
+	}
+
+	err := AutoUpdateFleetMaintainedApps(ctx, ds, nil, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	require.ErrorIs(t, err, context.Canceled)
+	require.False(t, ds.SetFleetMaintainedAppActiveInstallerFuncInvoked)
 }

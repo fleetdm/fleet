@@ -6,22 +6,38 @@ import (
 	"unicode/utf8"
 )
 
+// TruncateBytes returns s capped at maxBytes bytes, with marker appended when it had to cut. The returned string including the
+// marker never exceeds maxBytes.
+//
+// The cut lands on a rune boundary, so a valid UTF-8 input stays valid instead of ending in half a character. It does not
+// sanitize: an input that is already invalid UTF-8 stays invalid. If maxBytes cannot hold the marker, the marker is dropped
+// rather than returning a string that is nothing but marker.
+func TruncateBytes(s string, maxBytes int, marker string) string {
+	if maxBytes <= 0 {
+		return ""
+	}
+	if len(s) <= maxBytes {
+		return s
+	}
+	cut := maxBytes - len(marker)
+	if cut <= 0 {
+		cut, marker = maxBytes, ""
+	}
+	// Step back to the start of a rune so the cut never splits a multi-byte character.
+	for cut > 0 && !utf8.RuneStart(s[cut]) {
+		cut--
+	}
+	return s[:cut] + marker
+}
+
 // MaxErrorResponseBytes is the maximum number of bytes captured from a remote
 // error response body before the string is truncated.
 const MaxErrorResponseBytes = 512 * 1024
 
-// TruncateErrorResponse caps s at MaxErrorResponseBytes bytes. When the string
-// is longer it is cut at a valid UTF-8 boundary and " [truncated]" is appended.
+// TruncateErrorResponse caps s at MaxErrorResponseBytes bytes. When the string is longer it is cut at a valid UTF-8 boundary
+// and " [truncated]" is appended.
 func TruncateErrorResponse(s string) string {
-	if len(s) <= MaxErrorResponseBytes {
-		return s
-	}
-	cut := s[:MaxErrorResponseBytes]
-	// Step back from the cut point to ensure we end on a valid rune boundary.
-	for !utf8.ValidString(cut) {
-		cut = cut[:len(cut)-1]
-	}
-	return cut + " [truncated]"
+	return TruncateBytes(s, MaxErrorResponseBytes, " [truncated]")
 }
 
 // TruncateRunes returns s shortened to at most maxRunes characters, preserving the start of the string. Use it before

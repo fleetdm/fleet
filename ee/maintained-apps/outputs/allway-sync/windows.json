@@ -4,7 +4,8 @@
       "version": "22.0.1",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Allway Sync' AND publisher = 'Botkind Inc.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Allway Sync' AND publisher = 'Botkind Inc.' AND version_compare(version, '22.0.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Allway Sync' AND publisher = 'Botkind Inc.' AND version_compare(version, '22.0.1') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'allway sync.exe');"
       },
       "installer_url": "https://allwaysync.com/content/download/allwaysync-x64-22-0-1.msi",
       "install_script_ref": "22e48c46",

@@ -1,3 +1,8 @@
+# Locates RStudio's NsisMultiUser uninstaller from the registry and runs it
+# silently. NSIS matches the literal " _?=" and takes the rest of the command
+# line verbatim, so the directory must be unquoted or is_valid_instpath()
+# rejects it and the uninstaller exits 2 before doing any work.
+
 $displayNameLike = "RStudio*"
 $publisherLike = "Posit Software*"
 
@@ -7,8 +12,6 @@ $paths = @(
   'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall',
   'HKCU:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall'
 )
-
-$ExpectedExitCodes = @(0, 1641, 3010, 1223)
 
 $entry = $null
 foreach ($p in $paths) {
@@ -44,7 +47,7 @@ if ($uninstallCommand -match '^\s*"([^"]+)"\s*(.*)$') {
 if ($existingArgs -notmatch '(?i)(^|\s)/S(\s|$)') { $existingArgs = ("$existingArgs /S").Trim() }
 if ($entry.InstallLocation -and ($existingArgs -notmatch '_\?=')) {
     $installDir = $entry.InstallLocation.TrimEnd('\')
-    $existingArgs = ("$existingArgs _?=`"$installDir`"").Trim()
+    $existingArgs = ("$existingArgs _?=$installDir").Trim()
 }
 
 Write-Host "Uninstall command: $exePath"
@@ -61,7 +64,6 @@ try {
     $process = Start-Process @processOptions
     $exitCode = $process.ExitCode
     Write-Host "Uninstall exit code: $exitCode"
-    if ($ExpectedExitCodes -contains $exitCode) { Exit 0 }
     Exit $exitCode
 } catch {
     Write-Host "Error running uninstaller: $_"

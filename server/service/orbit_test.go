@@ -16,6 +16,7 @@ import (
 	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/capabilities"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
@@ -69,10 +70,14 @@ func TestGetOrbitConfigLinuxEscrow(t *testing.T) {
 		ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
 			return nil, nil
 		}
-		ds.IsHostPendingEscrowFunc = func(ctx context.Context, hostID uint) bool {
-			return true
+		ds.GetHostEscrowStateFunc = func(ctx context.Context, hostID uint) (*fleet.HostEscrowState, error) {
+			return &fleet.HostEscrowState{Pending: true}, nil
 		}
-		ds.ClearPendingEscrowFunc = func(ctx context.Context, hostID uint) error {
+		// the notification is gated on the host fleet's Linux escrow setting
+		ds.GetConfigEnableDiskEncryptionFunc = func(ctx context.Context, teamID *uint) (fleet.DiskEncryptionConfig, error) {
+			return fleet.DiskEncryptionConfig{LinuxEscrowEnabled: true}, nil
+		}
+		ds.MarkEscrowSentToAgentFunc = func(ctx context.Context, hostID uint) error {
 			return nil
 		}
 
@@ -161,25 +166,39 @@ func TestGetOrbitConfigLinuxEscrow(t *testing.T) {
 		cfg, err := svc.GetOrbitConfig(ctx)
 		require.NoError(t, err)
 		require.True(t, cfg.Notifications.RunDiskEncryptionEscrow)
-		require.True(t, ds.ClearPendingEscrowFuncInvoked)
+		require.True(t, ds.MarkEscrowSentToAgentFuncInvoked)
 
 		// with team
-		ds.ClearPendingEscrowFuncInvoked = false
+		ds.MarkEscrowSentToAgentFuncInvoked = false
 		host.TeamID = ptr.Uint(team.ID)
 		cfg, err = svc.GetOrbitConfig(ctx)
 		require.NoError(t, err)
 		require.True(t, cfg.Notifications.RunDiskEncryptionEscrow)
-		require.True(t, ds.ClearPendingEscrowFuncInvoked)
+		require.True(t, ds.MarkEscrowSentToAgentFuncInvoked)
 
 		// ignore clear escrow errors
-		ds.ClearPendingEscrowFuncInvoked = false
-		ds.ClearPendingEscrowFunc = func(ctx context.Context, hostID uint) error {
+		ds.MarkEscrowSentToAgentFuncInvoked = false
+		ds.MarkEscrowSentToAgentFunc = func(ctx context.Context, hostID uint) error {
 			return errors.New("clear pending escrow")
 		}
 		cfg, err = svc.GetOrbitConfig(ctx)
 		require.NoError(t, err)
 		require.True(t, cfg.Notifications.RunDiskEncryptionEscrow)
-		require.True(t, ds.ClearPendingEscrowFuncInvoked)
+		require.True(t, ds.MarkEscrowSentToAgentFuncInvoked)
+	})
+
+	t.Run("escrow turned off after the host went pending", func(t *testing.T) {
+		ds, svc, ctx, _, _ := setupEscrowContext()
+		// escrow can be disabled while a host is already pending; without this
+		// gate the user is prompted for a passphrase that EscrowLUKSData would
+		// then discard
+		ds.GetConfigEnableDiskEncryptionFunc = func(ctx context.Context, teamID *uint) (fleet.DiskEncryptionConfig, error) {
+			return fleet.DiskEncryptionConfig{LinuxEscrowEnabled: false}, nil
+		}
+
+		cfg, err := svc.GetOrbitConfig(ctx)
+		require.NoError(t, err)
+		require.False(t, cfg.Notifications.RunDiskEncryptionEscrow)
 	})
 }
 
@@ -191,6 +210,7 @@ func TestOrbitLUKSDataSave(t *testing.T) {
 		svc, ctx := newTestService(t, ds, nil, nil, opts)
 		host := &fleet.Host{
 			OsqueryHostID: ptr.String("test"),
+			Platform:      "ubuntu",
 			ID:            1,
 		}
 		ctx = test.HostContext(ctx, host)
@@ -199,6 +219,7 @@ func TestOrbitLUKSDataSave(t *testing.T) {
 			return &fleet.AppConfig{
 				MDM: fleet.MDM{
 					EnableDiskEncryption: optjson.SetBool(true),
+					LinuxSettings:        fleet.LinuxSettings{EnableEscrowDiskEncryptionKey: optjson.SetBool(true)},
 				},
 			}, nil
 		}
@@ -215,14 +236,14 @@ func TestOrbitLUKSDataSave(t *testing.T) {
 		}
 
 		// test reporting client errors
-		err := svc.EscrowLUKSData(ctx, "foo", "bar", nil, expectedErrorMessage, "")
+		err := svc.EscrowLUKSData(ctx, "foo", "bar", nil, expectedErrorMessage, "", "")
 		require.NoError(t, err)
 		require.True(t, ds.ReportEscrowErrorFuncInvoked)
 
 		// blank passphrase
 		ds.ReportEscrowErrorFuncInvoked = false
 		expectedErrorMessage = "passphrase, salt, and key_slot must be provided to escrow LUKS data"
-		err = svc.EscrowLUKSData(ctx, "", "bar", new(uint(0)), "", "")
+		err = svc.EscrowLUKSData(ctx, "", "bar", new(uint(0)), "", "", "")
 		require.Error(t, err)
 		require.True(t, ds.ReportEscrowErrorFuncInvoked)
 
@@ -249,7 +270,7 @@ func TestOrbitLUKSDataSave(t *testing.T) {
 		}
 
 		// with no salt
-		err = svc.EscrowLUKSData(ctx, passphrase, salt, keySlot, "", "")
+		err = svc.EscrowLUKSData(ctx, passphrase, salt, keySlot, "", "", "")
 		require.Error(t, err)
 		require.True(t, ds.ReportEscrowErrorFuncInvoked)
 		require.False(t, ds.SaveLUKSDataFuncInvoked)
@@ -257,7 +278,7 @@ func TestOrbitLUKSDataSave(t *testing.T) {
 		// with no key slot
 		ds.ReportEscrowErrorFuncInvoked = false
 		salt = "baz"
-		err = svc.EscrowLUKSData(ctx, passphrase, salt, keySlot, "", "")
+		err = svc.EscrowLUKSData(ctx, passphrase, salt, keySlot, "", "", "")
 		require.Error(t, err)
 		require.True(t, ds.ReportEscrowErrorFuncInvoked)
 		require.False(t, ds.SaveLUKSDataFuncInvoked)
@@ -265,7 +286,7 @@ func TestOrbitLUKSDataSave(t *testing.T) {
 		// with salt and key slot
 		keySlot = ptr.Uint(0)
 		ds.ReportEscrowErrorFuncInvoked = false
-		err = svc.EscrowLUKSData(ctx, passphrase, salt, keySlot, "", "")
+		err = svc.EscrowLUKSData(ctx, passphrase, salt, keySlot, "", "", "")
 		require.NoError(t, err)
 		require.False(t, ds.ReportEscrowErrorFuncInvoked)
 		require.True(t, ds.SaveLUKSDataFuncInvoked)
@@ -279,6 +300,7 @@ func TestOrbitLUKSDataSave(t *testing.T) {
 		svc, ctx := newTestService(t, ds, nil, nil, opts)
 		host := &fleet.Host{
 			OsqueryHostID: new("test"),
+			Platform:      "ubuntu",
 			ID:            1,
 		}
 		ctx = test.HostContext(ctx, host)
@@ -287,6 +309,7 @@ func TestOrbitLUKSDataSave(t *testing.T) {
 			return &fleet.AppConfig{
 				MDM: fleet.MDM{
 					EnableDiskEncryption: optjson.SetBool(true),
+					LinuxSettings:        fleet.LinuxSettings{EnableEscrowDiskEncryptionKey: optjson.SetBool(true)},
 				},
 			}, nil
 		}
@@ -320,7 +343,7 @@ func TestOrbitLUKSDataSave(t *testing.T) {
 		}
 
 		// A recovery key requires no salt or key slot.
-		err := svc.EscrowLUKSData(ctx, recoveryKey, "", nil, "", fleet.LUKSKeyTypeRecoveryKey)
+		err := svc.EscrowLUKSData(ctx, recoveryKey, "", nil, "", fleet.LUKSKeyTypeRecoveryKey, "")
 		require.NoError(t, err)
 		require.False(t, ds.ReportEscrowErrorFuncInvoked)
 		require.True(t, ds.SaveLUKSDataFuncInvoked)
@@ -328,7 +351,7 @@ func TestOrbitLUKSDataSave(t *testing.T) {
 
 		// A recovery key escrow with no key still fails validation.
 		ds.SaveLUKSDataFuncInvoked = false
-		err = svc.EscrowLUKSData(ctx, "", "", nil, "", fleet.LUKSKeyTypeRecoveryKey)
+		err = svc.EscrowLUKSData(ctx, "", "", nil, "", fleet.LUKSKeyTypeRecoveryKey, "")
 		require.Error(t, err)
 		require.False(t, ds.SaveLUKSDataFuncInvoked)
 
@@ -336,13 +359,13 @@ func TestOrbitLUKSDataSave(t *testing.T) {
 		// silently discarded — those fields are meaningless when snapd owns the
 		// LUKS key slots, and accepting them would hide client bugs.
 		ds.SaveLUKSDataFuncInvoked = false
-		err = svc.EscrowLUKSData(ctx, recoveryKey, "some-salt", nil, "", fleet.LUKSKeyTypeRecoveryKey)
+		err = svc.EscrowLUKSData(ctx, recoveryKey, "some-salt", nil, "", fleet.LUKSKeyTypeRecoveryKey, "")
 		require.Error(t, err)
 		require.False(t, ds.SaveLUKSDataFuncInvoked)
 
 		ds.SaveLUKSDataFuncInvoked = false
 		strayKeySlot := uint(0)
-		err = svc.EscrowLUKSData(ctx, recoveryKey, "", &strayKeySlot, "", fleet.LUKSKeyTypeRecoveryKey)
+		err = svc.EscrowLUKSData(ctx, recoveryKey, "", &strayKeySlot, "", fleet.LUKSKeyTypeRecoveryKey, "")
 		require.Error(t, err)
 		require.False(t, ds.SaveLUKSDataFuncInvoked)
 	})
@@ -352,6 +375,7 @@ func TestOrbitLUKSDataSave(t *testing.T) {
 		license := &fleet.LicenseInfo{Tier: fleet.TierPremium}
 		host := &fleet.Host{
 			OsqueryHostID: ptr.String("test"),
+			Platform:      "ubuntu",
 			ID:            1,
 		}
 
@@ -359,6 +383,7 @@ func TestOrbitLUKSDataSave(t *testing.T) {
 			return &fleet.AppConfig{
 				MDM: fleet.MDM{
 					EnableDiskEncryption: optjson.SetBool(true),
+					LinuxSettings:        fleet.LinuxSettings{EnableEscrowDiskEncryptionKey: optjson.SetBool(true)},
 				},
 			}, nil
 		}
@@ -373,7 +398,7 @@ func TestOrbitLUKSDataSave(t *testing.T) {
 		cfg.Server.PrivateKey = ""
 		svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil, &TestServerOpts{License: license, SkipCreateTestUsers: true})
 		ctx = test.HostContext(ctx, host)
-		err := svc.EscrowLUKSData(ctx, "foo", "bar", new(uint(0)), "", "")
+		err := svc.EscrowLUKSData(ctx, "foo", "bar", new(uint(0)), "", "", "")
 		require.Error(t, err)
 		require.True(t, ds.ReportEscrowErrorFuncInvoked)
 
@@ -382,7 +407,7 @@ func TestOrbitLUKSDataSave(t *testing.T) {
 		cfg.Server.PrivateKey = "invalid"
 		svc, ctx = newTestServiceWithConfig(t, ds, cfg, nil, nil, &TestServerOpts{License: license, SkipCreateTestUsers: true})
 		ctx = test.HostContext(ctx, host)
-		err = svc.EscrowLUKSData(ctx, "foo", "bar", new(uint(0)), "", "")
+		err = svc.EscrowLUKSData(ctx, "foo", "bar", new(uint(0)), "", "", "")
 		require.Error(t, err)
 		require.True(t, ds.ReportEscrowErrorFuncInvoked)
 	})
@@ -413,8 +438,8 @@ func TestGetOrbitConfigNudge(t *testing.T) {
 		ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, host *fleet.Host) (bool, error) {
 			return true, nil
 		}
-		ds.IsHostPendingEscrowFunc = func(ctx context.Context, hostID uint) bool {
-			return false
+		ds.GetHostEscrowStateFunc = func(ctx context.Context, hostID uint) (*fleet.HostEscrowState, error) {
+			return &fleet.HostEscrowState{Pending: false}, nil
 		}
 
 		ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
@@ -492,8 +517,8 @@ func TestGetOrbitConfigNudge(t *testing.T) {
 		ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, host *fleet.Host) (bool, error) {
 			return true, nil
 		}
-		ds.IsHostPendingEscrowFunc = func(ctx context.Context, hostID uint) bool {
-			return false
+		ds.GetHostEscrowStateFunc = func(ctx context.Context, hostID uint) (*fleet.HostEscrowState, error) {
+			return &fleet.HostEscrowState{Pending: false}, nil
 		}
 
 		ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
@@ -588,8 +613,8 @@ func TestGetOrbitConfigNudge(t *testing.T) {
 		ds.GetHostAwaitingConfigurationFunc = func(ctx context.Context, hostUUID string) (bool, error) {
 			return false, nil
 		}
-		ds.IsHostPendingEscrowFunc = func(ctx context.Context, hostID uint) bool {
-			return false
+		ds.GetHostEscrowStateFunc = func(ctx context.Context, hostID uint) (*fleet.HostEscrowState, error) {
+			return &fleet.HostEscrowState{Pending: false}, nil
 		}
 
 		checkEmptyNudgeConfig := func(h *fleet.Host) {
@@ -668,8 +693,8 @@ func TestGetOrbitConfigNudge(t *testing.T) {
 				ConnectedToFleet: true,
 			}, nil
 		}
-		ds.IsHostPendingEscrowFunc = func(ctx context.Context, hostID uint) bool {
-			return false
+		ds.GetHostEscrowStateFunc = func(ctx context.Context, hostID uint) (*fleet.HostEscrowState, error) {
+			return &fleet.HostEscrowState{Pending: false}, nil
 		}
 
 		appCfg := &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true}}
@@ -742,6 +767,67 @@ func TestGetOrbitConfigNudge(t *testing.T) {
 	})
 }
 
+func TestGetOrbitConfigWebSocketTransport(t *testing.T) {
+	setupCtx := func(wsEnabled bool) (fleet.Service, context.Context) {
+		ds := new(mock.Store)
+		cfg := config.TestConfig()
+		cfg.WebSocket.TransportEnabled = wsEnabled
+		license := &fleet.LicenseInfo{Tier: fleet.TierPremium}
+		svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil, &TestServerOpts{License: license, SkipCreateTestUsers: true})
+
+		ds.TeamMDMConfigFunc = func(ctx context.Context, teamID uint) (*fleet.TeamMDM, error) {
+			return &fleet.TeamMDM{}, nil
+		}
+		ds.TeamAgentOptionsFunc = func(ctx context.Context, id uint) (*json.RawMessage, error) {
+			return new(json.RawMessage(`{}`)), nil
+		}
+		ds.ListReadyToExecuteScriptsForHostFunc = func(ctx context.Context, hostID uint, onlyShowInternal bool) ([]*fleet.HostScriptResult, error) {
+			return nil, nil
+		}
+		ds.ListReadyToExecuteSoftwareInstallsFunc = func(ctx context.Context, hostID uint) ([]string, error) {
+			return nil, nil
+		}
+		ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, host *fleet.Host) (bool, error) {
+			return false, nil
+		}
+		ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
+			return nil, newNotFoundError()
+		}
+		ds.GetHostEscrowStateFunc = func(ctx context.Context, hostID uint) (*fleet.HostEscrowState, error) {
+			return &fleet.HostEscrowState{Pending: false}, nil
+		}
+		ds.GetHostAwaitingConfigurationFunc = func(ctx context.Context, hostUUID string) (bool, error) {
+			return false, nil
+		}
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{}, nil
+		}
+
+		ctx = test.HostContext(ctx, &fleet.Host{
+			OsqueryHostID: new("test"),
+			ID:            1,
+			Platform:      "ubuntu",
+			TeamID:        new(uint(1)),
+		})
+		return svc, ctx
+	}
+
+	t.Run("enabled", func(t *testing.T) {
+		svc, ctx := setupCtx(true)
+		cfg, err := svc.GetOrbitConfig(ctx)
+		require.NoError(t, err)
+		require.NotNil(t, cfg.WebSocketTransport)
+		require.True(t, cfg.WebSocketTransport.Enabled)
+	})
+
+	t.Run("disabled omits the directive", func(t *testing.T) {
+		svc, ctx := setupCtx(false)
+		cfg, err := svc.GetOrbitConfig(ctx)
+		require.NoError(t, err)
+		require.Nil(t, cfg.WebSocketTransport)
+	})
+}
+
 func TestGetOrbitConfigScriptTimeoutFallback(t *testing.T) {
 	setupCtx := func(teamAgentOpts, globalAgentOpts *json.RawMessage) (fleet.Service, context.Context, *mock.Store) {
 		ds := new(mock.Store)
@@ -767,8 +853,8 @@ func TestGetOrbitConfigScriptTimeoutFallback(t *testing.T) {
 		ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
 			return nil, newNotFoundError()
 		}
-		ds.IsHostPendingEscrowFunc = func(ctx context.Context, hostID uint) bool {
-			return false
+		ds.GetHostEscrowStateFunc = func(ctx context.Context, hostID uint) (*fleet.HostEscrowState, error) {
+			return &fleet.HostEscrowState{Pending: false}, nil
 		}
 		ds.GetHostAwaitingConfigurationFunc = func(ctx context.Context, hostUUID string) (bool, error) {
 			return false, nil
@@ -779,10 +865,10 @@ func TestGetOrbitConfigScriptTimeoutFallback(t *testing.T) {
 		}
 
 		ctx = test.HostContext(ctx, &fleet.Host{
-			OsqueryHostID: ptr.String("test"),
+			OsqueryHostID: new("test"),
 			ID:            1,
 			Platform:      "ubuntu",
-			TeamID:        new(team.ID),
+			TeamID:        &team.ID,
 		})
 		return svc, ctx, ds
 	}
@@ -1233,6 +1319,190 @@ func TestSoftwareInstallReplicaLag(t *testing.T) {
 	require.Equal(t, 1, retryCount, "should have scheduled a retry in upcoming_activities")
 }
 
+// TestSaveHostSoftwareInstallResultAppOpenSkip verifies that an app-open result on a patch-when-closed
+// policy install is a skip (attempt_number=0, no retry, activity flagged), while an ordinary empty
+// pre_install_query on a non-managed policy still fails, counts, and retries.
+func TestSaveHostSoftwareInstallResultAppOpenSkip(t *testing.T) {
+	ds := mysqltest.CreateMySQLDS(t)
+	defer ds.Close()
+
+	opts := &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}, SkipCreateTestUsers: true}
+	svc, ctx := newTestService(t, ds, nil, nil, opts)
+
+	// The test service mocks the activity service, so capture emitted activities by install UUID.
+	installedActivities := make(map[string]fleet.ActivityTypeInstalledSoftware)
+	opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, activity activity_api.ActivityDetails) error {
+		if a, ok := activity.(fleet.ActivityTypeInstalledSoftware); ok {
+			installedActivities[a.InstallUUID] = a
+		}
+		return nil
+	}
+
+	user, err := ds.NewUser(ctx, &fleet.User{
+		Name:       "Admin",
+		Password:   []byte("p4ssw0rd.123"),
+		Email:      "admin@example.com",
+		GlobalRole: new(fleet.RoleAdmin),
+	})
+	require.NoError(t, err)
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: user})
+
+	// patch_when_closed is only valid on a team policy, never global: it forces continuous
+	// automations and a title-bound patch policy, both rejected on "All fleets".
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "patch-when-closed-team"})
+	require.NoError(t, err)
+
+	installerPayload := &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:   "echo 'installing'",
+		Filename:        "test_installer.pkg",
+		StorageID:       uuid.New().String(),
+		Title:           "Test Software",
+		Version:         "1.0.0",
+		Source:          "apps",
+		Platform:        "darwin",
+		UserID:          user.ID,
+		TeamID:          &team.ID,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	}
+	installerID, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, installerPayload)
+	require.NoError(t, err)
+
+	var titleID uint
+	mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &titleID,
+			`SELECT title_id FROM software_installers WHERE id = ?`, installerID)
+	})
+
+	// createFailingPolicy makes a failing team policy for the host (optionally patch-when-closed) so a
+	// retry would be eligible. patch_when_closed isn't settable via the create path yet, so set it directly.
+	createFailingPolicy := func(t *testing.T, host *fleet.Host, patchWhenClosed bool) uint {
+		policy, err := ds.NewTeamPolicy(ctx, team.ID, &user.ID, fleet.PolicyPayload{
+			Name:  "policy-" + uuid.NewString(),
+			Query: "SELECT 1;",
+		})
+		require.NoError(t, err)
+		if patchWhenClosed {
+			mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+				_, err := q.ExecContext(ctx, `UPDATE policies SET patch_when_closed = 1 WHERE id = ?`, policy.ID)
+				return err
+			})
+		}
+		_, err = ds.RecordPolicyQueryExecutions(ctx, host, map[uint]*bool{policy.ID: new(false)}, time.Now(), false, nil)
+		require.NoError(t, err)
+		return policy.ID
+	}
+
+	// insertPendingInstall queues a pending policy-automation install, returning its execution id.
+	insertPendingInstall := func(t *testing.T, host *fleet.Host, policyID uint) string {
+		installUUID := uuid.New().String()
+		mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `
+				INSERT INTO host_software_installs (
+					execution_id, host_id, software_installer_id, policy_id,
+					installer_filename, version, software_title_id, software_title_name
+				) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+			`, installUUID, host.ID, installerID, policyID,
+				installerPayload.Filename, installerPayload.Version, titleID, installerPayload.Title)
+			return err
+		})
+		return installUUID
+	}
+
+	getAttemptNumber := func(t *testing.T, installUUID string) *int {
+		var attempt *int
+		mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &attempt,
+				`SELECT attempt_number FROM host_software_installs WHERE execution_id = ?`, installUUID)
+		})
+		return attempt
+	}
+
+	countPendingRetries := func(t *testing.T, hostID uint) int {
+		var n int
+		mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &n,
+				`SELECT COUNT(*) FROM upcoming_activities WHERE activity_type = 'software_install' AND host_id = ?`, hostID)
+		})
+		return n
+	}
+
+	t.Run("app open -> skip, no attempt consumed, no retry, activity flagged", func(t *testing.T) {
+		host := test.NewHost(t, ds, "skip-host", "10.0.0.1", uuid.NewString(), uuid.NewString(), time.Now())
+		require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID})))
+		installUUID := insertPendingInstall(t, host, createFailingPolicy(t, host, true))
+
+		result := &fleet.HostSoftwareInstallResultPayload{
+			HostID:                    host.ID,
+			InstallUUID:               installUUID,
+			PreInstallConditionOutput: new(""), // app open
+		}
+		hctx := hostctx.NewContext(ctx, host)
+		require.NoError(t, svc.SaveHostSoftwareInstallResult(hctx, result))
+
+		attempt := getAttemptNumber(t, installUUID)
+		require.NotNil(t, attempt)
+		require.Equal(t, 0, *attempt, "skip must not consume a retry attempt")
+
+		require.Equal(t, 0, countPendingRetries(t, host.ID), "skip must not queue an immediate retry")
+
+		act, ok := installedActivities[installUUID]
+		require.True(t, ok, "an installed_software activity should have been emitted")
+		require.Equal(t, string(fleet.SoftwareInstallFailed), act.Status)
+		require.True(t, act.SkippedInstall, "activity should be flagged as an app-open skip")
+	})
+
+	t.Run("regression: ordinary empty pre_install_query fails, counts, and retries", func(t *testing.T) {
+		host := test.NewHost(t, ds, "regress-host", "10.0.0.2", uuid.NewString(), uuid.NewString(), time.Now())
+		require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID})))
+		installUUID := insertPendingInstall(t, host, createFailingPolicy(t, host, false))
+
+		result := &fleet.HostSoftwareInstallResultPayload{
+			HostID:                    host.ID,
+			InstallUUID:               installUUID,
+			PreInstallConditionOutput: new(""),
+		}
+		hctx := hostctx.NewContext(ctx, host)
+		require.NoError(t, svc.SaveHostSoftwareInstallResult(hctx, result))
+
+		attempt := getAttemptNumber(t, installUUID)
+		require.NotNil(t, attempt)
+		require.Equal(t, 1, *attempt, "ordinary pre-install failure must count toward the retry limit")
+
+		require.Equal(t, 1, countPendingRetries(t, host.ID), "ordinary failure should queue a retry")
+
+		act, ok := installedActivities[installUUID]
+		require.True(t, ok, "an installed_software activity should have been emitted")
+		require.Equal(t, string(fleet.SoftwareInstallFailed), act.Status)
+		require.False(t, act.SkippedInstall, "non-managed failure must not be flagged as a skip")
+	})
+
+	t.Run("many consecutive app-open runs never hit the retry cap", func(t *testing.T) {
+		host := test.NewHost(t, ds, "many-runs-host", "10.0.0.3", uuid.NewString(), uuid.NewString(), time.Now())
+		require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID})))
+		policyID := createFailingPolicy(t, host, true)
+
+		// More consecutive runs than the retry cap; each is a fresh install the app-open query skips.
+		for range fleet.MaxPolicyAutomationRetries + 2 {
+			installUUID := insertPendingInstall(t, host, policyID)
+			hctx := hostctx.NewContext(ctx, host)
+			require.NoError(t, svc.SaveHostSoftwareInstallResult(hctx, &fleet.HostSoftwareInstallResultPayload{
+				HostID:                    host.ID,
+				InstallUUID:               installUUID,
+				PreInstallConditionOutput: new(""),
+			}))
+			attempt := getAttemptNumber(t, installUUID)
+			require.NotNil(t, attempt)
+			require.Equal(t, 0, *attempt, "every consecutive skip must store attempt_number=0")
+		}
+
+		// The count stays 0, so the cap is never reached and no retries queue.
+		count, err := ds.CountHostSoftwareInstallAttempts(ctx, host.ID, installerID, policyID)
+		require.NoError(t, err)
+		require.Equal(t, 0, count, "skips never accumulate toward the retry cap")
+		require.Equal(t, 0, countPendingRetries(t, host.ID), "skips never queue retries")
+	})
+}
+
 // TestGetOrbitConfigWindowsSetupExperience verifies that GetOrbitConfig sets
 // notifs.RunSetupExperience=true for Windows hosts whose MDM enrollment is
 // in awaiting_configuration Pending or Active, and false otherwise (None,
@@ -1271,8 +1541,8 @@ func TestGetOrbitConfigWindowsSetupExperience(t *testing.T) {
 		ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, h *fleet.Host) (bool, error) {
 			return true, nil
 		}
-		ds.IsHostPendingEscrowFunc = func(ctx context.Context, hostID uint) bool {
-			return false
+		ds.GetHostEscrowStateFunc = func(ctx context.Context, hostID uint) (*fleet.HostEscrowState, error) {
+			return &fleet.HostEscrowState{Pending: false}, nil
 		}
 		ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
 			return &fleet.HostMDM{Enrolled: true, Name: fleet.WellKnownMDMFleet, ConnectedToFleet: true}, nil
@@ -1679,7 +1949,7 @@ func TestGetOrbitConfigWindowsManagedLocalAccount(t *testing.T) {
 
 		host := &fleet.Host{ID: 1, OsqueryHostID: new("test"), UUID: "host-uuid-1", Platform: "windows"}
 		appCfg := &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true, WindowsEnabledAndConfigured: true}}
-		appCfg.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled = optjson.SetBool(settingEnabled)
+		appCfg.MDM.WindowsSettings.EnableManagedLocalAccount = optjson.SetBool(settingEnabled)
 
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) { return appCfg, nil }
 		ds.ListReadyToExecuteScriptsForHostFunc = func(ctx context.Context, hostID uint, onlyShowInternal bool) ([]*fleet.HostScriptResult, error) {
@@ -1687,7 +1957,9 @@ func TestGetOrbitConfigWindowsManagedLocalAccount(t *testing.T) {
 		}
 		ds.ListReadyToExecuteSoftwareInstallsFunc = func(ctx context.Context, hostID uint) ([]string, error) { return nil, nil }
 		ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, h *fleet.Host) (bool, error) { return true, nil }
-		ds.IsHostPendingEscrowFunc = func(ctx context.Context, hostID uint) bool { return false }
+		ds.GetHostEscrowStateFunc = func(ctx context.Context, hostID uint) (*fleet.HostEscrowState, error) {
+			return &fleet.HostEscrowState{Pending: false}, nil
+		}
 		ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
 			return &fleet.HostMDM{Enrolled: true, Name: fleet.WellKnownMDMFleet, ConnectedToFleet: true}, nil
 		}
@@ -1748,6 +2020,54 @@ func TestGetOrbitConfigWindowsManagedLocalAccount(t *testing.T) {
 		require.NoError(t, err)
 		assert.False(t, cfg.Notifications.CreateWindowsManagedLocalAccount)
 	})
+
+	// withRotationRequested puts the host in the state a rotation leaves behind: it has already escrowed a password for
+	// this enrollment, and a rotation is outstanding.
+	withRotationRequested := func(ds *mock.Store) {
+		ds.GetMDMWindowsHostConfigStateFunc = func(ctx context.Context, hostUUID string) (*fleet.MDMWindowsHostConfigState, error) {
+			return &fleet.MDMWindowsHostConfigState{
+				AwaitingConfiguration:                fleet.WindowsMDMAwaitingConfigurationNone,
+				ManagedLocalAccountEscrowed:          true,
+				ManagedLocalAccountRotationRequested: true,
+			}, nil
+		}
+	}
+
+	// A rotation reuses the create notification: provisioning resets the password of an account fleetd already owns, so
+	// the already-escrowed short-circuit above must not swallow it.
+	t.Run("rotation requested sets it despite being already escrowed", func(t *testing.T) {
+		ds, svc, ctx := setupSvc(t, fleet.TierPremium, true, fleet.WindowsMDMAwaitingConfigurationNone, true)
+		withRotationRequested(ds)
+		cfg, err := svc.GetOrbitConfig(withMLACapability(ctx))
+		require.NoError(t, err)
+		assert.True(t, cfg.Notifications.CreateWindowsManagedLocalAccount)
+	})
+
+	// The setting is off here, so the notification being set is what proves an explicit rotation bypasses it, as on
+	// macOS.
+	t.Run("rotation requested sets it even when the setting is off", func(t *testing.T) {
+		ds, svc, ctx := setupSvc(t, fleet.TierPremium, false, fleet.WindowsMDMAwaitingConfigurationNone, true)
+		withRotationRequested(ds)
+		cfg, err := svc.GetOrbitConfig(withMLACapability(ctx))
+		require.NoError(t, err)
+		assert.True(t, cfg.Notifications.CreateWindowsManagedLocalAccount)
+	})
+
+	t.Run("rotation requested still needs the capability", func(t *testing.T) {
+		ds, svc, ctx := setupSvc(t, fleet.TierPremium, true, fleet.WindowsMDMAwaitingConfigurationNone, true)
+		withRotationRequested(ds)
+		cfg, err := svc.GetOrbitConfig(ctx)
+		require.NoError(t, err)
+		assert.False(t, cfg.Notifications.CreateWindowsManagedLocalAccount)
+	})
+
+	t.Run("rotation requested still needs premium", func(t *testing.T) {
+		ds, svc, ctx := setupSvc(t, fleet.TierFree, true, fleet.WindowsMDMAwaitingConfigurationNone, true)
+		withRotationRequested(ds)
+		cfg, err := svc.GetOrbitConfig(withMLACapability(ctx))
+		require.NoError(t, err)
+		assert.False(t, cfg.Notifications.CreateWindowsManagedLocalAccount)
+	})
 }
 
 // TestEscrowWindowsManagedLocalAccountPassword covers the orbit escrow endpoint: eligibility via Windows MDM enrollment,
@@ -1768,12 +2088,20 @@ func TestEscrowWindowsManagedLocalAccountPassword(t *testing.T) {
 			return &fleet.MDMWindowsEnrolledDevice{HostUUID: hostUUID}, nil
 		}
 		appCfg := &fleet.AppConfig{MDM: fleet.MDM{WindowsEnabledAndConfigured: true}}
-		appCfg.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled = optjson.SetBool(settingEnabled)
+		appCfg.MDM.WindowsSettings.EnableManagedLocalAccount = optjson.SetBool(settingEnabled)
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) { return appCfg, nil }
 		ds.SaveHostManagedLocalAccountFromEscrowFunc = func(ctx context.Context, hostUUID, plaintextPassword string) error { return nil }
 		ds.ReportManagedLocalAccountEscrowErrorFunc = func(ctx context.Context, hostUUID, clientError string) error { return nil }
 		ds.SetMDMWindowsManagedLocalAccountEscrowedFunc = func(ctx context.Context, hostUUID string, escrowed bool) (bool, error) {
 			return escrowed, nil
+		}
+		// No rotation outstanding by default; the rotation cases below override this.
+		ds.ClearMDMWindowsManagedLocalAccountRotationRequestFunc = func(ctx context.Context, hostUUID string) (bool, error) {
+			return false, nil
+		}
+		// A fresh host that has never escrowed, so a failure means "keep asking". Rotation cases override this too.
+		ds.GetMDMWindowsHostConfigStateFunc = func(ctx context.Context, hostUUID string) (*fleet.MDMWindowsHostConfigState, error) {
+			return &fleet.MDMWindowsHostConfigState{ManagedLocalAccountEscrowed: false}, nil
 		}
 		return ds, svc, ctx, opts
 	}
@@ -1827,6 +2155,92 @@ func TestEscrowWindowsManagedLocalAccountPassword(t *testing.T) {
 		// The flag is cleared so the host keeps being asked and a transient failure self-heals.
 		require.True(t, ds.SetMDMWindowsManagedLocalAccountEscrowedFuncInvoked)
 		require.False(t, escrowedFlag)
+	})
+
+	// A failed rotation retires the request but keeps the escrowed flag: the host kept its password, and clearing the
+	// flag would re-run the same attempt every poll.
+	t.Run("client error during a rotation records a failed rotation and stops asking", func(t *testing.T) {
+		ds, svc, ctx, opts := setup(t, true, true)
+		ds.ClearMDMWindowsManagedLocalAccountRotationRequestFunc = func(ctx context.Context, hostUUID string) (bool, error) {
+			return true, nil
+		}
+		// A rotation only ever happens on a host that has already escrowed.
+		ds.GetMDMWindowsHostConfigStateFunc = func(ctx context.Context, hostUUID string) (*fleet.MDMWindowsHostConfigState, error) {
+			require.True(t, ctxdb.IsPrimaryRequired(ctx), "escrowed flag must be read from the primary")
+			return &fleet.MDMWindowsHostConfigState{ManagedLocalAccountEscrowed: true}, nil
+		}
+		var loggedActivities []string
+		var failureDetail string
+		opts.ActivityMock.NewActivityFunc = func(_ context.Context, user *activity_api.User, a activity_api.ActivityDetails) error {
+			assert.Nil(t, user, "a device-reported failure has no user behind it")
+			loggedActivities = append(loggedActivities, a.ActivityName())
+			if failed, ok := a.(fleet.ActivityTypeFailedToRotateManagedLocalAccountPassword); ok {
+				failureDetail = failed.Detail
+			}
+			return nil
+		}
+
+		err := svc.EscrowWindowsManagedLocalAccountPassword(ctx, "", "NERR_PasswordTooShort")
+		require.NoError(t, err)
+
+		require.True(t, ds.ReportManagedLocalAccountEscrowErrorFuncInvoked)
+		require.True(t, ds.ClearMDMWindowsManagedLocalAccountRotationRequestFuncInvoked)
+		assert.Equal(t, []string{
+			fleet.ActivityTypeFailedToRotateManagedLocalAccountPassword{}.ActivityName(),
+		}, loggedActivities)
+		assert.Equal(t, "NERR_PasswordTooShort", failureDetail,
+			"the activity carries the device's reason so the feed can show it")
+		assert.False(t, ds.SetMDMWindowsManagedLocalAccountEscrowedFuncInvoked,
+			"the account still exists with a password Fleet knows, so the host must not be asked to create one")
+	})
+
+	// fleetd may re-send a failure report if the first response was lost. The request is already retired by then, so
+	// only the escrowed flag can tell this apart from a creation failure.
+	t.Run("a re-sent rotation failure report is idempotent", func(t *testing.T) {
+		ds, svc, ctx, opts := setup(t, true, true)
+		ds.ClearMDMWindowsManagedLocalAccountRotationRequestFunc = func(ctx context.Context, hostUUID string) (bool, error) {
+			return false, nil // already cleared by the first report
+		}
+		ds.GetMDMWindowsHostConfigStateFunc = func(ctx context.Context, hostUUID string) (*fleet.MDMWindowsHostConfigState, error) {
+			require.True(t, ctxdb.IsPrimaryRequired(ctx), "escrowed flag must be read from the primary")
+			return &fleet.MDMWindowsHostConfigState{ManagedLocalAccountEscrowed: true}, nil
+		}
+		activityCount := 0
+		opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, _ activity_api.ActivityDetails) error {
+			activityCount++
+			return nil
+		}
+
+		err := svc.EscrowWindowsManagedLocalAccountPassword(ctx, "", "NERR_PasswordTooShort")
+		require.NoError(t, err)
+
+		assert.False(t, ds.SetMDMWindowsManagedLocalAccountEscrowedFuncInvoked,
+			"an escrowed account must never be un-escrowed by a failure report")
+		assert.Zero(t, activityCount, "the failure was already recorded by the first report")
+	})
+
+	t.Run("escrow that completes a rotation retires the request without a created activity", func(t *testing.T) {
+		ds, svc, ctx, opts := setup(t, true, true)
+		ds.ClearMDMWindowsManagedLocalAccountRotationRequestFunc = func(ctx context.Context, hostUUID string) (bool, error) {
+			return true, nil
+		}
+		// Already escrowed for this enrollment, so the flag does not change and no account was created.
+		ds.SetMDMWindowsManagedLocalAccountEscrowedFunc = func(ctx context.Context, hostUUID string, escrowed bool) (bool, error) {
+			return false, nil
+		}
+		activityCount := 0
+		opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, _ activity_api.ActivityDetails) error {
+			activityCount++
+			return nil
+		}
+
+		err := svc.EscrowWindowsManagedLocalAccountPassword(ctx, "rotated-pw", "")
+		require.NoError(t, err)
+
+		require.True(t, ds.SaveHostManagedLocalAccountFromEscrowFuncInvoked)
+		require.True(t, ds.ClearMDMWindowsManagedLocalAccountRotationRequestFuncInvoked)
+		// The rotated activity is logged at request time, so this escrow logs nothing.
+		assert.Zero(t, activityCount)
 	})
 
 	t.Run("client error is truncated by rune to fit the column", func(t *testing.T) {
@@ -2027,4 +2441,50 @@ func TestEnrollOrbitEndUserAuthBypass(t *testing.T) {
 		require.Contains(t, err.Error(), "END_USER_AUTH_REQUIRED")
 		require.False(t, ds.EnrollOrbitFuncInvoked, "the flag bypass must not fire when an EUA token is present")
 	})
+}
+
+func TestEscrowLUKSDataStatus(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}, SkipCreateTestUsers: true})
+	hostCtx := test.HostContext(ctx, &fleet.Host{ID: 1, Platform: "ubuntu"})
+
+	var gotInFlight []bool
+	ds.SetEscrowInFlightFunc = func(ctx context.Context, hostID uint, inFlight bool) error {
+		require.Equal(t, uint(1), hostID)
+		gotInFlight = append(gotInFlight, inFlight)
+		return nil
+	}
+	ds.ReportEscrowErrorFunc = func(ctx context.Context, hostID uint, err string) error {
+		return nil
+	}
+	reset := func() {
+		gotInFlight = nil
+		ds.SetEscrowInFlightFuncInvoked, ds.ReportEscrowErrorFuncInvoked = false, false
+	}
+
+	for _, status := range []string{fleet.LinuxEscrowStatusPrompting, fleet.LinuxEscrowStatusEscrowing} {
+		reset()
+		require.NoError(t, svc.EscrowLUKSData(hostCtx, "", "", nil, "", "", status), status)
+		require.Equal(t, []bool{true}, gotInFlight, status)
+	}
+
+	for _, status := range []string{fleet.LinuxEscrowStatusCanceled, fleet.LinuxEscrowStatusTimedOut} {
+		reset()
+		require.NoError(t, svc.EscrowLUKSData(hostCtx, "", "", nil, "", "", status), status)
+		require.Equal(t, []bool{false}, gotInFlight, status)
+	}
+
+	// a status report is not an escrow result, so the other fields are ignored
+	reset()
+	require.NoError(t, svc.EscrowLUKSData(hostCtx, "", "", nil, "some client error", "", fleet.LinuxEscrowStatusPrompting))
+	require.Equal(t, []bool{true}, gotInFlight)
+	require.False(t, ds.ReportEscrowErrorFuncInvoked)
+
+	reset()
+	var bre *fleet.BadRequestError
+	require.ErrorAs(t, svc.EscrowLUKSData(hostCtx, "", "", nil, "", "", "bogus"), &bre)
+	require.False(t, ds.SetEscrowInFlightFuncInvoked)
+	require.False(t, ds.ReportEscrowErrorFuncInvoked)
+
+	require.Error(t, svc.EscrowLUKSData(ctx, "", "", nil, "", "", fleet.LinuxEscrowStatusPrompting), "no host in context")
 }

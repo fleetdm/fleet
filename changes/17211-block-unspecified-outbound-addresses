@@ -1,0 +1,1 @@
+- Improved outbound address filtering to cover the unspecified addresses (`0.0.0.0` and `::`), the deprecated IPv4-compatible IPv6 form, and IPv4 addresses reached through a NAT64 prefix.

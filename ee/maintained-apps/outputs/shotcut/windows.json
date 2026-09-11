@@ -4,7 +4,8 @@
       "version": "26.8.1",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Shotcut' AND publisher = 'Meltytech';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Shotcut' AND publisher = 'Meltytech' AND version_compare(version, '26.8.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Shotcut' AND publisher = 'Meltytech' AND version_compare(version, '26.8.1') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'shotcut.exe');"
       },
       "installer_url": "https://github.com/mltframework/shotcut/releases/download/v26.8.1/shotcut-win64-26.8.1.exe",
       "install_script_ref": "fbf50bbc",

@@ -84,15 +84,23 @@ Currently, Apple App Store (VPP) apps can't be uninstalled via Fleet. If the app
 
 > VPP apps on iOS/iPadOS hosts will be uninstalled when the host has MDM features turned off.
 
+#### Updating iOS and iPadOS apps in Single App Mode (kiosk)
+
+[AppLock](https://developer.apple.com/documentation/devicemanagement/applock) forces the selected app to open on the supervised device and prevents the use of other apps.
+
+Apps can't be updated while in Single App Mode. To update iOS and iPadOS apps, temporarily disable Single App Mode. You can use an automation tool like [Tines](https://www.tines.com/) and leverage our [API](https://fleetdm.com/docs/rest-api/rest-api#os-settings) to delete the AppLock configuration profile during the scheduled update window.
+
 #### iOS and iPadOS managed configuration
 
 Currently, configuration for Apple hosts is supported on iOS and iPadOS. Managed configuration is often referred to as App Config.
 
 Fleet supports any option provided by the app's developer. Each app supports different options. To find the supported options, check the app documentation.
 
-##### Example (Zoom)
+New or updated configuration isn't applied until the end user fully quits and reopens the app.
 
-This configuration ensures that the end user has only the SSO login option, and it pre-populates the login URL to `example.zoom.us`. For more information, visit [Zoom docs](https://support.zoom.com/hc/en/article?id=zm_kb&sysparm_article=KB0064102).
+If the app is in the foreground when the configuration is sent and a newer version of the app is available, the end user sees a prompt to update the app. The configuration is applied whether or not the end user accepts the prompt. The configuration takes effect the next time the app is quit and reopened.
+
+This example Zoom configuration ensures that the end user has only the SSO login option, and it pre-populates the login URL to `example.zoom.us`. For more information, visit [Zoom docs](https://support.zoom.com/hc/en/article?id=zm_kb&sysparm_article=KB0064102).
 
 ```xml
 <dict>

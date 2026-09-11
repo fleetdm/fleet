@@ -37,7 +37,7 @@ import OSIcon from "../../icons/OSIcon";
 export const ACTION_EDIT_APPEARANCE = "edit_appearance";
 export const ACTION_EDIT_SOFTWARE = "edit_software";
 export const ACTION_EDIT_CONFIGURATION = "edit_configuration";
-export const ACTION_PATCH = "patch";
+export const ACTION_DEPLOY = "deploy";
 export const ACTION_VERSIONS = "versions";
 export const ACTION_EDIT_AUTO_UPDATE_CONFIGURATION =
   "edit_auto_update_configuration";
@@ -54,10 +54,9 @@ export interface BuildActionOptionsArgs {
   isAppleVpp?: boolean;
   canEditSoftware: boolean;
   canEditConfiguration: boolean;
-  canAddPatchPolicy: boolean;
+  canDeploySoftware: boolean;
   canManageVersions: boolean;
   canConfigureAutoUpdate: boolean;
-  hasExistingPatchPolicy?: boolean;
 }
 
 export const buildActionOptions = ({
@@ -66,14 +65,12 @@ export const buildActionOptions = ({
   isAppleVpp = false,
   canEditSoftware,
   canEditConfiguration,
-  canAddPatchPolicy,
+  canDeploySoftware,
   canManageVersions,
   canConfigureAutoUpdate,
-  hasExistingPatchPolicy = false,
 }: BuildActionOptionsArgs): IDropdownOption[] => {
   let disableEditAppearanceTooltipContent: TooltipContent | undefined;
   let disableEditSoftwareTooltipContent: TooltipContent | undefined;
-  let disabledPatchPolicyTooltipContent: TooltipContent | undefined;
   let disabledEditConfigurationTooltipContent: TooltipContent | undefined;
 
   // Disable state is keyed off `gitOpsModeEnabled` directly (see each option
@@ -90,10 +87,6 @@ export const buildActionOptions = ({
     if (isAppleVpp) {
       disableEditSoftwareTooltipContent = gitOpsModeTooltipContent;
     }
-  }
-
-  if (hasExistingPatchPolicy) {
-    disabledPatchPolicyTooltipContent = "Patch policy is already added.";
   }
 
   const options: IDropdownOption[] = [
@@ -125,13 +118,11 @@ export const buildActionOptions = ({
     });
   }
 
-  // Show patch option only for fleet maintained apps
-  if (canAddPatchPolicy) {
+  // Show Deploy only for Fleet-maintained apps.
+  if (canDeploySoftware) {
     options.push({
-      label: "Patch",
-      value: ACTION_PATCH,
-      disabled: !!disabledPatchPolicyTooltipContent,
-      tooltipContent: disabledPatchPolicyTooltipContent,
+      label: "Deploy",
+      value: ACTION_DEPLOY,
     });
   }
 
@@ -182,8 +173,8 @@ interface ISoftwareDetailsSummaryProps {
   /** Displays an edit CTA to edit the software installer
    * Should only be defined for team view of an installable software */
   onClickEditSoftware?: () => void;
-  /** Displays Patch CTA to add a patch policy */
-  onClickAddPatchPolicy?: () => void;
+  /** Displays Deploy CTA for Fleet-maintained apps. */
+  onClickDeploy?: () => void;
   /** Displays Versions CTA to open the versions / pin modal (Premium FMA only) */
   onClickVersions?: () => void;
   /** undefined unless previewing icon, in which case is string or null */
@@ -194,7 +185,6 @@ interface ISoftwareDetailsSummaryProps {
   iconPreviewUrl?: string | null;
   /** timestamp of when icon was last uploaded, used to force refresh of cached icon */
   iconUploadedAt?: string;
-  patchPolicyId?: number;
   /** Optional pill row rendered between the title and the Actions dropdown
    * (e.g. Fleet-maintained, Self-service, Auto install). */
   headerPills?: React.ReactNode;
@@ -221,13 +211,12 @@ const SoftwareDetailsSummary = ({
   canManageSoftware = false,
   onClickEditAppearance,
   onClickEditSoftware,
-  onClickAddPatchPolicy,
+  onClickDeploy,
   onClickVersions,
   onClickEditConfiguration,
   onClickEditAutoUpdateConfig,
   iconPreviewUrl,
   iconUploadedAt,
-  patchPolicyId,
   headerPills,
   isAppleVpp = false,
   useSingleEditAppearanceButton = false,
@@ -245,8 +234,8 @@ const SoftwareDetailsSummary = ({
       case ACTION_EDIT_SOFTWARE:
         onClickEditSoftware && onClickEditSoftware();
         break;
-      case ACTION_PATCH:
-        onClickAddPatchPolicy && onClickAddPatchPolicy();
+      case ACTION_DEPLOY:
+        onClickDeploy && onClickDeploy();
         break;
       case ACTION_VERSIONS:
         onClickVersions && onClickVersions();
@@ -297,10 +286,9 @@ const SoftwareDetailsSummary = ({
     isAppleVpp,
     canEditSoftware: !!onClickEditSoftware,
     canEditConfiguration: !!onClickEditConfiguration,
-    canAddPatchPolicy: !!onClickAddPatchPolicy,
+    canDeploySoftware: !!onClickDeploy,
     canManageVersions: !!onClickVersions,
     canConfigureAutoUpdate: !!onClickEditAutoUpdateConfig,
-    hasExistingPatchPolicy: !!patchPolicyId,
   });
 
   return (

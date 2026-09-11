@@ -4,7 +4,8 @@
       "version": "2.2.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'llc.turing.CrystalFetch';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'llc.turing.CrystalFetch' AND version_compare(bundle_short_version, '2.2.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'llc.turing.CrystalFetch' AND version_compare(bundle_short_version, '2.2.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'llc.turing.CrystalFetch' AND a.bundle_executable != '');"
       },
       "installer_url": "https://github.com/TuringSoftware/CrystalFetch/releases/download/v2.2.0/CrystalFetch.dmg",
       "install_script_ref": "2528c76a",

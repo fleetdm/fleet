@@ -4,7 +4,8 @@
       "version": "1.24.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Rancher Desktop' AND publisher = 'SUSE';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Rancher Desktop' AND publisher = 'SUSE' AND version_compare(version, '1.24.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Rancher Desktop' AND publisher = 'SUSE' AND version_compare(version, '1.24.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'rancher desktop.exe');"
       },
       "installer_url": "https://github.com/rancher-sandbox/rancher-desktop/releases/download/v1.24.0/Rancher.Desktop.Setup.1.24.0.msi",
       "install_script_ref": "5189ac09",

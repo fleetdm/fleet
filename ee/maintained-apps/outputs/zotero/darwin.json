@@ -1,15 +1,16 @@
 {
   "versions": [
     {
-      "version": "9.0.6",
+      "version": "10.0.2",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.zotero.zotero';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.zotero.zotero' AND version_compare(bundle_short_version, '9.0.6') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.zotero.zotero' AND version_compare(bundle_short_version, '10.0.2') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'org.zotero.zotero' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://download.zotero.org/client/release/9.0.6/Zotero-9.0.6.dmg",
+      "installer_url": "https://download.zotero.org/client/release/10.0.2/Zotero-10.0.2.dmg",
       "install_script_ref": "a22985ef",
       "uninstall_script_ref": "1b2e443c",
-      "sha256": "7a9edba6b4a611f4f800ff3f159e67a62b403ceedd56bfdafc063f23e51c8db7",
+      "sha256": "99c2f3d073090cc7ef2a43609c3a678eabdec132ef8c8c447acab9fcb204cdae",
       "default_categories": [
         "Productivity"
       ]

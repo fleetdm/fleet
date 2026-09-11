@@ -45,6 +45,7 @@ import (
 	"github.com/macadmins/osquery-extension/tables/socpower"
 	"github.com/macadmins/osquery-extension/tables/sofa"
 	"github.com/macadmins/osquery-extension/tables/thermalthrottling"
+	"github.com/macadmins/osquery-extension/tables/touchid"
 	"github.com/macadmins/osquery-extension/tables/unifiedlog"
 	"github.com/macadmins/osquery-extension/tables/wifi_network"
 	"github.com/osquery/osquery-go"
@@ -77,6 +78,7 @@ func PlatformTables(opts PluginOpts) ([]osquery.OsqueryPlugin, error) {
 		table.NewPlugin("dscl", dscl.Columns(), dscl.Generate),
 		table.NewPlugin("apfs_volumes", apfs.VolumesColumns(), apfs.VolumesGenerate),
 		table.NewPlugin("apfs_physical_stores", apfs.PhysicalStoresColumns(), apfs.PhysicalStoresGenerate),
+		table.NewPlugin("apfs_crypto_users", apfs.CryptoUsersColumns(), apfs.CryptoUsersGenerate),
 		table.NewPlugin("corestorage_logical_volumes", corestorage.LogicalVolumesColumns(), corestorage.LogicalVolumesGenerate),
 		table.NewPlugin("corestorage_logical_volume_families", corestorage.LogicalVolumeFamiliesColumns(), corestorage.LogicalVolumeFamiliesGenerate),
 		table.NewPlugin("filevault_prk", filevault_prk.Columns(), filevault_prk.Generate),
@@ -99,7 +101,7 @@ func PlatformTables(opts PluginOpts) ([]osquery.OsqueryPlugin, error) {
 		),
 		// osquery version 5.5.0 and up ships a unified_log table in core
 		// we are renaming the one from the macadmins extension to avoid collision
-		table.NewPlugin("macadmins_unified_log", unifiedlog.UnifiedLogColumns(), unifiedlog.UnifiedLogGenerate),
+		table.NewPlugin("macadmins_unified_log", unifiedlog.UnifiedLogColumns(), unifiedLogGenerate),
 		table.NewPlugin(
 			"sofa_security_release_info", sofa.SofaSecurityReleaseInfoColumns(),
 			func(ctx context.Context, queryContext table.QueryContext) ([]map[string]string, error) {
@@ -121,6 +123,8 @@ func PlatformTables(opts PluginOpts) ([]osquery.OsqueryPlugin, error) {
 		table.NewPlugin("macos_thermal_pressure", thermalthrottling.ThermalPressureColumns(), thermalthrottling.ThermalPressureGenerate),
 		table.NewPlugin("macos_soc_power", socpower.SocPowerColumns(), socpower.SocPowerGenerate),
 		table.NewPlugin("network_quality", networkquality.NetworkQualityColumns(), networkquality.NetworkQualityGenerate),
+		table.NewPlugin("touchid_system_config", touchid.TouchIDSystemConfigColumns(), touchid.TouchIDSystemConfigGenerate),
+		table.NewPlugin("touchid_user_config", touchid.TouchIDUserConfigColumns(), touchid.TouchIDUserConfigGenerate),
 
 		filevault_status.TablePlugin(log.Logger), // table name is "filevault_status"
 		ioreg.TablePlugin(log.Logger),            // table name is "ioreg"

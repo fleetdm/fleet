@@ -4,7 +4,8 @@
       "version": "3.20.3",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'NoSQL Workbench' AND publisher = 'DynamoDB Developer Experience';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'NoSQL Workbench' AND publisher = 'DynamoDB Developer Experience' AND version_compare(version, '3.20.3') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'NoSQL Workbench' AND publisher = 'DynamoDB Developer Experience' AND version_compare(version, '3.20.3') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'nosql workbench.exe');"
       },
       "installer_url": "https://dy9cqqaswpltd.cloudfront.net/NoSQL%20Workbench-win-3.20.3.exe",
       "install_script_ref": "1aa3b9df",

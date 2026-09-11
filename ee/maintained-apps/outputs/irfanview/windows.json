@@ -4,7 +4,8 @@
       "version": "4.75",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'IrfanView%' AND publisher = 'Irfan Skiljan';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'IrfanView%' AND publisher = 'Irfan Skiljan' AND version_compare(version, '4.75') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'IrfanView%' AND publisher = 'Irfan Skiljan' AND version_compare(version, '4.75') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'irfanview.exe');"
       },
       "installer_url": "https://download.fileforum.com/download/967963863-1/iview475_x64_setup.exe",
       "install_script_ref": "fa8b00ca",

@@ -43,7 +43,7 @@ func softDeleteWindowsHostCertsForReparse(tx *sql.Tx, increment incrementCountFn
 		var ids []uint64
 		if err := txx.Select(&ids, `
 			SELECT hc.id
-			FROM host_certificates hc
+			FROM host_certificates hc FORCE INDEX (PRIMARY)
 			JOIN hosts h ON h.id = hc.host_id
 			WHERE h.platform = 'windows' AND hc.origin = 'osquery' AND hc.deleted_at IS NULL AND hc.id > ?
 			ORDER BY hc.id

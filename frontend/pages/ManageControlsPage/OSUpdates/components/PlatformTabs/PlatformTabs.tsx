@@ -19,11 +19,14 @@ interface IPlatformTabsProps {
   currentTeamId: number;
   defaultMacOSVersion: string;
   defaultMacOSDeadline: string;
+  defaultMacOSDeadlineDays: string;
   defaultMacOSUpdateNewHosts: boolean;
   defaultIOSVersion: string;
   defaultIOSDeadline: string;
+  defaultIOSDeadlineDays: string;
   defaultIPadOSVersion: string;
   defaultIPadOSDeadline: string;
+  defaultIPadOSDeadlineDays: string;
   defaultWindowsDeadlineDays: string;
   defaultWindowsGracePeriodDays: string;
   selectedPlatform: OSUpdatesTargetPlatform;
@@ -37,11 +40,14 @@ interface IPlatformTabsProps {
 const PlatformTabs = ({
   currentTeamId,
   defaultMacOSDeadline,
+  defaultMacOSDeadlineDays,
   defaultMacOSVersion,
   defaultMacOSUpdateNewHosts,
   defaultIOSDeadline,
+  defaultIOSDeadlineDays,
   defaultIOSVersion,
   defaultIPadOSDeadline,
+  defaultIPadOSDeadlineDays,
   defaultIPadOSVersion,
   defaultWindowsDeadlineDays,
   defaultWindowsGracePeriodDays,
@@ -108,6 +114,7 @@ const PlatformTabs = ({
               applePlatform="darwin"
               defaultMinOsVersion={defaultMacOSVersion}
               defaultDeadline={defaultMacOSDeadline}
+              defaultDeadlineDays={defaultMacOSDeadlineDays}
               defaultUpdateNewHosts={defaultMacOSUpdateNewHosts}
               key={currentTeamId}
               refetchAppConfig={refetchAppConfig}
@@ -142,6 +149,7 @@ const PlatformTabs = ({
               applePlatform="ios"
               defaultMinOsVersion={defaultIOSVersion}
               defaultDeadline={defaultIOSDeadline}
+              defaultDeadlineDays={defaultIOSDeadlineDays}
               key={currentTeamId}
               refetchAppConfig={refetchAppConfig}
               refetchTeamConfig={refetchTeamConfig}
@@ -158,6 +166,7 @@ const PlatformTabs = ({
               applePlatform="ipados"
               defaultMinOsVersion={defaultIPadOSVersion}
               defaultDeadline={defaultIPadOSDeadline}
+              defaultDeadlineDays={defaultIPadOSDeadlineDays}
               key={currentTeamId}
               refetchAppConfig={refetchAppConfig}
               refetchTeamConfig={refetchTeamConfig}

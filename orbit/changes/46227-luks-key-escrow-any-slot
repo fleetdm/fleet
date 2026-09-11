@@ -1,1 +1,0 @@
-* Fixed LUKS disk encryption key escrow failing with a misleading "passphrase incorrect" error on Linux hosts whose passphrase is stored in a key slot other than slot 0. The existing passphrase is now validated against any key slot.

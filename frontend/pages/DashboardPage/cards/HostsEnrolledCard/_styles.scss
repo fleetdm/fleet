@@ -45,18 +45,16 @@
   }
 
   &__tooltip {
-    background: $core-fleet-black;
-    color: $core-fleet-white;
-    padding: $pad-small $pad-medium;
-    border-radius: $border-radius;
-    font-size: $xx-small;
+    @include tooltip-text;
+
     box-shadow: 0px 2px 6px rgba(0, 0, 0, 0.1);
+    // Bar hover shows short "N hosts" / "X% of fleet" values that fit on one
+    // line each; keep them from wrapping so the tooltip stays compact.
     white-space: nowrap;
   }
 
   &__tooltip-label {
     margin-bottom: $pad-xsmall;
-    opacity: 0.8;
   }
 
   &__tooltip-value {
@@ -65,7 +63,6 @@
 
   &__tooltip-share {
     margin-top: $pad-xsmall;
-    opacity: 0.8;
   }
 
   // Suppress browser focus/click outlines on the chart wrapper, SVG surface,

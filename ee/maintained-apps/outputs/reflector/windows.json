@@ -4,7 +4,8 @@
       "version": "4.1.2.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Reflector 4' AND publisher = 'Squirrels';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Reflector 4' AND publisher = 'Squirrels' AND version_compare(version, '4.1.2.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Reflector 4' AND publisher = 'Squirrels' AND version_compare(version, '4.1.2.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'reflector.exe');"
       },
       "installer_url": "https://download.airsquirrels.com/Reflector4/Windows/Reflector-4.1.2-64.msi",
       "install_script_ref": "22e48c46",

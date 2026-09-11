@@ -1,0 +1,1 @@
+* Fixed software search to match on `bundle_identifier` and custom `display_name` so admins and end users can find macOS custom packages by their visible name.

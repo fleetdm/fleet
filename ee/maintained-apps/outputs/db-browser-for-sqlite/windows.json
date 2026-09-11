@@ -4,7 +4,8 @@
       "version": "3.13.1",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'DB Browser for SQLite %' AND publisher = 'DB Browser for SQLite Team';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'DB Browser for SQLite %' AND publisher = 'DB Browser for SQLite Team' AND version_compare(version, '3.13.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'DB Browser for SQLite %' AND publisher = 'DB Browser for SQLite Team' AND version_compare(version, '3.13.1') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'db browser for sqlite.exe');"
       },
       "installer_url": "https://github.com/sqlitebrowser/sqlitebrowser/releases/download/v3.13.1/DB.Browser.for.SQLite-v3.13.1-win64.msi",
       "install_script_ref": "22e48c46",

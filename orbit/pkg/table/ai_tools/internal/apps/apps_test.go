@@ -21,6 +21,29 @@ func TestMatchKnown(t *testing.T) {
 		{[]string{"Comet.app", "Comet", "ai.perplexity.comet"}, true, "comet", 0},
 		{[]string{"Dia.app", "Dia", "company.thebrowser.dia"}, true, "dia", 0},
 		{[]string{"Perplexity.app", "Perplexity", "ai.perplexity.macos"}, true, "perplexity", 0},
+
+		// Windows uninstall entries and MSIX packages carry a bare display name
+		// with no trailing delimiter; a genuine install must still match.
+		{[]string{"Dia"}, true, "dia", 0},
+		{[]string{"Jan"}, true, "jan", 1337},
+		{[]string{"Comet"}, true, "comet", 0},
+		{[]string{"Trae"}, true, "trae", 0},
+		{[]string{"lms"}, true, "lm-studio-cli", 0},
+
+		// A bounded occurrence after a mid-word one must still match: the
+		// boundary scan may not stop at the first hit.
+		{[]string{"NVIDIA Dia"}, true, "dia", 0},
+
+		// Short tokens ("dia", "lms") must not match mid-word inside unrelated
+		// software names.
+		{[]string{"NVIDIA Control Panel"}, false, "", 0},
+		{[]string{"NVIDIA Graphics Driver 591.86"}, false, "", 0},
+		{[]string{"NVIDIA Install Application"}, false, "", 0},
+		{[]string{"VLC media player"}, false, "", 0},
+		{[]string{"Plex Media Server 1.43.1.10611 (x64)"}, false, "", 0},
+		{[]string{"vs_minshellmsi"}, false, "", 0},
+		{[]string{"vs_minshellmsires"}, false, "", 0},
+		{[]string{"Windows Media Player.app"}, false, "", 0},
 	}
 	for _, c := range cases {
 		k, ok := matchKnown(c.tokens...)

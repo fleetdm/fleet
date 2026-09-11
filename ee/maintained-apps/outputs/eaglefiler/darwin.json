@@ -4,7 +4,8 @@
       "version": "1.9.21",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.c-command.EagleFiler';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.c-command.EagleFiler' AND version_compare(bundle_short_version, '1.9.21') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.c-command.EagleFiler' AND version_compare(bundle_short_version, '1.9.21') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.c-command.EagleFiler' AND a.bundle_executable != '');"
       },
       "installer_url": "https://c-command.com/downloads/EagleFiler-1.9.21.dmg",
       "install_script_ref": "54e6da83",

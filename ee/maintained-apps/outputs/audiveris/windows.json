@@ -4,7 +4,8 @@
       "version": "5.11.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Audiveris' AND publisher = 'audiveris.org';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Audiveris' AND publisher = 'audiveris.org' AND version_compare(version, '5.11.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Audiveris' AND publisher = 'audiveris.org' AND version_compare(version, '5.11.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'audiveris.exe');"
       },
       "installer_url": "https://github.com/Audiveris/audiveris/releases/download/5.11.0/Audiveris-5.11.0-windows-x86_64.msi",
       "install_script_ref": "22e48c46",

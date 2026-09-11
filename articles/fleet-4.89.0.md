@@ -1,5 +1,9 @@
 # Fleet 4.89.0 | Windows setup experience improvements, Android variables everywhere, and more...
 
+<div purpose="embedded-content">
+   <iframe src="https://www.youtube.com/embed/rx_py9CGkZE?si=otnIqyGIe8EhS8jp" title="0" allowfullscreen></iframe>
+</div>
+
 Fleet 4.89.0 is now available. See the complete [changelog](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.89.0) or read on for highlights. For upgrade instructions, visit the [upgrade guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in the Fleet docs.
 
 ## Highlights

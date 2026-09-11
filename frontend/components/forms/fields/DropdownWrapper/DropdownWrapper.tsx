@@ -304,12 +304,19 @@ export const generateCustomDropdownStyles = (
       maxHeight: maxMenuHeight != null ? `${maxMenuHeight}px` : "none",
       ...(nowrapMenu && { width: "fit-content" }),
     }),
-    valueContainer: (provided) => ({
+    valueContainer: (provided, state) => ({
       ...provided,
       padding: 0,
-      display: "flex",
-      gap: PADDING["pad-small"],
-      flexWrap: "nowrap", // This ensures the value is on a single line and truncated
+      // Searchable dropdowns keep react-select's grid so the input overlays the
+      // placeholder/value and the caret sits at the left edge instead of after
+      // the text. Flex + nowrap keeps the non-searchable value on one line.
+      ...(state.selectProps.isSearchable
+        ? { display: "grid" }
+        : ({
+            display: "flex",
+            gap: PADDING["pad-small"],
+            flexWrap: "nowrap",
+          } as const)),
     }),
     option: (provided, state) => ({
       ...provided,

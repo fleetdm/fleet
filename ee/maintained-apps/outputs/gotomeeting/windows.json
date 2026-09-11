@@ -4,7 +4,8 @@
       "version": "10.19.0.19950",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'GoToMeeting %';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'GoToMeeting %' AND version_compare(version, '10.19.0.19950') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'GoToMeeting %' AND version_compare(version, '10.19.0.19950') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'gotomeeting.exe');"
       },
       "installer_url": "https://link.gotomeeting.com/latest-msi",
       "install_script_ref": "a6c7d24e",

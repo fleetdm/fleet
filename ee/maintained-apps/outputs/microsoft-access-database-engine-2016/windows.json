@@ -4,7 +4,8 @@
       "version": "16.0.5044.1000",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Microsoft Access database engine 2016 (English)' AND publisher = 'Microsoft Corporation';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Microsoft Access database engine 2016 (English)' AND publisher = 'Microsoft Corporation' AND version_compare(version, '16.0.5044.1000') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Microsoft Access database engine 2016 (English)' AND publisher = 'Microsoft Corporation' AND version_compare(version, '16.0.5044.1000') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'microsoft access database engine 2016 redistributable.exe');"
       },
       "installer_url": "https://download.microsoft.com/download/3/5/c/35c84c36-661a-44e6-9324-8786b8dbe231/accessdatabaseengine_X64.exe",
       "install_script_ref": "877f9b39",

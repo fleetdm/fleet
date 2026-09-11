@@ -439,7 +439,6 @@ const ManageQueriesPage = ({
                           (queriesResponse?.count ?? 0) > 0 ? (
                             <>
                               To manage automations add a report to this fleet.
-                              <br />
                               For inherited reports select &ldquo;All
                               fleets&rdquo;.
                             </>

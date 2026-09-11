@@ -4,7 +4,8 @@
       "version": "2.1.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'Binance %' AND publisher = 'BinanceTech';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Binance %' AND publisher = 'BinanceTech' AND version_compare(version, '2.1.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Binance %' AND publisher = 'BinanceTech' AND version_compare(version, '2.1.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'binance.exe');"
       },
       "installer_url": "https://github.com/binance/desktop/releases/download/v2.1.0/binance-setup-2.1.0.exe",
       "install_script_ref": "db52b55d",

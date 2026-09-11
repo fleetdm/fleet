@@ -4,7 +4,8 @@
       "version": "25.0.9800.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Amazon DCV Client' AND publisher = 'NICE Software';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Amazon DCV Client' AND publisher = 'NICE Software' AND version_compare(version, '25.0.9800.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Amazon DCV Client' AND publisher = 'NICE Software' AND version_compare(version, '25.0.9800.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'amazon dcv client.exe');"
       },
       "installer_url": "https://d1uj6qtbmh3dt5.cloudfront.net/2025.0/Clients/nice-dcv-client-Release-2025.0-9800.msi",
       "install_script_ref": "22e48c46",

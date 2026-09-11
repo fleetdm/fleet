@@ -543,10 +543,11 @@ const ConditionalAccess = () => {
                 tipContent={
                   <>
                     Bypassing is valid for a single login attempt and is tracked
-                    in audit logs. Critical policies can never be bypassed.{" "}
-                    <em>
+                    in audit logs. Critical policies can never be bypassed.
+                    <br />
+                    <i>
                       (Default: <strong>On</strong>)
-                    </em>
+                    </i>
                   </>
                 }
                 showArrow={false}

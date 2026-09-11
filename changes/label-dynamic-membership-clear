@@ -1,0 +1,1 @@
+* Fixed the modify label endpoint so that a dynamic label's membership can no longer be cleared by sending an empty `hosts` or `host_ids` list, which is now rejected like a non-empty one.

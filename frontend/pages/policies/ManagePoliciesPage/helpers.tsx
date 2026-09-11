@@ -9,6 +9,7 @@ import { IPolicyRunScriptFormData } from "./components/PolicyRunScriptModal/Poli
 export type AutomationDisplayType =
   | "software"
   | "script"
+  | "profile"
   | "calendar"
   | "conditional_access"
   | "other";
@@ -42,6 +43,7 @@ export const getAutomationsForPolicy = (
     IPolicyStats,
     | "install_software"
     | "run_script"
+    | "resend_configuration_profile"
     | "calendar_events_enabled"
     | "conditional_access_enabled"
     | "webhook"
@@ -66,6 +68,12 @@ export const getAutomationsForPolicy = (
     automations.push({
       type: "script",
       name: policy.run_script.name,
+    });
+  }
+  if (policy.resend_configuration_profile) {
+    automations.push({
+      type: "profile",
+      name: policy.resend_configuration_profile.name,
     });
   }
   if (policy.calendar_events_enabled) {

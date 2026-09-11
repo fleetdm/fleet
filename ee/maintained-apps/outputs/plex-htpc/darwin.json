@@ -4,7 +4,8 @@
       "version": "1.71.1.346",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'tv.plex.htpc';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'tv.plex.htpc' AND version_compare(bundle_short_version, '1.71.1.346') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'tv.plex.htpc' AND version_compare(bundle_short_version, '1.71.1.346') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'tv.plex.htpc' AND a.bundle_executable != '');"
       },
       "installer_url": "https://downloads.plex.tv/htpc/1.71.1.346-f62ce923/macos/PlexHTPC-1.71.1.346-f62ce923-universal.zip",
       "install_script_ref": "fee4b87b",

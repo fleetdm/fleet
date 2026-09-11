@@ -491,11 +491,11 @@ func (ts *withServer) LoginMDMSSOUserSetupExperience(username, password, hostUUI
 	return res
 }
 
-// LoginOTAEnrollSSOUser initiates the OTA enrollment SSO flow by hitting
-// /enroll?enroll_secret=... (as an Android or BYOD device would), follows the
-// SAML login at the IdP, and posts the SAMLResponse back to the MDM SSO
-// callback. Returns the callback response (a redirect).
-func (ts *withServer) LoginOTAEnrollSSOUser(username, password, enrollSecret string) *http.Response {
+// newSSOTestClient returns an HTTP client with its own cookie jar for driving a
+// SAML flow. Redirects are not followed so callers can inspect each hop's
+// Set-Cookie headers, and cookieSecure is disabled for the duration of the test
+// so __Host- cookies survive the plain-HTTP test server.
+func (ts *withServer) newSSOTestClient() *http.Client {
 	t := ts.s.T()
 
 	if _, ok := os.LookupEnv("SAML_IDP_TEST"); !ok {
@@ -503,35 +503,31 @@ func (ts *withServer) LoginOTAEnrollSSOUser(username, password, enrollSecret str
 	}
 
 	prevCookieSecure := cookieSecure
-	t.Cleanup(func() {
-		cookieSecure = prevCookieSecure
-	})
+	t.Cleanup(func() { cookieSecure = prevCookieSecure })
 	cookieSecure = false
+
 	jar, err := cookiejar.New(nil)
 	require.NoError(t, err)
 
-	client := fleethttp.NewClient(
+	return fleethttp.NewClient(
 		fleethttp.WithFollowRedir(false),
 		fleethttp.WithCookieJar(jar),
 	)
+}
 
-	// Step 1: GET /enroll?enroll_secret=... → 303 redirect to IdP (sets SSO cookie)
-	enrollURL := ts.server.URL + "/enroll?enroll_secret=" + url.QueryEscape(enrollSecret)
-	resp, err := client.Get(enrollURL)
+// completeSAMLLogin submits the SimpleSAML login form reached from idpURL and
+// returns the base64-encoded SAMLResponse to post back to an ACS.
+func (ts *withServer) completeSAMLLogin(client *http.Client, idpURL, username, password string) string {
+	t := ts.s.T()
+
+	resp, err := client.Get(idpURL)
 	require.NoError(t, err)
-	require.Equal(t, http.StatusSeeOther, resp.StatusCode)
-	idpURL := resp.Header.Get("Location")
-	require.NotEmpty(t, idpURL, "expected redirect to IdP")
-	require.NoError(t, resp.Body.Close())
 
-	// Step 2: Follow IdP redirect to get the login page
-	resp, err = client.Get(idpURL)
-	require.NoError(t, err)
-	require.NoError(t, resp.Body.Close())
-
-	// Step 3: Extract AuthState and submit login credentials
+	// From the redirect Location header we can get the AuthState and the URL to
+	// which we submit the credentials
 	parsed, err := url.Parse(resp.Header.Get("Location"))
 	require.NoError(t, err)
+	require.NoError(t, resp.Body.Close())
 	data := url.Values{
 		"username":  {username},
 		"password":  {password},
@@ -540,18 +536,88 @@ func (ts *withServer) LoginOTAEnrollSSOUser(username, password, enrollSecret str
 	resp, err = client.PostForm(parsed.Scheme+"://"+parsed.Host+parsed.Path, data)
 	require.NoError(t, err)
 
-	// Step 4: Extract SAMLResponse from the IdP HTML form
-
+	// The response is an HTML form, we can extract the base64-encoded response
+	// to submit to the Fleet server from here
+	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	require.NoError(t, err)
-	require.NoError(t, resp.Body.Close())
 
 	re := regexp.MustCompile(`name="SAMLResponse" value="([^\s]*)" />`)
 	matches := re.FindSubmatch(body)
 	require.NotEmptyf(t, matches, "callback HTML doesn't contain a SAMLResponse value, got body: %s", body)
-	samlResponse := string(matches[1])
+	return string(matches[1])
+}
 
-	// Step 5: POST SAMLResponse to Fleet's MDM SSO callback (cookie jar carries the SSO session)
+// InitiateDeviceSSO calls the device-token-authenticated initiation endpoint
+// and returns the IdP URL to navigate to. The handshake cookie lands in the
+// client's jar.
+func (ts *withServer) InitiateDeviceSSO(client *http.Client, deviceToken string) string {
+	t := ts.s.T()
+
+	var resIni initiateDeviceSSOResponse
+	httpResponse := ts.doWithClient(client, "POST", "/api/v1/fleet/device/"+deviceToken+"/sso", nil, http.StatusOK, nil)
+	require.NoError(t, json.NewDecoder(httpResponse.Body).Decode(&resIni))
+	require.NoError(t, resIni.Error())
+	require.NotEmpty(t, resIni.URL)
+	return resIni.URL
+}
+
+// CompleteDeviceSSO signs in at the IdP and posts the assertion back to the
+// existing MDM SSO callback, which the device flow reuses rather than having an
+// ACS of its own. The callback always answers 303, including on failure, so this
+// serves both the happy path and the rejection paths.
+func (ts *withServer) CompleteDeviceSSO(client *http.Client, idpURL, username, password string) *http.Response {
+	samlResponse := ts.completeSAMLLogin(client, idpURL, username, password)
+	return ts.doWithClient(client, "POST", "/api/v1/fleet/mdm/sso/callback", nil, http.StatusSeeOther, nil,
+		"SAMLResponse", samlResponse, "RelayState", fleet.SSOInitiatorFleetDesktop)
+}
+
+func (ts *withServer) CompleteDeviceSSOWithRelayState(client *http.Client, idpURL, username, password, relayState string) *http.Response {
+	samlResponse := ts.completeSAMLLogin(client, idpURL, username, password)
+	return ts.doWithClient(client, "POST", "/api/v1/fleet/mdm/sso/callback", nil, http.StatusSeeOther, nil,
+		"SAMLResponse", samlResponse, "RelayState", relayState)
+}
+
+func (ts *withServer) ExpireSSOHandshake(client *http.Client) {
+	t := ts.s.T()
+	serverURL, err := url.Parse(ts.server.URL)
+	require.NoError(t, err)
+	client.Jar.SetCookies(serverURL, []*http.Cookie{
+		{Name: cookieNameSSOSession, Value: "expired-handshake-session-id", Path: "/"},
+	})
+}
+
+// LoginDeviceSSOUser drives the whole Fleet Desktop "My device" page SSO flow:
+// initiate, sign in at the IdP, and post the assertion back to the callback.
+// Returns the callback response (a redirect) with the client's cookie jar
+// populated, so callers can inspect Set-Cookie headers along the way (the
+// handshake cookie deleted, the device SSO session cookie set).
+func (ts *withServer) LoginDeviceSSOUser(username, password, deviceToken string) *http.Response {
+	client := ts.newSSOTestClient()
+	idpURL := ts.InitiateDeviceSSO(client, deviceToken)
+	return ts.CompleteDeviceSSO(client, idpURL, username, password)
+}
+
+// LoginOTAEnrollSSOUser initiates the OTA enrollment SSO flow by hitting
+// /enroll?enroll_secret=... (as an Android or BYOD device would), follows the
+// SAML login at the IdP, and posts the SAMLResponse back to the MDM SSO
+// callback. Returns the callback response (a redirect).
+func (ts *withServer) LoginOTAEnrollSSOUser(username, password, enrollSecret string) *http.Response {
+	t := ts.s.T()
+	client := ts.newSSOTestClient()
+
+	// GET /enroll?enroll_secret=... → 303 redirect to IdP (sets the SSO cookie)
+	enrollURL := ts.server.URL + "/enroll?enroll_secret=" + url.QueryEscape(enrollSecret)
+	resp, err := client.Get(enrollURL)
+	require.NoError(t, err)
+	require.Equal(t, http.StatusSeeOther, resp.StatusCode)
+	idpURL := resp.Header.Get("Location")
+	require.NotEmpty(t, idpURL, "expected redirect to IdP")
+	require.NoError(t, resp.Body.Close())
+
+	samlResponse := ts.completeSAMLLogin(client, idpURL, username, password)
+
+	// POST the SAMLResponse to Fleet's MDM SSO callback; the jar carries the SSO session
 	callbackURL := ts.server.URL + "/api/v1/fleet/mdm/sso/callback?SAMLResponse=" + url.QueryEscape(samlResponse)
 	resp, err = client.Post(callbackURL, "application/x-www-form-urlencoded", nil)
 	require.NoError(t, err)
@@ -613,57 +679,16 @@ func (ts *withServer) loginSSOUser(username, password string, basePath string, c
 }
 
 func (ts *withServer) loginSSOUserWithBody(username, password string, basePath string, callbackStatus int, requestBody []byte) *http.Response {
-	t := ts.s.T()
-
-	if _, ok := os.LookupEnv("SAML_IDP_TEST"); !ok {
-		t.Skip("SSO tests are disabled")
-	}
-
-	cookieSecure = false
-	jar, err := cookiejar.New(nil)
-	require.NoError(t, err)
-
-	client := fleethttp.NewClient(
-		fleethttp.WithFollowRedir(false),
-		fleethttp.WithCookieJar(jar),
-	)
+	client := ts.newSSOTestClient()
 
 	var resIni initiateSSOResponse
 	httpResponse := ts.doWithClient(client, "POST", basePath, requestBody, http.StatusOK, nil)
-	err = json.NewDecoder(httpResponse.Body).Decode(&resIni)
-	require.NoError(ts.s.T(), err)
+	require.NoError(ts.s.T(), json.NewDecoder(httpResponse.Body).Decode(&resIni))
 	require.NoError(ts.s.T(), resIni.Error())
 
-	resp, err := client.Get(resIni.URL)
-	require.NoError(t, err)
+	samlResponse := ts.completeSAMLLogin(client, resIni.URL, username, password)
 
-	// From the redirect Location header we can get the AuthState and the URL to
-	// which we submit the credentials
-	parsed, err := url.Parse(resp.Header.Get("Location"))
-	require.NoError(t, err)
-	data := url.Values{
-		"username":  {username},
-		"password":  {password},
-		"AuthState": {parsed.Query().Get("AuthState")},
-	}
-	resp, err = client.PostForm(parsed.Scheme+"://"+parsed.Host+parsed.Path, data)
-	require.NoError(t, err)
-
-	// The response is an HTML form, we can extract the base64-encoded response
-	// to submit to the Fleet server from here
-	defer resp.Body.Close()
-	body, err := io.ReadAll(resp.Body)
-	require.NoError(t, err)
-
-	re := regexp.MustCompile(`name="SAMLResponse" value="([^\s]*)" />`)
-	matches := re.FindSubmatch(body)
-	require.NotEmptyf(t, matches, "callback HTML doesn't contain a SAMLResponse value, got body: %s", body)
-	samlResponse := string(matches[1])
-
-	callbackUrl := basePath + "/callback"
-	res := ts.doWithClient(client, "POST", callbackUrl, nil, callbackStatus, nil, "SAMLResponse", samlResponse)
-
-	return res
+	return ts.doWithClient(client, "POST", basePath+"/callback", nil, callbackStatus, nil, "SAMLResponse", samlResponse)
 }
 
 func (ts *withServer) loginSSOUserIDPInitiated(
@@ -678,6 +703,8 @@ func (ts *withServer) loginSSOUserIDPInitiated(
 		t.Skip("SSO tests are disabled")
 	}
 
+	// Unlike the SP-initiated flows this keeps cookieSecure as-is: there is no
+	// handshake cookie to carry, and the callback below goes out without the jar.
 	jar, err := cookiejar.New(nil)
 	require.NoError(t, err)
 
@@ -686,35 +713,9 @@ func (ts *withServer) loginSSOUserIDPInitiated(
 		fleethttp.WithCookieJar(jar),
 	)
 
-	resp, err := client.Get(idpURL)
-	require.NoError(t, err)
+	rawSSOResp := ts.completeSAMLLogin(client, idpURL, username, password)
 
-	// From the redirect Location header we can get the AuthState and the URL to
-	// which we submit the credentials
-	parsed, err := url.Parse(resp.Header.Get("Location"))
-	require.NoError(t, err)
-	data := url.Values{
-		"username":  {username},
-		"password":  {password},
-		"AuthState": {parsed.Query().Get("AuthState")},
-	}
-	resp, err = client.PostForm(parsed.Scheme+"://"+parsed.Host+parsed.Path, data)
-	require.NoError(t, err)
-
-	// The response is an HTML form, we can extract the base64-encoded response
-	// to submit to the Fleet server from here
-	defer resp.Body.Close()
-	body, err := io.ReadAll(resp.Body)
-	require.NoError(t, err)
-	re := regexp.MustCompile(`name="SAMLResponse" value="([^\s]*)" />`)
-	matches := re.FindSubmatch(body)
-	require.NotEmptyf(t, matches, "callback HTML doesn't contain a SAMLResponse value, got body: %s", body)
-	rawSSOResp := string(matches[1])
-
-	q := url.QueryEscape(rawSSOResp)
-	res := ts.DoRawNoAuth("POST", callbackBasePath+"/callback?SAMLResponse="+q, nil, callbackStatus)
-
-	return res
+	return ts.DoRawNoAuth("POST", callbackBasePath+"/callback?SAMLResponse="+url.QueryEscape(rawSSOResp), nil, callbackStatus)
 }
 
 type listActivitiesResponse struct {
@@ -735,7 +736,7 @@ func (ts *withServer) lastActivityMatches(name, details string, id uint) uint {
 func (ts *withServer) lastActivityMatchesExtended(name, details string, id uint, fleetInitiated *bool) uint {
 	t := ts.s.T()
 	var listActivities listActivitiesResponse
-	ts.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &listActivities, "order_key", "a.id", "order_direction", "desc", "per_page", "1")
+	ts.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &listActivities, "order_key", "id", "order_direction", "desc", "per_page", "1")
 	require.True(t, len(listActivities.Activities) > 0)
 
 	act := listActivities.Activities[0]
@@ -758,7 +759,7 @@ func (ts *withServer) lastActivityMatchesExtended(name, details string, id uint,
 func (ts *withServer) lastHostActivityMatches(hostID uint, name, details string, id uint) uint {
 	t := ts.s.T()
 	var listActivities listActivitiesResponse
-	ts.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities", hostID), nil, http.StatusOK, &listActivities, "order_key", "a.id", "order_direction", "desc", "per_page", "10")
+	ts.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities", hostID), nil, http.StatusOK, &listActivities, "order_key", "id", "order_direction", "desc", "per_page", "10")
 	require.NotEmpty(t, listActivities.Activities)
 
 	act := listActivities.Activities[0]
@@ -789,7 +790,7 @@ func (ts *withServer) lastActivityOfTypeMatches(name, details string, id uint) u
 
 	var listActivities listActivitiesResponse
 	ts.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK,
-		&listActivities, "order_key", "a.id", "order_direction", "desc", "per_page", "10")
+		&listActivities, "order_key", "id", "order_direction", "desc", "per_page", "10")
 	require.True(t, len(listActivities.Activities) > 0)
 
 	for _, act := range listActivities.Activities {
@@ -809,12 +810,44 @@ func (ts *withServer) lastActivityOfTypeMatches(name, details string, id uint) u
 	return 0
 }
 
+// countHostActivitiesOfType returns how many activities of the given type are on the host's own timeline. Used to
+// assert that an operation records exactly one, or none, which the "last activity" helpers cannot express.
+func (ts *withServer) countHostActivitiesOfType(hostID uint, name string) int {
+	var listActivities listActivitiesResponse
+	ts.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities", hostID), nil, http.StatusOK,
+		&listActivities, "order_key", "id", "order_direction", "desc", "per_page", "1000")
+
+	var count int
+	for _, act := range listActivities.Activities {
+		if act.Type == name {
+			count++
+		}
+	}
+	return count
+}
+
+// countActivitiesOfType returns how many activities of the given type exist. Used to assert that an operation records
+// no activity, which "last activity" helpers cannot express on a suite that shares its database across tests.
+func (ts *withServer) countActivitiesOfType(name string) int {
+	var listActivities listActivitiesResponse
+	ts.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK,
+		&listActivities, "order_key", "id", "order_direction", "desc", "per_page", "10000")
+
+	var count int
+	for _, act := range listActivities.Activities {
+		if act.Type == name {
+			count++
+		}
+	}
+	return count
+}
+
 func (ts *withServer) lastActivityOfTypeDoesNotMatch(name, details string, id uint) {
 	t := ts.s.T()
 
 	var listActivities listActivitiesResponse
 	ts.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK,
-		&listActivities, "order_key", "a.id", "order_direction", "desc", "per_page", "10")
+		&listActivities, "order_key", "id", "order_direction", "desc", "per_page", "10")
 	require.True(t, len(listActivities.Activities) > 0)
 
 	for _, act := range listActivities.Activities {
@@ -835,7 +868,7 @@ func (ts *withServer) listActivities() []*fleet.Activity {
 	t := ts.s.T()
 	var resp listActivitiesResponse
 	ts.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &resp,
-		"order_key", "a.id", "order_direction", "asc", "per_page", "10000")
+		"order_key", "id", "order_direction", "asc", "per_page", "10000")
 	require.NotNil(t, resp.Activities)
 	return resp.Activities
 }

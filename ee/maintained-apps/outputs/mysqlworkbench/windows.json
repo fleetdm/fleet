@@ -4,7 +4,8 @@
       "version": "8.0.47",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'MySQL Workbench %' AND publisher = 'Oracle Corporation';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'MySQL Workbench %' AND publisher = 'Oracle Corporation' AND version_compare(version, '8.0.47') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'MySQL Workbench %' AND publisher = 'Oracle Corporation' AND version_compare(version, '8.0.47') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'mysql workbench.exe');"
       },
       "installer_url": "https://cdn.mysql.com/Downloads/MySQLGUITools/mysql-workbench-community-8.0.47-winx64.msi",
       "install_script_ref": "22e48c46",

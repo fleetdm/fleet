@@ -4,5 +4,6 @@
   "token": "abstract",
   "installer_format": "zip",
   "slug": "abstract/darwin",
-  "default_categories": ["Productivity"]
+  "default_categories": ["Productivity"],
+  "frozen": true
 }

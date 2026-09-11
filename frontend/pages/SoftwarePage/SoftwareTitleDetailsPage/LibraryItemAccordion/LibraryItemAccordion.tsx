@@ -108,6 +108,10 @@ export interface ILibraryItemAccordionProps {
   /** Click on the labels list in the expanded panel — opens the edit software
    * modal. Wired as a CustomLink-style underline button via TruncatedTextList. */
   onLabelsClick?: () => void;
+  /** Click handler for the pencil "Edit" button in the expanded panel — opens
+   * the same edit software modal reached via the label-count badge. Gated on
+   * `canEditSoftware`; when omitted the button is hidden. */
+  onEditClick?: () => void;
   onDownloadClick?: () => void;
   onTrashClick?: () => void;
 
@@ -166,6 +170,7 @@ const LibraryItemAccordion = ({
   onBadgeClick,
   onLabelCountClick,
   onLabelsClick,
+  onEditClick,
   onDownloadClick,
   onTrashClick,
   canActivateMultiplePackages = false,
@@ -573,7 +578,7 @@ const LibraryItemAccordion = ({
 
   const renderTrashButtonBody = (disabled: boolean) => (
     <Button
-      variant="subdued"
+      variant="secondary"
       disabled={disabled}
       onClick={onTrashClick}
       ariaLabel="Delete this version"
@@ -725,9 +730,18 @@ const LibraryItemAccordion = ({
           </div>
 
           <div className={`${baseClass}__actions-column`}>
+            {canEditSoftware && onEditClick && (
+              <Button
+                variant="secondary"
+                onClick={onEditClick}
+                ariaLabel="Edit software"
+                className={`${baseClass}__edit-button`}
+                icon="pencil"
+              />
+            )}
             {canDownload && (
               <Button
-                variant="subdued"
+                variant="secondary"
                 onClick={onDownloadClick}
                 ariaLabel="Download installer"
                 className={`${baseClass}__download-button`}

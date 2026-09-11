@@ -4,7 +4,8 @@
       "version": "2.3.15",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Windsurf' AND publisher = 'Codeium';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Windsurf' AND publisher = 'Codeium' AND version_compare(version, '2.3.15') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Windsurf' AND publisher = 'Codeium' AND version_compare(version, '2.3.15') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'windsurf.exe');"
       },
       "installer_url": "https://windsurf-stable.codeiumdata.com/win32-x64/stable/c46c49e94b4d3f41181204d59809d8f1b2c48d68/WindsurfSetup-x64-2.3.15.exe",
       "install_script_ref": "232abd06",

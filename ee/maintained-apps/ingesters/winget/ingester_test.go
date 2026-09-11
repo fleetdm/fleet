@@ -481,6 +481,11 @@ func TestIngestValidations(t *testing.T) {
 			if c.wantPatchedContains != "" {
 				require.Contains(t, out.Queries.Patched, c.wantPatchedContains)
 			}
+			// The managed "is app open" query matches a process named "<title>.exe".
+			require.Equal(t,
+				"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'foo.exe');",
+				out.Queries.Open,
+			)
 		})
 	}
 }

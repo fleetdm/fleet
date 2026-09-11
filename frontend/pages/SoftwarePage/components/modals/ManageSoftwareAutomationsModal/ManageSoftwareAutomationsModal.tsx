@@ -515,8 +515,7 @@ const ManageAutomationsModal = ({
       <TooltipWrapper
         tipContent={
           <>
-            Add an integration to create
-            <br /> tickets for vulnerability automations.
+            Add an integration to create tickets for vulnerability automations.
           </>
         }
         disableTooltip={hasIntegrations || gomDisabled}

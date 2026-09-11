@@ -9,7 +9,16 @@ examples: |-
   example)
 
   ```
-  SELECT arch, version FROM os_version;
+  SELECT arch, version FROM os_version; 
+  ```
+  
+  Create a policy query that causes a Mac to fail a policy if the macOS version is older than 26.6.1 & either Screen Sharing or Remote Management is enabled -
+
+  ```
+  SELECT 1
+  FROM os_version, sharing_preferences
+  WHERE version < '26.6.1'
+  AND (sharing_preferences.screen_sharing = 1 OR sharing_preferences.remote_management = 1);
   ```
 columns:
   - name: install_date
@@ -22,4 +31,5 @@ columns:
     platforms:
       - linux
 notes: |-
+  - Though the `os_version` table `version` column VALUE type is STRING, osquery correctly handles semantic-version ordering via collate="version" in this table column the same way it handles `version` columns in many other tables. (i.e., codegen declares the `version` column as ... COLLATE VERSION in the CREATE TABLE statement it hands to SQLite when registering the virtual table.) This means the `version` column can be used for OS version comparisons without needing the `major`, `minor` or `patch` columns.
   - On ChromeOS, this table requires the [fleetd Chrome extension](https://fleetdm.com/docs/using-fleet/chromeos).

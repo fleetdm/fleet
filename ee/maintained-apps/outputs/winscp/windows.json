@@ -4,7 +4,8 @@
       "version": "6.5.6",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'WinSCP %' AND publisher = 'Martin Prikryl';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'WinSCP %' AND publisher = 'Martin Prikryl' AND version_compare(version, '6.5.6') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'WinSCP %' AND publisher = 'Martin Prikryl' AND version_compare(version, '6.5.6') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'winscp.exe');"
       },
       "installer_url": "https://sourceforge.net/projects/winscp/files/WinSCP/6.5.6/WinSCP-6.5.6-Setup.exe/download",
       "install_script_ref": "d07f6d6d",

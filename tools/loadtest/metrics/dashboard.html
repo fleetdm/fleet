@@ -1,0 +1,767 @@
+<!doctype html>
+<!--
+  Fleet load test metrics dashboard.
+
+  A zero-dependency, single-file viewer for the run artifacts produced by
+  collect-metrics.sh (the .json files under runs/). Open this file in a
+  browser and drop the runs/ folder onto the page — everything is parsed
+  and rendered client-side; no server, no network, nothing leaves the browser.
+
+  The curated metric registry below (names, units, thresholds, per-hour
+  normalization, grading floors) mirrors the metric definitions in
+  compare-metrics.sh — keep the two in sync when adding metrics.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fleet load test metrics</title>
+<style>
+  :root {
+    --bg: #f8fafc; --panel: #ffffff; --border: #e2e8f0;
+    --text: #0f172a; --muted: #64748b; --accent: #2563eb;
+    --ok: #16a34a; --warn: #d97706; --alert: #dc2626; --info: #64748b;
+    --grid: #e2e8f0; --tip-bg: #0f172a; --tip-text: #f8fafc;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0b1220; --panel: #101a2e; --border: #1e2a44;
+      --text: #e2e8f0; --muted: #8ea0bd; --accent: #60a5fa;
+      --ok: #4ade80; --warn: #fbbf24; --alert: #f87171; --info: #8ea0bd;
+      --grid: #1e2a44; --tip-bg: #e2e8f0; --tip-text: #0b1220;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  header {
+    display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+    padding: 14px 20px; border-bottom: 1px solid var(--border); background: var(--panel);
+  }
+  header h1 { font-size: 16px; margin: 0; white-space: nowrap; }
+  #load-status { color: var(--muted); font-size: 13px; }
+  button, select, input[list] {
+    font: inherit; color: var(--text); background: var(--panel);
+    border: 1px solid var(--border); border-radius: 6px; padding: 5px 10px;
+  }
+  button { cursor: pointer; }
+  button:hover { border-color: var(--accent); }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+  #layout { display: flex; min-height: calc(100vh - 61px); }
+  aside {
+    width: 270px; flex: none; border-right: 1px solid var(--border);
+    background: var(--panel); padding: 14px 16px; overflow-y: auto;
+  }
+  aside h2, .detail-controls h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 14px 0 6px; }
+  aside h2:first-child { margin-top: 0; }
+  .run-item { display: flex; align-items: baseline; gap: 7px; padding: 2px 0; }
+  .run-item label { cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .run-item .date { color: var(--muted); font-size: 12px; }
+  .run-note { color: var(--muted); font-size: 12px; font-style: italic; margin: 0 0 4px 24px; white-space: normal; }
+  .cat-toggle { font-size: 12px; color: var(--accent); cursor: pointer; background: none; border: none; padding: 0 4px; }
+
+  main { flex: 1; padding: 18px 22px; overflow-x: hidden; }
+
+  /* Drop zone / empty state */
+  #dropzone {
+    border: 2px dashed var(--border); border-radius: 12px; padding: 60px 20px;
+    text-align: center; color: var(--muted); margin: 40px auto; max-width: 560px;
+    transition: border-color .15s, background .15s;
+  }
+  #dropzone.drag { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 6%, transparent); }
+  #dropzone strong { color: var(--text); font-size: 16px; display: block; margin-bottom: 8px; }
+  #dropzone .hint { font-size: 13px; margin-top: 10px; }
+
+  /* Overview grid */
+  #grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; }
+  .card {
+    background: var(--panel); border: 1px solid var(--border); border-left: 4px solid var(--info);
+    border-radius: 8px; padding: 10px 12px 8px; cursor: pointer;
+  }
+  .card:hover { border-color: var(--accent); border-left-width: 4px; }
+  .card.s-ok    { border-left-color: var(--ok); }
+  .card.s-warn  { border-left-color: var(--warn); }
+  .card.s-alert { border-left-color: var(--alert); }
+  .card .name { font-size: 12.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .card .row { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-top: 2px; }
+  .card .val { font-size: 17px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .card .delta { font-size: 12px; font-variant-numeric: tabular-nums; }
+  .d-ok { color: var(--ok); } .d-warn { color: var(--warn); } .d-alert { color: var(--alert); } .d-info { color: var(--muted); }
+  .card svg { display: block; width: 100%; height: 36px; margin-top: 6px; }
+  .section-label { grid-column: 1 / -1; font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 10px 0 -4px; }
+
+  /* Detail view */
+  .detail-controls { display: flex; gap: 14px; align-items: end; flex-wrap: wrap; margin-bottom: 10px; }
+  .detail-controls .ctl { display: flex; flex-direction: column; gap: 4px; }
+  #detail-title { font-size: 18px; font-weight: 600; margin: 4px 0 2px; }
+  #detail-sub { color: var(--muted); font-size: 13px; margin-bottom: 10px; }
+  #chart-wrap { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 10px; }
+  #chart-wrap svg { display: block; width: 100%; height: auto; }
+  .axis text { fill: var(--muted); font-size: 11px; }
+  .grid-line { stroke: var(--grid); stroke-width: 1; }
+  .thresh { stroke: var(--alert); stroke-dasharray: 5 4; stroke-width: 1.4; opacity: .75; }
+  .thresh-label { fill: var(--alert); font-size: 11px; opacity: .9; }
+  .series { fill: none; stroke: var(--accent); stroke-width: 2; }
+  .pt { fill: var(--accent); stroke: var(--accent); cursor: pointer; }
+  .pt.low-cov { fill: var(--panel); }
+  #tooltip {
+    position: fixed; pointer-events: none; z-index: 10; display: none;
+    background: var(--tip-bg); color: var(--tip-text); border-radius: 6px;
+    padding: 7px 10px; font-size: 12px; max-width: 300px; box-shadow: 0 4px 14px rgba(0,0,0,.25);
+  }
+  #tooltip .t-run { font-weight: 600; }
+  #caveats { color: var(--muted); font-size: 12px; margin-top: 14px; }
+  #caveats li { margin: 2px 0; }
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Fleet load test metrics</h1>
+  <button class="primary" id="btn-pick">Load runs folder…</button>
+  <button id="btn-overview" class="hidden">← Overview</button>
+  <span id="load-status">No runs loaded</span>
+  <input type="file" id="file-input" webkitdirectory multiple hidden>
+</header>
+
+<div id="layout">
+  <aside id="sidebar" class="hidden">
+    <h2>Runs</h2>
+    <div id="run-list"></div>
+  </aside>
+
+  <main>
+    <div id="dropzone">
+      <strong>Drop your <code>runs/</code> folder here</strong>
+      Everything is read locally in your browser — no upload, no server.
+      <div class="hint">Or use the “Load runs folder…” button above.<br>
+      Collect runs with <code>collect-metrics.sh</code>; this page reads the <code>.json</code> artifacts.</div>
+    </div>
+
+    <div id="overview" class="hidden">
+      <div id="grid"></div>
+    </div>
+
+    <div id="detail" class="hidden">
+      <div class="detail-controls">
+        <div class="ctl">
+          <h2>Metric</h2>
+          <select id="metric-select"></select>
+        </div>
+        <div class="ctl">
+          <h2>Raw path (advanced)</h2>
+          <input list="raw-paths" id="raw-input" placeholder="e.g. network.network_tx_bytes.Sum" size="34">
+          <datalist id="raw-paths"></datalist>
+        </div>
+      </div>
+      <div id="detail-title"></div>
+      <div id="detail-sub"></div>
+      <div id="chart-wrap"></div>
+    </div>
+
+    <ul id="caveats" class="hidden"></ul>
+  </main>
+</div>
+
+<div id="tooltip"></div>
+
+<script>
+'use strict';
+
+/* =========================================================================
+ * Metric registry — mirrors the definitions in compare-metrics.sh.
+ * path: dot path into the run JSON (numeric segments index arrays)
+ * unit: '%', 's', 'ms', 'min', 'bytes', '' (count)
+ * warn/alert: percent-change grading thresholds (vs previous run)
+ * abs: absolute "should stay below" threshold, drawn on the chart
+ * floor: min absolute |change| before grading applies (noise floor)
+ * rate: divide by the run's interval hours (window-length-dependent sums)
+ * dir: 'invert' (decrease is bad) | 'info' (context only, never graded)
+ * zero: going 0 -> non-zero is always an alert
+ * ======================================================================= */
+const REGISTRY = [
+  { group: 'Fleet Server', name: 'Fleet CPU', path: 'fleet_server.cpu_utilization.Average', unit: '%', warn: 10, alert: 30, abs: 80, floor: 5 },
+  { group: 'Fleet Server', name: 'Fleet CPU (max)', path: 'fleet_server.cpu_utilization.Maximum', unit: '%', warn: 20, alert: 40, floor: 5 },
+  { group: 'Fleet Server', name: 'Fleet Memory', path: 'fleet_server.memory_utilization.Average', unit: '%', warn: 15, alert: 30, abs: 80, floor: 5 },
+  { group: 'Fleet Server', name: 'Fleet Containers', path: 'fleet_server.task_counts.runningCount', unit: '', dir: 'info' },
+
+  { group: 'Loadtest', name: 'Loadtest CPU', path: 'loadtest_containers.cpu_utilization.Average', unit: '%', warn: 20, alert: 40, abs: 90, floor: 5 },
+  { group: 'Loadtest', name: 'Loadtest Memory', path: 'loadtest_containers.memory_utilization.Average', unit: '%', warn: 20, alert: 40, abs: 90, floor: 5 },
+  { group: 'Loadtest', name: 'Loadtest Containers', path: 'loadtest_containers.task_counts.runningCount', unit: '', dir: 'info' },
+
+  // CPU/Memory are service-wide averages across every running container; the
+  // hottest-task rows are what reveal an unevenly loaded instance.
+  { group: 'apns-mock', name: 'apns-mock CPU', path: 'apns_mock.cpu_utilization.Average', unit: '%', warn: 15, alert: 30, abs: 90, floor: 5 },
+  { group: 'apns-mock', name: 'apns-mock Memory', path: 'apns_mock.memory_utilization.Average', unit: '%', warn: 15, alert: 30, abs: 80, floor: 5 },
+  { group: 'apns-mock', name: 'apns-mock CPU (hottest task)', path: 'apns_mock.per_task.cpu.max_pct', unit: '%', warn: 20, alert: 40, abs: 95, floor: 5 },
+  { group: 'apns-mock', name: 'apns-mock Memory (hottest task)', path: 'apns_mock.per_task.memory.max_pct', unit: '%', warn: 20, alert: 40, abs: 90, floor: 5 },
+  { group: 'apns-mock', name: 'apns-mock Containers', path: 'apns_mock.task_counts.runningCount', unit: '', dir: 'info' },
+  { group: 'apns-mock', name: 'apns-mock Traffic TX/h', path: 'apns_mock.network.network_tx_bytes.Sum', unit: 'bytes', dir: 'info', rate: true },
+  { group: 'apns-mock', name: 'apns-mock Stops', path: 'apns_mock.container_health.abnormal_stops', unit: '', zero: true },
+
+  { group: 'apns-mock Redis', name: 'apns Redis CPU', path: 'apns_mock_redis.0.cpu_utilization.Average', unit: '%', warn: 20, alert: 40, abs: 80, floor: 5 },
+  { group: 'apns-mock Redis', name: 'apns Redis CPU (max)', path: 'apns_mock_redis.0.cpu_utilization.Maximum', unit: '%', warn: 20, alert: 40, floor: 5 },
+  { group: 'apns-mock Redis', name: 'apns Redis Memory', path: 'apns_mock_redis.0.memory_utilization.Average', unit: '%', warn: 15, alert: 30, abs: 70, floor: 5 },
+  { group: 'apns-mock Redis', name: 'apns Redis Conns', path: 'apns_mock_redis.0.curr_connections.Average', unit: '', warn: 50, alert: 100, floor: 5 },
+  { group: 'apns-mock Redis', name: 'apns Redis Pending Items', path: 'apns_mock_redis.0.curr_items.Average', unit: '', warn: 50, alert: 100, floor: 100 },
+  { group: 'apns-mock Redis', name: 'apns Redis Evictions/h', path: 'apns_mock_redis.0.evictions.Sum', unit: '', zero: true, rate: true },
+  { group: 'apns-mock Redis', name: 'apns Redis String Cmds/h', path: 'apns_mock_redis.0.string_based_cmds.Sum', unit: '', dir: 'info', rate: true },
+  { group: 'apns-mock Redis', name: 'apns Redis PubSub Cmds/h', path: 'apns_mock_redis.0.pubsub_based_cmds.Sum', unit: '', dir: 'info', rate: true },
+
+  { group: 'RDS Writer', name: 'Writer CPU', path: 'rds_writer.cpu_utilization.Average', unit: '%', warn: 15, alert: 30, abs: 80, floor: 5 },
+  { group: 'RDS Writer', name: 'Writer Connections', path: 'rds_writer.database_connections.Average', unit: '', warn: 50, alert: 100, floor: 50 },
+  { group: 'RDS Writer', name: 'Writer Read IOPS', path: 'rds_writer.read_iops.Average', unit: '', warn: 50, alert: 100, floor: 200 },
+  { group: 'RDS Writer', name: 'Writer Write IOPS', path: 'rds_writer.write_iops.Average', unit: '', warn: 20, alert: 40, floor: 300 },
+  { group: 'RDS Writer', name: 'Deadlocks', path: 'rds_writer.deadlocks.Sum', unit: '', zero: true },
+  { group: 'RDS Writer', name: 'Cache Hit Ratio', path: 'rds_writer_extended.buffer_cache_hit_ratio.Average', unit: '%', warn: 1, alert: 3, dir: 'invert', floor: 0.5 },
+  { group: 'RDS Writer', name: 'Freeable Memory', path: 'rds_writer_extended.freeable_memory.Average', unit: 'bytes', warn: 15, alert: 30, dir: 'invert', floor: 1073741824 },
+  { group: 'RDS Writer', name: 'Select Latency', path: 'rds_writer_extended.select_latency.Average', unit: 'ms', warn: 50, alert: 100, floor: 2 },
+  { group: 'RDS Writer', name: 'Insert Latency', path: 'rds_writer_extended.insert_latency.Average', unit: 'ms', warn: 25, alert: 50, floor: 2 },
+  { group: 'RDS Writer', name: 'DML Latency', path: 'rds_writer_extended.dml_latency.Average', unit: 'ms', warn: 25, alert: 50, floor: 2 },
+  { group: 'RDS Writer', name: 'Active Sessions', path: 'rds_writer_extended.threads_running.average', unit: '', warn: 25, alert: 50, floor: 2 },
+  { group: 'RDS Writer', name: 'IOPS Utilization', path: 'rds_writer_extended.iops_utilization.utilization_pct', unit: '%', warn: 15, alert: 30, abs: 80, floor: 5 },
+
+  { group: 'RDS Readers', name: 'Replica Lag', path: 'rds_readers_extended.0.aurora_replica_lag.Average', unit: 'ms', warn: 50, alert: 100, floor: 5 },
+  { group: 'RDS Readers', name: 'Reader Cache Hit Ratio', path: 'rds_readers_extended.0.buffer_cache_hit_ratio.Average', unit: '%', warn: 1, alert: 3, dir: 'invert', floor: 0.5 },
+  { group: 'RDS Readers', name: 'Reader IOPS Utilization', path: 'rds_readers_extended.0.iops_utilization.utilization_pct', unit: '%', warn: 15, alert: 30, abs: 80, floor: 5 },
+  { group: 'RDS Readers', name: 'Reader 1 CPU', path: 'rds_readers.0.cpu_utilization.Average', unit: '%', warn: 15, alert: 30, abs: 90, floor: 5 },
+  { group: 'RDS Readers', name: 'Reader 1 Connections', path: 'rds_readers.0.database_connections.Average', unit: '', warn: 50, alert: 100, floor: 50 },
+  { group: 'RDS Readers', name: 'Reader 2 CPU', path: 'rds_readers.1.cpu_utilization.Average', unit: '%', warn: 15, alert: 30, abs: 90, floor: 5 },
+  { group: 'RDS Readers', name: 'Reader 2 Connections', path: 'rds_readers.1.database_connections.Average', unit: '', warn: 50, alert: 100, floor: 50 },
+
+  { group: 'Redis', name: 'Redis CPU', path: 'redis.0.cpu_utilization.Average', unit: '%', warn: 20, alert: 40, abs: 80, floor: 5 },
+  { group: 'Redis', name: 'Redis Memory', path: 'redis.0.memory_utilization.Average', unit: '%', warn: 15, alert: 30, abs: 70, floor: 5 },
+  { group: 'Redis', name: 'Redis Connections', path: 'redis_extended.0.curr_connections.Average', unit: '', warn: 50, alert: 100, floor: 50 },
+  { group: 'Redis', name: 'Redis Evictions/h', path: 'redis_extended.0.evictions.Sum', unit: '', zero: true, rate: true },
+  { group: 'Redis', name: 'Redis Cache Hit Rate', path: 'redis_extended.0.cache_hit_rate.Average', unit: '%', warn: 5, alert: 15, dir: 'invert', floor: 5 },
+
+  { group: 'ALB', name: 'ALB Latency (avg)', path: 'alb.target_response_time.Average', unit: 's', warn: 50, alert: 100, floor: 0.05, knownBadZero: true },
+  { group: 'ALB', name: 'ALB Latency (p95)', path: 'alb.target_response_time_percentiles.p95', unit: 's', warn: 50, alert: 100, floor: 0.1 },
+  { group: 'ALB', name: 'ALB Latency (p99)', path: 'alb.target_response_time_percentiles.p99', unit: 's', warn: 50, alert: 100, floor: 0.25 },
+  { group: 'ALB', name: 'ALB Latency (max)', path: 'alb.target_response_time.Maximum', unit: 's', warn: 50, alert: 100, floor: 2 },
+  { group: 'ALB', name: 'Target 5xx/h', path: 'alb.http_5xx_count.Sum', unit: '', zero: true, rate: true },
+  { group: 'ALB', name: 'ELB 5xx/h', path: 'alb.http_elb_5xx_count.Sum', unit: '', zero: true, rate: true },
+  { group: 'ALB', name: 'Requests/h', path: 'alb.request_count.Sum', unit: '', dir: 'info', rate: true },
+  { group: 'ALB', name: 'Traffic/h', path: 'alb.processed_bytes.Sum', unit: 'bytes', dir: 'info', rate: true },
+
+  { group: 'Errors & Restarts', name: 'Fleet Errors/h', path: 'fleet_server_errors.error_count', unit: '', zero: true, rate: true },
+  { group: 'Errors & Restarts', name: 'Container Stops', path: 'container_health.abnormal_stops', unit: '', zero: true },
+  { group: 'Errors & Restarts', name: 'Fleet Container Stops', path: 'container_health.fleet_abnormal_stops', unit: '', zero: true },
+  { group: 'Errors & Restarts', name: 'Failed Health Checks', path: 'container_health.failed_health_checks', unit: '', zero: true },
+  { group: 'Errors & Restarts', name: 'Placement Failures', path: 'container_health.unable_to_place', unit: '', zero: true },
+];
+
+/* ============================ state ============================ */
+const state = {
+  runs: [],                 // {id, workspace, category, collectedAt, interval, hours, note, data}
+  selected: new Set(),      // run ids
+  metric: REGISTRY[0],      // registry entry or {name, path, raw:true}
+  view: 'overview',
+};
+
+/* ============================ helpers ============================ */
+const $ = (sel) => document.querySelector(sel);
+
+// Escape artifact-derived strings embedded in markup built as a string
+// (the SVG charts) — everything DOM-built uses textContent instead.
+function esc(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function getPath(obj, path) {
+  let cur = obj;
+  for (const seg of path.split('.')) {
+    if (cur == null) return null;
+    cur = /^\d+$/.test(seg) ? (Array.isArray(cur) ? cur[+seg] : null) : cur[seg];
+  }
+  return (typeof cur === 'number' && isFinite(cur)) ? cur : null;
+}
+
+function intervalHours(interval) {
+  const m = /^(\d+)(m|h)?$/.exec(interval || '');
+  if (!m) return 1;
+  return m[2] === 'm' ? +m[1] / 60 : +m[1];
+}
+
+function inferCategory(relPath, workspace, explicit) {
+  // Backfilled runs carry an explicit metadata.category — trust it first.
+  if (['baseline', 'migration', 'mdm', 'other'].includes(explicit)) return explicit;
+  const p = (relPath || '').toLowerCase();
+  for (const c of ['baseline', 'migration', 'mdm']) {
+    if (p.includes('/' + c + '/') || p.startsWith(c + '/')) return c;
+  }
+  const ws = (workspace || '').toLowerCase();
+  if (ws.includes('mig')) return 'migration';
+  if (ws.includes('mdm') || ws.includes('wincp')) return 'mdm';
+  if (ws.includes('loadtest') || ws.includes('orch')) return 'baseline';
+  return 'other';
+}
+
+function fmtVal(v, unit) {
+  if (v == null) return '—';
+  const av = Math.abs(v);
+  switch (unit) {
+    case '%':   return v.toFixed(1) + '%';
+    case 's':   return v.toFixed(3) + 's';
+    case 'ms':  return v.toFixed(1) + 'ms';
+    case 'min': return v.toFixed(1) + 'min';
+    case 'bytes':
+      if (av >= 2 ** 30) return (v / 2 ** 30).toFixed(1) + 'GB';
+      if (av >= 2 ** 20) return (v / 2 ** 20).toFixed(1) + 'MB';
+      if (av >= 2 ** 10) return (v / 2 ** 10).toFixed(1) + 'KB';
+      return v.toFixed(0) + 'B';
+    default:
+      if (av !== 0 && av < 0.1) return v.toFixed(4);
+      if (av >= 10000) return Math.round(v).toLocaleString('en-US');
+      if (av >= 100) return v.toFixed(0);
+      return v.toFixed(1);
+  }
+}
+
+function coveragePath(path) {
+  const last = path.split('.').pop();
+  if (['Average', 'Maximum', 'Minimum', 'Sum'].includes(last)) {
+    return path.slice(0, path.length - last.length) + 'data_coverage';
+  }
+  return null;
+}
+
+/* Build the chronological series for a metric across the selected runs. */
+function buildSeries(metric) {
+  const covP = coveragePath(metric.path);
+  return state.runs
+    .filter((r) => state.selected.has(r.id))
+    .map((r) => {
+      let value = getPath(r.data, metric.path);
+      if (metric.knownBadZero && value === 0) value = null; // pre-4.90 rounding bug recorded 0
+      if (value != null && metric.rate) value = value / r.hours;
+      const cov = covP ? getPath(r.data, covP) : null;
+      return { run: r, value, lowCov: cov != null && cov < 0.75 };
+    });
+}
+
+/* Grade the latest movement: compare the last two non-null points.
+ * Returns {status: 'ok'|'warn'|'alert'|'info'|'na', deltaLabel} */
+function grade(metric, series) {
+  const pts = series.filter((p) => p.value != null);
+  if (metric.dir === 'info') return { status: 'info', deltaLabel: '' };
+  if (pts.length < 2) return { status: 'na', deltaLabel: '' };
+  const prev = pts[pts.length - 2].value, last = pts[pts.length - 1].value;
+
+  if (metric.zero) {
+    if (prev === 0 && last !== 0) return { status: 'alert', deltaLabel: '0→' + fmtVal(last, metric.unit) };
+    if (last !== 0) { /* still non-zero: grade below on % change */ }
+    else return { status: 'ok', deltaLabel: prev === 0 ? '0%' : '−100%' };
+  }
+  if (prev === 0) return { status: last === 0 ? 'ok' : 'na', deltaLabel: last === 0 ? '0%' : '0→' + fmtVal(last, metric.unit) };
+
+  let change = (last - prev) / Math.abs(prev) * 100;
+  const deltaLabel = (change > 0 ? '+' : '') + change.toFixed(1) + '%';
+  if (metric.floor != null && Math.abs(last - prev) < metric.floor) return { status: 'ok', deltaLabel };
+  if (metric.dir === 'invert') change = -change;
+  if (change <= 0) return { status: 'ok', deltaLabel };
+  const warn = metric.zero ? 0 : metric.warn, alert = metric.zero ? 0 : metric.alert;
+  if (alert != null && change >= alert) return { status: 'alert', deltaLabel };
+  if (warn != null && change >= warn) return { status: 'warn', deltaLabel };
+  return { status: 'ok', deltaLabel };
+}
+
+/* ============================ data ingestion ============================ */
+async function filesFromDrop(dt) {
+  const out = [];
+  async function walk(entry, prefix) {
+    if (entry.isFile) {
+      if (entry.name.endsWith('.json')) {
+        const file = await new Promise((res, rej) => entry.file(res, rej));
+        out.push({ file, relPath: prefix + entry.name });
+      }
+    } else if (entry.isDirectory) {
+      const reader = entry.createReader();
+      let batch;
+      do {
+        batch = await new Promise((res, rej) => reader.readEntries(res, rej));
+        for (const e of batch) await walk(e, prefix + entry.name + '/');
+      } while (batch.length > 0);
+    }
+  }
+  const entries = [...dt.items].map((i) => i.webkitGetAsEntry && i.webkitGetAsEntry()).filter(Boolean);
+  for (const e of entries) await walk(e, '');
+  return out;
+}
+
+async function ingestFiles(fileRecs) {
+  let added = 0, skipped = 0;
+  for (const { file, relPath } of fileRecs) {
+    let data;
+    try { data = JSON.parse(await file.text()); } catch { skipped++; continue; }
+    const ws = data?.metadata?.workspace, ts = data?.metadata?.collected_at;
+    if (!ws || !ts) { skipped++; continue; }
+    const interval = data.metadata.interval || '1h';
+    const id = ws + '|' + ts + '|' + interval;
+    if (state.runs.some((r) => r.id === id)) { skipped++; continue; }
+    state.runs.push({
+      id, workspace: ws, collectedAt: ts, interval,
+      hours: intervalHours(interval),
+      // Optional free-form annotation from `collect-metrics.sh --note`; absent on
+      // un-annotated runs. Displayed only — never charted or compared.
+      note: typeof data.metadata.note === 'string' ? data.metadata.note.trim() : '',
+      category: inferCategory(relPath, ws, data.metadata.category),
+      data,
+    });
+    added++;
+  }
+  state.runs.sort((a, b) => a.collectedAt.localeCompare(b.collectedAt));
+  if (added > 0 && state.selected.size === 0) {
+    const baselines = state.runs.filter((r) => r.category === 'baseline');
+    (baselines.length > 0 ? baselines : state.runs).forEach((r) => state.selected.add(r.id));
+  }
+  $('#load-status').textContent =
+    state.runs.length + ' run' + (state.runs.length === 1 ? '' : 's') + ' loaded' +
+    (skipped ? ' (' + skipped + ' file' + (skipped === 1 ? '' : 's') + ' skipped)' : '');
+  renderAll();
+}
+
+/* ============================ rendering ============================ */
+function renderAll() {
+  const has = state.runs.length > 0;
+  $('#dropzone').classList.toggle('hidden', has);
+  $('#sidebar').classList.toggle('hidden', !has);
+  $('#caveats').classList.toggle('hidden', !has);
+  if (!has) return;
+  renderRunList();
+  renderMetricSelect();
+  renderRawPaths();
+  renderCaveats();
+  if (state.view === 'overview') renderOverview(); else renderDetail();
+  $('#overview').classList.toggle('hidden', state.view !== 'overview');
+  $('#detail').classList.toggle('hidden', state.view !== 'detail');
+  $('#btn-overview').classList.toggle('hidden', state.view === 'overview');
+}
+
+function renderRunList() {
+  const byCat = {};
+  for (const r of state.runs) (byCat[r.category] ||= []).push(r);
+  const el = $('#run-list');
+  el.innerHTML = '';
+  for (const cat of ['baseline', 'migration', 'mdm', 'other']) {
+    const runs = byCat[cat];
+    if (!runs) continue;
+    const h = document.createElement('h2');
+    h.textContent = cat + ' ';
+    const toggle = document.createElement('button');
+    toggle.className = 'cat-toggle';
+    const allOn = runs.every((r) => state.selected.has(r.id));
+    toggle.textContent = allOn ? 'none' : 'all';
+    toggle.onclick = () => {
+      runs.forEach((r) => allOn ? state.selected.delete(r.id) : state.selected.add(r.id));
+      renderAll();
+    };
+    h.appendChild(toggle);
+    el.appendChild(h);
+    for (const r of runs) {
+      const div = document.createElement('div');
+      div.className = 'run-item';
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.id = 'run-' + r.id;
+      cb.checked = state.selected.has(r.id);
+      cb.onchange = () => { cb.checked ? state.selected.add(r.id) : state.selected.delete(r.id); renderAll(); };
+      const lb = document.createElement('label');
+      lb.htmlFor = cb.id;
+      // artifact-derived strings: textContent/append only, never innerHTML
+      lb.append(r.workspace + ' ');
+      const dt = document.createElement('span');
+      dt.className = 'date';
+      dt.textContent = r.collectedAt.slice(0, 10) + ' · ' + r.interval;
+      lb.appendChild(dt);
+      lb.title = r.workspace + ' — collected ' + r.collectedAt + ' (' + r.interval + ' window)'
+        + (r.note ? '\n\n' + r.note : '');
+      div.append(cb, lb);
+      el.appendChild(div);
+      if (r.note) {
+        const nt = document.createElement('div');
+        nt.className = 'run-note';
+        nt.textContent = r.note;
+        el.appendChild(nt);
+      }
+    }
+  }
+}
+
+function sparkline(series, status) {
+  const vals = series.map((p) => p.value);
+  const nn = vals.filter((v) => v != null);
+  const w = 120, h = 36, pad = 3;
+  if (nn.length === 0) return '<svg viewBox="0 0 120 36"></svg>';
+  let min = Math.min(...nn), max = Math.max(...nn);
+  if (min === max) { min -= 1; max += 1; }
+  const x = (i) => series.length === 1 ? w / 2 : pad + i * (w - 2 * pad) / (series.length - 1);
+  const y = (v) => h - pad - (v - min) / (max - min) * (h - 2 * pad);
+  const color = { ok: 'var(--ok)', warn: 'var(--warn)', alert: 'var(--alert)' }[status] || 'var(--info)';
+  let d = '', pen = false;
+  const dots = [];
+  series.forEach((p, i) => {
+    if (p.value == null) { pen = false; return; }
+    d += (pen ? 'L' : 'M') + x(i).toFixed(1) + ' ' + y(p.value).toFixed(1);
+    pen = true;
+    dots.push('<circle cx="' + x(i).toFixed(1) + '" cy="' + y(p.value).toFixed(1) + '" r="2" fill="' + color + '"/>');
+  });
+  return '<svg viewBox="0 0 ' + w + ' ' + h + '" preserveAspectRatio="none">' +
+    '<path d="' + d + '" fill="none" stroke="' + color + '" stroke-width="1.6"/>' + dots.join('') + '</svg>';
+}
+
+function renderOverview() {
+  const grid = $('#grid');
+  grid.innerHTML = '';
+  const order = { alert: 0, warn: 1, ok: 2, na: 3, info: 4 };
+  const cards = REGISTRY
+    .map((m) => {
+      const series = buildSeries(m);
+      const g = grade(m, series);
+      const lastPt = [...series].reverse().find((p) => p.value != null);
+      return { m, series, g, lastVal: lastPt ? lastPt.value : null };
+    })
+    .filter((c) => c.series.some((p) => p.value != null));
+  cards.sort((a, b) => (order[a.g.status] - order[b.g.status]) || (REGISTRY.indexOf(a.m) - REGISTRY.indexOf(b.m)));
+
+  for (const c of cards) {
+    const div = document.createElement('div');
+    const s = ['ok', 'warn', 'alert'].includes(c.g.status) ? c.g.status : 'info';
+    div.className = 'card s-' + s;
+    div.innerHTML =
+      '<div class="name">' + c.m.group + ' · ' + c.m.name + '</div>' +
+      '<div class="row"><span class="val">' + fmtVal(c.lastVal, c.m.unit) + '</span>' +
+      '<span class="delta d-' + s + '">' + (c.g.deltaLabel || (c.g.status === 'info' ? 'info' : '')) + '</span></div>' +
+      sparkline(c.series, c.g.status);
+    div.onclick = () => { state.metric = c.m; state.view = 'detail'; renderAll(); };
+    grid.appendChild(div);
+  }
+  if (cards.length === 0) grid.innerHTML = '<div class="section-label">No metric data in the selected runs.</div>';
+}
+
+function renderMetricSelect() {
+  const sel = $('#metric-select');
+  sel.innerHTML = '';
+  let curGroup = null, og = null;
+  REGISTRY.forEach((m, i) => {
+    if (m.group !== curGroup) {
+      curGroup = m.group;
+      og = document.createElement('optgroup');
+      og.label = m.group;
+      sel.appendChild(og);
+    }
+    const opt = document.createElement('option');
+    opt.value = 'reg:' + i;
+    opt.textContent = m.name;
+    og.appendChild(opt);
+  });
+  if (state.metric.raw) {
+    const og2 = document.createElement('optgroup');
+    og2.label = 'Raw';
+    const opt = document.createElement('option');
+    opt.value = 'raw:' + state.metric.path;
+    opt.textContent = state.metric.path;
+    og2.appendChild(opt);
+    sel.appendChild(og2);
+    sel.value = 'raw:' + state.metric.path;
+  } else {
+    sel.value = 'reg:' + REGISTRY.indexOf(state.metric);
+  }
+}
+
+function renderRawPaths() {
+  // Runs are append-only, so the path set only changes when the run count
+  // does — skip the full deep walk on unrelated re-renders (checkbox toggles).
+  if (state.rawPathCount === state.runs.length) return;
+  state.rawPathCount = state.runs.length;
+  const dl = $('#raw-paths');
+  const paths = new Set();
+  function walk(obj, prefix) {
+    if (obj == null) return;
+    if (typeof obj === 'number') { paths.add(prefix); return; }
+    if (typeof obj !== 'object') return;
+    for (const [k, v] of Object.entries(obj)) walk(v, prefix ? prefix + '.' + k : k);
+  }
+  for (const r of state.runs) walk(r.data, '');
+  dl.innerHTML = '';
+  for (const p of [...paths].sort()) {
+    const opt = document.createElement('option');
+    opt.value = p; // artifact-derived: assign as property, never attribute markup
+    dl.appendChild(opt);
+  }
+}
+
+function niceTicks(min, max, n) {
+  const span = max - min || 1;
+  const step0 = span / n;
+  const mag = Math.pow(10, Math.floor(Math.log10(step0)));
+  const step = [1, 2, 2.5, 5, 10].map((m) => m * mag).find((s) => s >= step0) || 10 * mag;
+  const lo = Math.floor(min / step) * step;
+  const ticks = [];
+  for (let v = lo; v <= max + step * 0.001; v += step) ticks.push(+v.toFixed(10));
+  return ticks;
+}
+
+function renderDetail() {
+  const m = state.metric;
+  const series = buildSeries(m);
+  const g = grade(m, series);
+
+  $('#detail-title').textContent = (m.group ? m.group + ' · ' : '') + m.name;
+  const bits = [];
+  if (m.rate) bits.push('normalized per hour of each run’s window');
+  if (m.abs != null) bits.push('expected < ' + fmtVal(m.abs, m.unit));
+  if (m.zero) bits.push('expected 0');
+  if (m.dir === 'invert') bits.push('lower is worse');
+  if (m.dir === 'info') bits.push('context metric — not graded');
+  if (g.deltaLabel) bits.push('latest change: ' + g.deltaLabel + (g.status !== 'info' && g.status !== 'na' ? ' (' + g.status + ')' : ''));
+  $('#detail-sub').textContent = bits.join(' · ');
+
+  const wrap = $('#chart-wrap');
+  const pts = series.filter((p) => p.value != null);
+  if (pts.length === 0) {
+    wrap.innerHTML = '<div style="padding:30px;color:var(--muted)">No data for this metric in the selected runs.</div>';
+    return;
+  }
+
+  const W = 900, H = 340, L = 64, R = 40, T = 18, B = 84;
+  let dMin = Math.min(0, ...pts.map((p) => p.value));
+  let dMax = Math.max(...pts.map((p) => p.value));
+  if (m.abs != null && m.abs <= dMax * 2.5 + 1e-9) dMax = Math.max(dMax, m.abs);
+  if (dMax === dMin) dMax = dMin + 1;
+  dMax *= 1.06;
+
+  const xs = (i) => series.length === 1 ? (L + (W - L - R) / 2) : L + i * (W - L - R) / (series.length - 1);
+  const ys = (v) => T + (H - T - B) * (1 - (v - dMin) / (dMax - dMin));
+
+  let svg = '<svg viewBox="0 0 ' + W + ' ' + H + '">';
+
+  // y grid + labels
+  for (const t of niceTicks(dMin, dMax, 5)) {
+    if (t > dMax) break;
+    svg += '<line class="grid-line" x1="' + L + '" x2="' + (W - R) + '" y1="' + ys(t) + '" y2="' + ys(t) + '"/>';
+    svg += '<g class="axis"><text x="' + (L - 8) + '" y="' + (ys(t) + 4) + '" text-anchor="end">' + fmtVal(t, m.unit) + '</text></g>';
+  }
+  // abs threshold
+  if (m.abs != null && m.abs <= dMax) {
+    svg += '<line class="thresh" x1="' + L + '" x2="' + (W - R) + '" y1="' + ys(m.abs) + '" y2="' + ys(m.abs) + '"/>';
+    svg += '<text class="thresh-label" x="' + (W - R) + '" y="' + (ys(m.abs) - 5) + '" text-anchor="end">threshold ' + fmtVal(m.abs, m.unit) + '</text>';
+  }
+  // x labels — thin out when there are many runs so they stay readable
+  const stride = Math.max(1, Math.ceil(series.length / 16));
+  series.forEach((p, i) => {
+    if (i % stride !== 0 && i !== series.length - 1) return;
+    const x = xs(i);
+    svg += '<g class="axis" transform="translate(' + x + ',' + (H - B + 18) + ') rotate(-32)">' +
+      '<text text-anchor="end">' + esc(p.run.workspace) + '</text></g>';
+    svg += '<g class="axis"><text x="' + x + '" y="' + (H - 6) + '" text-anchor="middle">' + esc(p.run.collectedAt.slice(2, 10)) + '</text></g>';
+  });
+  // series line (broken at gaps)
+  let d = '', pen = false;
+  series.forEach((p, i) => {
+    if (p.value == null) { pen = false; return; }
+    d += (pen ? 'L' : 'M') + xs(i).toFixed(1) + ' ' + ys(p.value).toFixed(1);
+    pen = true;
+  });
+  svg += '<path class="series" d="' + d + '"/>';
+  // points
+  series.forEach((p, i) => {
+    if (p.value == null) return;
+    svg += '<circle class="pt' + (p.lowCov ? ' low-cov' : '') + '" r="4.5" cx="' + xs(i).toFixed(1) + '" cy="' + ys(p.value).toFixed(1) +
+      '" data-i="' + i + '" stroke-width="2"/>';
+  });
+  svg += '</svg>';
+  wrap.innerHTML = svg;
+
+  // tooltips — artifact-derived strings go in via textContent/append only
+  const tip = $('#tooltip');
+  wrap.querySelectorAll('.pt').forEach((c) => {
+    c.addEventListener('mousemove', (ev) => {
+      const p = series[+c.dataset.i];
+      tip.textContent = '';
+      const trun = document.createElement('div');
+      trun.className = 't-run';
+      trun.textContent = p.run.workspace;
+      tip.appendChild(trun);
+      tip.append(p.run.collectedAt + ' · ' + p.run.interval + ' window');
+      tip.appendChild(document.createElement('br'));
+      if (p.run.note) {
+        const tn = document.createElement('em');
+        tn.textContent = p.run.note;
+        tip.appendChild(tn);
+        tip.appendChild(document.createElement('br'));
+      }
+      tip.append(m.name + ': ');
+      const val = document.createElement('b');
+      val.textContent = fmtVal(p.value, m.unit);
+      tip.appendChild(val);
+      if (m.rate) tip.append(' (per hour)');
+      if (p.lowCov) {
+        tip.appendChild(document.createElement('br'));
+        tip.append('⚠ metric had <75% datapoint coverage');
+      }
+      tip.style.display = 'block';
+      tip.style.left = Math.min(ev.clientX + 14, window.innerWidth - 310) + 'px';
+      tip.style.top = (ev.clientY + 14) + 'px';
+    });
+    c.addEventListener('mouseleave', () => { tip.style.display = 'none'; });
+  });
+}
+
+function renderCaveats() {
+  const items = [
+    'Runs collected before 4.90 recorded ALB Latency (avg) as 0 due to a collection bug — those points are shown as gaps. p95/p99 exist only in newer runs.',
+    'Hollow points had CloudWatch datapoints for <75% of the run’s window — treat with caution.',
+    'Metrics ending in “/h” are normalized by each run’s lookback interval so different window lengths compare fairly.',
+    'Migration and MDM runs exercise different workloads than baselines — mixing categories can make stable metrics look noisy.',
+  ];
+  $('#caveats').innerHTML = items.map((t) => '<li>' + t + '</li>').join('');
+}
+
+/* ============================ events ============================ */
+$('#btn-pick').onclick = () => $('#file-input').click();
+$('#file-input').onchange = (e) => {
+  const recs = [...e.target.files].map((f) => ({ file: f, relPath: f.webkitRelativePath || f.name }));
+  ingestFiles(recs.filter((r) => r.relPath.endsWith('.json')));
+  e.target.value = '';
+};
+$('#btn-overview').onclick = () => { state.view = 'overview'; renderAll(); };
+$('#metric-select').onchange = (e) => {
+  const v = e.target.value;
+  if (v.startsWith('reg:')) state.metric = REGISTRY[+v.slice(4)];
+  renderAll();
+};
+$('#raw-input').addEventListener('change', (e) => {
+  const p = e.target.value.trim();
+  if (!p) return;
+  state.metric = { name: p, path: p, raw: true, unit: '' };
+  state.view = 'detail';
+  renderAll();
+});
+
+const dz = $('#dropzone');
+for (const el of [document.body]) {
+  el.addEventListener('dragover', (e) => { e.preventDefault(); dz.classList.add('drag'); });
+  el.addEventListener('dragleave', () => dz.classList.remove('drag'));
+  el.addEventListener('drop', async (e) => {
+    e.preventDefault();
+    dz.classList.remove('drag');
+    ingestFiles(await filesFromDrop(e.dataTransfer));
+  });
+}
+
+/* Test hook: allows loading run objects programmatically (used by automated
+ * checks; not part of the normal drag-drop flow). */
+window.__loadForTest = (arr) =>
+  ingestFiles(arr.map((o) => ({
+    file: { text: async () => JSON.stringify(o.data) },
+    relPath: o.relPath || '',
+  })));
+</script>
+</body>
+</html>

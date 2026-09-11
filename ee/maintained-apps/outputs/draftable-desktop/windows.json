@@ -4,7 +4,8 @@
       "version": "26.6.200",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Draftable Desktop' AND publisher = 'Draftable';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Draftable Desktop' AND publisher = 'Draftable' AND version_compare(version, '26.6.200') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Draftable Desktop' AND publisher = 'Draftable' AND version_compare(version, '26.6.200') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'draftable desktop.exe');"
       },
       "installer_url": "https://dl.draftable.com/desktop/DraftableDesktopSystem-26.6.200.msi",
       "install_script_ref": "22e48c46",

@@ -4,7 +4,8 @@
       "version": "1.22.22",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Yarn' AND publisher = 'Yarn Contributors';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Yarn' AND publisher = 'Yarn Contributors' AND version_compare(version, '1.22.22') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Yarn' AND publisher = 'Yarn Contributors' AND version_compare(version, '1.22.22') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'yarn.exe');"
       },
       "installer_url": "https://github.com/yarnpkg/yarn/releases/download/v1.22.22/yarn-1.22.22.msi",
       "install_script_ref": "22e48c46",

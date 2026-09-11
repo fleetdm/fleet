@@ -25,7 +25,10 @@ $max-width: 2560px;
   }
 }
 
-// Used to normalize styling of team header wrapper on various pages
+// Apply to the outer header row that contains TeamsHeader + action buttons,
+// NOT to .fleet-dropdown-wrapper itself — the wrapper needs its own
+// `display: inline-block` so FleetsDropdown's absolutely-positioned menu
+// anchors under the button.
 @mixin normalize-team-header {
   display: flex;
   align-items: center;
@@ -147,13 +150,19 @@ $max-width: 2560px;
   }
 }
 
+@mixin form-label {
+  font-size: $x-small;
+  font-weight: $bold;
+  color: $core-fleet-black;
+}
+
 @mixin link {
   color: $ui-fleet-black-75;
   font-weight: $bold;
   font-size: $x-small;
   text-decoration: none;
 
-  &:hover {
+  &:hover:not(.button--default) {
     color: $core-fleet-black;
   }
 
@@ -196,7 +205,7 @@ $max-width: 2560px;
 
 @mixin tooltip-text {
   width: max-content;
-  max-width: 360px;
+  max-width: 280px;
   padding: 6px;
   color: $static-white;
   background-color: $tooltip-bg;
@@ -207,6 +216,7 @@ $max-width: 2560px;
   z-index: 100;
   line-height: 1.375;
   white-space: initial;
+  text-align: left;
 
   // Hyphenated words will still break at hyphens first
   //  while non-hyphenated strings will break only when necessary
@@ -241,6 +251,12 @@ $max-width: 2560px;
   display: flex;
   flex-direction: column;
   gap: $pad-small;
+}
+
+@mixin flex-column-4px-gap {
+  display: flex;
+  flex-direction: column;
+  gap: $pad-xsmall;
 }
 
 @mixin vertical-form-layout {
@@ -446,6 +462,15 @@ $max-width: 2560px;
     &:hover {
       color: $ui-fleet-black-75-over;
     }
+    // TooltipTruncatedText's inner element sets `cursor: default`; inherit so
+    // the whole nav-item label reads as clickable.
+    .component__tooltip-wrapper__element {
+      cursor: inherit;
+    }
+  }
+
+  &:has(a):hover {
+    background-color: $ui-fleet-black-5;
   }
 
   &--active {

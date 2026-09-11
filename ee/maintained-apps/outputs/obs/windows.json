@@ -4,7 +4,8 @@
       "version": "32.2.1",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'OBS Studio' AND publisher = 'OBS Project';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'OBS Studio' AND publisher = 'OBS Project' AND version_compare(version, '32.2.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'OBS Studio' AND publisher = 'OBS Project' AND version_compare(version, '32.2.1') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) IN ('obs32.exe','obs64.exe'));"
       },
       "installer_url": "https://github.com/obsproject/obs-studio/releases/download/32.2.1/OBS-Studio-32.2.1-Windows-x64-Installer.exe",
       "install_script_ref": "8a919fae",

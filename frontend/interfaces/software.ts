@@ -69,6 +69,8 @@ export interface ISoftwareTitleVersion {
 export interface ISoftwarePatchPolicy {
   id: number;
   name: string;
+  patch_when_closed: boolean;
+  continuous_automations_enabled: boolean;
 }
 
 export type SoftwareInstallPolicyType = "dynamic" | "patch";
@@ -474,6 +476,12 @@ export const SOFTWARE_INSTALL_UNINSTALL_STATUSES = [
  */
 export type SoftwareInstallUninstallStatus = typeof SOFTWARE_INSTALL_UNINSTALL_STATUSES[number];
 
+/** Activity-backed install details can display a skipped state while the
+ * persisted install result remains failed_install. */
+export type SoftwareInstallDetailsStatus =
+  | SoftwareInstallUninstallStatus
+  | "skipped_install";
+
 /** Include script-only software statuses */
 export const ENAHNCED_SOFTWARE_INSTALL_UNINSTALL_STATUSES = [
   ...SOFTWARE_INSTALL_STATUSES,
@@ -617,6 +625,12 @@ export interface IHostSoftwarePackage {
   categories?: SoftwareCategory[] | null;
   automatic_install_policies?: ISoftwareInstallPolicy[] | null;
   platform?: Platform;
+  /** True when the installer has a non-empty uninstall script. Absent (not
+   * `false`) for VPP and in-house apps, and absent on /software/titles
+   * responses; only host software responses set it. Used to gate the
+   * Uninstall action for script-only (.ps1/.sh/.py) and .tgz packages,
+   * where the uninstall script is optional. */
+  has_uninstall_script?: boolean;
 }
 
 export interface IHostAppStoreApp {
@@ -947,6 +961,7 @@ export interface IFleetMaintainedAppDetails {
   install_script: string;
   post_install_script: string;
   uninstall_script: string;
+  automatic_install_query: string;
   url: string;
   slug: string;
   software_title_id?: number; // null unless the team already has the software added (as a Fleet-maintained app, App Store (app), or custom package)

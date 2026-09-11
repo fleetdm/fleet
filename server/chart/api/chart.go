@@ -75,7 +75,7 @@ type DatasetStore interface {
 	// platform-specific predicate. Non-mobile (osquery) hosts use the product's
 	// standard online predicate (host_seen_times.seen_time within the host's own
 	// check-in interval). Mobile hosts (iOS, iPadOS, Android), which only check
-	// in via MDM, use their MDM activity signal (nano_enrollments.last_seen_at,
+	// in via MDM, use their MDM activity signal (nano_seen_times.seen_time,
 	// falling back to detail_updated_at) within a fixed mobile online window.
 	// Used by datasets like uptime.
 	FindOnlineHostIDs(ctx context.Context, now time.Time, disabledFleetIDs []uint) ([]uint, error)
@@ -179,8 +179,9 @@ type RequestOpts struct {
 	// no bound. The frontend converts its 0–100 % input before sending.
 	EPSSMin *float64
 	EPSSMax *float64
-	// Severity (CVSS) bounds are accepted but ignored this round — the service
-	// forces critical-only [9.0, 10.0]. See the severity TODO in the service.
+	// Severity bounds are CVSS v3 base scores, 0.0–10.0; nil means no bound on
+	// that side, which drops the predicate rather than widening it to the full
+	// range.
 	SeverityMin *float64
 	SeverityMax *float64
 	// ExcludeCVEs is a subtractive filter — these CVEs are removed from the

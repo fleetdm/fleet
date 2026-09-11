@@ -4,7 +4,8 @@
       "version": "9.17",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'pgAdmin 4 %' AND publisher = 'The pgAdmin Development Team';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'pgAdmin 4 %' AND publisher = 'The pgAdmin Development Team' AND version_compare(version, '9.17') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'pgAdmin 4 %' AND publisher = 'The pgAdmin Development Team' AND version_compare(version, '9.17') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'pgadmin4.exe');"
       },
       "installer_url": "https://ftp.postgresql.org/pub/pgadmin/pgadmin4/v9.17/windows/pgadmin4-9.17-x64.exe",
       "install_script_ref": "632aa4d1",

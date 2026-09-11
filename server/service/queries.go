@@ -12,6 +12,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
@@ -371,7 +372,14 @@ func (svc *Service) ModifyQuery(ctx context.Context, id uint, p fleet.QueryPaylo
 		setAuthCheckedOnPreAuthErr(ctx)
 		return nil, err
 	}
-	if err := svc.authz.Authorize(ctx, query, fleet.ActionWrite); err != nil {
+	return svc.modifyLoadedQuery(ctx, query, p)
+}
+
+// modifyLoadedQuery is ModifyQuery for callers that already hold the query,
+// so the schedule endpoints don't load it a second time to scope-check it.
+func (svc *Service) modifyLoadedQuery(ctx context.Context, query *fleet.Query, p fleet.QueryPayload) (*fleet.Query, error) {
+	notFoundErr := ctxerr.Wrap(ctx, common_mysql.NotFound("Report").WithID(query.ID), "get query to modify")
+	if err := svc.authz.AuthorizeOrNotFound(ctx, query, fleet.ActionWrite, notFoundErr); err != nil {
 		return nil, err
 	}
 
@@ -461,8 +469,7 @@ func (svc *Service) ModifyQuery(ctx context.Context, id uint, p fleet.QueryPaylo
 	// If the query was modified in a way that requires discarding results,
 	// reset the Redis count as well.
 	if shouldDiscardQueryResults && svc.liveQueryStore != nil {
-		err = svc.liveQueryStore.SetQueryResultsCount(query.ID, 0)
-		if err != nil {
+		if err := svc.liveQueryStore.SetQueryResultsCount(query.ID, 0); err != nil {
 			// Log the error but don't fail the request; this will get cleaned up
 			// in the "query_results_cleanup" job.
 			svc.logger.ErrorContext(ctx, "failed to set query results count", "err", err, "query_id", query.ID)
@@ -537,7 +544,8 @@ func (svc *Service) DeleteQuery(ctx context.Context, teamID *uint, name string) 
 		setAuthCheckedOnPreAuthErr(ctx)
 		return err
 	}
-	if err := svc.authz.Authorize(ctx, query, fleet.ActionWrite); err != nil {
+	notFoundErr := ctxerr.Wrap(ctx, common_mysql.NotFound("Report").WithName(name), "get query to delete")
+	if err := svc.authz.AuthorizeOrNotFound(ctx, query, fleet.ActionWrite, notFoundErr); err != nil {
 		return err
 	}
 
@@ -547,7 +555,7 @@ func (svc *Service) DeleteQuery(ctx context.Context, teamID *uint, name string) 
 
 	// Delete the Redis counter for query results
 	if svc.liveQueryStore != nil {
-		if err = svc.liveQueryStore.DeleteQueryResultsCount(query.ID); err != nil {
+		if err := svc.liveQueryStore.DeleteQueryResultsCount(query.ID); err != nil {
 			// Log the error but don't fail the request; this will get cleaned up
 			// in the "query_results_cleanup" job.
 			svc.logger.ErrorContext(ctx, "failed to delete query results count", "err", err, "query_id", query.ID)
@@ -605,7 +613,14 @@ func (svc *Service) DeleteQueryByID(ctx context.Context, id uint) error {
 		setAuthCheckedOnPreAuthErr(ctx)
 		return ctxerr.Wrap(ctx, err, "lookup query by ID")
 	}
-	if err := svc.authz.Authorize(ctx, query, fleet.ActionWrite); err != nil {
+	return svc.deleteLoadedQuery(ctx, query)
+}
+
+// deleteLoadedQuery is DeleteQueryByID for callers that already hold the
+// query, so the schedule endpoints don't load it a second time.
+func (svc *Service) deleteLoadedQuery(ctx context.Context, query *fleet.Query) error {
+	notFoundErr := ctxerr.Wrap(ctx, common_mysql.NotFound("Report").WithID(query.ID), "lookup query by ID")
+	if err := svc.authz.AuthorizeOrNotFound(ctx, query, fleet.ActionWrite, notFoundErr); err != nil {
 		return err
 	}
 
@@ -615,7 +630,7 @@ func (svc *Service) DeleteQueryByID(ctx context.Context, id uint) error {
 
 	// Delete the Redis counter for query results
 	if svc.liveQueryStore != nil {
-		if err = svc.liveQueryStore.DeleteQueryResultsCount(query.ID); err != nil {
+		if err := svc.liveQueryStore.DeleteQueryResultsCount(query.ID); err != nil {
 			// Log the error but don't fail the request; this will get cleaned up
 			// in the "query_results_cleanup" job.
 			svc.logger.ErrorContext(ctx, "failed to delete query results count", "err", err, "query_id", query.ID)
@@ -675,7 +690,8 @@ func (svc *Service) DeleteQueries(ctx context.Context, ids []uint) (uint, error)
 			setAuthCheckedOnPreAuthErr(ctx)
 			return 0, ctxerr.Wrap(ctx, err, "lookup query by ID")
 		}
-		if err := svc.authz.Authorize(ctx, query, fleet.ActionWrite); err != nil {
+		notFoundErr := ctxerr.Wrap(ctx, common_mysql.NotFound("Report").WithID(id), "lookup query by ID")
+		if err := svc.authz.AuthorizeOrNotFound(ctx, query, fleet.ActionWrite, notFoundErr); err != nil {
 			return 0, err
 		}
 

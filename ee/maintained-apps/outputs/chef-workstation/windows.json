@@ -4,7 +4,8 @@
       "version": "25.14.2.1",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'Chef Workstation v%' AND publisher LIKE '%Chef Software%';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Chef Workstation v%' AND publisher LIKE '%Chef Software%' AND version_compare(version, '25.14.2.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Chef Workstation v%' AND publisher LIKE '%Chef Software%' AND version_compare(version, '25.14.2.1') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'chef workstation.exe');"
       },
       "installer_url": "https://packages.chef.io/files/stable/chef-workstation/25.14.2/windows/10/chef-workstation-25.14.2-1-x64.msi",
       "install_script_ref": "22e48c46",

@@ -4,7 +4,8 @@
       "version": "45.6.4.8",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Webex Recorder and Player' AND publisher = 'Cisco Webex LLC';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Webex Recorder and Player' AND publisher = 'Cisco Webex LLC' AND version_compare(version, '45.6.4.8') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Webex Recorder and Player' AND publisher = 'Cisco Webex LLC' AND version_compare(version, '45.6.4.8') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'cisco webex recorder and player.exe');"
       },
       "installer_url": "https://welcome.webex.com/client/T33L/atrecply.msi",
       "install_script_ref": "22e48c46",

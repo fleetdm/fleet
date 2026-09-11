@@ -4,7 +4,8 @@
       "version": "2.0-preview.9",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'DevToys' AND publisher = 'DevToys';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'DevToys' AND publisher = 'DevToys' AND version_compare(version, '2.0-preview.9') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'DevToys' AND publisher = 'DevToys' AND version_compare(version, '2.0-preview.9') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'devtoys.exe');"
       },
       "installer_url": "https://github.com/DevToys-app/DevToys/releases/download/v2.0.9.0/devtoys_win_x64.exe",
       "install_script_ref": "e01b1635",

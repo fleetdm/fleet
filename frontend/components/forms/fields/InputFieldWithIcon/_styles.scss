@@ -119,10 +119,8 @@
   }
 
   &__label {
+    @include form-label;
     display: block;
-    font-size: $x-small;
-    font-weight: $bold;
-    color: $core-fleet-black;
 
     &[data-has-tooltip="true"] {
       margin-bottom: $pad-small;

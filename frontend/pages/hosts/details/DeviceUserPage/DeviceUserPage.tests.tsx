@@ -7,8 +7,12 @@ import mockServer from "test/mock-server";
 import { createCustomRenderer, createMockRouter } from "test/test-utils";
 import createMockLicense from "__mocks__/licenseMock";
 import { notify } from "components/ToastNotification";
+import { HostPlatform } from "interfaces/platform";
 
-import { IGetSetupExperienceStatusesResponse } from "services/entities/device_user";
+import deviceUserAPI, {
+  IGetSetupExperienceStatusesResponse,
+} from "services/entities/device_user";
+import diskEncryptionAPI from "services/entities/disk_encryption";
 
 import { IHostPolicy } from "interfaces/policy";
 
@@ -18,6 +22,9 @@ import {
   defaultDeviceHandler,
   deviceSetupExperienceHandler,
   emptySetupExperienceHandler,
+  ssoRequiredDeviceCertificatesHandler,
+  ssoRequiredDeviceHandler,
+  unauthorizedDeviceHandler,
 } from "test/handlers/device-handler";
 import DeviceUserPage from "./DeviceUserPage";
 import PolicyDetailsModal from "../cards/Policies/HostPoliciesTable/PolicyDetailsModal";
@@ -45,23 +52,6 @@ const mockLocation = {
   },
   search: undefined,
 };
-
-// Required for tests that use useIsMobileWidth
-beforeAll(() => {
-  Object.defineProperty(window, "matchMedia", {
-    writable: true,
-    value: jest.fn().mockImplementation((query) => ({
-      matches: false,
-      media: query,
-      addEventListener: jest.fn(),
-      removeEventListener: jest.fn(),
-      addListener: jest.fn(), // for older APIs
-      removeListener: jest.fn(),
-      onchange: null,
-      dispatchEvent: jest.fn(),
-    })),
-  });
-});
 
 describe("Device User Page", () => {
   it("hides the software tab if the device has no software", async () => {
@@ -333,6 +323,7 @@ describe("Device User Page", () => {
             mdm: {
               enabled_and_configured: true,
               require_all_software_macos: true,
+              only_allow_apple_business_enrollment: false,
             },
           },
         },
@@ -384,6 +375,7 @@ describe("Device User Page", () => {
             mdm: {
               enabled_and_configured: true,
               require_all_software_macos: true,
+              only_allow_apple_business_enrollment: false,
             },
           },
         },
@@ -460,6 +452,7 @@ describe("Device User Page", () => {
           mdm: {
             enabled_and_configured: true,
             require_all_software_macos: false,
+            only_allow_apple_business_enrollment: false,
           },
           features: {
             enable_software_inventory: true,
@@ -484,6 +477,7 @@ describe("Device User Page", () => {
           mdm: {
             enabled_and_configured: true,
             require_all_software_macos: false,
+            only_allow_apple_business_enrollment: false,
           },
           features: {
             enable_software_inventory: true,
@@ -508,6 +502,7 @@ describe("Device User Page", () => {
           mdm: {
             enabled_and_configured: false,
             require_all_software_macos: false,
+            only_allow_apple_business_enrollment: false,
           },
           features: {
             enable_software_inventory: true,
@@ -533,6 +528,7 @@ describe("Device User Page", () => {
           mdm: {
             enabled_and_configured: true,
             require_all_software_macos: false,
+            only_allow_apple_business_enrollment: false,
           },
           features: {
             enable_software_inventory: true,
@@ -690,5 +686,334 @@ describe("Device User Page", () => {
         { timeout: 4000 }
       );
     }, 10000);
+  });
+});
+
+describe("Device User Page - Fleet Desktop SSO", () => {
+  let initiateDeviceSSO: jest.SpyInstance;
+
+  const pendingInitiation = () => new Promise<{ url: string }>(() => undefined);
+
+  const renderPage = (
+    query: Record<string, string> = {},
+    token = "testToken"
+  ) => {
+    const render = createCustomRenderer({ withBackendMock: true });
+    return render(
+      <DeviceUserPage
+        router={mockRouter}
+        params={{ device_auth_token: token }}
+        location={{
+          ...mockLocation,
+          query: { ...mockLocation.query, ...query },
+        }}
+      />
+    );
+  };
+
+  const expectRedirectingToIdP = async () =>
+    expect(
+      await screen.findByText(/Redirecting to your organization/)
+    ).toBeInTheDocument();
+
+  const expectManualRetry = async () =>
+    expect(
+      await screen.findByRole("button", { name: "Sign in again" })
+    ).toBeInTheDocument();
+
+  beforeEach(() => {
+    window.sessionStorage.clear();
+    mockServer.use(defaultDeviceCertificatesHandler);
+    mockServer.use(emptySetupExperienceHandler);
+    initiateDeviceSSO = jest
+      .spyOn(deviceUserAPI, "initiateDeviceSSO")
+      .mockImplementation(pendingInitiation);
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it("initiates SSO when a device call reports sso_required", async () => {
+    mockServer.use(ssoRequiredDeviceHandler);
+
+    renderPage();
+
+    await expectRedirectingToIdP();
+    expect(initiateDeviceSSO).toHaveBeenCalledWith("testToken");
+  });
+
+  it("initiates when a query other than the details call is the one refused", async () => {
+    mockServer.use(defaultDeviceHandler);
+    mockServer.use(ssoRequiredDeviceCertificatesHandler);
+
+    renderPage();
+
+    await expectRedirectingToIdP();
+    expect(initiateDeviceSSO).toHaveBeenCalledWith("testToken");
+  });
+
+  it("renders the invalid URL error, and starts no SSO flow, for a 401 with no marker", async () => {
+    mockServer.use(unauthorizedDeviceHandler);
+
+    renderPage();
+
+    expect(
+      await screen.findByText("This URL is invalid or expired.")
+    ).toBeInTheDocument();
+    expect(initiateDeviceSSO).not.toHaveBeenCalled();
+  });
+
+  it("does not initiate a second time after a round-trip that left no session", async () => {
+    mockServer.use(ssoRequiredDeviceHandler);
+    window.sessionStorage.setItem("fleet-device-sso-attempt:testToken", "1");
+
+    renderPage();
+
+    await expectManualRetry();
+    expect(initiateDeviceSSO).not.toHaveBeenCalled();
+  });
+
+  it("does not auto-initiate when the attempt cannot be remembered", async () => {
+    mockServer.use(ssoRequiredDeviceHandler);
+    jest.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+      throw new Error("blocked");
+    });
+    jest.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
+      throw new Error("blocked");
+    });
+
+    const { user } = renderPage();
+
+    const retry = await screen.findByRole("button", { name: "Sign in again" });
+    expect(initiateDeviceSSO).not.toHaveBeenCalled();
+
+    await user.click(retry);
+
+    await expectRedirectingToIdP();
+    expect(initiateDeviceSSO).toHaveBeenCalledWith("testToken");
+  });
+
+  it("does not auto-initiate when the callback reported a failure", async () => {
+    mockServer.use(ssoRequiredDeviceHandler);
+
+    renderPage({ sso_error: "server_error" });
+
+    await expectManualRetry();
+    expect(initiateDeviceSSO).not.toHaveBeenCalled();
+  });
+
+  it("does not auto-initiate during Setup Experience", async () => {
+    mockServer.use(ssoRequiredDeviceHandler);
+
+    renderPage({ setup_only: "1" });
+
+    await expectManualRetry();
+    expect(initiateDeviceSSO).not.toHaveBeenCalled();
+  });
+
+  it("renders a retryable error when the initiate call fails", async () => {
+    mockServer.use(ssoRequiredDeviceHandler);
+    initiateDeviceSSO.mockRejectedValueOnce(new Error("nope"));
+
+    const { user } = renderPage();
+
+    const retry = await screen.findByRole("button", { name: "Sign in again" });
+    expect(initiateDeviceSSO).toHaveBeenCalledTimes(1);
+
+    await user.click(retry);
+
+    await expectRedirectingToIdP();
+    expect(initiateDeviceSSO).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("Device User Page - MDM check-in ping", () => {
+  let apnsPingSpy: jest.SpyInstance;
+  let refetchSpy: jest.SpyInstance;
+
+  beforeEach(() => {
+    apnsPingSpy = jest.spyOn(deviceUserAPI, "apnsPing").mockResolvedValue({});
+    refetchSpy = jest.spyOn(deviceUserAPI, "refetch").mockResolvedValue({});
+    mockServer.use(defaultDeviceCertificatesHandler);
+    mockServer.use(emptySetupExperienceHandler);
+  });
+
+  afterEach(() => {
+    apnsPingSpy.mockRestore();
+    refetchSpy.mockRestore();
+  });
+
+  const renderDevicePage = (
+    platform: HostPlatform,
+    enrollmentStatus: IHostDevice["mdm"]["enrollment_status"]
+  ) => {
+    const host = createMockHost({
+      platform,
+      status: "online",
+    }) as IHostDevice;
+    host.mdm.enrollment_status = enrollmentStatus;
+    host.mdm.connected_to_fleet = true;
+
+    mockServer.use(customDeviceHandler({ host }));
+
+    const render = createCustomRenderer({ withBackendMock: true });
+
+    return render(
+      <DeviceUserPage
+        router={mockRouter}
+        params={{ device_auth_token: "testToken" }}
+        location={mockLocation}
+      />
+    );
+  };
+
+  it("pings APNS alongside the refetch for an MDM-enrolled Apple host", async () => {
+    const { user } = renderDevicePage("darwin", "On (manual)");
+
+    await user.click(await screen.findByRole("button", { name: /refetch/i }));
+
+    await waitFor(() => {
+      expect(apnsPingSpy).toHaveBeenCalledWith("testToken");
+    });
+    expect(refetchSpy).toHaveBeenCalledWith("testToken");
+  });
+
+  it("does not ping APNS when refetching a non-Apple host", async () => {
+    const { user } = renderDevicePage("ubuntu", "On (manual)");
+
+    await user.click(await screen.findByRole("button", { name: /refetch/i }));
+
+    // The ping is fired before the refetch, so a completed refetch means the
+    // ping decision has already been made.
+    await waitFor(() => {
+      expect(refetchSpy).toHaveBeenCalledWith("testToken");
+    });
+    expect(apnsPingSpy).not.toHaveBeenCalled();
+  });
+
+  it("does not ping APNS when the host's MDM enrollment is off", async () => {
+    const { user } = renderDevicePage("darwin", "Off");
+
+    await user.click(await screen.findByRole("button", { name: /refetch/i }));
+
+    await waitFor(() => {
+      expect(refetchSpy).toHaveBeenCalledWith("testToken");
+    });
+    expect(apnsPingSpy).not.toHaveBeenCalled();
+  });
+
+  it("does not ping APNS when the host's MDM enrollment is still pending", async () => {
+    const { user } = renderDevicePage("darwin", "Pending");
+
+    await user.click(await screen.findByRole("button", { name: /refetch/i }));
+
+    await waitFor(() => {
+      expect(refetchSpy).toHaveBeenCalledWith("testToken");
+    });
+    expect(apnsPingSpy).not.toHaveBeenCalled();
+  });
+
+  it("surfaces an error but still refetches when the APNS ping fails", async () => {
+    apnsPingSpy.mockRejectedValue(new Error("ping failed"));
+
+    const { user } = renderDevicePage("darwin", "On (manual)");
+
+    await user.click(await screen.findByRole("button", { name: /refetch/i }));
+
+    await waitFor(() => {
+      expect(notify.error).toHaveBeenCalledWith(
+        "Failed to send APNS ping",
+        expect.anything()
+      );
+    });
+    expect(refetchSpy).toHaveBeenCalledWith("testToken");
+  });
+});
+
+describe("Device User Page - Linux disk encryption key escrow", () => {
+  let triggerEscrowSpy: jest.SpyInstance;
+
+  beforeEach(() => {
+    triggerEscrowSpy = jest.spyOn(
+      diskEncryptionAPI,
+      "triggerLinuxDiskEncryptionKeyEscrow"
+    );
+    mockServer.use(defaultDeviceCertificatesHandler);
+    mockServer.use(emptySetupExperienceHandler);
+
+    // encrypted Ubuntu host with no escrowed key, which is what shows the Create key banner
+    const host = createMockHost({
+      platform: "ubuntu",
+      status: "online",
+    }) as IHostDevice;
+    host.disk_encryption_enabled = true;
+    host.mdm.encryption_key_available = false;
+    host.mdm.os_settings = {
+      ...host.mdm.os_settings,
+      certificates: host.mdm.os_settings?.certificates ?? [],
+      disk_encryption: { status: "action_required", detail: "" },
+    };
+    mockServer.use(customDeviceHandler({ host }));
+  });
+
+  afterEach(() => {
+    triggerEscrowSpy.mockRestore();
+    (notify.error as jest.Mock).mockClear();
+  });
+
+  const renderDevicePage = () => {
+    const render = createCustomRenderer({ withBackendMock: true });
+    return render(
+      <DeviceUserPage
+        router={mockRouter}
+        params={{ device_auth_token: "testToken" }}
+        location={mockLocation}
+      />
+    );
+  };
+
+  it("tells the end user to expect a pop-up when the request is queued", async () => {
+    triggerEscrowSpy.mockResolvedValue(undefined);
+    const { user } = renderDevicePage();
+
+    await user.click(
+      await screen.findByRole("button", { name: /create key/i })
+    );
+
+    expect(await screen.findByText(/Wait 30 seconds/i)).toBeInTheDocument();
+    expect(screen.queryByText(/already asking/i)).toBeNull();
+    expect(notify.error).not.toHaveBeenCalled();
+  });
+
+  it("points the end user at the open pop-up when the escrow is already in flight", async () => {
+    triggerEscrowSpy.mockRejectedValue({ status: 409 });
+    const { user } = renderDevicePage();
+
+    await user.click(
+      await screen.findByRole("button", { name: /create key/i })
+    );
+
+    expect(await screen.findByText(/already asking/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Wait 30 seconds/i)).toBeNull();
+    expect(notify.error).not.toHaveBeenCalled();
+  });
+
+  it("shows an error and closes the modal on any other failure", async () => {
+    triggerEscrowSpy.mockRejectedValue({ status: 500 });
+    const { user } = renderDevicePage();
+
+    await user.click(
+      await screen.findByRole("button", { name: /create key/i })
+    );
+
+    await waitFor(() => {
+      expect(notify.error).toHaveBeenCalledWith(
+        "Failed to trigger key creation.",
+        expect.anything()
+      );
+    });
+    expect(screen.queryByText(/Wait 30 seconds/i)).toBeNull();
+    expect(screen.queryByText(/already asking/i)).toBeNull();
   });
 });

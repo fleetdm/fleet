@@ -4,7 +4,8 @@
       "version": "9.2.0.43571",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Cyberduck CLI' AND publisher = 'iterate GmbH';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Cyberduck CLI' AND publisher = 'iterate GmbH' AND version_compare(version, '9.2.0.43571') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Cyberduck CLI' AND publisher = 'iterate GmbH' AND version_compare(version, '9.2.0.43571') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'cyberduck cli.exe');"
       },
       "installer_url": "https://dist.duck.sh/duck-9.2.0.43571.msi",
       "install_script_ref": "22e48c46",

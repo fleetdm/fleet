@@ -1,0 +1,1 @@
+- Fixed `fleetctl gitops` silently dropping `ios_updates` and `ipados_updates` when it creates a new fleet.

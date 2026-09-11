@@ -4,7 +4,8 @@
       "version": "5.8",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'IsoBuster%' AND publisher = 'Smart Projects';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'IsoBuster%' AND publisher = 'Smart Projects' AND version_compare(version, '5.8') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'IsoBuster%' AND publisher = 'Smart Projects' AND version_compare(version, '5.8') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'isobuster.exe');"
       },
       "installer_url": "https://www.isobuster.com/downloads/isobuster/isobuster_install_64bit.exe",
       "install_script_ref": "b8edd281",

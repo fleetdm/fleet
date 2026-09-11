@@ -4,7 +4,8 @@
       "version": "1.5.21",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.crystalidea.macsfancontrol';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.crystalidea.macsfancontrol' AND version_compare(bundle_short_version, '1.5.21') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.crystalidea.macsfancontrol' AND version_compare(bundle_short_version, '1.5.21') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.crystalidea.macsfancontrol' AND a.bundle_executable != '');"
       },
       "installer_url": "https://github.com/crystalidea/macs-fan-control/releases/download/v1.5.21/macsfancontrol.zip",
       "install_script_ref": "35a9abbe",

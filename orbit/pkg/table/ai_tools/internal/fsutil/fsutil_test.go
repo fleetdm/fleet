@@ -58,10 +58,10 @@ func TestStatPerms(t *testing.T) {
 	}
 
 	ww := filepath.Join(dir, "ww")
-	if err := os.WriteFile(ww, []byte("x"), 0o666); err != nil { // #nosec G306 -- test fixture: intentionally world-writable to exercise WorldWritable detection
+	if err := os.WriteFile(ww, []byte("x"), 0o666); err != nil { //nolint:gosec // test fixture: intentionally world-writable to exercise WorldWritable detection
 		t.Fatal(err)
 	}
-	if err := os.Chmod(ww, 0o666); err != nil { // #nosec G302 -- test fixture: intentionally world-writable to exercise WorldWritable detection
+	if err := os.Chmod(ww, 0o666); err != nil { //nolint:gosec // test fixture: intentionally world-writable to exercise WorldWritable detection
 		t.Fatal(err)
 	}
 	if p := Stat(ww); !p.WorldWritable {

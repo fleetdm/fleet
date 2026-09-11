@@ -440,6 +440,38 @@ describe("LibraryItemAccordion", () => {
     });
   });
 
+  describe("edit button", () => {
+    it("fires onEditClick when clicked", async () => {
+      const onEditClick = jest.fn();
+      const { user } = renderAccordion({ onEditClick });
+
+      await user.click(screen.getByRole("button", { expanded: false }));
+      await user.click(screen.getByRole("button", { name: "Edit software" }));
+      expect(onEditClick).toHaveBeenCalledTimes(1);
+    });
+
+    it("is hidden when canEditSoftware is false", async () => {
+      const { user } = renderAccordion({
+        canEditSoftware: false,
+        onEditClick: jest.fn(),
+      });
+
+      await user.click(screen.getByRole("button", { expanded: false }));
+      expect(
+        screen.queryByRole("button", { name: "Edit software" })
+      ).not.toBeInTheDocument();
+    });
+
+    it("is hidden when onEditClick is not wired", async () => {
+      const { user } = renderAccordion({ onEditClick: undefined });
+
+      await user.click(screen.getByRole("button", { expanded: false }));
+      expect(
+        screen.queryByRole("button", { name: "Edit software" })
+      ).not.toBeInTheDocument();
+    });
+  });
+
   describe("download button", () => {
     it("fires onDownloadClick when clicked", async () => {
       const onDownloadClick = jest.fn();

@@ -4,7 +4,8 @@
       "version": "3.14.1",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'SuperCollider' AND publisher = 'SuperCollider Community';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'SuperCollider' AND publisher = 'SuperCollider Community' AND version_compare(version, '3.14.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'SuperCollider' AND publisher = 'SuperCollider Community' AND version_compare(version, '3.14.1') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'supercollider.exe');"
       },
       "installer_url": "https://github.com/supercollider/supercollider/releases/download/Version-3.14.1/SuperCollider-3.14.1_Release-x64-VS-426edf6.exe",
       "install_script_ref": "45257f64",

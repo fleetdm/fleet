@@ -1,0 +1,75 @@
+{
+  "metadata": {
+    "workspace": "4650loadtestj1",
+    "collected_at": "2025-02-27T00:00:00Z",
+    "interval": "1h",
+    "release": "4.65.0",
+    "category": "baseline",
+    "source": "spreadsheet-backfill",
+    "sheet_row": 11
+  },
+  "fleet_server": {
+    "cpu_utilization": {
+      "Average": 75.0
+    },
+    "memory_utilization": {
+      "Average": 3.0
+    },
+    "task_counts": {
+      "runningCount": 30
+    }
+  },
+  "loadtest_containers": {
+    "cpu_utilization": null,
+    "memory_utilization": null,
+    "task_counts": {
+      "runningCount": 200
+    }
+  },
+  "rds_writer": {
+    "instance": "writer",
+    "cpu_utilization": null,
+    "write_iops": null,
+    "deadlocks": null
+  },
+  "rds_writer_extended": {
+    "threads_running": null,
+    "iops_utilization": null
+  },
+  "rds_readers": [
+    {
+      "instance": "reader-1",
+      "cpu_utilization": null,
+      "read_iops": null
+    }
+  ],
+  "rds_readers_extended": [
+    {
+      "instance": "reader-1",
+      "threads_running": null
+    }
+  ],
+  "redis": [
+    {
+      "node": "redis-1",
+      "cpu_utilization": null,
+      "memory_utilization": null
+    }
+  ],
+  "fleet_server_errors": {
+    "error_count": null
+  },
+  "backfill": {
+    "source": "Fleet release load testing results (Google Sheet), manual-logging era",
+    "purpose": "Ticket #26178",
+    "one_click": null,
+    "notes": null,
+    "raw": {
+      "fleet_containers": "30",
+      "loadtest_containers": "200",
+      "fleet_cpu": "~75%",
+      "fleet_mem": "~3%",
+      "errors": "Error from #26675"
+    }
+  }
+}

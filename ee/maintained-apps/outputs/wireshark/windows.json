@@ -1,15 +1,16 @@
 {
   "versions": [
     {
-      "version": "4.6.7",
+      "version": "4.6.8",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Wireshark' AND publisher = 'The Wireshark developer community, https://www.wireshark.org';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Wireshark' AND publisher = 'The Wireshark developer community, https://www.wireshark.org' AND version_compare(version, '4.6.7') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Wireshark' AND publisher = 'The Wireshark developer community, https://www.wireshark.org' AND version_compare(version, '4.6.8') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'wireshark.exe');"
       },
-      "installer_url": "https://2.na.dl.wireshark.org/win64/all-versions/Wireshark-4.6.7-x64.msi",
+      "installer_url": "https://2.na.dl.wireshark.org/win64/all-versions/Wireshark-4.6.8-x64.msi",
       "install_script_ref": "22e48c46",
       "uninstall_script_ref": "dc2e795d",
-      "sha256": "ca156a40791ed9803e6028a413fe05ec22d723b09ac5f727534ede3f5f1d0423",
+      "sha256": "779ee66f846376942a3b631a78bba8c3d509697d07743349e1893056211d05e3",
       "default_categories": [
         "Developer tools"
       ],

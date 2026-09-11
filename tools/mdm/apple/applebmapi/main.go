@@ -31,6 +31,7 @@ func main() {
 	orgName := flag.String("org-name", "", "organization name of the token")
 
 	flag.Parse()
+	args := flag.Args()
 
 	if *serverPrivateKey == "" {
 		log.Fatal("must provide -key")
@@ -90,6 +91,13 @@ func main() {
 		res, err = depClient.GetDeviceDetails(ctx, *orgName, *serialNum)
 	case *command == "adue":
 		res, err = depClient.FetchAccountDrivenEnrollmentServiceDiscovery(ctx, *orgName)
+	case *command == "fetch_devices":
+		var cursor string
+		if len(args) > 0 {
+			// treat first arg as cursor
+			cursor = args[0]
+		}
+		res, err = depClient.FetchDevices(ctx, *orgName, godep.WithCursor(cursor))
 	default:
 		res, err = depClient.AccountDetail(ctx, *orgName)
 	}

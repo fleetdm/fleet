@@ -4,7 +4,8 @@
       "version": "3.14.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'net.sourceforge.supercollider';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'net.sourceforge.supercollider' AND version_compare(bundle_short_version, '3.14.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'net.sourceforge.supercollider' AND version_compare(bundle_short_version, '3.14.1') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'net.sourceforge.supercollider' AND a.bundle_executable != '');"
       },
       "installer_url": "https://github.com/supercollider/supercollider/releases/download/Version-3.14.1/SuperCollider-3.14.1-macOS-universal.dmg",
       "install_script_ref": "f0105dc0",

@@ -32,9 +32,7 @@ Domain name registrations are handled through Namecheap. Access is managed via 1
 
 ### Secure company-issued equipment for a team member
 
-As soon as an offer is accepted, Fleet provides laptops for core team members to use while working at Fleet. The IT engineer will work with the new team member to get their equipment requested and shipped to them on time.
-
-- [**Check the "📦 Warehouse" team in dogfood**](https://dogfood.fleetdm.com/dashboard?team_id=279) before purchasing any equipment including laptops, to ensure we efficiently [utilize existing assets before spending money](https://fleetdm.com/handbook/company/why-this-way#why-spend-less). If Fleet IT warehouse inventory can meet the needs of the request, file a [warehouse request](https://github.com/fleetdm/confidential/issues/new?assignees=sampfluger88&labels=&projects=&template=warehouse-request.md&title=%F0%9F%92%BB+Warehouse+request).
+As soon as an offer is accepted, Fleet provides laptops for core team members to use while working at Fleet. The IT engineer will work with the new team member to get their equipment requested and shipped to them on time, [utilizing existing assets before spending money](https://fleetdm.com/handbook/company/why-this-way#why-spend-less) whenever possible.
 
 - Apple computers shipping to the United States and Canada are ordered using the Apple [eCommerce Portal](https://ecommerce2.apple.com/asb2bstorefront/asb2b/en/USD/?accountselected=true), or by contacting the business team at an Apple Store or contacting the online sales team at [800-854-3680](tel:18008543680). The IT engineer can arrange for same-day pickup at a store local to the Fleetie if needed.
   - **Note:** Most Fleeties use 16-inch MacBook Pros. Team members are free to choose any laptop or operating system that works for them, as long as the price [is within reason](https://www.fleetdm.com/handbook/communications#spending-company-money). 
@@ -74,7 +72,7 @@ Upon receiving any device, follow these steps to process incoming equipment.
 ### Ship approved equipment
 
 Once the department approves inventory to be shipped from Fleet IT, follow these step to ship the equipment.
-1. Compare the equipment request issue with the ["📦 Warehouse" team](https://dogfood.fleetdm.com/settings/teams/users?team_id=279) and verify physical inventory.
+1. Verify physical inventory against the equipment request issue.
 2. Plug in the device and ensure inventory has been correctly processed and all components are present (e.g. charger cord, power converter).
 3. Package equipment for shipment.
 4. Change the "host" info to reflect the new user. If you encounter any issues, repeat the [process incoming equipment steps](https://fleetdm.com/handbook/it#process-incoming-equipment).
@@ -90,6 +88,17 @@ Once the department approves inventory to be shipped from Fleet IT, follow these
 4. Click on "Create task." Then, "Create GitHub issue."
 5. This will bring you to a screen where you can select the appropriate DRIs and GitHub labels (multiple, if necessary, but always include the ":help-it" label). Vanta will autopopulate the issue with a brief description of the test due and what needs to be remediated. You can manually add details if necessary.
 6. Follow up with the DRI of each issue daily until it's resolved. As needed, loop in their manager, the [Head of People](https://fleetdm.com/handbook/people#team), Fleet's CTO, or the Head of IT. If the test is within 3 days of being overdue, DM the fleetie and their manager, asking to have the issue prioritized and completed before the due date.
+
+
+### Review third-party app access requests
+
+When a Fleetie is blocked from connecting a third-party app to their Google Workspace account, the request comes in as an issue on the 🌐 [IT board](https://github.com/orgs/fleetdm/projects/101) with the `:help-it` label.
+
+1. Confirm the issue includes the app name, the client ID in text (not a screenshot), and the business use case.
+2. In [Google Admin](https://admin.google.com), go to **Security → Access and data control → API controls → Manage third-party app access** and find the pending request.
+3. Review the OAuth scopes the app is requesting. Check whether the same app is already trusted under a different client ID — if it is, investigate why this request came in under a new one before approving.
+4. Approve the app with the least privilege that meets the use case, limited to the services it actually needs. Deny apps that aren't business-critical or that duplicate a tool Fleet already supports.
+5. Comment on the issue with the decision, the scopes granted, and the reason, then close the issue. This comment is the audit trail for future access reviews.
 
 
 ### Exclude a host from a screen lock policy

@@ -25,7 +25,9 @@ module.exports = {
 
   exits: {
     success: { description: 'A compliance status update result was returned to the Fleet instance.', outputType: {} },
-    tenantNotFound: {description: 'No existing Microsoft compliance tenant was found for the Fleet instance that sent the request.', responseType: 'unauthorized'}
+    unauthorized: { description: 'A request contained an invalid entraTenantId/fleetServerSecret combination.', responseType: 'unauthorized'},
+    microsoftApiRequestFailed: {description: 'An error occurred when sending a request to the Microsoft API.'},
+    microsoftApiError: {description: 'The Microsoft API returned an unexpected response.'},
   },
 
 
@@ -33,12 +35,14 @@ module.exports = {
 
     let informationAboutThisTenant = await MicrosoftComplianceTenant.findOne({entraTenantId: entraTenantId, fleetServerSecret: fleetServerSecret});
     if(!informationAboutThisTenant) {
-      return new Error({error: 'No MicrosoftComplianceTenant record was found that matches the provided entra_tenant_id and fleet_server_secret combination.'});
+      throw 'unauthorized';
     }
 
     let tokenAndApiUrls = await sails.helpers.microsoftProxy.getAccessTokenAndApiUrls.with({
       complianceTenantRecordId: informationAboutThisTenant.id
-    });
+    })
+    .intercept('microsoftApiRequestFailed', 'microsoftApiRequestFailed')
+    .intercept('microsoftApiError', 'microsoftApiError');
 
     let accessToken = tokenAndApiUrls.manageApiAccessToken;
     let deviceDataSyncUrl = tokenAndApiUrls.deviceDataSyncUrl;
@@ -49,8 +53,25 @@ module.exports = {
       headers: {
         'Authorization': `Bearer ${accessToken}`
       }
-    }).intercept((err)=>{
-      return new Error({error: `An error occurred when retrieving a compliance status result of a device for a Microsoft compliance tenant. Full error: ${require('util').inspect(err, {depth: 3})}`});
+    })
+    .intercept('requestFailed', async ()=>{
+      // If a request to the microsoft API fails with a requestFailed error, the cached data sync URL for this tenant may be stale,
+      // so clear this tenant's cached tokens and URLs to force re-discovery, and return a microsoftApiRequestFailed response to the Fleet server.
+      // The Fleet server retries this request upon error for up to a minute, and if it times out then the host will retry in 1 hour (policy interval).
+      await sails.helpers.microsoftProxy.clearCacheForTenant.with({entraTenantId});
+      return 'microsoftApiRequestFailed';
+    })
+    .intercept({raw: {statusCode: 401}}, async (err)=>{
+      // If the Microsoft API rejected the cached access token, clear this tenant's cached tokens and URLs to force re-authentication on the next request.
+      // The Fleet server retries this request upon error for up to a minute, and if it times out then the host will retry in 1 hour (policy interval).
+      await sails.helpers.microsoftProxy.clearCacheForTenant.with({entraTenantId});
+      sails.log.warn(`When retrieving a compliance status result of a device for a Microsoft compliance tenant, the cached access token was rejected. Full error: ${require('util').inspect(err, {depth: 3})}`);
+      return 'microsoftApiError';
+    })
+    .intercept((err)=>{
+      // If the request to the Microsoft API returns a non-2xx response, log a warning and return a microsoftApiError response
+      sails.log.warn(`An error occurred when retrieving a compliance status result of a device for a Microsoft compliance tenant. Full error: ${require('util').inspect(err, {depth: 3})}`);
+      return 'microsoftApiError';
     });
 
     // Log responses from Micrsoft APIs for Fleet's integration

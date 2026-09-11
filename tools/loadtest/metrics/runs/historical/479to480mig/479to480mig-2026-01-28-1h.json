@@ -1,0 +1,117 @@
+{
+  "metadata": {
+    "workspace": "479to480mig",
+    "collected_at": "2026-01-28T00:00:00Z",
+    "interval": "1h",
+    "release": "4.80.0",
+    "category": "migration",
+    "source": "spreadsheet-backfill",
+    "sheet_row": 54
+  },
+  "fleet_server": {
+    "cpu_utilization": {
+      "Average": 50.0
+    },
+    "memory_utilization": {
+      "Average": 4.0
+    },
+    "task_counts": {
+      "runningCount": 30
+    }
+  },
+  "loadtest_containers": {
+    "cpu_utilization": {
+      "Average": 20.0
+    },
+    "memory_utilization": {
+      "Average": 9.8
+    },
+    "task_counts": {
+      "runningCount": 200
+    }
+  },
+  "rds_writer": {
+    "instance": "writer",
+    "cpu_utilization": {
+      "Average": 22.0
+    },
+    "write_iops": {
+      "Average": 2500.0,
+      "Maximum": 4000.0
+    },
+    "deadlocks": {
+      "Sum": 0
+    }
+  },
+  "rds_writer_extended": {
+    "threads_running": {
+      "average": 6.0,
+      "maximum": 20.0
+    },
+    "iops_utilization": null
+  },
+  "rds_readers": [
+    {
+      "instance": "reader-1",
+      "cpu_utilization": {
+        "Average": 40.0
+      },
+      "read_iops": {
+        "Average": 1.0,
+        "Maximum": 75.0
+      }
+    }
+  ],
+  "rds_readers_extended": [
+    {
+      "instance": "reader-1",
+      "threads_running": {
+        "average": 8.5,
+        "maximum": 16.0
+      }
+    }
+  ],
+  "redis": [
+    {
+      "node": "redis-1",
+      "cpu_utilization": {
+        "Average": 2.1,
+        "Maximum": 2.8
+      },
+      "memory_utilization": {
+        "Average": 0.3
+      }
+    }
+  ],
+  "fleet_server_errors": {
+    "error_count": 0
+  },
+  "backfill": {
+    "source": "Fleet release load testing results (Google Sheet), manual-logging era",
+    "purpose": "Migration Test",
+    "one_click": "yes",
+    "notes": null,
+    "raw": {
+      "full_day": "no",
+      "fleet_containers": "30",
+      "loadtest_containers": "200",
+      "fleet_cpu": "~50%",
+      "fleet_mem": "~4%",
+      "errors": "No new errors",
+      "writer_top_sql": "COMMIT",
+      "writer_cpu": "~22%",
+      "writer_sessions": "3-20 avg 6",
+      "writer_iops": "~1000-4000",
+      "reader_top_sql": "SELECT `h` . `id` , `h` .\u2026",
+      "reader_cpu": "~40%",
+      "reader_sessions": "~1-16",
+      "reader_iops": "avg 1 spikes to 75",
+      "redis_cpu": "1.4-2.8%",
+      "redis_mem": "0.30%",
+      "osquery_uptime": "100%",
+      "osquery_cpu": "20%",
+      "osquery_mem": "9.80%",
+      "deadlocks": "~0"
+    }
+  }
+}

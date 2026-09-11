@@ -4,7 +4,8 @@
       "version": "5.33.0.6168",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.amazon.workspaces';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.amazon.workspaces' AND version_compare(bundle_short_version, '5.33.0.6168') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.amazon.workspaces' AND version_compare(bundle_short_version, '5.33.0.6168') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.amazon.workspaces' AND a.bundle_executable != '');"
       },
       "installer_url": "https://d2td7dqidlhjx7.cloudfront.net/prod/global/osx/WorkSpaces_AllProducts_6168.zip",
       "install_script_ref": "d32f3040",

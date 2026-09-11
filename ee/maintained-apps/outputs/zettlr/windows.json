@@ -4,7 +4,8 @@
       "version": "4.7.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Zettlr' AND publisher = 'Hendrik Erz';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Zettlr' AND publisher = 'Hendrik Erz' AND version_compare(version, '4.7.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Zettlr' AND publisher = 'Hendrik Erz' AND version_compare(version, '4.7.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'zettlr.exe');"
       },
       "installer_url": "https://github.com/Zettlr/Zettlr/releases/download/v4.7.0/Zettlr-4.7.0-x64.exe",
       "install_script_ref": "64dd4e97",

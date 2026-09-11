@@ -4,7 +4,8 @@
       "version": "1.7.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.koolesache.ColorSnapper2';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.koolesache.ColorSnapper2' AND version_compare(bundle_short_version, '1.7.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.koolesache.ColorSnapper2' AND version_compare(bundle_short_version, '1.7.1') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.koolesache.ColorSnapper2' AND a.bundle_executable != '');"
       },
       "installer_url": "https://cs2-binaries.s3.amazonaws.com/ColorSnapper2-1_7_1.zip",
       "install_script_ref": "c684fe06",

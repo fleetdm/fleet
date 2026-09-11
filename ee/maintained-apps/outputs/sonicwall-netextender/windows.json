@@ -4,7 +4,8 @@
       "version": "10.3.5",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'SonicWall NetExtender' AND publisher = 'SonicWall Inc.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'SonicWall NetExtender' AND publisher = 'SonicWall Inc.' AND version_compare(version, '10.3.5') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'SonicWall NetExtender' AND publisher = 'SonicWall Inc.' AND version_compare(version, '10.3.5') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'sonicwall netextender.exe');"
       },
       "installer_url": "https://software.sonicwall.com/NetExtender/NetExtender-x64-10.3.5.msi",
       "install_script_ref": "22e48c46",

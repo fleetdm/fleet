@@ -4,7 +4,8 @@
       "version": "1.3.193.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Epic Games Launcher' AND publisher = 'Epic Games, Inc.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Epic Games Launcher' AND publisher = 'Epic Games, Inc.' AND version_compare(version, '1.3.193.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Epic Games Launcher' AND publisher = 'Epic Games, Inc.' AND version_compare(version, '1.3.193.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'epic games launcher.exe');"
       },
       "installer_url": "https://epicgames-download1.akamaized.net/Builds/UnrealEngineLauncher/Installers/Windows/EpicInstaller-20.1.4.msi?launcherfilename=EpicInstaller-20.1.4.msi",
       "install_script_ref": "22e48c46",

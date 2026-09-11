@@ -4,7 +4,8 @@
       "version": "2.1.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Fortify' AND publisher = 'Peculiar Ventures';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Fortify' AND publisher = 'Peculiar Ventures' AND version_compare(version, '2.1.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Fortify' AND publisher = 'Peculiar Ventures' AND version_compare(version, '2.1.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'fortify.exe');"
       },
       "installer_url": "https://github.com/PeculiarVentures/fortify-releases/releases/download/v2.1.0/Fortify_2.1.0_x64_en-US.msi",
       "install_script_ref": "22e48c46",

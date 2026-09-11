@@ -1,15 +1,16 @@
 {
   "versions": [
     {
-      "version": "3.2.4",
+      "version": "3.2.6",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.gimp.gimp-3.0';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.gimp.gimp-3.0' AND version_compare(bundle_short_version, '3.2.4') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.gimp.gimp-3.0' AND version_compare(bundle_short_version, '3.2.6') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'org.gimp.gimp-3.0' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://download.gimp.org/gimp/v3.2/macos/gimp-3.2.4-arm64.dmg",
+      "installer_url": "https://download.gimp.org/gimp/v3.2/macos/gimp-3.2.6-arm64.dmg",
       "install_script_ref": "7c3a81a2",
       "uninstall_script_ref": "2439dd3b",
-      "sha256": "294c016dca7795999129a38b462f80fac3c13cb963e6de9d04eeb5d6e519392b",
+      "sha256": "854573aec2be6a185aa021109c3c0ca94f210379204b704231bdd191b4060294",
       "default_categories": [
         "Productivity"
       ]

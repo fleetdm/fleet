@@ -9,7 +9,6 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
 )
@@ -58,6 +57,18 @@ VALUES
 		default:
 			return false, ctxerr.Wrap(ctx, err, "inserting key")
 		}
+	}
+
+	// An agent reporting a failure sends no key, and overwriting the stored one with that empty value would take the
+	// only recovery key Fleet can show an admin away from a host that is still encrypted. Record the error on its own
+	// and leave the key, and its decryptable flag, alone.
+	if incomingKey.Base == "" && clientError != "" {
+		_, err = ds.writer(ctx).ExecContext(ctx, `
+UPDATE host_disk_encryption_keys SET client_error = ? WHERE host_id = ?`, clientError, host.ID)
+		if err != nil {
+			return false, ctxerr.Wrap(ctx, err, "updating key client error")
+		}
+		return archived, nil
 	}
 
 	_, err = ds.writer(ctx).ExecContext(ctx, `
@@ -185,7 +196,10 @@ UPDATE host_disk_encryption_keys SET
   base64_encrypted = ?,
   base64_encrypted_salt = ?,
   key_slot = ?,
-  client_error = ''
+  client_error = '',
+  escrow_sent_at = NULL,
+  /* a request still pending once a key exists is a stale duplicate: none are accepted while a key is stored */
+  reset_requested = FALSE
 WHERE host_id = ?
 `, incomingKey.Base, incomingKey.Salt, incomingKey.KeySlot, host.ID)
 	if err != nil {
@@ -194,22 +208,52 @@ WHERE host_id = ?
 	return archived, nil
 }
 
-func (ds *Datastore) IsHostPendingEscrow(ctx context.Context, hostID uint) bool {
-	var pendingEscrowCount uint
-	_ = sqlx.GetContext(ctx, ds.reader(ctx), &pendingEscrowCount, `
-          SELECT COUNT(*) FROM host_disk_encryption_keys WHERE host_id = ? AND reset_requested = TRUE`, hostID)
-	return pendingEscrowCount > 0
+func (ds *Datastore) GetHostEscrowState(ctx context.Context, hostID uint) (*fleet.HostEscrowState, error) {
+	// client_error is ignored on purpose: a stale error must not hide a retry in flight.
+	var row struct {
+		Pending     bool   `db:"reset_requested"`
+		SinceMicros *int64 `db:"since_micros"`
+	}
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &row, `
+SELECT reset_requested, TIMESTAMPDIFF(MICROSECOND, escrow_sent_at, NOW(6)) AS since_micros
+FROM host_disk_encryption_keys WHERE host_id = ?`, hostID)
+	switch {
+	case errors.Is(err, sql.ErrNoRows):
+		return &fleet.HostEscrowState{}, nil
+	case err != nil:
+		return nil, ctxerr.Wrap(ctx, err, "getting host escrow state")
+	}
+	state := &fleet.HostEscrowState{Pending: row.Pending}
+	if row.SinceMicros != nil {
+		since := time.Duration(*row.SinceMicros) * time.Microsecond
+		state.SinceLastActivity = &since
+	}
+	return state, nil
 }
 
-func (ds *Datastore) ClearPendingEscrow(ctx context.Context, hostID uint) error {
-	_, err := ds.writer(ctx).ExecContext(ctx, `UPDATE host_disk_encryption_keys SET reset_requested = FALSE WHERE host_id = ?`, hostID)
+func (ds *Datastore) MarkEscrowSentToAgent(ctx context.Context, hostID uint) error {
+	_, err := ds.writer(ctx).ExecContext(ctx, `
+UPDATE host_disk_encryption_keys SET reset_requested = FALSE, escrow_sent_at = NOW(6) WHERE host_id = ?`, hostID)
 	return err
+}
+
+func (ds *Datastore) SetEscrowInFlight(ctx context.Context, hostID uint, inFlight bool) error {
+	stmt := `UPDATE host_disk_encryption_keys SET escrow_sent_at = NULL WHERE host_id = ?`
+	if inFlight {
+		// only a host still in flight is refreshed, so a late report cannot revive a finished escrow
+		stmt = `UPDATE host_disk_encryption_keys SET escrow_sent_at = NOW(6) WHERE host_id = ? AND escrow_sent_at IS NOT NULL`
+	}
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, hostID); err != nil {
+		return ctxerr.Wrap(ctx, err, "setting in-flight host escrow")
+	}
+	return nil
 }
 
 func (ds *Datastore) ReportEscrowError(ctx context.Context, hostID uint, errorMessage string) error {
 	_, err := ds.writer(ctx).ExecContext(ctx, `
 INSERT INTO host_disk_encryption_keys
-  (host_id, base64_encrypted, client_error) VALUES (?, '', ?) ON DUPLICATE KEY UPDATE client_error = VALUES(client_error)
+  (host_id, base64_encrypted, client_error) VALUES (?, '', ?)
+ON DUPLICATE KEY UPDATE client_error = VALUES(client_error), escrow_sent_at = NULL
 `, hostID, errorMessage)
 	return err
 }
@@ -350,24 +394,56 @@ func (ds *Datastore) IsHostDiskEncryptionKeyArchived(ctx context.Context, hostID
 }
 
 func (ds *Datastore) CleanupDiskEncryptionKeysOnTeamChange(ctx context.Context, hostIDs []uint, newTeamID *uint) error {
+	diskEncryption, err := ds.GetConfigEnableDiskEncryption(ctx, newTeamID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get destination fleet disk encryption settings")
+	}
 	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
-		return cleanupDiskEncryptionKeysOnTeamChangeDB(ctx, tx, hostIDs, newTeamID)
+		return cleanupDiskEncryptionKeysOnTeamChangeDB(ctx, tx, hostIDs, diskEncryption)
 	})
 }
 
-func cleanupDiskEncryptionKeysOnTeamChangeDB(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint, newTeamID *uint) error {
-	// We are using Apple's encryption profile to determine if any hosts, including Windows and Linux, are encrypted.
-	// This is a safe assumption since encryption is enabled for the whole team.
-	_, err := getMDMAppleConfigProfileByTeamAndIdentifierDB(ctx, tx, newTeamID, mobileconfig.FleetFileVaultPayloadIdentifier)
+// cleanupDiskEncryptionKeysOnTeamChangeDB drops the escrowed keys of moved hosts
+// whose platform no longer escrows to Fleet in the destination fleet. Each
+// platform has its own setting.
+func cleanupDiskEncryptionKeysOnTeamChangeDB(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint, diskEncryption fleet.DiskEncryptionConfig) error {
+	if len(hostIDs) == 0 {
+		return nil
+	}
+
+	stmt, args, err := sqlx.In(`SELECT id, platform FROM hosts WHERE id IN (?)`, hostIDs)
 	if err != nil {
-		if fleet.IsNotFound(err) {
-			// the new team does not have a filevault profile so we need to delete the existing ones
-			if err := bulkDeleteHostDiskEncryptionKeysDB(ctx, tx, hostIDs); err != nil {
-				return ctxerr.Wrap(ctx, err, "reconcile filevault profiles on team change bulk delete host disk encryption keys")
-			}
-		} else {
-			return ctxerr.Wrap(ctx, err, "reconcile filevault profiles on team change get profile")
+		return ctxerr.Wrap(ctx, err, "building host platform query")
+	}
+	var hosts []struct {
+		ID       uint   `db:"id"`
+		Platform string `db:"platform"`
+	}
+	if err := sqlx.SelectContext(ctx, tx, &hosts, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "selecting host platforms")
+	}
+
+	toDelete := make([]uint, 0, len(hosts))
+	for _, h := range hosts {
+		// FleetPlatform() rather than a platform list in SQL, so this agrees with
+		// every other per-platform decision in the codebase
+		host := fleet.Host{Platform: h.Platform}
+		var keep bool
+		switch host.FleetPlatform() {
+		case "darwin":
+			keep = diskEncryption.MacOSEscrowEnabled
+		case "windows":
+			keep = diskEncryption.WindowsEnabled
+		case "linux":
+			keep = diskEncryption.LinuxEscrowEnabled
 		}
+		if !keep {
+			toDelete = append(toDelete, h.ID)
+		}
+	}
+
+	if err := bulkDeleteHostDiskEncryptionKeysDB(ctx, tx, toDelete); err != nil {
+		return ctxerr.Wrap(ctx, err, "bulk delete host disk encryption keys on fleet change")
 	}
 	return nil
 }

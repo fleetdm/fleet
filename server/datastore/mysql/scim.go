@@ -7,11 +7,13 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"slices"
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/google/go-cmp/cmp"
 	"github.com/jmoiron/sqlx"
 )
@@ -71,11 +73,22 @@ func (ds *Datastore) CreateScimUser(ctx context.Context, user *fleet.ScimUser) (
 	return userID, err
 }
 
+// SetScimUserFleetUserID sets the durable link from a SCIM user to its
+// matching Fleet user. Set-once at the DB level so a concurrent or future
+// caller can never re-point an established link.
+func (ds *Datastore) SetScimUserFleetUserID(ctx context.Context, scimUserID uint, fleetUserID uint) error {
+	const query = `UPDATE scim_users SET user_id = ? WHERE id = ? AND user_id IS NULL`
+	if _, err := ds.writer(ctx).ExecContext(ctx, query, fleetUserID, scimUserID); err != nil {
+		return ctxerr.Wrap(ctx, err, "set scim user user_id")
+	}
+	return nil
+}
+
 // ScimUserByID retrieves a SCIM user by ID
 func (ds *Datastore) ScimUserByID(ctx context.Context, id uint) (*fleet.ScimUser, error) {
 	const query = `
 		SELECT
-			id, external_id, user_name, given_name, family_name, department, active, updated_at
+			id, external_id, user_name, given_name, family_name, department, active, updated_at, user_id
 		FROM scim_users
 		WHERE id = ?
 	`
@@ -113,7 +126,7 @@ func (ds *Datastore) ScimUserByUserName(ctx context.Context, userName string) (*
 func scimUserByUserName(ctx context.Context, q sqlx.QueryerContext, userName string) (*fleet.ScimUser, error) {
 	const query = `
 		SELECT
-			id, external_id, user_name, given_name, family_name, department, active, updated_at
+			id, external_id, user_name, given_name, family_name, department, active, updated_at, user_id
 		FROM scim_users
 		WHERE user_name = ?
 	`
@@ -961,6 +974,142 @@ func getScimGroupUsers(ctx context.Context, q sqlx.QueryerContext, groupID uint)
 	return userIDs, nil
 }
 
+// scimGroupAttributes holds a SCIM group's stored scalar attributes.
+type scimGroupAttributes struct {
+	ExternalID  *string `db:"external_id"`
+	DisplayName string  `db:"display_name"`
+}
+
+// loadScimGroupAttributes reads a SCIM group's scalar attributes, so a caller can
+// tell what the update would change.
+func loadScimGroupAttributes(ctx context.Context, tx sqlx.ExtContext, groupID uint) (scimGroupAttributes, error) {
+	var existing scimGroupAttributes
+	err := sqlx.GetContext(ctx, tx, &existing,
+		`SELECT external_id, display_name FROM scim_groups WHERE id = ?`, groupID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return existing, notFound("scim group").WithID(groupID)
+		}
+		return existing, ctxerr.Wrap(ctx, err, "load existing scim group before update")
+	}
+	return existing, nil
+}
+
+// updateScimGroupAttributes writes a SCIM group's scalar attributes.
+func updateScimGroupAttributes(ctx context.Context, tx sqlx.ExtContext, group *fleet.ScimGroup) error {
+	const updateGroupQuery = `
+		UPDATE scim_groups SET
+			external_id = ?,
+			display_name = ?
+		WHERE id = ?`
+	result, err := tx.ExecContext(
+		ctx,
+		updateGroupQuery,
+		group.ExternalID,
+		group.DisplayName,
+		group.ID,
+	)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "update scim group")
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get rows affected for update scim group")
+	}
+	// The row was there a moment ago, so this only fires if it was deleted since.
+	if rowsAffected == 0 {
+		return notFound("scim group").WithID(group.ID)
+	}
+
+	return nil
+}
+
+// ApplyScimGroupPatch updates an existing SCIM group's attributes and applies
+// only the membership changes described by deltas, leaving every other member of
+// the group untouched.
+func (ds *Datastore) ApplyScimGroupPatch(ctx context.Context, group *fleet.ScimGroup, deltas fleet.ScimGroupMemberDeltas) error {
+	if err := validateScimGroupFields(group); err != nil {
+		return err
+	}
+
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		existing, err := loadScimGroupAttributes(ctx, tx, group.ID)
+		if err != nil {
+			return err
+		}
+		groupNameChanged := existing.DisplayName != group.DisplayName
+
+		// Skip the write when the attributes are untouched, which is the common case
+		// for a members-only patch. The UPDATE would be a no-op but still takes an
+		// exclusive lock on the group row until commit, serializing concurrent
+		// patches that the targeted member writes below do not need serialized.
+		if groupNameChanged || !ptr.Equal(existing.ExternalID, group.ExternalID) {
+			if err := updateScimGroupAttributes(ctx, tx, group); err != nil {
+				return err
+			}
+		}
+
+		return applyScimGroupMemberDeltas(ctx, tx, group.ID, deltas, groupNameChanged)
+	})
+}
+
+// applyScimGroupMemberDeltas writes the membership changes described by deltas
+// and triggers the profile resends they require.
+func applyScimGroupMemberDeltas(
+	ctx context.Context, tx sqlx.ExtContext, groupID uint, deltas fleet.ScimGroupMemberDeltas, groupNameChanged bool,
+) error {
+	// Read which named members and child edges exist before the writes: the resend
+	// below then covers only members whose membership actually changes, so a no-op
+	// delta (an IdP retrying an add, removing a non-member) resends nothing. The
+	// read feeds only the resend set; the writes stay driven by the full deltas.
+	existingUsers, err := selectExistingScimGroupMembers(ctx, tx, "scim_user_group", "group_id", "scim_user_id",
+		groupID, append(slices.Clone(deltas.AddUsers), deltas.RemoveUsers...))
+	if err != nil {
+		return err
+	}
+	existingChildren, err := selectExistingScimGroupMembers(ctx, tx, "scim_group_group", "parent_group_id", "child_group_id",
+		groupID, append(slices.Clone(deltas.AddChildGroups), deltas.RemoveChildGroups...))
+	if err != nil {
+		return err
+	}
+
+	if err := insertScimGroupUsers(ctx, tx, groupID, deltas.AddUsers); err != nil {
+		return err
+	}
+	if err := deleteScimGroupUsers(ctx, tx, groupID, deltas.RemoveUsers); err != nil {
+		return err
+	}
+	if err := insertScimGroupChildren(ctx, tx, groupID, deltas.AddChildGroups); err != nil {
+		return err
+	}
+	if err := deleteScimGroupChildren(ctx, tx, groupID, deltas.RemoveChildGroups); err != nil {
+		return err
+	}
+
+	// The transitive lookups below run after the deletes, so removed users and
+	// removed-child subtrees are no longer reachable from the group and are
+	// collected explicitly.
+	affectedUsers := membershipChanges(deltas.AddUsers, deltas.RemoveUsers, existingUsers)
+	// A child group edge change affects every user in that child's subtree,
+	// since their effective membership in this group (and its ancestors)
+	// changed.
+	subtreeRoots := membershipChanges(deltas.AddChildGroups, deltas.RemoveChildGroups, existingChildren)
+	if groupNameChanged {
+		// A rename also affects every user still in the group, directly or
+		// through nested child groups.
+		subtreeRoots = append(subtreeRoots, groupID)
+	}
+	for _, subtreeID := range subtreeRoots {
+		subtreeUsers, err := getTransitiveScimGroupUserIDs(ctx, tx, subtreeID)
+		if err != nil {
+			return err
+		}
+		affectedUsers = append(affectedUsers, subtreeUsers...)
+	}
+	return triggerResendProfilesForIDPGroupChangeByUsers(ctx, tx, affectedUsers)
+}
+
 // ReplaceScimGroup replaces an existing SCIM group in the database
 func (ds *Datastore) ReplaceScimGroup(ctx context.Context, group *fleet.ScimGroup) error {
 	if err := validateScimGroupFields(group); err != nil {
@@ -968,178 +1117,109 @@ func (ds *Datastore) ReplaceScimGroup(ctx context.Context, group *fleet.ScimGrou
 	}
 
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		// load the display name before updating the group, to check if it changed
-		var oldDisplayName string
-		err := sqlx.GetContext(ctx, tx, &oldDisplayName, `SELECT display_name FROM scim_groups WHERE id = ?`, group.ID)
+		existing, err := loadScimGroupAttributes(ctx, tx, group.ID)
 		if err != nil {
-			if errors.Is(err, sql.ErrNoRows) {
-				return notFound("scim group").WithID(group.ID)
-			}
-			return ctxerr.Wrap(ctx, err, "load existing scim group display name before update")
+			return err
 		}
+		if err := updateScimGroupAttributes(ctx, tx, group); err != nil {
+			return err
+		}
+		groupNameChanged := existing.DisplayName != group.DisplayName
 
-		// Update the SCIM group
-		const updateGroupQuery = `
-		UPDATE scim_groups SET
-			external_id = ?,
-			display_name = ?
-		WHERE id = ?`
-		result, err := tx.ExecContext(
-			ctx,
-			updateGroupQuery,
-			group.ExternalID,
-			group.DisplayName,
-			group.ID,
-		)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "update scim group")
-		}
-
-		rowsAffected, err := result.RowsAffected()
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "get rows affected for update scim group")
-		}
-		if rowsAffected == 0 {
-			return notFound("scim group").WithID(group.ID)
-		}
-		groupNameChanged := oldDisplayName != group.DisplayName
-
-		// Get existing user-group relationships
+		// Diff the desired membership against the stored one, then write only the
+		// difference, reusing the same targeted writes a patch uses.
 		existingUsers, err := getScimGroupUsers(ctx, tx, group.ID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "get existing scim group users")
 		}
-
-		// Create maps for efficient lookup
-		existingUserMap := make(map[uint]bool)
-		for _, userID := range existingUsers {
-			existingUserMap[userID] = true
-		}
-
-		newUserMap := make(map[uint]bool)
-		for _, userID := range group.ScimUsers {
-			newUserMap[userID] = true
-		}
-
-		// Find users to add (in new but not in existing)
-		var usersToAdd []uint
-		for _, userID := range group.ScimUsers {
-			if !existingUserMap[userID] {
-				usersToAdd = append(usersToAdd, userID)
-			}
-		}
-
-		// Find users to remove (in existing but not in new)
-		var usersToRemove []uint
-		for _, userID := range existingUsers {
-			if !newUserMap[userID] {
-				usersToRemove = append(usersToRemove, userID)
-			}
-		}
-
-		// Add new user-group relationships
-		if len(usersToAdd) > 0 {
-			err = insertScimGroupUsers(ctx, tx, group.ID, usersToAdd)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "insert new scim group users")
-			}
-		}
-
-		// Remove old user-group relationships
-		if len(usersToRemove) > 0 {
-			batchSize := 10000
-			err = common_mysql.BatchProcessSimple(usersToRemove, batchSize, func(usersToRemoveInBatch []uint) error {
-				params := make([]interface{}, len(usersToRemoveInBatch)+1)
-				params[0] = group.ID
-				for i, userID := range usersToRemoveInBatch {
-					params[i+1] = userID
-				}
-
-				deleteQuery := "DELETE FROM scim_user_group WHERE group_id = ? AND scim_user_id IN (" +
-					strings.Repeat("?, ", len(usersToRemoveInBatch)-1) + "?)"
-
-				_, err = tx.ExecContext(ctx, deleteQuery, params...)
-				if err != nil {
-					return ctxerr.Wrap(ctx, err, "delete removed scim group users")
-				}
-				return nil
-			})
-			if err != nil {
-				return err
-			}
-		}
-
-		// Reconcile nested child group edges the same way. Collect the users whose
-		// effective membership changed (the whole subtree of each added/removed
-		// child) so we can resend affected profiles below.
 		existingChildren, err := getScimGroupChildren(ctx, tx, group.ID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "get existing scim group children")
 		}
-		childrenToAdd, childrenToRemove := diffUintSlices(existingChildren, group.ChildGroups)
 
-		if len(childrenToAdd) > 0 {
-			if err = insertScimGroupChildren(ctx, tx, group.ID, childrenToAdd); err != nil {
-				return ctxerr.Wrap(ctx, err, "insert new scim group children")
-			}
+		var deltas fleet.ScimGroupMemberDeltas
+		deltas.AddUsers, deltas.RemoveUsers = diffUintSlices(existingUsers, group.ScimUsers)
+		deltas.AddChildGroups, deltas.RemoveChildGroups = diffUintSlices(existingChildren, group.ChildGroups)
+		return applyScimGroupMemberDeltas(ctx, tx, group.ID, deltas, groupNameChanged)
+	})
+}
+
+// selectExistingScimGroupMembers returns which of memberIDs are currently linked
+// to the group in table.
+func selectExistingScimGroupMembers(
+	ctx context.Context, tx sqlx.ExtContext, table, groupCol, memberCol string, groupID uint, memberIDs []uint,
+) (map[uint]struct{}, error) {
+	if len(memberIDs) == 0 {
+		return nil, nil
+	}
+	stmt, args, err := sqlx.In(
+		fmt.Sprintf("SELECT %s FROM %s WHERE %s = ? AND %s IN (?)", memberCol, table, groupCol, memberCol),
+		groupID, memberIDs)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "build select existing scim group members")
+	}
+	var ids []uint
+	if err := sqlx.SelectContext(ctx, tx, &ids, stmt, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "select existing scim group members from "+table)
+	}
+	existing := make(map[uint]struct{}, len(ids))
+	for _, id := range ids {
+		existing[id] = struct{}{}
+	}
+	return existing, nil
+}
+
+// membershipChanges returns the members whose membership the deltas actually
+// change: adds not already present and removes that are present.
+func membershipChanges(adds, removes []uint, existing map[uint]struct{}) []uint {
+	changed := make([]uint, 0, len(adds)+len(removes))
+	for _, id := range adds {
+		if _, ok := existing[id]; !ok {
+			changed = append(changed, id)
 		}
-		if len(childrenToRemove) > 0 {
-			batchSize := 10000
-			err = common_mysql.BatchProcessSimple(childrenToRemove, batchSize, func(childIDsInBatch []uint) error {
-				params := make([]any, len(childIDsInBatch)+1)
-				params[0] = group.ID
-				for i, childID := range childIDsInBatch {
-					params[i+1] = childID
-				}
+	}
+	for _, id := range removes {
+		if _, ok := existing[id]; ok {
+			changed = append(changed, id)
+		}
+	}
+	return changed
+}
 
-				deleteQuery := "DELETE FROM scim_group_group WHERE parent_group_id = ? AND child_group_id IN (" +
-					strings.Repeat("?, ", len(childIDsInBatch)-1) + "?)"
+// deleteScimGroupMembers removes rows linking a SCIM group to the given member
+// IDs, leaving the group's other members in place. Both membership tables have
+// the same shape: a column pointing at the group, and one at the member.
+func deleteScimGroupMembers(
+	ctx context.Context, tx sqlx.ExtContext, table, groupCol, memberCol string, groupID uint, memberIDs []uint,
+) error {
+	if len(memberIDs) == 0 {
+		return nil
+	}
 
-				_, err = tx.ExecContext(ctx, deleteQuery, params...)
-				if err != nil {
-					return ctxerr.Wrap(ctx, err, "delete removed scim group children")
-				}
-				return nil
-			})
-			if err != nil {
-				return err
-			}
+	batchSize := 10000
+	return common_mysql.BatchProcessSimple(memberIDs, batchSize, func(batch []uint) error {
+		params := make([]any, 0, len(batch)+1)
+		params = append(params, groupID)
+		for _, memberID := range batch {
+			params = append(params, memberID)
 		}
 
-		// resend profiles that depend on the updated group to hosts that are
-		// related to the users in the updated group (only for those users that
-		// were affected by the group change)
-		if groupNameChanged {
-			// if the name of the group changed, all hosts with users part of this
-			// group (directly or through nested child groups) are affected
-			affectedUsers, err := getTransitiveScimGroupUserIDs(ctx, tx, group.ID)
-			if err != nil {
-				return err
-			}
-			err = triggerResendProfilesForIDPGroupChangeByUsers(ctx, tx, affectedUsers)
-			if err != nil {
-				return err
-			}
-		} else {
-			affectedUsers := append(append([]uint{}, usersToAdd...), usersToRemove...)
-			// A child group edge change affects every user in that child's subtree,
-			// since their effective membership in this group (and its ancestors)
-			// changed.
-			for _, childID := range append(append([]uint{}, childrenToAdd...), childrenToRemove...) {
-				subtreeUsers, err := getTransitiveScimGroupUserIDs(ctx, tx, childID)
-				if err != nil {
-					return err
-				}
-				affectedUsers = append(affectedUsers, subtreeUsers...)
-			}
-			if len(affectedUsers) > 0 {
-				if err = triggerResendProfilesForIDPGroupChangeByUsers(ctx, tx, affectedUsers); err != nil {
-					return err
-				}
-			}
+		deleteQuery := fmt.Sprintf("DELETE FROM %s WHERE %s = ? AND %s IN (%s?)",
+			table, groupCol, memberCol, strings.Repeat("?, ", len(batch)-1))
+
+		if _, err := tx.ExecContext(ctx, deleteQuery, params...); err != nil {
+			return ctxerr.Wrap(ctx, err, "delete scim group members from "+table)
 		}
 		return nil
 	})
+}
+
+func deleteScimGroupUsers(ctx context.Context, tx sqlx.ExtContext, groupID uint, userIDs []uint) error {
+	return deleteScimGroupMembers(ctx, tx, "scim_user_group", "group_id", "scim_user_id", groupID, userIDs)
+}
+
+func deleteScimGroupChildren(ctx context.Context, tx sqlx.ExtContext, parentGroupID uint, childGroupIDs []uint) error {
+	return deleteScimGroupMembers(ctx, tx, "scim_group_group", "parent_group_id", "child_group_id", parentGroupID, childGroupIDs)
 }
 
 // diffUintSlices returns the elements to add (in want but not in have) and to

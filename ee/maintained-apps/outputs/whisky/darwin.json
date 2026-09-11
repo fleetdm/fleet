@@ -4,7 +4,8 @@
       "version": "2.3.5",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.isaacmarovitz.Whisky';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.isaacmarovitz.Whisky' AND version_compare(bundle_short_version, '2.3.5') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.isaacmarovitz.Whisky' AND version_compare(bundle_short_version, '2.3.5') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.isaacmarovitz.Whisky' AND a.bundle_executable != '');"
       },
       "installer_url": "https://github.com/IsaacMarovitz/Whisky/releases/download/v2.3.5/Whisky.zip",
       "install_script_ref": "c65adacb",

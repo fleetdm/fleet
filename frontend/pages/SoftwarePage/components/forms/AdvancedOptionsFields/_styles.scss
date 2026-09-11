@@ -1,5 +1,4 @@
 .advanced-options-fields {
-  display: flex;
-  flex-direction: column;
-  gap: $pad-medium;
+  @include flex-column-16px-gap;
+  width: 100%;
 }

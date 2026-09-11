@@ -4,7 +4,8 @@
       "version": "1.10",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.dwarvesv.minimalbar';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.dwarvesv.minimalbar' AND version_compare(bundle_short_version, '1.10') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.dwarvesv.minimalbar' AND version_compare(bundle_short_version, '1.10') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.dwarvesv.minimalbar' AND a.bundle_executable != '');"
       },
       "installer_url": "https://github.com/dwarvesf/hidden/releases/download/v1.10/Hidden-Bar-v1.10-macos.zip",
       "install_script_ref": "1f8579a8",

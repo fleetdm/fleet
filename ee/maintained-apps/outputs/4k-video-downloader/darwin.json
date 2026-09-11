@@ -4,7 +4,8 @@
       "version": "4.33.5",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.4kdownload.ApplicationDirectories';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.4kdownload.ApplicationDirectories' AND version_compare(bundle_short_version, '4.33.5') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.4kdownload.ApplicationDirectories' AND version_compare(bundle_short_version, '4.33.5') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.4kdownload.ApplicationDirectories' AND a.bundle_executable != '');"
       },
       "installer_url": "https://dl.4kdownload.com/app/4kvideodownloader_4.33.5_x64.dmg",
       "install_script_ref": "b39acc12",

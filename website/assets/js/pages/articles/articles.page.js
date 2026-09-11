@@ -56,7 +56,11 @@ parasails.registerPage('articles', {
         break;
       case 'newsletters':
         this.articleCategory = 'Newsletters';
-        this.categoryDescription = '';
+        this.categoryDescription = 'Catch up on past issues of the Fleet newsletter.';
+        break;
+      case 'industry-news':
+        this.articleCategory = 'Industry news';
+        this.categoryDescription = 'Device management and security news, and what it means for the devices you manage.';
         break;
       case 'articles':
         this.articleCategory = 'Blog';
@@ -73,11 +77,17 @@ parasails.registerPage('articles', {
           apiKey: this.algoliaPublicKey,
           indexName: 'fleetdm',
           container: '#docsearch-query',
-          placeholder: 'Search',
+          placeholder: 'Search articles',
           debug: false,
           clickAnalytics: true,
           searchParameters: {
             facetFilters: ['section:articles']
+          },
+          translations: {
+            button: {
+              buttonText: 'Search articles',
+              buttonAriaLabel: 'Search articles',
+            },
           },
         });
       }

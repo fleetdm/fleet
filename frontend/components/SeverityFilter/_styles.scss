@@ -1,0 +1,10 @@
+.severity-filter {
+  display: flex;
+  flex-direction: column;
+  gap: $pad-medium;
+
+  &__cvss-range {
+    display: flex;
+    gap: $pad-medium;
+  }
+}

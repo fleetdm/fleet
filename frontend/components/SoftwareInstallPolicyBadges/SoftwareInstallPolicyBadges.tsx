@@ -30,8 +30,7 @@ const SoftwareInstallPolicyBadges = ({ policyType }: IPatchBadgesProps) => {
       className={`${baseClass}__dynamic-policy-tooltip`}
       tipContent={
         <>
-          Software will be automatically installed <br />
-          when hosts fail this policy.
+          Software will be automatically installed when hosts fail this policy.
         </>
       }
       tipOffset={14}

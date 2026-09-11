@@ -211,8 +211,8 @@ const SoftwareLibraryTable = ({
         <Slider
           value={selfServiceOnly}
           onChange={handleSelfServiceToggle}
-          inactiveText="Self-service only"
-          activeText="Self-service only"
+          inactiveText="Self service only"
+          activeText="Self service only"
           disabled={controlsDisabled}
         />
       </div>

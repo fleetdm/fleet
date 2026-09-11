@@ -199,10 +199,16 @@ const PRIVATE_KEY_NOT_CONFIGURED_ERROR = (
     />
   </>
 );
-const INVALID_SCEP_URL_ERROR =
-  "Invalid SCEP URL. Please correct and try again.";
 const INVALID_ADMIN_URL_OR_CREDENTIALS_ERROR =
   "Invalid admin URL or credentials. Please correct and try again.";
+const INVALID_ADMIN_URL_ERROR =
+  "Invalid admin URL. Please correct and try again.";
+const INVALID_USERNAME_ERROR =
+  "Invalid username. Please correct and try again.";
+const INVALID_PASSWORD_ERROR =
+  "Invalid password. Please correct and try again.";
+const ADMIN_URL_CONNECTION_ERROR =
+  "Couldn't connect to admin URL. Please correct and try again.";
 const NDES_PASSWORD_CACHE_FULL_ERROR =
   "The NDES password cache is full. Please increase the number of cached passwords in NDES and try again.";
 const INVALID_CHALLENGE_ERROR =
@@ -211,34 +217,53 @@ const INVALID_CHALLENGE_URL_OR_CREDENTIALS_ERROR =
   "Invalid challenge URL or credentials. Please correct and try again.";
 
 /**
+ * Matches the server's URL errors, which name the CA type inside the message (e.g. "Invalid
+ * Hydrant URL.").
+ */
+const INVALID_URL_PATTERN = /Invalid [\w ]*URL\./;
+
+/**
  * Gets the error message we want to display from the api error message.
  * This is used in both add and edit certificate authority flows.
  */
 export const getDisplayErrMessage = (err: unknown): string | JSX.Element => {
   let message: string | JSX.Element = DEFAULT_ERROR;
-  const reason = getErrorReason(err).toLowerCase();
+  const rawReason = getErrorReason(err);
+  const reason = rawReason.toLowerCase();
+  const invalidUrlMatch = rawReason.match(INVALID_URL_PATTERN);
 
   if (reason.includes("invalid api token")) {
     message = INVALID_API_TOKEN_ERROR;
   } else if (reason.includes("invalid profile guid")) {
     message = INVALID_PROFILE_GUID_ERROR;
-  } else if (
-    reason.includes("invalid url") ||
-    reason.includes("no such host")
-  ) {
-    message = INVALID_URL_ERROR;
   } else if (reason.includes("private key")) {
     message = PRIVATE_KEY_NOT_CONFIGURED_ERROR;
-  } else if (reason.includes("invalid scep url")) {
-    message = INVALID_SCEP_URL_ERROR;
-  } else if (reason.includes("invalid admin url or credentials")) {
+  } else if (reason.includes("admin url or credentials")) {
+    // the server names the CA type in this message, e.g. "Invalid NDES SCEP admin URL or
+    // credentials", so match on the part that doesn't vary
     message = INVALID_ADMIN_URL_OR_CREDENTIALS_ERROR;
+  } else if (reason.includes("invalid ndes scep admin url")) {
+    // must be checked after "admin url or credentials", which contains this string
+    message = INVALID_ADMIN_URL_ERROR;
+  } else if (reason.includes("invalid ndes scep username")) {
+    message = INVALID_USERNAME_ERROR;
+  } else if (reason.includes("invalid ndes scep password")) {
+    message = INVALID_PASSWORD_ERROR;
+  } else if (reason.includes("couldn't connect to ndes scep admin url")) {
+    message = ADMIN_URL_CONNECTION_ERROR;
   } else if (reason.includes("password cache is full")) {
     message = NDES_PASSWORD_CACHE_FULL_ERROR;
   } else if (reason.includes("invalid challenge url")) {
     message = INVALID_CHALLENGE_URL_OR_CREDENTIALS_ERROR;
   } else if (reason.includes("invalid challenge")) {
     message = INVALID_CHALLENGE_ERROR;
+  } else if (invalidUrlMatch) {
+    message = `${invalidUrlMatch[0]} Please correct and try again.`;
+  } else if (
+    reason.includes("invalid url") ||
+    reason.includes("no such host")
+  ) {
+    message = INVALID_URL_ERROR;
   } else {
     message = DEFAULT_ERROR;
   }

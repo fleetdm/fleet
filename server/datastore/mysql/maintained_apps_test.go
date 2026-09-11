@@ -3,6 +3,7 @@ package mysql
 import (
 	"context"
 	"fmt"
+	"slices"
 	"testing"
 	"time"
 
@@ -57,6 +58,12 @@ func TestMaintainedApps(t *testing.T) {
 		{"WindowsFMAReconcileIndependentOfCatalogSync", testWindowsFMAReconcileIndependentOfCatalogSync},
 		{"ReconcileSoftwareNames", testReconcileSoftwareNames},
 		{"ReconcileSoftwareNamesSharedIdentifier", testReconcileSoftwareNamesSharedIdentifier},
+		{"ReconcileSoftwareNamesBatched", testReconcileSoftwareNamesBatched},
+		{"ReconcileSoftwareNamesDiscoveryWindowed", testReconcileSoftwareNamesDiscoveryWindowed},
+		{"ReconcileSoftwareNamesOrphanedInstaller", testReconcileSoftwareNamesOrphanedInstaller},
+		{"ReconcileSoftwareNamesIdentifierWinsOverInstallerLink", testReconcileSoftwareNamesIdentifierWinsOverInstallerLink},
+		{"ReconcileSoftwareNamesMultiTeamInstallers", testReconcileSoftwareNamesMultiTeamInstallers},
+		{"ReconcileSoftwareNamesLeavesMobileSiblings", testReconcileSoftwareNamesLeavesMobileSiblings},
 		{"ListAvailableAppsSharedIdentifier", testListAvailableAppsSharedIdentifier},
 	}
 
@@ -877,7 +884,6 @@ func testListAvailableAppsSharedName(t *testing.T, ds *Datastore) {
 }
 
 func testSoftwareTitleRenamingWindows(t *testing.T, ds *Datastore) {
-
 	ctx := context.Background()
 
 	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
@@ -930,7 +936,7 @@ func testSoftwareTitleRenamingWindows(t *testing.T, ds *Datastore) {
 		Version:              "1.0",
 		UserID:               user.ID,
 		ValidatedLabels:      &fleet.LabelIdentsWithScope{},
-		FleetMaintainedAppID: new(maintained3.ID),
+		FleetMaintainedAppID: &maintained3.ID,
 	})
 	require.NoError(t, err)
 	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
@@ -944,7 +950,7 @@ func testSoftwareTitleRenamingWindows(t *testing.T, ds *Datastore) {
 		Version:              "1.0",
 		UserID:               user.ID,
 		ValidatedLabels:      &fleet.LabelIdentsWithScope{},
-		FleetMaintainedAppID: new(maintained4.ID),
+		FleetMaintainedAppID: &maintained4.ID,
 	})
 	require.NoError(t, err)
 
@@ -994,21 +1000,8 @@ func testReconcileSoftwareNames(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// Verify the software and software_titles were created with the osquery name "Code"
-	var softwareNames []string
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		return sqlx.SelectContext(ctx, q, &softwareNames,
-			`SELECT name FROM software WHERE bundle_identifier = 'com.microsoft.VSCode' ORDER BY version`)
-	})
-	require.Len(t, softwareNames, 2)
-	require.Equal(t, "Code", softwareNames[0])
-	require.Equal(t, "Code", softwareNames[1])
-
-	var titleName string
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		return sqlx.GetContext(ctx, q, &titleName,
-			`SELECT name FROM software_titles WHERE bundle_identifier = 'com.microsoft.VSCode'`)
-	})
-	require.Equal(t, "Code", titleName)
+	require.Equal(t, []string{"Code", "Code"}, softwareNames(t, ds, "com.microsoft.VSCode"))
+	require.Equal(t, "Code", softwareTitleName(t, ds, "com.microsoft.VSCode"))
 
 	// Now upsert an FMA with the canonical name
 	_, err = ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
@@ -1021,37 +1014,16 @@ func testReconcileSoftwareNames(t *testing.T, ds *Datastore) {
 
 	// The upsert itself must not rename; confirm the pre-reconcile state still has
 	// the osquery name in both the software and software_titles tables.
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		return sqlx.SelectContext(ctx, q, &softwareNames,
-			`SELECT name FROM software WHERE bundle_identifier = 'com.microsoft.VSCode' ORDER BY version`)
-	})
-	require.Len(t, softwareNames, 2)
-	require.Equal(t, "Code", softwareNames[0])
-	require.Equal(t, "Code", softwareNames[1])
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		return sqlx.GetContext(ctx, q, &titleName,
-			`SELECT name FROM software_titles WHERE bundle_identifier = 'com.microsoft.VSCode'`)
-	})
-	require.Equal(t, "Code", titleName)
+	require.Equal(t, []string{"Code", "Code"}, softwareNames(t, ds, "com.microsoft.VSCode"))
+	require.Equal(t, "Code", softwareTitleName(t, ds, "com.microsoft.VSCode"))
 
 	// The upsert doesn't rename; the reconcile pass does (unambiguous identifier).
 	require.NoError(t, ds.ReconcileMaintainedAppSoftwareNames(ctx))
 
-	// Verify software entries were updated to use the FMA canonical name
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		return sqlx.SelectContext(ctx, q, &softwareNames,
-			`SELECT name FROM software WHERE bundle_identifier = 'com.microsoft.VSCode' ORDER BY version`)
-	})
-	require.Len(t, softwareNames, 2)
-	require.Equal(t, "Microsoft Visual Studio Code", softwareNames[0])
-	require.Equal(t, "Microsoft Visual Studio Code", softwareNames[1])
-
-	// Verify software_titles was also updated
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		return sqlx.GetContext(ctx, q, &titleName,
-			`SELECT name FROM software_titles WHERE bundle_identifier = 'com.microsoft.VSCode'`)
-	})
-	require.Equal(t, "Microsoft Visual Studio Code", titleName)
+	// Verify software entries and the title were updated to the FMA canonical name
+	require.Equal(t, []string{"Microsoft Visual Studio Code", "Microsoft Visual Studio Code"},
+		softwareNames(t, ds, "com.microsoft.VSCode"))
+	require.Equal(t, "Microsoft Visual Studio Code", softwareTitleName(t, ds, "com.microsoft.VSCode"))
 
 	// Verify upserting the same FMA again and reconciling doesn't cause issues (idempotent)
 	_, err = ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
@@ -1064,13 +1036,8 @@ func testReconcileSoftwareNames(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.ReconcileMaintainedAppSoftwareNames(ctx))
 
 	// Names should still be the FMA canonical name
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		return sqlx.SelectContext(ctx, q, &softwareNames,
-			`SELECT name FROM software WHERE bundle_identifier = 'com.microsoft.VSCode' ORDER BY version`)
-	})
-	require.Len(t, softwareNames, 2)
-	require.Equal(t, "Microsoft Visual Studio Code", softwareNames[0])
-	require.Equal(t, "Microsoft Visual Studio Code", softwareNames[1])
+	require.Equal(t, []string{"Microsoft Visual Studio Code", "Microsoft Visual Studio Code"},
+		softwareNames(t, ds, "com.microsoft.VSCode"))
 
 	// Verify Windows FMA does NOT update darwin software entries
 	// First create darwin software with a different bundle_id
@@ -1096,12 +1063,7 @@ func testReconcileSoftwareNames(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.ReconcileMaintainedAppSoftwareNames(ctx))
 
 	// A Windows FMA must not rename darwin software.
-	var someAppName string
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		return sqlx.GetContext(ctx, q, &someAppName,
-			`SELECT name FROM software WHERE bundle_identifier = 'com.example.someapp'`)
-	})
-	require.Equal(t, "Some App", someAppName)
+	require.Equal(t, []string{"Some App"}, softwareNames(t, ds, "com.example.someapp"))
 }
 
 // testReconcileSoftwareNamesSharedIdentifier: two FMAs sharing a bundle identifier
@@ -1114,17 +1076,7 @@ func testReconcileSoftwareNamesSharedIdentifier(t *testing.T, ds *Datastore) {
 	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "Team Firefox"})
 	require.NoError(t, err)
 
-	host, err := ds.NewHost(ctx, &fleet.Host{
-		Hostname:        "firefox-host",
-		Platform:        "darwin",
-		OsqueryHostID:   new("ff-osquery-id"),
-		NodeKey:         new("ff-node-key"),
-		DetailUpdatedAt: ds.clock.Now(),
-		LabelUpdatedAt:  ds.clock.Now(),
-		PolicyUpdatedAt: ds.clock.Now(),
-		SeenTime:        ds.clock.Now(),
-	})
-	require.NoError(t, err)
+	host := newTestHostWithPlatform(t, ds, "firefox-host", "darwin", nil)
 
 	// Two FMAs that share the same macOS bundle identifier.
 	firefox, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
@@ -1148,30 +1100,16 @@ func testReconcileSoftwareNamesSharedIdentifier(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	titleName := func() string {
-		var name string
-		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-			return sqlx.GetContext(ctx, q, &name,
-				`SELECT name FROM software_titles WHERE bundle_identifier = 'org.mozilla.firefox'`)
-		})
-		return name
-	}
-
 	// Ingestion must not guess a name for the shared identifier.
-	require.Equal(t, "Firefox.app", titleName())
+	require.Equal(t, "Firefox.app", softwareTitleName(t, ds, "org.mozilla.firefox"))
 
 	// No FMA link and an ambiguous identifier: reconcile must leave it alone.
 	// (Regression: the title used to flip to "Mozilla Firefox ESR" by sync order.)
 	require.NoError(t, ds.ReconcileMaintainedAppSoftwareNames(ctx))
-	require.Equal(t, "Firefox.app", titleName())
+	require.Equal(t, "Firefox.app", softwareTitleName(t, ds, "org.mozilla.firefox"))
 	// Reconcile updates the software table with a separate statement, so assert it
 	// too: with an ambiguous identifier and no FMA link, that row is left alone.
-	var ambiguousSoftwareName string
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		return sqlx.GetContext(ctx, q, &ambiguousSoftwareName,
-			`SELECT name FROM software WHERE bundle_identifier = 'org.mozilla.firefox'`)
-	})
-	require.Equal(t, "Firefox.app", ambiguousSoftwareName)
+	require.Equal(t, []string{"Firefox.app"}, softwareNames(t, ds, "org.mozilla.firefox"))
 
 	// Add the Firefox (non-ESR) FMA, linking the existing title to a specific FMA.
 	_, titleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
@@ -1189,11 +1127,11 @@ func testReconcileSoftwareNamesSharedIdentifier(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// The install reuses the existing title, so the name is unchanged until reconcile.
-	require.Equal(t, "Firefox.app", titleName())
+	require.Equal(t, "Firefox.app", softwareTitleName(t, ds, "org.mozilla.firefox"))
 
 	// Reconcile resolves the ambiguity via the installer link.
 	require.NoError(t, ds.ReconcileMaintainedAppSoftwareNames(ctx))
-	require.Equal(t, "Mozilla Firefox", titleName())
+	require.Equal(t, "Mozilla Firefox", softwareTitleName(t, ds, "org.mozilla.firefox"))
 
 	var softwareName string
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
@@ -1201,6 +1139,363 @@ func testReconcileSoftwareNamesSharedIdentifier(t *testing.T, ds *Datastore) {
 			`SELECT name FROM software WHERE title_id = ? AND bundle_identifier = 'org.mozilla.firefox'`, titleID)
 	})
 	require.Equal(t, "Mozilla Firefox", softwareName)
+}
+
+// testReconcileSoftwareNamesBatched: reconcile renames in bounded batches to keep
+// InnoDB row locks short-lived, so it must keep walking until every matching row is
+// renamed, and it must not touch rows outside the match set.
+func testReconcileSoftwareNamesBatched(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// Force several batches over a handful of rows.
+	oldBatchSize := maintainedAppNameReconcileBatchSize
+	maintainedAppNameReconcileBatchSize = 2
+	t.Cleanup(func() { maintainedAppNameReconcileBatchSize = oldBatchSize })
+
+	user := test.NewUser(t, ds, "Zaphod Beeblebrox", "zaphod@example.com", true)
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "Team Batched"})
+	require.NoError(t, err)
+
+	host := newTestHostWithPlatform(t, ds, "batched-host", "darwin", nil)
+
+	// Seven versions of one app, so the rename spans four batches of two. Plus an
+	// unrelated app with no FMA, which must never be renamed.
+	var software []fleet.Software
+	for _, version := range []string{"1.0", "2.0", "3.0", "4.0", "5.0", "6.0", "7.0"} {
+		software = append(software, fleet.Software{
+			Name: "Code", Version: version, Source: "apps", BundleIdentifier: "com.microsoft.VSCode",
+		})
+	}
+	software = append(software, fleet.Software{
+		Name: "Unrelated", Version: "1.0", Source: "apps", BundleIdentifier: "com.example.unrelated",
+	})
+	_, err = ds.UpdateHostSoftware(ctx, host.ID, software)
+	require.NoError(t, err)
+
+	require.Equal(t, slices.Repeat([]string{"Code"}, 7), softwareNames(t, ds, "com.microsoft.VSCode"))
+
+	vscode, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name:             "Microsoft Visual Studio Code",
+		Slug:             "visual-studio-code/darwin",
+		Platform:         "darwin",
+		UniqueIdentifier: "com.microsoft.VSCode",
+	})
+	require.NoError(t, err)
+
+	// Pass 2 (by unambiguous bundle identifier) must rename all seven rows, not just
+	// the first batch.
+	require.NoError(t, ds.ReconcileMaintainedAppSoftwareNames(ctx))
+	require.Equal(t, slices.Repeat([]string{"Microsoft Visual Studio Code"}, 7),
+		softwareNames(t, ds, "com.microsoft.VSCode"))
+	require.Equal(t, "Microsoft Visual Studio Code", softwareTitleName(t, ds, "com.microsoft.VSCode"))
+
+	// The app with no FMA is outside the match set and must be untouched.
+	require.Equal(t, []string{"Unrelated"}, softwareNames(t, ds, "com.example.unrelated"))
+	require.Equal(t, "Unrelated", softwareTitleName(t, ds, "com.example.unrelated"))
+
+	// Link the title to the FMA via an installer and change the canonical name, so
+	// pass 1 (by installer link) has to walk all seven rows too.
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		Title:                "Microsoft Visual Studio Code",
+		TeamID:               &team.ID,
+		Source:               "apps",
+		InstallScript:        "nothing",
+		Filename:             "VSCode.dmg",
+		UserID:               user.ID,
+		Platform:             string(fleet.MacOSPlatform),
+		BundleIdentifier:     "com.microsoft.VSCode",
+		FleetMaintainedAppID: &vscode.ID,
+		ValidatedLabels:      &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	_, err = ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name:             "Visual Studio Code",
+		Slug:             "visual-studio-code/darwin",
+		Platform:         "darwin",
+		UniqueIdentifier: "com.microsoft.VSCode",
+	})
+	require.NoError(t, err)
+
+	require.NoError(t, ds.ReconcileMaintainedAppSoftwareNames(ctx))
+	require.Equal(t, slices.Repeat([]string{"Visual Studio Code"}, 7),
+		softwareNames(t, ds, "com.microsoft.VSCode"))
+	require.Equal(t, "Visual Studio Code", softwareTitleName(t, ds, "com.microsoft.VSCode"))
+
+	// Idempotent: a second run with everything already canonical is a no-op.
+	require.NoError(t, ds.ReconcileMaintainedAppSoftwareNames(ctx))
+	require.Equal(t, "Visual Studio Code", softwareTitleName(t, ds, "com.microsoft.VSCode"))
+	require.Equal(t, []string{"Unrelated"}, softwareNames(t, ds, "com.example.unrelated"))
+}
+
+// testReconcileSoftwareNamesDiscoveryWindowed: each discovery SELECT is capped by
+// maintainedAppNameReconcileDiscoveryLimit so the pass never holds every mismatched row
+// in memory at once. Renamed rows drop out of the next SELECT, so the pass must keep
+// re-discovering until a window comes back short, not stop after the first one.
+func testReconcileSoftwareNamesDiscoveryWindowed(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// Seven mismatched software rows against a window of three and batches of two, so
+	// the pass needs several windows and the window and batch edges never line up.
+	oldBatchSize := maintainedAppNameReconcileBatchSize
+	oldDiscoveryLimit := maintainedAppNameReconcileDiscoveryLimit
+	maintainedAppNameReconcileBatchSize = 2
+	maintainedAppNameReconcileDiscoveryLimit = 3
+	t.Cleanup(func() {
+		maintainedAppNameReconcileBatchSize = oldBatchSize
+		maintainedAppNameReconcileDiscoveryLimit = oldDiscoveryLimit
+	})
+
+	host := newTestHostWithPlatform(t, ds, "windowed-host", "darwin", nil)
+
+	var software []fleet.Software
+	for _, version := range []string{"1.0", "2.0", "3.0", "4.0", "5.0", "6.0", "7.0"} {
+		software = append(software, fleet.Software{
+			Name: "Code", Version: version, Source: "apps", BundleIdentifier: "com.microsoft.VSCode",
+		})
+	}
+	_, err := ds.UpdateHostSoftware(ctx, host.ID, software)
+	require.NoError(t, err)
+
+	upsertDarwinFMA(t, ds, "Microsoft Visual Studio Code", "com.microsoft.VSCode", "visual-studio-code/darwin")
+
+	require.NoError(t, ds.ReconcileMaintainedAppSoftwareNames(ctx))
+
+	// Every row, not just the distinct set, so a window that stopped early is caught.
+	require.Equal(t, slices.Repeat([]string{"Microsoft Visual Studio Code"}, 7),
+		softwareNames(t, ds, "com.microsoft.VSCode"))
+	require.Equal(t, "Microsoft Visual Studio Code", softwareTitleName(t, ds, "com.microsoft.VSCode"))
+}
+
+// softwareTitleName returns the name of the macOS software title carrying bundleID.
+// additional_identifier is 0 for macOS titles, which keeps this to a single row even when iOS
+// or iPadOS siblings share the identifier.
+func softwareTitleName(t *testing.T, ds *Datastore, bundleID string) string {
+	var name string
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(t.Context(), q, &name,
+			`SELECT name FROM software_titles WHERE bundle_identifier = ? AND additional_identifier = 0`, bundleID)
+	})
+	return name
+}
+
+// softwareNames returns the names of every software row carrying bundleID, oldest first.
+func softwareNames(t *testing.T, ds *Datastore, bundleID string) []string {
+	var names []string
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(t.Context(), q, &names,
+			`SELECT name FROM software WHERE bundle_identifier = ? ORDER BY id`, bundleID)
+	})
+	return names
+}
+
+// upsertDarwinFMA upserts a darwin maintained app. Call it once per app: the upsert's
+// ON DUPLICATE KEY UPDATE reports no insert id, so a repeat call returns ID 0.
+func upsertDarwinFMA(t *testing.T, ds *Datastore, appName, bundleID, slug string) *fleet.MaintainedApp {
+	app, err := ds.UpsertMaintainedApp(t.Context(), &fleet.MaintainedApp{
+		Name:             appName,
+		Slug:             slug,
+		Platform:         "darwin",
+		UniqueIdentifier: bundleID,
+	})
+	require.NoError(t, err)
+	require.NotZero(t, app.ID)
+	return app
+}
+
+// addDarwinFMAInstaller adds app to a team as an installer, linked to the software title
+// carrying titleBundleID. It returns that title's ID.
+func addDarwinFMAInstaller(t *testing.T, ds *Datastore, userID uint, teamID *uint, app *fleet.MaintainedApp, titleBundleID string) uint {
+	_, titleID, err := ds.MatchOrCreateSoftwareInstaller(t.Context(), &fleet.UploadSoftwareInstallerPayload{
+		Title:                app.Name,
+		TeamID:               teamID,
+		Source:               "apps",
+		InstallScript:        "nothing",
+		Filename:             app.Name + ".dmg",
+		UserID:               userID,
+		Platform:             string(fleet.MacOSPlatform),
+		BundleIdentifier:     titleBundleID,
+		FleetMaintainedAppID: &app.ID,
+		ValidatedLabels:      &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+	return titleID
+}
+
+// testReconcileSoftwareNamesOrphanedInstaller: an installer whose title was deleted has a
+// NULL title_id. The installer-link pass must skip it -- its catalog subquery filters out
+// the NULL group rather than carrying a group no title can join -- while the
+// bundle-identifier pass still applies the canonical name.
+func testReconcileSoftwareNamesOrphanedInstaller(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	user := test.NewUser(t, ds, "Trillian", "trillian@example.com", true)
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "Team Orphan"})
+	require.NoError(t, err)
+
+	host := newTestHostWithPlatform(t, ds, "orphan-host", "darwin", nil)
+
+	_, err = ds.UpdateHostSoftware(ctx, host.ID, []fleet.Software{
+		{Name: "Code", Version: "1.0", Source: "apps", BundleIdentifier: "com.microsoft.VSCode"},
+	})
+	require.NoError(t, err)
+
+	vscode := upsertDarwinFMA(t, ds, "Microsoft Visual Studio Code", "com.microsoft.VSCode", "visual-studio-code/darwin")
+	addDarwinFMAInstaller(t, ds, user.ID, &team.ID, vscode, "com.microsoft.VSCode")
+
+	// Orphan the installer the way CleanupSoftwareTitles does, via the FK's ON DELETE SET NULL.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE software_installers SET title_id = NULL`)
+		return err
+	})
+
+	// Must not error. The bundle-identifier pass still applies the canonical name.
+	require.NoError(t, ds.ReconcileMaintainedAppSoftwareNames(ctx))
+
+	require.Equal(t, "Microsoft Visual Studio Code", softwareTitleName(t, ds, "com.microsoft.VSCode"))
+}
+
+// testReconcileSoftwareNamesIdentifierWinsOverInstallerLink pins the precedence between
+// the two passes. The installer link runs first, then the unambiguous bundle identifier,
+// so when they disagree the identifier is what lands.
+func testReconcileSoftwareNamesIdentifierWinsOverInstallerLink(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	user := test.NewUser(t, ds, "Slartibartfast", "slarti@example.com", true)
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "Team Precedence"})
+	require.NoError(t, err)
+
+	// An app whose identifier is com.example.identifier, so that identifier maps
+	// unambiguously to "Identifier Name".
+	_, err = ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name:             "Identifier Name",
+		Slug:             "identifier-name/darwin",
+		Platform:         "darwin",
+		UniqueIdentifier: "com.example.identifier",
+	})
+	require.NoError(t, err)
+
+	// A different app, linked by installer to a title that carries the identifier above.
+	other := upsertDarwinFMA(t, ds, "Installer Link Name", "com.example.other", "installer-link/darwin")
+	titleID := addDarwinFMAInstaller(t, ds, user.ID, &team.ID, other, "com.example.identifier")
+
+	require.NoError(t, ds.ReconcileMaintainedAppSoftwareNames(ctx))
+
+	var name string
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &name, `SELECT name FROM software_titles WHERE id = ?`, titleID)
+	})
+	require.Equal(t, "Identifier Name", name, "the bundle-identifier pass runs last and wins")
+}
+
+// testReconcileSoftwareNamesMultiTeamInstallers: one app added to several teams has an
+// installer row per team, all pointing at the same title. The GROUP BY must collapse them
+// so the title is not treated as ambiguous.
+func testReconcileSoftwareNamesMultiTeamInstallers(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	user := test.NewUser(t, ds, "Marvin", "marvin@example.com", true)
+	teamA, err := ds.NewTeam(ctx, &fleet.Team{Name: "Team A"})
+	require.NoError(t, err)
+	teamB, err := ds.NewTeam(ctx, &fleet.Team{Name: "Team B"})
+	require.NoError(t, err)
+
+	host := newTestHostWithPlatform(t, ds, "multi-team-host", "darwin", nil)
+
+	_, err = ds.UpdateHostSoftware(ctx, host.ID, []fleet.Software{
+		{Name: "Code", Version: "1.0", Source: "apps", BundleIdentifier: "com.microsoft.VSCode"},
+	})
+	require.NoError(t, err)
+
+	vscode := upsertDarwinFMA(t, ds, "Microsoft Visual Studio Code", "com.microsoft.VSCode", "visual-studio-code/darwin")
+	titleA := addDarwinFMAInstaller(t, ds, user.ID, &teamA.ID, vscode, "com.microsoft.VSCode")
+	titleB := addDarwinFMAInstaller(t, ds, user.ID, &teamB.ID, vscode, "com.microsoft.VSCode")
+	require.Equal(t, titleA, titleB, "per-team installers must share one title")
+
+	var installerCount int
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &installerCount,
+			`SELECT COUNT(*) FROM software_installers WHERE title_id = ?`, titleA)
+	})
+	require.Equal(t, 2, installerCount)
+
+	require.NoError(t, ds.ReconcileMaintainedAppSoftwareNames(ctx))
+
+	require.Equal(t, []string{"Microsoft Visual Studio Code"}, softwareNames(t, ds, "com.microsoft.VSCode"))
+}
+
+// testReconcileSoftwareNamesLeavesMobileSiblings: iOS and iPadOS titles can share a bundle
+// identifier with a macOS app but are separate products, so a macOS app's canonical name
+// must not be pushed onto them.
+func testReconcileSoftwareNamesLeavesMobileSiblings(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	host := newTestHostWithPlatform(t, ds, "sibling-host", "darwin", nil)
+
+	_, err := ds.UpdateHostSoftware(ctx, host.ID, []fleet.Software{
+		{Name: "Code", Version: "1.0", Source: "apps", BundleIdentifier: "com.microsoft.VSCode"},
+	})
+	require.NoError(t, err)
+
+	// iOS and iPadOS titles sharing the identifier, as VPP or in-house apps produce.
+	// additional_identifier is generated from source, so these coexist with the macOS row.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		for _, source := range []string{"ios_apps", "ipados_apps"} {
+			res, err := q.ExecContext(ctx,
+				`INSERT INTO software_titles (name, source, bundle_identifier) VALUES (?, ?, 'com.microsoft.VSCode')`,
+				"Code Mobile", source)
+			if err != nil {
+				return err
+			}
+			titleID, err := res.LastInsertId()
+			if err != nil {
+				return err
+			}
+			if _, err := q.ExecContext(ctx,
+				`INSERT INTO software (name, version, source, bundle_identifier, title_id, checksum)
+				 VALUES (?, '1.0', ?, 'com.microsoft.VSCode', ?, UNHEX(MD5(?)))`,
+				"Code Mobile", source, titleID, source); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+
+	_, err = ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name:             "Microsoft Visual Studio Code",
+		Slug:             "visual-studio-code/darwin",
+		Platform:         "darwin",
+		UniqueIdentifier: "com.microsoft.VSCode",
+	})
+	require.NoError(t, err)
+
+	require.NoError(t, ds.ReconcileMaintainedAppSoftwareNames(ctx))
+
+	namesBySource := func(table string) map[string]string {
+		out := map[string]string{}
+		var rows []struct {
+			Source string `db:"source"`
+			Name   string `db:"name"`
+		}
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, q, &rows,
+				`SELECT source, name FROM `+table+` WHERE bundle_identifier = 'com.microsoft.VSCode'`)
+		})
+		for _, r := range rows {
+			out[r.Source] = r.Name
+		}
+		return out
+	}
+
+	titles := namesBySource("software_titles")
+	require.Equal(t, "Microsoft Visual Studio Code", titles["apps"])
+	require.Equal(t, "Code Mobile", titles["ios_apps"])
+	require.Equal(t, "Code Mobile", titles["ipados_apps"])
+
+	software := namesBySource("software")
+	require.Equal(t, "Microsoft Visual Studio Code", software["apps"])
+	require.Equal(t, "Code Mobile", software["ios_apps"])
+	require.Equal(t, "Code Mobile", software["ipados_apps"])
 }
 
 // testListAvailableAppsSharedIdentifier: adding Firefox must not mark its
@@ -1391,7 +1686,7 @@ func testGetWindowsFMAMatches(t *testing.T, ds *Datastore) {
 		BundleIdentifier:     "com.granola.app",
 		UserID:               user.ID,
 		ValidatedLabels:      &fleet.LabelIdentsWithScope{},
-		FleetMaintainedAppID: new(darwinApp.ID),
+		FleetMaintainedAppID: &darwinApp.ID,
 	})
 	require.NoError(t, err)
 
@@ -1458,7 +1753,7 @@ func testWindowsFMANameOnIngest(t *testing.T, ds *Datastore) {
 		Version:              "7.373.2",
 		UserID:               user.ID,
 		ValidatedLabels:      &fleet.LabelIdentsWithScope{},
-		FleetMaintainedAppID: new(maintained.ID),
+		FleetMaintainedAppID: &maintained.ID,
 	})
 	require.NoError(t, err)
 
@@ -1783,7 +2078,7 @@ func testWindowsFMAMultiTeamInstallersShareTitle(t *testing.T, ds *Datastore) {
 		Version:              "1.0.0",
 		UserID:               user.ID,
 		ValidatedLabels:      &fleet.LabelIdentsWithScope{},
-		FleetMaintainedAppID: new(app.ID),
+		FleetMaintainedAppID: &app.ID,
 	})
 	require.NoError(t, err)
 	require.Equal(t, titleID, teamTitleID, "both teams' installers should share one title")
@@ -2234,7 +2529,7 @@ func addWindowsFMAWithInstaller(t *testing.T, ds *Datastore, userID uint, name, 
 		Version:              "1.0.0",
 		UserID:               userID,
 		ValidatedLabels:      &fleet.LabelIdentsWithScope{},
-		FleetMaintainedAppID: new(app.ID),
+		FleetMaintainedAppID: &app.ID,
 	})
 	require.NoError(t, err)
 

@@ -177,7 +177,7 @@ const WindowsTargetForm = ({
     <form className={baseClass} onSubmit={handleSubmit}>
       <InputField
         disabled={gitOpsModeEnabled}
-        label="Deadline"
+        label="Days after release"
         tooltip="Number of days the end user has before updates are installed and the host is forced to restart."
         helpText="Number of days from 0 to 30."
         value={formData.deadlineDays}

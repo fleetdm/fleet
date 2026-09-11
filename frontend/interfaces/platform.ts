@@ -121,6 +121,7 @@ export const HOST_LINUX_PLATFORMS = [
   "coreos", // CoreOS Container Linux
   "cachyos", // CachyOS (Arch-based)
   "omarchy", // Omarchy (Arch-based)
+  "amd-ryzen-ai-developer-platform", // AMD Ryzen AI Developer Platform (Debian-based)
 ] as const;
 
 export const HOST_APPLE_PLATFORMS = ["darwin", "ios", "ipados"] as const;
@@ -253,6 +254,24 @@ export const isSetupExperiencePlatform = (
   s: string | undefined
 ): s is SetupExperiencePlatform => {
   return SETUP_EXPERIENCE_PLATFORMS.includes(s as SetupExperiencePlatform);
+};
+
+// --- Disk encryption settings platforms (Controls > OS settings) ---
+
+export const DISK_ENCRYPTION_SETTINGS_PLATFORMS = [
+  "macos",
+  "windows",
+  "linux",
+] as const;
+
+export type DiskEncryptionSettingsPlatform = typeof DISK_ENCRYPTION_SETTINGS_PLATFORMS[number];
+
+export const isDiskEncryptionSettingsPlatform = (
+  s: string | undefined
+): s is DiskEncryptionSettingsPlatform => {
+  return DISK_ENCRYPTION_SETTINGS_PLATFORMS.includes(
+    s as DiskEncryptionSettingsPlatform
+  );
 };
 
 // -- Vulnerability support by platform --

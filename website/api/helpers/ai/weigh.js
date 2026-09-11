@@ -73,7 +73,7 @@ module.exports = {
     let weights = await sails.helpers.flow.build(async ()=>{
       let parsedPromptResponse = await sails.helpers.ai.prompt.with({
         expectJson: true,
-        baseModel: 'o4-mini-2025-04-16',
+        baseModel: 'claude-sonnet-5',
         prompt: prompt,
       })
       .retry('jsonExpectationFailed');

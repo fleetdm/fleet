@@ -4,7 +4,8 @@
       "version": "2.9.0.33",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Delinea Connection Manager' AND publisher = 'Delinea Inc..';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Delinea Connection Manager' AND publisher = 'Delinea Inc..' AND version_compare(version, '2.9.0.33') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Delinea Connection Manager' AND publisher = 'Delinea Inc..' AND version_compare(version, '2.9.0.33') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'delinea connection manager.exe');"
       },
       "installer_url": "https://downloads.cm.thycotic.com/Delinea.ConnectionManager.WindowsInstaller.msi",
       "install_script_ref": "00512c4c",

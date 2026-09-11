@@ -4,7 +4,8 @@
       "version": "1.13.1.1884",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'Viscosity %' AND publisher = 'SparkLabs Pty Ltd';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Viscosity %' AND publisher = 'SparkLabs Pty Ltd' AND version_compare(version, '1.13.1.1884') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Viscosity %' AND publisher = 'SparkLabs Pty Ltd' AND version_compare(version, '1.13.1.1884') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'viscosity.exe');"
       },
       "installer_url": "https://swupdate.sparklabs.com/download/win/release/viscosity/Viscosity%20Installer%201.13.1.exe",
       "install_script_ref": "d37a65b5",

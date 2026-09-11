@@ -328,7 +328,9 @@ func TestAddFleetMaintainedApp(t *testing.T) {
 		require.Equal(t, "programs", payload.Source)
 		require.Equal(t, "Hello World!", payload.InstallScript)
 		require.Equal(t, "Hello World!", payload.UninstallScript)
-		require.Equal(t, installerServer.URL+"/iexplode.exe", payload.URL)
+		require.Equal(t, installerServer.URL+"/IEXPLODE-SETUP.EXE", payload.URL)
+		require.Equal(t, "IEXPLODE-SETUP.EXE", payload.Filename, "filename keeps the original casing")
+		require.Equal(t, "exe", payload.Extension)
 
 		// Can't easily inject a proper fleet.service so we bail early before NewActivity gets called and panics
 		return 0, 0, errors.New("forced error to short-circuit storage and activity creation")
@@ -342,7 +344,7 @@ func TestAddFleetMaintainedApp(t *testing.T) {
 			Queries: ma.FMAQueries{
 				Exists: "SELECT 1 FROM osquery_info;",
 			},
-			InstallerURL:       installerServer.URL + "/iexplode.exe",
+			InstallerURL:       installerServer.URL + "/IEXPLODE-SETUP.EXE",
 			InstallScriptRef:   "foobaz",
 			UninstallScriptRef: "foobaz",
 			SHA256:             noCheckHash,

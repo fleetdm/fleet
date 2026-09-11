@@ -4,7 +4,8 @@
       "version": "2.8.6",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.macosforge.xquartz.X11';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.macosforge.xquartz.X11' AND version_compare(bundle_short_version, '2.8.6') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.macosforge.xquartz.X11' AND version_compare(bundle_short_version, '2.8.6') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'org.macosforge.xquartz.X11' AND a.bundle_executable != '');"
       },
       "installer_url": "https://github.com/XQuartz/XQuartz/releases/download/XQuartz-2.8.6/XQuartz-2.8.6.pkg",
       "install_script_ref": "6da44842",

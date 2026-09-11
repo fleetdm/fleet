@@ -1,15 +1,16 @@
 {
   "versions": [
     {
-      "version": "6.8.2",
+      "version": "6.8.4",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.houdah.HoudahSpot6';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.houdah.HoudahSpot6' AND version_compare(bundle_short_version, '6.8.2') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.houdah.HoudahSpot6' AND version_compare(bundle_short_version, '6.8.4') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.houdah.HoudahSpot6' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://dl.houdah.com/houdahSpot/updates/cast_assets/156b5d02-8e40-4b77-bcda-d1c6e91c16ad/HoudahSpot_6.8.2.dmg",
+      "installer_url": "https://dl.houdah.com/houdahSpot/updates/cast_assets/a0b1d3c4-dff8-4f7d-b39e-4caed1924756/HoudahSpot_6.8.4.dmg",
       "install_script_ref": "1ac21a08",
       "uninstall_script_ref": "c4ab567f",
-      "sha256": "588d1faed0be87f550fdeb2445427396b2650862f7d899e952d577d272557ad1",
+      "sha256": "2dfda1d96451680781fa5dff8c8869efe0bab076f6b3c573404d0bca03dcb047",
       "default_categories": [
         "Productivity"
       ]

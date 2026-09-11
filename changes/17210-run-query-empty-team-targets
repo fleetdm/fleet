@@ -1,0 +1,1 @@
+- Fixed live query authorization so that an empty team selection is authorized like an omitted one.

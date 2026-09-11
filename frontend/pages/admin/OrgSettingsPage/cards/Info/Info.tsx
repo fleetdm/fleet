@@ -399,9 +399,7 @@ const Info = ({
               tipContent={
                 <>
                   URL is used in &quot;Reach out to IT&quot; links shown to the
-                  end
-                  <br />
-                  user (e.g. self-service and during MDM migration).
+                  end user (e.g. self service and during MDM migration).
                 </>
               }
             >
