@@ -8392,11 +8392,13 @@ For requests with 100+ profiles, requests will take 5+ seconds.
 | labels_include_all      | array   | _Available in Fleet Premium_. Target hosts that have all labels, specified by label name, in the array. |
 | labels_include_any      | array   | _Available in Fleet Premium_. Target hosts that have any label, specified by label name, in the array. |
 | labels_exclude_any      | array   | _Available in Fleet Premium_. Target hosts that that don't have any label, specified by label name, in the array. |
-| display_name            | string  | The display name for the profile. Required for Windows and declaration (DDM) profiles. For .mobileconfig profiles, if not specified, the profile's `PayloadDisplayName` is used. |
+| name                    | string  | The display name for the profile. Required for Windows and declaration (DDM) profiles. For .mobileconfig profiles, if not specified, the profile's `PayloadDisplayName` is used. |
 | description             | string  | An optional description for the profile. |
 | activation              | string  | _Available in Fleet Premium_. The Base64 encoded activation criteria for the profile. Only supported for declaration (DDM) profiles. For all other profile types, this value is `null`. |
 
 For each `profile`, `labels_exclude_any` can be combined with either `labels_include_all` or `labels_include_any`, but `labels_include_all` and `labels_include_any` cannot be combined with each other. If neither is set, all hosts on the specified platform are targeted.
+
+> `display_name` is deprecated. Please use `name` instead.
 
 #### Example
 
@@ -8409,7 +8411,7 @@ For each `profile`, `labels_exclude_any` can be combined with either `labels_inc
   "configuration_profiles": [
     {
       "profile": "<base64-encoded DDM profile>",
-      "display_name": "Passcode Settings",
+      "name": "Passcode Settings",
       "activation": "eyJldmVudCI6...",
       "labels_include_any": [
         "Apple Silicon macOS hosts"
