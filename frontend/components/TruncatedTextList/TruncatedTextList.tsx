@@ -25,16 +25,26 @@ interface ITruncatedTextListProps {
 const truncateString = (s: string, max: number) =>
   s.length > max ? `${s.slice(0, max).trimEnd()}...` : s;
 
-const renderItemsList = (list: string[]) => (
-  <>
-    {list.map((name, i) => (
-      <React.Fragment key={name}>
-        {name}
-        {i < list.length - 1 && <br />}
-      </React.Fragment>
-    ))}
-  </>
-);
+/** A hover tooltip can't scroll, so an uncapped list runs off the screen with
+ * no way to reach the rest of it. Same cap idea as `VulnerabilitiesCell`. */
+const MAX_ITEMS_IN_TOOLTIP = 10;
+
+const renderItemsList = (list: string[]) => {
+  const shown = list.slice(0, MAX_ITEMS_IN_TOOLTIP);
+  const remaining = list.length - shown.length;
+
+  return (
+    <>
+      {shown.map((name, i) => (
+        <React.Fragment key={name}>
+          {name}
+          {(i < shown.length - 1 || remaining > 0) && <br />}
+        </React.Fragment>
+      ))}
+      {remaining > 0 && `+${remaining} more`}
+    </>
+  );
+};
 
 interface IRenderVisibleRowParams {
   visibleCount: number;

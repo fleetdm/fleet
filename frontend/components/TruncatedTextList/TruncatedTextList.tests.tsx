@@ -65,4 +65,19 @@ describe("TruncatedTextList — truncatedFirstContent edge cases", () => {
       expect.objectContaining({ tipContent: longName })
     );
   });
+
+  it("caps the hidden items listed in the tooltip and counts the rest", () => {
+    const items = Array.from({ length: 57 }, (_, i) => `CVE-2026-${i}`);
+    render(<TruncatedTextList items={items} />);
+
+    // The first item is short enough to skip its own tooltip, so the only
+    // wrapper here is the "+N more" pill's.
+    const { tipContent } = mockedTooltipWrapper.mock.calls[0][0];
+    const { container } = render(<div>{tipContent}</div>);
+
+    // 56 items are hidden: 10 listed, the remaining 46 rolled into a count.
+    expect(container).toHaveTextContent("CVE-2026-10");
+    expect(container).not.toHaveTextContent("CVE-2026-11");
+    expect(container).toHaveTextContent("+46 more");
+  });
 });
