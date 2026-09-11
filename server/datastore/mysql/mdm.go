@@ -3227,30 +3227,6 @@ func getMDMIdPAccountsByHostIDs(ctx context.Context, q sqlx.QueryerContext, logg
 	return accts, nil
 }
 
-// getHostIDsByMDMIdPAccountUUIDs returns every host enrolled with the accounts,
-// SCIM-linked or not.
-func getHostIDsByMDMIdPAccountUUIDs(ctx context.Context, q sqlx.QueryerContext, acctUUIDs []string) ([]uint, error) {
-	if len(acctUUIDs) == 0 {
-		return nil, nil
-	}
-
-	stmt, args, err := sqlx.In(`
-		SELECT h.id
-		FROM hosts h
-		JOIN host_mdm_idp_accounts hmia ON hmia.host_uuid = h.uuid
-		WHERE hmia.account_uuid IN (?)
-		ORDER BY h.id`, acctUUIDs)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "prepare get host ids by mdm idp account arguments")
-	}
-
-	var hostIDs []uint
-	if err := sqlx.SelectContext(ctx, q, &hostIDs, stmt, args...); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "select host ids by mdm idp account")
-	}
-	return hostIDs, nil
-}
-
 func (ds *Datastore) CleanUpMDMManagedCertificates(ctx context.Context) error {
 	_, err := ds.writer(ctx).ExecContext(ctx, `
 	DELETE hmmc FROM host_mdm_managed_certificates hmmc

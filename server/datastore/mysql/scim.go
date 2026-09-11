@@ -461,23 +461,11 @@ func reconcileHostIdPMappingsForIdPEmailChange(
 		acctsByUUID[acct.UUID] = acct
 	}
 
-	// the account rename reaches every host enrolled with it, SCIM-linked or not
-	acctUUIDs := slices.Sorted(maps.Keys(acctsByUUID))
-	acctHostIDs, err := getHostIDsByMDMIdPAccountUUIDs(ctx, tx, acctUUIDs)
-	if err != nil {
-		return nil, err
-	}
-	affectedHostIDs := make(map[uint]struct{}, len(hostIDs)+len(acctHostIDs))
-	for _, hostID := range slices.Concat(hostIDs, acctHostIDs) {
-		affectedHostIDs[hostID] = struct{}{}
-	}
-	hostIDs = slices.Sorted(maps.Keys(affectedHostIDs))
-
 	// sorted for a stable outcome when the hosts span more than one account: the
 	// unique index lets only one hold the new email, so whichever is renamed
 	// first wins and the others get repointed at it
-	for _, acctUUID := range acctUUIDs {
-		if err := renameMDMIdPAccount(ctx, tx, logger, acctsByUUID[acctUUID], hostIDs, newEmail); err != nil {
+	for _, acctUUID := range slices.Sorted(maps.Keys(acctsByUUID)) {
+		if err := renameMDMIdPAccount(ctx, tx, logger, acctsByUUID[acctUUID], newEmail); err != nil {
 			return nil, err
 		}
 	}
@@ -517,7 +505,6 @@ func renameMDMIdPAccount(
 	tx sqlx.ExtContext,
 	logger *slog.Logger,
 	idpAcct *fleet.MDMIdPAccount,
-	hostIDs []uint,
 	newEmail string,
 ) error {
 	if idpAcct == nil || idpAcct.Email == newEmail {
@@ -528,7 +515,7 @@ func renameMDMIdPAccount(
 	_, err := tx.ExecContext(ctx, updateStmt, newEmail, fleet.EmailLocalPart(newEmail), idpAcct.UUID)
 	switch {
 	case err == nil:
-		logger.InfoContext(ctx, "scim user rename: update mdm idp account email", "host_ids", fmt.Sprintf("%v", hostIDs),
+		logger.InfoContext(ctx, "scim user rename: update mdm idp account email",
 			"old_email", idpAcct.Email, "new_email", newEmail, "account_uuid", idpAcct.UUID)
 		return nil
 	case !IsDuplicate(err):
@@ -538,16 +525,12 @@ func renameMDMIdPAccount(
 	// if we get a dup error, another row already holds the new email
 	// (the user re-authenticated after the rename): repoint every host
 	// on this account at it.
-	repointStmt, args, err := sqlx.In(`
+	const repointStmt = `
 		UPDATE host_mdm_idp_accounts hmia
 		JOIN mdm_idp_accounts mia ON mia.email = ?
 		SET hmia.account_uuid = mia.uuid
-		WHERE hmia.account_uuid = ? AND hmia.host_uuid IN (SELECT uuid FROM hosts WHERE id IN (?))`,
-		newEmail, idpAcct.UUID, hostIDs)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "prepare repoint host mdm idp accounts arguments")
-	}
-	res, err := tx.ExecContext(ctx, repointStmt, args...)
+		WHERE hmia.account_uuid = ?`
+	res, err := tx.ExecContext(ctx, repointStmt, newEmail, idpAcct.UUID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "repoint host mdm idp accounts")
 	}
@@ -558,24 +541,29 @@ func renameMDMIdPAccount(
 	if rowsAffected == 0 {
 		return ctxerr.Errorf(ctx, "no host repointed to the account holding %q", newEmail)
 	}
-	logger.InfoContext(ctx, "scim user rename: repoint host mdm idp accounts", "host_ids", fmt.Sprintf("%v", hostIDs),
+	logger.InfoContext(ctx, "scim user rename: repoint host mdm idp accounts", "account_uuid", idpAcct.UUID,
 		"old_email", idpAcct.Email, "new_email", newEmail, "hosts_repointed", rowsAffected)
 	return nil
 }
 
 // renameHostIdPEmails rewrites both mapping sources and returns the hosts whose
 // authenticated row moved, the only source the IdP email variable resolves from.
+//
+// Authenticated rows are matched on the address rather than on scimHostIDs: the
+// account email is unique, so a row holding it belongs to that account whether or
+// not its host is linked to the SCIM user. Manual rows carry no such guarantee,
+// so they stay scoped to the user's own hosts.
 func renameHostIdPEmails(
 	ctx context.Context,
 	tx sqlx.ExtContext,
 	logger *slog.Logger,
-	hostIDs []uint,
+	scimHostIDs []uint,
 	oldIdentities []string,
 	newEmail string,
 ) ([]uint, error) {
 	selStmt, selArgs, err := sqlx.In(
-		`SELECT DISTINCT host_id FROM host_emails WHERE host_id IN (?) AND source = ? AND email IN (?) AND email <> ? ORDER BY host_id`,
-		hostIDs, fleet.DeviceMappingMDMIdpAccounts, oldIdentities, newEmail)
+		`SELECT DISTINCT host_id FROM host_emails WHERE source = ? AND email IN (?) AND email <> ? ORDER BY host_id`,
+		fleet.DeviceMappingMDMIdpAccounts, oldIdentities, newEmail)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "prepare select host idp device mappings arguments")
 	}
@@ -584,24 +572,44 @@ func renameHostIdPEmails(
 		return nil, ctxerr.Wrap(ctx, err, "select host idp device mappings")
 	}
 
-	// rewritten in place so the row keeps its source
-	stmt, args, err := sqlx.In(
-		`UPDATE host_emails SET email = ? WHERE host_id IN (?) AND source IN (?, ?) AND email IN (?)`,
-		newEmail, hostIDs, fleet.DeviceMappingMDMIdpAccounts, fleet.DeviceMappingIDP, oldIdentities)
+	// rewritten in place so the rows keep their source
+	authStmt, authArgs, err := sqlx.In(
+		`UPDATE host_emails SET email = ? WHERE source = ? AND email IN (?)`,
+		newEmail, fleet.DeviceMappingMDMIdpAccounts, oldIdentities)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "prepare update host_emails arguments")
+		return nil, ctxerr.Wrap(ctx, err, "prepare update authenticated host_emails arguments")
 	}
-	res, err := tx.ExecContext(ctx, stmt, args...)
+	authRes, err := tx.ExecContext(ctx, authStmt, authArgs...)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "update host_emails")
+		return nil, ctxerr.Wrap(ctx, err, "update authenticated host_emails")
 	}
-	rowsAffected, err := res.RowsAffected()
+	authRows, err := authRes.RowsAffected()
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "get rows affected for update host_emails")
+		return nil, ctxerr.Wrap(ctx, err, "get rows affected for update authenticated host_emails")
 	}
-	if rowsAffected == 0 {
-		logger.DebugContext(ctx, "scim user rename: no host idp device mapping to update", "host_ids", fmt.Sprintf("%v", hostIDs), "new_email", newEmail)
+
+	manualStmt, manualArgs, err := sqlx.In(
+		`UPDATE host_emails SET email = ? WHERE host_id IN (?) AND source = ? AND email IN (?)`,
+		newEmail, scimHostIDs, fleet.DeviceMappingIDP, oldIdentities)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "prepare update manual host_emails arguments")
+	}
+	manualRes, err := tx.ExecContext(ctx, manualStmt, manualArgs...)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "update manual host_emails")
+	}
+	manualRows, err := manualRes.RowsAffected()
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get rows affected for update manual host_emails")
+	}
+	if authRows+manualRows == 0 {
+		logger.DebugContext(ctx, "scim user rename: no host idp device mapping to update", "new_email", newEmail)
 		return nil, nil
+	}
+
+	dedupe := make(map[uint]struct{}, len(changedHostIDs)+len(scimHostIDs))
+	for _, hostID := range slices.Concat(changedHostIDs, scimHostIDs) {
+		dedupe[hostID] = struct{}{}
 	}
 
 	// an authenticated and a manual row may now hold the same address; the
@@ -611,7 +619,7 @@ func renameHostIdPEmails(
 		 JOIN host_emails authenticated
 		   ON authenticated.host_id = manual.host_id AND authenticated.source = ? AND authenticated.email = ?
 		 WHERE manual.host_id IN (?) AND manual.source = ? AND manual.email = ?`,
-		fleet.DeviceMappingMDMIdpAccounts, newEmail, hostIDs, fleet.DeviceMappingIDP, newEmail)
+		fleet.DeviceMappingMDMIdpAccounts, newEmail, slices.Sorted(maps.Keys(dedupe)), fleet.DeviceMappingIDP, newEmail)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "prepare delete duplicate host idp device mappings arguments")
 	}

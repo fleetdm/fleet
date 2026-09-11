@@ -3692,6 +3692,25 @@ func testReplaceScimUserRenameResendsEmailIdPProfiles(t *testing.T, ds *Datastor
 	_, err = ds.ScimUserByHostID(ctx, unlinked.ID)
 	require.True(t, fleet.IsNotFound(err))
 
+	// a host already showing the new address has nothing to resolve again
+	const dualOld, dualNew = "opal@example.com", "opal.vance@example.com"
+	dual := newScimIdPMappingHost(t, ds, "resenddualold", "opal", dualOld, dualOld)
+	dualNewHost := newScimIdPMappingHostOnly(t, ds, "resenddualnew")
+	dualNewAcct := insertScimIdPAccount(t, ds, "opal.vance", dualNew)
+	require.NoError(t, ds.AssociateHostMDMIdPAccount(ctx, dualNewHost.UUID, dualNewAcct.UUID))
+	requireHostIdPDeviceMapping(t, ds, dualNewHost.ID, dualNew)
+	require.NoError(t, ds.associateHostWithScimUser(ctx, dualNewHost.ID, dual.scimUserID))
+	forceSetAppleHostProfileStatus(t, ds, dual.host.UUID, profEmail, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
+	forceSetAppleHostProfileStatus(t, ds, dualNewHost.UUID, profEmail, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
+
+	_, err = ds.ReplaceScimUser(ctx, &fleet.ScimUser{ID: dual.scimUserID, UserName: dualNew})
+	require.NoError(t, err)
+
+	assertHostProfileStatus(t, ds, dual.host.UUID,
+		hostProfileStatus{profEmail.ProfileUUID, fleet.MDMDeliveryPending})
+	assertHostProfileStatus(t, ds, dualNewHost.UUID,
+		hostProfileStatus{profEmail.ProfileUUID, fleet.MDMDeliveryVerifying})
+
 	// a manual-only mapping is not a source for the IdP email variable: no resend
 	const manualOld, manualNew = "noah@example.com", "noah.kim@example.com"
 	manual := newScimIdPMappingHostOnly(t, ds, "resendmanualonly")
