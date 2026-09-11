@@ -297,7 +297,31 @@ To reduce these risks:
 - Before a large rollout, confirm your VPP token is valid and you have enough available licenses for the apps you're installing.
 - If available, choose Fleet-maintained app over App Store (VPP) app for better control
 
+### Host stuck during setup experience
+
 If a host gets stuck, you can send the [`DeviceConfigured`](https://developer.apple.com/documentation/devicemanagement/device-configured-command) command using Fleet's [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command) API to let the end user through.
+
+Generate a `CommandUUID` by running `uuidgen` on macOS, Linux, or use an online [UUID Generator](https://www.uuidgenerator.net/), and use the following example:
+
+```
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Command</key>
+    <dict>
+        <key>RequestType</key>
+        <string>DeviceConfigured</string>
+    </dict>
+    <key>CommandUUID</key>
+    <string>REPLACE-WITH-A-UUID</string>
+</dict>
+</plist>
+```
+You can then send this command using `fleetctl`, or via the API.
+
+- `fleetctl mdm run-command --hosts <hostname-or-serial-or-uuid> --payload <path-to-plist>`
+- `POST /api/v1/fleet/commands/run`
 
 ## Run script
 
