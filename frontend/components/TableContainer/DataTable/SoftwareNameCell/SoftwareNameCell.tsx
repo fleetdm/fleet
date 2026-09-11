@@ -71,9 +71,18 @@ const installIconMap: Record<InstallType, InstallIconConfig> = {
       autoUpdateEnabled = false,
       autoUpdateWindowStart,
       autoUpdateWindowEnd,
+      isIosOrIpadosApp = false,
     }) => {
+      // Mirror the getInstallIconType source gate: the auto-update cron in
+      // apple_mdm.go only acts on ios_apps / ipados_apps. A stale schedule
+      // row on a macOS VPP title paired with a policy would otherwise leak
+      // an "Auto updates between …" line even though nothing will actually
+      // run against that schedule.
       const showAutoUpdate =
-        autoUpdateEnabled && !!autoUpdateWindowStart && !!autoUpdateWindowEnd;
+        autoUpdateEnabled &&
+        !!autoUpdateWindowStart &&
+        !!autoUpdateWindowEnd &&
+        isIosOrIpadosApp;
       return (
         <>
           {automaticInstallPoliciesCount > 0 && (
@@ -99,8 +108,12 @@ const installIconMap: Record<InstallType, InstallIconConfig> = {
       autoUpdateWindowStart,
       autoUpdateWindowEnd,
     }) => {
+      // Same source gate as the `automatic` branch above — see comment there.
       const showAutoUpdate =
-        autoUpdateEnabled && !!autoUpdateWindowStart && !!autoUpdateWindowEnd;
+        autoUpdateEnabled &&
+        !!autoUpdateWindowStart &&
+        !!autoUpdateWindowEnd &&
+        isIosOrIpadosApp;
       return (
         <>
           {automaticInstallPoliciesCount > 0 && (
