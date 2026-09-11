@@ -2,8 +2,6 @@
 
 Software inventory in Fleet collects the apps, operating systems, browser extensions, packages, IDE extensions, plugins, and binaries installed on your hosts. [Vulnerability (CVE) processing](https://fleetdm.com/guides/vulnerability-processing#coverage) runs against this inventory, so software that isn't collected here can't be checked for vulnerabilities.
 
-
-
 ## Apps
 
 | Type | Collected on | Data collected | Vulnerabilities | Caveats |
@@ -21,14 +19,14 @@ Software inventory in Fleet collects the apps, operating systems, browser extens
 
 ## Operating systems
 
-| Platform | Collected | Data collected | Vulnerabilities |
+| Type | Data collected | Vulnerabilities | Caveats |
 | --- | --- | --- | --- |
-| macOS | ✅ | Name, version, architecture, and kernel version. | ✅ |
-| Windows 10, 11, and Server | ✅ | Name, version, display version (such as 23H2), architecture, and installation type. | ✅ Matched against Microsoft security bulletins. |
-| ChromeOS | ✅ | Name, version, and architecture. | ❌ |
-| Android | ✅ | Name and version. | ✅ Matched against the Android security patch level. |
-| iOS and iPadOS | ✅ | Name and version. | ❌ |
-| Linux | ✅ On recognized distributions. See the table below. | Name, version, architecture, and kernel version. | ✅ Kernel vulnerabilities, on supported distributions. |
+| macOS | Name, version, architecture, and kernel version. | ✅ | — |
+| Windows 10, 11, and Server | Name, version, display version (such as 23H2), architecture, and installation type. | ✅ Matched against Microsoft security bulletins. | — |
+| ChromeOS | Name, version, and architecture. | ❌ | — |
+| Android | Name and version. | ✅ Matched against the Android security patch level. | — |
+| iOS and iPadOS | Name and version. | ❌ | — |
+| Linux | Name, version, architecture, and kernel version. | ✅ Kernel vulnerabilities, on supported distributions. | Collected on recognized distributions only. See the table below. |
 
 ### Linux distributions
 
