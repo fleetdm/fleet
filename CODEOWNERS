@@ -72,7 +72,6 @@ go.mod @fleetdm/go
 /docs/Contributing                                      @lukeheath @georgekarrv @sharon-fdm # « Contributing guidelines
 /docs/Contributing/product-groups/orchestration/understanding-host-vitals.md @sharon-fdm @getvictor @lucasmrod
 /docs/REST\ API/rest-api.md                             @rachaelshaw # « REST API reference documentation
-/docs/Contributing/reference                            @rachaelshaw
 /docs/Contributing/reference/api-for-contributors.md    @rachaelshaw
 /docs/Contributing/reference/audit-logs.md              @rachaelshaw
 /docs/Contributing/reference/configuration-for-contributors.md @rachaelshaw
