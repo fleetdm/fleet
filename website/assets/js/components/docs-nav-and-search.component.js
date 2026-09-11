@@ -73,26 +73,26 @@ parasails.registerComponent('docsNavAndSearch', {
     //…
   },
   mounted: async function() {
-    let filterForSearch = {};
-    if(this.searchFilter){
-      let searchIndexesThatExist = ['docs', 'software', 'queries', 'vitals', 'policies', 'tables', 'controls'];
-      let buttonTextBySearchFilter = {
-        docs: 'Search the docs',
-        software: 'Search software',
-        queries: 'Search reports',
-        vitals: 'Search vitals',
-        policies: 'Search policies',
-        tables: 'Search data tables',
-        controls: 'Search controls'
-      };
-      if(!searchIndexesThatExist.includes(this.searchFilter)){
-        throw new Error(`Invalid 'searchFilter' value provided to <docs-nav-and-search> component. Please change the searchFilter value to one of: ${searchIndexesThatExist.join(', ')}`);
-      }
-      filterForSearch = {
-        'facetFilters': [`section:${this.searchFilter}`]
-      };
-      this.searchBoxLabel = buttonTextBySearchFilter[this.searchFilter];
-    }
+    // let filterForSearch = {};
+    // if(this.searchFilter){
+    //   let searchIndexesThatExist = ['docs', 'software', 'queries', 'vitals', 'policies', 'tables', 'controls'];
+    //   let buttonTextBySearchFilter = {
+    //     docs: 'Search the docs',
+    //     software: 'Search software',
+    //     queries: 'Search reports',
+    //     vitals: 'Search vitals',
+    //     policies: 'Search policies',
+    //     tables: 'Search data tables',
+    //     controls: 'Search controls'
+    //   };
+    //   if(!searchIndexesThatExist.includes(this.searchFilter)){
+    //     throw new Error(`Invalid 'searchFilter' value provided to <docs-nav-and-search> component. Please change the searchFilter value to one of: ${searchIndexesThatExist.join(', ')}`);
+    //   }
+    //   filterForSearch = {
+    //     'facetFilters': [`section:${this.searchFilter}`]
+    //   };
+    //   this.searchBoxLabel = buttonTextBySearchFilter[this.searchFilter];
+    // }
     // Note: algolia docsearch is disabled while we test sending search queries to google.
     // if(this.algoliaPublicKey) {
     //   docsearch({
