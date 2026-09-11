@@ -97,7 +97,17 @@ const stubQueries = (host: IHost) => {
   });
 };
 
-const renderPageAs = (currentUser: IUser, isGlobalAdmin: boolean) => {
+const renderHostDetails = (overrides?: {
+  currentUser?: IUser;
+  isGlobalAdmin?: boolean;
+  isMacMdmEnabledAndConfigured?: boolean;
+}) => {
+  const {
+    currentUser = ADMIN,
+    isGlobalAdmin = true,
+    isMacMdmEnabledAndConfigured = false,
+  } = overrides || {};
+
   const render = createCustomRenderer({
     withBackendMock: true,
     context: {
@@ -105,29 +115,7 @@ const renderPageAs = (currentUser: IUser, isGlobalAdmin: boolean) => {
         currentUser,
         isGlobalAdmin,
         isPremiumTier: true,
-        config: createMockConfig(),
-      },
-    },
-  });
-
-  return render(
-    <HostDetailsPage
-      router={createMockRouter()}
-      location={mockLocation}
-      params={{ host_id: "1" }}
-    />
-  );
-};
-
-const renderPage = () => {
-  const render = createCustomRenderer({
-    withBackendMock: true,
-    context: {
-      app: {
-        currentUser: ADMIN,
-        isGlobalAdmin: true,
-        isPremiumTier: true,
-        isMacMdmEnabledAndConfigured: true,
+        isMacMdmEnabledAndConfigured,
         config: createMockConfig(),
       },
     },
@@ -162,7 +150,7 @@ describe("HostDetailsPage - APNS ping on refetch", () => {
     stubQueries(mockAppleHost());
 
     // Global admin: refetch fires the ping too.
-    const { user, unmount } = renderPageAs(ADMIN, true);
+    const { user, unmount } = renderHostDetails({ currentUser: ADMIN, isGlobalAdmin: true });
     await user.click(await screen.findByRole("button", { name: /refetch/i }));
     await waitFor(() => {
       expect(hostAPI.refetch).toHaveBeenCalled();
@@ -174,7 +162,7 @@ describe("HostDetailsPage - APNS ping on refetch", () => {
     (hostAPI.apnsPing as jest.Mock).mockClear();
 
     // Global observer: fires the ping as well.
-    const { user: observer } = renderPageAs(OBSERVER, false);
+    const { user: observer } = renderHostDetails({ currentUser: OBSERVER, isGlobalAdmin: false });
     await observer.click(
       await screen.findByRole("button", { name: /refetch/i })
     );
@@ -197,7 +185,7 @@ describe("HostDetailsPage - pending hosts", () => {
       .mockResolvedValueOnce({ host: mockPendingWindowsHost("online") })
       .mockResolvedValue({ host: mockPendingWindowsHost("offline") });
 
-    renderPageAs(ADMIN, true);
+    renderHostDetails({ currentUser: ADMIN, isGlobalAdmin: true });
     await screen.findByText("Vitals");
     // Give the poll timer (2s) room to fire if it was scheduled.
     await new Promise((resolve) => setTimeout(resolve, 3000));
@@ -214,7 +202,7 @@ describe("HostDetailsPage - pending hosts", () => {
       .mockResolvedValueOnce({ host: mockPendingWindowsHost("online") })
       .mockResolvedValue({ host: mockPendingWindowsHost("offline") });
 
-    const { user } = renderPageAs(ADMIN, true);
+    const { user } = renderHostDetails({ currentUser: ADMIN, isGlobalAdmin: true });
     await user.click(await screen.findByRole("button", { name: /refetch/i }));
     await waitFor(() => {
       expect(hostAPI.refetch).toHaveBeenCalled();
@@ -240,7 +228,7 @@ describe("HostDetailsPage - Show MDM commands toggle", () => {
   it("keeps the toggle on across a remount", async () => {
     stubQueries(mockAppleHost());
 
-    const { user, unmount } = renderPage();
+    const { user, unmount } = renderHostDetails({ isMacMdmEnabledAndConfigured: true });
     const [toggle] = await screen.findAllByRole("switch");
     expect(toggle).not.toBeChecked();
     await user.click(toggle);
@@ -249,7 +237,7 @@ describe("HostDetailsPage - Show MDM commands toggle", () => {
     expect(local.getItem("hostDetailsShowMDMCommands")).toBe("true");
     unmount();
 
-    renderPage();
+    renderHostDetails({ isMacMdmEnabledAndConfigured: true });
     await waitFor(() => {
       expect(screen.getAllByRole("switch")[0]).toBeChecked();
     });
@@ -259,7 +247,7 @@ describe("HostDetailsPage - Show MDM commands toggle", () => {
     setMDMCommandsToggleLocalState(true);
     stubQueries(mockWindowsHost());
 
-    renderPage();
+    renderHostDetails();
 
     expect(await screen.findByText("No activity")).toBeInTheDocument();
     expect(screen.queryAllByRole("switch")).toHaveLength(0);
