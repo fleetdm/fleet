@@ -2302,17 +2302,20 @@ func selectSoftwareSQL(opts fleet.SoftwareListOptions) (string, []interface{}, e
 				baseJoinConditions["c.cisa_known_exploit"] = true
 			}
 
+			// The bounds can't share the goqu.Ex map entry for c.cvss_score (the
+			// second write replaces the first) and can't share a goqu.Op either
+			// (multiple operators are ORed), so append them as separate conditions.
+			joinConditions := goqu.And(baseJoinConditions)
 			if opts.MinimumCVSS > 0 {
-				baseJoinConditions["c.cvss_score"] = goqu.Op{"gte": opts.MinimumCVSS}
+				joinConditions = joinConditions.Append(goqu.I("c.cvss_score").Gte(opts.MinimumCVSS))
 			}
-
 			if opts.MaximumCVSS > 0 {
-				baseJoinConditions["c.cvss_score"] = goqu.Op{"lte": opts.MaximumCVSS}
+				joinConditions = joinConditions.Append(goqu.I("c.cvss_score").Lte(opts.MaximumCVSS))
 			}
 
 			ds = ds.InnerJoin(
 				goqu.I("cve_meta").As("c"),
-				goqu.On(baseJoinConditions),
+				goqu.On(joinConditions),
 			)
 
 		} else {

@@ -203,6 +203,8 @@ const HostsEnrolledCard = ({
     router.push(
       getPathWithQueryParams(PATHS.MANAGE_HOSTS_LABEL(labelId), {
         fleet_id: currentTeamId,
+        // the chart doesn't count hosts pending MDM enrollment
+        status: "enrolled",
       })
     );
   };

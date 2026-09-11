@@ -210,7 +210,7 @@ func NewBaseClient(
 		tlsConfig.RootCAs = rootCAPool
 	}
 
-	httpClient := fleethttp.NewClient(fleethttp.WithTLSClientConfig(tlsConfig))
+	httpClient := fleethttp.NewClient(fleethttp.WithNoTimeout(), fleethttp.WithTLSClientConfig(tlsConfig))
 	if signerWrapper != nil {
 		httpClient = signerWrapper(httpClient)
 	}

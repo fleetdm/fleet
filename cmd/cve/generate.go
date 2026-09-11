@@ -145,7 +145,7 @@ func downloadLatestGitHubAsset(dbDir, fileName string) error {
 		return fmt.Errorf("get github cve asset path: %w", err)
 	}
 
-	client := fleethttp.NewClient()
+	client := fleethttp.NewClient(fleethttp.WithNoTimeout())
 	resp, err := client.Get(assetPath + fileName)
 	if err != nil {
 		return fmt.Errorf("get last mod start date: %w", err)

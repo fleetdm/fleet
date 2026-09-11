@@ -308,6 +308,8 @@ import Dockfix from "./png/Dockfix.png";
 import Dockside from "./png/Dockside.png";
 import Dockview from "./png/Dockview.png";
 import Dot from "./png/Dot.png";
+import Dotpeek from "./png/Dotpeek.png";
+import Dottrace from "./png/Dottrace.png";
 import Doughnut from "./png/Doughnut.png";
 import Downie from "./png/Downie.png";
 import DraftableDesktop from "./png/DraftableDesktop.png";
@@ -675,6 +677,7 @@ import Mockoon from "./png/Mockoon.png";
 import ModernCsv from "./png/ModernCsv.png";
 import MongoDbCompass from "./png/MongoDbCompass.png";
 import Monitorcontrol from "./png/Monitorcontrol.png";
+import MonotypeFonts from "./png/MonotypeFonts.png";
 import Moom from "./png/Moom.png";
 import Moonlight from "./png/Moonlight.png";
 import Morgen from "./png/Morgen.png";
@@ -1480,6 +1483,8 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   dockside: Dockside,
   dockview: Dockview,
   dot: Dot,
+  dotpeek: Dotpeek,
+  dottrace: Dottrace,
   doughnut: Doughnut,
   downie: Downie,
   "draftable desktop": DraftableDesktop,
@@ -1850,6 +1855,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "modern csv": ModernCsv,
   "mongodb compass": MongoDbCompass,
   monitorcontrol: Monitorcontrol,
+  "monotype fonts": MonotypeFonts,
   moom: Moom,
   moonlight: Moonlight,
   morgen: Morgen,
