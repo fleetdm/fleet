@@ -155,7 +155,7 @@ func TestZeroTouchCreatesTokenWhenNoneExists(t *testing.T) {
 		assert.Equal(t, "3153600000s", token.Duration)
 		assert.False(t, token.OneTimeOnly)
 		assert.Equal(t, "PERSONAL_USAGE_DISALLOWED", token.AllowPersonalUsage)
-		assert.Contains(t, token.AdditionalData, `"team_id"`)
+		assert.Contains(t, token.AdditionalData, `"fleet_id"`)
 		return &androidmanagement.EnrollmentToken{
 			Name:                "enterprises/LC00test/enrollmentTokens/abc123",
 			Value:               "new-token-value",
@@ -205,7 +205,7 @@ func TestResolveTeamFromEnrollmentData(t *testing.T) {
 	svc, fleetDS, _ := setupZeroTouchService(t)
 
 	t.Run("zero-touch with null team_id goes to unassigned", func(t *testing.T) {
-		teamID, idpUUID, err := svc.resolveTeamFromEnrollmentData(t.Context(), `{"team_id": null}`)
+		teamID, idpUUID, err := svc.resolveTeamFromEnrollmentData(t.Context(), `{"fleet_id": null}`)
 		require.NoError(t, err)
 		assert.Nil(t, teamID)
 		assert.Empty(t, idpUUID)
@@ -216,7 +216,7 @@ func TestResolveTeamFromEnrollmentData(t *testing.T) {
 			assert.Equal(t, uint(3), id)
 			return true, nil
 		}
-		teamID, idpUUID, err := svc.resolveTeamFromEnrollmentData(t.Context(), `{"team_id": 3}`)
+		teamID, idpUUID, err := svc.resolveTeamFromEnrollmentData(t.Context(), `{"fleet_id": 3}`)
 		require.NoError(t, err)
 		require.NotNil(t, teamID)
 		assert.Equal(t, uint(3), *teamID)
@@ -227,7 +227,7 @@ func TestResolveTeamFromEnrollmentData(t *testing.T) {
 		fleetDS.Store.TeamExistsFunc = func(_ context.Context, id uint) (bool, error) {
 			return false, nil
 		}
-		teamID, idpUUID, err := svc.resolveTeamFromEnrollmentData(t.Context(), `{"team_id": 99}`)
+		teamID, idpUUID, err := svc.resolveTeamFromEnrollmentData(t.Context(), `{"fleet_id": 99}`)
 		require.NoError(t, err)
 		assert.Nil(t, teamID, "non-existent team should fall back to unassigned")
 		assert.Empty(t, idpUUID)

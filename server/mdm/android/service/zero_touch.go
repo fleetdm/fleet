@@ -26,7 +26,7 @@ func zeroTouchConfigurationEndpoint(ctx context.Context, _ any, svc android.Serv
 }
 
 type teamEnrollmentRequest struct {
-	TeamID *uint `json:"team_id"`
+	TeamID *uint `json:"fleet_id"`
 }
 
 func (svc *Service) GetZeroTouchConfiguration(ctx context.Context, teamID *uint) (*android.ZeroTouchConfigurationResponse, error) {
@@ -111,7 +111,7 @@ func (svc *Service) GetZeroTouchConfiguration(ctx context.Context, teamID *uint)
 func (svc *Service) resolveTeamFromEnrollmentData(ctx context.Context, enrollmentTokenData string) (teamID *uint, idpUUID string, err error) {
 	var raw map[string]json.RawMessage
 	if jsonErr := json.Unmarshal([]byte(enrollmentTokenData), &raw); jsonErr == nil {
-		if _, hasTeamID := raw["team_id"]; hasTeamID {
+		if _, hasTeamID := raw["fleet_id"]; hasTeamID {
 			var ztData teamEnrollmentRequest
 			if err := json.Unmarshal([]byte(enrollmentTokenData), &ztData); err != nil {
 				return nil, "", ctxerr.Wrap(ctx, err, "unmarshalling zero-touch additional data")
