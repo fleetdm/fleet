@@ -35,11 +35,14 @@ const isEmptyFormData = (data: IFormData) => {
   return !data.tokenUrl && !data.clientId && !data.clientSecret;
 };
 
-const validate = (formData: IFormData): IFormErrors => {
+const validate = (rawFormData: IFormData): IFormErrors => {
   const errors: IFormErrors = {};
 
-  // Trim all values
-  Object.values(formData).map((val) => val?.trim() || "");
+  const formData: IFormData = {
+    tokenUrl: rawFormData.tokenUrl.trim(),
+    clientId: rawFormData.clientId.trim(),
+    clientSecret: rawFormData.clientSecret.trim(),
+  };
 
   if (isEmptyFormData(formData)) {
     // Clearing a form is a valid state.
