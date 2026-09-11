@@ -13,8 +13,12 @@ import activitiesAPI from "services/entities/activities";
 import teamAPI from "services/entities/teams";
 import commandAPI from "services/entities/command";
 import { notify } from "components/ToastNotification";
+import local from "utilities/local";
 
-import HostDetailsPage from "./HostDetailsPage";
+import HostDetailsPage, {
+  getMDMCommandsToggleLocalState,
+  setMDMCommandsToggleLocalState,
+} from "./HostDetailsPage";
 
 jest.mock("services/entities/hosts");
 jest.mock("services/entities/activities");
@@ -55,6 +59,13 @@ const mockAppleHost = (): IHost => {
   const host = createMockHost({ platform: "darwin", status: "online" });
   host.mdm.enrollment_status = "On (manual)";
   host.mdm.connected_to_fleet = true;
+  return host;
+};
+
+const mockWindowsHost = (): IHost => {
+  const host = createMockHost({ platform: "windows", status: "online" });
+  host.mdm.enrollment_status = null;
+  host.mdm.connected_to_fleet = false;
   return host;
 };
 
@@ -108,8 +119,42 @@ const renderPageAs = (currentUser: IUser, isGlobalAdmin: boolean) => {
   );
 };
 
+const renderPage = () => {
+  const render = createCustomRenderer({
+    withBackendMock: true,
+    context: {
+      app: {
+        currentUser: ADMIN,
+        isGlobalAdmin: true,
+        isPremiumTier: true,
+        isMacMdmEnabledAndConfigured: true,
+        config: createMockConfig(),
+      },
+    },
+  });
+
+  return render(
+    <HostDetailsPage
+      router={createMockRouter()}
+      location={mockLocation}
+      params={{ host_id: "1" }}
+    />
+  );
+};
+
+beforeEach(() => {
+  class MockResizeObserver {
+    observe = jest.fn();
+    unobserve = jest.fn();
+    disconnect = jest.fn();
+  }
+
+  global.ResizeObserver = MockResizeObserver as typeof ResizeObserver;
+});
+
 describe("HostDetailsPage - APNS ping on refetch", () => {
   afterEach(() => {
+    local.clear();
     jest.resetAllMocks();
   });
 
@@ -184,4 +229,39 @@ describe("HostDetailsPage - pending hosts", () => {
       { timeout: 10000 }
     );
   }, 20000);
+});
+
+describe("HostDetailsPage - Show MDM commands toggle", () => {
+  afterEach(() => {
+    local.clear();
+    jest.resetAllMocks();
+  });
+
+  it("keeps the toggle on across a remount", async () => {
+    stubQueries(mockAppleHost());
+
+    const { user, unmount } = renderPage();
+    const [toggle] = await screen.findAllByRole("switch");
+    expect(toggle).not.toBeChecked();
+    await user.click(toggle);
+
+    expect(getMDMCommandsToggleLocalState()).toBe(true);
+    expect(local.getItem("hostDetailsShowMDMCommands")).toBe("true");
+    unmount();
+
+    renderPage();
+    await waitFor(() => {
+      expect(screen.getAllByRole("switch")[0]).toBeChecked();
+    });
+  });
+
+  it("leaves the past activity feed alone on a host with no MDM commands", async () => {
+    setMDMCommandsToggleLocalState(true);
+    stubQueries(mockWindowsHost());
+
+    renderPage();
+
+    expect(await screen.findByText("No activity")).toBeInTheDocument();
+    expect(screen.queryAllByRole("switch")).toHaveLength(0);
+  });
 });

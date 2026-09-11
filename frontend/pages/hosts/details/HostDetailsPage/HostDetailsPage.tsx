@@ -193,6 +193,13 @@ const ACTIVITY_CARD_DATA_STALE_TIME = 5000; // 5 seconds
 
 const SHOW_MDM_COMMANDS_STORAGE_KEY = "hostDetailsShowMDMCommands";
 
+export const getMDMCommandsToggleLocalState = (): boolean =>
+  local.getItem(SHOW_MDM_COMMANDS_STORAGE_KEY) === "true";
+
+export const setMDMCommandsToggleLocalState = (show: boolean): void => {
+  local.setItem(SHOW_MDM_COMMANDS_STORAGE_KEY, show ? "true" : "false");
+};
+
 interface IHostDetailsProps {
   router: InjectedRouter; // v3
   location: {
@@ -375,13 +382,13 @@ const HostDetailsPage = ({
   // Per-browser rather than per-user: whether this becomes a shared default is
   // still open, so keep the fix clear of where the preference ends up living.
   const [showMDMCommands, setShowMDMCommands] = useState(
-    () => local.getItem(SHOW_MDM_COMMANDS_STORAGE_KEY) === "true"
+    getMDMCommandsToggleLocalState
   );
 
   const updateShowMDMCommands = useCallback((show: boolean) => {
     setActivityPage(0);
     setShowMDMCommands(show);
-    local.setItem(SHOW_MDM_COMMANDS_STORAGE_KEY, show ? "true" : "false");
+    setMDMCommandsToggleLocalState(show);
   }, []);
 
   // certificates states
