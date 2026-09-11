@@ -12,9 +12,52 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/net/http2"
 )
+
+// TestPushStalledErrorBody covers an APNs response whose headers arrive but
+// whose error body then stalls: transport-level timeouts don't bound the body
+// read, so only an overall client timeout (production sets one via fleethttp's
+// default) keeps Push from blocking its caller forever.
+func TestPushStalledErrorBody(t *testing.T) {
+	stall := make(chan struct{})
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusBadRequest)
+		w.(http.Flusher).Flush()
+		<-stall
+	}))
+	defer server.Close()
+	defer close(stall)
+
+	pushInfo := &mdm.Push{PushMagic: "magic", Topic: "com.example.topic"}
+	require.NoError(t, pushInfo.SetTokenString("00aa"))
+
+	prov := &Provider{
+		baseURL: server.URL,
+		client:  &http.Client{Timeout: 500 * time.Millisecond},
+		workers: 1,
+	}
+
+	done := make(chan struct{})
+	var responses map[string]*push.Response
+	var err error
+	go func() {
+		defer close(done)
+		responses, err = prov.Push(t.Context(), []*mdm.Push{pushInfo})
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("Push did not return: stalled error body read is unbounded")
+	}
+	require.NoError(t, err)
+	tokenResp := responses["00aa"]
+	require.NotNil(t, tokenResp)
+	require.ErrorContains(t, tokenResp.Err, "Client.Timeout")
+}
 
 func TestPush(t *testing.T) {
 	// our "raw" push info
