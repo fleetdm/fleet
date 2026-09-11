@@ -104,5 +104,11 @@ func TestGenerateOpenQuery(t *testing.T) {
 	require.Equal(t, "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'rpi-imager.exe');", got)
 
 	// Unknown platform yields no query.
+	// every Firefox channel and architecture ships firefox.exe
+	for _, title := range []string{"Mozilla Firefox", "Mozilla Firefox ESR", "Mozilla Firefox Developer Edition (ARM64)", "Mozilla Firefox Nightly (ARM64)"} {
+		got = patch_policy.GenerateOpenQuery("windows", "", title)
+		require.Equal(t, "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'firefox.exe');", got, title)
+	}
+
 	require.Empty(t, patch_policy.GenerateOpenQuery("linux", "com.example.foo", ""))
 }
