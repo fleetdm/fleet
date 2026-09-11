@@ -45,10 +45,12 @@ const (
 	OnlineIntervalBuffer = 60
 
 	// MobileOnlineWindow bounds the MDM activity signal for mobile hosts to
-	// count as online. Anchored to the 1h iOS/iPadOS MDM refetch cadence plus
-	// OnlineIntervalBuffer. Duplicated in the chart context (mobileOnlineWindowSeconds)
-	// which can't import server/fleet.
-	MobileOnlineWindow = time.Hour + time.Duration(OnlineIntervalBuffer)*time.Second
+	// count as online. Sized to cover the worst-case gap between refetcher
+	// bumps: 1h refetch interval (ListIOSAndIPadOSToRefetch) plus 10m cron tick
+	// (apple_mdm_iphone_ipad_refetcher) plus OnlineIntervalBuffer for network
+	// latency. Duplicated in the chart context (mobileOnlineWindowSeconds)
+	// which can't import server/fleet — update both together.
+	MobileOnlineWindow = time.Hour + 10*time.Minute + time.Duration(OnlineIntervalBuffer)*time.Second
 
 	// HostIdentiferNotFound is the error message returned when a search for a host by its
 	// identifier (hostname, UUID, or serial number) does not return any results.
@@ -1368,27 +1370,27 @@ func (h *Host) Status(now time.Time) HostStatus {
 }
 
 // mobileStatus is the iOS/iPadOS/Android branch of Status. Takes the freshest
-// of LastMDMCheckedInAt and non-sentinel DetailUpdatedAt against
+// of LastMDMCheckedInAt and non-sentinel LabelUpdatedAt against
 // MobileOnlineWindow; no created_at fallback so never-checked-in devices stay
 // offline. SeenTime is skipped: the list loader coalesces hst.seen_time with
 // h.created_at before we see it, which would false-online fresh enrollments.
+// DetailUpdatedAt is skipped for Android because AMAPI stamps it with the
+// device's own status-report time (not when Fleet ingested the Pub/Sub
+// event), so it can lag by delivery latency; LabelUpdatedAt is Fleet-authored
+// on every check-in path (Apple MDM, Android Pub/Sub, osquery labels) and
+// gives a truer "last time we heard from this device" signal.
 //
-// DetailUpdatedAt is NOT gated on enrollment state. The enabled = 1 filter on
+// LabelUpdatedAt is NOT gated on enrollment state. The enabled = 1 filter on
 // nesm only screens the MDM signal, so a device that checked out with a fresh
-// detail_updated_at still reads online for up to MobileOnlineWindow after.
+// label_updated_at still reads online for up to MobileOnlineWindow after.
 // Intentional: the device was genuinely active recently.
-//
-// Mirrors hostMobileOnlineExpr with one caveat: SQL also folds in raw
-// hst.seen_time (not coalesced with created_at). Benign today because no
-// mobile enrollment path writes host_seen_times. If that changes, this branch
-// must be updated to match or Go and SQL will disagree on those rows.
 func (h *Host) mobileStatus(now time.Time) HostStatus {
 	var latest time.Time
 	if h.LastMDMCheckedInAt != nil {
 		latest = *h.LastMDMCheckedInAt
 	}
-	if !h.DetailUpdatedAt.Equal(neverTimestampParsed) && h.DetailUpdatedAt.After(latest) {
-		latest = h.DetailUpdatedAt
+	if h.LabelUpdatedAt.After(latest) {
+		latest = h.LabelUpdatedAt
 	}
 	if latest.IsZero() {
 		return StatusOffline

@@ -402,11 +402,8 @@ const allHostTableHeaders = (teamId?: number): IHostTableColumnConfig[] => [
         <TooltipWrapper
           tipContent={
             <>
-              iOS/iPadOS hosts are online anytime they have power and an
-              internet connection (including locked). macOS, Windows, and Linux
-              hosts can be online when locked (lid closed), but less frequently
-              than when the lid is open. Android hosts are never online when
-              locked.
+              Only supported on hosts that run Fleet&apos;s agent: macOS,
+              Windows, Linux, and ChromeOS.
             </>
           }
           className="status-header"
@@ -422,8 +419,7 @@ const allHostTableHeaders = (teamId?: number): IHostTableColumnConfig[] => [
     accessor: "status",
     id: "status",
     Cell: (cellProps: IHostTableStringCellProps) => {
-      // Show "---" for ABM devices with Pending enrollment status, with an
-      // explainer tooltip on the pill.
+      // Show "---" for ABM devices with Pending enrollment status
       if (
         cellProps.row.original.mdm?.enrollment_status === "Pending" &&
         isAppleDevice(cellProps.row.original.platform)

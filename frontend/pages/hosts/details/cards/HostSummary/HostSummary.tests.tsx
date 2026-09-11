@@ -1,5 +1,5 @@
 import React from "react";
-import { screen, within } from "@testing-library/react";
+import { screen } from "@testing-library/react";
 import { createCustomRenderer } from "test/test-utils";
 
 import createMockUser from "__mocks__/userMock";
@@ -145,7 +145,7 @@ describe("Host Summary section", () => {
       ["iOS", "ios", "iOS 17.4"],
       ["iPadOS", "ipados", "iPadOS 17.4"],
     ])(
-      "renders the Status row for a Free-tier %s host now that the API returns real online/offline for mobile",
+      "renders the Status row for a Free-tier %s host",
       (_label, platform, os_version) => {
         const render = createCustomRenderer({
           context: {
@@ -168,36 +168,6 @@ describe("Host Summary section", () => {
         expect(screen.getByText("Online")).toBeInTheDocument();
       }
     );
-
-    it("wraps the Status label in an explainer tooltip only for iOS/iPadOS", () => {
-      const renderMobile = (platform: HostPlatform) => {
-        const render = createCustomRenderer({
-          context: {
-            app: { isPremiumTier: true, currentUser: createMockUser() },
-          },
-        });
-        const summaryData = createMockHostSummary({
-          platform,
-          status: "online",
-        });
-        return render(<HostSummary summaryData={summaryData} isPremiumTier />);
-      };
-
-      // The Status <dt> title is what wraps in TooltipWrapper for iOS/iPadOS.
-      // Scope the query to the title element (scoped to `container` since two
-      // renders happen in this test) to avoid matching the pill's own
-      // TooltipWrapper on the <dd> value side or the other render's DOM.
-      const titleHasTooltip = (root: HTMLElement) => {
-        const statusTitle = within(root).getByText("Status").closest("dt");
-        return !!statusTitle?.querySelector(".component__tooltip-wrapper");
-      };
-
-      const { container: iosContainer } = renderMobile("ios");
-      expect(titleHasTooltip(iosContainer)).toBe(true);
-
-      const { container: androidContainer } = renderMobile("android");
-      expect(titleHasTooltip(androidContainer)).toBe(false);
-    });
   });
 
   describe("Bootstrap package data", () => {

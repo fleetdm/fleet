@@ -648,9 +648,9 @@ func TestHostDetailsMDMTimestamps(t *testing.T) {
 		})
 	}
 
-	// Checked-out enrollment: LastMDMCheckedInAt must be nil so /hosts/{id}
-	// matches /hosts (nesm join filters enabled=1).
-	t.Run("checked-out Apple enrollment hides LastMDMCheckedInAt", func(t *testing.T) {
+	// Checked-out mobile enrollment: LastMDMCheckedInAt must be nil so
+	// /hosts/{id} matches /hosts (nesm join filters enabled=1).
+	t.Run("checked-out iPadOS enrollment hides LastMDMCheckedInAt", func(t *testing.T) {
 		ds.GetNanoMDMEnrollmentDetailsFuncInvoked = false
 		ds.GetNanoMDMEnrollmentDetailsFunc = func(ctx context.Context, hostUUID string) (*fleet.NanoMDMEnrollmentDetails, error) {
 			return &fleet.NanoMDMEnrollmentDetails{
@@ -667,7 +667,65 @@ func TestHostDetailsMDMTimestamps(t *testing.T) {
 		)
 		require.NoError(t, err)
 		require.NotNil(t, hostDetail.LastMDMEnrolledAt)
-		require.Nil(t, hostDetail.LastMDMCheckedInAt, "checked-out enrollment must not expose LastMDMCheckedInAt on /hosts/{id}")
+		require.Nil(t, hostDetail.LastMDMCheckedInAt, "checked-out mobile enrollment must not expose LastMDMCheckedInAt on /hosts/{id}")
+	})
+
+	// macOS host details keep surfacing LastMDMCheckedInAt regardless of
+	// enrollment state — HostHeader.tsx renders it as an informational
+	// timestamp, and Host.mobileStatus doesn't apply to darwin.
+	t.Run("checked-out macOS enrollment still exposes LastMDMCheckedInAt", func(t *testing.T) {
+		ds.GetNanoMDMEnrollmentDetailsFuncInvoked = false
+		ds.GetNanoMDMEnrollmentDetailsFunc = func(ctx context.Context, hostUUID string) (*fleet.NanoMDMEnrollmentDetails, error) {
+			return &fleet.NanoMDMEnrollmentDetails{
+				LastMDMEnrollmentTime: &ts1,
+				LastMDMSeenTime:       &ts2,
+				Enabled:               false,
+			}, nil
+		}
+		host := &fleet.Host{ID: 5, MDM: fleet.MDMHostData{}, Platform: "darwin", UUID: "checked-out-mac-uuid"}
+		hostDetail, err := svc.getHostDetails(
+			test.UserContext(context.Background(), test.UserAdmin),
+			host,
+			fleet.HostDetailOptions{ExcludeSoftware: true},
+		)
+		require.NoError(t, err)
+		require.NotNil(t, hostDetail.LastMDMCheckedInAt, "checked-out macOS enrollment should still expose LastMDMCheckedInAt on /hosts/{id}")
+		require.Equal(t, ts2, *hostDetail.LastMDMCheckedInAt)
+	})
+
+	// When Apple MDM is turned off, /hosts still reads nesm.last_seen_at via
+	// the unconditional LEFT JOIN. /hosts/{id} must do the same — the nano
+	// read is hoisted above the MDM-configured guard so both endpoints
+	// return the same LastMDMCheckedInAt for a host whose nano row survives
+	// an MDM shutoff.
+	t.Run("Apple MDM disabled still exposes LastMDMCheckedInAt", func(t *testing.T) {
+		ds.GetNanoMDMEnrollmentDetailsFuncInvoked = false
+		ds.GetNanoMDMEnrollmentDetailsFunc = func(ctx context.Context, hostUUID string) (*fleet.NanoMDMEnrollmentDetails, error) {
+			return &fleet.NanoMDMEnrollmentDetails{
+				LastMDMEnrollmentTime: &ts1,
+				LastMDMSeenTime:       &ts2,
+				Enabled:               true,
+			}, nil
+		}
+		mdmOffConfig := &fleet.AppConfig{}
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return mdmOffConfig, nil
+		}
+		defer func() {
+			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+				return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true, WindowsEnabledAndConfigured: true}}, nil
+			}
+		}()
+		host := &fleet.Host{ID: 6, MDM: fleet.MDMHostData{}, Platform: "darwin", UUID: "mdm-off-mac-uuid"}
+		hostDetail, err := svc.getHostDetails(
+			test.UserContext(context.Background(), test.UserAdmin),
+			host,
+			fleet.HostDetailOptions{ExcludeSoftware: true},
+		)
+		require.NoError(t, err)
+		require.True(t, ds.GetNanoMDMEnrollmentDetailsFuncInvoked, "nano read must run even when Apple MDM is off")
+		require.NotNil(t, hostDetail.LastMDMCheckedInAt, "Apple MDM off must not hide LastMDMCheckedInAt on /hosts/{id}")
+		require.Equal(t, ts2, *hostDetail.LastMDMCheckedInAt)
 	})
 }
 

@@ -3223,8 +3223,8 @@ func testHostsMobileOnlineOffline(t *testing.T, ds *Datastore) {
 		_, err := ds.writer(ctx).ExecContext(ctx, `UPDATE nano_enrollments SET last_seen_at = ? WHERE id = ?`, ts, h.UUID)
 		require.NoError(t, err)
 	}
-	setDetailUpdatedAt := func(t *testing.T, h *fleet.Host, ts time.Time) {
-		_, err := ds.writer(ctx).ExecContext(ctx, `UPDATE hosts SET detail_updated_at = ? WHERE id = ?`, ts, h.ID)
+	setLabelUpdatedAt := func(t *testing.T, h *fleet.Host, ts time.Time) {
+		_, err := ds.writer(ctx).ExecContext(ctx, `UPDATE hosts SET label_updated_at = ? WHERE id = ?`, ts, h.ID)
 		require.NoError(t, err)
 	}
 
@@ -3242,20 +3242,20 @@ func testHostsMobileOnlineOffline(t *testing.T, ds *Datastore) {
 	iosOffline := newMobileHost(t, "ios-offline", "ios-offline-uuid", "ios")
 	nanoEnroll(t, ds, iosOffline, false)
 	setNanoLastSeen(t, iosOffline, stale)
-	setDetailUpdatedAt(t, iosOffline, neverTS)
+	setLabelUpdatedAt(t, iosOffline, neverTS)
 
 	// iPadOS online via nano_enrollments.
 	ipadosOnline := newMobileHost(t, "ipados-online", "ipados-online-uuid", "ipados")
 	nanoEnroll(t, ds, ipadosOnline, false)
 	setNanoLastSeen(t, ipadosOnline, recent)
 
-	// Android online via detail_updated_at (no nano row).
+	// Android online via label_updated_at (no nano row).
 	androidOnline := newMobileHost(t, "android-online", "android-online-uuid", "android")
-	setDetailUpdatedAt(t, androidOnline, recent)
+	setLabelUpdatedAt(t, androidOnline, recent)
 
-	// Android offline: detail_updated_at is the never sentinel.
+	// Android offline: label_updated_at is the never sentinel.
 	androidNever := newMobileHost(t, "android-never", "android-never-uuid", "android")
-	setDetailUpdatedAt(t, androidNever, neverTS)
+	setLabelUpdatedAt(t, androidNever, neverTS)
 
 	// iOS disabled enrollment (checked out) with fresh last_seen_at — must be
 	// offline because the mobile join filters nano_enrollments.enabled = 1.
@@ -3264,7 +3264,7 @@ func testHostsMobileOnlineOffline(t *testing.T, ds *Datastore) {
 	setNanoLastSeen(t, iosDisabled, recent)
 	_, err = ds.writer(ctx).ExecContext(ctx, `UPDATE nano_enrollments SET enabled = 0 WHERE id = ?`, iosDisabled.UUID)
 	require.NoError(t, err)
-	setDetailUpdatedAt(t, iosDisabled, neverTS)
+	setLabelUpdatedAt(t, iosDisabled, neverTS)
 
 	expectedOnline := []uint{iosOnline.ID, ipadosOnline.ID, androidOnline.ID}
 	expectedOffline := []uint{iosOffline.ID, androidNever.ID, iosDisabled.ID}
@@ -3313,12 +3313,16 @@ func testHostsMobileOnlineOffline(t *testing.T, ds *Datastore) {
 		assert.Equal(t, fleet.StatusOffline, h.Status(now), "Host.Status for %s", h.Hostname)
 	}
 
-	// CountHostsInTargets against the same host set.
+	// CountHostsInTargets against the same host set: mobile hosts are excluded
+	// from live-query target metrics (matches SearchHosts, which excludes them
+	// from the picker rows) so the counts stay at zero even though the host set
+	// contains mobile IDs.
 	targetIDs := append(append([]uint{}, expectedOnline...), expectedOffline...)
 	metrics, err := ds.CountHostsInTargets(ctx, filter, fleet.HostTargets{HostIDs: targetIDs}, now)
 	require.NoError(t, err)
-	assert.Equal(t, uint(len(expectedOnline)), metrics.OnlineHosts, "target metrics online")
-	assert.Equal(t, uint(len(expectedOffline)), metrics.OfflineHosts, "target metrics offline")
+	assert.Equal(t, uint(0), metrics.OnlineHosts, "mobile hosts must not contribute to target metrics online")
+	assert.Equal(t, uint(0), metrics.OfflineHosts, "mobile hosts must not contribute to target metrics offline")
+	assert.Equal(t, uint(0), metrics.TotalHosts, "mobile hosts must not contribute to target metrics total")
 }
 
 // TestExplainListHostsMobileJoin asserts the ListHosts-shaped SELECT reaches
@@ -3366,14 +3370,18 @@ func TestExplainListHostsMobileJoin(t *testing.T) {
 		}
 	}
 
-	// Mirror the shape of ListHosts's SELECT. EXPLAIN cares about join order
-	// and index usage, not select-list width, so trim the 100-column list.
-	stmt := `EXPLAIN SELECT h.id, h.uuid, h.platform,
+	// Mirror the shape of ListHosts's SELECT + the online status filter's
+	// WHERE clause so EXPLAIN exercises both the mobile MDM join and
+	// hostMobileOnlineExpr. Trim the 100-column SELECT — EXPLAIN cares about
+	// join order and index usage, not select-list width.
+	baseStmt := `SELECT h.id, h.uuid, h.platform,
 		COALESCE(hst.seen_time, h.created_at) AS seen_time,
 		nesm.last_seen_at AS last_mdm_checked_in_at
 		FROM hosts h
-		LEFT JOIN host_seen_times hst ON (h.id = hst.host_id)
-		LEFT JOIN nano_enrollments nesm ON nesm.id = h.uuid AND nesm.enabled = 1 AND nesm.type IN ('Device', 'User Enrollment (Device)')`
+		LEFT JOIN host_seen_times hst ON (h.id = hst.host_id)` + hostMDMSeenTimeJoin + hostMobileMDMSeenTimeJoin + `
+		WHERE 1=1 `
+	filtered, args := filterHostsByStatus(time.Now(), baseStmt, fleet.HostListOptions{StatusFilter: fleet.StatusOnline}, nil)
+	stmt := "EXPLAIN " + filtered
 
 	// Full column list — sqlx.SelectContext rejects extras it can't scan into.
 	type explainRow struct {
@@ -3391,7 +3399,7 @@ func TestExplainListHostsMobileJoin(t *testing.T) {
 		Extra        sql.NullString  `db:"Extra"`
 	}
 	var rows []explainRow
-	require.NoError(t, sqlx.SelectContext(ctx, ds.reader(ctx), &rows, stmt))
+	require.NoError(t, sqlx.SelectContext(ctx, ds.reader(ctx), &rows, stmt, args...))
 
 	// nano_enrollments must be reached via eq_ref on PRIMARY (nesm.id = h.uuid,
 	// where nano_enrollments.id is the PK). Anything else (ALL / index / range)

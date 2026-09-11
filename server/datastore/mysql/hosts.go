@@ -1237,7 +1237,7 @@ func (ds *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt
 		    `
 	}
 
-	sql, params, err := ds.applyHostFilters(ctx, opt, sql, filter, params)
+	sql, params, err := ds.applyHostFilters(ctx, opt, sql, filter, params, true)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "list hosts: apply host filters")
 	}
@@ -1343,8 +1343,12 @@ WHERE
 }
 
 // TODO(Sarah): Do we need to reconcile mutually exclusive filters?
+// applyHostFilters splices the WHERE clause and its associated joins onto sqlStmt.
+// forListSelect signals that the caller's SELECT reads nesm.last_seen_at
+// (populating Host.LastMDMCheckedInAt on each row); CountHosts leaves it false
+// so the mobile MDM join only appears when a status filter needs it in the WHERE.
 func (ds *Datastore) applyHostFilters(
-	ctx context.Context, opt fleet.HostListOptions, sqlStmt string, filter fleet.TeamFilter, selectParams []interface{},
+	ctx context.Context, opt fleet.HostListOptions, sqlStmt string, filter fleet.TeamFilter, selectParams []any, forListSelect bool,
 ) (string, []interface{}, error) {
 	// prior to returning, params will be appended in the following order: selectParams, joinParams, whereParams
 	var whereParams, joinParams []interface{}
@@ -1484,9 +1488,13 @@ func (ds *Datastore) applyHostFilters(
 		batchScriptExecutionJoin, batchScriptExecutionFilter, whereParams = ds.getBatchExecutionFilters(whereParams, opt)
 	}
 
-	// Mobile join is unconditional so Host.LastMDMCheckedInAt gets populated
-	// on every row; nes join only matters for MIA/Missing status filters.
-	hostMDMSeenJoin := hostMobileMDMSeenTimeJoin
+	// Mobile join is required by the list SELECT (populates
+	// Host.LastMDMCheckedInAt) and by any online/offline status filter WHERE
+	// clause. Skip it for callers like CountHosts that need neither.
+	hostMDMSeenJoin := ""
+	if forListSelect || opt.StatusFilter.IsValid() {
+		hostMDMSeenJoin = hostMobileMDMSeenTimeJoin
+	}
 	if opt.StatusFilter.IsValid() {
 		hostMDMSeenJoin += hostMDMSeenTimeJoin
 	}
@@ -1745,16 +1753,15 @@ const hostEffectiveLastSeenExpr = `COALESCE(GREATEST(COALESCE(hst.seen_time, nes
 // INTERVAL and Host.mobileStatus stay in sync.
 const mobileOnlineWindowSeconds = int(fleet.MobileOnlineWindow / time.Second)
 
-// hostMobileOnlineExpr is the freshest MDM activity signal for mobile hosts,
-// mirroring FindOnlineHostIDs in server/chart. No created_at fallback: a
-// never-checked-in device stays offline. Requires hostMobileMDMSeenTimeJoin
-// (nesm) and the host_seen_times join (hst).
-//
-// Folds in raw hst.seen_time (not coalesced with created_at). Benign today
-// because no mobile enrollment path writes host_seen_times; Host.mobileStatus
-// omits SeenTime for that reason. If a mobile write path ever populates
-// host_seen_times, update both sides together or they will disagree.
-const hostMobileOnlineExpr = `COALESCE(GREATEST(COALESCE(hst.seen_time, nesm.last_seen_at), COALESCE(nesm.last_seen_at, hst.seen_time)), NULLIF(h.detail_updated_at, '` + server.NeverTimestamp + `'))`
+// hostMobileOnlineExpr is the freshest MDM activity signal for mobile hosts.
+// nesm.last_seen_at first, then non-sentinel label_updated_at. No hst.seen_time
+// (mobile enrollment paths don't write host_seen_times) and no created_at
+// fallback (never-checked-in device stays offline). label_updated_at is
+// preferred over detail_updated_at because Android's AMAPI ingestion stamps
+// detail_updated_at with the device's report time (subject to Pub/Sub delivery
+// lag) while label_updated_at is Fleet's process time. Requires
+// hostMobileMDMSeenTimeJoin.
+const hostMobileOnlineExpr = `COALESCE(nesm.last_seen_at, NULLIF(h.label_updated_at, '` + server.NeverTimestamp + `'))`
 
 func filterHostsByStatus(now time.Time, sql string, opt fleet.HostListOptions, params []interface{}) (string, []interface{}) {
 	switch opt.StatusFilter {
@@ -2183,7 +2190,7 @@ func (ds *Datastore) CountHosts(ctx context.Context, filter fleet.TeamFilter, op
 
 	var params []interface{}
 
-	sql, params, err := ds.applyHostFilters(ctx, opt, sql, filter, params)
+	sql, params, err := ds.applyHostFilters(ctx, opt, sql, filter, params, false)
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "count hosts: apply host filters")
 	}

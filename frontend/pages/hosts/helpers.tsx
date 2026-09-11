@@ -3,8 +3,9 @@ import React from "react";
 import { isAppleDevice } from "interfaces/platform";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 
-// Returns tooltip copy only for the Pending ABM case (`---`). Online/offline
-// pills have no tooltip; the Status column header explains platform semantics.
+// Only the Pending ABM case carries tooltip copy now; online/offline pills
+// no longer explain themselves ("will respond to a live report" was misleading
+// once mobile hosts started showing real online/offline).
 export const getHostStatusTooltipText = (
   status: string
 ): string | undefined => {

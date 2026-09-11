@@ -114,6 +114,14 @@ type DatasetStore interface {
 // The CVE entity filters apply only to this metric.
 const MetricCVE = "cve"
 
+// MobileOnlineWindowSeconds is the mobile online-status window used by the
+// chart bounded context's FindOnlineHostIDs predicate, in seconds. Fleet's
+// core status computation duplicates the value in fleet.MobileOnlineWindow
+// because server/chart can't import server/fleet (arch test enforced).
+// TestMobileOnlineWindowMatchesChart in server/fleet asserts the two stay in
+// lockstep; edit both when tuning.
+const MobileOnlineWindowSeconds = 3600 + 600 + 60
+
 // CVE chart software category keys. These are the API contract for the
 // `software_filters` query parameter and are mirrored by the frontend. The
 // "os" category covers both operating-system vulnerabilities and the kernel

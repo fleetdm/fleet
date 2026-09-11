@@ -1907,6 +1907,34 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 	var mdmLastCheckedIn *time.Time
 	var mdmEnrollmentType *string
 	var mdmHardwareAttested bool
+
+	// Read nano_enrollments for Apple hosts regardless of MDM config so
+	// /hosts/{id} matches /hosts (list joins nano_enrollments unconditionally
+	// and can surface a timestamp after MDM has been turned off). The block
+	// below still gates disk-encryption/profile reads on config, but the
+	// pre-read struct feeds LastMDMCheckedInAt / LastMDMEnrolledAt /
+	// HardwareAttested / BootstrapTokenEscrowed / EnrollmentType uniformly.
+	var appleNanoDetails *fleet.NanoMDMEnrollmentDetails
+	if fleet.IsApplePlatform(host.Platform) {
+		appleNanoDetails, err = svc.ds.GetNanoMDMEnrollmentDetails(ctx, host.UUID)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "get host mdm enrollment times")
+		}
+		if appleNanoDetails != nil {
+			// Mobile-only Enabled gate so /hosts/{id} matches /hosts (nesm
+			// join filters enabled=1) for checked-out mobile enrollments.
+			// macOS keeps surfacing LastMDMSeenTime regardless.
+			if !fleet.IsAppleMobilePlatform(host.Platform) || appleNanoDetails.Enabled {
+				mdmLastCheckedIn = appleNanoDetails.LastMDMSeenTime
+			}
+			mdmLastEnrollment = appleNanoDetails.LastMDMEnrollmentTime
+			mdmHardwareAttested = appleNanoDetails.HardwareAttested
+			if appleNanoDetails.EnrollmentType != "" {
+				mdmEnrollmentType = &appleNanoDetails.EnrollmentType
+			}
+		}
+	}
+
 	if ac.MDM.EnabledAndConfigured || ac.MDM.WindowsEnabledAndConfigured || ac.MDM.AndroidEnabledAndConfigured {
 		host.MDM.OSSettings = &fleet.HostMDMOSSettings{}
 		switch host.Platform {
@@ -2037,32 +2065,11 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 					profiles = append(profiles, p.ToHostMDMProfile(host.Platform))
 				}
 
-				// fetch host last seen at and last enrolled at times, currently only supported for
-				// Apple platforms
-				details, err := svc.ds.GetNanoMDMEnrollmentDetails(ctx, host.UUID)
-				if details != nil {
-					// Gate on Enabled so /hosts/{id} matches /hosts (nesm join
-					// filters enabled=1) for checked-out enrollments.
-					if details.Enabled {
-						mdmLastCheckedIn = details.LastMDMSeenTime
-					}
-					mdmLastEnrollment = details.LastMDMEnrollmentTime
-					mdmHardwareAttested = details.HardwareAttested
-				}
-				if err != nil {
-					return nil, ctxerr.Wrap(ctx, err, "get host mdm enrollment times")
-				}
-
-				// bootstrap tokens are only applicable to macOS hosts
-				if host.Platform == "darwin" && details != nil {
-					host.MDM.BootstrapTokenEscrowed = &details.BootstrapTokenEscrowed
-				}
-
-				// Manual BYOD and Account-Driven User Enrollment both report the
-				// "On (manual - personal)" status, so the enrollment channel is what
-				// tells them apart.
-				if details != nil && details.EnrollmentType != "" {
-					mdmEnrollmentType = &details.EnrollmentType
+				// Nano details were read above the outer MDM guard; reuse the
+				// pre-read struct for the fields that only make sense when
+				// Apple MDM is on (bootstrap token escrow).
+				if host.Platform == "darwin" && appleNanoDetails != nil {
+					host.MDM.BootstrapTokenEscrowed = &appleNanoDetails.BootstrapTokenEscrowed
 				}
 			}
 		}
