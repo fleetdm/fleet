@@ -2,27 +2,11 @@
 
 Software inventory in Fleet collects the apps, operating systems, browser extensions, packages, IDE extensions, plugins, and binaries installed on your hosts. Vulnerability processing runs against this inventory, so software that isn't collected here can't be checked for vulnerabilities.
 
-To see what software is covered, check out the [Coverage section](#coverage). To see which of that software Fleet checks for vulnerabilities, see [Vulnerability processing](https://fleetdm.com/guides/vulnerability-processing).
-
-## How Fleet collects software
-
-- macOS, Windows, Linux, and ChromeOS: Fleet's agent (fleetd) runs osquery queries and reports the results to the Fleet server. Fleet refreshes software inventory on the same schedule as other host details (default: every hour).
-- iOS and iPadOS: Fleet asks the device for its installed apps over MDM.
-- Android: Fleet reads app reports from the Android Management API.
-
-Software inventory is on by default. See [Configuration](#configuration) to turn it off or change the refresh interval.
+To see what software is covered, check out the [Coverage section](#coverage). To see which of that software Fleet checks for vulnerabilities, see [Vulnerability processing](https://fleetdm.com/guides/vulnerability-processing#coverage).
 
 ## Coverage
 
-Fleet collects software inventory for these software types. Items marked with an asterisk have a caveat in the [Details](#details) section.
-
-| Symbol | Meaning |
-| ------ | ------- |
-| ✅ | Collected |
-| ✅\* | Collected, with a caveat (see Details) |
-| ❌ | Not collected (see Details) |
-| ❔ | Not yet verified |
-| N/A | Not applicable on this platform |
+Fleet collects software inventory for these software types.
 
 | Category | Type | macOS | Windows | Linux | ChromeOS | Android | iOS/iPadOS |
 | -------- | ---- | ----- | ------- | ----- | -------- | ------- | ---------- |
@@ -155,6 +139,14 @@ Fleet collects software inventory for these software types. Items marked with an
 | | Shortcuts | ❌ | N/A | N/A | N/A | N/A | ❌ |
 | | Ringtones | N/A | N/A | N/A | N/A | ❌ | N/A |
 
+| Symbol | Meaning |
+| ------ | ------- |
+| ✅ | Collected |
+| ✅\* | Collected, with a caveat (see Details) |
+| ❌ | Not collected (see Details) |
+| ❔ | Not yet verified |
+| N/A | Not applicable on this platform |
+
 > If Fleet isn't collecting software that's installed on your hosts, please file a [feature request](https://github.com/fleetdm/fleet/issues/new?template=feature-request.md). If Fleet is collecting software incorrectly (wrong name, version, or type), please file a [bug](https://github.com/fleetdm/fleet/issues/new?template=bug-report.md).
 
 ### Details
@@ -217,6 +209,12 @@ Fleet collects software inventory for these software types. Items marked with an
 - AI tools: fleetd includes an [ai_tools](https://github.com/fleetdm/fleet/blob/main/orbit/pkg/table/ai_tools/README.md) table that you can query, but Fleet doesn't add its results to software inventory yet.
 - macOS widgets are WidgetKit extensions that ship inside apps that already appear under Apps.
 - Shortcuts and Android ringtones: no MDM API exposes them.
+
+## How Fleet collects software
+
+- macOS, Windows, Linux, and ChromeOS: [Fleet's agent (fleetd)](https://fleetdm.com/docs/get-started/anatomy#fleetd) runs software inventory reports ([macOS example](https://fleetdm.com/reports/get-installed-mac-os-software)). Fleet refreshes software inventory every hour like other host details ([configurable](#configuration)).
+- iOS and iPadOS: Fleet asks the device for its installed apps over MDM, using Apple's [InstalledApplicationList command](https://developer.apple.com/documentation/devicemanagement/installedapplicationlistcommand).
+- Android: Fleet reads app reports from the [Android Management API](https://developers.google.com/android/management/reference/rest/v1/enterprises.devices).
 
 ## Limitations
 
