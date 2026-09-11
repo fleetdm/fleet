@@ -123,6 +123,8 @@ End users can turn on MDM from their **Fleet Desktop > My device** page.
 
 You can trigger policy automations right when MDM is turned on, because Fleet re-evaluates all policies immediately after MDM is turned on. In your policy's query, use `server_url` in the [`mdm` table](https://fleetdm.com/tables/mdm) to detect that a host is talking to Fleet for MDM features.
 
+> If **Allow only Apple Business enrollments** is on, manual enrollment is blocked. End users see a banner explaining that only devices listed in Apple Business can enroll. To allow manual enrollment, turn the setting off in **Organization settings > Advanced options**.
+
 ### Host is in Apple Business (AB)
 
 #### If a macOS host is listed in AB:
