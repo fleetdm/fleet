@@ -49,13 +49,10 @@ const getAutoUpdateTooltip = (start: string, end: string) =>
     start
   )} and ${internationalTimeOnlyFormat(end)} (host local time).`;
 
-// A VPP auto-update schedule only counts as "valid" — meaning the icon /
-// tooltip should treat it as active — when the window is fully populated
-// AND the row is iOS/iPadOS. `MDMAppleCheckinAndCommandService.handleScheduledUpdates`
-// only acts on `ios_apps` / `ipados_apps` sources, so a stale schedule row
-// on a macOS VPP title must not promote the icon or leak a window line.
-// Single source of truth for both the icon-type decision and each tooltip
-// branch's `showAutoUpdate` gate.
+// True when the window is fully populated and the row is iOS/iPadOS.
+// `MDMAppleCheckinAndCommandService.handleScheduledUpdates` only acts on
+// `ios_apps` / `ipados_apps` sources, so a stale schedule row on a macOS
+// VPP title must not promote the icon or leak a window line.
 const hasValidAutoUpdate = ({
   autoUpdateEnabled = false,
   autoUpdateWindowStart,
