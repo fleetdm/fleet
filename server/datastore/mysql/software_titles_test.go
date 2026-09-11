@@ -3026,8 +3026,12 @@ func testUpdateAutoUpdateConfig(t *testing.T, ds *Datastore) {
 	require.Equal(t, startTime, *listed.AutoUpdateStartTime)
 	require.NotNil(t, listed.AutoUpdateEndTime)
 	require.Equal(t, endTime, *listed.AutoUpdateEndTime)
-	// A title with no schedule should marshal all three as nil.
+	// A title with no schedule should marshal all three as nil. Guard against
+	// `titleByName` returning a zero-value struct if the fixture ever gets
+	// renamed — otherwise the nil assertions would silently pass on an
+	// unrelated row.
 	unscheduled := titleByName(listTitles, "vpp3")
+	require.NotZero(t, unscheduled.ID, "vpp3 fixture must be present in list results")
 	require.Nil(t, unscheduled.AutoUpdateEnabled)
 	require.Nil(t, unscheduled.AutoUpdateStartTime)
 	require.Nil(t, unscheduled.AutoUpdateEndTime)
