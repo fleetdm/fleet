@@ -3,8 +3,8 @@
     {
       "version": "156.0",
       "queries": {
-        "exists": "SELECT 1 FROM programs WHERE name = 'Firefox Developer Edition (AArch64 en-US)' AND publisher = 'Mozilla';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Firefox Developer Edition (AArch64 en-US)' AND publisher = 'Mozilla' AND version_compare(version, '156.0') < 0);",
+        "exists": "SELECT 1 WHERE EXISTS (SELECT 1 FROM programs WHERE name = 'Firefox Developer Edition (AArch64 en-US)' AND publisher = 'Mozilla') OR NOT EXISTS (SELECT 1 FROM system_info WHERE cpu_type LIKE 'ARM%');",
+        "patched": "SELECT 1 WHERE EXISTS (SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Firefox Developer Edition (AArch64 en-US)' AND publisher = 'Mozilla' AND version_compare(version, '156.0') < 0)) OR NOT EXISTS (SELECT 1 FROM system_info WHERE cpu_type LIKE 'ARM%');",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'firefox.exe');"
       },
       "installer_url": "https://download-installer.cdn.mozilla.net/pub/devedition/releases/156.0b2/win64-aarch64/en-US/Firefox%20Setup%20156.0b2.exe",

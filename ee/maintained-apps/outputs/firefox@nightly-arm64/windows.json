@@ -3,8 +3,8 @@
     {
       "version": "158.2609.1014.0",
       "queries": {
-        "exists": "SELECT 1 FROM programs WHERE name = 'Firefox Nightly' AND publisher = 'Mozilla Corporation';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Firefox Nightly' AND publisher = 'Mozilla Corporation' AND version_compare(version, '158.2609.1014.0') < 0);",
+        "exists": "SELECT 1 WHERE EXISTS (SELECT 1 FROM programs WHERE name = 'Firefox Nightly' AND publisher = 'Mozilla Corporation') OR NOT EXISTS (SELECT 1 FROM system_info WHERE cpu_type LIKE 'ARM%');",
+        "patched": "SELECT 1 WHERE EXISTS (SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Firefox Nightly' AND publisher = 'Mozilla Corporation' AND version_compare(version, '158.2609.1014.0') < 0)) OR NOT EXISTS (SELECT 1 FROM system_info WHERE cpu_type LIKE 'ARM%');",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'firefox.exe');"
       },
       "installer_url": "https://ftp.mozilla.org/pub/firefox/nightly/2026/09/2026-09-10-14-32-52-mozilla-central/firefox-158.0a1.multi.win64-aarch64.installer.msix",

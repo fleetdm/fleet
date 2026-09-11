@@ -112,3 +112,25 @@ func TestGenerateOpenQuery(t *testing.T) {
 
 	require.Empty(t, patch_policy.GenerateOpenQuery("linux", "com.example.foo", ""))
 }
+
+func TestScopeToWindowsARM(t *testing.T) {
+	const armHosts = "SELECT 1 FROM system_info WHERE cpu_type LIKE 'ARM%'"
+	const exists = "SELECT 1 FROM programs WHERE name = 'Firefox Nightly' AND publisher = 'Mozilla Corporation';"
+
+	// Automatic-install policy: passes on non-ARM hosts, real check on ARM hosts.
+	require.Equal(t,
+		"SELECT 1 WHERE EXISTS (SELECT 1 FROM programs WHERE name = 'Firefox Nightly' AND publisher = 'Mozilla Corporation') OR NOT EXISTS ("+armHosts+");",
+		patch_policy.ScopeToWindowsARM(exists),
+	)
+
+	// Patch policy: the generated NOT EXISTS form wraps the same way.
+	patched, err := patch_policy.GenerateQueryForManifest(patch_policy.PolicyData{Platform: "windows", Version: "158.0", ExistsQuery: exists})
+	require.NoError(t, err)
+	require.Equal(t,
+		"SELECT 1 WHERE EXISTS (SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Firefox Nightly' AND publisher = 'Mozilla Corporation' AND version_compare(version, '158.0') < 0)) OR NOT EXISTS ("+armHosts+");",
+		patch_policy.ScopeToWindowsARM(patched),
+	)
+
+	require.Equal(t, "SELECT 1 WHERE EXISTS (SELECT 1) OR NOT EXISTS ("+armHosts+");", patch_policy.ScopeToWindowsARM("SELECT 1 \n"))
+	require.Empty(t, patch_policy.ScopeToWindowsARM(""))
+}

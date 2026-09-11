@@ -190,6 +190,23 @@ func defaultWindowsOpenQuery(softwareTitle string) string {
 	return fmt.Sprintf(openTemplate, escapeSQLLiteral(executable))
 }
 
+// windowsARMHostQuery matches Windows hosts whose native CPU is ARM64. osquery reports
+// cpu_type "ARM" there, natively or under x64 emulation, and no other Windows CPU type
+// starts with "ARM".
+const windowsARMHostQuery = "SELECT 1 FROM system_info WHERE cpu_type LIKE 'ARM%'"
+
+// ScopeToWindowsARM wraps a Windows policy query so it passes on hosts that are not
+// ARM64. An arm64 installer can't run on x64, so its automatic-install and patch
+// policies must not fail there; x64 installers run on ARM through emulation and need
+// no scoping. Apply it after GenerateQueryForManifest, which parses the exists query.
+func ScopeToWindowsARM(query string) string {
+	query, _ = strings.CutSuffix(strings.TrimSpace(query), ";")
+	if query == "" {
+		return ""
+	}
+	return fmt.Sprintf("SELECT 1 WHERE EXISTS (%s) OR NOT EXISTS (%s);", query, windowsARMHostQuery)
+}
+
 func escapeSQLLiteral(s string) string {
 	return strings.ReplaceAll(s, "'", "''")
 }
