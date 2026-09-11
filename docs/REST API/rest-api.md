@@ -4036,6 +4036,7 @@ Returns the information of the specified host.
 
 > If you're hitting this endpoint often (e.g. every hour) for a large number of hosts (e.g. 1k+) the best practice is to set the `exclude_software` to `true` to prevent overloading the Fleet server.
 
+For iOS and iPadOS hosts, `last_mdm_checked_in_at` is populated from the active Apple MDM enrollment (`nano_enrollments.last_seen_at`, `enabled = 1` only), so the timestamp stops advancing after MDM checkout. The same field is populated on [List hosts](#list-hosts), [Search targets](#search-targets), and [List label's hosts](#list-labels-hosts) responses.
 
 #### Parameters
 
