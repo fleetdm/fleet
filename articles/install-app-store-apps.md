@@ -88,7 +88,7 @@ Currently, Apple App Store (VPP) apps can't be uninstalled via Fleet. If the app
 
 If an end user already installed an app from the App Store, you can take over management by installing the same app through Fleet. Managing the app lets you apply [managed configuration](#ios-and-ipados-managed-configuration) and makes sure the app is removed when the host is unenrolled.
 
-On supervised hosts (enrolled automatically via Apple Business Manager), the app becomes managed silently. On hosts that aren't supervised (manual or BYOD enrollment), the end user is prompted to allow management. If the end user declines, the app stays unmanaged.
+On company-owned hosts (enrolled automatically via Apple Business Manager), the app becomes managed silently. On BYOD hosts and hosts that are manually enrolled, the end user is prompted to allow management. If the end user declines, the app stays unmanaged.
 
 > **Warning:** Fleet can't currently tell that the end user declined. Apple returns the app in the `InstalledApplicationList` MDM command as if it were managed, so Fleet reports the install as successful and lists the app in the host's software inventory. The app may drop out of inventory within minutes, or stay for up to 24 hours. In the meantime, managed configuration isn't applied and the app won't be removed when the host is unenrolled. Fleet plans to use the app's real management status to report these installs as failed. Follow [this issue](https://github.com/fleetdm/fleet/issues/52923) for progress.
 
