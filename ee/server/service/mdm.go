@@ -15,11 +15,13 @@ import (
 	"net/http"
 	"net/url"
 	"reflect"
+	"slices"
 	"sort"
 	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/file"
+	shared_mdm "github.com/fleetdm/fleet/v4/pkg/mdm"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
@@ -33,6 +35,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/assets"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/sso"
 	"github.com/fleetdm/fleet/v4/server/worker"
 	"github.com/google/uuid"
@@ -782,6 +785,7 @@ func (svc *Service) SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, asst 
 			return nil, ctxerr.Wrap(ctx, err, "create activity for changed macos setup assistant")
 		}
 	}
+
 	return newAsst, nil
 }
 
@@ -1073,8 +1077,16 @@ func (svc *Service) MDMSSOCallback(ctx context.Context, sessionID string, samlRe
 		for k, v := range u.Query() {
 			q.Add(k, v[0])
 		}
+		// The page resolves the IdP account from the session; the reference has
+		// no reader on this branch and would only land in browser history.
+		q.Del("enrollment_reference")
 		u.RawQuery = q.Encode()
-		return u.String(), enrollmentRef, "", 0
+		byodSessionID, err := shared_mdm.CreateBYODIdPSession(ctx, svc.keyValueStore, svc.clock, enrollmentRef)
+		if err != nil {
+			logging.WithErr(ctx, err)
+			return "/enroll?error=" + url.QueryEscape("An error occurred. : Failed to start enrollment session."), "", "", 0
+		}
+		return u.String(), byodSessionID, "", 0
 
 	case ssoRequestData.Initiator == fleet.SSOInitiatorFleetDesktop:
 		// Re-check the feature is still on: an admin may have disabled it between
@@ -1679,6 +1691,10 @@ func (svc *Service) GetMDMManualEnrollmentProfile(ctx context.Context, personal 
 		return nil, ctxerr.Wrap(ctx, err)
 	}
 
+	if appConfig.MDM.OnlyAllowAppleBusinessEnrollment {
+		return nil, &fleet.BadRequestError{Message: fleet.AdminOnlyEnrollmentForbiddenErrMsg}
+	}
+
 	topic, err := assets.APNSTopic(ctx, svc.ds)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "extracting topic from APNs cert")
@@ -1722,6 +1738,45 @@ func (svc *Service) GetMDMManualEnrollmentProfile(ctx context.Context, personal 
 	return mobileConfig, nil
 }
 
+// syncABMTokensToAppConfig upserts app config ABM entries for the provided tokens.
+// Callers that need strict syncing (including deletions) must pass the full token list.
+func syncABMTokensToAppConfig(appCfg *fleet.AppConfig, tokens []*fleet.ABMToken) {
+	if !appCfg.MDM.AppleBusinessManager.Set || !appCfg.MDM.AppleBusinessManager.Valid {
+		appCfg.MDM.AppleBusinessManager = optjson.SetSlice([]fleet.MDMAppleABMAssignmentInfo{})
+	}
+
+	idxByOrg := make(map[string]int, len(appCfg.MDM.AppleBusinessManager.Value))
+	for i, entry := range appCfg.MDM.AppleBusinessManager.Value {
+		idxByOrg[entry.OrganizationName] = i
+	}
+
+	abmTeamName := func(name string) string {
+		if name == fleet.TeamNameNoTeam {
+			return ""
+		}
+		return name
+	}
+
+	for _, tok := range tokens {
+		entry := fleet.MDMAppleABMAssignmentInfo{
+			OrganizationName: tok.OrganizationName,
+			Default:          tok.IsDefault,
+			MacOSTeam:        abmTeamName(tok.MacOSTeam.Name),
+			IOSTeam:          abmTeamName(tok.IOSTeam.Name),
+			IpadOSTeam:       abmTeamName(tok.IPadOSTeam.Name),
+			BYODTeam:         abmTeamName(tok.BYODTeam.Name),
+		}
+
+		if i, ok := idxByOrg[tok.OrganizationName]; ok {
+			appCfg.MDM.AppleBusinessManager.Value[i] = entry
+			continue
+		}
+
+		appCfg.MDM.AppleBusinessManager.Value = append(appCfg.MDM.AppleBusinessManager.Value, entry)
+		idxByOrg[tok.OrganizationName] = len(appCfg.MDM.AppleBusinessManager.Value) - 1
+	}
+}
+
 func (svc *Service) UploadABMToken(ctx context.Context, token io.Reader) (*fleet.ABMToken, error) {
 	encryptedToken, decryptedToken, err := svc.decryptUploadedABMToken(ctx, token)
 	if err != nil {
@@ -1753,6 +1808,8 @@ func (svc *Service) UploadABMToken(ctx context.Context, token io.Reader) (*fleet
 
 	appCfg.MDM.AppleBMEnabledAndConfigured = true
 
+	syncABMTokensToAppConfig(appCfg, []*fleet.ABMToken{tok})
+
 	if err := svc.ds.SaveAppConfig(ctx, appCfg); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "saving app config after ABM enablement")
 	}
@@ -1774,17 +1831,12 @@ func (svc *Service) DeleteABMToken(ctx context.Context, tokenID uint) error {
 		return ctxerr.Wrap(ctx, err, "removing ABM token")
 	}
 
-	count, err := svc.ds.GetABMTokenCount(ctx)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "getting ABM token count")
-	}
-
 	appCfg, err := svc.ds.AppConfig(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "retrieving app config")
 	}
 
-	// remove the AB entry in appConfig
+	// remove the entry for the deleted org
 	for i, t := range appCfg.MDM.AppleBusinessManager.Value {
 		if t.OrganizationName == token.OrganizationName {
 			appCfg.MDM.AppleBusinessManager.Value = append(appCfg.MDM.AppleBusinessManager.Value[:i], appCfg.MDM.AppleBusinessManager.Value[i+1:]...)
@@ -1792,8 +1844,25 @@ func (svc *Service) DeleteABMToken(ctx context.Context, tokenID uint) error {
 		}
 	}
 
-	if count == 0 {
-		// flip the app config flag
+	tokens, err := svc.ds.ListABMTokens(ctx) // fresh: post-delete, post-promotion
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "listing ABM tokens")
+	}
+	syncABMTokensToAppConfig(appCfg, tokens)
+
+	// Lastly we delete any dangling appCfg entries that are not in the fresh token list
+	tokensByOrg := make(map[string]struct{}, len(tokens))
+	for _, t := range tokens {
+		tokensByOrg[t.OrganizationName] = struct{}{}
+	}
+
+	for i, t := range slices.Backward(appCfg.MDM.AppleBusinessManager.Value) {
+		if _, ok := tokensByOrg[t.OrganizationName]; !ok {
+			appCfg.MDM.AppleBusinessManager.Value = append(appCfg.MDM.AppleBusinessManager.Value[:i], appCfg.MDM.AppleBusinessManager.Value[i+1:]...)
+		}
+	}
+
+	if len(tokens) == 0 {
 		appCfg.MDM.AppleBMEnabledAndConfigured = false
 	}
 
@@ -1912,65 +1981,7 @@ func (svc *Service) UpdateABMTokenTeams(ctx context.Context, tokenID uint, macOS
 		return nil, ctxerr.Wrap(ctx, err, "retrieving app config")
 	}
 
-	var found bool
-	for i, appCfgToken := range appCfg.MDM.AppleBusinessManager.Value {
-		if appCfgToken.OrganizationName == token.OrganizationName {
-
-			// Clear no team names, so they are presented nicer in gitops.
-			appCfgToken.BYODTeam = token.BYODTeam.Name
-			if token.BYODTeam.Name == fleet.TeamNameNoTeam {
-				appCfgToken.BYODTeam = ""
-			}
-			appCfgToken.MacOSTeam = token.MacOSTeam.Name
-			if token.MacOSTeam.Name == fleet.TeamNameNoTeam {
-				appCfgToken.MacOSTeam = ""
-			}
-			appCfgToken.IOSTeam = token.IOSTeam.Name
-			if token.IOSTeam.Name == fleet.TeamNameNoTeam {
-				appCfgToken.IOSTeam = ""
-			}
-			appCfgToken.IpadOSTeam = token.IPadOSTeam.Name
-			if token.IPadOSTeam.Name == fleet.TeamNameNoTeam {
-				appCfgToken.IpadOSTeam = ""
-			}
-
-			// update the app config with the new team names
-			appCfg.MDM.AppleBusinessManager.Value[i] = appCfgToken
-			found = true
-			break
-		}
-	}
-
-	if !appCfg.MDM.AppleBusinessManager.Set || !appCfg.MDM.AppleBusinessManager.Valid {
-		appCfg.MDM.AppleBusinessManager = optjson.SetSlice([]fleet.MDMAppleABMAssignmentInfo{})
-	}
-
-	if !found {
-		// create a new entry if app config doesn't have one.
-		byodTeam := token.BYODTeam.Name
-		if byodTeam == fleet.TeamNameNoTeam {
-			byodTeam = ""
-		}
-		macosTeam := token.MacOSTeam.Name
-		if macosTeam == fleet.TeamNameNoTeam {
-			macosTeam = ""
-		}
-		iosTeam := token.IOSTeam.Name
-		if iosTeam == fleet.TeamNameNoTeam {
-			iosTeam = ""
-		}
-		ipadosTeam := token.IPadOSTeam.Name
-		if ipadosTeam == fleet.TeamNameNoTeam {
-			ipadosTeam = ""
-		}
-		appCfg.MDM.AppleBusinessManager.Value = append(appCfg.MDM.AppleBusinessManager.Value, fleet.MDMAppleABMAssignmentInfo{
-			OrganizationName: token.OrganizationName,
-			BYODTeam:         byodTeam,
-			MacOSTeam:        macosTeam,
-			IOSTeam:          iosTeam,
-			IpadOSTeam:       ipadosTeam,
-		})
-	}
+	syncABMTokensToAppConfig(appCfg, []*fleet.ABMToken{token})
 
 	if err := svc.ds.SaveAppConfig(ctx, appCfg); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "saving app config after ABM token team update")
@@ -2052,7 +2063,7 @@ func (svc *Service) decryptUploadedABMToken(ctx context.Context, token io.Reader
 }
 
 func (svc *Service) ClearPasscode(ctx context.Context, hostID uint) (*fleet.CommandEnqueueResult, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionRead); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
 		return nil, err
 	}
 
@@ -2061,7 +2072,15 @@ func (svc *Service) ClearPasscode(ctx context.Context, hostID uint) (*fleet.Comm
 		return nil, ctxerr.Wrap(ctx, err, "host lite")
 	}
 
-	if err := svc.authz.Authorize(ctx, fleet.MDMCommandAuthz{TeamID: host.TeamID}, fleet.ActionWrite); err != nil {
+	// The platform is part of the authorization input because the policy grants
+	// technicians passcode clearing on iOS/iPadOS only. Mask the failure as
+	// not-found when the caller can't even read the host's MDM commands, so
+	// host IDs outside their visibility can't be probed.
+	notFoundErr := ctxerr.Wrap(ctx, common_mysql.NotFound("Host").WithID(hostID), "clear passcode")
+	if err := svc.authz.AuthorizeOrNotFound(ctx, fleet.MDMCommandAuthz{
+		TeamID:   host.TeamID,
+		Platform: host.Platform,
+	}, fleet.ActionClearPasscode, notFoundErr); err != nil {
 		return nil, err
 	}
 
@@ -2096,7 +2115,10 @@ func (svc *Service) CancelHostMDMCommand(ctx context.Context, hostID uint, comma
 		return ctxerr.Wrap(ctx, err, "host lite")
 	}
 
-	if err := svc.authz.Authorize(ctx, fleet.MDMCommandAuthz{TeamID: host.TeamID}, fleet.ActionWrite); err != nil {
+	// Mask the failure as not-found when the caller can't even read the host's
+	// MDM commands, so host IDs outside their visibility can't be probed.
+	notFoundErr := ctxerr.Wrap(ctx, common_mysql.NotFound("Host").WithID(hostID), "cancel host mdm command")
+	if err := svc.authz.AuthorizeOrNotFound(ctx, fleet.MDMCommandAuthz{TeamID: host.TeamID}, fleet.ActionWrite, notFoundErr); err != nil {
 		return err
 	}
 
@@ -2184,6 +2206,21 @@ func (svc *Service) clearPasscodeApple(ctx context.Context, host *fleet.Host, ap
 	if mdmData.IsPersonalEnrollment {
 		return nil, &fleet.BadRequestError{
 			Message: fleet.CantClearPasscodePersonalHostsMessage,
+		}
+	}
+
+	// The enrollment profile can restrict the Device Lock & Passcode Removal
+	// access right (BYOD manual enrollments); enforce it here rather than
+	// relying on the UI hiding the action, since the API can be called
+	// directly. Missing permissions rows fall back to unrestricted rights,
+	// matching the host details response.
+	perms, err := svc.ds.GetHostMDMAppleEnrollmentPermissions(ctx, host.UUID)
+	if err != nil && !fleet.IsNotFound(err) {
+		return nil, ctxerr.Wrap(ctx, err, "get host mdm apple enrollment permissions")
+	}
+	if perms != nil && perms.AccessRights&apple_mdm.MDMAccessRightDeviceLock == 0 {
+		return nil, &fleet.BadRequestError{
+			Message: fleet.CantClearPasscodeAccessRightsMessage,
 		}
 	}
 

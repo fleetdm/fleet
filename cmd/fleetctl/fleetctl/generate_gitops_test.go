@@ -919,19 +919,18 @@ func (MockClient) GetAppleMDMEnrollmentProfile(teamID uint) (*fleet.MDMAppleSetu
 	return nil, fmt.Errorf("unexpected team ID: %d", teamID)
 }
 
-func (MockClient) GetMicrosoftGraphCredentials() ([]*fleet.MicrosoftGraphCredential, error) {
+func (MockClient) GetMicrosoftGraphCredentials() ([]*fleet.MicrosoftGraphCredentialMetadata, error) {
 	return nil, nil
 }
 
-// graphCredClient returns one stored credential, as the endpoint does once one is configured. The secret comes back
-// masked from the API, so generate-gitops must not emit it.
+// graphCredClient returns one stored credential, as the endpoint does once one is configured. A read carries no
+// secret, so generate-gitops has none to emit and must write a placeholder instead.
 type graphCredClient struct{ MockClient }
 
-func (graphCredClient) GetMicrosoftGraphCredentials() ([]*fleet.MicrosoftGraphCredential, error) {
-	return []*fleet.MicrosoftGraphCredential{{
-		TenantID:     "5b1fc5b6-9502-4cf9-90cf-d0b656eaf7a4",
-		ClientID:     "122349c0-2458-448d-a9ae-f40b81a63213",
-		ClientSecret: fleet.MaskedPassword,
+func (graphCredClient) GetMicrosoftGraphCredentials() ([]*fleet.MicrosoftGraphCredentialMetadata, error) {
+	return []*fleet.MicrosoftGraphCredentialMetadata{{
+		TenantID: "5b1fc5b6-9502-4cf9-90cf-d0b656eaf7a4",
+		ClientID: "122349c0-2458-448d-a9ae-f40b81a63213",
 	}}, nil
 }
 
@@ -1348,9 +1347,9 @@ func TestGenerateOrgSettings(t *testing.T) {
 	// Compare.
 	require.Equal(t, expectedAppConfig, orgSettings)
 
-	// An unset mdm.windows_enrollment must serialize as null rather than an object with an empty default_fleet.
+	// An unset mdm.windows_automatic_enrollment must serialize as null rather than an object with an empty default_fleet.
 	// Applying null is a no-op; an empty default_fleet would clear whatever default the target server has set.
-	appConfig.MDM.WindowsEnrollment = optjson.Any[fleet.WindowsEnrollment]{}
+	appConfig.MDM.WindowsAutomaticEnrollment = optjson.Any[fleet.WindowsAutomaticEnrollment]{}
 	orgSettingsRaw, err = cmd.generateOrgSettings()
 	require.NoError(t, err)
 	b, err = yamlMarshalRenamed(orgSettingsRaw)
@@ -1358,9 +1357,9 @@ func TestGenerateOrgSettings(t *testing.T) {
 	require.NoError(t, yaml.Unmarshal(b, &orgSettings))
 	mdmSettings, ok := orgSettings["mdm"].(map[string]any)
 	require.True(t, ok)
-	we, present := mdmSettings["windows_enrollment"]
-	require.True(t, present, "windows_enrollment key should still be emitted")
-	require.Nil(t, we, "unset windows_enrollment must serialize as null so applying it is a no-op")
+	we, present := mdmSettings["windows_automatic_enrollment"]
+	require.True(t, present, "windows_automatic_enrollment key should still be emitted")
+	require.Nil(t, we, "unset windows_automatic_enrollment must serialize as null so applying it is a no-op")
 }
 
 // generate-gitops must round-trip the Microsoft Graph credential's identifiers so a generated file can be applied

@@ -41,7 +41,7 @@ const CreateApiUserPage = ({ router }: ICreateApiUserPageProps) => {
   const handleSubmit = (formData: IApiUserFormData) => {
     setIsSubmitting(true);
 
-    usersAPI
+    return usersAPI
       .createApiOnlyUser({
         name: formData.name,
         global_role: formData.global_role,

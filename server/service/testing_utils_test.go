@@ -122,7 +122,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 			}
 		}
 		if mockDS.ListMicrosoftGraphCredentialMetadataFunc == nil {
-			mockDS.ListMicrosoftGraphCredentialMetadataFunc = func(ctx context.Context) ([]*fleet.MicrosoftGraphCredential, error) {
+			mockDS.ListMicrosoftGraphCredentialMetadataFunc = func(ctx context.Context) ([]*fleet.MicrosoftGraphCredentialMetadata, error) {
 				return nil, nil
 			}
 		}
@@ -604,7 +604,8 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 				cfg.Activity.FleetInitiatedReleasePerMinute > 0)
 			checkInAndCommand.RegisterResultsHandler("InstalledApplicationList", NewInstalledApplicationListResultsHandler(ds, commander, logger, cfg.Server.VPPVerifyTimeout, cfg.Server.VPPVerifyRequestDelay, svc.NewActivity))
 			checkInAndCommand.RegisterResultsHandler(fleet.DeviceLocationCmdName, NewDeviceLocationResultsHandler(ds, commander, logger))
-			checkInAndCommand.RegisterResultsHandler(fleet.SetRecoveryLockCmdName, NewSetRecoveryLockResultsHandler(ds, logger, svc.NewActivity))
+			checkInAndCommand.RegisterResultsHandler(fleet.SetRecoveryLockCmdName, NewSetRecoveryLockResultsHandler(ds, logger, commander))
+			checkInAndCommand.RegisterResultsHandler(fleet.VerifyRecoveryLockCmdName, NewVerifyRecoveryLockResultsHandler(ds, logger, commander, svc.NewActivity))
 			err := RegisterAppleMDMProtocolServices(
 				rootMux,
 				cfg.MDM,
@@ -617,9 +618,14 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 					logger: logger,
 				},
 				commander,
+				&MDMAppleGetTokenService{
+					ds:     ds,
+					logger: logger,
+				},
 				"https://test-url.com",
 				cfg,
 				svc,
+				ds,
 			)
 			require.NoError(t, err)
 		}
@@ -688,7 +694,7 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 	}
 	debugHandler := MakeDebugHandler(svc, cfg, logger, errHandler, ds, nil)
 	rootMux.Handle("/debug/", debugHandler)
-	rootMux.Handle("/enroll", ServeEndUserEnrollOTA(svc, "", ds, logger, false))
+	rootMux.Handle("/enroll", ServeEndUserEnrollOTA(svc, "", ds, redis_key_value.New(redisPool), clock.C, logger, false))
 
 	if len(opts) > 0 && opts[0].EnableSCIM {
 		require.NoError(t, scim.RegisterSCIM(rootMux, ds, svc, logger, &cfg))
@@ -930,6 +936,7 @@ func mdmConfigurationRequiredEndpoints() []struct {
 		{"GET", "/api/latest/fleet/mdm/commands", false, false},
 		{"GET", "/api/latest/fleet/commands", false, false},
 		{"POST", "/api/fleet/orbit/disk_encryption_key", false, false},
+		{"POST", "/api/fleet/orbit/disk_encryption_protection", false, false},
 		{"GET", "/api/latest/fleet/mdm/profiles/1", false, false},
 		{"GET", "/api/latest/fleet/configuration_profiles/1", false, false},
 		// TODO: those endpoints accept multipart/form data that gets
@@ -972,6 +979,7 @@ func mdmConfigurationRequiredEndpoints() []struct {
 func windowsMDMConfigurationRequiredEndpoints() []string {
 	return []string{
 		"/api/fleet/orbit/disk_encryption_key",
+		"/api/fleet/orbit/disk_encryption_protection",
 	}
 }
 
@@ -1446,6 +1454,8 @@ type fmaTestState struct {
 	// placeholder when empty; set it to vary the script across builds (a real FMA
 	// script embeds the versioned installer filename, so a rebuild changes it).
 	installScript string
+	// installerDelay holds each installer download for this long, standing in for a slow but reachable CDN.
+	installerDelay time.Duration
 }
 
 func (s *fmaTestState) ComputeSHA(b []byte) {
@@ -1478,6 +1488,13 @@ func startFMAServers(t *testing.T, ds fleet.Datastore, states map[string]*fmaTes
 
 		for _, state := range states {
 			if state.installerPath == r.URL.Path {
+				if state.installerDelay > 0 {
+					select {
+					case <-time.After(state.installerDelay):
+					case <-r.Context().Done():
+						return
+					}
+				}
 				_, _ = w.Write(state.installerBytes)
 				return
 			}

@@ -43,7 +43,7 @@ func main() {
 	githubHttp := fleethttp.NewGithubClient()
 	ghAPI := io.NewGitHubClient(githubHttp, github.NewClient(githubHttp).Repositories, wd)
 
-	msrcHttp := fleethttp.NewClient() // don't reuse the GitHub client as it has an OAuth token baked in
+	msrcHttp := fleethttp.NewClient(fleethttp.WithNoTimeout()) // don't reuse the GitHub client as it has an OAuth token baked in
 	msrcAPI := msrc.NewMSRCClient(msrcHttp, inPath, msrc.MSRCBaseURL)
 
 	fmt.Println("Downloading existing MSRC bulletins...")

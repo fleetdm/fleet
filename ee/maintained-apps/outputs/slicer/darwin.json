@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "5.12.3",
+      "version": "5.12.4",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.slicer.slicer';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.slicer.slicer' AND version_compare(bundle_short_version, '5.12.3') < 0);",
-        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'org.slicer.slicer');"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.slicer.slicer' AND version_compare(bundle_short_version, '5.12.4') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'org.slicer.slicer' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://slicer-packages.kitware.com/api/v1/item/6a61a0b02eb3d967f032af6c/download",
+      "installer_url": "https://slicer-packages.kitware.com/api/v1/item/6aa2063bce9de556d30132d8/download",
       "install_script_ref": "df696ec2",
       "uninstall_script_ref": "9e7199d3",
-      "sha256": "7904d7aa6aadc5ee5ea855ec7d28b33c24444daddd98684a8673a14f4c37d794",
+      "sha256": "a15ea10dc67db53c477fc7cb80b2c64a2cfb2516a9a67056a6432c5272c223e4",
       "default_categories": [
         "Productivity"
       ]

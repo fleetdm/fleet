@@ -7,6 +7,7 @@ import (
 	"crypto/md5" // nolint:gosec // used only to hash for efficient comparisons
 	"database/sql"
 	"encoding/xml"
+	"errors"
 	"fmt"
 	"io"
 	"slices"
@@ -22,6 +23,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
+	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/test"
@@ -90,9 +92,12 @@ func TestMDMWindows(t *testing.T) {
 		{"TestMDMWindowsInsertCommandSkipsUnenrolledHosts", testMDMWindowsInsertCommandSkipsUnenrolledHosts},
 		{"TestCleanupWindowsMDMCommandQueue", testCleanupWindowsMDMCommandQueue},
 		{"TestMDMWindowsGetUnlinkedEnrolledDeviceWithDeviceName", testMDMWindowsGetUnlinkedEnrolledDeviceWithDeviceName},
+		{"TestMDMWindowsConflictingEnrollmentHardwareID", testMDMWindowsConflictingEnrollmentHardwareID},
 		{"TestWindowsHostLiteByHardwareSerial", testWindowsHostLiteByHardwareSerial},
 		{"TestMDMWindowsUnlinkedEnrollmentHardwareSerial", testMDMWindowsUnlinkedEnrollmentHardwareSerial},
+		{"TestMDMWindowsClaimEnrolledActivity", testMDMWindowsClaimEnrolledActivity},
 		{"TestWindowsEnrollmentDefaultFleet", testWindowsEnrollmentDefaultFleet},
+		{"TestMDMWindowsDeleteEnrolledDeviceOnReenrollmentReturnsHostUUID", testMDMWindowsDeleteEnrolledDeviceOnReenrollmentReturnsHostUUID},
 	}
 
 	for _, c := range cases {
@@ -135,14 +140,14 @@ func testMDMWindowsEnrolledDevice(t *testing.T, ds *Datastore) {
 	require.Equal(t, fleet.WindowsMDMAwaitingConfigurationNone, gotEnrolledDevice.AwaitingConfiguration)
 	require.Nil(t, gotEnrolledDevice.AwaitingConfigurationAt)
 
-	err = ds.MDMWindowsDeleteEnrolledDeviceOnReenrollment(ctx, enrolledDevice.MDMHardwareID)
+	_, err = ds.MDMWindowsDeleteEnrolledDeviceOnReenrollment(ctx, enrolledDevice.MDMHardwareID)
 	require.NoError(t, err)
 
 	var nfe fleet.NotFoundError
 	_, err = ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, enrolledDevice.MDMDeviceID)
 	require.ErrorAs(t, err, &nfe)
 
-	err = ds.MDMWindowsDeleteEnrolledDeviceOnReenrollment(ctx, enrolledDevice.MDMHardwareID)
+	_, err = ds.MDMWindowsDeleteEnrolledDeviceOnReenrollment(ctx, enrolledDevice.MDMHardwareID)
 	require.ErrorAs(t, err, &nfe)
 
 	// Test using device ID instead of hardware ID
@@ -166,7 +171,7 @@ func testMDMWindowsEnrolledDevice(t *testing.T, ds *Datastore) {
 	_, err = ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, enrolledDevice.MDMDeviceID)
 	require.ErrorAs(t, err, &nfe)
 
-	err = ds.MDMWindowsDeleteEnrolledDeviceOnReenrollment(ctx, enrolledDevice.MDMHardwareID)
+	_, err = ds.MDMWindowsDeleteEnrolledDeviceOnReenrollment(ctx, enrolledDevice.MDMHardwareID)
 	require.ErrorAs(t, err, &nfe)
 
 	// Test that awaiting configuration is persisted and updated on upsert.
@@ -263,7 +268,8 @@ func testMDMWindowsEnrolledDevice(t *testing.T, ds *Datastore) {
 	require.Equal(t, 1, activityCount)
 
 	// Run the re-enrollment cleanup.
-	require.NoError(t, ds.MDMWindowsDeleteEnrolledDeviceOnReenrollment(ctx, cleanupDevice.MDMHardwareID))
+	_, err = ds.MDMWindowsDeleteEnrolledDeviceOnReenrollment(ctx, cleanupDevice.MDMHardwareID)
+	require.NoError(t, err)
 
 	// All three related tables must be cleaned for this host.
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
@@ -889,13 +895,27 @@ func testMDMWindowsDiskEncryption(t *testing.T, ds *Datastore) {
 				})
 			})
 
-			t.Run("protection_status=0 becomes action_required", func(t *testing.T) {
+			// Protection off on its own is Fleet's job to fix, not the end user's, so it belongs in enforcing.
+			t.Run("protection_status=0 with no reported reason is enforcing", func(t *testing.T) {
+				require.NoError(t, ds.SetOrUpdateHostBitLockerProtectionOutcome(ctx, targetHost.ID, fleet.DiskEncryptionProtectionRestored, ""))
 				setProtectionStatus(t, targetHost.ID, new(fleet.BitLockerProtectionStatusOff))
+				checkExpected(t, nil, hostIDsByDEStatus{
+					fleet.DiskEncryptionVerified:  []uint{hosts[0].ID},
+					fleet.DiskEncryptionEnforcing: []uint{targetHost.ID},
+					fleet.DiskEncryptionFailed:    []uint{hosts[1].ID},
+				})
+			})
+
+			t.Run("protection_status=0 with a reported reason becomes action_required", func(t *testing.T) {
+				setProtectionStatus(t, targetHost.ID, new(fleet.BitLockerProtectionStatusOff))
+				require.NoError(t, ds.SetOrUpdateHostBitLockerProtectionOutcome(ctx, targetHost.ID, fleet.DiskEncryptionProtectionFailed,
+					"could not add a TPM protector, so protection was not re-enabled"))
 				checkExpected(t, nil, hostIDsByDEStatus{
 					fleet.DiskEncryptionVerified:       []uint{hosts[0].ID},
 					fleet.DiskEncryptionActionRequired: []uint{targetHost.ID},
 					fleet.DiskEncryptionFailed:         []uint{hosts[1].ID},
 				})
+				require.NoError(t, ds.SetOrUpdateHostBitLockerProtectionOutcome(ctx, targetHost.ID, fleet.DiskEncryptionProtectionRestored, ""))
 			})
 
 			t.Run("protection_status=NULL treated as on (backward compat)", func(t *testing.T) {
@@ -921,17 +941,92 @@ func testMDMWindowsDiskEncryption(t *testing.T, ds *Datastore) {
 				})
 			})
 
-			t.Run("action_required detail message for protection off", func(t *testing.T) {
+			// action_required tells the UI whether the END USER can do anything. A missing startup PIN qualifies only
+			// while the volume is protected: Windows offers PIN setup through "Change how the drive is unlocked at
+			// startup", which it does not show on an unprotected volume.
+			t.Run("action_required names the end-user action only when there is one", func(t *testing.T) {
+				require.NoError(t, ds.SetOrUpdateHostDisksEncryption(ctx, targetHost.ID, true, new(fleet.BitLockerProtectionStatusOff)))
+				require.NoError(t, ds.SetOrUpdateHostBitLockerProtectionOutcome(ctx, targetHost.ID, fleet.DiskEncryptionProtectionFailed, "the TPM is not ready"))
+				h, err := ds.Host(ctx, targetHost.ID)
+				require.NoError(t, err)
+
+				// PIN not required: nothing the end user can do about an unready TPM.
+				bls, err := ds.GetMDMWindowsBitLockerStatus(ctx, h)
+				require.NoError(t, err)
+				require.Equal(t, fleet.DiskEncryptionActionRequired, *bls.Status)
+				require.Nil(t, bls.ActionRequired)
+
+				require.NoError(t, ds.SetOrUpdateHostBitLockerProtectionOutcome(ctx, targetHost.ID, fleet.DiskEncryptionProtectionRestored, ""))
+				ac.MDM.RequireBitLockerPIN = optjson.SetBool(true)
+				ac.MDM.WindowsSettings.RequireBitLockerPIN = optjson.SetBool(true)
+				require.NoError(t, ds.SaveAppConfig(ctx, ac))
+				defer func() {
+					ac.MDM.RequireBitLockerPIN = optjson.SetBool(false)
+					ac.MDM.WindowsSettings.RequireBitLockerPIN = optjson.SetBool(false)
+					require.NoError(t, ds.SaveAppConfig(ctx, ac))
+				}()
+
+				// PIN required but protection is off: the end user cannot reach the PIN flow, so name no action.
+				bls, err = ds.GetMDMWindowsBitLockerStatus(ctx, h)
+				require.NoError(t, err)
+				require.Equal(t, fleet.DiskEncryptionActionRequired, *bls.Status)
+				require.Nil(t, bls.ActionRequired)
+
+				// PIN required with protection back on: now the end user has a path, so ask them to take it.
+				require.NoError(t, ds.SetOrUpdateHostDisksEncryption(ctx, targetHost.ID, true, new(fleet.BitLockerProtectionStatusOn)))
+				bls, err = ds.GetMDMWindowsBitLockerStatus(ctx, h)
+				require.NoError(t, err)
+				require.Equal(t, fleet.DiskEncryptionActionRequired, *bls.Status)
+				require.NotNil(t, bls.ActionRequired)
+				require.Equal(t, fleet.ActionRequiredCreatePIN, *bls.ActionRequired)
+			})
+
+			// A deferred repair resolves itself once the host restarts, so the named action is the restart rather
+			// than anything to do with a PIN, even on a host that is also missing one.
+			t.Run("a deferred repair asks for a restart", func(t *testing.T) {
+				require.NoError(t, ds.SetOrUpdateHostDisksEncryption(ctx, targetHost.ID, true, new(fleet.BitLockerProtectionStatusOff)))
+				require.NoError(t, ds.SetOrUpdateHostBitLockerProtectionOutcome(ctx, targetHost.ID,
+					fleet.DiskEncryptionProtectionDeferred, "a restart is pending on this host"))
+				h, err := ds.Host(ctx, targetHost.ID)
+				require.NoError(t, err)
+
+				bls, err := ds.GetMDMWindowsBitLockerStatus(ctx, h)
+				require.NoError(t, err)
+				require.Equal(t, fleet.DiskEncryptionActionRequired, *bls.Status)
+				require.NotNil(t, bls.ActionRequired)
+				require.Equal(t, fleet.ActionRequiredRestart, *bls.ActionRequired)
+				require.Contains(t, bls.Detail, "after this host restarts")
+				require.NotContains(t, bls.Detail, "could not turn it back on",
+					"a deliberate deferral must not read as a failure")
+
+				require.NoError(t, ds.SetOrUpdateHostBitLockerProtectionOutcome(ctx, targetHost.ID,
+					fleet.DiskEncryptionProtectionRestored, ""))
+			})
+
+			t.Run("detail message for protection off", func(t *testing.T) {
 				// Restore targetHost to encrypted + protection off
 				require.NoError(t, ds.SetOrUpdateHostDisksEncryption(ctx, targetHost.ID, true, new(fleet.BitLockerProtectionStatusOff)))
+
+				// With no reported reason Fleet is still working on it, so this is enforcing.
 				h, err := ds.Host(ctx, targetHost.ID)
 				require.NoError(t, err)
 				bls, err := ds.GetMDMWindowsBitLockerStatus(ctx, h)
 				require.NoError(t, err)
 				require.NotNil(t, bls)
 				require.NotNil(t, bls.Status)
+				require.Equal(t, fleet.DiskEncryptionEnforcing, *bls.Status)
+
+				// Once the agent says it cannot be repaired, the status escalates and carries that reason verbatim.
+				require.NoError(t, ds.SetOrUpdateHostBitLockerProtectionOutcome(ctx, targetHost.ID, fleet.DiskEncryptionProtectionFailed,
+					"could not add a TPM protector, so protection was not re-enabled: 0x80310066"))
+				bls, err = ds.GetMDMWindowsBitLockerStatus(ctx, h)
+				require.NoError(t, err)
+				require.NotNil(t, bls.Status)
 				require.Equal(t, fleet.DiskEncryptionActionRequired, *bls.Status)
 				require.Contains(t, bls.Detail, "BitLocker protection is off")
+				require.Contains(t, bls.Detail, "0x80310066")
+
+				require.NoError(t, ds.SetOrUpdateHostBitLockerProtectionOutcome(ctx, targetHost.ID, fleet.DiskEncryptionProtectionRestored, ""))
 			})
 		})
 	})
@@ -2592,16 +2687,166 @@ func testUpdateMDMWindowsConfigProfile(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, newSyncML, stored.SyncML)
 
-	// mismatched name is rejected -- Windows profiles have no separate identifier
-	// field, so name is the only identity a profile has. This is the only layer
-	// this can be tested at: the service layer never exposes a way for a client
-	// to submit a different name on an edit.
-	_, err = ds.UpdateMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
+	// a rename is applied in place: same row, new name, and uploaded_at moves
+	// because the admin uploaded a differently named file.
+	// Backdate uploaded_at rather than comparing against "now": the column is
+	// written with CURRENT_TIMESTAMP(), which is second-granular, so a rename in
+	// the same second as the previous write would otherwise look unchanged.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			`UPDATE mdm_windows_configuration_profiles SET uploaded_at = DATE_SUB(NOW(), INTERVAL 1 HOUR) WHERE profile_uuid = ?`,
+			initial.ProfileUUID)
+		return err
+	})
+	beforeRename, err := ds.GetMDMWindowsConfigProfile(ctx, initial.ProfileUUID)
+	require.NoError(t, err)
+	// identical content, so only the rename can move uploaded_at
+	renamed, err := ds.UpdateMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
 		ProfileUUID: initial.ProfileUUID,
 		Name:        "A Different Name",
 		SyncML:      newSyncML,
 	}, nil)
-	require.ErrorContains(t, err, "must match the existing profile's name")
+	require.NoError(t, err)
+	require.Equal(t, initial.ProfileUUID, renamed.ProfileUUID)
+	require.Equal(t, "A Different Name", renamed.Name)
+	require.True(t, renamed.UploadedAt.After(beforeRename.UploadedAt))
+
+	stored, err = ds.GetMDMWindowsConfigProfile(ctx, initial.ProfileUUID)
+	require.NoError(t, err)
+	require.Equal(t, "A Different Name", stored.Name)
+
+	// the old name is free again, so a new profile can claim it
+	reclaimed, err := ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
+		Name:   "Update Test Profile",
+		SyncML: newSyncML,
+	}, nil)
+	require.NoError(t, err)
+
+	// renaming onto a name another profile in the team already holds is rejected
+	_, err = ds.UpdateMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
+		ProfileUUID: initial.ProfileUUID,
+		Name:        "Update Test Profile",
+		SyncML:      newSyncML,
+	}, nil)
+	require.Error(t, err)
+	_, isExists := errors.AsType[endpointer.ExistsErrorInterface](err)
+	require.True(t, isExists, "expected an exists error, got %v", err)
+
+	require.NoError(t, ds.DeleteMDMWindowsConfigProfile(ctx, reclaimed.ProfileUUID))
+
+	// renaming onto a name held by ANOTHER PLATFORM's profile is rejected too:
+	// that collision has no index behind it, so it's the NOT EXISTS guard in the
+	// UPDATE that catches it, not a duplicate-key error.
+	appleProf, err := ds.NewMDMAppleConfigProfile(ctx, *generateAppleCP("cross-platform-name", "com.example.cross", 0), nil)
+	require.NoError(t, err)
+	_, err = ds.UpdateMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
+		ProfileUUID: initial.ProfileUUID,
+		Name:        "cross-platform-name",
+		SyncML:      newSyncML,
+	}, nil)
+	require.Error(t, err)
+	_, isExists = errors.AsType[endpointer.ExistsErrorInterface](err)
+	require.True(t, isExists, "expected an exists error, got %v", err)
+
+	// the blocked rename left the profile alone
+	stored, err = ds.GetMDMWindowsConfigProfile(ctx, initial.ProfileUUID)
+	require.NoError(t, err)
+	require.Equal(t, "A Different Name", stored.Name)
+	require.NoError(t, ds.DeleteMDMAppleConfigProfile(ctx, appleProf.ProfileUUID))
+
+	// A rename does NOT write the per-host rows: reads resolve the name from the
+	// live profile, so the denormalized copy is allowed to go stale while the
+	// profile exists. Renaming with identical content enqueues nothing, so if the
+	// rename wrote those rows this host would be touched.
+	hostUUID := uuid.NewString()
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			`INSERT INTO host_mdm_windows_profiles (host_uuid, profile_uuid, profile_name, command_uuid, checksum)
+			 VALUES (?, ?, ?, ?, UNHEX(MD5(?)))`,
+			hostUUID, initial.ProfileUUID, "A Different Name", uuid.NewString(), newSyncML)
+		return err
+	})
+	_, err = ds.UpdateMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
+		ProfileUUID: initial.ProfileUUID,
+		Name:        "Renamed Again",
+		SyncML:      newSyncML, // identical content, so nothing is enqueued for the host
+	}, nil)
+	require.NoError(t, err)
+	var hostProfileName string
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &hostProfileName,
+			`SELECT profile_name FROM host_mdm_windows_profiles WHERE host_uuid = ? AND profile_uuid = ?`,
+			hostUUID, initial.ProfileUUID)
+	})
+	require.Equal(t, "A Different Name", hostProfileName, "the rename must not write per-host rows")
+
+	// but the host's profile list still reports the current name, resolved from the
+	// live profile row rather than the stale copy above
+	hostProfs, err := ds.GetHostMDMWindowsProfiles(ctx, hostUUID)
+	require.NoError(t, err)
+	require.Len(t, hostProfs, 1)
+	require.Equal(t, "Renamed Again", hostProfs[0].Name)
+
+	// once the profile is deleted the live name is gone, so the copy has to have been
+	// snapshotted on the way out or the host would show the pre-rename name
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			`UPDATE host_mdm_windows_profiles SET operation_type = ?, status = NULL WHERE profile_uuid = ?`,
+			fleet.MDMOperationTypeRemove, initial.ProfileUUID)
+		return err
+	})
+	require.NoError(t, ds.DeleteMDMWindowsConfigProfile(ctx, initial.ProfileUUID))
+	hostProfs, err = ds.GetHostMDMWindowsProfiles(ctx, hostUUID)
+	require.NoError(t, err)
+	require.Len(t, hostProfs, 1)
+	require.Equal(t, "Renamed Again", hostProfs[0].Name, "deleted profile must keep its post-rename name")
+
+	// recreate so the assertions below keep reading as before
+	initial, err = ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
+		Name:   "Renamed Again",
+		SyncML: newSyncML,
+	}, nil)
+	require.NoError(t, err)
+
+	// A rename that only changes case must still be snapshotted on delete. The
+	// name column is utf8mb4_unicode_ci, so the snapshot's "has it drifted" check
+	// has to compare as BINARY or MySQL calls these two names equal and skips it.
+	caseHostUUID := uuid.NewString()
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			`INSERT INTO host_mdm_windows_profiles (host_uuid, profile_uuid, profile_name, command_uuid, checksum)
+			 VALUES (?, ?, ?, ?, UNHEX(MD5(?)))`,
+			caseHostUUID, initial.ProfileUUID, "Renamed Again", uuid.NewString(), newSyncML)
+		return err
+	})
+	_, err = ds.UpdateMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
+		ProfileUUID: initial.ProfileUUID,
+		Name:        "RENAMED AGAIN",
+		SyncML:      newSyncML,
+	}, nil)
+	require.NoError(t, err)
+	require.NoError(t, ds.DeleteMDMWindowsConfigProfile(ctx, initial.ProfileUUID))
+	var caseStoredName string
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &caseStoredName,
+			`SELECT profile_name FROM host_mdm_windows_profiles WHERE host_uuid = ?`, caseHostUUID)
+	})
+	require.Equal(t, "RENAMED AGAIN", caseStoredName, "a case-only rename must still be snapshotted")
+
+	// recreate again for the remaining assertions
+	initial, err = ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
+		Name:   "Renamed Again",
+		SyncML: newSyncML,
+	}, nil)
+	require.NoError(t, err)
+
+	// put the name back so the assertions below keep reading as before
+	_, err = ds.UpdateMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
+		ProfileUUID: initial.ProfileUUID,
+		Name:        initial.Name,
+		SyncML:      newSyncML,
+	}, nil)
+	require.NoError(t, err)
 
 	// updating a nonexistent profile returns a not-found error
 	_, err = ds.UpdateMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
@@ -7632,6 +7877,7 @@ func testMDMWindowsProfilesSummaryEnumeration(t *testing.T, ds *Datastore) {
 // only ones tests in this file vary; everything else gets sensible defaults via insertWindowsEnrolledDevice.
 type windowsEnrollmentFixture struct {
 	mdmDeviceID           string // defaulted to a fresh UUID if empty
+	hardwareID            string // defaulted to a fresh value if empty; set it to share one across enrollments
 	deviceNameSuffix      string // appended to "DESKTOP-" for MDMDeviceName; defaulted to "TEST"
 	hostUUID              string // optional, links the enrollment to a host row
 	awaitingConfiguration fleet.WindowsMDMAwaitingConfiguration
@@ -7650,9 +7896,12 @@ func insertWindowsEnrolledDevice(t *testing.T, ctx context.Context, ds *Datastor
 	if f.deviceNameSuffix == "" {
 		f.deviceNameSuffix = "TEST"
 	}
+	if f.hardwareID == "" {
+		f.hardwareID = uuid.NewString() + uuid.NewString()
+	}
 	require.NoError(t, ds.MDMWindowsInsertEnrolledDevice(ctx, &fleet.MDMWindowsEnrolledDevice{
 		MDMDeviceID:             f.mdmDeviceID,
-		MDMHardwareID:           uuid.NewString() + uuid.NewString(),
+		MDMHardwareID:           f.hardwareID,
 		MDMDeviceState:          microsoft_mdm.MDMDeviceStateEnrolled,
 		MDMDeviceType:           "CIMClient_Windows",
 		MDMDeviceName:           "DESKTOP-" + strings.ToUpper(f.deviceNameSuffix),
@@ -8259,6 +8508,114 @@ func testWindowsPerHostReconcileLoaders(t *testing.T, ds *Datastore) {
 	require.NotEmpty(t, row.Checksum)
 }
 
+func testMDMWindowsClaimEnrolledActivity(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	newEnrollment := func() *fleet.MDMWindowsEnrolledDevice {
+		d := &fleet.MDMWindowsEnrolledDevice{
+			MDMDeviceID:            uuid.New().String(),
+			MDMHardwareID:          uuid.New().String() + uuid.New().String(),
+			MDMDeviceState:         microsoft_mdm.MDMDeviceStateEnrolled,
+			MDMDeviceType:          "CIMClient_Windows",
+			MDMDeviceName:          "DESKTOP-CLAIM",
+			MDMEnrollType:          "AzureADJoin",
+			MDMEnrollUserID:        "user@example.com",
+			MDMEnrollProtoVersion:  "5.0",
+			MDMEnrollClientVersion: "10.0.19045.2965",
+		}
+		require.NoError(t, ds.MDMWindowsInsertEnrolledDevice(ctx, d))
+		return d
+	}
+
+	now := time.Now().UTC().Truncate(time.Microsecond)
+
+	t.Run("first caller wins and later callers do not", func(t *testing.T) {
+		device := newEnrollment()
+
+		loaded, err := ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, device.MDMDeviceID)
+		require.NoError(t, err)
+		require.Nil(t, loaded.EnrolledActivityAt, "a new enrollment starts unclaimed")
+
+		claimed, err := ds.MDMWindowsClaimEnrolledActivity(ctx, device.MDMHardwareID, now)
+		require.NoError(t, err)
+		require.True(t, claimed)
+
+		claimed, err = ds.MDMWindowsClaimEnrolledActivity(ctx, device.MDMHardwareID, now.Add(time.Second))
+		require.NoError(t, err)
+		require.False(t, claimed, "a second caller must not record a duplicate activity")
+
+		loaded, err = ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, device.MDMDeviceID)
+		require.NoError(t, err)
+		require.NotNil(t, loaded.EnrolledActivityAt, "the claim is what marks the enrollment as announced")
+	})
+
+	t.Run("unknown hardware id claims nothing", func(t *testing.T) {
+		claimed, err := ds.MDMWindowsClaimEnrolledActivity(ctx, uuid.New().String(), now)
+		require.NoError(t, err)
+		require.False(t, claimed)
+	})
+
+	t.Run("release restores claimability, and only for the timestamp claimed", func(t *testing.T) {
+		device := newEnrollment()
+		claimed, err := ds.MDMWindowsClaimEnrolledActivity(ctx, device.MDMHardwareID, now)
+		require.NoError(t, err)
+		require.True(t, claimed)
+
+		// A release carrying a different timestamp belongs to some other claim and must not clear this one.
+		require.NoError(t, ds.MDMWindowsReleaseEnrolledActivityClaim(ctx, device.MDMHardwareID, now.Add(time.Hour)))
+		claimed, err = ds.MDMWindowsClaimEnrolledActivity(ctx, device.MDMHardwareID, now)
+		require.NoError(t, err)
+		require.False(t, claimed, "a mismatched release must leave the claim in place")
+
+		require.NoError(t, ds.MDMWindowsReleaseEnrolledActivityClaim(ctx, device.MDMHardwareID, now))
+		claimed, err = ds.MDMWindowsClaimEnrolledActivity(ctx, device.MDMHardwareID, now)
+		require.NoError(t, err)
+		require.True(t, claimed, "releasing a failed activity write must let a later session retry")
+	})
+
+	t.Run("re-enrollment is claimable again", func(t *testing.T) {
+		device := newEnrollment()
+		claimed, err := ds.MDMWindowsClaimEnrolledActivity(ctx, device.MDMHardwareID, now)
+		require.NoError(t, err)
+		require.True(t, claimed)
+
+		_, err = ds.MDMWindowsDeleteEnrolledDeviceOnReenrollment(ctx, device.MDMHardwareID)
+		require.NoError(t, err)
+		reEnrolled := &fleet.MDMWindowsEnrolledDevice{
+			MDMDeviceID:            uuid.New().String(),
+			MDMHardwareID:          device.MDMHardwareID,
+			MDMDeviceState:         microsoft_mdm.MDMDeviceStateEnrolled,
+			MDMDeviceType:          "CIMClient_Windows",
+			MDMDeviceName:          "DESKTOP-CLAIM",
+			MDMEnrollType:          "AzureADJoin",
+			MDMEnrollUserID:        "user@example.com",
+			MDMEnrollProtoVersion:  "5.0",
+			MDMEnrollClientVersion: "10.0.19045.2965",
+		}
+		require.NoError(t, ds.MDMWindowsInsertEnrolledDevice(ctx, reEnrolled))
+
+		claimed, err = ds.MDMWindowsClaimEnrolledActivity(ctx, reEnrolled.MDMHardwareID, now)
+		require.NoError(t, err)
+		require.True(t, claimed, "a re-enrollment must get its own mdm_enrolled activity")
+	})
+
+	t.Run("upsert over an existing row keeps the claim", func(t *testing.T) {
+		// Same hardware id, so the insert takes the ON DUPLICATE KEY UPDATE branch. That branch is only reachable when
+		// two enrollment requests race (a real re-enrollment deletes the row first), and clearing the claim there
+		// would let the enrollment be announced a second time.
+		device := newEnrollment()
+		claimed, err := ds.MDMWindowsClaimEnrolledActivity(ctx, device.MDMHardwareID, now)
+		require.NoError(t, err)
+		require.True(t, claimed)
+
+		require.NoError(t, ds.MDMWindowsInsertEnrolledDevice(ctx, device))
+
+		claimed, err = ds.MDMWindowsClaimEnrolledActivity(ctx, device.MDMHardwareID, now)
+		require.NoError(t, err)
+		require.False(t, claimed, "a racing duplicate enrollment request must not re-announce the enrollment")
+	})
+}
+
 func testMDMWindowsUnlinkedEnrollmentHardwareSerial(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
@@ -8564,4 +8921,130 @@ func testWindowsProfileRetryOnDeviceFailure(t *testing.T, ds *Datastore) {
 
 	// Terminal failures must reach the rollup that GetMDMWindowsProfilesSummary reads.
 	require.Equal(t, string(fleet.MDMDeliveryFailed), readWindowsProfilesStatusRollup(t, ds)[host.UUID])
+}
+
+func testMDMWindowsConflictingEnrollmentHardwareID(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	newEnrollment := func(hostUUID string) *fleet.MDMWindowsEnrolledDevice {
+		return &fleet.MDMWindowsEnrolledDevice{
+			MDMDeviceID:            uuid.New().String(),
+			MDMHardwareID:          uuid.New().String() + uuid.New().String(),
+			MDMDeviceState:         microsoft_mdm.MDMDeviceStateEnrolled,
+			MDMDeviceType:          "CIMClient_Windows",
+			MDMDeviceName:          "DESKTOP-CONFLICT",
+			MDMEnrollType:          "AzureADJoin",
+			MDMEnrollProtoVersion:  "5.0",
+			MDMEnrollClientVersion: "10.0.19045.2965",
+			HostUUID:               hostUUID,
+		}
+	}
+
+	hostUUID := uuid.New().String()
+
+	t.Run("an unclaimed host has no conflict", func(t *testing.T) {
+		conflicted, conflict, err := ds.MDMWindowsConflictingEnrollmentHardwareID(ctx, hostUUID, "some-hardware-id")
+		require.NoError(t, err)
+		assert.False(t, conflicted)
+		assert.Empty(t, conflict)
+	})
+
+	t.Run("an empty host uuid has no conflict", func(t *testing.T) {
+		// Every enrollment starts unlinked, so an empty UUID must never be reported as claimed by all of them.
+		conflicted, conflict, err := ds.MDMWindowsConflictingEnrollmentHardwareID(ctx, "", "some-hardware-id")
+		require.NoError(t, err)
+		assert.False(t, conflicted)
+		assert.Empty(t, conflict)
+	})
+
+	incumbent := newEnrollment(hostUUID)
+	require.NoError(t, ds.MDMWindowsInsertEnrolledDevice(ctx, incumbent))
+
+	t.Run("the same hardware re-enrolling is not a conflict", func(t *testing.T) {
+		conflicted, conflict, err := ds.MDMWindowsConflictingEnrollmentHardwareID(ctx, hostUUID, incumbent.MDMHardwareID)
+		require.NoError(t, err)
+		assert.False(t, conflicted, "a device must always be able to reclaim the host it already holds")
+		assert.Empty(t, conflict)
+	})
+
+	t.Run("different hardware claiming the same host conflicts", func(t *testing.T) {
+		claimant := newEnrollment("")
+		require.NoError(t, ds.MDMWindowsInsertEnrolledDevice(ctx, claimant))
+
+		conflicted, conflict, err := ds.MDMWindowsConflictingEnrollmentHardwareID(ctx, hostUUID, claimant.MDMHardwareID)
+		require.NoError(t, err)
+		assert.True(t, conflicted)
+		assert.Equal(t, incumbent.MDMHardwareID, conflict, "the incumbent's hardware id is reported so it can be logged")
+	})
+
+	t.Run("re-enrolling the same hardware clears the claim", func(t *testing.T) {
+		// This is what keeps legitimate re-enrollment from ever colliding with the guard, so it exercises the path
+		// production actually takes: a re-enrolling device is deleted by hardware ID first
+		// (MDMWindowsDeleteEnrolledDeviceOnReenrollment) and then inserted fresh, rather than upserting in place.
+		rowIDForHardware := func() uint {
+			var id uint
+			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+				return sqlx.GetContext(ctx, q, &id,
+					`SELECT id FROM mdm_windows_enrollments WHERE mdm_hardware_id = ?`, incumbent.MDMHardwareID)
+			})
+			return id
+		}
+		beforeID := rowIDForHardware()
+
+		deletedHostUUID, err := ds.MDMWindowsDeleteEnrolledDeviceOnReenrollment(ctx, incumbent.MDMHardwareID)
+		require.NoError(t, err)
+		require.Equal(t, hostUUID, deletedHostUUID, "the incumbent was linked, so the delete reports the host it released")
+		reEnroll := newEnrollment("")
+		reEnroll.MDMHardwareID = incumbent.MDMHardwareID
+		require.NoError(t, ds.MDMWindowsInsertEnrolledDevice(ctx, reEnroll))
+
+		// The row is replaced rather than updated in place, which is what a real wiped device produced.
+		assert.NotEqual(t, beforeID, rowIDForHardware(), "re-enrollment replaces the row instead of reusing it")
+
+		conflicted, conflict, err := ds.MDMWindowsConflictingEnrollmentHardwareID(ctx, hostUUID, "brand-new-hardware-id")
+		require.NoError(t, err)
+		assert.False(t, conflicted, "the incumbent released the host when it re-enrolled")
+		assert.Empty(t, conflict)
+	})
+
+	t.Run("an incumbent with an empty hardware id still conflicts", func(t *testing.T) {
+		emptyHWHostUUID := uuid.New().String()
+		emptyHWIncumbent := newEnrollment(emptyHWHostUUID)
+		emptyHWIncumbent.MDMHardwareID = ""
+		require.NoError(t, ds.MDMWindowsInsertEnrolledDevice(ctx, emptyHWIncumbent))
+
+		conflicted, conflict, err := ds.MDMWindowsConflictingEnrollmentHardwareID(ctx, emptyHWHostUUID, "claimant-hardware-id")
+		require.NoError(t, err)
+		assert.True(t, conflicted, "an empty-hardware-id incumbent must still block the claim")
+		assert.Empty(t, conflict, "there is no id to log, which is why conflicted is the answer and not this string")
+	})
+}
+
+// testMDMWindowsDeleteEnrolledDeviceOnReenrollmentReturnsHostUUID covers the host UUID the re-enrollment delete
+// reports back, which is what the duplicate hardware ID warning (#50612) compares against the enrolling host. It walks
+// the three states the warning has to tell apart: no enrollment for the hardware ID, an enrollment that is not linked
+// to a host yet, and an enrollment linked to a host.
+func testMDMWindowsDeleteEnrolledDeviceOnReenrollmentReturnsHostUUID(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	hwID := uuid.NewString() + uuid.NewString()
+
+	_, err := ds.MDMWindowsDeleteEnrolledDeviceOnReenrollment(ctx, hwID)
+	var nfe fleet.NotFoundError
+	require.ErrorAs(t, err, &nfe, "a hardware ID with no enrollment must not look like a collision")
+
+	// Enrolled, but not linked to a host yet, which is where an Entra automatic enrollment sits until serial-based
+	// linking runs. Reports empty so the caller cannot mistake it for a collision.
+	insertWindowsEnrolledDevice(t, ctx, ds, windowsEnrollmentFixture{hardwareID: hwID})
+	got, err := ds.MDMWindowsDeleteEnrolledDeviceOnReenrollment(ctx, hwID)
+	require.NoError(t, err)
+	require.Empty(t, got, "an unlinked enrollment has no host to name")
+
+	// Once linked, the host is reported. That is the only state the warning fires on.
+	host := test.NewHost(t, ds, "hwid-enrolled", "10.0.0.31", "hwid-enrolled-key", "hwid-enrolled-uuid", time.Now())
+	deviceID := insertWindowsEnrolledDevice(t, ctx, ds, windowsEnrollmentFixture{hardwareID: hwID})
+	_, err = ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, host.UUID, deviceID)
+	require.NoError(t, err)
+	got, err = ds.MDMWindowsDeleteEnrolledDeviceOnReenrollment(ctx, hwID)
+	require.NoError(t, err)
+	require.Equal(t, host.UUID, got)
 }

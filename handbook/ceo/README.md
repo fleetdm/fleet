@@ -114,7 +114,7 @@ The Executive Assistant will verify daily that the CEO's calendar is accurate fo
   - The CEO will schedule his own transportation (e.g. to/from hotel/event location) while traveling. If the CEO is traveling to an event or meeting where other Fleeties are present, he may use travel time (e.g. an Uber ride) as time to align with other team members in person.
 
 The CEO's calendar should reflect the following schedule for travel:
-- Time block for the CEO to pack (always have this event even if the CEO doesn't check any bags in, he always bring a carry-on bag),
+- Time block for the CEO to pack (always have this event even if the CEO doesn't check any bags in, he always brings a carry-on bag),
   - 45 minutes
   - Calendar event name: Pack
 - Travel time to the airport the CEO is going to,
@@ -255,7 +255,7 @@ It's not enough to just "delete" a recording of a meeting in Gong.  Instead, use
 - Click the "hotdog" menu in the right-hand corner
 <img width="264" alt="image" src="https://github.com/fleetdm/fleet/assets/108141731/86948d02-a972-42ef-9a2d-1d93f24a1780">
 - `Delete recording`
-- Search for the title of the meeting Google Drive and delete the auto-generated Google Doc containing the transcript. 
+- Search for the title of the meeting in Google Drive and delete the auto-generated Google Doc containing the transcript. 
 - Always check back to ensure the recording **and** transcript were both deleted.
 
 

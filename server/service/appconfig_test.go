@@ -157,6 +157,36 @@ func TestAppConfigAuth(t *testing.T) {
 	}
 }
 
+// TestModifyAppConfigHostExpiryWindow covers the validation that rejects the
+// apply before persisting. The accepted cases (positive window, and a window
+// that is ignored while host expiry is disabled) are covered by integration
+// tests, like the sibling activity_expiry_window check.
+func TestModifyAppConfigHostExpiryWindow(t *testing.T) {
+	for _, window := range []int{-1, 0} {
+		t.Run(fmt.Sprintf("enabled with window %d is rejected", window), func(t *testing.T) {
+			ds := new(mock.Store)
+			svc, ctx := newTestServiceWithConfig(t, ds, config.TestConfig(), nil, nil, &TestServerOpts{
+				License: &fleet.LicenseInfo{Tier: fleet.TierFree},
+			})
+			ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
+			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+				return &fleet.AppConfig{
+					OrgInfo:        fleet.OrgInfo{OrgName: "Test"},
+					ServerSettings: fleet.ServerSettings{ServerURL: "https://example.org"},
+				}, nil
+			}
+			ds.SaveAppConfigFunc = func(ctx context.Context, conf *fleet.AppConfig) error { return nil }
+
+			body := fmt.Sprintf(`{"host_expiry_settings":{"host_expiry_enabled":true,"host_expiry_window":%d}}`, window)
+			_, err := svc.ModifyAppConfig(ctx, []byte(body), fleet.ApplySpecOptions{})
+			var invalid *fleet.InvalidArgumentError
+			require.ErrorAs(t, err, &invalid)
+			require.Contains(t, fmt.Sprintf("%+v", invalid.Errors), "host_expiry_settings.host_expiry_window")
+			require.False(t, ds.SaveAppConfigFuncInvoked, "config should not be saved when rejected")
+		})
+	}
+}
+
 // TestModifyAppConfigVulnExposureFilters covers the GitOps wiring for the
 // vulnerability-exposure chart filter defaults: the premium gate and the
 // payload validation, both of which reject the apply before persisting. The
@@ -3708,7 +3738,7 @@ func TestModifyAppConfigWindowsEnrollment(t *testing.T) {
 		{
 			name:             "set to existing fleet",
 			licenseTier:      fleet.TierPremium,
-			payload:          `{"mdm":{"windows_enrollment":{"default_fleet":"Workstations"}}}`,
+			payload:          `{"mdm":{"windows_automatic_enrollment":{"default_fleet":"Workstations"}}}`,
 			expectSet:        true,
 			expectSetTo:      &teamID,
 			expectActivity:   true,
@@ -3717,7 +3747,7 @@ func TestModifyAppConfigWindowsEnrollment(t *testing.T) {
 		{
 			name:             "unchanged value writes nothing",
 			licenseTier:      fleet.TierPremium,
-			payload:          `{"mdm":{"windows_enrollment":{"default_fleet":"Workstations"}}}`,
+			payload:          `{"mdm":{"windows_automatic_enrollment":{"default_fleet":"Workstations"}}}`,
 			currentTeamID:    &teamID,
 			expectSet:        false,
 			expectActivity:   false,
@@ -3726,7 +3756,7 @@ func TestModifyAppConfigWindowsEnrollment(t *testing.T) {
 		{
 			name:           "clear with empty string",
 			licenseTier:    fleet.TierPremium,
-			payload:        `{"mdm":{"windows_enrollment":{"default_fleet":""}}}`,
+			payload:        `{"mdm":{"windows_automatic_enrollment":{"default_fleet":""}}}`,
 			currentTeamID:  &teamID,
 			expectSet:      true,
 			expectSetTo:    nil,
@@ -3735,7 +3765,7 @@ func TestModifyAppConfigWindowsEnrollment(t *testing.T) {
 		{
 			name:           "clear with Unassigned",
 			licenseTier:    fleet.TierPremium,
-			payload:        `{"mdm":{"windows_enrollment":{"default_fleet":"Unassigned"}}}`,
+			payload:        `{"mdm":{"windows_automatic_enrollment":{"default_fleet":"Unassigned"}}}`,
 			currentTeamID:  &teamID,
 			expectSet:      true,
 			expectSetTo:    nil,
@@ -3744,7 +3774,7 @@ func TestModifyAppConfigWindowsEnrollment(t *testing.T) {
 		{
 			name:           "clear with Unassigned in a different case",
 			licenseTier:    fleet.TierPremium,
-			payload:        `{"mdm":{"windows_enrollment":{"default_fleet":"unassigned"}}}`,
+			payload:        `{"mdm":{"windows_automatic_enrollment":{"default_fleet":"unassigned"}}}`,
 			currentTeamID:  &teamID,
 			expectSet:      true,
 			expectSetTo:    nil,
@@ -3753,14 +3783,14 @@ func TestModifyAppConfigWindowsEnrollment(t *testing.T) {
 		{
 			name:           "clear with Unassigned when already cleared writes nothing",
 			licenseTier:    fleet.TierPremium,
-			payload:        `{"mdm":{"windows_enrollment":{"default_fleet":"Unassigned"}}}`,
+			payload:        `{"mdm":{"windows_automatic_enrollment":{"default_fleet":"Unassigned"}}}`,
 			expectSet:      false,
 			expectActivity: false,
 		},
 		{
 			name:           "clear with Unassigned allowed without premium",
 			licenseTier:    fleet.TierFree,
-			payload:        `{"mdm":{"windows_enrollment":{"default_fleet":"Unassigned"}}}`,
+			payload:        `{"mdm":{"windows_automatic_enrollment":{"default_fleet":"Unassigned"}}}`,
 			currentTeamID:  &teamID,
 			expectSet:      true,
 			expectSetTo:    nil,
@@ -3769,19 +3799,19 @@ func TestModifyAppConfigWindowsEnrollment(t *testing.T) {
 		{
 			name:        "unknown fleet name is invalid",
 			licenseTier: fleet.TierPremium,
-			payload:     `{"mdm":{"windows_enrollment":{"default_fleet":"Nope"}}}`,
+			payload:     `{"mdm":{"windows_automatic_enrollment":{"default_fleet":"Nope"}}}`,
 			expectErr:   `fleet "Nope" doesn't exist`,
 		},
 		{
 			name:        "premium required to set",
 			licenseTier: fleet.TierFree,
-			payload:     `{"mdm":{"windows_enrollment":{"default_fleet":"Workstations"}}}`,
+			payload:     `{"mdm":{"windows_automatic_enrollment":{"default_fleet":"Workstations"}}}`,
 			expectErr:   "missing or invalid license",
 		},
 		{
 			name:             "unchanged value tolerated without premium",
 			licenseTier:      fleet.TierFree,
-			payload:          `{"mdm":{"windows_enrollment":{"default_fleet":"Workstations"}}}`,
+			payload:          `{"mdm":{"windows_automatic_enrollment":{"default_fleet":"Workstations"}}}`,
 			currentTeamID:    &teamID,
 			expectSet:        false,
 			expectActivity:   false,
@@ -3798,7 +3828,7 @@ func TestModifyAppConfigWindowsEnrollment(t *testing.T) {
 		{
 			name:           "null keeps the persisted setting",
 			licenseTier:    fleet.TierPremium,
-			payload:        `{"mdm":{"windows_enrollment":null}}`,
+			payload:        `{"mdm":{"windows_automatic_enrollment":null}}`,
 			currentTeamID:  &teamID,
 			expectSet:      false,
 			expectActivity: false,
@@ -3806,7 +3836,7 @@ func TestModifyAppConfigWindowsEnrollment(t *testing.T) {
 		{
 			name:           "null tolerated without premium",
 			licenseTier:    fleet.TierFree,
-			payload:        `{"mdm":{"windows_enrollment":null}}`,
+			payload:        `{"mdm":{"windows_automatic_enrollment":null}}`,
 			currentTeamID:  &teamID,
 			expectSet:      false,
 			expectActivity: false,
@@ -3814,7 +3844,7 @@ func TestModifyAppConfigWindowsEnrollment(t *testing.T) {
 		{
 			name:           "clear with empty string allowed without premium",
 			licenseTier:    fleet.TierFree,
-			payload:        `{"mdm":{"windows_enrollment":{"default_fleet":""}}}`,
+			payload:        `{"mdm":{"windows_automatic_enrollment":{"default_fleet":""}}}`,
 			currentTeamID:  &teamID,
 			expectSet:      true,
 			expectSetTo:    nil,
@@ -3879,8 +3909,107 @@ func TestModifyAppConfigWindowsEnrollment(t *testing.T) {
 			} else {
 				require.NotContains(t, activities, "edited_windows_enrollment_default_fleet")
 			}
-			require.Equal(t, tc.expectStoredName, dsAppConfig.MDM.WindowsEnrollment.Value.DefaultFleet,
+			require.Equal(t, tc.expectStoredName, dsAppConfig.MDM.WindowsAutomaticEnrollment.Value.DefaultFleet,
 				"the app config JSON must store the canonical fleet name")
+		})
+	}
+}
+
+// Flipping either Apple Business enrollment restriction changes which hosts are
+// eligible for SCEP renewal, so the stored exclusions and any in-flight renewals
+// have to be dropped for the next cron run to re-evaluate every host.
+func TestModifyAppConfigAppleBusinessEnrollmentCertRenewals(t *testing.T) {
+	admin := &fleet.User{GlobalRole: new(fleet.RoleAdmin)}
+
+	testCases := []struct {
+		name             string
+		oldOnlyAB        bool
+		oldAttestation   bool
+		payload          string
+		expectResetRenew bool
+		expectActivity   string
+		expectNoActivity string
+	}{
+		{
+			name:             "enabling Apple Business only resets renewals",
+			payload:          `{"mdm":{"only_allow_apple_business_enrollment":true}}`,
+			expectResetRenew: true,
+			expectActivity:   "enabled_apple_business_only_enrollment",
+		},
+		{
+			name:             "disabling Apple Business only resets renewals",
+			oldOnlyAB:        true,
+			payload:          `{"mdm":{"only_allow_apple_business_enrollment":false}}`,
+			expectResetRenew: true,
+			expectActivity:   "disabled_apple_business_only_enrollment",
+		},
+		{
+			// Hardware attestation is the other half of IsAppleMDMSCEPBlocked, so it
+			// changes renewal eligibility on its own, with no activity of its own.
+			name:             "toggling hardware attestation resets renewals",
+			payload:          `{"mdm":{"apple_require_hardware_attestation":true}}`,
+			expectResetRenew: true,
+			expectNoActivity: "enabled_apple_business_only_enrollment",
+		},
+		{
+			name:             "re-saving the same values is a no-op",
+			oldOnlyAB:        true,
+			oldAttestation:   true,
+			payload:          `{"mdm":{"only_allow_apple_business_enrollment":true,"apple_require_hardware_attestation":true}}`,
+			expectResetRenew: false,
+			expectNoActivity: "enabled_apple_business_only_enrollment",
+		},
+		{
+			name:             "an unrelated change leaves renewals alone",
+			payload:          `{"org_info":{"org_name":"Test2"}}`,
+			expectResetRenew: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ds := new(mock.Store)
+			opts := &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}}
+			svc, ctx := newTestService(t, ds, nil, nil, opts)
+			ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin})
+
+			var activities []string
+			opts.ActivityMock.NewActivityFunc = func(ctx context.Context, user *activity_api.User, act activity_api.ActivityDetails) error {
+				activities = append(activities, act.ActivityName())
+				return nil
+			}
+
+			dsAppConfig := &fleet.AppConfig{
+				OrgInfo:        fleet.OrgInfo{OrgName: "Test"},
+				ServerSettings: fleet.ServerSettings{ServerURL: "https://example.org"},
+				MDM: fleet.MDM{
+					EnabledAndConfigured:             true,
+					OnlyAllowAppleBusinessEnrollment: tc.oldOnlyAB,
+					AppleRequireHardwareAttestation:  tc.oldAttestation,
+				},
+			}
+			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) { return dsAppConfig, nil }
+			ds.SaveAppConfigFunc = func(ctx context.Context, conf *fleet.AppConfig) error { *dsAppConfig = *conf; return nil }
+			ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error { return nil }
+			ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) { return []*fleet.VPPTokenDB{}, nil }
+			ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) { return []*fleet.ABMToken{}, nil }
+			ds.ClearCertRenewalExclusionsFunc = func(ctx context.Context) error { return nil }
+			ds.ResetPendingCertRenewalsFunc = func(ctx context.Context) error { return nil }
+
+			_, err := svc.ModifyAppConfig(ctx, []byte(tc.payload), fleet.ApplySpecOptions{})
+			require.NoError(t, err)
+
+			// both run together: clearing exclusions without cancelling in-flight
+			// renewals would leave hosts stuck behind a renew_command_uuid.
+			require.Equal(t, tc.expectResetRenew, ds.ClearCertRenewalExclusionsFuncInvoked)
+			require.Equal(t, tc.expectResetRenew, ds.ResetPendingCertRenewalsFuncInvoked)
+
+			if tc.expectActivity != "" {
+				require.Contains(t, activities, tc.expectActivity)
+			}
+			if tc.expectNoActivity != "" {
+				require.NotContains(t, activities, tc.expectNoActivity)
+			}
 		})
 	}
 }

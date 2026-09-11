@@ -342,6 +342,9 @@ func (ds *Datastore) prepareWindowsProfilesForTeamDeletion(ctx context.Context, 
 		if err := ds.retainWindowsProfilePriorContentDB(ctx, tx, profileUUIDs); err != nil {
 			return ctxerr.Wrapf(ctx, err, "retaining windows profiles for team %d", tid)
 		}
+		if err := snapshotWindowsProfileNamesForDeletionDB(ctx, tx, profileUUIDs); err != nil {
+			return ctxerr.Wrapf(ctx, err, "snapshotting windows profile names for team %d", tid)
+		}
 
 		hosts, err := ds.cancelWindowsHostInstallsForDeletedMDMProfiles(ctx, tx, profileUUIDs)
 		if err != nil {

@@ -10,7 +10,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@wailsio/runtime": "latest",
+    "@wailsio/runtime": "3.0.0-beta.8",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-window": "^2.2.7"
@@ -22,5 +22,8 @@
     "@vitejs/plugin-react": "^6.0.0",
     "typescript": "~5.8.3",
     "vite": "^8.0.5"
+  },
+  "overrides": {
+    "postcss": "^8.5.26"
   }
 }

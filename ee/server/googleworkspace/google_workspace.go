@@ -274,9 +274,9 @@ func rawJSON(v any) string {
 func mapUser(u *directory.User) *fleet.ScimUser {
 	active := !u.Suspended && !u.Archived
 	su := &fleet.ScimUser{
-		ExternalID: new(u.Id),
+		ExternalID: &u.Id,
 		UserName:   u.PrimaryEmail,
-		Active:     new(active),
+		Active:     &active,
 	}
 	if u.Name != nil {
 		if gn := strings.TrimSpace(u.Name.GivenName); gn != "" {

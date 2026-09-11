@@ -45,6 +45,15 @@ const selectFileOfSize = async (container: HTMLElement, size: number) => {
   await userEvent.upload(input, file);
 };
 
+const selectFileNamed = async (container: HTMLElement, name: string) => {
+  const file = new File(["installer"], name);
+  const input = container.querySelector("#upload-file") as HTMLInputElement;
+  // Bypass the input's `accept` attribute so we can exercise the client-side
+  // extension-guard path (`getDefaultInstallScript`/`Uninstall`) for files a
+  // drag-and-drop or a browser lenient with MIME sniffing would let through.
+  await userEvent.upload(input, file, { applyAccept: false });
+};
+
 const TARGET_BANNER_COPY = /If multiple packages of the same software target the same host, Fleet will install the one that was added first\./i;
 
 describe("PackageForm", () => {
@@ -150,6 +159,43 @@ describe("PackageForm", () => {
 
       expect(errorSpy).not.toHaveBeenCalled();
       expect(screen.getByLabelText("All hosts")).toBeInTheDocument();
+    });
+  });
+
+  describe("Unsupported file extension on add", () => {
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    // Regression: the raw Error was passed as the toast response, so the
+    // main line rendered "Error: unsupported file extension: dmg" and the
+    // expandable panel opened on `{}` (Error's own props are non-enumerable).
+    it("shows a friendly toast with the reason in the response payload when the install-script derivation throws", async () => {
+      const errorSpy = jest.spyOn(notify, "error");
+      const { container } = renderForm();
+
+      await selectFileNamed(container, "test.dmg");
+
+      expect(errorSpy).toHaveBeenCalledWith("Couldn't add.", {
+        response: {
+          data: { message: "unsupported file extension: dmg" },
+        },
+      });
+    });
+
+    // .zip passes the install switch (returns "") but trips the uninstall
+    // switch's default, so this covers the second catch block.
+    it("shows a friendly toast with the reason in the response payload when the uninstall-script derivation throws", async () => {
+      const errorSpy = jest.spyOn(notify, "error");
+      const { container } = renderForm();
+
+      await selectFileNamed(container, "test.zip");
+
+      expect(errorSpy).toHaveBeenCalledWith("Couldn't add.", {
+        response: {
+          data: { message: "unsupported file extension: zip" },
+        },
+      });
     });
   });
 

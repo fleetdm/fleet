@@ -16,7 +16,7 @@ import (
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
-	semconv "go.opentelemetry.io/otel/semconv/v1.40.0"
+	semconv "go.opentelemetry.io/otel/semconv/v1.41.0"
 )
 
 // initOTELProviders constructs the OpenTelemetry trace, metric, and (when log export is enabled) log providers. Returns nil
@@ -45,7 +45,7 @@ func initOTELProviders(cfg config.FleetConfig, traceRegistry *tracing.Registry, 
 		resource.WithAttributes(
 			semconv.ServiceName("fleet"),
 			semconv.ServiceVersion(version.Version().Version),
-			semconv.DeploymentEnvironmentName("default"),
+			semconv.DeploymentEnvironmentNameKey.String("default"),
 			attribute.String("deployment.environment", "default"), // 2026-06-14: deprecated attribute still used by SigNoz
 		),
 		resource.WithFromEnv(),

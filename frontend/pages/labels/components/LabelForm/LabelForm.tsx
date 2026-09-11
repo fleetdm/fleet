@@ -21,6 +21,8 @@ interface ILabelFormProps {
   teamName: string | null;
   onCancel: () => void;
   immutableFields: string[];
+  /** In GitOps mode, lock only the name and description rather than the whole form, for manual labels. */
+  gitOpsLocksDefinitionOnly?: boolean;
   onSave: (formData: ILabelFormData, isValid: boolean) => void;
 }
 
@@ -58,6 +60,7 @@ const LabelForm = ({
   onCancel,
   onSave,
   immutableFields,
+  gitOpsLocksDefinitionOnly = false,
 }: ILabelFormProps) => {
   const [name, setName] = useState(defaultName);
   const [description, setDescription] = useState(defaultDescription);
@@ -134,32 +137,63 @@ const LabelForm = ({
     onSave(currentData, fullValidation.isValid);
   };
 
+  // When git owns only the definition, each field carries its own GitOps tooltip and Save stays
+  // enabled. Otherwise the fields render as-is and Save carries the gate for the whole form.
+  const renderDefinitionField = (
+    field: (disabled?: boolean) => React.ReactNode
+  ) =>
+    gitOpsLocksDefinitionOnly ? (
+      <GitOpsModeTooltipWrapper
+        entityType="labels"
+        isInputField
+        renderChildren={field}
+      />
+    ) : (
+      field()
+    );
+
+  const renderSaveButton = (disabled?: boolean) => (
+    <Button
+      type="submit"
+      isLoading={isUpdatingLabel}
+      disabled={disabled || !formValidation.isValid}
+    >
+      Save
+    </Button>
+  );
+
   return (
     <form className={`${baseClass}__wrapper`} onSubmit={onSubmitForm}>
-      <InputField
-        error={formValidation.name?.message}
-        parseTarget
-        name="name"
-        onChange={onFormChange}
-        onBlur={handleBlur}
-        value={name}
-        inputClassName={`${baseClass}__label-title`}
-        label="Name"
-        placeholder="Label name"
-        inputOptions={{ maxLength: MAX_ENTITY_CHAR_LENGTH }}
-      />
-      <InputField
-        parseTarget
-        name="description"
-        onChange={onFormChange}
-        onBlur={handleBlur}
-        value={description}
-        inputClassName={`${baseClass}__label-description`}
-        label="Description"
-        type="textarea"
-        placeholder="Label description (optional)"
-        inputOptions={{ maxLength: MAX_ENTITY_CHAR_LENGTH }}
-      />
+      {renderDefinitionField((disabled) => (
+        <InputField
+          error={formValidation.name?.message}
+          parseTarget
+          name="name"
+          onChange={onFormChange}
+          onBlur={handleBlur}
+          value={name}
+          disabled={disabled}
+          inputClassName={`${baseClass}__label-title`}
+          label="Name"
+          placeholder="Label name"
+          inputOptions={{ maxLength: MAX_ENTITY_CHAR_LENGTH }}
+        />
+      ))}
+      {renderDefinitionField((disabled) => (
+        <InputField
+          parseTarget
+          name="description"
+          onChange={onFormChange}
+          onBlur={handleBlur}
+          value={description}
+          disabled={disabled}
+          inputClassName={`${baseClass}__label-description`}
+          label="Description"
+          type="textarea"
+          placeholder="Label description (optional)"
+          inputOptions={{ maxLength: MAX_ENTITY_CHAR_LENGTH }}
+        />
+      ))}
       {immutableFields.length > 0 ? (
         <span className={`${baseClass}__help-text`}>
           {generateDescriptionHelpText(immutableFields)}
@@ -168,18 +202,14 @@ const LabelForm = ({
       {teamName ? <TeamNameField name={teamName} /> : null}
       {additionalFields}
       <div className="button-wrap">
-        <GitOpsModeTooltipWrapper
-          entityType="labels"
-          renderChildren={(disableChildren) => (
-            <Button
-              type="submit"
-              isLoading={isUpdatingLabel}
-              disabled={disableChildren || !formValidation.isValid}
-            >
-              Save
-            </Button>
-          )}
-        />
+        {gitOpsLocksDefinitionOnly ? (
+          renderSaveButton()
+        ) : (
+          <GitOpsModeTooltipWrapper
+            entityType="labels"
+            renderChildren={renderSaveButton}
+          />
+        )}
         <Button onClick={onCancel} variant="secondary">
           Cancel
         </Button>

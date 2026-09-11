@@ -5,6 +5,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/service/integrationtest"
@@ -29,6 +30,8 @@ func SetUpSuite(t *testing.T, uniqueTestName string) *Suite {
 		FleetConfig: &fleetCfg,
 		Logger:      slogLogger,
 		EnableSCIM:  true,
+		// Wire the real activity service so tests can assert audit-log activities.
+		DBConns: mysqltest.TestDBConnections(t, ds),
 	})
 
 	s := &Suite{

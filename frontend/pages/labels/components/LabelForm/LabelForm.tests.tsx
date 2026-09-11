@@ -1,11 +1,24 @@
 import React from "react";
-import { renderWithSetup } from "test/test-utils";
+import { createCustomRenderer, renderWithSetup } from "test/test-utils";
 import { screen, render } from "@testing-library/react";
 import { noop } from "lodash";
 
 import InputField from "components/forms/fields/InputField";
 
 import LabelForm from "./LabelForm";
+
+const renderInGitOpsMode = createCustomRenderer({
+  context: {
+    app: {
+      config: {
+        gitops: {
+          gitops_mode_enabled: true,
+          repository_url: "https://github.com/example/fleet-gitops",
+        },
+      },
+    },
+  },
+});
 
 describe("LabelForm", () => {
   it("should validate the name to be required", async () => {
@@ -139,5 +152,39 @@ describe("LabelForm", () => {
         "Label fleets, queries, and platforms are immutable. To make changes, delete this label and create a new one."
       )
     ).toBeInTheDocument();
+  });
+
+  describe("GitOps mode", () => {
+    // Default path: dynamic and host vitals labels, plus label creation. Save only unlocks when
+    // ManualLabelForm passes gitOpsLocksDefinitionOnly on the edit page.
+    it("should keep Save gated when gitOpsLocksDefinitionOnly is not set", () => {
+      renderInGitOpsMode(
+        <LabelForm
+          onSave={noop}
+          onCancel={noop}
+          teamName={null}
+          immutableFields={[]}
+        />
+      );
+
+      expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
+      expect(screen.getByLabelText("Name")).toBeEnabled();
+    });
+
+    it("should lock only the definition fields when git owns the definition alone", () => {
+      renderInGitOpsMode(
+        <LabelForm
+          onSave={noop}
+          onCancel={noop}
+          teamName={null}
+          immutableFields={[]}
+          gitOpsLocksDefinitionOnly
+        />
+      );
+
+      expect(screen.getByRole("button", { name: "Save" })).toBeEnabled();
+      expect(screen.getByLabelText("Name")).toBeDisabled();
+      expect(screen.getByLabelText("Description")).toBeDisabled();
+    });
   });
 });

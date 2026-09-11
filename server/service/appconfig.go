@@ -255,7 +255,6 @@ func (svc *Service) SandboxEnabled() bool {
 
 func (svc *Service) AppConfigObfuscated(ctx context.Context) (*fleet.AppConfig, error) {
 	if !svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceToken) &&
-		!svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceCertificate) &&
 		!svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceURL) {
 		if err := svc.authz.Authorize(ctx, &fleet.AppConfig{}, fleet.ActionRead); err != nil {
 			return nil, err
@@ -297,13 +296,13 @@ func (svc *Service) AppConfigObfuscated(ctx context.Context) (*fleet.AppConfig, 
 		return nil, ctxerr.Wrap(ctx, err, "get windows enrollment default fleet")
 	}
 	winStoredName := ""
-	if ac.MDM.WindowsEnrollment.Set && ac.MDM.WindowsEnrollment.Valid {
-		winStoredName = ac.MDM.WindowsEnrollment.Value.DefaultFleet
+	if ac.MDM.WindowsAutomaticEnrollment.Set && ac.MDM.WindowsAutomaticEnrollment.Valid {
+		winStoredName = ac.MDM.WindowsAutomaticEnrollment.Value.DefaultFleet
 	}
 	if winDefaultTeamID != nil || winStoredName != winDefaultFleetName {
-		ac.MDM.WindowsEnrollment = optjson.Any[fleet.WindowsEnrollment]{
+		ac.MDM.WindowsAutomaticEnrollment = optjson.Any[fleet.WindowsAutomaticEnrollment]{
 			Set: true, Valid: true,
-			Value: fleet.WindowsEnrollment{DefaultFleet: winDefaultFleetName},
+			Value: fleet.WindowsAutomaticEnrollment{DefaultFleet: winDefaultFleetName},
 		}
 	}
 
@@ -1038,6 +1037,10 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		invalid.Append("activity_expiry_settings.activity_expiry_window", "must be greater than 0")
 	}
 
+	if appConfig.HostExpirySettings.HostExpiryEnabled && appConfig.HostExpirySettings.HostExpiryWindow < 1 {
+		invalid.Append("host_expiry_settings.host_expiry_window", "must be greater than 0")
+	}
+
 	if appConfig.OrgInfo.ContactURL == "" {
 		appConfig.OrgInfo.ContactURL = fleet.DefaultOrgInfoContactURL
 	}
@@ -1118,13 +1121,14 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 
 	// Normalize the stored JSON to the canonical fleet name, or to "" when the default was cleared.
 	if windowsEnrollmentDefined {
-		appConfig.MDM.WindowsEnrollment = optjson.Any[fleet.WindowsEnrollment]{
+		appConfig.MDM.WindowsAutomaticEnrollment = optjson.Any[fleet.WindowsAutomaticEnrollment]{
 			Set: true, Valid: true,
-			Value: fleet.WindowsEnrollment{DefaultFleet: windowsEnrollmentFleetName},
+			Value: fleet.WindowsAutomaticEnrollment{DefaultFleet: windowsEnrollmentFleetName},
 		}
-	} else if appConfig.MDM.WindowsEnrollment.Set && !appConfig.MDM.WindowsEnrollment.Valid {
-		// A null windows_enrollment keeps the persisted setting (validateWindowsEnrollment treated it as omitted), so restore the stored value.
-		appConfig.MDM.WindowsEnrollment = oldAppConfig.MDM.WindowsEnrollment
+	} else if appConfig.MDM.WindowsAutomaticEnrollment.Set && !appConfig.MDM.WindowsAutomaticEnrollment.Valid {
+		// A null windows_automatic_enrollment keeps the persisted setting (validateWindowsEnrollment treated it as omitted), so restore
+		// the stored value.
+		appConfig.MDM.WindowsAutomaticEnrollment = oldAppConfig.MDM.WindowsAutomaticEnrollment
 	}
 
 	// ignore MDM.EnabledAndConfigured MDM.AppleBMTermsExpired, and MDM.AppleBMEnabledAndConfigured
@@ -1290,6 +1294,12 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		if err := bootstrapPSSOAssets(ctx, svc.ds); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "bootstrap psso assets")
 		}
+	}
+
+	// clear cert renewals before saving app config, as doing it after with failure can lead to incorrect renewal attempts.
+	// even if we fail to actually save, this is a safe operation to retry.
+	if err := clearCertRenewals(ctx, svc, oldAppConfig, appConfig); err != nil {
+		return nil, err
 	}
 
 	if err := svc.ds.SaveAppConfig(ctx, appConfig); err != nil {
@@ -1566,6 +1576,23 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	}
 
 	return obfuscatedAppConfig, nil
+}
+
+func clearCertRenewals(ctx context.Context, svc *Service, oldAppConfig, appConfig *fleet.AppConfig) error {
+	if oldAppConfig == nil || appConfig == nil {
+		return nil
+	}
+	if oldAppConfig.MDM.OnlyAllowAppleBusinessEnrollment != appConfig.MDM.OnlyAllowAppleBusinessEnrollment ||
+		oldAppConfig.MDM.AppleRequireHardwareAttestation != appConfig.MDM.AppleRequireHardwareAttestation {
+		if err := svc.ds.ClearCertRenewalExclusions(ctx); err != nil {
+			return ctxerr.Wrap(ctx, err, "clearing cert renewal exclusions")
+		}
+
+		if err := svc.ds.ResetPendingCertRenewals(ctx); err != nil {
+			return ctxerr.Wrap(ctx, err, "resetting pending cert renewals")
+		}
+	}
+	return nil
 }
 
 // processSavedAppConfigChanges runs the side effects of a completed app config change: it creates the activities for the settings
@@ -1888,6 +1915,18 @@ func (svc *Service) processSavedAppConfigChanges(
 		}
 	}
 
+	if oldAppConfig.MDM.OnlyAllowAppleBusinessEnrollment != appConfig.MDM.OnlyAllowAppleBusinessEnrollment {
+		var act fleet.ActivityDetails
+		if appConfig.MDM.OnlyAllowAppleBusinessEnrollment {
+			act = fleet.ActivityTypeEnabledAppleBusinessOnlyEnrollment{}
+		} else {
+			act = fleet.ActivityTypeDisabledAppleBusinessOnlyEnrollment{}
+		}
+		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+			return ctxerr.Wrap(ctx, err, fmt.Sprintf("create activity %s", act.ActivityName()))
+		}
+	}
+
 	return nil
 }
 
@@ -2182,7 +2221,8 @@ func (svc *Service) validateMDM(
 	if mdm.HostNameTemplate.Value != "" && oldMdm.HostNameTemplate.Value != mdm.HostNameTemplate.Value {
 		if !lic.IsPremium() {
 			invalid.Append("mdm.name_template", ErrMissingLicense.Error())
-		} else if validated, err := fleet.ValidateHostNameTemplateWithSecrets(ctx, svc.ds, mdm.HostNameTemplate.Value); err != nil {
+		} else if validated, err := fleet.ValidateHostNameTemplateWithSecrets(ctx, svc.ds, mdm.HostNameTemplate.Value,
+			svc.authz.CanWriteSecretVariables(ctx)); err != nil {
 			// A validation or missing-secret error is invalid user input (422); any
 			// other error (e.g. a datastore failure while checking secrets) must
 			// propagate as a server error rather than be misreported as invalid input.
@@ -2488,10 +2528,14 @@ func (svc *Service) validateMDM(
 		invalid.Append(field, msg)
 	}
 
+	if mdm.OnlyAllowAppleBusinessEnrollment && !lic.IsPremium() {
+		invalid.Append("mdm.only_allow_apple_business_enrollment", ErrMissingLicense.Error())
+	}
+
 	return nil
 }
 
-// validateWindowsEnrollment validates the mdm.windows_enrollment section of a config modify payload and resolves its default
+// validateWindowsEnrollment validates the mdm.windows_automatic_enrollment section of a config modify payload and resolves its default
 // fleet name to a team id. Returns defined=false when the section was omitted (no-op). When defined, teamID is the resolved team
 // id (nil to clear) and fleetName is the canonical team name (empty when clearing).
 func (svc *Service) validateWindowsEnrollment(
@@ -2500,13 +2544,13 @@ func (svc *Service) validateWindowsEnrollment(
 	invalid *fleet.InvalidArgumentError,
 	lic *fleet.LicenseInfo,
 ) (defined bool, teamID *uint, fleetName string, err error) {
-	if !newMDM.WindowsEnrollment.Set || !newMDM.WindowsEnrollment.Valid {
+	if !newMDM.WindowsAutomaticEnrollment.Set || !newMDM.WindowsAutomaticEnrollment.Valid {
 		// Omitted key or explicit null: keep the persisted setting (same convention as
 		// enable_disk_encryption). Only an object clears or changes it.
 		return false, nil, "", nil
 	}
 
-	name := newMDM.WindowsEnrollment.Value.DefaultFleet
+	name := newMDM.WindowsAutomaticEnrollment.Value.DefaultFleet
 	if name == "" || fleet.IsUnassignedFleetName(name) {
 		// Explicitly clearing the default; allowed on any tier.
 		return true, nil, "", nil
@@ -2522,14 +2566,14 @@ func (svc *Service) validateWindowsEnrollment(
 		if name == curName {
 			return true, curTeamID, curName, nil
 		}
-		invalid.Append("mdm.windows_enrollment.default_fleet", ErrMissingLicense.Error())
+		invalid.Append("mdm.windows_automatic_enrollment.default_fleet", ErrMissingLicense.Error())
 		return true, nil, "", nil
 	}
 
 	tm, err := svc.ds.TeamByName(ctx, name)
 	if err != nil {
 		if fleet.IsNotFound(err) {
-			invalid.Append("mdm.windows_enrollment.default_fleet", fmt.Sprintf("fleet %q doesn't exist", name))
+			invalid.Append("mdm.windows_automatic_enrollment.default_fleet", fmt.Sprintf("fleet %q doesn't exist", name))
 			return true, nil, "", nil
 		}
 		return true, nil, "", ctxerr.Wrap(ctx, err, "get team by name for windows enrollment default fleet")

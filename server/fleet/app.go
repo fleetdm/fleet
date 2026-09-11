@@ -169,6 +169,7 @@ type VulnerabilitySettings struct {
 // hosts when they're ingested during the ABM sync.
 type MDMAppleABMAssignmentInfo struct {
 	OrganizationName string `json:"organization_name"`
+	Default          bool   `json:"default,omitempty"`
 	MacOSTeam        string `json:"macos_team" renameto:"macos_fleet"`
 	IOSTeam          string `json:"ios_team" renameto:"ios_fleet"`
 	IpadOSTeam       string `json:"ipados_team" renameto:"ipados_fleet"`
@@ -288,6 +289,11 @@ type MDM struct {
 	// AppleRequireHardwareAttestation indicates whether to require Managed Device Attestation via ACME(including hardware bound keys) for
 	// certain Apple MDM enrollments.
 	AppleRequireHardwareAttestation bool `json:"apple_require_hardware_attestation"`
+	// OnlyAllowAppleBusinessEnrollment restricts Apple MDM enrollment to devices
+	// assigned to Fleet in Apple Business (ADE). Manual, OTA, and account-driven
+	// (BYOD) enrollment are blocked. When combined with AppleRequireHardwareAttestation,
+	// new SCEP issuance is also blocked so only ACME-attested devices can enroll or renew.
+	OnlyAllowAppleBusinessEnrollment bool `json:"only_allow_apple_business_enrollment"`
 
 	WindowsEntraTenantIDs optjson.Slice[string] `json:"windows_entra_tenant_ids"`
 
@@ -299,9 +305,9 @@ type MDM struct {
 	// Entra or denied by Graph, so an admin has to supply a new secret or grant consent.
 	MicrosoftGraphCredentialInvalid bool `json:"microsoft_graph_credential_invalid"`
 
-	// WindowsEnrollment configures behavior for new user-driven Windows MDM enrollments. The DB row backing it is the
-	// source of truth (by fleet id); this field carries the setting through the config API and GitOps by fleet name.
-	WindowsEnrollment optjson.Any[WindowsEnrollment] `json:"windows_enrollment"`
+	// WindowsAutomaticEnrollment configures behavior for new user-driven Windows MDM enrollments. The DB row backing it is
+	// the source of truth (by fleet id); this field carries the setting through the config API and GitOps by fleet name.
+	WindowsAutomaticEnrollment optjson.Any[WindowsAutomaticEnrollment] `json:"windows_automatic_enrollment"`
 
 	// WindowsEnabledAndConfigured indicates if Fleet MDM is enabled for Windows.
 	// There is no other configuration required for Windows other than enabling
@@ -338,6 +344,12 @@ type MDM struct {
 	// WARNING: If you add to this struct make sure it's taken into
 	// account in the AppConfig Clone implementation!
 	/////////////////////////////////////////////////////////////////
+}
+
+// IsAppleMDMSCEPBlocked reports whether Apple MDM SCEP endpoints are blocked altogether. This blocks enrollments
+// and renewals, plus those that might have a valid profile lying around with the static SCEP can't enroll.
+func (m MDM) IsAppleMDMSCEPBlocked() bool {
+	return m.OnlyAllowAppleBusinessEnrollment && m.AppleRequireHardwareAttestation
 }
 
 type DiskEncryptionConfig struct {
@@ -2465,8 +2477,9 @@ type DeviceGlobalConfig struct {
 // DeviceGlobalMDMConfig is a subset of AppConfig.MDM with information used by
 // the device endpoints
 type DeviceGlobalMDMConfig struct {
-	EnabledAndConfigured bool `json:"enabled_and_configured"`
-	RequireAllSoftware   bool `json:"require_all_software_macos"`
+	EnabledAndConfigured             bool `json:"enabled_and_configured"`
+	RequireAllSoftware               bool `json:"require_all_software_macos"`
+	OnlyAllowAppleBusinessEnrollment bool `json:"only_allow_apple_business_enrollment"`
 }
 
 // DeviceFeatures is a subset of AppConfig.Features with information used by
@@ -2511,8 +2524,8 @@ type LinuxSettings struct {
 	EnableEscrowDiskEncryptionKey optjson.Bool `json:"enable_escrow_disk_encryption_key"`
 }
 
-// WindowsEnrollment are settings for new user-driven Windows MDM enrollments.
-type WindowsEnrollment struct {
+// WindowsAutomaticEnrollment are settings for new user-driven Windows MDM enrollments.
+type WindowsAutomaticEnrollment struct {
 	// DefaultFleet is the name of the fleet that new user-driven Windows MDM enrollments are assigned to.
 	// Empty means no default: new hosts stay Unassigned.
 	//

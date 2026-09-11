@@ -1,62 +1,60 @@
-# Attempts to locate Audacity's Inno Setup uninstaller from the registry and run it silently.
+# Removes every Audacity 4 MSI product registered under its UpgradeCode, then
+# any legacy Audacity 3.x Inno Setup install that an earlier version of this
+# Fleet-maintained app may have deployed.
 
-$displayNameLike = "Audacity*"
-$publisher = "Audacity Team"
+$upgradeCode = '{C9D47FF5-2A6D-4A42-9038-93C7D3C3FB23}'
+$timeoutSeconds = 300
+$successCodes = @(0, 3010, 1641)
 
+Get-Process -Name "Audacity4", "audacity" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+
+$inst = New-Object -ComObject "WindowsInstaller.Installer"
+foreach ($product_code in $inst.RelatedProducts("$upgradeCode")) {
+    $process = Start-Process msiexec -ArgumentList @("/quiet", "/x", $product_code, "/norestart") -PassThru
+
+    $completed = $process.WaitForExit($timeoutSeconds * 1000)
+    if (-not $completed) {
+        Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
+        Write-Host "Uninstall for $product_code timed out"
+        Exit 1603
+    }
+
+    if ($successCodes -notcontains $process.ExitCode) {
+        Write-Host "Uninstall for $product_code exited $($process.ExitCode)"
+        Exit $process.ExitCode
+    }
+    Write-Host "Uninstalled $product_code"
+}
+
+# Legacy Audacity 3.x (Inno Setup, publisher "Audacity Team")
 $paths = @(
-  'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall',
-  'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall'
+    'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall',
+    'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall'
 )
-
-$uninstall = $null
+$legacy = $null
 foreach ($p in $paths) {
-  $items = Get-ItemProperty "$p\*" -ErrorAction SilentlyContinue | Where-Object {
-    $_.DisplayName -like $displayNameLike -and $_.Publisher -like "$publisher*"
-  }
-  if ($items) { $uninstall = $items | Select-Object -First 1; break }
+    $items = Get-ItemProperty "$p\*" -ErrorAction SilentlyContinue | Where-Object {
+        $_.DisplayName -like 'Audacity 3*' -and
+        $_.Publisher -eq 'Audacity Team' -and
+        $_.UninstallString -like '*unins*.exe*'
+    }
+    if ($items) { $legacy = $items | Select-Object -First 1; break }
 }
 
-if (-not $uninstall -or -not $uninstall.UninstallString) {
-  Write-Host "Uninstall entry not found"
-  Exit 0
-}
-
-Stop-Process -Name "audacity" -Force -ErrorAction SilentlyContinue
-
-$uninstallCommand = $uninstall.UninstallString
-$uninstallArgs = "/VERYSILENT /NORESTART"
-
-$splitArgs = $uninstallCommand.Split('"')
-if ($splitArgs.Length -gt 1) {
-    if ($splitArgs.Length -eq 3) {
-        $existingArgs = $splitArgs[2].Trim()
-        if ($existingArgs -ne '') {
-            $uninstallArgs = "$existingArgs $uninstallArgs"
+if ($legacy) {
+    $uninstaller = $legacy.UninstallString.Trim('"')
+    if (Test-Path $uninstaller) {
+        Write-Host "Removing legacy install: $($legacy.DisplayName)"
+        $process = Start-Process -FilePath $uninstaller `
+            -ArgumentList "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART" `
+            -PassThru -Wait -NoNewWindow
+        if ($process.ExitCode -ne 0) {
+            Write-Host "Legacy uninstall exited $($process.ExitCode)"
+            Exit $process.ExitCode
         }
-    } elseif ($splitArgs.Length -gt 3) {
-        Write-Host "Error: Uninstall command contains multiple quoted strings"
-        Exit 1
+    } else {
+        Write-Host "Warning: legacy uninstaller not found at $uninstaller"
     }
-    $uninstallCommand = $splitArgs[1]
 }
 
-Write-Host "Uninstall command: $uninstallCommand"
-Write-Host "Uninstall args: $uninstallArgs"
-
-try {
-    $processOptions = @{
-        FilePath = $uninstallCommand
-        ArgumentList = $uninstallArgs
-        NoNewWindow = $true
-        PassThru = $true
-        Wait = $true
-    }
-
-    $process = Start-Process @processOptions
-    $exitCode = $process.ExitCode
-    Write-Host "Uninstall exit code: $exitCode"
-    Exit $exitCode
-} catch {
-    Write-Host "Error running uninstaller: $_"
-    Exit 1
-}
+Exit 0

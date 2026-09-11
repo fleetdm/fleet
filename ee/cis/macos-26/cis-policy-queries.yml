@@ -2367,6 +2367,8 @@ spec:
     Note: The fleetd `apfs_volumes` table does not distinguish internal from external disks, so
     this query evaluates all non-role APFS volumes. External APFS/HFS+ volumes (CIS 5.3.2) are
     not separately covered — see the README limitations.
+    Apple's sealed, read-only asset cryptex volumes (names ending in "Cryptex") have no role and
+    cannot be encrypted, so they are excluded.
   resolution: |
     Manual method:
     Use Disk Utility to erase a user disk and format as APFS (Encrypted).
@@ -2380,6 +2382,10 @@ spec:
         role != "Preboot" AND
         role != "xART" AND
         role != "Hardware" AND
+        -- Apple ships sealed, read-only asset cryptex volumes (Siri models,
+        -- PKI trust store) with no role and no encryption. They are not
+        -- user storage and cannot be encrypted, so they must not count.
+        NOT (role = '' AND name LIKE '%Cryptex') AND
         filevault != 1
     );
   purpose: Informational

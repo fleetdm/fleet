@@ -628,6 +628,16 @@ func (s *HostSoftwareInstallerResultAuthz) AuthzType() string {
 	return "host_software_installer_result"
 }
 
+// CachedInstallerMetadata describes installer bytes already in the store, for a
+// version being cached without downloading the file again. Filename and Extension
+// come off the stored row because an installer URL often ends in neither.
+type CachedInstallerMetadata struct {
+	PackageIDs  []string
+	UpgradeCode string
+	Filename    string
+	Extension   string
+}
+
 type UploadSoftwareInstallerPayload struct {
 	TeamID               *uint
 	TitleID              *uint
@@ -1412,10 +1422,11 @@ type HostSoftwareInstallOptions struct {
 }
 
 // IsFleetInitiated returns true if the software install is initiated by Fleet.
-// Software installs initiated via a policy are fleet-initiated (and we also
-// make sure SelfService is false, as this case is always user-initiated).
+// Software installs initiated via a policy, scheduled updates or setup
+// experience are fleet-initiated (and we also make sure SelfService is false,
+// as this case is always user-initiated).
 func (o HostSoftwareInstallOptions) IsFleetInitiated() bool {
-	return !o.SelfService && (o.PolicyID != nil || o.ForScheduledUpdates)
+	return !o.SelfService && (o.PolicyID != nil || o.ForScheduledUpdates || o.ForSetupExperience)
 }
 
 // Priority returns the upcoming activities queue priority to use for this
