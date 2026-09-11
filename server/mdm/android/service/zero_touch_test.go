@@ -44,13 +44,9 @@ func TestZeroTouchAuth(t *testing.T) {
 	}
 	fleetDS.Store.GetZeroTouchEnrollmentTokenFunc = func(_ context.Context, _ *uint) (*android.ZeroTouchToken, error) {
 		return &android.ZeroTouchToken{
-			TokenValue:           "existing-token",
-			EmbeddedEnrollSecret: "test-secret",
-			ExpiresAt:            time.Now().Add(100 * 365 * 24 * time.Hour),
+			TokenValue: "existing-token",
+			ExpiresAt:  time.Now().Add(100 * 365 * 24 * time.Hour),
 		}, nil
-	}
-	fleetDS.Store.GetEnrollSecretsFunc = func(_ context.Context, _ *uint) ([]*fleet.EnrollSecret, error) {
-		return []*fleet.EnrollSecret{{Secret: "test-secret"}}, nil
 	}
 
 	testCases := []struct {
@@ -129,13 +125,9 @@ func TestZeroTouchReturnsExistingToken(t *testing.T) {
 	fleetDS.Store.GetZeroTouchEnrollmentTokenFunc = func(_ context.Context, teamID *uint) (*android.ZeroTouchToken, error) {
 		assert.Nil(t, teamID, "should query for unassigned team")
 		return &android.ZeroTouchToken{
-			TokenValue:           "existing-token-value",
-			EmbeddedEnrollSecret: "matching-secret",
-			ExpiresAt:            time.Now().Add(100 * 365 * 24 * time.Hour),
+			TokenValue: "existing-token-value",
+			ExpiresAt:  time.Now().Add(100 * 365 * 24 * time.Hour),
 		}, nil
-	}
-	fleetDS.Store.GetEnrollSecretsFunc = func(_ context.Context, _ *uint) ([]*fleet.EnrollSecret, error) {
-		return []*fleet.EnrollSecret{{Secret: "matching-secret"}}, nil
 	}
 
 	resp, err := svc.GetZeroTouchConfiguration(adminCtx(t), nil)
@@ -143,29 +135,6 @@ func TestZeroTouchReturnsExistingToken(t *testing.T) {
 	assert.Contains(t, resp.DPCExtras, "existing-token-value")
 	assert.True(t, fleetDS.Store.GetZeroTouchEnrollmentTokenFuncInvoked)
 	assert.False(t, fleetDS.Store.CreateZeroTouchEnrollmentTokenFuncInvoked)
-}
-
-func TestZeroTouchDriftDetection(t *testing.T) {
-	svc, fleetDS, _ := setupZeroTouchService(t)
-
-	fleetDS.Store.AppConfigFunc = func(_ context.Context) (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{MDM: fleet.MDM{AndroidEnabledAndConfigured: true}}, nil
-	}
-	fleetDS.Store.GetZeroTouchEnrollmentTokenFunc = func(_ context.Context, _ *uint) (*android.ZeroTouchToken, error) {
-		return &android.ZeroTouchToken{
-			TokenValue:           "existing-token-value",
-			EmbeddedEnrollSecret: "old-secret",
-			ExpiresAt:            time.Now().Add(100 * 365 * 24 * time.Hour),
-		}, nil
-	}
-	fleetDS.Store.GetEnrollSecretsFunc = func(_ context.Context, _ *uint) ([]*fleet.EnrollSecret, error) {
-		return []*fleet.EnrollSecret{{Secret: "new-rotated-secret"}}, nil //nolint:gosec // test data
-	}
-
-	resp, err := svc.GetZeroTouchConfiguration(adminCtx(t), nil)
-	require.NoError(t, err)
-	assert.Contains(t, resp.DPCExtras, "existing-token-value")
-	assert.Contains(t, resp.Warning, "enroll secret embedded in this zero-touch token no longer exists")
 }
 
 func TestZeroTouchCreatesTokenWhenNoneExists(t *testing.T) {
@@ -180,17 +149,13 @@ func TestZeroTouchCreatesTokenWhenNoneExists(t *testing.T) {
 	fleetDS.Store.GetEnterpriseFunc = func(_ context.Context) (*android.Enterprise, error) {
 		return &android.Enterprise{EnterpriseID: "LC00test"}, nil
 	}
-	fleetDS.Store.GetEnrollSecretsFunc = func(_ context.Context, teamID *uint) ([]*fleet.EnrollSecret, error) {
-		assert.Nil(t, teamID, "should get global enroll secrets")
-		return []*fleet.EnrollSecret{{Secret: "global-secret"}}, nil
-	}
 
 	apiClient.EnterprisesEnrollmentTokensCreateFunc = func(_ context.Context, enterpriseName string, token *androidmanagement.EnrollmentToken) (*androidmanagement.EnrollmentToken, error) {
 		assert.Equal(t, "enterprises/LC00test", enterpriseName)
 		assert.Equal(t, "3153600000s", token.Duration)
 		assert.False(t, token.OneTimeOnly)
 		assert.Equal(t, "PERSONAL_USAGE_DISALLOWED", token.AllowPersonalUsage)
-		assert.Contains(t, token.AdditionalData, "global-secret")
+		assert.Contains(t, token.AdditionalData, `"team_id"`)
 		return &androidmanagement.EnrollmentToken{
 			Name:                "enterprises/LC00test/enrollmentTokens/abc123",
 			Value:               "new-token-value",
@@ -201,7 +166,6 @@ func TestZeroTouchCreatesTokenWhenNoneExists(t *testing.T) {
 	fleetDS.Store.CreateZeroTouchEnrollmentTokenFunc = func(_ context.Context, token *android.ZeroTouchToken) (*android.ZeroTouchToken, error) {
 		assert.Equal(t, "enterprises/LC00test/enrollmentTokens/abc123", token.TokenName)
 		assert.Equal(t, "new-token-value", token.TokenValue)
-		assert.Equal(t, "global-secret", token.EmbeddedEnrollSecret)
 		assert.Nil(t, token.TeamID)
 		token.ID = 1
 		return token, nil
@@ -213,27 +177,6 @@ func TestZeroTouchCreatesTokenWhenNoneExists(t *testing.T) {
 	assert.Contains(t, resp.DPCExtras, "EXTRA_ENROLLMENT_TOKEN")
 	assert.True(t, fleetDS.Store.CreateZeroTouchEnrollmentTokenFuncInvoked)
 	assert.True(t, apiClient.EnterprisesEnrollmentTokensCreateFuncInvoked)
-}
-
-func TestZeroTouchNoEnrollSecret(t *testing.T) {
-	svc, fleetDS, _ := setupZeroTouchService(t)
-
-	fleetDS.Store.AppConfigFunc = func(_ context.Context) (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{MDM: fleet.MDM{AndroidEnabledAndConfigured: true}}, nil
-	}
-	fleetDS.Store.GetZeroTouchEnrollmentTokenFunc = func(_ context.Context, _ *uint) (*android.ZeroTouchToken, error) {
-		return nil, &notFoundError{}
-	}
-	fleetDS.Store.GetEnterpriseFunc = func(_ context.Context) (*android.Enterprise, error) {
-		return &android.Enterprise{EnterpriseID: "LC00test"}, nil
-	}
-	fleetDS.Store.GetEnrollSecretsFunc = func(_ context.Context, _ *uint) ([]*fleet.EnrollSecret, error) {
-		return []*fleet.EnrollSecret{}, nil
-	}
-
-	_, err := svc.GetZeroTouchConfiguration(adminCtx(t), nil)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "No enroll secret found")
 }
 
 func TestZeroTouchTokenDeletedOnEnterpriseDelete(t *testing.T) {
@@ -256,4 +199,56 @@ func TestZeroTouchTokenDeletedOnEnterpriseDelete(t *testing.T) {
 	err := svc.DeleteEnterprise(adminCtx(t))
 	require.NoError(t, err)
 	assert.True(t, tokenDeleted, "zero-touch tokens should be deleted when enterprise is deleted")
+}
+
+func TestResolveTeamFromEnrollmentData(t *testing.T) {
+	svc, fleetDS, _ := setupZeroTouchService(t)
+
+	t.Run("zero-touch with null team_id goes to unassigned", func(t *testing.T) {
+		teamID, idpUUID, err := svc.resolveTeamFromEnrollmentData(t.Context(), `{"team_id": null}`)
+		require.NoError(t, err)
+		assert.Nil(t, teamID)
+		assert.Empty(t, idpUUID)
+	})
+
+	t.Run("zero-touch with existing team_id goes to that team", func(t *testing.T) {
+		fleetDS.Store.TeamExistsFunc = func(_ context.Context, id uint) (bool, error) {
+			assert.Equal(t, uint(3), id)
+			return true, nil
+		}
+		teamID, idpUUID, err := svc.resolveTeamFromEnrollmentData(t.Context(), `{"team_id": 3}`)
+		require.NoError(t, err)
+		require.NotNil(t, teamID)
+		assert.Equal(t, uint(3), *teamID)
+		assert.Empty(t, idpUUID)
+	})
+
+	t.Run("zero-touch with non-existent team_id falls back to unassigned", func(t *testing.T) {
+		fleetDS.Store.TeamExistsFunc = func(_ context.Context, id uint) (bool, error) {
+			return false, nil
+		}
+		teamID, idpUUID, err := svc.resolveTeamFromEnrollmentData(t.Context(), `{"team_id": 99}`)
+		require.NoError(t, err)
+		assert.Nil(t, teamID, "non-existent team should fall back to unassigned")
+		assert.Empty(t, idpUUID)
+	})
+
+	t.Run("malformed JSON returns error", func(t *testing.T) {
+		_, _, err := svc.resolveTeamFromEnrollmentData(t.Context(), `not valid json`)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "unmarshalling enrollment token data")
+	})
+
+	t.Run("QR enrollment with enroll secret falls back to existing flow", func(t *testing.T) {
+		expectedTeamID := uint(5)
+		fleetDS.Store.VerifyEnrollSecretFunc = func(_ context.Context, secret string) (*fleet.EnrollSecret, error) {
+			assert.Equal(t, "test-secret", secret)
+			return &fleet.EnrollSecret{Secret: secret, TeamID: &expectedTeamID}, nil
+		}
+		teamID, idpUUID, err := svc.resolveTeamFromEnrollmentData(t.Context(), `{"EnrollSecret": "test-secret", "IdpUUID": "some-uuid"}`)
+		require.NoError(t, err)
+		require.NotNil(t, teamID)
+		assert.Equal(t, uint(5), *teamID)
+		assert.Equal(t, "some-uuid", idpUUID)
+	})
 }

@@ -20,7 +20,7 @@ func globalOrTeamID(teamID *uint) uint {
 }
 
 func (ds *AndroidDatastore) GetZeroTouchEnrollmentToken(ctx context.Context, teamID *uint) (*android.ZeroTouchToken, error) {
-	stmt := `SELECT id, team_id, token_name, token_value, embedded_enroll_secret, expires_at, created_at, updated_at
+	stmt := `SELECT id, team_id, token_name, token_value, expires_at, created_at, updated_at
 		FROM android_zero_touch_tokens WHERE global_or_team_id = ?`
 	var token android.ZeroTouchToken
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &token, stmt, globalOrTeamID(teamID))
@@ -34,9 +34,9 @@ func (ds *AndroidDatastore) GetZeroTouchEnrollmentToken(ctx context.Context, tea
 }
 
 func (ds *AndroidDatastore) CreateZeroTouchEnrollmentToken(ctx context.Context, token *android.ZeroTouchToken) (*android.ZeroTouchToken, error) {
-	stmt := `INSERT INTO android_zero_touch_tokens (team_id, global_or_team_id, token_name, token_value, embedded_enroll_secret, expires_at)
-		VALUES (?, ?, ?, ?, ?, ?)`
-	res, err := ds.Writer(ctx).ExecContext(ctx, stmt, token.TeamID, globalOrTeamID(token.TeamID), token.TokenName, token.TokenValue, token.EmbeddedEnrollSecret, token.ExpiresAt)
+	stmt := `INSERT INTO android_zero_touch_tokens (team_id, global_or_team_id, token_name, token_value, expires_at)
+		VALUES (?, ?, ?, ?, ?)`
+	res, err := ds.Writer(ctx).ExecContext(ctx, stmt, token.TeamID, globalOrTeamID(token.TeamID), token.TokenName, token.TokenValue, token.ExpiresAt)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "creating zero-touch enrollment token")
 	}

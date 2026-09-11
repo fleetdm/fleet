@@ -45,10 +45,9 @@ func testZeroTouchCreateAndGet(t *testing.T, ds *Datastore) {
 
 	// Create a token for unassigned (nil team)
 	token := &android.ZeroTouchToken{
-		TokenName:            "enterprises/LC00test/enrollmentTokens/abc123",
-		TokenValue:           "tokenvalue123",
-		EmbeddedEnrollSecret: "secret1",
-		ExpiresAt:            expiresAt,
+		TokenName:  "enterprises/LC00test/enrollmentTokens/abc123",
+		TokenValue: "tokenvalue123",
+		ExpiresAt:  expiresAt,
 	}
 	created, err := ds.CreateZeroTouchEnrollmentToken(testCtx(), token)
 	require.NoError(t, err)
@@ -62,17 +61,17 @@ func testZeroTouchCreateAndGet(t *testing.T, ds *Datastore) {
 	assert.Nil(t, got.TeamID)
 	assert.Equal(t, "enterprises/LC00test/enrollmentTokens/abc123", got.TokenName)
 	assert.Equal(t, "tokenvalue123", got.TokenValue)
-	assert.Equal(t, "secret1", got.EmbeddedEnrollSecret)
 	assert.WithinDuration(t, expiresAt, got.ExpiresAt, time.Second)
 
-	// Create a token for a specific team
-	teamID := uint(1)
+	// Create a team, then a token for it
+	team, err := ds.NewTeam(testCtx(), &fleet.Team{Name: "zt-test-team"})
+	require.NoError(t, err)
+	teamID := team.ID
 	teamToken := &android.ZeroTouchToken{
-		TeamID:               &teamID,
-		TokenName:            "enterprises/LC00test/enrollmentTokens/def456",
-		TokenValue:           "tokenvalue456",
-		EmbeddedEnrollSecret: "secret2",
-		ExpiresAt:            expiresAt,
+		TeamID:     &teamID,
+		TokenName:  "enterprises/LC00test/enrollmentTokens/def456",
+		TokenValue: "tokenvalue456",
+		ExpiresAt:  expiresAt,
 	}
 	createdTeam, err := ds.CreateZeroTouchEnrollmentToken(testCtx(), teamToken)
 	require.NoError(t, err)
@@ -93,25 +92,26 @@ func testZeroTouchCreateAndGet(t *testing.T, ds *Datastore) {
 
 func testZeroTouchCreateDuplicateTeam(t *testing.T, ds *Datastore) {
 	expiresAt := time.Now().Add(100 * 365 * 24 * time.Hour)
-	teamID := uint(1)
+
+	team, err := ds.NewTeam(testCtx(), &fleet.Team{Name: "zt-dup-team"})
+	require.NoError(t, err)
+	teamID := team.ID
 
 	token := &android.ZeroTouchToken{
-		TeamID:               &teamID,
-		TokenName:            "enterprises/LC00test/enrollmentTokens/first",
-		TokenValue:           "first",
-		EmbeddedEnrollSecret: "secret",
-		ExpiresAt:            expiresAt,
+		TeamID:     &teamID,
+		TokenName:  "enterprises/LC00test/enrollmentTokens/first",
+		TokenValue: "first",
+		ExpiresAt:  expiresAt,
 	}
-	_, err := ds.CreateZeroTouchEnrollmentToken(testCtx(), token)
+	_, err = ds.CreateZeroTouchEnrollmentToken(testCtx(), token)
 	require.NoError(t, err)
 
 	// A second token for the same team should fail (unique key)
 	dup := &android.ZeroTouchToken{
-		TeamID:               &teamID,
-		TokenName:            "enterprises/LC00test/enrollmentTokens/second",
-		TokenValue:           "second",
-		EmbeddedEnrollSecret: "secret",
-		ExpiresAt:            expiresAt,
+		TeamID:     &teamID,
+		TokenName:  "enterprises/LC00test/enrollmentTokens/second",
+		TokenValue: "second",
+		ExpiresAt:  expiresAt,
 	}
 	_, err = ds.CreateZeroTouchEnrollmentToken(testCtx(), dup)
 	assert.Error(t, err)
@@ -120,22 +120,23 @@ func testZeroTouchCreateDuplicateTeam(t *testing.T, ds *Datastore) {
 func testZeroTouchDeleteAll(t *testing.T, ds *Datastore) {
 	expiresAt := time.Now().Add(100 * 365 * 24 * time.Hour)
 
-	// Create two tokens
+	// Create unassigned token
 	_, err := ds.CreateZeroTouchEnrollmentToken(testCtx(), &android.ZeroTouchToken{
-		TokenName:            "enterprises/LC00test/enrollmentTokens/a",
-		TokenValue:           "a",
-		EmbeddedEnrollSecret: "secret",
-		ExpiresAt:            expiresAt,
+		TokenName:  "enterprises/LC00test/enrollmentTokens/a",
+		TokenValue: "a",
+		ExpiresAt:  expiresAt,
 	})
 	require.NoError(t, err)
 
-	teamID := uint(1)
+	// Create team token
+	team, err := ds.NewTeam(testCtx(), &fleet.Team{Name: "zt-del-team"})
+	require.NoError(t, err)
+	teamID := team.ID
 	_, err = ds.CreateZeroTouchEnrollmentToken(testCtx(), &android.ZeroTouchToken{
-		TeamID:               &teamID,
-		TokenName:            "enterprises/LC00test/enrollmentTokens/b",
-		TokenValue:           "b",
-		EmbeddedEnrollSecret: "secret",
-		ExpiresAt:            expiresAt,
+		TeamID:     &teamID,
+		TokenName:  "enterprises/LC00test/enrollmentTokens/b",
+		TokenValue: "b",
+		ExpiresAt:  expiresAt,
 	})
 	require.NoError(t, err)
 

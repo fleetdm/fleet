@@ -25,6 +25,10 @@ func zeroTouchConfigurationEndpoint(ctx context.Context, _ any, svc android.Serv
 	return resp
 }
 
+type teamEnrollmentRequest struct {
+	TeamID *uint `json:"team_id"`
+}
+
 func (svc *Service) GetZeroTouchConfiguration(ctx context.Context, teamID *uint) (*android.ZeroTouchConfigurationResponse, error) {
 	if err := svc.authz.Authorize(ctx, &android.Enterprise{}, fleet.ActionWrite); err != nil {
 		return nil, err
@@ -48,22 +52,7 @@ func (svc *Service) GetZeroTouchConfiguration(ctx context.Context, teamID *uint)
 		return nil, ctxerr.Wrap(ctx, err, "getting existing zero-touch token")
 	}
 	if existing != nil {
-		resp := buildDPCExtrasResponse(existing)
-		enrollSecrets, err := svc.fleetDS.GetEnrollSecrets(ctx, teamID)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "getting enroll secrets for drift check")
-		}
-		found := false
-		for _, s := range enrollSecrets {
-			if s.Secret == existing.EmbeddedEnrollSecret {
-				found = true
-				break
-			}
-		}
-		if !found {
-			resp.Warning = "The enroll secret embedded in this zero-touch token no longer exists. Please regenerate the zero-touch configuration."
-		}
-		return resp, nil
+		return buildDPCExtrasResponse(existing), nil
 	}
 
 	// No token exists — create one via AMAPI
@@ -78,20 +67,11 @@ func (svc *Service) GetZeroTouchConfiguration(ctx context.Context, teamID *uint)
 	}
 	_ = svc.androidAPIClient.SetAuthenticationSecret(secret)
 
-	enrollSecrets, err := svc.fleetDS.GetEnrollSecrets(ctx, teamID)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "getting enroll secrets")
-	}
-	if len(enrollSecrets) == 0 {
-		return nil, &fleet.BadRequestError{Message: "No enroll secret found. Please create one before setting up zero-touch enrollment."}
-	}
-	enrollSecret := enrollSecrets[0].Secret
-
-	additionalData, err := json.Marshal(enrollmentTokenRequest{
-		EnrollSecret: enrollSecret,
+	additionalData, err := json.Marshal(teamEnrollmentRequest{
+		TeamID: teamID,
 	})
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "marshalling enrollment token request")
+		return nil, ctxerr.Wrap(ctx, err, "marshalling zero-touch additional data")
 	}
 
 	amapiToken := &androidmanagement.EnrollmentToken{
@@ -112,11 +92,10 @@ func (svc *Service) GetZeroTouchConfiguration(ctx context.Context, teamID *uint)
 	}
 
 	token := &android.ZeroTouchToken{
-		TeamID:               teamID,
-		TokenName:            amapiToken.Name,
-		TokenValue:           amapiToken.Value,
-		EmbeddedEnrollSecret: enrollSecret,
-		ExpiresAt:            expiresAt,
+		TeamID:     teamID,
+		TokenName:  amapiToken.Name,
+		TokenValue: amapiToken.Value,
+		ExpiresAt:  expiresAt,
 	}
 	token, err = svc.ds.CreateZeroTouchEnrollmentToken(ctx, token)
 	if err != nil {
@@ -124,6 +103,44 @@ func (svc *Service) GetZeroTouchConfiguration(ctx context.Context, teamID *uint)
 	}
 
 	return buildDPCExtrasResponse(token), nil
+}
+
+// One of two expected to resolve team properly
+//   - {"team_id": <uint|null>} team_id key must be present
+//   - {"EnrollSecret":"...", "IdpUUID":"..."}
+func (svc *Service) resolveTeamFromEnrollmentData(ctx context.Context, enrollmentTokenData string) (teamID *uint, idpUUID string, err error) {
+	var raw map[string]json.RawMessage
+	if jsonErr := json.Unmarshal([]byte(enrollmentTokenData), &raw); jsonErr == nil {
+		if _, hasTeamID := raw["team_id"]; hasTeamID {
+			var ztData teamEnrollmentRequest
+			if err := json.Unmarshal([]byte(enrollmentTokenData), &ztData); err != nil {
+				return nil, "", ctxerr.Wrap(ctx, err, "unmarshalling zero-touch additional data")
+			}
+			// fall back to unassigned if not
+			if ztData.TeamID != nil {
+				exists, err := svc.fleetDS.TeamExists(ctx, *ztData.TeamID)
+				if err != nil {
+					return nil, "", ctxerr.Wrap(ctx, err, "checking if team exists")
+				}
+				if !exists {
+					svc.logger.WarnContext(ctx, "zero-touch team_id does not exist, assigning to unassigned",
+						"team_id", *ztData.TeamID)
+					return nil, "", nil
+				}
+			}
+			return ztData.TeamID, "", nil
+		}
+	}
+
+	var etReq enrollmentTokenRequest
+	if err := json.Unmarshal([]byte(enrollmentTokenData), &etReq); err != nil {
+		return nil, "", ctxerr.Wrap(ctx, err, "unmarshalling enrollment token data")
+	}
+	enrollSecret, err := svc.ds.VerifyEnrollSecret(ctx, etReq.EnrollSecret)
+	if err != nil {
+		return nil, "", ctxerr.Wrap(ctx, err, "verifying enroll secret")
+	}
+	return enrollSecret.GetTeamID(), etReq.IdpUUID, nil
 }
 
 func buildDPCExtrasResponse(token *android.ZeroTouchToken) *android.ZeroTouchConfigurationResponse {
