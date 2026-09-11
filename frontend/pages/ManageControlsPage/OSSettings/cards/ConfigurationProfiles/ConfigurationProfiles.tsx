@@ -389,6 +389,7 @@ const ConfigurationProfiles = ({
           teamId={currentTeamId}
           name={selectedProfile.current.name}
           uuid={selectedProfile.current.profile_uuid}
+          platform={selectedProfile.current.platform}
           onClickResend={(hostCount) => {
             selectedStatusHostCount.current = hostCount;
             setShowConfigProfileStatusModal(false);

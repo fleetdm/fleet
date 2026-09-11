@@ -290,6 +290,18 @@ type Datastore interface {
 
 	GetEnrollmentIDsWithPendingMDMAppleCommands(ctx context.Context) ([]string, error)
 
+	// ListNanoEnrollmentIDsForAPNsSweep walks enabled nano_enrollments in
+	// primary key order, one bounded page per call. It returns the enrollment
+	// IDs in the page that are sweep-eligible (silent for longer than
+	// silentFor and belonging to a host with MDM on), the cursor for the next
+	// page, and whether the underlying page was full (pageFull == false means
+	// the pass is complete).
+	ListNanoEnrollmentIDsForAPNsSweep(ctx context.Context, afterID string, batchSize int, silentFor time.Duration) (eligibleIDs []string, nextCursor string, pageFull bool, err error)
+
+	// CountEnabledNanoEnrollments returns the number of nano_enrollments rows
+	// with enabled = 1, used to size sweep batches at the start of each pass.
+	CountEnabledNanoEnrollments(ctx context.Context) (int, error)
+
 	// LabelQueriesForHost returns the (dynamic) label queries that should be executed for the given host.
 	// Results are returned in a map of label id -> query
 	LabelQueriesForHost(ctx context.Context, host *Host) (map[string]string, error)
@@ -682,7 +694,9 @@ type Datastore interface {
 	SaveScheduledQuery(ctx context.Context, sq *ScheduledQuery) (*ScheduledQuery, error)
 	DeleteScheduledQuery(ctx context.Context, id uint) error
 	ScheduledQuery(ctx context.Context, id uint) (*ScheduledQuery, error)
-	CleanupExpiredHosts(ctx context.Context) ([]DeletedHostDetails, error)
+	// CleanupExpiredHostsBatch deletes up to batchSize hosts that exceeded their expiry window and
+	// returns the details of the hosts it deleted. Callers loop until it returns no hosts.
+	CleanupExpiredHostsBatch(ctx context.Context, batchSize int) ([]DeletedHostDetails, error)
 	// ScheduledQueryIDsByName loads the IDs associated with the given pack and
 	// query names. It returns a slice of IDs in the same order as
 	// packAndSchedQueryNames, with the ID set to 0 if the corresponding
@@ -1028,6 +1042,10 @@ type Datastore interface {
 	// ResetPolicy clears pass/fail results: wipes policy_membership, policy_stats,
 	// and resets automation retry attempts, identical to a query-change side-effect.
 	ResetPolicy(ctx context.Context, policyID uint) error
+	// ResetPolicyForHost clears a single host's pass/fail result for the policy and
+	// resets its automation retry attempts atomically, then refreshes the policy's counts
+	// on a best-effort basis (a failed refresh is logged, not returned).
+	ResetPolicyForHost(ctx context.Context, hostID, policyID uint) error
 
 	ListGlobalPolicies(ctx context.Context, opts ListOptions, platform string) ([]*Policy, error)
 	PoliciesByID(ctx context.Context, ids []uint) (map[uint]*Policy, error)
@@ -1381,8 +1399,15 @@ type Datastore interface {
 	// IsHostDiskEncryptionKeyArchived returns true if there is a disk encryption key archived
 	// for the given host ID.
 	IsHostDiskEncryptionKeyArchived(ctx context.Context, hostID uint) (bool, error)
-	IsHostPendingEscrow(ctx context.Context, hostID uint) bool
-	ClearPendingEscrow(ctx context.Context, hostID uint) error
+	// GetHostEscrowState reports whether a LUKS escrow request is queued and how long ago the agent
+	// last showed activity on one in flight. No row means the zero state.
+	GetHostEscrowState(ctx context.Context, hostID uint) (*HostEscrowState, error)
+	// MarkEscrowSentToAgent moves the queued escrow request to in flight: it clears the pending
+	// flag so the notification is delivered once, and stamps when the agent took it.
+	MarkEscrowSentToAgent(ctx context.Context, hostID uint) error
+	// SetEscrowInFlight refreshes the in-flight state (true, only for a host still in flight) or ends
+	// it without recording a key or an error (false, for a dismissed or timed-out prompt).
+	SetEscrowInFlight(ctx context.Context, hostID uint, inFlight bool) error
 	ReportEscrowError(ctx context.Context, hostID uint, err string) error
 	QueueEscrow(ctx context.Context, hostID uint) error
 	AssertHasNoEncryptionKeyStored(ctx context.Context, hostID uint) error
@@ -1391,6 +1416,14 @@ type Datastore interface {
 	// associations that are close to expire and don't have a renewal in
 	// progress based on the provided arguments.
 	GetHostCertAssociationsToExpire(ctx context.Context, expiryDays, limit int) ([]SCEPIdentityAssociation, error)
+	// ExcludeHostCertAssociationsFromRenewal, marks each assocs row with renewal_excluded_at to avoid them being picked up and occupying the renew window.
+	ExcludeHostCertAssociationsFromRenewal(ctx context.Context, assocs []SCEPIdentityAssociation) error
+
+	// ClearCertRenewalExclusions clears all certificate renewal exclusions currently set in nano_cert_auth_associations,
+	// so they are picked up on the next run.
+	ClearCertRenewalExclusions(ctx context.Context) error
+	// ResetPendingCertRenewals actively cancels any in-flight certificate renewals.
+	ResetPendingCertRenewals(ctx context.Context) error
 
 	// GetDeviceInfoForACMERenewal retrieves the device information for ACMERenewal based on the provided host UUIDs.
 	GetDeviceInfoForACMERenewal(ctx context.Context, hostUUIDs []string) ([]DeviceInfoForACMERenewal, error)
@@ -1820,11 +1853,11 @@ type Datastore interface {
 	// GetHostRecoveryLockPasswordStatus returns the recovery lock password status for a given host.
 	GetHostRecoveryLockPasswordStatus(ctx context.Context, hostUUID string) (*HostMDMRecoveryLockPassword, error)
 
-	// GetHostsForRecoveryLockAction returns host UUIDs that need recovery lock password action:
+	// GetHostsForRecoveryLockAction returns host UUIDs that need recovery lock password action mapped to a bool if a password is already saved:
 	// - Teams with enable_recovery_lock_password = true
 	// - macOS Apple Silicon hosts that are MDM enrolled
 	// - No password saved or status is NULL (ready for command)
-	GetHostsForRecoveryLockAction(ctx context.Context) ([]string, error)
+	GetHostsForRecoveryLockAction(ctx context.Context) (map[string]bool, error)
 
 	// RestoreRecoveryLockForReenabledHosts transitions hosts from "pending remove" back to
 	// "verified install" when the recovery lock feature is re-enabled. This preserves the
@@ -1832,11 +1865,31 @@ type Datastore interface {
 	// Returns the number of hosts restored.
 	RestoreRecoveryLockForReenabledHosts(ctx context.Context) (int64, error)
 
-	// SetRecoveryLockVerified marks the recovery lock as verified.
-	SetRecoveryLockVerified(ctx context.Context, hostUUID string) error
+	// SetRecoveryLockVerified marks the recovery lock as verified, and promotes the pending password
+	// to active. With no pending password (see SetRecoveryLockVerifyingLastKnownPassword) the active
+	// password is what was verified, so it is kept. Also prunes the archive: a device that confirms
+	// which password it holds rules out every password generated before that one.
+	SetRecoveryLockVerified(ctx context.Context, hostUUID string, verifyCommandUUID string) error
 
-	// SetRecoveryLockFailed marks the recovery lock as failed with the given error message.
-	SetRecoveryLockFailed(ctx context.Context, hostUUID string, errorMsg string) error
+	SetRecoveryLockVerifying(ctx context.Context, hostUUID, commandUUID, pendingVerifyCommandUUID string) error
+
+	// SetRecoveryLockVerifyingLastKnownPassword is SetRecoveryLockVerifying for the fallback taken
+	// when a SetRecoveryLock is rejected for a password mismatch: the device kept a lock Fleet may
+	// already know, so the verify goes out with the active password instead. It drops the pending
+	// password, which the device rejected and must not be promoted.
+	SetRecoveryLockVerifyingLastKnownPassword(ctx context.Context, hostUUID, commandUUID, pendingVerifyCommandUUID string) error
+
+	// SetRecoveryLockFailed marks the recovery lock as failed with the given error message, and does not retry.
+	// Matches on hostUUID and either pending_verify_command_uuid = commandUUID OR pending_set_command_uuid = commandUUID
+	SetRecoveryLockFailed(ctx context.Context, hostUUID, commandUUID, errorMsg string) error
+	// Retry from either SET or VERIFY. We do not retry on CLEAR failures.
+	RetryRecoveryLock(ctx context.Context, hostUUID, commandUUID string) error
+
+	// RetryRecoveryLockVerify re-arms the verify step under newVerifyCommandUUID, keeping the
+	// row in 'verifying' with its pending password. Used instead of RetryRecoveryLock when the
+	// SetRecoveryLock was already acknowledged: the device holds the pending password by then,
+	// so re-running the set would carry a stale CurrentPassword and always fail.
+	RetryRecoveryLockVerify(ctx context.Context, hostUUID, verifyCommandUUID, newVerifyCommandUUID string) error
 
 	// ClearRecoveryLockPendingStatus resets the recovery lock status to NULL for hosts
 	// that failed to have their SetRecoveryLock commands enqueued. This allows them to
@@ -1848,26 +1901,14 @@ type Datastore interface {
 	// enable_recovery_lock_password=false and either:
 	// - operation_type='install' and status='verified' (new clears), or
 	// - operation_type='remove' and status=NULL (retries after failed enqueue)
-	ClaimHostsForRecoveryLockClear(ctx context.Context) ([]string, error)
+	ClaimHostsForRecoveryLockClear(ctx context.Context, clearCommandUUID string) ([]string, error)
 
-	// DeleteHostRecoveryLockPassword deletes the recovery lock password record for the given host.
-	// Called after a successful clear operation.
-	DeleteHostRecoveryLockPassword(ctx context.Context, hostUUID string) error
-
-	// GetRecoveryLockOperationType returns the current operation type for the host's recovery lock.
-	// Used by the result handler to determine if this was a set or clear operation.
-	GetRecoveryLockOperationType(ctx context.Context, hostUUID string) (MDMOperationType, error)
+	// DeleteHostRecoveryLockPassword hard deletes the recovery lock password record for the given host.
+	DeleteHostRecoveryLockPassword(ctx context.Context, hostUUID string, verifyCommandUUID string) error
 
 	// InitiateRecoveryLockRotation stores a new pending password for rotation.
 	// Validates: has verified/failed install password, no pending rotation, not in remove operation.
-	InitiateRecoveryLockRotation(ctx context.Context, hostUUID string, newPassword string) error
-
-	// CompleteRecoveryLockRotation moves pending password to active after MDM acknowledgment.
-	// Sets: encrypted_password = pending_encrypted_password, clears pending columns, status = verified.
-	CompleteRecoveryLockRotation(ctx context.Context, hostUUID string) error
-
-	// FailRecoveryLockRotation marks rotation as failed, keeps pending password for potential retry.
-	FailRecoveryLockRotation(ctx context.Context, hostUUID string, errorMsg string) error
+	InitiateRecoveryLockRotation(ctx context.Context, hostUUID string, setCommandUUID string, newPassword string) error
 
 	// ClearRecoveryLockRotation removes pending rotation (e.g., if command enqueue fails).
 	ClearRecoveryLockRotation(ctx context.Context, hostUUID string) error
@@ -1875,12 +1916,7 @@ type Datastore interface {
 	// GetRecoveryLockRotationStatus returns current rotation state for API validation.
 	GetRecoveryLockRotationStatus(ctx context.Context, hostUUID string) (*HostRecoveryLockRotationStatus, error)
 
-	// HasPendingRecoveryLockRotation returns true if the host has a pending recovery lock rotation.
-	HasPendingRecoveryLockRotation(ctx context.Context, hostUUID string) (bool, error)
-	// ResetRecoveryLockForRetry resets a failed clear operation back to install/verified
-	// so it will be picked up by ClaimHostsForRecoveryLockClear on the next cron cycle.
-	// This is used when a clear command fails with a transient error (not password mismatch).
-	ResetRecoveryLockForRetry(ctx context.Context, hostUUID string) error
+	GetPendingRecoveryLock(ctx context.Context, hostUUID string) (*HostRecoveryLockPending, error)
 
 	// MarkRecoveryLockPasswordViewed sets auto_rotate_at to 1 hour from now on
 	// the host's install-state recovery lock row and returns the scheduled
@@ -2083,6 +2119,21 @@ type Datastore interface {
 	// GetManagedLocalAccountByPendingCommandUUID resolves a SetAutoAdminPassword ack back
 	// to its host via pending_command_uuid. Returns notFound when no row matches.
 	GetManagedLocalAccountByPendingCommandUUID(ctx context.Context, commandUUID string) (host *Host, err error)
+
+	// InitiateWindowsManagedLocalAccountRotation records a rotation request on the host's current Windows MDM
+	// enrollment and clears auto_rotate_at in one transaction. A failed row may be rotated again. Returns
+	// ErrManagedLocalAccountRotationPending when a rotation is already outstanding, ErrManagedLocalAccountNotEligible
+	// when the row has no password, and notFound when the host has no managed local account row or no enrollment.
+	InitiateWindowsManagedLocalAccountRotation(ctx context.Context, hostUUID string) error
+
+	// InitiateWindowsManagedLocalAccountAutoRotation is the cron's variant of InitiateWindowsManagedLocalAccountRotation.
+	// It also returns ErrManagedLocalAccountNotEligible when the row is failed or its auto_rotate_at is not due, checked
+	// on the writer, so a row selected from a lagging replica is not retried.
+	InitiateWindowsManagedLocalAccountAutoRotation(ctx context.Context, hostUUID string) error
+
+	// GetWindowsManagedLocalAccountsForAutoRotation returns up to 100 Windows rows whose auto_rotate_at has elapsed,
+	// that have a password and a current enrollment with no request outstanding, and that are not failed.
+	GetWindowsManagedLocalAccountsForAutoRotation(ctx context.Context) ([]HostManagedLocalAccountWindowsRotationInfo, error)
 
 	// InsertMDMAppleBootstrapPackage insterts a new bootstrap package in the
 	// database (or S3 if configured).
@@ -2420,9 +2471,9 @@ type Datastore interface {
 	// MDMWindowsInsertEnrolledDevice inserts a new MDMWindowsEnrolledDevice in the database
 	MDMWindowsInsertEnrolledDevice(ctx context.Context, device *MDMWindowsEnrolledDevice) error
 
-	// MDMWindowsDeleteEnrolledDeviceOnReenrollment deletes a given windows
-	// device enrollment entry from the database using the HW device id.
-	MDMWindowsDeleteEnrolledDeviceOnReenrollment(ctx context.Context, mdmDeviceHWID string) error
+	// MDMWindowsDeleteEnrolledDeviceOnReenrollment deletes a given windows device enrollment entry from the database using the HW
+	// device id. It returns the host uuid the deleted enrollment was linked to, which is empty when it was not linked to a host yet.
+	MDMWindowsDeleteEnrolledDeviceOnReenrollment(ctx context.Context, mdmDeviceHWID string) (string, error)
 
 	// MDMWindowsGetEnrolledDeviceWithDeviceID receives a Windows MDM device id and returns the device information
 	MDMWindowsGetEnrolledDeviceWithDeviceID(ctx context.Context, mdmDeviceID string) (*MDMWindowsEnrolledDevice, error)
@@ -2446,6 +2497,10 @@ type Datastore interface {
 	// created activity only when an account was really created. The flag is per-enrollment: re-enrolling deletes the row and so resets it.
 	SetMDMWindowsManagedLocalAccountEscrowed(ctx context.Context, hostUUID string, escrowed bool) (changed bool, err error)
 
+	// ClearMDMWindowsManagedLocalAccountRotationRequest retires an outstanding rotation request on the host's current
+	// Windows MDM enrollment and reports whether there was one.
+	ClearMDMWindowsManagedLocalAccountRotationRequest(ctx context.Context, hostUUID string) (cleared bool, err error)
+
 	// MDMWindowsGetEnrolledDeviceWithHostUUID returns the MDMWindowsEnrolledDevice information for a given HostUUID
 	MDMWindowsGetEnrolledDeviceWithHostUUID(ctx context.Context, hostUUID string) (*MDMWindowsEnrolledDevice, error)
 
@@ -2465,6 +2520,19 @@ type Datastore interface {
 	// MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerial returns the most recent unlinked (host_uuid = "") Windows
 	// MDM enrollment whose device-reported SMBIOS serial matches. Returns a NotFound error when there is none.
 	MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerial(ctx context.Context, hardwareSerial string) (*MDMWindowsEnrolledDevice, error)
+
+	// MDMWindowsConflictingEnrollmentHardwareID returns the mdm_hardware_id of an enrollment already linked to hostUUID
+	// that belongs to hardware other than mdmHardwareID, or "" when the host is unclaimed or claimed by this same
+	// hardware.
+	MDMWindowsConflictingEnrollmentHardwareID(ctx context.Context, hostUUID string, mdmHardwareID string) (conflicted bool, conflictingHardwareID string, err error)
+
+	// MDMWindowsClaimEnrolledActivity claims the right to record the mdm_enrolled activity for the given Windows MDM
+	// enrollment, returning true for the first caller only.
+	MDMWindowsClaimEnrolledActivity(ctx context.Context, mdmHardwareID string, claimedAt time.Time) (bool, error)
+
+	// MDMWindowsReleaseEnrolledActivityClaim releases a claim taken with the given timestamp, so an enrollment whose
+	// activity could not be recorded is retried on a later session rather than left silently unannounced.
+	MDMWindowsReleaseEnrolledActivityClaim(ctx context.Context, mdmHardwareID string, claimedAt time.Time) error
 
 	// GetWindowsEnrollmentDefaultFleet returns the configured default fleet for new user-driven Windows MDM enrollments: nil fleet
 	// id and empty name when unset.
@@ -2586,7 +2654,7 @@ type Datastore interface {
 
 	// ListMicrosoftGraphCredentialMetadata returns the stored credentials without their client secrets, decrypting
 	// nothing.
-	ListMicrosoftGraphCredentialMetadata(ctx context.Context) ([]*MicrosoftGraphCredential, error)
+	ListMicrosoftGraphCredentialMetadata(ctx context.Context) ([]*MicrosoftGraphCredentialMetadata, error)
 
 	// ReplaceMicrosoftGraphCredentials reconciles the stored credentials.
 	ReplaceMicrosoftGraphCredentials(ctx context.Context, upsert []*MicrosoftGraphCredential, deleteTenantIDs []string) error
@@ -2766,6 +2834,15 @@ type Datastore interface {
 	// SetMDMAppleReconcileCursor persists the host_uuid cursor used by the
 	// batched Apple MDM reconciliation cron.
 	SetMDMAppleReconcileCursor(ctx context.Context, cursor string) error
+
+	// GetMDMAppleAPNsSweepState returns the APNs sweep cron's persisted pass
+	// state, or nil when no pass is in progress. The bare mysql.Datastore
+	// always returns nil; the mysqlredis wrapper backs it with Redis.
+	GetMDMAppleAPNsSweepState(ctx context.Context) (*MDMAppleAPNsSweepState, error)
+
+	// SetMDMAppleAPNsSweepState persists the APNs sweep cron's pass state.
+	// A nil state resets it (pass complete).
+	SetMDMAppleAPNsSweepState(ctx context.Context, state *MDMAppleAPNsSweepState) error
 
 	// GetAppleDeclarationReconcileSnapshot is the DDM counterpart of
 	// GetAppleProfileReconcileSnapshot. It returns a consistent snapshot
@@ -3757,6 +3834,10 @@ type Datastore interface {
 	ScimGroupByDisplayName(ctx context.Context, displayName string) (*ScimGroup, error)
 	// ReplaceScimGroup replaces an existing SCIM group in the database
 	ReplaceScimGroup(ctx context.Context, group *ScimGroup) error
+	// ApplyScimGroupPatch updates an existing SCIM group's attributes and applies
+	// only the membership changes described by deltas, leaving every other member
+	// of the group untouched.
+	ApplyScimGroupPatch(ctx context.Context, group *ScimGroup, deltas ScimGroupMemberDeltas) error
 	// DeleteScimGroup deletes a SCIM group from the database
 	DeleteScimGroup(ctx context.Context, id uint) error
 	// ListScimGroups retrieves a list of SCIM groups with pagination
@@ -3817,9 +3898,6 @@ type Datastore interface {
 	GetHostIdentityCertByName(ctx context.Context, name string) (*types.HostIdentityCertificate, error)
 	// UpdateHostIdentityCertHostIDBySerial updates the host ID associated with a certificate using its serial number.
 	UpdateHostIdentityCertHostIDBySerial(ctx context.Context, serialNumber uint64, hostID uint) error
-	// GetMDMSCEPCertBySerial looks up an MDM SCEP certificate by serial number and returns the device UUID.
-	// This is used for iOS/iPadOS certificate-based authentication.
-	GetMDMSCEPCertBySerial(ctx context.Context, serialNumber uint64) (deviceUUID string, err error)
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// Conditional access certificates
@@ -4073,6 +4151,14 @@ type Datastore interface {
 	SetAppleOSUpdateTargetsAndResend(ctx context.Context, targets []*ComputedAppleSoftwareUpdateHost) error
 	// GetAppleOSUpdateHostByUUID retrieves stored Apple software update configuration for a given host by its UUID.
 	GetAppleOSUpdateHostByUUID(ctx context.Context, hostUUID string) (*AppleSoftwareUpdateHost, error)
+	// SetABMTokenDefault marks tokenID as the default ABM token and clears the
+	// flag on every other token. Returns a not-found error if tokenID doesn't exist.
+	SetABMTokenDefault(ctx context.Context, tokenID uint) error
+	// ClearABMTokenDefault clears the default flag. No-op when exactly one token
+	// exists, because a sole token is always default.
+	ClearABMTokenDefault(ctx context.Context) error
+	// SetABMTokenServerUUID stores Apple's server_uuid for the token.
+	SetABMTokenServerUUID(ctx context.Context, tokenID uint, serverUUID string) error
 }
 
 type AndroidDatastore interface {

@@ -100,8 +100,9 @@ type TestAppleMDMClient struct {
 	fetchEnrollmentProfileFromOTA bool
 	// otaEnrollSecret is the team enroll secret to be used during the OTA flow.
 	otaEnrollSecret string
-	// otaIdpUUID is the optional uuid of the idp account that should be associated with the host enrolling
-	otaIdpUUID string
+	// otaIdpSession is the optional BYOD IdP session cookie value, as minted by
+	// the SSO callback, that associates the enrolling host with an idp account.
+	otaIdpSession string
 
 	// fetchEnrollmentProfileFromMDMBYOD indicates whether this simulated device will fetch
 	// the enrollment profile from Fleet as if it were a device running the Account Driven User
@@ -164,9 +165,9 @@ func WithEnrollmentProfileFromDEPUsingPost() TestMDMAppleClientOption {
 }
 
 // Will set a cookie for OTA requests which mimics SSO being enabled before OTA enrollment.
-func WithOTAIdpUUID(idpUUID string) TestMDMAppleClientOption {
+func WithOTAIdpSession(sessionID string) TestMDMAppleClientOption {
 	return func(c *TestAppleMDMClient) {
-		c.otaIdpUUID = idpUUID
+		c.otaIdpSession = sessionID
 	}
 }
 
@@ -444,7 +445,7 @@ func (c *TestAppleMDMClient) fetchEnrollmentProfileFromDesktopURL() error {
 		return fmt.Errorf("create request: %w", err)
 	}
 	// #nosec (this client is used for testing only)
-	cc := fleethttp.NewClient(fleethttp.WithTLSClientConfig(&tls.Config{
+	cc := fleethttp.NewClient(fleethttp.WithNoTimeout(), fleethttp.WithTLSClientConfig(&tls.Config{
 		InsecureSkipVerify: true,
 	}))
 
@@ -582,14 +583,14 @@ func (c *TestAppleMDMClient) fetchOTAProfile(url string) error {
 		return fmt.Errorf("create request: %w", err)
 	}
 	// #nosec (this client is used for testing only)
-	cc := fleethttp.NewClient(fleethttp.WithTLSClientConfig(&tls.Config{
+	cc := fleethttp.NewClient(fleethttp.WithNoTimeout(), fleethttp.WithTLSClientConfig(&tls.Config{
 		InsecureSkipVerify: true,
 	}))
 
-	if c.otaIdpUUID != "" {
+	if c.otaIdpSession != "" {
 		request.AddCookie(&http.Cookie{
 			Name:  shared_mdm.BYODIdpCookieName,
-			Value: c.otaIdpUUID,
+			Value: c.otaIdpSession,
 		})
 	}
 
@@ -666,7 +667,7 @@ func (c *TestAppleMDMClient) fetchOTAProfile(url string) error {
 			return nil, fmt.Errorf("create request: %w", err)
 		}
 		// #nosec (this client is used for testing only)
-		cc := fleethttp.NewClient(fleethttp.WithTLSClientConfig(&tls.Config{
+		cc := fleethttp.NewClient(fleethttp.WithNoTimeout(), fleethttp.WithTLSClientConfig(&tls.Config{
 			InsecureSkipVerify: true,
 		}))
 		response, err := cc.Do(request)
@@ -767,7 +768,7 @@ func (c *TestAppleMDMClient) fetchEnrollmentProfile(path string, body []byte) (e
 		request.Header.Set("Authorization", "Bearer "+c.authorizationBearerToken)
 	}
 	// #nosec (this client is used for testing only)
-	cc := fleethttp.NewClient(fleethttp.WithTLSClientConfig(&tls.Config{
+	cc := fleethttp.NewClient(fleethttp.WithNoTimeout(), fleethttp.WithTLSClientConfig(&tls.Config{
 		InsecureSkipVerify: true,
 	}))
 	response, err := cc.Do(request)
@@ -818,7 +819,7 @@ func (c *TestAppleMDMClient) fetchEnrollmentProfile(path string, body []byte) (e
 		c.acmeClient = &acme.Client{
 			Key:          c.acmeCertCAKey,
 			DirectoryURL: enrollInfo.ACMEURL,
-			HTTPClient:   fleethttp.NewClient(),
+			HTTPClient:   fleethttp.NewClient(fleethttp.WithNoTimeout()),
 		}
 	}
 
@@ -867,6 +868,10 @@ func (c *TestAppleMDMClient) SCEPEnroll() error {
 		return err
 	}
 
+	// the device has a single MDM identity, so a new SCEP cert replaces any
+	// ACME one it previously enrolled with
+	c.acmeCert = nil
+	c.acmeKey = nil
 	c.scepCert = cert
 	c.scepKey = key
 	return nil
@@ -955,6 +960,10 @@ func (c *TestAppleMDMClient) ACMEEnroll() error {
 		return fmt.Errorf("parse x509 ACME certificate: %w", err)
 	}
 
+	// the device has a single MDM identity, so a new ACME cert replaces any
+	// SCEP one it previously enrolled with
+	c.scepCert = nil
+	c.scepKey = nil
 	c.acmeCert = acmeCert
 	// We can reuse the same key we used for the CSR since it's the one that matches the cert
 	c.acmeKey = acmeKey
@@ -1145,6 +1154,23 @@ func (c *TestAppleMDMClient) Acknowledge(cmdUUID string) (*mdm.Command, error) {
 		"Topic":        "com.apple.mgmt.External." + c.Identifier(),
 		"EnrollmentID": "testenrollmentid-" + c.Identifier(),
 		"CommandUUID":  cmdUUID,
+	}
+	if c.UUID != "" {
+		payload["UDID"] = c.UUID
+	}
+	return c.sendAndDecodeCommandResponse(payload)
+}
+
+// AcknowledgeVerifyRecoveryLock acknowledges a VerifyRecoveryLock command and reports the
+// device's verdict. A device acknowledges the command whether or not the password matched
+// and answers in PasswordVerified, so an acknowledgment alone says nothing about the lock.
+func (c *TestAppleMDMClient) AcknowledgeVerifyRecoveryLock(cmdUUID string, passwordVerified bool) (*mdm.Command, error) {
+	payload := map[string]any{
+		"Status":           "Acknowledged",
+		"Topic":            "com.apple.mgmt.External." + c.Identifier(),
+		"EnrollmentID":     "testenrollmentid-" + c.Identifier(),
+		"CommandUUID":      cmdUUID,
+		"PasswordVerified": passwordVerified,
 	}
 	if c.UUID != "" {
 		payload["UDID"] = c.UUID
@@ -1674,7 +1700,7 @@ func (c *TestAppleMDMClient) request(contentType string, payload map[string]any)
 		request.Header.Set("Authorization", "Bearer "+c.authorizationBearerToken)
 	}
 	// #nosec (this client is used for testing only)
-	cc := fleethttp.NewClient(fleethttp.WithTLSClientConfig(&tls.Config{
+	cc := fleethttp.NewClient(fleethttp.WithNoTimeout(), fleethttp.WithTLSClientConfig(&tls.Config{
 		InsecureSkipVerify: true,
 	}))
 	response, err := cc.Do(request)

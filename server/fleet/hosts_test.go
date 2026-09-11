@@ -45,6 +45,7 @@ func TestIsLUKSSupported(t *testing.T) {
 		{platform: "omarchy", expected: true},
 		// Linux platforms without LUKS support, and non-Linux platforms.
 		{platform: "debian", expected: false},
+		{platform: "amd-ryzen-ai-developer-platform", expected: false},
 		{platform: "darwin", expected: false},
 		{platform: "windows", expected: false},
 	} {
@@ -187,6 +188,10 @@ func TestPlatformFromHost(t *testing.T) {
 		},
 		{
 			host:        "omarchy",
+			expPlatform: "linux",
+		},
+		{
+			host:        "amd-ryzen-ai-developer-platform",
 			expPlatform: "linux",
 		},
 		{
@@ -702,6 +707,29 @@ func TestPopulateOSSettingsAndMacOSSettingsMatrix(t *testing.T) {
 					}
 				}
 			}
+		})
+	}
+}
+
+func TestHostEscrowStateInFlightRemaining(t *testing.T) {
+	window := 5 * time.Minute
+	since := func(d time.Duration) *time.Duration { return &d }
+
+	cases := []struct {
+		name  string
+		state *HostEscrowState
+		want  time.Duration
+	}{
+		{"nil state", nil, 0},
+		{"no activity", &HostEscrowState{Pending: true}, 0},
+		{"recent activity", &HostEscrowState{SinceLastActivity: since(30 * time.Second)}, 4*time.Minute + 30*time.Second},
+		{"activity at the window", &HostEscrowState{SinceLastActivity: since(window)}, 0},
+		{"activity past the window", &HostEscrowState{SinceLastActivity: since(time.Hour)}, 0},
+		{"activity in the future", &HostEscrowState{SinceLastActivity: since(-time.Second)}, window},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			require.Equal(t, c.want, c.state.InFlightRemaining(window))
 		})
 	}
 }

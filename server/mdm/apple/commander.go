@@ -793,8 +793,8 @@ func (svc *MDMAppleCommander) SetRecoveryLock(ctx context.Context, hostUUIDs []s
 	cmdPayload := commandPayload{
 		CommandUUID: cmdUUID,
 		Command: map[string]any{
-			"RequestType": "SetRecoveryLock",
-			"NewPassword": "$" + fleet.HostSecretPrefix + fleet.HostSecretRecoveryLockPassword,
+			"RequestType": fleet.SetRecoveryLockCmdName,
+			"NewPassword": "$" + fleet.HostSecretPrefix + fleet.HostSecretRecoveryLockPendingPassword,
 		},
 	}
 	rawBytes, err := plist.MarshalIndent(cmdPayload, "    ")
@@ -804,6 +804,44 @@ func (svc *MDMAppleCommander) SetRecoveryLock(ctx context.Context, hostUUIDs []s
 
 	if err := svc.EnqueueCommand(ctx, hostUUIDs, string(rawBytes)); err != nil {
 		return ctxerr.Wrap(ctx, err, "enqueuing SetRecoveryLock command")
+	}
+
+	return nil
+}
+
+func (svc *MDMAppleCommander) VerifyRecoveryLock(ctx context.Context, hostUUID, cmdUUID string) error {
+	// Use the host secret placeholder - the actual password will be injected at delivery time
+	// by ExpandHostSecrets, which looks up the password from host_recovery_key_passwords.
+	return svc.verifyRecoveryLock(ctx, hostUUID, cmdUUID, "$"+fleet.HostSecretPrefix+fleet.HostSecretRecoveryLockPendingPassword)
+}
+
+func (svc *MDMAppleCommander) VerifyRecoveryLockLastKnownPassword(ctx context.Context, hostUUID, cmdUUID string) error {
+	// Use the host secret placeholder for the last known password - the actual password will be injected at delivery time
+	// by ExpandHostSecrets, which looks up the password from host_recovery_key_passwords.
+	return svc.verifyRecoveryLock(ctx, hostUUID, cmdUUID, "$"+fleet.HostSecretPrefix+fleet.HostSecretRecoveryLockPassword)
+}
+
+func (svc *MDMAppleCommander) VerifyClearRecoveryLock(ctx context.Context, hostUUID, cmdUUID string) error {
+	// A device without a recovery lock password will accept a empty password in a VerifyRecoveryLock, so we use it to ensure the same process
+	// for both setting and clearing is always verified by the device.
+	return svc.verifyRecoveryLock(ctx, hostUUID, cmdUUID, "")
+}
+
+func (svc *MDMAppleCommander) verifyRecoveryLock(ctx context.Context, hostUUID, cmdUUID, password string) error {
+	cmdPayload := commandPayload{
+		CommandUUID: cmdUUID,
+		Command: map[string]any{
+			"RequestType": fleet.VerifyRecoveryLockCmdName,
+			"Password":    password,
+		},
+	}
+	rawBytes, err := plist.MarshalIndent(cmdPayload, "    ")
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "marshalling verifyRecoveryLock payload")
+	}
+
+	if err := svc.EnqueueCommand(ctx, []string{hostUUID}, string(rawBytes)); err != nil {
+		return ctxerr.Wrap(ctx, err, "enqueuing verifyRecoveryLock command")
 	}
 
 	return nil
@@ -875,11 +913,11 @@ func (svc *MDMAppleCommander) SetAutoAdminPassword(ctx context.Context, hostUUID
 // CurrentPassword is the existing password from encrypted_password column.
 // NewPassword is the new password from pending_encrypted_password column.
 // See https://developer.apple.com/documentation/devicemanagement/set_recovery_lock
-func (svc *MDMAppleCommander) RotateRecoveryLock(ctx context.Context, hostUUID string, cmdUUID string) error {
+func (svc *MDMAppleCommander) RotateRecoveryLock(ctx context.Context, hostUUIDs []string, cmdUUID string) error {
 	cmdPayload := commandPayload{
 		CommandUUID: cmdUUID,
 		Command: map[string]any{
-			"RequestType":     "SetRecoveryLock",
+			"RequestType":     fleet.SetRecoveryLockCmdName,
 			"CurrentPassword": "$" + fleet.HostSecretPrefix + fleet.HostSecretRecoveryLockPassword,
 			"NewPassword":     "$" + fleet.HostSecretPrefix + fleet.HostSecretRecoveryLockPendingPassword,
 		},
@@ -889,7 +927,7 @@ func (svc *MDMAppleCommander) RotateRecoveryLock(ctx context.Context, hostUUID s
 		return ctxerr.Wrap(ctx, err, "marshalling RotateRecoveryLock payload")
 	}
 
-	if err := svc.EnqueueCommand(ctx, []string{hostUUID}, string(rawBytes)); err != nil {
+	if err := svc.EnqueueCommand(ctx, hostUUIDs, string(rawBytes)); err != nil {
 		return ctxerr.Wrap(ctx, err, "enqueuing RotateRecoveryLock command")
 	}
 

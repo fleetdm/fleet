@@ -17,12 +17,8 @@ Once you have your development environment set up, you can explore the following
 - [Workflows](../workflows/README.md) - Development workflows
 - [Reference](../reference/README.md) - API reference, configuration, etc.
 
-## Product groups
+## Features
 
-Fleet is organized into three main product groups:
+Contributor docs are organized by feature — see the [feature index](../README.md#features) for the full list (MDM per platform, software, vulnerability management, reports, and more).
 
-- [MDM](../product-groups/mdm/README.md) - Mobile Device Management
-- [Orchestration](../product-groups/orchestration/README.md) - Device orchestration using osquery
-- [Software](../product-groups/software/README.md) - Software inventory, vulnerability management, and software installation
-
-Each product group has its own documentation, guides, and architecture documentation.
+Each feature directory has its own README index covering that feature's architecture, guides, and research docs.

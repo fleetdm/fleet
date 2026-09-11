@@ -75,6 +75,23 @@ describe("NoResults", () => {
     });
   });
 
+  describe("collecting results", () => {
+    it("says 'about' only once before the check-back time", () => {
+      render(
+        <NoResults
+          {...baseProps}
+          queryInterval={12 * 60 * 60}
+          queryUpdatedAt={new Date().toISOString()}
+        />
+      );
+
+      expect(screen.getByText("Collecting results...")).toBeInTheDocument();
+      expect(screen.getByText(/about 12 hours/)).toBeInTheDocument();
+      // regression test for https://github.com/fleetdm/fleet/issues/52241
+      expect(screen.queryByText(/about about/)).not.toBeInTheDocument();
+    });
+  });
+
   describe("has interval but no results yet", () => {
     it("shows live report link when user can run live", () => {
       render(

@@ -360,7 +360,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 
 	mdmStorage, depStorage, scepStorage := initAppleMDMStorages(mds, initFatal)
 
-	mdmPushService := initAppleMDMPushService(mdmStorage, logger)
+	mdmPushService := initAppleMDMPushService(mdmStorage, config.MDM.AppleAPNsPushExpiration, logger)
 	mds.WithPusher(mdmPushService)
 
 	// reconcile Apple MDM and Business Manager configuration with the database
@@ -488,6 +488,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 			return svc.NewActivity(ctx, user, activity)
 		},
 		config.MDM.AndroidAgent,
+		redis_key_value.New(redisPool),
 	)
 	if err != nil {
 		initFatal(err, "initializing android service")
@@ -887,6 +888,8 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 			svc,
 			config.Server.URLPrefix,
 			ds,
+			redis_key_value.New(redisPool),
+			clock.C,
 			logger,
 			serveCSP,
 		)
@@ -936,6 +939,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	if len(config.Server.PrivateKey) > 0 {
 		commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
 		ddmService := service.NewMDMAppleDDMService(ds, logger)
+		getTokenService := service.NewMDMAppleGetTokenService(ds, logger)
 		vppInstaller := svc.(fleet.AppleMDMVPPInstaller)
 		mdmCheckinAndCommandService := service.NewMDMAppleCheckinAndCommandService(
 			ds,
@@ -950,7 +954,8 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 
 		mdmCheckinAndCommandService.RegisterResultsHandler("InstalledApplicationList", service.NewInstalledApplicationListResultsHandler(ds, commander, logger, config.Server.VPPVerifyTimeout, config.Server.VPPVerifyRequestDelay, svc.NewActivity))
 		mdmCheckinAndCommandService.RegisterResultsHandler(fleet.DeviceLocationCmdName, service.NewDeviceLocationResultsHandler(ds, commander, logger))
-		mdmCheckinAndCommandService.RegisterResultsHandler(fleet.SetRecoveryLockCmdName, service.NewSetRecoveryLockResultsHandler(ds, logger, svc.NewActivity))
+		mdmCheckinAndCommandService.RegisterResultsHandler(fleet.SetRecoveryLockCmdName, service.NewSetRecoveryLockResultsHandler(ds, logger, commander))
+		mdmCheckinAndCommandService.RegisterResultsHandler(fleet.VerifyRecoveryLockCmdName, service.NewVerifyRecoveryLockResultsHandler(ds, logger, commander, svc.NewActivity))
 
 		hasSCEPChallenge, err := checkMDMAssetsExist(context.Background(), ds, []fleet.MDMAssetName{fleet.MDMAssetSCEPChallenge})
 		if err != nil {
@@ -987,9 +992,11 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 			mdmCheckinAndCommandService,
 			ddmService,
 			commander,
+			getTokenService,
 			appCfg.ServerSettings.ServerURL,
 			config,
 			svc,
+			ds,
 		); err != nil {
 			initFatal(err, "setup mdm apple services")
 		}
@@ -1153,6 +1160,10 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		defer cancel()
 		errs <- func() error {
 			cancelFunc()
+			if stopper, ok := mdmPushService.(interface{ Stop() }); ok {
+				// end the APNs retry loop; pending retries defer to the sweep
+				stopper.Stop()
+			}
 			cleanupCronStatsOnShutdown(ctx, ds, logger, instanceID)
 			launcher.GracefulStop()
 			// Flush any pending OTEL data before shutting down

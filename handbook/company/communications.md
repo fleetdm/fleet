@@ -247,6 +247,11 @@ Fleet uses these levels to standardize a commitment to minimal esotericism acros
 - **"¶¶":** _(Classified - CEO, Executive Assistant, Head of People, and GTM Systems Architect)_
 
 
+### Sharing Google Docs externally
+
+When sharing access to a Google Doc outside of the company, first prefix the name of the Google Doc with `[shared externally to the company] `. This makes it easier for others to notice when a doc is shared externally as they open it up, and easier to notice when something is shared externally which no longer should be (for example, after a consultant is no longer working with the company and should no longer have access).
+
+
 ## Company database
 
 Fleet uses Google Drive to keep files correctly bucketed and accessible for team members. When adding a file, you can: 
@@ -716,6 +721,8 @@ When you need to take time off, follow this process:
 - If you can’t complete these steps because you need to take the day off quickly due to an emergency, let your manager know and they will help you complete the handoff.
 - If you ever want to take a day off, and the only thing stopping you is internal (Fleetie-only) meetings, don’t stress. Consider, “Is this a meeting that I can reschedule to another day, or is this a meeting that can go on without me and not interfere with the company’s plans?” Talk to your manager if you’re unsure, but it is perfectly OK to reschedule internal meetings that can wait so that you can take a day off.
 - This process is the same for any days you take off, whether it's a holiday or you just need a break.
+
+> For customer success and support roles, it can be hard to know how best to get your work covered or to plan for contingencies. Talk to your manager ahead of booking leave to figure out what's best for the company.
 
 
 ### Holidays

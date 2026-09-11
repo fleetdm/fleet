@@ -83,6 +83,7 @@ func (ds *Datastore) MDMWindowsGetEnrolledDeviceWithDeviceID(ctx context.Context
 		ztd_registration_id,
 		last_login_status,
 		last_login_status_at,
+		enrolled_activity_at,
 		created_at,
 		updated_at,
 		host_uuid
@@ -203,6 +204,26 @@ func (ds *Datastore) SetMDMWindowsManagedLocalAccountEscrowed(ctx context.Contex
 	return changed > 0, nil
 }
 
+// ClearMDMWindowsManagedLocalAccountRotationRequest retires an outstanding rotation request once the device has
+// escrowed the replacement password or reported a failure. Reporting whether one was outstanding lets the escrow
+// endpoint tell a rotation from a first-time creation without a separate read.
+func (ds *Datastore) ClearMDMWindowsManagedLocalAccountRotationRequest(ctx context.Context, hostUUID string) (bool, error) {
+	// Pinned to the current enrollment by id so a stale enrollment row is never the one cleared.
+	res, err := ds.writer(ctx).ExecContext(ctx,
+		`UPDATE mdm_windows_enrollments SET managed_local_account_rotation_requested = 0
+		 WHERE managed_local_account_rotation_requested = 1
+		   AND id = (SELECT id FROM (
+		       SELECT id FROM mdm_windows_enrollments WHERE host_uuid = ?
+		       ORDER BY created_at DESC, id DESC LIMIT 1
+		   ) cur)`,
+		hostUUID)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "clear mdm windows enrollment managed local account rotation request")
+	}
+	cleared, _ := res.RowsAffected()
+	return cleared > 0, nil
+}
+
 // MDMWindowsGetEnrolledDeviceWithDeviceID receives a Windows MDM device id and
 // returns the device information.
 func (ds *Datastore) MDMWindowsGetEnrolledDeviceWithHostUUID(ctx context.Context, hostUUID string) (*fleet.MDMWindowsEnrolledDevice, error) {
@@ -225,6 +246,7 @@ func (ds *Datastore) MDMWindowsGetEnrolledDeviceWithHostUUID(ctx context.Context
 		credentials_acknowledged,
 		hardware_serial,
 		ztd_registration_id,
+		enrolled_activity_at,
 		created_at,
 		updated_at,
 		host_uuid
@@ -269,6 +291,7 @@ func (ds *Datastore) MDMWindowsGetUnlinkedEnrolledDeviceWithDeviceName(ctx conte
 		credentials_acknowledged,
 		hardware_serial,
 		ztd_registration_id,
+		enrolled_activity_at,
 		created_at,
 		updated_at,
 		host_uuid
@@ -325,6 +348,35 @@ func (ds *Datastore) MDMWindowsSaveUnlinkedEnrollmentHardwareSerial(ctx context.
 	return nil
 }
 
+// MDMWindowsClaimEnrolledActivity claims the right to record the mdm_enrolled activity for the given enrollment,
+// returning true exactly once per enrollment row. The claim is the UPDATE itself: enrolled_activity_at only moves from
+// NULL to a timestamp, so only the first one to get here sees rows affected.
+func (ds *Datastore) MDMWindowsClaimEnrolledActivity(ctx context.Context, mdmHardwareID string, claimedAt time.Time) (bool, error) {
+	res, err := ds.writer(ctx).ExecContext(ctx,
+		`UPDATE mdm_windows_enrollments SET enrolled_activity_at = ?
+		 WHERE mdm_hardware_id = ? AND enrolled_activity_at IS NULL`,
+		claimedAt, mdmHardwareID)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "claim windows mdm enrolled activity")
+	}
+	aff, err := res.RowsAffected()
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "checking rows affected when claiming windows mdm enrolled activity")
+	}
+	return aff > 0, nil
+}
+
+// MDMWindowsReleaseEnrolledActivityClaim undoes a claim whose activity could not be recorded, so a later session retries.
+func (ds *Datastore) MDMWindowsReleaseEnrolledActivityClaim(ctx context.Context, mdmHardwareID string, claimedAt time.Time) error {
+	if _, err := ds.writer(ctx).ExecContext(ctx,
+		`UPDATE mdm_windows_enrollments SET enrolled_activity_at = NULL
+		 WHERE mdm_hardware_id = ? AND enrolled_activity_at = ?`,
+		mdmHardwareID, claimedAt); err != nil {
+		return ctxerr.Wrap(ctx, err, "release windows mdm enrolled activity claim")
+	}
+	return nil
+}
+
 // MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerial returns the unlinked (host_uuid = "") Windows MDM enrollment whose
 // device-reported SMBIOS serial matches. If more than one unlinked enrollment shares the serial the caller cannot pick
 // safely, so we return NotFound rather than guess, matching WindowsHostLiteByHardwareSerial.
@@ -350,6 +402,7 @@ func (ds *Datastore) MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerial(ctx c
 		credentials_acknowledged,
 		hardware_serial,
 		ztd_registration_id,
+		enrolled_activity_at,
 		created_at,
 		updated_at,
 		host_uuid
@@ -365,6 +418,36 @@ func (ds *Datastore) MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerial(ctx c
 		return nil, ctxerr.Wrap(ctx, notFound("MDMWindowsEnrolledDevice").WithMessage(hardwareSerial))
 	}
 	return &devices[0], nil
+}
+
+// MDMWindowsConflictingEnrollmentHardwareID reports whether hostUUID is already claimed by an enrollment belonging to
+// hardware other than mdmHardwareID. The returned ID is only for logging which device holds the host; conflicted is the
+// answer, because an enrollment may carry an empty mdm_hardware_id and would otherwise be indistinguishable from "no
+// incumbent".
+//
+// A device re-enrolling never conflicts with itself: MDMWindowsDeleteEnrolledDeviceOnReenrollment removes its previous
+// row by hardware ID before the new one is inserted, so its claim on the host is gone before any linking runs. That
+// holds because the hardware ID is stable across a wipe (even when enrolling with a different Entra ID).
+func (ds *Datastore) MDMWindowsConflictingEnrollmentHardwareID(ctx context.Context, hostUUID string, mdmHardwareID string) (conflicted bool, conflictingHardwareID string, err error) {
+	if hostUUID == "" {
+		return false, "", nil
+	}
+
+	const stmt = `
+		SELECT mdm_hardware_id
+		FROM mdm_windows_enrollments
+		WHERE host_uuid = ? AND mdm_hardware_id != ?
+		ORDER BY id DESC
+		LIMIT 1`
+
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &conflictingHardwareID, stmt, hostUUID, mdmHardwareID)
+	switch {
+	case errors.Is(err, sql.ErrNoRows):
+		return false, "", nil
+	case err != nil:
+		return false, "", ctxerr.Wrap(ctx, err, "get conflicting windows mdm enrollment hardware id")
+	}
+	return true, conflictingHardwareID, nil
 }
 
 // GetWindowsEnrollmentDefaultFleet returns the configured default fleet for new user-driven Windows MDM enrollments.
@@ -437,16 +520,18 @@ func (ds *Datastore) GetMDMWindowsHostConfigState(ctx context.Context, hostUUID 
 			awaiting_configuration,
 			has_pending_commands,
 			fleetd_sync_capable,
-			managed_local_account_escrowed
+			managed_local_account_escrowed,
+			managed_local_account_rotation_requested
 		FROM mdm_windows_enrollments
 		WHERE host_uuid = ?
 		ORDER BY created_at DESC, id DESC
 		LIMIT 1`
 	var row struct {
-		AwaitingConfiguration       fleet.WindowsMDMAwaitingConfiguration `db:"awaiting_configuration"`
-		HasPendingCommands          bool                                  `db:"has_pending_commands"`
-		FleetdSyncCapable           bool                                  `db:"fleetd_sync_capable"`
-		ManagedLocalAccountEscrowed bool                                  `db:"managed_local_account_escrowed"`
+		AwaitingConfiguration                fleet.WindowsMDMAwaitingConfiguration `db:"awaiting_configuration"`
+		HasPendingCommands                   bool                                  `db:"has_pending_commands"`
+		FleetdSyncCapable                    bool                                  `db:"fleetd_sync_capable"`
+		ManagedLocalAccountEscrowed          bool                                  `db:"managed_local_account_escrowed"`
+		ManagedLocalAccountRotationRequested bool                                  `db:"managed_local_account_rotation_requested"`
 	}
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &row, stmt, hostUUID); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -455,10 +540,11 @@ func (ds *Datastore) GetMDMWindowsHostConfigState(ctx context.Context, hostUUID 
 		return nil, ctxerr.Wrap(ctx, err, "get MDMWindowsHostConfigState")
 	}
 	return &fleet.MDMWindowsHostConfigState{
-		AwaitingConfiguration:       row.AwaitingConfiguration,
-		HasPendingCommands:          row.HasPendingCommands,
-		FleetdSyncCapable:           row.FleetdSyncCapable,
-		ManagedLocalAccountEscrowed: row.ManagedLocalAccountEscrowed,
+		AwaitingConfiguration:                row.AwaitingConfiguration,
+		HasPendingCommands:                   row.HasPendingCommands,
+		FleetdSyncCapable:                    row.FleetdSyncCapable,
+		ManagedLocalAccountEscrowed:          row.ManagedLocalAccountEscrowed,
+		ManagedLocalAccountRotationRequested: row.ManagedLocalAccountRotationRequested,
 	}, nil
 }
 
@@ -611,7 +697,8 @@ func (ds *Datastore) MDMWindowsInsertEnrolledDevice(ctx context.Context, device 
 // enrollment entry from the database using the device's hardware ID as it is
 // re-enrolling. It also cleans up host_mdm_windows_profiles so profile
 // delivery statuses are reset for the new enrollment.
-func (ds *Datastore) MDMWindowsDeleteEnrolledDeviceOnReenrollment(ctx context.Context, mdmDeviceHWID string) error {
+// It returns the host UUID the deleted enrollment was linked to, if any.
+func (ds *Datastore) MDMWindowsDeleteEnrolledDeviceOnReenrollment(ctx context.Context, mdmDeviceHWID string) (string, error) {
 	const (
 		delStmt         = "DELETE FROM mdm_windows_enrollments WHERE mdm_hardware_id = ?"
 		loadStmt        = "SELECT host_uuid FROM mdm_windows_enrollments WHERE mdm_hardware_id = ? LIMIT 1"
@@ -626,11 +713,17 @@ func (ds *Datastore) MDMWindowsDeleteEnrolledDeviceOnReenrollment(ctx context.Co
 		delUpcomingStmt = `DELETE ua FROM upcoming_activities ua JOIN hosts h ON h.id = ua.host_id WHERE h.uuid = ?`
 	)
 
-	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+	// Assigned inside the transaction, which withRetryTxx may run more than once, so it is reset on every attempt.
+	var deletedHostUUID string
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		deletedHostUUID = ""
+
 		var hostUUID sql.NullString
 		switch err := sqlx.GetContext(ctx, tx, &hostUUID, loadStmt, mdmDeviceHWID); err {
 		case nil:
 			if hostUUID.Valid {
+				deletedHostUUID = hostUUID.String
+
 				// Clear lock/wipe status
 				if _, err := tx.ExecContext(ctx, delActionsStmt, hostUUID.String); err != nil {
 					return ctxerr.Wrap(ctx, err, "delete host_mdm_actions for host")
@@ -678,6 +771,10 @@ func (ds *Datastore) MDMWindowsDeleteEnrolledDeviceOnReenrollment(ctx context.Co
 
 		return ctxerr.Wrap(ctx, notFound("MDMWindowsEnrolledDevice"))
 	})
+	if err != nil {
+		return "", err
+	}
+	return deletedHostUUID, nil
 }
 
 // MDMWindowsDeleteEnrolledDeviceWithDeviceID deletes a given

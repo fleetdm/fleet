@@ -1,0 +1,11 @@
+- name: Claude up to date (Linux)
+  query: SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM deb_packages WHERE name = 'claude-desktop' AND version_compare(version, '1.52386.0') < 0);
+  critical: false
+  description: The host may have an outdated version of Claude, potentially risking security vulnerabilities or compatibility issues.
+  resolution: "Claude is managed by IT and is upgraded automatically from Anthropic's apt repository when this policy fails. You can also run `sudo apt update && sudo apt install claude-desktop`, or install the latest version from Self-service. If you are still failing after Refetch completes, drop a note in #help-it."
+  platform: linux
+  labels_include_any:
+    - "Debian-based Linux hosts"
+  continuous_automations_enabled: true
+  run_script:
+    path: ../scripts/update-claude-desktop.sh

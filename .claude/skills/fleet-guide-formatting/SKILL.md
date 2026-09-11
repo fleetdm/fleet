@@ -25,7 +25,7 @@ This format is for Fleet **guides only**, meaning pieces published under `<meta 
 It does **not** apply to:
 
 - **Articles** (`category` = `articles`): thought-leadership, how-to essays, and comparison pieces. Use the `fleet-article-formatting` skill instead.
-- **Case studies** (`category` = `success stories`)
+- **Case studies** (`category` = `case study`): use the `fleet-case-study-formatting` skill instead.
 - **Announcements** (`category` = `announcements`)
 
 Before applying this format, check the piece's `<meta name="category" ...>` value, or ask the author which category it's destined for. If it isn't `guides`, stop and don't impose this structure. Flag the mismatch instead (see the mistagged-piece check in the audit checklist below).

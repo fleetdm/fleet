@@ -56,6 +56,7 @@ import {
 } from "utilities/activityHelpers";
 import { normalizeEmptyValues, wrapFleetHelper } from "utilities/helpers";
 import permissions from "utilities/permissions";
+import local from "utilities/local";
 import {
   DOCUMENT_TITLE_SUFFIX,
   HOST_SUMMARY_DATA,
@@ -141,6 +142,7 @@ import UnenrollMdmModal from "./modals/UnenrollMdmModal";
 import DiskEncryptionKeyModal from "./modals/DiskEncryptionKeyModal";
 import RecoveryLockPasswordModal from "./modals/RecoveryLockPasswordModal";
 import ManagedAccountModal from "./modals/ManagedAccountModal";
+import RotationFailedDetailsModal from "./modals/RotationFailedDetailsModal";
 import HostActionsDropdown from "./HostActionsDropdown/HostActionsDropdown";
 import ControlsCard from "../cards/Controls";
 import { shouldShowControlsTab } from "../cards/Controls/helpers";
@@ -160,7 +162,11 @@ import {
 } from "../helpers";
 import WipeModal from "./modals/WipeModal";
 import { parseHostSoftwareQueryParams } from "../cards/Software/HostSoftware";
-import { canShowMyDeviceButton, getErrorMessage } from "./helpers";
+import {
+  canShowMyDeviceButton,
+  getErrorMessage,
+  hasEverEnrolled,
+} from "./helpers";
 import CancelActivityModal from "./modals/CancelActivityModal";
 import CancelCommandModal from "./modals/CancelCommandModal";
 import CertificateDetailsModal from "../modals/CertificateDetailsModal";
@@ -185,6 +191,15 @@ const ANDROID_SW_INSTALL_LEARN_MORE_LINK =
   "https://fleetdm.com/learn-more-about/install-google-play-apps";
 
 const ACTIVITY_CARD_DATA_STALE_TIME = 5000; // 5 seconds
+
+const SHOW_MDM_COMMANDS_STORAGE_KEY = "hostDetailsShowMDMCommands";
+
+export const getMDMCommandsToggleLocalState = (): boolean =>
+  local.getItem(SHOW_MDM_COMMANDS_STORAGE_KEY) === "true";
+
+export const setMDMCommandsToggleLocalState = (show: boolean): void => {
+  local.setItem(SHOW_MDM_COMMANDS_STORAGE_KEY, show ? "true" : "false");
+};
 
 interface IHostDetailsProps {
   router: InjectedRouter; // v3
@@ -330,8 +345,18 @@ const HostDetailsPage = ({
     enrollmentProfileFailedDetails,
     setEnrollmentProfileFailedDetails,
   ] = useState<Omit<IFailedEnrollmentProfileModalProps, "onDone"> | null>(null);
+  const [rotationFailedDetails, setRotationFailedDetails] = useState<{
+    detail: string;
+    hostDisplayName: string;
+  } | null>(null);
 
-  const [refetchStartTime, setRefetchStartTime] = useState<number | null>(null);
+  // React Router reuses this component when only host_id changes.
+  const [refetchStart, setRefetchStart] = useState<{
+    hostId: number;
+    at: number;
+  } | null>(null);
+  const refetchStartTime =
+    refetchStart?.hostId === hostIdFromURL ? refetchStart.at : null;
   const [showRefetchSpinner, setShowRefetchSpinner] = useState(false);
   const [usersState, setUsersState] = useState<{ username: string }[]>([]);
   const [usersSearchString, setUsersSearchString] = useState("");
@@ -359,7 +384,17 @@ const HostDetailsPage = ({
     "past" | "upcoming"
   >("past");
   const [activityPage, setActivityPage] = useState(0);
-  const [showMDMCommands, setShowMDMCommands] = useState(false);
+  // Per-browser rather than per-user: whether this becomes a shared default is
+  // still open, so keep the fix clear of where the preference ends up living.
+  const [showMDMCommands, setShowMDMCommands] = useState(
+    getMDMCommandsToggleLocalState
+  );
+
+  const updateShowMDMCommands = useCallback((show: boolean) => {
+    setActivityPage(0);
+    setShowMDMCommands(show);
+    setMDMCommandsToggleLocalState(show);
+  }, []);
 
   // certificates states
   const [
@@ -436,7 +471,7 @@ const HostDetailsPage = ({
    */
   const resetHostRefetchStates = () => {
     setShowRefetchSpinner(false);
-    setRefetchStartTime(null);
+    setRefetchStart(null);
   };
 
   const {
@@ -453,9 +488,15 @@ const HostDetailsPage = ({
       onSuccess: (returnedHost) => {
         // If API returns refetch_requested: true,
         // only set timer if *not* already set!
-        if (returnedHost.refetch_requested) {
+        // Pending hosts carry the flag from the moment they're created, so ignore it unless the host has enrolled and
+        // can actually return vitals. On a never-enrolled host only a click (within first 60s) sets refetchStartTime,
+        // so an explicit request still gets its spinner and its feedback.
+        if (
+          returnedHost.refetch_requested &&
+          (hasEverEnrolled(returnedHost) || refetchStartTime !== null)
+        ) {
           if (!refetchStartTime) {
-            setRefetchStartTime(Date.now());
+            setRefetchStart({ hostId: hostIdFromURL, at: Date.now() });
           }
           setShowRefetchSpinner(true);
 
@@ -791,7 +832,7 @@ const HostDetailsPage = ({
 
       try {
         await hostAPI.refetch(host).then(() => {
-          setRefetchStartTime(Date.now());
+          setRefetchStart({ hostId: hostIdFromURL, at: Date.now() });
           setTimeout(() => {
             refetchHostDetails();
             refetchExtensions();
@@ -932,6 +973,14 @@ const HostDetailsPage = ({
               host?.display_name || details?.host_display_name || "",
             status: details?.status || "",
             detail: details?.detail || "",
+          });
+          break;
+        case ActivityType.FailedToRotateManagedLocalAccountPassword:
+          // The activity item only offers details when the host reported a reason, so detail is never empty.
+          setRotationFailedDetails({
+            detail: details?.detail || "",
+            hostDisplayName:
+              host?.display_name || details?.host_display_name || "",
           });
           break;
         case ActivityType.FailedEnrollmentProfileRenewal:
@@ -1120,10 +1169,8 @@ const HostDetailsPage = ({
         hostStatus={host.status}
         hostMdmDeviceStatus={hostMdmDeviceStatus}
         hostMdmEnrollmentStatus={host.mdm.enrollment_status}
-        doesStoreEncryptionKey={
-          host.mdm.encryption_key_available ||
-          !!host.mdm.encryption_key_archived
-        }
+        isEncryptionKeyAvailable={host.mdm.encryption_key_available}
+        isEncryptionKeyArchived={!!host.mdm.encryption_key_archived}
         isConnectedToFleetMdm={host.mdm?.connected_to_fleet}
         isDEPAssignedToFleet={host.dep_assigned_to_fleet}
         hostScriptsEnabled={host.scripts_enabled}
@@ -1575,6 +1622,10 @@ const HostDetailsPage = ({
               diskEncryptionKeyAvailable={host?.mdm.encryption_key_available}
               lastMdmEnrolledAt={host?.last_mdm_enrolled_at}
               detailUpdatedAt={host?.detail_updated_at}
+              depAssignedToFleet={host?.dep_assigned_to_fleet || false}
+              onlyAllowAppleBusinessEnrollment={
+                config?.mdm.only_allow_apple_business_enrollment || false
+              }
             />
           )}
           <div className={`${baseClass}__header-links`}>
@@ -1673,14 +1724,8 @@ const HostDetailsPage = ({
                   isUpcomingDisabled={isAndroidHost}
                   showMDMCommandsToggle={canGetMDMCommands}
                   showMDMCommands={showMDMCommands}
-                  onShowMDMCommands={() => {
-                    setActivityPage(0);
-                    setShowMDMCommands(true);
-                  }}
-                  onHideMDMCommands={() => {
-                    setActivityPage(0);
-                    setShowMDMCommands(false);
-                  }}
+                  onShowMDMCommands={() => updateShowMDMCommands(true)}
+                  onHideMDMCommands={() => updateShowMDMCommands(false)}
                   upcomingCount={
                     (upcomingActivities?.count || 0) +
                     (upcomingMDMCommands?.count || 0)
@@ -1918,6 +1963,10 @@ const HostDetailsPage = ({
               hostName={host.display_name}
               enrollmentStatus={host.mdm.enrollment_status}
               lastMdmEnrollmentType={host.last_mdm_enrollment_type}
+              onlyAllowAppleBusinessEnrollment={
+                config?.mdm.only_allow_apple_business_enrollment || false
+              }
+              depAssignedToFleet={host.dep_assigned_to_fleet}
               onClose={toggleUnenrollMdmModal}
               onSuccess={() => {
                 // The server marks the host unenrolled immediately, so refresh
@@ -1948,16 +1997,24 @@ const HostDetailsPage = ({
               onCancel={() => setShowRecoveryLockPasswordModal(false)}
             />
           )}
+          {!!rotationFailedDetails && (
+            <RotationFailedDetailsModal
+              detail={rotationFailedDetails.detail}
+              hostDisplayName={rotationFailedDetails.hostDisplayName}
+              onCancel={() => setRotationFailedDetails(null)}
+            />
+          )}
           {showManagedAccountModal && host && (
             <ManagedAccountModal
               hostId={host.id}
               canRotatePassword={
-                // Rotation is macOS-only for now, so Windows hosts get neither the rotate button nor the auto-rotate banner.
-                host.platform === "darwin" &&
-                (isGlobalAdmin ||
-                  isGlobalMaintainer ||
-                  isHostTeamAdmin ||
-                  isHostTeamMaintainer)
+                isGlobalAdmin ||
+                isGlobalMaintainer ||
+                isHostTeamAdmin ||
+                isHostTeamMaintainer
+              }
+              rotationFailed={
+                host.mdm.os_settings?.managed_local_account?.status === "failed"
               }
               onCancel={() => {
                 setShowManagedAccountModal(false);

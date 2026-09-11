@@ -8,12 +8,14 @@ on:
       - prepare-*
     paths:
       - "orbit/**.go"
+      - "client/**.go"
       - "go.mod"
       - "go.sum"
       - ".github/workflows/test-go-windows.yml"
   pull_request:
     paths:
       - "orbit/**.go"
+      - "client/**.go"
       - "go.mod"
       - "go.sum"
       - ".github/workflows/test-go-windows.yml"
@@ -57,6 +59,7 @@ jobs:
       - name: Run Windows-specific Go tests
         run: |
           $packages = @(
+            "./client/..."
             "./orbit/pkg/bitlocker/..."
             "./orbit/pkg/keystore/..."
             "./orbit/pkg/platform/..."

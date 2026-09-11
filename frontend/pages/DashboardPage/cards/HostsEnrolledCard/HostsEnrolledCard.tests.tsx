@@ -198,4 +198,24 @@ describe("HostsEnrolledCard", () => {
       expect(push).toHaveBeenNthCalledWith(2, expectedPath);
     });
   });
+
+  it("links every platform to its enrolled (non-pending) hosts", () => {
+    const push = jest.fn();
+    const router = ({ push } as unknown) as InjectedRouter;
+    render(
+      <HostsEnrolledCard
+        counts={counts}
+        totalHostCount={22070}
+        builtInLabels={builtInLabels}
+        router={router}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "macOS hosts" }));
+    fireEvent.click(screen.getByRole("button", { name: "Linux hosts" }));
+
+    expect(push).toHaveBeenCalledTimes(2);
+    expect(push.mock.calls[0][0]).toMatch(/\/labels\/10\?.*status=enrolled/);
+    expect(push.mock.calls[1][0]).toMatch(/\/labels\/12\?.*status=enrolled/);
+  });
 });
