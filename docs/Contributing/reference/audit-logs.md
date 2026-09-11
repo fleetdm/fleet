@@ -3142,6 +3142,25 @@ This activity contains the following fields:
 }
 ```
 
+## failed_to_rotate_managed_local_account_password
+
+Generated when a host reports that it could not rotate its managed local account password. Attributed to Fleet, because the failure arrives from the device outside any user's request.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+- "detail": The reason the host reported, if it sent one. Only Windows hosts report a reason today, so the field is omitted for macOS.
+
+#### Example
+
+```json
+{
+  "host_id": 123,
+  "host_display_name": "DESKTOP-ABC123",
+  "detail": "Resetting password for _fleetadmin failed: The password does not meet the password policy requirements."
+}
+```
+
 ## enabled_managed_local_account
 
 Generated when a user turns on create managed local account for a fleet (or unassigned hosts).
