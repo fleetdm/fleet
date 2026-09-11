@@ -38,8 +38,9 @@ parasails.registerPage('email-preview', {
 
     clickSendNewsletterToSubscribers: async function() {
       this.syncing = true;
-      await Cloud.deliverNewsletterEmails.with({emailTemplateName: this.template, sendToAllSubscribers: true});
+      let numberOfEmailsSent = await Cloud.deliverNewsletterEmails.with({emailTemplateName: this.template, sendToAllSubscribers: true});
       this.syncing = false;
+      window.alert(`Newsletter emails have been sent to ${numberOfEmailsSent} subscribers.`)
     }
   }
 });
