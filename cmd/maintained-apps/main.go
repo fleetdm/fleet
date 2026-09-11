@@ -157,12 +157,18 @@ func updateAppsListFile(ctx context.Context, outApp *maintained_apps.FMAManifest
 		return ctxerr.Wrap(ctx, err, "unmarshaling output apps list file")
 	}
 
-	var found bool
-	for _, a := range outputAppsFile.Apps {
-		if a.Slug == outApp.Slug {
-			found = true
-			break
+	var found, changed bool
+	for i := range outputAppsFile.Apps {
+		if outputAppsFile.Apps[i].Slug != outApp.Slug {
+			continue
 		}
+		found = true
+		// The generator owns arch, so an existing entry follows the input when it changes.
+		if outputAppsFile.Apps[i].Arch != outApp.InstallerArch {
+			outputAppsFile.Apps[i].Arch = outApp.InstallerArch
+			changed = true
+		}
+		break
 	}
 
 	if !found {
@@ -178,22 +184,26 @@ func updateAppsListFile(ctx context.Context, outApp *maintained_apps.FMAManifest
 			UniqueIdentifier: outApp.UniqueIdentifier,
 			Arch:             outApp.InstallerArch,
 		})
+		changed = true
 
 		// Keep existing order
 		slices.SortFunc(outputAppsFile.Apps, func(a, b maintained_apps.FMAListFileApp) int { return strings.Compare(a.Slug, b.Slug) })
+	}
 
-		var buf bytes.Buffer
-		encoder := json.NewEncoder(&buf)
-		encoder.SetEscapeHTML(false)
-		encoder.SetIndent("", "  ")
-		if err := encoder.Encode(outputAppsFile); err != nil {
-			return ctxerr.Wrap(ctx, err, "marshaling updated output apps file")
-		}
-		updatedFile := buf.Bytes()
+	if !changed {
+		return nil
+	}
 
-		if err := os.WriteFile(appListFilePath, updatedFile, 0o644); err != nil {
-			return ctxerr.Wrap(ctx, err, "writing updated output apps file")
-		}
+	var buf bytes.Buffer
+	encoder := json.NewEncoder(&buf)
+	encoder.SetEscapeHTML(false)
+	encoder.SetIndent("", "  ")
+	if err := encoder.Encode(outputAppsFile); err != nil {
+		return ctxerr.Wrap(ctx, err, "marshaling updated output apps file")
+	}
+
+	if err := os.WriteFile(appListFilePath, buf.Bytes(), 0o644); err != nil {
+		return ctxerr.Wrap(ctx, err, "writing updated output apps file")
 	}
 
 	return nil

@@ -141,9 +141,11 @@ func (svc *Service) AddFleetMaintainedApp(
 	}
 
 	maintainedAppID := &app.ID
+	arch := app.Arch
 	if strings.TrimSpace(installScript) != strings.TrimSpace(app.InstallScript) ||
 		strings.TrimSpace(uninstallScript) != strings.TrimSpace(app.UninstallScript) {
 		maintainedAppID = nil // don't set app as maintained if scripts have been modified
+		arch = ""             // custom packages carry no architecture
 	}
 
 	// For Windows, installer name has to match what we see in software inventory, so we have the
@@ -185,7 +187,7 @@ func (svc *Service) AddFleetMaintainedApp(
 		UpgradeCode:           app.UpgradeCode,
 		StorageID:             app.SHA256,
 		FleetMaintainedAppID:  maintainedAppID,
-		Arch:                  app.Arch,
+		Arch:                  arch,
 		PreInstallQuery:       preInstallQuery,
 		PostInstallScript:     postInstallScript,
 		SelfService:           selfService,

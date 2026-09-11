@@ -1859,7 +1859,9 @@ func (ds *Datastore) DeleteSoftwareInstaller(ctx context.Context, id uint) error
 		// packages, re-point those policies to the first-added surviving package (first-added-wins),
 		// so deleting one package of several keeps the automation working. When this is the last
 		// package there is no survivor: the delete below then hits the policies FK (RESTRICT) and
-		// returns the 409 that tells the admin to disable the automation first.
+		// returns the 409 that tells the admin to disable the automation first. A survivor must
+		// be the same kind of row: an FMA's policies never move to another FMA on the title
+		// (the other architecture on Windows) or to a custom package.
 		var survivorID *uint
 		if err := sqlx.GetContext(ctx, tx, &survivorID, `
 			SELECT MIN(other.id)
@@ -1867,6 +1869,7 @@ func (ds *Datastore) DeleteSoftwareInstaller(ctx context.Context, id uint) error
 			JOIN software_installers deleted ON deleted.id = ?
 			WHERE other.title_id = deleted.title_id
 				AND other.global_or_team_id = deleted.global_or_team_id
+				AND other.fleet_maintained_app_id <=> deleted.fleet_maintained_app_id
 				AND other.id != deleted.id
 				AND other.is_active = 1`, id); err != nil {
 			return ctxerr.Wrap(ctx, err, "find surviving package to re-point policies")
@@ -3143,7 +3146,8 @@ FROM
 	software_installers
 WHERE
 	global_or_team_id = ? AND
-	title_id = ?
+	title_id = ? AND
+	fleet_maintained_app_id = ?
 ORDER BY is_active DESC, id DESC
 `
 
@@ -3351,6 +3355,13 @@ WHERE d.global_or_team_id = ? AND d.title_id IN (?) AND d.id NOT IN (?)
 	const findStaleCustomInstallers = `
 SELECT id FROM software_installers
 WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id IS NULL
+`
+
+	// FMA rows on a title this batch keeps whose FMA the batch no longer lists: the
+	// other Windows architecture of an app, dropped from the YAML.
+	const findOmittedFMAInstallers = `
+SELECT id, title_id, fleet_maintained_app_id, install_during_setup FROM software_installers
+WHERE global_or_team_id = ? AND title_id IN (?) AND fleet_maintained_app_id IS NOT NULL AND fleet_maintained_app_id NOT IN (?)
 `
 
 	// use a team id of 0 if no-team
@@ -3618,6 +3629,9 @@ WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id IS NULL
 		// installer ids written by this batch, used after the loop to remove custom
 		// package versions dropped from the YAML.
 		keptInstallerIDs := make([]uint, 0, len(installers))
+		// FMA titles and FMAs in this batch, used after the loop to remove an FMA the
+		// YAML dropped while keeping its title through another architecture.
+		var fmaTitleIDs, batchFMAIDs []uint
 		for _, installer := range installers {
 			if installer.ValidatedLabels == nil {
 				return ctxerr.Errorf(ctx, "labels have not been validated for installer with name %s", installer.Filename)
@@ -3669,11 +3683,14 @@ WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id IS NULL
 				titleID,
 			}
 
-			// FMA matches the active version; a custom package matches its dedup_token.
+			// FMA matches its own active version (a Windows title can hold one FMA per
+			// architecture); a custom package matches its dedup_token.
 			wasUpdatedStmt := checkExistingActiveInstaller
 			if installer.FleetMaintainedAppID == nil {
 				wasUpdatedStmt = checkExistingInstaller
 				wasUpdatedArgs = append(wasUpdatedArgs, dedupToken)
+			} else {
+				wasUpdatedArgs = append(wasUpdatedArgs, *installer.FleetMaintainedAppID)
 			}
 
 			// pull existing installer state if it exists so we can diff for side effects post-update.
@@ -3801,6 +3818,9 @@ WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id IS NULL
 			// For FMA installers: determine the active version, then evict old versions
 			// (protecting the active one from eviction).
 			if installer.FleetMaintainedAppID != nil {
+				fmaTitleIDs = append(fmaTitleIDs, titleID)
+				batchFMAIDs = append(batchFMAIDs, *installer.FleetMaintainedAppID)
+
 				// Determine which installer should be "active" for this FMA and team. A literal RollbackVersion pins
 				// that exact cached version; a "^major" caret or an empty value falls through to the newest just
 				// inserted version, which the slug resolver already chose, so the caret string must not be matched here.
@@ -4049,6 +4069,51 @@ WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id IS NULL
 					return err
 				}
 				activateAffectedHostIDs = append(activateAffectedHostIDs, affectedHostIDs...)
+			}
+		}
+
+		// A Windows title can hold one FMA per architecture. When the YAML drops one
+		// architecture but keeps the title through the other, that FMA's cached rows and
+		// pin go the way a dropped title's do, so it stops receiving automatic updates.
+		if len(fmaTitleIDs) > 0 {
+			stmt, args, err := sqlx.In(findOmittedFMAInstallers, globalOrTeamID, fmaTitleIDs, batchFMAIDs)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "build statement to find omitted FMA installers")
+			}
+			var omitted []struct {
+				ID                 uint `db:"id"`
+				TitleID            uint `db:"title_id"`
+				FMAID              uint `db:"fleet_maintained_app_id"`
+				InstallDuringSetup bool `db:"install_during_setup"`
+			}
+			if err := sqlx.SelectContext(ctx, tx, &omitted, stmt, args...); err != nil {
+				return ctxerr.Wrap(ctx, err, "find omitted FMA installers")
+			}
+			if len(omitted) > 0 {
+				omittedIDs := make([]uint, 0, len(omitted))
+				for _, o := range omitted {
+					if o.InstallDuringSetup && !replacingInstallDuringSetup {
+						return errDeleteInstallerInstalledDuringSetup
+					}
+					omittedIDs = append(omittedIDs, o.ID)
+					if err := deletePinnedVersionDB(ctx, tx, globalOrTeamID, o.TitleID, o.FMAID); err != nil {
+						return ctxerr.Wrap(ctx, err, "delete pin of omitted FMA")
+					}
+				}
+				stmt, args, err := sqlx.In(`UPDATE policies SET software_installer_id = NULL WHERE software_installer_id IN (?)`, omittedIDs)
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "build statement to unset policies of omitted FMA installers")
+				}
+				if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+					return ctxerr.Wrap(ctx, err, "unset policies of omitted FMA installers")
+				}
+				for _, id := range omittedIDs {
+					affectedHostIDs, err := ds.deleteInstallerInBatch(ctx, tx, id)
+					if err != nil {
+						return err
+					}
+					activateAffectedHostIDs = append(activateAffectedHostIDs, affectedHostIDs...)
+				}
 			}
 		}
 

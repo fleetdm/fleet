@@ -130,6 +130,7 @@ func baseDownloadStoreWithEditedScripts(t *testing.T, activeVersion string, acti
 		}}, nil
 	}
 	ds.GetPinnedVersionFunc = func(ctx context.Context, tmID *uint, titleID, fmaID uint) (*string, error) {
+		require.Equal(t, testFMAAppID, fmaID)
 		return nil, nil // Latest
 	}
 	ds.GetMaintainedAppByIDFunc = func(ctx context.Context, appID uint, tmID *uint) (*fleet.MaintainedApp, error) {
@@ -144,6 +145,7 @@ func baseDownloadStoreWithEditedScripts(t *testing.T, activeVersion string, acti
 	}
 	// After the insert, the new version is the newest cached one.
 	ds.GetFleetMaintainedVersionsByTitleIDFunc = func(ctx context.Context, tmID *uint, titleID, fmaID uint) ([]fleet.FleetMaintainedVersion, error) {
+		require.Equal(t, testFMAAppID, fmaID)
 		return []fleet.FleetMaintainedVersion{{ID: 13, Version: testFMALatest}, {ID: activeID, Version: activeVersion}}, nil
 	}
 	ds.SetFleetMaintainedAppActiveInstallerFunc = func(ctx context.Context, payload *fleet.UpdateSoftwareInstallerPayload, activeInstallerID uint) error {
@@ -262,6 +264,7 @@ func TestAutoUpdateNoCheckHashMarksCachedVersionCurrent(t *testing.T) {
 	// A newer version was downloaded after the one the manifest publishes now, which is the
 	// state a rollback leaves behind.
 	ds.GetFleetMaintainedVersionsByTitleIDFunc = func(ctx context.Context, tmID *uint, titleID, fmaID uint) ([]fleet.FleetMaintainedVersion, error) {
+		require.Equal(t, testFMAAppID, fmaID)
 		return []fleet.FleetMaintainedVersion{{ID: 13, Version: "151.0.0"}, {ID: 7, Version: testFMALatest}}, nil
 	}
 	ds.HasFMAInstallerVersionFunc = func(ctx context.Context, tmID *uint, fmaID uint, version string) (bool, string, error) {
@@ -294,6 +297,7 @@ func TestAutoUpdateCaretMajorExceededSkipsDownload(t *testing.T) {
 	ds := baseDownloadStore(t, "147.0.5", 8)
 	pin := "^147" // latest is 150.x — out of the pinned major
 	ds.GetPinnedVersionFunc = func(ctx context.Context, tmID *uint, titleID, fmaID uint) (*string, error) {
+		require.Equal(t, testFMAAppID, fmaID)
 		return &pin, nil
 	}
 	ds.InsertFleetMaintainedAppVersionFunc = func(ctx context.Context, activeInstallerID uint, payload *fleet.UploadSoftwareInstallerPayload) (uint, error) {
@@ -302,6 +306,7 @@ func TestAutoUpdateCaretMajorExceededSkipsDownload(t *testing.T) {
 	}
 	// Only an in-major version is cached; promotion stays within the major.
 	ds.GetFleetMaintainedVersionsByTitleIDFunc = func(ctx context.Context, tmID *uint, titleID, fmaID uint) ([]fleet.FleetMaintainedVersion, error) {
+		require.Equal(t, testFMAAppID, fmaID)
 		return []fleet.FleetMaintainedVersion{{ID: 8, Version: "147.0.5"}}, nil
 	}
 
@@ -321,7 +326,10 @@ func TestAutoUpdateFetchesManifestOncePerSlug(t *testing.T) {
 			{TeamID: &teamB, TitleID: 2, FleetMaintainedAppID: testFMAAppID, InstallerID: 19, Version: "149.0.0", Slug: testFMASlug},
 		}, nil
 	}
-	ds.GetPinnedVersionFunc = func(ctx context.Context, tmID *uint, titleID, fmaID uint) (*string, error) { return nil, nil }
+	ds.GetPinnedVersionFunc = func(ctx context.Context, tmID *uint, titleID, fmaID uint) (*string, error) {
+		require.Equal(t, testFMAAppID, fmaID)
+		return nil, nil
+	}
 	ds.GetMaintainedAppByIDFunc = func(ctx context.Context, appID uint, tmID *uint) (*fleet.MaintainedApp, error) {
 		return &fleet.MaintainedApp{ID: testFMAAppID, Name: "Google Chrome", Slug: testFMASlug, Platform: "darwin"}, nil
 	}
@@ -335,6 +343,7 @@ func TestAutoUpdateFetchesManifestOncePerSlug(t *testing.T) {
 		return 13, nil
 	}
 	ds.GetFleetMaintainedVersionsByTitleIDFunc = func(ctx context.Context, tmID *uint, titleID, fmaID uint) ([]fleet.FleetMaintainedVersion, error) {
+		require.Equal(t, testFMAAppID, fmaID)
 		return []fleet.FleetMaintainedVersion{{ID: 13, Version: testFMALatest}}, nil
 	}
 	ds.SetFleetMaintainedAppActiveInstallerFunc = func(ctx context.Context, payload *fleet.UpdateSoftwareInstallerPayload, activeInstallerID uint) error {
@@ -407,7 +416,10 @@ func TestAutoUpdateCaretLatestAttemptsDownload(t *testing.T) {
 	srv.version = "latest"
 	ds := baseDownloadStore(t, "150.0.0", 9)
 	pin := "^150"
-	ds.GetPinnedVersionFunc = func(ctx context.Context, tmID *uint, titleID, fmaID uint) (*string, error) { return &pin, nil }
+	ds.GetPinnedVersionFunc = func(ctx context.Context, tmID *uint, titleID, fmaID uint) (*string, error) {
+		require.Equal(t, testFMAAppID, fmaID)
+		return &pin, nil
+	}
 	ds.InsertFleetMaintainedAppVersionFunc = func(ctx context.Context, activeInstallerID uint, payload *fleet.UploadSoftwareInstallerPayload) (uint, error) {
 		t.Fatal("fake bytes can't resolve a latest version; insert should not happen")
 		return 0, nil

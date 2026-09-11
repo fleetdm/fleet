@@ -73,6 +73,8 @@ func TestSoftwareInstallers(t *testing.T) {
 		{"SoftwareTitlePins", testSoftwareTitlePins},
 		{"SetFleetMaintainedAppActiveInstallerPin", testSetFleetMaintainedAppActiveInstallerPin},
 		{"FleetMaintainedAppsPerArchOnSharedTitle", testFleetMaintainedAppsPerArchOnSharedTitle},
+		{"BatchSetSoftwareInstallersDropsOmittedArch", testBatchSetSoftwareInstallersDropsOmittedArch},
+		{"DeleteSoftwareInstallerKeepsSiblingArchPolicies", testDeleteSoftwareInstallerKeepsSiblingArchPolicies},
 		{"RepointCustomPackagePolicyToNewInstaller", testRepointPolicyToNewInstaller},
 		{"CustomToFMAInstallerReplacement", testCustomToFMAInstallerReplacement},
 		{"GetInstallerByTeamAndURL", testGetInstallerByTeamAndURL},
@@ -8235,4 +8237,132 @@ func testFleetMaintainedAppsPerArchOnSharedTitle(t *testing.T, ds *Datastore) {
 
 	// Promoting a custom package row is refused.
 	require.Error(t, ds.SetFleetMaintainedAppActiveInstaller(ctx, &fleet.UpdateSoftwareInstallerPayload{TitleID: titleID}, 999999))
+}
+
+// sharedTitleFMAs sets up the x64 and ARM64 Fleet-maintained apps that share the
+// "Firefox Nightly" Windows title, plus a payload builder for either build.
+func sharedTitleFMAs(t *testing.T, ds *Datastore, userID uint) (x64, arm *fleet.MaintainedApp, payload func(app *fleet.MaintainedApp, version string) *fleet.UploadSoftwareInstallerPayload) {
+	ctx := t.Context()
+	x64, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name: "Mozilla Firefox Nightly", Slug: "firefox@nightly/windows", Platform: "windows", UniqueIdentifier: "Firefox Nightly", Arch: "x64",
+	})
+	require.NoError(t, err)
+	arm, err = ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name: "Mozilla Firefox Nightly (ARM64)", Slug: "firefox@nightly-arm64/windows", Platform: "windows", UniqueIdentifier: "Firefox Nightly", Arch: "arm64",
+	})
+	require.NoError(t, err)
+	payload = func(app *fleet.MaintainedApp, version string) *fleet.UploadSoftwareInstallerPayload {
+		storage := app.Arch + "-" + version
+		tfr, err := fleet.NewTempFileReader(strings.NewReader(storage), t.TempDir)
+		require.NoError(t, err)
+		return &fleet.UploadSoftwareInstallerPayload{
+			Title: "Firefox Nightly", Source: "programs", Platform: "windows", Extension: "msix",
+			InstallScript: "echo install", UninstallScript: "echo uninstall",
+			InstallerFile: tfr, StorageID: storage, Filename: storage + ".msix", Version: version,
+			UserID: userID, ValidatedLabels: &fleet.LabelIdentsWithScope{},
+			FleetMaintainedAppID: &app.ID, Arch: app.Arch,
+		}
+	}
+	return x64, arm, payload
+}
+
+// A GitOps batch that keeps a Windows title through one architecture but stops listing
+// the other must drop the omitted FMA's rows and pin, the same way a dropped title is.
+// The batch path itself still admits one FMA per title, so the two builds are seeded
+// through the single-add path.
+func testBatchSetSoftwareInstallersDropsOmittedArch(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+	x64, arm, payload := sharedTitleFMAs(t, ds, user.ID)
+
+	for _, app := range []*fleet.MaintainedApp{x64, arm} {
+		pl := payload(app, "158.0")
+		pl.TeamID = &team.ID
+		_, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, pl)
+		require.NoError(t, err)
+	}
+
+	type row struct {
+		ID     uint `db:"id"`
+		FMAID  uint `db:"fleet_maintained_app_id"`
+		Active bool `db:"is_active"`
+		Title  uint `db:"title_id"`
+	}
+	rowsByFMA := func() map[uint]row {
+		var rows []row
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, q, &rows, `SELECT id, fleet_maintained_app_id, is_active, title_id FROM software_installers WHERE global_or_team_id = ?`, team.ID)
+		})
+		out := make(map[uint]row, len(rows))
+		for _, r := range rows {
+			out[r.FMAID] = r
+		}
+		return out
+	}
+	rows := rowsByFMA()
+	require.Len(t, rows, 2)
+	require.True(t, rows[x64.ID].Active)
+	require.True(t, rows[arm.ID].Active)
+	titleID := rows[x64.ID].Title
+	require.Equal(t, titleID, rows[arm.ID].Title)
+	require.NoError(t, ds.SetPinnedVersion(ctx, &team.ID, titleID, arm.ID, "^158"))
+
+	// An automatic-install policy on the ARM64 build.
+	armPolicy, err := ds.NewTeamPolicy(ctx, team.ID, &user.ID, fleet.PolicyPayload{
+		Name: "[Install software] Firefox Nightly (ARM64)", Query: "SELECT 1;", Platform: "windows", SoftwareInstallerID: new(rows[arm.ID].ID),
+	})
+	require.NoError(t, err)
+
+	// The next batch lists only the x64 build.
+	_, err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{payload(x64, "158.0")})
+	require.NoError(t, err)
+	rows = rowsByFMA()
+	require.Len(t, rows, 1)
+	require.True(t, rows[x64.ID].Active, "the x64 build is untouched")
+	_, err = ds.GetPinnedVersion(ctx, &team.ID, titleID, arm.ID)
+	require.ErrorIs(t, err, sql.ErrNoRows, "the ARM64 pin goes with its rows")
+	armPolicy, err = ds.Policy(ctx, armPolicy.ID)
+	require.NoError(t, err)
+	require.Nil(t, armPolicy.SoftwareInstallerID, "the ARM64 policy is unset rather than moved to x64")
+
+	// Re-applying the same batch is a no-op for the surviving build.
+	_, err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{payload(x64, "158.0")})
+	require.NoError(t, err)
+	rows = rowsByFMA()
+	require.Len(t, rows, 1)
+	require.True(t, rows[x64.ID].Active)
+}
+
+// Deleting one architecture's active row must not hand its automation policies to the
+// other architecture: with no same-FMA survivor the delete is refused like any last package.
+func testDeleteSoftwareInstallerKeepsSiblingArchPolicies(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	x64, arm, payload := sharedTitleFMAs(t, ds, user.ID)
+
+	x64ID, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, payload(x64, "158.0"))
+	require.NoError(t, err)
+	armID, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, payload(arm, "158.0"))
+	require.NoError(t, err)
+
+	armPolicy, err := ds.NewTeamPolicy(ctx, 0, &user.ID, fleet.PolicyPayload{
+		Name: "[Install software] Firefox Nightly (ARM64)", Query: "SELECT 1;", Platform: "windows", SoftwareInstallerID: &armID,
+	})
+	require.NoError(t, err)
+
+	// x64 is active on the title but is not a survivor for the ARM64 build.
+	require.Error(t, ds.DeleteSoftwareInstaller(ctx, armID))
+	armPolicy, err = ds.Policy(ctx, armPolicy.ID)
+	require.NoError(t, err)
+	require.Equal(t, armID, *armPolicy.SoftwareInstallerID)
+
+	// A row without policies deletes normally, and the sibling stays.
+	require.NoError(t, ds.DeleteSoftwareInstaller(ctx, x64ID))
+	var remaining int
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &remaining, `SELECT COUNT(*) FROM software_installers WHERE id IN (?, ?)`, x64ID, armID)
+	})
+	require.Equal(t, 1, remaining)
 }

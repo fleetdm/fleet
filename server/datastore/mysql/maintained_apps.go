@@ -752,24 +752,39 @@ func (ds *Datastore) GetWindowsFMAMatches(ctx context.Context) ([]fleet.Maintain
 }
 
 func (ds *Datastore) ClearRemovedFleetMaintainedApps(ctx context.Context, slugsToKeep []string) error {
-	stmt := `DELETE FROM fleet_maintained_apps WHERE slug NOT IN (?)`
+	// Deleting an app unlinks its installers (the FK sets fleet_maintained_app_id to
+	// NULL), which makes them custom packages; those carry no architecture.
+	clearArchStmt := `
+		UPDATE software_installers si
+			JOIN fleet_maintained_apps fma ON fma.id = si.fleet_maintained_app_id
+		SET si.arch = ''
+		WHERE fma.slug NOT IN (?)`
+	deleteStmt := `DELETE FROM fleet_maintained_apps WHERE slug NOT IN (?)`
 
 	var err error
 	var args []any
 	switch len(slugsToKeep) {
 	case 0:
-		stmt = `DELETE FROM fleet_maintained_apps`
+		clearArchStmt = `UPDATE software_installers SET arch = '' WHERE fleet_maintained_app_id IS NOT NULL`
+		deleteStmt = `DELETE FROM fleet_maintained_apps`
 	default:
-		stmt, args, err = sqlx.In(stmt, slugsToKeep)
+		clearArchStmt, args, err = sqlx.In(clearArchStmt, slugsToKeep)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "building sqlx.In statement for clearing removed maintained apps' arch")
+		}
+		deleteStmt, _, err = sqlx.In(deleteStmt, slugsToKeep)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "building sqlx.In statement for clearing removed maintained apps")
 		}
 	}
 
-	_, err = ds.writer(ctx).ExecContext(ctx, stmt, args...)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "clearing removed maintained apps")
-	}
-
-	return nil
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		if _, err := tx.ExecContext(ctx, clearArchStmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "clearing arch of installers of removed maintained apps")
+		}
+		if _, err := tx.ExecContext(ctx, deleteStmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "clearing removed maintained apps")
+		}
+		return nil
+	})
 }

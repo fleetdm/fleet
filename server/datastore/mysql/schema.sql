@@ -3398,7 +3398,7 @@ CREATE TABLE `software_installers` (
   `uninstall_script_edited` tinyint(1) NOT NULL DEFAULT '0',
   `arch` varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
   PRIMARY KEY (`id`),
-  UNIQUE KEY `idx_software_installers_dedup` (`global_or_team_id`,`title_id`,`arch`,`dedup_token`),
+  UNIQUE KEY `idx_software_installers_dedup_arch` (`global_or_team_id`,`title_id`,`arch`,`dedup_token`),
   KEY `fk_software_installers_title` (`title_id`),
   KEY `fk_software_installers_install_script_content_id` (`install_script_content_id`),
   KEY `fk_software_installers_post_install_script_content_id` (`post_install_script_content_id`),

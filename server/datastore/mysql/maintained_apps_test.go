@@ -2809,7 +2809,7 @@ func testWindowsFMAReconcilePinConflict(t *testing.T, ds *Datastore) {
 // The catalog's architecture lands on the app and is copied onto its installers,
 // including ones added before the column existed.
 func testUpsertMaintainedAppArch(t *testing.T, ds *Datastore) {
-	ctx := context.Background()
+	ctx := t.Context()
 	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
 
 	app, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
