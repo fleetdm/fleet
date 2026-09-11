@@ -136,7 +136,7 @@ sequenceDiagram
                         <array>
                           <array>
                             <string>CN</string>
-                            <string>%SerialNumber% WIFI $FLEET_VAR_SCEP_RENEWAL_ID</string>
+                            <string>%SerialNumber% WIFI $FLEET_VAR_CERTIFICATE_RENEWAL_ID</string>
                           </array>
                         </array>
                         <array>
