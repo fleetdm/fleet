@@ -4,7 +4,6 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
-	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -34,6 +33,18 @@ import (
 
 var noopHandler = http.HandlerFunc(func(http.ResponseWriter, *http.Request) {})
 
+// servedByGorillaHeader is set by the echo handler newRouterForTest installs, so a test can assert which router dispatched a
+// request rather than inferring it from a response both routers would produce.
+const servedByGorillaHeader = "X-Served-By-Gorilla"
+
+// Which router is expected to answer a request. byRouter means no handler runs at all, so neither router reports itself: the
+// answer is a 404, a 405, or a redirect produced by routing alone.
+const (
+	byRouter   = ""
+	byGorilla  = "true"
+	byFastPath = "false"
+)
+
 // newAPIHandler builds the real API handler the way cmd/fleet does and returns it alongside the gorilla router underneath, so
 // a test can drive the composite and introspect the route table without repeating the type assertion.
 func newAPIHandler(t *testing.T, cfg config.FleetConfig, featureRoutes []endpointer.HandlerRoutesFunc) (http.Handler, *mux.Router) {
@@ -50,10 +61,7 @@ func newAPIHandler(t *testing.T, cfg config.FleetConfig, featureRoutes []endpoin
 }
 
 // productionFeatureRoutes returns the same feature-route set cmd/fleet/serve.go passes to MakeHandler: the Android, activity,
-// ACME, and chart bounded contexts. Their dependencies are zero valued because these tests only register routes and never
-// serve them -- every handler is replaced before a request is made. Registering the real sets is what keeps the routing tests
-// honest: with nil here they covered only the core table and missed the activity context's route template, which took the
-// whole fast path down at startup.
+// ACME, and chart bounded contexts.
 func productionFeatureRoutes(t *testing.T, fleetSvc fleet.Service) []endpointer.HandlerRoutesFunc {
 	t.Helper()
 	logger := slog.New(slog.DiscardHandler)
@@ -88,6 +96,9 @@ func newRouterForTest(t *testing.T) *mux.Router {
 			// RouteTemplateRequestFunc is what the real transport runs; it reads the gorilla route when there is one and
 			// leaves the context alone otherwise, which is how the fast path supplies the template.
 			tpl, _ := endpointer.RouteTemplateFromContext(endpointer.RouteTemplateRequestFunc(r.Context(), r))
+			// gorilla attaches the matched route to the request; the fast path does not. Only a handler can report this,
+			// so a request answered by the router itself (404, 405, a redirect) carries no such header.
+			w.Header().Set(servedByGorillaHeader, strconv.FormatBool(mux.CurrentRoute(r) != nil))
 			_, _ = w.Write([]byte(name + " tpl=" + tpl + " vars=" + formatVars(mux.Vars(r))))
 		})
 		return nil
@@ -104,26 +115,33 @@ func formatVars(vars map[string]string) string {
 	return "{" + strings.Join(parts, ",") + "}"
 }
 
-var (
-	numericVarRe = regexp.MustCompile(`\{[a-zA-Z_][a-zA-Z0-9_]*:\[0-9\]\+\}`)
-	charsetVarRe = regexp.MustCompile(`\{[a-zA-Z_][a-zA-Z0-9_]*:\[[a-zA-Z0-9-]*\]\+\}`)
-	plainVarRe   = regexp.MustCompile(`\{[a-zA-Z_][a-zA-Z0-9_]*\}`)
-)
-
-// sampleRequestPath builds a concrete path that the given route template must match.
+// sampleRequestPath builds a concrete path that the given route template must match. It substitutes each variable using the
+// same regexes and constraint constants the router itself uses, so a change to either stays in one place.
 func sampleRequestPath(tpl string) string {
 	p := tpl
 	if m := fleetVersionVar.FindStringSubmatch(p); m != nil {
 		p = fleetVersionVar.ReplaceAllString(p, strings.Split(m[1], "|")[0])
 	}
-	p = numericVarRe.ReplaceAllString(p, "1")
-	p = charsetVarRe.ReplaceAllString(p, "abc123")
-	p = plainVarRe.ReplaceAllString(p, "abc")
+	p = constrainedVar.ReplaceAllStringFunc(p, func(v string) string {
+		switch constrainedVar.FindStringSubmatch(v)[2] {
+		case digitPattern:
+			return "1"
+		case hexAndDashPattern, alphanumDashPattern:
+			return "abc123"
+		default:
+			return "abc"
+		}
+	})
+	// Anything left is an unconstrained {var}.
+	p = anyVar.ReplaceAllString(p, "abc")
 	if strings.HasSuffix(p, "/") {
 		p += "sub"
 	}
 	return p
 }
+
+// routerNotFoundBody is what a gorilla router with no matching route writes.
+const routerNotFoundBody = "404 page not found\n"
 
 func serve(h http.Handler, method, path string) *httptest.ResponseRecorder {
 	rr := httptest.NewRecorder()
@@ -161,6 +179,8 @@ func TestFastPathMatchesGorillaForEveryRoute(t *testing.T) {
 	// assert rather than require: a systemic break reports every affected route instead of stopping at the first.
 	for _, s := range samples {
 		want, got := serve(router, s.method, s.path), serve(handler, s.method, s.path)
+		assert.NotEqualf(t, routerNotFoundBody, want.Body.String(),
+			"sampleRequestPath produced %s %s, which matches no route (route %s)", s.method, s.path, s.route)
 		assert.Equalf(t, want.Code, got.Code, "status differs for %s %s (route %s)", s.method, s.path, s.route)
 		assert.Equalf(t, want.Body.String(), got.Body.String(),
 			"dispatch differs for %s %s (route %s)", s.method, s.path, s.route)
@@ -168,9 +188,10 @@ func TestFastPathMatchesGorillaForEveryRoute(t *testing.T) {
 	t.Logf("compared %d method+path samples", len(samples))
 }
 
-// TestFastPathMatchesGorillaForRejectedRequests covers the requests a stdlib pattern matches more loosely than the gorilla
-// template it replaced, or matches the same but answers differently. All of them have to reach gorilla.
-func TestFastPathMatchesGorillaForRejectedRequests(t *testing.T) {
+// TestFastPathMatchesGorillaForEdgeCases covers the requests where the two routers could disagree: encoded characters,
+// unclean paths, method mismatches, values that violate a route's regex constraint, and the route pairs only gorilla can tell
+// apart. Every one has to produce the response gorilla alone produces, whichever router ends up serving it.
+func TestFastPathMatchesGorillaForEdgeCases(t *testing.T) {
 	router := newRouterForTest(t)
 	handler, err := newFastPathHandler(router, nil, config.TestConfig())
 	require.NoError(t, err)
@@ -178,26 +199,55 @@ func TestFastPathMatchesGorillaForRejectedRequests(t *testing.T) {
 	cases := []struct {
 		name         string
 		method, path string
+		// wantServedBy records which router has to answer: byGorilla, byFastPath, or byRouter when no handler runs.
+		wantServedBy string
 	}{
-		{"unknown path", "GET", "/api/latest/fleet/nope/nothing/here"},
-		{"method mismatch", "DELETE", "/api/osquery/distributed/write"},
-		{"HEAD on a GET route is a 405", "HEAD", "/api/latest/fleet/hosts/1"},
-		{"non-numeric id fails the route constraint", "GET", "/api/latest/fleet/hosts/not-a-number"},
-		{"unknown API version", "GET", "/api/v9/fleet/hosts/1"},
-		{"identifier beats the numeric host id", "GET", "/api/latest/fleet/hosts/identifier/device_mapping"},
-		{"host by identifier", "GET", "/api/latest/fleet/hosts/identifier/somehost"},
-		{"host subresource excluded alongside it", "GET", "/api/latest/fleet/hosts/1/device_mapping"},
-		{"batch summary beats batch host results", "GET", "/api/latest/fleet/scripts/batch/summary/host_results"},
-		{"both spellings of profile resend", "POST", "/api/latest/fleet/hosts/1/configuration_profiles/resend/resend"},
-		{"encoded separator in a path variable", "GET", "/api/latest/fleet/device/abc%2Fdef"},
-		{"encoded space in a path variable", "GET", "/api/latest/fleet/device/abc%20def"},
-		{"encoded percent in a path variable", "GET", "/api/latest/fleet/device/abc%25def"},
-		{"empty path segment redirects", "GET", "/api/latest//fleet/config"},
-		{"dot segment redirects", "GET", "/api/latest/fleet/./config"},
-		{"dot dot segment redirects", "GET", "/api/latest/fleet/hosts/../config"},
-		{"trailing slash on an exact route", "GET", "/api/latest/fleet/config/"},
-		{"query string is ignored by matching", "GET", "/api/latest/fleet/config?page=1"},
-		{"websocket live results prefix route", "GET", "/api/latest/fleet/results/anything"},
+		{name: "unknown path", method: "GET", path: "/api/latest/fleet/nope/nothing/here"},
+		{name: "method mismatch", method: "DELETE", path: "/api/osquery/distributed/write"},
+		{name: "HEAD on a GET route is a 405", method: "HEAD", path: "/api/latest/fleet/hosts/1"},
+		{name: "non-numeric id fails the route constraint", method: "GET", path: "/api/latest/fleet/hosts/not-a-number"},
+		{name: "unknown API version", method: "GET", path: "/api/v9/fleet/hosts/1"},
+		{
+			name: "identifier beats the numeric host id", method: "GET",
+			path: "/api/latest/fleet/hosts/identifier/device_mapping", wantServedBy: byGorilla,
+		},
+		{
+			name: "host by identifier", method: "GET",
+			path: "/api/latest/fleet/hosts/identifier/somehost", wantServedBy: byGorilla,
+		},
+		{
+			name: "host subresource excluded alongside it", method: "GET",
+			path: "/api/latest/fleet/hosts/1/device_mapping", wantServedBy: byGorilla,
+		},
+		{
+			name: "batch summary beats batch host results", method: "GET",
+			path: "/api/latest/fleet/scripts/batch/summary/host_results", wantServedBy: byGorilla,
+		},
+		{
+			name: "both spellings of profile resend", method: "POST",
+			path: "/api/latest/fleet/hosts/1/configuration_profiles/resend/resend", wantServedBy: byGorilla,
+		},
+		{name: "encoded separator in a path variable", method: "GET", path: "/api/latest/fleet/device/abc%2Fdef"},
+		{
+			name: "encoded space in a path variable", method: "GET",
+			path: "/api/latest/fleet/device/abc%20def", wantServedBy: byFastPath,
+		},
+		{
+			name: "encoded percent in a path variable", method: "GET",
+			path: "/api/latest/fleet/device/abc%25def", wantServedBy: byFastPath,
+		},
+		{name: "empty path segment redirects", method: "GET", path: "/api/latest//fleet/config"},
+		{name: "dot segment redirects", method: "GET", path: "/api/latest/fleet/./config"},
+		{name: "dot dot segment redirects", method: "GET", path: "/api/latest/fleet/hosts/../config"},
+		{name: "trailing slash on an exact route", method: "GET", path: "/api/latest/fleet/config/"},
+		{
+			name: "query string is ignored by matching", method: "GET",
+			path: "/api/latest/fleet/config?page=1", wantServedBy: byFastPath,
+		},
+		{
+			name: "websocket live results prefix route", method: "GET",
+			path: "/api/latest/fleet/results/anything", wantServedBy: byGorilla,
+		},
 	}
 
 	for _, c := range cases {
@@ -206,14 +256,15 @@ func TestFastPathMatchesGorillaForRejectedRequests(t *testing.T) {
 			require.Equal(t, want.Code, got.Code)
 			require.Equal(t, want.Body.String(), got.Body.String())
 			require.Equal(t, want.Header().Get("Location"), got.Header().Get("Location"))
+
+			require.Equalf(t, c.wantServedBy, got.Header().Get(servedByGorillaHeader),
+				"wrong router answered (byRouter=%q byGorilla=%q byFastPath=%q)", byRouter, byGorilla, byFastPath)
 		})
 	}
 }
 
 // TestFastPathServesHotAgentRoutes proves the agent endpoints are actually served by the stdlib mux rather than quietly
-// falling through to gorilla, which would leave every equivalence test above passing while the change did nothing. A request
-// routed by gorilla has a current route attached; one routed by the fast path does not. Template fidelity is covered by
-// TestFastPathMatchesGorillaForEveryRoute and the span-name test, so it is not re-asserted here.
+// falling through to gorilla.
 func TestFastPathServesHotAgentRoutes(t *testing.T) {
 	_, router := newAPIHandler(t, config.TestConfig(), nil)
 	require.NoError(t, router.Walk(func(route *mux.Route, _ *mux.Router, _ []*mux.Route) error {
