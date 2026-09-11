@@ -19,7 +19,7 @@ Software inventory in Fleet collects the apps, operating systems, browser extens
 
 ## Operating systems
 
-| Type | Data collected | Vulnerabilities | Caveats |
+| OS | Data collected | Vulnerabilities | Caveats |
 | --- | --- | --- | --- |
 | macOS | Name, version, architecture, and kernel version. | ✅ | — |
 | Windows 10, 11, and Server | Name, version, display version (such as 23H2), architecture, and installation type. | ✅ Matched against Microsoft security bulletins. | — |
