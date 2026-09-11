@@ -7258,10 +7258,8 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 		software = append(software, &hs.HostSoftwareWithInstaller)
 	}
 
-	// Hydrate VPP auto-update fields from software_update_schedules. Cheaper as a
-	// post-pagination lookup than as a JOIN inside the assembly SQL: at most one
-	// row per title, small table, indexed by (team_id, title_id). Skip when the
-	// host has no team — schedules are per-team.
+	// Post-pagination lookup rather than an assembly-SQL JOIN — cheaper on
+	// the paginated title-ID set. Skipped when the host has no team.
 	if host.TeamID != nil && len(software) > 0 {
 		if err := ds.hydrateHostSoftwareAutoUpdateFields(ctx, software, globalOrTeamID); err != nil {
 			return nil, nil, ctxerr.Wrap(ctx, err, "hydrate host software auto-update fields")
@@ -7271,9 +7269,6 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 	return software, metaData, nil
 }
 
-// hydrateHostSoftwareAutoUpdateFields looks up software_update_schedules rows for
-// the given team and the title IDs in `software`, then copies the enabled/window
-// fields onto each result. No-op when no schedules exist for the team.
 func (ds *Datastore) hydrateHostSoftwareAutoUpdateFields(
 	ctx context.Context,
 	software []*fleet.HostSoftwareWithInstaller,

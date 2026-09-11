@@ -3012,9 +3012,7 @@ func testUpdateAutoUpdateConfig(t *testing.T, ds *Datastore) {
 	require.NotNil(t, titleResult.AutoUpdateEndTime)
 	require.Equal(t, endTime, *titleResult.AutoUpdateEndTime)
 
-	// Verify that ListSoftwareTitles surfaces the same auto_update fields (the
-	// list response embeds SoftwareAutoUpdateConfig, so the join must populate
-	// them for FE list-page indicators to render).
+	// ListSoftwareTitles must populate the same fields via its JOIN.
 	listTitles, _, _, err := ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{
 		TeamID: teamID,
 	}, fleet.TeamFilter{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
@@ -3026,20 +3024,16 @@ func testUpdateAutoUpdateConfig(t *testing.T, ds *Datastore) {
 	require.Equal(t, startTime, *listed.AutoUpdateStartTime)
 	require.NotNil(t, listed.AutoUpdateEndTime)
 	require.Equal(t, endTime, *listed.AutoUpdateEndTime)
-	// A title with no schedule should marshal all three as nil. Guard against
-	// `titleByName` returning a zero-value struct if the fixture ever gets
-	// renamed — otherwise the nil assertions would silently pass on an
-	// unrelated row.
+	// A title with no schedule should marshal all three as nil. NotZero
+	// guards against titleByName returning a zero-value struct on rename.
 	unscheduled := titleByName(listTitles, "vpp3")
 	require.NotZero(t, unscheduled.ID, "vpp3 fixture must be present in list results")
 	require.Nil(t, unscheduled.AutoUpdateEnabled)
 	require.Nil(t, unscheduled.AutoUpdateStartTime)
 	require.Nil(t, unscheduled.AutoUpdateEndTime)
 
-	// The default `hosts_count` ordering above hits the two-phase optimized
-	// query path. Re-run with `name` ordering to exercise the templated
-	// fallback query, which has its own copy of the software_update_schedules
-	// JOIN and could regress independently.
+	// Non-hosts_count order forces the templated fallback query, which has
+	// its own copy of the JOIN.
 	listTitlesByName, _, _, err := ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{
 		TeamID:      teamID,
 		ListOptions: fleet.ListOptions{OrderKey: "name"},

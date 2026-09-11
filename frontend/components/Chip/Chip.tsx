@@ -14,8 +14,7 @@ interface IChipProps {
   className?: string;
   onClick?: () => void;
   tooltip?: React.ReactNode;
-  /** Forwarded to TooltipWrapper. Set false when the tooltip has manual
-   * `<br />`s or inline links so the auto-balancer doesn't fight the layout. */
+  /** Forwarded to TooltipWrapper; set false to opt out of auto-balancing. */
   tooltipTextBalanced?: boolean;
 }
 

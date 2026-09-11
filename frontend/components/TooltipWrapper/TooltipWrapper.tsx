@@ -4,17 +4,11 @@ import { Tooltip as ReactTooltip5, PlacesType } from "react-tooltip-5";
 
 import { uniqueId } from "lodash";
 
-/** Renders tooltip content inside a measurable inline-block wrapper: applies
- * `text-wrap: balance`, measures the widest balanced line via Range rects
- * (plus inline replaced elements like SVG/IMG that don't participate in Range
- * text runs), then sets an explicit width on the wrapper so the tooltip's
- * background hugs the balanced text. CSS alone can't shrink the container:
- * the intrinsic width of a `text-wrap: balance` box is computed as if wrap
- * were `normal`, so it stays at `max-width` even when the balanced text is
- * narrower. Applying width to an internal element (rather than the tooltip
- * root) sidesteps react-tooltip-5 rewriting the root's `style` attribute on
- * every position update. The outer tooltip's `width: max-content` then
- * shrinks to this wrapper's explicit width. */
+/** Shrinks the tooltip to hug balanced text. `text-wrap: balance` alone
+ * leaves the container at `max-width` (intrinsic width is computed as
+ * wrap: normal), and setting width on the tooltip root gets wiped by
+ * react-tooltip-5's per-render style spread — so measure widest line on
+ * an inline-block child and set width there. */
 const BalancedTipContent = ({ children }: { children: React.ReactNode }) => {
   const ref = useRef<HTMLDivElement>(null);
 
@@ -22,11 +16,8 @@ const BalancedTipContent = ({ children }: { children: React.ReactNode }) => {
     const el = ref.current;
     if (!el) return undefined;
 
-    // Measurement can race with (a) floating-ui repositioning the tooltip,
-    // (b) web-font loading changing bold/italic run widths, and (c) balance
-    // needing multiple layout passes to converge as the container shrinks
-    // around each measurement. Re-run measurement iteratively until width
-    // stabilizes, with a small iteration cap to prevent runaway.
+    // Convergence loop: balance re-runs as the container shrinks around
+    // each measurement, so iterate until width stops shrinking.
     let disposed = false;
     let lastAppliedWidth = -1;
     let iteration = 0;
@@ -34,25 +25,15 @@ const BalancedTipContent = ({ children }: { children: React.ReactNode }) => {
 
     const measure = () => {
       if (disposed) return;
-      // Clear our prior explicit width so balance re-runs against the outer
-      // tooltip's max-width. Force a reflow via offsetWidth so the browser
-      // recomputes the balanced layout before we sample rects.
       el.style.width = "";
-      // Reading a layout property forces the browser to apply the cleared
-      // width + text-wrap: balance before we sample rects.
-      el.getBoundingClientRect();
+      el.getBoundingClientRect(); // force reflow
       const range = document.createRange();
       range.selectNodeContents(el);
-      // jsdom (Jest) doesn't implement Range.getClientRects, so measurement
-      // is a no-op there — balancing is a visual concern with no test
-      // coverage to preserve.
+      // jsdom no-op — Range.getClientRects isn't implemented there.
       if (typeof range.getClientRects !== "function") return;
-      // Three widest-line quirks a naive `range.getClientRects()` misses:
-      // inline replaced elements (svg/img/…) never appear in Range rects,
-      // an inline-flex anchor's `gap` is nowhere in its children's rects,
-      // and a flex-centered icon's `top` differs from surrounding text
-      // baseline. Fix: also read bounding rects for `svg, img, …, a`, and
-      // group by vertical center (not `top`) with a half-line-height fuzz.
+      // Range misses inline replaced elements (svg/img) and inline-flex
+      // anchor gaps; querySelector fills both. Group by vertical center
+      // with half-line fuzz so a flex-centered icon rejoins its text line.
       const rects: DOMRect[] = Array.from(range.getClientRects());
       el.querySelectorAll("svg, img, video, canvas, iframe, a").forEach(
         (child) => {
@@ -96,11 +77,8 @@ const BalancedTipContent = ({ children }: { children: React.ReactNode }) => {
       });
       if (widest <= 0) return;
       const next = Math.ceil(widest);
-      // Stop when we've stopped shrinking. Balance can produce slightly
-      // narrower widths as the container shrinks around each measurement;
-      // we keep going as long as it does, then lock in.
+      // Restore the previous (narrower) width and stop once shrinking flattens.
       if (next >= lastAppliedWidth && lastAppliedWidth !== -1) {
-        // Restore the previous (narrower) width and stop.
         el.style.width = `${lastAppliedWidth}px`;
         return;
       }
@@ -114,9 +92,7 @@ const BalancedTipContent = ({ children }: { children: React.ReactNode }) => {
 
     const raf1 = requestAnimationFrame(measure);
 
-    // Fonts loading after mount reflows bold/italic runs. Reset and re-run
-    // the convergence loop once fonts.ready resolves. Safe to skip when the
-    // API is missing.
+    // Web-font load can reflow bold/italic runs; re-run the loop after.
     if (
       typeof document !== "undefined" &&
       document.fonts &&
@@ -136,8 +112,6 @@ const BalancedTipContent = ({ children }: { children: React.ReactNode }) => {
     };
   }, [children]);
 
-  // inline-block so the wrapper has its own measurable box and the tooltip's
-  // `width: max-content` shrinks to the wrapper's explicit width once set.
   return (
     <div ref={ref} style={{ display: "inline-block", textWrap: "balance" }}>
       {children}

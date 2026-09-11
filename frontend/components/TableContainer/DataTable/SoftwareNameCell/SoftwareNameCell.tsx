@@ -50,12 +50,8 @@ const getAutoUpdateTooltip = (start: string, end: string) =>
     start
   )} and ${internationalTimeOnlyFormat(end)} (host local time).`;
 
-// True when the window is fully populated, the row is iOS/iPadOS, AND the
-// title has an app_store_app (VPP). `handleScheduledUpdates` only acts on
-// `ios_apps` / `ipados_apps` sources, and auto-update configuration is a
-// VPP-only feature — an in-house `.ipa` (iOS source, no app_store_app)
-// with a stale schedule row must not promote the icon or leak a window
-// line, nor must a macOS VPP row.
+// Auto-updates are iOS/iPadOS VPP only; macOS VPP or in-house .ipa
+// schedule rows must not promote the icon.
 const hasValidAutoUpdate = ({
   autoUpdateEnabled = false,
   autoUpdateWindowStart,
@@ -115,7 +111,6 @@ const installIconMap: Record<InstallType, InstallIconConfig> = {
           {automaticInstallPoliciesCount > 0 && showAutoUpdate && " "}
           {showAutoUpdate && (
             <>
-              {/* hasValidAutoUpdate above guarantees both fields are set. */}
               {getAutoUpdateTooltip(
                 autoUpdateWindowStart!,
                 autoUpdateWindowEnd!
@@ -151,7 +146,6 @@ const installIconMap: Record<InstallType, InstallIconConfig> = {
           )}
           {showAutoUpdate && (
             <>
-              {/* hasValidAutoUpdate above guarantees both fields are set. */}
               {getAutoUpdateTooltip(
                 autoUpdateWindowStart!,
                 autoUpdateWindowEnd!
@@ -177,9 +171,6 @@ interface IInstallIconWithTooltipProps {
   autoUpdateWindowEnd?: string;
 }
 
-// A row can be "automatic" via a policy-triggered install or a VPP scheduled
-// auto-update. Either signal promotes the icon to the automatic family so the
-// visual language stays consistent with the details page chip.
 const getInstallIconType = (
   isSelfService: boolean,
   automaticInstallPoliciesCount = 0,
@@ -279,14 +270,7 @@ interface ISoftwareNameCellProps {
   iconUrl?: string | null;
   isIosOrIpadosApp?: boolean;
   isAndroidPlayStoreApp?: boolean;
-  /** True when the row has an `app_store_app` payload (Apple VPP). Required
-   * alongside `isIosOrIpadosApp` for auto-update icon promotion so an
-   * in-house `.ipa` (iOS source, no app_store_app) with a stale schedule
-   * row can't leak the auto-update indicator. */
   isAppStoreApp?: boolean;
-  /** VPP auto-updates flag from the list response. Promotes the install icon
-   * to the automatic (or automatic-self-service) variant and adds a window
-   * line to the tooltip. */
   autoUpdateEnabled?: boolean;
   autoUpdateWindowStart?: string;
   autoUpdateWindowEnd?: string;
