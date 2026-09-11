@@ -201,6 +201,14 @@ If you used the `teams/` directory to organize your ~~teams~~ fleets, use `git m
 
 Fleet deploys v1.4.1 of the [Mac Admins osquery extension](https://github.com/macadmins/osquery-extension), with full support for the tables currently available in Fleet. For a list of supported tables, see the [Fleet tables reference](https://fleetdm.com/tables).
 
+## Why might a scheduled report never show results?
+
+Even if a host is online often, a scheduled report may never show results. Reports don't run after a host has been online for a certain amount of time — they run when the clock hits a fixed point, spaced out by the interval (osquery adds a small random offset per host, called "splay," to avoid every host hitting the server at once). A host has to be running osqueryd at that exact moment to report in.
+
+**Example:** a report with a 6-hour interval fires at four fixed times a day (roughly midnight, 6am, noon, and 6pm, nudged slightly per host by splay). If a host is reliably offline at all four of those moments — say, it's always asleep at noon and midnight — it will never report, no matter how many hours it's online in between.
+
+This mostly affects short, human-scale intervals (6, 8, 12, or 24 hours) on hosts with a regular daily on/off pattern, like laptops that sleep at lunch or overnight. If a report never shows results, try a different interval, or run `SELECT * FROM osquery_schedule` as a live query to see when the host expects to check in.
+
 <!--
 Mike T: In 2023 we made the decision to comment out the following questions because the FAQs had become a dumping ground for miscellaneous content that wasn't quite reference docs and wasn't quite committed learning docs (suitable for articles). We chose to hide the content rather than remove, or spend time trying to figure out better places in the docs, with the assumption that if it's important enough content, someone will circle back at some point to prioritize a better home.
 
@@ -296,14 +304,6 @@ Don't worry; this behavior is expected. It's part of how osquery works.
 
 Fleet and osquery work together by communicating with heartbeats. Depending on how close the next heartbeat is, Fleet might return results a few seconds faster or slower.
 >To get around what's known as the "[thundering herd problem](https://en.wikipedia.org/wiki/Thundering_herd_problem#:~:text=In%20computer%20science%2C%20the%20thundering,but%20only%20one%20will%20win.)," these heartbeats aren't exactly the same number of seconds apart each time. Osquery implements a "splay", a few ± milliseconds that are added to or subtracted from the heartbeat interval to prevent these thundering herds. This helps prevent situations where many thousands of devices might unnecessarily attempt to communicate with the Fleet server at exactly the same time. (If you've ever used Socket.io, a similar phenomenon can occur with that tool's automatic WebSocket reconnects.)
-
-### Why might a scheduled report never show results, even though the host is often online?
-
-Scheduled reports don't run after a host has been online for a certain amount of time — they run when the clock hits a fixed point, spaced out by the interval. A host has to be running osqueryd at that exact moment to report in.
-
-**Example:** a report with a 6-hour interval fires at four fixed times a day (roughly midnight, 6am, noon, and 6pm, nudged slightly per host by ["splay"](#why-does-the-same-query-come-back-faster-sometimes)). If a host is reliably offline at all four of those moments — say, it's always asleep at noon and midnight — it will never report, no matter how many hours it's online in between.
-
-This mostly affects short, human-scale intervals (6, 8, 12, or 24 hours) on hosts with a regular daily on/off pattern, like laptops that sleep at lunch or overnight. If a report never shows results, try a different interval, or run `SELECT * FROM osquery_schedule` as a live query to see when the host expects to check in.
 
 ### Why don't my query results appear sorted based on the ORDER BY clause I specified in my SQL query?
 
