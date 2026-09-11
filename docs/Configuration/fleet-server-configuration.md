@@ -863,7 +863,7 @@ Only one of `server_private_key_arn` or `server_private_key` can be set.
 If set, Fleet reads the private key from AWS Secrets Manager instead of directly from `server_private_key`.
 
 - Default value: `""`
-- Environment variable: `FLEET_SERVER_PRIVATE_KEY_STS_ASSUME_ROLE_ARN`
+- Environment variable: `FLEET_SERVER_PRIVATE_KEY_ARN`
 - Config file format:
   ```yaml
   server:
@@ -887,7 +887,7 @@ Optionally, when using Identity and Access Management (IAM) authentication, this
 Optionally, if you're using a third-party to manage AWS resources, this is the AWS Security Token Service (STS) External ID to use for MySQL authentication. Specify this with `server_private_key_arn` and `server_private_key_sts_assume_role_arn`.
 
 - Default value: `""`
-- Environment variable: `FLEET_SERVER_PRIVATE_KEY_EXTERNAL_ID`
+- Environment variable: `FLEET_SERVER_PRIVATE_KEY_STS_EXTERNAL_ID`
 - Config file format:
   ```yaml
   server:
@@ -3753,6 +3753,8 @@ For macOS, allows users to add custom macOS [configuration profiles](https://fle
 For Windows, allows users to add custom Windows profiles for BitLocker.
 
 > Enabling this option may cause conflicts between your custom disk encryption configuration profiles and the profiles Fleet manages under the hood when [Fleet's disk encryption](https://fleetdm.com/guides/enforce-disk-encryption) is enabled.
+
+See the [Custom disk encryption profiles guide](https://fleetdm.com/guides/custom-disk-encryption-profiles) for step-by-step instructions.
 
 - Default value: `false`
 - Environment variable: `FLEET_MDM_ENABLE_CUSTOM_DISK_ENCRYPTION`

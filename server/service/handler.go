@@ -131,7 +131,7 @@ func MakeHandler(
 	carveStore fleet.CarveStore,
 	featureRoutes []endpointer.HandlerRoutesFunc,
 	extra ...ExtraHandlerOption,
-) http.Handler {
+) (http.Handler, error) {
 	var eopts extraHandlerOpts
 	for _, fn := range extra {
 		fn(&eopts)
@@ -140,7 +140,7 @@ func MakeHandler(
 	// Create the client IP extraction strategy based on config.
 	ipStrategy, err := endpointer.NewClientIPStrategy(config.Server.TrustedProxies)
 	if err != nil {
-		panic(fmt.Sprintf("invalid server.trusted_proxies configuration: %v", err))
+		return nil, fmt.Errorf("invalid server.trusted_proxies configuration: %w", err)
 	}
 
 	fleetAPIOptions := []kithttp.ServerOption{
@@ -160,6 +160,8 @@ func MakeHandler(
 	}
 
 	r := mux.NewRouter()
+
+	fastPathEnabled := true
 	if config.Logging.TracingEnabled {
 		if config.OTELEnabled() {
 			r.Use(otmiddleware.Middleware(
@@ -170,18 +172,24 @@ func MakeHandler(
 					return r.Method + " " + route
 				})))
 		} else {
+			// Elastic APM instrumentation is gorilla-specific and names spans from the matched mux route, so the fast path
+			// cannot be installed alongside it.
 			apmgorilla.Instrument(r)
+			fastPathEnabled = false
 		}
 	}
 
+	// Route-agnostic middleware is collected because it is needed by both the fastpath stdlib router and gorilla.
+	var middlewares []mux.MiddlewareFunc
+
 	if config.Server.GzipResponses {
-		r.Use(func(h http.Handler) http.Handler {
+		middlewares = append(middlewares, func(h http.Handler) http.Handler {
 			return gzhttp.GzipHandler(h)
 		})
 	}
 
 	// Add middleware to extract the client IP and set it in the request context.
-	r.Use(func(handler http.Handler) http.Handler {
+	middlewares = append(middlewares, func(handler http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			ip := ipStrategy.ClientIP(r.Header, r.RemoteAddr)
 			if ip != "" {
@@ -192,7 +200,11 @@ func MakeHandler(
 	})
 
 	if eopts.httpSigVerifier != nil {
-		r.Use(eopts.httpSigVerifier)
+		middlewares = append(middlewares, eopts.httpSigVerifier)
+	}
+
+	for _, mw := range middlewares {
+		r.Use(mw)
 	}
 
 	attachFleetAPIRoutes(r, svc, config, logger, limitStore, redisPool, fleetAPIOptions, eopts)
@@ -201,7 +213,10 @@ func MakeHandler(
 	}
 	addMetrics(r)
 
-	return r
+	if !fastPathEnabled {
+		return r, nil
+	}
+	return newFastPathHandler(r, middlewares, config)
 }
 
 // PrometheusMetricsHandler wraps the provided handler with prometheus metrics
@@ -370,12 +385,12 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ue.GET("/api/_version_/fleet/policies/count", countGlobalPoliciesEndpoint, fleet.CountGlobalPoliciesRequest{})
 	ue.EndingAtVersion("v1").GET("/api/_version_/fleet/global/policies/{policy_id}", getPolicyByIDEndpoint, fleet.GetPolicyByIDRequest{})
 	ue.StartingAtVersion("2022-04").GET("/api/_version_/fleet/policies/{policy_id}", getPolicyByIDEndpoint, fleet.GetPolicyByIDRequest{})
-	ue.StartingAtVersion("2022-04").GET("/api/_version_/fleet/policies/{policy_id}/automation_activities", listPolicyAutomationActivitiesEndpoint, fleet.ListPolicyAutomationActivitiesRequest{})
+	ue.GET("/api/_version_/fleet/policies/{policy_id}/automation_activities", listPolicyAutomationActivitiesEndpoint, fleet.ListPolicyAutomationActivitiesRequest{})
 	ue.EndingAtVersion("v1").POST("/api/_version_/fleet/global/policies/delete", deleteGlobalPoliciesEndpoint, fleet.DeleteGlobalPoliciesRequest{})
 	ue.StartingAtVersion("2022-04").POST("/api/_version_/fleet/policies/delete", deleteGlobalPoliciesEndpoint, fleet.DeleteGlobalPoliciesRequest{})
 	ue.EndingAtVersion("v1").PATCH("/api/_version_/fleet/global/policies/{policy_id}", modifyGlobalPolicyEndpoint, fleet.ModifyGlobalPolicyRequest{})
 	ue.StartingAtVersion("2022-04").PATCH("/api/_version_/fleet/policies/{policy_id}", modifyGlobalPolicyEndpoint, fleet.ModifyGlobalPolicyRequest{})
-	ue.StartingAtVersion("2022-04").POST("/api/_version_/fleet/policies/{policy_id}/reset", resetPolicyEndpoint, fleet.ResetPolicyRequest{})
+	ue.POST("/api/_version_/fleet/policies/{policy_id}/reset", resetPolicyEndpoint, fleet.ResetPolicyRequest{})
 	ue.POST("/api/_version_/fleet/automations/reset", resetAutomationEndpoint, fleet.ResetAutomationRequest{})
 
 	ue.POST("/api/_version_/fleet/fleets/{fleet_id}/policies", teamPolicyEndpoint, fleet.TeamPolicyRequest{})
@@ -1403,17 +1418,19 @@ func RegisterAppleMDMProtocolServices(
 	checkinAndCommandService nanomdm_service.CheckinAndCommandService,
 	ddmService nanomdm_service.DeclarativeManagement,
 	profileService nanomdm_service.ProfileService,
+	getTokenService nanomdm_service.GetToken,
 	serverURLPrefix string,
 	fleetConfig config.FleetConfig,
 	svc fleet.Service,
+	ds fleet.Datastore,
 ) error {
-	if err := registerSCEP(mux, scepConfig, scepStorage, mdmStorage, logger, fleetConfig); err != nil {
+	if err := registerSCEP(mux, scepConfig, scepStorage, mdmStorage, logger, fleetConfig, ds); err != nil {
 		return fmt.Errorf("scep: %w", err)
 	}
-	if err := registerMDM(mux, mdmStorage, checkinAndCommandService, ddmService, profileService, logger, fleetConfig); err != nil {
+	if err := registerMDM(mux, mdmStorage, checkinAndCommandService, ddmService, profileService, getTokenService, logger, fleetConfig, ds); err != nil {
 		return fmt.Errorf("mdm: %w", err)
 	}
-	if err := registerMDMServiceDiscovery(mux, logger, serverURLPrefix, fleetConfig); err != nil {
+	if err := registerMDMServiceDiscovery(mux, logger, serverURLPrefix, fleetConfig, ds); err != nil {
 		return fmt.Errorf("service discovery: %w", err)
 	}
 	if err := registerPSSO(mux, svc, logger, fleetConfig); err != nil {
@@ -1427,9 +1444,20 @@ func registerMDMServiceDiscovery(
 	logger *slog.Logger,
 	serverURLPrefix string,
 	fleetConfig config.FleetConfig,
+	appCfgGetter fleet.GetsAppConfig,
 ) error {
 	serviceDiscoveryLogger := logger.With("component", "mdm-apple-service-discovery")
 	serviceDiscoveryHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		appCfg, err := appCfgGetter.AppConfig(r.Context())
+		if err != nil {
+			serviceDiscoveryLogger.ErrorContext(r.Context(), "error loading app config for service discovery", "err", err)
+			return
+		} else if appCfg.MDM.OnlyAllowAppleBusinessEnrollment {
+			err := &fleet.ABOnlyEnrollmentForbiddenError{}
+			http.Error(w, err.Error(), err.StatusCode())
+			return
+		}
+
 		var mdmEnrollmentURL string
 		token := r.PathValue("token")
 		if token != "" {
@@ -1443,7 +1471,7 @@ func registerMDMServiceDiscovery(
 		serviceDiscoveryLogger.InfoContext(ctx, "serving MDM service discovery response", "url", mdmEnrollmentURL)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		_, err := fmt.Fprintf(w, `{"Servers":[{"Version": "mdm-byod", "BaseURL": "%s"}]}`, mdmEnrollmentURL)
+		_, err = fmt.Fprintf(w, `{"Servers":[{"Version": "mdm-byod", "BaseURL": "%s"}]}`, mdmEnrollmentURL)
 		if err != nil {
 			serviceDiscoveryLogger.ErrorContext(ctx, "error writing service discovery response", "err", err)
 			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
@@ -1479,6 +1507,7 @@ func registerSCEP(
 	mdmStorage fleet.MDMAppleStore,
 	logger *slog.Logger,
 	fleetConfig config.FleetConfig,
+	appCfgGetter fleet.GetsAppConfig,
 ) error {
 	var signer scepserver.CSRSignerContext = scepserver.SignCSRAdapter(scep_depot.NewSigner(
 		scepStorage,
@@ -1504,8 +1533,11 @@ func registerSCEP(
 
 	scepSlogLogger := logger.With("component", "http-mdm-apple-scep")
 	e := scepserver.MakeServerEndpoints(scepService)
+	e.GetEndpoint = scepserver.ACMEOnlyEnrollmentMiddleware(appCfgGetter)(e.GetEndpoint)
+	e.PostEndpoint = scepserver.ACMEOnlyEnrollmentMiddleware(appCfgGetter)(e.PostEndpoint)
 	e.GetEndpoint = scepserver.EndpointLoggingMiddleware(scepSlogLogger)(e.GetEndpoint)
 	e.PostEndpoint = scepserver.EndpointLoggingMiddleware(scepSlogLogger)(e.PostEndpoint)
+
 	scepHandler := scepserver.MakeHTTPHandler(e, scepService, scepSlogLogger)
 	mux.Handle(apple_mdm.SCEPPath, otel.WrapHandler(scepHandler, apple_mdm.SCEPPath, fleetConfig))
 	return nil
@@ -1569,8 +1601,10 @@ func registerMDM(
 	checkinAndCommandService nanomdm_service.CheckinAndCommandService,
 	ddmService nanomdm_service.DeclarativeManagement,
 	profileService nanomdm_service.ProfileService,
+	getTokenService nanomdm_service.GetToken,
 	logger *slog.Logger,
 	fleetConfig config.FleetConfig,
+	ds fleet.Datastore,
 ) error {
 	certVerifier := mdmcrypto.NewSCEPVerifier(mdmStorage)
 	mdmLogger := NewNanoMDMLogger(logger.With("component", "http-mdm-apple-mdm"))
@@ -1584,7 +1618,9 @@ func registerMDM(
 	// the device.
 	// 5. Run actual MDM service operation (checkin handler or command and results handler).
 	coreMDMService := nanomdm.New(mdmStorage, nanomdm.WithLogger(mdmLogger), nanomdm.WithDeclarativeManagement(ddmService),
-		nanomdm.WithProfileService(profileService), nanomdm.WithUserAuthenticate(checkinAndCommandService))
+		nanomdm.WithProfileService(profileService), nanomdm.WithUserAuthenticate(checkinAndCommandService),
+		nanomdm.WithGetToken(getTokenService))
+
 	// NOTE: it is critical that the coreMDMService runs first, as the first
 	// service in the multi-service feature is run to completion _before_ running
 	// the other ones in parallel. This way, subsequent services have access to
@@ -1592,6 +1628,10 @@ func registerMDM(
 	var mdmService nanomdm_service.CheckinAndCommandService = multi.New(mdmLogger, coreMDMService, checkinAndCommandService)
 
 	mdmService = certauth.New(mdmService, mdmStorage, certauth.WithLogger(mdmLogger.With("handler", "cert-auth")))
+	// Wraps the whole chain above (not a multi.New sub-service) so a rejection here is what
+	// the HTTP handler actually returns to the device. See abOnlyEnrollmentCheckinService's
+	// doc comment for why this can't live inside checkinAndCommandService itself.
+	mdmService = newABOnlyEnrollmentCheckinService(mdmService, ds, logger.With("component", "http-mdm-apple-mdm", "handler", "ab-only-enrollment"))
 	var mdmHandler http.Handler = httpmdm.CheckinAndCommandHandler(mdmService, mdmLogger.With("handler", "checkin-command"))
 	verifyDisable, exists := os.LookupEnv("FLEET_MDM_APPLE_SCEP_VERIFY_DISABLE")
 	if exists && (strings.EqualFold(verifyDisable, "true") || verifyDisable == "1") {

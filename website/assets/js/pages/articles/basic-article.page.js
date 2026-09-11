@@ -98,31 +98,44 @@ parasails.registerPage('basic-article', {
     window.addEventListener('scroll', this.handleScrollingInArticle);
 
     if(this.algoliaPublicKey) {// Note: Docsearch will only be enabled if sails.config.custom.algoliaPublicKey is set. If the value is undefined, the handbook search will be disabled.
-      docsearch({
-        appId: 'NZXAYZXDGH',
-        apiKey: this.algoliaPublicKey,
-        indexName: 'fleetdm',
-        container: '#docsearch-query',
-        placeholder: 'Search',
-        debug: false,
-        clickAnalytics: true,
-        searchParameters: {
-          facetFilters: ['section:articles']
-        },
-      });
+      // Note: algolia docsearch is disabled while we test sending users to google.
+      // docsearch({
+      //   appId: 'NZXAYZXDGH',
+      //   apiKey: this.algoliaPublicKey,
+      //   indexName: 'fleetdm',
+      //   container: '#docsearch-query',
+      //   placeholder: 'Search articles',
+      //   debug: false,
+      //   clickAnalytics: true,
+      //   searchParameters: {
+      //     facetFilters: ['section:articles']
+      //   },
+      //   translations: {
+      //     button: {
+      //       buttonText: 'Search articles',
+      //       buttonAriaLabel: 'Search articles',
+      //     },
+      //   },
+      // });
       // For mobile search
-      docsearch({
-        appId: 'NZXAYZXDGH',
-        apiKey: this.algoliaPublicKey,
-        indexName: 'fleetdm',
-        container: '#mobile-docsearch',
-        placeholder: 'Search',
-        debug: false,
-        clickAnalytics: true,
-        searchParameters: {
-          facetFilters: ['section:articles']
-        },
-      });
+      // docsearch({
+      //   appId: 'NZXAYZXDGH',
+      //   apiKey: this.algoliaPublicKey,
+      //   indexName: 'fleetdm',
+      //   container: '#mobile-docsearch',
+      //   placeholder: 'Search articles',
+      //   debug: false,
+      //   clickAnalytics: true,
+      //   searchParameters: {
+      //     facetFilters: ['section:articles']
+      //   },
+      //   translations: {
+      //     button: {
+      //       buttonText: 'Search articles',
+      //       buttonAriaLabel: 'Search articles',
+      //     },
+      //   },
+      // });
     }
   },
 

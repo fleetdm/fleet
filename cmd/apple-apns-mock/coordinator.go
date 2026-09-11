@@ -200,6 +200,11 @@ func (c *coordinator) Subscribe(ctx context.Context, token string) (*subscriber,
 	if err := c.publish(ctx, pushMsg{Token: token, Owner: c.cfg.NodeID, Seq: seq}); err != nil {
 		c.logger.ErrorContext(ctx, "announce token ownership", "token", token, "error", err)
 	}
+
+	// Counted only now that the claim is done: a push announced while this
+	// connect was still claiming can be taken by either path, so a stream
+	// that shows up in the gauge has to be one a later push reaches live.
+	c.reg.connected.Add(1)
 	return sub, p
 }
 
@@ -222,6 +227,8 @@ func (c *coordinator) nextSeq(ctx context.Context) int64 {
 // Unsubscribe releases the stream and puts back a wake-up the device dropped
 // before reading.
 func (c *coordinator) Unsubscribe(ctx context.Context, token string, sub *subscriber) {
+	// Always decrements: the handler calls this exactly once per Subscribe.
+	c.reg.connected.Add(-1)
 	evicted := c.reg.unsubscribe(token, sub)
 	if evicted == nil {
 		return
