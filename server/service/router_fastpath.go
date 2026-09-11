@@ -211,8 +211,6 @@ func newFastPathRoute(tpl, method, version string, varNames []string, matchers [
 			}
 			req = mux.SetURLVars(req, vars)
 		}
-		// mux.CurrentRoute is nil here, so the route template goes into the context directly for the API-only endpoint
-		// restriction check, which fails closed without it.
 		req = req.WithContext(endpointer.WithRouteTemplate(req.Context(), tpl))
 		handler.ServeHTTP(w, req)
 	})
