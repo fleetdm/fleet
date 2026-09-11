@@ -150,7 +150,10 @@ describe("HostDetailsPage - APNS ping on refetch", () => {
     stubQueries(mockAppleHost());
 
     // Global admin: refetch fires the ping too.
-    const { user, unmount } = renderHostDetails({ currentUser: ADMIN, isGlobalAdmin: true });
+    const { user, unmount } = renderHostDetails({
+      currentUser: ADMIN,
+      isGlobalAdmin: true,
+    });
     await user.click(await screen.findByRole("button", { name: /refetch/i }));
     await waitFor(() => {
       expect(hostAPI.refetch).toHaveBeenCalled();
@@ -162,7 +165,10 @@ describe("HostDetailsPage - APNS ping on refetch", () => {
     (hostAPI.apnsPing as jest.Mock).mockClear();
 
     // Global observer: fires the ping as well.
-    const { user: observer } = renderHostDetails({ currentUser: OBSERVER, isGlobalAdmin: false });
+    const { user: observer } = renderHostDetails({
+      currentUser: OBSERVER,
+      isGlobalAdmin: false,
+    });
     await observer.click(
       await screen.findByRole("button", { name: /refetch/i })
     );
@@ -185,7 +191,10 @@ describe("HostDetailsPage - pending hosts", () => {
       .mockResolvedValueOnce({ host: mockPendingWindowsHost("online") })
       .mockResolvedValue({ host: mockPendingWindowsHost("offline") });
 
-    renderHostDetails({ currentUser: ADMIN, isGlobalAdmin: true });
+    renderHostDetails({
+      currentUser: ADMIN,
+      isGlobalAdmin: true,
+    });
     await screen.findByText("Vitals");
     // Give the poll timer (2s) room to fire if it was scheduled.
     await new Promise((resolve) => setTimeout(resolve, 3000));
@@ -202,7 +211,10 @@ describe("HostDetailsPage - pending hosts", () => {
       .mockResolvedValueOnce({ host: mockPendingWindowsHost("online") })
       .mockResolvedValue({ host: mockPendingWindowsHost("offline") });
 
-    const { user } = renderHostDetails({ currentUser: ADMIN, isGlobalAdmin: true });
+    const { user } = renderHostDetails({
+      currentUser: ADMIN,
+      isGlobalAdmin: true,
+    });
     await user.click(await screen.findByRole("button", { name: /refetch/i }));
     await waitFor(() => {
       expect(hostAPI.refetch).toHaveBeenCalled();
@@ -228,7 +240,9 @@ describe("HostDetailsPage - Show MDM commands toggle", () => {
   it("keeps the toggle on across a remount", async () => {
     stubQueries(mockAppleHost());
 
-    const { user, unmount } = renderHostDetails({ isMacMdmEnabledAndConfigured: true });
+    const { user, unmount } = renderHostDetails({
+      isMacMdmEnabledAndConfigured: true,
+    });
     const [toggle] = await screen.findAllByRole("switch");
     expect(toggle).not.toBeChecked();
     await user.click(toggle);
@@ -237,7 +251,9 @@ describe("HostDetailsPage - Show MDM commands toggle", () => {
     expect(local.getItem("hostDetailsShowMDMCommands")).toBe("true");
     unmount();
 
-    renderHostDetails({ isMacMdmEnabledAndConfigured: true });
+    renderHostDetails({
+      isMacMdmEnabledAndConfigured: true,
+    });
     await waitFor(() => {
       expect(screen.getAllByRole("switch")[0]).toBeChecked();
     });
