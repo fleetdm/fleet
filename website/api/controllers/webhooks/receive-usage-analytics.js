@@ -15,6 +15,7 @@ module.exports = {
     numUsers: { type: 'number', defaultsTo: 0 },
     numTeams: { type: 'number', defaultsTo: 0 },
     numPolicies: { type: 'number', defaultsTo: 0 },
+    numPoliciesAutomationEnabledSoftware: { type: 'number', defaultsTo: 0 },
     numLabels: { type: 'number', defaultsTo: 0 },
     softwareInventoryEnabled: { type: 'boolean', defaultsTo: false },
     vulnDetectionEnabled: { type: 'boolean', defaultsTo: false },
@@ -46,8 +47,10 @@ module.exports = {
     numHostsFleetDesktopEnabled: {type: 'number', defaultsTo: 0 },
     numQueries: {type: 'number', defaultsTo: 0 },
     numHostsABMPending: {type: 'number', defaultsTo: 0 },
-    fleetMaintainedAppsWindows: {type: ['string'], defaultsTo: [] },
-    fleetMaintainedAppsMacOS: {type: ['string'], defaultsTo: [] },
+    // Fleet servers before v4.93 send slug strings here, newer ones send
+    // {name, patchPolicy, softwareAutomation}; declaring either strictly fails the whole payload.
+    fleetMaintainedAppsWindows: {type: ['json'], defaultsTo: [] },
+    fleetMaintainedAppsMacOS: {type: ['json'], defaultsTo: [] },
     oktaConditionalAccessConfigured: {type: 'boolean', defaultsTo: false},
     entraConditionalAccessConfigured: {type: 'boolean', defaultsTo: false},
     conditionalAccessBypassDisabled: {type: 'boolean', defaultsTo: false},
