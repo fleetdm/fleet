@@ -33,6 +33,8 @@ org_settings:
         ios_fleet: "🧪 Testing & QA"
         ipados_fleet: "🧪 Testing & QA"
         byod_fleet: "🧪 Testing & QA"
+    windows_automatic_enrollment:
+      default_fleet: "💻 Workstations"
     volume_purchasing_program:
       - location: Fleet Device Management Inc.
         fleets:

@@ -1,0 +1,1 @@
+- Fixed Fleet discarding a host's stored disk encryption key when the agent reported a disk encryption error. Fleet now records the error and keeps the key it already has.

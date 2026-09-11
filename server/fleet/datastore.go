@@ -1395,8 +1395,16 @@ type Datastore interface {
 	// IsHostDiskEncryptionKeyArchived returns true if there is a disk encryption key archived
 	// for the given host ID.
 	IsHostDiskEncryptionKeyArchived(ctx context.Context, hostID uint) (bool, error)
-	IsHostPendingEscrow(ctx context.Context, hostID uint) bool
-	ClearPendingEscrow(ctx context.Context, hostID uint) error
+	// GetHostEscrowState reports whether a LUKS escrow request is queued for the host and how long
+	// ago the agent last showed activity on one in flight. A host with no row has the zero state.
+	GetHostEscrowState(ctx context.Context, hostID uint) (*HostEscrowState, error)
+	// MarkEscrowSentToAgent moves the queued escrow request to in flight: it clears the pending
+	// flag so the notification is delivered once, and stamps when the agent took it.
+	MarkEscrowSentToAgent(ctx context.Context, hostID uint) error
+	// SetEscrowInFlight records agent activity on an escrow request. With inFlight true it
+	// extends the in-flight state, but only for a host that is still in flight. With inFlight
+	// false it ends the state without recording a key or an error (dismissed or timed-out prompt).
+	SetEscrowInFlight(ctx context.Context, hostID uint, inFlight bool) error
 	ReportEscrowError(ctx context.Context, hostID uint, err string) error
 	QueueEscrow(ctx context.Context, hostID uint) error
 	AssertHasNoEncryptionKeyStored(ctx context.Context, hostID uint) error
@@ -1405,6 +1413,14 @@ type Datastore interface {
 	// associations that are close to expire and don't have a renewal in
 	// progress based on the provided arguments.
 	GetHostCertAssociationsToExpire(ctx context.Context, expiryDays, limit int) ([]SCEPIdentityAssociation, error)
+	// ExcludeHostCertAssociationsFromRenewal, marks each assocs row with renewal_excluded_at to avoid them being picked up and occupying the renew window.
+	ExcludeHostCertAssociationsFromRenewal(ctx context.Context, assocs []SCEPIdentityAssociation) error
+
+	// ClearCertRenewalExclusions clears all certificate renewal exclusions currently set in nano_cert_auth_associations,
+	// so they are picked up on the next run.
+	ClearCertRenewalExclusions(ctx context.Context) error
+	// ResetPendingCertRenewals actively cancels any in-flight certificate renewals.
+	ResetPendingCertRenewals(ctx context.Context) error
 
 	// GetDeviceInfoForACMERenewal retrieves the device information for ACMERenewal based on the provided host UUIDs.
 	GetDeviceInfoForACMERenewal(ctx context.Context, hostUUIDs []string) ([]DeviceInfoForACMERenewal, error)
@@ -2101,6 +2117,21 @@ type Datastore interface {
 	// to its host via pending_command_uuid. Returns notFound when no row matches.
 	GetManagedLocalAccountByPendingCommandUUID(ctx context.Context, commandUUID string) (host *Host, err error)
 
+	// InitiateWindowsManagedLocalAccountRotation records a rotation request on the host's current Windows MDM
+	// enrollment and clears auto_rotate_at in one transaction. A failed row may be rotated again. Returns
+	// ErrManagedLocalAccountRotationPending when a rotation is already outstanding, ErrManagedLocalAccountNotEligible
+	// when the row has no password, and notFound when the host has no managed local account row or no enrollment.
+	InitiateWindowsManagedLocalAccountRotation(ctx context.Context, hostUUID string) error
+
+	// InitiateWindowsManagedLocalAccountAutoRotation is the cron's variant of InitiateWindowsManagedLocalAccountRotation.
+	// It also returns ErrManagedLocalAccountNotEligible when the row is failed or its auto_rotate_at is not due, checked
+	// on the writer, so a row selected from a lagging replica is not retried.
+	InitiateWindowsManagedLocalAccountAutoRotation(ctx context.Context, hostUUID string) error
+
+	// GetWindowsManagedLocalAccountsForAutoRotation returns up to 100 Windows rows whose auto_rotate_at has elapsed,
+	// that have a password and a current enrollment with no request outstanding, and that are not failed.
+	GetWindowsManagedLocalAccountsForAutoRotation(ctx context.Context) ([]HostManagedLocalAccountWindowsRotationInfo, error)
+
 	// InsertMDMAppleBootstrapPackage insterts a new bootstrap package in the
 	// database (or S3 if configured).
 	InsertMDMAppleBootstrapPackage(ctx context.Context, bp *MDMAppleBootstrapPackage, pkgStore MDMBootstrapPackageStore) error
@@ -2437,9 +2468,9 @@ type Datastore interface {
 	// MDMWindowsInsertEnrolledDevice inserts a new MDMWindowsEnrolledDevice in the database
 	MDMWindowsInsertEnrolledDevice(ctx context.Context, device *MDMWindowsEnrolledDevice) error
 
-	// MDMWindowsDeleteEnrolledDeviceOnReenrollment deletes a given windows
-	// device enrollment entry from the database using the HW device id.
-	MDMWindowsDeleteEnrolledDeviceOnReenrollment(ctx context.Context, mdmDeviceHWID string) error
+	// MDMWindowsDeleteEnrolledDeviceOnReenrollment deletes a given windows device enrollment entry from the database using the HW
+	// device id. It returns the host uuid the deleted enrollment was linked to, which is empty when it was not linked to a host yet.
+	MDMWindowsDeleteEnrolledDeviceOnReenrollment(ctx context.Context, mdmDeviceHWID string) (string, error)
 
 	// MDMWindowsGetEnrolledDeviceWithDeviceID receives a Windows MDM device id and returns the device information
 	MDMWindowsGetEnrolledDeviceWithDeviceID(ctx context.Context, mdmDeviceID string) (*MDMWindowsEnrolledDevice, error)
@@ -2463,6 +2494,10 @@ type Datastore interface {
 	// created activity only when an account was really created. The flag is per-enrollment: re-enrolling deletes the row and so resets it.
 	SetMDMWindowsManagedLocalAccountEscrowed(ctx context.Context, hostUUID string, escrowed bool) (changed bool, err error)
 
+	// ClearMDMWindowsManagedLocalAccountRotationRequest retires an outstanding rotation request on the host's current
+	// Windows MDM enrollment and reports whether there was one.
+	ClearMDMWindowsManagedLocalAccountRotationRequest(ctx context.Context, hostUUID string) (cleared bool, err error)
+
 	// MDMWindowsGetEnrolledDeviceWithHostUUID returns the MDMWindowsEnrolledDevice information for a given HostUUID
 	MDMWindowsGetEnrolledDeviceWithHostUUID(ctx context.Context, hostUUID string) (*MDMWindowsEnrolledDevice, error)
 
@@ -2482,6 +2517,11 @@ type Datastore interface {
 	// MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerial returns the most recent unlinked (host_uuid = "") Windows
 	// MDM enrollment whose device-reported SMBIOS serial matches. Returns a NotFound error when there is none.
 	MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerial(ctx context.Context, hardwareSerial string) (*MDMWindowsEnrolledDevice, error)
+
+	// MDMWindowsConflictingEnrollmentHardwareID returns the mdm_hardware_id of an enrollment already linked to hostUUID
+	// that belongs to hardware other than mdmHardwareID, or "" when the host is unclaimed or claimed by this same
+	// hardware.
+	MDMWindowsConflictingEnrollmentHardwareID(ctx context.Context, hostUUID string, mdmHardwareID string) (conflicted bool, conflictingHardwareID string, err error)
 
 	// MDMWindowsClaimEnrolledActivity claims the right to record the mdm_enrolled activity for the given Windows MDM
 	// enrollment, returning true for the first caller only.
@@ -3855,9 +3895,6 @@ type Datastore interface {
 	GetHostIdentityCertByName(ctx context.Context, name string) (*types.HostIdentityCertificate, error)
 	// UpdateHostIdentityCertHostIDBySerial updates the host ID associated with a certificate using its serial number.
 	UpdateHostIdentityCertHostIDBySerial(ctx context.Context, serialNumber uint64, hostID uint) error
-	// GetMDMSCEPCertBySerial looks up an MDM SCEP certificate by serial number and returns the device UUID.
-	// This is used for iOS/iPadOS certificate-based authentication.
-	GetMDMSCEPCertBySerial(ctx context.Context, serialNumber uint64) (deviceUUID string, err error)
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// Conditional access certificates
@@ -4111,6 +4148,14 @@ type Datastore interface {
 	SetAppleOSUpdateTargetsAndResend(ctx context.Context, targets []*ComputedAppleSoftwareUpdateHost) error
 	// GetAppleOSUpdateHostByUUID retrieves stored Apple software update configuration for a given host by its UUID.
 	GetAppleOSUpdateHostByUUID(ctx context.Context, hostUUID string) (*AppleSoftwareUpdateHost, error)
+	// SetABMTokenDefault marks tokenID as the default ABM token and clears the
+	// flag on every other token. Returns a not-found error if tokenID doesn't exist.
+	SetABMTokenDefault(ctx context.Context, tokenID uint) error
+	// ClearABMTokenDefault clears the default flag. No-op when exactly one token
+	// exists, because a sole token is always default.
+	ClearABMTokenDefault(ctx context.Context) error
+	// SetABMTokenServerUUID stores Apple's server_uuid for the token.
+	SetABMTokenServerUUID(ctx context.Context, tokenID uint, serverUUID string) error
 }
 
 type AndroidDatastore interface {

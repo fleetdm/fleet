@@ -84,6 +84,7 @@ func TestPolicies(t *testing.T) {
 		{"TestPoliciesTeamPoliciesWithScript", testTeamPoliciesWithScript},
 		{"TestPoliciesTeamPoliciesWithResendProfile", testTeamPoliciesWithResendProfile},
 		{"TestPoliciesApplyPolicySpecsWithResendProfile", testApplyPolicySpecsWithResendProfile},
+		{"TestPoliciesApplyPolicySpecsWithScript", testApplyPolicySpecsWithScript},
 		{"TestPoliciesResendProfileRejectsFleetManaged", testPoliciesResendProfileRejectsFleetManaged},
 		{"TestPoliciesGetPoliciesWithAssociatedProfile", testGetPoliciesWithAssociatedProfile},
 		{"TestPoliciesApplyPolicySpecsResendProfileChangeResetsStats", testApplyPolicySpecsResendProfileChangeResetsStats},
@@ -5719,6 +5720,100 @@ func testApplyPolicySpecsWithResendProfile(t *testing.T, ds *Datastore) {
 	for _, c := range errCases {
 		t.Run(c.name, func(t *testing.T) {
 			err := ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{c.spec})
+			require.Error(t, err)
+			require.Contains(t, err.Error(), c.wantErrMsg)
+
+			// The rejected policy must not have been created.
+			var count int
+			err = ds.writer(ctx).GetContext(ctx, &count, `SELECT COUNT(*) FROM policies WHERE name = ?`, c.spec.Name)
+			require.NoError(t, err)
+			require.Zero(t, count)
+		})
+	}
+}
+
+func testApplyPolicySpecsWithScript(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	user := test.NewUser(t, ds, "Mercutio", "mercutio@example.com", true)
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team specs script"})
+	require.NoError(t, err)
+	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "other team specs script"})
+	require.NoError(t, err)
+
+	newScript := func(name string, teamID *uint) *fleet.Script {
+		script, err := ds.NewScript(ctx, &fleet.Script{
+			Name:           name,
+			ScriptContents: "echo",
+			TeamID:         teamID,
+		})
+		require.NoError(t, err)
+		return script
+	}
+	team1Script := newScript("specs-team1.sh", &team1.ID)
+	team2Script := newScript("specs-team2.sh", &team2.ID)
+	noTeamScript := newScript("specs-no-team.sh", nil)
+
+	spec := func(name, team string, scriptID *uint) *fleet.PolicySpec {
+		return &fleet.PolicySpec{
+			Name:     name,
+			Team:     team,
+			Query:    "SELECT 1;",
+			ScriptID: scriptID,
+		}
+	}
+
+	// A script on the same team, and a "No team" script on a "No team" policy, are accepted.
+	err = ds.ApplyPolicySpecs(ctx, user.ID, []*fleet.PolicySpec{
+		spec("team script", team1.Name, &team1Script.ID),
+		spec("no team script", "No team", &noTeamScript.ID),
+	})
+	require.NoError(t, err)
+
+	teamPolicies, _, err := ds.ListTeamPolicies(ctx, team1.ID, fleet.ListOptions{}, fleet.ListOptions{}, "", "")
+	require.NoError(t, err)
+	require.Len(t, teamPolicies, 1)
+	require.Equal(t, &team1Script.ID, teamPolicies[0].ScriptID)
+
+	noTeamPolicies, _, err := ds.ListTeamPolicies(ctx, 0, fleet.ListOptions{}, fleet.ListOptions{}, "", "")
+	require.NoError(t, err)
+	require.Len(t, noTeamPolicies, 1)
+	require.Equal(t, &noTeamScript.ID, noTeamPolicies[0].ScriptID)
+
+	// script_id: 0 clears the script on an existing policy.
+	err = ds.ApplyPolicySpecs(ctx, user.ID, []*fleet.PolicySpec{
+		spec("team script", team1.Name, new(uint(0))),
+	})
+	require.NoError(t, err)
+	cleared, err := ds.Policy(ctx, teamPolicies[0].ID)
+	require.NoError(t, err)
+	require.Nil(t, cleared.ScriptID)
+
+	errCases := []struct {
+		name       string
+		spec       *fleet.PolicySpec
+		wantErrMsg string
+	}{
+		{
+			name:       "script on a global policy is rejected",
+			spec:       spec("global script", "", &team1Script.ID),
+			wantErrMsg: errScriptIDOnGlobalPolicy.Error(),
+		},
+		{
+			name:       "script belonging to another team is rejected",
+			spec:       spec("cross team script", team1.Name, &team2Script.ID),
+			wantErrMsg: "does not belong to team ID",
+		},
+		{
+			name:       "nonexistent script is rejected",
+			spec:       spec("missing script", team1.Name, new(uint(999999))),
+			wantErrMsg: "does not exist",
+		},
+	}
+
+	for _, c := range errCases {
+		t.Run(c.name, func(t *testing.T) {
+			err := ds.ApplyPolicySpecs(ctx, user.ID, []*fleet.PolicySpec{c.spec})
 			require.Error(t, err)
 			require.Contains(t, err.Error(), c.wantErrMsg)
 

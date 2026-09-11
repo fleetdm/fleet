@@ -11,17 +11,19 @@ import (
 
 // ListNanoEnrollmentIDsForAPNsSweep walks enabled nano_enrollments in primary
 // key order, one bounded page per call. The inner page bounds the scan; the
-// EXISTS marks eligibility without multiplying page rows (hosts.uuid is not
-// unique — cloned VMs — so a join would corrupt the page length that pageFull
-// is computed from; when duplicates disagree on MDM state, any enrolled one
-// counts, which errs on the side of a spurious idempotent nudge). Both device
-// and user channels are walked: user-channel rows carry device_id too, so
-// they resolve to their host the same way.
+// seen-time lookup is a primary-key join and the EXISTS marks eligibility, so
+// neither multiplies page rows (hosts.uuid is not unique — cloned VMs — so a
+// hosts join would corrupt the page length that pageFull is computed from;
+// when duplicates disagree on MDM state, any enrolled one counts, which errs
+// on the side of a spurious idempotent nudge). An enrollment with no seen-time
+// row has never been heard from, so it counts as silent for the same reason.
+// Both device and user channels are walked: user-channel rows carry device_id
+// too, so they resolve to their host the same way.
 func (ds *Datastore) ListNanoEnrollmentIDsForAPNsSweep(ctx context.Context, afterID string, batchSize int, silentFor time.Duration) ([]string, string, bool, error) {
 	stmt := `
 SELECT
     page.id,
-    (page.last_seen_at < DATE_SUB(NOW(), INTERVAL ? SECOND)
+    (COALESCE(nst.seen_time < DATE_SUB(NOW(), INTERVAL ? SECOND), TRUE)
      AND EXISTS (
          SELECT 1
          FROM hosts h
@@ -29,12 +31,13 @@ SELECT
          WHERE h.uuid = page.device_id
      )) AS eligible
 FROM (
-    SELECT ne.id, ne.device_id, ne.last_seen_at
+    SELECT ne.id, ne.device_id
     FROM nano_enrollments ne
     WHERE ne.enabled = 1 AND ne.id > ?
     ORDER BY ne.id
     LIMIT ?
 ) page
+LEFT JOIN nano_seen_times nst ON nst.id = page.id
 ORDER BY page.id`
 
 	var rows []struct {
