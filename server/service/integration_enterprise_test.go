@@ -28999,8 +28999,10 @@ func (s *integrationEnterpriseTestSuite) TestFMAAutoUpdateCron() {
 	setPin := func(teamID, titleID uint, pin string) {
 		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			_, err := q.ExecContext(ctx,
-				`INSERT INTO software_title_team_pins (team_id, title_id, pinned_version) VALUES (?, ?, ?)
-				 ON DUPLICATE KEY UPDATE pinned_version = VALUES(pinned_version)`, teamID, titleID, pin)
+				`INSERT INTO software_title_team_pins (team_id, title_id, fleet_maintained_app_id, pinned_version)
+				 SELECT ?, ?, fleet_maintained_app_id, ? FROM software_installers
+				 WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id IS NOT NULL LIMIT 1
+				 ON DUPLICATE KEY UPDATE pinned_version = VALUES(pinned_version)`, teamID, titleID, pin, teamID, titleID)
 			return err
 		})
 	}

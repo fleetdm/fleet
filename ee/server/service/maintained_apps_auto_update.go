@@ -75,7 +75,7 @@ func autoUpdateOneFleetMaintainedApp(
 	c fleet.FMAAutoUpdateCandidate,
 	manifests map[string]*manifestEntry,
 ) error {
-	pinned, err := ds.GetPinnedVersion(ctx, c.TeamID, c.TitleID)
+	pinned, err := ds.GetPinnedVersion(ctx, c.TeamID, c.TitleID, c.FleetMaintainedAppID)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return ctxerr.Wrap(ctx, err, "getting pinned version")
 	}
@@ -113,7 +113,7 @@ func autoUpdateOneFleetMaintainedApp(
 func promoteFleetMaintainedApp(ctx context.Context, ds fleet.Datastore, logger *slog.Logger, c fleet.FMAAutoUpdateCandidate, pin string, publishedVersion string) error {
 	// Cached versions, most recently downloaded first. This runs on every pass, not just
 	// after a download, so the first entry decides which version stays active.
-	versions, err := ds.GetFleetMaintainedVersionsByTitleID(ctx, c.TeamID, c.TitleID)
+	versions, err := ds.GetFleetMaintainedVersionsByTitleID(ctx, c.TeamID, c.TitleID, c.FleetMaintainedAppID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "getting cached versions")
 	}

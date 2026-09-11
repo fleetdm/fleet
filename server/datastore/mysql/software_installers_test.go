@@ -72,6 +72,7 @@ func TestSoftwareInstallers(t *testing.T) {
 		{"GetSoftwareInstallerMetadataByStorageID", testGetSoftwareInstallerMetadataByStorageID},
 		{"SoftwareTitlePins", testSoftwareTitlePins},
 		{"SetFleetMaintainedAppActiveInstallerPin", testSetFleetMaintainedAppActiveInstallerPin},
+		{"FleetMaintainedAppsPerArchOnSharedTitle", testFleetMaintainedAppsPerArchOnSharedTitle},
 		{"RepointCustomPackagePolicyToNewInstaller", testRepointPolicyToNewInstaller},
 		{"CustomToFMAInstallerReplacement", testCustomToFMAInstallerReplacement},
 		{"GetInstallerByTeamAndURL", testGetInstallerByTeamAndURL},
@@ -5526,8 +5527,8 @@ func testInsertFleetMaintainedAppVersion(t *testing.T, ds *Datastore) {
 	// setup experience so we can assert the flag is carried forward.
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		if _, err := q.ExecContext(ctx,
-			`INSERT INTO software_title_team_pins (team_id, title_id, pinned_version) VALUES (?, ?, ?)`,
-			team.ID, titleID, "^1"); err != nil {
+			`INSERT INTO software_title_team_pins (team_id, title_id, fleet_maintained_app_id, pinned_version) VALUES (?, ?, ?, ?)`,
+			team.ID, titleID, maintainedApp.ID, "^1"); err != nil {
 			return err
 		}
 		_, err := q.ExecContext(ctx, `UPDATE software_installers SET install_during_setup = 1 WHERE id = ?`, activeID)
@@ -5593,7 +5594,7 @@ func testInsertFleetMaintainedAppVersion(t *testing.T, ds *Datastore) {
 	require.Equal(t, 1, labelCount)
 
 	// Pin untouched.
-	pin, err := ds.GetPinnedVersion(ctx, &team.ID, titleID)
+	pin, err := ds.GetPinnedVersion(ctx, &team.ID, titleID, maintainedApp.ID)
 	require.NoError(t, err)
 	require.NotNil(t, pin)
 	require.Equal(t, "^1", *pin)
@@ -7191,36 +7192,36 @@ func testSoftwareTitlePins(t *testing.T, ds *Datastore) {
 	otherTeam := new(uint(42))
 
 	// No row -> not found; the caller treats this as "Latest".
-	_, err = ds.GetPinnedVersion(ctx, noTeam, titleID)
+	_, err = ds.GetPinnedVersion(ctx, noTeam, titleID, fma.ID)
 	require.ErrorIs(t, err, sql.ErrNoRows)
 
 	// A literal pin round-trips.
-	require.NoError(t, ds.SetPinnedVersion(ctx, noTeam, titleID, "1.0"))
-	pin, err := ds.GetPinnedVersion(ctx, noTeam, titleID)
+	require.NoError(t, ds.SetPinnedVersion(ctx, noTeam, titleID, fma.ID, "1.0"))
+	pin, err := ds.GetPinnedVersion(ctx, noTeam, titleID, fma.ID)
 	require.NoError(t, err)
 	require.Equal(t, new("1.0"), pin)
 
 	// Upsert overwrites in place (literal -> caret).
-	require.NoError(t, ds.SetPinnedVersion(ctx, noTeam, titleID, "^1"))
-	pin, err = ds.GetPinnedVersion(ctx, noTeam, titleID)
+	require.NoError(t, ds.SetPinnedVersion(ctx, noTeam, titleID, fma.ID, "^1"))
+	pin, err = ds.GetPinnedVersion(ctx, noTeam, titleID, fma.ID)
 	require.NoError(t, err)
 	require.Equal(t, new("^1"), pin)
 
 	// A different team's pin on the same title is independent.
-	require.NoError(t, ds.SetPinnedVersion(ctx, otherTeam, titleID, "2.0"))
-	pin, err = ds.GetPinnedVersion(ctx, otherTeam, titleID)
+	require.NoError(t, ds.SetPinnedVersion(ctx, otherTeam, titleID, fma.ID, "2.0"))
+	pin, err = ds.GetPinnedVersion(ctx, otherTeam, titleID, fma.ID)
 	require.NoError(t, err)
 	require.Equal(t, new("2.0"), pin)
-	pin, err = ds.GetPinnedVersion(ctx, noTeam, titleID)
+	pin, err = ds.GetPinnedVersion(ctx, noTeam, titleID, fma.ID)
 	require.NoError(t, err)
 	require.Equal(t, new("^1"), pin)
 
 	// Deleting one team's pin leaves the other intact; deleting again is a no-op.
-	require.NoError(t, ds.DeletePinnedVersion(ctx, noTeam, titleID))
-	_, err = ds.GetPinnedVersion(ctx, noTeam, titleID)
+	require.NoError(t, ds.DeletePinnedVersion(ctx, noTeam, titleID, fma.ID))
+	_, err = ds.GetPinnedVersion(ctx, noTeam, titleID, fma.ID)
 	require.ErrorIs(t, err, sql.ErrNoRows)
-	require.NoError(t, ds.DeletePinnedVersion(ctx, noTeam, titleID))
-	pin, err = ds.GetPinnedVersion(ctx, otherTeam, titleID)
+	require.NoError(t, ds.DeletePinnedVersion(ctx, noTeam, titleID, fma.ID))
+	pin, err = ds.GetPinnedVersion(ctx, otherTeam, titleID, fma.ID)
 	require.NoError(t, err)
 	require.Equal(t, new("2.0"), pin)
 }
@@ -7258,7 +7259,7 @@ func testSetFleetMaintainedAppActiveInstallerPin(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// GetFleetMaintainedVersionsByTitleID returns each cached version's own filename.
-	fmaVersions, err := ds.GetFleetMaintainedVersionsByTitleID(ctx, nil, titleID)
+	fmaVersions, err := ds.GetFleetMaintainedVersionsByTitleID(ctx, nil, titleID, fma.ID)
 	require.NoError(t, err)
 	gotFilenames := map[string]string{}
 	for _, fv := range fmaVersions {
@@ -7291,7 +7292,7 @@ func testSetFleetMaintainedAppActiveInstallerPin(t *testing.T, ds *Datastore) {
 	patchPolicy, err = ds.Policy(ctx, patchPolicy.ID)
 	require.NoError(t, err)
 	require.Equal(t, v1Query, patchPolicy.Query)
-	pin, err := ds.GetPinnedVersion(ctx, nil, titleID)
+	pin, err := ds.GetPinnedVersion(ctx, nil, titleID, fma.ID)
 	require.NoError(t, err)
 	require.Equal(t, new("^1"), pin)
 
@@ -7322,7 +7323,7 @@ func testSetFleetMaintainedAppActiveInstallerPin(t *testing.T, ds *Datastore) {
 	patchPolicy, err = ds.Policy(ctx, patchPolicy.ID)
 	require.NoError(t, err)
 	require.Equal(t, v2Query, patchPolicy.Query)
-	pin, err = ds.GetPinnedVersion(ctx, nil, titleID)
+	pin, err = ds.GetPinnedVersion(ctx, nil, titleID, fma.ID)
 	require.NoError(t, err)
 	require.Equal(t, new("^1"), pin) // unchanged
 	// The query changed on the flip, so the policy's stale results were cleared.
@@ -7336,7 +7337,7 @@ func testSetFleetMaintainedAppActiveInstallerPin(t *testing.T, ds *Datastore) {
 	patchPolicy, err = ds.Policy(ctx, patchPolicy.ID)
 	require.NoError(t, err)
 	require.Equal(t, v1Query, patchPolicy.Query)
-	_, err = ds.GetPinnedVersion(ctx, nil, titleID)
+	_, err = ds.GetPinnedVersion(ctx, nil, titleID, fma.ID)
 	require.ErrorIs(t, err, sql.ErrNoRows)
 }
 
@@ -8090,4 +8091,148 @@ VALUES `+strings.Join(placeholders, ","), args...)
 	deepTouched := countFilteredTo(deepTeam, deepHosts)
 	require.Less(t, deepTouched, int64(6*titleRows),
 		"must not rescan a host's install history once per row of that history")
+}
+
+// A Windows title can hold the x64 and ARM64 builds of one app as two Fleet-maintained
+// apps. Versions, the active row, pins, and policies must all stay scoped to their own
+// FMA so flipping one build never touches the other.
+func testFleetMaintainedAppsPerArchOnSharedTitle(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+
+	x64, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name: "Mozilla Firefox Nightly", Slug: "firefox@nightly/windows", Platform: "windows", UniqueIdentifier: "Firefox Nightly", Arch: "x64",
+	})
+	require.NoError(t, err)
+	arm, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name: "Mozilla Firefox Nightly (ARM64)", Slug: "firefox@nightly-arm64/windows", Platform: "windows", UniqueIdentifier: "Firefox Nightly", Arch: "arm64",
+	})
+	require.NoError(t, err)
+
+	const patchQueryFmt = "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Firefox Nightly' AND version_compare(version, '%s') < 0);"
+	add := func(app *fleet.MaintainedApp, storage, version string) (uint, uint) {
+		tfr, err := fleet.NewTempFileReader(strings.NewReader(storage), t.TempDir)
+		require.NoError(t, err)
+		id, titleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+			Title: "Firefox Nightly", Source: "programs", Platform: "windows", Extension: "msix",
+			InstallScript: "echo install", UninstallScript: "echo uninstall",
+			InstallerFile: tfr, StorageID: storage, Filename: storage + ".msix", Version: version,
+			UserID: user.ID, ValidatedLabels: &fleet.LabelIdentsWithScope{},
+			FleetMaintainedAppID: &app.ID, Arch: app.Arch, PatchQuery: fmt.Sprintf(patchQueryFmt, version),
+		})
+		require.NoError(t, err)
+		return id, titleID
+	}
+	x64v1, titleID := add(x64, "x64-158", "158.0")
+	// Same title and version as the x64 build: the dedup key includes the architecture.
+	armv1, armTitleID := add(arm, "arm-158", "158.0")
+	require.Equal(t, titleID, armTitleID)
+
+	type row struct {
+		ID     uint   `db:"id"`
+		Active bool   `db:"is_active"`
+		Arch   string `db:"arch"`
+	}
+	rowsByID := func() map[uint]row {
+		var rows []row
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, q, &rows, `SELECT id, is_active, arch FROM software_installers WHERE title_id = ? AND global_or_team_id = 0`, titleID)
+		})
+		out := make(map[uint]row, len(rows))
+		for _, r := range rows {
+			out[r.ID] = r
+		}
+		return out
+	}
+	rows := rowsByID()
+	require.Equal(t, row{ID: x64v1, Active: true, Arch: "x64"}, rows[x64v1])
+	require.Equal(t, row{ID: armv1, Active: true, Arch: "arm64"}, rows[armv1])
+
+	// Each build gets its own automatic-install policy name.
+	var policyNames []string
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(ctx, q, &policyNames, `SELECT name FROM policies WHERE software_installer_id IN (?, ?) ORDER BY name`, x64v1, armv1)
+	})
+	require.Empty(t, policyNames) // no automatic install requested above
+	armPolicy, err := ds.NewTeamPolicy(ctx, 0, &user.ID, fleet.PolicyPayload{
+		Name: "[Install software] Firefox Nightly (ARM64)", Query: "SELECT 1;", Platform: "windows", SoftwareInstallerID: &armv1,
+	})
+	require.NoError(t, err)
+	// The title's patch policy follows the first-added build (x64).
+	patchPolicy, err := ds.NewTeamPolicy(ctx, 0, &user.ID, fleet.PolicyPayload{Type: fleet.PolicyTypePatch, PatchSoftwareTitleID: &titleID})
+	require.NoError(t, err)
+	require.Equal(t, fmt.Sprintf(patchQueryFmt, "158.0"), patchPolicy.Query)
+
+	// Cached versions are per FMA: the x64 cache never lists the ARM64 row.
+	x64v2, err := ds.InsertFleetMaintainedAppVersion(ctx, x64v1, &fleet.UploadSoftwareInstallerPayload{
+		Version: "159.0", StorageID: "x64-159", Filename: "x64-159.msix", Extension: "msix",
+		InstallScript: "echo install", UninstallScript: "echo uninstall", PatchQuery: fmt.Sprintf(patchQueryFmt, "159.0"),
+	})
+	require.NoError(t, err)
+	versionIDs := func(app *fleet.MaintainedApp) []uint {
+		versions, err := ds.GetFleetMaintainedVersionsByTitleID(ctx, nil, titleID, app.ID)
+		require.NoError(t, err)
+		ids := make([]uint, 0, len(versions))
+		for _, v := range versions {
+			ids = append(ids, v.ID)
+		}
+		return ids
+	}
+	require.ElementsMatch(t, []uint{x64v1, x64v2}, versionIDs(x64))
+	require.Equal(t, []uint{armv1}, versionIDs(arm))
+	rows = rowsByID()
+	require.Equal(t, row{ID: x64v2, Active: false, Arch: "x64"}, rows[x64v2], "clone keeps the source arch")
+
+	// Promoting the x64 build flips only x64 rows and re-points only x64 policies.
+	require.NoError(t, ds.SetFleetMaintainedAppActiveInstaller(ctx, &fleet.UpdateSoftwareInstallerPayload{TitleID: titleID, PinnedVersion: new("^159")}, x64v2))
+	rows = rowsByID()
+	require.False(t, rows[x64v1].Active)
+	require.True(t, rows[x64v2].Active)
+	require.True(t, rows[armv1].Active, "the ARM64 build must stay active")
+	patchPolicy, err = ds.Policy(ctx, patchPolicy.ID)
+	require.NoError(t, err)
+	require.Equal(t, fmt.Sprintf(patchQueryFmt, "159.0"), patchPolicy.Query)
+	armPolicy, err = ds.Policy(ctx, armPolicy.ID)
+	require.NoError(t, err)
+	require.Equal(t, armv1, *armPolicy.SoftwareInstallerID, "the ARM64 policy must not be re-pointed")
+
+	// Pins are per FMA.
+	pin, err := ds.GetPinnedVersion(ctx, nil, titleID, x64.ID)
+	require.NoError(t, err)
+	require.Equal(t, "^159", *pin)
+	_, err = ds.GetPinnedVersion(ctx, nil, titleID, arm.ID)
+	require.ErrorIs(t, err, sql.ErrNoRows)
+	require.NoError(t, ds.SetPinnedVersion(ctx, nil, titleID, arm.ID, "158.0"))
+	pin, err = ds.GetPinnedVersion(ctx, nil, titleID, x64.ID)
+	require.NoError(t, err)
+	require.Equal(t, "^159", *pin)
+	require.NoError(t, ds.DeletePinnedVersion(ctx, nil, titleID, arm.ID))
+	pin, err = ds.GetPinnedVersion(ctx, nil, titleID, x64.ID)
+	require.NoError(t, err)
+	require.Equal(t, "^159", *pin)
+
+	// Promoting a new ARM64 version at the same version string as x64 is allowed and
+	// leaves the x64 build and the title's patch policy alone.
+	armv2, err := ds.InsertFleetMaintainedAppVersion(ctx, armv1, &fleet.UploadSoftwareInstallerPayload{
+		Version: "159.0", StorageID: "arm-159", Filename: "arm-159.msix", Extension: "msix",
+		InstallScript: "echo install", UninstallScript: "echo uninstall", PatchQuery: fmt.Sprintf(patchQueryFmt, "159.0"),
+	})
+	require.NoError(t, err)
+	require.NoError(t, ds.SetFleetMaintainedAppActiveInstaller(ctx, &fleet.UpdateSoftwareInstallerPayload{TitleID: titleID, PinnedVersion: new("")}, armv2))
+	rows = rowsByID()
+	require.Equal(t, row{ID: armv2, Active: true, Arch: "arm64"}, rows[armv2])
+	require.False(t, rows[armv1].Active)
+	require.True(t, rows[x64v2].Active, "the x64 build must stay active")
+	require.False(t, rows[x64v1].Active)
+	patchPolicy, err = ds.Policy(ctx, patchPolicy.ID)
+	require.NoError(t, err)
+	require.Equal(t, fmt.Sprintf(patchQueryFmt, "159.0"), patchPolicy.Query, "the ARM64 flip must not regenerate the x64 patch policy")
+	armPolicy, err = ds.Policy(ctx, armPolicy.ID)
+	require.NoError(t, err)
+	require.Equal(t, armv2, *armPolicy.SoftwareInstallerID)
+	require.ElementsMatch(t, []uint{x64v1, x64v2}, versionIDs(x64))
+	require.ElementsMatch(t, []uint{armv1, armv2}, versionIDs(arm))
+
+	// Promoting a custom package row is refused.
+	require.Error(t, ds.SetFleetMaintainedAppActiveInstaller(ctx, &fleet.UpdateSoftwareInstallerPayload{TitleID: titleID}, 999999))
 }

@@ -784,7 +784,7 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 		}
 
 		// Latest takes the most recently downloaded, not highest version string.
-		versions, err := svc.ds.GetFleetMaintainedVersionsByTitleID(ctx, payload.TeamID, payload.TitleID)
+		versions, err := svc.ds.GetFleetMaintainedVersionsByTitleID(ctx, payload.TeamID, payload.TitleID, *existingInstaller.FleetMaintainedAppID)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "getting Fleet-maintained app versions")
 		}
@@ -1340,7 +1340,7 @@ func (svc *Service) deleteSoftwareInstaller(ctx context.Context, meta *fleet.Sof
 		// delete them.  GetFleetMaintainedVersionsByTitleID queries the live DB, so
 		// it will not return the row we just deleted.
 		if meta.TitleID != nil {
-			cachedVersions, err := svc.ds.GetFleetMaintainedVersionsByTitleID(ctx, meta.TeamID, *meta.TitleID)
+			cachedVersions, err := svc.ds.GetFleetMaintainedVersionsByTitleID(ctx, meta.TeamID, *meta.TitleID, *meta.FleetMaintainedAppID)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "getting cached FMA versions for cleanup")
 			}
@@ -1349,10 +1349,10 @@ func (svc *Service) deleteSoftwareInstaller(ctx context.Context, meta *fleet.Sof
 					return ctxerr.Wrap(ctx, err, "deleting cached FMA version")
 				}
 			}
-			// The pin row is keyed by (team, title) and is not cascade-deleted when
-			// installer rows go away (only when the title row is deleted), so clear
+			// The pin row is keyed by (team, title, FMA) and is not cascade-deleted when
+			// installer rows go away (only when the title or FMA row is deleted), so clear
 			// it explicitly to avoid a stale pin surviving a delete + re-add.
-			if err := svc.ds.DeletePinnedVersion(ctx, meta.TeamID, *meta.TitleID); err != nil {
+			if err := svc.ds.DeletePinnedVersion(ctx, meta.TeamID, *meta.TitleID, *meta.FleetMaintainedAppID); err != nil {
 				return ctxerr.Wrap(ctx, err, "deleting pinned version after FMA removal")
 			}
 		}
@@ -3103,7 +3103,7 @@ func (svc *Service) softwareInstallerPayloadFromSlug(ctx context.Context, payloa
 			if app.TitleID == nil {
 				return fleet.NewUserMessageError(errMajorVersionNotFound, http.StatusNotFound)
 			}
-			versions, err := svc.ds.GetFleetMaintainedVersionsByTitleID(ctx, teamID, *app.TitleID)
+			versions, err := svc.ds.GetFleetMaintainedVersionsByTitleID(ctx, teamID, *app.TitleID, app.ID)
 			if err != nil {
 				return fleet.NewUserMessageError(errMajorVersionNotFound, http.StatusNotFound)
 			}
@@ -3797,6 +3797,7 @@ func (svc *Service) softwareBatchUpload(
 				installer.BundleIdentifier = p.MaintainedApp.BundleIdentifier()
 				installer.StorageID = p.MaintainedApp.SHA256
 				installer.FleetMaintainedAppID = &p.MaintainedApp.ID
+				installer.Arch = p.MaintainedApp.Arch
 				installer.PatchQuery = p.MaintainedApp.PatchQuery
 				installer.AppOpenQuery = p.MaintainedApp.AppOpenQuery
 			}

@@ -22,6 +22,7 @@ type appListing struct {
 	Slug             string `json:"slug"`
 	Platform         string `json:"platform"`
 	UniqueIdentifier string `json:"unique_identifier"`
+	Arch             string `json:"arch"`
 }
 
 type AppsList struct {
@@ -143,6 +144,7 @@ func upsertMaintainedApps(ctx context.Context, appsList *AppsList, ds fleet.Data
 			Slug:             app.Slug,
 			Platform:         app.Platform,
 			UniqueIdentifier: app.UniqueIdentifier,
+			Arch:             app.Arch,
 		}); err != nil {
 			return ctxerr.Wrap(ctx, err, "upsert maintained app")
 		}

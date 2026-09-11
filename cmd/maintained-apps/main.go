@@ -176,6 +176,7 @@ func updateAppsListFile(ctx context.Context, outApp *maintained_apps.FMAManifest
 			Slug:             outApp.Slug,
 			Platform:         platform,
 			UniqueIdentifier: outApp.UniqueIdentifier,
+			Arch:             outApp.InstallerArch,
 		})
 
 		// Keep existing order

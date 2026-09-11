@@ -203,11 +203,23 @@ func testTeamsGetSetDelete(t *testing.T, ds *Datastore) {
 					return err
 				}
 
+				fmaRes, err := q.ExecContext(
+					context.Background(),
+					"INSERT INTO fleet_maintained_apps (name, slug, platform, unique_identifier) VALUES (?, ?, 'darwin', ?)",
+					fmt.Sprintf("MyCoolApp_%s", tt.name),
+					fmt.Sprintf("mycoolapp-%s/darwin", tt.name),
+					fmt.Sprintf("com.mycoolapp.%s", tt.name),
+				)
+				if err != nil {
+					return err
+				}
+				fmaID, _ := fmaRes.LastInsertId()
 				_, err = q.ExecContext(
 					context.Background(),
-					"INSERT INTO software_title_team_pins (team_id, title_id, pinned_version) VALUES (?, ?, ?)",
+					"INSERT INTO software_title_team_pins (team_id, title_id, fleet_maintained_app_id, pinned_version) VALUES (?, ?, ?, ?)",
 					team.ID,
 					titleID,
+					fmaID,
 					"^1",
 				)
 				if err != nil {

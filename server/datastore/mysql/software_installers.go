@@ -330,8 +330,9 @@ INSERT INTO software_installers (
 	patch_query,
 	app_open_query,
 	install_script_edited,
-	uninstall_script_edited
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT name FROM users WHERE id = ?), (SELECT email FROM users WHERE id = ?), ?, ?, ?, ?, ?, ?, ?, ?)`
+	uninstall_script_edited,
+	arch
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT name FROM users WHERE id = ?), (SELECT email FROM users WHERE id = ?), ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 
 		args := []interface{}{
 			tid,
@@ -359,6 +360,7 @@ INSERT INTO software_installers (
 			payload.AppOpenQuery,
 			payload.InstallScriptEdited,
 			payload.UninstallScriptEdited,
+			payload.Arch,
 		}
 
 		res, err := tx.ExecContext(ctx, stmt, args...)
@@ -394,6 +396,7 @@ INSERT INTO software_installers (
 					Title:    payload.Title,
 					Platform: payload.Platform,
 					Query:    payload.AutomaticInstallQuery,
+					Arch:     payload.Arch,
 				}
 			} else {
 				installerMetadata = automatic_policy.FullInstallerMetadata{
@@ -706,14 +709,26 @@ func (ds *Datastore) SetFleetMaintainedAppActiveInstaller(ctx context.Context, p
 	tmID := ptr.ValOrZero(payload.TeamID)
 
 	var affectedHostIDs []uint
+	// A Windows title can hold one FMA per architecture, so every flip below is
+	// scoped to the target installer's FMA rather than the whole title.
+	var fmaID uint
 	if err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		switch err := sqlx.GetContext(ctx, tx, &fmaID, `
+			SELECT fleet_maintained_app_id FROM software_installers
+			WHERE id = ? AND fleet_maintained_app_id IS NOT NULL`, activeInstallerID); {
+		case errors.Is(err, sql.ErrNoRows):
+			return ctxerr.Errorf(ctx, "installer %d is not a fleet-maintained app", activeInstallerID)
+		case err != nil:
+			return ctxerr.Wrap(ctx, err, "getting fleet-maintained app of installer")
+		}
+
 		// Capture the currently-active installer before flipping so installs queued
 		// against it can be redirected to the new active version in the same transaction.
 		var previousActiveID uint
 		switch err := sqlx.GetContext(ctx, tx, &previousActiveID, `
 			SELECT id FROM software_installers
-			WHERE global_or_team_id = ? AND title_id = ? AND is_active = 1
-			LIMIT 1 FOR UPDATE`, tmID, payload.TitleID); {
+			WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id = ? AND is_active = 1
+			LIMIT 1 FOR UPDATE`, tmID, payload.TitleID, fmaID); {
 		case errors.Is(err, sql.ErrNoRows):
 			// No active row yet (nothing to redirect away from).
 		case err != nil:
@@ -723,8 +738,8 @@ func (ds *Datastore) SetFleetMaintainedAppActiveInstaller(ctx context.Context, p
 		if _, err := tx.ExecContext(ctx, `
 			UPDATE software_installers
 			SET is_active = (id = ?)
-			WHERE global_or_team_id = ? AND title_id = ?
-		`, activeInstallerID, tmID, payload.TitleID); err != nil {
+			WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id = ?
+		`, activeInstallerID, tmID, payload.TitleID, fmaID); err != nil {
 			return ctxerr.Wrap(ctx, err, "setting active fleet-maintained app installer")
 		}
 
@@ -732,9 +747,9 @@ func (ds *Datastore) SetFleetMaintainedAppActiveInstaller(ctx context.Context, p
 			UPDATE policies SET software_installer_id = ?
 			WHERE software_installer_id IN (
 				SELECT id FROM software_installers
-				WHERE global_or_team_id = ? AND title_id = ? AND id != ?
+				WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id = ? AND id != ?
 			)
-		`, activeInstallerID, tmID, payload.TitleID, activeInstallerID); err != nil {
+		`, activeInstallerID, tmID, payload.TitleID, fmaID, activeInstallerID); err != nil {
 			return ctxerr.Wrap(ctx, err, "re-pointing policies to active fleet-maintained app installer")
 		}
 
@@ -754,10 +769,10 @@ func (ds *Datastore) SetFleetMaintainedAppActiveInstaller(ctx context.Context, p
 			return nil
 		}
 		if *payload.PinnedVersion == "" {
-			if err := deletePinnedVersionDB(ctx, tx, tmID, payload.TitleID); err != nil {
+			if err := deletePinnedVersionDB(ctx, tx, tmID, payload.TitleID, fmaID); err != nil {
 				return ctxerr.Wrap(ctx, err, "clearing Fleet-maintained app pin")
 			}
-		} else if err := setPinnedVersionDB(ctx, tx, tmID, payload.TitleID, *payload.PinnedVersion); err != nil {
+		} else if err := setPinnedVersionDB(ctx, tx, tmID, payload.TitleID, fmaID, *payload.PinnedVersion); err != nil {
 			return ctxerr.Wrap(ctx, err, "pinning Fleet-maintained app version")
 		}
 
@@ -767,6 +782,8 @@ func (ds *Datastore) SetFleetMaintainedAppActiveInstaller(ctx context.Context, p
 	}
 
 	// Regenerate the patch policy query for the newly-active installer, if one exists.
+	// A title's single patch policy follows the FMA that was added to it first, so a
+	// flip of another FMA on the same Windows title leaves the query alone.
 	patchPolicy, err := ds.GetPatchPolicy(ctx, payload.TeamID, payload.TitleID)
 	switch {
 	case fleet.IsNotFound(err):
@@ -774,6 +791,13 @@ func (ds *Datastore) SetFleetMaintainedAppActiveInstaller(ctx context.Context, p
 	case err != nil:
 		return ctxerr.Wrap(ctx, err, "getting patch policy")
 	default:
+		patchFMAID, err := ds.patchPolicyFMAID(ctx, tmID, payload.TitleID)
+		if err != nil {
+			return err
+		}
+		if patchFMAID != fmaID {
+			break
+		}
 		activeInstaller, err := ds.GetSoftwareInstallerMetadataByTeamTitleAndInstallerID(ctx, payload.TeamID, payload.TitleID, activeInstallerID, false)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "getting active installer for patch policy")
@@ -796,6 +820,26 @@ func (ds *Datastore) SetFleetMaintainedAppActiveInstaller(ctx context.Context, p
 	// datastore's own connection), mirroring ProcessInstallerUpdateSideEffects.
 	_, err = ds.activateNextUpcomingActivityForBatchOfHosts(ctx, affectedHostIDs)
 	return err
+}
+
+// patchPolicyFMAIDStmt resolves the Fleet-maintained app a title's patch policy follows:
+// the one whose installer was added to the title first. Inactive rows count, so version
+// churn on either app can't move the policy between the x64 and ARM64 builds.
+const patchPolicyFMAIDStmt = `
+	SELECT fleet_maintained_app_id FROM software_installers
+	WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id IS NOT NULL
+	ORDER BY id ASC LIMIT 1`
+
+func (ds *Datastore) patchPolicyFMAID(ctx context.Context, globalOrTeamID, titleID uint) (uint, error) {
+	var fmaID uint
+	err := sqlx.GetContext(ctx, ds.writer(ctx), &fmaID, patchPolicyFMAIDStmt, globalOrTeamID, titleID)
+	switch {
+	case errors.Is(err, sql.ErrNoRows):
+		return 0, nil
+	case err != nil:
+		return 0, ctxerr.Wrap(ctx, err, "resolving the fleet-maintained app of the patch policy")
+	}
+	return fmaID, nil
 }
 
 // redirectPendingInstallsToActiveInstaller moves installs queued against a superseded
@@ -918,15 +962,20 @@ func (ds *Datastore) InsertFleetMaintainedAppVersion(ctx context.Context, active
 	// Read the scope (team, title) from the active installer so the cron
 	// doesn't need to pass them and they always agree with the row being cloned.
 	var src struct {
-		TitleID        uint `db:"title_id"`
-		GlobalOrTeamID uint `db:"global_or_team_id"`
+		TitleID        uint  `db:"title_id"`
+		GlobalOrTeamID uint  `db:"global_or_team_id"`
+		FMAID          *uint `db:"fleet_maintained_app_id"`
 	}
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &src,
-		`SELECT title_id, global_or_team_id FROM software_installers WHERE id = ?`,
+		`SELECT title_id, global_or_team_id, fleet_maintained_app_id FROM software_installers WHERE id = ?`,
 		activeInstallerID,
 	); err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "load active installer scope")
 	}
+	if src.FMAID == nil {
+		return 0, ctxerr.Errorf(ctx, "installer %d is not a fleet-maintained app", activeInstallerID)
+	}
+	fmaID := *src.FMAID
 
 	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		// Resolve the live active row inside the tx and use it as the clone source,
@@ -942,8 +991,8 @@ func (ds *Datastore) InsertFleetMaintainedAppVersion(ctx context.Context, active
 		var liveActiveID uint
 		switch err := sqlx.GetContext(ctx, tx, &liveActiveID, `
 			SELECT id FROM software_installers
-			WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id IS NOT NULL AND is_active = 1
-			LIMIT 1 FOR UPDATE`, src.GlobalOrTeamID, src.TitleID); {
+			WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id = ? AND is_active = 1
+			LIMIT 1 FOR UPDATE`, src.GlobalOrTeamID, src.TitleID, fmaID); {
 		case err == nil:
 			cloneFromID = liveActiveID
 		case errors.Is(err, sql.ErrNoRows):
@@ -954,7 +1003,7 @@ func (ds *Datastore) InsertFleetMaintainedAppVersion(ctx context.Context, active
 
 		res, err := tx.ExecContext(ctx, `
 INSERT INTO software_installers (
-	team_id, global_or_team_id, title_id, pre_install_query, platform,
+	team_id, global_or_team_id, title_id, pre_install_query, platform, arch,
 	self_service, user_id, user_name, user_email, fleet_maintained_app_id,
 	post_install_script_content_id, install_during_setup,
 	install_script_edited, uninstall_script_edited,
@@ -963,7 +1012,7 @@ INSERT INTO software_installers (
 	install_script_content_id, uninstall_script_content_id
 )
 SELECT
-	team_id, global_or_team_id, title_id, pre_install_query, platform,
+	team_id, global_or_team_id, title_id, pre_install_query, platform, arch,
 	self_service, user_id, user_name, user_email, fleet_maintained_app_id,
 	post_install_script_content_id, install_during_setup,
 	install_script_edited, uninstall_script_edited,
@@ -988,8 +1037,8 @@ FROM software_installers WHERE id = ?`,
 				if err := sqlx.GetContext(ctx, tx, &cached, `
 					SELECT id, storage_id FROM software_installers
 					WHERE global_or_team_id = ? AND title_id = ? AND version = ?
-						AND fleet_maintained_app_id IS NOT NULL`,
-					src.GlobalOrTeamID, src.TitleID, payload.Version,
+						AND fleet_maintained_app_id = ?`,
+					src.GlobalOrTeamID, src.TitleID, payload.Version, fmaID,
 				); err != nil {
 					return ctxerr.Wrap(ctx, err, "load cached fleet-maintained app version")
 				}
@@ -1047,7 +1096,7 @@ FROM software_installers WHERE id = ?`,
 
 		// Evict versions beyond the cap, protecting the live active row (the clone
 		// source) and the row we just inserted.
-		return ds.evictOldFMAVersions(ctx, tx, src.GlobalOrTeamID, src.TitleID, installerID, cloneFromID)
+		return ds.evictOldFMAVersions(ctx, tx, src.GlobalOrTeamID, src.TitleID, fmaID, installerID, cloneFromID)
 	})
 	if err != nil {
 		return 0, err
@@ -1104,12 +1153,12 @@ func (ds *Datastore) GetSoftwareInstallerMetadataByStorageID(ctx context.Context
 // inserted, about to be promoted), then the most recently uploaded versions.
 // Policies on evicted rows are re-pointed to the active installer before the rows
 // are deleted. Mirrors the eviction logic in BatchSetSoftwareInstallers.
-func (ds *Datastore) evictOldFMAVersions(ctx context.Context, tx sqlx.ExtContext, globalOrTeamID, titleID, newInstallerID, activeID uint) error {
+func (ds *Datastore) evictOldFMAVersions(ctx context.Context, tx sqlx.ExtContext, globalOrTeamID, titleID, fmaID, newInstallerID, activeID uint) error {
 	fmaVersions, err := ds.getFleetMaintainedVersionsByTitleIDs(ctx, tx, []uint{titleID}, globalOrTeamID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "list FMA installer versions for eviction")
 	}
-	versions := fmaVersions[titleID]
+	versions := fmaVersions[titleID][fmaID]
 	if len(versions) <= maxCachedFMAVersions {
 		return nil
 	}
@@ -1129,9 +1178,9 @@ func (ds *Datastore) evictOldFMAVersions(ctx context.Context, tx sqlx.ExtContext
 		`UPDATE policies SET software_installer_id = ?
 		WHERE software_installer_id IN (
 			SELECT id FROM software_installers
-			WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id IS NOT NULL AND id NOT IN (?)
+			WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id = ? AND id NOT IN (?)
 		)`,
-		activeID, globalOrTeamID, titleID, keepIDs,
+		activeID, globalOrTeamID, titleID, fmaID, keepIDs,
 	)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "build FMA policy re-point query")
@@ -1565,6 +1614,7 @@ SELECT
   si.fleet_maintained_app_id,
   si.package_ids,
   si.upgrade_code,
+  si.arch,
   si.filename,
   si.extension,
   si.version,
@@ -1662,6 +1712,7 @@ SELECT
   si.fleet_maintained_app_id,
   si.package_ids,
   si.upgrade_code,
+  si.arch,
   si.filename,
   si.extension,
   si.version,
@@ -2073,16 +2124,16 @@ func (ds *Datastore) ProcessInstallerUpdateSideEffects(ctx context.Context, inst
 }
 
 func (ds *Datastore) ClearPreInstallQueryForTitle(ctx context.Context, teamID uint, titleID uint) error {
-	// An FMA title has one is_active=1 row, so team and title identify the managed installer.
+	// The patch policy follows the title's first-added FMA, whose active row is the one to clear.
 	var installer fleet.SoftwareInstaller
 	err := sqlx.GetContext(ctx, ds.writer(ctx), &installer, `
 		SELECT id, COALESCE(pre_install_query, '') AS pre_install_query
 		FROM software_installers
 		WHERE global_or_team_id = ?
 			AND title_id = ?
-			AND fleet_maintained_app_id IS NOT NULL
 			AND is_active = 1
-		LIMIT 1`, teamID, titleID)
+			AND fleet_maintained_app_id = (`+patchPolicyFMAIDStmt+`)
+		LIMIT 1`, teamID, titleID, teamID, titleID)
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
 		return nil
@@ -3124,11 +3175,12 @@ INSERT INTO software_installers (
 	patch_query,
 	app_open_query,
 	install_script_edited,
-	uninstall_script_edited
+	uninstall_script_edited,
+	arch
 ) VALUES (
   ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
   (SELECT name FROM users WHERE id = ?), (SELECT email FROM users WHERE id = ?), ?, ?, COALESCE(?, false), ?, ?,
-  ?, ?, ?, ?, ?
+  ?, ?, ?, ?, ?, ?
 )
 ON DUPLICATE KEY UPDATE
   install_script_content_id = VALUES(install_script_content_id),
@@ -3182,6 +3234,7 @@ FROM
 WHERE
 	global_or_team_id = ?	AND
 	title_id = ? AND
+	arch = ? AND
 	dedup_token = ?
 `
 
@@ -3674,6 +3727,7 @@ WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id IS NULL
 				installer.AppOpenQuery,
 				installer.InstallScriptEdited,
 				installer.UninstallScriptEdited,
+				installer.Arch,
 				installer.InstallDuringSetup, // ON DUPLICATE KEY
 			}
 			// For FMA installers, skip the insert if this exact version is already cached
@@ -3685,9 +3739,9 @@ WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id IS NULL
 			if installer.FleetMaintainedAppID != nil {
 				err := sqlx.GetContext(ctx, tx, &existingID, `
 					SELECT id FROM software_installers
-					WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id IS NOT NULL AND version = ? AND storage_id = ?
+					WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id = ? AND version = ? AND storage_id = ?
 					LIMIT 1
-				`, globalOrTeamID, titleID, installer.Version, installer.StorageID)
+				`, globalOrTeamID, titleID, installer.FleetMaintainedAppID, installer.Version, installer.StorageID)
 				if err == nil {
 					skipInsert = true
 				} else if !errors.Is(err, sql.ErrNoRows) {
@@ -3737,7 +3791,7 @@ WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id IS NULL
 			// ID (cannot use res.LastInsertID due to the upsert statement, won't
 			// give the id in case of update)
 			var installerID uint
-			if err := sqlx.GetContext(ctx, tx, &installerID, loadSoftwareInstallerID, globalOrTeamID, titleID, dedupToken); err != nil {
+			if err := sqlx.GetContext(ctx, tx, &installerID, loadSoftwareInstallerID, globalOrTeamID, titleID, installer.Arch, dedupToken); err != nil {
 				return ctxerr.Wrapf(ctx, err, "load id of new/edited installer with name %q", installer.Filename)
 			}
 			keptInstallerIDs = append(keptInstallerIDs, installerID)
@@ -3755,9 +3809,9 @@ WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id IS NULL
 					var pinnedID uint
 					err := sqlx.GetContext(ctx, tx, &pinnedID, `
 						SELECT id FROM software_installers
-						WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id IS NOT NULL AND version = ?
+						WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id = ? AND version = ?
 						ORDER BY uploaded_at DESC, id DESC LIMIT 1
-					`, globalOrTeamID, titleID, installer.RollbackVersion)
+					`, globalOrTeamID, titleID, installer.FleetMaintainedAppID, installer.RollbackVersion)
 					if err != nil {
 						if errors.Is(err, sql.ErrNoRows) {
 							return ctxerr.Wrap(ctx, &fleet.BadRequestError{
@@ -3779,7 +3833,7 @@ WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id IS NULL
 				if err != nil {
 					return ctxerr.Wrapf(ctx, err, "list FMA installer versions for eviction for %q", installer.Filename)
 				}
-				versions := fmaVersions[titleID]
+				versions := fmaVersions[titleID][*installer.FleetMaintainedAppID]
 
 				if len(versions) > maxCachedFMAVersions {
 					// Build the keep set: active installer + most recent up to max.
@@ -3798,11 +3852,12 @@ WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id IS NULL
 						`UPDATE policies SET software_installer_id = ?
 						WHERE software_installer_id IN (
 							SELECT id FROM software_installers
-							WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id IS NOT NULL AND id NOT IN (?)
+							WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id = ? AND id NOT IN (?)
 						)`,
 						activeInstallerID,
 						globalOrTeamID,
 						titleID,
+						*installer.FleetMaintainedAppID,
 						keepIDs,
 					)
 					if err != nil {
@@ -3830,21 +3885,23 @@ WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id IS NULL
 
 				// Write the pinned version so the auto update cron job keeps this information
 				if installer.RollbackVersion != "" {
-					if err := setPinnedVersionDB(ctx, tx, globalOrTeamID, titleID, installer.RollbackVersion); err != nil {
+					if err := setPinnedVersionDB(ctx, tx, globalOrTeamID, titleID, *installer.FleetMaintainedAppID, installer.RollbackVersion); err != nil {
 						return ctxerr.Wrapf(ctx, err, "pinning version for %q", installer.Filename)
 					}
-				} else if err := deletePinnedVersionDB(ctx, tx, globalOrTeamID, titleID); err != nil {
+				} else if err := deletePinnedVersionDB(ctx, tx, globalOrTeamID, titleID, *installer.FleetMaintainedAppID); err != nil {
 					return ctxerr.Wrapf(ctx, err, "clearing pin for %q", installer.Filename)
 				}
 
-				// Re-point this title's policies to the active FMA installer.
+				// Re-point this FMA's (and the title's custom rows') policies to the active
+				// installer; another FMA on the same Windows title keeps its own.
 				if _, err := tx.ExecContext(ctx, `
 					UPDATE policies SET software_installer_id = ?
 					WHERE software_installer_id IN (
 						SELECT id FROM software_installers
 						WHERE global_or_team_id = ? AND title_id = ? AND id != ?
+							AND (fleet_maintained_app_id = ? OR fleet_maintained_app_id IS NULL)
 					)
-				`, activeInstallerID, globalOrTeamID, titleID, activeInstallerID); err != nil {
+				`, activeInstallerID, globalOrTeamID, titleID, activeInstallerID, *installer.FleetMaintainedAppID); err != nil {
 					return ctxerr.Wrapf(ctx, err, "re-point policies to active FMA installer %q", installer.Filename)
 				}
 				// A title switching to an FMA can't also hold custom rows, so remove
@@ -4958,43 +5015,43 @@ func (ds *Datastore) GetSoftwareTitlesForInstallAll(ctx context.Context, host *f
 	return toInstall, categoryName, nil
 }
 
-func (ds *Datastore) GetPinnedVersion(ctx context.Context, teamID *uint, titleID uint) (*string, error) {
+func (ds *Datastore) GetPinnedVersion(ctx context.Context, teamID *uint, titleID, fmaID uint) (*string, error) {
 	var version string
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &version, `
-		SELECT pinned_version FROM software_title_team_pins WHERE team_id = ? AND title_id = ?
-	`, ptr.ValOrZero(teamID), titleID)
+		SELECT pinned_version FROM software_title_team_pins WHERE team_id = ? AND title_id = ? AND fleet_maintained_app_id = ?
+	`, ptr.ValOrZero(teamID), titleID, fmaID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get pinned version")
 	}
 	return &version, nil
 }
 
-func (ds *Datastore) SetPinnedVersion(ctx context.Context, teamID *uint, titleID uint, version string) error {
-	if err := setPinnedVersionDB(ctx, ds.writer(ctx), ptr.ValOrZero(teamID), titleID, version); err != nil {
+func (ds *Datastore) SetPinnedVersion(ctx context.Context, teamID *uint, titleID, fmaID uint, version string) error {
+	if err := setPinnedVersionDB(ctx, ds.writer(ctx), ptr.ValOrZero(teamID), titleID, fmaID, version); err != nil {
 		return ctxerr.Wrap(ctx, err, "set pinned version")
 	}
 	return nil
 }
 
-func (ds *Datastore) DeletePinnedVersion(ctx context.Context, teamID *uint, titleID uint) error {
-	if err := deletePinnedVersionDB(ctx, ds.writer(ctx), ptr.ValOrZero(teamID), titleID); err != nil {
+func (ds *Datastore) DeletePinnedVersion(ctx context.Context, teamID *uint, titleID, fmaID uint) error {
+	if err := deletePinnedVersionDB(ctx, ds.writer(ctx), ptr.ValOrZero(teamID), titleID, fmaID); err != nil {
 		return ctxerr.Wrap(ctx, err, "delete pinned version")
 	}
 	return nil
 }
 
-func setPinnedVersionDB(ctx context.Context, ex sqlx.ExtContext, globalOrTeamID uint, titleID uint, version string) error {
+func setPinnedVersionDB(ctx context.Context, ex sqlx.ExtContext, globalOrTeamID, titleID, fmaID uint, version string) error {
 	_, err := ex.ExecContext(ctx, `
-		INSERT INTO software_title_team_pins (team_id, title_id, pinned_version)
-		VALUES (?, ?, ?)
+		INSERT INTO software_title_team_pins (team_id, title_id, fleet_maintained_app_id, pinned_version)
+		VALUES (?, ?, ?, ?)
 		ON DUPLICATE KEY UPDATE pinned_version = VALUES(pinned_version)
-	`, globalOrTeamID, titleID, version)
+	`, globalOrTeamID, titleID, fmaID, version)
 	return err
 }
 
-func deletePinnedVersionDB(ctx context.Context, ex sqlx.ExtContext, globalOrTeamID uint, titleID uint) error {
+func deletePinnedVersionDB(ctx context.Context, ex sqlx.ExtContext, globalOrTeamID, titleID, fmaID uint) error {
 	_, err := ex.ExecContext(ctx, `
-		DELETE FROM software_title_team_pins WHERE team_id = ? AND title_id = ?
-	`, globalOrTeamID, titleID)
+		DELETE FROM software_title_team_pins WHERE team_id = ? AND title_id = ? AND fleet_maintained_app_id = ?
+	`, globalOrTeamID, titleID, fmaID)
 	return err
 }

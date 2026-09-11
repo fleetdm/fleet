@@ -7,15 +7,18 @@ import (
 
 // MaintainedApp represents an app in the Fleet library of maintained apps
 type MaintainedApp struct {
-	ID                    uint     `json:"id" db:"id"`
-	Name                  string   `json:"name" db:"name"`
-	Slug                  string   `json:"slug" db:"slug"`
-	Version               string   `json:"version,omitempty" db:"version"`
-	Platform              string   `json:"platform" db:"platform"`
-	TitleID               *uint    `json:"software_title_id" db:"software_title_id"`
-	InstallerURL          string   `json:"url,omitempty" db:"url"`
-	SHA256                string   `json:"-" db:"storage_id"`
-	UniqueIdentifier      string   `json:"-" db:"unique_identifier"`
+	ID               uint   `json:"id" db:"id"`
+	Name             string `json:"name" db:"name"`
+	Slug             string `json:"slug" db:"slug"`
+	Version          string `json:"version,omitempty" db:"version"`
+	Platform         string `json:"platform" db:"platform"`
+	TitleID          *uint  `json:"software_title_id" db:"software_title_id"`
+	InstallerURL     string `json:"url,omitempty" db:"url"`
+	SHA256           string `json:"-" db:"storage_id"`
+	UniqueIdentifier string `json:"-" db:"unique_identifier"`
+	// Arch is the Windows installer architecture from the catalog (x64, x86, arm64,
+	// neutral); empty for macOS. Copied onto the app's installers.
+	Arch                  string   `json:"-" db:"arch"`
 	InstallScript         string   `json:"install_script,omitempty" db:"install_script"`
 	UninstallScript       string   `json:"uninstall_script,omitempty" db:"uninstall_script"`
 	AutomaticInstallQuery string   `json:"automatic_install_query,omitempty" db:"pre_install_query"` //nolint:apiparamcheck // SQL query for automatic install

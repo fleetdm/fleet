@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -23,6 +24,7 @@ func TestMaintainedApps(t *testing.T) {
 		fn   func(t *testing.T, ds *Datastore)
 	}{
 		{"UpsertMaintainedApps", testUpsertMaintainedApps},
+		{"UpsertMaintainedAppArch", testUpsertMaintainedAppArch},
 		{"Sync", testSync},
 		{"ListAndGetAvailableApps", testListAndGetAvailableApps},
 		{"ListAvailableAppsByNameAndFilters", testListAvailableAppsByNameAndFilters},
@@ -2352,10 +2354,12 @@ func testWindowsFMAMergeMovesAllReferences(t *testing.T, ds *Datastore) {
 			VALUES (0, ?, 'sid-icon', 'icon.png')`, staleTitleID)
 		return err
 	})
+	_, err = ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{Name: "Granola", Slug: "granola/windows", Platform: "windows", UniqueIdentifier: "Granola"})
+	require.NoError(t, err)
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, `
-			INSERT INTO software_title_team_pins (team_id, title_id, pinned_version)
-			VALUES (0, ?, '7.373.2')`, staleTitleID)
+			INSERT INTO software_title_team_pins (team_id, title_id, fleet_maintained_app_id, pinned_version)
+			SELECT 0, ?, id, '7.373.2' FROM fleet_maintained_apps WHERE slug = 'granola/windows'`, staleTitleID)
 		return err
 	})
 
@@ -2708,9 +2712,12 @@ func testWindowsFMAReconcileMovesTitleReferences(t *testing.T, ds *Datastore) {
 	})
 
 	// An admin pins a version on that title.
+	_, err = ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{Name: "Granola", Slug: "granola/windows", Platform: "windows", UniqueIdentifier: "Granola"})
+	require.NoError(t, err)
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(ctx,
-			`INSERT INTO software_title_team_pins (team_id, title_id, pinned_version) VALUES (0, ?, '7.373.2')`,
+		_, err := q.ExecContext(ctx, `
+			INSERT INTO software_title_team_pins (team_id, title_id, fleet_maintained_app_id, pinned_version)
+			SELECT 0, ?, id, '7.373.2' FROM fleet_maintained_apps WHERE slug = 'granola/windows'`,
 			staleTitleID)
 		return err
 	})
@@ -2752,7 +2759,7 @@ func testWindowsFMAReconcileMovesTitleReferences(t *testing.T, ds *Datastore) {
 }
 
 // testWindowsFMAReconcilePinConflict: when the destination already has a pin for the
-// same team, the stale one cannot be moved onto it (unique on team_id, title_id). The
+// same team, the stale one cannot be moved onto it (unique on team_id, title_id, FMA). The
 // destination's pin is authoritative and the stale row goes away with its title.
 func testWindowsFMAReconcilePinConflict(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
@@ -2776,8 +2783,10 @@ func testWindowsFMAReconcilePinConflict(t *testing.T, ds *Datastore) {
 	// Both titles carry a pin for the same team.
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx,
-			`INSERT INTO software_title_team_pins (team_id, title_id, pinned_version)
-			 VALUES (0, ?, '7.373.2'), (0, ?, '9.9.9')`, staleTitleID, canonicalID)
+			`INSERT INTO software_title_team_pins (team_id, title_id, fleet_maintained_app_id, pinned_version)
+			 SELECT 0, ?, id, '7.373.2' FROM fleet_maintained_apps WHERE slug = 'granola/windows'
+			 UNION ALL
+			 SELECT 0, ?, id, '9.9.9' FROM fleet_maintained_apps WHERE slug = 'granola/windows'`, staleTitleID, canonicalID)
 		return err
 	})
 
@@ -2795,4 +2804,49 @@ func testWindowsFMAReconcilePinConflict(t *testing.T, ds *Datastore) {
 		return sqlx.GetContext(ctx, q, &total, `SELECT COUNT(*) FROM software_title_team_pins`)
 	})
 	require.Equal(t, 1, total, "the skipped pin is cascaded away with its title")
+}
+
+// The catalog's architecture lands on the app and is copied onto its installers,
+// including ones added before the column existed.
+func testUpsertMaintainedAppArch(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+
+	app, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name: "Mozilla Firefox Nightly (ARM64)", Slug: "firefox@nightly-arm64/windows", Platform: "windows", UniqueIdentifier: "Firefox Nightly",
+	})
+	require.NoError(t, err)
+
+	tfr, err := fleet.NewTempFileReader(strings.NewReader("bytes"), t.TempDir)
+	require.NoError(t, err)
+	installerID, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		Title: "Firefox Nightly", Source: "programs", Platform: "windows", Extension: "msix",
+		InstallScript: "echo install", UninstallScript: "echo uninstall",
+		InstallerFile: tfr, StorageID: "arm-158", Filename: "arm-158.msix", Version: "158.0",
+		UserID: user.ID, ValidatedLabels: &fleet.LabelIdentsWithScope{}, FleetMaintainedAppID: &app.ID,
+	})
+	require.NoError(t, err)
+
+	installerArch := func() string {
+		var arch string
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &arch, `SELECT arch FROM software_installers WHERE id = ?`, installerID)
+		})
+		return arch
+	}
+	require.Empty(t, installerArch())
+
+	// The next catalog sync carries the architecture; the installer picks it up.
+	_, err = ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name: "Mozilla Firefox Nightly (ARM64)", Slug: "firefox@nightly-arm64/windows", Platform: "windows", UniqueIdentifier: "Firefox Nightly", Arch: "arm64",
+	})
+	require.NoError(t, err)
+	got, err := ds.GetMaintainedAppByID(ctx, app.ID, nil)
+	require.NoError(t, err)
+	require.Equal(t, "arm64", got.Arch)
+	require.Equal(t, "arm64", installerArch())
+
+	gotBySlug, err := ds.GetMaintainedAppBySlug(ctx, "firefox@nightly-arm64/windows", nil)
+	require.NoError(t, err)
+	require.Equal(t, "arm64", gotBySlug.Arch)
 }
