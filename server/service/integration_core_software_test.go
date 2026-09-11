@@ -738,6 +738,9 @@ func (s *integrationTestSuite) TestListVulnerabilities() {
 	// Exploit is an EE only filter
 	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities", nil, http.StatusPaymentRequired, &resp, "exploit", "true")
 
+	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities", nil, http.StatusOK, &resp, "order_key", "created_at", "order_direction", "asc")
+	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities", nil, http.StatusOK, &resp, "order_key", "created_at", "order_direction", "desc")
+
 	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities", nil, http.StatusOK, &resp)
 	s.Require().Empty(resp.Vulnerabilities)
 
