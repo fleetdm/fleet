@@ -2,15 +2,13 @@
 
 Software inventory in Fleet collects the apps, operating systems, browser extensions, packages, IDE extensions, plugins, and binaries installed on your hosts. Vulnerability processing runs against this inventory, so software that isn't collected here can't be checked for vulnerabilities.
 
-To see what software is covered, check out the [Coverage section](#coverage). To see which of that software Fleet checks for vulnerabilities, see [Vulnerability processing](https://fleetdm.com/guides/vulnerability-processing#coverage).
+Fleet collects software inventory for the software types below. ✅ means collected, ❌ means not collected, ✅\* means collected with a caveat described under the table, and ❔ means not verified yet.
 
-## Coverage
+Each section says whether Fleet matches that software to vulnerabilities (CVEs). To see exactly which software Fleet checks, see [Vulnerability processing](https://fleetdm.com/guides/vulnerability-processing#coverage).
 
-Fleet collects software inventory for these software types. ✅ means collected, ❌ means not collected, ✅\* means collected with a caveat described under the table, and ❔ means not verified yet.
+> If Fleet isn't collecting software that's installed on your hosts, please file a [feature request](https://github.com/fleetdm/fleet/issues/new?template=feature-request.md). If Fleet is collecting software incorrectly (wrong name, version, or type), please file a [bug](https://github.com/fleetdm/fleet/issues/new?template=bug-report.md).
 
-Each section also says whether Fleet matches that software to vulnerabilities (CVEs). Learn more in [Vulnerability processing](https://fleetdm.com/guides/vulnerability-processing#coverage).
-
-### Apps
+## Apps
 
 | Type | macOS | Windows | Linux | ChromeOS | Android | iOS/iPadOS |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -28,7 +26,7 @@ Each section also says whether Fleet matches that software to vulnerabilities (C
 - Alternative app store and sideloaded apps: these should appear in the same MDM app lists on fully-managed hosts. Fleet hasn't verified this yet.
 - Personal-side apps on BYOD hosts: Apple User Enrollment and Android work profiles don't expose them.
 
-### Operating systems
+## Operating systems
 
 | Platform | Collected |
 | --- | --- |
@@ -39,7 +37,7 @@ Each section also says whether Fleet matches that software to vulnerabilities (C
 | iOS and iPadOS | ✅ |
 | Linux | ✅ On recognized distributions. See the table below. |
 
-#### Linux distributions
+### Linux distributions
 
 | Distribution | Collected |
 | --- | --- |
@@ -101,7 +99,7 @@ Each section also says whether Fleet matches that software to vulnerabilities (C
 - SteamOS, Bazzite, Bluefin, and Aurora: these use immutable root filesystems. Installing Fleet's agent is unsupported, and their platform values aren't in Fleet's list.
 - Ubuntu Core runs snaps only. Fleet's agent isn't packaged as a snap, so Ubuntu Core hosts can't enroll.
 
-### Browser extensions
+## Browser extensions
 
 | Browser | macOS | Windows | Linux | ChromeOS |
 | --- | --- | --- | --- | --- |
@@ -131,7 +129,7 @@ Each section also says whether Fleet matches that software to vulnerabilities (C
 - Fleet doesn't hash browser extensions on any platform.
 - Safari on iOS and Firefox, Edge, and Yandex on Android support extensions, but no MDM API exposes them.
 
-### Packages
+## Packages
 
 | Type | macOS | Windows | Linux |
 | --- | --- | --- | --- |
@@ -163,7 +161,7 @@ Each section also says whether Fleet matches that software to vulnerabilities (C
 - npm: Fleet collects globally installed packages, including nvm, fnm, asdf, mise, and Volta locations. Scoped (`@org/name`) and nested packages require osquery 5.23 or later. On Windows, osquery supports npm packages but Fleet doesn't query them yet. Project-level `node_modules` directories aren't collected.
 - Atom packages were removed from inventory in December 2023 after the editor was sunset.
 
-### IDE extensions
+## IDE extensions
 
 | Type | macOS | Windows | Linux |
 | --- | --- | --- | --- |
@@ -179,7 +177,7 @@ Each section also says whether Fleet matches that software to vulnerabilities (C
 - JetBrains: osquery enumerates 13 products installed under the `JetBrains` directory. Learn more in the [jetbrains_plugins](https://fleetdm.com/tables/jetbrains_plugins) table. Android Studio installs under a `Google` directory and isn't collected. DataSpell, Aqua, and Writerside aren't in osquery's list.
 - Zed, Sublime Text, Neovim/Vim, and Emacs: no osquery or fleetd table reads them.
 
-### Plugins
+## Plugins
 
 | Category | Type | macOS | Windows | Linux |
 | --- | --- | --- | --- | --- |
@@ -221,7 +219,7 @@ Each section also says whether Fleet matches that software to vulnerabilities (C
 - Sketch, Affinity, GIMP, Inkscape, Krita, Blender, darktable, OFX, FxPlug, audio plug-ins, 3D suites, game engines, AutoCAD, SolidWorks, Microsoft Office add-ins, Obsidian, LibreOffice, OpenOffice, Notepad++, Android SDK, and Arduino SDK: no osquery or fleetd table reads them. Affinity loads Photoshop-compatible plug-ins from a folder the user chooses. Unity and Godot plugins are installed per project, not per host. Notepad++ has no native macOS or Linux build.
 - Xcode source editor extensions ship inside apps that already appear under Apps. Xcode has no separate plugin system.
 
-### Binaries, AI tools, and other
+## Binaries, AI tools, and other
 
 | Category | Type | macOS | Windows | Linux | Android | iOS/iPadOS |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -238,7 +236,6 @@ Each section also says whether Fleet matches that software to vulnerabilities (C
 - macOS widgets are WidgetKit extensions that ship inside apps that already appear under Apps.
 - Shortcuts and Android ringtones: no MDM API exposes them.
 
-> If Fleet isn't collecting software that's installed on your hosts, please file a [feature request](https://github.com/fleetdm/fleet/issues/new?template=feature-request.md). If Fleet is collecting software incorrectly (wrong name, version, or type), please file a [bug](https://github.com/fleetdm/fleet/issues/new?template=bug-report.md).
 
 ## Data collected
 
@@ -253,7 +250,7 @@ Fleet stores a name and a version for every item in inventory. What else it stor
 | File hashes | ✅ macOS apps only. fleetd collects the code directory hash (cdhash) and the SHA-256 hash of the app's executable. Not collected on Windows or Linux, or for packages, extensions, and plugins. |
 | Last opened | ✅ macOS apps. No other software type reports usage. |
 | Install count | ✅ The number of hosts in your Fleet running each title and each version. |
-| Vulnerabilities (CVEs) | ✅ For the software types marked in [Coverage](#coverage). Fleet Premium adds the CVE publish date, CVSS score, EPSS probability, and CISA KEV status. |
+| Vulnerabilities (CVEs) | ✅ For the software types marked above. Fleet Premium adds the CVE publish date, CVSS score, EPSS probability, and CISA KEV status. |
 | Title and version release dates | ❌ Not collected. Fleet reports the version a host is running, not when that version shipped. |
 | Popularity outside your Fleet | ❌ Not collected. Install counts cover your hosts only. |
 | Publisher reputation | ❌ Not collected. Fleet reports the publisher name, and the Team ID on macOS, but not a publisher's first release date or install totals across their other titles. |
