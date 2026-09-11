@@ -287,6 +287,28 @@ func getValueAtKey(data map[string]interface{}, path string) (interface{}, bool)
 	return cur, true
 }
 
+func removeGitOpsExceptionKeys(v any, exceptions fleet.GitOpsExceptions) {
+	switch val := v.(type) {
+	case map[string]any:
+		if exceptions.Labels {
+			delete(val, "labels")
+		}
+		if exceptions.Secrets {
+			delete(val, "secrets")
+		}
+		if exceptions.Software {
+			delete(val, "software")
+		}
+		for _, child := range val {
+			removeGitOpsExceptionKeys(child, exceptions)
+		}
+	case []any:
+		for _, child := range val {
+			removeGitOpsExceptionKeys(child, exceptions)
+		}
+	}
+}
+
 type GenerateGitopsCommand struct {
 	Client       generateGitopsClient
 	CLI          *cli.Context
@@ -632,6 +654,12 @@ func (cmd *GenerateGitopsCommand) Run() error {
 			}
 			// nolint:nilaway // we want to include "reports: null" in the output if there are no reports.
 			cmd.FilesToWrite[fileName].(map[string]any)["reports"] = reports
+		}
+	}
+
+	if cmd.AppConfig != nil {
+		for _, fileToWrite := range cmd.FilesToWrite {
+			removeGitOpsExceptionKeys(fileToWrite, cmd.AppConfig.GitOpsConfig.Exceptions)
 		}
 	}
 
