@@ -4,15 +4,10 @@ import (
 	"bytes"
 	"cmp"
 	"context"
-	"crypto/rand"
-	"crypto/rsa"
 	"crypto/sha256"
-	"crypto/x509"
-	"crypto/x509/pkix"
 	"database/sql"
 	"encoding/hex"
 	"encoding/json"
-	"encoding/pem"
 	"errors"
 	"fmt"
 	"image"
@@ -20,7 +15,6 @@ import (
 	"image/png"
 	"io"
 	"log/slog"
-	"math/big"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
@@ -4782,11 +4776,67 @@ func (s *integrationEnterpriseTestSuite) TestLinuxDiskEncryption() {
 	s.DoJSON("POST", "/api/fleet/orbit/config", fleet.OrbitGetConfigRequest{OrbitNodeKey: orbitKey}, http.StatusOK, &secondOrbitResponse)
 	require.False(t, secondOrbitResponse.Notifications.RunDiskEncryptionEscrow)
 
+	// the agent is now prompting; triggering again must not re-queue, and the response says so
+	res = s.DoRawNoAuth("POST", fmt.Sprintf("/api/latest/fleet/device/%s/mdm/linux/trigger_escrow", deviceToken), nil, http.StatusConflict)
+	require.Contains(t, extractServerErrorText(res.Body), fleet.LinuxEscrowInFlightMessage)
+	res.Body.Close()
+	retryAfter, err := strconv.Atoi(res.Header.Get("Retry-After"))
+	require.NoError(t, err)
+	require.Positive(t, retryAfter)
+	require.LessOrEqual(t, retryAfter, int(fleet.LinuxEscrowInFlightWindow.Seconds()))
+	var inFlightOrbitResponse fleet.OrbitGetConfigResponse
+	s.DoJSON("POST", "/api/fleet/orbit/config", fleet.OrbitGetConfigRequest{OrbitNodeKey: orbitKey}, http.StatusOK, &inFlightOrbitResponse)
+	require.False(t, inFlightOrbitResponse.Notifications.RunDiskEncryptionEscrow)
+
+	// a heartbeat from the agent keeps the escrow in flight past the window
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(t.Context(), `UPDATE host_disk_encryption_keys SET escrow_sent_at = DATE_SUB(escrow_sent_at, INTERVAL 1 HOUR) WHERE host_id = ?`, noTeamHost.ID)
+		return err
+	})
+	s.Do("POST", "/api/fleet/orbit/luks_data", fleet.OrbitPostLUKSRequest{
+		OrbitNodeKey: *noTeamHost.OrbitNodeKey,
+		Status:       fleet.LinuxEscrowStatusPrompting,
+	}, http.StatusNoContent)
+	res = s.DoRawNoAuth("POST", fmt.Sprintf("/api/latest/fleet/device/%s/mdm/linux/trigger_escrow", deviceToken), nil, http.StatusConflict)
+	res.Body.Close()
+
+	// a canceled prompt ends the in-flight state without recording an error, so a retry
+	// queues immediately and the host's encryption status is left as it was
+	var beforeCancel, afterCancel getMDMDiskEncryptionSummaryResponse
+	s.DoJSON("GET", "/api/latest/fleet/disk_encryption", getMDMDiskEncryptionSummaryRequest{}, http.StatusOK, &beforeCancel)
+	s.Do("POST", "/api/fleet/orbit/luks_data", fleet.OrbitPostLUKSRequest{
+		OrbitNodeKey: *noTeamHost.OrbitNodeKey,
+		Status:       fleet.LinuxEscrowStatusCanceled,
+	}, http.StatusNoContent)
+	s.DoJSON("GET", "/api/latest/fleet/disk_encryption", getMDMDiskEncryptionSummaryRequest{}, http.StatusOK, &afterCancel)
+	require.Equal(t, *beforeCancel.MDMDiskEncryptionSummary, *afterCancel.MDMDiskEncryptionSummary)
+	res = s.DoRawNoAuth("POST", fmt.Sprintf("/api/latest/fleet/device/%s/mdm/linux/trigger_escrow", deviceToken), nil, http.StatusNoContent)
+	res.Body.Close()
+	var canceledOrbitResponse fleet.OrbitGetConfigResponse
+	s.DoJSON("POST", "/api/fleet/orbit/config", fleet.OrbitGetConfigRequest{OrbitNodeKey: orbitKey}, http.StatusOK, &canceledOrbitResponse)
+	require.True(t, canceledOrbitResponse.Notifications.RunDiskEncryptionEscrow)
+
 	// set an error first; the successful write should overwrite that
 	s.Do("POST", "/api/fleet/orbit/luks_data", fleet.OrbitPostLUKSRequest{
 		OrbitNodeKey: *noTeamHost.OrbitNodeKey,
 		ClientError:  "Houston, we had a problem",
 	}, http.StatusNoContent)
+
+	// a report from the agent ends the in-flight state, so a retry queues immediately
+	res = s.DoRawNoAuth("POST", fmt.Sprintf("/api/latest/fleet/device/%s/mdm/linux/trigger_escrow", deviceToken), nil, http.StatusNoContent)
+	res.Body.Close()
+	var retriggerOrbitResponse fleet.OrbitGetConfigResponse
+	s.DoJSON("POST", "/api/fleet/orbit/config", fleet.OrbitGetConfigRequest{OrbitNodeKey: orbitKey}, http.StatusOK, &retriggerOrbitResponse)
+	require.True(t, retriggerOrbitResponse.Notifications.RunDiskEncryptionEscrow)
+
+	// the in-flight window expired while the user was still typing and they clicked Create key
+	// again, so a stale request is pending when the key finally arrives
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(t.Context(), `UPDATE host_disk_encryption_keys SET escrow_sent_at = DATE_SUB(escrow_sent_at, INTERVAL 1 HOUR) WHERE host_id = ?`, noTeamHost.ID)
+		return err
+	})
+	res = s.DoRawNoAuth("POST", fmt.Sprintf("/api/latest/fleet/device/%s/mdm/linux/trigger_escrow", deviceToken), nil, http.StatusNoContent)
+	res.Body.Close()
 
 	// upload LUKS data
 	keySlot := new(uint(1))
@@ -4796,6 +4846,11 @@ func (s *integrationEnterpriseTestSuite) TestLinuxDiskEncryption() {
 		Salt:         "the team i like lost",
 		KeySlot:      keySlot,
 	}, http.StatusNoContent)
+
+	// saving the key drops the stale request, so the user is not prompted again
+	var afterKeyOrbitResponse fleet.OrbitGetConfigResponse
+	s.DoJSON("POST", "/api/fleet/orbit/config", fleet.OrbitGetConfigRequest{OrbitNodeKey: orbitKey}, http.StatusOK, &afterKeyOrbitResponse)
+	require.False(t, afterKeyOrbitResponse.Notifications.RunDiskEncryptionEscrow)
 
 	// confirm verified
 	s.DoJSON("GET", "/api/latest/fleet/disk_encryption", getMDMDiskEncryptionSummaryRequest{}, http.StatusOK, &summary)
@@ -27995,48 +28050,10 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessBypass() {
 	})
 }
 
-// generateTestCertForDeviceAuth generates a test certificate for device authentication.
-// Returns: certPEM, certHash (SHA256 of DER bytes), parsed certificate
-func generateTestCertForDeviceAuth(t *testing.T, certSerial uint64, deviceUUID string) (string, string, *x509.Certificate) {
-	// Generate a private key
-	priv, err := rsa.GenerateKey(rand.Reader, 2048)
-	require.NoError(t, err)
-
-	// Create certificate template
-	serialNumber := new(big.Int).SetUint64(certSerial)
-	certTemplate := &x509.Certificate{
-		SerialNumber: serialNumber,
-		Subject: pkix.Name{
-			CommonName: deviceUUID,
-		},
-		NotBefore: time.Now().Add(-24 * time.Hour),
-		NotAfter:  time.Now().Add(365 * 24 * time.Hour),
-		KeyUsage:  x509.KeyUsageDigitalSignature,
-	}
-
-	// Create self-signed certificate
-	certDER, err := x509.CreateCertificate(rand.Reader, certTemplate, certTemplate, &priv.PublicKey, priv)
-	require.NoError(t, err)
-
-	// Parse the certificate to get cert.Raw for hashing
-	cert, err := x509.ParseCertificate(certDER)
-	require.NoError(t, err)
-
-	// Calculate SHA256 hash of certificate DER bytes (same as nanomdm)
-	hashed := sha256.Sum256(cert.Raw)
-	certHash := hex.EncodeToString(hashed[:])
-
-	// Encode to PEM
-	certPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certDER})
-
-	return string(certPEM), certHash, cert
-}
-
 func (s *integrationEnterpriseTestSuite) TestDeviceAuthenticationMethods() {
 	t := s.T()
 	ctx := context.Background()
 
-	// Create an iOS host enrolled in MDM
 	iosHost, err := s.ds.NewHost(ctx, &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
@@ -28050,7 +28067,6 @@ func (s *integrationEnterpriseTestSuite) TestDeviceAuthenticationMethods() {
 	})
 	require.NoError(t, err)
 
-	// Create a macOS host for backward compatibility testing
 	macHost, err := s.ds.NewHost(ctx, &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
@@ -28064,70 +28080,13 @@ func (s *integrationEnterpriseTestSuite) TestDeviceAuthenticationMethods() {
 	})
 	require.NoError(t, err)
 
-	// Create device token for macOS host (traditional token-based auth)
 	macToken := "valid-mac-token"
 	mysqltest.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
 		_, err := db.ExecContext(ctx, `INSERT INTO host_device_auth (host_id, token) VALUES (?, ?)`, macHost.ID, macToken)
 		return err
 	})
 
-	// Generate test certificate for the iOS host
-	certSerial := uint64(123456789)
-	certPEM, certHash, cert := generateTestCertForDeviceAuth(t, certSerial, iosHost.UUID)
-
-	// Insert certificate into nanomdm tables
-	mysqltest.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
-		// Insert serial (scep_serials uses auto-increment but we can insert explicit value)
-		_, err := db.ExecContext(ctx, `INSERT INTO identity_serials (serial) VALUES (?)`, certSerial)
-		if err != nil {
-			return err
-		}
-
-		// Insert certificate into identity_certificates
-		_, err = db.ExecContext(ctx, `
-			INSERT INTO identity_certificates
-			(serial, name, not_valid_before, not_valid_after, certificate_pem, revoked)
-			VALUES (?, ?, ?, ?, ?, ?)
-		`,
-			certSerial,
-			iosHost.UUID,
-			cert.NotBefore,
-			cert.NotAfter,
-			certPEM,
-			false,
-		)
-		if err != nil {
-			return err
-		}
-
-		// Insert certificate association into nano_cert_auth_associations
-		_, err = db.ExecContext(ctx, `
-			INSERT INTO nano_cert_auth_associations
-			(id, sha256, cert_not_valid_after)
-			VALUES (?, ?, ?)
-		`,
-			iosHost.UUID,
-			certHash,
-			cert.NotAfter,
-		)
-		return err
-	})
-
-	t.Run("iOS device with valid certificate", func(t *testing.T) {
-		var getHostResp getDeviceHostResponse
-		headers := map[string]string{
-			"X-Client-Cert-Serial": fmt.Sprintf("%d", certSerial),
-		}
-		res := s.DoRawWithHeaders("GET", fmt.Sprintf("/api/latest/fleet/device/%s", iosHost.UUID), nil, http.StatusOK, headers)
-		require.NoError(t, json.NewDecoder(res.Body).Decode(&getHostResp))
-		require.NoError(t, res.Body.Close())
-		require.Equal(t, iosHost.ID, getHostResp.Host.ID)
-		require.Equal(t, iosHost.UUID, getHostResp.Host.UUID)
-		require.Equal(t, "ios", getHostResp.Host.Platform)
-	})
-
-	t.Run("iOS device without certificate header (UUID fallback auth)", func(t *testing.T) {
-		// Without cert header, UUID auth is used as fallback for iOS/iPadOS devices
+	t.Run("iOS device authenticates by UUID in the URL", func(t *testing.T) {
 		var getHostResp getDeviceHostResponse
 		res := s.DoRawNoAuth("GET", fmt.Sprintf("/api/latest/fleet/device/%s", iosHost.UUID), nil, http.StatusOK)
 		require.NoError(t, json.NewDecoder(res.Body).Decode(&getHostResp))
@@ -28136,21 +28095,11 @@ func (s *integrationEnterpriseTestSuite) TestDeviceAuthenticationMethods() {
 		require.Equal(t, "ios", getHostResp.Host.Platform)
 	})
 
-	t.Run("iOS device with invalid UUID (no fallback)", func(t *testing.T) {
-		// Invalid UUID should fail both UUID auth and token auth
+	t.Run("iOS device with invalid UUID is rejected", func(t *testing.T) {
 		res := s.DoRawNoAuth("GET", "/api/latest/fleet/device/invalid-uuid-does-not-exist", nil, http.StatusUnauthorized)
 		res.Body.Close()
 	})
 
-	t.Run("iOS device with wrong certificate serial", func(t *testing.T) {
-		headers := map[string]string{
-			"X-Client-Cert-Serial": "999999999",
-		}
-		res := s.DoRawWithHeaders("GET", fmt.Sprintf("/api/latest/fleet/device/%s", iosHost.UUID), nil, http.StatusUnauthorized, headers)
-		res.Body.Close()
-	})
-
-	// Ensures token-based auth still works for macOS (backward compatibility)
 	t.Run("macOS device with token auth", func(t *testing.T) {
 		var getHostResp getDeviceHostResponse
 		res := s.DoRawNoAuth("GET", fmt.Sprintf("/api/latest/fleet/device/%s", macToken), nil, http.StatusOK)
@@ -28160,137 +28109,71 @@ func (s *integrationEnterpriseTestSuite) TestDeviceAuthenticationMethods() {
 		require.Equal(t, "darwin", getHostResp.Host.Platform)
 	})
 
-	t.Run("multiple endpoints with certificate auth", func(t *testing.T) {
-		headers := map[string]string{
-			"X-Client-Cert-Serial": fmt.Sprintf("%d", certSerial),
-		}
-
-		res := s.DoRawWithHeaders("POST", fmt.Sprintf("/api/latest/fleet/device/%s/refetch", iosHost.UUID), nil, http.StatusOK, headers)
-		res.Body.Close()
-
-		var getHostResp getDeviceHostResponse
-		res = s.DoRawWithHeaders("GET", fmt.Sprintf("/api/latest/fleet/device/%s", iosHost.UUID), nil, http.StatusOK, headers)
-		require.NoError(t, json.NewDecoder(res.Body).Decode(&getHostResp))
-		require.NoError(t, res.Body.Close())
-		require.True(t, getHostResp.Host.RefetchRequested)
-
-		res = s.DoRawWithHeaders("GET", fmt.Sprintf("/api/latest/fleet/device/%s/transparency", iosHost.UUID), nil, http.StatusTemporaryRedirect, headers)
-		res.Body.Close()
-	})
-
-	t.Run("iPadOS device with certificate", func(t *testing.T) {
-		ipadHost, err := s.ds.NewHost(ctx, &fleet.Host{
-			DetailUpdatedAt: time.Now(),
-			LabelUpdatedAt:  time.Now(),
-			PolicyUpdatedAt: time.Now(),
-			SeenTime:        time.Now(),
-			OsqueryHostID:   new("ipad-test-host"),
-			NodeKey:         new("ipad-test-node-key"),
-			UUID:            "ipad-test-uuid-11111",
-			Hostname:        "ipad-test-device",
-			Platform:        "ipados",
-		})
-		require.NoError(t, err)
-
-		ipadCertSerial := uint64(987654321)
-		ipadCertPEM, ipadCertHash, ipadCert := generateTestCertForDeviceAuth(t, ipadCertSerial, ipadHost.UUID)
-
-		mysqltest.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
-			_, err := db.ExecContext(ctx, `INSERT INTO identity_serials (serial) VALUES (?)`, ipadCertSerial)
-			if err != nil {
-				return err
-			}
-
-			_, err = db.ExecContext(ctx, `
-				INSERT INTO identity_certificates
-				(serial, name, not_valid_before, not_valid_after, certificate_pem, revoked)
-				VALUES (?, ?, ?, ?, ?, ?)
-			`,
-				ipadCertSerial,
-				ipadHost.UUID,
-				ipadCert.NotBefore,
-				ipadCert.NotAfter,
-				ipadCertPEM,
-				false,
-			)
-			if err != nil {
-				return err
-			}
-
-			_, err = db.ExecContext(ctx, `
-				INSERT INTO nano_cert_auth_associations
-				(id, sha256, cert_not_valid_after)
-				VALUES (?, ?, ?)
-			`,
-				ipadHost.UUID,
-				ipadCertHash,
-				ipadCert.NotAfter,
-			)
-			return err
-		})
-
-		var getHostResp getDeviceHostResponse
-		headers := map[string]string{
-			"X-Client-Cert-Serial": fmt.Sprintf("%d", ipadCertSerial),
-		}
-		res := s.DoRawWithHeaders("GET", fmt.Sprintf("/api/latest/fleet/device/%s", ipadHost.UUID), nil, http.StatusOK, headers)
-		require.NoError(t, json.NewDecoder(res.Body).Decode(&getHostResp))
-		require.NoError(t, res.Body.Close())
-		require.Equal(t, ipadHost.ID, getHostResp.Host.ID)
-		require.Equal(t, "ipados", getHostResp.Host.Platform)
-	})
-
-	t.Run("certificate for wrong host", func(t *testing.T) {
-		headers := map[string]string{
-			"X-Client-Cert-Serial": fmt.Sprintf("%d", certSerial),
-		}
-		res := s.DoRawWithHeaders("GET", fmt.Sprintf("/api/latest/fleet/device/%s", macHost.UUID), nil, http.StatusUnauthorized, headers)
-		res.Body.Close()
-	})
-
-	t.Run("invalid cert serial format - non-numeric", func(t *testing.T) {
-		headers := map[string]string{
-			"X-Client-Cert-Serial": "invalid-format",
-		}
-		res := s.DoRawWithHeaders("GET", fmt.Sprintf("/api/latest/fleet/device/%s", iosHost.UUID), nil, http.StatusUnauthorized, headers)
-		res.Body.Close()
-	})
-
-	t.Run("invalid cert serial format - negative number", func(t *testing.T) {
-		headers := map[string]string{
-			"X-Client-Cert-Serial": "-12345",
-		}
-		res := s.DoRawWithHeaders("GET", fmt.Sprintf("/api/latest/fleet/device/%s", iosHost.UUID), nil, http.StatusUnauthorized, headers)
-		res.Body.Close()
-	})
-
-	t.Run("cert serial zero should fail cert auth", func(t *testing.T) {
-		headers := map[string]string{
-			"X-Client-Cert-Serial": "0",
-		}
-		res := s.DoRawWithHeaders("GET", fmt.Sprintf("/api/latest/fleet/device/%s", iosHost.UUID), nil, http.StatusUnauthorized, headers)
-		res.Body.Close()
-	})
-
 	t.Run("macOS device UUID in URL should be rejected (not iOS/iPadOS)", func(t *testing.T) {
-		// Using macOS host UUID directly in URL should fail:
-		// - Token auth fails (macHost.UUID is not a valid token)
-		// - UUID auth fails (platform is darwin, not iOS/iPadOS)
 		res := s.DoRawNoAuth("GET", fmt.Sprintf("/api/latest/fleet/device/%s", macHost.UUID), nil, http.StatusUnauthorized)
 		res.Body.Close()
 	})
 
 	t.Run("iOS device with token auth should be rejected", func(t *testing.T) {
-		// Create a device token for the iOS host
 		iosToken := "ios-device-token"
 		mysqltest.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
 			_, err := db.ExecContext(ctx, `INSERT INTO host_device_auth (host_id, token) VALUES (?, ?)`, iosHost.ID, iosToken)
 			return err
 		})
 
-		// Attempt to use token auth (no cert header) - should be rejected
 		res := s.DoRawNoAuth("GET", fmt.Sprintf("/api/latest/fleet/device/%s", iosToken), nil, http.StatusUnauthorized)
+		errMsg := extractServerErrorText(res.Body)
+		require.Contains(t, errMsg, "Authentication required")
+	})
+
+	// X-Client-Cert-Serial used to select a separate authentication path that
+	// skipped the iOS/iPadOS response scrub. The header must now be inert.
+	t.Run("X-Client-Cert-Serial is ignored", func(t *testing.T) {
+		devicePath := fmt.Sprintf("/api/latest/fleet/device/%s", iosHost.UUID)
+
+		res := s.DoRawNoAuth("GET", devicePath, nil, http.StatusOK)
+		plain, err := io.ReadAll(res.Body)
+		require.NoError(t, err)
+		require.NoError(t, res.Body.Close())
+
+		for _, serial := range []string{"1", "0", "not-a-number"} {
+			res = s.DoRawWithHeaders("GET", devicePath, nil, http.StatusOK,
+				map[string]string{"X-Client-Cert-Serial": serial})
+			withHeader, err := io.ReadAll(res.Body)
+			require.NoError(t, err)
+			require.NoError(t, res.Body.Close())
+			require.JSONEq(t, string(plain), string(withHeader), "serial %q changed the response", serial)
+
+			var getHostResp getDeviceHostResponse
+			require.NoError(t, json.Unmarshal(withHeader, &getHostResp))
+			require.Equal(t, iosHost.ID, getHostResp.Host.ID)
+			require.Empty(t, getHostResp.Host.Hostname)
+			require.Empty(t, getHostResp.Host.UUID)
+			require.Empty(t, getHostResp.Host.HardwareSerial)
+			require.Empty(t, getHostResp.Host.PrimaryMac)
+			require.Nil(t, getHostResp.Host.Labels)
+		}
+	})
+
+	t.Run("X-Client-Cert-Serial does not unlock token-only routes", func(t *testing.T) {
+		headers := map[string]string{"X-Client-Cert-Serial": "1"}
+
+		res := s.DoRawWithHeaders("POST", fmt.Sprintf("/api/latest/fleet/device/%s/debug/errors", iosHost.UUID),
+			jsonMustMarshal(t, fleet.FleetdError{ErrorSource: "test", ErrorMessage: "test"}), http.StatusForbidden, headers)
 		res.Body.Close()
+
+		res = s.DoRawWithHeaders("POST", fmt.Sprintf("/api/latest/fleet/device/%s/bypass_conditional_access", iosHost.UUID),
+			nil, http.StatusForbidden, headers)
+		res.Body.Close()
+	})
+
+	t.Run("X-Client-Cert-Serial does not break token auth", func(t *testing.T) {
+		var getHostResp getDeviceHostResponse
+		res := s.DoRawWithHeaders("GET", fmt.Sprintf("/api/latest/fleet/device/%s", macToken), nil, http.StatusOK,
+			map[string]string{"X-Client-Cert-Serial": "1"})
+		require.NoError(t, json.NewDecoder(res.Body).Decode(&getHostResp))
+		require.NoError(t, res.Body.Close())
+		require.Equal(t, macHost.ID, getHostResp.Host.ID)
 	})
 }
 
@@ -36356,7 +36239,11 @@ func (s *integrationEnterpriseTestSuite) TestScriptFleetVariablesExecution() {
 			s.DoJSON("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: h.ID, ScriptContents: contents}, http.StatusAccepted, &runResp)
 
 			fetched := orbitFetchScript(t, h, runResp.ExecutionID)
-			require.Equal(t, fmt.Sprintf("echo serial=%s uuid=%s plat=ubuntu", h.HardwareSerial, h.UUID), fetched.ScriptContents)
+			requireVarsDelivered(t, fetched.ScriptContents, contents, map[string]string{
+				"HOST_HARDWARE_SERIAL": h.HardwareSerial,
+				"HOST_UUID":            h.UUID,
+				"HOST_PLATFORM":        "ubuntu",
+			})
 			require.Nil(t, fetched.ExitCode)
 
 			// stored contents stay unexpanded
@@ -36434,15 +36321,20 @@ func (s *integrationEnterpriseTestSuite) TestScriptFleetVariablesExecution() {
 			return err
 		})
 
+		const contents = "user=$FLEET_VAR_HOST_END_USER_IDP_USERNAME local=user_${FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART}@corp.com dept=$FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT"
 		var runResp fleet.RunScriptResponse
 		s.DoJSON("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{
 			HostID:         host2.ID,
-			ScriptContents: "user=$FLEET_VAR_HOST_END_USER_IDP_USERNAME local=user_${FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART}@corp.com dept=$FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT",
+			ScriptContents: contents,
 		}, http.StatusAccepted, &runResp)
 
 		fetched := orbitFetchScript(t, host2, runResp.ExecutionID)
 		require.Nil(t, fetched.ExitCode)
-		require.Equal(t, "user=jane.doe@example.com ($FLEET_SECRET_INJECTED) local=user_jane.doe@corp.com dept=Engineering", fetched.ScriptContents)
+		requireVarsDelivered(t, fetched.ScriptContents, contents, map[string]string{
+			"HOST_END_USER_IDP_USERNAME":            "jane.doe@example.com ($FLEET_SECRET_INJECTED)",
+			"HOST_END_USER_IDP_USERNAME_LOCAL_PART": "jane.doe",
+			"HOST_END_USER_IDP_DEPARTMENT":          "Engineering",
+		})
 	})
 
 	t.Run("sync run surfaces the resolution failure", func(t *testing.T) {
@@ -37144,4 +37036,69 @@ func (s *integrationEnterpriseTestSuite) TestTeamPolicyResendConfigProfileCRUD()
 		}, http.StatusBadRequest)
 		require.Contains(t, extractServerErrorText(res.Body), "does not belong to team ID")
 	})
+}
+
+func (s *integrationEnterpriseTestSuite) TestApplyPolicySpecsScriptValidation() {
+	t := s.T()
+	ctx := t.Context()
+
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+	otherTeam, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "-other"})
+	require.NoError(t, err)
+
+	newScript := func(name string, teamID *uint) *fleet.Script {
+		script, err := s.ds.NewScript(ctx, &fleet.Script{
+			Name:           name,
+			ScriptContents: "echo",
+			TeamID:         teamID,
+		})
+		require.NoError(t, err)
+		return script
+	}
+	teamScript := newScript("spec-team.sh", &team.ID)
+	otherTeamScript := newScript("spec-other-team.sh", &otherTeam.ID)
+
+	const specURL = "/api/latest/fleet/spec/policies"
+	spec := func(name, teamName string, scriptID uint) fleet.ApplyPolicySpecsRequest {
+		return fleet.ApplyPolicySpecsRequest{
+			Specs: []*fleet.PolicySpec{{
+				Name:     name,
+				Query:    "SELECT 1;",
+				Platform: "darwin",
+				Team:     teamName,
+				ScriptID: new(scriptID),
+			}},
+		}
+	}
+
+	// A script on the policy's own team is accepted.
+	s.Do("POST", specURL, spec("gitops script", team.Name, teamScript.ID), http.StatusOK)
+	list := &fleet.ListTeamPoliciesResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team.ID), nil, http.StatusOK, list)
+	require.Len(t, list.Policies, 1)
+	require.NotNil(t, list.Policies[0].RunScript)
+	require.Equal(t, teamScript.ID, list.Policies[0].RunScript.ID)
+
+	// A spec with no team cannot carry a script.
+	res := s.Do("POST", specURL, spec("gitops global script", "", teamScript.ID), http.StatusBadRequest)
+	require.Contains(t, extractServerErrorText(res.Body), "cannot have script_id set")
+
+	// A script owned by another team is rejected.
+	res = s.Do("POST", specURL, spec("gitops cross team script", team.Name, otherTeamScript.ID), http.StatusBadRequest)
+	require.Contains(t, extractServerErrorText(res.Body), "does not belong to team ID")
+
+	// A script that does not exist is rejected with a clear message rather than a database error.
+	res = s.Do("POST", specURL, spec("gitops missing script", team.Name, otherTeamScript.ID+999), http.StatusBadRequest)
+	require.Contains(t, extractServerErrorText(res.Body), "does not exist")
+
+	// None of the rejected specs created a policy.
+	list = &fleet.ListTeamPoliciesResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team.ID), nil, http.StatusOK, list)
+	require.Len(t, list.Policies, 1)
+	globalList := &fleet.ListGlobalPoliciesResponse{}
+	s.DoJSON("GET", "/api/v1/fleet/global/policies", nil, http.StatusOK, globalList)
+	for _, p := range globalList.Policies {
+		require.NotEqual(t, "gitops global script", p.Name)
+	}
 }

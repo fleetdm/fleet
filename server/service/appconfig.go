@@ -255,7 +255,6 @@ func (svc *Service) SandboxEnabled() bool {
 
 func (svc *Service) AppConfigObfuscated(ctx context.Context) (*fleet.AppConfig, error) {
 	if !svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceToken) &&
-		!svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceCertificate) &&
 		!svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceURL) {
 		if err := svc.authz.Authorize(ctx, &fleet.AppConfig{}, fleet.ActionRead); err != nil {
 			return nil, err
@@ -1293,6 +1292,12 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		}
 	}
 
+	// clear cert renewals before saving app config, as doing it after with failure can lead to incorrect renewal attempts.
+	// even if we fail to actually save, this is a safe operation to retry.
+	if err := clearCertRenewals(ctx, svc, oldAppConfig, appConfig); err != nil {
+		return nil, err
+	}
+
 	if err := svc.ds.SaveAppConfig(ctx, appConfig); err != nil {
 		return nil, err
 	}
@@ -1567,6 +1572,23 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	}
 
 	return obfuscatedAppConfig, nil
+}
+
+func clearCertRenewals(ctx context.Context, svc *Service, oldAppConfig, appConfig *fleet.AppConfig) error {
+	if oldAppConfig == nil || appConfig == nil {
+		return nil
+	}
+	if oldAppConfig.MDM.OnlyAllowAppleBusinessEnrollment != appConfig.MDM.OnlyAllowAppleBusinessEnrollment ||
+		oldAppConfig.MDM.AppleRequireHardwareAttestation != appConfig.MDM.AppleRequireHardwareAttestation {
+		if err := svc.ds.ClearCertRenewalExclusions(ctx); err != nil {
+			return ctxerr.Wrap(ctx, err, "clearing cert renewal exclusions")
+		}
+
+		if err := svc.ds.ResetPendingCertRenewals(ctx); err != nil {
+			return ctxerr.Wrap(ctx, err, "resetting pending cert renewals")
+		}
+	}
+	return nil
 }
 
 // processSavedAppConfigChanges runs the side effects of a completed app config change: it creates the activities for the settings
@@ -1886,6 +1908,18 @@ func (svc *Service) processSavedAppConfigChanges(
 			},
 		); err != nil {
 			return ctxerr.Wrap(ctx, err, "create activity for updating conditional access bypass")
+		}
+	}
+
+	if oldAppConfig.MDM.OnlyAllowAppleBusinessEnrollment != appConfig.MDM.OnlyAllowAppleBusinessEnrollment {
+		var act fleet.ActivityDetails
+		if appConfig.MDM.OnlyAllowAppleBusinessEnrollment {
+			act = fleet.ActivityTypeEnabledAppleBusinessOnlyEnrollment{}
+		} else {
+			act = fleet.ActivityTypeDisabledAppleBusinessOnlyEnrollment{}
+		}
+		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+			return ctxerr.Wrap(ctx, err, fmt.Sprintf("create activity %s", act.ActivityName()))
 		}
 	}
 
@@ -2487,6 +2521,10 @@ func (svc *Service) validateMDM(
 		oldMdm.WindowsSettings.EnableDiskEncryption.Value, mdm.DiskEncryptionConfig(),
 	); msg != "" {
 		invalid.Append(field, msg)
+	}
+
+	if mdm.OnlyAllowAppleBusinessEnrollment && !lic.IsPremium() {
+		invalid.Append("mdm.only_allow_apple_business_enrollment", ErrMissingLicense.Error())
 	}
 
 	return nil

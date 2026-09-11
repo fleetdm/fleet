@@ -33,7 +33,7 @@ func New(uri string, originGetter func() (string, error)) (*Proxy, error) {
 
 		originGetter: originGetter,
 
-		c: fleethttp.NewClient(),
+		c: fleethttp.NewClient(fleethttp.WithNoTimeout()),
 	}, nil
 }
 

@@ -611,6 +611,27 @@ func TestEnrollOsquery(t *testing.T) {
 	assert.NotEmpty(t, nodeKey)
 }
 
+func TestEnrollOsqueryCertLoadError(t *testing.T) {
+	ds := new(mock.Store)
+	ds.VerifyEnrollSecretFunc = func(ctx context.Context, secret string) (*fleet.EnrollSecret, error) {
+		return &fleet.EnrollSecret{Secret: "valid_secret", TeamID: new(uint(3))}, nil
+	}
+	ds.GetHostIdentityCertByNameFunc = func(ctx context.Context, name string) (*types.HostIdentityCertificate, error) {
+		return nil, errors.New("connection refused reading host_identity_certificates")
+	}
+	svc, ctx := newTestService(t, ds, nil, nil)
+
+	_, err := svc.EnrollOsquery(ctx, "valid_secret", "host123", nil)
+	require.Error(t, err)
+	// the osquery plane must answer with an OsqueryError, not an OrbitError, and
+	// the datastore detail stays out of the message
+	var oqErr *OsqueryError
+	require.ErrorAs(t, err, &oqErr)
+	require.NotContains(t, oqErr.Error(), "connection refused")
+	var orbitErr fleet.OrbitError
+	require.NotErrorAs(t, err, &orbitErr)
+}
+
 func TestEnrollOsqueryEnforceLimit(t *testing.T) {
 	runTest := func(t *testing.T, pool fleet.RedisPool) {
 		const maxHosts = 2
@@ -1853,6 +1874,7 @@ func verifyDiscovery(t *testing.T, queries, discovery map[string]string) {
 		hostDetailQueryPrefix + "certificates_windows":                    {},
 		hostDetailQueryPrefix + "tpm_pin_config_verify":                   {},
 		hostDetailQueryPrefix + "tpm_pin_set_verify":                      {},
+		hostDetailQueryPrefix + "bitlocker_startup_policy_relax":          {},
 	}
 	for name := range queries {
 		require.NotEmpty(t, discovery[name])

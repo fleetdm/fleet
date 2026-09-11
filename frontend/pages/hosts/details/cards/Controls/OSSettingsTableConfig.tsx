@@ -15,8 +15,9 @@ import {
   ProfilePlatform,
 } from "interfaces/mdm";
 import { isDDMProfile } from "services/entities/mdm";
-import { isAppleDevice, isIPadOrIPhone } from "interfaces/platform";
+import { isAppleDevice } from "interfaces/platform";
 
+import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 
 import OSSettingsNameCell from "./OSSettingsNameCell";
@@ -123,7 +124,9 @@ const generateTableConfig = (
 ): ITableColumnConfig[] => {
   return [
     {
-      Header: "Name",
+      Header: (cellProps) => (
+        <HeaderCell value="Name" isSortedDesc={cellProps.column.isSortedDesc} />
+      ),
       accessor: "name",
       sortType: "caseInsensitive",
       Cell: (cellProps: ITableStringCellProps) => {
@@ -137,7 +140,12 @@ const generateTableConfig = (
       },
     },
     {
-      Header: "Status",
+      Header: (cellProps) => (
+        <HeaderCell
+          value="Status"
+          isSortedDesc={cellProps.column.isSortedDesc}
+        />
+      ),
       accessor: "status",
       sortType: (
         a: Row<IHostMdmProfileWithAddedStatus>,

@@ -159,6 +159,16 @@ func TestSafeReason(t *testing.T) {
 			platform_http.GenericErrorMessage,
 		},
 		{
+			"duplicate entry preserves safe message",
+			&mysql.MySQLError{Number: 1062, Message: "Duplicate entry 'foo' for key 'idx_name'"},
+			"Duplicate entry",
+		},
+		{
+			"wrapped duplicate entry preserves safe message",
+			fmt.Errorf("insert pack: %w", &mysql.MySQLError{Number: 1062, Message: "Duplicate entry 'bar' for key 'packs.idx_pack_unique_name'"}),
+			"Duplicate entry",
+		},
+		{
 			"database/sql error is replaced",
 			errors.New("sql: expected 2 arguments, got 3"),
 			platform_http.GenericErrorMessage,

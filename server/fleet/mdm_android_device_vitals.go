@@ -65,6 +65,13 @@ type MDMAndroidDeviceVitals struct {
 	SystemUpdateStatus    *string `db:"system_update_status"`
 	SecurityPosture       *string `db:"security_posture"`
 
+	// IMEI and MEID are the device's hardware radio identifier: IMEI on a GSM
+	// device, MEID on a CDMA one, so a device reports at most one of them.
+	// AMAPI only reports either for company-owned devices, and Fleet treats
+	// them with the same sensitivity as a phone number (see TelephonyInfos).
+	IMEI *string `db:"imei"`
+	MEID *string `db:"meid"`
+
 	APILevel *int64 `db:"api_level"`
 
 	// SecurityPostureDetails and TelephonyInfos are stored as JSON columns,
@@ -100,6 +107,8 @@ type HostMDMAndroidDeviceVitals struct {
 	BootloaderVersion     *string `json:"bootloader_version,omitempty" db:"-" csv:"-"`
 	SystemUpdateStatus    *string `json:"system_update_status,omitempty" db:"-" csv:"-"`
 	SecurityPosture       *string `json:"security_posture,omitempty" db:"-" csv:"-"`
+	IMEI                  *string `json:"imei,omitempty" db:"-" csv:"-"`
+	MEID                  *string `json:"meid,omitempty" db:"-" csv:"-"`
 
 	APILevel *int64 `json:"api_level,omitempty" db:"-" csv:"-"`
 

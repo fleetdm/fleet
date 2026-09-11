@@ -10,6 +10,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -141,7 +142,32 @@ func (c *Client) ApplyNoTeamScripts(scripts []fleet.ScriptPayload, opts fleet.Ap
 	var resp fleet.BatchSetScriptsResponse
 	err := c.authenticatedRequestWithQuery(map[string]interface{}{"scripts": scripts}, verb, path, &resp, opts.RawQuery())
 
-	return resp.Scripts, err
+	return resp.Scripts, rewrapScriptBatchIndexErr(err, scripts)
+}
+
+// rewrapScriptBatchIndexErr surfaces the offending script's filename when the
+// batch-set scripts endpoint rejects one of them. The server identifies the
+// script only by its position ("scripts[N]"), which is meaningless in fleetctl
+// output; the payload name is the filename, unique within a batch (the server
+// rejects duplicates), so naming it identifies the script unambiguously.
+func rewrapScriptBatchIndexErr(err error, scripts []fleet.ScriptPayload) error {
+	var scErr *StatusCodeErr
+	if !errors.As(err, &scErr) {
+		return err
+	}
+	idxStr, ok := strings.CutPrefix(scErr.Name, "scripts[")
+	if !ok {
+		return err
+	}
+	idxStr, ok = strings.CutSuffix(idxStr, "]")
+	if !ok {
+		return err
+	}
+	idx, convErr := strconv.Atoi(idxStr)
+	if convErr != nil || idx < 0 || idx >= len(scripts) {
+		return err
+	}
+	return fmt.Errorf("script %q: %w", scripts[idx].Name, err)
 }
 
 func (c *Client) validateMacOSSetupScript(fileName string) ([]byte, error) {
