@@ -446,7 +446,7 @@ func reconcileHostIdPMappingsForIdPEmailChange(
 			continue
 		}
 		// a host reassigned from the User card still points at its enrollment account
-		owned, err := mdmIdPAccountBelongsToScimUser(ctx, tx, logger, acct, scimUserID)
+		owned, err := mdmIdPAccountBelongsToScimUser(ctx, tx, logger, acct, scimUserID, oldEmail)
 		if err != nil {
 			return nil, err
 		}
@@ -484,11 +484,20 @@ func reconcileHostIdPMappingsForIdPEmailChange(
 	return renameHostIdPEmails(ctx, tx, logger, hostIDs, slices.Sorted(maps.Keys(oldIdentities)), newEmail)
 }
 
-// mdmIdPAccountBelongsToScimUser is true when the account resolves to that SCIM
-// user or to none: the user's own row is already renamed in this transaction, so
-// its account resolves to nobody.
-func mdmIdPAccountBelongsToScimUser(ctx context.Context, tx sqlx.ExtContext, logger *slog.Logger, acct *fleet.MDMIdPAccount, scimUserID uint) (bool, error) {
-	owner, err := scimUserByUserNameOrEmail(ctx, tx, logger, acct.Username, acct.Email)
+// mdmIdPAccountBelongsToScimUser is true when the account holds the identity
+// being renamed away from, or resolves to that SCIM user or to none: the user's
+// own row is already renamed in this transaction, so it resolves to nobody.
+func mdmIdPAccountBelongsToScimUser(ctx context.Context, tx sqlx.ExtContext, logger *slog.Logger, acct *fleet.MDMIdPAccount, scimUserID uint, oldEmail string) (bool, error) {
+	if acct.Email == oldEmail {
+		return true, nil
+	}
+
+	// the account username is the email local part, which an unrelated bare-login
+	// user can hold, so the email identifies the owner first
+	owner, err := scimUserByUserNameOrEmail(ctx, tx, logger, "", acct.Email)
+	if fleet.IsNotFound(err) && acct.Username != "" {
+		owner, err = scimUserByUserNameOrEmail(ctx, tx, logger, acct.Username, "")
+	}
 	switch {
 	case fleet.IsNotFound(err):
 		return true, nil

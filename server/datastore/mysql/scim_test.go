@@ -3449,6 +3449,30 @@ func testReplaceScimUserRenameUpdatesHostIdPMapping(t *testing.T, ds *Datastore)
 		require.Equal(t, otherName, otherAcct.Email)
 	})
 
+	t.Run("account is renamed despite another user named after its local part", func(t *testing.T) {
+		// a bare-login SCIM user collides with the account username, which is the
+		// email local part
+		const oldName, newName = "wren@example.com", "wren.hale@example.com"
+		bareID, err := ds.CreateScimUser(ctx, &fleet.ScimUser{UserName: "wren"})
+		require.NoError(t, err)
+
+		fx := newScimIdPMappingHost(t, ds, "localpart", "wren", oldName, oldName)
+		require.NotEqual(t, bareID, fx.scimUserID)
+
+		_, err = ds.ReplaceScimUser(ctx, &fleet.ScimUser{ID: fx.scimUserID, UserName: newName})
+		require.NoError(t, err)
+
+		requireHostIdPDeviceMapping(t, ds, fx.host.ID, newName)
+		acct, err := ds.GetMDMIdPAccountByUUID(ctx, fx.acct.UUID)
+		require.NoError(t, err)
+		require.Equal(t, newName, acct.Email)
+		require.Equal(t, "wren.hale", acct.Username)
+
+		bare, err := ds.ScimUserByID(ctx, bareID)
+		require.NoError(t, err)
+		require.Equal(t, "wren", bare.UserName)
+	})
+
 	t.Run("account of another SCIM user behind a reassigned host is left alone", func(t *testing.T) {
 		// the host reassigned to Bob still points at Alice's account
 		const aliceName = "alice.r@example.com"
