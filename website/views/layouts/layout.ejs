@@ -1154,7 +1154,7 @@
         var input = form.querySelector('input');
         var searchQuery = (input ? input.value : '').trim();
         if (!searchQuery) { return; }
-        window.open('https://www.google.com/search?q=' + encodeURIComponent('site:fleetdm.com ' + searchQuery), '_blank', 'noopener');
+        window.open('https://www.google.com/search?q=' + encodeURIComponent('site:fleetdm.com ' + searchQuery) + '&udm=50', '_blank', 'noopener');
       });
     </script>
     <% if (sails.config.environment === 'production') { %>
