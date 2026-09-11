@@ -57,7 +57,11 @@ The orbit config response SHALL include `notifications.bitlocker_pin_request_pen
 
 #### Scenario: PIN set
 - **WHEN** orbit reports `outcome = "set"`
-- **THEN** the server sets `host_disks.tpm_pin_set = true`, deletes the request row, records a `created_disk_encryption_pin` activity with `host_id` and `host_display_name` and no user actor, and requests a host refetch
+- **THEN** the server sets `host_disks.tpm_pin_set = true`, marks the request row `set` so the waiting page can observe the result, records a `created_disk_encryption_pin` activity with `host_id` and `host_display_name` and no user actor, and requests a host refetch
+
+#### Scenario: Terminal request rows are cleaned up
+- **WHEN** a request row has been in `set` or `failed` for longer than 24 hours, or the host submits a new PIN
+- **THEN** the row is deleted or replaced; a terminal row holds no ciphertext, because delivery cleared it
 
 #### Scenario: PIN failed
 - **WHEN** orbit reports `outcome = "failed"` with a reason
@@ -68,7 +72,7 @@ The orbit config response SHALL include `notifications.bitlocker_pin_request_pen
 - **THEN** the server responds `422` naming `client_error`
 
 ### Requirement: The device host response exposes request state and agent capability
-`GET /api/_version_/fleet/device/{token}` SHALL include, under `mdm.os_settings.disk_encryption`, `fleetd_can_set_pin` (boolean, true when the host's most recent Windows MDM enrollment has the `windows_bitlocker_pin` capability persisted) and, while a request row exists, `pin_request` with `status` (`pending`, `delivered`, `set`, `failed`) and `error` (sanitized, empty unless `failed`).
+`GET /api/_version_/fleet/device/{token}` SHALL include, under `mdm.os_settings.disk_encryption`, `fleetd_can_set_pin` (boolean, true when the host's most recent Windows MDM enrollment has the `windows_bitlocker_pin` capability persisted) and, while a request row exists, `pin_request` with `status` (`pending`, `delivered`, `set`, `failed`) and `error` (sanitized, empty unless `failed`). Every status in that enum SHALL be observable by the page: a successful apply leaves the row in `set` rather than deleting it, so the waiting modal has a positive signal and does not have to infer success from the absence of a row.
 
 #### Scenario: Capable agent, request in flight
 - **WHEN** the page polls the device host endpoint after submitting a PIN to a host whose fleetd advertised the capability

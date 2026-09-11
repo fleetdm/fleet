@@ -13,7 +13,9 @@ When a fleet requires a BitLocker startup PIN (`require_bitlocker_pin`), the onl
 - Orbit registers a "Fleet Desktop" AppUserModelID in the Windows registry so the toast displays under the Fleet Desktop name and icon.
 - Fleet continues to leave `SystemDrivesDisallowStandardUsersCanChangePIN` unset, so PIN changes stay in the Windows UI. The Fleet path only creates a PIN where none exists and refuses to overwrite one.
 
-No breaking changes. No new admin setting, no fleetctl or GitOps changes, no license changes (Windows disk encryption is already Premium).
+No breaking changes. No new admin setting, no fleetctl or GitOps changes.
+
+**Tier is unresolved and must be settled before implementation.** GitHub #49133 states "Changes to paid features or tiers: Free", but its own test plan has a "Premium gating (BitLocker management is a premium feature)" section asserting the opposite, and the REST API reference documents `windows_require_bitlocker_pin` as "Available in Fleet Premium". In practice the question is close to moot, because a PIN is only ever demanded when that Premium setting is on, so a Fleet Free host never reaches this flow. The proposal therefore does not assert a tier: see the open question in the design.
 
 ## Capabilities
 

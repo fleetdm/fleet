@@ -10,7 +10,7 @@
 - [ ] 2.2 Migration: add `fleetd_bitlocker_pin_capable` TINYINT(1) NOT NULL DEFAULT 0 to `mdm_windows_enrollments`, guarded with `columnExists`, with a test file
 - [ ] 2.3 Datastore: `QueueBitLockerPINRequest(ctx, hostID, pin)` encrypting with the server private key (reuse the AES-GCM helper used by `mdm_config_assets`), replacing any existing row
 - [ ] 2.4 Datastore: `GetBitLockerPINRequestState(ctx, hostID)` returning status, sanitized error, age, and a pending-and-fresh flag (5 minute TTL)
-- [ ] 2.5 Datastore: `TakeBitLockerPINRequest(ctx, hostID)` that returns the decrypted PIN for a fresh `pending` row, sets `delivered`, and NULLs the ciphertext in one statement
+- [ ] 2.5 Datastore: `TakeBitLockerPINRequest(ctx, hostID)` returning the decrypted PIN for a fresh `pending` row exactly once. MySQL has no `UPDATE ... RETURNING`, so a plain read-then-write can hand the same PIN to two concurrent orbit polls: run it in a writer transaction (`ctxdb.RequirePrimary`) that does `SELECT ... FOR UPDATE` on the row, checks it is still `pending` and unexpired, then sets `delivered` and NULLs the ciphertext before committing. A second caller blocks on the lock and then sees `delivered`, so it gets nothing
 - [ ] 2.6 Datastore: `SetBitLockerPINRequestOutcome(ctx, hostID, outcome, clientError)` (delete on `set`, store `failed` + reason otherwise) and `DeleteBitLockerPINRequest`
 - [ ] 2.7 Datastore: `SetMDMWindowsEnrollmentFleetdBitLockerPINCapable(ctx, hostUUID, capable)` and add `FleetdBitLockerPINCapable` to `GetMDMWindowsHostConfigState`
 - [ ] 2.8 Add the new methods to the `fleet.Datastore` interface, regenerate `server/mock/datastore_mock.go`, run `go test ./server/service/` to catch uninitialized mocks
@@ -18,7 +18,7 @@
 
 ## 3. Server: endpoints and notifications
 
-- [ ] 3.1 Device endpoint `POST /api/_version_/fleet/device/{token}/disk_encryption_pin` (request/response structs, `deviceAuthToken()`, registered with `errorLimiter`), validating 6 to 20 ASCII digits and eligibility (Windows, not server, MDM-connected, fleet requires PIN, `tpm_pin_set` false, capable fleetd); Premium implementation in `ee/server/service`, core returns `ErrMissingLicense`
+- [ ] 3.1 Device endpoint `POST /api/_version_/fleet/device/{token}/disk_encryption_pin` (request/response structs, `deviceAuthToken()`, registered with `errorLimiter`), validating 6 to 20 ASCII digits and eligibility (Windows, not server, MDM-connected, fleet requires PIN, `tpm_pin_set` false, capable fleetd). Place the implementation according to the tier decision from the design's open question: `ee/server/service` with `ErrMissingLicense` in core if Premium, core service if Free. Do not write the license gate before that is answered
 - [ ] 3.2 Orbit endpoint `POST /api/fleet/orbit/disk_encryption_pin/request` under `oeWindowsMDM` returning `{pin}` once via 2.5, `404` otherwise; never log the value
 - [ ] 3.3 Orbit endpoint `POST /api/fleet/orbit/disk_encryption_pin` under `oeWindowsMDM` with `{outcome, client_error}`: on `set` call `SetOrUpdateHostDiskTpmPIN(true)`, delete the request, create the activity with a nil user, `UpdateHostRefetchRequested(true)`; on `failed` store the sanitized reason; reject unknown outcomes and empty reasons
 - [ ] 3.4 Orbit config: add `BitLockerPINRequestPending bool` to `OrbitConfigNotifications` and set it in the Windows branch of the config handler only while the request is fresh and eligibility still holds; persist the `windows_bitlocker_pin` capability next to `fleetd_sync_capable`

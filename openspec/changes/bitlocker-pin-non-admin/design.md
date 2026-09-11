@@ -53,7 +53,7 @@ A submission is accepted only when: host platform is Windows and not a server; h
 
 ### D5. Server actions on outcome
 
-On `set`: `SetOrUpdateHostDiskTpmPIN(host, true)`, delete the request row, create `ActivityTypeCreatedDiskEncryptionPIN{HostID, HostDisplayName}` with a nil user (rendered as "End user"), and `UpdateHostRefetchRequested(host, true)` so osquery confirms the protector list quickly. On `failed`: keep the row with `status=failed` and the sanitized `client_error` (truncated to 255 like `bitlocker_protection_error`) so the page can show it, and leave `tpm_pin_set` alone. The agent's report is treated as a claim; `tpm_pin_set_verify` remains the observation of record.
+On `set`: `SetOrUpdateHostDiskTpmPIN(host, true)`, mark the request row `set`, create `ActivityTypeCreatedDiskEncryptionPIN{HostID, HostDisplayName}` with a nil user (rendered as "End user"), and `UpdateHostRefetchRequested(host, true)` so osquery confirms the protector list quickly. The row is kept rather than deleted so `set` is actually observable by the waiting page; deleting it on success would make that status unreachable and force the UI to infer success from a missing row. The ciphertext is already gone (cleared at delivery), so a terminal row holds no secret, and it is replaced on the next submission or reaped after 24 hours. On `failed`: keep the row with `status=failed` and the sanitized `client_error` (truncated to 255 like `bitlocker_protection_error`) so the page can show it, and leave `tpm_pin_set` alone. The agent's report is treated as a claim; `tpm_pin_set_verify` remains the observation of record.
 
 ### D6. Gating on a new fleetd capability, persisted per enrollment
 
@@ -69,7 +69,7 @@ Fleet Desktop (Windows only) renders a `<toast>` XML with the Figma copy and a `
 
 ### D9. My device modal behavior
 
-Form with two `InputField type="password"` controls, helper text "Must be 6–20 digits. Keep it somewhere safe. This PIN isn't saved by Fleet or your IT team.", Save disabled until both fields are 6 to 20 digits and equal. Save posts the PIN, then the modal enters a waiting state and polls `GET /device/{token}` every 3 s reading `pin_request.status` for up to 90 s (covers one 30 s orbit poll plus WMI time with margin). `set` closes the modal, shows the "Successfully set PIN." toast, and the banner disappears because `action_required` is no longer `create_pin`. `failed` shows "Couldn't set PIN. {error}. Try again or contact your IT admin." and re-enables Save. Timeout shows the same failure copy with a generic reason. `?create_pin=1` opens the modal on load when `action_required === "create_pin"`. The legacy instructions modal is kept and rendered when `fleetd_can_set_pin` is false.
+Form with two `InputField type="password"` controls, helper text "Must be 6–20 digits. Keep it somewhere safe. Fleet can't show this PIN to you or your IT team later." (the Figma's "This PIN isn't saved by Fleet or your IT team" is not true under D1, where the server holds the PIN encrypted until the agent collects it; see Open Questions), Save disabled until both fields are 6 to 20 digits and equal. Save posts the PIN, then the modal enters a waiting state and polls `GET /device/{token}` every 3 s reading `pin_request.status` for up to 90 s (covers one 30 s orbit poll plus WMI time with margin). `set` closes the modal, shows the "Successfully set PIN." toast, and the banner disappears because `action_required` is no longer `create_pin`. `failed` shows "Couldn't set PIN. {error}. Try again or contact your IT admin." and re-enables Save. Timeout shows the same failure copy with a generic reason. `?create_pin=1` opens the modal on load when `action_required === "create_pin"`. The legacy instructions modal is kept and rendered when `fleetd_can_set_pin` is false.
 
 ### D10. Banners
 
@@ -100,6 +100,8 @@ My device banner text becomes "Disk encryption: Create a BitLocker PIN to protec
 
 ## Open Questions
 
+- **Which tier ships this?** GitHub #49133 says Free under "Changes to paid features or tiers", its test plan says Premium, and the REST API reference documents `windows_require_bitlocker_pin` as Premium. This decides whether the submit endpoint lives in `ee/server/service` behind `ErrMissingLicense` or in the core service, so it blocks task 3.1. Note the flow is unreachable on Free today regardless, because only the Premium setting can demand a PIN.
+- **Approve the modal's helper text.** The Figma reads "This PIN isn't saved by Fleet or your IT team", which D1 makes untrue: the server stores the PIN encrypted until the agent collects it. The spec proposes "Fleet can't show this PIN to you or your IT team later", which is accurate and carries the same reassurance. Product owns the final wording, and this is security copy, so it should not ship unreviewed.
 - Confirm with product that the Host details (admin) banner drops the **Create PIN** link (D10).
 - Confirm "Fleet Desktop" as the toast header name (AUMID `DisplayName`); the Figma header row reads "Fleet: Action needed", which Windows draws from the AUMID, not from toast content. Victor approved "Fleet Desktop" on 2026-09-11.
 - Should the request TTL be longer than 5 minutes for hosts on slow networks? 30 s poll makes 5 minutes generous; revisit with telemetry.
