@@ -139,7 +139,7 @@ Currently, on macOS and Windows hosts, Fleet supports enforcing OS settings at t
 
 If a macOS host is automatically enrolled (via [ADE](https://support.apple.com/en-us/102300)), user-scoped profiles are delivered to the user that was created during first time setup. For Macs that enrolled and turned on MDM manually, user-scoped profiles are delivered to the user that turned on MDM on the **Fleet Desktop > My device** page.
 
-On Windows, user-scoped profiles are delivered to the currently signed-in user. On devices shared by multiple users, only the user who is signed in when profiles are delivered receives them. If an admin adds or changes user-scoped profiles later, they are delivered to whichever user is signed in at that time.
+On Windows, user-scoped profiles are delivered to the user who is signed in when the profile is applied. During initial enrollment, this is the user who completes the setup experience. Fleet does not support delivering user-scoped profiles separately to each user on shared Windows devices.
 
 How to deliver user-scoped configuration profiles:
 
