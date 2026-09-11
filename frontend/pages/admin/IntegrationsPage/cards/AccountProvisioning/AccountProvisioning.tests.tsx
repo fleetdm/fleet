@@ -1,12 +1,12 @@
-import React from "react";
 import { screen, waitFor } from "@testing-library/react";
+import React from "react";
 
-import { createCustomRenderer, createMockRouter } from "test/test-utils";
 import createMockConfig from "__mocks__/configMock";
 import createMockLicense from "__mocks__/licenseMock";
-import configAPI from "services/entities/config";
 import { notify } from "components/ToastNotification";
 import { IAppConfigFormProps } from "pages/admin/OrgSettingsPage/cards/constants";
+import configAPI from "services/entities/config";
+import { createCustomRenderer, createMockRouter } from "test/test-utils";
 
 import AccountProvisioning from "./AccountProvisioning";
 
