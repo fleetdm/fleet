@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "2.4.0",
+      "version": "2.4.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.dot.app';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.dot.app' AND version_compare(bundle_short_version, '2.4.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.dot.app' AND version_compare(bundle_short_version, '2.4.1') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.dot.app' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/prateekkeshari/dot-releases/releases/download/v2.4.0/Dot-2.4.0.dmg",
+      "installer_url": "https://github.com/prateekkeshari/dot-releases/releases/download/v2.4.1/Dot-2.4.1.dmg",
       "install_script_ref": "d7062e7b",
       "uninstall_script_ref": "8b30ac36",
-      "sha256": "bb87cfb033cc68abb2629bb5f39039397877a18420fa8d474ef27e354396bdef",
+      "sha256": "0c856e2dcc1984262dad80efd5414b641f86b6b9bc6affc56d1278a38ce712c5",
       "default_categories": [
         "Communication"
       ]

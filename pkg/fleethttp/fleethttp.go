@@ -180,6 +180,9 @@ func privateNetworkBlockingDialContext(dialer *net.Dialer) func(ctx context.Cont
 	}
 }
 
+// DefaultTimeout is the request timeout applied by NewClient when the caller does not provide WithTimeout or WithNoTimeout.
+const DefaultTimeout = 60 * time.Second
+
 type clientOpts struct {
 	timeout   time.Duration
 	tlsConf   *tls.Config
@@ -194,6 +197,14 @@ type ClientOpt func(o *clientOpts)
 func WithTimeout(t time.Duration) ClientOpt {
 	return func(o *clientOpts) {
 		o.timeout = t
+	}
+}
+
+// WithNoTimeout removes the DefaultTimeout, leaving the HTTP client without a timeout. Callers that stream large responses or
+// rely on a per-request context deadline need this; everything else should keep the default.
+func WithNoTimeout() ClientOpt {
+	return func(o *clientOpts) {
+		o.timeout = 0
 	}
 }
 
@@ -224,7 +235,7 @@ func WithCookieJar(jar http.CookieJar) ClientOpt {
 // NewClient returns an HTTP client configured according to the provided
 // options.
 func NewClient(opts ...ClientOpt) *http.Client {
-	var co clientOpts
+	co := clientOpts{timeout: DefaultTimeout}
 	for _, opt := range opts {
 		opt(&co)
 	}
@@ -308,7 +319,7 @@ func noFollowRedirect(*http.Request, []*http.Request) error {
 // NewGithubClient returns an HTTP client customized for accessing Github.
 //
 // - If the NETWORK_TEST_GITHUB_TOKEN variable is empty, then this is equivalent to
-// call `NewClient()`.
+// call `NewClient(WithNoTimeout())`.
 // - If the NETWORK_TEST_GITHUB_TOKEN variable is set, then the client will use the
 // token for authentication (as OAuth2 static token).
 func NewGithubClient() *http.Client {
@@ -321,7 +332,7 @@ func NewGithubClient() *http.Client {
 		cli.Transport = otelhttp.NewTransport(cli.Transport)
 		return cli
 	}
-	return NewClient()
+	return NewClient(WithNoTimeout())
 }
 
 // HostnamesMatch is an utility function to parse two strings as

@@ -19,7 +19,12 @@ import (
 
 const (
 	// scepInstallLocURINode is the Windows SCEP ClientCertificateInstall node in scope-less form.
-	scepInstallLocURINode     = "Vendor/MSFT/ClientCertificateInstall/SCEP"
+	scepInstallLocURINode = "Vendor/MSFT/ClientCertificateInstall/SCEP"
+
+	// WindowsSCEPSubjectNameSuffix ends the LocURI of the SCEP node carrying the certificate's
+	// subject name as an X.500 string.
+	WindowsSCEPSubjectNameSuffix = "/Install/SubjectName"
+
 	WindowsMDMAuthNoncePrefix = "mwenonce:"
 )
 
@@ -910,6 +915,9 @@ type MDMWindowsHostConfigState struct {
 	FleetdSyncCapable bool
 	// ManagedLocalAccountEscrowed is true once the device has escrowed a managed local account password for this enrollment.
 	ManagedLocalAccountEscrowed bool
+	// ManagedLocalAccountRotationRequested asks the device to re-provision the account even though a password is already
+	// escrowed. Cleared once it escrows the replacement.
+	ManagedLocalAccountRotationRequested bool
 }
 
 type MDMWindowsEnrolledDevice struct {
@@ -949,9 +957,11 @@ type MDMWindowsEnrolledDevice struct {
 	HasPendingCommands bool `db:"has_pending_commands"`
 	// HardwareSerial is the SMBIOS serial the device reported over OMA-DM (DevDetail), persisted while the enrollment
 	// is still unlinked so the orbit enrollment path can reverse-link it.
-	HardwareSerial *string   `db:"hardware_serial"`
-	CreatedAt      time.Time `db:"created_at"`
-	UpdatedAt      time.Time `db:"updated_at"`
+	HardwareSerial *string `db:"hardware_serial"`
+	// EnrolledActivityAt is when the mdm_enrolled activity was recorded for this enrollment, and nil until it has been.
+	EnrolledActivityAt *time.Time `db:"enrolled_activity_at"`
+	CreatedAt          time.Time  `db:"created_at"`
+	UpdatedAt          time.Time  `db:"updated_at"`
 }
 
 // WindowsEnrollmentDefaultFleet is the cacheable shape of Datastore.GetWindowsEnrollmentDefaultFleet (see the cached_mysql

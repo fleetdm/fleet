@@ -67,9 +67,6 @@ const config = {
     minimize: process.env.NODE_ENV === "production",
   },
   module: {
-    // The following noParse suppresses the warning about sqlite-parser being a
-    // pre-compiled JS file. See https://goo.gl/N4s6bB.
-    noParse: /node_modules\/sqlite-parser\/dist\/sqlite-parser-min.js/,
     rules: [
       {
         // Fleet-maintained app icons: always emitted as separate files, never
@@ -168,14 +165,32 @@ const config = {
     extensions: [".tsx", ".ts", ".js", ".jsx", ".json"],
     modules: [path.resolve(path.join(repo, "./frontend")), "node_modules"],
     fallback: { path: require.resolve("path-browserify") },
-    alias: {
-      "node-sql-parser": path.resolve(
-        __dirname,
-        "node_modules/@sgress454/node-sql-parser/umd/sqlite.umd.js"
-      ),
-    },
   },
 };
+
+if (process.env.NODE_ENV !== "production") {
+  // Default splitChunks names shared chunks after their contents, so the names
+  // shift as the sharing topology does — 404ing against go-bindata -debug's
+  // asset list, which is frozen when generate-dev runs.
+  config.optimization.splitChunks = {
+    cacheGroups: {
+      defaultVendors: {
+        test: /[\\/]node_modules[\\/]/,
+        name: "vendors",
+        chunks: "async",
+        priority: -10,
+        reuseExistingChunk: true,
+      },
+      default: {
+        name: "common",
+        chunks: "async",
+        minChunks: 2,
+        priority: -20,
+        reuseExistingChunk: true,
+      },
+    },
+  };
+}
 
 if (process.env.NODE_ENV === "production") {
   config.output.filename = "[name]-[contenthash].js";

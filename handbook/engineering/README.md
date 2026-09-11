@@ -62,11 +62,11 @@ These categories compete for priority in the normal product pipeline so that pro
 
 **To draft the story:**
 
-The engineering output and architecture DRI reviews and triages engineering-initiated stories weekly on the [Engineering board](https://github.com/orgs/fleetdm/projects/73) and selects stories to prioritize for drafting by adding the `:product` label, placing it in the "Ready" column, and assigning an engineer.
+The engineering output and architecture DRI reviews and triages engineering-initiated stories weekly on the [Engineering board](https://github.com/orgs/fleetdm/projects/73) and selects stories to prioritize for drafting by placing it in the "Ready" column and assigning an engineer.
 
-1. The assigned engineer is responsible for completing the user story drafting process by completing the specs and [defining done](https://fleetdm.com/handbook/company/product-groups#defining-done). Move the issue into "In progress" on the drafting board and populate all TODOs in the issue description, define implementation details, and draft the first version of the test plan.
+1. The assigned engineer is responsible for completing the user story drafting process by completing the specs and [defining done](https://fleetdm.com/handbook/company/product-groups#defining-done). Move the issue into "Drafting" on the correct product group's board and populate all TODOs in the issue description, define implementation details, and draft the first version of the test plan.
 
-2. When all sections have been populated, move it to the "User story review" column on the drafting board and assign to your EM. The EM will bring the story to [weekly user story review](https://fleetdm.com/handbook/company/product-groups#user-story-reviews), and then to estimation before prioritizing into an upcoming release.
+2. When all sections have been populated, assign the story to the product group's EM. The EM will bring the story to [weekly user story review](https://fleetdm.com/handbook/company/product-groups#user-story-reviews), and then to estimation before prioritizing into an upcoming release.
 
 > We prefer the term engineering-initiated stories over technical debt because the user story format helps keep us focused on our users and contributors.
 
@@ -74,6 +74,13 @@ The engineering output and architecture DRI reviews and triages engineering-init
 #### Fix a bug
 
 All bug fix pull requests should reference the issue they resolve with the issue number in the description. Please do not use any [automated words](https://docs.github.com/en/issues/tracking-your-work-with-issues/linking-a-pull-request-to-an-issue#linking-a-pull-request-to-an-issue-using-a-keyword) since we don't want the issues to auto-close when the PR is merged.
+
+
+#### Route a Fleet-maintained app (FMA) request or bug
+
+When a GitHub issue or request relates to a Fleet-maintained app (FMA), add the `~fma` label. That label alone is enough to surface the issue on the [Fleet-maintained apps project board](https://github.com/orgs/fleetdm/projects/116).
+
+Do not add the `:help-solutions-consulting` label to FMA-related issues. That label routes to the Solutions Consulting board, not the FMA board.
 
 
 #### Handle a security report
@@ -114,6 +121,24 @@ All conversation about an unfixed vulnerability stays in the private [fleetdm/se
 **Link the PR back to the security ticket.** Since the PR description can't reference the security issue, post a comment on the fleetdm/security ticket with the PR URL when the PR opens (and again when it merges). That's how we maintain the audit trail without exposing the link publicly.
 
 
+### Pull request etiquette
+
+This applies to anyone who opens a pull request in the Fleet repo. That includes engineers in the owning product group, Fleeties from other groups, members of the Customer Success team, and open source contributors.
+
+1. **Ask before starting something large.** Comment on the issue, or ask in the owning [product group's](https://fleetdm.com/handbook/company/product-groups#current-product-groups) Slack channel, before writing a lot of code. The Engineering Manager knows whether the work is already underway and whether the approach fits. They can also say when the group can review it.
+
+2. **Keep the change small.** A small pull request gets reviewed sooner than a large one. When a change has to be large, split it into pieces that each stand on their own. Explain in the description how they fit together.
+
+3. **Use a draft pull request until the work is done.** Draft tells reviewers the pull request isn't waiting on them yet. Take it out of draft once:
+   - The change does what the linked issue asks, and nothing more.
+   - Automated tests cover the change and CI passes.
+   - You have read your own diff and QA'd the change yourself.
+   - The submitter checklist in the description is filled in.
+   - Any user-visible change includes a screenshot or recording.
+
+4. **Hand off the pull request before time off.** Follow [taking time off](https://fleetdm.com/handbook/company/communications#taking-time-off) to note that you'll be out, move the change back to draft, or name someone who has agreed to take it over.
+
+
 ### Community contributions
 
 Fleet values every community contribution. We want to be upfront about how our engineering workflow has evolved so contributors know what to expect.
@@ -137,6 +162,8 @@ The goal is to not go more than one business day without responding to the contr
 If the PR is not something we want to pursue, thank the contributor, explain the reasoning, optionally invite them to file a [feature request](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=%3Aproduct&projects=&template=feature-request.md&title=), and close the PR.
 
 4. **Track the work**: Create an issue using the relevant [work item](https://fleetdm.com/handbook/company/product-groups#work-items) issue template. The issue then moves across the relevant product group's board following the [standard process](https://fleetdm.com/handbook/company/product-groups#how-issues-move).
+
+5. **Testing locally**: For community PRs, reviewers should complete code review first, then check out the PR locally, run it, and verify expected behavior.
 
 
 #### Merge a community pull request
