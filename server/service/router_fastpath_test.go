@@ -124,11 +124,11 @@ func TestFastPathMatchesGorillaForEveryRoute(t *testing.T) {
 	require.NoError(t, router.Walk(func(route *mux.Route, _ *mux.Router, _ []*mux.Route) error {
 		tpl, err := route.GetPathTemplate()
 		if err != nil {
-			return nil //nolint:nilerr // a route with no path is not reachable
+			return nil // a route with no path is not reachable
 		}
 		methods, err := route.GetMethods()
 		if err != nil || len(methods) == 0 {
-			return nil //nolint:nilerr
+			return nil
 		}
 		for _, method := range methods {
 			samples = append(samples, sample{method: method, path: sampleRequestPath(tpl), route: route.GetName()})
@@ -283,18 +283,18 @@ func TestFastPathExclusionsCoverEveryAmbiguousRoute(t *testing.T) {
 	require.NoError(t, router.Walk(func(route *mux.Route, _ *mux.Router, _ []*mux.Route) error {
 		tpl, err := route.GetPathTemplate()
 		if err != nil || strings.HasSuffix(tpl, "/") {
-			return nil //nolint:nilerr
+			return nil
 		}
 		methods, err := route.GetMethods()
 		if err != nil || len(methods) != 1 {
-			return nil //nolint:nilerr
+			return nil
 		}
-		if _, ok := varMatchers(tpl); !ok {
+		if _, supported := supportedVarMatchers(tpl); !supported {
 			return nil
 		}
 		key := unversionedKey(methods[0], tpl)
 		registered[key] = struct{}{}
-		for _, pattern := range stdlibPatterns(tpl) {
+		for _, pattern := range expandToStdlibPatterns(tpl) {
 			if conflictErr := handleNoConflict(fast, methods[0]+" "+pattern, noop); conflictErr != nil {
 				require.Containsf(t, fastPathExcluded, key,
 					"route %q is ambiguous on a stdlib ServeMux; add it and the route it collides with to fastPathExcluded (%v)",
@@ -330,8 +330,8 @@ func TestFastPathHandlerIsIntrospectableByEndpointValidation(t *testing.T) {
 
 // TestStdlibPatternsDedupesVersions covers the template a bounded context produces when it lists "latest" in its own version
 // set: the endpointer appends "latest" a second time, and the repeated alternative must not become a repeated pattern.
-func TestStdlibPatternsDedupesVersions(t *testing.T) {
-	patterns := stdlibPatterns("/api/{fleetversion:(?:v1|latest|latest)}/fleet/activities")
+func TestExpandToStdlibPatternsDedupesVersions(t *testing.T) {
+	patterns := expandToStdlibPatterns("/api/{fleetversion:(?:v1|latest|latest)}/fleet/activities")
 	require.Equal(t, []string{
 		"/api/latest/fleet/activities",
 		"/api/v1/fleet/activities",

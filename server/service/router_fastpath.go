@@ -15,20 +15,21 @@ import (
 )
 
 // gorilla/mux matches by walking the whole route table in registration order, running a compiled regex per candidate until one
-// matches. Fleet registers ~550 routes and the agent endpoints register late, so every osquery and orbit request runs several
-// hundred regex executions before it reaches its handler. fastPathHandler puts a stdlib ServeMux, which matches on a segment
-// trie in time proportional to the path length rather than to the table size, in front of the gorilla router and gives it every
-// route it can match with identical results. Anything else falls through to gorilla, which stays the source of truth for
-// matching semantics.
+// matches. Fleet registers over 550 routes so running hundreds of regex executions is pretty slow. fastPathHandler puts a stdlib
+// ServeMux, which matches on a segment trie in time proportional to number of path segments rather than to the table size, in
+// front of the gorilla router and gives it every route it can match with identical results. Anything else falls through to
+// gorilla, which stays the source of truth for matching semantics.
 type fastPathHandler struct {
 	fast   *http.ServeMux
 	router *mux.Router
 }
 
 func (h *fastPathHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	// Two request shapes are matched differently by the two routers, so gorilla handles both. gorilla matches on the decoded
-	// path, which turns an encoded separator into a segment break, while the stdlib mux keeps it inside a single segment. And
-	// an unclean path is redirected by gorilla with a 301 but by the stdlib mux with a 307.
+	// Two request shapes are matched differently by the two routers, so gorilla handles both.
+	//
+	// 1. gorilla matches on the decoded path, which turns an encoded separator into a segment break, while the stdlib mux keeps it
+	// inside a single segment. abc%2Fdef vs abc/def is a common example.
+	// 2. An unclean path (contains ../ and the like) is redirected by gorilla with a 301 but by the stdlib mux with a 307.
 	if r.URL.RawPath != "" || !isCanonicalPath(r.URL.Path) {
 		h.router.ServeHTTP(w, r)
 		return
@@ -77,20 +78,15 @@ var fastPathExcluded = map[string]struct{}{
 }
 
 var (
-	fleetVersionVar = regexp.MustCompile(`\{fleetversion:\(\?:([^)]*)\)\}`)
-	constrainedVar  = regexp.MustCompile(`\{([a-zA-Z_][a-zA-Z0-9_]*):([^}]*)\}`)
-	anyVar          = regexp.MustCompile(`\{([a-zA-Z_][a-zA-Z0-9_]*)(?::[^}]*)?\}`)
+	fleetVersionVar = regexp.MustCompile(`{fleetversion:\(\?:([^)]*)\)}`)
+	constrainedVar  = regexp.MustCompile(`{([a-zA-Z_][a-zA-Z0-9_]*):([^}]*)}`)
+	anyVar          = regexp.MustCompile(`{([a-zA-Z_][a-zA-Z0-9_]*)(?::[^}]*)?}`)
 )
 
 // newFastPathHandler builds the fast path from an already-registered gorilla router. It has to run after every route is
 // registered and after addMetrics, because the handlers it promotes are the fully wrapped ones. middlewares are the
 // route-agnostic wrappers gorilla applies through Use; they are applied again here because a request served by the fast path
 // never enters the gorilla router.
-//
-// A route that cannot be promoted safely panics. The route table is fixed at compile time -- Fleet registers every route
-// unconditionally except one literal websocket path -- so this is a programming error with the same blast radius as the
-// endpoint catalog validation serve.go already panics on, and every test that calls MakeHandler reaches it. Degrading to a
-// warning instead would let the fast path ship silently switched off, which is exactly how it reached a running server once.
 func newFastPathHandler(r *mux.Router, middlewares []mux.MiddlewareFunc, cfg config.FleetConfig) http.Handler {
 	fast, err := buildFastPathMux(r, middlewares, cfg)
 	if err != nil {
@@ -107,11 +103,11 @@ func buildFastPathMux(r *mux.Router, middlewares []mux.MiddlewareFunc, cfg confi
 		tpl, err := route.GetPathTemplate()
 		if err != nil || strings.HasSuffix(tpl, "/") {
 			// A route with no path, or a PathPrefix route whose subtree semantics are left to gorilla.
-			return nil //nolint:nilerr
+			return nil
 		}
 		methods, err := route.GetMethods()
 		if err != nil || len(methods) != 1 {
-			return nil //nolint:nilerr
+			return nil
 		}
 		handler := route.GetHandler()
 		if handler == nil {
@@ -121,8 +117,8 @@ func buildFastPathMux(r *mux.Router, middlewares []mux.MiddlewareFunc, cfg confi
 		if _, excluded := fastPathExcluded[unversionedKey(method, tpl)]; excluded {
 			return nil
 		}
-		matchers, ok := varMatchers(tpl)
-		if !ok {
+		matchers, supported := supportedVarMatchers(tpl)
+		if !supported {
 			return nil
 		}
 
@@ -140,7 +136,7 @@ func buildFastPathMux(r *mux.Router, middlewares []mux.MiddlewareFunc, cfg confi
 			varNames = append(varNames, m[1])
 		}
 
-		for _, pattern := range stdlibPatterns(tpl) {
+		for _, pattern := range expandToStdlibPatterns(tpl) {
 			full := method + " " + pattern
 			if _, taken := claimed[full]; taken {
 				// Two routes registered the same method and path. gorilla dispatches to whichever came first, so the
@@ -159,8 +155,7 @@ func buildFastPathMux(r *mux.Router, middlewares []mux.MiddlewareFunc, cfg confi
 		return nil, err
 	}
 
-	// Everything the fast path did not claim, including method mismatches and unknown paths, is served by gorilla exactly as it
-	// is today.
+	// Everything the fast path did not claim, including method mismatches and unknown paths, is served by gorilla.
 	fast.Handle("/", r)
 	return fast, nil
 }
@@ -220,6 +215,9 @@ type varMatcher struct {
 	allow func(string) bool
 }
 
+// The regex constraints the fast path supports, and the character sets that stand in for them. Each charset must be exactly
+// as narrow as the pattern it replaces: a wider one would admit a value gorilla rejects. Adding a route with any other
+// constraint syntax is allowed, it just keeps that route on gorilla.
 const (
 	digitPattern        = "[0-9]+"
 	hexAndDashPattern   = "[a-f0-9-]+"
@@ -229,14 +227,16 @@ const (
 	alphanumDashChars = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-"
 )
 
-// varMatchers returns one matcher per regex-constrained variable in the template. It reports false for a constraint this code
-// cannot check without a regex, in which case the route stays on gorilla.
-func varMatchers(tpl string) ([]varMatcher, bool) {
+// supportedVarMatchers reports whether every regex constraint in the template is one the fast path knows how to enforce, and
+// if so returns a cheap non-regex checker for each. The stdlib pattern drops these constraints, so without the checkers a
+// request gorilla rejects at the router would instead reach a decoder. A template using any other constraint syntax is not
+// supported and its route stays on gorilla, correct but unaccelerated.
+func supportedVarMatchers(tpl string) ([]varMatcher, bool) {
 	var matchers []varMatcher
 	for _, m := range constrainedVar.FindAllStringSubmatch(tpl, -1) {
 		name, expr := m[1], m[2]
 		if name == "fleetversion" {
-			continue // expanded into literal segments by stdlibPatterns
+			continue // expanded into literal segments by expandToStdlibPatterns
 		}
 		switch expr {
 		case digitPattern:
@@ -282,14 +282,11 @@ func charsetMatcher(set string) func(string) bool {
 	}
 }
 
-// stdlibPatterns converts a gorilla template into stdlib ServeMux patterns. The fleetversion alternation becomes one pattern
-// per literal version so an unknown version is still a 404 at the router. Other constraints are dropped from the pattern and
-// enforced by varMatchers instead.
-//
-// Versions are deduplicated. A bounded context that lists "latest" in its own version set gets it appended a second time by
-// the endpointer, producing a template like {fleetversion:(?:v1|latest|latest)}; the repeat is invisible to a regex but would
-// otherwise register the same stdlib pattern twice.
-func stdlibPatterns(tpl string) []string {
+// expandToStdlibPatterns rewrites one gorilla route template as the stdlib ServeMux patterns matching the same requests. It is
+// one-to-many: the fleetversion alternation becomes a separate pattern per literal version, so a request naming an unknown
+// version is still a 404 at the router rather than something a handler has to reject. Every other regex constraint is dropped,
+// because a stdlib wildcard cannot express one, and is enforced by supportedVarMatchers instead.
+func expandToStdlibPatterns(tpl string) []string {
 	base := constrainedVar.ReplaceAllString(tpl, "{$1}")
 	m := fleetVersionVar.FindStringSubmatch(tpl)
 	if m == nil {
@@ -298,7 +295,7 @@ func stdlibPatterns(tpl string) []string {
 	versions := strings.Split(m[1], "|")
 	slices.Sort(versions)
 	patterns := make([]string, 0, len(versions))
-	for _, version := range slices.Compact(versions) {
+	for _, version := range slices.Compact(versions) { // deduplicate
 		patterns = append(patterns, strings.Replace(base, "{fleetversion}", version, 1))
 	}
 	return patterns

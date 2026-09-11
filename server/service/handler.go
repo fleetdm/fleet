@@ -179,8 +179,7 @@ func MakeHandler(
 		}
 	}
 
-	// Route-agnostic middleware is collected rather than only handed to Use, because a request served by the fast path never
-	// enters the gorilla router and has to be wrapped with the same chain.
+	// Route-agnostic middleware is collected because it is needed by both the fastpath stdlib router and gorilla.
 	var middlewares []mux.MiddlewareFunc
 
 	if config.Server.GzipResponses {
