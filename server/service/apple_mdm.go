@@ -8571,7 +8571,8 @@ func (svc *Service) UpdateABMTokenTeams(ctx context.Context, tokenID uint, macOS
 
 type setABMTokenDefaultRequest struct {
 	TokenID uint `url:"id"`
-	Default bool `json:"default"`
+	// pointer so an omitted field is rejected instead of silently clearing the default
+	Default *bool `json:"default"`
 }
 
 type setABMTokenDefaultResponse struct {
@@ -8592,7 +8593,7 @@ func setABMTokenDefaultEndpoint(ctx context.Context, request any, svc fleet.Serv
 	return &setABMTokenDefaultResponse{ABMToken: tok}, nil
 }
 
-func (svc *Service) SetABMTokenDefault(ctx context.Context, tokenID uint, isDefault bool) (*fleet.ABMToken, error) {
+func (svc *Service) SetABMTokenDefault(ctx context.Context, tokenID uint, isDefault *bool) (*fleet.ABMToken, error) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)

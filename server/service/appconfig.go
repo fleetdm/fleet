@@ -2722,7 +2722,7 @@ func (svc *Service) validateABMAssignments(
 		for _, bm := range mdm.AppleBusinessManager.Value {
 			if bm.Default {
 				if defaultTokenID != nil {
-					invalid.Append("mdm.apple_business", "only one Apple Business Manager (ABM) token can be the default")
+					invalid.Append("mdm.apple_business", "only one Apple Business (AB) token can be the default")
 					return nil, nil, nil
 				}
 				if tok, ok := tokensByName[norm.NFC.String(bm.OrganizationName)]; ok {

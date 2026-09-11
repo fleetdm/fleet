@@ -940,7 +940,7 @@ func TestSetABMTokenDefault(t *testing.T) {
 			t.Run(c.desc, func(t *testing.T) {
 				resetState(tokA.ID)
 				ctx := test.UserContext(t.Context(), c.user)
-				_, err := svc.SetABMTokenDefault(ctx, tokB.ID, true)
+				_, err := svc.SetABMTokenDefault(ctx, tokB.ID, new(true))
 				test.RequireErrKind(t, c.wantErr, err)
 			})
 		}
@@ -948,16 +948,25 @@ func TestSetABMTokenDefault(t *testing.T) {
 
 	adminCtx := test.UserContext(t.Context(), test.UserAdmin)
 
+	t.Run("omitted default value is rejected", func(t *testing.T) {
+		resetState(tokA.ID)
+		_, err := svc.SetABMTokenDefault(adminCtx, tokB.ID, nil)
+		require.Error(t, err)
+		require.ErrorContains(t, err, "missing required argument")
+		assert.False(t, ds.SetABMTokenDefaultFuncInvoked)
+		assert.False(t, ds.ClearABMTokenDefaultFuncInvoked)
+	})
+
 	t.Run("unknown token id is not found", func(t *testing.T) {
 		resetState(tokA.ID)
-		_, err := svc.SetABMTokenDefault(adminCtx, 999, true)
+		_, err := svc.SetABMTokenDefault(adminCtx, 999, new(true))
 		require.Error(t, err)
 		require.True(t, fleet.IsNotFound(err))
 	})
 
 	t.Run("setting default moves it from the other token", func(t *testing.T) {
 		resetState(tokA.ID)
-		token, err := svc.SetABMTokenDefault(adminCtx, tokB.ID, true)
+		token, err := svc.SetABMTokenDefault(adminCtx, tokB.ID, new(true))
 		require.NoError(t, err)
 		assert.True(t, token.IsDefault)
 		assert.True(t, ds.SetABMTokenDefaultFuncInvoked)
@@ -967,7 +976,7 @@ func TestSetABMTokenDefault(t *testing.T) {
 
 	t.Run("unsetting the default clears it", func(t *testing.T) {
 		resetState(tokB.ID)
-		token, err := svc.SetABMTokenDefault(adminCtx, tokB.ID, false)
+		token, err := svc.SetABMTokenDefault(adminCtx, tokB.ID, new(false))
 		require.NoError(t, err)
 		assert.False(t, token.IsDefault)
 		assert.True(t, ds.ClearABMTokenDefaultFuncInvoked)
@@ -977,7 +986,7 @@ func TestSetABMTokenDefault(t *testing.T) {
 
 	t.Run("unsetting a non-default token is a no-op", func(t *testing.T) {
 		resetState(tokA.ID)
-		token, err := svc.SetABMTokenDefault(adminCtx, tokB.ID, false)
+		token, err := svc.SetABMTokenDefault(adminCtx, tokB.ID, new(false))
 		require.NoError(t, err)
 		assert.False(t, token.IsDefault)
 		assert.False(t, ds.SetABMTokenDefaultFuncInvoked)
@@ -989,7 +998,7 @@ func TestSetABMTokenDefault(t *testing.T) {
 		tokenCount = 1
 		t.Cleanup(func() { tokenCount = 2 })
 		resetState(tokA.ID)
-		_, err := svc.SetABMTokenDefault(adminCtx, tokA.ID, false)
+		_, err := svc.SetABMTokenDefault(adminCtx, tokA.ID, new(false))
 		require.Error(t, err)
 		require.ErrorContains(t, err, "always the default")
 		assert.False(t, ds.ClearABMTokenDefaultFuncInvoked)

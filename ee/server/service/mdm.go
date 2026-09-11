@@ -1990,9 +1990,15 @@ func (svc *Service) UpdateABMTokenTeams(ctx context.Context, tokenID uint, macOS
 	return token, nil
 }
 
-func (svc *Service) SetABMTokenDefault(ctx context.Context, tokenID uint, isDefault bool) (*fleet.ABMToken, error) {
+func (svc *Service) SetABMTokenDefault(ctx context.Context, tokenID uint, isDefault *bool) (*fleet.ABMToken, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.AppleBM{}, fleet.ActionWrite); err != nil {
 		return nil, err
+	}
+
+	// require an explicit value: an omitted field would otherwise read as
+	// false and silently clear the default
+	if isDefault == nil {
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("default", "missing required argument"))
 	}
 
 	// reads here decide what gets written (token count, app config sync), so
@@ -2005,7 +2011,7 @@ func (svc *Service) SetABMTokenDefault(ctx context.Context, tokenID uint, isDefa
 	}
 
 	switch {
-	case isDefault:
+	case *isDefault:
 		if err := svc.ds.SetABMTokenDefault(ctx, tokenID); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "setting default ABM token")
 		}
@@ -2016,7 +2022,7 @@ func (svc *Service) SetABMTokenDefault(ctx context.Context, tokenID uint, isDefa
 		}
 		if count == 1 {
 			return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("default",
-				"Couldn't unset the default. The only Apple Business Manager (ABM) token is always the default."))
+				"Couldn't unset the default. The only Apple Business (AB) token is always the default."))
 		}
 		if err := svc.ds.ClearABMTokenDefault(ctx); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "clearing default ABM token")
@@ -2025,7 +2031,7 @@ func (svc *Service) SetABMTokenDefault(ctx context.Context, tokenID uint, isDefa
 		// asked to unset a token that isn't the default: nothing to do
 		return token, nil
 	}
-	token.IsDefault = isDefault
+	token.IsDefault = *isDefault
 
 	// Changing the default can flip another token's flag off, so sync the app
 	// config from all tokens, not just this one.

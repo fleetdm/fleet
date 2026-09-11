@@ -1566,6 +1566,11 @@ func (s *integrationMDMTestSuite) TestABMTokenDefault() {
 	// unknown token id
 	s.Do("PATCH", "/api/latest/fleet/ab_tokens/999999/default",
 		json.RawMessage(`{"default": true}`), http.StatusNotFound)
+
+	// omitting "default" is rejected instead of silently clearing the default
+	res := s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/ab_tokens/%d/default", tokA.ID),
+		json.RawMessage(`{}`), http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(res.Body), "missing required argument")
 }
 
 func (s *integrationMDMTestSuite) TestABMExpiredToken() {

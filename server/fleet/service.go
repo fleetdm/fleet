@@ -1123,8 +1123,8 @@ type Service interface {
 
 	// SetABMTokenDefault marks the given ABM token as the default one used to
 	// sign GetToken responses for devices not enrolled through ABM, or unsets
-	// it so no token is the default.
-	SetABMTokenDefault(ctx context.Context, tokenID uint, isDefault bool) (*ABMToken, error)
+	// it so no token is the default. isDefault is required; nil is rejected.
+	SetABMTokenDefault(ctx context.Context, tokenID uint, isDefault *bool) (*ABMToken, error)
 
 	// DeleteABMToken deletes the given ABM token.
 	DeleteABMToken(ctx context.Context, tokenID uint) error

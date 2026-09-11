@@ -4864,13 +4864,13 @@ software:
 				{ID: 2, OrganizationName: "Foo Inc."},
 			},
 			dryRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
-				require.ErrorContains(t, err, "only one Apple Business Manager (ABM) token can be the default")
+				require.ErrorContains(t, err, "only one Apple Business (AB) token can be the default")
 				assert.Empty(t, appCfg.MDM.AppleBusinessManager.Value)
 				assert.Nil(t, lastSetDefaultTokenID)
 				assert.NotContains(t, out, "[!] gitops dry run succeeded")
 			},
 			realRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
-				require.ErrorContains(t, err, "only one Apple Business Manager (ABM) token can be the default")
+				require.ErrorContains(t, err, "only one Apple Business (AB) token can be the default")
 				assert.Empty(t, appCfg.MDM.AppleBusinessManager.Value)
 				assert.Nil(t, lastSetDefaultTokenID)
 				assert.NotContains(t, out, "[!] gitops succeeded")

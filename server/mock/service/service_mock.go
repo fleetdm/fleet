@@ -663,7 +663,7 @@ type CountABMTokensFunc func(ctx context.Context) (int, error)
 
 type UpdateABMTokenTeamsFunc func(ctx context.Context, tokenID uint, macOSTeamID *uint, iOSTeamID *uint, iPadOSTeamID *uint, byodTeamID *uint) (*fleet.ABMToken, error)
 
-type SetABMTokenDefaultFunc func(ctx context.Context, tokenID uint, isDefault bool) (*fleet.ABMToken, error)
+type SetABMTokenDefaultFunc func(ctx context.Context, tokenID uint, isDefault *bool) (*fleet.ABMToken, error)
 
 type DeleteABMTokenFunc func(ctx context.Context, tokenID uint) error
 
@@ -4767,7 +4767,7 @@ func (s *Service) UpdateABMTokenTeams(ctx context.Context, tokenID uint, macOSTe
 	return s.UpdateABMTokenTeamsFunc(ctx, tokenID, macOSTeamID, iOSTeamID, iPadOSTeamID, byodTeamID)
 }
 
-func (s *Service) SetABMTokenDefault(ctx context.Context, tokenID uint, isDefault bool) (*fleet.ABMToken, error) {
+func (s *Service) SetABMTokenDefault(ctx context.Context, tokenID uint, isDefault *bool) (*fleet.ABMToken, error) {
 	s.mu.Lock()
 	s.SetABMTokenDefaultFuncInvoked = true
 	s.mu.Unlock()
