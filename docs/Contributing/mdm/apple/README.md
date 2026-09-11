@@ -17,6 +17,7 @@ Contributor docs for Fleet's Apple (macOS, iOS, iPadOS) MDM feature area.
 ## Research
 
 - [Apple account-based user enrollment](apple-account-based-user-enrollment.md)
+- [Apple Account restrictions on MDM-enrolled devices](apple-account-restrictions.md)
 - [Apple user channel](apple-user-channel.md)
 - [Platform SSO (PSSO)](psso.md)
 

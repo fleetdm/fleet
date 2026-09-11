@@ -5,6 +5,7 @@ import { delay, http, HttpResponse } from "msw";
 import PATHS from "router/paths";
 import { IMdmConfig } from "interfaces/config";
 import { DiskEncryptionSettingsPlatform } from "interfaces/platform";
+import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 import { getPathWithQueryParams } from "utilities/url";
 import mockServer from "test/mock-server";
 import {
@@ -447,33 +448,35 @@ describe("DiskEncryption", () => {
     [
       "macos",
       { enabled_and_configured: false },
-      "To make changes, first turn on Apple MDM.",
+      /You must turn on Apple MDM/,
+      `${LEARN_MORE_ABOUT_BASE_LINK}/turn-on-apple-mdm`,
     ],
     [
       "windows",
       { windows_enabled_and_configured: false },
-      "To make changes, first turn on Windows MDM.",
+      /You must turn on Windows MDM/,
+      `${LEARN_MORE_ABOUT_BASE_LINK}/setup-windows-mdm`,
     ],
   ] as const)(
-    "disables the %s tab and explains why when its MDM is turned off",
-    async (platform, mdm, tooltip) => {
+    "shows an empty state instead of the form on the %s tab when its MDM is turned off",
+    async (platform, mdm, infoText, learnMoreUrl) => {
       mockServer.use(createGetTeamHandler());
       mockServer.use(createGetDiskEncryptionSummaryHandler());
-      const { user } = renderDiskEncryption({
+      renderDiskEncryption({
         urlPlatformParam: platform,
         mdm,
       });
 
-      const checkboxes = await screen.findAllByRole("checkbox");
-      checkboxes.forEach((checkbox) => {
-        expect(checkbox).toHaveAttribute("aria-disabled", "true");
-      });
-      expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
+      expect(
+        await screen.findByText("Turn on MDM to enforce disk encryption")
+      ).toBeInTheDocument();
+      expect(screen.getByText(infoText)).toBeInTheDocument();
+      const link = screen.getByRole("link", { name: "Learn more" });
+      expect(link).toHaveAttribute("href", learnMoreUrl);
+      expect(link).toHaveAttribute("target", "_blank");
 
-      await user.hover(checkboxes[0]);
-      await waitFor(() => {
-        expect(screen.getByText(tooltip)).toBeInTheDocument();
-      });
+      expect(screen.queryByRole("checkbox")).toBeNull();
+      expect(screen.queryByRole("button", { name: "Save" })).toBeNull();
     }
   );
 

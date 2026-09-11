@@ -39,8 +39,12 @@
               </p>
               <div purpose="accordion-answer" id="accordion__body-faq-2" class="collapse" aria-labelledby="accordion__header-faq-2">
                 <p>
-                Yes. Match the version of fleetctl to the version of your Fleet server.
+                Yes. Match the version of fleetctl to the version of your Fleet server. To install a specific version on macOS or Linux, set <code>FLEETCTL_VERSION</code> when you run the install script:
                 </p>
+                <div purpose="codeblock">
+                  <button type="button" purpose="copy-button" aria-label="Copy command"></button>
+                  <pre><code>curl -sSL https://fleetdm.com/resources/install-fleetctl.sh | FLEETCTL_VERSION=4.91.0 bash</code></pre>
+                </div>
               </div>
             </div>
             <div purpose="accordion-item">

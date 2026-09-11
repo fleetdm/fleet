@@ -12,6 +12,7 @@ import { HostPlatform } from "interfaces/platform";
 import deviceUserAPI, {
   IGetSetupExperienceStatusesResponse,
 } from "services/entities/device_user";
+import diskEncryptionAPI from "services/entities/disk_encryption";
 
 import { IHostPolicy } from "interfaces/policy";
 
@@ -322,6 +323,7 @@ describe("Device User Page", () => {
             mdm: {
               enabled_and_configured: true,
               require_all_software_macos: true,
+              only_allow_apple_business_enrollment: false,
             },
           },
         },
@@ -373,6 +375,7 @@ describe("Device User Page", () => {
             mdm: {
               enabled_and_configured: true,
               require_all_software_macos: true,
+              only_allow_apple_business_enrollment: false,
             },
           },
         },
@@ -449,6 +452,7 @@ describe("Device User Page", () => {
           mdm: {
             enabled_and_configured: true,
             require_all_software_macos: false,
+            only_allow_apple_business_enrollment: false,
           },
           features: {
             enable_software_inventory: true,
@@ -473,6 +477,7 @@ describe("Device User Page", () => {
           mdm: {
             enabled_and_configured: true,
             require_all_software_macos: false,
+            only_allow_apple_business_enrollment: false,
           },
           features: {
             enable_software_inventory: true,
@@ -497,6 +502,7 @@ describe("Device User Page", () => {
           mdm: {
             enabled_and_configured: false,
             require_all_software_macos: false,
+            only_allow_apple_business_enrollment: false,
           },
           features: {
             enable_software_inventory: true,
@@ -522,6 +528,7 @@ describe("Device User Page", () => {
           mdm: {
             enabled_and_configured: true,
             require_all_software_macos: false,
+            only_allow_apple_business_enrollment: false,
           },
           features: {
             enable_software_inventory: true,
@@ -921,5 +928,92 @@ describe("Device User Page - MDM check-in ping", () => {
       );
     });
     expect(refetchSpy).toHaveBeenCalledWith("testToken");
+  });
+});
+
+describe("Device User Page - Linux disk encryption key escrow", () => {
+  let triggerEscrowSpy: jest.SpyInstance;
+
+  beforeEach(() => {
+    triggerEscrowSpy = jest.spyOn(
+      diskEncryptionAPI,
+      "triggerLinuxDiskEncryptionKeyEscrow"
+    );
+    mockServer.use(defaultDeviceCertificatesHandler);
+    mockServer.use(emptySetupExperienceHandler);
+
+    // encrypted Ubuntu host with no escrowed key, which is what shows the Create key banner
+    const host = createMockHost({
+      platform: "ubuntu",
+      status: "online",
+    }) as IHostDevice;
+    host.disk_encryption_enabled = true;
+    host.mdm.encryption_key_available = false;
+    host.mdm.os_settings = {
+      ...host.mdm.os_settings,
+      certificates: host.mdm.os_settings?.certificates ?? [],
+      disk_encryption: { status: "action_required", detail: "" },
+    };
+    mockServer.use(customDeviceHandler({ host }));
+  });
+
+  afterEach(() => {
+    triggerEscrowSpy.mockRestore();
+    (notify.error as jest.Mock).mockClear();
+  });
+
+  const renderDevicePage = () => {
+    const render = createCustomRenderer({ withBackendMock: true });
+    return render(
+      <DeviceUserPage
+        router={mockRouter}
+        params={{ device_auth_token: "testToken" }}
+        location={mockLocation}
+      />
+    );
+  };
+
+  it("tells the end user to expect a pop-up when the request is queued", async () => {
+    triggerEscrowSpy.mockResolvedValue(undefined);
+    const { user } = renderDevicePage();
+
+    await user.click(
+      await screen.findByRole("button", { name: /create key/i })
+    );
+
+    expect(await screen.findByText(/Wait 30 seconds/i)).toBeInTheDocument();
+    expect(screen.queryByText(/already asking/i)).toBeNull();
+    expect(notify.error).not.toHaveBeenCalled();
+  });
+
+  it("points the end user at the open pop-up when the escrow is already in flight", async () => {
+    triggerEscrowSpy.mockRejectedValue({ status: 409 });
+    const { user } = renderDevicePage();
+
+    await user.click(
+      await screen.findByRole("button", { name: /create key/i })
+    );
+
+    expect(await screen.findByText(/already asking/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Wait 30 seconds/i)).toBeNull();
+    expect(notify.error).not.toHaveBeenCalled();
+  });
+
+  it("shows an error and closes the modal on any other failure", async () => {
+    triggerEscrowSpy.mockRejectedValue({ status: 500 });
+    const { user } = renderDevicePage();
+
+    await user.click(
+      await screen.findByRole("button", { name: /create key/i })
+    );
+
+    await waitFor(() => {
+      expect(notify.error).toHaveBeenCalledWith(
+        "Failed to trigger key creation.",
+        expect.anything()
+      );
+    });
+    expect(screen.queryByText(/Wait 30 seconds/i)).toBeNull();
+    expect(screen.queryByText(/already asking/i)).toBeNull();
   });
 });

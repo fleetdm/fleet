@@ -1,10 +1,15 @@
-export const isAcceptableStatus = (filter: string): boolean => {
+import { HostStatusFilter } from "interfaces/host";
+
+export const isAcceptableStatus = (
+  filter?: string
+): filter is HostStatusFilter => {
   return (
     filter === "new" ||
     filter === "online" ||
     filter === "offline" ||
     filter === "missing" ||
-    filter === "pending"
+    filter === "pending" ||
+    filter === "enrolled"
   );
 };
 

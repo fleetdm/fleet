@@ -713,7 +713,7 @@ Returns a list of the activities that have been performed in Fleet. For a compre
 
 ### Reset policy results
 
-Clears a policy's pass/fail results, identical to the side effect of editing its query. Immediately sets `passing_host_count` and `failing_host_count` to `0` and wipes membership records so the counts remain `0` until hosts re-report. Pass the `host_id` query parameter to instead reset only a single host's result for the policy.
+Clears a policy's pass/fail results. Fleet does this automatically when you edit the policy's query or swap in a different script, software package, or VPP app (see [Resetting a policy's automation status](https://fleetdm.com/guides/automations#policy-automations)); use this endpoint to do it in a custom automation. Immediately sets `passing_host_count` and `failing_host_count` to `0` and wipes membership records so the counts remain `0` until hosts re-report. Pass the `host_id` query parameter to instead reset only a single host's result for the policy.
 
 `POST /api/v1/fleet/policies/:policy_id/reset`
 
@@ -2785,7 +2785,7 @@ _Available in Fleet Premium._
     "jira": [
       {
         "enable_software_vulnerabilities": false,
-        "enable_failing_poilicies": true,
+        "enable_failing_policies": true,
         "url": "https://jiraserver.com",
         "username": "some_user",
         "api_token": "<TOKEN>",
@@ -3493,7 +3493,7 @@ the `software` table.
 | order_key               | string  | query | What to order results by. Can be any column in the hosts table.                                                                                                                                                                                                                                                                             |
 | after                   | string  | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used. **Note:** Use `page` instead of `after`                                                                                                                                                                                                                                    |
 | order_direction         | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`.                                                                                                                                                                                                               |
-| status                  | string  | query | Indicates the status of the hosts to return. Can either be 'new', 'online', 'offline', 'mia' or 'missing'.                                                                                                                                                                                                                                  |
+| status                  | string  | query | Indicates the status of the hosts to return. Can either be 'new', 'online', 'offline', 'mia', 'missing' or 'enrolled'. 'enrolled' returns every host except those pending MDM enrollment.                                                                                                                                                                                                                                  |
 | query                   | string  | query | Search query keywords. Searchable fields include `hostname`, `hardware_serial`, `uuid`, `ipv4`, and end user email addresses. |
 | additional_info_filters | string  | query | A comma-delimited list of fields to include in each host's `additional` object. This query is populated by the `additional_queries` in the `features` section of the configuration YAML.                                              |
 | fleet_id                 | integer | query | _Available in Fleet Premium_. Filters to only include hosts in the specified fleet. Use `0` to filter by "Unassigned" hosts.                                                                                                                                                                                                                                                |
@@ -3804,7 +3804,7 @@ Response payload with the `munki_issue_id` filter provided:
 | order_key               | string  | query | What to order results by. Can be any column in the hosts table.                                                                                                                                                                                                                                                                             |
 | order_direction         | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`.                                                                                                                                                                                                               |
 | after                   | string  | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used.                                                                                                                                                                                                                                    |
-| status                  | string  | query | Indicates the status of the hosts to return. Can either be 'new', 'online', 'offline', 'mia' or 'missing'.                                                                                                                                                                                                                                  |
+| status                  | string  | query | Indicates the status of the hosts to return. Can either be 'new', 'online', 'offline', 'mia', 'missing' or 'enrolled'. 'enrolled' returns every host except those pending MDM enrollment.                                                                                                                                                                                                                                  |
 | query                   | string  | query | Search query keywords. Searchable fields include `hostname`, `hardware_serial`, `uuid`, `ipv4`, and end user email addresses. |
 | fleet_id                 | integer | query | _Available in Fleet Premium_. Filters the hosts to only include hosts in the specified fleet.                                                                                                                                                                                                                                                 |
 | policy_id               | integer | query | The ID of the policy to filter hosts by.                                                                                                                                                                                                                                                                                                    |
@@ -4625,9 +4625,206 @@ Returns the information of the specified host.
 }
 ```
 
+#### Example (Android)
+`GET /api/v1/fleet/hosts/121`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "host": {
+    "created_at": "2021-08-19T02:02:22Z",
+    "updated_at": "2021-08-19T21:14:58Z",
+    "id": 1,
+    "detail_updated_at": "2021-08-19T21:07:53Z",
+    "last_restarted_at": "0001-01-01T00:00:00Z",
+    "software_updated_at": "2020-11-05T05:09:44Z",
+    "label_updated_at": "2021-08-19T21:07:53Z",
+    "policy_updated_at": "2023-06-26T18:33:15Z",
+    "last_enrolled_at": "2021-08-19T02:02:22Z",
+    "last_mdm_checked_in_at": "2023-02-26T22:33:12Z",
+    "last_mdm_enrolled_at": "2023-02-26T22:33:12Z",
+    "mdm_enrollment_hardware_attested": false,
+    "seen_time": "2021-08-19T21:14:58Z",
+    "refetch_requested": false,
+    "hostname": "Anna Chao's Google Pixel 9",
+    "uuid": "309a4b7d-0000-0000-8e7f-26ae0815ede8",
+    "platform": "android",
+    "osquery_version": "",
+    "orbit_version": null,
+    "fleet_desktop_version": null,
+    "scripts_enabled": null,
+    "os_version": "Android 16 (2026-05-01)",
+    "os_update_minimum_version": null,
+    "os_update_deadline": null,
+    "build": "",
+    "platform_like": "",
+    "code_name": "",
+    "uptime": 0,
+    "memory": 8589934592,
+    "cpu_type": "caiman",
+    "cpu_subtype": "",
+    "cpu_brand": "",
+    "cpu_physical_cores": 0,
+    "cpu_logical_cores": 0,
+    "hardware_vendor": "google",
+    "hardware_model": "Google Pixel 9",
+    "hardware_version": "",
+    "hardware_serial": "3B241102E5",
+    "computer_name": "Anna Chao's Google Pixel 9",
+    "timezone": null,
+    "display_name": "Anna Chao's Google Pixel 9",
+    "public_ip": "",
+    "primary_ip": "",
+    "primary_mac": "",
+    "distributed_interval": 0,
+    "config_tls_refresh": 0,
+    "logger_tls_period": 0,
+    "team_id": null,
+    "fleet_id": null,
+    "pack_stats": null,
+    "team_name": null,
+    "fleet_name": null,
+    "gigs_disk_space_available": 92.4,
+    "percent_disk_space_available": 72,
+    "gigs_total_disk_space": 128,
+    "adb_enabled": false,
+    "api_level": 36,
+    "bootloader_version": "caiman-1.0-13984080",
+    "device_kernel_version": "6.1.124-android16-11-g8b6a1e0f4f9a-ab13984080",
+    "encryption_type": "ACTIVE",
+    "imei": "351756051523999",
+    "manufacturer": "Google",
+    "passcode_protected": true,
+    "play_protect_enabled": true,
+    "security_posture": "AT_RISK",
+    "security_posture_details": [
+      {
+        "security_risk": "UNKNOWN_OS",
+        "advice": [
+          "This device is running an unrecognized version of Android. Install a certified build from the device manufacturer."
+        ]
+      }
+    ],
+    "security_update_version": "2026-05-01",
+    "system_update_status": "UP_TO_DATE",
+    "telephony_infos": [
+      {
+        "phone_number": "+15551234567",
+        "carrier_name": "Verizon",
+        "iccid": "89014103211118510720",
+        "activation_state": "ACTIVATED",
+        "config_mode": "ADMIN_CONFIGURED"
+      }
+    ],
+    "status": "online",
+    "display_text": "Anna Chao's Google Pixel 9",
+    "issues": {
+      "failing_policies_count": 0,
+      "critical_vulnerabilities_count": 0, // Available in Fleet Premium
+      "total_issues_count": 0
+    },
+    "batteries": [],
+    "end_users": [
+      {
+        "idp_info_updated_at": "2025-03-20T02:02:17Z",
+        "idp_id": "f26f8649-1e25-42c5-be71-1b1e6de56d3d",
+        "idp_username": "anna@example.com",
+        "idp_full_name": "Anna Chao",
+        "idp_department": "Product",
+        "idp_groups": [
+          "Product",
+          "Designers"
+        ],
+        "other_emails": []
+      }
+    ],
+    "labels": [
+      {
+        "created_at": "2021-08-19T02:02:17Z",
+        "updated_at": "2021-08-19T02:02:17Z",
+        "id": 6,
+        "name": "All Hosts",
+        "description": "All hosts which have enrolled in Fleet",
+        "query": "SELECT 1;",
+        "platform": "",
+        "label_type": "builtin",
+        "label_membership_type": "dynamic"
+      },
+      {
+        "created_at": "2021-08-19T02:02:17Z",
+        "updated_at": "2021-08-19T02:02:17Z",
+        "id": 14,
+        "name": "Android",
+        "description": "All Android hosts",
+        "query": "",
+        "platform": "android",
+        "label_type": "builtin",
+        "label_membership_type": "manual"
+      }
+    ],
+    "packs": [],
+    "policies": [],
+    "software": [
+      {
+        "id": 411,
+        "name": "Gmail",
+        "version": "2026.05.04.123456789",
+        "source": "android_apps",
+        "application_id": "com.google.android.gm",
+        "generated_cpe": "",
+        "vulnerabilities": null,
+        "installed_paths": []
+      },
+      {
+        "id": 412,
+        "name": "Slack",
+        "version": "26.05.10.0",
+        "source": "android_apps",
+        "application_id": "com.Slack",
+        "generated_cpe": "",
+        "vulnerabilities": null,
+        "installed_paths": []
+      }
+    ],
+    "mdm": {
+      "encryption_key_available": false,
+      "enrollment_status": "On (automatic)",
+      "is_personal_enrollment": false,
+      "name": "Fleet",
+      "connected_to_fleet": true,
+      "server_url": "https://acme.com",
+      "device_status": "unlocked",
+      "pending_action": "",
+      "os_settings": {
+        "disk_encryption": {
+          "status": null,
+          "detail": ""
+        }
+      },
+      "profiles": [
+        {
+          "profile_uuid": "g954ec5ea-a334-4825-87b3-937e7e381f24",
+          "name": "Android Wi-Fi Profile",
+          "status": "verified",
+          "operation_type": "install",
+          "scope": null,
+          "managed_local_account": null,
+          "detail": ""
+        }
+      ]
+    }
+  }
+}
+```
+
 `mdm.os_settings.host_name` reports the host name template enforcement status for a macOS, iOS, or iPadOS host. Its `status` is one of `pending`, `verifying`, `verified`, or `failed`, and `detail` carries the error message when the status is `failed`. The object is omitted entirely for hosts that aren't enforced (no template set on the host's fleet or on "Unassigned", non-MDM hosts, and personal (BYOD) enrollments).
 
 `mdm.bootstrap_token_escrowed` indicates whether Fleet has escrowed a [bootstrap token](https://support.apple.com/guide/deployment/use-secure-and-bootstrap-tokens-dep24dbdcf9e/web) for the macOS host. The bootstrap token authorizes certain MDM operations, such as remote wipe and installing OS updates, without requiring a user with a secure token to be logged in. This field is only present for macOS hosts.
+
+Entries in `mdm.profiles` that represent an Android certificate carry a `certificate_template_id`, plus `retrying`, `retry_count`, and `max_retries`. When a host reports a failed certificate install, Fleet automatically re-delivers the certificate up to `max_retries` times, which puts it back into an in-progress `status` while `detail` still holds the reported error. `retrying` is `true` for the duration of that window, and `retry_count` is how many retries have been used. A manual resend also sets `retry_count`, so only `retrying` identifies an automatic retry. These four fields are omitted for every other kind of profile, and the retry fields are also omitted when `operation_type` is `remove`, since removals are never retried.
 
 `browser` and `extension_for` fields are included when set and when empty. `extension_for` shows the browser or Visual Studio Code fork associated with the extension, allowing for differentiation between e.g. an extension installed on Visual Studio Code and one installed on Cursor. `browser` is deprecated, and only shows this information for browser plugins.
 
@@ -4641,6 +4838,12 @@ Returns the information of the specified host.
 > - These iOS/iPadOS vitals are collected via Apple's [`DeviceInformation`](https://developer.apple.com/documentation/devicemanagement/deviceinformationcommand/command-data.dictionary/queries-data.dictionary) MDM command. A property the device doesn't report is omitted from the response rather than returned as `null`. The exception is `mdm_options`, which is returned as an empty object when the device reports it with nothing set.
 > - `cellular_technology` is one of `None`, `GSM`, `CDMA`, or `GSM and CDMA`. This will be `unknown` if Apple adds a value in the future that Fleet doesn't recognize.
 > - `device_properties_attestation` is an array of base64-encoded DER certificates forming a chain, leaf first. The chain is anchored to Apple's Enterprise Attestation Root CA, which is not itself included in the array.
+> - Currently, the following are supported only for Android: `adb_enabled`, `api_level`, `bootloader_version`, `device_kernel_version`, `encryption_type`, `imei`, `manufacturer`, `meid`, `passcode_protected`, `play_protect_enabled`, `security_posture`, `security_posture_details`, `security_update_version`, `system_update_status`, and `telephony_infos`.
+> - These Android vitals are collected from the status reports Fleet receives from the [Android Management API](https://developers.google.com/android/management/reference/rest/v1/enterprises.devices) (AMAPI). A vital the device doesn't report is omitted from the response rather than returned as `null`. A host that hasn't sent a status report yet returns none of them, and a device whose Android version doesn't report a given vital omits just that one.
+> - `telephony_infos`, `imei`, and `meid` are never returned for a personal (BYOD) enrollment. AMAPI only reports them for fully managed devices in the first place, and Fleet gates the response on its own enrollment record so they stay hidden after a BYOD host unenrolls. `telephony_infos` holds one entry per SIM card, so a dual-SIM host reports more than one, and it requires Android 6 or above. Its `activation_state` and `config_mode` describe eSIMs on Android 15 and above only. A host reports either `imei` or `meid` depending on its radio, never both.
+> - `security_posture_details[].advice` holds AMAPI's default, non-localized admin-facing message for each risk. Fleet has no device locale to select a localized variant with, so the localized messages aren't returned.
+> - `encryption_type`, `security_posture`, `system_update_status`, `security_posture_details[].security_risk`, `telephony_infos[].activation_state`, and `telephony_infos[].config_mode` carry AMAPI's raw enum values, such as `ACTIVE`, `AT_RISK`, `UP_TO_DATE`, `UNKNOWN_OS`, `ACTIVATED`, and `ADMIN_CONFIGURED`. AMAPI's "no data" sentinels (`*_UNSPECIFIED` and `UPDATE_STATUS_UNKNOWN`) are omitted from the response instead of being returned.
+> - `security_update_version` is the host's Android security patch level. It's also folded into `os_version`, for example `Android 16 (2026-05-01)`.
 
 > Note:
 > - `orbit_version: null` means this agent is not a fleetd agent
@@ -5170,16 +5373,218 @@ In Fleet, hostnames are fully qualified domain names (FQDNs). `hostname` (e.g. j
 }
 ```
 
+#### Example (Android)
+`GET /api/v1/fleet/hosts/identifier/392547dc-0000-0000-a87a-d701ff75bc65`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "host": {
+    "created_at": "2021-08-19T02:02:22Z",
+    "updated_at": "2021-08-19T21:14:58Z",
+    "id": 1,
+    "detail_updated_at": "2021-08-19T21:07:53Z",
+    "last_restarted_at": "0001-01-01T00:00:00Z",
+    "software_updated_at": "2020-11-05T05:09:44Z",
+    "label_updated_at": "2021-08-19T21:07:53Z",
+    "policy_updated_at": "2023-06-26T18:33:15Z",
+    "last_enrolled_at": "2021-08-19T02:02:22Z",
+    "last_mdm_checked_in_at": "2023-02-26T22:33:12Z",
+    "last_mdm_enrolled_at": "2023-02-26T22:33:12Z",
+    "mdm_enrollment_hardware_attested": false,
+    "seen_time": "2021-08-19T21:14:58Z",
+    "refetch_requested": false,
+    "hostname": "Anna Chao's Google Pixel 9",
+    "uuid": "392547dc-0000-0000-a87a-d701ff75bc65",
+    "platform": "android",
+    "osquery_version": "",
+    "orbit_version": null,
+    "fleet_desktop_version": null,
+    "scripts_enabled": null,
+    "os_version": "Android 16 (2026-05-01)",
+    "os_update_minimum_version": null,
+    "os_update_deadline": null,
+    "build": "",
+    "platform_like": "",
+    "code_name": "",
+    "uptime": 0,
+    "memory": 8589934592,
+    "cpu_type": "caiman",
+    "cpu_subtype": "",
+    "cpu_brand": "",
+    "cpu_physical_cores": 0,
+    "cpu_logical_cores": 0,
+    "hardware_vendor": "google",
+    "hardware_model": "Google Pixel 9",
+    "hardware_version": "",
+    "hardware_serial": "3B241102E5",
+    "computer_name": "Anna Chao's Google Pixel 9",
+    "timezone": null,
+    "display_name": "Anna Chao's Google Pixel 9",
+    "public_ip": "",
+    "primary_ip": "",
+    "primary_mac": "",
+    "distributed_interval": 0,
+    "config_tls_refresh": 0,
+    "logger_tls_period": 0,
+    "team_id": null,
+    "fleet_id": null,
+    "pack_stats": null,
+    "team_name": null,
+    "fleet_name": null,
+    "gigs_disk_space_available": 92.4,
+    "percent_disk_space_available": 72,
+    "gigs_total_disk_space": 128,
+    "adb_enabled": false,
+    "api_level": 36,
+    "bootloader_version": "caiman-1.0-13984080",
+    "device_kernel_version": "6.1.124-android16-11-g8b6a1e0f4f9a-ab13984080",
+    "encryption_type": "ACTIVE",
+    "imei": "351756051523999",
+    "manufacturer": "Google",
+    "passcode_protected": true,
+    "play_protect_enabled": true,
+    "security_posture": "AT_RISK",
+    "security_posture_details": [
+      {
+        "security_risk": "UNKNOWN_OS",
+        "advice": [
+          "This device is running an unrecognized version of Android. Install a certified build from the device manufacturer."
+        ]
+      }
+    ],
+    "security_update_version": "2026-05-01",
+    "system_update_status": "UP_TO_DATE",
+    "telephony_infos": [
+      {
+        "phone_number": "+15551234567",
+        "carrier_name": "Verizon",
+        "iccid": "89014103211118510720",
+        "activation_state": "ACTIVATED",
+        "config_mode": "ADMIN_CONFIGURED"
+      }
+    ],
+    "status": "online",
+    "display_text": "Anna Chao's Google Pixel 9",
+    "issues": {
+      "failing_policies_count": 0,
+      "critical_vulnerabilities_count": 0, // Available in Fleet Premium
+      "total_issues_count": 0
+    },
+    "batteries": [],
+    "end_users": [
+      {
+        "idp_info_updated_at": "2025-03-20T02:02:17Z",
+        "idp_id": "f26f8649-1e25-42c5-be71-1b1e6de56d3d",
+        "idp_username": "anna@example.com",
+        "idp_full_name": "Anna Chao",
+        "idp_department": "Product",
+        "idp_groups": [
+          "Product",
+          "Designers"
+        ],
+        "other_emails": []
+      }
+    ],
+    "labels": [
+      {
+        "created_at": "2021-08-19T02:02:17Z",
+        "updated_at": "2021-08-19T02:02:17Z",
+        "id": 6,
+        "name": "All Hosts",
+        "description": "All hosts which have enrolled in Fleet",
+        "query": "SELECT 1;",
+        "platform": "",
+        "label_type": "builtin",
+        "label_membership_type": "dynamic"
+      },
+      {
+        "created_at": "2021-08-19T02:02:17Z",
+        "updated_at": "2021-08-19T02:02:17Z",
+        "id": 14,
+        "name": "Android",
+        "description": "All Android hosts",
+        "query": "",
+        "platform": "android",
+        "label_type": "builtin",
+        "label_membership_type": "manual"
+      }
+    ],
+    "packs": [],
+    "policies": [],
+    "software": [
+      {
+        "id": 411,
+        "name": "Gmail",
+        "version": "2026.05.04.123456789",
+        "source": "android_apps",
+        "application_id": "com.google.android.gm",
+        "generated_cpe": "",
+        "vulnerabilities": null,
+        "installed_paths": []
+      },
+      {
+        "id": 412,
+        "name": "Slack",
+        "version": "26.05.10.0",
+        "source": "android_apps",
+        "application_id": "com.Slack",
+        "generated_cpe": "",
+        "vulnerabilities": null,
+        "installed_paths": []
+      }
+    ],
+    "mdm": {
+      "encryption_key_available": false,
+      "enrollment_status": "On (automatic)",
+      "is_personal_enrollment": false,
+      "name": "Fleet",
+      "connected_to_fleet": true,
+      "server_url": "https://acme.com",
+      "device_status": "unlocked",
+      "pending_action": "",
+      "os_settings": {
+        "disk_encryption": {
+          "status": null,
+          "detail": ""
+        }
+      },
+      "profiles": [
+        {
+          "profile_uuid": "g954ec5ea-a334-4825-87b3-937e7e381f24",
+          "name": "Android Wi-Fi Profile",
+          "status": "verified",
+          "operation_type": "install",
+          "scope": null,
+          "managed_local_account": null,
+          "detail": ""
+        }
+      ]
+    }
+  }
+}
+```
+
 > Note: the response above assumes a [GeoIP database is configured](https://fleetdm.com/docs/deploying/configuration#geoip), otherwise the `geolocation` object won't be included.
 
 > Note: `installed_paths` may be blank depending on installer package. For example, on Linux, RPM-installed packages do not provide installed path information.
 
 `browser` and `extension_for` fields are included when set and when empty. `extension_for` will show the browser or Visual Studio Code fork associated with the extension, allowing for differentiation between e.g. an extension installed on Visual Studio Code and one installed on Cursor. `browser` is deprecated, and only shows this information for browser plugins.
 
-> Note: Currently, the following are supported only for iOS/iPadOS: `accessibility_settings`, `app_analytics_enabled`, `awaiting_configuration`, `battery_level`, `bluetooth_mac`, `cellular_technology`, `data_roaming_enabled`, `device_properties_attestation`, `diagnostic_submission_enabled`, `eas_device_identifier`, `is_cloud_backup_enabled`, `is_device_locator_service_enabled`, `is_do_not_disturb_in_effect`, `is_mdm_lost_mode_enabled`, `is_network_tethered`, `itunes_store_account_hash`, `itunes_store_account_is_active`, `last_cloud_backup_date`, `mdm_options`, `model_number`, `modem_firmware_version`, `organization_info`, `personal_hotspot_enabled`, `push_token`, `service_subscriptions`, `supplemental_build_version`, `supplemental_os_version_extra`, `udid`, and `wifi_mac`.
+> Note:
+> - Currently, the following are supported only for iOS/iPadOS: `accessibility_settings`, `app_analytics_enabled`, `awaiting_configuration`, `battery_level`, `bluetooth_mac`, `cellular_technology`, `data_roaming_enabled`, `device_properties_attestation`, `diagnostic_submission_enabled`, `eas_device_identifier`, `is_cloud_backup_enabled`, `is_device_locator_service_enabled`, `is_do_not_disturb_in_effect`, `is_mdm_lost_mode_enabled`, `is_network_tethered`, `itunes_store_account_hash`, `itunes_store_account_is_active`, `last_cloud_backup_date`, `mdm_options`, `model_number`, `modem_firmware_version`, `organization_info`, `personal_hotspot_enabled`, `push_token`, `service_subscriptions`, `supplemental_build_version`, `supplemental_os_version_extra`, `udid`, and `wifi_mac`.
 > - These iOS/iPadOS vitals are collected via Apple's [`DeviceInformation`](https://developer.apple.com/documentation/devicemanagement/deviceinformationcommand/command-data.dictionary/queries-data.dictionary) MDM command. A property the device doesn't report is omitted from the response rather than returned as `null`. The exception is `mdm_options`, which is returned as an empty object when the device reports it with nothing set.
 > - `cellular_technology` is one of `None`, `GSM`, `CDMA`, or `GSM and CDMA`. This will be `unknown` if Apple adds a value in the future that Fleet doesn't recognize.
 > - `device_properties_attestation` is an array of base64-encoded DER certificates forming a chain, leaf first. The chain is anchored to Apple's Enterprise Attestation Root CA, which is not itself included in the array.
+> - Currently, the following are supported only for Android: `adb_enabled`, `api_level`, `bootloader_version`, `device_kernel_version`, `encryption_type`, `imei`, `manufacturer`, `meid`, `passcode_protected`, `play_protect_enabled`, `security_posture`, `security_posture_details`, `security_update_version`, `system_update_status`, and `telephony_infos`.
+> - These Android vitals are collected from the status reports Fleet receives from the [Android Management API](https://developers.google.com/android/management/reference/rest/v1/enterprises.devices) (AMAPI). A vital the device doesn't report is omitted from the response rather than returned as `null`. A host that hasn't sent a status report yet returns none of them, and a device whose Android version doesn't report a given vital omits just that one.
+> - `telephony_infos`, `imei`, and `meid` are never returned for a personal (BYOD) enrollment. AMAPI only reports them for fully managed devices in the first place, and Fleet gates the response on its own enrollment record so they stay hidden after a BYOD host unenrolls. `telephony_infos` holds one entry per SIM card, so a dual-SIM host reports more than one, and it requires Android 6 or above. Its `activation_state` and `config_mode` describe eSIMs on Android 15 and above only. A host reports either `imei` or `meid` depending on its radio, never both.
+> - `security_posture_details[].advice` holds AMAPI's default, non-localized admin-facing message for each risk. Fleet has no device locale to select a localized variant with, so the localized messages aren't returned.
+> - `encryption_type`, `security_posture`, `system_update_status`, `security_posture_details[].security_risk`, `telephony_infos[].activation_state`, and `telephony_infos[].config_mode` carry AMAPI's raw enum values, such as `ACTIVE`, `AT_RISK`, `UP_TO_DATE`, `UNKNOWN_OS`, `ACTIVATED`, and `ADMIN_CONFIGURED`. AMAPI's "no data" sentinels (`*_UNSPECIFIED` and `UPDATE_STATUS_UNKNOWN`) are omitted from the response instead of being returned.
+> - `security_update_version` is the host's Android security patch level. It's also folded into `os_version`, for example `Android 16 (2026-05-01)`.
 
 
 ### Get host by Fleet Desktop token
@@ -5192,7 +5597,9 @@ Returns a subset of information about the host specified by `token`. To get all 
 
 This is the API route used by the **My device** page in Fleet Desktop to display information about the host to the end user.
 
-This endpoint doesn't require API token authentication. Authentication on macOS, Windows, and Linux is enforced by generating a [random UUID that rotates hourly](https://fleetdm.com/guides/fleet-desktop#secure-fleet-desktop). For iOS and iPadOS, this is the host's hardware UUID.
+This endpoint doesn't require API token authentication. Authentication on macOS, Windows, and Linux is enforced by generating a [random UUID that rotates hourly](https://fleetdm.com/guides/fleet-desktop#secure-fleet-desktop). For iOS/iPadOS, this is the host's hardware UUID.
+
+For iOS/iPadOS hosts, Fleet omits identifying details from the response: `uuid`, `hardware_serial`, `primary_mac`, `hostname`, `computer_name`, `display_name`, `display_text`, `team_name`, `labels`, and MDM profile data all come back empty, and the `license` object's `organization` and `device_count` are stripped.
 
 
 ##### Parameters
@@ -5416,6 +5823,8 @@ X-Client-Cert-Serial: <fleet_identity_scep_cert_serial>
 `browser` and `extension_for` fields are included when set and when empty. `extension_for` will show the browser or Visual Studio Code fork associated with the extension, allowing for differentiation between e.g. an extension installed on Visual Studio Code and one installed on Cursor. `browser` is deprecated, and only shows this information for browser plugins.
 
 > `global_config.mdm.enabled_and_configured` only represents Apple MDM, and will return false if Apple MDM is not configured even if other platforms have MDM enabled and configured.
+
+> Note: Android hosts can't be reached through this endpoint. They don't run Fleet Desktop, so they never get a token, and certificate authentication is limited to iOS and iPadOS. To read an Android host's vitals, use ["Get host"](#get-host) or ["Get host by identifier"](#get-host-by-identifier).
 
 ### Delete host
 
@@ -6217,7 +6626,7 @@ requested by a web browser.
 | columns                 | string  | query | Comma-delimited list of columns to include in the report (returns all columns if none is specified).                                                                                                                                                                                                                                        |
 | order_key               | string  | query | What to order results by. Can be any column in the hosts table.                                                                                                                                                                                                                                                                             |
 | order_direction         | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`.                                                                                                                                                                                                               |
-| status                  | string  | query | Indicates the status of the hosts to return. Can either be 'new', 'online', 'offline', 'mia' or 'missing'.                                                                                                                                                                                                                                  |
+| status                  | string  | query | Indicates the status of the hosts to return. Can either be 'new', 'online', 'offline', 'mia', 'missing' or 'enrolled'. 'enrolled' returns every host except those pending MDM enrollment.                                                                                                                                                                                                                                  |
 | query                   | string  | query | Search query keywords. Searchable fields include `hostname`, `hardware_serial`, `uuid`, `ipv4`, and end user email addresses. |
 | fleet_id                 | integer | query | _Available in Fleet Premium_. Filters the hosts to only include hosts in the specified fleet. |
 | policy_id               | integer | query | The ID of the policy to filter hosts by.                                                                                                                                                                                                                                                                                                    |
@@ -6976,7 +7385,7 @@ Rotates the managed local account password for a host.
 
 ### Get host's managed account password
 
-Retrieves the managed account password for an eligible macOS or Windows host.
+Retrieves the managed account password for a macOS host.
 
 The host will only return a password if its managed account password status is "Verified".
 
@@ -7053,7 +7462,7 @@ This permanently removes the host from your AB, and cannot be added back automat
       "host_id": 57,
       "status": "failed",
       "error": "Host is not enrolled in Apple Business"
-    },
+    }
   ]
 }
 ```
@@ -7472,7 +7881,7 @@ Returns a list of the hosts that belong to the specified label.
 | order_key                | string  | query | What to order results by. Can be any column in the hosts table.                                                                                                                                                            |
 | order_direction          | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`.                                                                                              |
 | after                    | string  | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used.                                                                                                                   |
-| status                   | string  | query | Indicates the status of the hosts to return. Can either be 'new', 'online', 'offline', 'mia' or 'missing'.                                                                                                                 |
+| status                   | string  | query | Indicates the status of the hosts to return. Can either be 'new', 'online', 'offline', 'mia', 'missing' or 'enrolled'. 'enrolled' returns every host except those pending MDM enrollment.                                                                                                                 |
 | query                    | string  | query | Search query keywords. Searchable fields include `hostname`, `hardware_serial`, `uuid`, and `ipv4`.                                                                                                                         |
 | fleet_id                  | integer | query | _Available in Fleet Premium_. Filters the hosts to only include hosts in the specified fleet.                                                                                                                                |
 | disable_failing_policies | boolean | query | If "true", hosts will return failing policies as 0 regardless of whether there are any that failed for the host. This is meant to be used when increased performance is needed in exchange for the extra information.      |
@@ -11439,6 +11848,10 @@ Resets [webhook and ticket policy automations](https://fleetdm.com/docs/using-fl
 - [Delete report by ID](#delete-report-by-id)
 - [Delete reports](#delete-reports)
 - [Run live report](#run-live-report)
+- [Run live report (ad hoc)](#run-live-report-ad-hoc)
+- [Run live report by target name (ad hoc)](#run-live-report-by-target-name-ad-hoc)
+- [Retrieve live report results (standard WebSocket API)](#retrieve-live-report-results-standard-websocket-api)
+- [Retrieve live report results (SockJS)](#retrieve-live-report-results-sockjs)
 
 ### List reports
 
@@ -12265,6 +12678,522 @@ The live report will stop if the request times out. Timeouts happen if targeted 
 }
 ```
 
+### Run live report (ad hoc)
+
+Runs the specified report as a live report on the specified hosts or group of hosts. This starts a new active report, represented in the response as the `campaign` object.
+
+After you initiate the report, [get results via WebSocket](#retrieve-live-report-results-standard-websocket-api).
+
+> **Warning:** If you're building an automation that runs many live reports, use `query_id` with an existing saved report or, if you're using `query`, rate-limit your requests. Passing `query` instead of `query_id` creates a new active report on every request. If your client doesn't finish streaming results and close the connection, Fleet doesn't clean up the active report right away: it can stay open for up to 24 hours (or up to a minute if you never connect to retrieve results at all) before Fleet expires it automatically. Each open active report holds a Redis-backed results channel, so creating many of them without closing them adds load that can slow down or interrupt Fleet. A fix is [coming soon](https://github.com/fleetdm/fleet/issues/52000).
+>
+> **To close the connection:** once you're [retrieving results over the WebSocket connection](#retrieve-live-report-results-standard-websocket-api), call `socket.close()` as soon as you receive a message with `"status": "finished"`, as shown in the example script in that section.
+
+`POST /api/v1/fleet/queries/run`
+
+#### Parameters
+
+| Name     | Type    | In   | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| -------- | ------- | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| query    | string  | body | The SQL if using a custom query.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| query_id | integer | body | The saved query (if any) that will be run. Required if running query as an observer. The `observer_can_run` property on the query effects which targets are included.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| selected | object  | body | **Required.** The object includes lists of selected host IDs (`selected.hosts`), label IDs (`selected.labels`), and fleet IDs (`selected.fleets`). When provided, builtin label IDs, custom label IDs and fleet IDs become `AND` filters. Within each selector, selecting two or more fleets, two or more builtin labels, or two or more custom labels, behave as `OR` filters. There's one special case for the builtin label "All hosts", if such label is selected, then all other label and fleet selectors are ignored (and all hosts will be selected). If a host ID is explicitly included in `selected.hosts`, then it is assured that the query will be selected to run on it (no matter the contents of `selected.labels` and `selected.fleets`). Use `0` fleet ID to filter by hosts assigned to "Unassigned". See examples below. |
+
+One of `query` and `query_id` must be specified.
+
+#### Example with one host targeted by ID
+
+`POST /api/v1/fleet/queries/run`
+
+##### Request body
+
+```json
+{
+  "query": "SELECT instance_id FROM system_info",
+  "selected": {
+    "hosts": [171]
+  }
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "campaign": {
+    "created_at": "0001-01-01T00:00:00Z",
+    "updated_at": "0001-01-01T00:00:00Z",
+    "Metrics": {
+      "TotalHosts": 1,
+      "OnlineHosts": 0,
+      "OfflineHosts": 1,
+      "MissingInActionHosts": 0,
+      "NewHosts": 1
+    },
+    "id": 1,
+    "query_id": 3,
+    "status": 0,
+    "user_id": 1
+  }
+}
+```
+
+#### Example with multiple hosts targeted by label ID
+
+`POST /api/v1/fleet/queries/run`
+
+##### Request body
+
+```json
+{
+  "query": "SELECT instance_id FROM system_info;",
+  "selected": {
+    "labels": [7]
+  }
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "campaign": {
+    "created_at": "0001-01-01T00:00:00Z",
+    "updated_at": "0001-01-01T00:00:00Z",
+    "Metrics": {
+      "TotalHosts": 102,
+      "OnlineHosts": 0,
+      "OfflineHosts": 24,
+      "MissingInActionHosts": 0,
+      "NewHosts": 0
+    },
+    "id": 2,
+    "query_id": 3,
+    "status": 0,
+    "user_id": 1
+  }
+}
+```
+
+### Run live report by target name (ad hoc)
+
+Runs the specified saved report as a live report on the targets (`selected`) specified by name instead of ID. This starts a new active report, represented in the response as the `campaign` object.
+
+After the report has been initiated, [get results via WebSocket](#retrieve-live-report-results-standard-websocket-api).
+
+> **Warning:** If you're building an automation that runs many live reports, use `query_id` with an existing saved report or, if you're using `query`, rate-limit your requests. Passing `query` instead of `query_id` creates a new active report on every request. If your client doesn't finish streaming results and close the connection, Fleet doesn't clean up the active report right away: it can stay open for up to 24 hours (or up to a minute if you never connect to retrieve results at all) before Fleet expires it automatically. Each open active report holds a Redis-backed results channel, so creating many of them without closing them adds load that can slow down or interrupt live queries for everyone.
+>
+> **To close the connection:** once you're [retrieving results over the WebSocket connection](#retrieve-live-report-results-standard-websocket-api), call `socket.close()` as soon as you receive a message with `"status": "finished"`, as shown in the example script in that section.
+
+`POST /api/v1/fleet/queries/run_by_identifiers`
+
+#### Parameters
+
+| Name     | Type    | In   | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| -------- | ------- | ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| query    | string  | body | The SQL of the query.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| query_id | integer | body | The saved query (if any) that will be run. The `observer_can_run` property on the query effects which targets are included.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| selected | object  | body | **Required.** The object includes lists of selected hostnames (`selected.hosts`), label names (`labels`). When provided, builtin label names and custom label names become `AND` filters. Within each selector, selecting two or more builtin labels, or two or more custom labels, behave as `OR` filters. If a label provided could not be found in the database, a 400 bad request will be returned specifying which label is invalid. There's one special case for the builtin label `"All hosts"`, if such label is selected, then all other label and fleet selectors are ignored (and all hosts will be selected). If a host's hostname is explicitly included in `selected.hosts`, then it is assured that the query will be selected to run on it (no matter the contents of `selected.labels`). See examples below. |
+
+One of `query` and `query_id` must be specified.
+
+#### Example with one host targeted by hostname
+
+`POST /api/v1/fleet/queries/run_by_identifiers`
+
+##### Request body
+
+```json
+{
+  "query_id": 1,
+  "selected": {
+    "hosts": ["macbook-pro.local"]
+  }
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "campaign": {
+    "created_at": "0001-01-01T00:00:00Z",
+    "updated_at": "0001-01-01T00:00:00Z",
+    "Metrics": {
+      "TotalHosts": 1,
+      "OnlineHosts": 0,
+      "OfflineHosts": 1,
+      "MissingInActionHosts": 0,
+      "NewHosts": 1
+    },
+    "id": 1,
+    "query_id": 3,
+    "status": 0,
+    "user_id": 1
+  }
+}
+```
+
+#### Example with multiple hosts targeted by label name
+
+`POST /api/v1/fleet/queries/run_by_identifiers`
+
+##### Request body
+
+```json
+{
+  "query": "SELECT instance_id FROM system_info",
+  "selected": {
+    "labels": ["All Hosts"]
+  }
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "campaign": {
+    "created_at": "0001-01-01T00:00:00Z",
+    "updated_at": "0001-01-01T00:00:00Z",
+    "Metrics": {
+      "TotalHosts": 102,
+      "OnlineHosts": 0,
+      "OfflineHosts": 24,
+      "MissingInActionHosts": 0,
+      "NewHosts": 1
+    },
+    "id": 2,
+    "query_id": 3,
+    "status": 0,
+    "user_id": 1
+  }
+}
+```
+
+#### Example with invalid label
+
+`POST /api/v1/fleet/queries/run_by_identifiers`
+
+##### Request body
+
+```json
+{
+  "query": "SELECT instance_id FROM system_info",
+  "selected": {
+    "labels": ["Windows", "Banana", "Apple"]
+  }
+}
+```
+
+##### Default response
+
+`Status: 400`
+
+```json
+{
+  "message": "Bad request",
+  "errors": [
+    {
+      "name": "base",
+      "reason": "Invalid label name(s): Banana, Apple."
+    }
+  ],
+  "uuid": "303649f4-5e45-4379-bae9-64ec0ef56287"
+}
+```
+
+
+### Retrieve live report results (standard WebSocket API)
+
+You can retrieve the results of a live report using the [standard WebSocket API](#https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API/Writing_WebSocket_client_applications).
+
+Before you retrieve the live report results, you must start an active report by running the live report. Use the [Run live report](#run-live-report-ad-hoc) or [Run live report by name](#run-live-report-by-name-ad-hoc) endpoints to start one.
+
+Note that the active report is automatically cancelled if this method isn't called to start retrieving results within 60 seconds of starting the report.
+
+`/api/v1/fleet/results/websocket`
+
+### Parameters
+
+| Name       | Type    | In  | Description                                                      |
+| ---------- | ------- | --- | ---------------------------------------------------------------- |
+| token      | string  |     | **Required.** The token used to authenticate with the Fleet API. |
+| campaignID | integer |     | **Required.** The ID of the active report (the `campaign.id` field returned when you started the report). |
+
+### Example
+
+#### Example script to handle request and response
+
+```js
+const socket = new WebSocket('wss://<your-base-url>/api/v1/fleet/results/websocket');
+
+socket.onopen = () => {
+  socket.send(JSON.stringify({ type: 'auth', data: { token: <auth-token> } }));
+  socket.send(JSON.stringify({ type: 'select_campaign', data: { campaign_id: <campaign-id> } }));
+};
+
+socket.onmessage = ({ data }) => {
+  console.log(data);
+  const message = JSON.parse(data);
+  if (message.type === 'status' && message.data.status === 'finished') {
+    socket.close();
+  }
+}
+```
+
+### Detailed request and response walkthrough with example data
+
+#### webSocket.onopen()
+
+##### Response data
+
+```json
+o
+```
+
+#### webSocket.send()
+
+##### Request data
+
+```json
+[
+  {
+    "type": "auth",
+    "data": { "token": <insert_token_here> }
+  }
+]
+```
+
+```json
+[
+  {
+    "type": "select_campaign",
+    "data": { "campaign_id": 12 }
+  }
+]
+```
+
+#### webSocket.onmessage()
+
+##### Response data
+
+```json
+// Sends the total number of hosts targeted and segments them by status
+
+[
+  {
+    "type": "totals",
+    "data": {
+      "count": 24,
+      "online": 6,
+      "offline": 18,
+      "missing_in_action": 0
+    }
+  }
+]
+```
+
+```json
+// Sends the expected results, actual results so far, and the status of the live report
+
+[
+  {
+    "type": "status",
+    "data": {
+      "expected_results": 6,
+      "actual_results": 0,
+      "status": "pending"
+    }
+  }
+]
+```
+
+```json
+// Sends the result for a given host
+
+[
+  {
+    "type": "result",
+    "data": {
+      "distributed_query_execution_id": 39,
+      "host": {
+        "id": 42,
+        "hostname": "foobar",
+        "display_name": "foobar"
+      },
+      "rows": [
+        // query results data for the given host
+      ],
+      "error": null
+    }
+  }
+]
+```
+
+```json
+// Sends the status of "finished" when messages with the results for all expected hosts have been sent
+
+[
+  {
+    "type": "status",
+    "data": {
+      "expected_results": 6,
+      "actual_results": 6,
+      "status": "finished"
+    }
+  }
+]
+```
+
+### Retrieve live report results (SockJS)
+
+You can also retrieve live report results with a [SockJS client](https://github.com/sockjs/sockjs-client). The script to handle the request and response messages will look similar to the standard WebSocket API script with slight variations. For example, the constructor used for SockJS is `SockJS` while the constructor used for the standard WebSocket API is `WebSocket`.
+
+Note that SockJS has been found to be substantially less reliable than the [standard WebSockets approach](#retrieve-live-report-results-standard-websocket-api).
+
+`/api/v1/fleet/results/`
+
+### Parameters
+
+| Name       | Type    | In  | Description                                                      |
+| ---------- | ------- | --- | ---------------------------------------------------------------- |
+| token      | string  |     | **Required.** The token used to authenticate with the Fleet API. |
+| campaignID | integer |     | **Required.** The ID of the active report (the `campaign.id` field returned when you started the report). |
+
+### Example
+
+#### Example script to handle request and response
+
+```js
+const socket = new SockJS(`<your-base-url>/api/v1/fleet/results`, undefined, {});
+
+socket.onopen = () => {
+  socket.send(JSON.stringify({ type: 'auth', data: { token: <token> } }));
+  socket.send(JSON.stringify({ type: 'select_campaign', data: { campaign_id: <campaignID> } }));
+};
+
+socket.onmessage = ({ data }) => {
+  console.log(data);
+  const message = JSON.parse(data);
+
+  if (message.type === 'status' && message.data.status === 'finished') {
+    socket.close();
+  }
+}
+```
+
+##### Detailed request and response walkthrough
+
+#### socket.onopen()
+
+##### Response data
+
+```json
+o
+```
+
+#### socket.send()
+
+##### Request data
+
+```json
+[
+  {
+    "type": "auth",
+    "data": { "token": <insert_token_here> }
+  }
+]
+```
+
+```json
+[
+  {
+    "type": "select_campaign",
+    "data": { "campaign_id": 12 }
+  }
+]
+```
+
+#### socket.onmessage()
+
+##### Response data
+
+```json
+// Sends the total number of hosts targeted and segments them by status
+
+[
+  {
+    "type": "totals",
+    "data": {
+      "count": 24,
+      "online": 6,
+      "offline": 18,
+      "missing_in_action": 0
+    }
+  }
+]
+```
+
+```json
+// Sends the expected results, actual results so far, and the status of the live report
+
+[
+  {
+    "type": "status",
+    "data": {
+      "expected_results": 6,
+      "actual_results": 0,
+      "status": "pending"
+    }
+  }
+]
+```
+
+```json
+// Sends the result for a given host
+
+[
+  {
+    "type": "result",
+    "data": {
+      "distributed_query_execution_id": 39,
+      "host": {
+        "id": 42,
+        "hostname": "foobar",
+        "display_name": "foobar"
+      },
+      "rows": [
+        // query results data for the given host
+      ],
+      "error": null
+    }
+  }
+]
+```
+
+```json
+// Sends the status of "finished" when messages with the results for all expected hosts have been sent
+
+[
+  {
+    "type": "status",
+    "data": {
+      "expected_results": 6,
+      "actual_results": 6,
+      "status": "finished"
+    }
+  }
+]
+```
+
 ---
 
 ## Schedule
@@ -12561,7 +13490,7 @@ Returns a list hosts targeted in a batch script run, along with their script exe
 | Name                | Type    | In    | Description                                                                                    |
 | --------------------| ------- | ----- | --------------------------------------------                                                   |
 | batch_execution_id  | string  | path  | **Required**. The ID returned from a batch script run. |
-| status              | string  | query | **Required** Filters to hosts with this script status. Either `"ran"`, `"pending"`, `"errored"`, `"incompatible"`, or "`canceled`". |
+| status              | string  | query | **Required**. Filters to hosts with this script status. Either `"ran"`, `"pending"`, `"errored"`, `"incompatible"`, or "`canceled`". |
 | page                | integer | query | Page number of the results to fetch. |
 | per_page            | integer | query | Results per page. |
 | order_key           | string  | query | What to order results by. Allowed fields are `display_name`, `hostname`, and `updated_at`. |
@@ -12570,7 +13499,7 @@ Returns a list hosts targeted in a batch script run, along with their script exe
 
 #### Example
 
-`GET /api/v1/fleet/scripts/batch/abc-def/host-results?status=ran`
+`GET /api/v1/fleet/scripts/batch/abc-def/host_results?status=ran`
 
 
 ##### Default response
@@ -15504,7 +16433,7 @@ Omitting `host_activities_webhook` from a `webhook_settings` update leaves the s
     "jira": [
       {
         "enable_software_vulnerabilities": false,
-        "enable_failing_poilicies": true,
+        "enable_failing_policies": true,
         "url": "https://jiraserver.com",
         "username": "some_user",
         "api_token": "<TOKEN>",
