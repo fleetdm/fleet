@@ -153,9 +153,8 @@ Exit $installProcess.ExitCode
 To activate a host in the CrowdStrike tenant, a script must be excuted during CrowdStrike Falcon installation to collect the **Customer ID**. Use this script on Windows with the **Customer ID** string copied from your CrowdStrike tenant above:
 
 ```
-$logFile = "${env:TEMP}\fleet-install-software.log"
 try {
-    $installProcess = Start-Process -FilePath "${env:INSTALLER_PATH}" -ArgumentList "/quiet /norestart /install CID=<YOUR-CUSTOMER-ID-HERE>"
+    $installProcess = Start-Process -FilePath "${env:INSTALLER_PATH}" -ArgumentList "/quiet /norestart /log ${env:TEMP}\fleet_falcon_install.log /install CID=<YOUR-CUSTOMER-ID-HERE>"
     Get-Content $logFile -Tail 500
     Exit $installProcess.ExitCode
 } catch {
