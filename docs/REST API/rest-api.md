@@ -9393,7 +9393,7 @@ Edit managed local account enforcement settings for eligible hosts.
 
 This endpoint tells Fleet to run a custom MDM command on the targeted macOS, iOS, iPadOS, Windows, or Android hosts the next time they come online.
 
-Apple and Windows MDM command payloads prepare the MDM command payloads must be base64-encoded.
+The MDM command payloads must be base64-encoded.
 
 This endpoint accepts a maximum request body size of 2MiB.
 
