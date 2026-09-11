@@ -453,7 +453,8 @@ controls:
           - Engineering
         activation: ../lib/macos/activations/activation.json
     assets:
-      - path: ../lib/macos/assets/my-asset.json  
+      - path: ../lib/macos/assets/my-asset.json
+    enable_managed_local_account: true 
     end_user_local_account_type: "admin"
   windows_settings:
     configuration_profiles:
@@ -475,7 +476,6 @@ controls:
     apple_enable_release_device_manually: true
     apple_setup_assistant: ../lib/dep-profile.json
     macos_script: ../lib/macos-setup-script.sh
-    enable_managed_local_account: true
   macos_migration: # Available in Fleet Premium
     enable: true
     mode: voluntary
@@ -512,8 +512,8 @@ controls:
 
 ### apple_settings and windows_settings
 
-- `end_user_local_account_type` specifies the end user account type for macOS hosts. Requires `setup_experience.enable_managed_local_account` to be `true`. Only supported on macOS (`apple_settings`). Default: `"admin"`. To force a standard user account on Windows, use the [Autopilot profile](https://fleetdm.com/guides/windows-mdm-setup#force-a-standard-user-account).
-- `enable_managed_local_account` specifies whether to create the managed local account on that platform (default: `false`). Currently Windows only. macOS is [coming soon](https://github.com/fleetdm/fleet/issues/50084).
+- `enable_managed_local_account` specifies whether to create the managed local account on that platform (default: `false`).
+- `end_user_local_account_type` specifies the end user account type for macOS hosts. Requires `apple_settings.enable_managed_local_account` to be `true`. Only supported on macOS (`apple_settings`). Default: `"admin"`. To force a standard user account on Windows, use the [Autopilot profile](https://fleetdm.com/guides/windows-mdm-setup#force-a-standard-user-account).
 - `configuration_profiles` is a list of configuration profiles. Accepts .mobileconfig/.json (macOS/iOS/iPadOS) or .xml (Windows).
 
 Each entry can use either `path:` or `paths:`:
@@ -578,7 +578,7 @@ The `setup_experience` section lets you control the out-of-the-box [setup experi
 - `macos_script` is the path to a custom setup script to run after the host is first set up. Applies to macOS only.
 
 `enable_managed_local_account` and `end_user_local_account_type` at this level are deprecated. 
-Please use the platform-specific `apple_settings.managed_local_account_settings`, `apple_settings.end_user_local_account_type`, or `windows_settings.enable_managed_local_account` instead.
+Please use the platform-specific `apple_settings.enable_managed_local_account`, `apple_settings.end_user_local_account_type`, or `windows_settings.enable_managed_local_account` instead.
 
 #### Example
 
