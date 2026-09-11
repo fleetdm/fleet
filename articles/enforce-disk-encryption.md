@@ -77,6 +77,22 @@ Fleet supports Linux Unified Key Setup version 2 (LUKS2) for escrowing disk encr
 
 > Note: LUKS allows multiple passphrases for decrypting the volume. The original passphrase remains active along with the escrowed passphrase created by Fleet.
 
+## Create a BitLocker PIN on Windows
+
+When disk encryption is enforced on Windows hosts with a TPM+PIN configuration, end
+users may be prompted to create a BitLocker PIN. The PIN is required at boot to unlock
+the encrypted disk.
+
+1. Fleet Desktop displays a notification prompting the end user to create a PIN.
+
+2. The end user enters a PIN in the Fleet Desktop dialog.
+
+3. Fleet Desktop sends the PIN to a privileged component in fleetd (Fleet's agent),
+   which applies the PIN to the disk. This happens automatically—the end user does
+   not need administrator privileges.
+
+4. Once the PIN is set, the host's disk encryption status will update to "Verified" in
+   Fleet.
 
 ## View disk encryption key
 
