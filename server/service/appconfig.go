@@ -2720,12 +2720,17 @@ func (svc *Service) validateABMAssignments(
 		}
 
 		for _, bm := range mdm.AppleBusinessManager.Value {
+			// look up with the same normalized names throughout: a check that
+			// normalizes paired with a fetch that doesn't panics on names whose
+			// Unicode form differs between the request and the database
+			orgName := norm.NFC.String(bm.OrganizationName)
+
 			if bm.Default {
 				if defaultTokenID != nil {
 					invalid.Append("mdm.apple_business", "only one Apple Business (AB) token can be the default")
 					return nil, nil, nil
 				}
-				if tok, ok := tokensByName[norm.NFC.String(bm.OrganizationName)]; ok {
+				if tok, ok := tokensByName[orgName]; ok {
 					defaultTokenID = &tok.ID
 				}
 			}
@@ -2737,16 +2742,16 @@ func (svc *Service) validateABMAssignments(
 				}
 			}
 
-			if _, ok := tokensByName[norm.NFC.String(bm.OrganizationName)]; !ok {
+			if _, ok := tokensByName[orgName]; !ok {
 				invalid.Appendf("mdm.apple_business", "token with organization name %s doesn't exist", bm.OrganizationName)
 				return nil, nil, nil
 			}
 
-			tok := tokensByName[bm.OrganizationName]
-			tok.MacOSDefaultTeamID = teamsByName[bm.MacOSTeam]
-			tok.IOSDefaultTeamID = teamsByName[bm.IOSTeam]
-			tok.IPadOSDefaultTeamID = teamsByName[bm.IpadOSTeam]
-			tok.BYODDefaultTeamID = teamsByName[bm.BYODTeam]
+			tok := tokensByName[orgName]
+			tok.MacOSDefaultTeamID = teamsByName[norm.NFC.String(bm.MacOSTeam)]
+			tok.IOSDefaultTeamID = teamsByName[norm.NFC.String(bm.IOSTeam)]
+			tok.IPadOSDefaultTeamID = teamsByName[norm.NFC.String(bm.IpadOSTeam)]
+			tok.BYODDefaultTeamID = teamsByName[norm.NFC.String(bm.BYODTeam)]
 			tokensToSave = append(tokensToSave, tok)
 		}
 

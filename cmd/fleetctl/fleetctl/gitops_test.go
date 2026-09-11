@@ -4815,6 +4815,27 @@ software:
 			},
 		},
 		{
+			// the yaml spells the org name decomposed (e + combining accent) while
+			// the stored token is precomposed; mismatched normalization between the
+			// existence check and the fetch used to panic the request
+			name: "org name in a different unicode form matches",
+			cfgs: []string{
+				global(`
+                                  apple_business_manager:
+                                    - organization_name: "Café Inc."
+                                      macos_team: "No team"`),
+			},
+			tokens: []*fleet.ABMToken{{ID: 1, OrganizationName: "Café Inc."}},
+			dryRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
+				require.NoError(t, err)
+				assert.Contains(t, out, "[!] gitops dry run succeeded")
+			},
+			realRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
+				require.NoError(t, err)
+				assert.Contains(t, out, "[!] gitops succeeded")
+			},
+		},
+		{
 			name: "default on one token applies",
 			cfgs: []string{
 				global(`
