@@ -441,6 +441,15 @@ func TestPreprocessWindowsProfileContentsForDeployment(t *testing.T) {
 			expectError:     true,
 			processingError: "NDES is not configured. Fleet couldn't populate $FLEET_VAR_NDES_SCEP_CHALLENGE.",
 		},
+		{
+			name:             "scep subject name quotes an idp username holding an x500 separator",
+			hostUUID:         "idp-host-uuid",
+			profileContents:  testSyncMLItem(testDeviceSubjectNameLocURI, `CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME,O=Fleet QA`),
+			expectedContents: testSyncMLItem(testDeviceSubjectNameLocURI, `CN="user+idp@example.com",O=Fleet QA`),
+			setup: func() {
+				scimUser.UserName = "user+idp@example.com"
+			},
+		},
 	}
 
 	hostIDForUUIDCache := make(map[string]uint)

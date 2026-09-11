@@ -415,11 +415,13 @@ export const buildHostVitals = ({
         key="hardware-model"
         title="Hardware model"
         value={
-          <TooltipTruncatedText
-            value={hardwareModelDisplay.value}
-            tooltip={hardwareModelDisplay.tooltip}
-            alwaysShowTooltip={hardwareModelDisplay.alwaysShowTooltip}
-          />
+          hardwareModelDisplay.tooltip ? (
+            <TooltipWrapper tipContent={hardwareModelDisplay.tooltip}>
+              {hardwareModelDisplay.value}
+            </TooltipWrapper>
+          ) : (
+            hardwareModelDisplay.value
+          )
         }
       />
     ),
@@ -452,12 +454,15 @@ export const buildHostVitals = ({
     const label = isAdeIDevice
       ? "Show location"
       : getCityCountryLocation(geolocation);
+    const truncatedLabel = (
+      <TooltipTruncatedText value={label} fixedPositionStrategy />
+    );
     const locationValue = toggleLocationModal ? (
       <Button variant="link" onClick={toggleLocationModal}>
-        {label}
+        {truncatedLabel}
       </Button>
     ) : (
-      label
+      truncatedLabel
     );
     vitals.push({
       sortKey: "Location",

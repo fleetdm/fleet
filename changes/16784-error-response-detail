@@ -1,0 +1,1 @@
+- Made API error responses consistent in how much of the underlying error they include, and added a correlation id to error responses so the matching server log line can be found.

@@ -507,10 +507,19 @@ const InstallStatusCell = ({
     const isScriptPackage = SCRIPT_PACKAGE_SOURCES.includes(software.source);
 
     // Status groups and their click handlers
+    // Script packages route ALL install-side statuses (including "Installed"
+    // and "Install (pending)" for script packages with an uninstall script)
+    // to the script execution details modal, since the install is a script run.
     const displayStatusConfig = [
       {
         condition: isScriptPackage, // Still allows click even if no last install to see details modal
-        statuses: ["Failed", "Run (pending)", "Ran"],
+        statuses: [
+          "Failed",
+          "Run (pending)",
+          "Ran",
+          "Install (pending)",
+          "Installed",
+        ],
         onClick: onClickScriptStatus,
       },
       {
