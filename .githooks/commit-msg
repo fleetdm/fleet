@@ -1,0 +1,8 @@
+#!/bin/sh
+# Prevent commits whose message contains disallowed co-author trailers
+MSG_FILE="$1"
+if grep -Ei "Co-authored-by:\s*.*(copilot|claude)" "$MSG_FILE" >/dev/null; then
+  echo "Commit message contains a disallowed Co-authored-by trailer (copilot/claude). Please remove it." >&2
+  exit 1
+fi
+exit 0
