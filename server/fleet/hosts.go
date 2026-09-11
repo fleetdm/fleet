@@ -1906,8 +1906,8 @@ type HostMDMCheckinInfo struct {
 type HostEscrowState struct {
 	// Pending is true while a request is queued and not yet delivered to the agent.
 	Pending bool
-	// SinceLastActivity is how long ago the agent last showed activity on the request (hand-off
-	// or heartbeat), measured on the database clock. Nil when no request is in flight.
+	// SinceLastActivity is how long ago the agent last showed activity on the request (hand-off or
+	// progress report), on the database clock. Nil when no request is in flight.
 	SinceLastActivity *time.Duration
 }
 

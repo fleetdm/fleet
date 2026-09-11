@@ -4788,7 +4788,7 @@ func (s *integrationEnterpriseTestSuite) TestLinuxDiskEncryption() {
 	s.DoJSON("POST", "/api/fleet/orbit/config", fleet.OrbitGetConfigRequest{OrbitNodeKey: orbitKey}, http.StatusOK, &inFlightOrbitResponse)
 	require.False(t, inFlightOrbitResponse.Notifications.RunDiskEncryptionEscrow)
 
-	// a heartbeat from the agent keeps the escrow in flight past the window
+	// a progress report keeps the escrow in flight past the window
 	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(t.Context(), `UPDATE host_disk_encryption_keys SET escrow_sent_at = DATE_SUB(escrow_sent_at, INTERVAL 1 HOUR) WHERE host_id = ?`, noTeamHost.ID)
 		return err
@@ -35849,6 +35849,64 @@ func (s *integrationEnterpriseTestSuite) TestResetPolicy() {
 
 	// 404 for a nonexistent policy.
 	s.Do("POST", "/api/latest/fleet/policies/999999/reset", nil, http.StatusNotFound)
+
+	// Both endpoints are documented under /api/v1 and must be routed there too.
+	s.Do("POST", fmt.Sprintf("/api/v1/fleet/policies/%d/reset", globalPolicy.ID), nil, http.StatusOK)
+	s.Do("GET", fmt.Sprintf("/api/v1/fleet/policies/%d/automation_activities", globalPolicy.ID), nil, http.StatusOK)
+
+	// --- host-scoped reset (?host_id=) ---
+	createHostScopedResp := fleet.GlobalPolicyResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/policies", fleet.GlobalPolicyRequest{
+		Name:  "reset-test-host-scoped",
+		Query: "SELECT 1;",
+	}, http.StatusOK, &createHostScopedResp)
+	hostScopedPolicy := createHostScopedResp.Policy
+
+	for _, h := range []*fleet.Host{globalHost, noTeamHost} {
+		s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
+			h, map[uint]*bool{hostScopedPolicy.ID: new(false)},
+		), http.StatusOK, new(submitDistributedQueryResultsResponse))
+	}
+	require.NoError(t, s.ds.UpdateHostPolicyCounts(ctx))
+	getHostScopedResp := fleet.GetPolicyByIDResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/policies/%d", hostScopedPolicy.ID), nil, http.StatusOK, &getHostScopedResp)
+	require.Equal(t, uint(2), getHostScopedResp.Policy.FailingHostCount)
+
+	// Reset only globalHost's result; noTeamHost's failing result must survive and the
+	// counts must reflect it immediately, without waiting for the counts cron.
+	s.Do("POST", fmt.Sprintf("/api/v1/fleet/policies/%d/reset?host_id=%d", hostScopedPolicy.ID, globalHost.ID), nil, http.StatusOK)
+	getHostScopedResp = fleet.GetPolicyByIDResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/policies/%d", hostScopedPolicy.ID), nil, http.StatusOK, &getHostScopedResp)
+	require.Equal(t, uint(1), getHostScopedResp.Policy.FailingHostCount)
+	require.Equal(t, uint(0), getHostScopedResp.Policy.PassingHostCount)
+
+	s.lastActivityMatches("reset_policy", fmt.Sprintf(
+		`{"policy_id":%d,"policy_name":"reset-test-host-scoped","team_id":-1,"fleet_id":-1,"host_id":%d,"host_display_name":%q}`,
+		hostScopedPolicy.ID, globalHost.ID, globalHost.DisplayName(),
+	), 0)
+
+	// A host-scoped reset shows up in that host's activity feed; policy-wide resets don't
+	// get linked to any host.
+	resetActivityType := fleet.ActivityTypeResetPolicy{}.ActivityName()
+	countResetActivities := func(hostID uint) int {
+		var hostActivities listActivitiesResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities", hostID), nil, http.StatusOK, &hostActivities)
+		n := 0
+		for _, a := range hostActivities.Activities {
+			if a.Type == resetActivityType {
+				n++
+			}
+		}
+		return n
+	}
+	require.Equal(t, 1, countResetActivities(globalHost.ID))
+	require.Equal(t, 0, countResetActivities(noTeamHost.ID))
+
+	// 404 for a nonexistent host.
+	s.Do("POST", fmt.Sprintf("/api/latest/fleet/policies/%d/reset?host_id=999999", hostScopedPolicy.ID), nil, http.StatusNotFound)
+
+	// 404 for a host outside a team policy's team.
+	s.Do("POST", fmt.Sprintf("/api/latest/fleet/policies/%d/reset?host_id=%d", teamPolicy.ID, noTeamHost.ID), nil, http.StatusNotFound)
 }
 
 // TestSoftwareMultiplePackagesInstallPrecedence verifies install-time first-added precedence when a
