@@ -183,6 +183,9 @@ func InitCommonDSMocks() *AndroidMockDS {
 	ds.Store.DeleteOtherEnterprisesFunc = func(ctx context.Context, ID uint) error {
 		return nil
 	}
+	ds.Store.DeleteZeroTouchEnrollmentTokensFunc = func(_ context.Context) error {
+		return nil
+	}
 
 	ds.Store.AppConfigFunc = func(_ context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil

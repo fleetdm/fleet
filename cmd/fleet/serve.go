@@ -26,6 +26,7 @@ import (
 	"github.com/e-dard/netbug"
 	"github.com/fleetdm/fleet/v4/cmd/fleetctl/fleetctl"
 	"github.com/fleetdm/fleet/v4/ee/server/licensing"
+	ee_android "github.com/fleetdm/fleet/v4/ee/server/mdm/android"
 	"github.com/fleetdm/fleet/v4/ee/server/scim"
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
 	"github.com/fleetdm/fleet/v4/ee/server/service/condaccess"
@@ -493,6 +494,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	if err != nil {
 		initFatal(err, "initializing android service")
 	}
+	eeAndroidSvc := ee_android.NewService(androidSvc)
 
 	orgLogoStore := initOrgLogoStore(ctx, config.S3, mds, logger)
 
@@ -838,7 +840,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		}
 
 		apiHandler = service.MakeHandler(svc, config, httpLogger, limiterStore, redisPool, carveStore,
-			[]endpointer.HandlerRoutesFunc{android_service.GetRoutes(svc, androidSvc), activityRoutes, acmeRoutes, chartRoutes}, extra...)
+			[]endpointer.HandlerRoutesFunc{android_service.GetRoutes(svc, eeAndroidSvc), activityRoutes, acmeRoutes, chartRoutes}, extra...)
 
 		// SCIM endpoints are served by a prefix-mounted handler (see
 		// scim.RegisterSCIM) that gorilla/mux can't introspect, so surface
