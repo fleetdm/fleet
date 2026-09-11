@@ -14,6 +14,7 @@ import { useDebouncedCallback } from "use-debounce";
 import { Ace } from "ace-builds";
 
 import PATHS from "router/paths";
+import CustomLink from "components/CustomLink";
 
 import { AppContext } from "context/app";
 import { QueryContext } from "context/query";
@@ -679,7 +680,17 @@ const EditQueryForm = ({
                 value={lastEditedQueryFrequency}
                 label="Interval"
                 wrapperClassName={`${baseClass}__form-field form-field--frequency`}
-                helpText="Hosts report new results after they've been online for this long."
+                helpText={
+                  <>
+                    Hosts report at fixed times — not just after being online
+                    this long.{" "}
+                    <CustomLink
+                      url="https://fleetdm.com/docs/get-started/faq#why-might-a-scheduled-report-never-show-results"
+                      text="Learn more"
+                      newTab
+                    />
+                  </>
+                }
               />
               <Slider
                 onChange={() =>

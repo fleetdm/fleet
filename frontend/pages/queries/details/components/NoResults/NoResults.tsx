@@ -55,8 +55,13 @@ const NoResults = ({
   if (collectingResults && !disabledCaching) {
     const collectingResultsInfo = () => (
       <>
-        Hosts will start reporting results after they&apos;ve been online for
-        about {readableCheckbackTime}.
+        Results expected in about {readableCheckbackTime} — if the host&apos;s
+        online then.{" "}
+        <CustomLink
+          url="https://fleetdm.com/docs/get-started/faq#why-might-a-scheduled-report-never-show-results"
+          text="Learn more"
+          newTab
+        />
       </>
     );
 

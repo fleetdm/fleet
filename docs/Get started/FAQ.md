@@ -297,6 +297,14 @@ Don't worry; this behavior is expected. It's part of how osquery works.
 Fleet and osquery work together by communicating with heartbeats. Depending on how close the next heartbeat is, Fleet might return results a few seconds faster or slower.
 >To get around what's known as the "[thundering herd problem](https://en.wikipedia.org/wiki/Thundering_herd_problem#:~:text=In%20computer%20science%2C%20the%20thundering,but%20only%20one%20will%20win.)," these heartbeats aren't exactly the same number of seconds apart each time. Osquery implements a "splay", a few ± milliseconds that are added to or subtracted from the heartbeat interval to prevent these thundering herds. This helps prevent situations where many thousands of devices might unnecessarily attempt to communicate with the Fleet server at exactly the same time. (If you've ever used Socket.io, a similar phenomenon can occur with that tool's automatic WebSocket reconnects.)
 
+### Why might a scheduled report never show results, even though the host is often online?
+
+Scheduled reports don't run after a host has been online for a certain amount of time — they run when the clock hits a fixed point, spaced out by the interval. A host has to be running osqueryd at that exact moment to report in.
+
+**Example:** a report with a 6-hour interval fires at four fixed times a day (roughly midnight, 6am, noon, and 6pm, nudged slightly per host by ["splay"](#why-does-the-same-query-come-back-faster-sometimes)). If a host is reliably offline at all four of those moments — say, it's always asleep at noon and midnight — it will never report, no matter how many hours it's online in between.
+
+This mostly affects short, human-scale intervals (6, 8, 12, or 24 hours) on hosts with a regular daily on/off pattern, like laptops that sleep at lunch or overnight. If a report never shows results, try a different interval, or run `SELECT * FROM osquery_schedule` as a live query to see when the host expects to check in.
+
 ### Why don't my query results appear sorted based on the ORDER BY clause I specified in my SQL query?
 
 When a query executes in Fleet, the query is sent to all hosts at the same time, but results are returned from hosts at different times. In Fleet, results are shown as soon as Fleet receives a response from a host. Fleet does not sort the overall results across all hosts (the sort UI toggle is used for this). Instead, Fleet prioritizes speed when displaying the results.  This means that if you use an `ORDER BY` clause selection criteria in a query, the results may not initially appear with your desired order. However, the sort UI toggle allows you to sort by ascending or descending order for any of the displayed columns.
