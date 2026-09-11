@@ -1,0 +1,1 @@
+* Fixed long host locations overflowing on the host details page and truncating without a tooltip on the My device page.

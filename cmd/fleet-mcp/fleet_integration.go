@@ -32,6 +32,30 @@ type FleetClient struct {
 	baseURL    string
 	apiKey     string
 	httpClient *http.Client
+	// liveQueryClient is used only for the blocking single-host live query
+	// endpoint (POST /hosts/:id/query), which Fleet holds open for up to
+	// FLEET_LIVE_QUERY_REST_PERIOD — longer than httpClient's timeout allows.
+	// It shares httpClient's Transport. Nil falls back to httpClient.
+	liveQueryClient *http.Client
+}
+
+// liveQueryTimeoutMargin is added to the server-side wait for the live query
+// client's timeout, covering request setup and the response write after the
+// server-side wait elapses.
+const liveQueryTimeoutMargin = 30 * time.Second
+
+// maxSingleHostBlock caps the server-side wait this timeout is derived from.
+// FLEET_LIVE_QUERY_REST_PERIOD is also the multi-host campaign's wait budget,
+// set far above anything a server blocks for (900s in render.yaml) so fleet-wide
+// queries outlast asleep hosts; uncapped, that budget would let one stalled
+// connection hang for 15 minutes. Fleet's own period must stay under the request
+// timeout of any proxy in front of it, so real values are tens of seconds.
+const maxSingleHostBlock = 120 * time.Second
+
+// singleHostQueryTimeout bounds the blocking POST /hosts/:id/query client.
+// liveQueryDeadline() stays uncapped for the campaign path.
+func singleHostQueryTimeout() time.Duration {
+	return min(liveQueryDeadline(), maxSingleHostBlock) + liveQueryTimeoutMargin
 }
 
 // PlatformBreakdown represents platform distribution data
@@ -113,6 +137,10 @@ func NewFleetClient(baseURL, apiKey string, tlsSkipVerify bool, caFile string) *
 		apiKey:  apiKey,
 		httpClient: &http.Client{
 			Timeout:   30 * time.Second,
+			Transport: transport,
+		},
+		liveQueryClient: &http.Client{
+			Timeout:   singleHostQueryTimeout(),
 			Transport: transport,
 		},
 	}
@@ -298,6 +326,23 @@ type CreateQueryRequest struct {
 	TeamID      *uint  `json:"team_id,omitempty"`
 }
 
+// linuxPlatforms mirrors fleet.HostLinuxOSs in server/fleet/hosts.go (plus
+// "fedora" and "alpine") and must be kept in sync; fleet-mcp cannot import the
+// server module.
+var linuxPlatforms = map[string]struct{}{
+	"linux": {}, "ubuntu": {}, "zorin": {}, "debian": {}, "rhel": {}, "centos": {},
+	"sles": {}, "kali": {}, "gentoo": {}, "amzn": {}, "pop": {}, "arch": {},
+	"linuxmint": {}, "void": {}, "nixos": {}, "endeavouros": {}, "manjaro": {},
+	"manjaro-arm": {}, "opensuse-leap": {}, "opensuse-tumbleweed": {}, "tuxedo": {},
+	"neon": {}, "archarm": {}, "flatcar": {}, "coreos": {}, "cachyos": {}, "omarchy": {},
+	"fedora": {}, "alpine": {},
+}
+
+func isLinuxPlatform(p string) bool {
+	_, ok := linuxPlatforms[strings.ToLower(strings.TrimSpace(p))]
+	return ok
+}
+
 // normalizePlatform normalizes platform input to Fleet's canonical platform string.
 func normalizePlatform(p string) string {
 	switch strings.ToLower(strings.TrimSpace(p)) {
@@ -305,22 +350,21 @@ func normalizePlatform(p string) string {
 		return "darwin"
 	case "windows":
 		return "windows"
-	case "linux", "ubuntu", "centos", "rhel", "debian", "fedora", "amzn":
-		return "linux"
 	case "chromeos", "chrome":
 		return "chrome"
-	default:
-		return strings.ToLower(p)
 	}
+	if isLinuxPlatform(p) {
+		return "linux"
+	}
+	return strings.ToLower(p)
 }
 
 // matchesPlatform checks if a host's platform matches the target platform.
 func matchesPlatform(hostPlatform, targetPlatform string) bool {
-	hp := strings.ToLower(hostPlatform)
 	if targetPlatform == "linux" {
-		return hp == "linux" || hp == "ubuntu" || hp == "centos" || hp == "rhel" || hp == "debian" || hp == "fedora" || hp == "amzn"
+		return isLinuxPlatform(hostPlatform)
 	}
-	return hp == targetPlatform
+	return strings.ToLower(hostPlatform) == targetPlatform
 }
 
 // platformToBuiltinLabel maps user-facing platform names to Fleet's built-in label names.
@@ -907,8 +951,6 @@ func (fc *FleetClient) GetEndpointsWithAggregations(ctx context.Context) (*Aggre
 			platformBreakdown.MacOS += p.HostsCount
 		case "windows":
 			platformBreakdown.Windows += p.HostsCount
-		case "linux", "ubuntu", "centos", "rhel", "debian", "fedora", "amzn":
-			platformBreakdown.Linux += p.HostsCount
 		case "chrome":
 			platformBreakdown.ChromeOS += p.HostsCount
 		case "ios":
@@ -918,7 +960,11 @@ func (fc *FleetClient) GetEndpointsWithAggregations(ctx context.Context) (*Aggre
 		case "android":
 			platformBreakdown.Android += p.HostsCount
 		default:
-			platformBreakdown.Other += p.HostsCount
+			if isLinuxPlatform(p.Platform) {
+				platformBreakdown.Linux += p.HostsCount
+			} else {
+				platformBreakdown.Other += p.HostsCount
+			}
 		}
 	}
 	platformBreakdown.Total = summary.TotalsHostsCount
@@ -2016,7 +2062,9 @@ func intersectHostsByID(a, b []Endpoint) []Endpoint {
 // runAdHocSingleHost uses POST /api/v1/fleet/hosts/:id/query (Fleet 4.43+ synchronous REST).
 func (fc *FleetClient) runAdHocSingleHost(ctx context.Context, hostID uint, sql string, endpointByID map[uint]Endpoint) (*LiveQueryResult, error) {
 	endpointPath := fmt.Sprintf("/api/v1/fleet/hosts/%d/query", hostID)
-	resp, err := fc.makeFleetRequest(ctx, "POST", endpointPath, AdHocQueryRequest{Query: sql})
+	// Fleet blocks on this endpoint until the host reports or
+	// FLEET_LIVE_QUERY_REST_PERIOD elapses, so use the long-timeout client.
+	resp, err := fc.makeFleetRequestWith(ctx, fc.liveQueryClient, "POST", endpointPath, AdHocQueryRequest{Query: sql})
 	if err != nil {
 		return nil, fmt.Errorf("ad hoc query failed: %w", err)
 	}
@@ -2085,6 +2133,15 @@ func endpointMatchesHostname(ep Endpoint, name string) bool {
 // shipper. We now log only the method and the path before the query string
 // so the route shape is observable without exposing identifiers.
 func (fc *FleetClient) makeFleetRequest(ctx context.Context, method, endpoint string, body interface{}) (*http.Response, error) {
+	return fc.makeFleetRequestWith(ctx, fc.httpClient, method, endpoint, body)
+}
+
+// makeFleetRequestWith is makeFleetRequest using the given client; a nil
+// client falls back to fc.httpClient.
+func (fc *FleetClient) makeFleetRequestWith(ctx context.Context, client *http.Client, method, endpoint string, body interface{}) (*http.Response, error) {
+	if client == nil {
+		client = fc.httpClient
+	}
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -2113,7 +2170,7 @@ func (fc *FleetClient) makeFleetRequest(ctx context.Context, method, endpoint st
 	pathOnly, _, _ := strings.Cut(endpoint, "?")
 	logrus.Debugf("%s %s", method, pathOnly)
 
-	resp, err := fc.httpClient.Do(req)
+	resp, err := client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to make request to Fleet API: %w", err)
 	}

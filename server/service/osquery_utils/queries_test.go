@@ -271,6 +271,54 @@ func TestSoftwareIngestionMutations(t *testing.T) {
 	MutateSoftwareOnIngestion(t.Context(), notAnyDesk, slog.New(slog.DiscardHandler))
 	assert.Equal(t, "ad 9.7.15", notAnyDesk.Version)
 
+	// Test Raspberry Pi Imager version sanitizer - strips the leading "v" the
+	// macOS build embeds in CFBundleShortVersionString.
+	rpiImager := &fleet.Software{
+		BundleIdentifier: "com.raspberrypi.rpi-imager",
+		Source:           "apps",
+		Version:          "v2.0.11.1",
+	}
+	MutateSoftwareOnIngestion(t.Context(), rpiImager, slog.New(slog.DiscardHandler))
+	assert.Equal(t, "2.0.11.1", rpiImager.Version)
+
+	// Test Raspberry Pi Imager sanitizer leaves an already-clean version alone
+	rpiImagerClean := &fleet.Software{
+		BundleIdentifier: "com.raspberrypi.rpi-imager",
+		Source:           "apps",
+		Version:          "2.0.11.1",
+	}
+	MutateSoftwareOnIngestion(t.Context(), rpiImagerClean, slog.New(slog.DiscardHandler))
+	assert.Equal(t, "2.0.11.1", rpiImagerClean.Version)
+
+	// Test Raspberry Pi Imager sanitizer drops a non-numeric suffix so the
+	// ingested version stays comparable with version_compare
+	rpiImagerSuffix := &fleet.Software{
+		BundleIdentifier: "com.raspberrypi.rpi-imager",
+		Source:           "apps",
+		Version:          "v2.0.11.1-beta",
+	}
+	MutateSoftwareOnIngestion(t.Context(), rpiImagerSuffix, slog.New(slog.DiscardHandler))
+	assert.Equal(t, "2.0.11.1", rpiImagerSuffix.Version)
+
+	// Test Raspberry Pi Imager version sanitizer also applies on Windows,
+	// where the installer embeds the same leading "v" in DisplayVersion
+	rpiImagerWindows := &fleet.Software{
+		Name:    "Raspberry Pi Imager",
+		Source:  "programs",
+		Version: "v2.0.8",
+	}
+	MutateSoftwareOnIngestion(t.Context(), rpiImagerWindows, slog.New(slog.DiscardHandler))
+	assert.Equal(t, "2.0.8", rpiImagerWindows.Version)
+
+	// Test Raspberry Pi Imager Windows sanitizer doesn't touch other software
+	notRpiImagerWindows := &fleet.Software{
+		Name:    "Some Other App",
+		Source:  "programs",
+		Version: "v2.0.8",
+	}
+	MutateSoftwareOnIngestion(t.Context(), notRpiImagerWindows, slog.New(slog.DiscardHandler))
+	assert.Equal(t, "v2.0.8", notRpiImagerWindows.Version)
+
 	// Test JetBrains software without version in name is not transformed
 	jetbrainsNoVersionInName := &fleet.Software{
 		Name:    "IntelliJ IDEA",
@@ -850,6 +898,30 @@ func TestDetailQueriesOSVersionUnixLike(t *testing.T) {
 	require.Equal(t, "Omarchy 4.0.0", host.OSVersion)
 	require.Equal(t, "omarchy", host.Platform)
 	require.Equal(t, "arch", host.PlatformLike)
+
+	// AMD Ryzen AI Developer Platform is a Debian-based distribution that ships its
+	// own os-release ID. Values below are what osquery 5.23.1 reports on a real host.
+	require.NoError(t, json.Unmarshal([]byte(`
+[{
+    "hostname": "amd-halo",
+    "arch": "x86_64",
+    "build": "",
+    "codename": "rex",
+    "major": "1",
+    "minor": "0",
+    "name": "AMD Ryzen AI Developer Platform",
+    "patch": "0",
+    "platform": "amd-ryzen-ai-developer-platform",
+    "platform_like": "debian",
+    "version": "1 (rex)"
+}]`),
+		&rows,
+	))
+
+	require.NoError(t, ingest(t.Context(), slog.New(slog.DiscardHandler), &host, rows))
+	require.Equal(t, "AMD Ryzen AI Developer Platform 1.0.0", host.OSVersion)
+	require.Equal(t, "amd-ryzen-ai-developer-platform", host.Platform)
+	require.Equal(t, "debian", host.PlatformLike)
 
 	// Simulate Ubuntu host with incorrect `patch` number
 	require.NoError(t, json.Unmarshal([]byte(`
@@ -1917,6 +1989,28 @@ func TestDirectIngestOSUnixLike(t *testing.T) {
 				Version:       "rolling",
 				Arch:          "x86_64",
 				KernelVersion: "6.16.3-arch1-1",
+			},
+		},
+		{
+			// AMD Ryzen AI Developer Platform is a distinct Debian-based release, so
+			// it keeps its own OS inventory row rather than aggregating onto Debian.
+			data: []map[string]string{
+				{
+					"name":           "AMD Ryzen AI Developer Platform",
+					"version":        "1 (rex)",
+					"major":          "1",
+					"minor":          "0",
+					"patch":          "0",
+					"build":          "",
+					"arch":           "x86_64",
+					"kernel_version": "6.18.44+rex+5-amd64",
+				},
+			},
+			expected: fleet.OperatingSystem{
+				Name:          "AMD Ryzen AI Developer Platform",
+				Version:       "1.0.0",
+				Arch:          "x86_64",
+				KernelVersion: "6.18.44+rex+5-amd64",
 			},
 		},
 	} {

@@ -45,13 +45,11 @@ const HostStatusWebhookPreviewModal = ({
       <p>
         An example request sent to your configured <b>Destination URL</b>.
       </p>
-      <div className={baseClass}>
-        <pre
-          dangerouslySetInnerHTML={{
-            __html: syntaxHighlight(getHostStatusPreview(isTeamScope)),
-          }}
-        />
-      </div>
+      <pre
+        dangerouslySetInnerHTML={{
+          __html: syntaxHighlight(getHostStatusPreview(isTeamScope)),
+        }}
+      />
       <div className="modal-cta-wrap">
         <Button type="button" onClick={toggleModal}>
           Close

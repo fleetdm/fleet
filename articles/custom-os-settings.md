@@ -21,8 +21,9 @@ The following configuration declarations are not supported:
 
 - com.apple.configuration.management.status-subscriptions
 - com.apple.configuration.watch.enrollment
-- com.apple.configuration.app.managed
 - com.apple.configuration.package
+
+> `com.apple.configuration.app.managed` is supported, but the referenced app must already be installed and managed via Fleet's VPP functionality for the configuration to apply on-device.
 
 #### Activations (`com.apple.activation.simple`)
 For advanced setups, you can provide a custom activation instead of having Fleet automatically create the activation when you upload a configuration profile.
@@ -136,6 +137,8 @@ How to deliver user-scoped configuration profiles:
 
 #### macOS
 
+For `.mobileconfig` configuration profiles:
+
 1. If you use iMazing Profile Creator, open your configuration profile in iMazing, select the **General** tab and update the **Payoad Scope** to **User**.
 
 2. If you edit your configuration profiles in a text editor, open the configuraiton profile in your text editor, find or add the `PayloadScope` key, and set the value to `User`. Here's an example `.mobileconfig` snippet:
@@ -153,7 +156,10 @@ How to deliver user-scoped configuration profiles:
 </plist>
 ```
 
+For declaration (DDM) profiles add the `"PayloadScope"` key and set it to `"User"`.
+
 Here's an example DDM (`com.apple.configuration.*`) snippet:
+
 ```json
 {
     "Type": "com.apple.configuration.passcode.settings",
@@ -311,6 +317,15 @@ macOS, iOS, and iPadOS profiles installed manually by the end user aren't manage
 If a backup is migrated to a new host using [Apple’s Migration Assistant](https://support.apple.com/en-us/102613) and includes configuration profiles, those profiles aren’t managed. Migration Assistant also restores the enrollment profile, but without a valid private key, which breaks communication with Fleet. Fleet still shows MDM as turned on. If this happens, the end user will have to manually turn MDM off and back on.
 
 To manually remove unmanaged profiles, ask the end user to go to **System Settings > General > Device Management**, select the profile, and select the **- (minus)** button at the bottom of the list.
+
+## Stuck user-channel profiles
+
+Configuration profiles scoped to the user channel only deliver to the host's enrolled managed local account. If that account is deleted, the user channel has no account to deliver to. In Fleet, the profile can show as **Pending** or **Enforcing** even though no MDM command was ever queued or sent.
+
+To check which account a profile is scoped to, go to a host's **Host details > OS settings** and hover over the user icon next to the profile's name.
+
+To resolve this, run `sudo profiles renew -type enrollment` on the host. This re-enrolls the user channel under the account that's currently logged in.
+
 
 <meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="noahtalerman">
