@@ -318,7 +318,7 @@ Generate a `CommandUUID` by running `uuidgen` on macOS, Linux, or use an online 
 </dict>
 </plist>
 ```
-You can then send this command using `fleetctl`, or via the API.
+You can then send this command using [`fleetctl`](https://fleetdm.com/guides/fleetctl), or via the API.
 
 - `fleetctl mdm run-command --hosts <hostname-or-serial-or-uuid> --payload <path-to-plist>`
 - `POST /api/v1/fleet/commands/run`
