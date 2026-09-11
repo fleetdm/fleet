@@ -71,9 +71,12 @@ Following is a summary of the detail queries hardcoded in Fleet used to populate
 		if q.detailQuery.Discovery != "" {
 			fmt.Fprintf(&b, "- Discovery query:\n```sql\n%s\n```\n\n", strings.TrimSpace(q.detailQuery.Discovery))
 		}
-		if q.detailQuery.Query != "" {
+		switch {
+		case q.detailQuery.Query != "":
 			fmt.Fprintf(&b, "- Query:\n```sql\n%s\n```\n\n", strings.TrimSpace(q.detailQuery.Query))
-		} else if q.detailQuery.QueryFunc != nil {
+		case q.detailQuery.DocumentedQuery != "":
+			fmt.Fprintf(&b, "- Query:\n```sql\n%s\n```\n\n", strings.TrimSpace(q.detailQuery.DocumentedQuery))
+		case q.detailQuery.QueryFunc != nil:
 			fmt.Fprintf(&b, "- Query:\n```\n<dynamically generated>\n```\n\n")
 		}
 	}

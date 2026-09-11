@@ -681,26 +681,19 @@ spec:
         SELECT data as display_version
         FROM registry
         WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\DisplayVersion'
-      ),
-      ubr_table AS (
-      SELECT data AS ubr
-      FROM registry
-      WHERE path ='HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\UBR'
       )
       SELECT
         os.name,
         os.platform,
         os.arch,
         k.version as kernel_version,
-        COALESCE(CONCAT((SELECT version FROM os_version), '.', u.ubr), k.version) AS version,
+        CASE WHEN CAST(os.revision AS INTEGER) > 0 THEN os.version || '.' || os.revision ELSE k.version END AS version,
         COALESCE(d.display_version, '') AS display_version
       FROM
         os_version os,
         kernel_info k
       LEFT JOIN
         display_version_table d
-      LEFT JOIN
-        ubr_table u
   purpose: Informational
   tags: built-in
 ---
@@ -715,23 +708,16 @@ spec:
           SELECT data as display_version
           FROM registry
           WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\DisplayVersion'
-        ),
-        ubr_table AS (
-          SELECT data AS ubr
-          FROM registry
-          WHERE path ='HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\UBR'
         )
         SELECT
           os.name,
           COALESCE(d.display_version, '') AS display_version,
-          COALESCE(CONCAT((SELECT version FROM os_version), '.', u.ubr), k.version) AS version
+          CASE WHEN CAST(os.revision AS INTEGER) > 0 THEN os.version || '.' || os.revision ELSE k.version END AS version
         FROM
           os_version os,
           kernel_info k
         LEFT JOIN
           display_version_table d
-        LEFT JOIN
-          ubr_table u
   powershell: >-
     $os = Get-CimInstance -ClassName Win32_OperatingSystem
 
