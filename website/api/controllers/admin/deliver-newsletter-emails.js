@@ -37,7 +37,7 @@ module.exports = {
     let newsletterFileName = emailTemplateName.replace(/^newsletter\/email-/, '');
 
     // Find the newsletter article the specified email template was generated from in the sails.builtStaticContent configuration.
-    let thisNewsletterArticle = _.find(sails.config.builtStaticContent.markdownPages, {sectionRelativeRepoPath: `${newsletterFileName}.md`})
+    let thisNewsletterArticle = _.find(sails.config.builtStaticContent.markdownPages, {sectionRelativeRepoPath: `${newsletterFileName}.md`});
 
     if(!thisNewsletterArticle) {
       throw 'articleNotFound';
@@ -82,7 +82,7 @@ module.exports = {
           numberOfEmailsSent++;
         }
 
-      })
+      });
     } else {
       // Just send the email to the current user's email address.
       await sails.helpers.sendTemplateEmail.with({
@@ -96,7 +96,7 @@ module.exports = {
           emailAddress: this.req.me.emailAddress,// Used to build the unsubscribe link.
         },
         ensureAck: true,
-      })
+      });
     }
     // }
 
