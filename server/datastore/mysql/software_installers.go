@@ -13,6 +13,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/automatic_policy"
 	"github.com/fleetdm/fleet/v4/pkg/patch_policy"
 	"github.com/fleetdm/fleet/v4/server/authz"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -4870,7 +4871,9 @@ func (ds *Datastore) checkConflictingFleetMaintainedAppExists(ctx context.Contex
 
 	// Resolve the title the same way getOrGenerateSoftwareInstallerTitleID will, so the check
 	// can't disagree with where the installer actually lands (e.g. Windows titles that share a
-	// name but have different upgrade codes are distinct).
+	// name but have different upgrade codes are distinct). This guards the insert that follows,
+	// so read from the primary: a lagging replica could miss a sibling added moments ago.
+	ctx = ctxdb.RequirePrimary(ctx, true)
 	titleID, err := ds.GetExistingSoftwareInstallerTitleID(ctx, payload)
 	switch {
 	case fleet.IsNotFound(err):

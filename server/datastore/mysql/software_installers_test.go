@@ -58,6 +58,7 @@ func TestSoftwareInstallers(t *testing.T) {
 		{"MatchOrCreateSoftwareInstallerDuplicateHash", testMatchOrCreateSoftwareInstallerDuplicateHash},
 		{"MatchOrCreateSoftwareInstallerConflictingFMA", testMatchOrCreateSoftwareInstallerConflictingFMA},
 		{"MatchOrCreateSoftwareInstallerConflictingFMAWindows", testMatchOrCreateSoftwareInstallerConflictingFMAWindows},
+		{"ConflictingFMAReplicaLag", testConflictingFMAReplicaLag},
 		{"BatchSetSoftwareInstallersSetupExperienceSideEffects", testBatchSetSoftwareInstallersSetupExperienceSideEffects},
 		{"EditDeleteSoftwareInstallersActivateNextActivity", testEditDeleteSoftwareInstallersActivateNextActivity},
 		{"BatchSetSoftwareInstallersActivateNextActivity", testBatchSetSoftwareInstallersActivateNextActivity},
@@ -5284,6 +5285,56 @@ func testMatchOrCreateSoftwareInstallerConflictingFMAWindows(t *testing.T, ds *D
 	// ...while a different FMA sharing the upgrade code resolves to the same title and is rejected.
 	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, mkFMA(team.ID, jdk17Alt, "Amazon Corretto 17 (alt)", "{JDK-17}", "corretto-17-alt", "17.0.12"))
 	require.ErrorContains(t, err, "Only one of Amazon Corretto 17 or Amazon Corretto 17 (alt) can be added to the same fleet")
+}
+
+// The FMA conflict check guards the insert, so it must see a sibling FMA added moments
+// ago even when the replica hasn't caught up.
+func testConflictingFMAReplicaLag(t *testing.T, _ *Datastore) {
+	opts := &testing_utils.DatastoreTestOptions{DummyReplica: true}
+	ds := CreateMySQLDSWithOptions(t, opts)
+	defer ds.Close()
+
+	ctx := t.Context()
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+	nightly, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name: "Mozilla Firefox Nightly", Slug: "firefox@nightly/windows", Platform: "windows", UniqueIdentifier: "Firefox Nightly",
+	})
+	require.NoError(t, err)
+	nightlyARM, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name: "Mozilla Firefox Nightly (ARM64)", Slug: "firefox@nightly-arm64/windows", Platform: "windows", UniqueIdentifier: "Firefox Nightly",
+	})
+	require.NoError(t, err)
+	opts.RunReplication()
+
+	mkFMA := func(app *fleet.MaintainedApp, storage, version string) *fleet.UploadSoftwareInstallerPayload {
+		tfr, err := fleet.NewTempFileReader(strings.NewReader(storage), t.TempDir)
+		require.NoError(t, err)
+		return &fleet.UploadSoftwareInstallerPayload{
+			InstallerFile:        tfr,
+			Extension:            "msix",
+			StorageID:            storage,
+			Filename:             storage + ".msix",
+			Title:                "Firefox Nightly",
+			Version:              version,
+			Source:               "programs",
+			Platform:             "windows",
+			FleetMaintainedAppID: &app.ID,
+			FMAName:              app.Name,
+			UserID:               user.ID,
+			ValidatedLabels:      &fleet.LabelIdentsWithScope{},
+			TeamID:               &team.ID,
+		}
+	}
+
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, mkFMA(nightly, "nightly-x64", "157.2609.908.0"))
+	require.NoError(t, err)
+
+	// No replication: the replica has neither the title nor the x64 installer. A different
+	// version sidesteps the dedup unique key, so only the conflict check can stop this.
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, mkFMA(nightlyARM, "nightly-arm64", "157.2609.1001.0"))
+	require.ErrorContains(t, err, "Only one of Mozilla Firefox Nightly or Mozilla Firefox Nightly (ARM64) can be added to the same fleet")
 }
 
 func testAddSoftwareTitleToMatchingSoftware(t *testing.T, ds *Datastore) {
