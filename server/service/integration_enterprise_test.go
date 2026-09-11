@@ -4788,7 +4788,7 @@ func (s *integrationEnterpriseTestSuite) TestLinuxDiskEncryption() {
 	s.DoJSON("POST", "/api/fleet/orbit/config", fleet.OrbitGetConfigRequest{OrbitNodeKey: orbitKey}, http.StatusOK, &inFlightOrbitResponse)
 	require.False(t, inFlightOrbitResponse.Notifications.RunDiskEncryptionEscrow)
 
-	// a heartbeat from the agent keeps the escrow in flight past the window
+	// a progress report keeps the escrow in flight past the window
 	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(t.Context(), `UPDATE host_disk_encryption_keys SET escrow_sent_at = DATE_SUB(escrow_sent_at, INTERVAL 1 HOUR) WHERE host_id = ?`, noTeamHost.ID)
 		return err
