@@ -41,7 +41,7 @@ describe("CreateLinuxKeyModal", () => {
   });
 
   it.each([
-    // rounded up to whole minutes, never down, with the singular at one minute
+    // rounded up to whole minutes; singular at one
     { retryAfterSeconds: 90, expected: /wait 2 minutes/i },
     { retryAfterSeconds: 20, expected: /wait 1 minute,/i },
   ])(

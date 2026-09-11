@@ -4788,7 +4788,7 @@ func (s *integrationEnterpriseTestSuite) TestLinuxDiskEncryption() {
 	s.DoJSON("POST", "/api/fleet/orbit/config", fleet.OrbitGetConfigRequest{OrbitNodeKey: orbitKey}, http.StatusOK, &inFlightOrbitResponse)
 	require.False(t, inFlightOrbitResponse.Notifications.RunDiskEncryptionEscrow)
 
-	// a heartbeat from the agent keeps the escrow in flight past the window
+	// a progress report keeps the escrow in flight past the window
 	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(t.Context(), `UPDATE host_disk_encryption_keys SET escrow_sent_at = DATE_SUB(escrow_sent_at, INTERVAL 1 HOUR) WHERE host_id = ?`, noTeamHost.ID)
 		return err
@@ -29249,6 +29249,75 @@ func (s *integrationEnterpriseTestSuite) TestFMAAutoUpdateCron() {
 	require.False(t, canceled)
 }
 
+func (s *integrationEnterpriseTestSuite) TestFMAAutoUpdateCronTimeBudget() {
+	t := s.T()
+	ctx := context.Background()
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+
+	// Four Fleet-maintained apps behind a CDN that is slow but reachable, so each installer download eats into the run.
+	const downloadDelay = 400 * time.Millisecond
+	slugs := []string{"cloudflare-warp/windows", "zoom/windows", "1password/windows", "notion/windows"}
+	states := make(map[string]*fmaTestState, len(slugs))
+	for i, slug := range slugs {
+		states["/"+slug+".json"] = &fmaTestState{
+			version:        "1.0",
+			installerBytes: []byte(fmt.Sprintf("v1-%d", i)),
+			installerPath:  fmt.Sprintf("/fma-%d.msi", i),
+			installerDelay: downloadDelay,
+		}
+	}
+	startFMAServers(t, s.ds, states)
+
+	activeVersions := func(teamID uint) []string {
+		var versions []string
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, q, &versions,
+				`SELECT version FROM software_installers WHERE global_or_team_id = ? AND is_active = 1 ORDER BY title_id`, teamID)
+		})
+		return versions
+	}
+
+	var teamResp teamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{
+		Name: new("team_" + t.Name()),
+	}, http.StatusOK, &teamResp)
+	team := *teamResp.Team
+
+	software := make([]*fleet.SoftwareInstallerPayload, 0, len(slugs))
+	for _, slug := range slugs {
+		software = append(software, &fleet.SoftwareInstallerPayload{Slug: new(slug)})
+	}
+	var batchResp batchSetSoftwareInstallersResponse
+	s.DoJSON("POST", "/api/latest/fleet/software/batch",
+		batchSetSoftwareInstallersRequest{Software: software, TeamName: team.Name},
+		http.StatusAccepted, &batchResp, "team_name", team.Name, "team_id", fmt.Sprint(team.ID))
+	waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team.Name, batchResp.RequestUUID)
+	require.Equal(t, []string{"1.0", "1.0", "1.0", "1.0"}, activeVersions(team.ID))
+
+	// Every app publishes a new version at once, so each app in the run needs its own slow download.
+	for i, slug := range slugs {
+		state := &fmaTestState{
+			version:        "2.0",
+			installerBytes: []byte(fmt.Sprintf("v2-%d", i)),
+			installerPath:  fmt.Sprintf("/fma-%d.msi", i),
+			installerDelay: downloadDelay,
+		}
+		state.ComputeSHA(state.installerBytes)
+		states["/"+slug+".json"] = state
+	}
+
+	// A run whose budget covers about one download must give up when the budget is gone instead of walking the whole list.
+	budgetedCtx, cancel := context.WithTimeout(ctx, downloadDelay+downloadDelay/2)
+	defer cancel()
+	err := eeservice.AutoUpdateFleetMaintainedApps(budgetedCtx, s.ds, s.softwareInstallStore, logger)
+	require.ErrorIs(t, err, context.DeadlineExceeded)
+	require.Contains(t, activeVersions(team.ID), "1.0", "the run stopped early, so at least one app stays on the old version")
+
+	// The cancellation wedges nothing: the next run, with room to finish, advances every app.
+	require.NoError(t, eeservice.AutoUpdateFleetMaintainedApps(ctx, s.ds, s.softwareInstallStore, logger))
+	require.Equal(t, []string{"2.0", "2.0", "2.0", "2.0"}, activeVersions(team.ID))
+}
+
 func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 	t := s.T()
 	ctx := context.Background()
@@ -35780,6 +35849,64 @@ func (s *integrationEnterpriseTestSuite) TestResetPolicy() {
 
 	// 404 for a nonexistent policy.
 	s.Do("POST", "/api/latest/fleet/policies/999999/reset", nil, http.StatusNotFound)
+
+	// Both endpoints are documented under /api/v1 and must be routed there too.
+	s.Do("POST", fmt.Sprintf("/api/v1/fleet/policies/%d/reset", globalPolicy.ID), nil, http.StatusOK)
+	s.Do("GET", fmt.Sprintf("/api/v1/fleet/policies/%d/automation_activities", globalPolicy.ID), nil, http.StatusOK)
+
+	// --- host-scoped reset (?host_id=) ---
+	createHostScopedResp := fleet.GlobalPolicyResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/policies", fleet.GlobalPolicyRequest{
+		Name:  "reset-test-host-scoped",
+		Query: "SELECT 1;",
+	}, http.StatusOK, &createHostScopedResp)
+	hostScopedPolicy := createHostScopedResp.Policy
+
+	for _, h := range []*fleet.Host{globalHost, noTeamHost} {
+		s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
+			h, map[uint]*bool{hostScopedPolicy.ID: new(false)},
+		), http.StatusOK, new(submitDistributedQueryResultsResponse))
+	}
+	require.NoError(t, s.ds.UpdateHostPolicyCounts(ctx))
+	getHostScopedResp := fleet.GetPolicyByIDResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/policies/%d", hostScopedPolicy.ID), nil, http.StatusOK, &getHostScopedResp)
+	require.Equal(t, uint(2), getHostScopedResp.Policy.FailingHostCount)
+
+	// Reset only globalHost's result; noTeamHost's failing result must survive and the
+	// counts must reflect it immediately, without waiting for the counts cron.
+	s.Do("POST", fmt.Sprintf("/api/v1/fleet/policies/%d/reset?host_id=%d", hostScopedPolicy.ID, globalHost.ID), nil, http.StatusOK)
+	getHostScopedResp = fleet.GetPolicyByIDResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/policies/%d", hostScopedPolicy.ID), nil, http.StatusOK, &getHostScopedResp)
+	require.Equal(t, uint(1), getHostScopedResp.Policy.FailingHostCount)
+	require.Equal(t, uint(0), getHostScopedResp.Policy.PassingHostCount)
+
+	s.lastActivityMatches("reset_policy", fmt.Sprintf(
+		`{"policy_id":%d,"policy_name":"reset-test-host-scoped","team_id":-1,"fleet_id":-1,"host_id":%d,"host_display_name":%q}`,
+		hostScopedPolicy.ID, globalHost.ID, globalHost.DisplayName(),
+	), 0)
+
+	// A host-scoped reset shows up in that host's activity feed; policy-wide resets don't
+	// get linked to any host.
+	resetActivityType := fleet.ActivityTypeResetPolicy{}.ActivityName()
+	countResetActivities := func(hostID uint) int {
+		var hostActivities listActivitiesResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities", hostID), nil, http.StatusOK, &hostActivities)
+		n := 0
+		for _, a := range hostActivities.Activities {
+			if a.Type == resetActivityType {
+				n++
+			}
+		}
+		return n
+	}
+	require.Equal(t, 1, countResetActivities(globalHost.ID))
+	require.Equal(t, 0, countResetActivities(noTeamHost.ID))
+
+	// 404 for a nonexistent host.
+	s.Do("POST", fmt.Sprintf("/api/latest/fleet/policies/%d/reset?host_id=999999", hostScopedPolicy.ID), nil, http.StatusNotFound)
+
+	// 404 for a host outside a team policy's team.
+	s.Do("POST", fmt.Sprintf("/api/latest/fleet/policies/%d/reset?host_id=%d", teamPolicy.ID, noTeamHost.ID), nil, http.StatusNotFound)
 }
 
 // TestSoftwareMultiplePackagesInstallPrecedence verifies install-time first-added precedence when a

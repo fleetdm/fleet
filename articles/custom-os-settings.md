@@ -10,14 +10,15 @@ For Windows hosts, copy this [Windows configuration profile template](https://fl
 
 For Android hosts, copy this [Android configuration profile template](https://fleetdm.com/learn-more-about/example-android-profile) and update the profile using the options available in [Android Management API](https://developers.google.com/android/management/reference/rest/v1/enterprises.policies#resource:-policy). To learn how, watch [this video](https://youtu.be/Jk4Zcb2sR1w). To learn more about the different settings availabe for fully managed vs. BYOD Android devices, see [Google's documentation](https://support.google.com/work/android/topic/9621435?hl=en&ref_topic=6151012,6090502,6090491,&sjid=13375704519136380831-NA).
 
-### Apple declarations (DDM)
+### Apple declaration (DDM) profiles
 
-For macOS hosts, Fleet supports uploading Apple Declarative Device Management (DDM) profiles as `.json` files. Fleet supports the following declaration types:
+For Apple hosts, Fleet supports uploading declaration (DDM) profiles as `.json` files. Fleet supports the following types:
 
 #### Configurations (`com.apple.configuration.*`)
+
 Enforce settings like passcode policies, account configurations, and more.
 
-The following configuration declarations are not supported:
+The following configurations are not supported:
 
 - com.apple.configuration.management.status-subscriptions
 - com.apple.configuration.watch.enrollment
@@ -26,11 +27,13 @@ The following configuration declarations are not supported:
 > `com.apple.configuration.app.managed` is supported, but the referenced app must already be installed and managed via Fleet's VPP functionality for the configuration to apply on-device.
 
 #### Activations (`com.apple.activation.simple`)
+
 For advanced setups, you can provide a custom activation instead of having Fleet automatically create the activation when you upload a configuration profile.
 
 The activation must include `Type`, `Identifier`, and `Payload` key. `Payload` must have a `StandardConfiguration` containing a reference to a **single** configuration profile that already exists in Fleet. Adding a `Predicate` is allowed, however, best practices is to use labels for scoping.
 
 Example:
+
 ```json
 {
   "Type": "com.apple.activation.simple",
@@ -44,9 +47,12 @@ Example:
 ```
 
 #### Assets (`com.apple.asset.*`)
+
 Deploy credentials, certificates, and other assets referenced by configurations.
 
-Each **asset declaration** `.json` must include a `Type`, `Identifier`, and `Payload` key. Example:
+Each asset must include a `Type`, `Identifier`, and `Payload` key. 
+
+Example:
 
 ```json
 {

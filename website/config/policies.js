@@ -86,4 +86,5 @@ module.exports.policies = {
   'view-capex-savings': true,
   'view-configuration-generator': true,
   'view-arch-linux-management': true,
+  'view-omarchy': true,
 };
