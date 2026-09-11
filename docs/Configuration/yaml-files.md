@@ -822,7 +822,7 @@ software:
 - `icon.path` is a relative path to the PNG icon that will be displayed in Fleet and on **Fleet Desktop > Self-service** instead of the default icon the icon sourced from Apple. It must be a square PNG with dimensions between 120x120 px and 1024x1024 px. Custom icons will only override the icon for the software title and fleet where they are added.
 - `configurations` is a list of one or more managed app configurations for this app. For iOS and iPadOS apps each configuration is in XML format, and for Android Play Store apps it is in JSON format. Currently only supported for iOS, iPadOS, and Android.
   - Each entry has a `path` to the configuration file, and optionally one of `labels_include_any`, `labels_include_all`, or `labels_exclude_any` to scope that specific configuration to a subset of the hosts the app is installed on (e.g. give one IdP group a different VPN configuration than another).
-  - An entry with no label fields is the default and matches any host not matched by an earlier entry. If multiple entries match the same host, Fleet applies the one that was added first (same precedence rule as [multiple versions of the same software](#packages)), so an unscoped default entry should be listed last. In GitOps, the first entry added is the first one in the list on the initial run that adds the app's configurations; reordering the list on a later run doesn't change the order. The [API response](https://fleetdm.com/docs/rest-api/rest-api#update-app-store-app) includes each configuration's `id` and `created_at` so you can confirm the order.
+    - If multiple entries match the same host, Fleet applies the one that was added first (same precedence rule as [multiple versions of the same software](#packages)). Best practice is to always scope configurations if you add more than one, to prevent conflicts. If you don't scope one configuration it will be in scope on all hosts in the fleet and in that case first added will be always applied on all hosts, because of the conflict.
   - Up to 10 configurations are supported per app (same limit as [multiple versions of the same software](#packages)).
   - `configuration` (singular) is kept for backwards compatibility. It's equivalent to a `configurations` entry with no labels. `configuration` and `configurations` can't both be specified for the same app.
   - Android: `managedConfiguration` and `workProfileWidgets` are supported from [Android application policy](https://developers.google.com/android/management/reference/rest/v1/enterprises.policies#ApplicationPolicy).
@@ -848,6 +848,8 @@ If multiple configurations target the same host, Fleet will apply the one that w
 > In GitOps, the first configuration added is the first one in the app's `configurations` list on the initial run that adds the app's configurations. Reordering the list on a later run doesn't change the order.
 >
 > You can preview the order of the configurations in the UI. The first configuration in the list is always a fallback in case multiple configurations are scoped to the same host.
+
+Currently, labels aren't evaluated during the setup experience on iOS and iPadOS hosts. Best practice is to first add the configuration that applies to the majority of hosts, because the first added will be applied during the setup experience. For example, add your production VPN configuration first, and the test configuration second. Once the host enrolls and labels are evaluated, the second configuration will be applied to scoped hosts.
 
 `fleets/fleet-name.yml`, or `fleets/unassigned.yml`
 
