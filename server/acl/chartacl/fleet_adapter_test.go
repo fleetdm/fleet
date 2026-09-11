@@ -78,3 +78,8 @@ func TestViewerScopeTeamUserNoTeams(t *testing.T) {
 	assert.False(t, isGlobal)
 	assert.Empty(t, teamIDs)
 }
+
+func TestExpandPlatformDelegatesToFleet(t *testing.T) {
+	assert.Equal(t, fleet.ExpandPlatform("linux"), ExpandPlatform("linux"))
+	assert.Equal(t, []string{"darwin"}, ExpandPlatform("darwin"))
+}
