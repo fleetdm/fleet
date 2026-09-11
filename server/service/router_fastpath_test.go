@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -19,39 +20,33 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	platform_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
+	"github.com/fleetdm/fleet/v4/server/platform/tracing"
 	"github.com/go-kit/kit/endpoint"
 	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/gorilla/mux"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/throttled/throttled/v2/store/memstore"
+	"go.opentelemetry.io/otel"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 )
 
-// newRouterForTest builds the real API route table and replaces every handler with one that reports the route it belongs to,
-// the mux vars it resolved, and the route template it found in context. Comparing those strings across the two routers catches
-// a mis-dispatch, a lost path variable, and a missing route template alike.
-func newRouterForTest(t *testing.T) *mux.Router {
+var noopHandler = http.HandlerFunc(func(http.ResponseWriter, *http.Request) {})
+
+// newAPIHandler builds the real API handler the way cmd/fleet does and returns it alongside the gorilla router underneath, so
+// a test can drive the composite and introspect the route table without repeating the type assertion.
+func newAPIHandler(t *testing.T, cfg config.FleetConfig, featureRoutes []endpointer.HandlerRoutesFunc) (http.Handler, *mux.Router) {
 	t.Helper()
 	ds := new(mock.Store)
 	svc, _ := newTestService(t, ds, nil, nil)
 	limitStore, _ := memstore.New(0)
-	h, err := MakeHandler(svc, config.TestConfig(), slog.New(slog.DiscardHandler), limitStore, nil, nil,
-		productionFeatureRoutes(t, svc))
+
+	h, err := MakeHandler(svc, cfg, slog.New(slog.DiscardHandler), limitStore, nil, nil, featureRoutes)
 	require.NoError(t, err)
 	provider, ok := h.(interface{ Router() *mux.Router })
 	require.True(t, ok, "MakeHandler should return the fast-path handler by default")
-	router := provider.Router()
-
-	require.NoError(t, router.Walk(func(route *mux.Route, _ *mux.Router, _ []*mux.Route) error {
-		name := route.GetName()
-		route.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			// RouteTemplateRequestFunc is what the real transport runs; it reads the gorilla route when there is one and
-			// leaves the context alone otherwise, which is how the fast path supplies the template.
-			tpl, _ := endpointer.RouteTemplateFromContext(endpointer.RouteTemplateRequestFunc(r.Context(), r))
-			_, _ = w.Write([]byte(name + " tpl=" + tpl + " vars=" + formatVars(mux.Vars(r))))
-		})
-		return nil
-	}))
-	return router
+	return h, provider.Router()
 }
 
 // productionFeatureRoutes returns the same feature-route set cmd/fleet/serve.go passes to MakeHandler: the Android, activity,
@@ -76,6 +71,28 @@ func productionFeatureRoutes(t *testing.T, fleetSvc fleet.Service) []endpointer.
 		acmeRoutes(passthrough),
 		chartRoutes(passthrough),
 	}
+}
+
+// newRouterForTest builds the production route table and replaces every handler with one that reports the route it belongs to,
+// the mux vars it resolved, and the route template it found in context. Comparing those strings across the two routers catches
+// a mis-dispatch, a lost path variable, and a missing route template alike.
+func newRouterForTest(t *testing.T) *mux.Router {
+	t.Helper()
+	ds := new(mock.Store)
+	svc, _ := newTestService(t, ds, nil, nil)
+	_, router := newAPIHandler(t, config.TestConfig(), productionFeatureRoutes(t, svc))
+
+	require.NoError(t, router.Walk(func(route *mux.Route, _ *mux.Router, _ []*mux.Route) error {
+		name := route.GetName()
+		route.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// RouteTemplateRequestFunc is what the real transport runs; it reads the gorilla route when there is one and
+			// leaves the context alone otherwise, which is how the fast path supplies the template.
+			tpl, _ := endpointer.RouteTemplateFromContext(endpointer.RouteTemplateRequestFunc(r.Context(), r))
+			_, _ = w.Write([]byte(name + " tpl=" + tpl + " vars=" + formatVars(mux.Vars(r))))
+		})
+		return nil
+	}))
+	return router
 }
 
 func formatVars(vars map[string]string) string {
@@ -108,10 +125,10 @@ func sampleRequestPath(tpl string) string {
 	return p
 }
 
-func responseFor(h http.Handler, method, path string) (int, string, string) {
+func serve(h http.Handler, method, path string) *httptest.ResponseRecorder {
 	rr := httptest.NewRecorder()
 	h.ServeHTTP(rr, httptest.NewRequest(method, path, nil))
-	return rr.Code, rr.Body.String(), rr.Header().Get("Location")
+	return rr
 }
 
 // TestFastPathMatchesGorillaForEveryRoute sends one request per registered route through both routers and requires an
@@ -140,13 +157,13 @@ func TestFastPathMatchesGorillaForEveryRoute(t *testing.T) {
 
 	handler, err := newFastPathHandler(router, nil, config.TestConfig())
 	require.NoError(t, err)
-	require.IsType(t, &fastPathHandler{}, handler, "no route should have been rejected by the stdlib mux")
 
+	// assert rather than require: a systemic break reports every affected route instead of stopping at the first.
 	for _, s := range samples {
-		wantCode, wantBody, _ := responseFor(router, s.method, s.path)
-		gotCode, gotBody, _ := responseFor(handler, s.method, s.path)
-		require.Equalf(t, wantCode, gotCode, "status differs for %s %s (route %s)", s.method, s.path, s.route)
-		require.Equalf(t, wantBody, gotBody, "dispatch differs for %s %s (route %s)", s.method, s.path, s.route)
+		want, got := serve(router, s.method, s.path), serve(handler, s.method, s.path)
+		assert.Equalf(t, want.Code, got.Code, "status differs for %s %s (route %s)", s.method, s.path, s.route)
+		assert.Equalf(t, want.Body.String(), got.Body.String(),
+			"dispatch differs for %s %s (route %s)", s.method, s.path, s.route)
 	}
 	t.Logf("compared %d method+path samples", len(samples))
 }
@@ -185,58 +202,45 @@ func TestFastPathMatchesGorillaForRejectedRequests(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			wantCode, wantBody, wantLocation := responseFor(router, c.method, c.path)
-			gotCode, gotBody, gotLocation := responseFor(handler, c.method, c.path)
-			require.Equal(t, wantCode, gotCode)
-			require.Equal(t, wantBody, gotBody)
-			require.Equal(t, wantLocation, gotLocation)
+			want, got := serve(router, c.method, c.path), serve(handler, c.method, c.path)
+			require.Equal(t, want.Code, got.Code)
+			require.Equal(t, want.Body.String(), got.Body.String())
+			require.Equal(t, want.Header().Get("Location"), got.Header().Get("Location"))
 		})
 	}
 }
 
 // TestFastPathServesHotAgentRoutes proves the agent endpoints are actually served by the stdlib mux rather than quietly
-// falling through to gorilla, which would make the equivalence tests above pass while changing nothing. A request routed by
-// gorilla has a current route attached; one routed by the fast path does not.
+// falling through to gorilla, which would leave every equivalence test above passing while the change did nothing. A request
+// routed by gorilla has a current route attached; one routed by the fast path does not. Template fidelity is covered by
+// TestFastPathMatchesGorillaForEveryRoute and the span-name test, so it is not re-asserted here.
 func TestFastPathServesHotAgentRoutes(t *testing.T) {
-	ds := new(mock.Store)
-	svc, _ := newTestService(t, ds, nil, nil)
-	limitStore, _ := memstore.New(0)
-	h, err := MakeHandler(svc, config.TestConfig(), slog.New(slog.DiscardHandler), limitStore, nil, nil, nil)
-	require.NoError(t, err)
-	router := h.(interface{ Router() *mux.Router }).Router()
-
-	var servedByGorilla bool
-	var routeTemplate string
+	_, router := newAPIHandler(t, config.TestConfig(), nil)
 	require.NoError(t, router.Walk(func(route *mux.Route, _ *mux.Router, _ []*mux.Route) error {
 		route.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			servedByGorilla = mux.CurrentRoute(r) != nil
-			routeTemplate, _ = endpointer.RouteTemplateFromContext(r.Context())
+			w.Header().Set("X-Served-By-Gorilla", strconv.FormatBool(mux.CurrentRoute(r) != nil))
 		})
 		return nil
 	}))
 	handler, err := newFastPathHandler(router, nil, config.TestConfig())
 	require.NoError(t, err)
 
-	for _, c := range []struct{ method, path, wantTemplate string }{
-		{"POST", "/api/osquery/distributed/write", "/api/osquery/distributed/write"},
-		{"POST", "/api/osquery/config", "/api/osquery/config"},
-		{"POST", "/api/osquery/log", "/api/osquery/log"},
-		{"POST", "/api/fleet/orbit/config", "/api/fleet/orbit/config"},
-		{"HEAD", "/api/fleet/orbit/ping", "/api/fleet/orbit/ping"},
-		{"HEAD", "/api/fleet/device/ping", "/api/fleet/device/ping"},
-		{"POST", "/api/mdm/microsoft/management", "/api/mdm/microsoft/management"},
-		{
-			"HEAD", "/api/latest/fleet/device/6f36ab2c-1a40-4c3f-9f8e-1b3c2d4e5f60/ping",
-			"/api/{fleetversion:(?:v1|2022-04|latest)}/fleet/device/{token}/ping",
-		},
-		{"GET", "/api/latest/fleet/hosts/1", "/api/{fleetversion:(?:v1|2022-04|latest)}/fleet/hosts/{id:[0-9]+}"},
+	for _, c := range []struct{ method, path string }{
+		{"POST", "/api/osquery/distributed/write"},
+		{"POST", "/api/osquery/config"},
+		{"POST", "/api/osquery/log"},
+		{"POST", "/api/fleet/orbit/config"},
+		{"HEAD", "/api/fleet/orbit/ping"},
+		{"HEAD", "/api/fleet/device/ping"},
+		{"POST", "/api/mdm/microsoft/management"},
+		{"HEAD", "/api/latest/fleet/device/6f36ab2c-1a40-4c3f-9f8e-1b3c2d4e5f60/ping"},
+		{"GET", "/api/latest/fleet/hosts/1"},
 	} {
 		t.Run(c.method+" "+c.path, func(t *testing.T) {
-			servedByGorilla, routeTemplate = false, ""
-			code, _, _ := responseFor(handler, c.method, c.path)
-			require.Equal(t, http.StatusOK, code)
-			require.False(t, servedByGorilla, "route should be served by the stdlib fast path")
-			require.Equal(t, c.wantTemplate, routeTemplate, "fast path must still supply the route template")
+			got := serve(handler, c.method, c.path)
+			require.Equal(t, http.StatusOK, got.Code)
+			require.Equal(t, "false", got.Header().Get("X-Served-By-Gorilla"),
+				"this route should be served by the stdlib fast path, not gorilla")
 		})
 	}
 }
@@ -265,26 +269,22 @@ func TestFastPathAppliesRouterMiddlewareInGorillaOrder(t *testing.T) {
 
 	handler, err := newFastPathHandler(router, middlewares, config.TestConfig())
 	require.NoError(t, err)
-	require.IsType(t, &fastPathHandler{}, handler)
 
-	viaGorilla := httptest.NewRecorder()
-	router.ServeHTTP(viaGorilla, httptest.NewRequest("GET", "/api/v1/fleet/config", nil))
-	viaFastPath := httptest.NewRecorder()
-	handler.ServeHTTP(viaFastPath, httptest.NewRequest("GET", "/api/v1/fleet/config", nil))
+	viaGorilla := serve(router, "GET", "/api/v1/fleet/config")
+	viaFastPath := serve(handler, "GET", "/api/v1/fleet/config")
 
 	require.Equal(t, []string{"first", "second", "third"}, viaGorilla.Header().Values("X-Middleware"))
 	require.Equal(t, viaGorilla.Header().Values("X-Middleware"), viaFastPath.Header().Values("X-Middleware"))
 }
 
 // TestFastPathExclusionsCoverEveryAmbiguousRoute fails when a route is added that a stdlib ServeMux cannot tell apart from an
-// existing one. Without an entry in fastPathExcluded for both halves the fast path would silently turn itself off, so this
-// keeps the list in sync with the route table.
+// existing one. Without an entry in fastPathExcluded for both halves the fast path would fail startup, so this keeps the list
+// in sync with the route table.
 func TestFastPathExclusionsCoverEveryAmbiguousRoute(t *testing.T) {
 	router := newRouterForTest(t)
 
 	registered := make(map[string]struct{})
 	fast := http.NewServeMux()
-	noop := http.HandlerFunc(func(http.ResponseWriter, *http.Request) {})
 
 	require.NoError(t, router.Walk(func(route *mux.Route, _ *mux.Router, _ []*mux.Route) error {
 		tpl, err := route.GetPathTemplate()
@@ -301,8 +301,8 @@ func TestFastPathExclusionsCoverEveryAmbiguousRoute(t *testing.T) {
 		key := unversionedKey(methods[0], tpl)
 		registered[key] = struct{}{}
 		for _, pattern := range expandToStdlibPatterns(tpl) {
-			if conflictErr := tryRegister(fast, methods[0]+" "+pattern, noop); conflictErr != nil {
-				require.Containsf(t, fastPathExcluded, key,
+			if conflictErr := tryRegister(fast, methods[0]+" "+pattern, noopHandler); conflictErr != nil {
+				assert.Containsf(t, fastPathExcluded, key,
 					"route %q is ambiguous on a stdlib ServeMux; add it and the route it collides with to fastPathExcluded (%v)",
 					key, conflictErr)
 			}
@@ -311,20 +311,15 @@ func TestFastPathExclusionsCoverEveryAmbiguousRoute(t *testing.T) {
 	}))
 
 	for key := range fastPathExcluded {
-		require.Containsf(t, registered, key,
+		assert.Containsf(t, registered, key,
 			"fastPathExcluded entry %q no longer matches a registered route and should be removed", key)
 	}
 }
 
 // TestFastPathHandlerIsIntrospectableByEndpointValidation covers the startup path in cmd/fleet, which validates the endpoint
-// catalog against the handler MakeHandler returns and panics if it cannot read the route table out of it.
+// catalog against the handler MakeHandler returns and fails startup if it cannot read the route table out of it.
 func TestFastPathHandlerIsIntrospectableByEndpointValidation(t *testing.T) {
-	ds := new(mock.Store)
-	svc, _ := newTestService(t, ds, nil, nil)
-	limitStore, _ := memstore.New(0)
-	h, err := MakeHandler(svc, config.TestConfig(), slog.New(slog.DiscardHandler), limitStore, nil, nil, nil)
-	require.NoError(t, err)
-	router := h.(interface{ Router() *mux.Router }).Router()
+	h, router := newAPIHandler(t, config.TestConfig(), nil)
 
 	wrapped := apiendpoints.Validate(h)
 	direct := apiendpoints.Validate(router)
@@ -335,8 +330,8 @@ func TestFastPathHandlerIsIntrospectableByEndpointValidation(t *testing.T) {
 	require.EqualError(t, wrapped, direct.Error(), "validating the wrapped handler must see the same route table")
 }
 
-// TestStdlibPatternsDedupesVersions covers the template a bounded context produces when it lists "latest" in its own version
-// set: the endpointer appends "latest" a second time, and the repeated alternative must not become a repeated pattern.
+// TestExpandToStdlibPatternsDedupesVersions covers the template a bounded context produces when it lists "latest" in its own
+// version set: the endpointer appends "latest" a second time, and the repeated alternative must not become a repeated pattern.
 func TestExpandToStdlibPatternsDedupesVersions(t *testing.T) {
 	patterns := expandToStdlibPatterns("/api/{fleetversion:(?:v1|latest|latest)}/fleet/activities")
 	require.Equal(t, []string{
@@ -349,29 +344,23 @@ func TestExpandToStdlibPatternsDedupesVersions(t *testing.T) {
 // functions the way cmd/fleet does, including one that repeats "latest" in its version set and one that re-registers a path the
 // core handler already owns. Neither may knock the fast path out.
 func TestFastPathSurvivesFeatureRoutes(t *testing.T) {
-	ds := new(mock.Store)
-	svc, _ := newTestService(t, ds, nil, nil)
-	limitStore, _ := memstore.New(0)
-	noop := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusTeapot) })
-
+	teapot := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusTeapot) })
 	featureRoutes := []endpointer.HandlerRoutesFunc{
 		// "latest" appears in the version list and is appended again by the endpointer, as the activity context does.
 		func(r *mux.Router, _ []kithttp.ServerOption) {
-			r.Handle("/api/{fleetversion:(?:v1|latest|latest)}/fleet/activities", noop).
+			r.Handle("/api/{fleetversion:(?:v1|latest|latest)}/fleet/activities", teapot).
 				Methods("GET").Name("feature_activities")
 		},
 		// A second context claiming a path the core handler already registered.
 		func(r *mux.Router, _ []kithttp.ServerOption) {
-			r.Handle("/api/{fleetversion:(?:v1|2022-04|latest)}/fleet/config", noop).
+			r.Handle("/api/{fleetversion:(?:v1|2022-04|latest)}/fleet/config", teapot).
 				Methods("GET").Name("feature_duplicate_config")
 		},
 	}
 
-	h, err := MakeHandler(svc, config.TestConfig(), slog.New(slog.DiscardHandler), limitStore, nil, nil, featureRoutes)
-	require.NoError(t, err)
-	require.IsType(t, &fastPathHandler{}, h, "feature routes must not disable the fast path")
-
-	router := h.(*fastPathHandler).Router()
+	// newAPIHandler already requires that MakeHandler returned the fast-path handler, which is the regression itself: before
+	// the version dedup, these feature routes made it fail.
+	_, router := newAPIHandler(t, config.TestConfig(), featureRoutes)
 	require.NoError(t, router.Walk(func(route *mux.Route, _ *mux.Router, _ []*mux.Route) error {
 		name := route.GetName()
 		route.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write([]byte(name)) })
@@ -379,14 +368,12 @@ func TestFastPathSurvivesFeatureRoutes(t *testing.T) {
 	}))
 	handler, err := newFastPathHandler(router, nil, config.TestConfig())
 	require.NoError(t, err)
-	require.IsType(t, &fastPathHandler{}, handler)
 
 	// A duplicate registration resolves the way gorilla resolves it: first one registered wins.
 	for _, path := range []string{"/api/latest/fleet/activities", "/api/v1/fleet/activities", "/api/latest/fleet/config"} {
-		wantCode, wantBody, _ := responseFor(router, "GET", path)
-		gotCode, gotBody, _ := responseFor(handler, "GET", path)
-		require.Equalf(t, wantCode, gotCode, "status differs for GET %s", path)
-		require.Equalf(t, wantBody, gotBody, "dispatch differs for GET %s", path)
+		want, got := serve(router, "GET", path), serve(handler, "GET", path)
+		assert.Equalf(t, want.Code, got.Code, "status differs for GET %s", path)
+		assert.Equalf(t, want.Body.String(), got.Body.String(), "dispatch differs for GET %s", path)
 	}
 }
 
@@ -395,9 +382,8 @@ func TestFastPathSurvivesFeatureRoutes(t *testing.T) {
 // message has to tell the developer which route broke it and what to edit.
 func TestFastPathErrorsWhenARouteIsAmbiguous(t *testing.T) {
 	router := mux.NewRouter()
-	noop := http.HandlerFunc(func(http.ResponseWriter, *http.Request) {})
-	router.Handle("/api/v1/fleet/hosts/{id:[0-9]+}/software", noop).Methods("GET").Name("get_host_software")
-	router.Handle("/api/v1/fleet/hosts/identifier/{identifier}", noop).Methods("GET").Name("get_host_by_identifier")
+	router.Handle("/api/v1/fleet/hosts/{id:[0-9]+}/software", noopHandler).Methods("GET").Name("get_host_software")
+	router.Handle("/api/v1/fleet/hosts/identifier/{identifier}", noopHandler).Methods("GET").Name("get_host_by_identifier")
 
 	h, err := newFastPathHandler(router, nil, config.TestConfig())
 	require.Nil(t, h)
@@ -409,13 +395,10 @@ func TestFastPathErrorsWhenARouteIsAmbiguous(t *testing.T) {
 // TestTryRegisterRepanicsOnNonConflict checks the narrowing: only a pattern-conflict panic becomes an error. A malformed
 // pattern is a different bug, and reporting it as an ambiguity would send the reader to edit fastPathExcluded for no reason.
 func TestTryRegisterRepanicsOnNonConflict(t *testing.T) {
-	noop := http.HandlerFunc(func(http.ResponseWriter, *http.Request) {})
-
 	t.Run("conflict becomes an error", func(t *testing.T) {
 		m := http.NewServeMux()
-		require.NoError(t, tryRegister(m, "GET /a/identifier/{identifier}", noop))
-		err := tryRegister(m, "GET /a/{id}/software", noop)
-		require.ErrorContains(t, err, "fastPathExcluded")
+		require.NoError(t, tryRegister(m, "GET /a/identifier/{identifier}", noopHandler))
+		require.ErrorContains(t, tryRegister(m, "GET /a/{id}/software", noopHandler), "fastPathExcluded")
 	})
 
 	t.Run("malformed pattern still panics", func(t *testing.T) {
@@ -428,8 +411,84 @@ func TestTryRegisterRepanicsOnNonConflict(t *testing.T) {
 			require.Contains(t, panicErr.Error(), "parsing", "the stdlib diagnosis has to survive")
 			require.NotContains(t, panicErr.Error(), "fastPathExcluded", "and must not be relabelled as a route conflict")
 		}()
-		_ = tryRegister(m, "GET /a/{bad", noop)
+		_ = tryRegister(m, "GET /a/{bad", noopHandler)
 	})
+}
+
+// TestFastPathSpanNamesFeedTheTracingTierRegistry pins the span-naming contract end to end.
+//
+// The fast path cannot use otelmux, which names spans from the matched gorilla route, so it wraps each promoted handler with
+// otelhttp and supplies the route template itself. Both routers therefore have to produce "METHOD <gorilla template>", because
+// tracing_tiers.go classifies routes for trace sampling by span name. A promoted route whose span name drifted would miss its
+// registry entry and fall back to TierAlways, sampling a high-volume agent endpoint at 100%, so the recorded name is looked up
+// in a real registry rather than compared only to a literal.
+func TestFastPathSpanNamesFeedTheTracingTierRegistry(t *testing.T) {
+	recorder := tracetest.NewSpanRecorder()
+	previous := otel.GetTracerProvider()
+	otel.SetTracerProvider(sdktrace.NewTracerProvider(sdktrace.WithSpanProcessor(recorder)))
+	t.Cleanup(func() { otel.SetTracerProvider(previous) })
+
+	cfg := config.TestConfig()
+	cfg.Logging.TracingEnabled = true
+	cfg.Logging.TracingType = "opentelemetry"
+	require.True(t, cfg.OTELEnabled(), "the fast path is only installed on the OTEL tracing path")
+
+	ds := new(mock.Store)
+	svc, _ := newTestService(t, ds, nil, nil)
+	_, router := newAPIHandler(t, cfg, productionFeatureRoutes(t, svc))
+	require.NoError(t, router.Walk(func(route *mux.Route, _ *mux.Router, _ []*mux.Route) error {
+		route.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
+		return nil
+	}))
+	handler, err := newFastPathHandler(router, nil, cfg)
+	require.NoError(t, err)
+
+	registry := tracing.NewRegistry()
+	RegisterTracingTiers(registry)
+
+	cases := []struct {
+		name         string
+		method, path string
+		wantSpan     string
+		wantTier     tracing.Tier
+	}{
+		{
+			name: "literal agent route on the fast path", method: "POST", path: "/api/osquery/distributed/write",
+			wantSpan: "POST /api/osquery/distributed/write", wantTier: tracing.TierHighVolume,
+		},
+		{
+			name: "versioned route keeps the unexpanded template", method: "GET", path: "/api/latest/fleet/config",
+			wantSpan: "GET /api/{fleetversion:(?:v1|2022-04|latest)}/fleet/config", wantTier: tracing.TierStandard,
+		},
+		{
+			name: "constrained variable stays in the span name", method: "GET", path: "/api/latest/fleet/hosts/1",
+			wantSpan: "GET /api/{fleetversion:(?:v1|2022-04|latest)}/fleet/hosts/{id:[0-9]+}", wantTier: tracing.TierStandard,
+		},
+		{
+			name:     "route served by gorilla is named by otelmux the same way",
+			method:   "HEAD",
+			path:     "/api/latest/fleet/device/6f36ab2c-1a40-4c3f-9f8e-1b3c2d4e5f60/ping",
+			wantSpan: "HEAD /api/{fleetversion:(?:v1|2022-04|latest)}/fleet/device/{token}/ping",
+			wantTier: tracing.TierHighVolume,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			recorder.Reset()
+			require.Equal(t, http.StatusOK, serve(handler, c.method, c.path).Code)
+
+			var names []string
+			for _, span := range recorder.Ended() {
+				names = append(names, span.Name())
+			}
+			require.Containsf(t, names, c.wantSpan, "span name must stay %q; got %v", c.wantSpan, names)
+
+			tier, found := registry.Lookup(c.wantSpan)
+			require.Truef(t, found, "%q must resolve in the tier registry, otherwise it samples at 100%%", c.wantSpan)
+			require.Equal(t, c.wantTier, tier)
+		})
+	}
 }
 
 func TestIsCanonicalPath(t *testing.T) {
