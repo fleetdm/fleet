@@ -45,7 +45,7 @@ module.exports = {
 
       // Skip any article that isn't in the "newsletters" category.
       // (Newsletter articles have a `<meta name="category" value="newsletters">` tag.)
-      if (!mdString.match(/<meta[^>]*name="category"[^>]*value="newsletters"[^>]*>/i)) {
+      if (!mdString.match(/<meta[^>]*name="category"[^>]*value="newsletter"[^>]*>/i)) {
         continue;
       }
 
