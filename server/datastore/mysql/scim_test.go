@@ -3614,4 +3614,48 @@ func testReplaceScimUserRenameResendsEmailIdPProfiles(t *testing.T, ds *Datastor
 	requireHostIdPDeviceMapping(t, ds, other.host.ID, "someone.else@example.com")
 	assertHostProfileStatus(t, ds, other.host.UUID,
 		hostProfileStatus{profEmail.ProfileUUID, fleet.MDMDeliveryVerifying})
+
+	// a host on the same IdP account with no SCIM link (a BYOD phone enrolled
+	// after the SCIM user existed) moves with the account and is resent too
+	const sharedOld, sharedNew = "mia@example.com", "mia.chen@example.com"
+	shared := newScimIdPMappingHost(t, ds, "resendshared", "mia", sharedOld, sharedOld)
+	unlinked := newScimIdPMappingHostOnly(t, ds, "resendunlinked")
+	require.NoError(t, ds.AssociateHostMDMIdPAccount(ctx, unlinked.UUID, shared.acct.UUID))
+	requireHostIdPDeviceMapping(t, ds, unlinked.ID, sharedOld)
+	_, err = ds.ScimUserByHostID(ctx, unlinked.ID)
+	require.True(t, fleet.IsNotFound(err))
+	forceSetAppleHostProfileStatus(t, ds, shared.host.UUID, profEmail, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
+	forceSetAppleHostProfileStatus(t, ds, unlinked.UUID, profEmail, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
+	forceSetAppleHostProfileStatus(t, ds, unlinked.UUID, profNone, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
+
+	_, err = ds.ReplaceScimUser(ctx, &fleet.ScimUser{ID: shared.scimUserID, UserName: sharedNew})
+	require.NoError(t, err)
+	requireHostIdPDeviceMapping(t, ds, shared.host.ID, sharedNew)
+	requireHostIdPDeviceMapping(t, ds, unlinked.ID, sharedNew)
+	assertHostProfileStatus(t, ds, shared.host.UUID,
+		hostProfileStatus{profEmail.ProfileUUID, fleet.MDMDeliveryPending})
+	assertHostProfileStatus(t, ds, unlinked.UUID,
+		hostProfileStatus{profEmail.ProfileUUID, fleet.MDMDeliveryPending},
+		hostProfileStatus{profNone.ProfileUUID, fleet.MDMDeliveryVerifying})
+	// still no SCIM link: only the mapping and its dependent profile moved
+	_, err = ds.ScimUserByHostID(ctx, unlinked.ID)
+	require.True(t, fleet.IsNotFound(err))
+
+	// a host with only a manual mapping has no value for the IdP email variable,
+	// so the rename moves its mapping but resends nothing
+	const manualOld, manualNew = "noah@example.com", "noah.kim@example.com"
+	manual := newScimIdPMappingHostOnly(t, ds, "resendmanualonly")
+	require.NoError(t, ds.SetOrUpdateIDPHostDeviceMapping(ctx, manual.ID, manualOld))
+	manualScimUserID, err := ds.CreateScimUser(ctx, &fleet.ScimUser{UserName: manualOld})
+	require.NoError(t, err)
+	manualScimUser, err := ds.ScimUserByHostID(ctx, manual.ID)
+	require.NoError(t, err)
+	require.Equal(t, manualScimUserID, manualScimUser.ID)
+	forceSetAppleHostProfileStatus(t, ds, manual.UUID, profEmail, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
+
+	_, err = ds.ReplaceScimUser(ctx, &fleet.ScimUser{ID: manualScimUserID, UserName: manualNew})
+	require.NoError(t, err)
+	requireHostIdPDeviceMapping(t, ds, manual.ID, manualNew)
+	assertHostProfileStatus(t, ds, manual.UUID,
+		hostProfileStatus{profEmail.ProfileUUID, fleet.MDMDeliveryVerifying})
 }
