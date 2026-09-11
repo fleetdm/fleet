@@ -93,7 +93,12 @@ const LoginPage = ({ router, location }: ILoginPageProps) => {
   }, []);
 
   useEffect(() => {
+    // Requiring `authToken.get()` matters after a SPA-navigated logout: the
+    // AppContext user/teams/config linger from the destroyed session, and
+    // without this check LoginPage would keep pushing to /dashboard while
+    // AuthenticatedRoutes keeps pushing back to /login on a missing token.
     if (
+      authToken.get() &&
       availableTeams &&
       config &&
       currentUser &&

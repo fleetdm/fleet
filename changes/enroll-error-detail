@@ -1,0 +1,1 @@
+- Stopped returning internal error details to osquery and Orbit when enrollment fails. Agents now receive only the stage that failed; the underlying reason is logged by the Fleet server.

@@ -494,7 +494,7 @@ module.exports.routes = {
   'GET /software-catalog': {
     action: 'docs/view-app-library',
     locals: {
-      pageTitleForMeta: 'Software',
+      pageTitleForMeta: 'Apps',
       pageDescriptionForMeta: 'Install Fleet-maintained apps on your hosts without the need for additional configuration. Activate self-service for your end users.',
     }
   },
@@ -693,6 +693,14 @@ module.exports.routes = {
     locals: {
       pageTitleForMeta: 'Arch Linux management',
       pageDescriptionForMeta: 'Manage Linux devices with full visibility and control. Automate patching, monitor compliance, and unify Linux, macOS, and Windows in one place.',
+    }
+  },
+
+  'GET /omarchy': {
+    action: 'view-omarchy',
+    locals: {
+      pageTitleForMeta: 'Omarchy management',
+      pageDescriptionForMeta: 'Manage Omarchy like you manage macOS and Windows. Give employees the distro they want without losing compliance and control.',
     }
   },
 
@@ -967,7 +975,7 @@ module.exports.routes = {
   'GET /docs/using-fleet/downgrading-fleet': (req, res) => { return res.redirect(301, '/guides/downgrade-fleet'); },
   'GET /docs/using-fleet/enroll-chromebooks': (req, res) => { return res.redirect(301, '/guides/chrome-os'); },
   'GET /docs/using-fleet/audit-logs': (req, res) => { return res.redirect(301, 'https://github.com/fleetdm/fleet/blob/main/docs/Contributing/reference/audit-logs.md'); },
-  'GET /docs/using-fleet/understanding-host-vitals': (req, res) => { return res.redirect(301, 'https://github.com/fleetdm/fleet/blob/main/docs/Contributing/product-groups/orchestration/understanding-host-vitals.md'); },
+  'GET /docs/using-fleet/understanding-host-vitals': (req, res) => { return res.redirect(301, 'https://github.com/fleetdm/fleet/blob/main/docs/Contributing/host-vitals/understanding-host-vitals.md'); },
   'GET /docs/using-fleet/standard-query-library': (req, res) => { return res.redirect(301, '/guides/report-library'); },
   'GET /docs/using-fleet/mdm-commands': (req, res) => { return res.redirect(301, '/guides/mdm-commands'); },
   'GET /docs/using-fleet/log-destinations': (req, res) => { return res.redirect(301, '/guides/log-destinations'); },
@@ -1419,7 +1427,7 @@ module.exports.routes = {
   'GET /learn-more-about/vulnerability-exposure-cves': '/articles/dashboard-vulnerability-exposure',
   'GET /learn-more-about/self-service-categories': '/guides/software-self-service#manage-self-service-categories',
   'GET /learn-more-about/linux-wipe': '/guides/lock-wipe-hosts#linux-wipe-behavior',
-  'GET /learn-more-about/configuration-profile-assets': '/articles/custom-os-settings#apple-declarations-ddm',
+  'GET /learn-more-about/configuration-profile-assets': '/guides/custom-os-settings#assets-code-com-apple-asset-code',
   'GET /learn-more-about/android-encryption-status': 'https://developers.google.com/android/management/reference/rest/v1/enterprises.devices#EncryptionStatus',
   'GET /learn-more-about/release-devices': 'https://developer.apple.com/documentation/devicemanagement/disown-devices',
   'GET /learn-more-about/mdm-enrollment': '/guides/windows-mdm-setup#manual-enrollment',
