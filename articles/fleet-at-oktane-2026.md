@@ -8,11 +8,11 @@ Mike will talk about how IT and security teams can bring Linux devices under the
 
 ## Fleet and Okta
 
-At the booth, we'll show the work we're doing to bring deeper Linux integrations to Okta, including FastPass. Linux is often the platform left out of device trust rollouts. Fleet already manages Linux hosts alongside macOS and Windows, and we're partnering with Okta to extend that to device posture and passwordless sign-in so Linux users get the same experience as everyone else.
+At the booth, we'll talk about the work we're doing to bring deeper Linux integrations to Okta, including FastPass. Linux is often the platform left out of device trust rollouts. Fleet already manages Linux hosts alongside macOS and Windows, and we're partnering with Okta to extend that to device posture and passwordless sign-in so Linux users get the same experience as everyone else.
 
 We'll also demo the Okta integrations Fleet already ships for macOS and Windows:
 
-- **Okta Verify:** Deploy Okta Verify to macOS and Windows hosts as a [Fleet-maintained app](https://fleetdm.com/guides/fleet-maintained-apps). Fleet keeps it patched as Okta releases new versions.
+- **Okta Verify:** Deploy Okta Verify to macOS and Windows hosts as a [Fleet-maintained app](https://fleetdm.com/guides/fleet-maintained-apps). Fleet keeps it patched automatically as Okta releases new versions.
 - **Okta Device Access:** Roll out [Platform SSO on macOS](https://fleetdm.com/guides/deploying-okta-platform-sso-with-fleet) and [Desktop MFA on Windows](https://fleetdm.com/guides/deploying-okta-desktop-mfa-with-fleet) with configuration profiles, including the SCEP certificates that register devices with Okta.
 - **Single sign-on:** Sign in to Fleet with [Okta as your SAML identity provider](https://fleetdm.com/docs/deploy/single-sign-on-sso#okta), and require Okta authentication when end users enroll a new host.
 - **SCIM:** Sync users and groups from Okta to [map each host to its end user](https://fleetdm.com/guides/foreign-vitals-map-idp-users-to-hosts), then target configuration profiles and labels by IdP group or department.
