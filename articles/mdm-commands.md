@@ -147,10 +147,26 @@ For targeting multiple hosts, the `--hosts` option can be populated with comma-s
 
 > Android only supports one host per command: `fleetctl mdm run-command --payload='android-reboot-device.json' --hosts='someAndroidHostname'`.
 
+To deliver the MDM command payload via the Fleet API, use a command that conforms to the `curl` example below. (This can be achieved with any programmatic solution, e.g., python `requests` or `urllib.request`).
 
-E.g., 
+```
+% fleet_key='yourfleetAPItoken'
+% fleet_url='https://your.url.com'
+% /usr/bin/curl -LSs \
+--request POST \
+--header 'Content-Type: application/json' \
+--header "Authorization: Bearer $fleet_key" \
+--data '{"command":"PD94bWwgdmVyc2lvbj0iMS4wIiBlSomeMorebase64blahblahblah...","host_uuids":["some-host-uuid"]}' \
+"$fleet_url/api/v1/fleet/commands/run"
+```
 
-to `base64` encode a `.plist` in Terminal:
+For targeting multiple hosts, the `"host_uuids"` key / value is a json array that can be populated with multiple host uuid values, e.g.,
+
+`"host_uuids":["some-host-uuid-1","some-host-uuid-2","some-host-uuid-3"]`
+
+When sending a command via the Fleet API, the MDM command payload has to be base64 encoded:
+
+To `base64` encode an Apple `.plist` in Terminal:
 
 ```
 % echo '<?xml version="1.0" encoding="UTF-8"?>
@@ -171,7 +187,7 @@ to `base64` encode a `.plist` in Terminal:
 PD94bWwgdmVyc2lvbj0iMS4wIiBlSomeMorebase64blahblahblah...
 ```
 
-to `base64` encode an `.xml` in PowerShell:
+To `base64` encode Windows `.xml` in PowerShell:
 
 ```
 PS C:\WINDOWS\system32> cd C:\Users\username\Desktop\
@@ -179,29 +195,12 @@ PS C:\Users\username\Desktop> [Convert]::ToBase64String((Get-Content -path "file
 cG9vcXblahblahblah...
 ```
 
-to `base64` encode the Android `.json` payload in Terminal:
+To `base64` encode the Android `.json` payload in Terminal:
 
 ```
 % echo '{"type": "REBOOT"}' | base64
 eyJ0eXBlIjogIlJFQk9PVCJ9
 ```
-
-To deliver the MDM command payload via the Fleet API, use a command that conforms to the `curl` example below. (This can be achieved with any programmatic solution, e.g., python `requests` or `urllib.request`).
-
-```
-% fleet_key='yourfleetAPItoken'
-% fleet_url='https://your.url.com'
-% /usr/bin/curl -LSs \
---request POST \
---header 'Content-Type: application/json' \
---header "Authorization: Bearer $fleet_key" \
---data '{"command":"PD94bWwgdmVyc2lvbj0iMS4wIiBlSomeMorebase64blahblahblah...","host_uuids":["some-host-uuid"]}' \
-"$fleet_url/api/v1/fleet/commands/run"
-```
-
-For targeting multiple hosts, the `"host_uuids"` key / value is a json array that can be populated with multiple host uuid values, e.g.,
-
-`"host_uuids":["some-host-uuid-1","some-host-uuid-2","some-host-uuid-3"]`
 
 ## Step 4: Verify the MDM command result
 
