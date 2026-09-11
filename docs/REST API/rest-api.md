@@ -11835,7 +11835,7 @@ Returns a specific report's data.
 | query           | string  | query | Search query keywords. Matches the host's display name and any result column value.       |
 | page            | integer | query | Page number of the results to fetch. Only applies when `per_page` is set.                 |
 | per_page        | integer | query | Results per page. If omitted, all results are returned and `meta` is not included.        |
-| order_key       | string  | query | What to order results by. Valid options are `"last_fetched"`, `"host_name"`, `"host_id"`, or the name of a result column. Default is `"last_fetched"`. |
+| order_key       | string  | query | What to order results by. Valid options are `"last_fetched"`, `"host_name"`, `"host_id"`, or the name of a result column. Result column values are sorted as strings, and the built-in options take precedence over a result column with the same name. Default is `"last_fetched"`. |
 | order_direction | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"desc"`. |
 
 #### Example
