@@ -167,9 +167,10 @@ const SoftwareSummaryCard = ({
   const showAutoInstallChip = hasLinkedPolicies && !canActivateMultiplePackages;
   // Requires the full window; without both times the tooltip would render
   // as a bare "Between  and  (host local time)." — bail rather than show.
-  // iOS/iPadOS-only: the auto-update cron in apple_mdm.go only acts on
-  // ios_apps / ipados_apps sources, so surfacing the chip on a macOS VPP
-  // row (if a schedule ever exists in the DB) would be misleading.
+  // iOS/iPadOS-only: `MDMAppleCheckinAndCommandService.handleScheduledUpdates`
+  // only acts on `ios_apps` / `ipados_apps` sources, so surfacing the chip
+  // on a macOS VPP row (if a schedule ever exists in the DB) would be
+  // misleading.
   const showAutoUpdateChip =
     isAppleVpp &&
     isIosOrIpadosApp &&

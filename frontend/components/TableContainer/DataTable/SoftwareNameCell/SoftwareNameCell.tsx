@@ -49,6 +49,29 @@ const getAutoUpdateTooltip = (start: string, end: string) =>
     start
   )} and ${internationalTimeOnlyFormat(end)} (host local time).`;
 
+// A VPP auto-update schedule only counts as "valid" — meaning the icon /
+// tooltip should treat it as active — when the window is fully populated
+// AND the row is iOS/iPadOS. `MDMAppleCheckinAndCommandService.handleScheduledUpdates`
+// only acts on `ios_apps` / `ipados_apps` sources, so a stale schedule row
+// on a macOS VPP title must not promote the icon or leak a window line.
+// Single source of truth for both the icon-type decision and each tooltip
+// branch's `showAutoUpdate` gate.
+const hasValidAutoUpdate = ({
+  autoUpdateEnabled = false,
+  autoUpdateWindowStart,
+  autoUpdateWindowEnd,
+  isIosOrIpadosApp = false,
+}: {
+  autoUpdateEnabled?: boolean;
+  autoUpdateWindowStart?: string;
+  autoUpdateWindowEnd?: string;
+  isIosOrIpadosApp?: boolean;
+}): boolean =>
+  autoUpdateEnabled &&
+  !!autoUpdateWindowStart &&
+  !!autoUpdateWindowEnd &&
+  isIosOrIpadosApp;
+
 const installIconMap: Record<InstallType, InstallIconConfig> = {
   manual: {
     iconName: "install",
@@ -73,16 +96,12 @@ const installIconMap: Record<InstallType, InstallIconConfig> = {
       autoUpdateWindowEnd,
       isIosOrIpadosApp = false,
     }) => {
-      // Mirror the getInstallIconType source gate: the auto-update cron in
-      // apple_mdm.go only acts on ios_apps / ipados_apps. A stale schedule
-      // row on a macOS VPP title paired with a policy would otherwise leak
-      // an "Auto updates between …" line even though nothing will actually
-      // run against that schedule.
-      const showAutoUpdate =
-        autoUpdateEnabled &&
-        !!autoUpdateWindowStart &&
-        !!autoUpdateWindowEnd &&
-        isIosOrIpadosApp;
+      const showAutoUpdate = hasValidAutoUpdate({
+        autoUpdateEnabled,
+        autoUpdateWindowStart,
+        autoUpdateWindowEnd,
+        isIosOrIpadosApp,
+      });
       return (
         <>
           {automaticInstallPoliciesCount > 0 && (
@@ -91,7 +110,11 @@ const installIconMap: Record<InstallType, InstallIconConfig> = {
           {automaticInstallPoliciesCount > 0 && showAutoUpdate && " "}
           {showAutoUpdate && (
             <>
-              {getAutoUpdateTooltip(autoUpdateWindowStart, autoUpdateWindowEnd)}
+              {/* hasValidAutoUpdate above guarantees both fields are set. */}
+              {getAutoUpdateTooltip(
+                autoUpdateWindowStart!,
+                autoUpdateWindowEnd!
+              )}
             </>
           )}
         </>
@@ -108,12 +131,12 @@ const installIconMap: Record<InstallType, InstallIconConfig> = {
       autoUpdateWindowStart,
       autoUpdateWindowEnd,
     }) => {
-      // Same source gate as the `automatic` branch above — see comment there.
-      const showAutoUpdate =
-        autoUpdateEnabled &&
-        !!autoUpdateWindowStart &&
-        !!autoUpdateWindowEnd &&
-        isIosOrIpadosApp;
+      const showAutoUpdate = hasValidAutoUpdate({
+        autoUpdateEnabled,
+        autoUpdateWindowStart,
+        autoUpdateWindowEnd,
+        isIosOrIpadosApp,
+      });
       return (
         <>
           {automaticInstallPoliciesCount > 0 && (
@@ -121,7 +144,11 @@ const installIconMap: Record<InstallType, InstallIconConfig> = {
           )}
           {showAutoUpdate && (
             <>
-              {getAutoUpdateTooltip(autoUpdateWindowStart, autoUpdateWindowEnd)}{" "}
+              {/* hasValidAutoUpdate above guarantees both fields are set. */}
+              {getAutoUpdateTooltip(
+                autoUpdateWindowStart!,
+                autoUpdateWindowEnd!
+              )}{" "}
             </>
           )}
           {getSelfServiceTooltip(isIosOrIpadosApp, isAndroidPlayStoreApp)}
@@ -144,10 +171,7 @@ interface IInstallIconWithTooltipProps {
 
 // A row can be "automatic" via a policy-triggered install or a VPP scheduled
 // auto-update. Either signal promotes the icon to the automatic family so the
-// visual language stays consistent with the details page chip. Auto-updates
-// only counts when the window is fully populated AND the row is iOS/iPadOS —
-// the auto-update cron in apple_mdm.go only acts on ios_apps / ipados_apps
-// sources, so promoting the icon for a macOS VPP row would misrepresent it.
+// visual language stays consistent with the details page chip.
 const getInstallIconType = (
   isSelfService: boolean,
   automaticInstallPoliciesCount = 0,
@@ -156,12 +180,14 @@ const getInstallIconType = (
   autoUpdateWindowEnd?: string,
   isIosOrIpadosApp = false
 ): InstallType => {
-  const hasValidAutoUpdate =
-    autoUpdateEnabled &&
-    !!autoUpdateWindowStart &&
-    !!autoUpdateWindowEnd &&
-    isIosOrIpadosApp;
-  const isAutomatic = automaticInstallPoliciesCount > 0 || hasValidAutoUpdate;
+  const isAutomatic =
+    automaticInstallPoliciesCount > 0 ||
+    hasValidAutoUpdate({
+      autoUpdateEnabled,
+      autoUpdateWindowStart,
+      autoUpdateWindowEnd,
+      isIosOrIpadosApp,
+    });
   if (isAutomatic) {
     return isSelfService ? "automaticSelfService" : "automatic";
   }
