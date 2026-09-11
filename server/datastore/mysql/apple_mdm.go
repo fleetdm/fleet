@@ -2111,6 +2111,19 @@ WHERE hm.host_id IN (?)
 		return ctxerr.Wrap(ctx, err, "upsert host dep assignments update installed_from_dep")
 	}
 
+	// null any renewal_excluded_at for the given hosts
+	stmt, args, err = sqlx.In(`UPDATE nano_cert_auth_associations ncaa
+		JOIN hosts h ON h.uuid = ncaa.id
+		SET ncaa.renewal_excluded_at = NULL
+		WHERE h.id IN (?)`, hostIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "upsert host dep assignments null renewal_excluded_at")
+	}
+	_, err = tx.ExecContext(ctx, stmt, args...)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "upsert host dep assignments null renewal_excluded_at")
+	}
+
 	return nil
 }
 
@@ -4379,14 +4392,20 @@ WHERE
 	hda.deleted_at IS NULL
 `
 
-	stmt, args, err := sqlx.In(stmt, hostIDs)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "prepare statement arguments")
-	}
-
 	var serials []string
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &serials, stmt, args...); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "list mdm apple dep serials")
+	if err := common_mysql.BatchProcessSimple(hostIDs, hostIDsFanoutBatchSize, func(batch []uint) error {
+		inStmt, args, err := sqlx.In(stmt, batch)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "prepare statement arguments")
+		}
+		var batchSerials []string
+		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &batchSerials, inStmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "list mdm apple dep serials")
+		}
+		serials = append(serials, batchSerials...)
+		return nil
+	}); err != nil {
+		return nil, err
 	}
 	return serials, nil
 }
@@ -6593,6 +6612,7 @@ SET
 	apple_id = ?,
 	terms_expired = ?,
 	renew_at = ?,
+	server_uuid = NULLIF(?, ''),
 	token = ?,
 	macos_default_team_id = ?,
 	ios_default_team_id = ?,
@@ -6613,6 +6633,7 @@ WHERE
 		tok.AppleID,
 		tok.TermsExpired,
 		tok.RenewAt.UTC(),
+		tok.ServerUUID,
 		doubleEncTok,
 		tok.MacOSDefaultTeamID,
 		tok.IOSDefaultTeamID,
@@ -6631,8 +6652,8 @@ func (ds *Datastore) InsertABMToken(ctx context.Context, tok *fleet.ABMToken) (*
 	const stmt = `
 INSERT INTO
 	abm_tokens
-	(organization_name, apple_id, terms_expired, renew_at, token, enrollment_url_token, macos_default_team_id, ios_default_team_id, ipados_default_team_id, byod_default_team_id)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	(organization_name, apple_id, terms_expired, renew_at, token, server_uuid, is_default, enrollment_url_token, macos_default_team_id, ios_default_team_id, ipados_default_team_id, byod_default_team_id)
+VALUES (?, ?, ?, ?, ?, NULLIF(?, ''), ?, ?, ?, ?, ?, ?)
 `
 	doubleEncTok, err := encrypt(tok.EncryptedToken, ds.serverPrivateKey)
 	if err != nil {
@@ -6644,27 +6665,45 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		return nil, ctxerr.Wrap(ctx, err, "generating random token for ABM enrollment URL")
 	}
 
-	res, err := ds.writer(ctx).ExecContext(
-		ctx,
-		stmt,
-		tok.OrganizationName,
-		tok.AppleID,
-		tok.TermsExpired,
-		tok.RenewAt,
-		doubleEncTok,
-		urlToken,
-		tok.MacOSDefaultTeamID,
-		tok.IOSDefaultTeamID,
-		tok.IPadOSDefaultTeamID,
-		tok.BYODDefaultTeamID,
-	)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "inserting abm_token")
+	if err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		// Only the first ABM token inserted is default.
+		var count int
+		if err := tx.QueryRowxContext(ctx, "SELECT COUNT(*) FROM abm_tokens").Scan(&count); err != nil {
+			return ctxerr.Wrap(ctx, err, "counting abm_tokens")
+		}
+
+		tok.IsDefault = count == 0
+		res, err := tx.ExecContext(
+			ctx,
+			stmt,
+			tok.OrganizationName,
+			tok.AppleID,
+			tok.TermsExpired,
+			tok.RenewAt,
+			doubleEncTok,
+			tok.ServerUUID,
+			tok.IsDefault,
+			urlToken,
+			tok.MacOSDefaultTeamID,
+			tok.IOSDefaultTeamID,
+			tok.IPadOSDefaultTeamID,
+			tok.BYODDefaultTeamID,
+		)
+		if err != nil {
+			if IsDuplicate(err) {
+				return &fleet.ConflictError{
+					Message: fmt.Sprintf("An Apple Business Manager connection already exists for '%s'.", tok.OrganizationName),
+				}
+			}
+			return ctxerr.Wrap(ctx, err, "inserting abm_token")
+		}
+
+		tokenID, _ := res.LastInsertId()
+		tok.ID = uint(tokenID) //nolint:gosec // dismiss G115
+		return nil
+	}); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "inserting abm_token with retry")
 	}
-
-	tokenID, _ := res.LastInsertId()
-
-	tok.ID = uint(tokenID) //nolint:gosec // dismiss G115
 
 	cfg, err := ds.AppConfig(ctx)
 	if err != nil {
@@ -6689,6 +6728,8 @@ SELECT
 	abt.apple_id,
 	abt.terms_expired,
 	abt.token_invalid,
+	COALESCE(abt.server_uuid, '') AS server_uuid,
+	abt.is_default,
 	abt.renew_at,
 	abt.token,
 	abt.enrollment_url_token,
@@ -6777,8 +6818,22 @@ DELETE FROM
 WHERE ID = ?
 		`
 
-	_, err := ds.writer(ctx).ExecContext(ctx, stmt, tokenID)
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		if _, err := tx.ExecContext(ctx, stmt, tokenID); err != nil {
+			return err
+		}
 
+		var count int
+		if err := tx.QueryRowxContext(ctx, "SELECT COUNT(*) FROM abm_tokens").Scan(&count); err != nil {
+			return err
+		}
+		if count != 1 {
+			return nil
+		}
+
+		_, err := tx.ExecContext(ctx, "UPDATE abm_tokens SET is_default = 1")
+		return err
+	})
 	return ctxerr.Wrap(ctx, err, "deleting ABM token")
 }
 
@@ -6799,6 +6854,8 @@ SELECT
 	abt.apple_id,
 	abt.terms_expired,
 	abt.token_invalid,
+	COALESCE(abt.server_uuid, '') AS server_uuid,
+	abt.is_default,
 	abt.renew_at,
 	abt.token,
 	abt.enrollment_url_token,
@@ -7273,7 +7330,7 @@ FROM
 JOIN
 	host_dep_assignments hdep ON h.id = host_id
 WHERE
-	h.hardware_serial = ? AND deleted_at IS NULL
+	h.hardware_serial = ? AND deleted_at IS NULL AND h.platform IN ('darwin', 'ios', 'ipados')
 LIMIT 1`
 
 	var dest struct {
@@ -7282,10 +7339,11 @@ LIMIT 1`
 	}
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &dest, stmt, serial); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			// The host may not have a DEP assignment yet (e.g. the enrollment
-			// request arrived before the host/DEP assignment row was created or
-			// replicated). Return a not-found error so callers can skip the OS
-			// updates check and allow enrollment to proceed.
+			// The host may not be an Apple host, or may not have a DEP assignment
+			// yet (e.g. the enrollment request arrived before the host/DEP
+			// assignment row was created or replicated). Return a not-found error
+			// so callers can skip the OS updates check and allow enrollment to
+			// proceed.
 			return "", nil, ctxerr.Wrap(ctx, notFound("Host").WithName(serial), "getting team id for host")
 		}
 		return "", nil, ctxerr.Wrap(ctx, err, "getting team id for host")
@@ -8728,4 +8786,76 @@ func (ds *Datastore) GetAppleOSUpdateHostByUUID(ctx context.Context, hostUUID st
 		return nil, ctxerr.Wrap(ctx, err, "getting apple os update host by uuid")
 	}
 	return &host, nil
+}
+
+func (ds *Datastore) ExcludeHostCertAssociationsFromRenewal(ctx context.Context, assocs []fleet.SCEPIdentityAssociation) error {
+	if len(assocs) == 0 {
+		return nil
+	}
+
+	args := make([]any, 0, len(assocs)*2)
+	for _, assoc := range assocs {
+		args = append(args, assoc.HostUUID, assoc.SHA256)
+	}
+
+	stmt := fmt.Sprintf(`
+		UPDATE nano_cert_auth_associations
+		SET renewal_excluded_at = NOW()
+		WHERE (id, sha256) IN (%s)`, strings.TrimSuffix(strings.Repeat("(?,?),", len(assocs)), ","))
+
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "excluding host cert associations from renewal")
+	}
+	return nil
+}
+
+func (ds *Datastore) ClearCertRenewalExclusions(ctx context.Context) error {
+	const stmt = `
+		UPDATE nano_cert_auth_associations
+		SET renewal_excluded_at = NULL
+		WHERE renewal_excluded_at IS NOT NULL`
+
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt); err != nil {
+		return ctxerr.Wrap(ctx, err, "clearing cert renewal exclusions")
+	}
+	return nil
+}
+
+func (ds *Datastore) ResetPendingCertRenewals(ctx context.Context) error {
+	const batchSize = 1000
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		for {
+			var cmdUUIDs []string
+			if err := sqlx.SelectContext(ctx, tx, &cmdUUIDs, `SELECT renew_command_uuid FROM nano_cert_auth_associations
+        		WHERE renew_command_uuid IS NOT NULL LIMIT ?`, batchSize); err != nil {
+				return ctxerr.Wrap(ctx, err, "selecting pending cert renewals")
+			}
+
+			if len(cmdUUIDs) == 0 {
+				return nil
+			}
+
+			// deactivate batched renewal commands in the queue
+			stmt, args, err := sqlx.In(`UPDATE nano_enrollment_queue q
+				SET q.active = 0 WHERE command_uuid IN (?)`, cmdUUIDs)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "building query for deactivating active cert renewal commands in nano_enrollment_queue")
+			}
+			if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+				return ctxerr.Wrap(ctx, err, "deactivating active cert renewal commands in nano_enrollment_queue")
+			}
+
+			stmt, args, err = sqlx.In(`UPDATE nano_cert_auth_associations
+				SET renew_command_uuid = NULL
+				WHERE renew_command_uuid IN (?)`, cmdUUIDs)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "building query for resetting pending cert renewals")
+			}
+
+			// reset all pending cert renewals
+			if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+				return ctxerr.Wrap(ctx, err, "resetting pending cert renewals")
+			}
+		}
+	})
 }

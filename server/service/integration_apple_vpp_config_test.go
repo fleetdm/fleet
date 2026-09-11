@@ -670,13 +670,6 @@ func (s *integrationMDMTestSuite) TestVPPManagedConfigurationOnInstallCommand() 
 		s.Do("POST", "/api/latest/fleet/hosts/transfer",
 			&addHostsToTeamRequest{HostIDs: []uint{ssHost.ID}, TeamID: &team.ID}, http.StatusOK)
 
-		// Self-service device endpoint requires cert auth.
-		const certSerial = uint64(987654321)
-		s.addHostIdentityCertificate(ssHost.UUID, certSerial)
-		headers := map[string]string{
-			"X-Client-Cert-Serial": fmt.Sprintf("%d", certSerial),
-		}
-
 		titleID := titleIDFor(adamMulti, fleet.IOSPlatform)
 		s.DoJSON("PATCH",
 			fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", titleID),
@@ -686,9 +679,9 @@ func (s *integrationMDMTestSuite) TestVPPManagedConfigurationOnInstallCommand() 
 			},
 			http.StatusOK, &updateAppStoreAppResponse{})
 
-		s.DoRawWithHeaders("POST",
+		s.DoRawNoAuth("POST",
 			fmt.Sprintf("/api/latest/fleet/device/%s/software/install/%d", ssHost.UUID, titleID),
-			nil, http.StatusAccepted, headers)
+			nil, http.StatusAccepted)
 
 		s.awaitRunAppleMDMWorkerSchedule()
 		s.runWorker()

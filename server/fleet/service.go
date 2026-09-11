@@ -455,10 +455,6 @@ type Service interface {
 	// AuthenticateDevice loads host identified by the device's auth token.
 	// Returns an error if the auth token doesn't exist.
 	AuthenticateDevice(ctx context.Context, authToken string) (host *Host, debug bool, err error)
-	// AuthenticateDeviceByCertificate loads host identified by certificate serial and UUID.
-	// This is used for iOS/iPadOS devices accessing My Device page via client certificates.
-	// Returns an error if the certificate doesn't match the host or if the host is not iOS/iPadOS.
-	AuthenticateDeviceByCertificate(ctx context.Context, certSerial uint64, hostUUID string) (host *Host, debug bool, err error)
 	// AuthenticateIDeviceByURL loads host identified by the URL UUID.
 	// This is used for iOS/iPadOS devices (iDevices) accessing endpoints via a unique URL parameter.
 	// Returns an error if the UUID doesn't exist or if the host is not iOS/iPadOS.
@@ -535,7 +531,9 @@ type Service interface {
 	GetMunkiIssue(ctx context.Context, munkiIssueID uint) (*MunkiIssue, error)
 
 	HostEncryptionKey(ctx context.Context, id uint) (*HostDiskEncryptionKey, error)
-	EscrowLUKSData(ctx context.Context, passphrase string, salt string, keySlot *uint, clientError string, keyType string) error
+	// EscrowLUKSData stores a LUKS key or a client error. A non-empty status instead records orbit's
+	// progress: prompting and escrowing keep the request in flight, canceled and timed_out end it.
+	EscrowLUKSData(ctx context.Context, passphrase string, salt string, keySlot *uint, clientError string, keyType string, status string) error
 
 	// EscrowWindowsManagedLocalAccountPassword stores the device-generated password that Windows fleetd escrows after
 	// creating the managed local admin account. When clientError is set no password is stored; the account is marked failed
@@ -825,7 +823,8 @@ type Service interface {
 	DeleteGlobalPolicies(ctx context.Context, ids []uint) ([]uint, error)
 	ModifyGlobalPolicy(ctx context.Context, id uint, p ModifyPolicyPayload) (*Policy, error)
 	GetPolicyByID(ctx context.Context, policyID uint) (*Policy, error)
-	ResetPolicy(ctx context.Context, policyID uint) error
+	// ResetPolicy clears a policy's pass/fail results for all hosts, or for a single host when hostID is set.
+	ResetPolicy(ctx context.Context, policyID uint, hostID *uint) error
 	ListPolicyAutomationActivities(ctx context.Context, policyID uint, opts ListOptions, status string) ([]*PolicyAutomationActivity, *PaginationMetadata, error)
 	ApplyPolicySpecs(ctx context.Context, policies []*PolicySpec) error
 	CountGlobalPolicies(ctx context.Context, matchQuery string, platform string) (int, error)
@@ -1047,6 +1046,11 @@ type Service interface {
 	// to any team).
 	GetMDMAppleProfilesSummary(ctx context.Context, teamID *uint) (*MDMProfilesSummary, error)
 
+	// AuthenticateMDMAppleDEPEnrollment validates an automatic (DEP) enrollment
+	// request: the token must match the automatic enrollment profile and the
+	// device's serial must currently be DEP-assigned to Fleet.
+	AuthenticateMDMAppleDEPEnrollment(ctx context.Context, enrollmentToken string, machineInfo *MDMAppleMachineInfo) error
+
 	// GetMDMAppleEnrollmentProfileByToken returns the Apple enrollment from its secret token.
 	GetMDMAppleEnrollmentProfileByToken(ctx context.Context, enrollmentToken string, enrollmentRef string, machineInfo *MDMAppleMachineInfo) (profile []byte, err error)
 
@@ -1235,6 +1239,8 @@ type Service interface {
 
 	GetMDMManualEnrollmentProfile(ctx context.Context, personal bool) ([]byte, error)
 
+	// TriggerLinuxDiskEncryptionEscrow queues a LUKS escrow request. It queues nothing and returns a
+	// LinuxEscrowInFlightError while fleetd is handling an earlier one.
 	TriggerLinuxDiskEncryptionEscrow(ctx context.Context, host *Host) error
 
 	// CheckMDMAppleEnrollmentWithMinimumOSVersion checks if the minimum OS version is met for a MDM enrollment
@@ -1938,6 +1944,11 @@ const (
 	BatchSetSoftwareInstallersStatusFailed = "failed"
 	// MinOrbitLUKSVersion is the earliest version of Orbit that can escrow LUKS passphrases
 	MinOrbitLUKSVersion = "1.36.0"
+	// LinuxEscrowInFlightWindow is how long a LUKS escrow request blocks re-triggering after fleetd's
+	// last sign of life (hand-off or progress report). It only matters for agents that report nothing.
+	LinuxEscrowInFlightWindow = 5 * time.Minute
+	// LinuxEscrowInFlightMessage is the LinuxEscrowInFlightError message.
+	LinuxEscrowInFlightMessage = "A disk encryption key is already being created for this host."
 	// MFALinkTTL is how long MFA verification links stay active
 	MFALinkTTL = time.Minute * 15
 )

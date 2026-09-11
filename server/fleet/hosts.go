@@ -30,6 +30,9 @@ const (
 	// StatusMissing means the host is missing for 30 days. It is identical
 	// with StatusMIA, but StatusMIA is deprecated.
 	StatusMissing = HostStatus("missing")
+	// StatusEnrolled is a filter-only value (never a host's computed status): every host
+	// except those pending MDM enrollment, which exist in Fleet before they enroll.
+	StatusEnrolled = HostStatus("enrolled")
 
 	// NewDuration if a host has been created within this time period it's
 	// considered new.
@@ -51,7 +54,7 @@ const (
 
 func (s HostStatus) IsValid() bool {
 	switch s {
-	case StatusOnline, StatusOffline, StatusNew, StatusMissing, StatusMIA:
+	case StatusOnline, StatusOffline, StatusNew, StatusMissing, StatusMIA, StatusEnrolled:
 		return true
 	default:
 		return false
@@ -1401,6 +1404,7 @@ var HostLinuxOSs = []string{
 	"coreos",
 	"cachyos",
 	"omarchy",
+	"amd-ryzen-ai-developer-platform",
 }
 
 // HostNeitherDebNorRpmPackageOSs are the list of known Linux platforms that support neither DEB nor RPM packages
@@ -1421,15 +1425,16 @@ var HostNeitherDebNorRpmPackageOSs = map[string]struct{}{
 
 // HostDebPackageOSs are the list of known Linux platforms that support DEB packages
 var HostDebPackageOSs = map[string]struct{}{
-	"linux":     {}, // let DEBs through if we're looking at a generic Linux host
-	"ubuntu":    {},
-	"zorin":     {},
-	"debian":    {},
-	"kali":      {},
-	"pop":       {},
-	"linuxmint": {},
-	"tuxedo":    {},
-	"neon":      {},
+	"linux":                           {}, // let DEBs through if we're looking at a generic Linux host
+	"ubuntu":                          {},
+	"zorin":                           {},
+	"debian":                          {},
+	"kali":                            {},
+	"pop":                             {},
+	"linuxmint":                       {},
+	"tuxedo":                          {},
+	"neon":                            {},
+	"amd-ryzen-ai-developer-platform": {},
 }
 
 // HostRpmPackageOSs are the list of known Linux platforms that support RPM packages
@@ -1895,6 +1900,27 @@ type HostMDMCheckinInfo struct {
 	SCEPRenewalInProgress bool   `json:"-" db:"scep_renewal_in_progress"`
 	MigrationInProgress   bool   `json:"-" db:"migration_in_progress"`
 	Platform              string `json:"-" db:"platform"`
+}
+
+// HostEscrowState is where a Linux host's LUKS escrow request stands.
+type HostEscrowState struct {
+	// Pending is true while a request is queued and not yet delivered to the agent.
+	Pending bool
+	// SinceLastActivity is how long ago the agent last showed activity on the request (hand-off or
+	// progress report), on the database clock. Nil when no request is in flight.
+	SinceLastActivity *time.Duration
+}
+
+// InFlightRemaining returns how long the request stays in flight if the agent sends nothing
+// further within window, or zero when it is not in flight.
+func (s *HostEscrowState) InFlightRemaining(window time.Duration) time.Duration {
+	if s == nil || s.SinceLastActivity == nil || *s.SinceLastActivity >= window {
+		return 0
+	}
+	if *s.SinceLastActivity < 0 {
+		return window
+	}
+	return window - *s.SinceLastActivity
 }
 
 type HostDiskEncryptionKey struct {
