@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
 	"github.com/stretchr/testify/require"
@@ -36,7 +37,7 @@ func TestPushStalledErrorBody(t *testing.T) {
 
 	prov := &Provider{
 		baseURL: server.URL,
-		client:  &http.Client{Timeout: 500 * time.Millisecond},
+		client:  fleethttp.NewClient(fleethttp.WithTimeout(500 * time.Millisecond)),
 		workers: 1,
 	}
 
