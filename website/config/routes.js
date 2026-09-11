@@ -696,6 +696,14 @@ module.exports.routes = {
     }
   },
 
+  'GET /omarchy': {
+    action: 'view-omarchy',
+    locals: {
+      pageTitleForMeta: 'Omarchy management',
+      pageDescriptionForMeta: 'Manage Omarchy like you manage macOS and Windows. Give employees the distro they want without losing compliance and control.',
+    }
+  },
+
   //  ╦  ╔═╗╔╗╔╔╦╗╦╔╗╔╔═╗  ╔═╗╔═╗╔═╗╔═╗╔═╗
   //  ║  ╠═╣║║║ ║║║║║║║ ╦  ╠═╝╠═╣║ ╦║╣ ╚═╗
   //  ╩═╝╩ ╩╝╚╝═╩╝╩╝╚╝╚═╝  ╩  ╩ ╩╚═╝╚═╝╚═╝

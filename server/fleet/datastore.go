@@ -1042,6 +1042,10 @@ type Datastore interface {
 	// ResetPolicy clears pass/fail results: wipes policy_membership, policy_stats,
 	// and resets automation retry attempts, identical to a query-change side-effect.
 	ResetPolicy(ctx context.Context, policyID uint) error
+	// ResetPolicyForHost clears a single host's pass/fail result for the policy and
+	// resets its automation retry attempts atomically, then refreshes the policy's counts
+	// on a best-effort basis (a failed refresh is logged, not returned).
+	ResetPolicyForHost(ctx context.Context, hostID, policyID uint) error
 
 	ListGlobalPolicies(ctx context.Context, opts ListOptions, platform string) ([]*Policy, error)
 	PoliciesByID(ctx context.Context, ids []uint) (map[uint]*Policy, error)
@@ -1395,8 +1399,15 @@ type Datastore interface {
 	// IsHostDiskEncryptionKeyArchived returns true if there is a disk encryption key archived
 	// for the given host ID.
 	IsHostDiskEncryptionKeyArchived(ctx context.Context, hostID uint) (bool, error)
-	IsHostPendingEscrow(ctx context.Context, hostID uint) bool
-	ClearPendingEscrow(ctx context.Context, hostID uint) error
+	// GetHostEscrowState reports whether a LUKS escrow request is queued and how long ago the agent
+	// last showed activity on one in flight. No row means the zero state.
+	GetHostEscrowState(ctx context.Context, hostID uint) (*HostEscrowState, error)
+	// MarkEscrowSentToAgent moves the queued escrow request to in flight: it clears the pending
+	// flag so the notification is delivered once, and stamps when the agent took it.
+	MarkEscrowSentToAgent(ctx context.Context, hostID uint) error
+	// SetEscrowInFlight refreshes the in-flight state (true, only for a host still in flight) or ends
+	// it without recording a key or an error (false, for a dismissed or timed-out prompt).
+	SetEscrowInFlight(ctx context.Context, hostID uint, inFlight bool) error
 	ReportEscrowError(ctx context.Context, hostID uint, err string) error
 	QueueEscrow(ctx context.Context, hostID uint) error
 	AssertHasNoEncryptionKeyStored(ctx context.Context, hostID uint) error
@@ -2509,6 +2520,11 @@ type Datastore interface {
 	// MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerial returns the most recent unlinked (host_uuid = "") Windows
 	// MDM enrollment whose device-reported SMBIOS serial matches. Returns a NotFound error when there is none.
 	MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerial(ctx context.Context, hardwareSerial string) (*MDMWindowsEnrolledDevice, error)
+
+	// MDMWindowsConflictingEnrollmentHardwareID returns the mdm_hardware_id of an enrollment already linked to hostUUID
+	// that belongs to hardware other than mdmHardwareID, or "" when the host is unclaimed or claimed by this same
+	// hardware.
+	MDMWindowsConflictingEnrollmentHardwareID(ctx context.Context, hostUUID string, mdmHardwareID string) (conflicted bool, conflictingHardwareID string, err error)
 
 	// MDMWindowsClaimEnrolledActivity claims the right to record the mdm_enrolled activity for the given Windows MDM
 	// enrollment, returning true for the first caller only.
