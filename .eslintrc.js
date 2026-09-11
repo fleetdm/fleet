@@ -60,24 +60,6 @@ module.exports = {
     "import/no-named-as-default-member": "off",
     "import/extensions": 0,
     "import/no-extraneous-dependencies": 0,
-    "import/order": [
-      "error",
-      {
-        groups: [
-          "builtin",
-          "external",
-          "internal",
-          "parent",
-          "sibling",
-          "index",
-        ],
-        "newlines-between": "always",
-        alphabetize: {
-          order: "asc",
-          caseInsensitive: true,
-        },
-      },
-    ],
     "no-underscore-dangle": 0,
     "jsx-a11y/no-static-element-interactions": "off",
     // note you must disable the base rule as it can report incorrect errors. more info here:

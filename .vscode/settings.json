@@ -38,25 +38,5 @@
     "yaml.schemas": {
         "https://json.schemastore.org/codecov.json": ".github/workflows/codecov.yml"
     },
-    "js/ts.tsdk.path": "node_modules/typescript/lib",
-    "[javascript]": {
-        "editor.codeActionsOnSave": {
-            "source.fixAll.eslint": "explicit"
-        },
-    },
-    "[javascriptreact]": {
-        "editor.codeActionsOnSave": {
-            "source.fixAll.eslint": "explicit"
-        },
-    },
-    "[typescript]": {
-        "editor.codeActionsOnSave": {
-            "source.fixAll.eslint": "explicit"
-        },
-    },
-    "[typescriptreact]": {
-        "editor.codeActionsOnSave": {
-            "source.fixAll.eslint": "explicit"
-        },
-    },
+    "js/ts.tsdk.path": "node_modules/typescript/lib"
 }
