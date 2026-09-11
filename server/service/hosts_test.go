@@ -4055,6 +4055,150 @@ func TestOSVersionsListOptions(t *testing.T) {
 	assert.Equal(t, now, vers.CountsUpdatedAt)
 }
 
+func TestOSVersionsOrderByVersion(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil)
+
+	// Mixes dot-separated numeric versions with differing digit counts, a
+	// Windows feature-update codename, and a non-numeric version (Arch
+	// Linux's "rolling") to exercise every branch of compareOSVersions.
+	// IDs 4, 8, and 9 share the "22H1" version across different editions
+	// (a realistic tie: distinct NameOnly values, since the datastore
+	// already aggregates same NameOnly+Version rows into one), to exercise
+	// the OSVersionID tie-breaker.
+	//
+	// Windows has the most hosts overall (3000) despite its version
+	// strings comparing "lower" than macOS's ("22H1"/"21H2"/"10.x" vs.
+	// "26.x") — this deliberately makes flat version comparison and
+	// grouped-by-platform comparison disagree on group order, so the
+	// assertions below only pass if the platform grouping is actually
+	// driving the primary sort, not just incidentally matching it.
+	testVersions := []fleet.OSVersion{
+		{OSVersionID: 1, NameOnly: "Windows 11 Pro", Platform: "windows", Version: "10.0.9200.100", HostsCount: 500},
+		{OSVersionID: 2, NameOnly: "Windows 11 Pro", Platform: "windows", Version: "10.0.26200.8875", HostsCount: 500},
+		{OSVersionID: 3, NameOnly: "Windows 10 Pro", Platform: "windows", Version: "21H2", HostsCount: 500},
+		{OSVersionID: 4, NameOnly: "Windows 10 Pro", Platform: "windows", Version: "22H1", HostsCount: 500},
+		{OSVersionID: 5, NameOnly: "macOS", Platform: "darwin", Version: "26.6", HostsCount: 100},
+		{OSVersionID: 6, NameOnly: "macOS", Platform: "darwin", Version: "26.10", HostsCount: 100},
+		{OSVersionID: 7, NameOnly: "Arch Linux", Platform: "arch", Version: "rolling", HostsCount: 10},
+		{OSVersionID: 8, NameOnly: "Windows 10 Enterprise", Platform: "windows", Version: "22H1", HostsCount: 500},
+		{OSVersionID: 9, NameOnly: "Windows 10 Education", Platform: "windows", Version: "22H1", HostsCount: 500},
+	}
+	// Platform totals: windows 3000, darwin 200, arch 10.
+
+	now := time.Now()
+
+	ds.OSVersionsFunc = func(
+		ctx context.Context, teamFilter *fleet.TeamFilter, platform *string, name *string, version *string,
+	) (*fleet.OSVersions, error) {
+		return &fleet.OSVersions{CountsUpdatedAt: now, OSVersions: testVersions}, nil
+	}
+
+	ds.ListVulnsByMultipleOSVersionsFunc = func(ctx context.Context, osVersions []fleet.OSVersion, includeCVSS bool,
+		teamID *uint, maxVulnerabilities *int,
+	) (map[string]fleet.OSVulnerabilitiesWithCount, error) {
+		return nil, nil
+	}
+
+	// Platform groups always order by host total descending (windows,
+	// then darwin, then arch), regardless of the version sort direction.
+	// Within each group: descending version sort puts latest first —
+	// "10.0.26200.8875" above "10.0.9200.100" (not a string comparison,
+	// which would get this backwards), "22H1" above "21H2", "26.10" above
+	// "26.6"; the "22H1" tie (IDs 4, 8, 9) breaks by OSVersionID ascending
+	// regardless of the primary sort direction. Ascending only reverses
+	// the within-group version order, not the group order itself.
+	wantDescending := []uint{4, 8, 9, 3, 2, 1, 6, 5, 7}
+	wantAscending := []uint{1, 2, 3, 4, 8, 9, 5, 6, 7}
+
+	opts := fleet.ListOptions{OrderKey: "version", OrderDirection: fleet.OrderDescending}
+	vers, _, _, err := svc.OSVersions(test.UserContext(ctx, test.UserAdmin), nil, nil, nil, nil, opts, false, nil)
+	require.NoError(t, err)
+	require.Len(t, vers.OSVersions, len(wantDescending))
+	for i, wantID := range wantDescending {
+		assert.Equal(t, wantID, vers.OSVersions[i].OSVersionID, "descending index %d", i)
+	}
+
+	// ascending version sort: reverse order, but the tied trio keeps the
+	// same relative (OSVersionID-ascending) order as in the descending case.
+	opts = fleet.ListOptions{OrderKey: "version", OrderDirection: fleet.OrderAscending}
+	vers, _, _, err = svc.OSVersions(test.UserContext(ctx, test.UserAdmin), nil, nil, nil, nil, opts, false, nil)
+	require.NoError(t, err)
+	require.Len(t, vers.OSVersions, len(wantAscending))
+	for i, wantID := range wantAscending {
+		assert.Equal(t, wantID, vers.OSVersions[i].OSVersionID, "ascending index %d", i)
+	}
+
+	// pagination + descending version sort stays deterministic across
+	// pages, including page 1, which straddles the windows/darwin platform
+	// group boundary (windows IDs 2, 1 followed by darwin IDs 6, 5).
+	opts = fleet.ListOptions{Page: 0, PerPage: 4, OrderKey: "version", OrderDirection: fleet.OrderDescending}
+	page0, _, _, err := svc.OSVersions(test.UserContext(ctx, test.UserAdmin), nil, nil, nil, nil, opts, false, nil)
+	require.NoError(t, err)
+	require.Len(t, page0.OSVersions, 4)
+
+	opts = fleet.ListOptions{Page: 1, PerPage: 4, OrderKey: "version", OrderDirection: fleet.OrderDescending}
+	page1, _, _, err := svc.OSVersions(test.UserContext(ctx, test.UserAdmin), nil, nil, nil, nil, opts, false, nil)
+	require.NoError(t, err)
+	require.Len(t, page1.OSVersions, 4)
+
+	opts = fleet.ListOptions{Page: 2, PerPage: 4, OrderKey: "version", OrderDirection: fleet.OrderDescending}
+	page2, _, _, err := svc.OSVersions(test.UserContext(ctx, test.UserAdmin), nil, nil, nil, nil, opts, false, nil)
+	require.NoError(t, err)
+	require.Len(t, page2.OSVersions, 1)
+
+	gotPaged := make([]uint, 0, len(wantDescending))
+	for _, page := range []*fleet.OSVersions{page0, page1, page2} {
+		for _, v := range page.OSVersions {
+			gotPaged = append(gotPaged, v.OSVersionID)
+		}
+	}
+	assert.Equal(t, wantDescending, gotPaged, "paginated results must match the unpaginated descending order")
+
+	// invalid order key
+	opts = fleet.ListOptions{OrderKey: "nameonly"}
+	_, _, _, err = svc.OSVersions(test.UserContext(ctx, test.UserAdmin), nil, nil, nil, nil, opts, false, nil)
+	require.Error(t, err)
+}
+
+func TestCompareOSVersions(t *testing.T) {
+	cases := []struct {
+		name     string
+		a, b     string
+		expected int
+	}{
+		{"equal numeric", "26.6", "26.6", 0},
+		{"multi-digit segment, not a string comparison", "26.6", "26.10", -1},
+		{"longer numeric version is newer", "26.5", "26.5.1", -1},
+		{"differing segment counts, four segments", "10.0.9200.100", "10.0.26200.8875", -1},
+		{"windows codename, same year", "21H1", "21H2", -1},
+		{"windows codename, different year", "21H2", "22H1", -1},
+		{"windows codename equal", "22H1", "22H1", 0},
+		{"non-numeric sorts before numeric", "rolling", "26.6", -1},
+		{"numeric sorts after non-numeric", "26.6", "rolling", 1},
+		{"two non-numeric versions are equal", "rolling", "rolling", 0},
+		{"empty string sorts before numeric", "", "26.6", -1},
+		// Segments beyond what strconv.Atoi can hold must still order
+		// correctly instead of overflowing/tying (see versionSegments).
+		{"segment one past int64 max orders correctly", "9223372036854775807", "9223372036854775808", -1},
+		{"arbitrarily large segment orders by significant digits", "31415926535897932384626", "9223372036854775808", 1},
+		{"leading zeros don't inflate significant digit count", "007", "12", -1},
+		{"all-zero segments of differing width are equal", "000", "0", 0},
+		// osquery's os_version table reports Ubuntu LTS releases with a
+		// literal " LTS" suffix (e.g. "22.04.9 LTS"), which Fleet stores
+		// verbatim (see versionSegments). Without stripping it, these tie
+		// as non-comparable instead of comparing numerically.
+		{"ubuntu LTS suffix is stripped before numeric comparison", "22.04.9 LTS", "22.04.15 LTS", -1},
+		{"ubuntu LTS suffix is case-insensitive", "22.04.9 lts", "22.04.15 LTS", -1},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			assert.Equal(t, c.expected, compareOSVersions(c.a, c.b), c.name)
+			assert.Equal(t, -c.expected, compareOSVersions(c.b, c.a), c.name+" (reversed)")
+		})
+	}
+}
+
 func TestOSVersionsDefaultPagination(t *testing.T) {
 	ds := new(mock.Store)
 	svc, ctx := newTestService(t, ds, nil, nil)
