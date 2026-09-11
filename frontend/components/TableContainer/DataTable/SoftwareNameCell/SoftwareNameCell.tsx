@@ -29,6 +29,7 @@ interface InstallIconTooltip {
   pageContext?: PageContext;
   isIosOrIpadosApp?: boolean;
   isAndroidPlayStoreApp?: boolean;
+  isAppStoreApp?: boolean;
   autoUpdateEnabled?: boolean;
   autoUpdateWindowStart?: string;
   autoUpdateWindowEnd?: string;
@@ -49,25 +50,30 @@ const getAutoUpdateTooltip = (start: string, end: string) =>
     start
   )} and ${internationalTimeOnlyFormat(end)} (host local time).`;
 
-// True when the window is fully populated and the row is iOS/iPadOS.
-// `MDMAppleCheckinAndCommandService.handleScheduledUpdates` only acts on
-// `ios_apps` / `ipados_apps` sources, so a stale schedule row on a macOS
-// VPP title must not promote the icon or leak a window line.
+// True when the window is fully populated, the row is iOS/iPadOS, AND the
+// title has an app_store_app (VPP). `handleScheduledUpdates` only acts on
+// `ios_apps` / `ipados_apps` sources, and auto-update configuration is a
+// VPP-only feature — an in-house `.ipa` (iOS source, no app_store_app)
+// with a stale schedule row must not promote the icon or leak a window
+// line, nor must a macOS VPP row.
 const hasValidAutoUpdate = ({
   autoUpdateEnabled = false,
   autoUpdateWindowStart,
   autoUpdateWindowEnd,
   isIosOrIpadosApp = false,
+  isAppStoreApp = false,
 }: {
   autoUpdateEnabled?: boolean;
   autoUpdateWindowStart?: string;
   autoUpdateWindowEnd?: string;
   isIosOrIpadosApp?: boolean;
+  isAppStoreApp?: boolean;
 }): boolean =>
   autoUpdateEnabled &&
   !!autoUpdateWindowStart &&
   !!autoUpdateWindowEnd &&
-  isIosOrIpadosApp;
+  isIosOrIpadosApp &&
+  isAppStoreApp;
 
 const installIconMap: Record<InstallType, InstallIconConfig> = {
   manual: {
@@ -92,12 +98,14 @@ const installIconMap: Record<InstallType, InstallIconConfig> = {
       autoUpdateWindowStart,
       autoUpdateWindowEnd,
       isIosOrIpadosApp = false,
+      isAppStoreApp = false,
     }) => {
       const showAutoUpdate = hasValidAutoUpdate({
         autoUpdateEnabled,
         autoUpdateWindowStart,
         autoUpdateWindowEnd,
         isIosOrIpadosApp,
+        isAppStoreApp,
       });
       return (
         <>
@@ -124,6 +132,7 @@ const installIconMap: Record<InstallType, InstallIconConfig> = {
       automaticInstallPoliciesCount = 0,
       isIosOrIpadosApp = false,
       isAndroidPlayStoreApp = false,
+      isAppStoreApp = false,
       autoUpdateEnabled = false,
       autoUpdateWindowStart,
       autoUpdateWindowEnd,
@@ -133,6 +142,7 @@ const installIconMap: Record<InstallType, InstallIconConfig> = {
         autoUpdateWindowStart,
         autoUpdateWindowEnd,
         isIosOrIpadosApp,
+        isAppStoreApp,
       });
       return (
         <>
@@ -161,6 +171,7 @@ interface IInstallIconWithTooltipProps {
   pageContext?: PageContext;
   isIosOrIpadosApp: boolean;
   isAndroidPlayStoreApp: boolean;
+  isAppStoreApp?: boolean;
   autoUpdateEnabled?: boolean;
   autoUpdateWindowStart?: string;
   autoUpdateWindowEnd?: string;
@@ -175,7 +186,8 @@ const getInstallIconType = (
   autoUpdateEnabled = false,
   autoUpdateWindowStart?: string,
   autoUpdateWindowEnd?: string,
-  isIosOrIpadosApp = false
+  isIosOrIpadosApp = false,
+  isAppStoreApp = false
 ): InstallType => {
   const isAutomatic =
     automaticInstallPoliciesCount > 0 ||
@@ -184,6 +196,7 @@ const getInstallIconType = (
       autoUpdateWindowStart,
       autoUpdateWindowEnd,
       isIosOrIpadosApp,
+      isAppStoreApp,
     });
   if (isAutomatic) {
     return isSelfService ? "automaticSelfService" : "automatic";
@@ -197,6 +210,7 @@ export const InstallIconWithTooltip = ({
   pageContext,
   isIosOrIpadosApp,
   isAndroidPlayStoreApp,
+  isAppStoreApp,
   autoUpdateEnabled,
   autoUpdateWindowStart,
   autoUpdateWindowEnd,
@@ -207,7 +221,8 @@ export const InstallIconWithTooltip = ({
     autoUpdateEnabled,
     autoUpdateWindowStart,
     autoUpdateWindowEnd,
-    isIosOrIpadosApp
+    isIosOrIpadosApp,
+    isAppStoreApp
   );
 
   // Don't show installer icon on host software library page
@@ -221,6 +236,7 @@ export const InstallIconWithTooltip = ({
     pageContext,
     isIosOrIpadosApp,
     isAndroidPlayStoreApp,
+    isAppStoreApp,
     autoUpdateEnabled,
     autoUpdateWindowStart,
     autoUpdateWindowEnd,
@@ -263,6 +279,11 @@ interface ISoftwareNameCellProps {
   iconUrl?: string | null;
   isIosOrIpadosApp?: boolean;
   isAndroidPlayStoreApp?: boolean;
+  /** True when the row has an `app_store_app` payload (Apple VPP). Required
+   * alongside `isIosOrIpadosApp` for auto-update icon promotion so an
+   * in-house `.ipa` (iOS source, no app_store_app) with a stale schedule
+   * row can't leak the auto-update indicator. */
+  isAppStoreApp?: boolean;
   /** VPP auto-updates flag from the list response. Promotes the install icon
    * to the automatic (or automatic-self-service) variant and adds a window
    * line to the tooltip. */
@@ -286,6 +307,7 @@ const SoftwareNameCell = ({
   iconUrl,
   isIosOrIpadosApp = false,
   isAndroidPlayStoreApp = false,
+  isAppStoreApp = false,
   autoUpdateEnabled = false,
   autoUpdateWindowStart,
   autoUpdateWindowEnd,
@@ -337,6 +359,7 @@ const SoftwareNameCell = ({
             pageContext={pageContext}
             isIosOrIpadosApp={isIosOrIpadosApp}
             isAndroidPlayStoreApp={isAndroidPlayStoreApp}
+            isAppStoreApp={isAppStoreApp}
             autoUpdateEnabled={autoUpdateEnabled}
             autoUpdateWindowStart={autoUpdateWindowStart}
             autoUpdateWindowEnd={autoUpdateWindowEnd}

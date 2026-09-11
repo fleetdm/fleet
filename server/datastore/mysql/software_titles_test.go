@@ -3036,6 +3036,24 @@ func testUpdateAutoUpdateConfig(t *testing.T, ds *Datastore) {
 	require.Nil(t, unscheduled.AutoUpdateStartTime)
 	require.Nil(t, unscheduled.AutoUpdateEndTime)
 
+	// The default `hosts_count` ordering above hits the two-phase optimized
+	// query path. Re-run with `name` ordering to exercise the templated
+	// fallback query, which has its own copy of the software_update_schedules
+	// JOIN and could regress independently.
+	listTitlesByName, _, _, err := ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{
+		TeamID:      teamID,
+		ListOptions: fleet.ListOptions{OrderKey: "name"},
+	}, fleet.TeamFilter{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
+	require.NoError(t, err)
+	listedByName := titleByName(listTitlesByName, "vpp1")
+	require.NotZero(t, listedByName.ID, "vpp1 fixture must be present in name-ordered results")
+	require.NotNil(t, listedByName.AutoUpdateEnabled)
+	require.True(t, *listedByName.AutoUpdateEnabled)
+	require.NotNil(t, listedByName.AutoUpdateStartTime)
+	require.Equal(t, startTime, *listedByName.AutoUpdateStartTime)
+	require.NotNil(t, listedByName.AutoUpdateEndTime)
+	require.Equal(t, endTime, *listedByName.AutoUpdateEndTime)
+
 	// Add valid, disabled auto-update schedule for the other VPP app.
 	// The schedule should be ignored since it's disabled, but it should still be created.
 	err = ds.UpdateSoftwareTitleAutoUpdateConfig(ctx, title2ID, *teamID, fleet.SoftwareAutoUpdateConfig{

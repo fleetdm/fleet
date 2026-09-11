@@ -632,20 +632,22 @@ export const internationalTimeFormat = (date: number | Date): string => {
 
 /** Renders an "HH:MM" 24-hour string in the viewer's locale. Backend stores
  * VPP auto-update windows as bare 24-hour strings; this projects that onto
- * an arbitrary date so `intlFormat` can produce "2:00 AM" (en-US), "14:00"
- * (de-DE), etc. Returns the input unchanged when it isn't parseable so
- * callers don't need a fallback branch. */
+ * a fixed UTC date so `intlFormat` can produce "2:00 AM" (en-US), "14:00"
+ * (de-DE), etc. The UTC anchor + `timeZone: "UTC"` avoid DST wall-clock
+ * shifts: `Date.setHours(2, 0)` on a spring-forward day in the viewer's
+ * local zone would normalize to 03:00 and misrender the configured
+ * window. Returns the input unchanged when it isn't parseable so callers
+ * don't need a fallback branch. */
 export const internationalTimeOnlyFormat = (hhmm: string): string => {
   const match = /^(\d{1,2}):(\d{2})$/.exec(hhmm);
   if (!match) return hhmm;
   const hours = Number(match[1]);
   const minutes = Number(match[2]);
   if (hours > 23 || minutes > 59) return hhmm;
-  const date = new Date();
-  date.setHours(hours, minutes, 0, 0);
+  const date = new Date(Date.UTC(2000, 0, 1, hours, minutes));
   return intlFormat(
     date,
-    { hour: "numeric", minute: "numeric" },
+    { hour: "numeric", minute: "numeric", timeZone: "UTC" },
     { locale: window.navigator.languages[0] }
   );
 };

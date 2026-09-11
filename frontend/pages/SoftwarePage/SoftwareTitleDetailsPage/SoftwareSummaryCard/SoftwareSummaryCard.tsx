@@ -167,12 +167,15 @@ const SoftwareSummaryCard = ({
   const showAutoInstallChip = hasLinkedPolicies && !canActivateMultiplePackages;
   // Requires the full window; without both times the tooltip would render
   // as a bare "Between  and  (host local time)." — bail rather than show.
-  // iOS/iPadOS-only: `MDMAppleCheckinAndCommandService.handleScheduledUpdates`
+  // iOS/iPadOS + VPP only: `MDMAppleCheckinAndCommandService.handleScheduledUpdates`
   // only acts on `ios_apps` / `ipados_apps` sources, so surfacing the chip
   // on a macOS VPP row (if a schedule ever exists in the DB) would be
-  // misleading.
+  // misleading. Gates on `softwareTitle.app_store_app` directly rather
+  // than `isAppleVpp` because `useSoftwareInstaller` prefers a co-existing
+  // custom package (mixed-installer state), which would flip `isAppleVpp`
+  // to false even though VPP auto-updates are legitimately configured.
   const showAutoUpdateChip =
-    isAppleVpp &&
+    !!softwareTitle.app_store_app &&
     isIosOrIpadosApp &&
     !!softwareTitle.auto_update_enabled &&
     !!softwareTitle.auto_update_window_start &&

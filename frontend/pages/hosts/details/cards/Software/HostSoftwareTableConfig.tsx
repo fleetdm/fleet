@@ -98,6 +98,7 @@ export const generateSoftwareTableHeaders = ({
             pageContext="hostDetails"
             isIosOrIpadosApp={isIpadOrIphoneSoftwareSource(source)}
             isAndroidPlayStoreApp={isAndroidPlayStoreApp}
+            isAppStoreApp={!!app_store_app}
             autoUpdateEnabled={auto_update_enabled}
             autoUpdateWindowStart={auto_update_window_start}
             autoUpdateWindowEnd={auto_update_window_end}

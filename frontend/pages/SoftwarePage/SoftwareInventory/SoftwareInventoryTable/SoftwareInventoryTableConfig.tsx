@@ -131,6 +131,7 @@ const generateTableHeaders = (
             }
             isIosOrIpadosApp={isIpadOrIphoneSoftwareSource(nameCellData.source)}
             isAndroidPlayStoreApp={isAndroidPlayStoreApp}
+            isAppStoreApp={!!cellProps.row.original.app_store_app}
             autoUpdateEnabled={cellProps.row.original.auto_update_enabled}
             autoUpdateWindowStart={
               cellProps.row.original.auto_update_window_start
