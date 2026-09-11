@@ -150,6 +150,14 @@ Share [these guided instructions](https://fleetdm.com/guides/mdm-migration#how-t
 
 If you need FileVault or BitLocker settings Fleet doesn't manage directly, you can upload your own configuration profile alongside or instead of Fleet's enforcement. See [Custom disk encryption profiles](https://fleetdm.com/guides/custom-disk-encryption-profiles).
 
+### BitLocker startup keys
+
+Fleet doesn't support BitLocker startup keys, which are USB flash drives that must be plugged in to unlock the drive at startup.
+
+On Windows, Fleet unlocks the drive with a TPM protector, and with a startup PIN if you require one. Hosts that have no TPM, and that rely on a startup key instead, aren't supported.
+
+If a host is already encrypted with both a TPM and a startup key, Fleet leaves that setup in place when it takes over.
+
 ### Escrow Buddy
 
 Fleet uses [Escrow Buddy](https://github.com/macadmins/escrow-buddy) to escrow disk encryption keys from macOS hosts. Escrow Buddy is installed only on macOS hosts that are assigned to a team in Fleet with disk encryption enforced or escrow recovery key turned on. If a host is then transferred to a team that doesn't enforce disk encryption, Escrow Buddy stays installed.

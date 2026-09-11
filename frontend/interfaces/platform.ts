@@ -121,6 +121,7 @@ export const HOST_LINUX_PLATFORMS = [
   "coreos", // CoreOS Container Linux
   "cachyos", // CachyOS (Arch-based)
   "omarchy", // Omarchy (Arch-based)
+  "amd-ryzen-ai-developer-platform", // AMD Ryzen AI Developer Platform (Debian-based)
 ] as const;
 
 export const HOST_APPLE_PLATFORMS = ["darwin", "ios", "ipados"] as const;

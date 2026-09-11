@@ -355,7 +355,7 @@ func downloadComponents(workflowName string, headBranch string, artifactNames ma
 	for osName, downloadURL := range urls {
 		outputDir := filepath.Join(outputDirectory, osName)
 		fmt.Printf("Downloading and extracting %s into %s...\n", downloadURL, outputDir)
-		if err := downloadAndExtractZip(fleethttp.NewClient(), githubUsername, githubAPIToken, downloadURL, outputDir); err != nil {
+		if err := downloadAndExtractZip(fleethttp.NewClient(fleethttp.WithNoTimeout()), githubUsername, githubAPIToken, downloadURL, outputDir); err != nil {
 			return err
 		}
 	}

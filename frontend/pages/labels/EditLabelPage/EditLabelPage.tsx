@@ -14,6 +14,7 @@ import { ILabel } from "interfaces/label";
 import { IHost } from "interfaces/host";
 import { notify } from "components/ToastNotification";
 import { AppContext } from "context/app";
+import useGitOpsMode from "hooks/useGitOpsMode";
 
 import MainContent from "components/MainContent";
 import Spinner from "components/Spinner";
@@ -38,6 +39,7 @@ type IEditLabelPageProps = RouteComponentProps<
 
 const EditLabelPage = ({ routeParams, router }: IEditLabelPageProps) => {
   const { currentUser } = useContext(AppContext);
+  const { gitOpsModeEnabled: labelsGitOpsManaged } = useGitOpsMode("labels");
   const queryClient = useQueryClient();
 
   const labelId = parseInt(routeParams.label_id, 10);
@@ -93,8 +95,13 @@ const EditLabelPage = ({ routeParams, router }: IEditLabelPageProps) => {
   const onUpdateLabel = async (
     formData: IDynamicLabelFormData | IManualLabelFormData
   ) => {
+    // Git owns a GitOps-managed label's definition, so send only the membership the user edited.
+    // Echoing name and description back could overwrite a change made in git since this page
+    // loaded. labelsAPI.update applies this to manual form data only.
+    const membershipOnly = labelsGitOpsManaged;
+
     try {
-      await labelsAPI.update(labelId, formData);
+      await labelsAPI.update(labelId, formData, { membershipOnly });
       notify.success("Label updated successfully.");
       queryClient.invalidateQueries(["label", labelId, currentUser]);
       queryClient.invalidateQueries(["hosts", labelId]);

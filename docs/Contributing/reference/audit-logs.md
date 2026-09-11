@@ -485,7 +485,7 @@ This activity contains the following fields:
 
 ## deleted_user
 
-Generated when a user is deleted.
+Generated when a user is deleted. An admin can delete the user, or SCIM can deprovision one that was deleted or deactivated in the IdP. For a SCIM deprovisioning, Fleet is the author of the activity rather than a Fleet user.
 
 This activity contains the following fields:
 - "user_id": Unique ID of the deleted user in Fleet.

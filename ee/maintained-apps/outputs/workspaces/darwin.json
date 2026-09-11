@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "2.2",
+      "version": "2.3",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.apptorium.Workspaces2-paddle';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.apptorium.Workspaces2-paddle' AND version_compare(bundle_short_version, '2.2') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.apptorium.Workspaces2-paddle' AND version_compare(bundle_short_version, '2.3') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.apptorium.Workspaces2-paddle' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://www.apptorium.com/public/products/workspaces/releases/Workspaces-2.2.zip",
+      "installer_url": "https://www.apptorium.com/public/products/workspaces/releases/Workspaces-2.3.zip",
       "install_script_ref": "5e16c238",
       "uninstall_script_ref": "bac48363",
-      "sha256": "09e1a2ab5d1b8f3c6f4c3bf4534d2e3df7be52f91c3f24d772a8dd64eb053319",
+      "sha256": "eff13cfff0c139eeb7c457297c07a16a65253ad56f9c88a592d228fcae8e6336",
       "default_categories": [
         "Productivity"
       ]

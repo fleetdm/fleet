@@ -102,6 +102,16 @@ export const severitySelection = (
   maxScore: filters.cvssMax,
 });
 
+export const severityDefaultSentence = (
+  filters: IChartFilterState
+): string | null => {
+  if (isEmpty(severityFilters(severitySelection(filters)))) return null;
+  const filteredTo = getSeverityBand(filters.severity)
+    ? filters.severity
+    : `a CVSS score of ${filters.cvssMin || 0} to ${filters.cvssMax || 10}`;
+  return `Severity is filtered to ${filteredTo} by default.`;
+};
+
 export const hasActiveHostFilters = (filters: IChartFilterState): boolean => {
   const hasHostFilter =
     filters.hostFilterMode !== "none" && filters.selectedHosts.length > 0;

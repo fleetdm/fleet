@@ -192,18 +192,24 @@ func (a AppleBM) AuthzType() string {
 // TODO: during API implementation, remove AppleBM above or reconciliate those
 // two types. We'll likely need a new authz type for the ABM token.
 type ABMToken struct {
-	ID                  uint      `db:"id" json:"id"`
-	AppleID             string    `db:"apple_id" json:"apple_id"`
-	OrganizationName    string    `db:"organization_name" json:"org_name"`
-	RenewAt             time.Time `db:"renew_at" json:"renew_date"`
-	TermsExpired        bool      `db:"terms_expired" json:"terms_expired"`
-	TokenInvalid        bool      `db:"token_invalid" json:"token_invalid"`
-	MacOSDefaultTeamID  *uint     `db:"macos_default_team_id" json:"-"`
-	IOSDefaultTeamID    *uint     `db:"ios_default_team_id" json:"-"`
-	IPadOSDefaultTeamID *uint     `db:"ipados_default_team_id" json:"-"`
-	BYODDefaultTeamID   *uint     `db:"byod_default_team_id" json:"-"`
-	EncryptedToken      []byte    `db:"token" json:"-"`
-	EnrollmentURLToken  []byte    `db:"enrollment_url_token" json:"-"`
+	ID               uint      `db:"id" json:"id"`
+	AppleID          string    `db:"apple_id" json:"apple_id"`
+	OrganizationName string    `db:"organization_name" json:"org_name"`
+	RenewAt          time.Time `db:"renew_at" json:"renew_date"`
+	TermsExpired     bool      `db:"terms_expired" json:"terms_expired"`
+	TokenInvalid     bool      `db:"token_invalid" json:"token_invalid"`
+	// ServerUUID is Apple's identifier for this MDM server in Apple Business,
+	// returned by the DEP AccountDetail API. Empty until fetched.
+	ServerUUID string `db:"server_uuid" json:"mdm_server_uuid"`
+	// IsDefault marks the token used for GetToken, and other cases where we need to pass a default token.
+	IsDefault bool `db:"is_default" json:"default"`
+
+	MacOSDefaultTeamID  *uint  `db:"macos_default_team_id" json:"-"`
+	IOSDefaultTeamID    *uint  `db:"ios_default_team_id" json:"-"`
+	IPadOSDefaultTeamID *uint  `db:"ipados_default_team_id" json:"-"`
+	BYODDefaultTeamID   *uint  `db:"byod_default_team_id" json:"-"`
+	EncryptedToken      []byte `db:"token" json:"-"`
+	EnrollmentURLToken  []byte `db:"enrollment_url_token" json:"-"`
 
 	// MDMServerURL is not a database field, it is computed from the AppConfig's
 	// Server URL and the static path to the MDM endpoint (using
@@ -563,6 +569,16 @@ type HostMDMProfile struct {
 	Scope                 *string          `db:"-" json:"scope"` // Scope and ManagedLocalAccount will be null on unsupported platforms
 	ManagedLocalAccount   *string          `db:"-" json:"managed_local_account"`
 	CertificateTemplateID *uint            `db:"-" json:"certificate_template_id,omitempty"`
+	// Retrying reports that Fleet is in the middle of automatically retrying this profile after a
+	// failed install, which leaves it in an in-progress status with nothing else to distinguish it
+	// from a first delivery. RetryCount is the number of retries already used and MaxRetries the
+	// number allowed, for reporting which attempt is in flight. Note that RetryCount is also set by
+	// a manual resend, so it does not on its own mean Fleet is retrying — use Retrying for that.
+	// All three are only set for Android certificate templates, and only on installs: removals are
+	// never retried.
+	Retrying   *bool `db:"-" json:"retrying,omitempty"`
+	RetryCount *uint `db:"-" json:"retry_count,omitempty"`
+	MaxRetries *uint `db:"-" json:"max_retries,omitempty"`
 }
 
 // MDMDeliveryStatus is the status of an MDM command to apply a profile
