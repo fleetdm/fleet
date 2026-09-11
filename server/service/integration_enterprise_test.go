@@ -29249,6 +29249,75 @@ func (s *integrationEnterpriseTestSuite) TestFMAAutoUpdateCron() {
 	require.False(t, canceled)
 }
 
+func (s *integrationEnterpriseTestSuite) TestFMAAutoUpdateCronTimeBudget() {
+	t := s.T()
+	ctx := context.Background()
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+
+	// Four Fleet-maintained apps behind a CDN that is slow but reachable, so each installer download eats into the run.
+	const downloadDelay = 400 * time.Millisecond
+	slugs := []string{"cloudflare-warp/windows", "zoom/windows", "1password/windows", "notion/windows"}
+	states := make(map[string]*fmaTestState, len(slugs))
+	for i, slug := range slugs {
+		states["/"+slug+".json"] = &fmaTestState{
+			version:        "1.0",
+			installerBytes: []byte(fmt.Sprintf("v1-%d", i)),
+			installerPath:  fmt.Sprintf("/fma-%d.msi", i),
+			installerDelay: downloadDelay,
+		}
+	}
+	startFMAServers(t, s.ds, states)
+
+	activeVersions := func(teamID uint) []string {
+		var versions []string
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, q, &versions,
+				`SELECT version FROM software_installers WHERE global_or_team_id = ? AND is_active = 1 ORDER BY title_id`, teamID)
+		})
+		return versions
+	}
+
+	var teamResp teamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{
+		Name: new("team_" + t.Name()),
+	}, http.StatusOK, &teamResp)
+	team := *teamResp.Team
+
+	software := make([]*fleet.SoftwareInstallerPayload, 0, len(slugs))
+	for _, slug := range slugs {
+		software = append(software, &fleet.SoftwareInstallerPayload{Slug: new(slug)})
+	}
+	var batchResp batchSetSoftwareInstallersResponse
+	s.DoJSON("POST", "/api/latest/fleet/software/batch",
+		batchSetSoftwareInstallersRequest{Software: software, TeamName: team.Name},
+		http.StatusAccepted, &batchResp, "team_name", team.Name, "team_id", fmt.Sprint(team.ID))
+	waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team.Name, batchResp.RequestUUID)
+	require.Equal(t, []string{"1.0", "1.0", "1.0", "1.0"}, activeVersions(team.ID))
+
+	// Every app publishes a new version at once, so each app in the run needs its own slow download.
+	for i, slug := range slugs {
+		state := &fmaTestState{
+			version:        "2.0",
+			installerBytes: []byte(fmt.Sprintf("v2-%d", i)),
+			installerPath:  fmt.Sprintf("/fma-%d.msi", i),
+			installerDelay: downloadDelay,
+		}
+		state.ComputeSHA(state.installerBytes)
+		states["/"+slug+".json"] = state
+	}
+
+	// A run whose budget covers about one download must give up when the budget is gone instead of walking the whole list.
+	budgetedCtx, cancel := context.WithTimeout(ctx, downloadDelay+downloadDelay/2)
+	defer cancel()
+	err := eeservice.AutoUpdateFleetMaintainedApps(budgetedCtx, s.ds, s.softwareInstallStore, logger)
+	require.ErrorIs(t, err, context.DeadlineExceeded)
+	require.Contains(t, activeVersions(team.ID), "1.0", "the run stopped early, so at least one app stays on the old version")
+
+	// The cancellation wedges nothing: the next run, with room to finish, advances every app.
+	require.NoError(t, eeservice.AutoUpdateFleetMaintainedApps(ctx, s.ds, s.softwareInstallStore, logger))
+	require.Equal(t, []string{"2.0", "2.0", "2.0", "2.0"}, activeVersions(team.ID))
+}
+
 func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 	t := s.T()
 	ctx := context.Background()
