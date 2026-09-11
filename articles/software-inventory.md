@@ -1,6 +1,6 @@
 # Software inventory
 
-Software inventory in Fleet collects the apps, operating systems, browser extensions, packages, IDE extensions, plugins, and binaries installed on your hosts. Vulnerability processing runs against this inventory, so software that isn't collected here can't be checked for vulnerabilities.
+Software inventory in Fleet collects the apps, operating systems, browser extensions, packages, IDE extensions, plugins, and binaries installed on your hosts. [Vulnerability (CVE) processing](https://fleetdm.com/guides/vulnerability-processing#coverage) runs against this inventory, so software that isn't collected here can't be checked for vulnerabilities.
 
 Fleet collects software inventory for the software types below. Each table says where Fleet collects that software, what it stores beyond a name and a version, and whether it matches that software to vulnerabilities (CVEs). To see exactly which software Fleet checks, see [Vulnerability processing](https://fleetdm.com/guides/vulnerability-processing#coverage).
 
