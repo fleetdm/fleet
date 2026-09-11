@@ -297,8 +297,7 @@ func TestFastPathServesHotAgentRoutes(t *testing.T) {
 }
 
 // TestFastPathAppliesRouterMiddlewareInGorillaOrder checks the router middleware that gorilla applies on a match is applied
-// again, in the same order, to a route the fast path serves. Getting this wrong would silently drop gzip, client IP
-// extraction, or HTTP signature verification for most requests.
+// again, in the same order, to a route the fast path serves.
 func TestFastPathAppliesRouterMiddlewareInGorillaOrder(t *testing.T) {
 	tag := func(name string) mux.MiddlewareFunc {
 		return func(next http.Handler) http.Handler {
@@ -328,9 +327,8 @@ func TestFastPathAppliesRouterMiddlewareInGorillaOrder(t *testing.T) {
 	require.Equal(t, viaGorilla.Header().Values("X-Middleware"), viaFastPath.Header().Values("X-Middleware"))
 }
 
-// TestFastPathExclusionsCoverEveryAmbiguousRoute fails when a route is added that a stdlib ServeMux cannot tell apart from an
-// existing one. Without an entry in fastPathExcluded for both halves the fast path would fail startup, so this keeps the list
-// in sync with the route table.
+// TestFastPathExclusionsCoverEveryAmbiguousRoute keeps fastPathExcluded in sync with the route table. It covers the drift the
+// server itself cannot report, so unlike buildFastPathMux it registers every route, the excluded ones included.
 func TestFastPathExclusionsCoverEveryAmbiguousRoute(t *testing.T) {
 	router := newRouterForTest(t)
 
@@ -391,26 +389,19 @@ func TestExpandToStdlibPatternsDedupesVersions(t *testing.T) {
 	}, patterns)
 }
 
-// TestFastPathSurvivesFeatureRoutes is the regression test for the bounded contexts. MakeHandler is called with feature route
-// functions the way cmd/fleet does, including one that repeats "latest" in its version set and one that re-registers a path the
-// core handler already owns. Neither may knock the fast path out.
-func TestFastPathSurvivesFeatureRoutes(t *testing.T) {
+// TestFastPathResolvesDuplicateRoutesLikeGorilla covers the one thing the production route table never exercises: two routes
+// registered on the same method and path. gorilla dispatches to whichever was registered first, so buildFastPathMux skips a
+// pattern already claimed rather than letting the later route win.
+func TestFastPathResolvesDuplicateRoutesLikeGorilla(t *testing.T) {
 	teapot := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusTeapot) })
 	featureRoutes := []endpointer.HandlerRoutesFunc{
-		// "latest" appears in the version list and is appended again by the endpointer, as the activity context does.
-		func(r *mux.Router, _ []kithttp.ServerOption) {
-			r.Handle("/api/{fleetversion:(?:v1|latest|latest)}/fleet/activities", teapot).
-				Methods("GET").Name("feature_activities")
-		},
-		// A second context claiming a path the core handler already registered.
+		// A bounded context claiming a path the core handler already registered.
 		func(r *mux.Router, _ []kithttp.ServerOption) {
 			r.Handle("/api/{fleetversion:(?:v1|2022-04|latest)}/fleet/config", teapot).
 				Methods("GET").Name("feature_duplicate_config")
 		},
 	}
 
-	// newAPIHandler already requires that MakeHandler returned the fast-path handler, which is the regression itself: before
-	// the version dedup, these feature routes made it fail.
 	_, router := newAPIHandler(t, config.TestConfig(), featureRoutes)
 	require.NoError(t, router.Walk(func(route *mux.Route, _ *mux.Router, _ []*mux.Route) error {
 		name := route.GetName()
@@ -420,17 +411,16 @@ func TestFastPathSurvivesFeatureRoutes(t *testing.T) {
 	handler, err := newFastPathHandler(router, nil, config.TestConfig())
 	require.NoError(t, err)
 
-	// A duplicate registration resolves the way gorilla resolves it: first one registered wins.
-	for _, path := range []string{"/api/latest/fleet/activities", "/api/v1/fleet/activities", "/api/latest/fleet/config"} {
+	for _, path := range []string{"/api/latest/fleet/config", "/api/v1/fleet/config", "/api/2022-04/fleet/config"} {
 		want, got := serve(router, "GET", path), serve(handler, "GET", path)
+		require.Equalf(t, "get_config", want.Body.String(), "gorilla should keep the core route for GET %s", path)
 		assert.Equalf(t, want.Code, got.Code, "status differs for GET %s", path)
 		assert.Equalf(t, want.Body.String(), got.Body.String(), "dispatch differs for GET %s", path)
 	}
 }
 
 // TestFastPathErrorsWhenARouteIsAmbiguous pins the loud failure. A route the stdlib mux cannot disambiguate is a programming
-// error in a compile-time-fixed route table, so it has to stop startup rather than silently switch the fast path off, and the
-// message has to tell the developer which route broke it and what to edit.
+// error in a compile-time-fixed route table, so it has to stop startup.
 func TestFastPathErrorsWhenARouteIsAmbiguous(t *testing.T) {
 	router := mux.NewRouter()
 	router.Handle("/api/v1/fleet/hosts/{id:[0-9]+}/software", noopHandler).Methods("GET").Name("get_host_software")
@@ -467,12 +457,6 @@ func TestTryRegisterRepanicsOnNonConflict(t *testing.T) {
 }
 
 // TestFastPathSpanNamesFeedTheTracingTierRegistry pins the span-naming contract end to end.
-//
-// The fast path cannot use otelmux, which names spans from the matched gorilla route, so it wraps each promoted handler with
-// otelhttp and supplies the route template itself. Both routers therefore have to produce "METHOD <gorilla template>", because
-// tracing_tiers.go classifies routes for trace sampling by span name. A promoted route whose span name drifted would miss its
-// registry entry and fall back to TierAlways, sampling a high-volume agent endpoint at 100%, so the recorded name is looked up
-// in a real registry rather than compared only to a literal.
 func TestFastPathSpanNamesFeedTheTracingTierRegistry(t *testing.T) {
 	recorder := tracetest.NewSpanRecorder()
 	previous := otel.GetTracerProvider()
