@@ -171,7 +171,7 @@ If the host can't set the new password, the managed account modal says the rotat
 password it received. The reason the host reported is on the failed rotation entry in **Host details** > **Activity**.
 
 Fleet does not try again on its own. The request is cleared and the automatic rotation timer is turned off, so nothing changes
-until someone presses **Rotate password** again. Fix the cause first: see Troubleshoot the managed local account below for the
+until someone presses **Rotate password** again. Fix the cause first: see [Troubleshoot the managed local account](#Troubleshoot the managed local account) for the
 failures a host can report.
 
 ### Sign in as the managed account
