@@ -136,4 +136,64 @@ describe("Software operating systems table", () => {
       expect.stringContaining("platform=darwin")
     );
   });
+
+  it("resets the sort indicator to the new default when the platform (and its default sort) changes, instead of leaving it on the previous platform's sort", () => {
+    const data = createMockOSVersionsResponse({
+      count: 1,
+      os_versions: [
+        createMockOSVersion({
+          os_version_id: 1,
+          platform: "darwin",
+          hosts_count: 10,
+        }),
+      ],
+    });
+
+    const { rerender, container } = render(
+      <SoftwareOSTable
+        router={mockRouter}
+        isSoftwareEnabled
+        data={data}
+        perPage={20}
+        orderDirection="desc"
+        orderKey="version"
+        currentPage={0}
+        teamId={1}
+        isLoading={false}
+        platform="darwin"
+      />
+    );
+
+    expect(
+      container.querySelector(".version__header .header-cell")
+    ).toHaveClass("descending");
+    expect(
+      container.querySelector(".hosts_count__header .header-cell")
+    ).not.toHaveClass("descending", "ascending");
+
+    // Simulate SoftwarePage recomputing its platform-dependent default
+    // after the platform filter changes (order_key/order_direction reset,
+    // a different platform now selected).
+    rerender(
+      <SoftwareOSTable
+        router={mockRouter}
+        isSoftwareEnabled
+        data={data}
+        perPage={20}
+        orderDirection="desc"
+        orderKey="hosts_count"
+        currentPage={0}
+        teamId={1}
+        isLoading={false}
+        platform="windows"
+      />
+    );
+
+    expect(
+      container.querySelector(".hosts_count__header .header-cell")
+    ).toHaveClass("descending");
+    expect(
+      container.querySelector(".version__header .header-cell")
+    ).not.toHaveClass("descending", "ascending");
+  });
 });

@@ -250,6 +250,12 @@ const SoftwareOSTable = ({
   return (
     <div className={baseClass}>
       <TableContainer
+        // Remounts on platform change so TableContainer/react-table re-reads
+        // defaultSortHeader/defaultSortDirection as fresh initial state
+        // (they're otherwise only read once, at mount) instead of leaving
+        // the sort indicator stuck on the previous platform's sort after
+        // SoftwarePage recomputes its platform-dependent default.
+        key={platform}
         columnConfigs={softwareTableHeaders}
         data={data?.os_versions ?? []}
         isLoading={isLoading}
