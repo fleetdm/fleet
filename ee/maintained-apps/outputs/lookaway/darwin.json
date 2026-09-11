@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "2.4.5",
+      "version": "2.4.6",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.mysticalbits.lookaway';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.mysticalbits.lookaway' AND version_compare(bundle_short_version, '2.4.5') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.mysticalbits.lookaway' AND version_compare(bundle_short_version, '2.4.6') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.mysticalbits.lookaway' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/mysticalbits/lookaway-releases/releases/download/2.4.5/LookAway.dmg",
+      "installer_url": "https://github.com/mysticalbits/lookaway-releases/releases/download/2.4.6/LookAway.dmg",
       "install_script_ref": "693c5e6c",
       "uninstall_script_ref": "edb6da69",
-      "sha256": "ce0f31434ac88a8374af82c2ec91d1f49d46293bbe69bdecb064075f5f9d3229",
+      "sha256": "77a80b4b11e30417c4fb7922920caed752a69c0ee7ab166c5c66d2c4a19769f5",
       "default_categories": [
         "Productivity"
       ]
