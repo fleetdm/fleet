@@ -1,0 +1,45 @@
+{{- if and .Values.gatewayApi.enabled .Values.gatewayApi.gateway.enabled -}}
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: {{ include "fleet.fullname" . }}-gateway
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "fleet.labels" . | nindent 4 }}
+    {{- with .Values.gatewayApi.gateway.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  {{- with .Values.gatewayApi.gateway.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  gatewayClassName: {{ .Values.gatewayApi.gateway.className }}
+  {{- with .Values.gatewayApi.gateway.addresses }}
+  addresses:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  listeners:
+    {{- if .Values.gatewayApi.gateway.listeners }}
+    {{- toYaml .Values.gatewayApi.gateway.listeners | nindent 4 }}
+    {{- else }}
+    - name: http
+      protocol: HTTP
+      port: 80
+      allowedRoutes:
+        namespaces:
+          from: Same
+    {{- if .Values.gatewayApi.gateway.tls }}
+    - name: https
+      protocol: HTTPS
+      port: 443
+      tls:
+        mode: Terminate
+        certificateRefs:
+          {{- toYaml .Values.gatewayApi.gateway.tls.certificateRefs | nindent 10 }}
+      allowedRoutes:
+        namespaces:
+          from: Same
+    {{- end }}
+    {{- end }}
+{{- end }}
