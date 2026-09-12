@@ -1,6 +1,12 @@
-import React from "react";
+import React, { useState } from "react";
 import { noop } from "lodash";
-import { render, screen, fireEvent, act } from "@testing-library/react";
+import {
+  render,
+  screen,
+  fireEvent,
+  act,
+  waitFor,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import Modal from "./Modal";
@@ -188,5 +194,143 @@ describe("Modal", () => {
     await clickBackground(background);
     act(() => jest.runAllTimers());
     expect(onExit).not.toHaveBeenCalled();
+  });
+
+  describe("focus management", () => {
+    beforeEach(() => jest.useRealTimers());
+
+    it("focuses the modal container on open, not any interactive child", async () => {
+      const { container } = render(
+        <Modal title="Confirm" onExit={noop}>
+          <>
+            <button type="button">Submit</button>
+            <button type="button">Cancel</button>
+          </>
+        </Modal>
+      );
+
+      const modalContainer = container.querySelector(".modal__modal_container");
+      await waitFor(() => {
+        expect(modalContainer).toHaveFocus();
+      });
+      expect(screen.getByRole("button", { name: "Submit" })).not.toHaveFocus();
+    });
+
+    it("does not steal focus from a child that autofocused itself", async () => {
+      const Autofocused = () => {
+        const ref = React.useRef<HTMLInputElement>(null);
+        React.useEffect(() => {
+          ref.current?.focus();
+        }, []);
+        return <input ref={ref} data-testid="autofocused" />;
+      };
+
+      render(
+        <Modal title="Confirm" onExit={noop}>
+          <Autofocused />
+        </Modal>
+      );
+
+      const autofocused = screen.getByTestId("autofocused");
+      await waitFor(() => expect(autofocused).toHaveFocus());
+    });
+
+    it("does not steal focus on mount when isHidden (stacked modal on top)", () => {
+      render(
+        <>
+          <button type="button" data-testid="stacked">
+            Stacked modal control
+          </button>
+          <Modal title="Bottom" isHidden onExit={noop}>
+            <button type="button">Submit</button>
+          </Modal>
+        </>
+      );
+
+      const stacked = screen.getByTestId("stacked");
+      stacked.focus();
+      expect(stacked).toHaveFocus();
+    });
+
+    it("does not close on Escape while isHidden", () => {
+      const onExit = jest.fn();
+      render(
+        <Modal title="Bottom" isHidden onExit={onExit}>
+          <div>content</div>
+        </Modal>
+      );
+
+      fireEvent.keyDown(document, { key: "Escape" });
+      expect(onExit).not.toHaveBeenCalled();
+    });
+
+    it("does not fire onEnter for autorepeated Enter keys", () => {
+      const onEnter = jest.fn();
+      render(
+        <Modal title="Confirm" onEnter={onEnter} onExit={noop}>
+          <div>content</div>
+        </Modal>
+      );
+
+      // The trigger button's Enter is still down when the modal mounts and
+      // this listener attaches; the browser's autorepeat fires more keydowns
+      // with event.repeat === true. Those must not fire onEnter.
+      fireEvent.keyDown(document, { code: "Enter", repeat: true });
+      expect(onEnter).not.toHaveBeenCalled();
+
+      // A fresh Enter (repeat: false) is a real user intent — fires.
+      fireEvent.keyDown(document, { code: "Enter", repeat: false });
+      expect(onEnter).toHaveBeenCalledTimes(1);
+    });
+
+    it("restores focus to the previously focused element on close", async () => {
+      const Wrapper = () => {
+        const [open, setOpen] = useState(false);
+        return (
+          <>
+            <button
+              type="button"
+              onClick={() => setOpen(true)}
+              data-testid="trigger"
+            >
+              Open
+            </button>
+            {open && (
+              <Modal title="Confirm" onExit={() => setOpen(false)}>
+                <button type="button" onClick={() => setOpen(false)}>
+                  Close from inside
+                </button>
+              </Modal>
+            )}
+          </>
+        );
+      };
+
+      const user = userEvent.setup();
+      render(<Wrapper />);
+      const trigger = screen.getByTestId("trigger");
+      trigger.focus();
+      expect(trigger).toHaveFocus();
+
+      await user.click(trigger);
+      // Container is now focused (not the interior button).
+      await waitFor(() => {
+        expect(
+          screen.getByRole("button", { name: "Close from inside" })
+        ).not.toHaveFocus();
+      });
+
+      await user.click(
+        screen.getByRole("button", { name: "Close from inside" })
+      );
+      await waitFor(() => {
+        expect(
+          screen.queryByRole("button", { name: "Close from inside" })
+        ).not.toBeInTheDocument();
+      });
+      await waitFor(() => {
+        expect(trigger).toHaveFocus();
+      });
+    });
   });
 });
