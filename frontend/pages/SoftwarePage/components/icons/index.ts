@@ -980,6 +980,7 @@ import Steermouse from "./png/Steermouse.png";
 import Stellarium from "./png/Stellarium.png";
 import Stillcolor from "./png/Stillcolor.png";
 import Stretchly from "./png/Stretchly.png";
+import StrictLLMChat from "./png/StrictLLMChat.png";
 import SublimeMerge from "./png/SublimeMerge.png";
 import SublimeText from "./png/SublimeText.png";
 import Supercollider from "./png/Supercollider.png";
@@ -2164,6 +2165,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   stillcolor: Stillcolor,
   "stream deck": ElgatoStreamDeck,
   stretchly: Stretchly,
+  "strictllm chat": StrictLLMChat,
   "sublime merge": SublimeMerge,
   "sublime text": SublimeText,
   "super productivity": SuperProductivity,
