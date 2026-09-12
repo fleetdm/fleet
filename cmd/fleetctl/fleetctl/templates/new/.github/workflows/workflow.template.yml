@@ -6,7 +6,12 @@ on:
       - main
     paths:
       - "**"
-  pull_request:
+  # pull_request_target (not pull_request) so the workflow, action, and
+  # gitops.sh always run from the default branch: this job has secrets in its
+  # environment, and a pull_request run executes PR-controlled code that could
+  # exfiltrate them (log masking doesn't stop e.g. curl to an attacker's
+  # server). The PR's config is checked out separately below as data only.
+  pull_request_target:
     paths:
       - "**"
   workflow_dispatch: # allows manual triggering
@@ -29,9 +34,24 @@ permissions:
 jobs:
   fleet-gitops:
     runs-on: ubuntu-latest
+    # Fork PRs get no secrets under pull_request; keep that true under
+    # pull_request_target (which would otherwise grant them) by skipping forks.
+    if: github.event_name != 'pull_request_target' || github.event.pull_request.head.repo.full_name == github.repository
     steps:
+      # On pull_request_target this checks out the default branch, so the
+      # fleet-gitops action and gitops.sh below run trusted code.
       - name: Checkout this repository
         uses: actions/checkout@v6
+
+      # The PR's config is data for fleetctl gitops --dry-run; nothing under
+      # this path is executed.
+      - name: Checkout pull request configuration
+        if: github.event_name == 'pull_request_target'
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          path: untrusted-pr
+          persist-credentials: false
 
       - name: Make github action script executable
         run: chmod +x ./.github/fleet-gitops/gitops.sh
@@ -40,11 +60,13 @@ jobs:
         uses: ./.github/fleet-gitops
         with:
           # Run GitOps in dry-run mode for pull requests.
-          dry-run-only: ${{ github.event_name == 'pull_request' && 'true' || 'false' }}
+          dry-run-only: ${{ github.event_name == 'pull_request_target' && 'true' || 'false' }}
 
         # These environment variables can be set as repository secrets,
         # alongside any other environment variables mentioned in your .yml files.
         env:
+          # On pull requests, validate the PR's config; otherwise use this checkout.
+          FLEET_GITOPS_DIR: ${{ github.event_name == 'pull_request_target' && format('{0}/untrusted-pr', github.workspace) || github.workspace }}
           ###########################################################
           # The server URL where Fleet is running.
           #
