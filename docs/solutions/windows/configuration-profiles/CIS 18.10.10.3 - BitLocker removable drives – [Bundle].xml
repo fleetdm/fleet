@@ -1,0 +1,51 @@
+<!-- CIS 18.10.10.3.1 Deny access from earlier Windows to removable drives: no direct CSP -->
+<Replace>
+  <!-- CIS 18.10.10.3.2–3.9 Removable drive recovery options
+       18.10.10.3.3 Allow data recovery agent: True
+       18.10.10.3.4 Do not allow 48-digit recovery password
+       18.10.10.3.5 Do not allow 256-bit recovery key
+       18.10.10.3.6 Omit recovery options from wizard: True
+       18.10.10.3.7 Save to AD DS: False
+       18.10.10.3.8 Backup recovery passwords and key packages: Store passwords and key packages
+       18.10.10.3.9 Do not enable BitLocker until recovery info stored: False -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/BitLocker/RemovableDataDrivesRecoveryOptions</LocURI>
+    </Target>
+    <Data><![CDATA[<enabled/>
+<data id="RDVAllowDRA_Name" value="true"/>
+<data id="RDVRecoveryPasswordUsageDropDown_Name" value="0"/>
+<data id="RDVRecoveryKeyUsageDropDown_Name" value="0"/>
+<data id="RDVHideRecoveryPage_Name" value="true"/>
+<data id="RDVActiveDirectoryBackup_Name" value="false"/>
+<data id="RDVActiveDirectoryBackupDropDown_Name" value="1"/>
+<data id="RDVRequireActiveDirectoryBackup_Name" value="false"/>]]></Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- CIS 18.10.10.3.10 Disable hardware encryption for removable drives (use software encryption) -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/BitLocker/RemovableDrivesEncryptionType</LocURI>
+    </Target>
+    <Data><![CDATA[<enabled/><data id="RDVEncryptionType_Name" value="1"/>]]></Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- CIS 18.10.10.3.14–3.15 Deny write access to unprotected removable drives -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/BitLocker/RemovableDrivesRequireEncryption</LocURI>
+    </Target>
+    <Data><![CDATA[<enabled/><data id="RDVDenyCrossOrg_Name" value="false"/>]]></Data>
+  </Item>
+</Replace>

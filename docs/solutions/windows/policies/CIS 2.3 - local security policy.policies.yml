@@ -1,0 +1,487 @@
+- name: CIS 2.3.1.3 - Rename administrator account
+  platform: windows
+  description: "Ensure 'Accounts: Rename administrator account' is configured. The built-in Administrator account should be renamed to reduce attack surface."
+  resolution: "Run the remediation script to rename the Administrator account via Local Security Policy."
+  query: SELECT 1 FROM users WHERE uid = 500 AND username != 'Administrator';
+  run_script:
+    path: "../scripts/configure-local-security-policy.ps1"
+
+- name: CIS 2.3.1.4 - Rename guest account
+  platform: windows
+  description: "Ensure 'Accounts: Rename guest account' is configured. The built-in Guest account should be renamed to reduce attack surface."
+  resolution: "Run the remediation script to rename the Guest account via Local Security Policy."
+  query: SELECT 1 FROM users WHERE uid = 501 AND username != 'Guest';
+  run_script:
+    path: "../scripts/configure-local-security-policy.ps1"
+
+- name: CIS 2.3.2.1 - Force audit policy subcategory settings
+  platform: windows
+  description: "Ensure 'Audit: Force audit policy subcategory settings (Windows Vista or later) to override audit policy category settings' is set to 'Enabled'."
+  resolution: "Run the remediation script to enable this setting via Local Security Policy."
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Lsa\SCENoApplyLegacyAuditPolicy' AND data = '1';
+  run_script:
+    path: "../scripts/configure-local-security-policy.ps1"
+
+- name: CIS 2.3.2.2 - Shut down system if unable to log security audits
+  platform: windows
+  description: "Ensure 'Audit: Shut down system immediately if unable to log security audits' is set to 'Disabled'."
+  resolution: "Run the remediation script to disable this setting via Local Security Policy."
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Lsa\CrashOnAuditFail' AND data = '0';
+  run_script:
+    path: "../scripts/configure-local-security-policy.ps1"
+
+- name: CIS 2.3.4.1 - Prevent users from installing printer drivers
+  platform: windows
+  description: "Ensure 'Devices: Prevent users from installing printer drivers' is set to 'Enabled' (Level 2)."
+  resolution: "Run the remediation script to enable this setting via Local Security Policy."
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Print\Providers\LanMan Print Services\Servers\AddPrinterDrivers' AND data = '1';
+  run_script:
+    path: "../scripts/configure-local-security-policy.ps1"
+
+- name: CIS 2.3.6.1 - Digitally encrypt or sign secure channel data (always)
+  platform: windows
+  description: "Ensure 'Domain member: Digitally encrypt or sign secure channel data (always)' is set to 'Enabled'."
+  resolution: "Run the remediation script to enable this setting via Local Security Policy."
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Netlogon\Parameters\RequireSignOrSeal' AND data = '1';
+  run_script:
+    path: "../scripts/configure-local-security-policy.ps1"
+
+- name: CIS 2.3.6.2 - Digitally encrypt secure channel data (when possible)
+  platform: windows
+  description: "Ensure 'Domain member: Digitally encrypt secure channel data (when possible)' is set to 'Enabled'."
+  resolution: "Run the remediation script to enable this setting via Local Security Policy."
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Netlogon\Parameters\SealSecureChannel' AND data = '1';
+  run_script:
+    path: "../scripts/configure-local-security-policy.ps1"
+
+- name: CIS 2.3.6.3 - Digitally sign secure channel data (when possible)
+  platform: windows
+  description: "Ensure 'Domain member: Digitally sign secure channel data (when possible)' is set to 'Enabled'."
+  resolution: "Run the remediation script to enable this setting via Local Security Policy."
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Netlogon\Parameters\SignSecureChannel' AND data = '1';
+  run_script:
+    path: "../scripts/configure-local-security-policy.ps1"
+
+- name: CIS 2.3.6.4 - Disable machine account password changes
+  platform: windows
+  description: "Ensure 'Domain member: Disable machine account password changes' is set to 'Disabled'."
+  resolution: "Run the remediation script to disable this setting via Local Security Policy."
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Netlogon\Parameters\DisablePasswordChange' AND data = '0';
+  run_script:
+    path: "../scripts/configure-local-security-policy.ps1"
+
+- name: CIS 2.3.6.5 - Maximum machine account password age
+  platform: windows
+  description: "Ensure 'Domain member: Maximum machine account password age' is set to '30 days or less'."
+  resolution: "Run the remediation script to configure this setting via Local Security Policy."
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Netlogon\Parameters\MaximumPasswordAge' AND CAST(data AS INTEGER) BETWEEN 1 AND 30;
+  run_script:
+    path: "../scripts/configure-local-security-policy.ps1"
+
+- name: CIS 2.3.6.6 - Require strong session key
+  platform: windows
+  description: "Ensure 'Domain member: Require strong (Windows 2000 or later) session key' is set to 'Enabled'."
+  resolution: "Run the remediation script to enable this setting via Local Security Policy."
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Netlogon\Parameters\RequireStrongKey' AND data = '1';
+  run_script:
+    path: "../scripts/configure-local-security-policy.ps1"
+
+- name: CIS 2.3.7.1 - Do not require CTRL+ALT+DEL
+  platform: windows
+  description: "Ensure 'Interactive logon: Do not require CTRL+ALT+DEL' is set to 'Disabled' (CTRL+ALT+DEL required)."
+  resolution: "Run the remediation script to require CTRL+ALT+DEL via Local Security Policy."
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System\DisableCAD' AND data = '0';
+  run_script:
+    path: "../scripts/configure-local-security-policy.ps1"
+
+- name: CIS 2.3.7.3 - Machine account lockout threshold
+  platform: windows
+  description: "Ensure 'Interactive logon: Machine account lockout threshold' is set to '10 or fewer invalid logon attempts' (Benchmark Level)."
+  resolution: "Run the remediation script to configure this setting via Local Security Policy."
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System\MaxDevicePasswordFailedAttempts' AND CAST(data AS INTEGER) BETWEEN 1 AND 10;
+  run_script:
+    path: "../scripts/configure-local-security-policy.ps1"
+
+- name: CIS 2.3.7.5 - Message text for logon
+  platform: windows
+  description: "Ensure 'Interactive logon: Message text for users attempting to log on' is configured (non-empty)."
+  resolution: "Run the remediation script to configure the logon message text via Local Security Policy."
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System\LegalNoticeText' AND length(data) > 0;
+  run_script:
+    path: "../scripts/configure-local-security-policy.ps1"
+
+- name: CIS 2.3.7.6 - Message title for logon
+  platform: windows
+  description: "Ensure 'Interactive logon: Message title for users attempting to log on' is configured (non-empty)."
+  resolution: "Run the remediation script to configure the logon message title via Local Security Policy."
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System\LegalNoticeCaption' AND length(data) > 0;
+  run_script:
+    path: "../scripts/configure-local-security-policy.ps1"
+
+- name: CIS 2.3.7.7 - Cache logons
+  platform: windows
+  description: "Ensure 'Interactive logon: Number of previous logons to cache (in case domain controller is not available)' is set to '4 or fewer logons' (Level 2)."
+  resolution: "Run the remediation script to configure this setting via Local Security Policy."
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon\CachedLogonsCount' AND CAST(data AS INTEGER) <= 4;
+  run_script:
+    path: "../scripts/configure-local-security-policy.ps1"
+
+- name: CIS 2.3.7.8 - Prompt password change before expiration
+  platform: windows
+  description: "Ensure 'Interactive logon: Prompt user to change password before expiration' is set to '5 to 14 days'."
+  resolution: "Run the remediation script to configure this setting via Local Security Policy."
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon\PasswordExpiryWarning' AND CAST(data AS INTEGER) BETWEEN 5 AND 14;
+  run_script:
+    path: "../scripts/configure-local-security-policy.ps1"
+
+- name: CIS 2.3.7.9 - Smart card removal behavior
+  platform: windows
+  description: "Ensure 'Interactive logon: Smart card removal behavior' is set to 'Lock Workstation'."
+  resolution: "Run the remediation script to configure this setting via Local Security Policy."
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon\ScRemoveOption' AND CAST(data AS INTEGER) >= 1;
+  run_script:
+    path: "../scripts/configure-local-security-policy.ps1"
+
+- name: CIS 2.3.8.1 - SMB client digitally sign (always)
+  platform: windows
+  description: "Ensure 'Microsoft network client: Digitally sign communications (always)' is set to 'Enabled'."
+  resolution: "Run the remediation script to enable this setting via Local Security Policy."
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\LanmanWorkstation\Parameters\RequireSecuritySignature' AND data = '1';
+  run_script:
+    path: "../scripts/configure-local-security-policy.ps1"
+
+- name: CIS 2.3.8.2 - SMB client digitally sign (if server agrees)
+  platform: windows
+  description: "Ensure 'Microsoft network client: Digitally sign communications (if server agrees)' is set to 'Enabled'."
+  resolution: "Run the remediation script to enable this setting via Local Security Policy."
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\LanmanWorkstation\Parameters\EnableSecuritySignature' AND data = '1';
+  run_script:
+    path: "../scripts/configure-local-security-policy.ps1"
+
+- name: CIS 2.3.8.3 - Send unencrypted password to SMB servers
+  platform: windows
+  description: "Ensure 'Microsoft network client: Send unencrypted password to third-party SMB servers' is set to 'Disabled'."
+  resolution: "Run the remediation script to disable this setting via Local Security Policy."
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\LanmanWorkstation\Parameters\EnablePlainTextPassword' AND data = '0';
+  run_script:
+    path: "../scripts/configure-local-security-policy.ps1"
+
+- name: CIS 2.3.9.1 - Idle time before suspending session
+  platform: windows
+  description: "Ensure 'Microsoft network server: Amount of idle time required before suspending session' is set to '15 minutes or less'."
+  resolution: "Run the remediation script to configure this setting via Local Security Policy."
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\LanManServer\Parameters\AutoDisconnect' AND CAST(data AS INTEGER) <= 15;
+  run_script:
+    path: "../scripts/configure-local-security-policy.ps1"
+
+- name: CIS 2.3.9.2 - SMB server digitally sign (always)
+  platform: windows
+  description: "Ensure 'Microsoft network server: Digitally sign communications (always)' is set to 'Enabled'."
+  resolution: "Run the remediation script to enable this setting via Local Security Policy."
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\LanManServer\Parameters\RequireSecuritySignature' AND data = '1';
+  run_script:
+    path: "../scripts/configure-local-security-policy.ps1"
+
+- name: CIS 2.3.9.3 - SMB server digitally sign (if client agrees)
+  platform: windows
+  description: "Ensure 'Microsoft network server: Digitally sign communications (if client agrees)' is set to 'Enabled'."
+  resolution: "Run the remediation script to enable this setting via Local Security Policy."
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\LanManServer\Parameters\EnableSecuritySignature' AND data = '1';
+  run_script:
+    path: "../scripts/configure-local-security-policy.ps1"
+
+- name: CIS 2.3.9.4 - Disconnect clients when logon hours expire
+  platform: windows
+  description: "Ensure 'Microsoft network server: Disconnect clients when logon hours expire' is set to 'Enabled'."
+  resolution: "Run the remediation script to enable this setting via Local Security Policy."
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\LanManServer\Parameters\EnableForcedLogOff' AND data = '1';
+  run_script:
+    path: "../scripts/configure-local-security-policy.ps1"
+
+- name: CIS 2.3.9.5 - Server SPN target name validation level
+  platform: windows
+  description: "Ensure 'Microsoft network server: Server SPN target name validation level' is set to 'Accept if provided by client' or higher."
+  resolution: "Run the remediation script to configure this setting via Local Security Policy."
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\LanManServer\Parameters\SMBServerNameHardeningLevel' AND CAST(data AS INTEGER) >= 1;
+  run_script:
+    path: "../scripts/configure-local-security-policy.ps1"
+
+- name: CIS 2.3.10.1 - Allow anonymous SID/Name translation
+  platform: windows
+  description: "Ensure 'Network access: Allow anonymous SID/Name translation' is set to 'Disabled'."
+  resolution: "Run the remediation script to disable this setting via Local Security Policy."
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Lsa\TurnOffAnonymousBlock' AND data = '1';
+  run_script:
+    path: "../scripts/configure-local-security-policy.ps1"
+
+- name: CIS 2.3.10.2 - Do not allow anonymous enumeration of SAM accounts
+  platform: windows
+  description: "Ensure 'Network access: Do not allow anonymous enumeration of SAM accounts' is set to 'Enabled'."
+  resolution: "Run the remediation script to enable this setting via Local Security Policy."
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Lsa\RestrictAnonymousSAM' AND data = '1';
+  run_script:
+    path: "../scripts/configure-local-security-policy.ps1"
+
+- name: CIS 2.3.10.3 - Do not allow anonymous enumeration of SAM accounts and shares
+  platform: windows
+  description: "Ensure 'Network access: Do not allow anonymous enumeration of SAM accounts and shares' is set to 'Enabled'."
+  resolution: "Run the remediation script to enable this setting via Local Security Policy."
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Lsa\RestrictAnonymous' AND data = '1';
+  run_script:
+    path: "../scripts/configure-local-security-policy.ps1"
+
+- name: CIS 2.3.10.4 - Do not allow storage of passwords for network auth
+  platform: windows
+  description: "Ensure 'Network access: Do not allow storage of passwords and credentials for network authentication' is set to 'Enabled'."
+  resolution: "Run the remediation script to enable this setting via Local Security Policy."
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Lsa\DisableDomainCreds' AND data = '1';
+  run_script:
+    path: "../scripts/configure-local-security-policy.ps1"
+
+- name: CIS 2.3.10.5 - Let Everyone permissions apply to anonymous users
+  platform: windows
+  description: "Ensure 'Network access: Let Everyone permissions apply to anonymous users' is set to 'Disabled'."
+  resolution: "Run the remediation script to disable this setting via Local Security Policy."
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Lsa\EveryoneIncludesAnonymous' AND data = '0';
+  run_script:
+    path: "../scripts/configure-local-security-policy.ps1"
+
+- name: CIS 2.3.10.6 - Named Pipes accessible anonymously
+  platform: windows
+  description: "Ensure 'Network access: Named Pipes that can be accessed anonymously' is set to 'None' (empty)."
+  resolution: "Run the remediation script to configure this setting via Local Security Policy."
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\LanManServer\Parameters\NullSessionPipes' AND (data = '' OR data IS NULL);
+  run_script:
+    path: "../scripts/configure-local-security-policy.ps1"
+
+- name: CIS 2.3.10.7 - Remotely accessible registry paths
+  platform: windows
+  description: "Ensure 'Network access: Remotely accessible registry paths' is configured."
+  resolution: "Run the remediation script to configure this setting via Local Security Policy."
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\SecurePipeServers\Winreg\AllowedExactPaths\Machine';
+  run_script:
+    path: "../scripts/configure-local-security-policy.ps1"
+
+- name: CIS 2.3.10.8 - Remotely accessible registry paths and sub-paths
+  platform: windows
+  description: "Ensure 'Network access: Remotely accessible registry paths and sub-paths' is configured."
+  resolution: "Run the remediation script to configure this setting via Local Security Policy."
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\SecurePipeServers\Winreg\AllowedPaths\Machine';
+  run_script:
+    path: "../scripts/configure-local-security-policy.ps1"
+
+- name: CIS 2.3.10.9 - Restrict anonymous access to Named Pipes and Shares
+  platform: windows
+  description: "Ensure 'Network access: Restrict anonymous access to Named Pipes and Shares' is set to 'Enabled'."
+  resolution: "Run the remediation script to enable this setting via Local Security Policy."
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\LanManServer\Parameters\RestrictNullSessAccess' AND data = '1';
+  run_script:
+    path: "../scripts/configure-local-security-policy.ps1"
+
+- name: CIS 2.3.10.10 - Restrict clients allowed to make remote calls to SAM
+  platform: windows
+  description: "Ensure 'Network access: Restrict clients allowed to make remote calls to SAM' is configured with appropriate security descriptor."
+  resolution: "Run the remediation script to configure this setting via Local Security Policy."
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Lsa\RestrictRemoteSAM' AND data LIKE '%A;;RC;;;BA%';
+  run_script:
+    path: "../scripts/configure-local-security-policy.ps1"
+
+- name: CIS 2.3.10.11 - Shares accessible anonymously
+  platform: windows
+  description: "Ensure 'Network access: Shares that can be accessed anonymously' is set to 'None'."
+  resolution: "Run the remediation script to configure this setting via Local Security Policy."
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\LanManServer\Parameters\NullSessionShares' AND (data = '' OR data IS NULL);
+  run_script:
+    path: "../scripts/configure-local-security-policy.ps1"
+
+- name: CIS 2.3.10.12 - Sharing and security model for local accounts
+  platform: windows
+  description: "Ensure 'Network access: Sharing and security model for local accounts' is set to 'Classic - local users authenticate as themselves'."
+  resolution: "Run the remediation script to configure this setting via Local Security Policy."
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Lsa\ForceGuest' AND data = '0';
+  run_script:
+    path: "../scripts/configure-local-security-policy.ps1"
+
+- name: CIS 2.3.11.1 - Allow Local System to use computer identity for NTLM
+  platform: windows
+  description: "Ensure 'Network security: Allow Local System to use computer identity for NTLM' is set to 'Enabled'."
+  resolution: "Run the remediation script to enable this setting via Local Security Policy."
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Lsa\UseMachineId' AND data = '1';
+  run_script:
+    path: "../scripts/configure-local-security-policy.ps1"
+
+- name: CIS 2.3.11.2 - Allow LocalSystem NULL session fallback
+  platform: windows
+  description: "Ensure 'Network security: Allow LocalSystem NULL session fallback' is set to 'Disabled'."
+  resolution: "Run the remediation script to disable this setting via Local Security Policy."
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Lsa\MSV1_0\AllowNullSessionFallback' AND data = '0';
+  run_script:
+    path: "../scripts/configure-local-security-policy.ps1"
+
+- name: CIS 2.3.11.3 - Allow PKU2U authentication
+  platform: windows
+  description: "Ensure 'Network security: Allow PKU2U authentication requests to this computer to use online identities' is set to 'Disabled'."
+  resolution: "Run the remediation script to disable this setting via Local Security Policy."
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Lsa\pku2u\AllowOnlineID' AND data = '0';
+  run_script:
+    path: "../scripts/configure-local-security-policy.ps1"
+
+- name: CIS 2.3.11.4 - Kerberos encryption types
+  platform: windows
+  description: "Ensure 'Network security: Configure encryption types allowed for Kerberos' is set to 'AES128_HMAC_SHA1, AES256_HMAC_SHA1, Future encryption types'."
+  resolution: "Run the remediation script to configure this setting via Local Security Policy."
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System\Kerberos\Parameters\SupportedEncryptionTypes' AND CAST(data AS INTEGER) = 2147483640;
+  run_script:
+    path: "../scripts/configure-local-security-policy.ps1"
+
+- name: CIS 2.3.11.5 - Do not store LAN Manager hash
+  platform: windows
+  description: "Ensure 'Network security: Do not store LAN Manager hash value on next password change' is set to 'Enabled'."
+  resolution: "Run the remediation script to enable this setting via Local Security Policy."
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Lsa\NoLMHash' AND data = '1';
+  run_script:
+    path: "../scripts/configure-local-security-policy.ps1"
+
+- name: CIS 2.3.11.6 - Force logoff when logon hours expire
+  platform: windows
+  description: "Ensure 'Network security: Force logoff when logon hours expire' is set to 'Enabled'."
+  resolution: "Run the remediation script to enable this setting via Local Security Policy."
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\LanManServer\Parameters\EnableForcedLogOff' AND data = '1';
+  run_script:
+    path: "../scripts/configure-local-security-policy.ps1"
+
+- name: CIS 2.3.11.8 - LDAP client encryption requirements
+  platform: windows
+  description: "Ensure 'Network security: LDAP client signing requirements' is set to 'Negotiate signing' or higher."
+  resolution: "Run the remediation script to configure this setting via Local Security Policy."
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\LDAP\LDAPClientIntegrity' AND CAST(data AS INTEGER) >= 1;
+  run_script:
+    path: "../scripts/configure-local-security-policy.ps1"
+
+- name: CIS 2.3.11.9 - LDAP client signing requirements
+  platform: windows
+  description: "Ensure 'Network security: LDAP client signing requirements' is set to 'Negotiate signing' or higher."
+  resolution: "Run the remediation script to configure this setting via Local Security Policy."
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\LDAP\LDAPClientIntegrity' AND CAST(data AS INTEGER) >= 1;
+  run_script:
+    path: "../scripts/configure-local-security-policy.ps1"
+
+- name: CIS 2.3.11.10 - Minimum session security for NTLM SSP clients
+  platform: windows
+  description: "Ensure 'Network security: Minimum session security for NTLM SSP based (including secure RPC) clients' is set to 'Require NTLMv2 session security' and 'Require 128-bit encryption'."
+  resolution: "Run the remediation script to configure this setting via Local Security Policy."
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Lsa\MSV1_0\NtlmMinClientSec' AND data = '537395200';
+  run_script:
+    path: "../scripts/configure-local-security-policy.ps1"
+
+- name: CIS 2.3.11.11 - Minimum session security for NTLM SSP servers
+  platform: windows
+  description: "Ensure 'Network security: Minimum session security for NTLM SSP based (including secure RPC) servers' is set to 'Require NTLMv2 session security' and 'Require 128-bit encryption'."
+  resolution: "Run the remediation script to configure this setting via Local Security Policy."
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Lsa\MSV1_0\NtlmMinServerSec' AND data = '537395200';
+  run_script:
+    path: "../scripts/configure-local-security-policy.ps1"
+
+- name: CIS 2.3.11.12 - Restrict NTLM Audit Incoming Traffic
+  platform: windows
+  description: "Ensure 'Network security: Restrict NTLM: Audit Incoming NTLM Traffic' is set to 'Enable auditing for all accounts'."
+  resolution: "Run the remediation script to configure this setting via Local Security Policy."
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Lsa\MSV1_0\AuditReceivingNTLMTraffic' AND data = '2';
+  run_script:
+    path: "../scripts/configure-local-security-policy.ps1"
+
+- name: CIS 2.3.11.13 - Restrict NTLM Outgoing traffic
+  platform: windows
+  description: "Ensure 'Network security: Restrict NTLM: Outgoing NTLM traffic to remote servers' is set to 'Audit all' or higher."
+  resolution: "Run the remediation script to configure this setting via Local Security Policy."
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Lsa\MSV1_0\RestrictSendingNTLMTraffic' AND CAST(data AS INTEGER) >= 1;
+  run_script:
+    path: "../scripts/configure-local-security-policy.ps1"
+
+- name: CIS 2.3.14.1 - Force strong key protection
+  platform: windows
+  description: "Ensure 'System cryptography: Force strong key protection for user keys stored on the computer' is set to 'User input is required when new keys are stored and used' or higher (Level 2)."
+  resolution: "Run the remediation script to configure this setting via Local Security Policy."
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Cryptography\ForceKeyProtection' AND CAST(data AS INTEGER) >= 1;
+  run_script:
+    path: "../scripts/configure-local-security-policy.ps1"
+
+- name: CIS 2.3.15.1 - Require case insensitivity for non-Windows subsystems
+  platform: windows
+  description: "Ensure 'System objects: Require case insensitivity for non-Windows subsystems' is set to 'Enabled'."
+  resolution: "Run the remediation script to enable this setting via Local Security Policy."
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\Kernel\ObCaseInsensitive' AND data = '1';
+  run_script:
+    path: "../scripts/configure-local-security-policy.ps1"
+
+- name: CIS 2.3.15.2 - Strengthen default permissions of internal system objects
+  platform: windows
+  description: "Ensure 'System objects: Strengthen default permissions of internal system objects (e.g. Symbolic Links)' is set to 'Enabled'."
+  resolution: "Run the remediation script to enable this setting via Local Security Policy."
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\ProtectionMode' AND data = '1';
+  run_script:
+    path: "../scripts/configure-local-security-policy.ps1"
+
+- name: CIS 2.3.17.1 - UAC Admin Approval Mode for Built-in Admin
+  platform: windows
+  description: "Ensure 'User Account Control: Admin Approval Mode for the Built-in Administrator account' is set to 'Enabled'."
+  resolution: "Run the remediation script to enable this setting via Local Security Policy."
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System\FilterAdministratorToken' AND data = '1';
+  run_script:
+    path: "../scripts/configure-local-security-policy.ps1"
+
+- name: CIS 2.3.17.2 - UAC Behavior of elevation prompt for admins
+  platform: windows
+  description: "Ensure 'User Account Control: Behavior of the elevation prompt for administrators in Admin Approval Mode' is set to 'Prompt for consent on the secure desktop'."
+  resolution: "Run the remediation script to configure this setting via Local Security Policy."
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System\ConsentPromptBehaviorAdmin' AND data = '2';
+  run_script:
+    path: "../scripts/configure-local-security-policy.ps1"
+
+- name: CIS 2.3.17.3 - UAC Behavior of elevation prompt for standard users
+  platform: windows
+  description: "Ensure 'User Account Control: Behavior of the elevation prompt for standard users' is set to 'Automatically deny elevation requests'."
+  resolution: "Run the remediation script to configure this setting via Local Security Policy."
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System\ConsentPromptBehaviorUser' AND data = '0';
+  run_script:
+    path: "../scripts/configure-local-security-policy.ps1"
+
+- name: CIS 2.3.17.4 - UAC Detect application installations
+  platform: windows
+  description: "Ensure 'User Account Control: Detect application installations and prompt for elevation' is set to 'Enabled'."
+  resolution: "Run the remediation script to enable this setting via Local Security Policy."
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System\EnableInstallerDetection' AND data = '1';
+  run_script:
+    path: "../scripts/configure-local-security-policy.ps1"
+
+- name: CIS 2.3.17.5 - UAC Only elevate UIAccess in secure locations
+  platform: windows
+  description: "Ensure 'User Account Control: Only elevate UIAccess applications that are installed in secure locations' is set to 'Enabled'."
+  resolution: "Run the remediation script to enable this setting via Local Security Policy."
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System\EnableSecureUIAPaths' AND data = '1';
+  run_script:
+    path: "../scripts/configure-local-security-policy.ps1"
+
+- name: CIS 2.3.17.6 - UAC Run all administrators in Admin Approval Mode
+  platform: windows
+  description: "Ensure 'User Account Control: Run all administrators in Admin Approval Mode' is set to 'Enabled'."
+  resolution: "Run the remediation script to enable this setting via Local Security Policy."
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System\EnableLUA' AND data = '1';
+  run_script:
+    path: "../scripts/configure-local-security-policy.ps1"
+
+- name: CIS 2.3.17.7 - UAC Switch to secure desktop when prompting
+  platform: windows
+  description: "Ensure 'User Account Control: Switch to the secure desktop when prompting for elevation' is set to 'Enabled'."
+  resolution: "Run the remediation script to enable this setting via Local Security Policy."
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System\PromptOnSecureDesktop' AND data = '1';
+  run_script:
+    path: "../scripts/configure-local-security-policy.ps1"
+
+- name: CIS 2.3.17.8 - UAC Virtualize file and registry write failures
+  platform: windows
+  description: "Ensure 'User Account Control: Virtualize file and registry write failures to per-user locations' is set to 'Enabled'."
+  resolution: "Run the remediation script to enable this setting via Local Security Policy."
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System\EnableVirtualization' AND data = '1';
+  run_script:
+    path: "../scripts/configure-local-security-policy.ps1"
