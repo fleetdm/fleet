@@ -7,7 +7,10 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"os"
+	"strings"
 
+	"github.com/Masterminds/semver"
 	"github.com/rs/zerolog/log"
 )
 
@@ -20,6 +23,25 @@ import (
 // line is 2.75.x/2.76), not just master
 // (daemon/api_system_volumes.go, overlord/fdestate/fdestate.go).
 const systemVolumesPath = "/v2/system-volumes"
+
+// snapdMinVersion is the earliest snapd version that supports the runtime
+// recovery-key management actions on /v2/system-volumes (generate/add/replace/
+// check-recovery-key). Older snapd builds have `ubuntu-fde` LUKS2 tokens on
+// disk — so IsSnapdManaged still returns true — but reject the actions with
+// "this action is not supported on this system". Preflighting the version
+// lets us surface a clear "your snapd is too old" error to the admin instead
+// of the raw snapd 400.
+const snapdMinVersion = "2.74.0"
+
+// ubuntuMinVersion is the earliest Ubuntu release whose installer sets up FDE
+// in a way that snapd owns end-to-end, so snapd's /v2/system-volumes actions
+// actually work. On Ubuntu 24.04 the installer writes `ubuntu-fde` LUKS2
+// tokens (so IsSnapdManaged returns true) but does not fully hand ownership
+// to snapd's secboot stack — `snap-tpmctl status` reports "the fde system is
+// indeterminate" and the API rejects the actions regardless of snapd
+// version. Preflighting the Ubuntu version lets us name the actual
+// requirement instead of pointing operators at snapd.
+const ubuntuMinVersion = "26.04"
 
 // snapd /v2/system-volumes action values.
 const (
@@ -68,12 +90,40 @@ func newSnapdSocketFDE() *snapdSocketFDE {
 // ensureFleetRecoveryKey generates a recovery key and enrolls it under the
 // dedicated Fleet-owned key slot name, returning the recovery key to escrow.
 func (s *snapdSocketFDE) ensureFleetRecoveryKey(ctx context.Context) (string, error) {
+	// Step 0a: preflight the OS. On Ubuntu 24.04 the installer writes
+	// `ubuntu-fde` LUKS2 tokens but snapd never fully owns the FDE, so no
+	// snapd version can escrow a recovery key there. Fail fast with a
+	// distro-specific message before we even touch snapd.
+	if err := checkUbuntuVersion(osReleaseReader); err != nil {
+		return "", err
+	}
+	// Step 0b: preflight snapd's version. The /v2/system-volumes actions we
+	// use (generate/add/check-recovery-key) landed in snapd 2.74. Older snapd
+	// still has `ubuntu-fde` LUKS2 tokens on disk (so IsSnapdManaged returns
+	// true) but rejects the action with a 400 "not supported on this system".
+	// Fail fast with a version-specific message so the operator sees what
+	// actually needs to change.
+	if err := s.checkSnapdVersion(ctx); err != nil {
+		return "", err
+	}
+
 	// Step 1: generate a recovery key. snapd answers synchronously with the key
 	// value and a transient id used to enroll it.
 	log.Debug().Str("action", actionGenerateRecoveryKey).Msg("requesting snapd to generate a recovery key")
 	var gen generateRecoveryKeyResponse
 	if err := s.client.requestSync(ctx, http.MethodPost, systemVolumesPath,
 		generateRecoveryKeyRequest{Action: actionGenerateRecoveryKey}, &gen); err != nil {
+		// snapd rejects the action with "not supported on this system" when
+		// it sees `ubuntu-fde` tokens but does not consider itself the
+		// authoritative FDE manager (e.g. `snap-tpmctl status` reports the
+		// FDE system as indeterminate). Version-upgrading snapd does not fix
+		// this; the operator has to resolve the FDE state on the host, so
+		// surface a specific message instead of the raw snapd 400.
+		var apiErr *snapdAPIError
+		if errors.As(err, &apiErr) && apiErr.isUnsupportedOperation() {
+			log.Warn().Err(err).Msg("snapd refuses to manage recovery keys on this host; the FDE system is likely not fully snapd-managed (check `snap-tpmctl status`)")
+			return "", fmt.Errorf("snapd does not consider this host a snapd-managed FDE system, so recovery-key escrow is unavailable. Run `snap-tpmctl status` on the host — if it reports \"the fde system is indeterminate\", the LUKS2 volume is not owned by snapd's secboot stack and orbit cannot escrow a recovery key here. Underlying snapd error: %s", apiErr.Message)
+		}
 		return "", fmt.Errorf("generating snapd recovery key: %w", err)
 	}
 	if gen.RecoveryKey == "" || gen.KeyID == "" {
@@ -124,4 +174,112 @@ func (s *snapdSocketFDE) ensureFleetRecoveryKey(ctx context.Context) (string, er
 
 	log.Info().Str("keyslot", FleetRecoveryKeyName).Msg("snapd-managed recovery key enrolled and validated")
 	return gen.RecoveryKey, nil
+}
+
+// checkSnapdVersion queries snapd's system-info and returns an error whose
+// message explicitly names the minimum required version if the running snapd
+// is older than snapdMinVersion. snapd's version string may carry a
+// distribution suffix (e.g. "2.68.5+24.04") which the Masterminds/semver
+// parser handles as a build/pre-release tag; comparison is on the numeric
+// major.minor.patch part.
+func (s *snapdSocketFDE) checkSnapdVersion(ctx context.Context) error {
+	info, err := s.client.systemInfo(ctx)
+	if err != nil {
+		return fmt.Errorf("querying snapd system info: %w", err)
+	}
+	if info.Version == "" {
+		return errors.New("snapd system-info did not return a version")
+	}
+
+	got, err := semver.NewVersion(info.Version)
+	if err != nil {
+		return fmt.Errorf("parsing snapd version %q: %w", info.Version, err)
+	}
+	minVer := semver.MustParse(snapdMinVersion)
+	if got.LessThan(minVer) {
+		log.Warn().Str("snapd_version", info.Version).Str("min_version", snapdMinVersion).
+			Msg("snapd is too old for TPM-backed FDE recovery-key management")
+		return fmt.Errorf("snapd %s does not support TPM-backed FDE recovery-key management; upgrade snapd to %s or later (Ubuntu 26.04+)", info.Version, snapdMinVersion)
+	}
+	log.Debug().Str("snapd_version", info.Version).Msg("snapd version supports recovery-key management")
+	return nil
+}
+
+// osRelease is the subset of /etc/os-release fields orbit's snapd FDE preflight
+// consults. ID is normally the distro slug (e.g. "ubuntu", "fedora") and
+// VersionID is the numeric release ("24.04", "26.04").
+type osRelease struct {
+	ID        string
+	VersionID string
+}
+
+// osReleaseReader is the package-level hook the ensureFleetRecoveryKey
+// preflight uses to load /etc/os-release. Tests swap it to drive the
+// distro-version check without touching the real filesystem, so the same
+// unit tests run identically on any CI runner regardless of distro.
+var osReleaseReader = readOSRelease
+
+// readOSRelease parses /etc/os-release into an osRelease. On systems without
+// the file (very old distros, some minimal containers) it returns a zero
+// value and no error — the caller will treat that as "unknown" and skip the
+// distro-specific check rather than misidentifying the host.
+func readOSRelease() (osRelease, error) {
+	data, err := os.ReadFile("/etc/os-release")
+	if err != nil {
+		if os.IsNotExist(err) {
+			return osRelease{}, nil
+		}
+		return osRelease{}, fmt.Errorf("reading /etc/os-release: %w", err)
+	}
+	var rel osRelease
+	for _, line := range strings.Split(string(data), "\n") {
+		key, value, ok := strings.Cut(line, "=")
+		if !ok {
+			continue
+		}
+		// /etc/os-release values may be quoted.
+		value = strings.Trim(value, `"'`)
+		switch key {
+		case "ID":
+			rel.ID = value
+		case "VERSION_ID":
+			rel.VersionID = value
+		}
+	}
+	return rel, nil
+}
+
+// checkUbuntuVersion returns an error naming Ubuntu's minimum supported
+// release if the host is Ubuntu older than ubuntuMinVersion. On non-Ubuntu
+// hosts or when /etc/os-release cannot be read, it returns nil — the snapd
+// version check downstream will still gate access. The read function is
+// injected so tests can drive it without touching the real filesystem.
+func checkUbuntuVersion(read func() (osRelease, error)) error {
+	rel, err := read()
+	if err != nil {
+		// Log and let the flow continue; snapd's own preflight is the
+		// backstop and we don't want a missing/unreadable os-release to
+		// permanently block escrow on hosts where the feature would work.
+		log.Warn().Err(err).Msg("could not read /etc/os-release; skipping Ubuntu version preflight")
+		return nil
+	}
+	if rel.ID != "ubuntu" || rel.VersionID == "" {
+		log.Debug().Str("os_id", rel.ID).Str("os_version_id", rel.VersionID).
+			Msg("host is not Ubuntu or has no VERSION_ID; skipping Ubuntu version preflight")
+		return nil
+	}
+	got, err := semver.NewVersion(rel.VersionID)
+	if err != nil {
+		log.Warn().Err(err).Str("os_version_id", rel.VersionID).
+			Msg("could not parse Ubuntu VERSION_ID; skipping Ubuntu version preflight")
+		return nil
+	}
+	minVer := semver.MustParse(ubuntuMinVersion)
+	if got.LessThan(minVer) {
+		log.Warn().Str("ubuntu_version", rel.VersionID).Str("min_version", ubuntuMinVersion).
+			Msg("Ubuntu release does not support snapd-managed TPM-backed FDE escrow")
+		return fmt.Errorf("Ubuntu %s does not support snapd-managed TPM-backed FDE recovery-key escrow; upgrade the host to Ubuntu %s or later", rel.VersionID, ubuntuMinVersion)
+	}
+	log.Debug().Str("ubuntu_version", rel.VersionID).Msg("Ubuntu version supports snapd-managed FDE escrow")
+	return nil
 }

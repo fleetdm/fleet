@@ -73,6 +73,21 @@ type snapdResponse struct {
 	Change     string          `json:"change"` // change id, set on async responses
 }
 
+// snapdSystemInfo is the relevant subset of GET /v2/system-info. Only "version"
+// is consumed today, to preflight the recovery-key management API.
+type snapdSystemInfo struct {
+	Version string `json:"version"`
+}
+
+// systemInfo fetches GET /v2/system-info and returns the parsed system info.
+func (c *snapdClient) systemInfo(ctx context.Context) (snapdSystemInfo, error) {
+	var info snapdSystemInfo
+	if err := c.requestSync(ctx, http.MethodGet, "/v2/system-info", nil, &info); err != nil {
+		return snapdSystemInfo{}, err
+	}
+	return info, nil
+}
+
 // snapdError is the shape of the "result" field when a request fails.
 type snapdError struct {
 	Message string `json:"message"`
@@ -97,6 +112,26 @@ func (e *snapdAPIError) Error() string {
 		return fmt.Sprintf("snapd %s returned %d: %s", e.Path, e.StatusCode, e.Message)
 	}
 	return fmt.Sprintf("snapd %s returned status %d", e.Path, e.StatusCode)
+}
+
+// isUnsupportedOperation reports whether the error is snapd's
+// "this action is not supported on this system" response. That response is
+// returned regardless of snapd version when the /v2/system-volumes endpoint
+// exists but snapd does not consider itself the authoritative FDE manager on
+// this host — for example, a system with `ubuntu-fde` LUKS2 tokens where the
+// FDE state is "indeterminate" (as reported by `snap-tpmctl status`). No
+// amount of retrying against snapd will change this; the operator has to
+// resolve the underlying FDE state.
+func (e *snapdAPIError) isUnsupportedOperation() bool {
+	if e == nil {
+		return false
+	}
+	msg := strings.ToLower(e.Message)
+	kind := strings.ToLower(e.Kind)
+	// The canonical wording as of snapd 2.75 is "this action is not supported
+	// on this system"; use "not supported" as the prefix so we survive small
+	// phrasing drift while still not matching unrelated errors.
+	return strings.Contains(msg, "not supported") || strings.Contains(kind, "not-supported")
 }
 
 // isConflict reports whether the error looks like a snapd "resource already
