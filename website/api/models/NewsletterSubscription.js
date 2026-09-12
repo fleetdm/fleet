@@ -33,6 +33,15 @@ module.exports = {
       description: 'Whether the email address associated with this newsletter subscription will be sent release posts and security update emails'
     },
 
+    emailsSent: {
+      type: 'json',
+      description: 'A list of emails this newsletter subscriber was sent.',
+      example: [
+        'email-newsletter-2026-08',
+        'email-newsletter-2026-09',
+      ],
+    },
+
     // isSubscribedToProductArticles: {
     //   type: 'boolean',
     //   description: 'Whether the email address associated with this newsletter subscription will be sent articles in the product category'

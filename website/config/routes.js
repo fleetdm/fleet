@@ -301,7 +301,6 @@ module.exports.routes = {
     }
   },// handles /engineering/foo
 
-
   'GET /docs/?*': {
     skipAssets: false,
     action: 'docs/view-basic-documentation',// Meta title and description set in view action
@@ -1546,6 +1545,7 @@ module.exports.routes = {
   'POST /api/v1/deliver-whitepaper-download-request': { action: 'deliver-whitepaper-download-request' },
   'POST /api/v1/deliver-webinar-access-request': { action: 'deliver-webinar-access-request' },
   'POST /api/v1/deliver-partner-registration-submission': { action: 'deliver-partner-registration-submission' },
+  'POST /api/v1/admin/deliver-newsletter-emails': { action: 'admin/deliver-newsletter-emails' },
 
   //  ╔╦╗╦╔═╗╦═╗╔═╗╔═╗╔═╗╔═╗╔╦╗  ╔═╗╦═╗╔═╗═╗ ╦╦ ╦  ╔═╗╔╗╔╔╦╗╔═╗╔═╗╦╔╗╔╔╦╗╔═╗
   //  ║║║║║  ╠╦╝║ ║╚═╗║ ║╠╣  ║   ╠═╝╠╦╝║ ║╔╩╦╝╚╦╝  ║╣ ║║║ ║║╠═╝║ ║║║║║ ║ ╚═╗
