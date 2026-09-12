@@ -1,0 +1,1 @@
+- `fleetctl generate-gitops` now exports the `controls.setup_experience` section (Setup Assistant enrollment profile, setup script, and macOS setup toggles) instead of emitting a TODO placeholder. The bootstrap package is emitted as a TODO because Fleet downloads it from a URL that a UI-uploaded package doesn't have.
