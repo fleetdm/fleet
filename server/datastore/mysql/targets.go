@@ -22,7 +22,12 @@ func (ds *Datastore) CountHostsInTargets(ctx context.Context, filter fleet.TeamF
 
 	queryTargetLogicCondition, queryTargetArgs := targetSQLCondAndArgs(targets, "h")
 
-	// As of Fleet 4.15, mia hosts are also included in the total for offline hosts
+	// As of Fleet 4.15, mia hosts are also included in the total for offline hosts.
+	// Live query picker excludes mobile hosts entirely: SearchHosts returns none,
+	// so counts here match that. Mobile hosts can't respond to a live report, so
+	// counting them as "online" would overstate what a run would actually reach.
+	// Desktop online/offline still uses the osquery interval; mobile CASE arm and
+	// its joins are omitted since no mobile rows pass the platform filter.
 	sql := fmt.Sprintf(`
 		SELECT
 			COUNT(*) total,
@@ -32,12 +37,12 @@ func (ds *Datastore) CountHostsInTargets(ctx context.Context, filter fleet.TeamF
 			COALESCE(SUM(CASE WHEN DATE_ADD(h.created_at, INTERVAL 1 DAY) >= ? THEN 1 ELSE 0 END), 0) new
 		FROM hosts h
 		LEFT JOIN host_seen_times hst ON (h.id=hst.host_id)`+hostMDMSeenTimeJoin+`
-		WHERE %s AND %s`,
+		WHERE h.platform NOT IN ('ios','ipados','android') AND %s AND %s`,
 		fleet.OnlineIntervalBuffer, fleet.OnlineIntervalBuffer,
 		queryTargetLogicCondition, ds.whereFilterHostsByTeams(filter, "h"),
 	)
 
-	query, args, err := sqlx.In(sql, append([]interface{}{now, now, now, now}, queryTargetArgs...)...)
+	query, args, err := sqlx.In(sql, append([]any{now, now, now, now}, queryTargetArgs...)...)
 	if err != nil {
 		return fleet.TargetMetrics{}, ctxerr.Wrap(ctx, err, "sqlx.In CountHostsInTargets")
 	}
