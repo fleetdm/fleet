@@ -1,0 +1,3 @@
+- Fixed `fleetctl generate-gitops` adding every `.sh` and `.py` package to the macOS setup experience instead of only the selected ones.
+- Fixed `fleetctl generate-gitops` dropping a script package's Linux setup experience selection from the YAML it generates.
+- Fixed GitOps ignoring `setup_experience` when a package also sets `setup_experience_platform`. Both now apply.

@@ -18308,8 +18308,7 @@ func (s *integrationEnterpriseTestSuite) TestScriptPackageUploads() {
 
 	// Both platforms in the list: install_during_setup flips on from the list
 	// alone (native "linux" is present), and the darwin cross-row is
-	// preserved. When SetupExperiencePlatforms is set it's authoritative for
-	// both the native flag and the cross-table.
+	// preserved.
 	bothPlatforms := []string{"darwin", "linux"}
 	crossPkgBoth := []*fleet.SoftwareInstallerPayload{
 		{
@@ -18403,6 +18402,107 @@ func (s *integrationEnterpriseTestSuite) TestScriptPackageUploads() {
 			`SELECT id FROM software_installers WHERE global_or_team_id = ? AND filename = ?`, crossTeam.ID, "sibling.sh")
 	})
 	require.Equal(t, siblingID, crossRows[0].SoftwareInstallerID, "surviving row should be sibling.sh (B)")
+
+	// .py packages are cross-platform on the same terms as .sh.
+	pyTeam, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "pycross"})
+	require.NoError(t, err)
+
+	pyCrossScript := "#!/usr/bin/env python3\nprint('cross-platform hello')\n"
+	pyCrossHash := sha256.Sum256([]byte(pyCrossScript))
+	pyPkg := func(platforms *[]string, duringSetup *bool) []*fleet.SoftwareInstallerPayload {
+		return []*fleet.SoftwareInstallerPayload{{
+			URL:                      "script://cross-hello.py",
+			SHA256:                   hex.EncodeToString(pyCrossHash[:]),
+			InstallScript:            pyCrossScript,
+			SetupExperiencePlatforms: platforms,
+			InstallDuringSetup:       duringSetup,
+		}}
+	}
+	applyPy := func(platforms *[]string, duringSetup *bool) {
+		s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: pyPkg(platforms, duringSetup)},
+			http.StatusAccepted, &batchResp, "team_name", pyTeam.Name)
+		waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, pyTeam.Name, batchResp.RequestUUID)
+	}
+	pyState := func() ([]struct {
+		SoftwareInstallerID uint   `db:"software_installer_id"`
+		Platform            string `db:"platform"`
+	}, bool,
+	) {
+		var rows []struct {
+			SoftwareInstallerID uint   `db:"software_installer_id"`
+			Platform            string `db:"platform"`
+		}
+		var duringSetup bool
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			if err := sqlx.SelectContext(ctx, q, &rows,
+				`SELECT software_installer_id, platform FROM setup_experience_software_installers WHERE global_or_team_id = ?`, pyTeam.ID); err != nil {
+				return err
+			}
+			return sqlx.GetContext(ctx, q, &duringSetup,
+				`SELECT install_during_setup FROM software_installers WHERE global_or_team_id = ? AND filename = ?`, pyTeam.ID, "cross-hello.py")
+		})
+		return rows, duringSetup
+	}
+
+	applyPy(&darwinOnly, nil)
+	pyRows, pyDuringSetup := pyState()
+	require.Len(t, pyRows, 1, "expected one cross-platform selection for the .py package")
+	require.Equal(t, "darwin", pyRows[0].Platform)
+	require.False(t, pyDuringSetup, "linux not selected → install_during_setup should stay false")
+
+	var pyStoredShape struct {
+		Platform  string `db:"platform"`
+		Extension string `db:"extension"`
+		Source    string `db:"source"`
+	}
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &pyStoredShape,
+			`SELECT si.platform, si.extension, st.source FROM software_installers si
+			 JOIN software_titles st ON st.id = si.title_id
+			 WHERE si.global_or_team_id = ? AND si.filename = ?`, pyTeam.ID, "cross-hello.py")
+	})
+	require.Equal(t, "linux", pyStoredShape.Platform)
+	require.Equal(t, "py", pyStoredShape.Extension)
+	require.Equal(t, "py_packages", pyStoredShape.Source)
+
+	// Omitting the field is a no-op; only an explicit empty value clears.
+	applyPy(nil, nil)
+	pyRows, _ = pyState()
+	require.Len(t, pyRows, 1, "omitting the field leaves the prior selection alone")
+
+	applyPy(&emptyPlatforms, nil)
+	pyRows, pyDuringSetup = pyState()
+	require.Empty(t, pyRows, "explicit empty list clears the cross-table row")
+	require.False(t, pyDuringSetup)
+
+	applyPy(&bothPlatforms, nil)
+	pyRows, pyDuringSetup = pyState()
+	require.Len(t, pyRows, 1)
+	require.True(t, pyDuringSetup, "native in list selects the native platform")
+
+	applyPy(&linuxOnly, nil)
+	pyRows, pyDuringSetup = pyState()
+	require.Empty(t, pyRows, "native-only list clears the cross-table")
+	require.True(t, pyDuringSetup)
+
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: pyPkg(&windows, nil)},
+		http.StatusAccepted, &batchResp, "team_name", pyTeam.Name)
+	failure = waitBatchSetSoftwareInstallersFailed(t, &s.withServer, pyTeam.Name, batchResp.RequestUUID)
+	require.Contains(t, failure, `platform "windows" is not a valid "setup_experience_platform" value for a .py package`)
+
+	// An explicit setup_experience and a cross-only platform list are additive.
+	applyPy(&emptyPlatforms, nil)
+	applyPy(&darwinOnly, new(true))
+	pyRows, pyDuringSetup = pyState()
+	require.Len(t, pyRows, 1, "cross selection still applied")
+	require.Equal(t, "darwin", pyRows[0].Platform)
+	require.True(t, pyDuringSetup, "explicit setup_experience must survive a cross-only platform list")
+
+	// An explicit false does not select the native platform.
+	applyPy(&darwinOnly, new(false))
+	pyRows, pyDuringSetup = pyState()
+	require.Len(t, pyRows, 1)
+	require.False(t, pyDuringSetup)
 }
 
 func (s *integrationEnterpriseTestSuite) TestSoftwareMultiplePackagesPerTitle() {
