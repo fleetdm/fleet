@@ -76,7 +76,7 @@ func (svc *Service) GetSSOUser(ctx context.Context, auth fleet.Auth) (*fleet.Use
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "save user")
 		}
-		if err := fleet.LogRoleChangeActivities(ctx, svc, user, oldGlobalRole, oldTeamsRoles, user); err != nil {
+		if err := fleet.LogRoleChangeActivities(ctx, svc, user, oldGlobalRole, oldTeamsRoles, user, true); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "log activities for role change")
 		}
 		return user, nil
@@ -119,11 +119,12 @@ func (svc *Service) GetSSOUser(ctx context.Context, auth fleet.Auth) (*fleet.Use
 	}
 
 	user, err = svc.Service.NewUser(ctx, fleet.UserPayload{
-		Name:       &displayName,
-		Email:      ptr.String(auth.UserID()),
-		SSOEnabled: ptr.Bool(true),
-		GlobalRole: globalRole,
-		Teams:      &teamRoles,
+		Name:           &displayName,
+		Email:          ptr.String(auth.UserID()),
+		SSOEnabled:     new(true),
+		GlobalRole:     globalRole,
+		Teams:          &teamRoles,
+		JITProvisioned: true,
 	})
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "creating new SSO user")

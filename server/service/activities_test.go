@@ -98,10 +98,64 @@ func Test_logRoleChangeActivities(t *testing.T) {
 				GlobalRole: tt.newRole,
 				Teams:      newTeams,
 			}
-			require.NoError(t, fleet.LogRoleChangeActivities(ctx, svc, &fleet.User{}, tt.oldRole, oldTeams, newUser))
+			require.NoError(t, fleet.LogRoleChangeActivities(ctx, svc, &fleet.User{}, tt.oldRole, oldTeams, newUser, false))
 			require.Equal(t, tt.expectActivities, activities)
 		})
 	}
+}
+
+func Test_logRoleChangeActivitiesJIT(t *testing.T) {
+	ds := new(mock.Store)
+	opts := &TestServerOpts{}
+	svc, ctx := newTestService(t, ds, nil, nil, opts)
+
+	type activityRecord struct {
+		name string
+		jit  bool
+	}
+	var recorded []activityRecord
+	opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, activity activity_api.ActivityDetails) error {
+		var isJIT bool
+		switch a := activity.(type) {
+		case fleet.ActivityTypeChangedUserGlobalRole:
+			isJIT = a.JIT
+		case fleet.ActivityTypeDeletedUserGlobalRole:
+			isJIT = a.JIT
+		case fleet.ActivityTypeChangedUserTeamRole:
+			isJIT = a.JIT
+		case fleet.ActivityTypeDeletedUserTeamRole:
+			isJIT = a.JIT
+		}
+		recorded = append(recorded, activityRecord{name: activity.ActivityName(), jit: isJIT})
+		return nil
+	}
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+
+	user := &fleet.User{
+		ID:         1,
+		GlobalRole: ptr.String("admin"),
+	}
+	require.NoError(t, fleet.LogRoleChangeActivities(ctx, svc, user, nil, nil, user, true))
+	require.Len(t, recorded, 1)
+	require.Equal(t, "changed_user_global_role", recorded[0].name)
+	require.True(t, recorded[0].jit)
+
+	recorded = recorded[:0]
+	require.NoError(t, fleet.LogRoleChangeActivities(ctx, svc, user, ptr.String("admin"), nil, user, false))
+	require.Empty(t, recorded)
+
+	recorded = recorded[:0]
+	teamRole := fleet.UserTeam{Role: "observer"}
+	teamRole.ID = 1
+	noRole := &fleet.User{ID: 1, Teams: []fleet.UserTeam{teamRole}}
+	require.NoError(t, fleet.LogRoleChangeActivities(ctx, svc, user, ptr.String("admin"), nil, noRole, false))
+	require.Len(t, recorded, 2)
+	require.Equal(t, "deleted_user_global_role", recorded[0].name)
+	require.False(t, recorded[0].jit)
+	require.Equal(t, "changed_user_team_role", recorded[1].name)
+	require.False(t, recorded[1].jit)
 }
 
 func TestCancelHostUpcomingActivityAuth(t *testing.T) {

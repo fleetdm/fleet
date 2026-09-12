@@ -1,0 +1,1 @@
+- Fixed activity feed copy for role changes made via just-in-time (JIT) provisioning to use passive voice (e.g., "user@example.com was removed from the Engineering fleet via just-in-time (JIT) provisioning") instead of showing the user as both actor and subject.
