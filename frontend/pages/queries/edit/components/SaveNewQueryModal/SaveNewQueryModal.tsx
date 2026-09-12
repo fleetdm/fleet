@@ -4,6 +4,7 @@ import { useQuery } from "react-query";
 import { size } from "lodash";
 
 import { AppContext } from "context/app";
+import CustomLink from "components/CustomLink";
 
 import useDeepEffect from "hooks/useDeepEffect";
 import { IPlatformSelector } from "hooks/usePlatformSelector";
@@ -261,7 +262,17 @@ const SaveNewQueryModal = ({
           value={selectedFrequency}
           label="Interval"
           wrapperClassName={`${baseClass}__form-field form-field--frequency`}
-          helpText="This is how often your report collects data."
+          helpText={
+            <>
+              Hosts report at fixed times, not after being online this long
+              (e.g., on the hour for a 1-hour interval).{" "}
+              <CustomLink
+                url="https://fleetdm.com/guides/reports#schedule-a-report"
+                text="Learn more"
+                newTab
+              />
+            </>
+          }
         />
         <Checkbox
           name="observerCanRun"

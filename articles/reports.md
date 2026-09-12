@@ -81,9 +81,17 @@ The report may take several seconds to complete because Fleet has to wait for th
 
 ## Schedule a report
 
-Fleet allows you to schedule queries to run at a set interval. By default, queries that run on a schedule will only target platforms compatible with that report. This behavior can be overridden by setting the platforms in **Advanced options** when saving a report.
+Fleet allows you to schedule reports to run at a set interval. By default, reports that run on a schedule will only target platforms compatible with that report. This behavior can be overridden by setting the platforms in **Advanced options** when saving a report.
 
 To create a scheduled report, set the interval to a value other than "Never" when [creating a report](#create-a-report). If the report has already been created, select the report and then select **Edit report** to set the interval.
+
+Reports run on a fixed schedule based on the clock, not on how long a host has been online. A host has to be running Fleet at that exact moment to report in.
+
+An hourly report's target moments are on the hour, UTC (11:00, 12:00, 1:00, and so on). A weekly report's target moment is Thursday at midnight UTC (Wednesday 4pm Pacific, Wednesday 7pm Eastern, or Thursday 9am in Tokyo).
+
+Because the schedule runs on the clock rather than on how long a host has been online, a host whose off/on pattern lines up with its own check-in moment, like a laptop that's always asleep at lunch, or a desktop that's always off on weekends, can go a long time without new results even if it's online plenty otherwise.
+
+Those are target moments, not exact ones. The first time a host picks up a report, Fleet nudges the interval up or down by up to 10% and locks in that adjusted number for that host, so different hosts don't all check in at once. So in practice, an hourly report checks in every 54 to 66 minutes, and a weekly report checks in roughly every 6 to 8 days, consistently for that host. Want to know exactly when a specific host will check in next? Run `SELECT * FROM osquery_schedule` as a live query.
 
 Scheduled reports will send data to Fleet and/or your [log destination](https://fleetdm.com/docs/using-fleet/log-destinations) automatically. Automations can be turned off in **Advanced options** or using the bulk **Manage automations** UI.
 
