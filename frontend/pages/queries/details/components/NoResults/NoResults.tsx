@@ -72,10 +72,10 @@ const NoResults = ({
   if (collectingResults && !disabledCaching) {
     const collectingResultsInfo = () => (
       <>
-        Results expected in about {readableCheckbackTime} if hosts are
-        online then.{" "}
+        Results expected in about {readableCheckbackTime} if hosts are online
+        then.{" "}
         <CustomLink
-          url="https://fleetdm.com/docs/get-started/faq#why-might-a-scheduled-report-never-show-results"
+          url="https://fleetdm.com/guides/reports#schedule-a-report"
           text="Learn more"
           newTab
         />
