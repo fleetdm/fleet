@@ -207,7 +207,9 @@ Even if a host is online often, a scheduled report may never show results. Repor
 
 For example, a report with the default 1-hour interval fires on the hour, every hour (roughly 1:00, 2:00, 3:00, and so on, nudged slightly per host by that same offset). If a host is reliably offline right at the top of the hour, it will never report, no matter how many hours it's online in between.
 
-This mostly affects short, human-scale intervals (6, 8, 12, or 24 hours) on hosts with a regular daily on/off pattern, like laptops that sleep at lunch or overnight. If a report never shows results, try a different interval, or run `SELECT * FROM osquery_schedule` as a live query to see when the host expects to check in.
+The same logic applies at longer intervals: a report with a weekly interval fires at the same point every week (say, always Tuesday at 3am). A desktop that's reliably shut down every Tuesday at 3am would never report, even if it's online the rest of the week.
+
+This mostly affects short, human-scale intervals (6, 8, 12, or 24 hours, or a week) on hosts with a regular on/off pattern tied to that same rhythm, like laptops that sleep at lunch or overnight, or desktops that are off on a fixed day. If a report never shows results, try a different interval, or run `SELECT * FROM osquery_schedule` as a live query to see when the host expects to check in.
 
 <!--
 Mike T: In 2023 we made the decision to comment out the following questions because the FAQs had become a dumping ground for miscellaneous content that wasn't quite reference docs and wasn't quite committed learning docs (suitable for articles). We chose to hide the content rather than remove, or spend time trying to figure out better places in the docs, with the assumption that if it's important enough content, someone will circle back at some point to prioritize a better home.
