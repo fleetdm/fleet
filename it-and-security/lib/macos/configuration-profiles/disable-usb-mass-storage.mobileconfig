@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadContent</key>
+	<array>
+		<dict>
+			<key>PayloadDisplayName</key>
+			<string>Restrictions</string>
+			<key>PayloadIdentifier</key>
+			<string>com.fleetdm.config.usbmassstorage.restrictions.B3166A12-9DE3-4ED2-A6B1-7C8AB3D2D220</string>
+			<key>PayloadType</key>
+			<string>com.apple.applicationaccess</string>
+			<key>PayloadUUID</key>
+			<string>B3166A12-9DE3-4ED2-A6B1-7C8AB3D2D220</string>
+			<key>PayloadVersion</key>
+			<integer>1</integer>
+			<key>allowUSBRestrictedMode</key>
+			<true/>
+		</dict>
+	</array>
+	<key>PayloadDescription</key>
+	<string>Requires explicit user authorization before any new USB or Thunderbolt accessory (including USB mass storage / external drives) can connect, and enforces this while the device is locked. This is the legacy MDM Restrictions payload equivalent for blocking unauthorized USB storage devices. NOTE: for a hard block of all external storage mounting (rather than requiring authorization), pair this with the "Disk management settings" DDM declaration's Restrictions.ExternalStorage key set to "Disallowed".</string>
+	<key>PayloadDisplayName</key>
+	<string>Disable USB mass storage devices</string>
+	<key>PayloadIdentifier</key>
+	<string>com.fleetdm.config.usbmassstorage</string>
+	<key>PayloadOrganization</key>
+	<string>FleetDM</string>
+	<key>PayloadScope</key>
+	<string>System</string>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadUUID</key>
+	<string>A4560293-8A4D-42F8-8C04-2193E50620E4</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+</dict>
+</plist>
