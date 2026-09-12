@@ -22,6 +22,47 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestResolveDigiCertProfileFleetVariables(t *testing.T) {
+	profileVars := make([]string, 0, 6)
+	profileVars = append(profileVars,
+		string(fleet.FleetVarHostEndUserIDPUsername),
+		string(fleet.FleetVarDigiCertDataPrefix)+"first",
+		string(fleet.FleetVarDigiCertPasswordPrefix)+"second",
+	)
+	digiCertCAs := []fleet.DigiCertCA{
+		{
+			Name:                          "first",
+			CertificateCommonName:         fleet.FleetVarHostEndUserIDPUsername.WithPrefix(),
+			CertificateUserPrincipalNames: []string{fleet.FleetVarHostEndUserIDPDepartment.WithBraces()},
+			CertificateSeatID:             "literal-seat",
+		},
+		{
+			Name:                          "second",
+			CertificateCommonName:         "literal-common-name",
+			CertificateUserPrincipalNames: []string{"literal-upn"},
+			CertificateSeatID:             fleet.FleetVarHostEndUserIDPFullname.WithPrefix(),
+		},
+		{
+			Name:                  "unreferenced",
+			CertificateCommonName: fleet.FleetVarHostEndUserIDPGroups.WithPrefix(),
+		},
+	}
+
+	require.Equal(t, []string{
+		"HOST_END_USER_IDP_USERNAME",
+		"DIGICERT_DATA_first",
+		"DIGICERT_PASSWORD_second",
+		"HOST_END_USER_IDP_DEPARTMENT",
+		"HOST_END_USER_IDP_FULL_NAME",
+	}, fleet.ResolveDigiCertProfileFleetVariables(profileVars, digiCertCAs))
+	require.Equal(t, []string{
+		"HOST_END_USER_IDP_USERNAME",
+		"DIGICERT_DATA_first",
+		"DIGICERT_PASSWORD_second",
+		"", "", "",
+	}, profileVars[:cap(profileVars)])
+}
+
 func TestDEPClient(t *testing.T) {
 	rxToken := regexp.MustCompile(`oauth_token="(\w+)"`)
 	const (
