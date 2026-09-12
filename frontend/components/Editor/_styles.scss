@@ -1,6 +1,10 @@
 .editor {
   position: relative; // needed for copy button
 
+  .ace_scroller {
+    overscroll-behavior-x: contain;
+  }
+
   &__label {
     @include form-label;
 
