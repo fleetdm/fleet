@@ -184,6 +184,14 @@ METRIC_DEFS=(
   ".redis[0].memory_utilization.Average|Redis Memory|%|15|30|false|lt|70"
 )
 
+# Fleet server container network traffic (Container Insights). Sum over the
+# interval, so runs are only comparable at equal intervals — a TX jump at the
+# same load usually means a response payload grew.
+NETWORK_DEFS=(
+  ".network.network_rx_bytes.Sum|Fleet Network RX|bytes|50|100|false||"
+  ".network.network_tx_bytes.Sum|Fleet Network TX|bytes|50|100|false||"
+)
+
 # apple-apns-mock (MDM runs only). Absent from non-MDM runs; compare_metric_set
 # drops any def that is null in the last two files and suppresses the whole
 # section when nothing has data, so no extra guard is needed here.
@@ -195,6 +203,7 @@ APNS_MOCK_DEFS=(
   ".apns_mock.per_task.cpu.max_pct|apns-mock CPU (hottest task)|%|20|40|false|lt|95"
   ".apns_mock.per_task.memory.max_pct|apns-mock Memory (hottest task)|%|20|40|false|lt|90"
   ".apns_mock.task_counts.runningCount|apns-mock Containers||0|0|false||"
+  ".apns_mock.network.network_rx_bytes.Sum|apns-mock Network RX|bytes|50|100|false||"
   ".apns_mock.network.network_tx_bytes.Sum|apns-mock Network TX|bytes|50|100|false||"
   ".apns_mock.container_health.abnormal_stops|apns-mock Stops||0|0|true|eq|0"
 )
@@ -505,6 +514,7 @@ for (( i=0; i < ${#header}; i++ )); do separator+="-"; done
 echo "$separator"
 
 compare_metric_set "Fleet Server" "${METRIC_DEFS[@]:0:3}"
+compare_metric_set "Fleet Server Network" "${NETWORK_DEFS[@]}"
 compare_metric_set "RDS Writer" "${METRIC_DEFS[@]:3:5}"
 compare_metric_set "Redis" "${METRIC_DEFS[@]:8:2}"
 compare_metric_set "apns-mock" "${APNS_MOCK_DEFS[@]}"
