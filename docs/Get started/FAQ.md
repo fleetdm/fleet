@@ -203,13 +203,13 @@ Fleet deploys v1.4.1 of the [Mac Admins osquery extension](https://github.com/ma
 
 ## Why might a scheduled report never show results?
 
-Even if a host is online often, a scheduled report may never show results. Reports don't run after a host has been online for a certain amount of time, they run when the clock hits a fixed point, spaced out by the interval (Fleet adds a small random offset per host so they don't all report in at once). A host has to be running Fleet at that exact moment to report in.
+Even if a host is online often, a scheduled report may never show results. Reports don't run after a host has been online for a certain amount of time, they run on a fixed schedule based on the clock, not on how long the host has been on. A host has to be running Fleet at that exact moment to report in.
 
-For example, a report with the default 1-hour interval fires on the hour, every hour (roughly 1:00, 2:00, 3:00, and so on, nudged slightly per host by that same offset). If a host is reliably offline right at the top of the hour, it will never report, no matter how many hours it's online in between.
+That schedule isn't your exact interval, either. The first time a host picks up a report, Fleet nudges the interval up or down by up to 10% and then locks in that adjusted number for that host, so different hosts don't all check in at the same time. So a report set to check in every hour actually checks in every 54 to 66 minutes on a given host, consistently, not necessarily on the hour. A report set to check in every week actually checks in roughly every 6 to 8 days, consistently, not necessarily on the same day each week.
 
-The same logic applies at longer intervals: a report with a weekly interval fires at the same point every week (say, always Tuesday at 3am). A desktop that's reliably shut down every Tuesday at 3am would never report, even if it's online the rest of the week.
+Because that schedule is fixed and has nothing to do with how long the host has been online, a host that's reliably offline at its own check-in moment will never report, no matter how many other hours (or days) it's online.
 
-This mostly affects short, human-scale intervals (6, 8, 12, or 24 hours, or a week) on hosts with a regular on/off pattern tied to that same rhythm, like laptops that sleep at lunch or overnight, or desktops that are off on a fixed day. If a report never shows results, try a different interval, or run `SELECT * FROM osquery_schedule` as a live query to see when the host expects to check in.
+This mostly affects short, human-scale intervals, from 1 hour up to a week, on hosts with a regular on/off pattern, like laptops that sleep at lunch or overnight, or desktops that are off on a fixed day. If a report never shows results, try a different interval, or run `SELECT * FROM osquery_schedule` as a live query to see exactly when a specific host expects to check in.
 
 <!--
 Mike T: In 2023 we made the decision to comment out the following questions because the FAQs had become a dumping ground for miscellaneous content that wasn't quite reference docs and wasn't quite committed learning docs (suitable for articles). We chose to hide the content rather than remove, or spend time trying to figure out better places in the docs, with the assumption that if it's important enough content, someone will circle back at some point to prioritize a better home.
