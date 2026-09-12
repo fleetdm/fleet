@@ -796,6 +796,14 @@ type HostMDMDiskEncryption struct {
 	// ActionRequired names what the END USER has to do, and is set only when there is something they can actually do.
 	// macos_settings carries the same value for backwards compatibility
 	ActionRequired *ActionRequiredState `json:"action_required,omitempty" db:"-" csv:"-"`
+	// FleetdCanSetPIN and PINRequest are populated only on the My device response, where the end user can act on them.
+	// They are pointers so the admin host response, which shares this struct, is unchanged.
+	//
+	// FleetdCanSetPIN is true when this host's fleetd can apply a BitLocker PIN the end user types, so the page offers
+	// the PIN form rather than the Manage BitLocker instructions.
+	FleetdCanSetPIN *bool `json:"fleetd_can_set_pin,omitempty" db:"-" csv:"-"`
+	// PINRequest is the state of the end user's PIN submission, while one exists. It never carries the PIN.
+	PINRequest *HostBitLockerPINRequest `json:"pin_request,omitempty" db:"-" csv:"-"`
 }
 
 type HostMDMRecoveryLockPassword struct {

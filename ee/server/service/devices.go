@@ -210,6 +210,25 @@ func (svc *Service) GetFleetDesktopSummary(ctx context.Context) (fleet.DesktopSu
 
 	}
 
+	// Fleet Desktop prompts the end user to create a BitLocker startup PIN, but only when this host's fleetd can
+	// actually apply one. On an older agent the My device page keeps the Manage BitLocker instructions instead, and a
+	// toast offering a form that host cannot honor would be worse than no toast.
+	if host.FleetPlatform() == "windows" {
+		state, err := svc.ds.GetMDMWindowsHostConfigState(ctx, host.UUID)
+		switch {
+		case fleet.IsNotFound(err):
+			// Not enrolled in Windows MDM, so there is no agent to apply a PIN and nothing to prompt for.
+		case err != nil:
+			return sum, ctxerr.Wrap(ctx, err, "checking windows mdm config state for bitlocker pin")
+		case state.FleetdBitLockerPINCapable:
+			diskEncryption, err := svc.ds.GetMDMWindowsBitLockerStatus(ctx, host)
+			if err != nil {
+				return sum, ctxerr.Wrap(ctx, err, "checking bitlocker status for pin prompt")
+			}
+			sum.Notifications.NeedsBitLockerPIN = fleet.HostNeedsBitLockerPIN(diskEncryption)
+		}
+	}
+
 	// organization information
 	sum.Config.OrgInfo.OrgName = appCfg.OrgInfo.OrgName
 	sum.Config.OrgInfo.OrgLogoURL = appCfg.OrgInfo.OrgLogoURL

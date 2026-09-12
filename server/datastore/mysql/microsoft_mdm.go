@@ -189,6 +189,18 @@ func (ds *Datastore) SetMDMWindowsEnrollmentFleetdSyncCapable(ctx context.Contex
 	return nil
 }
 
+// SetMDMWindowsEnrollmentFleetdBitLockerPINCapable persists the last-observed CapabilityWindowsBitLockerPIN value for the host's most recent
+// Windows MDM enrollment. As with fleetd_sync_capable, the live capability header only reaches the orbit-config request, so the device and
+// Fleet Desktop endpoints read the stored value to decide whether to offer the end user the PIN form.
+func (ds *Datastore) SetMDMWindowsEnrollmentFleetdBitLockerPINCapable(ctx context.Context, hostUUID string, capable bool) error {
+	if _, err := ds.writer(ctx).ExecContext(ctx,
+		`UPDATE mdm_windows_enrollments SET fleetd_bitlocker_pin_capable = ? WHERE host_uuid = ? ORDER BY created_at DESC, id DESC LIMIT 1`,
+		capable, hostUUID); err != nil {
+		return ctxerr.Wrap(ctx, err, "set mdm windows enrollment fleetd bitlocker pin capable")
+	}
+	return nil
+}
+
 // SetMDMWindowsManagedLocalAccountEscrowed records whether the host has escrowed a managed local account password for
 // its current enrollment. It reports whether the value actually changed.
 func (ds *Datastore) SetMDMWindowsManagedLocalAccountEscrowed(ctx context.Context, hostUUID string, escrowed bool) (bool, error) {
@@ -520,6 +532,8 @@ func (ds *Datastore) GetMDMWindowsHostConfigState(ctx context.Context, hostUUID 
 			awaiting_configuration,
 			has_pending_commands,
 			fleetd_sync_capable,
+			fleetd_bitlocker_pin_capable,
+			bitlocker_pin_request_pending,
 			managed_local_account_escrowed,
 			managed_local_account_rotation_requested
 		FROM mdm_windows_enrollments
@@ -530,6 +544,8 @@ func (ds *Datastore) GetMDMWindowsHostConfigState(ctx context.Context, hostUUID 
 		AwaitingConfiguration                fleet.WindowsMDMAwaitingConfiguration `db:"awaiting_configuration"`
 		HasPendingCommands                   bool                                  `db:"has_pending_commands"`
 		FleetdSyncCapable                    bool                                  `db:"fleetd_sync_capable"`
+		FleetdBitLockerPINCapable            bool                                  `db:"fleetd_bitlocker_pin_capable"`
+		BitLockerPINRequestPending           bool                                  `db:"bitlocker_pin_request_pending"`
 		ManagedLocalAccountEscrowed          bool                                  `db:"managed_local_account_escrowed"`
 		ManagedLocalAccountRotationRequested bool                                  `db:"managed_local_account_rotation_requested"`
 	}
@@ -543,6 +559,8 @@ func (ds *Datastore) GetMDMWindowsHostConfigState(ctx context.Context, hostUUID 
 		AwaitingConfiguration:                row.AwaitingConfiguration,
 		HasPendingCommands:                   row.HasPendingCommands,
 		FleetdSyncCapable:                    row.FleetdSyncCapable,
+		FleetdBitLockerPINCapable:            row.FleetdBitLockerPINCapable,
+		BitLockerPINRequestPending:           row.BitLockerPINRequestPending,
 		ManagedLocalAccountEscrowed:          row.ManagedLocalAccountEscrowed,
 		ManagedLocalAccountRotationRequested: row.ManagedLocalAccountRotationRequested,
 	}, nil

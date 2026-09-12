@@ -942,6 +942,16 @@ type ReportEscrowErrorFunc func(ctx context.Context, hostID uint, err string) er
 
 type QueueEscrowFunc func(ctx context.Context, hostID uint) error
 
+type QueueBitLockerPINRequestFunc func(ctx context.Context, host *fleet.Host, encryptedPIN string) error
+
+type GetBitLockerPINRequestFunc func(ctx context.Context, hostID uint) (*fleet.HostBitLockerPINRequest, error)
+
+type TakeBitLockerPINRequestFunc func(ctx context.Context, host *fleet.Host) (string, error)
+
+type SetBitLockerPINRequestOutcomeFunc func(ctx context.Context, host *fleet.Host, outcome fleet.BitLockerPINRequestStatus, clientError string) error
+
+type DeleteBitLockerPINRequestFunc func(ctx context.Context, host *fleet.Host) error
+
 type AssertHasNoEncryptionKeyStoredFunc func(ctx context.Context, hostID uint) error
 
 type GetHostCertAssociationsToExpireFunc func(ctx context.Context, expiryDays int, limit int) ([]fleet.SCEPIdentityAssociation, error)
@@ -1461,6 +1471,8 @@ type SetMDMWindowsEnrollmentLoginStatusFunc func(ctx context.Context, enrollment
 type GetMDMWindowsUserContextByHostUUIDFunc func(ctx context.Context, hostUUIDs []string) (map[string]fleet.WindowsEnrollmentUserContext, error)
 
 type SetMDMWindowsEnrollmentFleetdSyncCapableFunc func(ctx context.Context, hostUUID string, capable bool) error
+
+type SetMDMWindowsEnrollmentFleetdBitLockerPINCapableFunc func(ctx context.Context, hostUUID string, capable bool) error
 
 type SetMDMWindowsManagedLocalAccountEscrowedFunc func(ctx context.Context, hostUUID string, escrowed bool) (changed bool, err error)
 
@@ -3798,6 +3810,21 @@ type DataStore struct {
 	QueueEscrowFunc        QueueEscrowFunc
 	QueueEscrowFuncInvoked bool
 
+	QueueBitLockerPINRequestFunc        QueueBitLockerPINRequestFunc
+	QueueBitLockerPINRequestFuncInvoked bool
+
+	GetBitLockerPINRequestFunc        GetBitLockerPINRequestFunc
+	GetBitLockerPINRequestFuncInvoked bool
+
+	TakeBitLockerPINRequestFunc        TakeBitLockerPINRequestFunc
+	TakeBitLockerPINRequestFuncInvoked bool
+
+	SetBitLockerPINRequestOutcomeFunc        SetBitLockerPINRequestOutcomeFunc
+	SetBitLockerPINRequestOutcomeFuncInvoked bool
+
+	DeleteBitLockerPINRequestFunc        DeleteBitLockerPINRequestFunc
+	DeleteBitLockerPINRequestFuncInvoked bool
+
 	AssertHasNoEncryptionKeyStoredFunc        AssertHasNoEncryptionKeyStoredFunc
 	AssertHasNoEncryptionKeyStoredFuncInvoked bool
 
@@ -4577,6 +4604,9 @@ type DataStore struct {
 
 	SetMDMWindowsEnrollmentFleetdSyncCapableFunc        SetMDMWindowsEnrollmentFleetdSyncCapableFunc
 	SetMDMWindowsEnrollmentFleetdSyncCapableFuncInvoked bool
+
+	SetMDMWindowsEnrollmentFleetdBitLockerPINCapableFunc        SetMDMWindowsEnrollmentFleetdBitLockerPINCapableFunc
+	SetMDMWindowsEnrollmentFleetdBitLockerPINCapableFuncInvoked bool
 
 	SetMDMWindowsManagedLocalAccountEscrowedFunc        SetMDMWindowsManagedLocalAccountEscrowedFunc
 	SetMDMWindowsManagedLocalAccountEscrowedFuncInvoked bool
@@ -9231,6 +9261,41 @@ func (s *DataStore) QueueEscrow(ctx context.Context, hostID uint) error {
 	return s.QueueEscrowFunc(ctx, hostID)
 }
 
+func (s *DataStore) QueueBitLockerPINRequest(ctx context.Context, host *fleet.Host, encryptedPIN string) error {
+	s.mu.Lock()
+	s.QueueBitLockerPINRequestFuncInvoked = true
+	s.mu.Unlock()
+	return s.QueueBitLockerPINRequestFunc(ctx, host, encryptedPIN)
+}
+
+func (s *DataStore) GetBitLockerPINRequest(ctx context.Context, hostID uint) (*fleet.HostBitLockerPINRequest, error) {
+	s.mu.Lock()
+	s.GetBitLockerPINRequestFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetBitLockerPINRequestFunc(ctx, hostID)
+}
+
+func (s *DataStore) TakeBitLockerPINRequest(ctx context.Context, host *fleet.Host) (string, error) {
+	s.mu.Lock()
+	s.TakeBitLockerPINRequestFuncInvoked = true
+	s.mu.Unlock()
+	return s.TakeBitLockerPINRequestFunc(ctx, host)
+}
+
+func (s *DataStore) SetBitLockerPINRequestOutcome(ctx context.Context, host *fleet.Host, outcome fleet.BitLockerPINRequestStatus, clientError string) error {
+	s.mu.Lock()
+	s.SetBitLockerPINRequestOutcomeFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetBitLockerPINRequestOutcomeFunc(ctx, host, outcome, clientError)
+}
+
+func (s *DataStore) DeleteBitLockerPINRequest(ctx context.Context, host *fleet.Host) error {
+	s.mu.Lock()
+	s.DeleteBitLockerPINRequestFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeleteBitLockerPINRequestFunc(ctx, host)
+}
+
 func (s *DataStore) AssertHasNoEncryptionKeyStored(ctx context.Context, hostID uint) error {
 	s.mu.Lock()
 	s.AssertHasNoEncryptionKeyStoredFuncInvoked = true
@@ -11049,6 +11114,13 @@ func (s *DataStore) SetMDMWindowsEnrollmentFleetdSyncCapable(ctx context.Context
 	s.SetMDMWindowsEnrollmentFleetdSyncCapableFuncInvoked = true
 	s.mu.Unlock()
 	return s.SetMDMWindowsEnrollmentFleetdSyncCapableFunc(ctx, hostUUID, capable)
+}
+
+func (s *DataStore) SetMDMWindowsEnrollmentFleetdBitLockerPINCapable(ctx context.Context, hostUUID string, capable bool) error {
+	s.mu.Lock()
+	s.SetMDMWindowsEnrollmentFleetdBitLockerPINCapableFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetMDMWindowsEnrollmentFleetdBitLockerPINCapableFunc(ctx, hostUUID, capable)
 }
 
 func (s *DataStore) SetMDMWindowsManagedLocalAccountEscrowed(ctx context.Context, hostUUID string, escrowed bool) (changed bool, err error) {

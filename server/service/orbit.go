@@ -660,14 +660,27 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 			// self-heals on the next poll.
 			syncCapable := false
 			mlaCapable := false
+			pinCapable := false
 			if mp, ok := capabilities.FromContext(ctx); ok {
 				syncCapable = mp.Has(fleet.CapabilityWindowsMDMSync)
 				mlaCapable = mp.Has(fleet.CapabilityWindowsManagedLocalAccount)
+				pinCapable = mp.Has(fleet.CapabilityWindowsBitLockerPIN)
 			}
 			if syncCapable != state.FleetdSyncCapable {
 				if err := svc.ds.SetMDMWindowsEnrollmentFleetdSyncCapable(ctx, host.UUID, syncCapable); err != nil {
 					svc.logger.WarnContext(ctx, "persisting Windows MDM sync capability", "host_uuid", host.UUID, "err", err)
 				}
+			}
+			if pinCapable != state.FleetdBitLockerPINCapable {
+				if err := svc.ds.SetMDMWindowsEnrollmentFleetdBitLockerPINCapable(ctx, host.UUID, pinCapable); err != nil {
+					svc.logger.WarnContext(ctx, "persisting Windows BitLocker PIN capability", "host_uuid", host.UUID, "err", err)
+				}
+			}
+
+			// Hand over a startup PIN the end user submitted, if one is waiting and this host still needs it. Both
+			// gates ride on the state row already read above, so a poll with nothing waiting costs no extra query.
+			if err := svc.setBitLockerPINNotification(ctx, &notifs, host, state); err != nil {
+				return fleet.OrbitConfig{}, ctxerr.Wrap(ctx, err, "setting bitlocker pin notification")
 			}
 
 			// Ask a capable premium fleetd to create and escrow the Windows managed local admin account when the host's fleet has the

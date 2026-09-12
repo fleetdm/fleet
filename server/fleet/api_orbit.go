@@ -255,6 +255,55 @@ func (r OrbitPostDiskEncryptionKeyResponse) Error() error { return r.Err }
 func (r OrbitPostDiskEncryptionKeyResponse) Status() int  { return http.StatusNoContent }
 
 /////////////////////////////////////////////////////////////////////////////////
+// Orbit BitLocker startup PIN relay
+/////////////////////////////////////////////////////////////////////////////////
+
+// OrbitGetDiskEncryptionPINRequest collects the BitLocker startup PIN the end user submitted from the My device page.
+// The response is the only place the server ever hands the PIN back out, and it can only be read once: the row moves to
+// delivered and its ciphertext is cleared in the same transaction.
+type OrbitGetDiskEncryptionPINRequest struct {
+	OrbitNodeKey string `json:"orbit_node_key"`
+}
+
+func (r *OrbitGetDiskEncryptionPINRequest) SetOrbitNodeKey(nodeKey string) {
+	r.OrbitNodeKey = nodeKey
+}
+
+func (r *OrbitGetDiskEncryptionPINRequest) OrbitHostNodeKey() string {
+	return r.OrbitNodeKey
+}
+
+type OrbitGetDiskEncryptionPINResponse struct {
+	PIN string `json:"pin,omitempty"`
+	Err error  `json:"error,omitempty"`
+}
+
+func (r OrbitGetDiskEncryptionPINResponse) Error() error { return r.Err }
+
+// OrbitPostDiskEncryptionPINRequest reports whether the agent applied the PIN it collected. Outcome is one of
+// BitLockerPINRequestSet or BitLockerPINRequestFailed; ClientError is required for a failure.
+type OrbitPostDiskEncryptionPINRequest struct {
+	OrbitNodeKey string                    `json:"orbit_node_key"`
+	Outcome      BitLockerPINRequestStatus `json:"outcome"`
+	ClientError  string                    `json:"client_error"`
+}
+
+func (r *OrbitPostDiskEncryptionPINRequest) SetOrbitNodeKey(nodeKey string) {
+	r.OrbitNodeKey = nodeKey
+}
+
+func (r *OrbitPostDiskEncryptionPINRequest) OrbitHostNodeKey() string {
+	return r.OrbitNodeKey
+}
+
+type OrbitPostDiskEncryptionPINResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r OrbitPostDiskEncryptionPINResponse) Error() error { return r.Err }
+func (r OrbitPostDiskEncryptionPINResponse) Status() int  { return http.StatusNoContent }
+
+/////////////////////////////////////////////////////////////////////////////////
 // Post Orbit LUKS (Linux disk encryption) data
 /////////////////////////////////////////////////////////////////////////////////
 

@@ -52,6 +52,11 @@ type OrbitConfigNotifications struct {
 	// turn protection back on.
 	EnableBitLockerProtection bool `json:"enable_bitlocker_protection,omitempty"`
 
+	// BitLockerPINRequestPending tells fleetd on Windows that the end user has submitted a BitLocker startup PIN and
+	// that it should collect it from /api/fleet/orbit/disk_encryption_pin/request and apply it. Only set for hosts
+	// whose fleetd advertises CapabilityWindowsBitLockerPIN, and only while an unexpired submission is waiting.
+	BitLockerPINRequestPending bool `json:"bitlocker_pin_request_pending,omitempty"`
+
 	// PendingSoftwareInstallerIDs contains a list of software install_ids queued for installation
 	PendingSoftwareInstallerIDs []string `json:"pending_software_installer_ids,omitempty"`
 
