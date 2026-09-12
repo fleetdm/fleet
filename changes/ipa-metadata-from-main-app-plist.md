@@ -1,0 +1,1 @@
+- Fixed in-house iOS/iPadOS `.ipa` uploads showing an embedded framework or CocoaPods resource bundle's name and version instead of the app's own, which also sent a mismatched bundle identifier to the host and prevented the app from installing. React Native and Expo apps were affected.
