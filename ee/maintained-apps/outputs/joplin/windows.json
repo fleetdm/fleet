@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "3.7.16",
+      "version": "3.7.18",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'Joplin %' AND publisher = 'Laurent Cozic';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Joplin %' AND publisher = 'Laurent Cozic' AND version_compare(version, '3.7.16') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Joplin %' AND publisher = 'Laurent Cozic' AND version_compare(version, '3.7.18') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'joplin.exe');"
       },
-      "installer_url": "https://github.com/laurent22/joplin/releases/download/v3.7.16/Joplin-Setup-3.7.16.exe",
+      "installer_url": "https://github.com/laurent22/joplin/releases/download/v3.7.18/Joplin-Setup-3.7.18.exe",
       "install_script_ref": "c256db87",
       "uninstall_script_ref": "6eac6dfa",
-      "sha256": "fe1bbd9a0540ba961945e7fb74e795fb495d62421aba0c7323875376221bc253",
+      "sha256": "88631fa78e352245bc5770573a0905d83876e530d97f222817177d7c9a6cae7f",
       "default_categories": [
         "Productivity"
       ]
