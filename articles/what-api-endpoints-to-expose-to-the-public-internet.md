@@ -2,6 +2,8 @@
 
 This guide details which API endpoints to make publicly accessible.
 
+Find out external URLs and API endpoints that the Fleet [server makes outbound requests to](https://fleetdm.com/guides/outbound-requests-from-fleet).
+
 ## Managing hosts that can travel outside VPN or intranet
 
 If you would like to manage hosts that can travel outside your VPN or intranet, we recommend only exposing the osquery endpoints to the public internet:
