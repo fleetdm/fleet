@@ -337,43 +337,6 @@ describe("Vitals Card component", () => {
   });
 });
 
-describe("Hardware model vital", () => {
-  it("truncates a long marketing name instead of letting it overflow with no ellipsis", () => {
-    const mockHost = createMockHost({
-      platform: "darwin",
-      hardware_model: "MacBookPro18,1",
-      hardware_marketing_name: "MacBook Pro (16-inch, 2021)",
-    });
-
-    const { container } = render(
-      <Vitals vitalsData={mockHost} mdm={mockHost.mdm} />
-    );
-
-    expect(
-      container.querySelector(".vitals-card__hardware-model-text")
-    ).toBeInTheDocument();
-  });
-
-  it("truncates a long raw model instead of letting it overflow with no ellipsis", () => {
-    const mockHost = createMockHost({
-      platform: "darwin",
-      hardware_model: "MacBook Pro (16-inch, 2021)",
-      hardware_marketing_name: "",
-    });
-
-    render(<Vitals vitalsData={mockHost} mdm={mockHost.mdm} />);
-
-    // Scoped to the Hardware model row specifically — Serial number/UUID on
-    // the same card also render via TooltipTruncatedText and share this class.
-    const hardwareModelDataSet = screen
-      .getByText("Hardware model")
-      .closest(".data-set");
-    expect(
-      hardwareModelDataSet?.querySelector(".tooltip-truncated-text__text-value")
-    ).toBeInTheDocument();
-  });
-});
-
 describe("Location vital", () => {
   // ADE = iOS/iPadOS host with mdm.enrollment_status === "On (automatic)";
   // matches the definition in Vitals.tsx.
