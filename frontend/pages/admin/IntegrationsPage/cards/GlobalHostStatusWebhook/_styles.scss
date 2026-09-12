@@ -1,0 +1,9 @@
+.app-config-form {
+  // Must fill the form field's width; TooltipWrapper is otherwise a max-content flex item.
+  &__disabled-tooltip {
+    .component__tooltip-wrapper__element {
+      width: 100%;
+      white-space: normal;
+    }
+  }
+}
