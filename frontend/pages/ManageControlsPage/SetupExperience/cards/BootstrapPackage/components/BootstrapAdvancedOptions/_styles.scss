@@ -9,9 +9,18 @@
     align-self: flex-start;
   }
 
-  &__advanced-options-controls {
+  &__settings-card {
+    box-sizing: border-box;
     display: flex;
-    flex-direction: column;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
     gap: $pad-large;
+
+    // .form-field is styled globally at width: 100%, which forces the
+    // checkbox to consume the whole row, leaving no room for Save.
+    .form-field {
+      width: auto;
+    }
   }
 }
