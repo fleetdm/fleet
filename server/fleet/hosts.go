@@ -432,6 +432,8 @@ type Host struct {
 	BitLockerProtectionStatus *int `json:"-" db:"bitlocker_protection_status" csv:"-"`
 	// TPMPINSet is only maintained on teams with windows_require_bitlocker_pin.
 	TPMPINSet bool `json:"-" db:"tpm_pin_set" csv:"-"`
+	// BitLockerBootProtectorSet reports whether a protector able to release the volume master key at boot is present.
+	BitLockerBootProtectorSet *bool `json:"-" db:"bitlocker_boot_protector_set" csv:"-"`
 
 	// DiskEncryptionKeyEscrowed is set to signal that a FileVault disk encryption key was escrowed.
 	// We need this because the escrow process for macOS is driven by detail queries

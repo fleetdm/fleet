@@ -1365,6 +1365,8 @@ type Datastore interface {
 
 	GetConfigEnableDiskEncryption(ctx context.Context, teamID *uint) (DiskEncryptionConfig, error)
 	SetOrUpdateHostDiskTpmPIN(ctx context.Context, hostID uint, pinSet bool) error
+	// SetOrUpdateHostDiskBootProtector records whether the volume has a key protector able to release the volume master key at boot.
+	SetOrUpdateHostDiskBootProtector(ctx context.Context, hostID uint, bootProtectorSet bool) error
 	SetOrUpdateHostDisksEncryption(ctx context.Context, hostID uint, encrypted bool, bitlockerProtectionStatus *int) error
 	// SetOrUpdateHostDiskEncryptionKey sets the base64, encrypted key for
 	// a host, returns whether the current key was archived or not due to the current one being updated/replaced.

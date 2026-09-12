@@ -94,6 +94,14 @@ func (d *Datastore) SetOrUpdateHostDiskTpmPIN(ctx context.Context, hostID uint, 
 	return nil
 }
 
+func (d *Datastore) SetOrUpdateHostDiskBootProtector(ctx context.Context, hostID uint, bootProtectorSet bool) error {
+	if err := d.Datastore.SetOrUpdateHostDiskBootProtector(ctx, hostID, bootProtectorSet); err != nil {
+		return err
+	}
+	d.hostCacheDeleteByID(ctx, hostID, "update")
+	return nil
+}
+
 // EnrollOrbit invalidates for the returned host on successful enrollment. Orbit enrollment may create a new
 // hosts row or update an existing one's orbit_node_key + team_id; in either case the cached snapshot is stale.
 //

@@ -608,6 +608,9 @@ func TestBitlockerOperations(t *testing.T) {
 			Frequency:            time.Hour, // doesn't matter for this test
 			encryptionRetryAfter: time.Now().Add(-2 * time.Hour),
 			EncryptionResult:     clientMock,
+			capabilitiesFetcher: func() fleet.CapabilityMap {
+				return fleet.CapabilityMap{fleet.CapabilityDiskEncryptionErrorKeepsKey: {}}
+			},
 			execGetEncryptionStatusFn: func() ([]bitlocker.VolumeStatus, error) {
 				// Default: an ordinary unencrypted host. This has to state C: is fully decrypted.
 				return []bitlocker.VolumeStatus{
@@ -822,6 +825,8 @@ func TestBitlockerOperations(t *testing.T) {
 			restartErr      error
 			wantAdd         bool
 			wantEnable      bool
+			// wantRotateOnly marks a repair that rotates and escrows but must leave protection itself alone.
+			wantRotateOnly  bool
 			wantOutcome     fleet.DiskEncryptionProtectionOutcome
 			wantErrContains string
 			wantBackoff     bool
@@ -921,10 +926,31 @@ func TestBitlockerOperations(t *testing.T) {
 				hasProtector: true,
 			},
 			{
-				name:         "does nothing when protection is already on",
+				name:         "does nothing when protection is already on and the volume can unseal at boot",
 				status:       statusFor(bitlocker.ConversionStatusFullyEncrypted, bitlocker.ProtectionStatusOn),
 				hasProtector: true,
 				wantBackoff:  true,
+			},
+			{
+				name:           "adds a protector without re-enabling when protection is already on",
+				status:         statusFor(bitlocker.ConversionStatusFullyEncrypted, bitlocker.ProtectionStatusOn),
+				wantAdd:        true,
+				wantRotateOnly: true,
+				wantOutcome:    fleet.DiskEncryptionProtectionRestored,
+				wantBackoff:    true,
+				shortBackoff:   true,
+				reason:         "protection is already on, so it must not be re-enabled",
+			},
+			{
+				name:           "a pending restart does not defer the repair when protection is already on",
+				status:         statusFor(bitlocker.ConversionStatusFullyEncrypted, bitlocker.ProtectionStatusOn),
+				restartPending: true,
+				wantAdd:        true,
+				wantRotateOnly: true,
+				wantOutcome:    fleet.DiskEncryptionProtectionRestored,
+				wantBackoff:    true,
+				shortBackoff:   true,
+				reason:         "protection is already on, so it must not be re-enabled",
 			},
 		} {
 			t.Run(tc.name, func(t *testing.T) {
@@ -961,9 +987,11 @@ func TestBitlockerOperations(t *testing.T) {
 				// The restore path must never reach the encrypt path, whose first act is deleting every key protector.
 				require.False(t, encryptFnCalled, "restoring protection must never delete key protectors")
 				// setupTest reports no recovery password, which is the case this repair exists for, so every pass that
-				// gets as far as enabling protection first rotates and escrows. The decision itself is covered below.
-				require.Equal(t, tc.wantEnable, rotateKeyFnCalled, "rotating the recovery key")
-				require.Equal(t, tc.wantEnable, clientMock.SetOrUpdateDiskEncryptionKeyInvoked, "escrowing the rotated key")
+				// gets past the protector step rotates and escrows, whether or not it goes on to enable protection.
+				// The decision itself is covered below.
+				wantRotate := tc.wantEnable || tc.wantRotateOnly
+				require.Equal(t, wantRotate, rotateKeyFnCalled, "rotating the recovery key")
+				require.Equal(t, wantRotate, clientMock.SetOrUpdateDiskEncryptionKeyInvoked, "escrowing the rotated key")
 			})
 		}
 
@@ -1022,6 +1050,39 @@ func TestBitlockerOperations(t *testing.T) {
 					}
 				})
 			}
+		})
+
+		t.Run("retries a failed escrow on the next pass once the protector is in place", func(t *testing.T) {
+			setupTest()
+			// Protection is already on, so the repair only adds a protector. On the second pass the volume looks healthy.
+			protectedNoProtector := statusFor(bitlocker.ConversionStatusFullyEncrypted, bitlocker.ProtectionStatusOn)
+			enrollReceiver.execGetEncryptionStatusFn = protectedNoProtector
+			hasProtector := false
+			enrollReceiver.execHasBootUnsealProtectorFn = func(string) (bool, error) { return hasProtector, nil }
+			enrollReceiver.execAddTPMProtectorFn = func(string) error { hasProtector = true; return nil }
+			enrollReceiver.execHasRecoveryPasswordFn = func(string) (bool, error) { return false, nil }
+			enrollReceiver.execRotateRecoveryKeyFn = func(string) (string, error) { return "rotated-key", nil }
+			escrowFails := true
+			var escrowed []string
+			prevEscrow := clientMock.SetOrUpdateDiskEncryptionKeyImpl
+			t.Cleanup(func() { clientMock.SetOrUpdateDiskEncryptionKeyImpl = prevEscrow })
+			clientMock.SetOrUpdateDiskEncryptionKeyImpl = func(p fleet.OrbitHostDiskEncryptionKeyPayload) error {
+				if escrowFails {
+					return errors.New("server unreachable")
+				}
+				escrowed = append(escrowed, string(p.EncryptionKey))
+				return nil
+			}
+
+			require.NoError(t, enrollReceiver.Run(protectionCfg))
+			require.Empty(t, escrowed, "the first pass must fail to escrow")
+			require.Equal(t, "rotated-key", enrollReceiver.pendingRecoveryKey, "the key has to be held for the retry")
+
+			escrowFails = false
+			enrollReceiver.protectionRetryAfter = time.Time{}
+			require.NoError(t, enrollReceiver.Run(protectionCfg))
+			require.Equal(t, []string{"rotated-key"}, escrowed, "the held key must be escrowed on the next pass")
+			require.Empty(t, enrollReceiver.pendingRecoveryKey, "a successful escrow clears the held key")
 		})
 
 		t.Run("adds a TPM protector, then rotates, then escrows, then enables", func(t *testing.T) {
@@ -1224,6 +1285,8 @@ func TestBitlockerOperations(t *testing.T) {
 			resumeErr   error
 			wantResume  bool
 			wantBackoff bool
+			// serverDiscardsKey models a server too old to record an error without wiping the stored key.
+			serverDiscardsKey bool
 			// Substrings the reported reason must contain. Empty means nothing is reported at all.
 			wantReport []string
 		}{
@@ -1242,9 +1305,22 @@ func TestBitlockerOperations(t *testing.T) {
 				name: "decryption paused is reported, never resumed", conversion: bitlocker.ConversionStatusDecryptionPaused,
 				wantBackoff: true, wantReport: []string{"decryption is paused"},
 			},
+			{
+				// A server without the capability overwrites the escrowed key with the empty value this report carries,
+				// so staying silent leaves the admin with a key rather than none.
+				name: "nothing is reported to a server that would discard the key", conversion: bitlocker.ConversionStatusDecryptionPaused,
+				serverDiscardsKey: true, wantBackoff: true,
+			},
+			{
+				name: "a failed resume is not reported to a server that would discard the key", conversion: bitlocker.ConversionStatusEncryptionPaused,
+				resumeErr: errors.New("WMI refused"), serverDiscardsKey: true, wantResume: true, wantBackoff: true,
+			},
 		} {
 			t.Run(tc.name, func(t *testing.T) {
 				setupTest()
+				if tc.serverDiscardsKey {
+					enrollReceiver.capabilitiesFetcher = func() fleet.CapabilityMap { return fleet.CapabilityMap{} }
+				}
 				var resumeCalled bool
 				enrollReceiver.execResumeConversionFn = func(string) error { resumeCalled = true; return tc.resumeErr }
 				enrollReceiver.execGetEncryptionStatusFn = func() ([]bitlocker.VolumeStatus, error) {
