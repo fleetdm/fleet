@@ -98,6 +98,8 @@ software:
     # Linux apps
   fleet_maintained_apps:
     # macOS apps
+    - slug: aircall/darwin # Aircall for macOS
+      self_service: true
     - slug: slack/darwin # Slack for macOS
       self_service: true
     - slug: zoom/darwin # Zoom for macOS
