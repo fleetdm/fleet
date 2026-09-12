@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "1.6.2",
+      "version": "1.6.4",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'best.swift.Notepad';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'best.swift.Notepad' AND version_compare(bundle_short_version, '1.6.2') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'best.swift.Notepad' AND version_compare(bundle_short_version, '1.6.4') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'best.swift.Notepad' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/notepadhq/notepadexe-public/releases/download/1.6.2/Notepad.zip",
+      "installer_url": "https://github.com/notepadhq/notepadexe-public/releases/download/1.6.4/Notepad.zip",
       "install_script_ref": "7bdbf044",
       "uninstall_script_ref": "abe56690",
-      "sha256": "24c0ef06023765ef6306feaa09edfae510b17af85d557935c42d0574ac8df859",
+      "sha256": "9ba13e00a6338084bc16cdd84aaaae60034fc2a966d3ebfc55b7f26e8a62327e",
       "default_categories": [
         "Developer tools"
       ]
