@@ -3057,10 +3057,11 @@ func (ds *Datastore) batchSetLabelAndVariableAssociations(ctx context.Context, t
 }
 
 func reconcileHostEmailsFromMdmIdpAccountsDB(ctx context.Context, tx sqlx.ExtContext, logger *slog.Logger, hostID uint) (*fleet.MDMIdPAccount, error) {
-	idp, err := getMDMIdPAccountByHostID(ctx, tx, logger, hostID)
+	accts, err := getMDMIdPAccountsByHostIDs(ctx, tx, logger, []uint{hostID})
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get host mdm idp account email")
 	}
+	idp := accts[hostID]
 
 	// manually set IdP mappings (source "idp", written by
 	// SetOrUpdateIDPHostDeviceMapping) are reported by the API under the same
@@ -3181,40 +3182,49 @@ func reconcileHostEmailsFromMdmIdpAccountsDB(ctx context.Context, tx sqlx.ExtCon
 	return idp, nil
 }
 
-func getMDMIdPAccountByHostID(ctx context.Context, q sqlx.QueryerContext, logger *slog.Logger, hostID uint) (*fleet.MDMIdPAccount, error) {
-	stmt := `SELECT account_uuid FROM host_mdm_idp_accounts WHERE host_uuid = (SELECT uuid FROM hosts WHERE id = ?)`
-	var dest []string
-	if err := sqlx.SelectContext(ctx, q, &dest, stmt, hostID); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "select host_mdm_idp_accounts")
-	}
-
-	var acctUUID string
-	switch {
-	case len(dest) == 0:
-		// TODO: consider falling back to the legacy enroll ref
-		logger.InfoContext(ctx, "get host mdm idp accounts: no account found", "host_id", hostID)
-	default:
-		if len(dest) > 1 {
-			// this should not happen, but if it does we want to know about it
-			logger.InfoContext(ctx, "get host mdm idp accounts: found multiple accounts", "host_id", hostID, "acct_uuids", fmt.Sprintf("%+v", dest))
-		}
-		acctUUID = dest[0]
-	}
-
-	if acctUUID == "" {
+// getMDMIdPAccountsByHostIDs returns the IdP account linked to each of the given
+// hosts, keyed by host id. Hosts with no linked account are absent from the
+// result; host_mdm_idp_accounts is unique on host_uuid, so a host has at most one.
+func getMDMIdPAccountsByHostIDs(ctx context.Context, q sqlx.QueryerContext, logger *slog.Logger, hostIDs []uint) (map[uint]*fleet.MDMIdPAccount, error) {
+	if len(hostIDs) == 0 {
 		return nil, nil
 	}
 
-	var idp fleet.MDMIdPAccount
-	stmt = `SELECT uuid, username, fullname, email FROM mdm_idp_accounts WHERE uuid = ?`
-	if err := sqlx.GetContext(ctx, q, &idp, stmt, acctUUID); err != nil {
-		if err == sql.ErrNoRows {
-			return nil, nil // TODO: maybe return a not found error?
-		}
-		return nil, ctxerr.Wrap(ctx, err, "get host mdm idp account")
+	stmt, args, err := sqlx.In(`
+		SELECT h.id AS host_id, mia.uuid, mia.username, mia.fullname, mia.email
+		FROM hosts h
+		JOIN host_mdm_idp_accounts hmia ON hmia.host_uuid = h.uuid
+		JOIN mdm_idp_accounts mia ON mia.uuid = hmia.account_uuid
+		WHERE h.id IN (?)`, hostIDs)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "prepare get host mdm idp accounts arguments")
 	}
 
-	return &idp, nil
+	var rows []struct {
+		HostID uint `db:"host_id"`
+		fleet.MDMIdPAccount
+	}
+	if err := sqlx.SelectContext(ctx, q, &rows, stmt, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "select host mdm idp accounts")
+	}
+
+	accts := make(map[uint]*fleet.MDMIdPAccount, len(rows))
+	for i := range rows {
+		accts[rows[i].HostID] = &rows[i].MDMIdPAccount
+	}
+
+	var missing []uint
+	for _, hostID := range hostIDs {
+		if _, ok := accts[hostID]; !ok {
+			missing = append(missing, hostID)
+		}
+	}
+	if len(missing) > 0 {
+		// TODO: consider falling back to the legacy enroll ref
+		logger.InfoContext(ctx, "get host mdm idp accounts: no account found", "host_ids", fmt.Sprintf("%+v", missing))
+	}
+
+	return accts, nil
 }
 
 func (ds *Datastore) CleanUpMDMManagedCertificates(ctx context.Context) error {

@@ -216,8 +216,7 @@ func (svc *Service) replaceCertificateVariables(ctx context.Context, input strin
 			if err != nil {
 				return "", err
 			}
-			local, _, _ := strings.Cut(user.IdpUserName, "@")
-			result = fleet.FleetVarHostEndUserIDPUsernameLocalPartRegexp.ReplaceAllString(result, escapeDNValue(local))
+			result = fleet.FleetVarHostEndUserIDPUsernameLocalPartRegexp.ReplaceAllString(result, escapeDNValue(fleet.EmailLocalPart(user.IdpUserName)))
 		case string(fleet.FleetVarHostEndUserIDPGroups):
 			user, err := requireIDPUser(fleetVar)
 			if err != nil {
