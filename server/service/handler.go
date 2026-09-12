@@ -131,7 +131,7 @@ func MakeHandler(
 	carveStore fleet.CarveStore,
 	featureRoutes []endpointer.HandlerRoutesFunc,
 	extra ...ExtraHandlerOption,
-) http.Handler {
+) (http.Handler, error) {
 	var eopts extraHandlerOpts
 	for _, fn := range extra {
 		fn(&eopts)
@@ -140,7 +140,7 @@ func MakeHandler(
 	// Create the client IP extraction strategy based on config.
 	ipStrategy, err := endpointer.NewClientIPStrategy(config.Server.TrustedProxies)
 	if err != nil {
-		panic(fmt.Sprintf("invalid server.trusted_proxies configuration: %v", err))
+		return nil, fmt.Errorf("invalid server.trusted_proxies configuration: %w", err)
 	}
 
 	fleetAPIOptions := []kithttp.ServerOption{
@@ -160,6 +160,8 @@ func MakeHandler(
 	}
 
 	r := mux.NewRouter()
+
+	fastPathEnabled := true
 	if config.Logging.TracingEnabled {
 		if config.OTELEnabled() {
 			r.Use(otmiddleware.Middleware(
@@ -170,18 +172,24 @@ func MakeHandler(
 					return r.Method + " " + route
 				})))
 		} else {
+			// Elastic APM instrumentation is gorilla-specific and names spans from the matched mux route, so the fast path
+			// cannot be installed alongside it.
 			apmgorilla.Instrument(r)
+			fastPathEnabled = false
 		}
 	}
 
+	// Route-agnostic middleware is collected because it is needed by both the fastpath stdlib router and gorilla.
+	var middlewares []mux.MiddlewareFunc
+
 	if config.Server.GzipResponses {
-		r.Use(func(h http.Handler) http.Handler {
+		middlewares = append(middlewares, func(h http.Handler) http.Handler {
 			return gzhttp.GzipHandler(h)
 		})
 	}
 
 	// Add middleware to extract the client IP and set it in the request context.
-	r.Use(func(handler http.Handler) http.Handler {
+	middlewares = append(middlewares, func(handler http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			ip := ipStrategy.ClientIP(r.Header, r.RemoteAddr)
 			if ip != "" {
@@ -192,7 +200,11 @@ func MakeHandler(
 	})
 
 	if eopts.httpSigVerifier != nil {
-		r.Use(eopts.httpSigVerifier)
+		middlewares = append(middlewares, eopts.httpSigVerifier)
+	}
+
+	for _, mw := range middlewares {
+		r.Use(mw)
 	}
 
 	attachFleetAPIRoutes(r, svc, config, logger, limitStore, redisPool, fleetAPIOptions, eopts)
@@ -201,7 +213,10 @@ func MakeHandler(
 	}
 	addMetrics(r)
 
-	return r
+	if !fastPathEnabled {
+		return r, nil
+	}
+	return newFastPathHandler(r, middlewares, config)
 }
 
 // PrometheusMetricsHandler wraps the provided handler with prometheus metrics
