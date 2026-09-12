@@ -97,6 +97,10 @@ export const getRowActionProps = (
   const isAndroidCertificate =
     platform === "android" &&
     profileUUID === FLEET_ANDROID_CERTIFICATE_TEMPLATE_PROFILE_ID;
+  // Android config profiles (unlike certificates) are delivered via AMAPI
+  // policy sync rather than pushed by Fleet, so they can never be resent.
+  const isAndroidConfigProfile =
+    platform === "android" && !isAndroidCertificate;
 
   return {
     canResendProfiles:
@@ -109,6 +113,8 @@ export const getRowActionProps = (
     canResendHostNameTemplate:
       profileUUID === HOST_NAME_SYNTHETIC_PROFILE_UUID &&
       canResendHostNameTemplate,
+    showDisabledResendForAndroidProfile:
+      canResendProfiles && isAndroidConfigProfile,
   };
 };
 
@@ -185,6 +191,9 @@ const generateTableConfig = (
               rowActions.canRotateRecoveryLockPassword
             }
             canResendHostNameTemplate={rowActions.canResendHostNameTemplate}
+            showDisabledResendForAndroidProfile={
+              rowActions.showDisabledResendForAndroidProfile
+            }
             profile={cellProps.row.original}
             resendRequest={resendRequest}
             resendCertificateRequest={resendCertificateRequest}

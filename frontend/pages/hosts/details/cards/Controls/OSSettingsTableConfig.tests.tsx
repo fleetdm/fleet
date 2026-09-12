@@ -1,4 +1,5 @@
 import { IHostMdmData, IHostMdmHostNameSetting } from "interfaces/host";
+import { FLEET_ANDROID_CERTIFICATE_TEMPLATE_PROFILE_ID } from "interfaces/mdm";
 import { createMockHostMdmProfile } from "__mocks__/hostMock";
 import {
   generateRecoveryLockPasswordSetting,
@@ -211,5 +212,44 @@ describe("getRowActionProps", () => {
     });
 
     expect(getRowActionProps(row, true).canResendProfiles).toBe(true);
+  });
+
+  it("offers a disabled resend for an Android configuration profile, not the real resend", () => {
+    const row = createMockHostMdmProfile({
+      profile_uuid: "a1234",
+      platform: "android",
+      status: "failed",
+    });
+
+    expect(getRowActionProps(row, true)).toMatchObject({
+      canResendProfiles: false,
+      showDisabledResendForAndroidProfile: true,
+    });
+  });
+
+  it("does not offer a disabled resend for an Android configuration profile when the caller lacks permission", () => {
+    const row = createMockHostMdmProfile({
+      profile_uuid: "a1234",
+      platform: "android",
+      status: "failed",
+    });
+
+    expect(
+      getRowActionProps(row, false).showDisabledResendForAndroidProfile
+    ).toBe(false);
+  });
+
+  it("offers the real resend, not the disabled Android state, for an Android certificate row", () => {
+    const row = createMockHostMdmProfile({
+      profile_uuid: FLEET_ANDROID_CERTIFICATE_TEMPLATE_PROFILE_ID,
+      platform: "android",
+      status: "failed",
+      certificate_template_id: 1,
+    });
+
+    expect(getRowActionProps(row, true)).toMatchObject({
+      canResendProfiles: true,
+      showDisabledResendForAndroidProfile: false,
+    });
   });
 });

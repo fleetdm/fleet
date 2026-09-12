@@ -1,0 +1,2 @@
+- Added a disabled "Resend" button with a tooltip for Android configuration profiles on the host's Controls tab, explaining that Android hosts sync configuration profiles automatically (unlike certificates, which can still be resent).
+- Android certificates stuck delivering to a host now show a "Resend" button, instead of only when failed or verified, so a stuck certificate can be retried from the UI.
