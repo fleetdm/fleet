@@ -208,8 +208,11 @@
                 </div>
                 <div purpose="mobile-nav-container" id="mobileDropdowns">
                   <div purpose="mobile-dropdown-menus">
-                    <div purpose="mobile-search" id="mobile-docsearch" class="<%- showSearchInMobileMenu ? 'd-flex' : 'd-none'%>">
-                    </div>
+                    <form purpose="google-search" >
+                      <div purpose="mobile-search" class="<%- showSearchInMobileMenu ? 'd-flex' : 'd-none'%>">
+                        <input class="docsearch-input pr-1" placeholder="Search" aria-label="Search"/>
+                      </div>
+                    </form>
                     <div purpose="mobile-dropdown-toggle" class="d-flex flex-row justify-content-between align-items-center collapsed" data-toggle="collapse" data-target="#mobileNavbarToggleUseCases" aria-haspopup="true" aria-expanded="false">
                       <div><p>Solutions</p></div>
                       <div><img src="/images/icon-chevron-fleet-black-50-12x12@2x.png" alt="a small chevron"></div>
@@ -1141,6 +1144,18 @@
             });
           }
         }
+      });
+    </script>
+    <script>
+      // Sends search queries to a scoped Google search.
+      document.addEventListener('submit', function(event) {
+        var form = event.target.closest('form[purpose="google-search"]');
+        if (!form) { return; }
+        event.preventDefault();
+        var input = form.querySelector('input');
+        var searchQuery = (input ? input.value : '').trim();
+        if (!searchQuery) { return; }
+        window.open('https://www.google.com/search?q=' + encodeURIComponent('site:fleetdm.com ' + searchQuery) + '&udm=50', '_blank', 'noopener');
       });
     </script>
     <% if (sails.config.environment === 'production') { %>

@@ -17,11 +17,13 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	ma "github.com/fleetdm/fleet/v4/ee/maintained-apps"
 	"github.com/fleetdm/fleet/v4/pkg/file"
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
@@ -3501,4 +3503,49 @@ func TestUpdateSoftwareInstallerScriptEditedFlags(t *testing.T) {
 		require.True(t, saved().InstallScriptEdited)
 		require.False(t, saved().UninstallScriptEdited)
 	})
+}
+
+// Not parallel: the blocking mode is process-global, so this must not overlap
+// with other outbound requests in the package.
+func TestDownloadInstallerURLBlocksPrivateNetworks(t *testing.T) {
+	var hits atomic.Int64
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		hits.Add(1)
+		_, _ = io.WriteString(w, "#!/bin/sh\ninternal\n")
+	}))
+	t.Cleanup(srv.Close)
+
+	const maxSize = 512 * 1024 * 1024 // 512 MiB, generous for test payloads
+
+	tests := []struct {
+		name      string
+		mode      fleethttp.NetworkBlockingMode
+		wantReach bool
+	}{
+		{"disabled", fleethttp.BlockingDisabled, true},
+		{"bypass all", fleethttp.BlockingBypassAll, true},
+		{"full", fleethttp.BlockingFull, false},
+		{"private allowed", fleethttp.BlockingPrivateAllowed, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fleethttp.SetNetworkBlockingMode(tt.mode)
+			t.Cleanup(func() { fleethttp.SetNetworkBlockingMode(fleethttp.BlockingDisabled) })
+
+			before := hits.Load()
+			resp, tfr, err := downloadInstallerURL(t.Context(), srv.URL+"/installer.sh", "", maxSize)
+			if tfr != nil {
+				t.Cleanup(func() { tfr.Close() })
+			}
+			if tt.wantReach {
+				require.NoError(t, err)
+				require.Equal(t, http.StatusOK, resp.StatusCode)
+			} else {
+				require.ErrorIs(t, err, fleethttp.ErrPrivateNetworkBlocked)
+			}
+			// Assert on the connection, not just the error: the reachable rows
+			// prove the listener is up.
+			require.Equal(t, tt.wantReach, hits.Load() > before)
+		})
+	}
 }
