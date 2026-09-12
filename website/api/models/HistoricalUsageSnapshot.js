@@ -19,6 +19,7 @@ module.exports = {
     numUsers: { required: true, type: 'number' },
     numTeams: { required: true, type: 'number' },
     numPolicies: { required: true, type: 'number' },
+    numPoliciesAutomationEnabledSoftware: { required: true, type: 'number' },
     numLabels: { required: true, type: 'number' },
     softwareInventoryEnabled: { required: true, type: 'boolean' },
     vulnDetectionEnabled: { required: true, type: 'boolean' },
