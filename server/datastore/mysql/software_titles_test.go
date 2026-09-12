@@ -3183,7 +3183,7 @@ func testGetFleetMaintainedVersionsOrder(t *testing.T, ds *Datastore) {
 				require.NoError(t, err)
 			}
 
-			fmaVersions, err := ds.GetFleetMaintainedVersionsByTitleID(ctx, nil, titleID)
+			fmaVersions, err := ds.GetFleetMaintainedVersionsByTitleID(ctx, nil, titleID, app.ID)
 			require.NoError(t, err)
 			require.Equal(t, c.wantNewestFirst, versionStrings(fmaVersions))
 		})
@@ -3233,7 +3233,7 @@ func testMarkFleetMaintainedAppVersionCurrent(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.MarkFleetMaintainedAppVersionCurrent(ctx, olderID))
 	require.True(t, uploadedAt(olderID).After(uploadedAt(newerID)))
 
-	versions, err := ds.GetFleetMaintainedVersionsByTitleID(ctx, nil, titleID)
+	versions, err := ds.GetFleetMaintainedVersionsByTitleID(ctx, nil, titleID, app.ID)
 	require.NoError(t, err)
 	require.Equal(t, []string{"1.0", "1.1"}, versionStrings(versions))
 
@@ -3245,12 +3245,12 @@ func testMarkFleetMaintainedAppVersionCurrent(t *testing.T, ds *Datastore) {
 			olderID, newerID)
 		return err
 	})
-	versions, err = ds.GetFleetMaintainedVersionsByTitleID(ctx, nil, titleID)
+	versions, err = ds.GetFleetMaintainedVersionsByTitleID(ctx, nil, titleID, app.ID)
 	require.NoError(t, err)
 	require.Equal(t, []string{"1.1", "1.0"}, versionStrings(versions), "the higher id wins a tie")
 
 	require.NoError(t, ds.MarkFleetMaintainedAppVersionCurrent(ctx, olderID))
-	versions, err = ds.GetFleetMaintainedVersionsByTitleID(ctx, nil, titleID)
+	versions, err = ds.GetFleetMaintainedVersionsByTitleID(ctx, nil, titleID, app.ID)
 	require.NoError(t, err)
 	require.Equal(t, []string{"1.0", "1.1"}, versionStrings(versions))
 }

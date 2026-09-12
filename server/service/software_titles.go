@@ -243,14 +243,14 @@ func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 					// Populate FleetMaintainedVersions/pin/patch policy for FMA titles.
 					// An FMA title has a single active package, so this runs on it.
 					if pkg.FleetMaintainedAppID != nil {
-						fmaVersions, err := svc.ds.GetFleetMaintainedVersionsByTitleID(ctx, teamID, id)
+						fmaVersions, err := svc.ds.GetFleetMaintainedVersionsByTitleID(ctx, teamID, id, *pkg.FleetMaintainedAppID)
 						if err != nil {
 							return nil, ctxerr.Wrap(ctx, err, "get fleet maintained versions")
 						}
 						pkg.FleetMaintainedVersions = fmaVersions
 
 						// No pin row means the title tracks "Latest" (nil pinned_version); any other error is real.
-						pinnedVersion, err := svc.ds.GetPinnedVersion(ctx, teamID, id)
+						pinnedVersion, err := svc.ds.GetPinnedVersion(ctx, teamID, id, *pkg.FleetMaintainedAppID)
 						if err != nil && !errors.Is(err, sql.ErrNoRows) {
 							return nil, ctxerr.Wrap(ctx, err, "get pinned version")
 						}

@@ -71,6 +71,20 @@ func TestGenerateErrors(t *testing.T) {
 	require.ErrorIs(t, err, ErrMissingTitle)
 }
 
+func TestGenerateFMAPolicyName(t *testing.T) {
+	// Windows x64 and ARM64 builds share a title, so only the ARM64 name carries the architecture.
+	for arch, want := range map[string]string{
+		"":      "[Install software] Firefox Nightly",
+		"x64":   "[Install software] Firefox Nightly",
+		"arm64": "[Install software] Firefox Nightly (ARM64)",
+	} {
+		policyData, err := Generate(FMAInstallerMetadata{Title: "Firefox Nightly", Platform: "windows", Query: "SELECT 1;", Arch: arch})
+		require.NoError(t, err, arch)
+		require.Equal(t, want, policyData.Name, arch)
+		require.Equal(t, "SELECT 1;", policyData.Query, arch)
+	}
+}
+
 func TestGenerate(t *testing.T) {
 	policyData, err := Generate(MacInstallerMetadata{
 		Title:            "Foobar",

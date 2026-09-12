@@ -25,23 +25,37 @@ var maintainedAppsAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
 func (ds *Datastore) UpsertMaintainedApp(ctx context.Context, app *fleet.MaintainedApp) (*fleet.MaintainedApp, error) {
 	const upsertStmt = `
 INSERT INTO
-	fleet_maintained_apps (name, slug, platform, unique_identifier)
+	fleet_maintained_apps (name, slug, platform, unique_identifier, arch)
 VALUES
-	(?, ?, ?, ?)
+	(?, ?, ?, ?, ?)
 ON DUPLICATE KEY UPDATE
+	id = LAST_INSERT_ID(id),
 	name = VALUES(name),
 	platform = VALUES(platform),
-	unique_identifier = VALUES(unique_identifier)
+	unique_identifier = VALUES(unique_identifier),
+	arch = VALUES(arch)
+`
+	// Installers keep the catalog's architecture so host-side checks don't need a
+	// join; this also backfills rows added before arch existed.
+	const syncInstallerArchStmt = `
+UPDATE software_installers si
+	JOIN fleet_maintained_apps fma ON fma.id = si.fleet_maintained_app_id
+SET si.arch = fma.arch
+WHERE fma.slug = ? AND si.arch <> fma.arch
 `
 
 	var appID uint
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		res, err := tx.ExecContext(ctx, upsertStmt, app.Name, app.Slug, app.Platform, app.UniqueIdentifier)
+		res, err := tx.ExecContext(ctx, upsertStmt, app.Name, app.Slug, app.Platform, app.UniqueIdentifier, app.Arch)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "upsert maintained app")
 		}
 		id, _ := res.LastInsertId()
 		appID = uint(id) //nolint:gosec // dismiss G115
+
+		if _, err := tx.ExecContext(ctx, syncInstallerArchStmt, app.Slug); err != nil {
+			return ctxerr.Wrap(ctx, err, "sync installer arch from maintained app")
+		}
 
 		return nil
 	})
@@ -499,7 +513,7 @@ const fleetMaintainedAppsTeamJoin = `
 const teamFMATitlesJoin = `team_titles.id software_title_id ` + fleetMaintainedAppsTeamJoin
 
 func (ds *Datastore) GetMaintainedAppByID(ctx context.Context, appID uint, teamID *uint) (*fleet.MaintainedApp, error) {
-	stmt := `SELECT fma.id, fma.name, fma.platform, fma.unique_identifier, fma.slug, `
+	stmt := `SELECT fma.id, fma.name, fma.platform, fma.unique_identifier, fma.slug, fma.arch, `
 	var args []any
 
 	if teamID != nil {
@@ -525,7 +539,7 @@ func (ds *Datastore) GetMaintainedAppByID(ctx context.Context, appID uint, teamI
 }
 
 func (ds *Datastore) GetMaintainedAppBySlug(ctx context.Context, slug string, teamID *uint) (*fleet.MaintainedApp, error) {
-	stmt := `SELECT fma.id, fma.name, fma.platform, fma.unique_identifier, fma.slug, `
+	stmt := `SELECT fma.id, fma.name, fma.platform, fma.unique_identifier, fma.slug, fma.arch, `
 	var args []any
 
 	if teamID != nil {
@@ -738,24 +752,39 @@ func (ds *Datastore) GetWindowsFMAMatches(ctx context.Context) ([]fleet.Maintain
 }
 
 func (ds *Datastore) ClearRemovedFleetMaintainedApps(ctx context.Context, slugsToKeep []string) error {
-	stmt := `DELETE FROM fleet_maintained_apps WHERE slug NOT IN (?)`
+	// Deleting an app unlinks its installers (the FK sets fleet_maintained_app_id to
+	// NULL), which makes them custom packages; those carry no architecture.
+	clearArchStmt := `
+		UPDATE software_installers si
+			JOIN fleet_maintained_apps fma ON fma.id = si.fleet_maintained_app_id
+		SET si.arch = ''
+		WHERE fma.slug NOT IN (?)`
+	deleteStmt := `DELETE FROM fleet_maintained_apps WHERE slug NOT IN (?)`
 
 	var err error
 	var args []any
 	switch len(slugsToKeep) {
 	case 0:
-		stmt = `DELETE FROM fleet_maintained_apps`
+		clearArchStmt = `UPDATE software_installers SET arch = '' WHERE fleet_maintained_app_id IS NOT NULL`
+		deleteStmt = `DELETE FROM fleet_maintained_apps`
 	default:
-		stmt, args, err = sqlx.In(stmt, slugsToKeep)
+		clearArchStmt, args, err = sqlx.In(clearArchStmt, slugsToKeep)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "building sqlx.In statement for clearing removed maintained apps' arch")
+		}
+		deleteStmt, _, err = sqlx.In(deleteStmt, slugsToKeep)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "building sqlx.In statement for clearing removed maintained apps")
 		}
 	}
 
-	_, err = ds.writer(ctx).ExecContext(ctx, stmt, args...)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "clearing removed maintained apps")
-	}
-
-	return nil
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		if _, err := tx.ExecContext(ctx, clearArchStmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "clearing arch of installers of removed maintained apps")
+		}
+		if _, err := tx.ExecContext(ctx, deleteStmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "clearing removed maintained apps")
+		}
+		return nil
+	})
 }

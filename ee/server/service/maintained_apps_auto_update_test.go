@@ -13,6 +13,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// testAutoUpdateFMAID is the fleet_maintained_apps.id the fixtures below hand the cron.
+const testAutoUpdateFMAID = uint(7)
+
 func TestAutoUpdateFleetMaintainedApps(t *testing.T) {
 	// Cached versions for the title, most recently downloaded first (as the real
 	// datastore returns them).
@@ -26,11 +29,12 @@ func TestAutoUpdateFleetMaintainedApps(t *testing.T) {
 	teamID := uint(1)
 	candidate := func(activeID uint, activeVer string) fleet.FMAAutoUpdateCandidate {
 		return fleet.FMAAutoUpdateCandidate{
-			TeamID:      &teamID,
-			TitleID:     1,
-			InstallerID: activeID,
-			Version:     activeVer,
-			Slug:        "chrome/darwin",
+			TeamID:               &teamID,
+			TitleID:              1,
+			FleetMaintainedAppID: testAutoUpdateFMAID,
+			InstallerID:          activeID,
+			Version:              activeVer,
+			Slug:                 "chrome/darwin",
 		}
 	}
 
@@ -89,13 +93,15 @@ func TestAutoUpdateFleetMaintainedApps(t *testing.T) {
 			ds.ListFleetMaintainedAppActiveInstallersFunc = func(ctx context.Context) ([]fleet.FMAAutoUpdateCandidate, error) {
 				return []fleet.FMAAutoUpdateCandidate{tc.active}, nil
 			}
-			ds.GetPinnedVersionFunc = func(ctx context.Context, tmID *uint, titleID uint) (*string, error) {
+			ds.GetPinnedVersionFunc = func(ctx context.Context, tmID *uint, titleID, fmaID uint) (*string, error) {
+				require.Equal(t, testAutoUpdateFMAID, fmaID)
 				if tc.pin == nil {
 					return nil, sql.ErrNoRows
 				}
 				return tc.pin, nil
 			}
-			ds.GetFleetMaintainedVersionsByTitleIDFunc = func(ctx context.Context, tmID *uint, titleID uint) ([]fleet.FleetMaintainedVersion, error) {
+			ds.GetFleetMaintainedVersionsByTitleIDFunc = func(ctx context.Context, tmID *uint, titleID, fmaID uint) ([]fleet.FleetMaintainedVersion, error) {
+				require.Equal(t, testAutoUpdateFMAID, fmaID)
 				return tc.cached, nil
 			}
 
@@ -130,17 +136,19 @@ func TestAutoUpdateFleetMaintainedAppsContinuesPastError(t *testing.T) {
 	teamID := uint(1)
 	ds.ListFleetMaintainedAppActiveInstallersFunc = func(ctx context.Context) ([]fleet.FMAAutoUpdateCandidate, error) {
 		return []fleet.FMAAutoUpdateCandidate{
-			{TeamID: &teamID, TitleID: 1, InstallerID: 9, Slug: "bad/darwin"},
-			{TeamID: &teamID, TitleID: 2, InstallerID: 20, Slug: "good/darwin"},
+			{TeamID: &teamID, TitleID: 1, FleetMaintainedAppID: 11, InstallerID: 9, Slug: "bad/darwin"},
+			{TeamID: &teamID, TitleID: 2, FleetMaintainedAppID: 22, InstallerID: 20, Slug: "good/darwin"},
 		}, nil
 	}
-	ds.GetPinnedVersionFunc = func(ctx context.Context, tmID *uint, titleID uint) (*string, error) {
+	ds.GetPinnedVersionFunc = func(ctx context.Context, tmID *uint, titleID, fmaID uint) (*string, error) {
+		require.Equal(t, titleID*11, fmaID, "each candidate looks up its own FMA")
 		if titleID == 1 {
 			return nil, errors.New("boom")
 		}
 		return nil, sql.ErrNoRows
 	}
-	ds.GetFleetMaintainedVersionsByTitleIDFunc = func(ctx context.Context, tmID *uint, titleID uint) ([]fleet.FleetMaintainedVersion, error) {
+	ds.GetFleetMaintainedVersionsByTitleIDFunc = func(ctx context.Context, tmID *uint, titleID, fmaID uint) ([]fleet.FleetMaintainedVersion, error) {
+		require.Equal(t, titleID*11, fmaID, "each candidate looks up its own FMA")
 		return []fleet.FleetMaintainedVersion{{ID: 21, Version: "2.0.0"}}, nil
 	}
 	var flippedTitle uint
@@ -167,16 +175,18 @@ func TestAutoUpdateFleetMaintainedAppsReportsCancelDuringLastApp(t *testing.T) {
 
 	ds.ListFleetMaintainedAppActiveInstallersFunc = func(ctx context.Context) ([]fleet.FMAAutoUpdateCandidate, error) {
 		return []fleet.FMAAutoUpdateCandidate{
-			{TeamID: &teamID, TitleID: 1, InstallerID: 9, Slug: "only/darwin"},
+			{TeamID: &teamID, TitleID: 1, FleetMaintainedAppID: testAutoUpdateFMAID, InstallerID: 9, Slug: "only/darwin"},
 		}, nil
 	}
 	// The budget runs out while the last app is in flight, so no later pass through the loop sees it.
-	ds.GetPinnedVersionFunc = func(ctx context.Context, tmID *uint, titleID uint) (*string, error) {
+	ds.GetPinnedVersionFunc = func(ctx context.Context, tmID *uint, titleID, fmaID uint) (*string, error) {
+		require.Equal(t, testAutoUpdateFMAID, fmaID)
 		cancel()
 		return nil, sql.ErrNoRows
 	}
 	// Already on the newest cached version, so the app itself is a no-op and only the budget is left to report.
-	ds.GetFleetMaintainedVersionsByTitleIDFunc = func(ctx context.Context, tmID *uint, titleID uint) ([]fleet.FleetMaintainedVersion, error) {
+	ds.GetFleetMaintainedVersionsByTitleIDFunc = func(ctx context.Context, tmID *uint, titleID, fmaID uint) ([]fleet.FleetMaintainedVersion, error) {
+		require.Equal(t, testAutoUpdateFMAID, fmaID)
 		return []fleet.FleetMaintainedVersion{{ID: 9, Version: "1.0"}}, nil
 	}
 
