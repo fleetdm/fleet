@@ -264,8 +264,8 @@ const SaveNewQueryModal = ({
           wrapperClassName={`${baseClass}__form-field form-field--frequency`}
           helpText={
             <>
-              Hosts report at fixed times — not just after being online this
-              long.{" "}
+              Hosts report at fixed times, not just after being online this
+              long (e.g., on the hour for the default 1-hour interval).{" "}
               <CustomLink
                 url="https://fleetdm.com/docs/get-started/faq#why-might-a-scheduled-report-never-show-results"
                 text="Learn more"

@@ -203,9 +203,9 @@ Fleet deploys v1.4.1 of the [Mac Admins osquery extension](https://github.com/ma
 
 ## Why might a scheduled report never show results?
 
-Even if a host is online often, a scheduled report may never show results. Reports don't run after a host has been online for a certain amount of time — they run when the clock hits a fixed point, spaced out by the interval (osquery adds a small random offset per host, called "splay," to avoid every host hitting the server at once). A host has to be running osqueryd at that exact moment to report in.
+Even if a host is online often, a scheduled report may never show results. Reports don't run after a host has been online for a certain amount of time, they run when the clock hits a fixed point, spaced out by the interval (Fleet adds a small random offset per host so they don't all report in at once). A host has to be running Fleet at that exact moment to report in.
 
-**Example:** a report with a 6-hour interval fires at four fixed times a day (roughly midnight, 6am, noon, and 6pm, nudged slightly per host by splay). If a host is reliably offline at all four of those moments — say, it's always asleep at noon and midnight — it will never report, no matter how many hours it's online in between.
+For example, a report with a 6-hour interval fires at four fixed times a day (roughly midnight, 6am, noon, and 6pm, nudged slightly per host by that same offset). If a host is reliably offline at all four of those moments because it's always asleep at noon and midnight, it will never report, no matter how many hours it's online in between.
 
 This mostly affects short, human-scale intervals (6, 8, 12, or 24 hours) on hosts with a regular daily on/off pattern, like laptops that sleep at lunch or overnight. If a report never shows results, try a different interval, or run `SELECT * FROM osquery_schedule` as a live query to see when the host expects to check in.
 
