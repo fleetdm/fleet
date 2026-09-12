@@ -3038,6 +3038,44 @@ spec:
 apiVersion: v1
 kind: query
 spec:
+  name: Get CrowdStrike sensor status
+  platform: darwin, linux, windows
+  description: Reports whether the CrowdStrike sensor is running on each host by looking for its processes (com.crowdstrike.falcon.Agent or falcond on macOS, falcon-sensor on Linux, CSFalconService on Windows). Hosts that report "no" have no sensor running.
+  query: |
+    SELECT
+      CASE WHEN COUNT(*) > 0 THEN 'yes' ELSE 'no' END AS crowdstrike_running,
+      GROUP_CONCAT(DISTINCT name) AS sensor_processes
+    FROM processes
+    WHERE name IN ('com.crowdstrike.falcon.Agent', 'falcond', 'falcon-sensor', 'falcon-sensor-bpf', 'CSFalconService.exe', 'CSFalconContainer.exe');
+  purpose: Informational
+  tags: compliance, inventory, crowdstrike
+  contributors: allenhouchins
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get SCCM client status
+  platform: windows
+  description: Reports whether the Microsoft Configuration Manager (SCCM) client is running on each host by checking the SMS Agent Host service (CcmExec). Returns "yes" when the service is running, "no" when it is installed but stopped, and "not installed" when the service is missing.
+  query: |
+    SELECT
+      CASE
+        WHEN s.status = 'RUNNING' THEN 'yes'
+        WHEN s.status IS NULL THEN 'not installed'
+        ELSE 'no'
+      END AS sccm_client_running,
+      s.display_name,
+      s.status AS service_status,
+      s.start_type,
+      s.path
+    FROM (SELECT 1) LEFT JOIN services s ON s.name = 'CcmExec';
+  purpose: Informational
+  tags: compliance, inventory, sccm
+  contributors: allenhouchins
+---
+apiVersion: v1
+kind: query
+spec:
   name: Get a list of Visual Studio Code extensions
   platform: darwin, linux, windows
   description: Get a list of installed VS Code extensions (requires osquery > 5.11.0).
