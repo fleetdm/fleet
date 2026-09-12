@@ -416,11 +416,16 @@ export const buildHostVitals = ({
         title="Hardware model"
         value={
           hardwareModelDisplay.tooltip ? (
-            <TooltipWrapper tipContent={hardwareModelDisplay.tooltip}>
-              {hardwareModelDisplay.value}
+            <TooltipWrapper
+              className={`${baseClass}__hardware-model-tooltip`}
+              tipContent={hardwareModelDisplay.tooltip}
+            >
+              <span className={`${baseClass}__hardware-model-text`}>
+                {hardwareModelDisplay.value}
+              </span>
             </TooltipWrapper>
           ) : (
-            hardwareModelDisplay.value
+            <TooltipTruncatedText value={hardwareModelDisplay.value} />
           )
         }
       />

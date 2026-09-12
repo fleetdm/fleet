@@ -85,6 +85,21 @@
     margin-bottom: 0;
   }
 
+  &__hardware-model-tooltip {
+    min-width: 0;
+
+    > .component__tooltip-wrapper__element {
+      overflow: hidden;
+    }
+  }
+
+  &__hardware-model-text {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
   &__os-version-tooltip {
     min-width: 0;
 
