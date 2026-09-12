@@ -145,6 +145,11 @@ const OperatingSystems = ({
           <DataError verticalPaddingSize="pad-large" />
         ) : (
           <OSTable
+            // Remounts on platform change so react-table re-applies its
+            // default sort (version — this card only ever renders for a
+            // single platform, never "all") instead of carrying over a
+            // sort the user manually clicked on the previous platform.
+            key={selectedPlatform}
             currentTeamId={currentTeamId}
             osVersions={osVersions}
             selectedPlatform={selectedPlatform}

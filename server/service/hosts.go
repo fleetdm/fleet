@@ -2,6 +2,7 @@ package service
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"database/sql"
 	"encoding/csv"
@@ -11,6 +12,7 @@ import (
 	"iter"
 	"net/http"
 	"reflect"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -3658,7 +3660,7 @@ func (svc *Service) OSVersions(
 		return nil, count, nil, &fleet.BadRequestError{Message: "Cannot specify os_version without os_name"}
 	}
 
-	if opts.OrderKey != "" && opts.OrderKey != "hosts_count" {
+	if opts.OrderKey != "" && opts.OrderKey != "hosts_count" && opts.OrderKey != "version" {
 		return nil, count, nil, &fleet.BadRequestError{Message: "Invalid order key"}
 	}
 
@@ -3703,12 +3705,59 @@ func (svc *Service) OSVersions(
 		return nil, count, nil, err
 	}
 
-	// Sort by hosts_count (default: desc to match previous behavior)
-	if opts.OrderKey == "hosts_count" && opts.OrderDirection == fleet.OrderAscending {
-		sort.Slice(osVersions.OSVersions, func(i, j int) bool {
-			return osVersions.OSVersions[i].HostsCount < osVersions.OSVersions[j].HostsCount
+	// Sort by version or hosts_count (default: hosts_count desc, to match previous behavior)
+	switch opts.OrderKey {
+	case "version":
+		// Comparing versions across different platforms isn't meaningful
+		// (e.g. macOS "26.6" vs. Windows "22H1" don't share a version
+		// scheme), so group by platform first — the platform with the most
+		// hosts leads — and only order by version within each platform
+		// group. The direction toggle only flips the within-group version
+		// order; platform group order is always most-hosts-first.
+		//
+		// compareOSVersions ties on versions it can't parse (e.g. two Arch
+		// Linux "rolling" rows) and on genuinely equal versions, and two
+		// platforms can tie on host total too, so OSVersionID (unique per
+		// NameOnly/Version combination) is the final tiebreaker to keep
+		// results deterministic across identical requests. sort.Slice is
+		// unstable, which would otherwise let pagination return duplicate or
+		// missing rows across requests within a tied group.
+		platformHostTotals := make(map[string]int)
+		for _, v := range osVersions.OSVersions {
+			platformHostTotals[v.Platform] += v.HostsCount
+		}
+		versionAscending := opts.OrderDirection == fleet.OrderAscending
+
+		sort.SliceStable(osVersions.OSVersions, func(i, j int) bool {
+			a, b := osVersions.OSVersions[i], osVersions.OSVersions[j]
+
+			if a.Platform != b.Platform {
+				if platformHostTotals[a.Platform] != platformHostTotals[b.Platform] {
+					return platformHostTotals[a.Platform] > platformHostTotals[b.Platform]
+				}
+				return a.Platform < b.Platform
+			}
+
+			if c := compareOSVersions(a.Version, b.Version); c != 0 {
+				if versionAscending {
+					return c < 0
+				}
+				return c > 0
+			}
+			return a.OSVersionID < b.OSVersionID
 		})
-	} else {
+	case "hosts_count":
+		if opts.OrderDirection == fleet.OrderAscending {
+			sort.Slice(osVersions.OSVersions, func(i, j int) bool {
+				return osVersions.OSVersions[i].HostsCount < osVersions.OSVersions[j].HostsCount
+			})
+		} else {
+			sort.Slice(osVersions.OSVersions, func(i, j int) bool {
+				return osVersions.OSVersions[i].HostsCount > osVersions.OSVersions[j].HostsCount
+			})
+		}
+	default:
+		// No order key specified: default to hosts_count descending.
 		sort.Slice(osVersions.OSVersions, func(i, j int) bool {
 			return osVersions.OSVersions[i].HostsCount > osVersions.OSVersions[j].HostsCount
 		})
@@ -3763,6 +3812,97 @@ func (svc *Service) OSVersions(
 		CountsUpdatedAt: osVersions.CountsUpdatedAt,
 		OSVersions:      paged,
 	}, count, meta, nil
+}
+
+var numericVersionPattern = regexp.MustCompile(`^\d+(\.\d+)*$`)
+var windowsFeatureUpdatePattern = regexp.MustCompile(`^(\d{2})H([12])$`)
+var ubuntuLTSSuffixPattern = regexp.MustCompile(`(?i)\s+LTS$`)
+
+// versionSegments returns the segments used to order a version string, and
+// whether it could be parsed. Handles dot-separated numeric versions (e.g.
+// "26.5.2", "10.0.26200.8875"), Windows feature-update codenames (e.g.
+// "21H2", "23H1", ordered as [year, half]) — fleet.OSVersion's Version field
+// documents both as valid ("e.g., '21H2', '20.4.0', or '12.5'") — and Ubuntu
+// LTS releases (e.g. "22.04.9 LTS"), which osquery's os_version table
+// reports with a literal " LTS" suffix that fleet.OSVersion.Version doesn't
+// document but stores verbatim (Fleet's os_version detail query is `SELECT *
+// FROM os_version`, with no Linux-specific cleanup). Other formats (e.g.
+// Arch Linux's "rolling") aren't comparable this way. Segments are kept as
+// digit strings rather than parsed to int, so a segment larger than int can
+// hold still compares correctly instead of silently overflowing.
+func versionSegments(version string) ([]string, bool) {
+	version = ubuntuLTSSuffixPattern.ReplaceAllString(version, "")
+	if numericVersionPattern.MatchString(version) {
+		return strings.Split(version, "."), true
+	}
+	if m := windowsFeatureUpdatePattern.FindStringSubmatch(version); m != nil {
+		return []string{m[1], m[2]}, true
+	}
+	return nil, false
+}
+
+// compareDigitStrings compares two non-negative integer strings of
+// arbitrary length (e.g. a version segment too large for strconv.Atoi, like
+// "9223372036854775808"). Strips leading zeros to get each string's
+// significant digit count; more significant digits means a larger number,
+// and equal-length digit strings sort correctly with a plain string compare.
+func compareDigitStrings(a, b string) int {
+	aSig := strings.TrimLeft(a, "0")
+	bSig := strings.TrimLeft(b, "0")
+	if len(aSig) != len(bSig) {
+		return cmp.Compare(len(aSig), len(bSig))
+	}
+	return cmp.Compare(aSig, bSig)
+}
+
+// compareOSVersions compares version strings by numeric segment (e.g.
+// "26.10" > "26.6", "10.0.26200.8875" > "10.0.9200.100"), for Windows
+// feature-update codenames, by year and half (e.g. "22H1" > "21H2"), and for
+// Ubuntu LTS releases, numerically after stripping the " LTS" suffix (see
+// versionSegments) — so versions sort correctly instead of as plain strings.
+// Versions that don't match any of these formats (e.g. Arch Linux's
+// "rolling") aren't comparable this way, so they sort before comparable ones.
+//
+// This only ever sees fleet.OSVersion.Version values, which are usually one
+// of the shapes versionSegments handles (other non-comparable formats like
+// Arch Linux's "rolling" fall through to the !aOK/!bOK case above), so the
+// whole string must match rather than a prefix. The frontend's
+// compareOSVersionStrings (frontend/pages/DashboardPage/cards/OperatingSystems/OSTableConfig.tsx)
+// implements the same comparison for the dashboard OS card's client-side
+// sort — kept deliberately separate from the shared
+// frontend/utilities/helpers.tsx compareVersions helper (used for messier,
+// arbitrarily-suffixed software versions like "2.26.7_1"), since OS versions
+// need codename support and only ever have the one specific, known suffix
+// (Ubuntu's " LTS") rather than arbitrary ones. Keep the segment/codename/
+// suffix comparison logic in sync between the Go and frontend implementations.
+func compareOSVersions(a, b string) int {
+	aSegments, aOK := versionSegments(a)
+	bSegments, bOK := versionSegments(b)
+
+	switch {
+	case !aOK && !bOK:
+		return 0
+	case !aOK:
+		return -1
+	case !bOK:
+		return 1
+	}
+
+	maxLen := max(len(aSegments), len(bSegments))
+
+	for i := range maxLen {
+		aPart, bPart := "0", "0"
+		if i < len(aSegments) {
+			aPart = aSegments[i]
+		}
+		if i < len(bSegments) {
+			bPart = bSegments[i]
+		}
+		if c := compareDigitStrings(aPart, bPart); c != 0 {
+			return c
+		}
+	}
+	return 0
 }
 
 // filterOSVersions checks the MatchQuery and filters on the platform name.
