@@ -70,28 +70,29 @@ parasails.registerPage('articles', {
   },
 
   mounted: async function() {
-    if(['Blog', 'News', 'Guides', 'Releases'].includes(this.articleCategory)) {
-      if(this.algoliaPublicKey) {// Note: Docsearch will only be enabled if sails.config.custom.algoliaPublicKey is set. If the value is undefined, the handbook search will be disabled.
-        docsearch({
-          appId: 'NZXAYZXDGH',
-          apiKey: this.algoliaPublicKey,
-          indexName: 'fleetdm',
-          container: '#docsearch-query',
-          placeholder: 'Search articles',
-          debug: false,
-          clickAnalytics: true,
-          searchParameters: {
-            facetFilters: ['section:articles']
-          },
-          translations: {
-            button: {
-              buttonText: 'Search articles',
-              buttonAriaLabel: 'Search articles',
-            },
-          },
-        });
-      }
-    }
+    // Note: algolia docsearch is disabled while we test sending users to google.
+    // if(['Blog', 'News', 'Guides', 'Releases'].includes(this.articleCategory)) {
+    //   if(this.algoliaPublicKey) {// Note: Docsearch will only be enabled if sails.config.custom.algoliaPublicKey is set. If the value is undefined, the handbook search will be disabled.
+    //     docsearch({
+    //       appId: 'NZXAYZXDGH',
+    //       apiKey: this.algoliaPublicKey,
+    //       indexName: 'fleetdm',
+    //       container: '#docsearch-query',
+    //       placeholder: 'Search articles',
+    //       debug: false,
+    //       clickAnalytics: true,
+    //       searchParameters: {
+    //         facetFilters: ['section:articles']
+    //       },
+    //       translations: {
+    //         button: {
+    //           buttonText: 'Search articles',
+    //           buttonAriaLabel: 'Search articles',
+    //         },
+    //       },
+    //     });
+    //   }
+    // }
   },
 
   //  ╦╔╗╔╔╦╗╔═╗╦═╗╔═╗╔═╗╔╦╗╦╔═╗╔╗╔╔═╗

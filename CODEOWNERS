@@ -71,6 +71,9 @@ go.mod @fleetdm/go
 /docs/Configuration                                     @rachaelshaw
 /docs/Contributing                                      @lukeheath @georgekarrv @sharon-fdm # « Contributing docs are owned by the EMs only — don't add per-path individual owners here (see https://github.com/fleetdm/fleet/issues/46731)
 /docs/REST\ API/rest-api.md                             @rachaelshaw # « REST API reference documentation
+/docs/Contributing/reference/api-for-contributors.md    @rachaelshaw
+/docs/Contributing/reference/audit-logs.md              @rachaelshaw
+/docs/Contributing/reference/configuration-for-contributors.md @rachaelshaw
 /docs/Get\ started/why-fleet.md                         @mike-j-thomas
 /render.yaml                                            @rfairburn
 /it-and-security                                        @allenhouchins
