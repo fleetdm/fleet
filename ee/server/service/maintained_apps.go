@@ -185,6 +185,7 @@ func (svc *Service) AddFleetMaintainedApp(
 		UpgradeCode:           app.UpgradeCode,
 		StorageID:             app.SHA256,
 		FleetMaintainedAppID:  maintainedAppID,
+		FMAName:               app.Name,
 		PreInstallQuery:       preInstallQuery,
 		PostInstallScript:     postInstallScript,
 		SelfService:           selfService,

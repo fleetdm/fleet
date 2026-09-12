@@ -3355,6 +3355,13 @@
       "description": "Firefox is a powerful, open-source web browser built for speed, privacy, and customization."
     },
     {
+      "name": "Mozilla Firefox Developer Edition (ARM64)",
+      "slug": "firefox@developer-edition-arm64/windows",
+      "platform": "windows",
+      "unique_identifier": "Firefox Developer Edition (AArch64 en-US)",
+      "description": "Mozilla Firefox Developer Edition (ARM64) is the native ARM64 build of the Firefox web browser made for web developers, with cutting-edge features and built-in developer tools."
+    },
+    {
       "name": "Mozilla Firefox Developer Edition",
       "slug": "firefox@developer-edition/darwin",
       "platform": "darwin",
@@ -3381,6 +3388,13 @@
       "platform": "windows",
       "unique_identifier": "Mozilla Firefox 140.7.1 ESR (x64 en-US)",
       "description": "Mozilla Firefox ESR is the Extended Support Release version of the popular web browser Firefox."
+    },
+    {
+      "name": "Mozilla Firefox Nightly (ARM64)",
+      "slug": "firefox@nightly-arm64/windows",
+      "platform": "windows",
+      "unique_identifier": "Firefox Nightly",
+      "description": "Mozilla Firefox Nightly (ARM64) is the native ARM64 build of Firefox Nightly, the daily development build of the Firefox web browser with the newest features before they reach beta and release."
     },
     {
       "name": "Mozilla Firefox Nightly",
