@@ -438,6 +438,7 @@ export const buildHostVitals = ({
           value={
             <HumanTimeDiffWithFleetLaunchCutoff
               timeString={vitalsData.last_restarted_at}
+              tooltipPosition="bottom"
             />
           }
         />
