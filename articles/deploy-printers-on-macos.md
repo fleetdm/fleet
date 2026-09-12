@@ -55,6 +55,8 @@ software:
 
 > **Note:** GitOps doesn't currently expose a field for an uninstall script on script-only packages. If you need one, set it once from the Fleet UI after the package exists; re-running GitOps won't remove it.
 
+> **Tip:** Deploying more than a few printers? Use [`generate-printer-install-scripts.sh`](https://github.com/fleetdm/fleet/blob/main/docs/solutions/macos/scripts/generate-printer-install-scripts.sh) to generate the install script and `packages.yml` entry above for each printer from a CSV (`name,location,uri,display_name` columns).
+
 ## Add the printer
 
 Use this when every host on a fleet needs the same printer, with no end user choice involved.
