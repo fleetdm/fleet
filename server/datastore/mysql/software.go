@@ -7261,7 +7261,63 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 		software = append(software, &hs.HostSoftwareWithInstaller)
 	}
 
+	// Post-pagination lookup rather than an assembly-SQL JOIN — cheaper on
+	// the paginated title-ID set. Skipped when the host has no team.
+	if host.TeamID != nil && len(software) > 0 {
+		if err := ds.hydrateHostSoftwareAutoUpdateFields(ctx, software, globalOrTeamID); err != nil {
+			return nil, nil, ctxerr.Wrap(ctx, err, "hydrate host software auto-update fields")
+		}
+	}
+
 	return software, metaData, nil
+}
+
+func (ds *Datastore) hydrateHostSoftwareAutoUpdateFields(
+	ctx context.Context,
+	software []*fleet.HostSoftwareWithInstaller,
+	teamID uint,
+) error {
+	titleIDs := make([]uint, 0, len(software))
+	for _, s := range software {
+		titleIDs = append(titleIDs, s.ID)
+	}
+
+	stmt, args, err := sqlx.In(`
+		SELECT title_id, enabled, start_time, end_time
+		FROM software_update_schedules
+		WHERE team_id = ? AND title_id IN (?)`,
+		teamID, titleIDs,
+	)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "build auto-update schedule lookup")
+	}
+
+	type scheduleRow struct {
+		TitleID   uint   `db:"title_id"`
+		Enabled   bool   `db:"enabled"`
+		StartTime string `db:"start_time"`
+		EndTime   string `db:"end_time"`
+	}
+	var rows []scheduleRow
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "select auto-update schedules")
+	}
+	if len(rows) == 0 {
+		return nil
+	}
+
+	byTitle := make(map[uint]scheduleRow, len(rows))
+	for _, r := range rows {
+		byTitle[r.TitleID] = r
+	}
+	for _, s := range software {
+		if r, ok := byTitle[s.ID]; ok {
+			s.AutoUpdateEnabled = new(r.Enabled)
+			s.AutoUpdateStartTime = new(r.StartTime)
+			s.AutoUpdateEndTime = new(r.EndTime)
+		}
+	}
+	return nil
 }
 
 func (ds *Datastore) SetHostSoftwareInstallResult(ctx context.Context, result *fleet.HostSoftwareInstallResultPayload, attemptNumber *int) (wasCanceled bool, err error) {

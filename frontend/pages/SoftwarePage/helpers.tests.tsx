@@ -37,15 +37,12 @@ describe("getSelfServiceTooltip", () => {
 
     render(tooltip as React.ReactElement);
 
+    // "self service" is the link text now — the sentence wraps it inline.
+    expect(screen.getByText(/End users can install from/i)).toBeInTheDocument();
     expect(
-      screen.getByText(/End users can install from self service\./i)
+      screen.getByRole("link", { name: /self service/i })
     ).toBeInTheDocument();
-    expect(
-      screen.getByRole("link", { name: /Learn how to deploy self service/i })
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("link", { name: /Learn how to deploy self service/i })
-    ).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /self service/i })).toHaveAttribute(
       "href",
       expect.stringContaining("/deploy-self-service-to-ios")
     );
@@ -59,9 +56,9 @@ describe("getSelfServiceTooltip", () => {
     expect(screen.getByText(/End users can install from/i)).toBeInTheDocument();
     expect(screen.getByText(/Fleet Desktop/i)).toBeInTheDocument();
     expect(
-      screen.getByRole("link", { name: /Learn more/i })
+      screen.getByRole("link", { name: /Self service/i })
     ).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Learn more/i })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /Self service/i })).toHaveAttribute(
       "href",
       expect.stringContaining("/self-service-software")
     );

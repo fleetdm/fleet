@@ -630,6 +630,22 @@ export const internationalTimeFormat = (date: number | Date): string => {
   );
 };
 
+/** Renders an "HH:MM" 24-hour string in the viewer's locale. UTC anchor
+ * + `timeZone: "UTC"` avoid DST wall-clock shifts on spring-forward. */
+export const internationalTimeOnlyFormat = (hhmm: string): string => {
+  const match = /^(\d{1,2}):(\d{2})$/.exec(hhmm);
+  if (!match) return hhmm;
+  const hours = Number(match[1]);
+  const minutes = Number(match[2]);
+  if (hours > 23 || minutes > 59) return hhmm;
+  const date = new Date(Date.UTC(2000, 0, 1, hours, minutes));
+  return intlFormat(
+    date,
+    { hour: "numeric", minute: "numeric", timeZone: "UTC" },
+    { locale: window.navigator.languages[0] }
+  );
+};
+
 export const internationalNumberFormat = (number: number): string => {
   return new Intl.NumberFormat(navigator.language).format(number);
 };
@@ -1045,6 +1061,7 @@ export default {
   humanHostDetailUpdated,
   humanLastSeen,
   internationalTimeFormat,
+  internationalTimeOnlyFormat,
   internallyTruncateText,
   hostTeamName,
   humanQueryLastRun,

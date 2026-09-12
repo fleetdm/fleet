@@ -5,6 +5,7 @@ import {
   getSelfServiceTooltip,
   getDisplayedSoftwareName,
 } from "pages/SoftwarePage/helpers";
+import { internationalTimeOnlyFormat } from "utilities/helpers";
 
 import TooltipWrapper from "components/TooltipWrapper";
 import Icon from "components/Icon";
@@ -28,22 +29,47 @@ interface InstallIconTooltip {
   pageContext?: PageContext;
   isIosOrIpadosApp?: boolean;
   isAndroidPlayStoreApp?: boolean;
+  isAppStoreApp?: boolean;
+  autoUpdateEnabled?: boolean;
+  autoUpdateWindowStart?: string;
+  autoUpdateWindowEnd?: string;
 }
 
 interface InstallIconConfig {
   iconName: IconNames;
-  tooltip: ({
-    automaticInstallPoliciesCount,
-    pageContext,
-    isIosOrIpadosApp,
-    isAndroidPlayStoreApp,
-  }: InstallIconTooltip) => JSX.Element;
+  tooltip: (args: InstallIconTooltip) => JSX.Element;
 }
 
 const getPolicyTooltip = (count = 0) =>
   count === 1
     ? "A policy triggers install."
     : `${count} policies trigger install.`;
+
+const getAutoUpdateTooltip = (start: string, end: string) =>
+  `Auto updates between ${internationalTimeOnlyFormat(
+    start
+  )} and ${internationalTimeOnlyFormat(end)} (host local time).`;
+
+// Auto-updates are iOS/iPadOS VPP only; macOS VPP or in-house .ipa
+// schedule rows must not promote the icon.
+const hasValidAutoUpdate = ({
+  autoUpdateEnabled = false,
+  autoUpdateWindowStart,
+  autoUpdateWindowEnd,
+  isIosOrIpadosApp = false,
+  isAppStoreApp = false,
+}: {
+  autoUpdateEnabled?: boolean;
+  autoUpdateWindowStart?: string;
+  autoUpdateWindowEnd?: string;
+  isIosOrIpadosApp?: boolean;
+  isAppStoreApp?: boolean;
+}): boolean =>
+  autoUpdateEnabled &&
+  !!autoUpdateWindowStart &&
+  !!autoUpdateWindowEnd &&
+  isIosOrIpadosApp &&
+  isAppStoreApp;
 
 const installIconMap: Record<InstallType, InstallIconConfig> = {
   manual: {
@@ -62,9 +88,38 @@ const installIconMap: Record<InstallType, InstallIconConfig> = {
   },
   automatic: {
     iconName: "refresh",
-    tooltip: ({ automaticInstallPoliciesCount = 0 }) => (
-      <>{getPolicyTooltip(automaticInstallPoliciesCount)}</>
-    ),
+    tooltip: ({
+      automaticInstallPoliciesCount = 0,
+      autoUpdateEnabled = false,
+      autoUpdateWindowStart,
+      autoUpdateWindowEnd,
+      isIosOrIpadosApp = false,
+      isAppStoreApp = false,
+    }) => {
+      const showAutoUpdate = hasValidAutoUpdate({
+        autoUpdateEnabled,
+        autoUpdateWindowStart,
+        autoUpdateWindowEnd,
+        isIosOrIpadosApp,
+        isAppStoreApp,
+      });
+      return (
+        <>
+          {automaticInstallPoliciesCount > 0 && (
+            <>{getPolicyTooltip(automaticInstallPoliciesCount)}</>
+          )}
+          {automaticInstallPoliciesCount > 0 && showAutoUpdate && " "}
+          {showAutoUpdate && (
+            <>
+              {getAutoUpdateTooltip(
+                autoUpdateWindowStart!,
+                autoUpdateWindowEnd!
+              )}
+            </>
+          )}
+        </>
+      );
+    },
   },
   automaticSelfService: {
     iconName: "automatic-self-service",
@@ -72,13 +127,35 @@ const installIconMap: Record<InstallType, InstallIconConfig> = {
       automaticInstallPoliciesCount = 0,
       isIosOrIpadosApp = false,
       isAndroidPlayStoreApp = false,
-    }) => (
-      <>
-        {getPolicyTooltip(automaticInstallPoliciesCount)}
-        <br />
-        {getSelfServiceTooltip(isIosOrIpadosApp, isAndroidPlayStoreApp)}
-      </>
-    ),
+      isAppStoreApp = false,
+      autoUpdateEnabled = false,
+      autoUpdateWindowStart,
+      autoUpdateWindowEnd,
+    }) => {
+      const showAutoUpdate = hasValidAutoUpdate({
+        autoUpdateEnabled,
+        autoUpdateWindowStart,
+        autoUpdateWindowEnd,
+        isIosOrIpadosApp,
+        isAppStoreApp,
+      });
+      return (
+        <>
+          {automaticInstallPoliciesCount > 0 && (
+            <>{getPolicyTooltip(automaticInstallPoliciesCount)} </>
+          )}
+          {showAutoUpdate && (
+            <>
+              {getAutoUpdateTooltip(
+                autoUpdateWindowStart!,
+                autoUpdateWindowEnd!
+              )}{" "}
+            </>
+          )}
+          {getSelfServiceTooltip(isIosOrIpadosApp, isAndroidPlayStoreApp)}
+        </>
+      );
+    },
   },
 };
 
@@ -88,13 +165,31 @@ interface IInstallIconWithTooltipProps {
   pageContext?: PageContext;
   isIosOrIpadosApp: boolean;
   isAndroidPlayStoreApp: boolean;
+  isAppStoreApp?: boolean;
+  autoUpdateEnabled?: boolean;
+  autoUpdateWindowStart?: string;
+  autoUpdateWindowEnd?: string;
 }
 
 const getInstallIconType = (
   isSelfService: boolean,
-  automaticInstallPoliciesCount = 0
+  automaticInstallPoliciesCount = 0,
+  autoUpdateEnabled = false,
+  autoUpdateWindowStart?: string,
+  autoUpdateWindowEnd?: string,
+  isIosOrIpadosApp = false,
+  isAppStoreApp = false
 ): InstallType => {
-  if (automaticInstallPoliciesCount > 0) {
+  const isAutomatic =
+    automaticInstallPoliciesCount > 0 ||
+    hasValidAutoUpdate({
+      autoUpdateEnabled,
+      autoUpdateWindowStart,
+      autoUpdateWindowEnd,
+      isIosOrIpadosApp,
+      isAppStoreApp,
+    });
+  if (isAutomatic) {
     return isSelfService ? "automaticSelfService" : "automatic";
   }
   return isSelfService ? "selfService" : "manual";
@@ -106,10 +201,19 @@ export const InstallIconWithTooltip = ({
   pageContext,
   isIosOrIpadosApp,
   isAndroidPlayStoreApp,
+  isAppStoreApp,
+  autoUpdateEnabled,
+  autoUpdateWindowStart,
+  autoUpdateWindowEnd,
 }: IInstallIconWithTooltipProps) => {
   const iconType = getInstallIconType(
     isSelfService,
-    automaticInstallPoliciesCount
+    automaticInstallPoliciesCount,
+    autoUpdateEnabled,
+    autoUpdateWindowStart,
+    autoUpdateWindowEnd,
+    isIosOrIpadosApp,
+    isAppStoreApp
   );
 
   // Don't show installer icon on host software library page
@@ -123,6 +227,10 @@ export const InstallIconWithTooltip = ({
     pageContext,
     isIosOrIpadosApp,
     isAndroidPlayStoreApp,
+    isAppStoreApp,
+    autoUpdateEnabled,
+    autoUpdateWindowStart,
+    autoUpdateWindowEnd,
   });
 
   return (
@@ -162,6 +270,10 @@ interface ISoftwareNameCellProps {
   iconUrl?: string | null;
   isIosOrIpadosApp?: boolean;
   isAndroidPlayStoreApp?: boolean;
+  isAppStoreApp?: boolean;
+  autoUpdateEnabled?: boolean;
+  autoUpdateWindowStart?: string;
+  autoUpdateWindowEnd?: string;
   /** Only used on Edit icon modal to render a preview of the chosen unsaved icon */
   previewIcon?: JSX.Element;
 }
@@ -179,6 +291,10 @@ const SoftwareNameCell = ({
   iconUrl,
   isIosOrIpadosApp = false,
   isAndroidPlayStoreApp = false,
+  isAppStoreApp = false,
+  autoUpdateEnabled = false,
+  autoUpdateWindowStart,
+  autoUpdateWindowEnd,
   previewIcon,
 }: ISoftwareNameCellProps) => {
   const softwareDisplayName = getDisplayedSoftwareName(name, display_name);
@@ -227,6 +343,10 @@ const SoftwareNameCell = ({
             pageContext={pageContext}
             isIosOrIpadosApp={isIosOrIpadosApp}
             isAndroidPlayStoreApp={isAndroidPlayStoreApp}
+            isAppStoreApp={isAppStoreApp}
+            autoUpdateEnabled={autoUpdateEnabled}
+            autoUpdateWindowStart={autoUpdateWindowStart}
+            autoUpdateWindowEnd={autoUpdateWindowEnd}
           />
         ) : undefined
       }

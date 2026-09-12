@@ -195,7 +195,7 @@ const EditAutoUpdateConfigModal = ({
     (formValidation.windowLength?.message ? "Latest start time" : undefined);
 
   const updateWindowLabel = formValidation.windowLength?.message || (
-    <>Update window (host&rsquo;s local time)</>
+    <>Update window (host local time)</>
   );
   const updateWindowLabelClass = classnames("form-field__label", {
     "form-field__label--error": !!formValidation.windowLength?.message,
