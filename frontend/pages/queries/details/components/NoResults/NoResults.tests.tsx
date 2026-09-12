@@ -76,16 +76,7 @@ describe("NoResults", () => {
   });
 
   describe("collecting results", () => {
-    afterEach(() => {
-      jest.useRealTimers();
-    });
-
     it("says 'about' only once before the check-back time", () => {
-      // 2024-01-01T00:00:00Z is itself a 12-hour checkpoint, so the next
-      // one lands exactly 12 hours later.
-      jest.useFakeTimers();
-      jest.setSystemTime(new Date("2024-01-01T00:00:00Z"));
-
       render(
         <NoResults
           {...baseProps}
