@@ -688,28 +688,24 @@ const allHostTableHeaders = (teamId?: number): IHostTableColumnConfig[] => [
       }
 
       return (
-        <TextCell
-          value={
-            <TooltipWrapper
-              tipContent={
-                <>
-                  osquery: {osquery_version}
-                  <br />
-                  Orbit: {orbit_version}
-                  {fleet_desktop_version &&
-                    fleet_desktop_version !== DEFAULT_EMPTY_CELL_VALUE && (
-                      <>
-                        <br />
-                        Fleet Desktop: {fleet_desktop_version}
-                      </>
-                    )}
-                </>
-              }
-            >
-              {orbit_version}
-            </TooltipWrapper>
+        <TooltipWrapper
+          tipContent={
+            <>
+              osquery: {osquery_version}
+              <br />
+              Orbit: {orbit_version}
+              {fleet_desktop_version &&
+                fleet_desktop_version !== DEFAULT_EMPTY_CELL_VALUE && (
+                  <>
+                    <br />
+                    Fleet Desktop: {fleet_desktop_version}
+                  </>
+                )}
+            </>
           }
-        />
+        >
+          {orbit_version}
+        </TooltipWrapper>
       );
     },
   },
