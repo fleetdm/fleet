@@ -18,11 +18,11 @@
                       <img style="height: 16px; width: 16px;" class="search" alt="search" src="/images/icon-search-16x16@2x.png">
                     </span>
                   </div>
-                  <div class="form-control border-0 ">
-                  <input class="docsearch-input pr-1"
-                    placeholder="Search" aria-label="Search"
-                    />
-                  </div>
+                  <form purpose="google-search">
+                    <div class="form-control border-0">
+                      <input class="docsearch-input pr-1" placeholder="Search" aria-label="Search"/>
+                    </div>
+                  </form>
                 </div>
               </div>
             </div>
@@ -51,7 +51,7 @@
               <p purpose="article-name">{{article.meta.articleTitle}}</p>
             </div>
             <div purpose="article-description" v-if="article.meta.description"><p>{{article.meta.description}}</p></div>
-            <div purpose="publish-date"><js-timestamp format="billing" :at="article.meta.publishedOn"></js-timestamp><span purpose="updated-timestamp" v-if="article.showUpdatedTimestamp">Updated <js-timestamp format="billing" :at="article.lastModifiedAt"></js-timestamp></span></div>
+            <div purpose="publish-date"><js-timestamp format="billing" :at="article.meta.publishedOn"></js-timestamp></div>
 
           </div>
           <div class="d-flex flex-column justify-content-center">

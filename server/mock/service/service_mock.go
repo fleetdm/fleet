@@ -233,8 +233,6 @@ type AgentOptionsForHostFunc func(ctx context.Context, hostTeamID *uint, hostPla
 
 type AuthenticateDeviceFunc func(ctx context.Context, authToken string) (host *fleet.Host, debug bool, err error)
 
-type AuthenticateDeviceByCertificateFunc func(ctx context.Context, certSerial uint64, hostUUID string) (host *fleet.Host, debug bool, err error)
-
 type AuthenticateIDeviceByURLFunc func(ctx context.Context, urlUUID string) (host *fleet.Host, debug bool, err error)
 
 type StreamHostsFunc func(ctx context.Context, opt fleet.HostListOptions) (hostIterator iter.Seq2[*fleet.Host, error], err error)
@@ -297,7 +295,7 @@ type GetMunkiIssueFunc func(ctx context.Context, munkiIssueID uint) (*fleet.Munk
 
 type HostEncryptionKeyFunc func(ctx context.Context, id uint) (*fleet.HostDiskEncryptionKey, error)
 
-type EscrowLUKSDataFunc func(ctx context.Context, passphrase string, salt string, keySlot *uint, clientError string, keyType string) error
+type EscrowLUKSDataFunc func(ctx context.Context, passphrase string, salt string, keySlot *uint, clientError string, keyType string, status string) error
 
 type EscrowWindowsManagedLocalAccountPasswordFunc func(ctx context.Context, password string, clientError string) error
 
@@ -481,7 +479,7 @@ type ModifyGlobalPolicyFunc func(ctx context.Context, id uint, p fleet.ModifyPol
 
 type GetPolicyByIDFunc func(ctx context.Context, policyID uint) (*fleet.Policy, error)
 
-type ResetPolicyFunc func(ctx context.Context, policyID uint) error
+type ResetPolicyFunc func(ctx context.Context, policyID uint, hostID *uint) error
 
 type ListPolicyAutomationActivitiesFunc func(ctx context.Context, policyID uint, opts fleet.ListOptions, status string) ([]*fleet.PolicyAutomationActivity, *fleet.PaginationMetadata, error)
 
@@ -623,6 +621,8 @@ type GetMDMAppleFileVaultSummaryFunc func(ctx context.Context, teamID *uint) (*f
 
 type GetMDMAppleProfilesSummaryFunc func(ctx context.Context, teamID *uint) (*fleet.MDMProfilesSummary, error)
 
+type AuthenticateMDMAppleDEPEnrollmentFunc func(ctx context.Context, enrollmentToken string, machineInfo *fleet.MDMAppleMachineInfo) error
+
 type GetMDMAppleEnrollmentProfileByTokenFunc func(ctx context.Context, enrollmentToken string, enrollmentRef string, machineInfo *fleet.MDMAppleMachineInfo) (profile []byte, err error)
 
 type GetMDMAppleAccountEnrollmentProfileFunc func(ctx context.Context, enrollReference string) (profile []byte, err error)
@@ -733,7 +733,7 @@ type TriggerLinuxDiskEncryptionEscrowFunc func(ctx context.Context, host *fleet.
 
 type CheckMDMAppleEnrollmentWithMinimumOSVersionFunc func(ctx context.Context, m *fleet.MDMAppleMachineInfo) (*fleet.MDMAppleSoftwareUpdateRequired, error)
 
-type GetOTAProfileFunc func(ctx context.Context, enrollSecret string, idpUUID string, personal bool) ([]byte, error)
+type GetOTAProfileFunc func(ctx context.Context, enrollSecret string, idpSessionID string, personal bool) ([]byte, error)
 
 type TriggerCronScheduleFunc func(ctx context.Context, name string) error
 
@@ -1336,9 +1336,6 @@ type Service struct {
 	AuthenticateDeviceFunc        AuthenticateDeviceFunc
 	AuthenticateDeviceFuncInvoked bool
 
-	AuthenticateDeviceByCertificateFunc        AuthenticateDeviceByCertificateFunc
-	AuthenticateDeviceByCertificateFuncInvoked bool
-
 	AuthenticateIDeviceByURLFunc        AuthenticateIDeviceByURLFunc
 	AuthenticateIDeviceByURLFuncInvoked bool
 
@@ -1920,6 +1917,9 @@ type Service struct {
 
 	GetMDMAppleProfilesSummaryFunc        GetMDMAppleProfilesSummaryFunc
 	GetMDMAppleProfilesSummaryFuncInvoked bool
+
+	AuthenticateMDMAppleDEPEnrollmentFunc        AuthenticateMDMAppleDEPEnrollmentFunc
+	AuthenticateMDMAppleDEPEnrollmentFuncInvoked bool
 
 	GetMDMAppleEnrollmentProfileByTokenFunc        GetMDMAppleEnrollmentProfileByTokenFunc
 	GetMDMAppleEnrollmentProfileByTokenFuncInvoked bool
@@ -3257,13 +3257,6 @@ func (s *Service) AuthenticateDevice(ctx context.Context, authToken string) (hos
 	return s.AuthenticateDeviceFunc(ctx, authToken)
 }
 
-func (s *Service) AuthenticateDeviceByCertificate(ctx context.Context, certSerial uint64, hostUUID string) (host *fleet.Host, debug bool, err error) {
-	s.mu.Lock()
-	s.AuthenticateDeviceByCertificateFuncInvoked = true
-	s.mu.Unlock()
-	return s.AuthenticateDeviceByCertificateFunc(ctx, certSerial, hostUUID)
-}
-
 func (s *Service) AuthenticateIDeviceByURL(ctx context.Context, urlUUID string) (host *fleet.Host, debug bool, err error) {
 	s.mu.Lock()
 	s.AuthenticateIDeviceByURLFuncInvoked = true
@@ -3481,11 +3474,11 @@ func (s *Service) HostEncryptionKey(ctx context.Context, id uint) (*fleet.HostDi
 	return s.HostEncryptionKeyFunc(ctx, id)
 }
 
-func (s *Service) EscrowLUKSData(ctx context.Context, passphrase string, salt string, keySlot *uint, clientError string, keyType string) error {
+func (s *Service) EscrowLUKSData(ctx context.Context, passphrase string, salt string, keySlot *uint, clientError string, keyType string, status string) error {
 	s.mu.Lock()
 	s.EscrowLUKSDataFuncInvoked = true
 	s.mu.Unlock()
-	return s.EscrowLUKSDataFunc(ctx, passphrase, salt, keySlot, clientError, keyType)
+	return s.EscrowLUKSDataFunc(ctx, passphrase, salt, keySlot, clientError, keyType, status)
 }
 
 func (s *Service) EscrowWindowsManagedLocalAccountPassword(ctx context.Context, password string, clientError string) error {
@@ -4125,11 +4118,11 @@ func (s *Service) GetPolicyByID(ctx context.Context, policyID uint) (*fleet.Poli
 	return s.GetPolicyByIDFunc(ctx, policyID)
 }
 
-func (s *Service) ResetPolicy(ctx context.Context, policyID uint) error {
+func (s *Service) ResetPolicy(ctx context.Context, policyID uint, hostID *uint) error {
 	s.mu.Lock()
 	s.ResetPolicyFuncInvoked = true
 	s.mu.Unlock()
-	return s.ResetPolicyFunc(ctx, policyID)
+	return s.ResetPolicyFunc(ctx, policyID, hostID)
 }
 
 func (s *Service) ListPolicyAutomationActivities(ctx context.Context, policyID uint, opts fleet.ListOptions, status string) ([]*fleet.PolicyAutomationActivity, *fleet.PaginationMetadata, error) {
@@ -4622,6 +4615,13 @@ func (s *Service) GetMDMAppleProfilesSummary(ctx context.Context, teamID *uint) 
 	return s.GetMDMAppleProfilesSummaryFunc(ctx, teamID)
 }
 
+func (s *Service) AuthenticateMDMAppleDEPEnrollment(ctx context.Context, enrollmentToken string, machineInfo *fleet.MDMAppleMachineInfo) error {
+	s.mu.Lock()
+	s.AuthenticateMDMAppleDEPEnrollmentFuncInvoked = true
+	s.mu.Unlock()
+	return s.AuthenticateMDMAppleDEPEnrollmentFunc(ctx, enrollmentToken, machineInfo)
+}
+
 func (s *Service) GetMDMAppleEnrollmentProfileByToken(ctx context.Context, enrollmentToken string, enrollmentRef string, machineInfo *fleet.MDMAppleMachineInfo) (profile []byte, err error) {
 	s.mu.Lock()
 	s.GetMDMAppleEnrollmentProfileByTokenFuncInvoked = true
@@ -5007,11 +5007,11 @@ func (s *Service) CheckMDMAppleEnrollmentWithMinimumOSVersion(ctx context.Contex
 	return s.CheckMDMAppleEnrollmentWithMinimumOSVersionFunc(ctx, m)
 }
 
-func (s *Service) GetOTAProfile(ctx context.Context, enrollSecret string, idpUUID string, personal bool) ([]byte, error) {
+func (s *Service) GetOTAProfile(ctx context.Context, enrollSecret string, idpSessionID string, personal bool) ([]byte, error) {
 	s.mu.Lock()
 	s.GetOTAProfileFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetOTAProfileFunc(ctx, enrollSecret, idpUUID, personal)
+	return s.GetOTAProfileFunc(ctx, enrollSecret, idpSessionID, personal)
 }
 
 func (s *Service) TriggerCronSchedule(ctx context.Context, name string) error {

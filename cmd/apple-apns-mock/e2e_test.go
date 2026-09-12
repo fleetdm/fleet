@@ -157,7 +157,7 @@ func openEvents(t *testing.T, baseURL, token string) *http.Response {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, baseURL+"/events?token="+token, nil)
 	require.NoError(t, err)
 	// No client timeout: SSE connections are long-lived by design.
-	resp, err := fleethttp.NewClient().Do(req)
+	resp, err := fleethttp.NewClient(fleethttp.WithNoTimeout()).Do(req)
 	require.NoError(t, err)
 	t.Cleanup(func() { resp.Body.Close() })
 	return resp
