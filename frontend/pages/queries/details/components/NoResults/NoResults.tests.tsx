@@ -76,7 +76,16 @@ describe("NoResults", () => {
   });
 
   describe("collecting results", () => {
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
     it("says 'about' only once before the check-back time", () => {
+      // 2024-01-01T00:00:00Z is itself a 12-hour checkpoint, so the next
+      // one lands exactly 12 hours later.
+      jest.useFakeTimers();
+      jest.setSystemTime(new Date("2024-01-01T00:00:00Z"));
+
       render(
         <NoResults
           {...baseProps}
@@ -89,6 +98,26 @@ describe("NoResults", () => {
       expect(screen.getByText(/about 12 hours/)).toBeInTheDocument();
       // regression test for https://github.com/fleetdm/fleet/issues/52241
       expect(screen.queryByText(/about about/)).not.toBeInTheDocument();
+    });
+
+    it("counts down to the next wall-clock-aligned checkpoint, not a full interval after save", () => {
+      // Next hourly checkpoint is 02:00:00Z, 5 minutes away. The report was
+      // saved 30 minutes ago, well past the 60s config-propagation floor.
+      jest.useFakeTimers();
+      jest.setSystemTime(new Date("2024-01-01T01:55:00Z"));
+
+      render(
+        <NoResults
+          {...baseProps}
+          queryInterval={60 * 60}
+          queryUpdatedAt="2024-01-01T01:25:00Z"
+        />
+      );
+
+      expect(screen.getByText("Collecting results...")).toBeInTheDocument();
+      // Not "about 31 minutes" (interval + 60s minus time since save), which
+      // is what counting down from save time would show instead.
+      expect(screen.getByText(/about 5 minutes/)).toBeInTheDocument();
     });
   });
 
