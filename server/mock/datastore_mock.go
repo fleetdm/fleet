@@ -712,6 +712,8 @@ type SavePolicyFunc func(ctx context.Context, p *fleet.Policy, shouldRemoveAllPo
 
 type ResetPolicyFunc func(ctx context.Context, policyID uint) error
 
+type ResetPolicyForHostFunc func(ctx context.Context, hostID uint, policyID uint) error
+
 type ListGlobalPoliciesFunc func(ctx context.Context, opts fleet.ListOptions, platform string) ([]*fleet.Policy, error)
 
 type PoliciesByIDFunc func(ctx context.Context, ids []uint) (map[uint]*fleet.Policy, error)
@@ -930,9 +932,11 @@ type GetHostArchivedDiskEncryptionKeyFunc func(ctx context.Context, host *fleet.
 
 type IsHostDiskEncryptionKeyArchivedFunc func(ctx context.Context, hostID uint) (bool, error)
 
-type IsHostPendingEscrowFunc func(ctx context.Context, hostID uint) bool
+type GetHostEscrowStateFunc func(ctx context.Context, hostID uint) (*fleet.HostEscrowState, error)
 
-type ClearPendingEscrowFunc func(ctx context.Context, hostID uint) error
+type MarkEscrowSentToAgentFunc func(ctx context.Context, hostID uint) error
+
+type SetEscrowInFlightFunc func(ctx context.Context, hostID uint, inFlight bool) error
 
 type ReportEscrowErrorFunc func(ctx context.Context, hostID uint, err string) error
 
@@ -1258,6 +1262,12 @@ type GetManagedLocalAccountsForAutoRotationFunc func(ctx context.Context) ([]fle
 
 type GetManagedLocalAccountByPendingCommandUUIDFunc func(ctx context.Context, commandUUID string) (host *fleet.Host, err error)
 
+type InitiateWindowsManagedLocalAccountRotationFunc func(ctx context.Context, hostUUID string) error
+
+type InitiateWindowsManagedLocalAccountAutoRotationFunc func(ctx context.Context, hostUUID string) error
+
+type GetWindowsManagedLocalAccountsForAutoRotationFunc func(ctx context.Context) ([]fleet.HostManagedLocalAccountWindowsRotationInfo, error)
+
 type InsertMDMAppleBootstrapPackageFunc func(ctx context.Context, bp *fleet.MDMAppleBootstrapPackage, pkgStore fleet.MDMBootstrapPackageStore) error
 
 type CopyDefaultMDMAppleBootstrapPackageFunc func(ctx context.Context, ac *fleet.AppConfig, toTeamID uint) error
@@ -1454,6 +1464,8 @@ type SetMDMWindowsEnrollmentFleetdSyncCapableFunc func(ctx context.Context, host
 
 type SetMDMWindowsManagedLocalAccountEscrowedFunc func(ctx context.Context, hostUUID string, escrowed bool) (changed bool, err error)
 
+type ClearMDMWindowsManagedLocalAccountRotationRequestFunc func(ctx context.Context, hostUUID string) (cleared bool, err error)
+
 type MDMWindowsGetEnrolledDeviceWithHostUUIDFunc func(ctx context.Context, hostUUID string) (*fleet.MDMWindowsEnrolledDevice, error)
 
 type MDMWindowsGetUnlinkedEnrolledDeviceWithDeviceNameFunc func(ctx context.Context, deviceName string) (*fleet.MDMWindowsEnrolledDevice, error)
@@ -1463,6 +1475,8 @@ type WindowsHostLiteByHardwareSerialFunc func(ctx context.Context, hardwareSeria
 type MDMWindowsSaveUnlinkedEnrollmentHardwareSerialFunc func(ctx context.Context, mdmDeviceID string, hardwareSerial string) error
 
 type MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerialFunc func(ctx context.Context, hardwareSerial string) (*fleet.MDMWindowsEnrolledDevice, error)
+
+type MDMWindowsConflictingEnrollmentHardwareIDFunc func(ctx context.Context, hostUUID string, mdmHardwareID string) (conflicted bool, conflictingHardwareID string, err error)
 
 type MDMWindowsClaimEnrolledActivityFunc func(ctx context.Context, mdmHardwareID string, claimedAt time.Time) (bool, error)
 
@@ -2399,6 +2413,12 @@ type ListAppleOSUpdateHostsForReconcileFunc func(ctx context.Context, cursor str
 type SetAppleOSUpdateTargetsAndResendFunc func(ctx context.Context, targets []*fleet.ComputedAppleSoftwareUpdateHost) error
 
 type GetAppleOSUpdateHostByUUIDFunc func(ctx context.Context, hostUUID string) (*fleet.AppleSoftwareUpdateHost, error)
+
+type SetABMTokenDefaultFunc func(ctx context.Context, tokenID uint) error
+
+type ClearABMTokenDefaultFunc func(ctx context.Context) error
+
+type SetABMTokenServerUUIDFunc func(ctx context.Context, tokenID uint, serverUUID string) error
 
 type DataStore struct {
 	AppConfigFunc        AppConfigFunc
@@ -3433,6 +3453,9 @@ type DataStore struct {
 	ResetPolicyFunc        ResetPolicyFunc
 	ResetPolicyFuncInvoked bool
 
+	ResetPolicyForHostFunc        ResetPolicyForHostFunc
+	ResetPolicyForHostFuncInvoked bool
+
 	ListGlobalPoliciesFunc        ListGlobalPoliciesFunc
 	ListGlobalPoliciesFuncInvoked bool
 
@@ -3760,11 +3783,14 @@ type DataStore struct {
 	IsHostDiskEncryptionKeyArchivedFunc        IsHostDiskEncryptionKeyArchivedFunc
 	IsHostDiskEncryptionKeyArchivedFuncInvoked bool
 
-	IsHostPendingEscrowFunc        IsHostPendingEscrowFunc
-	IsHostPendingEscrowFuncInvoked bool
+	GetHostEscrowStateFunc        GetHostEscrowStateFunc
+	GetHostEscrowStateFuncInvoked bool
 
-	ClearPendingEscrowFunc        ClearPendingEscrowFunc
-	ClearPendingEscrowFuncInvoked bool
+	MarkEscrowSentToAgentFunc        MarkEscrowSentToAgentFunc
+	MarkEscrowSentToAgentFuncInvoked bool
+
+	SetEscrowInFlightFunc        SetEscrowInFlightFunc
+	SetEscrowInFlightFuncInvoked bool
 
 	ReportEscrowErrorFunc        ReportEscrowErrorFunc
 	ReportEscrowErrorFuncInvoked bool
@@ -4252,6 +4278,15 @@ type DataStore struct {
 	GetManagedLocalAccountByPendingCommandUUIDFunc        GetManagedLocalAccountByPendingCommandUUIDFunc
 	GetManagedLocalAccountByPendingCommandUUIDFuncInvoked bool
 
+	InitiateWindowsManagedLocalAccountRotationFunc        InitiateWindowsManagedLocalAccountRotationFunc
+	InitiateWindowsManagedLocalAccountRotationFuncInvoked bool
+
+	InitiateWindowsManagedLocalAccountAutoRotationFunc        InitiateWindowsManagedLocalAccountAutoRotationFunc
+	InitiateWindowsManagedLocalAccountAutoRotationFuncInvoked bool
+
+	GetWindowsManagedLocalAccountsForAutoRotationFunc        GetWindowsManagedLocalAccountsForAutoRotationFunc
+	GetWindowsManagedLocalAccountsForAutoRotationFuncInvoked bool
+
 	InsertMDMAppleBootstrapPackageFunc        InsertMDMAppleBootstrapPackageFunc
 	InsertMDMAppleBootstrapPackageFuncInvoked bool
 
@@ -4546,6 +4581,9 @@ type DataStore struct {
 	SetMDMWindowsManagedLocalAccountEscrowedFunc        SetMDMWindowsManagedLocalAccountEscrowedFunc
 	SetMDMWindowsManagedLocalAccountEscrowedFuncInvoked bool
 
+	ClearMDMWindowsManagedLocalAccountRotationRequestFunc        ClearMDMWindowsManagedLocalAccountRotationRequestFunc
+	ClearMDMWindowsManagedLocalAccountRotationRequestFuncInvoked bool
+
 	MDMWindowsGetEnrolledDeviceWithHostUUIDFunc        MDMWindowsGetEnrolledDeviceWithHostUUIDFunc
 	MDMWindowsGetEnrolledDeviceWithHostUUIDFuncInvoked bool
 
@@ -4560,6 +4598,9 @@ type DataStore struct {
 
 	MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerialFunc        MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerialFunc
 	MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerialFuncInvoked bool
+
+	MDMWindowsConflictingEnrollmentHardwareIDFunc        MDMWindowsConflictingEnrollmentHardwareIDFunc
+	MDMWindowsConflictingEnrollmentHardwareIDFuncInvoked bool
 
 	MDMWindowsClaimEnrolledActivityFunc        MDMWindowsClaimEnrolledActivityFunc
 	MDMWindowsClaimEnrolledActivityFuncInvoked bool
@@ -5964,6 +6005,15 @@ type DataStore struct {
 
 	GetAppleOSUpdateHostByUUIDFunc        GetAppleOSUpdateHostByUUIDFunc
 	GetAppleOSUpdateHostByUUIDFuncInvoked bool
+
+	SetABMTokenDefaultFunc        SetABMTokenDefaultFunc
+	SetABMTokenDefaultFuncInvoked bool
+
+	ClearABMTokenDefaultFunc        ClearABMTokenDefaultFunc
+	ClearABMTokenDefaultFuncInvoked bool
+
+	SetABMTokenServerUUIDFunc        SetABMTokenServerUUIDFunc
+	SetABMTokenServerUUIDFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -8376,6 +8426,13 @@ func (s *DataStore) ResetPolicy(ctx context.Context, policyID uint) error {
 	return s.ResetPolicyFunc(ctx, policyID)
 }
 
+func (s *DataStore) ResetPolicyForHost(ctx context.Context, hostID uint, policyID uint) error {
+	s.mu.Lock()
+	s.ResetPolicyForHostFuncInvoked = true
+	s.mu.Unlock()
+	return s.ResetPolicyForHostFunc(ctx, hostID, policyID)
+}
+
 func (s *DataStore) ListGlobalPolicies(ctx context.Context, opts fleet.ListOptions, platform string) ([]*fleet.Policy, error) {
 	s.mu.Lock()
 	s.ListGlobalPoliciesFuncInvoked = true
@@ -9139,18 +9196,25 @@ func (s *DataStore) IsHostDiskEncryptionKeyArchived(ctx context.Context, hostID 
 	return s.IsHostDiskEncryptionKeyArchivedFunc(ctx, hostID)
 }
 
-func (s *DataStore) IsHostPendingEscrow(ctx context.Context, hostID uint) bool {
+func (s *DataStore) GetHostEscrowState(ctx context.Context, hostID uint) (*fleet.HostEscrowState, error) {
 	s.mu.Lock()
-	s.IsHostPendingEscrowFuncInvoked = true
+	s.GetHostEscrowStateFuncInvoked = true
 	s.mu.Unlock()
-	return s.IsHostPendingEscrowFunc(ctx, hostID)
+	return s.GetHostEscrowStateFunc(ctx, hostID)
 }
 
-func (s *DataStore) ClearPendingEscrow(ctx context.Context, hostID uint) error {
+func (s *DataStore) MarkEscrowSentToAgent(ctx context.Context, hostID uint) error {
 	s.mu.Lock()
-	s.ClearPendingEscrowFuncInvoked = true
+	s.MarkEscrowSentToAgentFuncInvoked = true
 	s.mu.Unlock()
-	return s.ClearPendingEscrowFunc(ctx, hostID)
+	return s.MarkEscrowSentToAgentFunc(ctx, hostID)
+}
+
+func (s *DataStore) SetEscrowInFlight(ctx context.Context, hostID uint, inFlight bool) error {
+	s.mu.Lock()
+	s.SetEscrowInFlightFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetEscrowInFlightFunc(ctx, hostID, inFlight)
 }
 
 func (s *DataStore) ReportEscrowError(ctx context.Context, hostID uint, err string) error {
@@ -10287,6 +10351,27 @@ func (s *DataStore) GetManagedLocalAccountByPendingCommandUUID(ctx context.Conte
 	return s.GetManagedLocalAccountByPendingCommandUUIDFunc(ctx, commandUUID)
 }
 
+func (s *DataStore) InitiateWindowsManagedLocalAccountRotation(ctx context.Context, hostUUID string) error {
+	s.mu.Lock()
+	s.InitiateWindowsManagedLocalAccountRotationFuncInvoked = true
+	s.mu.Unlock()
+	return s.InitiateWindowsManagedLocalAccountRotationFunc(ctx, hostUUID)
+}
+
+func (s *DataStore) InitiateWindowsManagedLocalAccountAutoRotation(ctx context.Context, hostUUID string) error {
+	s.mu.Lock()
+	s.InitiateWindowsManagedLocalAccountAutoRotationFuncInvoked = true
+	s.mu.Unlock()
+	return s.InitiateWindowsManagedLocalAccountAutoRotationFunc(ctx, hostUUID)
+}
+
+func (s *DataStore) GetWindowsManagedLocalAccountsForAutoRotation(ctx context.Context) ([]fleet.HostManagedLocalAccountWindowsRotationInfo, error) {
+	s.mu.Lock()
+	s.GetWindowsManagedLocalAccountsForAutoRotationFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetWindowsManagedLocalAccountsForAutoRotationFunc(ctx)
+}
+
 func (s *DataStore) InsertMDMAppleBootstrapPackage(ctx context.Context, bp *fleet.MDMAppleBootstrapPackage, pkgStore fleet.MDMBootstrapPackageStore) error {
 	s.mu.Lock()
 	s.InsertMDMAppleBootstrapPackageFuncInvoked = true
@@ -10973,6 +11058,13 @@ func (s *DataStore) SetMDMWindowsManagedLocalAccountEscrowed(ctx context.Context
 	return s.SetMDMWindowsManagedLocalAccountEscrowedFunc(ctx, hostUUID, escrowed)
 }
 
+func (s *DataStore) ClearMDMWindowsManagedLocalAccountRotationRequest(ctx context.Context, hostUUID string) (cleared bool, err error) {
+	s.mu.Lock()
+	s.ClearMDMWindowsManagedLocalAccountRotationRequestFuncInvoked = true
+	s.mu.Unlock()
+	return s.ClearMDMWindowsManagedLocalAccountRotationRequestFunc(ctx, hostUUID)
+}
+
 func (s *DataStore) MDMWindowsGetEnrolledDeviceWithHostUUID(ctx context.Context, hostUUID string) (*fleet.MDMWindowsEnrolledDevice, error) {
 	s.mu.Lock()
 	s.MDMWindowsGetEnrolledDeviceWithHostUUIDFuncInvoked = true
@@ -11006,6 +11098,13 @@ func (s *DataStore) MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerial(ctx co
 	s.MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerialFuncInvoked = true
 	s.mu.Unlock()
 	return s.MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerialFunc(ctx, hardwareSerial)
+}
+
+func (s *DataStore) MDMWindowsConflictingEnrollmentHardwareID(ctx context.Context, hostUUID string, mdmHardwareID string) (conflicted bool, conflictingHardwareID string, err error) {
+	s.mu.Lock()
+	s.MDMWindowsConflictingEnrollmentHardwareIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.MDMWindowsConflictingEnrollmentHardwareIDFunc(ctx, hostUUID, mdmHardwareID)
 }
 
 func (s *DataStore) MDMWindowsClaimEnrolledActivity(ctx context.Context, mdmHardwareID string, claimedAt time.Time) (bool, error) {
@@ -14282,4 +14381,25 @@ func (s *DataStore) GetAppleOSUpdateHostByUUID(ctx context.Context, hostUUID str
 	s.GetAppleOSUpdateHostByUUIDFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetAppleOSUpdateHostByUUIDFunc(ctx, hostUUID)
+}
+
+func (s *DataStore) SetABMTokenDefault(ctx context.Context, tokenID uint) error {
+	s.mu.Lock()
+	s.SetABMTokenDefaultFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetABMTokenDefaultFunc(ctx, tokenID)
+}
+
+func (s *DataStore) ClearABMTokenDefault(ctx context.Context) error {
+	s.mu.Lock()
+	s.ClearABMTokenDefaultFuncInvoked = true
+	s.mu.Unlock()
+	return s.ClearABMTokenDefaultFunc(ctx)
+}
+
+func (s *DataStore) SetABMTokenServerUUID(ctx context.Context, tokenID uint, serverUUID string) error {
+	s.mu.Lock()
+	s.SetABMTokenServerUUIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetABMTokenServerUUIDFunc(ctx, tokenID, serverUUID)
 }

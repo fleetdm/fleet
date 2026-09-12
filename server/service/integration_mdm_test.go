@@ -20,7 +20,6 @@ import (
 	"encoding/xml"
 	"errors"
 	"fmt"
-	"github.com/WatchBeam/clock"
 	"io"
 	"log/slog"
 	"math/big"
@@ -40,6 +39,8 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/WatchBeam/clock"
 
 	"github.com/MicahParks/jwkset"
 	"github.com/davecgh/go-spew/spew"
@@ -950,6 +951,11 @@ func (s *integrationMDMTestSuite) TearDownTest() {
 	appCfg.MDM.AndroidEnabledAndConfigured = true
 
 	appCfg.MDM.EndUserAuthentication = fleet.MDMEndUserAuthentication{} // Reset end user auth
+
+	// abm_tokens is truncated below, so the app config entries referencing them
+	// must go too, otherwise the next test's config PATCH fails validation with
+	// "token with organization name X doesn't exist"
+	appCfg.MDM.AppleBusinessManager = optjson.Slice[fleet.MDMAppleABMAssignmentInfo]{}
 
 	// ensure the server URL is constant
 	appCfg.ServerSettings.ServerURL = s.server.URL
@@ -3080,17 +3086,18 @@ func (s *integrationMDMTestSuite) TestWindowsMDMGetEncryptionKey() {
 	s.lastActivityOfTypeMatches(fleet.ActivityTypeReadHostDiskEncryptionKey{}.ActivityName(),
 		fmt.Sprintf(`{"host_display_name": "%s", "host_id": %d}`, host.DisplayName(), host.ID), 0)
 
-	// update the key to blank with a client error
+	// Report a client error with no key. The error is recorded and the stored key is kept, because a failure on a host
+	// that is still encrypted arrives when the admin most needs that key.
 	_, err = s.ds.SetOrUpdateHostDiskEncryptionKey(ctx, host, "", "failed", nil)
 	require.NoError(t, err)
 
 	resp = getHostEncryptionKeyResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/encryption_key", host.ID), nil, http.StatusOK, &resp)
-	require.Equal(t, recoveryKey, resp.EncryptionKey.DecryptedValue) // old key is pulled from the archive
+	require.Equal(t, recoveryKey, resp.EncryptionKey.DecryptedValue)
 
 	detailsResp := getHostResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &detailsResp)
-	require.False(t, detailsResp.Host.MDM.EncryptionKeyAvailable)
+	require.True(t, detailsResp.Host.MDM.EncryptionKeyAvailable, "an error report must not take the key away")
 	require.NotNil(t, detailsResp.Host.MDM.EncryptionKeyArchived)
 	require.True(t, *detailsResp.Host.MDM.EncryptionKeyArchived)
 }
@@ -10996,10 +11003,12 @@ func (s *integrationMDMTestSuite) TestHostDiskEncryptionKey() {
 		ClientError:  "fail",
 	}, http.StatusNoContent)
 
+	// The error is recorded, but the stored key and its decryptable flag are kept.
 	hdek, err = s.ds.GetHostDiskEncryptionKey(ctx, host.ID)
 	require.NoError(t, err)
-	require.Nil(t, hdek.Decryptable)
-	require.Empty(t, hdek.Base64Encrypted)
+	require.NotNil(t, hdek.Decryptable)
+	require.True(t, *hdek.Decryptable)
+	require.NotEmpty(t, hdek.Base64Encrypted)
 
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &hostResp)
 	require.Nil(t, hostResp.Host.DiskEncryptionEnabled) // the disk encryption status of the host is not set by the orbit request

@@ -3,13 +3,14 @@ package svctest
 import (
 	"context"
 	"crypto/x509"
-	"github.com/WatchBeam/clock"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"testing"
 	"time"
+
+	"github.com/WatchBeam/clock"
 
 	"github.com/fleetdm/fleet/v4/ee/server/scim"
 	"github.com/fleetdm/fleet/v4/ee/server/service/condaccess"
@@ -196,6 +197,7 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 				checkInAndCommand,
 				service.NewMDMAppleDDMService(ds, logger),
 				commander,
+				service.NewMDMAppleGetTokenService(ds, logger),
 				"https://test-url.com",
 				cfg,
 				svc,
@@ -249,7 +251,8 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 		require.NoError(t, condaccess.RegisterIdP(rootMux, ds, logger, &cfg, limitStore))
 	}
 	var carveStore fleet.CarveStore = ds // In tests, we use MySQL as storage for carves.
-	apiHandler := service.MakeHandler(svc, cfg, logger, limitStore, redisPool, carveStore, featureRoutes, extra...)
+	apiHandler, err := service.MakeHandler(svc, cfg, logger, limitStore, redisPool, carveStore, featureRoutes, extra...)
+	require.NoError(t, err)
 	// SCIM endpoints are served by a prefix-mounted handler (see scim.RegisterSCIM)
 	// that gorilla/mux can't introspect, so surface their routes to the validator
 	// explicitly. They're always in the catalog, regardless of opts[0].EnableSCIM.

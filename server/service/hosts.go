@@ -4028,9 +4028,16 @@ func (svc *Service) getHostDiskEncryptionKey(ctx context.Context, host *fleet.Ho
 	if err != nil && !fleet.IsNotFound(err) {
 		return nil, ctxerr.Wrap(ctx, err, "getting host encryption key")
 	}
-	archivedKey, err := svc.ds.GetHostArchivedDiskEncryptionKey(ctx, host)
-	if err != nil && !fleet.IsNotFound(err) {
-		return nil, ctxerr.Wrap(ctx, err, "getting host archived disk encryption key")
+	// The archived fallback exists for macOS, where re-enrollment clears the
+	// current row while the archived FileVault key is still valid. On Linux the
+	// current row is authoritative: it only goes missing once the verify query
+	// proved the key slot is gone, so the archived key is known to be dead.
+	var archivedKey *fleet.HostArchivedDiskEncryptionKey
+	if !host.IsLUKSSupported() {
+		archivedKey, err = svc.ds.GetHostArchivedDiskEncryptionKey(ctx, host)
+		if err != nil && !fleet.IsNotFound(err) {
+			return nil, ctxerr.Wrap(ctx, err, "getting host archived disk encryption key")
+		}
 	}
 	if key == nil && archivedKey == nil {
 		return nil, ctxerr.Wrap(ctx, newNotFoundError(), "host encryption key is not set")
@@ -4215,7 +4222,7 @@ func hostListOptionsFromFilters(filter *map[string]interface{}) (*fleet.HostList
 				return nil, nil, badRequest("status must be a string")
 			}
 			if !fleet.HostStatus(status).IsValid() {
-				return nil, nil, badRequest("status must be one of: new, online, offline, missing")
+				return nil, nil, badRequest("status must be one of: new, online, offline, missing, mia, enrolled")
 			}
 			opt.StatusFilter = fleet.HostStatus(status)
 		case "query":

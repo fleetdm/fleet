@@ -204,6 +204,26 @@ func (ds *Datastore) SetMDMWindowsManagedLocalAccountEscrowed(ctx context.Contex
 	return changed > 0, nil
 }
 
+// ClearMDMWindowsManagedLocalAccountRotationRequest retires an outstanding rotation request once the device has
+// escrowed the replacement password or reported a failure. Reporting whether one was outstanding lets the escrow
+// endpoint tell a rotation from a first-time creation without a separate read.
+func (ds *Datastore) ClearMDMWindowsManagedLocalAccountRotationRequest(ctx context.Context, hostUUID string) (bool, error) {
+	// Pinned to the current enrollment by id so a stale enrollment row is never the one cleared.
+	res, err := ds.writer(ctx).ExecContext(ctx,
+		`UPDATE mdm_windows_enrollments SET managed_local_account_rotation_requested = 0
+		 WHERE managed_local_account_rotation_requested = 1
+		   AND id = (SELECT id FROM (
+		       SELECT id FROM mdm_windows_enrollments WHERE host_uuid = ?
+		       ORDER BY created_at DESC, id DESC LIMIT 1
+		   ) cur)`,
+		hostUUID)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "clear mdm windows enrollment managed local account rotation request")
+	}
+	cleared, _ := res.RowsAffected()
+	return cleared > 0, nil
+}
+
 // MDMWindowsGetEnrolledDeviceWithDeviceID receives a Windows MDM device id and
 // returns the device information.
 func (ds *Datastore) MDMWindowsGetEnrolledDeviceWithHostUUID(ctx context.Context, hostUUID string) (*fleet.MDMWindowsEnrolledDevice, error) {
@@ -400,6 +420,36 @@ func (ds *Datastore) MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerial(ctx c
 	return &devices[0], nil
 }
 
+// MDMWindowsConflictingEnrollmentHardwareID reports whether hostUUID is already claimed by an enrollment belonging to
+// hardware other than mdmHardwareID. The returned ID is only for logging which device holds the host; conflicted is the
+// answer, because an enrollment may carry an empty mdm_hardware_id and would otherwise be indistinguishable from "no
+// incumbent".
+//
+// A device re-enrolling never conflicts with itself: MDMWindowsDeleteEnrolledDeviceOnReenrollment removes its previous
+// row by hardware ID before the new one is inserted, so its claim on the host is gone before any linking runs. That
+// holds because the hardware ID is stable across a wipe (even when enrolling with a different Entra ID).
+func (ds *Datastore) MDMWindowsConflictingEnrollmentHardwareID(ctx context.Context, hostUUID string, mdmHardwareID string) (conflicted bool, conflictingHardwareID string, err error) {
+	if hostUUID == "" {
+		return false, "", nil
+	}
+
+	const stmt = `
+		SELECT mdm_hardware_id
+		FROM mdm_windows_enrollments
+		WHERE host_uuid = ? AND mdm_hardware_id != ?
+		ORDER BY id DESC
+		LIMIT 1`
+
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &conflictingHardwareID, stmt, hostUUID, mdmHardwareID)
+	switch {
+	case errors.Is(err, sql.ErrNoRows):
+		return false, "", nil
+	case err != nil:
+		return false, "", ctxerr.Wrap(ctx, err, "get conflicting windows mdm enrollment hardware id")
+	}
+	return true, conflictingHardwareID, nil
+}
+
 // GetWindowsEnrollmentDefaultFleet returns the configured default fleet for new user-driven Windows MDM enrollments.
 // Returns (nil, "") when no default is configured (including when the referenced fleet was deleted, which nulls the FK).
 func (ds *Datastore) GetWindowsEnrollmentDefaultFleet(ctx context.Context) (*uint, string, error) {
@@ -470,16 +520,18 @@ func (ds *Datastore) GetMDMWindowsHostConfigState(ctx context.Context, hostUUID 
 			awaiting_configuration,
 			has_pending_commands,
 			fleetd_sync_capable,
-			managed_local_account_escrowed
+			managed_local_account_escrowed,
+			managed_local_account_rotation_requested
 		FROM mdm_windows_enrollments
 		WHERE host_uuid = ?
 		ORDER BY created_at DESC, id DESC
 		LIMIT 1`
 	var row struct {
-		AwaitingConfiguration       fleet.WindowsMDMAwaitingConfiguration `db:"awaiting_configuration"`
-		HasPendingCommands          bool                                  `db:"has_pending_commands"`
-		FleetdSyncCapable           bool                                  `db:"fleetd_sync_capable"`
-		ManagedLocalAccountEscrowed bool                                  `db:"managed_local_account_escrowed"`
+		AwaitingConfiguration                fleet.WindowsMDMAwaitingConfiguration `db:"awaiting_configuration"`
+		HasPendingCommands                   bool                                  `db:"has_pending_commands"`
+		FleetdSyncCapable                    bool                                  `db:"fleetd_sync_capable"`
+		ManagedLocalAccountEscrowed          bool                                  `db:"managed_local_account_escrowed"`
+		ManagedLocalAccountRotationRequested bool                                  `db:"managed_local_account_rotation_requested"`
 	}
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &row, stmt, hostUUID); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -488,10 +540,11 @@ func (ds *Datastore) GetMDMWindowsHostConfigState(ctx context.Context, hostUUID 
 		return nil, ctxerr.Wrap(ctx, err, "get MDMWindowsHostConfigState")
 	}
 	return &fleet.MDMWindowsHostConfigState{
-		AwaitingConfiguration:       row.AwaitingConfiguration,
-		HasPendingCommands:          row.HasPendingCommands,
-		FleetdSyncCapable:           row.FleetdSyncCapable,
-		ManagedLocalAccountEscrowed: row.ManagedLocalAccountEscrowed,
+		AwaitingConfiguration:                row.AwaitingConfiguration,
+		HasPendingCommands:                   row.HasPendingCommands,
+		FleetdSyncCapable:                    row.FleetdSyncCapable,
+		ManagedLocalAccountEscrowed:          row.ManagedLocalAccountEscrowed,
+		ManagedLocalAccountRotationRequested: row.ManagedLocalAccountRotationRequested,
 	}, nil
 }
 

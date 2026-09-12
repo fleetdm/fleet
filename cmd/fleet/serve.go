@@ -837,8 +837,11 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 			extra = append(extra, service.WithAgentWSHub(agentWSHub))
 		}
 
-		apiHandler = service.MakeHandler(svc, config, httpLogger, limiterStore, redisPool, carveStore,
+		apiHandler, err = service.MakeHandler(svc, config, httpLogger, limiterStore, redisPool, carveStore,
 			[]endpointer.HandlerRoutesFunc{android_service.GetRoutes(svc, androidSvc), activityRoutes, acmeRoutes, chartRoutes}, extra...)
+		if err != nil {
+			initFatal(err, "initializing the API handler")
+		}
 
 		// SCIM endpoints are served by a prefix-mounted handler (see
 		// scim.RegisterSCIM) that gorilla/mux can't introspect, so surface
@@ -939,6 +942,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	if len(config.Server.PrivateKey) > 0 {
 		commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
 		ddmService := service.NewMDMAppleDDMService(ds, logger)
+		getTokenService := service.NewMDMAppleGetTokenService(ds, logger)
 		vppInstaller := svc.(fleet.AppleMDMVPPInstaller)
 		mdmCheckinAndCommandService := service.NewMDMAppleCheckinAndCommandService(
 			ds,
@@ -991,6 +995,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 			mdmCheckinAndCommandService,
 			ddmService,
 			commander,
+			getTokenService,
 			appCfg.ServerSettings.ServerURL,
 			config,
 			svc,

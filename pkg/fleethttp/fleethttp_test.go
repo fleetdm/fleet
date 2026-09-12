@@ -2,12 +2,14 @@ package fleethttp
 
 import (
 	"crypto/tls"
+	"errors"
 	"fmt"
 	"io"
 	"net"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 	"unsafe"
@@ -24,15 +26,20 @@ func TestClient(t *testing.T) {
 		nilRedirect bool
 		timeout     time.Duration
 	}{
-		{"default", nil, true, 0},
+		{"default", nil, true, DefaultTimeout},
 		{"timeout", []ClientOpt{WithTimeout(time.Second)}, true, time.Second},
-		{"nofollow", []ClientOpt{WithFollowRedir(false)}, false, 0},
-		{"tlsconfig", []ClientOpt{WithTLSClientConfig(&tls.Config{})}, true, 0},
+		{"notimeout", []ClientOpt{WithNoTimeout()}, true, 0},
+		{"nofollow", []ClientOpt{WithFollowRedir(false)}, false, DefaultTimeout},
+		{"tlsconfig", []ClientOpt{WithTLSClientConfig(&tls.Config{})}, true, DefaultTimeout},
 		{"combined", []ClientOpt{
 			WithTLSClientConfig(&tls.Config{}),
 			WithTimeout(time.Second),
 			WithFollowRedir(false),
 		}, false, time.Second},
+		{"notimeout wins over earlier timeout", []ClientOpt{
+			WithTimeout(time.Second),
+			WithNoTimeout(),
+		}, true, 0},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -402,4 +409,156 @@ func TestHostnamesMatch(t *testing.T) {
 			}
 		})
 	}
+}
+
+// sizeLimitedClients covers every way a size-limited client can be built.
+var sizeLimitedClients = map[string]func(maxSize int64) *http.Client{
+	"WithMaxResponseSize": func(maxSize int64) *http.Client {
+		return NewClient(WithTimeout(5*time.Second), WithMaxResponseSize(maxSize))
+	},
+	"NewSizeLimitTransport": func(maxSize int64) *http.Client {
+		cli := NewClient(WithTimeout(5 * time.Second))
+		cli.Transport = NewSizeLimitTransport(maxSize)
+		return cli
+	},
+	// Zero value: base is nil, so RoundTrip has to resolve one itself.
+	"SizeLimitTransport literal": func(maxSize int64) *http.Client {
+		cli := NewClient(WithTimeout(5 * time.Second))
+		cli.Transport = &SizeLimitTransport{maxSizeBytes: maxSize}
+		return cli
+	},
+}
+
+func TestSizeLimitedClientBlocksPrivateNetworks(t *testing.T) {
+	const marker = "loopback-only"
+	const maxSize = 1 << 20
+
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		io.WriteString(w, marker) //nolint:errcheck
+	}))
+	defer ts.Close()
+
+	for name, newClient := range sizeLimitedClients {
+		t.Run(name, func(t *testing.T) {
+			// Control: with blocking off the listener is reachable, so the
+			// assertions below cannot pass on an unreachable address.
+			setBlockingMode(t, BlockingDisabled)
+			resp, err := newClient(maxSize).Get(ts.URL)
+			require.NoError(t, err)
+			body, err := io.ReadAll(resp.Body)
+			resp.Body.Close()
+			require.NoError(t, err)
+			require.Equal(t, marker, string(body))
+
+			for _, mode := range []NetworkBlockingMode{BlockingFull, BlockingPrivateAllowed} {
+				setBlockingMode(t, mode)
+				_, err := newClient(maxSize).Get(ts.URL)
+				require.ErrorIs(t, err, ErrPrivateNetworkBlocked, "mode %v", mode)
+			}
+		})
+	}
+}
+
+func TestSizeLimitedClientEnforcesLimit(t *testing.T) {
+	const maxSize = 1024
+	oversized := strings.Repeat("x", maxSize*2)
+
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/chunked" {
+			// No Content-Length, so the limit can only be enforced while reading.
+			w.Header().Set("Transfer-Encoding", "chunked")
+		}
+		io.WriteString(w, oversized) //nolint:errcheck
+	}))
+	defer ts.Close()
+
+	for name, newClient := range sizeLimitedClients {
+		t.Run(name, func(t *testing.T) {
+			setBlockingMode(t, BlockingDisabled)
+
+			_, err := newClient(maxSize).Get(ts.URL + "/known-length")
+			require.ErrorIs(t, err, ErrMaxSizeExceeded)
+
+			resp, err := newClient(maxSize).Get(ts.URL + "/chunked")
+			require.NoError(t, err)
+			require.EqualValues(t, -1, resp.ContentLength)
+			_, err = io.ReadAll(resp.Body)
+			resp.Body.Close()
+			var maxBytesErr *http.MaxBytesError
+			require.ErrorAs(t, err, &maxBytesErr)
+		})
+	}
+}
+
+// roundTripFunc is deliberately not an *http.Transport, matching how tests
+// stub http.DefaultTransport.
+type roundTripFunc func(*http.Request) (*http.Response, error)
+
+func (f roundTripFunc) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
+
+func TestSizeLimitedClientPreservesDefaultTransportMock(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer ts.Close()
+
+	for name, newClient := range sizeLimitedClients {
+		t.Run(name, func(t *testing.T) {
+			var mocked bool
+			orig := http.DefaultTransport
+			t.Cleanup(func() { http.DefaultTransport = orig })
+			http.DefaultTransport = roundTripFunc(func(r *http.Request) (*http.Response, error) {
+				mocked = true
+				return orig.RoundTrip(r)
+			})
+
+			resp, err := newClient(1 << 20).Get(ts.URL)
+			require.NoError(t, err)
+			resp.Body.Close()
+			require.True(t, mocked, "mock round tripper must stay in the chain")
+		})
+	}
+}
+
+// TestClientTimeoutBehavior verifies the timeout options are wired to http.Client.Timeout and actually abort a slow response, rather
+// than only being recorded on the struct.
+func TestClientTimeoutBehavior(t *testing.T) {
+	// The handler blocks until the test releases it, so the only thing that can end the request is the client timeout.
+	release := make(chan struct{})
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		select {
+		case <-release:
+		case <-r.Context().Done():
+		}
+		w.WriteHeader(http.StatusOK)
+	}))
+	t.Cleanup(func() {
+		close(release)
+		srv.Close()
+	})
+
+	t.Run("timeout aborts a slow response", func(t *testing.T) {
+		_, err := NewClient(WithTimeout(100 * time.Millisecond)).Get(srv.URL)
+		require.Error(t, err)
+		var netErr interface{ Timeout() bool }
+		require.True(t, errors.As(err, &netErr) && netErr.Timeout(), "expected a timeout error, got %v", err)
+	})
+
+	t.Run("no timeout waits for the response", func(t *testing.T) {
+		cli := NewClient(WithNoTimeout())
+		assert.Zero(t, cli.Timeout)
+		done := make(chan error, 1)
+		go func() {
+			resp, err := cli.Get(srv.URL)
+			if resp != nil {
+				resp.Body.Close()
+			}
+			done <- err
+		}()
+		select {
+		case err := <-done:
+			t.Fatalf("request should still be in flight, got %v", err)
+		case <-time.After(300 * time.Millisecond):
+		}
+	})
 }

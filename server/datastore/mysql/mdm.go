@@ -1133,16 +1133,40 @@ func (ds *Datastore) bulkSetPendingMDMHostProfilesDB(
 
 	switch {
 	case len(hostUUIDs) > 0:
-		// TODO: if a very large number (~65K) of uuids was provided, could
-		// result in too many placeholders (not an immediate concern).
-		uuidStmt = `SELECT uuid, platform FROM hosts WHERE uuid IN (?)`
-		args = append(args, hostUUIDs)
+		// Batched: a team transfer or bulk operation can pass more host
+		// identifiers than MySQL allows placeholders for in one statement. No
+		// dedupe needed here: a repeated identifier only costs a duplicate entry
+		// in androidHosts below, which the caller uses solely as a non-empty check.
+		if err := common_mysql.BatchProcessSimple(hostUUIDs, hostIDsFanoutBatchSize, func(batch []string) error {
+			inStmt, args, err := sqlx.In(`SELECT uuid, platform FROM hosts WHERE uuid IN (?)`, batch)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "prepare query to load host UUIDs")
+			}
+			var batchHosts []fleet.Host
+			if err := sqlx.SelectContext(ctx, tx, &batchHosts, inStmt, args...); err != nil {
+				return ctxerr.Wrap(ctx, err, "execute query to load host UUIDs")
+			}
+			hosts = append(hosts, batchHosts...)
+			return nil
+		}); err != nil {
+			return updates, err
+		}
 
 	case len(hostIDs) > 0:
-		// TODO: if a very large number (~65K) of uuids was provided, could
-		// result in too many placeholders (not an immediate concern).
-		uuidStmt = `SELECT uuid, platform FROM hosts WHERE id IN (?)`
-		args = append(args, hostIDs)
+		if err := common_mysql.BatchProcessSimple(hostIDs, hostIDsFanoutBatchSize, func(batch []uint) error {
+			inStmt, args, err := sqlx.In(`SELECT uuid, platform FROM hosts WHERE id IN (?)`, batch)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "prepare query to load host UUIDs")
+			}
+			var batchHosts []fleet.Host
+			if err := sqlx.SelectContext(ctx, tx, &batchHosts, inStmt, args...); err != nil {
+				return ctxerr.Wrap(ctx, err, "execute query to load host UUIDs")
+			}
+			hosts = append(hosts, batchHosts...)
+			return nil
+		}); err != nil {
+			return updates, err
+		}
 
 	case len(teamIDs) > 0:
 		// TODO: if a very large number (~65K) of team IDs was provided, could

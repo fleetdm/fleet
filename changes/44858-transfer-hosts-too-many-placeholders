@@ -1,0 +1,1 @@
+* Fixed a "Could not transfer hosts" error when transferring more than 65,535 hosts to a fleet at once. The hosts were reassigned, but the follow-up work on the transfer (MDM profile, Android device, and Apple Business Manager bookkeeping) exceeded MySQL's per-statement placeholder limit and failed the request. Those queries are now batched.

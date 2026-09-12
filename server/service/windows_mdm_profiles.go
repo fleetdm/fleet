@@ -425,7 +425,7 @@ func additionalNDESValidationForWindowsProfiles(contents string, ndesVars *NDESV
 
 			isChallenge := strings.HasSuffix(target, "/Install/Challenge")
 			isServerURL := strings.HasSuffix(target, "/Install/ServerURL")
-			isSubjectName := strings.HasSuffix(target, "/Install/SubjectName")
+			isSubjectName := strings.HasSuffix(target, fleet.WindowsSCEPSubjectNameSuffix)
 
 			// Verify that each NDES variable appears ONLY in its expected field.
 			// This prevents the one-time challenge or proxy URL from being placed in an unexpected field
@@ -500,7 +500,7 @@ func additionalCustomSCEPValidationForWindowsProfiles(contents string, customSCE
 
 			target := strings.TrimSpace(*cmd.Target)
 
-			if strings.HasSuffix(target, "/Install/SubjectName") {
+			if strings.HasSuffix(target, fleet.WindowsSCEPSubjectNameSuffix) {
 				// SubjectName item found, check that it contains the expected renewal ID variable
 				if cmd.Data == nil {
 					return errors.New("SubjectName item is missing data")

@@ -295,7 +295,7 @@ type GetMunkiIssueFunc func(ctx context.Context, munkiIssueID uint) (*fleet.Munk
 
 type HostEncryptionKeyFunc func(ctx context.Context, id uint) (*fleet.HostDiskEncryptionKey, error)
 
-type EscrowLUKSDataFunc func(ctx context.Context, passphrase string, salt string, keySlot *uint, clientError string, keyType string) error
+type EscrowLUKSDataFunc func(ctx context.Context, passphrase string, salt string, keySlot *uint, clientError string, keyType string, status string) error
 
 type EscrowWindowsManagedLocalAccountPasswordFunc func(ctx context.Context, password string, clientError string) error
 
@@ -479,7 +479,7 @@ type ModifyGlobalPolicyFunc func(ctx context.Context, id uint, p fleet.ModifyPol
 
 type GetPolicyByIDFunc func(ctx context.Context, policyID uint) (*fleet.Policy, error)
 
-type ResetPolicyFunc func(ctx context.Context, policyID uint) error
+type ResetPolicyFunc func(ctx context.Context, policyID uint, hostID *uint) error
 
 type ListPolicyAutomationActivitiesFunc func(ctx context.Context, policyID uint, opts fleet.ListOptions, status string) ([]*fleet.PolicyAutomationActivity, *fleet.PaginationMetadata, error)
 
@@ -3474,11 +3474,11 @@ func (s *Service) HostEncryptionKey(ctx context.Context, id uint) (*fleet.HostDi
 	return s.HostEncryptionKeyFunc(ctx, id)
 }
 
-func (s *Service) EscrowLUKSData(ctx context.Context, passphrase string, salt string, keySlot *uint, clientError string, keyType string) error {
+func (s *Service) EscrowLUKSData(ctx context.Context, passphrase string, salt string, keySlot *uint, clientError string, keyType string, status string) error {
 	s.mu.Lock()
 	s.EscrowLUKSDataFuncInvoked = true
 	s.mu.Unlock()
-	return s.EscrowLUKSDataFunc(ctx, passphrase, salt, keySlot, clientError, keyType)
+	return s.EscrowLUKSDataFunc(ctx, passphrase, salt, keySlot, clientError, keyType, status)
 }
 
 func (s *Service) EscrowWindowsManagedLocalAccountPassword(ctx context.Context, password string, clientError string) error {
@@ -4118,11 +4118,11 @@ func (s *Service) GetPolicyByID(ctx context.Context, policyID uint) (*fleet.Poli
 	return s.GetPolicyByIDFunc(ctx, policyID)
 }
 
-func (s *Service) ResetPolicy(ctx context.Context, policyID uint) error {
+func (s *Service) ResetPolicy(ctx context.Context, policyID uint, hostID *uint) error {
 	s.mu.Lock()
 	s.ResetPolicyFuncInvoked = true
 	s.mu.Unlock()
-	return s.ResetPolicyFunc(ctx, policyID)
+	return s.ResetPolicyFunc(ctx, policyID, hostID)
 }
 
 func (s *Service) ListPolicyAutomationActivities(ctx context.Context, policyID uint, opts fleet.ListOptions, status string) ([]*fleet.PolicyAutomationActivity, *fleet.PaginationMetadata, error) {
