@@ -3517,6 +3517,10 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 		assertWindowsProfile(name+".xml", "./Test", 0, nil, http.StatusBadRequest, fmt.Sprintf(`Couldn't add. Profile name %q is not allowed.`, name))
 	}
 
+	// Windows profile names cannot be empty or whitespace-only after stripping the extension.
+	assertWindowsProfile(".xml", "./Test", 0, nil, http.StatusBadRequest, "Couldn't add. Profile name can't be empty.")
+	assertWindowsProfile("  .xml", "./Test", 0, nil, http.StatusBadRequest, "Couldn't add. Profile name can't be empty.")
+
 	// profiles with non-existent labels
 	assertAppleProfile("apple-profile-with-labels.mobileconfig", "apple-profile-with-labels", "ident-with-labels", 0, []string{"does-not-exist"}, http.StatusBadRequest, `Couldn't update. Label "does-not-exist" doesn't exist. Please remove the label from the configuration profile.`)
 	assertAppleDeclaration("apple-declaration-with-labels.json", "ident-with-labels", 0, []string{"does-not-exist"}, http.StatusBadRequest, `Couldn't update. Label "does-not-exist" doesn't exist. Please remove the label from the configuration profile.`)
@@ -4129,6 +4133,15 @@ func (s *integrationMDMTestSuite) TestUpdateConfigProfile() {
 	require.Contains(t, extractServerErrorText(res.Body), "already exists")
 	require.Equal(t, "update-win-profile-renamed", getProfile(winUUID).Name)
 	require.Equal(t, winContent3, downloadProfile(winUUID))
+
+	// Empty or whitespace-only names must be rejected on PATCH, even when the
+	// file name trims down to an empty string.
+	for _, fileName := range []string{".xml", "  .xml"} {
+		res = patchProfile(winUUID, fileName, winContent3, nil, http.StatusBadRequest)
+		require.Contains(t, extractServerErrorText(res.Body), "Couldn't edit. Profile name can't be empty.")
+		require.Equal(t, "update-win-profile-renamed", getProfile(winUUID).Name)
+		require.Equal(t, winContent3, downloadProfile(winUUID))
+	}
 
 	// labels-only edit; no file, so the name is left alone
 	res = patchProfile(winUUID, "", nil, map[string][]string{"labels_include_all": {lblA.Name, lblB.Name}}, http.StatusOK)

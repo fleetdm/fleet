@@ -422,22 +422,6 @@ func TestValidateUserProvided(t *testing.T) {
 			wantErr: "",
 		},
 		{
-			name: "Valid XML with reserved name",
-			profile: MDMWindowsConfigProfile{
-				Name:   mdm.FleetWindowsOSUpdatesProfileName,
-				SyncML: []byte(`<Replace><Target><LocURI>Custom/URI</LocURI></Target></Replace>`),
-			},
-			wantErr: `Profile name "Windows OS Updates" is not allowed`,
-		},
-		{
-			name: "Valid XML with Windows Update LocURI",
-			profile: MDMWindowsConfigProfile{
-				Name:   "FleetieUpdater",
-				SyncML: []byte(`<Replace><Target><LocURI>./Device/Vendor/MSFT/Policy/Config/Update/something</LocURI></Target></Replace>`),
-			},
-			wantErr: "",
-		},
-		{
 			name: "XML with top level comment",
 			profile: MDMWindowsConfigProfile{
 				SyncML: []byte(`
@@ -1004,9 +988,7 @@ func TestValidateUserProvided(t *testing.T) {
 			prof := tt.profile
 			// These cases exercise SyncML validation, so any non-empty name will do.
 			// Naming rules are covered by TestValidateUserProvidedProfileName.
-			if prof.Name == "" {
-				prof.Name = "Test profile"
-			}
+			prof.Name = "Test profile"
 			err := prof.ValidateUserProvided(tt.allowCustomDiskEncryption)
 			if tt.wantErr != "" {
 				require.ErrorContains(t, err, tt.wantErr)
@@ -1039,6 +1021,11 @@ func TestValidateUserProvidedProfileName(t *testing.T) {
 			name:        "tab and newline name is rejected (#52125)",
 			profileName: "\t\n",
 			wantErr:     "Profile name can't be empty.",
+		},
+		{
+			name:        "reserved name is rejected",
+			profileName: mdm.FleetWindowsOSUpdatesProfileName,
+			wantErr:     `Profile name "Windows OS Updates" is not allowed.`,
 		},
 		{
 			name:        "name with surrounding whitespace is allowed",
