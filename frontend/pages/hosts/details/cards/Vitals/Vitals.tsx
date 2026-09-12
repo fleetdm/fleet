@@ -417,10 +417,10 @@ export const buildHostVitals = ({
         value={
           hardwareModelDisplay.tooltip ? (
             <TooltipWrapper
-              className={`${baseClass}__hardware-model-tooltip`}
+              className={`${baseClass}__ellipsis-tooltip`}
               tipContent={hardwareModelDisplay.tooltip}
             >
-              <span className={`${baseClass}__hardware-model-text`}>
+              <span className={`${baseClass}__ellipsis-tooltip-text`}>
                 {hardwareModelDisplay.value}
               </span>
             </TooltipWrapper>
@@ -645,7 +645,7 @@ export const buildHostVitals = ({
                 <Icon name="error-outline" color="ui-fleet-black-75" />
               )}
               <TooltipWrapper
-                className={`${baseClass}__os-version-tooltip`}
+                className={`${baseClass}__ellipsis-tooltip`}
                 tipContent={
                   <>
                     Minimum version required: <b>{osUpdateMinimumVersion}</b>
@@ -654,7 +654,7 @@ export const buildHostVitals = ({
                   </>
                 }
               >
-                <span className={`${baseClass}__os-version-text`}>
+                <span className={`${baseClass}__ellipsis-tooltip-text`}>
                   {vitalsData.os_version}
                 </span>
               </TooltipWrapper>

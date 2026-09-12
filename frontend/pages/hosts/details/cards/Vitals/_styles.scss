@@ -85,7 +85,13 @@
     margin-bottom: 0;
   }
 
-  &__hardware-model-tooltip {
+  // Shared by any TooltipWrapper-based vital value (rather than
+  // TooltipTruncatedText) that still needs to truncate with an ellipsis —
+  // e.g. Operating system, Hardware model. TooltipWrapper's own element has
+  // no overflow handling, so this class chain overrides the flex item's
+  // default min-width so it can shrink, and the inner text span does the
+  // actual ellipsis truncation.
+  &__ellipsis-tooltip {
     min-width: 0;
 
     > .component__tooltip-wrapper__element {
@@ -93,22 +99,7 @@
     }
   }
 
-  &__hardware-model-text {
-    display: block;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  &__os-version-tooltip {
-    min-width: 0;
-
-    > .component__tooltip-wrapper__element {
-      overflow: hidden;
-    }
-  }
-
-  &__os-version-text {
+  &__ellipsis-tooltip-text {
     display: block;
     overflow: hidden;
     text-overflow: ellipsis;
