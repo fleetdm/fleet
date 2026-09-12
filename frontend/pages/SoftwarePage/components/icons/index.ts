@@ -2027,6 +2027,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "qspace pro": QspacePro,
   quip: Quip,
   qview: Qview,
+  "r for macos": R,
   "r for windows": R,
   "radio silence": RadioSilence,
   "raindrop.io": Raindropio,
