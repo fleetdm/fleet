@@ -762,3 +762,96 @@ func TestMakeDecoderPremiumErrorNamesTheJSONField(t *testing.T) {
 		require.NoError(t, decodeBody(t, `{"free":"ok"}`))
 	})
 }
+
+// optionalOf mirrors the shape the optjson types use: whether the key was
+// present is tracked separately from the value, so an explicit null leaves the
+// field non-zero. This package may not depend on that one, which
+// TestEndpointerPackageDependencies enforces, so the shape is restated here.
+type optionalOf[T any] struct {
+	Set   bool
+	Valid bool
+	Value T
+}
+
+func (o optionalOf[T]) HasValue() bool { return o.Set && o.Valid }
+
+func (o *optionalOf[T]) UnmarshalJSON(data []byte) error {
+	o.Set, o.Valid = true, false
+	if bytes.Equal(data, []byte("null")) {
+		var zero T
+		o.Value = zero
+		return nil
+	}
+	if err := json.Unmarshal(data, &o.Value); err != nil {
+		return err
+	}
+	o.Valid = true
+	return nil
+}
+
+type premiumGatedNullableRequest struct {
+	SoftwareTitleID optionalOf[uint]     `json:"software_title_id" premium:"true"`
+	ProfileUUID     optionalOf[string]   `json:"profile_uuid" premium:"true"`
+	Enabled         optionalOf[bool]     `json:"enabled" premium:"true"`
+	Count           optionalOf[int]      `json:"count" premium:"true"`
+	Names           optionalOf[[]string] `json:"names" premium:"true"`
+	Free            string               `json:"free"`
+}
+
+func TestMakeDecoderPremiumAllowsExplicitNull(t *testing.T) {
+	decode := MakeDecoder(premiumGatedNullableRequest{}, defaultJSONUnmarshal, nil, nil, nil, nil, -1)
+
+	// No license in the context, so these decode as free-tier requests.
+	decodeBody := func(t *testing.T, body string) error {
+		t.Helper()
+		r := httptest.NewRequest("POST", "/", strings.NewReader(body))
+		_, err := decode(t.Context(), r)
+		return err
+	}
+
+	t.Run("null clears an option rather than setting one", func(t *testing.T) {
+		for _, body := range []string{
+			`{"software_title_id":null}`,
+			`{"profile_uuid":null}`,
+			`{"enabled":null}`,
+			`{"count":null}`,
+			`{"names":null}`,
+			`{"software_title_id":null,"profile_uuid":null,"enabled":null,"count":null,"names":null}`,
+		} {
+			// Having these unset is the only state a free instance can be in, so
+			// asking for them to be unset is not asking for a premium feature.
+			// These types stay non-zero once the key is present, which made a
+			// null look like a supplied value to a plain zero check.
+			require.NoError(t, decodeBody(t, body), body)
+		}
+	})
+
+	t.Run("a supplied value is still rejected", func(t *testing.T) {
+		for _, tc := range []struct {
+			body string
+			want string
+		}{
+			{body: `{"software_title_id":1}`, want: "option software_title_id requires a premium license"},
+			{body: `{"profile_uuid":"abc"}`, want: "option profile_uuid requires a premium license"},
+			{body: `{"enabled":true}`, want: "option enabled requires a premium license"},
+			{body: `{"count":1}`, want: "option count requires a premium license"},
+			{body: `{"names":["a"]}`, want: "option names requires a premium license"},
+		} {
+			err := decodeBody(t, tc.body)
+			require.Error(t, err, tc.body)
+			require.ErrorContains(t, err, tc.want)
+		}
+	})
+
+	t.Run("an omitted premium field still decodes", func(t *testing.T) {
+		require.NoError(t, decodeBody(t, `{"free":"ok"}`))
+	})
+
+	t.Run("a value that fails to decode is reported as such", func(t *testing.T) {
+		// A rejected value lands in the same state as a null one, so the gate
+		// must not answer for it before the decode error is surfaced.
+		err := decodeBody(t, `{"software_title_id":"nope"}`)
+		require.Error(t, err)
+		require.NotContains(t, err.Error(), "requires a premium license")
+	})
+}

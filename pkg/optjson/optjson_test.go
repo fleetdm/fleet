@@ -484,3 +484,83 @@ func TestAny(t *testing.T) {
 		})
 	}
 }
+
+func TestHasValue(t *testing.T) {
+	// A key that was never present carries nothing.
+	t.Run("absent", func(t *testing.T) {
+		assert.False(t, String{}.HasValue())
+		assert.False(t, Bool{}.HasValue())
+		assert.False(t, Int{}.HasValue())
+		assert.False(t, Slice[string]{}.HasValue())
+		assert.False(t, Any[uint]{}.HasValue())
+	})
+
+	t.Run("null", func(t *testing.T) {
+		var s String
+		require.NoError(t, json.Unmarshal([]byte(`null`), &s))
+		assert.False(t, s.HasValue())
+
+		var b Bool
+		require.NoError(t, json.Unmarshal([]byte(`null`), &b))
+		assert.False(t, b.HasValue())
+
+		var i Int
+		require.NoError(t, json.Unmarshal([]byte(`null`), &i))
+		assert.False(t, i.HasValue())
+
+		var sl Slice[string]
+		require.NoError(t, json.Unmarshal([]byte(`null`), &sl))
+		assert.False(t, sl.HasValue())
+
+		var a Any[uint]
+		require.NoError(t, json.Unmarshal([]byte(`null`), &a))
+		assert.False(t, a.HasValue())
+	})
+
+	// Unmarshalling leaves a rejected value in the same set-but-not-valid state
+	// as a null one, so no value is reported for it either.
+	t.Run("failed to decode", func(t *testing.T) {
+		var s String
+		require.Error(t, json.Unmarshal([]byte(`123`), &s))
+		assert.False(t, s.HasValue())
+
+		var b Bool
+		require.Error(t, json.Unmarshal([]byte(`"x"`), &b))
+		assert.False(t, b.HasValue())
+
+		var i Int
+		require.Error(t, json.Unmarshal([]byte(`{"v":1}`), &i))
+		assert.False(t, i.HasValue())
+
+		var sl Slice[string]
+		require.Error(t, json.Unmarshal([]byte(`"x"`), &sl))
+		assert.False(t, sl.HasValue())
+
+		var a Any[uint]
+		require.Error(t, json.Unmarshal([]byte(`"x"`), &a))
+		assert.False(t, a.HasValue())
+	})
+
+	// Zero-valued input is still a value the caller supplied.
+	t.Run("value", func(t *testing.T) {
+		var s String
+		require.NoError(t, json.Unmarshal([]byte(`""`), &s))
+		assert.True(t, s.HasValue())
+
+		var b Bool
+		require.NoError(t, json.Unmarshal([]byte(`false`), &b))
+		assert.True(t, b.HasValue())
+
+		var i Int
+		require.NoError(t, json.Unmarshal([]byte(`0`), &i))
+		assert.True(t, i.HasValue())
+
+		var sl Slice[string]
+		require.NoError(t, json.Unmarshal([]byte(`[]`), &sl))
+		assert.True(t, sl.HasValue())
+
+		var a Any[uint]
+		require.NoError(t, json.Unmarshal([]byte(`0`), &a))
+		assert.True(t, a.HasValue())
+	})
+}

@@ -1,0 +1,1 @@
+- Fixed Fleet Free rejecting a policy update that explicitly sets a premium-gated field (`software_title_id`, `software_installer_id`, `script_id`, `profile_uuid`) to `null`, which broke clients that send the whole policy object back on update.
