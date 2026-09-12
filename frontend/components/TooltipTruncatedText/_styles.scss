@@ -24,6 +24,7 @@
   &--underline &__text-value {
     display: inline-block;
     max-width: 100%;
+    vertical-align: top;
     border-bottom: 1px dashed $ui-fleet-black-50;
   }
 }

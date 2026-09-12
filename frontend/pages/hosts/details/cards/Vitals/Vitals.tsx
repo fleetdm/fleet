@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import classnames from "classnames";
+import { toZonedTime } from "date-fns-tz";
 
 import { IHostCustomVital } from "interfaces/custom_host_vitals";
 import { IHostMdmData, IMunkiData } from "interfaces/host";
@@ -22,6 +23,7 @@ import {
   wrapFleetHelper,
   removeOSPrefix,
   compareVersions,
+  internationalTimeFormat,
 } from "utilities/helpers";
 import { getHardwareModelDisplay } from "pages/hosts/helpers";
 
@@ -712,6 +714,14 @@ export const buildHostVitals = ({
   }
 
   if (isIosOrIpadosHost && vitalsData?.timezone) {
+    const hasValidTimezone = vitalsData.timezone !== DEFAULT_EMPTY_CELL_VALUE;
+    const localTime = hasValidTimezone
+      ? // toZonedTime shifts the instant so its epoch value reads as the
+        // host's timezone under the system's own default-timezone formatting,
+        // letting internationalTimeFormat run unmodified/as-is elsewhere.
+        internationalTimeFormat(toZonedTime(new Date(), vitalsData.timezone))
+      : null;
+
     vitals.push({
       sortKey: "Timezone",
       element: (
@@ -719,9 +729,21 @@ export const buildHostVitals = ({
           key="timezone"
           title="Timezone"
           value={
-            <TooltipTruncatedText
-              value={vitalsData.timezone || DEFAULT_EMPTY_CELL_VALUE}
-            />
+            hasValidTimezone ? (
+              <TooltipTruncatedText
+                value={vitalsData.timezone}
+                tooltip={
+                  <>
+                    <b>Local time:</b> {localTime}
+                  </>
+                }
+                alwaysShowTooltip
+                showArrow={false}
+                tooltipPosition="bottom-start"
+              />
+            ) : (
+              DEFAULT_EMPTY_CELL_VALUE
+            )
           }
         />
       ),
