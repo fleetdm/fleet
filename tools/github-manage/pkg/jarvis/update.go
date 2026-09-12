@@ -325,13 +325,17 @@ func (m *Model) handleNormalKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if m.focusView {
 			if w, ok := m.currentWork(); ok {
 				m.notice = fmt.Sprintf("refreshing #%d…", w.Number)
-				cmds := []tea.Cmd{refreshIssueCmd(m.repo, w.Number, w.Project)}
+				cmds := []tea.Cmd{refreshIssueCmd(repoOr(w.URL, m.repo), w.Number, w.Project)}
 				switch {
 				case w.PR != nil:
 					cmds = append(cmds, refreshPRCmd(m.repo, w.PR.Number))
 				case w.Branch != "":
 					// No PR linked yet — look for one opened/merged since the last full fetch.
 					cmds = append(cmds, refreshPRByBranchCmd(m.repo, w.Branch, w.Number))
+				default:
+					// No branch recorded either — discover a PR via the issue's
+					// Development link (closing keywords / manual link).
+					cmds = append(cmds, refreshPRByIssueCmd(repoOr(w.URL, m.repo), w.Number))
 				}
 				return m, tea.Batch(cmds...)
 			}
@@ -345,7 +349,7 @@ func (m *Model) handleNormalKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			case KindIssue:
 				m.notice = fmt.Sprintf("refreshing #%d…", it.Number)
 				w := m.workByIssue[it.Number]
-				cmds := []tea.Cmd{refreshIssueCmd(m.repo, it.Number, w.Project)}
+				cmds := []tea.Cmd{refreshIssueCmd(repoOr(it.URL, m.repo), it.Number, w.Project)}
 				switch {
 				case w.PR != nil:
 					// Re-fetch the linked PR so its draft/approval/CI state updates too.
@@ -354,6 +358,10 @@ func (m *Model) handleNormalKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 					// No PR linked yet but we know the branch — discover one opened
 					// since the last full fetch and inject it into the board.
 					cmds = append(cmds, refreshPRByBranchCmd(m.repo, w.Branch, it.Number))
+				default:
+					// No branch recorded either — discover a PR via the issue's
+					// Development link (closing keywords / manual link).
+					cmds = append(cmds, refreshPRByIssueCmd(repoOr(it.URL, m.repo), it.Number))
 				}
 				return m, tea.Batch(cmds...)
 			case KindProject:
