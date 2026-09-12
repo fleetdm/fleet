@@ -1,0 +1,1 @@
+- Fixed Android App Store apps installed during the setup experience being marked "Failed" even though they installed successfully. An app that a device status report mentions in neither its application reports nor its non-compliance reports now stays pending for a later report instead of failing immediately.
