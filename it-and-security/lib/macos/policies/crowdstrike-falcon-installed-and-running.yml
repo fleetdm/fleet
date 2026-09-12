@@ -1,0 +1,6 @@
+- name: CrowdStrike Falcon installed and running (macOS)
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.crowdstrike.falcon.Agent' AND (SELECT count(*) FROM processes WHERE name = 'falcond') > 0;
+  critical: false
+  description: Checks that CrowdStrike Falcon sensor is installed and the falcond process is running on macOS hosts.
+  resolution: Install or restart the CrowdStrike Falcon sensor. Contact IT/Security if the issue persists.
+  platform: darwin
