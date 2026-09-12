@@ -356,6 +356,17 @@ Many companies encourage salespeople to ["spray and pray"](https://www.linkedin.
 - **Step up.** We look at the [🟠 big picture](https://fleetdm.com/handbook/company#ownership).  The goal is for the organization using Fleet to be successful, as well as the individuals who decide to use or buy the product.  There are multiple versions of Fleet, and so many ways to "do" open-source security and IT.  It is in the company's best interest to help engineers pick the right one; even if that's Fleet Free, or another solution altogether.  We think about our customer's needs like they are our own.
 
 
+## Why we send one link, question, or attachment per email?
+
+People are inundated with noise.  An email asking for more than one thing turns into homework, not a quick favor, and homework gets marked as unread and put off.
+
+Instead, give people one link, one attachment, or one question at a time, so they can focus on it and respond.  It's better for a prospect to read and forward a single leave-behind deck to the right person than to skim and (maybe) share five, ten, or twenty links.  Even if one link is the most important thing, bundling it with others lowers the odds anyone reads any of them closely, and raises the odds that, even if they read everything, they focus on the least important part.  It's information overload.
+
+Adding more than one thing to an email adds work to the recipient's plate, lowers the odds they read the whole thing, and makes it easier to procrastinate on responding.  Give people one thing to do per email.  Just one.
+
+Learn more: [one thing per email](https://docs.google.com/document/d/1MPj4WPFPr5u.../edit?tab=t.0)
+
+
 ## Why work with customer X?
 
 At Fleet, we inspire ourselves to be helpers to everyone, even if some might disagree with their personal beliefs or particular OKRs of their organization.  Fleet is open source so everyone can use it and contribute.  And the company is built by different contributors from many walks of life and with unique perspectives.
