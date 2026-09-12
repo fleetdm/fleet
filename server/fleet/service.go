@@ -1243,6 +1243,14 @@ type Service interface {
 	// LinuxEscrowInFlightError while fleetd is handling an earlier one.
 	TriggerLinuxDiskEncryptionEscrow(ctx context.Context, host *Host) error
 
+	// SubmitBitLockerPIN accepts a BitLocker startup PIN the end user typed on their My device page and queues it,
+	// encrypted, for the host's agent to apply. Device-authenticated.
+	SubmitBitLockerPIN(ctx context.Context, host *Host, pin string) error
+
+	// BitLockerPINStateForDevice reports whether this host's fleetd can apply an end-user-chosen BitLocker PIN, and
+	// where any submission stands, so the My device page knows which modal to show and what to poll for.
+	BitLockerPINStateForDevice(ctx context.Context, host *Host) (fleetdCanSetPIN bool, request *HostBitLockerPINRequest, err error)
+
 	// CheckMDMAppleEnrollmentWithMinimumOSVersion checks if the minimum OS version is met for a MDM enrollment
 	CheckMDMAppleEnrollmentWithMinimumOSVersion(ctx context.Context, m *MDMAppleMachineInfo) (*MDMAppleSoftwareUpdateRequired, error)
 
@@ -1305,6 +1313,13 @@ type Service interface {
 	// SetOrUpdateDiskEncryptionProtection records the outcome of the agent's attempt to restore disk encryption
 	// protection on a host that was encrypted but unprotected.
 	SetOrUpdateDiskEncryptionProtection(ctx context.Context, outcome DiskEncryptionProtectionOutcome, clientError string) error
+
+	// GetBitLockerPINForHost hands the agent the startup PIN the end user submitted. It can only succeed once per
+	// submission: the PIN is cleared as it is read.
+	GetBitLockerPINForHost(ctx context.Context) (string, error)
+
+	// SetBitLockerPINOutcome records whether the agent managed to apply the PIN it collected.
+	SetBitLockerPINOutcome(ctx context.Context, outcome BitLockerPINRequestStatus, clientError string) error
 
 	// GetMDMWindowsConfigProfile retrieves the specified configuration profile.
 	GetMDMWindowsConfigProfile(ctx context.Context, profileUUID string) (*MDMWindowsConfigProfile, error)

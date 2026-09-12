@@ -731,6 +731,10 @@ type GetMDMManualEnrollmentProfileFunc func(ctx context.Context, personal bool) 
 
 type TriggerLinuxDiskEncryptionEscrowFunc func(ctx context.Context, host *fleet.Host) error
 
+type SubmitBitLockerPINFunc func(ctx context.Context, host *fleet.Host, pin string) error
+
+type BitLockerPINStateForDeviceFunc func(ctx context.Context, host *fleet.Host) (fleetdCanSetPIN bool, request *fleet.HostBitLockerPINRequest, err error)
+
 type CheckMDMAppleEnrollmentWithMinimumOSVersionFunc func(ctx context.Context, m *fleet.MDMAppleMachineInfo) (*fleet.MDMAppleSoftwareUpdateRequired, error)
 
 type GetOTAProfileFunc func(ctx context.Context, enrollSecret string, idpSessionID string, personal bool) ([]byte, error)
@@ -764,6 +768,10 @@ type ListMDMCommandsFunc func(ctx context.Context, opts *fleet.MDMCommandListOpt
 type SetOrUpdateDiskEncryptionKeyFunc func(ctx context.Context, encryptionKey string, clientError string) error
 
 type SetOrUpdateDiskEncryptionProtectionFunc func(ctx context.Context, outcome fleet.DiskEncryptionProtectionOutcome, clientError string) error
+
+type GetBitLockerPINForHostFunc func(ctx context.Context) (string, error)
+
+type SetBitLockerPINOutcomeFunc func(ctx context.Context, outcome fleet.BitLockerPINRequestStatus, clientError string) error
 
 type GetMDMWindowsConfigProfileFunc func(ctx context.Context, profileUUID string) (*fleet.MDMWindowsConfigProfile, error)
 
@@ -2083,6 +2091,12 @@ type Service struct {
 	TriggerLinuxDiskEncryptionEscrowFunc        TriggerLinuxDiskEncryptionEscrowFunc
 	TriggerLinuxDiskEncryptionEscrowFuncInvoked bool
 
+	SubmitBitLockerPINFunc        SubmitBitLockerPINFunc
+	SubmitBitLockerPINFuncInvoked bool
+
+	BitLockerPINStateForDeviceFunc        BitLockerPINStateForDeviceFunc
+	BitLockerPINStateForDeviceFuncInvoked bool
+
 	CheckMDMAppleEnrollmentWithMinimumOSVersionFunc        CheckMDMAppleEnrollmentWithMinimumOSVersionFunc
 	CheckMDMAppleEnrollmentWithMinimumOSVersionFuncInvoked bool
 
@@ -2133,6 +2147,12 @@ type Service struct {
 
 	SetOrUpdateDiskEncryptionProtectionFunc        SetOrUpdateDiskEncryptionProtectionFunc
 	SetOrUpdateDiskEncryptionProtectionFuncInvoked bool
+
+	GetBitLockerPINForHostFunc        GetBitLockerPINForHostFunc
+	GetBitLockerPINForHostFuncInvoked bool
+
+	SetBitLockerPINOutcomeFunc        SetBitLockerPINOutcomeFunc
+	SetBitLockerPINOutcomeFuncInvoked bool
 
 	GetMDMWindowsConfigProfileFunc        GetMDMWindowsConfigProfileFunc
 	GetMDMWindowsConfigProfileFuncInvoked bool
@@ -5000,6 +5020,20 @@ func (s *Service) TriggerLinuxDiskEncryptionEscrow(ctx context.Context, host *fl
 	return s.TriggerLinuxDiskEncryptionEscrowFunc(ctx, host)
 }
 
+func (s *Service) SubmitBitLockerPIN(ctx context.Context, host *fleet.Host, pin string) error {
+	s.mu.Lock()
+	s.SubmitBitLockerPINFuncInvoked = true
+	s.mu.Unlock()
+	return s.SubmitBitLockerPINFunc(ctx, host, pin)
+}
+
+func (s *Service) BitLockerPINStateForDevice(ctx context.Context, host *fleet.Host) (fleetdCanSetPIN bool, request *fleet.HostBitLockerPINRequest, err error) {
+	s.mu.Lock()
+	s.BitLockerPINStateForDeviceFuncInvoked = true
+	s.mu.Unlock()
+	return s.BitLockerPINStateForDeviceFunc(ctx, host)
+}
+
 func (s *Service) CheckMDMAppleEnrollmentWithMinimumOSVersion(ctx context.Context, m *fleet.MDMAppleMachineInfo) (*fleet.MDMAppleSoftwareUpdateRequired, error) {
 	s.mu.Lock()
 	s.CheckMDMAppleEnrollmentWithMinimumOSVersionFuncInvoked = true
@@ -5117,6 +5151,20 @@ func (s *Service) SetOrUpdateDiskEncryptionProtection(ctx context.Context, outco
 	s.SetOrUpdateDiskEncryptionProtectionFuncInvoked = true
 	s.mu.Unlock()
 	return s.SetOrUpdateDiskEncryptionProtectionFunc(ctx, outcome, clientError)
+}
+
+func (s *Service) GetBitLockerPINForHost(ctx context.Context) (string, error) {
+	s.mu.Lock()
+	s.GetBitLockerPINForHostFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetBitLockerPINForHostFunc(ctx)
+}
+
+func (s *Service) SetBitLockerPINOutcome(ctx context.Context, outcome fleet.BitLockerPINRequestStatus, clientError string) error {
+	s.mu.Lock()
+	s.SetBitLockerPINOutcomeFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetBitLockerPINOutcomeFunc(ctx, outcome, clientError)
 }
 
 func (s *Service) GetMDMWindowsConfigProfile(ctx context.Context, profileUUID string) (*fleet.MDMWindowsConfigProfile, error) {

@@ -206,6 +206,14 @@ func getDeviceHostEndpoint(ctx context.Context, request interface{}, svc fleet.S
 		return getDeviceHostResponse{Err: err}, nil
 	}
 
+	// Only the My device page can act on a BitLocker PIN, so these fields are added here rather than in the shared
+	// host detail response an admin also receives.
+	canSetPIN, pinRequest, err := svc.BitLockerPINStateForDevice(ctx, host)
+	if err != nil {
+		return getDeviceHostResponse{Err: err}, nil
+	}
+	applyBitLockerPINDeviceFields(resp, canSetPIN, pinRequest)
+
 	// the org logo URL config is required by the frontend to render the page;
 	// we need to be careful with what we return from AppConfig in the response
 	// as this is a weakly authenticated endpoint (with the device auth token).
