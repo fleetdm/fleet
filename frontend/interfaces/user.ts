@@ -86,11 +86,6 @@ export interface IUserUpdateFormData {
   id: number;
 }
 
-export interface IResetPasswordFormErrors {
-  new_password?: string | null;
-  new_password_confirmation?: string | null;
-}
-
 export interface IResetPasswordForm {
   new_password: string;
   new_password_confirmation: string;

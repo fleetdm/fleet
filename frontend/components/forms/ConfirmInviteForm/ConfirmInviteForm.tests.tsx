@@ -67,7 +67,7 @@ describe("ConfirmInviteForm - component", () => {
       await user.click(screen.getByRole("button", { name: "Submit" }));
 
       expect(
-        await screen.findByText("Full name must be present")
+        await screen.findByText("Enter your full name")
       ).toBeInTheDocument();
     });
   });
@@ -83,9 +83,7 @@ describe("ConfirmInviteForm - component", () => {
 
       await user.click(screen.getByRole("button", { name: "Submit" }));
 
-      expect(
-        await screen.findByText("Password must be present")
-      ).toBeInTheDocument();
+      expect(await screen.findByText("Enter a password")).toBeInTheDocument();
     });
   });
 
@@ -105,9 +103,7 @@ describe("ConfirmInviteForm - component", () => {
       );
       await user.click(screen.getByRole("button", { name: "Submit" }));
 
-      const passwordError = screen.getByText(
-        "Password confirmation does not match password"
-      );
+      const passwordError = screen.getByText("Match the password above");
       expect(passwordError).toBeInTheDocument();
     });
 
@@ -121,9 +117,7 @@ describe("ConfirmInviteForm - component", () => {
 
       await user.click(screen.getByRole("button", { name: "Submit" }));
 
-      const passwordError = screen.getByText(
-        "Password confirmation must be present"
-      );
+      const passwordError = screen.getByText("Confirm your password");
 
       expect(passwordError).toBeInTheDocument();
     });

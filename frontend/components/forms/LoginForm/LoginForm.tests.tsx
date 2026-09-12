@@ -69,9 +69,7 @@ describe("LoginForm - component", () => {
 
     // try to log in
     await user.click(screen.getByRole("button", { name: "Log in" }));
-    expect(
-      screen.getByText("Email field must be completed")
-    ).toBeInTheDocument();
+    expect(screen.getByText("Enter your email")).toBeInTheDocument();
     expect(submitSpy).not.toHaveBeenCalled();
 
     // enter an invalid email
@@ -79,9 +77,7 @@ describe("LoginForm - component", () => {
 
     // try to log in again
     await user.click(screen.getByRole("button", { name: "Log in" }));
-    expect(
-      screen.getByText("Email must be a valid email address")
-    ).toBeInTheDocument();
+    expect(screen.getByText("Enter a valid email")).toBeInTheDocument();
     expect(submitSpy).not.toHaveBeenCalled();
   });
 
@@ -100,9 +96,7 @@ describe("LoginForm - component", () => {
     // try to log in without entering a password
     await user.click(screen.getByRole("button", { name: "Log in" }));
 
-    expect(
-      screen.getByText("Password field must be completed")
-    ).toBeInTheDocument();
+    expect(screen.getByText("Enter your password")).toBeInTheDocument();
     expect(submitSpy).not.toHaveBeenCalled();
   });
 

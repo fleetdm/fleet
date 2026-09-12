@@ -1,22 +1,22 @@
-import React, { useState, useContext } from "react";
+import React, { useContext } from "react";
 
 import { AppContext } from "context/app";
 
 import { CONTACT_FLEET_LINK } from "utilities/constants";
-import { IInputFieldParseTarget } from "interfaces/form_field";
 
 import SettingsSection from "pages/admin/components/SettingsSection";
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
-// @ts-ignore
+// @ts-ignore Dropdown is still a JS component
 import Dropdown from "components/forms/fields/Dropdown";
 import InputField from "components/forms/fields/InputField";
-// @ts-ignore
 import validEmail from "components/forms/validators/valid_email";
 import CustomLink from "components/CustomLink";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import TooltipWrapper from "components/TooltipWrapper";
 import Card from "components/Card";
+
+import useFormValidation, { IFormErrors } from "hooks/useFormValidation";
 
 import {
   IAppConfigFormProps,
@@ -36,16 +36,8 @@ interface ISmtpConfigFormData {
   smtpAuthenticationMethod: string;
 }
 
-interface ISmtpConfigFormErrors {
-  sender_address?: string | null;
-  server?: string | null;
-  server_port?: string | null;
-  user_name?: string | null;
-  password?: string | null;
-}
-
-const validateFormData = (newData: ISmtpConfigFormData) => {
-  const errors: ISmtpConfigFormErrors = {};
+const validate = (data: ISmtpConfigFormData): IFormErrors => {
+  const errors: IFormErrors = {};
 
   const {
     enableSMTP,
@@ -55,38 +47,34 @@ const validateFormData = (newData: ISmtpConfigFormData) => {
     smtpAuthenticationType,
     smtpUsername,
     smtpPassword,
-  } = newData;
+  } = data;
 
   if (enableSMTP) {
     if (!smtpSenderAddress) {
-      errors.sender_address = "SMTP sender address must be present";
+      errors.smtpSenderAddress = "Enter a sender address";
     } else if (!validEmail(smtpSenderAddress)) {
-      errors.sender_address = "SMTP sender address is not a valid email";
+      errors.smtpSenderAddress = "Enter a valid sender address";
     }
 
     if (!smtpServer) {
-      errors.server = "SMTP server must be present";
+      errors.smtpServer = "Enter an SMTP server";
     }
     if (!smtpPort) {
-      errors.server = "SMTP server port must be present";
-      errors.server_port = "Port";
+      errors.smtpPort = "Enter a server port";
     }
-    if (!smtpServer && !smtpPort) {
-      errors.server = "SMTP server and server port must be present";
-      errors.server_port = "Port";
-    }
+
     if (smtpAuthenticationType === "authtype_username_password") {
-      if (smtpUsername === "") {
-        errors.user_name = "SMTP username must be present";
+      if (!smtpUsername) {
+        errors.smtpUsername = "Enter an SMTP username";
       }
-      if (smtpPassword === "") {
-        errors.password = "SMTP password must be present";
+      if (!smtpPassword) {
+        errors.smtpPassword = "Enter an SMTP password";
       }
     }
   } else if (smtpSenderAddress && !validEmail(smtpSenderAddress)) {
-    // validations for valid submissions even when smtp not enabled, i.e., updating what will be
-    // used once it IS enabled
-    errors.sender_address = "SMTP sender address is not a valid email";
+    // Even when SMTP is disabled, a filled-in sender address must be a valid
+    // email so the value is ready when SMTP flips on.
+    errors.smtpSenderAddress = "Enter a valid sender address";
   }
 
   return errors;
@@ -102,122 +90,93 @@ const Smtp = ({
   const { isPremiumTier } = useContext(AppContext);
   const gitOpsModeEnabled = appConfig.gitops.gitops_mode_enabled;
 
-  const [formData, setFormData] = useState<ISmtpConfigFormData>({
-    enableSMTP: appConfig.smtp_settings?.enable_smtp || false,
-    smtpSenderAddress: appConfig.smtp_settings?.sender_address || "",
-    smtpServer: appConfig.smtp_settings?.server || "",
-    smtpPort: appConfig.smtp_settings?.port,
-    smtpEnableSSLTLS: appConfig.smtp_settings?.enable_ssl_tls || false,
-    smtpAuthenticationType: appConfig.smtp_settings?.authentication_type || "",
-    smtpUsername: appConfig.smtp_settings?.user_name || "",
-    smtpPassword: appConfig.smtp_settings?.password || "",
-    smtpAuthenticationMethod:
-      appConfig.smtp_settings?.authentication_method || "",
-  });
-
-  const {
-    enableSMTP,
-    smtpSenderAddress,
-    smtpServer,
-    smtpPort,
-    smtpEnableSSLTLS,
-    smtpAuthenticationType,
-    smtpUsername,
-    smtpPassword,
-    smtpAuthenticationMethod,
-  } = formData;
-
-  const [formErrors, setFormErrors] = useState<ISmtpConfigFormErrors>({});
-
   const sesConfigured = appConfig.email?.backend === "ses" || false;
 
-  const onInputChange = ({ name, value }: IInputFieldParseTarget) => {
-    const newFormData = { ...formData, [name]: value };
-    setFormData(newFormData);
-    const newErrs = validateFormData(newFormData);
-    // only set errors that are updates of existing errors
-    // new errors are only set onBlur or submit
-    const errsToSet: Record<string, string> = {};
-    Object.keys(formErrors).forEach((k) => {
-      // @ts-ignore
-      if (newErrs[k]) {
-        // @ts-ignore
-        errsToSet[k] = newErrs[k];
-      }
-    });
-    setFormErrors(errsToSet);
-  };
+  const {
+    formData,
+    setField,
+    commitFields,
+    getError,
+    clearFieldError,
+    validateField,
+    handleSubmit: onSubmit,
+    isSubmitting,
+  } = useFormValidation<ISmtpConfigFormData>({
+    initialFormData: {
+      enableSMTP: appConfig.smtp_settings?.enable_smtp || false,
+      smtpSenderAddress: appConfig.smtp_settings?.sender_address || "",
+      smtpServer: appConfig.smtp_settings?.server || "",
+      smtpPort: appConfig.smtp_settings?.port,
+      smtpEnableSSLTLS: appConfig.smtp_settings?.enable_ssl_tls || false,
+      smtpAuthenticationType:
+        appConfig.smtp_settings?.authentication_type || "",
+      smtpUsername: appConfig.smtp_settings?.user_name || "",
+      smtpPassword: appConfig.smtp_settings?.password || "",
+      smtpAuthenticationMethod:
+        appConfig.smtp_settings?.authentication_method || "",
+    },
+    validate,
+    isSubmitting: isUpdatingSettings,
+    skipTrim: ["smtpPassword"],
+  });
 
-  const onInputBlur = () => {
-    setFormErrors(validateFormData(formData));
-  };
-
-  const onFormSubmit = (evt: React.MouseEvent<HTMLFormElement>) => {
-    evt.preventDefault();
-
-    const errs = validateFormData(formData);
-    if (Object.keys(errs).length > 0) {
-      setFormErrors(errs);
-      return;
-    }
-
-    // Formatting of API not UI
-    const formDataToSubmit = {
+  const onValidSubmit = (data: ISmtpConfigFormData) =>
+    handleSubmit({
       smtp_settings: {
-        enable_smtp: enableSMTP,
-        sender_address: smtpSenderAddress,
-        server: smtpServer,
-        port: Number(smtpPort),
-        authentication_type: smtpAuthenticationType,
-        user_name: smtpUsername,
-        password: smtpPassword,
-        enable_ssl_tls: smtpEnableSSLTLS,
-        authentication_method: smtpAuthenticationMethod,
+        enable_smtp: data.enableSMTP,
+        sender_address: data.smtpSenderAddress,
+        server: data.smtpServer,
+        port: Number(data.smtpPort),
+        authentication_type: data.smtpAuthenticationType,
+        user_name: data.smtpUsername,
+        password: data.smtpPassword,
+        enable_ssl_tls: data.smtpEnableSSLTLS,
+        authentication_method: data.smtpAuthenticationMethod,
       },
-    };
+    });
 
-    handleSubmit(formDataToSubmit);
-  };
-
-  const renderSmtpSection = () => {
-    if (smtpAuthenticationType === "authtype_none") {
-      return false;
+  const renderSmtpAuthCredentials = () => {
+    if (formData.smtpAuthenticationType === "authtype_none") {
+      return null;
     }
 
     return (
       <>
         <InputField
           label="SMTP username"
-          onChange={onInputChange}
           name="smtpUsername"
-          value={smtpUsername}
-          parseTarget
-          onBlur={onInputBlur}
-          error={formErrors.user_name}
+          value={formData.smtpUsername}
+          onChange={(value: string) => setField("smtpUsername", value)}
+          onFocus={() => clearFieldError("smtpUsername")}
+          onBlur={() => validateField("smtpUsername")}
+          error={getError("smtpUsername")}
           blockAutoComplete
           ignore1password={false}
+          disabled={isSubmitting}
         />
         <InputField
           label="SMTP password"
           type="password"
-          onChange={onInputChange}
           name="smtpPassword"
-          value={smtpPassword}
-          parseTarget
-          onBlur={onInputBlur}
-          error={formErrors.password}
+          value={formData.smtpPassword}
+          onChange={(value: string) => setField("smtpPassword", value)}
+          onFocus={() => clearFieldError("smtpPassword")}
+          onBlur={() => validateField("smtpPassword")}
+          error={getError("smtpPassword")}
           blockAutoComplete
           ignore1password={false}
+          disabled={isSubmitting}
         />
         <Dropdown
           label="Auth method"
           options={authMethodOptions}
           placeholder=""
-          onChange={onInputChange}
-          onBlur={onInputBlur}
+          onChange={(value: string) =>
+            commitFields({ smtpAuthenticationMethod: value })
+          }
           name="smtpAuthenticationMethod"
-          value={smtpAuthenticationMethod}
-          parseTarget
+          value={formData.smtpAuthenticationMethod}
+          disabled={isSubmitting}
         />
       </>
     );
@@ -246,59 +205,63 @@ const Smtp = ({
 
   const renderSmtpForm = () => {
     return (
-      <form onSubmit={onFormSubmit} autoComplete="off">
+      <form onSubmit={onSubmit(onValidSubmit)} autoComplete="off">
         <div
           className={`form ${
             gitOpsModeEnabled ? "disabled-by-gitops-mode" : ""
           }`}
         >
           <Checkbox
-            onChange={onInputChange}
-            onBlur={onInputBlur}
             name="enableSMTP"
-            value={enableSMTP}
-            parseTarget
+            value={formData.enableSMTP}
+            onChange={(value: boolean) => commitFields({ enableSMTP: value })}
+            disabled={isSubmitting}
           >
             Enable SMTP
           </Checkbox>
           <InputField
             label="Sender address"
-            onChange={onInputChange}
             name="smtpSenderAddress"
-            value={smtpSenderAddress}
-            parseTarget
-            onBlur={onInputBlur}
-            error={formErrors.sender_address}
+            value={formData.smtpSenderAddress}
+            onChange={(value: string) => setField("smtpSenderAddress", value)}
+            onFocus={() => clearFieldError("smtpSenderAddress")}
+            onBlur={() => validateField("smtpSenderAddress")}
+            error={getError("smtpSenderAddress")}
             tooltip="The sender address for emails from Fleet."
+            disabled={isSubmitting}
           />
           <div className="smtp-server-inputs">
             <InputField
               label="SMTP server"
-              onChange={onInputChange}
               name="smtpServer"
-              value={smtpServer}
-              parseTarget
-              onBlur={onInputBlur}
-              error={formErrors.server}
+              value={formData.smtpServer}
+              onChange={(value: string) => setField("smtpServer", value)}
+              onFocus={() => clearFieldError("smtpServer")}
+              onBlur={() => validateField("smtpServer")}
+              error={getError("smtpServer")}
               tooltip="The hostname / private IP address and corresponding port of your organization's SMTP server."
+              disabled={isSubmitting}
             />
             <InputField
               label="&nbsp;"
               type="number"
-              onChange={onInputChange}
               name="smtpPort"
-              value={smtpPort}
-              parseTarget
-              onBlur={onInputBlur}
-              error={formErrors.server_port}
+              value={formData.smtpPort}
+              onChange={(value: string) =>
+                setField("smtpPort", value ? Number(value) : undefined)
+              }
+              onFocus={() => clearFieldError("smtpPort")}
+              onBlur={() => validateField("smtpPort")}
+              error={getError("smtpPort")}
+              disabled={isSubmitting}
             />
           </div>
           <Checkbox
-            onChange={onInputChange}
-            onBlur={onInputBlur}
             name="smtpEnableSSLTLS"
-            value={smtpEnableSSLTLS}
-            parseTarget
+            value={formData.smtpEnableSSLTLS}
+            onChange={(value: boolean) =>
+              commitFields({ smtpEnableSSLTLS: value })
+            }
             labelTooltipContent={
               <>
                 To disable this setting, STARTTLS must first be disabled in{" "}
@@ -306,17 +269,19 @@ const Smtp = ({
                 <strong>Advanced options</strong>.
               </>
             }
+            disabled={isSubmitting}
           >
             Use SSL/TLS to connect (recommended)
           </Checkbox>
           <Dropdown
             label="Authentication type"
             options={authTypeOptions}
-            onChange={onInputChange}
-            onBlur={onInputBlur}
+            onChange={(value: string) =>
+              commitFields({ smtpAuthenticationType: value })
+            }
             name="smtpAuthenticationType"
-            value={smtpAuthenticationType}
-            parseTarget
+            value={formData.smtpAuthenticationType}
+            disabled={isSubmitting}
             tooltip={
               <>
                 If your mail server requires authentication, you need to specify
@@ -332,7 +297,7 @@ const Smtp = ({
               </>
             }
           />
-          {renderSmtpSection()}
+          {renderSmtpAuthCredentials()}
         </div>
         <GitOpsModeTooltipWrapper
           renderChildren={(disableChildren) => (
@@ -348,8 +313,8 @@ const Smtp = ({
             >
               <Button
                 type="submit"
-                disabled={Object.keys(formErrors).length > 0 || disableChildren}
-                isLoading={isUpdatingSettings}
+                disabled={disableChildren || isSubmitting}
+                isLoading={isSubmitting}
               >
                 Save
               </Button>

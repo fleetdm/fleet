@@ -19,6 +19,8 @@ export interface IInputFieldWithIconProps {
   name?: string;
   onChange?: (value: string) => void;
   onClick?: (evt: React.MouseEvent<HTMLInputElement>) => void;
+  onBlur?: (evt: React.FocusEvent<HTMLInputElement>) => void;
+  onFocus?: (evt: React.FocusEvent<HTMLInputElement>) => void;
   clearButton?: boolean;
   placeholder?: string;
   tabIndex?: number;
@@ -44,6 +46,8 @@ const InputFieldWithIcon = ({
   name,
   onChange,
   onClick,
+  onBlur,
+  onFocus,
   clearButton,
   placeholder,
   tabIndex,
@@ -140,6 +144,8 @@ const InputFieldWithIcon = ({
           name={name}
           onChange={onInputChange}
           onClick={onClick}
+          onBlur={onBlur}
+          onFocus={onFocus}
           className={inputClasses}
           placeholder={placeholder}
           ref={inputRef}

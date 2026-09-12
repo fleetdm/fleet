@@ -1,0 +1,6 @@
+* Fixed the login and reset-password forms to validate on blur, clear errors on focus, and surface every inline error when the submit button is clicked, so users no longer only find out what's wrong after a failed request.
+* Fixed the confirm-invite form so pristine required fields stay silent until submit and password mismatch shows on the confirmation field only.
+* Fixed the SMTP settings card: server and port now report their own errors instead of sharing a single "Port" placeholder, and pristine required fields no longer render red on the first blur of any other field.
+* Fixed the Fleet web address settings card to disable submit only during in-flight save (was disabling whenever any error had ever been computed).
+* Fixed the Jira and Zendesk integration form to show a specific inline error on each empty required field instead of silently disabling the submit button behind a "Complete all fields" tooltip.
+* Updated form validation error copy across the migrated forms to the standard wording (e.g. "Enter your email" instead of "Email field must be completed", "Match the password above" instead of "Passwords do not match").
