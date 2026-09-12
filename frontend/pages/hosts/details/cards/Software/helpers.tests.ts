@@ -2,7 +2,12 @@ import {
   createMockHostSoftware,
   createMockHostSoftwarePackage,
 } from "__mocks__/hostMock";
-import { compareVersions, getUiStatus, getSoftwareSubheader } from "./helpers";
+import {
+  compareVersions,
+  getUiStatus,
+  getSoftwareSubheader,
+  getInstallerActionButtonConfig,
+} from "./helpers";
 
 describe("compareVersions", () => {
   it("correctly compares patch increments", () => {
@@ -148,6 +153,29 @@ describe("getUiStatus", () => {
       // version equal to installed version
     });
     expect(getUiStatus(sw, true)).toBe("failed_install_installed");
+  });
+
+  it("returns 'skipped_install' when the install was a patch-when-closed skip, even if an update would otherwise apply", () => {
+    const sw = createMockHostSoftware({
+      status: "failed_install",
+      skipped_install: true,
+      software_package: createMockHostSoftwarePackage({ version: "2.0.0" }),
+    });
+    expect(getUiStatus(sw, true)).toBe("skipped_install");
+  });
+
+  it("collapses a patch-when-closed skip back into the failed_install family when suppressed (Self-service view)", () => {
+    // With an installer version newer than the installed version, the row would
+    // otherwise degrade to failed_install_update_available for admin views;
+    // Self-service passes suppressSkippedInstall=true to keep that behavior.
+    const sw = createMockHostSoftware({
+      status: "failed_install",
+      skipped_install: true,
+      software_package: createMockHostSoftwarePackage({ version: "2.0.0" }),
+    });
+    expect(getUiStatus(sw, true, null, undefined, true)).toBe(
+      "failed_install_update_available"
+    );
   });
 
   it("returns 'failed_uninstall_update_available' when failed_uninstall and update available", () => {
@@ -634,5 +662,13 @@ describe("getSoftwareSubheader", () => {
       isMyDevicePage: false,
     });
     expect(result).toBe("Software installed on this host.");
+  });
+});
+
+describe("getInstallerActionButtonConfig", () => {
+  it("returns 'Update' for a skipped_install row (a deferred update)", () => {
+    expect(
+      getInstallerActionButtonConfig("install", "skipped_install")
+    ).toEqual({ text: "Update", icon: "refresh" });
   });
 });

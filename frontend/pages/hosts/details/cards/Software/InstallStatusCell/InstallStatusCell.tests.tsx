@@ -374,6 +374,40 @@ describe("InstallStatusCell - component", () => {
     });
   });
 
+  it("renders 'Patch skipped' status with tooltip and opens install details on click", async () => {
+    const onShowInstallDetails = jest.fn();
+    const { user } = renderWithSetup(
+      <InstallStatusCell
+        software={{
+          ...createMockHostSoftware({
+            status: "failed_install",
+            skipped_install: true,
+            software_package: testSoftwarePackage,
+          }),
+          ui_status: "skipped_install",
+        }}
+        onShowUpdateDetails={noop}
+        onShowInstallDetails={onShowInstallDetails}
+        onShowIpaInstallDetails={noop}
+        onShowScriptDetails={noop}
+        onShowUninstallDetails={noop}
+        onShowVPPInstallDetails={noop}
+      />
+    );
+
+    const button = screen.getByRole("button", { name: /patch skipped/i });
+    expect(button).toBeInTheDocument();
+    expect(screen.getByTestId("error-outline-icon")).toBeInTheDocument();
+
+    await user.hover(button);
+    await waitFor(() => {
+      expect(screen.getByText(/The app was open/i)).toBeInTheDocument();
+    });
+
+    await user.click(button);
+    expect(onShowInstallDetails).toHaveBeenCalledTimes(1);
+  });
+
   it("renders 'Failed' for a script-only package that failed to run", async () => {
     const { user } = renderWithSetup(
       <InstallStatusCell

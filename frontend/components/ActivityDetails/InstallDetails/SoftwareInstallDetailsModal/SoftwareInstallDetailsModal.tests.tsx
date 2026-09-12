@@ -499,6 +499,34 @@ describe("SoftwareInstallDetailsModal", () => {
       ).toBeInTheDocument();
       expect(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument();
     });
+
+    it("renders the patch-skipped message even when the host reports the app as installed (skip beats the installed-override)", async () => {
+      mockServer.use(getSoftwareInstallHandlerAppOpen);
+      const renderWithServer = createCustomRenderer({ withBackendMock: true });
+
+      // Host DOES report an installed version, which would normally collapse a
+      // failed_install to "is installed." on the admin surface (4.82 #31663). A
+      // patch-when-closed skip must beat that override so the deferred state
+      // isn't masked (#52297).
+      renderWithServer(
+        <SoftwareInstallDetailsModal
+          details={{
+            ...baseDetails,
+            skipped_install: true,
+          }}
+          hostSoftware={createMockHostSoftware({
+            id: 99,
+            name: "CoolApp",
+          })}
+          onCancel={noop}
+        />
+      );
+
+      expect(
+        await screen.findByText(/Fleet skipped install of/)
+      ).toBeInTheDocument();
+      expect(screen.queryByText(/is installed\./i)).not.toBeInTheDocument();
+    });
   });
 
   describe("API error states", () => {

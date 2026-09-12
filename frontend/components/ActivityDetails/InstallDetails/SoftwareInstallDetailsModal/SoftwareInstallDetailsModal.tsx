@@ -116,26 +116,6 @@ export const StatusMessage = ({
     created_at,
   } = installResult;
 
-  // Treat failed_install/failed_uninstall with installed versions as installed
-  // as the host still reports installed versions (4.82 #31663)
-  const overrideFailureWithInstalled =
-    canOverrideFailureWithInstalled &&
-    ["failed_install", "failed_uninstall"].includes(status || "");
-
-  if (overrideFailureWithInstalled) {
-    return (
-      <IconStatusMessage
-        className={`${baseClass}__status-message`}
-        iconName="success"
-        message={
-          <span>
-            <b>{softwareName}</b> is installed.
-          </span>
-        }
-      />
-    );
-  }
-
   const formattedHost = host_display_name ? (
     <b>{host_display_name}</b>
   ) : (
@@ -151,6 +131,10 @@ export const StatusMessage = ({
       })})`
     : "";
 
+  // A patch-when-closed skip must render its own message even when the host
+  // currently reports the app as installed. The skip is the load-bearing state
+  // (deferred update); collapsing it into "is installed" would hide the
+  // reason the row is flagged.
   if (skippedInstall && status === "failed_install") {
     // Admin-facing pages link "policy runs again" to cadence docs; the end-user
     // "My device" flow shows plain text since the doc is admin-only.
@@ -164,7 +148,6 @@ export const StatusMessage = ({
           text={SKIPPED_INSTALL_DETAILS_LINK_TEXT}
           newTab
         />
-        .
       </>
     );
 
@@ -178,6 +161,27 @@ export const StatusMessage = ({
             Fleet skipped install of <b>{software_title}</b> ({software_package}
             ) on {formattedHost}
             {displayTimeStamp}. {skippedDetails}
+          </span>
+        }
+      />
+    );
+  }
+
+  // Treat failed_install/failed_uninstall with installed versions as installed
+  // as the host still reports installed versions (4.82 #31663). Skipped installs
+  // are handled above so this override never masks a patch-when-closed skip.
+  const overrideFailureWithInstalled =
+    canOverrideFailureWithInstalled &&
+    ["failed_install", "failed_uninstall"].includes(status || "");
+
+  if (overrideFailureWithInstalled) {
+    return (
+      <IconStatusMessage
+        className={`${baseClass}__status-message`}
+        iconName="success"
+        message={
+          <span>
+            <b>{softwareName}</b> is installed.
           </span>
         }
       />
