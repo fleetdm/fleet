@@ -5291,3 +5291,66 @@ func TestWindowsEnrollmentDefaultFleetSkipsPendingAutopilotHost(t *testing.T) {
 		})
 	}
 }
+
+// This ingester is the only source of the signal that drives the missing-boot-protector repair.
+func TestBitlockerBootProtectorVerifyDirectIngest(t *testing.T) {
+	host := &fleet.Host{ID: 42, UUID: "host-uuid"}
+
+	for _, tt := range []struct {
+		name    string
+		host    *fleet.Host
+		rows    []map[string]string
+		dsErr   error
+		wantSet *bool
+		wantErr bool
+	}{
+		{name: "nil host stores nothing", host: nil},
+		{name: "empty UUID host stores nothing", host: &fleet.Host{ID: 42, UUID: ""}},
+		{
+			name: "criteria 0 records that no boot protector is present",
+			host: host, rows: []map[string]string{{"criteria": "0"}}, wantSet: new(false),
+		},
+		{
+			name: "criteria 1 records that a boot protector is present",
+			host: host, rows: []map[string]string{{"criteria": "1"}}, wantSet: new(true),
+		},
+		{
+			name: "no rows leaves the column alone rather than claiming no protector",
+			host: host, rows: nil,
+		},
+		{
+			name: "more rows than expected also leaves the column alone",
+			host: host, rows: []map[string]string{{"criteria": "1"}, {"criteria": "0"}},
+		},
+		{
+			name: "a datastore failure is propagated rather than swallowed",
+			host: host, rows: []map[string]string{{"criteria": "0"}}, dsErr: errors.New("write failed"),
+			wantSet: new(false), wantErr: true,
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			ds := new(mock.Store)
+			var got *bool
+			ds.SetOrUpdateHostDiskBootProtectorFunc = func(_ context.Context, hostID uint, set bool) error {
+				require.Equal(t, tt.host.ID, hostID)
+				got = &set
+				return tt.dsErr
+			}
+
+			err := bitlockerPolicyQueries["bitlocker_boot_protector_verify"].DirectIngestFunc(
+				t.Context(), slog.New(slog.DiscardHandler), tt.host, ds, tt.rows)
+			if tt.wantErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
+
+			if tt.wantSet == nil {
+				require.Nil(t, got, "must not write for a host it cannot identify")
+				return
+			}
+			require.NotNil(t, got)
+			require.Equal(t, *tt.wantSet, *got)
+		})
+	}
+}

@@ -37,10 +37,11 @@ type hostCacheEnvelope struct {
 	HasHostIdentityCert       *bool   `json:"has_host_identity_cert,omitempty"`
 	BitLockerProtectionStatus *int    `json:"bitlocker_protection_status,omitempty"`
 	TPMPINSet                 *bool   `json:"tpm_pin_set,omitempty"`
+	BitLockerBootProtectorSet *bool   `json:"bitlocker_boot_protector_set,omitempty"`
 }
 
 // envelopeFromHost builds an envelope suitable for JSON marshaling by copying
-// the four json:"-" shadow fields out of the embedded Host. Caller must
+// the json:"-" shadow fields out of the embedded Host. Caller must
 // ensure h is non-nil.
 func envelopeFromHost(h *fleet.Host) *hostCacheEnvelope {
 	return &hostCacheEnvelope{
@@ -51,6 +52,7 @@ func envelopeFromHost(h *fleet.Host) *hostCacheEnvelope {
 		HasHostIdentityCert:       h.HasHostIdentityCert,
 		BitLockerProtectionStatus: h.BitLockerProtectionStatus,
 		TPMPINSet:                 &h.TPMPINSet,
+		BitLockerBootProtectorSet: h.BitLockerBootProtectorSet,
 	}
 }
 
@@ -64,6 +66,7 @@ func (e *hostCacheEnvelope) toHost() *fleet.Host {
 	h.OrbitNodeKey = e.OrbitNodeKey
 	h.HasHostIdentityCert = e.HasHostIdentityCert
 	h.BitLockerProtectionStatus = e.BitLockerProtectionStatus
+	h.BitLockerBootProtectorSet = e.BitLockerBootProtectorSet
 	if e.TPMPINSet != nil {
 		h.TPMPINSet = *e.TPMPINSet
 	}
