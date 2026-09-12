@@ -226,10 +226,15 @@
     "apple_business_manager": [
       {
         "organization_name": "Fleet Device Management Inc.",
+        "default": true,
         "macos_team": "💻 Workstations",
         "ios_team": "📱🏢 Company-owned mobile devices",
         "ipados_team": "📱🏢 Company-owned mobile devices",
         "byod_team": "📱🔐 Personal mobile devices"
+      },
+      {
+        "organization_name": "Second Org LLC",
+        "macos_team": "💻 Workstations"
       }
     ],
     "apple_bm_enabled_and_configured": true,

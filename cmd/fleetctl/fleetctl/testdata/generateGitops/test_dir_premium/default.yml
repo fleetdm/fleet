@@ -125,10 +125,16 @@ org_settings:
   mdm:
     apple_business:
     - byod_fleet: "📱🔐 Personal mobile devices"
+      default: true
       ios_fleet: "📱🏢 Company-owned mobile devices"
       ipados_fleet: "📱🏢 Company-owned mobile devices"
       macos_fleet: "💻 Workstations"
       organization_name: Fleet Device Management Inc.
+    - byod_fleet:
+      ios_fleet:
+      ipados_fleet:
+      macos_fleet: "💻 Workstations"
+      organization_name: Second Org LLC
     apple_server_url: http://some-apple-server-url.com
     end_user_authentication:
       entity_id: some-mdm-entity-id.com

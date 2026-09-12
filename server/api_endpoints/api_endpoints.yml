@@ -352,6 +352,9 @@
   path: "/api/v1/fleet/abm_tokens"
   display_name: "List Apple Business (AB) tokens"
   deprecated: true
+- method: "PATCH"
+  path: "/api/v1/fleet/ab_tokens/{id}/default"
+  display_name: "Set default Apple Business (AB) token"
 - method: "GET"
   path: "/api/v1/fleet/vpp_tokens"
   display_name: "List Volume Purchasing Program (VPP) tokens"

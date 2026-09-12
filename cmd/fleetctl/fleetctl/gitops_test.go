@@ -4495,6 +4495,9 @@ software:
 	ipadTeam := team("🔳🏢 Company-owned iPads")
 	byodTeam := team("📱🔐 Personal mobile devices")
 
+	// captures the token ID passed to the datastore when a run sets the default
+	var lastSetDefaultTokenID *uint
+
 	cases := []struct {
 		name             string
 		cfgs             []string
@@ -4811,6 +4814,145 @@ software:
 				assert.NotContains(t, out, "[!] gitops dry run succeeded")
 			},
 		},
+		{
+			// the yaml spells the org name decomposed (e + combining accent) while
+			// the stored token is precomposed; mismatched normalization between the
+			// existence check and the fetch used to panic the request
+			name: "org name in a different unicode form matches",
+			cfgs: []string{
+				global(`
+                                  apple_business_manager:
+                                    - organization_name: "Café Inc."
+                                      macos_team: "No team"`),
+			},
+			tokens: []*fleet.ABMToken{{ID: 1, OrganizationName: "Café Inc."}},
+			dryRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
+				require.NoError(t, err)
+				assert.Contains(t, out, "[!] gitops dry run succeeded")
+			},
+			realRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
+				require.NoError(t, err)
+				assert.Contains(t, out, "[!] gitops succeeded")
+			},
+		},
+		{
+			name: "default on one token applies",
+			cfgs: []string{
+				global(`
+                                  apple_business_manager:
+                                    - organization_name: Fleet Device Management Inc.
+                                      macos_team: "No team"
+                                    - organization_name: Foo Inc.
+                                      default: true
+                                      macos_team: "No team"`),
+			},
+			tokens: []*fleet.ABMToken{
+				{ID: 1, OrganizationName: "Fleet Device Management Inc.", IsDefault: true},
+				{ID: 2, OrganizationName: "Foo Inc."},
+			},
+			dryRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
+				require.NoError(t, err)
+				assert.Empty(t, appCfg.MDM.AppleBusinessManager.Value)
+				assert.Nil(t, lastSetDefaultTokenID)
+				assert.Contains(t, out, "[!] gitops dry run succeeded")
+			},
+			realRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
+				require.NoError(t, err)
+				require.NotNil(t, lastSetDefaultTokenID)
+				assert.Equal(t, uint(2), *lastSetDefaultTokenID)
+				defaults := map[string]bool{}
+				for _, e := range appCfg.MDM.AppleBusinessManager.Value {
+					defaults[e.OrganizationName] = e.Default
+				}
+				assert.Equal(t, map[string]bool{"Fleet Device Management Inc.": false, "Foo Inc.": true}, defaults)
+				assert.Contains(t, out, "[!] gitops succeeded")
+			},
+		},
+		{
+			name: "two defaults fails",
+			cfgs: []string{
+				global(`
+                                  apple_business_manager:
+                                    - organization_name: Fleet Device Management Inc.
+                                      default: true
+                                      macos_team: "No team"
+                                    - organization_name: Foo Inc.
+                                      default: true
+                                      macos_team: "No team"`),
+			},
+			tokens: []*fleet.ABMToken{
+				{ID: 1, OrganizationName: "Fleet Device Management Inc."},
+				{ID: 2, OrganizationName: "Foo Inc."},
+			},
+			dryRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
+				require.ErrorContains(t, err, "only one Apple Business (AB) token can be the default")
+				assert.Empty(t, appCfg.MDM.AppleBusinessManager.Value)
+				assert.Nil(t, lastSetDefaultTokenID)
+				assert.NotContains(t, out, "[!] gitops dry run succeeded")
+			},
+			realRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
+				require.ErrorContains(t, err, "only one Apple Business (AB) token can be the default")
+				assert.Empty(t, appCfg.MDM.AppleBusinessManager.Value)
+				assert.Nil(t, lastSetDefaultTokenID)
+				assert.NotContains(t, out, "[!] gitops succeeded")
+			},
+		},
+		{
+			name: "no default on multiple tokens clears it",
+			cfgs: []string{
+				global(`
+                                  apple_business_manager:
+                                    - organization_name: Fleet Device Management Inc.
+                                      macos_team: "No team"
+                                    - organization_name: Foo Inc.
+                                      macos_team: "No team"`),
+			},
+			tokens: []*fleet.ABMToken{
+				{ID: 1, OrganizationName: "Fleet Device Management Inc.", IsDefault: true},
+				{ID: 2, OrganizationName: "Foo Inc."},
+			},
+			dryRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
+				require.NoError(t, err)
+				assert.Empty(t, appCfg.MDM.AppleBusinessManager.Value)
+				assert.False(t, ds.(*mock.Store).ClearABMTokenDefaultFuncInvoked)
+				assert.Contains(t, out, "[!] gitops dry run succeeded")
+			},
+			realRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
+				require.NoError(t, err)
+				assert.True(t, ds.(*mock.Store).ClearABMTokenDefaultFuncInvoked)
+				assert.Nil(t, lastSetDefaultTokenID)
+				for _, e := range appCfg.MDM.AppleBusinessManager.Value {
+					assert.False(t, e.Default, e.OrganizationName)
+				}
+				assert.Contains(t, out, "[!] gitops succeeded")
+			},
+		},
+		{
+			name: "single token with no default key stays default",
+			cfgs: []string{
+				global(`
+                                  apple_business_manager:
+                                    - organization_name: Fleet Device Management Inc.
+                                      macos_team: "No team"`),
+			},
+			tokens: []*fleet.ABMToken{
+				{ID: 1, OrganizationName: "Fleet Device Management Inc.", IsDefault: true},
+			},
+			dryRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
+				require.NoError(t, err)
+				assert.Empty(t, appCfg.MDM.AppleBusinessManager.Value)
+				assert.Contains(t, out, "[!] gitops dry run succeeded")
+			},
+			realRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
+				require.NoError(t, err)
+				assert.Nil(t, lastSetDefaultTokenID)
+				assert.False(t, ds.(*mock.Store).ClearABMTokenDefaultFuncInvoked)
+				// the stored config reflects that a lone token is always the default
+				require.Len(t, appCfg.MDM.AppleBusinessManager.Value, 1)
+				assert.True(t, appCfg.MDM.AppleBusinessManager.Value[0].Default)
+				assert.Contains(t, out, "[!] gitops succeeded")
+			},
+		},
 	}
 
 	for _, tt := range cases {
@@ -4840,6 +4982,14 @@ software:
 			}
 
 			ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error {
+				return nil
+			}
+			lastSetDefaultTokenID = nil
+			ds.SetABMTokenDefaultFunc = func(ctx context.Context, tokenID uint) error {
+				lastSetDefaultTokenID = &tokenID
+				return nil
+			}
+			ds.ClearABMTokenDefaultFunc = func(ctx context.Context) error {
 				return nil
 			}
 			ds.DeleteIconsAssociatedWithTitlesWithoutInstallersFunc = func(ctx context.Context, teamID uint) error {
