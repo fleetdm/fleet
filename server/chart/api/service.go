@@ -46,6 +46,12 @@ type Service interface {
 // CollectScopeFn resolves per-dataset collection scope. See Service.CollectDatasets.
 type CollectScopeFn func(datasetName string) (skip bool, disabledFleetIDs []uint)
 
+// PlatformExpanderFn maps one platform filter value to the hosts.platform
+// values it covers. Linux hosts store their distro ("ubuntu", "rhel", ...) in
+// hosts.platform, never "linux", so the caller must expand that family; other
+// platforms map to themselves. Implemented in server/acl/chartacl.
+type PlatformExpanderFn func(platform string) []string
+
 // ViewerProvider exposes authorization-relevant information about the current
 // authenticated viewer. Implementations typically read the viewer context, so
 // this is the seam that keeps the chart bounded context free of direct

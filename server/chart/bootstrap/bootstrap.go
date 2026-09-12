@@ -21,10 +21,11 @@ func New(
 	dbConns *platform_mysql.DBConnections,
 	authorizer platform_authz.Authorizer,
 	viewerProvider api.ViewerProvider,
+	expandPlatform api.PlatformExpanderFn,
 	logger *slog.Logger,
 ) (api.Service, func(authMiddleware endpoint.Middleware) eu.HandlerRoutesFunc) {
 	ds := mysql.NewDatastore(dbConns, logger)
-	svc := service.NewService(authorizer, ds, viewerProvider, logger)
+	svc := service.NewService(authorizer, ds, viewerProvider, expandPlatform, logger)
 
 	routesFn := func(authMiddleware endpoint.Middleware) eu.HandlerRoutesFunc {
 		return service.GetRoutes(svc, authMiddleware)
