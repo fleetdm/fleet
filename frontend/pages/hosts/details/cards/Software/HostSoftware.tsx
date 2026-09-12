@@ -74,6 +74,7 @@ interface IHostSoftwareProps {
   isPremiumTier?: boolean;
   /** Used to show custom Software card header */
   hostMdmEnrollmentStatus?: MdmEnrollmentStatus | null;
+  lastMdmEnrollmentType?: string | null;
 }
 
 const DEFAULT_SEARCH_QUERY = "";
@@ -153,6 +154,7 @@ const HostSoftware = ({
   isMyDevicePage = false,
   isPremiumTier: isPremiumTierProp,
   hostMdmEnrollmentStatus = null,
+  lastMdmEnrollmentType = null,
 }: IHostSoftwareProps) => {
   const { isPremiumTier: isPremiumTierFromContext } = useContext(AppContext);
   // The My device page is token-authenticated and has no app session/context, so
@@ -389,6 +391,7 @@ const HostSoftware = ({
                   platform,
                   isMyDevicePage: true,
                   hostMdmEnrollmentStatus,
+                  lastMdmEnrollmentType,
                 })
               : undefined
           }
@@ -407,6 +410,7 @@ const HostSoftware = ({
             platform,
             isMyDevicePage: false,
             hostMdmEnrollmentStatus,
+            lastMdmEnrollmentType,
           })}
         />
       )}
