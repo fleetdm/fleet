@@ -219,7 +219,7 @@ This [document](https://docs.google.com/document/d/1V6QtFzcGDsLnn2PIvGin74DAxdAN
 
 There are a few main places of interest to monitor the load and resource usage:
 
-* Tracing is off by default. Elastic APM is no longer wired up, because its instrumentation is gorilla-specific and makes the server turn off its stdlib ServeMux fast path, which skews load test results. Use the `infra` stack with `enable_otel=true` to trace a load test through SigNoz instead.
+* Tracing is off by default. Elastic APM is no longer wired up. Its instrumentation is gorilla-specific, so the Fleet server turns off the stdlib ServeMux fast path whenever Elastic APM is active. That skews load test results. To trace a load test, use the `infra` stack with `enable_otel=true` and view the traces in SigNoz.
 * To monitor mysql database load, go to AWS RDS, select "Performance Insights" and the database instance to monitor (you may want to turn off auto-refresh).
 * To monitor Redis load, go to Amazon ElastiCache, select the redis cluster to monitor, and go to "Metrics".
 

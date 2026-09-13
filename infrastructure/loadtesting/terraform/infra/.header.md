@@ -72,7 +72,7 @@ Additionally, refer to the [Reference Architecture sizing recommendations](https
 
 ## OpenTelemetry tracing with SigNoz
 
-By default, the loadtest environment runs without tracing. Elastic APM is not an option here: its instrumentation is gorilla-specific, so the server turns off its stdlib ServeMux fast path whenever Elastic APM is active. You can enable OpenTelemetry with SigNoz by setting `enable_otel=true`:
+By default, the loadtest environment runs without tracing. Elastic APM is not supported. Its instrumentation is gorilla-specific, so the Fleet server turns off the stdlib ServeMux fast path whenever Elastic APM is active. To trace a load test, enable OpenTelemetry with SigNoz by setting `enable_otel=true`:
 
 ```sh
 terraform apply -var=tag=v4.72.0 -var=enable_otel=true
