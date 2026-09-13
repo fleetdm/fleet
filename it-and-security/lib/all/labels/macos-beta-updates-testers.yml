@@ -6,4 +6,5 @@
     macOS beta/developer updates for pre-release testing.
     Add Fleet host IDs below to add a host (hardware_serial or uuid also work).
   label_membership_type: manual
-  hosts: []
+  hosts:
+    - "1722"

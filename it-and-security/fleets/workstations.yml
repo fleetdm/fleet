@@ -123,6 +123,8 @@ controls:
       - path: ../lib/macos/configuration-profiles/santa-configuration.mobileconfig
       - path: ../lib/macos/configuration-profiles/santa-rules.mobileconfig
       - path: ../lib/macos/configuration-profiles/nudge-configuration.mobileconfig
+        labels_exclude_any:
+          - "macOS beta updates testers"
       - path: ../lib/macos/configuration-profiles/microsoft-autoupdate-settings.mobileconfig
         labels_include_any:
           - "Microsoft AutoUpdate installed"
