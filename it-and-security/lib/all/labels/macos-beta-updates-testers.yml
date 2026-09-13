@@ -4,7 +4,7 @@
     profile (which locks the Beta Updates toggle) and from the "Operating system up to date"
     and "All available software updates installed" policies, so volunteers can enroll in
     macOS beta/developer updates for pre-release testing.
-    Add Fleet host IDs below to add a host (hardware_serial or uuid also work).
+    Add Fleet host IDs below to add a host.
   label_membership_type: manual
   hosts:
     - "1722"
