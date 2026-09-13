@@ -7,3 +7,5 @@
     
     If you see the message "This feature isn't available with the Apple Account you're currently using." you will need to delete and re-install the app.
   platform: darwin
+  labels_exclude_any:
+    - "macOS beta updates testers"
