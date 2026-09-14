@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"regexp"
+	"strings"
 	"time"
 )
 
@@ -55,4 +56,11 @@ var rxLooseEmail = regexp.MustCompile(`^[^\s@]+@[^\s@\.]+\..+$`)
 // an email.
 func IsLooseEmail(email string) bool {
 	return rxLooseEmail.MatchString(email)
+}
+
+// EmailLocalPart returns the part before the "@", or the whole value when there
+// is no "@".
+func EmailLocalPart(email string) string {
+	local, _, _ := strings.Cut(email, "@")
+	return local
 }
