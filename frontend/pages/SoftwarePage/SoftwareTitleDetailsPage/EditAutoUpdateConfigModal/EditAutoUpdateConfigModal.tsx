@@ -14,7 +14,6 @@ import useGitOpsMode from "hooks/useGitOpsMode";
 import { ILabelSoftwareTitle } from "interfaces/label";
 import { IAppStoreApp, ISoftwareTitleDetails } from "interfaces/software";
 import {
-  generateSelectedLabels,
   getCustomTarget,
   getDisplayedSoftwareName,
   getTargetType,
@@ -36,9 +35,6 @@ export interface ISoftwareAutoUpdateConfigFormData {
   autoUpdateEnabled: boolean;
   autoUpdateStartTime: string;
   autoUpdateEndTime: string;
-  targetType: string;
-  customTarget: string;
-  labelTargets: Record<string, boolean>;
 }
 
 interface EditAutoUpdateConfigModal {
@@ -65,11 +61,6 @@ const EditAutoUpdateConfigModal = ({
     autoUpdateEnabled: softwareTitle.auto_update_enabled || false,
     autoUpdateStartTime: softwareTitle.auto_update_window_start || "",
     autoUpdateEndTime: softwareTitle.auto_update_window_end || "",
-    targetType: getTargetType(softwareTitle.app_store_app as IAppStoreApp),
-    customTarget: getCustomTarget(softwareTitle.app_store_app as IAppStoreApp),
-    labelTargets: generateSelectedLabels(
-      softwareTitle.app_store_app as IAppStoreApp
-    ),
   });
 
   const [
@@ -146,11 +137,14 @@ const EditAutoUpdateConfigModal = ({
   };
 
   const appStoreApp = softwareTitle.app_store_app as IAppStoreApp | null;
+  const targetType = getTargetType(appStoreApp ?? undefined);
+  const customTarget = getCustomTarget(appStoreApp ?? undefined);
+
   let displayLabels: ILabelSoftwareTitle[] = [];
-  if (formData.targetType === "Custom") {
-    if (formData.customTarget === "labelsIncludeAny") {
+  if (targetType === "Custom") {
+    if (customTarget === "labelsIncludeAny") {
       displayLabels = appStoreApp?.labels_include_any ?? [];
-    } else if (formData.customTarget === "labelsIncludeAll") {
+    } else if (customTarget === "labelsIncludeAll") {
       displayLabels = appStoreApp?.labels_include_all ?? [];
     } else {
       displayLabels = appStoreApp?.labels_exclude_any ?? [];
@@ -158,20 +152,20 @@ const EditAutoUpdateConfigModal = ({
   }
 
   let targetDescription: React.ReactNode;
-  if (formData.targetType === "All hosts") {
+  if (targetType === "All hosts") {
     targetDescription = (
       <>
         Update settings will apply to <b>all hosts.</b>
       </>
     );
-  } else if (formData.customTarget === "labelsIncludeAny") {
+  } else if (customTarget === "labelsIncludeAny") {
     targetDescription = (
       <>
         Update settings will only apply to hosts that <b>have any</b> of these
         labels:
       </>
     );
-  } else if (formData.customTarget === "labelsIncludeAll") {
+  } else if (customTarget === "labelsIncludeAll") {
     targetDescription = (
       <>
         Update settings will only apply to hosts that <b>have all</b> of these

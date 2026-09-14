@@ -465,9 +465,6 @@ describe("Edit Auto Update Config Modal", () => {
       await waitFor(() => {
         expect(requestSpy).toHaveBeenCalledWith({
           auto_update_enabled: false,
-          labels_include_any: [],
-          labels_exclude_any: [],
-          labels_include_all: [],
           fleet_id: 1,
         });
       });
@@ -507,15 +504,12 @@ describe("Edit Auto Update Config Modal", () => {
           auto_update_enabled: true,
           auto_update_window_start: "02:00",
           auto_update_window_end: "04:00",
-          labels_include_any: [],
-          labels_exclude_any: [],
-          labels_include_all: [],
           fleet_id: 1,
         });
       });
     });
 
-    it("Sends the correct payload when specific labels are selected as the target", async () => {
+    it("Does not send label fields even when a label target is configured for the title", async () => {
       const { user } = render(
         <EditAutoUpdateConfigModal
           softwareTitle={createMockSoftwareTitleDetails({
@@ -540,7 +534,6 @@ describe("Edit Auto Update Config Modal", () => {
       await waitFor(() => {
         expect(requestSpy).toHaveBeenCalledWith({
           auto_update_enabled: false,
-          labels_include_any: [mockLabels[1].name],
           fleet_id: 1,
         });
       });
