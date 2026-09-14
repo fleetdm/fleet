@@ -51,6 +51,18 @@ func HostSecretPlaceholder(secretType string) string {
 	return "$" + HostSecretPrefix + secretType
 }
 
+// ValidateNoHostSecretVariables rejects user-provided content that references
+// a $FLEET_HOST_SECRET_* placeholder. Those are expanded to per-host secrets
+// (recovery lock passwords, unlock tokens, enroll secrets) at delivery time and
+// are only ever written by Fleet into the profiles and commands it manages
+func ValidateNoHostSecretVariables(document string) error {
+	vars := ContainsPrefixVars(document, HostSecretPrefix)
+	if len(vars) == 0 {
+		return nil
+	}
+	return &BadRequestError{Message: fmt.Sprintf("Variable %s is reserved for profiles managed by Fleet and can't be used.", HostSecretPlaceholder(vars[0]))}
+}
+
 type MissingSecretsError struct {
 	MissingSecrets []string
 }
