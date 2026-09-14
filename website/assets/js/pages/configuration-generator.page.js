@@ -6,6 +6,8 @@ parasails.registerPage('configuration-generator', {
     generatedOutput: ``,
     parsedItemsInProfile: [],
     anticipatedItemsInProfile: [],
+    anticipatedName: undefined,
+    anticipatedDescription: undefined,
     showLoadingOverlay: false,
     deliveryNotes: undefined,
     formData: {
@@ -100,6 +102,8 @@ parasails.registerPage('configuration-generator', {
         return;
       }
       this.anticipatedItemsInProfile = response.settings;
+      this.anticipatedName = response.name;
+      this.anticipatedDescription = response.description;
       this.showLoadingOverlay = false;
       io.socket.off('settingsPreview', this._onSettingsPreview);
     },

@@ -54,6 +54,8 @@
             </div>
           </div>
           <div purpose="enforced-settings" class="mb-3" v-if="parsedItemsInProfile.length || anticipatedItemsInProfile.length">
+            <p v-if="anticipatedName"><strong>{{anticipatedName}}</strong></p>
+            <p v-if="anticipatedDescription">{{anticipatedDescription}}</p>
             <p v-if="parsedItemsInProfile.length"><strong>Settings enforced:</strong></p>
             <p v-else><strong>Settings this profile will probably enforce:</strong></p>
             <div v-for="item in (parsedItemsInProfile.length ? parsedItemsInProfile : anticipatedItemsInProfile)">
