@@ -1,6 +1,7 @@
 package fleetctl
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -1757,7 +1758,7 @@ func getMDMCommandResultsCommand() *cli.Command {
 			// print the results as a table
 			data := []string{}
 			for _, r := range res {
-				formattedResult, err := formatXML(r.Result)
+				formattedResult, err := formatCommandOutput(r.Result)
 				// if we get an error, just log it and use the
 				// unformatted command
 				if err != nil {
@@ -1766,7 +1767,7 @@ func getMDMCommandResultsCommand() *cli.Command {
 					}
 					formattedResult = r.Result
 				}
-				formattedPayload, err := formatXML(r.Payload)
+				formattedPayload, err := formatCommandOutput(r.Payload)
 				// if we get an error, just log it and use the
 				// unformatted payload
 				if err != nil {
@@ -1896,6 +1897,18 @@ func getMDMCommandsCommand() *cli.Command {
 	}
 }
 
+// formatCommandOutput pretty-prints an MDM command payload or result. Apple and
+// Windows commands are XML, Android commands are JSON, and the result struct
+// doesn't carry the platform, so sniff the content instead. etree happily reads
+// JSON as a bare character-data node and XML-escapes the quotes on write, so
+// JSON must be routed away from formatXML rather than relying on it to fail.
+func formatCommandOutput(in []byte) ([]byte, error) {
+	if trimmed := bytes.TrimLeft(in, " \t\r\n"); len(trimmed) > 0 && (trimmed[0] == '{' || trimmed[0] == '[') {
+		return formatJSON(trimmed)
+	}
+	return formatXML(in)
+}
+
 func formatXML(in []byte) ([]byte, error) {
 	doc := etree.NewDocument()
 	if err := doc.ReadFromBytes(in); err != nil {
@@ -1903,4 +1916,12 @@ func formatXML(in []byte) ([]byte, error) {
 	}
 	doc.Indent(2)
 	return doc.WriteToBytes()
+}
+
+func formatJSON(in []byte) ([]byte, error) {
+	var buf bytes.Buffer
+	if err := json.Indent(&buf, in, "", "  "); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
 }

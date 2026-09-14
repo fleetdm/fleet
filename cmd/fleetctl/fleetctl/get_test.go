@@ -2961,6 +2961,10 @@ func TestGetMDMCommandResults(t *testing.T) {
   </SyncBody>
 </SyncML>`
 
+	androidPayloadJSON := `{"clearAppsDataParams":{"packageNames":["com.fleetdm.definitelynotinstalled"]},"duration":"315360000s","type":"CLEAR_APP_DATA"}`
+
+	androidResultJSON := `{"done":true,"error":{"code":3},"metadata":{"errorCode":"INVALID_VALUE"}}`
+
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true}}, nil
 	}
@@ -3038,6 +3042,35 @@ func TestGetMDMCommandResults(t *testing.T) {
 					UpdatedAt:   time.Date(2023, 4, 4, 15, 29, 0, 0, time.UTC),
 					Payload:     []byte(winPayloadXML),
 					Result:      []byte(winResultXML),
+				},
+			}, nil
+		}
+	}
+	ds.GetMDMAndroidCommandResultsFunc = func(ctx context.Context, commandUUID string, hostUUID string) ([]*fleet.MDMCommandResult, error) {
+		switch commandUUID {
+		case "empty-cmd":
+			return nil, nil
+		case "fail-cmd":
+			return nil, io.EOF
+		default:
+			return []*fleet.MDMCommandResult{
+				{
+					HostUUID:    "device1",
+					CommandUUID: commandUUID,
+					Status:      "Acknowledged",
+					UpdatedAt:   time.Date(2023, 4, 4, 15, 29, 0, 0, time.UTC),
+					RequestType: "CLEAR_APP_DATA",
+					Payload:     []byte(androidPayloadJSON),
+					Result:      []byte(androidResultJSON),
+				},
+				{
+					HostUUID:    "device2",
+					CommandUUID: commandUUID,
+					Status:      "Error",
+					UpdatedAt:   time.Date(2023, 4, 4, 15, 29, 0, 0, time.UTC),
+					RequestType: "CLEAR_APP_DATA",
+					Payload:     []byte(androidPayloadJSON),
+					Result:      []byte(androidResultJSON),
 				},
 			}, nil
 		}
@@ -3391,6 +3424,97 @@ RESULTS:
 		ds.GetMDMCommandPlatformFuncInvoked = false
 		require.True(t, ds.GetMDMWindowsCommandResultsFuncInvoked)
 		ds.GetMDMWindowsCommandResultsFuncInvoked = false
+		require.False(t, ds.GetMDMAppleCommandResultsFuncInvoked)
+	})
+
+	t.Run("android command results", func(t *testing.T) {
+		expectedOutput := strings.TrimSpace(`
+ID:
+valid-cmd
+
+TIME:
+2023-04-04T15:29:00Z
+
+TYPE:
+CLEAR_APP_DATA
+
+STATUS:
+Acknowledged
+
+HOSTNAME:
+host1
+
+PAYLOAD:
+{
+  "clearAppsDataParams": {
+    "packageNames": [
+      "com.fleetdm.definitelynotinstalled"
+    ]
+  },
+  "duration": "315360000s",
+  "type": "CLEAR_APP_DATA"
+}
+
+RESULTS:
+{
+  "done": true,
+  "error": {
+    "code": 3
+  },
+  "metadata": {
+    "errorCode": "INVALID_VALUE"
+  }
+}
+---
+
+ID:
+valid-cmd
+
+TIME:
+2023-04-04T15:29:00Z
+
+TYPE:
+CLEAR_APP_DATA
+
+STATUS:
+Error
+
+HOSTNAME:
+host2
+
+PAYLOAD:
+{
+  "clearAppsDataParams": {
+    "packageNames": [
+      "com.fleetdm.definitelynotinstalled"
+    ]
+  },
+  "duration": "315360000s",
+  "type": "CLEAR_APP_DATA"
+}
+
+RESULTS:
+{
+  "done": true,
+  "error": {
+    "code": 3
+  },
+  "metadata": {
+    "errorCode": "INVALID_VALUE"
+  }
+}`)
+
+		platform = "android"
+		buf, err := runAppNoChecks([]string{"get", "mdm-command-results", "--id", "valid-cmd"})
+		require.NoError(t, err)
+		require.Contains(t, buf.String(), expectedOutput)
+		// the whole point of the fix: the JSON must survive unescaped so it can be piped to jq
+		require.NotContains(t, buf.String(), "&quot;")
+		require.True(t, ds.GetMDMCommandPlatformFuncInvoked)
+		ds.GetMDMCommandPlatformFuncInvoked = false
+		require.True(t, ds.GetMDMAndroidCommandResultsFuncInvoked)
+		ds.GetMDMAndroidCommandResultsFuncInvoked = false
+		require.False(t, ds.GetMDMWindowsCommandResultsFuncInvoked)
 		require.False(t, ds.GetMDMAppleCommandResultsFuncInvoked)
 	})
 
@@ -3797,4 +3921,114 @@ func TestFormatXML(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestFormatCommandOutput(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   []byte
+		want    []byte
+		wantErr bool
+	}{
+		{
+			name:  "Android JSON payload",
+			input: []byte(`{"clearAppsDataParams":{"packageNames":["com.example.app"]},"duration":"315360000s","type":"CLEAR_APP_DATA"}`),
+			want: []byte(`{
+  "clearAppsDataParams": {
+    "packageNames": [
+      "com.example.app"
+    ]
+  },
+  "duration": "315360000s",
+  "type": "CLEAR_APP_DATA"
+}`),
+		},
+		{
+			name:  "Android JSON result",
+			input: []byte(`{"done":true,"error":{"code":3},"metadata":{"errorCode":"INVALID_VALUE"}}`),
+			want: []byte(`{
+  "done": true,
+  "error": {
+    "code": 3
+  },
+  "metadata": {
+    "errorCode": "INVALID_VALUE"
+  }
+}`),
+		},
+		{
+			name:  "JSON array",
+			input: []byte(`[{"a":1},{"b":2}]`),
+			want: []byte(`[
+  {
+    "a": 1
+  },
+  {
+    "b": 2
+  }
+]`),
+		},
+		{
+			name:  "JSON with leading whitespace",
+			input: []byte("\n  {\"a\":1}"),
+			want:  []byte("{\n  \"a\": 1\n}"),
+		},
+		{
+			name:  "JSON containing XML-sensitive characters",
+			input: []byte(`{"cmd":"a < b && c > d","quoted":"he said \"hi\""}`),
+			want: []byte(`{
+  "cmd": "a < b && c > d",
+  "quoted": "he said \"hi\""
+}`),
+		},
+		{
+			name:    "Invalid JSON falls through to an error so the caller prints it raw",
+			input:   []byte(`{"done":true,`),
+			wantErr: true,
+		},
+		{
+			name:  "Apple plist XML",
+			input: []byte(`<?xml version="1.0" encoding="UTF-8"?><plist version="1.0"><dict><key>Command</key></dict></plist>`),
+			want:  []byte("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<plist version=\"1.0\">\n  <dict>\n    <key>Command</key>\n  </dict>\n</plist>\n"),
+		},
+		{
+			name:  "Windows SyncML XML",
+			input: []byte(`<SyncML><SyncBody><Status><CmdID>1</CmdID></Status></SyncBody></SyncML>`),
+			want:  []byte("<SyncML>\n  <SyncBody>\n    <Status>\n      <CmdID>1</CmdID>\n    </Status>\n  </SyncBody>\n</SyncML>\n"),
+		},
+		{
+			name:  "Empty input",
+			input: []byte(""),
+			want:  nil,
+		},
+		{
+			name:    "Invalid XML",
+			input:   []byte(`<root><element>content</root`),
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := formatCommandOutput(tt.input)
+			if tt.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, string(tt.want), string(got))
+		})
+	}
+
+	t.Run("JSON output stays parseable and unescaped", func(t *testing.T) {
+		in := []byte(`{"done":true,"error":{"code":3},"metadata":{"errorCode":"INVALID_VALUE"}}`)
+		got, err := formatCommandOutput(in)
+		require.NoError(t, err)
+		require.NotContains(t, string(got), "&quot;")
+
+		var before, after map[string]any
+		require.NoError(t, json.Unmarshal(in, &before))
+		require.NoError(t, json.Unmarshal(got, &after))
+		require.Equal(t, before, after)
+	})
 }
