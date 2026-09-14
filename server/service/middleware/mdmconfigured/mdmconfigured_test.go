@@ -153,7 +153,7 @@ func TestPreauthMDMVerifyError(t *testing.T) {
 	_, err := f(context.Background(), struct{}{})
 	require.Error(t, err)
 	var authFailed *fleet.AuthFailedError
-	require.False(t, errors.As(err, &authFailed))
+	require.NotErrorAs(t, err, &authFailed)
 	require.False(t, nextCalled)
 }
 
