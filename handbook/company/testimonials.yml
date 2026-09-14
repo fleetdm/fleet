@@ -315,6 +315,21 @@
   quoteAuthorJobTitle: Information Technology Operations Supervisor
   quoteLinkUrl: https://www.linkedin.com/in/joshua-radcliffe-06414a102/
   productCategories: [Device management]
+# Note: this quote originated from a public LinkedIn comment by Brad Girardeau (product security/IT at Figma),
+# referencing their use of GitOps with Okta, Fleet, and AWS. The link below points to his LinkedIn profile
+# since we don't have the exact permalink to the original comment.
+- quote: We have been using GitOps for Okta and Fleet at Figma in IT (and for AWS in infra). Was a nice win to have AI agents the product security team built improve corp and cloud security too!
+  quoteAuthorName: Brad Girardeau
+  quoteAuthorProfileImageFilename: testimonial-author-brad-girardeau-100x100@2x.png
+  quoteAuthorJobTitle: Product Security & IT, Figma
+  quoteLinkUrl: https://www.linkedin.com/in/bradgirardeau
+  productCategories: [Device management, Software management]
+- quote: I'm spending about 20 hours a week less on managing PCs than I was with Intune.
+  quoteAuthorName: Mason Peressini
+  quoteAuthorProfileImageFilename: testimonial-author-mason-peressini-100x100@2x.png
+  quoteAuthorJobTitle: IT Manager and CPE, Reed College 
+  quoteLinkUrl: https://www.linkedin.com/in/mason-peressini
+  productCategories: [Device management, Software management]
 
 
 # -

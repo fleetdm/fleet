@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "26.1.0",
+      "version": "26.2.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.dbeaver.product.ultimate';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.dbeaver.product.ultimate' AND version_compare(bundle_short_version, '26.1.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.dbeaver.product.ultimate' AND version_compare(bundle_short_version, '26.2.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.dbeaver.product.ultimate' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://downloads.dbeaver.net/ultimate/26.1.0/dbeaver-ue-26.1.0-macos-aarch64.dmg",
+      "installer_url": "https://downloads.dbeaver.net/ultimate/26.2.0/dbeaver-ue-26.2.0-macos-aarch64.dmg",
       "install_script_ref": "a8066f3f",
       "uninstall_script_ref": "23b82863",
-      "sha256": "ac134703e8cf541e8489d61367f9c0d29bd8fa048a1f18239978fe7355957786",
+      "sha256": "93c8611b343385525a47463942929d7489d6cdbdc9c0452293e3ed3247fd7759",
       "default_categories": [
         "Developer tools"
       ]

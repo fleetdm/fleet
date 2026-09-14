@@ -1,5 +1,5 @@
-import React from "react";
 import { noop } from "lodash";
+import React from "react";
 
 import Modal from "components/Modal";
 import Spinner from "components/Spinner";

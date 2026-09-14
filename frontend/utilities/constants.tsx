@@ -1,11 +1,12 @@
-import URL_PREFIX from "router/url_prefix";
+import React from "react";
+
+import { ICampaign } from "interfaces/campaign";
+import { IDropdownOption } from "interfaces/dropdownOption";
+import { IHost } from "interfaces/host";
+import { MdmEnrollmentStatus } from "interfaces/mdm";
 import { DisplayPlatform, Platform } from "interfaces/platform";
 import { ISchedulableQuery } from "interfaces/schedulable_query";
-import React from "react";
-import { IDropdownOption } from "interfaces/dropdownOption";
-import { ICampaign } from "interfaces/campaign";
-import { MdmEnrollmentStatus } from "interfaces/mdm";
-import { IHost } from "interfaces/host";
+import URL_PREFIX from "router/url_prefix";
 
 const { origin } = global.window.location;
 export const BASE_URL = `${origin}${URL_PREFIX}/api`;

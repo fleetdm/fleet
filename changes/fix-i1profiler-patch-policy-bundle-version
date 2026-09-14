@@ -1,0 +1,1 @@
+* Fixed the macOS "i1Profiler up to date" patch policy always failing on hosts running the current version of i1Profiler. The cask version tracks `CFBundleVersion` (`3.8.7.19247`) while i1Profiler.app reports only a marketing version (`3.8.7`) as its `CFBundleShortVersionString`, so the generated policy now compares `CFBundleVersion`.

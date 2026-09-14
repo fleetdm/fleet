@@ -18929,6 +18929,154 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/munki_installs.yml"
   },
   {
+    "name": "netskope",
+    "platforms": [
+      "darwin",
+      "windows",
+      "linux"
+    ],
+    "description": "The local Netskope client's state, version, and steering configuration, as reported by `nsdiag -f`.\n\nNetskope can enter a silently degraded state where the STAgent process and its system extensions still look healthy but traffic is no longer steered. Checks against process state or system extension presence miss this; `client_status` and `tunnel_status` do not.",
+    "evented": false,
+    "columns": [
+      {
+        "name": "client_installed",
+        "description": "Whether a Netskope client install was found on this host (1=found, 0=not found). Always populated; when 0, the `error` column says why and the remaining columns are empty.",
+        "required": false,
+        "type": "integer"
+      },
+      {
+        "name": "error",
+        "description": "Why the client's state could not be read — `netskope client not installed`, an `nsdiag failed: ...` message (for example a permission failure), or `nsdiag reported no recognized fields`. Empty when the state was read successfully.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "install_path",
+        "description": "The directory the Netskope STAgent was found in. Empty when no install was found.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "orgname",
+        "description": "The Netskope tenant's organization name.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "tenant_url",
+        "description": "The tenant URL this client is enrolled with, for example `company.goskope.com`.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "addonhost",
+        "description": "The addon host endpoint the client connects to.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "addoncheckerhost",
+        "description": "The addon checker host endpoint the client connects to.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "gateway",
+        "description": "The hostname of the Netskope gateway traffic is steered through.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "gateway_ip",
+        "description": "The IP address of the Netskope gateway traffic is steered through.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "config",
+        "description": "The name of the client configuration currently applied.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "steering_config",
+        "description": "The name of the steering configuration currently applied.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "email",
+        "description": "The email address this client is enrolled with.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "peruser_config",
+        "description": "Whether a per-user configuration is in effect (`TRUE`/`FALSE`).",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "tunnel_status",
+        "description": "The state of the steering tunnel, for example `NSTUNNEL_CONNECTED`. A value other than connected on a host that should be steered is the degraded state to alert on.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "client_status",
+        "description": "The state of the client, for example `enable`.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "dynamic_steering",
+        "description": "Whether dynamic steering is enabled (`TRUE`/`FALSE`).",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "onpremdetection",
+        "description": "The on-premises detection setting, for example `Not Configured`.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "explicit_proxy",
+        "description": "Whether explicit proxy mode is enabled (`TRUE`/`FALSE`).",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "tunnel_protocol",
+        "description": "The protocol the steering tunnel uses, for example `TLS`.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "sni_enable",
+        "description": "Whether SNI-based steering is enabled (`TRUE`/`FALSE`).",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "traffic_mode",
+        "description": "The traffic steering mode, for example `All Traffic`.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "client_version",
+        "description": "The version of the installed Netskope client.",
+        "required": false,
+        "type": "text"
+      }
+    ],
+    "examples": "Find hosts where the Netskope client is installed but is no longer enabled and connected — the silently degraded state. `error = ''` keeps out clients whose state could not be read, which is a separate problem from a client that reported itself as degraded.\n```\nSELECT install_path, client_version, client_status, tunnel_status\nFROM netskope\nWHERE client_installed = 1\n  AND error = ''\n  AND NOT (client_status = 'enable' AND tunnel_status = 'NSTUNNEL_CONNECTED');\n```",
+    "notes": "This table is not a core osquery table. It is included as part of Fleet's agent\n([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).\n\nThe table always returns exactly one row, so that \"not installed\", \"installed but degraded\", and \"installed but state could not be read\" stay distinguishable. Check `client_installed` and `error` before treating the remaining columns as the client's real state.\n\nThe fields `nsdiag` reports change between Netskope releases. Fields this table does not recognize are ignored rather than failing the query, and a release that renames every field is reported through the `error` column.",
+    "url": "https://fleetdm.com/tables/netskope",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/netskope.yml"
+  },
+  {
     "name": "network_interfaces",
     "evented": false,
     "platforms": [
@@ -28830,7 +28978,7 @@
     "evented": false,
     "cacheable": false,
     "notes": "The macOS system_profiler binary reports on the hardware and software configuration of a Mac. It generates detailed, plain text, XML or json reports which can be exported from the Terminal or generated as .spx files and read by the macOS System Information.app based on \"data types\". \n\nThe system_profiler output is a rich source of data containing unique, per device hardware and software attributes which have many uses for enhancing Mac management.\n\nThe following data types are available from the system_profiler binary as of macOS 26:\n\n- SPParallelATADataType\n- SPUniversalAccessDataType\n- SPSecureElementDataType\n- SPApplicationsDataType\n- SPAudioDataType\n- SPBluetoothDataType\n- SPCameraDataType\n- SPCardReaderDataType\n- SPiBridgeDataType\n- SPDeveloperToolsDataType\n- SPDiagnosticsDataType\n- SPDisabledSoftwareDataType\n- SPDiscBurningDataType\n- SPEthernetDataType\n- SPExtensionsDataType\n- SPFibreChannelDataType\n- SPFirewallDataType\n- SPFontsDataType\n- SPFrameworksDataType\n- SPDisplaysDataType\n- SPHardwareDataType\n- SPInstallHistoryDataType\n- SPInternationalDataType\n- SPNetworkLocationDataType\n- SPLogsDataType\n- SPManagedClientDataType\n- SPMemoryDataType\n- SPNVMeDataType\n- SPNetworkDataType\n- SPPCIDataType\n- SPParallelSCSIDataType\n- SPPowerDataType\n- SPPrefPaneDataType\n- SPPrintersSoftwareDataType\n- SPPrintersDataType\n- SPConfigurationProfileDataType\n- SPRawCameraDataType\n- SPLegacySoftwareDataType\n- SPSASDataType\n- SPSerialATADataType\n- SPSPIDataType\n- SPSmartCardsDataType\n- SPSoftwareDataType\n- SPStartupItemDataType\n- SPStorageDataType\n- SPSyncServicesDataType\n- SPThunderboltDataType\n- SPUSBHostDataType\n- SPNetworkVolumeDataType\n- SPAirPortDataType\n\nBecause this table returns JSON values, the [SQLite JSON functions](https://sqlite.org/json1.html) are useful for parsing and transforming results.",
-    "examples": "\nCollect Mac Activation Lock Status:\n\n```\nSELECT json_extract (value,'$[0].activation_lock_status') AS activation_lock_status\nFROM system_profiler\nWHERE data_type='SPHardwareDataType';\n```\n\nCollect Mac Hardware UUID (platform_uuid):\n\n```\nSELECT json_extract (value,'$[0].platform_UUID') AS hardware_uuid\nFROM system_profiler\nWHERE data_type='SPHardwareDataType';\n```\n\nCollect Mac Serial Number:\n\n```\nSELECT json_extract (value,'$[0].serial_number') AS serial_number\nFROM system_profiler\nWHERE data_type='SPHardwareDataType';\n```\n\nCollect Audio Devices:\n\n```\nSELECT each.value->>'_name' AS name, each.value->>'coreaudio_device_manufacturer' AS manufacturer\nFROM system_profiler sp, JSON_EACH(sp.value->'[0]._items') each\nWHERE data_type = 'SPAudioDataType';\n```",
+    "examples": "\nCollect Mac Activation Lock Status:\n\n```\nSELECT json_extract (value,'$[0].activation_lock_status') AS activation_lock_status\nFROM system_profiler\nWHERE data_type='SPHardwareDataType';\n```\n\nCollect Mac Hardware UUID (platform_uuid):\n\n```\nSELECT json_extract (value,'$[0].platform_UUID') AS hardware_uuid\nFROM system_profiler\nWHERE data_type='SPHardwareDataType';\n```\n\nCollect Mac Serial Number:\n\n```\nSELECT json_extract (value,'$[0].serial_number') AS serial_number\nFROM system_profiler\nWHERE data_type='SPHardwareDataType';\n```\n\nCollect Audio Devices:\n\n```\nSELECT each.value->>'_name' AS name, each.value->>'coreaudio_device_manufacturer' AS manufacturer\nFROM system_profiler sp, JSON_EACH(sp.value->'[0]._items') each\nWHERE data_type = 'SPAudioDataType';\n```\n\nDiscover Macs that have updated to the latest macOS version within the last 7 days:\n\n```\nSELECT\n  each.value->>'_name' AS display_name,\n  each.value->>'install_date' AS install_date_raw\nFROM system_profiler sp, JSON_EACH(sp.value) each\nWHERE sp.data_type = 'SPInstallHistoryDataType'\n  AND each.value->>'_name' LIKE 'macOS %'\n  AND (strftime('%s','now') - strftime('%s', substr(each.value->>'install_date', 1, 19))) <= 604800\nORDER BY install_date_raw DESC\nLIMIT 1;\n```",
     "columns": [
       {
         "name": "data_type",

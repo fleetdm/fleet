@@ -1,25 +1,24 @@
 /* eslint-disable react/prop-types */
 import React, { useContext, useCallback, useMemo, useRef } from "react";
 import { InjectedRouter } from "react-router";
-import { Row } from "react-table";
 import { SingleValue } from "react-select-5";
+import { Row } from "react-table";
 
-import PATHS from "router/paths";
-import { AppContext } from "context/app";
-import { IEmptyStateProps } from "interfaces/empty_state";
-import { APP_CONTEXT_ALL_TEAMS_ID } from "interfaces/team";
-import { isQueryablePlatform, SelectedPlatform } from "interfaces/platform";
-import { IEnhancedQuery } from "interfaces/schedulable_query";
-import { getNextLocationPath } from "utilities/helpers";
-import { getPathWithQueryParams } from "utilities/url";
-
-import { ITableQueryData } from "components/TableContainer/TableContainer";
+import Button from "components/buttons/Button";
+import EmptyState from "components/EmptyState";
 import DropdownWrapper from "components/forms/fields/DropdownWrapper";
 import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
-import Button from "components/buttons/Button";
 import TableContainer from "components/TableContainer";
+import { ITableQueryData } from "components/TableContainer/TableContainer";
 import TableCount from "components/TableContainer/TableCount";
-import EmptyState from "components/EmptyState";
+import { AppContext } from "context/app";
+import { IEmptyStateProps } from "interfaces/empty_state";
+import { isQueryablePlatform, SelectedPlatform } from "interfaces/platform";
+import { IEnhancedQuery } from "interfaces/schedulable_query";
+import { APP_CONTEXT_ALL_TEAMS_ID } from "interfaces/team";
+import PATHS from "router/paths";
+import { getNextLocationPath } from "utilities/helpers";
+import { getPathWithQueryParams } from "utilities/url";
 
 import generateColumnConfigs from "./QueriesTableConfig";
 

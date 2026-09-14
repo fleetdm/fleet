@@ -1,9 +1,8 @@
 import React, { useContext } from "react";
 
-import { AppContext } from "context/app";
-
-import Modal from "components/Modal";
 import Button from "components/buttons/Button";
+import Modal from "components/Modal";
+import { AppContext } from "context/app";
 
 const baseClass = "delete-label-modal";
 

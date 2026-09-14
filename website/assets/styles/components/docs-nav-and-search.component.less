@@ -93,12 +93,15 @@
         padding-top: 6px;
         padding-bottom: 6px;
         border: none;
+        &:focus-visible {
+          outline-color: @core-vibrant-green;
         }
         &::placeholder {
           font-size: 16px;
           line-height: 24px;
           color: #8B8FA2;
         }
+      }
       .input-group {
         border-top-left-radius: 6px;
         border-bottom-left-radius: 6px;
@@ -108,14 +111,17 @@
         background: #FFF;
       }
       .input-group:focus-within {
-        border: 1px solid @core-vibrant-blue;
+        border: 1px solid @core-vibrant-green;
       }
       .form-control {
         border-radius: 6px;
         padding: 6px;
         height: 36px;
         margin: 0;
-        width: 212px;
+        width: 171px;
+        .docsearch-input {
+          width: 165px;
+        }
       }
       .docsearch-input:focus-visible {
         outline: none;
@@ -184,7 +190,7 @@
         display: none;
       }
       .input-group:focus-within {
-        border: 1px solid @core-vibrant-blue;
+        border: 1px solid @core-vibrant-green;
       }
       .DocSearch-Button-Placeholder {
         font-size: 16px;
@@ -213,14 +219,17 @@
           background: #FFF;
         }
         .input-group:focus-within {
-          border: 1px solid @core-vibrant-blue;
+          border: 1px solid @core-vibrant-green;
         }
         .form-control {
           border-radius: 6px;
           padding: 6px;
           height: 36px;
           margin: 0;
-          width: 212px;
+          width: 100px;
+          .docsearch-input {
+            width: 65px;
+          }
         }
         .docsearch-input:focus-visible {
           outline: none;

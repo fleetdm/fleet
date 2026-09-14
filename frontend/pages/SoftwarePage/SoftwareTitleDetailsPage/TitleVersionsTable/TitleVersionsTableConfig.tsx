@@ -1,20 +1,18 @@
 import React from "react";
+import { CellProps } from "react-table";
 
-import { ISoftwareTitleVersion } from "interfaces/software";
-import PATHS from "router/paths";
-import { getPathWithQueryParams } from "utilities/url";
-
+import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
+import LinkCell from "components/TableContainer/DataTable/LinkCell";
+import TextCell from "components/TableContainer/DataTable/TextCell";
+import ViewAllHostsLink from "components/ViewAllHostsLink";
 import {
   IHeaderProps,
   INumberCellProps,
   IStringCellProps,
 } from "interfaces/datatable_config";
-import { CellProps } from "react-table";
-
-import TextCell from "components/TableContainer/DataTable/TextCell";
-import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
-import ViewAllHostsLink from "components/ViewAllHostsLink";
-import LinkCell from "components/TableContainer/DataTable/LinkCell";
+import { ISoftwareTitleVersion } from "interfaces/software";
+import PATHS from "router/paths";
+import { getPathWithQueryParams } from "utilities/url";
 
 import VulnerabilitiesCell from "../../components/tables/VulnerabilitiesCell";
 

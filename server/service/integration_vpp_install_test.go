@@ -1106,7 +1106,6 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 		device            *mdmtest.TestAppleMDMClient
 		platform          string
 		titleID           uint
-		certSerial        uint64
 		expectedHostCount int
 	}
 	// Edit iOS app to enable self service
@@ -1114,8 +1113,8 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 	require.NotZero(t, ipadosTitleID)
 
 	ssVppData := []SSVPPTestData{
-		{platform: "ios", titleID: iosTitleID, app: iOSApp, certSerial: uint64(1111), expectedHostCount: 3},          // expectHostCount is from iosHost, ipodHost, and the new ios device
-		{platform: "ipados", titleID: ipadosTitleID, app: iPadOSApp, certSerial: uint64(2222), expectedHostCount: 1}, // no ipad has installed an app, so we expect 1 only for this device
+		{platform: "ios", titleID: iosTitleID, app: iOSApp, expectedHostCount: 3},          // expectHostCount is from iosHost, ipodHost, and the new ios device
+		{platform: "ipados", titleID: ipadosTitleID, app: iPadOSApp, expectedHostCount: 1}, // no ipad has installed an app, so we expect 1 only for this device
 	}
 
 	for _, data := range ssVppData {
@@ -1130,25 +1129,13 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 		data.host, err = s.ds.Host(context.Background(), data.host.ID)
 		require.NoError(t, err)
 
-		// Use certificate authentication
-		headers := map[string]string{
-			"X-Client-Cert-Serial": fmt.Sprintf("%d", data.certSerial),
-		}
-		s.addHostIdentityCertificate(data.host.UUID, data.certSerial)
-
-		// self-install without cert header (UUID auth fallback for iOS/iPadOS)
-		// With fallback auth, UUID auth succeeds for iOS/iPadOS devices, so we get 400 (bad title) instead of 401
+		// self-install a non-existing title
 		res := s.DoRawNoAuth("POST", fmt.Sprintf("/api/v1/fleet/device/%s/software/install/%d", data.host.UUID, 999), nil, http.StatusBadRequest)
 		errMsg := extractServerErrorText(res.Body)
 		require.Contains(t, errMsg, "Software title is not available for install.")
 
-		// self-install a non-existing title (with cert header - same result)
-		res = s.DoRawWithHeaders("POST", fmt.Sprintf("/api/v1/fleet/device/%s/software/install/%d", data.host.UUID, 999), nil, http.StatusBadRequest, headers)
-		errMsg = extractServerErrorText(res.Body)
-		require.Contains(t, errMsg, "Software title is not available for install.")
-
 		// self-install an existing title not available for self-install
-		res = s.DoRawWithHeaders("POST", fmt.Sprintf("/api/v1/fleet/device/%s/software/install/%d", data.host.UUID, data.titleID), nil, http.StatusBadRequest, headers)
+		res = s.DoRawNoAuth("POST", fmt.Sprintf("/api/v1/fleet/device/%s/software/install/%d", data.host.UUID, data.titleID), nil, http.StatusBadRequest)
 		errMsg = extractServerErrorText(res.Body)
 		require.Contains(t, errMsg, "Software title is not available through self-service")
 
@@ -1158,7 +1145,7 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 			&updateAppStoreAppRequest{TitleID: data.titleID, TeamID: &team.ID, SelfService: ptr.Bool(true)}, http.StatusOK, &updateAppResp)
 
 		// Install self-service app correctly
-		s.DoRawWithHeaders("POST", fmt.Sprintf("/api/latest/fleet/device/%s/software/install/%d", data.host.UUID, data.titleID), nil, http.StatusAccepted, headers)
+		s.DoRawNoAuth("POST", fmt.Sprintf("/api/latest/fleet/device/%s/software/install/%d", data.host.UUID, data.titleID), nil, http.StatusAccepted)
 
 		// Verify pending status
 		countResp = countHostsResponse{}
@@ -1793,28 +1780,16 @@ func (s *integrationMDMTestSuite) TestInHouseAppSelfInstall() {
 		"fleet_id": null, "team_id": null, "self_service": false, "software_title_id": %d}`, titleID)
 	s.lastActivityMatches(fleet.ActivityTypeAddedSoftware{}.ActivityName(), activityData, 0)
 
-	// Add certificate authentication for iPhone
 	iosHost, err := s.ds.Host(ctx, iosHost.ID)
 	require.NoError(t, err)
-	certSerial := uint64(123456789)
-	headers := map[string]string{
-		"X-Client-Cert-Serial": fmt.Sprintf("%d", certSerial),
-	}
-	s.addHostIdentityCertificate(iosHost.UUID, certSerial)
 
-	// self-install without cert header (UUID auth fallback for iOS)
-	// With fallback auth, UUID auth succeeds for iOS devices, so we get 400 (bad title) instead of 401
+	// self-install a non-existing title
 	res := s.DoRawNoAuth("POST", fmt.Sprintf("/api/v1/fleet/device/%s/software/install/%d", iosHost.UUID, 999), nil, http.StatusBadRequest)
 	errMsg := extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "Software title is not available for install.")
 
-	// self-install a non-existing title (with cert header - same result)
-	res = s.DoRawWithHeaders("POST", fmt.Sprintf("/api/v1/fleet/device/%s/software/install/%d", iosHost.UUID, 999), nil, http.StatusBadRequest, headers)
-	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, "Software title is not available for install.")
-
 	// self-install an existing title not available for self-install
-	res = s.DoRawWithHeaders("POST", fmt.Sprintf("/api/v1/fleet/device/%s/software/install/%d", iosHost.UUID, titleID), nil, http.StatusBadRequest, headers)
+	res = s.DoRawNoAuth("POST", fmt.Sprintf("/api/v1/fleet/device/%s/software/install/%d", iosHost.UUID, titleID), nil, http.StatusBadRequest)
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "Software title is not available through self-service")
 
@@ -1826,7 +1801,7 @@ func (s *integrationMDMTestSuite) TestInHouseAppSelfInstall() {
 	s.lastActivityMatches(fleet.ActivityTypeEditedSoftware{}.ActivityName(), activityData, 0)
 
 	// self-install request is accepted
-	s.DoRawWithHeaders("POST", fmt.Sprintf("/api/v1/fleet/device/%s/software/install/%d", iosHost.UUID, titleID), nil, http.StatusAccepted, headers)
+	s.DoRawNoAuth("POST", fmt.Sprintf("/api/v1/fleet/device/%s/software/install/%d", iosHost.UUID, titleID), nil, http.StatusAccepted)
 
 	var installCmdUUID string
 	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
@@ -1921,7 +1896,7 @@ func (s *integrationMDMTestSuite) TestInHouseAppSelfInstall() {
 	}, http.StatusOK, "")
 
 	// self-install request is rejected
-	res = s.DoRawWithHeaders("POST", fmt.Sprintf("/api/v1/fleet/device/%s/software/install/%d", iosHost.UUID, titleID), nil, http.StatusBadRequest, headers)
+	res = s.DoRawNoAuth("POST", fmt.Sprintf("/api/v1/fleet/device/%s/software/install/%d", iosHost.UUID, titleID), nil, http.StatusBadRequest)
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "This software is not available for this host.")
 
@@ -1932,7 +1907,7 @@ func (s *integrationMDMTestSuite) TestInHouseAppSelfInstall() {
 	}, http.StatusOK, &addLabelsToHostResp)
 
 	// self-install request is now accepted
-	s.DoRawWithHeaders("POST", fmt.Sprintf("/api/v1/fleet/device/%s/software/install/%d", iosHost.UUID, titleID), nil, http.StatusAccepted, headers)
+	s.DoRawNoAuth("POST", fmt.Sprintf("/api/v1/fleet/device/%s/software/install/%d", iosHost.UUID, titleID), nil, http.StatusAccepted)
 }
 
 func (s *integrationMDMTestSuite) TestGetInHouseAppManifestUnsignedURL() {
@@ -2011,48 +1986,6 @@ func (s *integrationMDMTestSuite) TestGetInHouseAppManifestInvalidToken() {
 			s.DoRawNoAuth("GET", c.path, nil, c.want)
 		})
 	}
-}
-
-func (s *integrationMDMTestSuite) addHostIdentityCertificate(hostUUID string, certSerial uint64) {
-	t := s.T()
-	s.setSkipWorkerJobs(t)
-	ctx := context.Background()
-
-	// Generate a real certificate for the device with proper SHA256 hash
-	certPEM, certHash, _ := generateTestCertForDeviceAuth(t, certSerial, hostUUID)
-
-	// Insert certificate data using the new nanomdm tables
-	mysqltest.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
-		// Insert serial number
-		_, err := db.ExecContext(ctx, `INSERT INTO identity_serials (serial) VALUES (?)`, certSerial)
-		if err != nil {
-			return err
-		}
-
-		// Insert certificate
-		_, err = db.ExecContext(ctx, `
-			INSERT INTO identity_certificates
-			(serial, name, not_valid_before, not_valid_after, certificate_pem, revoked)
-			VALUES (?, ?, ?, ?, ?, ?)
-		`,
-			certSerial,
-			hostUUID,
-			time.Now().Add(-24*time.Hour),
-			time.Now().Add(365*24*time.Hour),
-			certPEM,
-			false,
-		)
-		if err != nil {
-			return err
-		}
-
-		// Insert certificate association for device authentication
-		_, err = db.ExecContext(ctx, `
-			INSERT INTO nano_cert_auth_associations (id, sha256)
-			VALUES (?, ?)
-		`, hostUUID, certHash)
-		return err
-	})
 }
 
 // TestInHouseAppVPPConflict tests that IPA (in-house apps) and VPP iOS/iPadOS apps

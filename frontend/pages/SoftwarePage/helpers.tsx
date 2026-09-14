@@ -9,6 +9,8 @@
 
 import React from "react";
 
+import CustomLink from "components/CustomLink";
+import { IDropdownOption } from "interfaces/dropdownOption";
 import { getErrorReason } from "interfaces/errors";
 import {
   IHostSoftware,
@@ -19,11 +21,7 @@ import {
   ISoftwareInstallPolicy,
   SoftwareInstallPolicyTypeSet,
 } from "interfaces/software";
-import { IDropdownOption } from "interfaces/dropdownOption";
-
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
-
-import CustomLink from "components/CustomLink";
 
 /**
  * helper function to generate error message for secret variables based

@@ -518,6 +518,16 @@ type GroupedCertificateAuthorities struct {
 	Smallstep       []SmallstepSCEPProxyCA `json:"smallstep"`
 }
 
+// IsEmpty returns true if no certificate authorities of any type are configured.
+func (g *GroupedCertificateAuthorities) IsEmpty() bool {
+	return len(g.EST) == 0 &&
+		len(g.Hydrant) == 0 &&
+		len(g.DigiCert) == 0 &&
+		g.NDESSCEP == nil &&
+		len(g.CustomScepProxy) == 0 &&
+		len(g.Smallstep) == 0
+}
+
 // ToCustomSCEPProxyCAMap converts the CustomScepProxy slice to a map keyed by CA name
 func (g *GroupedCertificateAuthorities) ToCustomSCEPProxyCAMap() map[string]*CustomSCEPProxyCA {
 	customSCEPCAs := make(map[string]*CustomSCEPProxyCA, len(g.CustomScepProxy))

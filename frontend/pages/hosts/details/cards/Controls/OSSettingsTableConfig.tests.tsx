@@ -1,5 +1,5 @@
-import { IHostMdmData, IHostMdmHostNameSetting } from "interfaces/host";
 import { createMockHostMdmProfile } from "__mocks__/hostMock";
+import { IHostMdmData, IHostMdmHostNameSetting } from "interfaces/host";
 import {
   generateRecoveryLockPasswordSetting,
   generateWinDiskEncryptionSetting,

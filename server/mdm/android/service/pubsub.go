@@ -204,6 +204,8 @@ func (svc *Service) handlePubSubCommand(ctx context.Context, token string, rawDa
 
 	newStatus, errCode, errMsg := androidOperationTerminalState(&op)
 
+	redactOperationSensitiveFields(&op)
+
 	// Store the raw Operation JSON so custom command results can be retrieved via the API.
 	var rawResult *string
 	if resultJSON, err := json.Marshal(op); err == nil {

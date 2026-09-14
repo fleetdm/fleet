@@ -1,20 +1,19 @@
 import React, { ReactNode, useCallback, useMemo } from "react";
 
-import { IHostReport } from "services/entities/host_reports";
-import { humanLastSeen } from "utilities/helpers";
-import { pluralize } from "utilities/strings/stringUtils";
-
+import ActionsDropdown from "components/ActionsDropdown";
 import Button from "components/buttons/Button";
 import Card from "components/Card";
 import DataSet from "components/DataSet";
 import Icon from "components/Icon";
 import { IconNames } from "components/icons";
 import InfoBanner from "components/InfoBanner";
-import ActionsDropdown from "components/ActionsDropdown";
-import { IDropdownOption } from "interfaces/dropdownOption";
 import Tag from "components/Tag";
 import TooltipTruncatedText from "components/TooltipTruncatedText";
+import { IDropdownOption } from "interfaces/dropdownOption";
+import { IHostReport } from "services/entities/host_reports";
 import { Colors } from "styles/var/colors";
+import { humanLastSeen } from "utilities/helpers";
+import { pluralize } from "utilities/strings/stringUtils";
 
 const baseClass = "host-report-card";
 const ICON_COLOR: Colors = "ui-fleet-black-75";
@@ -172,7 +171,9 @@ const HostReportCard = ({
       <div className={`${baseClass}__header`}>
         <div className={`${baseClass}__header-left`}>
           <div className={`${baseClass}__title-row`}>
-            <h3 className={`${baseClass}__name`}>{report.name}</h3>
+            <h3 className={`${baseClass}__name`}>
+              <TooltipTruncatedText value={report.name} fixedPositionStrategy />
+            </h3>
             {renderLastUpdated()}
           </div>
           {report.description && (
