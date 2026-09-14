@@ -106,7 +106,7 @@ func (svc *Service) GetZeroTouchConfiguration(ctx context.Context, teamID *uint)
 }
 
 // One of two expected to resolve team properly
-//   - {"team_id": <uint|null>} team_id key must be present
+//   - {"fleet_id": <uint|null>} fleet_id key must be present
 //   - {"EnrollSecret":"...", "IdpUUID":"..."}
 func (svc *Service) resolveTeamFromEnrollmentData(ctx context.Context, enrollmentTokenData string) (teamID *uint, idpUUID string, err error) {
 	var raw map[string]json.RawMessage

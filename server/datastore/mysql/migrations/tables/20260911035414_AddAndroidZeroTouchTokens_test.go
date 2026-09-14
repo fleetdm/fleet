@@ -29,7 +29,11 @@ func TestUp_20260911035414(t *testing.T) {
 	)
 	require.Error(t, err, "unique key should prevent duplicate unassigned token")
 
-	// Insert a token for a specific team
+	// Create a team so the FK is satisfied
+	_, err = db.Exec(`INSERT INTO teams (name) VALUES ('zt-migration-test')`)
+	require.NoError(t, err)
+
+	// Insert a token for that team
 	_, err = db.Exec(`
 		INSERT INTO android_zero_touch_tokens (team_id, global_or_team_id, token_name, token_value, expires_at)
 		VALUES (1, 1, 'enterprises/LC00test/enrollmentTokens/ghi789', 'tokenvalue789', ?)`,
