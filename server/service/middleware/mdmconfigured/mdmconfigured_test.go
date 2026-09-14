@@ -90,6 +90,44 @@ func TestMDMNotConfigured(t *testing.T) {
 	require.False(t, nextCalled)
 }
 
+func TestPreauthMDMConfigured(t *testing.T) {
+	svc := mockService{}
+	svc.mdmConfigured.Store(true)
+	mw := NewMDMConfigMiddleware(&svc)
+
+	nextCalled := false
+	next := func(ctx context.Context, req any) (any, error) {
+		nextCalled = true
+		return struct{}{}, nil
+	}
+
+	f := mw.VerifyAppleMDMPreauth()(next)
+	_, err := f(context.Background(), struct{}{})
+	require.NoError(t, err)
+	require.True(t, nextCalled)
+}
+
+// On unauthenticated routes, a not-configured server must respond exactly like
+// one rejecting bad credentials, so callers can't probe configuration state.
+func TestPreauthMDMNotConfigured(t *testing.T) {
+	svc := mockService{}
+	svc.mdmConfigured.Store(false)
+	mw := NewMDMConfigMiddleware(&svc)
+
+	nextCalled := false
+	next := func(ctx context.Context, req any) (any, error) {
+		nextCalled = true
+		return struct{}{}, nil
+	}
+
+	f := mw.VerifyAppleMDMPreauth()(next)
+	_, err := f(context.Background(), struct{}{})
+	var authFailed *fleet.AuthFailedError
+	require.ErrorAs(t, err, &authFailed)
+	require.NotErrorIs(t, err, fleet.ErrMDMNotConfigured)
+	require.False(t, nextCalled)
+}
+
 func TestWindowsMDMConfigured(t *testing.T) {
 	svc := mockService{}
 	svc.msMdmConfigured.Store(true)

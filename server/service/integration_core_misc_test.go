@@ -505,6 +505,7 @@ func (s *integrationTestSuite) TestMDMNotConfiguredEndpoints() {
 
 	windowsOnly := windowsMDMConfigurationRequiredEndpoints()
 	androidOnly := androidMDMConfigurationRequiredEndpoints()
+	preauth := preauthMDMConfigurationRequiredEndpoints()
 
 	for _, route := range mdmConfigurationRequiredEndpoints() {
 		var expectedErr fleet.ErrWithStatusCode = fleet.ErrMDMNotConfigured
@@ -513,6 +514,8 @@ func (s *integrationTestSuite) TestMDMNotConfiguredEndpoints() {
 			expectedErr = fleet.ErrWindowsMDMNotConfigured
 		} else if slices.Contains(androidOnly, path) {
 			expectedErr = fleet.ErrAndroidMDMNotConfigured
+		} else if slices.Contains(preauth, path) {
+			expectedErr = fleet.NewAuthFailedError("")
 		}
 
 		if route.deviceAuthenticated {

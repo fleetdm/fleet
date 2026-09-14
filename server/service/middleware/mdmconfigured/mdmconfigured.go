@@ -31,6 +31,22 @@ func (m *Middleware) VerifyAppleMDM() endpoint.Middleware {
 	}
 }
 
+// VerifyAppleMDMPreauth is VerifyAppleMDM for unauthenticated endpoints: when
+// Apple MDM is not configured it responds exactly like a failed credential
+// check, so anonymous callers can't probe configuration state. The detailed
+// reason is only logged server-side.
+func (m *Middleware) VerifyAppleMDMPreauth() endpoint.Middleware {
+	return func(next endpoint.Endpoint) endpoint.Endpoint {
+		return func(ctx context.Context, req any) (any, error) {
+			if err := m.svc.VerifyMDMAppleConfigured(ctx); err != nil {
+				return nil, fleet.NewAuthFailedError(err.Error())
+			}
+
+			return next(ctx, req)
+		}
+	}
+}
+
 // VerifyAppleMDMOnMacOSHosts verifies that MDM is enabled and configured when it's an Apple host making the request.
 // This is used on API endpoints that are reused on Linux hosts (which don't require Apple MDM to be configured).
 func (m *Middleware) VerifyAppleMDMOnMacOSHosts() endpoint.Middleware {
