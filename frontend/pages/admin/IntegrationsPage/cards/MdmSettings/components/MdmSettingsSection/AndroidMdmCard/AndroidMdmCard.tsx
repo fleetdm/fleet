@@ -1,8 +1,7 @@
 import React, { useContext } from "react";
 
-import { AppContext } from "context/app";
-
 import Button from "components/buttons/Button";
+import { AppContext } from "context/app";
 
 import SectionCard from "../../SectionCard";
 

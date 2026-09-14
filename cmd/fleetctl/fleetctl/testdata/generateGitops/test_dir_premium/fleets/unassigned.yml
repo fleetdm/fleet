@@ -28,6 +28,7 @@ controls:
     minimum_version: "15.1"
     update_new_hosts: true
   name_template: No team Mac $FLEET_VAR_HOST_UUID
+  only_allow_apple_business_enrollment: false
   scripts:
   - path: ../lib/unassigned/scripts/Script Z.ps1
   setup_experience: 'TODO: update with your setup_experience configuration'

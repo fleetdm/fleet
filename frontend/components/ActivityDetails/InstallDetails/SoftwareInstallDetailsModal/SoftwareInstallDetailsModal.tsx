@@ -6,42 +6,42 @@
  * For Android Google Play Store apps, we also use THIS modal
  * For all other apps, we use THIS modal */
 
+import { AxiosError } from "axios";
 import React, { useState } from "react";
 import { useQuery } from "react-query";
-import { timeAgo } from "utilities/date_format";
-import { AxiosError } from "axios";
 
-import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
-
+import Button from "components/buttons/Button";
+import CopyButton from "components/buttons/CopyButton";
+import RevealButton from "components/buttons/RevealButton";
+import CustomLink from "components/CustomLink";
+import DataError from "components/DataError/DataError";
+import DataSet from "components/DataSet";
+import DeviceUserError from "components/DeviceUserError";
+import IconStatusMessage from "components/IconStatusMessage";
+import Modal from "components/Modal";
+import ModalFooter from "components/ModalFooter";
+import PremiumFeatureMessage from "components/PremiumFeatureMessage";
+import Spinner from "components/Spinner/Spinner";
+import Textarea from "components/Textarea";
+import TooltipTruncatedText from "components/TooltipTruncatedText";
 import {
   IHostSoftware,
   ISoftwareInstallResult,
   ISoftwareInstallResults,
 } from "interfaces/software";
-import softwareAPI from "services/entities/software";
-import deviceUserAPI from "services/entities/device_user";
-
 import InventoryVersions from "pages/hosts/details/components/InventoryVersions";
 import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
-
-import Modal from "components/Modal";
-import ModalFooter from "components/ModalFooter";
-import Button from "components/buttons/Button";
-import CopyButton from "components/buttons/CopyButton";
-import IconStatusMessage from "components/IconStatusMessage";
-import Textarea from "components/Textarea";
-import DataError from "components/DataError/DataError";
-import DataSet from "components/DataSet";
-import DeviceUserError from "components/DeviceUserError";
-import Spinner from "components/Spinner/Spinner";
-import RevealButton from "components/buttons/RevealButton";
-import CustomLink from "components/CustomLink";
-import PremiumFeatureMessage from "components/PremiumFeatureMessage";
-import TooltipTruncatedText from "components/TooltipTruncatedText";
+import deviceUserAPI from "services/entities/device_user";
+import softwareAPI from "services/entities/software";
+import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
+import { timeAgo } from "utilities/date_format";
 
 import {
   INSTALL_DETAILS_STATUS_ICONS,
   SKIPPED_INSTALL_DETAILS,
+  SKIPPED_INSTALL_DETAILS_LINK_TEXT,
+  SKIPPED_INSTALL_DETAILS_LINK_URL,
+  SKIPPED_INSTALL_DETAILS_PREFIX,
   SKIPPED_PRE_INSTALL_OUTPUT,
   getInstallDetailsStatusPredicate,
 } from "../constants";
@@ -149,6 +149,22 @@ export const StatusMessage = ({
     : "";
 
   if (skippedInstall && status === "failed_install") {
+    // Admin-facing pages link "policy runs again" to cadence docs; the end-user
+    // "My device" flow shows plain text since the doc is admin-only.
+    const skippedDetails = isMyDevicePage ? (
+      SKIPPED_INSTALL_DETAILS
+    ) : (
+      <>
+        {SKIPPED_INSTALL_DETAILS_PREFIX}
+        <CustomLink
+          url={SKIPPED_INSTALL_DETAILS_LINK_URL}
+          text={SKIPPED_INSTALL_DETAILS_LINK_TEXT}
+          newTab
+        />
+        .
+      </>
+    );
+
     return (
       <IconStatusMessage
         className={`${baseClass}__status-message`}
@@ -158,7 +174,7 @@ export const StatusMessage = ({
           <span>
             Fleet skipped install of <b>{software_title}</b> ({software_package}
             ) on {formattedHost}
-            {displayTimeStamp}. {SKIPPED_INSTALL_DETAILS}
+            {displayTimeStamp}. {skippedDetails}
           </span>
         }
       />
@@ -377,17 +393,21 @@ export const SoftwareInstallDetailsModal = ({
   // True when host inventory reports at least one installed version for this app.
   const inventoryReportsInstalled = !!hostSoftware?.installed_versions?.length;
 
-  // This modal is opened in two contexts:
-  // - From Host -> Software: hostSoftware is defined (we trust inventory to override failures).
-  // - From the Activity feed: hostSoftware is undefined (we trust install result status).
+  // This modal is opened in three contexts:
+  // - Admin Host -> Software: hostSoftware defined, no deviceAuthToken.
+  // - End-user My device: hostSoftware defined, deviceAuthToken present.
+  // - Activity feed: hostSoftware undefined.
   const openedFromHostSoftwarePage = !!hostSoftware;
 
   // Used only for overriding failed_install/failed_uninstall -> "is installed."
-  // - From Host -> Software: override based on inventory.
-  // - From Activity feed: never override (always show the failure).
-  const canOverrideFailureWithInstalled = openedFromHostSoftwarePage
-    ? inventoryReportsInstalled
-    : false;
+  // - Admin Host -> Software: override based on inventory (4.82 #31663).
+  // - My device: never override — the end user just triggered Update and needs
+  //   to see the failure + Details + Retry (#52017).
+  // - Activity feed: never override (always show the failure).
+  const canOverrideFailureWithInstalled =
+    openedFromHostSoftwarePage && !deviceAuthToken
+      ? inventoryReportsInstalled
+      : false;
 
   // Treat failed_install / failed_uninstall with installed versions as installed
   const overrideFailedMessageWithInstalledMessage =

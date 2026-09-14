@@ -124,6 +124,7 @@ func initRedis(
 	wrappedDS := cached_mysql.New(ds)
 
 	var dsOpts []mysqlredis.Option
+	dsOpts = append(dsOpts, mysqlredis.WithLogger(logger.With("component", "mysqlredis")))
 	if license.DeviceCount > 0 && cfg.License.EnforceHostLimit {
 		dsOpts = append(dsOpts, mysqlredis.WithEnforcedHostLimit(license.DeviceCount))
 	}

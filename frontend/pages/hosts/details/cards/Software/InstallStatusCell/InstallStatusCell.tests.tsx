@@ -1,12 +1,13 @@
-import React from "react";
 import { render, screen, waitFor } from "@testing-library/react";
-import { renderWithSetup } from "test/test-utils";
+import { noop } from "lodash";
+import React from "react";
+
 import {
   createMockHostSoftware,
   createMockHostAppStoreApp,
   createMockHostSoftwarePackage,
 } from "__mocks__/hostMock";
-import { noop } from "lodash";
+import { renderWithSetup } from "test/test-utils";
 
 import InstallStatusCell from "./InstallStatusCell";
 

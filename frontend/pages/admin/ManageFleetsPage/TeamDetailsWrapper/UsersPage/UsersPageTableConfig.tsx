@@ -1,17 +1,16 @@
 import React from "react";
 
-import stringUtils from "utilities/strings";
-import permissions from "utilities/permissions";
-import { IUser, UserRole } from "interfaces/user";
-import { ITeam } from "interfaces/team";
-import { IDropdownOption } from "interfaces/dropdownOption";
-
-import TextCell from "components/TableContainer/DataTable/TextCell/TextCell";
-import TooltipTruncatedTextCell from "components/TableContainer/DataTable/TooltipTruncatedTextCell";
 import ActionsDropdown from "components/ActionsDropdown";
 import CustomLink from "components/CustomLink";
-import TooltipWrapper from "components/TooltipWrapper";
+import TextCell from "components/TableContainer/DataTable/TextCell/TextCell";
+import TooltipTruncatedTextCell from "components/TableContainer/DataTable/TooltipTruncatedTextCell";
 import Tag from "components/Tag";
+import TooltipWrapper from "components/TooltipWrapper";
+import { IDropdownOption } from "interfaces/dropdownOption";
+import { ITeam } from "interfaces/team";
+import { IUser, UserRole } from "interfaces/user";
+import permissions from "utilities/permissions";
+import stringUtils from "utilities/strings";
 
 interface IHeaderProps {
   column: {
@@ -74,7 +73,7 @@ export const renderApiUserIndicator = () => {
           />
         </>
       }
-      size="small"
+      size="xsmall"
     >
       API
     </Tag>

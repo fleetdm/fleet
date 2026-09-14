@@ -1,11 +1,12 @@
-import URL_PREFIX from "router/url_prefix";
+import React from "react";
+
+import { ICampaign } from "interfaces/campaign";
+import { IDropdownOption } from "interfaces/dropdownOption";
+import { IHost } from "interfaces/host";
+import { MdmEnrollmentStatus } from "interfaces/mdm";
 import { DisplayPlatform, Platform } from "interfaces/platform";
 import { ISchedulableQuery } from "interfaces/schedulable_query";
-import React from "react";
-import { IDropdownOption } from "interfaces/dropdownOption";
-import { ICampaign } from "interfaces/campaign";
-import { MdmEnrollmentStatus } from "interfaces/mdm";
-import { IHost } from "interfaces/host";
+import URL_PREFIX from "router/url_prefix";
 
 const { origin } = global.window.location;
 export const BASE_URL = `${origin}${URL_PREFIX}/api`;
@@ -436,6 +437,7 @@ export const HOST_SUMMARY_DATA: (keyof IHost)[] = [
   "issues",
   "platform",
   "detail_updated_at",
+  "policy_updated_at",
   "team_name",
   "display_name", // Not rendered on my device page
   "maintenance_window", // Not rendered on my device page
@@ -473,6 +475,22 @@ export const HOST_VITALS_DATA = [
   "timezone",
   "mdm_enrollment_hardware_attested",
   "primary_mac",
+  // Android-only vitals. Absent for every other platform, so they're simply
+  // dropped by the pick rather than needing a platform check here.
+  "adb_enabled",
+  "passcode_protected",
+  "play_protect_enabled",
+  "encryption_type",
+  "manufacturer",
+  "security_update_version",
+  "device_kernel_version",
+  "bootloader_version",
+  "system_update_status",
+  "security_posture",
+  "imei",
+  "meid",
+  "api_level",
+  "telephony_infos",
 ];
 
 export const HOST_OSQUERY_DATA = [

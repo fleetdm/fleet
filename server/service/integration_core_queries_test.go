@@ -116,7 +116,7 @@ func (s *integrationTestSuite) TestGlobalSchedule() {
 	require.NoError(t, err)
 
 	// schedule that query
-	gsParams := fleet.ScheduledQueryPayload{QueryID: new(qr.ID), Interval: new(uint(42))}
+	gsParams := fleet.ScheduledQueryPayload{QueryID: &qr.ID, Interval: new(uint(42))}
 	r := globalScheduleQueryResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/schedule", gsParams, http.StatusOK, &r)
 
@@ -517,9 +517,10 @@ func (s *integrationTestSuite) TestScheduledQueriesInPackInvalidOrderKey() {
 
 	// create a pack so the endpoint has a real id to operate on
 	var createPackResp createPackResponse
+	name := strings.ReplaceAll(t.Name(), "/", "_")
 	s.DoJSON("POST", "/api/latest/fleet/packs", &createPackRequest{
 		PackPayload: fleet.PackPayload{
-			Name: new(strings.ReplaceAll(t.Name(), "/", "_")),
+			Name: &name,
 		},
 	}, http.StatusOK, &createPackResp)
 	pack := createPackResp.Pack.Pack

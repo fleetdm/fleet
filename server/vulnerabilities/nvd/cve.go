@@ -631,13 +631,13 @@ func checkCVEs(
 								sink.addSoftware(ctx, fleet.SoftwareVulnerability{
 									SoftwareID:        CPEItem.GetID(),
 									CVE:               matches.CVE.ID(),
-									ResolvedInVersion: new(resolvedVersion),
+									ResolvedInVersion: &resolvedVersion,
 								})
 							} else if _, ok := CPEItem.(osCPEWithNVDMeta); ok {
 								sink.addOS(ctx, fleet.OSVulnerability{
 									OSID:              CPEItem.GetID(),
 									CVE:               matches.CVE.ID(),
-									ResolvedInVersion: new(resolvedVersion),
+									ResolvedInVersion: &resolvedVersion,
 								})
 							}
 

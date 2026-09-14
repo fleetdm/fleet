@@ -1,12 +1,11 @@
 import React from "react";
 
+import ActivityItem from "components/ActivityItem";
 import {
   getInstallUninstallStatusPredicate,
   getInstallUninstallStatusPredicatePassive,
   SCRIPT_PACKAGE_SOURCES,
 } from "interfaces/software";
-
-import ActivityItem from "components/ActivityItem";
 
 import { IHostActivityItemComponentPropsWithShowDetails } from "../../ActivityConfig";
 

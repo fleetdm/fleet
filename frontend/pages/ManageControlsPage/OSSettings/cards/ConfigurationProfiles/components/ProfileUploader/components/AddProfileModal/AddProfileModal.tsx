@@ -1,18 +1,6 @@
+import { AxiosResponse } from "axios";
 import React, { useCallback, useRef, useState } from "react";
 import { useQuery } from "react-query";
-import { AxiosResponse } from "axios";
-
-import PATHS from "router/paths";
-import { notify } from "components/ToastNotification";
-
-import { IApiError } from "interfaces/errors";
-import { ILabelSummary } from "interfaces/label";
-
-import labelsAPI, {
-  getCustomLabels,
-  listNamesFromSelectedLabels,
-} from "services/entities/labels";
-import mdmAPI from "services/entities/mdm";
 
 import Button from "components/buttons/Button";
 import Card from "components/Card";
@@ -26,7 +14,15 @@ import {
   LabelTargetMode,
   TargetType,
 } from "components/TargetLabelSelector";
-import ProfileGraphic from "../ProfileGraphic";
+import { notify } from "components/ToastNotification";
+import { IApiError } from "interfaces/errors";
+import { ILabelSummary } from "interfaces/label";
+import PATHS from "router/paths";
+import labelsAPI, {
+  getCustomLabels,
+  listNamesFromSelectedLabels,
+} from "services/entities/labels";
+import mdmAPI from "services/entities/mdm";
 
 import {
   DEFAULT_ERROR_MESSAGE,
@@ -35,6 +31,7 @@ import {
   IParseFileResult,
   parseFile,
 } from "../../helpers";
+import ProfileGraphic from "../ProfileGraphic";
 
 const baseClass = "add-profile-modal";
 

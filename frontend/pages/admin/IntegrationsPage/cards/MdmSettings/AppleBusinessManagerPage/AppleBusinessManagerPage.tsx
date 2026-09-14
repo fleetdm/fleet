@@ -1,32 +1,28 @@
+import { AxiosError } from "axios";
 import React, { useCallback, useContext, useRef, useState } from "react";
-
 import { useQuery } from "react-query";
 import { InjectedRouter } from "react-router";
 
-import { AxiosError } from "axios";
-
-import PATHS from "router/paths";
-
+import { getEarliestExpiry } from "components/App/App";
+import BackButton from "components/BackButton";
+import Button from "components/buttons/Button";
+import DataError from "components/DataError";
+import EmptyState from "components/EmptyState";
+import MainContent from "components/MainContent";
+import PremiumFeatureMessage from "components/PremiumFeatureMessage";
+import Spinner from "components/Spinner";
 import { AppContext } from "context/app";
 import { IMdmAbToken } from "interfaces/mdm";
+import PATHS from "router/paths";
 import mdmAbmAPI, {
   IGetAbTokensResponse,
 } from "services/entities/mdm_apple_bm";
 
-import BackButton from "components/BackButton";
-import Button from "components/buttons/Button";
-import DataError from "components/DataError";
-import MainContent from "components/MainContent";
-import Spinner from "components/Spinner";
-import PremiumFeatureMessage from "components/PremiumFeatureMessage";
-import EmptyState from "components/EmptyState";
-import { getEarliestExpiry } from "components/App/App";
-
-import AppleBusinessManagerTable from "./components/AppleBusinessManagerTable";
 import AddAbmModal from "./components/AddAbmModal";
-import RenewAbmModal from "./components/RenewAbmModal";
+import AppleBusinessManagerTable from "./components/AppleBusinessManagerTable";
 import DeleteAbmModal from "./components/DeleteAbmModal";
 import EditTeamsAbmModal from "./components/EditTeamsAbmModal";
+import RenewAbmModal from "./components/RenewAbmModal";
 
 const baseClass = "apple-business-manager-page";
 

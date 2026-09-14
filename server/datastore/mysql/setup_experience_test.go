@@ -2204,8 +2204,8 @@ func testUpdateStatusGuardsTerminalStates(t *testing.T, ds *Datastore) {
 			HostUUID:                        hostUUID,
 			Name:                            "sw-" + string(termStatus),
 			Status:                          termStatus,
-			SoftwareInstallerID:             new(installerID),
-			HostSoftwareInstallsExecutionID: new(execID),
+			SoftwareInstallerID:             &installerID,
+			HostSoftwareInstallsExecutionID: &execID,
 		}
 		insertRow(row)
 		updated, err := ds.MaybeUpdateSetupExperienceSoftwareInstallStatus(ctx, hostUUID, execID, fleet.SetupExperienceStatusFailure)

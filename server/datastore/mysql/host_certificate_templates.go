@@ -450,9 +450,10 @@ func (ds *Datastore) ListAndroidHostUUIDsWithPendingCertificateTemplates(
 		SELECT DISTINCT host_uuid
 		FROM host_certificate_templates
 		WHERE status = '%s'
+		  AND (retry_count = 0 OR retry_count > %d OR updated_at <= NOW() - INTERVAL CAST(POW(2, retry_count - 1) * 30 AS UNSIGNED) SECOND)
 		ORDER BY host_uuid
 		LIMIT ? OFFSET ?
-	`, fleet.CertificateTemplatePending)
+	`, fleet.CertificateTemplatePending, fleet.MaxCertificateInstallRetries)
 	var hostUUIDs []string
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hostUUIDs, stmt, limit, offset); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "list host uuids with pending certificate templates")
@@ -738,9 +739,11 @@ func (ds *Datastore) GetAndroidCertificateTemplatesForRenewal(
 }
 
 // SetAndroidCertificateTemplatesForRenewal marks the specified certificate templates for renewal
-// by setting status to 'pending', clearing validity fields and fleet_challenge, and generating a new UUID.
+// by setting status to 'pending', clearing validity fields, detail and fleet_challenge, and generating a new UUID.
 // The new UUID signals to the Android agent that the certificate needs renewal.
 // The fleet_challenge is cleared so a fresh one is generated when the device fetches the renewed certificate.
+// The detail is cleared along with the retry count because the renewal starts a fresh delivery: leaving
+// it would surface an error from the previous lifecycle against a renewal that is going fine.
 func (ds *Datastore) SetAndroidCertificateTemplatesForRenewal(
 	ctx context.Context,
 	templates []fleet.HostCertificateTemplateForRenewal,
@@ -764,6 +767,7 @@ func (ds *Datastore) SetAndroidCertificateTemplatesForRenewal(
 		SET
 			status = '%s',
 			retry_count = 0,
+			detail = NULL,
 			uuid = UUID_TO_BIN(UUID(), true),
 			not_valid_before = NULL,
 			not_valid_after = NULL,
@@ -831,7 +835,6 @@ func (ds *Datastore) GetOrCreateFleetChallengeForCertificateTemplate(
 		challenge = newChal
 		return nil
 	})
-
 	if err != nil {
 		return "", err
 	}

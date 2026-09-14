@@ -3586,48 +3586,48 @@ func (a *agent) runLiveYaraQuery(query string) (results []map[string]string, sta
 	// Return a response indicating that the file is clean.
 	ss := fleet.OsqueryStatus(0)
 	return []map[string]string{
-			{
-				"count":     "0",
-				"matches":   "",
-				"strings":   "",
-				"tags":      "",
-				"sig_group": "",
-				"sigfile":   "",
-				"sigrule":   "",
-				"sigurl":    url,
-				// Could pull this from the query, but not necessary for load testing.
-				"path": "/some/path",
-			},
-		}, &ss, nil, &fleet.Stats{
-			WallTimeMs: uint64(rand.Intn(1000) * 1000),
-			UserTime:   uint64(rand.Intn(1000)),
-			SystemTime: uint64(rand.Intn(1000)),
-			Memory:     uint64(rand.Intn(1000)),
-		}
+		{
+			"count":     "0",
+			"matches":   "",
+			"strings":   "",
+			"tags":      "",
+			"sig_group": "",
+			"sigfile":   "",
+			"sigrule":   "",
+			"sigurl":    url,
+			// Could pull this from the query, but not necessary for load testing.
+			"path": "/some/path",
+		},
+	}, &ss, nil, &fleet.Stats{
+		WallTimeMs: uint64(rand.Intn(1000) * 1000), //nolint:gosec // G115: rand.Intn(1000) is bounded, so this cannot overflow.
+		UserTime:   uint64(rand.Intn(1000)),        //nolint:gosec // G115: rand.Intn(1000) is bounded, so this cannot overflow.
+		SystemTime: uint64(rand.Intn(1000)),        //nolint:gosec // G115: rand.Intn(1000) is bounded, so this cannot overflow.
+		Memory:     uint64(rand.Intn(1000)),        //nolint:gosec // G115: rand.Intn(1000) is bounded, so this cannot overflow.
+	}
 }
 
 func (a *agent) runLiveMockQuery(query string) (results []map[string]string, status *fleet.OsqueryStatus, message *string, stats *fleet.Stats) {
 	ss := fleet.OsqueryStatus(0)
 	return []map[string]string{
-			{
-				"admindir":   "/var/lib/dpkg",
-				"arch":       "amd64",
-				"maintainer": "foobar",
-				"name":       "netconf",
-				"priority":   "optional",
-				"revision":   "",
-				"section":    "default",
-				"size":       "112594",
-				"source":     "",
-				"status":     "install ok installed",
-				"version":    "20230224000000",
-			},
-		}, &ss, nil, &fleet.Stats{
-			WallTimeMs: uint64(rand.Intn(1000) * 1000),
-			UserTime:   uint64(rand.Intn(1000)),
-			SystemTime: uint64(rand.Intn(1000)),
-			Memory:     uint64(rand.Intn(1000)),
-		}
+		{
+			"admindir":   "/var/lib/dpkg",
+			"arch":       "amd64",
+			"maintainer": "foobar",
+			"name":       "netconf",
+			"priority":   "optional",
+			"revision":   "",
+			"section":    "default",
+			"size":       "112594",
+			"source":     "",
+			"status":     "install ok installed",
+			"version":    "20230224000000",
+		},
+	}, &ss, nil, &fleet.Stats{
+		WallTimeMs: uint64(rand.Intn(1000) * 1000), //nolint:gosec // G115: rand.Intn(1000) is bounded, so this cannot overflow.
+		UserTime:   uint64(rand.Intn(1000)),        //nolint:gosec // G115: rand.Intn(1000) is bounded, so this cannot overflow.
+		SystemTime: uint64(rand.Intn(1000)),        //nolint:gosec // G115: rand.Intn(1000) is bounded, so this cannot overflow.
+		Memory:     uint64(rand.Intn(1000)),        //nolint:gosec // G115: rand.Intn(1000) is bounded, so this cannot overflow.
+	}
 }
 
 func (a *agent) processQuery(name, query string, cachedResults *cachedResults) (
@@ -4502,6 +4502,7 @@ func main() {
 		androidStatusInterval    = flag.Duration("android_status_interval", 5*time.Minute, "Interval between Android STATUS_REPORT messages (real devices report ~every 24h; lower values stress test Fleet harder)")
 		androidAppCount          = flag.Int("android_app_count", 50, "Number of installed apps each Android device reports")
 		androidNonComplianceProb = flag.Float64("android_non_compliance_prob", 0.05, "Probability of an Android STATUS_REPORT including non-compliance details [0, 1]")
+		androidVitalsChurnProb   = flag.Float64("android_vitals_churn_prob", defaultVitalsChurnProb, "Probability of an Android STATUS_REPORT reporting changed host vitals; 0 reports identical vitals forever, which MySQL stores without writing a row [0, 1]")
 	)
 
 	flag.Parse()
@@ -4563,6 +4564,9 @@ func main() {
 	}
 	if *androidNonComplianceProb < 0 || *androidNonComplianceProb > 1 {
 		log.Fatalf("Argument android_non_compliance_prob must be between 0 and 1, got %f", *androidNonComplianceProb)
+	}
+	if *androidVitalsChurnProb < 0 || *androidVitalsChurnProb > 1 {
+		log.Fatalf("Argument android_vitals_churn_prob must be between 0 and 1, got %f", *androidVitalsChurnProb)
 	}
 
 	// only fail if mdm is turned on for macOS devices and the mdm_apns_url is not specified.
@@ -4701,6 +4705,7 @@ func main() {
 				*androidStatusInterval,
 				*androidAppCount,
 				*androidNonComplianceProb,
+				*androidVitalsChurnProb,
 				stats,
 			)
 			go androidDevice.runLoop()

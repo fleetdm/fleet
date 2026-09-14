@@ -79,12 +79,7 @@ extension AuthenticationViewController {
     func applyLoginConfiguration(
         _ mgr: ASAuthorizationProviderExtensionLoginManager
     ) async throws {
-        let data = mgr.extensionData
-        guard let baseString = data["BaseURL"] as? String,
-              let base = URL(string: baseString),
-              let host = base.host,
-              base.scheme?.lowercased() == "https"
-        else {
+        guard let base = fleetBaseURL(from: mgr.extensionData), let host = base.host else {
             logger.error("applyLoginConfiguration: missing or non-HTTPS BaseURL in profile ExtensionData")
             throw NSError(domain: "FleetPSSO", code: -1)
         }
@@ -109,7 +104,18 @@ extension AuthenticationViewController {
         try mgr.saveLoginConfiguration(cfg)
     }
 
-    private func pssoEndpointURL(_ base: URL, _ name: String) -> URL {
+    // fleetBaseURL returns the profile's BaseURL, or nil unless it is a
+    // well-formed HTTPS URL with a host.
+    func fleetBaseURL(from extensionData: [AnyHashable: Any]) -> URL? {
+        guard let baseString = extensionData["BaseURL"] as? String,
+              let base = URL(string: baseString),
+              base.host != nil,
+              base.scheme?.lowercased() == "https"
+        else { return nil }
+        return base
+    }
+
+    func pssoEndpointURL(_ base: URL, _ name: String) -> URL {
         base.appendingPathComponent("api/mdm/apple/psso/\(name)")
     }
 }

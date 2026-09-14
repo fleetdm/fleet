@@ -1,8 +1,9 @@
+import { IMdmVppToken } from "interfaces/mdm";
 import {
   APP_CONTEXT_ALL_TEAMS_ID,
   APP_CONTEXT_NO_TEAM_ID,
 } from "interfaces/team";
-import { IMdmVppToken } from "interfaces/mdm";
+
 import {
   getOptions,
   selectedValueFromToken,

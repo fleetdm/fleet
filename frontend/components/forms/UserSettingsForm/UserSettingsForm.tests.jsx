@@ -1,9 +1,8 @@
-import React from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
-
-import { renderWithSetup } from "test/test-utils";
+import React from "react";
 
 import UserSettingsForm from "components/forms/UserSettingsForm";
+import { renderWithSetup } from "test/test-utils";
 
 describe("UserSettingsForm - component", () => {
   const defaultProps = {

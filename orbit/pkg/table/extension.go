@@ -16,6 +16,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/fleetd_logs"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/go_binaries"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/mcp_listening_servers"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/netskope"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/sentinelone"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/sntp_request"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/yaml_to_json"
@@ -194,6 +195,11 @@ func OrbitDefaultTables(opts PluginOpts) []osquery.OsqueryPlugin {
 		// servers, sockets, instruction files, browser extensions) and their risk
 		// factors. Vendored from github.com/karmine05/agentic-detector.
 		table.NewPlugin("ai_tools", ai_tools.Columns(), ai_tools.Generate),
+
+		// netskope: local Netskope client state, from `nsdiag -f`.
+		// Registered on every platform: hosts without the client report a single
+		// row with client_installed = 0.
+		table.NewPlugin("netskope", netskope.Columns(), netskope.Generate),
 
 		// sentinelone: local SentinelOne agent state, from `sentinelctl status`.
 		// Registered on every platform: hosts without the agent report no rows.

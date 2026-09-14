@@ -1,7 +1,8 @@
-import React from "react";
 import { screen, waitFor } from "@testing-library/react";
-import { createCustomRenderer, createMockRouter } from "test/test-utils";
+import React from "react";
+
 import { createMockHostMdmProfile } from "__mocks__/hostMock";
+import { createCustomRenderer, createMockRouter } from "test/test-utils";
 
 import Controls from "./Controls";
 import { IHostMdmProfileWithAddedStatus } from "./OSSettingsTableConfig";
@@ -98,6 +99,22 @@ describe("Controls card", () => {
 
       expect(screen.getByText("---")).toBeInTheDocument();
     });
+  });
+
+  it("shows sort indicators on the sortable Name and Status columns", () => {
+    renderControls({
+      controls: [control({ profile_uuid: "a", name: "A", status: "verified" })],
+    });
+
+    const sortArrows = (label: string) =>
+      screen
+        .getAllByRole("columnheader")
+        .find((th) => th.textContent === label)
+        ?.querySelector(".sort-arrows");
+
+    expect(sortArrows("Name")).toBeTruthy();
+    expect(sortArrows("Status")).toBeTruthy();
+    expect(sortArrows("Details")).toBeFalsy();
   });
 
   it("sorts by status priority: failed, action required, enforcing, removing enforcement, verifying, verified", () => {

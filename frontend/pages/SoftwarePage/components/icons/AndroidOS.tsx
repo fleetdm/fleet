@@ -1,5 +1,4 @@
 import React from "react";
-
 import type { SVGProps } from "react";
 
 const AndroidOS = (props: SVGProps<SVGSVGElement>) => (

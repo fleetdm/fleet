@@ -1,0 +1,1 @@
+- Fixed `fleetctl` installed with `npm install -g fleetctl` exiting successfully without running when the binary download was interrupted or the binary was killed by a signal. The wrapper now reports the error and exits non-zero, and no longer re-downloads the binary on every run on Windows.

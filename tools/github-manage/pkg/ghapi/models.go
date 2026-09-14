@@ -28,6 +28,7 @@ type Issue struct {
 	ID        string     `json:"id"`
 	Number    int        `json:"number"`
 	Title     string     `json:"title"`
+	URL       string     `json:"url,omitempty"`
 	Body      string     `json:"body"`
 	Author    Author     `json:"author"`
 	Assignees []Author   `json:"assignees"`
