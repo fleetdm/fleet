@@ -94,7 +94,8 @@ func Encrypt(rawValue string, cert *x509.Certificate) (string, error) {
 
 // regex to validate UPN
 // https://learn.microsoft.com/en-us/windows/win32/ad/naming-properties#upn-format
-var upnRegex = regexp.MustCompile(`^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`)
+// The local part also accepts ' ! # ^ ~, which Entra allows in user principal names.
+var upnRegex = regexp.MustCompile(`^[a-zA-Z0-9._%+'!#^~-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`)
 
 // IsValidUPN checks if the provided user ID is a valid UPN
 func IsValidUPN(userID string) bool {

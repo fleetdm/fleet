@@ -236,6 +236,40 @@ func testReconcileSupersedesManuallySetIdPMapping(t *testing.T, ds *Datastore) {
 		assert.Zero(t, countRawIdpRows(t, host.ID))
 	})
 
+	t.Run("device-reported mapping superseded by enrollment", func(t *testing.T) {
+		host := newDarwinHost(t, "uuid-entra-join")
+
+		// only SCIM-provisioned users are mapped from the device
+		_, err := ds.CreateScimUser(ctx, &fleet.ScimUser{
+			UserName:   "someone.else@example.com",
+			GivenName:  new("Someone"),
+			FamilyName: new("Else"),
+		})
+		require.NoError(t, err)
+
+		updated, err := ds.SetOrUpdateEntraJoinHostDeviceMapping(ctx, host.ID, "someone.else@example.com")
+		require.NoError(t, err)
+		require.True(t, updated)
+
+		err = ds.AssociateHostMDMIdPAccount(ctx, host.UUID, idpAccount.UUID)
+		require.NoError(t, err)
+
+		mappings, err := ds.ListHostDeviceMapping(ctx, host.ID)
+		require.NoError(t, err)
+		require.Len(t, mappings, 1)
+		assert.Equal(t, "sso.user@example.com", mappings[0].Email)
+		assert.Equal(t, fleet.DeviceMappingMDMIdpAccounts, mappings[0].Source)
+		var entraRows int
+		err = sqlx.GetContext(ctx, ds.writer(ctx), &entraRows,
+			`SELECT COUNT(*) FROM host_emails WHERE host_id = ? AND source = ?`, host.ID, fleet.DeviceMappingEntraJoin)
+		require.NoError(t, err)
+		assert.Zero(t, entraRows)
+		// the SCIM link that came with the device-reported mapping is gone too, so the
+		// authenticated user can be linked instead of the stale one surviving
+		_, err = ds.ScimUserByHostID(ctx, host.ID)
+		require.True(t, fleet.IsNotFound(err))
+	})
+
 	t.Run("manual mapping survives reconcile without idp account", func(t *testing.T) {
 		host := newDarwinHost(t, "uuid-manual-no-idp")
 
