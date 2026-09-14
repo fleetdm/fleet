@@ -145,6 +145,7 @@ export const StatusMessage = ({
           text={SKIPPED_INSTALL_DETAILS_LINK_TEXT}
           newTab
         />
+        .
       </>
     );
 
