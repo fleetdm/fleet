@@ -1017,6 +1017,24 @@ The number of requests per minute allowed to the [SSO callback endpoint](https:/
     sso_rate_limit_per_minute: 200
   ```
 
+### auth_use_one_time_enroll_secrets
+
+When enabled, Fleet delivers a one-time, device-scoped enroll secret to each macOS host enrolled in Fleet MDM instead of a global or fleet-level enroll secret. The secret is embedded in the "Fleetd configuration" profile and is bound to the host's hardware UUID and serial number. Orbit and osquery can each use it once.
+
+A host that needs to re-enroll, for example after its node key has been deleted or its local orbit installation corrupted, needs a new one-time enroll secret. To issue one, resend the "Fleetd configuration" profile from the host's **Controls** tab. End users can't resend this profile from the **My device** page when this setting is enabled.
+
+Fleet also denies enrollment attempts that use a global or fleet-level enroll secret for a macOS host that is enrolled in Fleet MDM or assigned to Fleet in Apple Business. Denied attempts are recorded as `host_enrollment_rejected` activities.
+
+This setting requires that every Mac enrolled in Fleet MDM runs fleetd installed by Fleet MDM, so it reads the enroll secret from the "Fleetd configuration" profile. Macs running a fleetd package built with a global or fleet-level enroll secret won't be able to re-enroll.
+
+- Default value: `false`
+- Environment variable: `FLEET_AUTH_USE_ONE_TIME_ENROLL_SECRETS`
+- Config file format:
+  ```yaml
+  auth:
+    use_one_time_enroll_secrets: true
+  ```
+
 ## App
 
 ### app_token_key_size
