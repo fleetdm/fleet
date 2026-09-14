@@ -4,6 +4,7 @@ package mdmconfigured
 
 import (
 	"context"
+	"errors"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
@@ -39,7 +40,12 @@ func (m *Middleware) VerifyAppleMDMPreauth() endpoint.Middleware {
 	return func(next endpoint.Endpoint) endpoint.Endpoint {
 		return func(ctx context.Context, req any) (any, error) {
 			if err := m.svc.VerifyMDMAppleConfigured(ctx); err != nil {
-				return nil, fleet.NewAuthFailedError(err.Error())
+				// Only the not-configured state is masked; a backend failure
+				// must still surface as a server error, not an auth failure.
+				if errors.Is(err, fleet.ErrMDMNotConfigured) {
+					return nil, fleet.NewAuthFailedError(err.Error())
+				}
+				return nil, ctxerr.Wrap(ctx, err, "verify apple mdm configured")
 			}
 
 			return next(ctx, req)
