@@ -12,6 +12,10 @@ import (
 )
 
 func infoPlist(bundleID string, iOS bool) string {
+	return infoPlistNamed(bundleID, "Test", "1.0", iOS)
+}
+
+func infoPlistNamed(bundleID, name, version string, iOS bool) string {
 	requiresIPhoneOS := ""
 	if iOS {
 		requiresIPhoneOS = "<key>LSRequiresIPhoneOS</key><true/>"
@@ -19,8 +23,8 @@ func infoPlist(bundleID string, iOS bool) string {
 	return `<?xml version="1.0" encoding="UTF-8"?>
 <plist version="1.0"><dict>
 <key>CFBundleIdentifier</key><string>` + bundleID + `</string>
-<key>CFBundleName</key><string>Test</string>
-<key>CFBundleShortVersionString</key><string>1.0</string>
+<key>CFBundleName</key><string>` + name + `</string>
+<key>CFBundleShortVersionString</key><string>` + version + `</string>
 ` + requiresIPhoneOS + `
 </dict></plist>`
 }
@@ -88,16 +92,77 @@ func TestExtractZIPMetadata(t *testing.T) {
 	require.ErrorIs(t, err, file.ErrInvalidType)
 	require.Nil(t, meta)
 
-	// once LSRequiresIPhoneOS is seen it stays set, so a framework plist without
-	// the key coming after the app plist doesn't undo ipa detection
-	latchTfr, err := fleet.NewKeepFileReader(writeZip(t, [][2]string{
+	// a framework plist without the key, coming after the app's own plist,
+	// neither undoes ipa detection nor replaces the app's metadata
+	nestedTfr, err := fleet.NewKeepFileReader(writeZip(t, [][2]string{
 		{"Payload/App.app/Info.plist", infoPlist("com.example.ios", true)},
 		{"Payload/App.app/Frameworks/Bar.framework/Info.plist", infoPlist("com.example.framework", false)},
 	}))
 	require.NoError(t, err)
-	defer latchTfr.Close()
+	defer nestedTfr.Close()
 
-	meta, err = file.ExtractZIPMetadata(latchTfr)
+	meta, err = file.ExtractZIPMetadata(nestedTfr)
 	require.NoError(t, err)
-	require.NotNil(t, meta)
+	require.Equal(t, "com.example.ios", meta.BundleIdentifier)
+}
+
+// Metadata comes from the app's own Payload/<App>.app/Info.plist. Embedded
+// frameworks, extensions and watch apps ship their own, and any of them may be
+// written to the archive after the app's.
+func TestExtractZIPMetadataAppPlistSelection(t *testing.T) {
+	app := infoPlistNamed("com.fleetdm.HelloWorld", "HelloWorld", "1.0", true)
+	framework := infoPlistNamed("com.acme.AcmeKit", "AcmeKit", "9.9.9", false)
+
+	tests := []struct {
+		name    string
+		entries [][2]string
+	}{
+		{
+			name: "framework plist written after the app's",
+			entries: [][2]string{
+				{"Payload/HelloWorld.app/Info.plist", app},
+				{"Payload/HelloWorld.app/Frameworks/AcmeKit.framework/Info.plist", framework},
+			},
+		},
+		{
+			name: "framework plist written before the app's",
+			entries: [][2]string{
+				{"Payload/HelloWorld.app/Frameworks/AcmeKit.framework/Info.plist", framework},
+				{"Payload/HelloWorld.app/Info.plist", app},
+			},
+		},
+		{
+			name: "file whose name merely ends in Info.plist",
+			entries: [][2]string{
+				{"Payload/HelloWorld.app/Info.plist", app},
+				{"Payload/HelloWorld.app/SomethingInfo.plist", framework},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tfr, err := fleet.NewKeepFileReader(writeZip(t, tt.entries))
+			require.NoError(t, err)
+			defer tfr.Close()
+
+			meta, err := file.ExtractZIPMetadata(tfr)
+			require.NoError(t, err)
+			require.Equal(t, "com.fleetdm.HelloWorld", meta.BundleIdentifier)
+			require.Equal(t, "HelloWorld", meta.Name)
+			require.Equal(t, "1.0", meta.Version)
+		})
+	}
+
+	t.Run("archive with no app plist", func(t *testing.T) {
+		tfr, err := fleet.NewKeepFileReader(writeZip(t, [][2]string{
+			{"Payload/HelloWorld.app/Frameworks/AcmeKit.framework/Info.plist", infoPlistNamed("com.acme.AcmeKit", "AcmeKit", "9.9.9", true)},
+		}))
+		require.NoError(t, err)
+		defer tfr.Close()
+
+		meta, err := file.ExtractZIPMetadata(tfr)
+		require.ErrorIs(t, err, file.ErrInvalidType)
+		require.Nil(t, meta)
+	})
 }

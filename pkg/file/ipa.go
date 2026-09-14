@@ -6,7 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"strings"
+	"path"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"howett.net/plist"
@@ -34,32 +34,34 @@ func ExtractZIPMetadata(tfr *fleet.TempFileReader) (*InstallerMetadata, error) {
 	var hasInfoPlist, isIPA bool
 
 	for _, f := range r.File {
-		// Matches any Info.plist and the last wins, so a nested framework or
-		// extension plist can override the app's own plist.
-		if strings.Contains(f.Name, "Info.plist") {
-			// Get data from plist file
-			archiveFile, err := f.Open()
-			if err != nil {
-				return nil, fmt.Errorf("could not open archive %s: %w", f.Name, err)
-			}
-			defer archiveFile.Close()
-
-			rawData, err := io.ReadAll(archiveFile)
-			if err != nil {
-				return nil, err
-			}
-			_, err = plist.Unmarshal(rawData, &plistData)
-			if err != nil {
-				return nil, err
-			}
-
-			hasInfoPlist = true
-			// LSRequiresIPhoneOS is set on iOS/iPadOS apps and never on macOS
-			// apps, so it is probably an .ipa
-			if plistData.RequiresIPhoneOS {
-				isIPA = true
-			}
+		// Only the app's own plist describes the app. Embedded frameworks,
+		// extensions and watch apps ship their own, and zip entry order is not
+		// guaranteed, so anything below the .app directory is ignored. Zip names
+		// always use forward slashes, hence path and not filepath.
+		if matched, _ := path.Match("Payload/*.app/Info.plist", f.Name); !matched {
+			continue
 		}
+
+		archiveFile, err := f.Open()
+		if err != nil {
+			return nil, fmt.Errorf("could not open archive %s: %w", f.Name, err)
+		}
+		defer archiveFile.Close()
+
+		rawData, err := io.ReadAll(archiveFile)
+		if err != nil {
+			return nil, err
+		}
+		_, err = plist.Unmarshal(rawData, &plistData)
+		if err != nil {
+			return nil, err
+		}
+
+		hasInfoPlist = true
+		// LSRequiresIPhoneOS is set on iOS/iPadOS apps and never on macOS
+		// apps, so it is probably an .ipa
+		isIPA = plistData.RequiresIPhoneOS
+		break
 	}
 
 	if !hasInfoPlist || !isIPA {
