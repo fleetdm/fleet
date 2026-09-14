@@ -119,6 +119,13 @@ export const hostSelectStatuses = (isPremiumTier: boolean) => {
       value: "new",
       helpText: "Hosts added to Fleet in the last 24 hours.",
     },
+    {
+      disabled: false,
+      label: "Enrolled hosts",
+      value: "enrolled",
+      helpText:
+        "Hosts that have enrolled to Fleet. Excludes hosts pending enrollment.",
+    },
   ];
 
   const premiumStatuses = [

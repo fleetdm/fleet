@@ -53,11 +53,11 @@ parasails.registerComponent('docsNavAndSearch', {
                   <img style="height: 16px; width: 16px;" class="search" alt="search" src="/images/icon-search-16x16@2x.png">
                 </span>
               </div>
-              <div class="form-control border-0 ">
-              <input class="docsearch-input pr-1"
-                placeholder="Search" aria-label="Search"
-                />
-              </div>
+              <form purpose="google-search">
+                <div class="form-control border-0">
+                  <input class="docsearch-input pr-1" placeholder="Search" aria-label="Search"/>
+                </div>
+              </form>
             </div>
           </div>
         </div>
@@ -73,43 +73,44 @@ parasails.registerComponent('docsNavAndSearch', {
     //…
   },
   mounted: async function() {
-    let filterForSearch = {};
-    if(this.searchFilter){
-      let searchIndexesThatExist = ['docs', 'software', 'queries', 'vitals', 'policies', 'tables', 'controls'];
-      let buttonTextBySearchFilter = {
-        docs: 'Search the docs',
-        software: 'Search software',
-        queries: 'Search reports',
-        vitals: 'Search vitals',
-        policies: 'Search policies',
-        tables: 'Search data tables',
-        controls: 'Search controls'
-      };
-      if(!searchIndexesThatExist.includes(this.searchFilter)){
-        throw new Error(`Invalid 'searchFilter' value provided to <docs-nav-and-search> component. Please change the searchFilter value to one of: ${searchIndexesThatExist.join(', ')}`);
-      }
-      filterForSearch = {
-        'facetFilters': [`section:${this.searchFilter}`]
-      };
-      this.searchBoxLabel = buttonTextBySearchFilter[this.searchFilter];
-    }
-    if(this.algoliaPublicKey) {
-      docsearch({
-        appId: 'NZXAYZXDGH',
-        apiKey: this.algoliaPublicKey,
-        indexName: 'fleetdm',
-        container: '#docsearch-query',
-        placeholder: this.searchBoxLabel,
-        debug: false,
-        searchParameters: filterForSearch,
-        translations: {
-          button: {
-            buttonText: this.searchBoxLabel,
-            buttonAriaLabel: this.searchBoxLabel,
-          },
-        },
-      });
-    }
+    // let filterForSearch = {};
+    // if(this.searchFilter){
+    //   let searchIndexesThatExist = ['docs', 'software', 'queries', 'vitals', 'policies', 'tables', 'controls'];
+    //   let buttonTextBySearchFilter = {
+    //     docs: 'Search the docs',
+    //     software: 'Search software',
+    //     queries: 'Search reports',
+    //     vitals: 'Search vitals',
+    //     policies: 'Search policies',
+    //     tables: 'Search data tables',
+    //     controls: 'Search controls'
+    //   };
+    //   if(!searchIndexesThatExist.includes(this.searchFilter)){
+    //     throw new Error(`Invalid 'searchFilter' value provided to <docs-nav-and-search> component. Please change the searchFilter value to one of: ${searchIndexesThatExist.join(', ')}`);
+    //   }
+    //   filterForSearch = {
+    //     'facetFilters': [`section:${this.searchFilter}`]
+    //   };
+    //   this.searchBoxLabel = buttonTextBySearchFilter[this.searchFilter];
+    // }
+    // Note: algolia docsearch is disabled while we test sending search queries to google.
+    // if(this.algoliaPublicKey) {
+    //   docsearch({
+    //     appId: 'NZXAYZXDGH',
+    //     apiKey: this.algoliaPublicKey,
+    //     indexName: 'fleetdm',
+    //     container: '#docsearch-query',
+    //     placeholder: this.searchBoxLabel,
+    //     debug: false,
+    //     searchParameters: filterForSearch,
+    //     translations: {
+    //       button: {
+    //         buttonText: this.searchBoxLabel,
+    //         buttonAriaLabel: this.searchBoxLabel,
+    //       },
+    //     },
+    //   });
+    // }
   },
   beforeDestroy: function() {
     //…

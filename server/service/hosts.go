@@ -667,7 +667,7 @@ func (svc *Service) DeleteHosts(ctx context.Context, ids []uint, filter *map[str
 		}
 
 		if len(hostIDs) == 0 {
-			return ctxerr.Wrap(ctx, unverifiedABMHostsError(checks, skippedNames, 0), "deleting hosts")
+			return ctxerr.Wrap(ctx, unverifiedABMHostsError(skippedNames, 0), "deleting hosts")
 		}
 
 		if err := svc.ds.DeleteHosts(ctx, hostIDs); err != nil {
@@ -720,7 +720,7 @@ func (svc *Service) DeleteHosts(ctx context.Context, ids []uint, filter *map[str
 		}
 
 		if len(skippedNames) > 0 {
-			return ctxerr.Wrap(ctx, unverifiedABMHostsError(checks, skippedNames, len(hostIDs)), "deleting hosts")
+			return ctxerr.Wrap(ctx, unverifiedABMHostsError(skippedNames, len(hostIDs)), "deleting hosts")
 		}
 
 		return nil
@@ -1220,7 +1220,7 @@ func (svc *Service) DeleteHost(ctx context.Context, id uint) error {
 	}
 	if c := checks[host.ID]; c.check == depDeleteUnverified {
 		return ctxerr.Wrap(ctx,
-			fleet.NewBadGatewayError(fleet.CantDeleteHostUnverifiedABMMessage, c.appleErr), "deleting host")
+			fleet.NewBadGatewayError(fleet.CantDeleteHostUnverifiedABMMessage, nil), "deleting host")
 	}
 	if err := svc.clearDisownedDEPAssignments(ctx, checks); err != nil {
 		return err
@@ -1911,7 +1911,6 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 	var profiles []fleet.HostMDMProfile
 	var mdmLastEnrollment *time.Time
 	var mdmLastCheckedIn *time.Time
-	var mdmEnrollmentType *string
 	var mdmHardwareAttested bool
 	if ac.MDM.EnabledAndConfigured || ac.MDM.WindowsEnabledAndConfigured || ac.MDM.AndroidEnabledAndConfigured {
 		host.MDM.OSSettings = &fleet.HostMDMOSSettings{}
@@ -2059,13 +2058,6 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 				if host.Platform == "darwin" && details != nil {
 					host.MDM.BootstrapTokenEscrowed = &details.BootstrapTokenEscrowed
 				}
-
-				// Manual BYOD and Account-Driven User Enrollment both report the
-				// "On (manual - personal)" status, so the enrollment channel is what
-				// tells them apart.
-				if details != nil && details.EnrollmentType != "" {
-					mdmEnrollmentType = &details.EnrollmentType
-				}
 			}
 		}
 	}
@@ -2181,7 +2173,6 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 		CustomHostVitals:              customHostVitals,
 		LastMDMEnrolledAt:             mdmLastEnrollment,
 		LastMDMCheckedInAt:            mdmLastCheckedIn,
-		LastMDMEnrollmentType:         mdmEnrollmentType,
 		MDMEnrollmentHardwareAttested: mdmHardwareAttested,
 		ConditionalAccessBypassed:     conditionalAccessBypassed,
 		OSUpdateMinimumVersion:        osUpdateMinVersion,
@@ -4222,7 +4213,7 @@ func hostListOptionsFromFilters(filter *map[string]interface{}) (*fleet.HostList
 				return nil, nil, badRequest("status must be a string")
 			}
 			if !fleet.HostStatus(status).IsValid() {
-				return nil, nil, badRequest("status must be one of: new, online, offline, missing")
+				return nil, nil, badRequest("status must be one of: new, online, offline, missing, mia, enrolled")
 			}
 			opt.StatusFilter = fleet.HostStatus(status)
 		case "query":

@@ -30,6 +30,9 @@ const (
 	// StatusMissing means the host is missing for 30 days. It is identical
 	// with StatusMIA, but StatusMIA is deprecated.
 	StatusMissing = HostStatus("missing")
+	// StatusEnrolled is a filter-only value (never a host's computed status): every host
+	// except those pending MDM enrollment, which exist in Fleet before they enroll.
+	StatusEnrolled = HostStatus("enrolled")
 
 	// NewDuration if a host has been created within this time period it's
 	// considered new.
@@ -51,7 +54,7 @@ const (
 
 func (s HostStatus) IsValid() bool {
 	switch s {
-	case StatusOnline, StatusOffline, StatusNew, StatusMissing, StatusMIA:
+	case StatusOnline, StatusOffline, StatusNew, StatusMissing, StatusMIA, StatusEnrolled:
 		return true
 	default:
 		return false
@@ -1249,11 +1252,6 @@ type HostDetail struct {
 
 	LastMDMEnrolledAt  *time.Time `json:"last_mdm_enrolled_at"`
 	LastMDMCheckedInAt *time.Time `json:"last_mdm_checked_in_at"`
-	// LastMDMEnrollmentType is the MDM enrollment channel reported by the device,
-	// e.g. "Device" or "User Enrollment (Device)". Manual BYOD and Account-Driven
-	// User Enrollment both report the "On (manual - personal)" status, so this is
-	// what distinguishes them. Nil for hosts with no Apple MDM enrollment.
-	LastMDMEnrollmentType *string `json:"last_mdm_enrollment_type"`
 
 	MDMEnrollmentHardwareAttested bool `json:"mdm_enrollment_hardware_attested"`
 
@@ -1401,6 +1399,7 @@ var HostLinuxOSs = []string{
 	"coreos",
 	"cachyos",
 	"omarchy",
+	"amd-ryzen-ai-developer-platform",
 }
 
 // HostNeitherDebNorRpmPackageOSs are the list of known Linux platforms that support neither DEB nor RPM packages
@@ -1421,15 +1420,16 @@ var HostNeitherDebNorRpmPackageOSs = map[string]struct{}{
 
 // HostDebPackageOSs are the list of known Linux platforms that support DEB packages
 var HostDebPackageOSs = map[string]struct{}{
-	"linux":     {}, // let DEBs through if we're looking at a generic Linux host
-	"ubuntu":    {},
-	"zorin":     {},
-	"debian":    {},
-	"kali":      {},
-	"pop":       {},
-	"linuxmint": {},
-	"tuxedo":    {},
-	"neon":      {},
+	"linux":                           {}, // let DEBs through if we're looking at a generic Linux host
+	"ubuntu":                          {},
+	"zorin":                           {},
+	"debian":                          {},
+	"kali":                            {},
+	"pop":                             {},
+	"linuxmint":                       {},
+	"tuxedo":                          {},
+	"neon":                            {},
+	"amd-ryzen-ai-developer-platform": {},
 }
 
 // HostRpmPackageOSs are the list of known Linux platforms that support RPM packages
@@ -1901,8 +1901,8 @@ type HostMDMCheckinInfo struct {
 type HostEscrowState struct {
 	// Pending is true while a request is queued and not yet delivered to the agent.
 	Pending bool
-	// SinceLastActivity is how long ago the agent last showed activity on the request (hand-off
-	// or heartbeat), measured on the database clock. Nil when no request is in flight.
+	// SinceLastActivity is how long ago the agent last showed activity on the request (hand-off or
+	// progress report), on the database clock. Nil when no request is in flight.
 	SinceLastActivity *time.Duration
 }
 

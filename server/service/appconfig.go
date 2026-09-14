@@ -1037,6 +1037,10 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		invalid.Append("activity_expiry_settings.activity_expiry_window", "must be greater than 0")
 	}
 
+	if appConfig.HostExpirySettings.HostExpiryEnabled && appConfig.HostExpirySettings.HostExpiryWindow < 1 {
+		invalid.Append("host_expiry_settings.host_expiry_window", "must be greater than 0")
+	}
+
 	if appConfig.OrgInfo.ContactURL == "" {
 		appConfig.OrgInfo.ContactURL = fleet.DefaultOrgInfoContactURL
 	}
@@ -2217,7 +2221,8 @@ func (svc *Service) validateMDM(
 	if mdm.HostNameTemplate.Value != "" && oldMdm.HostNameTemplate.Value != mdm.HostNameTemplate.Value {
 		if !lic.IsPremium() {
 			invalid.Append("mdm.name_template", ErrMissingLicense.Error())
-		} else if validated, err := fleet.ValidateHostNameTemplateWithSecrets(ctx, svc.ds, mdm.HostNameTemplate.Value); err != nil {
+		} else if validated, err := fleet.ValidateHostNameTemplateWithSecrets(ctx, svc.ds, mdm.HostNameTemplate.Value,
+			svc.authz.CanWriteSecretVariables(ctx)); err != nil {
 			// A validation or missing-secret error is invalid user input (422); any
 			// other error (e.g. a datastore failure while checking secrets) must
 			// propagate as a server error rather than be misreported as invalid input.

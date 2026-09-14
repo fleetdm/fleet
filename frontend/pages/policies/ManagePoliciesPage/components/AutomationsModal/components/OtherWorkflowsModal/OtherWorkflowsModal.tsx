@@ -1,7 +1,16 @@
+import { isEmpty, noop, omit } from "lodash";
 import React, { forwardRef, useImperativeHandle, useState } from "react";
 import { InjectedRouter } from "react-router";
-import { isEmpty, noop, omit } from "lodash";
 
+import Button from "components/buttons/Button";
+import RevealButton from "components/buttons/RevealButton";
+import CustomLink from "components/CustomLink";
+// @ts-ignore
+import Dropdown from "components/forms/fields/Dropdown";
+import InputField from "components/forms/fields/InputField";
+import Radio from "components/forms/fields/Radio";
+import Slider from "components/forms/fields/Slider";
+import validUrl from "components/forms/validators/valid_url";
 import { IAutomationsConfig, IWebhookSettings } from "interfaces/config";
 import {
   IGlobalIntegrations,
@@ -12,19 +21,10 @@ import {
 import { ITeamAutomationsConfig } from "interfaces/team";
 import PATHS from "router/paths";
 
-import Slider from "components/forms/fields/Slider";
-// @ts-ignore
-import Dropdown from "components/forms/fields/Dropdown";
-import InputField from "components/forms/fields/InputField";
-import Button from "components/buttons/Button";
-import Radio from "components/forms/fields/Radio";
-import validUrl from "components/forms/validators/valid_url";
-import RevealButton from "components/buttons/RevealButton";
-import CustomLink from "components/CustomLink";
-import ExampleTicket from "./ExampleTicket";
-import ExamplePayload from "./ExamplePayload";
-
 import { IAutomationFormHandle } from "../../types";
+
+import ExamplePayload from "./ExamplePayload";
+import ExampleTicket from "./ExampleTicket";
 
 const baseClass = "other-workflows-modal";
 

@@ -195,6 +195,92 @@ try {
 2. Paste the install script from the previous step into **install script**, making sure to set the customer ID. And the uninstall script, into **Uninstall script**.
 3. Click **Add software**.
 
+## Verify and enforce activation with policies
+
+Installing the Falcon sensor and activating it are two separate outcomes. A sensor can install successfully and still sit unlicensed, which means it reports no data to your CrowdStrike tenant. Policies let you check activation as a distinct condition, and re-run the activation script on hosts that fail.
+
+This also solves a common timing problem. A post-install script runs the moment the package lands, which during setup experience can be before the end user's account exists. A policy is evaluated on the host's regular reporting cadence instead, so it only runs the activation script once the sensor is actually present and unlicensed.
+
+> **Note:** The `crowdstrike_falcon` table requires fleetd 1.50 or later, and is available on macOS and Linux. Windows hosts don't have this table, so use the [`programs`](https://fleetdm.com/tables/programs) table to check the installed version instead.
+
+### Check that Falcon is installed
+
+Pair this policy with an [install software automation](https://fleetdm.com/guides/automatic-software-install-in-fleet) to deploy the sensor to hosts that don't have it.
+
+```sql
+SELECT 1 FROM apps WHERE bundle_identifier = 'com.crowdstrike.falcon.App';
+```
+
+### Check that Falcon is activated
+
+An installed but unlicensed sensor reports an empty agent ID and customer ID. Attach your activation script to this policy using a [script automation](https://fleetdm.com/guides/policy-automation-run-script).
+
+```sql
+SELECT 1 FROM crowdstrike_falcon
+WHERE agent_id IS NOT NULL AND agent_id != ''
+  AND cid IS NOT NULL AND cid != '';
+```
+
+### Check that the sensor is loaded
+
+A sensor can be licensed and still not be running, usually because the system extension hasn't been approved.
+
+```sql
+SELECT 1 FROM crowdstrike_falcon WHERE sensor_loaded = 'true';
+```
+
+### Check that the sensor isn't in reduced functionality mode
+
+Reduced functionality mode means Falcon is running with degraded protection. This most often happens after a macOS upgrade that the installed sensor version doesn't support yet.
+
+```sql
+SELECT 1 FROM crowdstrike_falcon WHERE reduced_functionality_mode = 'false';
+```
+
+### Check that the system extension is active
+
+```sql
+SELECT 1 FROM system_extensions
+WHERE identifier = 'com.crowdstrike.falcon.Agent'
+  AND team = 'X9E956P446'
+  AND state = 'activated_enabled';
+```
+
+### Make the activation script safe to re-run
+
+Fleet retries a policy's script automation up to three times when the script exits with a non-zero code, and resets that count once the host passes. Write the script so a second run on an already-licensed host is harmless.
+
+```bash
+#!/bin/bash
+CUSTOMER_ID="$FLEET_SECRET_CROWDSTRIKE_CID"
+FALCONCTL="/Applications/Falcon.app/Contents/Resources/falconctl"
+
+if [ -z "$CUSTOMER_ID" ]; then
+  echo "No customer ID set"
+  exit 1
+fi
+
+if [ ! -x "$FALCONCTL" ]; then
+  echo "falconctl not found at $FALCONCTL"
+  exit 1
+fi
+
+if "$FALCONCTL" stats agent_info 2>/dev/null | grep -q "agentID:.*[0-9a-fA-F]"; then
+  echo "Already activated"
+  exit 0
+fi
+
+if "$FALCONCTL" license "$CUSTOMER_ID"; then
+  echo "Activation completed"
+  exit 0
+fi
+
+echo "Activation failed"
+exit 1
+```
+
+> **Note:** By default, Fleet runs the script on the first failure and on any pass to fail transition, not on consecutive failures. To re-run it on every failing report, set `continuous_automations_enabled` to `true` on the policy. This can retry a script that never resolves the policy, so use it deliberately.
+
 ## Conclusion
 
 Fleet offers admins a straight-forward approach to deploying the CrowdStrike Falcon application across your macOS, Linux and Windows hosts. See https://fleetdm.com/guides/deploy-software-packages for more information on installing software packages using Fleet.

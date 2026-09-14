@@ -1,9 +1,10 @@
 import React from "react";
 
+import Modal from "components/Modal";
+import { IFormErrors } from "hooks/useFormValidation";
 import { ITeam } from "interfaces/team";
 import { UserRole } from "interfaces/user";
-import { IFormErrors } from "hooks/useFormValidation";
-import Modal from "components/Modal";
+
 import UserForm from "../UserForm";
 import { IUserFormData } from "../UserForm/UserForm";
 

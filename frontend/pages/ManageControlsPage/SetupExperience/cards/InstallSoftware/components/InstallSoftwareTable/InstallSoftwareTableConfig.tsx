@@ -1,17 +1,16 @@
 import React from "react";
 import { CellProps, Column } from "react-table";
 
-import { IStringCellProps } from "interfaces/datatable_config";
-import { ISoftwareTitle, SoftwareSource } from "interfaces/software";
-import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
-
-import TextCell from "components/TableContainer/DataTable/TextCell";
-import SoftwareNameCell from "components/TableContainer/DataTable/SoftwareNameCell";
 import Checkbox from "components/forms/fields/Checkbox";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
-import TooltipWrapper from "components/TooltipWrapper";
-import { SetupExperiencePlatform } from "interfaces/platform";
 import AndroidLatestVersionWithTooltip from "components/MDM/AndroidLatestVersionWithTooltip";
+import SoftwareNameCell from "components/TableContainer/DataTable/SoftwareNameCell";
+import TextCell from "components/TableContainer/DataTable/TextCell";
+import TooltipWrapper from "components/TooltipWrapper";
+import { IStringCellProps } from "interfaces/datatable_config";
+import { SetupExperiencePlatform } from "interfaces/platform";
+import { ISoftwareTitle, SoftwareSource } from "interfaces/software";
+import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 
 type IInstallSoftwareTableConfig = Column<ISoftwareTitle>;
 type ITableStringCellProps = IStringCellProps<ISoftwareTitle>;

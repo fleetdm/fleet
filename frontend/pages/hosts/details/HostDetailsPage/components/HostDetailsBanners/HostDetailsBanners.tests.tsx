@@ -1,8 +1,8 @@
-import React from "react";
 import { screen } from "@testing-library/react";
+import React from "react";
 
-import { createCustomRenderer } from "test/test-utils";
 import createMockConfig from "__mocks__/configMock";
+import { createCustomRenderer } from "test/test-utils";
 
 import HostDetailsBanners from "./HostDetailsBanners";
 

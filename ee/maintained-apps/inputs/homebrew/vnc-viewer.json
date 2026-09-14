@@ -4,6 +4,5 @@
   "token": "realvnc-connect-viewer",
   "installer_format": "pkg",
   "slug": "vnc-viewer/darwin",
-  "default_categories": ["Productivity"],
-  "frozen": true
+  "default_categories": ["Productivity"]
 } 

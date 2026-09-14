@@ -1371,6 +1371,22 @@ func testHostsListStatus(t *testing.T, ds *Datastore) {
 
 	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{StatusFilter: "new", ListOptions: fleet.ListOptions{OrderKey: "id", After: fmt.Sprint(hosts[2].ID)}}, 7)
 	assert.Equal(t, 7, len(hosts))
+
+	// an ABM-pending host exists before it enrolls; "enrolled" is everything but those
+	ctx := context.Background()
+	abmToken, err := ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: "unused", EncryptedToken: []byte(uuid.NewString()), RenewAt: time.Now().Add(30 * 24 * time.Hour)})
+	require.NoError(t, err)
+	n, err := ds.IngestMDMAppleDevicesFromDEPSync(ctx, []godep.Device{
+		{SerialNumber: "pending-serial", Model: "MacBook Pro", OS: "OSX", OpType: "added"},
+	}, abmToken.ID, nil, nil, nil)
+	require.NoError(t, err)
+	require.Equal(t, int64(1), n)
+
+	listHostsCheckCount(t, ds, filter, fleet.HostListOptions{}, 11)
+	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{StatusFilter: fleet.StatusEnrolled}, 10)
+	for _, h := range hosts {
+		require.NotEqual(t, "Pending", h.MDM.EnrollmentStatus)
+	}
 }
 
 func testHostsListQuery(t *testing.T, ds *Datastore) {
@@ -11587,11 +11603,11 @@ func testLUKSDatastoreFunctions(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.ReportEscrowError(ctx, host1.ID, "this broke too"))
 	require.Equal(t, time.Duration(-1), sinceActivity(host1.ID))
 
-	// a heartbeat does not revive a host that is no longer in flight
+	// a progress report does not revive a host that is no longer in flight
 	require.NoError(t, ds.SetEscrowInFlight(ctx, host1.ID, true))
 	require.Equal(t, time.Duration(-1), sinceActivity(host1.ID))
 
-	// a heartbeat resets the last activity of a host that is in flight
+	// a progress report resets the last activity of a host in flight
 	require.NoError(t, ds.QueueEscrow(ctx, host1.ID))
 	require.NoError(t, ds.MarkEscrowSentToAgent(ctx, host1.ID))
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {

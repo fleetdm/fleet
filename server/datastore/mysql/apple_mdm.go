@@ -6690,6 +6690,11 @@ VALUES (?, ?, ?, ?, ?, NULLIF(?, ''), ?, ?, ?, ?, ?, ?)
 			tok.BYODDefaultTeamID,
 		)
 		if err != nil {
+			if IsDuplicate(err) {
+				return &fleet.ConflictError{
+					Message: fmt.Sprintf("An Apple Business Manager connection already exists for '%s'.", tok.OrganizationName),
+				}
+			}
 			return ctxerr.Wrap(ctx, err, "inserting abm_token")
 		}
 
@@ -7642,8 +7647,7 @@ func (ds *Datastore) GetNanoMDMEnrollmentDetails(ctx context.Context, hostUUID s
 	// enroll process and as such is a good indicator of the last enrollment or reenrollment.
 	query := `
 	SELECT nd.authenticate_at, nst.seen_time AS last_seen_at, ne.hardware_attested, nd.unlock_token,
-	  nd.bootstrap_token_b64 IS NOT NULL AS bootstrap_token_escrowed,
-	  ne.type AS enrollment_type
+	  nd.bootstrap_token_b64 IS NOT NULL AS bootstrap_token_escrowed
 	FROM nano_devices nd
 	  INNER JOIN nano_enrollments ne ON ne.id = nd.id
 	  LEFT JOIN nano_seen_times nst ON nst.id = ne.id

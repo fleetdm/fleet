@@ -1,6 +1,6 @@
+import { createMockHostMdmProfile } from "__mocks__/hostMock";
 import { IHostMdmData, IHostMdmHostNameSetting } from "interfaces/host";
 import { FLEET_ANDROID_CERTIFICATE_TEMPLATE_PROFILE_ID } from "interfaces/mdm";
-import { createMockHostMdmProfile } from "__mocks__/hostMock";
 import {
   generateRecoveryLockPasswordSetting,
   generateWinDiskEncryptionSetting,

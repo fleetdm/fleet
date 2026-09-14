@@ -1,14 +1,13 @@
-import React from "react";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import React from "react";
 
 import { createMockHostMdmProfile } from "__mocks__/hostMock";
-import { renderWithSetup } from "test/test-utils";
-
 import { FLEET_ANDROID_CERTIFICATE_TEMPLATE_PROFILE_ID } from "interfaces/mdm";
 import {
   HOST_NAME_SYNTHETIC_PROFILE_UUID,
   REC_LOCK_SYNTHETIC_PROFILE_UUID,
 } from "pages/hosts/details/helpers";
+import { renderWithSetup } from "test/test-utils";
 
 import OSSettingsResendCell from "./OSSettingsResendCell";
 

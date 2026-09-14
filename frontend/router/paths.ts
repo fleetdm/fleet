@@ -2,6 +2,7 @@ import {
   DiskEncryptionSettingsPlatform,
   SetupExperiencePlatform,
 } from "interfaces/platform";
+
 import URL_PREFIX from "./url_prefix";
 
 const INTEGRATIONS_PREFIX = `${URL_PREFIX}/settings/integrations`;

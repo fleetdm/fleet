@@ -1,41 +1,36 @@
 import React, { useCallback, useContext, useRef, useState } from "react";
-
 import { useQuery } from "react-query";
 import { Tab, TabList, TabPanel, Tabs } from "react-tabs";
-import PATHS from "router/paths";
-import { getPathWithQueryParams } from "utilities/url";
 
-import { AppContext } from "context/app";
-import { notify } from "components/ToastNotification";
-
-import { IMdmProfile } from "interfaces/mdm";
-import { getErrorReason } from "interfaces/errors";
-
-import mdmAPI, { IMdmProfilesResponse } from "services/entities/mdm";
-
+import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
-import SectionHeader from "components/SectionHeader";
-import PageDescription from "components/PageDescription";
-import Spinner from "components/Spinner";
 import DataError from "components/DataError";
 import EmptyState from "components/EmptyState";
-import Button from "components/buttons/Button";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import PageDescription from "components/PageDescription";
+import Pagination from "components/Pagination";
+import SectionHeader from "components/SectionHeader";
+import Spinner from "components/Spinner";
 import TabNav from "components/TabNav";
 import TabText from "components/TabText";
-
-import Pagination from "components/Pagination";
+import { notify } from "components/ToastNotification";
+import { AppContext } from "context/app";
+import { getErrorReason } from "interfaces/errors";
+import { IMdmProfile } from "interfaces/mdm";
+import PATHS from "router/paths";
+import mdmAPI, { IMdmProfilesResponse } from "services/entities/mdm";
+import { getPathWithQueryParams } from "utilities/url";
 
 import UploadList from "../../../../../components/UploadList";
+import { IOSSettingsCommonProps } from "../../OSSettingsNavItems";
 
-import AddProfileModal from "./components/ProfileUploader/components/AddProfileModal";
+import AssetsTab from "./components/AssetsTab";
+import ConfigProfileStatusModal from "./components/ConfigProfileStatusModal";
 import DeleteProfileModal from "./components/DeleteProfileModal/DeleteProfileModal";
 import EditProfileModal from "./components/EditProfileModal";
 import ProfileListItem from "./components/ProfileListItem";
-import ConfigProfileStatusModal from "./components/ConfigProfileStatusModal";
+import AddProfileModal from "./components/ProfileUploader/components/AddProfileModal";
 import ResendConfigProfileModal from "./components/ResendConfigProfileModal";
-import AssetsTab from "./components/AssetsTab";
-import { IOSSettingsCommonProps } from "../../OSSettingsNavItems";
 
 const PROFILES_PER_PAGE = 10;
 
@@ -389,6 +384,7 @@ const ConfigurationProfiles = ({
           teamId={currentTeamId}
           name={selectedProfile.current.name}
           uuid={selectedProfile.current.profile_uuid}
+          platform={selectedProfile.current.platform}
           onClickResend={(hostCount) => {
             selectedStatusHostCount.current = hostCount;
             setShowConfigProfileStatusModal(false);

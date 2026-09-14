@@ -1,7 +1,9 @@
-import React from "react";
 import { screen, render, within } from "@testing-library/react";
-import { createMockRouter, renderWithSetup } from "test/test-utils";
+import React from "react";
+
 import { ISoftwareTitleVersion } from "interfaces/software";
+import { createMockRouter, renderWithSetup } from "test/test-utils";
+
 import TitleVersionsTable from "./TitleVersionsTable";
 
 const mockRouter = createMockRouter();

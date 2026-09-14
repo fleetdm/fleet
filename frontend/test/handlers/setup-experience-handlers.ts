@@ -1,6 +1,5 @@
 import { http, HttpResponse } from "msw";
 
-import { baseUrl } from "test/test-utils";
 import {
   createMockBootstrapPackageMetadataResponse,
   createMockBootstrapPackageSummaryResponse,
@@ -13,6 +12,7 @@ import {
   IGetSetupExperienceScriptResponse,
   IGetSetupExperienceSoftwareResponse,
 } from "services/entities/mdm";
+import { baseUrl } from "test/test-utils";
 
 const setupExperienceScriptUrl = baseUrl("/setup_experience/script");
 const setupExperienceInstallSoftwareUrl = baseUrl(`/setup_experience/software`);

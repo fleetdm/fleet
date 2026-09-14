@@ -1,5 +1,6 @@
-import Button from "components/buttons/Button";
 import React from "react";
+
+import Button from "components/buttons/Button";
 
 const baseClass = "info-button";
 

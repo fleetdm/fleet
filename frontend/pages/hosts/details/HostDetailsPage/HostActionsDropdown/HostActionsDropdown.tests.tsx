@@ -1,14 +1,15 @@
-import React from "react";
-import { noop } from "lodash";
 import { screen, waitFor } from "@testing-library/react";
+import { noop } from "lodash";
+import React from "react";
+
+import createMockTeam from "__mocks__/teamMock";
+import createMockUser from "__mocks__/userMock";
+import { MDM_ENROLLMENT_STATUSES, MdmEnrollmentStatus } from "interfaces/mdm";
 import { createCustomRenderer } from "test/test-utils";
 
-import createMockUser from "__mocks__/userMock";
-import createMockTeam from "__mocks__/teamMock";
-import { MDM_ENROLLMENT_STATUSES, MdmEnrollmentStatus } from "interfaces/mdm";
+import { HostMdmDeviceStatusUIState } from "../../helpers";
 
 import HostActionsDropdown from "./HostActionsDropdown";
-import { HostMdmDeviceStatusUIState } from "../../helpers";
 
 describe("Host Actions Dropdown", () => {
   describe("Transfer action", () => {
@@ -1190,6 +1191,38 @@ describe("Host Actions Dropdown", () => {
           hostStatus="online"
           isConnectedToFleetMdm
           hostPlatform="omarchy"
+          hostMdmEnrollmentStatus={null}
+          hostMdmDeviceStatus="unlocked"
+          hostScriptsEnabled
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+      expect(screen.getByText("Run script")).toBeInTheDocument();
+    });
+
+    it("renders the Run script action for Debian-based Linux distributions with their own os-release ID", async () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isGlobalAdmin: true,
+            currentUser: createMockUser(),
+            config: {
+              server_settings: {
+                scripts_disabled: false,
+              },
+            },
+          },
+        },
+      });
+
+      const { user } = render(
+        <HostActionsDropdown
+          hostTeamId={null}
+          onSelect={noop}
+          hostStatus="online"
+          isConnectedToFleetMdm
+          hostPlatform="amd-ryzen-ai-developer-platform"
           hostMdmEnrollmentStatus={null}
           hostMdmDeviceStatus="unlocked"
           hostScriptsEnabled

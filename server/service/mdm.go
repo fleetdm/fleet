@@ -3595,19 +3595,28 @@ func (svc *Service) UpdateMDMHostNameTemplate(ctx context.Context, fleetID *uint
 		return ctxerr.Wrap(ctx, err)
 	}
 
+	var tm *fleet.Team
+	if fleetID != nil && *fleetID > 0 {
+		var err error
+		tm, err = svc.EnterpriseOverrides.TeamByIDOrName(ctx, fleetID, nil)
+		if err != nil {
+			return err
+		}
+	}
+
 	if nameTemplate != "" {
-		validated, err := fleet.ValidateHostNameTemplateWithSecrets(ctx, svc.ds, nameTemplate)
+		// Re-saving an unchanged template resolves no new secret. "No team" is a
+		// global-scope write, so its caller always passes the check anyway.
+		canReferenceSecrets := svc.authz.CanWriteSecretVariables(ctx) ||
+			(tm != nil && strings.TrimSpace(nameTemplate) == tm.Config.MDM.HostNameTemplate)
+		validated, err := fleet.ValidateHostNameTemplateWithSecrets(ctx, svc.ds, nameTemplate, canReferenceSecrets)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err)
 		}
 		nameTemplate = validated
 	}
 
-	if fleetID != nil && *fleetID > 0 {
-		tm, err := svc.EnterpriseOverrides.TeamByIDOrName(ctx, fleetID, nil)
-		if err != nil {
-			return err
-		}
+	if tm != nil {
 		return svc.EnterpriseOverrides.UpdateTeamMDMHostNameTemplate(ctx, tm, nameTemplate)
 	}
 	return svc.updateAppConfigMDMHostNameTemplate(ctx, nameTemplate)

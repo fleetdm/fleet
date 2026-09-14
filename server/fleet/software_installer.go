@@ -921,6 +921,11 @@ type HostSoftwareWithInstaller struct {
 	// AppStoreApp provides VPP app information, it is only present if a VPP app
 	// is available for the software title.
 	AppStoreApp *SoftwarePackageOrApp `json:"app_store_app"`
+
+	// SoftwareAutoUpdateConfig carries VPP auto-update fields (enabled + window).
+	// Populated post-pagination from software_update_schedules keyed on the host's
+	// team + title ID. Nil for hosts with no team (matches list-titles semantics).
+	SoftwareAutoUpdateConfig
 }
 
 func (h *HostSoftwareWithInstaller) IsPackage() bool {
