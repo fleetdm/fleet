@@ -1,13 +1,12 @@
-import React from "react";
 import classnames from "classnames";
+import React from "react";
 
-import { IHostEndUser } from "interfaces/host";
-
+import Button from "components/buttons/Button";
 import Card from "components/Card";
 import CardHeader from "components/CardHeader";
 import DataSet from "components/DataSet";
 import TooltipWrapper from "components/TooltipWrapper";
-import Button from "components/buttons/Button";
+import { IHostEndUser } from "interfaces/host";
 
 import UserValue from "./components/UserValue";
 import {

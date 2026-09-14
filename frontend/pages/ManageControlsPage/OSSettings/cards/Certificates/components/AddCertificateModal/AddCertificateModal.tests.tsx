@@ -1,7 +1,7 @@
+import { screen, waitFor } from "@testing-library/react";
+import { http, HttpResponse } from "msw";
 import React from "react";
 
-import { http, HttpResponse } from "msw";
-import { screen, waitFor } from "@testing-library/react";
 import mockServer from "test/mock-server";
 import { baseUrl, createCustomRenderer } from "test/test-utils";
 

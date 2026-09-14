@@ -1,8 +1,8 @@
 // Base component to reusable <InfoBanner/>, <HostCountCard/>, <SectionCard/>, etc
 // and countless single use components
-import React from "react";
-import classnames from "classnames";
 
+import classnames from "classnames";
+import React from "react";
 import { Link } from "react-router";
 
 const baseClass = "card";

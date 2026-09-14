@@ -1,15 +1,14 @@
 import React from "react";
 
-import { IHost, IHostMdmAppleServiceSubscription } from "interfaces/host";
-import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
-
-import Modal from "components/Modal";
-import ModalFooter from "components/ModalFooter";
 import Button from "components/buttons/Button";
 import DataSet from "components/DataSet";
-import TooltipWrapper from "components/TooltipWrapper";
-import TooltipTruncatedText from "components/TooltipTruncatedText";
 import { HumanTimeDiffWithFleetLaunchCutoff } from "components/HumanTimeDiffWithDateTip";
+import Modal from "components/Modal";
+import ModalFooter from "components/ModalFooter";
+import TooltipTruncatedText from "components/TooltipTruncatedText";
+import TooltipWrapper from "components/TooltipWrapper";
+import { IHost, IHostMdmAppleServiceSubscription } from "interfaces/host";
+import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 
 import {
   buildHostVitals,

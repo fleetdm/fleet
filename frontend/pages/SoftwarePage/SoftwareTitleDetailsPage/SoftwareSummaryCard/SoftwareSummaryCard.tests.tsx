@@ -1,3 +1,5 @@
+import { render as defaultRender, screen } from "@testing-library/react";
+import { UserEvent } from "@testing-library/user-event";
 import React from "react";
 
 import {
@@ -8,9 +10,6 @@ import {
   createMockAppStoreAppAndroid,
   createMockAppStoreAppIos,
 } from "__mocks__/softwareMock";
-
-import { render as defaultRender, screen } from "@testing-library/react";
-import { UserEvent } from "@testing-library/user-event";
 import { createCustomRenderer, createMockRouter } from "test/test-utils";
 
 import SoftwareSummaryCard from "./SoftwareSummaryCard";

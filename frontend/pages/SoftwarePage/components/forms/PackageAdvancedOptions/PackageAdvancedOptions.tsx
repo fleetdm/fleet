@@ -1,9 +1,8 @@
-import React, { useState } from "react";
 import { noop } from "lodash";
+import React, { useState } from "react";
 
-import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
-import { getExtensionFromFileName } from "utilities/file/fileUtils";
-
+import RevealButton from "components/buttons/RevealButton";
+import CustomLink from "components/CustomLink";
 import {
   isPackageType,
   isWindowsPackageType,
@@ -11,12 +10,11 @@ import {
   isScriptOnlyPackageType,
   PackageType,
 } from "interfaces/package_type";
+import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
+import { getExtensionFromFileName } from "utilities/file/fileUtils";
 
-import CustomLink from "components/CustomLink";
-import RevealButton from "components/buttons/RevealButton";
-
-import { IPackageFormData } from "../PackageForm/PackageForm";
 import AdvancedOptionsFields from "../AdvancedOptionsFields";
+import { IPackageFormData } from "../PackageForm/PackageForm";
 
 const getSupportedScriptTypeText = (pkgType: PackageType) => {
   // .ps1 is a script-only package type, not a "windows package type", but it's

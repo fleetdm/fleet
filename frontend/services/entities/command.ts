@@ -1,6 +1,6 @@
+import { ICommand, ICommandResult } from "interfaces/command";
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
-import { ICommand, ICommandResult } from "interfaces/command";
 import { getPathWithQueryParams } from "utilities/url";
 
 import { PaginationParams } from "./common";

@@ -282,8 +282,8 @@ type OrbitPostLUKSRequest struct {
 	// LUKSKeyTypePassphrase means the legacy passphrase-in-a-key-slot path;
 	// LUKSKeyTypeRecoveryKey means a TPM-backed FDE recovery key (no Salt/KeySlot).
 	KeyType string `json:"key_type"`
-	// Status reports progress on the escrow request instead of a result. When set, every other
-	// field is ignored. Only sent to servers advertising CapabilityLinuxEscrowStatus.
+	// Status reports progress instead of a result; other fields are ignored when set. Only sent to
+	// servers advertising CapabilityLinuxEscrowStatus.
 	Status string `json:"status"`
 }
 
@@ -302,8 +302,8 @@ type OrbitPostLUKSResponse struct {
 func (r OrbitPostLUKSResponse) Error() error { return r.Err }
 func (r OrbitPostLUKSResponse) Status() int  { return http.StatusNoContent }
 
-// Values for OrbitPostLUKSRequest.Status. The first two are heartbeats that keep the request in
-// flight; the last two end it without a key or an error.
+// Values for OrbitPostLUKSRequest.Status. The first two are progress reports that keep the request
+// in flight; the last two end it without a key or an error.
 const (
 	LinuxEscrowStatusPrompting = "prompting"
 	LinuxEscrowStatusEscrowing = "escrowing"

@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "3.9.19",
+      "version": "3.10.23",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.exafunction.windsurf';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.exafunction.windsurf' AND version_compare(bundle_short_version, '3.9.19') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.exafunction.windsurf' AND version_compare(bundle_short_version, '3.10.23') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.exafunction.windsurf' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://windsurf-stable.codeiumdata.com/darwin-arm64-dmg/stable/e2b252e21dd5cdfd88fce58f49477260e90294bc/Devin-darwin-arm64-3.9.19.dmg",
+      "installer_url": "https://windsurf-stable.codeiumdata.com/darwin-arm64-dmg/stable/deb816008be02bf5f9da707b7def3ebdb53a51cd/Devin-darwin-arm64-3.10.23.dmg",
       "install_script_ref": "cea2287e",
       "uninstall_script_ref": "4fdaa2d1",
-      "sha256": "6d1b779fde24388b4e336f27b62439ed6784080cc0cc9464072e9425da7bdb4f",
+      "sha256": "74ec490cfe95d80d6d17efaad45eecedcba09043ffd7aa9219558f3f7ac26631",
       "default_categories": [
         "Developer tools"
       ]

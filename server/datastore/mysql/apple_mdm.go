@@ -6690,6 +6690,11 @@ VALUES (?, ?, ?, ?, ?, NULLIF(?, ''), ?, ?, ?, ?, ?, ?)
 			tok.BYODDefaultTeamID,
 		)
 		if err != nil {
+			if IsDuplicate(err) {
+				return &fleet.ConflictError{
+					Message: fmt.Sprintf("An Apple Business Manager connection already exists for '%s'.", tok.OrganizationName),
+				}
+			}
 			return ctxerr.Wrap(ctx, err, "inserting abm_token")
 		}
 
