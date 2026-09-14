@@ -28754,10 +28754,10 @@ func (s *integrationMDMTestSuite) mustBYODIdPSession(t *testing.T, idpAccountUUI
 	return sessionID
 }
 
-// TestBitLockerPINRelay drives the whole end-user PIN flow: the My device page submits a PIN, the agent is told to
+// TestBitLockerPINHandoff drives the whole end-user PIN flow: the My device page submits a PIN, the agent is told to
 // collect it on its next config poll, collects it exactly once, reports success, and the host comes out the other side
 // with its PIN recorded, an activity written, and the notification gone.
-func (s *integrationMDMTestSuite) TestBitLockerPINRelay() {
+func (s *integrationMDMTestSuite) TestBitLockerPINHandoff() {
 	t := s.T()
 	ctx := context.Background()
 
@@ -28771,7 +28771,7 @@ func (s *integrationMDMTestSuite) TestBitLockerPINRelay() {
 	s.DoRaw("POST", microsoft_mdm.MDE2EnrollPath, requestBytes, http.StatusOK)
 	require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, host.ID, false, true, "https://example.com", true, fleet.WellKnownMDMFleet, "", false))
 
-	deviceToken := "bitlocker-pin-relay-" + uuid.NewString()
+	deviceToken := "bitlocker-pin-handoff-" + uuid.NewString()
 	require.NoError(t, s.ds.SetOrUpdateDeviceAuthToken(ctx, host.ID, deviceToken))
 
 	// Require a PIN, then put the host in the one state where only the end user can act: encrypted, key escrowed and
@@ -28921,7 +28921,7 @@ func (s *integrationMDMTestSuite) TestBitLockerPINRelay() {
 	// The PIN fields are Windows-only. Apple MDM is configured in this suite, so a macOS host's device response carries
 	// os_settings, which is exactly where they would otherwise leak.
 	macHost := createOrbitEnrolledHost(t, "darwin", t.Name()+"-mac", s.ds)
-	macToken := "bitlocker-pin-relay-mac-" + uuid.NewString()
+	macToken := "bitlocker-pin-handoff-mac-" + uuid.NewString()
 	require.NoError(t, s.ds.SetOrUpdateDeviceAuthToken(ctx, macHost.ID, macToken))
 	macRes := s.DoRaw("GET", "/api/latest/fleet/device/"+macToken, nil, http.StatusOK)
 	macBody, err := io.ReadAll(macRes.Body)

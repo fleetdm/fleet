@@ -6,11 +6,11 @@ import (
 	"errors"
 	"fmt"
 	"time"
+	"uuid"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/go-sql-driver/mysql"
-	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -464,18 +464,12 @@ func bulkDeleteHostDiskEncryptionKeysDB(ctx context.Context, tx sqlx.ExtContext,
 }
 
 /////////////////////////////////////////////////////////////////////////////////
-// BitLocker startup PIN relay
+// BitLocker startup PIN handoff
 /////////////////////////////////////////////////////////////////////////////////
 
 // setBitLockerPINPendingFlag keeps mdm_windows_enrollments.bitlocker_pin_request_pending in step with
-// host_bitlocker_pin_requests.
-//
-// The flag exists so the orbit config check-in can answer "is a PIN waiting?" from the enrollment row it already
-// reads every poll, instead of paying its own lookup against a table keyed by host_id. Every caller runs this inside
-// the same transaction as the change to the request row, because the two must not diverge in the direction that
-// matters: a false flag with a live request would strand the submission, since the poll never looks past the flag.
-// The opposite drift is self-correcting, as a collect against no request clears the flag on its way out, which is why
-// nothing else, including the cleanup cron, has to lower it.
+// host_bitlocker_pin_requests. The flag exists so the orbit config check-in can answer "is a PIN waiting?" from the enrollment
+// row it already reads every poll.
 func setBitLockerPINPendingFlag(ctx context.Context, tx sqlx.ExtContext, hostUUID string, pending bool) error {
 	if hostUUID == "" {
 		return ctxerr.Wrap(ctx, errors.New("missing host UUID"), "set bitlocker pin request pending flag")
@@ -488,9 +482,7 @@ WHERE host_uuid = ? ORDER BY created_at DESC, id DESC LIMIT 1`, pending, hostUUI
 	return nil
 }
 
-// QueueBitLockerPINRequest stores the end user's encrypted BitLocker startup PIN for the agent to collect. A new
-// submission replaces any earlier one for the host, and restarts the expiry clock, so a retry supersedes a stale
-// request instead of racing it.
+// QueueBitLockerPINRequest stores the end user's encrypted BitLocker startup PIN for the agent to collect.
 func (ds *Datastore) QueueBitLockerPINRequest(ctx context.Context, host *fleet.Host, encryptedPIN string) error {
 	const stmt = `
 INSERT INTO host_bitlocker_pin_requests (host_id, request_uuid, pin_encrypted, status, client_error, created_at, updated_at)
@@ -571,11 +563,11 @@ UPDATE host_bitlocker_pin_requests SET status = 'delivered', pin_encrypted = NUL
 			return err
 		}
 
-		requestID, err := uuid.FromBytes(row.RequestUUID)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "decode bitlocker pin request uuid")
+		// The column is BINARY(16), so this only guards the slice-to-array conversion against a panic.
+		if len(row.RequestUUID) != len(uuid.UUID{}) {
+			return ctxerr.Errorf(ctx, "bitlocker pin request uuid has %d bytes, want 16", len(row.RequestUUID))
 		}
-		encryptedPIN, requestUUID, collected = row.PIN, requestID.String(), true
+		encryptedPIN, requestUUID, collected = row.PIN, uuid.UUID(row.RequestUUID).String(), true
 		return nil
 	})
 	switch {

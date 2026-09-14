@@ -11,8 +11,8 @@ func init() {
 
 func Up_20260911193825(tx *sql.Tx) error {
 	// An end user submits a BitLocker startup PIN from the My device page and fleetd, running as SYSTEM, applies it on
-	// their behalf so a standard user does not need local admin rights. The PIN is relayed through the server, so it is
-	// held here encrypted with the server private key until the agent collects it on its next config poll.
+	// their behalf so a standard user does not need local admin rights. The server hands the PIN off to the agent, so it
+	// is held here encrypted with the server private key until the agent collects it on its next config poll.
 	if _, err := tx.Exec(`
 		CREATE TABLE IF NOT EXISTS host_bitlocker_pin_requests (
 			host_id INT UNSIGNED NOT NULL PRIMARY KEY,

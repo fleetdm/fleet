@@ -16,13 +16,13 @@ import (
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 )
 
-// BitLocker startup PIN relay.
+// BitLocker startup PIN handoff.
 //
 // Windows only offers PIN setup through Manage BitLocker, which needs UAC elevation, so a standard user cannot satisfy
 // a fleet that requires a startup PIN. fleetd runs as SYSTEM and can add the protector on their behalf, but the modal
-// the end user types into lives in a browser, and nothing on the device lets that page reach fleetd. So the PIN is
-// relayed through the server: the device endpoint below stores it encrypted, the agent collects it exactly once on its
-// next config poll, applies it, and reports back. The server never hands the PIN to a user-authenticated caller. The
+// the end user types into lives in a browser, and nothing on the device lets that page reach fleetd. So the server hands
+// the PIN off: the device endpoint below stores it encrypted, the agent collects it exactly once on its next config
+// poll, applies it, and reports back. The server never hands the PIN to a user-authenticated caller. The
 // PIN is encrypted with the server private key, not the WSTEP certificate that protects the BitLocker recovery key. The
 // server normally holds the ciphertext for seconds. A submission the agent never collects is cleared by the hourly
 // cleanups cron once its TTL passes, so the worst case is the TTL plus an hour.

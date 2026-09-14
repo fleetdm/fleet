@@ -287,7 +287,7 @@ func TestGetDeviceHostEndpointNoScrubbingForMacOS(t *testing.T) {
 }
 
 // TestGetDeviceHostEndpointBitLockerPINState checks that a failure reading the BitLocker PIN state does not break the My
-// device page. That the fields never appear for other platforms is covered by TestBitLockerPINRelay, where Apple MDM is
+// device page. That the fields never appear for other platforms is covered by TestBitLockerPINHandoff, where Apple MDM is
 // configured for real and a macOS host carries os_settings.
 func TestGetDeviceHostEndpointBitLockerPINState(t *testing.T) {
 	newSvc := func(t *testing.T, platform string) (*mock.Store, fleet.Service, context.Context) {

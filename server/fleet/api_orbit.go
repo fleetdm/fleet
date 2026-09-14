@@ -255,7 +255,7 @@ func (r OrbitPostDiskEncryptionKeyResponse) Error() error { return r.Err }
 func (r OrbitPostDiskEncryptionKeyResponse) Status() int  { return http.StatusNoContent }
 
 /////////////////////////////////////////////////////////////////////////////////
-// Orbit BitLocker startup PIN relay
+// Orbit BitLocker startup PIN handoff
 /////////////////////////////////////////////////////////////////////////////////
 
 // OrbitGetDiskEncryptionPINRequest collects the BitLocker startup PIN the end user submitted from the My device page.
