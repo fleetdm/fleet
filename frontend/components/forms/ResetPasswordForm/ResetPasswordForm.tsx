@@ -1,14 +1,13 @@
-import React, { FormEvent, useState } from "react";
 import { size } from "lodash";
-
-import { IResetPasswordForm, IResetPasswordFormErrors } from "interfaces/user";
+import React, { FormEvent, useState } from "react";
 
 import Button from "components/buttons/Button";
 // @ts-ignore
 import InputFieldWithIcon from "components/forms/fields/InputFieldWithIcon";
-import validatePresence from "components/forms/validators/validate_presence";
 import validatePassword from "components/forms/validators/valid_password";
 import validateEquality from "components/forms/validators/validate_equality";
+import validatePresence from "components/forms/validators/validate_presence";
+import { IResetPasswordForm, IResetPasswordFormErrors } from "interfaces/user";
 
 const baseClass = "reset-password-form";
 

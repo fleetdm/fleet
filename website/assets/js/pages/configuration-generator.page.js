@@ -22,6 +22,7 @@ parasails.registerPage('configuration-generator', {
     syncing: false,
     // Server error state
     cloudError: '',
+    cloudErrorExplanation: undefined,
     filenameOfGeneratedProfile: undefined,
     hasGeneratedProfile: false,
     // Filename and mimetype to fall back on when the generated profile doesn't come with a filename.
@@ -50,7 +51,9 @@ parasails.registerPage('configuration-generator', {
   //  ╩╝╚╝ ╩ ╚═╝╩╚═╩ ╩╚═╝ ╩ ╩╚═╝╝╚╝╚═╝
   methods: {
     handleSubmittingForm: async function() {
+      console.time('Profile generation');
       this.syncing = true;
+      this.hasGeneratedProfile = true;
       io.socket.request({
         method: 'post',
         url: '/api/v1/get-llm-generated-configuration-profile',
@@ -64,6 +67,7 @@ parasails.registerPage('configuration-generator', {
       }, (unusedData, jwr)=>{
         // The generated profile arrives as a broadcast, not as this response, so the only thing
         // worth reading here is a failure -- without it, a rejected request spins forever.
+        console.timeEnd('Profile generation');
         if(jwr.statusCode >= 300) {
           this._onProfileGenerationError({error: jwr.statusCode});
         }
@@ -75,6 +79,7 @@ parasails.registerPage('configuration-generator', {
       io.socket.on('error', this._onProfileGenerationError);
     },
     _onProfileGenerated: function(response) {
+      console.log('Profile generated!: ', response);
       this.generatedOutput = response.result.profile;
       this.filenameOfGeneratedProfile = response.result.profileFilename;
       this.deliveryNotes = response.result.deliveryNotes;
@@ -91,6 +96,9 @@ parasails.registerPage('configuration-generator', {
         // A failed generation arrives twice: once as a broadcast, and again as the non-2xx
         // response to the request that started it.  Whichever lands first wins.
         return;
+      }
+      if(response.reason) {
+        this.cloudErrorExplanation = response.reason;
       }
       this.cloudError = response.error;
       this.syncing = false;

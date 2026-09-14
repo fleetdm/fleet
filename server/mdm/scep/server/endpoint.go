@@ -165,6 +165,8 @@ func MakeClientEndpoints(instance string, opts ...ClientOption) (*Endpoints, err
 	var fleetOpts []fleethttp.ClientOpt
 	if co.timeout != nil {
 		fleetOpts = append(fleetOpts, fleethttp.WithTimeout(*co.timeout))
+	} else {
+		fleetOpts = append(fleetOpts, fleethttp.WithNoTimeout())
 	}
 
 	if co.rootCA != "" || co.insecure {

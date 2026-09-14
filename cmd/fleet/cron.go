@@ -32,6 +32,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/vpp"
 	"github.com/fleetdm/fleet/v4/server/mdm/assets"
 	maintained_apps "github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
+	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	"github.com/fleetdm/fleet/v4/server/policies"
 	"github.com/fleetdm/fleet/v4/server/service"
@@ -1338,6 +1339,7 @@ func newCleanupsAndAggregationSchedule(
 		defaultInterval               = 1 * time.Hour
 		expiredHostsCleanupMaxRunTime = 10 * time.Minute
 		expiredHostsCleanupBatchSize  = 5000
+		installerCleanupMaxRunTime    = 10 * time.Minute
 	)
 	s := schedule.New(
 		ctx, name, instanceID, defaultInterval, ds, ds,
@@ -1539,10 +1541,7 @@ func newCleanupsAndAggregationSchedule(
 			return ds.CleanupExpiredLiveQueries(ctx, appConfig.ActivityExpirySettings.ActivityExpiryWindow)
 		}),
 		schedule.WithJob("cleanup_unused_software_installers", func(ctx context.Context) error {
-			// remove only those unused created more than a minute ago to avoid a
-			// race where we delete those created after the mysql query to get those
-			// in use.
-			return ds.CleanupUnusedSoftwareInstallers(ctx, softwareInstallStore, time.Now().Add(-time.Minute))
+			return cleanupUnusedSoftwareInstallersCronJob(ctx, ds, softwareInstallStore, installerCleanupMaxRunTime)
 		}),
 		schedule.WithJob("cleanup_unused_software_title_icons", func(ctx context.Context) error {
 			return ds.CleanupUnusedSoftwareTitleIcons(ctx, softwareTitleIconStore, time.Now().Add(-time.Minute))
@@ -1652,6 +1651,20 @@ func cleanupExpiredHostsCronJob(ctx context.Context, svc fleet.Service, logger *
 			return nil
 		}
 	}
+}
+
+func cleanupUnusedSoftwareInstallersCronJob(ctx context.Context, ds fleet.Datastore, softwareInstallStore fleet.SoftwareInstallerStore, maxRunTime time.Duration) error {
+	// Jobs in this schedule run one after another under a leader lock that keeps being extended while
+	// a job runs, so an S3 call with no deadline here blocks every job after it until a restart. The
+	// budget goes on the context rather than the wall clock because interrupting an S3 list or delete
+	// mid-call is safe.
+	workCtx, cancel := context.WithTimeout(ctx, maxRunTime)
+	defer cancel()
+
+	// remove only those unused created more than a minute ago to avoid a
+	// race where we delete those created after the mysql query to get those
+	// in use.
+	return ds.CleanupUnusedSoftwareInstallers(workCtx, softwareInstallStore, time.Now().Add(-time.Minute))
 }
 
 // buildChartScopeResolver returns a per-dataset scope resolver for the chart
@@ -2457,6 +2470,7 @@ func newMaintainedAppsAutoUpdateSchedule(
 		name            = string(fleet.CronMaintainedAppsAutoUpdate)
 		defaultInterval = 1 * time.Hour
 		priorJobDiff    = -(defaultInterval - 30*time.Second)
+		maxRunTime      = 55 * time.Minute
 	)
 
 	logger = logger.With("cron", name)
@@ -2466,7 +2480,10 @@ func newMaintainedAppsAutoUpdateSchedule(
 		// ensures it runs a few seconds after Fleet is started
 		schedule.WithDefaultPrevRunCreatedAt(time.Now().Add(priorJobDiff)),
 		schedule.WithJob("maintained_apps_auto_update", func(ctx context.Context) error {
-			return eeservice.AutoUpdateFleetMaintainedApps(ctx, ds, softwareInstallStore, logger)
+			workCtx, cancel := context.WithTimeout(ctx, maxRunTime)
+			defer cancel()
+
+			return eeservice.AutoUpdateFleetMaintainedApps(workCtx, ds, softwareInstallStore, logger)
 		}),
 	)
 
@@ -2804,6 +2821,10 @@ func newManagedLocalAccountRotationSchedule(
 		schedule.WithLogger(logger),
 		schedule.WithJob("send_managed_local_account_rotation_commands", func(ctx context.Context) error {
 			return apple_mdm.SendManagedLocalAccountRotationCommands(ctx, ds, commander, logger, newActivityFn)
+		}),
+		// Registered separately so one platform failing does not stop the other.
+		schedule.WithJob("send_windows_managed_local_account_rotation_requests", func(ctx context.Context) error {
+			return microsoft_mdm.SendManagedLocalAccountRotationRequests(ctx, ds, logger, newActivityFn)
 		}),
 	)
 

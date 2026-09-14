@@ -1,6 +1,6 @@
-import React, { useEffect, useRef } from "react";
 import classnames from "classnames";
 import { pick } from "lodash";
+import React, { useEffect, useRef } from "react";
 
 import FormField from "components/forms/FormField";
 import { IFormFieldProps } from "components/forms/FormField/FormField";

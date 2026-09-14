@@ -1,12 +1,16 @@
+import classnames from "classnames";
 import React, { ReactNode, useCallback, useRef } from "react";
 import AceEditor from "react-ace";
 import ReactAce from "react-ace/lib/ace";
-import classnames from "classnames";
+
 import "ace-builds/src-noconflict/mode-sql";
 import "ace-builds/src-noconflict/ext-linking";
 import "ace-builds/src-noconflict/ext-language_tools";
-import { noop } from "lodash";
+
 import ace, { Ace } from "ace-builds";
+import { noop } from "lodash";
+
+import { releaseStuckSelectionOnScroll } from "utilities/ace_editor";
 import {
   osqueryTableNames,
   selectedTableColumns,
@@ -17,7 +21,7 @@ import {
   sqlDataTypes,
   sqlKeyWords,
 } from "utilities/sql_tools";
-import { releaseStuckSelectionOnScroll } from "utilities/ace_editor";
+
 import "utilities/ace_theme";
 
 import CopyButton from "components/buttons/CopyButton";

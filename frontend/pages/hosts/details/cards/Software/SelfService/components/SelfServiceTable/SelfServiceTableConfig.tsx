@@ -1,23 +1,21 @@
 import React from "react";
 import { CellProps, Column } from "react-table";
 
+import { ISWUninstallDetailsParentState } from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
+import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
+import SoftwareNameCell from "components/TableContainer/DataTable/SoftwareNameCell";
+import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
 import {
   IDeviceSoftware,
   IDeviceSoftwareWithUiStatus,
   IHostSoftware,
   IVPPHostSoftware,
 } from "interfaces/software";
-import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
-
-import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
-
-import SoftwareNameCell from "components/TableContainer/DataTable/SoftwareNameCell";
 import VersionCell from "pages/SoftwarePage/components/tables/VersionCell";
-import { ISWUninstallDetailsParentState } from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
 
-import InstallStatusCell from "../../../InstallStatusCell/InstallStatusCell";
-import { installStatusSortType } from "../../../helpers";
 import HostInstallerActionCell from "../../../../HostSoftwareLibrary/HostInstallerActionCell/HostInstallerActionCell";
+import { installStatusSortType } from "../../../helpers";
+import InstallStatusCell from "../../../InstallStatusCell/InstallStatusCell";
 
 type ISelfServiceTableConfig = Column<IDeviceSoftwareWithUiStatus>;
 type ITableHeaderProps = IHeaderProps<IDeviceSoftwareWithUiStatus>;

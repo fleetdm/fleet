@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "3.2.0",
+      "version": "3.2.1",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Dataflare' AND publisher = 'Dataflare';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Dataflare' AND publisher = 'Dataflare' AND version_compare(version, '3.2.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Dataflare' AND publisher = 'Dataflare' AND version_compare(version, '3.2.1') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'dataflare.exe');"
       },
-      "installer_url": "https://assets.dataflare.app/release/windows/x86_64/Dataflare-Setup-3.2.0.exe",
+      "installer_url": "https://assets.dataflare.app/release/windows/x86_64/Dataflare-Setup-3.2.1.exe",
       "install_script_ref": "680434fa",
       "uninstall_script_ref": "203b6a49",
-      "sha256": "037d099ec2c83a5fea41cd33c9f7db8883ec93489bb37bd8226630bd21596d4d",
+      "sha256": "e945664ab65691972267f99ba1caa1d07abc822680439d45c79db72a925f65fd",
       "default_categories": [
         "Developer tools"
       ]

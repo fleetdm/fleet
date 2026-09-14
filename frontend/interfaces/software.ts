@@ -3,10 +3,10 @@ import PropTypes from "prop-types";
 
 import { IconNames } from "components/icons";
 
+import { ICommandResult } from "./command";
+import { ILabelSoftwareTitle } from "./label";
 import { HOST_APPLE_PLATFORMS, Platform } from "./platform";
 import vulnerabilityInterface from "./vulnerability";
-import { ILabelSoftwareTitle } from "./label";
-import { ICommandResult } from "./command";
 
 export default PropTypes.shape({
   type: PropTypes.string,
@@ -224,6 +224,9 @@ export interface ISoftwareTitle {
    * `null` when the title has no custom packages. */
   packages: ISoftwarePackage[] | null;
   app_store_app: IAppStoreApp | null;
+  auto_update_enabled?: boolean;
+  auto_update_window_start?: string;
+  auto_update_window_end?: string;
   /** @deprecated Use extension_for instead */
   browser?: string;
 }
@@ -658,6 +661,9 @@ export interface IHostSoftware {
   bundle_identifier?: string;
   status: Exclude<SoftwareInstallUninstallStatus, "uninstalled"> | null;
   installed_versions: ISoftwareInstallVersion[] | null;
+  auto_update_enabled?: boolean;
+  auto_update_window_start?: string;
+  auto_update_window_end?: string;
 }
 
 /**

@@ -1,6 +1,6 @@
 ---
 name: new-fma
-description: Add a Fleet-maintained app (FMA) for macOS (Homebrew) and/or Windows (winget), or write/clean up an FMA's custom install or uninstall script. Use when asked to "add X as a macOS/Windows FMA", "add a Fleet-maintained app", to debug FMA validator failures, or to review comments in an FMA script. Emphasizes verifying installer metadata with real tools (msitools, plist) instead of guessing, and keeping shipped script comments admin-facing.
+description: Add a Fleet-maintained app (FMA) for macOS (Homebrew) and/or Windows (winget), or write/clean up an FMA's custom install or uninstall script. Use when asked to "add X as a macOS/Windows FMA", "add a Fleet-maintained app", to debug FMA validator failures, or to review comments in an FMA script. Emphasizes verifying installer metadata with real tools (msitools, plist) instead of guessing, proving where an installer actually lands when run as SYSTEM, and keeping shipped script comments admin-facing.
 allowed-tools: Bash, Read, Write, Edit, Grep, Glob, WebFetch, WebSearch
 model: opus
 effort: high
@@ -18,6 +18,8 @@ The single biggest source of wasted cycles is trusting winget/Homebrew metadata 
 - **Windows publisher** in the exists query must equal the registry **Publisher** (osquery `programs.publisher`).
 - **macOS `unique_identifier`** must equal the app's **CFBundleIdentifier**.
 - **Version** must reconcile with what osquery reports (`programs.version` on Windows; `bundle_short_version`/`bundle_version` on macOS).
+
+The same rule applies to **where the app installs**: verify it on a host running as SYSTEM rather than believing the manifest's `Scope`. See [Per-user installers and the SYSTEM context](#per-user-installers-and-the-system-context).
 
 Real examples from this codebase where the metadata lied:
 | App | winget/cask says | Registry/bundle actually is |
@@ -152,8 +154,99 @@ go run cmd/maintained-apps/main.go --slug="<app>/<platform>" --debug
 - Output lands in `ee/maintained-apps/outputs/<slug>.json`; an entry is appended to `outputs/apps.json` with an **empty description** — fill it in (sentence case, "`<App>` is a(n)..."). The generator does NOT update `unique_identifier` on an existing apps.json entry — edit it manually if you change it.
 - Verify the generated SHA matches the manifest, and the exists/patched queries look right: `grep -E 'exists|patched|sha256' outputs/<slug>.json`.
 - `python3 -m json.tool ee/maintained-apps/outputs/apps.json >/dev/null` to confirm valid JSON.
-- **Icon**: check `frontend/pages/SoftwarePage/components/icons/index.ts` for a key matching the lowercased catalog `name`. If missing, generate via [tools/software/icons](../../../tools/software/icons) before merge. Icons key off the lowercased `name`, so platforms sharing a `name` share an icon.
+- **Icon**: check `frontend/pages/SoftwarePage/components/icons/index.ts` for a key matching the lowercased catalog `name`. If missing, generate via [tools/software/icons](../../../tools/software/icons) before merge. Icons key off the lowercased `name`, so platforms sharing a `name` share an icon. After generating, confirm the new `SOFTWARE_NAME_TO_ICON_MAP` key really is the lowercased `name` — when `name` and slug differ it is easy to end up keyed off the slug, and the lookup then misses. If an icon component for that name already exists, revert any regenerated `.tsx`/`.png` and reuse it.
 - The validator is a Windows/macOS host (often **ephemeral** — you can't query it after the run). To cross-compile the Windows validator after editing it: `GOOS=windows go build ./cmd/maintained-apps/validate/`.
+
+## Per-user installers and the SYSTEM context
+
+Fleet runs install and uninstall scripts as **SYSTEM**. Most Windows FMA breakage traces back to this, and it does not reproduce in CI (see [Validating for real](#validating-for-real)), so it ships silently.
+
+**Always prefer machine-wide.** Try the installer's all-users switch first (`ALLUSERS=1`/`2`, `/ALLUSERS`, `G2MINSTALLFORALLUSERS=1`). Machine-wide installs land in `Program Files` with an HKLM registration and everything downstream just works.
+
+**Verify the switch was honoured — do not trust that it was.** Signal accepts `/S /allusers` and silently ignores it, still installing per-user. Install it on a real host as SYSTEM and look at where the payload and the registration actually went. Equally, do not trust the input's `installer_scope`: it comes from the winget manifest and is sometimes a default rather than a fact. `bluej`, `julia-app` and `readest` are all declared `installer_scope: user` yet install machine-wide to `Program Files` under HKLM, because their custom scripts already handle SYSTEM deliberately (`bluej` passes `ALLUSERS=2`). Scope alone is not evidence of a bug.
+
+### When the app has no machine-wide mode
+
+Electron/NSIS/Squirrel apps and some Inno apps only ever install into the running user's profile. Run as SYSTEM they land in `C:\Windows\system32\config\systemprofile\AppData\Local\...`, where **no signed-in user can launch them** — the install "succeeds" and is useless. Symptoms vary and none of them says "wrong scope": Notion's installer crashes outright (`0xC0000005`, installing nothing), `amazon-chime` hangs until the timeout, `granola` returns 0 and installs into SYSTEM's profile.
+
+The fix is to hand the installer to the signed-in user via a scheduled task. `figma`, `slack`, `brave`, `arc`, `postman`, `notion` and others follow this shape:
+
+```powershell
+$owner = Get-CimInstance Win32_Process -Filter 'name = "explorer.exe"' -ErrorAction SilentlyContinue |
+    Invoke-CimMethod -MethodName GetOwner -ErrorAction SilentlyContinue |
+    Where-Object { $_.User } | Select-Object -First 1
+if (-not $owner) { Throw "<App> installs per user and no user is signed in to this host. Sign in and try again." }
+$userAccount = "$($owner.Domain)\$($owner.User)"
+# Fleet's installer directory is not readable by that user - stage a copy under $env:PUBLIC.
+```
+
+Two variations worth knowing:
+- **The installer also demands elevation.** `portfolioperformance` fails as a plain user with `ERROR_ELEVATION_REQUIRED` (`0x800702E4`) *and* strands itself when run as SYSTEM. Add `-RunLevel Highest` to `New-ScheduledTaskPrincipal`; it only works if the signed-in user is an admin.
+- **`/currentuser` can be counterproductive.** `granola` shipped `/S /currentuser`; plain `/S` as the signed-in user is what lands it correctly.
+
+### The WOW64 trap (why these installs are also unremovable)
+
+Most Electron NSIS stubs are **32-bit** (PE machine `0x014C`). Run as SYSTEM, the WOW64 file system redirector rewrites their `%LOCALAPPDATA%` writes into `C:\Windows\SysWOW64\config\systemprofile\...`, but the `UninstallString` they record still names the unredirected `C:\Windows\system32\...` path. Uninstall scripts run in 64-bit PowerShell, where no redirection applies, so that path does not resolve:
+
+```
+Error running uninstaller: This command cannot be run due to the error: The system cannot find the file specified.
+```
+
+Any uninstall script for a per-user app needs this fallback so hosts already carrying a stranded install can be cleaned up:
+
+```powershell
+if (-not (Test-Path -LiteralPath $exePath)) {
+    $redirected = $exePath -replace '(?i)\\system32\\', '\SysWOW64\'
+    if ($redirected -ne $exePath -and (Test-Path -LiteralPath $redirected)) { $exePath = $redirected }
+}
+```
+
+Check the stub's architecture before assuming: read the PE machine type at `e_lfanew + 4`. An HTTP range request for the first 8 KB is enough, so you never download the installer to find out.
+
+### Uninstall must run in the hive that owns the registration
+
+A per-user app's ARP entry lives in the installing user's hive, so a SYSTEM-context script must enumerate every hive, not `HKCU` (which *is* SYSTEM's hive when running as SYSTEM):
+
+```powershell
+foreach ($hive in (Get-ChildItem 'Registry::HKEY_USERS' -ErrorAction SilentlyContinue)) {
+    if ($hive.Name -match '_Classes$') { continue }
+    $roots.Add("Registry::$($hive.Name)\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall")
+    $roots.Add("Registry::$($hive.Name)\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall")
+}
+```
+
+Finding the entry is not enough. **These uninstallers read the directory to remove out of the hive of whoever runs them**, so run as SYSTEM against a real user's install they exit **0 and delete nothing** — Signal left 473 MB behind while reporting success. Run the uninstaller as the user who owns the entry (derive the SID from the key path with `'HKEY_USERS\\(S-1-5-21-[\d-]+)\\'`, translate it to an account, and launch via a scheduled task). Entries genuinely under `S-1-5-18`/`.DEFAULT` — the stranded legacy installs — are the one case where running directly as SYSTEM is correct.
+
+Two details that avoid per-app data:
+- **Stop processes by install directory, not by name.** Most apps are not running when you look, so a process-name list is usually empty and useless; matching on the directory also leaves another user's copy of the same app alone.
+- **Sweep shortcuts by resolving each `.lnk` target** against the removed directory, rather than by filename — that catches the vendor subfolders installers create under `Start Menu\Programs`.
+
+## Validating for real
+
+**CI cannot catch SYSTEM-context bugs.** The Windows FMA validator's steps run as an interactive **`runneradmin`**, not SYSTEM. Per-user installers therefore land in an ordinary user profile, every path resolves, and the app passes — `signal/windows` passed its shard while broken in the field. If your change concerns scope, profile location or uninstall path resolution, a green CI run proves nothing.
+
+**A passing validator does not prove the shipped queries work.** `appExists` searches with its own fuzzy `LOWER(name) LIKE '%<name>%'`, so it finds an app whose real DisplayName the shipped exact `exists` query would never match. Read the validator log line — `Found app: 'Signal 8.18.0'` — and compare that string against the query you are shipping.
+
+**`fuzzy_match_name` must be verified in both directions.** Inno/NSIS/Electron installers often register `"<Name> <version>"` (`Signal 8.24.1`, `Bdash 1.35.1`, `Notion Calendar 1.133.0`) — those need `fuzzy_match_name`. But plenty register a plain name (`Asana`, `Discord`, `Canva`, `Kiro (User)`) and must keep an exact match; setting `fuzzy_match_name` on those breaks them just as badly, because `name LIKE 'Asana %'` never matches `Asana`. Observe the DisplayName, then decide.
+
+**Test on a host that is actually SYSTEM.** A local Windows VM works: `prlctl exec "<vm>" cmd /c "..."` (Parallels) runs as `NT AUTHORITY\SYSTEM`, which is exactly orbit's context. Assert three things after install — the registration is under a real user SID (`S-1-5-21-…`), there is **nothing** under `S-1-5-18`/`.DEFAULT`, and the payload is in that user's profile — then assert the uninstall leaves no registration, directory or shortcut.
+
+**Mind the test host's architecture.** An ARM64 VM (Parallels on Apple silicon) can only produce false *failures*, never false passes: the per-user/SYSTEM-profile behaviour and the `System32`→`SysWOW64` redirection are OS-level and identical on x64, but x64-only installers with a native-architecture `LaunchCondition` refuse to run at all. Inno says so plainly in `/LOG` — *"This program can only be installed on versions of Windows designed for the following processor architectures: x64"*. Do not read that as an app defect, and do not "fix" it; note that the app needs an x64 host. `kiro` and `antigravity-ide` are the same Inno 6.4.0.1 with identical switches, and only `kiro` runs on ARM64.
+
+**Get the installer's own diagnostics before guessing switches.** Inno takes `/LOG=<file>` and states its abort reason; a WiX Burn bundle takes `/log <file>` and reports blockers such as `Variable: RebootPending = 1` (which makes the inner MSI return 1603 and can survive a reboot on a dirty host). Four guessed switches taught nothing about `jetbrains-toolbox`; one log line explained `antigravity-ide` and `devtoys` completely.
+
+## PowerShell traps in FMA scripts
+
+Each of these silently produced a wrong answer in practice, not an error.
+
+- **`Start-Process -PassThru` + `WaitForExit($ms)` leaves `ExitCode` empty**, even once `HasExited` is `$true` and even after a parameterless `WaitForExit()`. Use `-Wait -PassThru` when you can. Treat any blank exit code as "not measured" — this one falsely reported an entire 30-app validation run as failing.
+- **`'\b/S\b'` never matches a switch preceded by a space.** Neither the space nor the `/` is a word character, so there is no boundary between them, and a `-notmatch` guard appends a duplicate switch forever. Anchor on whitespace: `'(?i)(^|\s)/S($|\s)'`.
+- **A single result is a scalar, so `.Count` is `$null`.** Wrap in `@(...)` before counting or comparing, or a one-match check silently reads as zero.
+- **`New-ScheduledTaskAction -Argument ""` is rejected outright.** Omit the parameter when there are no arguments.
+- **Do not wait for a scheduled task to be observed `Running`** — a fast task enters and leaves that state between polls. Poll until `LastTaskResult -ne 267009` (`SCHED_S_TASK_RUNNING`) instead.
+- **A nested `"` inside a `$(...)` subexpression terminates the surrounding string.** Build the value into a variable first; a parse error means the script never ran at all, which is easy to mistake for a silent failure. Parse-check before trusting a run: `[System.Management.Automation.Language.Parser]::ParseFile($p,[ref]$null,[ref]$errors)`.
+- **NSIS uninstallers relaunch themselves from `%TEMP%`** and the process you waited on exits while removal is still in flight. Poll until *either* the install directory or the registration disappears, then force-remove any remainder — waiting only on the directory burns the full timeout for an app that clears its registration first (Notion: 120s vs 6s).
+- **Carry over every element of a multi-value `ArgumentList`.** The original `ArgumentList = "/silent", "/skip-app-launch"` is an array; taking only the first element dropped `/skip-app-launch` and would have let Spotify launch itself after installing.
 
 ## Field semantics
 
@@ -187,13 +280,36 @@ if ($u -match '^\s*"([^"]+)"\s*(.*)$') {            # quoted
 - **macOS:** the validator's `checkVersionMatch` compares the cask version against BOTH `CFBundleShortVersionString` AND `CFBundleVersion` — so a cask version that equals `CFBundleVersion` passes even if `CFBundleShortVersionString` differs.
 - **Don't add existence-only version skips to the validator lightly.** They make the patch policy always report "patched" (never flags outdated installs). Only when the version genuinely can't be reconciled. If osquery's version actually matches the FMA version (verify in the validator log: `Found app: '...' Version: X`), no skip is needed.
 
-**5. Scope / SYSTEM context.** Fleet runs installs as SYSTEM (elevated). A per-user installer lands in the SYSTEM profile (useless). Force machine-wide with the installer's all-users switch (`ALLUSERS=1`/`2`, `/ALLUSERS`, `G2MINSTALLFORALLUSERS=1`). A per-user uninstaller likewise can't be reached from a SYSTEM-context script (its ARP entry is in the logged-in user's HKCU).
+**5. Scope / SYSTEM context.** See [Per-user installers and the SYSTEM context](#per-user-installers-and-the-system-context) — this is the single most common way a Windows FMA ships broken, and it has its own section.
 
 **6. Multi-version / sibling products sharing a DisplayName.**
 - Corretto 21 and 25 both register as `Amazon Corretto (x64)` — pin each with `exists_query ... AND version LIKE '<major>.%'`.
 - IntelliJ Ultimate's DisplayName `IntelliJ IDEA <ver>` also matches Community's `IntelliJ IDEA Community Edition <ver>` — exclude siblings in `exists_query` (`AND name NOT LIKE 'IntelliJ IDEA Community%'`) or use a custom `fuzzy_match_name` pattern.
 
-**7. Non-pinned installer URLs.** Some manifests point at a "latest" redirect (e.g. `link.gotomeeting.com/latest-msi`). The pinned SHA drifts when the vendor ships a new build, breaking Fleet installs until the FMA auto-update bumps it. Note this in the PR.
+**7. Non-pinned installer URLs.** Some manifests point at a "latest" redirect (e.g. `link.gotomeeting.com/latest-msi`, `download.scdn.co/SpotifyFullSetupX64.exe`). The pinned SHA drifts as soon as the vendor ships, and validation fails with `SHA256 hash in manifest does not match installer file hash`. Spotify served the pinned build one day and a newer one the next, so chasing the hash is not viable.
+
+`ignore_hash: true` sets the output SHA to `no_check` and the validator skips the hash comparison (the route already taken for `google-chrome`, `teamviewer` and ~15 others). **It does not fix the version assertion**: the validator then compares the manifest version against what osquery reports and has no general drift tolerance — only hardcoded per-app exemptions in `appExists` (Chrome for auto-update, Office for Click-to-Run). So a rolling URL whose build runs ahead of winget still fails, one step later. The options are a matching exemption (weakens that app to an existence-only version check — get maintainer agreement, it is shared tooling) or not shipping the app until the vendor offers a versioned URL. Diagnose which case you are in by reading the served installer's real version before touching anything:
+
+```bash
+# PE ProductVersion of the binary the URL actually serves right now
+python3 - <<'EOF'
+import re; d=open('installer.exe','rb').read()
+k='ProductVersion'.encode('utf-16-le'); m=re.search(re.escape(k), d)
+t=d[m.end():m.end()+120]; i=0
+while t[i:i+2]==b'\x00\x00': i+=2
+print(t[i:].split(b'\x00\x00')[0].decode('utf-16-le','ignore'))
+EOF
+```
+
+**8. `frozen: true` outputs are never regenerated.** `cmd/maintained-apps/main.go` only writes the output when `!app.Frozen || !outFileExists`, so re-running the generator on a frozen app silently leaves the old file — including stale `install_script_ref`/`uninstall_script_ref`. If you edit a frozen app's scripts you must hand-edit `outputs/<slug>/<platform>.json`: replace the `refs` map contents and set each `*_script_ref` to the new `sha256[:8]` of the script text. Check for `"frozen": true` in the input before assuming a regeneration took.
+
+**9. NUL-padded registry values.** Some installers write `REG_SZ` values padded with NULs — Fork records `DisplayName`, `Publisher` *and* `DisplayVersion` as `"Fork\0\0\0…"`. A pattern built from the observed string then contains the padding (`^Fork               $`) and never matches, and an exact publisher comparison fails too. Strip NULs on both sides when matching in a script:
+```powershell
+$name = ($key.DisplayName -replace "`0", "").Trim()
+```
+It also means the shipped `exists` query for such an app deserves a second look.
+
+**10. MSI "maintenance form" UninstallString.** Some MSIs record `MsiExec.exe /I{ProductCode}` (the *maintenance* form) rather than `/X`. A generic helper that prepends `/X` produces `MsiExec.exe /X /I{GUID}`, which hangs for ~11 minutes and fails (Foxit). Resolve the ProductCode — the ARP key name if it is a GUID, else a `\{[0-9A-Fa-f-]+\}` match on the string — and run a clean `msiexec /x {GUID} /qn /norestart`. Never reuse the `/I` from the registry.
 
 ## Pre-ship checklist
 - [ ] Identity fields verified against the real installer (MSI Property table / Info.plist), not guessed.
@@ -205,4 +321,10 @@ if ($u -match '^\s*"([^"]+)"\s*(.*)$') {            # quoted
 - [ ] Generated SHA matches the manifest; exists/patched queries reviewed; `apps.json` valid + description filled.
 - [ ] Icon exists or is generated.
 - [ ] Bootstrapper / per-user / latest-URL risks flagged in the PR if present.
-- [ ] If you changed shared code (`cmd/maintained-apps/validate/*.go`, ingesters), call it out in the PR and run `GOOS=windows go build ./cmd/maintained-apps/validate/` + `go test ./cmd/maintained-apps/...`.
+- [ ] **Scope proven, not assumed**: installed on a host as SYSTEM and confirmed where the payload and registration actually landed. Nothing under `S-1-5-18`/`.DEFAULT`.
+- [ ] **Per-user apps**: install runs as the signed-in user; uninstall enumerates every `HKEY_USERS` hive, runs the uninstaller as the owning user, and has the `system32` → `SysWOW64` fallback.
+- [ ] `fuzzy_match_name` matches the DisplayName you actually observed — set for versioned names, absent for plain ones.
+- [ ] If the app is `frozen`, the output was hand-edited (refs + `sha256[:8]`) because the generator skipped it.
+- [ ] Rolling "latest" URL: `ignore_hash` added if needed, and the version-assertion consequence understood and stated in the PR.
+- [ ] Exit codes in any validation you report were actually measured (no blank `ExitCode` from `-PassThru` + `WaitForExit($ms)`).
+- [ ] If you changed shared code (`cmd/maintained-apps/validate/*.go`, ingesters), call it out in the PR and run `GOOS=windows go build ./cmd/maintained-apps/validate/` + `go test ./cmd/maintained-apps/...`. Adding a per-app version-check exemption weakens that app to existence-only — get maintainer agreement first.

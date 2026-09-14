@@ -1,5 +1,5 @@
-import React from "react";
 import { flatMap } from "lodash";
+import React from "react";
 
 import Button from "components/buttons/Button";
 import CopyButton from "components/buttons/CopyButton";

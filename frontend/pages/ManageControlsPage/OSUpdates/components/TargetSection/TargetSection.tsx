@@ -1,13 +1,12 @@
 import React from "react";
 
-import { API_NO_TEAM_ID, ITeamConfig } from "interfaces/team";
+import Spinner from "components/Spinner";
 import { IConfig } from "interfaces/config";
 import { ApplePlatform } from "interfaces/platform";
+import { API_NO_TEAM_ID, ITeamConfig } from "interfaces/team";
 
-import Spinner from "components/Spinner";
-
-import PlatformTabs from "../PlatformTabs";
 import { OSUpdatesTargetPlatform } from "../../OSUpdates";
+import PlatformTabs from "../PlatformTabs";
 
 const baseClass = "os-updates-target-section";
 

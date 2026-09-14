@@ -1,6 +1,6 @@
-import React, { Component } from "react";
-import PropTypes from "prop-types";
 import classnames from "classnames";
+import PropTypes from "prop-types";
+import React, { Component } from "react";
 
 import AdminDetails from "components/forms/RegistrationForm/AdminDetails";
 import ConfirmationPage from "components/forms/RegistrationForm/ConfirmationPage";

@@ -480,14 +480,22 @@ func azureDataFromClaims(ctx context.Context, claims jwt.MapClaims) (AzureData, 
 	}, nil
 }
 
+// clientCertClockSkewAllowance backdates the issued certificate's NotBefore. It is generous on purpose: a host whose clock trails the
+// server (dual-boot RTC read as local time, a restored VM snapshot, hardware not yet synced to NTP) would otherwise reject it as not
+// yet valid. Widening it is free: NotAfter derives from the issuance time, so neither expiry nor the renewal window moves.
+const clientCertClockSkewAllowance = 24 * time.Hour
+
+// populateClientCert constructs an x509 client certificate template for Windows MDM enrollment,
+// configuring the certificate validity period derived from MDM policy settings.
 func populateClientCert(sn *big.Int, subject string, issuerCert *x509.Certificate, csr *x509.CertificateRequest) (*x509.Certificate, error) {
-	certRenewalPeriodInSecsInt, err := strconv.Atoi(syncml.PolicyCertRenewalPeriodInSecs)
+	certValidityPeriodInSecsInt, err := strconv.Atoi(syncml.PolicyCertValidityPeriodInSecs)
 	if err != nil {
-		return nil, fmt.Errorf("invalid renewal time: %w", err)
+		return nil, fmt.Errorf("invalid validity time: %w", err)
 	}
 
-	notBeforeDuration := time.Now().Add(time.Duration(certRenewalPeriodInSecsInt) * -time.Second)
-	yearDuration := 365 * 24 * time.Hour
+	now := time.Now()
+	notBefore := now.Add(-clientCertClockSkewAllowance)
+	notAfter := now.Add(time.Duration(certValidityPeriodInSecsInt) * time.Second)
 
 	certSubject := pkix.Name{
 		OrganizationalUnit: []string{syncml.DocProvisioningAppProviderID},
@@ -508,8 +516,8 @@ func populateClientCert(sn *big.Int, subject string, issuerCert *x509.Certificat
 		EmailAddresses:     csr.EmailAddresses,
 		DNSNames:           csr.DNSNames,
 		URIs:               csr.URIs,
-		NotBefore:          notBeforeDuration,
-		NotAfter:           notBeforeDuration.Add(yearDuration),
+		NotBefore:          notBefore,
+		NotAfter:           notAfter,
 		SerialNumber:       sn,
 		KeyUsage:           x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
 

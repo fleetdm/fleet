@@ -1,4 +1,5 @@
 import React from "react";
+
 import LastUpdatedText from "components/LastUpdatedText";
 
 const baseClass = "last-updated-host-count";

@@ -1,20 +1,18 @@
-import React from "react";
 import { screen, waitFor } from "@testing-library/react";
-
-import { ActivityType } from "interfaces/activity";
-import { IPolicy, IPolicyAutomationActivity } from "interfaces/policy";
-import { createCustomRenderer } from "test/test-utils";
-
-import policiesAPI from "services/entities/policies";
+import React from "react";
 
 import { SKIPPED_INSTALL_DETAILS } from "components/ActivityDetails/InstallDetails/constants";
+import { ActivityType } from "interfaces/activity";
+import { IPolicy, IPolicyAutomationActivity } from "interfaces/policy";
+import policiesAPI from "services/entities/policies";
+import { createCustomRenderer } from "test/test-utils";
 
-import PolicyAutomationsActivitiesTable from "./PolicyAutomationsActivitiesTable";
 import {
   getAutomationRunDisplayName,
   getAutomationStatusIcon,
   getDetailOutputText,
 } from "./helpers";
+import PolicyAutomationsActivitiesTable from "./PolicyAutomationsActivitiesTable";
 
 jest.mock("services/entities/policies");
 

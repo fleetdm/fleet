@@ -15,6 +15,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 )
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1322,7 +1323,8 @@ func (svc *Service) WipeHost(ctx context.Context, hostID uint, _ *fleet.MDMWipeM
 	// Authorize again with team loaded now that we have the host's team_id.
 	// Authorize as "execute mdm_command", which is the correct access
 	// requirement and is what happens for macOS platforms.
-	if err := svc.authz.Authorize(ctx, fleet.MDMCommandAuthz{TeamID: host.TeamID}, fleet.ActionWrite); err != nil {
+	notFoundErr := ctxerr.Wrap(ctx, common_mysql.NotFound("Host").WithID(hostID), "wipe host")
+	if err := svc.authz.AuthorizeOrNotFound(ctx, fleet.MDMCommandAuthz{TeamID: host.TeamID}, fleet.ActionWrite, notFoundErr); err != nil {
 		return err
 	}
 
