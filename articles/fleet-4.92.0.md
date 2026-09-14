@@ -49,7 +49,7 @@ GitHub issue: [#43481](https://github.com/fleetdm/fleet/issues/43481)
 
 _Available in Fleet Premium_
 
-IT admins can now add custom disk encryption (FileVault) settings for macOS. This makes it possible to upload a [custom `FDEFileVaultOptions` configuration profile](https://fleetdm.com/guides/custom-disk-encryption-profiles) — for example, to defer FileVault until the next login — or allow a third-party tool such as Xcreds to enforce FileVault, while Fleet still escrows the recovery key.
+IT admins can now add custom disk encryption (FileVault) settings for macOS. This makes it possible to upload a [custom `FDEFileVaultOptions` configuration profile](https://fleetdm.com/guides/custom-disk-encryption-profiles), for example, to defer FileVault until the next login, or allow a third-party tool such as Xcreds to enforce FileVault, while Fleet still escrows the recovery key.
 
 GitHub issue: [#48654](https://github.com/fleetdm/fleet/issues/48654)
 
