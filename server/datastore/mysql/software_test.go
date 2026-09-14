@@ -3090,13 +3090,27 @@ func testListSoftwareForVulnDetection(t *testing.T, ds *Datastore) {
 		require.Equal(t, "foo", result[0].Name)
 
 		// test source filter
-		filter = fleet.VulnSoftwareFilter{Source: "deb_packages"}
+		filter = fleet.VulnSoftwareFilter{Sources: []string{"deb_packages"}}
 		result, err = ds.ListSoftwareForVulnDetection(ctx, filter)
 		sort.Slice(result, func(i, j int) bool { return result[i].Name < result[j].Name })
 		require.NoError(t, err)
 		require.Len(t, result, 2)
 		require.Equal(t, "baz", result[0].Name)
 		require.Equal(t, "biz", result[1].Name)
+
+		// test multi-source filter
+		filter = fleet.VulnSoftwareFilter{HostID: &host.ID, Sources: []string{"deb_packages", "apps"}}
+		result, err = ds.ListSoftwareForVulnDetection(ctx, filter)
+		require.NoError(t, err)
+		sort.Slice(result, func(i, j int) bool { return result[i].Name < result[j].Name })
+		require.Len(t, result, 3)
+		require.Equal(t, "bar", result[0].Name)
+		require.Equal(t, "baz", result[1].Name)
+		require.Equal(t, "biz", result[2].Name)
+
+		// a malformed source list is rejected rather than silently narrowing the query
+		_, err = ds.ListSoftwareForVulnDetection(ctx, fleet.VulnSoftwareFilter{Sources: []string{""}})
+		require.ErrorContains(t, err, "empty software source")
 	})
 
 	t.Run("KernelsOnly filter returns only kernel software", func(t *testing.T) {
@@ -13453,11 +13467,17 @@ func testListSoftwareForVulnDetectionByOSVersion(t *testing.T, ds *Datastore) {
 	_, err = ds.UpdateHostSoftware(ctx, host3.ID, host3Software)
 	require.NoError(t, err)
 
+	// A Go binary sharing a distro package's name must never be listed for package scanning.
+	_, err = ds.UpdateHostSoftware(ctx, host1.ID, append(sharedSoftware,
+		fleet.Software{Name: "libfoo", Version: "v1.2.3", Source: "go_binaries", Release: "go1.26.1"},
+	))
+	require.NoError(t, err)
+
 	// Query for Ubuntu 22.04.1 LTS — should return 3 distinct software items.
 	result, err := ds.ListSoftwareForVulnDetectionByOSVersion(ctx, fleet.OSVersion{
 		Platform: "ubuntu",
 		Name:     "Ubuntu 22.04.1 LTS",
-	})
+	}, []string{"deb_packages", "rpm_packages"})
 	require.NoError(t, err)
 
 	names := make([]string, len(result))
@@ -13474,7 +13494,7 @@ func testListSoftwareForVulnDetectionByOSVersion(t *testing.T, ds *Datastore) {
 	result, err = ds.ListSoftwareForVulnDetectionByOSVersion(ctx, fleet.OSVersion{
 		Platform: "ubuntu",
 		Name:     "Ubuntu 20.04.1 LTS",
-	})
+	}, []string{"deb_packages", "rpm_packages"})
 	require.NoError(t, err)
 	require.Len(t, result, 1)
 	require.Equal(t, "libother", result[0].Name)
@@ -13483,9 +13503,19 @@ func testListSoftwareForVulnDetectionByOSVersion(t *testing.T, ds *Datastore) {
 	result, err = ds.ListSoftwareForVulnDetectionByOSVersion(ctx, fleet.OSVersion{
 		Platform: "ubuntu",
 		Name:     "Ubuntu 99.99 LTS",
-	})
+	}, []string{"deb_packages", "rpm_packages"})
 	require.NoError(t, err)
 	require.Nil(t, result)
+
+	// An unscoped call is the bug this parameter exists to prevent, and a malformed list is
+	// rejected rather than silently narrowing the query.
+	ubuntu2204 := fleet.OSVersion{Platform: "ubuntu", Name: "Ubuntu 22.04.1 LTS"}
+
+	_, err = ds.ListSoftwareForVulnDetectionByOSVersion(ctx, ubuntu2204, nil)
+	require.ErrorContains(t, err, "no software sources given")
+
+	_, err = ds.ListSoftwareForVulnDetectionByOSVersion(ctx, ubuntu2204, []string{"deb_packages", ""})
+	require.ErrorContains(t, err, "empty software source")
 }
 
 func testListSoftwareVulnerabilitiesBySoftwareIDs(t *testing.T, ds *Datastore) {
