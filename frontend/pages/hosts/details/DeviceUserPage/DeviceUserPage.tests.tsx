@@ -1,21 +1,16 @@
-import React from "react";
 import { screen, waitFor } from "@testing-library/react";
+import React from "react";
 
-import { IDUPDetails, IHostDevice } from "interfaces/host";
 import createMockHost from "__mocks__/hostMock";
-import mockServer from "test/mock-server";
-import { createCustomRenderer, createMockRouter } from "test/test-utils";
 import createMockLicense from "__mocks__/licenseMock";
 import { notify } from "components/ToastNotification";
+import { IDUPDetails, IHostDevice } from "interfaces/host";
 import { HostPlatform } from "interfaces/platform";
-
+import { IHostPolicy } from "interfaces/policy";
 import deviceUserAPI, {
   IGetSetupExperienceStatusesResponse,
 } from "services/entities/device_user";
 import diskEncryptionAPI from "services/entities/disk_encryption";
-
-import { IHostPolicy } from "interfaces/policy";
-
 import {
   customDeviceHandler,
   defaultDeviceCertificatesHandler,
@@ -26,8 +21,12 @@ import {
   ssoRequiredDeviceHandler,
   unauthorizedDeviceHandler,
 } from "test/handlers/device-handler";
-import DeviceUserPage from "./DeviceUserPage";
+import mockServer from "test/mock-server";
+import { createCustomRenderer, createMockRouter } from "test/test-utils";
+
 import PolicyDetailsModal from "../cards/Policies/HostPoliciesTable/PolicyDetailsModal";
+
+import DeviceUserPage from "./DeviceUserPage";
 
 jest.mock("components/ToastNotification", () => ({
   notify: {

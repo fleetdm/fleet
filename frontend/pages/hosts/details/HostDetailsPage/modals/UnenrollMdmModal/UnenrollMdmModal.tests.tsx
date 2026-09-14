@@ -1,8 +1,8 @@
-import React from "react";
 import { screen } from "@testing-library/react";
-import { createCustomRenderer } from "test/test-utils";
+import React from "react";
 
 import { MDM_ENROLLMENT_TYPE_ACCOUNT_DRIVEN } from "interfaces/mdm";
+import { createCustomRenderer } from "test/test-utils";
 
 import UnenrollMdmModal from "./UnenrollMdmModal";
 

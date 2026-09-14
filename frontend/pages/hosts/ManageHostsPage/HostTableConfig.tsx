@@ -4,42 +4,41 @@
 import React from "react";
 import { CellProps, Column } from "react-table";
 
+import Checkbox from "components/forms/fields/Checkbox";
+import { HumanTimeDiffWithFleetLaunchCutoff } from "components/HumanTimeDiffWithDateTip";
+import NotSupported from "components/NotSupported";
+import StatusIndicator from "components/StatusIndicator";
+import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
+import HostMdmStatusCell from "components/TableContainer/DataTable/HostMdmStatusCell/HostMdmStatusCell";
+import IssueCell from "components/TableContainer/DataTable/IssueCell/IssueCell";
+import LinkCell from "components/TableContainer/DataTable/LinkCell/LinkCell";
+import TextCell from "components/TableContainer/DataTable/TextCell/TextCell";
+import TooltipTruncatedTextCell from "components/TableContainer/DataTable/TooltipTruncatedTextCell";
+import TooltipWrapper from "components/TooltipWrapper";
+import TooltipWrapperArchLinuxRolling from "components/TooltipWrapperArchLinuxRolling";
+import {
+  IHeaderProps,
+  IStringCellProps,
+  INumberCellProps,
+} from "interfaces/datatable_config";
 import { IDeviceUser, IHost } from "interfaces/host";
+import { isBYODAccountDrivenUserEnrollment } from "interfaces/mdm";
 import {
   isAndroid,
   isAppleDevice,
   isMobilePlatform,
 } from "interfaces/platform";
-import { isBYODAccountDrivenUserEnrollment } from "interfaces/mdm";
 import { ROLLING_ARCH_LINUX_VERSIONS } from "interfaces/software";
-
-import TooltipWrapperArchLinuxRolling from "components/TooltipWrapperArchLinuxRolling";
-import Checkbox from "components/forms/fields/Checkbox";
 import DiskSpaceIndicator from "pages/hosts/components/DiskSpaceIndicator";
-import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
-import HostMdmStatusCell from "components/TableContainer/DataTable/HostMdmStatusCell/HostMdmStatusCell";
-import IssueCell from "components/TableContainer/DataTable/IssueCell/IssueCell";
-import LinkCell from "components/TableContainer/DataTable/LinkCell/LinkCell";
-import StatusIndicator from "components/StatusIndicator";
-import TextCell from "components/TableContainer/DataTable/TextCell/TextCell";
-import TooltipTruncatedTextCell from "components/TableContainer/DataTable/TooltipTruncatedTextCell";
-import TooltipWrapper from "components/TooltipWrapper";
-import { HumanTimeDiffWithFleetLaunchCutoff } from "components/HumanTimeDiffWithDateTip";
-import NotSupported from "components/NotSupported";
-
+import PATHS from "router/paths";
+import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 import {
   humanHostMemory,
   humanHostLastSeen,
   hostTeamName,
   tooltipTextWithLineBreaks,
 } from "utilities/helpers";
-import {
-  IHeaderProps,
-  IStringCellProps,
-  INumberCellProps,
-} from "interfaces/datatable_config";
-import PATHS from "router/paths";
-import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
+
 import { getHardwareModelDisplay, getHostStatusTooltipText } from "../helpers";
 
 type IHostTableColumnConfig = Column<IHost> & {

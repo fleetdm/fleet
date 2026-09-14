@@ -1,18 +1,17 @@
-import React from "react";
 import { screen, waitFor } from "@testing-library/react";
+import React from "react";
 
+import createMockConfig from "__mocks__/configMock";
 import createMockHost from "__mocks__/hostMock";
 import createMockUser from "__mocks__/userMock";
-import createMockConfig from "__mocks__/configMock";
-import { createCustomRenderer, createMockRouter } from "test/test-utils";
-
+import { notify } from "components/ToastNotification";
 import { IHost } from "interfaces/host";
 import { IUser } from "interfaces/user";
-import hostAPI from "services/entities/hosts";
 import activitiesAPI from "services/entities/activities";
-import teamAPI from "services/entities/teams";
 import commandAPI from "services/entities/command";
-import { notify } from "components/ToastNotification";
+import hostAPI from "services/entities/hosts";
+import teamAPI from "services/entities/teams";
+import { createCustomRenderer, createMockRouter } from "test/test-utils";
 import local from "utilities/local";
 
 import HostDetailsPage, {

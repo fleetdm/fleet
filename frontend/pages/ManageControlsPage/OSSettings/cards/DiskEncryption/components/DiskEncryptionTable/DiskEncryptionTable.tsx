@@ -1,21 +1,18 @@
 import React, { useCallback } from "react";
 import { useQuery } from "react-query";
-import { Row } from "react-table";
 import { InjectedRouter } from "react-router";
+import { Row } from "react-table";
 
+import DataError from "components/DataError";
+import EmptyState from "components/EmptyState";
+import TableContainer from "components/TableContainer";
 import PATHS from "router/paths";
-
-import { getPathWithQueryParams } from "utilities/url";
-
 import diskEncryptionAPI, {
   IDiskEncryptionStatusAggregate,
   IDiskEncryptionSummaryResponse,
 } from "services/entities/disk_encryption";
 import { HOSTS_QUERY_PARAMS } from "services/entities/hosts";
-
-import TableContainer from "components/TableContainer";
-import EmptyState from "components/EmptyState";
-import DataError from "components/DataError";
+import { getPathWithQueryParams } from "utilities/url";
 
 import {
   generateTableHeaders,

@@ -1,22 +1,22 @@
-import React, { useEffect } from "react";
 import { Command } from "cmdk";
+import React, { useEffect } from "react";
 
-import { APP_CONTEXT_ALL_TEAMS_ID, ITeamSummary } from "interfaces/team";
-import globalPoliciesAPI from "services/entities/global_policies";
-import teamPoliciesAPI from "services/entities/team_policies";
+import CriticalPolicyBadge from "components/CriticalPolicyBadge";
+import { PATCH_TOOLTIP_CONTENT } from "components/SoftwareInstallPolicyBadges/SoftwareInstallPolicyBadges";
+import Tag from "components/Tag";
 import {
   ILoadAllPoliciesResponse,
   ILoadTeamPoliciesResponse,
   IPolicyStats,
 } from "interfaces/policy";
-import CriticalPolicyBadge from "components/CriticalPolicyBadge";
-import Tag from "components/Tag";
-import { PATCH_TOOLTIP_CONTENT } from "components/SoftwareInstallPolicyBadges/SoftwareInstallPolicyBadges";
+import { APP_CONTEXT_ALL_TEAMS_ID, ITeamSummary } from "interfaces/team";
+import globalPoliciesAPI from "services/entities/global_policies";
+import teamPoliciesAPI from "services/entities/team_policies";
 
-import usePickerSearch from "./usePickerSearch";
 import { RESULT_PREFIXES } from "./constants";
-import getFleetSuffix from "./pickerCopy";
 import HighlightedLabel from "./HighlightedLabel";
+import getFleetSuffix from "./pickerCopy";
+import usePickerSearch from "./usePickerSearch";
 
 const baseClass = "command-palette";
 

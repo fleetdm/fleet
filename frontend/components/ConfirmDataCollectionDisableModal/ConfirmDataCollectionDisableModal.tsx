@@ -1,9 +1,8 @@
 import React from "react";
 
-import { DATASET_LABEL, HistoricalDataConfigKey } from "interfaces/charts";
-
-import Modal from "components/Modal";
 import Button from "components/buttons/Button";
+import Modal from "components/Modal";
+import { DATASET_LABEL, HistoricalDataConfigKey } from "interfaces/charts";
 
 const baseClass = "confirm-data-collection-disable-modal";
 

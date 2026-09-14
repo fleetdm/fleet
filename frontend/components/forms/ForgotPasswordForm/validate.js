@@ -1,6 +1,7 @@
 import { size } from "lodash";
-import validatePresence from "components/forms/validators/validate_presence";
+
 import validateEmail from "components/forms/validators/valid_email";
+import validatePresence from "components/forms/validators/validate_presence";
 
 const validate = (formData) => {
   const errors = {};
