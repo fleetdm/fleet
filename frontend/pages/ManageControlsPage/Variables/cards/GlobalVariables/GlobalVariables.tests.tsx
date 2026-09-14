@@ -179,8 +179,8 @@ describe("Custom variables", () => {
       render(<GlobalVariables {...baseProps} />);
       await waitFor(
         () => {
-          expect(screen.getByText("SECRET_UNO")).toBeInTheDocument();
-          expect(screen.getByText("SECRET_DOS")).toBeInTheDocument();
+          expect(screen.getAllByText("SECRET_UNO").length).toBeGreaterThan(0);
+          expect(screen.getAllByText("SECRET_DOS").length).toBeGreaterThan(0);
         },
         {
           timeout: 3000,
@@ -213,7 +213,7 @@ describe("Custom variables", () => {
       it("deleting a variable is successful in GitOps mode", async () => {
         const { user } = renderInGOM(<GlobalVariables {...baseProps} />);
         await waitFor(() => {
-          expect(screen.getByText("SECRET_UNO")).toBeInTheDocument();
+          expect(screen.getAllByText("SECRET_UNO").length).toBeGreaterThan(0);
         });
         const deleteButton = screen.getByRole("button", {
           name: "Delete SECRET_UNO",
@@ -232,8 +232,8 @@ describe("Custom variables", () => {
           expect(
             screen.queryByText(/Delete custom variable\?/)
           ).not.toBeInTheDocument();
-          expect(screen.queryByText("SECRET_UNO")).not.toBeInTheDocument();
-          expect(screen.queryByText("SECRET_DOS")).toBeInTheDocument();
+          expect(screen.queryAllByText("SECRET_UNO")).toHaveLength(0);
+          expect(screen.getAllByText("SECRET_DOS").length).toBeGreaterThan(0);
         });
       });
     });
@@ -278,9 +278,9 @@ describe("Custom variables", () => {
         await user.type(valueInput, "Secret Value");
         await user.click(saveButton);
         await waitFor(() => {
-          expect(screen.getByText("SECRET_UNO")).toBeInTheDocument();
-          expect(screen.getByText("SECRET_DOS")).toBeInTheDocument();
-          expect(screen.getByText("NEW_SECRET")).toBeInTheDocument();
+          expect(screen.getAllByText("SECRET_UNO").length).toBeGreaterThan(0);
+          expect(screen.getAllByText("SECRET_DOS").length).toBeGreaterThan(0);
+          expect(screen.getAllByText("NEW_SECRET").length).toBeGreaterThan(0);
         });
       });
       it("does not allow saving without name", async () => {
@@ -327,7 +327,7 @@ describe("Custom variables", () => {
         expect(screen.getByText("Add variable")).toBeInTheDocument();
       });
       await waitFor(() => {
-        expect(screen.getByText("SECRET_UNO")).toBeInTheDocument();
+        expect(screen.getAllByText("SECRET_UNO").length).toBeGreaterThan(0);
       });
       // The row action is a trash-icon button labeled "Delete <name>".
       const deleteButton = screen.getByRole("button", {
@@ -349,8 +349,8 @@ describe("Custom variables", () => {
         expect(
           screen.queryByText(/Delete custom variable\?/)
         ).not.toBeInTheDocument();
-        expect(screen.queryByText("SECRET_UNO")).not.toBeInTheDocument();
-        expect(screen.queryByText("SECRET_DOS")).toBeInTheDocument();
+        expect(screen.queryAllByText("SECRET_UNO")).toHaveLength(0);
+        expect(screen.getAllByText("SECRET_DOS").length).toBeGreaterThan(0);
       });
     });
   });

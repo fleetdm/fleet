@@ -3,6 +3,7 @@ import React from "react";
 import { IVariable } from "interfaces/variables";
 
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
+import TooltipTruncatedTextCell from "components/TableContainer/DataTable/TooltipTruncatedTextCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import { HumanTimeDiffWithDateTip } from "components/HumanTimeDiffWithDateTip";
 import Button from "components/buttons/Button";
@@ -55,7 +56,12 @@ const generateTableHeaders = ({
       disableSortBy: false,
       sortType: "caseInsensitive",
       accessor: "name",
-      Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
+      Cell: (cellProps) => (
+        <TooltipTruncatedTextCell
+          value={cellProps.cell.value}
+          className="w250"
+        />
+      ),
     },
     {
       title: "Variable name",
