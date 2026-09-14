@@ -2404,6 +2404,10 @@ func (ds *Datastore) MDMTurnOff(ctx context.Context, uuid string) (users []*flee
 			return ctxerr.Wrap(ctx, err, "deleting profiles for host")
 		}
 
+		if err := deleteHostOneTimeEnrollSecrets(ctx, tx, host.ID); err != nil {
+			return ctxerr.Wrap(ctx, err, "deleting one-time enroll secrets for host")
+		}
+
 		// clear up the MDM-dependent upcoming activities as it won't be able
 		// to process them anymore
 		if err := ds.ClearMDMUpcomingActivitiesDB(ctx, tx, uuid); err != nil {
@@ -4788,6 +4792,13 @@ func (ds *Datastore) MDMResetEnrollment(ctx context.Context, hostUUID string, sc
 		// be re-delivered on the next cron run.
 		if err := ds.deleteMDMOSCustomSettingsForHost(ctx, tx, hostUUID, host.Platform); err != nil {
 			return ctxerr.Wrap(ctx, err, "resetting profiles status")
+		}
+
+		// A (re-)enrolling device gets the fleetd profile re-delivered, which mints
+		// a fresh one-time enroll secret; any secret minted for the previous
+		// enrollment must not remain usable.
+		if err := deleteHostOneTimeEnrollSecrets(ctx, tx, host.ID); err != nil {
+			return ctxerr.Wrap(ctx, err, "resetting one-time enroll secrets")
 		}
 
 		// Delete any stored disk encryption keys. This covers cases
