@@ -84,7 +84,6 @@ rm -f /tmp/okta-verify.csr /tmp/okta-verify-response.json
 
 By default, the `certificate` field in the response is a PEM-encoded PKCS7 envelope, not a standard x509 certificate. The script above passes `"return_pem_certificate": true` so Fleet returns a `-----BEGIN CERTIFICATE-----` block that can be written directly to `device.pem`.
 
-This certificate identifies the device, not a specific end user, so unlike the Wi-Fi/VPN certificate scripts in the [certificates guide](https://fleetdm.com/guides/connect-end-user-to-wifi-with-certificate#hydrant), the request omits `idp_oauth_url`/`idp_token`/`idp_client_id` — those fields are optional on this endpoint.
 
 4. In Fleet, head to **Software**, select **Add software > Custom package**, and upload the script above as a `.sh` file (a script with no installer becomes a [script-only package](https://fleetdm.com/guides/deploy-software-packages#script-only-packages)).
 5. Head to **Controls > Setup experience > Install software**, select the **Linux** tab, and check the new script-only package so it runs automatically alongside Okta Verify during enrollment.
