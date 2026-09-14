@@ -1488,12 +1488,14 @@ func TestSaveHostSoftwareInstallResultAppOpenSkip(t *testing.T) {
 			IncludeAvailableForInstall: true,
 		})
 		require.NoError(t, err)
+		found = nil
 		for _, s := range sw {
 			if s.ID == titleID {
 				found = s
 				break
 			}
 		}
+		require.NotNil(t, found, "refreshed response after toggling patch_when_closed must still contain the title")
 		require.True(t, found.SkippedInstall, "toggling patch_when_closed off must not reclassify the historical skip")
 
 		mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
@@ -1505,12 +1507,14 @@ func TestSaveHostSoftwareInstallResultAppOpenSkip(t *testing.T) {
 			IncludeAvailableForInstall: true,
 		})
 		require.NoError(t, err)
+		found = nil
 		for _, s := range sw {
 			if s.ID == titleID {
 				found = s
 				break
 			}
 		}
+		require.NotNil(t, found, "refreshed response after deleting the policy must still contain the title")
 		require.True(t, found.SkippedInstall, "deleting the source policy (ON DELETE SET NULL) must not reclassify the skip")
 	})
 
