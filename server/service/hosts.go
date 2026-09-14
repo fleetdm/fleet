@@ -22,6 +22,7 @@ import (
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 
 	authzctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
@@ -1365,7 +1366,10 @@ func (svc *Service) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []
 	}
 
 	// Authorize transfer access to the source teams of the hosts being transferred.
-	hosts, err := svc.ds.ListHostsLiteByIDs(ctx, hostIDs)
+	// Read from the primary so a host enrolled moments ago isn't reported as
+	// missing by a lagging replica, and so authorization sees the same state
+	// the transfer below will write against.
+	hosts, err := svc.ds.ListHostsLiteByIDs(ctxdb.RequirePrimary(ctx, true), hostIDs)
 	if err != nil {
 		return ctxerr.Wrapf(ctx, err, "list hosts by IDs for source team authorization (team_id: %v, host_count: %d)", teamID, len(hostIDs))
 	}
