@@ -2,9 +2,9 @@ import React, { useState } from "react";
 
 import Button from "components/buttons/Button";
 import RevealButton from "components/buttons/RevealButton";
+import Card from "components/Card";
 import Checkbox from "components/forms/fields/Checkbox";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
-import Card from "components/Card";
 import { notify } from "components/ToastNotification";
 import TooltipWrapper from "components/TooltipWrapper";
 import mdmAPI from "services/entities/mdm";
