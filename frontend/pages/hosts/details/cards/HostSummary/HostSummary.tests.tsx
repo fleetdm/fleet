@@ -1,6 +1,6 @@
 import React from "react";
 import { screen } from "@testing-library/react";
-import { createCustomRenderer } from "test/test-utils";
+import { createCustomRenderer, renderWithSetup } from "test/test-utils";
 
 import createMockUser from "__mocks__/userMock";
 import { createMockHostSummary } from "__mocks__/hostMock";
@@ -168,6 +168,46 @@ describe("Host Summary section", () => {
         expect(container).toBeEmptyDOMElement();
       }
     );
+  });
+
+  describe("Online history entry point", () => {
+    it("wraps the status pill in a clickable button when toggleOnlineHistoryModal is provided", async () => {
+      const toggleOnlineHistoryModal = jest.fn();
+      const summaryData = createMockHostSummary({ platform: "darwin" });
+
+      const { user } = renderWithSetup(
+        <HostSummary
+          summaryData={summaryData}
+          toggleOnlineHistoryModal={toggleOnlineHistoryModal}
+        />
+      );
+
+      const button = screen.getByRole("button", {
+        name: /view online history/i,
+      });
+      await user.click(button);
+      expect(toggleOnlineHistoryModal).toHaveBeenCalled();
+    });
+
+    it("adds a mobile Status row with View history for iOS", async () => {
+      const toggleOnlineHistoryModal = jest.fn();
+      const summaryData = createMockHostSummary({
+        platform: "ios",
+        os_version: "iOS 17.4",
+      });
+
+      const { user } = renderWithSetup(
+        <HostSummary
+          summaryData={summaryData}
+          isPremiumTier
+          toggleOnlineHistoryModal={toggleOnlineHistoryModal}
+        />
+      );
+
+      const button = screen.getByRole("button", { name: /view history/i });
+      await user.click(button);
+      expect(toggleOnlineHistoryModal).toHaveBeenCalled();
+    });
   });
 
   describe("Bootstrap package data", () => {

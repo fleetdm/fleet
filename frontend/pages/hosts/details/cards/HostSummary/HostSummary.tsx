@@ -11,6 +11,7 @@ import TooltipWrapper from "components/TooltipWrapper";
 import Card from "components/Card";
 import DataSet from "components/DataSet";
 import StatusIndicator from "components/StatusIndicator";
+import Button from "components/buttons/Button";
 import IssuesIndicator from "pages/hosts/components/IssuesIndicator";
 
 import {
@@ -32,6 +33,7 @@ interface IHostSummaryProps {
   bootstrapPackageData?: IBootstrapPackageData;
   isPremiumTier?: boolean;
   toggleBootstrapPackageModal?: () => void;
+  toggleOnlineHistoryModal?: () => void;
   className?: string;
 }
 
@@ -40,6 +42,7 @@ const HostSummary = ({
   bootstrapPackageData,
   isPremiumTier,
   toggleBootstrapPackageModal,
+  toggleOnlineHistoryModal,
   className,
 }: IHostSummaryProps): JSX.Element | null => {
   const classNames = classnames(baseClass, className);
@@ -129,15 +132,21 @@ const HostSummary = ({
     // TODO - refactor normalizeEmptyValues pattern
     !!summaryData.maintenance_window &&
     summaryData.maintenance_window !== DEFAULT_EMPTY_CELL_VALUE;
+  // Mobile hosts have no status pill; instead the card exposes a Status row
+  // with a "View history" action so users can still see connectivity trends.
+  const showMobileOnlineHistoryRow =
+    !!toggleOnlineHistoryModal && (isIosOrIpadosHost || isAndroidHost);
 
   // Hide the card entirely when nothing inside it would render (e.g. a Free
-  // tier Android host) — otherwise an empty card sits above the Vitals section.
+  // tier Android host with no online-history entry point) — otherwise an
+  // empty card sits above the Vitals section.
   if (
     !showStatus &&
     !showTeam &&
     !showIssues &&
     !showBootstrapPackage &&
-    !showMaintenanceWindow
+    !showMaintenanceWindow &&
+    !showMobileOnlineHistoryRow
   ) {
     return null;
   }
@@ -152,15 +161,42 @@ const HostSummary = ({
         <DataSet
           title="Status"
           value={
-            <StatusIndicator
-              value={getHostStatus(status, mdm?.enrollment_status)}
-              tooltip={{
-                tooltipText: getHostStatusTooltipText(
-                  getHostStatus(status, mdm?.enrollment_status)
-                ),
-                position: "bottom",
-              }}
-            />
+            toggleOnlineHistoryModal ? (
+              <button
+                type="button"
+                className={`${baseClass}__status-button`}
+                onClick={toggleOnlineHistoryModal}
+                aria-label="View online history"
+              >
+                <StatusIndicator
+                  value={getHostStatus(status, mdm?.enrollment_status)}
+                />
+              </button>
+            ) : (
+              <StatusIndicator
+                value={getHostStatus(status, mdm?.enrollment_status)}
+                tooltip={{
+                  tooltipText: getHostStatusTooltipText(
+                    getHostStatus(status, mdm?.enrollment_status)
+                  ),
+                  position: "bottom",
+                }}
+              />
+            )
+          }
+        />
+      )}
+      {showMobileOnlineHistoryRow && (
+        <DataSet
+          title="Status"
+          value={
+            <Button
+              variant="link"
+              onClick={toggleOnlineHistoryModal}
+              className={`${baseClass}__view-history-button`}
+            >
+              View history
+            </Button>
           }
         />
       )}
