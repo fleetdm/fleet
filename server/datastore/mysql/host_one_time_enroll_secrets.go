@@ -185,9 +185,17 @@ func (ds *Datastore) mintHostOneTimeEnrollSecret(ctx context.Context, enrollment
 // the host row the enrollment landed on (a freshly inserted row is fine as
 // long as the bound host no longer exists).
 func consumeHostOneTimeEnrollSecret(ctx context.Context, tx sqlx.ExtContext, id uint, plane fleet.EnrollmentPlane, matchedHostID uint) error {
-	var s fleet.HostOneTimeEnrollSecret
+	// consumed_at is written with the database clock, so the window is judged
+	// there too rather than against this server's clock.
+	var s struct {
+		fleet.HostOneTimeEnrollSecret
+		OutsideWindow bool `db:"outside_window"`
+	}
 	err := sqlx.GetContext(ctx, tx, &s,
-		`SELECT `+hostOneTimeEnrollSecretColumns+` FROM host_one_time_enroll_secrets WHERE id = ? FOR UPDATE`, id)
+		`SELECT `+hostOneTimeEnrollSecretColumns+`,
+			(consumed_at IS NOT NULL AND consumed_at < NOW(6) - INTERVAL ? SECOND) AS outside_window
+		FROM host_one_time_enroll_secrets WHERE id = ? FOR UPDATE`,
+		int64(fleet.HostOneTimeEnrollSecretSecondPlaneWindow/time.Second), id)
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
 		// Deleted between lookup and consumption (admin rotation or MDM reset).
@@ -207,8 +215,7 @@ func consumeHostOneTimeEnrollSecret(ctx context.Context, tx sqlx.ExtContext, id 
 		}
 	}
 
-	if s.UsedAt(plane) != nil ||
-		(s.ConsumedAt != nil && time.Since(*s.ConsumedAt) > fleet.HostOneTimeEnrollSecretSecondPlaneWindow) {
+	if s.UsedAt(plane) != nil || s.OutsideWindow {
 		return ctxerr.Wrap(ctx, &fleet.EnrollmentRejectedError{Reason: fleet.EnrollmentRejectedOneTimeSecretSpent, HostID: s.HostID}, "one-time enroll secret already used")
 	}
 
@@ -232,6 +239,14 @@ func consumeHostOneTimeEnrollSecret(ctx context.Context, tx sqlx.ExtContext, id 
 // matched an Apple host which is enrolled in Fleet MDM or assigned to Fleet in
 // Apple Business Manager. Such hosts receive a one-time secret through the
 // fleetd configuration profile and must enroll with it.
+//
+// It only applies to a matched row. A deleted Mac(ADE only) is recreated only by
+// fleetd enrolling again (the MDM check-in path recreates iOS/iPadOS hosts
+// only), so the insert branch stays open to shared secrets even though the
+// device's MDM enrollment is retained across the deletion. The residual is
+// the pre-existing "new host with a shared secret" capability, limited to
+// rows an admin already deleted. ADE Macs don't actually get deleted so this gap
+// does not exist there.
 //
 // TODO: the DEP-assignment half blocks the fleetd install step of an MDM
 // migration (fleetd installed with a shared secret on a Mac already assigned to

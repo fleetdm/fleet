@@ -1,13 +1,15 @@
 package mysql
 
 import (
+	"bytes"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/ptr"
+	fleetmdm "github.com/fleetdm/fleet/v4/server/mdm"
+	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
@@ -26,6 +28,7 @@ func TestHostOneTimeEnrollSecrets(t *testing.T) {
 		{"RejectSharedSecretForMDMHosts", testOneTimeEnrollSecretRejectShared},
 		{"ResetTurnOffAndDelete", testOneTimeEnrollSecretResetAndDelete},
 		{"Cleanup", testOneTimeEnrollSecretCleanup},
+		{"FleetdProfileByTeamAndIdentifier", testFleetdProfileByTeamAndIdentifier},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -44,8 +47,8 @@ func newOneTimeSecretTestHost(t *testing.T, ds *Datastore, platform string, team
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		OsqueryHostID:   ptr.String(id),
-		NodeKey:         ptr.String("nk-" + id),
+		OsqueryHostID:   new(id),
+		NodeKey:         new("nk-" + id),
 		UUID:            id,
 		Hostname:        "host-" + id[:8],
 		HardwareSerial:  "SERIAL-" + id[:8],
@@ -353,6 +356,20 @@ func testOneTimeEnrollSecretRejectShared(t *testing.T, ds *Datastore) {
 		requireEnrollmentRejected(t, err, fleet.EnrollmentRejectedSharedSecretForMDMManagedHost, &h.ID)
 	})
 
+	t.Run("a deleted Fleet MDM Mac is recreated with a shared secret", func(t *testing.T) {
+		// Deleting a host keeps its nano_enrollments row, and macOS hosts are only
+		// recreated by fleetd enrolling again, so the insert branch must accept
+		// the shared secret.
+		h := newOneTimeSecretTestHost(t, ds, "darwin", nil)
+		nanoEnroll(t, ds, h, false)
+		require.NoError(t, ds.DeleteHost(ctx, h.ID))
+
+		recreated, err := ds.EnrollOrbit(ctx, orbitEnrollOpts(h, nil, reject)...)
+		require.NoError(t, err)
+		require.NotEqual(t, h.ID, recreated.ID)
+		require.Equal(t, h.UUID, recreated.UUID)
+	})
+
 	t.Run("hosts outside Fleet MDM are unaffected", func(t *testing.T) {
 		thirdPartyMDMMac := newOneTimeSecretTestHost(t, ds, "darwin", nil)
 		_, err := ds.EnrollOrbit(ctx, orbitEnrollOpts(thirdPartyMDMMac, nil, reject)...)
@@ -426,7 +443,7 @@ func testOneTimeEnrollSecretCleanup(t *testing.T, ds *Datastore) {
 	insert := func(hostID uint, consumedAgo *time.Duration) uint {
 		var consumedAt *time.Time
 		if consumedAgo != nil {
-			consumedAt = ptr.Time(time.Now().Add(-*consumedAgo))
+			consumedAt = new(time.Now().Add(-*consumedAgo))
 		}
 		res, err := ds.writer(ctx).ExecContext(ctx, `
 			INSERT INTO host_one_time_enroll_secrets (secret, host_id, platform, hardware_uuid, hardware_serial, consumed_at)
@@ -459,4 +476,35 @@ func testOneTimeEnrollSecretCleanup(t *testing.T, ds *Datastore) {
 	n, err = ds.CleanupHostOneTimeEnrollSecrets(ctx)
 	require.NoError(t, err)
 	require.Zero(t, n)
+}
+
+func testFleetdProfileByTeamAndIdentifier(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "profile-team"})
+	require.NoError(t, err)
+
+	var contents bytes.Buffer
+	require.NoError(t, mobileconfig.FleetdProfileTemplate.Execute(&contents, mobileconfig.FleetdProfileOptions{
+		EnrollSecret: fleet.HostSecretPlaceholder(fleet.HostSecretEnrollSecret),
+		ServerURL:    "https://fleet.example.com",
+		PayloadType:  mobileconfig.FleetdConfigPayloadIdentifier,
+		PayloadName:  fleetmdm.FleetdConfigProfileName,
+	}))
+	cp, err := fleet.NewMDMAppleConfigProfile(contents.Bytes(), &team.ID)
+	require.NoError(t, err)
+	require.NoError(t, ds.BulkUpsertMDMAppleConfigProfiles(ctx, []*fleet.MDMAppleConfigProfile{cp}))
+
+	got, err := ds.GetMDMAppleConfigProfileByTeamAndIdentifier(ctx, &team.ID, mobileconfig.FleetdConfigPayloadIdentifier)
+	require.NoError(t, err)
+	require.Equal(t, team.ID, *got.TeamID)
+	require.Equal(t, mobileconfig.FleetdConfigPayloadIdentifier, got.Identifier)
+	require.Contains(t, string(got.Mobileconfig), fleet.HostSecretPlaceholder(fleet.HostSecretEnrollSecret))
+
+	// "no team" has none
+	_, err = ds.GetMDMAppleConfigProfileByTeamAndIdentifier(ctx, nil, mobileconfig.FleetdConfigPayloadIdentifier)
+	require.True(t, fleet.IsNotFound(err))
+
+	require.NoError(t, ds.DeleteMDMAppleConfigProfileByTeamAndIdentifier(ctx, &team.ID, mobileconfig.FleetdConfigPayloadIdentifier))
+	_, err = ds.GetMDMAppleConfigProfileByTeamAndIdentifier(ctx, &team.ID, mobileconfig.FleetdConfigPayloadIdentifier)
+	require.True(t, fleet.IsNotFound(err))
 }

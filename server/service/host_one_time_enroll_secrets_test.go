@@ -15,9 +15,9 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
+	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	akvmock "github.com/fleetdm/fleet/v4/server/mock/redis_advanced"
-	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/stretchr/testify/require"
 )
 
@@ -60,7 +60,7 @@ func newOneTimeEnrollFixture(t *testing.T, useOneTimeEnrollSecrets bool) *oneTim
 		ID:             7,
 		Secret:         "one-time-secret",
 		HostID:         &hostID,
-		TeamID:         ptr.Uint(3),
+		TeamID:         new(uint(3)),
 		Platform:       "darwin",
 		HardwareUUID:   "UUID-1",
 		HardwareSerial: "SERIAL-1",
@@ -93,7 +93,7 @@ func newOneTimeEnrollFixture(t *testing.T, useOneTimeEnrollSecrets bool) *oneTim
 	}
 	ds.VerifyEnrollSecretFunc = func(ctx context.Context, secret string) (*fleet.EnrollSecret, error) {
 		if secret == "shared-secret" {
-			return &fleet.EnrollSecret{Secret: secret, TeamID: ptr.Uint(9)}, nil
+			return &fleet.EnrollSecret{Secret: secret, TeamID: new(uint(9))}, nil
 		}
 		return nil, newNotFoundError()
 	}
@@ -211,7 +211,7 @@ func TestEnrollOrbitWithOneTimeEnrollSecret(t *testing.T) {
 			_, err := f.svc.EnrollOrbit(f.ctx, f.orbitInfo(), "shared-secret", "")
 			require.NoError(t, err)
 			require.Nil(t, got.OneTimeEnrollSecretID)
-			require.Equal(t, ptr.Uint(9), got.TeamID)
+			require.Equal(t, new(uint(9)), got.TeamID)
 			require.Equal(t, flag, got.RejectSharedSecretForMDMHosts)
 		}
 	})
@@ -246,7 +246,7 @@ func TestEnrollOsqueryWithOneTimeEnrollSecret(t *testing.T) {
 		var got *fleet.DatastoreEnrollOsqueryConfig
 		f.ds.EnrollOsqueryFunc = func(ctx context.Context, opts ...fleet.DatastoreEnrollOsqueryOption) (*fleet.Host, error) {
 			got = osqueryEnrollConfig(opts)
-			return &fleet.Host{ID: *f.row.HostID, UUID: f.row.HardwareUUID, Platform: "darwin", OsqueryHostID: ptr.String(got.OsqueryHostID), NodeKey: ptr.String(got.NodeKey)}, nil
+			return &fleet.Host{ID: *f.row.HostID, UUID: f.row.HardwareUUID, Platform: "darwin", OsqueryHostID: new(got.OsqueryHostID), NodeKey: new(got.NodeKey)}, nil
 		}
 
 		nodeKey, err := f.svc.EnrollOsquery(f.ctx, f.row.Secret, f.row.HardwareUUID, f.osqueryDetails())
@@ -287,7 +287,7 @@ func TestEnrollOsqueryWithOneTimeEnrollSecret(t *testing.T) {
 			var got *fleet.DatastoreEnrollOsqueryConfig
 			f.ds.EnrollOsqueryFunc = func(ctx context.Context, opts ...fleet.DatastoreEnrollOsqueryOption) (*fleet.Host, error) {
 				got = osqueryEnrollConfig(opts)
-				return &fleet.Host{ID: 1, OsqueryHostID: ptr.String(got.OsqueryHostID), NodeKey: ptr.String(got.NodeKey)}, nil
+				return &fleet.Host{ID: 1, OsqueryHostID: new(got.OsqueryHostID), NodeKey: new(got.NodeKey)}, nil
 			}
 			_, err := f.svc.EnrollOsquery(f.ctx, "shared-secret", f.row.HardwareUUID, f.osqueryDetails())
 			require.NoError(t, err)
@@ -336,7 +336,7 @@ func requireAuthFailed(t *testing.T, err error) {
 }
 
 func TestEnsureFleetdConfigWithOneTimeEnrollSecrets(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	ds := new(mock.Store)
 	mdmConfig := config.MDMConfig{AppleSCEPCert: "./testdata/server.pem", AppleSCEPKey: "./testdata/server.key"}
 	signingCert, _, _, err := mdmConfig.AppleSCEP()
@@ -349,10 +349,13 @@ func TestEnsureFleetdConfigWithOneTimeEnrollSecrets(t *testing.T) {
 	}
 	// team 1 has a shared secret, team 2 has none, and "no team" has none at
 	// all (so the aggregate omits it entirely).
+	ds.GetMDMAppleConfigProfileByTeamAndIdentifierFunc = func(ctx context.Context, teamID *uint, identifier string) (*fleet.MDMAppleConfigProfile, error) {
+		return nil, newNotFoundError()
+	}
 	ds.AggregateEnrollSecretPerTeamFunc = func(ctx context.Context) ([]*fleet.EnrollSecret, error) {
 		return []*fleet.EnrollSecret{
-			{Secret: "team-1-shared", TeamID: ptr.Uint(1)},
-			{Secret: "", TeamID: ptr.Uint(2)},
+			{Secret: "team-1-shared", TeamID: new(uint(1))},
+			{Secret: "", TeamID: new(uint(2))},
 		}, nil
 	}
 	var upserted []*fleet.MDMAppleConfigProfile
@@ -434,7 +437,7 @@ func TestResendFleetdProfileWithOneTimeEnrollSecrets(t *testing.T) {
 			t.Fatalf("resend must not delete one-time enroll secrets (host %d)", hid)
 			return nil
 		}
-		ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+		ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
 		return ds, svc, ctx
 	}
 
@@ -501,5 +504,71 @@ func TestResendFleetdProfileWithOneTimeEnrollSecrets(t *testing.T) {
 		host := &fleet.Host{ID: hostID, UUID: "host-uuid-1", Platform: "darwin"}
 		require.NoError(t, svc.ResendDeviceHostMDMProfile(ctx, host, fleetdProfileUUID))
 		require.True(t, ds.ResendHostMDMProfileFuncInvoked)
+	})
+}
+
+func TestEnsureFleetdConfigRemovesPlaceholderProfilesWhenOff(t *testing.T) {
+	ctx := t.Context()
+	mdmConfig := config.MDMConfig{AppleSCEPCert: "./testdata/server.pem", AppleSCEPKey: "./testdata/server.key"}
+	signingCert, _, _, err := mdmConfig.AppleSCEP()
+	require.NoError(t, err)
+
+	type deletion struct {
+		teamID     *uint
+		identifier string
+	}
+	newDS := func(existingProfile string) (*mock.Store, *[]deletion) {
+		ds := new(mock.Store)
+		var deleted []deletion
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			ac := &fleet.AppConfig{}
+			ac.ServerSettings.ServerURL = "https://fleet.example.com"
+			return ac, nil
+		}
+		// team 1 has no shared secret and there is no global secret, so the
+		// aggregate has no "no team" entry at all.
+		ds.AggregateEnrollSecretPerTeamFunc = func(ctx context.Context) ([]*fleet.EnrollSecret, error) {
+			return []*fleet.EnrollSecret{{Secret: "", TeamID: new(uint(1))}}, nil
+		}
+		ds.GetMDMAppleConfigProfileByTeamAndIdentifierFunc = func(ctx context.Context, teamID *uint, identifier string) (*fleet.MDMAppleConfigProfile, error) {
+			return &fleet.MDMAppleConfigProfile{TeamID: teamID, Identifier: identifier, Mobileconfig: []byte(existingProfile)}, nil
+		}
+		ds.DeleteMDMAppleConfigProfileByTeamAndIdentifierFunc = func(ctx context.Context, teamID *uint, identifier string) error {
+			deleted = append(deleted, deletion{teamID, identifier})
+			return nil
+		}
+		ds.BulkUpsertMDMAppleConfigProfilesFunc = func(ctx context.Context, ps []*fleet.MDMAppleConfigProfile) error {
+			require.Empty(t, ps)
+			return nil
+		}
+		return ds, &deleted
+	}
+	placeholderProfile := "<string>" + fleet.HostSecretPlaceholder(fleet.HostSecretEnrollSecret) + "</string>"
+
+	t.Run("placeholder fleetd profiles are removed for the team and for no team", func(t *testing.T) {
+		ds, deleted := newDS(placeholderProfile)
+		require.NoError(t, ensureFleetProfiles(ctx, ds, slog.New(slog.DiscardHandler), signingCert.Certificate[0], false))
+		// only the fleetd profile; the CA profile has nothing to do with enroll secrets
+		require.ElementsMatch(t, []deletion{
+			{nil, mobileconfig.FleetdConfigPayloadIdentifier},
+			{new(uint(1)), mobileconfig.FleetdConfigPayloadIdentifier},
+		}, *deleted)
+	})
+
+	t.Run("profiles built from a shared secret are left alone", func(t *testing.T) {
+		ds, deleted := newDS("<string>an-old-shared-secret</string>")
+		require.NoError(t, ensureFleetProfiles(ctx, ds, slog.New(slog.DiscardHandler), signingCert.Certificate[0], false))
+		require.Empty(t, *deleted)
+	})
+
+	t.Run("nothing is removed while the setting is on", func(t *testing.T) {
+		ds, deleted := newDS(placeholderProfile)
+		ds.BulkUpsertMDMAppleConfigProfilesFunc = func(ctx context.Context, ps []*fleet.MDMAppleConfigProfile) error {
+			require.NotEmpty(t, ps)
+			return nil
+		}
+		require.NoError(t, ensureFleetProfiles(ctx, ds, slog.New(slog.DiscardHandler), signingCert.Certificate[0], true))
+		require.Empty(t, *deleted)
+		require.False(t, ds.GetMDMAppleConfigProfileByTeamAndIdentifierFuncInvoked)
 	})
 }

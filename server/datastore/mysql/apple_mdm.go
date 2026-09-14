@@ -910,6 +910,38 @@ func deleteMDMAppleDeclaration(ctx context.Context, tx sqlx.ExtContext, uuid str
 	return nil
 }
 
+func (ds *Datastore) GetMDMAppleConfigProfileByTeamAndIdentifier(ctx context.Context, teamID *uint, profileIdentifier string) (*fleet.MDMAppleConfigProfile, error) {
+	var tmID uint
+	if teamID != nil {
+		tmID = *teamID
+	}
+	const stmt = `
+SELECT
+	profile_uuid,
+	profile_id,
+	team_id,
+	name,
+	scope,
+	identifier,
+	mobileconfig,
+	checksum,
+	created_at,
+	uploaded_at,
+	secrets_updated_at
+FROM
+	mdm_apple_configuration_profiles
+WHERE
+	team_id = ? AND identifier = ?`
+	var res fleet.MDMAppleConfigProfile
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &res, stmt, tmID, profileIdentifier); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ctxerr.Wrap(ctx, notFound("MDMAppleConfigProfile").WithMessage(fmt.Sprintf("identifier: %s, team_id: %d", profileIdentifier, tmID)))
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get mdm apple config profile by team and identifier")
+	}
+	return &res, nil
+}
+
 func (ds *Datastore) DeleteMDMAppleConfigProfileByTeamAndIdentifier(ctx context.Context, teamID *uint, profileIdentifier string) error {
 	if teamID == nil {
 		teamID = ptr.Uint(0)

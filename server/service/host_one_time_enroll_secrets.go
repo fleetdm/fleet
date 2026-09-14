@@ -56,22 +56,23 @@ func (svc *Service) recordEnrollmentRejected(ctx context.Context, reason string,
 		"hardware_serial", attempt.hardwareSerial,
 	)
 
+	// Get then Set is not atomic, so two servers can race into a duplicate
+	// activity; that is acceptable for a rate limit. The key is reserved only
+	// after the activity is written, so a failed write is retried next time
+	// rather than silenced for the TTL.
+	var rateLimitKey string
 	if svc.keyValueStore != nil {
 		subject := attempt.hardwareUUID
 		if hostID != nil {
 			subject = fmt.Sprintf("host:%d", *hostID)
 		}
-		key := fmt.Sprintf("%s:%s:%s", enrollmentRejectedKeyPrefix, subject, reason)
-		existing, err := svc.keyValueStore.Get(ctx, key)
+		rateLimitKey = fmt.Sprintf("%s:%s:%s", enrollmentRejectedKeyPrefix, subject, reason)
+		existing, err := svc.keyValueStore.Get(ctx, rateLimitKey)
 		switch {
 		case err != nil:
 			svc.logger.ErrorContext(ctx, "checking enrollment rejection activity rate limit", "err", err)
 		case existing != nil:
 			return
-		default:
-			if err := svc.keyValueStore.Set(ctx, key, "1", enrollmentRejectedActivityTTL); err != nil {
-				svc.logger.ErrorContext(ctx, "setting enrollment rejection activity rate limit", "err", err)
-			}
 		}
 	}
 
@@ -91,6 +92,13 @@ func (svc *Service) recordEnrollmentRejected(ctx context.Context, reason string,
 		Reason:          reason,
 	}); err != nil {
 		svc.logger.ErrorContext(ctx, "record enrollment rejected activity", "err", err)
+		return
+	}
+
+	if rateLimitKey != "" {
+		if err := svc.keyValueStore.Set(ctx, rateLimitKey, "1", enrollmentRejectedActivityTTL); err != nil {
+			svc.logger.ErrorContext(ctx, "setting enrollment rejection activity rate limit", "err", err)
+		}
 	}
 }
 
