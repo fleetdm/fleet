@@ -81,6 +81,7 @@ export const MACADMINS_EXTENSION_TABLES: Record<string, QueryablePlatform[]> = {
   munki_install: ["darwin"],
   crowdstrike_falcon: ["darwin", "linux"],
   network_quality: ["darwin"],
+  privileges_events: ["darwin"],
   puppet_info: ["darwin", "linux", "windows"],
   puppet_logs: ["darwin", "linux", "windows"],
   puppet_state: ["darwin", "linux", "windows"],

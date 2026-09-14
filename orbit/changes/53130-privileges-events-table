@@ -1,0 +1,2 @@
+* Added `privileges_events` table for macOS, which lists admin rights changes and tamper attempts recorded by the [Privileges](https://github.com/SAP/macOS-enterprise-privileges) app (from https://github.com/macadmins/osquery-extension).
+* Bumped https://github.com/macadmins/osquery-extension to v1.5.4.
