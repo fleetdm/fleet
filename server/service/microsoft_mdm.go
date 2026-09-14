@@ -1313,8 +1313,15 @@ func (svc *Service) isTrustedRequest(ctx context.Context, reqSyncML *fleet.SyncM
 	}
 
 	enrolledDevice, err := svc.ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, deviceID)
-	if err != nil || enrolledDevice == nil {
-		return nil, RequestAuthStateUntrusted, errors.New("device was not MDM enrolled")
+	switch {
+	case fleet.IsNotFound(err) || (err == nil && enrolledDevice == nil):
+		// Challenge unknown DeviceIDs with the same response an enrolled device
+		// without credentials gets, so the reply doesn't confirm whether a
+		// DeviceID is enrolled. The challenge nonce is a throwaway: it is never
+		// stored, so nothing that follows can validate against it.
+		return nil, RequestAuthStateChallenge, nil
+	case err != nil:
+		return nil, RequestAuthStateUntrusted, ctxerr.Wrap(ctx, err, "get enrolled device")
 	}
 
 	// Check if TLS certs contains device ID on its common name
@@ -1853,7 +1860,11 @@ func (svc *Service) linkWindowsHostMDMEnrollmentByHostID(ctx context.Context, en
 // re-query mdm_windows_enrollments for the same row.
 func (svc *Service) processIncomingMDMCmds(ctx context.Context, enrolledDevice *fleet.MDMWindowsEnrolledDevice, reqMsg *fleet.SyncML, requestAuthState requestAuthState) ([]*fleet.SyncMLCmd, error) {
 	var responseCmds []*fleet.SyncMLCmd
-	deviceID := enrolledDevice.MDMDeviceID
+	// enrolledDevice is nil when challenging an unknown DeviceID.
+	var deviceID string
+	if enrolledDevice != nil {
+		deviceID = enrolledDevice.MDMDeviceID
+	}
 
 	saveResponse := func(topLevelExists []string) error {
 		enrichedSyncML := fleet.NewEnrichedSyncML(reqMsg)
@@ -1902,9 +1913,14 @@ func (svc *Service) processIncomingMDMCmds(ctx context.Context, enrolledDevice *
 	if requestAuthState == RequestAuthStateChallenge || requestAuthState == RequestAuthStateUnauthorized {
 		nonce := uuid.NewString() // using UUID as nonce since it has 122 bits of entropy
 		base64Nonce := base64.StdEncoding.EncodeToString([]byte(nonce))
-		err := svc.keyValueStore.Set(ctx, fleet.WindowsMDMAuthNoncePrefix+deviceID, nonce, 5*time.Minute)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "store device nonce in kv store")
+		// The nonce is only stored for enrolled devices; a challenge to an
+		// unknown DeviceID carries a throwaway nonce so unauthenticated callers
+		// can't grow the key-value store.
+		if enrolledDevice != nil {
+			err := svc.keyValueStore.Set(ctx, fleet.WindowsMDMAuthNoncePrefix+deviceID, nonce, 5*time.Minute) //nolint:nilaway // svc is always constructed with a keyValueStore
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "store device nonce in kv store")
+			}
 		}
 
 		status := syncml.CmdStatusAuthenticationRequired
@@ -1933,9 +1949,10 @@ func (svc *Service) processIncomingMDMCmds(ctx context.Context, enrolledDevice *
 		}
 
 		responseCmds = append(responseCmds, ackMsg)
-		err = saveResponse([]string{})
-		if err != nil {
-			return nil, err
+		if enrolledDevice != nil {
+			if err := saveResponse([]string{}); err != nil {
+				return nil, err
+			}
 		}
 		return responseCmds, nil
 	}
