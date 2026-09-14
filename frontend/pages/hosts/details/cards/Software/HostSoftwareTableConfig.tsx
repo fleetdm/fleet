@@ -62,6 +62,9 @@ export const generateSoftwareTableHeaders = ({
           app_store_app,
           software_package,
           icon_url,
+          auto_update_enabled,
+          auto_update_window_start,
+          auto_update_window_end,
         } = cellProps.row.original;
 
         const softwareTitleDetailsPath = getPathWithQueryParams(
@@ -92,6 +95,10 @@ export const generateSoftwareTableHeaders = ({
             pageContext="hostDetails"
             isIosOrIpadosApp={isIpadOrIphoneSoftwareSource(source)}
             isAndroidPlayStoreApp={isAndroidPlayStoreApp}
+            isAppStoreApp={!!app_store_app}
+            autoUpdateEnabled={auto_update_enabled}
+            autoUpdateWindowStart={auto_update_window_start}
+            autoUpdateWindowEnd={auto_update_window_end}
           />
         );
       },
