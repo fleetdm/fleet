@@ -150,6 +150,9 @@ const ControlDetailsModal = ({
               rowActions.canRotateRecoveryLockPassword
             }
             canResendHostNameTemplate={rowActions.canResendHostNameTemplate}
+            showDisabledResendForAndroidProfile={
+              rowActions.showDisabledResendForAndroidProfile
+            }
             profile={control}
             resendRequest={resendRequest}
             resendCertificateRequest={resendCertificateRequest}
