@@ -4481,7 +4481,7 @@ func (svc *Service) overwriteResultRows(ctx context.Context, result *fleet.Sched
 
 // maxQueryReportSnapshotBytes bounds the serialized size of one host's result
 // for one report, since the row cap alone doesn't bound storage.
-const maxQueryReportSnapshotBytes = 1 << 20 // 1 MiB
+const maxQueryReportSnapshotBytes = 256 << 10 // 256 KiB
 
 func snapshotSize(snapshot []*json.RawMessage) int {
 	size := 0
