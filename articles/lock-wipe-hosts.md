@@ -139,7 +139,6 @@ fleetctl mdm clear-passcode --host $HOST_IDENTIFIER
 
 ## Cancel a pending command
 
-> Available for Apple (macOS, iOS, iPadOS) hosts enrolled in Fleet MDM.
 
 If you accidentally send a lock, wipe, clear passcode, or lost mode command to an Apple host, you can cancel the pending command before the device acknowledges it. This prevents the command from executing on the device.
 
