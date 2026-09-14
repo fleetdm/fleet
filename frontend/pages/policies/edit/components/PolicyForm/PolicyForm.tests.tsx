@@ -1,18 +1,19 @@
-import React from "react";
 import { screen, waitFor } from "@testing-library/react";
-import { createCustomRenderer, createMockRouter } from "test/test-utils";
-import { http, HttpResponse } from "msw";
-import mockServer from "test/mock-server";
 import userEvent from "@testing-library/user-event";
+import { http, HttpResponse } from "msw";
+import React from "react";
 
-import createMockPolicy from "__mocks__/policyMock";
-import createMockUser from "__mocks__/userMock";
 import createMockConfig from "__mocks__/configMock";
+import createMockPolicy from "__mocks__/policyMock";
 import { createMockTeamSummary } from "__mocks__/teamMock";
-
+import createMockUser from "__mocks__/userMock";
+import { expectedSelectErr } from "components/forms/validators/validate_query";
 import { ILabelSummary } from "interfaces/label";
 import teamPoliciesAPI from "services/entities/team_policies";
 import teamsAPI from "services/entities/teams";
+import mockServer from "test/mock-server";
+import { createCustomRenderer, createMockRouter } from "test/test-utils";
+
 import PolicyForm from "./PolicyForm";
 
 const baseUrl = (path: string) => {
@@ -354,9 +355,7 @@ describe("PolicyForm - component", () => {
       // Wait past the 500ms debounce so the SQL validator runs and flags the
       // syntax error. The error surfaces as SQLEditor's label text.
       await waitFor(() => {
-        expect(
-          screen.getByText("Syntax error. Please review before saving.")
-        ).toBeInTheDocument();
+        expect(screen.getByText(expectedSelectErr(1))).toBeInTheDocument();
       });
 
       const saveButton = screen.getByRole("button", { name: "Save" });

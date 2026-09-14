@@ -400,18 +400,34 @@ func (d *DEPService) ValidateSetupAssistant(ctx context.Context, team *fleet.Tea
 	}
 
 	if len(orgNames) == 0 {
-		// Then check to see if there are any tokens at all. If there is only 1, we assume we can
-		// use it (the vast majority of deployments will only have a single token).
+		// The fleet isn't tied to any ABM token yet, but validating the profile only
+		// needs a credential to reach Apple's DefineProfile API, and that check is the
+		// same for any token. Use any usable token so validation doesn't fail on a
+		// fleet that will be tied to a token later; the profile defined here is not
+		// assigned to anything. Only error when there is no token at all.
 		toks, err := d.ds.ListABMTokens(ctx)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "listing ABM tokens")
 		}
 
-		if len(toks) != 1 {
-			return ctxerr.New(ctx, "No relevant ABM tokens found. Please set this team as a default team for an ABM token.")
+		if len(toks) == 0 {
+			return ctxerr.New(ctx, "No Apple Business Manager (ABM) token found. Add an ABM token before adding a setup assistant.")
 		}
 
-		orgNames = append(orgNames, toks[0].OrganizationName)
+		// Pick a token that can actually reach Apple; an invalid or terms-expired
+		// token would fail DefineProfile with a cryptic error, so fail early with an
+		// actionable message when none is usable.
+		var orgName string
+		for _, tok := range toks {
+			if !tok.TokenInvalid && !tok.TermsExpired {
+				orgName = tok.OrganizationName
+				break
+			}
+		}
+		if orgName == "" {
+			return ctxerr.New(ctx, "All Apple Business Manager (ABM) tokens are invalid or have expired terms. Renew an ABM token before adding a setup assistant.")
+		}
+		orgNames = append(orgNames, orgName)
 	}
 
 	for _, orgName := range orgNames {
@@ -533,6 +549,16 @@ func (d *DEPService) RunAssigner(ctx context.Context) error {
 
 	var result error
 	for _, token := range tokens {
+		// backfill the abm token server UUID once
+		if token.ServerUUID == "" {
+			acct, err := d.depClient.AccountDetail(ctx, token.OrganizationName)
+			if err != nil {
+				d.logger.WarnContext(ctx, "fetching ABM server UUID", "org_name", token.OrganizationName, "err", err)
+			} else if err := d.ds.SetABMTokenServerUUID(ctx, token.ID, acct.ServerUUID); err != nil {
+				result = multierror.Append(result, err)
+			}
+		}
+
 		var macOSTeam, iosTeam, ipadTeam *fleet.Team
 
 		if token.MacOSDefaultTeamID != nil {
@@ -692,7 +718,8 @@ func (d *DEPService) processDeviceResponse(
 			deadline = device.MDMMigrationDeadline.String()
 		}
 		// FIXME: Move this log back to debug level after we've added/improved functionality for accessing DEP status.
-		d.logger.InfoContext(ctx, "process device response",
+		d.logger.InfoContext(
+			ctx, "process device response",
 			"serial_number", device.SerialNumber,
 			"device_assigned_by", device.DeviceAssignedBy,
 			"device_assigned_date", device.DeviceAssignedDate,
@@ -716,7 +743,8 @@ func (d *DEPService) processDeviceResponse(
 		case "deleted":
 			keepRecent(device, deletedDevices)
 		default:
-			d.logger.WarnContext(ctx, "unrecognized op_type",
+			d.logger.WarnContext(
+				ctx, "unrecognized op_type",
 				"op_type", device.OpType,
 				"serial_number", device.SerialNumber,
 			)
@@ -819,7 +847,8 @@ func (d *DEPService) processDeviceResponse(
 		d.logger.DebugContext(ctx, "no DEP hosts to add")
 	}
 
-	d.logger.InfoContext(ctx, "devices to assign DEP profiles",
+	d.logger.InfoContext(
+		ctx, "devices to assign DEP profiles",
 		"to_add", strings.Join(addedSerials, ", "),
 		"to_remove", strings.Join(deletedSerials, ", "),
 		"to_modify", strings.Join(modifiedSerials, ", "),
@@ -964,7 +993,8 @@ func (d *DEPService) processDeviceResponse(
 				// only log the error so the failure can be recorded
 				// below in UpdateHostDEPAssignProfileResponses and
 				// the proper cooldowns are applied
-				logger.ErrorContext(ctx, "assign profile",
+				logger.ErrorContext(
+					ctx, "assign profile",
 					"devices", len(serials),
 					"err", err,
 				)
@@ -985,7 +1015,8 @@ func (d *DEPService) processDeviceResponse(
 			}
 			// We don't expect to see this but log here just in case
 			if err != nil && implicitlyFailedAssignments > 0 {
-				logger.ErrorContext(ctx,
+				logger.ErrorContext(
+					ctx,
 					"assign profile: no error was returned but some devices were not assigned a status in the response",
 					"devices", implicitlyFailedAssignments,
 				)
@@ -1060,7 +1091,8 @@ func logCountsForResults(deviceResults map[string]string) (out []interface{}) {
 // changes, and flag the ABM token's token_invalid field whenever Apple
 // rejects the token or reports its signature as invalid.
 func NewDEPClient(storage godep.ClientStorage, updater fleet.ABMTermsUpdater, logger *slog.Logger) *godep.Client {
-	return godep.NewClient(storage, fleethttp.NewClient(), godep.WithAfterHook(func(ctx context.Context, reqErr error) error {
+	httpClient := fleethttp.NewClient()
+	return godep.NewClient(storage, httpClient, godep.WithAfterHook(func(ctx context.Context, reqErr error) error {
 		// to check for ABM terms expired, we must have an ABM token organization
 		// name and NOT a raw ABM token in the context (as the presence of a raw
 		// ABM token means that the token is new, hasn't been saved in the DB yet
@@ -1304,6 +1336,7 @@ var enrollmentProfileMobileconfigTemplate = template.Must(template.New("").Funcs
 			<array>
 				<string>com.apple.mdm.per-user-connections</string>
 				<string>com.apple.mdm.bootstraptoken</string>
+				<string>com.apple.mdm.token</string>
 			</array>
 			<key>ServerURL</key>
 			<string>{{ .ServerURL }}</string>
@@ -1386,6 +1419,7 @@ var accountDrivenUserEnrollmentProfileMobileconfigTemplate = template.Must(templ
 				<string>UserEnrollment</string>
 				<string>com.apple.mdm.per-user-connections</string>
 				<string>com.apple.mdm.bootstraptoken</string>
+				<string>com.apple.mdm.token</string>
 			</array>
 			<key>ServerURL</key>
 			<string>{{ .ServerURL }}</string>
@@ -1448,7 +1482,7 @@ var acmeEnrollmentProfileMobileconfigTemplate = template.Must(template.New("").F
 				{{ end }}<array>
 					<array>
 						<string>CN</string>
-						<string>{{ .SerialTemplate | xml }}</string>
+						<string>{{ .ClientIdentifier | xml }}</string>
 					</array>
 				</array>
 			</array>
@@ -1472,6 +1506,7 @@ var acmeEnrollmentProfileMobileconfigTemplate = template.Must(template.New("").F
 			<array>
 				<string>com.apple.mdm.per-user-connections</string>
 				<string>com.apple.mdm.bootstraptoken</string>
+				<string>com.apple.mdm.token</string>
 			</array>
 			<key>ServerURL</key>
 			<string>{{ .ServerURL | xml }}</string>
@@ -1595,6 +1630,8 @@ func AddEnrollmentRefToFleetURL(fleetURL, reference string) (string, error) {
 // GenerateACMEEnrollmentProfileMobileconfig builds an ACME (hardware-attested) enrollment profile. See
 // GenerateEnrollmentProfileMobileconfig for newEnrollment; the OU marker survives because Fleet's ACME
 // signer reuses the SCEP depot signer, which copies the CSR Subject verbatim.
+// deviceSerial fills both ClientIdentifier and the Subject CN. We observed that on iOS renewals,
+// the device does not substitute %SerialNumber% with its serial number, so we fill it in.
 func GenerateACMEEnrollmentProfileMobileconfig(orgName, mdmURL, acmeIdent, deviceSerial, topic string, accessRights int, newEnrollment bool) ([]byte, error) {
 	serverURL, err := ResolveAppleMDMURL(mdmURL)
 	if err != nil {
@@ -1613,7 +1650,6 @@ func GenerateACMEEnrollmentProfileMobileconfig(orgName, mdmURL, acmeIdent, devic
 		Topic                  string
 		ServerURL              string
 		ClientIdentifier       string
-		SerialTemplate         string
 		AccessRights           int
 		NewEnrollmentSubjectOU string
 	}{
@@ -1622,7 +1658,6 @@ func GenerateACMEEnrollmentProfileMobileconfig(orgName, mdmURL, acmeIdent, devic
 		Topic:                  topic,
 		ServerURL:              serverURL,
 		ClientIdentifier:       deviceSerial,
-		SerialTemplate:         `%SerialNumber%`, // Apple replaces this placeholder with the device's serial number during enrollment
 		AccessRights:           accessRights,
 		NewEnrollmentSubjectOU: newEnrollmentSubjectOU(newEnrollment),
 	}); err != nil {
@@ -1840,8 +1875,11 @@ func IOSiPadOSRefetch(ctx context.Context, ds fleet.Datastore, commander *MDMApp
 	return nil
 }
 
-// turnOffMDMIfAPNSFailed checks if the error is an APNSDeliveryError and turns off MDM for the failed devices.
-// Returns a boolean value to indicate whether or not MDM was turned off.
+// turnOffMDMIfAPNSFailed turns off MDM for any device whose push was rejected
+// by APNs with an Unregistered reason (dead token). It returns true whenever
+// err is an APNSDeliveryError — even when no device was turned off — signaling
+// the caller that only push delivery failed (commands remain durably queued)
+// so processing can continue.
 func turnOffMDMIfAPNSFailed(ctx context.Context, ds fleet.Datastore, err error, logger *slog.Logger, newActivityFn NewActivityFunc) (bool,
 	error,
 ) {
@@ -1851,7 +1889,10 @@ func turnOffMDMIfAPNSFailed(ctx context.Context, ds fleet.Datastore, err error, 
 	}
 
 	for uuid, err := range e.errorsByUUID {
-		if strings.Contains(err.Error(), "device token is inactive") {
+		// nanopush surfaces APNs' structured rejection reason; buford rendered
+		// this same condition as "device token is inactive". If the push
+		// provider ever changes, this classification must change with it.
+		if APNSReason(err) == APNSReasonUnregistered {
 			logger.InfoContext(ctx, "turning off MDM for device with inactive device token", "uuid", uuid)
 			users, activities, err := ds.MDMTurnOff(ctx, uuid)
 			if err != nil {
@@ -1873,7 +1914,7 @@ func turnOffMDMIfAPNSFailed(ctx context.Context, ds fleet.Datastore, err error, 
 	return true, nil
 }
 
-func GenerateOTAEnrollmentProfileMobileconfig(orgName, fleetURL, enrollSecret, idpUUID string, personal bool) ([]byte, error) {
+func GenerateOTAEnrollmentProfileMobileconfig(orgName, fleetURL, enrollSecret, idpSessionID string, personal bool) ([]byte, error) {
 	path, err := url.JoinPath(fleetURL, "/api/v1/fleet/ota_enrollment")
 	if err != nil {
 		return nil, fmt.Errorf("creating path for ota enrollment url: %w", err)
@@ -1886,8 +1927,8 @@ func GenerateOTAEnrollmentProfileMobileconfig(orgName, fleetURL, enrollSecret, i
 
 	q := enrollURL.Query()
 	q.Set("enroll_secret", enrollSecret)
-	if idpUUID != "" {
-		q.Set("idp_uuid", idpUUID)
+	if idpSessionID != "" {
+		q.Set("idp_session", idpSessionID)
 	}
 	if personal {
 		q.Set("byod", "true")
@@ -2004,7 +2045,7 @@ func ValidateMDMSettingsAppleSupportedOSVersion[T fleet.MDM | fleet.TeamMDM](set
 type RecoveryLockCommander interface {
 	SetRecoveryLock(ctx context.Context, hostUUIDs []string, cmdUUID string) error
 	ClearRecoveryLock(ctx context.Context, hostUUIDs []string, cmdUUID string) error
-	RotateRecoveryLock(ctx context.Context, hostUUID string, cmdUUID string) error
+	RotateRecoveryLock(ctx context.Context, hostUUIDs []string, cmdUUID string) error
 }
 
 // SendRecoveryLockCommands is the cron job function that sends SetRecoveryLock MDM commands
@@ -2087,14 +2128,30 @@ func sendSetRecoveryLockCommands(
 
 	logger.InfoContext(ctx, "sending SetRecoveryLock commands", "count", len(hosts))
 
+	// Hosts that already hold a password need the rotate variant of the command, which
+	// also carries CurrentPassword. That is a different payload, so it is a separate
+	// command with its own UUID.
+	setCmdUUID, rotateCmdUUID := uuid.NewString(), uuid.NewString()
+
 	// Generate passwords for all hosts upfront.
 	// Passwords must be stored BEFORE enqueuing commands because they are injected
 	// at delivery time by ExpandHostSecrets (which looks up by host UUID).
 	passwords := make([]fleet.HostRecoveryLockPasswordPayload, 0, len(hosts))
-	for _, hostUUID := range hosts {
+	freshSetHostUUIDs := make([]string, 0, len(hosts))
+	rotateHostUUIDs := make([]string, 0, len(hosts))
+	for hostUUID, hasPassword := range hosts {
+		cmdUUID := setCmdUUID
+		if hasPassword {
+			cmdUUID = rotateCmdUUID
+			rotateHostUUIDs = append(rotateHostUUIDs, hostUUID)
+		} else {
+			freshSetHostUUIDs = append(freshSetHostUUIDs, hostUUID)
+		}
+
 		passwords = append(passwords, fleet.HostRecoveryLockPasswordPayload{
-			HostUUID: hostUUID,
-			Password: GenerateRecoveryLockPassword(),
+			HostUUID:              hostUUID,
+			Password:              GenerateRecoveryLockPassword(),
+			PendingSetCommandUUID: cmdUUID,
 		})
 	}
 
@@ -2105,43 +2162,46 @@ func sendSetRecoveryLockCommands(
 		return ctxerr.Wrap(ctx, err, "bulk set recovery lock passwords")
 	}
 
-	// Collect host UUIDs for enqueue.
-	// The password is not in the command - a placeholder is used that will be
-	// expanded at delivery time by ExpandHostSecrets.
-	hostUUIDs := make([]string, 0, len(passwords))
-	for _, p := range passwords {
-		hostUUIDs = append(hostUUIDs, p.HostUUID)
-	}
+	// Enqueue one command per batch. Each host gets their own queue entry pointing to
+	// that command, and ExpandHostSecrets injects the per-host password at delivery time.
+	enqueue := func(send func(context.Context, []string, string) error, hostUUIDs []string, cmdUUID string) error {
+		if len(hostUUIDs) == 0 {
+			return nil
+		}
 
-	// Enqueue a single command for all hosts. Each host gets their own queue entry
-	// pointing to the same command, and ExpandHostSecrets injects the per-host
-	// password at delivery time.
-	cmdUUID := uuid.NewString()
-	if err := commander.SetRecoveryLock(ctx, hostUUIDs, cmdUUID); err != nil {
+		err := send(ctx, hostUUIDs, cmdUUID)
+		if err == nil {
+			logger.InfoContext(
+				ctx, "sent SetRecoveryLock commands",
+				"host_count", len(hostUUIDs),
+				"command_uuid", cmdUUID,
+			)
+			return nil
+		}
+
 		// Check if this is an APNs delivery error (command was persisted but push failed).
 		// In this case, the command is already queued and will be delivered when the device
 		// checks in, so we should NOT clear the pending status (which would cause duplicates).
-		var apnsErr *APNSDeliveryError
-		if errors.As(err, &apnsErr) {
-			// Command was persisted but push notification failed - log warning but don't fail.
-			// The command will be delivered when the device next checks in.
-			logger.WarnContext(ctx, "SetRecoveryLock commands enqueued but APNs push failed",
+		if apnsErr, ok := errors.AsType[*APNSDeliveryError](err); ok {
+			logger.WarnContext(
+				ctx, "SetRecoveryLock commands enqueued but APNs push failed",
 				"host_count", len(hostUUIDs),
 				"command_uuid", cmdUUID,
-				"error", err,
+				"error", apnsErr,
 			)
-			// Don't clear pending status - command is queued and will be processed
 			return nil
 		}
 
 		// Persistence failed - reset status to NULL so hosts will be picked up again on next cron run.
 		// The password is already stored, but a new one will be generated on retry (overwrites old).
-		logger.ErrorContext(ctx, "failed to enqueue SetRecoveryLock commands",
+		logger.ErrorContext(
+			ctx, "failed to enqueue SetRecoveryLock commands",
 			"host_count", len(hostUUIDs),
 			"error", err,
 		)
 		if clearErr := ds.ClearRecoveryLockPendingStatus(ctx, hostUUIDs); clearErr != nil {
-			logger.ErrorContext(ctx, "failed to clear recovery lock pending status after enqueue failure",
+			logger.ErrorContext(
+				ctx, "failed to clear recovery lock pending status after enqueue failure",
 				"host_count", len(hostUUIDs),
 				"error", clearErr,
 			)
@@ -2150,12 +2210,14 @@ func sendSetRecoveryLockCommands(
 		return ctxerr.Wrap(ctx, err, "enqueue SetRecoveryLock commands")
 	}
 
-	logger.InfoContext(ctx, "sent SetRecoveryLock commands",
-		"host_count", len(hostUUIDs),
-		"command_uuid", cmdUUID,
+	var result *multierror.Error
+	result = multierror.Append(
+		result,
+		enqueue(commander.SetRecoveryLock, freshSetHostUUIDs, setCmdUUID),
+		enqueue(commander.RotateRecoveryLock, rotateHostUUIDs, rotateCmdUUID),
 	)
 
-	return nil
+	return result.ErrorOrNil()
 }
 
 func sendClearRecoveryLockCommands(
@@ -2164,7 +2226,10 @@ func sendClearRecoveryLockCommands(
 	commander RecoveryLockCommander,
 	logger *slog.Logger,
 ) error {
-	hosts, err := ds.ClaimHostsForRecoveryLockClear(ctx)
+	// The command UUID is recorded on the claimed rows so the result handler can match the
+	// result back to the in-flight clear, so it has to be minted before claiming.
+	cmdUUID := uuid.NewString()
+	hosts, err := ds.ClaimHostsForRecoveryLockClear(ctx, cmdUUID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "get hosts for recovery lock clear action")
 	}
@@ -2178,12 +2243,12 @@ func sendClearRecoveryLockCommands(
 
 	// Enqueue clear command. The CurrentPassword placeholder will be expanded at
 	// delivery time by ExpandHostSecrets (which looks up by host UUID).
-	cmdUUID := uuid.NewString()
 	if err := commander.ClearRecoveryLock(ctx, hosts, cmdUUID); err != nil {
 		var apnsErr *APNSDeliveryError
 		if errors.As(err, &apnsErr) {
 			// Command was persisted but push notification failed - log warning but don't fail.
-			logger.WarnContext(ctx, "ClearRecoveryLock commands enqueued but APNs push failed",
+			logger.WarnContext(
+				ctx, "ClearRecoveryLock commands enqueued but APNs push failed",
 				"host_count", len(hosts),
 				"command_uuid", cmdUUID,
 				"error", err,
@@ -2192,12 +2257,14 @@ func sendClearRecoveryLockCommands(
 		}
 
 		// Persistence failed - reset status to NULL so hosts will be picked up again.
-		logger.ErrorContext(ctx, "failed to enqueue ClearRecoveryLock commands",
+		logger.ErrorContext(
+			ctx, "failed to enqueue ClearRecoveryLock commands",
 			"host_count", len(hosts),
 			"error", err,
 		)
 		if clearErr := ds.ClearRecoveryLockPendingStatus(ctx, hosts); clearErr != nil {
-			logger.ErrorContext(ctx, "failed to clear recovery lock pending status after enqueue failure",
+			logger.ErrorContext(
+				ctx, "failed to clear recovery lock pending status after enqueue failure",
 				"host_count", len(hosts),
 				"error", clearErr,
 			)
@@ -2206,7 +2273,8 @@ func sendClearRecoveryLockCommands(
 		return ctxerr.Wrap(ctx, err, "enqueue ClearRecoveryLock commands")
 	}
 
-	logger.InfoContext(ctx, "sent ClearRecoveryLock commands",
+	logger.InfoContext(
+		ctx, "sent ClearRecoveryLock commands",
 		"host_count", len(hosts),
 		"command_uuid", cmdUUID,
 	)
@@ -2236,23 +2304,26 @@ func sendAutoRotationCommands(
 	var result *multierror.Error
 	for _, host := range hosts {
 		newPassword := GenerateRecoveryLockPassword()
+		setCmdUUID := uuid.NewString()
 
 		// Initiate rotation - stores pending password and validates eligibility
-		if err := ds.InitiateRecoveryLockRotation(ctx, host.HostUUID, newPassword); err != nil {
+		if err := ds.InitiateRecoveryLockRotation(ctx, host.HostUUID, setCmdUUID, newPassword); err != nil {
 			// Check for benign race conditions where host state changed between
 			// GetHostsForAutoRotation and now (e.g., manual rotation started,
 			// password removed, host deleted, etc.)
 			if fleet.IsNotFound(err) ||
 				errors.Is(err, fleet.ErrRecoveryLockRotationPending) ||
 				errors.Is(err, fleet.ErrRecoveryLockNotEligible) {
-				logger.DebugContext(ctx, "host lost eligibility for auto-rotation",
+				logger.DebugContext(
+					ctx, "host lost eligibility for auto-rotation",
 					"host_uuid", host.HostUUID,
 					"error", err,
 				)
 				continue
 			}
 
-			logger.ErrorContext(ctx, "failed to initiate auto-rotation",
+			logger.ErrorContext(
+				ctx, "failed to initiate auto-rotation",
 				"host_uuid", host.HostUUID,
 				"error", err,
 			)
@@ -2261,28 +2332,29 @@ func sendAutoRotationCommands(
 		}
 
 		// Enqueue RotateRecoveryLock command
-		cmdUUID := uuid.NewString()
-		if err := commander.RotateRecoveryLock(ctx, host.HostUUID, cmdUUID); err != nil {
-			var apnsErr *APNSDeliveryError
-			if errors.As(err, &apnsErr) {
+		if err := commander.RotateRecoveryLock(ctx, []string{host.HostUUID}, setCmdUUID); err != nil {
+			if apnsErr, ok := errors.AsType[*APNSDeliveryError](err); ok {
 				// Command was persisted but push notification failed - log activity and continue.
 				// The command will be retried when the device checks in.
 				logAutoRotationActivity(ctx, logger, newActivityFn, host)
-				logger.WarnContext(ctx, "auto-rotation command enqueued but APNs push failed",
+				logger.WarnContext(
+					ctx, "auto-rotation command enqueued but APNs push failed",
 					"host_uuid", host.HostUUID,
-					"command_uuid", cmdUUID,
-					"error", err,
+					"command_uuid", setCmdUUID,
+					"error", apnsErr,
 				)
 				continue
 			}
 
 			// Persistence failed - clear pending rotation so host can be retried
-			logger.ErrorContext(ctx, "failed to enqueue auto-rotation command",
+			logger.ErrorContext(
+				ctx, "failed to enqueue auto-rotation command",
 				"host_uuid", host.HostUUID,
 				"error", err,
 			)
 			if clearErr := ds.ClearRecoveryLockRotation(ctx, host.HostUUID); clearErr != nil {
-				logger.ErrorContext(ctx, "failed to clear pending rotation after enqueue failure",
+				logger.ErrorContext(
+					ctx, "failed to clear pending rotation after enqueue failure",
 					"host_uuid", host.HostUUID,
 					"error", clearErr,
 				)
@@ -2295,9 +2367,10 @@ func sendAutoRotationCommands(
 		// Log activity for auto-rotation (Fleet-initiated)
 		logAutoRotationActivity(ctx, logger, newActivityFn, host)
 
-		logger.DebugContext(ctx, "sent auto-rotation command",
+		logger.DebugContext(
+			ctx, "sent auto-rotation command",
 			"host_uuid", host.HostUUID,
-			"command_uuid", cmdUUID,
+			"command_uuid", setCmdUUID,
 		)
 	}
 
@@ -2321,7 +2394,8 @@ func logAutoRotationActivity(
 		HostDisplayName: host.DisplayName,
 		FleetInitiated:  true,
 	}); err != nil {
-		logger.WarnContext(ctx, "auto-rotation: failed to create activity",
+		logger.WarnContext(
+			ctx, "auto-rotation: failed to create activity",
 			"host_uuid", host.HostUUID,
 			"err", err,
 		)

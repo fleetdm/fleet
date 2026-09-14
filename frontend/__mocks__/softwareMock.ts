@@ -17,9 +17,11 @@ import {
   ISoftwareVersionsResponse,
   ISoftwareVersionResponse,
 } from "services/entities/software";
-import { IOSVersionsResponse } from "../services/entities/operating_systems";
-import { IGetSetupExperienceSoftwareResponse } from "../services/entities/mdm";
+
 import { IOperatingSystemVersion } from "../interfaces/operating_system";
+import { IGetSetupExperienceSoftwareResponse } from "../services/entities/mdm";
+import { IOSVersionsResponse } from "../services/entities/operating_systems";
+
 import { createMockListEntitiesResponseCommon } from "./commonMock";
 
 const DEFAULT_SOFTWARE_MOCK: ISoftware = {

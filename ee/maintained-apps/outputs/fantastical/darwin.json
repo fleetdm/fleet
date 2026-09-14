@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "4.1.18",
+      "version": "4.1.19",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.flexibits.fantastical';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.flexibits.fantastical' AND version_compare(bundle_short_version, '4.1.18') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.flexibits.fantastical' AND version_compare(bundle_short_version, '4.1.19') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.flexibits.fantastical' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://cdn.flexibits.com/Fantastical_4.1.18.zip",
+      "installer_url": "https://cdn.flexibits.com/Fantastical_4.1.19.zip",
       "install_script_ref": "7f9f4cb1",
       "uninstall_script_ref": "24a13dc5",
-      "sha256": "a62c8ca6fe608d6c4c20a1faa1828256339e9f132be9ac8979d140179aff0a51",
+      "sha256": "49672ccd52788306c8033428b2e24afd28e7223af55c0bec30e89fbd957dee86",
       "default_categories": [
         "Productivity"
       ]

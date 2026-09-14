@@ -111,6 +111,7 @@
       "windows_migration_enabled": false,
       "enable_turn_on_windows_mdm_manually": false,
       "apple_require_hardware_attestation": false,
+      "only_allow_apple_business_enrollment": false,
       "macos_migration": {
         "enable": false,
         "mode": "",

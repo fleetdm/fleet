@@ -6,12 +6,13 @@ import (
 	"log/slog"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	nanomdm_pushsvc "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push/service"
+	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/jmoiron/sqlx"
@@ -44,7 +45,7 @@ func TestInitAppleMDMPushService_DevModeReturnsNopPusher(t *testing.T) {
 	// SetOverride enables dev mode and registers cleanup via t.
 	dev_mode.SetOverride("FLEET_DEV_MDM_APPLE_DISABLE_PUSH", "1", t)
 
-	pusher := initAppleMDMPushService(nil, discardLogger())
+	pusher := initAppleMDMPushService(nil, 30*24*time.Hour, discardLogger())
 	require.IsType(t, nopPusher{}, pusher)
 }
 
@@ -52,8 +53,20 @@ func TestInitAppleMDMPushService_DevModeCustomPushServerURL(t *testing.T) {
 	// SetOverride enables dev mode and registers cleanup via t.
 	dev_mode.SetOverride("FLEET_DEV_MDM_APPLE_PUSH_SERVER_URL", "http://localhost:8378", t)
 
-	pusher := initAppleMDMPushService(nil, discardLogger())
-	require.IsType(t, &nanomdm_pushsvc.PushService{}, pusher)
+	pusher := initAppleMDMPushService(nil, 30*24*time.Hour, discardLogger())
+	require.IsType(t, &apple_mdm.RetryingPusher{}, pusher)
+	t.Cleanup(pusher.(*apple_mdm.RetryingPusher).Stop)
+}
+
+func TestInitAppleMDMPushService_ZeroExpirationWarnsAndDegrades(t *testing.T) {
+	var buf strings.Builder
+	logger := slog.New(slog.NewTextHandler(&buf, nil))
+
+	pusher := initAppleMDMPushService(nil, 0, logger)
+	require.IsType(t, &apple_mdm.RetryingPusher{}, pusher)
+	t.Cleanup(pusher.(*apple_mdm.RetryingPusher).Stop)
+	require.Contains(t, buf.String(), "apple_apns_push_expiration")
+	require.Contains(t, buf.String(), "level=WARN")
 }
 
 func TestCheckMDMAssetsExist(t *testing.T) {

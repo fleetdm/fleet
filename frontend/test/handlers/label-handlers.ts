@@ -1,10 +1,10 @@
 import { http, HttpResponse } from "msw";
 
-import { baseUrl } from "test/test-utils";
-import { createMockLabel } from "__mocks__/labelsMock";
 import { createMockHostsResponse } from "__mocks__/hostMock";
-import { ILabel } from "interfaces/label";
+import { createMockLabel } from "__mocks__/labelsMock";
 import { IHost } from "interfaces/host";
+import { ILabel } from "interfaces/label";
+import { baseUrl } from "test/test-utils";
 
 export const getLabelHandler = (overrides: Partial<ILabel>) =>
   http.get(baseUrl("/labels/:id"), () => {

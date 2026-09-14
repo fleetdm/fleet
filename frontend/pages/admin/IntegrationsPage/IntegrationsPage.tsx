@@ -1,22 +1,19 @@
 import React, { useCallback, useContext, useState } from "react";
-import { InjectedRouter, Params } from "react-router/lib/Router";
 import { useQuery } from "react-query";
-
-import deepDifference from "utilities/deep_difference";
-import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
-
-import { AppContext } from "context/app";
-
-import configAPI from "services/entities/config";
-
-import { IConfig } from "interfaces/config";
+import { InjectedRouter, Params } from "react-router/lib/Router";
 
 import Spinner from "components/Spinner";
 import { notify } from "components/ToastNotification";
+import { AppContext } from "context/app";
+import { IConfig } from "interfaces/config";
+import configAPI from "services/entities/config";
+import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
+import deepDifference from "utilities/deep_difference";
 
 import SideNav from "../components/SideNav";
-import getIntegrationSettingsNavItems from "./IntegrationNavItems";
 import { DeepPartial } from "../OrgSettingsPage/cards/constants";
+
+import getIntegrationSettingsNavItems from "./IntegrationNavItems";
 
 const baseClass = "integrations";
 

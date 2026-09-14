@@ -1,24 +1,21 @@
 import React from "react";
 import { useQuery } from "react-query";
-import { timeAgo } from "utilities/date_format";
 
-import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
-
+import Button from "components/buttons/Button";
+import DataError from "components/DataError";
+import InputField from "components/forms/fields/InputField";
+import { IconNames } from "components/icons";
+import IconStatusMessage from "components/IconStatusMessage";
+import Modal from "components/Modal";
+import ModalFooter from "components/ModalFooter";
+import Spinner from "components/Spinner";
 import { ICommandResult } from "interfaces/command";
-
 import commandApi, {
   IGetCommandResultsResponse,
   IGetHostCommandResultsQueryKey,
 } from "services/entities/command";
-
-import InputField from "components/forms/fields/InputField";
-import Modal from "components/Modal";
-import Spinner from "components/Spinner";
-import DataError from "components/DataError";
-import IconStatusMessage from "components/IconStatusMessage";
-import { IconNames } from "components/icons";
-import ModalFooter from "components/ModalFooter";
-import Button from "components/buttons/Button";
+import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
+import { timeAgo } from "utilities/date_format";
 
 const baseClass = "command-details-modal";
 
@@ -200,6 +197,7 @@ export const ModalContent = ({
           value={result.payload}
           readOnly
           enableCopy
+          disableResize
         />
       )}
       {!!result.result && (
@@ -213,6 +211,7 @@ export const ModalContent = ({
           value={result.result}
           readOnly
           enableCopy
+          disableResize
         />
       )}
     </div>

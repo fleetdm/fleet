@@ -315,12 +315,12 @@ func (s *Service) CommandAndReportResults(r *mdm.Request, results *mdm.CommandRe
 		return hostExpanded, false
 	}
 
-	// Expand host-scoped secrets for SetRecoveryLock commands.
+	// Expand host-scoped secrets for SetRecoveryLock and VerifyRecoveryLock commands.
 	// SetRecoveryLock is device-only, so UDID is always present and matches host UUID.
-	if cmd.Command.Command.RequestType == fleet.SetRecoveryLockCmdName {
+	if cmd.Command.Command.RequestType == fleet.SetRecoveryLockCmdName || cmd.Command.Command.RequestType == fleet.VerifyRecoveryLockCmdName {
 		hostExpanded, didError := expandHostSecrets(string(cmd.Raw), func(hostUUID string, errorMsg string) {
 			// Mark the host's recovery lock status as failed so it's not stuck in pending.
-			if storeErr := s.store.SetRecoveryLockFailed(r.Context, hostUUID, errorMsg); storeErr != nil {
+			if storeErr := s.store.SetRecoveryLockFailed(r.Context, hostUUID, cmd.CommandUUID, errorMsg); storeErr != nil {
 				logger.Info("level", "error", "msg", "setting recovery lock failed", "err", storeErr)
 			}
 		})

@@ -1032,6 +1032,60 @@ func (s *integrationTestSuite) TestListHostsPopulateSoftwareWithInstalledPaths()
 	assert.Contains(t, string(body), "abc123hash", "JSON should contain the hash")
 }
 
+func (s *integrationTestSuite) TestListHostsPopulateEndUsers() {
+	t := s.T()
+	ctx := context.Background()
+
+	host, err := s.ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         new(t.Name() + "1"),
+		OsqueryHostID:   new(t.Name() + "1"),
+		UUID:            t.Name() + "1",
+		Hostname:        t.Name() + "foo.local",
+		Platform:        "darwin",
+	})
+	require.NoError(t, err)
+
+	// ReplaceHostDeviceMapping rejects mixed sources, so write one source at a time.
+	require.NoError(t, s.ds.ReplaceHostDeviceMapping(ctx, host.ID, []*fleet.HostDeviceMapping{
+		{HostID: host.ID, Email: "anna@acme.com", Source: fleet.DeviceMappingMDMIdpAccounts},
+	}, fleet.DeviceMappingMDMIdpAccounts))
+	require.NoError(t, s.ds.ReplaceHostDeviceMapping(ctx, host.ID, []*fleet.HostDeviceMapping{
+		{HostID: host.ID, Email: "anna@example.com", Source: "google_chrome_profiles"},
+	}, "google_chrome_profiles"))
+
+	findHost := func(resp listHostsResponse) *fleet.HostResponse {
+		for i, h := range resp.Hosts {
+			if h.ID == host.ID {
+				return &resp.Hosts[i]
+			}
+		}
+		return nil
+	}
+
+	// end users are omitted unless populate_end_users is set
+	var listResp listHostsResponse
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp)
+	got := findHost(listResp)
+	require.NotNil(t, got)
+	require.Empty(t, got.EndUsers)
+
+	listResp = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "populate_end_users", "true")
+	got = findHost(listResp)
+	require.NotNil(t, got)
+	require.Len(t, got.EndUsers, 1)
+	assert.Equal(t, "anna@acme.com", got.EndUsers[0].IdpUserName)
+	require.Len(t, got.EndUsers[0].OtherEmails, 1)
+	assert.Equal(t, "anna@example.com", got.EndUsers[0].OtherEmails[0].Email)
+	assert.Equal(t, "google_chrome_profiles", got.EndUsers[0].OtherEmails[0].Source)
+
+	s.Do("GET", "/api/latest/fleet/hosts", nil, http.StatusBadRequest, "populate_end_users", "foo").Body.Close()
+}
+
 func (s *integrationTestSuite) TestGetHostSummary() {
 	t := s.T()
 	ctx := context.Background()
@@ -2105,12 +2159,25 @@ func (s *integrationTestSuite) TestHostDeviceURL() {
 	// Unknown host ID: 404.
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_url", host.ID+9999), nil, http.StatusNotFound, &resp)
 
-	// iOS and iPadOS hosts can't use device-token auth, so the endpoint
-	// rejects them with 400 instead of minting an unusable URL.
+	// iOS and iPadOS hosts have no device auth token; their URL is the host
+	// UUID landing on the self-service tab, matching the Web Clip profile in
+	// docs/solutions/ios-ipados.
 	iosHost := createOrbitEnrolledHost(t, "ios", "device-url-ios", s.ds)
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_url", iosHost.ID), nil, http.StatusBadRequest, &resp)
+	var iosResp getHostDeviceURLResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_url", iosHost.ID), nil, http.StatusOK, &iosResp)
+	require.Equal(t, "https://fleet.example.com/device/"+iosHost.UUID+"/self-service", iosResp.DeviceURL)
 	ipadHost := createOrbitEnrolledHost(t, "ipados", "device-url-ipad", s.ds)
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_url", ipadHost.ID), nil, http.StatusBadRequest, &resp)
+	var ipadResp getHostDeviceURLResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_url", ipadHost.ID), nil, http.StatusOK, &ipadResp)
+	require.Equal(t, "https://fleet.example.com/device/"+ipadHost.UUID+"/self-service", ipadResp.DeviceURL)
+
+	// Android and ChromeOS have no My device page at all, so the endpoint explains
+	// that rather than minting a URL that leads nowhere. See #48439.
+	for _, platform := range []string{"android", "chrome", "CrOS"} {
+		unsupportedHost := createOrbitEnrolledHost(t, platform, "device-url-"+platform, s.ds)
+		res := s.Do("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_url", unsupportedHost.ID), nil, http.StatusBadRequest)
+		require.Contains(t, extractServerErrorText(res.Body), fleet.MyDeviceURLUnsupportedPlatformMessage, "platform %s", platform)
+	}
 
 	// Non-global-admin roles: 403. Switch tokens, then restore admin token at end.
 	defer func() { s.token = s.getTestAdminToken() }()

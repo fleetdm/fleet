@@ -1,11 +1,10 @@
 import React, { useContext } from "react";
 
-import { TRANSPARENCY_LINK } from "utilities/constants";
-
-import { AppContext } from "context/app";
-import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
+import Modal from "components/Modal";
+import { AppContext } from "context/app";
+import { TRANSPARENCY_LINK } from "utilities/constants";
 
 import { IFormPolicy } from "../../../PoliciesPaginatedList/PoliciesPaginatedList";
 

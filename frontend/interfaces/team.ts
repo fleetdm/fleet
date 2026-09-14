@@ -1,4 +1,5 @@
 import PropTypes from "prop-types";
+
 import {
   IAppleDeviceUpdates,
   IConfigFeatures,
@@ -6,8 +7,8 @@ import {
 } from "./config";
 import enrollSecretInterface, { IEnrollSecret } from "./enroll_secret";
 import { ITeamIntegrations } from "./integration";
-import { UserRole } from "./user";
 import { EndUserLocalAccountType, ITokenFleet, ITokenTeam } from "./mdm";
+import { UserRole } from "./user";
 
 export default PropTypes.shape({
   id: PropTypes.number.isRequired,

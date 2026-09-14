@@ -1,59 +1,53 @@
-import React, { useContext, useEffect, useState } from "react";
-
-import { useQuery } from "react-query";
-import { useDebouncedCallback } from "use-debounce";
 import { Ace } from "ace-builds";
-import { Row } from "react-table";
-
-import PATHS from "router/paths";
-
-import targetsAPI, { ITargetsSearchResponse } from "services/entities/targets";
-import idpAPI from "services/entities/idp";
-import labelsAPI from "services/entities/labels";
-import customHostVitalsAPI, {
-  IListCustomHostVitalsApiParams,
-} from "services/entities/custom_host_vitals";
-
-import {
-  DEFAULT_USE_QUERY_OPTIONS,
-  MAX_ENTITY_CHAR_LENGTH,
-} from "utilities/constants";
-// TODO - move this table config near here once expanded this logic to encompass editing and
-// therefore not longer needed anywhere else
-import { generateTableHeaders } from "pages/labels/components/ManualLabelForm/LabelHostTargetTableConfig";
-
-import { validateQuery } from "components/forms/validators/validate_query";
-
-import { QueryContext } from "context/query";
-import { AppContext } from "context/app";
-import { notify } from "components/ToastNotification";
-import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
-
-import useToggleSidePanel from "hooks/useToggleSidePanel";
-
+import React, { useContext, useEffect, useState } from "react";
+import { useQuery } from "react-query";
 import { RouteComponentProps } from "react-router";
+import { Row } from "react-table";
+import { useDebouncedCallback } from "use-debounce";
+
+import Button from "components/buttons/Button";
+// @ts-ignore
+import Dropdown from "components/forms/fields/Dropdown";
+import InputField from "components/forms/fields/InputField";
+import Radio from "components/forms/fields/Radio";
+import { validateQuery } from "components/forms/validators/validate_query";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import MainContent from "components/MainContent";
+import QuerySidePanel from "components/side_panels/QuerySidePanel";
+import SidePanelContent from "components/SidePanelContent";
+import SidePanelPage from "components/SidePanelPage";
+import SQLEditor from "components/SQLEditor";
+import TargetsInput from "components/TargetsInput";
+import { notify } from "components/ToastNotification";
+import { AppContext } from "context/app";
+import { QueryContext } from "context/query";
+import useToggleSidePanel from "hooks/useToggleSidePanel";
+import { getErrorReason } from "interfaces/errors";
+import { IInputFieldParseTarget } from "interfaces/form_field";
+import { IHost } from "interfaces/host";
 import {
   CUSTOM_HOST_VITAL_CRITERION,
   LabelHostVitalsCriterion,
   LabelMembershipType,
   LabelPlatform,
 } from "interfaces/label";
-import { IHost } from "interfaces/host";
-import { IInputFieldParseTarget } from "interfaces/form_field";
-import { getErrorReason } from "interfaces/errors";
+// TODO - move this table config near here once expanded this logic to encompass editing and
+// therefore not longer needed anywhere else
+import { generateTableHeaders } from "pages/labels/components/ManualLabelForm/LabelHostTargetTableConfig";
+import PATHS from "router/paths";
+import customHostVitalsAPI, {
+  IListCustomHostVitalsApiParams,
+} from "services/entities/custom_host_vitals";
+import idpAPI from "services/entities/idp";
+import labelsAPI from "services/entities/labels";
+import targetsAPI, { ITargetsSearchResponse } from "services/entities/targets";
+import {
+  DEFAULT_USE_QUERY_OPTIONS,
+  MAX_ENTITY_CHAR_LENGTH,
+} from "utilities/constants";
 
-import SidePanelPage from "components/SidePanelPage";
-import MainContent from "components/MainContent";
-import SidePanelContent from "components/SidePanelContent";
-import QuerySidePanel from "components/side_panels/QuerySidePanel";
-import InputField from "components/forms/fields/InputField";
-// @ts-ignore
-import Dropdown from "components/forms/fields/Dropdown";
-import Button from "components/buttons/Button";
-import SQLEditor from "components/SQLEditor";
-import TargetsInput from "components/TargetsInput";
-import Radio from "components/forms/fields/Radio";
 import PlatformField from "../components/PlatformField";
+
 import {
   validateNewLabelFormData,
   INewLabelFormValidation,

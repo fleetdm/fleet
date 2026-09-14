@@ -1,24 +1,22 @@
 import React from "react";
-import { CellProps, Column } from "react-table";
 import { InjectedRouter } from "react-router";
+import { CellProps, Column } from "react-table";
 
+import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
+import SoftwareNameCell from "components/TableContainer/DataTable/SoftwareNameCell";
+import TextCell from "components/TableContainer/DataTable/TextCell";
+import TooltipWrapper from "components/TooltipWrapper";
+import ViewAllHostsLink from "components/ViewAllHostsLink";
+import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
 import {
   ISoftwareTitle,
   NO_VERSION_OR_HOST_DATA_SOURCES,
   formatSoftwareType,
   isIpadOrIphoneSoftwareSource,
 } from "interfaces/software";
-import PATHS from "router/paths";
-
-import { getPathWithQueryParams } from "utilities/url";
 import { getAutomaticInstallPoliciesCount } from "pages/SoftwarePage/helpers";
-import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
-
-import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
-import TextCell from "components/TableContainer/DataTable/TextCell";
-import TooltipWrapper from "components/TooltipWrapper";
-import ViewAllHostsLink from "components/ViewAllHostsLink";
-import SoftwareNameCell from "components/TableContainer/DataTable/SoftwareNameCell";
+import PATHS from "router/paths";
+import { getPathWithQueryParams } from "utilities/url";
 
 import VersionCell from "../../components/tables/VersionCell";
 
@@ -140,6 +138,12 @@ const generateTableHeaders = (
             }
             isIosOrIpadosApp={isIpadOrIphoneSoftwareSource(nameCellData.source)}
             isAndroidPlayStoreApp={isAndroidPlayStoreApp}
+            isAppStoreApp={!!cellProps.row.original.app_store_app}
+            autoUpdateEnabled={cellProps.row.original.auto_update_enabled}
+            autoUpdateWindowStart={
+              cellProps.row.original.auto_update_window_start
+            }
+            autoUpdateWindowEnd={cellProps.row.original.auto_update_window_end}
           />
         );
       },
@@ -175,10 +179,7 @@ const generateTableHeaders = (
       Header: (cellProps: ITableHeaderProps) => (
         <HeaderCell
           value={
-            <TooltipWrapper
-              tipContent="Hosts with any version installed."
-              position="bottom"
-            >
+            <TooltipWrapper tipContent="Hosts with any version installed.">
               Hosts
             </TooltipWrapper>
           }

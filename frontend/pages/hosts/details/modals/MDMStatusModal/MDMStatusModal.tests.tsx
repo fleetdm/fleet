@@ -1,14 +1,14 @@
+import { screen, waitFor } from "@testing-library/react";
+import { AxiosError } from "axios";
 import React from "react";
 
-import { screen, waitFor } from "@testing-library/react";
-import { createCustomRenderer, createMockRouter } from "test/test-utils";
-import { AxiosError } from "axios";
-
 import createMockUser from "__mocks__/userMock";
-import hostAPI from "services/entities/hosts";
-import paths from "router/paths";
-import { internationalTimeFormat } from "utilities/helpers";
 import { notify } from "components/ToastNotification";
+import paths from "router/paths";
+import hostAPI from "services/entities/hosts";
+import { createCustomRenderer, createMockRouter } from "test/test-utils";
+import { internationalTimeFormat } from "utilities/helpers";
+
 import MDMStatusModal from "./MDMStatusModal";
 
 jest.mock("services/entities/hosts");
