@@ -13,6 +13,7 @@
     "lint": "eslint frontend --ext .js,.jsx,.ts,.tsx",
     "lint:icons": "node tools/software/icons/check-icons.js",
     "prettier:check": "prettier --check frontend/**/*.{jsx,js,tsx,ts}",
+    "prettier:fix": "prettier --write \"frontend/**/*.{jsx,js,tsx,ts}\"",
     "pretest": "yarn generate:osquery-sql-parser",
     "test": "jest --config ./frontend/test/jest.config.js",
     "pretest:ci": "yarn generate:osquery-sql-parser",

@@ -1,6 +1,9 @@
 import { capitalize, find, lowerCase, noop, trimEnd } from "lodash";
 import React from "react";
 
+import ActivityItem from "components/ActivityItem";
+import { ShowActivityDetailsHandler } from "components/ActivityItem/ActivityItem";
+import TooltipWrapper from "components/TooltipWrapper";
 import { ActivityType, IActivity } from "interfaces/activity";
 import {
   DATASET_LABEL,
@@ -18,16 +21,12 @@ import {
   getInstallUninstallStatusPredicatePassive,
   SCRIPT_PACKAGE_SOURCES,
 } from "interfaces/software";
+import { API_NO_TEAM_ID } from "interfaces/team";
 import { formatMdmCommandNameForActivityItem } from "utilities/activityHelpers";
 import {
   formatScriptNameForActivityItem,
   getPerformanceImpactDescription,
 } from "utilities/helpers";
-
-import ActivityItem from "components/ActivityItem";
-import { ShowActivityDetailsHandler } from "components/ActivityItem/ActivityItem";
-import TooltipWrapper from "components/TooltipWrapper";
-import { API_NO_TEAM_ID } from "interfaces/team";
 
 const baseClass = "global-activity-item";
 

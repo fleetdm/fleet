@@ -1,6 +1,6 @@
-import React from "react";
-import { noop } from "lodash";
 import { render, screen } from "@testing-library/react";
+import { noop } from "lodash";
+import React from "react";
 
 import { createMockRouter } from "test/test-utils";
 

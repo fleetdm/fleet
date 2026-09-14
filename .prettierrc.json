@@ -1,10 +1,13 @@
 {
-  "plugins": ["@ianvs/prettier-plugin-sort-imports"],
+  "plugins": [
+    "@ianvs/prettier-plugin-sort-imports"
+  ],
   "importOrderBuiltinModulesToTop": true,
   "importOrder": [
     "<THIRD_PARTY_MODULES>",
     "^(__mocks__|components|context|docs|hooks|interfaces|layouts|pages|router|services|styles|templates|test|typings|utilities)(/.*)?$",
     "^\\.\\./",
+    "^\\.\\.$",
     "^\\./(?!index$)",
     "^\\./index$|^\\.$"
   ],

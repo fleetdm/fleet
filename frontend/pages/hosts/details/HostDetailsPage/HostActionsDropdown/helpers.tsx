@@ -1,7 +1,14 @@
-import React from "react";
 import { cloneDeep } from "lodash";
+import React from "react";
 
 import { IDropdownOption } from "interfaces/dropdownOption";
+import {
+  isAndroidBYO,
+  isAndroidCOBO,
+  isAutomaticDeviceEnrollment,
+  isBYODAccountDrivenUserEnrollment,
+  MdmEnrollmentStatus,
+} from "interfaces/mdm";
 import {
   isLinuxLike,
   isAppleDevice,
@@ -11,13 +18,6 @@ import {
   isIPadOrIPhone,
 } from "interfaces/platform";
 import { isScriptSupportedPlatform } from "interfaces/script";
-import {
-  isAndroidBYO,
-  isAndroidCOBO,
-  isAutomaticDeviceEnrollment,
-  isBYODAccountDrivenUserEnrollment,
-  MdmEnrollmentStatus,
-} from "interfaces/mdm";
 
 import {
   HostMdmDeviceStatusUIState,

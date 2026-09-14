@@ -1,20 +1,20 @@
 import React from "react";
 import { CellProps, Column } from "react-table";
 
-import { IMdmAbToken } from "interfaces/mdm";
-import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
-import { getFleetDisplayName } from "interfaces/team";
-import { IDropdownOption } from "interfaces/dropdownOption";
-
-import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
 import ActionsDropdown from "components/ActionsDropdown";
+import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import TooltipWrapper from "components/TooltipWrapper";
+import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
+import { IDropdownOption } from "interfaces/dropdownOption";
+import { IMdmAbToken } from "interfaces/mdm";
+import { getFleetDisplayName } from "interfaces/team";
 import { getGitOpsModeTipContent } from "utilities/helpers";
 
 import RenewDateCell from "../../../components/RenewDateCell";
-import OrgNameCell from "./OrgNameCell";
 import { IRenewDateCellStatusConfig } from "../../../components/RenewDateCell/RenewDateCell";
+
+import OrgNameCell from "./OrgNameCell";
 
 type IAbmTableConfig = Column<IMdmAbToken>;
 type ITableStringCellProps = IStringCellProps<IMdmAbToken>;

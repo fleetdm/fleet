@@ -1,5 +1,5 @@
-import React from "react";
 import { screen, waitFor } from "@testing-library/react";
+import React from "react";
 
 import { createMockConfig, createMockMdmConfig } from "__mocks__/configMock";
 import { IConfig } from "interfaces/config";

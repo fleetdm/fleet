@@ -1,18 +1,17 @@
 // State is passed in through tableConfig which is tested in the parent component's tests (SelfService.tests.tsx)
 
-import React from "react";
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-
 import { http, HttpResponse } from "msw";
+import React from "react";
 
-import { createCustomRenderer, createMockRouter } from "test/test-utils";
-import mockServer from "test/mock-server";
-import { baseUrl } from "test/default-handlers";
-import { listDeviceSelfServiceCategoriesHandler } from "test/handlers/self-service-categories-handlers";
 import { createMockDeviceSoftware } from "__mocks__/deviceUserMock";
 import { createMockHostSoftwarePackage } from "__mocks__/hostMock";
 import { SoftwareCategory } from "interfaces/software";
+import { baseUrl } from "test/default-handlers";
+import { listDeviceSelfServiceCategoriesHandler } from "test/handlers/self-service-categories-handlers";
+import mockServer from "test/mock-server";
+import { createCustomRenderer, createMockRouter } from "test/test-utils";
 
 import SelfServiceCard, {
   SelfServiceQueryParams,

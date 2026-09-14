@@ -1,40 +1,12 @@
-import React, { useState, useCallback, useEffect, useMemo } from "react";
-import { InjectedRouter, Params } from "react-router/lib/Router";
-import { useQuery } from "react-query";
-import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 import { AxiosError } from "axios";
-
-import { pick } from "lodash";
-
 import classNames from "classnames";
-import useIsMobileWidth from "hooks/useIsMobileWidth";
+import { pick } from "lodash";
+import React, { useState, useCallback, useEffect, useMemo } from "react";
+import { useQuery } from "react-query";
+import { InjectedRouter, Params } from "react-router/lib/Router";
+import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 
-import deviceUserAPI, {
-  IGetDeviceCertsApiParams,
-  IGetDeviceCertificatesResponse,
-  IGetSetupExperienceStatusesResponse,
-} from "services/entities/device_user";
-import diskEncryptionAPI from "services/entities/disk_encryption";
-import { IMacadminsResponse, IDUPDetails, IHostDevice } from "interfaces/host";
-import { IListSort } from "interfaces/list_options";
-import { IHostPolicy } from "interfaces/policy";
-import { IDeviceGlobalConfig } from "interfaces/config";
-import {
-  IHostCertificate,
-  CERTIFICATES_DEFAULT_SORT,
-} from "interfaces/certificates";
-import {
-  isMacOS,
-  isAppleDevice,
-  isLinuxLike,
-  isWindows,
-} from "interfaces/platform";
-import { IHostSoftware } from "interfaces/software";
-import { ISetupStep } from "interfaces/setup";
-import { hasStatusKey } from "interfaces/errors";
-
-import shouldShowUnsupportedScreen from "layouts/UnsupportedScreenSize/helpers";
-
+import CustomLink from "components/CustomLink";
 import DeviceUserError from "components/DeviceUserError";
 // @ts-ignore
 import OrgLogoIcon from "components/icons/OrgLogoIcon";
@@ -42,48 +14,72 @@ import Spinner from "components/Spinner";
 import TabNav from "components/TabNav";
 import TabText from "components/TabText";
 import { notify } from "components/ToastNotification";
-import CustomLink from "components/CustomLink";
-
-import { normalizeEmptyValues } from "utilities/helpers";
-import { isDarkMode } from "utilities/theme";
+import useIsMobileWidth from "hooks/useIsMobileWidth";
+import {
+  IHostCertificate,
+  CERTIFICATES_DEFAULT_SORT,
+} from "interfaces/certificates";
+import { IDeviceGlobalConfig } from "interfaces/config";
+import { hasStatusKey } from "interfaces/errors";
+import { IMacadminsResponse, IDUPDetails, IHostDevice } from "interfaces/host";
+import { IListSort } from "interfaces/list_options";
+import { canTriggerAPNSPing } from "interfaces/mdm";
+import {
+  isMacOS,
+  isAppleDevice,
+  isLinuxLike,
+  isWindows,
+} from "interfaces/platform";
+import { IHostPolicy } from "interfaces/policy";
+import { ISetupStep } from "interfaces/setup";
+import { IHostSoftware } from "interfaces/software";
+import UnsupportedScreenSize from "layouts/UnsupportedScreenSize";
+import shouldShowUnsupportedScreen from "layouts/UnsupportedScreenSize/helpers";
 import PATHS from "router/paths";
+import deviceUserAPI, {
+  IGetDeviceCertsApiParams,
+  IGetDeviceCertificatesResponse,
+  IGetSetupExperienceStatusesResponse,
+} from "services/entities/device_user";
+import diskEncryptionAPI from "services/entities/disk_encryption";
 import {
   DEFAULT_USE_QUERY_OPTIONS,
   DOCUMENT_TITLE_SUFFIX,
   HOST_VITALS_DATA,
   HOST_SUMMARY_DATA,
 } from "utilities/constants";
+import { normalizeEmptyValues } from "utilities/helpers";
+import { isDarkMode } from "utilities/theme";
 
-import UnsupportedScreenSize from "layouts/UnsupportedScreenSize";
-
-import { canTriggerAPNSPing } from "interfaces/mdm";
-import HostSummaryCard from "../cards/HostSummary";
-import VitalsCard from "../cards/Vitals";
-import SoftwareCard from "../cards/Software";
-import PoliciesCard from "../cards/Policies";
-
-import PolicyDetailsModal from "../cards/Policies/HostPoliciesTable/PolicyDetailsModal";
+import CertificatesCard from "../cards/Certificates";
 import ControlsCard from "../cards/Controls";
 import { shouldShowControlsTab } from "../cards/Controls/helpers";
 import {
   countFailedControls,
   generateTableData,
 } from "../cards/Controls/OSSettingsTableConfig";
-import BootstrapPackageModal from "../HostDetailsPage/modals/BootstrapPackageModal";
-import { parseHostSoftwareQueryParams } from "../cards/Software/HostSoftware";
-import { parseSelfServiceQueryParams } from "../cards/Software/SelfService/SelfService";
-import SelfService from "../cards/Software/SelfService";
-import CertificateDetailsModal from "../modals/CertificateDetailsModal";
-import CertificatesCard from "../cards/Certificates";
-import UserCard from "../cards/User";
 import HostHeader from "../cards/HostHeader/HostHeader";
-import InventoryVersionsModal from "../modals/InventoryVersionsModal";
+import HostSummaryCard from "../cards/HostSummary";
+import PoliciesCard from "../cards/Policies";
+import PolicyDetailsModal from "../cards/Policies/HostPoliciesTable/PolicyDetailsModal";
+import SoftwareCard from "../cards/Software";
+import { parseHostSoftwareQueryParams } from "../cards/Software/HostSoftware";
+import SelfService from "../cards/Software/SelfService";
+import { parseSelfServiceQueryParams } from "../cards/Software/SelfService/SelfService";
+import UserCard from "../cards/User";
+import VitalsCard from "../cards/Vitals";
 import { REFETCH_HOST_DETAILS_POLLING_INTERVAL } from "../HostDetailsPage/HostDetailsPage";
-import DeviceUserBanners from "./components/DeviceUserBanners";
-import CreateLinuxKeyModal from "./CreateLinuxKeyModal";
-import BitLockerPinModal from "./BitLockerPinModal";
+import BootstrapPackageModal from "../HostDetailsPage/modals/BootstrapPackageModal";
+import CertificateDetailsModal from "../modals/CertificateDetailsModal";
+import InventoryVersionsModal from "../modals/InventoryVersionsModal";
+
 import AutoEnrollMdmModal from "./AutoEnrollMdmModal";
-import useDeviceSSO from "./useDeviceSSO";
+import BitLockerPinModal from "./BitLockerPinModal";
+import BypassModal from "./BypassModal";
+import DeviceUserBanners from "./components/DeviceUserBanners";
+import InfoButton from "./components/InfoButton";
+import SettingUpYourDevice from "./components/SettingUpYourDevice";
+import CreateLinuxKeyModal from "./CreateLinuxKeyModal";
 import {
   getErrorMessage,
   hasRemainingSetupSteps,
@@ -93,10 +89,7 @@ import {
   isRecentlyEnrolled,
 } from "./helpers";
 import InfoModal from "./InfoModal";
-
-import SettingUpYourDevice from "./components/SettingUpYourDevice";
-import InfoButton from "./components/InfoButton";
-import BypassModal from "./BypassModal";
+import useDeviceSSO from "./useDeviceSSO";
 
 const baseClass = "device-user";
 

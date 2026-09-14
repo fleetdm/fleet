@@ -1,7 +1,8 @@
-import React from "react";
 import { AxiosResponse } from "axios";
-import { IApiError } from "interfaces/errors";
+import React from "react";
+
 import CustomLink from "components/CustomLink";
+import { IApiError } from "interfaces/errors";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 
 export const UPLOAD_ERROR_MESSAGES = {

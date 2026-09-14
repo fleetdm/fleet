@@ -1,9 +1,9 @@
+import classNames from "classnames";
 import React from "react";
 
-import classNames from "classnames";
-import Icon from "components/Icon/Icon";
-import DataError from "components/DataError";
 import Button from "components/buttons/Button";
+import DataError from "components/DataError";
+import Icon from "components/Icon/Icon";
 
 const baseClass = "device-user-error";
 

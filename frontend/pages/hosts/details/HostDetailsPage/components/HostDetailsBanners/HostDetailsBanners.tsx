@@ -1,21 +1,20 @@
-import React, { useContext } from "react";
-import { AppContext } from "context/app";
 import { addHours, isPast } from "date-fns";
+import React, { useContext } from "react";
 
+import CustomLink from "components/CustomLink";
+import InfoBanner from "components/InfoBanner";
+import { AppContext } from "context/app";
+import { IOSSettings } from "interfaces/host";
 import {
   DiskEncryptionStatus,
   MdmEnrollmentStatus,
   isAutomaticDeviceEnrollment,
 } from "interfaces/mdm";
-import { IOSSettings } from "interfaces/host";
 import {
   HostPlatform,
   isAppleDevice,
   isDiskEncryptionSupportedLinuxPlatform,
 } from "interfaces/platform";
-
-import InfoBanner from "components/InfoBanner";
-import CustomLink from "components/CustomLink";
 import {
   INITIAL_FLEET_DATE,
   LEARN_MORE_ABOUT_BASE_LINK,
