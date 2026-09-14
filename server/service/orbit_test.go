@@ -1393,16 +1393,21 @@ func TestSaveHostSoftwareInstallResultAppOpenSkip(t *testing.T) {
 	}
 
 	// insertPendingInstall queues a pending policy-automation install, returning its execution id.
+	// patch_when_closed is snapshotted from the policy at insert time — matches what the
+	// real activateNextSoftwareInstallActivity write path does.
 	insertPendingInstall := func(t *testing.T, host *fleet.Host, policyID uint) string {
 		installUUID := uuid.New().String()
 		mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 			_, err := q.ExecContext(ctx, `
 				INSERT INTO host_software_installs (
-					execution_id, host_id, software_installer_id, policy_id,
+					execution_id, host_id, software_installer_id, policy_id, patch_when_closed,
 					installer_filename, version, software_title_id, software_title_name
-				) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+				)
+				SELECT ?, ?, ?, ?, COALESCE(p.patch_when_closed, 0), ?, ?, ?, ?
+				FROM policies p WHERE p.id = ?
 			`, installUUID, host.ID, installerID, policyID,
-				installerPayload.Filename, installerPayload.Version, titleID, installerPayload.Title)
+				installerPayload.Filename, installerPayload.Version, titleID, installerPayload.Title,
+				policyID)
 			return err
 		})
 		return installUUID
@@ -1469,6 +1474,44 @@ func TestSaveHostSoftwareInstallResultAppOpenSkip(t *testing.T) {
 		require.NotNil(t, found.Status)
 		require.Equal(t, fleet.SoftwareInstallFailed, *found.Status)
 		require.True(t, found.SkippedInstall, "response must flag the row as a patch-when-closed skip")
+
+		// Regression guard for the snapshotting design: the classification lives
+		// on host_software_installs.patch_when_closed (persisted at activation),
+		// so mutating or deleting the source policy must NOT relabel the row.
+		policyIDForSkip := *installedActivities[installUUID].PolicyID
+		mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `UPDATE policies SET patch_when_closed = 0 WHERE id = ?`, policyIDForSkip)
+			return err
+		})
+		sw, _, err = ds.ListHostSoftware(ctx, host, fleet.HostSoftwareTitleListOptions{
+			ListOptions:                fleet.ListOptions{PerPage: 100, OrderKey: "name"},
+			IncludeAvailableForInstall: true,
+		})
+		require.NoError(t, err)
+		for _, s := range sw {
+			if s.ID == titleID {
+				found = s
+				break
+			}
+		}
+		require.True(t, found.SkippedInstall, "toggling patch_when_closed off must not reclassify the historical skip")
+
+		mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `DELETE FROM policies WHERE id = ?`, policyIDForSkip)
+			return err
+		})
+		sw, _, err = ds.ListHostSoftware(ctx, host, fleet.HostSoftwareTitleListOptions{
+			ListOptions:                fleet.ListOptions{PerPage: 100, OrderKey: "name"},
+			IncludeAvailableForInstall: true,
+		})
+		require.NoError(t, err)
+		for _, s := range sw {
+			if s.ID == titleID {
+				found = s
+				break
+			}
+		}
+		require.True(t, found.SkippedInstall, "deleting the source policy (ON DELETE SET NULL) must not reclassify the skip")
 	})
 
 	t.Run("regression: ordinary empty pre_install_query fails, counts, and retries", func(t *testing.T) {
