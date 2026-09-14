@@ -3,8 +3,8 @@ import { http, HttpResponse } from "msw";
 import React from "react";
 
 import {
-  createMockSoftwareTitleDetails,
   createMockAppStoreApp,
+  createMockSoftwareTitleDetails,
 } from "__mocks__/softwareMock";
 import createMockUser from "__mocks__/userMock";
 import mockServer from "test/mock-server";
@@ -412,9 +412,7 @@ describe("Edit Auto Update Config Modal", () => {
           onExit={jest.fn()}
         />
       );
-      expect(
-        screen.getByText(/Actions > Edit software\./)
-      ).toBeInTheDocument();
+      expect(screen.getByText(/Actions > Edit software\./)).toBeInTheDocument();
     });
   });
 

@@ -12,7 +12,7 @@ import Tag from "components/Tag";
 import { notify } from "components/ToastNotification";
 import useGitOpsMode from "hooks/useGitOpsMode";
 import { ILabelSoftwareTitle } from "interfaces/label";
-import { ISoftwareTitleDetails, IAppStoreApp } from "interfaces/software";
+import { IAppStoreApp, ISoftwareTitleDetails } from "interfaces/software";
 import {
   generateSelectedLabels,
   getCustomTarget,
