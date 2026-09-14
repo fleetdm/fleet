@@ -76,22 +76,27 @@ By default, the `certificate` field in the response is a PEM-encoded PKCS7 envel
 4. In Fleet, head to **Software**, select **Add software > Custom package**, and upload the script above as a `.sh` file (a script with no installer becomes a [script-only package](https://fleetdm.com/guides/deploy-software-packages#script-only-packages)).
 5. Head to **Controls > Setup experience > Install software**, select the **Linux** tab, and check the new script-only package so it runs automatically alongside Okta Verify during enrollment.
 
+## Step 5: Renew or restore the certificate automatically
+
+The script-only package in Step 4 only runs once, during setup experience. Policy automations only trigger scripts uploaded to **Controls > Scripts**, so add the same script there too, then wire it to a policy that catches a missing or expiring certificate.
+
+1. In Fleet, head to **Controls > Scripts**, select the fleet, and upload the same script from Step 4.
+2. Head to **Policies** and select **Add policy**. Use the following query to detect whether the certificate is missing or expires in the next 30 days:
+
+```sql
+SELECT 1 FROM certificates WHERE path = '/opt/okta-verify/device.pem' AND not_valid_after > (CAST(strftime('%s', 'now') AS INTEGER) + 2592000);
+```
+
+3. Select **Save**, target only **Linux**, then select **Save** again.
+4. On the **Policies** page, select **Manage automations > Scripts**. Select your new policy, then in the dropdown, choose the script you uploaded in step 1.
+5. Now, any Linux host missing `/opt/okta-verify/device.pem`, or whose certificate expires within 30 days, fails the policy — and Fleet reruns the script to reissue it.
+
 ## Verify
 
 1. Enroll a Linux host (or wait for an existing one to check in after these changes).
 2. On the host, confirm `/opt/okta-verify/device.pem` exists and is a valid certificate: `openssl x509 -in /opt/okta-verify/device.pem -noout -text` (or `openssl pkcs7 -print_certs -in /opt/okta-verify/device.pem` if Fleet returned a PKCS7 envelope).
 3. In Okta, head to **Directory > Devices** and confirm the host appears with **Platform** Linux and **Enrolled By** Okta Verify.
 4. On the host, open Okta Verify and confirm FastPass is available for sign-in.
-
-## Troubleshoot
-
-**`request_certificate` returns a 400 error**
-
-The Request certificate API doesn't yet support Okta/NDES CAs — this is expected until [#52993](https://github.com/fleetdm/fleet/issues/52993) ships. Track that issue for availability.
-
-**Okta Verify doesn't detect the certificate**
-
-Okta hasn't published the exact path Okta Verify for Linux expects. Re-check `CERT_DIR` in the script against Okta Verify's actual installed layout on the host, and update it if needed.
 
 <meta name="articleTitle" value="Configure Okta FastPass for Linux">
 <meta name="authorFullName" value="Noah Talerman">
