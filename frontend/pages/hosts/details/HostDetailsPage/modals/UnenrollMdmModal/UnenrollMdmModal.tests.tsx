@@ -73,7 +73,6 @@ describe("UnenrollMdmModal", () => {
               onlyAllowAppleBusinessEnrollment
               depAssignedToFleet={false}
               enrollmentStatus="On (manual)"
-              lastMdmEnrollmentType="Device"
             />
           );
 
@@ -90,7 +89,6 @@ describe("UnenrollMdmModal", () => {
               onlyAllowAppleBusinessEnrollment
               depAssignedToFleet={false}
               enrollmentStatus="On (company-owned)"
-              lastMdmEnrollmentType="Device"
             />
           );
 
@@ -114,7 +112,6 @@ describe("UnenrollMdmModal", () => {
               onlyAllowAppleBusinessEnrollment
               depAssignedToFleet
               enrollmentStatus="On (manual)"
-              lastMdmEnrollmentType="Device"
             />
           );
 
@@ -136,7 +133,6 @@ describe("UnenrollMdmModal", () => {
               onlyAllowAppleBusinessEnrollment
               depAssignedToFleet
               enrollmentStatus="On (automatic)"
-              lastMdmEnrollmentType="Device"
             />
           );
 
