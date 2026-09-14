@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "1.32.3",
+      "version": "1.32.4",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'Linear %' AND publisher = 'Linear Orbit, Inc.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Linear %' AND publisher = 'Linear Orbit, Inc.' AND version_compare(version, '1.32.3') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Linear %' AND publisher = 'Linear Orbit, Inc.' AND version_compare(version, '1.32.4') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'linear.exe');"
       },
-      "installer_url": "https://releases.linear.app/Linear%20Setup%201.32.3.exe",
+      "installer_url": "https://releases.linear.app/Linear%20Setup%201.32.4.exe",
       "install_script_ref": "166c7345",
       "uninstall_script_ref": "b1906016",
-      "sha256": "1fadd5032514b76fbf79c72abb382a96ac2121a31faad6d9b8d5c71ac053e413",
+      "sha256": "6362cdfc053ac5b193202fe35d92d3ec3ecec48a4be7b088748b422657a169b4",
       "default_categories": [
         "Productivity"
       ]

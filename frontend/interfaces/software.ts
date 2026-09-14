@@ -3,10 +3,10 @@ import PropTypes from "prop-types";
 
 import { IconNames } from "components/icons";
 
+import { ICommandResult } from "./command";
+import { ILabelSoftwareTitle } from "./label";
 import { HOST_APPLE_PLATFORMS, Platform } from "./platform";
 import vulnerabilityInterface from "./vulnerability";
-import { ILabelSoftwareTitle } from "./label";
-import { ICommandResult } from "./command";
 
 export default PropTypes.shape({
   type: PropTypes.string,

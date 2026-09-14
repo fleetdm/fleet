@@ -1,5 +1,6 @@
-import { getPastDate, getFutureDate } from "test/test-utils";
 import type { IRegistrationFormData } from "interfaces/registration_form_data";
+import { getPastDate, getFutureDate } from "test/test-utils";
+
 import helpers, {
   removeOSPrefix,
   compareVersions,

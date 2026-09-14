@@ -1,23 +1,19 @@
-import React, { useState } from "react";
 import classnames from "classnames";
-import { ISoftwareTitleDetails, IAppStoreApp } from "interfaces/software";
-import { ILabelSummary } from "interfaces/label";
-
+import React, { useState } from "react";
 import { useQuery } from "react-query";
 
-import useGitOpsMode from "hooks/useGitOpsMode";
-
-import softwareAPI from "services/entities/software";
-import labelsAPI, { getCustomLabels } from "services/entities/labels";
-
-import { notify } from "components/ToastNotification";
+import Button from "components/buttons/Button";
 import Card from "components/Card";
+import Checkbox from "components/forms/fields/Checkbox";
+import InputField from "components/forms/fields/InputField";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import Modal from "components/Modal";
 import ModalFooter from "components/ModalFooter";
-import Checkbox from "components/forms/fields/Checkbox";
 import { DropdownTargetLabelSelector } from "components/TargetLabelSelector";
-import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
-
+import { notify } from "components/ToastNotification";
+import useGitOpsMode from "hooks/useGitOpsMode";
+import { ILabelSummary } from "interfaces/label";
+import { ISoftwareTitleDetails, IAppStoreApp } from "interfaces/software";
 import {
   CUSTOM_TARGET_OPTIONS,
   generateSelectedLabels,
@@ -26,10 +22,8 @@ import {
   generateHelpText,
   getTargetType,
 } from "pages/SoftwarePage/helpers";
-
-import InputField from "components/forms/fields/InputField";
-import Button from "components/buttons/Button";
-
+import labelsAPI, { getCustomLabels } from "services/entities/labels";
+import softwareAPI from "services/entities/software";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 
 import {

@@ -1,30 +1,27 @@
-import React, { useContext, useState, useEffect } from "react";
-import { useQuery } from "react-query";
-import { useErrorHandler } from "react-error-boundary";
 import yaml from "js-yaml";
-import { constructErrorString, agentOptionsToYaml } from "utilities/yaml";
-import { EMPTY_AGENT_OPTIONS } from "utilities/constants";
+import React, { useContext, useState, useEffect } from "react";
+import { useErrorHandler } from "react-error-boundary";
+import { useQuery } from "react-query";
 
-import { AppContext } from "context/app";
-
-import useTeamIdParam from "hooks/useTeamIdParam";
-import { IApiError } from "interfaces/errors";
-import { ITeam } from "interfaces/team";
-
-import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
-import osqueryOptionsAPI from "services/entities/osquery_options";
-
+import Button from "components/buttons/Button";
+import CustomLink from "components/CustomLink";
 // @ts-ignore
 import validateYaml from "components/forms/validators/validate_yaml";
-import Button from "components/buttons/Button";
-import Spinner from "components/Spinner";
-import CustomLink from "components/CustomLink";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import PageDescription from "components/PageDescription";
+import Spinner from "components/Spinner";
 import { notify } from "components/ToastNotification";
 // @ts-ignore
 import YamlAce from "components/YamlAce";
+import { AppContext } from "context/app";
+import useTeamIdParam from "hooks/useTeamIdParam";
+import { IApiError } from "interfaces/errors";
+import { ITeam } from "interfaces/team";
 import { ITeamSubnavProps } from "interfaces/team_subnav";
+import osqueryOptionsAPI from "services/entities/osquery_options";
+import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
+import { EMPTY_AGENT_OPTIONS } from "utilities/constants";
+import { constructErrorString, agentOptionsToYaml } from "utilities/yaml";
 
 const baseClass = "agent-options";
 

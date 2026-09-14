@@ -164,10 +164,11 @@
         padding-top: 6px;
         padding-bottom: 6px;
         border: none;
-        } &::placeholder {
+        &::placeholder {
           font-size: 16px;
           line-height: 24px;
         }
+      }
       .input-group {
         border-top-left-radius: 6px;
         border-bottom-left-radius: 6px;
@@ -177,7 +178,7 @@
         background: #FFF;
       }
       .input-group:focus-within {
-        border: 1px solid @core-vibrant-blue;
+        border: 1px solid @core-vibrant-green;
       }
       .docsearch-input {
         height: 100%;
@@ -346,14 +347,6 @@
       padding-top: 8px;
       [parasails-component='js-timestamp'] {
         font-size: 12px;
-      }
-      [purpose='updated-timestamp'] {
-        margin-left: 8px;
-        font-size: 10px;
-        font-style: italic;
-        [parasails-component='js-timestamp'] {
-          font-size: 10px;
-        }
       }
     }
   }

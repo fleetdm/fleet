@@ -1,23 +1,23 @@
-import React from "react";
 import { act, screen } from "@testing-library/react";
+import React from "react";
 
-import { createCustomRenderer } from "test/test-utils";
-import createMockUser from "__mocks__/userMock";
+import { createMockScript } from "__mocks__/scriptMock";
 import {
   createMockSoftwareTitle,
   createMockSoftwarePackage,
   createMockAppStoreApp,
 } from "__mocks__/softwareMock";
-
+import createMockUser from "__mocks__/userMock";
 import { IPolicy } from "interfaces/policy";
 import { ISoftwareTitle } from "interfaces/software";
+import { createCustomRenderer } from "test/test-utils";
 
+import useProfiles from "./hooks/useProfiles";
+import useScripts from "./hooks/useScripts";
+import useSoftwareTitles from "./hooks/useSoftwareTitles";
 import PolicyAutomationsFields, {
   IPolicyAutomationsFieldsHandle,
 } from "./PolicyAutomationsFields";
-import useSoftwareTitles from "./hooks/useSoftwareTitles";
-import useScripts from "./hooks/useScripts";
-import useProfiles from "./hooks/useProfiles";
 
 jest.mock("./hooks/useSoftwareTitles");
 jest.mock("./hooks/useScripts");
@@ -608,5 +608,58 @@ describe("PolicyAutomationsFields — Resend configuration profile row", () => {
         "Please select a configuration profile to resend."
       )
     ).toBeInTheDocument();
+  });
+});
+
+describe("PolicyAutomationsFields — type-to-search pickers", () => {
+  beforeEach(() => {
+    setSoftwareTitles([singlePackageTitle, multiPackageTitle, vppTitle]);
+    mockedUseScripts.mockReturnValue(({
+      data: {
+        count: 2,
+        scripts: [
+          createMockScript({ id: 1, name: "Rotate keys" }),
+          createMockScript({ id: 2, name: "Clear cache" }),
+        ],
+        meta: { has_next_results: false, has_previous_results: false },
+      },
+    } as unknown) as ReturnType<typeof useScripts>);
+  });
+
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it("filters software titles as the user types", async () => {
+    const { user } = renderWithHandle({
+      install_software: { name: "Single App", software_title_id: 10 },
+    });
+
+    await user.type(
+      screen.getByRole("combobox", { name: /Select software/i }),
+      "Multi"
+    );
+
+    const options = Array.from(
+      document.querySelectorAll(".react-select__option")
+    ).map((o) => o.textContent);
+    expect(options).toHaveLength(1);
+    expect(options[0]).toContain("Multi App");
+  });
+
+  it("filters scripts as the user types", async () => {
+    const { user } = renderWithHandle({
+      run_script: { id: 1, name: "Rotate keys" },
+    });
+
+    await user.type(
+      screen.getByRole("combobox", { name: /Select script/i }),
+      "Clear"
+    );
+
+    const options = Array.from(
+      document.querySelectorAll(".react-select__option")
+    ).map((o) => o.textContent);
+    expect(options).toEqual(["Clear cache"]);
   });
 });

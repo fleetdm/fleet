@@ -1,4 +1,11 @@
-import React from "react";
+import {
+  formatDuration,
+  intlFormat,
+  intervalToDuration,
+  isAfter,
+  addDays,
+} from "date-fns";
+import md5 from "js-md5";
 import {
   isEmpty,
   flatMap,
@@ -10,20 +17,14 @@ import {
   union,
   uniqueId,
 } from "lodash";
-import md5 from "js-md5";
-import {
-  formatDuration,
-  intlFormat,
-  intervalToDuration,
-  isAfter,
-  addDays,
-} from "date-fns";
+import React from "react";
 
-import { QueryParams, buildQueryStringFromParams } from "utilities/url";
-import { timeAgo } from "utilities/date_format";
+import CustomLink from "components/CustomLink";
+import { IDropdownOption } from "interfaces/dropdownOption";
 import { IHost } from "interfaces/host";
 import { ILabel } from "interfaces/label";
 import { IPack } from "interfaces/pack";
+import type { IRegistrationFormData } from "interfaces/registration_form_data";
 import type { PerformanceImpactIndicator } from "interfaces/schedulable_query";
 import {
   PerformanceImpactIndicatorValue,
@@ -40,8 +41,6 @@ import {
 } from "interfaces/target";
 import { ITeam } from "interfaces/team";
 import { UserRole } from "interfaces/user";
-
-import stringUtils from "utilities/strings";
 import {
   DEFAULT_EMPTY_CELL_VALUE,
   DEFAULT_GRAVATAR_LINK,
@@ -52,9 +51,9 @@ import {
   PLATFORM_LABEL_DISPLAY_TYPES,
   isPlatformLabelNameFromAPI,
 } from "utilities/constants";
-import { IDropdownOption } from "interfaces/dropdownOption";
-import type { IRegistrationFormData } from "interfaces/registration_form_data";
-import CustomLink from "components/CustomLink";
+import { timeAgo } from "utilities/date_format";
+import stringUtils from "utilities/strings";
+import { QueryParams, buildQueryStringFromParams } from "utilities/url";
 
 const ORG_INFO_ATTRS = ["org_name"];
 const ADMIN_ATTRS = ["email", "name", "password", "password_confirmation"];

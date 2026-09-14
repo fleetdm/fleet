@@ -1,5 +1,5 @@
-import React, { useState } from "react";
 import classnames from "classnames";
+import React, { useState } from "react";
 
 import Button from "components/buttons/Button";
 import CopyButton from "components/buttons/CopyButton";
@@ -7,8 +7,8 @@ import CustomLink from "components/CustomLink";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import Icon from "components/Icon";
 import { IconNames } from "components/icons";
-import TooltipWrapper from "components/TooltipWrapper";
 import TooltipTruncatedText from "components/TooltipTruncatedText";
+import TooltipWrapper from "components/TooltipWrapper";
 import TruncatedTextList from "components/TruncatedTextList";
 import { ILabelSoftwareTitle } from "interfaces/label";
 import { InstallerType, SoftwareSource } from "interfaces/software";

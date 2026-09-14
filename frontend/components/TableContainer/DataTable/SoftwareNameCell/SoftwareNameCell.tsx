@@ -1,16 +1,16 @@
 import React from "react";
 import { InjectedRouter } from "react-router";
 
+import Icon from "components/Icon";
+import { IconNames } from "components/icons";
+import TooltipWrapper from "components/TooltipWrapper";
+import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
 import {
   getSelfServiceTooltip,
   getDisplayedSoftwareName,
 } from "pages/SoftwarePage/helpers";
 import { internationalTimeOnlyFormat } from "utilities/helpers";
 
-import TooltipWrapper from "components/TooltipWrapper";
-import Icon from "components/Icon";
-import { IconNames } from "components/icons";
-import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
 import LinkCell from "../LinkCell";
 import TooltipTruncatedTextCell from "../TooltipTruncatedTextCell";
 

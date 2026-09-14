@@ -37,6 +37,3 @@
 ## See it live
 
 [Optional next-steps block: a guide link plus one or two demo/workshop bullets.]
-
----
-*Italic CTA line with real links.*

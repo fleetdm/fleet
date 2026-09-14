@@ -1,7 +1,10 @@
 // TooltipWrapper.test.tsx
-import React from "react";
+
 import { render, screen, waitFor } from "@testing-library/react";
+import React from "react";
+
 import { renderWithSetup } from "test/test-utils";
+
 import TooltipWrapper from "./TooltipWrapper";
 
 describe("TooltipWrapper", () => {

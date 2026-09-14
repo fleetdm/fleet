@@ -1,6 +1,6 @@
-import React from "react";
-import { noop } from "lodash";
 import { render, screen } from "@testing-library/react";
+import { noop } from "lodash";
+import React from "react";
 
 import createMockMdmApple from "__mocks__/appleMdm";
 import createMockAxiosError from "__mocks__/axiosError";

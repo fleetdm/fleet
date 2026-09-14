@@ -1,11 +1,13 @@
-import React from "react";
 import { screen, waitFor } from "@testing-library/react";
-import { createCustomRenderer } from "test/test-utils";
+import React from "react";
+
 import {
   createMockAppStoreAppAndroid,
   createMockAppStoreAppIos,
   createMockSoftwarePackageIos,
 } from "__mocks__/softwareMock";
+import { createCustomRenderer } from "test/test-utils";
+
 import EditConfigurationModal from "./EditConfigurationModal";
 
 const androidInstaller = createMockAppStoreAppAndroid();

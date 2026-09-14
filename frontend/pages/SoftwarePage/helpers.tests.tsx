@@ -1,18 +1,18 @@
-import React from "react";
 import { render, screen } from "@testing-library/react";
+import React from "react";
 
-import { ISoftwareInstallPolicy } from "interfaces/software";
-
-import {
-  createMockSoftwareTitle,
-  createMockSoftwarePackage,
-  createMockAppStoreApp,
-} from "__mocks__/softwareMock";
 import {
   createMockHostSoftwarePackage,
   createMockHostAppStoreApp,
   createMockHostSoftware,
 } from "__mocks__/hostMock";
+import {
+  createMockSoftwareTitle,
+  createMockSoftwarePackage,
+  createMockAppStoreApp,
+} from "__mocks__/softwareMock";
+import { ISoftwareInstallPolicy } from "interfaces/software";
+
 import {
   getSelfServiceTooltip,
   getAutomaticInstallPoliciesCount,

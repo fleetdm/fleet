@@ -130,10 +130,8 @@
     &--is-selected {
       background-color: transparent;
 
-      .option-label {
-        span {
-          font-weight: $bold;
-        }
+      .option-label__text {
+        font-weight: $bold;
       }
     }
 
@@ -162,18 +160,25 @@
   .option-label {
     display: flex;
     align-items: center;
-
-    span {
-      font-size: $x-small;
-      font-weight: $regular;
-      color: $core-fleet-black;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
+    min-width: 0;
 
     .option-icon {
+      flex-shrink: 0;
       margin-right: $pad-small;
+    }
+  }
+
+  .option-label__text {
+    min-width: 0;
+    font-size: $x-small;
+    font-weight: $regular;
+    color: $core-fleet-black;
+
+    // TooltipWrapper has `cursor: default` on its element, which sits
+    // below the pointer the option row and the closed control set on hover.
+    // Inherit so the text defers to whichever surface it is rendered in.
+    .component__tooltip-wrapper__element {
+      cursor: inherit;
     }
   }
 

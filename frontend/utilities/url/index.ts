@@ -5,13 +5,13 @@ import {
   BootstrapPackageStatus,
   MdmProfileStatus,
 } from "interfaces/mdm";
+import { isValidSoftwareAggregateStatus } from "interfaces/software";
+import { API_ALL_TEAMS_ID } from "interfaces/team";
 import {
   DEPDeviceStatus,
   HOSTS_QUERY_PARAMS,
   MacSettingsStatusQueryParam,
 } from "services/entities/hosts";
-import { isValidSoftwareAggregateStatus } from "interfaces/software";
-import { API_ALL_TEAMS_ID } from "interfaces/team";
 
 export type QueryValues = string | number | boolean | undefined | null;
 export type QueryParams = Record<string, QueryValues>;

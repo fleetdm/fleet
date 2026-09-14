@@ -28,6 +28,7 @@ func TestVPP(t *testing.T) {
 		name string
 		fn   func(t *testing.T, ds *Datastore)
 	}{
+		{"VPPInstallPushesViaDirectActivation", testVPPInstallPushesViaDirectActivation},
 		{"SetTeamVPPApps", testSetTeamVPPApps},
 		{"SetTeamVPPAppsWithLabels", testSetTeamVPPAppsWithLabels},
 		{"VPPAppMetadata", testVPPAppMetadata},
@@ -3507,6 +3508,51 @@ func testVPPInstallPushesAfterCommit(t *testing.T, ds *Datastore) {
 	require.Equal(t, []string{host.UUID}, pushedIDs, "no APNs push for the activated VPP install")
 	require.Equal(t, 1, cmdRows, "push fired before the nano_commands row was committed")
 	require.Equal(t, 1, queueRows, "push fired before the nano_enrollment_queue row was committed")
+}
+
+func testVPPInstallPushesViaDirectActivation(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	test.CreateInsertGlobalVPPToken(t, ds)
+
+	host, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:       "direct-activation-host",
+		UUID:           uuid.NewString(),
+		Platform:       string(fleet.IOSPlatform),
+		HardwareSerial: uuid.NewString(),
+	})
+	require.NoError(t, err)
+	nanoEnroll(t, ds, host, false)
+
+	const adamID = "direct_activation"
+	setupTestVPPApp(t, ds, adamID, fleet.IOSPlatform)
+	appID := fleet.VPPAppID{AdamID: adamID, Platform: fleet.IOSPlatform}
+
+	var pushedIDs []string
+	ds.WithPusher(pusherFunc(func(ctx context.Context, ids []string) (map[string]*push.Response, error) {
+		pushedIDs = append(pushedIDs, ids...)
+		return okPusherFunc(ctx, ids)
+	}))
+	t.Cleanup(func() { ds.WithPusher(nil) })
+
+	const cmd1, cmd2 = "direct-activation-cmd-1", "direct-activation-cmd-2"
+	require.NoError(t, ds.InsertHostVPPSoftwareInstall(ctx, host.ID, appID, cmd1, "evt-1", fleet.HostSoftwareInstallOptions{}))
+	// cmd2 stays queued behind cmd1, which is still activated.
+	require.NoError(t, ds.InsertHostVPPSoftwareInstall(ctx, host.ID, appID, cmd2, "evt-2", fleet.HostSoftwareInstallOptions{}))
+
+	// cmd1's insert already pushed once; isolate the push triggered by activating cmd2.
+	pushedIDs = nil
+
+	// Mirrors production: the activity ACL adapter calls this directly against
+	// ds.writer(ctx) once cmd1 completes, with no surrounding transaction.
+	require.NoError(t, ds.ActivateNextUpcomingActivityForHost(ctx, host.ID, cmd1))
+
+	require.Equal(t, []string{host.UUID}, pushedIDs, "no APNs push when activation runs outside a transaction")
+
+	var cmd2Rows int
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &cmd2Rows, "SELECT COUNT(*) FROM nano_commands WHERE command_uuid = ?", cmd2)
+	})
+	require.Equal(t, 1, cmd2Rows)
 }
 
 // testVPPInstallQueueRowNotBackdated ensures we don't backdate VPP installs into the nano commands table.

@@ -1,8 +1,8 @@
 import React from "react";
 
+import ActivityItem from "components/ActivityItem";
 import { formatScriptNameForActivityItem } from "utilities/helpers";
 
-import ActivityItem from "components/ActivityItem";
 import { IHostActivityItemComponentPropsWithShowDetails } from "../../ActivityConfig";
 
 const baseClass = "ran-script-activity-item";

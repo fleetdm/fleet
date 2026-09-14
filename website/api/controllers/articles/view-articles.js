@@ -48,16 +48,10 @@ module.exports = {
         }
       });
     }
-    // Sort articles in descending order by publish date.
+    // Sort articles in descending order by publish date. The listview only shows this single
+    // date per article (instead of also showing a separate "last updated" timestamp) to keep
+    // the list easy to scan, since the date shown always matches how the list is sorted.
     articles = _.sortByOrder(articles, 'meta.publishedOn', 'DESC');
-    // If an article was updated three days after it's publishedOn timestamp, we'll show a timestamp of when the markdown file was last changed.
-    for(let article of articles) {
-      article.showUpdatedTimestamp = false;
-      let publishedAt = new Date(article.meta.publishedOn).getTime();
-      if(publishedAt + (1000 * 60 * 60 * 24 * 3) <= article.lastModifiedAt) {
-        article.showUpdatedTimestamp = true;
-      }
-    }
 
     let pageTitleForMeta = 'Fleet blog';
     let pageDescriptionForMeta = 'Read the latest articles written by Fleet.';
