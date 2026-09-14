@@ -118,20 +118,24 @@ const (
 	// on their behalf. The server only offers the PIN form, and only asks the agent for a PIN, when the host's most
 	// recent Windows MDM enrollment has reported this; hosts on older fleetd keep the legacy Manage BitLocker instructions.
 	CapabilityWindowsBitLockerPIN Capability = "windows_bitlocker_pin"
+	// CapabilityWindowsDiskEncryptionErrorKeepsKey denotes that the server records a Windows disk encryption client error without
+	// discarding the key it already holds. This prevents newer agents from sending a destructive operation to an old server.
+	CapabilityWindowsDiskEncryptionErrorKeepsKey Capability = "windows_disk_encryption_error_keeps_key"
 )
 
 func GetServerOrbitCapabilities() CapabilityMap {
 	return CapabilityMap{
-		CapabilityOrbitEndpoints:            {},
-		CapabilityTokenRotation:             {},
-		CapabilityEndUserEmail:              {},
-		CapabilityEscrowBuddy:               {},
-		CapabilityLinuxDiskEncryptionEscrow: {},
-		CapabilityLUKSRecoveryKeyEscrow:     {},
-		CapabilityLinuxEscrowStatus:         {},
-		CapabilitySetupExperience:           {},
-		CapabilityWebSetupExperience:        {},
-		CapabilityMacOSWebSetupExperience:   {},
+		CapabilityOrbitEndpoints:                     {},
+		CapabilityTokenRotation:                      {},
+		CapabilityEndUserEmail:                       {},
+		CapabilityEscrowBuddy:                        {},
+		CapabilityLinuxDiskEncryptionEscrow:          {},
+		CapabilityLUKSRecoveryKeyEscrow:              {},
+		CapabilityLinuxEscrowStatus:                  {},
+		CapabilitySetupExperience:                    {},
+		CapabilityWebSetupExperience:                 {},
+		CapabilityMacOSWebSetupExperience:            {},
+		CapabilityWindowsDiskEncryptionErrorKeepsKey: {},
 	}
 }
 

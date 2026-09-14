@@ -270,7 +270,7 @@ html, body {
       align-items: flex-start;
       gap: 10px;
       align-self: stretch;
-      .DocSearch-Button {
+      input {
         border-radius: 8px;
         border: 1px solid @core-fleet-black-25;
         background-color: #FFF;
@@ -282,6 +282,9 @@ html, body {
         justify-content: space-between;
         align-items: center;
         align-self: stretch;
+        &:focus-visible {
+          outline-color: @core-vibrant-green;
+        }
       }
       .DocSearch-Button:hover {
         box-shadow: none;
@@ -304,7 +307,7 @@ html, body {
         display: none;
       }
       .input-group:focus-within {
-        border: 1px solid @core-vibrant-blue;
+        border: 1px solid @core-vibrant-green;
       }
       .DocSearch-Button-Placeholder {
         font-size: 16px;

@@ -274,12 +274,13 @@ func (svc *Service) SetBitLockerPINOutcome(
 
 		// From here on the outcome is recorded, so nothing below may fail the request. An error would make the agent
 		// retry, the retry would find the submission already settled and get a 404, and the activity would never be
-		// written. These steps only speed up what osquery reports anyway: tpm_pin_set_verify owns the protector list
-		// and sets tpm_pin_set on its own schedule. They are separate calls rather than part of the outcome transaction
+		// written. These steps only speed up what osquery reports anyway: bitlocker_key_protectors_verify owns the
+		// protector list and sets both protector columns on its own schedule. They are separate calls rather than part of the outcome transaction
 		// because both go through the host cache wrappers, which have to invalidate Redis after the write.
 		//
-		// Set the flag so the end user's banner clears now, and ask for a refetch so osquery confirms it within seconds.
-		if err := svc.ds.SetOrUpdateHostDiskTpmPIN(ctx, host.ID, true); err != nil {
+		// Set the flags so the end user's banner clears now, and ask for a refetch so osquery confirms it within seconds. A
+		// TPM and PIN protector can release the volume master key at boot, so it is also a boot protector.
+		if err := svc.ds.SetOrUpdateHostDiskBitLockerProtectors(ctx, host.ID, true, true); err != nil {
 			svc.logger.ErrorContext(ctx, "recording bitlocker pin set after outcome", "host_id", host.ID, "err", err)
 			ctxerr.Handle(ctx, err)
 		}

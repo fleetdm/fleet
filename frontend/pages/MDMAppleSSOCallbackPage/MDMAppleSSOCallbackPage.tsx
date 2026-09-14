@@ -1,13 +1,11 @@
 import React, { useState } from "react";
 import { WithRouterProps } from "react-router";
 
-import endpoints from "utilities/endpoints";
-
-import Spinner from "components/Spinner/Spinner";
-import SSOError from "components/MDM/SSOError";
-import Button from "components/buttons/Button";
-
 import AuthenticationFormWrapper from "components/AuthenticationFormWrapper";
+import Button from "components/buttons/Button";
+import SSOError from "components/MDM/SSOError";
+import Spinner from "components/Spinner/Spinner";
+import endpoints from "utilities/endpoints";
 
 const baseClass = "mdm-apple-sso-callback-page";
 

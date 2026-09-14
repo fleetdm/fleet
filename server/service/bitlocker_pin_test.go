@@ -153,9 +153,9 @@ func TestSetBitLockerPINOutcome(t *testing.T) {
 		host := windowsPINHost()
 		svc, ds, ctx, opts := newBitLockerPINTestService(t, host)
 
-		var pinSet, refetch bool
-		ds.SetOrUpdateHostDiskTpmPINFunc = func(ctx context.Context, hostID uint, set bool) error {
-			pinSet = set
+		var bootProtectorSet, pinSet, refetch bool
+		ds.SetOrUpdateHostDiskBitLockerProtectorsFunc = func(ctx context.Context, hostID uint, bootProtector, tpmPIN bool) error {
+			bootProtectorSet, pinSet = bootProtector, tpmPIN
 			return nil
 		}
 		ds.UpdateHostRefetchRequestedFunc = func(ctx context.Context, hostID uint, requested bool) error {
@@ -181,6 +181,7 @@ func TestSetBitLockerPINOutcome(t *testing.T) {
 		}
 
 		require.NoError(t, svc.SetBitLockerPINOutcome(ctx, "req-1", fleet.BitLockerPINRequestSet, ""))
+		require.True(t, bootProtectorSet)
 		require.True(t, pinSet)
 		require.True(t, refetch)
 		require.Equal(t, fleet.BitLockerPINRequestSet, outcome)
@@ -202,7 +203,7 @@ func TestSetBitLockerPINOutcome(t *testing.T) {
 
 		require.NoError(t, svc.SetBitLockerPINOutcome(ctx, "req-1", fleet.BitLockerPINRequestFailed, "  PIN already set  "))
 		require.Equal(t, "PIN already set", gotError)
-		require.False(t, ds.SetOrUpdateHostDiskTpmPINFuncInvoked)
+		require.False(t, ds.SetOrUpdateHostDiskBitLockerProtectorsFuncInvoked)
 		require.False(t, ds.UpdateHostRefetchRequestedFuncInvoked)
 	})
 
@@ -238,7 +239,7 @@ func TestSetBitLockerPINOutcome(t *testing.T) {
 		}
 		// Both follow-on writes fail. Returning an error would make the agent retry into a 404, since the submission
 		// is already settled, and the activity would never be written.
-		ds.SetOrUpdateHostDiskTpmPINFunc = func(ctx context.Context, hostID uint, set bool) error {
+		ds.SetOrUpdateHostDiskBitLockerProtectorsFunc = func(ctx context.Context, hostID uint, bootProtector, tpmPIN bool) error {
 			return errors.New("host_disks write failed")
 		}
 		ds.UpdateHostRefetchRequestedFunc = func(ctx context.Context, hostID uint, requested bool) error {
@@ -253,7 +254,7 @@ func TestSetBitLockerPINOutcome(t *testing.T) {
 		}
 
 		require.NoError(t, svc.SetBitLockerPINOutcome(ctx, "req-1", fleet.BitLockerPINRequestSet, ""))
-		require.True(t, ds.SetOrUpdateHostDiskTpmPINFuncInvoked)
+		require.True(t, ds.SetOrUpdateHostDiskBitLockerProtectorsFuncInvoked)
 		require.True(t, ds.UpdateHostRefetchRequestedFuncInvoked, "a failed tpm_pin_set write must not skip the refetch")
 		require.Equal(t, "created_disk_encryption_pin", activityName)
 	})
@@ -271,7 +272,7 @@ func TestSetBitLockerPINOutcome(t *testing.T) {
 		err := svc.SetBitLockerPINOutcome(ctx, "forged", fleet.BitLockerPINRequestSet, "")
 		require.True(t, fleet.IsNotFound(err))
 		// The whole point of recording the outcome first: a forged success must not mark the host as having a PIN.
-		require.False(t, ds.SetOrUpdateHostDiskTpmPINFuncInvoked)
+		require.False(t, ds.SetOrUpdateHostDiskBitLockerProtectorsFuncInvoked)
 		require.False(t, ds.UpdateHostRefetchRequestedFuncInvoked)
 	})
 

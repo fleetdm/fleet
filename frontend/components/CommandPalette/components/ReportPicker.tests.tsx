@@ -1,8 +1,8 @@
-import React from "react";
 import { waitFor } from "@testing-library/react";
-import { createCustomRenderer } from "test/test-utils";
+import React from "react";
 
 import queriesAPI, { IQueriesResponse } from "services/entities/queries";
+import { createCustomRenderer } from "test/test-utils";
 
 import ReportPicker from "./ReportPicker";
 

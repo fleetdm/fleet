@@ -28784,7 +28784,8 @@ func (s *integrationMDMTestSuite) TestBitLockerPINHandoff() {
 	require.NoError(t, s.ds.SetOrUpdateHostDisksEncryption(ctx, host.ID, true, &protectionOn))
 	_, err = s.ds.SetOrUpdateHostDiskEncryptionKey(ctx, host, "test-key", "", new(true))
 	require.NoError(t, err)
-	require.NoError(t, s.ds.SetOrUpdateHostDiskTpmPIN(ctx, host.ID, false))
+	// The volume has a TPM protector but no PIN, the only state in which Windows offers PIN setup.
+	require.NoError(t, s.ds.SetOrUpdateHostDiskBitLockerProtectors(ctx, host.ID, true, false))
 
 	orbitConfig := func(caps string) fleet.OrbitGetConfigResponse {
 		headers := map[string]string{}

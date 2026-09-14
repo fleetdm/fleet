@@ -2,32 +2,31 @@ import React, { useContext, useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "react-query";
 import { InjectedRouter } from "react-router";
 
-import PATHS from "router/paths";
-import { AppContext } from "context/app";
-import useTeamIdParam from "hooks/useTeamIdParam";
-import { getPathWithQueryParams } from "utilities/url";
-import selfServiceCategoriesAPI, {
-  ISelfServiceCategoriesResponse,
-} from "services/entities/self_service_categories";
-import { ISelfServiceCategory } from "interfaces/self_service_category";
-
-import { notify } from "components/ToastNotification";
 import BackButton from "components/BackButton";
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
 import DataError from "components/DataError";
 import EmptyState from "components/EmptyState";
+import FleetsDropdown from "components/FleetsDropdown";
 import MainContent from "components/MainContent";
 import PageDescription from "components/PageDescription";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 import Spinner from "components/Spinner";
-import FleetsDropdown from "components/FleetsDropdown";
+import { notify } from "components/ToastNotification";
 import TooltipTruncatedText from "components/TooltipTruncatedText";
 import UploadList from "components/UploadList";
+import { AppContext } from "context/app";
+import useTeamIdParam from "hooks/useTeamIdParam";
+import { ISelfServiceCategory } from "interfaces/self_service_category";
+import PATHS from "router/paths";
+import selfServiceCategoriesAPI, {
+  ISelfServiceCategoriesResponse,
+} from "services/entities/self_service_categories";
+import { getPathWithQueryParams } from "utilities/url";
 
 import AddCategoryModal from "./AddCategoryModal";
-import EditCategoryModal from "./EditCategoryModal";
 import DeleteCategoryModal from "./DeleteCategoryModal";
+import EditCategoryModal from "./EditCategoryModal";
 
 const baseClass = "self-service-categories-page";
 

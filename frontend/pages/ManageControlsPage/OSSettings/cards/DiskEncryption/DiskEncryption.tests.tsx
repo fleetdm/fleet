@@ -1,25 +1,25 @@
-import React from "react";
 import { screen, waitFor } from "@testing-library/react";
 import { delay, http, HttpResponse } from "msw";
+import React from "react";
 
-import PATHS from "router/paths";
+import createMockConfig, { createMockMdmConfig } from "__mocks__/configMock";
+import createMockTeam from "__mocks__/teamMock";
 import { IMdmConfig } from "interfaces/config";
 import { DiskEncryptionSettingsPlatform } from "interfaces/platform";
-import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
-import { getPathWithQueryParams } from "utilities/url";
+import PATHS from "router/paths";
+import { createGetConfigHandler } from "test/handlers/config-handlers";
+import {
+  createGetDiskEncryptionSummaryHandler,
+  createUpdateDiskEncryptionHandler,
+} from "test/handlers/disk-encryption-handlers";
 import mockServer from "test/mock-server";
 import {
   baseUrl,
   createCustomRenderer,
   createMockRouter,
 } from "test/test-utils";
-import createMockConfig, { createMockMdmConfig } from "__mocks__/configMock";
-import createMockTeam from "__mocks__/teamMock";
-import { createGetConfigHandler } from "test/handlers/config-handlers";
-import {
-  createGetDiskEncryptionSummaryHandler,
-  createUpdateDiskEncryptionHandler,
-} from "test/handlers/disk-encryption-handlers";
+import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
+import { getPathWithQueryParams } from "utilities/url";
 
 import DiskEncryption from "./DiskEncryption";
 
