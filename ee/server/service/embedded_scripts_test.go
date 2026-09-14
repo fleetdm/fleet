@@ -9,7 +9,7 @@ import (
 
 func requireScriptContains(t *testing.T, script, substr, name string) {
 	t.Helper()
-	require.True(t, strings.Contains(script, substr), "%s must contain %q", name, substr)
+	require.True(t, strings.Contains(script, substr), "%s must contain %q", name, substr) //nolint:testifylint // require.Contains would dump the whole ~10KB script on failure
 }
 
 // The lock and wipe scripts are the two halves of keeping a user off a machine,
