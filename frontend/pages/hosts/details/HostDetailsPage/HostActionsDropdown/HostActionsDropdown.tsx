@@ -1,12 +1,13 @@
 import React, { useContext } from "react";
 
+import ActionsDropdown from "components/ActionsDropdown";
+import { AppContext } from "context/app";
 import { isEnrolledInMdm, MdmEnrollmentStatus } from "interfaces/mdm";
 import permissions from "utilities/permissions";
-import { AppContext } from "context/app";
 
-import ActionsDropdown from "components/ActionsDropdown";
-import { generateHostActionOptions } from "./helpers";
 import { HostMdmDeviceStatusUIState } from "../../helpers";
+
+import { generateHostActionOptions } from "./helpers";
 
 const baseClass = "host-actions-dropdown";
 

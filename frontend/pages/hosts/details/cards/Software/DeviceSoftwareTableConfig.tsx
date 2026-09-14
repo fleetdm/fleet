@@ -1,16 +1,14 @@
 import React from "react";
 import { CellProps, Column } from "react-table";
 
-import { formatSoftwareType, IHostSoftware } from "interfaces/software";
-import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
-
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
-
-import VulnerabilitiesCell from "pages/SoftwarePage/components/tables/VulnerabilitiesCell";
-import VersionCell from "pages/SoftwarePage/components/tables/VersionCell";
-import { getVulnerabilities } from "pages/SoftwarePage/SoftwareInventory/SoftwareInventoryTable/helpers";
 import SoftwareNameCell from "components/TableContainer/DataTable/SoftwareNameCell";
 import TooltipTruncatedTextCell from "components/TableContainer/DataTable/TooltipTruncatedTextCell";
+import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
+import { formatSoftwareType, IHostSoftware } from "interfaces/software";
+import VersionCell from "pages/SoftwarePage/components/tables/VersionCell";
+import VulnerabilitiesCell from "pages/SoftwarePage/components/tables/VulnerabilitiesCell";
+import { getVulnerabilities } from "pages/SoftwarePage/SoftwareInventory/SoftwareInventoryTable/helpers";
 
 type ISoftwareTableConfig = Column<IHostSoftware>;
 type ITableHeaderProps = IHeaderProps<IHostSoftware>;

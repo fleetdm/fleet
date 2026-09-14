@@ -1,9 +1,9 @@
-import React from "react";
 import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import React from "react";
 
-import { createCustomRenderer } from "test/test-utils";
 import { createMockSelfServiceCategory } from "test/handlers/self-service-categories-handlers";
+import { createCustomRenderer } from "test/test-utils";
 
 import CategoryFilter from "./CategoryFilter";
 

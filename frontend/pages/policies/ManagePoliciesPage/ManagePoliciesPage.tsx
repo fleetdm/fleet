@@ -1,4 +1,6 @@
 // TODO: make 'queryParams', 'router', and 'tableQueryData' dependencies stable (aka, memoized)
+
+import { isEqual } from "lodash";
 import React, {
   useCallback,
   useContext,
@@ -8,17 +10,28 @@ import React, {
 } from "react";
 import { useQuery } from "react-query";
 import { InjectedRouter } from "react-router/lib/Router";
-import PATHS from "router/paths";
-import { isEqual } from "lodash";
+import { SingleValue } from "react-select-5";
 
-import { getNextLocationPath } from "utilities/helpers";
-
+import AutomationsButton from "components/buttons/AutomationsButton";
+import Button from "components/buttons/Button";
+import TableDataError from "components/DataError";
+import FleetsDropdown from "components/FleetsDropdown";
+import DropdownWrapper from "components/forms/fields/DropdownWrapper";
+import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
+import LastUpdatedText from "components/LastUpdatedText";
+import MainContent from "components/MainContent";
+import PageDescription from "components/PageDescription";
+import Spinner from "components/Spinner";
+import { ITableQueryData } from "components/TableContainer/TableContainer";
+import TableCount from "components/TableContainer/TableCount";
+import { notify } from "components/ToastNotification";
+import TooltipWrapper from "components/TooltipWrapper";
 import { AppContext } from "context/app";
 import { PolicyContext } from "context/policy";
 import { TableContext } from "context/table";
-import { notify } from "components/ToastNotification";
 import useTeamIdParam from "hooks/useTeamIdParam";
 import { IConfig } from "interfaces/config";
+import { isQueryablePlatform } from "interfaces/platform";
 import {
   IPolicyStats,
   ILoadAllPoliciesResponse,
@@ -31,8 +44,8 @@ import {
   API_NO_TEAM_ID,
   APP_CONTEXT_ALL_TEAMS_ID,
 } from "interfaces/team";
-import { isQueryablePlatform } from "interfaces/platform";
-
+import { getTicketOrWebhookInfo } from "pages/policies/helpers";
+import PATHS from "router/paths";
 import configAPI from "services/entities/config";
 import globalPoliciesAPI, {
   GlobalPoliciesAutomationType,
@@ -45,30 +58,14 @@ import teamPoliciesAPI, {
   AutomationType,
 } from "services/entities/team_policies";
 import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
+import { getNextLocationPath } from "utilities/helpers";
 
-import { ITableQueryData } from "components/TableContainer/TableContainer";
-import TableCount from "components/TableContainer/TableCount";
-import Button from "components/buttons/Button";
-import AutomationsButton from "components/buttons/AutomationsButton";
-
-import { SingleValue } from "react-select-5";
-import DropdownWrapper from "components/forms/fields/DropdownWrapper";
-import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
-import Spinner from "components/Spinner";
-import FleetsDropdown from "components/FleetsDropdown";
-import TableDataError from "components/DataError";
-import MainContent from "components/MainContent";
-import PageDescription from "components/PageDescription";
-import LastUpdatedText from "components/LastUpdatedText";
-import TooltipWrapper from "components/TooltipWrapper";
-
-import { getTicketOrWebhookInfo } from "pages/policies/helpers";
-
-import PoliciesTable from "./components/PoliciesTable";
-import DeletePoliciesModal from "./components/DeletePoliciesModal";
 import { DEFAULT_POLICY } from "../constants";
+
 import AutomationsModal from "./components/AutomationsModal";
+import DeletePoliciesModal from "./components/DeletePoliciesModal";
 import ManageAutomationsModal from "./components/ManageAutomationsModal";
+import PoliciesTable from "./components/PoliciesTable";
 
 interface IManagePoliciesPageProps {
   router: InjectedRouter;

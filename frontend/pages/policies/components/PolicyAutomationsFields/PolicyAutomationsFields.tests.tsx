@@ -1,24 +1,23 @@
-import React from "react";
 import { act, screen } from "@testing-library/react";
+import React from "react";
 
-import { createCustomRenderer } from "test/test-utils";
-import createMockUser from "__mocks__/userMock";
+import { createMockScript } from "__mocks__/scriptMock";
 import {
   createMockSoftwareTitle,
   createMockSoftwarePackage,
   createMockAppStoreApp,
 } from "__mocks__/softwareMock";
-import { createMockScript } from "__mocks__/scriptMock";
-
+import createMockUser from "__mocks__/userMock";
 import { IPolicy } from "interfaces/policy";
 import { ISoftwareTitle } from "interfaces/software";
+import { createCustomRenderer } from "test/test-utils";
 
+import useProfiles from "./hooks/useProfiles";
+import useScripts from "./hooks/useScripts";
+import useSoftwareTitles from "./hooks/useSoftwareTitles";
 import PolicyAutomationsFields, {
   IPolicyAutomationsFieldsHandle,
 } from "./PolicyAutomationsFields";
-import useSoftwareTitles from "./hooks/useSoftwareTitles";
-import useScripts from "./hooks/useScripts";
-import useProfiles from "./hooks/useProfiles";
 
 jest.mock("./hooks/useSoftwareTitles");
 jest.mock("./hooks/useScripts");

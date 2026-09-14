@@ -1,8 +1,8 @@
-import { IHostPolicy } from "interfaces/policy";
 import React from "react";
 
-import InfoBanner from "components/InfoBanner";
 import IconStatusMessage from "components/IconStatusMessage";
+import InfoBanner from "components/InfoBanner";
+import { IHostPolicy } from "interfaces/policy";
 
 const baseClass = "policy-failing-count";
 

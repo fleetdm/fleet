@@ -1,7 +1,9 @@
-import React from "react";
-import userEvent from "@testing-library/user-event";
 import { screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import React from "react";
+
 import { createCustomRenderer, createMockRouter } from "test/test-utils";
+
 import SoftwareNameCell from "./SoftwareNameCell";
 
 const mockRouter = createMockRouter();

@@ -1,13 +1,10 @@
 import React, { useState } from "react";
 
-import DataError from "components/DataError";
 import Button from "components/buttons/Button";
+import DataError from "components/DataError";
 import Modal from "components/Modal";
 import { notify } from "components/ToastNotification";
-
-import mdmAPI from "services/entities/mdm";
 import { hasStatusKey } from "interfaces/errors";
-import { isAndroid, isIPadOrIPhone, isMacOS } from "interfaces/platform";
 import {
   isAccountDrivenUserEnrollment,
   isAutomaticDeviceEnrollment,
@@ -15,6 +12,8 @@ import {
   isPersonalEnrollmentStatus,
   MdmEnrollmentStatus,
 } from "interfaces/mdm";
+import { isAndroid, isIPadOrIPhone, isMacOS } from "interfaces/platform";
+import mdmAPI from "services/entities/mdm";
 
 const baseClass = "unenroll-mdm-modal";
 

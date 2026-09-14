@@ -1,11 +1,10 @@
-import React from "react";
 import { noop } from "lodash";
+import React from "react";
 
 import DropdownWrapper, {
   CustomOptionType,
 } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 import FormField from "components/forms/FormField";
-
 import { LabelPlatform } from "interfaces/label";
 
 // Used to display the platform of an existing label on the edit label page

@@ -1,8 +1,9 @@
-import React from "react";
 import classnames from "classnames";
-import Spinner from "components/Spinner";
+import React from "react";
+
 import Icon from "components/Icon";
 import { IconNames } from "components/icons";
+import Spinner from "components/Spinner";
 
 const baseClass = "button";
 

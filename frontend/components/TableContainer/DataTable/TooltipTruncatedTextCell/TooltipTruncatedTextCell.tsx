@@ -1,10 +1,10 @@
-import React, { useState, useRef, useLayoutEffect } from "react";
-import { uniqueId } from "lodash";
 import classnames from "classnames";
-
+import { uniqueId } from "lodash";
+import React, { useState, useRef, useLayoutEffect } from "react";
 import ReactTooltip from "react-tooltip";
-import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
+
 import { COLORS } from "styles/var/colors";
+import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 
 interface ITooltipTruncatedTextCellProps {
   value: React.ReactNode;

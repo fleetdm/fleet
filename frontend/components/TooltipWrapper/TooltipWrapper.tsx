@@ -1,8 +1,7 @@
 import classnames from "classnames";
+import { uniqueId } from "lodash";
 import React, { useLayoutEffect, useRef } from "react";
 import { Tooltip as ReactTooltip5, PlacesType } from "react-tooltip-5";
-
-import { uniqueId } from "lodash";
 
 /** Renders tooltip content as-is, but on mount applies `text-wrap: balance`
  * to the tooltip's root element and measures the widest balanced line to set

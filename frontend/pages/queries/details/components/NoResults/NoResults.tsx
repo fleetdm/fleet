@@ -1,11 +1,10 @@
+import { add, differenceInSeconds, formatDistanceStrict } from "date-fns";
 import React from "react";
 
-import { add, differenceInSeconds, formatDistanceStrict } from "date-fns";
-
-import PATHS from "router/paths";
-import TooltipWrapper from "components/TooltipWrapper/TooltipWrapper";
-import EmptyState from "components/EmptyState";
 import CustomLink from "components/CustomLink";
+import EmptyState from "components/EmptyState";
+import TooltipWrapper from "components/TooltipWrapper/TooltipWrapper";
+import PATHS from "router/paths";
 
 interface INoResultsProps {
   queryId: number;

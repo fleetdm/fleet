@@ -1,13 +1,12 @@
 import React, { useContext, useState } from "react";
 
+import { renderAppleManualEnrollmentDisabled } from "components/AddHostsModal/helpers";
 import CustomLink from "components/CustomLink";
-import PATHS from "router/paths";
-import { AppContext } from "context/app";
-import { getPathWithQueryParams } from "utilities/url";
-
 import InputField from "components/forms/fields/InputField";
 import Radio from "components/forms/fields/Radio";
-import { renderAppleManualEnrollmentDisabled } from "components/AddHostsModal/helpers";
+import { AppContext } from "context/app";
+import PATHS from "router/paths";
+import { getPathWithQueryParams } from "utilities/url";
 
 import EnrollQrCode from "../EnrollQrCode";
 

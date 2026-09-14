@@ -1,16 +1,15 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useQuery } from "react-query";
 
-import scriptsAPI, { IScriptResultResponse } from "services/entities/scripts";
-
-import Modal from "components/Modal";
 import Button from "components/buttons/Button";
-import TooltipWrapper from "components/TooltipWrapper";
-import IconStatusMessage from "components/IconStatusMessage";
-import Textarea from "components/Textarea";
 import DataError from "components/DataError/DataError";
-import Spinner from "components/Spinner/Spinner";
+import IconStatusMessage from "components/IconStatusMessage";
+import Modal from "components/Modal";
 import ModalFooter from "components/ModalFooter";
+import Spinner from "components/Spinner/Spinner";
+import Textarea from "components/Textarea";
+import TooltipWrapper from "components/TooltipWrapper";
+import scriptsAPI, { IScriptResultResponse } from "services/entities/scripts";
 
 const baseClass = "run-script-details-modal";
 

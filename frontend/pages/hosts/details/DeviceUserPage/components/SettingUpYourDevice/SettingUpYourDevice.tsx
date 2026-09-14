@@ -1,19 +1,20 @@
-import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
-
-import Card from "components/Card";
-import { ISetupStep } from "interfaces/setup";
-import Icon from "components/Icon";
-import TooltipWrapper from "components/TooltipWrapper";
-import RevealButton from "components/buttons/RevealButton";
-import Textarea from "components/Textarea";
 import React, { useState } from "react";
-import InfoButton from "../InfoButton";
-import SetupStatusTable from "./SetupStatusTable";
+
+import RevealButton from "components/buttons/RevealButton";
+import Card from "components/Card";
+import Icon from "components/Icon";
+import Textarea from "components/Textarea";
+import TooltipWrapper from "components/TooltipWrapper";
+import { ISetupStep } from "interfaces/setup";
+import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
 
 import {
   hasRemainingSetupSteps,
   getFailedSoftwareInstall,
 } from "../../helpers";
+import InfoButton from "../InfoButton";
+
+import SetupStatusTable from "./SetupStatusTable";
 
 const baseClass = "setting-up-your-device";
 

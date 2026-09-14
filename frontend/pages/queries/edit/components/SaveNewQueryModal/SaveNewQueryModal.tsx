@@ -1,19 +1,37 @@
+import { size } from "lodash";
 import React, { useState, useEffect, useContext, useMemo } from "react";
 import { useQuery } from "react-query";
 
-import { size } from "lodash";
-
-import { AppContext } from "context/app";
+import Button from "components/buttons/Button";
+import RevealButton from "components/buttons/RevealButton";
 import CustomLink from "components/CustomLink";
-
-import useDeepEffect from "hooks/useDeepEffect";
-import { IPlatformSelector } from "hooks/usePlatformSelector";
-
+import Checkbox from "components/forms/fields/Checkbox";
+// @ts-ignore
+import Dropdown from "components/forms/fields/Dropdown";
+import InputField from "components/forms/fields/InputField";
+import Slider from "components/forms/fields/Slider";
+import Icon from "components/Icon";
+import LogDestinationIndicator from "components/LogDestinationIndicator";
+import Modal from "components/Modal";
+import { DropdownTargetLabelSelector } from "components/TargetLabelSelector";
 import {
   getCustomTargetOptions,
   LabelScope,
 } from "components/TargetLabelSelector/labelScopes";
-
+import TooltipWrapper from "components/TooltipWrapper";
+import { AppContext } from "context/app";
+import useDeepEffect from "hooks/useDeepEffect";
+import { IPlatformSelector } from "hooks/usePlatformSelector";
+import { CommaSeparatedPlatformString } from "interfaces/platform";
+import {
+  ICreateQueryFormData,
+  ISchedulableQuery,
+  QueryLoggingOption,
+} from "interfaces/schedulable_query";
+import labelsAPI, {
+  getCustomLabels,
+  ILabelsSummaryResponse,
+} from "services/entities/labels";
 import {
   FREQUENCY_DROPDOWN_OPTIONS,
   LOGGING_TYPE_OPTIONS,
@@ -21,30 +39,6 @@ import {
   DEFAULT_USE_QUERY_OPTIONS,
   MAX_ENTITY_CHAR_LENGTH,
 } from "utilities/constants";
-
-import { CommaSeparatedPlatformString } from "interfaces/platform";
-import {
-  ICreateQueryFormData,
-  ISchedulableQuery,
-  QueryLoggingOption,
-} from "interfaces/schedulable_query";
-
-import Checkbox from "components/forms/fields/Checkbox";
-import InputField from "components/forms/fields/InputField";
-// @ts-ignore
-import Dropdown from "components/forms/fields/Dropdown";
-import Slider from "components/forms/fields/Slider";
-import TooltipWrapper from "components/TooltipWrapper";
-import Icon from "components/Icon";
-import Button from "components/buttons/Button";
-import Modal from "components/Modal";
-import RevealButton from "components/buttons/RevealButton";
-import LogDestinationIndicator from "components/LogDestinationIndicator";
-import { DropdownTargetLabelSelector } from "components/TargetLabelSelector";
-import labelsAPI, {
-  getCustomLabels,
-  ILabelsSummaryResponse,
-} from "services/entities/labels";
 
 import DiscardDataOption from "../DiscardDataOption";
 
