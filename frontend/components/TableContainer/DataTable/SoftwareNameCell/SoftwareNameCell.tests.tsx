@@ -4,6 +4,7 @@ import React from "react";
 
 import { createCustomRenderer, createMockRouter } from "test/test-utils";
 import { internationalTimeOnlyFormat } from "utilities/helpers";
+
 import SoftwareNameCell from "./SoftwareNameCell";
 
 const mockRouter = createMockRouter();
