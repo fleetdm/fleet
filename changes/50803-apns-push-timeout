@@ -1,0 +1,1 @@
+- Fixed APNs push requests potentially blocking MDM command delivery indefinitely when Apple's push service stalls a response.
