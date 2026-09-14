@@ -2,7 +2,6 @@
 
 _Available in Fleet Premium_
 
-> This guide depends on [fleetdm/fleet#52993](https://github.com/fleetdm/fleet/issues/52993), which adds Okta/NDES certificate authority (CA) support to Fleet's "Request certificate" API endpoint. That endpoint currently only supports Hydrant and custom EST CAs, so the script below will fail with a 400 error until #52993 ships.
 
 This guide uses Fleet, but works with any MDM or tool that can deploy apps and run scripts on Linux: install the Okta Verify client and issue the device certificate Okta Verify uses for FastPass (Okta's phishing-resistant, passwordless authentication), so end users on Linux hosts can authenticate the same way they already do on macOS and Windows.
 
