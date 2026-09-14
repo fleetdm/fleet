@@ -137,7 +137,7 @@ POST /api/v1/fleet/hosts/:id/clear_passcode
 fleetctl mdm clear-passcode --host $HOST_IDENTIFIER
 ```
 
-## Cancel a pending MDM command
+## Cancel a pending command
 
 > Available for Apple (macOS, iOS, iPadOS) hosts enrolled in Fleet MDM.
 
