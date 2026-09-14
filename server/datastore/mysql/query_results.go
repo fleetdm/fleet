@@ -82,6 +82,14 @@ func (ds *Datastore) OverwriteQueryResultRows(ctx context.Context, rows []*fleet
 	return rowsAdded, ctxerr.Wrap(ctx, err, "overwriting query result rows")
 }
 
+// queryResultHostDisplayNameExpr mirrors fleet.HostDisplayName so sorting and
+// searching by host name agree with the name shown in the report.
+const queryResultHostDisplayNameExpr = `COALESCE(
+	NULLIF(h.computer_name, ''),
+	NULLIF(h.hostname, ''),
+	IF(h.hardware_model != '' AND h.hardware_serial != '', CONCAT(h.hardware_model, ' (', h.hardware_serial, ')'), '')
+)`
+
 // queryResultRowsAllowedOrderKeys are the built-in order keys for QueryResultRows.
 // Any other key is treated as a result column name and sorted through the
 // sort_value column selected alongside the row, so the column name is always a
@@ -89,7 +97,7 @@ func (ds *Datastore) OverwriteQueryResultRows(ctx context.Context, rows []*fleet
 // over result columns with the same name.
 var queryResultRowsAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
 	"last_fetched": "qr.last_fetched",
-	"host_name":    "COALESCE(NULLIF(h.computer_name, ''), h.hostname)",
+	"host_name":    queryResultHostDisplayNameExpr,
 	"host_id":      "qr.host_id",
 	"id":           "qr.id",
 }
@@ -119,8 +127,8 @@ func (ds *Datastore) QueryResultRows(ctx context.Context, queryID uint, filter f
 		// collation, so lowercase both sides to keep the search case-insensitive
 		// like the host name columns are.
 		pattern := likePattern(match)
-		whereClause += ` AND (h.hostname LIKE ? OR h.computer_name LIKE ? OR JSON_SEARCH(LOWER(qr.data), 'one', ?) IS NOT NULL)`
-		whereArgs = append(whereArgs, pattern, pattern, strings.ToLower(pattern))
+		whereClause += ` AND (h.hostname LIKE ? OR h.computer_name LIKE ? OR ` + queryResultHostDisplayNameExpr + ` LIKE ? OR JSON_SEARCH(LOWER(qr.data), 'one', ?) IS NOT NULL)`
+		whereArgs = append(whereArgs, pattern, pattern, pattern, strings.ToLower(pattern))
 	}
 
 	// Sorting by a result column extracts it into sort_value with the column name
@@ -145,6 +153,11 @@ func (ds *Datastore) QueryResultRows(ctx context.Context, queryID uint, filter f
 			` + sortValueExpr + ` AS sort_value
 	` + whereClause
 	listArgs := append(append([]any{}, sortValueArgs...), whereArgs...)
+	// Unpaginated callers expect every row; the list-options helper would
+	// otherwise silently cap them at DefaultPerPage.
+	if opts.PerPage == 0 {
+		opts.PerPage = fleet.PerPageUnlimited
+	}
 	pagedStmt, pagedArgs, err := appendListOptionsWithCursorToSQLSecure(listStmt, listArgs, &opts, allowedKeys)
 	if err != nil {
 		return nil, 0, nil, ctxerr.Wrap(ctx, err, "apply list options for query result rows")

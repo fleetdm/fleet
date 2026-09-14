@@ -636,6 +636,28 @@ func testQueryResultRowsListOptions(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, rows, 1)
 	require.Equal(t, hostA.ID, rows[0].HostID)
+
+	// A host with neither computer name nor hostname sorts and searches by its
+	// "model (serial)" display name fallback.
+	hostD := test.NewHost(t, ds, "delta.local", "192.168.1.4", "44444", "UI8XB1224", time.Now())
+	hostD.Hostname = ""
+	hostD.HardwareModel = "MacBook Pro"
+	hostD.HardwareSerial = "C02DELTA"
+	require.NoError(t, ds.UpdateHost(ctx, hostD))
+	_, err = ds.OverwriteQueryResultRows(ctx, []*fleet.ScheduledQueryResultRow{
+		row(hostD, base, "Trackpad", "Apple"),
+	}, fleet.DefaultMaxQueryReportRows, 0)
+	require.NoError(t, err)
+
+	rows, _, _, err = ds.QueryResultRows(ctx, query.ID, filter, fleet.ListOptions{OrderKey: "host_name", OrderDirection: fleet.OrderAscending, PerPage: 1, Page: 3, IncludeMetadata: true})
+	require.NoError(t, err)
+	require.Len(t, rows, 1)
+	require.Equal(t, hostD.ID, rows[0].HostID) // after alpha.local (2 rows) and bravo.local, before "Zulu Laptop"
+
+	rows, count, _, err = ds.QueryResultRows(ctx, query.ID, filter, fleet.ListOptions{MatchQuery: "c02delta", OrderKey: "model"})
+	require.NoError(t, err)
+	require.Equal(t, []string{"Trackpad"}, models(rows))
+	require.Equal(t, 1, count)
 }
 
 func testOverwriteQueryResultRowsRespectsCap(t *testing.T, ds *Datastore) {

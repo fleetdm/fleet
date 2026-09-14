@@ -227,6 +227,7 @@ const QueryReport = ({
           defaultSortHeader={toTableSortHeader(sortHeader)}
           defaultSortDirection={sortDirection}
           defaultSearchQuery={searchQuery}
+          manualSortBy
           pageIndex={pageIndex}
           pageSize={pageSize}
           disableNextPage={!queryReport?.meta?.has_next_results}
