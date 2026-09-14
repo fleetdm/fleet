@@ -16,7 +16,10 @@ module.exports = {
 
     require('assert')(sails.config.custom.usageStatisticsServiceAccountEmailAddress);
     require('assert')(sails.config.custom.usageStatisticsServiceAccountPrivateKey);
-    require('assert')(sails.config.custom.usageStatisticsSpreadsheetId);
+
+    // Hardcoded to a test sheet while the Customer Success team fine-tunes the format. Once the format
+    // settles, this will point at the "Usage statistics (Fleet Premium only)" sheet everyone references.
+    const SPREADSHEET_ID = '1YVTgjabIHLt0bXAExMuxkOhFm1KPr0LhGHFiCDKmHRI';
 
     // Organizations reported by internal, development, and load testing instances.
     const ORGANIZATIONS_TO_EXCLUDE = [
@@ -152,11 +155,11 @@ module.exports = {
 
     // Clear the entire tab before writing so deployments that stopped reporting don't linger as stale rows.
     await sheets.spreadsheets.values.clear({
-      spreadsheetId: sails.config.custom.usageStatisticsSpreadsheetId,
+      spreadsheetId: SPREADSHEET_ID,
       range: 'Data',
     });
     await sheets.spreadsheets.values.update({
-      spreadsheetId: sails.config.custom.usageStatisticsSpreadsheetId,
+      spreadsheetId: SPREADSHEET_ID,
       range: 'Data!A1',
       valueInputOption: 'RAW',
       requestBody: {
