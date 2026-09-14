@@ -120,7 +120,7 @@ func (svc *Service) GetSSOUser(ctx context.Context, auth fleet.Auth) (*fleet.Use
 
 	user, err = svc.Service.NewUser(ctx, fleet.UserPayload{
 		Name:           &displayName,
-		Email:          ptr.String(auth.UserID()),
+		Email:          new(auth.UserID()),
 		SSOEnabled:     new(true),
 		GlobalRole:     globalRole,
 		Teams:          &teamRoles,

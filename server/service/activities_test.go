@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
@@ -104,58 +105,50 @@ func Test_logRoleChangeActivities(t *testing.T) {
 	}
 }
 
-func Test_logRoleChangeActivitiesJIT(t *testing.T) {
-	ds := new(mock.Store)
-	opts := &TestServerOpts{}
-	svc, ctx := newTestService(t, ds, nil, nil, opts)
-
-	type activityRecord struct {
-		name string
-		jit  bool
+func isRoleChangeActivity(activity activity_api.ActivityDetails) bool {
+	switch activity.(type) {
+	case fleet.ActivityTypeChangedUserGlobalRole,
+		fleet.ActivityTypeDeletedUserGlobalRole,
+		fleet.ActivityTypeChangedUserTeamRole,
+		fleet.ActivityTypeDeletedUserTeamRole:
+		return true
 	}
-	var recorded []activityRecord
-	opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, activity activity_api.ActivityDetails) error {
-		var isJIT bool
-		switch a := activity.(type) {
-		case fleet.ActivityTypeChangedUserGlobalRole:
-			isJIT = a.JIT
-		case fleet.ActivityTypeDeletedUserGlobalRole:
-			isJIT = a.JIT
-		case fleet.ActivityTypeChangedUserTeamRole:
-			isJIT = a.JIT
-		case fleet.ActivityTypeDeletedUserTeamRole:
-			isJIT = a.JIT
-		}
-		recorded = append(recorded, activityRecord{name: activity.ActivityName(), jit: isJIT})
-		return nil
-	}
-	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{}, nil
-	}
+	return false
+}
 
-	user := &fleet.User{
-		ID:         1,
-		GlobalRole: ptr.String("admin"),
+func TestNewUserRoleActivityJIT(t *testing.T) {
+	for _, jitProvisioned := range []bool{true, false} {
+		t.Run(fmt.Sprintf("jit=%t", jitProvisioned), func(t *testing.T) {
+			ds := new(mock.Store)
+			opts := &TestServerOpts{}
+			svc, ctx := newTestService(t, ds, nil, nil, opts)
+
+			var roleActivities []fleet.ActivityTypeChangedUserGlobalRole
+			opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, activity activity_api.ActivityDetails) error {
+				if a, ok := activity.(fleet.ActivityTypeChangedUserGlobalRole); ok {
+					roleActivities = append(roleActivities, a)
+				}
+				return nil
+			}
+			ds.NewUserFunc = func(ctx context.Context, user *fleet.User) (*fleet.User, error) {
+				user.ID = 1
+				return user, nil
+			}
+
+			_, err := svc.NewUser(ctx, fleet.UserPayload{
+				Name:           new("SSO User"),
+				Email:          new("sso@example.com"),
+				SSOEnabled:     new(true),
+				GlobalRole:     new(fleet.RoleObserver),
+				JITProvisioned: jitProvisioned,
+			})
+			require.NoError(t, err)
+
+			require.Len(t, roleActivities, 1)
+			require.Equal(t, fleet.RoleObserver, roleActivities[0].Role)
+			require.Equal(t, jitProvisioned, roleActivities[0].JIT)
+		})
 	}
-	require.NoError(t, fleet.LogRoleChangeActivities(ctx, svc, user, nil, nil, user, true))
-	require.Len(t, recorded, 1)
-	require.Equal(t, "changed_user_global_role", recorded[0].name)
-	require.True(t, recorded[0].jit)
-
-	recorded = recorded[:0]
-	require.NoError(t, fleet.LogRoleChangeActivities(ctx, svc, user, ptr.String("admin"), nil, user, false))
-	require.Empty(t, recorded)
-
-	recorded = recorded[:0]
-	teamRole := fleet.UserTeam{Role: "observer"}
-	teamRole.ID = 1
-	noRole := &fleet.User{ID: 1, Teams: []fleet.UserTeam{teamRole}}
-	require.NoError(t, fleet.LogRoleChangeActivities(ctx, svc, user, ptr.String("admin"), nil, noRole, false))
-	require.Len(t, recorded, 2)
-	require.Equal(t, "deleted_user_global_role", recorded[0].name)
-	require.False(t, recorded[0].jit)
-	require.Equal(t, "changed_user_team_role", recorded[1].name)
-	require.False(t, recorded[1].jit)
 }
 
 func TestCancelHostUpcomingActivityAuth(t *testing.T) {
