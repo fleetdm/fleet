@@ -5651,16 +5651,6 @@ For iOS/iPadOS hosts, Fleet omits identifying details from the response: `uuid`,
 | exclude_software | boolean | query | If `true`, the response will not include a list of installed software for the host.     |
 | include_hidden_policies | boolean | query | _Available in Fleet Premium_. If `true`, the response's `policies` list will include policies marked `hidden`. Hidden policies are omitted by default.     |
 
-#### Request headers
-
-This endpoint accepts the `X-Client-Cert-Serial` header for authentication in addition to token authentication.
-
-The `Authorization` header must be formatted as follows:
-
-```
-X-Client-Cert-Serial: <fleet_identity_scep_cert_serial>
-```
-
 ##### Example
 
 `GET /api/v1/fleet/device/abcdef012456789`
