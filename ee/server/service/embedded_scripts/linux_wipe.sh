@@ -2,6 +2,14 @@
 
 NETWORK_FS_TYPES="nfs|nfs4|cifs|smb|smbfs|fuse\.sshfs|afs|ncpfs|9p"
 
+# passwd -l below only reaches accounts in /etc/shadow, so directory users
+# (SSSD/LDAP/Kerberos/AD) need pam_nologin to keep them out mid-wipe.
+block_logins() {
+    _msg="Fleet is wiping this system."
+    echo "$_msg" > /etc/nologin
+    echo "$_msg" > /run/nologin
+}
+
 # Function to log out all users and lock their passwords except root
 logout_users() {
     for user in $(who | awk '{print $1}' | sort | uniq)
@@ -224,9 +232,19 @@ if [ "$1" = "wipe" ]; then
     # We are in the detached child process
     wipe_all_files
 else
-    # We are in the parent shell, logout users and begin the detached
+    # We are in the parent shell, block and logout users and begin the detached
     # wipe child process
+    block_logins
     logout_users
     echo "Wiping, system will be unreachable"
-    (/usr/bin/nohup sh $0 wipe >/dev/null 2>/dev/null </dev/null) &
+    # fleetd deletes this script's directory as soon as this shell returns, and
+    # systemd-run returns before the child has opened it, so stage a copy first.
+    WIPE_SCRIPT=/fleet_wipe.sh
+    cp "$0" "$WIPE_SCRIPT" || { WIPE_SCRIPT="$0"; echo "Warning: could not stage the wipe outside fleetd's run directory"; }
+    # A transient unit escapes orbit.service's cgroup, which kills and CPU-caps a
+    # nohup child. Branch on systemd-run failing rather than existing, or an old
+    # systemd leaves a host locked out by block_logins and never wiped.
+    if ! systemd-run --unit=fleet-wipe /bin/sh "$WIPE_SCRIPT" wipe; then
+        (/usr/bin/nohup sh "$WIPE_SCRIPT" wipe >/dev/null 2>/dev/null </dev/null) &
+    fi
 fi
