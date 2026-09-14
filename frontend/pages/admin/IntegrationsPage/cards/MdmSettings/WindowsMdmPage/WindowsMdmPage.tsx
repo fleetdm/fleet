@@ -11,10 +11,9 @@ import DropdownWrapper, {
 } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 import Slider from "components/forms/fields/Slider";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
-import TooltipWrapper from "components/TooltipWrapper";
-import CustomLink from "components/CustomLink";
 import MainContent from "components/MainContent/MainContent";
 import { notify } from "components/ToastNotification";
+import TooltipWrapper from "components/TooltipWrapper";
 import { AppContext } from "context/app";
 import PATHS from "router/paths";
 import configAPI from "services/entities/config";
