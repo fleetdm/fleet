@@ -386,6 +386,23 @@ describe("Edit Auto Update Config Modal", () => {
       expect(screen.getByText(/have any/)).toBeInTheDocument();
     });
 
+    it("Shows label pills and include-all description if include-all labels are configured", async () => {
+      render(
+        <EditAutoUpdateConfigModal
+          softwareTitle={createMockSoftwareTitleDetails({
+            app_store_app: createMockAppStoreApp({
+              labels_include_all: [mockLabels[0]],
+            }),
+          })}
+          teamId={1}
+          refetchSoftwareTitle={jest.fn()}
+          onExit={jest.fn()}
+        />
+      );
+      expect(screen.getByText(mockLabels[0].name)).toBeInTheDocument();
+      expect(screen.getByText(/have all/)).toBeInTheDocument();
+    });
+
     it("Shows label pills and exclude-any description if exclude-any labels are configured", async () => {
       render(
         <EditAutoUpdateConfigModal
