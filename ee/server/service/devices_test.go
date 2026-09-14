@@ -418,14 +418,15 @@ func TestRequireDeviceSSOSession(t *testing.T) {
 
 			err := svc.RequireDeviceSSOSession(ctx, &caseHost, sessionID)
 
-			if c.wantSSORequired {
+			switch {
+			case c.wantSSORequired:
 				var ssoRequired *fleet.DeviceSSORequiredError
 				require.ErrorAs(t, err, &ssoRequired)
-			} else if c.wantMismatch {
+			case c.wantMismatch:
 				var badRequest *fleet.BadRequestError
 				require.ErrorAs(t, err, &badRequest)
 				require.Equal(t, "mismatched SSO user for this device", badRequest.Message)
-			} else {
+			default:
 				require.NoError(t, err)
 			}
 
