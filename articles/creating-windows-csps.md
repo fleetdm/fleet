@@ -4,7 +4,7 @@ Deploying Windows configurations profiles (aka Configuration Service Providers (
 
 This guide will help you understand the building blocks to crafting CSPs of varying complexity – from simple payloads to more complex ones that involve modification of ADMX underpinnings.
 
-> In Fleet, Windows CSPs are called [**Custom OS settings**](https://fleetdm.com/guides/custom-os-settings).
+> In Fleet, Windows CSPs are called ["configuration profiles**](https://fleetdm.com/guides/custom-os-settings).
 
 ## ADMX
 

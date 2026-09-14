@@ -6,14 +6,25 @@ import React, {
   useCallback,
   useMemo,
 } from "react";
-import { InjectedRouter } from "react-router";
 import { useQuery } from "react-query";
+import { InjectedRouter } from "react-router";
+import { SingleValue } from "react-select-5";
 
-import { AppContext } from "context/app";
+import Card from "components/Card";
+import CustomLink from "components/CustomLink";
+import DataError from "components/DataError";
+import FleetsDropdown from "components/FleetsDropdown";
+import DropdownWrapper from "components/forms/fields/DropdownWrapper";
+import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
+import LastUpdatedText from "components/LastUpdatedText";
+import MainContent from "components/MainContent";
+import Spinner from "components/Spinner";
+import { ITableQueryData } from "components/TableContainer/TableContainer";
 import { notify } from "components/ToastNotification";
-
-import paths from "router/paths";
-
+import { AppContext } from "context/app";
+import { useTeamIdParam } from "hooks/useTeamIdParam";
+import { isHistoricalDataEnabled } from "interfaces/charts";
+import { IConfig } from "interfaces/config";
 import {
   IEnrollSecret,
   IEnrollSecretsResponse,
@@ -28,64 +39,47 @@ import {
 } from "interfaces/mdm";
 import { ISoftwareResponse, ISoftwareCountResponse } from "interfaces/software";
 import { API_ALL_TEAMS_ID, ITeam } from "interfaces/team";
-import { IConfig } from "interfaces/config";
-import { isHistoricalDataEnabled } from "interfaces/charts";
-
-import { useTeamIdParam } from "hooks/useTeamIdParam";
-
+import paths from "router/paths";
+import configAPI from "services/entities/config";
 import enrollSecretsAPI from "services/entities/enroll_secret";
 import hostSummaryAPI from "services/entities/host_summary";
+import hosts from "services/entities/hosts";
 import macadminsAPI from "services/entities/macadmins";
 import softwareAPI, {
   ISoftwareQueryKey,
   ISoftwareCountQueryKey,
 } from "services/entities/software";
 import teamsAPI, { ILoadTeamsResponse } from "services/entities/teams";
-import configAPI from "services/entities/config";
-import hosts from "services/entities/hosts";
-
-import sortUtils from "utilities/sort";
 import {
   DEFAULT_USE_QUERY_OPTIONS,
   PlatformValueOptions,
 } from "utilities/constants";
+import sortUtils from "utilities/sort";
 
-import { ITableQueryData } from "components/TableContainer/TableContainer";
+import AddHostsModal from "../../components/AddHostsModal";
 
-import FleetsDropdown from "components/FleetsDropdown";
-import Spinner from "components/Spinner";
-import CustomLink from "components/CustomLink";
-import { SingleValue } from "react-select-5";
-import DropdownWrapper from "components/forms/fields/DropdownWrapper";
-import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
-import MainContent from "components/MainContent";
-import LastUpdatedText from "components/LastUpdatedText";
-import Card from "components/Card";
-import DataError from "components/DataError";
-
-import {
-  LOW_DISK_SPACE_GB,
-  PLATFORM_DROPDOWN_OPTIONS,
-  PLATFORM_NAME_TO_LABEL_NAME,
-} from "./helpers";
-import useInfoCard from "./components/InfoCard";
-import MetricsHostCounts from "./sections/MetricsHostCounts";
 import ActivityFeed from "./cards/ActivityFeed";
-import Software from "./cards/Software";
-import LearnFleet from "./cards/LearnFleet";
-import WelcomeHost from "./cards/WelcomeHost";
-import Mdm from "./cards/MDM";
-import Munki from "./cards/Munki";
-import OperatingSystems from "./cards/OperatingSystems";
 import ChartCard from "./cards/ChartCard";
 import {
   HostsEnrolledCard,
   IHostPlatformCounts,
 } from "./cards/HostsEnrolledCard";
-import AddHostsModal from "../../components/AddHostsModal";
-import MdmSolutionModal from "./components/MdmSolutionModal";
+import LearnFleet from "./cards/LearnFleet";
+import Mdm from "./cards/MDM";
+import Munki from "./cards/Munki";
+import OperatingSystems from "./cards/OperatingSystems";
+import Software from "./cards/Software";
+import WelcomeHost from "./cards/WelcomeHost";
 import ActivityFeedAutomationsModal from "./components/ActivityFeedAutomationsModal";
 import { IAFAMFormData } from "./components/ActivityFeedAutomationsModal/ActivityFeedAutomationsModal";
+import useInfoCard from "./components/InfoCard";
+import MdmSolutionModal from "./components/MdmSolutionModal";
+import {
+  LOW_DISK_SPACE_GB,
+  PLATFORM_DROPDOWN_OPTIONS,
+  PLATFORM_NAME_TO_LABEL_NAME,
+} from "./helpers";
+import MetricsHostCounts from "./sections/MetricsHostCounts";
 
 const baseClass = "dashboard-page";
 

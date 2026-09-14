@@ -199,7 +199,7 @@ Respond in JSON with this data shape:
 If a configuration profile cannot be generated from the provided instructions, respond with this shape instead:
 {
   "couldNotGenerateProfile": true,
-  // Explain why a profile could not be generated, naming the specific setting, node, or key you could not confirm.
+  // Explain why a profile could not be generated, naming the specific setting, node, or key that could not be confirmed. The tone should be informational and brief.
   "reasonWhyAProfileCouldNotBeGenerated": TODO
 }
 `;
@@ -238,7 +238,11 @@ If a configuration profile cannot be generated from the provided instructions, r
       !configurationProfileGenerationResult.settingsEnforced
     ) {
       if(this.req.isSocket){
-        sails.sockets.broadcast(roomId, 'error', {error: 'couldNotGenerateProfile'});
+        if(configurationProfileGenerationResult.reasonWhyAProfileCouldNotBeGenerated){
+          sails.sockets.broadcast(roomId, 'error', {error: 'couldNotGenerateProfile', reason: configurationProfileGenerationResult.reasonWhyAProfileCouldNotBeGenerated});
+        } else {
+          sails.sockets.broadcast(roomId, 'error', {error: 'couldNotGenerateProfile'});
+        }
         sails.sockets.leave(this.req, roomId);
         return;
       } else {

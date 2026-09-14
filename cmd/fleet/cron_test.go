@@ -138,6 +138,26 @@ func TestMigrateABMTokenDuringDEPCronJob(t *testing.T) {
 	require.Empty(t, hosts)
 }
 
+func TestCleanupUnusedSoftwareInstallersCronJob(t *testing.T) {
+	ds := new(mock.Store)
+
+	const budget = time.Minute
+	var deadline time.Time
+	var hasDeadline bool
+	ds.CleanupUnusedSoftwareInstallersFunc = func(ctx context.Context, softwareInstallStore fleet.SoftwareInstallerStore, removeCreatedBefore time.Time) error {
+		deadline, hasDeadline = ctx.Deadline()
+		return nil
+	}
+
+	// The schedule hands each job a context with no deadline, so the budget has to come from the job.
+	err := cleanupUnusedSoftwareInstallersCronJob(context.Background(), ds, nil, budget)
+	require.NoError(t, err)
+	require.True(t, ds.CleanupUnusedSoftwareInstallersFuncInvoked)
+	require.True(t, hasDeadline, "the S3 calls must inherit the job time budget")
+	require.Positive(t, time.Until(deadline))
+	require.LessOrEqual(t, time.Until(deadline), budget)
+}
+
 func TestCleanupStaleOSVVulnerabilities(t *testing.T) {
 	ctx := t.Context()
 	logger := slog.New(slog.DiscardHandler)

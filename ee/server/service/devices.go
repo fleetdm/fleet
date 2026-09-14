@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"math"
 	"net/http"
 	"net/url"
 	"strings"
@@ -226,8 +227,17 @@ func (svc *Service) GetFleetDesktopSummary(ctx context.Context) (fleet.DesktopSu
 }
 
 func (svc *Service) TriggerLinuxDiskEncryptionEscrow(ctx context.Context, host *fleet.Host) error {
-	if svc.ds.IsHostPendingEscrow(ctx, host.ID) {
+	escrow, err := svc.ds.GetHostEscrowState(ctx, host.ID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting linux escrow state")
+	}
+	// queued but not yet picked up by fleetd, so a prompt is still on its way
+	if escrow.Pending {
 		return nil
+	}
+	// fleetd is still prompting for the previous request; queueing again would prompt twice.
+	if remaining := escrow.InFlightRemaining(fleet.LinuxEscrowInFlightWindow); remaining > 0 {
+		return &fleet.LinuxEscrowInFlightError{RetryAfterSeconds: int(math.Ceil(remaining.Seconds()))}
 	}
 
 	if err := svc.ds.AssertHasNoEncryptionKeyStored(ctx, host.ID); err != nil {

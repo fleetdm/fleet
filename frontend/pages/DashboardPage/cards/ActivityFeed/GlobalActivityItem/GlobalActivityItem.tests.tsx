@@ -1,5 +1,5 @@
-import React from "react";
 import { render, screen } from "@testing-library/react";
+import React from "react";
 
 import { createMockActivity } from "__mocks__/activityMock";
 import createMockQuery from "__mocks__/queryMock";
@@ -25,6 +25,42 @@ describe("Activity Feed", () => {
     expect(screen.getByRole("img")).toHaveAttribute("alt", "User avatar");
     expect(screen.getByText("Test User")).toBeInTheDocument();
     expect(screen.getByText("2 days ago")).toBeInTheDocument();
+  });
+
+  it("renders a policy-wide reset_policy activity", () => {
+    const activity = createMockActivity({
+      type: ActivityType.ResetPolicy,
+      details: { policy_name: "Test policy", team_id: -1 },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText(/reset the policy/i, { exact: false })
+    ).toBeInTheDocument();
+    expect(screen.getByText("Test policy")).toBeInTheDocument();
+    expect(
+      screen.getByText(/globally\./i, { exact: false })
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/for host/i)).not.toBeInTheDocument();
+  });
+
+  it("renders a host-scoped reset_policy activity with the host name and no fleet scope", () => {
+    const activity = createMockActivity({
+      type: ActivityType.ResetPolicy,
+      details: {
+        policy_name: "Test policy",
+        team_id: 1,
+        team_name: "Workstations",
+        host_id: 42,
+        host_display_name: "Anna's MacBook",
+      },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(screen.getByText(/for host/i, { exact: false })).toBeInTheDocument();
+    expect(screen.getByText("Anna's MacBook")).toBeInTheDocument();
+    expect(screen.queryByText("Workstations")).not.toBeInTheDocument();
+    expect(screen.queryByText(/globally/i)).not.toBeInTheDocument();
   });
 
   it("renders a default activity for activities without a specific message", () => {

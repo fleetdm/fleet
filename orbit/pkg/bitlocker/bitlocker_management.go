@@ -1,5 +1,7 @@
 package bitlocker
 
+import "fmt"
+
 // Volume encryption/decryption status.
 //
 // Values and their meanings were taken from:
@@ -90,19 +92,35 @@ const (
 // https://learn.microsoft.com/en-us/windows/win32/secprov/getkeyprotectors-win32-encryptablevolume
 const (
 	KeyProtectorTypeTPM                    int32 = 1
+	KeyProtectorTypeExternalKey            int32 = 2
 	KeyProtectorTypeNumericalPassword      int32 = 3
 	KeyProtectorTypeTPMAndPIN              int32 = 4
 	KeyProtectorTypeTPMAndStartupKey       int32 = 5
 	KeyProtectorTypeTPMAndPINAndStartupKey int32 = 6
 )
 
-// TPMFamilyProtectorTypes are the key protector types that can release the volume master key at boot without a human
-// typing the 48-digit recovery password. The PIN variants prompt for a PIN, which is by design and is not a recovery
-// prompt.
+// BootUnsealProtectorTypes are the key protector types that can release the volume master key at boot without a human typing the
+// 48-digit recovery password. The PIN and startup key variants prompt the user, which is by design and is not a recovery prompt.
 // https://learn.microsoft.com/en-us/windows/win32/secprov/getkeyprotectors-win32-encryptablevolume
-var TPMFamilyProtectorTypes = []int32{
+var BootUnsealProtectorTypes = []int32{
 	KeyProtectorTypeTPM,
+	KeyProtectorTypeExternalKey,
 	KeyProtectorTypeTPMAndPIN,
 	KeyProtectorTypeTPMAndStartupKey,
 	KeyProtectorTypeTPMAndPINAndStartupKey,
+}
+
+// ensureBootUnsealProtector adds a TPM-only protector when, and only when, the volume has nothing that can already
+// release the volume master key at boot.
+func ensureBootUnsealProtector(hasBootProtector func() (bool, error), addTPMProtector func() error) error {
+	has, err := hasBootProtector()
+	if err != nil {
+		// Adding a protector blind risks the bypass above, so leaving a pre-encrypted disk without a TPM protector is
+		// the safer of the two failures.
+		return fmt.Errorf("listing boot protectors: %w", err)
+	}
+	if has {
+		return nil
+	}
+	return addTPMProtector()
 }

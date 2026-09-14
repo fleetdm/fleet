@@ -1,11 +1,11 @@
+import { screen } from "@testing-library/react";
 import React from "react";
 
-import { screen } from "@testing-library/react";
-
-import { createMockRouter, createCustomRenderer } from "test/test-utils";
 import { createMockConfig, createMockMdmConfig } from "__mocks__/configMock";
 import { IMdmConfig } from "interfaces/config";
 import configAPI from "services/entities/config";
+import { createMockRouter, createCustomRenderer } from "test/test-utils";
+
 import WindowsMdmPage from "./WindowsMdmPage";
 
 jest.mock("services/entities/config");

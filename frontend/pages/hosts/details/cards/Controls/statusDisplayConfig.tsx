@@ -1,5 +1,6 @@
 import React from "react";
 
+import { IconNames } from "components/icons";
 import {
   FLEET_ANDROID_CERTIFICATE_TEMPLATE_PROFILE_ID,
   FLEET_FILEVAULT_PROFILE_DISPLAY_NAME,
@@ -10,12 +11,15 @@ import {
 } from "interfaces/mdm";
 import { isDDMProfile } from "services/entities/mdm";
 
-import { IconNames } from "components/icons";
-
 import {
   HOST_NAME_SYNTHETIC_PROFILE_UUID,
   REC_LOCK_SYNTHETIC_PROFILE_UUID,
 } from "../../helpers";
+
+import {
+  getAndroidCertificateRetryMessage,
+  isRetryingAndroidCertificate,
+} from "./detailFormatting";
 import {
   IHostMdmProfileWithAddedStatus,
   OsSettingsTableStatusValue,
@@ -400,10 +404,30 @@ export const RECOVERY_LOCK_PASSWORD_DISPLAY_CONFIG: Record<
   },
 };
 
+export const ANDROID_CERT_RETRYING_DISPLAY_CONFIG: ProfileDisplayOption = {
+  statusText: "Retrying",
+  // Deliberately the same icon the in-progress statuses use, rather than a warning icon: a retry
+  // is still in flight, and a new status icon would have to be introduced across the rest of the
+  // controls UI. The status text and message carry the difference.
+  iconName: "pending-outline",
+  // Filled in per row, see getAndroidCertificateRetryMessage.
+  message: null,
+};
+
 const getAndroidCertificateDisplayOption = (
+  row: IHostMdmProfileWithAddedStatus,
   status: OsSettingsTableStatusValue,
   operationType: ProfileOperationType | null
 ): ProfileDisplayOption => {
+  // A retry keeps an in-progress status while carrying the failed attempt's detail, so it has to
+  // be checked ahead of the statuses below rather than folded into them.
+  if (isRetryingAndroidCertificate(row)) {
+    return {
+      ...ANDROID_CERT_RETRYING_DISPLAY_CONFIG,
+      message: getAndroidCertificateRetryMessage(row),
+    };
+  }
+
   switch (status) {
     case "pending":
     case "delivering":
@@ -484,7 +508,7 @@ export const getControlDisplayOption = (
     platform === "android" &&
     profileUUID === FLEET_ANDROID_CERTIFICATE_TEMPLATE_PROFILE_ID
   ) {
-    return getAndroidCertificateDisplayOption(status, operationType);
+    return getAndroidCertificateDisplayOption(row, status, operationType);
   }
 
   // The synthesized Windows disk encryption row has no operation type.

@@ -1,22 +1,18 @@
-import React, { useState } from "react";
 import classnames from "classnames";
+import React, { useState } from "react";
 
+import Button from "components/buttons/Button";
+import CustomLink from "components/CustomLink";
+import FileDetails from "components/FileDetails";
+import Radio from "components/forms/fields/Radio";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import { DropdownTargetLabelSelector } from "components/TargetLabelSelector";
 import useGitOpsMode from "hooks/useGitOpsMode";
-
 import { ILabelSummary } from "interfaces/label";
 import { PLATFORM_DISPLAY_NAMES } from "interfaces/platform";
 import { IAppStoreApp, isIpadOrIphoneSoftware } from "interfaces/software";
-import { IVppApp } from "services/entities/mdm_apple";
-
-import CustomLink from "components/CustomLink";
-import Radio from "components/forms/fields/Radio";
-import Button from "components/buttons/Button";
-import FileDetails from "components/FileDetails";
 import SoftwareOptionsSelector from "pages/SoftwarePage/components/forms/SoftwareOptionsSelector";
-import { DropdownTargetLabelSelector } from "components/TargetLabelSelector";
-import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
-
 import {
   CUSTOM_TARGET_OPTIONS,
   generateHelpText,
@@ -24,9 +20,11 @@ import {
   getCustomTarget,
   getTargetType,
 } from "pages/SoftwarePage/helpers";
+import { IVppApp } from "services/entities/mdm_apple";
+
+import SoftwareDeploySlider from "../SoftwareDeploySlider";
 
 import { generateFormValidation, getUniqueAppId } from "./helpers";
-import SoftwareDeploySlider from "../SoftwareDeploySlider";
 
 const baseClass = "software-vpp-form";
 

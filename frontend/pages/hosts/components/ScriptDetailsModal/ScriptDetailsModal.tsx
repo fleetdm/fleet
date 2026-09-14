@@ -1,3 +1,5 @@
+import { format } from "date-fns";
+import FileSaver from "file-saver";
 import React, {
   useCallback,
   useContext,
@@ -5,25 +7,22 @@ import React, {
   useState,
   useEffect,
 } from "react";
-import { format } from "date-fns";
 import { useQuery } from "react-query";
-import FileSaver from "file-saver";
 
-import { AppContext } from "context/app";
-import scriptAPI from "services/entities/scripts";
-import { IHostScript } from "interfaces/script";
-
-import { notify } from "components/ToastNotification";
+import ActionsDropdown from "components/ActionsDropdown";
+import Button from "components/buttons/Button";
+import DataError from "components/DataError";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import Modal from "components/Modal";
 import ModalFooter from "components/ModalFooter";
-import Button from "components/buttons/Button";
 import Spinner from "components/Spinner";
 import Textarea from "components/Textarea";
-import DataError from "components/DataError";
-import ActionsDropdown from "components/ActionsDropdown";
+import { notify } from "components/ToastNotification";
+import { AppContext } from "context/app";
+import { IHostScript } from "interfaces/script";
 import { generateActionDropdownOptions } from "pages/hosts/details/HostDetailsPage/modals/RunScriptModal/ScriptsTableConfig";
-import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import { IPaginatedListScript } from "pages/hosts/ManageHostsPage/components/RunScriptBatchPaginatedList/RunScriptBatchPaginatedList";
+import scriptAPI from "services/entities/scripts";
 
 import RunScriptHelpText from "./RunScriptHelpText";
 

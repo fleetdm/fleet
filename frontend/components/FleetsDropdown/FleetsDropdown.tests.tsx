@@ -1,12 +1,13 @@
-import React from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { noop } from "lodash";
+import React from "react";
+
+import createMockConfig from "__mocks__/configMock";
+import { APP_CONTEXT_NO_TEAM_ID } from "interfaces/team";
 // TODO: Replace renderWithAppContext with createCustomRenderer (inherited
 // from pre-rename TeamsDropdown.tests.tsx).
 import { renderWithAppContext } from "test/test-utils";
-import { APP_CONTEXT_NO_TEAM_ID } from "interfaces/team";
-import createMockConfig from "__mocks__/configMock";
 
 import FleetsDropdown from "./FleetsDropdown";
 

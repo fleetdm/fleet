@@ -1,8 +1,9 @@
-import React from "react";
 import { render, screen } from "@testing-library/react";
+import React from "react";
 
 import createMockHost from "__mocks__/hostMock";
 import { MdmEnrollmentStatus } from "interfaces/mdm";
+
 import HostMdmStatusCell from "./HostMdmStatusCell";
 
 const renderCell = (platform: string, value?: MdmEnrollmentStatus) => {

@@ -64,7 +64,7 @@ The value now shows in the host's vitals, and the change is recorded in the host
 
 ### API
 
-Set a host's value with the [Fleet REST API](https://fleetdm.com/docs/rest-api/rest-api). This is useful for syncing values from an external system of record (for example, an asset management tool):
+Set a host's value with the [Fleet API](https://fleetdm.com/docs/rest-api/rest-api#update-hosts-custom-host-vital-value). This is useful for syncing values from an external system of record (for example, an asset management tool):
 
 ```sh
 curl -X PUT https://<your-fleet-url>/api/v1/fleet/hosts/<host_id>/custom_host_vitals/<id> \

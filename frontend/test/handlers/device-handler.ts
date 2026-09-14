@@ -1,5 +1,7 @@
 import { http, HttpResponse } from "msw";
 
+import { createMockHostCertificate } from "__mocks__/certificatesMock";
+import { createMockAppleMdmCommandResult } from "__mocks__/commandMock";
 import {
   createMockDeviceSoftwareResponse,
   createMockSetupSoftwareStatusesResponse,
@@ -7,16 +9,13 @@ import {
 import createMockHost from "__mocks__/hostMock";
 import createMockLicense from "__mocks__/licenseMock";
 import createMockMacAdmins from "__mocks__/macAdminsMock";
-import { createMockHostCertificate } from "__mocks__/certificatesMock";
-import { createMockAppleMdmCommandResult } from "__mocks__/commandMock";
-
-import { baseUrl } from "test/test-utils";
 import { IDUPDetails } from "interfaces/host";
 import {
   IGetDeviceSoftwareResponse,
   IGetSetupExperienceStatusesResponse,
 } from "services/entities/device_user";
 import { IGetHostCertificatesResponse } from "services/entities/hosts";
+import { baseUrl } from "test/test-utils";
 
 const createDefaultDeviceResponse = (): IDUPDetails => ({
   host: { ...createMockHost(), dep_assigned_to_fleet: false },

@@ -19,7 +19,12 @@ import (
 
 const (
 	// scepInstallLocURINode is the Windows SCEP ClientCertificateInstall node in scope-less form.
-	scepInstallLocURINode     = "Vendor/MSFT/ClientCertificateInstall/SCEP"
+	scepInstallLocURINode = "Vendor/MSFT/ClientCertificateInstall/SCEP"
+
+	// WindowsSCEPSubjectNameSuffix ends the LocURI of the SCEP node carrying the certificate's
+	// subject name as an X.500 string.
+	WindowsSCEPSubjectNameSuffix = "/Install/SubjectName"
+
 	WindowsMDMAuthNoncePrefix = "mwenonce:"
 )
 
@@ -910,6 +915,9 @@ type MDMWindowsHostConfigState struct {
 	FleetdSyncCapable bool
 	// ManagedLocalAccountEscrowed is true once the device has escrowed a managed local account password for this enrollment.
 	ManagedLocalAccountEscrowed bool
+	// ManagedLocalAccountRotationRequested asks the device to re-provision the account even though a password is already
+	// escrowed. Cleared once it escrows the replacement.
+	ManagedLocalAccountRotationRequested bool
 }
 
 type MDMWindowsEnrolledDevice struct {
