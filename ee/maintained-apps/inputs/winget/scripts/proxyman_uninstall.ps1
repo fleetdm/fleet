@@ -180,9 +180,21 @@ try {
 
         if (Test-Path -LiteralPath $installDir) {
             Write-Host "  Uninstaller left $installDir behind; removing it."
-            Remove-Item -LiteralPath $installDir -Recurse -Force -ErrorAction SilentlyContinue
+            # A file in here can stay open for a few seconds after the uninstaller
+            # exits -- a virus scanner, or a process still on its way out -- so retry.
+            for ($attempt = 0; $attempt -lt 30; $attempt++) {
+                Remove-Item -LiteralPath $installDir -Recurse -Force -ErrorAction SilentlyContinue
+                if (-not (Test-Path -LiteralPath $installDir)) { break }
+                Start-Sleep -Seconds 2
+            }
             if (Test-Path -LiteralPath $installDir) {
-                Write-Host "  WARNING: could not remove $installDir."
+                Write-Host "  WARNING: could not remove $installDir. Left behind:"
+                Get-ChildItem -LiteralPath $installDir -Recurse -Force -File -ErrorAction SilentlyContinue |
+                    Select-Object -First 10 -ExpandProperty FullName |
+                    ForEach-Object { Write-Host "    $_" }
+                Get-Process -ErrorAction SilentlyContinue |
+                    Where-Object { $_.Path -and $_.Path.StartsWith($installDir, [System.StringComparison]::OrdinalIgnoreCase) } |
+                    ForEach-Object { Write-Host "    still running: $($_.Name) (PID $($_.Id))" }
                 if ($exitCode -eq 0) { $exitCode = 1 }
             }
         }
