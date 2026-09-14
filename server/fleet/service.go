@@ -1243,12 +1243,12 @@ type Service interface {
 	// LinuxEscrowInFlightError while fleetd is handling an earlier one.
 	TriggerLinuxDiskEncryptionEscrow(ctx context.Context, host *Host) error
 
-	// SubmitBitLockerPIN accepts a BitLocker startup PIN the end user typed on their My device page and queues it,
-	// encrypted, for the host's agent to apply. Device-authenticated.
+	// SubmitBitLockerPIN accepts a BitLocker startup PIN the end user typed on their My device page and queues it, encrypted, for the
+	// host's agent to apply. Device-authenticated.
 	SubmitBitLockerPIN(ctx context.Context, host *Host, pin string) error
 
-	// BitLockerPINStateForDevice reports whether this host's fleetd can apply an end-user-chosen BitLocker PIN, and
-	// where any submission stands, so the My device page knows which modal to show and what to poll for.
+	// BitLockerPINStateForDevice reports whether this host's fleetd can apply an end-user-chosen BitLocker PIN, and where any
+	// submission stands, so the My device page knows which modal to show and what to poll for.
 	BitLockerPINStateForDevice(ctx context.Context, host *Host) (fleetdCanSetPIN bool, request *HostBitLockerPINRequest, err error)
 
 	// CheckMDMAppleEnrollmentWithMinimumOSVersion checks if the minimum OS version is met for a MDM enrollment
