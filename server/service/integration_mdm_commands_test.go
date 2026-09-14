@@ -1169,8 +1169,9 @@ func (s *integrationMDMTestSuite) TestLockUnlockWipeIOSIpadOS() {
 		})
 	}
 
-	iosHost, iosMDMClient = s.createAppleMobileHostThenDEPEnrollMDM("ios", mdmtest.RandSerialNumber())
-	iPadOSHost, iPadOSMDMClient = s.createAppleMobileHostThenDEPEnrollMDM("ipados", mdmtest.RandSerialNumber())
+	// manually enrolled devices do not go through the automatic enrollment endpoint
+	iosHost, iosMDMClient = s.createAppleMobileHostThenEnrollMDM("ios")
+	iPadOSHost, iPadOSMDMClient = s.createAppleMobileHostThenEnrollMDM("ipados")
 
 	for _, tc := range []struct {
 		name      string

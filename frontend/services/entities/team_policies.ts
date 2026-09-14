@@ -1,17 +1,18 @@
 /* eslint-disable  @typescript-eslint/explicit-module-boundary-types */
 import { snakeCase, reduce } from "lodash";
 
-import sendRequest from "services";
-import endpoints from "utilities/endpoints";
+import { QueryablePlatform } from "interfaces/platform";
 import {
   ILoadTeamPoliciesResponse,
   IPolicyFormData,
   IPoliciesCountResponse,
   ILoadTeamPolicyResponse,
 } from "interfaces/policy";
-import { QueryablePlatform } from "interfaces/platform";
 import { API_NO_TEAM_ID } from "interfaces/team";
+import sendRequest from "services";
+import endpoints from "utilities/endpoints";
 import { buildQueryStringFromParams, QueryParams } from "utilities/url";
+
 import { GlobalPoliciesAutomationType } from "./global_policies";
 
 export type AutomationType =
@@ -130,7 +131,7 @@ export default {
       continuous_automations_enabled,
       patch_when_closed,
       software_title_id,
-      software_installer_id,
+      software_package_id,
       script_id,
       profile_uuid,
       labels_include_any,
@@ -153,7 +154,7 @@ export default {
       continuous_automations_enabled,
       patch_when_closed,
       software_title_id,
-      software_installer_id,
+      software_package_id,
       script_id,
       profile_uuid,
       labels_include_any,

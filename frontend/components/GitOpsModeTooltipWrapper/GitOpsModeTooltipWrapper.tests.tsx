@@ -1,10 +1,9 @@
-import React from "react";
-
 import { screen, waitFor } from "@testing-library/react";
-import { createCustomRenderer } from "test/test-utils";
+import React from "react";
 
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
+import { createCustomRenderer } from "test/test-utils";
 
 import GitOpsModeTooltipWrapper from "./GitOpsModeTooltipWrapper";
 

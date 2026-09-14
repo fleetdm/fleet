@@ -63,6 +63,17 @@ func TestPackage(t *testing.T) {
 		}
 	})
 
+	t.Run("--cpu-quota is only available for Linux packages", func(t *testing.T) {
+		for _, p := range []string{"pkg", "msi"} {
+			fleetctltest.RunAppCheckErr(
+				t,
+				[]string{"package", fmt.Sprintf("--type=%s", p), "--cpu-quota=1"},
+				"--cpu-quota is only supported for deb/rpm/pkg.tar.zst packages",
+			)
+		}
+		fleetctltest.RunAppCheckErr(t, []string{"package", "--type=deb", "--cpu-quota=0"}, "--cpu-quota must be greater than 0")
+	})
+
 	// fleet-osquery.msi
 	// runAppForTest(t, []string{"package", "--type=msi", "--insecure"}) TODO: this is currently failing on Github runners due to permission issues
 	// info, err = os.Stat("orbit-osquery_0.0.3.msi")

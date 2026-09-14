@@ -5,7 +5,7 @@
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.surfshark.vpnclient.macos.direct';",
         "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.surfshark.vpnclient.macos.direct' AND version_compare(bundle_short_version, '4.29.0') < 0);",
-        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.surfshark.vpnclient.macos.direct');"
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.surfshark.vpnclient.macos.direct' AND a.bundle_executable != '');"
       },
       "installer_url": "https://downloads.surfshark.com/macOS/stable/4.29.0/4541/Surfshark.dmg",
       "install_script_ref": "d4776102",

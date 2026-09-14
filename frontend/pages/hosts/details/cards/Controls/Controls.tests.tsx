@@ -1,7 +1,8 @@
-import React from "react";
 import { screen, waitFor } from "@testing-library/react";
-import { createCustomRenderer, createMockRouter } from "test/test-utils";
+import React from "react";
+
 import { createMockHostMdmProfile } from "__mocks__/hostMock";
+import { createCustomRenderer, createMockRouter } from "test/test-utils";
 
 import Controls from "./Controls";
 import { IHostMdmProfileWithAddedStatus } from "./OSSettingsTableConfig";
@@ -98,6 +99,22 @@ describe("Controls card", () => {
 
       expect(screen.getByText("---")).toBeInTheDocument();
     });
+  });
+
+  it("shows sort indicators on the sortable Name and Status columns", () => {
+    renderControls({
+      controls: [control({ profile_uuid: "a", name: "A", status: "verified" })],
+    });
+
+    const sortArrows = (label: string) =>
+      screen
+        .getAllByRole("columnheader")
+        .find((th) => th.textContent === label)
+        ?.querySelector(".sort-arrows");
+
+    expect(sortArrows("Name")).toBeTruthy();
+    expect(sortArrows("Status")).toBeTruthy();
+    expect(sortArrows("Details")).toBeFalsy();
   });
 
   it("sorts by status priority: failed, action required, enforcing, removing enforcement, verifying, verified", () => {
@@ -198,22 +215,22 @@ describe("Controls card", () => {
     // A host Fleet has no MDM connection to can't receive controls at all, so
     // "none have been added" would point at the wrong problem.
     describe("a host not connected to Fleet MDM", () => {
-      it("says the host isn't enrolled", () => {
+      it("says the host isn't talking to Fleet for MDM features", () => {
         renderControls({ canAddControls: true, isConnectedToFleetMdm: false });
 
         expect(
           screen.getByText(
-            "No controls available. This host isn't enrolled in MDM."
+            "No controls available. This host isn't talking to Fleet for MDM features."
           )
         ).toBeInTheDocument();
       });
 
-      it("says the device isn't enrolled on My device", () => {
+      it("says the device isn't talking to Fleet for MDM features on My device", () => {
         renderControls({ isDeviceUser: true, isConnectedToFleetMdm: false });
 
         expect(
           screen.getByText(
-            "No controls available. Your device isn't enrolled in MDM."
+            "No controls available. Your device isn't talking to Fleet for MDM features."
           )
         ).toBeInTheDocument();
       });

@@ -1,14 +1,12 @@
 import React from "react";
-
 import { CellProps, Column } from "react-table";
 
-import { ISetupStep } from "interfaces/setup";
-import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
-
-import SetupSoftwareProcessCell from "components/TableContainer/DataTable/SetupSoftwareProcessCell";
-import SetupSoftwareStatusCell from "components/TableContainer/DataTable/SetupSoftwareStatusCell";
 import SetupScriptProcessCell from "components/TableContainer/DataTable/SetupScriptProcessCell";
 import SetupScriptStatusCell from "components/TableContainer/DataTable/SetupScriptStatusCell";
+import SetupSoftwareProcessCell from "components/TableContainer/DataTable/SetupSoftwareProcessCell";
+import SetupSoftwareStatusCell from "components/TableContainer/DataTable/SetupSoftwareStatusCell";
+import { ISetupStep } from "interfaces/setup";
+import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
 
 type ISetupStatusTableConfig = Column<ISetupStep>;
 type ITableCellProps = CellProps<ISetupStep>;

@@ -6,6 +6,7 @@ import (
 	"sync/atomic"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/server/config"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
@@ -22,7 +23,7 @@ func rawMessagePtr(s string) *json.RawMessage {
 // pack config cache testing. The returned callCounter tracks the number of
 // times ListScheduledQueriesForAgents is invoked (the main DB call that the
 // cache is intended to avoid).
-func setupPackConfigCacheTest(t *testing.T) (
+func setupPackConfigCacheTest(t *testing.T, cfgs ...config.FleetConfig) (
 	svc *Service,
 	ds *mock.Store,
 	callCounter *atomic.Int64,
@@ -89,9 +90,40 @@ func setupPackConfigCacheTest(t *testing.T) (
 		return &fleet.Host{ID: id}, nil
 	}
 
-	fleetSvc, _ := newTestService(t, ds, nil, nil)
+	cfg := config.TestConfig()
+	if len(cfgs) > 0 {
+		cfg = cfgs[0]
+	}
+	fleetSvc, _ := newTestServiceWithConfig(t, ds, cfg, nil, nil)
 	svc = fleetSvc.(validationMiddleware).Service.(*Service)
 	return svc, ds, callCounter
+}
+
+func TestPackConfigCacheDisabledByFlag(t *testing.T) {
+	cfg := config.TestConfig()
+	cfg.Osquery.ConfigInMemoryCache = false
+	svc, _, callCounter := setupPackConfigCacheTest(t, cfg)
+
+	require.Nil(t, svc.packConfigCache, "cache must not be constructed when the flag is off")
+
+	host := &fleet.Host{ID: 1}
+	ctx := hostctx.NewContext(t.Context(), host)
+
+	conf1, err := svc.GetClientConfig(ctx)
+	require.NoError(t, err)
+	require.Contains(t, conf1, "packs")
+	callsAfterFirst := callCounter.Load()
+	require.Positive(t, callsAfterFirst)
+
+	conf2, err := svc.GetClientConfig(ctx)
+	require.NoError(t, err)
+	assert.Greater(t, callCounter.Load(), callsAfterFirst,
+		"expected a fresh DB build on every call while the cache is disabled")
+
+	assert.JSONEq(t,
+		string(conf1["packs"].(json.RawMessage)),
+		string(conf2["packs"].(json.RawMessage)),
+	)
 }
 
 // TestPackConfigCacheHit verifies that two consecutive GetClientConfig calls

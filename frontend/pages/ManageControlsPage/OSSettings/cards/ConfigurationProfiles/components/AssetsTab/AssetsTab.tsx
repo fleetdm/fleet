@@ -2,25 +2,25 @@ import React, { useContext, useRef, useState } from "react";
 import { useQuery } from "react-query";
 import { InjectedRouter } from "react-router";
 
-import PATHS from "router/paths";
-import { AppContext } from "context/app";
-import { notify } from "components/ToastNotification";
-
-import { getErrorReason } from "interfaces/errors";
-import { IMdmAsset } from "interfaces/mdm";
-import mdmAPI, { IListAssetsResponse } from "services/entities/mdm";
-
 import Button from "components/buttons/Button";
+import CustomLink from "components/CustomLink";
 import DataError from "components/DataError";
 import EmptyState from "components/EmptyState";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import PageDescription from "components/PageDescription";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 import Spinner from "components/Spinner";
+import { notify } from "components/ToastNotification";
 import UploadList from "components/UploadList";
+import { AppContext } from "context/app";
+import { getErrorReason } from "interfaces/errors";
+import { IMdmAsset } from "interfaces/mdm";
+import PATHS from "router/paths";
+import mdmAPI, { IListAssetsResponse } from "services/entities/mdm";
+import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 
-import AssetListItem from "../AssetListItem";
 import AddAssetModal from "../AddAssetModal";
+import AssetListItem from "../AssetListItem";
 import DeleteAssetModal from "../DeleteAssetModal";
 
 const baseClass = "assets-tab";
@@ -137,7 +137,7 @@ const AssetsTab = ({ currentTeamId, router }: IAssetsTabProps) => {
           header="No assets"
           info={
             canAddAsset
-              ? "Add an asset to make it available for reference in Apple DDM declarations."
+              ? "Add assets (data or credentials) to use them in many Apple declaration (DDM) profiles. Apple only."
               : "No assets have been added."
           }
           primaryButton={
@@ -180,7 +180,17 @@ const AssetsTab = ({ currentTeamId, router }: IAssetsTabProps) => {
       <div className={`${baseClass}__tab-header`}>
         <PageDescription
           variant="right-panel"
-          content="Manage assets that provide data or credentials referenced by DDM declarations."
+          content={
+            <>
+              Add assets (data or credentials) to use them in Apple declaration
+              (DDM) profiles. Apple only.{" "}
+              <CustomLink
+                url={`${LEARN_MORE_ABOUT_BASE_LINK}/configuration-profile-assets`}
+                text="Learn more"
+                newTab
+              />
+            </>
+          }
         />
         {showAddAssetButton && (
           <GitOpsModeTooltipWrapper

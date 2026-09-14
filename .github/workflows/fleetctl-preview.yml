@@ -1,4 +1,8 @@
 # Tests the `fleetctl preview` command with latest npm released version of fleetctl.
+#
+# This workflow intentionally installs fleetctl with `npm install -g fleetctl` even though
+# other workflows use install-fleetctl.sh: it is the only CI coverage of the npm package
+# (tools/fleetctl-npm), so keep it on npm.
 name: Test fleetctl preview
 
 on:
@@ -57,10 +61,31 @@ jobs:
 
     - name: Upload logs
       if: always()
-      uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b # v4.5.0
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
       with:
         name: ${{ matrix.os }}-log
         path: |
           fleet-logs.txt
           orbit.log
           osquery_result_status_logs
+
+    - name: Slack Notification
+      if: github.event_name == 'schedule' && failure()
+      uses: slackapi/slack-github-action@e28cf165c92ffef168d23c5c9000cffc8a25e117 # v1.24.0
+      with:
+        payload: |
+          {
+            "text": "${{ job.status }}",
+            "blocks": [
+              {
+                "type": "section",
+                "text": {
+                  "type": "mrkdwn",
+                  "text": "⚠️  Nightly `fleetctl preview` test with the npm-published fleetctl failed.\nhttps://github.com/fleetdm/fleet/actions/runs/${{ github.run_id }}"
+                }
+              }
+            ]
+          }
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_G_HELP_ENGINEERING_WEBHOOK_URL }}
+        SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK

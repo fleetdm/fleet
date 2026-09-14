@@ -1,4 +1,11 @@
-import React from "react";
+import {
+  formatDuration,
+  intlFormat,
+  intervalToDuration,
+  isAfter,
+  addDays,
+} from "date-fns";
+import md5 from "js-md5";
 import {
   isEmpty,
   flatMap,
@@ -10,20 +17,14 @@ import {
   union,
   uniqueId,
 } from "lodash";
-import md5 from "js-md5";
-import {
-  formatDuration,
-  intlFormat,
-  intervalToDuration,
-  isAfter,
-  addDays,
-} from "date-fns";
+import React from "react";
 
-import { QueryParams, buildQueryStringFromParams } from "utilities/url";
-import { timeAgo } from "utilities/date_format";
+import CustomLink from "components/CustomLink";
+import { IDropdownOption } from "interfaces/dropdownOption";
 import { IHost } from "interfaces/host";
 import { ILabel } from "interfaces/label";
 import { IPack } from "interfaces/pack";
+import type { IRegistrationFormData } from "interfaces/registration_form_data";
 import type { PerformanceImpactIndicator } from "interfaces/schedulable_query";
 import {
   PerformanceImpactIndicatorValue,
@@ -40,8 +41,6 @@ import {
 } from "interfaces/target";
 import { ITeam } from "interfaces/team";
 import { UserRole } from "interfaces/user";
-
-import stringUtils from "utilities/strings";
 import {
   DEFAULT_EMPTY_CELL_VALUE,
   DEFAULT_GRAVATAR_LINK,
@@ -52,9 +51,9 @@ import {
   PLATFORM_LABEL_DISPLAY_TYPES,
   isPlatformLabelNameFromAPI,
 } from "utilities/constants";
-import { IDropdownOption } from "interfaces/dropdownOption";
-import type { IRegistrationFormData } from "interfaces/registration_form_data";
-import CustomLink from "components/CustomLink";
+import { timeAgo } from "utilities/date_format";
+import stringUtils from "utilities/strings";
+import { QueryParams, buildQueryStringFromParams } from "utilities/url";
 
 const ORG_INFO_ATTRS = ["org_name"];
 const ADMIN_ATTRS = ["email", "name", "password", "password_confirmation"];
@@ -93,39 +92,10 @@ export const removeOSPrefix = (version: string): string => {
   return version.replace(/^(macOS |iOS |iPadOS )/i, "");
 };
 
-// Windows feature-update codename, e.g. "21H2", "23H1" — one of the two
-// documented shapes of an OS version string (the other being dot-separated
-// numbers). Treated as a [year, half] version for comparison purposes.
-const WINDOWS_FEATURE_UPDATE_PATTERN = /^(\d{2})H([12])$/;
-
-/** Returns 1 if first version is newer, -1 if first version is older, and 0 if equal.
- * Splits on "." and compares segments numerically (so multi-digit segments sort
- * correctly, e.g. "26.10" > "26.6"), except a Windows feature-update codename
- * (e.g. "21H2") is compared as [year, half] instead. A segment that isn't a
- * number (e.g. a build-metadata suffix like "7_1") ties for that position and
- * falls through to the next segment, same as a missing segment — this keeps
- * real-world suffixed versions (Fleet-maintained-app versions in particular)
- * comparing sanely instead of failing outright. Only when a version's *first*
- * segment isn't a number at all (e.g. Arch Linux's "rolling") is it treated as
- * non-comparable, sorting before any version that is. */
+/** Returns 1 if first version is newer, -1 if first version is older, and 0 if equal  */
 export const compareVersions = (version1: string, version2: string) => {
-  const toParts = (version: string): number[] => {
-    const windowsMatch = version.match(WINDOWS_FEATURE_UPDATE_PATTERN);
-    if (windowsMatch) {
-      return [Number(windowsMatch[1]), Number(windowsMatch[2])];
-    }
-    return version.split(".").map(Number);
-  };
-
-  const v1Parts = toParts(version1);
-  const v2Parts = toParts(version2);
-
-  const v1IsVersionLike = !Number.isNaN(v1Parts[0]);
-  const v2IsVersionLike = !Number.isNaN(v2Parts[0]);
-
-  if (!v1IsVersionLike && !v2IsVersionLike) return 0;
-  if (!v1IsVersionLike) return -1;
-  if (!v2IsVersionLike) return 1;
+  const v1Parts = version1.split(".").map(Number);
+  const v2Parts = version2.split(".").map(Number);
 
   const maxLength = Math.max(v1Parts.length, v2Parts.length);
 

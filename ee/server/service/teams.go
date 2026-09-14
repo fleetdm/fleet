@@ -458,7 +458,8 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 			// Only validate (a DB round-trip to confirm referenced secrets exist)
 			// when the template actually changed, mirroring the app-config path.
 			if nameTemplate != "" && nameTemplate != team.Config.MDM.HostNameTemplate {
-				validated, err := fleet.ValidateHostNameTemplateWithSecrets(ctx, svc.ds, nameTemplate)
+				validated, err := fleet.ValidateHostNameTemplateWithSecrets(ctx, svc.ds, nameTemplate,
+					svc.authz.CanWriteSecretVariables(ctx))
 				if err != nil {
 					return nil, ctxerr.Wrap(ctx, err)
 				}
@@ -517,14 +518,14 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 			}
 		}
 
-		if payload.MDM.WindowsSettings != nil && payload.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled.Valid {
-			newEnabled := payload.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled
-			windowsManagedLocalAccountUpdated = team.Config.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value != newEnabled.Value
+		if payload.MDM.WindowsSettings != nil && payload.MDM.WindowsSettings.EnableManagedLocalAccount.Valid {
+			newEnabled := payload.MDM.WindowsSettings.EnableManagedLocalAccount
+			windowsManagedLocalAccountUpdated = team.Config.MDM.WindowsSettings.EnableManagedLocalAccount.Value != newEnabled.Value
 			if windowsManagedLocalAccountUpdated && newEnabled.Value && !appCfg.MDM.WindowsEnabledAndConfigured {
-				return nil, fleet.NewInvalidArgumentError("windows_settings.managed_local_account_settings.enabled",
-					"Couldn't update windows_settings.managed_local_account_settings because Windows MDM isn't turned on in Fleet.")
+				return nil, fleet.NewInvalidArgumentError("windows_settings.enable_managed_local_account",
+					"Couldn't update windows_settings.enable_managed_local_account because Windows MDM isn't turned on in Fleet.")
 			}
-			team.Config.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled = newEnabled
+			team.Config.MDM.WindowsSettings.EnableManagedLocalAccount = newEnabled
 		}
 	}
 
@@ -803,7 +804,9 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 		}
 	}
 	if windowsManagedLocalAccountUpdated {
-		if err := svc.logEnableManagedLocalAccountActivity(ctx, team.Config.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value, "windows", &team.ID, &team.Name); err != nil {
+		if err := svc.logEnableManagedLocalAccountActivity(
+			ctx, team.Config.MDM.WindowsSettings.EnableManagedLocalAccount.Value, "windows", &team.ID, &team.Name,
+		); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "update windows enable managed local account")
 		}
 	}
@@ -1244,7 +1247,6 @@ func (svc *Service) GetTeam(ctx context.Context, teamID uint) (*fleet.Team, erro
 	}
 
 	alreadyAuthd := svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceToken) ||
-		svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceCertificate) ||
 		svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceURL)
 	if alreadyAuthd {
 		// device-authenticated request can only get the device's team
@@ -1835,7 +1837,8 @@ func (svc *Service) createTeamFromSpec(
 
 	nameTemplate := spec.MDM.HostNameTemplate.Value
 	if nameTemplate != "" {
-		validated, err := fleet.ValidateHostNameTemplateWithSecrets(ctx, svc.ds, nameTemplate)
+		validated, err := fleet.ValidateHostNameTemplateWithSecrets(ctx, svc.ds, nameTemplate,
+			svc.authz.CanWriteSecretVariables(ctx))
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err)
 		}
@@ -2218,7 +2221,8 @@ func (svc *Service) editTeamFromSpec(
 		// Only validate (a DB round-trip to confirm referenced secrets exist) when
 		// the template actually changed — GitOps re-applies the spec on every run.
 		if nameTemplate != "" && nameTemplate != team.Config.MDM.HostNameTemplate {
-			validated, err := fleet.ValidateHostNameTemplateWithSecrets(ctx, svc.ds, nameTemplate)
+			validated, err := fleet.ValidateHostNameTemplateWithSecrets(ctx, svc.ds, nameTemplate,
+				svc.authz.CanWriteSecretVariables(ctx))
 			if err != nil {
 				return ctxerr.Wrap(ctx, err)
 			}
@@ -2339,14 +2343,14 @@ func (svc *Service) editTeamFromSpec(
 		team.Config.MDM.WindowsSettings.CustomSettings = spec.MDM.WindowsSettings.CustomSettings
 	}
 	var didUpdateWindowsManagedLocalAccount bool
-	if spec.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled.Valid {
-		newWindowsManagedLocalAccount := spec.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled
-		didUpdateWindowsManagedLocalAccount = team.Config.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value != newWindowsManagedLocalAccount.Value
+	if spec.MDM.WindowsSettings.EnableManagedLocalAccount.Valid {
+		newWindowsManagedLocalAccount := spec.MDM.WindowsSettings.EnableManagedLocalAccount
+		didUpdateWindowsManagedLocalAccount = team.Config.MDM.WindowsSettings.EnableManagedLocalAccount.Value != newWindowsManagedLocalAccount.Value
 		if didUpdateWindowsManagedLocalAccount && newWindowsManagedLocalAccount.Value && !windowsEnabledAndConfigured {
-			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("windows_settings.managed_local_account_settings.enabled",
-				"Couldn't enable windows_settings.managed_local_account_settings. "+fleet.ErrWindowsMDMNotConfigured.Error()))
+			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("windows_settings.enable_managed_local_account",
+				"Couldn't enable windows_settings.enable_managed_local_account. "+fleet.ErrWindowsMDMNotConfigured.Error()))
 		}
-		team.Config.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled = newWindowsManagedLocalAccount
+		team.Config.MDM.WindowsSettings.EnableManagedLocalAccount = newWindowsManagedLocalAccount
 	}
 	if spec.MDM.AndroidSettings.CustomSettings.Set {
 		team.Config.MDM.AndroidSettings.CustomSettings = spec.MDM.AndroidSettings.CustomSettings
@@ -2580,7 +2584,7 @@ func (svc *Service) editTeamFromSpec(
 
 	if didUpdateWindowsManagedLocalAccount {
 		if err := svc.logEnableManagedLocalAccountActivity(
-			ctx, team.Config.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value, "windows", &team.ID, &team.Name,
+			ctx, team.Config.MDM.WindowsSettings.EnableManagedLocalAccount.Value, "windows", &team.ID, &team.Name,
 		); err != nil {
 			return err
 		}

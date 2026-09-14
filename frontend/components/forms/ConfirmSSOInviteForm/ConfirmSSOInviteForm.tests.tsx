@@ -1,9 +1,8 @@
-import React from "react";
 import { render, screen } from "@testing-library/react";
-
-import { renderWithSetup } from "test/test-utils";
+import React from "react";
 
 import ConfirmSSOInviteForm from "components/forms/ConfirmSSOInviteForm";
+import { renderWithSetup } from "test/test-utils";
 
 describe("ConfirmSSOInviteForm - component", () => {
   const handleSubmitSpy = jest.fn();

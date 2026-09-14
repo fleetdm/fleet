@@ -1,0 +1,1 @@
+- Fixed ChromeOS `system_info` queries and policies failing with "Not allowed" errors when the Google admin `EnterpriseHardwarePlatformAPIEnabled` policy is disabled.

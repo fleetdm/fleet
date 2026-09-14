@@ -1,6 +1,8 @@
 import React from "react";
 import { Column, Row } from "react-table";
 
+import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
+import TextCell from "components/TableContainer/DataTable/TextCell";
 import { IStringCellProps } from "interfaces/datatable_config";
 import { HostAndroidCertStatus, IHostMdmData } from "interfaces/host";
 import {
@@ -14,15 +16,8 @@ import {
   MdmProfileStatus,
   ProfilePlatform,
 } from "interfaces/mdm";
+import { isAppleDevice } from "interfaces/platform";
 import { isDDMProfile } from "services/entities/mdm";
-import { isAppleDevice, isIPadOrIPhone } from "interfaces/platform";
-
-import TextCell from "components/TableContainer/DataTable/TextCell";
-
-import OSSettingsNameCell from "./OSSettingsNameCell";
-import OSSettingStatusCell from "./OSSettingStatusCell";
-import OSSettingsResendCell from "./OSSettingsResendCell";
-import { getControlDisplayOption } from "./statusDisplayConfig";
 
 import {
   generateHostNameSettingIfEligible,
@@ -34,6 +29,11 @@ import {
   REC_LOCK_SYNTHETIC_PROFILE_UUID,
   WIN_DISK_ENC_SYNTHETIC_PROFILE_UUID,
 } from "../../helpers";
+
+import OSSettingsNameCell from "./OSSettingsNameCell";
+import OSSettingsResendCell from "./OSSettingsResendCell";
+import OSSettingStatusCell from "./OSSettingStatusCell";
+import { getControlDisplayOption } from "./statusDisplayConfig";
 
 export interface IHostMdmProfileWithAddedStatus
   extends Omit<IHostMdmProfile, "status"> {
@@ -123,7 +123,9 @@ const generateTableConfig = (
 ): ITableColumnConfig[] => {
   return [
     {
-      Header: "Name",
+      Header: (cellProps) => (
+        <HeaderCell value="Name" isSortedDesc={cellProps.column.isSortedDesc} />
+      ),
       accessor: "name",
       sortType: "caseInsensitive",
       Cell: (cellProps: ITableStringCellProps) => {
@@ -137,7 +139,12 @@ const generateTableConfig = (
       },
     },
     {
-      Header: "Status",
+      Header: (cellProps) => (
+        <HeaderCell
+          value="Status"
+          isSortedDesc={cellProps.column.isSortedDesc}
+        />
+      ),
       accessor: "status",
       sortType: (
         a: Row<IHostMdmProfileWithAddedStatus>,

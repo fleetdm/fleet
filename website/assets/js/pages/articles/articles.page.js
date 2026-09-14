@@ -54,6 +54,14 @@ parasails.registerPage('articles', {
         this.articleCategory = 'Webinars';
         this.categoryDescription = 'Watch Fleet and industry practitioners discuss real-world device management and IT operations.';
         break;
+      case 'newsletters':
+        this.articleCategory = 'Newsletters';
+        this.categoryDescription = 'Catch up on past issues of the Fleet newsletter.';
+        break;
+      case 'industry-news':
+        this.articleCategory = 'Industry news';
+        this.categoryDescription = 'Device management and security news, and what it means for the devices you manage.';
+        break;
       case 'articles':
         this.articleCategory = 'Blog';
         this.categoryDescription = 'Read the latest articles from the Fleet team and community.';
@@ -62,22 +70,29 @@ parasails.registerPage('articles', {
   },
 
   mounted: async function() {
-    if(['Blog', 'News', 'Guides', 'Releases'].includes(this.articleCategory)) {
-      if(this.algoliaPublicKey) {// Note: Docsearch will only be enabled if sails.config.custom.algoliaPublicKey is set. If the value is undefined, the handbook search will be disabled.
-        docsearch({
-          appId: 'NZXAYZXDGH',
-          apiKey: this.algoliaPublicKey,
-          indexName: 'fleetdm',
-          container: '#docsearch-query',
-          placeholder: 'Search',
-          debug: false,
-          clickAnalytics: true,
-          searchParameters: {
-            facetFilters: ['section:articles']
-          },
-        });
-      }
-    }
+    // Note: algolia docsearch is disabled while we test sending users to google.
+    // if(['Blog', 'News', 'Guides', 'Releases'].includes(this.articleCategory)) {
+    //   if(this.algoliaPublicKey) {// Note: Docsearch will only be enabled if sails.config.custom.algoliaPublicKey is set. If the value is undefined, the handbook search will be disabled.
+    //     docsearch({
+    //       appId: 'NZXAYZXDGH',
+    //       apiKey: this.algoliaPublicKey,
+    //       indexName: 'fleetdm',
+    //       container: '#docsearch-query',
+    //       placeholder: 'Search articles',
+    //       debug: false,
+    //       clickAnalytics: true,
+    //       searchParameters: {
+    //         facetFilters: ['section:articles']
+    //       },
+    //       translations: {
+    //         button: {
+    //           buttonText: 'Search articles',
+    //           buttonAriaLabel: 'Search articles',
+    //         },
+    //       },
+    //     });
+    //   }
+    // }
   },
 
   //  ╦╔╗╔╔╦╗╔═╗╦═╗╔═╗╔═╗╔╦╗╦╔═╗╔╗╔╔═╗

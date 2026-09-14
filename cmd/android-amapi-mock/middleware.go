@@ -17,14 +17,14 @@ func simulateLatencyAndErrors(latencyMean time.Duration, errorRate float64, next
 	return func(w http.ResponseWriter, r *http.Request) {
 		// Add random latency (50%-150% of mean)
 		if latencyMean > 0 {
-			jitter := time.Duration(float64(latencyMean) * (0.5 + rand.Float64())) // #nosec G404 -- load testing
+			jitter := time.Duration(float64(latencyMean) * (0.5 + rand.Float64())) //nolint:gosec // load testing
 			time.Sleep(jitter)
 		}
 
 		// Occasionally return errors
-		if errorRate > 0 && rand.Float64() < errorRate { // #nosec G404 -- load testing
+		if errorRate > 0 && rand.Float64() < errorRate { //nolint:gosec // load testing
 			w.Header().Set("Content-Type", "application/json")
-			if rand.Float64() < 0.5 { // #nosec G404 -- load testing
+			if rand.Float64() < 0.5 { //nolint:gosec // load testing
 				w.WriteHeader(http.StatusTooManyRequests)
 				_ = json.NewEncoder(w).Encode(map[string]any{
 					"error": map[string]any{

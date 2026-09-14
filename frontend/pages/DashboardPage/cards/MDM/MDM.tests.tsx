@@ -1,9 +1,9 @@
-import React from "react";
-import { noop } from "lodash";
 import { render, screen } from "@testing-library/react";
-import { renderWithSetup } from "test/test-utils";
+import { noop } from "lodash";
+import React from "react";
 
 import { createMockMdmSummaryMdmSolution } from "__mocks__/mdmMock";
+import { renderWithSetup } from "test/test-utils";
 
 import MDM from "./MDM";
 

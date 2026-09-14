@@ -147,7 +147,7 @@ func NewApplePSSODevice(mdmClient *TestAppleMDMClient, fleetServerURL, clientID 
 	return &TestApplePSSODevice{
 		mdm:           mdmClient,
 		serverURL:     strings.TrimRight(fleetServerURL, "/"),
-		httpClient:    fleethttp.NewClient(),
+		httpClient:    fleethttp.NewClient(fleethttp.WithNoTimeout()),
 		clientID:      clientID,
 		signingKey:    signingKey,
 		encryptionKey: encryptionKey,

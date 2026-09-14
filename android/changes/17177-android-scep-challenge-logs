@@ -1,0 +1,1 @@
+* Stopped the Android agent from writing SCEP enrollment secrets to the device logs. The certificate template's SCEP challenge and Fleet challenge are now redacted in logcat, in the on-device error log, and in certificate status details reported to Fleet.

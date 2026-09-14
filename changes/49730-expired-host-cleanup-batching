@@ -1,0 +1,1 @@
+* Fixed automatic expired host cleanup failing on large backlogs by limiting each cron run to a bounded batch of hosts.

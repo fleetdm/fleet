@@ -26,7 +26,7 @@ func (svc *Service) NewMDMWindowsConfigProfile(ctx context.Context, teamID uint,
 		return nil, ctxerr.Wrap(ctx, err)
 	}
 
-	cp, usesFleetVars, teamName, err := svc.parseAndValidateWindowsConfigProfile(ctx, teamID, profileName, data, labelsInclude, labelsMembershipMode, labelsExcludeAny)
+	cp, usesFleetVars, teamName, err := svc.parseAndValidateWindowsConfigProfile(ctx, teamID, profileName, data, labelsInclude, labelsMembershipMode, labelsExcludeAny, "Couldn't add. ")
 	if err != nil {
 		return nil, err
 	}
@@ -64,7 +64,7 @@ func (svc *Service) NewMDMWindowsConfigProfile(ctx context.Context, teamID uint,
 // create and update paths. It returns the constructed profile (with labels
 // set), the Fleet variable names it uses, and the team's name (empty string
 // for no team).
-func (svc *Service) parseAndValidateWindowsConfigProfile(ctx context.Context, teamID uint, profileName string, data []byte, labelsInclude []string, labelsMembershipMode fleet.MDMLabelsMode, labelsExcludeAny []string) (*fleet.MDMWindowsConfigProfile, []fleet.FleetVarName, string, error) {
+func (svc *Service) parseAndValidateWindowsConfigProfile(ctx context.Context, teamID uint, profileName string, data []byte, labelsInclude []string, labelsMembershipMode fleet.MDMLabelsMode, labelsExcludeAny []string, errPrefix string) (*fleet.MDMWindowsConfigProfile, []fleet.FleetVarName, string, error) {
 	// check that Windows MDM is enabled - the middleware of that endpoint checks
 	// only that any MDM is enabled, maybe it's just macOS
 	if err := svc.VerifyMDMWindowsConfigured(ctx); err != nil {
@@ -112,7 +112,7 @@ func (svc *Service) parseAndValidateWindowsConfigProfile(ctx context.Context, te
 		if ix := strings.Index(msg, "To control these settings,"); ix >= 0 {
 			msg = strings.TrimSpace(msg[:ix])
 		}
-		err := &fleet.BadRequestError{Message: "Couldn't add. " + msg}
+		err := &fleet.BadRequestError{Message: errPrefix + msg}
 		return nil, nil, "", ctxerr.Wrap(ctx, err, "validate profile")
 	}
 
@@ -160,11 +160,11 @@ func (svc *Service) parseAndValidateWindowsConfigProfile(ctx context.Context, te
 }
 
 // updateMDMWindowsConfigProfile implements the Windows branch of
-// UpdateMDMConfigProfile. A profile's name cannot change here: unlike Apple
-// profiles there is no separate identifier, so name is a Windows profile's
-// only identity (GitOps likewise treats a rename as delete-then-insert, not
-// an edit).
-func (svc *Service) updateMDMWindowsConfigProfile(ctx context.Context, profileUUID string, profile []byte, labelsInclude []string, labelsMembershipMode fleet.MDMLabelsMode, labelsExcludeAny []string) error {
+// UpdateMDMConfigProfile. A Windows .xml carries no identifier, so the profile is
+// keyed by UUID here and the uploaded file's name replaces the stored one. The
+// rename is in place, unlike GitOps, which matches on name and so treats a rename
+// as delete-then-insert.
+func (svc *Service) updateMDMWindowsConfigProfile(ctx context.Context, profileUUID string, profileName string, profile []byte, labelsInclude []string, labelsMembershipMode fleet.MDMLabelsMode, labelsExcludeAny []string) error {
 	// first we perform a basic authz check
 	if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionRead); err != nil {
 		return ctxerr.Wrap(ctx, err)
@@ -197,7 +197,9 @@ func (svc *Service) updateMDMWindowsConfigProfile(ctx context.Context, profileUU
 	var cp *fleet.MDMWindowsConfigProfile
 	var usesFleetVars []fleet.FleetVarName
 	if len(profile) > 0 {
-		cp, usesFleetVars, _, err = svc.parseAndValidateWindowsConfigProfile(ctx, teamID, existing.Name, profile, labelsInclude, labelsMembershipMode, labelsExcludeAny)
+		// A blank or whitespace-only name must be rejected on update as well as
+		// create, so don't silently fall back to the existing name.
+		cp, usesFleetVars, _, err = svc.parseAndValidateWindowsConfigProfile(ctx, teamID, profileName, profile, labelsInclude, labelsMembershipMode, labelsExcludeAny, "Couldn't edit. ")
 		if err != nil {
 			return err
 		}
@@ -225,6 +227,9 @@ func (svc *Service) updateMDMWindowsConfigProfile(ctx context.Context, profileUU
 	cp.ProfileUUID = profileUUID
 
 	if _, err := svc.ds.UpdateMDMWindowsConfigProfile(ctx, *cp, usesFleetVars); err != nil {
+		if _, ok := errors.AsType[endpointer.ExistsErrorInterface](err); ok {
+			err = fleet.NewInvalidArgumentError("profile", SameProfileNameUploadErrorMsg).WithStatus(http.StatusConflict)
+		}
 		return ctxerr.Wrap(ctx, err)
 	}
 
@@ -420,7 +425,7 @@ func additionalNDESValidationForWindowsProfiles(contents string, ndesVars *NDESV
 
 			isChallenge := strings.HasSuffix(target, "/Install/Challenge")
 			isServerURL := strings.HasSuffix(target, "/Install/ServerURL")
-			isSubjectName := strings.HasSuffix(target, "/Install/SubjectName")
+			isSubjectName := strings.HasSuffix(target, fleet.WindowsSCEPSubjectNameSuffix)
 
 			// Verify that each NDES variable appears ONLY in its expected field.
 			// This prevents the one-time challenge or proxy URL from being placed in an unexpected field
@@ -495,7 +500,7 @@ func additionalCustomSCEPValidationForWindowsProfiles(contents string, customSCE
 
 			target := strings.TrimSpace(*cmd.Target)
 
-			if strings.HasSuffix(target, "/Install/SubjectName") {
+			if strings.HasSuffix(target, fleet.WindowsSCEPSubjectNameSuffix) {
 				// SubjectName item found, check that it contains the expected renewal ID variable
 				if cmd.Data == nil {
 					return errors.New("SubjectName item is missing data")

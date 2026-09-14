@@ -1,10 +1,11 @@
-import React from "react";
-import { noop } from "lodash";
 import { render, screen } from "@testing-library/react";
+import { noop } from "lodash";
+import React from "react";
 
 import { createMockHostGeolocation } from "__mocks__/hostMock";
 
 import { HostMdmDeviceStatusUIState } from "../../helpers";
+
 import LocationModal from "./LocationModal";
 
 const makeIosDetails = (

@@ -1,14 +1,14 @@
 import React, { useEffect, useState } from "react";
 import { InjectedRouter } from "react-router";
+
+import AuthenticationFormWrapper from "components/AuthenticationFormWrapper";
+import AuthenticationNav from "components/AuthenticationNav";
+import CustomLink from "components/CustomLink";
+// @ts-ignore
+import ForgotPasswordForm from "components/forms/ForgotPasswordForm";
 import PATHS from "router/paths";
 import usersAPI from "services/entities/users";
 import formatErrorResponse from "utilities/format_error_response";
-
-// @ts-ignore
-import ForgotPasswordForm from "components/forms/ForgotPasswordForm";
-import AuthenticationNav from "components/AuthenticationNav";
-import AuthenticationFormWrapper from "components/AuthenticationFormWrapper";
-import CustomLink from "components/CustomLink";
 
 interface IForgotPasswordPage {
   router: InjectedRouter;

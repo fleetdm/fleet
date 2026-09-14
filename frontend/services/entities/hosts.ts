@@ -1,20 +1,9 @@
 /* eslint-disable  @typescript-eslint/explicit-module-boundary-types */
-import sendRequest from "services";
-import endpoints from "utilities/endpoints";
+
+import { IHostCertificate } from "interfaces/certificates";
 import { IHost, HostStatus } from "interfaces/host";
-import {
-  QueryParams,
-  buildQueryStringFromParams,
-  getLabelParam,
-  reconcileMutuallyExclusiveHostParams,
-  reconcileMutuallyInclusiveHostParams,
-} from "utilities/url";
-import {
-  IHostSoftware,
-  ISoftware,
-  SoftwareAggregateStatus,
-  SoftwareSource,
-} from "interfaces/software";
+import { IListOptions } from "interfaces/list_options";
+import { IMunkiIssuesAggregate } from "interfaces/macadmins";
 import {
   DiskEncryptionStatus,
   BootstrapPackageStatus,
@@ -22,10 +11,22 @@ import {
   MdmProfileStatus,
   MdmEnrollmentStatus,
 } from "interfaces/mdm";
-import { IMunkiIssuesAggregate } from "interfaces/macadmins";
+import {
+  IHostSoftware,
+  ISoftware,
+  SoftwareAggregateStatus,
+  SoftwareSource,
+} from "interfaces/software";
+import sendRequest from "services";
 import { PlatformValueOptions, PolicyResponse } from "utilities/constants";
-import { IHostCertificate } from "interfaces/certificates";
-import { IListOptions } from "interfaces/list_options";
+import endpoints from "utilities/endpoints";
+import {
+  QueryParams,
+  buildQueryStringFromParams,
+  getLabelParam,
+  reconcileMutuallyExclusiveHostParams,
+  reconcileMutuallyInclusiveHostParams,
+} from "utilities/url";
 
 import { ScriptBatchHostCountV1 } from "./scripts";
 
@@ -569,6 +570,12 @@ export default {
   refetch: (host: IHost) => {
     const { HOSTS } = endpoints;
     const path = `${HOSTS}/${host.id}/refetch`;
+
+    return sendRequest("POST", path);
+  },
+  apnsPing: (hostID: number) => {
+    const { HOST_APNS_PING } = endpoints;
+    const path = `${HOST_APNS_PING(hostID)}`;
 
     return sendRequest("POST", path);
   },

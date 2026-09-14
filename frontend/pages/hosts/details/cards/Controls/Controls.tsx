@@ -1,15 +1,14 @@
+import classnames from "classnames";
 import React, { useCallback, useMemo, useState } from "react";
 import { InjectedRouter } from "react-router";
 import { Row } from "react-table";
-import classnames from "classnames";
-
-import PATHS from "router/paths";
-import { getPathWithQueryParams } from "utilities/url";
 
 import Button from "components/buttons/Button";
 import EmptyState from "components/EmptyState";
 import TableContainer from "components/TableContainer";
 import TableCount from "components/TableContainer/TableCount";
+import PATHS from "router/paths";
+import { getPathWithQueryParams } from "utilities/url";
 
 import ControlDetailsModal from "./ControlDetailsModal";
 import generateTableConfig, {
@@ -24,6 +23,8 @@ interface IControlsProps {
   hostDisplayName: string;
   /** My device: second person, and no Controls page to link to. */
   isDeviceUser?: boolean;
+  /** Fleet setting for macOS: disk encryption enforced without key escrow. */
+  isMacOSDiskEncryptionEnforceOnly?: boolean;
   canResendProfiles: boolean;
   canRotateRecoveryLockPassword?: boolean;
   canResendHostNameTemplate?: boolean;
@@ -48,6 +49,7 @@ const Controls = ({
   controls,
   hostDisplayName,
   isDeviceUser = false,
+  isMacOSDiskEncryptionEnforceOnly = false,
   canResendProfiles,
   canRotateRecoveryLockPassword = false,
   canResendHostNameTemplate = false,
@@ -99,8 +101,8 @@ const Controls = ({
   const emptyStateInfo = () => {
     if (!isConnectedToFleetMdm) {
       return isDeviceUser
-        ? "No controls available. Your device isn't enrolled in MDM."
-        : "No controls available. This host isn't enrolled in MDM.";
+        ? "No controls available. Your device isn't talking to Fleet for MDM features."
+        : "No controls available. This host isn't talking to Fleet for MDM features.";
     }
     return isDeviceUser
       ? "No controls have been added for your device."
@@ -156,6 +158,7 @@ const Controls = ({
           control={selectedControl}
           hostDisplayName={hostDisplayName}
           isDeviceUser={isDeviceUser}
+          isMacOSDiskEncryptionEnforceOnly={isMacOSDiskEncryptionEnforceOnly}
           canResendProfiles={canResendProfiles}
           canRotateRecoveryLockPassword={canRotateRecoveryLockPassword}
           canResendHostNameTemplate={canResendHostNameTemplate}

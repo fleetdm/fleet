@@ -1,0 +1,94 @@
+{
+  "token": "microsoft-defender",
+  "old_tokens": [],
+  "name": [
+    "Microsoft Defender"
+  ],
+  "desc": "Enterprise endpoint protection and antivirus client",
+  "homepage": "https://www.microsoft.com/microsoft-365/microsoft-defender-for-endpoint",
+  "url": "https://go.microsoft.com/fwlink/?linkid=2097502",
+  "url_specs": {},
+  "version": "101.26062.0012",
+  "autobump": true,
+  "no_autobump_message": null,
+  "skip_livecheck": true,
+  "bundle_version": null,
+  "bundle_short_version": null,
+  "pinned": false,
+  "pinned_version": null,
+  "sha256": "ceb615d5b436694a4897769fdc15a25961fc4845d21db6a07ef1c61f35211eb7",
+  "artifacts": [
+    {
+      "uninstall": [
+        {
+          "script": {
+            "executable": "/Library/Application Support/Microsoft/Defender/uninstall/uninstall",
+            "sudo": true
+          },
+          "pkgutil": [
+            "com.microsoft.wdav",
+            "com.microsoft.dlp.agent",
+            "com.microsoft.dlp.daemon",
+            "com.microsoft.dlp.ux"
+          ]
+        }
+      ]
+    },
+    {
+      "pkg": [
+        "wdav.pkg",
+        {
+          "choices": [
+            {
+              "choiceIdentifier": "com.microsoft.package.Microsoft_AutoUpdate.app",
+              "choiceAttribute": "selected",
+              "attributeSetting": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "zap": [
+        {
+          "trash": [
+            "/Library/Application Support/Microsoft/Defender",
+            "~/Library/Application Support/Microsoft/Defender",
+            "~/Library/Caches/com.microsoft.wdav",
+            "~/Library/Preferences/com.microsoft.wdav.plist"
+          ]
+        }
+      ]
+    }
+  ],
+  "caveats": null,
+  "caveats_rosetta": null,
+  "depends_on": {
+    "macos": {
+      ">=": [
+        "14"
+      ]
+    }
+  },
+  "conflicts_with": null,
+  "container": null,
+  "rename": [],
+  "auto_updates": null,
+  "deprecated": false,
+  "deprecation_date": null,
+  "deprecation_reason": null,
+  "deprecation_replacement_formula": null,
+  "deprecation_replacement_cask": null,
+  "deprecate_args": null,
+  "disabled": false,
+  "disable_date": null,
+  "disable_reason": null,
+  "disable_replacement_formula": null,
+  "disable_replacement_cask": null,
+  "disable_args": null,
+  "languages": [],
+  "ruby_source_path": "Casks/microsoft-defender.rb",
+  "ruby_source_checksum": {
+    "sha256": "c96245d7d2334b31ec74461b9d77e24c0a6a3d8d521ff6e54cbf0b1851147557"
+  }
+}

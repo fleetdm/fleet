@@ -1,12 +1,12 @@
-import React from "react";
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { noop } from "lodash";
+import React from "react";
 
-import { createCustomRenderer } from "test/test-utils";
+import { notify } from "components/ToastNotification";
 import { IMdmProfile } from "interfaces/mdm";
 import labelsAPI from "services/entities/labels";
 import mdmAPI from "services/entities/mdm";
-import { notify } from "components/ToastNotification";
+import { createCustomRenderer } from "test/test-utils";
 
 import EditProfileModal, {
   getAcceptedExtensions,

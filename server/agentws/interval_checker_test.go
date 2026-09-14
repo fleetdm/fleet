@@ -2,12 +2,15 @@ package agentws
 
 import (
 	"context"
+	"errors"
+	"io"
 	"slices"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -91,6 +94,44 @@ func TestIntervalCheckerNotifiesDueHosts(t *testing.T) {
 	require.NoError(t, ws1.SetReadDeadline(time.Now().Add(300*time.Millisecond)))
 	_, _, err = ws1.ReadMessage()
 	require.Error(t, err)
+}
+
+func TestIntervalCheckerDisconnectsDeletedHosts(t *testing.T) {
+	hub := NewHub(discardLogger(), time.Minute, 30*time.Second)
+	srv := newTestServer(t, hub)
+
+	ws1 := dial(t, srv, "key-1")
+	ws2 := dial(t, srv, "key-2")
+	waitForConnCount(t, hub, 2)
+
+	// Host 1 was deleted while its agent held a connection; host 2 is due.
+	lister := &fakeDueLister{due: map[uint]string{
+		1: fleet.AgentWSReasonHostNotFound,
+		2: fleet.AgentWSReasonLabel,
+	}}
+	checker := &IntervalChecker{
+		Hub:       hub,
+		Svc:       lister,
+		Interval:  time.Minute,
+		BatchSize: 10,
+		Logger:    discardLogger(),
+	}
+	checker.checkOnce(t.Context())
+
+	// The deleted host's connection is closed (the agent reconnects under its
+	// new identity) and dropped from the hub, never notified.
+	require.NoError(t, ws1.SetReadDeadline(time.Now().Add(2*time.Second)))
+	_, _, err := ws1.ReadMessage()
+	require.Error(t, err)
+	assert.True(t, websocket.IsCloseError(err, websocket.CloseAbnormalClosure) || errors.Is(err, io.ErrUnexpectedEOF), "unexpected error: %v", err)
+	waitForConnCount(t, hub, 1)
+	assert.Equal(t, []uint{2}, hub.HeldHostIDs())
+
+	// The due host is notified as usual.
+	require.NoError(t, ws2.SetReadDeadline(time.Now().Add(2*time.Second)))
+	var msg fleet.AgentWSMessage
+	require.NoError(t, ws2.ReadJSON(&msg))
+	assert.Equal(t, fleet.AgentWSReasonLabel, msg.Reason)
 }
 
 func TestIntervalCheckerBatching(t *testing.T) {

@@ -5,7 +5,7 @@
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.playstation.RemotePlay';",
         "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.playstation.RemotePlay' AND version_compare(bundle_short_version, '9.0.0') < 0);",
-        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.playstation.RemotePlay');"
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.playstation.RemotePlay' AND a.bundle_executable != '');"
       },
       "installer_url": "https://remoteplay.dl.playstation.net/remoteplay/module/mac/RemotePlayInstaller.pkg",
       "install_script_ref": "cf8f7a9b",

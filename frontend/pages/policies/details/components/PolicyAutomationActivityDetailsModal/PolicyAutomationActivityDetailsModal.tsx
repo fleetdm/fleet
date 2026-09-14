@@ -1,17 +1,17 @@
 import React from "react";
 
-import { ActivityType } from "interfaces/activity";
-import { IPolicyAutomationActivity } from "interfaces/policy";
-import PATHS from "router/paths";
-
-import Modal from "components/Modal";
+import { SKIPPED_PRE_INSTALL_OUTPUT } from "components/ActivityDetails/InstallDetails/constants";
 import Button from "components/buttons/Button";
 import CopyButton from "components/buttons/CopyButton";
 import CustomLink from "components/CustomLink";
 import DataSet from "components/DataSet";
-import Textarea from "components/Textarea";
-import Icon from "components/Icon";
 import { HumanTimeDiffWithDateTip } from "components/HumanTimeDiffWithDateTip";
+import Icon from "components/Icon";
+import Modal from "components/Modal";
+import Textarea from "components/Textarea";
+import { ActivityType } from "interfaces/activity";
+import { IPolicyAutomationActivity } from "interfaces/policy";
+import PATHS from "router/paths";
 
 import {
   getAutomationRunDisplayName,
@@ -96,7 +96,9 @@ const PolicyAutomationActivityDetailsModal = ({
           <>
             {renderOutputSection(
               "Pre-install query output",
-              activity.pre_install_output
+              activity.details?.skipped_install
+                ? SKIPPED_PRE_INSTALL_OUTPUT
+                : activity.pre_install_output
             )}
             {renderOutputSection("Details", activity.output)}
             {renderOutputSection(

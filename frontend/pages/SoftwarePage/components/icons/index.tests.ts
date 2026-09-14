@@ -1,9 +1,9 @@
-import { getMatchedSoftwareIcon } from "./index";
-
 import AcrobatReader from "./AcrobatReader";
-import AdobeCreativeCloud from "./AdobeCreativeCloud";
 import AdobePlugin from "./AdobePlugin";
 import Extension from "./Extension";
+import AdobeCreativeCloud from "./png/AdobeCreativeCloud.png";
+
+import { getMatchedSoftwareIcon } from "./index";
 
 describe("getMatchedSoftwareIcon", () => {
   describe("Adobe plugins", () => {

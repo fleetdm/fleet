@@ -1,16 +1,15 @@
+import { IHostCertificate } from "interfaces/certificates";
+import { ICommandResult } from "interfaces/command";
 import { IDUPDetails } from "interfaces/host";
 import { IListOptions } from "interfaces/list_options";
-import { IDeviceSoftware } from "interfaces/software";
 import { ISetupStep } from "interfaces/setup";
-import { IHostCertificate } from "interfaces/certificates";
+import { IDeviceSoftware } from "interfaces/software";
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
 import {
   buildQueryStringFromParams,
   getPathWithQueryParams,
 } from "utilities/url";
-
-import { ICommandResult } from "interfaces/command";
 
 import { IHostSoftwareQueryParams } from "./hosts";
 
@@ -92,6 +91,12 @@ export default {
   refetch: (deviceAuthToken: string) => {
     const { DEVICE_USER_DETAILS } = endpoints;
     const path = `${DEVICE_USER_DETAILS}/${deviceAuthToken}/refetch`;
+
+    return sendRequest("POST", path);
+  },
+  apnsPing: (deviceAuthToken: string) => {
+    const { DEVICE_USER_APNS_PING } = endpoints;
+    const path = DEVICE_USER_APNS_PING(deviceAuthToken);
 
     return sendRequest("POST", path);
   },

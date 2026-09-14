@@ -68,7 +68,7 @@ It takes a fully-activated mind to achieve ambitious goals, and remote work requ
 
 - **Be reliable.**  Reply quickly to email, Slack, and GitHub.  Prepare for meetings.  Arrive [on time](https://fleetdm.com/handbook/company/communications#meetings).  Use handbooked [processes](https://about.gitlab.com/handbook/leadership/#process-gets-a-bad-rep) and [decisions](https://fleetdm.com/handbook/company/why-this-way#why-this-way).
 - **Finish what you start.** Follow through on commitments.  Take responsibility for mistakes.  There's no time for finger-pointing.  [Just fix it](https://handbook.gitlab.com/handbook/values/#operate-with-a-bias-for-action).
-- **No one is coming.** Take care of [things that need doing](https://fleetdm.com/handbook/company/communications#spending-company-money), or loop in [the right people](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) fast. It's up to you.  <!-- take initiative -->
+- **No one is coming.** Take care of [things that need doing](https://fleetdm.com/handbook/company/communications#spending-company-money), or loop in [the right people](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility). It's up to you.  <!-- take initiative -->
 - **Think long term.** Contribute to [the big picture](https://fleetdm.com/handbook/company#purpose), beyond your department's goals. Reduce maintenance.  Beware the thicket.  <!-- Think [7 years ahead](https://fleetdm.com/handbook/company#strategy). -->
 
 ### 🟢 Results
@@ -76,7 +76,7 @@ We work to get results. How we work determines what we get.  Aim to deliver resu
 
 - **Iterate.** [Look for ways](https://youtu.be/BW6TWwNZzIQ) to make [smaller changes](https://about.gitlab.com/handbook/product/product-principles/#the-minimal-viable-change-mvc), more often.  Always publish. <!-- Resist [gold plating](https://en.wikipedia.org/wiki/Gold_plating_(project_management)). -->
 - **Start quickly.** Be 70% sure.  Resist [bike-shedding](https://en.wikipedia.org/wiki/Law_of_triviality).  Between overthinking and rushing, there is a [golden mean](https://en.wikipedia.org/wiki/Golden_mean_%28philosophy%29). <!-- [Satisfice](https://longform.asmartbear.com/maximizing) before optimizing. -->
-- **Keep it simple.** Avoid preemptive structure.  Reuse systems. Prefer ["boring solutions"](https://about.gitlab.com/blog/2020/08/18/boring-solutions-faster-iteration/).  [Spend less](https://fleetdm.com/handbook/company/why-this-way#why-spend-less). Avoid adding steps, especially handoffs. <!-- Be efficient. Avoid creating multiple ways to do the same thing.  Practicality over sophistication. -->
+- **Keep it simple.** Avoid preemptive structure.  Reuse systems. Prefer ["boring solutions"](https://about.gitlab.com/blog/boring-solutions-faster-iteration/).  [Spend less](https://fleetdm.com/handbook/company/why-this-way#why-spend-less). Avoid adding steps, especially handoffs. <!-- Be efficient. Avoid creating multiple ways to do the same thing.  Practicality over sophistication. -->
 - **Be realistic.** Focus on one task at a time.  Resist [the urge to commit](https://www.linkedin.com/posts/37signals_the-problem-with-commitments-is-that-they-ugcPost-7252753513485619201-PdAw?utm_source=share&utm_medium=member_ios) to every good idea.  Work [hard](https://paulgraham.com/hwh.html).  Schedule [time off](https://fleetdm.com/handbook/company/communications#paid-time-off) to recharge. <!-- Practice self-care. -->
 
 ### 🔵 Objectivity

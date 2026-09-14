@@ -393,7 +393,8 @@ SELECT
 	status,
 	detail,
 	operation_type,
-	certificate_template_id
+	certificate_template_id,
+	retry_count
 FROM host_certificate_templates
 WHERE host_uuid = ?`
 
@@ -516,7 +517,7 @@ func (ds *Datastore) ResendHostCertificateTemplate(ctx context.Context, hostID u
 		WHERE
 			h.id = ? AND
 			hct.certificate_template_id = ?
-		`, fleet.MaxCertificateInstallRetries)
+		`, fleet.MaxCertificateInstallRetries+1)
 
 	const deleteChallenge = `
 		DELETE c FROM

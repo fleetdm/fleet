@@ -1,8 +1,7 @@
 import classnames from "classnames";
+import { uniqueId } from "lodash";
 import React, { useLayoutEffect, useRef } from "react";
 import { Tooltip as ReactTooltip5, PlacesType } from "react-tooltip-5";
-
-import { uniqueId } from "lodash";
 
 /** Renders tooltip content as-is, but on mount applies `text-wrap: balance`
  * to the tooltip's root element and measures the widest balanced line to set
@@ -127,7 +126,9 @@ and mouseout from the element. If a boolean, sets delay to the default below. If
   /** If `true`, evenly distributes characters across lines and shrinks the
    * tooltip to hug the balanced text so there's no widow word or trailing
    * whitespace on the right. Adds a one-time layout measurement per content
-   * change. */
+   * change. Note: CSS `text-wrap: balance` only balances up to ~6 lines
+   * (browser cap) and falls back to normal wrapping beyond that — long
+   * tooltip strings may need manual `<br />` breaks to stay under the cap. */
   textBalanced?: boolean;
 }
 
