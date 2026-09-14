@@ -18,7 +18,7 @@ AB connects Apple's activation servers to your MDM server. When you purchase dev
 
 AB also centralizes app purchasing through Apps and Books, letting you buy apps in bulk and distribute them to devices without requiring individual Apple IDs. Apple School Manager (ASM) provides the same capabilities for educational institutions.
 
-Fleet can also restrict enrollment to Apple Business devices only. With **Allow only Apple Business enrollments** on, manual and BYOD enrollment methods are blocked. Only ADE works.
+Fleet can also restrict enrollment to Apple Business devices only. With **Allow only Apple Business enrollments** on, manual and BYOD enrollment methods are blocked.
 
 ### Zero-touch deployment through automated device enrollment
 
