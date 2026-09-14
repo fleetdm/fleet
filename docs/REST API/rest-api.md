@@ -9990,6 +9990,7 @@ Cancels a pending MDM command (lock, wipe, or clear passcode) for the specified 
 
 Only Apple (macOS, iOS, iPadOS) `DeviceLock`, `EraseDevice`, `ClearPasscode`, and `EnableLostMode` command types are eligible for cancellation. Commands that have already been acknowledged or errored cannot be canceled. Canceling a pending command isn't supported yet for Windows or Android hosts.
 
+
 `DELETE /api/v1/fleet/hosts/:id/commands/:command_uuid`
 
 #### Parameters
