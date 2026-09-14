@@ -1,25 +1,18 @@
-import React, { useContext, useEffect, useState, useMemo } from "react";
-import { useQuery } from "react-query";
 import { format, parseISO } from "date-fns";
 import { isEqual } from "lodash";
+import React, { useContext, useEffect, useState, useMemo } from "react";
+import { useQuery } from "react-query";
 import { SingleValue } from "react-select-5";
 
-import chartsAPI, {
-  IChartResponse,
-  IChartApiParams,
-  IChartQueryKey,
-} from "services/entities/charts";
-import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
-
 import Button from "components/buttons/Button";
-import Spinner from "components/Spinner";
 import DataError from "components/DataError";
 import DropdownWrapper from "components/forms/fields/DropdownWrapper";
 import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 import Icon from "components/Icon";
-import TooltipWrapper from "components/TooltipWrapper";
 import { severityFilters } from "components/SeverityFilter";
-
+import Spinner from "components/Spinner";
+import TooltipWrapper from "components/TooltipWrapper";
+import { AppContext } from "context/app";
 import {
   IDataSet,
   IFormattedDataPoint,
@@ -29,13 +22,19 @@ import {
   ALL_CVE_SOFTWARE_CATEGORY_VALUES,
   IVulnExposureFilterDefaults,
 } from "interfaces/charts";
-
-import { AppContext } from "context/app";
+import chartsAPI, {
+  IChartResponse,
+  IChartApiParams,
+  IChartQueryKey,
+} from "services/entities/charts";
+import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 
 import ChartFilterModal, {
   IChartFilterState,
   ChartFilterTab,
 } from "./ChartFilterModal";
+import CheckerboardViz from "./CheckerboardViz";
+import DataCollectionDisabledState from "./DataCollectionDisabledState";
 import {
   buildInitialChartFilters,
   hasActiveHostFilters,
@@ -46,8 +45,6 @@ import {
   softwareFilterLines,
 } from "./helpers";
 import LineChartViz from "./LineChartViz";
-import CheckerboardViz from "./CheckerboardViz";
-import DataCollectionDisabledState from "./DataCollectionDisabledState";
 
 const baseClass = "chart-card";
 

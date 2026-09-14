@@ -1,5 +1,6 @@
 // legacy interfaces to maintain packs support
 import PropTypes from "prop-types";
+
 import ILegacySchedulableQueryStats, {
   ISchedulableQueryStats,
 } from "interfaces/schedulable_query";

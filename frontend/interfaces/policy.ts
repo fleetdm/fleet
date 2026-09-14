@@ -1,8 +1,10 @@
 import PropTypes from "prop-types";
-import { CommaSeparatedPlatformString } from "interfaces/platform";
+
 import type { ActivityType, IActivityDetails } from "interfaces/activity";
-import { IScript } from "./script";
+import { CommaSeparatedPlatformString } from "interfaces/platform";
+
 import { ILabelPolicy } from "./label";
+import { IScript } from "./script";
 
 // Legacy PropTypes used on host interface
 export default PropTypes.shape({

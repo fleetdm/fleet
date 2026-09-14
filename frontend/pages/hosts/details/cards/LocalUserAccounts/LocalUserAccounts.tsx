@@ -1,17 +1,17 @@
-import React, { useCallback } from "react";
 import classnames from "classnames";
+import React, { useCallback } from "react";
 
-import { IHostUser } from "interfaces/host_users";
+import Card from "components/Card";
+import CardHeader from "components/CardHeader";
+import CustomLink from "components/CustomLink";
+import EmptyState from "components/EmptyState";
 import TableContainer from "components/TableContainer";
 import {
   DEFAULT_PAGE_SIZE,
   ITableQueryData,
 } from "components/TableContainer/TableContainer";
 import TableCount from "components/TableContainer/TableCount";
-import EmptyState from "components/EmptyState";
-import CustomLink from "components/CustomLink";
-import Card from "components/Card";
-import CardHeader from "components/CardHeader";
+import { IHostUser } from "interfaces/host_users";
 
 import generateTableHeaders from "./LocalUserAccountsTable/LocalUserAccountsTableConfig";
 

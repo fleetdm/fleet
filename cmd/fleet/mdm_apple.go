@@ -68,7 +68,7 @@ func initAppleMDMPushService(mdmStorage *mysql.NanoMDMStorage, apnsPushExpiratio
 		// keep the fleethttp client: it preserves proxy support and sane
 		// timeouts that nanopush's default bare transport does not have
 		nanopush.WithNewClient(func(cert *tls.Certificate) (*http.Client, error) {
-			return fleethttp.NewClient(fleethttp.WithNoTimeout(), fleethttp.WithTLSClientConfig(&tls.Config{
+			return fleethttp.NewClient(fleethttp.WithTLSClientConfig(&tls.Config{
 				Certificates: []tls.Certificate{*cert},
 				MinVersion:   tls.VersionTLS12, // Apple APNs requires TLS 1.2+
 			})), nil

@@ -1,7 +1,8 @@
-import React from "react";
 import { screen } from "@testing-library/react";
-import { createCustomRenderer } from "test/test-utils";
+import React from "react";
+
 import { InstallerType } from "interfaces/software";
+import { createCustomRenderer } from "test/test-utils";
 
 import InstallerDetailsWidget from "./InstallerDetailsWidget";
 

@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "4.3.6",
+      "version": "4.3.7",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'pro.betterdisplay.BetterDisplay';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'pro.betterdisplay.BetterDisplay' AND version_compare(bundle_short_version, '4.3.6') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'pro.betterdisplay.BetterDisplay' AND version_compare(bundle_short_version, '4.3.7') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'pro.betterdisplay.BetterDisplay' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/waydabber/BetterDisplay/releases/download/v4.3.6/BetterDisplay-v4.3.6.dmg",
+      "installer_url": "https://github.com/waydabber/BetterDisplay/releases/download/v4.3.7/BetterDisplay-v4.3.7.dmg",
       "install_script_ref": "70878405",
       "uninstall_script_ref": "8bc96e39",
-      "sha256": "04e212bb1dfa5622e1a0bba078f5aa454e82e73ae3209faf00be413b5dbc854f",
+      "sha256": "be3ce2d57702156e1263e320a1868e6313818a78aa1b0b9ad4aee26d6e999928",
       "default_categories": [
         "Productivity"
       ]
