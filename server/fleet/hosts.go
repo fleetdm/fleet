@@ -796,9 +796,6 @@ type HostMDMDiskEncryption struct {
 	// ActionRequired names what the END USER has to do, and is set only when there is something they can actually do.
 	// macos_settings carries the same value for backwards compatibility
 	ActionRequired *ActionRequiredState `json:"action_required,omitempty" db:"-" csv:"-"`
-	// FleetdCanSetPIN and PINRequest are populated only on the My device response, where the end user can act on them.
-	// They are pointers so the admin host response, which shares this struct, is unchanged.
-	//
 	// FleetdCanSetPIN is true when this host's fleetd can apply a BitLocker PIN the end user types, so the page offers
 	// the PIN form rather than the Manage BitLocker instructions.
 	FleetdCanSetPIN *bool `json:"fleetd_can_set_pin,omitempty" db:"-" csv:"-"`
@@ -806,10 +803,7 @@ type HostMDMDiskEncryption struct {
 	PINRequest *HostBitLockerPINRequest `json:"pin_request,omitempty" db:"-" csv:"-"`
 }
 
-// NeedsBitLockerPIN reports whether the end user is being asked to create a startup PIN. It reads action_required
-// rather than re-deriving it, because that already accounts for the PIN being required, not yet set, and settable on
-// this volume right now. The submit endpoint, the orbit notification, and the Fleet Desktop flag all use it, so they
-// cannot disagree about whether a PIN is wanted.
+// NeedsBitLockerPIN reports whether the end user is being asked to create a startup PIN.
 func (d *HostMDMDiskEncryption) NeedsBitLockerPIN() bool {
 	return d != nil && d.ActionRequired != nil && *d.ActionRequired == ActionRequiredCreatePIN
 }

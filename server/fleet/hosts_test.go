@@ -749,8 +749,6 @@ func TestHostMDMDiskEncryptionNeedsBitLockerPIN(t *testing.T) {
 			de:   &HostMDMDiskEncryption{ActionRequired: new(ActionRequiredCreatePIN)},
 			want: true,
 		},
-		// A host waiting on a restart is action-required for a different reason, and asking it for a PIN would be
-		// asking for something Windows will not accept yet.
 		{
 			name: "restart required",
 			de:   &HostMDMDiskEncryption{ActionRequired: new(ActionRequiredRestart)},

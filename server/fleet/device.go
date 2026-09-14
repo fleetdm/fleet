@@ -18,8 +18,7 @@ type DesktopSummary struct {
 type DesktopNotifications struct {
 	NeedsMDMMigration      bool `json:"needs_mdm_migration,omitempty"`
 	RenewEnrollmentProfile bool `json:"renew_enrollment_profile,omitempty"`
-	// NeedsBitLockerPIN tells Fleet Desktop on Windows to prompt the end user to create a BitLocker startup PIN. Only
-	// set when the host's disk encryption is action-required for a missing PIN and its fleetd can apply one.
+	// NeedsBitLockerPIN tells Fleet Desktop on Windows to prompt the end user to create a BitLocker startup PIN.
 	NeedsBitLockerPIN bool `json:"needs_bitlocker_pin,omitempty"`
 }
 
