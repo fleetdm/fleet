@@ -4495,8 +4495,12 @@ func entraJoinHostDeviceMappingDB(ctx context.Context, q sqlx.QueryerContext, tx
 		if _, err := tx.ExecContext(ctx, delStmt, hostID, fleet.DeviceMappingEntraJoin); err != nil {
 			return false, ctxerr.Wrap(ctx, err, "delete Entra join device mappings without scim user")
 		}
-		if _, err := deleteHostSCIMUserMapping(ctx, tx, hostID); err != nil {
-			return false, ctxerr.Wrap(ctx, err, "delete stale host SCIM user mapping for Entra join device mapping")
+		// Only the link observed above: the link lookup is not locked, so one written
+		// meanwhile (e.g. by SCIM provisioning matching this row) must survive.
+		if ids.LinkedID != nil {
+			if _, err := deleteHostSCIMUserMappingFor(ctx, tx, hostID, ids.LinkedID); err != nil {
+				return false, ctxerr.Wrap(ctx, err, "delete stale host SCIM user mapping for Entra join device mapping")
+			}
 		}
 		return true, nil
 	}
@@ -5206,7 +5210,20 @@ func associateHostWithScimUser(ctx context.Context, tx sqlx.ExtContext, hostID u
 
 // deleteHostSCIMUserMapping is a helper function to delete SCIM user mapping for a host
 func deleteHostSCIMUserMapping(ctx context.Context, exec sqlx.ExtContext, hostID uint) ([]fleet.ActivityTypeResentCertificate, error) {
-	result, err := exec.ExecContext(ctx, `DELETE FROM host_scim_user WHERE host_id = ?`, hostID)
+	return deleteHostSCIMUserMappingFor(ctx, exec, hostID, nil)
+}
+
+// deleteHostSCIMUserMappingFor removes the host's SCIM link. With a non-nil scimUserID
+// only a link to that user is removed, so a link written concurrently by another path
+// (e.g. SCIM provisioning) survives a stale-link cleanup.
+func deleteHostSCIMUserMappingFor(ctx context.Context, exec sqlx.ExtContext, hostID uint, scimUserID *uint) ([]fleet.ActivityTypeResentCertificate, error) {
+	stmt := `DELETE FROM host_scim_user WHERE host_id = ?`
+	args := []any{hostID}
+	if scimUserID != nil {
+		stmt += ` AND scim_user_id = ?`
+		args = append(args, *scimUserID)
+	}
+	result, err := exec.ExecContext(ctx, stmt, args...)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "delete host SCIM user mapping")
 	}

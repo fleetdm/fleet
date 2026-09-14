@@ -2260,8 +2260,7 @@ func directIngestEntraJoinUser(
 	var upn string
 	if len(rows) > 0 {
 		upn = strings.ToLower(strings.TrimSpace(rows[0]["user_email"]))
-		// host_emails.email is a varchar(255); Entra caps UPNs well below that.
-		if upn != "" && (len(upn) > 255 || !microsoft_mdm.IsValidUPN(upn)) {
+		if upn != "" && !microsoft_mdm.IsValidEntraUPN(upn) {
 			logger.WarnContext(ctx, "ignoring invalid Entra join user email", "host.id", host.ID, "length", len(upn))
 			upn = ""
 		}
