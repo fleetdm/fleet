@@ -3803,12 +3803,10 @@ func checkAndResendHostMDMProfile(ctx context.Context, svc *Service, host *fleet
 		onError(ctxerr.Wrap(ctx, err, "getting host mdm profile status"), false)
 		return
 	}
-	// The fleetd profile spends most of its life in "verifying" (osquery only
-	// confirms it on its next profile refetch), and with one-time enroll secrets
-	// resending it is how an admin gives a host a usable secret, so allow it.
-	// Re-delivery returns the host's unconsumed secret if it still has one and
-	// mints a new one only when the previous one was spent, so this is safe to
-	// do to a host that did not need it.
+	// If orbit/osquery are broken but MDM communications are still operational, the
+	// fleetd profile may be terminally in the "verifying" state because it has been
+	// acknowledged by MDM but osquery will never report back for verification, so allow
+	// resending it to allow an admin to repair the host's orbit/osquery installation
 	deliversOneTimeSecret := svc.config.Auth.UseOneTimeEnrollSecrets && isFleetdConfigProfile(profileUUID, profileName)
 	verifyingAllowed := deliversOneTimeSecret && status == fleet.MDMDeliveryVerifying
 	if status == fleet.MDMDeliveryPending || (status == fleet.MDMDeliveryVerifying && !verifyingAllowed) {

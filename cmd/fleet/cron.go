@@ -1441,7 +1441,7 @@ func newCleanupsAndAggregationSchedule(
 			},
 		),
 		schedule.WithJob(
-			"host_one_time_enroll_secrets",
+			"cleanup_host_one_time_enroll_secrets",
 			func(ctx context.Context) error {
 				_, err := ds.CleanupHostOneTimeEnrollSecrets(ctx)
 				return err

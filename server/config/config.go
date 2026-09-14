@@ -249,12 +249,7 @@ type AuthConfig struct {
 	SsoSessionValidityPeriod    time.Duration `yaml:"sso_session_validity_period"`
 	RequireHTTPMessageSignature bool          `yaml:"require_http_message_signature"`
 	SSORateLimitPerMinute       int           `yaml:"sso_rate_limit_per_minute"`
-	// UseOneTimeEnrollSecrets replaces the shared enroll secret in the fleetd
-	// configuration profile delivered to macOS MDM hosts with a per-device,
-	// single-use secret, and rejects shared secrets presented by Apple hosts that
-	// are (or should be) enrolled in Fleet MDM. Premium only; disabled at startup
-	// on Fleet Free.
-	UseOneTimeEnrollSecrets bool `yaml:"use_one_time_enroll_secrets"`
+	UseOneTimeEnrollSecrets     bool          `yaml:"use_one_time_enroll_secrets"`
 }
 
 // AppConfig defines configs related to HTTP

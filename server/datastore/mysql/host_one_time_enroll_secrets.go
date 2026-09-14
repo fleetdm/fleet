@@ -47,8 +47,8 @@ func deleteHostOneTimeEnrollSecrets(ctx context.Context, tx sqlx.ExtContext, hos
 // CleanupHostOneTimeEnrollSecrets deletes, in batches, spent secrets that a
 // newer secret for the same host has superseded (once past the second-plane
 // window, so a late osquery enrollment is not orphaned) and secrets whose host
-// no longer exists. Unconsumed secrets are never removed here: a host holds at
-// most one and it stays valid until used.
+// no longer exists. Unconsumed secrets whose host records still exist are never
+// removed here: a host holds at most one and it stays valid until used.
 func (ds *Datastore) CleanupHostOneTimeEnrollSecrets(ctx context.Context) (int64, error) {
 	const batchSize = 1000
 	stmts := []string{
@@ -96,8 +96,7 @@ func (ds *Datastore) CleanupHostOneTimeEnrollSecrets(ctx context.Context) (int64
 // enrollment. A host has at most one unconsumed secret: if one exists it is
 // returned again (the device may fetch the same command more than once, and
 // re-deliveries, including an admin resend, must not churn a valid secret),
-// otherwise a new one is minted and bound to the host's current identifiers and
-// team.
+// otherwise a new one is minted and bound to the host's identifiers and team.
 func (ds *Datastore) mintHostOneTimeEnrollSecret(ctx context.Context, enrollmentID string) (string, error) {
 	// User-channel enrollment IDs are "<udid>:<userid>"; the fleetd profile is
 	// device-scoped so this should never happen.
