@@ -87,12 +87,39 @@ export const getTabIndex = (
 const DEFAULT_SORT_DIRECTION = "desc";
 const DEFAULT_SORT_HEADER = "hosts_count";
 // The OS tab defaults to sorting by version (latest first) instead, once a
-// single platform is selected — see defaultSortHeader below.
+// single platform is selected — see getOSTabSortHeader below.
 const OS_TAB_DEFAULT_SORT_HEADER = "version";
 // Increased from 20 to 50 per design spec (#32128). Load test the software
 // endpoints before shipping to confirm acceptable response times at this threshold.
 const DEFAULT_PAGE_SIZE = 50;
 const DEFAULT_PAGE = 0;
+
+/** Comparing OS versions across different platforms isn't meaningful, so the
+ * OS tab's "All platforms" view can't sort by version — the Version column
+ * itself is unclickable there. But `order_key=version` could still reach
+ * this page via a crafted/bookmarked URL, or a stale one restored by
+ * browser back/forward, bypassing that UI restriction entirely (this page
+ * is server-driven — whatever order_key is used here becomes the API
+ * request). Guard against that specific combination rather than trusting
+ * order_key verbatim whenever platform is "all". */
+export const getOSTabSortHeader = (
+  pathname: string,
+  platform: string,
+  orderKeyParam?: string
+): string => {
+  const isOnOSTab = pathname.startsWith(PATHS.SOFTWARE_OS);
+  const defaultSortHeader =
+    isOnOSTab && platform !== "all"
+      ? OS_TAB_DEFAULT_SORT_HEADER
+      : DEFAULT_SORT_HEADER;
+  if (!orderKeyParam) {
+    return defaultSortHeader;
+  }
+  if (isOnOSTab && platform === "all" && orderKeyParam === "version") {
+    return defaultSortHeader;
+  }
+  return orderKeyParam;
+};
 
 const baseClass = "software-page";
 
@@ -152,21 +179,14 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
     globalConfigFromContext?.partnerships?.enable_primo || false;
 
   const queryParams = location.query;
-  const isOnOSTab = (location?.pathname || "").startsWith(PATHS.SOFTWARE_OS);
 
   // initial values for query params used on this page
   const platform = queryParams?.platform || "all";
-  // The OS tab defaults to sorting by version only once a single platform
-  // is selected — comparing versions across platforms mixed together
-  // isn't meaningful, so "all platforms" keeps the host-count default.
-  const defaultSortHeader =
-    isOnOSTab && platform !== "all"
-      ? OS_TAB_DEFAULT_SORT_HEADER
-      : DEFAULT_SORT_HEADER;
-  const sortHeader =
-    queryParams && queryParams.order_key
-      ? queryParams.order_key
-      : defaultSortHeader;
+  const sortHeader = getOSTabSortHeader(
+    location?.pathname || "",
+    platform,
+    queryParams?.order_key
+  );
   const sortDirection =
     queryParams?.order_direction === undefined
       ? DEFAULT_SORT_DIRECTION

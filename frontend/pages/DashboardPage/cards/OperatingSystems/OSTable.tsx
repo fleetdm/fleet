@@ -59,6 +59,7 @@ const OSTable = ({
       generateTableHeaders(currentTeamId, undefined, {
         includeName: selectedPlatform === "linux",
         platformHostTotals,
+        disableVersionSort: selectedPlatform === "all",
       }),
     [currentTeamId, selectedPlatform, platformHostTotals]
   );

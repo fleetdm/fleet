@@ -1,6 +1,6 @@
 import { IOperatingSystemVersion } from "interfaces/operating_system";
 
-import {
+import generateTableHeaders, {
   compareOSTableVersions,
   compareOSVersionStrings,
 } from "./OSTableConfig";
@@ -120,5 +120,21 @@ describe("compareOSVersionStrings", () => {
     expect(compareOSVersionStrings(".26", "26.6")).toEqual(-1);
     expect(compareOSVersionStrings("+1.2", "26.6")).toEqual(-1);
     expect(compareOSVersionStrings("1e2", "26.6")).toEqual(-1);
+  });
+});
+
+describe("generateTableHeaders", () => {
+  const findVersionColumn = (disableVersionSort?: boolean) =>
+    generateTableHeaders(undefined, undefined, { disableVersionSort }).find(
+      (column) => column.accessor === "version"
+    );
+
+  it("disables the Version column's sort when disableVersionSort is set, so 'All platforms' can't trigger a cross-platform version sort", () => {
+    expect(findVersionColumn(true)?.disableSortBy).toEqual(true);
+  });
+
+  it("leaves the Version column sortable once a specific platform is selected", () => {
+    expect(findVersionColumn(false)?.disableSortBy).toEqual(false);
+    expect(findVersionColumn(undefined)?.disableSortBy).toEqual(false);
   });
 });

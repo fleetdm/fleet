@@ -117,12 +117,19 @@ interface IOSTableConfigOptions {
    * to the first 20 results — not necessarily every platform's fleet-wide
    * total, if there are more than 20 distinct OS versions) — used to group
    * the Version column's sort by platform (most hosts first) before
-   * ordering by version within each platform, since comparing versions
-   * across platforms isn't meaningful (e.g. macOS "26.6" vs. Windows
-   * "22H1"). Only used for client-side sorting (the dashboard card); the
-   * server-driven Software > OS table ignores this column's sortType
+   * ordering by version within each platform, for the one remaining case
+   * where a single platform filter can still span multiple actual
+   * `platform` values (e.g. the dashboard's Linux tab, which covers rhel/
+   * ubuntu/etc). Only used for client-side sorting (the dashboard card);
+   * the server-driven Software > OS table ignores this column's sortType
    * entirely. */
   platformHostTotals?: Record<string, number>;
+  /** Disables the Version column's sort entirely — set when viewing "All
+   * platforms" (mixed), since comparing versions across platforms isn't
+   * meaningful (e.g. macOS "26.6" vs. Windows "22H1") and grouping by
+   * platform to work around that isn't wanted here either; sorting by
+   * version should only be offered once a specific platform is selected. */
+  disableVersionSort?: boolean;
 }
 
 /** Orders the Version column by platform group (most hosts first, always
@@ -203,11 +210,11 @@ const generateDefaultTableHeaders = (
     Header: (cellProps: IHostHeaderProps) => (
       <HeaderCell
         value="Version"
-        disableSortBy={false}
+        disableSortBy={!!configOptions?.disableVersionSort}
         isSortedDesc={cellProps.column.isSortedDesc}
       />
     ),
-    disableSortBy: false,
+    disableSortBy: !!configOptions?.disableVersionSort,
     accessor: "version",
     sortType: (rowA, rowB, _columnId, desc) =>
       compareOSTableVersions(

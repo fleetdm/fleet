@@ -161,8 +161,9 @@ const SoftwareOSTable = ({
       includeName: true,
       includeVulnerabilities: true,
       includeIcon: true,
+      disableVersionSort: platform === "all",
     });
-  }, [data, router, teamId]);
+  }, [data, router, teamId, platform]);
 
   const handleRowSelect = (row: IRowProps) => {
     const path = getPathWithQueryParams(

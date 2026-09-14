@@ -196,4 +196,55 @@ describe("Software operating systems table", () => {
       container.querySelector(".version__header .header-cell")
     ).not.toHaveClass("descending", "ascending");
   });
+
+  it("disables the Version column's sort on 'All platforms', and re-enables it once a specific platform is selected", () => {
+    const data = createMockOSVersionsResponse({
+      count: 1,
+      os_versions: [
+        createMockOSVersion({
+          os_version_id: 1,
+          platform: "darwin",
+          hosts_count: 10,
+        }),
+      ],
+    });
+
+    const { rerender, container } = render(
+      <SoftwareOSTable
+        router={mockRouter}
+        isSoftwareEnabled
+        data={data}
+        perPage={20}
+        orderDirection="desc"
+        orderKey="hosts_count"
+        currentPage={0}
+        teamId={1}
+        isLoading={false}
+        platform="all"
+      />
+    );
+
+    expect(
+      container.querySelector(".version__header button.sortable-header")
+    ).toBeNull();
+
+    rerender(
+      <SoftwareOSTable
+        router={mockRouter}
+        isSoftwareEnabled
+        data={data}
+        perPage={20}
+        orderDirection="desc"
+        orderKey="version"
+        currentPage={0}
+        teamId={1}
+        isLoading={false}
+        platform="darwin"
+      />
+    );
+
+    expect(
+      container.querySelector(".version__header button.sortable-header")
+    ).not.toBeNull();
+  });
 });
