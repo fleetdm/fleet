@@ -19,12 +19,8 @@ const baseClass = "os-settings-resend-cell";
 // Android config profiles (unlike certificates) are synced by the host
 // checking in with Google periodically, similarly to Apple declaration (DDM)
 // profiles, rather than Fleet pushing them — so they can't be resent on demand.
-const ANDROID_PROFILE_NO_RESEND_TOOLTIP_MESSAGE = (
-  <>
-    Fleet can&apos;t resend this configuration profile. Android hosts check in
-    for profiles periodically, rather than Fleet pushing them.
-  </>
-);
+const ANDROID_PROFILE_NO_RESEND_TOOLTIP_MESSAGE =
+  "Fleet can't resend this configuration profile. Android hosts check in for profiles periodically, rather than Fleet pushing them.";
 
 interface IActionButtonProps {
   isPending: boolean;
