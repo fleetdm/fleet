@@ -1,6 +1,7 @@
 package service
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
@@ -10,6 +11,7 @@ import (
 
 	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/server/config"
+	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -238,8 +240,9 @@ func TestInitiateDeviceSSO(t *testing.T) {
 func TestRequireDeviceSSOSession(t *testing.T) {
 	host := &fleet.Host{ID: 1, UUID: "host-uuid-1", Platform: "darwin"}
 	otherHost := &fleet.Host{ID: 2, UUID: "host-uuid-2", Platform: "darwin"}
+	idpHost := &fleet.Host{ID: 3, UUID: "host-uuid-3", Platform: "ios"}
 
-	// mintFor returns a session ID for h, or "" for the callers that stand in for
+	// sessionFor returns a session ID for h, or "" for the callers that stand in for
 	// a browser with no cookie yet.
 	type sessionFor func(t *testing.T, svc *Service, ctx context.Context) string
 	noSession := func(*testing.T, *Service, context.Context) string { return "" }
@@ -250,9 +253,18 @@ func TestRequireDeviceSSOSession(t *testing.T) {
 			return sessionID
 		}
 	}
+	sessionOfWithIDP := func(h *fleet.Host, idpAcctUUID string) sessionFor {
+		return func(t *testing.T, svc *Service, ctx context.Context) string {
+			sessionID, _, err := svc.createDeviceSSOSession(ctx, h, idpAcctUUID)
+			require.NoError(t, err)
+			return sessionID
+		}
+	}
 
 	cases := []struct {
 		name                  string
+		host                  *fleet.Host                    // defaults to host
+		authnMethod           authz_ctx.AuthenticationMethod // defaults to none set
 		ssoEnabled            bool
 		platform              string // defaults to darwin
 		awaitingConfiguration bool   // darwin only: the Setup Assistant flag
@@ -260,6 +272,7 @@ func TestRequireDeviceSSOSession(t *testing.T) {
 		session               sessionFor
 		advanceClock          time.Duration
 		wantSSORequired       bool
+		wantMismatch          bool
 		wantSessionLookup     bool
 	}{
 		{
@@ -327,6 +340,39 @@ func TestRequireDeviceSSOSession(t *testing.T) {
 			wantSSORequired:       true,
 			wantSessionLookup:     true,
 		},
+		{
+			name:              "host with no IdP mapping is not validated against one",
+			ssoEnabled:        true,
+			session:           sessionOfWithIDP(host, "fake-uuid"),
+			wantSessionLookup: true,
+		},
+		{
+			name:              "session minted by the host's IdP user allows the request",
+			ssoEnabled:        true,
+			host:              idpHost,
+			authnMethod:       authz_ctx.AuthnDeviceURL,
+			session:           sessionOfWithIDP(idpHost, "associated-uuid"),
+			wantSessionLookup: true,
+		},
+		{
+			name:              "session minted by another IdP user is rejected",
+			ssoEnabled:        true,
+			host:              idpHost,
+			authnMethod:       authz_ctx.AuthnDeviceURL,
+			session:           sessionOfWithIDP(idpHost, "someone-elses-uuid"),
+			wantMismatch:      true,
+			wantSessionLookup: true,
+		},
+		{
+			// Device-token auth already proves possession of a device-bound secret,
+			// so it skips the IdP comparison and its lockout modes.
+			name:              "device token auth is not checked against the host's IdP user",
+			ssoEnabled:        true,
+			host:              idpHost,
+			authnMethod:       authz_ctx.AuthnDeviceToken,
+			session:           sessionOfWithIDP(idpHost, "someone-elses-uuid"),
+			wantSessionLookup: true,
+		},
 	}
 
 	for _, c := range cases {
@@ -337,8 +383,9 @@ func TestRequireDeviceSSOSession(t *testing.T) {
 				ac.FleetDesktop.SSOEnabled = c.ssoEnabled
 				return &ac, nil
 			}
+			caseHost := *cmp.Or(c.host, host)
 			ds.GetHostAwaitingConfigurationFunc = func(ctx context.Context, hostUUID string) (bool, error) {
-				require.Equal(t, host.UUID, hostUUID)
+				require.Equal(t, caseHost.UUID, hostUUID)
 				return c.awaitingConfiguration, nil
 			}
 			ds.ListSetupExperienceResultsByHostUUIDFunc = func(ctx context.Context, hostUUID string, teamID uint) ([]*fleet.SetupExperienceStatusResult, error) {
@@ -346,11 +393,21 @@ func TestRequireDeviceSSOSession(t *testing.T) {
 					{Name: "install something", Status: c.setupExperienceStatus, HostUUID: hostUUID, SoftwareInstallerID: new(uint(1))},
 				}, nil
 			}
+			ds.GetMDMIdPAccountByHostUUIDFunc = func(ctx context.Context, hostUUID string) (*fleet.MDMIdPAccount, error) {
+				if hostUUID != idpHost.UUID {
+					return nil, nil
+				}
+				return &fleet.MDMIdPAccount{UUID: "associated-uuid"}, nil
+			}
 
 			svc, getKey, mockClock := newDeviceSSOTestService(t, ds, time.Hour)
 			ctx := t.Context()
+			if c.authnMethod != 0 {
+				authzCtx := &authz_ctx.AuthorizationContext{}
+				authzCtx.SetAuthnMethod(c.authnMethod)
+				ctx = authz_ctx.NewContext(ctx, authzCtx)
+			}
 
-			caseHost := *host
 			if c.platform != "" {
 				caseHost.Platform = c.platform
 				caseHost.OsqueryHostID = new("osquery-id")
@@ -364,6 +421,10 @@ func TestRequireDeviceSSOSession(t *testing.T) {
 			if c.wantSSORequired {
 				var ssoRequired *fleet.DeviceSSORequiredError
 				require.ErrorAs(t, err, &ssoRequired)
+			} else if c.wantMismatch {
+				var badRequest *fleet.BadRequestError
+				require.ErrorAs(t, err, &badRequest)
+				require.Equal(t, "mismatched SSO user for this device", badRequest.Message)
 			} else {
 				require.NoError(t, err)
 			}

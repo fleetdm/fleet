@@ -380,8 +380,10 @@ func (svc *Service) getHostSetupExperienceStatus(ctx context.Context, host *flee
 // My Device SSO Flow
 /////////////////////////////////////////////////////////////////////////////////
 
-const deviceSSOSessionKeyPrefix = "device_sso_session:"
-const deviceSSOSessionIDLength = 24
+const (
+	deviceSSOSessionKeyPrefix = "device_sso_session:"
+	deviceSSOSessionIDLength  = 24
+)
 
 // createDeviceSSOSession mints a new device SSO session for host.
 func (svc *Service) createDeviceSSOSession(ctx context.Context, host *fleet.Host, idpAccountUUID string) (sessionID string, ttl time.Duration, err error) {
@@ -467,6 +469,27 @@ func (svc *Service) RequireDeviceSSOSession(ctx context.Context, host *fleet.Hos
 		svc.logger.WarnContext(ctx, "device sso session belongs to another host",
 			"host_id", host.ID, "session_host_id", session.HostID)
 	default:
+		if !svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceURL) {
+			// only run the IDP account check for iOS/iPadOS UUID device authentications
+			return nil
+		}
+
+		// The session is valid for this host, so it also has to belong to the
+		// host's IdP end user. A host with no IdP mapping has nothing to compare
+		// against (ADE-enrolled iPhones never get one), so it passes rather than
+		// locking the end user out of their own device page, which is accepted fleetdm/security#38
+		idpAccount, err := svc.ds.GetMDMIdPAccountByHostUUID(ctx, host.UUID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "get host mdm idp account")
+		}
+		if idpAccount != nil && idpAccount.UUID != session.IdPAccountUUID {
+			// The "My device" page matches on this exact reason string to show the
+			// mismatched-user page instead of restarting the SSO flow, which would
+			// loop: see isMismatchedSSOUserError in
+			// frontend/pages/hosts/details/DeviceUserPage/helpers.ts. Changing the
+			// wording here means changing it there too.
+			return ctxerr.Wrap(ctx, &fleet.BadRequestError{Message: "mismatched SSO user for this device"})
+		}
 		return nil
 	}
 
@@ -529,7 +552,8 @@ func (svc *Service) InitiateDeviceSSO(ctx context.Context, deviceURL string) (*f
 	}
 
 	sessionDuration := svc.config.Auth.SsoSessionValidityPeriod
-	sessionID, idpURL, err := sso.CreateAuthorizationRequest(ctx,
+	sessionID, idpURL, err := sso.CreateAuthorizationRequest(
+		ctx,
 		samlProvider,
 		svc.ssoSessionStore,
 		sso.URLWithPrefix(browserBase, svc.config.Server.URLPrefix, deviceURL).String(),
