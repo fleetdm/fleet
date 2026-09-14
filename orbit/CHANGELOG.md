@@ -9,15 +9,22 @@
 * Added support for restoring BitLocker protection on Windows hosts whose volume is already encrypted but has protection turned off. If the volume has no TPM protector, fleetd adds one before turning protection back on. fleetd waits while a restart is pending, and reports the reason to Fleet when it can't restore protection.
 
 * Updated `macadmins/osquery-extension` to `v1.5.4`, which includes the following changes:
-  * Fixed the `munki_info` table failing on hosts where Munki reported items it couldn't install, which left those hosts without Munki version, error, and warning data.
-  * Added the `touchid_system_config` and `touchid_user_config` tables for macOS.
-  * Added the `privileges_events` table for macOS, which reports admin privilege changes and tamper attempts recorded by SAP Privileges.
-  * Fixed the `macadmins_unified_log` table returning an extra empty row at the end of every result.
+
+* Fixed the `munki_info` table failing on hosts where Munki reported items it couldn't install, which left those hosts without Munki version, error, and warning data.
+
+* Added the `touchid_system_config` and `touchid_user_config` tables for macOS.
+
+* Added the `privileges_events` table for macOS, which reports admin privilege changes and tamper attempts recorded by SAP Privileges.
+
+* Fixed the `macadmins_unified_log` table returning an extra empty row at the end of every result.
 
 * Fixed and improved the `santa_allowed` and `santa_denied` tables:
-  * Fixed the tables returning no results on hosts where Santa is running, most often in monitor mode. A single log line longer than 64KB (Santa logs process arguments, which have no practical size limit), a log rotation during a read, or an archive that couldn't be decompressed caused every event read from the other Santa log files to be discarded. Reads are now best effort: over-long lines are truncated, a file that can't be read no longer discards the events read from the other files, and failures are logged instead of silently returning zero rows.
-  * Fixed fleetd skipping rotated Santa logs that haven't been compressed, so the tables no longer miss events on hosts whose newsyslog configuration leaves archives uncompressed.
-  * Improved performance: the tables now parse Santa logs about 3x faster while allocating 5-7x less memory, and stop reading rotated logs once they have the most recent 10,000 events, so on a busy host the compressed archives are no longer decompressed on every query.
+
+* Fixed the tables returning no results on hosts where Santa is running, most often in monitor mode. A single log line longer than 64KB (Santa logs process arguments, which have no practical size limit), a log rotation during a read, or an archive that couldn't be decompressed caused every event read from the other Santa log files to be discarded. Reads are now best effort: over-long lines are truncated, a file that can't be read no longer discards the events read from the other files, and failures are logged instead of silently returning zero rows.
+
+* Fixed fleetd skipping rotated Santa logs that haven't been compressed, so the tables no longer miss events on hosts whose newsyslog configuration leaves archives uncompressed.
+
+* Improved performance: the tables now parse Santa logs about 3x faster while allocating 5-7x less memory, and stop reading rotated logs once they have the most recent 10,000 events, so on a busy host the compressed archives are no longer decompressed on every query.
 
 * Fixed Linux disk encryption key escrow rejecting a valid passphrase with "Passphrase incorrect" on hosts whose shell startup files print to stdout. fleetd read the passphrase from the dialog's stdout, which is also where the login shell's startup files write, so their output was captured as part of the passphrase. fleetd now delimits the dialog's own output so the passphrase can be read back separately.
 
