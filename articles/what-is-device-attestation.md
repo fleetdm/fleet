@@ -153,10 +153,7 @@ Turning on both gives you ACME-only enrollment. That's a real trade-off:
 - BYOD and Silent-Migration are off the table.
 
 
-Hosts already enrolled that are no longer eligible stop renewing their
-certificate. They age out of MDM when the certificate expires. This includes
-any non-Apple Business host under AB-only, and non-attesting Apple Business
-hardware under both settings.
+Hosts already enrolled that are no longer eligible stop renewing their certificate and age out of MDM when it expires. IT admins see a banner on the host details page when a manually enrolled host is no longer eligible. Non-Apple Business hosts stop renewing as soon as AB-only is on. Apple Business hardware that can't attest stops renewing only in ACME-only mode.
 
 ## Why this matters in practice
 
