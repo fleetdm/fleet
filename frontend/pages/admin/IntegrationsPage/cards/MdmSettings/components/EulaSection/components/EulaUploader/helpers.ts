@@ -1,5 +1,6 @@
-import { noop } from "lodash";
 import { AxiosResponse } from "axios";
+import { noop } from "lodash";
+
 import { IApiError } from "interfaces/errors";
 
 export const UPLOAD_ERROR_MESSAGES = {

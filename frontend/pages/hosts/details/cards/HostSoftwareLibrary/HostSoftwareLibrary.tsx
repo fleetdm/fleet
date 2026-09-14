@@ -1,3 +1,4 @@
+import { AxiosError } from "axios";
 import React, {
   useCallback,
   useContext,
@@ -6,46 +7,43 @@ import React, {
   useState,
   useEffect,
 } from "react";
-import { InjectedRouter } from "react-router";
 import { useQuery, useQueryClient } from "react-query";
-import { AxiosError } from "axios";
+import { InjectedRouter } from "react-router";
 
-import hostAPI, {
-  IGetHostSoftwareResponse,
-  IHostSoftwareQueryKey,
-} from "services/entities/hosts";
-import PATHS from "router/paths";
+import SoftwareInstallDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareInstallDetailsModal";
+import SoftwareIpaInstallDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareIpaInstallDetailsModal";
+import SoftwareScriptDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareScriptDetailsModal";
+import SoftwareUninstallDetailsModal, {
+  ISWUninstallDetailsParentState,
+} from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
+import VppInstallDetailsModal from "components/ActivityDetails/InstallDetails/VppInstallDetailsModal";
+import CardHeader from "components/CardHeader";
+import DataError from "components/DataError";
+import Spinner from "components/Spinner";
+import { notify } from "components/ToastNotification";
+import { AppContext } from "context/app";
+import { HostPlatform, isIPadOrIPhone, isAndroid } from "interfaces/platform";
 import {
   IHostSoftware,
   IVPPHostSoftware,
   ISoftware,
 } from "interfaces/software";
-import { HostPlatform, isIPadOrIPhone, isAndroid } from "interfaces/platform";
-
+import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
+import PATHS from "router/paths";
+import hostAPI, {
+  IGetHostSoftwareResponse,
+  IHostSoftwareQueryKey,
+} from "services/entities/hosts";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import permissions from "utilities/permissions";
 import { getPathWithQueryParams } from "utilities/url";
 
-import { AppContext } from "context/app";
-
-import { notify } from "components/ToastNotification";
-import CardHeader from "components/CardHeader";
-import DataError from "components/DataError";
-import Spinner from "components/Spinner";
-import SoftwareInstallDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareInstallDetailsModal";
-import SoftwareIpaInstallDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareIpaInstallDetailsModal";
-import SoftwareScriptDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareScriptDetailsModal";
-import VppInstallDetailsModal from "components/ActivityDetails/InstallDetails/VppInstallDetailsModal";
-import SoftwareUninstallDetailsModal, {
-  ISWUninstallDetailsParentState,
-} from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
-import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
-
-import { generateHostSWLibraryTableHeaders } from "./HostSoftwareLibraryTable/HostSoftwareLibraryTableConfig";
-import HostSoftwareLibraryTable from "./HostSoftwareLibraryTable";
-import { getInstallErrorMessage, getUninstallErrorMessage } from "./helpers";
 import { getUiStatus } from "../Software/helpers";
 import SoftwareUpdateModal from "../Software/SelfService/components/SoftwareUpdateModal";
+
+import { getInstallErrorMessage, getUninstallErrorMessage } from "./helpers";
+import HostSoftwareLibraryTable from "./HostSoftwareLibraryTable";
+import { generateHostSWLibraryTableHeaders } from "./HostSoftwareLibraryTable/HostSoftwareLibraryTableConfig";
 
 const baseClass = "host-software-library-card";
 

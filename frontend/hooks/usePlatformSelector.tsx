@@ -1,14 +1,13 @@
-import React, { useCallback, useEffect, useState } from "react";
 import { forEach } from "lodash";
+import React, { useCallback, useEffect, useState } from "react";
 
+import PlatformSelector from "components/PlatformSelector";
 import {
   CommaSeparatedPlatformString,
   QUERYABLE_PLATFORMS,
   QueryablePlatform,
 } from "interfaces/platform";
 import { IPolicySoftwareToInstall } from "interfaces/policy";
-
-import PlatformSelector from "components/PlatformSelector";
 
 export interface IPlatformSelector {
   setSelectedPlatforms: (platforms: string[]) => void;

@@ -1,6 +1,13 @@
 import React, { ReactNode } from "react";
 
-import { dateAgo } from "utilities/date_format";
+import { SKIPPED_INSTALL_DETAILS } from "components/ActivityDetails/InstallDetails/constants";
+import { ISWUninstallDetailsParentState } from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
+import Button from "components/buttons/Button";
+import Icon from "components/Icon";
+import Spinner from "components/Spinner";
+import TextCell from "components/TableContainer/DataTable/TextCell";
+import TooltipWrapper from "components/TooltipWrapper";
+import { isAndroid, isAppleDevice } from "interfaces/platform";
 import {
   IHostSoftware,
   IHostSoftwareWithUiStatus,
@@ -11,17 +18,10 @@ import {
   IAppLastInstall,
   SCRIPT_PACKAGE_SOURCES,
 } from "interfaces/software";
-import { isAndroid, isAppleDevice } from "interfaces/platform";
-import { Colors } from "styles/var/colors";
-
-import Icon from "components/Icon";
-import TextCell from "components/TableContainer/DataTable/TextCell";
-import Spinner from "components/Spinner";
-import TooltipWrapper from "components/TooltipWrapper";
-import Button from "components/buttons/Button";
-import { ISWUninstallDetailsParentState } from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
-import { SKIPPED_INSTALL_DETAILS } from "components/ActivityDetails/InstallDetails/constants";
 import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
+import { Colors } from "styles/var/colors";
+import { dateAgo } from "utilities/date_format";
+
 import {
   getLastInstall,
   getLastUninstall,

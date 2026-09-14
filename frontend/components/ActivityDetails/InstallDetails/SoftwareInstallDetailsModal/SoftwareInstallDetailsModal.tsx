@@ -6,38 +6,35 @@
  * For Android Google Play Store apps, we also use THIS modal
  * For all other apps, we use THIS modal */
 
+import { AxiosError } from "axios";
 import React, { useState } from "react";
 import { useQuery } from "react-query";
-import { timeAgo } from "utilities/date_format";
-import { AxiosError } from "axios";
 
-import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
-
+import Button from "components/buttons/Button";
+import CopyButton from "components/buttons/CopyButton";
+import RevealButton from "components/buttons/RevealButton";
+import CustomLink from "components/CustomLink";
+import DataError from "components/DataError/DataError";
+import DataSet from "components/DataSet";
+import DeviceUserError from "components/DeviceUserError";
+import IconStatusMessage from "components/IconStatusMessage";
+import Modal from "components/Modal";
+import ModalFooter from "components/ModalFooter";
+import PremiumFeatureMessage from "components/PremiumFeatureMessage";
+import Spinner from "components/Spinner/Spinner";
+import Textarea from "components/Textarea";
+import TooltipTruncatedText from "components/TooltipTruncatedText";
 import {
   IHostSoftware,
   ISoftwareInstallResult,
   ISoftwareInstallResults,
 } from "interfaces/software";
-import softwareAPI from "services/entities/software";
-import deviceUserAPI from "services/entities/device_user";
-
 import InventoryVersions from "pages/hosts/details/components/InventoryVersions";
 import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
-
-import Modal from "components/Modal";
-import ModalFooter from "components/ModalFooter";
-import Button from "components/buttons/Button";
-import CopyButton from "components/buttons/CopyButton";
-import IconStatusMessage from "components/IconStatusMessage";
-import Textarea from "components/Textarea";
-import DataError from "components/DataError/DataError";
-import DataSet from "components/DataSet";
-import DeviceUserError from "components/DeviceUserError";
-import Spinner from "components/Spinner/Spinner";
-import RevealButton from "components/buttons/RevealButton";
-import CustomLink from "components/CustomLink";
-import PremiumFeatureMessage from "components/PremiumFeatureMessage";
-import TooltipTruncatedText from "components/TooltipTruncatedText";
+import deviceUserAPI from "services/entities/device_user";
+import softwareAPI from "services/entities/software";
+import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
+import { timeAgo } from "utilities/date_format";
 
 import {
   INSTALL_DETAILS_STATUS_ICONS,

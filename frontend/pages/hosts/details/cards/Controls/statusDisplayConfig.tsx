@@ -1,5 +1,6 @@
 import React from "react";
 
+import { IconNames } from "components/icons";
 import {
   FLEET_ANDROID_CERTIFICATE_TEMPLATE_PROFILE_ID,
   FLEET_FILEVAULT_PROFILE_DISPLAY_NAME,
@@ -10,12 +11,11 @@ import {
 } from "interfaces/mdm";
 import { isDDMProfile } from "services/entities/mdm";
 
-import { IconNames } from "components/icons";
-
 import {
   HOST_NAME_SYNTHETIC_PROFILE_UUID,
   REC_LOCK_SYNTHETIC_PROFILE_UUID,
 } from "../../helpers";
+
 import {
   getAndroidCertificateRetryMessage,
   isRetryingAndroidCertificate,

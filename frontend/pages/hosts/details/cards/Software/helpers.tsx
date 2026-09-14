@@ -1,8 +1,9 @@
-import { QueryParams } from "utilities/url";
-import { Row } from "react-table";
 import { flatMap } from "lodash";
-import { HostPlatform, isIPadOrIPhone } from "interfaces/platform";
+import { Row } from "react-table";
+
+import { IconNames } from "components/icons";
 import { MdmEnrollmentStatus } from "interfaces/mdm";
+import { HostPlatform, isIPadOrIPhone } from "interfaces/platform";
 import {
   IHostSoftware,
   IHostSoftwareUiStatus,
@@ -10,7 +11,8 @@ import {
   NO_VERSION_OR_HOST_DATA_SOURCES,
   SCRIPT_PACKAGE_SOURCES,
 } from "interfaces/software";
-import { IconNames } from "components/icons";
+import { QueryParams } from "utilities/url";
+
 import {
   getLastInstall,
   getLastUninstall,

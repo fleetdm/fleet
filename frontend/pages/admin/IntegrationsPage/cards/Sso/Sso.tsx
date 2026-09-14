@@ -1,23 +1,23 @@
-import React, { useCallback, useRef, useState } from "react";
 import { isEqual } from "lodash";
-
-import useFormValidation, { trimFormData } from "hooks/useFormValidation";
-
-import SettingsSection from "pages/admin/components/SettingsSection";
-import PageDescription from "components/PageDescription";
-import Button from "components/buttons/Button";
-import Checkbox from "components/forms/fields/Checkbox";
-import CustomLink from "components/CustomLink";
-import InputField from "components/forms/fields/InputField";
-import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
-import TabText from "components/TabText";
-import TabNav from "components/TabNav";
-import PATHS from "router/paths";
+import React, { useCallback, useRef, useState } from "react";
 import { Tab, TabList, TabPanel, Tabs } from "react-tabs";
 
+import Button from "components/buttons/Button";
+import CustomLink from "components/CustomLink";
+import Checkbox from "components/forms/fields/Checkbox";
+import InputField from "components/forms/fields/InputField";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import PageDescription from "components/PageDescription";
+import TabNav from "components/TabNav";
+import TabText from "components/TabText";
+import useFormValidation, { trimFormData } from "hooks/useFormValidation";
+import SettingsSection from "pages/admin/components/SettingsSection";
+import PATHS from "router/paths";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
+
 import { IAppConfigFormProps } from "../../../OrgSettingsPage/cards/constants";
 import EndUserAuthSection from "../IdentityProviders/components/EndUserAuthSection";
+
 import {
   ISsoFormData,
   METADATA_SIBLING,

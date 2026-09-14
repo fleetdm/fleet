@@ -157,6 +157,36 @@ func TestAppConfigAuth(t *testing.T) {
 	}
 }
 
+// TestModifyAppConfigHostExpiryWindow covers the validation that rejects the
+// apply before persisting. The accepted cases (positive window, and a window
+// that is ignored while host expiry is disabled) are covered by integration
+// tests, like the sibling activity_expiry_window check.
+func TestModifyAppConfigHostExpiryWindow(t *testing.T) {
+	for _, window := range []int{-1, 0} {
+		t.Run(fmt.Sprintf("enabled with window %d is rejected", window), func(t *testing.T) {
+			ds := new(mock.Store)
+			svc, ctx := newTestServiceWithConfig(t, ds, config.TestConfig(), nil, nil, &TestServerOpts{
+				License: &fleet.LicenseInfo{Tier: fleet.TierFree},
+			})
+			ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
+			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+				return &fleet.AppConfig{
+					OrgInfo:        fleet.OrgInfo{OrgName: "Test"},
+					ServerSettings: fleet.ServerSettings{ServerURL: "https://example.org"},
+				}, nil
+			}
+			ds.SaveAppConfigFunc = func(ctx context.Context, conf *fleet.AppConfig) error { return nil }
+
+			body := fmt.Sprintf(`{"host_expiry_settings":{"host_expiry_enabled":true,"host_expiry_window":%d}}`, window)
+			_, err := svc.ModifyAppConfig(ctx, []byte(body), fleet.ApplySpecOptions{})
+			var invalid *fleet.InvalidArgumentError
+			require.ErrorAs(t, err, &invalid)
+			require.Contains(t, fmt.Sprintf("%+v", invalid.Errors), "host_expiry_settings.host_expiry_window")
+			require.False(t, ds.SaveAppConfigFuncInvoked, "config should not be saved when rejected")
+		})
+	}
+}
+
 // TestModifyAppConfigVulnExposureFilters covers the GitOps wiring for the
 // vulnerability-exposure chart filter defaults: the premium gate and the
 // payload validation, both of which reject the apply before persisting. The

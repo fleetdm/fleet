@@ -1,9 +1,11 @@
 // Utilizes Link over Button so we can right click links
-import React from "react";
 
-import { Link } from "react-router";
 import classnames from "classnames";
+import React from "react";
+import { Link } from "react-router";
+
 import TooltipWrapper from "components/TooltipWrapper";
+
 import TooltipTruncatedTextCell from "../TooltipTruncatedTextCell";
 
 interface ILinkCellProps {

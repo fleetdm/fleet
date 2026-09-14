@@ -1,16 +1,12 @@
 import React, { useState } from "react";
 import { useQuery } from "react-query";
 
-import { ISoftwareTitleDetails } from "interfaces/software";
-import { getErrorReason } from "interfaces/errors";
-import softwareAPI from "services/entities/software";
-import teamPoliciesAPI from "services/entities/team_policies";
-import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
-
 import Button from "components/buttons/Button";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import Modal from "components/Modal";
 import { notify } from "components/ToastNotification";
+import { getErrorReason } from "interfaces/errors";
+import { ISoftwareTitleDetails } from "interfaces/software";
 import {
   getPatchPolicyFlags,
   PatchOption,
@@ -20,6 +16,9 @@ import {
   getFleetAppPolicyDescription,
   getFleetAppPolicyName,
 } from "pages/SoftwarePage/SoftwareAddPage/SoftwareFleetMaintained/FleetMaintainedAppDetailsPage/helpers";
+import softwareAPI from "services/entities/software";
+import teamPoliciesAPI from "services/entities/team_policies";
+import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 
 const baseClass = "deploy-modal";
 

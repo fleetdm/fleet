@@ -1,6 +1,7 @@
-import React from "react";
 import { render, screen } from "@testing-library/react";
-import { renderWithSetup, createCustomRenderer } from "test/test-utils";
+import { noop } from "lodash";
+import React from "react";
+
 import { createMockHostSoftware } from "__mocks__/hostMock";
 import { createMockSoftwareInstallResult } from "__mocks__/softwareMock";
 import {
@@ -15,7 +16,7 @@ import {
   getSoftwareInstallResultHandlerPremiumRequired,
 } from "test/handlers/software-handlers";
 import mockServer from "test/mock-server";
-import { noop } from "lodash";
+import { renderWithSetup, createCustomRenderer } from "test/test-utils";
 
 import SoftwareInstallDetailsModal, {
   StatusMessage,

@@ -18929,6 +18929,154 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/munki_installs.yml"
   },
   {
+    "name": "netskope",
+    "platforms": [
+      "darwin",
+      "windows",
+      "linux"
+    ],
+    "description": "The local Netskope client's state, version, and steering configuration, as reported by `nsdiag -f`.\n\nNetskope can enter a silently degraded state where the STAgent process and its system extensions still look healthy but traffic is no longer steered. Checks against process state or system extension presence miss this; `client_status` and `tunnel_status` do not.",
+    "evented": false,
+    "columns": [
+      {
+        "name": "client_installed",
+        "description": "Whether a Netskope client install was found on this host (1=found, 0=not found). Always populated; when 0, the `error` column says why and the remaining columns are empty.",
+        "required": false,
+        "type": "integer"
+      },
+      {
+        "name": "error",
+        "description": "Why the client's state could not be read — `netskope client not installed`, an `nsdiag failed: ...` message (for example a permission failure), or `nsdiag reported no recognized fields`. Empty when the state was read successfully.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "install_path",
+        "description": "The directory the Netskope STAgent was found in. Empty when no install was found.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "orgname",
+        "description": "The Netskope tenant's organization name.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "tenant_url",
+        "description": "The tenant URL this client is enrolled with, for example `company.goskope.com`.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "addonhost",
+        "description": "The addon host endpoint the client connects to.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "addoncheckerhost",
+        "description": "The addon checker host endpoint the client connects to.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "gateway",
+        "description": "The hostname of the Netskope gateway traffic is steered through.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "gateway_ip",
+        "description": "The IP address of the Netskope gateway traffic is steered through.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "config",
+        "description": "The name of the client configuration currently applied.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "steering_config",
+        "description": "The name of the steering configuration currently applied.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "email",
+        "description": "The email address this client is enrolled with.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "peruser_config",
+        "description": "Whether a per-user configuration is in effect (`TRUE`/`FALSE`).",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "tunnel_status",
+        "description": "The state of the steering tunnel, for example `NSTUNNEL_CONNECTED`. A value other than connected on a host that should be steered is the degraded state to alert on.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "client_status",
+        "description": "The state of the client, for example `enable`.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "dynamic_steering",
+        "description": "Whether dynamic steering is enabled (`TRUE`/`FALSE`).",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "onpremdetection",
+        "description": "The on-premises detection setting, for example `Not Configured`.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "explicit_proxy",
+        "description": "Whether explicit proxy mode is enabled (`TRUE`/`FALSE`).",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "tunnel_protocol",
+        "description": "The protocol the steering tunnel uses, for example `TLS`.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "sni_enable",
+        "description": "Whether SNI-based steering is enabled (`TRUE`/`FALSE`).",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "traffic_mode",
+        "description": "The traffic steering mode, for example `All Traffic`.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "client_version",
+        "description": "The version of the installed Netskope client.",
+        "required": false,
+        "type": "text"
+      }
+    ],
+    "examples": "Find hosts where the Netskope client is installed but is no longer enabled and connected — the silently degraded state. `error = ''` keeps out clients whose state could not be read, which is a separate problem from a client that reported itself as degraded.\n```\nSELECT install_path, client_version, client_status, tunnel_status\nFROM netskope\nWHERE client_installed = 1\n  AND error = ''\n  AND NOT (client_status = 'enable' AND tunnel_status = 'NSTUNNEL_CONNECTED');\n```",
+    "notes": "This table is not a core osquery table. It is included as part of Fleet's agent\n([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).\n\nThe table always returns exactly one row, so that \"not installed\", \"installed but degraded\", and \"installed but state could not be read\" stay distinguishable. Check `client_installed` and `error` before treating the remaining columns as the client's real state.\n\nThe fields `nsdiag` reports change between Netskope releases. Fields this table does not recognize are ignored rather than failing the query, and a release that renames every field is reported through the `error` column.",
+    "url": "https://fleetdm.com/tables/netskope",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/netskope.yml"
+  },
+  {
     "name": "network_interfaces",
     "evented": false,
     "platforms": [
@@ -22362,6 +22510,122 @@
     "notes": "- This table is not a core osquery table. This table requires the [fleetd Chrome extension](https://fleetdm.com/docs/using-fleet/chromeos).",
     "url": "https://fleetdm.com/tables/privacy_preferences",
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/privacy_preferences.yml"
+  },
+  {
+    "name": "privileges_events",
+    "platforms": [
+      "darwin"
+    ],
+    "description": "Audit events from [SAP Privileges](https://github.com/SAP/macOS-enterprise-privileges). Reports admin privilege changes (`ADMIN_ADD` / `ADMIN_REMOVE`) and tamper attempts on Privileges' own files and launchd jobs (`CLONE`, `CREATE`, `DELETE`, `RENAME`, `EXEC`), along with Endpoint Security data about the process that made the change. Requires Privileges 2.6.0 or later with its system extension enabled; returns no rows otherwise.",
+    "examples": "List admin privilege changes from the last 15 minutes. Events come from the unified log, so use a short `last` window in scheduled queries.\n\n```\nSELECT event_type, principal, subject, executable, uid FROM privileges_events WHERE last = '15m' AND event_type LIKE 'ADMIN_%';\n```",
+    "columns": [
+      {
+        "name": "event_type",
+        "type": "text",
+        "required": false,
+        "description": "`ADMIN_ADD` or `ADMIN_REMOVE` for privilege changes, or one of `CLONE`, `CREATE`, `DELETE`, `RENAME`, `EXEC` for tamper-protection events on Privileges' own files and launchd jobs."
+      },
+      {
+        "name": "principal",
+        "type": "text",
+        "required": false,
+        "description": "The user or group whose admin membership changed; see `subject` for which. Empty for tamper-protection events."
+      },
+      {
+        "name": "subject",
+        "type": "text",
+        "required": false,
+        "description": "`user` or `group` for privilege changes; the affected path for tamper-protection events."
+      },
+      {
+        "name": "executable",
+        "type": "text",
+        "required": false,
+        "description": "Path of the process that made the change."
+      },
+      {
+        "name": "signing_id",
+        "type": "text",
+        "required": false,
+        "description": "Code signing identifier of the acting process."
+      },
+      {
+        "name": "team_id",
+        "type": "text",
+        "required": false,
+        "description": "Apple Developer Team ID of the acting process."
+      },
+      {
+        "name": "cdhash",
+        "type": "text",
+        "required": false,
+        "description": "Code directory hash of the acting process."
+      },
+      {
+        "name": "pid",
+        "type": "integer",
+        "required": false,
+        "description": "Process ID of the acting process."
+      },
+      {
+        "name": "ppid",
+        "type": "integer",
+        "required": false,
+        "description": "Parent process ID of the acting process."
+      },
+      {
+        "name": "uid",
+        "type": "integer",
+        "required": false,
+        "description": "Effective user ID of the acting process. -1 when the process has no audit session (e.g. daemons)."
+      },
+      {
+        "name": "gid",
+        "type": "integer",
+        "required": false,
+        "description": "Effective group ID of the acting process. -1 when the process has no audit session (e.g. daemons)."
+      },
+      {
+        "name": "auid",
+        "type": "integer",
+        "required": false,
+        "description": "Audit user ID of the acting process. -1 when the process has no audit session (e.g. daemons)."
+      },
+      {
+        "name": "responsible_pid",
+        "type": "integer",
+        "required": false,
+        "description": "Process ID of the responsible process (e.g. the terminal app behind a shell)."
+      },
+      {
+        "name": "is_platform_binary",
+        "type": "integer",
+        "required": false,
+        "description": "Value is 1 if the acting process is an Apple platform binary."
+      },
+      {
+        "name": "is_es_client",
+        "type": "integer",
+        "required": false,
+        "description": "Value is 1 if the acting process is an Endpoint Security client."
+      },
+      {
+        "name": "process_start_time",
+        "type": "text",
+        "required": false,
+        "description": "Start time of the process that made the change. This is not the time of the privilege change; the event stream carries no per-event timestamp."
+      },
+      {
+        "name": "last",
+        "type": "text",
+        "required": false,
+        "description": "Time window to search, passed to `PrivilegesCLI --last` (e.g. `15m`, `3h`, `2d`). Use this as a parameter in the `WHERE` clause."
+      }
+    ],
+    "notes": "This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)). This table is from the [Mac Admins osquery extension](https://github.com/macadmins/osquery-extension).",
+    "evented": false,
+    "url": "https://fleetdm.com/tables/privileges_events",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/privileges_events.yml"
   },
   {
     "name": "process_envs",

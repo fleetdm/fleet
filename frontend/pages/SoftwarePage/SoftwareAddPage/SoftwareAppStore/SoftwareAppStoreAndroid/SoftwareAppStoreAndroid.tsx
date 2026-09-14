@@ -1,18 +1,17 @@
 import React, { useContext, useState } from "react";
 import { InjectedRouter } from "react-router";
-import PATHS from "router/paths";
 
-import { AppContext } from "context/app";
-import softwareAPI from "services/entities/software";
-
-import { notify } from "components/ToastNotification";
-import PremiumFeatureMessage from "components/PremiumFeatureMessage";
-import EmptyState from "components/EmptyState";
 import Button from "components/buttons/Button";
-import { ISoftwareAndroidFormData } from "pages/SoftwarePage/components/forms/SoftwareAndroidForm/SoftwareAndroidForm";
-
-import { getPathWithQueryParams } from "utilities/url";
+import EmptyState from "components/EmptyState";
+import PremiumFeatureMessage from "components/PremiumFeatureMessage";
+import { notify } from "components/ToastNotification";
+import { AppContext } from "context/app";
 import SoftwareAndroidForm from "pages/SoftwarePage/components/forms/SoftwareAndroidForm";
+import { ISoftwareAndroidFormData } from "pages/SoftwarePage/components/forms/SoftwareAndroidForm/SoftwareAndroidForm";
+import PATHS from "router/paths";
+import softwareAPI from "services/entities/software";
+import { getPathWithQueryParams } from "utilities/url";
+
 import { getErrorMessage } from "./helpers";
 
 const baseClass = "software-app-store-android";

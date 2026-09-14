@@ -1,28 +1,26 @@
 import React, { useState, useEffect, useContext, useCallback } from "react";
-import { useQuery } from "react-query";
 import { useErrorHandler } from "react-error-boundary";
+import { useQuery } from "react-query";
 import { InjectedRouter, Params } from "react-router/lib/Router";
-import PATHS from "router/paths";
-import useTeamIdParam from "hooks/useTeamIdParam";
 
+import SelectTargets from "components/LiveQuery/SelectTargets";
+import MainContent from "components/MainContent";
 import { AppContext } from "context/app";
 import { QueryContext } from "context/query";
-import { LIVE_QUERY_STEPS, DOCUMENT_TITLE_SUFFIX } from "utilities/constants";
-import { getPathWithQueryParams } from "utilities/url";
-import queryAPI from "services/entities/queries";
-import hostAPI from "services/entities/hosts";
+import useTeamIdParam from "hooks/useTeamIdParam";
 import { IHost, IHostResponse } from "interfaces/host";
 import { ILabel } from "interfaces/label";
-import { ITeam } from "interfaces/team";
 import {
   IGetQueryResponse,
   ISchedulableQuery,
 } from "interfaces/schedulable_query";
-
-import MainContent from "components/MainContent";
-import SelectTargets from "components/LiveQuery/SelectTargets";
-
+import { ITeam } from "interfaces/team";
 import RunQuery from "pages/queries/live/screens/RunQuery";
+import PATHS from "router/paths";
+import hostAPI from "services/entities/hosts";
+import queryAPI from "services/entities/queries";
+import { LIVE_QUERY_STEPS, DOCUMENT_TITLE_SUFFIX } from "utilities/constants";
+import { getPathWithQueryParams } from "utilities/url";
 
 interface IRunQueryPageProps {
   router: InjectedRouter;
