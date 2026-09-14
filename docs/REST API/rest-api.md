@@ -7215,6 +7215,8 @@ The host must have MDM turned on and be enrolled via Apple MDM. If the host is o
 | id   | integer | path | **Required**. The host's ID. |
 | activity_id   | string | path | **Required**. The ID of the host's upcoming activity. |
 
+For a pending script run (e.g. the scripts that back lock on Windows/Linux and wipe on Linux), `activity_id` is the script's execution ID. Get it from the `uuid` (or `details.script_execution_id`) field of a `"type": "ran_script"` entry returned by [Get host's upcoming activity](#get-hosts-upcoming-activity).
+
 #### Example
 
 `DELETE /api/v1/fleet/hosts/12/activities/upcoming/81e10a70-730b-4c45-9b40-b14373e04757`
