@@ -1898,21 +1898,26 @@ func getMDMCommandsCommand() *cli.Command {
 }
 
 // formatCommandOutput pretty-prints an MDM command payload or result. Apple and
-// Windows commands are XML, Android commands are JSON, and the result struct
-// doesn't carry the platform, so sniff the content instead. etree happily reads
-// JSON as a bare character-data node and XML-escapes the quotes on write, so
-// JSON must be routed away from formatXML rather than relying on it to fail.
+// Windows commands are XML while Android commands are JSON, and the result
+// struct carries no platform, so sniff the content.
 func formatCommandOutput(in []byte) ([]byte, error) {
-	if trimmed := bytes.TrimLeft(in, " \t\r\n"); len(trimmed) > 0 && (trimmed[0] == '{' || trimmed[0] == '[') {
+	trimmed := bytes.TrimSpace(in)
+	if len(trimmed) > 0 && (trimmed[0] == '{' || trimmed[0] == '[') {
 		return formatJSON(trimmed)
 	}
-	return formatXML(in)
+	return formatXML(trimmed)
 }
 
 func formatXML(in []byte) ([]byte, error) {
 	doc := etree.NewDocument()
 	if err := doc.ReadFromBytes(in); err != nil {
 		return nil, err
+	}
+	// etree accepts non-XML input without error, parsing it as a bare
+	// character-data node and escaping it on write. Reject it so callers fall
+	// back to the raw bytes instead of printing mangled output.
+	if doc.Root() == nil {
+		return nil, errors.New("input is not XML")
 	}
 	doc.Indent(2)
 	return doc.WriteToBytes()

@@ -3052,6 +3052,29 @@ func TestGetMDMCommandResults(t *testing.T) {
 			return nil, nil
 		case "fail-cmd":
 			return nil, io.EOF
+		case "pending-cmd":
+			// a command that hasn't reached a terminal state yet has no raw_result,
+			// and a result that isn't valid JSON must be printed as-is
+			return []*fleet.MDMCommandResult{
+				{
+					HostUUID:    "device1",
+					CommandUUID: commandUUID,
+					Status:      "Pending",
+					UpdatedAt:   time.Date(2023, 4, 4, 15, 29, 0, 0, time.UTC),
+					RequestType: "CLEAR_APP_DATA",
+					Payload:     []byte(androidPayloadJSON),
+					Result:      nil,
+				},
+				{
+					HostUUID:    "device2",
+					CommandUUID: commandUUID,
+					Status:      "Error",
+					UpdatedAt:   time.Date(2023, 4, 4, 15, 29, 0, 0, time.UTC),
+					RequestType: "CLEAR_APP_DATA",
+					Payload:     nil,
+					Result:      []byte(`{"done":true,`),
+				},
+			}, nil
 		default:
 			return []*fleet.MDMCommandResult{
 				{
@@ -3107,6 +3130,14 @@ func TestGetMDMCommandResults(t *testing.T) {
 		ds.GetMDMCommandPlatformFuncInvoked = false
 		require.False(t, ds.GetMDMWindowsCommandResultsFuncInvoked)
 		require.False(t, ds.GetMDMAppleCommandResultsFuncInvoked)
+
+		platform = "android"
+		_, err = runAppNoChecks([]string{"get", "mdm-command-results", "--id", "no-such-cmd"})
+		require.Error(t, err)
+		require.ErrorContains(t, err, `The command doesn't exist.`)
+		require.True(t, ds.GetMDMCommandPlatformFuncInvoked)
+		ds.GetMDMCommandPlatformFuncInvoked = false
+		require.False(t, ds.GetMDMAndroidCommandResultsFuncInvoked)
 	})
 
 	t.Run("command results error", func(t *testing.T) {
@@ -3129,6 +3160,15 @@ func TestGetMDMCommandResults(t *testing.T) {
 		require.True(t, ds.GetMDMWindowsCommandResultsFuncInvoked)
 		ds.GetMDMWindowsCommandResultsFuncInvoked = false
 		require.False(t, ds.GetMDMAppleCommandResultsFuncInvoked)
+
+		platform = "android"
+		_, err = runAppNoChecks([]string{"get", "mdm-command-results", "--id", "fail-cmd"})
+		require.Error(t, err)
+		require.ErrorContains(t, err, `EOF`)
+		require.True(t, ds.GetMDMCommandPlatformFuncInvoked)
+		ds.GetMDMCommandPlatformFuncInvoked = false
+		require.True(t, ds.GetMDMAndroidCommandResultsFuncInvoked)
+		ds.GetMDMAndroidCommandResultsFuncInvoked = false
 	})
 
 	t.Run("command results empty", func(t *testing.T) {
@@ -3151,6 +3191,15 @@ func TestGetMDMCommandResults(t *testing.T) {
 		require.True(t, ds.GetMDMWindowsCommandResultsFuncInvoked)
 		ds.GetMDMWindowsCommandResultsFuncInvoked = false
 		require.False(t, ds.GetMDMAppleCommandResultsFuncInvoked)
+
+		platform = "android"
+		buf, err = runAppNoChecks([]string{"get", "mdm-command-results", "--id", "empty-cmd"})
+		require.NoError(t, err)
+		require.Contains(t, buf.String(), "No results received. Please check again later.")
+		require.True(t, ds.GetMDMCommandPlatformFuncInvoked)
+		ds.GetMDMCommandPlatformFuncInvoked = false
+		require.True(t, ds.GetMDMAndroidCommandResultsFuncInvoked)
+		ds.GetMDMAndroidCommandResultsFuncInvoked = false
 	})
 
 	t.Run("darwin command results", func(t *testing.T) {
@@ -3508,7 +3557,8 @@ RESULTS:
 		buf, err := runAppNoChecks([]string{"get", "mdm-command-results", "--id", "valid-cmd"})
 		require.NoError(t, err)
 		require.Contains(t, buf.String(), expectedOutput)
-		// the whole point of the fix: the JSON must survive unescaped so it can be piped to jq
+		// the whole point of the fix: the JSON survives unescaped, so an extracted
+		// PAYLOAD/RESULTS block parses as JSON
 		require.NotContains(t, buf.String(), "&quot;")
 		require.True(t, ds.GetMDMCommandPlatformFuncInvoked)
 		ds.GetMDMCommandPlatformFuncInvoked = false
@@ -3516,6 +3566,22 @@ RESULTS:
 		ds.GetMDMAndroidCommandResultsFuncInvoked = false
 		require.False(t, ds.GetMDMWindowsCommandResultsFuncInvoked)
 		require.False(t, ds.GetMDMAppleCommandResultsFuncInvoked)
+	})
+
+	t.Run("android pending and malformed results", func(t *testing.T) {
+		platform = "android"
+		buf, err := runAppNoChecks([]string{"get", "mdm-command-results", "--id", "pending-cmd"})
+		require.NoError(t, err)
+		out := buf.String()
+		require.NotContains(t, out, "&quot;")
+		// missing payload/result print as empty rather than erroring
+		require.Contains(t, out, "STATUS:\nPending")
+		require.Contains(t, out, "RESULTS:\n\n")
+		require.Contains(t, out, "PAYLOAD:\n\n")
+		// malformed JSON falls back to the raw bytes
+		require.Contains(t, out, `{"done":true,`)
+		require.True(t, ds.GetMDMAndroidCommandResultsFuncInvoked)
+		ds.GetMDMAndroidCommandResultsFuncInvoked = false
 	})
 
 	t.Run("host specific results", func(t *testing.T) {
@@ -3886,8 +3952,7 @@ func TestFormatXML(t *testing.T) {
 		{
 			name:    "Empty XML",
 			input:   []byte(""),
-			want:    nil,
-			wantErr: false,
+			wantErr: true,
 		},
 		{
 			name:    "Invalid XML",
@@ -3969,8 +4034,8 @@ func TestFormatCommandOutput(t *testing.T) {
 ]`),
 		},
 		{
-			name:  "JSON with leading whitespace",
-			input: []byte("\n  {\"a\":1}"),
+			name:  "JSON with surrounding whitespace",
+			input: []byte("\n  {\"a\":1}\n\n"),
 			want:  []byte("{\n  \"a\": 1\n}"),
 		},
 		{
@@ -3997,9 +4062,19 @@ func TestFormatCommandOutput(t *testing.T) {
 			want:  []byte("<SyncML>\n  <SyncBody>\n    <Status>\n      <CmdID>1</CmdID>\n    </Status>\n  </SyncBody>\n</SyncML>\n"),
 		},
 		{
-			name:  "Empty input",
-			input: []byte(""),
-			want:  nil,
+			name:    "Empty input",
+			input:   []byte(""),
+			wantErr: true,
+		},
+		{
+			name:    "Bare JSON string is not XML and must not be escaped",
+			input:   []byte(`"just a string"`),
+			wantErr: true,
+		},
+		{
+			name:    "Plain text is not XML and must not be escaped",
+			input:   []byte(`some "quoted" text`),
+			wantErr: true,
 		},
 		{
 			name:    "Invalid XML",
