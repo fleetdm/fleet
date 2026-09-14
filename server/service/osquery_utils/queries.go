@@ -3711,7 +3711,7 @@ var tpmPINQueries = map[string]DetailQuery{
 			// which is already what Fleet wants.
 			if !useTPMPINSet || useTPMPIN == fmt.Sprintf("%d", microsoft_mdm.PolicyOptDropdownDisallowed) ||
 				values["useenhancedpin"] != "1" ||
-				(minimumPINSet && minimumPIN != strconv.Itoa(fleet.BitLockerPINMinLength)) ||
+				(minimumPINSet && minimumPIN != strconv.Itoa(microsoft_mdm.BitLockerPINMinLength)) ||
 				(disallowPINChangeSet && disallowPINChange != "0") {
 				logger.InfoContext(ctx, "Updating TPM PIN protector configuration via MDM",
 					"query", "tpm_pin_config_verify",

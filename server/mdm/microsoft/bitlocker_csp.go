@@ -24,7 +24,7 @@ var systemDriveRequiresStartupAuthTmpl = template.Must(template.New("cmd").Funcs
 		}
 		return *val
 	}, "minPINLength": func() int {
-		return fleet.BitLockerPINMinLength
+		return BitLockerPINMinLength
 	}}).Parse(`
 <Atomic>
 	<CmdID>{{ .CmdUUID }}</CmdID>
@@ -117,7 +117,7 @@ type SystemDriveRequiresStartupAuthSpec struct {
 	// ConfigureTPM configures configure TPM startup
 	ConfigureTPM *uint
 	// ConfigurePINPolicies also sets the startup PIN policies Fleet's PIN flow assumes, overriding anything a previous MDM,
-	// a GPO or a script left behind: a minimum of fleet.BitLockerPINMinLength characters, enhanced PINs allowed, and
+	// a GPO or a script left behind: a minimum of BitLockerPINMinLength characters, enhanced PINs allowed, and
 	// standard users allowed to change their own PIN in the Windows UI. They share the Atomic, so a host gets all of them
 	// or none. See https://learn.microsoft.com/en-us/windows/client-management/mdm/bitlocker-csp
 	ConfigurePINPolicies bool
