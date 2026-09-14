@@ -2046,6 +2046,12 @@ type CreateDeviceTxFunc func(ctx context.Context, tx sqlx.ExtContext, device *an
 
 type UpdateDeviceTxFunc func(ctx context.Context, tx sqlx.ExtContext, device *android.Device) error
 
+type GetZeroTouchEnrollmentTokenFunc func(ctx context.Context, teamID *uint) (*android.ZeroTouchToken, error)
+
+type CreateZeroTouchEnrollmentTokenFunc func(ctx context.Context, token *android.ZeroTouchToken) (*android.ZeroTouchToken, error)
+
+type DeleteZeroTouchEnrollmentTokensFunc func(ctx context.Context) error
+
 type GetAndroidDeviceLastTeamIDFunc func(ctx context.Context, enterpriseSpecificID string) (*uint, bool, error)
 
 type UpdateTeamIDOnAndroidDevicesFunc func(ctx context.Context, hostUUIDs []string, teamID *uint) error
@@ -5453,6 +5459,15 @@ type DataStore struct {
 
 	UpdateDeviceTxFunc        UpdateDeviceTxFunc
 	UpdateDeviceTxFuncInvoked bool
+
+	GetZeroTouchEnrollmentTokenFunc        GetZeroTouchEnrollmentTokenFunc
+	GetZeroTouchEnrollmentTokenFuncInvoked bool
+
+	CreateZeroTouchEnrollmentTokenFunc        CreateZeroTouchEnrollmentTokenFunc
+	CreateZeroTouchEnrollmentTokenFuncInvoked bool
+
+	DeleteZeroTouchEnrollmentTokensFunc        DeleteZeroTouchEnrollmentTokensFunc
+	DeleteZeroTouchEnrollmentTokensFuncInvoked bool
 
 	GetAndroidDeviceLastTeamIDFunc        GetAndroidDeviceLastTeamIDFunc
 	GetAndroidDeviceLastTeamIDFuncInvoked bool
@@ -13093,6 +13108,27 @@ func (s *DataStore) UpdateDeviceTx(ctx context.Context, tx sqlx.ExtContext, devi
 	s.UpdateDeviceTxFuncInvoked = true
 	s.mu.Unlock()
 	return s.UpdateDeviceTxFunc(ctx, tx, device)
+}
+
+func (s *DataStore) GetZeroTouchEnrollmentToken(ctx context.Context, teamID *uint) (*android.ZeroTouchToken, error) {
+	s.mu.Lock()
+	s.GetZeroTouchEnrollmentTokenFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetZeroTouchEnrollmentTokenFunc(ctx, teamID)
+}
+
+func (s *DataStore) CreateZeroTouchEnrollmentToken(ctx context.Context, token *android.ZeroTouchToken) (*android.ZeroTouchToken, error) {
+	s.mu.Lock()
+	s.CreateZeroTouchEnrollmentTokenFuncInvoked = true
+	s.mu.Unlock()
+	return s.CreateZeroTouchEnrollmentTokenFunc(ctx, token)
+}
+
+func (s *DataStore) DeleteZeroTouchEnrollmentTokens(ctx context.Context) error {
+	s.mu.Lock()
+	s.DeleteZeroTouchEnrollmentTokensFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeleteZeroTouchEnrollmentTokensFunc(ctx)
 }
 
 func (s *DataStore) GetAndroidDeviceLastTeamID(ctx context.Context, enterpriseSpecificID string) (*uint, bool, error) {

@@ -471,6 +471,11 @@ func (svc *Service) DeleteEnterprise(ctx context.Context) error {
 		}
 	}
 
+	err = svc.ds.DeleteZeroTouchEnrollmentTokens(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "deleting zero-touch enrollment tokens")
+	}
+
 	err = svc.ds.DeleteAllEnterprises(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "deleting enterprises")
@@ -883,6 +888,11 @@ func (svc *Service) cleanupDeletedEnterprise(ctx context.Context, enterprise *an
 	// This ensures the proxy won't return conflicts when creating new signup URLs
 	if deleteErr := svc.androidAPIClient.EnterpriseDelete(ctx, enterprise.Name()); deleteErr != nil {
 		svc.logger.WarnContext(ctx, "failed to delete proxy records after enterprise deletion (may not exist)", "err", deleteErr)
+	}
+
+	// Delete zero-touch enrollment tokens (they reference the enterprise being deleted)
+	if deleteErr := svc.ds.DeleteZeroTouchEnrollmentTokens(ctx); deleteErr != nil {
+		svc.logger.ErrorContext(ctx, "failed to delete zero-touch enrollment tokens after enterprise deletion", "err", deleteErr)
 	}
 
 	// Delete local enterprise records
