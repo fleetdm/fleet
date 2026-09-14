@@ -28879,11 +28879,11 @@ func (s *integrationMDMTestSuite) TestBitLockerPINRelay() {
 
 	// The end user retries, the agent collects, and this time it works.
 	s.Do("POST", "/api/latest/fleet/device/"+deviceToken+"/disk_encryption_pin",
-		json.RawMessage(`{"pin": "654321"}`), http.StatusNoContent)
+		json.RawMessage(`{"pin": "Fl\"eet 2026!"}`), http.StatusNoContent)
 	require.True(t, orbitConfig(capsHeader).Notifications.BitLockerPINRequestPending)
 	s.DoJSON("POST", "/api/fleet/orbit/disk_encryption_pin/request",
 		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host.OrbitNodeKey)), http.StatusOK, &pinResp)
-	require.Equal(t, "654321", pinResp.PIN)
+	require.Equal(t, `Fl"eet 2026!`, pinResp.PIN)
 	require.NotEqual(t, firstRequestUUID, pinResp.RequestUUID, "each submission gets its own id")
 
 	// A late outcome for the superseded submission must not be recorded against this one.

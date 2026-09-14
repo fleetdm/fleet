@@ -76,7 +76,7 @@ func TestSubmitBitLockerPIN(t *testing.T) {
 
 		err := svc.SubmitBitLockerPIN(ctx, host, "12ab")
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "only digits")
+		require.Contains(t, err.Error(), fleet.BitLockerPINLengthMessage)
 		require.False(t, ds.QueueBitLockerPINRequestFuncInvoked)
 	})
 

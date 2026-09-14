@@ -4528,13 +4528,34 @@ func TestTPMPinSetVerifyIngest(t *testing.T) {
 func TestTPMPinConfigVerifyDirectIngest(t *testing.T) {
 	logger := slog.New(slog.DiscardHandler)
 	ctx := t.Context()
+	testHost := &fleet.Host{UUID: "test-uuid", ID: 1}
+
+	// policyRows builds the registry rows for a host already configured the way Fleet's PIN flow needs, with overrides
+	// applied. An override with an empty value removes that registry value.
+	policyRows := func(overrides map[string]string) []map[string]string {
+		values := map[string]string{
+			"UseTPMPIN":                    strconv.Itoa(microsoft_mdm.PolicyOptDropdownOptional),
+			"UseEnhancedPin":               "1",
+			"MinimumPIN":                   strconv.Itoa(fleet.BitLockerPINMinLength),
+			"DisallowStandardUserPINReset": "0",
+			// Policies Fleet does not check live under the same key.
+			"UseTPM": strconv.Itoa(microsoft_mdm.PolicyOptDropdownOptional),
+		}
+		maps.Copy(values, overrides)
+		var rows []map[string]string
+		for name, data := range values {
+			if data != "" {
+				rows = append(rows, map[string]string{"name": name, "data": data})
+			}
+		}
+		return rows
+	}
 
 	tests := []struct {
-		name      string
-		host      *fleet.Host
-		rows      []map[string]string
-		wantCmd   bool
-		wantError bool
+		name    string
+		host    *fleet.Host
+		rows    []map[string]string
+		wantCmd bool
 	}{
 		{
 			name: "nil host",
@@ -4545,56 +4566,77 @@ func TestTPMPinConfigVerifyDirectIngest(t *testing.T) {
 			host: &fleet.Host{UUID: ""},
 		},
 		{
-			name: "too many rows",
-			host: &fleet.Host{
-				UUID: "test-uuid",
-				ID:   1,
-			},
-			rows: []map[string]string{
-				{"data": strconv.Itoa(microsoft_mdm.PolicyOptDropdownOptional)},
-				{"data": strconv.Itoa(microsoft_mdm.PolicyOptDropdownOptional)},
-			},
-			wantError: true,
-		},
-		{
-			name: "no rows - requires command",
-			host: &fleet.Host{
-				UUID: "test-uuid",
-				ID:   1,
-			},
+			name:    "no policy key",
+			host:    testHost,
 			rows:    []map[string]string{},
 			wantCmd: true,
 		},
 		{
-			name: "disallowed state - requires command",
-			host: &fleet.Host{
-				UUID: "test-uuid",
-				ID:   1,
-			},
+			name: "everything already configured",
+			host: testHost,
+			rows: policyRows(nil),
+		},
+		{
+			name: "a required PIN protector is fine",
+			host: testHost,
+			rows: policyRows(map[string]string{"UseTPMPIN": strconv.Itoa(microsoft_mdm.PolicyOptDropdownRequired)}),
+		},
+		{
+			// Both are Windows' defaults, which already match what Fleet sets.
+			name: "unset minimum length and unset standard user restriction are fine",
+			host: testHost,
+			rows: policyRows(map[string]string{"MinimumPIN": "", "DisallowStandardUserPINReset": ""}),
+		},
+		{
+			name: "registry value names match regardless of case",
+			host: testHost,
 			rows: []map[string]string{
-				{"data": strconv.Itoa(microsoft_mdm.PolicyOptDropdownDisallowed)},
+				{"name": "usetpmpin", "data": strconv.Itoa(microsoft_mdm.PolicyOptDropdownOptional)},
+				{"name": "USEENHANCEDPIN", "data": "1"},
 			},
+		},
+		{
+			name:    "an unset PIN protector policy",
+			host:    testHost,
+			rows:    policyRows(map[string]string{"UseTPMPIN": ""}),
 			wantCmd: true,
 		},
 		{
-			name: "policy set to optinal",
-			host: &fleet.Host{
-				UUID: "test-uuid",
-				ID:   1,
-			},
-			rows: []map[string]string{
-				{"data": strconv.Itoa(microsoft_mdm.PolicyOptDropdownOptional)},
-			},
+			name:    "a disallowed PIN protector",
+			host:    testHost,
+			rows:    policyRows(map[string]string{"UseTPMPIN": strconv.Itoa(microsoft_mdm.PolicyOptDropdownDisallowed)}),
+			wantCmd: true,
 		},
 		{
-			name: "policy set to required",
-			host: &fleet.Host{
-				UUID: "test-uuid",
-				ID:   1,
-			},
-			rows: []map[string]string{
-				{"data": strconv.Itoa(microsoft_mdm.PolicyOptDropdownRequired)},
-			},
+			name:    "enhanced PINs not configured",
+			host:    testHost,
+			rows:    policyRows(map[string]string{"UseEnhancedPin": ""}),
+			wantCmd: true,
+		},
+		{
+			name:    "enhanced PINs disabled",
+			host:    testHost,
+			rows:    policyRows(map[string]string{"UseEnhancedPin": "0"}),
+			wantCmd: true,
+		},
+		{
+			// A longer minimum would make Windows reject a PIN Fleet accepted.
+			name:    "a longer minimum PIN length",
+			host:    testHost,
+			rows:    policyRows(map[string]string{"MinimumPIN": "8"}),
+			wantCmd: true,
+		},
+		{
+			name:    "a shorter minimum PIN length",
+			host:    testHost,
+			rows:    policyRows(map[string]string{"MinimumPIN": "4"}),
+			wantCmd: true,
+		},
+		{
+			name:    "standard users are not allowed to change their PIN",
+			host:    testHost,
+			rows:    policyRows(map[string]string{"DisallowStandardUserPINReset": "1"}),
+			wantCmd: true,
 		},
 	}
 
@@ -4602,26 +4644,49 @@ func TestTPMPinConfigVerifyDirectIngest(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			ds := new(mock.Store)
 
-			cmdInserted := false
+			var inserted []*fleet.MDMWindowsCommand
 			if tt.wantCmd {
 				ds.MDMWindowsInsertCommandForHostsFunc = func(
 					ctx context.Context,
 					hostUUIDs []string,
 					cmd *fleet.MDMWindowsCommand,
 				) error {
-					cmdInserted = true
 					require.Equal(t, []string{tt.host.UUID}, hostUUIDs)
 					require.NotNil(t, cmd)
+					inserted = append(inserted, cmd)
 					return nil
 				}
 			}
 
 			ingestFunc := tpmPINQueries["tpm_pin_config_verify"].DirectIngestFunc
-			err := ingestFunc(ctx, logger, tt.host, ds, tt.rows)
-			require.Equal(t, tt.wantError, err != nil)
-			require.Equal(t, cmdInserted, tt.wantCmd)
+			require.NoError(t, ingestFunc(ctx, logger, tt.host, ds, tt.rows))
+			if !tt.wantCmd {
+				require.Empty(t, inserted)
+				return
+			}
+			// Any mismatch sends one command that sets the startup policy and every PIN policy together.
+			require.Len(t, inserted, 1)
+			require.Equal(t, "./Device/Vendor/MSFT/BitLocker/SystemDrivesRequireStartupAuthentication", inserted[0].TargetLocURI)
+			raw := string(inserted[0].RawCommand)
+			for _, locURI := range []string{
+				"./Device/Vendor/MSFT/BitLocker/SystemDrivesRequireStartupAuthentication",
+				"./Device/Vendor/MSFT/BitLocker/SystemDrivesMinimumPINLength",
+				"./Device/Vendor/MSFT/BitLocker/SystemDrivesEnhancedPIN",
+				"./Device/Vendor/MSFT/BitLocker/SystemDrivesDisallowStandardUsersCanChangePIN",
+			} {
+				require.Contains(t, raw, "<LocURI>"+locURI+"</LocURI>")
+			}
 		})
 	}
+
+	t.Run("a failed insert is returned", func(t *testing.T) {
+		ds := new(mock.Store)
+		ds.MDMWindowsInsertCommandForHostsFunc = func(ctx context.Context, hostUUIDs []string, cmd *fleet.MDMWindowsCommand) error {
+			return errors.New("insert failed")
+		}
+		ingestFunc := tpmPINQueries["tpm_pin_config_verify"].DirectIngestFunc
+		require.ErrorContains(t, ingestFunc(ctx, logger, testHost, ds, []map[string]string{}), "insert failed")
+	})
 }
 
 // TestBitlockerStartupPolicyRelaxDirectIngest covers the query that lifts a startup-authentication policy blocking

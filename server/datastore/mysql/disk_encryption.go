@@ -504,7 +504,8 @@ ON DUPLICATE KEY UPDATE
 	updated_at = NOW(6)`
 	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
 		// A fresh id per submission is what lets a late outcome for a superseded PIN be recognized and ignored.
-		if _, err := tx.ExecContext(ctx, stmt, host.ID, uuid.NewString(), encryptedPIN); err != nil {
+		requestID := uuid.New()
+		if _, err := tx.ExecContext(ctx, stmt, host.ID, requestID[:], encryptedPIN); err != nil {
 			return ctxerr.Wrap(ctx, err, "queue bitlocker pin request")
 		}
 		return setBitLockerPINPendingFlag(ctx, tx, host.UUID, true)
@@ -543,7 +544,7 @@ func (ds *Datastore) TakeBitLockerPINRequest(ctx context.Context, host *fleet.Ho
 	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
 		var row struct {
 			PIN         string `db:"pin_encrypted"`
-			RequestUUID string `db:"request_uuid"`
+			RequestUUID []byte `db:"request_uuid"`
 		}
 		err := sqlx.GetContext(ctx, tx, &row, `
 SELECT pin_encrypted, request_uuid
@@ -570,7 +571,11 @@ UPDATE host_bitlocker_pin_requests SET status = 'delivered', pin_encrypted = NUL
 			return err
 		}
 
-		encryptedPIN, requestUUID, collected = row.PIN, row.RequestUUID, true
+		requestID, err := uuid.FromBytes(row.RequestUUID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "decode bitlocker pin request uuid")
+		}
+		encryptedPIN, requestUUID, collected = row.PIN, requestID.String(), true
 		return nil
 	})
 	switch {
@@ -598,9 +603,16 @@ func (ds *Datastore) SetBitLockerPINRequestOutcome(
 UPDATE host_bitlocker_pin_requests
 SET status = ?, client_error = ?, pin_encrypted = NULL
 WHERE host_id = ? AND request_uuid = ? AND status = 'delivered'`
+	// The id comes from the agent. One that does not parse cannot name any submission, so it gets the same notFound as
+	// a well-formed id that matches nothing, rather than an error that would surface as a 500.
+	requestID, err := uuid.Parse(requestUUID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, notFound("BitLockerPINRequest").WithID(host.ID))
+	}
+
 	var matched bool
-	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
-		res, err := tx.ExecContext(ctx, stmt, outcome, clientError, host.ID, requestUUID)
+	err = ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		res, err := tx.ExecContext(ctx, stmt, outcome, clientError, host.ID, requestID[:])
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "set bitlocker pin request outcome")
 		}

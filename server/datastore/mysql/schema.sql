@@ -620,7 +620,7 @@ CREATE TABLE `host_batteries` (
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `host_bitlocker_pin_requests` (
   `host_id` int unsigned NOT NULL,
-  `request_uuid` varchar(36) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `request_uuid` binary(16) NOT NULL,
   `pin_encrypted` text COLLATE utf8mb4_unicode_ci,
   `status` enum('pending','delivered','set','failed') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'pending',
   `client_error` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',

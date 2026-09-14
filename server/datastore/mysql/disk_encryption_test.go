@@ -286,7 +286,9 @@ func testBitLockerPINRequestLifecycle(t *testing.T, ds *Datastore) {
 	pin, requestUUID, err := ds.TakeBitLockerPINRequest(ctx, host)
 	require.NoError(t, err)
 	require.Equal(t, "encrypted-pin", pin)
-	require.NotEmpty(t, requestUUID)
+	parsed, err := uuid.Parse(requestUUID)
+	require.NoError(t, err, "the collected id is a canonical UUID string the agent can echo back")
+	require.Equal(t, parsed.String(), requestUUID)
 	// Collected, so there is nothing left to wake the agent for.
 	require.False(t, pendingFlag(t, ds, host.UUID))
 
@@ -295,6 +297,10 @@ func testBitLockerPINRequestLifecycle(t *testing.T, ds *Datastore) {
 	require.Equal(t, fleet.BitLockerPINRequestDelivered, req.Status)
 
 	// An outcome naming a submission this host never collected is refused, so a host cannot mark itself as having a PIN.
+	// Both shapes: a well-formed id that matches nothing exercises the byte comparison, and one that does not parse must
+	// be refused the same way rather than erroring.
+	require.True(t, fleet.IsNotFound(
+		ds.SetBitLockerPINRequestOutcome(ctx, host, uuid.NewString(), fleet.BitLockerPINRequestSet, "")))
 	require.True(t, fleet.IsNotFound(
 		ds.SetBitLockerPINRequestOutcome(ctx, host, "not-the-collected-request", fleet.BitLockerPINRequestSet, "")))
 

@@ -29,6 +29,14 @@ func TestSystemDriveRequiresStartupAuthSpec_validate(t *testing.T) {
 			wantErr: "enabled must be true if any other field is set",
 		},
 		{
+			name: "PIN policies set but not enabled",
+			spec: SystemDriveRequiresStartupAuthSpec{
+				CmdUUID:              "test-uuid",
+				ConfigurePINPolicies: true,
+			},
+			wantErr: "enabled must be true if any other field is set",
+		},
+		{
 			name: "valid configuration with no fields",
 			spec: SystemDriveRequiresStartupAuthSpec{
 				CmdUUID: "test-uuid",
@@ -172,6 +180,82 @@ func TestSystemDriveRequiresStartupAuthCmd_Template(t *testing.T) {
 								<data id="ConfigureTPMUsageDropDown_Name" value="1"/>
 							]]>
 							</Data>
+						</Item>
+					</Replace>
+				</Atomic>`,
+		},
+		{
+			name: "enabled with PIN policies",
+			spec: SystemDriveRequiresStartupAuthSpec{
+				CmdUUID:              "uuid-456",
+				Enabled:              true,
+				ConfigurePIN:         new(uint(PolicyOptDropdownOptional)),
+				ConfigurePINPolicies: true,
+			},
+			// The minimum length matches fleet.BitLockerPINMinLength. Disabling the last node is what lets standard users
+			// change their PIN, because it is phrased as a prohibition.
+			expected: `
+				<Atomic>
+					<CmdID>uuid-456</CmdID>
+					<Replace>
+						<CmdID>uuid-456-1</CmdID>
+						<Item>
+							<Meta>
+							  <Format>chr</Format>
+							  <Type>text/plain</Type>
+							</Meta>
+							<Target>
+								<LocURI>./Device/Vendor/MSFT/BitLocker/SystemDrivesRequireStartupAuthentication</LocURI>
+							</Target>
+							<Data>
+							<![CDATA[
+								<enabled/>
+								<data id="ConfigureNonTPMStartupKeyUsage_Name" value="false"/>
+								<data id="ConfigureTPMStartupKeyUsageDropDown_Name" value="2"/>
+								<data id="ConfigurePINUsageDropDown_Name" value="2"/>
+								<data id="ConfigureTPMPINKeyUsageDropDown_Name" value="2"/>
+								<data id="ConfigureTPMUsageDropDown_Name" value="2"/>
+							]]>
+							</Data>
+						</Item>
+					</Replace>
+					<Replace>
+						<CmdID>uuid-456-2</CmdID>
+						<Item>
+							<Meta>
+							  <Format>chr</Format>
+							  <Type>text/plain</Type>
+							</Meta>
+							<Target>
+								<LocURI>./Device/Vendor/MSFT/BitLocker/SystemDrivesMinimumPINLength</LocURI>
+							</Target>
+							<Data><![CDATA[<enabled/><data id="MinPINLength" value="6"/>]]></Data>
+						</Item>
+					</Replace>
+					<Replace>
+						<CmdID>uuid-456-3</CmdID>
+						<Item>
+							<Meta>
+							  <Format>chr</Format>
+							  <Type>text/plain</Type>
+							</Meta>
+							<Target>
+								<LocURI>./Device/Vendor/MSFT/BitLocker/SystemDrivesEnhancedPIN</LocURI>
+							</Target>
+							<Data><![CDATA[<enabled/>]]></Data>
+						</Item>
+					</Replace>
+					<Replace>
+						<CmdID>uuid-456-4</CmdID>
+						<Item>
+							<Meta>
+							  <Format>chr</Format>
+							  <Type>text/plain</Type>
+							</Meta>
+							<Target>
+								<LocURI>./Device/Vendor/MSFT/BitLocker/SystemDrivesDisallowStandardUsersCanChangePIN</LocURI>
+							</Target>
+							<Data><![CDATA[<disabled/>]]></Data>
 						</Item>
 					</Replace>
 				</Atomic>`,

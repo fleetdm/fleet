@@ -9,13 +9,18 @@ import (
 // nothing on the device lets that page reach fleetd, the PIN is relayed through the Fleet server: it is stored
 // encrypted, handed to the agent exactly once on its next config poll, and cleared.
 
-// BitLockerPINMinLength and BitLockerPINMaxLength bound a startup PIN. Windows enforces 6 to 20 characters for
-// ProtectKeyWithTPMAndPIN unless SystemDrivesMinimumPINLength lowers the floor, and only digits unless the
-// SystemDrivesEnhancedPIN policy is enabled. Fleet sets neither policy, so it validates against the stock range and
-// lets Windows reject anything a host's own policy forbids.
+// BitLockerPINMinLength and BitLockerPINMaxLength bound a startup PIN: 6 to 20 characters, Windows' default length for
+// ProtectKeyWithTPMAndPIN. A previous MDM, a GPO or a script could change the minimum or turn enhanced PINs off, so Fleet
+// sets both when it configures a host for a PIN (see tpm_pin_config_verify), keeping this validation and Windows' own
+// check in agreement.
 const (
 	BitLockerPINMinLength = 6
 	BitLockerPINMaxLength = 20
+)
+
+const (
+	BitLockerPINLengthMessage       = "BitLocker PIN must be between 6 and 20 characters"
+	BitLockerPINInvalidCharsMessage = "BitLocker PIN can only contain letters, numbers, spaces, and symbols from a US English keyboard"
 )
 
 // BitLockerPINRequestTTL is how long a submitted PIN stays collectable. The agent polls its config every 30 seconds,
@@ -78,26 +83,26 @@ func HostNeedsBitLockerPIN(diskEncryption *HostMDMDiskEncryption) bool {
 		*diskEncryption.ActionRequired == ActionRequiredCreatePIN
 }
 
-// ValidateBitLockerPIN checks a submitted PIN against the character set and length Windows accepts by default. It
-// returns an InvalidArgumentError naming the "pin" field so the caller can return it directly.
+// ValidateBitLockerPIN checks a submitted PIN against the character set and length Windows accepts with enhanced PINs
+// enabled. It returns an InvalidArgumentError naming the "pin" field so the caller can return it directly.
 func ValidateBitLockerPIN(pin string) error {
 	// Count runes, not bytes, so a multi-byte character cannot masquerade as a long-enough PIN.
 	length := 0
-	digitsOnly := true
+	printableASCII := true
 	for _, r := range pin {
 		length++
-		if r < '0' || r > '9' {
-			digitsOnly = false
+		if r < ' ' || r > '~' {
+			printableASCII = false
 		}
 	}
 
 	switch {
-	case !digitsOnly:
-		// Fleet does not enable the enhanced-PIN policy, so Windows would reject anything but digits with
-		// FVE_E_INVALID_PIN_CHARS. Saying so here avoids a pointless round trip to the device.
-		return NewInvalidArgumentError("pin", "BitLocker PIN must contain only digits")
+	case !printableASCII:
+		// The pre-boot PIN screen always uses the US English keyboard layout, so a character outside printable ASCII could
+		// be set from Windows but never typed at startup, leaving the end user with only the recovery key.
+		return NewInvalidArgumentError("pin", BitLockerPINInvalidCharsMessage)
 	case length < BitLockerPINMinLength || length > BitLockerPINMaxLength:
-		return NewInvalidArgumentError("pin", "BitLocker PIN must be between 6 and 20 digits")
+		return NewInvalidArgumentError("pin", BitLockerPINLengthMessage)
 	}
 
 	return nil
