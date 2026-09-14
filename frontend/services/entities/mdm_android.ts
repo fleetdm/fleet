@@ -1,6 +1,6 @@
 import sendRequest from "services";
-import endpoints from "utilities/endpoints";
 import authToken from "utilities/auth_token";
+import endpoints from "utilities/endpoints";
 
 interface IGetAndroidSignupUrlResponse {
   android_enterprise_signup_url: string;

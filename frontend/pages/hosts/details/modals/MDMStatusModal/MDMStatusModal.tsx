@@ -1,47 +1,45 @@
+import { AxiosError } from "axios";
+import { addHours, differenceInMinutes } from "date-fns";
 import React, { useState } from "react";
 import { useQuery } from "react-query";
 import { InjectedRouter } from "react-router";
-import { AxiosError } from "axios";
-import { addHours, differenceInMinutes } from "date-fns";
 
-import { internationalTimeFormat } from "utilities/helpers";
+import Button from "components/buttons/Button";
+import CustomLink from "components/CustomLink";
+import DataError from "components/DataError";
+import Icon from "components/Icon";
+import { IconNames } from "components/icons";
+import List from "components/List";
+import Modal from "components/Modal";
+import ModalFooter from "components/ModalFooter";
+import Spinner from "components/Spinner";
+import { notify } from "components/ToastNotification";
+import TooltipWrapper from "components/TooltipWrapper";
+import ViewAllHostsLink from "components/ViewAllHostsLink";
+import {
+  MdmEnrollmentStatus,
+  MDM_ENROLLMENT_STATUS_UI_MAP,
+  canTriggerAPNSPing,
+} from "interfaces/mdm";
+import {
+  HostPlatform,
+  isAppleDevice as isAppleDevicePlatform,
+} from "interfaces/platform";
+import { IUser } from "interfaces/user";
+import paths from "router/paths";
+import hostAPI, {
+  DEPDeviceStatus,
+  IDepAssignmentHostResponse,
+} from "services/entities/hosts";
 import {
   DEFAULT_EMPTY_CELL_VALUE,
   INITIAL_FLEET_DATE,
   LEARN_MORE_ABOUT_BASE_LINK,
   MDM_STATUS_TOOLTIP,
 } from "utilities/constants";
-import { getPathWithQueryParams } from "utilities/url";
-
-import paths from "router/paths";
-import {
-  MdmEnrollmentStatus,
-  MDM_ENROLLMENT_STATUS_UI_MAP,
-  canTriggerAPNSPing,
-} from "interfaces/mdm";
-import hostAPI, {
-  DEPDeviceStatus,
-  IDepAssignmentHostResponse,
-} from "services/entities/hosts";
-
-import Modal from "components/Modal";
-import ModalFooter from "components/ModalFooter";
-import Button from "components/buttons/Button";
-import Spinner from "components/Spinner";
-import DataError from "components/DataError";
-import Icon from "components/Icon";
-import CustomLink from "components/CustomLink";
-import List from "components/List";
-import ViewAllHostsLink from "components/ViewAllHostsLink";
-import TooltipWrapper from "components/TooltipWrapper";
-import { IconNames } from "components/icons";
-import { notify } from "components/ToastNotification";
-import { IUser } from "interfaces/user";
+import { internationalTimeFormat } from "utilities/helpers";
 import permissions from "utilities/permissions";
-import {
-  HostPlatform,
-  isAppleDevice as isAppleDevicePlatform,
-} from "interfaces/platform";
+import { getPathWithQueryParams } from "utilities/url";
 
 const baseClass = "mdm-status-modal";
 

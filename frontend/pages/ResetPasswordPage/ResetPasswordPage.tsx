@@ -1,16 +1,15 @@
 import React, { useEffect, useState, useContext } from "react";
 import { InjectedRouter } from "react-router";
 
-import PATHS from "router/paths";
-import { AppContext } from "context/app";
-import usersAPI from "services/entities/users";
-import configAPI from "services/entities/config";
-import formatErrorResponse from "utilities/format_error_response";
-
-// @ts-ignore
-import ResetPasswordForm from "components/forms/ResetPasswordForm";
 import AuthenticationFormWrapper from "components/AuthenticationFormWrapper";
 import AuthenticationNav from "components/AuthenticationNav";
+// @ts-ignore
+import ResetPasswordForm from "components/forms/ResetPasswordForm";
+import { AppContext } from "context/app";
+import PATHS from "router/paths";
+import configAPI from "services/entities/config";
+import usersAPI from "services/entities/users";
+import formatErrorResponse from "utilities/format_error_response";
 
 const baseClass = "reset-password-page";
 interface IResetPasswordPageProps {

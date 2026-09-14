@@ -1462,7 +1462,7 @@ func getSoftwareCommand() *cli.Command {
 			},
 			&cli.BoolFlag{
 				Name:  "versions",
-				Usage: "List all software versions",
+				Usage: "List software versions (up to 10,000)",
 			},
 			jsonFlag(),
 			yamlFlag(),
@@ -1497,6 +1497,8 @@ func getSoftwareCommand() *cli.Command {
 }
 
 func printSoftwareVersions(c *cli.Context, client *service.Client, query url.Values) error {
+	// The request carries no pagination, so the server returns at most its
+	// maximum page size. An inventory larger than that is truncated here.
 	software, err := client.ListSoftwareVersions(query.Encode())
 	if err != nil {
 		return fmt.Errorf("could not list software versions: %w", err)

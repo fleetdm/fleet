@@ -1,9 +1,8 @@
 import React, { useRef } from "react";
 
+import TooltipWrapper from "components/TooltipWrapper";
 import { useCheckTruncatedElement } from "hooks/useCheckTruncatedElement";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
-
-import TooltipWrapper from "components/TooltipWrapper";
 
 const baseClass = "user-value";
 

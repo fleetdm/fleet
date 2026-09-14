@@ -1,11 +1,13 @@
 import React, { useState } from "react";
-import { notify } from "components/ToastNotification";
-import scriptAPI from "services/entities/scripts";
 
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
-import { getErrorMessage } from "./helpers";
+import { notify } from "components/ToastNotification";
+import scriptAPI from "services/entities/scripts";
+
 import ScriptUploader from "../ScriptUploader";
+
+import { getErrorMessage } from "./helpers";
 
 const baseClass = "script-upload-modal";
 

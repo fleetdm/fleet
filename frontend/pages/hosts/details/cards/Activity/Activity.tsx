@@ -1,7 +1,14 @@
-import React from "react";
 import classnames from "classnames";
+import React from "react";
 import { Tab, TabList, TabPanel, Tabs } from "react-tabs";
 
+import { ShowActivityDetailsHandler } from "components/ActivityItem/ActivityItem";
+import Card from "components/Card";
+import CardHeader from "components/CardHeader";
+import Spinner from "components/Spinner";
+import TabNav from "components/TabNav";
+import TabText from "components/TabText";
+import TooltipWrapper from "components/TooltipWrapper";
 import { IHostUpcomingActivity } from "interfaces/activity";
 import {
   IHostPastActivitiesResponse,
@@ -9,22 +16,14 @@ import {
 } from "services/entities/activities";
 import { IGetCommandsResponse } from "services/entities/command";
 
-import Card from "components/Card";
-import CardHeader from "components/CardHeader";
-import TabNav from "components/TabNav";
-import TabText from "components/TabText";
-import Spinner from "components/Spinner";
-import TooltipWrapper from "components/TooltipWrapper";
-import { ShowActivityDetailsHandler } from "components/ActivityItem/ActivityItem";
-
-import PastActivityFeed from "./PastActivityFeed";
-import UpcomingActivityFeed from "./UpcomingActivityFeed";
-import MDMCommandsToggle from "./MDMCommandsToggle";
 import CommandFeed from "./CommandFeed";
 import {
   CancelCommandHandler,
   ShowCommandDetailsHandler,
 } from "./CommandItem/CommandItem";
+import MDMCommandsToggle from "./MDMCommandsToggle";
+import PastActivityFeed from "./PastActivityFeed";
+import UpcomingActivityFeed from "./UpcomingActivityFeed";
 
 const baseClass = "host-activity-card";
 

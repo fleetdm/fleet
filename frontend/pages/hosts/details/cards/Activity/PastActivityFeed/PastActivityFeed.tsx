@@ -1,16 +1,14 @@
 import React, { useContext } from "react";
 
+import { ShowActivityDetailsHandler } from "components/ActivityItem/ActivityItem";
+import DataError from "components/DataError";
+import Pagination from "components/Pagination";
+import { AppContext } from "context/app";
 import { IHostPastActivity } from "interfaces/activity";
 import { IHostPastActivitiesResponse } from "services/entities/activities";
 
-import { AppContext } from "context/app";
-import DataError from "components/DataError";
-import Pagination from "components/Pagination";
-import { ShowActivityDetailsHandler } from "components/ActivityItem/ActivityItem";
-
-import EmptyFeed from "../EmptyFeed/EmptyFeed";
-
 import { pastActivityComponentMap } from "../ActivityConfig";
+import EmptyFeed from "../EmptyFeed/EmptyFeed";
 
 const baseClass = "past-activity-feed";
 

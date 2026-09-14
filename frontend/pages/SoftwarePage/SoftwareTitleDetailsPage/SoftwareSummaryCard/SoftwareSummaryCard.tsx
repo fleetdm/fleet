@@ -1,12 +1,10 @@
 /** software/titles/:id > First section */
 
 import React, { useContext, useMemo, useState } from "react";
-
 import { InjectedRouter } from "react-router";
 
-import PATHS from "router/paths";
-import { getPathWithQueryParams } from "utilities/url";
-import { pluralize } from "utilities/strings/stringUtils";
+import Card from "components/Card";
+import Chip from "components/Chip";
 import { AppContext } from "context/app";
 import { useSoftwareInstaller } from "hooks/useSoftwareInstallerMeta";
 import {
@@ -15,20 +13,21 @@ import {
   isIpadOrIphoneSoftwareSource,
   ISoftwareTitleDetails,
 } from "interfaces/software";
-
+import SoftwareDetailsSummary from "pages/SoftwarePage/components/cards/SoftwareDetailsSummary";
 import {
   getDisplayedSoftwareName,
   getSelfServiceTooltip,
   mergePolicies,
 } from "pages/SoftwarePage/helpers";
-import Card from "components/Card";
-import Chip from "components/Chip";
-import SoftwareDetailsSummary from "pages/SoftwarePage/components/cards/SoftwareDetailsSummary";
+import PATHS from "router/paths";
+import { pluralize } from "utilities/strings/stringUtils";
+import { getPathWithQueryParams } from "utilities/url";
+
+import DeployModal from "../DeployModal";
+import EditAutoUpdateConfigModal from "../EditAutoUpdateConfigModal";
+import EditConfigurationModal from "../EditConfigurationModal";
 import EditIconModal from "../EditIconModal";
 import EditSoftwareModal from "../EditSoftwareModal";
-import EditConfigurationModal from "../EditConfigurationModal";
-import EditAutoUpdateConfigModal from "../EditAutoUpdateConfigModal";
-import DeployModal from "../DeployModal";
 import PoliciesModal from "../PoliciesModal";
 
 interface ISoftwareSummaryCard {

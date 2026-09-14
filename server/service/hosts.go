@@ -667,7 +667,7 @@ func (svc *Service) DeleteHosts(ctx context.Context, ids []uint, filter *map[str
 		}
 
 		if len(hostIDs) == 0 {
-			return ctxerr.Wrap(ctx, unverifiedABMHostsError(checks, skippedNames, 0), "deleting hosts")
+			return ctxerr.Wrap(ctx, unverifiedABMHostsError(skippedNames, 0), "deleting hosts")
 		}
 
 		if err := svc.ds.DeleteHosts(ctx, hostIDs); err != nil {
@@ -720,7 +720,7 @@ func (svc *Service) DeleteHosts(ctx context.Context, ids []uint, filter *map[str
 		}
 
 		if len(skippedNames) > 0 {
-			return ctxerr.Wrap(ctx, unverifiedABMHostsError(checks, skippedNames, len(hostIDs)), "deleting hosts")
+			return ctxerr.Wrap(ctx, unverifiedABMHostsError(skippedNames, len(hostIDs)), "deleting hosts")
 		}
 
 		return nil
@@ -1220,7 +1220,7 @@ func (svc *Service) DeleteHost(ctx context.Context, id uint) error {
 	}
 	if c := checks[host.ID]; c.check == depDeleteUnverified {
 		return ctxerr.Wrap(ctx,
-			fleet.NewBadGatewayError(fleet.CantDeleteHostUnverifiedABMMessage, c.appleErr), "deleting host")
+			fleet.NewBadGatewayError(fleet.CantDeleteHostUnverifiedABMMessage, nil), "deleting host")
 	}
 	if err := svc.clearDisownedDEPAssignments(ctx, checks); err != nil {
 		return err

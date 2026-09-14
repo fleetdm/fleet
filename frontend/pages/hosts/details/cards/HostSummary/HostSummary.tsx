@@ -1,18 +1,16 @@
-import React from "react";
 import classnames from "classnames";
 import { formatInTimeZone } from "date-fns-tz";
-import { BootstrapPackageStatus } from "interfaces/mdm";
-import { IHostMaintenanceWindow } from "interfaces/host";
-import { isAndroid, isIPadOrIPhone } from "interfaces/platform";
+import React from "react";
 
-import { getHostStatus, getHostStatusTooltipText } from "pages/hosts/helpers";
-
-import TooltipWrapper from "components/TooltipWrapper";
 import Card from "components/Card";
 import DataSet from "components/DataSet";
 import StatusIndicator from "components/StatusIndicator";
+import TooltipWrapper from "components/TooltipWrapper";
+import { IHostMaintenanceWindow } from "interfaces/host";
+import { BootstrapPackageStatus } from "interfaces/mdm";
+import { isAndroid, isIPadOrIPhone } from "interfaces/platform";
 import IssuesIndicator from "pages/hosts/components/IssuesIndicator";
-
+import { getHostStatus, getHostStatusTooltipText } from "pages/hosts/helpers";
 import {
   DATE_FNS_FORMAT_STRINGS,
   DEFAULT_EMPTY_CELL_VALUE,

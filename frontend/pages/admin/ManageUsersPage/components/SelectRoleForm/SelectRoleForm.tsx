@@ -1,10 +1,12 @@
 import React, { useState, useContext } from "react";
-import { ITeam } from "interfaces/team";
-import { UserRole } from "interfaces/user";
 import { SingleValue } from "react-select-5";
+
 import DropdownWrapper from "components/forms/fields/DropdownWrapper";
 import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 import { AppContext } from "context/app";
+import { ITeam } from "interfaces/team";
+import { UserRole } from "interfaces/user";
+
 import { roleOptions } from "../../helpers/userManagementHelpers";
 
 interface ISelectRoleFormProps {
