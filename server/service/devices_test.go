@@ -544,6 +544,92 @@ func TestGetFleetDesktopSummary(t *testing.T) {
 			})
 		}
 	})
+
+	t.Run("BitLocker PIN prompt", func(t *testing.T) {
+		// Fleet Desktop polls this for every host every few minutes, so the prompt must be decided cheapest check first:
+		// the cached fleet settings, then the enrollment row, then the full BitLocker status.
+		for _, tc := range []struct {
+			name              string
+			windowsEnabled    bool
+			pinRequired       bool
+			capable           bool
+			statusErr         error
+			actionRequired    *fleet.ActionRequiredState
+			wantPrompt        bool
+			wantStateQueried  bool
+			wantStatusQueried bool
+		}{
+			{
+				name:           "fleet does not require a PIN: no host queries at all",
+				windowsEnabled: true, pinRequired: false, capable: true,
+				actionRequired: new(fleet.ActionRequiredCreatePIN),
+			},
+			{
+				name:           "disk encryption off: no host queries at all",
+				windowsEnabled: false, pinRequired: true, capable: true,
+				actionRequired: new(fleet.ActionRequiredCreatePIN),
+			},
+			{
+				name:           "PIN required but fleetd cannot apply one: status not queried",
+				windowsEnabled: true, pinRequired: true, capable: false,
+				actionRequired:   new(fleet.ActionRequiredCreatePIN),
+				wantStateQueried: true,
+			},
+			{
+				name:           "PIN required, capable, and the host needs one: prompt",
+				windowsEnabled: true, pinRequired: true, capable: true,
+				actionRequired:   new(fleet.ActionRequiredCreatePIN),
+				wantPrompt:       true,
+				wantStateQueried: true, wantStatusQueried: true,
+			},
+			{
+				name:           "PIN required, capable, but PIN already set: no prompt",
+				windowsEnabled: true, pinRequired: true, capable: true,
+				wantStateQueried: true, wantStatusQueried: true,
+			},
+			{
+				name:           "status lookup failure does not fail the summary",
+				windowsEnabled: true, pinRequired: true, capable: true,
+				statusErr:        errors.New("bitlocker status unavailable"),
+				wantStateQueried: true, wantStatusQueried: true,
+			},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				ds := new(mock.Store)
+				license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
+				svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: license, SkipCreateTestUsers: true})
+
+				ds.HasSelfServiceSoftwareInstallersFunc = func(ctx context.Context, platform string, teamID *uint) (bool, error) {
+					return false, nil
+				}
+				ds.FailingPoliciesCountFunc = func(ctx context.Context, host *fleet.Host) (uint, error) {
+					return 0, nil
+				}
+				ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+					return &fleet.AppConfig{}, nil
+				}
+				ds.GetConfigEnableDiskEncryptionFunc = func(ctx context.Context, teamID *uint) (fleet.DiskEncryptionConfig, error) {
+					return fleet.DiskEncryptionConfig{WindowsEnabled: tc.windowsEnabled, BitLockerPINRequired: tc.pinRequired}, nil
+				}
+				ds.GetMDMWindowsHostConfigStateFunc = func(ctx context.Context, hostUUID string) (*fleet.MDMWindowsHostConfigState, error) {
+					return &fleet.MDMWindowsHostConfigState{FleetdBitLockerPINCapable: tc.capable}, nil
+				}
+				ds.GetMDMWindowsBitLockerStatusFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostMDMDiskEncryption, error) {
+					if tc.statusErr != nil {
+						return nil, tc.statusErr
+					}
+					return &fleet.HostMDMDiskEncryption{ActionRequired: tc.actionRequired}, nil
+				}
+
+				ctx = test.HostContext(ctx, &fleet.Host{ID: 1, UUID: "win-uuid", Platform: "windows", OsqueryHostID: new("win")})
+				sum, err := svc.GetFleetDesktopSummary(ctx)
+				require.NoError(t, err)
+				assert.Equal(t, tc.wantPrompt, sum.Notifications.NeedsBitLockerPIN)
+				assert.Equal(t, tc.wantStateQueried, ds.GetMDMWindowsHostConfigStateFuncInvoked, "enrollment row queried")
+				assert.Equal(t, tc.wantStatusQueried, ds.GetMDMWindowsBitLockerStatusFuncInvoked, "bitlocker status queried")
+			})
+		}
+	})
 }
 
 func TestTriggerLinuxDiskEncryptionEscrow(t *testing.T) {

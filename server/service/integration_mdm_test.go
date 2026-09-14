@@ -28917,4 +28917,17 @@ func (s *integrationMDMTestSuite) TestBitLockerPINRelay() {
 
 	// Nothing is left waiting for the agent.
 	require.False(t, orbitConfig(capsHeader).Notifications.BitLockerPINRequestPending)
+
+	// The PIN fields are Windows-only. Apple MDM is configured in this suite, so a macOS host's device response carries
+	// os_settings, which is exactly where they would otherwise leak.
+	macHost := createOrbitEnrolledHost(t, "darwin", t.Name()+"-mac", s.ds)
+	macToken := "bitlocker-pin-relay-mac-" + uuid.NewString()
+	require.NoError(t, s.ds.SetOrUpdateDeviceAuthToken(ctx, macHost.ID, macToken))
+	macRes := s.DoRaw("GET", "/api/latest/fleet/device/"+macToken, nil, http.StatusOK)
+	macBody, err := io.ReadAll(macRes.Body)
+	require.NoError(t, err)
+	require.NoError(t, macRes.Body.Close())
+	require.Contains(t, string(macBody), `"os_settings"`, "precondition: os_settings is present, so the checks below mean something")
+	require.NotContains(t, string(macBody), "fleetd_can_set_pin")
+	require.NotContains(t, string(macBody), "pin_request")
 }

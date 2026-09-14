@@ -10230,6 +10230,14 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	}})
 	require.NoError(t, err)
 
+	// Insert into host_bitlocker_pin_requests (no host FK, cleaned up via hostRefs). A pending row still holding its
+	// ciphertext is the case that matters: deleting the host must not leave an encrypted PIN behind.
+	_, err = ds.writer(context.Background()).Exec(
+		`INSERT INTO host_bitlocker_pin_requests (host_id, request_uuid, pin_encrypted) VALUES (?, ?, ?)`,
+		host.ID, uuid.NewString(), "encrypted-pin",
+	)
+	require.NoError(t, err)
+
 	// Check there's an entry for the host in all the associated tables.
 	for _, hostRef := range hostRefs {
 		var ok bool

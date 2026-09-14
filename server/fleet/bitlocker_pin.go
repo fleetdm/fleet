@@ -19,8 +19,14 @@ const (
 )
 
 // BitLockerPINRequestTTL is how long a submitted PIN stays collectable. The agent polls its config every 30 seconds,
-// so this is generous, and it bounds how long the server holds the secret when an agent is offline.
+// so this is generous. It bounds how long a PIN can be handed out, not how long the ciphertext is stored: an
+// uncollected submission is cleared by the hourly cleanups cron, so the ciphertext can outlive the TTL by up to an hour.
 const BitLockerPINRequestTTL = 5 * time.Minute
+
+// BitLockerPINRequestRetention is how long a finished submission, set or failed, is kept before the cleanups cron
+// deletes it. Long enough for the end user to see the outcome, short enough that the page never shows a stale one.
+// A finished row holds no secret, so this is about accuracy rather than exposure.
+const BitLockerPINRequestRetention = 24 * time.Hour
 
 // BitLockerPINRequestTimedOutError is recorded against a submission the agent never came for, so the waiting page is
 // told what happened instead of spinning on a request that will never be delivered.

@@ -214,19 +214,14 @@ func (svc *Service) GetFleetDesktopSummary(ctx context.Context) (fleet.DesktopSu
 	// actually apply one. On an older agent the My device page keeps the Manage BitLocker instructions instead, and a
 	// toast offering a form that host cannot honor would be worse than no toast.
 	if host.FleetPlatform() == "windows" {
-		state, err := svc.ds.GetMDMWindowsHostConfigState(ctx, host.UUID)
-		switch {
-		case fleet.IsNotFound(err):
-			// Not enrolled in Windows MDM, so there is no agent to apply a PIN and nothing to prompt for.
-		case err != nil:
-			return sum, ctxerr.Wrap(ctx, err, "checking windows mdm config state for bitlocker pin")
-		case state.FleetdBitLockerPINCapable:
-			diskEncryption, err := svc.ds.GetMDMWindowsBitLockerStatus(ctx, host)
-			if err != nil {
-				return sum, ctxerr.Wrap(ctx, err, "checking bitlocker status for pin prompt")
-			}
-			sum.Notifications.NeedsBitLockerPIN = fleet.HostNeedsBitLockerPIN(diskEncryption)
+		needsPIN, err := svc.hostNeedsBitLockerPINPrompt(ctx, host)
+		if err != nil {
+			// Best-effort: the summary also drives the tray menu and the MDM migration prompt, and a failure in this one
+			// feature must not break them. The prompt is simply offered on a later poll.
+			svc.logger.ErrorContext(ctx, "checking whether to prompt for a bitlocker pin", "host_id", host.ID, "err", err)
+			ctxerr.Handle(ctx, err)
 		}
+		sum.Notifications.NeedsBitLockerPIN = needsPIN
 	}
 
 	// organization information
@@ -243,6 +238,40 @@ func (svc *Service) GetFleetDesktopSummary(ctx context.Context) (fleet.DesktopSu
 	sum.AlternativeBrowserHost = appCfg.FleetDesktop.AlternativeBrowserHost
 
 	return sum, nil
+}
+
+// hostNeedsBitLockerPINPrompt reports whether Fleet Desktop should prompt this Windows host's end user to create a
+// BitLocker startup PIN.
+//
+// Fleet Desktop polls the summary every few minutes for every host, so the checks are ordered cheapest first and each
+// one stops the rest. The fleet's disk encryption settings come from the cached team or app config, so the common case
+// of a fleet that does not require a PIN costs no query against the host at all. Only a host whose fleet does require
+// one reads its enrollment row for the agent capability, and only a capable host pays for the full BitLocker status.
+func (svc *Service) hostNeedsBitLockerPINPrompt(ctx context.Context, host *fleet.Host) (bool, error) {
+	cfg, err := svc.ds.GetConfigEnableDiskEncryption(ctx, host.TeamID)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "get disk encryption config for bitlocker pin prompt")
+	}
+	if !cfg.WindowsEnabled || !cfg.BitLockerPINRequired {
+		return false, nil
+	}
+
+	state, err := svc.ds.GetMDMWindowsHostConfigState(ctx, host.UUID)
+	switch {
+	case fleet.IsNotFound(err):
+		// Not enrolled in Windows MDM, so there is no agent to apply a PIN and nothing to prompt for.
+		return false, nil
+	case err != nil:
+		return false, ctxerr.Wrap(ctx, err, "get windows mdm config state for bitlocker pin prompt")
+	case !state.FleetdBitLockerPINCapable:
+		return false, nil
+	}
+
+	diskEncryption, err := svc.ds.GetMDMWindowsBitLockerStatus(ctx, host)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "get bitlocker status for pin prompt")
+	}
+	return fleet.HostNeedsBitLockerPIN(diskEncryption), nil
 }
 
 func (svc *Service) TriggerLinuxDiskEncryptionEscrow(ctx context.Context, host *fleet.Host) error {

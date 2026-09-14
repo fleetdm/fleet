@@ -474,7 +474,8 @@ func bulkDeleteHostDiskEncryptionKeysDB(ctx context.Context, tx sqlx.ExtContext,
 // reads every poll, instead of paying its own lookup against a table keyed by host_id. Every caller runs this inside
 // the same transaction as the change to the request row, because the two must not diverge in the direction that
 // matters: a false flag with a live request would strand the submission, since the poll never looks past the flag.
-// The opposite drift is self-correcting, as a collect against no request clears the flag on its way out.
+// The opposite drift is self-correcting, as a collect against no request clears the flag on its way out, which is why
+// nothing else, including the cleanup cron, has to lower it.
 func setBitLockerPINPendingFlag(ctx context.Context, tx sqlx.ExtContext, hostUUID string, pending bool) error {
 	if hostUUID == "" {
 		return ctxerr.Wrap(ctx, errors.New("missing host UUID"), "set bitlocker pin request pending flag")
@@ -623,32 +624,36 @@ WHERE host_id = ? AND request_uuid = ? AND status = 'delivered'`
 	return nil
 }
 
-// CleanupExpiredBitLockerPINRequests retires submissions the agent never collected.
+// CleanupExpiredBitLockerPINRequests runs on the hourly cleanups cron and does two things.
 //
-// The TTL stops an old PIN being handed out, but on its own it would leave the ciphertext and the pending state in
-// place forever: a host that goes offline right after its user submits never calls the collect path that would clear
-// them, and neither does a host whose enrollment row was replaced by a re-enrollment. This runs on the cleanups cron
-// so the secret is discarded and the waiting page is told the submission timed out, rather than spinning on a pending
-// row that will never be delivered.
+// It retires submissions the agent never collected. The TTL stops an old PIN being handed out, but on its own it would
+// leave the ciphertext in place forever, because a host that went offline right after its user submitted never calls
+// the collect path that clears it. Retiring the row discards the secret and tells the waiting page it timed out.
+//
+// It also reaps finished submissions a day after they finish. A set or failed row has no secret left in it, and after
+// a day nobody is waiting on it; keeping it would show the My device page a stale outcome indefinitely. Rows still in
+// delivered are left alone: the agent has the PIN and may yet report, and a late success must still be recorded.
+//
+// The pending flag on the enrollment row is deliberately not touched here. A flag left raised by a retired submission
+// costs at most one wasted round trip, since the agent's collect finds nothing and clears it, whereas lowering it here
+// would mean scanning every Windows enrollment each hour.
 func (ds *Datastore) CleanupExpiredBitLockerPINRequests(ctx context.Context) error {
-	const stmt = `
+	const expireStmt = `
 UPDATE host_bitlocker_pin_requests
 SET status = 'failed', pin_encrypted = NULL, client_error = ?
 WHERE status = 'pending' AND created_at <= DATE_SUB(NOW(6), INTERVAL ? SECOND)`
-	if _, err := ds.writer(ctx).ExecContext(ctx, stmt,
+	if _, err := ds.writer(ctx).ExecContext(ctx, expireStmt,
 		fleet.BitLockerPINRequestTimedOutError, int(fleet.BitLockerPINRequestTTL.Seconds())); err != nil {
-		return ctxerr.Wrap(ctx, err, "cleanup expired bitlocker pin requests")
+		return ctxerr.Wrap(ctx, err, "expire uncollected bitlocker pin requests")
 	}
 
-	// Lower any flag left raised by a submission that just expired. Scoped to enrollments whose host has no collectable
-	// request, so it cannot race a fresh submission on another host.
-	const flagStmt = `
-UPDATE mdm_windows_enrollments e
-LEFT JOIN host_bitlocker_pin_requests r ON r.host_id = (SELECT h.id FROM hosts h WHERE h.uuid = e.host_uuid LIMIT 1)
-SET e.bitlocker_pin_request_pending = 0
-WHERE e.bitlocker_pin_request_pending = 1 AND (r.host_id IS NULL OR r.status != 'pending')`
-	if _, err := ds.writer(ctx).ExecContext(ctx, flagStmt); err != nil {
-		return ctxerr.Wrap(ctx, err, "cleanup stale bitlocker pin pending flags")
+	// updated_at moves when a row becomes terminal, so this measures from when it finished, not from when it was
+	// submitted. A submission that just expired above therefore survives another full day as a visible timeout.
+	const reapStmt = `
+DELETE FROM host_bitlocker_pin_requests
+WHERE status IN ('set', 'failed') AND updated_at <= DATE_SUB(NOW(6), INTERVAL ? SECOND)`
+	if _, err := ds.writer(ctx).ExecContext(ctx, reapStmt, int(fleet.BitLockerPINRequestRetention.Seconds())); err != nil {
+		return ctxerr.Wrap(ctx, err, "reap finished bitlocker pin requests")
 	}
 	return nil
 }

@@ -3,7 +3,10 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"strings"
 	"testing"
+	"unicode/utf8"
 
 	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/config"
@@ -199,6 +202,75 @@ func TestSetBitLockerPINOutcome(t *testing.T) {
 
 		require.NoError(t, svc.SetBitLockerPINOutcome(ctx, "req-1", fleet.BitLockerPINRequestFailed, "  PIN already set  "))
 		require.Equal(t, "PIN already set", gotError)
+		require.False(t, ds.SetOrUpdateHostDiskTpmPINFuncInvoked)
+		require.False(t, ds.UpdateHostRefetchRequestedFuncInvoked)
+	})
+
+	t.Run("failure reason is truncated by characters, not bytes", func(t *testing.T) {
+		host := windowsPINHost()
+		svc, ds, ctx, _ := newBitLockerPINTestService(t, host)
+
+		var gotError string
+		ds.SetBitLockerPINRequestOutcomeFunc = func(
+			ctx context.Context, h *fleet.Host, requestUUID string, o fleet.BitLockerPINRequestStatus, clientError string,
+		) error {
+			gotError = clientError
+			return nil
+		}
+
+		// A localized Windows error is multi-byte. 300 two-byte characters is 600 bytes, so a byte slice at 255 would
+		// cut a character in half and hand MySQL invalid UTF-8.
+		reason := strings.Repeat("é", 300)
+		require.NoError(t, svc.SetBitLockerPINOutcome(ctx, "req-1", fleet.BitLockerPINRequestFailed, reason))
+
+		require.True(t, utf8.ValidString(gotError), "truncated reason must stay valid UTF-8")
+		require.Equal(t, bitLockerPINClientErrorMaxLength, utf8.RuneCountInString(gotError))
+	})
+
+	t.Run("host updates failing after the outcome is recorded do not fail the report", func(t *testing.T) {
+		host := windowsPINHost()
+		svc, ds, ctx, opts := newBitLockerPINTestService(t, host)
+
+		ds.SetBitLockerPINRequestOutcomeFunc = func(
+			ctx context.Context, h *fleet.Host, requestUUID string, o fleet.BitLockerPINRequestStatus, clientError string,
+		) error {
+			return nil
+		}
+		// Both follow-on writes fail. Returning an error would make the agent retry into a 404, since the submission
+		// is already settled, and the activity would never be written.
+		ds.SetOrUpdateHostDiskTpmPINFunc = func(ctx context.Context, hostID uint, set bool) error {
+			return errors.New("host_disks write failed")
+		}
+		ds.UpdateHostRefetchRequestedFunc = func(ctx context.Context, hostID uint, requested bool) error {
+			return errors.New("refetch write failed")
+		}
+		var activityName string
+		opts.ActivityMock.NewActivityFunc = func(
+			_ context.Context, _ *activity_api.User, a activity_api.ActivityDetails,
+		) error {
+			activityName = a.ActivityName()
+			return nil
+		}
+
+		require.NoError(t, svc.SetBitLockerPINOutcome(ctx, "req-1", fleet.BitLockerPINRequestSet, ""))
+		require.True(t, ds.SetOrUpdateHostDiskTpmPINFuncInvoked)
+		require.True(t, ds.UpdateHostRefetchRequestedFuncInvoked, "a failed tpm_pin_set write must not skip the refetch")
+		require.Equal(t, "created_disk_encryption_pin", activityName)
+	})
+
+	t.Run("an outcome that matches no collected submission records nothing", func(t *testing.T) {
+		host := windowsPINHost()
+		svc, ds, ctx, _ := newBitLockerPINTestService(t, host)
+
+		ds.SetBitLockerPINRequestOutcomeFunc = func(
+			ctx context.Context, h *fleet.Host, requestUUID string, o fleet.BitLockerPINRequestStatus, clientError string,
+		) error {
+			return newNotFoundError()
+		}
+
+		err := svc.SetBitLockerPINOutcome(ctx, "forged", fleet.BitLockerPINRequestSet, "")
+		require.True(t, fleet.IsNotFound(err))
+		// The whole point of recording the outcome first: a forged success must not mark the host as having a PIN.
 		require.False(t, ds.SetOrUpdateHostDiskTpmPINFuncInvoked)
 		require.False(t, ds.UpdateHostRefetchRequestedFuncInvoked)
 	})

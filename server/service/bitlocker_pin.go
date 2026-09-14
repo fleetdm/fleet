@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/str"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
@@ -20,8 +21,10 @@ import (
 // a fleet that requires a startup PIN. fleetd runs as SYSTEM and can add the protector on their behalf, but the modal
 // the end user types into lives in a browser, and nothing on the device lets that page reach fleetd. So the PIN is
 // relayed through the server: the device endpoint below stores it encrypted, the agent collects it exactly once on its
-// next config poll, applies it, and reports back. The server holds the secret for seconds, and never hands it to a
-// user-authenticated caller.
+// next config poll, applies it, and reports back. The server never hands the PIN to a user-authenticated caller. It
+// normally holds the ciphertext for seconds; a submission the agent never collects is cleared by the hourly cleanups
+// cron, so the worst case is about an hour. That is the same server key that already protects the host's escrowed
+// recovery key indefinitely, and the recovery key unlocks the volume without any PIN.
 
 // bitLockerPINClientErrorMaxLength matches the width of host_bitlocker_pin_requests.client_error.
 const bitLockerPINClientErrorMaxLength = 255
@@ -161,11 +164,8 @@ func (svc *Service) BitLockerPINStateForDevice(
 }
 
 // bitLockerPINState reports whether the host is currently being asked to create a startup PIN, and whether its fleetd
-// can apply one. It is the single source of truth behind the submit endpoint's eligibility check, the orbit
-// notification, and the Fleet Desktop toast, so those three can never disagree.
-//
-// "Needs a PIN" reuses the action_required derivation rather than re-deriving it: that is what already accounts for a
-// PIN being required, not yet set, and actually settable on this volume right now.
+// can apply one, for the submit endpoint's eligibility check. The orbit notification and the Fleet Desktop flag reach
+// the same answer through fleet.HostNeedsBitLockerPIN, so the three cannot disagree about whether a PIN is wanted.
 func (svc *Service) bitLockerPINState(ctx context.Context, host *fleet.Host) (needsPIN bool, fleetdCapable bool, err error) {
 	if host.FleetPlatform() != "windows" {
 		return false, false, nil
@@ -266,11 +266,10 @@ func (svc *Service) SetBitLockerPINOutcome(
 		return newOsqueryError("internal error: missing host from request context")
 	}
 
-	// clientError is untrusted input from fleetd: normalize it before judging whether it says anything.
-	clientError = strings.TrimSpace(clientError)
-	if len(clientError) > bitLockerPINClientErrorMaxLength {
-		clientError = clientError[:bitLockerPINClientErrorMaxLength]
-	}
+	// clientError is untrusted input from fleetd: normalize it before judging whether it says anything. Truncate by
+	// characters rather than bytes: a Windows error in a non-English locale is multi-byte, and cutting one in half would
+	// produce invalid UTF-8 that MySQL rejects, failing the report outright.
+	clientError = str.TruncateRunes(strings.TrimSpace(clientError), bitLockerPINClientErrorMaxLength)
 
 	switch outcome {
 	case fleet.BitLockerPINRequestSet:
@@ -280,21 +279,28 @@ func (svc *Service) SetBitLockerPINOutcome(
 		if err := svc.ds.SetBitLockerPINRequestOutcome(ctx, host, requestUUID, outcome, ""); err != nil {
 			return ctxerr.Wrap(ctx, err, "set bitlocker pin request outcome")
 		}
-		// The agent's report is a claim, not an observation of record: tpm_pin_set_verify owns the protector list. Set
-		// the flag so the end user's banner clears now, and ask for a refetch so osquery confirms it within seconds.
+
+		// From here on the outcome is recorded, so nothing below may fail the request. An error would make the agent
+		// retry, the retry would find the submission already settled and get a 404, and the activity would never be
+		// written. These steps only speed up what osquery reports anyway: tpm_pin_set_verify owns the protector list
+		// and sets tpm_pin_set on its own schedule. They are separate calls rather than part of the outcome transaction
+		// because both go through the host cache wrappers, which have to invalidate Redis after the write.
+		//
+		// Set the flag so the end user's banner clears now, and ask for a refetch so osquery confirms it within seconds.
 		if err := svc.ds.SetOrUpdateHostDiskTpmPIN(ctx, host.ID, true); err != nil {
-			return ctxerr.Wrap(ctx, err, "recording bitlocker pin set")
+			svc.logger.ErrorContext(ctx, "recording bitlocker pin set after outcome", "host_id", host.ID, "err", err)
+			ctxerr.Handle(ctx, err)
 		}
 		if err := svc.ds.UpdateHostRefetchRequested(ctx, host.ID, true); err != nil {
-			return ctxerr.Wrap(ctx, err, "requesting refetch after setting bitlocker pin")
+			svc.logger.ErrorContext(ctx, "requesting refetch after bitlocker pin set", "host_id", host.ID, "err", err)
+			ctxerr.Handle(ctx, err)
 		}
 		// The end user chose the PIN, so this is deliberately recorded with no actor rather than as Fleet-initiated.
 		if err := svc.NewActivity(ctx, nil, fleet.ActivityTypeCreatedDiskEncryptionPIN{
 			HostID:          host.ID,
 			HostDisplayName: host.DisplayName(),
 		}); err != nil {
-			// OK: losing the audit entry must not fail the endpoint, which would make the agent retry an apply that
-			// already succeeded.
+			// OK: see above, the outcome is already recorded.
 			svc.logger.ErrorContext(ctx, "record created disk encryption pin activity", "err", err)
 			ctxerr.Handle(ctx, err)
 		}
@@ -314,7 +320,9 @@ func (svc *Service) SetBitLockerPINOutcome(
 	return nil
 }
 
-// setBitLockerPINNotification tells a capable agent to collect a PIN the end user has submitted.
+// setBitLockerPINNotification tells a capable agent to collect a PIN the end user has submitted. An error leaves the
+// notification unset; the caller logs it rather than failing the whole config response, since the agent simply tries
+// again on its next poll.
 //
 // Both gates come off the enrollment row the orbit config check-in already read, so an ordinary poll costs nothing
 // extra here. Only when a PIN is genuinely waiting, which is rare and short-lived, does this confirm the host still

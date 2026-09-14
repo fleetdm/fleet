@@ -210,6 +210,7 @@ func TestBitLockerPINRequests(t *testing.T) {
 		{"ExpiredIsNotCollectable", testBitLockerPINRequestExpiredIsNotCollectable},
 		{"ResubmitReplaces", testBitLockerPINRequestResubmitReplaces},
 		{"Delete", testBitLockerPINRequestDelete},
+		{"CleanupReapsFinished", testBitLockerPINRequestCleanupReapsFinished},
 	}
 
 	for _, c := range cases {
@@ -405,4 +406,71 @@ func testBitLockerPINRequestDelete(t *testing.T, ds *Datastore) {
 	_, err := ds.GetBitLockerPINRequest(ctx, host.ID)
 	require.True(t, fleet.IsNotFound(err))
 	require.False(t, pendingFlag(t, ds, host.UUID))
+}
+
+func testBitLockerPINRequestCleanupReapsFinished(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	ageColumn := func(t *testing.T, hostID uint, column string, by time.Duration) {
+		t.Helper()
+		// An explicit value wins over ON UPDATE CURRENT_TIMESTAMP, so this ages the row without it snapping back.
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, fmt.Sprintf(
+				`UPDATE host_bitlocker_pin_requests SET %s = DATE_SUB(NOW(6), INTERVAL ? SECOND) WHERE host_id = ?`, column),
+				int(by.Seconds()), hostID)
+			return err
+		})
+	}
+	settle := func(t *testing.T, host *fleet.Host, outcome fleet.BitLockerPINRequestStatus, reason string) {
+		t.Helper()
+		require.NoError(t, ds.QueueBitLockerPINRequest(ctx, host, "encrypted-pin"))
+		_, requestUUID, err := ds.TakeBitLockerPINRequest(ctx, host)
+		require.NoError(t, err)
+		require.NoError(t, ds.SetBitLockerPINRequestOutcome(ctx, host, requestUUID, outcome, reason))
+	}
+	exists := func(t *testing.T, hostID uint) bool {
+		t.Helper()
+		_, err := ds.GetBitLockerPINRequest(ctx, hostID)
+		if fleet.IsNotFound(err) {
+			return false
+		}
+		require.NoError(t, err)
+		return true
+	}
+	pastRetention := fleet.BitLockerPINRequestRetention + time.Hour
+
+	oldSet := newBitLockerPINHost(t, ds)
+	settle(t, oldSet, fleet.BitLockerPINRequestSet, "")
+	ageColumn(t, oldSet.ID, "updated_at", pastRetention)
+
+	oldFailed := newBitLockerPINHost(t, ds)
+	settle(t, oldFailed, fleet.BitLockerPINRequestFailed, "PIN rejected")
+	ageColumn(t, oldFailed.ID, "updated_at", pastRetention)
+
+	recentFailed := newBitLockerPINHost(t, ds)
+	settle(t, recentFailed, fleet.BitLockerPINRequestFailed, "PIN rejected")
+
+	// The agent has the PIN and may still report, so an old delivered row must survive for a late success to land.
+	oldDelivered := newBitLockerPINHost(t, ds)
+	require.NoError(t, ds.QueueBitLockerPINRequest(ctx, oldDelivered, "encrypted-pin"))
+	_, _, err := ds.TakeBitLockerPINRequest(ctx, oldDelivered)
+	require.NoError(t, err)
+	ageColumn(t, oldDelivered.ID, "updated_at", pastRetention)
+
+	// Expires in this same run, so it only just became terminal and must stay visible as a timeout for a full day.
+	justExpired := newBitLockerPINHost(t, ds)
+	require.NoError(t, ds.QueueBitLockerPINRequest(ctx, justExpired, "encrypted-pin"))
+	ageColumn(t, justExpired.ID, "created_at", fleet.BitLockerPINRequestTTL+time.Minute)
+
+	require.NoError(t, ds.CleanupExpiredBitLockerPINRequests(ctx))
+
+	require.False(t, exists(t, oldSet.ID), "a set row past retention is reaped")
+	require.False(t, exists(t, oldFailed.ID), "a failed row past retention is reaped")
+	require.True(t, exists(t, recentFailed.ID), "a recently finished row is kept")
+	require.True(t, exists(t, oldDelivered.ID), "a delivered row is never reaped")
+
+	req, err := ds.GetBitLockerPINRequest(ctx, justExpired.ID)
+	require.NoError(t, err)
+	require.Equal(t, fleet.BitLockerPINRequestFailed, req.Status)
+	require.Equal(t, fleet.BitLockerPINRequestTimedOutError, req.Error)
 }
