@@ -4,7 +4,7 @@ Software inventory in Fleet collects the apps, operating systems, browser extens
 
 ## Apps
 
-| Type | Name | Version | Publisher | Identifier | Install path | File hashes | Last opened | Vulnerabilities | Caveats |
+| Type | Name | Version | Vendor | Identifier | Install path | File hashes | Last opened | Vulnerabilities | Caveats |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | macOS apps | ✅ | ✅ | ✅ Apple Developer Team ID | ✅ Bundle ID | ✅ | ✅ cdhash and executable SHA-256 | ✅ | ✅ | — |
 | Windows apps | ✅ | ✅ | ✅ | ✅ Upgrade code | ✅ | ❌ | ✅ | ✅ | Includes Microsoft Store (MSIX/Appx) apps on recent versions of Fleet's agent. |
@@ -92,7 +92,7 @@ Software inventory in Fleet collects the apps, operating systems, browser extens
 
 ## Browser extensions
 
-| Browser | Collected on | Name | Version | Publisher | Extension ID | Install path | Vulnerabilities | Caveats |
+| Browser | Collected on | Name | Version | Vendor | Extension ID | Install path | Vulnerabilities | Caveats |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | Chrome | macOS, Windows, Linux, ChromeOS | ✅ | ✅ | ❌ | ✅ | ✅ | ✅ | ChromeOS reports no install path. |
 | Chromium, Brave, Edge, Edge Beta, Opera, and Yandex | macOS, Windows, Linux | ✅ | ✅ | ❌ | ✅ | ✅ | ✅ | — |
@@ -108,7 +108,7 @@ Software inventory in Fleet collects the apps, operating systems, browser extens
 
 ## Packages
 
-| Type | Collected on | Name | Version | Publisher | Install path | Last opened | Vulnerabilities | Caveats |
+| Type | Collected on | Name | Version | Vendor | Install path | Last opened | Vulnerabilities | Caveats |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | Homebrew | macOS | ✅ | ✅ | ❌ | ✅ | ❌ | ✅ | Formulae, plus casks that don't install a `.app` bundle. Those appear under Apps. Homebrew on Linux isn't collected. |
 | Chocolatey | Windows | ✅ | ✅ | ❌ | ✅ | ❌ | ✅ | — |
@@ -125,7 +125,7 @@ Software inventory in Fleet collects the apps, operating systems, browser extens
 
 ## IDE extensions
 
-| Type | Collected on | Name | Version | Publisher | Extension ID | Install path | Vulnerabilities | Caveats |
+| Type | Collected on | Name | Version | Vendor | Extension ID | Install path | Vulnerabilities | Caveats |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | VS Code, VS Code Insiders, VSCodium, VSCodium Insiders, Cursor, Windsurf (Devin), and Trae | macOS, Windows, Linux | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | Remote-server variants are collected too. Learn more in the [vscode_extensions](https://fleetdm.com/tables/vscode_extensions) reference. |
 | JetBrains: CLion, DataGrip, GoLand, IntelliJ IDEA (and Community Edition), PhpStorm, PyCharm (and Community Edition), ReSharper, Rider, RubyMine, RustRover, and WebStorm | macOS, Windows, Linux | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ | Fleet reads 13 products installed under the `JetBrains` directory. Learn more in the [jetbrains_plugins](https://fleetdm.com/tables/jetbrains_plugins) reference. |
@@ -135,7 +135,7 @@ Software inventory in Fleet collects the apps, operating systems, browser extens
 
 ## Plugins
 
-| Type | Collected on | Name | Version | Publisher | Plugin ID | Install path | Vulnerabilities | Caveats |
+| Type | Collected on | Name | Version | Vendor | Plugin ID | Install path | Vulnerabilities | Caveats |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | Adobe CEP extensions for Photoshop, Illustrator, Premiere Pro, After Effects, InDesign, InCopy, Animate, Dreamweaver, Audition, Bridge, Lightroom, Lightroom Classic, XD, and Prelude | macOS, Windows | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ Adobe files CVEs against the host application, which Fleet detects under Apps. | Adobe ships no Linux applications. The **Type** column shows "Plugin (Adobe)" for every host application, because the host application is read from the manifest but not stored. |
 | Adobe UXP plugins for Photoshop, XD, InDesign, InCopy, and Premiere Pro | macOS, Windows | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | Fleet scans the shared `Adobe/UXP/extensions` directory. Plugins that Creative Cloud installs under `Adobe/UXP/PluginsStorage` haven't been verified. |
@@ -149,10 +149,14 @@ Software inventory in Fleet collects the apps, operating systems, browser extens
 
 ## Binaries, AI tools, and other
 
-| Type | Collected on | Name | Version | Publisher | Install path | Vulnerabilities | Caveats |
+| Type | Collected on | Name | Version | Vendor | Install path | Vulnerabilities | Caveats |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | Go binaries | macOS, Windows, Linux | ✅ | ✅ | ❌ | ✅ | ✅ When the NVD has a matching entry. | Collected from each user's `~/go/bin` directory. Needs Fleet's agent. Learn more in the [go_binaries](https://github.com/fleetdm/fleet/tree/main/orbit/pkg/table/go_binaries) reference. |
-| AI desktop apps, agent CLIs, MCP servers, and agent instruction files | ❌ Not in inventory | ❌ | ❌ | ❌ | ❌ | ❌ | Fleet's agent includes an [ai_tools](https://github.com/fleetdm/fleet/blob/main/orbit/pkg/table/ai_tools/README.md) table you can report on, but its results don't feed software inventory yet. |
+| AI desktop apps | macOS, Windows, Linux | ✅ | ✅ | ❌ | ✅ | ✅ |  |
+| AI mobile apps | iOS/iPadOS, Android | ✅ | ✅ | ❌ | ❌ | ❌ | Fleet's agent includes an [ai_tools](https://github.com/fleetdm/fleet/blob/main/orbit/pkg/table/ai_tools/README.md) table you can report on, but its results don't feed software inventory yet. |
+| AI agent CLIs | macOS, Windows, Linux | ✅ | ✅ | ❌ | ✅ | ✅ | Whether or not Fleet detects vulnerabilities depends on how the CLI was installed which impacts its location. TODO: Link to CLI tools section |
+| MCP servers | macOS, Windows, Linux | ✅ | N/A | ❌ | ✅ | ❌ | Most MCPs don't have a version. They're updated on-the-fly locally or remotely. |
+| AI agent instruction files | macOS, Windows, Linux | ✅ | N/A | ❌ | ✅ | N/A | Agent instructions are markdown files and don't have version tracking nor vulnerabilities.
 | macOS widgets | macOS, as part of their app | ✅ | ✅ | ✅ | ✅ | ✅ | Collected under Apps. Widgets are WidgetKit extensions that ship inside apps that already appear there. |
 | Shortcuts and Android ringtones | ❌ Not collected | ❌ | ❌ | ❌ | ❌ | ❌ | No MDM API exposes them. |
 
