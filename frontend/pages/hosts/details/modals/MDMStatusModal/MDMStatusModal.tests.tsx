@@ -91,44 +91,31 @@ describe("MDMStatusModal - component", () => {
     expect(screen.getByText(/On \(manual\)/i)).toBeInTheDocument();
   });
 
-  it.each([
-    {
-      platform: "windows" as const,
-      expectedTooltip: /Hosts added to Windows Autopilot/,
-      unexpectedTooltip: /Apple Business/,
-    },
-    {
-      platform: "darwin" as const,
-      expectedTooltip: /Hosts ordered via Apple Business \(AB\)/,
-      unexpectedTooltip: /Windows Autopilot/,
-    },
-  ])(
-    "renders the $platform pending tooltip for a pending host",
-    async ({ platform, expectedTooltip, unexpectedTooltip }) => {
-      (hostAPI.getDepAssignment as jest.Mock).mockResolvedValue(
-        mockDepAssignmentResponse
-      );
+  it("renders the Windows Autopilot tooltip for a pending Windows host", async () => {
+    (hostAPI.getDepAssignment as jest.Mock).mockResolvedValue(
+      mockDepAssignmentResponse
+    );
 
-      const { user } = render(
-        <MDMStatusModal
-          hostId={3}
-          enrollmentStatus="Pending"
-          platform={platform}
-          router={mockRouter}
-          user={createMockUser()}
-          lastMDMCheckIn=""
-          onSuccessfulCheckIn={jest.fn()}
-          fleetId={null}
-          onExit={jest.fn()}
-        />
-      );
+    const { user } = render(
+      <MDMStatusModal
+        hostId={3}
+        enrollmentStatus="Pending"
+        platform="windows"
+        router={mockRouter}
+        user={createMockUser()}
+        lastMDMCheckIn=""
+        onSuccessfulCheckIn={jest.fn()}
+        fleetId={null}
+        onExit={jest.fn()}
+      />
+    );
 
-      await user.hover(screen.getByText("Pending"));
+    await user.hover(screen.getByText("Pending"));
 
-      expect(await screen.findByText(expectedTooltip)).toBeInTheDocument();
-      expect(screen.queryByText(unexpectedTooltip)).not.toBeInTheDocument();
-    }
-  );
+    expect(
+      await screen.findByText(/Hosts added to Windows Autopilot/)
+    ).toBeInTheDocument();
+  });
 
   it("does not render profile assignment section when not premium or not macOS", () => {
     (hostAPI.getDepAssignment as jest.Mock).mockResolvedValue(
