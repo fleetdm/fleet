@@ -594,10 +594,6 @@ func (svc *Service) CreateEnrollmentToken(ctx context.Context, enrollSecret, idp
 	// Authorization is done by VerifyEnrollSecret below.
 	// We call SkipAuthorization here to avoid explicitly calling it when errors occur.
 	svc.authz.SkipAuthorization(ctx)
-	_, err := svc.checkIfAndroidNotConfigured(ctx, http.StatusConflict)
-	if err != nil {
-		return nil, err
-	}
 
 	var idpUUID string
 	if idpSessionID != "" {
@@ -612,12 +608,19 @@ func (svc *Service) CreateEnrollmentToken(ctx context.Context, enrollSecret, idp
 		}
 	}
 
-	_, err = svc.ds.VerifyEnrollSecret(ctx, enrollSecret)
+	// Verify the enroll secret before anything that could reveal server
+	// configuration state, so callers without a valid secret always get the
+	// same response.
+	_, err := svc.ds.VerifyEnrollSecret(ctx, enrollSecret)
 	switch {
 	case fleet.IsNotFound(err):
 		return nil, fleet.NewAuthFailedError("invalid secret")
 	case err != nil:
 		return nil, ctxerr.Wrap(ctx, err, "verifying enroll secret")
+	}
+
+	if _, err := svc.checkIfAndroidNotConfigured(ctx, http.StatusConflict); err != nil {
+		return nil, err
 	}
 
 	appCfg, err := svc.ds.AppConfig(ctx)
