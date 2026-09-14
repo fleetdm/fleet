@@ -4536,7 +4536,7 @@ func TestTPMPinConfigVerifyDirectIngest(t *testing.T) {
 		values := map[string]string{
 			"UseTPMPIN":                    strconv.Itoa(microsoft_mdm.PolicyOptDropdownOptional),
 			"UseEnhancedPin":               "1",
-			"MinimumPIN":                   strconv.Itoa(fleet.BitLockerPINMinLength),
+			"MinimumPIN":                   strconv.Itoa(microsoft_mdm.BitLockerPINMinLength),
 			"DisallowStandardUserPINReset": "0",
 			// Policies Fleet does not check live under the same key.
 			"UseTPM": strconv.Itoa(microsoft_mdm.PolicyOptDropdownOptional),

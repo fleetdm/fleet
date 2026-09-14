@@ -13,6 +13,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
+	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 )
 
 // BitLocker startup PIN relay.
@@ -21,10 +22,10 @@ import (
 // a fleet that requires a startup PIN. fleetd runs as SYSTEM and can add the protector on their behalf, but the modal
 // the end user types into lives in a browser, and nothing on the device lets that page reach fleetd. So the PIN is
 // relayed through the server: the device endpoint below stores it encrypted, the agent collects it exactly once on its
-// next config poll, applies it, and reports back. The server never hands the PIN to a user-authenticated caller. It
-// normally holds the ciphertext for seconds; a submission the agent never collects is cleared by the hourly cleanups
-// cron, so the worst case is about an hour. That is the same server key that already protects the host's escrowed
-// recovery key indefinitely, and the recovery key unlocks the volume without any PIN.
+// next config poll, applies it, and reports back. The server never hands the PIN to a user-authenticated caller. The
+// PIN is encrypted with the server private key, not the WSTEP certificate that protects the BitLocker recovery key. The
+// server normally holds the ciphertext for seconds. A submission the agent never collects is cleared by the hourly
+// cleanups cron once its TTL passes, so the worst case is the TTL plus an hour.
 
 // bitLockerPINClientErrorMaxLength matches the width of host_bitlocker_pin_requests.client_error.
 const bitLockerPINClientErrorMaxLength = 255
@@ -92,7 +93,7 @@ func (svc *Service) SubmitBitLockerPIN(ctx context.Context, host *fleet.Host, pi
 		return fleet.ErrMissingLicense
 	}
 
-	if err := fleet.ValidateBitLockerPIN(pin); err != nil {
+	if err := microsoft_mdm.ValidateBitLockerPIN(pin); err != nil {
 		return ctxerr.Wrap(ctx, err, "validate bitlocker pin")
 	}
 
@@ -165,7 +166,7 @@ func (svc *Service) BitLockerPINStateForDevice(
 
 // bitLockerPINState reports whether the host is currently being asked to create a startup PIN, and whether its fleetd
 // can apply one, for the submit endpoint's eligibility check. The orbit notification and the Fleet Desktop flag reach
-// the same answer through fleet.HostNeedsBitLockerPIN, so the three cannot disagree about whether a PIN is wanted.
+// the same answer through HostMDMDiskEncryption.NeedsBitLockerPIN, so the three cannot disagree about whether a PIN is wanted.
 func (svc *Service) bitLockerPINState(ctx context.Context, host *fleet.Host) (needsPIN bool, fleetdCapable bool, err error) {
 	if host.FleetPlatform() != "windows" {
 		return false, false, nil
@@ -184,7 +185,7 @@ func (svc *Service) bitLockerPINState(ctx context.Context, host *fleet.Host) (ne
 		return false, false, ctxerr.Wrap(ctx, err, "get bitlocker status for pin eligibility")
 	}
 
-	return fleet.HostNeedsBitLockerPIN(de), state.FleetdBitLockerPINCapable, nil
+	return de.NeedsBitLockerPIN(), state.FleetdBitLockerPINCapable, nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -344,7 +345,7 @@ func (svc *Service) setBitLockerPINNotification(
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "get bitlocker status for pin notification")
 	}
-	if !fleet.HostNeedsBitLockerPIN(de) {
+	if !de.NeedsBitLockerPIN() {
 		// The host no longer needs a PIN, so the submission is moot. Drop it rather than leaving it to expire, so the
 		// page stops waiting and the secret is not held for the rest of the TTL.
 		if err := svc.ds.DeleteBitLockerPINRequest(ctx, host); err != nil {

@@ -443,7 +443,7 @@ func testBitLockerPINRequestCleanupReapsFinished(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		return true
 	}
-	pastRetention := fleet.BitLockerPINRequestRetention + time.Hour
+	pastRetention := bitLockerPINRequestRetention + time.Hour
 
 	oldSet := newBitLockerPINHost(t, ds)
 	settle(t, oldSet, fleet.BitLockerPINRequestSet, "")

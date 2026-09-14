@@ -636,6 +636,9 @@ WHERE host_id = ? AND request_uuid = ? AND status = 'delivered'`
 	return nil
 }
 
+// bitLockerPINRequestRetention is how long a finished PIN submission is kept so the My device page can show its outcome.
+const bitLockerPINRequestRetention = 24 * time.Hour
+
 // CleanupExpiredBitLockerPINRequests runs on the hourly cleanups cron and does two things.
 //
 // It retires submissions the agent never collected. The TTL stops an old PIN being handed out, but on its own it would
@@ -664,7 +667,7 @@ WHERE status = 'pending' AND created_at <= DATE_SUB(NOW(6), INTERVAL ? SECOND)`
 	const reapStmt = `
 DELETE FROM host_bitlocker_pin_requests
 WHERE status IN ('set', 'failed') AND updated_at <= DATE_SUB(NOW(6), INTERVAL ? SECOND)`
-	if _, err := ds.writer(ctx).ExecContext(ctx, reapStmt, int(fleet.BitLockerPINRequestRetention.Seconds())); err != nil {
+	if _, err := ds.writer(ctx).ExecContext(ctx, reapStmt, int(bitLockerPINRequestRetention.Seconds())); err != nil {
 		return ctxerr.Wrap(ctx, err, "reap finished bitlocker pin requests")
 	}
 	return nil

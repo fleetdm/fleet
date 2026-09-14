@@ -12,6 +12,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
+	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/stretchr/testify/require"
@@ -76,7 +77,7 @@ func TestSubmitBitLockerPIN(t *testing.T) {
 
 		err := svc.SubmitBitLockerPIN(ctx, host, "12ab")
 		require.Error(t, err)
-		require.Contains(t, err.Error(), fleet.BitLockerPINLengthMessage)
+		require.Contains(t, err.Error(), microsoft_mdm.BitLockerPINLengthMessage)
 		require.False(t, ds.QueueBitLockerPINRequestFuncInvoked)
 	})
 
@@ -311,8 +312,6 @@ func TestBitLockerPINNeverReachesDebugLogs(t *testing.T) {
 		{name: "collected PIN", value: fleet.OrbitGetDiskEncryptionPINResponse{PIN: pin, RequestUUID: "req-1"}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-
 			// The value must opt in, or logJSON would marshal it verbatim.
 			redactor, ok := tc.value.(interface{ RedactedForDebugLog() any })
 			require.True(t, ok, "type must implement RedactedForDebugLog")

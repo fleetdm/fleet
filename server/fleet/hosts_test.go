@@ -733,3 +733,31 @@ func TestHostEscrowStateInFlightRemaining(t *testing.T) {
 		})
 	}
 }
+
+func TestHostMDMDiskEncryptionNeedsBitLockerPIN(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name string
+		de   *HostMDMDiskEncryption
+		want bool
+	}{
+		{name: "no disk encryption status"},
+		{name: "no action required", de: &HostMDMDiskEncryption{}},
+		{
+			name: "create pin",
+			de:   &HostMDMDiskEncryption{ActionRequired: new(ActionRequiredCreatePIN)},
+			want: true,
+		},
+		// A host waiting on a restart is action-required for a different reason, and asking it for a PIN would be
+		// asking for something Windows will not accept yet.
+		{
+			name: "restart required",
+			de:   &HostMDMDiskEncryption{ActionRequired: new(ActionRequiredRestart)},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			require.Equal(t, tc.want, tc.de.NeedsBitLockerPIN())
+		})
+	}
+}

@@ -192,7 +192,7 @@ func TestSystemDriveRequiresStartupAuthCmd_Template(t *testing.T) {
 				ConfigurePIN:         new(uint(PolicyOptDropdownOptional)),
 				ConfigurePINPolicies: true,
 			},
-			// The minimum length matches fleet.BitLockerPINMinLength. Disabling the last node is what lets standard users
+			// The minimum length matches BitLockerPINMinLength. Disabling the last node is what lets standard users
 			// change their PIN, because it is phrased as a prohibition.
 			expected: `
 				<Atomic>

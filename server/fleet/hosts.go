@@ -806,6 +806,14 @@ type HostMDMDiskEncryption struct {
 	PINRequest *HostBitLockerPINRequest `json:"pin_request,omitempty" db:"-" csv:"-"`
 }
 
+// NeedsBitLockerPIN reports whether the end user is being asked to create a startup PIN. It reads action_required
+// rather than re-deriving it, because that already accounts for the PIN being required, not yet set, and settable on
+// this volume right now. The submit endpoint, the orbit notification, and the Fleet Desktop flag all use it, so they
+// cannot disagree about whether a PIN is wanted.
+func (d *HostMDMDiskEncryption) NeedsBitLockerPIN() bool {
+	return d != nil && d.ActionRequired != nil && *d.ActionRequired == ActionRequiredCreatePIN
+}
+
 type HostMDMRecoveryLockPassword struct {
 	Status            *RecoveryLockStatus `json:"status" db:"-" csv:"-"`
 	Detail            string              `json:"detail" db:"-" csv:"-"`

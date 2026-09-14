@@ -271,7 +271,7 @@ func (svc *Service) hostNeedsBitLockerPINPrompt(ctx context.Context, host *fleet
 	if err != nil {
 		return false, ctxerr.Wrap(ctx, err, "get bitlocker status for pin prompt")
 	}
-	return fleet.HostNeedsBitLockerPIN(diskEncryption), nil
+	return diskEncryption.NeedsBitLockerPIN(), nil
 }
 
 func (svc *Service) TriggerLinuxDiskEncryptionEscrow(ctx context.Context, host *fleet.Host) error {

@@ -17,8 +17,7 @@ func Up_20260911193825(tx *sql.Tx) error {
 		CREATE TABLE IF NOT EXISTS host_bitlocker_pin_requests (
 			host_id INT UNSIGNED NOT NULL PRIMARY KEY,
 			-- Identifies which submission the agent collected, so a delayed outcome for an earlier PIN cannot be
-			-- recorded against a newer one the user submitted in the meantime. The 16 raw bytes of a UUID, converted
-			-- in Go as calendar_events.uuid_bin is.
+			-- recorded against a newer one the user submitted in the meantime.
 			request_uuid BINARY(16) NOT NULL,
 			-- NULL once the agent has collected the PIN, so a terminal row carries no secret.
 			pin_encrypted TEXT NULL DEFAULT NULL,
