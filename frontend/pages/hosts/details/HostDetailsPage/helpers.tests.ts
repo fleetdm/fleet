@@ -117,6 +117,14 @@ describe("canShowMyDeviceButton", () => {
     });
     expect(canShowMyDeviceButton(host, false)).toBe(true);
   });
+
+  it("returns false for ios when fleet desktop SSO is configured", () => {
+    const host = createMockHost({
+      platform: "ios",
+      fleet_desktop_version: "1.22.1",
+    });
+    expect(canShowMyDeviceButton(host, true)).toBe(false);
+  });
 });
 
 describe("hasEverEnrolled", () => {

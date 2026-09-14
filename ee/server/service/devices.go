@@ -14,6 +14,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server"
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -473,6 +474,9 @@ func (svc *Service) RequireDeviceSSOSession(ctx context.Context, host *fleet.Hos
 			// only run the IDP account check for iOS/iPadOS UUID device authentications
 			return nil
 		}
+
+		// Require primary read for SSO/Auth allow decisions
+		ctx = ctxdb.RequirePrimary(ctx, true)
 
 		// The session is valid for this host, so it also has to belong to the
 		// host's IdP end user. A host with no IdP mapping has nothing to compare
