@@ -44,7 +44,6 @@ Okta Verify needs a device certificate from your Okta CA to unlock FastPass. Dep
 2. In Fleet, head to **Controls > Variables** and create a variable called `REQUEST_CERTIFICATE_API_TOKEN` with the API-only user's API token as its value. The script below reads it as `$FLEET_SECRET_REQUEST_CERTIFICATE_API_TOKEN`.
 3. In your text editor, copy the script below, then replace `<Fleet-server-URL>` and `<Okta-CA-ID>` (the CA `id` from Step 2) with your own values.
 
-**Certificate placement:** Okta hasn't published where its Linux client expects the FastPass device certificate — Okta Verify for Linux isn't GA yet. Until Okta documents this, the script below follows the same convention Fleet's own agent (`fleetd`/orbit) uses on Linux: a single directory under `/opt` holding both the binary and its host-specific files. It writes the certificate and private key to `/opt/okta-verify/`. **Confirm this against Okta Verify for Linux's actual installed layout** (check its package contents or config file) once you have a build, and update `CERT_DIR` in the script if it expects a different path.
 
 ```shell
 #!/bin/bash
