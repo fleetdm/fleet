@@ -912,6 +912,8 @@ type GetConfigEnableDiskEncryptionFunc func(ctx context.Context, teamID *uint) (
 
 type SetOrUpdateHostDiskTpmPINFunc func(ctx context.Context, hostID uint, pinSet bool) error
 
+type SetOrUpdateHostDiskBootProtectorFunc func(ctx context.Context, hostID uint, bootProtectorSet bool) error
+
 type SetOrUpdateHostDisksEncryptionFunc func(ctx context.Context, hostID uint, encrypted bool, bitlockerProtectionStatus *int) error
 
 type SetOrUpdateHostDiskEncryptionKeyFunc func(ctx context.Context, host *fleet.Host, encryptedBase64Key string, clientError string, decryptable *bool) (bool, error)
@@ -3752,6 +3754,9 @@ type DataStore struct {
 
 	SetOrUpdateHostDiskTpmPINFunc        SetOrUpdateHostDiskTpmPINFunc
 	SetOrUpdateHostDiskTpmPINFuncInvoked bool
+
+	SetOrUpdateHostDiskBootProtectorFunc        SetOrUpdateHostDiskBootProtectorFunc
+	SetOrUpdateHostDiskBootProtectorFuncInvoked bool
 
 	SetOrUpdateHostDisksEncryptionFunc        SetOrUpdateHostDisksEncryptionFunc
 	SetOrUpdateHostDisksEncryptionFuncInvoked bool
@@ -9124,6 +9129,13 @@ func (s *DataStore) SetOrUpdateHostDiskTpmPIN(ctx context.Context, hostID uint, 
 	s.SetOrUpdateHostDiskTpmPINFuncInvoked = true
 	s.mu.Unlock()
 	return s.SetOrUpdateHostDiskTpmPINFunc(ctx, hostID, pinSet)
+}
+
+func (s *DataStore) SetOrUpdateHostDiskBootProtector(ctx context.Context, hostID uint, bootProtectorSet bool) error {
+	s.mu.Lock()
+	s.SetOrUpdateHostDiskBootProtectorFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetOrUpdateHostDiskBootProtectorFunc(ctx, hostID, bootProtectorSet)
 }
 
 func (s *DataStore) SetOrUpdateHostDisksEncryption(ctx context.Context, hostID uint, encrypted bool, bitlockerProtectionStatus *int) error {

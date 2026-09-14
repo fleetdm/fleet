@@ -3022,6 +3022,7 @@ func (ds *Datastore) LoadHostByOrbitNodeKey(ctx context.Context, nodeKey string)
       IF(hdep.host_id AND ISNULL(hdep.deleted_at), true, false) AS dep_assigned_to_fleet,
       hd.encrypted as disk_encryption_enabled,
       hd.bitlocker_protection_status,
+      hd.bitlocker_boot_protector_set,
       COALESCE(hd.tpm_pin_set, false) as tpm_pin_set,
       COALESCE(hdek.decryptable, false) as encryption_key_available,
       t.name as team_name,
@@ -5200,8 +5201,8 @@ func (ds *Datastore) SetOrUpdateHostDisksEncryption(ctx context.Context, hostID 
 		ON DUPLICATE KEY UPDATE
 			encrypted = VALUES(encrypted),
 			bitlocker_protection_status = VALUES(bitlocker_protection_status),
-			bitlocker_protection_error = IF(VALUES(bitlocker_protection_status) = ? OR NOT VALUES(encrypted), NULL, bitlocker_protection_error),
-			bitlocker_protection_outcome = IF(VALUES(bitlocker_protection_status) = ? OR NOT VALUES(encrypted), NULL, bitlocker_protection_outcome),
+			bitlocker_protection_error = IF((VALUES(bitlocker_protection_status) = ? AND NOT (bitlocker_boot_protector_set <=> 0)) OR NOT VALUES(encrypted), NULL, bitlocker_protection_error),
+			bitlocker_protection_outcome = IF((VALUES(bitlocker_protection_status) = ? AND NOT (bitlocker_boot_protector_set <=> 0)) OR NOT VALUES(encrypted), NULL, bitlocker_protection_outcome),
 			updated_at = CURRENT_TIMESTAMP(6)`,
 		hostID, encrypted, bitlockerProtectionStatus, fleet.BitLockerProtectionStatusOn, fleet.BitLockerProtectionStatusOn,
 	)
@@ -5233,6 +5234,16 @@ func (ds *Datastore) SetOrUpdateHostDiskTpmPIN(ctx context.Context, hostID uint,
 		`UPDATE host_disks SET tpm_pin_set = ? WHERE host_id = ?`,
 		`INSERT INTO host_disks (tpm_pin_set, host_id) VALUES (?, ?)`,
 		pinSet, hostID,
+	)
+}
+
+// SetOrUpdateHostDiskBootProtector records whether the volume has a key protector that can release the volume master key at boot.
+func (ds *Datastore) SetOrUpdateHostDiskBootProtector(ctx context.Context, hostID uint, bootProtectorSet bool) error {
+	return ds.updateOrInsert(
+		ctx,
+		`UPDATE host_disks SET bitlocker_boot_protector_set = ? WHERE host_id = ?`,
+		`INSERT INTO host_disks (bitlocker_boot_protector_set, host_id) VALUES (?, ?)`,
+		bootProtectorSet, hostID,
 	)
 }
 

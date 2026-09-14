@@ -926,6 +926,24 @@ func testMDMWindowsDiskEncryption(t *testing.T, ds *Datastore) {
 				})
 			})
 
+			t.Run("protection on with nothing able to unseal at boot is enforcing, not verified", func(t *testing.T) {
+				setProtectionStatus(t, targetHost.ID, new(fleet.BitLockerProtectionStatusOn))
+				require.NoError(t, ds.SetOrUpdateHostDiskBootProtector(ctx, targetHost.ID, false))
+				checkExpected(t, nil, hostIDsByDEStatus{
+					fleet.DiskEncryptionVerified:  []uint{hosts[0].ID},
+					fleet.DiskEncryptionEnforcing: []uint{targetHost.ID},
+					fleet.DiskEncryptionFailed:    []uint{hosts[1].ID},
+				})
+
+				// hosts[0] never reports the column at all, and stays verified throughout, which is what keeps agents
+				// that do not send it from being marked broken.
+				require.NoError(t, ds.SetOrUpdateHostDiskBootProtector(ctx, targetHost.ID, true))
+				checkExpected(t, nil, hostIDsByDEStatus{
+					fleet.DiskEncryptionVerified: []uint{hosts[0].ID, targetHost.ID},
+					fleet.DiskEncryptionFailed:   []uint{hosts[1].ID},
+				})
+			})
+
 			t.Run("protection off during encryption in progress is verifying not action_required", func(t *testing.T) {
 				// Simulate: orbit escrowed key, encryption in progress, osquery reports
 				// encrypted=false and protection_status=0. This is normal during encryption.

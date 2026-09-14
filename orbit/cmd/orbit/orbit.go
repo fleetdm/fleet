@@ -1318,7 +1318,7 @@ func orbitAction(c *cli.Context) error {
 		}
 		defer comWorker.Close()
 		orbitClient.RegisterConfigReceiver(update.ApplyWindowsMDMBitlockerFetcherMiddleware(
-			windowsMDMBitlockerCommandFrequency, orbitClient, comWorker))
+			windowsMDMBitlockerCommandFrequency, orbitClient, comWorker, orbitClient.GetServerCapabilities))
 		orbitClient.RegisterConfigReceiver(managedaccount.New(orbitClient, windowsManagedAccountRetryFrequency))
 	case "linux":
 		orbitClient.RegisterConfigReceiver(luks.New(orbitClient))
