@@ -2432,7 +2432,12 @@ var (
 	// dotted-numeric run so a future build metadata suffix (e.g.
 	// "v2.0.11.1-beta") doesn't end up in the ingested version, which
 	// version_compare can't order.
-	rpiImagerVersion   = regexp.MustCompile(`^[vV](\d+(?:\.\d+)*)`)
+	rpiImagerVersion = regexp.MustCompile(`^[vV](\d+(?:\.\d+)*)`)
+	// rAppVersionFormat extracts the R version from R.app's
+	// CFBundleShortVersionString. The "R" name is duplicated in some builds
+	// and not others, e.g. "R 4.5.1 GUI 1.82 High Sierra build" -> "4.5.1" and
+	// "R R 4.6.1 GUI 1.83 High Sierra build" -> "4.6.1".
+	rAppVersionFormat  = regexp.MustCompile(`^R (?:R )?(\d+(?:\.\d+)+) GUI`)
 	basicAppSanitizers = []struct {
 		matchBundleIdentifier string
 		matchName             string
@@ -2538,6 +2543,14 @@ var (
 			matchBundleIdentifier: "com.raspberrypi.rpi-imager",
 			mutate: func(s *fleet.Software, logger *slog.Logger) {
 				if versionMatches := rpiImagerVersion.FindStringSubmatch(s.Version); len(versionMatches) == 2 {
+					s.Version = versionMatches[1]
+				}
+			},
+		},
+		{
+			matchBundleIdentifier: "org.R-project.R",
+			mutate: func(s *fleet.Software, logger *slog.Logger) {
+				if versionMatches := rAppVersionFormat.FindStringSubmatch(s.Version); len(versionMatches) == 2 {
 					s.Version = versionMatches[1]
 				}
 			},
