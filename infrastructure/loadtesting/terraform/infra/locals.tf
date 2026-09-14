@@ -46,6 +46,9 @@ locals {
       CLOUDWATCH_REGION    = "us-east-2"
       # PROMETHEUS_SCRAPE_URL = "http://localhost:8080/metrics"
 
+      # Enable the agent WebSocket transport for load testing (#50639).
+      FLEET_WEBSOCKET_TRANSPORT_ENABLED = "true"
+
       FLEET_VULNERABILITIES_DATABASES_PATH       = "/home/fleet"
       FLEET_OSQUERY_ENABLE_ASYNC_HOST_PROCESSING = "false"
       FLEET_LOGGING_JSON                         = "true"
