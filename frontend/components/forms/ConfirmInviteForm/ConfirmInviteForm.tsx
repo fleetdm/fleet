@@ -1,146 +1,123 @@
-import React, { useCallback, useState } from "react";
+import React from "react";
 
 import validateEquality from "components/forms/validators/validate_equality";
+import validatePresence from "components/forms/validators/validate_presence";
+import useFormValidation, { IFormErrors } from "hooks/useFormValidation";
 
 import Button from "components/buttons/Button";
 import InputField from "components/forms/fields/InputField";
-import { IInputFieldParseTarget } from "interfaces/form_field";
 
 const baseClass = "confirm-invite-page__form";
+
 export interface IConfirmInviteFormData {
   name: string;
   password: string;
   password_confirmation: string;
 }
+
 interface IConfirmInviteFormProps {
   defaultFormData?: Partial<IConfirmInviteFormData>;
-  handleSubmit: (data: IConfirmInviteFormData) => void;
+  handleSubmit: (data: IConfirmInviteFormData) => void | Promise<unknown>;
   ancestorError?: string;
 }
-interface IConfirmInviteFormErrors {
-  name?: string | null;
-  password?: string | null;
-  password_confirmation?: string | null;
-}
 
-const validate = (formData: IConfirmInviteFormData) => {
-  const errors: IConfirmInviteFormErrors = {};
-  const {
-    name,
-    password,
-    password_confirmation: passwordConfirmation,
-  } = formData;
+const validate = (formData: IConfirmInviteFormData): IFormErrors => {
+  const errors: IFormErrors = {};
+  const { name, password, password_confirmation: confirmation } = formData;
 
-  if (!name) {
-    errors.name = "Full name must be present";
+  if (!validatePresence(name)) {
+    errors.name = "Enter your full name";
   }
 
-  if (
-    password &&
-    passwordConfirmation &&
-    !validateEquality(password, passwordConfirmation)
-  ) {
-    errors.password_confirmation =
-      "Password confirmation does not match password";
+  if (!validatePresence(password)) {
+    errors.password = "Enter a password";
   }
 
-  if (!password) {
-    errors.password = "Password must be present";
-  }
-
-  if (!passwordConfirmation) {
-    errors.password_confirmation = "Password confirmation must be present";
+  if (!validatePresence(confirmation)) {
+    errors.password_confirmation = "Confirm your password";
+  } else if (password && !validateEquality(password, confirmation)) {
+    errors.password_confirmation = "Match the password above";
   }
 
   return errors;
 };
+
 const ConfirmInviteForm = ({
   defaultFormData,
   handleSubmit,
   ancestorError,
 }: IConfirmInviteFormProps) => {
-  const [formData, setFormData] = useState<IConfirmInviteFormData>({
-    name: defaultFormData?.name || "",
-    password: defaultFormData?.password || "",
-    password_confirmation: defaultFormData?.password || "",
-  });
-  const [formErrors, setFormErrors] = useState<IConfirmInviteFormErrors>({});
-
-  const { name, password, password_confirmation } = formData;
-
-  const onInputChange = ({ name: n, value }: IInputFieldParseTarget) => {
-    const newFormData = { ...formData, [n]: value };
-    setFormData(newFormData);
-    const newErrs = validate(newFormData);
-    // only set errors that are updates of existing errors
-    // new errors are only set on submit
-    const errsToSet: Record<string, string> = {};
-    Object.keys(formErrors).forEach((k) => {
-      // @ts-ignore
-      if (newErrs[k]) {
-        // @ts-ignore
-        errsToSet[k] = newErrs[k];
-      }
-    });
-    setFormErrors(errsToSet);
-  };
-
-  const onSubmit = useCallback(
-    (evt: React.FormEvent<HTMLFormElement>) => {
-      evt.preventDefault();
-
-      const errs = validate(formData);
-      if (Object.keys(errs).length > 0) {
-        setFormErrors(errs);
-        return;
-      }
-      handleSubmit(formData);
+  const {
+    formData,
+    setField,
+    getError,
+    clearFieldError,
+    validateField,
+    handleSubmit: onSubmit,
+    isSubmitting,
+  } = useFormValidation<IConfirmInviteFormData>({
+    initialFormData: {
+      name: defaultFormData?.name || "",
+      password: "",
+      password_confirmation: "",
     },
-    [formData, handleSubmit]
-  );
+    validate,
+    skipTrim: ["password", "password_confirmation"],
+  });
 
   return (
-    <form onSubmit={onSubmit} className={baseClass} autoComplete="off">
+    <form
+      onSubmit={onSubmit(handleSubmit)}
+      className={baseClass}
+      autoComplete="off"
+    >
       {ancestorError && <div className="form__base-error">{ancestorError}</div>}
       <InputField
         label="Full name"
         autofocus
-        onChange={onInputChange}
         name="name"
-        value={name}
-        error={formErrors.name}
-        parseTarget
+        value={formData.name}
+        onChange={(value: string) => setField("name", value)}
+        onFocus={() => clearFieldError("name")}
+        onBlur={() => validateField("name")}
+        error={getError("name")}
         inputOptions={{ maxLength: 80 }}
         ignore1password={false}
+        disabled={isSubmitting}
       />
       <InputField
         label="Password"
         type="password"
         placeholder="Password"
         helpText="Must include 12 characters, at least 1 number (e.g. 0 - 9), and at least 1 symbol (e.g. &*#)"
-        onChange={onInputChange}
         name="password"
-        value={password}
-        error={formErrors.password}
-        parseTarget
+        value={formData.password}
+        onChange={(value: string) => setField("password", value)}
+        onFocus={() => clearFieldError("password")}
+        onBlur={() => validateField("password")}
+        error={getError("password")}
         ignore1password={false}
+        disabled={isSubmitting}
       />
       <InputField
         label="Confirm password"
         type="password"
         placeholder="Confirm password"
-        onChange={onInputChange}
         name="password_confirmation"
-        value={password_confirmation}
-        error={formErrors.password_confirmation}
-        parseTarget
+        value={formData.password_confirmation}
+        onChange={(value: string) => setField("password_confirmation", value)}
+        onFocus={() => clearFieldError("password_confirmation")}
+        onBlur={() => validateField("password_confirmation")}
+        error={getError("password_confirmation")}
         ignore1password={false}
+        disabled={isSubmitting}
       />
       <div className="button-wrap--center">
         <Button
           type="submit"
-          disabled={Object.keys(formErrors).length > 0}
           size="wide"
+          isLoading={isSubmitting}
+          disabled={isSubmitting}
         >
           Submit
         </Button>
