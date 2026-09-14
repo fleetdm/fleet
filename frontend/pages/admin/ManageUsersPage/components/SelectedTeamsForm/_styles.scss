@@ -2,7 +2,7 @@
   &__list {
     display: flex;
     flex-direction: column;
-    border-radius: 4px;
+    border-radius: $border-radius-large;
     border: 1px solid $ui-fleet-black-10;
     padding-left: 0;
     margin: 0;
