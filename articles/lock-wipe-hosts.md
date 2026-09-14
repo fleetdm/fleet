@@ -145,14 +145,23 @@ If you accidentally send a lock, wipe, clear passcode, or lost mode command to a
 
 The following MDM commands can be canceled:
 
-| Command | Apple request type | Triggered by |
-|---|---|---|
-| Lock (macOS) | `DeviceLock` | **Actions > Lock** |
-| Lock (iOS/iPadOS) | `EnableLostMode` | **Actions > Lock** |
-| Wipe | `EraseDevice` | **Actions > Wipe** |
-| Clear passcode | `ClearPasscode` | **Actions > Clear passcode** |
+| Command | Platform | Apple request type | Triggered by |
+|---|---|---|---|
+| Lock (macOS) | macOS | `DeviceLock` | **Actions > Lock** |
+| Lock (iOS/iPadOS) | iOS/iPadOS | `EnableLostMode` | **Actions > Lock** |
+| Wipe | macOS, iOS/iPadOS | `EraseDevice` | **Actions > Wipe** |
+| Clear passcode | iOS/iPadOS | `ClearPasscode` | **Actions > Clear passcode** |
 
 Configuration profile installations and other MDM command types cannot be canceled.
+
+### Platform support
+
+Canceling only applies to Apple MDM commands, so it doesn't cover every platform or every action:
+
+- **Lock on Windows and Linux** runs as a [script](#lock-a-host) rather than an MDM command. There's no way to cancel a pending script run once it's sent.
+- **Wipe on Windows** uses a native MDM command (`doWipeProtected`/`doWipe`), but canceling it isn't supported yet.
+- **Wipe on Linux** runs as a [script](#linux-wipe-behavior) rather than an MDM command, so there's nothing to cancel here either.
+- **Lock, wipe, and clear passcode on Android** use the Android Management API rather than Apple's MDM protocol. Canceling isn't supported yet.
 
 ### Cancel from the UI
 
