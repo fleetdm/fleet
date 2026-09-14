@@ -1,9 +1,9 @@
+import { createMockDeviceSoftware } from "__mocks__/deviceUserMock";
+import { createMockHostSoftwarePackage } from "__mocks__/hostMock";
 import {
   IDeviceSoftwareWithUiStatus,
   SoftwareCategory,
 } from "interfaces/software";
-import { createMockDeviceSoftware } from "__mocks__/deviceUserMock";
-import { createMockHostSoftwarePackage } from "__mocks__/hostMock";
 import { createMockSelfServiceCategory } from "test/handlers/self-service-categories-handlers";
 
 import {

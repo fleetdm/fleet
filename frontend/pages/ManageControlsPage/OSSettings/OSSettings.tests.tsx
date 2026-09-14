@@ -1,6 +1,6 @@
-import React from "react";
 import { waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
+import React from "react";
 
 import mdmAPI from "services/entities/mdm";
 import mockServer from "test/mock-server";

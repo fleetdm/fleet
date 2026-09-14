@@ -2,20 +2,20 @@ import React, { useState, useCallback, useContext } from "react";
 import { useQuery } from "react-query";
 import { InjectedRouter } from "react-router/lib/Router";
 
-import { IPack, IStoredPacksResponse } from "interfaces/pack";
-import { IFleetApiError } from "interfaces/errors";
-import { AppContext } from "context/app";
-import { notify } from "components/ToastNotification";
-import packsAPI from "services/entities/packs";
-import PATHS from "router/paths";
-
 // @ts-ignore
 import Button from "components/buttons/Button";
 import TableDataError from "components/DataError";
-import Spinner from "components/Spinner";
 import MainContent from "components/MainContent";
-import PacksTable from "./components/PacksTable";
+import Spinner from "components/Spinner";
+import { notify } from "components/ToastNotification";
+import { AppContext } from "context/app";
+import { IFleetApiError } from "interfaces/errors";
+import { IPack, IStoredPacksResponse } from "interfaces/pack";
+import PATHS from "router/paths";
+import packsAPI from "services/entities/packs";
+
 import DeletePackModal from "./components/DeletePackModal";
+import PacksTable from "./components/PacksTable";
 
 const baseClass = "manage-packs-page";
 

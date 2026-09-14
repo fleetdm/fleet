@@ -1,12 +1,11 @@
-import React from "react";
 import { screen, waitFor, within } from "@testing-library/react";
+import React from "react";
 
-import { createCustomRenderer, getOpenModal } from "test/test-utils";
 import { createMockConfig } from "__mocks__/configMock";
+import { notify } from "components/ToastNotification";
 import { IMicrosoftGraphCredential } from "interfaces/microsoft_graph_credential";
 import microsoftGraphCredentialsAPI from "services/entities/microsoft_graph_credentials";
-
-import { notify } from "components/ToastNotification";
+import { createCustomRenderer, getOpenModal } from "test/test-utils";
 
 import MicrosoftGraphPage from "./MicrosoftGraphPage";
 

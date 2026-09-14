@@ -1,12 +1,12 @@
-import React from "react";
 import { render, screen } from "@testing-library/react";
-import { createMockRouter } from "test/test-utils";
+import React from "react";
 
 import {
   createMockOSVersion,
   createMockOSVersionsResponse,
   createMockSoftwareVulnerability,
 } from "__mocks__/softwareMock";
+import { createMockRouter } from "test/test-utils";
 
 import SoftwareOSTable from "./SoftwareOSTable";
 

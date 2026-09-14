@@ -1,33 +1,33 @@
 import React, { useState, useCallback, useContext, useMemo } from "react";
+import { useQuery } from "react-query";
 import { InjectedRouter } from "react-router";
 import { Row } from "react-table";
-import { useQuery } from "react-query";
 
-import PATHS from "router/paths";
-import { IInvite } from "interfaces/invite";
-import { IUser } from "interfaces/user";
-import { IDropdownOption } from "interfaces/dropdownOption";
-import authToken from "utilities/auth_token";
-
-import { AppContext } from "context/app";
-import usersAPI from "services/entities/users";
-import invitesAPI from "services/entities/invites";
-
+import ActionsDropdown from "components/ActionsDropdown";
+import TableDataError from "components/DataError";
+import EmptyState from "components/EmptyState";
 import TableContainer from "components/TableContainer";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
 import TableCount from "components/TableContainer/TableCount";
-import TableDataError from "components/DataError";
-import ActionsDropdown from "components/ActionsDropdown";
-import EmptyState from "components/EmptyState";
 import { notify } from "components/ToastNotification";
+import { AppContext } from "context/app";
+import { IDropdownOption } from "interfaces/dropdownOption";
+import { IInvite } from "interfaces/invite";
+import { IUser } from "interfaces/user";
+import PATHS from "router/paths";
+import invitesAPI from "services/entities/invites";
+import usersAPI from "services/entities/users";
+import authToken from "utilities/auth_token";
+
+import DeleteUserModal from "../DeleteUserModal";
+import ResetPasswordModal from "../ResetPasswordModal";
+import ResetSessionsModal from "../ResetSessionsModal";
+
 import {
   generateTableHeaders,
   combineDataSets,
   IUserTableData,
 } from "./UsersTableConfig";
-import DeleteUserModal from "../DeleteUserModal";
-import ResetPasswordModal from "../ResetPasswordModal";
-import ResetSessionsModal from "../ResetSessionsModal";
 
 const ADD_USER_OPTIONS: IDropdownOption[] = [
   {

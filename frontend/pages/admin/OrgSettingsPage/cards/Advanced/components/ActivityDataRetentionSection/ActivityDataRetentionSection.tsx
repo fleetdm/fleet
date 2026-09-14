@@ -1,12 +1,13 @@
 import React, { useContext, useMemo } from "react";
-import SettingsSection from "pages/admin/components/SettingsSection";
-import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+
 import Checkbox from "components/forms/fields/Checkbox";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
-import { getCustomDropdownOptions } from "utilities/helpers";
-import { ACTIVITY_EXPIRY_WINDOW_DROPDOWN_OPTIONS } from "utilities/constants";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import { AppContext } from "context/app";
+import SettingsSection from "pages/admin/components/SettingsSection";
+import { ACTIVITY_EXPIRY_WINDOW_DROPDOWN_OPTIONS } from "utilities/constants";
+import { getCustomDropdownOptions } from "utilities/helpers";
 
 import { IAdvancedSectionProps } from "../../Advanced";
 

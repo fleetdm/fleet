@@ -1,7 +1,6 @@
+import { IApiEndpoint } from "interfaces/api_endpoint";
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
-
-import { IApiEndpoint } from "interfaces/api_endpoint";
 
 export interface IListApiEndpointsResponse {
   api_endpoints: IApiEndpoint[];

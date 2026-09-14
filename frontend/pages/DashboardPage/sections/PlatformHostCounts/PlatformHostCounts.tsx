@@ -1,11 +1,10 @@
 import React, { useCallback } from "react";
-import PATHS from "router/paths";
-
-import { getPathWithQueryParams } from "utilities/url";
-import { PLATFORM_NAME_TO_LABEL_NAME } from "pages/DashboardPage/helpers";
 
 import { IHostSummary } from "interfaces/host_summary";
+import { PLATFORM_NAME_TO_LABEL_NAME } from "pages/DashboardPage/helpers";
+import PATHS from "router/paths";
 import { PlatformValueOptions } from "utilities/constants";
+import { getPathWithQueryParams } from "utilities/url";
 
 import HostCountCard from "../../cards/HostCountCard";
 

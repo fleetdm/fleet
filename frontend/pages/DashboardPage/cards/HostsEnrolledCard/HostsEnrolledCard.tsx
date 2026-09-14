@@ -1,6 +1,6 @@
+import classnames from "classnames";
 import React, { useEffect, useRef, useState } from "react";
 import { InjectedRouter } from "react-router";
-import classnames from "classnames";
 import {
   BarChart,
   Bar,
@@ -12,10 +12,10 @@ import {
   Tooltip,
 } from "recharts";
 
-import PATHS from "router/paths";
 import { ILabelSummary } from "interfaces/label";
-import { getPathWithQueryParams } from "utilities/url";
 import { PLATFORM_NAME_TO_LABEL_NAME } from "pages/DashboardPage/helpers";
+import PATHS from "router/paths";
+import { getPathWithQueryParams } from "utilities/url";
 
 const baseClass = "hosts-enrolled-card";
 
