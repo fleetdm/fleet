@@ -5,7 +5,6 @@ import { InjectedRouter } from "react-router";
 
 import Card from "components/Card";
 import Chip from "components/Chip";
-import { internationalTimeOnlyFormat } from "utilities/helpers";
 import { AppContext } from "context/app";
 import { useSoftwareInstaller } from "hooks/useSoftwareInstallerMeta";
 import {
@@ -21,6 +20,7 @@ import {
   mergePolicies,
 } from "pages/SoftwarePage/helpers";
 import PATHS from "router/paths";
+import { internationalTimeOnlyFormat } from "utilities/helpers";
 import { pluralize } from "utilities/strings/stringUtils";
 import { getPathWithQueryParams } from "utilities/url";
 
