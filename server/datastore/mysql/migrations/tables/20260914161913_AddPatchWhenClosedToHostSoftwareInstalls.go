@@ -25,16 +25,18 @@ func Up_20260914161913(tx *sql.Tx) error {
 		}
 	}
 
-	// Preserve current classification of historical rows. Only rows with a live
-	// policy_id + policies.patch_when_closed = 1 need the flag flipped on; the
-	// column defaults to 0 for the rest. Uses the existing
-	// fk_software_install_policy_id index on policy_id, so the join stays
-	// index-driven even on large host_software_installs tables.
+	// Preserve current classification of historical rows. Drive from the small
+	// side (policies with patch_when_closed = 1 is a tiny set — admins configure
+	// them deliberately) so the UPDATE pins to the fk_software_install_policy_id
+	// index via IN() rather than gambling on the optimizer picking the right
+	// JOIN drive on a large host_software_installs table. Rows without a
+	// matching policy keep the column at its DEFAULT 0.
 	if _, err := tx.Exec(`
 		UPDATE host_software_installs hsi
-		INNER JOIN policies p ON p.id = hsi.policy_id
 		SET hsi.patch_when_closed = 1
-		WHERE p.patch_when_closed = 1
+		WHERE hsi.policy_id IN (
+			SELECT id FROM policies WHERE patch_when_closed = 1
+		)
 	`); err != nil {
 		return fmt.Errorf("backfilling patch_when_closed on host_software_installs: %w", err)
 	}
