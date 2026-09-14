@@ -258,8 +258,7 @@ const SaveNewQueryModal = ({
           wrapperClassName={`${baseClass}__form-field form-field--frequency`}
           helpText={
             <>
-              Hosts report at fixed times, not after being online this long
-              (e.g., on the hour for a 1-hour interval).{" "}
+              Hosts report at fixed times (e.g., on the hour for a 1-hour interval).{" "}
               <CustomLink
                 url="https://fleetdm.com/guides/reports#schedule-a-report"
                 text="Learn more"
