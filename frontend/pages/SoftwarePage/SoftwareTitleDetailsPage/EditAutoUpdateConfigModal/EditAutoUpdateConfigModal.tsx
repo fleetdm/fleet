@@ -1,6 +1,5 @@
 import classnames from "classnames";
 import React, { useState } from "react";
-import { useQuery } from "react-query";
 
 import Button from "components/buttons/Button";
 import Card from "components/Card";
@@ -9,22 +8,18 @@ import InputField from "components/forms/fields/InputField";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import Modal from "components/Modal";
 import ModalFooter from "components/ModalFooter";
-import { DropdownTargetLabelSelector } from "components/TargetLabelSelector";
+import Tag from "components/Tag";
 import { notify } from "components/ToastNotification";
 import useGitOpsMode from "hooks/useGitOpsMode";
-import { ILabelSummary } from "interfaces/label";
+import { ILabelSoftwareTitle } from "interfaces/label";
 import { ISoftwareTitleDetails, IAppStoreApp } from "interfaces/software";
 import {
-  CUSTOM_TARGET_OPTIONS,
   generateSelectedLabels,
   getCustomTarget,
   getDisplayedSoftwareName,
-  generateHelpText,
   getTargetType,
 } from "pages/SoftwarePage/helpers";
-import labelsAPI, { getCustomLabels } from "services/entities/labels";
 import softwareAPI from "services/entities/software";
-import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 
 import {
   ISoftwareAutoUpdateConfigFormValidation,
@@ -76,15 +71,6 @@ const EditAutoUpdateConfigModal = ({
       softwareTitle.app_store_app as IAppStoreApp
     ),
   });
-
-  // Fetch labels for DropdownTargetLabelSelector
-  const { data: labels } = useQuery<ILabelSummary[], Error>(
-    ["custom_labels"],
-    () => labelsAPI.summary(teamId).then((res) => getCustomLabels(res.labels)),
-    {
-      ...DEFAULT_USE_QUERY_OPTIONS,
-    }
-  );
 
   const [
     formValidation,
@@ -159,26 +145,47 @@ const EditAutoUpdateConfigModal = ({
     }
   };
 
-  const onSelectTargetType = (value: string) => {
-    const newData = { ...formData, targetType: value };
-    setFormData(newData);
-    setFormValidation(validateFormData(newData));
-  };
+  const appStoreApp = softwareTitle.app_store_app as IAppStoreApp | null;
+  let displayLabels: ILabelSoftwareTitle[] = [];
+  if (formData.targetType === "Custom") {
+    if (formData.customTarget === "labelsIncludeAny") {
+      displayLabels = appStoreApp?.labels_include_any ?? [];
+    } else if (formData.customTarget === "labelsIncludeAll") {
+      displayLabels = appStoreApp?.labels_include_all ?? [];
+    } else {
+      displayLabels = appStoreApp?.labels_exclude_any ?? [];
+    }
+  }
 
-  const onSelectCustomTargetOption = (value: string) => {
-    const newData = { ...formData, customTarget: value };
-    setFormData(newData);
-    setFormValidation(validateFormData(newData));
-  };
-
-  const onSelectLabel = ({ name, value }: { name: string; value: boolean }) => {
-    const newData = {
-      ...formData,
-      labelTargets: { ...formData.labelTargets, [name]: value },
-    };
-    setFormData(newData);
-    setFormValidation(validateFormData(newData));
-  };
+  let targetDescription: React.ReactNode;
+  if (formData.targetType === "All hosts") {
+    targetDescription = (
+      <>
+        Update settings will apply to <b>all hosts.</b>
+      </>
+    );
+  } else if (formData.customTarget === "labelsIncludeAny") {
+    targetDescription = (
+      <>
+        Update settings will only apply to hosts that <b>have any</b> of these
+        labels:
+      </>
+    );
+  } else if (formData.customTarget === "labelsIncludeAll") {
+    targetDescription = (
+      <>
+        Update settings will only apply to hosts that <b>have all</b> of these
+        labels:
+      </>
+    );
+  } else {
+    targetDescription = (
+      <>
+        Update settings will only apply to hosts that <b>don&apos;t have any</b>{" "}
+        of these labels:
+      </>
+    );
+  }
 
   const earliestStartTimeError =
     formValidation.autoUpdateStartTime?.message ||
@@ -268,21 +275,23 @@ const EditAutoUpdateConfigModal = ({
             </div>
           </Card>
           <Card paddingSize="medium" borderRadiusSize="medium">
-            <DropdownTargetLabelSelector
-              selectedTargetType={formData.targetType}
-              selectedCustomTarget={formData.customTarget}
-              selectedLabels={formData.labelTargets}
-              customTargetOptions={CUSTOM_TARGET_OPTIONS}
-              className={`${formClass}__target`}
-              onSelectTargetType={onSelectTargetType}
-              onSelectCustomTarget={onSelectCustomTargetOption}
-              onSelectLabel={onSelectLabel}
-              labels={labels || []}
-              dropdownHelpText={
-                generateHelpText(false, formData.customTarget) // maps to !automaticInstall help text
-              }
-              subTitle="Changes to targets will also apply to self service."
-            />
+            <div className={`${formClass}__target`}>
+              <div className="form-field__label">Target</div>
+              <div>{targetDescription}</div>
+              {displayLabels.length > 0 && (
+                <div className={`${formClass}__target-labels`}>
+                  {displayLabels.map((label) => (
+                    <Tag key={label.id} size="small">
+                      {label.name}
+                    </Tag>
+                  ))}
+                </div>
+              )}
+              <div>
+                To edit the target, close this modal and select{" "}
+                <b>Actions &gt; Edit software.</b>
+              </div>
+            </div>
           </Card>
         </div>
       </div>

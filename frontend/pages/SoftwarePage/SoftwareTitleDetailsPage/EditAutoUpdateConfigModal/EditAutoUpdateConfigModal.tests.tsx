@@ -7,7 +7,6 @@ import {
   createMockAppStoreApp,
 } from "__mocks__/softwareMock";
 import createMockUser from "__mocks__/userMock";
-import { ILabelSummary } from "interfaces/label";
 import mockServer from "test/mock-server";
 import { createCustomRenderer } from "test/test-utils";
 
@@ -19,7 +18,7 @@ const baseUrl = (path: string) => {
   return `/api/latest/fleet${path}`;
 };
 
-const mockLabels: ILabelSummary[] = [
+const mockLabels = [
   {
     id: 1,
     name: "Fun",
@@ -34,17 +33,7 @@ const mockLabels: ILabelSummary[] = [
   },
 ];
 
-const labelSummariesHandler = http.get(baseUrl("/labels/summary"), () => {
-  return HttpResponse.json({
-    labels: mockLabels,
-  });
-});
-
 describe("Edit Auto Update Config Modal", () => {
-  beforeEach(() => {
-    mockServer.use(labelSummariesHandler);
-  });
-
   const render = createCustomRenderer({
     withBackendMock: true,
     context: {
@@ -364,8 +353,8 @@ describe("Edit Auto Update Config Modal", () => {
     });
   });
 
-  describe("Target options", () => {
-    it("Shows 'All hosts' if no labels are configured for the title", async () => {
+  describe("Target options (read-only)", () => {
+    it("Shows all hosts text if no labels are configured for the title", async () => {
       render(
         <EditAutoUpdateConfigModal
           softwareTitle={createMockSoftwareTitleDetails()}
@@ -374,19 +363,18 @@ describe("Edit Auto Update Config Modal", () => {
           onExit={jest.fn()}
         />
       );
-      expect(screen.getByLabelText("All hosts")).toBeInTheDocument();
-      expect(screen.getByLabelText("Custom")).toBeInTheDocument();
-      expect(screen.getByLabelText("All hosts")).toBeChecked();
-      expect(screen.getByLabelText("Custom")).not.toBeChecked();
+      expect(
+        screen.getByText(/Update settings will apply to/)
+      ).toBeInTheDocument();
+      expect(screen.getByText("all hosts.")).toBeInTheDocument();
     });
-    it("Shows label options if labels are configured for the title", async () => {
+
+    it("Shows label pills and include-any description if include-any labels are configured", async () => {
       render(
         <EditAutoUpdateConfigModal
           softwareTitle={createMockSoftwareTitleDetails({
             app_store_app: createMockAppStoreApp({
-              labels_include_any: [
-                { name: mockLabels[1].name, id: mockLabels[1].id },
-              ],
+              labels_include_any: [mockLabels[1]],
             }),
           })}
           teamId={1}
@@ -394,32 +382,16 @@ describe("Edit Auto Update Config Modal", () => {
           onExit={jest.fn()}
         />
       );
-
-      // Wait until target section has rendered and request has had a chance to resolve
-      await screen.findByLabelText("Custom");
-
-      // Now wait specifically for one label to appear
-      const freshLabel = await screen.findByRole("checkbox", {
-        name: mockLabels[1].name,
-      });
-      expect(freshLabel).toBeInTheDocument();
-      expect(freshLabel).toBeChecked();
-
-      const funLabel = screen.getByRole("checkbox", {
-        name: mockLabels[0].name,
-      });
-      expect(funLabel).toBeInTheDocument();
-      expect(funLabel).not.toBeChecked();
+      expect(screen.getByText(mockLabels[1].name)).toBeInTheDocument();
+      expect(screen.getByText(/have any/)).toBeInTheDocument();
     });
 
-    it("Requires at least one label to be selected if 'Custom' is selected", async () => {
-      const { user } = render(
+    it("Shows label pills and exclude-any description if exclude-any labels are configured", async () => {
+      render(
         <EditAutoUpdateConfigModal
           softwareTitle={createMockSoftwareTitleDetails({
             app_store_app: createMockAppStoreApp({
-              labels_include_any: [
-                { name: mockLabels[1].name, id: mockLabels[1].id },
-              ],
+              labels_exclude_any: [mockLabels[0]],
             }),
           })}
           teamId={1}
@@ -427,20 +399,22 @@ describe("Edit Auto Update Config Modal", () => {
           onExit={jest.fn()}
         />
       );
-      // Wait for labels to load
-      await screen.findByRole("checkbox", { name: mockLabels[1].name });
-      const customOption = screen.getByLabelText("Custom");
-      expect(customOption).toBeChecked();
-      const labelOption = screen.getByRole("checkbox", {
-        name: mockLabels[1].name,
-      });
-      expect(labelOption).toBeChecked();
-      await user.click(labelOption);
-      expect(labelOption).not.toBeChecked();
-      const saveButton = screen.getByRole("button", {
-        name: "Save",
-      });
-      expect(saveButton).toBeDisabled();
+      expect(screen.getByText(mockLabels[0].name)).toBeInTheDocument();
+      expect(screen.getByText(/don't have any/)).toBeInTheDocument();
+    });
+
+    it("Shows note to edit target in the Edit software modal", async () => {
+      render(
+        <EditAutoUpdateConfigModal
+          softwareTitle={createMockSoftwareTitleDetails()}
+          teamId={1}
+          refetchSoftwareTitle={jest.fn()}
+          onExit={jest.fn()}
+        />
+      );
+      expect(
+        screen.getByText(/Actions > Edit software\./)
+      ).toBeInTheDocument();
     });
   });
 
@@ -518,40 +492,6 @@ describe("Edit Auto Update Config Modal", () => {
           auto_update_enabled: true,
           auto_update_window_start: "02:00",
           auto_update_window_end: "04:00",
-          labels_include_any: [],
-          labels_exclude_any: [],
-          labels_include_all: [],
-          fleet_id: 1,
-        });
-      });
-    });
-
-    it("Sends the correct payload when 'All hosts' is selected as the target", async () => {
-      const { user } = render(
-        <EditAutoUpdateConfigModal
-          softwareTitle={createMockSoftwareTitleDetails({
-            app_store_app: createMockAppStoreApp({
-              labels_include_any: [
-                { name: mockLabels[1].name, id: mockLabels[1].id },
-              ],
-            }),
-          })}
-          teamId={1}
-          refetchSoftwareTitle={jest.fn()}
-          onExit={jest.fn()}
-        />
-      );
-      const allHostsRadio = screen.getByLabelText("All hosts");
-      expect(allHostsRadio).toBeInTheDocument();
-      await user.click(allHostsRadio);
-      const saveButton = screen.getByRole("button", {
-        name: "Save",
-      });
-      expect(saveButton).toBeEnabled();
-      await user.click(saveButton);
-      await waitFor(() => {
-        expect(requestSpy).toHaveBeenCalledWith({
-          auto_update_enabled: false,
           labels_include_any: [],
           labels_exclude_any: [],
           labels_include_all: [],
