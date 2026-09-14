@@ -121,6 +121,7 @@ func TestPolicies(t *testing.T) {
 		{"RecordPolicyQueryExecutionsDeletedPolicy", testRecordPolicyQueryExecutionsDeletedPolicy},
 		{"RecordPolicyQueryExecutionsStalePolicyIDs", testRecordPolicyQueryExecutionsStalePolicyIDs},
 		{"ResetPolicy", testResetPolicy},
+		{"ResetPolicyForHost", testResetPolicyForHost},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -10442,6 +10443,112 @@ func testResetPolicy(t *testing.T, ds *Datastore) {
 			`SELECT attempt_number FROM host_script_results WHERE execution_id = 'other-script-1'`)
 	})
 	require.Equal(t, 3, attemptNum, "other policy attempt_number must be untouched")
+}
+
+func testResetPolicyForHost(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	host1 := test.NewHost(t, ds, "host1", "1.1.1.1", "uuid-host1", "node-key-host1", time.Now())
+	host2 := test.NewHost(t, ds, "host2", "1.1.1.2", "uuid-host2", "node-key-host2", time.Now())
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "-team"})
+	require.NoError(t, err)
+	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host1.ID})))
+
+	policy, err := ds.NewGlobalPolicy(ctx, nil, fleet.PolicyPayload{Name: t.Name(), Query: "SELECT 1;"})
+	require.NoError(t, err)
+	otherPolicy, err := ds.NewGlobalPolicy(ctx, nil, fleet.PolicyPayload{Name: t.Name() + "-other", Query: "SELECT 2;"})
+	require.NoError(t, err)
+
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			`INSERT INTO policy_membership (policy_id, host_id, passes) VALUES (?,?,0),(?,?,0),(?,?,1)`,
+			policy.ID, host1.ID,
+			policy.ID, host2.ID,
+			otherPolicy.ID, host1.ID,
+		)
+		return err
+	})
+
+	checksum := md5.Sum([]byte(t.Name())) //nolint:gosec // md5 only for test fixture
+	var scriptContentID int64
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		res, err := q.ExecContext(ctx,
+			`INSERT INTO script_contents (md5_checksum, contents) VALUES (?, ?)`, checksum[:], "echo test")
+		if err != nil {
+			return err
+		}
+		scriptContentID, err = res.LastInsertId()
+		return err
+	})
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			`INSERT INTO host_script_results (host_id, execution_id, script_content_id, output, exit_code, policy_id, attempt_number)
+			VALUES (?,'host-reset-1',?,'out',0,?,2),(?,'host-reset-2',?,'out',0,?,2),(?,'host-reset-other',?,'out',0,?,3)`,
+			host1.ID, scriptContentID, policy.ID,
+			host2.ID, scriptContentID, policy.ID,
+			host1.ID, scriptContentID, otherPolicy.ID,
+		)
+		return err
+	})
+
+	// Seed stale counts: both hosts failing overall, host1 failing under its team, host2 under "No team".
+	require.NoError(t, ds.UpdateHostPolicyCounts(ctx))
+	stats := func(policyID uint, inheritedTeamID *uint) (passing, failing uint) {
+		var row struct {
+			Passing uint `db:"passing_host_count"`
+			Failing uint `db:"failing_host_count"`
+		}
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			if inheritedTeamID == nil {
+				return sqlx.GetContext(ctx, q, &row,
+					`SELECT passing_host_count, failing_host_count FROM policy_stats WHERE policy_id = ? AND inherited_team_id IS NULL`, policyID)
+			}
+			return sqlx.GetContext(ctx, q, &row,
+				`SELECT passing_host_count, failing_host_count FROM policy_stats WHERE policy_id = ? AND inherited_team_id = ?`, policyID, *inheritedTeamID)
+		})
+		return row.Passing, row.Failing
+	}
+	_, failing := stats(policy.ID, nil)
+	require.Equal(t, uint(2), failing)
+	_, failing = stats(policy.ID, &team.ID)
+	require.Equal(t, uint(1), failing)
+
+	require.NoError(t, ds.ResetPolicyForHost(ctx, host1.ID, policy.ID))
+
+	// Counts are refreshed immediately, without waiting for the cron.
+	passing, failing := stats(policy.ID, nil)
+	require.Equal(t, uint(0), passing)
+	require.Equal(t, uint(1), failing, "overall failing count must drop by one")
+	_, failing = stats(policy.ID, &team.ID)
+	require.Equal(t, uint(0), failing, "host1's team inherited count must drop to zero")
+	_, failing = stats(policy.ID, new(uint(0)))
+	require.Equal(t, uint(1), failing, "No team inherited count (host2) must be untouched")
+	passing, _ = stats(otherPolicy.ID, nil)
+	require.Equal(t, uint(1), passing, "other policy counts must be untouched")
+
+	countMembership := func(policyID, hostID uint) int {
+		var n int
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &n,
+				`SELECT COUNT(*) FROM policy_membership WHERE policy_id = ? AND host_id = ?`, policyID, hostID)
+		})
+		return n
+	}
+	attempts := func(executionID string) int {
+		var n int
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &n,
+				`SELECT attempt_number FROM host_script_results WHERE execution_id = ?`, executionID)
+		})
+		return n
+	}
+
+	require.Equal(t, 0, countMembership(policy.ID, host1.ID), "target host membership must be cleared")
+	require.Equal(t, 0, attempts("host-reset-1"), "target host attempts must be reset")
+	require.Equal(t, 1, countMembership(policy.ID, host2.ID), "other host membership must be untouched")
+	require.Equal(t, 2, attempts("host-reset-2"), "other host attempts must be untouched")
+	require.Equal(t, 1, countMembership(otherPolicy.ID, host1.ID), "other policy membership must be untouched")
+	require.Equal(t, 3, attempts("host-reset-other"), "other policy attempts must be untouched")
 }
 
 // testApplyPolicySpecFirstAddedInstaller verifies that GitOps policy application resolves a title with

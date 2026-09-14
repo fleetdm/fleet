@@ -108,7 +108,8 @@ func (r ModifyGlobalPolicyResponse) Error() error { return r.Err }
 /////////////////////////////////////////////////////////////////////////////////
 
 type ResetPolicyRequest struct {
-	PolicyID uint `url:"policy_id"`
+	PolicyID uint  `url:"policy_id"`
+	HostID   *uint `query:"host_id,optional"`
 }
 
 type ResetPolicyResponse struct {

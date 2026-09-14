@@ -198,7 +198,7 @@ UPDATE host_disk_encryption_keys SET
   key_slot = ?,
   client_error = '',
   escrow_sent_at = NULL,
-  /* a request still pending once a key exists can only be a stale duplicate: new ones are refused while a key is stored */
+  /* a request still pending once a key exists is a stale duplicate: none are accepted while a key is stored */
   reset_requested = FALSE
 WHERE host_id = ?
 `, incomingKey.Base, incomingKey.Salt, incomingKey.KeySlot, host.ID)
@@ -209,8 +209,7 @@ WHERE host_id = ?
 }
 
 func (ds *Datastore) GetHostEscrowState(ctx context.Context, hostID uint) (*fleet.HostEscrowState, error) {
-	// client_error is deliberately not consulted: a stale error from an earlier attempt must not
-	// hide a retry in flight.
+	// client_error is ignored on purpose: a stale error must not hide a retry in flight.
 	var row struct {
 		Pending     bool   `db:"reset_requested"`
 		SinceMicros *int64 `db:"since_micros"`
@@ -241,7 +240,7 @@ UPDATE host_disk_encryption_keys SET reset_requested = FALSE, escrow_sent_at = N
 func (ds *Datastore) SetEscrowInFlight(ctx context.Context, hostID uint, inFlight bool) error {
 	stmt := `UPDATE host_disk_encryption_keys SET escrow_sent_at = NULL WHERE host_id = ?`
 	if inFlight {
-		// only a host still in flight is refreshed, so a late heartbeat cannot revive a finished escrow
+		// only a host still in flight is refreshed, so a late report cannot revive a finished escrow
 		stmt = `UPDATE host_disk_encryption_keys SET escrow_sent_at = NOW(6) WHERE host_id = ? AND escrow_sent_at IS NOT NULL`
 	}
 	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, hostID); err != nil {

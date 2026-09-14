@@ -33,6 +33,7 @@ import ReadHostDiskEncryptionKeyActivityItem from "./ActivityItems/ReadHostDiskE
 import ReleasedFromABActivityItem from "./ActivityItems/ReleasedFromABActivityItem";
 import ResentCertificateActivityItem from "./ActivityItems/ResentCertificateActivityItem";
 import ResentConfigurationProfileActivityItem from "./ActivityItems/ResentConfigurationProfileActivityItem/ResentConfigurationProfileActivityItem";
+import ResetPolicyActivityItem from "./ActivityItems/ResetPolicyActivityItem";
 import RetrievedHostMyDeviceURLActivityItem from "./ActivityItems/RetrievedHostMyDeviceURLActivityItem";
 import RotatedHostRecoveryLockPasswordActivityItem from "./ActivityItems/RotatedHostRecoveryLockPassword";
 import RotatedManagedLocalAccountPasswordActivityItem from "./ActivityItems/RotatedManagedLocalAccountPassword";
@@ -110,6 +111,7 @@ export const pastActivityComponentMap: Record<
   [ActivityType.FailedAutomationConditionalAccess]: PolicyAutomationActivityItem,
   [ActivityType.ReleasedDeviceFromAB]: ReleasedFromABActivityItem,
   [ActivityType.ResentConfigurationProfile]: ResentConfigurationProfileActivityItem,
+  [ActivityType.ResetPolicy]: ResetPolicyActivityItem,
 };
 
 export const upcomingActivityComponentMap: Record<
