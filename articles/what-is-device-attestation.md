@@ -131,6 +131,30 @@ The setting is available in Fleet's UI and can be managed via [GitOps](https://f
 enabled, the checkbox in the UI is disabled, which keeps your configuration source of truth in
 version control.
 
+## SCEP by default, ACME by choice
+
+Fleet's default is SCEP. It works on every Apple device, including hardware
+that can't attest. If you want to force ACME with hardware attestation, turn on
+two settings in **Organization settings > Advanced options**:
+
+- **Allow only Apple Business enrollments**: only devices assigned in Apple
+  Business can enroll. Manual enrollment, BYOD, and Account-driven User
+  Enrollment are blocked.
+- **Use hardware attestation**: qualifying devices must pass Apple's
+  attestation challenge. There's no SCEP fallback.
+
+Turning on both gives you ACME-only enrollment. That's a real trade-off:
+
+- Manual enrollment no longer works, for admins or end users.
+- Intel Macs can't enroll. They have no Secure Enclave.
+- Macs running macOS 13 or earlier can't enroll.
+- iPhones and iPads can't enroll unless they have an A11 Bionic chip or later
+  and run iOS/iPadOS 16 or later.
+- BYOD and Silent-Migration are off the table.
+
+
+Hosts already enrolled that are no longer eligible stop renewing their certificate and age out of MDM when it expires. IT admins see a banner on the host details page when a manually enrolled host is no longer eligible. Non-Apple Business hosts stop renewing as soon as AB-only is on. Apple Business hardware that can't attest stops renewing only in ACME-only mode.
+
 ## Why this matters in practice
 
 If your organization is moving toward zero trust access models, device identity is foundational.
