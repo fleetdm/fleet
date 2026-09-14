@@ -1,0 +1,1 @@
+- Fixed `fleetctl generate-gitops` to omit GitOps-excepted keys (such as `labels`, `software`, and `secrets`) from exported YAML when those exceptions are enabled, so generated files stay apply-safe.

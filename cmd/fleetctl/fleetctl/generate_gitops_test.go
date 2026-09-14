@@ -1276,6 +1276,28 @@ func TestGenerateGitopsFree(t *testing.T) {
 	})
 }
 
+func TestRemoveGitOpsExceptionKeys(t *testing.T) {
+	file := map[string]any{
+		"labels": []any{"existing-label"},
+		"software": map[string]any{
+			"packages": []any{map[string]any{"path": "./software.pkg"}},
+		},
+		"org_settings": map[string]any{
+			"secrets": []any{map[string]any{"secret": "org-secret"}},
+		},
+		"settings": map[string]any{
+			"secrets": []any{map[string]any{"secret": "fleet-secret"}},
+		},
+	}
+
+	removeGitOpsExceptionKeys(file, fleet.GitOpsExceptions{Labels: true, Secrets: true, Software: true})
+
+	assert.NotContains(t, file, "labels")
+	assert.NotContains(t, file, "software")
+	assert.NotContains(t, file["org_settings"], "secrets")
+	assert.NotContains(t, file["settings"], "secrets")
+}
+
 func TestGenerateGitopsPreserveHostActivitiesOnReenrollment(t *testing.T) {
 	// Verifies that fleetctl generate-gitops emits
 	// activity_expiry_settings.preserve_host_activities_on_reenrollment so
