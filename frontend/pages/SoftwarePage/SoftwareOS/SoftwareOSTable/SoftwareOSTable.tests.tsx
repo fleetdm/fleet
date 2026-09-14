@@ -1,5 +1,6 @@
 import React from "react";
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { createMockRouter } from "test/test-utils";
 
 import {
@@ -94,5 +95,105 @@ describe("Software operating systems table", () => {
     expect(screen.getByText("16 (2026-05-01)")).toBeInTheDocument();
     expect(screen.getByText("CVE-2026-0073")).toBeInTheDocument();
     expect(screen.queryByText("Not supported")).toBeNull();
+  });
+
+  it("drops order_key/order_direction from the URL when the platform filter changes, so the page recomputes its platform-dependent default sort", async () => {
+    render(
+      <SoftwareOSTable
+        router={mockRouter}
+        isSoftwareEnabled
+        data={createMockOSVersionsResponse({
+          count: 1,
+          os_versions: [
+            createMockOSVersion({
+              os_version_id: 1,
+              platform: "windows",
+              hosts_count: 10,
+            }),
+          ],
+        })}
+        perPage={20}
+        orderDirection="asc"
+        orderKey="hosts_count"
+        currentPage={0}
+        teamId={1}
+        isLoading={false}
+        platform="all"
+      />
+    );
+
+    await userEvent.click(screen.getByText("All platforms"));
+    // "macOS" also appears in the table row's tooltip text, so scope to the
+    // actual dropdown option to avoid an ambiguous match.
+    await userEvent.click(
+      screen.getByText("macOS", { selector: '[data-testid="dropdown-option"]' })
+    );
+
+    expect(mockRouter.replace).toHaveBeenCalledWith(
+      expect.not.stringContaining("order_key")
+    );
+    expect(mockRouter.replace).toHaveBeenCalledWith(
+      expect.stringContaining("platform=darwin")
+    );
+  });
+
+  it("resets the sort indicator to the new default when the platform (and its default sort) changes, instead of leaving it on the previous platform's sort", () => {
+    const data = createMockOSVersionsResponse({
+      count: 1,
+      os_versions: [
+        createMockOSVersion({
+          os_version_id: 1,
+          platform: "darwin",
+          hosts_count: 10,
+        }),
+      ],
+    });
+
+    const { rerender, container } = render(
+      <SoftwareOSTable
+        router={mockRouter}
+        isSoftwareEnabled
+        data={data}
+        perPage={20}
+        orderDirection="desc"
+        orderKey="version"
+        currentPage={0}
+        teamId={1}
+        isLoading={false}
+        platform="darwin"
+      />
+    );
+
+    expect(
+      container.querySelector(".version__header .header-cell")
+    ).toHaveClass("descending");
+    expect(
+      container.querySelector(".hosts_count__header .header-cell")
+    ).not.toHaveClass("descending", "ascending");
+
+    // Simulate SoftwarePage recomputing its platform-dependent default
+    // after the platform filter changes (order_key/order_direction reset,
+    // a different platform now selected).
+    rerender(
+      <SoftwareOSTable
+        router={mockRouter}
+        isSoftwareEnabled
+        data={data}
+        perPage={20}
+        orderDirection="desc"
+        orderKey="hosts_count"
+        currentPage={0}
+        teamId={1}
+        isLoading={false}
+        platform="windows"
+      />
+    );
+
+    expect(
+      container.querySelector(".hosts_count__header .header-cell")
+    ).toHaveClass("descending");
+    expect(
+      container.querySelector(".version__header .header-cell")
+    ).not.toHaveClass("descending", "ascending");
   });
 });
