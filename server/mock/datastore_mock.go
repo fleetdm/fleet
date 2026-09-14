@@ -942,6 +942,8 @@ type ReportEscrowErrorFunc func(ctx context.Context, hostID uint, err string) er
 
 type QueueEscrowFunc func(ctx context.Context, hostID uint) error
 
+type AssertHasNoEncryptionKeyStoredFunc func(ctx context.Context, hostID uint) error
+
 type QueueBitLockerPINRequestFunc func(ctx context.Context, host *fleet.Host, encryptedPIN string) error
 
 type GetBitLockerPINRequestFunc func(ctx context.Context, hostID uint) (*fleet.HostBitLockerPINRequest, error)
@@ -953,8 +955,6 @@ type SetBitLockerPINRequestOutcomeFunc func(ctx context.Context, host *fleet.Hos
 type DeleteBitLockerPINRequestFunc func(ctx context.Context, host *fleet.Host) error
 
 type CleanupExpiredBitLockerPINRequestsFunc func(ctx context.Context) error
-
-type AssertHasNoEncryptionKeyStoredFunc func(ctx context.Context, hostID uint) error
 
 type GetHostCertAssociationsToExpireFunc func(ctx context.Context, expiryDays int, limit int) ([]fleet.SCEPIdentityAssociation, error)
 
@@ -3812,6 +3812,9 @@ type DataStore struct {
 	QueueEscrowFunc        QueueEscrowFunc
 	QueueEscrowFuncInvoked bool
 
+	AssertHasNoEncryptionKeyStoredFunc        AssertHasNoEncryptionKeyStoredFunc
+	AssertHasNoEncryptionKeyStoredFuncInvoked bool
+
 	QueueBitLockerPINRequestFunc        QueueBitLockerPINRequestFunc
 	QueueBitLockerPINRequestFuncInvoked bool
 
@@ -3829,9 +3832,6 @@ type DataStore struct {
 
 	CleanupExpiredBitLockerPINRequestsFunc        CleanupExpiredBitLockerPINRequestsFunc
 	CleanupExpiredBitLockerPINRequestsFuncInvoked bool
-
-	AssertHasNoEncryptionKeyStoredFunc        AssertHasNoEncryptionKeyStoredFunc
-	AssertHasNoEncryptionKeyStoredFuncInvoked bool
 
 	GetHostCertAssociationsToExpireFunc        GetHostCertAssociationsToExpireFunc
 	GetHostCertAssociationsToExpireFuncInvoked bool
@@ -9266,6 +9266,13 @@ func (s *DataStore) QueueEscrow(ctx context.Context, hostID uint) error {
 	return s.QueueEscrowFunc(ctx, hostID)
 }
 
+func (s *DataStore) AssertHasNoEncryptionKeyStored(ctx context.Context, hostID uint) error {
+	s.mu.Lock()
+	s.AssertHasNoEncryptionKeyStoredFuncInvoked = true
+	s.mu.Unlock()
+	return s.AssertHasNoEncryptionKeyStoredFunc(ctx, hostID)
+}
+
 func (s *DataStore) QueueBitLockerPINRequest(ctx context.Context, host *fleet.Host, encryptedPIN string) error {
 	s.mu.Lock()
 	s.QueueBitLockerPINRequestFuncInvoked = true
@@ -9306,13 +9313,6 @@ func (s *DataStore) CleanupExpiredBitLockerPINRequests(ctx context.Context) erro
 	s.CleanupExpiredBitLockerPINRequestsFuncInvoked = true
 	s.mu.Unlock()
 	return s.CleanupExpiredBitLockerPINRequestsFunc(ctx)
-}
-
-func (s *DataStore) AssertHasNoEncryptionKeyStored(ctx context.Context, hostID uint) error {
-	s.mu.Lock()
-	s.AssertHasNoEncryptionKeyStoredFuncInvoked = true
-	s.mu.Unlock()
-	return s.AssertHasNoEncryptionKeyStoredFunc(ctx, hostID)
 }
 
 func (s *DataStore) GetHostCertAssociationsToExpire(ctx context.Context, expiryDays int, limit int) ([]fleet.SCEPIdentityAssociation, error) {
