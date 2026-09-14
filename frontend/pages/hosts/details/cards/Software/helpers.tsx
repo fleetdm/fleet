@@ -1,8 +1,9 @@
-import { QueryParams } from "utilities/url";
-import { Row } from "react-table";
 import { flatMap } from "lodash";
-import { HostPlatform, isIPadOrIPhone } from "interfaces/platform";
+import { Row } from "react-table";
+
+import { IconNames } from "components/icons";
 import { MdmEnrollmentStatus } from "interfaces/mdm";
+import { HostPlatform, isIPadOrIPhone } from "interfaces/platform";
 import {
   IHostSoftware,
   IHostSoftwareUiStatus,
@@ -10,7 +11,8 @@ import {
   NO_VERSION_OR_HOST_DATA_SOURCES,
   SCRIPT_PACKAGE_SOURCES,
 } from "interfaces/software";
-import { IconNames } from "components/icons";
+import { QueryParams } from "utilities/url";
+
 import {
   getLastInstall,
   getLastUninstall,
@@ -220,8 +222,11 @@ export const getUiStatus = (
   const recentUserActionDetected =
     recentlyUpdatedIds && recentlyUpdatedIds.has(software.id);
 
-  // 0. Script Packages states
-  if (isScriptPackage) {
+  // 0. Script Packages states — only when there's no uninstall script.
+  // Script packages with an uninstall script fall through to the regular
+  // install statuses so the UI shows Install/Reinstall/Uninstall/Installed
+  // instead of Run/Rerun/Ran.
+  if (isScriptPackage && !software.software_package?.has_uninstall_script) {
     if (status === "failed_install") {
       return "failed_script";
     }
@@ -238,8 +243,15 @@ export const getUiStatus = (
   }
 
   // 1. Failed install states
+  // Require length > 0: empty array is truthy, so `installed_versions: []`
+  // would otherwise render "Installed" for a package that was never installed
+  // (matters for script packages, which never populate installed_versions).
   if (status === "failed_install") {
-    if (installerVersion && installed_versions) {
+    if (
+      installerVersion &&
+      installed_versions &&
+      installed_versions.length > 0
+    ) {
       if (
         installed_versions.some(
           (iv) => compareVersions(iv.version, installerVersion) === -1
@@ -256,7 +268,11 @@ export const getUiStatus = (
 
   // 2. Failed uninstall states
   if (status === "failed_uninstall") {
-    if (installerVersion && installed_versions) {
+    if (
+      installerVersion &&
+      installed_versions &&
+      installed_versions.length > 0
+    ) {
       if (
         installed_versions.some(
           (iv) => compareVersions(iv.version, installerVersion) === -1

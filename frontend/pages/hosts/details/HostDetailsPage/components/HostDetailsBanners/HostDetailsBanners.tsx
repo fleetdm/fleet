@@ -1,20 +1,20 @@
-import React, { useContext } from "react";
-import { AppContext } from "context/app";
 import { addHours, isPast } from "date-fns";
+import React, { useContext } from "react";
 
+import CustomLink from "components/CustomLink";
+import InfoBanner from "components/InfoBanner";
+import { AppContext } from "context/app";
+import { IOSSettings } from "interfaces/host";
 import {
   DiskEncryptionStatus,
   MdmEnrollmentStatus,
   isAutomaticDeviceEnrollment,
 } from "interfaces/mdm";
-import { IOSSettings } from "interfaces/host";
 import {
   HostPlatform,
+  isAppleDevice,
   isDiskEncryptionSupportedLinuxPlatform,
 } from "interfaces/platform";
-
-import InfoBanner from "components/InfoBanner";
-import CustomLink from "components/CustomLink";
 import {
   INITIAL_FLEET_DATE,
   LEARN_MORE_ABOUT_BASE_LINK,
@@ -39,6 +39,9 @@ export interface IHostBannersBaseProps {
   lastMdmEnrolledAt?: string;
   /** The timestamp of the last detail update */
   detailUpdatedAt?: string;
+  /** Whether or not this host is assigned to Fleet via DEP */
+  depAssignedToFleet: boolean;
+  onlyAllowAppleBusinessEnrollment: boolean;
 }
 /**
  * Handles the displaying of banners on the host details page
@@ -54,6 +57,8 @@ const HostDetailsBanners = ({
   diskEncryptionKeyAvailable,
   lastMdmEnrolledAt,
   detailUpdatedAt,
+  depAssignedToFleet,
+  onlyAllowAppleBusinessEnrollment,
 }: IHostBannersBaseProps) => {
   const { config } = useContext(AppContext);
 
@@ -94,6 +99,42 @@ const HostDetailsBanners = ({
     </div>
   );
 
+  if (
+    onlyAllowAppleBusinessEnrollment &&
+    !depAssignedToFleet &&
+    isMdmUnenrolled &&
+    isAppleDevice(hostPlatform)
+  ) {
+    return (
+      <div className={baseClass}>
+        <InfoBanner color="yellow">
+          This host can&apos;t enroll in Apple MDM. Only current devices listed
+          in Apple Business can enroll. To allow manual enrollment, turn off the
+          &quot;Only allow Apple Business enrollment&quot; setting <br /> in{" "}
+          <strong>Organization settings &gt; Advanced options</strong>.
+        </InfoBanner>
+      </div>
+    );
+  }
+
+  if (
+    onlyAllowAppleBusinessEnrollment &&
+    isAppleDevice(hostPlatform) &&
+    !depAssignedToFleet &&
+    !isAutomaticDeviceEnrollment(mdmEnrollmentStatus)
+  ) {
+    return (
+      <div className={baseClass}>
+        <InfoBanner color="yellow">
+          This host is no longer eligible for Apple MDM. It was enrolled
+          manually, but only Apple Business devices can enroll now. To allow
+          manual enrollment, turn off the &quot;Only allow Apple Business
+          enrollment&quot; setting in{" "}
+          <strong>Organization settings &gt; Advanced options</strong>.
+        </InfoBanner>
+      </div>
+    );
+  }
   if (showTurnOnMdmInfoBanner) {
     return (
       <div className={baseClass}>

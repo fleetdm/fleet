@@ -17,11 +17,13 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	ma "github.com/fleetdm/fleet/v4/ee/maintained-apps"
 	"github.com/fleetdm/fleet/v4/pkg/file"
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
@@ -855,6 +857,46 @@ func TestGetInHouseAppManifest(t *testing.T) {
 	manifest, err = svc.GetInHouseAppManifest(ctx, 1, validToken)
 	require.NoError(t, err)
 	require.Contains(t, string(manifest), signerURL)
+}
+
+// The device fetches the manifest and then the .ipa named inside it, so on a
+// split-hostname deploy both URLs have to be the one Apple devices reach Fleet on.
+func TestGetInHouseAppManifestAppleServerURL(t *testing.T) {
+	ds := new(mock.Store)
+	svc := newTestService(t, ds)
+	ctx := context.Background()
+
+	const validToken = "00000000-0000-0000-0000-000000000003"
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{
+			ServerSettings: fleet.ServerSettings{ServerURL: "https://admin.example.com"},
+			MDM:            fleet.MDM{AppleServerURL: "https://devices.example.com"},
+		}, nil
+	}
+	ds.GetInHouseAppInstallTokenMetadataFunc = func(ctx context.Context, token string) (*fleet.InHouseAppInstallTokenMetadata, error) {
+		return &fleet.InHouseAppInstallTokenMetadata{
+			Token:           validToken,
+			SoftwareTitleID: 1,
+			TeamID:          0,
+			HostID:          7,
+			ExpiresAt:       time.Now().Add(time.Hour),
+		}, nil
+	}
+	ds.GetInHouseAppMetadataByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint) (*fleet.SoftwareInstaller, error) {
+		return &fleet.SoftwareInstaller{
+			BundleIdentifier: "com.foo.bar",
+			Version:          "1.2.3",
+			SoftwareTitle:    "test in-house app",
+			StorageID:        "123storageid",
+		}, nil
+	}
+
+	manifest, err := svc.GetInHouseAppManifest(ctx, 1, validToken)
+	require.NoError(t, err)
+	assert.Contains(t, string(manifest),
+		"<string>https://devices.example.com/api/latest/fleet/software/titles/1/in_house_app/"+validToken+"</string>")
+	assert.NotContains(t, string(manifest), "admin.example.com")
 }
 
 func TestGetInHouseAppPackageTokenAuth(t *testing.T) {
@@ -3461,4 +3503,49 @@ func TestUpdateSoftwareInstallerScriptEditedFlags(t *testing.T) {
 		require.True(t, saved().InstallScriptEdited)
 		require.False(t, saved().UninstallScriptEdited)
 	})
+}
+
+// Not parallel: the blocking mode is process-global, so this must not overlap
+// with other outbound requests in the package.
+func TestDownloadInstallerURLBlocksPrivateNetworks(t *testing.T) {
+	var hits atomic.Int64
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		hits.Add(1)
+		_, _ = io.WriteString(w, "#!/bin/sh\ninternal\n")
+	}))
+	t.Cleanup(srv.Close)
+
+	const maxSize = 512 * 1024 * 1024 // 512 MiB, generous for test payloads
+
+	tests := []struct {
+		name      string
+		mode      fleethttp.NetworkBlockingMode
+		wantReach bool
+	}{
+		{"disabled", fleethttp.BlockingDisabled, true},
+		{"bypass all", fleethttp.BlockingBypassAll, true},
+		{"full", fleethttp.BlockingFull, false},
+		{"private allowed", fleethttp.BlockingPrivateAllowed, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fleethttp.SetNetworkBlockingMode(tt.mode)
+			t.Cleanup(func() { fleethttp.SetNetworkBlockingMode(fleethttp.BlockingDisabled) })
+
+			before := hits.Load()
+			resp, tfr, err := downloadInstallerURL(t.Context(), srv.URL+"/installer.sh", "", maxSize)
+			if tfr != nil {
+				t.Cleanup(func() { tfr.Close() })
+			}
+			if tt.wantReach {
+				require.NoError(t, err)
+				require.Equal(t, http.StatusOK, resp.StatusCode)
+			} else {
+				require.ErrorIs(t, err, fleethttp.ErrPrivateNetworkBlocked)
+			}
+			// Assert on the connection, not just the error: the reachable rows
+			// prove the listener is up.
+			require.Equal(t, tt.wantReach, hits.Load() > before)
+		})
+	}
 }

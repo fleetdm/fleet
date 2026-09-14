@@ -75,7 +75,7 @@ type DatasetStore interface {
 	// platform-specific predicate. Non-mobile (osquery) hosts use the product's
 	// standard online predicate (host_seen_times.seen_time within the host's own
 	// check-in interval). Mobile hosts (iOS, iPadOS, Android), which only check
-	// in via MDM, use their MDM activity signal (nano_enrollments.last_seen_at,
+	// in via MDM, use their MDM activity signal (nano_seen_times.seen_time,
 	// falling back to detail_updated_at) within a fixed mobile online window.
 	// Used by datasets like uptime.
 	FindOnlineHostIDs(ctx context.Context, now time.Time, disabledFleetIDs []uint) ([]uint, error)

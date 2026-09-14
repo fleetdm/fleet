@@ -1,12 +1,10 @@
-import React from "react";
 import { isAxiosError } from "axios";
-
-import { getErrorReason } from "interfaces/errors";
-import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
+import React from "react";
 
 import CustomLink from "components/CustomLink";
-
+import { getErrorReason } from "interfaces/errors";
 import { generateSecretErrMsg } from "pages/SoftwarePage/helpers";
+import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 
 import {
   ADD_SOFTWARE_ERROR_PREFIX,

@@ -1,27 +1,26 @@
 import React, { useContext, useState, useRef } from "react";
 
-import PATHS from "router/paths";
-import { AppContext } from "context/app";
-
-import InputField from "components/forms/fields/InputField";
 import BackButton from "components/BackButton";
-import MainContent from "components/MainContent";
-import CustomLink from "components/CustomLink/CustomLink";
-import PageDescription from "components/PageDescription";
-import EmptyState from "components/EmptyState";
 import Button from "components/buttons/Button";
+import CustomLink from "components/CustomLink/CustomLink";
+import EmptyState from "components/EmptyState";
+import InputField from "components/forms/fields/InputField";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import MainContent from "components/MainContent";
+import PageDescription from "components/PageDescription";
 import UploadList from "components/UploadList";
+import { AppContext } from "context/app";
+import PATHS from "router/paths";
 
-import AddEntraTenantModal from "../components/AddEntraTenantModal";
-import DeleteEntraTenantModal from "../components/DeleteEntraTenantModal";
 import AddEntraClientIDModal from "../components/AddEntraClientIDModal";
+import AddEntraTenantModal from "../components/AddEntraTenantModal";
 import DeleteEntraClientIDModal from "../components/DeleteEntraClientIDModal";
+import DeleteEntraTenantModal from "../components/DeleteEntraTenantModal";
 
-import EntraTenantsListHeader from "./EntraTenantsListHeader";
-import EntraTenantsListItem from "./EntraTenantsListItem";
 import EntraClientIDsListHeader from "./EntraClientIDsListHeader";
 import EntraClientIDsListItem from "./EntraClientIDsListItem";
+import EntraTenantsListHeader from "./EntraTenantsListHeader";
+import EntraTenantsListItem from "./EntraTenantsListItem";
 
 const generateMdmTermsOfUseUrl = (domain: string) => {
   return `${domain}/api/mdm/microsoft/tos`;

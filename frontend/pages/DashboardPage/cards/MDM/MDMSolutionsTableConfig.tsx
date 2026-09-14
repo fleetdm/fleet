@@ -1,10 +1,10 @@
+import { noop } from "lodash";
 import React from "react";
 
-import { IMdmSolution } from "interfaces/mdm";
-import { noop } from "lodash";
-
-import TextCell from "components/TableContainer/DataTable/TextCell";
 import LinkCell from "components/TableContainer/DataTable/LinkCell";
+import TextCell from "components/TableContainer/DataTable/TextCell";
+import { IMdmSolution } from "interfaces/mdm";
+
 import { IMdmSolutionTableData } from "./MDM";
 
 // NOTE: cellProps come from react-table

@@ -1,10 +1,9 @@
 import React, { useContext } from "react";
 import { browserHistory } from "react-router";
 
+import Button from "components/buttons/Button";
 import { AppContext } from "context/app";
 import paths from "router/paths";
-
-import Button from "components/buttons/Button";
 
 const baseClass = "data-collection-disabled-state";
 

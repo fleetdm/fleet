@@ -1,12 +1,11 @@
-import React from "react";
 import classnames from "classnames";
-import TooltipWrapper from "components/TooltipWrapper";
+import React from "react";
 
-import { secondsToHms } from "utilities/helpers";
-
-import DataSet from "components/DataSet";
 import Card from "components/Card";
 import CardHeader from "components/CardHeader";
+import DataSet from "components/DataSet";
+import TooltipWrapper from "components/TooltipWrapper";
+import { secondsToHms } from "utilities/helpers";
 
 const baseClass = "agent-options-card";
 interface IAgentOptionsProps {

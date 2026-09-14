@@ -1,36 +1,35 @@
 import React, { useMemo, useState } from "react";
 
-import certificatesAPI from "services/entities/certificates";
-import {
-  ICertificateAuthorityPartial,
-  ICertificateAuthorityType,
-} from "interfaces/certificates";
-
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
 import Modal from "components/Modal";
 import { notify } from "components/ToastNotification";
+import {
+  ICertificateAuthorityPartial,
+  ICertificateAuthorityType,
+} from "interfaces/certificates";
+import certificatesAPI from "services/entities/certificates";
+
+import CustomESTForm, {
+  ICustomESTFormData,
+} from "../CustomESTForm/CustomESTForm";
+import CustomSCEPForm from "../CustomSCEPForm";
+import { ICustomSCEPFormData } from "../CustomSCEPForm/CustomSCEPForm";
+import DigicertForm from "../DigicertForm";
+import { IDigicertFormData } from "../DigicertForm/DigicertForm";
+import HydrantForm from "../HydrantForm";
+import { IHydrantFormData } from "../HydrantForm/HydrantForm";
+import NDESForm from "../NDESForm";
+import { INDESFormData } from "../NDESForm/NDESForm";
+import SmallstepForm, {
+  ISmallstepFormData,
+} from "../SmallstepForm/SmallstepForm";
 
 import {
   generateAddCertAuthorityData,
   generateDropdownOptions,
   getErrorMessage,
 } from "./helpers";
-
-import DigicertForm from "../DigicertForm";
-import { IDigicertFormData } from "../DigicertForm/DigicertForm";
-import NDESForm from "../NDESForm";
-import { INDESFormData } from "../NDESForm/NDESForm";
-import CustomSCEPForm from "../CustomSCEPForm";
-import { ICustomSCEPFormData } from "../CustomSCEPForm/CustomSCEPForm";
-import HydrantForm from "../HydrantForm";
-import { IHydrantFormData } from "../HydrantForm/HydrantForm";
-import SmallstepForm, {
-  ISmallstepFormData,
-} from "../SmallstepForm/SmallstepForm";
-import CustomESTForm, {
-  ICustomESTFormData,
-} from "../CustomESTForm/CustomESTForm";
 
 export type ICertFormData =
   | IDigicertFormData

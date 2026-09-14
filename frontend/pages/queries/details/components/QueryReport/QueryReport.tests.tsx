@@ -1,6 +1,6 @@
+import { render, screen, waitFor } from "@testing-library/react";
 import React from "react";
 
-import { render, screen, waitFor } from "@testing-library/react";
 import { renderWithSetup } from "test/test-utils";
 
 import QueryReport from "./QueryReport";

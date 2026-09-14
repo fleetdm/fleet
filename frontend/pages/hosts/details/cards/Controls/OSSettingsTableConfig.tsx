@@ -1,6 +1,8 @@
 import React from "react";
 import { Column, Row } from "react-table";
 
+import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
+import TextCell from "components/TableContainer/DataTable/TextCell";
 import { IStringCellProps } from "interfaces/datatable_config";
 import { HostAndroidCertStatus, IHostMdmData } from "interfaces/host";
 import {
@@ -14,16 +16,8 @@ import {
   MdmProfileStatus,
   ProfilePlatform,
 } from "interfaces/mdm";
-import { isDDMProfile } from "services/entities/mdm";
 import { isAppleDevice } from "interfaces/platform";
-
-import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
-import TextCell from "components/TableContainer/DataTable/TextCell";
-
-import OSSettingsNameCell from "./OSSettingsNameCell";
-import OSSettingStatusCell from "./OSSettingStatusCell";
-import OSSettingsResendCell from "./OSSettingsResendCell";
-import { getControlDisplayOption } from "./statusDisplayConfig";
+import { isDDMProfile } from "services/entities/mdm";
 
 import {
   generateHostNameSettingIfEligible,
@@ -35,6 +29,11 @@ import {
   REC_LOCK_SYNTHETIC_PROFILE_UUID,
   WIN_DISK_ENC_SYNTHETIC_PROFILE_UUID,
 } from "../../helpers";
+
+import OSSettingsNameCell from "./OSSettingsNameCell";
+import OSSettingsResendCell from "./OSSettingsResendCell";
+import OSSettingStatusCell from "./OSSettingStatusCell";
+import { getControlDisplayOption } from "./statusDisplayConfig";
 
 export interface IHostMdmProfileWithAddedStatus
   extends Omit<IHostMdmProfile, "status"> {
@@ -97,6 +96,10 @@ export const getRowActionProps = (
   const isAndroidCertificate =
     platform === "android" &&
     profileUUID === FLEET_ANDROID_CERTIFICATE_TEMPLATE_PROFILE_ID;
+  // Android config profiles (unlike certificates) are delivered via AMAPI
+  // policy sync rather than pushed by Fleet, so they can never be resent.
+  const isAndroidConfigProfile =
+    platform === "android" && !isAndroidCertificate;
 
   return {
     canResendProfiles:
@@ -109,6 +112,8 @@ export const getRowActionProps = (
     canResendHostNameTemplate:
       profileUUID === HOST_NAME_SYNTHETIC_PROFILE_UUID &&
       canResendHostNameTemplate,
+    showDisabledResendForAndroidProfile:
+      canResendProfiles && isAndroidConfigProfile,
   };
 };
 
@@ -185,6 +190,9 @@ const generateTableConfig = (
               rowActions.canRotateRecoveryLockPassword
             }
             canResendHostNameTemplate={rowActions.canResendHostNameTemplate}
+            showDisabledResendForAndroidProfile={
+              rowActions.showDisabledResendForAndroidProfile
+            }
             profile={cellProps.row.original}
             resendRequest={resendRequest}
             resendCertificateRequest={resendCertificateRequest}
