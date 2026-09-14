@@ -4477,81 +4477,6 @@ func TestWindowsProgramFilesScan(t *testing.T) {
 	}
 }
 
-func TestTPMPinSetVerifyIngest(t *testing.T) {
-	tests := []struct {
-		name   string
-		host   *fleet.Host
-		rows   []map[string]string
-		pinSet *bool
-	}{
-		{
-			name: "nil host",
-			host: nil,
-			rows: []map[string]string{
-				{"host": "something", "criteria": "1"},
-			},
-		},
-		{
-			name: "empty uuid",
-			host: &fleet.Host{
-				ID: 1,
-			},
-			rows: []map[string]string{{"host": "something", "criteria": "1"}},
-		},
-		{
-			name: "no rows - pin not set",
-			host: &fleet.Host{
-				ID:   1,
-				UUID: "test-uuid",
-			},
-			rows:   []map[string]string{},
-			pinSet: ptr.Bool(false),
-		},
-		{
-			name: "with rows - pin set",
-			host: &fleet.Host{
-				ID:   1,
-				UUID: "test-uuid",
-			},
-			rows: []map[string]string{
-				{"host": "Mordor", "criteria": "1"},
-			},
-			pinSet: ptr.Bool(true),
-		},
-		{
-			name: "multiple rows - pin set",
-			host: &fleet.Host{
-				ID:   1,
-				UUID: "test-uuid",
-			},
-			rows: []map[string]string{
-				{"host": "Mordor", "criteria": "1"},
-				{"host": "Mordor", "criteria": "1"},
-			},
-			pinSet: ptr.Bool(true),
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			ds := new(mock.Store)
-
-			var setPinCalled bool
-			ds.SetOrUpdateHostDiskTpmPINFunc = func(ctx context.Context, hostID uint, pinSet bool) error {
-				setPinCalled = true
-				require.Equal(t, *tt.pinSet, pinSet)
-				require.Equal(t, tt.host.ID, hostID)
-				return nil
-			}
-
-			ingestFunc := tpmPINQueries["tpm_pin_set_verify"].DirectIngestFunc
-
-			require.NoError(t, ingestFunc(t.Context(), slog.New(slog.DiscardHandler), tt.host, ds, tt.rows))
-			require.Equal(t, setPinCalled, tt.pinSet != nil)
-		})
-	}
-}
-
 func TestTPMPinConfigVerifyDirectIngest(t *testing.T) {
 	logger := slog.New(slog.DiscardHandler)
 	ctx := t.Context()
@@ -5315,6 +5240,81 @@ func TestWindowsEnrollmentDefaultFleetSkipsPendingAutopilotHost(t *testing.T) {
 			}
 			require.NoError(t, maybeAssignWindowsEnrollmentDefaultFleet(t.Context(), slog.New(slog.DiscardHandler), ds, 1, device))
 			assert.Equal(t, tc.wantMoved, moved)
+		})
+	}
+}
+
+// This ingester is the only source of the signals that drive the missing-boot-protector repair and the startup PIN
+// requirement.
+func TestBitlockerKeyProtectorsVerifyDirectIngest(t *testing.T) {
+	host := &fleet.Host{ID: 42, UUID: "host-uuid"}
+
+	type written struct{ bootProtectorSet, tpmPINSet bool }
+	for _, tt := range []struct {
+		name      string
+		host      *fleet.Host
+		rows      []map[string]string
+		dsErr     error
+		wantWrite *written
+		wantErr   bool
+	}{
+		{name: "nil host stores nothing", host: nil},
+		{name: "empty UUID host stores nothing", host: &fleet.Host{ID: 42, UUID: ""}},
+		{
+			name: "no protectors at all records neither",
+			host: host, rows: []map[string]string{{"boot_protector_set": "0", "tpm_pin_set": "0"}},
+			wantWrite: &written{bootProtectorSet: false, tpmPINSet: false},
+		},
+		{
+			name: "a TPM-only protector records a boot protector without a PIN",
+			host: host, rows: []map[string]string{{"boot_protector_set": "1", "tpm_pin_set": "0"}},
+			wantWrite: &written{bootProtectorSet: true, tpmPINSet: false},
+		},
+		{
+			name: "a TPM and PIN protector records both",
+			host: host, rows: []map[string]string{{"boot_protector_set": "1", "tpm_pin_set": "1"}},
+			wantWrite: &written{bootProtectorSet: true, tpmPINSet: true},
+		},
+		{
+			name: "no rows leaves the columns alone rather than claiming no protector",
+			host: host, rows: nil,
+		},
+		{
+			name: "more rows than expected also leaves the columns alone",
+			host: host, rows: []map[string]string{
+				{"boot_protector_set": "1", "tpm_pin_set": "1"},
+				{"boot_protector_set": "0", "tpm_pin_set": "0"},
+			},
+		},
+		{
+			name: "a datastore failure is propagated rather than swallowed",
+			host: host, rows: []map[string]string{{"boot_protector_set": "0", "tpm_pin_set": "0"}}, dsErr: errors.New("write failed"),
+			wantWrite: &written{}, wantErr: true,
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			ds := new(mock.Store)
+			var got *written
+			ds.SetOrUpdateHostDiskBitLockerProtectorsFunc = func(_ context.Context, hostID uint, bootProtectorSet, tpmPINSet bool) error {
+				require.Equal(t, tt.host.ID, hostID)
+				got = &written{bootProtectorSet: bootProtectorSet, tpmPINSet: tpmPINSet}
+				return tt.dsErr
+			}
+
+			err := bitlockerPolicyQueries["bitlocker_key_protectors_verify"].DirectIngestFunc(
+				t.Context(), slog.New(slog.DiscardHandler), tt.host, ds, tt.rows)
+			if tt.wantErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
+
+			if tt.wantWrite == nil {
+				require.Nil(t, got, "must not write for a host it cannot identify or an answer it did not get")
+				return
+			}
+			require.NotNil(t, got)
+			require.Equal(t, *tt.wantWrite, *got)
 		})
 	}
 }
