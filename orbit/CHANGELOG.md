@@ -6,7 +6,7 @@
 
 * Added a 60-second stall timeout to software installer downloads, so a download that stops receiving data is retried instead of hanging indefinitely. Slow but progressing downloads are not affected.
 
-* Added restoring BitLocker protection on Windows hosts whose volume is already encrypted but has protection turned off. If the volume has no TPM protector, fleetd adds one before turning protection back on. fleetd waits while a restart is pending, and reports the reason to Fleet when it can't restore protection.
+* Added support for restoring BitLocker protection on Windows hosts whose volume is already encrypted but has protection turned off. If the volume has no TPM protector, fleetd adds one before turning protection back on. fleetd waits while a restart is pending, and reports the reason to Fleet when it can't restore protection.
 
 * Updated `macadmins/osquery-extension` to `v1.5.4`, which includes the following changes:
   * Fixed the `munki_info` table failing on hosts where Munki reported items it couldn't install, which left those hosts without Munki version, error, and warning data.
