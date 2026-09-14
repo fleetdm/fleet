@@ -4,17 +4,20 @@ import { noop } from "lodash";
 
 import DeleteAbmModal from "./DeleteAbmModal";
 
+const renderModal = (props: { tokenIsDefault: boolean; tokensCount: number }) =>
+  render(
+    <DeleteAbmModal
+      tokenOrgName="Acme Inc."
+      tokenId={1}
+      onCancel={noop}
+      onDeletedToken={noop}
+      {...props}
+    />
+  );
+
 describe("DeleteAbmModal", () => {
   it("omits default token copy when deleting the only token", () => {
-    render(
-      <DeleteAbmModal
-        tokenOrgName="Acme Inc."
-        tokenId={1}
-        tokensCount={1}
-        onCancel={noop}
-        onDeletedToken={noop}
-      />
-    );
+    renderModal({ tokenIsDefault: true, tokensCount: 1 });
 
     expect(
       screen.getByText(/won't automatically enroll to Fleet/)
@@ -22,32 +25,25 @@ describe("DeleteAbmModal", () => {
     expect(screen.queryByText(/primary/)).not.toBeInTheDocument();
   });
 
-  it("says the remaining token becomes primary when one token will remain", () => {
-    render(
-      <DeleteAbmModal
-        tokenOrgName="Acme Inc."
-        tokenId={1}
-        tokensCount={2}
-        onCancel={noop}
-        onDeletedToken={noop}
-      />
-    );
+  it("omits default token copy when deleting a non-default token", () => {
+    renderModal({ tokenIsDefault: false, tokensCount: 3 });
+
+    expect(
+      screen.getByText(/won't automatically enroll to Fleet/)
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/primary/)).not.toBeInTheDocument();
+  });
+
+  it("says the remaining token becomes primary when deleting the default of two", () => {
+    renderModal({ tokenIsDefault: true, tokensCount: 2 });
 
     expect(
       screen.getByText(/Your remaining token will become primary automatically/)
     ).toBeInTheDocument();
   });
 
-  it("warns about manual enrollments when multiple tokens will remain", () => {
-    render(
-      <DeleteAbmModal
-        tokenOrgName="Acme Inc."
-        tokenId={1}
-        tokensCount={3}
-        onCancel={noop}
-        onDeletedToken={noop}
-      />
-    );
+  it("warns about manual enrollments when deleting the default of several", () => {
+    renderModal({ tokenIsDefault: true, tokensCount: 3 });
 
     expect(
       screen.getByText(

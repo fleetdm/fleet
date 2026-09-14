@@ -297,6 +297,7 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
         <DeleteAbmModal
           tokenOrgName={selectedToken.current.org_name}
           tokenId={selectedToken.current.id}
+          tokenIsDefault={selectedToken.current.default}
           tokensCount={abTokens?.length ?? 0}
           onCancel={onCancelDeleteToken}
           onDeletedToken={onDeleted}

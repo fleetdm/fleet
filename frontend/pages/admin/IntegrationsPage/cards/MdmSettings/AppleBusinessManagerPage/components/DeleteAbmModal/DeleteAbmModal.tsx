@@ -10,6 +10,9 @@ const baseClass = "delete-abm-modal";
 interface IDeleteAbmModalProps {
   tokenOrgName: string;
   tokenId: number;
+  /** Whether the token being deleted is the default one; deleting a
+   * non-default token doesn't affect the default, so no extra copy. */
+  tokenIsDefault: boolean;
   /** Count of AB tokens before this deletion, used to pick the copy about
    * what happens to the default (primary) token afterwards. */
   tokensCount: number;
@@ -20,6 +23,7 @@ interface IDeleteAbmModalProps {
 const DeleteAbmModal = ({
   tokenOrgName,
   tokenId,
+  tokenIsDefault,
   tokensCount,
   onCancel,
   onDeletedToken,
@@ -52,10 +56,10 @@ const DeleteAbmModal = ({
       <p>
         New hosts purchased in <b>{tokenOrgName}</b> won&apos;t automatically
         enroll to Fleet.
-        {tokensCount === 2 && (
+        {tokenIsDefault && tokensCount === 2 && (
           <> Your remaining token will become primary automatically.</>
         )}
-        {tokensCount > 2 && (
+        {tokenIsDefault && tokensCount > 2 && (
           <>
             {" "}
             Manual enrollments may not be able to sign into Managed Apple IDs
