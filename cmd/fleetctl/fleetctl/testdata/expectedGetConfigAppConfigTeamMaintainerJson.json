@@ -85,6 +85,9 @@
       "jira": null,
       "zendesk": null,
       "google_calendar": null,
+      "certificates_idp_introspection_urls": null,
+      "certificates_idp_client_ids": null,
+      "certificates_require_host_end_user_binding": null,
       "conditional_access_enabled": null
     },
     "mdm": {

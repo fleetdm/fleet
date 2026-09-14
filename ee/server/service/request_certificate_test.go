@@ -6,6 +6,7 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"encoding/asn1"
 	"encoding/base64"
 	"encoding/json"
 	"encoding/pem"
@@ -14,13 +15,16 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"slices"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/ee/pkg/hostidentity/types"
 	"github.com/fleetdm/fleet/v4/ee/server/service/est"
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/httpsig"
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
@@ -52,10 +56,60 @@ const (
 	*/
 	goodCSR = "-----BEGIN CERTIFICATE REQUEST-----\nMIIC8jCCAdoCAQAwDzENMAsGA1UEAwwEVGVzdDCCASIwDQYJKoZIhvcNAQEBBQAD\nggEPADCCAQoCggEBALMrkHOVZWVGv9PqU20NgpWed9MdRtMc8406GGWQJ3Rj9/8J\ncy8LOx1d5/XWLKK5VbN2c1hD/a26qkgHtDMfzRXnv5oFybkhaI5tlc9yhQmJVFI2\nRIBsSkZvIlX+SNWV2RuiyVHyGbjhzi3wZen1s0aOeXMMHdD5FVEngX4Fz3TuTb/Z\n8romrsSmWb32fQyQxola9/xe0IAnXZocrxi4xPjNKQbEN/2+gQ/MRJx+c+xnV3MV\nIrXn+8Av8MMBsXhCDlmT2QrpRezNAwWwRni9yKOb0sZMtTDrsCOgAmWsj0Qxf/AS\nMPh7xbozXK4ubf5ombYxEdwGgYl/IKQUKvBKYMMCAwEAAaCBnTCBmgYJKoZIhvcN\nAQkOMYGMMIGJMIGGBgNVHREEfzB9ggtleGFtcGxlLmNvbYETZmxlZXRpZUBleGFt\ncGxlLmNvbYY0SUQ6RmxlZXRETTpHVUlEOjg1NzAwMDM2LTExZWYtMTFlMS1iYmRh\nLTM4OTIzOWNjMmM0MaAjBgorBgEEAYI3FAIDoBUME2ZsZWV0aWVAZXhhbXBsZS5j\nb20wDQYJKoZIhvcNAQELBQADggEBABSBUwyvH/B4kMi9haabDmXpgjb+I7GN2ibz\nN9xS0D/p1TEPNZ2owMdd71oEUPO+pL4PeOIKkn/TRm5ZjnVHtlwlz9PPtkyg7n0d\n6v1L0PPn17jMu9o5u984oP+PYt/VXjJfqzSv2QY2fuR7u108bnxVfWh03n0w1+is\npDQhM5jT+RmXbeOiMIwLojwsYV78y3IYu9ElskonL2v8HQUD9yP8TKlASEhYOD7N\npPLSre8uKL3+A1nyvhG53Ia5xID9mQR3cMO0g6wOoCMerJ4QYMX9jkfPolteT25m\n3NKghdVqvxjm/Oxp7ZFn7LsbdALjnXDYbnNYl8BQTc1rMInnuOw=\n-----END CERTIFICATE REQUEST-----\n"
 	badCSR  = "-----BEGIN CERTIFICATE REQUEST-----\nMIIC9DCCAdwCAQAwDzENMAsGA1UEAwwEVGVzdDCCASIwDQYJKoZIhvcNAQEBBQAD\nggEPADCCAQoCggEBAKUUUwsYGpfCCFZYPFL2KLMtf9QdKTizvv3xGPPh6exUo5tB\nEIyhuifEbVIJwf5BhL3104rAY1uywdcUIHqHtWcmaEzS8G6vn1hE4iOMMh5qG6e2\nzobHTxeRgOSeUKHGXWy93BqS09Nkj5H8zlTJO6NjwD3SKiDYZGQDhljdsHTw9Txt\ndHHrEi+y4Qn4FoAf/ie7x2OmfemhLIqpLpU6BxMmqiEHkGObNNlgFGsHGGC3qs9G\nR+2roK3r+nQouMKbFL2CqDCd6F/dBfSSYgOTeOJeOLoM6mZuYqF7dTC1ZU9xhPIR\nzwi9sodQ6kYj++ZycUGT56s6/0yEc4E2AUHAeB0CAwEAAaCBnzCBnAYJKoZIhvcN\nAQkOMYGOMIGLMIGIBgNVHREEgYAwfoILZXhhbXBsZS5jb22BFGJhZGFjdG9yQGV4\nYW1wbGUuY29thjRJRDpGbGVldERNOkdVSUQ6ODU3MDAwMzYtMTFlZi0xMWUxLWJi\nZGEtMzg5MjM5Y2MyYzQxoCMGCisGAQQBgjcUAgOgFQwTZmxlZXRpZUBleGFtcGxl\nLmNvbTANBgkqhkiG9w0BAQsFAAOCAQEASt8qgOCQTtYYYr7KDMcp90Kw+ZiJAL8k\nyRhJy4OsiO4mCdUVvzkyccfV+n6U/51ktPjYkWc1CVYXa+KNN/Z0prsAKYmonR9/\nJh3VVeZrwyglsw+X2ct/H9neOC433KfstRYAZ5WGCSaBJRN1+SUI23O6fjQN7DaL\ntzBPMXMcfNZoWj8rbM/E0WjTnlgUi6L3Ppys5xq1vupdQCiryE8J8A9kKHnMyEi4\nqkCoKOBajEIT9tyFKg5NDjMbIAHFLoUWpLeEtgrGnq5bqBE+q/gOUFb+uqJmQQQz\nVlzFj30tfmt3uBq79Wne1Hu0S634eaCbHOmbuOmLforQqzKpaHXqPQ==\n-----END CERTIFICATE REQUEST-----\n"
+	// prefixUPNCSR carries email=fleetie@example.com with UPN=fleetie, the documented shorthand
+	// form where the UPN is a prefix of the email.
+	prefixUPNCSR = "-----BEGIN CERTIFICATE REQUEST-----\nMIIC4zCCAcsCAQAwDzENMAsGA1UEAwwEVGVzdDCCASIwDQYJKoZIhvcNAQEBBQAD\nggEPADCCAQoCggEBAKna6L5GFWTlNjNVpaDWJadyL+xb8VAMSufVQqyBWKi6SUHy\nbyU+rAEk8prdKN1bFHQFVtEBaeaNgyiwJAioLeYeJ8fpiSU5/HVIyrA15hAUQNN3\nHcUGHRwKzGP+gbQmneNUIxdjMQ/f9FSqEbv15EBveFrYO6BSNWBUS8toLX39QC+S\nVaMPd3Wv5u2eVMGUnnrLPVhG52FwsyklO6ZtQ5eZC+fJ1zvZDiM9Pv6zFD/RcZXg\nxJtfUtJRc52rvZKhJ9nWW8Iy6klUdnzIRv9fX++Aaa8xzAx4I4ib939i9GW1vrH7\nvBwfcEX/ySI7OvU3BDQHHxt1ZOtlEByLegHAzVUCAwEAAaCBjjCBiwYJKoZIhvcN\nAQkOMX4wfDB6BgNVHREEczBxggtleGFtcGxlLmNvbYETZmxlZXRpZUBleGFtcGxl\nLmNvbYY0SUQ6RmxlZXRETTpHVUlEOjg1NzAwMDM2LTExZWYtMTFlMS1iYmRhLTM4\nOTIzOWNjMmM0MaAXBgorBgEEAYI3FAIDoAkMB2ZsZWV0aWUwDQYJKoZIhvcNAQEL\nBQADggEBAGYGbqCFKPCeJ1T2xYCm129asYvmvyIcMGAErQUHdmHacJGVEOcJ9eQD\ndPOvHPYpP6X7i8Oqp8hUcnpV64VWwcogojJwicsWvE2jlmIg94iobi8sC3ikyUNI\nThvoLBa3uj/SCQ7On0BDHjGJ7rXDHKIaInNVH7s5JWl1qageGEHkJfGtlbxTpA+8\n/yNzZrAxiWDtMA6pU3KIt0GyUf8lk1rycPUek2Qjf0bEBqcT9AX94Fxk4mVmXEUV\n/r3ygjeVNVVBO8Ocf/tpz0L/2eq0mt/7UThO/j49y7QTEWu3HzWyO5boLK2Mm0aM\nLMpd2rRDUFZwRXTVvQOtNAy5h3yOKz8=\n-----END CERTIFICATE REQUEST-----\n"
+	// noUPNCSR carries the SAN email but no UPN othername.
+	noUPNCSR = "-----BEGIN CERTIFICATE REQUEST-----\nMIICyDCCAbACAQAwDzENMAsGA1UEAwwEVGVzdDCCASIwDQYJKoZIhvcNAQEBBQAD\nggEPADCCAQoCggEBAKna6L5GFWTlNjNVpaDWJadyL+xb8VAMSufVQqyBWKi6SUHy\nbyU+rAEk8prdKN1bFHQFVtEBaeaNgyiwJAioLeYeJ8fpiSU5/HVIyrA15hAUQNN3\nHcUGHRwKzGP+gbQmneNUIxdjMQ/f9FSqEbv15EBveFrYO6BSNWBUS8toLX39QC+S\nVaMPd3Wv5u2eVMGUnnrLPVhG52FwsyklO6ZtQ5eZC+fJ1zvZDiM9Pv6zFD/RcZXg\nxJtfUtJRc52rvZKhJ9nWW8Iy6klUdnzIRv9fX++Aaa8xzAx4I4ib939i9GW1vrH7\nvBwfcEX/ySI7OvU3BDQHHxt1ZOtlEByLegHAzVUCAwEAAaB0MHIGCSqGSIb3DQEJ\nDjFlMGMwYQYDVR0RBFowWIILZXhhbXBsZS5jb22BE2ZsZWV0aWVAZXhhbXBsZS5j\nb22GNElEOkZsZWV0RE06R1VJRDo4NTcwMDAzNi0xMWVmLTExZTEtYmJkYS0zODky\nMzljYzJjNDEwDQYJKoZIhvcNAQELBQADggEBAIF6R7tJAZPvNmQGKbQ21i/s5IUX\ng7VsF3xcR+8m52Q1RirwkonCZAd9dkSo2JTO2u85YUzO9Sh09FBMtkI6jDtQYCwh\nwPrpWFm8VkZZgiCpKtJXoOE+tH0UU/XsOIku9JrX5KfoSjgzhGWBdfqRMpq8wQHL\n3j1CiRTTnKsFgGMd0VqQJt/G3gK0GIQ7VvzdwanetLzHNTSIe7rryu1PDCKdWFdi\nQW23hRVUArYGVy5XzqFEDZ4IRrMVxNnPdSMBiFOeVP9lObrd+2uA4oKXUhvN2LxU\n1x3+3FhxAYCO+AeulD7bbmLPQVUrocAtyv6zsigbjxqVw5YRyHqchpLo0wo=\n-----END CERTIFICATE REQUEST-----\n"
+	// noEmailCSR carries the UPN othername but no SAN email, built with the same commands
+	// minus the "email:$USERNAME" entry.
+	noEmailCSR = "-----BEGIN CERTIFICATE REQUEST-----\nMIIC2jCCAcICAQAwDzENMAsGA1UEAwwEVGVzdDCCASIwDQYJKoZIhvcNAQEBBQAD\nggEPADCCAQoCggEBAJTyRlK1B5jg/IXbpsOQ24ch92GaPgXYstgHysZowVdnTj++\n3ucs+XpCbVQvLJ0KFI8wi9sNhZeLG4Srz8wNtljkiixodUNo/YGGK0/0iEbWnhJK\nf5tNzv7ZqQqJ9MQBazhsM80d1nYe/QLgUeCGaaZJChUzeaKACNjtWGsA46lLU9//\nd+30qwO8PYu04bDzk/ZfIx8PouxviOLVK1pj87jb930QrzemuhFOpkgOjEN3Ofms\nDwdzDc2ofNU8gCsYP18+oKHHoY+nmFDLOFeV0jjoQmlL28WKsgAnLH6VTieoBUxs\nunTGBt2hBI1dt/KtExHcGgW1HluSrbu+bf7GAFMCAwEAAaCBhTCBggYJKoZIhvcN\nAQkOMXUwczBxBgNVHREEajBoggtleGFtcGxlLmNvbYY0SUQ6RmxlZXRETTpHVUlE\nOjg1NzAwMDM2LTExZWYtMTFlMS1iYmRhLTM4OTIzOWNjMmM0MaAjBgorBgEEAYI3\nFAIDoBUME2ZsZWV0aWVAZXhhbXBsZS5jb20wDQYJKoZIhvcNAQELBQADggEBAI/J\nrnQBLcEVaVt4JOc6zkotRd32Nf8jqmQKwDYKflecVdNm2g1pDR5MzkdKWizSyHcc\n1/gzJHmRelKrvI1tErkT+kO65eYjJue4aadOahzsIJbgK1l5TNJlU2Oc2MrNnk6Y\nzAWqSKNosP83Z0SM9cWVcy2nGvBdaTpYGHkYi/K2gF8aggu2+K3iU3K4r6MZyray\nJoHhyzDdvr46IdcglVG4AhpB7lIPmMq9oOvdPNM2Wj8HUTWLlwYt6MRMP2YYaHMP\nYtmr12RC7c+ZV6Jznax+DUtUTXho5S7z8E19CgLOB0FTyRj+FaQTjdRhRMBUKLLu\noeeC9q4yKvtw0iNUU9k=\n-----END CERTIFICATE REQUEST-----\n"
 )
+
+// An otherName carrying trailing bytes after its OID/value pair used to restart the scan from the
+// beginning of the content on every iteration, so the cursor never advanced and the call never
+// returned. Any input the caller controls reaching this was a free CPU burn.
+func TestExtractCSRUPNTerminatesOnTrailingBytes(t *testing.T) {
+	t.Parallel()
+
+	mustMarshal := func(v any) []byte {
+		b, err := asn1.Marshal(v)
+		require.NoError(t, err)
+		return b
+	}
+	content := slices.Concat(
+		mustMarshal(asn1.ObjectIdentifier{1, 2, 3, 4}),
+		mustMarshal("hello"),
+		mustMarshal(asn1.ObjectIdentifier{1, 2, 3, 5}), // trailing
+	)
+	otherName := mustMarshal(asn1.RawValue{Class: asn1.ClassContextSpecific, Tag: 0, IsCompound: true, Bytes: content})
+	san := mustMarshal(asn1.RawValue{Class: asn1.ClassUniversal, Tag: asn1.TagSequence, IsCompound: true, Bytes: otherName})
+	csr := &x509.CertificateRequest{Extensions: []pkix.Extension{
+		{Id: asn1.ObjectIdentifier{2, 5, 29, 17}, Value: san},
+	}}
+
+	// Closing the channel after the write orders it before the read below, so upnErr is safe to
+	// assert on once done fires.
+	var upnErr error
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		_, upnErr = extractCSRUPN(t.Context(), csr)
+	}()
+	select {
+	case <-done:
+		require.Error(t, upnErr)
+	case <-time.After(10 * time.Second):
+		t.Fatal("extractCSRUPN did not return; the othername scan is not advancing")
+	}
+}
 
 func TestRequestCertificate(t *testing.T) {
 	t.Parallel()
+
+	// Counts hits on the mock introspection endpoint, so tests can assert no outbound call.
+	// Atomic because the handler runs on the test server's goroutine, not the test's.
+	var oauthIntrospectCalls atomic.Int64
 
 	// Setup mock Oauth server
 	defaultOauthIntrospectResponse := map[string]interface{}{
@@ -69,6 +123,7 @@ func TestRequestCertificate(t *testing.T) {
 			w.WriteHeader(http.StatusNotFound)
 			return
 		}
+		oauthIntrospectCalls.Add(1)
 		if oauthIntrospectStatus != http.StatusOK {
 			w.WriteHeader(oauthIntrospectStatus)
 			return
@@ -141,7 +196,9 @@ func TestRequestCertificate(t *testing.T) {
 
 	useDefaultAuthContext := true
 
-	baseSetupForTests := func() (*Service, context.Context) {
+	// Reset by baseSetupForTests; mutated by the allowlist and host-binding subtests.
+	var appConfig *fleet.AppConfig
+	baseSetupForTests := func() (*Service, *mock.Store, context.Context) {
 		ds := new(mock.Store)
 
 		// Setup DS mocks
@@ -153,6 +210,16 @@ func TestRequestCertificate(t *testing.T) {
 				}
 			}
 			return nil, common_mysql.NotFound("certificate authority")
+		}
+		appConfig = &fleet.AppConfig{}
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return appConfig, nil
+		}
+		ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
+			return nil, common_mysql.NotFound("scim user")
+		}
+		ds.ListHostDeviceMappingFunc = func(ctx context.Context, hostID uint) ([]*fleet.HostDeviceMapping, error) {
+			return nil, nil
 		}
 
 		ds.GetCertificateAuthorityByIDFuncInvoked = false
@@ -179,17 +246,41 @@ func TestRequestCertificate(t *testing.T) {
 
 		oauthIntrospectResponse = defaultOauthIntrospectResponse
 		oauthIntrospectStatus = http.StatusOK
+		oauthIntrospectCalls.Store(0)
 		hydrantSimpleEnrollResponse = defaultHydrantSimpleEnrollResponse
 		hydrantSimpleEnrollStatus = http.StatusOK
 
-		return svc, ctx
+		return svc, ds, ctx
+	}
+
+	// signatureAuthSetup authenticates the context by HTTP message signature. A non-nil cert is
+	// placed in context as the middleware would; nil exercises the service's own presence check.
+	signatureAuthSetup := func(t *testing.T, cert *types.HostIdentityCertificate) (*Service, *mock.Store, context.Context) {
+		t.Helper()
+		useDefaultAuthContext = false
+		t.Cleanup(func() { useDefaultAuthContext = true })
+
+		svc, ds, ctx := baseSetupForTests()
+		authCtx, ok := authz_ctx.FromContext(ctx)
+		require.True(t, ok)
+		authCtx.SetAuthnMethod(authz_ctx.AuthnHTTPMessageSignature)
+		if cert != nil {
+			ctx = httpsig.NewContext(ctx, *cert)
+		}
+		return svc, ds, ctx
+	}
+
+	// deviceSetup is signatureAuthSetup with a valid certificate for the given host.
+	deviceSetup := func(t *testing.T, hostID *uint) (*Service, *mock.Store, context.Context) {
+		t.Helper()
+		return signatureAuthSetup(t, &types.HostIdentityCertificate{HostID: hostID, NotValidAfter: time.Now().Add(24 * time.Hour)})
 	}
 
 	invalidCSR := InvalidCSRError{}
 	invalidIDP := InvalidIDPTokenError{}
 
 	t.Run("Request a certificate - Happy path", func(t *testing.T) {
-		svc, ctx := baseSetupForTests()
+		svc, _, ctx := baseSetupForTests()
 
 		cert, err := svc.RequestCertificate(ctx, fleet.RequestCertificatePayload{
 			ID:          hydrantCA.ID,
@@ -204,7 +295,7 @@ func TestRequestCertificate(t *testing.T) {
 	})
 
 	t.Run("Request a certificate - Happy path, no IDP", func(t *testing.T) {
-		svc, ctx := baseSetupForTests()
+		svc, _, ctx := baseSetupForTests()
 
 		cert, err := svc.RequestCertificate(ctx, fleet.RequestCertificatePayload{
 			ID:  hydrantCA.ID,
@@ -216,15 +307,7 @@ func TestRequestCertificate(t *testing.T) {
 	})
 
 	t.Run("Request a certificate - Happy path, no IDP, http sig auth", func(t *testing.T) {
-		useDefaultAuthContext = false
-		defer func() { useDefaultAuthContext = true }()
-
-		svc, ctx := baseSetupForTests()
-
-		authCtx, ok := authz_ctx.FromContext(ctx)
-		require.True(t, ok)
-		authCtx.SetAuthnMethod(authz_ctx.AuthnHTTPMessageSignature)
-		ctx = httpsig.NewContext(ctx, types.HostIdentityCertificate{HostID: ptr.Uint(1), NotValidAfter: time.Now().Add(24 * time.Hour)})
+		svc, _, ctx := deviceSetup(t, new(uint(1)))
 
 		cert, err := svc.RequestCertificate(ctx, fleet.RequestCertificatePayload{
 			ID:  hydrantCA.ID,
@@ -236,7 +319,7 @@ func TestRequestCertificate(t *testing.T) {
 	})
 
 	t.Run("Request a certificate - Happy path, no IDP, UPN does not match IDP info(should pass)", func(t *testing.T) {
-		svc, ctx := baseSetupForTests()
+		svc, _, ctx := baseSetupForTests()
 
 		cert, err := svc.RequestCertificate(ctx, fleet.RequestCertificatePayload{
 			ID:  hydrantCA.ID,
@@ -248,7 +331,7 @@ func TestRequestCertificate(t *testing.T) {
 	})
 
 	t.Run("Request a certificate - CA returns error", func(t *testing.T) {
-		svc, ctx := baseSetupForTests()
+		svc, _, ctx := baseSetupForTests()
 		hydrantSimpleEnrollResponse = "Oh no! Something bad happened"
 		hydrantSimpleEnrollStatus = http.StatusInternalServerError
 		cert, err := svc.RequestCertificate(ctx, fleet.RequestCertificatePayload{
@@ -263,7 +346,7 @@ func TestRequestCertificate(t *testing.T) {
 	})
 
 	t.Run("Request a certificate - IDP introspection reports non-active token", func(t *testing.T) {
-		svc, ctx := baseSetupForTests()
+		svc, _, ctx := baseSetupForTests()
 		oauthIntrospectResponse = map[string]interface{}{
 			"active": false,
 		}
@@ -279,7 +362,7 @@ func TestRequestCertificate(t *testing.T) {
 	})
 
 	t.Run("Request a certificate - IDP introspection does not return a username", func(t *testing.T) {
-		svc, ctx := baseSetupForTests()
+		svc, _, ctx := baseSetupForTests()
 		oauthIntrospectResponse = map[string]interface{}{
 			"active": true,
 		}
@@ -295,7 +378,7 @@ func TestRequestCertificate(t *testing.T) {
 	})
 
 	t.Run("Request a certificate - IDP introspection returns an error", func(t *testing.T) {
-		svc, ctx := baseSetupForTests()
+		svc, _, ctx := baseSetupForTests()
 		oauthIntrospectResponse = map[string]interface{}{
 			"error": "something bad happened",
 		}
@@ -312,7 +395,7 @@ func TestRequestCertificate(t *testing.T) {
 	})
 
 	t.Run("Request a certificate - Custom EST CA", func(t *testing.T) {
-		svc, ctx := baseSetupForTests()
+		svc, _, ctx := baseSetupForTests()
 		cert, err := svc.RequestCertificate(ctx, fleet.RequestCertificatePayload{
 			ID:  customESTCA.ID,
 			CSR: goodCSR,
@@ -323,7 +406,7 @@ func TestRequestCertificate(t *testing.T) {
 	})
 
 	t.Run("Request certificate - non-Hydrant and non-EST CA", func(t *testing.T) {
-		svc, ctx := baseSetupForTests()
+		svc, _, ctx := baseSetupForTests()
 		_, err := svc.RequestCertificate(ctx, fleet.RequestCertificatePayload{
 			ID:          digicertCA.ID,
 			CSR:         goodCSR,
@@ -335,7 +418,7 @@ func TestRequestCertificate(t *testing.T) {
 	})
 
 	t.Run("Request certificate - nonexistent CA", func(t *testing.T) {
-		svc, ctx := baseSetupForTests()
+		svc, _, ctx := baseSetupForTests()
 		_, err := svc.RequestCertificate(ctx, fleet.RequestCertificatePayload{
 			ID:          999,
 			CSR:         goodCSR,
@@ -347,7 +430,7 @@ func TestRequestCertificate(t *testing.T) {
 	})
 
 	t.Run("Request certificate - missing IDP client ID", func(t *testing.T) {
-		svc, ctx := baseSetupForTests()
+		svc, _, ctx := baseSetupForTests()
 		_, err := svc.RequestCertificate(ctx, fleet.RequestCertificatePayload{
 			ID:          hydrantCA.ID,
 			CSR:         goodCSR,
@@ -359,7 +442,7 @@ func TestRequestCertificate(t *testing.T) {
 	})
 
 	t.Run("Request certificate - missing IDP token", func(t *testing.T) {
-		svc, ctx := baseSetupForTests()
+		svc, _, ctx := baseSetupForTests()
 		_, err := svc.RequestCertificate(ctx, fleet.RequestCertificatePayload{
 			ID:          hydrantCA.ID,
 			CSR:         goodCSR,
@@ -371,7 +454,7 @@ func TestRequestCertificate(t *testing.T) {
 	})
 
 	t.Run("Request certificate - missing IDP oauth URL", func(t *testing.T) {
-		svc, ctx := baseSetupForTests()
+		svc, _, ctx := baseSetupForTests()
 		_, err := svc.RequestCertificate(ctx, fleet.RequestCertificatePayload{
 			ID:          hydrantCA.ID,
 			CSR:         goodCSR,
@@ -383,7 +466,7 @@ func TestRequestCertificate(t *testing.T) {
 	})
 
 	t.Run("Request certificate - CSR email and UPN do not match", func(t *testing.T) {
-		svc, ctx := baseSetupForTests()
+		svc, _, ctx := baseSetupForTests()
 		_, err := svc.RequestCertificate(ctx, fleet.RequestCertificatePayload{
 			ID:          hydrantCA.ID,
 			CSR:         badCSR,
@@ -395,7 +478,7 @@ func TestRequestCertificate(t *testing.T) {
 	})
 
 	t.Run("Request certificate - CSR is not a CSR, IDP provided", func(t *testing.T) {
-		svc, ctx := baseSetupForTests()
+		svc, _, ctx := baseSetupForTests()
 		_, err := svc.RequestCertificate(ctx, fleet.RequestCertificatePayload{
 			ID:          hydrantCA.ID,
 			CSR:         "I'm not a CSR at all",
@@ -407,7 +490,7 @@ func TestRequestCertificate(t *testing.T) {
 	})
 
 	t.Run("Request a certificate - CSR is not a CSR, no IDP provided", func(t *testing.T) {
-		svc, ctx := baseSetupForTests()
+		svc, _, ctx := baseSetupForTests()
 
 		_, err := svc.RequestCertificate(ctx, fleet.RequestCertificatePayload{
 			ID:  hydrantCA.ID,
@@ -417,7 +500,7 @@ func TestRequestCertificate(t *testing.T) {
 	})
 
 	t.Run("Request a certificate - return_pem_certificate true", func(t *testing.T) {
-		svc, ctx := baseSetupForTests()
+		svc, _, ctx := baseSetupForTests()
 
 		issuedDER := generateTestCertDER(t)
 		envelope, err := pkcs7.DegenerateCertificate(issuedDER)
@@ -444,7 +527,7 @@ func TestRequestCertificate(t *testing.T) {
 	})
 
 	t.Run("Request a certificate - return_pem_certificate true with whitespace in EST response", func(t *testing.T) {
-		svc, ctx := baseSetupForTests()
+		svc, _, ctx := baseSetupForTests()
 
 		issuedDER := generateTestCertDER(t)
 		envelope, err := pkcs7.DegenerateCertificate(issuedDER)
@@ -478,7 +561,7 @@ func TestRequestCertificate(t *testing.T) {
 	})
 
 	t.Run("Request a certificate - return_pem_certificate true, malformed PKCS7 returns error", func(t *testing.T) {
-		svc, ctx := baseSetupForTests()
+		svc, _, ctx := baseSetupForTests()
 		// hydrantSimpleEnrollResponse defaults to "abc123" which is not a valid PKCS7 envelope.
 
 		cert, err := svc.RequestCertificate(ctx, fleet.RequestCertificatePayload{
@@ -491,7 +574,7 @@ func TestRequestCertificate(t *testing.T) {
 	})
 
 	t.Run("Request a certificate - return_pem_certificate true rejects envelope with multiple certs", func(t *testing.T) {
-		svc, ctx := baseSetupForTests()
+		svc, _, ctx := baseSetupForTests()
 
 		// Build a PKCS7 SignedData containing two certificates to verify we reject anything
 		// that doesn't match RFC 7030's single-issued-certificate response shape.
@@ -512,8 +595,284 @@ func TestRequestCertificate(t *testing.T) {
 		require.Nil(t, cert)
 	})
 
+	// setAllowlist populates both allowlists with one entry each.
+	introspectURL := mockOauthServer.URL + "/oauth2/v1/introspect"
+	setAllowlist := func(t *testing.T, introspectionURL, clientID string) {
+		t.Helper()
+		appConfig.Integrations.CertificatesIdPIntrospectionURLs = optjson.SetSlice([]string{introspectionURL})
+		appConfig.Integrations.CertificatesIdPClientIDs = optjson.SetSlice([]string{clientID})
+	}
+
+	// The regression test: a signed request with no IdP fields succeeds with an empty allowlist
+	// (see "Happy path, no IDP, http sig auth") and must be rejected once one is configured.
+	t.Run("Request a certificate - allowlist populated, signed request with no IDP fields is rejected", func(t *testing.T) {
+		svc, _, ctx := deviceSetup(t, new(uint(1)))
+		setAllowlist(t, introspectURL, "test-client-id")
+
+		cert, err := svc.RequestCertificate(ctx, fleet.RequestCertificatePayload{
+			ID:  hydrantCA.ID,
+			CSR: goodCSR,
+		})
+		require.ErrorContains(t, err, "IdP verification is required by this Fleet server.")
+		require.Nil(t, cert)
+		require.Zero(t, oauthIntrospectCalls.Load())
+	})
+
+	// Each populated list constrains its field. The rest of the matrix is covered by
+	// TestCheckCertIdPIntrospection.
+	t.Run("Request a certificate - allowlist populated, listed URL with unlisted client ID is rejected", func(t *testing.T) {
+		svc, _, ctx := baseSetupForTests()
+		setAllowlist(t, introspectURL, "test-client-id")
+
+		cert, err := svc.RequestCertificate(ctx, fleet.RequestCertificatePayload{
+			ID:          hydrantCA.ID,
+			CSR:         goodCSR,
+			IDPOauthURL: new(introspectURL),
+			IDPToken:    new("test-idp-token"),
+			IDPClientID: new("attacker-client-id"),
+		})
+		// Distinct from an invalid token, so a config problem reads differently to a credential one.
+		require.ErrorContains(t, err, "IdP client ID is not permitted.")
+		require.NotErrorAs(t, err, &invalidIDP)
+		require.Nil(t, cert)
+		require.Zero(t, oauthIntrospectCalls.Load())
+	})
+
+	t.Run("Request a certificate - allowlist populated, listed URL and client ID succeed", func(t *testing.T) {
+		svc, _, ctx := baseSetupForTests()
+		setAllowlist(t, introspectURL, "test-client-id")
+
+		cert, err := svc.RequestCertificate(ctx, fleet.RequestCertificatePayload{
+			ID:          hydrantCA.ID,
+			CSR:         goodCSR,
+			IDPOauthURL: new(introspectURL),
+			IDPToken:    new("test-idp-token"),
+			IDPClientID: new("test-client-id"),
+		})
+		require.NoError(t, err)
+		require.NotNil(t, cert)
+		require.EqualValues(t, 1, oauthIntrospectCalls.Load())
+	})
+
+	t.Run("Request a certificate - device request with nil host ID is rejected by the service", func(t *testing.T) {
+		svc, ds, ctx := deviceSetup(t, nil)
+
+		cert, err := svc.RequestCertificate(ctx, fleet.RequestCertificatePayload{
+			ID:  hydrantCA.ID,
+			CSR: goodCSR,
+		})
+		require.ErrorContains(t, err, "not associated with an enrolled host")
+		require.Nil(t, cert)
+		// Rejected before the CA is even loaded.
+		require.False(t, ds.GetCertificateAuthorityByIDFuncInvoked)
+	})
+
+	t.Run("Request a certificate - device request with no host identity certificate is rejected", func(t *testing.T) {
+		svc, _, ctx := signatureAuthSetup(t, nil)
+
+		cert, err := svc.RequestCertificate(ctx, fleet.RequestCertificatePayload{
+			ID:  hydrantCA.ID,
+			CSR: goodCSR,
+		})
+		require.ErrorContains(t, err, "Missing host identity certificate")
+		require.Nil(t, cert)
+	})
+
+	t.Run("Request a certificate - host binding on, matching IdP username succeeds regardless of case", func(t *testing.T) {
+		svc, ds, ctx := deviceSetup(t, new(uint(1)))
+		appConfig.Integrations.CertificatesRequireHostEndUserBinding = optjson.SetBool(true)
+		ds.ListHostDeviceMappingFunc = func(ctx context.Context, hostID uint) ([]*fleet.HostDeviceMapping, error) {
+			return []*fleet.HostDeviceMapping{{HostID: hostID, Email: "Fleetie@Example.com", Source: fleet.DeviceMappingIDP}}, nil
+		}
+
+		cert, err := svc.RequestCertificate(ctx, fleet.RequestCertificatePayload{
+			ID:  hydrantCA.ID,
+			CSR: goodCSR,
+		})
+		require.NoError(t, err)
+		require.NotNil(t, cert)
+		// With an empty allowlist, host binding is a pure DB lookup and makes no outbound call.
+		require.Zero(t, oauthIntrospectCalls.Load())
+	})
+
+	t.Run("Request a certificate - host binding on, mismatched IdP username is rejected", func(t *testing.T) {
+		svc, ds, ctx := deviceSetup(t, new(uint(1)))
+		appConfig.Integrations.CertificatesRequireHostEndUserBinding = optjson.SetBool(true)
+		ds.ListHostDeviceMappingFunc = func(ctx context.Context, hostID uint) ([]*fleet.HostDeviceMapping, error) {
+			return []*fleet.HostDeviceMapping{{HostID: hostID, Email: "someone-else@example.com", Source: fleet.DeviceMappingIDP}}, nil
+		}
+
+		cert, err := svc.RequestCertificate(ctx, fleet.RequestCertificatePayload{
+			ID:  hydrantCA.ID,
+			CSR: goodCSR,
+		})
+		require.ErrorContains(t, err, "does not match the end user identity recorded for this host")
+		require.Nil(t, cert)
+		require.Zero(t, oauthIntrospectCalls.Load())
+	})
+
+	// The CSR email and UPN are independent SAN entries, so binding the email alone still lets a
+	// caller name a victim in the UPN, which is the field 802.1X and AD-backed mTLS authenticate on.
+	t.Run("Request a certificate - host binding on, UPN naming another user is rejected", func(t *testing.T) {
+		svc, ds, ctx := deviceSetup(t, new(uint(1)))
+		appConfig.Integrations.CertificatesRequireHostEndUserBinding = optjson.SetBool(true)
+		// badCSR: email=badactor@example.com, UPN=fleetie@example.com.
+		ds.ListHostDeviceMappingFunc = func(ctx context.Context, hostID uint) ([]*fleet.HostDeviceMapping, error) {
+			return []*fleet.HostDeviceMapping{{HostID: hostID, Email: "badactor@example.com", Source: fleet.DeviceMappingIDP}}, nil
+		}
+
+		cert, err := svc.RequestCertificate(ctx, fleet.RequestCertificatePayload{
+			ID:  hydrantCA.ID,
+			CSR: badCSR,
+		})
+		require.ErrorContains(t, err, "does not match the end user identity recorded for this host")
+		require.Nil(t, cert)
+	})
+
+	// The documented shorthand: an IdP username of bob@example.com may appear as UPN bob.
+	t.Run("Request a certificate - host binding on, UPN that is a prefix of the email succeeds", func(t *testing.T) {
+		svc, ds, ctx := deviceSetup(t, new(uint(1)))
+		appConfig.Integrations.CertificatesRequireHostEndUserBinding = optjson.SetBool(true)
+		ds.ListHostDeviceMappingFunc = func(ctx context.Context, hostID uint) ([]*fleet.HostDeviceMapping, error) {
+			return []*fleet.HostDeviceMapping{{HostID: hostID, Email: "fleetie@example.com", Source: fleet.DeviceMappingIDP}}, nil
+		}
+
+		cert, err := svc.RequestCertificate(ctx, fleet.RequestCertificatePayload{
+			ID:  hydrantCA.ID,
+			CSR: prefixUPNCSR,
+		})
+		require.NoError(t, err)
+		require.NotNil(t, cert)
+	})
+
+	// Fail closed, as the missing-email case does. Every documented CSR recipe includes a UPN and
+	// the binding is opt-in, so a CSR without one cannot be bound and is refused.
+	t.Run("Request a certificate - host binding on, CSR without a UPN is rejected", func(t *testing.T) {
+		svc, ds, ctx := deviceSetup(t, new(uint(1)))
+		appConfig.Integrations.CertificatesRequireHostEndUserBinding = optjson.SetBool(true)
+		ds.ListHostDeviceMappingFunc = func(ctx context.Context, hostID uint) ([]*fleet.HostDeviceMapping, error) {
+			return []*fleet.HostDeviceMapping{{HostID: hostID, Email: "fleetie@example.com", Source: fleet.DeviceMappingIDP}}, nil
+		}
+
+		cert, err := svc.RequestCertificate(ctx, fleet.RequestCertificatePayload{
+			ID:  hydrantCA.ID,
+			CSR: noUPNCSR,
+		})
+		require.ErrorAs(t, err, &invalidCSR)
+		require.Nil(t, cert)
+	})
+
+	t.Run("Request a certificate - host binding on, host with no recorded identity is rejected", func(t *testing.T) {
+		// Fail-closed: stops a host enrolled with a leaked secret even holding a valid token.
+		svc, _, ctx := deviceSetup(t, new(uint(1)))
+		appConfig.Integrations.CertificatesRequireHostEndUserBinding = optjson.SetBool(true)
+		setAllowlist(t, introspectURL, "test-client-id")
+
+		cert, err := svc.RequestCertificate(ctx, fleet.RequestCertificatePayload{
+			ID:          hydrantCA.ID,
+			CSR:         goodCSR,
+			IDPOauthURL: new(introspectURL),
+			IDPToken:    new("test-idp-token"),
+			IDPClientID: new("test-client-id"),
+		})
+		require.ErrorContains(t, err, "does not match the end user identity recorded for this host")
+		require.Nil(t, cert)
+	})
+
+	// A host can have device mapping while still having no IdP identity: GetEndUsers returns one
+	// record whose other emails are populated but whose IdP username is empty. That is not an
+	// identity to bind to, so it is refused like a host with no record at all.
+	t.Run("Request a certificate - host binding on, host with only non-IdP emails is rejected", func(t *testing.T) {
+		svc, ds, ctx := deviceSetup(t, new(uint(1)))
+		appConfig.Integrations.CertificatesRequireHostEndUserBinding = optjson.SetBool(true)
+		ds.ListHostDeviceMappingFunc = func(ctx context.Context, hostID uint) ([]*fleet.HostDeviceMapping, error) {
+			return []*fleet.HostDeviceMapping{
+				{HostID: hostID, Email: "fleetie@example.com", Source: fleet.DeviceMappingCustomOverride},
+			}, nil
+		}
+
+		cert, err := svc.RequestCertificate(ctx, fleet.RequestCertificatePayload{
+			ID:  hydrantCA.ID,
+			CSR: goodCSR,
+		})
+		require.ErrorContains(t, err, "does not match the end user identity recorded for this host")
+		require.Nil(t, cert)
+	})
+
+	t.Run("Request a certificate - host binding on, CSR without an email address is rejected", func(t *testing.T) {
+		svc, ds, ctx := deviceSetup(t, new(uint(1)))
+		appConfig.Integrations.CertificatesRequireHostEndUserBinding = optjson.SetBool(true)
+		// The recorded identity matches the CSR's UPN, so only the missing SAN email can fail this.
+		ds.ListHostDeviceMappingFunc = func(ctx context.Context, hostID uint) ([]*fleet.HostDeviceMapping, error) {
+			return []*fleet.HostDeviceMapping{{HostID: hostID, Email: "fleetie@example.com", Source: fleet.DeviceMappingIDP}}, nil
+		}
+
+		cert, err := svc.RequestCertificate(ctx, fleet.RequestCertificatePayload{
+			ID:  hydrantCA.ID,
+			CSR: noEmailCSR,
+		})
+		require.ErrorAs(t, err, &invalidCSR)
+		require.Nil(t, cert)
+	})
+
+	// GetEndUsers only falls back to device mapping when there is no SCIM record, so the SCIM
+	// username is the only candidate once one exists.
+	t.Run("Request a certificate - host binding on, a SCIM record supersedes device mapping", func(t *testing.T) {
+		svc, ds, ctx := deviceSetup(t, new(uint(1)))
+		appConfig.Integrations.CertificatesRequireHostEndUserBinding = optjson.SetBool(true)
+		ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
+			return &fleet.ScimUser{UserName: "someone-else@example.com"}, nil
+		}
+		ds.ListHostDeviceMappingFunc = func(ctx context.Context, hostID uint) ([]*fleet.HostDeviceMapping, error) {
+			return []*fleet.HostDeviceMapping{{HostID: hostID, Email: "fleetie@example.com", Source: fleet.DeviceMappingIDP}}, nil
+		}
+
+		cert, err := svc.RequestCertificate(ctx, fleet.RequestCertificatePayload{
+			ID:  hydrantCA.ID,
+			CSR: goodCSR,
+		})
+		require.ErrorContains(t, err, "does not match the end user identity recorded for this host")
+		require.Nil(t, cert)
+	})
+
+	t.Run("Request a certificate - host binding on, both controls apply", func(t *testing.T) {
+		svc, ds, ctx := deviceSetup(t, new(uint(1)))
+		appConfig.Integrations.CertificatesRequireHostEndUserBinding = optjson.SetBool(true)
+		setAllowlist(t, introspectURL, "test-client-id")
+		ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
+			return &fleet.ScimUser{UserName: "fleetie@example.com"}, nil
+		}
+
+		cert, err := svc.RequestCertificate(ctx, fleet.RequestCertificatePayload{
+			ID:          hydrantCA.ID,
+			CSR:         goodCSR,
+			IDPOauthURL: new(introspectURL),
+			IDPToken:    new("test-idp-token"),
+			IDPClientID: new("test-client-id"),
+		})
+		require.NoError(t, err)
+		require.NotNil(t, cert)
+	})
+
+	t.Run("Request a certificate - host binding on, token-authenticated request falls back to the allowlist", func(t *testing.T) {
+		// No host on the token path, so binding cannot apply; the Linux flow must keep working.
+		svc, _, ctx := baseSetupForTests()
+		appConfig.Integrations.CertificatesRequireHostEndUserBinding = optjson.SetBool(true)
+		setAllowlist(t, introspectURL, "test-client-id")
+
+		cert, err := svc.RequestCertificate(ctx, fleet.RequestCertificatePayload{
+			ID:          hydrantCA.ID,
+			CSR:         goodCSR,
+			IDPOauthURL: new(introspectURL),
+			IDPToken:    new("test-idp-token"),
+			IDPClientID: new("test-client-id"),
+		})
+		require.NoError(t, err)
+		require.NotNil(t, cert)
+	})
+
 	t.Run("Request a certificate - return_pem_certificate false preserves PKCS7 wrapping", func(t *testing.T) {
-		svc, ctx := baseSetupForTests()
+		svc, _, ctx := baseSetupForTests()
 
 		cert, err := svc.RequestCertificate(ctx, fleet.RequestCertificatePayload{
 			ID:                   hydrantCA.ID,

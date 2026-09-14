@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -491,8 +492,96 @@ type Integrations struct {
 	Zendesk         []*ZendeskIntegration         `json:"zendesk"`
 	GoogleCalendar  []*GoogleCalendarIntegration  `json:"google_calendar"`
 	GoogleWorkspace []*GoogleWorkspaceIntegration `json:"google_workspace,omitempty"`
+	// CertificatesIdPIntrospectionURLs and CertificatesIdPClientIDs allowlist the OAuth 2.0 token introspection endpoints
+	// and client IDs permitted to vouch for certificate requests. While both are empty, IdP
+	// verification stays optional. Once either is populated, IdP fields become mandatory and each
+	// populated list constrains its field.
+	CertificatesIdPIntrospectionURLs optjson.Slice[string] `json:"certificates_idp_introspection_urls"`
+	CertificatesIdPClientIDs         optjson.Slice[string] `json:"certificates_idp_client_ids"`
+	// CertificatesRequireHostEndUserBinding requires device-authenticated certificate requests to match the
+	// calling host's recorded end-user identity. Fails closed on a host with no recorded identity.
+	CertificatesRequireHostEndUserBinding optjson.Bool `json:"certificates_require_host_end_user_binding"`
 	// ConditionalAccessEnabled indicates whether conditional access is enabled/disabled for "No team".
 	ConditionalAccessEnabled optjson.Bool `json:"conditional_access_enabled"`
+}
+
+// CheckCertIdPIntrospection enforces the certificate request IdP rules against one request. The
+// three credentials must be supplied together or not at all: a partial set would clear the
+// allowlists on the fields it does carry and then skip verification entirely, because the caller
+// path only introspects once all three are present.
+//
+// It reports whether a complete set was supplied, which is what the caller gates introspection on.
+//
+// While both allowlists are empty the feature is off and a request carrying no credentials passes.
+// Once either list is populated, credentials become mandatory and each populated list constrains
+// its own field. Nil means the caller omitted that field.
+func (i Integrations) CheckCertIdPIntrospection(introspectionURL, token, clientID *string) (provided bool, err error) {
+	provided = introspectionURL != nil && token != nil && clientID != nil
+	isPartial := introspectionURL != nil || token != nil || clientID != nil
+	if !provided && isPartial {
+		return false, &BadRequestError{
+			Message: "IDP Client ID, Token, and OAuth URL all must be provided, if any are provided when requesting a certificate.",
+		}
+	}
+
+	urls := i.CertificatesIdPIntrospectionURLs.Value
+	clientIDs := i.CertificatesIdPClientIDs.Value
+	if len(urls) == 0 && len(clientIDs) == 0 {
+		return provided, nil
+	}
+
+	// Mandatory, not merely constrained: otherwise a caller omits the fields and skips the check.
+	if !provided {
+		return false, &BadRequestError{Message: "IdP verification is required by this Fleet server."}
+	}
+	if len(urls) > 0 && !slices.Contains(urls, *introspectionURL) {
+		return false, NewPermissionError("IdP introspection endpoint is not permitted.")
+	}
+	if len(clientIDs) > 0 && !slices.Contains(clientIDs, *clientID) {
+		return false, NewPermissionError("IdP client ID is not permitted.")
+	}
+	return true, nil
+}
+
+// ValidateCertIdPIntrospectionAllowlists trims entries in place and reports empty, malformed, or
+// duplicate ones.
+func ValidateCertIdPIntrospectionAllowlists(intgs *Integrations, invalid *InvalidArgumentError) {
+	// Entries are trimmed in place as they are visited, so everything before index i is already
+	// canonical and scanning that prefix finds duplicates without separate bookkeeping. These
+	// lists hold a handful of entries, so the quadratic scan beats building a set.
+	urls := intgs.CertificatesIdPIntrospectionURLs.Value
+	for i := range urls {
+		urls[i] = strings.TrimSpace(urls[i])
+		u := urls[i]
+		switch {
+		case u == "":
+			invalid.Append("integrations.certificates_idp_introspection_urls", "url cannot be empty")
+		case !isAbsoluteHTTPSURL(u):
+			invalid.Append("integrations.certificates_idp_introspection_urls", fmt.Sprintf("%q must be an absolute https URL", u))
+		case slices.Contains(urls[:i], u):
+			invalid.Append("integrations.certificates_idp_introspection_urls", fmt.Sprintf("duplicate url %s", u))
+		}
+	}
+
+	clientIDs := intgs.CertificatesIdPClientIDs.Value
+	for i := range clientIDs {
+		clientIDs[i] = strings.TrimSpace(clientIDs[i])
+		id := clientIDs[i]
+		switch {
+		case id == "":
+			invalid.Append("integrations.certificates_idp_client_ids", "client ID cannot be empty")
+		case slices.Contains(clientIDs[:i], id):
+			invalid.Append("integrations.certificates_idp_client_ids", fmt.Sprintf("duplicate client ID %s", id))
+		}
+	}
+}
+
+func isAbsoluteHTTPSURL(rawURL string) bool {
+	parsed, err := url.ParseRequestURI(rawURL)
+	if err != nil || parsed == nil {
+		return false
+	}
+	return parsed.Scheme == "https" && parsed.Host != ""
 }
 
 // IsGoogleWorkspaceConfigured reports whether a Google Workspace IdP integration

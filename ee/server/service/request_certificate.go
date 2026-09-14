@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/httpsig"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -28,10 +29,24 @@ func (svc *Service) RequestCertificate(ctx context.Context, p fleet.RequestCerti
 		// This shouldn't be possible
 		return nil, &fleet.BadRequestError{Message: "Missing authentication authorization context"}
 	}
+
+	var hostID *uint
+
 	if auth.AuthnMethod() == authz.AuthnHTTPMessageSignature {
-		// Message Signature auth is not granular, device already checked and authorized in middleware
+		// Device-auth path
 		svc.authz.SkipAuthorization(ctx)
+
+		hostIdentityCert, certOk := httpsig.FromContext(ctx)
+		if !certOk {
+			return nil, fleet.NewPermissionError("Missing host identity certificate for signed certificate request.")
+		}
+		if hostIdentityCert.HostID == nil {
+			return nil, fleet.NewPermissionError("Host identity certificate is not associated with an enrolled host.")
+		}
+		hostID = hostIdentityCert.HostID
+
 	} else if err := svc.authz.Authorize(ctx, &fleet.RequestCertificatePayload{}, fleet.ActionWrite); err != nil {
+		// User-based auth path
 		return nil, err
 	}
 
@@ -58,24 +73,47 @@ func (svc *Service) RequestCertificate(ctx context.Context, p fleet.RequestCerti
 			return nil, &fleet.BadRequestError{Message: "Certificate authority does not have a password configured."}
 		}
 	}
+
 	certificateRequest, err := svc.parseCSR(ctx, p.CSR)
 	if err != nil {
 		svc.logger.ErrorContext(ctx, "Failed to parse CSR during certificate request", "err", err)
 		return nil, InvalidCSRError{}
 	}
 
-	idpUsername := ""
-	if p.IDPClientID != nil || p.IDPToken != nil || p.IDPOauthURL != nil {
-		if p.IDPClientID == nil || p.IDPToken == nil || p.IDPOauthURL == nil {
-			return nil, &fleet.BadRequestError{Message: "IDP Client ID, Token, and OAuth URL all must be provided, if any are provided when requesting a certificate."}
-		}
+	appConfig, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "loading app config for certificate request")
+	}
 
-		csrEmail, csrUsername, err := svc.extractCSRUserInfo(ctx, certificateRequest)
+	idpProvided, err := appConfig.Integrations.CheckCertIdPIntrospection(p.IDPOauthURL, p.IDPToken, p.IDPClientID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Both identity checks bind to the CSR's single email address and to the UPN it must agree
+	// with. A CSR missing either cannot be bound, so it is refused rather than partly checked.
+	var csrEmail, csrUsername string
+	bindHost := appConfig.Integrations.CertificatesRequireHostEndUserBinding.Value && hostID != nil
+
+	if bindHost || idpProvided {
+		csrEmail, csrUsername, err = svc.extractCSRUserInfo(ctx, certificateRequest)
 		if err != nil {
-			svc.logger.ErrorContext(ctx, "CSR did not have expected format for IDP verification", "err", err)
+			svc.logger.ErrorContext(ctx, "CSR did not have expected format for identity verification", "err", err)
 			return nil, InvalidCSRError{}
 		}
+	}
 
+	// Runs before introspection: a pure DB lookup, so a request that cannot pass it never reaches
+	// the network.
+	if bindHost {
+		if err := svc.verifyHostEndUserBinding(ctx, *hostID, csrEmail, csrUsername); err != nil {
+			svc.logger.ErrorContext(ctx, "Failing Certificate Request due to host end user binding", "host_id", *hostID, "err", err)
+			return nil, err
+		}
+	}
+
+	idpUsername := ""
+	if idpProvided {
 		introspectionResponse, err := svc.introspectIDPToken(ctx, *p.IDPClientID, *p.IDPToken, *p.IDPOauthURL)
 		if err != nil {
 			svc.logger.ErrorContext(ctx, "Failed to introspect IDP token during certificate request", "idp_url", *p.IDPOauthURL, "err", err)
@@ -151,6 +189,37 @@ func (svc *Service) RequestCertificate(ctx context.Context, p fleet.RequestCerti
 	// support CAs other than Hydrant/EST in this API, this may need to be modified to be aware of
 	// their formats.
 	return new("-----BEGIN PKCS7-----\n" + string(certificate.Certificate) + "\n-----END PKCS7-----\n"), nil
+}
+
+// verifyHostEndUserBinding requires the CSR to name the identity the calling host is recorded as
+// belonging to. It fails closed: a host with no recorded IdP username is rejected, which is what
+// stops a host enrolled with a leaked enroll secret even when it holds a valid stolen token.
+func (svc *Service) verifyHostEndUserBinding(ctx context.Context, hostID uint, csrEmail, csrUsername string) error {
+	mismatch := fleet.NewPermissionError("Certificate subject does not match the end user identity recorded for this host.")
+
+	// The UPN is a SAN entry independent of the email, and it is the field 802.1X and AD-backed
+	// mTLS authenticate on, so binding the email alone would still let a caller name a victim
+	// there. Require the relationship the IdP path documents: the UPN is the email or a shorthand
+	// prefix of it, which binds the UPN transitively once the email is bound below.
+	if !strings.HasPrefix(strings.ToLower(csrEmail), strings.ToLower(csrUsername)) {
+		return mismatch
+	}
+
+	endUsers, err := fleet.GetEndUsers(ctx, svc.ds, hostID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting end users for host end user binding")
+	}
+	// GetEndUsers returns at most one record, the SCIM one where it exists and otherwise one built
+	// from device mapping, so index zero is the host's identity. Same shape as the Fleet variable
+	// expansion in certificate_templates.go and profile_variables.go.
+	if len(endUsers) == 0 || endUsers[0].IdpUserName == "" {
+		return mismatch
+	}
+	// Case-insensitive, as IdPs treat usernames and as SetHostDeviceMapping compares this field.
+	if !strings.EqualFold(endUsers[0].IdpUserName, csrEmail) {
+		return mismatch
+	}
+	return nil
 }
 
 // pkcs7EnvelopeToPEM converts a base64-encoded PKCS7 envelope (as returned by an EST
@@ -233,38 +302,34 @@ func (svc *Service) parseCSR(ctx context.Context, csr string) (*x509.Certificate
 }
 
 // Extract email and UPN fields from the provided CSR. Assumes there is exactly 1 email and that there is a UPN SAN extension, will
-// error otherwise
+// error otherwise. More than one email is rejected rather than picked between: every identity
+// check binds to this address, so an ambiguous CSR has no answer.
 func (svc *Service) extractCSRUserInfo(ctx context.Context, req *x509.CertificateRequest) (string, string, error) {
 	if len(req.EmailAddresses) < 1 {
 		return "", "", ctxerr.New(ctx, "CSR does not contain an email address")
 	}
-
 	if len(req.EmailAddresses) > 1 {
 		return "", "", ctxerr.Errorf(ctx, "CSR contains %d email addresses, only 1 is supported", len(req.EmailAddresses))
 	}
-	csrEmail := req.EmailAddresses[0]
 
-	upn, err := extractCSRUPN(req)
+	upn, err := extractCSRUPN(ctx, req)
 	if err != nil {
 		return "", "", ctxerr.Wrap(ctx, err, "failed to extract UPN from CSR")
 	}
-	if upn == nil {
-		return "", "", ctxerr.New(ctx, "CSR does not contain a UPN")
-	}
 
-	return csrEmail, *upn, nil
+	return req.EmailAddresses[0], upn, nil
 }
 
 // The go standard library does not provide a way to extract the UPN from a CSR, so we must do it
 // manually by first finding the SAN extension then looking in othernames for the UPN and parsing it.
-func extractCSRUPN(csr *x509.CertificateRequest) (*string, error) {
+func extractCSRUPN(ctx context.Context, csr *x509.CertificateRequest) (string, error) {
 	sanOID := asn1.ObjectIdentifier{2, 5, 29, 17}
 	upnOID := asn1.ObjectIdentifier{1, 3, 6, 1, 4, 1, 311, 20, 2, 3}
 	for _, ext := range csr.Extensions {
 		if ext.Id.Equal(sanOID) {
 			nameValues := []asn1.RawValue{}
 			if _, err := asn1.Unmarshal(ext.Value, &nameValues); err != nil {
-				return nil, fmt.Errorf("failed to unmarshal SAN extension: %w", err)
+				return "", fmt.Errorf("failed to unmarshal SAN extension: %w", err)
 			}
 			for _, names := range nameValues {
 				// We are looking for the othernames(tag 0) in the SAN extension
@@ -275,31 +340,30 @@ func extractCSRUPN(csr *x509.CertificateRequest) (*string, error) {
 					remainingBytes := names.Bytes
 					// This will be a sequence of OID-value pairs that we must parse
 					for len(remainingBytes) > 0 {
-						remainingBytes, err = asn1.Unmarshal(names.Bytes, &oid)
+						remainingBytes, err = asn1.Unmarshal(remainingBytes, &oid)
 						if err != nil {
-							return nil, fmt.Errorf("failed to unmarshal othername OID: %w", err)
+							return "", fmt.Errorf("failed to unmarshal othername OID: %w", err)
 						}
 						// I am not sure what this would indicate. Perhaps a malformed CSR?
 						if len(remainingBytes) == 0 {
-							return nil, fmt.Errorf("unexpected end of input bytes after unmarshalling othername OID %s but before unmarshaling value", oid.String())
+							return "", fmt.Errorf("unexpected end of input bytes after unmarshalling othername OID %s but before unmarshaling value", oid.String())
 						}
 						remainingBytes, err = asn1.Unmarshal(remainingBytes, &rawValue)
 						if err != nil {
-							return nil, fmt.Errorf("failed to unmarshal othername value: %w", err)
+							return "", fmt.Errorf("failed to unmarshal othername value: %w", err)
 						}
 						if oid.Equal(upnOID) {
 							// Unmarshal the raw value into a string
 							var upn asn1.RawValue
 							if _, err := asn1.Unmarshal(rawValue.Bytes, &upn); err != nil {
-								return nil, fmt.Errorf("failed to unmarshal UPN value: %w", err)
+								return "", fmt.Errorf("failed to unmarshal UPN value: %w", err)
 							}
-							upnString := string(upn.Bytes)
-							return &upnString, nil
+							return string(upn.Bytes), nil
 						}
 					}
 				}
 			}
 		}
 	}
-	return nil, nil // No UPN found
+	return "", ctxerr.New(ctx, "CSR does not contain a UPN")
 }

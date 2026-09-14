@@ -58,6 +58,9 @@ host_expiry_settings:
   host_expiry_enabled: false
   host_expiry_window: 59995
 integrations:
+  certificates_idp_client_ids:
+  certificates_idp_introspection_urls:
+  certificates_require_host_end_user_binding:
   conditional_access_enabled: true
   google_calendar:
     - api_key_json:

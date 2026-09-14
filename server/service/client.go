@@ -2385,6 +2385,15 @@ func (c *Client) DoGitOps(
 		if conditionalAccessEnabled, ok := integrations.(map[string]interface{})["conditional_access_enabled"]; !ok || conditionalAccessEnabled == nil {
 			integrations.(map[string]interface{})["conditional_access_enabled"] = false
 		}
+		if idpURLs, ok := integrations.(map[string]any)["certificates_idp_introspection_urls"]; !ok || idpURLs == nil {
+			integrations.(map[string]any)["certificates_idp_introspection_urls"] = []any{}
+		}
+		if idpClientIDs, ok := integrations.(map[string]any)["certificates_idp_client_ids"]; !ok || idpClientIDs == nil {
+			integrations.(map[string]any)["certificates_idp_client_ids"] = []any{}
+		}
+		if requireHostEndUserBinding, ok := integrations.(map[string]any)["certificates_require_host_end_user_binding"]; !ok || requireHostEndUserBinding == nil {
+			integrations.(map[string]any)["certificates_require_host_end_user_binding"] = false
+		}
 		// ensure that legacy certificate authorities are not set in integrations
 		if _, ok := integrations.(map[string]interface{})["ndes_scep_proxy"]; ok {
 			return nil, errors.New("org_settings.integrations.ndes_scep_proxy is not supported, please use org_settings.certificate_authorities.ndes_scep_proxy instead")

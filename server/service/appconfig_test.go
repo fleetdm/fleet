@@ -249,6 +249,57 @@ func TestModifyAppConfigVulnExposureFilters(t *testing.T) {
 	})
 }
 
+func TestModifyAppConfigIdPIntrospection(t *testing.T) {
+	setup := func(t *testing.T, tier string, ds *mock.Store) (fleet.Service, context.Context) {
+		cfg := config.TestConfig()
+		svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil, &TestServerOpts{
+			License: &fleet.LicenseInfo{Tier: tier},
+		})
+		ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
+		stored := &fleet.AppConfig{
+			OrgInfo:        fleet.OrgInfo{OrgName: "Test"},
+			ServerSettings: fleet.ServerSettings{ServerURL: "https://example.org"},
+		}
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return stored.Copy(), nil
+		}
+		ds.SaveAppConfigFunc = func(ctx context.Context, conf *fleet.AppConfig) error {
+			*stored = *conf
+			return nil
+		}
+		ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) { return nil, nil }
+		ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) { return nil, nil }
+		return svc, ctx
+	}
+
+	// The whitespace matters: only the validator trims it, so the premium assertions below double
+	// as proof that it is wired into ModifyAppConfig. Its individual rules, and the certificate
+	// request behavior these settings drive, are covered in their own packages.
+	const body = `{"integrations":{"certificates_idp_introspection_urls":["  https://Company.Okta.com:443/oauth2/v1/introspect/  "],"certificates_idp_client_ids":[" abc "],"certificates_require_host_end_user_binding":true}}`
+
+	// Free tier rejects each of the three settings by name, and saves nothing.
+	freeDS := new(mock.Store)
+	freeSvc, freeCtx := setup(t, fleet.TierFree, freeDS)
+	_, err := freeSvc.ModifyAppConfig(freeCtx, []byte(body), fleet.ApplySpecOptions{})
+	// Error() reports only the first entry plus a count, and InvalidArgument keeps its fields
+	// unexported, so format the list to assert every setting was named.
+	invalid := new(fleet.InvalidArgumentError)
+	require.ErrorAs(t, err, &invalid)
+	rejected := fmt.Sprintf("%+v", invalid.Errors)
+	require.Contains(t, rejected, "integrations.certificates_idp_introspection_urls")
+	require.Contains(t, rejected, "integrations.certificates_idp_client_ids")
+	require.Contains(t, rejected, "integrations.certificates_require_host_end_user_binding")
+	require.False(t, freeDS.SaveAppConfigFuncInvoked)
+
+	// Premium accepts them, and stores the URL as given rather than canonicalized.
+	premiumSvc, premiumCtx := setup(t, fleet.TierPremium, new(mock.Store))
+	saved, err := premiumSvc.ModifyAppConfig(premiumCtx, []byte(body), fleet.ApplySpecOptions{})
+	require.NoError(t, err)
+	require.Equal(t, []string{"https://Company.Okta.com:443/oauth2/v1/introspect/"}, saved.Integrations.CertificatesIdPIntrospectionURLs.Value)
+	require.Equal(t, []string{"abc"}, saved.Integrations.CertificatesIdPClientIDs.Value)
+	require.True(t, saved.Integrations.CertificatesRequireHostEndUserBinding.Value)
+}
+
 // TestVersion tests that all users can access the version endpoint.
 func TestVersion(t *testing.T) {
 	ds := new(mock.Store)
