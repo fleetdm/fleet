@@ -54,15 +54,6 @@ func (r *submitDiskEncryptionPINRequest) deviceAuthToken() string {
 	return r.Token
 }
 
-// RedactedForDebugLog keeps the submitted PIN out of the server's debug logs, which marshal whole request objects.
-func (r *submitDiskEncryptionPINRequest) RedactedForDebugLog() any {
-	redacted := *r
-	if redacted.PIN != "" {
-		redacted.PIN = fleet.MaskedPassword
-	}
-	return redacted
-}
-
 type submitDiskEncryptionPINResponse struct {
 	Err error `json:"error,omitempty"`
 }

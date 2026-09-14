@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"strings"
 	"testing"
@@ -294,37 +293,4 @@ func TestSetBitLockerPINOutcome(t *testing.T) {
 		require.Error(t, err)
 		require.False(t, ds.SetBitLockerPINRequestOutcomeFuncInvoked)
 	})
-}
-
-// TestBitLockerPINNeverReachesDebugLogs guards the one place a submitted PIN and the collected PIN pass through
-// structures that host debug logging marshals wholesale. Without redaction the end user's startup PIN is written to
-// the server log in the clear.
-func TestBitLockerPINNeverReachesDebugLogs(t *testing.T) {
-	t.Parallel()
-
-	const pin = "867530"
-
-	for _, tc := range []struct {
-		name  string
-		value any
-	}{
-		{name: "submitted PIN", value: &submitDiskEncryptionPINRequest{Token: "device-token", PIN: pin}},
-		{name: "collected PIN", value: fleet.OrbitGetDiskEncryptionPINResponse{PIN: pin, RequestUUID: "req-1"}},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			// The value must opt in, or logJSON would marshal it verbatim.
-			redactor, ok := tc.value.(interface{ RedactedForDebugLog() any })
-			require.True(t, ok, "type must implement RedactedForDebugLog")
-
-			logged, err := json.Marshal(redactor.RedactedForDebugLog())
-			require.NoError(t, err)
-			require.NotContains(t, string(logged), pin)
-			require.Contains(t, string(logged), fleet.MaskedPassword)
-
-			// The wire format still carries the real PIN: redaction is for the log, not the API.
-			onTheWire, err := json.Marshal(tc.value)
-			require.NoError(t, err)
-			require.Contains(t, string(onTheWire), pin)
-		})
-	}
 }

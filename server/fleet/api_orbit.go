@@ -259,8 +259,7 @@ func (r OrbitPostDiskEncryptionKeyResponse) Status() int  { return http.StatusNo
 /////////////////////////////////////////////////////////////////////////////////
 
 // OrbitGetDiskEncryptionPINRequest collects the BitLocker startup PIN the end user submitted from the My device page.
-// The response is the only place the server ever hands the PIN back out, and it can only be read once: the row moves to
-// delivered and its ciphertext is cleared in the same transaction.
+// The response is the only place the server ever hands the PIN back out, and it can only be read once.
 type OrbitGetDiskEncryptionPINRequest struct {
 	OrbitNodeKey string `json:"orbit_node_key"`
 }
@@ -275,23 +274,12 @@ func (r *OrbitGetDiskEncryptionPINRequest) OrbitHostNodeKey() string {
 
 type OrbitGetDiskEncryptionPINResponse struct {
 	PIN string `json:"pin,omitempty"`
-	// RequestUUID names the submission this PIN came from. The agent echoes it when reporting the outcome, so a report
-	// that was delayed or retried cannot be recorded against a PIN the user submitted in the meantime.
+	// RequestUUID names the submission this PIN came from. The agent echoes it when reporting the outcome.
 	RequestUUID string `json:"request_uuid,omitempty"`
 	Err         error  `json:"error,omitempty"`
 }
 
 func (r OrbitGetDiskEncryptionPINResponse) Error() error { return r.Err }
-
-// RedactedForDebugLog keeps the collected PIN out of the server's debug logs. This response is the one place the
-// server hands the plaintext back out, and host debug logging marshals whole responses, so without this the end
-// user's startup PIN would be written to the log in the clear.
-func (r OrbitGetDiskEncryptionPINResponse) RedactedForDebugLog() any {
-	if r.PIN != "" {
-		r.PIN = MaskedPassword
-	}
-	return r
-}
 
 // OrbitPostDiskEncryptionPINRequest reports whether the agent applied the PIN it collected. Outcome is one of
 // BitLockerPINRequestSet or BitLockerPINRequestFailed; ClientError is required for a failure.

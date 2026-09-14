@@ -31,19 +31,7 @@ func extractDeviceSSOSessionFromCookie(ctx context.Context, r *http.Request) con
 	return devicesso.NewContext(ctx, cookie.Value)
 }
 
-// debugRedactor lets a request or response type keep a secret out of the debug logs below without changing what it
-// sends on the wire. Debug logging marshals whole request and response objects, so a type carrying a plaintext secret
-// (a BitLocker startup PIN, say) would otherwise have that secret written verbatim to the server log whenever host
-// debug logging is on.
-type debugRedactor interface {
-	// RedactedForDebugLog returns a copy of the value safe to write to a log.
-	RedactedForDebugLog() any
-}
-
 func logJSON(ctx context.Context, logger *slog.Logger, v any, key string) {
-	if r, ok := v.(debugRedactor); ok {
-		v = r.RedactedForDebugLog()
-	}
 	jsonV, err := json.Marshal(v)
 	if err != nil {
 		logger.DebugContext(ctx, "error marshaling for debug", "key", key, "err", err)

@@ -781,8 +781,6 @@ func (a ActivityTypeCreatedManagedLocalAccount) WasFromAutomation() bool {
 }
 
 // ActivityTypeCreatedDiskEncryptionPIN records that the person at the keyboard set the host's BitLocker startup PIN.
-// It deliberately does not implement AutomatableActivity: Fleet applied the PIN, but the end user chose it, and
-// marking it fleet-initiated would attribute their action to Fleet.
 type ActivityTypeCreatedDiskEncryptionPIN struct {
 	HostID          uint   `json:"host_id"`
 	HostDisplayName string `json:"host_display_name"`

@@ -116,7 +116,7 @@ const (
 	CapabilityWindowsManagedLocalAccount Capability = "windows_managed_local_account"
 	// CapabilityWindowsBitLockerPIN is set when fleetd can apply an end-user-chosen BitLocker startup PIN to the volume
 	// on their behalf. The server only offers the PIN form, and only asks the agent for a PIN, when the host's most
-	// recent Windows MDM enrollment has reported this; hosts on older fleetd keep the Manage BitLocker instructions.
+	// recent Windows MDM enrollment has reported this; hosts on older fleetd keep the legacy Manage BitLocker instructions.
 	CapabilityWindowsBitLockerPIN Capability = "windows_bitlocker_pin"
 )
 
