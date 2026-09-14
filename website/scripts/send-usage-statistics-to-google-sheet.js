@@ -7,7 +7,7 @@ module.exports = {
   description: 'Replaces the contents of the usage statistics Google sheet with the latest usage statistics reported by Fleet Premium instances.',
 
 
-  extendedDescription: 'This script keeps the "Usage statistics (Fleet Premium only)" Google sheet up to date so the Customer Success team no longer needs to export dataclip results by hand. It is intended to be run daily by the Heroku scheduler.',
+  extendedDescription: 'This script keeps an internal Google sheet up to date with the latest reported usage statistics, replacing a manual monthly export. It is intended to be run daily by the Heroku scheduler.',
 
 
   fn: async function () {
@@ -17,8 +17,8 @@ module.exports = {
     require('assert')(sails.config.custom.usageStatisticsServiceAccountEmailAddress);
     require('assert')(sails.config.custom.usageStatisticsServiceAccountPrivateKey);
 
-    // Hardcoded to a test sheet while the Customer Success team fine-tunes the format. Once the format
-    // settles, this will point at the "Usage statistics (Fleet Premium only)" sheet everyone references.
+    // Hardcoded to a test sheet while the format is fine-tuned. Once the format settles, this will
+    // point at the sheet everyone references.
     const SPREADSHEET_ID = '1YVTgjabIHLt0bXAExMuxkOhFm1KPr0LhGHFiCDKmHRI';
 
     // Organizations reported by internal, development, and load testing instances.
