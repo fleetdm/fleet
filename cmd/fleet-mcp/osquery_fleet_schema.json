@@ -22512,6 +22512,122 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/privacy_preferences.yml"
   },
   {
+    "name": "privileges_events",
+    "platforms": [
+      "darwin"
+    ],
+    "description": "Audit events recorded by the [Privileges](https://github.com/SAP/macOS-enterprise-privileges) app's system extension. Includes admin rights granted or revoked (`ADMIN_ADD`, `ADMIN_REMOVE`) and tamper attempts on Privileges' own files and launchd jobs (`CLONE`, `CREATE`, `DELETE`, `RENAME`, `EXEC`), each with Endpoint Security details of the process that made the change.",
+    "examples": "Admin rights granted or revoked in the last 15 minutes, and which process made the change.\n\n```\nSELECT event_type, principal, subject, executable, signing_id, uid, responsible_pid FROM privileges_events WHERE last = '15m' AND event_type LIKE 'ADMIN_%';\n```\n\nAttempts to tamper with Privileges' own files in the last day.\n\n```\nSELECT event_type, subject, executable, signing_id, uid FROM privileges_events WHERE last = '1d' AND event_type NOT LIKE 'ADMIN_%';\n```",
+    "columns": [
+      {
+        "name": "event_type",
+        "type": "text",
+        "required": false,
+        "description": "`ADMIN_ADD` or `ADMIN_REMOVE` for changes to admin rights. `CLONE`, `CREATE`, `DELETE`, `RENAME`, or `EXEC` for tamper-protection events on Privileges' own files and launchd jobs."
+      },
+      {
+        "name": "principal",
+        "type": "text",
+        "required": false,
+        "description": "The user or group whose admin membership changed. The `subject` column says which. Empty for tamper-protection events."
+      },
+      {
+        "name": "subject",
+        "type": "text",
+        "required": false,
+        "description": "`user` or `group` for changes to admin rights. The affected file path for tamper-protection events."
+      },
+      {
+        "name": "executable",
+        "type": "text",
+        "required": false,
+        "description": "Path of the process that made the change, such as the Privileges daemon for changes made through the app, or a shell for command-line changes."
+      },
+      {
+        "name": "signing_id",
+        "type": "text",
+        "required": false,
+        "description": "Code signing identifier of the process that made the change."
+      },
+      {
+        "name": "team_id",
+        "type": "text",
+        "required": false,
+        "description": "Apple Developer Team ID of the process that made the change."
+      },
+      {
+        "name": "cdhash",
+        "type": "text",
+        "required": false,
+        "description": "Code directory hash of the process that made the change."
+      },
+      {
+        "name": "pid",
+        "type": "integer",
+        "required": false,
+        "description": "Process ID of the process that made the change."
+      },
+      {
+        "name": "ppid",
+        "type": "integer",
+        "required": false,
+        "description": "Parent process ID of the process that made the change."
+      },
+      {
+        "name": "uid",
+        "type": "integer",
+        "required": false,
+        "description": "Effective user ID of the process that made the change. `-1` when the process has no audit session, such as a daemon."
+      },
+      {
+        "name": "gid",
+        "type": "integer",
+        "required": false,
+        "description": "Effective group ID of the process that made the change. `-1` when the process has no audit session."
+      },
+      {
+        "name": "auid",
+        "type": "integer",
+        "required": false,
+        "description": "Audit user ID (the user who logged in) of the process that made the change. `-1` when the process has no audit session."
+      },
+      {
+        "name": "responsible_pid",
+        "type": "integer",
+        "required": false,
+        "description": "Process ID of the responsible process, such as the terminal app behind a shell."
+      },
+      {
+        "name": "is_platform_binary",
+        "type": "integer",
+        "required": false,
+        "description": "Value is 1 if the process that made the change is an Apple platform binary."
+      },
+      {
+        "name": "is_es_client",
+        "type": "integer",
+        "required": false,
+        "description": "Value is 1 if the process that made the change is an Endpoint Security client."
+      },
+      {
+        "name": "process_start_time",
+        "type": "text",
+        "required": false,
+        "description": "Start time of the process that made the change, in ISO 8601 format. This is not the time of the event. Privileges does not record a per-event timestamp."
+      },
+      {
+        "name": "last",
+        "type": "text",
+        "required": false,
+        "description": "Limits results to events in a time window before now, such as `15m`, `3h`, or `2d`. Use it in the WHERE clause. Without it, the full Privileges history is returned."
+      }
+    ],
+    "notes": "This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)). This table is from the [Mac Admins osquery extension](https://github.com/macadmins/osquery-extension).\n\n- Requires Privileges 2.6.0 or later with its system extension enabled. Hosts without Privileges, with an older version, or with the extension disabled return no rows.\n- Events are read from the unified log, which can take several seconds. Use a short `last` window in scheduled reports.",
+    "evented": false,
+    "url": "https://fleetdm.com/tables/privileges_events",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/privileges_events.yml"
+  },
+  {
     "name": "process_envs",
     "description": "A key/value table of environment variables for each process.",
     "url": "https://fleetdm.com/tables/process_envs",
