@@ -12,9 +12,9 @@ func init() {
 // host_one_time_enroll_secrets holds per-device, single-use enroll secrets
 // A secret is bound to the device identifiers captured at mint time. A host
 // has at most one unconsumed secret at a time (enforced by the minting code,
-// re-deliveries of the profile hand out that same secret until it is consumed
-// or an admin rotates it. Rows are retained after use (until superseded by a
-// newer secret for the same host or the host is deleted) so that a later attempt
+// re-deliveries of the profile hand out that same secret until it is consumed.
+// Rows are retained after use (until superseded by a newer secret for the same
+// host or the host is deleted) so that a later attempt
 // with a spent secret can be recognized and reported rather than treated as an
 // unknown secret.
 func Up_20260911142857(tx *sql.Tx) error {
