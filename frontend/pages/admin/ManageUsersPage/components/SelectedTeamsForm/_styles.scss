@@ -18,6 +18,8 @@
     font-weight: $bold;
     background-color: $ui-off-white;
     border-bottom: 1px solid $ui-fleet-black-10;
+    border-top-left-radius: $border-radius-large;
+    border-top-right-radius: $border-radius-large;
   }
 
   &__team-item {
