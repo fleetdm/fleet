@@ -152,8 +152,6 @@ Turning on both gives you ACME-only enrollment. That's a real trade-off:
   and run iOS/iPadOS 16 or later.
 - BYOD and Silent-Migration are off the table.
 
-Non-attesting Apple Business hardware, like Intel Macs, is blocked from
-enrolling at all when both settings are on.
 
 Hosts already enrolled that are no longer eligible stop renewing their
 certificate. They age out of MDM when the certificate expires. This includes
