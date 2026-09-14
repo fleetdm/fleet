@@ -1953,7 +1953,6 @@ const HostDetailsPage = ({
               hostPlatform={host.platform}
               hostName={host.display_name}
               enrollmentStatus={host.mdm.enrollment_status}
-              lastMdmEnrollmentType={host.last_mdm_enrollment_type}
               onlyAllowAppleBusinessEnrollment={
                 config?.mdm.only_allow_apple_business_enrollment || false
               }
