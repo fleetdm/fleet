@@ -283,6 +283,22 @@ describe("useFormValidation", () => {
     });
   });
 
+  describe("setFieldError", () => {
+    it("shows an error immediately, even on a pristine field", () => {
+      const { result } = setup();
+
+      act(() =>
+        result.current.setFieldError("password", "Re-enter your password")
+      );
+
+      expect(result.current.getError("password")).toBe(
+        "Re-enter your password"
+      );
+      expect(result.current.getError("name")).toBeUndefined();
+      expect(result.current.getError("email")).toBeUndefined();
+    });
+  });
+
   describe("handleSubmit", () => {
     const validData = {
       name: "  Alice  ",

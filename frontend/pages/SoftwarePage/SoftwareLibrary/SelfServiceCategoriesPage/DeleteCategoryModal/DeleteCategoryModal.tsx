@@ -1,11 +1,10 @@
 import React, { useState } from "react";
 
-import selfServiceCategoriesAPI from "services/entities/self_service_categories";
-import { ISelfServiceCategory } from "interfaces/self_service_category";
-
-import { notify } from "components/ToastNotification";
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
+import { notify } from "components/ToastNotification";
+import { ISelfServiceCategory } from "interfaces/self_service_category";
+import selfServiceCategoriesAPI from "services/entities/self_service_categories";
 
 const baseClass = "delete-category-modal";
 

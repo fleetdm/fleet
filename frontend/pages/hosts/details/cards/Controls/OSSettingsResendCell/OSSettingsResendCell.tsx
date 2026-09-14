@@ -1,18 +1,15 @@
-import React, { useState } from "react";
 import classnames from "classnames";
 import { noop } from "lodash";
+import React, { useState } from "react";
 
+import Button from "components/buttons/Button";
+import { notify } from "components/ToastNotification";
+import { getErrorReason } from "interfaces/errors";
+import { FLEET_ANDROID_CERTIFICATE_TEMPLATE_PROFILE_ID } from "interfaces/mdm";
 import {
   HOST_NAME_SYNTHETIC_PROFILE_UUID,
   REC_LOCK_SYNTHETIC_PROFILE_UUID,
 } from "pages/hosts/details/helpers";
-
-import { FLEET_ANDROID_CERTIFICATE_TEMPLATE_PROFILE_ID } from "interfaces/mdm";
-import { getErrorReason } from "interfaces/errors";
-
-import { notify } from "components/ToastNotification";
-import Button from "components/buttons/Button";
-import TooltipWrapper from "components/TooltipWrapper";
 
 import { IHostMdmProfileWithAddedStatus } from "../OSSettingsTableConfig";
 

@@ -1,10 +1,9 @@
 import React, { useCallback, useState } from "react";
 
-import mdmAbmAPI from "services/entities/mdm_apple_bm";
-
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
 import { notify } from "components/ToastNotification";
+import mdmAbmAPI from "services/entities/mdm_apple_bm";
 
 const baseClass = "delete-abm-modal";
 

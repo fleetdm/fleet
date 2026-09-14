@@ -26,7 +26,7 @@ func (svc *Service) NewMDMWindowsConfigProfile(ctx context.Context, teamID uint,
 		return nil, ctxerr.Wrap(ctx, err)
 	}
 
-	cp, usesFleetVars, teamName, err := svc.parseAndValidateWindowsConfigProfile(ctx, teamID, profileName, data, labelsInclude, labelsMembershipMode, labelsExcludeAny)
+	cp, usesFleetVars, teamName, err := svc.parseAndValidateWindowsConfigProfile(ctx, teamID, profileName, data, labelsInclude, labelsMembershipMode, labelsExcludeAny, "Couldn't add. ")
 	if err != nil {
 		return nil, err
 	}
@@ -64,7 +64,7 @@ func (svc *Service) NewMDMWindowsConfigProfile(ctx context.Context, teamID uint,
 // create and update paths. It returns the constructed profile (with labels
 // set), the Fleet variable names it uses, and the team's name (empty string
 // for no team).
-func (svc *Service) parseAndValidateWindowsConfigProfile(ctx context.Context, teamID uint, profileName string, data []byte, labelsInclude []string, labelsMembershipMode fleet.MDMLabelsMode, labelsExcludeAny []string) (*fleet.MDMWindowsConfigProfile, []fleet.FleetVarName, string, error) {
+func (svc *Service) parseAndValidateWindowsConfigProfile(ctx context.Context, teamID uint, profileName string, data []byte, labelsInclude []string, labelsMembershipMode fleet.MDMLabelsMode, labelsExcludeAny []string, errPrefix string) (*fleet.MDMWindowsConfigProfile, []fleet.FleetVarName, string, error) {
 	// check that Windows MDM is enabled - the middleware of that endpoint checks
 	// only that any MDM is enabled, maybe it's just macOS
 	if err := svc.VerifyMDMWindowsConfigured(ctx); err != nil {
@@ -112,7 +112,7 @@ func (svc *Service) parseAndValidateWindowsConfigProfile(ctx context.Context, te
 		if ix := strings.Index(msg, "To control these settings,"); ix >= 0 {
 			msg = strings.TrimSpace(msg[:ix])
 		}
-		err := &fleet.BadRequestError{Message: "Couldn't add. " + msg}
+		err := &fleet.BadRequestError{Message: errPrefix + msg}
 		return nil, nil, "", ctxerr.Wrap(ctx, err, "validate profile")
 	}
 
@@ -197,14 +197,9 @@ func (svc *Service) updateMDMWindowsConfigProfile(ctx context.Context, profileUU
 	var cp *fleet.MDMWindowsConfigProfile
 	var usesFleetVars []fleet.FleetVarName
 	if len(profile) > 0 {
-		// Content with no file name is not reachable from the endpoint; fall back
-		// rather than blanking the name.
-		newName := profileName
-		if newName == "" {
-			newName = existing.Name
-		}
-		// Validates the name too, so a rename onto a Fleet-reserved name is rejected.
-		cp, usesFleetVars, _, err = svc.parseAndValidateWindowsConfigProfile(ctx, teamID, newName, profile, labelsInclude, labelsMembershipMode, labelsExcludeAny)
+		// A blank or whitespace-only name must be rejected on update as well as
+		// create, so don't silently fall back to the existing name.
+		cp, usesFleetVars, _, err = svc.parseAndValidateWindowsConfigProfile(ctx, teamID, profileName, profile, labelsInclude, labelsMembershipMode, labelsExcludeAny, "Couldn't edit. ")
 		if err != nil {
 			return err
 		}

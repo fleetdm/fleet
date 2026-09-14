@@ -1,16 +1,16 @@
-import React from "react";
 import { addHours, isPast } from "date-fns";
+import React from "react";
 
-import InfoBanner from "components/InfoBanner";
 import Button from "components/buttons/Button";
-import { MacDiskEncryptionActionRequired } from "interfaces/host";
-import { IHostBannersBaseProps } from "pages/hosts/details/HostDetailsPage/components/HostDetailsBanners/HostDetailsBanners";
 import CustomLink from "components/CustomLink";
+import InfoBanner from "components/InfoBanner";
+import { MacDiskEncryptionActionRequired } from "interfaces/host";
+import { isAutomaticDeviceEnrollment } from "interfaces/mdm";
 import {
   isAppleDevice,
   isDiskEncryptionSupportedLinuxPlatform,
 } from "interfaces/platform";
-import { isAutomaticDeviceEnrollment } from "interfaces/mdm";
+import { IHostBannersBaseProps } from "pages/hosts/details/HostDetailsPage/components/HostDetailsBanners/HostDetailsBanners";
 import { INITIAL_FLEET_DATE } from "utilities/constants";
 
 const baseClass = "device-user-banners";

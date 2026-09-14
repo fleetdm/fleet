@@ -1,3 +1,4 @@
+import { find } from "lodash";
 import React, {
   createContext,
   useReducer,
@@ -5,12 +6,11 @@ import React, {
   useMemo,
   useCallback,
 } from "react";
-import { find } from "lodash";
 
-import { osqueryTables } from "utilities/osquery_tables";
+import { ILabelPolicy } from "interfaces/label";
 import { IOsQueryTable, DEFAULT_OSQUERY_TABLE } from "interfaces/osquery_table";
 import { CommaSeparatedPlatformString } from "interfaces/platform";
-import { ILabelPolicy } from "interfaces/label";
+import { osqueryTables } from "utilities/osquery_tables";
 
 enum ACTIONS {
   SET_LAST_EDITED_QUERY_INFO = "SET_LAST_EDITED_QUERY_INFO",

@@ -1,5 +1,5 @@
-import React, { useLayoutEffect, useRef, useState } from "react";
 import classnames from "classnames";
+import React, { useLayoutEffect, useRef, useState } from "react";
 
 import Button from "components/buttons/Button";
 import TooltipWrapper from "components/TooltipWrapper";
