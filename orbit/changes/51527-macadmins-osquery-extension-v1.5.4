@@ -1,3 +1,5 @@
 * Updated `macadmins/osquery-extension` to `v1.5.4`, which comes with the following changes:
+  * Fixed the `munki_info` table erroring on hosts where Munki reported items it could not install, which left those hosts without Munki version, errors, and warnings.
+  * Added `touchid_system_config` and `touchid_user_config` tables for macOS.
   * Added the `privileges_events` table for macOS, reporting admin privilege changes and tamper attempts recorded by SAP Privileges.
   * Fixed `macadmins_unified_log` returning an extra empty row at the end of every result.
