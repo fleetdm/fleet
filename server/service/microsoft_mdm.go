@@ -1300,7 +1300,9 @@ const (
 // cannot be processed. Expected non-trusted outcomes (for example
 // RequestAuthStateChallenge or RequestAuthStateUnauthorized) are reported via
 // the returned auth state and may return a nil error. The returned enrolled
-// device may be nil when the state is RequestAuthStateUntrusted.
+// device is always non-nil when the state is RequestAuthStateTrusted, and may
+// be nil for any other state; in particular it is nil for a
+// RequestAuthStateChallenge issued to an unknown DeviceID.
 func (svc *Service) isTrustedRequest(ctx context.Context, reqSyncML *fleet.SyncML, reqCerts []*x509.Certificate) (*fleet.MDMWindowsEnrolledDevice, requestAuthState, error) {
 	if reqSyncML == nil {
 		return nil, RequestAuthStateUntrusted, fleet.NewInvalidArgumentError("syncml req message", "message is not present")
