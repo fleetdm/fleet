@@ -10116,7 +10116,7 @@ As part of this request, Fleet generates a token w/ 1,000 year expiry for the sp
 
 | Name      | Type    | In    | Description                                                                                                                                  |
 | --------- | ------- | ----- | ---------------------------------------------------------------------------------------------------------------------------------------------|
-| fleet_id  | integer | query | _Available in Fleet Premium_. The ID of the fleet that hosts enrolled using this zero-touch configuration will be added to. If not specified, hosts will be added to "No fleet". |
+| fleet_id  | integer | query | _Available in Fleet Premium_. The ID of the fleet that hosts enrolled using this zero-touch configuration will be added to. If not specified, hosts will be added to "Unassigned". |
 
 #### Example
 
