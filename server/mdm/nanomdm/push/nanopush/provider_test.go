@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
@@ -57,7 +58,13 @@ func TestPushStalledErrorBody(t *testing.T) {
 	require.NoError(t, err)
 	tokenResp := responses["00aa"]
 	require.NotNil(t, tokenResp)
-	require.ErrorContains(t, tokenResp.Err, "Client.Timeout")
+	require.ErrorContains(t, tokenResp.Err, "push HTTP status: 400")
+	// assert a timeout semantically, not by message: depending on which of
+	// the client's two cancellation paths wins, the read error is either
+	// annotated with "Client.Timeout ..." or the bare context error
+	var netErr net.Error
+	require.ErrorAs(t, tokenResp.Err, &netErr)
+	require.True(t, netErr.Timeout(), "want timeout error, got: %v", tokenResp.Err)
 }
 
 func TestPush(t *testing.T) {
