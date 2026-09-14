@@ -4,17 +4,6 @@ _Available in Fleet Premium_
 
 This guide uses Fleet, but works with any MDM or tool that can deploy apps and run scripts on Linux: install the Okta Verify client and issue the device certificate Okta Verify uses for FastPass, so end users on Linux hosts can authenticate the same way they already do on macOS and Windows.
 
-This guide shows how to:
-1. Connect Fleet to Okta's certificate authority (CA).
-2. Install Okta Verify on Linux hosts at enrollment.
-3. Deploy the Okta Verify FastPass certificate with a script-only software package.
-
-## Prerequisites
-
-- Fleet Premium, with Linux hosts enrolled.
-- Admin access in both Okta and Fleet.
-- `fleetd` deployed with [scripts enabled](https://fleetdm.com/guides/scripts#enable-scripts).
-- The host has `openssl`, `sed`, `curl`, and `jq` installed.
 
 ## Step 1: Download Okta Verify for Linux
 
