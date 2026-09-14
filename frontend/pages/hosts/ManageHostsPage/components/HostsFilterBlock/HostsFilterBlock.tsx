@@ -20,7 +20,10 @@ import {
 } from "interfaces/mdm";
 import { IMunkiIssuesAggregate } from "interfaces/macadmins";
 import { IPolicy } from "interfaces/policy";
-import { SoftwareAggregateStatus } from "interfaces/software";
+import {
+  formatSoftwareVersion,
+  SoftwareAggregateStatus,
+} from "interfaces/software";
 import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
 
 import {
@@ -84,6 +87,8 @@ interface IHostsFilterBlockProps {
       name: string;
       display_name?: string;
       version?: string;
+      release?: string;
+      source?: string;
     } | null;
     mdmSolutionDetails: IMdmSolution | null;
     osSettingsStatus?: MdmProfileStatus;
@@ -358,7 +363,7 @@ const HostsFilterBlock = ({
     const { name, display_name, version } = softwareDetails;
     let label = getDisplayedSoftwareName(name, display_name);
     if (version) {
-      label += ` ${version}`;
+      label += ` ${formatSoftwareVersion({ ...softwareDetails, version })}`;
     }
 
     const clearParams = [

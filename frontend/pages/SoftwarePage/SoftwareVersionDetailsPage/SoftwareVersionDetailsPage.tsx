@@ -21,6 +21,7 @@ import hostsCountAPI, {
 import {
   ISoftwareVersion,
   formatSoftwareType,
+  formatSoftwareVersion,
   isIpadOrIphoneSoftwareSource,
   isAndroidSoftwareSource,
 } from "interfaces/software";
@@ -184,7 +185,7 @@ const SoftwareVersionDetailsPage = ({
                 displayName={`${getDisplayedSoftwareName(
                   softwareVersion.name,
                   softwareVersion.display_name
-                )}, ${softwareVersion.version}`}
+                )}, ${formatSoftwareVersion(softwareVersion)}`}
                 type={formatSoftwareType(softwareVersion)}
                 hostCount={hostsCount}
                 queryParams={{
