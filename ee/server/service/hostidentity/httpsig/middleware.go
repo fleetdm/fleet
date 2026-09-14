@@ -75,8 +75,7 @@ func Middleware(ds fleet.Datastore, requireSignature bool, logger *slog.Logger) 
 			if req.Header.Get("signature") == "" || req.Header.Get("signature-input") == "" {
 				if requireSignature {
 					handleError(req.Context(), w,
-						ctxerr.Errorf(req.Context(), "missing required HTTP message signature: path=%s", req.URL.Path),
-						http.StatusUnauthorized)
+						ctxerr.Errorf(req.Context(), "missing required HTTP message signature: path=%s", req.URL.Path))
 					return
 				}
 				next.ServeHTTP(w, req)
@@ -87,22 +86,19 @@ func Middleware(ds fleet.Datastore, requireSignature bool, logger *slog.Logger) 
 			result, err := verifier.Verify(req)
 			if err != nil {
 				handleError(req.Context(), w,
-					ctxerr.Wrap(req.Context(), err, "failed to verify request signature", fmt.Sprintf("path=%s", req.URL.Path)),
-					http.StatusUnauthorized)
+					ctxerr.Wrap(req.Context(), err, "failed to verify request signature", fmt.Sprintf("path=%s", req.URL.Path)))
 				return
 			}
 			keySpecer, ok := result.KeySpecer.(*KeySpecer)
 			if !ok {
 				handleError(req.Context(), w,
-					ctxerr.New(req.Context(), fmt.Sprintf("could not extract host identity certificate key: path=%s", req.URL.Path)),
-					http.StatusInternalServerError)
+					ctxerr.New(req.Context(), fmt.Sprintf("could not extract host identity certificate key: path=%s", req.URL.Path)))
 				return
 			}
 			if !result.Verified {
 				handleError(req.Context(), w,
 					ctxerr.New(req.Context(), fmt.Sprintf("request not verified: path=%s host_uuid=%s", req.URL.Path,
-						keySpecer.hostIdentityCert.CommonName)),
-					http.StatusUnauthorized)
+						keySpecer.hostIdentityCert.CommonName)))
 				return
 			}
 
@@ -115,7 +111,10 @@ func Middleware(ds fleet.Datastore, requireSignature bool, logger *slog.Logger) 
 	}, nil
 }
 
-func handleError(ctx context.Context, w http.ResponseWriter, err error, code int) {
+// handleError logs the detailed error server-side and returns a uniform
+// response so callers can't distinguish failure modes (unknown key ID,
+// invalid signature, etc.) or read internal detail.
+func handleError(ctx context.Context, w http.ResponseWriter, err error) {
 	ctxerr.Handle(ctx, err)
-	http.Error(w, err.Error(), code)
+	http.Error(w, "authentication failed", http.StatusUnauthorized)
 }
