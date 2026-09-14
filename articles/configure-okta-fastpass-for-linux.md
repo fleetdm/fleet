@@ -21,7 +21,7 @@ This guide uses Fleet, but works with any MDM or tool that can deploy apps and r
 
 ## Step 3: Install Okta Verify on Linux hosts at enrollment
 
-1. In Fleet, head to **Software**, choose the team, and select **Add software > Custom package** to upload the Okta Verify `.deb` file you downloaded in Step 1.
+1. In Fleet, head to **Software**, choose a fleet, and select **Add software > Custom package** to upload the Okta Verify `.deb` file you downloaded in Step 1.
 2. Head to **Controls > Setup experience > Install software**, select the **Linux** tab, and check **Okta Verify** so it installs automatically on every Linux host as it enrolls.
 
 ## Step 4: Deploy the FastPass certificate with a script-only package
