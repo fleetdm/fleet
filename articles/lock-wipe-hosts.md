@@ -156,12 +156,8 @@ Configuration profile installations and other MDM command types cannot be cancel
 
 ### Platform support
 
-Canceling only applies to Apple MDM commands, so it doesn't cover every platform or every action:
-
-- **Lock on Windows and Linux** runs as a [script](#lock-a-host) rather than an MDM command. There's no way to cancel a pending script run once it's sent.
-- **Wipe on Windows** uses a native MDM command (`doWipeProtected`/`doWipe`), but canceling it isn't supported yet.
-- **Wipe on Linux** runs as a [script](#linux-wipe-behavior) rather than an MDM command, so there's nothing to cancel here either.
-- **Lock, wipe, and clear passcode on Android** use the Android Management API rather than Apple's MDM protocol. Canceling isn't supported yet.
+- **Lock on Windows and Linux, and wipe on Linux** run as scripts, not MDM commands. Cancel them the same way: **Host details > Activity > Upcoming > Cancel**, or `DELETE /api/v1/fleet/hosts/:id/activities/upcoming/:activity_id` using the script's execution ID.
+- **Wipe on Windows** and **lock, wipe, and clear passcode on Android** aren't cancelable yet.
 
 ### Cancel from the UI
 
