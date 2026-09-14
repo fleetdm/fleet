@@ -109,9 +109,9 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
     async (abmToken: IMdmAbToken) => {
       try {
         await mdmAbmAPI.updateTokenDefault(abmToken.id, !abmToken.default);
-        notify.success("Successfully updated primary token.");
+        notify.success("Successfully updated default token.");
       } catch (e) {
-        notify.error("Couldn't set primary token. Please try again.", {
+        notify.error("Couldn't update default token. Please try again.", {
           response: e,
         });
       }
