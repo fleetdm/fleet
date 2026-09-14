@@ -78,9 +78,6 @@ const IosIpadosPanel = ({
             onChange={() => setEnrollmentType("companyOwned")}
           />
         </fieldset>
-        <h3 className="platform-wrapper__panel-heading">
-          Enrollment instructions
-        </h3>
         <InputField
           label="Share this link with your end users:"
           enableCopy
