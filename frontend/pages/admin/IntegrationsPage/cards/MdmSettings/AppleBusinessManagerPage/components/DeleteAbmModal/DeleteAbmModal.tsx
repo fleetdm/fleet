@@ -10,6 +10,9 @@ const baseClass = "delete-abm-modal";
 interface IDeleteAbmModalProps {
   tokenOrgName: string;
   tokenId: number;
+  /** Count of AB tokens before this deletion, used to pick the copy about
+   * what happens to the default (primary) token afterwards. */
+  tokensCount: number;
   onCancel: () => void;
   onDeletedToken: () => void;
 }
@@ -17,6 +20,7 @@ interface IDeleteAbmModalProps {
 const DeleteAbmModal = ({
   tokenOrgName,
   tokenId,
+  tokensCount,
   onCancel,
   onDeletedToken,
 }: IDeleteAbmModalProps) => {
@@ -46,8 +50,18 @@ const DeleteAbmModal = ({
       isContentDisabled={isDeleting}
     >
       <p>
-        New hosts purchased in the <b>{tokenOrgName}</b> won&apos;t
-        automatically enroll to Fleet.{" "}
+        New hosts purchased in <b>{tokenOrgName}</b> won&apos;t automatically
+        enroll to Fleet.
+        {tokensCount === 2 && (
+          <> Your remaining token will become primary automatically.</>
+        )}
+        {tokensCount > 2 && (
+          <>
+            {" "}
+            Manual enrollments may not be able to sign into Managed Apple IDs
+            until you set a new primary.
+          </>
+        )}
       </p>
       <p>
         If you want to re-enable automatic enrollment, you&apos;ll have to

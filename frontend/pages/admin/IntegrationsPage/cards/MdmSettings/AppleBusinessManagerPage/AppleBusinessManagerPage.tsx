@@ -11,6 +11,7 @@ import EmptyState from "components/EmptyState";
 import MainContent from "components/MainContent";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 import Spinner from "components/Spinner";
+import { notify } from "components/ToastNotification";
 import { AppContext } from "context/app";
 import { IMdmAbToken } from "interfaces/mdm";
 import PATHS from "router/paths";
@@ -54,7 +55,6 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
     data: abTokens,
     error: errorAbmTokens,
     isLoading,
-    isRefetching,
     refetch,
   } = useQuery<IGetAbTokensResponse, AxiosError, IMdmAbToken[]>(
     ["abTokens"],
@@ -104,6 +104,21 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
     refetch();
     setShowEditTeamsModal(false);
   }, [refetch]);
+
+  const onToggleTokenDefault = useCallback(
+    async (abmToken: IMdmAbToken) => {
+      try {
+        await mdmAbmAPI.updateTokenDefault(abmToken.id, !abmToken.default);
+        notify.success("Successfully updated primary token.");
+      } catch (e) {
+        notify.error("Couldn't set primary token. Please try again.", {
+          response: e,
+        });
+      }
+      refetch();
+    },
+    [refetch]
+  );
 
   const onAddAbm = () => {
     setShowAddAbmModal(true);
@@ -180,7 +195,11 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
     setShowDeleteModal(false);
   }, [refetch]);
 
-  if (isLoading || isRefetching) {
+  // Only the initial load blanks the page; refetches (set/unset default,
+  // add, renew, delete) keep the table on screen and swap in fresh data,
+  // since setting the default is a bare menu click with no modal covering
+  // the refetch.
+  if (isLoading) {
     return <Spinner />;
   }
 
@@ -228,6 +247,7 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
           <AppleBusinessManagerTable
             abTokens={abTokens}
             onEditTokenTeam={onEditTokenTeam}
+            onToggleTokenDefault={onToggleTokenDefault}
             onRenewToken={onRenewToken}
             onDeleteToken={onDeleteToken}
           />
@@ -277,6 +297,7 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
         <DeleteAbmModal
           tokenOrgName={selectedToken.current.org_name}
           tokenId={selectedToken.current.id}
+          tokensCount={abTokens?.length ?? 0}
           onCancel={onCancelDeleteToken}
           onDeletedToken={onDeleted}
         />

@@ -35,6 +35,9 @@ export interface IMdmAbToken {
   renew_date: string;
   terms_expired: boolean;
   token_invalid: boolean;
+  /** Whether this token signs GetToken responses for manually enrolled hosts.
+   * A lone token is always the default. */
+  default: boolean;
   macos_fleet: ITokenFleet;
   ios_fleet: ITokenFleet;
   ipados_fleet: ITokenFleet;
