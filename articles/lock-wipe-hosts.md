@@ -153,7 +153,7 @@ The following MDM commands can be canceled:
 
 Configuration profile installations and other MDM command types cannot be canceled.
 
-Lock on Windows and Linux, and wipe on Linux run as scripts, not MDM commands. You can cancel them the same way: **Host details > Activity > Upcoming > Cancel**, or via [Fleet's API](https://fleetdm.com/docs/rest-api/rest-api#cancel-hosts-upcoming-activity).
+Lock on Windows and Linux, and wipe on Linux run as scripts, not MDM commands. You can cancel them the same way: **Host details > Activity > Upcoming**, or via [Fleet's API](https://fleetdm.com/docs/rest-api/rest-api#cancel-hosts-upcoming-activity).
 
 Wipe on Windows and lock, wipe, and clear passcode on Android aren't cancelable yet.
 
