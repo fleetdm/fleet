@@ -928,7 +928,7 @@ func testMDMWindowsDiskEncryption(t *testing.T, ds *Datastore) {
 
 			t.Run("protection on with nothing able to unseal at boot is enforcing, not verified", func(t *testing.T) {
 				setProtectionStatus(t, targetHost.ID, new(fleet.BitLockerProtectionStatusOn))
-				require.NoError(t, ds.SetOrUpdateHostDiskBootProtector(ctx, targetHost.ID, false))
+				require.NoError(t, ds.SetOrUpdateHostDiskBitLockerProtectors(ctx, targetHost.ID, false, false))
 				checkExpected(t, nil, hostIDsByDEStatus{
 					fleet.DiskEncryptionVerified:  []uint{hosts[0].ID},
 					fleet.DiskEncryptionEnforcing: []uint{targetHost.ID},
@@ -937,7 +937,7 @@ func testMDMWindowsDiskEncryption(t *testing.T, ds *Datastore) {
 
 				// hosts[0] never reports the column at all, and stays verified throughout, which is what keeps agents
 				// that do not send it from being marked broken.
-				require.NoError(t, ds.SetOrUpdateHostDiskBootProtector(ctx, targetHost.ID, true))
+				require.NoError(t, ds.SetOrUpdateHostDiskBitLockerProtectors(ctx, targetHost.ID, true, false))
 				checkExpected(t, nil, hostIDsByDEStatus{
 					fleet.DiskEncryptionVerified: []uint{hosts[0].ID, targetHost.ID},
 					fleet.DiskEncryptionFailed:   []uint{hosts[1].ID},

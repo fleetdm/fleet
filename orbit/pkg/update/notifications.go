@@ -479,6 +479,8 @@ type DiskEncryptionKeySetter interface {
 	SetOrUpdateDiskEncryptionKey(diskEncryptionStatus fleet.OrbitHostDiskEncryptionKeyPayload) error
 	// SetOrUpdateDiskEncryptionProtection reports the outcome of an attempt to restore protection.
 	SetOrUpdateDiskEncryptionProtection(outcome fleet.DiskEncryptionProtectionOutcome, clientError string) error
+	// GetServerCapabilities reports what the server supports.
+	GetServerCapabilities() fleet.CapabilityMap
 }
 
 // execEncryptVolumeFunc handles the encryption of a volume identified by its
@@ -554,10 +556,6 @@ type windowsMDMBitlockerConfigReceiver struct {
 	// restartPendingFn reports whether a restart is staged. Overridden in tests.
 	restartPendingFn func() (bool, error)
 
-	// capabilitiesFetcher reports what the server supports, so a report that would cost the host its escrowed key is
-	// withheld from a server too old to handle it. Overridden in tests.
-	capabilitiesFetcher func() fleet.CapabilityMap
-
 	// protectionRetryAfter throttles the protection restore path. A host that cannot be repaired, because policy forbids a
 	// TPM-only protector or the TPM is not ready, would otherwise retry on every config poll forever.
 	protectionRetryAfter time.Time
@@ -567,12 +565,10 @@ func ApplyWindowsMDMBitlockerFetcherMiddleware(
 	frequency time.Duration,
 	encryptionResult DiskEncryptionKeySetter,
 	comWorker *bitlocker.COMWorker,
-	capabilitiesFetcher func() fleet.CapabilityMap,
 ) fleet.OrbitConfigReceiver {
 	return &windowsMDMBitlockerConfigReceiver{
 		Frequency:                    frequency,
 		EncryptionResult:             encryptionResult,
-		capabilitiesFetcher:          capabilitiesFetcher,
 		execEncryptVolumeFn:          comWorker.EncryptVolume,
 		execGetEncryptionStatusFn:    comWorker.GetEncryptionStatus,
 		execRotateRecoveryKeyFn:      comWorker.RotateRecoveryKey,
@@ -602,9 +598,31 @@ func (w *windowsMDMBitlockerConfigReceiver) Run(cfg *fleet.OrbitConfig) error {
 			defer w.mu.Unlock()
 			w.attemptEnableBitlockerProtection()
 		}
+		return nil
+	}
+
+	if w.mu.TryLock() {
+		defer w.mu.Unlock()
+		w.retryHeldRecoveryKeyEscrow()
 	}
 
 	return nil
+}
+
+// retryHeldRecoveryKeyEscrow sends a recovery key that a repair rotated but could not escrow, when the server is no longer
+// asking for anything. Rotating also adds a boot protector, and the server stops asking for the repair once it sees one,
+// so without this the key would never reach Fleet and the admin would be left holding a key the volume no longer accepts.
+func (w *windowsMDMBitlockerConfigReceiver) retryHeldRecoveryKeyEscrow() {
+	if w.pendingRecoveryKey == "" || time.Now().Before(w.protectionRetryAfter) {
+		return
+	}
+	if err := w.updateFleetServer(w.pendingRecoveryKey, nil); err != nil {
+		log.Error().Err(err).Msg("could not escrow the held recovery key, will retry")
+		w.protectionRetryAfter = time.Now().Add(w.Frequency)
+		return
+	}
+	log.Info().Msg("escrowed a recovery key held from an earlier BitLocker repair")
+	w.pendingRecoveryKey = ""
 }
 
 // protectionSuccessBackoff is how long the agent waits after successfully restoring protection. It only has to outlast
@@ -618,12 +636,18 @@ const protectionSuccessBackoff = 5 * time.Minute
 // does not need to be long.
 const encryptionSuccessBackoff = 5 * time.Minute
 
-// repairFailureCost describes what a failed repair actually cost the host.
-func repairFailureCost(protectionAlreadyOn bool) string {
-	if protectionAlreadyOn {
-		return "so the volume still has nothing that can unseal it at boot"
+const (
+	repairCostNoBootProtector = "so the volume still has nothing that can unseal it at boot"
+	repairCostNoWorkingKey    = "so Fleet does not hold a working recovery key for it"
+)
+
+// repairFailureCost describes what a failed repair step cost the host. With protection off, the repair always stops
+// before re-enabling it. With protection already on, the volume stays protected and misses only what the step provides.
+func repairFailureCost(protectionAlreadyOn bool, protectedVolumeCost string) string {
+	if !protectionAlreadyOn {
+		return "so protection was not re-enabled"
 	}
-	return "so protection was not re-enabled"
+	return protectedVolumeCost
 }
 
 // attemptEnableBitlockerProtection turns protection back on for a volume that is encrypted but unprotected.
@@ -700,18 +724,6 @@ func (w *windowsMDMBitlockerConfigReceiver) attemptEnableBitlockerProtection() {
 		w.protectionRetryAfter = time.Now().Add(w.Frequency)
 		return
 	}
-	if !hasProtector {
-		log.Info().Msg("no protector can unseal this volume at boot, adding a TPM protector before restoring protection")
-		if err := w.execAddTPMProtectorFn(targetVolume); err != nil {
-			// Policy can forbid a TPM-only protector, in which case a startup PIN has to be enrolled by the end user
-			// and Fleet cannot repair this host.
-			log.Error().Err(err).Msg("could not add a TPM protector, not restoring protection")
-			w.reportProtectionOutcome(fleet.DiskEncryptionProtectionFailed,
-				fmt.Sprintf("could not add a TPM protector, %s: %v", repairFailureCost(protectionAlreadyOn), err))
-			w.protectionRetryAfter = time.Now().Add(w.Frequency)
-			return
-		}
-	}
 
 	// Whatever disturbed this volume's protectors may have taken the recovery password with it. Only rotate when the recovery
 	// password is actually gone. This does not cover a recovery password that was replaced rather than removed. Fleet would still
@@ -729,8 +741,10 @@ func (w *windowsMDMBitlockerConfigReceiver) attemptEnableBitlockerProtection() {
 			recoveryKey, err := w.execRotateRecoveryKeyFn(targetVolume)
 			if err != nil {
 				log.Error().Err(err).Msg("could not rotate the recovery key, not restoring protection")
+				// Rotation fails before it adds a boot protector, so on a protected volume the protector is still missing.
+				cost := repairFailureCost(protectionAlreadyOn, repairCostNoBootProtector)
 				w.reportProtectionOutcome(fleet.DiskEncryptionProtectionFailed,
-					fmt.Sprintf("could not rotate the recovery key, %s: %v", repairFailureCost(protectionAlreadyOn), err))
+					fmt.Sprintf("could not rotate the recovery key, %s: %v", cost, err))
 				w.protectionRetryAfter = time.Now().Add(w.Frequency)
 				return
 			}
@@ -740,14 +754,31 @@ func (w *windowsMDMBitlockerConfigReceiver) attemptEnableBitlockerProtection() {
 	}
 	if w.pendingRecoveryKey != "" {
 		if err := w.updateFleetServer(w.pendingRecoveryKey, nil); err != nil {
-			// Protection stays off, so the server keeps asking and this runs again with the key still held.
+			// The key stays held. The next pass retries it, or retryHeldRecoveryKeyEscrow does once the server stops asking.
+			// Rotation deletes the previous recovery passwords, so whatever key Fleet stored no longer unlocks the volume.
 			log.Error().Err(err).Msg("could not escrow the rotated recovery key, not restoring protection")
+			cost := repairFailureCost(protectionAlreadyOn, repairCostNoWorkingKey)
 			w.reportProtectionOutcome(fleet.DiskEncryptionProtectionFailed,
-				fmt.Sprintf("could not send the rotated recovery key to Fleet, %s: %v", repairFailureCost(protectionAlreadyOn), err))
+				fmt.Sprintf("could not send the rotated recovery key to Fleet, %s: %v", cost, err))
 			w.protectionRetryAfter = time.Now().Add(w.Frequency)
 			return
 		}
 		w.pendingRecoveryKey = ""
+	}
+
+	// A rotation above may already have added the TPM protector, which the add treats as success.
+	if !hasProtector {
+		log.Info().Msg("no protector can unseal this volume at boot, adding a TPM protector before restoring protection")
+		if err := w.execAddTPMProtectorFn(targetVolume); err != nil {
+			// Policy can forbid a TPM-only protector, in which case a startup PIN has to be enrolled by the end user
+			// and Fleet cannot repair this host.
+			log.Error().Err(err).Msg("could not add a TPM protector, not restoring protection")
+			cost := repairFailureCost(protectionAlreadyOn, repairCostNoBootProtector)
+			w.reportProtectionOutcome(fleet.DiskEncryptionProtectionFailed,
+				fmt.Sprintf("could not add a TPM protector, %s: %v", cost, err))
+			w.protectionRetryAfter = time.Now().Add(w.Frequency)
+			return
+		}
 	}
 
 	// Finally, enable protection, unless it was on the whole time and only a protector was missing.
@@ -966,10 +997,9 @@ func (w *windowsMDMBitlockerConfigReceiver) isMisreportedDecryptionError(err *bi
 
 // reportKeylessError reports a failure that carries no recovery key, but only to a server that will keep the key it
 // already holds. An older server overwrites the stored key with the empty value in this payload, which is worse than
-// staying silent: the volume is still encrypted, and the admin loses the only key Fleet can show them. A missing
-// fetcher is treated the same way, because guessing wrong here costs a recovery key.
+// staying silent: the volume is still encrypted, and the admin loses the only key Fleet can show them.
 func (w *windowsMDMBitlockerConfigReceiver) reportKeylessError(err error, what string) {
-	if w.capabilitiesFetcher == nil || !w.capabilitiesFetcher().Has(fleet.CapabilityDiskEncryptionErrorKeepsKey) {
+	if !w.EncryptionResult.GetServerCapabilities().Has(fleet.CapabilityWindowsDiskEncryptionErrorKeepsKey) {
 		log.Warn().Err(err).Msgf(
 			"not reporting %s to Fleet: this server would discard the host's escrowed recovery key", what)
 		return

@@ -3592,11 +3592,9 @@ var luksVerifyQueryIngester = func(decrypter func(string) (string, error)) func(
 }
 
 // bitLockerPresent matches a host where BitLocker can be used at all: it is either built in, and so never appears as
-// an optional feature, or it appears and is enabled. Every BitLocker discovery clause starts from this.
-const bitLockerPresent = `(
-					EXISTS(SELECT 1 FROM windows_optional_features WHERE name = 'BitLocker' AND state = 1)
-					OR NOT EXISTS(SELECT 1 FROM windows_optional_features WHERE name = 'BitLocker')
-				)`
+// an optional feature, or it appears and is enabled. Every BitLocker discovery clause starts from this. osquery enumerates
+// all of Win32_OptionalFeature, which has one row per name, each time the table is referenced, so it is referenced once.
+const bitLockerPresent = `NOT EXISTS(SELECT 1 FROM windows_optional_features WHERE name = 'BitLocker' AND state IS NOT 1)`
 
 // bitLockerPresentDiscovery is the complete discovery clause for a query whose only precondition is that BitLocker is
 // usable on the host.
@@ -3669,17 +3667,20 @@ var bitlockerPolicyQueries = map[string]DetailQuery{
 			return ds.MDMWindowsInsertCommandForHosts(ctx, []string{host.UUID}, cmd)
 		},
 	},
-	// Protectors can be deleted while BitLocker protection stays on.
-	"bitlocker_boot_protector_verify": {
+	// Protectors can be deleted while BitLocker protection stays on. This also records whether a startup PIN is set, which
+	// only matters where a PIN is required but is read from the same table. bitlocker_key_protectors runs PowerShell on every
+	// scan, so both answers come from a single aggregate scan rather than one EXISTS per column.
+	"bitlocker_key_protectors_verify": {
 		Platforms: []string{"windows"},
 		Discovery: bitLockerPresentDiscovery,
 		Query: `
-			SELECT EXISTS(
-				SELECT 1
-				FROM bitlocker_key_protectors
+			SELECT
 				-- 1, 4, 5, 6 are the TPM-family protectors; 2 is an external startup key on a USB stick.
-				WHERE drive_letter = 'C:' AND key_protector_type IN (1,2,4,5,6)
-			) AS criteria`,
+				COALESCE(MAX(key_protector_type IN (1,2,4,5,6)), 0) AS boot_protector_set,
+				-- 4: TPM And PIN. 6: TPM And PIN And Startup key.
+				COALESCE(MAX(key_protector_type IN (4,6)), 0) AS tpm_pin_set
+			FROM bitlocker_key_protectors
+			WHERE drive_letter = 'C:'`,
 		DirectIngestFunc: func(
 			ctx context.Context,
 			logger *slog.Logger,
@@ -3688,17 +3689,18 @@ var bitlockerPolicyQueries = map[string]DetailQuery{
 			rows []map[string]string,
 		) error {
 			if host == nil || host.UUID == "" {
-				logger.DebugContext(ctx, "Ingestion not run, host is nil or UUID is empty", "query", "bitlocker_boot_protector_verify")
+				logger.DebugContext(ctx, "Ingestion not run, host is nil or UUID is empty", "query", "bitlocker_key_protectors_verify")
 				return nil
 			}
-			// Anything other than the single expected row means the answer is unknown. Leave the column alone: NULL
-			// already reads as "nothing to act on" everywhere downstream.
+			// Anything other than the single expected row means the answer is unknown. Leave the columns alone: a NULL boot
+			// protector already reads as "nothing to act on" everywhere downstream.
 			if len(rows) != 1 {
 				logger.DebugContext(ctx, "Ingestion not run, unexpected row count",
-					"query", "bitlocker_boot_protector_verify", "rows", len(rows))
+					"query", "bitlocker_key_protectors_verify", "rows", len(rows))
 				return nil
 			}
-			return ds.SetOrUpdateHostDiskBootProtector(ctx, host.ID, rows[0]["criteria"] == "1")
+			return ds.SetOrUpdateHostDiskBitLockerProtectors(ctx, host.ID,
+				rows[0]["boot_protector_set"] == "1", rows[0]["tpm_pin_set"] == "1")
 		},
 	},
 }
@@ -3764,35 +3766,6 @@ var tpmPINQueries = map[string]DetailQuery{
 				return ds.MDMWindowsInsertCommandForHosts(ctx, []string{host.UUID}, cmd)
 			}
 			return nil
-		},
-	},
-	"tpm_pin_set_verify": {
-		Platforms: []string{"windows"},
-		// We only want to run this query iff:
-		// - BitLocker is not an optional component (is built in) OR is an optional component and enabled.
-		Discovery: bitLockerPresentDiscovery,
-		Query: `
-			SELECT EXISTS(
-				SELECT 1
-				FROM bitlocker_key_protectors
-				-- 4: TPM And PIN.
-				-- 6: TPM And PIN And Startup key.
-				WHERE drive_letter = 'C:' AND key_protector_type IN (4,6)
-				LIMIT 1
-			) AS criteria
-			WHERE criteria = 1`,
-		DirectIngestFunc: func(
-			ctx context.Context,
-			logger *slog.Logger,
-			host *fleet.Host,
-			ds fleet.Datastore,
-			rows []map[string]string,
-		) error {
-			if host == nil || host.UUID == "" {
-				logger.DebugContext(ctx, "Ingestion not run, host is nil or UUID is empty", "query", "tpm_pin_set_verify")
-				return nil
-			}
-			return ds.SetOrUpdateHostDiskTpmPIN(ctx, host.ID, len(rows) > 0)
 		},
 	},
 }

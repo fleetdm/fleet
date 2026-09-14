@@ -563,6 +563,11 @@ type mockDiskEncryptionKeySetter struct {
 	ProtectionOutcome                   fleet.DiskEncryptionProtectionOutcome
 	ProtectionClientError               string
 	ProtectionReportInvoked             bool
+	Capabilities                        fleet.CapabilityMap
+}
+
+func (m *mockDiskEncryptionKeySetter) GetServerCapabilities() fleet.CapabilityMap {
+	return m.Capabilities
 }
 
 func (m *mockDiskEncryptionKeySetter) SetOrUpdateDiskEncryptionKey(diskEncryptionStatus fleet.OrbitHostDiskEncryptionKeyPayload) error {
@@ -608,9 +613,6 @@ func TestBitlockerOperations(t *testing.T) {
 			Frequency:            time.Hour, // doesn't matter for this test
 			encryptionRetryAfter: time.Now().Add(-2 * time.Hour),
 			EncryptionResult:     clientMock,
-			capabilitiesFetcher: func() fleet.CapabilityMap {
-				return fleet.CapabilityMap{fleet.CapabilityDiskEncryptionErrorKeepsKey: {}}
-			},
 			execGetEncryptionStatusFn: func() ([]bitlocker.VolumeStatus, error) {
 				// Default: an ordinary unencrypted host. This has to state C: is fully decrypted.
 				return []bitlocker.VolumeStatus{
@@ -645,6 +647,7 @@ func TestBitlockerOperations(t *testing.T) {
 		clientMock.ProtectionReportInvoked = false
 		clientMock.ProtectionOutcome = ""
 		clientMock.ProtectionClientError = ""
+		clientMock.Capabilities = fleet.CapabilityMap{fleet.CapabilityWindowsDiskEncryptionErrorKeepsKey: {}}
 		logBuf.Reset()
 	}
 
@@ -825,8 +828,6 @@ func TestBitlockerOperations(t *testing.T) {
 			restartErr      error
 			wantAdd         bool
 			wantEnable      bool
-			// wantRotateOnly marks a repair that rotates and escrows but must leave protection itself alone.
-			wantRotateOnly  bool
 			wantOutcome     fleet.DiskEncryptionProtectionOutcome
 			wantErrContains string
 			wantBackoff     bool
@@ -932,25 +933,33 @@ func TestBitlockerOperations(t *testing.T) {
 				wantBackoff:  true,
 			},
 			{
-				name:           "adds a protector without re-enabling when protection is already on",
-				status:         statusFor(bitlocker.ConversionStatusFullyEncrypted, bitlocker.ProtectionStatusOn),
-				wantAdd:        true,
-				wantRotateOnly: true,
-				wantOutcome:    fleet.DiskEncryptionProtectionRestored,
-				wantBackoff:    true,
-				shortBackoff:   true,
-				reason:         "protection is already on, so it must not be re-enabled",
+				name:         "adds a protector without re-enabling when protection is already on",
+				status:       statusFor(bitlocker.ConversionStatusFullyEncrypted, bitlocker.ProtectionStatusOn),
+				wantAdd:      true,
+				wantOutcome:  fleet.DiskEncryptionProtectionRestored,
+				wantBackoff:  true,
+				shortBackoff: true,
+				reason:       "protection is already on, so it must not be re-enabled",
 			},
 			{
 				name:           "a pending restart does not defer the repair when protection is already on",
 				status:         statusFor(bitlocker.ConversionStatusFullyEncrypted, bitlocker.ProtectionStatusOn),
 				restartPending: true,
 				wantAdd:        true,
-				wantRotateOnly: true,
 				wantOutcome:    fleet.DiskEncryptionProtectionRestored,
 				wantBackoff:    true,
 				shortBackoff:   true,
 				reason:         "protection is already on, so it must not be re-enabled",
+			},
+			{
+				name:            "names the missing boot protector when the add fails and protection is already on",
+				status:          statusFor(bitlocker.ConversionStatusFullyEncrypted, bitlocker.ProtectionStatusOn),
+				addErr:          errors.New("0x80310066 policy does not permit TPM-only"),
+				wantAdd:         true,
+				wantOutcome:     fleet.DiskEncryptionProtectionFailed,
+				wantErrContains: "could not add a TPM protector, " + repairCostNoBootProtector,
+				wantBackoff:     true,
+				reason:          "protection is already on, so it must not be re-enabled",
 			},
 		} {
 			t.Run(tc.name, func(t *testing.T) {
@@ -987,9 +996,9 @@ func TestBitlockerOperations(t *testing.T) {
 				// The restore path must never reach the encrypt path, whose first act is deleting every key protector.
 				require.False(t, encryptFnCalled, "restoring protection must never delete key protectors")
 				// setupTest reports no recovery password, which is the case this repair exists for, so every pass that
-				// gets past the protector step rotates and escrows, whether or not it goes on to enable protection.
+				// gets past the protector check rotates and escrows before it adds a protector or enables protection.
 				// The decision itself is covered below.
-				wantRotate := tc.wantEnable || tc.wantRotateOnly
+				wantRotate := tc.wantEnable || tc.wantAdd
 				require.Equal(t, wantRotate, rotateKeyFnCalled, "rotating the recovery key")
 				require.Equal(t, wantRotate, clientMock.SetOrUpdateDiskEncryptionKeyInvoked, "escrowing the rotated key")
 			})
@@ -997,32 +1006,50 @@ func TestBitlockerOperations(t *testing.T) {
 
 		t.Run("rotates only when the recovery password is gone, and stops the repair when it cannot", func(t *testing.T) {
 			for _, tc := range []struct {
-				name       string
-				hasKey     bool
-				hasKeyErr  error
-				rotateErr  error
-				escrowErr  error
-				wantRotate bool
-				wantEnable bool
-				wantErr    string // empty means the repair is expected to succeed
+				name string
+				// protectionOn models a volume whose boot protectors were deleted while protection stayed on.
+				protectionOn bool
+				hasKey       bool
+				hasKeyErr    error
+				rotateErr    error
+				escrowErr    error
+				wantRotate   bool
+				wantEnable   bool
+				wantErr      string // empty means the repair is expected to succeed
 			}{
 				{name: "recovery password present, so nothing is rotated", hasKey: true, wantEnable: true},
 				{name: "recovery password missing, so it is rotated", wantRotate: true, wantEnable: true},
 				{name: "unknown counts as missing", hasKeyErr: errors.New("WMI unavailable"), wantRotate: true, wantEnable: true},
 				{
 					name: "a failed rotation stops the repair", rotateErr: errors.New("WMI refused"),
-					wantRotate: true, wantErr: "could not rotate the recovery key",
+					wantRotate: true, wantErr: "could not rotate the recovery key, so protection was not re-enabled",
 				},
 				{
 					name: "a failed escrow stops the repair", escrowErr: errors.New("server unreachable"),
-					wantRotate: true, wantErr: "could not send the rotated recovery key to Fleet",
+					wantRotate: true, wantErr: "could not send the rotated recovery key to Fleet, so protection was not re-enabled",
 				},
+				{
+					name: "a failed rotation on a protected volume names the missing boot protector", protectionOn: true,
+					rotateErr: errors.New("WMI refused"), wantRotate: true,
+					wantErr: "could not rotate the recovery key, " + repairCostNoBootProtector,
+				},
+				{
+					name: "a failed escrow on a protected volume names the lost recovery key", protectionOn: true,
+					escrowErr: errors.New("server unreachable"), wantRotate: true,
+					wantErr: "could not send the rotated recovery key to Fleet, " + repairCostNoWorkingKey,
+				},
+				{name: "a protected volume is repaired without re-enabling", protectionOn: true, wantRotate: true},
 			} {
 				t.Run(tc.name, func(t *testing.T) {
 					setupTest()
-					var enableCalled bool
+					var enableCalled, addCalled bool
 					enrollReceiver.execGetEncryptionStatusFn = suspended
-					enrollReceiver.execHasBootUnsealProtectorFn = func(string) (bool, error) { return true, nil }
+					if tc.protectionOn {
+						enrollReceiver.execGetEncryptionStatusFn = statusFor(bitlocker.ConversionStatusFullyEncrypted, bitlocker.ProtectionStatusOn)
+					}
+					// A protected volume with a boot protector has nothing to repair, so it is modeled without one.
+					enrollReceiver.execHasBootUnsealProtectorFn = func(string) (bool, error) { return !tc.protectionOn, nil }
+					enrollReceiver.execAddTPMProtectorFn = func(string) error { addCalled = true; return nil }
 					enrollReceiver.execHasRecoveryPasswordFn = func(string) (bool, error) { return tc.hasKey, tc.hasKeyErr }
 					enrollReceiver.execRotateRecoveryKeyFn = func(string) (string, error) {
 						rotateKeyFnCalled = true
@@ -1042,6 +1069,9 @@ func TestBitlockerOperations(t *testing.T) {
 					wantEscrow := tc.wantRotate && tc.rotateErr == nil
 					require.Equal(t, wantEscrow, clientMock.SetOrUpdateDiskEncryptionKeyInvoked, "escrowing the rotated key")
 					require.Equal(t, tc.wantEnable, enableCalled, "restoring protection")
+					// The protector is added only after the recovery password is dealt with, because adding it is what stops
+					// the server asking for this repair.
+					require.Equal(t, tc.protectionOn && tc.wantErr == "", addCalled, "adding a TPM protector")
 					if tc.wantErr == "" {
 						require.Equal(t, fleet.DiskEncryptionProtectionRestored, clientMock.ProtectionOutcome)
 					} else {
@@ -1052,40 +1082,62 @@ func TestBitlockerOperations(t *testing.T) {
 			}
 		})
 
-		t.Run("retries a failed escrow on the next pass once the protector is in place", func(t *testing.T) {
+		// On a protected volume, rotating also adds a boot protector.
+		t.Run("retries a failed escrow after the server stops asking for the repair", func(t *testing.T) {
 			setupTest()
-			// Protection is already on, so the repair only adds a protector. On the second pass the volume looks healthy.
-			protectedNoProtector := statusFor(bitlocker.ConversionStatusFullyEncrypted, bitlocker.ProtectionStatusOn)
-			enrollReceiver.execGetEncryptionStatusFn = protectedNoProtector
-			hasProtector := false
-			enrollReceiver.execHasBootUnsealProtectorFn = func(string) (bool, error) { return hasProtector, nil }
-			enrollReceiver.execAddTPMProtectorFn = func(string) error { hasProtector = true; return nil }
+			enrollReceiver.execGetEncryptionStatusFn = statusFor(bitlocker.ConversionStatusFullyEncrypted, bitlocker.ProtectionStatusOn)
+			enrollReceiver.execHasBootUnsealProtectorFn = func(string) (bool, error) { return false, nil }
 			enrollReceiver.execHasRecoveryPasswordFn = func(string) (bool, error) { return false, nil }
-			enrollReceiver.execRotateRecoveryKeyFn = func(string) (string, error) { return "rotated-key", nil }
+			var rotations int
+			enrollReceiver.execRotateRecoveryKeyFn = func(string) (string, error) { rotations++; return "rotated-key", nil }
 			escrowFails := true
+			var escrowAttempts int
 			var escrowed []string
 			prevEscrow := clientMock.SetOrUpdateDiskEncryptionKeyImpl
 			t.Cleanup(func() { clientMock.SetOrUpdateDiskEncryptionKeyImpl = prevEscrow })
 			clientMock.SetOrUpdateDiskEncryptionKeyImpl = func(p fleet.OrbitHostDiskEncryptionKeyPayload) error {
+				escrowAttempts++
 				if escrowFails {
 					return errors.New("server unreachable")
 				}
 				escrowed = append(escrowed, string(p.EncryptionKey))
 				return nil
 			}
+			noRequestCfg := &fleet.OrbitConfig{}
 
 			require.NoError(t, enrollReceiver.Run(protectionCfg))
 			require.Empty(t, escrowed, "the first pass must fail to escrow")
 			require.Equal(t, "rotated-key", enrollReceiver.pendingRecoveryKey, "the key has to be held for the retry")
 
+			// The failure backoff still applies when nothing is being asked.
 			escrowFails = false
+			require.NoError(t, enrollReceiver.Run(noRequestCfg))
+			require.Equal(t, 1, escrowAttempts, "a retry inside the backoff window must be skipped")
+
 			enrollReceiver.protectionRetryAfter = time.Time{}
-			require.NoError(t, enrollReceiver.Run(protectionCfg))
-			require.Equal(t, []string{"rotated-key"}, escrowed, "the held key must be escrowed on the next pass")
+			require.NoError(t, enrollReceiver.Run(noRequestCfg))
+			require.Equal(t, []string{"rotated-key"}, escrowed, "the held key must be escrowed without the server asking")
 			require.Empty(t, enrollReceiver.pendingRecoveryKey, "a successful escrow clears the held key")
+			require.Equal(t, 1, rotations, "retrying the escrow must not rotate again")
+
+			require.NoError(t, enrollReceiver.Run(noRequestCfg))
+			require.Equal(t, 2, escrowAttempts, "with no key held and nothing asked, nothing is sent")
 		})
 
-		t.Run("adds a TPM protector, then rotates, then escrows, then enables", func(t *testing.T) {
+		t.Run("a failed rotation on a protected volume leaves the boot protector missing so the server keeps asking", func(t *testing.T) {
+			setupTest()
+			enrollReceiver.execGetEncryptionStatusFn = statusFor(bitlocker.ConversionStatusFullyEncrypted, bitlocker.ProtectionStatusOn)
+			enrollReceiver.execHasBootUnsealProtectorFn = func(string) (bool, error) { return false, nil }
+			var addCalled bool
+			enrollReceiver.execAddTPMProtectorFn = func(string) error { addCalled = true; return nil }
+			enrollReceiver.execRotateRecoveryKeyFn = func(string) (string, error) { return "", errors.New("WMI refused") }
+
+			require.NoError(t, enrollReceiver.Run(protectionCfg))
+			require.False(t, addCalled, "adding the protector would stop the server asking while the recovery password is still gone")
+			require.Equal(t, fleet.DiskEncryptionProtectionFailed, clientMock.ProtectionOutcome)
+		})
+
+		t.Run("rotates, then escrows, then adds a TPM protector, then enables", func(t *testing.T) {
 			setupTest()
 			var order []string
 			enrollReceiver.execGetEncryptionStatusFn = suspended
@@ -1103,7 +1155,7 @@ func TestBitlockerOperations(t *testing.T) {
 			require.NoError(t, enrollReceiver.Run(protectionCfg))
 			// Escrow has to land before protection is enabled. Leaving it out of this assertion is what would let a
 			// regression enable protection on a volume whose recovery key Fleet never received.
-			require.Equal(t, []string{"add", "rotate", "escrow", "enable"}, order)
+			require.Equal(t, []string{"rotate", "escrow", "add", "enable"}, order)
 		})
 
 		// Rotation puts the new protector on the volume before the escrow is attempted, so a second pass would find a
@@ -1319,7 +1371,7 @@ func TestBitlockerOperations(t *testing.T) {
 			t.Run(tc.name, func(t *testing.T) {
 				setupTest()
 				if tc.serverDiscardsKey {
-					enrollReceiver.capabilitiesFetcher = func() fleet.CapabilityMap { return fleet.CapabilityMap{} }
+					clientMock.Capabilities = fleet.CapabilityMap{}
 				}
 				var resumeCalled bool
 				enrollReceiver.execResumeConversionFn = func(string) error { resumeCalled = true; return tc.resumeErr }
