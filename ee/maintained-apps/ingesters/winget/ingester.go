@@ -440,6 +440,7 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 	if input.ExistsQuery != "" {
 		out.Queries.Exists = input.ExistsQuery
 	}
+	out.InstallerArch = input.InstallerArch
 	out.InstallScript = installScript
 	processedUninstallScript, err := preProcessUninstallScript(uninstallScript, productCode)
 	if err != nil {

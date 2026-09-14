@@ -13,6 +13,7 @@
       "slug": "010-editor/windows",
       "platform": "windows",
       "unique_identifier": "010 Editor 16.0.2 (64-bit)",
+      "arch": "x64",
       "description": "010 Editor is a toolkit for working with text and binary data."
     },
     {
@@ -27,6 +28,7 @@
       "slug": "1password/windows",
       "platform": "windows",
       "unique_identifier": "1Password",
+      "arch": "x64",
       "description": "1Password is a password manager that keeps all passwords secure behind one password."
     },
     {
@@ -34,6 +36,7 @@
       "slug": "3df-zephyr-free/windows",
       "platform": "windows",
       "unique_identifier": "3DF Zephyr Free",
+      "arch": "x64",
       "description": "3DF Zephyr Free is the free edition of 3Dflow's photogrammetry software for reconstructing 3D models from photos."
     },
     {
@@ -55,6 +58,7 @@
       "slug": "4k-video-downloader-plus/windows",
       "platform": "windows",
       "unique_identifier": "4K Video Downloader+",
+      "arch": "x64",
       "description": "4K Video Downloader+ is an app for downloading videos and playlists from popular sites in high quality."
     },
     {
@@ -83,6 +87,7 @@
       "slug": "7-zip/windows",
       "platform": "windows",
       "unique_identifier": "7-Zip 25.01 (x64)",
+      "arch": "x64",
       "description": "7-zip is a file archiver."
     },
     {
@@ -97,6 +102,7 @@
       "slug": "8x8-work/windows",
       "platform": "windows",
       "unique_identifier": "8x8 Work",
+      "arch": "x64",
       "description": "8x8 Work is a communications application with voice, video, chat, and web conferencing."
     },
     {
@@ -146,6 +152,7 @@
       "slug": "activitywatch/windows",
       "platform": "windows",
       "unique_identifier": "ActivityWatch",
+      "arch": "x64",
       "description": "ActivityWatch is a time tracker."
     },
     {
@@ -181,6 +188,7 @@
       "slug": "adobe-acrobat-pro/windows",
       "platform": "windows",
       "unique_identifier": "Adobe Acrobat DC (64-bit)",
+      "arch": "x64",
       "description": "Adobe Acrobat Pro is a professional PDF editor for creating, editing, converting, and managing PDF documents."
     },
     {
@@ -195,6 +203,7 @@
       "slug": "adobe-acrobat-reader/windows",
       "platform": "windows",
       "unique_identifier": "Adobe Acrobat (64-bit)",
+      "arch": "x64",
       "description": "Adobe Acrobat Reader is the industry-standard tool for viewing, printing, and commenting on PDF documents."
     },
     {
@@ -209,6 +218,7 @@
       "slug": "adobe-creative-cloud/windows",
       "platform": "windows",
       "unique_identifier": "Adobe Creative Cloud",
+      "arch": "x86",
       "description": "Adobe Creative Cloud is a platform for creative software management and installation, including access to Adobe's suite of tools like Photoshop, Illustrator, and Premiere Pro."
     },
     {
@@ -230,6 +240,7 @@
       "slug": "advanced-installer/windows",
       "platform": "windows",
       "unique_identifier": "Advanced Installer",
+      "arch": "x64",
       "description": "Advanced Installer is a Windows Installer packaging tool for building MSI, MSIX, and App-V packages."
     },
     {
@@ -293,6 +304,7 @@
       "slug": "affinity/windows",
       "platform": "windows",
       "unique_identifier": "Affinity",
+      "arch": "x64",
       "description": "Affinity is an image editing and design software."
     },
     {
@@ -300,6 +312,7 @@
       "slug": "agent-ransack/windows",
       "platform": "windows",
       "unique_identifier": "Agent Ransack",
+      "arch": "x64",
       "description": "Agent Ransack is a free file search tool for finding files on your PC or network drives."
     },
     {
@@ -307,6 +320,7 @@
       "slug": "air-explorer/windows",
       "platform": "windows",
       "unique_identifier": "Air Explorer",
+      "arch": "x86",
       "description": "Air Explorer is an app for managing files across multiple cloud storage accounts."
     },
     {
@@ -328,6 +342,7 @@
       "slug": "aircall/windows",
       "platform": "windows",
       "unique_identifier": "Aircall",
+      "arch": "x64",
       "description": "Aircall is cloud-based call center and phone system software."
     },
     {
@@ -349,6 +364,7 @@
       "slug": "airparrot/windows",
       "platform": "windows",
       "unique_identifier": "AirParrot 3",
+      "arch": "x64",
       "description": "AirParrot is a tool to wirelessly mirror the screen or stream media files."
     },
     {
@@ -370,6 +386,7 @@
       "slug": "airtable/windows",
       "platform": "windows",
       "unique_identifier": "Airtable",
+      "arch": "neutral",
       "description": "Airtable is a spreadsheet-database hybrid for cloud collaboration."
     },
     {
@@ -384,6 +401,7 @@
       "slug": "airtame/windows",
       "platform": "windows",
       "unique_identifier": "Airtame 4.15.0",
+      "arch": "x86",
       "description": "Airtame is an app that makes shared screens easy to use - for screen sharing, conferencing, digital signage, and alerts."
     },
     {
@@ -405,6 +423,7 @@
       "slug": "alacritty/windows",
       "platform": "windows",
       "unique_identifier": "Alacritty",
+      "arch": "x64",
       "description": "Alacritty is a free and open-source, GPU-accelerated terminal emulator focused on performance and simplicity."
     },
     {
@@ -426,6 +445,7 @@
       "slug": "alfaview/windows",
       "platform": "windows",
       "unique_identifier": "alfaview msi version",
+      "arch": "x64",
       "description": "alfaview is a GDPR-compliant video conferencing application."
     },
     {
@@ -440,6 +460,7 @@
       "slug": "allway-sync/windows",
       "platform": "windows",
       "unique_identifier": "Allway Sync",
+      "arch": "x64",
       "description": "Allway Sync is a program to sync data between all kinds of devices."
     },
     {
@@ -482,6 +503,7 @@
       "slug": "amazon-chime/windows",
       "platform": "windows",
       "unique_identifier": "Amazon Chime",
+      "arch": "x86",
       "description": "Amazon Chime is a communications service that lets you meet, chat, and place business calls inside and outside your organization."
     },
     {
@@ -489,6 +511,7 @@
       "slug": "amazon-corretto-11/windows",
       "platform": "windows",
       "unique_identifier": "Amazon Corretto (x64)",
+      "arch": "x64",
       "description": "Amazon Corretto 11 is a no-cost, multiplatform, production-ready distribution of OpenJDK 11."
     },
     {
@@ -496,6 +519,7 @@
       "slug": "amazon-corretto-17/windows",
       "platform": "windows",
       "unique_identifier": "Amazon Corretto (x64)",
+      "arch": "x64",
       "description": "Amazon Corretto 17 is a no-cost, multiplatform, production-ready distribution of OpenJDK 17."
     },
     {
@@ -503,6 +527,7 @@
       "slug": "amazon-corretto-21/windows",
       "platform": "windows",
       "unique_identifier": "Amazon Corretto (x64)",
+      "arch": "x64",
       "description": "Amazon Corretto 21 is a no-cost, multiplatform, production-ready distribution of OpenJDK 21."
     },
     {
@@ -510,6 +535,7 @@
       "slug": "amazon-corretto-24/windows",
       "platform": "windows",
       "unique_identifier": "Amazon Corretto (x64)",
+      "arch": "x64",
       "description": "Amazon Corretto 24 is a no-cost, multiplatform, production-ready distribution of OpenJDK 24."
     },
     {
@@ -517,6 +543,7 @@
       "slug": "amazon-corretto-25/windows",
       "platform": "windows",
       "unique_identifier": "Amazon Corretto (x64)",
+      "arch": "x64",
       "description": "Amazon Corretto 25 is a no-cost, multiplatform, production-ready distribution of OpenJDK 25."
     },
     {
@@ -524,6 +551,7 @@
       "slug": "amazon-corretto-26/windows",
       "platform": "windows",
       "unique_identifier": "Amazon Corretto (x64)",
+      "arch": "x64",
       "description": "Amazon Corretto 26 is a no-cost, multiplatform, production-ready distribution of OpenJDK 26."
     },
     {
@@ -531,6 +559,7 @@
       "slug": "amazon-corretto-8/windows",
       "platform": "windows",
       "unique_identifier": "Amazon Corretto 8 (x64)",
+      "arch": "x64",
       "description": "Amazon Corretto 8 is a no-cost, multiplatform, production-ready distribution of OpenJDK 8."
     },
     {
@@ -538,6 +567,7 @@
       "slug": "amazon-corretto-jre-8/windows",
       "platform": "windows",
       "unique_identifier": "Amazon Corretto JRE 8 (x64)",
+      "arch": "x64",
       "description": "Amazon Corretto JRE 8 is a no-cost, multiplatform, production-ready distribution of the OpenJDK 8 Java runtime environment."
     },
     {
@@ -545,6 +575,7 @@
       "slug": "amazon-dcv-client/windows",
       "platform": "windows",
       "unique_identifier": "Amazon DCV Client",
+      "arch": "x64",
       "description": "Amazon DCV Client is a remote display client for connecting to Amazon DCV sessions for high-performance remote desktop and application streaming."
     },
     {
@@ -552,6 +583,7 @@
       "slug": "amazon-dcv-server/windows",
       "platform": "windows",
       "unique_identifier": "Amazon DCV Server",
+      "arch": "x64",
       "description": "Amazon DCV Server is remote display software that delivers high-performance remote desktop and application streaming to connected clients."
     },
     {
@@ -559,6 +591,7 @@
       "slug": "amazon-redshift-odbc-driver/windows",
       "platform": "windows",
       "unique_identifier": "Amazon Redshift ODBC Driver 64-bit",
+      "arch": "x64",
       "description": "Amazon Redshift ODBC Driver connects SQL client tools to Amazon Redshift clusters."
     },
     {
@@ -573,6 +606,7 @@
       "slug": "amazon-workspaces/windows",
       "platform": "windows",
       "unique_identifier": "Amazon WorkSpaces",
+      "arch": "x64",
       "description": "Amazon WorkSpaces is an app that provides secure, managed virtual desktop infrastructure (VDI) in the cloud."
     },
     {
@@ -601,6 +635,7 @@
       "slug": "android-studio/windows",
       "platform": "windows",
       "unique_identifier": "Android Studio",
+      "arch": "x64",
       "description": "Android Studio is the official integrated development environment for Android app development, based on IntelliJ IDEA."
     },
     {
@@ -629,6 +664,7 @@
       "slug": "another-redis-desktop-manager/windows",
       "platform": "windows",
       "unique_identifier": "Another Redis Desktop Manager",
+      "arch": "x64",
       "description": "Another Redis Desktop Manager is a GUI client for Redis."
     },
     {
@@ -643,6 +679,7 @@
       "slug": "antigravity-ide/windows",
       "platform": "windows",
       "unique_identifier": "Antigravity IDE",
+      "arch": "x64",
       "description": "Google Antigravity is an AI coding agent IDE."
     },
     {
@@ -664,6 +701,7 @@
       "slug": "anyburn/windows",
       "platform": "windows",
       "unique_identifier": "AnyBurn",
+      "arch": "x86",
       "description": "AnyBurn is a lightweight CD, DVD, and Blu-ray burning tool."
     },
     {
@@ -678,6 +716,7 @@
       "slug": "anydesk/windows",
       "platform": "windows",
       "unique_identifier": "AnyDesk",
+      "arch": "x86",
       "description": "AnyDesk is an app that allows connection to a computer remotely."
     },
     {
@@ -699,6 +738,7 @@
       "slug": "aomei-backupper-standard/windows",
       "platform": "windows",
       "unique_identifier": "AOMEI Backupper",
+      "arch": "x86",
       "description": "AOMEI Backupper Standard is a backup, sync, and disaster recovery tool for Windows."
     },
     {
@@ -748,6 +788,7 @@
       "slug": "aptakube/windows",
       "platform": "windows",
       "unique_identifier": "Aptakube",
+      "arch": "x64",
       "description": "Aptakube is a modern, lightweight, multi-cluster Kubernetes graphical user interface."
     },
     {
@@ -762,6 +803,7 @@
       "slug": "arc/windows",
       "platform": "windows",
       "unique_identifier": "Arc",
+      "arch": "x64",
       "description": "Arc is a productivity-focused browser."
     },
     {
@@ -783,6 +825,7 @@
       "slug": "arduino-ide/windows",
       "platform": "windows",
       "unique_identifier": "Arduino IDE",
+      "arch": "x64",
       "description": "Arduino IDE is the official development environment for programming Arduino microcontrollers."
     },
     {
@@ -797,6 +840,7 @@
       "slug": "asana/windows",
       "platform": "windows",
       "unique_identifier": "Asana",
+      "arch": "x64",
       "description": "Asana is an app to manage team projects and tasks."
     },
     {
@@ -825,6 +869,7 @@
       "slug": "audacity/windows",
       "platform": "windows",
       "unique_identifier": "Audacity",
+      "arch": "x64",
       "description": "Audacity is a multi-track audio editor and recorder."
     },
     {
@@ -839,6 +884,7 @@
       "slug": "audiveris/windows",
       "platform": "windows",
       "unique_identifier": "Audiveris",
+      "arch": "x64",
       "description": "Audiveris is an open-source optical music recognition application that converts sheet music images into digital MusicXML scores."
     },
     {
@@ -846,6 +892,7 @@
       "slug": "autopsy/windows",
       "platform": "windows",
       "unique_identifier": "Autopsy",
+      "arch": "x64",
       "description": "Autopsy is an open-source digital forensics platform for analyzing hard drives and smartphones."
     },
     {
@@ -867,6 +914,7 @@
       "slug": "avs-image-converter/windows",
       "platform": "windows",
       "unique_identifier": "AVS Image Converter",
+      "arch": "x86",
       "description": "AVS Image Converter is an app for converting and resizing images in all key formats."
     },
     {
@@ -874,6 +922,7 @@
       "slug": "avs-media-player/windows",
       "platform": "windows",
       "unique_identifier": "AVS Media Player",
+      "arch": "x86",
       "description": "AVS Media Player is a free player for audio and video files."
     },
     {
@@ -881,6 +930,7 @@
       "slug": "aws-cli/windows",
       "platform": "windows",
       "unique_identifier": "AWS Command Line Interface v2",
+      "arch": "x64",
       "description": "AWS Command Line Interface provides a tool for interacting with all parts of Amazon Web Services."
     },
     {
@@ -888,6 +938,7 @@
       "slug": "aws-sam-cli/windows",
       "platform": "windows",
       "unique_identifier": "AWS SAM Command Line Interface",
+      "arch": "x64",
       "description": "AWS SAM Command Line Interface is a tool for building, testing, and deploying serverless applications using the AWS Serverless Application Model."
     },
     {
@@ -895,6 +946,7 @@
       "slug": "aws-session-manager-plugin/windows",
       "platform": "windows",
       "unique_identifier": "Session Manager Plugin",
+      "arch": "x64",
       "description": "AWS Session Manager Plugin lets the AWS CLI start and end sessions to managed instances."
     },
     {
@@ -909,6 +961,7 @@
       "slug": "aws-vpn-client/windows",
       "platform": "windows",
       "unique_identifier": "AWS VPN Client",
+      "arch": "x64",
       "description": "AWS Client VPN is a managed client-based VPN service to securely access AWS resources."
     },
     {
@@ -923,6 +976,7 @@
       "slug": "azul-zulu-25-jdk/windows",
       "platform": "windows",
       "unique_identifier": "Azul Zulu JDK",
+      "arch": "x64",
       "description": "Azul Zulu JDK 25 is a free, certified build of OpenJDK 25 from Azul Systems."
     },
     {
@@ -930,6 +984,7 @@
       "slug": "azul-zulu-25-jre/windows",
       "platform": "windows",
       "unique_identifier": "Azul Zulu JRE",
+      "arch": "x64",
       "description": "Azul Zulu JRE 25 is a free Java runtime environment (JRE-only build) of OpenJDK 25 from Azul Systems."
     },
     {
@@ -937,6 +992,7 @@
       "slug": "azure-cli/windows",
       "platform": "windows",
       "unique_identifier": "Microsoft Azure CLI (64-bit)",
+      "arch": "x64",
       "description": "Microsoft Azure CLI is a command-line tool for managing Azure resources."
     },
     {
@@ -944,6 +1000,7 @@
       "slug": "azure-data-studio/windows",
       "platform": "windows",
       "unique_identifier": "Azure Data Studio",
+      "arch": "x64",
       "description": "Azure Data Studio is a cross-platform database tool for querying and managing SQL Server, Azure SQL, and PostgreSQL."
     },
     {
@@ -951,6 +1008,7 @@
       "slug": "azure-functions-core-tools/windows",
       "platform": "windows",
       "unique_identifier": "Azure Functions Core Tools",
+      "arch": "x64",
       "description": "Azure Functions Core Tools is a command-line toolset for developing and testing Azure Functions locally."
     },
     {
@@ -979,6 +1037,7 @@
       "slug": "balenaetcher/windows",
       "platform": "windows",
       "unique_identifier": "balenaEtcher",
+      "arch": "x64",
       "description": "balenaEtcher is a tool to flash OS images to SD cards & USB drives."
     },
     {
@@ -1000,6 +1059,7 @@
       "slug": "bandiview/windows",
       "platform": "windows",
       "unique_identifier": "BandiView",
+      "arch": "x64",
       "description": "BandiView is a fast image viewer supporting a wide range of photo and comic formats."
     },
     {
@@ -1035,6 +1095,7 @@
       "slug": "bdash/windows",
       "platform": "windows",
       "unique_identifier": "Bdash",
+      "arch": "x64",
       "description": "Bdash is a simple SQL client for lightweight data analysis."
     },
     {
@@ -1056,6 +1117,7 @@
       "slug": "beekeeper-studio/windows",
       "platform": "windows",
       "unique_identifier": "Beekeeper Studio",
+      "arch": "x64",
       "description": "Beekeeper Studio is a cross platform SQL editor and database management app."
     },
     {
@@ -1105,6 +1167,7 @@
       "slug": "beyond-compare/windows",
       "platform": "windows",
       "unique_identifier": "Beyond Compare",
+      "arch": "x64",
       "description": "Beyond Compare is an app used to compare files and folders."
     },
     {
@@ -1133,6 +1196,7 @@
       "slug": "binance/windows",
       "platform": "windows",
       "unique_identifier": "Binance",
+      "arch": "x64",
       "description": "Binance is a cryptocurrency exchange app."
     },
     {
@@ -1147,6 +1211,7 @@
       "slug": "biscuit/windows",
       "platform": "windows",
       "unique_identifier": "Biscuit",
+      "arch": "x64",
       "description": "Biscuit is a browser to organise apps."
     },
     {
@@ -1175,6 +1240,7 @@
       "slug": "bitwarden/windows",
       "platform": "windows",
       "unique_identifier": "Bitwarden",
+      "arch": "x64",
       "description": "Bitwarden is an open-source password management service."
     },
     {
@@ -1189,6 +1255,7 @@
       "slug": "bitwig-studio/windows",
       "platform": "windows",
       "unique_identifier": "Bitwig Studio",
+      "arch": "x64",
       "description": "Bitwig Studio is a digital audio workstation."
     },
     {
@@ -1196,6 +1263,7 @@
       "slug": "bleachbit/windows",
       "platform": "windows",
       "unique_identifier": "BleachBit",
+      "arch": "x86",
       "description": "BleachBit is a free utility for cleaning disk space and protecting privacy."
     },
     {
@@ -1210,6 +1278,7 @@
       "slug": "blender/windows",
       "platform": "windows",
       "unique_identifier": "Blender",
+      "arch": "x64",
       "description": "Blender is a 3D creation suite."
     },
     {
@@ -1238,6 +1307,7 @@
       "slug": "bluej/windows",
       "platform": "windows",
       "unique_identifier": "BlueJ",
+      "arch": "x64",
       "description": "BlueJ is a free Java development environment designed for beginners."
     },
     {
@@ -1301,6 +1371,7 @@
       "slug": "box-drive/windows",
       "platform": "windows",
       "unique_identifier": "Box",
+      "arch": "x64",
       "description": "Box Drive is the desktop client for Box Cloud, enabling seamless access to your files without taking up local storage."
     },
     {
@@ -1315,6 +1386,7 @@
       "slug": "box-tools/windows",
       "platform": "windows",
       "unique_identifier": "Box Tools",
+      "arch": "x64",
       "description": "Box Tools is a companion app for Box that lets users create and edit files stored in Box with their computer's default applications, directly from a web browser."
     },
     {
@@ -1329,6 +1401,7 @@
       "slug": "brave-browser/windows",
       "platform": "windows",
       "unique_identifier": "Brave",
+      "arch": "x64",
       "description": "Brave is a web browser designed with privacy, blocking ads and trackers by default while maintaining fast speed."
     },
     {
@@ -1350,6 +1423,7 @@
       "slug": "browserstacklocal/windows",
       "platform": "windows",
       "unique_identifier": "BrowserStackLocal",
+      "arch": "x64",
       "description": "BrowserStackLocal connects your machine to BrowserStack for testing work-in-progress web apps without public hosting."
     },
     {
@@ -1364,6 +1438,7 @@
       "slug": "bruno/windows",
       "platform": "windows",
       "unique_identifier": "Bruno",
+      "arch": "x64",
       "description": "Bruno is an open source IDE for exploring and testing APIs."
     },
     {
@@ -1371,6 +1446,7 @@
       "slug": "bulk-crap-uninstaller/windows",
       "platform": "windows",
       "unique_identifier": "BCUninstaller",
+      "arch": "x86",
       "description": "Bulk Crap Uninstaller is a free tool for removing large numbers of applications with minimal user input."
     },
     {
@@ -1385,6 +1461,7 @@
       "slug": "burp-suite-community/windows",
       "platform": "windows",
       "unique_identifier": "Burp Suite Community Edition 2026.3.3",
+      "arch": "x64",
       "description": "Burp Suite is a web security testing toolkit."
     },
     {
@@ -1392,6 +1469,7 @@
       "slug": "burp-suite-professional/windows",
       "platform": "windows",
       "unique_identifier": "Burp Suite Professional",
+      "arch": "x64",
       "description": "Burp Suite Professional is a toolkit for web application security testing."
     },
     {
@@ -1448,6 +1526,7 @@
       "slug": "calibre/windows",
       "platform": "windows",
       "unique_identifier": "calibre",
+      "arch": "x64",
       "description": "calibre is e-book management software."
     },
     {
@@ -1476,6 +1555,7 @@
       "slug": "camtasia/windows",
       "platform": "windows",
       "unique_identifier": "Camtasia",
+      "arch": "x64",
       "description": "Camtasia is a screen recorder and video editor."
     },
     {
@@ -1497,6 +1577,7 @@
       "slug": "canva/windows",
       "platform": "windows",
       "unique_identifier": "Canva",
+      "arch": "x86",
       "description": "Canva is a popular online graphic design tool."
     },
     {
@@ -1553,6 +1634,7 @@
       "slug": "certify-the-web/windows",
       "platform": "windows",
       "unique_identifier": "Certify Certificate Manager",
+      "arch": "x64",
       "description": "Certify The Web is a certificate manager for requesting and auto-renewing free SSL/TLS certificates on Windows servers."
     },
     {
@@ -1581,6 +1663,7 @@
       "slug": "chatbox/windows",
       "platform": "windows",
       "unique_identifier": "Chatbox",
+      "arch": "x64",
       "description": "Chatbox is a desktop client for working with multiple AI models."
     },
     {
@@ -1616,6 +1699,7 @@
       "slug": "chef-workstation/windows",
       "platform": "windows",
       "unique_identifier": "Chef Workstation",
+      "arch": "x64",
       "description": "Chef Workstation is a toolkit from Progress Chef for authoring, testing, and running infrastructure automation code."
     },
     {
@@ -1623,6 +1707,7 @@
       "slug": "cherry-keys/windows",
       "platform": "windows",
       "unique_identifier": "CHERRY KEYS",
+      "arch": "x64",
       "description": "Cherry Keys is a utility for individually reassigning the keys of Cherry keyboards, mice, and desktop sets."
     },
     {
@@ -1658,6 +1743,7 @@
       "slug": "chrome-remote-desktop/windows",
       "platform": "windows",
       "unique_identifier": "Chrome Remote Desktop Host",
+      "arch": "x86",
       "description": "Chrome Remote Desktop is an app that allows admins to help troubleshoot through the Google Chrome browser."
     },
     {
@@ -1665,6 +1751,7 @@
       "slug": "cinc/windows",
       "platform": "windows",
       "unique_identifier": "Cinc Workstation",
+      "arch": "x64",
       "description": "Cinc Workstation is an open-source distribution of Chef Workstation that bundles the tools needed to author, test, and manage Chef Infra cookbooks and configurations."
     },
     {
@@ -1679,6 +1766,7 @@
       "slug": "cisco-jabber/windows",
       "platform": "windows",
       "unique_identifier": "Cisco Jabber",
+      "arch": "x64",
       "description": "Cisco Jabber is a collaboration and communication app."
     },
     {
@@ -1686,6 +1774,7 @@
       "slug": "cisco-webex-recorder-and-player/windows",
       "platform": "windows",
       "unique_identifier": "Webex Recorder and Player",
+      "arch": "x86",
       "description": "Cisco Webex Recorder and Player plays Webex .wrf meeting recordings."
     },
     {
@@ -1714,6 +1803,7 @@
       "slug": "claude/windows",
       "platform": "windows",
       "unique_identifier": "Claude",
+      "arch": "x64",
       "description": "Claude is Anthropic's official Claude AI desktop app."
     },
     {
@@ -1756,6 +1846,7 @@
       "slug": "clickup/windows",
       "platform": "windows",
       "unique_identifier": "ClickUp",
+      "arch": "x64",
       "description": "ClickUp is a productivity platform for tasks, docs, goals, and chat."
     },
     {
@@ -1770,6 +1861,7 @@
       "slug": "clion/windows",
       "platform": "windows",
       "unique_identifier": "CLion",
+      "arch": "x64",
       "description": "CLion is a JetBrains IDE for C and C++."
     },
     {
@@ -1777,6 +1869,7 @@
       "slug": "clipboardfusion/windows",
       "platform": "windows",
       "unique_identifier": "ClipboardFusion",
+      "arch": "x64",
       "description": "ClipboardFusion is a clipboard manager for scrubbing, transforming, and syncing clipboard text."
     },
     {
@@ -1805,6 +1898,7 @@
       "slug": "clockassist/windows",
       "platform": "windows",
       "unique_identifier": "ClockAssist",
+      "arch": "x64",
       "description": "ClockAssist is an AI-powered time tracking assistant."
     },
     {
@@ -1826,6 +1920,7 @@
       "slug": "clockify/windows",
       "platform": "windows",
       "unique_identifier": "Clockify",
+      "arch": "x64",
       "description": "Clockify Desktop is a time tracking tool for agencies and freelancers."
     },
     {
@@ -1847,6 +1942,7 @@
       "slug": "cloudflare-warp/windows",
       "platform": "windows",
       "unique_identifier": "Cloudflare One Client",
+      "arch": "x64",
       "description": "Cloudflare One enhances internet safety and performance by encrypting your data and optimizing connections for privacy."
     },
     {
@@ -1868,6 +1964,7 @@
       "slug": "cmake-app/windows",
       "platform": "windows",
       "unique_identifier": "CMake",
+      "arch": "x64",
       "description": "CMake is a family of tools to build, test and package software."
     },
     {
@@ -1896,6 +1993,7 @@
       "slug": "codemeter-runtime-kit/windows",
       "platform": "windows",
       "unique_identifier": "CodeMeter Runtime Kit",
+      "arch": "x64",
       "description": "CodeMeter Runtime Kit is WIBU-SYSTEMS software licensing runtime required by CodeMeter-protected applications."
     },
     {
@@ -1945,6 +2043,7 @@
       "slug": "colour-contrast-analyser/windows",
       "platform": "windows",
       "unique_identifier": "Colour Contrast Analyser",
+      "arch": "x64",
       "description": "Colour Contrast Analyser is a tool for checking the contrast of text and visual elements against WCAG accessibility guidelines."
     },
     {
@@ -1959,6 +2058,7 @@
       "slug": "comet/windows",
       "platform": "windows",
       "unique_identifier": "Comet",
+      "arch": "x64",
       "description": "Comet is a web browser with an integrated AI assistant from Perplexity."
     },
     {
@@ -2022,6 +2122,7 @@
       "slug": "cpu-z/windows",
       "platform": "windows",
       "unique_identifier": "CPUID CPU-Z",
+      "arch": "x64",
       "description": "CPU-Z is a system information utility reporting CPU, memory, and mainboard details."
     },
     {
@@ -2036,6 +2137,7 @@
       "slug": "crashplan/windows",
       "platform": "windows",
       "unique_identifier": "CrashPlan",
+      "arch": "x64",
       "description": "CrashPlan is backup and recovery software."
     },
     {
@@ -2043,6 +2145,7 @@
       "slug": "creative-force-kelvin/windows",
       "platform": "windows",
       "unique_identifier": "Kelvin",
+      "arch": "x64",
       "description": "Creative Force Kelvin is a capture and transfer app for studio photography workflows, with optional Capture One integration."
     },
     {
@@ -2050,6 +2153,7 @@
       "slug": "creative-force-triad/windows",
       "platform": "windows",
       "unique_identifier": "Creative Force Triad",
+      "arch": "x64",
       "description": "Creative Force Triad enables direct printing from the Creative Force platform to Zebra label printers."
     },
     {
@@ -2057,6 +2161,7 @@
       "slug": "crestron-airmedia-peripherals/windows",
       "platform": "windows",
       "unique_identifier": "Crestron AirMedia Peripherals",
+      "arch": "x64",
       "description": "Crestron AirMedia Peripherals enables wireless conferencing with Crestron AirMedia Series 3 receivers."
     },
     {
@@ -2064,6 +2169,7 @@
       "slug": "crestron-airmedia/windows",
       "platform": "windows",
       "unique_identifier": "Crestron AirMedia Machine-Wide Installer",
+      "arch": "x86",
       "description": "Crestron AirMedia enables wireless presentation and conferencing with AirMedia receivers."
     },
     {
@@ -2071,6 +2177,7 @@
       "slug": "cribl-edge/windows",
       "platform": "windows",
       "unique_identifier": "Cribl Edge",
+      "arch": "x64",
       "description": "Cribl Edge is an observability agent for collecting and processing logs, metrics, and other telemetry at the edge."
     },
     {
@@ -2078,6 +2185,7 @@
       "slug": "crisisgo/windows",
       "platform": "windows",
       "unique_identifier": "CrisisGo",
+      "arch": "x86",
       "description": "CrisisGo is a safety communication platform for emergency alerts and response."
     },
     {
@@ -2099,6 +2207,7 @@
       "slug": "cryptomator/windows",
       "platform": "windows",
       "unique_identifier": "Cryptomator",
+      "arch": "x64",
       "description": "Cryptomator is a multi-platform client-side cloud file encryption tool."
     },
     {
@@ -2106,6 +2215,7 @@
       "slug": "crystaldiskmark/windows",
       "platform": "windows",
       "unique_identifier": "CrystalDiskMark",
+      "arch": "x64",
       "description": "CrystalDiskMark is a disk benchmark tool that measures storage read and write speeds."
     },
     {
@@ -2120,6 +2230,7 @@
       "slug": "cube-browser/windows",
       "platform": "windows",
       "unique_identifier": "Cube Browser (64 bit)",
+      "arch": "x64",
       "description": "Cube Browser is Rystad Energy’s client for querying and analyzing its energy data cubes."
     },
     {
@@ -2134,6 +2245,7 @@
       "slug": "cursor/windows",
       "platform": "windows",
       "unique_identifier": "Cursor",
+      "arch": "x64",
       "description": "Cursor AI boosts your coding productivity by giving smart, context-aware code suggestions, quick explanations, and easy refactors - all inside your editor."
     },
     {
@@ -2162,6 +2274,7 @@
       "slug": "cyberduck-cli/windows",
       "platform": "windows",
       "unique_identifier": "Cyberduck CLI",
+      "arch": "x64",
       "description": "Cyberduck CLI (duck) is a command-line file transfer tool for cloud storage and servers."
     },
     {
@@ -2176,6 +2289,7 @@
       "slug": "cyberduck/windows",
       "platform": "windows",
       "unique_identifier": "Cyberduck",
+      "arch": "x64",
       "description": "Cyberduck is a server and cloud storage browser."
     },
     {
@@ -2225,6 +2339,7 @@
       "slug": "darktable/windows",
       "platform": "windows",
       "unique_identifier": "darktable",
+      "arch": "x64",
       "description": "darktable is a photography workflow application and raw developer."
     },
     {
@@ -2246,6 +2361,7 @@
       "slug": "dataflare/windows",
       "platform": "windows",
       "unique_identifier": "Dataflare",
+      "arch": "x64",
       "description": "Dataflare is a database manager."
     },
     {
@@ -2260,6 +2376,7 @@
       "slug": "datagrip/windows",
       "platform": "windows",
       "unique_identifier": "DataGrip",
+      "arch": "x64",
       "description": "DataGrip is a powerful cross-platform IDE for relational and NoSQL databases."
     },
     {
@@ -2274,6 +2391,7 @@
       "slug": "dataspell/windows",
       "platform": "windows",
       "unique_identifier": "DataSpell",
+      "arch": "x64",
       "description": "DataSpell is a JetBrains IDE for data science, with notebooks, interactive Python/R, and database tools."
     },
     {
@@ -2281,6 +2399,7 @@
       "slug": "dax-studio/windows",
       "platform": "windows",
       "unique_identifier": "DAX Studio",
+      "arch": "x64",
       "description": "DAX Studio is a tool for writing, running, and analyzing DAX queries against tabular data models."
     },
     {
@@ -2302,6 +2421,7 @@
       "slug": "db-browser-for-sqlite/windows",
       "platform": "windows",
       "unique_identifier": "DB Browser for SQLite",
+      "arch": "x64",
       "description": "DB Browser for SQLite is a high quality, visual, open source tool designed for people who want to create, search, and edit SQLite or SQLCipher databases."
     },
     {
@@ -2316,6 +2436,7 @@
       "slug": "dbeaver-community/windows",
       "platform": "windows",
       "unique_identifier": "DBeaver",
+      "arch": "x64",
       "description": "DBeaver is a universal database tool and SQL client."
     },
     {
@@ -2330,6 +2451,7 @@
       "slug": "dbeaver-enterprise/windows",
       "platform": "windows",
       "unique_identifier": "DBeaverEE",
+      "arch": "x64",
       "description": "DBeaver is a universal database tool and SQL client."
     },
     {
@@ -2344,6 +2466,7 @@
       "slug": "dbeaverlite/windows",
       "platform": "windows",
       "unique_identifier": "DBeaverLite",
+      "arch": "x64",
       "description": "DBeaver is a universal database tool and SQL client."
     },
     {
@@ -2358,6 +2481,7 @@
       "slug": "dbeaverultimate/windows",
       "platform": "windows",
       "unique_identifier": "DBeaverUltimate",
+      "arch": "x64",
       "description": "DBeaver is a universal database tool and SQL client."
     },
     {
@@ -2379,6 +2503,7 @@
       "slug": "dbvisualizer/windows",
       "platform": "windows",
       "unique_identifier": "DbVisualizer",
+      "arch": "x64",
       "description": "DbVisualizer is a database management and analysis tool."
     },
     {
@@ -2428,6 +2553,7 @@
       "slug": "delinea-connection-manager/windows",
       "platform": "windows",
       "unique_identifier": "Delinea Connection Manager",
+      "arch": "x64",
       "description": "Delinea Connection Manager provides secure RDP and SSH connections to remote servers."
     },
     {
@@ -2435,6 +2561,7 @@
       "slug": "dell-command-update/windows",
       "platform": "windows",
       "unique_identifier": "Dell Command",
+      "arch": "x64",
       "description": "Dell Command Update is a standalone application that delivers BIOS, firmware, driver, and application updates for Dell client hardware."
     },
     {
@@ -2442,6 +2569,7 @@
       "slug": "dell-display-and-peripheral-manager/windows",
       "platform": "windows",
       "unique_identifier": "Dell Display and Peripheral Manager",
+      "arch": "x64",
       "description": "Dell Display and Peripheral Manager sets up and configures Dell monitors and peripherals such as keyboards, mice, webcams, audio devices, and active pens."
     },
     {
@@ -2456,6 +2584,7 @@
       "slug": "descript/windows",
       "platform": "windows",
       "unique_identifier": "Descript",
+      "arch": "x64",
       "description": "Descript is an audio and video editor."
     },
     {
@@ -2491,6 +2620,7 @@
       "slug": "devolutions-launcher/windows",
       "platform": "windows",
       "unique_identifier": "Devolutions Launcher",
+      "arch": "x64",
       "description": "Devolutions Launcher opens remote connections from Devolutions Server and Devolutions Hub."
     },
     {
@@ -2498,6 +2628,7 @@
       "slug": "devolutions-workspace/windows",
       "platform": "windows",
       "unique_identifier": "Devolutions Password Manager",
+      "arch": "x64",
       "description": "Devolutions Password Manager (formerly Workspace) provides access to Devolutions accounts and credentials."
     },
     {
@@ -2519,6 +2650,7 @@
       "slug": "devpod/windows",
       "platform": "windows",
       "unique_identifier": "DevPod",
+      "arch": "x64",
       "description": "DevPod is an open-source, client-only tool for spinning up reproducible development environments."
     },
     {
@@ -2533,6 +2665,7 @@
       "slug": "devtoys/windows",
       "platform": "windows",
       "unique_identifier": "DevToys",
+      "arch": "x64",
       "description": "DevToys is a utilities designed to make common development tasks easier."
     },
     {
@@ -2561,6 +2694,7 @@
       "slug": "dialpad/windows",
       "platform": "windows",
       "unique_identifier": "Dialpad",
+      "arch": "x64",
       "description": "Dialpad is a cloud communication platform."
     },
     {
@@ -2589,6 +2723,7 @@
       "slug": "digiseal-reader/windows",
       "platform": "windows",
       "unique_identifier": "digiSeal reader",
+      "arch": "x86",
       "description": "digiSeal Reader verifies signed and sealed documents and time stamps."
     },
     {
@@ -2596,6 +2731,7 @@
       "slug": "directory-opus/windows",
       "platform": "windows",
       "unique_identifier": "Directory Opus",
+      "arch": "x64",
       "description": "Directory Opus is an advanced file manager and Windows Explorer replacement."
     },
     {
@@ -2610,6 +2746,7 @@
       "slug": "discord/windows",
       "platform": "windows",
       "unique_identifier": "Discord",
+      "arch": "x64",
       "description": "Discord is voice and text chat software."
     },
     {
@@ -2631,6 +2768,7 @@
       "slug": "displaylink/windows",
       "platform": "windows",
       "unique_identifier": "DisplayLink Graphics",
+      "arch": "x64",
       "description": "Drivers for DisplayLink docks, adapters and monitors."
     },
     {
@@ -2638,6 +2776,7 @@
       "slug": "dngrep/windows",
       "platform": "windows",
       "unique_identifier": "dnGrep",
+      "arch": "x64",
       "description": "dnGrep is a search tool for finding text across files with regex, XPath, and phonetic matching."
     },
     {
@@ -2659,6 +2798,7 @@
       "slug": "docker/windows",
       "platform": "windows",
       "unique_identifier": "Docker Desktop",
+      "arch": "x64",
       "description": "Docker Desktop provides a seamless environment for building, sharing, and running containerized applications and microservices."
     },
     {
@@ -2694,6 +2834,7 @@
       "slug": "dotpeek/windows",
       "platform": "windows",
       "unique_identifier": "JetBrains dotPeek",
+      "arch": "x86",
       "description": "dotPeek is a free .NET decompiler and assembly browser by JetBrains."
     },
     {
@@ -2701,6 +2842,7 @@
       "slug": "dottrace/windows",
       "platform": "windows",
       "unique_identifier": "JetBrains dotTrace",
+      "arch": "x64",
       "description": "dotTrace is a performance profiler for .NET applications."
     },
     {
@@ -2722,6 +2864,7 @@
       "slug": "draftable-desktop/windows",
       "platform": "windows",
       "unique_identifier": "Draftable Desktop",
+      "arch": "x64",
       "description": "Draftable Desktop compares documents (PDF, Word, PowerPoint) and highlights changes, offline."
     },
     {
@@ -2750,6 +2893,7 @@
       "slug": "drawio/windows",
       "platform": "windows",
       "unique_identifier": "draw.io",
+      "arch": "x64",
       "description": "draw.io is a versatile diagramming or whiteboarding application."
     },
     {
@@ -2757,6 +2901,7 @@
       "slug": "drofus/windows",
       "platform": "windows",
       "unique_identifier": "dRofus",
+      "arch": "x64",
       "description": "dRofus is a planning and data-management tool for building and construction projects."
     },
     {
@@ -2771,6 +2916,7 @@
       "slug": "dropbox/windows",
       "platform": "windows",
       "unique_identifier": "Dropbox",
+      "arch": "x64",
       "description": "Dropbox is a client for the Dropbox cloud storage service."
     },
     {
@@ -2813,6 +2959,7 @@
       "slug": "druva-insync/windows",
       "platform": "windows",
       "unique_identifier": "Druva inSync",
+      "arch": "x64",
       "description": "Druva inSync is a cloud-based product that protects endpoint data."
     },
     {
@@ -2848,6 +2995,7 @@
       "slug": "duo-desktop/windows",
       "platform": "windows",
       "unique_identifier": "Duo Desktop",
+      "arch": "x86",
       "description": "Duo Desktop is an app that checks the health and security posture of macOS, Windows, and Linux devices at every login."
     },
     {
@@ -2862,6 +3010,7 @@
       "slug": "dupeguru/windows",
       "platform": "windows",
       "unique_identifier": "dupeGuru",
+      "arch": "x64",
       "description": "dupeGuru is a finds duplicate files in a computer system."
     },
     {
@@ -2876,6 +3025,7 @@
       "slug": "dymo-id/windows",
       "platform": "windows",
       "unique_identifier": "DYMO ID",
+      "arch": "x86",
       "description": "DYMO ID is label-design software for DYMO XTL and Rhino 6000+ industrial label makers."
     },
     {
@@ -2883,6 +3033,7 @@
       "slug": "dynalist/windows",
       "platform": "windows",
       "unique_identifier": "Dynalist",
+      "arch": "neutral",
       "description": "Dynalist is an app for outlining app for your work."
     },
     {
@@ -2918,6 +3069,7 @@
       "slug": "eclipse-temurin-jdk-11/windows",
       "platform": "windows",
       "unique_identifier": "Eclipse Temurin JDK with Hotspot",
+      "arch": "x64",
       "description": "Eclipse Temurin JDK 11 is the free, open-source OpenJDK 11 distribution from the Eclipse Adoptium project."
     },
     {
@@ -2925,6 +3077,7 @@
       "slug": "eclipse-temurin-jdk-17/windows",
       "platform": "windows",
       "unique_identifier": "Eclipse Temurin JDK with Hotspot",
+      "arch": "x64",
       "description": "Eclipse Temurin JDK 17 is the free, open-source OpenJDK 17 distribution from the Eclipse Adoptium project."
     },
     {
@@ -2932,6 +3085,7 @@
       "slug": "eclipse-temurin-jdk-21/windows",
       "platform": "windows",
       "unique_identifier": "Eclipse Temurin JDK with Hotspot",
+      "arch": "x64",
       "description": "Eclipse Temurin JDK 21 is the free, open-source OpenJDK 21 distribution from the Eclipse Adoptium project."
     },
     {
@@ -2939,6 +3093,7 @@
       "slug": "eclipse-temurin-jdk-8/windows",
       "platform": "windows",
       "unique_identifier": "Eclipse Temurin JDK with Hotspot",
+      "arch": "x64",
       "description": "Eclipse Temurin JDK 8 is the free, open-source OpenJDK 8 distribution from the Eclipse Adoptium project."
     },
     {
@@ -2946,6 +3101,7 @@
       "slug": "eclipse-temurin-jre-11/windows",
       "platform": "windows",
       "unique_identifier": "Eclipse Temurin JRE with Hotspot",
+      "arch": "x64",
       "description": "Eclipse Temurin JRE 11 is the free, open-source OpenJDK 11 Java runtime from the Eclipse Adoptium project."
     },
     {
@@ -2953,6 +3109,7 @@
       "slug": "eclipse-temurin-jre-17/windows",
       "platform": "windows",
       "unique_identifier": "Eclipse Temurin JRE with Hotspot",
+      "arch": "x64",
       "description": "Eclipse Temurin JRE 17 is the free, open-source OpenJDK 17 Java runtime from the Eclipse Adoptium project."
     },
     {
@@ -2960,6 +3117,7 @@
       "slug": "eclipse-temurin-jre-21/windows",
       "platform": "windows",
       "unique_identifier": "Eclipse Temurin JRE with Hotspot",
+      "arch": "x64",
       "description": "Eclipse Temurin JRE 21 is the free, open-source OpenJDK 21 Java runtime from the Eclipse Adoptium project."
     },
     {
@@ -2967,6 +3125,7 @@
       "slug": "eclipse-temurin-jre-8/windows",
       "platform": "windows",
       "unique_identifier": "Eclipse Temurin JRE with Hotspot",
+      "arch": "x64",
       "description": "Eclipse Temurin JRE 8 is the free, open-source OpenJDK 8 Java runtime from the Eclipse Adoptium project."
     },
     {
@@ -2974,6 +3133,7 @@
       "slug": "egnyte-webedit/windows",
       "platform": "windows",
       "unique_identifier": "Egnyte WebEdit",
+      "arch": "x86",
       "description": "Egnyte WebEdit opens files from the Egnyte web UI directly in their native desktop applications."
     },
     {
@@ -2988,6 +3148,7 @@
       "slug": "egnyte/windows",
       "platform": "windows",
       "unique_identifier": "Egnyte Desktop App",
+      "arch": "x64",
       "description": "Egnyte is a client for the Egnyte cloud storage service."
     },
     {
@@ -3009,6 +3170,7 @@
       "slug": "electrum/windows",
       "platform": "windows",
       "unique_identifier": "Electrum",
+      "arch": "x64",
       "description": "Electrum is a bitcoin thin client."
     },
     {
@@ -3030,6 +3192,7 @@
       "slug": "elevate-uc/windows",
       "platform": "windows",
       "unique_identifier": "Elevate UC",
+      "arch": "x64",
       "description": "Elevate UC is an Intermedia unified-communications client for calling, messaging, and meetings."
     },
     {
@@ -3058,6 +3221,7 @@
       "slug": "elgato-control-center/windows",
       "platform": "windows",
       "unique_identifier": "Elgato Control Center",
+      "arch": "x64",
       "description": "Elgato Control Center is an app to control your Elgato key lights."
     },
     {
@@ -3079,6 +3243,7 @@
       "slug": "elgato-stream-deck/windows",
       "platform": "windows",
       "unique_identifier": "Elgato Stream Deck",
+      "arch": "x64",
       "description": "Elgato Stream Deck is an app to assign keys, and then decorate and label them, on a Stream Deck."
     },
     {
@@ -3107,6 +3272,7 @@
       "slug": "emclient/windows",
       "platform": "windows",
       "unique_identifier": "eM Client",
+      "arch": "x86",
       "description": "eM Client is an email client."
     },
     {
@@ -3114,6 +3280,7 @@
       "slug": "endnote/windows",
       "platform": "windows",
       "unique_identifier": "EndNote 2025",
+      "arch": "x86",
       "description": "EndNote is a reference manager for organizing citations and formatting bibliographies."
     },
     {
@@ -3128,6 +3295,7 @@
       "slug": "enpass/windows",
       "platform": "windows",
       "unique_identifier": "Enpass",
+      "arch": "x64",
       "description": "Enpass is an offline password manager that stores credentials in a local, master-password-protected vault."
     },
     {
@@ -3149,6 +3317,7 @@
       "slug": "epic-games/windows",
       "platform": "windows",
       "unique_identifier": "Epic Games Launcher",
+      "arch": "x64",
       "description": "Epic Games Launcher is a launcher for *Epic Games* games."
     },
     {
@@ -3177,6 +3346,7 @@
       "slug": "evernote/windows",
       "platform": "windows",
       "unique_identifier": "Evernote",
+      "arch": "x64",
       "description": "Evernote is a note-taking app for capturing notes, tasks, and schedules in one place."
     },
     {
@@ -3254,6 +3424,7 @@
       "slug": "fellow/windows",
       "platform": "windows",
       "unique_identifier": "Fellow",
+      "arch": "x64",
       "description": "Fellow is a collaborative tool for meeting agendas, notes, and action items."
     },
     {
@@ -3282,6 +3453,7 @@
       "slug": "figma/windows",
       "platform": "windows",
       "unique_identifier": "Figma",
+      "arch": "x64",
       "description": "Figma is a collaborative design tool for teams to create, prototype, and share designs in real time."
     },
     {
@@ -3296,6 +3468,7 @@
       "slug": "filebeat/windows",
       "platform": "windows",
       "unique_identifier": "Beats filebeat",
+      "arch": "x64",
       "description": "Filebeat is a lightweight shipper from Elastic for forwarding and centralizing log data."
     },
     {
@@ -3352,6 +3525,7 @@
       "slug": "firefox/windows",
       "platform": "windows",
       "unique_identifier": "Mozilla Firefox (x64 en-US)",
+      "arch": "x64",
       "description": "Firefox is a powerful, open-source web browser built for speed, privacy, and customization."
     },
     {
@@ -3366,6 +3540,7 @@
       "slug": "firefox@developer-edition/windows",
       "platform": "windows",
       "unique_identifier": "Firefox Developer Edition (x64 en-US)",
+      "arch": "x64",
       "description": "Mozilla Firefox Developer Edition is the version of the Firefox web browser made for web developers, with cutting-edge features and built-in developer tools."
     },
     {
@@ -3380,6 +3555,7 @@
       "slug": "firefox@esr/windows",
       "platform": "windows",
       "unique_identifier": "Mozilla Firefox 140.7.1 ESR (x64 en-US)",
+      "arch": "x64",
       "description": "Mozilla Firefox ESR is the Extended Support Release version of the popular web browser Firefox."
     },
     {
@@ -3394,6 +3570,7 @@
       "slug": "firefox@nightly/windows",
       "platform": "windows",
       "unique_identifier": "Firefox Nightly",
+      "arch": "x64",
       "description": "Mozilla Firefox Nightly is the daily development build of the Firefox web browser, with the newest features before they reach beta and release."
     },
     {
@@ -3422,6 +3599,7 @@
       "slug": "flexwhere/windows",
       "platform": "windows",
       "unique_identifier": "Flexwhere for Desktop",
+      "arch": "x64",
       "description": "FlexWhere for Desktop shows real-time workplace and colleague availability from FlexWhere."
     },
     {
@@ -3485,6 +3663,7 @@
       "slug": "fork/windows",
       "platform": "windows",
       "unique_identifier": "Fork",
+      "arch": "x64",
       "description": "Fork is a git client."
     },
     {
@@ -3499,6 +3678,7 @@
       "slug": "fortify/windows",
       "platform": "windows",
       "unique_identifier": "Fortify",
+      "arch": "x64",
       "description": "Fortify enables cross-browser use of local certificates and smart cards."
     },
     {
@@ -3506,6 +3686,7 @@
       "slug": "foxit-pdf-editor/windows",
       "platform": "windows",
       "unique_identifier": "Foxit PDF Editor",
+      "arch": "x64",
       "description": "Foxit PDF Editor is a desktop application for creating and editing PDF documents."
     },
     {
@@ -3513,6 +3694,7 @@
       "slug": "foxit-pdf-reader/windows",
       "platform": "windows",
       "unique_identifier": "Foxit PDF Reader",
+      "arch": "x64",
       "description": "Foxit PDF Reader is a desktop application for viewing and annotating PDF documents."
     },
     {
@@ -3534,6 +3716,7 @@
       "slug": "franz/windows",
       "platform": "windows",
       "unique_identifier": "Franz",
+      "arch": "x64",
       "description": "Franz is a messaging app for WhatsApp, Facebook Messenger, Slack, Telegram, and more."
     },
     {
@@ -3548,6 +3731,7 @@
       "slug": "freecad/windows",
       "platform": "windows",
       "unique_identifier": "FreeCAD",
+      "arch": "x64",
       "description": "FreeCAD is a general-purpose, open-source parametric 3D CAD modeler."
     },
     {
@@ -3583,6 +3767,7 @@
       "slug": "galaxy-modeler/windows",
       "platform": "windows",
       "unique_identifier": "Galaxy Modeler",
+      "arch": "x64",
       "description": "Galaxy Modeler is a visual schema design tool for GraphQL data modeling."
     },
     {
@@ -3590,6 +3775,7 @@
       "slug": "garmin-basecamp/windows",
       "platform": "windows",
       "unique_identifier": "Garmin BaseCamp",
+      "arch": "x86",
       "description": "Garmin BaseCamp is a trip-planning application for organizing maps, routes, and outdoor activities."
     },
     {
@@ -3618,6 +3804,7 @@
       "slug": "gdevelop/windows",
       "platform": "windows",
       "unique_identifier": "GDevelop",
+      "arch": "x64",
       "description": "GDevelop is an open-source, cross-platform game engine designed to be used by everyone."
     },
     {
@@ -3632,6 +3819,7 @@
       "slug": "geany/windows",
       "platform": "windows",
       "unique_identifier": "Geany",
+      "arch": "x64",
       "description": "Geany is a small and lightweight IDE."
     },
     {
@@ -3660,6 +3848,7 @@
       "slug": "genesys-cloud/windows",
       "platform": "windows",
       "unique_identifier": "GenesysCloud",
+      "arch": "x64",
       "description": "Genesys Cloud is a desktop app for running the Genesys Cloud contact center platform as a stand-alone program, separate from the web browser."
     },
     {
@@ -3667,6 +3856,7 @@
       "slug": "geogebra-classic/windows",
       "platform": "windows",
       "unique_identifier": "GeoGebra Classic",
+      "arch": "x86",
       "description": "GeoGebra Classic is a math tool bundle for geometry, algebra, spreadsheets, and calculus."
     },
     {
@@ -3681,6 +3871,7 @@
       "slug": "gephi/windows",
       "platform": "windows",
       "unique_identifier": "Gephi",
+      "arch": "x64",
       "description": "Gephi is an open-source platform for visualizing and manipulating large graphs."
     },
     {
@@ -3702,6 +3893,7 @@
       "slug": "gimp/windows",
       "platform": "windows",
       "unique_identifier": "GIMP 3.0.8-2",
+      "arch": "x64",
       "description": "GIMP is a free and open-source image editor."
     },
     {
@@ -3709,6 +3901,7 @@
       "slug": "git-extensions/windows",
       "platform": "windows",
       "unique_identifier": "Git Extensions",
+      "arch": "x64",
       "description": "Git Extensions is a graphical user interface for Git that integrates with Windows Explorer and Visual Studio."
     },
     {
@@ -3716,6 +3909,7 @@
       "slug": "git/windows",
       "platform": "windows",
       "unique_identifier": "Git",
+      "arch": "x64",
       "description": "Git is a free and open source distributed version control system designed to handle everything from small to very large projects."
     },
     {
@@ -3737,6 +3931,7 @@
       "slug": "github-desktop/windows",
       "platform": "windows",
       "unique_identifier": "GitHub Desktop",
+      "arch": "x64",
       "description": "GitHub Desktop is a desktop client for GitHub repositories."
     },
     {
@@ -3765,6 +3960,7 @@
       "slug": "gitkraken/windows",
       "platform": "windows",
       "unique_identifier": "GitKraken",
+      "arch": "x64",
       "description": "GitKraken is a git client focusing on productivity."
     },
     {
@@ -3786,6 +3982,7 @@
       "slug": "gnupg/windows",
       "platform": "windows",
       "unique_identifier": "GNU Privacy Guard",
+      "arch": "x64",
       "description": "GNU Privacy Guard is an implementation of the OpenPGP standard for encrypting and signing data and communications."
     },
     {
@@ -3793,6 +3990,7 @@
       "slug": "go/windows",
       "platform": "windows",
       "unique_identifier": "Go Programming Language",
+      "arch": "x64",
       "description": "Go is an open-source programming language for building secure, scalable systems."
     },
     {
@@ -3807,6 +4005,7 @@
       "slug": "goanywhere-openpgp-studio/windows",
       "platform": "windows",
       "unique_identifier": "GoAnywhere OpenPGP Studio",
+      "arch": "x64",
       "description": "GoAnywhere OpenPGP Studio is a free PGP encryption tool for securing files."
     },
     {
@@ -3835,6 +4034,7 @@
       "slug": "gog-galaxy/windows",
       "platform": "windows",
       "unique_identifier": "GOG GALAXY",
+      "arch": "x86",
       "description": "GOG Galaxy is a game client."
     },
     {
@@ -3849,6 +4049,7 @@
       "slug": "goland/windows",
       "platform": "windows",
       "unique_identifier": "GoLand",
+      "arch": "x64",
       "description": "GoLand is a Go (golang) IDE by JetBrains"
     },
     {
@@ -3856,6 +4057,7 @@
       "slug": "goldendict-ng/windows",
       "platform": "windows",
       "unique_identifier": "GoldenDict-ng",
+      "arch": "x64",
       "description": "GoldenDict-ng is an open-source dictionary lookup program supporting multiple dictionary formats."
     },
     {
@@ -3870,6 +4072,7 @@
       "slug": "google-ads-editor/windows",
       "platform": "windows",
       "unique_identifier": "Google Ads Editor",
+      "arch": "x64",
       "description": "Google Ads Editor is a free application for managing Google Ads campaigns."
     },
     {
@@ -3884,6 +4087,7 @@
       "slug": "google-chrome/windows",
       "platform": "windows",
       "unique_identifier": "Google Chrome",
+      "arch": "x64",
       "description": "Google Chrome is a fast, reliable web browser built for performance and compatibility across platforms."
     },
     {
@@ -3891,6 +4095,7 @@
       "slug": "google-credential-provider-for-windows/windows",
       "platform": "windows",
       "unique_identifier": "Google Credential Provider for Windows",
+      "arch": "x64",
       "description": "Google Credential Provider for Windows is an app that allows users to sign in to Windows devices using their Google Workspace or Cloud Identity accounts."
     },
     {
@@ -3905,6 +4110,7 @@
       "slug": "google-drive/windows",
       "platform": "windows",
       "unique_identifier": "Google Drive",
+      "arch": "x64",
       "description": "Google Drive is a cloud storage service that allows you to store, sync, and share files across devices with seamless access to your Google Workspace content."
     },
     {
@@ -3919,6 +4125,7 @@
       "slug": "google-earth-pro/windows",
       "platform": "windows",
       "unique_identifier": "Google Earth Pro",
+      "arch": "x64",
       "description": "Google Earth Pro is a virtual globe."
     },
     {
@@ -3933,6 +4140,7 @@
       "slug": "google-web-designer/windows",
       "platform": "windows",
       "unique_identifier": "Google Web Designer",
+      "arch": "x64",
       "description": "Google Web Designer is a tool for creating HTML5-based ads, videos, and interactive designs."
     },
     {
@@ -3947,6 +4155,7 @@
       "slug": "gotomeeting/windows",
       "platform": "windows",
       "unique_identifier": "GoToMeeting",
+      "arch": "x86",
       "description": "GoToMeeting is a tool for online meetings, desktop sharing, and video conferencing."
     },
     {
@@ -3961,6 +4170,7 @@
       "slug": "gpg4win/windows",
       "platform": "windows",
       "unique_identifier": "Gpg4win",
+      "arch": "x64",
       "description": "Gpg4win is an email and file encryption suite for Windows that bundles GnuPG with the Kleopatra certificate manager."
     },
     {
@@ -3975,6 +4185,7 @@
       "slug": "gpodder/windows",
       "platform": "windows",
       "unique_identifier": "gPodder",
+      "arch": "x86",
       "description": "gPodder is a podcast client."
     },
     {
@@ -3989,6 +4200,7 @@
       "slug": "grammarly-desktop/windows",
       "platform": "windows",
       "unique_identifier": "Grammarly for Windows",
+      "arch": "x64",
       "description": "Grammarly Desktop is an AI writing assistant."
     },
     {
@@ -4010,6 +4222,7 @@
       "slug": "granola/windows",
       "platform": "windows",
       "unique_identifier": "Granola",
+      "arch": "x64",
       "description": "Granola is an AI-powered notepad for meetings."
     },
     {
@@ -4017,6 +4230,7 @@
       "slug": "graphviz/windows",
       "platform": "windows",
       "unique_identifier": "Graphviz",
+      "arch": "x64",
       "description": "Graphviz is open-source graph visualization software for representing structural information as diagrams."
     },
     {
@@ -4024,6 +4238,7 @@
       "slug": "grepwin/windows",
       "platform": "windows",
       "unique_identifier": "grepWin",
+      "arch": "x64",
       "description": "grepWin is a regular expression search-and-replace tool for Windows."
     },
     {
@@ -4045,6 +4260,7 @@
       "slug": "groove-omnidialer/windows",
       "platform": "windows",
       "unique_identifier": "Groove OmniDialer",
+      "arch": "x64",
       "description": "Groove OmniDialer is an outbound sales dialer for making and managing calls."
     },
     {
@@ -4073,6 +4289,7 @@
       "slug": "handbrake/windows",
       "platform": "windows",
       "unique_identifier": "HandBrake",
+      "arch": "x64",
       "description": "HandBrake is an open-source video transcoder."
     },
     {
@@ -4101,6 +4318,7 @@
       "slug": "heidisql/windows",
       "platform": "windows",
       "unique_identifier": "HeidiSQL",
+      "arch": "x64",
       "description": "HeidiSQL is a lightweight client for managing MariaDB, MySQL, SQL Server, PostgreSQL, and SQLite databases."
     },
     {
@@ -4199,6 +4417,7 @@
       "slug": "hp-prime-virtual-calculator/windows",
       "platform": "windows",
       "unique_identifier": "HP Prime Virtual Calculator",
+      "arch": "x64",
       "description": "HP Prime Virtual Calculator is a Windows simulator of the HP Prime graphing calculator."
     },
     {
@@ -4220,6 +4439,7 @@
       "slug": "hwmonitor/windows",
       "platform": "windows",
       "unique_identifier": "CPUID HWMonitor",
+      "arch": "x86",
       "description": "HWMonitor is a hardware monitoring tool that reads PC voltages, temperatures, fan speeds, and power sensors."
     },
     {
@@ -4255,6 +4475,7 @@
       "slug": "ibm-semeru-jdk-11/windows",
       "platform": "windows",
       "unique_identifier": "IBM Semeru Runtime Open Edition (JDK)",
+      "arch": "x64",
       "description": "IBM Semeru Runtime Open Edition JDK 11 is a free, production-ready OpenJDK 11 distribution built with the Eclipse OpenJ9 JVM."
     },
     {
@@ -4262,6 +4483,7 @@
       "slug": "ibm-semeru-jdk-17/windows",
       "platform": "windows",
       "unique_identifier": "IBM Semeru Runtime Open Edition (JDK)",
+      "arch": "x64",
       "description": "IBM Semeru Runtime Open Edition JDK 17 is a free, production-ready OpenJDK 17 distribution built with the Eclipse OpenJ9 JVM."
     },
     {
@@ -4269,6 +4491,7 @@
       "slug": "ibm-semeru-jdk-21/windows",
       "platform": "windows",
       "unique_identifier": "IBM Semeru Runtime Open Edition (JDK)",
+      "arch": "x64",
       "description": "IBM Semeru Runtime Open Edition JDK 21 is a free, production-ready OpenJDK 21 distribution built with the Eclipse OpenJ9 JVM."
     },
     {
@@ -4276,6 +4499,7 @@
       "slug": "ibm-semeru-jdk-8/windows",
       "platform": "windows",
       "unique_identifier": "IBM Semeru Runtime Open Edition (JDK)",
+      "arch": "x64",
       "description": "IBM Semeru Runtime Open Edition JDK 8 is a free, production-ready OpenJDK 8 distribution built with the Eclipse OpenJ9 JVM."
     },
     {
@@ -4283,6 +4507,7 @@
       "slug": "ibm-semeru-jre-11/windows",
       "platform": "windows",
       "unique_identifier": "IBM Semeru Runtime Open Edition (JRE)",
+      "arch": "x64",
       "description": "IBM Semeru Runtime Open Edition JRE 11 is a free, production-ready OpenJDK 11 Java runtime built with the Eclipse OpenJ9 JVM."
     },
     {
@@ -4290,6 +4515,7 @@
       "slug": "ibm-semeru-jre-17/windows",
       "platform": "windows",
       "unique_identifier": "IBM Semeru Runtime Open Edition (JRE)",
+      "arch": "x64",
       "description": "IBM Semeru Runtime Open Edition JRE 17 is a free, production-ready OpenJDK 17 Java runtime built with the Eclipse OpenJ9 JVM."
     },
     {
@@ -4297,6 +4523,7 @@
       "slug": "ibm-semeru-jre-21/windows",
       "platform": "windows",
       "unique_identifier": "IBM Semeru Runtime Open Edition (JRE)",
+      "arch": "x64",
       "description": "IBM Semeru Runtime Open Edition JRE 21 is a free, production-ready OpenJDK 21 Java runtime built with the Eclipse OpenJ9 JVM."
     },
     {
@@ -4304,6 +4531,7 @@
       "slug": "ibm-semeru-jre-8/windows",
       "platform": "windows",
       "unique_identifier": "IBM Semeru Runtime Open Edition (JRE)",
+      "arch": "x64",
       "description": "IBM Semeru Runtime Open Edition JRE 8 is a free, production-ready OpenJDK 8 Java runtime built with the Eclipse OpenJ9 JVM."
     },
     {
@@ -4346,6 +4574,7 @@
       "slug": "imageglass/windows",
       "platform": "windows",
       "unique_identifier": "ImageGlass",
+      "arch": "x64",
       "description": "ImageGlass is a lightweight, open-source image viewer that supports over 80 image formats."
     },
     {
@@ -4360,6 +4589,7 @@
       "slug": "imazing-heic-converter/windows",
       "platform": "windows",
       "unique_identifier": "iMazing HEIC Converter",
+      "arch": "x64",
       "description": "iMazing HEIC Converter is a free tool that converts HEIC photos and HEVC videos to JPEG, PNG, or MP4."
     },
     {
@@ -4374,6 +4604,7 @@
       "slug": "imazing-profile-editor/windows",
       "platform": "windows",
       "unique_identifier": "iMazing Profile Editor",
+      "arch": "x64",
       "description": "iMazing Profile Editor is an app for creating and editing Apple configuration profiles."
     },
     {
@@ -4388,6 +4619,7 @@
       "slug": "imazing/windows",
       "platform": "windows",
       "unique_identifier": "iMazing",
+      "arch": "x86",
       "description": "iMazing is an iPhone management application."
     },
     {
@@ -4402,6 +4634,7 @@
       "slug": "imhex/windows",
       "platform": "windows",
       "unique_identifier": "ImHex",
+      "arch": "x64",
       "description": "ImHex is a hex editor for reverse engineers."
     },
     {
@@ -4409,6 +4642,7 @@
       "slug": "infix-pdf-editor/windows",
       "platform": "windows",
       "unique_identifier": "Infix PDF Editor",
+      "arch": "x86",
       "description": "Infix PDF Editor is a desktop application for editing text, images, fonts, and pages inside existing PDF files."
     },
     {
@@ -4423,6 +4657,7 @@
       "slug": "inkscape/windows",
       "platform": "windows",
       "unique_identifier": "Inkscape",
+      "arch": "x64",
       "description": "Inkscape is a vector graphics editor."
     },
     {
@@ -4444,6 +4679,7 @@
       "slug": "insomnia/windows",
       "platform": "windows",
       "unique_identifier": "Insomnia",
+      "arch": "x64",
       "description": "Insomnia is an open-source, cross-platform API client primarily used for designing, testing, and debugging REST APIs"
     },
     {
@@ -4451,6 +4687,7 @@
       "slug": "install4j/windows",
       "platform": "windows",
       "unique_identifier": "install4j",
+      "arch": "x64",
       "description": "install4j is a multi-platform Java installer builder that generates native installers and launchers for Java applications."
     },
     {
@@ -4472,6 +4709,7 @@
       "slug": "intellij-idea/windows",
       "platform": "windows",
       "unique_identifier": "IntelliJ IDEA",
+      "arch": "x64",
       "description": "IntelliJ IDEA is a Java IDE by JetBrains."
     },
     {
@@ -4493,6 +4731,7 @@
       "slug": "irfanview/windows",
       "platform": "windows",
       "unique_identifier": "IrfanView",
+      "arch": "x64",
       "description": "IrfanView is a fast, compact image viewer, editor, and converter for Windows."
     },
     {
@@ -4500,6 +4739,7 @@
       "slug": "ironpython/windows",
       "platform": "windows",
       "unique_identifier": "IronPython 3",
+      "arch": "x64",
       "description": "IronPython 3 is an open-source implementation of the Python programming language that is tightly integrated with .NET."
     },
     {
@@ -4507,6 +4747,7 @@
       "slug": "isobuster/windows",
       "platform": "windows",
       "unique_identifier": "IsoBuster",
+      "arch": "x64",
       "description": "IsoBuster is a data recovery tool that reads and extracts files from optical discs, disk images, and memory cards."
     },
     {
@@ -4535,6 +4776,7 @@
       "slug": "itunes/windows",
       "platform": "windows",
       "unique_identifier": "iTunes",
+      "arch": "x64",
       "description": "iTunes is a media player and library for playing and managing music, movies, and podcasts."
     },
     {
@@ -4549,6 +4791,7 @@
       "slug": "jabra-direct/windows",
       "platform": "windows",
       "unique_identifier": "Jabra Direct",
+      "arch": "x64",
       "description": "Jabra Direct is an app to optimise and personalise your Jabra headset."
     },
     {
@@ -4563,6 +4806,7 @@
       "slug": "jami/windows",
       "platform": "windows",
       "unique_identifier": "Jami",
+      "arch": "x64",
       "description": "Jami is a decentralised instant messenger and softphone."
     },
     {
@@ -4598,6 +4842,7 @@
       "slug": "jetbrains-toolbox/windows",
       "platform": "windows",
       "unique_identifier": "JetBrains Toolbox",
+      "arch": "x64",
       "description": "JetBrains tools manager."
     },
     {
@@ -4626,6 +4871,7 @@
       "slug": "joplin/windows",
       "platform": "windows",
       "unique_identifier": "Joplin",
+      "arch": "x86",
       "description": "Joplin is a note taking and to-do application with synchronisation capabilities."
     },
     {
@@ -4647,6 +4893,7 @@
       "slug": "julia-app/windows",
       "platform": "windows",
       "unique_identifier": "Julia",
+      "arch": "x64",
       "description": "Julia is an app for programming language for technical computing."
     },
     {
@@ -4682,6 +4929,7 @@
       "slug": "keepass/windows",
       "platform": "windows",
       "unique_identifier": "KeePass Password Safe",
+      "arch": "x86",
       "description": "KeePass is a free and open source password manager."
     },
     {
@@ -4696,6 +4944,7 @@
       "slug": "keepassxc/windows",
       "platform": "windows",
       "unique_identifier": "KeePassXC",
+      "arch": "x64",
       "description": "KeePassXC is a cross-platform password manager for securely storing passwords and other sensitive data."
     },
     {
@@ -4773,6 +5022,7 @@
       "slug": "keystore-explorer/windows",
       "platform": "windows",
       "unique_identifier": "KeyStore Explorer",
+      "arch": "x64",
       "description": "KeyStore Explorer is a GUI replacement for the Java command-line utilities keytool and jarsigner."
     },
     {
@@ -4794,6 +5044,7 @@
       "slug": "kiro/windows",
       "platform": "windows",
       "unique_identifier": "Kiro (User)",
+      "arch": "x64",
       "description": "Kiro is an agent-centric IDE with spec-driven development."
     },
     {
@@ -4822,6 +5073,7 @@
       "slug": "knime/windows",
       "platform": "windows",
       "unique_identifier": "KNIME Analytics Platform",
+      "arch": "x64",
       "description": "KNIME Analytics Platform is a software to create and productionise data science."
     },
     {
@@ -4850,6 +5102,7 @@
       "slug": "krita/windows",
       "platform": "windows",
       "unique_identifier": "Krita_x64",
+      "arch": "x64",
       "description": "Krita is a free and open-source digital painting application."
     },
     {
@@ -4864,6 +5117,7 @@
       "slug": "lapce/windows",
       "platform": "windows",
       "unique_identifier": "Lapce",
+      "arch": "x64",
       "description": "Lapce is an open source code editor written in Rust."
     },
     {
@@ -4892,6 +5146,7 @@
       "slug": "lastpass/windows",
       "platform": "windows",
       "unique_identifier": "LastPass",
+      "arch": "x64",
       "description": "LastPass is a password manager."
     },
     {
@@ -4913,6 +5168,7 @@
       "slug": "lenovo-dock-manager/windows",
       "platform": "windows",
       "unique_identifier": "Lenovo Dock Manager",
+      "arch": "x64",
       "description": "Lenovo Dock Manager is an application for deploying and managing firmware updates for Lenovo docks."
     },
     {
@@ -4920,6 +5176,7 @@
       "slug": "lenovo-system-update/windows",
       "platform": "windows",
       "unique_identifier": "Lenovo System Update",
+      "arch": "x86",
       "description": "Lenovo System Update installs and updates Lenovo drivers, BIOS, and applications on Lenovo computers."
     },
     {
@@ -4934,6 +5191,7 @@
       "slug": "lens/windows",
       "platform": "windows",
       "unique_identifier": "Lens",
+      "arch": "x64",
       "description": "Lens is a Kubernetes IDE."
     },
     {
@@ -4948,6 +5206,7 @@
       "slug": "libreoffice/windows",
       "platform": "windows",
       "unique_identifier": "LibreOffice",
+      "arch": "x64",
       "description": "LibreOffice is a free cross-platform office suite."
     },
     {
@@ -4969,6 +5228,7 @@
       "slug": "linear/windows",
       "platform": "windows",
       "unique_identifier": "Linear",
+      "arch": "x64",
       "description": "Linear is an app to manage software development and track bugs."
     },
     {
@@ -5018,6 +5278,7 @@
       "slug": "localsend/windows",
       "platform": "windows",
       "unique_identifier": "LocalSend",
+      "arch": "x64",
       "description": "LocalSend is an open-source cross-platform alternative to AirDrop."
     },
     {
@@ -5039,6 +5300,7 @@
       "slug": "logi-options+/windows",
       "platform": "windows",
       "unique_identifier": "Logi Options+",
+      "arch": "x64",
       "description": "Logi Options+ is software for managing Logitech devices."
     },
     {
@@ -5046,6 +5308,7 @@
       "slug": "logitech-unifying-software/windows",
       "platform": "windows",
       "unique_identifier": "Logitech Unifying Software",
+      "arch": "x64",
       "description": "Logitech Unifying Software is a tool for pairing and removing devices that use a Logitech Unifying receiver."
     },
     {
@@ -5081,6 +5344,7 @@
       "slug": "loom/windows",
       "platform": "windows",
       "unique_identifier": "Loom",
+      "arch": "x64",
       "description": "Loom is screen and video recording software."
     },
     {
@@ -5333,6 +5597,7 @@
       "slug": "mattermost/windows",
       "platform": "windows",
       "unique_identifier": "Mattermost",
+      "arch": "x64",
       "description": "Mattermost is an open-source, self-hosted Slack-alternative."
     },
     {
@@ -5354,6 +5619,7 @@
       "slug": "megasync/windows",
       "platform": "windows",
       "unique_identifier": "MEGAsync",
+      "arch": "x64",
       "description": "MEGAsync is a syncs files between computers and MEGA Cloud drives."
     },
     {
@@ -5431,6 +5697,7 @@
       "slug": "microsoft-access-database-engine-2016/windows",
       "platform": "windows",
       "unique_identifier": "Microsoft Access database engine 2016 (English)",
+      "arch": "x64",
       "description": "Microsoft Access Database Engine 2016 Redistributable provides OLE DB and ODBC drivers for reading Access databases and Office data sources without installing Office."
     },
     {
@@ -5459,6 +5726,7 @@
       "slug": "microsoft-dotnet-desktop-runtime-10/windows",
       "platform": "windows",
       "unique_identifier": "Microsoft Windows Desktop Runtime",
+      "arch": "x64",
       "description": "Microsoft .NET Desktop Runtime 10 runs desktop apps built on .NET 10, including Windows Forms and WPF apps."
     },
     {
@@ -5466,6 +5734,7 @@
       "slug": "microsoft-dotnet-runtime-10/windows",
       "platform": "windows",
       "unique_identifier": "Microsoft .NET Runtime - 10",
+      "arch": "x64",
       "description": "Microsoft .NET Runtime 10 is the runtime required to run .NET 10 applications, providing the libraries and execution environment for console and server apps."
     },
     {
@@ -5473,6 +5742,7 @@
       "slug": "microsoft-dotnet-runtime-8/windows",
       "platform": "windows",
       "unique_identifier": "Microsoft .NET Runtime - 8",
+      "arch": "x64",
       "description": "Microsoft .NET Runtime 8 is the runtime required to run .NET 8 applications, providing the libraries and execution environment for console and server apps."
     },
     {
@@ -5487,6 +5757,7 @@
       "slug": "microsoft-edge/windows",
       "platform": "windows",
       "unique_identifier": "Microsoft Edge",
+      "arch": "x64",
       "description": "Microsoft Edge is a secure, fast, and modern web browser built for productivity and compatibility."
     },
     {
@@ -5501,6 +5772,7 @@
       "slug": "microsoft-odbc-driver-17/windows",
       "platform": "windows",
       "unique_identifier": "Microsoft ODBC Driver 17 for SQL Server",
+      "arch": "x64",
       "description": "Microsoft ODBC Driver 17 for SQL Server lets applications connect to SQL Server and Azure SQL Database through the ODBC interface."
     },
     {
@@ -5508,6 +5780,7 @@
       "slug": "microsoft-odbc-driver-18/windows",
       "platform": "windows",
       "unique_identifier": "Microsoft ODBC Driver 18 for SQL Server",
+      "arch": "x64",
       "description": "Microsoft ODBC Driver 18 for SQL Server lets applications connect to SQL Server and Azure SQL Database through the ODBC interface."
     },
     {
@@ -5515,6 +5788,7 @@
       "slug": "microsoft-office/windows",
       "platform": "windows",
       "unique_identifier": "Microsoft 365 Apps",
+      "arch": "x86",
       "description": "Microsoft Office is a suite of productivity applications including Word, Excel, PowerPoint, and Outlook."
     },
     {
@@ -5522,6 +5796,7 @@
       "slug": "microsoft-ole-db-driver-19/windows",
       "platform": "windows",
       "unique_identifier": "Microsoft OLE DB Driver 19 for SQL Server",
+      "arch": "x64",
       "description": "Microsoft OLE DB Driver 19 for SQL Server lets applications connect to SQL Server and Azure SQL Database through the OLE DB interface."
     },
     {
@@ -5557,6 +5832,7 @@
       "slug": "microsoft-remote-help/windows",
       "platform": "windows",
       "unique_identifier": "Remote Help",
+      "arch": "x86",
       "description": "Microsoft Remote Help is an application that works with Microsoft Intune to provide secure, assisted remote connections between helpdesk staff and users."
     },
     {
@@ -5571,6 +5847,7 @@
       "slug": "microsoft-teams/windows",
       "platform": "windows",
       "unique_identifier": "Microsoft Teams",
+      "arch": "x64",
       "description": "Microsoft Teams is an all-in-one collaboration platform for meetings, chats, calls, and document sharing."
     },
     {
@@ -5634,6 +5911,7 @@
       "slug": "mindmanager/windows",
       "platform": "windows",
       "unique_identifier": "MindManager",
+      "arch": "x64",
       "description": "MindManager is a mind mapping and visual work-management tool for organizing ideas, planning projects, and presenting information in diagrams."
     },
     {
@@ -5662,6 +5940,7 @@
       "slug": "miro/windows",
       "platform": "windows",
       "unique_identifier": "Miro",
+      "arch": "x64",
       "description": "Miro is an online collaborative whiteboard platform."
     },
     {
@@ -5690,6 +5969,7 @@
       "slug": "mixxx/windows",
       "platform": "windows",
       "unique_identifier": "Mixxx",
+      "arch": "x64",
       "description": "Mixxx is an open-source DJ software."
     },
     {
@@ -5725,6 +6005,7 @@
       "slug": "mongodb-compass/windows",
       "platform": "windows",
       "unique_identifier": "MongoDB Compass",
+      "arch": "x64",
       "description": "MongoDB Compass is an interactive tool for analyzing MongoDB data."
     },
     {
@@ -5767,6 +6048,7 @@
       "slug": "morgen/windows",
       "platform": "windows",
       "unique_identifier": "Morgen",
+      "arch": "x64",
       "description": "Morgen is an all-in-one calendars, tasks and scheduler."
     },
     {
@@ -5795,6 +6077,7 @@
       "slug": "mozilla-vpn/windows",
       "platform": "windows",
       "unique_identifier": "Mozilla VPN",
+      "arch": "x64",
       "description": "Mozilla VPN is a virtual private network service from the makers of Firefox that encrypts your device's internet connection and hides your location."
     },
     {
@@ -5809,6 +6092,7 @@
       "slug": "mremoteng/windows",
       "platform": "windows",
       "unique_identifier": "mRemoteNG",
+      "arch": "x64",
       "description": "mRemoteNG is an open source, multi-protocol, tabbed remote connections manager."
     },
     {
@@ -5823,6 +6107,7 @@
       "slug": "mullvad-browser/windows",
       "platform": "windows",
       "unique_identifier": "Mullvad Browser",
+      "arch": "x64",
       "description": "Mullvad Browser is a web browser focused on privacy and on minimizing tracking and fingerprinting."
     },
     {
@@ -5879,6 +6164,7 @@
       "slug": "mysqlworkbench/windows",
       "platform": "windows",
       "unique_identifier": "MySQL Workbench",
+      "arch": "x64",
       "description": "MySQL Workbench is a visual tool to design, develop and administer MySQL servers."
     },
     {
@@ -5893,6 +6179,7 @@
       "slug": "nagstamon/windows",
       "platform": "windows",
       "unique_identifier": "Nagstamon",
+      "arch": "x64",
       "description": "Nagstamon is a nagios status monitor."
     },
     {
@@ -5914,6 +6201,7 @@
       "slug": "naps2/windows",
       "platform": "windows",
       "unique_identifier": "NAPS2",
+      "arch": "x64",
       "description": "NAPS2 is a document scanning application."
     },
     {
@@ -5935,6 +6223,7 @@
       "slug": "nessus-agent/windows",
       "platform": "windows",
       "unique_identifier": "Nessus Agent (x64)",
+      "arch": "x64",
       "description": "Nessus Agent is a lightweight agent that performs local vulnerability and compliance scans and reports the results to Tenable Nessus Manager or Tenable Vulnerability Management."
     },
     {
@@ -5984,6 +6273,7 @@
       "slug": "nextcloud/windows",
       "platform": "windows",
       "unique_identifier": "Nextcloud",
+      "arch": "x64",
       "description": "Nextcloud is a self-hosted file sync and sharing platform that provides secure access to your data across devices with collaboration features."
     },
     {
@@ -6005,6 +6295,7 @@
       "slug": "nodejs/windows",
       "platform": "windows",
       "unique_identifier": "Node.js",
+      "arch": "x64",
       "description": "Node.js is a cross-platform JavaScript runtime environment for running JavaScript outside the browser."
     },
     {
@@ -6026,6 +6317,7 @@
       "slug": "nordpass/windows",
       "platform": "windows",
       "unique_identifier": "NordPass",
+      "arch": "x64",
       "description": "NordPass is a password manager from the makers of NordVPN."
     },
     {
@@ -6040,6 +6332,7 @@
       "slug": "nordvpn/windows",
       "platform": "windows",
       "unique_identifier": "NordVPN",
+      "arch": "x64",
       "description": "NordVPN is a commercial VPN service."
     },
     {
@@ -6054,6 +6347,7 @@
       "slug": "nosql-workbench/windows",
       "platform": "windows",
       "unique_identifier": "NoSQL Workbench",
+      "arch": "x64",
       "description": "NoSQL Workbench is a client-side GUI application for modern database development and operations."
     },
     {
@@ -6068,6 +6362,7 @@
       "slug": "notepad++/windows",
       "platform": "windows",
       "unique_identifier": "Notepad++",
+      "arch": "x64",
       "description": "Notepad++ is a text editor for Windows."
     },
     {
@@ -6089,6 +6384,7 @@
       "slug": "notesnook/windows",
       "platform": "windows",
       "unique_identifier": "Notesnook",
+      "arch": "x64",
       "description": "Notesnook is a privacy-focused note taking app."
     },
     {
@@ -6110,6 +6406,7 @@
       "slug": "notion-calendar/windows",
       "platform": "windows",
       "unique_identifier": "Notion Calendar",
+      "arch": "x64",
       "description": "Notion Calendar is an app to manage your time and work, together."
     },
     {
@@ -6124,6 +6421,7 @@
       "slug": "notion/windows",
       "platform": "windows",
       "unique_identifier": "Notion 6.1.0",
+      "arch": "x64",
       "description": "Notion is an all-in-one workspace for writing, planning, collaborating, and organizing."
     },
     {
@@ -6173,6 +6471,7 @@
       "slug": "nvda/windows",
       "platform": "windows",
       "unique_identifier": "NVDA",
+      "arch": "x86",
       "description": "NVDA is a free and open-source screen reader for blind and vision impaired users."
     },
     {
@@ -6194,6 +6493,7 @@
       "slug": "obs/windows",
       "platform": "windows",
       "unique_identifier": "OBS Studio",
+      "arch": "x64",
       "description": "OBS is open-source software for live streaming and screen recording."
     },
     {
@@ -6208,6 +6508,7 @@
       "slug": "obsidian/windows",
       "platform": "windows",
       "unique_identifier": "Obsidian",
+      "arch": "x64",
       "description": "Obsidian is a knowledge base that works on top of a local folder of plain text Markdown files."
     },
     {
@@ -6222,6 +6523,7 @@
       "slug": "ocenaudio/windows",
       "platform": "windows",
       "unique_identifier": "ocenaudio",
+      "arch": "x64",
       "description": "ocenaudio is an audio editor."
     },
     {
@@ -6250,6 +6552,7 @@
       "slug": "okta-verify/windows",
       "platform": "windows",
       "unique_identifier": "Okta Verify",
+      "arch": "x86",
       "description": "Okta Verify is a multi-factor authentication app that provides secure identity verification and passwordless sign-in for users accessing Okta-protected applications."
     },
     {
@@ -6264,6 +6567,7 @@
       "slug": "ollama/windows",
       "platform": "windows",
       "unique_identifier": "Ollama",
+      "arch": "x64",
       "description": "Ollama is a tool to get up and running with large language models locally."
     },
     {
@@ -6313,6 +6617,7 @@
       "slug": "omnissa-horizon-client/windows",
       "platform": "windows",
       "unique_identifier": "Omnissa Horizon Client",
+      "arch": "x64",
       "description": "Omnissa Horizon Client is a tool end users use to access remote virtual desktops."
     },
     {
@@ -6334,6 +6639,7 @@
       "slug": "onedrive/windows",
       "platform": "windows",
       "unique_identifier": "Microsoft OneDrive",
+      "arch": "x64",
       "description": "OneDrive is Microsoft's cloud storage client."
     },
     {
@@ -6432,6 +6738,7 @@
       "slug": "openrefine/windows",
       "platform": "windows",
       "unique_identifier": "OpenRefine",
+      "arch": "x64",
       "description": "OpenRefine is a tool for working with messy data (previously Google Refine)."
     },
     {
@@ -6453,6 +6760,7 @@
       "slug": "openvpn-connect/windows",
       "platform": "windows",
       "unique_identifier": "OpenVPN Connect",
+      "arch": "x64",
       "description": "OpenVPN Connect is the official OpenVPN client."
     },
     {
@@ -6495,6 +6803,7 @@
       "slug": "p4v/windows",
       "platform": "windows",
       "unique_identifier": "P4 Apps",
+      "arch": "x64",
       "description": "P4V is an app for accessing and managing Perforce version control repositories via a graphical interface."
     },
     {
@@ -6509,6 +6818,7 @@
       "slug": "paint-dot-net/windows",
       "platform": "windows",
       "unique_identifier": "Paint.NET",
+      "arch": "x64",
       "description": "Paint.NET is an image and photo editor with support for layers, effects, and a range of image formats."
     },
     {
@@ -6523,6 +6833,7 @@
       "slug": "pale-moon/windows",
       "platform": "windows",
       "unique_identifier": "Pale Moon",
+      "arch": "x64",
       "description": "Pale Moon is a web browser."
     },
     {
@@ -6586,6 +6897,7 @@
       "slug": "pdfsam-basic/windows",
       "platform": "windows",
       "unique_identifier": "PDFsam Basic",
+      "arch": "x64",
       "description": "PDFsam Basic extracts pages, splits, merges, mixes and rotates PDF files."
     },
     {
@@ -6607,6 +6919,7 @@
       "slug": "pgadmin4/windows",
       "platform": "windows",
       "unique_identifier": "pgAdmin 4",
+      "arch": "x64",
       "description": "pgAdmin4 is an administration and development platform for PostgreSQL."
     },
     {
@@ -6642,6 +6955,7 @@
       "slug": "phpstorm/windows",
       "platform": "windows",
       "unique_identifier": "PhpStorm",
+      "arch": "x64",
       "description": "PhpStorm is a PHP IDE by JetBrains."
     },
     {
@@ -6691,6 +7005,7 @@
       "slug": "plantronics-hub/windows",
       "platform": "windows",
       "unique_identifier": "Plantronics Hub",
+      "arch": "x64",
       "description": "Plantronics Hub is a desktop application for customizing settings and viewing the status of Plantronics (Poly) audio devices."
     },
     {
@@ -6747,6 +7062,7 @@
       "slug": "podman-desktop/windows",
       "platform": "windows",
       "unique_identifier": "Podman Desktop",
+      "arch": "x64",
       "description": "Podman Desktop is an open source tool for developers to work with containers and Kubernetes."
     },
     {
@@ -6782,6 +7098,7 @@
       "slug": "portfolioperformance/windows",
       "platform": "windows",
       "unique_identifier": "Portfolio Performance",
+      "arch": "x64",
       "description": "Portfolio Performance is a tool to calculate the overall performance of an investment portfolio."
     },
     {
@@ -6796,6 +7113,7 @@
       "slug": "postgresql-15/windows",
       "platform": "windows",
       "unique_identifier": "PostgreSQL 15",
+      "arch": "x64",
       "description": "PostgreSQL is a powerful, open source object-relational database system."
     },
     {
@@ -6803,6 +7121,7 @@
       "slug": "postgresql-16/windows",
       "platform": "windows",
       "unique_identifier": "PostgreSQL 16",
+      "arch": "x64",
       "description": "PostgreSQL is a powerful, open source object-relational database system."
     },
     {
@@ -6810,6 +7129,7 @@
       "slug": "postgresql-17/windows",
       "platform": "windows",
       "unique_identifier": "PostgreSQL 17",
+      "arch": "x64",
       "description": "PostgreSQL is a powerful, open source object-relational database system."
     },
     {
@@ -6817,6 +7137,7 @@
       "slug": "postgresql-18/windows",
       "platform": "windows",
       "unique_identifier": "PostgreSQL 18",
+      "arch": "x64",
       "description": "PostgreSQL is a powerful, open source object-relational database system."
     },
     {
@@ -6838,6 +7159,7 @@
       "slug": "postman/windows",
       "platform": "windows",
       "unique_identifier": "Postman x64 11.75.4",
+      "arch": "x64",
       "description": "Postman is a collaboration platform for API development that simplifies building, testing, and sharing APIs."
     },
     {
@@ -6845,6 +7167,7 @@
       "slug": "power-automate/windows",
       "platform": "windows",
       "unique_identifier": "Power Automate for desktop",
+      "arch": "x64",
       "description": "Power Automate is a Microsoft application for building and running automated workflows across desktop and web applications."
     },
     {
@@ -6852,6 +7175,7 @@
       "slug": "power-bi/windows",
       "platform": "windows",
       "unique_identifier": "Microsoft Power BI Desktop (x64)",
+      "arch": "x64",
       "description": "Power BI is an interactive data visualization platform with a primary focus on business intelligence (BI)."
     },
     {
@@ -6873,6 +7197,7 @@
       "slug": "powershell/windows",
       "platform": "windows",
       "unique_identifier": "PowerShell 7-x64",
+      "arch": "x64",
       "description": "PowerShell is a cross-platform task automation solution made up of a command-line shell, a scripting language, and a configuration management framework."
     },
     {
@@ -6880,6 +7205,7 @@
       "slug": "powertoys/windows",
       "platform": "windows",
       "unique_identifier": "PowerToys",
+      "arch": "x64",
       "description": "PowerToys is a set of utilities from Microsoft for power users to tune and streamline their Windows experience for greater productivity."
     },
     {
@@ -6901,6 +7227,7 @@
       "slug": "preform/windows",
       "platform": "windows",
       "unique_identifier": "PreForm",
+      "arch": "x64",
       "description": "PreForm is a 3D printing setup, management, and monitoring."
     },
     {
@@ -6929,6 +7256,7 @@
       "slug": "prisma-browser/windows",
       "platform": "windows",
       "unique_identifier": "Prisma Access Browser",
+      "arch": "x64",
       "description": "Prisma Browser is a SASE-native browser that empowers secure work."
     },
     {
@@ -6943,6 +7271,7 @@
       "slug": "pritunl/windows",
       "platform": "windows",
       "unique_identifier": "Pritunl",
+      "arch": "x64",
       "description": "Pritunl is an OpenVPN client."
     },
     {
@@ -6992,6 +7321,7 @@
       "slug": "proton-drive/windows",
       "platform": "windows",
       "unique_identifier": "Proton Drive",
+      "arch": "x64",
       "description": "Proton Drive is a client for Proton Drive."
     },
     {
@@ -7034,6 +7364,7 @@
       "slug": "protonvpn/windows",
       "platform": "windows",
       "unique_identifier": "Proton VPN",
+      "arch": "x64",
       "description": "Proton VPN is a Swiss-based VPN service focused on privacy."
     },
     {
@@ -7048,6 +7379,7 @@
       "slug": "protopie/windows",
       "platform": "windows",
       "unique_identifier": "ProtoPie",
+      "arch": "x64",
       "description": "ProtoPie is a tool to create interactive prototypes."
     },
     {
@@ -7062,6 +7394,7 @@
       "slug": "proxifier/windows",
       "platform": "windows",
       "unique_identifier": "Proxifier",
+      "arch": "x64",
       "description": "Proxifier is an app that allows network applications that do not support working through proxy servers to operate through a SOCKS or HTTPS proxy and chains."
     },
     {
@@ -7076,6 +7409,7 @@
       "slug": "proxyman/windows",
       "platform": "windows",
       "unique_identifier": "Proxyman",
+      "arch": "x64",
       "description": "Proxyman is a high-performance app that enables developers to view HTTP/HTTPS requests and responses."
     },
     {
@@ -7097,6 +7431,7 @@
       "slug": "putty/windows",
       "platform": "windows",
       "unique_identifier": "PuTTY release 0.83 (x64)",
+      "arch": "x64",
       "description": "PuTTY is a free, open-source SSH and Telnet client for Windows."
     },
     {
@@ -7111,6 +7446,7 @@
       "slug": "pycharm-ce/windows",
       "platform": "windows",
       "unique_identifier": "PyCharm Community Edition",
+      "arch": "x64",
       "description": "PyCharm Community Edition is a Jetbrains IDE for Python programming - Community Edition"
     },
     {
@@ -7125,6 +7461,7 @@
       "slug": "pycharm/windows",
       "platform": "windows",
       "unique_identifier": "PyCharm",
+      "arch": "x64",
       "description": "PyCharm Professional is a Jetbrains IDE for professional Python development. This version includes advanced features and requires a valid license."
     },
     {
@@ -7132,6 +7469,7 @@
       "slug": "python-3.13/windows",
       "platform": "windows",
       "unique_identifier": "Python 3.13.13 (64-bit)",
+      "arch": "x64",
       "description": "Python 3.13 is a high-level, general-purpose programming language used for web development, data analysis, automation, scripting, and scientific computing."
     },
     {
@@ -7139,6 +7477,7 @@
       "slug": "python-3.14/windows",
       "platform": "windows",
       "unique_identifier": "Python 3.14.5 (64-bit)",
+      "arch": "x64",
       "description": "Python 3.14 is a high-level, general-purpose programming language used for web development, data analysis, automation, scripting, and scientific computing."
     },
     {
@@ -7146,6 +7485,7 @@
       "slug": "qemu/windows",
       "platform": "windows",
       "unique_identifier": "QEMU",
+      "arch": "x64",
       "description": "QEMU is an open-source machine emulator and virtualizer."
     },
     {
@@ -7188,6 +7528,7 @@
       "slug": "r/windows",
       "platform": "windows",
       "unique_identifier": "R for Windows",
+      "arch": "x64",
       "description": "R is a free software environment for statistical computing and graphics."
     },
     {
@@ -7216,6 +7557,7 @@
       "slug": "rancher/windows",
       "platform": "windows",
       "unique_identifier": "Rancher Desktop",
+      "arch": "x64",
       "description": "Rancher Desktop is an app for kubernetes and container management on the desktop."
     },
     {
@@ -7244,6 +7586,7 @@
       "slug": "raspberry-pi-imager/windows",
       "platform": "windows",
       "unique_identifier": "Raspberry Pi Imager",
+      "arch": "x64",
       "description": "Raspberry Pi Imager is an imaging utility to install operating systems to a microSD card."
     },
     {
@@ -7265,6 +7608,7 @@
       "slug": "readest/windows",
       "platform": "windows",
       "unique_identifier": "Readest",
+      "arch": "x64",
       "description": "Readest is an ebook reader."
     },
     {
@@ -7279,6 +7623,7 @@
       "slug": "reaper/windows",
       "platform": "windows",
       "unique_identifier": "REAPER",
+      "arch": "x64",
       "description": "REAPER is a digital audio production application."
     },
     {
@@ -7335,6 +7680,7 @@
       "slug": "reflector/windows",
       "platform": "windows",
       "unique_identifier": "Reflector 4",
+      "arch": "x64",
       "description": "Reflector is a wireless screen-mirroring application."
     },
     {
@@ -7363,6 +7709,7 @@
       "slug": "remote-desktop-manager/windows",
       "platform": "windows",
       "unique_identifier": "Remote Desktop Manager",
+      "arch": "x64",
       "description": "Remote Desktop Manager is an app that centralises all remote connections on a single platform."
     },
     {
@@ -7377,6 +7724,7 @@
       "slug": "reqable/windows",
       "platform": "windows",
       "unique_identifier": "Reqable",
+      "arch": "x64",
       "description": "Reqable is an advanced API Debugging Proxy."
     },
     {
@@ -7391,6 +7739,7 @@
       "slug": "requestly/windows",
       "platform": "windows",
       "unique_identifier": "Requestly",
+      "arch": "x64",
       "description": "Requestly is an app for intercepting and modifying HTTP requests."
     },
     {
@@ -7398,6 +7747,7 @@
       "slug": "resharper/windows",
       "platform": "windows",
       "unique_identifier": "JetBrains ReSharper",
+      "arch": "x64",
       "description": "ReSharper is a Visual Studio extension for .NET developers."
     },
     {
@@ -7419,6 +7769,7 @@
       "slug": "retroarch/windows",
       "platform": "windows",
       "unique_identifier": "RetroArch",
+      "arch": "x64",
       "description": "RetroArch is a frontend for emulators, game engines and media players (OpenGL graphics API)."
     },
     {
@@ -7447,6 +7798,7 @@
       "slug": "rider/windows",
       "platform": "windows",
       "unique_identifier": "JetBrains Rider",
+      "arch": "x64",
       "description": "Rider is a .NET IDE by JetBrains."
     },
     {
@@ -7461,6 +7813,7 @@
       "slug": "ringcentral/windows",
       "platform": "windows",
       "unique_identifier": "RingCentral",
+      "arch": "x64",
       "description": "RingCentral is an app for business phone calls, messaging, and video meetings."
     },
     {
@@ -7531,6 +7884,7 @@
       "slug": "royal-tsx/windows",
       "platform": "windows",
       "unique_identifier": "Royal TS V7",
+      "arch": "x64",
       "description": "Royal TSX is a remote management solution."
     },
     {
@@ -7538,6 +7892,7 @@
       "slug": "rstudio/windows",
       "platform": "windows",
       "unique_identifier": "RStudio",
+      "arch": "x64",
       "description": "RStudio is an integrated development environment (IDE) for the R programming language."
     },
     {
@@ -7552,6 +7907,7 @@
       "slug": "rtools/windows",
       "platform": "windows",
       "unique_identifier": "Rtools",
+      "arch": "x64",
       "description": "Rtools is a toolchain bundle for building R packages from source on Windows."
     },
     {
@@ -7566,6 +7922,7 @@
       "slug": "rubymine/windows",
       "platform": "windows",
       "unique_identifier": "RubyMine",
+      "arch": "x64",
       "description": "Ruby on Rails IDE by JetBrains."
     },
     {
@@ -7594,6 +7951,7 @@
       "slug": "rustrover/windows",
       "platform": "windows",
       "unique_identifier": "RustRover",
+      "arch": "x64",
       "description": "Rust IDE by JetBrains."
     },
     {
@@ -7615,6 +7973,7 @@
       "slug": "safe-exam-browser/windows",
       "platform": "windows",
       "unique_identifier": "Safe Exam Browser",
+      "arch": "x86",
       "description": "Safe Exam Browser is a web browser environment to carry out e-assessments safely."
     },
     {
@@ -7678,6 +8037,7 @@
       "slug": "scribe/windows",
       "platform": "windows",
       "unique_identifier": "Scribe",
+      "arch": "x64",
       "description": "Scribe records a process as you work through it and turns it into a step-by-step guide with screenshots."
     },
     {
@@ -7699,6 +8059,7 @@
       "slug": "scrivener/windows",
       "platform": "windows",
       "unique_identifier": "Scrivener",
+      "arch": "x64",
       "description": "Scrivener is a word processing software with a typewriter style."
     },
     {
@@ -7776,6 +8137,7 @@
       "slug": "sharefile/windows",
       "platform": "windows",
       "unique_identifier": "ShareFile For Windows",
+      "arch": "x64",
       "description": "ShareFile is a client for the Progress ShareFile storage service."
     },
     {
@@ -7790,6 +8152,7 @@
       "slug": "shift/windows",
       "platform": "windows",
       "unique_identifier": "Shift",
+      "arch": "x64",
       "description": "Shift is a workstation to streamline your accounts, apps, and workflows."
     },
     {
@@ -7818,6 +8181,7 @@
       "slug": "shotcut/windows",
       "platform": "windows",
       "unique_identifier": "Shotcut",
+      "arch": "x64",
       "description": "Shotcut is a video editor."
     },
     {
@@ -7853,6 +8217,7 @@
       "slug": "signal/windows",
       "platform": "windows",
       "unique_identifier": "Signal",
+      "arch": "x64",
       "description": "Signal is an instant messaging application focusing on security."
     },
     {
@@ -7895,6 +8260,7 @@
       "slug": "slack/windows",
       "platform": "windows",
       "unique_identifier": "Slack",
+      "arch": "x64",
       "description": "Slack is a team communication and collaboration software for modern workplaces."
     },
     {
@@ -7937,6 +8303,7 @@
       "slug": "smartsheet/windows",
       "platform": "windows",
       "unique_identifier": "Smartsheet",
+      "arch": "x64",
       "description": "Smartsheet is a spreadsheet-style project management solution."
     },
     {
@@ -7972,6 +8339,7 @@
       "slug": "snagit/windows",
       "platform": "windows",
       "unique_identifier": "Snagit 2026",
+      "arch": "x64",
       "description": "Snagit is screen capture software."
     },
     {
@@ -8007,6 +8375,7 @@
       "slug": "sonicwall-netextender/windows",
       "platform": "windows",
       "unique_identifier": "SonicWall NetExtender",
+      "arch": "x64",
       "description": "SonicWall NetExtender is an SSL VPN client that provides secure remote access to SonicWall-protected networks."
     },
     {
@@ -8028,6 +8397,7 @@
       "slug": "sonos/windows",
       "platform": "windows",
       "unique_identifier": "Sonos",
+      "arch": "x86",
       "description": "Sonos is an app to set up and control Sonos wireless speakers and home audio systems."
     },
     {
@@ -8084,6 +8454,7 @@
       "slug": "sourcetree/windows",
       "platform": "windows",
       "unique_identifier": "Sourcetree Enterprise",
+      "arch": "x64",
       "description": "SourceTree is a graphical client for Git version control."
     },
     {
@@ -8147,6 +8518,7 @@
       "slug": "spotify/windows",
       "platform": "windows",
       "unique_identifier": "Spotify",
+      "arch": "x64",
       "description": "Spotify is a music streaming app."
     },
     {
@@ -8161,6 +8533,7 @@
       "slug": "spyder/windows",
       "platform": "windows",
       "unique_identifier": "Spyder",
+      "arch": "x64",
       "description": "Spyder is a scientific Python development environment with advanced editing, interactive testing, and debugging."
     },
     {
@@ -8168,6 +8541,7 @@
       "slug": "sql-server-management-studio/windows",
       "platform": "windows",
       "unique_identifier": "SQL Server Management Studio 22",
+      "arch": "x64",
       "description": "SQL Server Management Studio (SSMS) is an integrated environment for managing SQL Server and Azure SQL infrastructure. It provides tools to configure, monitor, and administer database instances, and to build and run queries and scripts."
     },
     {
@@ -8182,6 +8556,7 @@
       "slug": "sqlectron/windows",
       "platform": "windows",
       "unique_identifier": "sqlectron",
+      "arch": "x64",
       "description": "Sqlectron is a SQL client."
     },
     {
@@ -8245,6 +8620,7 @@
       "slug": "standard-notes/windows",
       "platform": "windows",
       "unique_identifier": "Standard Notes",
+      "arch": "x64",
       "description": "Standard Notes is a free, open-source, and completely encrypted notes app."
     },
     {
@@ -8273,6 +8649,7 @@
       "slug": "steam/windows",
       "platform": "windows",
       "unique_identifier": "Steam",
+      "arch": "x86",
       "description": "Steam is a video game digital distribution service."
     },
     {
@@ -8308,6 +8685,7 @@
       "slug": "stretchly/windows",
       "platform": "windows",
       "unique_identifier": "Stretchly",
+      "arch": "x64",
       "description": "Stretchly is a break time reminder app."
     },
     {
@@ -8329,6 +8707,7 @@
       "slug": "sublime-text/windows",
       "platform": "windows",
       "unique_identifier": "Sublime Text",
+      "arch": "x64",
       "description": "Sublime Text is a text editor for code, markup, and prose."
     },
     {
@@ -8350,6 +8729,7 @@
       "slug": "supercollider/windows",
       "platform": "windows",
       "unique_identifier": "SuperCollider",
+      "arch": "x64",
       "description": "SuperCollider is a server, language, and IDE for sound synthesis and algorithmic composition."
     },
     {
@@ -8476,6 +8856,7 @@
       "slug": "tableau-desktop/windows",
       "platform": "windows",
       "unique_identifier": "Tableau Desktop",
+      "arch": "x64",
       "description": "Tableau Desktop is a powerful data visualization and business intelligence platform for analyzing and presenting data insights."
     },
     {
@@ -8490,6 +8871,7 @@
       "slug": "tableau-prep/windows",
       "platform": "windows",
       "unique_identifier": "Tableau Prep Builder",
+      "arch": "x64",
       "description": "Tableau Prep is a data preparation tool for combining, shaping, and cleaning data for analysis in Tableau."
     },
     {
@@ -8511,6 +8893,7 @@
       "slug": "tableplus/windows",
       "platform": "windows",
       "unique_identifier": "TablePlus",
+      "arch": "x64",
       "description": "TablePlus is a native GUI tool for relational databases."
     },
     {
@@ -8532,6 +8915,7 @@
       "slug": "tailscale/windows",
       "platform": "windows",
       "unique_identifier": "Tailscale",
+      "arch": "x64",
       "description": "Tailscale is mesh VPN based on WireGuard."
     },
     {
@@ -8560,6 +8944,7 @@
       "slug": "teamviewer-host/windows",
       "platform": "windows",
       "unique_identifier": "TeamViewer Host",
+      "arch": "x64",
       "description": "TeamViewer Host is a remote access agent for unattended 24/7 access to a device, for uses such as remote device monitoring and server maintenance."
     },
     {
@@ -8574,6 +8959,7 @@
       "slug": "teamviewer/windows",
       "platform": "windows",
       "unique_identifier": "TeamViewer",
+      "arch": "x64",
       "description": "TeamViewer is a versatile remote access and connectivity platform trusted for secure remote desktop control, support, and collaboration."
     },
     {
@@ -8588,6 +8974,7 @@
       "slug": "telegram/windows",
       "platform": "windows",
       "unique_identifier": "Telegram Desktop",
+      "arch": "x64",
       "description": "Telegram is a messaging app with a focus on speed and security."
     },
     {
@@ -8602,6 +8989,7 @@
       "slug": "teleport-connect/windows",
       "platform": "windows",
       "unique_identifier": "Teleport Connect",
+      "arch": "x64",
       "description": "Teleport Connect is a developer-friendly browser for cloud infrastructure."
     },
     {
@@ -8623,6 +9011,7 @@
       "slug": "termius/windows",
       "platform": "windows",
       "unique_identifier": "Termius",
+      "arch": "x64",
       "description": "Termius is a SSH client."
     },
     {
@@ -8651,6 +9040,7 @@
       "slug": "textexpander/windows",
       "platform": "windows",
       "unique_identifier": "TextExpander",
+      "arch": "x64",
       "description": "TextExpander is an application that lets you create and insert pre-made snippets of text anywhere."
     },
     {
@@ -8679,6 +9069,7 @@
       "slug": "thorium/windows",
       "platform": "windows",
       "unique_identifier": "Thorium",
+      "arch": "x64",
       "description": "Thorium Reader is an epub reader."
     },
     {
@@ -8707,6 +9098,7 @@
       "slug": "thunderbird/windows",
       "platform": "windows",
       "unique_identifier": "Mozilla Thunderbird (x64 en-US)",
+      "arch": "x64",
       "description": "Thunderbird is a free and open-source e-mail client."
     },
     {
@@ -8728,6 +9120,7 @@
       "slug": "tightvnc/windows",
       "platform": "windows",
       "unique_identifier": "TightVNC",
+      "arch": "x64",
       "description": "TightVNC is a remote desktop software solution for viewing and controlling remote computers over a network."
     },
     {
@@ -8763,6 +9156,7 @@
       "slug": "todoist-app/windows",
       "platform": "windows",
       "unique_identifier": "Todoist",
+      "arch": "x64",
       "description": "Todoist is a to do list and a planning center for individuals and teams."
     },
     {
@@ -8777,6 +9171,7 @@
       "slug": "topaz-gigapixel-ai/windows",
       "platform": "windows",
       "unique_identifier": "Topaz Gigapixel AI",
+      "arch": "x64",
       "description": "Topaz Gigapixel AI is an AI image upscaler."
     },
     {
@@ -8791,6 +9186,7 @@
       "slug": "topaz-photo-ai/windows",
       "platform": "windows",
       "unique_identifier": "Topaz Photo AI",
+      "arch": "x64",
       "description": "Topaz Photo AI is an AI image enhancer."
     },
     {
@@ -8819,6 +9215,7 @@
       "slug": "tortoisegit/windows",
       "platform": "windows",
       "unique_identifier": "TortoiseGit",
+      "arch": "x64",
       "description": "TortoiseGit is a Windows shell interface to Git, providing overlay icons showing file status and a powerful context menu for Git. Requires Git for Windows to be installed."
     },
     {
@@ -8833,6 +9230,7 @@
       "slug": "tower/windows",
       "platform": "windows",
       "unique_identifier": "Tower",
+      "arch": "x64",
       "description": "Tower is a git client focusing on power and productivity."
     },
     {
@@ -8861,6 +9259,7 @@
       "slug": "transmission/windows",
       "platform": "windows",
       "unique_identifier": "Transmission",
+      "arch": "x64",
       "description": "Transmission is an open-source BitTorrent client."
     },
     {
@@ -8917,6 +9316,7 @@
       "slug": "twine-app/windows",
       "platform": "windows",
       "unique_identifier": "Twine",
+      "arch": "x64",
       "description": "Twine is a tool for telling interactive, nonlinear stories."
     },
     {
@@ -8931,6 +9331,7 @@
       "slug": "twingate/windows",
       "platform": "windows",
       "unique_identifier": "Twingate",
+      "arch": "x64",
       "description": "Twingate is a zero trust network access platform."
     },
     {
@@ -8966,6 +9367,7 @@
       "slug": "typora/windows",
       "platform": "windows",
       "unique_identifier": "Typora",
+      "arch": "x64",
       "description": "Typora is a configurable document editor that supports Markdown."
     },
     {
@@ -8994,6 +9396,7 @@
       "slug": "ultimaker-cura/windows",
       "platform": "windows",
       "unique_identifier": "UltiMaker Cura",
+      "arch": "x64",
       "description": "UltiMaker Cura is a 3D printer and slicing GUI."
     },
     {
@@ -9050,6 +9453,7 @@
       "slug": "vagrant/windows",
       "platform": "windows",
       "unique_identifier": "Vagrant",
+      "arch": "x64",
       "description": "Vagrant is a tool for building and managing virtual machine environments."
     },
     {
@@ -9064,6 +9468,7 @@
       "slug": "vc-redist-2013-x64/windows",
       "platform": "windows",
       "unique_identifier": "Microsoft Visual C++ 2013 Redistributable (x64)",
+      "arch": "x64",
       "description": "Microsoft Visual C++ 2013 Redistributable (x64) installs the runtime components of the Visual C++ libraries required to run 64-bit applications built with Visual C++ 2013."
     },
     {
@@ -9071,6 +9476,7 @@
       "slug": "vc-redist-x64/windows",
       "platform": "windows",
       "unique_identifier": "Microsoft Visual C++ v14 Redistributable (x64)",
+      "arch": "x64",
       "description": "Microsoft Visual C++ 2015-2022 Redistributable (x64) installs the runtime components of the Visual C++ libraries required to run 64-bit applications built with Visual C++ 2015, 2017, 2019, and 2022."
     },
     {
@@ -9092,6 +9498,7 @@
       "slug": "vernier-spectral-analysis/windows",
       "platform": "windows",
       "unique_identifier": "Vernier Spectral Analysis",
+      "arch": "x86",
       "description": "Vernier Spectral Analysis is a spectrometer data analysis tool."
     },
     {
@@ -9113,6 +9520,7 @@
       "slug": "vim/windows",
       "platform": "windows",
       "unique_identifier": "Vim",
+      "arch": "x64",
       "description": "Vim is a text editor."
     },
     {
@@ -9134,6 +9542,7 @@
       "slug": "virtualbox/windows",
       "platform": "windows",
       "unique_identifier": "Oracle VirtualBox",
+      "arch": "x64",
       "description": "VirtualBox is a virtualiser for x86-64 hardware."
     },
     {
@@ -9155,6 +9564,7 @@
       "slug": "viscosity/windows",
       "platform": "windows",
       "unique_identifier": "Viscosity",
+      "arch": "x64",
       "description": "Viscosity is an OpenVPN client for secure VPN connections."
     },
     {
@@ -9169,6 +9579,7 @@
       "slug": "visual-studio-2022-community/windows",
       "platform": "windows",
       "unique_identifier": "Visual Studio Community 2022",
+      "arch": "x64",
       "description": "Visual Studio Community 2022 is a free, full-featured IDE from Microsoft for building apps across desktop, web, mobile, and cloud."
     },
     {
@@ -9176,6 +9587,7 @@
       "slug": "visual-studio-2022-enterprise/windows",
       "platform": "windows",
       "unique_identifier": "Visual Studio Enterprise 2022",
+      "arch": "x64",
       "description": "Visual Studio Enterprise 2022 is Microsoft's IDE for enterprise development teams, built for scale, security, and complex, high-impact projects."
     },
     {
@@ -9183,6 +9595,7 @@
       "slug": "visual-studio-2022-professional/windows",
       "platform": "windows",
       "unique_identifier": "Visual Studio Professional 2022",
+      "arch": "x64",
       "description": "Visual Studio Professional 2022 is Microsoft's IDE for professional developers working across desktop, web, mobile, and cloud."
     },
     {
@@ -9197,6 +9610,7 @@
       "slug": "visual-studio-code/windows",
       "platform": "windows",
       "unique_identifier": "Microsoft Visual Studio Code",
+      "arch": "x64",
       "description": "Microsoft Visual Studio Code (VS Code) is an open-source, lightweight, and powerful code editor."
     },
     {
@@ -9211,6 +9625,7 @@
       "slug": "vivaldi/windows",
       "platform": "windows",
       "unique_identifier": "Vivaldi",
+      "arch": "x64",
       "description": "Vivaldi is a customizable, privacy-focused web browser built on Chromium."
     },
     {
@@ -9239,6 +9654,7 @@
       "slug": "vlc/windows",
       "platform": "windows",
       "unique_identifier": "VLC media player",
+      "arch": "x64",
       "description": "VLC media player is a free and open-source media player software."
     },
     {
@@ -9253,6 +9669,7 @@
       "slug": "vnc-server/windows",
       "platform": "windows",
       "unique_identifier": "RealVNC Server",
+      "arch": "x64",
       "description": "VNC Server is a remote desktop server application for securely controlling devices remotely."
     },
     {
@@ -9267,6 +9684,7 @@
       "slug": "vnc-viewer/windows",
       "platform": "windows",
       "unique_identifier": "RealVNC Connect Viewer",
+      "arch": "x64",
       "description": "RealVNC Connect Viewer is a remote desktop application focusing on security."
     },
     {
@@ -9295,6 +9713,7 @@
       "slug": "vscodium/windows",
       "platform": "windows",
       "unique_identifier": "VSCodium",
+      "arch": "x64",
       "description": "VSCodium is a release of VS Code without MS branding, telemetry, and licensing."
     },
     {
@@ -9330,6 +9749,7 @@
       "slug": "wacom-tablet/windows",
       "platform": "windows",
       "unique_identifier": "Wacom Tablet",
+      "arch": "x64",
       "description": "Wacom Tablet is a collection of resources for configuring Wacom tablets."
     },
     {
@@ -9351,6 +9771,7 @@
       "slug": "wave/windows",
       "platform": "windows",
       "unique_identifier": "Wave",
+      "arch": "x64",
       "description": "Wave Terminal is a terminal emulator."
     },
     {
@@ -9379,6 +9800,7 @@
       "slug": "weasis/windows",
       "platform": "windows",
       "unique_identifier": "Weasis",
+      "arch": "x64",
       "description": "Weasis is a free DICOM viewer for displaying and analyzing medical images."
     },
     {
@@ -9400,6 +9822,7 @@
       "slug": "webex/windows",
       "platform": "windows",
       "unique_identifier": "Cisco Webex",
+      "arch": "x64",
       "description": "Webex is a video communication and virtual meeting platform."
     },
     {
@@ -9414,6 +9837,7 @@
       "slug": "webstorm/windows",
       "platform": "windows",
       "unique_identifier": "WebStorm",
+      "arch": "x64",
       "description": "JavaScript IDE by JetBrains."
     },
     {
@@ -9428,6 +9852,7 @@
       "slug": "wechat/windows",
       "platform": "windows",
       "unique_identifier": "WeChat",
+      "arch": "x64",
       "description": "WeChat is a free messaging and calling application."
     },
     {
@@ -9477,6 +9902,7 @@
       "slug": "windirstat/windows",
       "platform": "windows",
       "unique_identifier": "WinDirStat",
+      "arch": "x64",
       "description": "WinDirStat is a disk usage statistics viewer and cleanup tool for Windows."
     },
     {
@@ -9498,6 +9924,7 @@
       "slug": "windows-app/windows",
       "platform": "windows",
       "unique_identifier": "Windows App",
+      "arch": "x64",
       "description": "Windows App is a client for connecting to remote Windows devices, Cloud PCs, and virtual desktops."
     },
     {
@@ -9505,6 +9932,7 @@
       "slug": "windsurf/windows",
       "platform": "windows",
       "unique_identifier": "Windsurf",
+      "arch": "x64",
       "description": "Windsurf is an agentic IDE powered by AI Flow paradigm."
     },
     {
@@ -9512,6 +9940,7 @@
       "slug": "winlogbeat/windows",
       "platform": "windows",
       "unique_identifier": "Beats winlogbeat",
+      "arch": "x64",
       "description": "Winlogbeat is a lightweight shipper from Elastic for forwarding and centralizing Windows event logs."
     },
     {
@@ -9519,6 +9948,7 @@
       "slug": "winrar/windows",
       "platform": "windows",
       "unique_identifier": "WinRAR",
+      "arch": "x64",
       "description": "WinRAR is a file archiver utility for Windows. It creates and extracts RAR and ZIP archives and supports compression, encryption, and splitting archives into volumes."
     },
     {
@@ -9533,6 +9963,7 @@
       "slug": "winscp/windows",
       "platform": "windows",
       "unique_identifier": "WinSCP",
+      "arch": "x86",
       "description": "WinSCP is a free SFTP, SCP, S3, and FTP client for Windows."
     },
     {
@@ -9547,6 +9978,7 @@
       "slug": "wireshark/windows",
       "platform": "windows",
       "unique_identifier": "Wireshark",
+      "arch": "x64",
       "description": "Wireshark is a network protocol analyzer."
     },
     {
@@ -9610,6 +10042,7 @@
       "slug": "wrike/windows",
       "platform": "windows",
       "unique_identifier": "Wrike for Windows (64 bit)",
+      "arch": "x64",
       "description": "Wrike is a project management app."
     },
     {
@@ -9666,6 +10099,7 @@
       "slug": "xnconvert/windows",
       "platform": "windows",
       "unique_identifier": "XnConvert",
+      "arch": "x64",
       "description": "XnSoft XnConvert is an image-converter and resiser tool."
     },
     {
@@ -9680,6 +10114,7 @@
       "slug": "xnviewmp/windows",
       "platform": "windows",
       "unique_identifier": "XnView MP",
+      "arch": "x64",
       "description": "XnViewMP is a photo viewer, image manager, image resiser and more."
     },
     {
@@ -9701,6 +10136,7 @@
       "slug": "yaak/windows",
       "platform": "windows",
       "unique_identifier": "Yaak",
+      "arch": "x64",
       "description": "Yaak is a REST, GraphQL and gRPC client."
     },
     {
@@ -9715,6 +10151,7 @@
       "slug": "yacreader/windows",
       "platform": "windows",
       "unique_identifier": "YACReader",
+      "arch": "x64",
       "description": "YACReader is a comic reader."
     },
     {
@@ -9722,6 +10159,7 @@
       "slug": "yarn/windows",
       "platform": "windows",
       "unique_identifier": "Yarn",
+      "arch": "x86",
       "description": "Yarn is a fast, reliable, and secure JavaScript package manager compatible with the npm registry."
     },
     {
@@ -9757,6 +10195,7 @@
       "slug": "yubico-authenticator/windows",
       "platform": "windows",
       "unique_identifier": "Yubico Authenticator",
+      "arch": "x64",
       "description": "Yubico Authenticator is an application for generating TOTP and HOTP codes."
     },
     {
@@ -9764,6 +10203,7 @@
       "slug": "yubico-yubikey-manager/windows",
       "platform": "windows",
       "unique_identifier": "YubiKey Manager",
+      "arch": "x64",
       "description": "YubiKey Manager is an application for configuring any YubiKey. YubiKey Manager won't get security updates or bug fixes. It's End of Life: <a target=\"_blank\" href=\"https://www.yubico.com/support/download/yubikey-manager/\">https://www.yubico.com/support/download/yubikey-manager</a>"
     },
     {
@@ -9785,6 +10225,7 @@
       "slug": "zed/windows",
       "platform": "windows",
       "unique_identifier": "Zed",
+      "arch": "x64",
       "description": "Zed is a multiplayer code editor."
     },
     {
@@ -9792,6 +10233,7 @@
       "slug": "zen-browser/windows",
       "platform": "windows",
       "unique_identifier": "Zen Browser (x64 en-US)",
+      "arch": "x64",
       "description": "Zen Browser is a Gecko based web browser."
     },
     {
@@ -9820,6 +10262,7 @@
       "slug": "zettlr/windows",
       "platform": "windows",
       "unique_identifier": "Zettlr",
+      "arch": "x64",
       "description": "Zettlr is an open-source markdown editor."
     },
     {
@@ -9834,6 +10277,7 @@
       "slug": "zoom-outlook-plugin/windows",
       "platform": "windows",
       "unique_identifier": "Zoom Outlook Plugin",
+      "arch": "x86",
       "description": "Zoom Outlook Plugin adds Zoom meeting scheduling and join buttons directly into Microsoft Outlook."
     },
     {
@@ -9848,6 +10292,7 @@
       "slug": "zoom-rooms/windows",
       "platform": "windows",
       "unique_identifier": "Zoom Rooms",
+      "arch": "x64",
       "description": "Zoom is a leading video communication platform for meetings, webinars, and collaboration."
     },
     {
@@ -9862,6 +10307,7 @@
       "slug": "zoom/windows",
       "platform": "windows",
       "unique_identifier": "Zoom Workplace (X64)",
+      "arch": "x64",
       "description": "Zoom is a leading video communication platform for meetings, webinars, and collaboration."
     },
     {
@@ -9876,6 +10322,7 @@
       "slug": "zotero/windows",
       "platform": "windows",
       "unique_identifier": "Zotero",
+      "arch": "x64",
       "description": "Zotero is a free tool for collecting, organizing, citing, and sharing research."
     },
     {
@@ -9890,6 +10337,7 @@
       "slug": "zulip/windows",
       "platform": "windows",
       "unique_identifier": "Zulip",
+      "arch": "x64",
       "description": "Zulip is a desktop client for the Zulip team chat platform."
     },
     {

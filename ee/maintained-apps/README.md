@@ -103,7 +103,7 @@ go run cmd/maintained-apps/main.go --slug="box-drive/windows" --debug
 
 5. The contributor is responsible for adding the icon to Fleet (e.g. the TypeScript and website PNG components of [#29175](https://github.com/fleetdm/fleet/pull/29175/files)). These are generated using the [generate-icons](https://github.com/fleetdm/fleet/tree/main/tools/software/icons) script. **The script automatically adds the import statement and map entry to `frontend/pages/SoftwarePage/components/icons/index.ts`**, so you don't need to manually update the index file.
 
-6. Add a description for the app in outputs/apps.json file. You can use descriptions from the wingest manifest.
+6. Add a description for the app in outputs/apps.json file. You can use descriptions from the wingest manifest. The generator also records the input's `installer_arch` as `arch` on the entry; Fleet uses it to keep `arm64` installers off hosts that can't run them.
 
 7. Open a PR to the fleet repository with the above changes. The [#g-software Engineering Manager (EM)](https://fleetdm.com/handbook/company/product-groups#software-group) is automatically added reviewer. Also, @ mention the #g-software Product Designer (PD) in a comment that points them to the new icon. This way, the icon change gets a second pair of eyes.
 

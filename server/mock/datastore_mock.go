@@ -1750,7 +1750,7 @@ type GetSoftwarePackagesByTeamAndTitleIDFunc func(ctx context.Context, teamID *u
 
 type GetSoftwarePackagesForTitlesFunc func(ctx context.Context, teamID *uint, titleIDs []uint) (map[uint][]fleet.SoftwarePackageListItem, error)
 
-type GetFleetMaintainedVersionsByTitleIDFunc func(ctx context.Context, teamID *uint, titleID uint) ([]fleet.FleetMaintainedVersion, error)
+type GetFleetMaintainedVersionsByTitleIDFunc func(ctx context.Context, teamID *uint, titleID uint, fmaID uint) ([]fleet.FleetMaintainedVersion, error)
 
 type MarkFleetMaintainedAppVersionCurrentFunc func(ctx context.Context, installerID uint) error
 
@@ -1764,11 +1764,11 @@ type SetFleetMaintainedAppActiveInstallerFunc func(ctx context.Context, payload 
 
 type ResolveActiveInstallerForRetryFunc func(ctx context.Context, installerID uint) (uint, error)
 
-type GetPinnedVersionFunc func(ctx context.Context, teamID *uint, titleID uint) (*string, error)
+type GetPinnedVersionFunc func(ctx context.Context, teamID *uint, titleID uint, fmaID uint) (*string, error)
 
-type SetPinnedVersionFunc func(ctx context.Context, teamID *uint, titleID uint, version string) error
+type SetPinnedVersionFunc func(ctx context.Context, teamID *uint, titleID uint, fmaID uint, version string) error
 
-type DeletePinnedVersionFunc func(ctx context.Context, teamID *uint, titleID uint) error
+type DeletePinnedVersionFunc func(ctx context.Context, teamID *uint, titleID uint, fmaID uint) error
 
 type HasFMAInstallerVersionFunc func(ctx context.Context, teamID *uint, fmaID uint, version string) (versionExists bool, storageID string, err error)
 
@@ -12059,11 +12059,11 @@ func (s *DataStore) GetSoftwarePackagesForTitles(ctx context.Context, teamID *ui
 	return s.GetSoftwarePackagesForTitlesFunc(ctx, teamID, titleIDs)
 }
 
-func (s *DataStore) GetFleetMaintainedVersionsByTitleID(ctx context.Context, teamID *uint, titleID uint) ([]fleet.FleetMaintainedVersion, error) {
+func (s *DataStore) GetFleetMaintainedVersionsByTitleID(ctx context.Context, teamID *uint, titleID uint, fmaID uint) ([]fleet.FleetMaintainedVersion, error) {
 	s.mu.Lock()
 	s.GetFleetMaintainedVersionsByTitleIDFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetFleetMaintainedVersionsByTitleIDFunc(ctx, teamID, titleID)
+	return s.GetFleetMaintainedVersionsByTitleIDFunc(ctx, teamID, titleID, fmaID)
 }
 
 func (s *DataStore) MarkFleetMaintainedAppVersionCurrent(ctx context.Context, installerID uint) error {
@@ -12108,25 +12108,25 @@ func (s *DataStore) ResolveActiveInstallerForRetry(ctx context.Context, installe
 	return s.ResolveActiveInstallerForRetryFunc(ctx, installerID)
 }
 
-func (s *DataStore) GetPinnedVersion(ctx context.Context, teamID *uint, titleID uint) (*string, error) {
+func (s *DataStore) GetPinnedVersion(ctx context.Context, teamID *uint, titleID uint, fmaID uint) (*string, error) {
 	s.mu.Lock()
 	s.GetPinnedVersionFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetPinnedVersionFunc(ctx, teamID, titleID)
+	return s.GetPinnedVersionFunc(ctx, teamID, titleID, fmaID)
 }
 
-func (s *DataStore) SetPinnedVersion(ctx context.Context, teamID *uint, titleID uint, version string) error {
+func (s *DataStore) SetPinnedVersion(ctx context.Context, teamID *uint, titleID uint, fmaID uint, version string) error {
 	s.mu.Lock()
 	s.SetPinnedVersionFuncInvoked = true
 	s.mu.Unlock()
-	return s.SetPinnedVersionFunc(ctx, teamID, titleID, version)
+	return s.SetPinnedVersionFunc(ctx, teamID, titleID, fmaID, version)
 }
 
-func (s *DataStore) DeletePinnedVersion(ctx context.Context, teamID *uint, titleID uint) error {
+func (s *DataStore) DeletePinnedVersion(ctx context.Context, teamID *uint, titleID uint, fmaID uint) error {
 	s.mu.Lock()
 	s.DeletePinnedVersionFuncInvoked = true
 	s.mu.Unlock()
-	return s.DeletePinnedVersionFunc(ctx, teamID, titleID)
+	return s.DeletePinnedVersionFunc(ctx, teamID, titleID, fmaID)
 }
 
 func (s *DataStore) HasFMAInstallerVersion(ctx context.Context, teamID *uint, fmaID uint, version string) (versionExists bool, storageID string, err error) {

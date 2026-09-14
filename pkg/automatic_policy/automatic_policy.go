@@ -30,11 +30,17 @@ type FMAInstallerMetadata struct {
 	Title    string
 	Platform string
 	Query    string
+	// Arch is the Windows installer architecture. An arm64 build shares its title with
+	// the x64 build, so its policy name carries the architecture to stay unique.
+	Arch string
 }
 
 func (m FMAInstallerMetadata) PolicyName() (string, error) {
 	if m.Title == "" {
 		return "", ErrMissingTitle
+	}
+	if m.Arch == "arm64" {
+		return fmt.Sprintf("[Install software] %s (ARM64)", m.Title), nil
 	}
 	return fmt.Sprintf("[Install software] %s", m.Title), nil
 }

@@ -595,10 +595,10 @@ func (ds *Datastore) processSoftwareTitleResults(
 			if err != nil {
 				return nil, 0, nil, ctxerr.Wrap(ctx, err, "get fleet maintained versions")
 			}
-			for titleID, fmaVers := range fmaVersions {
+			for titleID, byFMA := range fmaVersions {
 				if i, ok := titleIndex[titleID]; ok {
-					if softwareList[i].SoftwarePackage != nil {
-						softwareList[i].SoftwarePackage.FleetMaintainedVersions = fmaVers
+					if softwareList[i].SoftwarePackage != nil && softwareList[i].FleetMaintainedAppID != nil {
+						softwareList[i].SoftwarePackage.FleetMaintainedVersions = byFMA[*softwareList[i].FleetMaintainedAppID]
 					}
 				}
 			}
@@ -1147,26 +1147,27 @@ func countSoftwareTitlesOptimized(opts fleet.SoftwareTitleListOptions) string {
 }
 
 // GetFleetMaintainedVersionsByTitleID returns all cached versions of a fleet-maintained app
-// for the given title and team, most recently downloaded first.
-func (ds *Datastore) GetFleetMaintainedVersionsByTitleID(ctx context.Context, teamID *uint, titleID uint) ([]fleet.FleetMaintainedVersion, error) {
+// for the given title, team, and app, most recently downloaded first. The app matters on
+// Windows, where a title can hold the x64 and ARM64 builds as separate FMAs.
+func (ds *Datastore) GetFleetMaintainedVersionsByTitleID(ctx context.Context, teamID *uint, titleID, fmaID uint) ([]fleet.FleetMaintainedVersion, error) {
 	result, err := ds.getFleetMaintainedVersionsByTitleIDs(ctx, ds.reader(ctx), []uint{titleID}, ptr.ValOrZero(teamID))
 	if err != nil {
 		return nil, err
 	}
-	return result[titleID], nil
+	return result[titleID][fmaID], nil
 }
 
 // getFleetMaintainedVersionsByTitleIDs returns all cached versions of fleet-maintained apps
-// for the given title IDs and team, keyed by title ID, most recently downloaded first.
-// Fleet only caches what the manifest published and never rewrites a cached row's version,
-// so download order follows the manifest.
-func (ds *Datastore) getFleetMaintainedVersionsByTitleIDs(ctx context.Context, q sqlx.QueryerContext, titleIDs []uint, teamID uint) (map[uint][]fleet.FleetMaintainedVersion, error) {
+// for the given title IDs and team, keyed by title ID then fleet_maintained_apps.id, most
+// recently downloaded first. Fleet only caches what the manifest published and never
+// rewrites a cached row's version, so download order follows the manifest.
+func (ds *Datastore) getFleetMaintainedVersionsByTitleIDs(ctx context.Context, q sqlx.QueryerContext, titleIDs []uint, teamID uint) (map[uint]map[uint][]fleet.FleetMaintainedVersion, error) {
 	if len(titleIDs) == 0 {
 		return nil, nil
 	}
 
 	query := `
-		SELECT si.id, si.version, si.filename, si.title_id, si.uploaded_at
+		SELECT si.id, si.version, si.filename, si.title_id, si.fleet_maintained_app_id, si.uploaded_at
 			FROM software_installers si
 		WHERE si.title_id IN (?) AND si.global_or_team_id = ? AND si.fleet_maintained_app_id IS NOT NULL
 		ORDER BY si.title_id, si.uploaded_at DESC, si.id DESC
@@ -1180,6 +1181,7 @@ func (ds *Datastore) getFleetMaintainedVersionsByTitleIDs(ctx context.Context, q
 	type fmaVersionRow struct {
 		fleet.FleetMaintainedVersion
 		TitleID uint `db:"title_id"`
+		FMAID   uint `db:"fleet_maintained_app_id"`
 	}
 
 	var rows []fmaVersionRow
@@ -1187,9 +1189,12 @@ func (ds *Datastore) getFleetMaintainedVersionsByTitleIDs(ctx context.Context, q
 		return nil, ctxerr.Wrap(ctx, err, "select fleet maintained versions")
 	}
 
-	result := make(map[uint][]fleet.FleetMaintainedVersion, len(titleIDs))
+	result := make(map[uint]map[uint][]fleet.FleetMaintainedVersion, len(titleIDs))
 	for _, row := range rows {
-		result[row.TitleID] = append(result[row.TitleID], row.FleetMaintainedVersion)
+		if result[row.TitleID] == nil {
+			result[row.TitleID] = make(map[uint][]fleet.FleetMaintainedVersion)
+		}
+		result[row.TitleID][row.FMAID] = append(result[row.TitleID][row.FMAID], row.FleetMaintainedVersion)
 	}
 
 	return result, nil

@@ -37,6 +37,8 @@ type FMAManifestApp struct {
 	DefaultCategories  []string   `json:"default_categories"`
 	Frozen             bool       `json:"-"`
 	UpgradeCode        string     `json:"upgrade_code,omitempty"`
+	// InstallerArch feeds apps.json for Windows apps; it is not part of the manifest.
+	InstallerArch string `json:"-"`
 }
 
 func (a *FMAManifestApp) Platform() string {
@@ -77,7 +79,10 @@ type FMAListFileApp struct {
 	Slug             string `json:"slug"`
 	Platform         string `json:"platform"`
 	UniqueIdentifier string `json:"unique_identifier"`
-	Description      string `json:"description"`
+	// Arch is the installer architecture for Windows apps (x64, x86, arm64, neutral).
+	// Fleet uses arm64 to keep those installers off hosts that can't run them.
+	Arch        string `json:"arch,omitempty"`
+	Description string `json:"description"`
 }
 
 type FMAListFile struct {

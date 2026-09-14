@@ -690,7 +690,7 @@ func TestSoftwareInstallerPayloadFromSlug(t *testing.T) {
 	}
 
 	// Newest download first, and it is on a major the pin doesn't allow.
-	ds.GetFleetMaintainedVersionsByTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint) ([]fleet.FleetMaintainedVersion, error) {
+	ds.GetFleetMaintainedVersionsByTitleIDFunc = func(ctx context.Context, teamID *uint, titleID, fmaID uint) ([]fleet.FleetMaintainedVersion, error) {
 		return []fleet.FleetMaintainedVersion{{ID: 1, Version: "27.0.0"}, {ID: 2, Version: "26.0.0"}}, nil
 	}
 

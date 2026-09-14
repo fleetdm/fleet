@@ -87,6 +87,9 @@ type SoftwareInstaller struct {
 	PackageIDList string `json:"-" db:"package_ids"`
 	// UpgradeCode is the (optional) upgrade code included in an MSI
 	UpgradeCode string `json:"-" db:"upgrade_code"`
+	// Arch is the Windows installer architecture (x64, x86, arm64, neutral), set for
+	// Fleet-maintained apps and empty otherwise. Only arm64 restricts where it can run.
+	Arch string `json:"-" db:"arch"`
 	// UploadedAt is the time the software package was uploaded.
 	UploadedAt time.Time `json:"uploaded_at" db:"uploaded_at"`
 	// InstallerID is the unique identifier for the software package metadata in Fleet.
@@ -656,6 +659,9 @@ type UploadSoftwareInstallerPayload struct {
 	UserID               uint
 	URL                  string
 	FleetMaintainedAppID *uint
+	// Arch is the Fleet-maintained app's Windows installer architecture; empty for
+	// custom packages and macOS.
+	Arch string
 	// RollbackVersion is the version to pin as "active" for a fleet-maintained app.
 	// If empty, the latest version is used.
 	RollbackVersion string
