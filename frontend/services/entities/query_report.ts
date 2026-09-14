@@ -32,6 +32,7 @@ interface ILoadQueryReportQueryParams {
 const LOAD_ALL_PAGE_SIZE = 5000;
 /** Upper bound on pages fetched by loadAll, well above any report cap. */
 const LOAD_ALL_MAX_PAGES = 1000;
+export const LOAD_ALL_MAX_RESULTS = LOAD_ALL_PAGE_SIZE * LOAD_ALL_MAX_PAGES;
 
 const getSortParams = (sortOptions?: ISortOption[]) => {
   if (sortOptions === undefined || sortOptions.length === 0) {
@@ -78,7 +79,11 @@ const load = ({
   return sendRequest("GET", path);
 };
 
-/** Fetches every matching result page by page, in the requested order. */
+/**
+ * Fetches every matching result page by page, in the requested order.
+ * Rejects rather than returning a partial set if the report is larger than
+ * LOAD_ALL_MAX_RESULTS.
+ */
 const loadAll = async (
   options: Omit<ILoadQueryReportOptions, "page" | "perPage">
 ): Promise<IQueryReportResultRow[]> => {
@@ -93,10 +98,12 @@ const loadAll = async (
     });
     results.push(...report.results);
     if (!report.meta?.has_next_results) {
-      break;
+      return results;
     }
   }
-  return results;
+  throw new Error(
+    `Report has more than ${LOAD_ALL_MAX_RESULTS} results; export is not supported.`
+  );
 };
 
 export default {
