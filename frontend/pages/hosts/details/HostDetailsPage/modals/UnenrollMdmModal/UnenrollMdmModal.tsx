@@ -6,10 +6,9 @@ import Modal from "components/Modal";
 import { notify } from "components/ToastNotification";
 import { hasStatusKey } from "interfaces/errors";
 import {
-  isAccountDrivenUserEnrollment,
   isAutomaticDeviceEnrollment,
+  isBYODAccountDrivenUserEnrollment,
   isBYODManualEnrollment,
-  isPersonalEnrollmentStatus,
   MdmEnrollmentStatus,
 } from "interfaces/mdm";
 import { isAndroid, isIPadOrIPhone, isMacOS } from "interfaces/platform";
@@ -22,11 +21,6 @@ interface IUnenrollMdmModalProps {
   hostPlatform: string;
   hostName: string;
   enrollmentStatus: MdmEnrollmentStatus | null;
-  /** MDM enrollment channel. Account-Driven User Enrollment re-enrolls through
-   * Apple's "Sign in to Work or School Account" flow; every other personal
-   * enrollment re-enrolls through the enrollment link, and both report the same
-   * enrollmentStatus. */
-  lastMdmEnrollmentType?: string | null;
   onlyAllowAppleBusinessEnrollment: boolean;
   depAssignedToFleet: boolean;
   onClose: () => void;
@@ -38,7 +32,6 @@ const UnenrollMdmModal = ({
   hostPlatform,
   hostName,
   enrollmentStatus,
-  lastMdmEnrollmentType,
   onlyAllowAppleBusinessEnrollment,
   depAssignedToFleet,
   onClose,
@@ -111,7 +104,14 @@ const UnenrollMdmModal = ({
       );
     }
 
-    if (isAccountDrivenUserEnrollment(lastMdmEnrollmentType)) {
+    if (isBYODManualEnrollment(enrollmentStatus)) {
+      return (
+        <p>
+          To re-enroll, go to <b>Hosts &gt; Add hosts &gt; iOS/iPadOS</b> and
+          share the link with end user.
+        </p>
+      );
+    } else if (isBYODAccountDrivenUserEnrollment(enrollmentStatus)) {
       return (
         <p>
           To re-enroll, ask your end user to navigate to{" "}
@@ -120,16 +120,6 @@ const UnenrollMdmModal = ({
             to Work or School Account...
           </b>{" "}
           on their host and to log in with their work email.
-        </p>
-      );
-    } else if (
-      isBYODManualEnrollment(enrollmentStatus) ||
-      isPersonalEnrollmentStatus(enrollmentStatus)
-    ) {
-      return (
-        <p>
-          To re-enroll, go to <b>Hosts &gt; Add hosts &gt; iOS/iPadOS</b> and
-          share the link with end user.
         </p>
       );
     } else if (isAutomaticDeviceEnrollment(enrollmentStatus)) {
