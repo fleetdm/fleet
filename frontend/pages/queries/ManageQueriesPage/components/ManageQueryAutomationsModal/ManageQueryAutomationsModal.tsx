@@ -124,37 +124,15 @@ const ManageQueryAutomationsModal = ({
     );
   };
 
-  const onSubmitQueryAutomations = (
-    evt: React.MouseEvent<HTMLFormElement> | KeyboardEvent
-  ) => {
+  const onSubmitQueryAutomations = (evt: React.FormEvent<HTMLFormElement>) => {
     evt.preventDefault();
-
-    const newQueryIds: number[] = [];
-    queryItems?.forEach((p) => p.isChecked && newQueryIds.push(p.id));
-
     onSubmit({
-      newAutomatedQueryIds: newQueryIds,
+      newAutomatedQueryIds: queryItems
+        .filter((p) => p.isChecked)
+        .map((p) => p.id),
       previousAutomatedQueryIds: automatedQueryIds,
     });
   };
-
-  useEffect(() => {
-    const listener = (event: KeyboardEvent) => {
-      if (event.code === "Enter" || event.code === "NumpadEnter") {
-        event.preventDefault();
-        onSubmit({
-          newAutomatedQueryIds: queryItems
-            .filter((p) => p.isChecked)
-            .map((p) => p.id),
-          previousAutomatedQueryIds: automatedQueryIds,
-        });
-      }
-    };
-    document.addEventListener("keydown", listener);
-    return () => {
-      document.removeEventListener("keydown", listener);
-    };
-  });
 
   return (
     <Modal
@@ -164,7 +142,7 @@ const ManageQueryAutomationsModal = ({
       width="large"
       isHidden={isShowingPreviewDataModal}
     >
-      <div className={`${baseClass} form`}>
+      <form className={`${baseClass} form`} onSubmit={onSubmitQueryAutomations}>
         <div className={`${baseClass}__heading`}>
           Report automations let you send data gathered from macOS, Windows, and
           Linux hosts to a log destination. Data is sent according to a
@@ -238,7 +216,6 @@ const ManageQueryAutomationsModal = ({
             renderChildren={(disableChildren) => (
               <Button
                 type="submit"
-                onClick={onSubmitQueryAutomations}
                 className="save-loading"
                 isLoading={isUpdatingAutomations}
                 disabled={disableChildren}
@@ -251,7 +228,7 @@ const ManageQueryAutomationsModal = ({
             Cancel
           </Button>
         </div>
-      </div>
+      </form>
     </Modal>
   );
 };

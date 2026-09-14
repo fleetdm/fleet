@@ -1,0 +1,3 @@
+- Improved keyboard accessibility for modals: keyboard focus enters the modal on open and returns to the previously focused control when the modal closes.
+- Fixed a bug where holding Enter on the "Manage automations" button could auto-submit the form before the modal opened.
+- Fixed a bug where pressing Escape closed both modals when one was stacked on top of another.
