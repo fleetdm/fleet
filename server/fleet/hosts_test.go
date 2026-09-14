@@ -97,6 +97,94 @@ func TestHostStatus(t *testing.T) {
 	}
 }
 
+func TestHostStatusMobile(t *testing.T) {
+	now := time.Date(2026, 3, 5, 12, 0, 0, 0, time.UTC)
+	recent := now.Add(-15 * time.Minute) // well inside MobileOnlineWindow (~61 min)
+	stale := now.Add(-2 * time.Hour)     // well outside MobileOnlineWindow
+
+	neverTS := neverTimestampParsed
+
+	cases := []struct {
+		name string
+		h    Host
+		want HostStatus
+	}{
+		{
+			name: "ios online via LastMDMCheckedInAt",
+			h:    Host{Platform: "ios", LabelUpdatedAt: neverTS, LastMDMCheckedInAt: &recent},
+			want: StatusOnline,
+		},
+		{
+			name: "ios offline when MDM signal is stale and nothing else",
+			h:    Host{Platform: "ios", LabelUpdatedAt: neverTS, LastMDMCheckedInAt: &stale},
+			want: StatusOffline,
+		},
+		{
+			name: "ipados ignores SeenTime (host_seen_times is osquery-only, coalesced with created_at at load)",
+			h:    Host{Platform: "ipados", LabelUpdatedAt: neverTS, SeenTime: recent},
+			want: StatusOffline,
+		},
+		{
+			name: "ipados online via LabelUpdatedAt when it is fresh and not the never sentinel",
+			h:    Host{Platform: "ipados", LabelUpdatedAt: recent},
+			want: StatusOnline,
+		},
+		{
+			name: "ios ignores LabelUpdatedAt when equal to the never sentinel",
+			h:    Host{Platform: "ios", LabelUpdatedAt: neverTS},
+			want: StatusOffline,
+		},
+		{
+			// Android's AMAPI-stamped DetailUpdatedAt is deliberately skipped
+			// so pubsub delivery lag doesn't skew status. LabelUpdatedAt is
+			// Fleet-authored on every Android check-in and carries the signal.
+			name: "android online via LabelUpdatedAt (no nano row, DetailUpdatedAt ignored)",
+			h:    Host{Platform: "android", LabelUpdatedAt: recent, DetailUpdatedAt: stale},
+			want: StatusOnline,
+		},
+		{
+			name: "android offline when LabelUpdatedAt is stale even if DetailUpdatedAt is fresh",
+			h:    Host{Platform: "android", LabelUpdatedAt: stale, DetailUpdatedAt: recent},
+			want: StatusOffline,
+		},
+		{
+			name: "android offline when LabelUpdatedAt is still the never sentinel",
+			h:    Host{Platform: "android", LabelUpdatedAt: neverTS},
+			want: StatusOffline,
+		},
+		{
+			name: "ios takes freshest of all three signals",
+			h: Host{
+				Platform:           "ios",
+				SeenTime:           stale,
+				LastMDMCheckedInAt: &recent,
+				LabelUpdatedAt:     stale,
+			},
+			want: StatusOnline,
+		},
+		{
+			name: "ios freshly enrolled but never checked in stays offline (no created_at fallback)",
+			h:    Host{Platform: "ios", LabelUpdatedAt: neverTS},
+			want: StatusOffline,
+		},
+		{
+			// LabelUpdatedAt is NOT gated on enrollment state. nesm.enabled = 0
+			// upstream masks LastMDMCheckedInAt to nil, but a fresh
+			// label_updated_at still reads online for up to MobileOnlineWindow
+			// after checkout.
+			name: "ios online via fresh LabelUpdatedAt with nil LastMDMCheckedInAt (checked-out enrollment)",
+			h:    Host{Platform: "ios", LabelUpdatedAt: recent},
+			want: StatusOnline,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			require.Equal(t, c.want, c.h.Status(now))
+		})
+	}
+}
+
 func TestHostStatusIsValid(t *testing.T) {
 	for _, tt := range []struct {
 		name     string
