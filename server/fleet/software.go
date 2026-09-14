@@ -291,10 +291,34 @@ type VulnerableSoftware struct {
 }
 
 type VulnSoftwareFilter struct {
-	HostID      *uint
-	Name        string // LIKE filter
-	Source      string // exact match
-	KernelsOnly bool   // filter to kernel packages only (for RHEL goval-dictionary scanning)
+	HostID *uint
+	Name   string // LIKE filter
+	// Sources restricts the results to these sources, or to every source when empty. Package
+	// scanners set it so a binary that happens to share a distro package's name is never
+	// compared as one.
+	Sources     []string
+	KernelsOnly bool // filter to kernel packages only (for RHEL goval-dictionary scanning)
+}
+
+// Validate reports whether the filter is well formed.
+func (f VulnSoftwareFilter) Validate() error {
+	return ValidateSoftwareSources(f.Sources)
+}
+
+// ValidateSoftwareSources checks that a list of software sources is well formed: no empty
+// entry, and no source listed twice. An empty list is valid and means "every source".
+func ValidateSoftwareSources(sources []string) error {
+	seen := make(map[string]struct{}, len(sources))
+	for _, source := range sources {
+		if source == "" {
+			return errors.New("empty software source")
+		}
+		if _, ok := seen[source]; ok {
+			return fmt.Errorf("duplicate software source %q", source)
+		}
+		seen[source] = struct{}{}
+	}
+	return nil
 }
 
 type SliceString []string
