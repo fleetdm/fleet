@@ -1,6 +1,7 @@
 package tables
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/jmoiron/sqlx"
@@ -8,6 +9,12 @@ import (
 )
 
 func TestUp_20260914161913(t *testing.T) {
+	// Shrink the batch size so the backfill must loop across multiple iterations
+	// under test; catches a broken keyset advance (e.g. lastID not updated).
+	origBatch := backfillPatchWhenClosedBatchSize
+	backfillPatchWhenClosedBatchSize = 2
+	t.Cleanup(func() { backfillPatchWhenClosedBatchSize = origBatch })
+
 	db := applyUpToPrev(t)
 
 	// Minimal policy row — checksum is BINARY(16) NOT NULL, use the MD5 of the
@@ -27,8 +34,13 @@ func TestUp_20260914161913(t *testing.T) {
 			execID, policyID,
 		)
 	}
-	insertInstall("hsi-patch", &patchPolicyID)
-	insertInstall("hsi-ordinary", &ordinaryPolicyID)
+	// Seed more patch-policy rows than the batch size to exercise multiple loop
+	// iterations. Interleave with rows that must NOT be touched so a broken
+	// filter (e.g. missing WHERE clause) would flip them too.
+	for i := 0; i < 5; i++ {
+		insertInstall(fmt.Sprintf("hsi-patch-%d", i), &patchPolicyID)
+		insertInstall(fmt.Sprintf("hsi-ordinary-%d", i), &ordinaryPolicyID)
+	}
 	insertInstall("hsi-no-policy", nil)
 
 	applyNext(t, db)
@@ -40,18 +52,22 @@ func TestUp_20260914161913(t *testing.T) {
 		return v
 	}
 
-	require.Equal(t, 1, getFlag(db, "hsi-patch"), "row from a patch-when-closed policy should be backfilled to 1")
-	require.Equal(t, 0, getFlag(db, "hsi-ordinary"), "row from an ordinary policy stays 0")
+	for i := 0; i < 5; i++ {
+		require.Equal(t, 1, getFlag(db, fmt.Sprintf("hsi-patch-%d", i)),
+			"all patch-policy rows should be backfilled to 1, even across batch boundaries")
+		require.Equal(t, 0, getFlag(db, fmt.Sprintf("hsi-ordinary-%d", i)),
+			"rows from an ordinary policy must stay 0")
+	}
 	require.Equal(t, 0, getFlag(db, "hsi-no-policy"), "row with no policy stays 0")
 
 	// Toggling the source policy off after the backfill must NOT re-classify the
 	// historical row — that's the whole reason we snapshot rather than live-read.
 	_, err := db.Exec(`UPDATE policies SET patch_when_closed = 0 WHERE id = ?`, patchPolicyID)
 	require.NoError(t, err)
-	require.Equal(t, 1, getFlag(db, "hsi-patch"), "toggling policy off must not undo the snapshot")
+	require.Equal(t, 1, getFlag(db, "hsi-patch-0"), "toggling policy off must not undo the snapshot")
 
 	// Same for policy deletion (ON DELETE SET NULL zeros out policy_id, leaves flag intact).
 	_, err = db.Exec(`DELETE FROM policies WHERE id = ?`, patchPolicyID)
 	require.NoError(t, err)
-	require.Equal(t, 1, getFlag(db, "hsi-patch"), "deleting the policy must not undo the snapshot")
+	require.Equal(t, 1, getFlag(db, "hsi-patch-0"), "deleting the policy must not undo the snapshot")
 }
