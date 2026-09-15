@@ -31,7 +31,7 @@ func requireVersionOrder(t *testing.T, rows []tableRow, wantVersions []int64) {
 }
 
 // Down-move renumber where the moved rows sit mid-table and at the tail, the
-// shape of the 4.90.1 -> 4.91.0 re-timestamping applied to a database that
+// shape of the 4.92.0 -> 4.91.0 re-timestamping applied to a database that
 // tracked main (rows applied between and after the moved migrations).
 func TestSimulateDownMoveAtTail(t *testing.T) {
 	rows := []tableRow{

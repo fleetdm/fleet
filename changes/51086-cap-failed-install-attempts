@@ -1,1 +1,0 @@
-- Fixed the total amount of retries of a failing software install automation across policy runs not being limited
