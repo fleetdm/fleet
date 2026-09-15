@@ -9155,6 +9155,13 @@ func testHostsLoadHostByDeviceAuthToken(t *testing.T, ds *Datastore) {
 	h, err := ds.LoadHostByDeviceAuthToken(context.Background(), validToken, time.Hour)
 	require.NoError(t, err)
 	require.Equal(t, host.ID, h.ID)
+	require.False(t, h.TPMPINSet)
+
+	// Fleet Desktop's BitLocker PIN prompt reads this instead of querying the host's BitLocker status.
+	require.NoError(t, ds.SetOrUpdateHostDiskBitLockerProtectors(ctx, host.ID, true, true))
+	h, err = ds.LoadHostByDeviceAuthToken(ctx, validToken, time.Hour)
+	require.NoError(t, err)
+	require.True(t, h.TPMPINSet)
 
 	time.Sleep(2 * time.Second) // make sure the token expires
 
@@ -10228,6 +10235,13 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	err = batchUpsertHostAutopilotDevicesDB(ctx, ds.writer(ctx), []*fleet.HostAutopilotDevice{{
 		HostID: host.ID, TenantID: "delete-host-tenant", HardwareSerial: "delete-host-serial",
 	}})
+	require.NoError(t, err)
+
+	pinRequestID := uuid.New()
+	_, err = ds.writer(t.Context()).Exec(
+		`INSERT INTO host_bitlocker_pin_requests (host_id, request_uuid, pin_encrypted) VALUES (?, ?, ?)`,
+		host.ID, pinRequestID[:], "encrypted-pin",
+	)
 	require.NoError(t, err)
 
 	// Check there's an entry for the host in all the associated tables.

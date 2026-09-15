@@ -918,6 +918,12 @@ type MDMWindowsHostConfigState struct {
 	// ManagedLocalAccountRotationRequested asks the device to re-provision the account even though a password is already
 	// escrowed. Cleared once it escrows the replacement.
 	ManagedLocalAccountRotationRequested bool
+	// FleetdBitLockerPINCapable is the last-observed value of the X-Fleet-Capabilities CapabilityWindowsBitLockerPIN
+	// flag for this enrollment, persisted by the orbit-config endpoint. The device and Fleet Desktop endpoints carry no
+	// capability header, so they read this column to decide whether to offer the end user the PIN form.
+	FleetdBitLockerPINCapable bool
+	// BitLockerPINRequestPending is true while the end user has submitted a startup PIN that the agent has not yet collected.
+	BitLockerPINRequestPending bool
 }
 
 type MDMWindowsEnrolledDevice struct {

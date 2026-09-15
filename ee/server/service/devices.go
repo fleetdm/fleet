@@ -210,6 +210,16 @@ func (svc *Service) GetFleetDesktopSummary(ctx context.Context) (fleet.DesktopSu
 
 	}
 
+	// Fleet Desktop prompts the end user to create a BitLocker startup PIN, but only when this host's fleetd can
+	// actually apply one.
+	if host.FleetPlatform() == "windows" {
+		needsPIN, err := svc.hostNeedsBitLockerPINPrompt(ctx, host, appCfg)
+		if err != nil {
+			return sum, ctxerr.Wrap(ctx, err, "checking whether to prompt for a bitlocker pin")
+		}
+		sum.Notifications.NeedsBitLockerPIN = needsPIN
+	}
+
 	// organization information
 	sum.Config.OrgInfo.OrgName = appCfg.OrgInfo.OrgName
 	sum.Config.OrgInfo.OrgLogoURL = appCfg.OrgInfo.OrgLogoURL
@@ -224,6 +234,39 @@ func (svc *Service) GetFleetDesktopSummary(ctx context.Context) (fleet.DesktopSu
 	sum.AlternativeBrowserHost = appCfg.FleetDesktop.AlternativeBrowserHost
 
 	return sum, nil
+}
+
+// hostNeedsBitLockerPINPrompt reports whether Fleet Desktop should prompt this Windows host's end user to create a
+// BitLocker startup PIN.
+func (svc *Service) hostNeedsBitLockerPINPrompt(ctx context.Context, host *fleet.Host, appCfg *fleet.AppConfig) (bool, error) {
+	cfg := appCfg.MDM.DiskEncryptionConfig()
+	if host.TeamID != nil && *host.TeamID > 0 {
+		teamMDM, err := svc.ds.TeamMDMConfig(ctx, *host.TeamID)
+		if err != nil {
+			return false, ctxerr.Wrap(ctx, err, "get team mdm config for bitlocker pin prompt")
+		}
+		cfg = teamMDM.DiskEncryptionConfig()
+	}
+	if !cfg.WindowsEnabled || !cfg.BitLockerPINRequired || host.TPMPINSet {
+		return false, nil
+	}
+
+	state, err := svc.ds.GetMDMWindowsHostConfigState(ctx, host.UUID)
+	switch {
+	case fleet.IsNotFound(err):
+		// Not enrolled in Windows MDM, so there is no agent to apply a PIN and nothing to prompt for.
+		return false, nil
+	case err != nil:
+		return false, ctxerr.Wrap(ctx, err, "get windows mdm config state for bitlocker pin prompt")
+	case !state.FleetdBitLockerPINCapable:
+		return false, nil
+	}
+
+	diskEncryption, err := svc.ds.GetMDMWindowsBitLockerStatus(ctx, host)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "get bitlocker status for pin prompt")
+	}
+	return diskEncryption.NeedsBitLockerPIN(), nil
 }
 
 func (svc *Service) TriggerLinuxDiskEncryptionEscrow(ctx context.Context, host *fleet.Host) error {
