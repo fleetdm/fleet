@@ -4560,6 +4560,18 @@ func TestTPMPinConfigVerifyDirectIngest(t *testing.T) {
 			wantCmd: true,
 		},
 		{
+			name:    "an empty PIN protector policy",
+			host:    testHost,
+			rows:    append(policyRows(map[string]string{"UseTPMPIN": ""}), map[string]string{"name": "UseTPMPIN", "data": ""}),
+			wantCmd: true,
+		},
+		{
+			name:    "an unrecognized PIN protector policy",
+			host:    testHost,
+			rows:    policyRows(map[string]string{"UseTPMPIN": "3"}),
+			wantCmd: true,
+		},
+		{
 			name:    "enhanced PINs not configured",
 			host:    testHost,
 			rows:    policyRows(map[string]string{"UseEnhancedPin": ""}),

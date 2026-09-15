@@ -3758,14 +3758,14 @@ var tpmPINQueries = map[string]DetailQuery{
 			for _, row := range rows {
 				values[strings.ToLower(row["name"])] = strings.TrimSpace(row["data"])
 			}
-			useTPMPIN, useTPMPINSet := values["usetpmpin"]
+			useTPMPIN := values["usetpmpin"]
 			minimumPIN, minimumPINSet := values["minimumpin"]
 			disallowPINChange, disallowPINChangeSet := values["disallowstandarduserpinreset"]
 
-			// An unset UseTPMPIN is 'Not Configured', which does not permit a PIN protector, and an unset UseEnhancedPin
-			// does not permit enhanced characters. An unset MinimumPIN or DisallowStandardUserPINReset is Windows' default,
-			// which is already what Fleet wants.
-			if !useTPMPINSet || useTPMPIN == fmt.Sprintf("%d", microsoft_mdm.PolicyOptDropdownDisallowed) ||
+			// Only a required or optional UseTPMPIN permits a PIN protector. An unset UseEnhancedPin does not permit enhanced characters. An
+			// unset MinimumPIN or DisallowStandardUserPINReset is Windows' default, which is already what Fleet wants.
+			if (useTPMPIN != strconv.Itoa(microsoft_mdm.PolicyOptDropdownRequired) &&
+				useTPMPIN != strconv.Itoa(microsoft_mdm.PolicyOptDropdownOptional)) ||
 				values["useenhancedpin"] != "1" ||
 				(minimumPINSet && minimumPIN != strconv.Itoa(microsoft_mdm.BitLockerPINMinLength)) ||
 				(disallowPINChangeSet && disallowPINChange != "0") {
