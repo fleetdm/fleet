@@ -902,13 +902,17 @@ func AllowedSetupExperiencePlatformsForExtension(ext string) []string {
 // host with installer information if a matching installer exists. This is the
 // payload returned by the "Get host's (device's) software" endpoints.
 type HostSoftwareWithInstaller struct {
-	ID                uint                            `json:"id" db:"id"`
-	Name              string                          `json:"name" db:"name"`
-	BundleIdentifier  string                          `json:"bundle_identifier,omitempty" db:"-"`
-	IconUrl           *string                         `json:"icon_url" db:"-"`
-	Source            string                          `json:"source" db:"source"`
-	ExtensionFor      string                          `json:"extension_for" db:"extension_for"`
-	Status            *SoftwareInstallerStatus        `json:"status" db:"status"`
+	ID               uint                     `json:"id" db:"id"`
+	Name             string                   `json:"name" db:"name"`
+	BundleIdentifier string                   `json:"bundle_identifier,omitempty" db:"-"`
+	IconUrl          *string                  `json:"icon_url" db:"-"`
+	Source           string                   `json:"source" db:"source"`
+	ExtensionFor     string                   `json:"extension_for" db:"extension_for"`
+	Status           *SoftwareInstallerStatus `json:"status" db:"status"`
+	// SkippedInstall is set when the last install was a patch-when-closed skip
+	// (the target app was open); Status is then "failed_install". The UI keys on
+	// this to render "Patch skipped" instead of "Failed".
+	SkippedInstall    bool                            `json:"skipped_install,omitempty" db:"skipped_install"`
 	InstalledVersions []*HostSoftwareInstalledVersion `json:"installed_versions"`
 	DisplayName       string                          `json:"display_name" db:"display_name"`
 	// UpgradeCode is a GUID representing a related set of Windows software products. See https://learn.microsoft.com/en-us/windows/win32/msi/upgradecode

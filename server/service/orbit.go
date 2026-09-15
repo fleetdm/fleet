@@ -2087,12 +2087,28 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 		result.PreInstallConditionOutput != nil && *result.PreInstallConditionOutput == ""
 
 	// A patch-when-closed policy install whose managed app-open query returned no result means the
-	// app was open: a skip, not a failure. Key on the policy flag, not empty output, so an ordinary
-	// empty pre_install_query on a non-managed policy still fails and counts toward the retry cap.
+	// app was open: a skip, not a failure. Key on the snapshotted patch_when_closed flag on the
+	// install row (not the current policies value, and not policy_id) so that a policy deleted
+	// between activation and this result callback — which nulls policy_id via ON DELETE SET NULL —
+	// still classifies as a skip. An ordinary empty pre_install_query on a non-patch policy has
+	// patch_when_closed = 0 on the snapshot and continues to fail and count toward the retry cap.
+	//
+	// Force read from primary: on a fresh activation the snapshot may not have replicated yet,
+	// and a stale/missing read would silently downgrade a real skip into an ordinary failure
+	// (consuming a retry attempt). Log rather than swallow a read error for the same reason.
 	isAppOpenSkip := false
 	if preInstallConditionFailed {
-		if cur, curErr := svc.ds.GetSoftwareInstallResults(ctx, result.InstallUUID); curErr == nil && cur != nil {
-			isAppOpenSkip = cur.PolicyID != nil && cur.PatchWhenClosed
+		cur, curErr := svc.ds.GetSoftwareInstallResults(ctxdb.RequirePrimary(ctx, true), result.InstallUUID)
+		switch {
+		case curErr != nil:
+			svc.logger.ErrorContext(ctx,
+				"failed to load install result for patch-when-closed skip classification; defaulting to failure",
+				"host_id", host.ID,
+				"install_uuid", result.InstallUUID,
+				"err", curErr,
+			)
+		case cur != nil:
+			isAppOpenSkip = cur.PatchWhenClosed
 		}
 	}
 
@@ -2236,7 +2252,13 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 		// regardless of whether a retry can be scheduled. If retry scheduling
 		// fails, the install is marked as failed (no retry) and the admin can
 		// manually re-trigger.
-		if hsi.PolicyID == nil && status == fleet.SoftwareInstallFailed {
+		//
+		// !isAppOpenSkip mirrors the policy retry gate above. Without it, a
+		// snapshotted skip whose source policy was deleted between activation
+		// and this result (policy_id nulled via ON DELETE SET NULL) would fall
+		// through this gate and get retried as if it were a plain host-initiated
+		// install.
+		if hsi.PolicyID == nil && status == fleet.SoftwareInstallFailed && !isAppOpenSkip {
 			shouldRetry, retryErr := svc.shouldRetrySoftwareInstall(ctx, hsi)
 			if retryErr != nil {
 				svc.logger.ErrorContext(ctx,
