@@ -183,6 +183,9 @@ const ANDROID_SW_INSTALL_LEARN_MORE_LINK =
 
 const ACTIVITY_CARD_DATA_STALE_TIME = 5000; // 5 seconds
 
+const ANDROID_MDM_COMMANDS_TOGGLE_TOOLTIP =
+  "Activities and non-custom MDM commands are not supported yet for Android.";
+
 const SHOW_MDM_COMMANDS_STORAGE_KEY = "hostDetailsShowMDMCommands";
 
 export const getMDMCommandsToggleLocalState = (): boolean =>
@@ -247,6 +250,7 @@ const HostDetailsPage = ({
     filteredHostsPath,
     currentTeam,
     isMacMdmEnabledAndConfigured,
+    isAndroidMdmEnabledAndConfigured,
   } = useContext(AppContext);
 
   const handlePageError = useErrorHandler();
@@ -377,13 +381,13 @@ const HostDetailsPage = ({
   const [activityPage, setActivityPage] = useState(0);
   // Per-browser rather than per-user: whether this becomes a shared default is
   // still open, so keep the fix clear of where the preference ends up living.
-  const [showMDMCommands, setShowMDMCommands] = useState(
+  const [showMDMCommandsPref, setShowMDMCommandsPref] = useState(
     getMDMCommandsToggleLocalState
   );
 
   const updateShowMDMCommands = useCallback((show: boolean) => {
     setActivityPage(0);
-    setShowMDMCommands(show);
+    setShowMDMCommandsPref(show);
     setMDMCommandsToggleLocalState(show);
   }, []);
 
@@ -635,12 +639,19 @@ const HostDetailsPage = ({
     ? teams?.find((t) => t.id === host.team_id)?.mdm
     : config?.mdm;
 
+  const isAndroidHost = isAndroid(host?.platform ?? "");
+
   // We must check if the host has a UUID. Not-yet-enrolled hosts synced over from ABM will have
   // a pending MDM status but no UUID, so there are no commands and no way to fetch them
   const canGetMDMCommands =
-    !!isMacMdmEnabledAndConfigured &&
-    isAppleDevice(host?.platform) &&
+    ((!!isMacMdmEnabledAndConfigured && isAppleDevice(host?.platform)) ||
+      (!!isAndroidMdmEnabledAndConfigured && isAndroidHost)) &&
     !!host?.uuid;
+
+  // Android hosts have no activity feed and no non-custom MDM commands yet, so
+  // commands are the only thing the card can show -- pin the toggle on there
+  // without touching the stored preference that governs Apple hosts.
+  const showMDMCommands = isAndroidHost || showMDMCommandsPref;
 
   const {
     data: pastMDMCommands,
@@ -1289,7 +1300,6 @@ const HostDetailsPage = ({
 
   const isMacOSHost = isMacOS(host.platform);
   const isIosOrIpadosHost = isIPadOrIPhone(host.platform);
-  const isAndroidHost = isAndroid(host.platform);
   const isWindowsHost = isWindows(host.platform);
   const isLinuxHost = isLinuxLike(host.platform);
   const isAppleDeviceHost = isAppleDevice(host.platform);
@@ -1712,8 +1722,13 @@ const HostDetailsPage = ({
                       : upcomingActivitiesIsError || upcomingMDMCommandsIsError
                   }
                   canCancelActivities={isAdminOrMaintainer}
-                  isUpcomingDisabled={isAndroidHost}
                   showMDMCommandsToggle={canGetMDMCommands}
+                  isMDMCommandsToggleDisabled={isAndroidHost}
+                  mdmCommandsToggleTooltip={
+                    isAndroidHost
+                      ? ANDROID_MDM_COMMANDS_TOGGLE_TOOLTIP
+                      : undefined
+                  }
                   showMDMCommands={showMDMCommands}
                   onShowMDMCommands={() => updateShowMDMCommands(true)}
                   onHideMDMCommands={() => updateShowMDMCommands(false)}

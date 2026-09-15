@@ -56,8 +56,11 @@ interface IActivityProps {
    * upcoming activities and mdm commands. */
   upcomingCount: number;
   canCancelActivities: boolean;
-  /** When true, the Upcoming tab is disabled with a tooltip */
-  isUpcomingDisabled?: boolean;
+  /** When true, the toggle can't be flipped. */
+  isMDMCommandsToggleDisabled?: boolean;
+  /** Shown on hover over the toggle's label, e.g. to explain why it's
+   * disabled. */
+  mdmCommandsToggleTooltip?: JSX.Element | string;
   onChangeTab: (index: number, last: number, event: Event) => void;
   onNextPage: () => void;
   onPreviousPage: () => void;
@@ -82,7 +85,8 @@ const Activity = ({
   className,
   upcomingCount,
   canCancelActivities,
-  isUpcomingDisabled = false,
+  isMDMCommandsToggleDisabled = false,
+  mdmCommandsToggleTooltip,
   onChangeTab,
   onNextPage,
   onPreviousPage,
@@ -121,24 +125,16 @@ const Activity = ({
             <Tab>
               <TabText>Past</TabText>
             </Tab>
-            <Tab disabled={isUpcomingDisabled}>
-              {isUpcomingDisabled ? (
-                <TooltipWrapper
-                  tipContent="Currently, upcoming activity is only supported for macOS, Windows, Linux, iOS, and iPadOS hosts."
-                  showArrow
-                  underline={false}
-                >
-                  <TabText>Upcoming</TabText>
-                </TooltipWrapper>
-              ) : (
-                <TabText count={upcomingCount}>Upcoming</TabText>
-              )}
+            <Tab>
+              <TabText count={upcomingCount}>Upcoming</TabText>
             </Tab>
           </TabList>
           <TabPanel className={`${baseClass}__tab-panel`}>
             {showMDMCommandsToggle && (
               <MDMCommandsToggle
                 showMDMCommands={showMDMCommands}
+                disabled={isMDMCommandsToggleDisabled}
+                labelTooltip={mdmCommandsToggleTooltip}
                 onToggleMDMCommands={
                   showMDMCommands ? onHideMDMCommands : onShowMDMCommands
                 }
@@ -169,6 +165,8 @@ const Activity = ({
               <MDMCommandsToggle
                 showMDMCommands={showMDMCommands}
                 commandCount={commandCount}
+                disabled={isMDMCommandsToggleDisabled}
+                labelTooltip={mdmCommandsToggleTooltip}
                 onToggleMDMCommands={
                   showMDMCommands ? onHideMDMCommands : onShowMDMCommands
                 }

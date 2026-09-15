@@ -9,6 +9,9 @@ interface IMDMCommandsToggleProps {
   showMDMCommands: boolean;
   commandCount?: number;
   className?: string;
+  disabled?: boolean;
+  /** Shown on hover over the label, and readable while disabled. */
+  labelTooltip?: JSX.Element | string;
   onToggleMDMCommands: () => void;
 }
 
@@ -16,6 +19,8 @@ const MDMCommandsToggle = ({
   showMDMCommands,
   commandCount,
   className,
+  disabled,
+  labelTooltip,
   onToggleMDMCommands,
 }: IMDMCommandsToggleProps) => {
   const classNames = classnames(baseClass, className);
@@ -29,6 +34,8 @@ const MDMCommandsToggle = ({
       activeText={labelText}
       inactiveText={labelText}
       value={showMDMCommands}
+      disabled={disabled}
+      labelTooltip={labelTooltip}
       onChange={onToggleMDMCommands}
     />
   );
