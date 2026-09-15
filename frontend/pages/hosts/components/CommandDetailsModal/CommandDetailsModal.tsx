@@ -47,6 +47,21 @@ export const getIconName = (status: string): IconNames => {
   return "warning";
 };
 
+// Android command payloads and results are stored as minified JSON, which the
+// textarea wraps mid-token and makes unreadable. Apple plists and Windows
+// SyncML aren't JSON, so they're passed through untouched.
+export const formatCommandJson = (value: string): string => {
+  try {
+    const parsed = JSON.parse(value);
+    if (parsed === null || typeof parsed !== "object") {
+      return value;
+    }
+    return JSON.stringify(parsed, null, 2);
+  } catch {
+    return value;
+  }
+};
+
 export const getVerbForCommandStatus = (status: string): string => {
   const icon = getIconName(status);
   switch (icon) {
@@ -194,7 +209,7 @@ export const ModalContent = ({
         <InputField
           type="textarea"
           label="Request payload:"
-          value={result.payload}
+          value={formatCommandJson(result.payload)}
           readOnly
           enableCopy
           disableResize
@@ -208,7 +223,7 @@ export const ModalContent = ({
               Response from <b>{result.hostname}</b>:
             </>
           }
-          value={result.result}
+          value={formatCommandJson(result.result)}
           readOnly
           enableCopy
           disableResize
