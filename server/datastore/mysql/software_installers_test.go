@@ -3329,6 +3329,23 @@ func testBatchInstallVerificationReads(t *testing.T, ds *Datastore) {
 	// a host Fleet has installed nothing on is left out
 	require.NotContains(t, installsByTitle, fleet.HostSoftwareTitleKey{HostID: untouchedHost.ID, SoftwareTitleID: titleID})
 
+	// one installer with a finished install and another queued reports both
+	queuedOnFirstInstaller, err := ds.InsertSoftwareInstallRequest(ctx, installedHost.ID, firstInstallerID,
+		fleet.HostSoftwareInstallOptions{OverridePreInstallQuery: true})
+	require.NoError(t, err)
+
+	installsByTitle, err = ds.ListLastTitleInstallDataForHosts(ctx, []uint{installedHost.ID}, []uint{titleID})
+	require.NoError(t, err)
+	installs = installsByTitle[fleet.HostSoftwareTitleKey{HostID: installedHost.ID, SoftwareTitleID: titleID}]
+	require.Len(t, installs, 3)
+	statusByExecutionID = make(map[string]fleet.SoftwareInstallerStatus, len(installs))
+	for _, install := range installs {
+		require.NotNil(t, install.Status)
+		statusByExecutionID[install.ExecutionID] = *install.Status
+	}
+	require.Equal(t, fleet.SoftwareInstalled, statusByExecutionID[firstExecutionID])
+	require.Equal(t, fleet.SoftwareInstallPending, statusByExecutionID[queuedOnFirstInstaller])
+
 	// a software title with no installer of its own has nothing to report
 	otherTitleID := newTestSoftwareTitle(t, ds, "Uninstallable App")
 	installsByTitle, err = ds.ListLastTitleInstallDataForHosts(ctx, []uint{installedHost.ID}, []uint{otherTitleID})

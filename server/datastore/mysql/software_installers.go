@@ -4964,14 +4964,14 @@ WHERE row_num = 1
 		OverridePreInstallQuery bool                           `db:"override_pre_install_query"`
 	}
 
-	type hostInstaller struct {
-		hostID      uint
-		installerID uint
+	type titledInstall struct {
+		titleKey fleet.HostSoftwareTitleKey
+		install  *fleet.HostLastInstallData
 	}
 
-	// Past first so upcoming lands on top of it, which is the precedence GetHostLastInstallData reads
-	// them in.
-	lastInstalls := make(map[hostInstaller]*fleet.HostLastInstallData)
+	// Keep the completed install alongside the queued one for the same installer. An activated install
+	// has a row in both tables, so keying by execution keeps it once.
+	installsByExecutionID := make(map[string]titledInstall, len(installerIDs))
 	for _, selectStmt := range []string{pastStmt, upcomingStmt} {
 		stmt, args, err := sqlx.In(selectStmt, hostIDs, installerIDs)
 		if err != nil {
@@ -4983,20 +4983,21 @@ WHERE row_num = 1
 			return nil, ctxerr.Wrap(ctx, err, "list host last title install data")
 		}
 		for _, row := range rows {
-			lastInstalls[hostInstaller{hostID: row.HostID, installerID: row.InstallerID}] =
-				&fleet.HostLastInstallData{
+			installsByExecutionID[row.ExecutionID] = titledInstall{
+				titleKey: fleet.HostSoftwareTitleKey{HostID: row.HostID, SoftwareTitleID: titleIDsByInstaller[row.InstallerID]},
+				install: &fleet.HostLastInstallData{
 					ExecutionID:             row.ExecutionID,
 					Status:                  row.Status,
 					UpdatedAt:               row.UpdatedAt,
 					OverridePreInstallQuery: row.OverridePreInstallQuery,
-				}
+				},
+			}
 		}
 	}
 
-	installsByTitle := make(map[fleet.HostSoftwareTitleKey][]*fleet.HostLastInstallData, len(lastInstalls))
-	for key, lastInstall := range lastInstalls {
-		titleKey := fleet.HostSoftwareTitleKey{HostID: key.hostID, SoftwareTitleID: titleIDsByInstaller[key.installerID]}
-		installsByTitle[titleKey] = append(installsByTitle[titleKey], lastInstall)
+	installsByTitle := make(map[fleet.HostSoftwareTitleKey][]*fleet.HostLastInstallData, len(installsByExecutionID))
+	for _, titled := range installsByExecutionID {
+		installsByTitle[titled.titleKey] = append(installsByTitle[titled.titleKey], titled.install)
 	}
 	return installsByTitle, nil
 }
