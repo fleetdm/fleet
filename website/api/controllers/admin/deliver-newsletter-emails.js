@@ -11,7 +11,8 @@ module.exports = {
 
     emailTemplateName: {
       type: 'string',
-      description: ''
+      description: 'The name of the email template that is being sent to newsletter subscribers',
+      required: true,
     },
 
     sendToAllSubscribers: {
