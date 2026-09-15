@@ -1470,6 +1470,19 @@ type Datastore interface {
 	// IsEnrollSecretAvailable checks if the provided secret is available for enrollment.
 	IsEnrollSecretAvailable(ctx context.Context, secret string, isNew bool, teamID *uint) (bool, error)
 
+	// GetHostOneTimeEnrollSecret returns the one-time enroll secret row matching
+	// the given secret value, or a NotFoundError. It reads from the primary
+	// because secrets are minted moments before they are presented.
+	GetHostOneTimeEnrollSecret(ctx context.Context, secret string) (*HostOneTimeEnrollSecret, error)
+	// DeleteHostOneTimeEnrollSecrets deletes all of the host's one-time enroll
+	// secrets, spent or not. Used when the MDM enrollment is reset or removed,
+	// since the next profile delivery mints a fresh secret.
+	DeleteHostOneTimeEnrollSecrets(ctx context.Context, hostID uint) error
+	// CleanupHostOneTimeEnrollSecrets removes spent secrets that have been
+	// superseded by a newer secret for the same host, and secrets whose host no
+	// longer exists. It returns the number of rows deleted.
+	CleanupHostOneTimeEnrollSecrets(ctx context.Context) (int64, error)
+
 	// EnrollOsquery will enroll a new host with the given identifier, setting the node key, and team. Implementations of
 	// this method should respect the provided host enrollment cooldown, by returning an error if the host has enrolled
 	// within the cooldown period.
@@ -1594,6 +1607,10 @@ type Datastore interface {
 	// GetMDMAppleConfigProfile returns the mdm config profile corresponding to the specified
 	// profile uuid.
 	GetMDMAppleConfigProfile(ctx context.Context, profileUUID string) (*MDMAppleConfigProfile, error)
+	// GetMDMAppleConfigProfileByTeamAndIdentifier returns the profile with the
+	// given payload identifier for the team (nil for "no team"), or a
+	// NotFoundError.
+	GetMDMAppleConfigProfileByTeamAndIdentifier(ctx context.Context, teamID *uint, profileIdentifier string) (*MDMAppleConfigProfile, error)
 
 	// GetMDMAppleDeclaration returns the declaration corresponding to the specified uuid.
 	GetMDMAppleDeclaration(ctx context.Context, declUUID string) (*MDMAppleDeclaration, error)

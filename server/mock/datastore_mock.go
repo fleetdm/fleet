@@ -978,6 +978,12 @@ type VerifyEnrollSecretFunc func(ctx context.Context, secret string) (*fleet.Enr
 
 type IsEnrollSecretAvailableFunc func(ctx context.Context, secret string, isNew bool, teamID *uint) (bool, error)
 
+type GetHostOneTimeEnrollSecretFunc func(ctx context.Context, secret string) (*fleet.HostOneTimeEnrollSecret, error)
+
+type DeleteHostOneTimeEnrollSecretsFunc func(ctx context.Context, hostID uint) error
+
+type CleanupHostOneTimeEnrollSecretsFunc func(ctx context.Context) (int64, error)
+
 type EnrollOsqueryFunc func(ctx context.Context, opts ...fleet.DatastoreEnrollOsqueryOption) (*fleet.Host, error)
 
 type EnrollOrbitFunc func(ctx context.Context, opts ...fleet.DatastoreEnrollOrbitOption) (*fleet.Host, error)
@@ -1043,6 +1049,8 @@ type BulkUpsertMDMAppleConfigProfilesFunc func(ctx context.Context, payload []*f
 type GetMDMAppleConfigProfileByDeprecatedIDFunc func(ctx context.Context, profileID uint) (*fleet.MDMAppleConfigProfile, error)
 
 type GetMDMAppleConfigProfileFunc func(ctx context.Context, profileUUID string) (*fleet.MDMAppleConfigProfile, error)
+
+type GetMDMAppleConfigProfileByTeamAndIdentifierFunc func(ctx context.Context, teamID *uint, profileIdentifier string) (*fleet.MDMAppleConfigProfile, error)
 
 type GetMDMAppleDeclarationFunc func(ctx context.Context, declUUID string) (*fleet.MDMAppleDeclaration, error)
 
@@ -3852,6 +3860,15 @@ type DataStore struct {
 	IsEnrollSecretAvailableFunc        IsEnrollSecretAvailableFunc
 	IsEnrollSecretAvailableFuncInvoked bool
 
+	GetHostOneTimeEnrollSecretFunc        GetHostOneTimeEnrollSecretFunc
+	GetHostOneTimeEnrollSecretFuncInvoked bool
+
+	DeleteHostOneTimeEnrollSecretsFunc        DeleteHostOneTimeEnrollSecretsFunc
+	DeleteHostOneTimeEnrollSecretsFuncInvoked bool
+
+	CleanupHostOneTimeEnrollSecretsFunc        CleanupHostOneTimeEnrollSecretsFunc
+	CleanupHostOneTimeEnrollSecretsFuncInvoked bool
+
 	EnrollOsqueryFunc        EnrollOsqueryFunc
 	EnrollOsqueryFuncInvoked bool
 
@@ -3950,6 +3967,9 @@ type DataStore struct {
 
 	GetMDMAppleConfigProfileFunc        GetMDMAppleConfigProfileFunc
 	GetMDMAppleConfigProfileFuncInvoked bool
+
+	GetMDMAppleConfigProfileByTeamAndIdentifierFunc        GetMDMAppleConfigProfileByTeamAndIdentifierFunc
+	GetMDMAppleConfigProfileByTeamAndIdentifierFuncInvoked bool
 
 	GetMDMAppleDeclarationFunc        GetMDMAppleDeclarationFunc
 	GetMDMAppleDeclarationFuncInvoked bool
@@ -9357,6 +9377,27 @@ func (s *DataStore) IsEnrollSecretAvailable(ctx context.Context, secret string, 
 	return s.IsEnrollSecretAvailableFunc(ctx, secret, isNew, teamID)
 }
 
+func (s *DataStore) GetHostOneTimeEnrollSecret(ctx context.Context, secret string) (*fleet.HostOneTimeEnrollSecret, error) {
+	s.mu.Lock()
+	s.GetHostOneTimeEnrollSecretFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetHostOneTimeEnrollSecretFunc(ctx, secret)
+}
+
+func (s *DataStore) DeleteHostOneTimeEnrollSecrets(ctx context.Context, hostID uint) error {
+	s.mu.Lock()
+	s.DeleteHostOneTimeEnrollSecretsFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeleteHostOneTimeEnrollSecretsFunc(ctx, hostID)
+}
+
+func (s *DataStore) CleanupHostOneTimeEnrollSecrets(ctx context.Context) (int64, error) {
+	s.mu.Lock()
+	s.CleanupHostOneTimeEnrollSecretsFuncInvoked = true
+	s.mu.Unlock()
+	return s.CleanupHostOneTimeEnrollSecretsFunc(ctx)
+}
+
 func (s *DataStore) EnrollOsquery(ctx context.Context, opts ...fleet.DatastoreEnrollOsqueryOption) (*fleet.Host, error) {
 	s.mu.Lock()
 	s.EnrollOsqueryFuncInvoked = true
@@ -9586,6 +9627,13 @@ func (s *DataStore) GetMDMAppleConfigProfile(ctx context.Context, profileUUID st
 	s.GetMDMAppleConfigProfileFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetMDMAppleConfigProfileFunc(ctx, profileUUID)
+}
+
+func (s *DataStore) GetMDMAppleConfigProfileByTeamAndIdentifier(ctx context.Context, teamID *uint, profileIdentifier string) (*fleet.MDMAppleConfigProfile, error) {
+	s.mu.Lock()
+	s.GetMDMAppleConfigProfileByTeamAndIdentifierFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetMDMAppleConfigProfileByTeamAndIdentifierFunc(ctx, teamID, profileIdentifier)
 }
 
 func (s *DataStore) GetMDMAppleDeclaration(ctx context.Context, declUUID string) (*fleet.MDMAppleDeclaration, error) {

@@ -623,6 +623,10 @@ type Service interface {
 	// PartnershipsConfig returns Fleet partnership-specific configuration
 	PartnershipsConfig(ctx context.Context) (*Partnerships, error)
 
+	// AuthSettings returns the read-only authentication settings sourced from
+	// the server configuration, or nil when none is enabled.
+	AuthSettings(ctx context.Context) (*AuthSettings, error)
+
 	// LoggingConfig parses config.FleetConfig instance and returns a Logging.
 	LoggingConfig(ctx context.Context) (*Logging, error)
 

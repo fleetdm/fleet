@@ -5823,6 +5823,9 @@ func TestEnsureFleetdConfig(t *testing.T) {
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 			return &fleet.AppConfig{}, nil
 		}
+		ds.GetMDMAppleConfigProfileByTeamAndIdentifierFunc = func(ctx context.Context, teamID *uint, identifier string) (*fleet.MDMAppleConfigProfile, error) {
+			return nil, newNotFoundError()
+		}
 		ds.AggregateEnrollSecretPerTeamFunc = func(ctx context.Context) ([]*fleet.EnrollSecret, error) {
 			return []*fleet.EnrollSecret{}, nil
 		}
@@ -5830,7 +5833,7 @@ func TestEnsureFleetdConfig(t *testing.T) {
 			require.Empty(t, ps)
 			return nil
 		}
-		err := ensureFleetProfiles(ctx, ds, logger, signingCert.Certificate[0])
+		err := ensureFleetProfiles(ctx, ds, logger, signingCert.Certificate[0], false)
 		require.NoError(t, err)
 		require.True(t, ds.BulkUpsertMDMAppleConfigProfilesFuncInvoked)
 		require.True(t, ds.AggregateEnrollSecretPerTeamFuncInvoked)
@@ -5845,6 +5848,9 @@ func TestEnsureFleetdConfig(t *testing.T) {
 			{Secret: "", TeamID: ptr.Uint(1)},
 			{Secret: "", TeamID: ptr.Uint(2)},
 		}
+		ds.GetMDMAppleConfigProfileByTeamAndIdentifierFunc = func(ctx context.Context, teamID *uint, identifier string) (*fleet.MDMAppleConfigProfile, error) {
+			return nil, newNotFoundError()
+		}
 		ds.AggregateEnrollSecretPerTeamFunc = func(ctx context.Context) ([]*fleet.EnrollSecret, error) {
 			return secrets, nil
 		}
@@ -5855,7 +5861,7 @@ func TestEnsureFleetdConfig(t *testing.T) {
 			require.Empty(t, ps)
 			return nil
 		}
-		err := ensureFleetProfiles(ctx, ds, logger, signingCert.Certificate[0])
+		err := ensureFleetProfiles(ctx, ds, logger, signingCert.Certificate[0], false)
 		require.NoError(t, err)
 		require.True(t, ds.BulkUpsertMDMAppleConfigProfilesFuncInvoked)
 		require.True(t, ds.AggregateEnrollSecretPerTeamFuncInvoked)
@@ -5875,6 +5881,9 @@ func TestEnsureFleetdConfig(t *testing.T) {
 			appCfg.ServerSettings.ServerURL = testURL
 			appCfg.MDM.DeprecatedAppleBMDefaultTeam = testTeamName
 			return appCfg, nil
+		}
+		ds.GetMDMAppleConfigProfileByTeamAndIdentifierFunc = func(ctx context.Context, teamID *uint, identifier string) (*fleet.MDMAppleConfigProfile, error) {
+			return nil, newNotFoundError()
 		}
 		ds.AggregateEnrollSecretPerTeamFunc = func(ctx context.Context) ([]*fleet.EnrollSecret, error) {
 			return secrets, nil
@@ -5901,7 +5910,7 @@ func TestEnsureFleetdConfig(t *testing.T) {
 			return nil
 		}
 
-		err := ensureFleetProfiles(ctx, ds, logger, signingCert.Certificate[0])
+		err := ensureFleetProfiles(ctx, ds, logger, signingCert.Certificate[0], false)
 		require.NoError(t, err)
 		require.True(t, ds.AggregateEnrollSecretPerTeamFuncInvoked)
 		require.True(t, ds.BulkUpsertMDMAppleConfigProfilesFuncInvoked)
@@ -5919,6 +5928,9 @@ func TestEnsureFleetdConfig(t *testing.T) {
 			appCfg.ServerSettings.ServerURL = testURL
 			appCfg.MDM.DeprecatedAppleBMDefaultTeam = testTeamName
 			return appCfg, nil
+		}
+		ds.GetMDMAppleConfigProfileByTeamAndIdentifierFunc = func(ctx context.Context, teamID *uint, identifier string) (*fleet.MDMAppleConfigProfile, error) {
+			return nil, newNotFoundError()
 		}
 		ds.AggregateEnrollSecretPerTeamFunc = func(ctx context.Context) ([]*fleet.EnrollSecret, error) {
 			return secrets, nil
@@ -5944,7 +5956,7 @@ func TestEnsureFleetdConfig(t *testing.T) {
 			}
 			return nil
 		}
-		err := ensureFleetProfiles(ctx, ds, logger, signingCert.Certificate[0])
+		err := ensureFleetProfiles(ctx, ds, logger, signingCert.Certificate[0], false)
 		require.NoError(t, err)
 		require.True(t, ds.AppConfigFuncInvoked)
 		require.True(t, ds.AggregateEnrollSecretPerTeamFuncInvoked)
@@ -5957,7 +5969,7 @@ func TestEnsureFleetdConfig(t *testing.T) {
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 			return nil, testError
 		}
-		err := ensureFleetProfiles(ctx, ds, logger, signingCert.Certificate[0])
+		err := ensureFleetProfiles(ctx, ds, logger, signingCert.Certificate[0], false)
 		require.ErrorIs(t, err, testError)
 	})
 
@@ -5967,10 +5979,13 @@ func TestEnsureFleetdConfig(t *testing.T) {
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 			return &fleet.AppConfig{}, nil
 		}
+		ds.GetMDMAppleConfigProfileByTeamAndIdentifierFunc = func(ctx context.Context, teamID *uint, identifier string) (*fleet.MDMAppleConfigProfile, error) {
+			return nil, newNotFoundError()
+		}
 		ds.AggregateEnrollSecretPerTeamFunc = func(ctx context.Context) ([]*fleet.EnrollSecret, error) {
 			return nil, testError
 		}
-		err := ensureFleetProfiles(ctx, ds, logger, signingCert.Certificate[0])
+		err := ensureFleetProfiles(ctx, ds, logger, signingCert.Certificate[0], false)
 		require.ErrorIs(t, err, testError)
 	})
 
@@ -5981,6 +5996,9 @@ func TestEnsureFleetdConfig(t *testing.T) {
 			{Secret: "global", TeamID: nil},
 			{Secret: "team-1", TeamID: ptr.Uint(1)},
 		}
+		ds.GetMDMAppleConfigProfileByTeamAndIdentifierFunc = func(ctx context.Context, teamID *uint, identifier string) (*fleet.MDMAppleConfigProfile, error) {
+			return nil, newNotFoundError()
+		}
 		ds.AggregateEnrollSecretPerTeamFunc = func(ctx context.Context) ([]*fleet.EnrollSecret, error) {
 			return secrets, nil
 		}
@@ -5990,7 +6008,7 @@ func TestEnsureFleetdConfig(t *testing.T) {
 		ds.BulkUpsertMDMAppleConfigProfilesFunc = func(ctx context.Context, p []*fleet.MDMAppleConfigProfile) error {
 			return testError
 		}
-		err := ensureFleetProfiles(ctx, ds, logger, signingCert.Certificate[0])
+		err := ensureFleetProfiles(ctx, ds, logger, signingCert.Certificate[0], false)
 		require.ErrorIs(t, err, testError)
 		require.True(t, ds.AppConfigFuncInvoked)
 		require.True(t, ds.AggregateEnrollSecretPerTeamFuncInvoked)

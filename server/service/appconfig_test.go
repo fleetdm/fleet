@@ -4162,3 +4162,35 @@ func TestWindowsEnableManagedLocalAccountKeyIsNotAliased(t *testing.T) {
 		assert.Empty(t, r.UsedDeprecatedKeys())
 	})
 }
+
+func TestAuthSettings(t *testing.T) {
+	newSvc := func(t *testing.T, useOneTimeEnrollSecrets bool) (fleet.Service, context.Context) {
+		ds := new(mock.Store)
+		cfg := config.TestConfig()
+		cfg.Auth.UseOneTimeEnrollSecrets = useOneTimeEnrollSecrets
+		return newTestServiceWithConfig(t, ds, cfg, nil, nil)
+	}
+
+	t.Run("omitted when the flag is off", func(t *testing.T) {
+		svc, ctx := newSvc(t, false)
+		settings, err := svc.AuthSettings(test.UserContext(ctx, test.UserAdmin))
+		require.NoError(t, err)
+		require.Nil(t, settings)
+	})
+
+	t.Run("reported when the flag is on, to any user who can read the config", func(t *testing.T) {
+		svc, ctx := newSvc(t, true)
+		for _, user := range []*fleet.User{test.UserAdmin, test.UserObserver} {
+			settings, err := svc.AuthSettings(test.UserContext(ctx, user))
+			require.NoError(t, err)
+			require.NotNil(t, settings)
+			require.True(t, settings.UseOneTimeEnrollSecrets)
+		}
+	})
+
+	t.Run("requires an authenticated user", func(t *testing.T) {
+		svc, ctx := newSvc(t, true)
+		_, err := svc.AuthSettings(ctx)
+		require.Error(t, err)
+	})
+}
