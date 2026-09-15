@@ -329,7 +329,7 @@ Examples:
 
     baseModel: {
       type: 'string',
-      defaultsTo: 'claude-sonnet-5',
+      defaultsTo: 'claude-haiku-4-5',
       description: 'The model to generate with.'
     },
 
