@@ -1,0 +1,1 @@
+- Unauthenticated MDM enrollment, bootstrap, and EULA endpoints now return the same generic error as a failed credential check when Apple MDM isn't turned on, instead of a message describing the server's MDM configuration. Authenticated endpoints keep the descriptive message.

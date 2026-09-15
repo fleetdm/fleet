@@ -2,6 +2,7 @@ package mdmconfigured
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync/atomic"
 	"testing"
@@ -21,10 +22,16 @@ type mockService struct {
 	mdmConfigured     atomic.Bool
 	msMdmConfigured   atomic.Bool
 	androidConfigured atomic.Bool
+	// verifyErr, when set, is returned instead of the not-configured error to
+	// simulate a backend failure.
+	verifyErr error
 }
 
 // VerifyMDMAppleConfigured marks whether Apple MDM is enabled for the test.
 func (m *mockService) VerifyMDMAppleConfigured(ctx context.Context) error {
+	if m.verifyErr != nil {
+		return m.verifyErr
+	}
 	if !m.mdmConfigured.Load() {
 		return fleet.ErrMDMNotConfigured
 	}
@@ -87,6 +94,66 @@ func TestMDMNotConfigured(t *testing.T) {
 	f := mw.VerifyAppleMDM()(next)
 	_, err := f(context.Background(), struct{}{})
 	require.ErrorIs(t, err, fleet.ErrMDMNotConfigured)
+	require.False(t, nextCalled)
+}
+
+func TestPreauthMDMConfigured(t *testing.T) {
+	svc := mockService{}
+	svc.mdmConfigured.Store(true)
+	mw := NewMDMConfigMiddleware(&svc)
+
+	nextCalled := false
+	next := func(ctx context.Context, req any) (any, error) {
+		nextCalled = true
+		return struct{}{}, nil
+	}
+
+	f := mw.VerifyAppleMDMPreauth()(next)
+	_, err := f(context.Background(), struct{}{})
+	require.NoError(t, err)
+	require.True(t, nextCalled)
+}
+
+// On unauthenticated routes, a not-configured server must respond exactly like
+// one rejecting bad credentials, so callers can't probe configuration state.
+func TestPreauthMDMNotConfigured(t *testing.T) {
+	svc := mockService{}
+	svc.mdmConfigured.Store(false)
+	mw := NewMDMConfigMiddleware(&svc)
+
+	nextCalled := false
+	next := func(ctx context.Context, req any) (any, error) {
+		nextCalled = true
+		return struct{}{}, nil
+	}
+
+	f := mw.VerifyAppleMDMPreauth()(next)
+	_, err := f(context.Background(), struct{}{})
+	var authFailed *fleet.AuthFailedError
+	require.ErrorAs(t, err, &authFailed)
+	require.NotErrorIs(t, err, fleet.ErrMDMNotConfigured)
+	require.False(t, nextCalled)
+}
+
+// A genuine backend failure (not the not-configured state) must not be
+// reported as an authentication failure, or real enrollments during an outage
+// would be misclassified and hidden from 5xx monitoring.
+func TestPreauthMDMVerifyError(t *testing.T) {
+	svc := mockService{}
+	svc.verifyErr = errors.New("load app config: db down")
+	mw := NewMDMConfigMiddleware(&svc)
+
+	nextCalled := false
+	next := func(ctx context.Context, req any) (any, error) {
+		nextCalled = true
+		return struct{}{}, nil
+	}
+
+	f := mw.VerifyAppleMDMPreauth()(next)
+	_, err := f(context.Background(), struct{}{})
+	require.Error(t, err)
+	var authFailed *fleet.AuthFailedError
+	require.NotErrorAs(t, err, &authFailed)
 	require.False(t, nextCalled)
 }
 

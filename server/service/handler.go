@@ -1162,7 +1162,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	// endpoint that's behind the mdmConfiguredMiddleware, this applies
 	// both to this set of endpoints and to any user authenticated
 	// endpoints using `mdmAppleMW.*` above in this file.
-	neAppleMDM := ne.WithCustomMiddleware(mdmConfiguredMiddleware.VerifyAppleMDM())
+	neAppleMDM := ne.WithCustomMiddleware(mdmConfiguredMiddleware.VerifyAppleMDMPreauth())
 	neAppleMDM.GET(apple_mdm.EnrollPath, mdmAppleEnrollEndpoint, mdmAppleEnrollRequest{})
 	neAppleMDM.POST(apple_mdm.EnrollPath, mdmAppleEnrollEndpoint, mdmAppleEnrollRequest{})
 
