@@ -156,7 +156,8 @@ const HostSummary = ({
               value={getHostStatus(status, mdm?.enrollment_status)}
               tooltip={{
                 tooltipText: getHostStatusTooltipText(
-                  getHostStatus(status, mdm?.enrollment_status)
+                  getHostStatus(status, mdm?.enrollment_status),
+                  platform
                 ),
                 position: "bottom",
               }}
