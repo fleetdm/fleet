@@ -208,8 +208,8 @@ type pinProtectorVolume interface {
 }
 
 // setTPMAndPINProtector adds a TPM and PIN protector to a protected, fully encrypted volume and removes its TPM-only
-// protectors, which would otherwise unseal the volume at boot without the PIN. If anything fails after the add, the new
-// protector is removed so the volume is left as it was found.
+// protectors, which would otherwise unseal the volume at boot without the PIN. If anything fails after the add, the volume
+// is put back as it was found, unless that would leave it with no boot protector.
 func setTPMAndPINProtector(vol pinProtectorVolume, pin string) error {
 	status, err := vol.getBitlockerStatus()
 	if err != nil {
@@ -278,20 +278,20 @@ func removeTPMOnlyProtectors(vol pinProtectorVolume, pinProtectorID string) erro
 	return nil
 }
 
-// rollBackTPMAndPINProtector removes the protector setTPMAndPINProtector added. Windows may already have dropped the
-// TPM-only protector when the PIN protector was added, and a volume left with neither boots to the recovery prompt, so a
-// TPM-only protector the volume started with is put back.
+// rollBackTPMAndPINProtector removes the protector setTPMAndPINProtector added, putting back a TPM-only protector first if
+// the volume started with one and it was already deleted. If that restore fails, the PIN protector is kept: a volume with
+// neither boots to the recovery prompt, while the PIN is one the end user just chose.
 func rollBackTPMAndPINProtector(vol pinProtectorVolume, pinProtectorID string, hadTPMOnly bool) error {
-	var errs []error
-	if err := vol.deleteKeyProtector(pinProtectorID); err != nil {
-		errs = append(errs, err)
-	}
 	if hadTPMOnly {
+		// Windows accepts a TPM-only protector next to a TPM and PIN one, and reports ErrorCodeProtectorExists if one remains.
 		if err := vol.protectWithTPM(nil); err != nil {
 			if encErr, ok := errors.AsType[*EncryptionError](err); !ok || encErr.Code() != ErrorCodeProtectorExists {
-				errs = append(errs, fmt.Errorf("restoring the TPM-only protector: %w", err))
+				return fmt.Errorf("restoring the TPM-only protector, so the TPM and PIN protector was kept: %w", err)
 			}
 		}
 	}
-	return errors.Join(errs...)
+	if err := vol.deleteKeyProtector(pinProtectorID); err != nil {
+		return fmt.Errorf("deleting the TPM and PIN protector: %w", err)
+	}
+	return nil
 }

@@ -5,6 +5,7 @@ import (
 	"io/fs"
 	"os"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/toast"
@@ -34,6 +35,9 @@ type bitLockerPINToast struct {
 	// disables it.
 	markerPath string
 
+	// submitted numbers each summary handed to submit.
+	submitted atomic.Uint64
+
 	mu       sync.Mutex
 	poppedUp bool
 	// attemptedURL is the link of the last post attempt. A failed post is retried only when the link changes, so a host
@@ -56,11 +60,23 @@ func newBitLockerPINToast(markerPath string) *bitLockerPINToast {
 	return t
 }
 
-// update reconciles the toast with a Fleet Desktop summary. deviceURL carries the device token, so it is never logged.
-func (t *bitLockerPINToast) update(needsPIN bool, deviceURL string) {
-	t.mu.Lock()
-	defer t.mu.Unlock()
+// submit reconciles the toast with a Fleet Desktop summary in the background, because PowerShell can take seconds to start.
+// Waiting for the lock does not preserve order, so an update that gets it after a newer summary was submitted is dropped.
+func (t *bitLockerPINToast) submit(needsPIN bool, deviceURL string) {
+	seq := t.submitted.Add(1)
+	go func() {
+		t.mu.Lock()
+		defer t.mu.Unlock()
+		if seq != t.submitted.Load() {
+			return
+		}
+		t.reconcile(needsPIN, deviceURL)
+	}()
+}
 
+// reconcile brings the toast in line with a summary. The caller holds mu. deviceURL carries the device token, so it is never
+// logged.
+func (t *bitLockerPINToast) reconcile(needsPIN bool, deviceURL string) {
 	if !needsPIN {
 		t.attemptedURL = ""
 		if !t.posted {

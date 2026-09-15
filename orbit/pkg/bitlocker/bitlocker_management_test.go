@@ -49,13 +49,14 @@ type fakePINVolume struct {
 	protectors map[int32][]string
 	// listErrAfterAdd fails listing protectors of a type once the PIN protector has been added.
 	listErrAfterAdd map[int32]error
-	addErr          error
-	// dropsTPMOnly mimics Windows replacing the TPM-only protector itself when the PIN protector is added.
-	dropsTPMOnly  bool
-	deleteErr     map[string]error
-	restoreTPMErr error
+	// listErrAfterDelete fails listing protectors of a type once any protector has been deleted.
+	listErrAfterDelete map[int32]error
+	addErr             error
+	deleteErr          map[string]error
+	restoreTPMErr      error
 
 	pinAdded bool
+	deleted  bool
 	gotPIN   string
 }
 
@@ -74,6 +75,9 @@ func (f *fakePINVolume) getKeyProtectorIDs(protectorType int32) ([]string, error
 	if err := f.listErrAfterAdd[protectorType]; err != nil && f.pinAdded {
 		return nil, err
 	}
+	if err := f.listErrAfterDelete[protectorType]; err != nil && f.deleted {
+		return nil, err
+	}
 	return slices.Clone(f.protectors[protectorType]), nil
 }
 
@@ -84,9 +88,6 @@ func (f *fakePINVolume) protectWithTPMAndPIN(pin string) (string, error) {
 	}
 	f.pinAdded = true
 	f.protectors[KeyProtectorTypeTPMAndPIN] = append(f.protectors[KeyProtectorTypeTPMAndPIN], fakePINID)
-	if f.dropsTPMOnly {
-		delete(f.protectors, KeyProtectorTypeTPM)
-	}
 	return fakePINID, nil
 }
 
@@ -105,6 +106,7 @@ func (f *fakePINVolume) deleteKeyProtector(protectorID string) error {
 	if err := f.deleteErr[protectorID]; err != nil {
 		return err
 	}
+	f.deleted = true
 	for protectorType, ids := range f.protectors {
 		f.protectors[protectorType] = slices.DeleteFunc(ids, func(id string) bool { return id == protectorID })
 		if len(f.protectors[protectorType]) == 0 {
@@ -143,12 +145,6 @@ func TestSetTPMAndPINProtector(t *testing.T) {
 		{
 			name:           "adds the PIN and removes the TPM-only protector",
 			vol:            &fakePINVolume{status: protectedAndEncrypted, protectors: tpmOnlyAndRecovery()},
-			wantAddCalled:  true,
-			wantProtectors: pinAndRecovery,
-		},
-		{
-			name:           "Windows already replaced the TPM-only protector",
-			vol:            &fakePINVolume{status: protectedAndEncrypted, protectors: tpmOnlyAndRecovery(), dropsTPMOnly: true},
 			wantAddCalled:  true,
 			wantProtectors: pinAndRecovery,
 		},
@@ -225,10 +221,20 @@ func TestSetTPMAndPINProtector(t *testing.T) {
 			wantProtectors: tpmOnlyAndRecovery(),
 		},
 		{
-			name: "confirming the PIN fails after Windows dropped the TPM-only protector, so it is restored",
+			name: "confirming the PIN protector fails, so it is rolled back",
 			vol: &fakePINVolume{
-				status: protectedAndEncrypted, protectors: tpmOnlyAndRecovery(), dropsTPMOnly: true,
+				status: protectedAndEncrypted, protectors: tpmOnlyAndRecovery(),
 				listErrAfterAdd: map[int32]error{KeyProtectorTypeTPMAndPIN: wmiErr},
+			},
+			wantReason:     PINReasonNotFinished,
+			wantAddCalled:  true,
+			wantProtectors: tpmOnlyAndRecovery(),
+		},
+		{
+			name: "confirming the TPM-only protector is gone fails, so one is restored before the PIN protector is removed",
+			vol: &fakePINVolume{
+				status: protectedAndEncrypted, protectors: tpmOnlyAndRecovery(),
+				listErrAfterDelete: map[int32]error{KeyProtectorTypeTPM: wmiErr},
 			},
 			wantReason:    PINReasonNotFinished,
 			wantAddCalled: true,
@@ -238,16 +244,16 @@ func TestSetTPMAndPINProtector(t *testing.T) {
 			},
 		},
 		{
-			// The volume is left with only a recovery password. Retrying succeeds, because nothing blocks adding the PIN.
-			name: "the rollback cannot restore the TPM-only protector Windows dropped",
+			// Removing the PIN protector too would leave only the recovery password, so the volume keeps a PIN the end user chose.
+			name: "the TPM-only protector cannot be restored, so the PIN protector is kept",
 			vol: &fakePINVolume{
-				status: protectedAndEncrypted, protectors: tpmOnlyAndRecovery(), dropsTPMOnly: true,
-				listErrAfterAdd: map[int32]error{KeyProtectorTypeTPMAndPIN: wmiErr},
-				restoreTPMErr:   NewEncryptionError("TBS stopped", ErrorCodeTBSServiceNotRunning),
+				status: protectedAndEncrypted, protectors: tpmOnlyAndRecovery(),
+				listErrAfterDelete: map[int32]error{KeyProtectorTypeTPM: wmiErr},
+				restoreTPMErr:      NewEncryptionError("TBS stopped", ErrorCodeTBSServiceNotRunning),
 			},
 			wantReason:     PINReasonNotFinished,
 			wantAddCalled:  true,
-			wantProtectors: map[int32][]string{KeyProtectorTypeNumericalPassword: {fakeRecoveryID}},
+			wantProtectors: pinAndRecovery,
 		},
 		{
 			name: "the rollback fails too",

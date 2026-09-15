@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/toast"
@@ -95,7 +96,7 @@ func TestBitLockerPINToast(t *testing.T) {
 			}
 
 			for _, s := range tc.summaries {
-				pinToast.update(s.needsPIN, s.deviceURL)
+				pinToast.reconcile(s.needsPIN, s.deviceURL)
 			}
 
 			require.Equal(t, tc.wantPosts, posts)
@@ -148,7 +149,7 @@ func TestBitLockerPINToastAcrossProcesses(t *testing.T) {
 				return nil
 			}
 
-			pinToast.update(tc.needsPIN, deviceURL)
+			pinToast.reconcile(tc.needsPIN, deviceURL)
 
 			require.Equal(t, tc.wantPopups, popups)
 			require.Equal(t, tc.wantRemoves, removes)
@@ -161,6 +162,42 @@ func TestBitLockerPINToastAcrossProcesses(t *testing.T) {
 			if tc.markerAge > 0 {
 				require.Equal(t, tc.wantMarkerMoved, !info.ModTime().Equal(markerTime), "a popup moves the marker's time and a silent post does not")
 			}
+		})
+	}
+}
+
+func TestBitLockerPINToastSubmitDropsStaleUpdates(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name        string
+		summaries   []bool
+		wantPosts   int
+		wantRemoves int
+	}{
+		// Without the sequence check, the older needsPIN=true update could run last and post a toast for a PIN already set.
+		{name: "a PIN set while an update waited leaves no toast", summaries: []bool{true, false}},
+		{name: "a PIN needed again while an update waited posts once", summaries: []bool{false, true}, wantPosts: 1},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				var posts, removes int
+				pinToast := &bitLockerPINToast{
+					show:   func(toast.Notification) error { posts++; return nil },
+					remove: func(string, string) error { removes++; return nil },
+				}
+
+				// Hold the lock so every submitted update is waiting on it at once, as when PowerShell is slow.
+				pinToast.mu.Lock()
+				for _, needsPIN := range tc.summaries {
+					pinToast.submit(needsPIN, "https://fleet.example.com/device/token")
+				}
+				pinToast.mu.Unlock()
+				synctest.Wait()
+
+				require.Equal(t, tc.wantPosts, posts)
+				require.Equal(t, tc.wantRemoves, removes)
+			})
 		})
 	}
 }

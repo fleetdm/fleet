@@ -895,18 +895,19 @@ func (oc *OrbitClient) SetOrUpdateDiskEncryptionProtection(outcome fleet.DiskEnc
 // once, so the caller must be ready to apply it. A 404, detected with IsNotFoundErr, means there is nothing to apply.
 func (oc *OrbitClient) GetDiskEncryptionPINDetails() (pin, requestUUID string, err error) {
 	verb, path := "POST", "/api/fleet/orbit/disk_encryption_pin/details"
-	var resp fleet.OrbitGetDiskEncryptionPINDetailsResponse
+	var resp diskEncryptionPINDetailsResponse
 	if err := oc.authenticatedRequest(verb, path, &fleet.OrbitGetDiskEncryptionPINDetailsRequest{}, &resp); err != nil {
-		// A decode error quotes the start of the response body, which is where the PIN is.
-		var syntaxErr *json.SyntaxError
-		var typeErr *json.UnmarshalTypeError
-		if errors.As(err, &syntaxErr) || errors.As(err, &typeErr) {
-			return "", "", fmt.Errorf("%s %s: could not decode the response", verb, path)
-		}
 		return "", "", err
 	}
 	return resp.PIN, resp.RequestUUID, nil
 }
+
+// diskEncryptionPINDetailsResponse keeps the PIN out of decode errors; see secretResponse.
+type diskEncryptionPINDetailsResponse struct {
+	fleet.OrbitGetDiskEncryptionPINDetailsResponse
+}
+
+func (*diskEncryptionPINDetailsResponse) hasSecretBody() {}
 
 // SetDiskEncryptionPINResult reports whether the PIN collected with requestUUID was applied. A 404, detected with
 // IsNotFoundErr, means the server no longer wants this outcome.

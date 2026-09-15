@@ -413,9 +413,8 @@ func main() {
 				menuManager.UpdateFailingPolicies(sum.DesktopSummary.FailingPolicies)
 
 				if runtime.GOOS == "windows" {
-					// Comparing the link on every summary also re-posts the toast after the device token rotates. PowerShell can take
-					// seconds to start, so it runs off this loop.
-					go pinToast.update(sum.Notifications.NeedsBitLockerPIN, client.BrowserDeviceURL(tokenReader.GetCached()))
+					// Comparing the link on every summary also re-posts the toast after the device token rotates.
+					pinToast.submit(sum.Notifications.NeedsBitLockerPIN, client.BrowserDeviceURL(tokenReader.GetCached()))
 				}
 
 				// Check our file to see if we should migrate
