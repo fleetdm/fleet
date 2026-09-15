@@ -21,19 +21,36 @@ func init() {
 // policy row itself is subject to ON DELETE SET NULL (policy_id → NULL), both
 // of which would silently reclassify a historical row.
 //
-// Upgrade limitation: the backfill reads the CURRENT policies.patch_when_closed
-// value, so historical skips whose policy was toggled off (or the policy was
-// deleted) BEFORE this migration runs will keep the column at 0 and render as
-// ordinary "Failed" going forward. Rebuilding those from another durable signal
-// (e.g. activities.details JSON, which carries skipped_install) would require a
-// scan of the activities table and is out of scope for this bug fix. The window
-// is narrow — it takes toggling patch_when_closed off on a policy that already
-// caused skips before the customer upgrades to this Fleet version.
+// Upgrade limitation: the backfill uses the CURRENT policies.patch_when_closed
+// value as a proxy for its value at each historical install-activation time,
+// which is inherently ambiguous in both directions. We accept both downsides
+// rather than adding an activities.details JSON scan (heavy, and activities
+// can be trimmed):
+//
+//   - Disable-then-upgrade: a real skip whose policy was toggled OFF (or the
+//     policy row was deleted) before this migration runs keeps the column at 0
+//     and renders as "Failed" going forward — a false negative.
+//   - Enable-then-upgrade: an ordinary pre-install-query failure recorded while
+//     patch_when_closed = 0 is flagged as a skip if an admin toggles the
+//     policy ON before upgrading — a false positive.
+//
+// To minimize the second downside, the backfill only touches rows that could
+// plausibly BE historical skips (status = 'failed_install' AND empty
+// pre_install_query_output). Successful/pending rows and non-empty-output
+// failures are never stamped, so their patch_when_closed stays at DEFAULT 0
+// and can never enter the CTE's skipped_install classification. Any row
+// created after the upgrade snapshots the correct value at activation time
+// and is unaffected.
 func Up_20260914161913(tx *sql.Tx) error {
 	if !columnExists(tx, "host_software_installs", "patch_when_closed") {
+		// ALGORITHM=INSTANT keeps the ALTER O(1) on MySQL 8.0+ (metadata-only
+		// change). If the server doesn't support instant add-column, the DDL
+		// fails fast instead of silently rebuilding the table under a lock on
+		// a customer's large host_software_installs.
 		if _, err := tx.Exec(`
 			ALTER TABLE host_software_installs
-			ADD COLUMN patch_when_closed TINYINT UNSIGNED NOT NULL DEFAULT 0
+			ADD COLUMN patch_when_closed TINYINT UNSIGNED NOT NULL DEFAULT 0,
+			ALGORITHM=INSTANT
 		`); err != nil {
 			return fmt.Errorf("adding patch_when_closed to host_software_installs: %w", err)
 		}
@@ -49,13 +66,22 @@ func Up_20260914161913(tx *sql.Tx) error {
 	return nil
 }
 
+// The backfill filter — kept as a single string constant so the count and
+// batch queries can't drift. Only rows that could plausibly be historical
+// skips are candidates: status = 'failed_install' AND empty
+// pre_install_query_output on a policy that currently has patch_when_closed = 1.
+const patchWhenClosedBackfillCandidateFilter = `
+	patch_when_closed = 0
+	AND status = 'failed_install'
+	AND pre_install_query_output = ''
+	AND policy_id IN (SELECT id FROM policies WHERE patch_when_closed = 1)
+`
+
 func countHostSoftwareInstallsNeedingPatchBackfill(tx *sql.Tx) (uint64, error) {
 	var total uint64
 	err := tx.QueryRow(`
 		SELECT COUNT(*) FROM host_software_installs
-		WHERE patch_when_closed = 0
-			AND policy_id IN (SELECT id FROM policies WHERE patch_when_closed = 1)
-	`).Scan(&total)
+		WHERE ` + patchWhenClosedBackfillCandidateFilter).Scan(&total)
 	return total, err
 }
 
@@ -75,8 +101,7 @@ func backfillPatchWhenClosedOnHostSoftwareInstalls(tx *sql.Tx, increment increme
 		if err := txx.Select(&ids, `
 			SELECT id FROM host_software_installs
 			WHERE id > ?
-				AND patch_when_closed = 0
-				AND policy_id IN (SELECT id FROM policies WHERE patch_when_closed = 1)
+				AND `+patchWhenClosedBackfillCandidateFilter+`
 			ORDER BY id
 			LIMIT ?`, lastID, backfillPatchWhenClosedBatchSize); err != nil {
 			return fmt.Errorf("selecting host_software_installs to backfill after id %d: %w", lastID, err)
