@@ -210,4 +210,40 @@ func TestSweepAPNsPushes(t *testing.T) {
 		require.Error(t, err)
 		require.False(t, ds.SetMDMAppleAPNsSweepStateFuncInvoked)
 	})
+
+	// A run cut short by the cron's run cap must not advance the cursor: the
+	// unpushed remainder of the page would otherwise be skipped for the rest
+	// of the lap. Retrying the whole page next tick is safe, APNs coalesces
+	// the duplicate pushes.
+	t.Run("a run cut short leaves the cursor unadvanced", func(t *testing.T) {
+		ds := sweepTestDS()
+		ds.ListNanoEnrollmentIDsForAPNsSweepFunc = func(ctx context.Context, afterID string, batchSize int, silentFor time.Duration) ([]string, string, bool, error) {
+			return []string{"e1", "e2"}, "e9", true, nil
+		}
+		cutCtx, cancel := context.WithCancel(ctx)
+		// mimic the deadline expiring mid-page: the context dies during the
+		// send and the unpushed enrollment surfaces as a per-enrollment error
+		notifier := &deadlineNotifier{
+			cancel: cancel,
+			err: &APNSDeliveryError{errorsByUUID: map[string]error{
+				"e2": context.DeadlineExceeded,
+			}},
+		}
+
+		require.NoError(t, sweepAPNsPushes(cutCtx, ds, notifier, logger, time.Minute))
+		require.False(t, ds.SetMDMAppleAPNsSweepStateFuncInvoked,
+			"cursor must not advance when part of the page was never pushed")
+	})
+}
+
+// deadlineNotifier cancels the run's context during the send, the way the
+// cron's run cap expires while a page of pushes is in flight.
+type deadlineNotifier struct {
+	cancel context.CancelFunc
+	err    error
+}
+
+func (f *deadlineNotifier) SendNotifications(_ context.Context, ids []string) error {
+	f.cancel()
+	return f.err
 }

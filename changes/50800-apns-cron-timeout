@@ -1,0 +1,1 @@
+- Fixed the APNs push crons potentially holding their schedule for hours during an APNs slowdown by capping each run at 10 minutes; unpushed devices are picked up on the next run.
