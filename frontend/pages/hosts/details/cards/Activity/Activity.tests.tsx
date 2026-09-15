@@ -1,4 +1,4 @@
-import { screen } from "@testing-library/react";
+import { screen, within } from "@testing-library/react";
 import React from "react";
 
 import {
@@ -9,8 +9,7 @@ import { createCustomRenderer } from "test/test-utils";
 
 import Activity from "./Activity";
 
-const ANDROID_TOOLTIP =
-  "Activities and non-custom MDM commands are not supported yet for Android.";
+const TOGGLE_TOOLTIP = "Not supported on this platform.";
 
 const render = createCustomRenderer();
 
@@ -34,7 +33,7 @@ const pendingCommands = createMockGetCommandsResponse({
   count: 1,
   results: [
     createMockCommand({
-      request_type: "REQUEST_DEVICE_INFO",
+      request_type: "LOCK",
       command_status: "pending",
       status: "Pending",
     }),
@@ -42,20 +41,60 @@ const pendingCommands = createMockGetCommandsResponse({
 });
 
 describe("Activity card", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
   it("renders an enabled Upcoming tab with its count", () => {
     render(<Activity {...defaultProps} commands={pendingCommands} />);
 
     const upcomingTab = screen.getByRole("tab", { name: /upcoming/i });
-    expect(upcomingTab).toBeInTheDocument();
     expect(upcomingTab).toHaveAttribute("aria-disabled", "false");
-    expect(screen.getByText("1")).toBeInTheDocument();
+    expect(within(upcomingTab).getByText("1")).toBeInTheDocument();
   });
 
   it("lists pending MDM commands under the Upcoming tab", () => {
     render(<Activity {...defaultProps} commands={pendingCommands} />);
 
-    expect(screen.getByText("REQUEST_DEVICE_INFO")).toBeInTheDocument();
+    expect(screen.getByText("LOCK")).toBeInTheDocument();
     expect(screen.getByText(/is pending/)).toBeInTheDocument();
+  });
+
+  it("does not offer to cancel a command that isn't cancelable", () => {
+    render(
+      <Activity
+        {...defaultProps}
+        commands={pendingCommands}
+        onCancelCommand={jest.fn()}
+      />
+    );
+
+    // Android request types aren't in CANCELABLE_REQUEST_TYPES, and the server
+    // only cancels Apple commands
+    expect(
+      screen.queryByRole("button", { name: /cancel/i })
+    ).not.toBeInTheDocument();
+  });
+
+  it("never renders a command feed without the toggle that governs it", () => {
+    // the commands queries keep previous data across host navigations, so
+    // `commands` can hold a stale response for a host with no toggle
+    render(
+      <Activity
+        {...defaultProps}
+        showMDMCommandsToggle={false}
+        commands={pendingCommands}
+        activities={{
+          activities: [],
+          count: 0,
+          meta: { has_next_results: false, has_previous_results: false },
+        }}
+      />
+    );
+
+    expect(screen.queryAllByRole("switch")).toHaveLength(0);
+    expect(screen.queryByText("LOCK")).not.toBeInTheDocument();
+    expect(screen.getByText(/No pending activity/)).toBeInTheDocument();
   });
 
   describe("MDM commands toggle", () => {
@@ -71,7 +110,7 @@ describe("Activity card", () => {
 
       const [toggle] = screen.getAllByRole("switch");
       expect(toggle).toBeEnabled();
-      expect(screen.queryByText(ANDROID_TOOLTIP)).not.toBeInTheDocument();
+      expect(screen.queryByText(TOGGLE_TOOLTIP)).not.toBeInTheDocument();
 
       await user.click(toggle);
       expect(onHideMDMCommands).toHaveBeenCalled();
@@ -84,7 +123,7 @@ describe("Activity card", () => {
           {...defaultProps}
           commands={pendingCommands}
           isMDMCommandsToggleDisabled
-          mdmCommandsToggleTooltip={ANDROID_TOOLTIP}
+          mdmCommandsToggleTooltip={TOGGLE_TOOLTIP}
           onHideMDMCommands={onHideMDMCommands}
         />
       );
@@ -99,7 +138,7 @@ describe("Activity card", () => {
       // the label stays hoverable while the switch is disabled so the
       // explanation is still reachable
       await user.hover(screen.getAllByText(/Show MDM commands/)[0]);
-      expect(await screen.findByText(ANDROID_TOOLTIP)).toBeInTheDocument();
+      expect(await screen.findByText(TOGGLE_TOOLTIP)).toBeInTheDocument();
     });
   });
 });

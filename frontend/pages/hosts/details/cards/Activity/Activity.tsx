@@ -101,6 +101,11 @@ const Activity = ({
 
   const commandCount = commands?.count ?? 0;
 
+  // The commands queries keep previous data across host navigations, so
+  // `commands` can still hold the last host's response on a host we can't
+  // fetch commands for. Only ever show a feed we also show the toggle for.
+  const canShowCommandFeed = showMDMCommandsToggle && showMDMCommands;
+
   return (
     <Card
       borderRadiusSize="xxlarge"
@@ -140,7 +145,7 @@ const Activity = ({
                 }
               />
             )}
-            {showMDMCommands && commands ? (
+            {canShowCommandFeed && commands ? (
               <CommandFeed
                 commands={commands}
                 emptyDescription="Completed MDM commands will appear here."
@@ -172,7 +177,7 @@ const Activity = ({
                 }
               />
             )}
-            {showMDMCommands && commands ? (
+            {canShowCommandFeed && commands ? (
               <CommandFeed
                 commands={commands}
                 emptyDescription="Pending MDM commands will appear here."

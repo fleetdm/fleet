@@ -280,29 +280,46 @@ describe("HostDetailsPage - Show MDM commands toggle", () => {
 });
 
 describe("HostDetailsPage - Android MDM commands", () => {
+  // the exact product copy, deliberately duplicated so a change to it is a
+  // conscious one
   const ANDROID_TOOLTIP =
     "Activities and non-custom MDM commands are not supported yet for Android.";
 
   const renderAndroidHostDetails = () =>
     renderHostDetails({ isAndroidMdmEnabledAndConfigured: true });
 
-  const stubAndroidCommand = () => {
-    (commandAPI.getCommands as jest.Mock).mockResolvedValue({
-      results: [
-        {
-          host_uuid: mockAndroidHost().uuid,
-          command_uuid: "android-command-uuid",
-          command_status: "pending",
-          status: "Pending",
-          updated_at: "2024-01-01T00:00:00Z",
-          request_type: "REQUEST_DEVICE_INFO",
-          hostname: "android-host",
-          name: null,
-        },
-      ],
-      count: 1,
-      meta: { has_next_results: false, has_previous_results: false },
-    });
+  const emptyCommands = {
+    results: [],
+    count: 0,
+    meta: { has_next_results: false, has_previous_results: false },
+  };
+
+  /** Only the "pending" filter returns a command, so the Upcoming feed is the
+   * only place its row can come from. */
+  const stubPendingAndroidCommand = () => {
+    (commandAPI.getCommands as jest.Mock).mockImplementation(
+      ({ command_status }: { command_status: string }) =>
+        Promise.resolve(
+          command_status === "pending"
+            ? {
+                results: [
+                  {
+                    host_uuid: mockAndroidHost().uuid,
+                    command_uuid: "android-command-uuid",
+                    command_status: "pending",
+                    status: "Pending",
+                    updated_at: "2024-01-01T00:00:00Z",
+                    request_type: "LOCK",
+                    hostname: "android-host",
+                    name: null,
+                  },
+                ],
+                count: 1,
+                meta: { has_next_results: false, has_previous_results: false },
+              }
+            : emptyCommands
+        )
+    );
   };
 
   afterEach(() => {
@@ -325,6 +342,27 @@ describe("HostDetailsPage - Android MDM commands", () => {
     expect(await screen.findByText(ANDROID_TOOLTIP)).toBeInTheDocument();
   });
 
+  it("pins the toggle on without writing to the stored preference", async () => {
+    setMDMCommandsToggleLocalState(false);
+    stubQueries(mockAndroidHost());
+
+    const { unmount } = renderAndroidHostDetails();
+
+    const [toggle] = await screen.findAllByRole("switch");
+    expect(toggle).toBeChecked();
+    expect(getMDMCommandsToggleLocalState()).toBe(false);
+    expect(local.getItem("hostDetailsShowMDMCommands")).toBe("false");
+    unmount();
+
+    // an Apple host viewed afterwards still honors the untouched preference
+    stubQueries(mockAppleHost());
+    renderHostDetails({ isMacMdmEnabledAndConfigured: true });
+    await waitFor(() => {
+      expect(screen.getAllByRole("switch")[0]).not.toBeChecked();
+    });
+    expect(screen.getAllByRole("switch")[0]).toBeEnabled();
+  });
+
   it("requests ran and failed commands for the past tab", async () => {
     stubQueries(mockAndroidHost());
 
@@ -342,12 +380,16 @@ describe("HostDetailsPage - Android MDM commands", () => {
 
   it("lists pending commands under an enabled upcoming tab", async () => {
     stubQueries(mockAndroidHost());
-    stubAndroidCommand();
+    stubPendingAndroidCommand();
 
     const { user } = renderAndroidHostDetails();
 
     const upcomingTab = await screen.findByRole("tab", { name: /upcoming/i });
     expect(upcomingTab).toHaveAttribute("aria-disabled", "false");
+    // the Past tab asks for ran,failed, which returns nothing here
+    expect(await screen.findByText("No MDM commands")).toBeInTheDocument();
+    expect(screen.queryByText("LOCK")).not.toBeInTheDocument();
+
     await user.click(upcomingTab);
 
     await waitFor(() => {
@@ -358,10 +400,12 @@ describe("HostDetailsPage - Android MDM commands", () => {
         })
       );
     });
-    expect(await screen.findByText("REQUEST_DEVICE_INFO")).toBeInTheDocument();
+    expect(await screen.findByText("LOCK")).toBeInTheDocument();
   });
 
-  it("hides the toggle when Android MDM is not configured", async () => {
+  it("hides the toggle and the command feed when Android MDM is not configured", async () => {
+    // a stale response from a previously-viewed host must not leak through
+    setMDMCommandsToggleLocalState(true);
     stubQueries(mockAndroidHost());
 
     renderHostDetails({ isAndroidMdmEnabledAndConfigured: false });
