@@ -90,6 +90,7 @@ func TestSavedLiveQuery(t *testing.T) {
 		nil,
 	)
 	lq.On("QueryCompletedByHost", "42", 99).Return(nil)
+	lq.On("IsQueryTargetingHost", "42", 99).Return(true, nil)
 	lq.On("RunQuery", "321", queryString, []uint{1}).Return(nil)
 
 	ds.DistributedQueryCampaignTargetIDsFunc = func(ctx context.Context, id uint) (targets *fleet.HostTargets, err error) {
@@ -254,6 +255,7 @@ func TestAdHocLiveQuery(t *testing.T) {
 		nil,
 	)
 	lq.On("QueryCompletedByHost", "42", 99).Return(nil)
+	lq.On("IsQueryTargetingHost", "42", 99).Return(true, nil)
 	lq.On("RunQuery", "321", "select 42, * from time", []uint{1}).Return(nil)
 
 	ds.DistributedQueryCampaignTargetIDsFunc = func(ctx context.Context, id uint) (targets *fleet.HostTargets, err error) {

@@ -329,3 +329,41 @@ func TestReverseIndexKillSwitch(t *testing.T) {
 		})
 	}
 }
+
+// StopQuery deletes the bitfield but leaves reverse per-host entries to expire,
+// so the reverse model needs the active check to reject late results.
+func TestIsQueryTargetingHostAfterStopQuery(t *testing.T) {
+	for _, cluster := range []bool{false, true} {
+		clusterName := "standalone"
+		if cluster {
+			clusterName = "cluster"
+		}
+		t.Run(clusterName, func(t *testing.T) {
+			store := setupRedisLiveQueryThreshold(t, cluster, 2)
+			conn := redis.ConfigureDoer(store.pool, store.pool.Get())
+			defer conn.Close()
+
+			require.NoError(t, store.RunQuery("small", "SELECT 1", []uint{1, 2}))
+			require.NoError(t, store.RunQuery("large", "SELECT 2", []uint{1, 2, 3}))
+			require.NoError(t, store.StopQuery("small"))
+			require.NoError(t, store.StopQuery("large"))
+
+			// The stale entry the check must not trust is still there.
+			isMember, err := redigo.Bool(conn.Do("SISMEMBER", reverseHostKey(1), "small"))
+			require.NoError(t, err)
+			require.True(t, isMember)
+
+			for _, tc := range []struct {
+				name   string
+				hostID uint
+			}{
+				{"small", 1}, {"small", 3},
+				{"large", 1}, {"large", 4},
+			} {
+				targeted, err := store.IsQueryTargetingHost(tc.name, tc.hostID)
+				require.NoError(t, err)
+				require.False(t, targeted, "campaign %s host %d", tc.name, tc.hostID)
+			}
+		})
+	}
+}
