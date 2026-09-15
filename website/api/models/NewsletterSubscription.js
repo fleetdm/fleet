@@ -26,6 +26,7 @@ module.exports = {
     isUnsubscribedFromAll: {
       type: 'boolean',
       description: 'Whether this newsletter subscription has been updated to indicate a preference for unsubscribing from all current and future newsletters.',
+      defaultsTo: false,
     },
 
     isSubscribedToReleases: {
@@ -36,6 +37,7 @@ module.exports = {
     emailsSent: {
       type: 'json',
       description: 'A list of emails this newsletter subscriber was sent.',
+      defaultsTo: [],
       example: [
         'email-newsletter-2026-08',
         'email-newsletter-2026-09',
