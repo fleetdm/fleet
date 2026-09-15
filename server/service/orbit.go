@@ -2092,9 +2092,22 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 	// between activation and this result callback — which nulls policy_id via ON DELETE SET NULL —
 	// still classifies as a skip. An ordinary empty pre_install_query on a non-patch policy has
 	// patch_when_closed = 0 on the snapshot and continues to fail and count toward the retry cap.
+	//
+	// Force read from primary: on a fresh activation the snapshot may not have replicated yet,
+	// and a stale/missing read would silently downgrade a real skip into an ordinary failure
+	// (consuming a retry attempt). Log rather than swallow a read error for the same reason.
 	isAppOpenSkip := false
 	if preInstallConditionFailed {
-		if cur, curErr := svc.ds.GetSoftwareInstallResults(ctx, result.InstallUUID); curErr == nil && cur != nil {
+		cur, curErr := svc.ds.GetSoftwareInstallResults(ctxdb.RequirePrimary(ctx, true), result.InstallUUID)
+		switch {
+		case curErr != nil:
+			svc.logger.ErrorContext(ctx,
+				"failed to load install result for patch-when-closed skip classification; defaulting to failure",
+				"host_id", host.ID,
+				"install_uuid", result.InstallUUID,
+				"err", curErr,
+			)
+		case cur != nil:
 			isAppOpenSkip = cur.PatchWhenClosed
 		}
 	}
