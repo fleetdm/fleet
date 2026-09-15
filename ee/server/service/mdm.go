@@ -512,7 +512,12 @@ func (svc *Service) GetMDMAppleBootstrapPackageBytes(ctx context.Context, token 
 	svc.authz.SkipAuthorization(ctx)
 
 	pkg, err := svc.ds.GetMDMAppleBootstrapPackageBytes(ctx, token, svc.bootstrapPackageStore)
-	if err != nil {
+	switch {
+	case fleet.IsNotFound(err):
+		// The token is the credential: an unknown token must look like any
+		// other failed authentication, not a 404 that reveals server state.
+		return nil, fleet.NewAuthFailedError("invalid bootstrap package token")
+	case err != nil:
 		return nil, ctxerr.Wrap(ctx, err)
 	}
 	return pkg, nil
@@ -657,7 +662,14 @@ func (svc *Service) MDMGetEULABytes(ctx context.Context, token string) (*fleet.M
 	// request.
 	svc.authz.SkipAuthorization(ctx)
 
-	return svc.ds.MDMGetEULABytes(ctx, token)
+	eula, err := svc.ds.MDMGetEULABytes(ctx, token)
+	switch {
+	case fleet.IsNotFound(err):
+		return nil, fleet.NewAuthFailedError("invalid EULA token")
+	case err != nil:
+		return nil, ctxerr.Wrap(ctx, err)
+	}
+	return eula, nil
 }
 
 func (svc *Service) MDMDeleteEULA(ctx context.Context, token string, dryRun bool) error {
