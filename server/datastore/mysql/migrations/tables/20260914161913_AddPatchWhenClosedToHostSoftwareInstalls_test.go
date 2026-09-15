@@ -37,7 +37,7 @@ func TestUp_20260914161913(t *testing.T) {
 	// Seed more patch-policy rows than the batch size to exercise multiple loop
 	// iterations. Interleave with rows that must NOT be touched so a broken
 	// filter (e.g. missing WHERE clause) would flip them too.
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		insertInstall(fmt.Sprintf("hsi-patch-%d", i), &patchPolicyID)
 		insertInstall(fmt.Sprintf("hsi-ordinary-%d", i), &ordinaryPolicyID)
 	}
@@ -52,7 +52,7 @@ func TestUp_20260914161913(t *testing.T) {
 		return v
 	}
 
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		require.Equal(t, 1, getFlag(db, fmt.Sprintf("hsi-patch-%d", i)),
 			"all patch-policy rows should be backfilled to 1, even across batch boundaries")
 		require.Equal(t, 0, getFlag(db, fmt.Sprintf("hsi-ordinary-%d", i)),
