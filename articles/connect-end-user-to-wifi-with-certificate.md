@@ -558,7 +558,7 @@ The flow for Hydrant differs from the other certificate authorities (CA's). Whil
 
 ### Step 3: Deploy the certificate with a script-only package
 
-A script-only software package installs during setup experience, before the host finishes enrolling. That means the certificate is ready the moment the end user starts using the host. Without it, they'd have to wait for a policy to catch the missing certificate first.
+A script-only software package installs during setup experience, before the host finishes enrolling. That means the certificate is ready the moment the end user starts using the host.
 
 This custom script will create a certificate signing request (CSR) and make a request to Fleet's ["Request certificate" API endpoint](https://fleetdm.com/docs/rest-api/rest-api#request-certificate).
 
