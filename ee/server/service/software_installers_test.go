@@ -3049,6 +3049,158 @@ func TestBatchSetSoftwareInstallersSkipsURLValidationForScriptPackages(t *testin
 	}
 }
 
+func TestSoftwareBatchUploadFMAVersionCache(t *testing.T) {
+	t.Parallel()
+
+	const (
+		teamID         = uint(1)
+		cachedHash     = "1111111111111111111111111111111111111111111111111111111111111111"
+		otherHash      = "2222222222222222222222222222222222222222222222222222222222222222"
+		installerBytes = "installer bytes"
+	)
+	downloadedHash := fmt.Sprintf("%x", sha256.Sum256([]byte(installerBytes)))
+
+	cases := []struct {
+		name          string
+		manifestHash  string
+		versionExists bool
+		cachedHash    string
+		bytesInStore  bool
+		wantDownload  bool
+		wantStorageID string
+	}{
+		{
+			name:          "hashless manifest reuses the cached version",
+			manifestHash:  noCheckHash,
+			versionExists: true,
+			cachedHash:    cachedHash,
+			bytesInStore:  true,
+			wantStorageID: cachedHash,
+		},
+		{
+			name:          "hashless manifest downloads when the cached bytes are gone",
+			manifestHash:  noCheckHash,
+			versionExists: true,
+			cachedHash:    cachedHash,
+			wantDownload:  true,
+			wantStorageID: downloadedHash,
+		},
+		{
+			name:          "hashless manifest never adopts a sentinel storage id",
+			manifestHash:  noCheckHash,
+			versionExists: true,
+			cachedHash:    noCheckHash,
+			bytesInStore:  true,
+			wantDownload:  true,
+			wantStorageID: downloadedHash,
+		},
+		{
+			name:          "hashless manifest never adopts an empty storage id",
+			manifestHash:  noCheckHash,
+			versionExists: true,
+			bytesInStore:  true,
+			wantDownload:  true,
+			wantStorageID: downloadedHash,
+		},
+		{
+			name:          "hashless manifest downloads an uncached version",
+			manifestHash:  noCheckHash,
+			wantDownload:  true,
+			wantStorageID: downloadedHash,
+		},
+		{
+			name:          "hashed manifest reuses the cached version",
+			manifestHash:  cachedHash,
+			versionExists: true,
+			cachedHash:    cachedHash,
+			wantStorageID: cachedHash,
+		},
+		{
+			name:          "hashed manifest downloads a rebuilt version",
+			manifestHash:  otherHash,
+			versionExists: true,
+			cachedHash:    cachedHash,
+			wantDownload:  true,
+			wantStorageID: otherHash,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
+
+			var downloads atomic.Int32
+			installerSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				downloads.Add(1)
+				_, _ = w.Write([]byte(installerBytes))
+			}))
+			t.Cleanup(installerSrv.Close)
+
+			ds := new(mock.Store)
+			ds.TeamLiteFunc = func(ctx context.Context, tmID uint) (*fleet.TeamLite, error) {
+				return &fleet.TeamLite{ID: tmID}, nil
+			}
+			ds.GetTeamsWithInstallerByHashFunc = func(ctx context.Context, sha256, url string) (map[uint][]*fleet.ExistingSoftwareInstaller, error) {
+				return nil, nil
+			}
+			ds.HasFMAInstallerVersionFunc = func(ctx context.Context, tmID *uint, fmaID uint, version string) (bool, string, error) {
+				return c.versionExists, c.cachedHash, nil
+			}
+			ds.GetInstallerByTeamAndURLFunc = func(ctx context.Context, tmID *uint, url string) (*fleet.ExistingSoftwareInstaller, error) {
+				return nil, nil
+			}
+			ds.GetSoftwareInstallersPendingDeletionFunc = func(ctx context.Context, tmID *uint, incoming []fleet.SoftwareTitleIdentifier) ([]fleet.DeletedSoftwarePackage, error) {
+				return nil, nil
+			}
+			var applied []*fleet.UploadSoftwareInstallerPayload
+			ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, tmID *uint, installers []*fleet.UploadSoftwareInstallerPayload) ([]uint, error) {
+				applied = installers
+				return nil, nil
+			}
+			ds.BatchSetInHouseAppsInstallersFunc = func(ctx context.Context, tmID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
+				return nil
+			}
+			ds.ReconcileWindowsMaintainedAppSoftwareTitlesFunc = func(ctx context.Context) error { return nil }
+
+			svc := newTestService(t, ds)
+			kvs, _ := inMemoryKeyValueStore()
+			svc.keyValueStore = kvs
+			svc.softwareInstallStore = &mocksoftware.SoftwareInstallerStore{
+				ExistsFunc: func(ctx context.Context, id string) (bool, error) {
+					return id == c.cachedHash && c.bytesInStore, nil
+				},
+				PutFunc: func(context.Context, string, io.ReadSeeker) error { return nil },
+			}
+
+			payload := &fleet.SoftwareInstallerPayload{
+				Slug: new("zoom/darwin"),
+				URL:  installerSrv.URL + "/zoom.pkg",
+				MaintainedApp: &fleet.MaintainedApp{
+					ID:               7,
+					Name:             "Zoom",
+					Platform:         "darwin",
+					UniqueIdentifier: "us.zoom.xos",
+					Version:          "1.0",
+					InstallerURL:     installerSrv.URL + "/zoom.pkg",
+					SHA256:           c.manifestHash,
+					InstallScript:    "echo install",
+					UninstallScript:  "echo uninstall",
+				},
+			}
+			if c.manifestHash != noCheckHash {
+				payload.SHA256 = c.manifestHash
+			}
+
+			svc.softwareBatchUpload("req-uuid", new(teamID), 1, []*fleet.SoftwareInstallerPayload{payload}, false)
+
+			require.Equal(t, c.wantDownload, downloads.Load() > 0, "installer download")
+			require.Len(t, applied, 1)
+			require.Equal(t, c.wantStorageID, applied[0].StorageID)
+			require.Equal(t, !c.wantDownload, applied[0].FMAVersionCached)
+		})
+	}
+}
+
 func TestGetBatchSetSoftwareInstallersResultMissingDeletedKey(t *testing.T) {
 	t.Parallel()
 

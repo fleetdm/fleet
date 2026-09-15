@@ -430,8 +430,10 @@ type Host struct {
 	// populated by loaders that perform it.
 	// BitLockerProtectionStatus is 0 off, 1 on, nil for unknown or never reported.
 	BitLockerProtectionStatus *int `json:"-" db:"bitlocker_protection_status" csv:"-"`
-	// TPMPINSet is only maintained on teams with windows_require_bitlocker_pin.
+	// TPMPINSet is maintained wherever Windows disk encryption is enforced, and only acted on where a PIN is required.
 	TPMPINSet bool `json:"-" db:"tpm_pin_set" csv:"-"`
+	// BitLockerBootProtectorSet reports whether a protector able to release the volume master key at boot is present.
+	BitLockerBootProtectorSet *bool `json:"-" db:"bitlocker_boot_protector_set" csv:"-"`
 
 	// DiskEncryptionKeyEscrowed is set to signal that a FileVault disk encryption key was escrowed.
 	// We need this because the escrow process for macOS is driven by detail queries
@@ -1252,11 +1254,6 @@ type HostDetail struct {
 
 	LastMDMEnrolledAt  *time.Time `json:"last_mdm_enrolled_at"`
 	LastMDMCheckedInAt *time.Time `json:"last_mdm_checked_in_at"`
-	// LastMDMEnrollmentType is the MDM enrollment channel reported by the device,
-	// e.g. "Device" or "User Enrollment (Device)". Manual BYOD and Account-Driven
-	// User Enrollment both report the "On (manual - personal)" status, so this is
-	// what distinguishes them. Nil for hosts with no Apple MDM enrollment.
-	LastMDMEnrollmentType *string `json:"last_mdm_enrollment_type"`
 
 	MDMEnrollmentHardwareAttested bool `json:"mdm_enrollment_hardware_attested"`
 
