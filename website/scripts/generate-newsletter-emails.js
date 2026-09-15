@@ -50,7 +50,7 @@ module.exports = {
       }
 
       // Get the filename without the .md file extension. This will be used to build the final filename.
-      let unextensionedArticleFilename = _.trimRight(path.basename(markdownFileToConvert), '.md');
+      let unextensionedArticleFilename = path.basename(markdownFileToConvert).replace(/\.md$/, '');
 
       // Build the filename for the final HTML partial.
       let extensionedFileNameForEmailPartial = 'email-'+unextensionedArticleFilename.replace(/\./g, '-')+'.ejs';
