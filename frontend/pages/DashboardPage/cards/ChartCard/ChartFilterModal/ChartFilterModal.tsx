@@ -59,7 +59,8 @@ export const PLATFORM_OPTIONS = [
 // selected option until Apply, rather than flickering on every keystroke. On
 // Apply, re-derive severity from the final bounds so what's persisted (and
 // re-shown on reopen, or summarized in the filter tooltip) always matches the
-// scores that were actually saved.
+// scores that were actually saved (see the "Rework filters for vulnerable
+// software" spec on #52474).
 const deriveSeverity = (minScore: string, maxScore: string): SeverityValue =>
   severityForRange(
     minScore === "" ? undefined : Number(minScore),
