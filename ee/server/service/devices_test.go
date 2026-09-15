@@ -447,8 +447,6 @@ func TestRequireDeviceSSOSessionStoreFailure(t *testing.T) {
 }
 
 func TestHostNeedsBitLockerPINPrompt(t *testing.T) {
-	// Fleet Desktop polls this for every host every few minutes, so the checks run cheapest first: the cached fleet settings
-	// and the PIN flag on the host row, then the enrollment row, then the full BitLocker status.
 	createPIN := new(fleet.ActionRequiredCreatePIN)
 	for _, tc := range []struct {
 		name              string

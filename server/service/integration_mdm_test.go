@@ -28849,15 +28849,14 @@ func (s *integrationMDMTestSuite) TestBitLockerPINHandoff() {
 	require.Equal(t, "123456", pinResp.PIN)
 	firstRequestUUID := pinResp.RequestUUID
 
-	// An outcome that names no collected submission is refused, so a host cannot mark itself as having a PIN it was
-	// never given.
+	// An outcome that names no collected submission is refused.
 	reportOutcome("not-a-real-request", fleet.BitLockerPINRequestSet, "", http.StatusNotFound)
 
 	// A replayed collect gets nothing, and the notification is already gone.
 	collectPIN(http.StatusNotFound)
 	require.False(t, orbitConfig(capsHeader).Notifications.BitLockerPINRequestPending)
 
-	// A failure is reported back to the waiting page, and must not claim the PIN is set.
+	// A failure is reported back to the waiting page.
 	reportOutcome(firstRequestUUID, fleet.BitLockerPINRequestFailed, "PIN already set", http.StatusNoContent)
 	resp = deviceHost()
 	require.NotNil(t, resp.Host.MDM.OSSettings.DiskEncryption.PINRequest)
@@ -28894,8 +28893,7 @@ func (s *integrationMDMTestSuite) TestBitLockerPINHandoff() {
 		0,
 	)
 
-	// The PIN fields are Windows-only. Apple MDM is configured in this suite, so a macOS host's device response carries
-	// os_settings, which is exactly where they would otherwise leak.
+	// The PIN fields are Windows-only.
 	macHost := createOrbitEnrolledHost(t, "darwin", t.Name()+"-mac", s.ds)
 	macToken := "bitlocker-pin-handoff-mac-" + uuid.NewString()
 	require.NoError(t, s.ds.SetOrUpdateDeviceAuthToken(ctx, macHost.ID, macToken))
