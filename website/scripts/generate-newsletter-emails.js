@@ -43,7 +43,7 @@ module.exports = {
       // Get the raw Markdown from the file.
       let mdString = await sails.helpers.fs.read(markdownFileToConvert);
 
-      // Skip any article that isn't in the "newsletters" category.
+      // Skip any article that isn't in the "newsletter" category.
       // (Newsletter articles have a `<meta name="category" value="newsletters">` tag.)
       if (!mdString.match(/<meta[^>]*name="category"[^>]*value="newsletter"[^>]*>/i)) {
         continue;
