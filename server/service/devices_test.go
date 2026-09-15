@@ -547,11 +547,13 @@ func TestGetFleetDesktopSummary(t *testing.T) {
 
 	t.Run("BitLocker PIN prompt", func(t *testing.T) {
 		// Fleet Desktop polls this for every host every few minutes, so the prompt must be decided cheapest check first:
-		// the cached fleet settings, then the enrollment row, then the full BitLocker status.
+		// the cached fleet settings and the PIN flag on the host row, then the enrollment row, then the full BitLocker status.
 		for _, tc := range []struct {
 			name              string
 			windowsEnabled    bool
 			pinRequired       bool
+			teamRequiresPIN   bool
+			pinSet            bool
 			capable           bool
 			statusErr         error
 			actionRequired    *fleet.ActionRequiredState
@@ -571,6 +573,18 @@ func TestGetFleetDesktopSummary(t *testing.T) {
 				actionRequired: new(fleet.ActionRequiredCreatePIN),
 			},
 			{
+				name:           "PIN already set: no host queries at all",
+				windowsEnabled: true, pinRequired: true, pinSet: true, capable: true,
+				actionRequired: new(fleet.ActionRequiredCreatePIN),
+			},
+			{
+				name:            "team requires a PIN, capable, and the host needs one: prompt",
+				teamRequiresPIN: true, capable: true,
+				actionRequired:   new(fleet.ActionRequiredCreatePIN),
+				wantPrompt:       true,
+				wantStateQueried: true, wantStatusQueried: true,
+			},
+			{
 				name:           "PIN required but fleetd cannot apply one: status not queried",
 				windowsEnabled: true, pinRequired: true, capable: false,
 				actionRequired:   new(fleet.ActionRequiredCreatePIN),
@@ -584,7 +598,7 @@ func TestGetFleetDesktopSummary(t *testing.T) {
 				wantStateQueried: true, wantStatusQueried: true,
 			},
 			{
-				name:           "PIN required, capable, but PIN already set: no prompt",
+				name:           "PIN required, capable, but the host is not asked for one: no prompt",
 				windowsEnabled: true, pinRequired: true, capable: true,
 				wantStateQueried: true, wantStatusQueried: true,
 			},
@@ -608,10 +622,15 @@ func TestGetFleetDesktopSummary(t *testing.T) {
 					return 0, nil
 				}
 				ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-					return &fleet.AppConfig{}, nil
+					ac := &fleet.AppConfig{}
+					ac.MDM.WindowsSettings.EnableDiskEncryption = optjson.SetBool(tc.windowsEnabled)
+					ac.MDM.RequireBitLockerPIN = optjson.SetBool(tc.pinRequired)
+					return ac, nil
 				}
-				ds.GetConfigEnableDiskEncryptionFunc = func(ctx context.Context, teamID *uint) (fleet.DiskEncryptionConfig, error) {
-					return fleet.DiskEncryptionConfig{WindowsEnabled: tc.windowsEnabled, BitLockerPINRequired: tc.pinRequired}, nil
+				ds.TeamMDMConfigFunc = func(ctx context.Context, teamID uint) (*fleet.TeamMDM, error) {
+					return &fleet.TeamMDM{
+						WindowsSettings: fleet.WindowsSettings{EnableDiskEncryption: optjson.SetBool(true)}, RequireBitLockerPIN: true,
+					}, nil
 				}
 				ds.GetMDMWindowsHostConfigStateFunc = func(ctx context.Context, hostUUID string) (*fleet.MDMWindowsHostConfigState, error) {
 					return &fleet.MDMWindowsHostConfigState{FleetdBitLockerPINCapable: tc.capable}, nil
@@ -623,7 +642,11 @@ func TestGetFleetDesktopSummary(t *testing.T) {
 					return &fleet.HostMDMDiskEncryption{ActionRequired: tc.actionRequired}, nil
 				}
 
-				ctx = test.HostContext(ctx, &fleet.Host{ID: 1, UUID: "win-uuid", Platform: "windows", OsqueryHostID: new("win")})
+				host := &fleet.Host{ID: 1, UUID: "win-uuid", Platform: "windows", OsqueryHostID: new("win"), TPMPINSet: tc.pinSet}
+				if tc.teamRequiresPIN {
+					host.TeamID = new(uint(7))
+				}
+				ctx = test.HostContext(ctx, host)
 				sum, err := svc.GetFleetDesktopSummary(ctx)
 				if tc.wantErr {
 					require.ErrorIs(t, err, tc.statusErr)

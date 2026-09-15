@@ -213,7 +213,7 @@ func (svc *Service) GetFleetDesktopSummary(ctx context.Context) (fleet.DesktopSu
 	// Fleet Desktop prompts the end user to create a BitLocker startup PIN, but only when this host's fleetd can
 	// actually apply one.
 	if host.FleetPlatform() == "windows" {
-		needsPIN, err := svc.hostNeedsBitLockerPINPrompt(ctx, host)
+		needsPIN, err := svc.hostNeedsBitLockerPINPrompt(ctx, host, appCfg)
 		if err != nil {
 			return sum, ctxerr.Wrap(ctx, err, "checking whether to prompt for a bitlocker pin")
 		}
@@ -238,17 +238,16 @@ func (svc *Service) GetFleetDesktopSummary(ctx context.Context) (fleet.DesktopSu
 
 // hostNeedsBitLockerPINPrompt reports whether Fleet Desktop should prompt this Windows host's end user to create a
 // BitLocker startup PIN.
-//
-// Fleet Desktop polls the summary every few minutes for every host, so the checks are ordered cheapest first and each
-// one stops the rest. The fleet's disk encryption settings come from the cached team or app config, so the common case
-// of a fleet that does not require a PIN costs no query against the host at all. Only a host whose fleet does require
-// one reads its enrollment row for the agent capability, and only a capable host pays for the full BitLocker status.
-func (svc *Service) hostNeedsBitLockerPINPrompt(ctx context.Context, host *fleet.Host) (bool, error) {
-	cfg, err := svc.ds.GetConfigEnableDiskEncryption(ctx, host.TeamID)
-	if err != nil {
-		return false, ctxerr.Wrap(ctx, err, "get disk encryption config for bitlocker pin prompt")
+func (svc *Service) hostNeedsBitLockerPINPrompt(ctx context.Context, host *fleet.Host, appCfg *fleet.AppConfig) (bool, error) {
+	cfg := appCfg.MDM.DiskEncryptionConfig()
+	if host.TeamID != nil && *host.TeamID > 0 {
+		teamMDM, err := svc.ds.TeamMDMConfig(ctx, *host.TeamID)
+		if err != nil {
+			return false, ctxerr.Wrap(ctx, err, "get team mdm config for bitlocker pin prompt")
+		}
+		cfg = teamMDM.DiskEncryptionConfig()
 	}
-	if !cfg.WindowsEnabled || !cfg.BitLockerPINRequired {
+	if !cfg.WindowsEnabled || !cfg.BitLockerPINRequired || host.TPMPINSet {
 		return false, nil
 	}
 
