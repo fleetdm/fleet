@@ -190,8 +190,7 @@ func (ds *Datastore) SetMDMWindowsEnrollmentFleetdSyncCapable(ctx context.Contex
 }
 
 // SetMDMWindowsEnrollmentFleetdBitLockerPINCapable persists the last-observed CapabilityWindowsBitLockerPIN value for the host's most recent
-// Windows MDM enrollment. As with fleetd_sync_capable, the live capability header only reaches the orbit-config request, so the device and
-// Fleet Desktop endpoints read the stored value to decide whether to offer the end user the PIN form.
+// Windows MDM enrollment.
 func (ds *Datastore) SetMDMWindowsEnrollmentFleetdBitLockerPINCapable(ctx context.Context, hostUUID string, capable bool) error {
 	if _, err := ds.writer(ctx).ExecContext(ctx,
 		`UPDATE mdm_windows_enrollments SET fleetd_bitlocker_pin_capable = ? WHERE host_uuid = ? ORDER BY created_at DESC, id DESC LIMIT 1`,
