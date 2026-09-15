@@ -8,7 +8,7 @@
 
 ## License requirements
 
-These requirements were verified end to end against a live tenant in August 2026.
+These requirements were verified end to end against a live customer tenant in August 2026. See #51351 for the test results.
 
 - The **tenant** needs one subscription from Microsoft's
   [Autopilot licensing requirements](https://learn.microsoft.com/en-us/autopilot/requirements?tabs=licensing), such as Enterprise
