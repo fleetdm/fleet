@@ -183,18 +183,6 @@ const GlobalHostStatusWebhook = ({
             >
               Enable host status webhook
             </Checkbox>
-            <p className={`${baseClass}__section-description`}>
-              A request will be sent to your configured <b>Destination URL</b>{" "}
-              if the configured <b>Percentage of hosts</b> have not checked into
-              Fleet for the configured <b>Number of days</b>.
-            </p>
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={toggleHostStatusWebhookPreviewModal}
-            >
-              Preview request
-            </Button>
             {withDisabledTooltip(
               <InputField
                 placeholder="https://server.com/example"
@@ -249,18 +237,28 @@ const GlobalHostStatusWebhook = ({
               />
             )}
           </div>
-          <GitOpsModeTooltipWrapper
-            renderChildren={(disableChildren) => (
-              <Button
-                type="submit"
-                disabled={Object.keys(formErrors).length > 0 || disableChildren}
-                className="button-wrap"
-                isLoading={isUpdatingSettings}
-              >
-                Save
-              </Button>
-            )}
-          />
+          <div className="button-wrap">
+            <GitOpsModeTooltipWrapper
+              renderChildren={(disableChildren) => (
+                <Button
+                  type="submit"
+                  disabled={
+                    Object.keys(formErrors).length > 0 || disableChildren
+                  }
+                  isLoading={isUpdatingSettings}
+                >
+                  Save
+                </Button>
+              )}
+            />
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={toggleHostStatusWebhookPreviewModal}
+            >
+              Preview request
+            </Button>
+          </div>
         </form>
       </SettingsSection>
       {showHostStatusWebhookPreviewModal && (
