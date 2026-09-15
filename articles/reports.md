@@ -91,7 +91,7 @@ An hourly report's target moments are on the hour, UTC (11:00, 12:00, 1:00, and 
 
 Because the schedule runs on the clock rather than on how long a host has been online, a host whose off/on pattern lines up with its own check-in moment, like a laptop that's always asleep at lunch, or a desktop that's always off on weekends, can go a long time without new results even if it's online plenty otherwise.
 
-Those are target moments, not exact ones. The first time a host picks up a report, Fleet nudges the interval up or down by up to 10% and locks in that adjusted number for that host, so different hosts don't all check in at once. So in practice, an hourly report checks in every 54 to 66 minutes, and a weekly report checks in roughly every 6 to 8 days, consistently for that host. Want to know exactly when a specific host will check in next? Run `SELECT * FROM osquery_schedule` as a live query.
+Those are target moments, not exact ones. The first time a host picks up a report, Fleet nudges the interval up or down by up to 10% (configurable via `schedule_splay_percent` in [agent options](https://fleetdm.com/docs/configuration/agent-configuration)) and locks in that adjusted number for that host, so different hosts don't all check in at once. So in practice, an hourly report checks in every 54 to 66 minutes, and a weekly report checks in roughly every 6 to 8 days, consistently for that host. Want to know exactly when a specific host will check in next? Run `SELECT * FROM osquery_schedule` as a live query.
 
 Scheduled reports will send data to Fleet and/or your [log destination](https://fleetdm.com/docs/using-fleet/log-destinations) automatically. Automations can be turned off in **Advanced options** or using the bulk **Manage automations** UI.
 
