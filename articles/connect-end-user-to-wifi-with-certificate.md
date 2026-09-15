@@ -558,7 +558,7 @@ The flow for Hydrant differs from the other certificate authorities (CA's). Whil
 
 ### Step 3: Deploy the certificate with a script-only package
 
-To deploy certificates automatically to Linux hosts at enrollment, deploy a script-only software package that writes the certificate to the filesystem during setup experience.
+A script-only software package installs during setup experience, before the host finishes enrolling. That means the certificate is ready the moment the end user starts using the host. Without it, they'd have to wait for a policy to catch the missing certificate first.
 
 This custom script will create a certificate signing request (CSR) and make a request to Fleet's ["Request certificate" API endpoint](https://fleetdm.com/docs/rest-api/rest-api#request-certificate).
 
@@ -618,7 +618,7 @@ Enforcing IdP validation using `idp_oauth_url` and `idp_token` is optional. If e
 
 ### Step 4: Renew or restore the certificate automatically
 
-The script-only package in Step 3 only runs once, during setup experience. Policy automations only trigger scripts uploaded to **Controls > Scripts**, so add the same script there too, then wire it to a policy that catches a missing or expiring certificate.
+Linux isn't covered by Fleet's [automatic certificate renewal](#renewal). The script-only package in Step 3 only runs once, during setup experience, so it won't fix a certificate that's later deleted or expires. Add the same script to **Controls > Scripts** and trigger it from a policy. That way, Fleet keeps checking every host and renews the certificate automatically if it's missing or about to expire.
 
 1. In Fleet, head to **Controls > Scripts**, select the fleet, and upload the same script from Step 3.
 2. Head to **Policies** and select **Add policy**. Use the following query to detect whether the certificate is missing or expires in the next 30 days:
@@ -905,7 +905,7 @@ This step will vary between providers. EST servers require a `username` and `pas
 
 ### Step 3: Deploy the certificate with a script-only package
 
-To deploy certificates automatically to Linux hosts at enrollment, deploy a script-only software package that writes the certificate to the filesystem during setup experience.
+A script-only software package installs during setup experience, before the host finishes enrolling. That means the certificate is ready the moment the end user starts using the host. Without it, they'd have to wait for a policy to catch the missing certificate first.
 
 The script will create a certificate signing request (CSR) and make a request to Fleet's ["Request certificate" API endpoint](https://fleetdm.com/docs/rest-api/rest-api#request-certificate).
 
@@ -965,7 +965,7 @@ Enforcing IdP validation using `idp_oauth_url` and `idp_token` is optional. If e
 
 ### Step 4: Renew or restore the certificate automatically
 
-The script-only package in Step 3 only runs once, during setup experience. Policy automations only trigger scripts uploaded to **Controls > Scripts**, so add the same script there too, then wire it to a policy that catches a missing or expiring certificate.
+Linux isn't covered by Fleet's [automatic certificate renewal](#renewal). The script-only package in Step 3 only runs once, during setup experience, so it won't fix a certificate that's later deleted or expires. Add the same script to **Controls > Scripts** and trigger it from a policy. That way, Fleet keeps checking every host and renews the certificate automatically if it's missing or about to expire.
 
 1. In Fleet, head to **Controls > Scripts**, select the fleet, and upload the same script from Step 3.
 2. Head to **Policies** and select **Add policy**. Use the following query to detect whether the certificate is missing or expires in the next 30 days:
