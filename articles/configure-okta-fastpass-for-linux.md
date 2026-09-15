@@ -39,7 +39,7 @@ set -e
 
 FLEET_URL="<Fleet-server-URL>"
 CA_ID="<Okta-CA-ID>"
-CERT_DIR="/opt/okta-verify"
+CERT_DIR="/etc/okta"
 KEY_PATH="$CERT_DIR/device.key"
 CERT_PATH="$CERT_DIR/device.pem"
 
@@ -89,12 +89,12 @@ SELECT 1 FROM certificates WHERE path = '/etc/okta/device.pem' AND not_valid_aft
 2. Select **Save**, target only **Linux**, then select **Save** again.
 3. On the **Policies** page, select **Manage automations**, then select **Install software**.
 4. Select your new policy, then in the dropdown, choose the script-only package you uploaded in Step 4.
-5. Now, any Linux host missing `/opt/okta-verify/device.pem`, or whose certificate expires within 30 days, fails the policy, and Fleet reinstalls the package to renew it.
+5. Now, any Linux host missing `/etc/okta/device.pem`, or whose certificate expires within 30 days, fails the policy, and Fleet reinstalls the package to renew it.
 
 ## Verify
 
 1. Enroll a Linux host (or wait for an existing one to check in after these changes).
-2. On the host, confirm `/opt/okta-verify/device.pem` exists and is a valid certificate: `openssl x509 -in /opt/okta-verify/device.pem -noout -text` (or `openssl pkcs7 -print_certs -in /opt/okta-verify/device.pem` if Fleet returned a PKCS7 envelope).
+2. On the host, confirm `/etc/okta/device.pem` exists and is a valid certificate: `openssl x509 -in /etc/okta/device.pem -noout -text` (or `openssl pkcs7 -print_certs -in /etc/okta/device.pem` if Fleet returned a PKCS7 envelope).
 3. In Okta, head to **Directory > Devices** and confirm the host appears with **Platform** Linux and **Enrolled By** Okta Verify.
 4. On the host, open Okta Verify and confirm FastPass is available for sign-in.
 
