@@ -50,8 +50,7 @@ chmod 700 "$CERT_DIR"
 openssl genpkey -algorithm RSA -out "$KEY_PATH" -pkeyopt rsa_keygen_bits:2048
 chmod 600 "$KEY_PATH"
 
-host_identifier="$(hostnamectl --static 2>/dev/null || hostname)"
-openssl req -new -sha256 -key "$KEY_PATH" -out /tmp/okta-verify.csr -subj "/CN=${host_identifier}"
+openssl req -new -sha256 -key "$KEY_PATH" -out /tmp/okta-verify.csr -subj "/CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME Okta FastPass"
 
 # Escape the CSR for the JSON request body.
 CSR=$(sed 's/$/\\n/' /tmp/okta-verify.csr | tr -d '\n')
