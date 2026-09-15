@@ -976,7 +976,7 @@ SELECT 1 FROM certificates WHERE path = '/opt/company/certificate.pem' AND not_v
 
 3. Select **Save**, target only **Linux**, then select **Save** again.
 4. On the **Policies** page, select **Manage automations > Scripts**. Select your new policy, then in the dropdown, choose the script you uploaded in step 1.
-5. Now, any host missing `/opt/company/certificate.pem`, or whose certificate expires within 30 days, fails the policy — and Fleet reruns the script to reissue it.
+5. Now, any host missing `/opt/company/certificate.pem`, or whose certificate expires within 30 days, fails the policy and Fleet reruns the script to renew it.
 
 ## Renewal
 
