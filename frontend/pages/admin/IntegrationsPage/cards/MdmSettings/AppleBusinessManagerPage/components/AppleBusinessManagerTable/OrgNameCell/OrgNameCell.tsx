@@ -1,6 +1,10 @@
 import React from "react";
 
+import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
+
+import CustomLink from "components/CustomLink";
 import Icon from "components/Icon";
+import Tag from "components/Tag";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import TooltipWrapper from "components/TooltipWrapper";
 
@@ -9,10 +13,15 @@ const baseClass = "org-name-cell";
 interface IOrgNameCellProps {
   orgName: string;
   termsExpired: boolean;
+  isDefault: boolean;
 }
 
-const OrgNameCell = ({ orgName, termsExpired }: IOrgNameCellProps) => {
-  const cellContent = termsExpired ? (
+const OrgNameCell = ({
+  orgName,
+  termsExpired,
+  isDefault,
+}: IOrgNameCellProps) => {
+  const name = termsExpired ? (
     <TooltipWrapper
       showArrow
       underline={false}
@@ -25,6 +34,32 @@ const OrgNameCell = ({ orgName, termsExpired }: IOrgNameCellProps) => {
   ) : (
     orgName
   );
+
+  const cellContent = isDefault ? (
+    <>
+      {name}{" "}
+      <Tag
+        size="xsmall"
+        tooltip={
+          <>
+            Used when a manually enrolling device requests a token for a Managed
+            Apple ID login.{" "}
+            <CustomLink
+              url={`${LEARN_MORE_ABOUT_BASE_LINK}/default-ab-token`}
+              text="Learn more"
+              variant="tooltip-link"
+              newTab
+            />
+          </>
+        }
+      >
+        Default token
+      </Tag>
+    </>
+  ) : (
+    name
+  );
+
   return <TextCell value={cellContent} className={baseClass} />;
 };
 
