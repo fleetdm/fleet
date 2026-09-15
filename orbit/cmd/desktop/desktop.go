@@ -344,7 +344,17 @@ func main() {
 			var (
 				pingErrCount            = 0
 				lastDesktopSummaryCheck time.Time
+				pinToast                *bitLockerPINToast
 			)
+			if runtime.GOOS == "windows" {
+				var markerPath string
+				if dir, err := logDir(); err != nil {
+					log.Error().Err(err).Msg("find directory for the BitLocker PIN toast marker")
+				} else {
+					markerPath = filepath.Join(dir, "Fleet", "bitlocker-pin-toast")
+				}
+				pinToast = newBitLockerPINToast(markerPath)
+			}
 
 			for {
 				<-pingTicker.C
@@ -401,6 +411,12 @@ func main() {
 
 				menuManager.SetConnected(&sum.DesktopSummary, false)
 				menuManager.UpdateFailingPolicies(sum.DesktopSummary.FailingPolicies)
+
+				if runtime.GOOS == "windows" {
+					// Comparing the link on every summary also re-posts the toast after the device token rotates. PowerShell can take
+					// seconds to start, so it runs off this loop.
+					go pinToast.update(sum.Notifications.NeedsBitLockerPIN, client.BrowserDeviceURL(tokenReader.GetCached()))
+				}
 
 				// Check our file to see if we should migrate
 				var migrationType string

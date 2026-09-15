@@ -891,6 +891,35 @@ func (oc *OrbitClient) SetOrUpdateDiskEncryptionProtection(outcome fleet.DiskEnc
 	}, &resp)
 }
 
+// GetDiskEncryptionPINDetails collects the BitLocker startup PIN the end user submitted. The server hands it out only
+// once, so the caller must be ready to apply it. A 404, detected with IsNotFoundErr, means there is nothing to apply.
+func (oc *OrbitClient) GetDiskEncryptionPINDetails() (pin, requestUUID string, err error) {
+	verb, path := "POST", "/api/fleet/orbit/disk_encryption_pin/details"
+	var resp fleet.OrbitGetDiskEncryptionPINDetailsResponse
+	if err := oc.authenticatedRequest(verb, path, &fleet.OrbitGetDiskEncryptionPINDetailsRequest{}, &resp); err != nil {
+		// A decode error quotes the start of the response body, which is where the PIN is.
+		var syntaxErr *json.SyntaxError
+		var typeErr *json.UnmarshalTypeError
+		if errors.As(err, &syntaxErr) || errors.As(err, &typeErr) {
+			return "", "", fmt.Errorf("%s %s: could not decode the response", verb, path)
+		}
+		return "", "", err
+	}
+	return resp.PIN, resp.RequestUUID, nil
+}
+
+// SetDiskEncryptionPINResult reports whether the PIN collected with requestUUID was applied. A 404, detected with
+// IsNotFoundErr, means the server no longer wants this outcome.
+func (oc *OrbitClient) SetDiskEncryptionPINResult(requestUUID string, outcome fleet.BitLockerPINRequestStatus, clientError string) error {
+	verb, path := "POST", "/api/fleet/orbit/disk_encryption_pin/result"
+	var resp fleet.OrbitPostDiskEncryptionPINResultResponse
+	return oc.authenticatedRequest(verb, path, &fleet.OrbitPostDiskEncryptionPINResultRequest{
+		RequestUUID: requestUUID,
+		Outcome:     outcome,
+		ClientError: clientError,
+	}, &resp)
+}
+
 const httpTraceTimeFormat = "2006-01-02T15:04:05Z"
 
 var testStdoutHTTPTracer = &httptrace.ClientTrace{
