@@ -26,21 +26,26 @@ func TestCreateEnrollmentTokenUniformInvalidSecretError(t *testing.T) {
 	svc, err := NewServiceWithClient(logger, fleetDS, &androidAPIClient, "test-private-key", &fleetDS.DataStore, noopNewActivity, config.AndroidAgentConfig{})
 	require.NoError(t, err)
 
-	badSecretErr := func(configured bool) error {
+	badSecretErr := func(configured bool, idpSessionID string) error {
 		fleetDS.Store.AppConfigFunc = func(_ context.Context) (*fleet.AppConfig, error) {
 			appCfg := &fleet.AppConfig{}
 			appCfg.MDM.AndroidEnabledAndConfigured = configured
 			return appCfg, nil
 		}
-		_, err := svc.CreateEnrollmentToken(t.Context(), "bogus-secret", "", false)
+		_, err := svc.CreateEnrollmentToken(t.Context(), "bogus-secret", idpSessionID, false)
 		require.Error(t, err)
 		return err
 	}
-	errNotConfigured := badSecretErr(false)
-	errConfigured := badSecretErr(true)
+	errNotConfigured := badSecretErr(false, "")
+	errConfigured := badSecretErr(true, "")
+	// The service has no idP session store, so this only returns the uniform
+	// auth error if the secret is verified before idP session validation.
+	errIdPSession := badSecretErr(true, "bogus-session")
 
 	var authFailed *fleet.AuthFailedError
 	require.ErrorAs(t, errNotConfigured, &authFailed)
 	require.ErrorAs(t, errConfigured, &authFailed)
+	require.ErrorAs(t, errIdPSession, &authFailed)
 	require.Equal(t, errConfigured.Error(), errNotConfigured.Error())
+	require.Equal(t, errConfigured.Error(), errIdPSession.Error())
 }
