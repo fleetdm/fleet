@@ -6,7 +6,7 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260911142857, Down_20260911142857)
+	MigrationClient.AddMigration(Up_20260901200000, Down_20260901200000)
 }
 
 // host_one_time_enroll_secrets holds per-device, single-use enroll secrets
@@ -17,7 +17,7 @@ func init() {
 // host or the host is deleted) so that a later attempt
 // with a spent secret can be recognized and reported rather than treated as an
 // unknown secret.
-func Up_20260911142857(tx *sql.Tx) error {
+func Up_20260901200000(tx *sql.Tx) error {
 	_, err := tx.Exec(`
 		CREATE TABLE IF NOT EXISTS host_one_time_enroll_secrets (
 			id                BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -42,6 +42,6 @@ func Up_20260911142857(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20260911142857(tx *sql.Tx) error {
+func Down_20260901200000(tx *sql.Tx) error {
 	return nil
 }
