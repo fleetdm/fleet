@@ -4062,9 +4062,14 @@ func TestFormatCommandOutput(t *testing.T) {
 			want:  []byte("<SyncML>\n  <SyncBody>\n    <Status>\n      <CmdID>1</CmdID>\n    </Status>\n  </SyncBody>\n</SyncML>\n"),
 		},
 		{
-			name:    "Empty input",
-			input:   []byte(""),
-			wantErr: true,
+			name:  "Empty input is not a formatting failure",
+			input: []byte(""),
+			want:  []byte(""),
+		},
+		{
+			name:  "Whitespace-only input is not a formatting failure",
+			input: []byte("\n  \t"),
+			want:  []byte("\n  \t"),
 		},
 		{
 			name:    "Bare JSON string is not XML and must not be escaped",

@@ -1902,7 +1902,12 @@ func getMDMCommandsCommand() *cli.Command {
 // struct carries no platform, so sniff the content.
 func formatCommandOutput(in []byte) ([]byte, error) {
 	trimmed := bytes.TrimSpace(in)
-	if len(trimmed) > 0 && (trimmed[0] == '{' || trimmed[0] == '[') {
+	if len(trimmed) == 0 {
+		// a command that hasn't reached a terminal state has no result yet, which
+		// is not a formatting failure worth reporting under --debug
+		return in, nil
+	}
+	if trimmed[0] == '{' || trimmed[0] == '[' {
 		return formatJSON(trimmed)
 	}
 	return formatXML(trimmed)
