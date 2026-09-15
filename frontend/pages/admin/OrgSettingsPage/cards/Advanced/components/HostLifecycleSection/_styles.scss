@@ -4,11 +4,4 @@
   &__host-expiry-window {
     margin-left: $pad-large;
   }
-
-  // Must fill the form field's width; TooltipWrapper is otherwise a max-content flex item.
-  &__disabled-tooltip {
-    &.component__tooltip-wrapper {
-      display: block;
-    }
-  }
 }

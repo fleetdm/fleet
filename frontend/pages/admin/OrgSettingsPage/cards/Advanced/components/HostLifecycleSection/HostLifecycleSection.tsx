@@ -4,7 +4,6 @@ import CustomLink from "components/CustomLink";
 import Checkbox from "components/forms/fields/Checkbox";
 import InputField from "components/forms/fields/InputField";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
-import TooltipWrapper from "components/TooltipWrapper";
 import SettingsSection from "pages/admin/components/SettingsSection";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 
@@ -57,34 +56,18 @@ const HostLifecycleSection = ({
         <GitOpsModeTooltipWrapper
           position="left"
           isInputField
-          renderChildren={(disableChildren) => {
-            const hostExpiryWindowField = (
-              <InputField
-                disabled={!enableHostExpiry || disableChildren}
-                label="Host expiry window"
-                type="number"
-                onChange={onInputChange}
-                name="hostExpiryWindow"
-                value={hostExpiryWindow}
-                parseTarget
-                error={formErrors.hostExpiryWindow}
-              />
-            );
-
-            return !enableHostExpiry && !disableChildren ? (
-              <TooltipWrapper
-                className={`${baseClass}__disabled-tooltip`}
-                tipContent="Enable host expiry to edit this setting."
-                position="top"
-                underline={false}
-                showArrow
-              >
-                {hostExpiryWindowField}
-              </TooltipWrapper>
-            ) : (
-              hostExpiryWindowField
-            );
-          }}
+          renderChildren={(disableChildren) => (
+            <InputField
+              disabled={!enableHostExpiry || disableChildren}
+              label="Host expiry window"
+              type="number"
+              onChange={onInputChange}
+              name="hostExpiryWindow"
+              value={hostExpiryWindow}
+              parseTarget
+              error={formErrors.hostExpiryWindow}
+            />
+          )}
         />
       </div>
       {isPremiumTier && (

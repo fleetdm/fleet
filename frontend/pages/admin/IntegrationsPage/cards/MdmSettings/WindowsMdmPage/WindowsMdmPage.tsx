@@ -13,7 +13,6 @@ import Slider from "components/forms/fields/Slider";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import MainContent from "components/MainContent/MainContent";
 import { notify } from "components/ToastNotification";
-import TooltipWrapper from "components/TooltipWrapper";
 import { AppContext } from "context/app";
 import PATHS from "router/paths";
 import configAPI from "services/entities/config";
@@ -223,20 +222,7 @@ const WindowsMdmPage = ({ router }: IWindowsMdmPageProps) => {
               disabled={!mdmOn || gitOpsModeEnabled}
             />
           )}
-          {isPremiumTier &&
-            (!turnOnProgrammatically ? (
-              <TooltipWrapper
-                className={`${baseClass}__disabled-tooltip`}
-                tipContent="Turn on MDM programmatically to automatically migrate hosts."
-                position="top"
-                underline={false}
-                showArrow
-              >
-                {migrationCheckbox}
-              </TooltipWrapper>
-            ) : (
-              migrationCheckbox
-            ))}
+          {isPremiumTier && migrationCheckbox}
           {isPremiumTier && defaultFleetDropdown}
           <GitOpsModeTooltipWrapper
             tipOffset={8}
