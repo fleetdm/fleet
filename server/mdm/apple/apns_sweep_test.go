@@ -211,10 +211,6 @@ func TestSweepAPNsPushes(t *testing.T) {
 		require.False(t, ds.SetMDMAppleAPNsSweepStateFuncInvoked)
 	})
 
-	// A run cut short by the cron's run cap must not advance the cursor: the
-	// unpushed remainder of the page would otherwise be skipped for the rest
-	// of the lap. Retrying the whole page next tick is safe, APNs coalesces
-	// the duplicate pushes.
 	t.Run("a run cut short leaves the cursor unadvanced", func(t *testing.T) {
 		ds := sweepTestDS()
 		ds.ListNanoEnrollmentIDsForAPNsSweepFunc = func(ctx context.Context, afterID string, batchSize int, silentFor time.Duration) ([]string, string, bool, error) {
