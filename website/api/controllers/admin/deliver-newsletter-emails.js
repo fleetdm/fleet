@@ -27,7 +27,7 @@ module.exports = {
       description: 'The Fleet Newsletter has been sent to subscribers.'
     },
     articleNotFound: {
-      description: 'The article that was used to generated the specified email template was not found.'
+      description: 'The article that was used to generate the specified email template was not found.'
     },
   },
 
@@ -72,7 +72,7 @@ module.exports = {
           },
           ensureAck: true,
         }).tolerate((err)=>{
-          sails.log.warn(`When an admin sent the Fleet newsletter to subscribers, an error occured when sending an email to a subscriber (${newsletterSubscriber.emailAddress}). Full error: ${require('util').inspect(err)}`);
+          sails.log.warn(`When an admin sent the Fleet newsletter to subscribers, an error occurred when sending an email to a subscriber (${newsletterSubscriber.emailAddress}). Full error: ${require('util').inspect(err)}`);
           return false;
         });
 
