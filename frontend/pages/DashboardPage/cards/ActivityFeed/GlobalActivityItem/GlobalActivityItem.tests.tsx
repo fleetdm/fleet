@@ -4,7 +4,7 @@ import React from "react";
 import { createMockActivity } from "__mocks__/activityMock";
 import createMockQuery from "__mocks__/queryMock";
 import { createMockTeamSummary } from "__mocks__/teamMock";
-import { ActivityType } from "interfaces/activity";
+import { ActivityType, IActivityDetails } from "interfaces/activity";
 
 import GlobalActivityItem from ".";
 
@@ -1521,6 +1521,88 @@ describe("Activity Feed", () => {
     expect(screen.queryByText("bar")).toBeNull();
     expect(screen.queryByText("baz")).toBeNull();
     expect(screen.getByText("Alphas", { exact: false })).toBeInTheDocument();
+  });
+
+  describe("host_enrollment_rejected", () => {
+    const renderRejected = (details: Partial<IActivityDetails>) =>
+      render(
+        <GlobalActivityItem
+          activity={createMockActivity({
+            type: ActivityType.HostEnrollmentRejected,
+            actor_full_name: "",
+            actor_id: 0,
+            details,
+          })}
+          isPremiumTier
+        />
+      );
+
+    it("names the host and explains a spent one-time secret", () => {
+      renderRejected({
+        reason: "one_time_secret_spent",
+        host_display_name: "Anna's MacBook Pro",
+        host_serial: "C02ABC",
+      });
+      expect(screen.getByText("Anna's MacBook Pro")).toBeInTheDocument();
+      expect(
+        screen.getByText(
+          /was rejected because its one-time enroll secret was already used\. Resend the Fleetd configuration profile/i
+        )
+      ).toBeInTheDocument();
+    });
+
+    it("explains an identifier mismatch", () => {
+      renderRejected({
+        reason: "one_time_secret_identifier_mismatch",
+        host_display_name: "Anna's MacBook Pro",
+      });
+      // The host name is a separate <b> node, so match the text on each side of it.
+      expect(
+        screen.getByText(/used the one-time enroll secret issued to/i)
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText(/with a different serial number or hardware UUID/i)
+      ).toBeInTheDocument();
+      expect(screen.getByText("Anna's MacBook Pro")).toBeInTheDocument();
+    });
+
+    it("explains a shared secret used for an MDM-managed host", () => {
+      renderRejected({
+        reason: "shared_secret_for_mdm_managed_host",
+        host_display_name: "Anna's MacBook Pro",
+      });
+      expect(
+        screen.getByText(
+          /used a shared enroll secret\. Hosts enrolled in Fleet MDM must enroll with their one-time enroll secret/i
+        )
+      ).toBeInTheDocument();
+    });
+
+    it("falls back to the serial number when there is no display name", () => {
+      renderRejected({
+        reason: "one_time_secret_spent",
+        host_serial: "C02ABC",
+      });
+      expect(screen.getByText("C02ABC")).toBeInTheDocument();
+      expect(
+        screen.getByText(/a host with serial number/i)
+      ).toBeInTheDocument();
+    });
+
+    it("falls back to 'a host' and a generic sentence for an unknown reason", () => {
+      renderRejected({ reason: "something_new" });
+      expect(
+        screen.getByText(/^An enrollment attempt for a host was rejected\.$/i)
+      ).toBeInTheDocument();
+    });
+
+    it("does not prefix an actor", () => {
+      renderRejected({
+        reason: "one_time_secret_spent",
+        host_display_name: "X",
+      });
+      expect(screen.queryByText("Fleet")).not.toBeInTheDocument();
+    });
   });
 
   it("renders a 'fleet_enrolled' type activity with display name and serial", () => {

@@ -220,7 +220,14 @@ export enum ActivityType {
   ReleasedDeviceFromAB = "released_from_ab",
   EnabledAppleBusinessOnlyEnrollment = "enabled_apple_business_only_enrollment",
   DisabledAppleBusinessOnlyEnrollment = "disabled_apple_business_only_enrollment",
+  HostEnrollmentRejected = "host_enrollment_rejected",
 }
+
+/** Reasons carried by a `host_enrollment_rejected` activity. */
+export type EnrollmentRejectedReason =
+  | "one_time_secret_spent"
+  | "one_time_secret_identifier_mismatch"
+  | "shared_secret_for_mdm_managed_host";
 
 /** This is a subset of ActivityType that are shown only for the host past activities */
 export type IHostPastActivityType =
@@ -266,7 +273,8 @@ export type IHostPastActivityType =
   | ActivityType.FailedAutomationConditionalAccess
   | ActivityType.ReleasedDeviceFromAB
   | ActivityType.ResentConfigurationProfile
-  | ActivityType.ResetPolicy;
+  | ActivityType.ResetPolicy
+  | ActivityType.HostEnrollmentRejected;
 
 /** This is a subset of ActivityType that are shown only for the host upcoming activities */
 export type IHostUpcomingActivityType =
@@ -318,6 +326,8 @@ export interface IActivityDetails {
   deadline?: string;
   email?: string;
   enrollment_id?: string | null; // unique identifier for MDM BYOD enrollments; null for other enrollments
+  /** Which fleetd component attempted to enroll: "orbit" or "osquery". */
+  enrollment_plane?: string;
   global?: boolean;
   grace_period_days?: number;
   host_display_name?: string;
@@ -350,6 +360,7 @@ export interface IActivityDetails {
   query_id?: number;
   query_ids?: number[];
   query_name?: string;
+  reason?: EnrollmentRejectedReason | string;
   query_sql?: string;
   request_type?: string;
   role?: UserRole;
@@ -666,4 +677,5 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
     "Enabled Apple Business only enrollment",
   [ActivityType.DisabledAppleBusinessOnlyEnrollment]:
     "Disabled Apple Business only enrollment",
+  [ActivityType.HostEnrollmentRejected]: "Rejected host enrollment",
 };
