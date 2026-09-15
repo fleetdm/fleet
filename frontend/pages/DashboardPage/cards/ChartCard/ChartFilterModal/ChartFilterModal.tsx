@@ -15,6 +15,7 @@ import {
   ANY_SEVERITY_VALUE,
   ISeverityFilterValue,
   severityFilters,
+  severityForRange,
   SeverityValue,
 } from "components/SeverityFilter";
 import TabNav from "components/TabNav";
@@ -52,6 +53,18 @@ export const PLATFORM_OPTIONS = [
   { label: "iPadOS", value: "ipados" },
   { label: "Android", value: "android" },
 ];
+
+// The score inputs can drift from the selected preset (or from Custom) while
+// the user edits them — the dropdown intentionally keeps showing the last
+// selected option until Apply, rather than flickering on every keystroke. On
+// Apply, re-derive severity from the final bounds so what's persisted (and
+// re-shown on reopen, or summarized in the filter tooltip) always matches the
+// scores that were actually saved.
+const deriveSeverity = (minScore: string, maxScore: string): SeverityValue =>
+  severityForRange(
+    minScore === "" ? undefined : Number(minScore),
+    maxScore === "" ? undefined : Number(maxScore)
+  );
 
 type HostFilterMode = "none" | "include" | "exclude";
 
@@ -325,7 +338,10 @@ const ChartFilterModal = ({
       knownExploit,
       epssMin,
       epssMax,
-      severity: severityFilter.severity,
+      severity: deriveSeverity(
+        severityFilter.minScore,
+        severityFilter.maxScore
+      ),
       cvssMin: severityFilter.minScore,
       cvssMax: severityFilter.maxScore,
       excludeCVEs,
