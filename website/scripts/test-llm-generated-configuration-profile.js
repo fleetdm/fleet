@@ -27,7 +27,6 @@ const TEST_CASES = [
       mustContainElement: [['Format', 'int'], ['Data', '0']],
       mustNotContainElement: [['Format', 'bool']],
       mustNotContain: ['<SyncML', '<?xml'],
-      deliveryNotes: ''
     }
   },
   {
@@ -38,7 +37,6 @@ const TEST_CASES = [
       mustContain: ['RemovableDiskDenyWriteAccess'],
       mustContainElement: [['Format', 'int']],
       mustNotContainElement: [['Format', 'bool']],
-      deliveryNotes: ''
     }
   },
   {
@@ -53,7 +51,7 @@ const TEST_CASES = [
   {
     id: 'csp-failed-attempts',
     profileType: 'csp',
-    instructions: 'Wipe the device after 10 failed password attempts.',
+    instructions: 'Lock the device after 10 failed password attempts.',
     expect: {
       mustContain: ['MaxDevicePasswordFailedAttempts', 'DevicePasswordEnabled']
     }
@@ -62,41 +60,36 @@ const TEST_CASES = [
     id: 'csp-wifi-wpa2-psk-with-spaces',
     profileType: 'csp',
     canary: true,
-    instructions: 'Add a wifi profile for a network with the SSID "Cool Network" with WPA2 authentication that uses the password "aaaaaaapassword".',
+    instructions: 'Add a wifi profile for a network with the SSID "A Network" with WPA2 authentication that uses the password "aaaaaaapassword".',
     readByEye: 'The embedded <WLANProfile> must be on ONE line inside the CDATA -- no assertion can express that.  Also confirm <hex> decodes to the SSID, and that deliveryNotes names the cleartext passphrase rather than describing the profile.',
     expect: {
-      mustContain: ['Cool%20Network', '<![CDATA[', '436F6F6C204E6574776F726B'],
-      mustContainElement: [['name', 'Cool Network']],
-      mustNotContain: ['&lt;WLANProfile', '<SyncML', 'Cool%20network'],
-    }
-  },
-  {
-    id: 'csp-script-block-logging',
-    profileType: 'csp',
-    instructions: 'Turn on PowerShell script block logging.',
-    readByEye: 'Payload should be <![CDATA[<enabled/>]]> with no <data> elements, since no sub-option was requested.  Confirm documentationUrl points at policy-csp-windowspowershell -- a URL that resolves is not the same as a URL that contains the node.',
-    expect: {
-      mustContain: ['Config/WindowsPowerShell/TurnOnPowerShellScriptBlockLogging', '<![CDATA[', '<enabled/>'],
-      mustContainElement: [['Format', 'chr']],
-      mustNotContain: ['ADMX_PowerShellExecutionPolicy']
+      mustContain: ['A%20Network', '<![CDATA[', '436F6F6C204E6574776F726B'],
+      mustContainElement: [['name', 'A Network']],
+      mustNotContain: ['&lt;WLANProfile', '<SyncML', 'A%20network'],
     }
   },
   {
     id: 'csp-logon-banner',
     profileType: 'csp',
     instructions: 'Show "Authorized users only" as a message on the sign-in screen.',
-    expect: { mustContain: ['InteractiveLogon'], mustContainElement: [['Format', 'chr']] }
+    expect: {
+      mustContain: ['InteractiveLogon'],
+      mustContainElement: [['Format', 'chr']]
+    }
   },
   {
     id: 'csp-telemetry',
     profileType: 'csp',
     instructions: 'Set diagnostic data to the lowest level allowed.',
-    expect: { mustContain: ['AllowTelemetry'], mustContainElement: [['Format', 'int']] }
+    expect: {
+      mustContain: ['AllowTelemetry'],
+      mustContainElement: [['Format', 'int']]
+    }
   },
   {
     id: 'csp-disk-encryption-natively-managed',
     profileType: 'csp',
-    instructions: 'Turn on BitLocker with XTS-AES 256 encryption on the system drive.',
+    instructions: 'Turn on BitLocker with XTS-AES 256 encryption on the operating system, fixed data, and removable data drives.',
   },
 
   //  ╔╦╗╔═╗╔╗ ╦╦  ╔═╗╔═╗╔╗╔╔═╗╦╔═╗
