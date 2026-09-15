@@ -1543,6 +1543,82 @@ func TestSaveHostSoftwareInstallResultAppOpenSkip(t *testing.T) {
 		require.False(t, act.SkippedInstall, "non-managed failure must not be flagged as a skip")
 	})
 
+	// Cover the real activation write path (activateNextSoftwareInstallActivity)
+	// so a broken JOIN or COALESCE in the INSERT that snapshots patch_when_closed
+	// can't slip past the manually-inserted rows the other subtests use.
+	t.Run("activateNextSoftwareInstallActivity snapshots patch_when_closed from the source policy", func(t *testing.T) {
+		readPersistedFlag := func(installUUID string) int {
+			var v int
+			mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+				return sqlx.GetContext(ctx, q, &v,
+					`SELECT patch_when_closed FROM host_software_installs WHERE execution_id = ?`, installUUID)
+			})
+			return v
+		}
+
+		// Use separate hosts for the two cases — activateNextUpcomingActivity
+		// activates one install at a time per host, so a second insert on the
+		// same host would queue behind the first and never populate its hsi row.
+
+		// True case: patch-when-closed policy → patch_when_closed = 1 persisted.
+		patchHost := test.NewHost(t, ds, "activation-snapshot-patch-host", "10.0.0.4", uuid.NewString(), uuid.NewString(), time.Now())
+		require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{patchHost.ID})))
+		patchPolicyID := createFailingPolicy(t, patchHost, true)
+		patchInstallUUID, err := ds.InsertSoftwareInstallRequest(ctx, patchHost.ID, installerID, fleet.HostSoftwareInstallOptions{
+			PolicyID: &patchPolicyID,
+		})
+		require.NoError(t, err)
+		require.Equal(t, 1, readPersistedFlag(patchInstallUUID),
+			"activation must snapshot patch_when_closed = 1 from a patch-when-closed policy")
+
+		// False case: ordinary policy → patch_when_closed = 0 persisted. A
+		// broken default or missing COALESCE would leak state from the true
+		// case; running on a separate host makes the two independent.
+		ordinaryHost := test.NewHost(t, ds, "activation-snapshot-ordinary-host", "10.0.0.6", uuid.NewString(), uuid.NewString(), time.Now())
+		require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{ordinaryHost.ID})))
+		ordinaryPolicyID := createFailingPolicy(t, ordinaryHost, false)
+		ordinaryInstallUUID, err := ds.InsertSoftwareInstallRequest(ctx, ordinaryHost.ID, installerID, fleet.HostSoftwareInstallOptions{
+			PolicyID: &ordinaryPolicyID,
+		})
+		require.NoError(t, err)
+		require.Equal(t, 0, readPersistedFlag(ordinaryInstallUUID),
+			"activation must snapshot patch_when_closed = 0 from an ordinary policy")
+	})
+
+	// Policy deletion between activation and orbit reporting the result must not
+	// downgrade a real skip to a plain failure: ON DELETE SET NULL nulls
+	// hsi.policy_id, but the snapshotted patch_when_closed remains 1 and is the
+	// source of truth for the skip classification.
+	t.Run("policy deleted after activation but before result -> still classifies as skip", func(t *testing.T) {
+		host := test.NewHost(t, ds, "policy-deleted-host", "10.0.0.5", uuid.NewString(), uuid.NewString(), time.Now())
+		require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID})))
+		policyID := createFailingPolicy(t, host, true)
+		installUUID := insertPendingInstall(t, host, policyID)
+
+		// Delete the source policy before orbit reports the result. FK is ON
+		// DELETE SET NULL, so hsi.policy_id becomes NULL while patch_when_closed
+		// stays 1 on the snapshot.
+		mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `DELETE FROM policies WHERE id = ?`, policyID)
+			return err
+		})
+
+		hctx := hostctx.NewContext(ctx, host)
+		require.NoError(t, svc.SaveHostSoftwareInstallResult(hctx, &fleet.HostSoftwareInstallResultPayload{
+			HostID:                    host.ID,
+			InstallUUID:               installUUID,
+			PreInstallConditionOutput: new(""), // app open
+		}))
+
+		act, ok := installedActivities[installUUID]
+		require.True(t, ok, "an installed_software activity should have been emitted")
+		require.Equal(t, string(fleet.SoftwareInstallFailed), act.Status)
+		require.True(t, act.SkippedInstall,
+			"snapshotted patch_when_closed is the source of truth: a policy delete before the result must not downgrade the skip")
+		require.Equal(t, 0, countPendingRetries(t, host.ID),
+			"a skip must not queue a retry even when the source policy has been deleted")
+	})
+
 	t.Run("many consecutive app-open runs never hit the retry cap", func(t *testing.T) {
 		host := test.NewHost(t, ds, "many-runs-host", "10.0.0.3", uuid.NewString(), uuid.NewString(), time.Now())
 		require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID})))
