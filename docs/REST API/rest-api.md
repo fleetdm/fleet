@@ -1252,6 +1252,10 @@ By default, the `certificate` field in the response is a PEM-encoded PKCS7 envel
 
 As an alternative to [API token authentication](https://fleetdm.com/docs/rest-api/rest-api#retrieve-your-api-token), you can send an [HTTP signature in the request header](#example-http-signature).
 
+**Available in Fleet Premium.** Fleet admins can restrict which identity providers (IdPs) may vouch for a request with the `integrations.certificates_idp_introspection_urls` and `integrations.certificates_idp_client_ids` settings, and can require that HTTP signature requests name the host's recorded end user with `integrations.certificates_require_host_end_user_binding`. See [Update configuration](#update-configuration).
+
+When IdP verification or host end user binding runs, the CSR must contain exactly one email address and exactly one user principal name (UPN). The email must match the username returned by the IdP, and the UPN must be that email or its complete local part (for `bob@example.com`, either `bob@example.com` or `bob`), compared case-insensitively. A CSR with a different UPN, an empty UPN, or more than one email or UPN is rejected.
+
 `POST /api/v1/fleet/certificate_authorities/:id/request_certificate`
 
 #### Parameters
@@ -1260,9 +1264,9 @@ As an alternative to [API token authentication](https://fleetdm.com/docs/rest-ap
 | -------- | ------- | ---- | ------------------------------------------- |
 | id   | string | path | **Required.** The certificate authority (CA) ID in Fleet. You can see your CAs IDs using the [List certificate authorities endpoint](#list-certificate-authorities-cas). |
 | csr       | string | body |**Required** The signed certificate signing request (CSR).    |
-| idp_oauth_url | string | body | OAuth introspection URL from your identity provider (IdP). Required if `idp_token` is specified. |
-| idp_token | string | body | Active session token from your identity provider (IdP). Required if `idp_oauth_url` is specified.|
-| idp_client_id | string | body | Client ID for which the token was issued from your identity provider (IdP). Required if `idp_oauth_url` is specified.|
+| idp_oauth_url | string | body | OAuth introspection URL from your identity provider (IdP). Required if `idp_token` or `idp_client_id` is specified, or if `integrations.certificates_idp_introspection_urls` or `integrations.certificates_idp_client_ids` is configured. When `integrations.certificates_idp_introspection_urls` is non-empty, must exactly match one of its entries. |
+| idp_token | string | body | Active session token from your identity provider (IdP). Required if `idp_oauth_url` or `idp_client_id` is specified, or if `integrations.certificates_idp_introspection_urls` or `integrations.certificates_idp_client_ids` is configured. |
+| idp_client_id | string | body | Client ID for which the token was issued from your identity provider (IdP). Required if `idp_oauth_url` or `idp_token` is specified, or if `integrations.certificates_idp_introspection_urls` or `integrations.certificates_idp_client_ids` is configured. When `integrations.certificates_idp_client_ids` is non-empty, must exactly match one of its entries. |
 | return_pem_certificate | boolean | body | If `true`, the issued certificate is returned as a PEM-encoded `CERTIFICATE` block instead of the default PEM-encoded PKCS7 envelope. Defaults to `false`. |
 
 #### Example
@@ -2006,7 +2010,10 @@ None.
       }
     ],
     "jira": [],
-    "zendesk": []
+    "zendesk": [],
+    "certificates_idp_introspection_urls": [],
+    "certificates_idp_client_ids": [],
+    "certificates_require_host_end_user_binding": false
   },
   "logging": {
     "debug": false,
@@ -2363,7 +2370,10 @@ Modifies the Fleet's configuration with the supplied information.
         "enable_software_vulnerabilities": false
       }
     ],
-    "zendesk": []
+    "zendesk": [],
+    "certificates_idp_introspection_urls": ["https://company.okta.com/oauth2/v1/introspect"],
+    "certificates_idp_client_ids": ["0oa1b2c3d4e5f6g7h8i9"],
+    "certificates_require_host_end_user_binding": true
   },
   "logging": {
       "debug": false,
@@ -16471,6 +16481,9 @@ Omitting `host_activities_webhook` from a `webhook_settings` update leaves the s
 | zendesk         | array  | See [`integrations.zendesk`](#integrations-zendesk2).                 |
 | google_calendar | array  | See [`integrations.google_calendar`](#integrations-google-calendar2). |
 | conditional_access_enabled | boolean | **Available in Fleet Premium.** Whether to block third party app sign-ins on hosts failing policies. Must have Microsoft Entra or Okta connected and configured in global config. |
+| certificates_idp_introspection_urls | array | **Available in Fleet Premium.** Allowlist of OAuth 2.0 token introspection URLs that the [Request certificate](#request-certificate) endpoint accepts in `idp_oauth_url`. Each entry must be an absolute `https` URL without embedded credentials and is matched exactly. When this or `certificates_idp_client_ids` is non-empty, `idp_oauth_url`, `idp_token`, and `idp_client_id` are required on every certificate request. |
+| certificates_idp_client_ids | array | **Available in Fleet Premium.** Allowlist of OAuth client IDs that the [Request certificate](#request-certificate) endpoint accepts in `idp_client_id`. When this or `certificates_idp_introspection_urls` is non-empty, `idp_oauth_url`, `idp_token`, and `idp_client_id` are required on every certificate request. |
+| certificates_require_host_end_user_binding | boolean | **Available in Fleet Premium.** When `true`, a [Request certificate](#request-certificate) call authenticated with an [HTTP signature](#example-http-signature) must carry a CSR whose email matches the end user Fleet has recorded for that host (the IdP username from SCIM or end user authentication, compared case-insensitively). Requests from hosts with no recorded end user are rejected. Requests authenticated with an API token are unaffected. Defaults to `false`. |
 
 <br/>
 
