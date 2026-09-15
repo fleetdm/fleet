@@ -94,13 +94,11 @@ Open [iMazing Profile Editor](https://imazing.com/profile-editor), create a new 
 **Under SCEP:**
 - **URL:** `$FLEET_VAR_NDES_SCEP_PROXY_URL`
 - **Challenge:** `$FLEET_VAR_NDES_SCEP_CHALLENGE`
-- **Subject:** `CN=managementAttestation %HardwareUUID%`
-- **Subject Alt Names:** Add an OU field with value `$FLEET_VAR_CERTIFICATE_RENEWAL_ID`
+- **Subject:** `CN=managementAttestation %HardwareUUID%`, plus an OU field with value `$FLEET_VAR_CERTIFICATE_RENEWAL_ID`
 - **Key Size:** 2048
 - **Key Usage:** Signing
 - **Key is Extractable:** Unchecked
 - **Allow All Apps Access:** Checked
-- **Certificate Expiration Notification:** Set to 30 days before expiration
 
 **Important:** The Subject must include both the CN and an OU field with `$FLEET_VAR_CERTIFICATE_RENEWAL_ID`. In raw XML, the Subject array should look like this:
 
@@ -112,6 +110,8 @@ Open [iMazing Profile Editor](https://imazing.com/profile-editor), create a new 
             <string>CN</string>
             <string>managementAttestation %HardwareUUID%</string>
         </array>
+    </array>
+    <array>
         <array>
             <string>OU</string>
             <string>$FLEET_VAR_CERTIFICATE_RENEWAL_ID</string>
@@ -176,7 +176,6 @@ On your Mac, open [iMazing Profile Editor](https://imazing.com/profile-editor). 
 - **Key Usage:** Signing
 - **Key is Extractable:** Unchecked
 - **Allow All Apps Access:** Checked
-- **Certificate Expiration Notification:** Set to 14 days before expiration
 
 > **Important:** Static SCEP challenges require manual redeployment — Fleet's automatic renewal via `$FLEET_VAR_CERTIFICATE_RENEWAL_ID` only works when Fleet is acting as a SCEP proxy (dynamic option). Use the osquery policy below to identify hosts with certificates expiring within 14 days.
 
