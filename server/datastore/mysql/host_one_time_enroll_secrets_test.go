@@ -38,7 +38,7 @@ func TestHostOneTimeEnrollSecrets(t *testing.T) {
 	}
 }
 
-const oneTimeSecretProfile = `<dict><key>EnrollSecret</key><string>$FLEET_HOST_SECRET_ENROLL_SECRET</string></dict>`
+const oneTimeSecretProfile = `<dict><key>EnrollSecret</key><string>$FLEET_HOST_SECRET_ENROLL_SECRET</string></dict>` // nolint:gosec // Not hardcoded credentials
 
 func newOneTimeSecretTestHost(t *testing.T, ds *Datastore, platform string, teamID *uint) *fleet.Host {
 	id := strings.ToUpper(uuid.NewString())

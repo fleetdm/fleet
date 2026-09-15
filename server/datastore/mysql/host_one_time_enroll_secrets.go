@@ -12,8 +12,7 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-const hostOneTimeEnrollSecretColumns = `id, secret, host_id, team_id, platform, hardware_uuid, hardware_serial,
-	created_at, consumed_at, orbit_used_at, osquery_used_at`
+const hostOneTimeEnrollSecretColumns = `id, secret, host_id, team_id, platform, hardware_uuid, hardware_serial, created_at, consumed_at, orbit_used_at, osquery_used_at` // nolint:gosec // Not hardcoded credentials
 
 func (ds *Datastore) GetHostOneTimeEnrollSecret(ctx context.Context, secret string) (*fleet.HostOneTimeEnrollSecret, error) {
 	if strings.TrimSpace(secret) == "" {
