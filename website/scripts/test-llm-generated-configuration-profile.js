@@ -304,7 +304,8 @@ Examples:
   sails run test-llm-generated-configuration-profile --all --profileType=csp --baseModel=claude-haiku-4-5
   sails run test-llm-generated-configuration-profile --all --profileType=ddm --baseModel=claude-haiku-4-5 --validateWithContour
   sails run test-llm-generated-configuration-profile --profileType=ddm --naturalLanguageInstructions="Defer minor updates by 30 days" --parallelTests=5
-  sails run test-llm-generated-configuration-profile --caseId=ddm-defer-minor-updates --parallelTests=5`,
+  sails run test-llm-generated-configuration-profile --caseId=ddm-defer-minor-updates --parallelTests=5
+  sails run test-llm-generated-configuration-profile --all --profileType=csp --parallelTests=5`,
 
 
   inputs: {
@@ -355,10 +356,11 @@ only sometimes.  Ids are unique and carry their profile type as a prefix, so --p
     parallelTests: {
       type: 'number',
       defaultsTo: 1,
-      description: 'Run the chosen case this many times at once, to see how much the answer varies.',
-      extendedDescription: `Works with --naturalLanguageInstructions or --caseId, not with --all: --all already runs many
-different cases, and launching them all together would say more about rate limits than about the prompt.  Every run is
-reported separately, so a set that splits 3 ok / 2 FAILED is the point rather than a problem -- that is the variance.`
+      description: 'Run each case this many times, to see how often it passes rather than whether it passed once.',
+      extendedDescription: `Works with any of --naturalLanguageInstructions, --caseId or --all.  The repeats of one case
+go out together and the cases stay sequential, so at most this many requests are ever in flight -- launching every case
+at once would say more about rate limits than about the prompt.  Results are reported per case as a fail rate, because
+a case failing 2 of 5 is a different problem from one failing 5 of 5.`
     },
 
     validateWithContour: {
@@ -388,9 +390,6 @@ csp cases report as not-checked either way.`
     }
     if(parallelTests < 1) {
       throw new Error(`--parallelTests must be at least 1 (got ${parallelTests}).`);
-    }
-    if(parallelTests > 1 && all) {
-      throw new Error('--parallelTests repeats a single case, so use it with --naturalLanguageInstructions or --caseId.  --all already runs many different ones.');
     }
 
     // Resolved before anything is spent.  Listing near-misses matters with 33 cases: a bare "not found"
@@ -479,18 +478,9 @@ csp cases report as not-checked either way.`
         throw new Error(`No cases defined for profileType "${profileType}".`);
       }
     } else {
-      // One case, repeated.  Either a named case from the list above -- which brings its own expect block,
-      // so the repeats are scored -- or a one-off from --naturalLanguageInstructions, which is not.
-      // Numbered only when there is more than one, so a single run still reads as the plain id.
-      let caseToRepeat = chosenCase || { id: 'ad-hoc', profileType, instructions: naturalLanguageInstructions };
-      cases = _.times(parallelTests, (idx)=>{
-        return _.extend({}, caseToRepeat, {
-          id: parallelTests > 1 ? `${caseToRepeat.id} #${idx + 1}` : caseToRepeat.id,
-        });
-      });
-      if(chosenCase) {
-        // Same reason as the --all branch: the saved transcript should record which prompt it tested.
-      }
+      // A named case from the list above -- which brings its own expect block, so repeats are scored --
+      // or a one-off from --naturalLanguageInstructions, which is not.
+      cases = [chosenCase || { id: 'ad-hoc', profileType, instructions: naturalLanguageInstructions }];
     }
 
     let results = [];
@@ -523,146 +513,150 @@ csp cases report as not-checked either way.`
     };
 
     for (let effortLevel of effortLevelsToRun) {
+      for (let testCase of cases) {
 
-      // Launched together only when repeating one case.  --all stays sequential: firing thirty different
-      // cases at once would measure the rate limit rather than the prompt, and the per-case line printed
-      // as each finishes is what keeps a slow run distinguishable from a hung one.
-      let generationsInFlight = parallelTests > 1
-        ? _.map(cases, (testCase)=>{ return startGenerating(testCase, effortLevel); })
-        : undefined;
+        // The repeats of one case go out together; the cases themselves stay sequential.  Thirty cases
+        // times five repeats launched at once would measure the rate limit rather than the prompt, and
+        // the per-case line printed as each finishes is what keeps a slow run distinguishable from a
+        // hung one.  At most parallelTests requests are ever in flight.
+        let repeatsInFlight = _.times(parallelTests, ()=>{ return startGenerating(testCase, effortLevel); });
 
-      for (let caseIdx = 0; caseIdx < cases.length; caseIdx++) {
-        let testCase = cases[caseIdx];
+        for (let repeatIdx = 0; repeatIdx < parallelTests; repeatIdx++) {
 
-        // Reported in order even when they finished out of order, so the transcript reads predictably.
-        let outcome = generationsInFlight ? await generationsInFlight[caseIdx] : await startGenerating(testCase, effortLevel);
-        let rawResult = outcome.rawResult;
-        let unexpectedError = outcome.unexpectedError;
-        let elapsedMs = outcome.elapsedMs;
+          // Awaited in order even when they finished out of order, so the transcript reads predictably.
+          let outcome = await repeatsInFlight[repeatIdx];
+          let rawResult = outcome.rawResult;
+          let unexpectedError = outcome.unexpectedError;
+          let elapsedMs = outcome.elapsedMs;
+          // Numbered only when there is more than one, so a single run still reads as the plain id.
+          let displayId = parallelTests > 1 ? `${testCase.id} #${repeatIdx + 1}` : testCase.id;
 
-        // Mirror the action's own acceptance test: an abstention, or a response missing any
-        // required key, is not a usable profile.
-        let abstained = !unexpectedError && (
-          rawResult.couldNotGenerateProfile ||
+          // Mirror the action's own acceptance test: an abstention, or a response missing any
+          // required key, is not a usable profile.
+          let abstained = !unexpectedError && (
+            rawResult.couldNotGenerateProfile ||
           !rawResult.configurationProfile ||
           !rawResult.profileFilename ||
           !rawResult.settingsEnforced
-        );
-        let generatedProfile = (unexpectedError || abstained) ? undefined : {
-          profile: rawResult.configurationProfile,
-          profileFilename: rawResult.profileFilename,
-          deliveryNotes: rawResult.deliveryNotes,
-          items: rawResult.settingsEnforced,
-        };
+          );
+          let generatedProfile = (unexpectedError || abstained) ? undefined : {
+            profile: rawResult.configurationProfile,
+            profileFilename: rawResult.profileFilename,
+            deliveryNotes: rawResult.deliveryNotes,
+            items: rawResult.settingsEnforced,
+          };
 
-        let expectations = testCase.expect || {};
-        let checkFailures;
-        if(unexpectedError) {
+          let expectations = testCase.expect || {};
+          let checkFailures;
+          if(unexpectedError) {
           // Distinguished from an abstention on purpose: collapsing them would hide a
           // misconfigured anthropicSecret as a model refusal.
-          checkFailures = [`unexpected error: ${unexpectedError.message}`];
-        } else if(abstained) {
-          checkFailures = expectations.expectFailure ? [] : [
-            `abstained but a profile was expected -- reason given: ${JSON.stringify(rawResult.reasonWhyAProfileCouldNotBeGenerated || '(none)')}`
-          ];
-        } else {
-          checkFailures = checkExpectations(expectations, generatedProfile);
-        }
+            checkFailures = [`unexpected error: ${unexpectedError.message}`];
+          } else if(abstained) {
+            checkFailures = expectations.expectFailure ? [] : [
+              `abstained but a profile was expected -- reason given: ${JSON.stringify(rawResult.reasonWhyAProfileCouldNotBeGenerated || '(none)')}`
+            ];
+          } else {
+            checkFailures = checkExpectations(expectations, generatedProfile);
+          }
 
-        // Deliberately after elapsedMs is taken: this shells out to another process, and elapsedMs exists to
-        // measure the model, not the test harness.
-        //
-        // Errors fail the case, warnings only get reported.  contour warns about things that are true of a
-        // perfectly good profile -- a payload type Apple has since superseded, for instance -- so failing on
-        // warnings would turn the suite red for reasons unrelated to what each case is testing.
-        let contourResult;
-        if(validateWithContour && generatedProfile) {
-          contourResult = await runContourValidation(testCase.profileType, generatedProfile.profile);
-          checkFailures = checkFailures.concat(_.map(contourResult.errors, (contourError)=>{
-            return `contour: ${contourError}`;
-          }));
-        }
+          // Deliberately after elapsedMs is taken: this shells out to another process, and elapsedMs exists to
+          // measure the model, not the test harness.
+          //
+          // Errors fail the case, warnings only get reported.  contour warns about things that are true of a
+          // perfectly good profile -- a payload type Apple has since superseded, for instance -- so failing on
+          // warnings would turn the suite red for reasons unrelated to what each case is testing.
+          let contourResult;
+          if(validateWithContour && generatedProfile) {
+            contourResult = await runContourValidation(testCase.profileType, generatedProfile.profile);
+            checkFailures = checkFailures.concat(_.map(contourResult.errors, (contourError)=>{
+              return `contour: ${contourError}`;
+            }));
+          }
 
-        results.push({
-          id: testCase.id,
-          profileType: testCase.profileType,
-          canary: !!testCase.canary,
-          effort: effortLevel || '(default)',
-          elapsedMs,
-          checkFailures,
-          generatedProfile,
-          contourResult,
-        });
+          results.push({
+            id: displayId,
+            // The base id, so repeats of one case can be grouped back together for the failure rate.
+            caseId: testCase.id,
+            profileType: testCase.profileType,
+            canary: !!testCase.canary,
+            effort: effortLevel || '(default)',
+            elapsedMs,
+            checkFailures,
+            generatedProfile,
+            contourResult,
+          });
 
-        // Report as each case finishes.  A full run takes minutes, and a summary-only script
-        // makes a slow run indistinguishable from a hung one.
-        report(
+          // Report as each case finishes.  A full run takes minutes, and a summary-only script
+          // makes a slow run indistinguishable from a hung one.
+          report(
           `${String(elapsedMs).padStart(6)}ms  ` +
           `${String(effortLevel || 'default').padEnd(8)} ` +
           `${testCase.profileType.padEnd(13)} ` +
-          `${String(testCase.id).padEnd(38)} ` +
+          `${String(displayId).padEnd(38)} ` +
           `${checkFailures.length === 0 ? 'ok' : 'FAILED'}`
-        );
-        for (let checkFailure of checkFailures) {
-          report(`         └─ ${checkFailure}`);
-        }
-        // A case with only contour warnings still passes, so nothing else would print it.  One line keeps it
-        // visible without dragging the whole profile onto the terminal.
-        if(contourResult && contourResult.ran && contourResult.errors.length === 0 && contourResult.warnings.length > 0) {
-          report(`         └─ contour: ${contourResult.warnings.length} warning(s), not failing the case`);
-        }
-
-        // Print the output for anything that failed, for every canary, and for everything when
-        // --verbose.  A failure you can't see is a failure you can't act on -- and a canary that
-        // passes its substring checks still needs a human, because the properties that matter most
-        // on those cases are the ones substrings can't express.
-        if(generatedProfile) {
-          let banner = testCase.canary && checkFailures.length === 0 ? 'CANARY, automated checks passed -- confirm by eye' : testCase.canary ? 'CANARY, FAILED' : checkFailures.length > 0 ? 'FAILED' : 'ok';
-          let detailLines = [
-            `\n──── ${testCase.id} @ effort ${effortLevel || 'default'} (${baseModel}) -- ${banner} ────`,
-            `instructions: ${testCase.instructions}`,
-          ];
-          if(testCase.readByEye) {
-            detailLines.push(`CONFIRM BY EYE: ${testCase.readByEye}`);
+          );
+          for (let checkFailure of checkFailures) {
+            report(`         └─ ${checkFailure}`);
           }
-          detailLines.push(
+          // A case with only contour warnings still passes, so nothing else would print it.  One line keeps it
+          // visible without dragging the whole profile onto the terminal.
+          if(contourResult && contourResult.ran && contourResult.errors.length === 0 && contourResult.warnings.length > 0) {
+            report(`         └─ contour: ${contourResult.warnings.length} warning(s), not failing the case`);
+          }
+
+          // Print the output for anything that failed, for every canary, and for everything when
+          // --verbose.  A failure you can't see is a failure you can't act on -- and a canary that
+          // passes its substring checks still needs a human, because the properties that matter most
+          // on those cases are the ones substrings can't express.
+          if(generatedProfile) {
+            let banner = testCase.canary && checkFailures.length === 0 ? 'CANARY, automated checks passed -- confirm by eye' : testCase.canary ? 'CANARY, FAILED' : checkFailures.length > 0 ? 'FAILED' : 'ok';
+            let detailLines = [
+              `\n──── ${displayId} @ effort ${effortLevel || 'default'} (${baseModel}) -- ${banner} ────`,
+              `instructions: ${testCase.instructions}`,
+            ];
+            if(testCase.readByEye) {
+              detailLines.push(`CONFIRM BY EYE: ${testCase.readByEye}`);
+            }
+            detailLines.push(
             `profileFilename: ${generatedProfile.profileFilename}`,
             `deliveryNotes: ${JSON.stringify(generatedProfile.deliveryNotes)}`
-          );
-          // Stated either way, when it ran at all.  A case contour never looked at and a case contour
-          // looked at and liked are very different things, and only one of them is evidence.
-          if(!contourResult) {
+            );
+            // Stated either way, when it ran at all.  A case contour never looked at and a case contour
+            // looked at and liked are very different things, and only one of them is evidence.
+            if(!contourResult) {
             // Not validated this run -- say nothing rather than implying a clean bill of health.
-          } else if(!contourResult.ran) {
-            detailLines.push(`contour: not run -- ${contourResult.skippedBecause}`);
-          } else if(contourResult.errors.length === 0 && contourResult.warnings.length === 0) {
-            detailLines.push('contour: valid, no findings');
-          } else {
-            detailLines.push(`contour: ${contourResult.errors.length} error(s), ${contourResult.warnings.length} warning(s)`);
-            for (let contourError of contourResult.errors) {
-              detailLines.push(`  ERROR   ${contourError}`);
+            } else if(!contourResult.ran) {
+              detailLines.push(`contour: not run -- ${contourResult.skippedBecause}`);
+            } else if(contourResult.errors.length === 0 && contourResult.warnings.length === 0) {
+              detailLines.push('contour: valid, no findings');
+            } else {
+              detailLines.push(`contour: ${contourResult.errors.length} error(s), ${contourResult.warnings.length} warning(s)`);
+              for (let contourError of contourResult.errors) {
+                detailLines.push(`  ERROR   ${contourError}`);
+              }
+              for (let contourWarning of contourResult.warnings) {
+                detailLines.push(`  warning ${contourWarning}`);
+              }
             }
-            for (let contourWarning of contourResult.warnings) {
-              detailLines.push(`  warning ${contourWarning}`);
-            }
-          }
-          detailLines.push(
+            detailLines.push(
             `\n${generatedProfile.profile}\n`,
             `settingsEnforced:\n${util.inspect(generatedProfile.items, {depth: 4, colors: false})}`,
             '────────\n'
-          );
-          // A focused run -- one case, named or ad-hoc -- prints its detail regardless: it is the only
-          // thing there is to look at, and with --parallelTests the variance is read by comparing them.
-          let isAdHocRun = !all;
-          let writeDetailLine = (verbose || testCase.canary || checkFailures.length > 0 || isAdHocRun) ? report : reportToTranscriptOnly;
-          for (let detailLine of detailLines) {
-            writeDetailLine(detailLine);
+            );
+            // A focused run -- one case, named or ad-hoc -- prints its detail regardless: it is the only
+            // thing there is to look at, and with --parallelTests the variance is read by comparing them.
+            let isAdHocRun = !all;
+            let writeDetailLine = (verbose || testCase.canary || checkFailures.length > 0 || isAdHocRun) ? report : reportToTranscriptOnly;
+            for (let detailLine of detailLines) {
+              writeDetailLine(detailLine);
+            }
           }
         }
       }
     }
 
-    for (let tableLine of buildResultsTable(results, baseModel)) {
+    for (let tableLine of buildResultsTable(results, baseModel, parallelTests)) {
       reportWithoutLogPrefix(tableLine);
     }
 
@@ -677,6 +671,33 @@ csp cases report as not-checked either way.`
         `median ${elapsedTimes[Math.floor(elapsedTimes.length / 2)]}ms  ` +
         `slowest ${_.last(elapsedTimes)}ms`
       );
+
+      // With repeats the run count buries the thing worth knowing: how many cases are reliable, how
+      // many are flaky, and how many never work.  A case failing 2 of 5 is a different problem from
+      // one failing 5 of 5, and only the middle group is worth re-running to understand.
+      if(parallelTests > 1) {
+        let caseIdsInOrder = _.uniq(_.pluck(resultsForThisEffort, 'caseId'));
+        let alwaysPassed = [];
+        let sometimesFailed = [];
+        let alwaysFailed = [];
+        for (let caseId of caseIdsInOrder) {
+          let runsOfThisCase = _.where(resultsForThisEffort, { caseId });
+          let failureCount = _.filter(runsOfThisCase, (result)=>{ return result.checkFailures.length > 0; }).length;
+          if(failureCount === 0) { alwaysPassed.push(caseId); }
+          else if(failureCount === runsOfThisCase.length) { alwaysFailed.push(caseId); }
+          else { sometimesFailed.push({ caseId, failureCount, total: runsOfThisCase.length }); }
+        }
+        report(
+          `${caseIdsInOrder.length} case(s): ${alwaysPassed.length} passed every run, ` +
+          `${sometimesFailed.length} flaky, ${alwaysFailed.length} failed every run`
+        );
+        for (let flaky of sometimesFailed) {
+          report(`  flaky   ${flaky.caseId}: failed ${flaky.failureCount}/${flaky.total} (${Math.round(100 * flaky.failureCount / flaky.total)}%)`);
+        }
+        for (let caseId of alwaysFailed) {
+          report(`  always  ${caseId}: failed every run`);
+        }
+      }
     }
 
     // Citation resolution can't be checked automatically -- it needs a human against the published
@@ -708,8 +729,22 @@ csp cases report as not-checked either way.`
     let failedResults = _.filter(results, (result)=>{ return result.checkFailures.length > 0; });
     if(failedResults.length > 0) {
       reportWarning(`\n${failedResults.length} of ${results.length} run(s) failed:`);
+      // One line per distinct failure rather than per run: five repeats of one case failing the same
+      // way is one problem, not five, and printing it five times hides the cases that failed once.
+      let failuresAlreadyReported = {};
       for (let failedResult of failedResults) {
-        reportWarning(`  ${failedResult.id} @ ${failedResult.effort}: ${failedResult.checkFailures.join('; ')}`);
+        let reason = failedResult.checkFailures.join('; ');
+        let seenBefore = failuresAlreadyReported[failedResult.caseId + reason];
+        failuresAlreadyReported[failedResult.caseId + reason] = (seenBefore || 0) + 1;
+      }
+      let reportedAlready = {};
+      for (let failedResult of failedResults) {
+        let reason = failedResult.checkFailures.join('; ');
+        let key = failedResult.caseId + reason;
+        if(reportedAlready[key]) { continue; }
+        reportedAlready[key] = true;
+        let timesSeen = failuresAlreadyReported[key];
+        reportWarning(`  ${failedResult.caseId} @ ${failedResult.effort}${timesSeen > 1 ? ` (x${timesSeen})` : ''}: ${reason}`);
       }
     }
 
@@ -892,18 +927,46 @@ async function runContourValidation(profileType, profile) {
  * @param  {String} baseModel
  * @returns {Array} lines
  */
-function buildResultsTable(results, baseModel) {
+function buildResultsTable(results, baseModel, parallelTests) {
   // An asterisk rather than a separate column: it keeps the case name and its weight together, and
   // the name column is already the widest thing in the table.
-  let nameFor = (result)=>{ return result.canary ? `${result.id} *` : result.id; };
+  let nameFor = (name, isCanary)=>{ return isCanary ? `${name} *` : name; };
+  let medianOf = (numbers)=>{
+    let sorted = numbers.slice().sort((a, b)=>{ return a - b; });
+    return sorted[Math.floor(sorted.length / 2)];
+  };
 
-  let lines = [`\n=== Results (${baseModel}) ===`].concat(buildTable(
-    ['case', 'type', 'ms', 'result'],
-    _.map(results, (result)=>{
-      return [nameFor(result), result.profileType, String(result.elapsedMs), result.checkFailures.length === 0 ? 'ok' : `FAIL ${result.checkFailures.length}`];
-    }),
-    ['left', 'left', 'right', 'left']
-  ));
+  let lines;
+  if(parallelTests > 1) {
+    // One row per case rather than per run.  With repeats the interesting number is how often a case
+    // fails, not what any single run did -- a case that fails two times in five is a different problem
+    // from one that fails every time, and a flat list of runs hides which is which.
+    let caseIdsInOrder = _.uniq(_.pluck(results, 'caseId'));
+    lines = [`\n=== Results (${baseModel}, ${parallelTests} runs per case) ===`].concat(buildTable(
+      ['case', 'type', 'passed', 'fail rate', 'median ms'],
+      _.map(caseIdsInOrder, (caseId)=>{
+        let runsOfThisCase = _.where(results, { caseId });
+        let passing = _.filter(runsOfThisCase, (result)=>{ return result.checkFailures.length === 0; });
+        let failRate = Math.round(100 * (runsOfThisCase.length - passing.length) / runsOfThisCase.length);
+        return [
+          nameFor(caseId, _.first(runsOfThisCase).canary),
+          _.first(runsOfThisCase).profileType,
+          `${passing.length}/${runsOfThisCase.length}`,
+          `${failRate}%`,
+          String(medianOf(_.pluck(runsOfThisCase, 'elapsedMs'))),
+        ];
+      }),
+      ['left', 'left', 'right', 'right', 'right']
+    ));
+  } else {
+    lines = [`\n=== Results (${baseModel}) ===`].concat(buildTable(
+      ['case', 'type', 'ms', 'result'],
+      _.map(results, (result)=>{
+        return [nameFor(result.id, result.canary), result.profileType, String(result.elapsedMs), result.checkFailures.length === 0 ? 'ok' : `FAIL ${result.checkFailures.length}`];
+      }),
+      ['left', 'left', 'right', 'left']
+    ));
+  }
 
   if(_.some(results, 'canary')) {
     lines.push('* canary -- these fail quietly, so read their output rather than trusting the pass count.');
