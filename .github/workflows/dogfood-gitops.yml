@@ -7,7 +7,12 @@ on:
     paths:
       - "it-and-security/**"
       - ".github/workflows/dogfood-gitops.yml"
-  pull_request:
+  # pull_request_target (not pull_request) so the workflow, actions, and
+  # gitops.sh always run from main: this job has secrets in its environment,
+  # and a pull_request run executes PR-controlled code that could exfiltrate
+  # them (log masking doesn't stop e.g. curl to an attacker's server). The
+  # PR's config is checked out separately below and treated as data only.
+  pull_request_target:
     paths:
       - "it-and-security/**"
       - ".github/workflows/dogfood-gitops.yml"
@@ -32,15 +37,30 @@ jobs:
   fleet-gitops:
     timeout-minutes: 30
     runs-on: ubuntu-latest
+    # Fork PRs get no secrets under pull_request; keep that true under
+    # pull_request_target (which would otherwise grant them) by skipping forks.
+    if: github.event_name != 'pull_request_target' || github.event.pull_request.head.repo.full_name == github.repository
     steps:
       - name: Harden Runner
         uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
         with:
           egress-policy: audit
 
+      # On pull_request_target this checks out the base branch (main), so the
+      # expand-secrets and gitops actions below run trusted code.
       - name: Checkout our repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          persist-credentials: false
+
+      # The PR's it-and-security config is data for fleetctl gitops --dry-run;
+      # nothing under this path is executed.
+      - name: Checkout pull request configuration
+        if: github.event_name == 'pull_request_target'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          path: untrusted-pr
           persist-credentials: false
 
       # DOGFOOD_GITOPS_SECRETS_JSON is a JSON bundle holding all the individual
@@ -54,9 +74,9 @@ jobs:
       - name: Apply latest configuration to Fleet
         uses: ./.github/actions/gitops
         with:
-          dry-run-only: ${{ github.event_name == 'pull_request' && 'true' || 'false' }}
+          dry-run-only: ${{ github.event_name == 'pull_request_target' && 'true' || 'false' }}
         env:
-          FLEET_GITOPS_DIR: ${{ github.workspace }}/it-and-security
+          FLEET_GITOPS_DIR: ${{ github.event_name == 'pull_request_target' && format('{0}/untrusted-pr/it-and-security', github.workspace) || format('{0}/it-and-security', github.workspace) }}
           FLEET_URL: https://dogfood.fleetdm.com
           FLEET_API_TOKEN: ${{ env.DOGFOOD_API_TOKEN }}
           DOGFOOD_APPLE_BM_DEFAULT_TEAM: "💻 Workstations"
@@ -93,7 +113,9 @@ jobs:
           DOGFOOD_ENTRA_CLIENT_ID: ${{ env.DOGFOOD_ENTRA_CLIENT_ID }}
 
       - name: Notify on Gitops failure
-        if: failure() && github.ref_name == 'main'
+        # github.ref_name is the base branch (main) on pull_request_target, so
+        # also exclude PR dry-runs explicitly.
+        if: failure() && github.event_name != 'pull_request_target' && github.ref_name == 'main'
         uses: slackapi/slack-github-action@e28cf165c92ffef168d23c5c9000cffc8a25e117 # v1.24.0
         with:
           payload: |
