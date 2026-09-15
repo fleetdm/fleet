@@ -1323,7 +1323,8 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, logFn Logf, y
 	// global configuration (or the no-team/unassigned file).
 	if controlsTop.AppleAccountProvisioning != nil && !result.global() && !result.IsNoTeam() && !result.IsUnassignedTeam() {
 		multiError = multierror.Append(multiError, fmt.Errorf(
-			"%s: apple_account_provisioning can only be configured in the global configuration, not for a specific team", yamlFilename))
+			"%s: apple_account_provisioning can only be configured in the global configuration, not for a specific team", yamlFilename,
+		))
 	}
 	controlsFilePath := yamlFilename
 	multiError = multierror.Append(multiError, processControlsPathIfNeeded(controlsTop, result, &controlsFilePath)...)
@@ -2030,6 +2031,10 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 				continue
 			}
 
+			if err := fleet.ValidateNoSecretsInProfileName(fileBytes); err != nil {
+				multiError = multierror.Append(multiError, fmt.Errorf("invalid profile name in file %s: %v", item.Path, err))
+			}
+
 			// Expand variables the way the apply path does before validating (see
 			// getProfilesContents); an unexpanded variable inside a <data> element
 			// isn't valid base64 and fails to parse. Secrets are guaranteed to be
@@ -2174,7 +2179,8 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 				// force it on; auto-set when omitted.
 				if item.ContinuousAutomations.Valid && !item.ContinuousAutomations.Value {
 					multiError = multierror.Append(multiError, fmt.Errorf(
-						`Couldn't apply policy %q: "continuous_automations_enabled" must be true when "patch_when_closed" is true.`, item.Name))
+						`Couldn't apply policy %q: "continuous_automations_enabled" must be true when "patch_when_closed" is true.`, item.Name,
+					))
 				} else {
 					item.ContinuousAutomationsEnabled = true
 				}
@@ -2182,7 +2188,8 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 				if fma, ok := fmasBySlug[item.FleetMaintainedAppSlug]; ok && fma.PreInstallQuery.Path != "" {
 					multiError = multierror.Append(multiError, fmt.Errorf(
 						`Couldn't apply policy %q: "pre_install_query" can't be set on Fleet-maintained app %q when "patch_when_closed" is true; Fleet manages this query.`,
-						item.Name, item.FleetMaintainedAppSlug))
+						item.Name, item.FleetMaintainedAppSlug,
+					))
 				}
 			}
 		} else if item.FleetMaintainedAppSlug != "" {
