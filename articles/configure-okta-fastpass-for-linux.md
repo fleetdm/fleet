@@ -83,7 +83,7 @@ Okta Verify for Linux isn't covered by Fleet's [automatic certificate renewal](h
 1. In Fleet, head to **Policies** and select **Add policy**. Use the following query to detect whether the certificate is missing or expires in the next 30 days:
 
 ```sql
-SELECT 1 FROM certificates WHERE path = '/opt/okta-verify/device.pem' AND not_valid_after > (CAST(strftime('%s', 'now') AS INTEGER) + 2592000);
+SELECT 1 FROM certificates WHERE path = '/etc/okta/device.pem' AND not_valid_after > (CAST(strftime('%s', 'now') AS INTEGER) + 2592000);
 ```
 
 2. Select **Save**, target only **Linux**, then select **Save** again.
