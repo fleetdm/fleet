@@ -1,0 +1,1 @@
+- Added Android MDM commands to the host details Activity card. The "Show MDM commands" toggle now appears on Android hosts, and the "Upcoming" tab is enabled there and lists commands that Fleet has sent but the device has not yet run.

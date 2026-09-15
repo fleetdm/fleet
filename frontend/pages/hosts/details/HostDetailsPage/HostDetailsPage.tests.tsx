@@ -61,6 +61,13 @@ const mockAppleHost = (): IHost => {
   return host;
 };
 
+const mockAndroidHost = (): IHost => {
+  const host = createMockHost({ platform: "android", status: "online" });
+  host.mdm.enrollment_status = "On (manual)";
+  host.mdm.connected_to_fleet = true;
+  return host;
+};
+
 const mockWindowsHost = (): IHost => {
   const host = createMockHost({ platform: "windows", status: "online" });
   host.mdm.enrollment_status = null;
@@ -100,11 +107,13 @@ const renderHostDetails = (overrides?: {
   currentUser?: IUser;
   isGlobalAdmin?: boolean;
   isMacMdmEnabledAndConfigured?: boolean;
+  isAndroidMdmEnabledAndConfigured?: boolean;
 }) => {
   const {
     currentUser = ADMIN,
     isGlobalAdmin = true,
     isMacMdmEnabledAndConfigured = false,
+    isAndroidMdmEnabledAndConfigured = false,
   } = overrides || {};
 
   const render = createCustomRenderer({
@@ -115,6 +124,7 @@ const renderHostDetails = (overrides?: {
         isGlobalAdmin,
         isPremiumTier: true,
         isMacMdmEnabledAndConfigured,
+        isAndroidMdmEnabledAndConfigured,
         config: createMockConfig(),
       },
     },
@@ -266,5 +276,98 @@ describe("HostDetailsPage - Show MDM commands toggle", () => {
 
     expect(await screen.findByText("No activity")).toBeInTheDocument();
     expect(screen.queryAllByRole("switch")).toHaveLength(0);
+  });
+});
+
+describe("HostDetailsPage - Android MDM commands", () => {
+  const ANDROID_TOOLTIP =
+    "Activities and non-custom MDM commands are not supported yet for Android.";
+
+  const renderAndroidHostDetails = () =>
+    renderHostDetails({ isAndroidMdmEnabledAndConfigured: true });
+
+  const stubAndroidCommand = () => {
+    (commandAPI.getCommands as jest.Mock).mockResolvedValue({
+      results: [
+        {
+          host_uuid: mockAndroidHost().uuid,
+          command_uuid: "android-command-uuid",
+          command_status: "pending",
+          status: "Pending",
+          updated_at: "2024-01-01T00:00:00Z",
+          request_type: "REQUEST_DEVICE_INFO",
+          hostname: "android-host",
+          name: null,
+        },
+      ],
+      count: 1,
+      meta: { has_next_results: false, has_previous_results: false },
+    });
+  };
+
+  afterEach(() => {
+    local.clear();
+    jest.resetAllMocks();
+  });
+
+  it("shows the toggle pinned on and disabled", async () => {
+    // even with the stored preference off, Android has nothing else to show
+    setMDMCommandsToggleLocalState(false);
+    stubQueries(mockAndroidHost());
+
+    const { user } = renderAndroidHostDetails();
+
+    const [toggle] = await screen.findAllByRole("switch");
+    expect(toggle).toBeChecked();
+    expect(toggle).toBeDisabled();
+
+    await user.hover(screen.getAllByText(/Show MDM commands/)[0]);
+    expect(await screen.findByText(ANDROID_TOOLTIP)).toBeInTheDocument();
+  });
+
+  it("requests ran and failed commands for the past tab", async () => {
+    stubQueries(mockAndroidHost());
+
+    renderAndroidHostDetails();
+
+    await waitFor(() => {
+      expect(commandAPI.getCommands).toHaveBeenCalledWith(
+        expect.objectContaining({
+          host_identifier: mockAndroidHost().uuid,
+          command_status: "ran,failed",
+        })
+      );
+    });
+  });
+
+  it("lists pending commands under an enabled upcoming tab", async () => {
+    stubQueries(mockAndroidHost());
+    stubAndroidCommand();
+
+    const { user } = renderAndroidHostDetails();
+
+    const upcomingTab = await screen.findByRole("tab", { name: /upcoming/i });
+    expect(upcomingTab).toHaveAttribute("aria-disabled", "false");
+    await user.click(upcomingTab);
+
+    await waitFor(() => {
+      expect(commandAPI.getCommands).toHaveBeenCalledWith(
+        expect.objectContaining({
+          host_identifier: mockAndroidHost().uuid,
+          command_status: "pending",
+        })
+      );
+    });
+    expect(await screen.findByText("REQUEST_DEVICE_INFO")).toBeInTheDocument();
+  });
+
+  it("hides the toggle when Android MDM is not configured", async () => {
+    stubQueries(mockAndroidHost());
+
+    renderHostDetails({ isAndroidMdmEnabledAndConfigured: false });
+
+    expect(await screen.findByText("No activity")).toBeInTheDocument();
+    expect(screen.queryAllByRole("switch")).toHaveLength(0);
+    expect(commandAPI.getCommands).not.toHaveBeenCalled();
   });
 });
