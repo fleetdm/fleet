@@ -12,6 +12,10 @@ import (
 )
 
 func infoPlist(bundleID string, iOS bool) string {
+	return infoPlistNamed(bundleID, "Test", "1.0", iOS)
+}
+
+func infoPlistNamed(bundleID, name, version string, iOS bool) string {
 	requiresIPhoneOS := ""
 	if iOS {
 		requiresIPhoneOS = "<key>LSRequiresIPhoneOS</key><true/>"
@@ -19,8 +23,8 @@ func infoPlist(bundleID string, iOS bool) string {
 	return `<?xml version="1.0" encoding="UTF-8"?>
 <plist version="1.0"><dict>
 <key>CFBundleIdentifier</key><string>` + bundleID + `</string>
-<key>CFBundleName</key><string>Test</string>
-<key>CFBundleShortVersionString</key><string>1.0</string>
+<key>CFBundleName</key><string>` + name + `</string>
+<key>CFBundleShortVersionString</key><string>` + version + `</string>
 ` + requiresIPhoneOS + `
 </dict></plist>`
 }
@@ -100,4 +104,82 @@ func TestExtractZIPMetadata(t *testing.T) {
 	meta, err = file.ExtractZIPMetadata(latchTfr)
 	require.NoError(t, err)
 	require.NotNil(t, meta)
+	require.Equal(t, "com.example.ios", meta.BundleIdentifier)
+}
+
+// An Expo/React Native ipa embeds CocoaPods resource bundles whose Info.plist
+// carries the pod's name and version, so identity has to come from the app
+// bundle's own plist and not from whichever plist the zip happens to list last.
+func TestExtractZIPMetadataUsesMainAppInfoPlist(t *testing.T) {
+	app := infoPlistNamed("com.example.ios", "Example", "3.2.1", true)
+	privacy := infoPlistNamed("org.cocoapods.React-Core-privacy", "React-Core_privacy", "0.81.5", false)
+	framework := infoPlistNamed("org.cocoapods.hermes-engine", "hermes", "0.81.5", false)
+	appex := infoPlistNamed("com.example.ios.Widget", "Widget", "9.9.9", true)
+
+	requireAppMetadata := func(t *testing.T, entries [][2]string) {
+		t.Helper()
+		tfr, err := fleet.NewKeepFileReader(writeZip(t, entries))
+		require.NoError(t, err)
+		defer tfr.Close()
+
+		meta, err := file.ExtractZIPMetadata(tfr)
+		require.NoError(t, err)
+		require.NotNil(t, meta)
+		require.Equal(t, "com.example.ios", meta.BundleIdentifier)
+		require.Equal(t, []string{"com.example.ios"}, meta.PackageIDs)
+		require.Equal(t, "Example", meta.Name)
+		require.Equal(t, "3.2.1", meta.Version)
+	}
+
+	t.Run("nested plists listed after the app plist", func(t *testing.T) {
+		requireAppMetadata(t, [][2]string{
+			{"Payload/App.app/Info.plist", app},
+			{"Payload/App.app/Frameworks/hermes.framework/Info.plist", framework},
+			{"Payload/App.app/React-Core_privacy.bundle/Info.plist", privacy},
+			{"Payload/App.app/PlugIns/Widget.appex/Info.plist", appex},
+		})
+	})
+
+	t.Run("nested plists listed before the app plist", func(t *testing.T) {
+		requireAppMetadata(t, [][2]string{
+			{"Payload/App.app/React-Core_privacy.bundle/Info.plist", privacy},
+			{"Payload/App.app/PlugIns/Widget.appex/Info.plist", appex},
+			{"Payload/App.app/Info.plist", app},
+		})
+	})
+
+	t.Run("ipa still detected when only a nested plist sets LSRequiresIPhoneOS", func(t *testing.T) {
+		tfr, err := fleet.NewKeepFileReader(writeZip(t, [][2]string{
+			{"Payload/App.app/Info.plist", infoPlistNamed("com.example.ios", "Example", "3.2.1", false)},
+			{"Payload/App.app/PlugIns/Widget.appex/Info.plist", appex},
+		}))
+		require.NoError(t, err)
+		defer tfr.Close()
+
+		meta, err := file.ExtractZIPMetadata(tfr)
+		require.NoError(t, err)
+		require.NotNil(t, meta)
+		require.Equal(t, "com.example.ios", meta.BundleIdentifier)
+		require.Equal(t, "3.2.1", meta.Version)
+	})
+
+	t.Run("merges plists in order when there is no Payload app bundle", func(t *testing.T) {
+		// A plist carrying none of the keys, such as a compiled Core Data
+		// model, must not clear identity read from an earlier entry.
+		keyless := `<?xml version="1.0" encoding="UTF-8"?><plist version="1.0"><dict>
+<key>NSPersistenceFrameworkVersion</key><string>1234</string></dict></plist>`
+		tfr, err := fleet.NewKeepFileReader(writeZip(t, [][2]string{
+			{"Wrapped/Payload/App.app/Info.plist", infoPlistNamed("com.example.wrapped", "Wrapped", "1.2.3", true)},
+			{"Wrapped/Payload/App.app/Model.momd/VersionInfo.plist", keyless},
+		}))
+		require.NoError(t, err)
+		defer tfr.Close()
+
+		meta, err := file.ExtractZIPMetadata(tfr)
+		require.NoError(t, err)
+		require.NotNil(t, meta)
+		require.Equal(t, "com.example.wrapped", meta.BundleIdentifier)
+		require.Equal(t, "Wrapped", meta.Name)
+		require.Equal(t, "1.2.3", meta.Version)
+	})
 }
