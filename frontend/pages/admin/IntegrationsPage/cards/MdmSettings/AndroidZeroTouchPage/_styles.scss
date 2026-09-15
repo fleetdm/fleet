@@ -1,0 +1,54 @@
+.android-zero-touch-page {
+  @include vertical-page-layout;
+
+  &__description {
+    margin: 0;
+  }
+
+  &__enrollment-info {
+    margin: 0;
+  }
+
+  &__dpc-extras {
+    width: 100%;
+    max-width: 640px;
+  }
+
+  &__dpc-extras-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: $pad-small;
+  }
+
+  &__dpc-extras-label {
+    font-size: $small;
+    font-weight: $bold;
+  }
+
+  &__dpc-extras-code {
+    background-color: $core-fleet-white;
+    color: $core-fleet-black;
+    border: 1px solid $ui-fleet-black-10;
+    border-radius: $border-radius;
+    padding: $pad-medium;
+    overflow-x: auto;
+    font-size: $xx-small;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-break: break-all;
+    margin: 0;
+
+    &--loading {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 160px;
+    }
+  }
+
+  &__instructions {
+    margin: 0;
+    max-width: 640px;
+  }
+}
