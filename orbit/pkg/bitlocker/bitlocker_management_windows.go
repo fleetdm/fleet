@@ -97,6 +97,16 @@ func encryptErrHandler(val int32) error {
 		msg = "BitLocker Drive Encryption detected bootable media (CD or DVD) in the computer"
 	case ErrorCodeProtectorExists:
 		msg = "key protector cannot be added; only one key protector of this type is allowed for this drive"
+	case ErrorCodeInvalidPINLength:
+		msg = "the PIN length is not allowed by Group Policy"
+	case ErrorCodeInvalidPINChars, ErrorCodeInvalidPINCharsDetailed:
+		msg = "the PIN contains characters that are not allowed; enhanced PINs may be disabled by Group Policy"
+	case ErrorCodeTBSServiceNotRunning:
+		msg = "the TPM Base Services (TBS) service is not running"
+	case ErrorCodeLockedVolume:
+		msg = "the volume is locked"
+	case ErrorCodeForeignVolume:
+		msg = "the TPM cannot secure this volume because it does not contain the running operating system"
 	default:
 		msg = fmt.Sprintf("error code returned during encryption: %s", fveErrorCode(val))
 	}
@@ -207,6 +217,24 @@ func (v *Volume) protectWithTPM(platformValidationProfile *[]uint8) error {
 	}
 
 	return nil
+}
+
+// protectWithTPMAndPIN adds a TPM and PIN key protector and returns its ID. The PIN is passed to WMI unchanged, so it
+// must not be trimmed or reformatted, and must never be included in an error.
+// https://learn.microsoft.com/en-us/windows/win32/secprov/protectkeywithtpmandpin-win32-encryptablevolume
+func (v *Volume) protectWithTPMAndPIN(pin string) (string, error) {
+	var volumeKeyProtectorID ole.VARIANT
+	_ = ole.VariantInit(&volumeKeyProtectorID)
+	defer ole.VariantClear(&volumeKeyProtectorID) //nolint:errcheck
+
+	resultRaw, err := oleutil.CallMethod(v.handle, "ProtectKeyWithTPMAndPIN", nil, nil, pin, &volumeKeyProtectorID)
+	if err != nil {
+		return "", fmt.Errorf("protectKeyWithTPMAndPIN(%s): %w", v.letter, err)
+	} else if val, ok := resultRaw.Value().(int32); val != 0 || !ok {
+		return "", fmt.Errorf("protectKeyWithTPMAndPIN(%s): %w", v.letter, encryptErrHandler(val))
+	}
+
+	return volumeKeyProtectorID.ToString(), nil
 }
 
 // deleteKeyProtectors removes all key protectors from the volume.
@@ -658,6 +686,17 @@ func addTPMProtectorOnCOMThread(targetVolume string) error {
 		return err
 	}
 	return nil
+}
+
+// setTPMAndPINProtectorOnCOMThread applies an end user's startup PIN to the volume; see setTPMAndPINProtector.
+func setTPMAndPINProtectorOnCOMThread(targetVolume, pin string) error {
+	vol, err := bitlockerConnect(targetVolume)
+	if err != nil {
+		return &PINError{Reason: PINReasonStatusUnreadable, Err: fmt.Errorf("connecting to the volume: %w", err)}
+	}
+	defer vol.bitlockerClose()
+
+	return setTPMAndPINProtector(&vol, pin)
 }
 
 // resumeConversionOnCOMThread restarts the volume's paused conversion. The caller must have established that the

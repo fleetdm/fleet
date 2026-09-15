@@ -1,6 +1,10 @@
 package bitlocker
 
-import "fmt"
+import (
+	"errors"
+	"fmt"
+	"slices"
+)
 
 // Volume encryption/decryption status.
 //
@@ -30,6 +34,12 @@ const (
 	ErrorCodeInvalidPasswordFormat      int32 = -2144272331
 	ErrorCodeBootableCDOrDVD            int32 = -2144272336
 	ErrorCodeProtectorExists            int32 = -2144272335
+	ErrorCodeInvalidPINLength           int32 = -2144272280 // FVE_E_POLICY_INVALID_PIN_LENGTH 0x80310068
+	ErrorCodeInvalidPINChars            int32 = -2144272230 // FVE_E_INVALID_PIN_CHARS 0x8031009A
+	ErrorCodeInvalidPINCharsDetailed    int32 = -2144272180 // FVE_E_INVALID_PIN_CHARS_DETAILED 0x803100CC, what current Windows returns
+	ErrorCodeTBSServiceNotRunning       int32 = -2144845816 // TBS_E_SERVICE_NOT_RUNNING 0x80284008
+	ErrorCodeLockedVolume               int32 = -2144272384 // FVE_E_LOCKED_VOLUME 0x80310000
+	ErrorCodeForeignVolume              int32 = -2144272349 // FVE_E_FOREIGN_VOLUME 0x80310023
 )
 
 // EncryptionError represents an error that occurs during the encryption
@@ -123,4 +133,165 @@ func ensureBootUnsealProtector(hasBootProtector func() (bool, error), addTPMProt
 		return nil
 	}
 	return addTPMProtector()
+}
+
+// Reasons a startup PIN could not be set. The My device page shows them as "Couldn't set PIN. {reason}. Try again or
+// contact your IT admin.", so each is a short sentence-case phrase without a trailing period.
+const (
+	PINReasonAlreadySet        = "PIN already set"
+	PINReasonWindowsServer     = "Windows Server isn't supported"
+	PINReasonStatusUnreadable  = "Couldn't read this device's BitLocker status"
+	PINReasonNotFullyEncrypted = "Disk encryption isn't finished yet"
+	PINReasonProtectionOff     = "BitLocker protection is suspended"
+	PINReasonInvalidLength     = "This device's BitLocker policy doesn't allow a PIN of that length"
+	PINReasonInvalidChars      = "This device's BitLocker policy doesn't allow those characters"
+	PINReasonTPMServiceStopped = "The TPM service isn't running"
+	PINReasonLockedVolume      = "The drive is locked"
+	PINReasonBootableMedia     = "Remove the CD or DVD from the drive"
+	PINReasonForeignVolume     = "The drive doesn't contain the running copy of Windows"
+	PINReasonNotFinished       = "Windows couldn't finish setting the PIN"
+)
+
+// PINError is a failure to set a startup PIN. It never contains the PIN.
+type PINError struct {
+	// Reason is safe to show the end user; see the PINReason constants.
+	Reason string
+	Err    error
+}
+
+func (e *PINError) Error() string {
+	if e.Err == nil {
+		return e.Reason
+	}
+	return e.Reason + ": " + e.Err.Error()
+}
+
+func (e *PINError) Unwrap() error {
+	return e.Err
+}
+
+// pinAddFailureReason explains why Windows refused to add a TPM and PIN protector.
+func pinAddFailureReason(err error) string {
+	encErr, ok := errors.AsType[*EncryptionError](err)
+	if !ok {
+		return PINReasonNotFinished
+	}
+	switch encErr.Code() {
+	case ErrorCodeInvalidPINLength:
+		return PINReasonInvalidLength
+	case ErrorCodeInvalidPINChars, ErrorCodeInvalidPINCharsDetailed:
+		return PINReasonInvalidChars
+	case ErrorCodeProtectorExists:
+		// Never success: the PIN the end user typed is not the one on the volume.
+		return PINReasonAlreadySet
+	case ErrorCodeTBSServiceNotRunning:
+		return PINReasonTPMServiceStopped
+	case ErrorCodeLockedVolume:
+		return PINReasonLockedVolume
+	case ErrorCodeBootableCDOrDVD:
+		return PINReasonBootableMedia
+	case ErrorCodeForeignVolume:
+		return PINReasonForeignVolume
+	default:
+		return fmt.Sprintf("Windows couldn't add the PIN (error 0x%08X)", uint32(encErr.Code())) // nolint:gosec
+	}
+}
+
+// pinProtectorVolume is the part of a BitLocker volume that setTPMAndPINProtector uses, so the sequence can be tested
+// without COM.
+type pinProtectorVolume interface {
+	getBitlockerStatus() (*EncryptionStatus, error)
+	getKeyProtectorIDs(protectorType int32) ([]string, error)
+	protectWithTPMAndPIN(pin string) (protectorID string, err error)
+	protectWithTPM(platformValidationProfile *[]uint8) error
+	deleteKeyProtector(protectorID string) error
+}
+
+// setTPMAndPINProtector adds a TPM and PIN protector to a protected, fully encrypted volume and removes its TPM-only
+// protectors, which would otherwise unseal the volume at boot without the PIN. If anything fails after the add, the volume
+// is put back as it was found, unless that would leave it with no boot protector.
+func setTPMAndPINProtector(vol pinProtectorVolume, pin string) error {
+	status, err := vol.getBitlockerStatus()
+	if err != nil {
+		return &PINError{Reason: PINReasonStatusUnreadable, Err: err}
+	}
+	if status.ConversionStatus != ConversionStatusFullyEncrypted {
+		return &PINError{Reason: PINReasonNotFullyEncrypted, Err: fmt.Errorf("conversion status %d", status.ConversionStatus)}
+	}
+	if status.ProtectionStatus != ProtectionStatusOn {
+		return &PINError{Reason: PINReasonProtectionOff, Err: fmt.Errorf("protection status %d", status.ProtectionStatus)}
+	}
+	for _, protectorType := range []int32{KeyProtectorTypeTPMAndPIN, KeyProtectorTypeTPMAndPINAndStartupKey} {
+		ids, err := vol.getKeyProtectorIDs(protectorType)
+		if err != nil {
+			return &PINError{Reason: PINReasonStatusUnreadable, Err: err}
+		}
+		if len(ids) > 0 {
+			return &PINError{Reason: PINReasonAlreadySet, Err: fmt.Errorf("a protector of type %d exists", protectorType)}
+		}
+	}
+	tpmOnlyIDs, err := vol.getKeyProtectorIDs(KeyProtectorTypeTPM)
+	if err != nil {
+		return &PINError{Reason: PINReasonStatusUnreadable, Err: err}
+	}
+
+	pinProtectorID, err := vol.protectWithTPMAndPIN(pin)
+	if err != nil {
+		return &PINError{Reason: pinAddFailureReason(err), Err: fmt.Errorf("adding the TPM and PIN protector: %w", err)}
+	}
+
+	if err := removeTPMOnlyProtectors(vol, pinProtectorID); err != nil {
+		if rollbackErr := rollBackTPMAndPINProtector(vol, pinProtectorID, len(tpmOnlyIDs) > 0); rollbackErr != nil {
+			err = errors.Join(err, fmt.Errorf("rolling back the TPM and PIN protector: %w", rollbackErr))
+		}
+		return &PINError{Reason: PINReasonNotFinished, Err: err}
+	}
+	return nil
+}
+
+func removeTPMOnlyProtectors(vol pinProtectorVolume, pinProtectorID string) error {
+	pinIDs, err := vol.getKeyProtectorIDs(KeyProtectorTypeTPMAndPIN)
+	if err != nil {
+		return fmt.Errorf("confirming the TPM and PIN protector: %w", err)
+	}
+	if !slices.Contains(pinIDs, pinProtectorID) {
+		return fmt.Errorf("the TPM and PIN protector %s is missing after adding it", pinProtectorID)
+	}
+
+	tpmOnlyIDs, err := vol.getKeyProtectorIDs(KeyProtectorTypeTPM)
+	if err != nil {
+		return fmt.Errorf("listing TPM-only protectors: %w", err)
+	}
+	for _, id := range tpmOnlyIDs {
+		if err := vol.deleteKeyProtector(id); err != nil {
+			return fmt.Errorf("deleting TPM-only protector: %w", err)
+		}
+	}
+
+	remaining, err := vol.getKeyProtectorIDs(KeyProtectorTypeTPM)
+	if err != nil {
+		return fmt.Errorf("confirming TPM-only protectors are gone: %w", err)
+	}
+	if len(remaining) > 0 {
+		return fmt.Errorf("%d TPM-only protectors remain after deleting them", len(remaining))
+	}
+	return nil
+}
+
+// rollBackTPMAndPINProtector removes the protector setTPMAndPINProtector added, putting back a TPM-only protector first if
+// the volume started with one and it was already deleted. If that restore fails, the PIN protector is kept: a volume with
+// neither boots to the recovery prompt, while the PIN is one the end user just chose.
+func rollBackTPMAndPINProtector(vol pinProtectorVolume, pinProtectorID string, hadTPMOnly bool) error {
+	if hadTPMOnly {
+		// Windows accepts a TPM-only protector next to a TPM and PIN one, and reports ErrorCodeProtectorExists if one remains.
+		if err := vol.protectWithTPM(nil); err != nil {
+			if encErr, ok := errors.AsType[*EncryptionError](err); !ok || encErr.Code() != ErrorCodeProtectorExists {
+				return fmt.Errorf("restoring the TPM-only protector, so the TPM and PIN protector was kept: %w", err)
+			}
+		}
+	}
+	if err := vol.deleteKeyProtector(pinProtectorID); err != nil {
+		return fmt.Errorf("deleting the TPM and PIN protector: %w", err)
+	}
+	return nil
 }

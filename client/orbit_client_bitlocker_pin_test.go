@@ -1,0 +1,124 @@
+package client
+
+import (
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+
+	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+func TestGetDiskEncryptionPINDetails(t *testing.T) {
+	t.Parallel()
+
+	const pin = `my "PIN" \ 123`
+
+	for _, tc := range []struct {
+		name         string
+		status       int
+		body         string
+		wantPIN      string
+		wantUUID     string
+		wantNotFound bool
+		wantErr      bool
+	}{
+		{
+			name:     "collected",
+			status:   http.StatusOK,
+			body:     mustJSON(t, fleet.OrbitGetDiskEncryptionPINDetailsResponse{PIN: pin, RequestUUID: "request-uuid"}),
+			wantPIN:  pin,
+			wantUUID: "request-uuid",
+		},
+		{name: "nothing to collect", status: http.StatusNotFound, body: `{"message":"not found"}`, wantNotFound: true},
+		// The PIN must not reach the error, which the caller logs and orbit reports through orbit_info.
+		{name: "response of the wrong shape", status: http.StatusOK, body: `{"pin":"` + pin + `","request_uuid":12}`, wantErr: true},
+		{name: "malformed response", status: http.StatusOK, body: `{"pin":"` + pin + `"x}`, wantErr: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var gotNodeKey string
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, "/api/fleet/orbit/disk_encryption_pin/details", r.URL.Path)
+				var req fleet.OrbitGetDiskEncryptionPINDetailsRequest
+				assert.NoError(t, json.NewDecoder(r.Body).Decode(&req))
+				gotNodeKey = req.OrbitNodeKey
+				w.WriteHeader(tc.status)
+				_, _ = w.Write([]byte(tc.body))
+			}))
+			defer srv.Close()
+
+			_, nodeKeyPath := newNodeKeyFile(t, "node-key")
+			oc := newReenrollTestClient(t, srv.URL, nodeKeyPath)
+
+			gotPIN, gotUUID, err := oc.GetDiskEncryptionPINDetails()
+			require.Equal(t, "node-key", gotNodeKey)
+			switch {
+			case tc.wantNotFound:
+				require.True(t, IsNotFoundErr(err))
+			case tc.wantErr:
+				require.Error(t, err)
+				require.NotContains(t, err.Error(), pin)
+				require.Error(t, oc.LastRecordedError())
+				require.NotContains(t, oc.LastRecordedError().Error(), pin)
+			default:
+				require.NoError(t, err)
+			}
+			require.Equal(t, tc.wantPIN, gotPIN)
+			require.Equal(t, tc.wantUUID, gotUUID)
+		})
+	}
+}
+
+func TestSetDiskEncryptionPINResult(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name         string
+		status       int
+		wantNotFound bool
+		wantErr      bool
+	}{
+		{name: "recorded", status: http.StatusNoContent},
+		{name: "no longer wanted", status: http.StatusNotFound, wantNotFound: true},
+		{name: "server error", status: http.StatusInternalServerError, wantErr: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var got fleet.OrbitPostDiskEncryptionPINResultRequest
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, "/api/fleet/orbit/disk_encryption_pin/result", r.URL.Path)
+				assert.NoError(t, json.NewDecoder(r.Body).Decode(&got))
+				w.WriteHeader(tc.status)
+			}))
+			defer srv.Close()
+
+			_, nodeKeyPath := newNodeKeyFile(t, "node-key")
+			oc := newReenrollTestClient(t, srv.URL, nodeKeyPath)
+
+			err := oc.SetDiskEncryptionPINResult("request-uuid", fleet.BitLockerPINRequestFailed, "PIN already set")
+			switch {
+			case tc.wantNotFound:
+				require.True(t, IsNotFoundErr(err))
+			case tc.wantErr:
+				require.Error(t, err)
+				require.False(t, IsNotFoundErr(err))
+			default:
+				require.NoError(t, err)
+			}
+			require.Equal(t, fleet.OrbitPostDiskEncryptionPINResultRequest{
+				OrbitNodeKey: "node-key",
+				RequestUUID:  "request-uuid",
+				Outcome:      fleet.BitLockerPINRequestFailed,
+				ClientError:  "PIN already set",
+			}, got)
+		})
+	}
+}
+
+func mustJSON(t *testing.T, v any) string {
+	t.Helper()
+	b, err := json.Marshal(v)
+	require.NoError(t, err)
+	return string(b)
+}
