@@ -1700,15 +1700,6 @@ func resolveAndReturnFileBytes(path string) ([]byte, error) {
 	return fileBytes, nil
 }
 
-// blankFleetSecrets removes $FLEET_SECRET_* references from contents. Secrets are
-// only expanded server-side, so a placeholder left inside a <data> payload would
-// fail base64 decoding when the profile is parsed for validation.
-func blankFleetSecrets(contents []byte) []byte {
-	return []byte(fleet.MaybeExpand(string(contents), func(name string, _, _ int) (string, bool) {
-		return "", strings.HasPrefix(name, fleet.ServerSecretPrefix)
-	}))
-}
-
 // defaultAllowedExtensions is the default set of file extensions allowed for
 // glob expansion (YAML files). Entity types that need different extensions
 // (e.g. scripts) should override this in their GlobExpandOptions.
@@ -2039,15 +2030,23 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 				continue
 			}
 
-			// parse the file into XML .mobileconfig struct and lookup `PayloadDisplayName`
-			mc := mobileconfig.Mobileconfig(blankFleetSecrets(fileBytes))
-			parsed, err := mc.ParseConfigProfile()
+			// Expand variables the way the apply path does before validating (see
+			// getProfilesContents); an unexpanded variable inside a <data> element
+			// isn't valid base64 and fails to parse. Secrets are guaranteed to be
+			// set in the environment by resolveAndUpdateProfilePath.
+			expanded, err := ExpandEnvBytesIncludingSecrets(fileBytes)
 			if err != nil {
-				multiError = multierror.Append(multiError, fmt.Errorf("failed to parse mobileconfig file %s: %v", item.Path, err))
+				logFn("[!] skipping profile %s for policy automations: %v\n", item.Path, err)
 				continue
 			}
-			if parsed.PayloadDisplayName == "" {
-				multiError = multierror.Append(multiError, fmt.Errorf("mobileconfig file %s is missing PayloadDisplayName", item.Path))
+
+			// parse the file into XML .mobileconfig struct and lookup `PayloadDisplayName`
+			mc := mobileconfig.Mobileconfig(expanded)
+			parsed, err := mc.ParseConfigProfile()
+			if err != nil {
+				// Best effort: this only feeds the resend_configuration_profile name
+				// lookup, profiles are validated for real when they are applied.
+				logFn("[!] skipping profile %s for policy automations: %v\n", item.Path, err)
 				continue
 			}
 

@@ -5945,13 +5945,52 @@ func TestGitOpsPolicyWithResendConfigurationProfile(t *testing.T) {
 </plist>
 `
 
+	// certProfile substitutes base64 data through an env var and a Fleet secret,
+	// neither of which is expanded on disk.
+	const certProfile = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadDisplayName</key>
+	<string>Cert profile</string>
+	<key>PayloadIdentifier</key>
+	<string>com.fleet.cert</string>
+	<key>PayloadScope</key>
+	<string>System</string>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadUUID</key>
+	<string>F7CF282E-D91B-44E9-922F-A719634F9C8F</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+	<key>PayloadContent</key>
+	<array>
+		<dict>
+			<key>PayloadType</key>
+			<string>com.apple.security.pkcs12</string>
+			<key>PayloadContent</key>
+			<data>$CERT_B64</data>
+			<key>Password</key>
+			<string>$FLEET_SECRET_CERT_PASSWORD</string>
+		</dict>
+	</array>
+</dict>
+</plist>
+`
+
 	// writeConfig lays out a gitops dir holding one macOS and one Windows profile,
 	// then appends the given policies section to a team (or global) config.
 	writeConfig := func(t *testing.T, global bool, policies string) (*GitOps, error) {
+		// t.Setenv is unavailable under the parallel parent test.
+		for k, v := range map[string]string{"CERT_B64": "aGVsbG8gd29ybGQ=", "FLEET_SECRET_CERT_PASSWORD": "p4ssw0rd"} {
+			require.NoError(t, os.Setenv(k, v))
+			t.Cleanup(func() { _ = os.Unsetenv(k) })
+		}
 		dir := t.TempDir()
 		require.NoError(t, os.Mkdir(filepath.Join(dir, "lib"), 0o755))
 		require.NoError(t, os.WriteFile(filepath.Join(dir, "lib", "password.MOBILECoNFIG"), []byte(passwordProfile), 0o644))
 		require.NoError(t, os.WriteFile(filepath.Join(dir, "lib", "screenlock.XmL"), []byte("<Replace></Replace>"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "lib", "cert.mobileconfig"), []byte(certProfile), 0o644))
 
 		exclude := []string{"controls", "policies"}
 		config := getTeamConfig(exclude)
@@ -5963,6 +6002,7 @@ controls:
   macos_settings:
     custom_settings:
       - path: ./lib/password.MOBILECoNFIG
+      - path: ./lib/cert.mobileconfig
   windows_settings:
     custom_settings:
       - path: ./lib/screenlock.XmL
@@ -5991,6 +6031,18 @@ policies:
 		require.Equal(t, "screenlock", got.Policies[1].ResendConfigurationProfile)
 		// Policies without the key get an empty name so the server unsets any existing profile.
 		require.Empty(t, got.Policies[2].ResendConfigurationProfile)
+	})
+
+	t.Run("resolves a profile with variables substituted into a data payload", func(t *testing.T) {
+		got, err := writeConfig(t, false, `
+policies:
+- name: Mac policy
+  query: SELECT 1;
+  resend_configuration_profile: Cert profile
+`)
+		require.NoError(t, err)
+		require.Len(t, got.Policies, 1)
+		require.Equal(t, "Cert profile", got.Policies[0].ResendConfigurationProfile)
 	})
 
 	t.Run("errors when the profile is not defined in controls", func(t *testing.T) {
