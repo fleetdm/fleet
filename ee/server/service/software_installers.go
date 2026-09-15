@@ -3575,8 +3575,22 @@ func (svc *Service) softwareBatchUpload(
 				if err != nil {
 					return ctxerr.Wrap(ctx, err, "check cached FMA version")
 				}
-				if versionExists && cachedHash == p.MaintainedApp.SHA256 {
-					fmaVersionCached = true
+				switch {
+				case p.MaintainedApp.SHA256 != noCheckHash:
+					fmaVersionCached = versionExists && cachedHash == p.MaintainedApp.SHA256
+				case versionExists && cachedHash != "" && cachedHash != noCheckHash:
+					// A manifest without a hash has nothing to compare, so the cached
+					// bytes identify the version. Their digest replaces the sentinel
+					// here because StorageID is derived from this field below, and the
+					// download path is the only other place that substitutes it.
+					bytesExist, err := svc.softwareInstallStore.Exists(ctx, cachedHash)
+					if err != nil {
+						return ctxerr.Wrap(ctx, err, "check cached FMA installer in store")
+					}
+					if bytesExist {
+						fmaVersionCached = true
+						p.MaintainedApp.SHA256 = cachedHash
+					}
 				}
 				installer.FMAVersionCached = fmaVersionCached
 			}

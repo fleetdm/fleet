@@ -36704,6 +36704,72 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersFMARebuil
 	require.Equal(t, "install zoom-build-1.0-b.msi", metaB.InstallScript)
 }
 
+func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersFMANoCheckHash() {
+	t := s.T()
+	ctx := context.Background()
+
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "team_" + t.Name()})
+	require.NoError(t, err)
+
+	state := &fmaTestState{
+		version:            "1.0",
+		installerBytes:     []byte("zoom-1.0"),
+		installerPath:      "/api/desktop.latestRelease",
+		installScript:      "install zoom-1.0.msi",
+		noCheckSHA:         true,
+		contentDisposition: `attachment; filename="zoom-1.0.msi"`,
+	}
+	downloads := startFMAServers(t, s.ds, map[string]*fmaTestState{"/zoom/windows.json": state})
+
+	apply := func() {
+		var resp batchSetSoftwareInstallersResponse
+		s.DoJSON("POST", "/api/latest/fleet/software/batch",
+			batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{{Slug: new("zoom/windows")}}, TeamName: team.Name},
+			http.StatusAccepted, &resp, "team_name", team.Name,
+		)
+		waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team.Name, resp.RequestUUID)
+	}
+
+	apply()
+	require.Equal(t, 1, downloads("/api/desktop.latestRelease"))
+
+	var listResp listSoftwareTitlesResponse
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listResp, "team_id", fmt.Sprintf("%d", team.ID), "available_for_install", "true")
+	require.Len(t, listResp.SoftwareTitles, 1)
+	titleID := listResp.SoftwareTitles[0].ID
+
+	// Re-applying the cached version must move no bytes, and must leave the
+	// stored digest alone rather than writing the manifest's sentinel.
+	apply()
+	require.Equal(t, 1, downloads("/api/desktop.latestRelease"), "re-apply must not download")
+
+	meta, err := s.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, &team.ID, titleID, true)
+	require.NoError(t, err)
+	require.Equal(t, "1.0", meta.Version)
+	require.Equal(t, state.sha256, meta.StorageID)
+	require.Equal(t, "install zoom-1.0.msi", meta.InstallScript)
+	// The installer URL has no filename of its own, so a re-apply that derived one
+	// from the URL instead of leaving the stored row alone would show up here.
+	require.Equal(t, "zoom-1.0.msi", meta.Name)
+	require.Equal(t, "msi", meta.Extension)
+
+	// A newly published version is still downloaded.
+	state.version = "2.0"
+	state.installerBytes = []byte("zoom-2.0")
+	state.installerPath = "/zoom-2.0.msi"
+	state.installScript = "install zoom-2.0.msi"
+	state.ComputeSHA(state.installerBytes)
+
+	apply()
+	require.Equal(t, 1, downloads("/zoom-2.0.msi"))
+
+	meta, err = s.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, &team.ID, titleID, true)
+	require.NoError(t, err)
+	require.Equal(t, "2.0", meta.Version)
+	require.Equal(t, state.sha256, meta.StorageID)
+	require.Equal(t, "install zoom-2.0.msi", meta.InstallScript)
+}
+
 func (s *integrationEnterpriseTestSuite) TestSelfServiceHostVitalsExcludeAnyLabel() {
 	t := s.T()
 	ctx := context.Background()
