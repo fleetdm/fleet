@@ -1257,13 +1257,13 @@ func (svc *Service) IssueCustomCommand(ctx context.Context, hostID uint, rawJSON
 		if fleetErr := androidmgmt.FleetErrFromAMAPI(err); fleetErr != nil {
 			return nil, fleetErr
 		}
-		if ae, ok := errors.AsType[*googleapi.Error](err); ok {
+		if ae, ok := errors.AsType[*googleapi.Error](err); ok && ae.Code == http.StatusInternalServerError {
 			msg := ae.Message
 			if msg == "" {
 				msg = http.StatusText(ae.Code)
 			}
 			return nil, &fleet.BadRequestError{
-				Message:     fmt.Sprintf("Android Management API rejected the command (HTTP %d): %s", ae.Code, msg),
+				Message:     fmt.Sprintf("Android Management API rejected the command: %s", msg),
 				InternalErr: err,
 			}
 		}
