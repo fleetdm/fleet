@@ -1,0 +1,1 @@
+- Reworked the vulnerable software severity filter: removed "Custom severity" from the dropdown menu, always show the min/max CVSS score inputs, and display "Custom severity" as the current selection only after a saved score range that doesn't match a built-in severity band is reopened.

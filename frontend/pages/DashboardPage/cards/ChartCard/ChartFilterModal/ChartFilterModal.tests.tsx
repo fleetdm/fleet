@@ -277,14 +277,6 @@ describe("ChartFilterModal severity", () => {
       await user.click(
         screen.getByRole("button", { name: /Advanced options/i })
       );
-      await user.click(screen.getByRole("combobox", { name: "Severity" }));
-      const custom = screen
-        .getAllByTestId("dropdown-option")
-        .find((el) => el.textContent?.startsWith("Custom severity"));
-      if (!custom) {
-        throw new Error("No Custom severity option");
-      }
-      await user.click(custom);
 
       await user.type(maxScoreInput(), "{Enter}");
 
