@@ -12,7 +12,7 @@ Fleet automatically collects IdP host vitals when an [end user authenticates](ht
 - Automatic enrollment for [Apple](https://fleetdm.com/guides/apple-mdm-setup#apple-business-manager-abm) (macOS, iOS, iPadOS) and [Windows](https://fleetdm.com/guides/windows-mdm-setup#automatic-enrollment) hosts.
 - Manual enrollment for Apple (macOS, iOS, iPadOS), Android, Windows, and Linux hosts.
 
-Fleet also collects IdP host vitals without end user authentication on Windows hosts that are joined to Microsoft Entra ID and enrolled with Fleet's agent (fleetd) only, for example hosts managed by Intune. Learn more in [Entra-joined Windows hosts](#entra-joined-windows-hosts).
+Fleet also collects IdP host vitals on Windows hosts that are joined to Microsoft Entra ID and enrolled with Fleet's agent (fleetd) only, for example hosts managed by Intune. These hosts don't go through end user authentication. Learn more in [Entra-joined Windows hosts](#entra-joined-windows-hosts).
 
 You can also manually add/update a host's IdP username on the Host details page. Fleet will then automatically map the username to other IdP vitals.
 
