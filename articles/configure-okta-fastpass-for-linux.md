@@ -78,18 +78,18 @@ By default, the `certificate` field in the response is a PEM-encoded PKCS7 envel
 
 ## Step 5: Renew or restore the certificate automatically
 
-The script-only package in Step 4 only runs once, during setup experience. Policy automations only trigger scripts uploaded to **Controls > Scripts**, so add the same script there too, then wire it to a policy that catches a missing or expiring certificate.
+Okta Verify for Linux isn't covered by Fleet's [automatic certificate renewal](https://fleetdm.com/guides/connect-end-user-to-wifi-with-certificate#renewal). The script-only package in Step 4 only installs once, during setup experience, so it won't fix a certificate that's later deleted or expires. Wire that same package to a policy, so Fleet reinstalls it, and renews the certificate, whenever a host fails the check.
 
-1. In Fleet, head to **Controls > Scripts**, select the fleet, and upload the same script from Step 4.
-2. Head to **Policies** and select **Add policy**. Use the following query to detect whether the certificate is missing or expires in the next 30 days:
+1. In Fleet, head to **Policies** and select **Add policy**. Use the following query to detect whether the certificate is missing or expires in the next 30 days:
 
 ```sql
 SELECT 1 FROM certificates WHERE path = '/opt/okta-verify/device.pem' AND not_valid_after > (CAST(strftime('%s', 'now') AS INTEGER) + 2592000);
 ```
 
-3. Select **Save**, target only **Linux**, then select **Save** again.
-4. On the **Policies** page, select **Manage automations > Scripts**. Select your new policy, then in the dropdown, choose the script you uploaded in step 1.
-5. Now, any Linux host missing `/opt/okta-verify/device.pem`, or whose certificate expires within 30 days, fails the policy — and Fleet reruns the script to reissue it.
+2. Select **Save**, target only **Linux**, then select **Save** again.
+3. On the **Policies** page, select **Manage automations**, then select **Install software**.
+4. Select your new policy, then in the dropdown, choose the script-only package you uploaded in Step 4.
+5. Now, any Linux host missing `/opt/okta-verify/device.pem`, or whose certificate expires within 30 days, fails the policy, and Fleet reinstalls the package to renew it.
 
 ## Verify
 
