@@ -538,7 +538,7 @@ The following steps show how to deploy [Hydrant](https://www.hidglobal.com/solut
 
 The flow for Hydrant differs from the other certificate authorities (CA's). While other CAs in Fleet use a configuration profile to request a certificate, Hydrant uses:
 - A script-only software package that makes a request to Fleet's [`POST /request_certificate`](https://fleetdm.com/docs/rest-api/rest-api#request-certificate) API endpoint and installs at enrollment.
-- A custom policy that triggers the same script on hosts whose certificate is missing or expiring, so it's automatically reissued.
+- A custom policy that triggers the same script on hosts whose certificate is missing or expiring, so it's automatically renewed.
 
 ### Step 1: Create a Hydrant user and obtain its API credentials
 
