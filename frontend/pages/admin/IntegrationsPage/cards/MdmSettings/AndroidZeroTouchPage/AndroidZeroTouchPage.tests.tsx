@@ -11,6 +11,20 @@ describe("AndroidZeroTouchPage", () => {
     jest.restoreAllMocks();
   });
 
+  test("shows premium upsell when not premium tier", () => {
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: {
+        app: { isPremiumTier: false },
+      },
+    });
+
+    render(<AndroidZeroTouchPage />);
+
+    expect(screen.getByText("Android zero-touch")).toBeVisible();
+    expect(screen.getByText(/Fleet Premium/i)).toBeVisible();
+  });
+
   test("shows DPC extras after loading", async () => {
     jest.spyOn(mdmAndroidAPI, "getZeroTouchConfiguration").mockResolvedValue({
       dpc_extras: '{"test": "dpc-extras-json"}',
@@ -19,6 +33,9 @@ describe("AndroidZeroTouchPage", () => {
 
     const render = createCustomRenderer({
       withBackendMock: true,
+      context: {
+        app: { isPremiumTier: true },
+      },
     });
 
     render(<AndroidZeroTouchPage />);
@@ -40,6 +57,9 @@ describe("AndroidZeroTouchPage", () => {
 
     const render = createCustomRenderer({
       withBackendMock: true,
+      context: {
+        app: { isPremiumTier: true },
+      },
     });
 
     render(<AndroidZeroTouchPage />);
