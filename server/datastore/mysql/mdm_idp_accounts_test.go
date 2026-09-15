@@ -239,15 +239,16 @@ func testReconcileSupersedesManuallySetIdPMapping(t *testing.T, ds *Datastore) {
 	t.Run("device-reported mapping superseded by enrollment", func(t *testing.T) {
 		host := newDarwinHost(t, "uuid-entra-join")
 
-		// only SCIM-provisioned users are mapped from the device
+		// only SCIM-provisioned users are mapped from the device; a username of its
+		// own so creating it cannot link a host left behind by another subtest
 		_, err := ds.CreateScimUser(ctx, &fleet.ScimUser{
-			UserName:   "someone.else@example.com",
-			GivenName:  new("Someone"),
-			FamilyName: new("Else"),
+			UserName:   "entra.join@example.com",
+			GivenName:  new("Entra"),
+			FamilyName: new("Join"),
 		})
 		require.NoError(t, err)
 
-		updated, err := ds.SetOrUpdateEntraJoinHostDeviceMapping(ctx, host.ID, "someone.else@example.com")
+		updated, err := ds.SetOrUpdateEntraJoinHostDeviceMapping(ctx, host.ID, "entra.join@example.com")
 		require.NoError(t, err)
 		require.True(t, updated)
 

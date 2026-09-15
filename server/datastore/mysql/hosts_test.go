@@ -15370,4 +15370,19 @@ func testEntraJoinHostDeviceMapping(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.False(t, updated)
 	require.Equal(t, 0, countRawRows(h2.ID, fleet.DeviceMappingEntraJoin))
+
+	// the scoped link cleanup removes only the link it observed, so a link written
+	// meanwhile by SCIM provisioning survives
+	h3 := newWindowsHost("entra-join-3")
+	_, err = ds.SetOrUpdateHostSCIMUserMapping(ctx, h3.ID, scimUserID)
+	require.NoError(t, err)
+	_, err = deleteHostSCIMUserMappingFor(ctx, ds.writer(ctx), h3.ID, &otherScimUserID)
+	require.NoError(t, err)
+	linked, err := ds.ScimUserByHostID(ctx, h3.ID)
+	require.NoError(t, err)
+	require.Equal(t, scimUserID, linked.ID)
+	_, err = deleteHostSCIMUserMappingFor(ctx, ds.writer(ctx), h3.ID, &scimUserID)
+	require.NoError(t, err)
+	_, err = ds.ScimUserByHostID(ctx, h3.ID)
+	require.True(t, fleet.IsNotFound(err))
 }
