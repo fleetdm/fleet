@@ -591,8 +591,9 @@ func TestMDMAppleCommanderSetRecoveryLock(t *testing.T) {
 		require.Equal(t, "SetRecoveryLock", cmd.Command.Command.RequestType)
 		require.Contains(t, string(cmd.Raw), cmdUUID)
 		require.Contains(t, string(cmd.Raw), "SetRecoveryLock")
-		// Should contain the placeholder, not the actual password
-		require.Contains(t, string(cmd.Raw), "$"+fleet.HostSecretPrefix+fleet.HostSecretRecoveryLockPassword)
+		// Should contain the placeholder, not the actual password. The new password is
+		// staged in the pending column until the device verifies it.
+		require.Contains(t, string(cmd.Raw), "$"+fleet.HostSecretPrefix+fleet.HostSecretRecoveryLockPendingPassword)
 		require.Contains(t, string(cmd.Raw), "<key>NewPassword</key>")
 		return nil, nil
 	}

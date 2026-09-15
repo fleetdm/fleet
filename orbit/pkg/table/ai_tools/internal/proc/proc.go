@@ -21,6 +21,15 @@ type Process struct {
 	Exe      string
 	Cmdline  string
 	Username string
+
+	// CmdlineSlice holds the true argv boundaries (one element per argument),
+	// unlike Cmdline which gopsutil collapses into a single space-joined
+	// string. A quoted argument containing its own spaces (e.g. the script
+	// body of `node -e "<script>"`) is indistinguishable from several
+	// separate arguments once joined — code that needs to identify argv[0],
+	// argv[1], etc. (rather than just substring-match the whole command
+	// line) must use this field, not re-split Cmdline on whitespace.
+	CmdlineSlice []string
 }
 
 // Conn is a single network connection (listening or established).
@@ -54,6 +63,7 @@ func Take(ctx context.Context) *Snapshot {
 			pr.Name, _ = p.NameWithContext(ctx)
 			pr.Exe, _ = p.ExeWithContext(ctx)
 			pr.Cmdline, _ = p.CmdlineWithContext(ctx)
+			pr.CmdlineSlice, _ = p.CmdlineSliceWithContext(ctx)
 			pr.Username, _ = p.UsernameWithContext(ctx)
 			s.Procs[pr.PID] = pr
 		}

@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "26.813.1056",
+      "version": "26.910.928",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.electron.dialer';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.electron.dialer' AND version_compare(bundle_short_version, '26.813.1056') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.electron.dialer' AND version_compare(bundle_short_version, '26.910.928') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.electron.dialer' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://groove-dialer.s3-us-west-2.amazonaws.com/electron/Groove%20OmniDialer-26.813.1056-universal.dmg",
+      "installer_url": "https://groove-dialer.s3-us-west-2.amazonaws.com/electron/Groove%20OmniDialer-26.910.928-universal.dmg",
       "install_script_ref": "43b09f43",
       "uninstall_script_ref": "e758ca20",
-      "sha256": "2c1ade537bb1090e27d3ee17c678fcffa78563742a87aa3b97a2c2c9ca66b213",
+      "sha256": "a6189d1a678cc091a68a6325ec2d759ec06deca8504f061e3747ac4e58a285a1",
       "default_categories": [
         "Communication"
       ]

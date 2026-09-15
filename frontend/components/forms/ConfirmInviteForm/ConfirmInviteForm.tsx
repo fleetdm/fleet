@@ -1,9 +1,8 @@
 import React, { useCallback, useState } from "react";
 
-import validateEquality from "components/forms/validators/validate_equality";
-
 import Button from "components/buttons/Button";
 import InputField from "components/forms/fields/InputField";
+import validateEquality from "components/forms/validators/validate_equality";
 import { IInputFieldParseTarget } from "interfaces/form_field";
 
 const baseClass = "confirm-invite-page__form";

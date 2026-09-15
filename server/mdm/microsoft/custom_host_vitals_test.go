@@ -3,6 +3,7 @@ package microsoft_mdm
 import (
 	"context"
 	"log/slog"
+	"strings"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
@@ -48,6 +49,20 @@ func TestPreprocessWindowsProfileContentsCustomHostVitals(t *testing.T) {
 		}, profile)
 		require.NoError(t, err)
 		require.Equal(t, `<Replace><Item><Data>a &amp; b</Data></Item></Replace>`, result)
+	})
+
+	t.Run("value substituted into a scep subject name is quoted", func(t *testing.T) {
+		scepProfile := testSyncMLItem(testDeviceSubjectNameLocURI, `CN=$FLEET_HOST_VITAL_3,O=Fleet QA`)
+		ds.ExpandCustomHostVitalsFunc = func(ctx context.Context, hostID uint, doc string) (string, error) {
+			// The document arrives with the subject name value already marked, so substitute into
+			// what was handed over rather than returning a canned profile.
+			return strings.Replace(doc, "$FLEET_HOST_VITAL_3", "Doe, Jane", 1), nil
+		}
+		result, err := PreprocessWindowsProfileContentsForDeployment(newDeps(), ProfilePreprocessParams{
+			HostUUID: "host-uuid-55", ProfileUUID: "prof-1",
+		}, scepProfile)
+		require.NoError(t, err)
+		require.Equal(t, testSyncMLItem(testDeviceSubjectNameLocURI, `CN="Doe, Jane",O=Fleet QA`), result)
 	})
 
 	t.Run("missing/empty value marks the profile failed with detail", func(t *testing.T) {

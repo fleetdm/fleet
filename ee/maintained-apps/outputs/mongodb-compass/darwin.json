@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "1.49.15",
+      "version": "1.50.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.mongodb.compass';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.mongodb.compass' AND version_compare(bundle_short_version, '1.49.15') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.mongodb.compass' AND version_compare(bundle_short_version, '1.50.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.mongodb.compass' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://downloads.mongodb.com/compass/mongodb-compass-1.49.15-darwin-arm64.dmg",
+      "installer_url": "https://downloads.mongodb.com/compass/mongodb-compass-1.50.0-darwin-arm64.dmg",
       "install_script_ref": "f6e74b2e",
       "uninstall_script_ref": "022cab65",
-      "sha256": "c9bce4d13fbdfe5ab56128b52b8269f0c9ebe45d23a6ae359fed985e4bbfe3b2",
+      "sha256": "0a4ec0b5aa1ff89e27bcc606f24b9ab20cf02a12724b13879d737af1f6daebfe",
       "default_categories": [
         "Developer tools"
       ]

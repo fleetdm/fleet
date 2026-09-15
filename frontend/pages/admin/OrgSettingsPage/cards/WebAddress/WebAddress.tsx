@@ -1,14 +1,12 @@
-import React, { useState } from "react";
 import { size } from "lodash";
+import React, { useState } from "react";
 
-import { IInputFieldParseTarget } from "interfaces/form_field";
-
-import SettingsSection from "pages/admin/components/SettingsSection";
 import Button from "components/buttons/Button";
 import InputField from "components/forms/fields/InputField";
 import validUrl from "components/forms/validators/valid_url";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
-
+import { IInputFieldParseTarget } from "interfaces/form_field";
+import SettingsSection from "pages/admin/components/SettingsSection";
 import INVALID_SERVER_URL_MESSAGE from "utilities/error_messages";
 
 import { IAppConfigFormProps } from "../constants";

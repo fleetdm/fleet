@@ -161,6 +161,25 @@ The “Attributed to” field is associated with a Salesforce user. The opportun
 - All other sources: For opportunities that do not fall under any of the above categories, e.g., opportunities created based on inbound leads, digital ads, brand, events, GitOps workshops, organic web traffic, etc, update the field with the Integrations Admin user.
 
 
+### Record Solutions Specialist-attributed meetings delivered
+
+The Solutions Specialist is responsible for recording partner and prospect meetings they've booked through outbound efforts. 
+
+To record first meetings related to opportunities [attributed to](#update-salesforce-attributed-to-field-on-an-opportunity) a Solutions Specialist, the Specialist will: 
+
+1. Navigate to the relavent opportunity and record the date and time of the first meeting in the "First meeting date" field.
+
+2. If the prospect attends the meeting, check the "First meeting attended?" checkbox on the Salesforce opportunity. 
+
+To record Partner meetings:
+
+1. Navigate to the relavent partner account and record the date and time of the first meeting in the "Partner meeting date" field.
+
+2. Add the contact that booked the meeting to the "Converting attendee" field.
+
+3. If the Partner attends the meeting, check the "Partner meeting attended?" checkbox on the Salesforce account.
+
+
 ### Process the help-solutions-specialist Slack channel
 
 Make sure all requests posted in the BDR Slack channel are acknowledged quickly, executed with clear timelines, thoughtfully evaluated (not blindly followed), and closed with visible outcomes. Applies to all Fleetie requests related to:

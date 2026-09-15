@@ -1,28 +1,24 @@
+import { AxiosError } from "axios";
 import React, { useCallback, useEffect } from "react";
 import { useQuery } from "react-query";
 import { InjectedRouter } from "react-router";
-import { AxiosError } from "axios";
 
+import DataError from "components/DataError";
+import TableContainer from "components/TableContainer";
+import { ITableQueryData } from "components/TableContainer/TableContainer";
+import {
+  SCRIPT_BATCH_HOST_EXECUTED_STATUSES,
+  ScriptBatchHostStatus,
+} from "interfaces/script";
 import PATHS from "router/paths";
-
+import { OrderDirection } from "services/entities/common";
 import scriptsAPI, {
   IScriptBatchHostResultsResponse,
   IScriptBatchHostResultsQueryKey,
   ScriptBatchHostsOrderKey,
 } from "services/entities/scripts";
-import { OrderDirection } from "services/entities/common";
-
-import {
-  SCRIPT_BATCH_HOST_EXECUTED_STATUSES,
-  ScriptBatchHostStatus,
-} from "interfaces/script";
-
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import { getNextLocationPath } from "utilities/helpers";
-
-import TableContainer from "components/TableContainer";
-import DataError from "components/DataError";
-import { ITableQueryData } from "components/TableContainer/TableContainer";
 
 import generateColumnConfigs from "./ScriptBatchHostsTableConfig";
 

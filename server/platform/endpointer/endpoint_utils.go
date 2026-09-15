@@ -249,6 +249,13 @@ func extractAliasRulesRecursive(t reflect.Type, seen map[string]bool, rules *[]A
 	}
 }
 
+// jsonDecodeErr reports a failure to decode a request body. The decoder's message names the offending
+// field, so surfacing it is what lets a caller find the problem; the generic wording is kept for
+// failures that are not about the body's contents.
+func jsonDecodeErr(err error) error {
+	return BadRequestErr(platform_http.NewUserMessageError(err, http.StatusBadRequest).UserMessage(), err)
+}
+
 func BadRequestErr(publicMsg string, internalErr error) error {
 	// ensure timeout errors don't become BadRequestErrors.
 	var opErr *net.OpError
@@ -512,6 +519,10 @@ func (h *ErrorHandler) Handle(ctx context.Context, err error) {
 	var uuider platform_http.ErrorUUIDer
 	if errors.As(err, &uuider) {
 		attrs = append(attrs, "uuid", uuider.UUID())
+	} else if logCtx, ok := logging.FromContext(ctx); ok && logCtx.RequestID != "" {
+		// go-kit skips the ServerAfter hooks when an endpoint returns an error, so
+		// LoggingContext.Log never runs for these.
+		attrs = append(attrs, "uuid", logCtx.RequestID)
 	}
 
 	var rle ratelimit.Error
@@ -696,7 +707,7 @@ func MakeDecoder(
 							Gzipped:        gzipped,
 						}
 					}
-					return nil, BadRequestErr("json decoder error", err)
+					return nil, jsonDecodeErr(err)
 				}
 				v = reflect.ValueOf(req)
 			}
@@ -771,7 +782,7 @@ func MakeDecoder(
 					}
 				}
 				if errors.Is(err, io.ErrUnexpectedEOF) {
-					return nil, BadRequestErr("json decoder error", err)
+					return nil, jsonDecodeErr(err)
 				}
 				return nil, err
 			}

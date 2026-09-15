@@ -1,1 +1,0 @@
-- Check local MDM enrollment status on macOS before firing Migrate MDM webhook to prevent showing an error.

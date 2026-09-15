@@ -1,10 +1,11 @@
-import React, { Component } from "react";
 import PropTypes from "prop-types";
+import React, { Component } from "react";
 
 import Button from "components/buttons/Button";
+import InputFieldWithIcon from "components/forms/fields/InputFieldWithIcon";
 import Form from "components/forms/Form";
 import formFieldInterface from "interfaces/form_field";
-import InputFieldWithIcon from "components/forms/fields/InputFieldWithIcon";
+
 import validate from "./validate";
 
 const baseClass = "forgot-password-form";

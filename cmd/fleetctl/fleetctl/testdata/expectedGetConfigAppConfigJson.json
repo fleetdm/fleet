@@ -162,6 +162,7 @@
       "microsoft_graph_credential_invalid": false,
       "windows_require_bitlocker_pin": false,
       "apple_require_hardware_attestation": false,
+      "only_allow_apple_business_enrollment": false,
       "macos_migration": {
         "enable": false,
         "mode": "",

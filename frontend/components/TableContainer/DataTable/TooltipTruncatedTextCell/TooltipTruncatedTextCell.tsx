@@ -1,10 +1,10 @@
-import React, { useState, useRef, useLayoutEffect } from "react";
-import { uniqueId } from "lodash";
 import classnames from "classnames";
-
+import { uniqueId } from "lodash";
+import React, { useState, useRef, useLayoutEffect } from "react";
 import ReactTooltip from "react-tooltip";
-import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
+
 import { COLORS } from "styles/var/colors";
+import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 
 interface ITooltipTruncatedTextCellProps {
   value: React.ReactNode;
@@ -19,9 +19,14 @@ interface ITooltipTruncatedTextCellProps {
   prefix?: React.ReactNode;
   /** Content does not get truncated */
   suffix?: React.ReactNode;
+  /** When `true`, the truncated text grows to fill the available width so
+   * `suffix` always sits flush against the right edge of the cell, instead
+   * of hugging the end of the (variable-length) text. */
+  justifySuffixEnd?: boolean;
   /** When `true`, show the tooltip even when the text is not truncated. Use
    * when the tooltip carries supplemental info (e.g. a raw identifier behind a
-   * friendlier display value) rather than just the truncated text. */
+   * friendlier display value, or a "+N" suffix implying there's more info)
+   * rather than just the truncated text. */
   alwaysShowTooltip?: boolean;
 }
 
@@ -34,15 +39,22 @@ const TooltipTruncatedTextCell = ({
   className,
   prefix,
   suffix,
+  justifySuffixEnd = false,
   alwaysShowTooltip = false,
 }: ITooltipTruncatedTextCellProps): JSX.Element => {
   const classNames = classnames(baseClass, className, {
     "tooltip-break-on-word": tooltipBreakOnWord,
+    "justify-suffix-end": justifySuffixEnd,
   });
 
   // Tooltip visibility logic: Enable only when text is truncated
   const ref = useRef<HTMLSpanElement>(null);
   const [tooltipDisabled, setTooltipDisabled] = useState(true);
+
+  // Key `prefix`/`suffix` on their presence so JSX callers don't churn the
+  // dep identity on every parent render.
+  const hasPrefix = Boolean(prefix);
+  const hasSuffix = Boolean(suffix);
 
   useLayoutEffect(() => {
     if (ref?.current !== null) {
@@ -50,7 +62,12 @@ const TooltipTruncatedTextCell = ({
       const offsetWidth = ref.current.offsetWidth;
       setTooltipDisabled(scrollWidth <= offsetWidth);
     }
-  }, [ref]);
+    // Re-measure whenever a prop that affects the rendered text's width
+    // changes. `value` is `React.ReactNode`, so a caller passing JSX creates
+    // a new reference on every parent render and this effect will re-run;
+    // `setTooltipDisabled` bails when the boolean is unchanged, so this is
+    // an extra layout read per row, not a re-render loop.
+  }, [value, hasPrefix, hasSuffix, justifySuffixEnd]);
   // End
 
   const tooltipId = uniqueId();

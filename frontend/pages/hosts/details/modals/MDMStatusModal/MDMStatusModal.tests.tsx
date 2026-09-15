@@ -1,14 +1,14 @@
+import { screen, waitFor } from "@testing-library/react";
+import { AxiosError } from "axios";
 import React from "react";
 
-import { screen, waitFor } from "@testing-library/react";
-import { createCustomRenderer, createMockRouter } from "test/test-utils";
-import { AxiosError } from "axios";
-
 import createMockUser from "__mocks__/userMock";
-import hostAPI from "services/entities/hosts";
-import paths from "router/paths";
-import { internationalTimeFormat } from "utilities/helpers";
 import { notify } from "components/ToastNotification";
+import paths from "router/paths";
+import hostAPI from "services/entities/hosts";
+import { createCustomRenderer, createMockRouter } from "test/test-utils";
+import { internationalTimeFormat } from "utilities/helpers";
+
 import MDMStatusModal from "./MDMStatusModal";
 
 jest.mock("services/entities/hosts");
@@ -89,6 +89,32 @@ describe("MDMStatusModal - component", () => {
     );
 
     expect(screen.getByText(/On \(manual\)/i)).toBeInTheDocument();
+  });
+
+  it("renders the Windows Autopilot tooltip for a pending Windows host", async () => {
+    (hostAPI.getDepAssignment as jest.Mock).mockResolvedValue(
+      mockDepAssignmentResponse
+    );
+
+    const { user } = render(
+      <MDMStatusModal
+        hostId={3}
+        enrollmentStatus="Pending"
+        platform="windows"
+        router={mockRouter}
+        user={createMockUser()}
+        lastMDMCheckIn=""
+        onSuccessfulCheckIn={jest.fn()}
+        fleetId={null}
+        onExit={jest.fn()}
+      />
+    );
+
+    await user.hover(screen.getByText("Pending"));
+
+    expect(
+      await screen.findByText(/Hosts added to Windows Autopilot/)
+    ).toBeInTheDocument();
   });
 
   it("does not render profile assignment section when not premium or not macOS", () => {

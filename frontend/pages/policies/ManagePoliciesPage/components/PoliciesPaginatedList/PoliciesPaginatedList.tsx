@@ -8,29 +8,29 @@ import React, {
   Ref,
   ReactElement,
 } from "react";
-import { AppContext } from "context/app";
-import PaginatedList, { IPaginatedListHandle } from "components/PaginatedList";
 import { useQuery } from "react-query";
+
+import Button from "components/buttons/Button";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import PaginatedList, { IPaginatedListHandle } from "components/PaginatedList";
+import PlatformCell from "components/TableContainer/DataTable/PlatformCell";
+import TooltipWrapper from "components/TooltipWrapper";
+import { AppContext } from "context/app";
+import { QueryablePlatform, isQueryablePlatform } from "interfaces/platform";
 import {
   IPolicy,
   ILoadAllPoliciesResponse,
   ILoadTeamPoliciesResponse,
   IPoliciesCountResponse,
 } from "interfaces/policy";
+import { APP_CONTEXT_ALL_TEAMS_ID } from "interfaces/team";
+import globalPoliciesAPI, {
+  IGlobalPoliciesApiQueryParams,
+} from "services/entities/global_policies";
 import teamPoliciesAPI, {
   IPoliciesApiParams,
   IPoliciesCountApiParams,
 } from "services/entities/team_policies";
-import globalPoliciesAPI, {
-  IGlobalPoliciesApiQueryParams,
-} from "services/entities/global_policies";
-
-import { APP_CONTEXT_ALL_TEAMS_ID } from "interfaces/team";
-import { QueryablePlatform, isQueryablePlatform } from "interfaces/platform";
-import Button from "components/buttons/Button";
-import TooltipWrapper from "components/TooltipWrapper";
-import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
-import PlatformCell from "components/TableContainer/DataTable/PlatformCell";
 
 // Extend the IPolicy interface with some virtual properties that make it easier
 // to track item state. These are set by the various Manage Automations modals.

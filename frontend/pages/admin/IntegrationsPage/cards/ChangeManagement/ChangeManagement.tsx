@@ -1,30 +1,25 @@
 import React, { useContext, useState } from "react";
-
 import { useQuery } from "react-query";
 
-import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
-
-import { AppContext } from "context/app";
-
-import configAPI from "services/entities/config";
-
-import { IConfig } from "interfaces/config";
-import { IInputFieldParseTarget } from "interfaces/form_field";
-import { getErrorReason } from "interfaces/errors";
-
-import InputField from "components/forms/fields/InputField";
-import Checkbox from "components/forms/fields/Checkbox";
-import validUrl from "components/forms/validators/valid_url";
-import TooltipWrapper from "components/TooltipWrapper";
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
-import SectionHeader from "components/SectionHeader";
-import PageDescription from "components/PageDescription";
-import Spinner from "components/Spinner";
 import DataError from "components/DataError";
+import Checkbox from "components/forms/fields/Checkbox";
+import InputField from "components/forms/fields/InputField";
+import validUrl from "components/forms/validators/valid_url";
+import PageDescription from "components/PageDescription";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
+import SectionHeader from "components/SectionHeader";
+import Spinner from "components/Spinner";
 import { notify } from "components/ToastNotification";
+import TooltipWrapper from "components/TooltipWrapper";
+import { AppContext } from "context/app";
+import { IConfig } from "interfaces/config";
+import { getErrorReason } from "interfaces/errors";
+import { IInputFieldParseTarget } from "interfaces/form_field";
 import SettingsSection from "pages/admin/components/SettingsSection";
+import configAPI from "services/entities/config";
+import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 
 const baseClass = "change-management";
 

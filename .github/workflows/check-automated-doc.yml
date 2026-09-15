@@ -50,16 +50,6 @@ jobs:
         with:
           go-version-file: 'go.mod'
 
-      - name: Verify golang generated documentation is up-to-date
-        run: |
-          make generate-doc
-          if [[ $(git diff) ]]; then
-            echo "❌ fail: uncommitted changes"
-            echo "please run 'make generate-doc' and commit the changes"
-            git --no-pager diff
-            exit 1
-          fi
-
       - name: Verify osquery table JSON schema is up-to-date
         run: |
           cd website
@@ -71,6 +61,16 @@ jobs:
           if [[ $(git diff) ]]; then
             echo "❌ fail: uncommitted changes"
             echo "please run 'cd website && npm ci && ./node_modules/sails/bin/sails.js run generate-merged-schema' and commit the changes"
+            git --no-pager diff
+            exit 1
+          fi
+
+      - name: Verify golang generated documentation is up-to-date
+        run: |
+          make generate-doc
+          if [[ $(git diff) ]]; then
+            echo "❌ fail: uncommitted changes"
+            echo "please run 'make generate-doc' and commit the changes"
             git --no-pager diff
             exit 1
           fi

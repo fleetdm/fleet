@@ -1,3 +1,5 @@
+import classNames from "classnames";
+import { size } from "lodash";
 import React, {
   useState,
   useContext,
@@ -6,39 +8,34 @@ import React, {
   useMemo,
   useRef,
 } from "react";
-import { size } from "lodash";
-import classNames from "classnames";
 import { useQueryClient } from "react-query";
 import { InjectedRouter } from "react-router";
 
-import PATHS from "router/paths";
-import { AppContext } from "context/app";
-import { PolicyContext } from "context/policy";
-import { IPlatformSelector } from "hooks/usePlatformSelector";
-import { IConfig } from "interfaces/config";
-import { IPolicy, IPolicyFormData } from "interfaces/policy";
-import { CommaSeparatedPlatformString } from "interfaces/platform";
-import { ITeamConfig } from "interfaces/team";
-import useDeepEffect from "hooks/useDeepEffect";
-import { MAX_ENTITY_CHAR_LENGTH } from "utilities/constants";
-
-import configAPI from "services/entities/config";
-import teamPoliciesAPI from "services/entities/team_policies";
-import teamsAPI from "services/entities/teams";
-
-import InputField from "components/forms/fields/InputField";
-import Checkbox from "components/forms/fields/Checkbox";
-import TooltipWrapper from "components/TooltipWrapper";
 import Button from "components/buttons/Button";
+import Checkbox from "components/forms/fields/Checkbox";
+import InputField from "components/forms/fields/InputField";
+import Icon from "components/Icon";
 import Modal from "components/Modal";
 import { TargetLabelSelector } from "components/TargetLabelSelector";
-import Icon from "components/Icon";
-
+import TooltipWrapper from "components/TooltipWrapper";
+import { AppContext } from "context/app";
+import { PolicyContext } from "context/policy";
+import useDeepEffect from "hooks/useDeepEffect";
+import { IPlatformSelector } from "hooks/usePlatformSelector";
+import { IConfig } from "interfaces/config";
+import { CommaSeparatedPlatformString } from "interfaces/platform";
+import { IPolicy, IPolicyFormData } from "interfaces/policy";
+import { ITeamConfig } from "interfaces/team";
 import PolicyAutomationsFields, {
   IPolicyAutomationsFieldsHandle,
 } from "pages/policies/components/PolicyAutomationsFields";
-import { usePolicyLabelTargets } from "pages/policies/hooks";
 import { POLICY_TARGET_EMPTY_STATE_DESCRIPTION } from "pages/policies/constants";
+import { usePolicyLabelTargets } from "pages/policies/hooks";
+import PATHS from "router/paths";
+import configAPI from "services/entities/config";
+import teamPoliciesAPI from "services/entities/team_policies";
+import teamsAPI from "services/entities/teams";
+import { MAX_ENTITY_CHAR_LENGTH } from "utilities/constants";
 
 export interface ISaveNewPolicyModalProps {
   baseClass: string;

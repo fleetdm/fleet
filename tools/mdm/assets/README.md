@@ -103,3 +103,28 @@ Supported flags are:
   -key string
     	Key used to encrypt the assets
 ```
+
+### Decrypt
+
+To decrypt an MDM asset:
+
+```
+go run tools/mdm/assets/main.go decrypt -key=E6Ow1t2dbKARxEF6O9GFI3DDQRMROhI8 -value='ENCRYPTED_VALUE_HERE'
+```
+
+Supported flags are:
+
+```
+  -db-address string
+    	Address used to connect to the MySQL instance (default "localhost:3306")
+  -db-name string
+    	Name of the database with the asset information in the MySQL instance (default "fleet")
+  -db-password string
+    	Password used to connect to the MySQL instance (default "insecure")
+  -db-user string
+    	Username used to connect to the MySQL instance (default "fleet")
+  -key string
+    	Key used to decrypt the assets
+  -value string
+    	Encrypted value to be decrypted either base64 or hex encoded
+```

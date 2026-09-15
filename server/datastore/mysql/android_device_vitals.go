@@ -29,6 +29,8 @@ type androidDeviceVitalsRow struct {
 	BootloaderVersion     *string `db:"bootloader_version"`
 	SystemUpdateStatus    *string `db:"system_update_status"`
 	SecurityPosture       *string `db:"security_posture"`
+	IMEI                  *string `db:"imei"`
+	MEID                  *string `db:"meid"`
 
 	APILevel *int64 `db:"api_level"`
 
@@ -51,6 +53,8 @@ func newAndroidDeviceVitalsRow(ctx context.Context, hostUUID string, vitals flee
 		BootloaderVersion:     vitals.BootloaderVersion,
 		SystemUpdateStatus:    vitals.SystemUpdateStatus,
 		SecurityPosture:       vitals.SecurityPosture,
+		IMEI:                  vitals.IMEI,
+		MEID:                  vitals.MEID,
 
 		APILevel: vitals.APILevel,
 	}
@@ -94,6 +98,8 @@ func (ds *Datastore) SetOrUpdateHostMDMAndroidDeviceVitals(ctx context.Context, 
 			bootloader_version = :bootloader_version,
 			system_update_status = :system_update_status,
 			security_posture = :security_posture,
+			imei = :imei,
+			meid = :meid,
 			api_level = :api_level,
 			security_posture_details = :security_posture_details,
 			telephony_infos = :telephony_infos
@@ -103,13 +109,13 @@ func (ds *Datastore) SetOrUpdateHostMDMAndroidDeviceVitals(ctx context.Context, 
 		INSERT INTO host_mdm_android_device_vitals (
 			host_uuid, adb_enabled, passcode_protected, play_protect_enabled, encryption_type,
 			manufacturer, security_update_version, device_kernel_version, bootloader_version,
-			system_update_status, security_posture, api_level, security_posture_details,
-			telephony_infos
+			system_update_status, security_posture, imei, meid, api_level,
+			security_posture_details, telephony_infos
 		) VALUES (
 			:host_uuid, :adb_enabled, :passcode_protected, :play_protect_enabled, :encryption_type,
 			:manufacturer, :security_update_version, :device_kernel_version, :bootloader_version,
-			:system_update_status, :security_posture, :api_level, :security_posture_details,
-			:telephony_infos
+			:system_update_status, :security_posture, :imei, :meid, :api_level,
+			:security_posture_details, :telephony_infos
 		)`
 
 	row, err := newAndroidDeviceVitalsRow(ctx, hostUUID, vitals)
@@ -135,8 +141,8 @@ const androidDeviceVitalsSelectStmt = `
 	SELECT
 		host_uuid, adb_enabled, passcode_protected, play_protect_enabled, encryption_type,
 		manufacturer, security_update_version, device_kernel_version, bootloader_version,
-		system_update_status, security_posture, api_level, security_posture_details,
-		telephony_infos
+		system_update_status, security_posture, imei, meid, api_level,
+		security_posture_details, telephony_infos
 	FROM host_mdm_android_device_vitals
 	WHERE host_uuid = ?`
 
@@ -155,6 +161,8 @@ func (ds *Datastore) LoadHostMDMAndroidDeviceVitals(ctx context.Context, host *f
 		host.BootloaderVersion = row.BootloaderVersion
 		host.SystemUpdateStatus = row.SystemUpdateStatus
 		host.SecurityPosture = row.SecurityPosture
+		host.IMEI = row.IMEI
+		host.MEID = row.MEID
 		host.APILevel = row.APILevel
 
 		if row.SecurityPostureDetails != nil {

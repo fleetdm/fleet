@@ -1149,7 +1149,11 @@ func (c *Client) ApplyGroup(
 				if b, ok := tmMacSetupAssistants[tmName]; ok {
 					switch {
 					case b != nil:
-						if err := c.uploadMacOSSetupAssistant(b, &tmID, filepath.Base(tmMacSetup[tmName].MacOSSetupAssistant.Value)); err != nil {
+						var setupAsstName string
+						if ms := tmMacSetup[tmName]; ms != nil {
+							setupAsstName = filepath.Base(ms.MacOSSetupAssistant.Value)
+						}
+						if err := c.uploadMacOSSetupAssistant(b, &tmID, setupAsstName); err != nil {
 							if strings.Contains(err.Error(), "Couldn't add") {
 								// Then the error should look something like this:
 								// "Couldn't add. CONFIG_NAME_INVALID"
@@ -2510,6 +2514,11 @@ func (c *Client) DoGitOps(
 		mdmAppConfig["apple_require_hardware_attestation"] = incoming.Controls.AppleRequireHardwareAttestation
 		if incoming.Controls.AppleRequireHardwareAttestation == nil {
 			mdmAppConfig["apple_require_hardware_attestation"] = false
+		}
+
+		mdmAppConfig["only_allow_apple_business_enrollment"] = incoming.Controls.OnlyAllowAppleBusinessEnrollment
+		if incoming.Controls.OnlyAllowAppleBusinessEnrollment == nil {
+			mdmAppConfig["only_allow_apple_business_enrollment"] = false
 		}
 
 		mdmAppConfig["android_enabled_and_configured"] = incoming.Controls.AndroidEnabledAndConfigured
