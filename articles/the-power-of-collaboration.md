@@ -141,5 +141,5 @@ I had fun helping coordinate this one, and I'm glad to keep working alongside so
 <meta name="authorFullName" value="Henry Stamerjohann">
 <meta name="authorGitHubUsername" value="headmin">
 <meta name="category" value="articles">
-<meta name="publishedOn" value="2026-09-15">
+<meta name="publishedOn" value="2026-09-16">
 <meta name="description" value="How SAP Privileges 2.6.0, a new Mac Admins osquery table, and Fleet's agent came together in a week to give you a queryable admin-rights audit trail.">
