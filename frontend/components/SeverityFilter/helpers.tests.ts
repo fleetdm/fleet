@@ -1,5 +1,6 @@
 import {
   ANY_SEVERITY_VALUE,
+  SEVERITY_DROPDOWN_OPTIONS,
   SEVERITY_RANGE_INVALID_MSG,
   SEVERITY_SCORE_RANGE_ERROR,
   severityFilters,
@@ -8,6 +9,14 @@ import {
   SeverityValue,
   validateSeverityScores,
 } from "./helpers";
+
+describe("SEVERITY_DROPDOWN_OPTIONS", () => {
+  it("never lists Custom severity as a selectable option", () => {
+    expect(
+      SEVERITY_DROPDOWN_OPTIONS.some((option) => option.value === "custom")
+    ).toBe(false);
+  });
+});
 
 describe("severityForRange", () => {
   it("treats an unset range as Any severity", () => {
