@@ -9,10 +9,15 @@ import (
 // submission's ciphertext is cleared by the hourly cleanups cron, so it can outlive the TTL by up to an hour.
 const BitLockerPINRequestTTL = 15 * time.Minute
 
+// BitLockerPINResultTimeout is how long Fleet waits for the agent to report on a PIN it collected. The agent retries its report
+// on every config poll, so a real one lands within minutes. A PIN the agent applied without reporting still shows as set once
+// osquery next reports the volume's protectors, so timing out gives up only on the report.
+const BitLockerPINResultTimeout = time.Hour
+
 // BitLockerPINClientErrorMaxLength matches the width of host_bitlocker_pin_requests.client_error.
 const BitLockerPINClientErrorMaxLength = 255
 
-// BitLockerPINRequestTimedOutError is recorded against a submission the agent never collected.
+// BitLockerPINRequestTimedOutError is recorded against a submission the agent never collected, or never reported on.
 const BitLockerPINRequestTimedOutError = "Fleet didn't hear back from this device. It may be offline."
 
 // BitLockerPINRequestStatus is where an end user's PIN submission stands.
@@ -35,12 +40,22 @@ type HostBitLockerPINRequest struct {
 	// Error is the agent's reason for a failure. Empty unless Status is failed.
 	Error     string    `json:"error" db:"client_error"`
 	CreatedAt time.Time `json:"-" db:"created_at"`
+	// UpdatedAt is when the agent collected the PIN, while Status is delivered.
+	UpdatedAt time.Time `json:"-" db:"updated_at" csv:"-"`
 }
 
-// Expired reports whether a pending request is too old to hand to the agent.
+// Expired reports whether a request has waited too long: a pending one for the agent to collect it, or a delivered one for
+// the agent to report back.
 func (r *HostBitLockerPINRequest) Expired(now time.Time) bool {
-	if r == nil || r.Status != BitLockerPINRequestPending {
+	if r == nil {
 		return false
 	}
-	return now.Sub(r.CreatedAt) > BitLockerPINRequestTTL
+	switch r.Status {
+	case BitLockerPINRequestPending:
+		return now.Sub(r.CreatedAt) > BitLockerPINRequestTTL
+	case BitLockerPINRequestDelivered:
+		return now.Sub(r.UpdatedAt) > BitLockerPINResultTimeout
+	default:
+		return false
+	}
 }

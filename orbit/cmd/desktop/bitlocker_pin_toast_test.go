@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 	"testing"
 	"testing/synctest"
-	"time"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/toast"
 	"github.com/stretchr/testify/require"
@@ -108,38 +107,46 @@ func TestBitLockerPINToast(t *testing.T) {
 func TestBitLockerPINToastAcrossProcesses(t *testing.T) {
 	t.Parallel()
 
-	const deviceURL = "https://fleet.example.com/device/token"
+	const (
+		deviceURL    = "https://fleet.example.com/device/token"
+		loginID      = "1:134036577000000000"
+		earlierLogin = "1:134036001000000000"
+	)
 
 	for _, tc := range []struct {
 		name string
-		// markerAge is how long ago an earlier process popped up the toast, or zero for no marker.
-		markerAge       time.Duration
-		needsPIN        bool
-		wantPopups      []bool
-		wantRemoves     int
-		wantMarker      bool
-		wantMarkerMoved bool
+		// marker is what an earlier Fleet Desktop process left, or nil for none.
+		marker   *string
+		loginID  string
+		needsPIN bool
+		// wantPopups lists whether each post popped up.
+		wantPopups  []bool
+		wantRemoves int
+		// wantMarker is the marker's content afterwards, or nil if it should not exist.
+		wantMarker *string
 	}{
-		{name: "a first popup writes the marker", needsPIN: true, wantPopups: []bool{true}, wantMarker: true},
-		{name: "a restart soon after a popup posts silently", markerAge: 10 * time.Minute, needsPIN: true, wantPopups: []bool{false}, wantMarker: true},
+		{name: "a first popup records the login", loginID: loginID, needsPIN: true, wantPopups: []bool{true}, wantMarker: new(loginID)},
 		{
-			name: "a restart after the last toast expired pops up again", markerAge: 2 * time.Hour, needsPIN: true,
-			wantPopups: []bool{true}, wantMarker: true, wantMarkerMoved: true,
+			name: "Fleet Desktop restarting within a login posts silently", marker: new(loginID), loginID: loginID, needsPIN: true,
+			wantPopups: []bool{false}, wantMarker: new(loginID),
 		},
-		{name: "a toast from an earlier process is removed once the PIN is set", markerAge: 10 * time.Minute, wantRemoves: 1},
-		{name: "a host that never showed the toast starts nothing", needsPIN: false},
+		{
+			name: "a new login pops up again", marker: new(earlierLogin), loginID: loginID, needsPIN: true,
+			wantPopups: []bool{true}, wantMarker: new(loginID),
+		},
+		{name: "an unreadable login pops up", marker: new(""), needsPIN: true, wantPopups: []bool{true}, wantMarker: new("")},
+		{name: "a toast from an earlier process is removed once the PIN is set", marker: new(loginID), loginID: loginID, wantRemoves: 1},
+		{name: "a host that never showed the toast starts nothing", loginID: loginID},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			markerPath := filepath.Join(t.TempDir(), "bitlocker-pin-toast")
-			markerTime := time.Now().Add(-tc.markerAge).Truncate(time.Second)
-			if tc.markerAge > 0 {
-				require.NoError(t, os.WriteFile(markerPath, nil, 0o600))
-				require.NoError(t, os.Chtimes(markerPath, markerTime, markerTime))
+			if tc.marker != nil {
+				require.NoError(t, os.WriteFile(markerPath, []byte(*tc.marker), 0o600))
 			}
 
 			var popups []bool
 			var removes int
-			pinToast := newBitLockerPINToast(markerPath)
+			pinToast := newBitLockerPINToast(markerPath, tc.loginID)
 			pinToast.show = func(n toast.Notification) error {
 				popups = append(popups, !n.SuppressPopup)
 				return nil
@@ -153,15 +160,13 @@ func TestBitLockerPINToastAcrossProcesses(t *testing.T) {
 
 			require.Equal(t, tc.wantPopups, popups)
 			require.Equal(t, tc.wantRemoves, removes)
-			info, err := os.Stat(markerPath)
-			if !tc.wantMarker {
+			marker, err := os.ReadFile(markerPath)
+			if tc.wantMarker == nil {
 				require.ErrorIs(t, err, fs.ErrNotExist)
 				return
 			}
 			require.NoError(t, err)
-			if tc.markerAge > 0 {
-				require.Equal(t, tc.wantMarkerMoved, !info.ModTime().Equal(markerTime), "a popup moves the marker's time and a silent post does not")
-			}
+			require.Equal(t, *tc.wantMarker, string(marker))
 		})
 	}
 }

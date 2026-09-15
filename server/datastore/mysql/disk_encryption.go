@@ -509,7 +509,7 @@ ON DUPLICATE KEY UPDATE
 func (ds *Datastore) GetBitLockerPINRequest(ctx context.Context, hostID uint) (*fleet.HostBitLockerPINRequest, error) {
 	var req fleet.HostBitLockerPINRequest
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &req, `
-SELECT status, client_error, created_at FROM host_bitlocker_pin_requests WHERE host_id = ?`, hostID)
+SELECT status, client_error, created_at, updated_at FROM host_bitlocker_pin_requests WHERE host_id = ?`, hostID)
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
 		return nil, ctxerr.Wrap(ctx, notFound("BitLockerPINRequest").WithID(hostID))
@@ -603,16 +603,19 @@ WHERE host_id = ? AND request_uuid = ? AND status = ?`
 // bitLockerPINRequestRetention is how long a finished PIN submission is kept so the My device page can show its outcome.
 const bitLockerPINRequestRetention = 24 * time.Hour
 
-// CleanupExpiredBitLockerPINRequests runs on the hourly cleanups cron. It retires submissions the agent never collected.
-// It also deletes finished submissions a day after they finish.
+// CleanupExpiredBitLockerPINRequests runs on the hourly cleanups cron. It retires submissions the agent never collected, and
+// ones it collected but never reported on. It also deletes finished submissions a day after they finish.
 func (ds *Datastore) CleanupExpiredBitLockerPINRequests(ctx context.Context) error {
+	// Collecting a PIN sets status to delivered, which moves updated_at to the collection time.
 	const expireStmt = `
 UPDATE host_bitlocker_pin_requests
 SET status = ?, pin_encrypted = NULL, client_error = ?
-WHERE status = ? AND created_at <= DATE_SUB(NOW(6), INTERVAL ? SECOND)`
+WHERE (status = ? AND created_at <= DATE_SUB(NOW(6), INTERVAL ? SECOND))
+	OR (status = ? AND updated_at <= DATE_SUB(NOW(6), INTERVAL ? SECOND))`
 	if _, err := ds.writer(ctx).ExecContext(ctx, expireStmt, fleet.BitLockerPINRequestFailed, fleet.BitLockerPINRequestTimedOutError,
-		fleet.BitLockerPINRequestPending, int(fleet.BitLockerPINRequestTTL.Seconds())); err != nil {
-		return ctxerr.Wrap(ctx, err, "expire uncollected bitlocker pin requests")
+		fleet.BitLockerPINRequestPending, int(fleet.BitLockerPINRequestTTL.Seconds()),
+		fleet.BitLockerPINRequestDelivered, int(fleet.BitLockerPINResultTimeout.Seconds())); err != nil {
+		return ctxerr.Wrap(ctx, err, "expire unfinished bitlocker pin requests")
 	}
 
 	const reapStmt = `

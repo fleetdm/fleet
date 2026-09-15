@@ -571,8 +571,8 @@ type windowsMDMBitlockerConfigReceiver struct {
 	// execSetTPMAndPINProtectorFn applies the end user's startup PIN. Set by the middleware from the COMWorker, or overridden in tests.
 	execSetTPMAndPINProtectorFn execSetTPMAndPINProtectorFunc
 
-	// heldPINOutcome is a PIN outcome the server has not accepted yet. The server never expires a collected PIN, so the
-	// outcome is retried on later polls until the server records it or no longer wants it. It does not survive a restart.
+	// heldPINOutcome is a PIN outcome the server has not accepted yet. It is retried on later polls until the server records it
+	// or no longer wants it, which includes an hour passing since collection. It does not survive a restart.
 	heldPINOutcome *pinOutcome
 
 	// restartPendingFn reports whether a restart is staged. Overridden in tests.

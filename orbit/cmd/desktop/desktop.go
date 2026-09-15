@@ -353,7 +353,11 @@ func main() {
 				} else {
 					markerPath = filepath.Join(dir, "Fleet", "bitlocker-pin-toast")
 				}
-				pinToast = newBitLockerPINToast(markerPath)
+				loginID, err := currentLoginID()
+				if err != nil {
+					log.Warn().Err(err).Msg("identify the Windows login for the BitLocker PIN toast")
+				}
+				pinToast = newBitLockerPINToast(markerPath, loginID)
 			}
 
 			for {

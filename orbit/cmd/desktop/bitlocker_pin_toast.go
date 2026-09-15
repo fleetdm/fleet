@@ -25,15 +25,17 @@ const (
 )
 
 // bitLockerPINToast asks the end user, through a Windows toast, to create the BitLocker startup PIN their fleet requires.
-// It pops up at most once per Fleet Desktop process, and later posts only keep the Notification Center copy's link
-// current. Orbit restarts Fleet Desktop whenever its run group restarts, not only at login, so a per-user marker file
-// carries the last popup across processes. Failures are logged and swallowed, because the My device banner remains.
+// It pops up once per Windows login, and later posts only keep the Notification Center copy's link current. Orbit also
+// restarts Fleet Desktop within a login, so a per-user marker file records the login that last saw the popup. Failures are
+// logged and swallowed, because the My device banner remains.
 type bitLockerPINToast struct {
 	show   func(toast.Notification) error
 	remove func(tag, group string) error
-	// markerPath exists while a toast may be in Notification Center, and its modification time is the last popup. Empty
+	// markerPath exists while a toast may be in Notification Center, and holds the login that last saw the popup. Empty
 	// disables it.
 	markerPath string
+	// loginID identifies the current Windows login, empty if it could not be read.
+	loginID string
 
 	// submitted numbers each summary handed to submit.
 	submitted atomic.Uint64
@@ -47,15 +49,15 @@ type bitLockerPINToast struct {
 	posted bool
 }
 
-func newBitLockerPINToast(markerPath string) *bitLockerPINToast {
-	t := &bitLockerPINToast{show: toast.Show, remove: toast.Remove, markerPath: markerPath}
+func newBitLockerPINToast(markerPath, loginID string) *bitLockerPINToast {
+	t := &bitLockerPINToast{show: toast.Show, remove: toast.Remove, markerPath: markerPath, loginID: loginID}
 	if markerPath == "" {
 		return t
 	}
-	if info, err := os.Stat(markerPath); err == nil {
+	if marker, err := os.ReadFile(markerPath); err == nil {
 		t.posted = true
-		// A restart within the lifetime of the last popup's toast would otherwise pop it up again.
-		t.poppedUp = time.Since(info.ModTime()) < bitLockerPINToastLifetime
+		// An unreadable login pops up again, because a missed prompt is worse than a repeated one.
+		t.poppedUp = loginID != "" && string(marker) == loginID
 	}
 	return t
 }
@@ -118,26 +120,15 @@ func (t *bitLockerPINToast) reconcile(needsPIN bool, deviceURL string) {
 	log.Info().Bool("popup", popup).Msg("posted the BitLocker PIN toast")
 	t.poppedUp = true
 	t.posted = true
-	if err := t.touchMarker(popup); err != nil {
+	if err := t.writeMarker(); err != nil {
 		log.Warn().Err(err).Msg("could not write the BitLocker PIN toast marker")
 	}
 }
 
-// touchMarker creates the marker if needed, and moves its modification time only for a popup.
-func (t *bitLockerPINToast) touchMarker(popup bool) error {
+// writeMarker records that this login has seen the popup and that a toast may be in Notification Center.
+func (t *bitLockerPINToast) writeMarker() error {
 	if t.markerPath == "" {
 		return nil
 	}
-	f, err := os.OpenFile(t.markerPath, os.O_CREATE|os.O_WRONLY, 0o600)
-	if err != nil {
-		return err
-	}
-	if err := f.Close(); err != nil {
-		return err
-	}
-	if !popup {
-		return nil
-	}
-	now := time.Now()
-	return os.Chtimes(t.markerPath, now, now)
+	return os.WriteFile(t.markerPath, []byte(t.loginID), 0o600)
 }
