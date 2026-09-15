@@ -24,7 +24,7 @@
           major > 10 OR (major = 10 AND minor >= 2) OR (major = 9 AND minor >= 8)
         )
         WHEN platform = 'nixos' THEN (major > 26 OR (major = 26 AND minor >= 5))
-        WHEN platform = 'opensuse-leap' THEN major >= 16
+        WHEN platform = 'opensuse-leap' THEN (major > 16 OR (major = 16 AND minor >= 0))
         -- Rolling releases and distributions without a rule above are not evaluated.
         ELSE 1
       END;
