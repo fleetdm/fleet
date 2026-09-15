@@ -13,6 +13,7 @@ const render = createCustomRenderer({
 describe("Host Details Banners", () => {
   const logOutExpectedText = /Disk encryption: Requires action from the end user\. Ask the end user to log out of their device or restart it\./;
   const turnOnEncryptionExpectedText = /Disk encryption: Disk encryption is off, and this host's fleet doesn't enforce it\. Fleet will store the recovery key when the end user turns on FileVault\./;
+  const escrowedAutomaticallyExpectedText = /Disk encryption: FileVault key will be escrowed automatically on this host's next refetch\./;
   const myDeviceInstructionsText = /Disk encryption: Requires action from the end user\. Ask the user to follow/;
 
   it("tells the admin to ask the end user to log out when FileVault is deferred to the next login", () => {
@@ -34,7 +35,44 @@ describe("Host Details Banners", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("tells the admin to ask the end user to log out when Fleet has no usable key", () => {
+  it("tells the admin to ask the end user to log out when a manually-enrolled host has no usable key", () => {
+    render(
+      <HostDetailsBanners
+        hostPlatform="darwin"
+        mdmEnrollmentStatus="On (manual)"
+        connectedToFleetMdm
+        depAssignedToFleet={false}
+        onlyAllowAppleBusinessEnrollment={false}
+        macDiskEncryptionStatus="action_required"
+        diskEncryptionActionRequired="rotate_key"
+      />
+    );
+
+    expect(screen.getByText(logOutExpectedText)).toBeInTheDocument();
+  });
+
+  it("tells the admin the key is escrowed automatically for ADE-enrolled hosts awaiting a key", () => {
+    render(
+      <HostDetailsBanners
+        hostPlatform="darwin"
+        mdmEnrollmentStatus="On (automatic)"
+        connectedToFleetMdm
+        depAssignedToFleet={false}
+        onlyAllowAppleBusinessEnrollment={false}
+        macDiskEncryptionStatus="action_required"
+        diskEncryptionActionRequired="rotate_key"
+      />
+    );
+
+    expect(
+      screen.getByText(escrowedAutomaticallyExpectedText)
+    ).toBeInTheDocument();
+    expect(screen.queryByText(logOutExpectedText)).not.toBeInTheDocument();
+  });
+
+  // "On (company-owned)" is the current name for automatic enrollment; "On (automatic)"
+  // is the legacy value the API still returns
+  it("tells the admin the key is escrowed automatically for company-owned hosts awaiting a key", () => {
     render(
       <HostDetailsBanners
         hostPlatform="darwin"
@@ -47,7 +85,9 @@ describe("Host Details Banners", () => {
       />
     );
 
-    expect(screen.getByText(logOutExpectedText)).toBeInTheDocument();
+    expect(
+      screen.getByText(escrowedAutomaticallyExpectedText)
+    ).toBeInTheDocument();
   });
 
   it("tells the admin the fleet doesn't enforce disk encryption when the disk is off", () => {

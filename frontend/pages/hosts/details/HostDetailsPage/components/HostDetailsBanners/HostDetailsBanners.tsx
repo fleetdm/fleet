@@ -87,6 +87,38 @@ const HostDetailsBanners = ({
     macDiskEncryptionStatus === "action_required" &&
     !isNewMdmEnrollment;
 
+  // ADE-enrolled hosts are told to refetch rather than log out, but only when a
+  // key rotation is what's pending; the other reasons have no key to fetch
+  const isAdeKeyRotationPending =
+    diskEncryptionActionRequired === "rotate_key" &&
+    isAutomaticDeviceEnrollment(mdmEnrollmentStatus);
+
+  const macDiskEncryptionMessage = () => {
+    if (diskEncryptionActionRequired === "turn_on_encryption") {
+      return (
+        <>
+          Disk encryption: Disk encryption is off, and this host&apos;s fleet
+          doesn&apos;t enforce it. Fleet will store the recovery key when the
+          end user turns on FileVault.
+        </>
+      );
+    }
+    if (isAdeKeyRotationPending) {
+      return (
+        <>
+          Disk encryption: FileVault key will be escrowed automatically on this
+          host&apos;s next refetch.
+        </>
+      );
+    }
+    return (
+      <>
+        Disk encryption: Requires action from the end user. Ask the end user to
+        log out of their device or restart it.
+      </>
+    );
+  };
+
   const actionRequiredBanner = (
     <div className={baseClass}>
       <InfoBanner color="yellow">
@@ -147,20 +179,7 @@ const HostDetailsBanners = ({
   if (showMacDiskEncryptionUserActionRequired) {
     return (
       <div className={baseClass}>
-        <InfoBanner color="yellow">
-          {diskEncryptionActionRequired === "turn_on_encryption" ? (
-            <>
-              Disk encryption: Disk encryption is off, and this host&apos;s
-              fleet doesn&apos;t enforce it. Fleet will store the recovery key
-              when the end user turns on FileVault.
-            </>
-          ) : (
-            <>
-              Disk encryption: Requires action from the end user. Ask the end
-              user to log out of their device or restart it.
-            </>
-          )}
-        </InfoBanner>
+        <InfoBanner color="yellow">{macDiskEncryptionMessage()}</InfoBanner>
       </div>
     );
   }
