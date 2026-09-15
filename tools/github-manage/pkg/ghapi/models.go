@@ -99,6 +99,16 @@ type ProjectItem struct {
 	Sprint     *Sprint            `json:"sprint,omitempty"`
 	Status     string             `json:"status"`
 	Size       string             `json:"size"`
+	TShirtSize string             `json:"t-shirt size"` // release planning's name for the size field
+}
+
+// SizeValue returns the item's size regardless of whether its project names
+// the field "Size" or "T-shirt size".
+func (item ProjectItem) SizeValue() string {
+	if item.Size != "" {
+		return item.Size
+	}
+	return item.TShirtSize
 }
 
 type ProjectItemsResponse struct {
