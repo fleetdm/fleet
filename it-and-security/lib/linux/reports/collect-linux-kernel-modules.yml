@@ -1,0 +1,9 @@
+- name: Collect Linux kernel modules
+  automations_enabled: false
+  description: Collects all loaded kernel modules on Linux hosts, including name, size, used_by, and status.
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  observer_can_run: true
+  platform: linux
+  query: SELECT * FROM kernel_modules;
