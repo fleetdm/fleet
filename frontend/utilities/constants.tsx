@@ -392,6 +392,22 @@ export const MDM_STATUS_TOOLTIP: Record<
   Off: undefined, // no tooltip specified
   Pending: (
     <span>
+      Hosts pending automatic enrollment in Apple Business (AB) or Windows
+      Autopilot.
+    </span>
+  ),
+};
+
+/** Used where a single host's platform is known, e.g. the host details MDM status modal. */
+export const MDM_STATUS_PENDING_TOOLTIP_BY_PLATFORM = {
+  windows: (
+    <span>
+      Hosts added to Windows Autopilot. These will automatically enroll to Fleet
+      and turn on MDM when they&apos;re unboxed.
+    </span>
+  ),
+  apple: (
+    <span>
       Hosts ordered via Apple Business (AB). These will automatically enroll to
       Fleet and turn on MDM when they&apos;re unboxed.
     </span>

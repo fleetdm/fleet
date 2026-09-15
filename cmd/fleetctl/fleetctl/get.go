@@ -1048,7 +1048,7 @@ func getHostsCommand() *cli.Command {
 			},
 			&cli.BoolFlag{
 				Name:  "mdm-pending",
-				Usage: "Filters hosts by hosts ordered via Apple Business (AB). These will automatically enroll to Fleet and turn on MDM when they're unboxed.",
+				Usage: "Filters hosts by hosts ordered via Apple Business (AB) or added to Windows Autopilot. These will automatically enroll to Fleet and turn on MDM when they're unboxed.",
 			},
 		},
 		Action: func(c *cli.Context) error {

@@ -1,5 +1,6 @@
 import React from "react";
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 
 import { generateAvailableTableHeaders } from "./HostTableConfig";
 
@@ -68,5 +69,36 @@ describe("HostTableConfig - Serial number column", () => {
   it("shows 'Not supported' for a personal (BYOD) iOS host", () => {
     renderCell("", "ios", { enrollment_status: "On (manual - personal)" });
     expect(screen.getByText("Not supported")).toBeInTheDocument();
+  });
+});
+
+describe("HostTableConfig - Status column", () => {
+  it("renders '---' with the Windows Autopilot tooltip for a pending Windows host", async () => {
+    const statusColumn = generateAvailableTableHeaders({
+      isFreeTier: false,
+      isOnlyObserver: false,
+    }).find((h) => h.id === "status") as any;
+    const Cell = statusColumn.Cell as React.ElementType;
+    const user = userEvent.setup();
+
+    render(
+      <Cell
+        cell={{ value: "offline" }}
+        row={{
+          original: {
+            platform: "windows",
+            mdm: { enrollment_status: "Pending" },
+          },
+        }}
+      />
+    );
+
+    await user.hover(screen.getByText("---"));
+
+    expect(
+      await screen.findByText(
+        "Device is pending enrollment in Windows Autopilot and status is not yet available."
+      )
+    ).toBeInTheDocument();
   });
 });

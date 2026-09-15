@@ -9,6 +9,7 @@ import {
   DEFAULT_EMPTY_CELL_VALUE,
   INITIAL_FLEET_DATE,
   LEARN_MORE_ABOUT_BASE_LINK,
+  MDM_STATUS_PENDING_TOOLTIP_BY_PLATFORM,
   MDM_STATUS_TOOLTIP,
 } from "utilities/constants";
 import { getPathWithQueryParams } from "utilities/url";
@@ -41,6 +42,7 @@ import permissions from "utilities/permissions";
 import {
   HostPlatform,
   isAppleDevice as isAppleDevicePlatform,
+  isWindows,
 } from "interfaces/platform";
 
 const baseClass = "mdm-status-modal";
@@ -251,7 +253,12 @@ const MDMStatusModal = ({
   const renderMDMStatusRow = (item: IStatusRowItem) => {
     const { value } = item;
     const status = value as MdmEnrollmentStatus;
-    const statusTooltip = MDM_STATUS_TOOLTIP[status];
+    let statusTooltip = MDM_STATUS_TOOLTIP[status];
+    if (status === "Pending") {
+      statusTooltip = isWindows(platform)
+        ? MDM_STATUS_PENDING_TOOLTIP_BY_PLATFORM.windows
+        : MDM_STATUS_PENDING_TOOLTIP_BY_PLATFORM.apple;
+    }
 
     return (
       <>
@@ -259,7 +266,7 @@ const MDMStatusModal = ({
           <div className={`${baseClass}__status-title`}>MDM status</div>
           <div className={`${baseClass}__status-value`}>
             {statusTooltip ? (
-              <TooltipWrapper tipContent={MDM_STATUS_TOOLTIP[status]}>
+              <TooltipWrapper tipContent={statusTooltip}>
                 {MDM_ENROLLMENT_STATUS_UI_MAP[status].displayName}
               </TooltipWrapper>
             ) : (

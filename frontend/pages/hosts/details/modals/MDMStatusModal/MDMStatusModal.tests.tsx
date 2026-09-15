@@ -91,6 +91,32 @@ describe("MDMStatusModal - component", () => {
     expect(screen.getByText(/On \(manual\)/i)).toBeInTheDocument();
   });
 
+  it("renders the Windows Autopilot tooltip for a pending Windows host", async () => {
+    (hostAPI.getDepAssignment as jest.Mock).mockResolvedValue(
+      mockDepAssignmentResponse
+    );
+
+    const { user } = render(
+      <MDMStatusModal
+        hostId={3}
+        enrollmentStatus="Pending"
+        platform="windows"
+        router={mockRouter}
+        user={createMockUser()}
+        lastMDMCheckIn=""
+        onSuccessfulCheckIn={jest.fn()}
+        fleetId={null}
+        onExit={jest.fn()}
+      />
+    );
+
+    await user.hover(screen.getByText("Pending"));
+
+    expect(
+      await screen.findByText(/Hosts added to Windows Autopilot/)
+    ).toBeInTheDocument();
+  });
+
   it("does not render profile assignment section when not premium or not macOS", () => {
     (hostAPI.getDepAssignment as jest.Mock).mockResolvedValue(
       mockDepAssignmentResponse
