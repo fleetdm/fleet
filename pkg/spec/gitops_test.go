@@ -5987,10 +5987,9 @@ func TestGitOpsPolicyWithResendConfigurationProfile(t *testing.T) {
 	// writeConfig lays out a gitops dir holding one macOS and one Windows profile,
 	// then appends the given policies section to a team (or global) config.
 	writeConfig := func(t *testing.T, global bool, policies string) (*GitOps, error) {
-		// t.Setenv is unavailable under the parallel parent test.
+		// t.Setenv restores the previous value on cleanup, but it rules out t.Parallel.
 		for k, v := range map[string]string{"CERT_B64": "aGVsbG8gd29ybGQ=", "FLEET_SECRET_CERT_PASSWORD": "p4ssw0rd"} {
 			t.Setenv(k, v)
-			t.Cleanup(func() { t.Setenv(k, "") })
 		}
 		dir := t.TempDir()
 		require.NoError(t, os.Mkdir(filepath.Join(dir, "lib"), 0o755))

@@ -2033,6 +2033,7 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 
 			if err := fleet.ValidateNoSecretsInProfileName(fileBytes); err != nil {
 				multiError = multierror.Append(multiError, fmt.Errorf("invalid profile name in file %s: %v", item.Path, err))
+				continue
 			}
 
 			// Expand variables the way the apply path does before validating (see
