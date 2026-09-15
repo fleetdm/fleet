@@ -318,6 +318,7 @@ var (
 	macOSMSTeamsVersion  = regexp.MustCompile(`(\d).00.(\d)(\d+)`)
 	citrixName           = regexp.MustCompile(`Citrix Workspace [0-9]+`)
 	minioAltDate         = regexp.MustCompile(`^\d{14}$`)
+	linuxPackageEpoch    = regexp.MustCompile(`^[0-9]+:`) // epoch prefix of Linux package versions, e.g. "2:" in "2:4.24.6-1"
 	softwareTransformers = []struct {
 		matches func(*fleet.Software) bool
 		mutate  func(context.Context, *fleet.Software, *slog.Logger)
@@ -603,6 +604,23 @@ var (
 				default:
 					s.Version = parts[0] + "." + parts[1]
 				}
+			},
+		},
+		{
+			// Linux package managers (pacman, dpkg, rpm) prefix the version with an epoch (e.g. "2:4.24.6-1") when
+			// upstream changes its versioning scheme, so the package manager still considers the new version newer.
+			// The epoch is not part of the upstream version and never appears in NVD CPEs. If left in place,
+			// sanitizeVersion replaces the colon with a dot ("2.4.24.6-1"), which corrupts the major version and
+			// causes false-positive CVEs (e.g. Samba 4.24.6 being matched against Samba 2.x vulnerabilities).
+			matches: func(s *fleet.Software) bool {
+				switch s.Source {
+				case "pacman_packages", "deb_packages", "rpm_packages":
+					return linuxPackageEpoch.MatchString(s.Version)
+				}
+				return false
+			},
+			mutate: func(ctx context.Context, s *fleet.Software, logger *slog.Logger) {
+				s.Version = linuxPackageEpoch.ReplaceAllString(s.Version, "")
 			},
 		},
 	}

@@ -2678,6 +2678,97 @@ func TestMutateSoftware(t *testing.T) {
 				Source:  "programs",
 			},
 		},
+		{
+			name: "pacman package with epoch (samba)",
+			s: &fleet.Software{
+				Name:    "samba",
+				Version: "2:4.24.6-1",
+				Source:  "pacman_packages",
+			},
+			sanitized: &fleet.Software{
+				Name:    "samba",
+				Version: "4.24.6-1",
+				Source:  "pacman_packages",
+			},
+		},
+		{
+			name: "pacman package with multi-digit epoch",
+			s: &fleet.Software{
+				Name:    "docker",
+				Version: "10:29.7.2-1",
+				Source:  "pacman_packages",
+			},
+			sanitized: &fleet.Software{
+				Name:    "docker",
+				Version: "29.7.2-1",
+				Source:  "pacman_packages",
+			},
+		},
+		{
+			name: "pacman package without epoch (not transformed)",
+			s: &fleet.Software{
+				Name:    "curl",
+				Version: "8.21.0-1",
+				Source:  "pacman_packages",
+			},
+			sanitized: &fleet.Software{
+				Name:    "curl",
+				Version: "8.21.0-1",
+				Source:  "pacman_packages",
+			},
+		},
+		{
+			name: "deb package with epoch",
+			s: &fleet.Software{
+				Name:    "samba",
+				Version: "2:4.17.12+dfsg-0ubuntu1",
+				Source:  "deb_packages",
+			},
+			sanitized: &fleet.Software{
+				Name:    "samba",
+				Version: "4.17.12+dfsg-0ubuntu1",
+				Source:  "deb_packages",
+			},
+		},
+		{
+			name: "rpm package with epoch",
+			s: &fleet.Software{
+				Name:    "docker-ce",
+				Version: "1:24.0.7-1.el9",
+				Source:  "rpm_packages",
+			},
+			sanitized: &fleet.Software{
+				Name:    "docker-ce",
+				Version: "24.0.7-1.el9",
+				Source:  "rpm_packages",
+			},
+		},
+		{
+			name: "epoch-like version from non-package source (not transformed)",
+			s: &fleet.Software{
+				Name:    "Some App",
+				Version: "2:4.24.6",
+				Source:  "programs",
+			},
+			sanitized: &fleet.Software{
+				Name:    "Some App",
+				Version: "2:4.24.6",
+				Source:  "programs",
+			},
+		},
+		{
+			name: "pacman package with colon not at start (not transformed)",
+			s: &fleet.Software{
+				Name:    "foo",
+				Version: "4.24.6:1",
+				Source:  "pacman_packages",
+			},
+			sanitized: &fleet.Software{
+				Name:    "foo",
+				Version: "4.24.6:1",
+				Source:  "pacman_packages",
+			},
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			require.NotPanics(t, func() { mutateSoftware(t.Context(), tc.s, slog.New(slog.DiscardHandler)) })
