@@ -1216,6 +1216,36 @@ func (svc *Service) WipeAndroidHost(ctx context.Context, hostID uint) error {
 	return nil
 }
 
+// companyOwnedOnlyCommandTypes are the AMAPI command types Google documents as supported only on fully managed or
+// company-owned devices. On a personally-owned work profile AMAPI still accepts REBOOT and reports the operation as
+// done with no error, while the device silently ignores it, so a management mode check before issuing is the only
+// place Fleet can catch these.
+var companyOwnedOnlyCommandTypes = map[string]struct{}{
+	"REBOOT":               {},
+	"RELINQUISH_OWNERSHIP": {},
+	"START_LOST_MODE":      {},
+	"STOP_LOST_MODE":       {},
+}
+
+// companyOwnedOnlyCommandType returns the normalized command type if cmd is one AMAPI only supports on company-owned
+// hosts, and "" otherwise. AMAPI infers the type from the params when type is omitted, so the lost mode params are
+// checked too - a payload of just {"startLostModeParams":{}} is a START_LOST_MODE.
+func companyOwnedOnlyCommandType(cmd *androidmanagement.Command) string {
+	cmdType := strings.ToUpper(strings.TrimSpace(cmd.Type))
+	if cmdType == "" {
+		switch {
+		case cmd.StartLostModeParams != nil:
+			cmdType = "START_LOST_MODE"
+		case cmd.StopLostModeParams != nil:
+			cmdType = "STOP_LOST_MODE"
+		}
+	}
+	if _, ok := companyOwnedOnlyCommandTypes[cmdType]; ok {
+		return cmdType
+	}
+	return ""
+}
+
 // IssueCustomCommand issues an arbitrary AMAPI command from raw JSON. It reuses resolveAndroidCommandTarget
 // for auth/device resolution, unmarshals the JSON into an AMAPI Command, calls IssueCommand, and persists the
 // row in mdm_android_commands with raw_command populated. No host_mdm_actions ref is written.
@@ -1234,6 +1264,18 @@ func (svc *Service) IssueCustomCommand(ctx context.Context, hostID uint, rawJSON
 	// matching the behavior of Lock/Wipe/ClearPasscode.
 	if amapiCmd.Duration == "" {
 		amapiCmd.Duration = longCommandDuration
+	}
+
+	if cmdType := companyOwnedOnlyCommandType(&amapiCmd); cmdType != "" {
+		hostMDM, err := svc.fleetDS.GetHostMDM(ctx, host.ID)
+		if err != nil && !fleet.IsNotFound(err) {
+			return nil, ctxerr.Wrap(ctx, err, "getting host_mdm for android custom command")
+		}
+		if hostMDM != nil && hostMDM.IsPersonalEnrollment {
+			return nil, &fleet.BadRequestError{
+				Message: cmdType + " is not supported for personally-owned Android hosts. It's only supported on company-owned hosts.",
+			}
+		}
 	}
 
 	op, err := svc.androidAPIClient.EnterprisesDevicesIssueCommand(ctx, deviceName, &amapiCmd)
