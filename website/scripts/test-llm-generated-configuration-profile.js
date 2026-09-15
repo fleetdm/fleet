@@ -64,7 +64,7 @@ const TEST_CASES = [
     readByEye: 'The embedded <WLANProfile> must be on ONE line inside the CDATA - no assertion can express that.',
     expect: {
       mustContain: ['A%20Network', '<![CDATA[',],
-      mustContainElement: [['name', 'A Network']],
+      mustContainElement: [['name', 'A Network'], ['authentication', 'WPA2PSK'], ['keyMaterial', 'aaaaaaapassword']],
       mustNotContain: ['&lt;WLANProfile', '<SyncML', 'A%20network'],
     }
   },
@@ -156,7 +156,7 @@ const TEST_CASES = [
     profileType: 'mobileconfig',
     instructions: 'Lock the screen after 10 minutes of inactivity and require a password immediately.',
     expect: {
-      mustContain: ['idleTime', 'askForPassword'],
+      mustContain: ['idleTime', 'askForPassword', '<key>askForPasswordDelay</key><integer>0</integer>'],
       mustContainElement: [['integer', '600']]
     }
   },
@@ -208,7 +208,7 @@ const TEST_CASES = [
     instructions: 'Require a 10-character alphanumeric passcode and lock the device after 10 failed attempts.',
     readByEye: 'Identifier must not be a copy of Type, and must be 64 bytes or fewer.  MaximumFailedAttempts accepts 2-11, so 10 is in range -- confirm it was not clamped or rewritten.',
     expect: {
-      mustContain: ['com.apple.configuration.passcode.settings', 'MinimumLength', 'RequireAlphanumericPasscode', 'MaximumFailedAttempts'],
+      mustContain: ['com.apple.configuration.passcode.settings', 'RequireAlphanumericPasscode', '"MinimumLength":10', '"MaximumFailedAttempts":10'],
       mustNotContain: ['requirePasscode', 'forcePIN', 'minLength']
     }
   },
@@ -234,7 +234,7 @@ const TEST_CASES = [
     profileType: 'ddm',
     instructions: 'Defer minor updates by 30 days.',
     expect: {
-      mustContain: ['softwareupdate.settings', 'Deferrals', 'MinorPeriodInDays', '30']
+      mustContain: ['softwareupdate.settings', 'Deferrals', '"MinorPeriodInDays":30']
     }
   },
   {
@@ -252,14 +252,20 @@ const TEST_CASES = [
     profileType: 'ddm',
     instructions: 'Enforce macOS 26.1 by December 15, 2026 at 6:00 PM local time.',
     expect: {
-      mustContain: ['softwareupdate.enforcement.specific', 'TargetOSVersion', 'TargetLocalDateTime', '"26.1"']
+      mustContain: ['softwareupdate.enforcement.specific', '"TargetOSVersion":"26.1"', '"TargetLocalDateTime":"2026-12-15T18:00:00"']
     }
   },
   {
     id: 'ddm-intelligence-off',
     profileType: 'ddm',
     instructions: 'Turn off every Apple Intelligence feature.',
-    expect: { mustContain: ['intelligence.settings', 'AllowWritingTools', 'AllowGenmoji', 'AllowImagePlayground'] }
+    expect: {
+      mustContain: [
+        'intelligence.settings', 'AllowWritingTools', 'AllowGenmoji', 'AllowImagePlayground',
+        'AllowImageWand', 'AllowAppleIntelligenceReport', 'AllowPersonalizedHandwritingResults',
+        'AllowVisualIntelligenceSummary'
+      ]
+    }
   },
   {
     id: 'ddm-intelligence-partial',
