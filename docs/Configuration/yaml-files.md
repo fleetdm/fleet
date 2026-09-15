@@ -880,15 +880,21 @@ If the fields below are omitted, they default to values specified in [the app's 
 ```yaml
 software:
   fleet_maintained_apps:
-    - path: ../lib/software/slack.fma.yml
+    - path: ../lib/software/communication-apps.fma.yml
     - paths: "../lib/software/fma/*.yml"
 ```
 
-`lib/software/slack.fma.yml`
+A `path:`/`paths:` file can define more than one app, so related apps can be grouped together:
+
+`lib/software/communication-apps.fma.yml`
 
 ```yaml
 - slug: slack/darwin
   version: "4.47.65"
+  self_service: true
+  categories:
+    - "👬 Communication"
+- slug: zoom/darwin
   self_service: true
   categories:
     - "👬 Communication"
