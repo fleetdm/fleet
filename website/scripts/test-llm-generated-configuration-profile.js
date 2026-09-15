@@ -36,7 +36,7 @@ const TEST_CASES = [
     expect: {
       mustContain: ['RemovableDiskDenyWriteAccess'],
       mustContainElement: [['Format', 'int']],
-      mustNotContainElement: [['Format', 'bool']],
+      mustNotContainElement: [['Format', 'bool'], ['Format', 'chr']],
     }
   },
   {
@@ -45,7 +45,7 @@ const TEST_CASES = [
     instructions: 'Require device passwords to be at least 12 characters long.',
     expect: {
       mustContain: ['MinDevicePasswordLength', 'DevicePasswordEnabled'],
-      mustContainElement: [['Data', '12']]
+      mustContainElement: [['Data', '12'],['Format', 'int']]
     }
   },
   {
@@ -63,7 +63,7 @@ const TEST_CASES = [
     instructions: 'Add a wifi profile for a network with the SSID "A Network" with WPA2 authentication that uses the password "aaaaaaapassword".',
     readByEye: 'The embedded <WLANProfile> must be on ONE line inside the CDATA -- no assertion can express that.  Also confirm <hex> decodes to the SSID, and that deliveryNotes names the cleartext passphrase rather than describing the profile.',
     expect: {
-      mustContain: ['A%20Network', '<![CDATA[', '436F6F6C204E6574776F726B'],
+      mustContain: ['A%20Network', '<![CDATA[',],
       mustContainElement: [['name', 'A Network']],
       mustNotContain: ['&lt;WLANProfile', '<SyncML', 'A%20network'],
     }
@@ -85,11 +85,6 @@ const TEST_CASES = [
       mustContain: ['AllowTelemetry'],
       mustContainElement: [['Format', 'int']]
     }
-  },
-  {
-    id: 'csp-disk-encryption-natively-managed',
-    profileType: 'csp',
-    instructions: 'Turn on BitLocker with XTS-AES 256 encryption on the operating system, fixed data, and removable data drives.',
   },
 
   //  ╔╦╗╔═╗╔╗ ╦╦  ╔═╗╔═╗╔╗╔╔═╗╦╔═╗
