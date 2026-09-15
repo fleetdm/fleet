@@ -7,6 +7,7 @@ import { notify } from "components/ToastNotification";
 import TooltipWrapper from "components/TooltipWrapper";
 import { getErrorReason } from "interfaces/errors";
 import { FLEET_ANDROID_CERTIFICATE_TEMPLATE_PROFILE_ID } from "interfaces/mdm";
+import { getResendProfileErrorMessage } from "pages/hosts/details/cards/Controls/helpers";
 import {
   HOST_NAME_SYNTHETIC_PROFILE_UUID,
   REC_LOCK_SYNTHETIC_PROFILE_UUID,
@@ -56,6 +57,9 @@ const ActionButton = ({
 
 interface IOSSettingsResendCellProps {
   canResendProfiles: boolean;
+  /** Also offer Resend while the profile is "verifying" (Fleetd configuration
+   * profile with one-time enroll secrets). */
+  canResendWhileVerifying?: boolean;
   canRotateRecoveryLockPassword?: boolean;
   canResendHostNameTemplate?: boolean;
   /** Shows a disabled "Resend" button with a tooltip explaining why, for
@@ -74,6 +78,7 @@ interface IOSSettingsResendCellProps {
 
 const OSSettingsResendCell = ({
   canResendProfiles,
+  canResendWhileVerifying = false,
   canRotateRecoveryLockPassword = false,
   canResendHostNameTemplate = false,
   showDisabledResendForAndroidProfile = false,
@@ -107,7 +112,7 @@ const OSSettingsResendCell = ({
         onProfileResent();
       }
     } catch (e) {
-      notify.error("Couldn't resend. Please try again.", { response: e });
+      notify.error(getResendProfileErrorMessage(e), { response: e });
     }
     setIsResending(false);
   };
@@ -152,6 +157,7 @@ const OSSettingsResendCell = ({
   const isAndroidCertStuckEnforcing =
     isAndroidCertificate &&
     (profile.status === "delivering" || profile.status === "delivered");
+  const isVerifying = profile.status === "verifying";
   const isRecoveryLockRow =
     profile.profile_uuid === REC_LOCK_SYNTHETIC_PROFILE_UUID;
   const isHostNameRow =
@@ -161,7 +167,7 @@ const OSSettingsResendCell = ({
   // must not go through the profile-resend path above.
   const showResendButton =
     canResendProfiles &&
-    (isFailed || isVerified || isAndroidCertStuckEnforcing) &&
+    (isFailed || isVerified || isAndroidCertStuckEnforcing || (isVerifying && canResendWhileVerifying)) &&
     !isRecoveryLockRow &&
     !isHostNameRow;
   const showRotateButton =
