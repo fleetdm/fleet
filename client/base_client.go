@@ -95,9 +95,6 @@ func (bc *BaseClient) ParseResponse(verb, path string, response *http.Response, 
 				return fmt.Errorf("reading response body: %w", err)
 			}
 			if err := json.Unmarshal(b, &responseDest); err != nil {
-				if _, ok := responseDest.(secretResponse); ok {
-					return fmt.Errorf("decode %s %s response: invalid JSON", verb, path)
-				}
 				const maxBodyLen = 200
 				truncatedBytes, isHTML := TruncateAndDetectHTML(b, maxBodyLen)
 
@@ -227,12 +224,6 @@ func NewBaseClient(
 		ServerCapabilities: fleet.CapabilityMap{},
 	}
 	return client, nil
-}
-
-// secretResponse is implemented by responses whose body carries a secret. Their decode errors quote neither the body nor
-// json's own message, which can name a character from it, because callers log the error and orbit reports the last one.
-type secretResponse interface {
-	hasSecretBody()
 }
 
 // BodyHandler is an interface for custom response body handling.

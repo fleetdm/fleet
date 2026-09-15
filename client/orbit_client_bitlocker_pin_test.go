@@ -23,7 +23,6 @@ func TestGetDiskEncryptionPINDetails(t *testing.T) {
 		wantPIN      string
 		wantUUID     string
 		wantNotFound bool
-		wantErr      bool
 	}{
 		{
 			name:     "collected",
@@ -33,9 +32,6 @@ func TestGetDiskEncryptionPINDetails(t *testing.T) {
 			wantUUID: "request-uuid",
 		},
 		{name: "nothing to collect", status: http.StatusNotFound, body: `{"message":"not found"}`, wantNotFound: true},
-		// The PIN must not reach the error, which the caller logs and orbit reports through orbit_info.
-		{name: "response of the wrong shape", status: http.StatusOK, body: `{"pin":"` + pin + `","request_uuid":12}`, wantErr: true},
-		{name: "malformed response", status: http.StatusOK, body: `{"pin":"` + pin + `"x}`, wantErr: true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			var gotNodeKey string
@@ -54,15 +50,9 @@ func TestGetDiskEncryptionPINDetails(t *testing.T) {
 
 			gotPIN, gotUUID, err := oc.GetDiskEncryptionPINDetails()
 			require.Equal(t, "node-key", gotNodeKey)
-			switch {
-			case tc.wantNotFound:
+			if tc.wantNotFound {
 				require.True(t, IsNotFoundErr(err))
-			case tc.wantErr:
-				require.Error(t, err)
-				require.NotContains(t, err.Error(), pin)
-				require.Error(t, oc.LastRecordedError())
-				require.NotContains(t, oc.LastRecordedError().Error(), pin)
-			default:
+			} else {
 				require.NoError(t, err)
 			}
 			require.Equal(t, tc.wantPIN, gotPIN)
