@@ -27,6 +27,7 @@ import {
   isAndroid,
   isAppleDevice,
   isMobilePlatform,
+  isWindows,
 } from "interfaces/platform";
 import { ROLLING_ARCH_LINUX_VERSIONS } from "interfaces/software";
 import DiskSpaceIndicator from "pages/hosts/components/DiskSpaceIndicator";
@@ -478,13 +479,17 @@ const allHostTableHeaders = (teamId?: number): IHostTableColumnConfig[] => [
         return NotSupported;
       }
 
-      // Show "---" for ABM devices with Pending enrollment status
+      // Show "---" for AB and Windows Autopilot devices with Pending enrollment status
+      const { platform } = cellProps.row.original;
       if (
         cellProps.row.original.mdm?.enrollment_status === "Pending" &&
-        isAppleDevice(cellProps.row.original.platform)
+        (isAppleDevice(platform) || isWindows(platform))
       ) {
         const tooltip = {
-          tooltipText: getHostStatusTooltipText(DEFAULT_EMPTY_CELL_VALUE),
+          tooltipText: getHostStatusTooltipText(
+            DEFAULT_EMPTY_CELL_VALUE,
+            platform
+          ),
         };
         return (
           <StatusIndicator value={DEFAULT_EMPTY_CELL_VALUE} tooltip={tooltip} />
