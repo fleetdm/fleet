@@ -91,7 +91,10 @@ func Middleware(ds fleet.Datastore, requireSignature bool, logger *slog.Logger) 
 			}
 			keySpecer, ok := result.KeySpecer.(*KeySpecer)
 			if !ok {
-				handleError(req.Context(), w,
+				// Internal invariant failure, not an authentication rejection:
+				// keep the 500 so agents don't treat a server fault as a
+				// revoked identity and discard their certificate.
+				handleInternalError(req.Context(), w,
 					ctxerr.New(req.Context(), fmt.Sprintf("could not extract host identity certificate key: path=%s", req.URL.Path)))
 				return
 			}
@@ -117,4 +120,9 @@ func Middleware(ds fleet.Datastore, requireSignature bool, logger *slog.Logger) 
 func handleError(ctx context.Context, w http.ResponseWriter, err error) {
 	ctxerr.Handle(ctx, err)
 	http.Error(w, "authentication failed", http.StatusUnauthorized)
+}
+
+func handleInternalError(ctx context.Context, w http.ResponseWriter, err error) {
+	ctxerr.Handle(ctx, err)
+	http.Error(w, "internal error", http.StatusInternalServerError)
 }

@@ -2,6 +2,7 @@ package httpsig
 
 import (
 	"context"
+	"errors"
 	"io"
 	"log/slog"
 	"net/http"
@@ -64,4 +65,22 @@ func TestMiddlewareUniformErrorResponses(t *testing.T) {
 		bodies[body] = struct{}{}
 	}
 	require.Len(t, bodies, 1, "all rejection bodies must be identical")
+}
+
+// Internal faults (e.g. the KeySpecer type assertion failing) must not be
+// reported as 401: agents interpret persistent 401s as a revoked identity and
+// discard their certificate. The body must still carry no internal detail.
+func TestHandleInternalErrorStatusAndGenericBody(t *testing.T) {
+	ctx := context.Background()
+
+	rr := httptest.NewRecorder()
+	handleInternalError(ctx, rr, errors.New("could not extract host identity certificate key: path=/api/fleet/orbit/config"))
+	require.Equal(t, http.StatusInternalServerError, rr.Code)
+	require.NotContains(t, rr.Body.String(), "path=")
+	require.NotContains(t, rr.Body.String(), "certificate")
+
+	rr = httptest.NewRecorder()
+	handleError(ctx, rr, errors.New("request not verified: path=/api/fleet/orbit/config"))
+	require.Equal(t, http.StatusUnauthorized, rr.Code)
+	require.NotContains(t, rr.Body.String(), "path=")
 }
