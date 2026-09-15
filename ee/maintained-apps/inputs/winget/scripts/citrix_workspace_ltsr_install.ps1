@@ -3,8 +3,7 @@
 
 # The bootstrap hands components off as separate MSI transactions, so the exe's
 # own exit doesn't mean install is done; poll for the core entry and for
-# msiexec to go idle. Only an LTSR entry counts, so an existing Current
-# Release install doesn't register as this one finishing.
+# msiexec to go idle.
 
 $softwareName = "Citrix Workspace Inside"
 $paths = @(
@@ -23,8 +22,7 @@ function Test-CitrixWorkspaceInstalled {
 
   foreach ($key in $uninstallKeys) {
     if ($key.DisplayName -eq $softwareName `
-        -and $key.Publisher -eq "Citrix Systems, Inc." `
-        -and $key.InstallSource -like '*\Ctx-*') {
+        -and $key.Publisher -eq "Citrix Systems, Inc.") {
       return $true
     }
   }
