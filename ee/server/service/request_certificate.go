@@ -131,9 +131,7 @@ func (svc *Service) RequestCertificate(ctx context.Context, p fleet.RequestCerti
 
 		idpUsername = *introspectionResponse.Username
 
-		// the email should either equal the username or include it as a prefix, i.e.
-		// email=username@example.com and username=username
-		if !strings.HasPrefix(csrEmail, csrUsername) {
+		if !upnMatchesEmail(csrEmail, csrUsername) {
 			svc.logger.ErrorContext(ctx, "Failing Certificate Request due to mismatch between CSR email and UPN", "csr_email", csrEmail, "csr_upn", csrUsername)
 			return nil, InvalidCSRError{}
 		}
@@ -199,9 +197,8 @@ func (svc *Service) verifyHostEndUserBinding(ctx context.Context, hostID uint, c
 
 	// The UPN is a SAN entry independent of the email, and it is the field 802.1X and AD-backed
 	// mTLS authenticate on, so binding the email alone would still let a caller name a victim
-	// there. Require the relationship the IdP path documents: the UPN is the email or a shorthand
-	// prefix of it, which binds the UPN transitively once the email is bound below.
-	if !strings.HasPrefix(strings.ToLower(csrEmail), strings.ToLower(csrUsername)) {
+	// there. Binding the UPN to the email binds it transitively once the email is bound below.
+	if !upnMatchesEmail(csrEmail, csrUsername) {
 		return mismatch
 	}
 
@@ -220,6 +217,17 @@ func (svc *Service) verifyHostEndUserBinding(ctx context.Context, hostID uint, c
 		return mismatch
 	}
 	return nil
+}
+
+// upnMatchesEmail reports whether a CSR's UPN names the same identity as its email: the full
+// address or its complete local part, compared case-insensitively as IdPs do. A shorter prefix
+// such as "ali" for alice@example.com, or a truncated domain, names no identity and is refused,
+// as is an empty UPN, which would otherwise be a prefix of everything.
+func upnMatchesEmail(email, upn string) bool {
+	if upn == "" {
+		return false
+	}
+	return strings.EqualFold(upn, email) || strings.EqualFold(upn, fleet.EmailLocalPart(email))
 }
 
 // pkcs7EnvelopeToPEM converts a base64-encoded PKCS7 envelope (as returned by an EST
@@ -301,9 +309,10 @@ func (svc *Service) parseCSR(ctx context.Context, csr string) (*x509.Certificate
 	return req, nil
 }
 
-// Extract email and UPN fields from the provided CSR. Assumes there is exactly 1 email and that there is a UPN SAN extension, will
-// error otherwise. More than one email is rejected rather than picked between: every identity
-// check binds to this address, so an ambiguous CSR has no answer.
+// Extract email and UPN fields from the provided CSR. Requires exactly one email and exactly one
+// UPN SAN entry, and errors otherwise. More than one of either is rejected rather than picked
+// between: every identity check binds to these values and the CSR is forwarded to the CA
+// unchanged, so an unchecked second identity would be issued.
 func (svc *Service) extractCSRUserInfo(ctx context.Context, req *x509.CertificateRequest) (string, string, error) {
 	if len(req.EmailAddresses) < 1 {
 		return "", "", ctxerr.New(ctx, "CSR does not contain an email address")
@@ -322,9 +331,11 @@ func (svc *Service) extractCSRUserInfo(ctx context.Context, req *x509.Certificat
 
 // The go standard library does not provide a way to extract the UPN from a CSR, so we must do it
 // manually by first finding the SAN extension then looking in othernames for the UPN and parsing it.
+// Every othername is scanned so a second UPN is detected rather than silently left in the CSR.
 func extractCSRUPN(ctx context.Context, csr *x509.CertificateRequest) (string, error) {
 	sanOID := asn1.ObjectIdentifier{2, 5, 29, 17}
 	upnOID := asn1.ObjectIdentifier{1, 3, 6, 1, 4, 1, 311, 20, 2, 3}
+	var upns []string
 	for _, ext := range csr.Extensions {
 		if ext.Id.Equal(sanOID) {
 			nameValues := []asn1.RawValue{}
@@ -358,12 +369,20 @@ func extractCSRUPN(ctx context.Context, csr *x509.CertificateRequest) (string, e
 							if _, err := asn1.Unmarshal(rawValue.Bytes, &upn); err != nil {
 								return "", fmt.Errorf("failed to unmarshal UPN value: %w", err)
 							}
-							return string(upn.Bytes), nil
+							upns = append(upns, string(upn.Bytes))
 						}
 					}
 				}
 			}
 		}
 	}
-	return "", ctxerr.New(ctx, "CSR does not contain a UPN")
+	switch {
+	case len(upns) == 0:
+		return "", ctxerr.New(ctx, "CSR does not contain a UPN")
+	case len(upns) > 1:
+		return "", ctxerr.Errorf(ctx, "CSR contains %d UPNs, only 1 is supported", len(upns))
+	case upns[0] == "":
+		return "", ctxerr.New(ctx, "CSR contains an empty UPN")
+	}
+	return upns[0], nil
 }

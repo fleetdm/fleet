@@ -315,6 +315,10 @@ func TestValidateCertIdPIntrospectionAllowlists(t *testing.T) {
 			Integrations{CertificatesIdPIntrospectionURLs: optjson.SetSlice([]string{"http://company.okta.com/introspect"})},
 			"must be an absolute https URL",
 		},
+		"url with embedded credentials": {
+			Integrations{CertificatesIdPIntrospectionURLs: optjson.SetSlice([]string{"https://user:secret@company.okta.com/introspect"})},
+			"must be an absolute https URL",
+		},
 		"duplicate url": {
 			Integrations{CertificatesIdPIntrospectionURLs: optjson.SetSlice([]string{"https://company.okta.com/introspect", " https://company.okta.com/introspect"})},
 			"duplicate url",

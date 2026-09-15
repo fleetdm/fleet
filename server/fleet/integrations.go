@@ -581,7 +581,9 @@ func isAbsoluteHTTPSURL(rawURL string) bool {
 	if err != nil || parsed == nil {
 		return false
 	}
-	return parsed.Scheme == "https" && parsed.Host != ""
+	// Userinfo is refused: the allowlist is stored unmasked, and a credential there would be
+	// sent with every introspection call.
+	return parsed.Scheme == "https" && parsed.Host != "" && parsed.User == nil
 }
 
 // IsGoogleWorkspaceConfigured reports whether a Google Workspace IdP integration

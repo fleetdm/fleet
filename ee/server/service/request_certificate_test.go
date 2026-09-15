@@ -56,14 +56,22 @@ const (
 	*/
 	goodCSR = "-----BEGIN CERTIFICATE REQUEST-----\nMIIC8jCCAdoCAQAwDzENMAsGA1UEAwwEVGVzdDCCASIwDQYJKoZIhvcNAQEBBQAD\nggEPADCCAQoCggEBALMrkHOVZWVGv9PqU20NgpWed9MdRtMc8406GGWQJ3Rj9/8J\ncy8LOx1d5/XWLKK5VbN2c1hD/a26qkgHtDMfzRXnv5oFybkhaI5tlc9yhQmJVFI2\nRIBsSkZvIlX+SNWV2RuiyVHyGbjhzi3wZen1s0aOeXMMHdD5FVEngX4Fz3TuTb/Z\n8romrsSmWb32fQyQxola9/xe0IAnXZocrxi4xPjNKQbEN/2+gQ/MRJx+c+xnV3MV\nIrXn+8Av8MMBsXhCDlmT2QrpRezNAwWwRni9yKOb0sZMtTDrsCOgAmWsj0Qxf/AS\nMPh7xbozXK4ubf5ombYxEdwGgYl/IKQUKvBKYMMCAwEAAaCBnTCBmgYJKoZIhvcN\nAQkOMYGMMIGJMIGGBgNVHREEfzB9ggtleGFtcGxlLmNvbYETZmxlZXRpZUBleGFt\ncGxlLmNvbYY0SUQ6RmxlZXRETTpHVUlEOjg1NzAwMDM2LTExZWYtMTFlMS1iYmRh\nLTM4OTIzOWNjMmM0MaAjBgorBgEEAYI3FAIDoBUME2ZsZWV0aWVAZXhhbXBsZS5j\nb20wDQYJKoZIhvcNAQELBQADggEBABSBUwyvH/B4kMi9haabDmXpgjb+I7GN2ibz\nN9xS0D/p1TEPNZ2owMdd71oEUPO+pL4PeOIKkn/TRm5ZjnVHtlwlz9PPtkyg7n0d\n6v1L0PPn17jMu9o5u984oP+PYt/VXjJfqzSv2QY2fuR7u108bnxVfWh03n0w1+is\npDQhM5jT+RmXbeOiMIwLojwsYV78y3IYu9ElskonL2v8HQUD9yP8TKlASEhYOD7N\npPLSre8uKL3+A1nyvhG53Ia5xID9mQR3cMO0g6wOoCMerJ4QYMX9jkfPolteT25m\n3NKghdVqvxjm/Oxp7ZFn7LsbdALjnXDYbnNYl8BQTc1rMInnuOw=\n-----END CERTIFICATE REQUEST-----\n"
 	badCSR  = "-----BEGIN CERTIFICATE REQUEST-----\nMIIC9DCCAdwCAQAwDzENMAsGA1UEAwwEVGVzdDCCASIwDQYJKoZIhvcNAQEBBQAD\nggEPADCCAQoCggEBAKUUUwsYGpfCCFZYPFL2KLMtf9QdKTizvv3xGPPh6exUo5tB\nEIyhuifEbVIJwf5BhL3104rAY1uywdcUIHqHtWcmaEzS8G6vn1hE4iOMMh5qG6e2\nzobHTxeRgOSeUKHGXWy93BqS09Nkj5H8zlTJO6NjwD3SKiDYZGQDhljdsHTw9Txt\ndHHrEi+y4Qn4FoAf/ie7x2OmfemhLIqpLpU6BxMmqiEHkGObNNlgFGsHGGC3qs9G\nR+2roK3r+nQouMKbFL2CqDCd6F/dBfSSYgOTeOJeOLoM6mZuYqF7dTC1ZU9xhPIR\nzwi9sodQ6kYj++ZycUGT56s6/0yEc4E2AUHAeB0CAwEAAaCBnzCBnAYJKoZIhvcN\nAQkOMYGOMIGLMIGIBgNVHREEgYAwfoILZXhhbXBsZS5jb22BFGJhZGFjdG9yQGV4\nYW1wbGUuY29thjRJRDpGbGVldERNOkdVSUQ6ODU3MDAwMzYtMTFlZi0xMWUxLWJi\nZGEtMzg5MjM5Y2MyYzQxoCMGCisGAQQBgjcUAgOgFQwTZmxlZXRpZUBleGFtcGxl\nLmNvbTANBgkqhkiG9w0BAQsFAAOCAQEASt8qgOCQTtYYYr7KDMcp90Kw+ZiJAL8k\nyRhJy4OsiO4mCdUVvzkyccfV+n6U/51ktPjYkWc1CVYXa+KNN/Z0prsAKYmonR9/\nJh3VVeZrwyglsw+X2ct/H9neOC433KfstRYAZ5WGCSaBJRN1+SUI23O6fjQN7DaL\ntzBPMXMcfNZoWj8rbM/E0WjTnlgUi6L3Ppys5xq1vupdQCiryE8J8A9kKHnMyEi4\nqkCoKOBajEIT9tyFKg5NDjMbIAHFLoUWpLeEtgrGnq5bqBE+q/gOUFb+uqJmQQQz\nVlzFj30tfmt3uBq79Wne1Hu0S634eaCbHOmbuOmLforQqzKpaHXqPQ==\n-----END CERTIFICATE REQUEST-----\n"
-	// prefixUPNCSR carries email=fleetie@example.com with UPN=fleetie, the documented shorthand
-	// form where the UPN is a prefix of the email.
-	prefixUPNCSR = "-----BEGIN CERTIFICATE REQUEST-----\nMIIC4zCCAcsCAQAwDzENMAsGA1UEAwwEVGVzdDCCASIwDQYJKoZIhvcNAQEBBQAD\nggEPADCCAQoCggEBAKna6L5GFWTlNjNVpaDWJadyL+xb8VAMSufVQqyBWKi6SUHy\nbyU+rAEk8prdKN1bFHQFVtEBaeaNgyiwJAioLeYeJ8fpiSU5/HVIyrA15hAUQNN3\nHcUGHRwKzGP+gbQmneNUIxdjMQ/f9FSqEbv15EBveFrYO6BSNWBUS8toLX39QC+S\nVaMPd3Wv5u2eVMGUnnrLPVhG52FwsyklO6ZtQ5eZC+fJ1zvZDiM9Pv6zFD/RcZXg\nxJtfUtJRc52rvZKhJ9nWW8Iy6klUdnzIRv9fX++Aaa8xzAx4I4ib939i9GW1vrH7\nvBwfcEX/ySI7OvU3BDQHHxt1ZOtlEByLegHAzVUCAwEAAaCBjjCBiwYJKoZIhvcN\nAQkOMX4wfDB6BgNVHREEczBxggtleGFtcGxlLmNvbYETZmxlZXRpZUBleGFtcGxl\nLmNvbYY0SUQ6RmxlZXRETTpHVUlEOjg1NzAwMDM2LTExZWYtMTFlMS1iYmRhLTM4\nOTIzOWNjMmM0MaAXBgorBgEEAYI3FAIDoAkMB2ZsZWV0aWUwDQYJKoZIhvcNAQEL\nBQADggEBAGYGbqCFKPCeJ1T2xYCm129asYvmvyIcMGAErQUHdmHacJGVEOcJ9eQD\ndPOvHPYpP6X7i8Oqp8hUcnpV64VWwcogojJwicsWvE2jlmIg94iobi8sC3ikyUNI\nThvoLBa3uj/SCQ7On0BDHjGJ7rXDHKIaInNVH7s5JWl1qageGEHkJfGtlbxTpA+8\n/yNzZrAxiWDtMA6pU3KIt0GyUf8lk1rycPUek2Qjf0bEBqcT9AX94Fxk4mVmXEUV\n/r3ygjeVNVVBO8Ocf/tpz0L/2eq0mt/7UThO/j49y7QTEWu3HzWyO5boLK2Mm0aM\nLMpd2rRDUFZwRXTVvQOtNAy5h3yOKz8=\n-----END CERTIFICATE REQUEST-----\n"
+	// localPartUPNCSR carries email=fleetie@example.com with UPN=fleetie, the documented shorthand
+	// form where the UPN is the local part of the email.
+	localPartUPNCSR = "-----BEGIN CERTIFICATE REQUEST-----\nMIIC4zCCAcsCAQAwDzENMAsGA1UEAwwEVGVzdDCCASIwDQYJKoZIhvcNAQEBBQAD\nggEPADCCAQoCggEBAKna6L5GFWTlNjNVpaDWJadyL+xb8VAMSufVQqyBWKi6SUHy\nbyU+rAEk8prdKN1bFHQFVtEBaeaNgyiwJAioLeYeJ8fpiSU5/HVIyrA15hAUQNN3\nHcUGHRwKzGP+gbQmneNUIxdjMQ/f9FSqEbv15EBveFrYO6BSNWBUS8toLX39QC+S\nVaMPd3Wv5u2eVMGUnnrLPVhG52FwsyklO6ZtQ5eZC+fJ1zvZDiM9Pv6zFD/RcZXg\nxJtfUtJRc52rvZKhJ9nWW8Iy6klUdnzIRv9fX++Aaa8xzAx4I4ib939i9GW1vrH7\nvBwfcEX/ySI7OvU3BDQHHxt1ZOtlEByLegHAzVUCAwEAAaCBjjCBiwYJKoZIhvcN\nAQkOMX4wfDB6BgNVHREEczBxggtleGFtcGxlLmNvbYETZmxlZXRpZUBleGFtcGxl\nLmNvbYY0SUQ6RmxlZXRETTpHVUlEOjg1NzAwMDM2LTExZWYtMTFlMS1iYmRhLTM4\nOTIzOWNjMmM0MaAXBgorBgEEAYI3FAIDoAkMB2ZsZWV0aWUwDQYJKoZIhvcNAQEL\nBQADggEBAGYGbqCFKPCeJ1T2xYCm129asYvmvyIcMGAErQUHdmHacJGVEOcJ9eQD\ndPOvHPYpP6X7i8Oqp8hUcnpV64VWwcogojJwicsWvE2jlmIg94iobi8sC3ikyUNI\nThvoLBa3uj/SCQ7On0BDHjGJ7rXDHKIaInNVH7s5JWl1qageGEHkJfGtlbxTpA+8\n/yNzZrAxiWDtMA6pU3KIt0GyUf8lk1rycPUek2Qjf0bEBqcT9AX94Fxk4mVmXEUV\n/r3ygjeVNVVBO8Ocf/tpz0L/2eq0mt/7UThO/j49y7QTEWu3HzWyO5boLK2Mm0aM\nLMpd2rRDUFZwRXTVvQOtNAy5h3yOKz8=\n-----END CERTIFICATE REQUEST-----\n"
 	// noUPNCSR carries the SAN email but no UPN othername.
 	noUPNCSR = "-----BEGIN CERTIFICATE REQUEST-----\nMIICyDCCAbACAQAwDzENMAsGA1UEAwwEVGVzdDCCASIwDQYJKoZIhvcNAQEBBQAD\nggEPADCCAQoCggEBAKna6L5GFWTlNjNVpaDWJadyL+xb8VAMSufVQqyBWKi6SUHy\nbyU+rAEk8prdKN1bFHQFVtEBaeaNgyiwJAioLeYeJ8fpiSU5/HVIyrA15hAUQNN3\nHcUGHRwKzGP+gbQmneNUIxdjMQ/f9FSqEbv15EBveFrYO6BSNWBUS8toLX39QC+S\nVaMPd3Wv5u2eVMGUnnrLPVhG52FwsyklO6ZtQ5eZC+fJ1zvZDiM9Pv6zFD/RcZXg\nxJtfUtJRc52rvZKhJ9nWW8Iy6klUdnzIRv9fX++Aaa8xzAx4I4ib939i9GW1vrH7\nvBwfcEX/ySI7OvU3BDQHHxt1ZOtlEByLegHAzVUCAwEAAaB0MHIGCSqGSIb3DQEJ\nDjFlMGMwYQYDVR0RBFowWIILZXhhbXBsZS5jb22BE2ZsZWV0aWVAZXhhbXBsZS5j\nb22GNElEOkZsZWV0RE06R1VJRDo4NTcwMDAzNi0xMWVmLTExZTEtYmJkYS0zODky\nMzljYzJjNDEwDQYJKoZIhvcNAQELBQADggEBAIF6R7tJAZPvNmQGKbQ21i/s5IUX\ng7VsF3xcR+8m52Q1RirwkonCZAd9dkSo2JTO2u85YUzO9Sh09FBMtkI6jDtQYCwh\nwPrpWFm8VkZZgiCpKtJXoOE+tH0UU/XsOIku9JrX5KfoSjgzhGWBdfqRMpq8wQHL\n3j1CiRTTnKsFgGMd0VqQJt/G3gK0GIQ7VvzdwanetLzHNTSIe7rryu1PDCKdWFdi\nQW23hRVUArYGVy5XzqFEDZ4IRrMVxNnPdSMBiFOeVP9lObrd+2uA4oKXUhvN2LxU\n1x3+3FhxAYCO+AeulD7bbmLPQVUrocAtyv6zsigbjxqVw5YRyHqchpLo0wo=\n-----END CERTIFICATE REQUEST-----\n"
 	// noEmailCSR carries the UPN othername but no SAN email, built with the same commands
 	// minus the "email:$USERNAME" entry.
 	noEmailCSR = "-----BEGIN CERTIFICATE REQUEST-----\nMIIC2jCCAcICAQAwDzENMAsGA1UEAwwEVGVzdDCCASIwDQYJKoZIhvcNAQEBBQAD\nggEPADCCAQoCggEBAJTyRlK1B5jg/IXbpsOQ24ch92GaPgXYstgHysZowVdnTj++\n3ucs+XpCbVQvLJ0KFI8wi9sNhZeLG4Srz8wNtljkiixodUNo/YGGK0/0iEbWnhJK\nf5tNzv7ZqQqJ9MQBazhsM80d1nYe/QLgUeCGaaZJChUzeaKACNjtWGsA46lLU9//\nd+30qwO8PYu04bDzk/ZfIx8PouxviOLVK1pj87jb930QrzemuhFOpkgOjEN3Ofms\nDwdzDc2ofNU8gCsYP18+oKHHoY+nmFDLOFeV0jjoQmlL28WKsgAnLH6VTieoBUxs\nunTGBt2hBI1dt/KtExHcGgW1HluSrbu+bf7GAFMCAwEAAaCBhTCBggYJKoZIhvcN\nAQkOMXUwczBxBgNVHREEajBoggtleGFtcGxlLmNvbYY0SUQ6RmxlZXRETTpHVUlE\nOjg1NzAwMDM2LTExZWYtMTFlMS1iYmRhLTM4OTIzOWNjMmM0MaAjBgorBgEEAYI3\nFAIDoBUME2ZsZWV0aWVAZXhhbXBsZS5jb20wDQYJKoZIhvcNAQELBQADggEBAI/J\nrnQBLcEVaVt4JOc6zkotRd32Nf8jqmQKwDYKflecVdNm2g1pDR5MzkdKWizSyHcc\n1/gzJHmRelKrvI1tErkT+kO65eYjJue4aadOahzsIJbgK1l5TNJlU2Oc2MrNnk6Y\nzAWqSKNosP83Z0SM9cWVcy2nGvBdaTpYGHkYi/K2gF8aggu2+K3iU3K4r6MZyray\nJoHhyzDdvr46IdcglVG4AhpB7lIPmMq9oOvdPNM2Wj8HUTWLlwYt6MRMP2YYaHMP\nYtmr12RC7c+ZV6Jznax+DUtUTXho5S7z8E19CgLOB0FTyRj+FaQTjdRhRMBUKLLu\noeeC9q4yKvtw0iNUU9k=\n-----END CERTIFICATE REQUEST-----\n"
+	// twoUPNCSR carries email=fleetie@example.com with two UPN othernames, fleetie@example.com
+	// then victim@example.com.
+	twoUPNCSR = "-----BEGIN CERTIFICATE REQUEST-----\nMIIDGDCCAgACAQAwDzENMAsGA1UEAwwEVGVzdDCCASIwDQYJKoZIhvcNAQEBBQAD\nggEPADCCAQoCggEBAI3FzYmSIbCVAcfjG+LjpP/m14DYrzQmglgZCy5TIcGmUuXI\ngBhCpufBGrO/5RSCkRlp9bNwc/69J9zJ0BsNYoSBhSDWxg5OchHoM4nz8eRAfw9Z\nxx0cVjzTxr9O0Nc42IOTJLGfJqKvK65W3DOJzw0rmPEIygqN1Kx6hRFsq2Yy6lyq\niGIbScxSUdN5q8OjDhKnwvXvJqRUuFm+Bxnu6iX3ZIym4cGAt/ihfhiRUE5aZOjf\nfj1QYaFMd93iaA6eCZTStbT87UFUl5iHCKiBC9KnURxuaY1wB1iUVQLt5q9uNJlo\n8q9NdnSyNMtff27ntPURfPzGljZNyAiBre+M3B0CAwEAAaCBwzCBwAYJKoZIhvcN\nAQkOMYGyMIGvMIGsBgNVHREEgaQwgaGCC2V4YW1wbGUuY29tgRNmbGVldGllQGV4\nYW1wbGUuY29thjRJRDpGbGVldERNOkdVSUQ6ODU3MDAwMzYtMTFlZi0xMWUxLWJi\nZGEtMzg5MjM5Y2MyYzQxoCMGCisGAQQBgjcUAgOgFQwTZmxlZXRpZUBleGFtcGxl\nLmNvbaAiBgorBgEEAYI3FAIDoBQMEnZpY3RpbUBleGFtcGxlLmNvbTANBgkqhkiG\n9w0BAQsFAAOCAQEAWoW3XwwDV2X+RzQZSY5MOXzR5/ZgU3IBlEkTvP6IsnZWtBW/\n6qUNyUyVB4JxxxOo+a3Si82SSQSuMBRHUf3QkFxSe1LPiGhkR63hVZuBWDaLQp4T\nr+MdY6zah4f8RscTDRETaAfeU5RAokgO/F4Kcq4YwPI0eQEIMSyPmfjnoDg1I9Z3\n1kqrvqRzChlfqr5dcm3bOlDVcT8XA8FOfFRUpZeQPeS4cIXyK8Xd+bY/tLgILSlH\nMFdm3Cui7rEoTRf1B2OGglNYqyoQf8aRrh1wOOlendnebuy7NsVv09vB3vlqtg4s\nXp69ZBoqobX3x8DkGiCtnSHT/6XUVXPq+Xup+g==\n-----END CERTIFICATE REQUEST-----\n"
+	// emptyUPNCSR carries email=fleetie@example.com with a zero-length UPN othername.
+	emptyUPNCSR = "-----BEGIN CERTIFICATE REQUEST-----\nMIIC3DCCAcQCAQAwDzENMAsGA1UEAwwEVGVzdDCCASIwDQYJKoZIhvcNAQEBBQAD\nggEPADCCAQoCggEBAI3FzYmSIbCVAcfjG+LjpP/m14DYrzQmglgZCy5TIcGmUuXI\ngBhCpufBGrO/5RSCkRlp9bNwc/69J9zJ0BsNYoSBhSDWxg5OchHoM4nz8eRAfw9Z\nxx0cVjzTxr9O0Nc42IOTJLGfJqKvK65W3DOJzw0rmPEIygqN1Kx6hRFsq2Yy6lyq\niGIbScxSUdN5q8OjDhKnwvXvJqRUuFm+Bxnu6iX3ZIym4cGAt/ihfhiRUE5aZOjf\nfj1QYaFMd93iaA6eCZTStbT87UFUl5iHCKiBC9KnURxuaY1wB1iUVQLt5q9uNJlo\n8q9NdnSyNMtff27ntPURfPzGljZNyAiBre+M3B0CAwEAAaCBhzCBhAYJKoZIhvcN\nAQkOMXcwdTBzBgNVHREEbDBqggtleGFtcGxlLmNvbYETZmxlZXRpZUBleGFtcGxl\nLmNvbYY0SUQ6RmxlZXRETTpHVUlEOjg1NzAwMDM2LTExZWYtMTFlMS1iYmRhLTM4\nOTIzOWNjMmM0MaAQBgorBgEEAYI3FAIDoAIMADANBgkqhkiG9w0BAQsFAAOCAQEA\ndNXPg7BZQiiRMiD/VrTBDOnKS5AYO0/GgLHC/b/98kSIUY6sOIwyuXOWshwZmm3y\npcNW/i6/yODXui0k8tWn7I14ibNKI63bKPPJzC1WpAFOU2DHQUiUBEB3WBssmjwJ\nV8Q8wZMFADNFOthBCB36n41BDF4aLgH7YFkyVXaXrGOuuyBcVyqH3yIu0WF7ch7N\nqCaf488ffl+tOMqvTtVnnuPcE17sVcya7w4g4MGuLm1kxbL9JsWxSGeCJPSdV5HV\nvPHvwQ1AcmFUWIMoxIKUMcBMzNwI9ZEzndCUOuSyRwJ4shjseATgjjdE6RqHe+pM\nfCKYWXHo0iSFNaCyOPYkng==\n-----END CERTIFICATE REQUEST-----\n"
+	// partialUPNCSR carries email=fleetie@example.com with UPN=fleet, a prefix of the local part
+	// that names no complete identity.
+	partialUPNCSR = "-----BEGIN CERTIFICATE REQUEST-----\nMIIC4TCCAckCAQAwDzENMAsGA1UEAwwEVGVzdDCCASIwDQYJKoZIhvcNAQEBBQAD\nggEPADCCAQoCggEBAI3FzYmSIbCVAcfjG+LjpP/m14DYrzQmglgZCy5TIcGmUuXI\ngBhCpufBGrO/5RSCkRlp9bNwc/69J9zJ0BsNYoSBhSDWxg5OchHoM4nz8eRAfw9Z\nxx0cVjzTxr9O0Nc42IOTJLGfJqKvK65W3DOJzw0rmPEIygqN1Kx6hRFsq2Yy6lyq\niGIbScxSUdN5q8OjDhKnwvXvJqRUuFm+Bxnu6iX3ZIym4cGAt/ihfhiRUE5aZOjf\nfj1QYaFMd93iaA6eCZTStbT87UFUl5iHCKiBC9KnURxuaY1wB1iUVQLt5q9uNJlo\n8q9NdnSyNMtff27ntPURfPzGljZNyAiBre+M3B0CAwEAAaCBjDCBiQYJKoZIhvcN\nAQkOMXwwejB4BgNVHREEcTBvggtleGFtcGxlLmNvbYETZmxlZXRpZUBleGFtcGxl\nLmNvbYY0SUQ6RmxlZXRETTpHVUlEOjg1NzAwMDM2LTExZWYtMTFlMS1iYmRhLTM4\nOTIzOWNjMmM0MaAVBgorBgEEAYI3FAIDoAcMBWZsZWV0MA0GCSqGSIb3DQEBCwUA\nA4IBAQALpbHyxS9FOKJdqeqZEqI5wCphP0s+7XPGOHlSUt7xPqn9VIFTUdYK8Ttw\nW3sn1xPt28BvFcIcGFjttfsx5vVQq0qP78oGsh2ToZsLokw+csqKMWagVnka6FXN\nUveDhx0eBwmoTBlgZIirakglz7drmHmhKSpmJvqt/KAocqUTDlTl2CKsVGp+yGzf\nxw5ruStZ89sM+iEgeNlunwANDZ41YVykMBQev84RXf7lshvsiQb3897usAiQswWa\nqmYf8hNSgOFDZy2AgKTmT5Rd/d4u95LjGHn5yBPum78aUvq+Z59df/MT5DCDadKM\nIBvcSqXpFNc1/wtIffRMf2yF1+rm\n-----END CERTIFICATE REQUEST-----\n"
 )
 
 // An otherName carrying trailing bytes after its OID/value pair used to restart the scan from the
@@ -104,6 +112,31 @@ func TestExtractCSRUPNTerminatesOnTrailingBytes(t *testing.T) {
 	}
 }
 
+func TestUPNMatchesEmail(t *testing.T) {
+	for name, tc := range map[string]struct {
+		email, upn string
+		want       bool
+	}{
+		"full email":                             {"alice@example.com", "alice@example.com", true},
+		"full email, different case":             {"alice@example.com", "Alice@Example.COM", true},
+		"local part":                             {"alice@example.com", "alice", true},
+		"local part, different case":             {"alice@example.com", "ALICE", true},
+		"partial local part":                     {"alice@example.com", "ali", false},
+		"single character":                       {"alice@example.com", "a", false},
+		"truncated domain":                       {"alice@example.com", "alice@example.co", false},
+		"local part with at sign":                {"alice@example.com", "alice@", false},
+		"empty upn":                              {"alice@example.com", "", false},
+		"other user":                             {"alice@example.com", "bob", false},
+		"upn longer than email":                  {"alice@example.com", "alice@example.com.evil", false},
+		"email without domain, full":             {"alice", "alice", true},
+		"empty upn and email with no local part": {"@example.com", "", false},
+	} {
+		t.Run(name, func(t *testing.T) {
+			require.Equal(t, tc.want, upnMatchesEmail(tc.email, tc.upn))
+		})
+	}
+}
+
 func TestRequestCertificate(t *testing.T) {
 	t.Parallel()
 
@@ -139,6 +172,7 @@ func TestRequestCertificate(t *testing.T) {
 	defaultHydrantSimpleEnrollResponse := "abc123"
 	hydrantSimpleEnrollResponse := defaultHydrantSimpleEnrollResponse
 	hydrantSimpleEnrollStatus := http.StatusOK
+	var hydrantSimpleEnrollCalls atomic.Int64
 
 	mockHydrantServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodGet {
@@ -157,6 +191,7 @@ func TestRequestCertificate(t *testing.T) {
 			w.WriteHeader(http.StatusNotFound)
 			return
 		}
+		hydrantSimpleEnrollCalls.Add(1)
 
 		if hydrantSimpleEnrollStatus != http.StatusOK {
 			w.WriteHeader(hydrantSimpleEnrollStatus)
@@ -249,6 +284,7 @@ func TestRequestCertificate(t *testing.T) {
 		oauthIntrospectCalls.Store(0)
 		hydrantSimpleEnrollResponse = defaultHydrantSimpleEnrollResponse
 		hydrantSimpleEnrollStatus = http.StatusOK
+		hydrantSimpleEnrollCalls.Store(0)
 
 		return svc, ds, ctx
 	}
@@ -475,6 +511,36 @@ func TestRequestCertificate(t *testing.T) {
 			IDPClientID: ptr.String("test-client-id"), // Missing client ID
 		})
 		require.ErrorAs(t, err, &invalidCSR)
+	})
+
+	// A UPN that is only a prefix of the email names no complete identity, so it is refused even
+	// though the email itself matches the IdP username.
+	t.Run("Request certificate - CSR UPN is a partial prefix of the email, IDP provided", func(t *testing.T) {
+		svc, _, ctx := baseSetupForTests()
+		_, err := svc.RequestCertificate(ctx, fleet.RequestCertificatePayload{
+			ID:          hydrantCA.ID,
+			CSR:         partialUPNCSR,
+			IDPOauthURL: new(mockOauthServer.URL + "/oauth2/v1/introspect"),
+			IDPToken:    new("test-idp-token"),
+			IDPClientID: new("test-client-id"),
+		})
+		require.ErrorAs(t, err, &invalidCSR)
+		require.Zero(t, hydrantSimpleEnrollCalls.Load())
+	})
+
+	// The CSR is forwarded to the CA unchanged, so a second UPN would be issued unverified.
+	t.Run("Request certificate - CSR with multiple UPNs is rejected, IDP provided", func(t *testing.T) {
+		svc, _, ctx := baseSetupForTests()
+		_, err := svc.RequestCertificate(ctx, fleet.RequestCertificatePayload{
+			ID:          hydrantCA.ID,
+			CSR:         twoUPNCSR,
+			IDPOauthURL: new(mockOauthServer.URL + "/oauth2/v1/introspect"),
+			IDPToken:    new("test-idp-token"),
+			IDPClientID: new("test-client-id"),
+		})
+		require.ErrorAs(t, err, &invalidCSR)
+		require.Zero(t, oauthIntrospectCalls.Load())
+		require.Zero(t, hydrantSimpleEnrollCalls.Load())
 	})
 
 	t.Run("Request certificate - CSR is not a CSR, IDP provided", func(t *testing.T) {
@@ -730,7 +796,7 @@ func TestRequestCertificate(t *testing.T) {
 	})
 
 	// The documented shorthand: an IdP username of bob@example.com may appear as UPN bob.
-	t.Run("Request a certificate - host binding on, UPN that is a prefix of the email succeeds", func(t *testing.T) {
+	t.Run("Request a certificate - host binding on, UPN that is the local part of the email succeeds", func(t *testing.T) {
 		svc, ds, ctx := deviceSetup(t, new(uint(1)))
 		appConfig.Integrations.CertificatesRequireHostEndUserBinding = optjson.SetBool(true)
 		ds.ListHostDeviceMappingFunc = func(ctx context.Context, hostID uint) ([]*fleet.HostDeviceMapping, error) {
@@ -739,10 +805,65 @@ func TestRequestCertificate(t *testing.T) {
 
 		cert, err := svc.RequestCertificate(ctx, fleet.RequestCertificatePayload{
 			ID:  hydrantCA.ID,
-			CSR: prefixUPNCSR,
+			CSR: localPartUPNCSR,
 		})
 		require.NoError(t, err)
 		require.NotNil(t, cert)
+	})
+
+	// Only the full email or its complete local part name the bound identity. A shorter prefix
+	// such as "fleet", or "fleetie@example.co" for another domain, would let the host put a
+	// different name in the field 802.1X authenticates on.
+	t.Run("Request a certificate - host binding on, UPN that is a partial prefix of the email is rejected", func(t *testing.T) {
+		svc, ds, ctx := deviceSetup(t, new(uint(1)))
+		appConfig.Integrations.CertificatesRequireHostEndUserBinding = optjson.SetBool(true)
+		ds.ListHostDeviceMappingFunc = func(ctx context.Context, hostID uint) ([]*fleet.HostDeviceMapping, error) {
+			return []*fleet.HostDeviceMapping{{HostID: hostID, Email: "fleetie@example.com", Source: fleet.DeviceMappingIDP}}, nil
+		}
+
+		cert, err := svc.RequestCertificate(ctx, fleet.RequestCertificatePayload{
+			ID:  hydrantCA.ID,
+			CSR: partialUPNCSR,
+		})
+		require.ErrorContains(t, err, "does not match the end user identity recorded for this host")
+		require.Nil(t, cert)
+		require.Zero(t, hydrantSimpleEnrollCalls.Load())
+	})
+
+	// A zero-length UPN is a prefix of everything; it is not an identity and is refused as an
+	// invalid CSR before any identity comparison.
+	t.Run("Request a certificate - host binding on, CSR with an empty UPN is rejected", func(t *testing.T) {
+		svc, ds, ctx := deviceSetup(t, new(uint(1)))
+		appConfig.Integrations.CertificatesRequireHostEndUserBinding = optjson.SetBool(true)
+		ds.ListHostDeviceMappingFunc = func(ctx context.Context, hostID uint) ([]*fleet.HostDeviceMapping, error) {
+			return []*fleet.HostDeviceMapping{{HostID: hostID, Email: "fleetie@example.com", Source: fleet.DeviceMappingIDP}}, nil
+		}
+
+		cert, err := svc.RequestCertificate(ctx, fleet.RequestCertificatePayload{
+			ID:  hydrantCA.ID,
+			CSR: emptyUPNCSR,
+		})
+		require.ErrorAs(t, err, &invalidCSR)
+		require.Nil(t, cert)
+		require.Zero(t, hydrantSimpleEnrollCalls.Load())
+	})
+
+	// The first UPN matches the bound identity; the second names someone else. The CSR is
+	// forwarded to the CA unchanged, so it must be refused rather than partly checked.
+	t.Run("Request a certificate - host binding on, CSR with multiple UPNs is rejected", func(t *testing.T) {
+		svc, ds, ctx := deviceSetup(t, new(uint(1)))
+		appConfig.Integrations.CertificatesRequireHostEndUserBinding = optjson.SetBool(true)
+		ds.ListHostDeviceMappingFunc = func(ctx context.Context, hostID uint) ([]*fleet.HostDeviceMapping, error) {
+			return []*fleet.HostDeviceMapping{{HostID: hostID, Email: "fleetie@example.com", Source: fleet.DeviceMappingIDP}}, nil
+		}
+
+		cert, err := svc.RequestCertificate(ctx, fleet.RequestCertificatePayload{
+			ID:  hydrantCA.ID,
+			CSR: twoUPNCSR,
+		})
+		require.ErrorAs(t, err, &invalidCSR)
+		require.Nil(t, cert)
+		require.Zero(t, hydrantSimpleEnrollCalls.Load())
 	})
 
 	// Fail closed, as the missing-email case does. Every documented CSR recipe includes a UPN and
