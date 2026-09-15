@@ -490,6 +490,10 @@ module.exports.custom = {
   // engMetricsGcpServiceAccountKey: '…',
   // datadogApiKey: '…',
 
+  // Usage statistics Google sheet:
+  // usageStatisticsServiceAccountEmailAddress: '…',
+  // usageStatisticsServiceAccountPrivateKey: '…',
+
   // For receive-from-customer-fleet-instance webhook.
   // customerWorkspaceOneBaseUrl: '…',
   // customerWorkspaceOneOauthId: '…',
