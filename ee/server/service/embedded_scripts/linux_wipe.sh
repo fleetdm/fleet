@@ -233,17 +233,22 @@ if [ "$1" = "wipe" ]; then
     wipe_all_files
 else
     # We are in the parent shell, block and logout users and begin the detached
-    # wipe child process
+    # wipe child process.
+    # Stage before locking anyone out: fleetd deletes this script's directory as
+    # soon as we return, and systemd-run returns before the child has opened it.
+    # /run stays writable on read-only-root images and the wipe never deletes it.
+    WIPE_SCRIPT=/run/fleet_wipe.sh
+    if ! cp "$0" "$WIPE_SCRIPT"; then
+        echo "Could not stage the wipe, so not locking logins on a host that will not be wiped" >&2
+        exit 1
+    fi
     block_logins
     logout_users
     echo "Wiping, system will be unreachable"
-    # fleetd deletes this script's directory as soon as this shell returns, and
-    # systemd-run returns before the child has opened it, so stage a copy first.
-    WIPE_SCRIPT=/fleet_wipe.sh
-    cp "$0" "$WIPE_SCRIPT" || { WIPE_SCRIPT="$0"; echo "Warning: could not stage the wipe outside fleetd's run directory"; }
-    # A transient unit escapes orbit.service's cgroup, which kills and CPU-caps a
-    # nohup child. Branch on systemd-run failing rather than existing, or an old
-    # systemd leaves a host locked out by block_logins and never wiped.
+    # orbit.service is KillMode=control-group with CPUQuota=20%, so a nohup child
+    # dies on every orbit restart and runs at a fifth of one CPU. Branch on
+    # systemd-run failing rather than existing, or an old systemd leaves a host
+    # locked out by block_logins and never wiped.
     if ! systemd-run --unit=fleet-wipe /bin/sh "$WIPE_SCRIPT" wipe; then
         (/usr/bin/nohup sh "$WIPE_SCRIPT" wipe >/dev/null 2>/dev/null </dev/null) &
     fi

@@ -27,14 +27,17 @@ func TestLinuxLockAndWipeDenyLoginsViaPAM(t *testing.T) {
 }
 
 // Logins must be denied before sessions are torn down, or the user can race
-// back in through the gap.
-func TestLinuxWipeScriptBlocksLoginsBeforeLoggingOut(t *testing.T) {
+// back in through the gap. Staging has to come first in turn: locking logins on
+// a host the wipe can't start on leaves it unreachable and intact.
+func TestLinuxWipeScriptStagesBeforeBlockingLogins(t *testing.T) {
 	t.Parallel()
 	script := string(linuxWipeScript)
+	stage := strings.LastIndex(script, `cp "$0" "$WIPE_SCRIPT"`)
 	block := strings.LastIndex(script, "\n    block_logins\n")
 	logout := strings.LastIndex(script, "\n    logout_users\n")
+	require.NotEqual(t, -1, stage, "linux_wipe.sh must stage the script out of fleetd's run directory")
 	require.NotEqual(t, -1, block, "linux_wipe.sh must call block_logins")
-	require.NotEqual(t, -1, logout, "linux_wipe.sh must call logout_users")
+	require.Less(t, stage, block, "staging must succeed before logins are blocked")
 	require.Less(t, block, logout, "block_logins must run before logout_users")
 }
 
