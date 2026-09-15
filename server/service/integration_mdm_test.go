@@ -28537,6 +28537,67 @@ func (s *integrationMDMTestSuite) TestAndroidCustomCommandsListAndResults() {
 	require.Contains(t, errMsg, `"command_status" filter is only available for macOS, iOS, and iPadOS hosts`)
 }
 
+// TestAndroidCustomCommandRejectedOnPersonallyOwnedHost covers the symptom reported in #53151: REBOOT on a BYOD work
+// profile used to return 200 and record a "ran REBOOT" activity because AMAPI reports the operation as done with no
+// error while the device ignores it. The command must now be refused outright, so no activity claims it ran.
+func (s *integrationMDMTestSuite) TestAndroidCustomCommandRejectedOnPersonallyOwnedHost() {
+	t := s.T()
+	ctx := t.Context()
+
+	enterpriseID, err := s.ds.CreateEnterprise(ctx, s.users["admin1"].ID)
+	require.NoError(t, err)
+	enterprise := android.Enterprise{ID: enterpriseID, EnterpriseID: "byod-cmd-fake"}
+	require.NoError(t, s.ds.UpdateEnterprise(ctx, &android.EnterpriseDetails{
+		Enterprise:  enterprise,
+		SignupName:  "fake",
+		SignupToken: "value",
+		TopicID:     "yep",
+	}))
+
+	var issueCalls atomic.Int32
+	s.androidAPIClient.EnterprisesDevicesIssueCommandFunc = func(_ context.Context, deviceName string, _ *androidmanagement.Command) (*androidmanagement.Operation, error) {
+		return &androidmanagement.Operation{Name: fmt.Sprintf("%s/operations/byod-op-%d", deviceName, issueCalls.Add(1))}, nil
+	}
+
+	byodHostID := createAndroidHostForTest(t, s.ds, nil, false)
+
+	var hostResp getHostResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", byodHostID), nil, http.StatusOK, &hostResp)
+	hostUUID := hostResp.Host.UUID
+	require.True(t, hostResp.Host.MDM.IsPersonalEnrollment)
+
+	lastActivityID := s.lastActivityMatches("", "", 0)
+
+	res := s.Do("POST", "/api/latest/fleet/commands/run", &runMDMCommandRequest{
+		Command:   base64.StdEncoding.EncodeToString([]byte(`{"type":"REBOOT"}`)),
+		HostUUIDs: []string{hostUUID},
+	}, http.StatusBadRequest)
+	require.Contains(t, extractServerErrorText(res.Body),
+		"REBOOT is not supported for personally-owned Android hosts.")
+
+	// Nothing reached AMAPI, so nothing can come back acknowledged.
+	require.Zero(t, issueCalls.Load())
+
+	// No command row, so the command does not show up as pending or ran for this host.
+	var listResp listMDMCommandsResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/commands?host_identifier=%s", hostUUID), nil, http.StatusOK, &listResp)
+	require.Empty(t, listResp.Results)
+
+	// The reported symptom: no activity may claim the command ran. Asserting the newest activity is unchanged
+	// also catches an activity written before the command is issued.
+	require.Equal(t, lastActivityID, s.lastActivityMatches("", "", 0))
+
+	// A command type AMAPI does support on a work profile is still issued, so the check is not over-broad.
+	var runResp runMDMCommandResponse
+	s.DoJSON("POST", "/api/latest/fleet/commands/run", &runMDMCommandRequest{
+		Command:   base64.StdEncoding.EncodeToString([]byte(`{"type":"CLEAR_APP_DATA","clearAppsDataParams":{"packageNames":["com.example.app"]}}`)),
+		HostUUIDs: []string{hostUUID},
+	}, http.StatusOK, &runResp)
+	require.NotEmpty(t, runResp.CommandUUID)
+	require.Equal(t, int32(1), issueCalls.Load())
+	s.lastActivityMatches(fleet.ActivityTypeRanCustomMDMCommand{}.ActivityName(), "", 0)
+}
+
 // fileVaultStatusHelpers returns helpers to drive the host's FileVault profile
 // status and assert the derived disk encryption status through the API.
 func (s *integrationMDMTestSuite) fileVaultStatusHelpers(ctx context.Context, host *fleet.Host) (

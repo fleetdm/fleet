@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"os"
 	"testing"
@@ -11,16 +12,15 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	android_mock "github.com/fleetdm/fleet/v4/server/mdm/android/mock"
-	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/api/androidmanagement/v1"
 )
 
-// TestIssueCustomCommandManagementMode covers the pre-flight check that rejects AMAPI command types Google only
-// supports on company-owned hosts. AMAPI accepts REBOOT on a personally-owned work profile and reports the operation
-// as done with no error while the device ignores it, so Fleet has to refuse before issuing the command.
-func TestIssueCustomCommandManagementMode(t *testing.T) {
+// TestIssueCustomCommandOwnership covers the pre-flight check that rejects AMAPI command types Google does not
+// support on a personally-owned work profile. AMAPI accepts REBOOT there and reports the operation as done with no
+// error while the device ignores it, so Fleet has to refuse before issuing the command.
+func TestIssueCustomCommandOwnership(t *testing.T) {
 	const hostID = uint(42)
 
 	testCases := []struct {
@@ -28,13 +28,18 @@ func TestIssueCustomCommandManagementMode(t *testing.T) {
 		rawCommand           string
 		isPersonalEnrollment bool
 		hostMDMNotFound      bool
+		hostMDMErr           bool
 		wantErrContains      string
+		// wantRejected distinguishes a refusal (a client error naming the command type) from a failure to
+		// determine ownership, which must not be reported to the caller as an unsupported command.
+		wantRejected bool
 	}{
 		{
 			name:                 "reboot on personally-owned host is rejected",
 			rawCommand:           `{"type":"REBOOT"}`,
 			isPersonalEnrollment: true,
 			wantErrContains:      "REBOOT is not supported for personally-owned Android hosts.",
+			wantRejected:         true,
 		},
 		{
 			name:       "reboot on company-owned host is issued",
@@ -45,24 +50,28 @@ func TestIssueCustomCommandManagementMode(t *testing.T) {
 			rawCommand:           `{"type":" reboot "}`,
 			isPersonalEnrollment: true,
 			wantErrContains:      "REBOOT is not supported for personally-owned Android hosts.",
+			wantRejected:         true,
 		},
 		{
 			name:                 "relinquish ownership on personally-owned host is rejected",
 			rawCommand:           `{"type":"RELINQUISH_OWNERSHIP"}`,
 			isPersonalEnrollment: true,
 			wantErrContains:      "RELINQUISH_OWNERSHIP is not supported for personally-owned Android hosts.",
+			wantRejected:         true,
 		},
 		{
 			name:                 "start lost mode implied by params on personally-owned host is rejected",
 			rawCommand:           `{"startLostModeParams":{"lostMessage":{"defaultMessage":"call me"}}}`,
 			isPersonalEnrollment: true,
 			wantErrContains:      "START_LOST_MODE is not supported for personally-owned Android hosts.",
+			wantRejected:         true,
 		},
 		{
 			name:                 "stop lost mode implied by params on personally-owned host is rejected",
 			rawCommand:           `{"stopLostModeParams":{}}`,
 			isPersonalEnrollment: true,
 			wantErrContains:      "STOP_LOST_MODE is not supported for personally-owned Android hosts.",
+			wantRejected:         true,
 		},
 		{
 			name:                 "clear app data on personally-owned host is issued",
@@ -78,6 +87,13 @@ func TestIssueCustomCommandManagementMode(t *testing.T) {
 			name:            "reboot is issued when the host has no host_mdm row",
 			rawCommand:      `{"type":"REBOOT"}`,
 			hostMDMNotFound: true,
+		},
+		{
+			// Failing to read ownership must fail closed rather than fall through to issuing the command.
+			name:            "reboot fails when the ownership lookup fails",
+			rawCommand:      `{"type":"REBOOT"}`,
+			hostMDMErr:      true,
+			wantErrContains: "getting host_mdm for android custom command",
 		},
 	}
 
@@ -105,6 +121,9 @@ func TestIssueCustomCommandManagementMode(t *testing.T) {
 				}, nil
 			}
 			fleetDS.Store.GetHostMDMFunc = func(_ context.Context, _ uint) (*fleet.HostMDM, error) {
+				if tt.hostMDMErr {
+					return nil, errors.New("host_mdm read failed")
+				}
 				if tt.hostMDMNotFound {
 					return nil, &notFoundError{}
 				}
@@ -123,19 +142,26 @@ func TestIssueCustomCommandManagementMode(t *testing.T) {
 				noopNewActivity, config.AndroidAgentConfig{})
 			require.NoError(t, err)
 
-			ctx := viewer.NewContext(t.Context(), viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+			ctx := viewer.NewContext(t.Context(), viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
 			cmd, err := svc.IssueCustomCommand(ctx, hostID, []byte(tt.rawCommand))
 
 			if tt.wantErrContains != "" {
 				require.Error(t, err)
-				var badRequestErr *fleet.BadRequestError
-				require.ErrorAs(t, err, &badRequestErr)
-				assert.Contains(t, badRequestErr.Message, tt.wantErrContains)
 				assert.Nil(t, cmd)
-				// The command must never reach AMAPI, so no row is written and no
-				// "ran command" activity can be recorded for it.
+				// Either way the command must never reach AMAPI, so no row is written and the caller
+				// gets no command UUID to report as successfully run.
 				assert.False(t, androidAPIClient.EnterprisesDevicesIssueCommandFuncInvoked)
 				assert.False(t, fleetDS.Store.InsertMDMAndroidCommandFuncInvoked)
+
+				var badRequestErr *fleet.BadRequestError
+				if tt.wantRejected {
+					require.ErrorAs(t, err, &badRequestErr)
+					assert.Contains(t, badRequestErr.Message, tt.wantErrContains)
+				} else {
+					// A lookup failure is a server error, not a verdict on the command.
+					assert.NotErrorAs(t, err, &badRequestErr)
+					assert.Contains(t, err.Error(), tt.wantErrContains)
+				}
 				return
 			}
 
@@ -143,6 +169,10 @@ func TestIssueCustomCommandManagementMode(t *testing.T) {
 			require.NotNil(t, cmd)
 			assert.True(t, androidAPIClient.EnterprisesDevicesIssueCommandFuncInvoked)
 			assert.True(t, fleetDS.Store.InsertMDMAndroidCommandFuncInvoked)
+			if companyOwnedOnlyCommandType(&androidmanagement.Command{Type: cmd.CommandType}) == "" {
+				// Unrestricted types must not pay for an ownership lookup on every custom command.
+				assert.False(t, fleetDS.Store.GetHostMDMFuncInvoked)
+			}
 		})
 	}
 }
@@ -153,7 +183,7 @@ func TestCompanyOwnedOnlyCommandType(t *testing.T) {
 	testCases := []struct {
 		name string
 		cmd  androidmanagement.Command
-		want string
+		want android.MDMAndroidCommandType
 	}{
 		{"explicit reboot", androidmanagement.Command{Type: "REBOOT"}, "REBOOT"},
 		{"lowercase with spaces", androidmanagement.Command{Type: " reboot "}, "REBOOT"},

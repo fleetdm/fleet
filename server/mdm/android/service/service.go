@@ -1216,28 +1216,34 @@ func (svc *Service) WipeAndroidHost(ctx context.Context, hostID uint) error {
 	return nil
 }
 
-// companyOwnedOnlyCommandTypes are the AMAPI command types Google documents as supported only on fully managed or
-// company-owned devices. On a personally-owned work profile AMAPI still accepts REBOOT and reports the operation as
-// done with no error, while the device silently ignores it, so a management mode check before issuing is the only
-// place Fleet can catch these.
-var companyOwnedOnlyCommandTypes = map[string]struct{}{
-	"REBOOT":               {},
-	"RELINQUISH_OWNERSHIP": {},
-	"START_LOST_MODE":      {},
-	"STOP_LOST_MODE":       {},
+// companyOwnedOnlyCommandTypes are the AMAPI command types Google documents as unsupported on a personally-owned work
+// profile. On such a host AMAPI still accepts REBOOT and reports the operation as done with no error while the device
+// silently ignores it, so refusing before issuing is the only place Fleet can catch it.
+//
+// Google gates these on management mode, not ownership, and Fleet only records ownership
+// (host_mdm.is_personal_enrollment). The two agree for the enrollment types Fleet supports today, fully managed and
+// BYOD work profile. They diverge for a company-owned device with a work profile (COPE), where REBOOT is still
+// unsupported but the host is not personally owned, so this check lets it through; catching that needs AMAPI's
+// Device.managementMode, which Fleet does not store.
+var companyOwnedOnlyCommandTypes = map[android.MDMAndroidCommandType]struct{}{
+	android.MDMAndroidCommandTypeReboot:              {},
+	android.MDMAndroidCommandTypeRelinquishOwnership: {},
+	android.MDMAndroidCommandTypeStartLostMode:       {},
+	android.MDMAndroidCommandTypeStopLostMode:        {},
 }
 
-// companyOwnedOnlyCommandType returns the normalized command type if cmd is one AMAPI only supports on company-owned
-// hosts, and "" otherwise. AMAPI infers the type from the params when type is omitted, so the lost mode params are
-// checked too - a payload of just {"startLostModeParams":{}} is a START_LOST_MODE.
-func companyOwnedOnlyCommandType(cmd *androidmanagement.Command) string {
-	cmdType := strings.ToUpper(strings.TrimSpace(cmd.Type))
+// companyOwnedOnlyCommandType returns the normalized command type if cmd is one of companyOwnedOnlyCommandTypes, and
+// "" otherwise. AMAPI infers the type from the params when type is omitted, so the lost mode params are checked too -
+// a payload of just {"startLostModeParams":{}} is a START_LOST_MODE. The normalization is only used to decide whether
+// to reject; the type persisted on the command row is still the one AMAPI accepted.
+func companyOwnedOnlyCommandType(cmd *androidmanagement.Command) android.MDMAndroidCommandType {
+	cmdType := android.MDMAndroidCommandType(strings.ToUpper(strings.TrimSpace(cmd.Type)))
 	if cmdType == "" {
 		switch {
 		case cmd.StartLostModeParams != nil:
-			cmdType = "START_LOST_MODE"
+			cmdType = android.MDMAndroidCommandTypeStartLostMode
 		case cmd.StopLostModeParams != nil:
-			cmdType = "STOP_LOST_MODE"
+			cmdType = android.MDMAndroidCommandTypeStopLostMode
 		}
 	}
 	if _, ok := companyOwnedOnlyCommandTypes[cmdType]; ok {
@@ -1248,7 +1254,9 @@ func companyOwnedOnlyCommandType(cmd *androidmanagement.Command) string {
 
 // IssueCustomCommand issues an arbitrary AMAPI command from raw JSON. It reuses resolveAndroidCommandTarget
 // for auth/device resolution, unmarshals the JSON into an AMAPI Command, calls IssueCommand, and persists the
-// row in mdm_android_commands with raw_command populated. No host_mdm_actions ref is written.
+// row in mdm_android_commands with raw_command populated. No host_mdm_actions ref is written. Command types
+// AMAPI does not support on a personally-owned work profile (see companyOwnedOnlyCommandTypes) are refused with
+// a BadRequestError before anything is sent or persisted.
 func (svc *Service) IssueCustomCommand(ctx context.Context, hostID uint, rawJSON []byte) (*android.MDMAndroidCommand, error) {
 	host, deviceName, err := svc.resolveAndroidCommandTarget(ctx, hostID, "custom-command")
 	if err != nil {
@@ -1267,13 +1275,20 @@ func (svc *Service) IssueCustomCommand(ctx context.Context, hostID uint, rawJSON
 	}
 
 	if cmdType := companyOwnedOnlyCommandType(&amapiCmd); cmdType != "" {
+		// A missing host_mdm row means the host is not MDM-enrolled, so there is no ownership to check and the
+		// command is left to fail on its own (the caller already gated on Fleet MDM being on).
 		hostMDM, err := svc.fleetDS.GetHostMDM(ctx, host.ID)
 		if err != nil && !fleet.IsNotFound(err) {
 			return nil, ctxerr.Wrap(ctx, err, "getting host_mdm for android custom command")
 		}
 		if hostMDM != nil && hostMDM.IsPersonalEnrollment {
+			// Logged because the rejection hinges on Fleet's ownership classification, which is derived from an
+			// AMAPI Ownership field that some payloads omit. If an admin reports a wrongly refused command, this
+			// is the record that says Fleet considered the host personally owned.
+			svc.logger.InfoContext(ctx, "rejecting android command unsupported on personally-owned host",
+				"host_id", host.ID, "command_type", cmdType)
 			return nil, &fleet.BadRequestError{
-				Message: cmdType + " is not supported for personally-owned Android hosts. It's only supported on company-owned hosts.",
+				Message: string(cmdType) + " is not supported for personally-owned Android hosts.",
 			}
 		}
 	}
