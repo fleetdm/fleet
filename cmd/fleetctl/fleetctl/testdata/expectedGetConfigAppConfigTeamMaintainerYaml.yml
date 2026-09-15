@@ -28,9 +28,9 @@ spec:
       uptime: true
       vulnerabilities: true
   integrations:
+    certificates_disable_host_end_user_binding: null
     certificates_idp_client_ids: null
     certificates_idp_introspection_urls: null
-    certificates_require_host_end_user_binding: null
     conditional_access_enabled: null
     google_calendar: null
     jira: null

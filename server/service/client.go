@@ -2391,8 +2391,8 @@ func (c *Client) DoGitOps(
 		if idpClientIDs, ok := integrations.(map[string]any)["certificates_idp_client_ids"]; !ok || idpClientIDs == nil {
 			integrations.(map[string]any)["certificates_idp_client_ids"] = []any{}
 		}
-		if requireHostEndUserBinding, ok := integrations.(map[string]any)["certificates_require_host_end_user_binding"]; !ok || requireHostEndUserBinding == nil {
-			integrations.(map[string]any)["certificates_require_host_end_user_binding"] = false
+		if requireHostEndUserBinding, ok := integrations.(map[string]any)["certificates_disable_host_end_user_binding"]; !ok || requireHostEndUserBinding == nil {
+			integrations.(map[string]any)["certificates_disable_host_end_user_binding"] = false
 		}
 		// ensure that legacy certificate authorities are not set in integrations
 		if _, ok := integrations.(map[string]interface{})["ndes_scep_proxy"]; ok {

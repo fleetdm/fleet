@@ -1972,8 +1972,9 @@ func (svc *Service) newFleetDesktopSSOActivity(ctx context.Context, oldFleetDesk
 	return nil
 }
 
-// validateCertificateRequestIdentityControlsLicense premium-gates the two request_certificate
-// identity controls.
+// validateCertificateRequestIdentityControlsLicense premium-gates the request_certificate IdP
+// allowlists, consistently with the endpoint itself. Disabling the host binding is a relaxation,
+// not a licensed feature, so it is not gated.
 func validateCertificateRequestIdentityControlsLicense(intgs fleet.Integrations, lic *fleet.LicenseInfo, invalid *fleet.InvalidArgumentError) {
 	if lic.IsPremium() {
 		return
@@ -1983,9 +1984,6 @@ func validateCertificateRequestIdentityControlsLicense(intgs fleet.Integrations,
 	}
 	if len(intgs.CertificatesIdPClientIDs.Value) > 0 {
 		invalid.Append("integrations.certificates_idp_client_ids", ErrMissingLicense.Error())
-	}
-	if intgs.CertificatesRequireHostEndUserBinding.Valid && intgs.CertificatesRequireHostEndUserBinding.Value {
-		invalid.Append("integrations.certificates_require_host_end_user_binding", ErrMissingLicense.Error())
 	}
 }
 

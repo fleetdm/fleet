@@ -175,104 +175,66 @@ func TestIntegrationsIsGoogleWorkspaceConfigured(t *testing.T) {
 func TestCheckCertIdPIntrospection(t *testing.T) {
 	const listedURL = "https://company.okta.com/oauth2/v1/introspect"
 	ptr := func(s string) *string { return &s }
-	tok := ptr("a-token")
 
-	// Most assertions care only about the error; the reported flag is checked on its own below.
-	check := func(i Integrations, u, tk, c *string) error {
-		_, err := i.CheckCertIdPIntrospection(u, tk, c)
-		return err
-	}
-
+	urlsOnly := Integrations{CertificatesIdPIntrospectionURLs: optjson.SetSlice([]string{listedURL})}
 	both := Integrations{
 		CertificatesIdPIntrospectionURLs: optjson.SetSlice([]string{listedURL}),
 		CertificatesIdPClientIDs:         optjson.SetSlice([]string{"listed-client"}),
 	}
 
-	// A partial set is refused whether or not the feature is configured. Were it allowed through,
-	// the caller would clear the allowlists on the fields it did carry and then skip introspection
-	// entirely, because that only runs once all three are present.
-	for name, intgs := range map[string]Integrations{"feature off": {}, "feature on": both} {
-		t.Run("partial credentials are refused, "+name, func(t *testing.T) {
-			for _, args := range [][3]*string{
-				{ptr(listedURL), nil, nil},
-				{nil, tok, nil},
-				{nil, nil, ptr("listed-client")},
-				{ptr(listedURL), tok, nil},
-				{ptr(listedURL), nil, ptr("listed-client")},
-				{nil, tok, ptr("listed-client")},
-			} {
-				err := check(intgs, args[0], args[1], args[2])
-				require.ErrorContains(t, err, "all must be provided")
-				var bre *BadRequestError
-				require.ErrorAs(t, err, &bre)
-			}
-		})
-	}
-
-	// Either list alone arms the feature. Were this an AND, configuring only one list would leave
-	// credentials optional and silently skip verification entirely.
-	for name, intgs := range map[string]Integrations{
-		"urls only":       {CertificatesIdPIntrospectionURLs: optjson.SetSlice([]string{listedURL})},
-		"client ids only": {CertificatesIdPClientIDs: optjson.SetSlice([]string{"listed-client"})},
-		"both":            both,
-	} {
-		t.Run("omitted credentials are refused as required, "+name, func(t *testing.T) {
-			err := check(intgs, nil, nil, nil)
-			require.ErrorContains(t, err, "IdP verification is required")
-			// A missing credential is the caller's mistake, not a forbidden one.
-			var bre *BadRequestError
-			require.ErrorAs(t, err, &bre)
-		})
-	}
-
-	t.Run("a listed pair is allowed", func(t *testing.T) {
-		require.NoError(t, check(both, ptr(listedURL), tok, ptr("listed-client")))
-	})
-
-	// The reported flag is what the caller gates introspection on, so it must track whether a
-	// complete set was supplied rather than merely whether the request was allowed.
-	t.Run("reports whether credentials were supplied", func(t *testing.T) {
-		provided, err := Integrations{}.CheckCertIdPIntrospection(nil, nil, nil)
-		require.NoError(t, err)
-		require.False(t, provided)
-
-		provided, err = Integrations{}.CheckCertIdPIntrospection(ptr("https://anywhere.example.com/x"), tok, ptr("any"))
-		require.NoError(t, err)
-		require.True(t, provided)
-
-		provided, err = both.CheckCertIdPIntrospection(ptr(listedURL), tok, ptr("listed-client"))
-		require.NoError(t, err)
-		require.True(t, provided)
-	})
-
-	// The two are reported separately so an admin can tell which list to fix.
-	t.Run("an unlisted url is forbidden", func(t *testing.T) {
-		err := check(both, ptr("https://evil.example.com/introspect"), tok, ptr("listed-client"))
+	// Closed by default: nothing is allowlisted, so no endpoint may be contacted, but credentials
+	// are not demanded either.
+	t.Run("unconfigured refuses supplied credentials and allows none", func(t *testing.T) {
+		require.NoError(t, Integrations{}.CheckCertIdPIntrospection(nil, nil))
+		err := Integrations{}.CheckCertIdPIntrospection(ptr(listedURL), ptr("any-client"))
 		require.ErrorContains(t, err, "IdP introspection endpoint is not permitted")
 		var pe *PermissionError
 		require.ErrorAs(t, err, &pe)
 	})
 
+	// Configuring URLs makes credentials mandatory, not merely constrained.
+	t.Run("configured urls make credentials mandatory", func(t *testing.T) {
+		for _, intgs := range []Integrations{urlsOnly, both} {
+			err := intgs.CheckCertIdPIntrospection(nil, nil)
+			require.ErrorContains(t, err, "IdP verification is required")
+			// A missing credential is the caller's mistake, not a forbidden one.
+			var bre *BadRequestError
+			require.ErrorAs(t, err, &bre)
+		}
+	})
+
+	// Client IDs alone never arm the feature; validation rejects that configuration anyway.
+	t.Run("client ids alone permit nothing and demand nothing", func(t *testing.T) {
+		clientsOnly := Integrations{CertificatesIdPClientIDs: optjson.SetSlice([]string{"listed-client"})}
+		require.NoError(t, clientsOnly.CheckCertIdPIntrospection(nil, nil))
+		require.ErrorContains(t, clientsOnly.CheckCertIdPIntrospection(ptr(listedURL), ptr("listed-client")), "endpoint is not permitted")
+	})
+
+	t.Run("a listed pair is allowed", func(t *testing.T) {
+		require.NoError(t, both.CheckCertIdPIntrospection(ptr(listedURL), ptr("listed-client")))
+	})
+
+	// The two are reported separately so an admin can tell which list to fix.
+	t.Run("an unlisted url is forbidden", func(t *testing.T) {
+		err := both.CheckCertIdPIntrospection(ptr("https://evil.example.com/introspect"), ptr("listed-client"))
+		require.ErrorContains(t, err, "IdP introspection endpoint is not permitted")
+	})
+
 	t.Run("an unlisted client id is forbidden", func(t *testing.T) {
-		err := check(both, ptr(listedURL), tok, ptr("attacker-client"))
+		err := both.CheckCertIdPIntrospection(ptr(listedURL), ptr("attacker-client"))
 		require.ErrorContains(t, err, "IdP client ID is not permitted")
 	})
 
 	// URLs are stored as given and matched exactly, so a variant spelling is a different endpoint.
 	t.Run("url matching is exact", func(t *testing.T) {
-		require.Error(t, check(both, ptr(listedURL+"/"), tok, ptr("listed-client")))
-		require.Error(t, check(both, ptr(strings.ToUpper(listedURL)), tok, ptr("listed-client")))
+		require.Error(t, both.CheckCertIdPIntrospection(ptr(listedURL+"/"), ptr("listed-client")))
+		require.Error(t, both.CheckCertIdPIntrospection(ptr(strings.ToUpper(listedURL)), ptr("listed-client")))
 	})
 
-	// An empty list constrains nothing, so the other list is still enforced on its own.
-	t.Run("only the populated list constrains", func(t *testing.T) {
-		urlsOnly := Integrations{CertificatesIdPIntrospectionURLs: optjson.SetSlice([]string{listedURL})}
-		require.NoError(t, check(urlsOnly, ptr(listedURL), tok, ptr("any-client")))
-		require.Error(t, check(urlsOnly, ptr("https://evil.example.com/x"), tok, ptr("any-client")))
-
-		clientsOnly := Integrations{CertificatesIdPClientIDs: optjson.SetSlice([]string{"listed-client"})}
-		require.NoError(t, check(clientsOnly, ptr("https://anywhere.example.com/x"), tok, ptr("listed-client")))
-		require.Error(t, check(clientsOnly, ptr("https://anywhere.example.com/x"), tok, ptr("other-client")))
+	// The client ID list is an optional extra constraint; with only URLs, any client ID passes.
+	t.Run("client ids are optional", func(t *testing.T) {
+		require.NoError(t, urlsOnly.CheckCertIdPIntrospection(ptr(listedURL), ptr("any-client")))
+		require.Error(t, urlsOnly.CheckCertIdPIntrospection(ptr("https://evil.example.com/x"), ptr("any-client")))
 	})
 }
 
@@ -330,6 +292,10 @@ func TestValidateCertIdPIntrospectionAllowlists(t *testing.T) {
 		"duplicate client id": {
 			Integrations{CertificatesIdPClientIDs: optjson.SetSlice([]string{"client", "client "})},
 			"duplicate client ID",
+		},
+		"client ids without urls": {
+			Integrations{CertificatesIdPClientIDs: optjson.SetSlice([]string{"client"})},
+			"requires integrations.certificates_idp_introspection_urls",
 		},
 	} {
 		t.Run("rejects "+name, func(t *testing.T) {

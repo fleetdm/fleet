@@ -492,55 +492,44 @@ type Integrations struct {
 	Zendesk         []*ZendeskIntegration         `json:"zendesk"`
 	GoogleCalendar  []*GoogleCalendarIntegration  `json:"google_calendar"`
 	GoogleWorkspace []*GoogleWorkspaceIntegration `json:"google_workspace,omitempty"`
-	// CertificatesIdPIntrospectionURLs and CertificatesIdPClientIDs allowlist the OAuth 2.0 token introspection endpoints
-	// and client IDs permitted to vouch for certificate requests. While both are empty, IdP
-	// verification stays optional. Once either is populated, IdP fields become mandatory and each
-	// populated list constrains its field.
+	// CertificatesIdPIntrospectionURLs allowlists the OAuth 2.0 token introspection endpoints permitted
+	// to vouch for certificate requests. Closed by default: while empty, no IdP credentials are
+	// accepted. Once populated, credentials are mandatory and the endpoint must be listed. URLs are
+	// stored as given and matched exactly, as Jira and Zendesk URLs are.
 	CertificatesIdPIntrospectionURLs optjson.Slice[string] `json:"certificates_idp_introspection_urls"`
-	CertificatesIdPClientIDs         optjson.Slice[string] `json:"certificates_idp_client_ids"`
-	// CertificatesRequireHostEndUserBinding requires device-authenticated certificate requests to match the
-	// calling host's recorded end-user identity. Fails closed on a host with no recorded identity.
-	CertificatesRequireHostEndUserBinding optjson.Bool `json:"certificates_require_host_end_user_binding"`
+	// CertificatesIdPClientIDs optionally constrains the client ID as well. Meaningless without URLs.
+	CertificatesIdPClientIDs optjson.Slice[string] `json:"certificates_idp_client_ids"`
+	// CertificatesDisableHostEndUserBinding turns off the requirement that device-authenticated
+	// certificate requests match the calling host's recorded end-user identity. The binding is on by
+	// default and fails closed on a host with no recorded identity.
+	CertificatesDisableHostEndUserBinding optjson.Bool `json:"certificates_disable_host_end_user_binding"`
 	// ConditionalAccessEnabled indicates whether conditional access is enabled/disabled for "No team".
 	ConditionalAccessEnabled optjson.Bool `json:"conditional_access_enabled"`
 }
 
-// CheckCertIdPIntrospection enforces the certificate request IdP rules against one request. The
-// three credentials must be supplied together or not at all: a partial set would clear the
-// allowlists on the fields it does carry and then skip verification entirely, because the caller
-// path only introspects once all three are present.
+// CheckCertIdPIntrospection enforces the IdP allowlists against one request whose credentials have
+// already passed RequestCertificatePayload.IdPCredentialsProvided, so the pointers are both set
+// or both nil.
 //
-// It reports whether a complete set was supplied, which is what the caller gates introspection on.
-//
-// While both allowlists are empty the feature is off and a request carrying no credentials passes.
-// Once either list is populated, credentials become mandatory and each populated list constrains
-// its own field. Nil means the caller omitted that field.
-func (i Integrations) CheckCertIdPIntrospection(introspectionURL, token, clientID *string) (provided bool, err error) {
-	provided = introspectionURL != nil && token != nil && clientID != nil
-	isPartial := introspectionURL != nil || token != nil || clientID != nil
-	if !provided && isPartial {
-		return false, &BadRequestError{
-			Message: "IDP Client ID, Token, and OAuth URL all must be provided, if any are provided when requesting a certificate.",
-		}
-	}
-
+// Closed by default: an introspection endpoint is only contacted if it is allowlisted, so with no
+// URLs configured any supplied credentials are refused. Once URLs are configured, credentials
+// become mandatory rather than merely constrained, otherwise a caller omits them and skips the
+// check. The client ID list is an optional further constraint.
+func (i Integrations) CheckCertIdPIntrospection(introspectionURL, clientID *string) error {
 	urls := i.CertificatesIdPIntrospectionURLs.Value
-	clientIDs := i.CertificatesIdPClientIDs.Value
-	if len(urls) == 0 && len(clientIDs) == 0 {
-		return provided, nil
+	if introspectionURL == nil || clientID == nil {
+		if len(urls) > 0 {
+			return &BadRequestError{Message: "IdP verification is required by this Fleet server."}
+		}
+		return nil
 	}
-
-	// Mandatory, not merely constrained: otherwise a caller omits the fields and skips the check.
-	if !provided {
-		return false, &BadRequestError{Message: "IdP verification is required by this Fleet server."}
+	if !slices.Contains(urls, *introspectionURL) {
+		return NewPermissionError("IdP introspection endpoint is not permitted.")
 	}
-	if len(urls) > 0 && !slices.Contains(urls, *introspectionURL) {
-		return false, NewPermissionError("IdP introspection endpoint is not permitted.")
+	if clientIDs := i.CertificatesIdPClientIDs.Value; len(clientIDs) > 0 && !slices.Contains(clientIDs, *clientID) {
+		return NewPermissionError("IdP client ID is not permitted.")
 	}
-	if len(clientIDs) > 0 && !slices.Contains(clientIDs, *clientID) {
-		return false, NewPermissionError("IdP client ID is not permitted.")
-	}
-	return true, nil
+	return nil
 }
 
 // ValidateCertIdPIntrospectionAllowlists trims entries in place and reports empty, malformed, or
@@ -573,6 +562,10 @@ func ValidateCertIdPIntrospectionAllowlists(intgs *Integrations, invalid *Invali
 		case slices.Contains(clientIDs[:i], id):
 			invalid.Append("integrations.certificates_idp_client_ids", fmt.Sprintf("duplicate client ID %s", id))
 		}
+	}
+	// No endpoint is ever permitted without URLs, so client IDs on their own can never be satisfied.
+	if len(clientIDs) > 0 && len(urls) == 0 {
+		invalid.Append("integrations.certificates_idp_client_ids", "requires integrations.certificates_idp_introspection_urls to be set")
 	}
 }
 

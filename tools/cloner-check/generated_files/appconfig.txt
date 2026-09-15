@@ -123,7 +123,7 @@ github.com/fleetdm/fleet/v4/pkg/optjson/Slice[string]	Set	bool
 github.com/fleetdm/fleet/v4/pkg/optjson/Slice[string]	Valid	bool
 github.com/fleetdm/fleet/v4/pkg/optjson/Slice[string]	Value	[]string
 github.com/fleetdm/fleet/v4/server/fleet/Integrations	CertificatesIdPClientIDs	optjson.Slice[string]
-github.com/fleetdm/fleet/v4/server/fleet/Integrations	CertificatesRequireHostEndUserBinding	optjson.Bool
+github.com/fleetdm/fleet/v4/server/fleet/Integrations	CertificatesDisableHostEndUserBinding	optjson.Bool
 github.com/fleetdm/fleet/v4/pkg/optjson/Bool	Set	bool
 github.com/fleetdm/fleet/v4/pkg/optjson/Bool	Valid	bool
 github.com/fleetdm/fleet/v4/pkg/optjson/Bool	Value	bool

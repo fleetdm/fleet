@@ -275,9 +275,10 @@ func TestModifyAppConfigIdPIntrospection(t *testing.T) {
 	// The whitespace matters: only the validator trims it, so the premium assertions below double
 	// as proof that it is wired into ModifyAppConfig. Its individual rules, and the certificate
 	// request behavior these settings drive, are covered in their own packages.
-	const body = `{"integrations":{"certificates_idp_introspection_urls":["  https://Company.Okta.com:443/oauth2/v1/introspect/  "],"certificates_idp_client_ids":[" abc "],"certificates_require_host_end_user_binding":true}}`
+	const body = `{"integrations":{"certificates_idp_introspection_urls":["  https://Company.Okta.com:443/oauth2/v1/introspect/  "],"certificates_idp_client_ids":[" abc "],"certificates_disable_host_end_user_binding":true}}`
 
-	// Free tier rejects each of the three settings by name, and saves nothing.
+	// Free tier rejects both allowlists by name and saves nothing. Disabling the binding is a
+	// relaxation rather than a licensed feature, so it passes on any tier.
 	freeDS := new(mock.Store)
 	freeSvc, freeCtx := setup(t, fleet.TierFree, freeDS)
 	_, err := freeSvc.ModifyAppConfig(freeCtx, []byte(body), fleet.ApplySpecOptions{})
@@ -288,7 +289,7 @@ func TestModifyAppConfigIdPIntrospection(t *testing.T) {
 	rejected := fmt.Sprintf("%+v", invalid.Errors)
 	require.Contains(t, rejected, "integrations.certificates_idp_introspection_urls")
 	require.Contains(t, rejected, "integrations.certificates_idp_client_ids")
-	require.Contains(t, rejected, "integrations.certificates_require_host_end_user_binding")
+	require.NotContains(t, rejected, "integrations.certificates_disable_host_end_user_binding")
 	require.False(t, freeDS.SaveAppConfigFuncInvoked)
 
 	// Premium accepts them, and stores the URL as given rather than canonicalized.
@@ -297,7 +298,7 @@ func TestModifyAppConfigIdPIntrospection(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, []string{"https://Company.Okta.com:443/oauth2/v1/introspect/"}, saved.Integrations.CertificatesIdPIntrospectionURLs.Value)
 	require.Equal(t, []string{"abc"}, saved.Integrations.CertificatesIdPClientIDs.Value)
-	require.True(t, saved.Integrations.CertificatesRequireHostEndUserBinding.Value)
+	require.True(t, saved.Integrations.CertificatesDisableHostEndUserBinding.Value)
 }
 
 // TestVersion tests that all users can access the version endpoint.

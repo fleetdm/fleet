@@ -85,17 +85,28 @@ func (svc *Service) RequestCertificate(ctx context.Context, p fleet.RequestCerti
 		return nil, ctxerr.Wrap(ctx, err, "loading app config for certificate request")
 	}
 
-	idpProvided, err := appConfig.Integrations.CheckCertIdPIntrospection(p.IDPOauthURL, p.IDPToken, p.IDPClientID)
+	idpProvided, err := p.IdPCredentialsProvided()
 	if err != nil {
 		return nil, err
+	}
+
+	// server.allow_request_certificate_any_idp skips both identity safeguards: any endpoint may
+	// vouch, and device requests are not bound to the host's end user.
+	var bindHostID *uint
+	if !svc.config.Server.AllowRequestCertificateAnyIdP {
+		if err := appConfig.Integrations.CheckCertIdPIntrospection(p.IDPOauthURL, p.IDPClientID); err != nil {
+			return nil, err
+		}
+		if !appConfig.Integrations.CertificatesDisableHostEndUserBinding.Value {
+			bindHostID = hostID
+		}
 	}
 
 	// Both identity checks bind to the CSR's single email address and to the UPN it must agree
 	// with. A CSR missing either cannot be bound, so it is refused rather than partly checked.
 	var csrEmail, csrUsername string
-	bindHost := appConfig.Integrations.CertificatesRequireHostEndUserBinding.Value && hostID != nil
 
-	if bindHost || idpProvided {
+	if bindHostID != nil || idpProvided {
 		csrEmail, csrUsername, err = svc.extractCSRUserInfo(ctx, certificateRequest)
 		if err != nil {
 			svc.logger.ErrorContext(ctx, "CSR did not have expected format for identity verification", "err", err)
@@ -105,9 +116,9 @@ func (svc *Service) RequestCertificate(ctx context.Context, p fleet.RequestCerti
 
 	// Runs before introspection: a pure DB lookup, so a request that cannot pass it never reaches
 	// the network.
-	if bindHost {
-		if err := svc.verifyHostEndUserBinding(ctx, *hostID, csrEmail, csrUsername); err != nil {
-			svc.logger.ErrorContext(ctx, "Failing Certificate Request due to host end user binding", "host_id", *hostID, "err", err)
+	if bindHostID != nil {
+		if err := svc.verifyHostEndUserBinding(ctx, *bindHostID, csrEmail, csrUsername); err != nil {
+			svc.logger.ErrorContext(ctx, "Failing Certificate Request due to host end user binding", "host_id", *bindHostID, "err", err)
 			return nil, err
 		}
 	}
