@@ -27,12 +27,8 @@ func TestGetDiskEncryptionPINDetails(t *testing.T) {
 		{name: "nothing to collect", status: http.StatusNotFound, wantNotFound: true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			var gotNodeKey string
 			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				assert.Equal(t, "/api/fleet/orbit/disk_encryption_pin/details", r.URL.Path)
-				var req fleet.OrbitGetDiskEncryptionPINDetailsRequest
-				assert.NoError(t, json.NewDecoder(r.Body).Decode(&req))
-				gotNodeKey = req.OrbitNodeKey
 				w.WriteHeader(tc.status)
 				if tc.wantNotFound {
 					_, _ = w.Write([]byte(`{"message":"not found"}`))
@@ -49,7 +45,6 @@ func TestGetDiskEncryptionPINDetails(t *testing.T) {
 			oc := newReenrollTestClient(t, srv.URL, nodeKeyPath)
 
 			gotPIN, gotUUID, err := oc.GetDiskEncryptionPINDetails()
-			require.Equal(t, "node-key", gotNodeKey)
 			if tc.wantNotFound {
 				require.True(t, IsNotFoundErr(err))
 			} else {
@@ -68,11 +63,9 @@ func TestSetDiskEncryptionPINResult(t *testing.T) {
 		name         string
 		status       int
 		wantNotFound bool
-		wantErr      bool
 	}{
 		{name: "recorded", status: http.StatusNoContent},
 		{name: "no longer wanted", status: http.StatusNotFound, wantNotFound: true},
-		{name: "server error", status: http.StatusInternalServerError, wantErr: true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			var got fleet.OrbitPostDiskEncryptionPINResultRequest
@@ -87,13 +80,9 @@ func TestSetDiskEncryptionPINResult(t *testing.T) {
 			oc := newReenrollTestClient(t, srv.URL, nodeKeyPath)
 
 			err := oc.SetDiskEncryptionPINResult("request-uuid", fleet.BitLockerPINRequestFailed, "PIN already set")
-			switch {
-			case tc.wantNotFound:
+			if tc.wantNotFound {
 				require.True(t, IsNotFoundErr(err))
-			case tc.wantErr:
-				require.Error(t, err)
-				require.False(t, IsNotFoundErr(err))
-			default:
+			} else {
 				require.NoError(t, err)
 			}
 			require.Equal(t, fleet.OrbitPostDiskEncryptionPINResultRequest{

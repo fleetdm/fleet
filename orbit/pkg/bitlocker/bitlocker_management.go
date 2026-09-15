@@ -120,6 +120,37 @@ var BootUnsealProtectorTypes = []int32{
 	KeyProtectorTypeTPMAndPINAndStartupKey,
 }
 
+// PINProtectorTypes are the key protector types that ask the end user for a startup PIN at boot.
+var PINProtectorTypes = []int32{
+	KeyProtectorTypeTPMAndPIN,
+	KeyProtectorTypeTPMAndPINAndStartupKey,
+}
+
+// protectorLister is the part of a volume that reports which key protectors it has.
+type protectorLister interface {
+	getKeyProtectorIDs(protectorType int32) ([]string, error)
+}
+
+// hasAnyProtector reports whether the volume has a key protector of any of the given types.
+func hasAnyProtector(vol protectorLister, protectorTypes []int32) (bool, error) {
+	for _, protectorType := range protectorTypes {
+		ids, err := vol.getKeyProtectorIDs(protectorType)
+		if err != nil {
+			return false, fmt.Errorf("listing key protectors of type %d: %w", protectorType, err)
+		}
+		if len(ids) > 0 {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+// isProtectorExists reports whether Windows refused to add a key protector because the volume already has one of that type.
+func isProtectorExists(err error) bool {
+	encErr, ok := errors.AsType[*EncryptionError](err)
+	return ok && encErr.Code() == ErrorCodeProtectorExists
+}
+
 // ensureBootUnsealProtector adds a TPM-only protector when, and only when, the volume has nothing that can already
 // release the volume master key at boot.
 func ensureBootUnsealProtector(hasBootProtector func() (bool, error), addTPMProtector func() error) error {
@@ -198,8 +229,8 @@ func pinAddFailureReason(err error) string {
 // pinProtectorVolume is the part of a BitLocker volume that setTPMAndPINProtector uses, so the sequence can be tested
 // without COM.
 type pinProtectorVolume interface {
+	protectorLister
 	getBitlockerStatus() (*EncryptionStatus, error)
-	getKeyProtectorIDs(protectorType int32) ([]string, error)
 	protectWithTPMAndPIN(pin string) (protectorID string, err error)
 	protectWithTPM(platformValidationProfile *[]uint8) error
 	deleteKeyProtector(protectorID string) error
@@ -219,14 +250,12 @@ func setTPMAndPINProtector(vol pinProtectorVolume, pin string) error {
 	if status.ProtectionStatus != ProtectionStatusOn {
 		return &PINError{Reason: PINReasonProtectionOff, Err: fmt.Errorf("protection status %d", status.ProtectionStatus)}
 	}
-	for _, protectorType := range []int32{KeyProtectorTypeTPMAndPIN, KeyProtectorTypeTPMAndPINAndStartupKey} {
-		ids, err := vol.getKeyProtectorIDs(protectorType)
-		if err != nil {
-			return &PINError{Reason: PINReasonStatusUnreadable, Err: err}
-		}
-		if len(ids) > 0 {
-			return &PINError{Reason: PINReasonAlreadySet, Err: fmt.Errorf("a protector of type %d exists", protectorType)}
-		}
+	hasPIN, err := hasAnyProtector(vol, PINProtectorTypes)
+	if err != nil {
+		return &PINError{Reason: PINReasonStatusUnreadable, Err: err}
+	}
+	if hasPIN {
+		return &PINError{Reason: PINReasonAlreadySet, Err: errors.New("the volume already has a PIN protector")}
 	}
 	tpmOnlyIDs, err := vol.getKeyProtectorIDs(KeyProtectorTypeTPM)
 	if err != nil {
@@ -281,11 +310,9 @@ func removeTPMOnlyProtectors(vol pinProtectorVolume, pinProtectorID string) erro
 // neither boots to the recovery prompt, while the PIN is one the end user just chose.
 func rollBackTPMAndPINProtector(vol pinProtectorVolume, pinProtectorID string, hadTPMOnly bool) error {
 	if hadTPMOnly {
-		// Windows accepts a TPM-only protector next to a TPM and PIN one, and reports ErrorCodeProtectorExists if one remains.
-		if err := vol.protectWithTPM(nil); err != nil {
-			if encErr, ok := errors.AsType[*EncryptionError](err); !ok || encErr.Code() != ErrorCodeProtectorExists {
-				return fmt.Errorf("restoring the TPM-only protector, so the TPM and PIN protector was kept: %w", err)
-			}
+		// Windows accepts a TPM-only protector next to a TPM and PIN one, and reports that one exists if it was never deleted.
+		if err := vol.protectWithTPM(nil); err != nil && !isProtectorExists(err) {
+			return fmt.Errorf("restoring the TPM-only protector, so the TPM and PIN protector was kept: %w", err)
 		}
 	}
 	if err := vol.deleteKeyProtector(pinProtectorID); err != nil {

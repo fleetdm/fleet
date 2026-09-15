@@ -618,9 +618,8 @@ func rotateRecoveryKeyOnCOMThread(targetVolume string) (string, error) {
 
 	// Give pre-encrypted disks something that can unseal at boot, without weakening a volume that already has one.
 	if err := ensureBootUnsealProtector(vol.hasBootUnsealProtector, func() error { return vol.protectWithTPM(nil) }); err != nil {
-		// ErrorCodeProtectorExists means a protector appeared between the check and the add, which is the desired state.
-		var encErr *EncryptionError
-		if !errors.As(err, &encErr) || encErr.Code() != ErrorCodeProtectorExists {
+		// A protector that already exists appeared between the check and the add, which is the desired state.
+		if !isProtectorExists(err) {
 			log.Warn().Err(err).Msg("could not ensure a boot protector exists, continuing")
 		}
 	}
@@ -631,16 +630,7 @@ func rotateRecoveryKeyOnCOMThread(targetVolume string) (string, error) {
 // hasBootUnsealProtector reports whether the volume already has a protector that can release the volume master key at
 // boot. Every TPM-family protector qualifies, and so does an external startup key on a machine without a trusted TPM.
 func (v *Volume) hasBootUnsealProtector() (bool, error) {
-	for _, t := range BootUnsealProtectorTypes {
-		ids, err := v.getKeyProtectorIDs(t)
-		if err != nil {
-			return false, fmt.Errorf("listing key protectors of type %d: %w", t, err)
-		}
-		if len(ids) > 0 {
-			return true, nil
-		}
-	}
-	return false, nil
+	return hasAnyProtector(v, BootUnsealProtectorTypes)
 }
 
 // hasBootUnsealProtectorOnCOMThread connects to the volume and answers the same question as hasBootUnsealProtector,
@@ -679,10 +669,7 @@ func addTPMProtectorOnCOMThread(targetVolume string) error {
 	}
 	defer vol.bitlockerClose()
 
-	if err := vol.protectWithTPM(nil); err != nil {
-		if encErr, ok := errors.AsType[*EncryptionError](err); ok && encErr.Code() == ErrorCodeProtectorExists {
-			return nil
-		}
+	if err := vol.protectWithTPM(nil); err != nil && !isProtectorExists(err) {
 		return err
 	}
 	return nil
