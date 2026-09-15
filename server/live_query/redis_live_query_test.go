@@ -330,10 +330,8 @@ func TestReverseIndexKillSwitch(t *testing.T) {
 	}
 }
 
-// A stopped campaign's bitfield is deleted, but its reverse per-host entries are
-// left to expire, so after StopQuery the two models answer IsQueryTargetingHost
-// differently for a previously targeted host. Either answer is safe: a never
-// targeted host must be rejected in both models.
+// StopQuery deletes the bitfield but leaves reverse per-host entries to expire,
+// so the reverse model needs the active check to reject late results.
 func TestIsQueryTargetingHostAfterStopQuery(t *testing.T) {
 	for _, cluster := range []bool{false, true} {
 		clusterName := "standalone"
@@ -342,25 +340,30 @@ func TestIsQueryTargetingHostAfterStopQuery(t *testing.T) {
 		}
 		t.Run(clusterName, func(t *testing.T) {
 			store := setupRedisLiveQueryThreshold(t, cluster, 2)
+			conn := redis.ConfigureDoer(store.pool, store.pool.Get())
+			defer conn.Close()
 
 			require.NoError(t, store.RunQuery("small", "SELECT 1", []uint{1, 2}))
 			require.NoError(t, store.RunQuery("large", "SELECT 2", []uint{1, 2, 3}))
 			require.NoError(t, store.StopQuery("small"))
 			require.NoError(t, store.StopQuery("large"))
 
-			targeted, err := store.IsQueryTargetingHost("small", 1)
+			// The stale entry the check must not trust is still there.
+			isMember, err := redigo.Bool(conn.Do("SISMEMBER", reverseHostKey(1), "small"))
 			require.NoError(t, err)
-			require.True(t, targeted, "stale reverse entry for a targeted host is accepted")
-			targeted, err = store.IsQueryTargetingHost("small", 3)
-			require.NoError(t, err)
-			require.False(t, targeted, "reverse model rejects a never targeted host")
+			require.True(t, isMember)
 
-			targeted, err = store.IsQueryTargetingHost("large", 1)
-			require.NoError(t, err)
-			require.False(t, targeted, "bitfield is gone after stop")
-			targeted, err = store.IsQueryTargetingHost("large", 4)
-			require.NoError(t, err)
-			require.False(t, targeted, "bitfield model rejects a never targeted host")
+			for _, tc := range []struct {
+				name   string
+				hostID uint
+			}{
+				{"small", 1}, {"small", 3},
+				{"large", 1}, {"large", 4},
+			} {
+				targeted, err := store.IsQueryTargetingHost(tc.name, tc.hostID)
+				require.NoError(t, err)
+				require.False(t, targeted, "campaign %s host %d", tc.name, tc.hostID)
+			}
 		})
 	}
 }

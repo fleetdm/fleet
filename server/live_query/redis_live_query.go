@@ -395,28 +395,39 @@ func (r *redisLiveQuery) collectBatchQueriesForHost(hostID uint, queryKeys []str
 }
 
 func (r *redisLiveQuery) IsQueryTargetingHost(name string, hostID uint) (bool, error) {
-	// Check the per-host set and the bitfield rather than using the cache to
-	// decide which one holds this campaign: a stale cache would reject legitimate
-	// results. Stale per-host entries for stopped campaigns only exist for hosts
-	// that were targeted, so accepting them is safe. The two keys hash to
-	// different cluster slots, so each gets its own connection.
-	isMember, err := r.isReverseMember(name, hostID)
-	if err != nil {
-		return false, err
-	}
-	if isMember {
-		return true, nil
-	}
+	targetKey, sqlKey := generateKeys(name)
 
 	conn := redis.ReadOnlyConn(r.pool, r.pool.Get())
 	defer conn.Close()
 
-	targetKey, _ := generateKeys(name)
-	targeted, err := redigo.Int(conn.Do("GETBIT", targetKey, hostID))
-	if err != nil {
+	// The bitfield and SQL keys share the campaign's hash tag, so both probes fit
+	// in one pipeline. The SQL key is deleted on stop and doubles as the "still
+	// active" check, which the per-host set below cannot provide: its entries
+	// outlive StopQuery and are only filtered against the active set at read time.
+	if err := conn.Send("GETBIT", targetKey, hostID); err != nil {
 		return false, fmt.Errorf("getbit query targets: %w", err)
 	}
-	return targeted == 1, nil
+	if err := conn.Send("EXISTS", sqlKey); err != nil {
+		return false, fmt.Errorf("exists query sql: %w", err)
+	}
+	if err := conn.Flush(); err != nil {
+		return false, fmt.Errorf("flush pipeline: %w", err)
+	}
+	targeted, err := redigo.Int(conn.Receive())
+	if err != nil {
+		return false, fmt.Errorf("receive target: %w", err)
+	}
+	active, err := redigo.Bool(conn.Receive())
+	if err != nil {
+		return false, fmt.Errorf("receive query sql exists: %w", err)
+	}
+	if targeted == 1 {
+		return true, nil
+	}
+	if !active {
+		return false, nil
+	}
+	return r.isReverseMember(name, hostID)
 }
 
 func (r *redisLiveQuery) isReverseMember(name string, hostID uint) (bool, error) {
