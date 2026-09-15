@@ -482,19 +482,46 @@ func (svc *Service) RequireDeviceSSOSession(ctx context.Context, host *fleet.Hos
 		// host's IdP end user. A host with no IdP mapping has nothing to compare
 		// against (ADE-enrolled iPhones never get one), so it passes rather than
 		// locking the end user out of their own device page, which is accepted fleetdm/security#38
-		idpAccount, err := svc.ds.GetMDMIdPAccountByHostUUID(ctx, host.UUID)
+		deviceMappings, err := svc.ds.ListHostDeviceMapping(ctx, host.ID)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "get host mdm idp account")
+			return ctxerr.Wrap(ctx, err, "listing host device mappings")
 		}
-		if idpAccount != nil && idpAccount.UUID != session.IdPAccountUUID {
-			// The "My device" page matches on this exact reason string to show the
-			// mismatched-user page instead of restarting the SSO flow, which would
-			// loop: see isMismatchedSSOUserError in
-			// frontend/pages/hosts/details/DeviceUserPage/helpers.ts. Changing the
-			// wording here means changing it there too.
-			return ctxerr.Wrap(ctx, &fleet.BadRequestError{Message: "mismatched SSO user for this device"})
+
+		if len(deviceMappings) == 0 {
+			return nil
 		}
-		return nil
+
+		var mdmIdpMappings []*fleet.HostDeviceMapping
+		for _, mapping := range deviceMappings {
+			if mapping.Source == fleet.DeviceMappingMDMIdpAccounts {
+				mdmIdpMappings = append(mdmIdpMappings, mapping)
+			}
+		}
+
+		// no mdm_idp_account mapping is treated as none.
+		if len(mdmIdpMappings) == 0 {
+			return nil
+		}
+
+		for _, mapping := range mdmIdpMappings {
+			// first we have to lookup email -> mdm_idp_account UUID to correlate to the session IDP account UUID
+			idpAccount, err := svc.ds.GetMDMIdPAccountByEmail(ctx, mapping.Email)
+			if err != nil && !fleet.IsNotFound(err) {
+				return ctxerr.Wrap(ctx, err, "getting MDM IdP account by email")
+			} else if idpAccount == nil {
+				// not found should not happen, but no-op on it, and fall through to deny after all mappings
+				continue
+			}
+
+			if idpAccount.UUID == session.IdPAccountUUID {
+				// found a matching IdP account, no need to check further
+				return nil
+			}
+
+			// try the next, if none match we fall through to the error outside.
+		}
+
+		return ctxerr.Wrap(ctx, &fleet.BadRequestError{Message: "mismatched SSO user for this device"})
 	}
 
 	return ctxerr.Wrap(ctx, fleet.NewDeviceSSORequiredError("no device sso session"), "require device sso session")

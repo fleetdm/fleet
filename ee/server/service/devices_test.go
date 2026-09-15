@@ -1,7 +1,6 @@
 package service
 
 import (
-	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
@@ -240,7 +239,6 @@ func TestInitiateDeviceSSO(t *testing.T) {
 func TestRequireDeviceSSOSession(t *testing.T) {
 	host := &fleet.Host{ID: 1, UUID: "host-uuid-1", Platform: "darwin"}
 	otherHost := &fleet.Host{ID: 2, UUID: "host-uuid-2", Platform: "darwin"}
-	idpHost := &fleet.Host{ID: 3, UUID: "host-uuid-3", Platform: "ios"}
 
 	// sessionFor returns a session ID for h, or "" for the callers that stand in for
 	// a browser with no cookie yet.
@@ -263,7 +261,6 @@ func TestRequireDeviceSSOSession(t *testing.T) {
 
 	cases := []struct {
 		name                  string
-		host                  *fleet.Host                    // defaults to host
 		authnMethod           authz_ctx.AuthenticationMethod // defaults to none set
 		ssoEnabled            bool
 		platform              string // defaults to darwin
@@ -271,9 +268,12 @@ func TestRequireDeviceSSOSession(t *testing.T) {
 		setupExperienceStatus fleet.SetupExperienceStatusResultStatus
 		session               sessionFor
 		advanceClock          time.Duration
-		wantSSORequired       bool
-		wantMismatch          bool
-		wantSessionLookup     bool
+		deviceMappings        []*fleet.HostDeviceMapping // host_emails rows for the host
+		idpAccounts           map[string]string          // email -> mdm_idp_accounts.uuid; absent means no such account
+
+		wantSSORequired   bool
+		wantMismatch      bool
+		wantSessionLookup bool
 	}{
 		{
 			name:       "setting off allows the request",
@@ -341,36 +341,113 @@ func TestRequireDeviceSSOSession(t *testing.T) {
 			wantSessionLookup:     true,
 		},
 		{
-			name:              "host with no IdP mapping is not validated against one",
+			name:              "host with no emails is not validated against an IdP user",
 			ssoEnabled:        true,
-			session:           sessionOfWithIDP(host, "fake-uuid"),
+			authnMethod:       authz_ctx.AuthnDeviceURL,
+			session:           sessionOfWithIDP(host, "nobody-uuid"),
 			wantSessionLookup: true,
 		},
 		{
-			name:              "session minted by the host's IdP user allows the request",
-			ssoEnabled:        true,
-			host:              idpHost,
-			authnMethod:       authz_ctx.AuthnDeviceURL,
-			session:           sessionOfWithIDP(idpHost, "associated-uuid"),
+			name:        "host with no IdP-sourced email is not validated against an IdP user",
+			ssoEnabled:  true,
+			authnMethod: authz_ctx.AuthnDeviceURL,
+			deviceMappings: []*fleet.HostDeviceMapping{
+				{Email: "chrome@example.com", Source: fleet.DeviceMappingGoogleChromeProfiles},
+				{Email: "custom@example.com", Source: fleet.DeviceMappingCustomReplacement},
+			},
+			idpAccounts:       map[string]string{"chrome@example.com": "chrome-uuid", "custom@example.com": "custom-uuid"},
+			session:           sessionOfWithIDP(host, "nobody-uuid"),
 			wantSessionLookup: true,
 		},
 		{
-			name:              "session minted by another IdP user is rejected",
-			ssoEnabled:        true,
-			host:              idpHost,
-			authnMethod:       authz_ctx.AuthnDeviceURL,
-			session:           sessionOfWithIDP(idpHost, "someone-elses-uuid"),
+			name:        "session minted by the host's IdP user allows the request",
+			ssoEnabled:  true,
+			authnMethod: authz_ctx.AuthnDeviceURL,
+			deviceMappings: []*fleet.HostDeviceMapping{
+				{Email: "alice@example.com", Source: fleet.DeviceMappingMDMIdpAccounts},
+			},
+			idpAccounts:       map[string]string{"alice@example.com": "alice-uuid"},
+			session:           sessionOfWithIDP(host, "alice-uuid"),
+			wantSessionLookup: true,
+		},
+		{
+			// A user assigned by hand through PUT /hosts/{id}/device_mapping is
+			// stored with source "idp", which ListHostDeviceMapping translates to
+			// mdm_idp_accounts in SQL, so it reaches the gate as one of these and
+			// unlocks the page like an enrollment-time mapping does.
+			name:        "manually assigned IdP user allows the request",
+			ssoEnabled:  true,
+			authnMethod: authz_ctx.AuthnDeviceURL,
+			deviceMappings: []*fleet.HostDeviceMapping{
+				{Email: "manual@example.com", Source: fleet.DeviceMappingMDMIdpAccounts},
+			},
+			idpAccounts:       map[string]string{"manual@example.com": "manual-uuid"},
+			session:           sessionOfWithIDP(host, "manual-uuid"),
+			wantSessionLookup: true,
+		},
+		{
+			// Several IdP users on one host means any of them can open the page,
+			// including the last one checked.
+			name:        "any of the host's IdP users allows the request",
+			ssoEnabled:  true,
+			authnMethod: authz_ctx.AuthnDeviceURL,
+			deviceMappings: []*fleet.HostDeviceMapping{
+				{Email: "alice@example.com", Source: fleet.DeviceMappingMDMIdpAccounts},
+				{Email: "bob@example.com", Source: fleet.DeviceMappingMDMIdpAccounts},
+			},
+			idpAccounts:       map[string]string{"alice@example.com": "alice-uuid", "bob@example.com": "bob-uuid"},
+			session:           sessionOfWithIDP(host, "bob-uuid"),
+			wantSessionLookup: true,
+		},
+		{
+			// An email with no mdm_idp_accounts row can't match, but it must not
+			// stop the remaining mappings from being checked.
+			name:        "email with no IdP account does not shadow a later match",
+			ssoEnabled:  true,
+			authnMethod: authz_ctx.AuthnDeviceURL,
+			deviceMappings: []*fleet.HostDeviceMapping{
+				{Email: "ghost@example.com", Source: fleet.DeviceMappingMDMIdpAccounts},
+				{Email: "alice@example.com", Source: fleet.DeviceMappingMDMIdpAccounts},
+			},
+			idpAccounts:       map[string]string{"alice@example.com": "alice-uuid"},
+			session:           sessionOfWithIDP(host, "alice-uuid"),
+			wantSessionLookup: true,
+		},
+		{
+			name:        "session minted by another IdP user is rejected",
+			ssoEnabled:  true,
+			authnMethod: authz_ctx.AuthnDeviceURL,
+			deviceMappings: []*fleet.HostDeviceMapping{
+				{Email: "alice@example.com", Source: fleet.DeviceMappingMDMIdpAccounts},
+				{Email: "bob@example.com", Source: fleet.DeviceMappingMDMIdpAccounts},
+			},
+			idpAccounts:       map[string]string{"alice@example.com": "alice-uuid", "bob@example.com": "bob-uuid"},
+			session:           sessionOfWithIDP(host, "someone-elses-uuid"),
+			wantMismatch:      true,
+			wantSessionLookup: true,
+		},
+		{
+			name:        "host whose only IdP email has no account is rejected",
+			ssoEnabled:  true,
+			authnMethod: authz_ctx.AuthnDeviceURL,
+			deviceMappings: []*fleet.HostDeviceMapping{
+				{Email: "ghost@example.com", Source: fleet.DeviceMappingMDMIdpAccounts},
+			},
+			session:           sessionOfWithIDP(host, "alice-uuid"),
 			wantMismatch:      true,
 			wantSessionLookup: true,
 		},
 		{
 			// Device-token auth already proves possession of a device-bound secret,
 			// so it skips the IdP comparison and its lockout modes.
-			name:              "device token auth is not checked against the host's IdP user",
-			ssoEnabled:        true,
-			host:              idpHost,
-			authnMethod:       authz_ctx.AuthnDeviceToken,
-			session:           sessionOfWithIDP(idpHost, "someone-elses-uuid"),
+			name:        "device token auth is not checked against the host's IdP users",
+			ssoEnabled:  true,
+			authnMethod: authz_ctx.AuthnDeviceToken,
+			deviceMappings: []*fleet.HostDeviceMapping{
+				{Email: "alice@example.com", Source: fleet.DeviceMappingMDMIdpAccounts},
+			},
+			idpAccounts:       map[string]string{"alice@example.com": "alice-uuid"},
+			session:           sessionOfWithIDP(host, "someone-elses-uuid"),
 			wantSessionLookup: true,
 		},
 	}
@@ -383,7 +460,7 @@ func TestRequireDeviceSSOSession(t *testing.T) {
 				ac.FleetDesktop.SSOEnabled = c.ssoEnabled
 				return &ac, nil
 			}
-			caseHost := *cmp.Or(c.host, host)
+			caseHost := *host
 			ds.GetHostAwaitingConfigurationFunc = func(ctx context.Context, hostUUID string) (bool, error) {
 				require.Equal(t, caseHost.UUID, hostUUID)
 				return c.awaitingConfiguration, nil
@@ -393,11 +470,16 @@ func TestRequireDeviceSSOSession(t *testing.T) {
 					{Name: "install something", Status: c.setupExperienceStatus, HostUUID: hostUUID, SoftwareInstallerID: new(uint(1))},
 				}, nil
 			}
-			ds.GetMDMIdPAccountByHostUUIDFunc = func(ctx context.Context, hostUUID string) (*fleet.MDMIdPAccount, error) {
-				if hostUUID != idpHost.UUID {
-					return nil, nil
+			ds.ListHostDeviceMappingFunc = func(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error) {
+				require.Equal(t, caseHost.ID, id)
+				return c.deviceMappings, nil
+			}
+			ds.GetMDMIdPAccountByEmailFunc = func(ctx context.Context, email string) (*fleet.MDMIdPAccount, error) {
+				uuid, ok := c.idpAccounts[email]
+				if !ok {
+					return nil, &notFoundError{}
 				}
-				return &fleet.MDMIdPAccount{UUID: "associated-uuid"}, nil
+				return &fleet.MDMIdPAccount{UUID: uuid, Email: email}, nil
 			}
 
 			svc, getKey, mockClock := newDeviceSSOTestService(t, ds, time.Hour)
