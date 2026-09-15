@@ -551,6 +551,7 @@ This activity contains the following fields:
 - "user_name": Name of the edited user.
 - "user_email": E-mail of the edited user.
 - "role": New global role of the edited user.
+- "jit": Whether the role was assigned via just-in-time (JIT) user provisioning (omitted when false).
 
 #### Example
 
@@ -572,6 +573,7 @@ This activity contains the following fields:
 - "user_name": Name of the edited user.
 - "user_email": E-mail of the edited user.
 - "role": Deleted global role of the edited user.
+- "jit": Whether the role was removed via just-in-time (JIT) user provisioning (omitted when false).
 
 #### Example
 
@@ -595,6 +597,7 @@ This activity contains the following fields:
 - "role": Fleet role set to the edited user.
 - "fleet_id": Unique ID of the fleet of the changed role.
 - "fleet_name": Name of the fleet of the changed role.
+- "jit": Whether the role was assigned via just-in-time (JIT) user provisioning (omitted when false).
 
 #### Example
 
@@ -622,6 +625,7 @@ This activity contains the following fields:
 - "role": Fleet role deleted from the edited user.
 - "fleet_id": Unique ID of the fleet of the deleted role.
 - "fleet_name": Name of the fleet of the deleted role.
+- "jit": Whether the role was removed via just-in-time (JIT) user provisioning (omitted when false).
 
 #### Example
 
