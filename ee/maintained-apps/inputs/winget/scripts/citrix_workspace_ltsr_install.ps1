@@ -35,16 +35,16 @@ try {
 
 $process = Start-Process -FilePath "${env:INSTALLER_PATH}" `
   -ArgumentList "/silent /noreboot /AutoUpdateCheck=disabled" `
-  -PassThru -Wait
-
-if ($process.ExitCode -ne 0) {
-  Write-Host "Installer exited with code $($process.ExitCode)"
-  Exit $process.ExitCode
-}
+  -PassThru
 
 $elapsed = 0
 $stableChecks = 0
 while ($elapsed -lt $timeoutSeconds) {
+  if ($process.HasExited -and $process.ExitCode -ne 0) {
+    Write-Host "Installer exited with code $($process.ExitCode)"
+    Exit $process.ExitCode
+  }
+
   $registered = Test-CitrixWorkspaceInstalled
   $msiexecIdle = -not (Get-Process -Name "msiexec" -ErrorAction SilentlyContinue)
 
