@@ -1,0 +1,1 @@
+- The Android enrollment token endpoint now verifies the enroll secret before any other checks, so requests with an invalid secret always get the same response.
