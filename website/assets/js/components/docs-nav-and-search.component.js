@@ -45,21 +45,26 @@ parasails.registerComponent('docsNavAndSearch', {
         </div>
       </div>
       <div>
-        <div purpose="nav-bar-search" id="docsearch-query" class="d-flex" v-if="algoliaPublicKey">
-          <div purpose="disabled-search" class="d-flex">
-            <div class="input-group d-flex flex-nowrap">
-              <div class="input-group-prepend">
-                <span class="input-group-text border-0 bg-transparent" >
-                  <img style="height: 16px; width: 16px;" class="search" alt="search" src="/images/icon-search-16x16@2x.png">
-                </span>
-              </div>
-              <form purpose="google-search">
-                <div class="form-control border-0">
-                  <input class="docsearch-input pr-1" placeholder="Search" aria-label="Search"/>
+        <div purpose="nav-bar-search" class="d-flex">
+          <label for="nav-search-bar">
+            <div purpose="searchbar" class="d-flex">
+              <div class="input-group d-flex flex-nowrap">
+                <div class="input-group-prepend">
+                  <span class="input-group-text border-0 bg-transparent pr-0" >
+                    <img style="height: 16px; width: 16px;" class="search" alt="search" src="/images/icon-search-16x16@2x.png">
+                  </span>
                 </div>
-              </form>
+                <form purpose="google-search" id="docs-nav-search-form">
+                  <div class="form-control border-0">
+                    <input id="nav-search-bar" placeholder="Search" aria-label="Search"/>
+                  </div>
+                </form>
+                <button type="submit" form="docs-nav-search-form" aria-label="Search" class="input-group-append d-flex align-items-center" purpose="searchbar-submit">
+                  ⏎
+                </button>
+              </div>
             </div>
-          </div>
+          </label>
         </div>
       </div>
     </div>
