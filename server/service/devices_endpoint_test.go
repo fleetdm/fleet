@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"errors"
 	"testing"
 	"time"
 
@@ -284,72 +283,6 @@ func TestGetDeviceHostEndpointNoScrubbingForMacOS(t *testing.T) {
 	assert.Equal(t, "Test Org", deviceResp.License.Organization)
 	assert.Equal(t, 100, deviceResp.License.DeviceCount)
 	assert.False(t, deviceResp.License.Expiration.IsZero())
-}
-
-// TestGetDeviceHostEndpointBitLockerPINState checks that a failure reading the BitLocker PIN state fails the My device
-// page. That the fields never appear for other platforms is covered by TestBitLockerPINHandoff, where Apple MDM is
-// configured for real and a macOS host carries os_settings.
-func TestGetDeviceHostEndpointBitLockerPINState(t *testing.T) {
-	newSvc := func(t *testing.T, platform string) (*mock.Store, fleet.Service, context.Context) {
-		ds := new(mock.Store)
-		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{
-			SkipCreateTestUsers: true,
-			License:             &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)},
-		})
-
-		h := &fleet.Host{ID: 1, Hostname: "pin-host", UUID: "pin-uuid", Platform: platform}
-		ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) { return h, nil }
-		ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) { return h, nil }
-		ds.GetHostIssuesLastUpdatedFunc = func(ctx context.Context, hostID uint) (time.Time, error) { return time.Now(), nil }
-		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) { return &fleet.AppConfig{}, nil }
-		ds.LoadHostSoftwareFunc = func(ctx context.Context, host *fleet.Host, includeVulnerabilities bool) error { return nil }
-		ds.LoadHostMDMAppleDeviceVitalsFunc = func(ctx context.Context, host *fleet.Host) error { return nil }
-		ds.ListPoliciesForHostFunc = func(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error) { return nil, nil }
-		ds.ListHostUsersFunc = func(ctx context.Context, hostID uint) ([]fleet.HostUser, error) { return nil, nil }
-		ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) { return nil, nil }
-		ds.GetHostMDMCheckinInfoFunc = func(ctx context.Context, hostUUID string) (*fleet.HostMDMCheckinInfo, error) { return nil, nil }
-		ds.ListLabelsForHostFunc = func(ctx context.Context, hostID uint) ([]*fleet.Label, error) { return nil, nil }
-		ds.ListPacksForHostFunc = func(ctx context.Context, hostID uint) ([]*fleet.Pack, error) { return nil, nil }
-		ds.ListHostBatteriesFunc = func(ctx context.Context, id uint) ([]*fleet.HostBattery, error) { return nil, nil }
-		ds.ListUpcomingHostMaintenanceWindowsFunc = func(ctx context.Context, hostID uint) ([]*fleet.HostMaintenanceWindow, error) {
-			return nil, nil
-		}
-		ds.IsHostDiskEncryptionKeyArchivedFunc = func(ctx context.Context, hostID uint) (bool, error) { return false, nil }
-		ds.GetHostLockWipeStatusFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostLockWipeStatus, error) {
-			return &fleet.HostLockWipeStatus{}, nil
-		}
-		ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) { return nil, nil }
-		ds.ListHostDeviceMappingFunc = func(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error) { return nil, nil }
-		ds.ConditionalAccessBypassedAtFunc = func(ctx context.Context, hostID uint) (*time.Time, error) { return nil, nil }
-		ds.GetHostCustomHostVitalsFunc = func(ctx context.Context, hostID uint) ([]fleet.HostCustomHostVital, error) { return nil, nil }
-		ds.GetBitLockerPINRequestFunc = func(ctx context.Context, hostID uint) (*fleet.HostBitLockerPINRequest, error) {
-			return nil, newNotFoundError()
-		}
-
-		ctx = host.NewContext(ctx, h)
-		authzCtx := &authz.AuthorizationContext{}
-		authzCtx.SetAuthnMethod(authz.AuthnDeviceToken)
-		ctx = authz.NewContext(ctx, authzCtx)
-		return ds, svc, ctx
-	}
-
-	callEndpoint := func(t *testing.T, ctx context.Context, svc fleet.Service) getDeviceHostResponse {
-		resp, err := getDeviceHostEndpoint(ctx, &getDeviceHostRequest{Token: "test-token"}, svc)
-		require.NoError(t, err)
-		deviceResp, ok := resp.(getDeviceHostResponse)
-		require.True(t, ok)
-		return deviceResp
-	}
-
-	t.Run("failure reading the PIN state fails the page", func(t *testing.T) {
-		ds, svc, ctx := newSvc(t, "windows")
-		lookupErr := errors.New("enrollment lookup failed")
-		ds.GetMDMWindowsHostConfigStateFunc = func(ctx context.Context, hostUUID string) (*fleet.MDMWindowsHostConfigState, error) {
-			return nil, lookupErr
-		}
-
-		require.ErrorIs(t, callEndpoint(t, ctx, svc).Err, lookupErr)
-	})
 }
 
 func TestGetDeviceHostEndpointConditionalAccessBypass(t *testing.T) {

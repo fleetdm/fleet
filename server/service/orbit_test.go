@@ -1712,41 +1712,35 @@ func TestGetOrbitConfigWindowsSetupExperience(t *testing.T) {
 		return capabilities.NewContext(ctx, req)
 	}
 
-	t.Run("pending BitLocker PIN on a host that needs one sets the notification", func(t *testing.T) {
+	t.Run("pending BitLocker PIN on a host that no longer needs one is discarded", func(t *testing.T) {
+		// The fleet stopped requiring a PIN, or another session set one, after the end user submitted.
 		ds, svc, ctx, _ := setupSvc(t)
 		ds.GetMDMWindowsHostConfigStateFunc = func(ctx context.Context, hostUUID string) (*fleet.MDMWindowsHostConfigState, error) {
 			return &fleet.MDMWindowsHostConfigState{FleetdBitLockerPINCapable: true, BitLockerPINRequestPending: true}, nil
 		}
 		ds.GetMDMWindowsBitLockerStatusFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostMDMDiskEncryption, error) {
-			return &fleet.HostMDMDiskEncryption{ActionRequired: new(fleet.ActionRequiredCreatePIN)}, nil
+			return &fleet.HostMDMDiskEncryption{}, nil
 		}
-
-		cfg, err := svc.GetOrbitConfig(withBitLockerPINCapability(ctx))
-		require.NoError(t, err)
-		assert.True(t, cfg.Notifications.BitLockerPINRequestPending)
-	})
-
-	t.Run("BitLocker PIN lookup failure does not fail the orbit config", func(t *testing.T) {
-		// The config response also carries scripts, software installs and every other notification, so a failure in
-		// the optional PIN feature must not withhold them. The submission stays queued for the next poll.
-		ds, svc, ctx, _ := setupSvc(t)
-		ds.GetMDMWindowsHostConfigStateFunc = func(ctx context.Context, hostUUID string) (*fleet.MDMWindowsHostConfigState, error) {
-			return &fleet.MDMWindowsHostConfigState{
-				AwaitingConfiguration:      fleet.WindowsMDMAwaitingConfigurationPending,
-				FleetdBitLockerPINCapable:  true,
-				BitLockerPINRequestPending: true,
-			}, nil
-		}
-		ds.GetMDMWindowsBitLockerStatusFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostMDMDiskEncryption, error) {
-			return nil, errors.New("bitlocker status unavailable")
-		}
+		ds.DeleteBitLockerPINRequestFunc = func(ctx context.Context, host *fleet.Host) error { return nil }
 
 		cfg, err := svc.GetOrbitConfig(withBitLockerPINCapability(ctx))
 		require.NoError(t, err)
 		assert.False(t, cfg.Notifications.BitLockerPINRequestPending)
-		// Unrelated notifications computed after the failure are still delivered.
-		assert.True(t, cfg.Notifications.RunSetupExperience)
-		assert.False(t, ds.DeleteBitLockerPINRequestFuncInvoked, "a failed lookup must not discard the submission")
+		assert.True(t, ds.DeleteBitLockerPINRequestFuncInvoked)
+	})
+
+	t.Run("BitLocker PIN lookup failure fails the orbit config", func(t *testing.T) {
+		ds, svc, ctx, _ := setupSvc(t)
+		ds.GetMDMWindowsHostConfigStateFunc = func(ctx context.Context, hostUUID string) (*fleet.MDMWindowsHostConfigState, error) {
+			return &fleet.MDMWindowsHostConfigState{FleetdBitLockerPINCapable: true, BitLockerPINRequestPending: true}, nil
+		}
+		lookupErr := errors.New("bitlocker status unavailable")
+		ds.GetMDMWindowsBitLockerStatusFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostMDMDiskEncryption, error) {
+			return nil, lookupErr
+		}
+
+		_, err := svc.GetOrbitConfig(withBitLockerPINCapability(ctx))
+		require.ErrorIs(t, err, lookupErr)
 	})
 
 	t.Run("non-Windows host does not query Windows host config state", func(t *testing.T) {

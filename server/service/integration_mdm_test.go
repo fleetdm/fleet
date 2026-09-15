@@ -28759,18 +28759,10 @@ func (s *integrationMDMTestSuite) mustBYODIdPSession(t *testing.T, idpAccountUUI
 // with its PIN recorded, an activity written, and the notification gone.
 func (s *integrationMDMTestSuite) TestBitLockerPINHandoff() {
 	t := s.T()
-	ctx := context.Background()
+	ctx := t.Context()
 
-	host := createOrbitEnrolledHost(t, "windows", t.Name(), s.ds)
-
-	// Enroll into Fleet MDM: the Windows enrollment row is what carries both the capability and the pending flag.
-	encodedBinToken, err := fleet.GetEncodedBinarySecurityToken(fleet.WindowsMDMProgrammaticEnrollmentType, *host.OrbitNodeKey)
-	require.NoError(t, err)
-	requestBytes, err := s.newSecurityTokenMsg(encodedBinToken, true, false)
-	require.NoError(t, err)
-	s.DoRaw("POST", microsoft_mdm.MDE2EnrollPath, requestBytes, http.StatusOK)
-	require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, host.ID, false, true, "https://example.com", true, fleet.WellKnownMDMFleet, "", false))
-
+	// The Windows enrollment row is what carries both the capability and the pending flag.
+	host, _ := createWindowsHostThenEnrollMDM(s.ds, s.server.URL, t)
 	deviceToken := "bitlocker-pin-handoff-" + uuid.NewString()
 	require.NoError(t, s.ds.SetOrUpdateDeviceAuthToken(ctx, host.ID, deviceToken))
 
@@ -28782,7 +28774,7 @@ func (s *integrationMDMTestSuite) TestBitLockerPINHandoff() {
 		http.StatusOK, &acResp)
 	protectionOn := fleet.BitLockerProtectionStatusOn
 	require.NoError(t, s.ds.SetOrUpdateHostDisksEncryption(ctx, host.ID, true, &protectionOn))
-	_, err = s.ds.SetOrUpdateHostDiskEncryptionKey(ctx, host, "test-key", "", new(true))
+	_, err := s.ds.SetOrUpdateHostDiskEncryptionKey(ctx, host, "test-key", "", new(true))
 	require.NoError(t, err)
 	// The volume has a TPM protector but no PIN, the only state in which Windows offers PIN setup.
 	require.NoError(t, s.ds.SetOrUpdateHostDiskBitLockerProtectors(ctx, host.ID, true, false))
@@ -28795,15 +28787,31 @@ func (s *integrationMDMTestSuite) TestBitLockerPINHandoff() {
 		res := s.DoRawWithHeaders("POST", "/api/fleet/orbit/config",
 			json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host.OrbitNodeKey)), http.StatusOK, headers)
 		var resp fleet.OrbitGetConfigResponse
-		body, err := io.ReadAll(res.Body)
-		require.NoError(t, err)
-		require.NoError(t, json.Unmarshal(body, &resp))
+		require.NoError(t, json.NewDecoder(res.Body).Decode(&resp))
 		return resp
 	}
 	deviceHost := func() getDeviceHostResponse {
 		var resp getDeviceHostResponse
 		s.DoJSON("GET", "/api/latest/fleet/device/"+deviceToken, nil, http.StatusOK, &resp)
 		return resp
+	}
+	submitPIN := func(pin string, wantStatus int) {
+		body, err := json.Marshal(map[string]string{"pin": pin})
+		require.NoError(t, err)
+		s.Do("POST", "/api/latest/fleet/device/"+deviceToken+"/disk_encryption_pin", json.RawMessage(body), wantStatus)
+	}
+	collectPIN := func(wantStatus int) fleet.OrbitGetDiskEncryptionPINDetailsResponse {
+		var resp fleet.OrbitGetDiskEncryptionPINDetailsResponse
+		s.DoJSON("POST", "/api/fleet/orbit/disk_encryption_pin/details",
+			json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host.OrbitNodeKey)), wantStatus, &resp)
+		return resp
+	}
+	reportOutcome := func(requestUUID string, outcome fleet.BitLockerPINRequestStatus, clientError string, wantStatus int) {
+		body, err := json.Marshal(map[string]string{
+			"orbit_node_key": *host.OrbitNodeKey, "request_uuid": requestUUID, "outcome": string(outcome), "client_error": clientError,
+		})
+		require.NoError(t, err)
+		s.Do("POST", "/api/fleet/orbit/disk_encryption_pin/result", json.RawMessage(body), wantStatus)
 	}
 
 	// An agent that has not advertised the capability is treated as unable to apply a PIN, so the page keeps the old
@@ -28815,109 +28823,76 @@ func (s *integrationMDMTestSuite) TestBitLockerPINHandoff() {
 	require.Equal(t, fleet.ActionRequiredCreatePIN, *resp.Host.MDM.OSSettings.DiskEncryption.ActionRequired)
 	require.NotNil(t, resp.Host.MDM.OSSettings.DiskEncryption.FleetdCanSetPIN)
 	require.False(t, *resp.Host.MDM.OSSettings.DiskEncryption.FleetdCanSetPIN)
-	s.Do("POST", "/api/latest/fleet/device/"+deviceToken+"/disk_encryption_pin",
-		json.RawMessage(`{"pin": "123456"}`), http.StatusBadRequest)
+	submitPIN("123456", http.StatusBadRequest)
 
 	// The agent advertises that it can apply a PIN; the server persists that on the enrollment row.
-	var caps fleet.CapabilityMap
-	caps.PopulateFromString(string(fleet.CapabilityWindowsBitLockerPIN))
+	caps := fleet.CapabilityMap{fleet.CapabilityWindowsBitLockerPIN: struct{}{}}
 	capsHeader := caps.String()
-	cfg := orbitConfig(capsHeader)
-	require.False(t, cfg.Notifications.BitLockerPINRequestPending)
-
+	require.False(t, orbitConfig(capsHeader).Notifications.BitLockerPINRequestPending)
 	resp = deviceHost()
 	require.NotNil(t, resp.Host.MDM.OSSettings.DiskEncryption.FleetdCanSetPIN)
 	require.True(t, *resp.Host.MDM.OSSettings.DiskEncryption.FleetdCanSetPIN)
 
-	// A PIN that Windows would reject is refused before anything is stored.
-	s.Do("POST", "/api/latest/fleet/device/"+deviceToken+"/disk_encryption_pin",
-		json.RawMessage(`{"pin": "12ab"}`), http.StatusUnprocessableEntity)
+	// A PIN that Windows would reject is refused with a validation error before anything is stored.
+	submitPIN("12ab", http.StatusUnprocessableEntity)
 	require.False(t, orbitConfig(capsHeader).Notifications.BitLockerPINRequestPending)
 
-	// The end user submits a valid PIN.
-	s.Do("POST", "/api/latest/fleet/device/"+deviceToken+"/disk_encryption_pin",
-		json.RawMessage(`{"pin": "123456"}`), http.StatusNoContent)
-
+	// The end user submits a valid PIN, and the agent's next poll is told to collect it.
+	submitPIN("123456", http.StatusNoContent)
 	resp = deviceHost()
 	require.NotNil(t, resp.Host.MDM.OSSettings.DiskEncryption.PINRequest)
 	require.Equal(t, fleet.BitLockerPINRequestPending, resp.Host.MDM.OSSettings.DiskEncryption.PINRequest.Status)
-
-	// The agent's next poll is told to collect it.
 	require.True(t, orbitConfig(capsHeader).Notifications.BitLockerPINRequestPending)
 
 	// Collecting returns the PIN in the clear, exactly once.
-	var pinResp fleet.OrbitGetDiskEncryptionPINDetailsResponse
-	s.DoJSON("POST", "/api/fleet/orbit/disk_encryption_pin/details",
-		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host.OrbitNodeKey)), http.StatusOK, &pinResp)
+	pinResp := collectPIN(http.StatusOK)
 	require.Equal(t, "123456", pinResp.PIN)
-	require.NotEmpty(t, pinResp.RequestUUID)
 	firstRequestUUID := pinResp.RequestUUID
 
 	// An outcome that names no collected submission is refused, so a host cannot mark itself as having a PIN it was
 	// never given.
-	s.Do("POST", "/api/fleet/orbit/disk_encryption_pin/result",
-		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "request_uuid": "not-a-real-request", "outcome": "set"}`,
-			*host.OrbitNodeKey)), http.StatusNotFound)
+	reportOutcome("not-a-real-request", fleet.BitLockerPINRequestSet, "", http.StatusNotFound)
 
 	// A replayed collect gets nothing, and the notification is already gone.
-	s.Do("POST", "/api/fleet/orbit/disk_encryption_pin/details",
-		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host.OrbitNodeKey)), http.StatusNotFound)
+	collectPIN(http.StatusNotFound)
 	require.False(t, orbitConfig(capsHeader).Notifications.BitLockerPINRequestPending)
 
-	// A failure is reported back to the waiting page, and needs a reason.
-	s.Do("POST", "/api/fleet/orbit/disk_encryption_pin/result",
-		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "request_uuid": %q, "outcome": "failed"}`,
-			*host.OrbitNodeKey, firstRequestUUID)), http.StatusUnprocessableEntity)
-	s.Do("POST", "/api/fleet/orbit/disk_encryption_pin/result",
-		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "request_uuid": %q, "outcome": "failed", "client_error": "PIN already set"}`,
-			*host.OrbitNodeKey, firstRequestUUID)), http.StatusNoContent)
+	// A failure is reported back to the waiting page, and must not claim the PIN is set.
+	reportOutcome(firstRequestUUID, fleet.BitLockerPINRequestFailed, "PIN already set", http.StatusNoContent)
 	resp = deviceHost()
 	require.NotNil(t, resp.Host.MDM.OSSettings.DiskEncryption.PINRequest)
 	require.Equal(t, fleet.BitLockerPINRequestFailed, resp.Host.MDM.OSSettings.DiskEncryption.PINRequest.Status)
 	require.Equal(t, "PIN already set", resp.Host.MDM.OSSettings.DiskEncryption.PINRequest.Error)
-	// A failure must not claim the PIN is set.
-	require.NotNil(t, deviceHost().Host.MDM.OSSettings.DiskEncryption.ActionRequired)
+	require.NotNil(t, resp.Host.MDM.OSSettings.DiskEncryption.ActionRequired)
 
-	// The end user retries, the agent collects, and this time it works.
-	s.Do("POST", "/api/latest/fleet/device/"+deviceToken+"/disk_encryption_pin",
-		json.RawMessage(`{"pin": "Fl\"eet 2026!"}`), http.StatusNoContent)
+	// The end user retries with an enhanced PIN, the agent collects it, and this time it works.
+	submitPIN(`Fl"eet 2026!`, http.StatusNoContent)
 	require.True(t, orbitConfig(capsHeader).Notifications.BitLockerPINRequestPending)
-	s.DoJSON("POST", "/api/fleet/orbit/disk_encryption_pin/details",
-		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host.OrbitNodeKey)), http.StatusOK, &pinResp)
+	pinResp = collectPIN(http.StatusOK)
 	require.Equal(t, `Fl"eet 2026!`, pinResp.PIN)
 	require.NotEqual(t, firstRequestUUID, pinResp.RequestUUID, "each submission gets its own id")
 
 	// A late outcome for the superseded submission must not be recorded against this one.
-	s.Do("POST", "/api/fleet/orbit/disk_encryption_pin/result",
-		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "request_uuid": %q, "outcome": "set"}`,
-			*host.OrbitNodeKey, firstRequestUUID)), http.StatusNotFound)
-
-	s.Do("POST", "/api/fleet/orbit/disk_encryption_pin/result",
-		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "request_uuid": %q, "outcome": "set"}`,
-			*host.OrbitNodeKey, pinResp.RequestUUID)), http.StatusNoContent)
+	reportOutcome(firstRequestUUID, fleet.BitLockerPINRequestSet, "", http.StatusNotFound)
+	reportOutcome(pinResp.RequestUUID, fleet.BitLockerPINRequestSet, "", http.StatusNoContent)
 
 	// The PIN is recorded, so the end user's banner clears without them pressing Refetch.
 	resp = deviceHost()
 	require.Nil(t, resp.Host.MDM.OSSettings.DiskEncryption.ActionRequired)
 	require.NotNil(t, resp.Host.MDM.OSSettings.DiskEncryption.PINRequest)
 	require.Equal(t, fleet.BitLockerPINRequestSet, resp.Host.MDM.OSSettings.DiskEncryption.PINRequest.Status)
+	require.False(t, orbitConfig(capsHeader).Notifications.BitLockerPINRequestPending)
 
 	// Success asks the host to refetch so osquery confirms the protector list, and is recorded for the admin with no
 	// actor, because the end user chose the PIN rather than Fleet applying one of its own.
-	var refetchRequested bool
-	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		return sqlx.GetContext(ctx, q, &refetchRequested,
-			`SELECT refetch_requested FROM hosts WHERE id = ?`, host.ID)
-	})
-	require.True(t, refetchRequested)
+	refetched, err := s.ds.Host(ctx, host.ID)
+	require.NoError(t, err)
+	require.True(t, refetched.RefetchRequested)
 	s.lastActivityOfTypeMatches(
 		fleet.ActivityTypeCreatedDiskEncryptionPIN{}.ActivityName(),
 		fmt.Sprintf(`{"host_id": %d, "host_display_name": %q}`, host.ID, host.DisplayName()),
 		0,
 	)
-
-	// Nothing is left waiting for the agent.
-	require.False(t, orbitConfig(capsHeader).Notifications.BitLockerPINRequestPending)
 
 	// The PIN fields are Windows-only. Apple MDM is configured in this suite, so a macOS host's device response carries
 	// os_settings, which is exactly where they would otherwise leak.

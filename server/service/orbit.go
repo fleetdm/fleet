@@ -680,9 +680,7 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 			// Hand over a startup PIN the end user submitted.
 			if pinCapable && state.BitLockerPINRequestPending {
 				if err := svc.setBitLockerPINNotification(ctx, &notifs, host); err != nil {
-					// Best-effort. Don't fail the request. The agent is offered it again next poll.
-					svc.logger.ErrorContext(ctx, "setting bitlocker pin notification", "host_uuid", host.UUID, "err", err)
-					ctxerr.Handle(ctx, err)
+					return fleet.OrbitConfig{}, ctxerr.Wrap(ctx, err, "setting bitlocker pin notification")
 				}
 			}
 
