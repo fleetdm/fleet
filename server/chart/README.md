@@ -21,6 +21,7 @@ transport, and bootstrap, and it must not import `server/fleet` or
 - [Sample strategies](#sample-strategies)
 - [The write path (collection)](#the-write-path-collection)
 - [The read path (GetChartData)](#the-read-path-getchartdata)
+- [Precomputed CVE filters](#precomputed-cve-filters)
 - [Scoping, config gating, and scrubbing](#scoping-config-gating-and-scrubbing)
 - [How to add a new dataset](#how-to-add-a-new-dataset)
 - [How charts reach the frontend](#how-charts-reach-the-frontend)
@@ -244,6 +245,105 @@ slice. **Do not "normalize" one to the other.**
 - `TrackedCriticalCVEs` returns a non-nil empty slice when nothing matches so the
   caller can tell "filter resolved to empty" from "no filter."
 
+## Precomputed CVE filters
+
+The CVE chart's value for a bucket is the number of distinct hosts affected by
+any CVE the filter selects. Computing that from the per-CVE rows means unioning
+one bitmap per CVE per bucket — on a large deployment, hundreds of thousands of
+bitmap ORs over tens of thousands of rows, repeated on every request, throwing
+the answer away each time.
+
+So the collector also stores the union itself. Each tick, `CVEDataset.Collect`
+resolves the filters returned by `PreaggregateFilters`, ORs the bitmaps it
+already holds, and writes each union as a synthetic entity in the same
+`host_scd_data` dataset. Entity IDs come from `api.CVEFilter.AggregateEntityID`,
+a digest of the filter's canonical form under the `agg:` prefix — real CVE IDs
+start with `CVE-`, so the namespaces can't collide, and retention, scrubbing and
+deletion apply to aggregates with no extra code.
+
+Aggregates are written in the **same** `RecordBucketData` call as the per-CVE
+rows. Snapshot semantics close every entity missing from the input, so a
+separate call would close whatever the other one wrote.
+
+On read, `GetChartData` keys the request's filter the same way and asks
+`AggregateCoversFrom`. A hit reads that one entity and skips the resolve query
+entirely; a miss falls back to the per-CVE allow-set. Either way the host mask
+is applied afterward, so fleet and label scoping behave identically on both
+paths.
+
+`cmd/fleet` decides what is worth precomputing: one series per option in the
+dashboard's severity dropdown, with no other predicate. Those are the requests
+the dashboard sends on load and after a severity change when no other control
+is set; a request carrying categories, EPSS, known-exploit or excluded CVEs
+stays on the per-CVE path. **The filters must match what the frontend sends,
+bound for bound** — "Any severity" is sent with no bounds, not the ends of the
+scale. A mismatch doesn't break the chart; it silently reverts every request to
+the slow path, which is why `cmd/fleet/cron_test.go` pins the
+dashboard's own default request against the precomputed set.
+
+### Backfill, and what it means for history
+
+A new aggregate has no past, so `BackfillAggregateEntity` reconstructs one from
+the per-CVE rows already stored, walking hour by hour and keeping a row only
+where the union changes. Rebuilding a whole retention window at once would put
+minutes of scanning and merging into one collection tick, so it is **batched**:
+each call extends the series one backfill window (7 days) further back, and
+`aggregateBackfillBatchesPerTick` caps how many series rebuild per tick. A
+series with nothing left to rebuild declines and costs no budget, so the ones
+still catching up are never starved. Series therefore finish in order, and since
+the dashboard's default severity is precomputed first, the chart most people
+load stops being slow soonest.
+
+A series stops at the **retention horizon** (`api.RetentionDays`, shared with
+`CleanupData`), not at the dataset's oldest row. Cleanup deletes closed rows
+below the horizon but keeps open ones, so a stable CVE's first row pins the
+dataset's start far behind retention; a series chasing that row would have each
+batch below the horizon deleted by the next cleanup and rebuild it every tick,
+burning the whole backfill budget forever.
+
+Backfill runs before the tick's own write, which would otherwise leave a
+brand-new series looking established with no history behind it. Every series
+still gets its current row every tick regardless of the budget; one left out of
+the snapshot would be closed and lose the history already rebuilt for it.
+
+Because a series is built backwards over several ticks, **the read path checks
+how far back it reaches**, not merely that it exists. `AggregateCoversFrom`
+qualifies a series once it starts at or before the requested window, the
+retention horizon, or the oldest row the dataset holds, whichever is latest.
+The dashboard asks for a day more than retention keeps, so without the horizon
+a finished series would never qualify once the deployment is older than the
+retention window. Reading a half-built series would report zero for the hours
+it has not caught up to yet.
+
+This introduces one deliberate behavior difference. The per-CVE path resolves
+severity against `cve_meta` at read time, so a CVE that NVD rescores changes the
+whole retained history retroactively. A precomputed series is **point-in-time**:
+each hour holds the union as it stood then. Backfilled spans are the exception —
+they can only use today's metadata — so the first retention window after an
+aggregate appears is retroactive and everything after it is not.
+
+### Two ways this quietly stops working
+
+Both failure modes are silent. The chart keeps returning correct numbers and
+nothing logs an error; it just gets slow again.
+
+**A changed filter default starts a new series.** The entity ID is a digest of
+the filter's contents, so editing `vulnerability_exposure_historical_reporting`
+globally or on one fleet produces a key with no history behind it. Requests fall
+back to the per-CVE path until the new series has been rebuilt, which takes a few
+hours at one batch per tick. A global scrub has the same effect, since it deletes
+the aggregates along with everything else. The only signal an operator gets is
+the chart being slow for an afternoon.
+
+**A frontend change to the request shape disables the whole optimization.**
+`chartPreaggregateFilters` in `cmd/fleet/cron.go` reconstructs the filters
+`ChartCard` sends, bound for bound. If the dashboard starts sending a bound it
+used to omit, or stops sending one it used to include, the request's key matches
+no stored series and every load reverts to the per-CVE path. Nothing errors, and
+no test fails unless it is testing for this specifically, which is what
+`TestChartPreaggregateFiltersCoversEverySeverityBand` is for. Keep it in step
+with the request builder.
+
 ## Scoping, config gating, and scrubbing
 
 Whether a dataset collects at all is gated by `HistoricalDataSettings` in AppConfig
@@ -363,13 +463,13 @@ mocks elsewhere can crash if an interface method is missing.
 | `blob.go` | Bitmap encode/decode, storage-form vs op-form, set ops |
 | `datasets.go` | `UptimeDataset`, `CVEDataset` — the `Dataset` implementations |
 | `api/service.go` | `Service`, `ViewerProvider`, `CollectScopeFn` |
-| `api/chart.go` | `Dataset`, `DatasetStore`, `SampleStrategy`, request/response types |
+| `api/chart.go` | `Dataset`, `DatasetStore`, `SampleStrategy`, request/response types, `CVEFilter` + `AggregateEntityID` (the precomputed-series key) |
 | `api/http/types.go` | HTTP wire DTOs |
 | `internal/types/chart.go` | `Datastore` interface, `HostFilter` (nil/empty semantics) |
 | `internal/service/service.go` | `GetChartData`, scope/authz, scrub, bucket range math |
 | `internal/service/host_cache.go` | Per-filter mask cache (TTL + singleflight) |
 | `internal/service/handler.go` | Route registration + endpoint decode |
-| `internal/mysql/data.go` | SCD read/write: `RecordBucketData`, `GetSCDData`, cleanup, scrub |
+| `internal/mysql/data.go` | SCD read/write: `RecordBucketData`, `GetSCDData`, aggregate coverage + backfill, cleanup, scrub |
 | `internal/mysql/charts.go` | Host-filter SQL, online-host query, CVE collection + tracked-CVE filter |
 | `bootstrap/bootstrap.go` | `New(...)` — wires the context together |
 | `arch_test.go` | Enforces the dependency rules above |
@@ -378,7 +478,8 @@ Related code outside this tree:
 
 - `server/acl/chartacl/` — anti-corruption layer (viewer adapter).
 - `cmd/fleet/serve.go` — `createChartBoundedContext`, dataset registration.
-- `cmd/fleet/cron.go` — collection schedule, scope resolver, cleanup.
+- `cmd/fleet/cron.go` — collection schedule, scope resolver, cleanup, and which
+  CVE filters get a precomputed series.
 - `server/worker/chart_scrub.go` — scrub worker jobs.
 - `server/fleet/historical_data.go` — config-flip → scrub/activity orchestration.
 - `server/datastore/mysql/migrations/tables/20260423161823_AddHostSCDData.go` — the table migration.

@@ -28,26 +28,11 @@ type HostFilter struct {
 	ExcludeHostIDs []uint
 }
 
-// CVEChartFilter narrows the CVE chart entity set to a resolved allow-set of
-// CVE IDs. All predicates AND together (intersect); ExcludeCVEs are subtracted
-// afterward. Excluding a CVE that isn't in the set is a harmless no-op.
-//
-// Categories empty means "all categories" (no narrowing). CVSSMin/CVSSMax and
-// EPSSMin/EPSSMax are nil when no bound was requested, which drops the
-// corresponding predicate entirely rather than substituting the full range.
-// That distinction is load-bearing for CVSS: cve_meta.cvss_score is nullable,
-// so a 0.0–10.0 bound still excludes CVEs with no score, while a nil bound
-// includes them. CVSS values are 0.0–10.0; EPSS values are 0.0–1.0 to match
-// cve_meta.epss_probability.
-type CVEChartFilter struct {
-	Categories   []string
-	CVSSMin      *float64
-	CVSSMax      *float64
-	EPSSMin      *float64
-	EPSSMax      *float64
-	KnownExploit bool
-	ExcludeCVEs  []string
-}
+// CVEChartFilter is the chart's CVE entity filter. It is an alias rather than
+// a distinct type so the collector (which sees only the public api package) and
+// the datastore agree on one filter shape, and so a filter can be keyed to its
+// aggregate entity from either side.
+type CVEChartFilter = api.CVEFilter
 
 // Datastore is the internal datastore interface for the chart bounded context.
 type Datastore interface {
@@ -84,6 +69,19 @@ type Datastore interface {
 	// nothing — callers pass this to GetSCDData's entityIDs parameter, never
 	// nil, so lower-severity CVEs never leak into the chart.
 	ResolveCVEChartEntities(ctx context.Context, filter CVEChartFilter) ([]string, error)
+
+	// AggregateCoversFrom reports whether an aggregate entity's series can
+	// answer a request starting at `from`. A series is built backwards over
+	// several ticks, so the read path must check how far it reaches rather than
+	// merely that it exists. horizon is the oldest hour retention still
+	// guarantees; a series reaching it holds everything any path could answer.
+	AggregateCoversFrom(ctx context.Context, dataset, entityID string, from, horizon time.Time) (bool, error)
+
+	// BackfillAggregateEntity extends an aggregate entity's history one bounded
+	// batch further back, reconstructing it from the rows already collected for
+	// sourceIDs, never reaching below horizon. Reports whether it wrote a batch;
+	// false means there is nothing left to reconstruct.
+	BackfillAggregateEntity(ctx context.Context, dataset, aggregateID string, sourceIDs []string, now, horizon time.Time) (bool, error)
 
 	// RecordBucketData writes one or more entity bitmaps for the given bucket using
 	// the specified sample strategy. See api.SampleStrategy for the semantics of

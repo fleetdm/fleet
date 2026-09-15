@@ -368,3 +368,470 @@ func testScrubOtherDatasetUnaffected(t *testing.T, tdb *testutils.TestDB, ds *Da
 	assert.Equal(t, []uint{1, 3}, tdb.SCDHostIDs(t, uptimeID))
 	assert.Equal(t, cveBefore, tdb.SCDBlob(t, cveID), "cve dataset must not be touched by an uptime scrub")
 }
+
+// recordTick writes one hourly collector tick: the full per-CVE state as of
+// `at`. Mirrors what CVEDataset.Collect hands RecordBucketData.
+func recordTick(t *testing.T, ds *Datastore, at time.Time, state map[string][]uint) {
+	t.Helper()
+	bitmaps := make(map[string]*roaring.Bitmap, len(state))
+	for cve, ids := range state {
+		bitmaps[cve] = chart.NewBitmap(ids)
+	}
+	require.NoError(t, ds.RecordBucketData(t.Context(), api.MetricCVE, at, time.Hour, api.SampleStrategySnapshot, bitmaps))
+}
+
+func values(points []api.DataPoint) []int {
+	out := make([]int, len(points))
+	for i, p := range points {
+		out[i] = p.Value
+	}
+	return out
+}
+
+// seedCriticalFixture lays down three CVEs on tracked software (two critical,
+// one low) and five hourly ticks in which the affected host sets change,
+// shrink, and disappear. Returns the first tick's timestamp.
+func seedCriticalFixture(t *testing.T, tdb *testutils.TestDB, ds *Datastore) time.Time {
+	t.Helper()
+
+	seedSoftware(t, tdb, "Google Chrome", "apps", "CVE-2026-0001")
+	seedSoftware(t, tdb, "Google Chrome", "apps", "CVE-2026-0002")
+	seedSoftware(t, tdb, "Google Chrome", "apps", "CVE-2026-0003")
+	seedCVEMeta(t, tdb, "CVE-2026-0001", 9.5, 0.4, false)
+	seedCVEMeta(t, tdb, "CVE-2026-0002", 10.0, 0.6, true)
+	seedCVEMeta(t, tdb, "CVE-2026-0003", 3.0, 0.1, false)
+
+	t0 := time.Date(2026, 9, 1, 0, 0, 0, 0, time.UTC)
+	hr := func(n int) time.Time { return t0.Add(time.Duration(n) * time.Hour) }
+
+	recordTick(t, ds, hr(0), map[string][]uint{"CVE-2026-0001": {1, 2}, "CVE-2026-0002": {2, 3}, "CVE-2026-0003": {9}})
+	// Unchanged tick — the collector writes no new rows, so the aggregate must
+	// not gain a row here either.
+	recordTick(t, ds, hr(1), map[string][]uint{"CVE-2026-0001": {1, 2}, "CVE-2026-0002": {2, 3}, "CVE-2026-0003": {9}})
+	// One CVE's host set shrinks, but the union is unchanged because the
+	// dropped host is still affected by the other CVE.
+	recordTick(t, ds, hr(2), map[string][]uint{"CVE-2026-0001": {1}, "CVE-2026-0002": {2, 3}, "CVE-2026-0003": {9}})
+	recordTick(t, ds, hr(3), map[string][]uint{"CVE-2026-0001": {1}, "CVE-2026-0002": {2, 3, 4}, "CVE-2026-0003": {9}})
+	recordTick(t, ds, hr(4), map[string][]uint{"CVE-2026-0001": {1}, "CVE-2026-0003": {9}})
+
+	return t0
+}
+
+// retentionUnbounded is a horizon so far back it never floors a backfill, for
+// tests that exercise the batching on its own.
+var retentionUnbounded = time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
+
+// backfillFully runs backfill batches until the series covers everything the
+// dataset holds above horizon, and returns how many batches that took.
+// Production spreads these across collection ticks.
+func backfillFully(t *testing.T, ds *Datastore, aggID string, sourceIDs []string, now, horizon time.Time) int {
+	t.Helper()
+	for batches := 0; batches <= 200; batches++ {
+		wrote, err := ds.BackfillAggregateEntity(t.Context(), api.MetricCVE, aggID, sourceIDs, now, horizon)
+		require.NoError(t, err)
+		if !wrote {
+			return batches
+		}
+	}
+	t.Fatal("backfill never reported completion")
+	return 0
+}
+
+// If the two paths disagree, the chart silently reports a different population
+// depending on which one a request happens to take.
+func TestBackfillAggregateEntityMatchesPerCVEPath(t *testing.T) {
+	tdb := testutils.SetupTestDB(t, "chart_mysql")
+	defer tdb.TruncateTables(t)
+	ds := NewDatastore(tdb.Conns(), tdb.Logger)
+	ctx := t.Context()
+
+	t0 := seedCriticalFixture(t, tdb, ds)
+	now := t0.Add(5 * time.Hour)
+
+	filter := api.CVEFilter{CVSSMin: new(9.0), CVSSMax: new(10.0)}
+	sourceIDs, err := ds.ResolveCVEChartEntities(ctx, filter)
+	require.NoError(t, err)
+	require.ElementsMatch(t, []string{"CVE-2026-0001", "CVE-2026-0002"}, sourceIDs,
+		"the low-severity CVE must stay out of the critical set")
+
+	aggID := filter.AggregateEntityID()
+	require.Positive(t, backfillFully(t, ds, aggID, sourceIDs, now, retentionUnbounded))
+
+	for _, bucketHours := range []int{1, 3} {
+		bucketSize := time.Duration(bucketHours) * time.Hour
+		perCVE, err := ds.GetSCDData(ctx, api.MetricCVE, t0, now, bucketSize, api.SampleStrategySnapshot, nil, sourceIDs)
+		require.NoError(t, err)
+		agg, err := ds.GetSCDData(ctx, api.MetricCVE, t0, now, bucketSize, api.SampleStrategySnapshot, nil, []string{aggID})
+		require.NoError(t, err)
+		require.Equal(t, perCVE, agg, "aggregate and per-CVE series must agree at %dh buckets", bucketHours)
+	}
+
+	// Pin the values so the equality above can't pass on two all-zero results.
+	perCVE, err := ds.GetSCDData(ctx, api.MetricCVE, t0, now, time.Hour, api.SampleStrategySnapshot, nil, sourceIDs)
+	require.NoError(t, err)
+	require.Equal(t, []int{3, 3, 4, 1, 1}, values(perCVE))
+}
+
+// The host mask is applied after the union, so scoping to a fleet or label must
+// give the same answer on either path.
+func TestBackfillAggregateEntityMatchesPerCVEPathUnderHostMask(t *testing.T) {
+	tdb := testutils.SetupTestDB(t, "chart_mysql")
+	defer tdb.TruncateTables(t)
+	ds := NewDatastore(tdb.Conns(), tdb.Logger)
+	ctx := t.Context()
+
+	t0 := seedCriticalFixture(t, tdb, ds)
+	now := t0.Add(5 * time.Hour)
+
+	filter := api.CVEFilter{CVSSMin: new(9.0), CVSSMax: new(10.0)}
+	sourceIDs, err := ds.ResolveCVEChartEntities(ctx, filter)
+	require.NoError(t, err)
+	aggID := filter.AggregateEntityID()
+	backfillFully(t, ds, aggID, sourceIDs, now, retentionUnbounded)
+
+	mask := chart.NewBitmap([]uint{2, 3, 4})
+	perCVE, err := ds.GetSCDData(ctx, api.MetricCVE, t0, now, time.Hour, api.SampleStrategySnapshot, mask, sourceIDs)
+	require.NoError(t, err)
+	agg, err := ds.GetSCDData(ctx, api.MetricCVE, t0, now, time.Hour, api.SampleStrategySnapshot, mask, []string{aggID})
+	require.NoError(t, err)
+	require.Equal(t, perCVE, agg)
+	require.Equal(t, []int{2, 2, 3, 0, 0}, values(perCVE), "host 1 is masked out")
+}
+
+// Runs on every tick, so a second pass must not rewrite history or stack
+// duplicate rows on what it already built.
+func TestBackfillAggregateEntityIsIdempotent(t *testing.T) {
+	tdb := testutils.SetupTestDB(t, "chart_mysql")
+	defer tdb.TruncateTables(t)
+	ds := NewDatastore(tdb.Conns(), tdb.Logger)
+	ctx := t.Context()
+
+	t0 := seedCriticalFixture(t, tdb, ds)
+	now := t0.Add(5 * time.Hour)
+	filter := api.CVEFilter{CVSSMin: new(9.0), CVSSMax: new(10.0)}
+	sourceIDs, err := ds.ResolveCVEChartEntities(ctx, filter)
+	require.NoError(t, err)
+	aggID := filter.AggregateEntityID()
+
+	backfillFully(t, ds, aggID, sourceIDs, now, retentionUnbounded)
+	first := tdb.CountSCDRows(t)
+
+	wrote, err := ds.BackfillAggregateEntity(ctx, api.MetricCVE, aggID, sourceIDs, now, retentionUnbounded)
+	require.NoError(t, err)
+	require.False(t, wrote, "a series that already reaches the oldest data is left alone")
+	require.Equal(t, first, tdb.CountSCDRows(t))
+}
+
+// Nothing collected yet means no window to backfill, and no bogus row left.
+func TestBackfillAggregateEntityNoSourceData(t *testing.T) {
+	tdb := testutils.SetupTestDB(t, "chart_mysql")
+	defer tdb.TruncateTables(t)
+	ds := NewDatastore(tdb.Conns(), tdb.Logger)
+	ctx := t.Context()
+
+	filter := api.CVEFilter{CVSSMin: new(9.0)}
+	wrote, err := ds.BackfillAggregateEntity(ctx, api.MetricCVE, filter.AggregateEntityID(), nil, time.Now().UTC(), retentionUnbounded)
+	require.NoError(t, err)
+	require.False(t, wrote)
+	require.Equal(t, 0, tdb.CountSCDRows(t))
+}
+
+// A filter resolving to no CVEs is a legitimate empty chart, not a reason to
+// fall back to the slow path forever.
+func TestBackfillAggregateEntityEmptySourceSet(t *testing.T) {
+	tdb := testutils.SetupTestDB(t, "chart_mysql")
+	defer tdb.TruncateTables(t)
+	ds := NewDatastore(tdb.Conns(), tdb.Logger)
+	ctx := t.Context()
+
+	t0 := seedCriticalFixture(t, tdb, ds)
+	now := t0.Add(5 * time.Hour)
+	aggID := api.CVEFilter{CVSSMin: new(9.9), CVSSMax: new(9.95)}.AggregateEntityID()
+
+	require.Positive(t, backfillFully(t, ds, aggID, nil, now, retentionUnbounded))
+
+	agg, err := ds.GetSCDData(ctx, api.MetricCVE, t0, now, time.Hour, api.SampleStrategySnapshot, nil, []string{aggID})
+	require.NoError(t, err)
+	require.Equal(t, []int{0, 0, 0, 0, 0}, values(agg))
+}
+
+// A partly-built series read as complete would render its missing hours as zero.
+func TestAggregateCoversFrom(t *testing.T) {
+	tdb := testutils.SetupTestDB(t, "chart_mysql")
+	defer tdb.TruncateTables(t)
+	ds := NewDatastore(tdb.Conns(), tdb.Logger)
+	ctx := t.Context()
+
+	t0 := time.Date(2026, 9, 1, 0, 0, 0, 0, time.UTC)
+	hr := func(n int) time.Time { return t0.Add(time.Duration(n) * time.Hour) }
+
+	covers, err := ds.AggregateCoversFrom(ctx, api.MetricCVE, "agg:whatever", t0, retentionUnbounded)
+	require.NoError(t, err)
+	require.False(t, covers)
+
+	tdb.InsertSCDRowWithHostIDs(t, api.MetricCVE, "CVE-2026-0001", []uint{1}, t0, scdOpenSentinel)
+
+	// A series that only reaches hour 4 does not cover a request from hour 0.
+	tdb.InsertSCDRowWithHostIDs(t, api.MetricCVE, "agg:whatever", []uint{1}, hr(4), scdOpenSentinel)
+	covers, err = ds.AggregateCoversFrom(ctx, api.MetricCVE, "agg:whatever", t0, retentionUnbounded)
+	require.NoError(t, err)
+	require.False(t, covers)
+
+	covers, err = ds.AggregateCoversFrom(ctx, api.MetricCVE, "agg:whatever", hr(5), retentionUnbounded)
+	require.NoError(t, err)
+	require.True(t, covers)
+
+	// Once it reaches the oldest data, it covers any window, including one
+	// starting before the dataset itself begins.
+	tdb.InsertSCDRowWithHostIDs(t, api.MetricCVE, "agg:whatever", []uint{1}, t0, hr(4))
+	covers, err = ds.AggregateCoversFrom(ctx, api.MetricCVE, "agg:whatever", t0.Add(-100*time.Hour), retentionUnbounded)
+	require.NoError(t, err)
+	require.True(t, covers)
+
+	// Datasets are separate namespaces — an uptime lookup must not see it.
+	covers, err = ds.AggregateCoversFrom(ctx, "uptime", "agg:whatever", t0, retentionUnbounded)
+	require.NoError(t, err)
+	require.False(t, covers)
+}
+
+// A bounded slice per call, so a tick never stalls on one long rebuild.
+func TestBackfillAggregateEntityWorksInBatches(t *testing.T) {
+	tdb := testutils.SetupTestDB(t, "chart_mysql")
+	defer tdb.TruncateTables(t)
+	ds := NewDatastore(tdb.Conns(), tdb.Logger)
+	ctx := t.Context()
+
+	ds.backfillWindow = 2 * time.Hour
+
+	t0 := seedCriticalFixture(t, tdb, ds)
+	now := t0.Add(5 * time.Hour)
+	filter := api.CVEFilter{CVSSMin: new(9.0), CVSSMax: new(10.0)}
+	sourceIDs, err := ds.ResolveCVEChartEntities(ctx, filter)
+	require.NoError(t, err)
+	aggID := filter.AggregateEntityID()
+
+	// The first batch covers only the most recent hours, so a request for the
+	// whole window must still take the per-CVE path.
+	wrote, err := ds.BackfillAggregateEntity(ctx, api.MetricCVE, aggID, sourceIDs, now, retentionUnbounded)
+	require.NoError(t, err)
+	require.True(t, wrote)
+	covers, err := ds.AggregateCoversFrom(ctx, api.MetricCVE, aggID, t0, retentionUnbounded)
+	require.NoError(t, err)
+	require.False(t, covers, "one batch cannot cover six hours of history")
+
+	batches := 1 + backfillFully(t, ds, aggID, sourceIDs, now, retentionUnbounded)
+	require.Greater(t, batches, 1, "a two-hour window cannot rebuild six hours in one batch")
+
+	covers, err = ds.AggregateCoversFrom(ctx, api.MetricCVE, aggID, t0, retentionUnbounded)
+	require.NoError(t, err)
+	require.True(t, covers)
+
+	// However many batches, the result must match a single pass.
+	perCVE, err := ds.GetSCDData(ctx, api.MetricCVE, t0, now, time.Hour, api.SampleStrategySnapshot, nil, sourceIDs)
+	require.NoError(t, err)
+	agg, err := ds.GetSCDData(ctx, api.MetricCVE, t0, now, time.Hour, api.SampleStrategySnapshot, nil, []string{aggID})
+	require.NoError(t, err)
+	require.Equal(t, perCVE, agg)
+	require.Equal(t, []int{3, 3, 4, 1, 1}, values(perCVE))
+}
+
+// The window is decoded a chunk of hours at a time, so a union that stays
+// constant across a chunk boundary must not open a spurious row there.
+func TestBackfillAggregateEntitySpansChunks(t *testing.T) {
+	tdb := testutils.SetupTestDB(t, "chart_mysql")
+	defer tdb.TruncateTables(t)
+	ds := NewDatastore(tdb.Conns(), tdb.Logger)
+	ctx := t.Context()
+
+	ds.backfillChunk = 2 * time.Hour
+
+	t0 := seedCriticalFixture(t, tdb, ds)
+	now := t0.Add(5 * time.Hour)
+	filter := api.CVEFilter{CVSSMin: new(9.0), CVSSMax: new(10.0)}
+	sourceIDs, err := ds.ResolveCVEChartEntities(ctx, filter)
+	require.NoError(t, err)
+	aggID := filter.AggregateEntityID()
+	backfillFully(t, ds, aggID, sourceIDs, now, retentionUnbounded)
+
+	perCVE, err := ds.GetSCDData(ctx, api.MetricCVE, t0, now, time.Hour, api.SampleStrategySnapshot, nil, sourceIDs)
+	require.NoError(t, err)
+	agg, err := ds.GetSCDData(ctx, api.MetricCVE, t0, now, time.Hour, api.SampleStrategySnapshot, nil, []string{aggID})
+	require.NoError(t, err)
+	require.Equal(t, perCVE, agg)
+
+	var rows int
+	require.NoError(t, tdb.DB.GetContext(ctx, &rows,
+		`SELECT COUNT(*) FROM host_scd_data WHERE dataset = ? AND entity_id = ?`, api.MetricCVE, aggID))
+	// Six ticked hours collapse to three distinct unions: {1,2,3} through hour 2,
+	// {1,2,3,4} at hour 3, {1} from hour 4. Chunking the walk must not split any
+	// of them into extra rows.
+	require.Equal(t, 3, rows)
+}
+
+// An aggregate whose filter matches nothing is an all-zero series the collector
+// still has to store, and host_bitmap is NOT NULL.
+func TestRecordBucketDataStoresEmptyBitmap(t *testing.T) {
+	tdb := testutils.SetupTestDB(t, "chart_mysql")
+	defer tdb.TruncateTables(t)
+	ds := NewDatastore(tdb.Conns(), tdb.Logger)
+	ctx := t.Context()
+
+	at := time.Date(2026, 9, 1, 0, 0, 0, 0, time.UTC)
+	require.NoError(t, ds.RecordBucketData(ctx, api.MetricCVE, at, time.Hour, api.SampleStrategySnapshot,
+		map[string]*roaring.Bitmap{"agg:empty": roaring.New()}))
+
+	points, err := ds.GetSCDData(ctx, api.MetricCVE, at, at.Add(2*time.Hour), time.Hour,
+		api.SampleStrategySnapshot, nil, []string{"agg:empty"})
+	require.NoError(t, err)
+	require.Equal(t, []int{0, 0}, values(points))
+}
+
+// End to end: backfill reconstructs the past and the tick's own write extends
+// it. A gap or double-count would only show at the hour they share.
+func TestCVEDatasetCollectAggregateMatchesPerCVEPath(t *testing.T) {
+	tdb := testutils.SetupTestDB(t, "chart_mysql")
+	defer tdb.TruncateTables(t)
+	ds := NewDatastore(tdb.Conns(), tdb.Logger)
+	ctx := t.Context()
+
+	seen := time.Now().UTC()
+	hosts := seedHosts(t, tdb, []hostSeed{
+		{seenTime: seen}, {seenTime: seen}, {seenTime: seen}, {seenTime: seen},
+	})
+	require.Len(t, hosts, 4)
+	seedCVEMeta(t, tdb, "CVE-2026-0001", 9.5, 0.4, false)
+	seedCVEMeta(t, tdb, "CVE-2026-0002", 10.0, 0.6, true)
+	seedCVEMeta(t, tdb, "CVE-2026-0003", 3.0, 0.1, false)
+	// Live state: the first critical CVE affects hosts 1-2, the second affects
+	// hosts 2-4, and the low-severity one affects host 4 only.
+	seedHostVulnSoftware(t, tdb, hosts[0], "Google Chrome", "apps", "CVE-2026-0001")
+	seedHostVulnSoftware(t, tdb, hosts[1], "Google Chrome", "apps", "CVE-2026-0001", "CVE-2026-0002")
+	seedHostVulnSoftware(t, tdb, hosts[2], "Google Chrome", "apps", "CVE-2026-0002")
+	seedHostVulnSoftware(t, tdb, hosts[3], "Google Chrome", "apps", "CVE-2026-0002", "CVE-2026-0003")
+
+	// Two ticks of history collected before any aggregate existed.
+	t0 := time.Date(2026, 9, 1, 0, 0, 0, 0, time.UTC)
+	h := func(n int) time.Time { return t0.Add(time.Duration(n) * time.Hour) }
+	past := map[string][]uint{
+		"CVE-2026-0001": {hosts[0], hosts[1]},
+		"CVE-2026-0002": {hosts[1], hosts[2]},
+		"CVE-2026-0003": {hosts[3]},
+	}
+	recordTick(t, ds, h(0), past)
+	shrunk := map[string][]uint{
+		"CVE-2026-0001": {hosts[0]},
+		"CVE-2026-0002": {hosts[1], hosts[2]},
+		"CVE-2026-0003": {hosts[3]},
+	}
+	recordTick(t, ds, h(1), shrunk)
+
+	filter := api.CVEFilter{CVSSMin: new(9.0), CVSSMax: new(10.0)}
+	dataset := &chart.CVEDataset{PreaggregateFilters: []api.CVEFilter{filter}}
+	require.NoError(t, dataset.Collect(ctx, ds, h(2), nil))
+
+	sourceIDs, err := ds.ResolveCVEChartEntities(ctx, filter)
+	require.NoError(t, err)
+	aggID := filter.AggregateEntityID()
+
+	perCVE, err := ds.GetSCDData(ctx, api.MetricCVE, t0, h(3), time.Hour, api.SampleStrategySnapshot, nil, sourceIDs)
+	require.NoError(t, err)
+	agg, err := ds.GetSCDData(ctx, api.MetricCVE, t0, h(3), time.Hour, api.SampleStrategySnapshot, nil, []string{aggID})
+	require.NoError(t, err)
+
+	require.Equal(t, perCVE, agg)
+	// Labels start one bucket after startDate, so these read at hours 2, 3 and 4:
+	// the backfilled state, then what this tick collected.
+	require.Equal(t, []int{3, 4, 4}, values(perCVE))
+
+	// A second tick must extend the series rather than reopen it.
+	require.NoError(t, dataset.Collect(ctx, ds, h(3), nil))
+	perCVE, err = ds.GetSCDData(ctx, api.MetricCVE, t0, h(4), time.Hour, api.SampleStrategySnapshot, nil, sourceIDs)
+	require.NoError(t, err)
+	agg, err = ds.GetSCDData(ctx, api.MetricCVE, t0, h(4), time.Hour, api.SampleStrategySnapshot, nil, []string{aggID})
+	require.NoError(t, err)
+	require.Equal(t, perCVE, agg)
+	require.Equal(t, []int{3, 4, 4, 4}, values(perCVE))
+}
+
+// seedRetentionFixture records 60 days of 12-hourly ticks ending at `now`. One
+// critical CVE is stable, so its open row is never cleaned and pins the
+// dataset's oldest row far behind retention; the other churns every tick so
+// its closed rows age out.
+func seedRetentionFixture(t *testing.T, tdb *testutils.TestDB, ds *Datastore, now time.Time) {
+	t.Helper()
+	seedSoftware(t, tdb, "Google Chrome", "apps", "CVE-2026-0001")
+	seedCVEMeta(t, tdb, "CVE-2026-0001", 9.5, 0.4, false)
+	seedSoftware(t, tdb, "Google Chrome", "apps", "CVE-2026-0002")
+	seedCVEMeta(t, tdb, "CVE-2026-0002", 9.0, 0.4, false)
+
+	t0 := now.Add(-60 * 24 * time.Hour)
+	for at := t0; !at.After(now); at = at.Add(12 * time.Hour) {
+		churn := uint(at.Sub(t0)/(12*time.Hour))%3 + 3 //nolint:gosec // small fixture values
+		recordTick(t, ds, at, map[string][]uint{"CVE-2026-0001": {1, 2}, "CVE-2026-0002": {churn}})
+	}
+}
+
+// A completed series must stay completed after retention cleanup. Cleanup
+// deletes the series' rows below the horizon but keeps the stable CVE's open
+// row from day one, so "reach the dataset's oldest row" is never satisfied
+// again. Without the horizon floor, every tick would rebuild a batch that the
+// next cleanup deletes, burning the tick's whole backfill budget forever.
+func TestBackfillAggregateEntityStopsAtRetentionHorizon(t *testing.T) {
+	tdb := testutils.SetupTestDB(t, "chart_mysql")
+	defer tdb.TruncateTables(t)
+	ds := NewDatastore(tdb.Conns(), tdb.Logger)
+	ctx := t.Context()
+
+	now := time.Now().UTC().Truncate(time.Hour)
+	seedRetentionFixture(t, tdb, ds, now)
+	horizon := now.AddDate(0, 0, -api.RetentionDays)
+
+	filter := api.CVEFilter{CVSSMin: new(9.0), CVSSMax: new(10.0)}
+	sourceIDs, err := ds.ResolveCVEChartEntities(ctx, filter)
+	require.NoError(t, err)
+	aggID := filter.AggregateEntityID()
+	backfillFully(t, ds, aggID, sourceIDs, now, horizon)
+
+	for range 3 {
+		require.NoError(t, ds.CleanupSCDData(ctx, api.RetentionDays))
+		wrote, err := ds.BackfillAggregateEntity(ctx, api.MetricCVE, aggID, sourceIDs, now, horizon)
+		require.NoError(t, err)
+		require.False(t, wrote, "series rebuilt a batch below the retention horizon")
+	}
+}
+
+// The dashboard asks for one day more than retention keeps. Once a series
+// reaches the horizon it holds everything any path could answer with, so it
+// must qualify even though it does not reach the requested start.
+func TestAggregateCoversFromAtRetentionHorizon(t *testing.T) {
+	tdb := testutils.SetupTestDB(t, "chart_mysql")
+	defer tdb.TruncateTables(t)
+	ds := NewDatastore(tdb.Conns(), tdb.Logger)
+	ctx := t.Context()
+
+	now := time.Now().UTC().Truncate(time.Hour)
+	seedRetentionFixture(t, tdb, ds, now)
+	horizon := now.AddDate(0, 0, -api.RetentionDays)
+	from := now.AddDate(0, 0, -(api.RetentionDays + 1))
+
+	critical := api.CVEFilter{CVSSMin: new(9.0), CVSSMax: new(10.0)}
+	sourceIDs, err := ds.ResolveCVEChartEntities(ctx, critical)
+	require.NoError(t, err)
+	criticalID := critical.AggregateEntityID()
+	backfillFully(t, ds, criticalID, sourceIDs, now, horizon)
+	require.NoError(t, ds.CleanupSCDData(ctx, api.RetentionDays))
+
+	covers, err := ds.AggregateCoversFrom(ctx, api.MetricCVE, criticalID, from, horizon)
+	require.NoError(t, err)
+	require.True(t, covers, "a series reaching the retention horizon answers the dashboard's default window")
+
+	// One that is still catching up does not.
+	anySeverity := api.CVEFilter{}
+	anyID := anySeverity.AggregateEntityID()
+	wrote, err := ds.BackfillAggregateEntity(ctx, api.MetricCVE, anyID, sourceIDs, now, horizon)
+	require.NoError(t, err)
+	require.True(t, wrote)
+	covers, err = ds.AggregateCoversFrom(ctx, api.MetricCVE, anyID, from, horizon)
+	require.NoError(t, err)
+	require.False(t, covers, "one batch does not reach the horizon")
+}

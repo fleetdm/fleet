@@ -44,11 +44,21 @@ type Datastore struct {
 	primary *sqlx.DB
 	replica *sqlx.DB
 	logger  *slog.Logger
+
+	// backfillWindow and backfillChunk tune how an aggregate's history is
+	// rebuilt; see BackfillAggregateEntity. Per-datastore rather than package
+	// state so tests, which run in parallel against their own databases, can
+	// shrink them without disturbing each other.
+	backfillWindow time.Duration
+	backfillChunk  time.Duration
 }
 
 // NewDatastore creates a new MySQL datastore for the chart bounded context.
 func NewDatastore(conns *platform_mysql.DBConnections, logger *slog.Logger) *Datastore {
-	return &Datastore{primary: conns.Primary, replica: conns.Replica, logger: logger}
+	ds := &Datastore{primary: conns.Primary, replica: conns.Replica, logger: logger}
+	ds.backfillWindow = defaultBackfillWindow
+	ds.backfillChunk = defaultBackfillChunk
+	return ds
 }
 
 // Ensure Datastore implements types.Datastore at compile time.

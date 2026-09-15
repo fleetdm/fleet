@@ -269,7 +269,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	platform_http.EndpointRequestSizeOverrides = config.Server.EndpointRequestSizeOverrides
 
 	mds, dbConns, carveStore := initDatastore(config, logger, clock.C, initFatal)
-	if mds == nil {
+	if mds == nil || dbConns == nil {
 		initFatal(errors.New("datastore was nil after initialization"), "initializing datastore")
 		return
 	}
@@ -1225,7 +1225,12 @@ func createChartBoundedContext(dbConns *common_mysql.DBConnections, svc fleet.Se
 	// Register all chart types here. The registry is used to validate chart types in the API
 	// and to iterate over all chart types when generating chart data.
 	chartSvc.RegisterDataset(&chart.UptimeDataset{})
-	chartSvc.RegisterDataset(&chart.CVEDataset{})
+	chartSvc.RegisterDataset(&chart.CVEDataset{
+		// Precompute the severity options the dashboard offers, so those
+		// requests read one stored series instead of re-unioning every
+		// matching CVE on each load.
+		PreaggregateFilters: chartPreaggregateFilters(),
+	})
 	// Create auth middleware for chart bounded context
 	// Makes sure that api_only users are subject to endpoint
 	// restrictions on chart routes.

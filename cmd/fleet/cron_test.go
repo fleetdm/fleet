@@ -14,6 +14,7 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
 
+	chart_api "github.com/fleetdm/fleet/v4/server/chart/api"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
@@ -583,6 +584,46 @@ func TestAPNsJobsCapTheirRunTime(t *testing.T) {
 			require.True(t, ds.AppConfigFuncInvoked)
 			require.True(t, hasDeadline, "job context must carry a deadline")
 			require.WithinDuration(t, before.Add(apnsMaxRunTime), deadline, time.Minute)
+		})
+	}
+}
+
+// aggregateIDs is the set of series the collector would precompute.
+func aggregateIDs(filters []chart_api.CVEFilter) map[string]struct{} {
+	out := make(map[string]struct{}, len(filters))
+	for _, f := range filters {
+		out[f.AggregateEntityID()] = struct{}{}
+	}
+	return out
+}
+
+// Every option in the severity dropdown is one click away, including the one
+// that never finishes on the per-CVE path.
+func TestChartPreaggregateFiltersCoversEverySeverityBand(t *testing.T) {
+	filters := chartPreaggregateFilters()
+	ids := aggregateIDs(filters)
+
+	bands := []struct {
+		name     string
+		min, max *float64
+	}{
+		{"any", nil, nil},
+		{"critical", new(9.0), new(10.0)},
+		{"high", new(7.0), new(8.9)},
+		{"medium", new(4.0), new(6.9)},
+		{"low", new(0.1), new(3.9)},
+	}
+	require.Len(t, filters, len(bands), "only the severity bands are precomputed")
+	// Critical is both what the dashboard sends on first load
+	// (severity_min=9&severity_max=10, and nothing else) and what series are
+	// backfilled first, so it has to lead the list.
+	require.Equal(t,
+		chart_api.CVEFilter{CVSSMin: new(9.0), CVSSMax: new(10.0)}.AggregateEntityID(),
+		filters[0].AggregateEntityID())
+	for _, band := range bands {
+		t.Run(band.name, func(t *testing.T) {
+			f := chart_api.CVEFilter{CVSSMin: band.min, CVSSMax: band.max}
+			require.Contains(t, ids, f.AggregateEntityID())
 		})
 	}
 }

@@ -38,6 +38,28 @@ const scdScrubWriteByteBudget = 2_000_000
 // tests can shrink it to exercise multi-batch behavior.
 var scdScrubWriteBatchCap = 1000
 
+// defaultBackfillWindow is how much history one backfill call reconstructs.
+// Rebuilding a whole retention window in one go would put minutes of scanning
+// and merging into a single collection tick, so a new series is extended
+// backwards a slice at a time and picks up where it left off on the next tick.
+const defaultBackfillWindow = 7 * 24 * time.Hour
+
+// defaultBackfillChunk bounds how much of one batch is decoded at once. A day
+// of collected rows stays small enough to hold in memory on a churny deployment
+// while keeping the number of round trips low.
+const defaultBackfillChunk = 24 * time.Hour
+
+// scdBitmapBytes renders a blob for host_bitmap, which is NOT NULL.
+// chart.BitmapToBlob reports an empty bitmap as a nil slice, which the column
+// rejects, but an empty host set is a real state. Stored as a zero-length blob,
+// which chart.DecodeBitmap reads back as an empty bitmap.
+func scdBitmapBytes(blob chart.Blob) []byte {
+	if blob.Bytes == nil {
+		return []byte{}
+	}
+	return blob.Bytes
+}
+
 // scdRow is a single row of host_scd_data as fetched by GetSCDData.
 type scdRow struct {
 	EntityID     string    `db:"entity_id"`
@@ -148,7 +170,7 @@ func (ds *Datastore) recordAccumulate(
 		args := make([]any, 0, len(batch)*6)
 		for _, r := range batch {
 			placeholders = append(placeholders, "(?, ?, ?, ?, ?, ?)")
-			args = append(args, dataset, r.entityID, r.blob.Bytes, r.blob.Encoding, bucketStart, validTo)
+			args = append(args, dataset, r.entityID, scdBitmapBytes(r.blob), r.blob.Encoding, bucketStart, validTo)
 		}
 		// Concatenating hardcoded "(?,?,?,?,?,?)" placeholder strings, not user input.
 		stmt := `INSERT INTO host_scd_data (dataset, entity_id, host_bitmap, encoding_type, valid_from, valid_to) VALUES ` + //nolint:gosec // G202
@@ -263,7 +285,7 @@ func (ds *Datastore) recordSnapshot(
 		args := make([]any, 0, len(batch)*5)
 		for _, r := range batch {
 			placeholders = append(placeholders, "(?, ?, ?, ?, ?)")
-			args = append(args, dataset, r.entityID, r.blob.Bytes, r.blob.Encoding, bucketStart)
+			args = append(args, dataset, r.entityID, scdBitmapBytes(r.blob), r.blob.Encoding, bucketStart)
 		}
 		// Concatenating hardcoded "(?,?,?,?,?)" placeholder strings, not user input.
 		stmt := `INSERT INTO host_scd_data (dataset, entity_id, host_bitmap, encoding_type, valid_from) VALUES ` + //nolint:gosec // G202
@@ -321,7 +343,38 @@ func (ds *Datastore) GetSCDData(
 	// walker filters precisely per bucket; this just narrows the scan.
 	firstBucketStart := startDate.Add(bucketSize)
 	lastBucketEnd := endDate.Add(bucketSize)
-	args := []any{dataset, lastBucketEnd, firstBucketStart}
+
+	decoded, err := ds.fetchDecodedSCDRows(ctx, dataset, firstBucketStart, lastBucketEnd, entityIDs)
+	if err != nil {
+		return nil, err
+	}
+
+	results := make([]api.DataPoint, numBuckets)
+	for i := range numBuckets {
+		bucketStart := startDate.Add(time.Duration(i+1) * bucketSize)
+		bucketEnd := bucketStart.Add(bucketSize)
+		merged := aggregateBucket(decoded, bucketStart, bucketEnd, strategy)
+		if merged != nil && filterMask != nil {
+			merged = chart.BlobAND(merged, filterMask)
+		}
+		results[i] = api.DataPoint{
+			Timestamp: bucketStart,
+			Value:     int(chart.BlobPopcount(merged)), //nolint:gosec // host counts fit comfortably in int
+		}
+	}
+	return results, nil
+}
+
+// fetchDecodedSCDRows returns every row of `dataset` overlapping [from, to),
+// decoded once here rather than per bucket. entityIDs keeps GetSCDData's
+// tri-state: nil matches every entity, non-nil empty matches none.
+func (ds *Datastore) fetchDecodedSCDRows(
+	ctx context.Context,
+	dataset string,
+	from, to time.Time,
+	entityIDs []string,
+) ([]decodedSCDRow, error) {
+	args := []any{dataset, to, from}
 	var entityClause string
 	switch {
 	case entityIDs == nil:
@@ -352,10 +405,6 @@ func (ds *Datastore) GetSCDData(
 		return nil, ctxerr.Wrap(ctx, err, "get SCD data")
 	}
 
-	// Decode every row to op form once before the per-bucket walk. Decode work
-	// is O(set bits) for roaring rows and O(byte count) for legacy dense rows;
-	// doing it once here avoids re-decoding the same row across overlapping
-	// buckets.
 	decoded := make([]decodedSCDRow, len(rows))
 	for i, r := range rows {
 		rb, err := chart.DecodeBitmap(chart.Blob{Bytes: r.HostBitmap, Encoding: r.EncodingType})
@@ -364,21 +413,7 @@ func (ds *Datastore) GetSCDData(
 		}
 		decoded[i] = decodedSCDRow{entityID: r.EntityID, bitmap: rb, validFrom: r.ValidFrom, validTo: r.ValidTo}
 	}
-
-	results := make([]api.DataPoint, numBuckets)
-	for i := range numBuckets {
-		bucketStart := startDate.Add(time.Duration(i+1) * bucketSize)
-		bucketEnd := bucketStart.Add(bucketSize)
-		merged := aggregateBucket(decoded, bucketStart, bucketEnd, strategy)
-		if merged != nil && filterMask != nil {
-			merged = chart.BlobAND(merged, filterMask)
-		}
-		results[i] = api.DataPoint{
-			Timestamp: bucketStart,
-			Value:     int(chart.BlobPopcount(merged)), //nolint:gosec // host counts fit comfortably in int
-		}
-	}
-	return results, nil
+	return decoded, nil
 }
 
 // decodedSCDRow is the in-memory op-form view of an scdRow, produced by
@@ -440,6 +475,233 @@ func orInto(merged, rb *roaring.Bitmap) *roaring.Bitmap {
 	}
 	merged.Or(rb)
 	return merged
+}
+
+// AggregateCoversFrom reports whether a series can answer a request starting at
+// `from`. Series are built backwards over several ticks, so "it exists" is not
+// enough: one that hasn't reached `from` would render its missing hours as zero.
+// It qualifies once it starts at or before `from`, at or before horizon (below
+// which rows may be gone on every path), or at the dataset's oldest row.
+func (ds *Datastore) AggregateCoversFrom(ctx context.Context, dataset, entityID string, from, horizon time.Time) (bool, error) {
+	var bounds struct {
+		AggregateFrom *time.Time `db:"aggregate_from"`
+		DatasetFrom   *time.Time `db:"dataset_from"`
+	}
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &bounds, `
+		SELECT
+			(SELECT MIN(valid_from) FROM host_scd_data WHERE dataset = ? AND entity_id = ?) AS aggregate_from,
+			(SELECT MIN(valid_from) FROM host_scd_data WHERE dataset = ?) AS dataset_from`,
+		dataset, entityID, dataset); err != nil {
+		return false, ctxerr.Wrap(ctx, err, "read aggregate coverage")
+	}
+	if bounds.AggregateFrom == nil {
+		return false, nil
+	}
+	floor := from.UTC()
+	if h := horizon.UTC().Truncate(time.Hour); h.After(floor) {
+		floor = h
+	}
+	if bounds.DatasetFrom != nil && bounds.DatasetFrom.UTC().After(floor) {
+		floor = bounds.DatasetFrom.UTC()
+	}
+	return !bounds.AggregateFrom.UTC().After(floor), nil
+}
+
+// BackfillAggregateEntity extends a series one bounded batch further back,
+// reconstructing it from the rows already collected for sourceIDs, so a new
+// series reaches across the retained window over several ticks instead of
+// rebuilding it all in one.
+//
+// Each batch reproduces what the collector would have written: per hour, the
+// union of the source entities' state, kept as one row until it changes. The
+// first batch covers the hours up to `now`; later ones are prepended until the
+// series reaches the dataset's oldest row or the retention horizon.
+//
+// Reports whether it wrote a batch, so callers can budget the rebuilding one
+// tick does. False means nothing is left, making this safe to call every tick.
+// Empty sourceIDs is a filter matching no CVEs: a flat-zero series, still
+// stored so the request has something to read.
+//
+// Unions are computed from the entities resolved *now*, so a backfilled span
+// reflects today's CVE metadata. Spans the collector writes later are
+// point-in-time.
+func (ds *Datastore) BackfillAggregateEntity(
+	ctx context.Context,
+	dataset, aggregateID string,
+	sourceIDs []string,
+	now, horizon time.Time,
+) (bool, error) {
+	var bounds struct {
+		AggregateFrom *time.Time `db:"aggregate_from"`
+		DatasetFrom   *time.Time `db:"dataset_from"`
+	}
+	// The writer, not the replica: a stale view of how far the series reaches
+	// would rebuild a batch that already exists.
+	if err := sqlx.GetContext(ctx, ds.writer(ctx), &bounds, `
+		SELECT
+			(SELECT MIN(valid_from) FROM host_scd_data WHERE dataset = ? AND entity_id = ?) AS aggregate_from,
+			(SELECT MIN(valid_from) FROM host_scd_data WHERE dataset = ?) AS dataset_from`,
+		dataset, aggregateID, dataset); err != nil {
+		return false, ctxerr.Wrap(ctx, err, "read aggregate coverage")
+	}
+	if bounds.DatasetFrom == nil {
+		// Nothing collected yet — the collector's own write will open the
+		// series' first row on this tick.
+		return false, nil
+	}
+	// Cleanup deletes closed rows below the horizon but keeps open ones, so a
+	// stable entity's first row can pin the dataset's start far behind
+	// retention. Without the horizon a finished series would be rebuilt below
+	// it every tick, only for the next cleanup to delete the batch again.
+	floor := bounds.DatasetFrom.UTC().Truncate(time.Hour)
+	if h := horizon.UTC().Truncate(time.Hour); h.After(floor) {
+		floor = h
+	}
+
+	// batchEnd is exclusive. A series with no rows starts at the current hour
+	// and works back; one that already exists is extended below its earliest row.
+	batchEnd := now.UTC().Truncate(time.Hour).Add(time.Hour)
+	finalValidTo := scdOpenSentinel
+	if bounds.AggregateFrom != nil {
+		batchEnd = bounds.AggregateFrom.UTC()
+		if !batchEnd.After(floor) {
+			return false, nil // already reaches as far back as it ever will
+		}
+		// The batch must stop where the existing series picks up, rather than
+		// leaving an open row that would shadow it.
+		finalValidTo = batchEnd
+	}
+
+	batchStart := batchEnd.Add(-ds.backfillWindow)
+	if batchStart.Before(floor) {
+		batchStart = floor
+	}
+	lastHour := batchEnd.Add(-time.Hour)
+	if lastHour.Before(batchStart) {
+		return false, nil
+	}
+
+	changes, err := ds.aggregateChangePoints(ctx, dataset, sourceIDs, batchStart, lastHour)
+	if err != nil {
+		return false, err
+	}
+	if len(changes) == 0 {
+		return false, nil
+	}
+	if err := ds.insertAggregateSeries(ctx, dataset, aggregateID, changes, finalValidTo); err != nil {
+		return false, err
+	}
+	ds.logger.InfoContext(ctx, "backfilled chart aggregate batch",
+		"dataset", dataset,
+		"entity_id", aggregateID,
+		"source_entities", len(sourceIDs),
+		"rows", len(changes),
+		"from", batchStart,
+		"to", batchEnd,
+		"complete", !batchStart.After(floor))
+	return true, nil
+}
+
+// aggregateChange is one row of the reconstructed series: the hour at which the
+// union took this value.
+type aggregateChange struct {
+	validFrom time.Time
+	bitmap    *roaring.Bitmap
+}
+
+// aggregateChangePoints walks [from, lastHour] hourly and records where the
+// union over sourceIDs changes, fetching a chunk of hours at a time so a churny
+// dataset never lands in memory all at once.
+func (ds *Datastore) aggregateChangePoints(
+	ctx context.Context,
+	dataset string,
+	sourceIDs []string,
+	from, lastHour time.Time,
+) ([]aggregateChange, error) {
+	var changes []aggregateChange
+	var last *roaring.Bitmap
+
+	for chunkStart := from; !chunkStart.After(lastHour); chunkStart = chunkStart.Add(ds.backfillChunk) {
+		if err := ctx.Err(); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "backfill aggregate")
+		}
+		chunkLast := chunkStart.Add(ds.backfillChunk - time.Hour)
+		if chunkLast.After(lastHour) {
+			chunkLast = lastHour
+		}
+		// Timestamps are hour-aligned, so the next hour is how an exclusive
+		// upper bound expresses "including chunkLast"; a sub-second nudge would
+		// not survive the datetime column. An empty source set means no CVEs,
+		// not GetSCDData's nil "every entity", so it never reaches SQL.
+		var rows []decodedSCDRow
+		if len(sourceIDs) > 0 {
+			var err error
+			rows, err = ds.fetchDecodedSCDRows(ctx, dataset, chunkStart, chunkLast.Add(time.Hour), sourceIDs)
+			if err != nil {
+				return nil, err
+			}
+		}
+		for hour := chunkStart; !hour.After(chunkLast); hour = hour.Add(time.Hour) {
+			union := unionActiveAt(rows, hour)
+			if last != nil && union.Equals(last) {
+				continue
+			}
+			changes = append(changes, aggregateChange{validFrom: hour, bitmap: union})
+			last = union
+		}
+	}
+	return changes, nil
+}
+
+// unionActiveAt ORs every entity's state at `at`. Never nil, so an hour with
+// nothing affected compares equal to the next instead of opening a fresh row.
+func unionActiveAt(rows []decodedSCDRow, at time.Time) *roaring.Bitmap {
+	union := roaring.New()
+	for _, r := range rows {
+		if r.validFrom.After(at) || !r.validTo.After(at) {
+			continue
+		}
+		union.Or(r.bitmap)
+	}
+	return union
+}
+
+// insertAggregateSeries writes one batch, closing each row where the next
+// opens. finalValidTo closes the last: the sentinel for the most recent batch,
+// or where the already-built part begins for one prepended below it.
+//
+// A prepended batch may end on the union the existing series opens with,
+// leaving two rows with the same bitmap. Reads are unaffected and it costs one
+// row per batch, so they are not merged.
+func (ds *Datastore) insertAggregateSeries(
+	ctx context.Context,
+	dataset, aggregateID string,
+	changes []aggregateChange,
+	finalValidTo time.Time,
+) error {
+	for i := 0; i < len(changes); i += scdUpsertBatch {
+		end := min(i+scdUpsertBatch, len(changes))
+
+		placeholders := make([]string, 0, end-i)
+		args := make([]any, 0, (end-i)*6)
+		for j := i; j < end; j++ {
+			validTo := finalValidTo
+			if j+1 < len(changes) {
+				validTo = changes[j+1].validFrom
+			}
+			blob := chart.BitmapToBlob(changes[j].bitmap)
+			placeholders = append(placeholders, "(?, ?, ?, ?, ?, ?)")
+			args = append(args, dataset, aggregateID, scdBitmapBytes(blob), blob.Encoding, changes[j].validFrom, validTo)
+		}
+		// Concatenating hardcoded "(?,?,?,?,?,?)" placeholder strings, not user input.
+		stmt := `INSERT INTO host_scd_data (dataset, entity_id, host_bitmap, encoding_type, valid_from, valid_to) VALUES ` + //nolint:gosec // G202
+			strings.Join(placeholders, ", ") +
+			` ON DUPLICATE KEY UPDATE host_bitmap = VALUES(host_bitmap), encoding_type = VALUES(encoding_type), valid_to = VALUES(valid_to)`
+		if _, err := ds.writer(ctx).ExecContext(ctx, stmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "insert aggregate series")
+		}
+	}
+	return nil
 }
 
 // CleanupSCDData deletes closed SCD rows whose valid_to is older than the

@@ -1618,7 +1618,7 @@ func newCleanupsAndAggregationSchedule(
 			return ds.CleanupOrphanedNanoRefetchCommands(ctx)
 		}),
 		schedule.WithJob("cleanup_chart_data", func(ctx context.Context) error {
-			return chartSvc.CleanupData(ctx, 30)
+			return chartSvc.CleanupData(ctx, chart_api.RetentionDays)
 		}),
 	)
 
@@ -1700,6 +1700,37 @@ func buildChartScopeResolver(appCfg *fleet.AppConfig, teams []*fleet.Team, isPre
 		}
 		return false, disabled
 	}
+}
+
+// chartCVSSBand is one option of the dashboard's severity dropdown. Nil bounds
+// are "Any severity", which narrows nothing and so sends no bound at all.
+type chartCVSSBand struct{ minScore, maxScore *float64 }
+
+// chartCVSSBands mirrors the severity options the dashboard offers, in the
+// order their series should be built: the chart opens on critical, so that one
+// is backfilled first.
+var chartCVSSBands = []chartCVSSBand{
+	{new(9.0), new(10.0)}, // Critical
+	{nil, nil},            // Any
+	{new(7.0), new(8.9)},  // High
+	{new(4.0), new(6.9)},  // Medium
+	{new(0.1), new(3.9)},  // Low
+}
+
+// chartPreaggregateFilters lists the CVE filters the collector precomputes: one
+// per severity option, with no other predicate. That is what the dashboard
+// sends on load and after a severity change when nothing else is configured;
+// any request carrying another control stays on the per-CVE path.
+//
+// The filters must match what the dashboard actually sends, bound for bound,
+// or the precomputed series is never read. "Any severity" is sent with no
+// bounds rather than the ends of the scale.
+func chartPreaggregateFilters() []chart_api.CVEFilter {
+	filters := make([]chart_api.CVEFilter, 0, len(chartCVSSBands))
+	for _, band := range chartCVSSBands {
+		filters = append(filters, chart_api.CVEFilter{CVSSMin: band.minScore, CVSSMax: band.maxScore})
+	}
+	return filters
 }
 
 func newChartDataCollectionSchedule(

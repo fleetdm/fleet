@@ -20,6 +20,13 @@ import (
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 )
 
+// chartRequestTimeout bounds the work one chart request may do. A request
+// whose filter has no precomputed series re-unions every matching CVE, and the
+// gateway in front of Fleet gives up long before that finishes — without a
+// deadline the server keeps reading and merging for a client that has gone
+// away, while the retries behind it pile onto the same cold pages.
+const chartRequestTimeout = 60 * time.Second
+
 const (
 	cvssMinScore = 0.0
 	cvssMaxScore = 10.0
@@ -35,6 +42,9 @@ type Service struct {
 	datasets  map[string]api.Dataset
 	hostCache *hostFilterCache
 	logger    *slog.Logger
+
+	// requestTimeout is chartRequestTimeout; a field so tests can shorten it.
+	requestTimeout time.Duration
 }
 
 // NewService creates a new chart service.
@@ -46,6 +56,8 @@ func NewService(authz platform_authz.Authorizer, store types.Datastore, viewerPr
 		datasets:  make(map[string]api.Dataset),
 		hostCache: newHostFilterCache(hostFilterCacheTTL),
 		logger:    logger,
+
+		requestTimeout: chartRequestTimeout,
 	}
 }
 
@@ -141,7 +153,14 @@ func (s *Service) GetChartData(ctx context.Context, metric string, opts api.Requ
 	}
 	bucketSize := time.Duration(hours) * time.Hour
 
-	startDate, endDate := computeBucketRange(time.Now(), bucketSize, opts.Days, opts.TZOffsetMinutes)
+	now := time.Now()
+	startDate, endDate := computeBucketRange(now, bucketSize, opts.Days, opts.TZOffsetMinutes)
+
+	// Everything above is cheap validation; from here on the request touches
+	// storage and is worth bounding. The deadline covers this call only — the
+	// caller's context is untouched.
+	ctx, cancel := context.WithTimeout(ctx, s.requestTimeout)
+	defer cancel()
 
 	// Build the host filter. The bitmap mask always encodes "currently visible
 	// hosts" — team scoping, label/platform/include/exclude, and incidentally
@@ -185,9 +204,9 @@ func (s *Service) GetChartData(ctx context.Context, metric string, opts api.Requ
 			KnownExploit: opts.KnownExploit,
 			ExcludeCVEs:  opts.ExcludeCVEs,
 		}
-		entityIDs, err = s.store.ResolveCVEChartEntities(ctx, cveFilter)
+		entityIDs, err = s.cveEntityIDs(ctx, metric, cveFilter, startDate, now.AddDate(0, 0, -api.RetentionDays))
 		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "resolve CVE chart entities")
+			return nil, err
 		}
 	}
 
@@ -219,6 +238,38 @@ func (s *Service) GetChartData(ctx context.Context, metric string, opts api.Requ
 		},
 		Data: data,
 	}, nil
+}
+
+// cveEntityIDs picks the entity set the request reads.
+//
+// A precomputed union serves the whole chart from one entity, a few hundred
+// rows and one bitmap per bucket instead of tens of thousands of rows and one
+// union per CVE per bucket, and makes the resolve query unnecessary. It only
+// qualifies once rebuilt back to startDate, or to the retention horizon when
+// startDate lies beyond it; reading one that hasn't got there would report zero
+// for its missing hours.
+//
+// Everything else falls back to the per-CVE allow-set, always a concrete list
+// and never nil, so aggregates can't leak into a per-CVE chart.
+func (s *Service) cveEntityIDs(ctx context.Context, metric string, filter types.CVEChartFilter, startDate, horizon time.Time) ([]string, error) {
+	aggregateID := filter.AggregateEntityID()
+	switch covers, err := s.store.AggregateCoversFrom(ctx, metric, aggregateID, startDate, horizon); {
+	case err != nil:
+		// The precomputed series is an optimization, so losing the lookup costs
+		// speed rather than correctness.
+		if s.logger != nil {
+			s.logger.WarnContext(ctx, "chart aggregate lookup failed",
+				"dataset", metric, "entity_id", aggregateID, "err", err)
+		}
+	case covers:
+		return []string{aggregateID}, nil
+	}
+
+	entityIDs, err := s.store.ResolveCVEChartEntities(ctx, filter)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "resolve CVE chart entities")
+	}
+	return entityIDs, nil
 }
 
 func validateScoreBounds(label string, minScore, maxScore *float64, lo, hi float64) error {

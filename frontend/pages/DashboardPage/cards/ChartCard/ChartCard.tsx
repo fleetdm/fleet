@@ -204,6 +204,12 @@ const ChartCard = ({
       ? true
       : historicalDataEnabled?.[datasetConfigKey] ?? true;
 
+  // Which bounds this sends is load-bearing beyond the request itself. The
+  // server precomputes the CVE chart for the filters this builds, keyed by the
+  // exact set of bounds, so sending a bound that used to be omitted (or the
+  // reverse) keys to a series nobody stored. The chart still renders the right
+  // numbers, but every load falls back to a much slower query and nothing
+  // reports a problem. Mirror any change here in cmd/fleet/cron.go.
   const queryParams: IChartApiParams = useMemo(() => {
     // Only narrow categories when not all are selected; EPSS only narrows when
     // min > 0 or max < 100. The Software tab enters EPSS as 0–100 %, but the

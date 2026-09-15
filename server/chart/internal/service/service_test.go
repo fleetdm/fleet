@@ -100,6 +100,8 @@ type mockDatastore struct {
 	affectedHostIDsByCVEFn  func(ctx context.Context, disabledFleetIDs []uint, cves []string) (map[string]*roaring.Bitmap, error)
 	collectibleCVEsFn       func(ctx context.Context) ([]string, error)
 	resolveCVEEntitiesFn    func(ctx context.Context, filter types.CVEChartFilter) ([]string, error)
+	aggregateCoversFromFn   func(ctx context.Context, dataset, entityID string, from time.Time) (bool, error)
+	backfillAggregateFn     func(ctx context.Context, dataset, aggregateID string, sourceIDs []string, now time.Time) (bool, error)
 	recordBucketDataFn      func(ctx context.Context, dataset string, bucketStart time.Time, bucketSize time.Duration, strategy api.SampleStrategy, entityBitmaps map[string]*roaring.Bitmap) error
 	recordBucketDataInvoked bool
 	deleteAllForDatasetFn   func(ctx context.Context, dataset string, batchSize int) error
@@ -136,6 +138,20 @@ func (m *mockDatastore) ResolveCVEChartEntities(ctx context.Context, filter type
 	// Match the real contract: non-nil, empty means "match nothing" (never nil,
 	// which would be interpreted as "no entity filter").
 	return []string{}, nil
+}
+
+func (m *mockDatastore) AggregateCoversFrom(ctx context.Context, dataset, entityID string, from, _ time.Time) (bool, error) {
+	if m.aggregateCoversFromFn != nil {
+		return m.aggregateCoversFromFn(ctx, dataset, entityID, from)
+	}
+	return false, nil
+}
+
+func (m *mockDatastore) BackfillAggregateEntity(ctx context.Context, dataset, aggregateID string, sourceIDs []string, now, _ time.Time) (bool, error) {
+	if m.backfillAggregateFn != nil {
+		return m.backfillAggregateFn(ctx, dataset, aggregateID, sourceIDs, now)
+	}
+	return false, nil
 }
 
 func (m *mockDatastore) RecordBucketData(ctx context.Context, dataset string, bucketStart time.Time, bucketSize time.Duration, strategy api.SampleStrategy, entityBitmaps map[string]*roaring.Bitmap) error {
@@ -1111,4 +1127,168 @@ func TestCVEDatasetMetadata(t *testing.T) {
 	assert.Equal(t, 3, d.DefaultResolutionHours())
 	assert.Equal(t, api.SampleStrategySnapshot, d.SampleStrategy())
 	assert.Equal(t, "line", d.DefaultVisualization())
+}
+
+// criticalOpts is the request the dashboard sends by default.
+func criticalOpts() api.RequestOpts {
+	return api.RequestOpts{Days: 31, SeverityMin: new(9.0), SeverityMax: new(10.0)}
+}
+
+func criticalAggregateID() string {
+	return api.CVEFilter{CVSSMin: new(9.0), CVSSMax: new(10.0)}.AggregateEntityID()
+}
+
+// serviceWithCVE builds a service whose CVE dataset is registered, capturing
+// the entity set each request ends up reading.
+func serviceWithCVE(t *testing.T, store *mockDatastore) *Service {
+	t.Helper()
+	svc := NewService(&mockAuthorizer{}, store, globalViewer(), nil)
+	svc.RegisterDataset(&chart.CVEDataset{})
+	return svc
+}
+
+// The point of precomputing: one stored series instead of resolving and
+// unioning thousands of per-CVE rows.
+func TestGetChartDataReadsAggregateWhenAvailable(t *testing.T) {
+	var gotEntityIDs []string
+	resolveCalls := 0
+
+	store := &mockDatastore{
+		aggregateCoversFromFn: func(_ context.Context, dataset, entityID string, _ time.Time) (bool, error) {
+			require.Equal(t, api.MetricCVE, dataset)
+			return entityID == criticalAggregateID(), nil
+		},
+		resolveCVEEntitiesFn: func(context.Context, types.CVEChartFilter) ([]string, error) {
+			resolveCalls++
+			return []string{"CVE-1", "CVE-2"}, nil
+		},
+		getSCDDataFunc: func(_ context.Context, _ string, _, _ time.Time, _ time.Duration, _ api.SampleStrategy, _ *roaring.Bitmap, entityIDs []string) ([]api.DataPoint, error) {
+			gotEntityIDs = entityIDs
+			return nil, nil
+		},
+	}
+
+	_, err := serviceWithCVE(t, store).GetChartData(premiumCtx(t), api.MetricCVE, criticalOpts())
+	require.NoError(t, err)
+
+	require.Equal(t, []string{criticalAggregateID()}, gotEntityIDs)
+	require.Zero(t, resolveCalls, "the precomputed series makes the resolve query unnecessary")
+}
+
+// The aggregate is looked up by the request's own filter, so a different filter
+// must never be served another filter's series.
+func TestGetChartDataLooksUpAggregateForRequestedFilter(t *testing.T) {
+	var lookedUp []string
+	store := &mockDatastore{
+		aggregateCoversFromFn: func(_ context.Context, _, entityID string, _ time.Time) (bool, error) {
+			lookedUp = append(lookedUp, entityID)
+			return false, nil
+		},
+	}
+
+	opts := criticalOpts()
+	opts.KnownExploit = true
+	_, err := serviceWithCVE(t, store).GetChartData(premiumCtx(t), api.MetricCVE, opts)
+	require.NoError(t, err)
+
+	want := api.CVEFilter{CVSSMin: new(9.0), CVSSMax: new(10.0), KnownExploit: true}.AggregateEntityID()
+	require.Equal(t, []string{want}, lookedUp)
+	require.NotEqual(t, want, criticalAggregateID())
+}
+
+// Aggregates live in the CVE dataset; no other metric should pay for a lookup.
+func TestGetChartDataSkipsAggregateLookupForOtherMetrics(t *testing.T) {
+	var gotEntityIDs []string
+	lookups := 0
+	store := &mockDatastore{
+		aggregateCoversFromFn: func(context.Context, string, string, time.Time) (bool, error) {
+			lookups++
+			return true, nil
+		},
+		getSCDDataFunc: func(_ context.Context, _ string, _, _ time.Time, _ time.Duration, _ api.SampleStrategy, _ *roaring.Bitmap, entityIDs []string) ([]api.DataPoint, error) {
+			gotEntityIDs = entityIDs
+			return nil, nil
+		},
+	}
+	svc := NewService(&mockAuthorizer{}, store, globalViewer(), nil)
+	svc.RegisterDataset(&chart.UptimeDataset{})
+
+	_, err := svc.GetChartData(premiumCtx(t), "uptime", api.RequestOpts{Days: 31})
+	require.NoError(t, err)
+
+	require.Zero(t, lookups)
+	require.Nil(t, gotEntityIDs, "uptime keeps the nil all-entities filter")
+}
+
+// A lookup failure must not take the chart down — the per-CVE path still works.
+func TestGetChartDataToleratesAggregateLookupFailure(t *testing.T) {
+	var gotEntityIDs []string
+	store := &mockDatastore{
+		aggregateCoversFromFn: func(context.Context, string, string, time.Time) (bool, error) {
+			return false, context.DeadlineExceeded
+		},
+		resolveCVEEntitiesFn: func(context.Context, types.CVEChartFilter) ([]string, error) {
+			return []string{"CVE-1"}, nil
+		},
+		getSCDDataFunc: func(_ context.Context, _ string, _, _ time.Time, _ time.Duration, _ api.SampleStrategy, _ *roaring.Bitmap, entityIDs []string) ([]api.DataPoint, error) {
+			gotEntityIDs = entityIDs
+			return nil, nil
+		},
+	}
+
+	_, err := serviceWithCVE(t, store).GetChartData(premiumCtx(t), api.MetricCVE, criticalOpts())
+	require.NoError(t, err)
+	require.Equal(t, []string{"CVE-1"}, gotEntityIDs)
+}
+
+// The gateway gives up long before a pathological request does, leaving the
+// server grinding for a client that has gone.
+func TestGetChartDataAppliesDeadline(t *testing.T) {
+	store := &mockDatastore{
+		getSCDDataFunc: func(ctx context.Context, _ string, _, _ time.Time, _ time.Duration, _ api.SampleStrategy, _ *roaring.Bitmap, _ []string) ([]api.DataPoint, error) {
+			<-ctx.Done()
+			return nil, ctx.Err()
+		},
+	}
+	svc := serviceWithCVE(t, store)
+	svc.requestTimeout = 50 * time.Millisecond
+
+	_, err := svc.GetChartData(premiumCtx(t), api.MetricCVE, criticalOpts())
+	require.ErrorIs(t, err, context.DeadlineExceeded)
+}
+
+// The deadline must not leak into the caller's context.
+func TestGetChartDataDeadlineDoesNotOutliveCall(t *testing.T) {
+	store := &mockDatastore{}
+	svc := serviceWithCVE(t, store)
+	ctx := premiumCtx(t)
+
+	_, err := svc.GetChartData(ctx, api.MetricCVE, criticalOpts())
+	require.NoError(t, err)
+	require.NoError(t, ctx.Err())
+}
+
+// Reading a series before it reaches the start of the window would report zero
+// for every hour it has not caught up to.
+func TestGetChartDataIgnoresAggregateThatDoesNotCoverTheWindow(t *testing.T) {
+	var gotEntityIDs []string
+	var askedFrom time.Time
+	store := &mockDatastore{
+		aggregateCoversFromFn: func(_ context.Context, _, _ string, from time.Time) (bool, error) {
+			askedFrom = from
+			return false, nil
+		},
+		resolveCVEEntitiesFn: func(context.Context, types.CVEChartFilter) ([]string, error) {
+			return []string{"CVE-1", "CVE-2"}, nil
+		},
+		getSCDDataFunc: func(_ context.Context, _ string, startDate, _ time.Time, _ time.Duration, _ api.SampleStrategy, _ *roaring.Bitmap, entityIDs []string) ([]api.DataPoint, error) {
+			gotEntityIDs = entityIDs
+			require.Equal(t, startDate, askedFrom, "coverage is checked against the window actually read")
+			return nil, nil
+		},
+	}
+
+	_, err := serviceWithCVE(t, store).GetChartData(premiumCtx(t), api.MetricCVE, criticalOpts())
+	require.NoError(t, err)
+	require.Equal(t, []string{"CVE-1", "CVE-2"}, gotEntityIDs)
 }

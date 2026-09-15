@@ -2,6 +2,11 @@ package api
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"slices"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/RoaringBitmap/roaring"
@@ -96,6 +101,21 @@ type DatasetStore interface {
 	// collector deliberately records the wide set. See the mysql implementation.
 	CollectibleCVEs(ctx context.Context) ([]string, error)
 
+	// ResolveCVEChartEntities resolves a filter to the CVE IDs it selects. The
+	// collector uses it to precompute a filter's union; the read path uses it
+	// to scope a per-CVE request. Both go through the same resolver so a
+	// precomputed series and a live one always cover the same CVEs.
+	ResolveCVEChartEntities(ctx context.Context, filter CVEFilter) ([]string, error)
+
+	// BackfillAggregateEntity extends an aggregate entity's history one bounded
+	// batch further back, reconstructing it from the rows already collected for
+	// sourceIDs, so rebuilding a retention window is spread over several ticks
+	// rather than stalling one. It never reaches below horizon, the oldest hour
+	// retention still guarantees. Reports whether it wrote a batch, letting the
+	// caller budget how much rebuilding a single tick does; false means there
+	// is nothing left to reconstruct.
+	BackfillAggregateEntity(ctx context.Context, dataset, aggregateID string, sourceIDs []string, now, horizon time.Time) (bool, error)
+
 	// RecordBucketData writes one or more entity bitmaps for the given bucket
 	// using the specified sample strategy. See SampleStrategy for semantics.
 	// Bitmaps are passed in op form (*roaring.Bitmap); the datastore
@@ -114,6 +134,11 @@ type DatasetStore interface {
 // The CVE entity filters apply only to this metric.
 const MetricCVE = "cve"
 
+// RetentionDays is how long collected rows are kept. Cleanup deletes closed
+// rows older than this, and the aggregate backfill stops at the same horizon,
+// since rows below it may already be gone on every path.
+const RetentionDays = 30
+
 // CVE chart software category keys. These are the API contract for the
 // `software_filters` query parameter and are mirrored by the frontend. The
 // "os" category covers both operating-system vulnerabilities and the kernel
@@ -124,6 +149,107 @@ const (
 	CVECategoryOffice   = "office"
 	CVECategoryAdobe    = "adobe"
 )
+
+// CVEFilter narrows the CVE chart entity set to a resolved allow-set of CVE
+// IDs. All predicates AND together (intersect); ExcludeCVEs are subtracted
+// afterward. Excluding a CVE that isn't in the set is a harmless no-op.
+//
+// Categories empty means "all categories" (no narrowing). CVSSMin/CVSSMax and
+// EPSSMin/EPSSMax are nil when no bound was requested, which drops the
+// corresponding predicate entirely rather than substituting the full range.
+// That distinction is load-bearing for CVSS: cve_meta.cvss_score is nullable,
+// so a 0.0-10.0 bound still excludes CVEs with no score, while a nil bound
+// includes them. CVSS values are 0.0-10.0; EPSS values are 0.0-1.0 to match
+// cve_meta.epss_probability.
+type CVEFilter struct {
+	Categories   []string
+	CVSSMin      *float64
+	CVSSMax      *float64
+	EPSSMin      *float64
+	EPSSMax      *float64
+	KnownExploit bool
+	ExcludeCVEs  []string
+}
+
+// AggregateEntityPrefix namespaces the entity IDs holding precomputed unions.
+// Real CVE IDs start with "CVE-", so the two can never collide.
+const AggregateEntityPrefix = "agg:"
+
+// 128 bits of digest: far beyond collision range, and well inside entity_id's
+// 100-character column.
+const aggregateEntityIDHexLen = 32
+
+var allCVECategories = []string{CVECategoryAdobe, CVECategoryBrowsers, CVECategoryOffice, CVECategoryOS}
+
+// AggregateEntityID returns the host_scd_data entity ID holding this filter's
+// precomputed per-bucket union. Keyed by contents, not by role, so filters
+// resolving to the same CVE set share a series and a changed filter starts a
+// new one rather than redefining the old.
+func (f CVEFilter) AggregateEntityID() string {
+	sum := sha256.Sum256([]byte(f.canonical()))
+	return AggregateEntityPrefix + hex.EncodeToString(sum[:])[:aggregateEntityIDHexLen]
+}
+
+// canonical renders the filter as a stable string. Field labels keep equal
+// values on different fields (a 5.0 CVSS floor vs a 5.0 ceiling) distinct.
+func (f CVEFilter) canonical() string {
+	var b strings.Builder
+	b.WriteString("categories=")
+	b.WriteString(canonicalCategories(f.Categories))
+	b.WriteString("\ncvss_min=")
+	b.WriteString(canonicalBound(f.CVSSMin))
+	b.WriteString("\ncvss_max=")
+	b.WriteString(canonicalBound(f.CVSSMax))
+	b.WriteString("\nepss_min=")
+	b.WriteString(canonicalBound(f.EPSSMin))
+	b.WriteString("\nepss_max=")
+	b.WriteString(canonicalBound(f.EPSSMax))
+	b.WriteString("\nknown_exploit=")
+	b.WriteString(strconv.FormatBool(f.KnownExploit))
+	b.WriteString("\nexclude=")
+	b.WriteString(strings.Join(sortedUnique(f.ExcludeCVEs), ","))
+	return b.String()
+}
+
+// canonicalCategories reduces a selection to what the resolver acts on.
+// Unrecognized keys select no matcher, so they are dropped. Every known
+// category narrows nothing, so it collapses onto the empty selection's marker.
+// A non-empty selection with no known key stays distinct from both: it resolves
+// to no CVEs rather than to all of them.
+func canonicalCategories(categories []string) string {
+	if len(categories) == 0 {
+		return "*"
+	}
+	known := make([]string, 0, len(categories))
+	for _, c := range sortedUnique(categories) {
+		if slices.Contains(allCVECategories, c) {
+			known = append(known, c)
+		}
+	}
+	if len(known) == len(allCVECategories) {
+		return "*"
+	}
+	return strings.Join(known, ",")
+}
+
+// canonicalBound renders an optional score bound. Absent and zero must differ:
+// absent drops the predicate and admits unscored CVEs, zero keeps it and
+// excludes them.
+func canonicalBound(v *float64) string {
+	if v == nil {
+		return ""
+	}
+	return strconv.FormatFloat(*v, 'g', -1, 64)
+}
+
+func sortedUnique(in []string) []string {
+	if len(in) == 0 {
+		return nil
+	}
+	out := slices.Clone(in)
+	slices.Sort(out)
+	return slices.Compact(out)
+}
 
 // Host is a minimal host type for authorization checks within the chart bounded context.
 // The JSON tags matter: the OPA rego policy reads object.team_id via the JSON-encoded

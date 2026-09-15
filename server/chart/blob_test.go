@@ -4,9 +4,13 @@ import (
 	"bytes"
 	"testing"
 
+	"context"
+	"errors"
 	"github.com/RoaringBitmap/roaring"
+	"github.com/fleetdm/fleet/v4/server/chart/api"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"time"
 )
 
 // chunkSize is the host-ID span covered by a single roaring container (2^16).
@@ -400,4 +404,223 @@ func TestSerializationDeterminism(t *testing.T) {
 
 	require.True(t, bytes.Equal(bytesA, bytesB), "BitmapToBlob(NewBitmap) vs BitmapToBlob(DecodeBitmap(dense)) differ:\nA=%x\nB=%x", bytesA, bytesB)
 	require.True(t, bytes.Equal(bytesA, bytesC), "BitmapToBlob(NewBitmap) vs BitmapToBlob(BlobOR(empty, ...)) differ:\nA=%x\nC=%x", bytesA, bytesC)
+}
+
+// fakeDatasetStore records what the collector hands the storage layer.
+type fakeDatasetStore struct {
+	collectible []string
+	affected    map[string][]uint
+	resolved    map[string][]string // keyed by the filter's aggregate entity ID
+	resolveErr  error
+
+	recordedCalls  int
+	recorded       map[string]*roaring.Bitmap
+	backfillCalls  []string
+	backfillSource map[string][]string
+	// backfillDone lists aggregates with nothing left to rebuild.
+	backfillDone map[string]bool
+}
+
+func (f *fakeDatasetStore) FindOnlineHostIDs(context.Context, time.Time, []uint) ([]uint, error) {
+	return nil, nil
+}
+
+func (f *fakeDatasetStore) CollectibleCVEs(context.Context) ([]string, error) {
+	return f.collectible, nil
+}
+
+func (f *fakeDatasetStore) AffectedHostIDsByCVE(_ context.Context, _ []uint, cves []string) (map[string]*roaring.Bitmap, error) {
+	out := make(map[string]*roaring.Bitmap)
+	for _, cve := range cves {
+		if ids, ok := f.affected[cve]; ok {
+			out[cve] = NewBitmap(ids)
+		}
+	}
+	return out, nil
+}
+
+func (f *fakeDatasetStore) ResolveCVEChartEntities(_ context.Context, filter api.CVEFilter) ([]string, error) {
+	if f.resolveErr != nil {
+		return nil, f.resolveErr
+	}
+	return f.resolved[filter.AggregateEntityID()], nil
+}
+
+func (f *fakeDatasetStore) BackfillAggregateEntity(_ context.Context, _, aggregateID string, sourceIDs []string, _, _ time.Time) (bool, error) {
+	f.backfillCalls = append(f.backfillCalls, aggregateID)
+	if f.backfillSource == nil {
+		f.backfillSource = map[string][]string{}
+	}
+	f.backfillSource[aggregateID] = sourceIDs
+	return !f.backfillDone[aggregateID], nil
+}
+
+func (f *fakeDatasetStore) RecordBucketData(_ context.Context, _ string, _ time.Time, _ time.Duration, _ api.SampleStrategy, entityBitmaps map[string]*roaring.Bitmap) error {
+	f.recordedCalls++
+	f.recorded = entityBitmaps
+	return nil
+}
+
+func hostIDs(rb *roaring.Bitmap) []uint {
+	if rb == nil {
+		return nil
+	}
+	return BitmapToHostIDs(rb)
+}
+
+// criticalFilter is the shape the dashboard's default request carries.
+func criticalFilter() api.CVEFilter {
+	return api.CVEFilter{CVSSMin: new(9.0), CVSSMax: new(10.0)}
+}
+
+func newFakeStore() *fakeDatasetStore {
+	crit := criticalFilter()
+	return &fakeDatasetStore{
+		collectible: []string{"CVE-1", "CVE-2", "CVE-3"},
+		affected: map[string][]uint{
+			"CVE-1": {1, 2},
+			"CVE-2": {2, 3},
+			"CVE-3": {9},
+		},
+		resolved: map[string][]string{
+			crit.AggregateEntityID(): {"CVE-1", "CVE-2"},
+		},
+	}
+}
+
+func TestCVEDatasetCollectWithoutPreaggregation(t *testing.T) {
+	store := newFakeStore()
+	require.NoError(t, (&CVEDataset{}).Collect(t.Context(), store, time.Now(), nil))
+
+	require.Equal(t, 1, store.recordedCalls)
+	require.Len(t, store.recorded, 3, "only the per-CVE entities are written")
+	require.Empty(t, store.backfillCalls)
+}
+
+func TestCVEDatasetCollectWritesAggregate(t *testing.T) {
+	store := newFakeStore()
+	crit := criticalFilter()
+	ds := &CVEDataset{PreaggregateFilters: []api.CVEFilter{crit}}
+
+	require.NoError(t, ds.Collect(t.Context(), store, time.Now(), nil))
+
+	// One call, carrying both the per-CVE rows and the aggregate: snapshot
+	// semantics close every entity missing from the map, so a second call would
+	// close whatever the first one wrote.
+	require.Equal(t, 1, store.recordedCalls)
+	require.Len(t, store.recorded, 4)
+
+	agg, ok := store.recorded[crit.AggregateEntityID()]
+	require.True(t, ok, "the aggregate entity must be written alongside the per-CVE rows")
+	require.Equal(t, []uint{1, 2, 3}, hostIDs(agg), "union of the critical CVEs, excluding the low-severity one")
+
+	// The per-CVE rows must still be written — custom filters read them.
+	require.Equal(t, []uint{1, 2}, hostIDs(store.recorded["CVE-1"]))
+	require.Equal(t, []uint{9}, hostIDs(store.recorded["CVE-3"]))
+}
+
+func TestCVEDatasetCollectBackfillsAggregate(t *testing.T) {
+	store := newFakeStore()
+	crit := criticalFilter()
+	ds := &CVEDataset{PreaggregateFilters: []api.CVEFilter{crit}}
+
+	require.NoError(t, ds.Collect(t.Context(), store, time.Now(), nil))
+
+	require.Equal(t, []string{crit.AggregateEntityID()}, store.backfillCalls)
+	require.Equal(t, []string{"CVE-1", "CVE-2"}, store.backfillSource[crit.AggregateEntityID()],
+		"backfill must reconstruct history from the same CVEs the aggregate unions")
+}
+
+// Filters resolving identically share one series, not two copies of a union.
+func TestCVEDatasetCollectDeduplicatesEquivalentFilters(t *testing.T) {
+	store := newFakeStore()
+	ds := &CVEDataset{PreaggregateFilters: []api.CVEFilter{
+		{CVSSMin: new(9.0), CVSSMax: new(10.0)},
+		{CVSSMin: new(9.0), CVSSMax: new(10.0), Categories: []string{
+			api.CVECategoryOS, api.CVECategoryBrowsers, api.CVECategoryOffice, api.CVECategoryAdobe,
+		}},
+	}}
+
+	require.NoError(t, ds.Collect(t.Context(), store, time.Now(), nil))
+	require.Len(t, store.recorded, 4, "the two filters collapse onto one aggregate")
+	require.Len(t, store.backfillCalls, 1)
+}
+
+// A filter matching nothing still needs a row: a missing entity closes the
+// series and drops back to the slow path.
+func TestCVEDatasetCollectWritesEmptyAggregate(t *testing.T) {
+	store := newFakeStore()
+	empty := api.CVEFilter{CVSSMin: new(9.9), CVSSMax: new(9.95)}
+	ds := &CVEDataset{PreaggregateFilters: []api.CVEFilter{empty}}
+
+	require.NoError(t, ds.Collect(t.Context(), store, time.Now(), nil))
+
+	agg, ok := store.recorded[empty.AggregateEntityID()]
+	require.True(t, ok)
+	require.NotNil(t, agg)
+	require.True(t, agg.IsEmpty())
+}
+
+// A partial map closes every aggregate the previous tick opened, so an
+// unresolvable filter has to abort the tick.
+func TestCVEDatasetCollectAbortsWhenFiltersUnavailable(t *testing.T) {
+	store := newFakeStore()
+	store.resolveErr = errors.New("resolve failed")
+	ds := &CVEDataset{PreaggregateFilters: []api.CVEFilter{criticalFilter()}}
+	require.Error(t, ds.Collect(t.Context(), store, time.Now(), nil))
+	require.Zero(t, store.recordedCalls)
+}
+
+// severityBandFilters stands in for the set cmd/fleet precomputes.
+func severityBandFilters() []api.CVEFilter {
+	return []api.CVEFilter{
+		{CVSSMin: new(9.0), CVSSMax: new(10.0)},
+		{},
+		{CVSSMin: new(7.0), CVSSMax: new(8.9)},
+		{CVSSMin: new(4.0), CVSSMax: new(6.9)},
+		{CVSSMin: new(0.1), CVSSMax: new(3.9)},
+	}
+}
+
+// Rebuilding is the expensive part, so a tick does a bounded amount of it.
+func TestCVEDatasetCollectBudgetsBackfillPerTick(t *testing.T) {
+	store := newFakeStore()
+	filters := severityBandFilters()
+	for _, f := range filters {
+		store.resolved[f.AggregateEntityID()] = []string{"CVE-1", "CVE-2"}
+	}
+	ds := &CVEDataset{PreaggregateFilters: filters}
+
+	require.NoError(t, ds.Collect(t.Context(), store, time.Now(), nil))
+
+	require.Len(t, store.backfillCalls, aggregateBackfillBatchesPerTick)
+	// Every series still gets its current row: one left out of the snapshot
+	// would be closed and lose the history already rebuilt for it.
+	require.Len(t, store.recorded, len(store.collectible)+len(filters))
+	for _, f := range filters {
+		require.Contains(t, store.recorded, f.AggregateEntityID())
+	}
+}
+
+// A finished series must not consume the budget and starve the others.
+func TestCVEDatasetCollectBudgetSkipsCompletedBackfills(t *testing.T) {
+	store := newFakeStore()
+	filters := severityBandFilters()
+	store.backfillDone = map[string]bool{}
+	for i, f := range filters {
+		store.resolved[f.AggregateEntityID()] = []string{"CVE-1"}
+		if i < 3 {
+			store.backfillDone[f.AggregateEntityID()] = true
+		}
+	}
+	ds := &CVEDataset{PreaggregateFilters: filters}
+
+	require.NoError(t, ds.Collect(t.Context(), store, time.Now(), nil))
+
+	// The three finished series are asked and decline, costing no budget; it is
+	// then spent on the ones that still have history to rebuild.
+	require.Len(t, store.backfillCalls, 3+aggregateBackfillBatchesPerTick)
+	for i := range aggregateBackfillBatchesPerTick {
+		require.Equal(t, filters[3+i].AggregateEntityID(), store.backfillCalls[3+i])
+	}
 }
