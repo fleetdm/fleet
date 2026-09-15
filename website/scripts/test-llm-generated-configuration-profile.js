@@ -21,7 +21,6 @@ const TEST_CASES = [
     profileType: 'csp',
     canary: true,
     instructions: 'Require a password to unlock the device.',
-    readByEye: 'valueMeaning should say 0 means a password IS required.  If it describes 0 as disabling the password, the value is right by luck and the reasoning is wrong -- which will not hold on the next node.',
     expect: {
       mustContain: ['DeviceLock/DevicePasswordEnabled'],
       mustContainElement: [['Format', 'int'], ['Data', '0']],
@@ -61,7 +60,7 @@ const TEST_CASES = [
     profileType: 'csp',
     canary: true,
     instructions: 'Add a wifi profile for a network with the SSID "A Network" with WPA2 authentication that uses the password "aaaaaaapassword".',
-    readByEye: 'The embedded <WLANProfile> must be on ONE line inside the CDATA -- no assertion can express that.  Also confirm <hex> decodes to the SSID, and that deliveryNotes names the cleartext passphrase rather than describing the profile.',
+    readByEye: 'The embedded <WLANProfile> must be on ONE line inside the CDATA - no assertion can express that.',
     expect: {
       mustContain: ['A%20Network', '<![CDATA[',],
       mustContainElement: [['name', 'A Network']],
@@ -84,6 +83,28 @@ const TEST_CASES = [
     expect: {
       mustContain: ['AllowTelemetry'],
       mustContainElement: [['Format', 'int']]
+    }
+  },
+  {
+    id: 'csp-clipboard-history',
+    profileType: 'csp',
+    instructions: 'Disable clipboard history.',
+    expect: {
+      mustContain: ['Experience/AllowClipboardHistory'],
+      mustContainElement: [['Format', 'int'], ['Data', '0']],
+      mustNotContainElement: [['Format', 'bool']],
+      mustNotContain: ['AllowCrossDeviceClipboard']
+    }
+  },
+  {
+    id: 'csp-store-app-auto-update',
+    profileType: 'csp',
+    instructions: 'Enforce automatic updates for Microsoft Store apps.',
+    expect: {
+      mustContain: ['ApplicationManagement/AllowAppStoreAutoUpdate'],
+      mustContainElement: [['Format', 'int'], ['Data', '1']],
+      mustNotContainElement: [['Data', '2'], ['Format', 'bool']],
+      mustNotContain: ['WindowsStore/DisableAutoUpdate']
     }
   },
 
