@@ -37,11 +37,11 @@ Restart the Fleet server.
 
 ### Step 3: Turn on Windows MDM
 
-1. Head to the **Settings > Integrations > MDM** page.
+1. Navigate to **Organization settings > Integrations > MDM** page.
 
 2. Next to **Turn on Windows MDM** select **Turn on** to navigate to the **Manage Windows MDM** page.
 
-3. Toggle Windows MDM on. The best practice is to leave the end user experience set to **Automatic**. If you want end users to have to take action to turn MDM on, choose **Manual**.
+3. Toggle Windows MDM on. The best practice is to leave **Turn on MDM programmatically** enabled. If you want end users to have to take action to turn MDM on, disable it.
 
 ## Manual enrollment
 
@@ -124,7 +124,7 @@ In your Intune settings, select **Devices**, and under **Device onboarding**, op
 
 **In Fleet:**
 
-1. Navigate to **Settings** > **Integrations** > **MDM** > **Microsoft Entra**. Under **Windows enrollment**, select **Connect**.
+1. Navigate to **Organization settings** > **Integrations** > **MDM** under **Microsoft Entra**. Next to **Windows enrollment**, select **Connect**.
 
 2. Select **Edit** and copy the **MDM URLs**. You'll paste these into Entra later.
 
@@ -132,11 +132,13 @@ In your Intune settings, select **Devices**, and under **Device onboarding**, op
 
 3. [Sign in to Microsoft Entra](https://fleetdm.com/sign-in-to/microsoft-automatic-enrollment-tool).
 
-4. On the home page, find and copy the **Tenant ID**. You'll paste this into Fleet later.
+4. On the **Overview** page, find and copy the **Tenant ID**. You'll paste this into Fleet later.
+
+> To set up a new tenant, [follow the Microsoft Entra instructions](https://learn.microsoft.com/en-us/entra/fundamentals/create-new-tenant?tabs=workforce).
 
 5. At the top of the page, search "Domain names" and select **Domain names**. Select **+ Add custom domain**, type your Fleet URL (e.g. fleet.acme.com), and select **Add domain**.
 
-6. Use the information presented in Azure AD to create a new TXT/MX record with your domain registrar, then select **Verify**. If you're a managed-cloud customer, please reach out to Fleet to create a TXT/MX record for you.
+6. Use the information presented in Entra to create a new TXT/MX record with your domain registrar, then select **Verify**. If you're a managed-cloud customer, please reach out to Fleet to create a TXT/MX record for you.
 
 7. At the top of the page, search for "Mobility" and select **Mobility (MDM and WIP)**.
 
@@ -150,7 +152,7 @@ In your Intune settings, select **Devices**, and under **Device onboarding**, op
 
 12. Click on the **Application ID URI**, which will bring you to the **Expose an API** submenu with an edit button next to the text box.
 
-13. Replace with your Fleet URL (e.g., fleet.acme.com) and select **Save**.
+13. Replace with your Fleet URL (e.g., https://fleet.acme.com) and select **Save**.
 
 14. On the same application, select **Overview** and copy the **Application (client) ID**. You'll paste this into Fleet later.
 
@@ -171,11 +173,11 @@ In your Intune settings, select **Devices**, and under **Device onboarding**, op
 
 **Back in Fleet:**
 
-20. Head to **Settings** > **Integrations** > **MDM** > **Microsoft Entra** select **Edit** next to "Microsoft Entra tenant ID added". Under **Entra tenants**, select **Add**, paste the tenant ID you copied in step 4, and select **Add**. If you don't add the Entra Tenant ID, end users will see the "Device management could not be enabled" error, and won't be able to enroll their host.
+20. Navigate to **Organization settings** > **Integrations** > **MDM** under **Microsoft Entra** select **Edit** next to "Microsoft Entra tenant ID added". Under **Entra tenants**, select **Add**, paste the tenant ID you copied in step 4, and select **Add**. If you don't add the Entra Tenant ID, end users will see the "Device management could not be enabled" error, and won't be able to enroll their host.
 
 21. Under **Entra application client IDs**, select **Add**, paste the client ID you copied in step 14, and select **Add**. Microsoft Entra issues v2 access tokens whose audience is the application's client ID, so the client ID is required. If you don't add it, end users will see the "Device management could not be enabled" error, and won't be able to enroll their host.
 
-Now you're ready to automatically enroll Windows hosts to Fleet. The end user will see Microsoft's default initial setup. You can further simplify the initial device setup with Autopilot, which is similar to Apple's Automated Device Enrollment (DEP).
+Now you're ready to automatically enroll Windows hosts to Fleet. The end user will see Microsoft's default initial setup. You can further [simplify the initial device setup with Autopilot](#windows-autopilot), which is similar to Apple's Automated Device Enrollment (DEP).
 
 ### Step 3: Test automatic enrollment
 
