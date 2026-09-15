@@ -1285,27 +1285,23 @@ func (s *integrationTestSuite) TestHostsAddToTeam() {
 		0,
 	)
 
-	// transferring a mix of real and non-existent host IDs must not record the
-	// fabricated IDs in the activity: only hosts that actually exist are logged.
+	// transferring a mix of real and non-existent host IDs is rejected as not
+	// found, so fabricated IDs can't reach the audit trail: the latest
+	// transferred_hosts activity is still the one recorded above.
+	lastTransferActivityID := s.lastActivityOfTypeMatches(fleet.ActivityTypeTransferredHostsToTeam{}.ActivityName(), "", 0)
 	nonExistentHostID := hosts[2].ID + 1000
 	s.DoJSON("POST", "/api/latest/fleet/hosts/transfer", addHostsToTeamRequest{
 		TeamID:  &tm1.ID,
 		HostIDs: []uint{hosts[0].ID, nonExistentHostID},
-	}, http.StatusOK, &addResp)
-	mixedActivityID := s.lastActivityOfTypeMatches(
-		fleet.ActivityTypeTransferredHostsToTeam{}.ActivityName(),
-		fmt.Sprintf(`{"fleet_id": %d, "fleet_name": %q, "team_id": %d, "team_name": %q, "host_ids": [%d], "host_display_names": [%q]}`,
-			tm1.ID, tm1.Name, tm1.ID, tm1.Name, hosts[0].ID, hosts[0].DisplayName()),
-		0,
-	)
+	}, http.StatusNotFound, &addResp)
+	s.lastActivityOfTypeMatches(fleet.ActivityTypeTransferredHostsToTeam{}.ActivityName(), "", lastTransferActivityID)
 
-	// transferring only non-existent host IDs must not record any activity: the
-	// latest transferred_hosts activity is still the mixed transfer above.
+	// transferring only non-existent host IDs is rejected the same way.
 	s.DoJSON("POST", "/api/latest/fleet/hosts/transfer", addHostsToTeamRequest{
 		TeamID:  &tm1.ID,
 		HostIDs: []uint{nonExistentHostID},
-	}, http.StatusOK, &addResp)
-	s.lastActivityOfTypeMatches(fleet.ActivityTypeTransferredHostsToTeam{}.ActivityName(), "", mixedActivityID)
+	}, http.StatusNotFound, &addResp)
+	s.lastActivityOfTypeMatches(fleet.ActivityTypeTransferredHostsToTeam{}.ActivityName(), "", lastTransferActivityID)
 
 	// check that hosts are now part of team 1
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hosts[0].ID), nil, http.StatusOK, &getResp)
