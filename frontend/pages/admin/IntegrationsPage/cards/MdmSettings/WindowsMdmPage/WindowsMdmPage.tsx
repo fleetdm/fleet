@@ -158,7 +158,7 @@ const WindowsMdmPage = ({ router }: IWindowsMdmPageProps) => {
       }
       helpText={
         <>
-          New hosts enrolled into MDM are automatically assigned to this fleet.{" "}
+          New hosts that enroll via the Settings app are assigned to this fleet.{" "}
           <CustomLink
             text="Learn more"
             url="https://fleetdm.com/learn-more-about/windows-default-fleet"
@@ -223,32 +223,21 @@ const WindowsMdmPage = ({ router }: IWindowsMdmPageProps) => {
               disabled={!mdmOn || gitOpsModeEnabled}
             />
           )}
-          {isPremiumTier && (
-            <div className={`${baseClass}__section`}>
-              <h2 className={`${baseClass}__section-title`}>
-                User driven enrollment
-              </h2>
-              {defaultFleetDropdown}
-            </div>
-          )}
-          {isPremiumTier && (
-            <div className={`${baseClass}__section`}>
-              <h2 className={`${baseClass}__section-title`}>Migration</h2>
-              {!turnOnProgrammatically ? (
-                <TooltipWrapper
-                  className={`${baseClass}__disabled-tooltip`}
-                  tipContent="Turn on MDM programmatically to automatically migrate hosts."
-                  position="top"
-                  underline={false}
-                  showArrow
-                >
-                  {migrationCheckbox}
-                </TooltipWrapper>
-              ) : (
-                migrationCheckbox
-              )}
-            </div>
-          )}
+          {isPremiumTier &&
+            (!turnOnProgrammatically ? (
+              <TooltipWrapper
+                className={`${baseClass}__disabled-tooltip`}
+                tipContent="Turn on MDM programmatically to automatically migrate hosts."
+                position="top"
+                underline={false}
+                showArrow
+              >
+                {migrationCheckbox}
+              </TooltipWrapper>
+            ) : (
+              migrationCheckbox
+            ))}
+          {isPremiumTier && defaultFleetDropdown}
           <GitOpsModeTooltipWrapper
             tipOffset={8}
             renderChildren={(disableChildren) => (

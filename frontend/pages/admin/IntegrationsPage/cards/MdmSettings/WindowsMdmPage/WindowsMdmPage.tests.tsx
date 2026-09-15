@@ -10,6 +10,9 @@ import WindowsMdmPage from "./WindowsMdmPage";
 
 jest.mock("services/entities/config");
 
+const MIGRATION_CHECKBOX_LABEL =
+  "Automatically migrate hosts connected to another MDM solution";
+
 const renderPage = (mdm: Partial<IMdmConfig> = {}, isPremiumTier = true) => {
   const render = createCustomRenderer({
     context: {
@@ -33,10 +36,10 @@ describe("WindowsMdmPage", () => {
     expect(
       screen.queryByText("Turn on MDM programmatically")
     ).not.toBeInTheDocument();
+    expect(screen.queryByText("Default fleet")).not.toBeInTheDocument();
     expect(
-      screen.queryByText("User driven enrollment")
+      screen.queryByText(MIGRATION_CHECKBOX_LABEL)
     ).not.toBeInTheDocument();
-    expect(screen.queryByText("Migration")).not.toBeInTheDocument();
   });
 
   it("renders the programmatic enrollment toggle as disabled when MDM is off", () => {
@@ -46,13 +49,13 @@ describe("WindowsMdmPage", () => {
     expect(screen.getAllByRole("switch")[1]).toBeDisabled();
   });
 
-  it("renders the Migration section when MDM is on programmatically", () => {
+  it("renders the Migration checkbox when MDM is on programmatically", () => {
     renderPage({
       enable_turn_on_windows_mdm_manually: false,
       windows_enabled_and_configured: true,
     });
 
-    expect(screen.getByText("Migration")).toBeVisible();
+    expect(screen.getByText(MIGRATION_CHECKBOX_LABEL)).toBeVisible();
     expect(screen.getByRole("checkbox")).toBeVisible();
   });
 
@@ -62,7 +65,7 @@ describe("WindowsMdmPage", () => {
       windows_enabled_and_configured: true,
     });
 
-    expect(screen.getByText("Migration")).toBeVisible();
+    expect(screen.getByText(MIGRATION_CHECKBOX_LABEL)).toBeVisible();
     expect(screen.getByRole("checkbox")).toHaveAttribute(
       "aria-disabled",
       "true"
@@ -75,7 +78,6 @@ describe("WindowsMdmPage", () => {
       windows_entra_tenant_ids: [],
     });
 
-    expect(screen.getByText("User driven enrollment")).toBeVisible();
     expect(screen.getByText("Default fleet")).toBeVisible();
     expect(screen.getByRole("combobox")).toBeDisabled();
   });
@@ -124,7 +126,7 @@ describe("WindowsMdmPage", () => {
       windows_entra_tenant_ids: ["tenant-1"],
     });
 
-    expect(screen.getByText("Migration")).toBeVisible();
+    expect(screen.getByText(MIGRATION_CHECKBOX_LABEL)).toBeVisible();
     expect(screen.getByRole("checkbox")).toHaveAttribute(
       "aria-disabled",
       "true"
