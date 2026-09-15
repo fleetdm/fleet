@@ -1,17 +1,15 @@
+import { act, screen, waitFor } from "@testing-library/react";
+import { http, HttpResponse } from "msw";
 import React from "react";
 
 import {
   createMockSoftwareTitleDetails,
   createMockAppStoreApp,
 } from "__mocks__/softwareMock";
-
-import { act, screen, waitFor } from "@testing-library/react";
-import { http, HttpResponse } from "msw";
+import createMockUser from "__mocks__/userMock";
+import { ILabelSummary } from "interfaces/label";
 import mockServer from "test/mock-server";
 import { createCustomRenderer } from "test/test-utils";
-import { ILabelSummary } from "interfaces/label";
-
-import createMockUser from "__mocks__/userMock";
 
 import EditAutoUpdateConfigModal, {
   ISoftwareAutoUpdateConfigFormData,

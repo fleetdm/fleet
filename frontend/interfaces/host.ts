@@ -1,12 +1,10 @@
 import PropTypes from "prop-types";
-import hostPolicyInterface, { IHostPolicy } from "./policy";
+
+import hostQueryResult from "./campaign";
+import { ILicense, IDeviceGlobalConfig } from "./config";
+import { IHostCustomVital } from "./custom_host_vitals";
 import hostUserInterface, { IHostUser } from "./host_users";
 import labelInterface, { ILabel } from "./label";
-import packInterface, { IPack } from "./pack";
-import softwareInterface, { ISoftware } from "./software";
-import hostQueryResult from "./campaign";
-import queryStatsInterface, { IQueryStats } from "./query_stats";
-import { ILicense, IDeviceGlobalConfig } from "./config";
 import {
   IHostMdmProfile,
   MdmEnrollmentStatus,
@@ -14,8 +12,11 @@ import {
   DiskEncryptionStatus,
   HostNameSettingStatus,
 } from "./mdm";
+import packInterface, { IPack } from "./pack";
 import { HostPlatform } from "./platform";
-import { IHostCustomVital } from "./custom_host_vitals";
+import hostPolicyInterface, { IHostPolicy } from "./policy";
+import queryStatsInterface, { IQueryStats } from "./query_stats";
+import softwareInterface, { ISoftware } from "./software";
 
 export default PropTypes.shape({
   created_at: PropTypes.string,
@@ -463,7 +464,6 @@ export interface IHost {
   last_enrolled_at: string;
   last_mdm_enrolled_at: string;
   last_mdm_checked_in_at: string | null;
-  last_mdm_enrollment_type?: string | null;
   seen_time: string;
   refetch_requested: boolean;
   refetch_critical_queries_until: string | null;

@@ -1,9 +1,9 @@
-import { ITeam } from "interfaces/team";
-import { UserRole } from "interfaces/user";
-import { IFormErrors } from "hooks/useFormValidation";
-import validatePresence from "components/forms/validators/validate_presence";
 import validEmail from "components/forms/validators/valid_email";
 import validPassword from "components/forms/validators/valid_password";
+import validatePresence from "components/forms/validators/validate_presence";
+import { IFormErrors } from "hooks/useFormValidation";
+import { ITeam } from "interfaces/team";
+import { UserRole } from "interfaces/user";
 
 export enum NewUserType {
   AdminInvited = "ADMIN_INVITED",

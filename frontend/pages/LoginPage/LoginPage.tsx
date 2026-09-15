@@ -1,24 +1,23 @@
+import { AxiosError } from "axios";
 import React, { useState, useEffect, useContext, useCallback } from "react";
 import { useQuery } from "react-query";
 import { InjectedRouter } from "react-router";
-import { AxiosError } from "axios";
-
-import paths from "router/paths";
-import { AppContext } from "context/app";
-import { notify } from "components/ToastNotification";
-import { RoutingContext } from "context/routing";
-import { ISSOSettings } from "interfaces/ssoSettings";
-import { ILoginUserData } from "interfaces/user";
-import local from "utilities/local";
-import authToken from "utilities/auth_token";
-import configAPI from "services/entities/config";
-import sessionsAPI, { ISSOSettingsResponse } from "services/entities/sessions";
-import formatErrorResponse from "utilities/format_error_response";
 
 import AuthenticationFormWrapper from "components/AuthenticationFormWrapper";
 // @ts-ignore
 import LoginForm from "components/forms/LoginForm";
 import Spinner from "components/Spinner/Spinner";
+import { notify } from "components/ToastNotification";
+import { AppContext } from "context/app";
+import { RoutingContext } from "context/routing";
+import { ISSOSettings } from "interfaces/ssoSettings";
+import { ILoginUserData } from "interfaces/user";
+import paths from "router/paths";
+import configAPI from "services/entities/config";
+import sessionsAPI, { ISSOSettingsResponse } from "services/entities/sessions";
+import authToken from "utilities/auth_token";
+import formatErrorResponse from "utilities/format_error_response";
+import local from "utilities/local";
 
 interface ILoginPageProps {
   router: InjectedRouter; // v3

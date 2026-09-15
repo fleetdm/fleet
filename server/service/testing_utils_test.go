@@ -680,7 +680,8 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 		require.NoError(t, condaccess.RegisterIdP(rootMux, ds, logger, &cfg, limitStore))
 	}
 	var carveStore fleet.CarveStore = ds // In tests, we use MySQL as storage for carves.
-	apiHandler := MakeHandler(svc, cfg, logger, limitStore, redisPool, carveStore, featureRoutes, extra...)
+	apiHandler, err := MakeHandler(svc, cfg, logger, limitStore, redisPool, carveStore, featureRoutes, extra...)
+	require.NoError(t, err)
 	// SCIM endpoints are served by a prefix-mounted handler (see scim.RegisterSCIM)
 	// that gorilla/mux can't introspect, so surface their routes to the validator
 	// explicitly. They're always in the catalog, regardless of opts[0].EnableSCIM.
@@ -1456,6 +1457,8 @@ type fmaTestState struct {
 	// placeholder when empty; set it to vary the script across builds (a real FMA
 	// script embeds the versioned installer filename, so a rebuild changes it).
 	installScript string
+	// installerDelay holds each installer download for this long, standing in for a slow but reachable CDN.
+	installerDelay time.Duration
 }
 
 func (s *fmaTestState) ComputeSHA(b []byte) {
@@ -1488,6 +1491,13 @@ func startFMAServers(t *testing.T, ds fleet.Datastore, states map[string]*fmaTes
 
 		for _, state := range states {
 			if state.installerPath == r.URL.Path {
+				if state.installerDelay > 0 {
+					select {
+					case <-time.After(state.installerDelay):
+					case <-r.Context().Done():
+						return
+					}
+				}
 				_, _ = w.Write(state.installerBytes)
 				return
 			}

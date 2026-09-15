@@ -73,7 +73,7 @@ module.exports = {
       'guides': 'Guides',
       'securing': 'Security articles',
       'engineering': 'Engineering articles',
-      'announcements': 'Announcements',
+      'announcements': 'Roadmap',
       'podcasts': 'Podcasts',
       'report': 'Reports',
       'articles': 'Blog',

@@ -1,10 +1,9 @@
 import React, { useState } from "react";
 
-import { IMdmAbToken } from "interfaces/mdm";
-import useGitOpsMode from "hooks/useGitOpsMode";
-
 import TableContainer from "components/TableContainer";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
+import useGitOpsMode from "hooks/useGitOpsMode";
+import { IMdmAbToken } from "interfaces/mdm";
 
 import { generateTableConfig } from "./AppleBusinessManagerTableConfig";
 

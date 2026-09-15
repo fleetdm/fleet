@@ -1,6 +1,6 @@
 import { isAxiosError } from "axios";
-import { getErrorReason, hasStatusKey } from "interfaces/errors";
 
+import { getErrorReason, hasStatusKey } from "interfaces/errors";
 import { generateSecretErrMsg } from "pages/SoftwarePage/helpers";
 
 import {

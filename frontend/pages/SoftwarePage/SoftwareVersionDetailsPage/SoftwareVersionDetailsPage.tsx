@@ -1,42 +1,38 @@
 /** software/versions/:id */
 
-import React, { useCallback, useContext } from "react";
-import { useQuery } from "react-query";
-import { useErrorHandler } from "react-error-boundary";
-import { RouteComponentProps } from "react-router";
 import { AxiosError } from "axios";
+import React, { useCallback, useContext } from "react";
+import { useErrorHandler } from "react-error-boundary";
+import { useQuery } from "react-query";
+import { RouteComponentProps } from "react-router";
 
-import useTeamIdParam from "hooks/useTeamIdParam";
-
+import Card from "components/Card";
+import MainContent from "components/MainContent";
+import Spinner from "components/Spinner";
+import TeamsHeader from "components/TeamsHeader";
 import { AppContext } from "context/app";
-
-import softwareAPI, {
-  ISoftwareVersionResponse,
-  IGetSoftwareVersionQueryKey,
-} from "services/entities/software";
-import hostsCountAPI, {
-  IHostsCountQueryKey,
-  IHostsCountResponse,
-} from "services/entities/host_count";
+import useTeamIdParam from "hooks/useTeamIdParam";
+import { ignoreAxiosError } from "interfaces/errors";
+import { DisplayPlatform } from "interfaces/platform";
 import {
   ISoftwareVersion,
   formatSoftwareType,
   isIpadOrIphoneSoftwareSource,
   isAndroidSoftwareSource,
 } from "interfaces/software";
-import { ignoreAxiosError } from "interfaces/errors";
-import { DisplayPlatform } from "interfaces/platform";
-
+import hostsCountAPI, {
+  IHostsCountQueryKey,
+  IHostsCountResponse,
+} from "services/entities/host_count";
+import softwareAPI, {
+  ISoftwareVersionResponse,
+  IGetSoftwareVersionQueryKey,
+} from "services/entities/software";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 
-import Spinner from "components/Spinner";
-import MainContent from "components/MainContent";
-import TeamsHeader from "components/TeamsHeader";
-import Card from "components/Card";
-
+import DetailsNoHosts from "../components/cards/DetailsNoHosts";
 import SoftwareDetailsSummary from "../components/cards/SoftwareDetailsSummary";
 import SoftwareVulnerabilitiesTable from "../components/tables/SoftwareVulnerabilitiesTable";
-import DetailsNoHosts from "../components/cards/DetailsNoHosts";
 import { VulnsNotSupported } from "../components/tables/SoftwareVulnerabilitiesTable/SoftwareVulnerabilitiesTable";
 import { getDisplayedSoftwareName } from "../helpers";
 

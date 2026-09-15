@@ -1667,8 +1667,7 @@ func (svc *MDMAppleDDMService) replaceDeclarationFleetVariables(
 			if err != nil {
 				return "", err
 			}
-			local, _, _ := strings.Cut(user.IdpUserName, "@")
-			value = local
+			value = fleet.EmailLocalPart(user.IdpUserName)
 
 		case fleet.FleetVarHostEndUserIDPGroups:
 			user, err := resolveIDPUser(fleetVar)

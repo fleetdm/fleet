@@ -1,24 +1,20 @@
 import React, { useState } from "react";
 import { useQuery, useQueryClient } from "react-query";
 
-import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
-import { getFileDetails, IFileDetails } from "utilities/file/fileUtils";
-import softwareAPI from "services/entities/software";
-import labelsAPI, { getCustomLabels } from "services/entities/labels";
-
+import FileProgressModal from "components/FileProgressModal";
+import Modal from "components/Modal";
+import { notify } from "components/ToastNotification";
 import useBlockNavigation from "hooks/useBlockNavigation";
 import useGitOpsMode from "hooks/useGitOpsMode";
 import { ILabelSummary } from "interfaces/label";
-
-import { notify } from "components/ToastNotification";
-import Modal from "components/Modal";
-import FileProgressModal from "components/FileProgressModal";
-import CategoriesEndUserExperienceModal from "pages/SoftwarePage/components/modals/CategoriesEndUserExperienceModal";
-
 import PackageForm from "pages/SoftwarePage/components/forms/PackageForm";
 import { IPackageFormData } from "pages/SoftwarePage/components/forms/PackageForm/PackageForm";
-
+import CategoriesEndUserExperienceModal from "pages/SoftwarePage/components/modals/CategoriesEndUserExperienceModal";
 import { getErrorMessage } from "pages/SoftwarePage/SoftwareAddPage/SoftwareCustomPackage/helpers";
+import labelsAPI, { getCustomLabels } from "services/entities/labels";
+import softwareAPI from "services/entities/software";
+import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
+import { getFileDetails, IFileDetails } from "utilities/file/fileUtils";
 
 import { getFileTypeRestriction } from "./helpers";
 

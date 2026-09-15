@@ -1,36 +1,35 @@
 import React, { useContext, useEffect, useState } from "react";
 import { useQuery } from "react-query";
 
-import PATHS from "router/paths";
-import { AppContext } from "context/app";
-import { UNCHANGED_PASSWORD_API_RESPONSE } from "utilities/constants";
-import { IInputFieldParseTarget } from "interfaces/form_field";
-import { equalsIgnoreCase } from "utilities/strings/stringUtils";
-import {
-  IMicrosoftGraphCredential,
-  IMicrosoftGraphCredentialFormData,
-} from "interfaces/microsoft_graph_credential";
-import microsoftGraphCredentialsAPI, {
-  IGetMicrosoftGraphCredentialsResponse,
-} from "services/entities/microsoft_graph_credentials";
-import { getErrorReason } from "interfaces/errors";
-
 import BackButton from "components/BackButton";
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
 import DataError from "components/DataError";
 import DataSet from "components/DataSet";
-import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
-import Icon from "components/Icon";
-import { HumanTimeDiffWithDateTip } from "components/HumanTimeDiffWithDateTip";
 import InputField from "components/forms/fields/InputField";
 import isUUID from "components/forms/validators/valid_uuid";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import { HumanTimeDiffWithDateTip } from "components/HumanTimeDiffWithDateTip";
+import Icon from "components/Icon";
 import MainContent from "components/MainContent";
 import PageDescription from "components/PageDescription";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 import Spinner from "components/Spinner";
-import TooltipWrapper from "components/TooltipWrapper";
 import { notify } from "components/ToastNotification";
+import TooltipWrapper from "components/TooltipWrapper";
+import { AppContext } from "context/app";
+import { getErrorReason } from "interfaces/errors";
+import { IInputFieldParseTarget } from "interfaces/form_field";
+import {
+  IMicrosoftGraphCredential,
+  IMicrosoftGraphCredentialFormData,
+} from "interfaces/microsoft_graph_credential";
+import PATHS from "router/paths";
+import microsoftGraphCredentialsAPI, {
+  IGetMicrosoftGraphCredentialsResponse,
+} from "services/entities/microsoft_graph_credentials";
+import { UNCHANGED_PASSWORD_API_RESPONSE } from "utilities/constants";
+import { equalsIgnoreCase } from "utilities/strings/stringUtils";
 
 import DeleteMicrosoftGraphCredentialModal from "./DeleteMicrosoftGraphCredentialModal";
 
