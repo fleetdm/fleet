@@ -5,7 +5,7 @@
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'Mozilla Firefox % ESR %' AND publisher = 'Mozilla';",
         "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Mozilla Firefox % ESR %' AND publisher = 'Mozilla' AND version_compare(version, '153.2.0') < 0);",
-        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'mozilla firefox esr.exe');"
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'firefox.exe');"
       },
       "installer_url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/153.2.0esr/win64/en-US/Firefox%20Setup%20153.2.0esr.exe",
       "install_script_ref": "ca7ecb64",
