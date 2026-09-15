@@ -448,7 +448,7 @@ controls:
     grace_period_days: 2
   apple_settings:
     configuration_profiles:
-      - paths: ../lib/macos/profiles/ddm.json
+      - path: ../lib/macos/profiles/ddm.json
         labels_include_any:
           - Engineering
         activation: ../lib/macos/activations/activation.json
