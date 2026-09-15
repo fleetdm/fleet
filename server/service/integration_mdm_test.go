@@ -4569,7 +4569,7 @@ func (s *integrationMDMTestSuite) TestListMDMCommands() {
 	require.NoError(t, err)
 	res = s.DoRaw("GET", fmt.Sprintf("/api/latest/fleet/mdm/commands?host_identifier=%s&command_status=ran", h.UUID), nil, http.StatusBadRequest)
 	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, `Currently, "command_status" filter is only available for macOS, iOS, and iPadOS hosts.`)
+	require.Contains(t, errMsg, `"command_status" filter is only available for macOS, iOS, iPadOS, and Android hosts`)
 
 	// per_page above the documented maximum is rejected with a clear message.
 	res = s.DoRaw("GET", "/api/latest/fleet/mdm/commands?per_page=1001", nil, http.StatusBadRequest)
@@ -28531,10 +28531,21 @@ func (s *integrationMDMTestSuite) TestAndroidCustomCommandsListAndResults() {
 	require.NoError(t, err)
 	assert.Equal(t, "android", p)
 
-	// Verify command_status filter is rejected for Android hosts.
-	res := s.DoRaw("GET", fmt.Sprintf("/api/latest/fleet/commands?host_identifier=%s&command_status=ran", hostUUID), nil, http.StatusBadRequest)
-	errMsg := extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, `"command_status" filter is only available for macOS, iOS, and iPadOS hosts`)
+	// Verify command_status filter works for Android hosts.
+	var filteredResp listMDMCommandsResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/commands?host_identifier=%s&command_status=ran", hostUUID), nil, http.StatusOK, &filteredResp)
+	require.Len(t, filteredResp.Results, 1, "command_status=ran should return the acknowledged command")
+	assert.Equal(t, cmdUUID, filteredResp.Results[0].CommandUUID)
+
+	// Filtering by pending should return no results (the command already acked).
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/commands?host_identifier=%s&command_status=pending", hostUUID), nil, http.StatusOK, &filteredResp)
+	require.Empty(t, filteredResp.Results, "command_status=pending should return no results after ack")
+
+	// Verify raw_command stores the original payload (without injected duration).
+	resultsResp = getMDMCommandResultsResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/commands/results?command_uuid=%s", cmdUUID), nil, http.StatusOK, &resultsResp)
+	require.Len(t, resultsResp.Results, 1)
+	assert.JSONEq(t, rebootJSON, string(resultsResp.Results[0].Payload), "raw_command should match the original payload without injected duration")
 }
 
 // fileVaultStatusHelpers returns helpers to drive the host's FileVault profile
