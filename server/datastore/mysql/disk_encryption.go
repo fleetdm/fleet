@@ -603,19 +603,8 @@ WHERE host_id = ? AND request_uuid = ? AND status = ?`
 // bitLockerPINRequestRetention is how long a finished PIN submission is kept so the My device page can show its outcome.
 const bitLockerPINRequestRetention = 24 * time.Hour
 
-// CleanupExpiredBitLockerPINRequests runs on the hourly cleanups cron and does two things.
-//
-// It retires submissions the agent never collected. The TTL stops an old PIN being handed out, but on its own it would
-// leave the ciphertext in place forever, because a host that went offline right after its user submitted never calls
-// the collect path that clears it. Retiring the row discards the secret and tells the waiting page it timed out.
-//
-// It also reaps finished submissions a day after they finish. A set or failed row has no secret left in it, and after
-// a day nobody is waiting on it; keeping it would show the My device page a stale outcome indefinitely. Rows still in
-// delivered are left alone: the agent has the PIN and may yet report, and a late success must still be recorded.
-//
-// The pending flag on the enrollment row is deliberately not touched here. A flag left raised by a retired submission
-// costs at most one wasted round trip, since the agent's collect finds nothing and clears it, whereas lowering it here
-// would mean scanning every Windows enrollment each hour.
+// CleanupExpiredBitLockerPINRequests runs on the hourly cleanups cron. It retires submissions the agent never collected.
+// It also deletes finished submissions a day after they finish.
 func (ds *Datastore) CleanupExpiredBitLockerPINRequests(ctx context.Context) error {
 	const expireStmt = `
 UPDATE host_bitlocker_pin_requests
@@ -626,8 +615,6 @@ WHERE status = ? AND created_at <= DATE_SUB(NOW(6), INTERVAL ? SECOND)`
 		return ctxerr.Wrap(ctx, err, "expire uncollected bitlocker pin requests")
 	}
 
-	// updated_at moves when a row becomes terminal, so this measures from when it finished, not from when it was
-	// submitted. A submission that just expired above therefore survives another full day as a visible timeout.
 	const reapStmt = `
 DELETE FROM host_bitlocker_pin_requests
 WHERE status IN (?, ?) AND updated_at <= DATE_SUB(NOW(6), INTERVAL ? SECOND)`
@@ -638,8 +625,7 @@ WHERE status IN (?, ?) AND updated_at <= DATE_SUB(NOW(6), INTERVAL ? SECOND)`
 	return nil
 }
 
-// DeleteBitLockerPINRequest drops a host's PIN submission. Used when the host's fleet no longer requires a PIN, so a
-// queued request cannot be delivered after the requirement that justified it is gone.
+// DeleteBitLockerPINRequest drops a host's PIN submission.
 func (ds *Datastore) DeleteBitLockerPINRequest(ctx context.Context, host *fleet.Host) error {
 	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
 		if _, err := tx.ExecContext(ctx,
