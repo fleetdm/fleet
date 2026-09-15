@@ -10,6 +10,9 @@ import WindowsMdmPage from "./WindowsMdmPage";
 
 jest.mock("services/entities/config");
 
+const MIGRATION_CHECKBOX_LABEL =
+  "Automatically migrate hosts connected to another MDM solution";
+
 const renderPage = (mdm: Partial<IMdmConfig> = {}, isPremiumTier = true) => {
   const render = createCustomRenderer({
     context: {
@@ -33,10 +36,10 @@ describe("WindowsMdmPage", () => {
     expect(
       screen.queryByText("Turn on MDM programmatically")
     ).not.toBeInTheDocument();
+    expect(screen.queryByText("Default fleet")).not.toBeInTheDocument();
     expect(
-      screen.queryByText("User driven enrollment")
+      screen.queryByText(MIGRATION_CHECKBOX_LABEL)
     ).not.toBeInTheDocument();
-    expect(screen.queryByText("Migration")).not.toBeInTheDocument();
   });
 
   it("renders the programmatic enrollment toggle as disabled when MDM is off", () => {
@@ -46,14 +49,27 @@ describe("WindowsMdmPage", () => {
     expect(screen.getAllByRole("switch")[1]).toBeDisabled();
   });
 
-  it("renders the Migration section when MDM is on programmatically", () => {
+  it("renders the Migration checkbox when MDM is on programmatically", () => {
     renderPage({
       enable_turn_on_windows_mdm_manually: false,
       windows_enabled_and_configured: true,
     });
 
-    expect(screen.getByText("Migration")).toBeVisible();
+    expect(screen.getByText(MIGRATION_CHECKBOX_LABEL)).toBeVisible();
     expect(screen.getByRole("checkbox")).toBeVisible();
+  });
+
+  it("disables the Migration checkbox when programmatic enrollment is off", () => {
+    renderPage({
+      enable_turn_on_windows_mdm_manually: true,
+      windows_enabled_and_configured: true,
+    });
+
+    expect(screen.getByText(MIGRATION_CHECKBOX_LABEL)).toBeVisible();
+    expect(screen.getByRole("checkbox")).toHaveAttribute(
+      "aria-disabled",
+      "true"
+    );
   });
 
   it("disables the default fleet dropdown when Fleet is not connected to Entra", () => {
@@ -62,7 +78,6 @@ describe("WindowsMdmPage", () => {
       windows_entra_tenant_ids: [],
     });
 
-    expect(screen.getByText("User driven enrollment")).toBeVisible();
     expect(screen.getByText("Default fleet")).toBeVisible();
     expect(screen.getByRole("combobox")).toBeDisabled();
   });
@@ -103,7 +118,7 @@ describe("WindowsMdmPage", () => {
   it("does not re-save a stale migration setting when enrollment is manual", async () => {
     (configAPI.updateMDMConfig as jest.Mock).mockResolvedValue({});
     // Inconsistent server state (settable via the API or GitOps): migration
-    // enabled while enrollment is manual, so the Migration checkbox is hidden.
+    // enabled while enrollment is manual, so the Migration checkbox is disabled.
     const { user } = renderPage({
       windows_enabled_and_configured: true,
       enable_turn_on_windows_mdm_manually: true,
@@ -111,7 +126,11 @@ describe("WindowsMdmPage", () => {
       windows_entra_tenant_ids: ["tenant-1"],
     });
 
-    expect(screen.queryByText("Migration")).not.toBeInTheDocument();
+    expect(screen.getByText(MIGRATION_CHECKBOX_LABEL)).toBeVisible();
+    expect(screen.getByRole("checkbox")).toHaveAttribute(
+      "aria-disabled",
+      "true"
+    );
     await user.click(screen.getByRole("button", { name: "Save" }));
 
     expect(configAPI.updateMDMConfig).toHaveBeenCalledWith(
