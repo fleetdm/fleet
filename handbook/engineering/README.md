@@ -149,29 +149,18 @@ Because of this shift, the review effort for any change is the same regardless o
 
 #### Pick up an existing bug or feature
 
-If you want to work on something Fleet has already scoped, pick an issue from the **🥚 Ready** column of a product group's kanban board. Issues in Ready have been triaged, designed, and have enough detail to start implementation.
+If you want to work on a bug or feature that Fleet has already scoped, pick an issue from the **🥚 Ready** column of a product group's kanban board. Issues in Ready have been triaged, designed, and have enough detail to start implementation.
 
 **Do not pick issues from 📨 Inbox or 🦢 Drafting.** Inbox items have not been fully triaged or defined. Bugs may not be reproduced yet, and features may not have gone through design. Starting work on an issue that isn't ready will likely result in wasted effort because the requirements or approach may still change.
 
-Fleet's engineering work is organized across product groups, each with its own public kanban board:
-
-| Product group | What they own | Board |
-|:---|:---|:---|
-| Orchestration | GitOps engine, queries/reports, policies, labels | [Kanban board](https://github.com/orgs/fleetdm/projects/71) |
-| Supply Chain | Software inventory, vulnerability detection | [Kanban board](https://github.com/orgs/fleetdm/projects/97) |
-| Apple at Work | Apple MDM, macOS/iOS/iPadOS setup and config | [Kanban board](https://github.com/orgs/fleetdm/projects/58) |
-| Auto Patching | Fleet-maintained apps, software deploy, scripts | [Kanban board](https://github.com/orgs/fleetdm/projects/70) |
-| Power to the PC | Windows MDM, Windows config and updates | [Kanban board](https://github.com/orgs/fleetdm/projects/106) |
-| BYOD | Android, ChromeOS, Linux, cross-platform enrollment | [Kanban board](https://github.com/orgs/fleetdm/projects/112) |
-| Website | fleetdm.com, docs, handbook | [Kanban board](https://github.com/orgs/fleetdm/projects/92) |
-
-> Issues labeled `~good first issue` are a great starting point if you're new to the codebase.
+Fleet's engineering work is organized across [product groups](https://fleetdm.com/handbook/company/product-groups#current-product-groups), each with its own public kanban board. Every product group's board is linked on the [product groups page](https://fleetdm.com/handbook/company/product-groups#current-product-groups). Browse the board for the group whose area matches the issue you're interested in and look for unassigned issues in the **🥚 Ready** column. Issues labeled `~good first issue` are a great starting point if you're new to the codebase.
 
 To get started:
-1. Browse the boards above and find an unassigned issue in the **🥚 Ready** column.
-2. Comment on the issue to let the team know you'd like to work on it.
-3. Wait for confirmation from the Engineering Manager before starting.
-4. Follow the [pull request etiquette](#pull-request-etiquette) when submitting your change.
+1. Find the relevant product group's kanban board from the [current product groups](https://fleetdm.com/handbook/company/product-groups#current-product-groups) list.
+2. Look for an unassigned issue in the **🥚 Ready** column.
+3. Comment on the issue to let the team know you'd like to work on it.
+4. Wait for confirmation from the Engineering Manager before starting.
+5. Follow the [pull request etiquette](#pull-request-etiquette) when submitting your change.
 
 #### Report a new bug
 
