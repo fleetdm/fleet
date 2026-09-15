@@ -2112,7 +2112,7 @@ software:
 	)
 	require.NoError(t, err)
 	_, err = GitOpsFromFile(path, basePath, &appConfig, nopLogf)
-	assert.ErrorContains(
+	require.ErrorContains(
 		t, err,
 		"install_software.package_path URL https://statics.teams.cdn.office.net/production-osx/enterprise/webview2/lkg/MicrosoftTeams.pkg not found on team",
 	)
