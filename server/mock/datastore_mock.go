@@ -308,6 +308,8 @@ type SetOrUpdateIDPHostDeviceMappingFunc func(ctx context.Context, hostID uint, 
 
 type DeleteHostIDPFunc func(ctx context.Context, id uint) error
 
+type SetOrUpdateEntraJoinHostDeviceMappingFunc func(ctx context.Context, hostID uint, upn string) (bool, error)
+
 type SetOrUpdateHostSCIMUserMappingFunc func(ctx context.Context, hostID uint, scimUserID uint) ([]fleet.ActivityTypeResentCertificate, error)
 
 type DeleteHostSCIMUserMappingFunc func(ctx context.Context, hostID uint) ([]fleet.ActivityTypeResentCertificate, error)
@@ -2846,6 +2848,9 @@ type DataStore struct {
 
 	DeleteHostIDPFunc        DeleteHostIDPFunc
 	DeleteHostIDPFuncInvoked bool
+
+	SetOrUpdateEntraJoinHostDeviceMappingFunc        SetOrUpdateEntraJoinHostDeviceMappingFunc
+	SetOrUpdateEntraJoinHostDeviceMappingFuncInvoked bool
 
 	SetOrUpdateHostSCIMUserMappingFunc        SetOrUpdateHostSCIMUserMappingFunc
 	SetOrUpdateHostSCIMUserMappingFuncInvoked bool
@@ -7010,6 +7015,13 @@ func (s *DataStore) DeleteHostIDP(ctx context.Context, id uint) error {
 	s.DeleteHostIDPFuncInvoked = true
 	s.mu.Unlock()
 	return s.DeleteHostIDPFunc(ctx, id)
+}
+
+func (s *DataStore) SetOrUpdateEntraJoinHostDeviceMapping(ctx context.Context, hostID uint, upn string) (bool, error) {
+	s.mu.Lock()
+	s.SetOrUpdateEntraJoinHostDeviceMappingFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetOrUpdateEntraJoinHostDeviceMappingFunc(ctx, hostID, upn)
 }
 
 func (s *DataStore) SetOrUpdateHostSCIMUserMapping(ctx context.Context, hostID uint, scimUserID uint) ([]fleet.ActivityTypeResentCertificate, error) {
