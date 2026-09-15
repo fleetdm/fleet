@@ -1327,3 +1327,23 @@ func TestFleetDesktopBrowserUrl(t *testing.T) {
 		})
 	}
 }
+
+func TestGetEffectiveQueryReportCap(t *testing.T) {
+	cases := []struct {
+		configCap int
+		hostCount int
+		want      int
+	}{
+		{0, 0, DefaultMaxQueryReportRows},
+		{0, 500, DefaultMaxQueryReportRows},
+		{0, 1000, DefaultMaxQueryReportRows},
+		{0, 1001, 1001},
+		{0, 100_000, 100_000},
+		{5000, 100, 5000},
+		{5000, 6000, 6000},
+	}
+	for _, c := range cases {
+		s := ServerSettings{QueryReportCap: c.configCap}
+		require.Equal(t, c.want, s.GetEffectiveQueryReportCap(c.hostCount), "cap=%d hosts=%d", c.configCap, c.hostCount)
+	}
+}

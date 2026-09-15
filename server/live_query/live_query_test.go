@@ -21,6 +21,7 @@ var testFunctions = [...]func(*testing.T, fleet.LiveQueryStore){
 	testLiveQueryCleanupInactive,
 	testLiveQuerySetBitOnlyIfKeyExists,
 	testLiveQueryResultsCounts,
+	testLiveQueryReportsHostCount,
 }
 
 func testLiveQuery(t *testing.T, store fleet.LiveQueryStore) {
@@ -326,4 +327,26 @@ func testLiveQueryResultsCounts(t *testing.T, store fleet.LiveQueryStore) {
 	counts, err = store.GetQueryResultsCounts(nil)
 	require.NoError(t, err)
 	require.Empty(t, counts)
+}
+
+func testLiveQueryReportsHostCount(t *testing.T, store fleet.LiveQueryStore) {
+	// The key is not covered by the test cleanup key prefix, so reset it
+	// before and after the test.
+	cleanup := func() { require.NoError(t, store.SetQueryReportsHostCount(0)) }
+	cleanup()
+	t.Cleanup(cleanup)
+
+	count, err := store.GetQueryReportsHostCount()
+	require.NoError(t, err)
+	require.Zero(t, count)
+
+	require.NoError(t, store.SetQueryReportsHostCount(12345))
+	count, err = store.GetQueryReportsHostCount()
+	require.NoError(t, err)
+	require.Equal(t, 12345, count)
+
+	require.NoError(t, store.SetQueryReportsHostCount(7))
+	count, err = store.GetQueryReportsHostCount()
+	require.NoError(t, err)
+	require.Equal(t, 7, count)
 }

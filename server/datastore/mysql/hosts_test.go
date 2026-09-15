@@ -214,6 +214,7 @@ func TestHosts(t *testing.T) {
 		{"HostTimeZone", testHostTimeZone},
 		{"ListHostsDEPFilters", testListHostsDEPFilters},
 		{"ExtendHostOrbitDebugUntil", testExtendHostOrbitDebugUntil},
+		{"CountEnrolledHosts", testCountEnrolledHosts},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -6966,7 +6967,7 @@ func testHostsIncludesScheduledQueriesInPackStats(t *testing.T, ds *Datastore) {
 			Data:    ptr.RawMessage(json.RawMessage(`{"foo": "baz"}`)),
 		},
 	}
-	rowsAdded, err := ds.OverwriteQueryResultRows(context.Background(), queryResultRow, fleet.DefaultMaxQueryReportRows)
+	rowsAdded, err := ds.OverwriteQueryResultRows(context.Background(), queryResultRow, fleet.DefaultMaxQueryReportRows, 0)
 	require.Equal(t, 2, rowsAdded)
 	require.NoError(t, err)
 
@@ -7268,7 +7269,7 @@ func testHostsPackStatsNoDuplication(t *testing.T, ds *Datastore) {
 		QueryID: query.ID,
 		HostID:  host.ID,
 		Data:    ptr.RawMessage(json.RawMessage(`{"foo": "bar"}`)),
-	}}, fleet.DefaultMaxQueryReportRows)
+	}}, fleet.DefaultMaxQueryReportRows, 0)
 	require.NoError(t, err)
 
 	// host should still see just one stats entry at this point, despite seeing stats from both queries in the UNION
@@ -13514,7 +13515,7 @@ func testHostsAddToTeamCleansUpTeamQueryResults(t *testing.T, ds *Datastore) {
 		h4Global0Results,
 		h4Query1Results,
 	} {
-		_, err = ds.OverwriteQueryResultRows(ctx, results, fleet.DefaultMaxQueryReportRows)
+		_, err = ds.OverwriteQueryResultRows(ctx, results, fleet.DefaultMaxQueryReportRows, 0)
 		require.NoError(t, err)
 	}
 
@@ -13524,13 +13525,13 @@ func testHostsAddToTeamCleansUpTeamQueryResults(t *testing.T, ds *Datastore) {
 		},
 	}
 
-	rows, err := ds.QueryResultRows(ctx, query0Global.ID, tf)
+	rows, _, _, err := ds.QueryResultRows(ctx, query0Global.ID, tf, fleet.ListOptions{})
 	require.NoError(t, err)
 	require.Len(t, rows, 5)
-	rows, err = ds.QueryResultRows(ctx, query1Team1.ID, tf)
+	rows, _, _, err = ds.QueryResultRows(ctx, query1Team1.ID, tf, fleet.ListOptions{})
 	require.NoError(t, err)
 	require.Len(t, rows, 2)
-	rows, err = ds.QueryResultRows(ctx, query2Team2.ID, tf)
+	rows, _, _, err = ds.QueryResultRows(ctx, query2Team2.ID, tf, fleet.ListOptions{})
 	require.NoError(t, err)
 	require.Len(t, rows, 2)
 
@@ -13545,16 +13546,16 @@ func testHostsAddToTeamCleansUpTeamQueryResults(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// No global query results should be deleted
-	rows, err = ds.QueryResultRows(ctx, query0Global.ID, tf)
+	rows, _, _, err = ds.QueryResultRows(ctx, query0Global.ID, tf, fleet.ListOptions{})
 	require.NoError(t, err)
 	require.Len(t, rows, 5)
 	// Results for h1 should be gone, and results for hostStaticOnTeam1 should be here.
-	rows, err = ds.QueryResultRows(ctx, query1Team1.ID, tf)
+	rows, _, _, err = ds.QueryResultRows(ctx, query1Team1.ID, tf, fleet.ListOptions{})
 	require.NoError(t, err)
 	require.Len(t, rows, 1)
 	require.Equal(t, hostStaticOnTeam1.ID, rows[0].HostID)
 	// Results for h2 and h3 should be gone.
-	rows, err = ds.QueryResultRows(ctx, query2Team2.ID, tf)
+	rows, _, _, err = ds.QueryResultRows(ctx, query2Team2.ID, tf, fleet.ListOptions{})
 	require.NoError(t, err)
 	require.Empty(t, rows)
 
@@ -15194,4 +15195,20 @@ func testExtendHostOrbitDebugUntil(t *testing.T, ds *Datastore) {
 	got, err = ds.Host(ctx, host.ID)
 	require.NoError(t, err)
 	require.True(t, got.OrbitDebugUntil.Equal(later))
+}
+
+func testCountEnrolledHosts(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	count, err := ds.CountEnrolledHosts(ctx)
+	require.NoError(t, err)
+	require.Equal(t, 0, count)
+
+	test.NewHost(t, ds, "alpha.local", "192.168.1.1", "11111", "UI8XB1221", time.Now())
+	test.NewHost(t, ds, "bravo.local", "192.168.1.2", "22222", "UI8XB1222", time.Now())
+	test.NewHost(t, ds, "charlie.local", "192.168.1.3", "33333", "UI8XB1223", time.Now())
+
+	count, err = ds.CountEnrolledHosts(ctx)
+	require.NoError(t, err)
+	require.Equal(t, 3, count)
 }

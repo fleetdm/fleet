@@ -148,7 +148,7 @@ func (svc *Service) ListQueries(ctx context.Context, opt fleet.ListOptions, team
 
 func getQueryReportEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*fleet.GetQueryReportRequest)
-	queryReportResults, reportClipped, err := svc.GetQueryReportResults(ctx, req.ID, req.TeamID)
+	queryReportResults, count, meta, reportClipped, err := svc.GetQueryReportResults(ctx, req.ID, req.TeamID, req.ListOptions)
 	if err != nil {
 		return fleet.GetQueryReportResponse{Err: err}, nil
 	}
@@ -161,50 +161,72 @@ func getQueryReportEndpoint(ctx context.Context, request interface{}, svc fleet.
 		QueryID:       req.ID,
 		Results:       results,
 		ReportClipped: reportClipped,
+		Count:         count,
+		Meta:          meta,
 	}, nil
 }
 
-func (svc *Service) GetQueryReportResults(ctx context.Context, id uint, teamID *uint) ([]fleet.HostQueryResultRow, bool, error) {
+func (svc *Service) GetQueryReportResults(ctx context.Context, id uint, teamID *uint, opts fleet.ListOptions) ([]fleet.HostQueryResultRow, int, *fleet.PaginationMetadata, bool, error) {
 	// Load query first to get its teamID.
 	query, err := svc.ds.Query(ctx, id)
 	if err != nil {
 		setAuthCheckedOnPreAuthErr(ctx)
-		return nil, false, ctxerr.Wrap(ctx, err, "get query from datastore")
+		return nil, 0, nil, false, ctxerr.Wrap(ctx, err, "get query from datastore")
 	}
 	if err := svc.authz.Authorize(ctx, query, fleet.ActionRead); err != nil {
-		return nil, false, err
+		return nil, 0, nil, false, err
 	}
 
 	if query.DiscardData {
-		return nil, false, nil
+		return nil, 0, nil, false, nil
 	}
 
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
-		return nil, false, fleet.ErrNoContext
+		return nil, 0, nil, false, fleet.ErrNoContext
 	}
 	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: true, TeamID: teamID}
 
-	queryReportResultRows, err := svc.ds.QueryResultRows(ctx, id, filter)
+	// Only paginate when the caller asks for a page size; otherwise return every row,
+	// which is what existing API consumers expect.
+	opts.IncludeMetadata = opts.PerPage > 0
+	if opts.OrderKey == "" {
+		opts.OrderKey = "last_fetched"
+		opts.OrderDirection = fleet.OrderDescending
+	}
+
+	queryReportResultRows, count, meta, err := svc.ds.QueryResultRows(ctx, id, filter, opts)
 	if err != nil {
-		return nil, false, ctxerr.Wrap(ctx, err, "get query report results")
+		return nil, 0, nil, false, ctxerr.Wrap(ctx, err, "get query report results")
 	}
 	queryReportResults, err := fleet.MapQueryReportResultsToRows(queryReportResultRows)
 	if err != nil {
-		return nil, false, ctxerr.Wrap(ctx, err, "map db rows to results")
+		return nil, 0, nil, false, ctxerr.Wrap(ctx, err, "map db rows to results")
 	}
-	appConfig, err := svc.ds.AppConfig(ctx)
+	reportClipped, err := svc.QueryReportIsClipped(ctx, id)
 	if err != nil {
-		return nil, false, ctxerr.Wrap(ctx, err, "get app config")
+		return nil, 0, nil, false, ctxerr.Wrap(ctx, err, "check query report is clipped")
 	}
-	reportClipped, err := svc.QueryReportIsClipped(ctx, id, appConfig.ServerSettings.GetQueryReportCap())
-	if err != nil {
-		return nil, false, ctxerr.Wrap(ctx, err, "check query report is clipped")
-	}
-	return queryReportResults, reportClipped, nil
+	return queryReportResults, count, meta, reportClipped, nil
 }
 
-func (svc *Service) QueryReportIsClipped(ctx context.Context, queryID uint, maxQueryReportRows int) (bool, error) {
+// queryReportCap returns the effective report cap, raised to the total host
+// count cached in Redis by the query results cleanup cron. Falls back to the
+// configured cap if the count is unavailable.
+func (svc *Service) queryReportCap(ctx context.Context, serverSettings fleet.ServerSettings) int {
+	hostCount := 0
+	if svc.liveQueryStore != nil {
+		n, err := svc.liveQueryStore.GetQueryReportsHostCount()
+		if err != nil {
+			svc.logger.DebugContext(ctx, "get query reports host count", "err", err)
+		} else {
+			hostCount = n
+		}
+	}
+	return serverSettings.GetEffectiveQueryReportCap(hostCount)
+}
+
+func (svc *Service) QueryReportIsClipped(ctx context.Context, queryID uint) (bool, error) {
 	query, err := svc.ds.Query(ctx, queryID)
 	if err != nil {
 		setAuthCheckedOnPreAuthErr(ctx)
@@ -214,11 +236,15 @@ func (svc *Service) QueryReportIsClipped(ctx context.Context, queryID uint, maxQ
 		return false, err
 	}
 
+	appConfig, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "get app config")
+	}
 	count, err := svc.ds.ResultCountForQuery(ctx, queryID)
 	if err != nil {
 		return false, err
 	}
-	return count >= maxQueryReportRows, nil
+	return count >= svc.queryReportCap(ctx, appConfig.ServerSettings), nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////

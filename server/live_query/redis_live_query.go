@@ -79,14 +79,15 @@ import (
 )
 
 const (
-	bitsInByte              = 8
-	queryKeyPrefix          = "livequery:"
-	sqlKeyPrefix            = "sql:"
-	activeQueriesKey        = "livequery:active"
-	activeReverseQueriesKey = "livequery:active:reverse"
-	reverseHostKeyPrefix    = "livequery:host:"
-	queryExpiration         = 7 * 24 * time.Hour
-	queryResultsCountPrefix = "query_results_count:"
+	bitsInByte               = 8
+	queryKeyPrefix           = "livequery:"
+	sqlKeyPrefix             = "sql:"
+	activeQueriesKey         = "livequery:active"
+	activeReverseQueriesKey  = "livequery:active:reverse"
+	reverseHostKeyPrefix     = "livequery:host:"
+	queryExpiration          = 7 * 24 * time.Hour
+	queryResultsCountPrefix  = "query_results_count:"
+	queryReportsHostCountKey = "query_reports_host_count"
 )
 
 type redisLiveQuery struct {
@@ -927,4 +928,34 @@ func (r *redisLiveQuery) DeleteQueryResultsCount(queryID uint) error {
 	}
 
 	return nil
+}
+
+// SetQueryReportsHostCount stores the total number of hosts used to compute the
+// effective query report cap.
+func (r *redisLiveQuery) SetQueryReportsHostCount(count int) error {
+	conn := redis.ConfigureDoer(r.pool, r.pool.Get())
+	defer conn.Close()
+
+	if _, err := conn.Do("SET", queryReportsHostCountKey, count); err != nil {
+		return fmt.Errorf("set query reports host count: %w", err)
+	}
+
+	return nil
+}
+
+// GetQueryReportsHostCount returns the host count stored by SetQueryReportsHostCount,
+// or 0 if it has not been set yet.
+func (r *redisLiveQuery) GetQueryReportsHostCount() (int, error) {
+	conn := redis.ConfigureDoer(r.pool, r.pool.Get())
+	defer conn.Close()
+
+	count, err := redigo.Int(conn.Do("GET", queryReportsHostCountKey))
+	if err != nil {
+		if errors.Is(err, redigo.ErrNil) {
+			return 0, nil
+		}
+		return 0, fmt.Errorf("get query reports host count: %w", err)
+	}
+
+	return count, nil
 }

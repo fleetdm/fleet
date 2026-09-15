@@ -81,7 +81,7 @@ func setUpBatchResultLogsTest(t *testing.T) (*Service, context.Context, *mock.St
 	ds.QueriesPerHostFunc = func(ctx context.Context, hostID uint, teamID *uint) ([]uint, error) {
 		return nil, nil
 	}
-	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows int) (int, error) {
+	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows, currentCount int) (int, error) {
 		return len(rows), nil
 	}
 	serv := ((svc.(validationMiddleware)).Service).(*Service)
@@ -167,7 +167,7 @@ func TestSubmitResultLogsCappedNamesDoNotBypassScheduleCheck(t *testing.T) {
 			return out, nil
 		}
 		ds.QueriesPerHostFunc = func(ctx context.Context, hostID uint, teamID *uint) ([]uint, error) { return nil, nil }
-		ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, m int) (int, error) {
+		ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, m, currentCount int) (int, error) {
 			return len(rows), nil
 		}
 		logDest := &testJSONLogger{}
@@ -1191,7 +1191,7 @@ func TestSubmitResultLogsToLogDestination(t *testing.T) {
 		return 0, nil
 	}
 	teamQueryResultsStored := false
-	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows int) (int, error) {
+	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows, currentCount int) (int, error) {
 		if len(rows) == 0 {
 			return 0, nil
 		}
@@ -1389,7 +1389,7 @@ func TestSaveResultLogsToQueryReports(t *testing.T) {
 			Logging:     fleet.LoggingSnapshot,
 		},
 	}
-	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows int) (int, error) {
+	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows, currentCount int) (int, error) {
 		return 0, nil
 	}
 	serv.saveResultLogsToQueryReports(ctx, results, discardDataFalse, fleet.DefaultMaxQueryReportRows)
@@ -1398,8 +1398,6 @@ func TestSaveResultLogsToQueryReports(t *testing.T) {
 
 func TestSaveResultLogsToQueryReportsWithTableOverLimit(t *testing.T) {
 	ds := new(mock.Store)
-	// We allow 10% overage on the limit so that the cleanup job helps to rotate the rows.
-	// So we want to do 1000 + 10% + 1 here.
 	liveQueryStore := makeLiveQueryStore(t, 1101)
 	svc, ctx := newTestService(t, ds, nil, liveQueryStore)
 
@@ -1427,14 +1425,76 @@ func TestSaveResultLogsToQueryReportsWithTableOverLimit(t *testing.T) {
 			Logging:     fleet.LoggingSnapshot,
 		},
 	}
-	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows int) (int, error) {
-		return 0, nil
-	}
-	ds.ResultCountForQueryFunc = func(ctx context.Context, queryID uint) (int, error) {
+	// The datastore decides whether the host's rows fit under the cap, so it must
+	// receive the cap and the current count even when the report is full.
+	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows, currentCount int) (int, error) {
+		require.Equal(t, fleet.DefaultMaxQueryReportRows, maxQueryReportRows)
+		require.Equal(t, 1101, currentCount)
 		return 0, nil
 	}
 	serv.saveResultLogsToQueryReports(ctx, results, discardDataFalse, fleet.DefaultMaxQueryReportRows)
-	require.False(t, ds.OverwriteQueryResultRowsFuncInvoked)
+	require.True(t, ds.OverwriteQueryResultRowsFuncInvoked)
+}
+
+func TestSaveResultLogsToQueryReportsSnapshotTooLarge(t *testing.T) {
+	ds := new(mock.Store)
+	liveQueryStore := makeLiveQueryStore(t, 0)
+	svc, ctx := newTestService(t, ds, nil, liveQueryStore)
+	serv := ((svc.(validationMiddleware)).Service).(*Service)
+
+	host := fleet.Host{ID: 42}
+	ctx = hostctx.NewContext(ctx, &host)
+
+	// Two rows whose combined size is just above the per-host byte limit.
+	bigValue := strings.Repeat("a", maxQueryReportSnapshotBytes/2)
+	results := []*fleet.ScheduledQueryResult{
+		{
+			QueryName:     "pack/Global/Big",
+			OsqueryHostID: "1379f59d98f4",
+			Snapshot: []*json.RawMessage{
+				new(json.RawMessage(`{"v":"` + bigValue + `"}`)),
+				new(json.RawMessage(`{"v":"` + bigValue + `"}`)),
+			},
+			UnixTime: 1484078931,
+		},
+	}
+	queries := map[string]*fleet.Query{
+		"pack/Global/Big": {ID: 1, DiscardData: false, Logging: fleet.LoggingSnapshot},
+	}
+
+	var savedRows []*fleet.ScheduledQueryResultRow
+	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows, currentCount int) (int, error) {
+		savedRows = rows
+		dataRows := 0
+		for _, row := range rows {
+			if row.Data != nil {
+				dataRows++
+			}
+		}
+		return dataRows, nil
+	}
+	var incremented map[uint]int
+	liveQueryStore.IncrQueryResultsCountsOverride = func(queryIDsToAmounts map[uint]int) error {
+		incremented = queryIDsToAmounts
+		return nil
+	}
+
+	serv.saveResultLogsToQueryReports(ctx, results, queries, fleet.DefaultMaxQueryReportRows)
+	require.True(t, ds.OverwriteQueryResultRowsFuncInvoked)
+
+	// Only the null placeholder row is stored, and it doesn't count against the cap.
+	require.Len(t, savedRows, 1)
+	require.Nil(t, savedRows[0].Data)
+	require.Equal(t, uint(1), savedRows[0].QueryID)
+	require.Equal(t, uint(42), savedRows[0].HostID)
+	require.Equal(t, map[uint]int{1: 0}, incremented)
+
+	// Just under the limit is stored as-is.
+	results[0].Snapshot = results[0].Snapshot[:1]
+	serv.saveResultLogsToQueryReports(ctx, results, queries, fleet.DefaultMaxQueryReportRows)
+	require.Len(t, savedRows, 1)
+	require.NotNil(t, savedRows[0].Data)
+	require.Equal(t, map[uint]int{1: 1}, incremented)
 }
 
 func TestSubmitResultLogsToQueryResultsWithEmptySnapShot(t *testing.T) {
@@ -1480,7 +1540,7 @@ func TestSubmitResultLogsToQueryResultsWithEmptySnapShot(t *testing.T) {
 		return 0, nil
 	}
 
-	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows int) (int, error) {
+	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows, currentCount int) (int, error) {
 		require.Len(t, rows, 1)
 		require.Equal(t, uint(999), rows[0].HostID)
 		require.NotZero(t, rows[0].LastFetched)
@@ -1536,7 +1596,7 @@ func TestSubmitResultLogsToQueryResultsDoesNotCountNullDataRows(t *testing.T) {
 		return 0, nil
 	}
 
-	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows int) (int, error) {
+	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows, currentCount int) (int, error) {
 		require.Len(t, rows, 1)
 		require.Equal(t, uint(999), rows[0].HostID)
 		require.NotZero(t, rows[0].LastFetched)
@@ -1588,7 +1648,7 @@ func TestSubmitResultLogsQueryNotScheduledForHost(t *testing.T) {
 			}
 			return []uint{reportQueryID}, nil
 		}
-		ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows int) (int, error) {
+		ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows, currentCount int) (int, error) {
 			return len(rows), nil
 		}
 
@@ -1730,7 +1790,7 @@ func TestSubmitResultLogsFail(t *testing.T) {
 	ds.ResultCountForQueryFunc = func(ctx context.Context, queryID uint) (int, error) {
 		return 0, nil
 	}
-	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows int) (int, error) {
+	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows, currentCount int) (int, error) {
 		return 0, nil
 	}
 

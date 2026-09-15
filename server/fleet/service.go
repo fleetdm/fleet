@@ -397,13 +397,16 @@ type Service interface {
 	// included in the results. The inherited count is only meaningful when mergeInherited is true.
 	ListQueries(ctx context.Context, opt ListOptions, teamID *uint, scheduled *bool, mergeInherited bool, platform *string) ([]*Query, int, int, *PaginationMetadata, error)
 	GetQuery(ctx context.Context, id uint) (*Query, error)
-	// GetQueryReportResults returns all the stored results of a query for hosts the requestor has access to.
+	// GetQueryReportResults returns the stored results of a query for hosts the requestor has access
+	// to, along with the total count of matching rows. Pagination metadata is returned only when
+	// opts.PerPage is set.
 	// Returns a boolean indicating whether the report is clipped.
-	GetQueryReportResults(ctx context.Context, id uint, teamID *uint) ([]HostQueryResultRow, bool, error)
+	GetQueryReportResults(ctx context.Context, id uint, teamID *uint, opts ListOptions) (results []HostQueryResultRow, count int, meta *PaginationMetadata, reportClipped bool, err error)
 	// GetHostQueryReportResults returns all stored results of a query for a specific host
 	GetHostQueryReportResults(ctx context.Context, hid uint, queryID uint) (rows []HostQueryReportResult, lastFetched *time.Time, err error)
-	// QueryReportIsClipped returns true if the number of query report rows exceeds the maximum
-	QueryReportIsClipped(ctx context.Context, queryID uint, maxQueryReportRows int) (bool, error)
+	// QueryReportIsClipped returns true if the number of stored report rows has reached the
+	// effective report cap (see ServerSettings.GetEffectiveQueryReportCap).
+	QueryReportIsClipped(ctx context.Context, queryID uint) (bool, error)
 	// ListHostReports returns the reports/queries associated with the given host, filtered,
 	// sorted, and paginated according to opts.
 	ListHostReports(ctx context.Context, hostID uint, opts ListHostReportsOptions) (rows []*HostReport, total int, metadata *PaginationMetadata, err error)
