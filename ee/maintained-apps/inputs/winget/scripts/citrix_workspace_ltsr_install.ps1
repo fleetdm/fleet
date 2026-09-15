@@ -1,8 +1,10 @@
 # Learn more about .exe install scripts:
 # http://fleetdm.com/learn-more-about/exe-install-scripts
 
-# The bootstrap installs components as separate MSI transactions, so -Wait
-# can't be used; poll for the core entry and for msiexec to go idle.
+# The bootstrap hands components off as separate MSI transactions, so the exe's
+# own exit doesn't mean install is done; poll for the core entry and for
+# msiexec to go idle. Only an LTSR entry counts, so an existing Current
+# Release install doesn't register as this one finishing.
 
 $softwareName = "Citrix Workspace Inside"
 $paths = @(
@@ -21,7 +23,8 @@ function Test-CitrixWorkspaceInstalled {
 
   foreach ($key in $uninstallKeys) {
     if ($key.DisplayName -eq $softwareName `
-        -and $key.Publisher -eq "Citrix Systems, Inc.") {
+        -and $key.Publisher -eq "Citrix Systems, Inc." `
+        -and $key.InstallSource -like '*\Ctx-*') {
       return $true
     }
   }
@@ -30,9 +33,14 @@ function Test-CitrixWorkspaceInstalled {
 
 try {
 
-Start-Process -FilePath "${env:INSTALLER_PATH}" `
+$process = Start-Process -FilePath "${env:INSTALLER_PATH}" `
   -ArgumentList "/silent /noreboot /AutoUpdateCheck=disabled" `
-  -PassThru | Out-Null
+  -PassThru -Wait
+
+if ($process.ExitCode -ne 0) {
+  Write-Host "Installer exited with code $($process.ExitCode)"
+  Exit $process.ExitCode
+}
 
 $elapsed = 0
 $stableChecks = 0
