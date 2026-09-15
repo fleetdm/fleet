@@ -19,19 +19,12 @@ func TestGetDiskEncryptionPINDetails(t *testing.T) {
 	for _, tc := range []struct {
 		name         string
 		status       int
-		body         string
 		wantPIN      string
 		wantUUID     string
 		wantNotFound bool
 	}{
-		{
-			name:     "collected",
-			status:   http.StatusOK,
-			body:     mustJSON(t, fleet.OrbitGetDiskEncryptionPINDetailsResponse{PIN: pin, RequestUUID: "request-uuid"}),
-			wantPIN:  pin,
-			wantUUID: "request-uuid",
-		},
-		{name: "nothing to collect", status: http.StatusNotFound, body: `{"message":"not found"}`, wantNotFound: true},
+		{name: "collected", status: http.StatusOK, wantPIN: pin, wantUUID: "request-uuid"},
+		{name: "nothing to collect", status: http.StatusNotFound, wantNotFound: true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			var gotNodeKey string
@@ -41,7 +34,14 @@ func TestGetDiskEncryptionPINDetails(t *testing.T) {
 				assert.NoError(t, json.NewDecoder(r.Body).Decode(&req))
 				gotNodeKey = req.OrbitNodeKey
 				w.WriteHeader(tc.status)
-				_, _ = w.Write([]byte(tc.body))
+				if tc.wantNotFound {
+					_, _ = w.Write([]byte(`{"message":"not found"}`))
+					return
+				}
+				assert.NoError(t, json.NewEncoder(w).Encode(fleet.OrbitGetDiskEncryptionPINDetailsResponse{
+					PIN:         tc.wantPIN,
+					RequestUUID: tc.wantUUID,
+				}))
 			}))
 			defer srv.Close()
 
@@ -104,11 +104,4 @@ func TestSetDiskEncryptionPINResult(t *testing.T) {
 			}, got)
 		})
 	}
-}
-
-func mustJSON(t *testing.T, v any) string {
-	t.Helper()
-	b, err := json.Marshal(v)
-	require.NoError(t, err)
-	return string(b)
 }

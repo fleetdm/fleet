@@ -135,8 +135,7 @@ func ensureBootUnsealProtector(hasBootProtector func() (bool, error), addTPMProt
 	return addTPMProtector()
 }
 
-// Reasons a startup PIN could not be set. The My device page shows them as "Couldn't set PIN. {reason}. Try again or
-// contact your IT admin.", so each is a short sentence-case phrase without a trailing period.
+// Reasons a startup PIN could not be set.
 const (
 	PINReasonAlreadySet        = "PIN already set"
 	PINReasonWindowsServer     = "Windows Server isn't supported"
@@ -152,9 +151,8 @@ const (
 	PINReasonNotFinished       = "Windows couldn't finish setting the PIN"
 )
 
-// PINError is a failure to set a startup PIN. It never contains the PIN.
+// PINError is a failure to set a startup PIN.
 type PINError struct {
-	// Reason is safe to show the end user; see the PINReason constants.
 	Reason string
 	Err    error
 }
@@ -208,8 +206,8 @@ type pinProtectorVolume interface {
 }
 
 // setTPMAndPINProtector adds a TPM and PIN protector to a protected, fully encrypted volume and removes its TPM-only
-// protectors, which would otherwise unseal the volume at boot without the PIN. If anything fails after the add, the volume
-// is put back as it was found, unless that would leave it with no boot protector.
+// protectors. If anything fails after the add, the volume is put back as it was found, unless that would leave it with
+// no boot protector.
 func setTPMAndPINProtector(vol pinProtectorVolume, pin string) error {
 	status, err := vol.getBitlockerStatus()
 	if err != nil {
