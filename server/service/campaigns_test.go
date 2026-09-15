@@ -33,6 +33,10 @@ func (nopLiveQuery) QueryCompletedByHost(name string, hostID uint) error {
 	return nil
 }
 
+func (nopLiveQuery) IsQueryTargetingHost(name string, hostID uint) (bool, error) {
+	return true, nil
+}
+
 func (nopLiveQuery) CleanupInactiveQueries(ctx context.Context, inactiveCampaignIDs []uint) error {
 	return nil
 }

@@ -87,6 +87,7 @@ func TestStreamCampaignResultsClosesReditOnWSClose(t *testing.T) {
 		nil,
 	)
 	lq.On("QueryCompletedByHost", strconv.Itoa(int(campaign.ID)), host.ID).Return(nil)
+	lq.On("IsQueryTargetingHost", strconv.Itoa(int(campaign.ID)), host.ID).Return(true, nil)
 	lq.On("RunQuery", "0", "select year, month, day, hour, minutes, seconds from time", []uint{1}).Return(nil)
 	viewerCtx := viewer.NewContext(ctx, viewer.Viewer{
 		User: &fleet.User{

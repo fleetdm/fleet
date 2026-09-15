@@ -21,6 +21,7 @@ var testFunctions = [...]func(*testing.T, fleet.LiveQueryStore){
 	testLiveQueryCleanupInactive,
 	testLiveQuerySetBitOnlyIfKeyExists,
 	testLiveQueryResultsCounts,
+	testLiveQueryIsQueryTargetingHost,
 }
 
 func testLiveQuery(t *testing.T, store fleet.LiveQueryStore) {
@@ -326,4 +327,32 @@ func testLiveQueryResultsCounts(t *testing.T, store fleet.LiveQueryStore) {
 	counts, err = store.GetQueryResultsCounts(nil)
 	require.NoError(t, err)
 	require.Empty(t, counts)
+}
+
+func testLiveQueryIsQueryTargetingHost(t *testing.T, store fleet.LiveQueryStore) {
+	targeted, err := store.IsQueryTargetingHost("test", 1)
+	require.NoError(t, err)
+	assert.False(t, targeted, "unknown campaign")
+
+	require.NoError(t, store.RunQuery("test", "select 1", []uint{1, 3}))
+
+	for _, hostID := range []uint{1, 3} {
+		targeted, err = store.IsQueryTargetingHost("test", hostID)
+		require.NoError(t, err)
+		assert.True(t, targeted, "targeted host %d", hostID)
+	}
+	targeted, err = store.IsQueryTargetingHost("test", 2)
+	require.NoError(t, err)
+	assert.False(t, targeted, "host not in targets")
+	targeted, err = store.IsQueryTargetingHost("other", 1)
+	require.NoError(t, err)
+	assert.False(t, targeted, "targeted host, different campaign")
+
+	require.NoError(t, store.QueryCompletedByHost("test", 1))
+	targeted, err = store.IsQueryTargetingHost("test", 1)
+	require.NoError(t, err)
+	assert.False(t, targeted, "host that already completed the query")
+	targeted, err = store.IsQueryTargetingHost("test", 3)
+	require.NoError(t, err)
+	assert.True(t, targeted, "other host unaffected by completion")
 }

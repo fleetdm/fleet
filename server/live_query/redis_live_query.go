@@ -394,6 +394,42 @@ func (r *redisLiveQuery) collectBatchQueriesForHost(hostID uint, queryKeys []str
 	return nil
 }
 
+func (r *redisLiveQuery) IsQueryTargetingHost(name string, hostID uint) (bool, error) {
+	// Check the per-host set and the bitfield rather than using the cache to
+	// decide which one holds this campaign: a stale cache would reject legitimate
+	// results. Stale per-host entries for stopped campaigns only exist for hosts
+	// that were targeted, so accepting them is safe. The two keys hash to
+	// different cluster slots, so each gets its own connection.
+	isMember, err := r.isReverseMember(name, hostID)
+	if err != nil {
+		return false, err
+	}
+	if isMember {
+		return true, nil
+	}
+
+	conn := redis.ReadOnlyConn(r.pool, r.pool.Get())
+	defer conn.Close()
+
+	targetKey, _ := generateKeys(name)
+	targeted, err := redigo.Int(conn.Do("GETBIT", targetKey, hostID))
+	if err != nil {
+		return false, fmt.Errorf("getbit query targets: %w", err)
+	}
+	return targeted == 1, nil
+}
+
+func (r *redisLiveQuery) isReverseMember(name string, hostID uint) (bool, error) {
+	conn := redis.ReadOnlyConn(r.pool, r.pool.Get())
+	defer conn.Close()
+
+	isMember, err := redigo.Bool(conn.Do("SISMEMBER", reverseHostKey(hostID), name))
+	if err != nil && err != redigo.ErrNil {
+		return false, fmt.Errorf("sismember reverse host key: %w", err)
+	}
+	return isMember, nil
+}
+
 func (r *redisLiveQuery) QueryCompletedByHost(name string, hostID uint) error {
 	conn := redis.ConfigureDoer(r.pool, r.pool.Get())
 	defer conn.Close()
