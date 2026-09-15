@@ -28,5 +28,6 @@ controls:
     grace_period_days: null
   scripts:
 policies:
+  - path: ../lib/all/policies/laravel-lang-supply-chain-compromised-packages.yml
 reports:
 software:
