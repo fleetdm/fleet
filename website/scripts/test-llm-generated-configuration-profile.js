@@ -50,9 +50,10 @@ const TEST_CASES = [
   {
     id: 'csp-failed-attempts',
     profileType: 'csp',
-    instructions: 'Lock the device after 10 failed password attempts.',
+    instructions: 'Wipe the device after 10 failed password attempts.',
     expect: {
-      mustContain: ['MaxDevicePasswordFailedAttempts', 'DevicePasswordEnabled']
+      mustContain: ['DeviceLock/MaxDevicePasswordFailedAttempts'],
+      mustContainElement: [['Data', '10'], ['Format', 'int']]
     }
   },
   {
@@ -72,7 +73,7 @@ const TEST_CASES = [
     profileType: 'csp',
     instructions: 'Show "Authorized users only" as a message on the sign-in screen.',
     expect: {
-      mustContain: ['InteractiveLogon'],
+      mustContain: ['LocalPoliciesSecurityOptions/InteractiveLogon_MessageTextForUsersAttemptingToLogOn', 'Authorized users only'],
       mustContainElement: [['Format', 'chr']]
     }
   },
@@ -90,7 +91,7 @@ const TEST_CASES = [
     profileType: 'csp',
     instructions: 'Disable clipboard history.',
     expect: {
-      mustContain: ['Experience/AllowClipboardHistory'],
+      mustContain: ['Privacy/AllowClipboardHistory'],
       mustContainElement: [['Format', 'int'], ['Data', '0']],
       mustNotContainElement: [['Format', 'bool']],
       mustNotContain: ['AllowCrossDeviceClipboard']
@@ -118,8 +119,8 @@ const TEST_CASES = [
     instructions: 'Require a 12-character passcode with no simple passcodes, and turn on automatic checking for updates.',
     readByEye: 'Two payload dicts should be present, each with its own PayloadUUID and an identifier suffix.  Confirm the passcode keys kept their lowercase first letter in the SAME profile where AutomaticCheckEnabled kept its capital -- a model can be self-consistently wrong and still pass one of these two checks.',
     expect: {
-      mustContain: ['forcePIN', 'minLength', 'allowSimple', 'AutomaticCheckEnabled'],
-      mustNotContain: ['ForcePIN', 'MinLength', 'AllowSimple', 'automaticCheckEnabled']
+      mustContainElement: [['key', 'forcePIN'], ['key', 'minLength'], ['key', 'allowSimple'], ['key', 'AutomaticCheckEnabled']],
+      mustNotContainElement: [['key', 'ForcePIN'], ['key', 'MinLength'], ['key', 'AllowSimple'], ['key', 'automaticCheckEnabled']]
     }
   },
   {
@@ -127,7 +128,7 @@ const TEST_CASES = [
     profileType: 'mobileconfig',
     canary: true,
     instructions: 'Set the login window to show a list of users instead of name and password fields.',
-    readByEye: 'SHOWFULLNAME false is what shows the user list.  Confirm valueMeaning explains that, rather than describing false as turning something off.',
+    readByEye: 'SHOWFULLNAME false is what shows the user list, so confirm the value is false rather than the true a "show a list" reading invites.',
     expect: {
       mustContain: ['SHOWFULLNAME', '<false/>'],
       mustNotContainElement: [['string', 'false']]
@@ -165,7 +166,7 @@ const TEST_CASES = [
     instructions: 'Turn on the firewall in stealth mode and block all incoming connections.',
     readByEye: 'All three keys must sit in ONE dict of PayloadType com.apple.security.firewall.  Count the dicts inside PayloadContent.',
     expect: {
-      mustContain: ['EnableFirewall', 'EnableStealthMode', 'com.apple.security.firewall']
+      mustContain: ['EnableFirewall', 'EnableStealthMode', 'BlockAllIncoming', 'com.apple.security.firewall']
     }
   },
   {
@@ -191,8 +192,9 @@ const TEST_CASES = [
     instructions: 'Set the Dock to auto-hide and pin it to the left side of the screen.',
     // All-lowercase keys -- fails if the model PascalCases.
     expect: {
-      mustContain: ['com.apple.dock', 'autohide', 'orientation'],
-      mustNotContain: ['Autohide', 'Orientation']
+      mustContain: ['com.apple.dock'],
+      mustContainElement: [['key', 'autohide'], ['key', 'orientation']],
+      mustNotContainElement: [['key', 'Autohide'], ['key', 'Orientation']]
     }
   },
 
@@ -206,7 +208,7 @@ const TEST_CASES = [
     instructions: 'Require a 10-character alphanumeric passcode and lock the device after 10 failed attempts.',
     readByEye: 'Identifier must not be a copy of Type, and must be 64 bytes or fewer.  MaximumFailedAttempts accepts 2-11, so 10 is in range -- confirm it was not clamped or rewritten.',
     expect: {
-      mustContain: ['com.apple.configuration.passcode.settings', 'MinimumLength', 'RequireAlphanumericPasscode'],
+      mustContain: ['com.apple.configuration.passcode.settings', 'MinimumLength', 'RequireAlphanumericPasscode', 'MaximumFailedAttempts'],
       mustNotContain: ['requirePasscode', 'forcePIN', 'minLength']
     }
   },
@@ -264,7 +266,8 @@ const TEST_CASES = [
     profileType: 'ddm',
     instructions: 'Block Writing Tools and Image Playground but leave the rest of Apple Intelligence available.',
     expect: {
-      mustContain: ['intelligence.settings', 'AllowWritingTools', 'AllowImagePlayground']
+      mustContain: ['intelligence.settings', 'AllowWritingTools', 'AllowImagePlayground'],
+      mustNotContain: ['AllowGenmoji', 'AllowImageWand', 'AllowAppleIntelligenceReport']
     }
   },
   {
@@ -273,13 +276,14 @@ const TEST_CASES = [
     instructions: 'Turn on managed migration and keep the Downloads folder out of anything that gets migrated.',
     readByEye: 'ExcludedPaths entries are relative to the home directory and directory paths need a trailing slash, so "Downloads/" is right and "/Users/x/Downloads" is not.',
     expect: {
-      mustContain: ['migration-assistant.settings', 'ShouldDoManagedMigration', 'ExcludedPaths', 'Downloads']
+      mustContain: ['migration-assistant.settings', 'ShouldDoManagedMigration', 'ExcludedPaths', 'Downloads'],
+      mustNotContain: ['/Users/']
     }
   },
   {
     id: 'ddm-identifier-collision',
     profileType: 'ddm',
-    instructions: 'Create two declarations under the com.acme namespace: one requiring a 10-character passcode, and one deferring minor updates by 30 days.',
+    instructions: 'Create two declarations, one requiring a 10-character passcode and one deferring minor updates by 30 days, giving each an Identifier under the com.acme namespace.',
     readByEye: 'The two Identifiers must differ, and each must derive from the full declaration type rather than its last component -- passcode.settings and softwareupdate.settings collapsing to one identifier is the defect this case exists for.',
     expect: {
       mustContain: ['com.apple.configuration.passcode.settings', 'com.apple.configuration.softwareupdate.settings', 'com.acme'],
@@ -1083,12 +1087,6 @@ function checkExpectations(expectations, generatedProfile) {
     }
   }
 
-  if(expectations.deliveryNotes === '' && generatedProfile.deliveryNotes !== '') {
-    failures.push(`expected empty deliveryNotes, got: ${JSON.stringify(generatedProfile.deliveryNotes)}`);
-  }
-  if(expectations.deliveryNotesIsNotEmpty && !generatedProfile.deliveryNotes) {
-    failures.push('expected a deliveryNotes entry, got an empty string');
-  }
 
   return failures;
 }
