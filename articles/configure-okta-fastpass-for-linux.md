@@ -1,7 +1,5 @@
 # Configure Okta FastPass for Linux
 
-_Available in Fleet Premium_
-
 Okta's FastPass can require a managed device, confirmed by a certificate from MDM, in addition to a verified user. This guide installs Okta Verify and deploys that device certificate with Fleet, so Linux hosts meet the same managed-device requirement as macOS and Windows. 
 
 See Okta's [Okta Verify for Linux release notes](https://help.okta.com/oie/en-us/content/topics/releasenotes/ov/ov-release-notes-linux.htm) for supported Linux distributions and what's new in each release.
