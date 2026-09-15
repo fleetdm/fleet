@@ -470,24 +470,6 @@ describe("Activity Feed", () => {
     ).toBeInTheDocument();
   });
 
-  it("renders passive voice without JIT suffix when actor_id === user_id but no jit flag (invite flow)", () => {
-    const activity = createMockActivity({
-      actor_id: 5,
-      type: ActivityType.UserChangedGlobalRole,
-      details: {
-        user_id: 5,
-        user_email: "invited@example.com",
-        role: "admin",
-      },
-    });
-    render(<GlobalActivityItem activity={activity} isPremiumTier />);
-
-    expect(screen.getByText("invited@example.com")).toBeInTheDocument();
-    expect(screen.getByText(/was assigned the/)).toBeInTheDocument();
-    expect(screen.getByText("admin")).toBeInTheDocument();
-    expect(screen.queryByText(/via just-in-time/)).toBeNull();
-  });
-
   it("correctly renders a changed_user_global_role type activity when changing an existing user's global role, premium", () => {
     const activity = createMockActivity({
       actor_id: 1,

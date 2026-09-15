@@ -161,10 +161,8 @@ const getMacOSSetupAssistantMessage = (
   );
 };
 
-const isSelfActorRoleActivity = (activity: IActivity): boolean =>
-  !!activity.details?.jit ||
-  (activity.actor_id != null &&
-    activity.actor_id === activity.details?.user_id);
+const isPassiveRoleActivity = (activity: IActivity): boolean =>
+  !!activity.details?.jit || activity.actor_id === activity.details?.user_id;
 
 const TAGGED_TEMPLATES = {
   liveQueryActivityTemplate: (activity: IActivity) => {
@@ -335,7 +333,7 @@ const TAGGED_TEMPLATES = {
   userChangedGlobalRole: (activity: IActivity, isPremiumTier: boolean) => {
     const { user_email, role, jit } = activity.details || {};
 
-    if (isSelfActorRoleActivity(activity)) {
+    if (isPassiveRoleActivity(activity)) {
       return (
         <>
           was assigned the <b>{role}</b> role
@@ -354,7 +352,7 @@ const TAGGED_TEMPLATES = {
   userDeletedGlobalRole: (activity: IActivity, isPremiumTier: boolean) => {
     const { user_email, role, jit } = activity.details || {};
 
-    if (isSelfActorRoleActivity(activity)) {
+    if (isPassiveRoleActivity(activity)) {
       return (
         <>
           was removed as <b>{role}</b>
@@ -373,7 +371,7 @@ const TAGGED_TEMPLATES = {
   userChangedTeamRole: (activity: IActivity) => {
     const { user_email, role, team_name, jit } = activity.details || {};
 
-    if (isSelfActorRoleActivity(activity)) {
+    if (isPassiveRoleActivity(activity)) {
       return (
         <>
           was assigned the <b>{role}</b> role for the <b>{team_name}</b> fleet
@@ -391,7 +389,7 @@ const TAGGED_TEMPLATES = {
   userDeletedTeamRole: (activity: IActivity) => {
     const { user_email, team_name, jit } = activity.details || {};
 
-    if (isSelfActorRoleActivity(activity)) {
+    if (isPassiveRoleActivity(activity)) {
       return (
         <>
           was removed from the <b>{team_name}</b> fleet
@@ -2958,7 +2956,7 @@ const GlobalActivityItem = ({
       case ActivityType.UserDeletedGlobalRole:
       case ActivityType.UserChangedTeamRole:
       case ActivityType.UserDeletedTeamRole:
-        return isSelfActorRoleActivity(activity) ? (
+        return isPassiveRoleActivity(activity) ? (
           <b>{activity.details?.user_email} </b>
         ) : (
           DEFAULT_ACTOR_DISPLAY
