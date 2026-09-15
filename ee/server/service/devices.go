@@ -211,15 +211,11 @@ func (svc *Service) GetFleetDesktopSummary(ctx context.Context) (fleet.DesktopSu
 	}
 
 	// Fleet Desktop prompts the end user to create a BitLocker startup PIN, but only when this host's fleetd can
-	// actually apply one. On an older agent the My device page keeps the Manage BitLocker instructions instead, and a
-	// toast offering a form that host cannot honor would be worse than no toast.
+	// actually apply one.
 	if host.FleetPlatform() == "windows" {
 		needsPIN, err := svc.hostNeedsBitLockerPINPrompt(ctx, host)
 		if err != nil {
-			// Best-effort: the summary also drives the tray menu and the MDM migration prompt, and a failure in this one
-			// feature must not break them. The prompt is simply offered on a later poll.
-			svc.logger.ErrorContext(ctx, "checking whether to prompt for a bitlocker pin", "host_id", host.ID, "err", err)
-			ctxerr.Handle(ctx, err)
+			return sum, ctxerr.Wrap(ctx, err, "checking whether to prompt for a bitlocker pin")
 		}
 		sum.Notifications.NeedsBitLockerPIN = needsPIN
 	}

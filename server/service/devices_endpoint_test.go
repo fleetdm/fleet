@@ -286,8 +286,8 @@ func TestGetDeviceHostEndpointNoScrubbingForMacOS(t *testing.T) {
 	assert.False(t, deviceResp.License.Expiration.IsZero())
 }
 
-// TestGetDeviceHostEndpointBitLockerPINState checks that a failure reading the BitLocker PIN state does not break the My
-// device page. That the fields never appear for other platforms is covered by TestBitLockerPINHandoff, where Apple MDM is
+// TestGetDeviceHostEndpointBitLockerPINState checks that a failure reading the BitLocker PIN state fails the My device
+// page. That the fields never appear for other platforms is covered by TestBitLockerPINHandoff, where Apple MDM is
 // configured for real and a macOS host carries os_settings.
 func TestGetDeviceHostEndpointBitLockerPINState(t *testing.T) {
 	newSvc := func(t *testing.T, platform string) (*mock.Store, fleet.Service, context.Context) {
@@ -341,16 +341,14 @@ func TestGetDeviceHostEndpointBitLockerPINState(t *testing.T) {
 		return deviceResp
 	}
 
-	t.Run("failure reading the PIN state does not fail the page", func(t *testing.T) {
+	t.Run("failure reading the PIN state fails the page", func(t *testing.T) {
 		ds, svc, ctx := newSvc(t, "windows")
+		lookupErr := errors.New("enrollment lookup failed")
 		ds.GetMDMWindowsHostConfigStateFunc = func(ctx context.Context, hostUUID string) (*fleet.MDMWindowsHostConfigState, error) {
-			return nil, errors.New("enrollment lookup failed")
+			return nil, lookupErr
 		}
 
-		deviceResp := callEndpoint(t, ctx, svc)
-		require.NoError(t, deviceResp.Err, "every Windows end user's device page must survive a failure in this optional feature")
-		require.NotNil(t, deviceResp.Host)
-		require.True(t, ds.GetMDMWindowsHostConfigStateFuncInvoked)
+		require.ErrorIs(t, callEndpoint(t, ctx, svc).Err, lookupErr)
 	})
 }
 

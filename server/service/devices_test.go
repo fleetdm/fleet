@@ -555,6 +555,7 @@ func TestGetFleetDesktopSummary(t *testing.T) {
 			capable           bool
 			statusErr         error
 			actionRequired    *fleet.ActionRequiredState
+			wantErr           bool
 			wantPrompt        bool
 			wantStateQueried  bool
 			wantStatusQueried bool
@@ -588,9 +589,10 @@ func TestGetFleetDesktopSummary(t *testing.T) {
 				wantStateQueried: true, wantStatusQueried: true,
 			},
 			{
-				name:           "status lookup failure does not fail the summary",
+				name:           "status lookup failure fails the summary",
 				windowsEnabled: true, pinRequired: true, capable: true,
 				statusErr:        errors.New("bitlocker status unavailable"),
+				wantErr:          true,
 				wantStateQueried: true, wantStatusQueried: true,
 			},
 		} {
@@ -623,8 +625,12 @@ func TestGetFleetDesktopSummary(t *testing.T) {
 
 				ctx = test.HostContext(ctx, &fleet.Host{ID: 1, UUID: "win-uuid", Platform: "windows", OsqueryHostID: new("win")})
 				sum, err := svc.GetFleetDesktopSummary(ctx)
-				require.NoError(t, err)
-				assert.Equal(t, tc.wantPrompt, sum.Notifications.NeedsBitLockerPIN)
+				if tc.wantErr {
+					require.ErrorIs(t, err, tc.statusErr)
+				} else {
+					require.NoError(t, err)
+					assert.Equal(t, tc.wantPrompt, sum.Notifications.NeedsBitLockerPIN)
+				}
 				assert.Equal(t, tc.wantStateQueried, ds.GetMDMWindowsHostConfigStateFuncInvoked, "enrollment row queried")
 				assert.Equal(t, tc.wantStatusQueried, ds.GetMDMWindowsBitLockerStatusFuncInvoked, "bitlocker status queried")
 			})
