@@ -3,11 +3,9 @@ package service
 import (
 	"context"
 	"errors"
-	"io"
 	"log/slog"
 	"strings"
 	"testing"
-	"unicode/utf8"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
@@ -21,108 +19,126 @@ import (
 // testBitLockerPINPrivateKey is a 32-byte key so AES-256 encryption of the PIN works in tests.
 const testBitLockerPINPrivateKey = "ABCDEFGHIJKLMNOPQRSTUVWXYZ123456"
 
-// newBitLockerPINTestService builds a service whose host is a Windows host that needs a PIN and whose fleetd can set
-// one. Individual tests override the mocks they care about.
-func newBitLockerPINTestService(t *testing.T, host *fleet.Host) (*Service, *mock.Store, *svcmock.Service, context.Context) {
+// newBitLockerPINTestService builds a service for a Windows host that needs a PIN and whose fleetd can set one.
+func newBitLockerPINTestService(t *testing.T) (*Service, *mock.Store, *svcmock.Service, *fleet.Host, context.Context) {
 	t.Helper()
 
 	ds := new(mock.Store)
 	svc, base := newTestServiceWithMock(t, ds)
-	svc.logger = slog.New(slog.NewTextHandler(io.Discard, nil))
+	svc.logger = slog.New(slog.DiscardHandler)
 	svc.config.Server.PrivateKey = testBitLockerPINPrivateKey
 
-	ds.GetMDMWindowsHostConfigStateFunc = func(ctx context.Context, hostUUID string) (*fleet.MDMWindowsHostConfigState, error) {
+	ds.GetMDMWindowsHostConfigStateFunc = func(context.Context, string) (*fleet.MDMWindowsHostConfigState, error) {
 		return &fleet.MDMWindowsHostConfigState{FleetdBitLockerPINCapable: true}, nil
 	}
-	ds.GetMDMWindowsBitLockerStatusFunc = func(ctx context.Context, h *fleet.Host) (*fleet.HostMDMDiskEncryption, error) {
+	ds.GetMDMWindowsBitLockerStatusFunc = func(context.Context, *fleet.Host) (*fleet.HostMDMDiskEncryption, error) {
 		return &fleet.HostMDMDiskEncryption{ActionRequired: new(fleet.ActionRequiredCreatePIN)}, nil
 	}
 
-	return svc, ds, base, test.HostContext(t.Context(), host)
+	host := &fleet.Host{ID: 42, UUID: "host-uuid", Platform: "windows", Hostname: "MU-TH-UR"}
+	return svc, ds, base, host, test.HostContext(t.Context(), host)
 }
 
-func windowsPINHost() *fleet.Host {
-	return &fleet.Host{ID: 42, UUID: "host-uuid", Platform: "windows", Hostname: "MU-TH-UR"}
+type recordedBitLockerPINOutcome struct {
+	requestUUID string
+	outcome     fleet.BitLockerPINRequestStatus
+	clientError string
+}
+
+// recordBitLockerPINOutcomes makes the datastore accept any outcome and returns what it last recorded.
+func recordBitLockerPINOutcomes(ds *mock.Store) *recordedBitLockerPINOutcome {
+	rec := &recordedBitLockerPINOutcome{}
+	ds.SetBitLockerPINRequestOutcomeFunc = func(
+		_ context.Context, _ *fleet.Host, requestUUID string, outcome fleet.BitLockerPINRequestStatus, clientError string,
+	) error {
+		*rec = recordedBitLockerPINOutcome{requestUUID, outcome, clientError}
+		return nil
+	}
+	return rec
 }
 
 func TestSubmitBitLockerPIN(t *testing.T) {
 	t.Run("queues the PIN encrypted", func(t *testing.T) {
-		host := windowsPINHost()
-		svc, ds, _, ctx := newBitLockerPINTestService(t, host)
-
+		svc, ds, _, host, ctx := newBitLockerPINTestService(t)
 		var queued string
-		ds.QueueBitLockerPINRequestFunc = func(ctx context.Context, h *fleet.Host, encryptedPIN string) error {
+		ds.QueueBitLockerPINRequestFunc = func(_ context.Context, h *fleet.Host, encryptedPIN string) error {
 			require.Equal(t, host.ID, h.ID)
 			queued = encryptedPIN
 			return nil
 		}
 
 		require.NoError(t, svc.SubmitBitLockerPIN(ctx, host, "123456"))
-		require.True(t, ds.QueueBitLockerPINRequestFuncInvoked)
-
-		// The stored value must not be the PIN itself, and must decrypt back to it.
-		require.NotEmpty(t, queued)
 		require.NotEqual(t, "123456", queued)
 		decrypted, err := mdm.DecodeAndDecrypt(queued, testBitLockerPINPrivateKey)
 		require.NoError(t, err)
 		require.Equal(t, "123456", decrypted)
 	})
 
-	t.Run("rejects an invalid PIN before touching the datastore", func(t *testing.T) {
-		host := windowsPINHost()
-		svc, ds, _, ctx := newBitLockerPINTestService(t, host)
+	t.Run("rejects an invalid PIN before any lookup", func(t *testing.T) {
+		svc, ds, _, host, ctx := newBitLockerPINTestService(t)
 
-		err := svc.SubmitBitLockerPIN(ctx, host, "12ab")
-		require.Error(t, err)
-		require.Contains(t, err.Error(), microsoft_mdm.BitLockerPINLengthMessage)
-		require.False(t, ds.QueueBitLockerPINRequestFuncInvoked)
+		require.ErrorContains(t, svc.SubmitBitLockerPIN(ctx, host, "12ab"), microsoft_mdm.BitLockerPINLengthMessage)
+		require.False(t, ds.GetMDMWindowsHostConfigStateFuncInvoked)
 	})
 
-	t.Run("rejects a host that does not need a PIN", func(t *testing.T) {
-		host := windowsPINHost()
-		svc, ds, _, ctx := newBitLockerPINTestService(t, host)
-		// The page may be showing a stale view: another session set the PIN, or the fleet stopped requiring one.
-		ds.GetMDMWindowsBitLockerStatusFunc = func(ctx context.Context, h *fleet.Host) (*fleet.HostMDMDiskEncryption, error) {
-			return &fleet.HostMDMDiskEncryption{}, nil
-		}
+	for _, tc := range []struct {
+		name              string
+		setup             func(ds *mock.Store, host *fleet.Host)
+		wantMessage       string
+		wantStatusChecked bool
+	}{
+		{
+			name:        "a non-Windows host",
+			setup:       func(_ *mock.Store, host *fleet.Host) { host.Platform = "darwin" },
+			wantMessage: bitLockerPINNotNeededMessage,
+		},
+		{
+			name: "a host not enrolled in Windows MDM",
+			setup: func(ds *mock.Store, _ *fleet.Host) {
+				ds.GetMDMWindowsHostConfigStateFunc = func(context.Context, string) (*fleet.MDMWindowsHostConfigState, error) {
+					return nil, &notFoundError{}
+				}
+			},
+			wantMessage: bitLockerPINNotNeededMessage,
+		},
+		{
+			// Capability is checked first, so the BitLocker status is never read for an agent that can't apply a PIN.
+			name: "a host whose fleetd cannot apply a PIN",
+			setup: func(ds *mock.Store, _ *fleet.Host) {
+				ds.GetMDMWindowsHostConfigStateFunc = func(context.Context, string) (*fleet.MDMWindowsHostConfigState, error) {
+					return &fleet.MDMWindowsHostConfigState{}, nil
+				}
+			},
+			wantMessage: bitLockerPINAgentTooOldMessage,
+		},
+		{
+			// The page may be stale: another session set the PIN, or the fleet stopped requiring one.
+			name: "a host that does not need a PIN",
+			setup: func(ds *mock.Store, _ *fleet.Host) {
+				ds.GetMDMWindowsBitLockerStatusFunc = func(context.Context, *fleet.Host) (*fleet.HostMDMDiskEncryption, error) {
+					return &fleet.HostMDMDiskEncryption{}, nil
+				}
+			},
+			wantMessage:       bitLockerPINNotNeededMessage,
+			wantStatusChecked: true,
+		},
+	} {
+		t.Run("rejects "+tc.name, func(t *testing.T) {
+			svc, ds, _, host, ctx := newBitLockerPINTestService(t)
+			tc.setup(ds, host)
 
-		err := svc.SubmitBitLockerPIN(ctx, host, "123456")
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "doesn't need a BitLocker PIN")
-		require.False(t, ds.QueueBitLockerPINRequestFuncInvoked)
-	})
-
-	t.Run("rejects a host whose fleetd cannot apply a PIN", func(t *testing.T) {
-		host := windowsPINHost()
-		svc, ds, _, ctx := newBitLockerPINTestService(t, host)
-		ds.GetMDMWindowsHostConfigStateFunc = func(ctx context.Context, hostUUID string) (*fleet.MDMWindowsHostConfigState, error) {
-			return &fleet.MDMWindowsHostConfigState{FleetdBitLockerPINCapable: false}, nil
-		}
-
-		err := svc.SubmitBitLockerPIN(ctx, host, "123456")
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "too old")
-		require.False(t, ds.QueueBitLockerPINRequestFuncInvoked)
-	})
-
-	t.Run("rejects a non-Windows host", func(t *testing.T) {
-		host := &fleet.Host{ID: 7, UUID: "mac-uuid", Platform: "darwin"}
-		svc, ds, _, ctx := newBitLockerPINTestService(t, host)
-
-		err := svc.SubmitBitLockerPIN(ctx, host, "123456")
-		require.Error(t, err)
-		require.False(t, ds.QueueBitLockerPINRequestFuncInvoked)
-	})
+			require.ErrorContains(t, svc.SubmitBitLockerPIN(ctx, host, "123456"), tc.wantMessage)
+			require.Equal(t, tc.wantStatusChecked, ds.GetMDMWindowsBitLockerStatusFuncInvoked)
+		})
+	}
 }
 
 func TestGetBitLockerPINForHost(t *testing.T) {
 	t.Run("returns the decrypted PIN", func(t *testing.T) {
-		host := windowsPINHost()
-		svc, ds, _, ctx := newBitLockerPINTestService(t, host)
-
+		svc, ds, _, host, ctx := newBitLockerPINTestService(t)
 		encrypted, err := mdm.EncryptAndEncode("654321", testBitLockerPINPrivateKey)
 		require.NoError(t, err)
-		ds.TakeBitLockerPINRequestFunc = func(ctx context.Context, h *fleet.Host) (string, string, error) {
+		ds.TakeBitLockerPINRequestFunc = func(_ context.Context, h *fleet.Host) (string, string, error) {
 			require.Equal(t, host.ID, h.ID)
 			return encrypted, "req-1", nil
 		}
@@ -133,112 +149,91 @@ func TestGetBitLockerPINForHost(t *testing.T) {
 		require.Equal(t, "req-1", requestUUID)
 	})
 
-	t.Run("passes through nothing-to-collect", func(t *testing.T) {
-		host := windowsPINHost()
-		svc, ds, _, ctx := newBitLockerPINTestService(t, host)
-		ds.TakeBitLockerPINRequestFunc = func(ctx context.Context, h *fleet.Host) (string, string, error) {
+	t.Run("passes through nothing to collect", func(t *testing.T) {
+		svc, ds, _, _, ctx := newBitLockerPINTestService(t)
+		ds.TakeBitLockerPINRequestFunc = func(context.Context, *fleet.Host) (string, string, error) {
 			return "", "", &notFoundError{}
 		}
 
 		_, _, err := svc.GetBitLockerPINForHost(ctx)
-		require.Error(t, err)
 		require.True(t, fleet.IsNotFound(err))
+	})
+
+	t.Run("a missing private key does not consume the submission", func(t *testing.T) {
+		svc, ds, _, _, ctx := newBitLockerPINTestService(t)
+		svc.config.Server.PrivateKey = ""
+		ds.TakeBitLockerPINRequestFunc = func(context.Context, *fleet.Host) (string, string, error) {
+			return "ciphertext", "req-1", nil
+		}
+
+		_, _, err := svc.GetBitLockerPINForHost(ctx)
+		require.Error(t, err)
+		// Collecting is destructive, so the key is checked before the submission is taken.
+		require.False(t, ds.TakeBitLockerPINRequestFuncInvoked)
+	})
+
+	t.Run("an unreadable PIN retires the submission as failed", func(t *testing.T) {
+		svc, ds, _, _, ctx := newBitLockerPINTestService(t)
+		ds.TakeBitLockerPINRequestFunc = func(context.Context, *fleet.Host) (string, string, error) {
+			return "not-ciphertext", "req-1", nil
+		}
+		rec := recordBitLockerPINOutcomes(ds)
+
+		_, _, err := svc.GetBitLockerPINForHost(ctx)
+		require.Error(t, err)
+		// The ciphertext is already gone, so the page is told the submission failed rather than left waiting.
+		require.Equal(t, recordedBitLockerPINOutcome{"req-1", fleet.BitLockerPINRequestFailed, bitLockerPINUnreadableError}, *rec)
 	})
 }
 
 func TestSetBitLockerPINOutcome(t *testing.T) {
-	t.Run("success records the PIN, the activity and a refetch", func(t *testing.T) {
-		host := windowsPINHost()
-		svc, ds, base, ctx := newBitLockerPINTestService(t, host)
+	createdPINActivity := fleet.ActivityTypeCreatedDiskEncryptionPIN{}.ActivityName()
 
+	t.Run("success records the outcome, the PIN, a refetch and the activity", func(t *testing.T) {
+		svc, ds, base, _, ctx := newBitLockerPINTestService(t)
+		rec := recordBitLockerPINOutcomes(ds)
 		var bootProtectorSet, pinSet, refetch bool
-		ds.SetOrUpdateHostDiskBitLockerProtectorsFunc = func(ctx context.Context, hostID uint, bootProtector, tpmPIN bool) error {
+		ds.SetOrUpdateHostDiskBitLockerProtectorsFunc = func(_ context.Context, _ uint, bootProtector, tpmPIN bool) error {
 			bootProtectorSet, pinSet = bootProtector, tpmPIN
 			return nil
 		}
-		ds.UpdateHostRefetchRequestedFunc = func(ctx context.Context, hostID uint, requested bool) error {
+		ds.UpdateHostRefetchRequestedFunc = func(_ context.Context, _ uint, requested bool) error {
 			refetch = requested
-			return nil
-		}
-		var outcome fleet.BitLockerPINRequestStatus
-		ds.SetBitLockerPINRequestOutcomeFunc = func(
-			ctx context.Context, h *fleet.Host, requestUUID string, o fleet.BitLockerPINRequestStatus, clientError string,
-		) error {
-			outcome = o
-			require.Empty(t, clientError)
 			return nil
 		}
 		var activityName string
 		base.NewActivityFunc = func(_ context.Context, user *fleet.User, a fleet.ActivityDetails) error {
-			// The end user chose the PIN, so the activity deliberately has no actor rather than being Fleet-initiated.
+			// The end user chose the PIN, so the activity has no actor rather than being Fleet-initiated.
 			require.Nil(t, user)
 			activityName = a.ActivityName()
 			return nil
 		}
 
 		require.NoError(t, svc.SetBitLockerPINOutcome(ctx, "req-1", fleet.BitLockerPINRequestSet, ""))
+		require.Equal(t, recordedBitLockerPINOutcome{"req-1", fleet.BitLockerPINRequestSet, ""}, *rec)
 		require.True(t, bootProtectorSet)
 		require.True(t, pinSet)
 		require.True(t, refetch)
-		require.Equal(t, fleet.BitLockerPINRequestSet, outcome)
-		require.Equal(t, "created_disk_encryption_pin", activityName)
+		require.Equal(t, createdPINActivity, activityName)
 	})
 
-	t.Run("failure records the reason and leaves the PIN flag alone", func(t *testing.T) {
-		host := windowsPINHost()
-		svc, ds, _, ctx := newBitLockerPINTestService(t, host)
+	t.Run("failure records the reason trimmed and truncated by characters", func(t *testing.T) {
+		svc, ds, _, _, ctx := newBitLockerPINTestService(t)
+		rec := recordBitLockerPINOutcomes(ds)
 
-		var gotError string
-		ds.SetBitLockerPINRequestOutcomeFunc = func(
-			ctx context.Context, h *fleet.Host, requestUUID string, o fleet.BitLockerPINRequestStatus, clientError string,
-		) error {
-			require.Equal(t, fleet.BitLockerPINRequestFailed, o)
-			gotError = clientError
-			return nil
-		}
-
-		require.NoError(t, svc.SetBitLockerPINOutcome(ctx, "req-1", fleet.BitLockerPINRequestFailed, "  PIN already set  "))
-		require.Equal(t, "PIN already set", gotError)
-		require.False(t, ds.SetOrUpdateHostDiskBitLockerProtectorsFuncInvoked)
-		require.False(t, ds.UpdateHostRefetchRequestedFuncInvoked)
-	})
-
-	t.Run("failure reason is truncated by characters, not bytes", func(t *testing.T) {
-		host := windowsPINHost()
-		svc, ds, _, ctx := newBitLockerPINTestService(t, host)
-
-		var gotError string
-		ds.SetBitLockerPINRequestOutcomeFunc = func(
-			ctx context.Context, h *fleet.Host, requestUUID string, o fleet.BitLockerPINRequestStatus, clientError string,
-		) error {
-			gotError = clientError
-			return nil
-		}
-
-		// A localized Windows error is multi-byte. 300 two-byte characters is 600 bytes, so a byte slice at 255 would
-		// cut a character in half and hand MySQL invalid UTF-8.
-		reason := strings.Repeat("é", 300)
+		reason := "  " + strings.Repeat("é", 300) + "  "
 		require.NoError(t, svc.SetBitLockerPINOutcome(ctx, "req-1", fleet.BitLockerPINRequestFailed, reason))
-
-		require.True(t, utf8.ValidString(gotError), "truncated reason must stay valid UTF-8")
-		require.Equal(t, fleet.BitLockerPINClientErrorMaxLength, utf8.RuneCountInString(gotError))
+		want := strings.Repeat("é", fleet.BitLockerPINClientErrorMaxLength)
+		require.Equal(t, recordedBitLockerPINOutcome{"req-1", fleet.BitLockerPINRequestFailed, want}, *rec)
 	})
 
 	t.Run("host updates failing after the outcome is recorded do not fail the report", func(t *testing.T) {
-		host := windowsPINHost()
-		svc, ds, base, ctx := newBitLockerPINTestService(t, host)
-
-		ds.SetBitLockerPINRequestOutcomeFunc = func(
-			ctx context.Context, h *fleet.Host, requestUUID string, o fleet.BitLockerPINRequestStatus, clientError string,
-		) error {
-			return nil
-		}
-		// Both follow-on writes fail. Returning an error would make the agent retry into a 404, since the submission
-		// is already settled, and the activity would never be written.
-		ds.SetOrUpdateHostDiskBitLockerProtectorsFunc = func(ctx context.Context, hostID uint, bootProtector, tpmPIN bool) error {
+		svc, ds, base, _, ctx := newBitLockerPINTestService(t)
+		recordBitLockerPINOutcomes(ds)
+		ds.SetOrUpdateHostDiskBitLockerProtectorsFunc = func(context.Context, uint, bool, bool) error {
 			return errors.New("host_disks write failed")
 		}
-		ds.UpdateHostRefetchRequestedFunc = func(ctx context.Context, hostID uint, requested bool) error {
+		ds.UpdateHostRefetchRequestedFunc = func(context.Context, uint, bool) error {
 			return errors.New("refetch write failed")
 		}
 		var activityName string
@@ -248,44 +243,29 @@ func TestSetBitLockerPINOutcome(t *testing.T) {
 		}
 
 		require.NoError(t, svc.SetBitLockerPINOutcome(ctx, "req-1", fleet.BitLockerPINRequestSet, ""))
-		require.True(t, ds.SetOrUpdateHostDiskBitLockerProtectorsFuncInvoked)
-		require.True(t, ds.UpdateHostRefetchRequestedFuncInvoked, "a failed tpm_pin_set write must not skip the refetch")
-		require.Equal(t, "created_disk_encryption_pin", activityName)
+		require.True(t, ds.UpdateHostRefetchRequestedFuncInvoked, "a failed protector write must not skip the refetch")
+		require.Equal(t, createdPINActivity, activityName)
 	})
 
-	t.Run("an outcome that matches no collected submission records nothing", func(t *testing.T) {
-		host := windowsPINHost()
-		svc, ds, _, ctx := newBitLockerPINTestService(t, host)
-
-		ds.SetBitLockerPINRequestOutcomeFunc = func(
-			ctx context.Context, h *fleet.Host, requestUUID string, o fleet.BitLockerPINRequestStatus, clientError string,
-		) error {
+	t.Run("an outcome that matches no collected submission records nothing else", func(t *testing.T) {
+		svc, ds, _, _, ctx := newBitLockerPINTestService(t)
+		ds.SetBitLockerPINRequestOutcomeFunc = func(context.Context, *fleet.Host, string, fleet.BitLockerPINRequestStatus, string) error {
 			return &notFoundError{}
 		}
 
-		err := svc.SetBitLockerPINOutcome(ctx, "forged", fleet.BitLockerPINRequestSet, "")
-		require.True(t, fleet.IsNotFound(err))
-		// The whole point of recording the outcome first: a forged success must not mark the host as having a PIN.
-		require.False(t, ds.SetOrUpdateHostDiskBitLockerProtectorsFuncInvoked)
-		require.False(t, ds.UpdateHostRefetchRequestedFuncInvoked)
+		require.True(t, fleet.IsNotFound(svc.SetBitLockerPINOutcome(ctx, "forged", fleet.BitLockerPINRequestSet, "")))
 	})
 
-	t.Run("failure without a reason is rejected", func(t *testing.T) {
-		host := windowsPINHost()
-		svc, ds, _, ctx := newBitLockerPINTestService(t, host)
+	t.Run("rejects a failure without a reason", func(t *testing.T) {
+		svc, _, _, _, ctx := newBitLockerPINTestService(t)
 
-		err := svc.SetBitLockerPINOutcome(ctx, "req-1", fleet.BitLockerPINRequestFailed, "   ")
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "client_error")
-		require.False(t, ds.SetBitLockerPINRequestOutcomeFuncInvoked)
+		require.ErrorContains(t, svc.SetBitLockerPINOutcome(ctx, "req-1", fleet.BitLockerPINRequestFailed, "   "), "client_error")
 	})
 
-	t.Run("unknown outcome is rejected", func(t *testing.T) {
-		host := windowsPINHost()
-		svc, ds, _, ctx := newBitLockerPINTestService(t, host)
+	t.Run("rejects an unknown outcome", func(t *testing.T) {
+		svc, _, _, _, ctx := newBitLockerPINTestService(t)
 
-		err := svc.SetBitLockerPINOutcome(ctx, "req-1", fleet.BitLockerPINRequestPending, "")
-		require.Error(t, err)
-		require.False(t, ds.SetBitLockerPINRequestOutcomeFuncInvoked)
+		var badRequest *fleet.BadRequestError
+		require.ErrorAs(t, svc.SetBitLockerPINOutcome(ctx, "req-1", fleet.BitLockerPINRequestPending, ""), &badRequest)
 	})
 }

@@ -20,6 +20,12 @@ import (
 // it, and reports back. Only the agent can collect it. An uncollected PIN is cleared by the hourly cleanups cron after its TTL,
 // so the worst case is the TTL plus an hour.
 
+const (
+	bitLockerPINNotNeededMessage   = "This host doesn't need a BitLocker PIN."
+	bitLockerPINAgentTooOldMessage = "Fleet's agent on this host is too old to set a BitLocker PIN. Update fleetd and try again."
+	bitLockerPINUnreadableError    = "Fleet could not read the submitted PIN. Try again."
+)
+
 func (svc *Service) SubmitBitLockerPIN(ctx context.Context, host *fleet.Host, pin string) error {
 	// The device auth token in the URL is the authorization for this endpoint; there is no Fleet user.
 	svc.authz.SkipAuthorization(ctx)
@@ -31,7 +37,7 @@ func (svc *Service) SubmitBitLockerPIN(ctx context.Context, host *fleet.Host, pi
 	// Re-check eligibility on submit rather than trusting the page, which may be showing a stale view of a host whose
 	// fleet stopped requiring a PIN, or whose PIN another session already set. The capability is checked first because
 	// it comes off a cheap row, and an agent that can't apply a PIN makes the BitLocker status irrelevant.
-	notNeeded := &fleet.BadRequestError{Message: "This host doesn't need a BitLocker PIN."}
+	notNeeded := &fleet.BadRequestError{Message: bitLockerPINNotNeededMessage}
 	if host.FleetPlatform() != "windows" {
 		return notNeeded
 	}
@@ -42,7 +48,7 @@ func (svc *Service) SubmitBitLockerPIN(ctx context.Context, host *fleet.Host, pi
 	case err != nil:
 		return ctxerr.Wrap(ctx, err, "get windows mdm config state for bitlocker pin")
 	case !state.FleetdBitLockerPINCapable:
-		return &fleet.BadRequestError{Message: "Fleet's agent on this host is too old to set a BitLocker PIN. Update fleetd and try again."}
+		return &fleet.BadRequestError{Message: bitLockerPINAgentTooOldMessage}
 	}
 	de, err := svc.ds.GetMDMWindowsBitLockerStatus(ctx, host)
 	if err != nil {
@@ -131,7 +137,7 @@ func (svc *Service) GetBitLockerPINForHost(ctx context.Context) (string, string,
 	if err != nil {
 		// The ciphertext is already gone, so nothing can rescue this submission. Retire it as failed.
 		if outcomeErr := svc.ds.SetBitLockerPINRequestOutcome(ctx, host, requestUUID,
-			fleet.BitLockerPINRequestFailed, "Fleet could not read the submitted PIN. Try again."); outcomeErr != nil {
+			fleet.BitLockerPINRequestFailed, bitLockerPINUnreadableError); outcomeErr != nil {
 			svc.logger.ErrorContext(ctx, "retiring undecryptable bitlocker pin request", "err", outcomeErr)
 		}
 		return "", "", ctxerr.Wrap(ctx, err, "internal error: could not decrypt BitLocker PIN")
