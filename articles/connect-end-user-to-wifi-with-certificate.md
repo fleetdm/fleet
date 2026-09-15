@@ -618,18 +618,18 @@ Enforcing IdP validation using `idp_oauth_url` and `idp_token` is optional. If e
 
 ### Step 4: Renew or restore the certificate automatically
 
-Linux isn't covered by Fleet's [automatic certificate renewal](#renewal). The script-only package in Step 3 only runs once, during setup experience, so it won't fix a certificate that's later deleted or expires. Add the same script to **Controls > Scripts** and trigger it from a policy. That way, Fleet keeps checking every host and renews the certificate automatically if it's missing or about to expire.
+Linux isn't covered by Fleet's [automatic certificate renewal](#renewal). The script-only package in Step 3 only installs once, during setup experience, so it won't fix a certificate that's later deleted or expires. Wire that same package to a policy, so Fleet reinstalls it, and renews the certificate, whenever a host fails the check.
 
-1. In Fleet, head to **Controls > Scripts**, select the fleet, and upload the same script from Step 3.
-2. Head to **Policies** and select **Add policy**. Use the following query to detect whether the certificate is missing or expires in the next 30 days:
+1. In Fleet, head to **Policies** and select **Add policy**. Use the following query to detect whether the certificate is missing or expires in the next 30 days:
 
 ```sql
 SELECT 1 FROM certificates WHERE path = '/opt/company/certificate.pem' AND not_valid_after > (CAST(strftime('%s', 'now') AS INTEGER) + 2592000);
 ```
 
-3. Select **Save**, target only **Linux**, then select **Save** again.
-4. On the **Policies** page, select **Manage automations > Scripts**. Select your new policy, then in the dropdown, choose the script you uploaded in step 1.
-5. Now, any host missing `/opt/company/certificate.pem`, or whose certificate expires within 30 days, fails the policy and Fleet reruns the script to renew it.
+2. Select **Save**, target only **Linux**, then select **Save** again.
+3. On the **Policies** page, select **Manage automations**, then select **Install software**.
+4. Select your new policy, then in the dropdown, choose the script-only package you uploaded in Step 3.
+5. Now, any host missing `/opt/company/certificate.pem`, or whose certificate expires within 30 days, fails the policy, and Fleet reinstalls the package to renew it.
 
 ## Any SCEP (Simple Certificate Enrollment Protocol) CA
 
@@ -965,18 +965,18 @@ Enforcing IdP validation using `idp_oauth_url` and `idp_token` is optional. If e
 
 ### Step 4: Renew or restore the certificate automatically
 
-Linux isn't covered by Fleet's [automatic certificate renewal](#renewal). The script-only package in Step 3 only runs once, during setup experience, so it won't fix a certificate that's later deleted or expires. Add the same script to **Controls > Scripts** and trigger it from a policy. That way, Fleet keeps checking every host and renews the certificate automatically if it's missing or about to expire.
+Linux isn't covered by Fleet's [automatic certificate renewal](#renewal). The script-only package in Step 3 only installs once, during setup experience, so it won't fix a certificate that's later deleted or expires. Wire that same package to a policy, so Fleet reinstalls it, and renews the certificate, whenever a host fails the check.
 
-1. In Fleet, head to **Controls > Scripts**, select the fleet, and upload the same script from Step 3.
-2. Head to **Policies** and select **Add policy**. Use the following query to detect whether the certificate is missing or expires in the next 30 days:
+1. In Fleet, head to **Policies** and select **Add policy**. Use the following query to detect whether the certificate is missing or expires in the next 30 days:
 
 ```sql
 SELECT 1 FROM certificates WHERE path = '/opt/company/certificate.pem' AND not_valid_after > (CAST(strftime('%s', 'now') AS INTEGER) + 2592000);
 ```
 
-3. Select **Save**, target only **Linux**, then select **Save** again.
-4. On the **Policies** page, select **Manage automations > Scripts**. Select your new policy, then in the dropdown, choose the script you uploaded in step 1.
-5. Now, any host missing `/opt/company/certificate.pem`, or whose certificate expires within 30 days, fails the policy and Fleet reruns the script to renew it.
+2. Select **Save**, target only **Linux**, then select **Save** again.
+3. On the **Policies** page, select **Manage automations**, then select **Install software**.
+4. Select your new policy, then in the dropdown, choose the script-only package you uploaded in Step 3.
+5. Now, any host missing `/opt/company/certificate.pem`, or whose certificate expires within 30 days, fails the policy, and Fleet reinstalls the package to renew it.
 
 ## Renewal
 
