@@ -356,6 +356,13 @@ Many companies encourage salespeople to ["spray and pray"](https://www.linkedin.
 - **Step up.** We look at the [🟠 big picture](https://fleetdm.com/handbook/company#ownership).  The goal is for the organization using Fleet to be successful, as well as the individuals who decide to use or buy the product.  There are multiple versions of Fleet, and so many ways to "do" open-source security and IT.  It is in the company's best interest to help engineers pick the right one; even if that's Fleet Free, or another solution altogether.  We think about our customer's needs like they are our own.
 
 
+## Why short emails?
+
+Short emails that stick to a single ask tend to get better responses, since everyone's inbox is already overwhelming. When an email bundles in more than one link or question, it's easy to put off, leave marked as unread, and start to feel more like homework than something to act quickly on. 
+
+Learn more in this [confidential whiteboard](https://docs.google.com/document/d/1MPj4WPFPr5uSbrGoymAjjijdBSAyEB2Tq6qFxs9UKV0/edit?tab=t.0).
+
+
 ## Why work with customer X?
 
 At Fleet, we inspire ourselves to be helpers to everyone, even if some might disagree with their personal beliefs or particular OKRs of their organization.  Fleet is open source so everyone can use it and contribute.  And the company is built by different contributors from many walks of life and with unique perspectives.

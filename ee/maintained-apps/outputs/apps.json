@@ -6498,6 +6498,13 @@
       "description": "Origami Studio is a tool to design tool for interactive interfaces."
     },
     {
+      "name": "Orion",
+      "slug": "orion/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.kagi.kagimacOS",
+      "description": "Orion is a WebKit-based web browser."
+    },
+    {
       "name": "P4V",
       "slug": "p4v/darwin",
       "platform": "darwin",
@@ -7196,6 +7203,13 @@
       "platform": "darwin",
       "unique_identifier": "com.interversehq.qView",
       "description": "qView is an image viewer."
+    },
+    {
+      "name": "R for macOS",
+      "slug": "r/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.R-project.R",
+      "description": "R for macOS is a free software environment for statistical computing and graphics."
     },
     {
       "name": "R for Windows",
