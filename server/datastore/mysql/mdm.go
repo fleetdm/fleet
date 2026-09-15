@@ -336,9 +336,9 @@ WHERE ` + whereTeam
 
 	if len(listOpts.Filters.CommandStatuses) > 0 {
 		for _, h := range dest {
-			if !fleet.ClassicMDMSupported(h.Platform) || h.Platform == "windows" {
+			if h.Platform == "windows" {
 				return nil, nil, nil, &fleet.BadRequestError{
-					Message: `Currently, "command_status" filter is only available for macOS, iOS, and iPadOS hosts.`,
+					Message: `Currently, "command_status" filter is not available for Windows hosts.`,
 				}
 			}
 		}
@@ -494,9 +494,9 @@ SELECT
     c.updated_at,
     c.status,
     CASE c.status
-        WHEN 'pending' THEN 'pending'
-        WHEN 'acknowledged' THEN 'ran'
-        WHEN 'error' THEN 'failed'
+        WHEN 'Pending' THEN 'pending'
+        WHEN 'Acknowledged' THEN 'ran'
+        WHEN 'Error' THEN 'failed'
         ELSE 'pending'
     END AS command_status,
     c.command_type AS request_type,
@@ -510,6 +510,7 @@ WHERE c.host_uuid IN (?)`
 			androidStmt += " AND c.command_type = ?"
 			androidParams = append(androidParams, listOpts.Filters.RequestType)
 		}
+		androidStmt, androidParams = addAndroidCommandStatusFilter(androidStmt, &listOpts.Filters, androidParams)
 		androidStmt, androidParams, err = sqlx.In(androidStmt, androidParams...)
 		if err != nil {
 			return nil, nil, nil, ctxerr.Wrap(ctx, err, "prepare query to list MDM commands for Android devices")
@@ -627,6 +628,27 @@ func addAppleCommandStatusFilter(stmt string, filter *fleet.MDMCommandFilters, p
 				stmt += " COALESCE(NULLIF(ncr.status, ''), 'Pending') = 'Error'"
 			}
 
+		}
+		stmt += ")"
+	}
+	return stmt, params
+}
+
+func addAndroidCommandStatusFilter(stmt string, filter *fleet.MDMCommandFilters, params []any) (string, []any) {
+	if len(filter.CommandStatuses) > 0 {
+		stmt += " AND ("
+		for i, status := range filter.CommandStatuses {
+			if i > 0 {
+				stmt += " OR "
+			}
+			switch status {
+			case fleet.MDMCommandStatusFilterPending:
+				stmt += " c.status = 'Pending'"
+			case fleet.MDMCommandStatusFilterRan:
+				stmt += " c.status = 'Acknowledged'"
+			case fleet.MDMCommandStatusFilterFailed:
+				stmt += " c.status = 'Error'"
+			}
 		}
 		stmt += ")"
 	}
