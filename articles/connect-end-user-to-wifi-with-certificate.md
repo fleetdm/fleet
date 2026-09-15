@@ -888,7 +888,7 @@ The following steps show how to deploy certificates from any certificate authori
 
 The flow for EST is similar to Hydrant, and differs from the other certificate authorities. While other CAs in Fleet use a configuration profile to request a certificate, EST uses:
 - A script-only software package that makes a request to Fleet's [`POST /request_certificate`](https://fleetdm.com/docs/rest-api/rest-api#request-certificate) API endpoint and installs at enrollment.
-- A custom policy that triggers the same script on hosts whose certificate is missing or expiring, so it's automatically reissued.
+- A custom policy that triggers the same script on hosts whose certificate is missing or expiring, so it's automatically renewed.
 
 ### Step 1: Obtain API credentials
 
