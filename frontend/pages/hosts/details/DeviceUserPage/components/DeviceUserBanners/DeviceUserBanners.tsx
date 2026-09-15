@@ -4,7 +4,6 @@ import React from "react";
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
 import InfoBanner from "components/InfoBanner";
-import { isAutomaticDeviceEnrollment } from "interfaces/mdm";
 import {
   isAppleDevice,
   isDiskEncryptionSupportedLinuxPlatform,
@@ -67,39 +66,6 @@ const DeviceUserBanners = ({
     macDiskEncryptionStatus === "action_required" &&
     !isNewMdmEnrollment;
 
-  // ADE-enrolled hosts are told to refetch rather than log out, but only when a
-  // key rotation is what's pending; the other reasons have no key to fetch
-  const isAdeKeyRotationPending =
-    diskEncryptionActionRequired === "rotate_key" &&
-    isAutomaticDeviceEnrollment(mdmEnrollmentStatus);
-
-  const macDiskEncryptionMessage = () => {
-    if (diskEncryptionActionRequired === "turn_on_encryption") {
-      return (
-        <>
-          Disk encryption: Disk encryption is turned off. Contact your IT admin
-          for additional instructions.
-        </>
-      );
-    }
-    if (isAdeKeyRotationPending) {
-      return (
-        <>
-          Disk encryption: Refetch to ensure data is safeguarded in case your
-          device is lost or stolen. If this banner persists, contact your IT
-          admin.
-        </>
-      );
-    }
-    return (
-      <>
-        Disk encryption: Log out of your device or restart it to safeguard your
-        data in case your device is lost or stolen. After, select{" "}
-        <strong>Refetch</strong> to clear this banner.
-      </>
-    );
-  };
-
   const turnOnMdmButton = mdmManualEnrolmentUrl ? (
     <CustomLink
       url={mdmManualEnrolmentUrl}
@@ -142,7 +108,20 @@ const DeviceUserBanners = ({
 
     if (showMacDiskEncryptionActionRequired) {
       return (
-        <InfoBanner color="yellow">{macDiskEncryptionMessage()}</InfoBanner>
+        <InfoBanner color="yellow">
+          {diskEncryptionActionRequired === "turn_on_encryption" ? (
+            <>
+              Disk encryption: Disk encryption is turned off. Contact your IT
+              admin for additional instructions.
+            </>
+          ) : (
+            <>
+              Disk encryption: Log out of your device or restart it to safeguard
+              your data in case your device is lost or stolen. After, select{" "}
+              <strong>Refetch</strong> to clear this banner.
+            </>
+          )}
+        </InfoBanner>
       );
     }
 
