@@ -1,0 +1,1 @@
+- Rejected Android MDM commands that Google only supports on company-owned devices (`REBOOT`, `RELINQUISH_OWNERSHIP`, `START_LOST_MODE`, and `STOP_LOST_MODE`) when they target a personally-owned (BYOD) host, instead of reporting them as running when the device would never carry them out.
