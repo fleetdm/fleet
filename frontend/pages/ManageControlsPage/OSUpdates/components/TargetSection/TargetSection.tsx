@@ -249,7 +249,6 @@ const TargetSection = ({
         refetchTeamConfig={refetchTeamConfig}
         isAppleMdmEnabled={isAppleMdmEnabled}
         isWindowsMdmEnabled={isWindowsMdmEnabled}
-        isAndroidMdmEnabled={isAndroidMdmEnabled}
       />
     );
   };

@@ -27,7 +27,6 @@ const defaultProps = {
   refetchTeamConfig: noop,
   isAppleMdmEnabled: true,
   isWindowsMdmEnabled: true,
-  isAndroidMdmEnabled: true,
 };
 
 describe("PlatformTabs", () => {
@@ -66,7 +65,9 @@ describe("PlatformTabs", () => {
     render(<PlatformTabs {...defaultProps} selectedPlatform="android" />);
 
     expect(screen.queryByLabelText(/Target/i)).not.toBeInTheDocument();
-    expect(screen.getByText(/Android updates are coming soon/i)).toBeVisible();
+    expect(
+      screen.getByText(/Android updates are coming soon/i)
+    ).toBeInTheDocument();
   });
 
   it("shows the Windows tab with an empty state when Windows MDM isn't enabled", () => {
@@ -75,15 +76,12 @@ describe("PlatformTabs", () => {
         {...defaultProps}
         selectedPlatform="windows"
         isWindowsMdmEnabled={false}
-        isAndroidMdmEnabled={false}
       />
     );
 
     expect(screen.getByRole("tab", { name: /macOS/i })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: /Windows/i })).toBeInTheDocument();
-    expect(
-      screen.queryByRole("tab", { name: /Android/i })
-    ).not.toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: /Android/i })).toBeInTheDocument();
     expect(
       screen.getByText(/Turn on MDM to enforce OS updates/i)
     ).toBeInTheDocument();
