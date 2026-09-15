@@ -8,6 +8,7 @@ This guide uses Fleet, but works with any MDM or tool that can deploy apps and r
 
 1. In Okta, head to **Settings > Downloads**.
 2. Under **Desktop Apps**, find **Okta Verify for Linux** and select **Download latest**.
+3. See Okta's [Okta Verify for Linux release notes](https://help.okta.com/oie/en-us/content/topics/releasenotes/ov/ov-release-notes-linux.htm) for supported Linux distributions and what's new in each release.
 
 ## Step 2: Connect Fleet to Okta's CA
 
