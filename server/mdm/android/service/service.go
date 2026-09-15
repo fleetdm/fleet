@@ -1036,17 +1036,16 @@ var sensitiveMetadataKeyRe = regexp.MustCompile(`"(?:\\u[0-9a-fA-F]{4}|n)ewPassw
 func redactAndroidCommandJSON(rawJSON []byte) []byte {
 	var m map[string]any
 	if err := json.Unmarshal(rawJSON, &m); err != nil {
-		return rawJSON
+		return sensitiveMetadataKeyRe.ReplaceAll(rawJSON, nil)
 	}
 	if _, ok := m["newPassword"]; !ok {
 		return rawJSON
 	}
 	delete(m, "newPassword")
-	b, err := json.Marshal(m)
-	if err != nil {
-		return rawJSON
+	if b, err := json.Marshal(m); err == nil {
+		return b
 	}
-	return b
+	return sensitiveMetadataKeyRe.ReplaceAll(rawJSON, nil)
 }
 
 // redactOperationSensitiveFields strips sensitive fields (e.g. newPassword) from

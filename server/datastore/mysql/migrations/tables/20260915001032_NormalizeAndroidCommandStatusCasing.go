@@ -21,7 +21,7 @@ func Up_20260915001032(tx *sql.Tx) error {
 
 	if _, err := tx.Exec(`
 		ALTER TABLE mdm_android_commands
-			MODIFY COLUMN status ENUM('Pending','Acknowledged','Error') NOT NULL DEFAULT 'Pending'
+			MODIFY COLUMN status ENUM('Pending','Acknowledged','Error') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'Pending'
 	`); err != nil {
 		return fmt.Errorf("normalize mdm_android_commands status casing: %w", err)
 	}

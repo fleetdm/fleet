@@ -1905,7 +1905,7 @@ CREATE TABLE `mdm_android_commands` (
   `operation_name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
   `command_type` varchar(32) COLLATE utf8mb4_unicode_ci NOT NULL,
   `raw_command` mediumtext CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
-  `status` enum('Pending','Acknowledged','Error') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'Pending',
+  `status` enum('Pending','Acknowledged','Error') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'Pending',
   `error_code` varchar(64) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `error_message` varchar(1024) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `raw_result` mediumtext CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
