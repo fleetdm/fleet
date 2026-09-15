@@ -19,6 +19,12 @@
         <div class="dropdown-item d-block"
           @click="preview = 'Tablet (landscape)'">Tablet (landscape)</div>
       </div>
+      <div purpose="newsletter-buttons" class="ml-5 d-flex flex-column">
+        <ajax-button :syncing="syncing" @click="clickSendTestNewsletter()">Send test email</ajax-button>
+        <% if(isTemplateLatestNewsletter) {%>
+        <ajax-button :syncing="syncing" @click="clickSendNewsletterToSubscribers()" class="mt-3">Send to newsletter subscribers</ajax-button>
+        <% } %>
+      </div>
     </div>
   </div>
 
