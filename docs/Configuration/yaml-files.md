@@ -1113,7 +1113,7 @@ org_settings:
       - https://company.okta.com/oauth2/v1/introspect
     certificates_idp_client_ids:
       - 0oa1b2c3d4e5f6g7h8i9
-    certificates_require_host_end_user_binding: true
+    certificates_disable_host_end_user_binding: false
 ```
 
 `/fleets/fleet-name.yml`
@@ -1167,17 +1167,15 @@ Can be configured for "All fleets" (`org_settings`). Use API to configure Jira f
 
 Can be configured for "All fleets" (`org_settings`). Use API to configure Zendesk for specific fleets or "Unassigned" hosts.
 
-#### certificates_idp_introspection_urls, certificates_idp_client_ids, and certificates_require_host_end_user_binding
+#### certificates_idp_introspection_urls, certificates_idp_client_ids, and certificates_disable_host_end_user_binding
 
-_Available in Fleet Premium._
+These settings control identity verification on the [Request certificate](https://fleetdm.com/docs/rest-api/rest-api#request-certificate) API. Can only be configured for "All fleets" (`org_settings`).
 
-These settings harden the [Request certificate](https://fleetdm.com/docs/rest-api/rest-api#request-certificate) API. Can only be configured for "All fleets" (`org_settings`).
+- `certificates_idp_introspection_urls` (Fleet Premium): allowlist of OAuth 2.0 token introspection URLs accepted in `idp_oauth_url`. Entries must be absolute `https` URLs without embedded credentials and are matched exactly. While empty, requests that include IdP credentials are rejected. Once it has entries, `idp_oauth_url`, `idp_token`, and `idp_client_id` are required on every request (default: `[]`).
+- `certificates_idp_client_ids` (Fleet Premium): optional allowlist of OAuth client IDs accepted in `idp_client_id`. Requires `certificates_idp_introspection_urls` to have entries (default: `[]`).
+- `certificates_disable_host_end_user_binding`: by default, requests authenticated with an HTTP signature must carry a CSR whose email and UPN match the end user Fleet has recorded for the host, and hosts with no recorded end user are rejected. Set to `true` to turn this check off (default: `false`).
 
-- `certificates_idp_introspection_urls`: allowlist of OAuth 2.0 token introspection URLs accepted in `idp_oauth_url`. Entries must be absolute `https` URLs without embedded credentials and are matched exactly.
-- `certificates_idp_client_ids`: allowlist of OAuth client IDs accepted in `idp_client_id`.
-- `certificates_require_host_end_user_binding`: when `true`, requests authenticated with an HTTP signature must carry a CSR whose email matches the end user Fleet has recorded for the host. Hosts with no recorded end user are rejected.
-
-While both allowlists are empty, IdP verification stays optional. Once either is populated, `idp_oauth_url`, `idp_token`, and `idp_client_id` are required on every request. Omitting these keys from your YAML clears them.
+Omitting these keys from your YAML resets them to their defaults, which clears both allowlists. To restore the behavior of earlier Fleet versions while you migrate, set the [`server.allow_request_certificate_any_idp`](https://fleetdm.com/docs/configuration/fleet-server-configuration#server-allow-request-certificate-any-idp) server setting.
 
 ### certificate_authorities
 
