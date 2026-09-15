@@ -106,6 +106,23 @@ func requestFieldName(sf reflect.StructField) string {
 	return name
 }
 
+// sentFieldName is requestFieldName for a field that may have been renamed.
+// The rewriter maps a `renameto` name back to the json tag before decoding, so
+// a caller who used the new name would otherwise be told about a key they never
+// sent.
+func sentFieldName(sf reflect.StructField, rewriter *JSONKeyRewriteReader) string {
+	name := requestFieldName(sf)
+	renameTo, ok := sf.Tag.Lookup("renameto")
+	if !ok || rewriter == nil || slices.Contains(rewriter.UsedDeprecatedKeys(), name) {
+		return name
+	}
+	newName, _, err := ParseTag(renameTo)
+	if err != nil || newName == "" {
+		return name
+	}
+	return newName
+}
+
 // aliasRulesCache caches the result of ExtractAliasRules by reflect.Type so
 // that the reflection walk happens only once per struct type, not on every
 // request.
@@ -796,7 +813,7 @@ func MakeDecoder(
 					if val && !fp.V.IsZero() {
 						return nil, &platform_http.BadRequestError{Message: fmt.Sprintf(
 							"option %s requires a premium license",
-							requestFieldName(fp.Sf),
+							sentFieldName(fp.Sf, rewriter),
 						)}
 					}
 					continue
