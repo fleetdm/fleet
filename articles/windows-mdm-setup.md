@@ -126,7 +126,7 @@ In your Intune settings, select **Devices**, and under **Device onboarding**, op
 
 1. Navigate to **Organization settings** > **Integrations** > **MDM** under **Microsoft Entra**. Next to **Windows enrollment**, select **Connect**.
 
-2. Select **Edit** and copy the **MDM URLs** to paste into Entra later.
+2. Copy the **MDM URLs** to paste into Entra later.
 
 **In Microsoft Entra:**
 
