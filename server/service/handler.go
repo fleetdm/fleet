@@ -1144,10 +1144,8 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	oeWindowsMDM := oe.WithCustomMiddleware(mdmConfiguredMiddleware.VerifyWindowsMDM())
 	oeWindowsMDM.POST("/api/fleet/orbit/disk_encryption_key", postOrbitDiskEncryptionKeyEndpoint, fleet.OrbitPostDiskEncryptionKeyRequest{})
 	oeWindowsMDM.POST("/api/fleet/orbit/disk_encryption_protection", postOrbitDiskEncryptionProtectionEndpoint, fleet.OrbitPostDiskEncryptionProtectionRequest{})
-	// The request endpoint is the only place the server hands a submitted BitLocker PIN back out, and it can only
-	// succeed once per submission.
-	oeWindowsMDM.POST("/api/fleet/orbit/disk_encryption_pin/request", getOrbitDiskEncryptionPINEndpoint, fleet.OrbitGetDiskEncryptionPINRequest{})
-	oeWindowsMDM.POST("/api/fleet/orbit/disk_encryption_pin", postOrbitDiskEncryptionPINEndpoint, fleet.OrbitPostDiskEncryptionPINRequest{})
+	oeWindowsMDM.POST("/api/fleet/orbit/disk_encryption_pin/details", getOrbitDiskEncryptionPINDetailsEndpoint, fleet.OrbitGetDiskEncryptionPINDetailsRequest{})
+	oeWindowsMDM.POST("/api/fleet/orbit/disk_encryption_pin/result", postOrbitDiskEncryptionPINResultEndpoint, fleet.OrbitPostDiskEncryptionPINResultRequest{})
 	// managed local account escrow is Windows-MDM-specific, so it fails fast when Windows MDM is off.
 	oeWindowsMDM.POST("/api/fleet/orbit/managed_local_account", postOrbitManagedLocalAccountEndpoint, fleet.OrbitPostManagedLocalAccountRequest{})
 

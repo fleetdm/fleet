@@ -16,7 +16,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
-	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 )
@@ -207,19 +206,13 @@ func getDeviceHostEndpoint(ctx context.Context, request interface{}, svc fleet.S
 		return getDeviceHostResponse{Err: err}, nil
 	}
 
-	// Only the My device page can act on a BitLocker PIN, so these fields are added here rather than in the shared
-	// host detail response an admin also receives, and only for Windows, the one platform where they mean anything.
+	// Only the My device page can act on a BitLocker PIN, so these fields are added here.
 	if host.FleetPlatform() == "windows" {
 		canSetPIN, pinRequest, err := svc.BitLockerPINStateForDevice(ctx, host)
 		if err != nil {
-			// Best-effort: this page is every Windows end user's view of their device, and a failure in this one
-			// optional feature must not blank it. With the fields absent the page treats the agent as unable to set a
-			// PIN and shows the Manage BitLocker instructions, which is the safe fallback.
-			logging.WithErr(ctx, ctxerr.Wrap(ctx, err, "getting bitlocker pin state for device"))
-			ctxerr.Handle(ctx, err)
-		} else {
-			applyBitLockerPINDeviceFields(resp, canSetPIN, pinRequest)
+			return getDeviceHostResponse{Err: ctxerr.Wrap(ctx, err, "getting bitlocker pin state for device")}, nil
 		}
+		applyBitLockerPINDeviceFields(resp, canSetPIN, pinRequest)
 	}
 
 	// the org logo URL config is required by the frontend to render the page;

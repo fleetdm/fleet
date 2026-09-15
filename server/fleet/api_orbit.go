@@ -258,32 +258,32 @@ func (r OrbitPostDiskEncryptionKeyResponse) Status() int  { return http.StatusNo
 // Orbit BitLocker startup PIN handoff
 /////////////////////////////////////////////////////////////////////////////////
 
-// OrbitGetDiskEncryptionPINRequest collects the BitLocker startup PIN the end user submitted from the My device page.
+// OrbitGetDiskEncryptionPINDetailsRequest collects the BitLocker startup PIN the end user submitted from the My device page.
 // The response is the only place the server ever hands the PIN back out, and it can only be read once.
-type OrbitGetDiskEncryptionPINRequest struct {
+type OrbitGetDiskEncryptionPINDetailsRequest struct {
 	OrbitNodeKey string `json:"orbit_node_key"`
 }
 
-func (r *OrbitGetDiskEncryptionPINRequest) SetOrbitNodeKey(nodeKey string) {
+func (r *OrbitGetDiskEncryptionPINDetailsRequest) SetOrbitNodeKey(nodeKey string) {
 	r.OrbitNodeKey = nodeKey
 }
 
-func (r *OrbitGetDiskEncryptionPINRequest) OrbitHostNodeKey() string {
+func (r *OrbitGetDiskEncryptionPINDetailsRequest) OrbitHostNodeKey() string {
 	return r.OrbitNodeKey
 }
 
-type OrbitGetDiskEncryptionPINResponse struct {
+type OrbitGetDiskEncryptionPINDetailsResponse struct {
 	PIN string `json:"pin,omitempty"`
 	// RequestUUID names the submission this PIN came from. The agent echoes it when reporting the outcome.
 	RequestUUID string `json:"request_uuid,omitempty"`
 	Err         error  `json:"error,omitempty"`
 }
 
-func (r OrbitGetDiskEncryptionPINResponse) Error() error { return r.Err }
+func (r OrbitGetDiskEncryptionPINDetailsResponse) Error() error { return r.Err }
 
-// OrbitPostDiskEncryptionPINRequest reports whether the agent applied the PIN it collected. Outcome is one of
+// OrbitPostDiskEncryptionPINResultRequest reports whether the agent applied the PIN it collected. Outcome is one of
 // BitLockerPINRequestSet or BitLockerPINRequestFailed; ClientError is required for a failure.
-type OrbitPostDiskEncryptionPINRequest struct {
+type OrbitPostDiskEncryptionPINResultRequest struct {
 	OrbitNodeKey string `json:"orbit_node_key"`
 	// RequestUUID is the id returned with the PIN the agent collected.
 	RequestUUID string                    `json:"request_uuid"`
@@ -291,20 +291,20 @@ type OrbitPostDiskEncryptionPINRequest struct {
 	ClientError string                    `json:"client_error"`
 }
 
-func (r *OrbitPostDiskEncryptionPINRequest) SetOrbitNodeKey(nodeKey string) {
+func (r *OrbitPostDiskEncryptionPINResultRequest) SetOrbitNodeKey(nodeKey string) {
 	r.OrbitNodeKey = nodeKey
 }
 
-func (r *OrbitPostDiskEncryptionPINRequest) OrbitHostNodeKey() string {
+func (r *OrbitPostDiskEncryptionPINResultRequest) OrbitHostNodeKey() string {
 	return r.OrbitNodeKey
 }
 
-type OrbitPostDiskEncryptionPINResponse struct {
+type OrbitPostDiskEncryptionPINResultResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r OrbitPostDiskEncryptionPINResponse) Error() error { return r.Err }
-func (r OrbitPostDiskEncryptionPINResponse) Status() int  { return http.StatusNoContent }
+func (r OrbitPostDiskEncryptionPINResultResponse) Error() error { return r.Err }
+func (r OrbitPostDiskEncryptionPINResultResponse) Status() int  { return http.StatusNoContent }
 
 /////////////////////////////////////////////////////////////////////////////////
 // Post Orbit LUKS (Linux disk encryption) data

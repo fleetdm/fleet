@@ -9,6 +9,9 @@ import (
 // submission's ciphertext is cleared by the hourly cleanups cron, so it can outlive the TTL by up to an hour.
 const BitLockerPINRequestTTL = 15 * time.Minute
 
+// BitLockerPINClientErrorMaxLength matches the width of host_bitlocker_pin_requests.client_error.
+const BitLockerPINClientErrorMaxLength = 255
+
 // BitLockerPINRequestTimedOutError is recorded against a submission the agent never collected.
 const BitLockerPINRequestTimedOutError = "Fleet didn't hear back from this device. It may be offline."
 

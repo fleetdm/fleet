@@ -28846,8 +28846,8 @@ func (s *integrationMDMTestSuite) TestBitLockerPINHandoff() {
 	require.True(t, orbitConfig(capsHeader).Notifications.BitLockerPINRequestPending)
 
 	// Collecting returns the PIN in the clear, exactly once.
-	var pinResp fleet.OrbitGetDiskEncryptionPINResponse
-	s.DoJSON("POST", "/api/fleet/orbit/disk_encryption_pin/request",
+	var pinResp fleet.OrbitGetDiskEncryptionPINDetailsResponse
+	s.DoJSON("POST", "/api/fleet/orbit/disk_encryption_pin/details",
 		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host.OrbitNodeKey)), http.StatusOK, &pinResp)
 	require.Equal(t, "123456", pinResp.PIN)
 	require.NotEmpty(t, pinResp.RequestUUID)
@@ -28855,20 +28855,20 @@ func (s *integrationMDMTestSuite) TestBitLockerPINHandoff() {
 
 	// An outcome that names no collected submission is refused, so a host cannot mark itself as having a PIN it was
 	// never given.
-	s.Do("POST", "/api/fleet/orbit/disk_encryption_pin",
+	s.Do("POST", "/api/fleet/orbit/disk_encryption_pin/result",
 		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "request_uuid": "not-a-real-request", "outcome": "set"}`,
 			*host.OrbitNodeKey)), http.StatusNotFound)
 
 	// A replayed collect gets nothing, and the notification is already gone.
-	s.Do("POST", "/api/fleet/orbit/disk_encryption_pin/request",
+	s.Do("POST", "/api/fleet/orbit/disk_encryption_pin/details",
 		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host.OrbitNodeKey)), http.StatusNotFound)
 	require.False(t, orbitConfig(capsHeader).Notifications.BitLockerPINRequestPending)
 
 	// A failure is reported back to the waiting page, and needs a reason.
-	s.Do("POST", "/api/fleet/orbit/disk_encryption_pin",
+	s.Do("POST", "/api/fleet/orbit/disk_encryption_pin/result",
 		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "request_uuid": %q, "outcome": "failed"}`,
 			*host.OrbitNodeKey, firstRequestUUID)), http.StatusUnprocessableEntity)
-	s.Do("POST", "/api/fleet/orbit/disk_encryption_pin",
+	s.Do("POST", "/api/fleet/orbit/disk_encryption_pin/result",
 		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "request_uuid": %q, "outcome": "failed", "client_error": "PIN already set"}`,
 			*host.OrbitNodeKey, firstRequestUUID)), http.StatusNoContent)
 	resp = deviceHost()
@@ -28882,17 +28882,17 @@ func (s *integrationMDMTestSuite) TestBitLockerPINHandoff() {
 	s.Do("POST", "/api/latest/fleet/device/"+deviceToken+"/disk_encryption_pin",
 		json.RawMessage(`{"pin": "Fl\"eet 2026!"}`), http.StatusNoContent)
 	require.True(t, orbitConfig(capsHeader).Notifications.BitLockerPINRequestPending)
-	s.DoJSON("POST", "/api/fleet/orbit/disk_encryption_pin/request",
+	s.DoJSON("POST", "/api/fleet/orbit/disk_encryption_pin/details",
 		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host.OrbitNodeKey)), http.StatusOK, &pinResp)
 	require.Equal(t, `Fl"eet 2026!`, pinResp.PIN)
 	require.NotEqual(t, firstRequestUUID, pinResp.RequestUUID, "each submission gets its own id")
 
 	// A late outcome for the superseded submission must not be recorded against this one.
-	s.Do("POST", "/api/fleet/orbit/disk_encryption_pin",
+	s.Do("POST", "/api/fleet/orbit/disk_encryption_pin/result",
 		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "request_uuid": %q, "outcome": "set"}`,
 			*host.OrbitNodeKey, firstRequestUUID)), http.StatusNotFound)
 
-	s.Do("POST", "/api/fleet/orbit/disk_encryption_pin",
+	s.Do("POST", "/api/fleet/orbit/disk_encryption_pin/result",
 		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "request_uuid": %q, "outcome": "set"}`,
 			*host.OrbitNodeKey, pinResp.RequestUUID)), http.StatusNoContent)
 

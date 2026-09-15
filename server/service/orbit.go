@@ -677,14 +677,16 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 				}
 			}
 
-			// Hand over a startup PIN the end user submitted, if one is waiting and this host still needs it. Both
-			// gates ride on the state row already read above, so a poll with nothing waiting costs no extra query.
-			// Best-effort, like the capability writes above: this response also carries scripts, software installs
-			// and every other notification, so a failure in this one feature must not withhold them. The submission
-			// stays queued and the agent is offered it again on its next poll.
-			if err := svc.setBitLockerPINNotification(ctx, &notifs, host, state, pinCapable); err != nil {
-				svc.logger.ErrorContext(ctx, "setting bitlocker pin notification", "host_uuid", host.UUID, "err", err)
-				ctxerr.Handle(ctx, err)
+			// Hand over a startup PIN the end user submitted. Both checks come off the state row already read above, so a
+			// poll with nothing waiting costs no extra query. pinCapable is this request's header rather than the stored
+			// value, which is still false on the poll where the agent first advertises the capability.
+			if pinCapable && state.BitLockerPINRequestPending {
+				// Best-effort, like the capability writes above: this response also carries scripts, software installs and
+				// every other notification, so a failure here must not withhold them. The agent is offered it again next poll.
+				if err := svc.setBitLockerPINNotification(ctx, &notifs, host); err != nil {
+					svc.logger.ErrorContext(ctx, "setting bitlocker pin notification", "host_uuid", host.UUID, "err", err)
+					ctxerr.Handle(ctx, err)
+				}
 			}
 
 			// Ask a capable premium fleetd to create and escrow the Windows managed local admin account when the host's fleet has the
