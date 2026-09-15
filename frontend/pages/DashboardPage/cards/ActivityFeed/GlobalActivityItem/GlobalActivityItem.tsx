@@ -402,6 +402,47 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
+  hostEnrollmentRejected: (activity: IActivity) => {
+    const { host_display_name, host_serial, reason } = activity.details || {};
+    let host: React.ReactNode = "a host";
+    if (host_display_name) {
+      host = <b>{host_display_name}</b>;
+    } else if (host_serial) {
+      host = (
+        <>
+          a host with serial number <b>{host_serial}</b>
+        </>
+      );
+    }
+    switch (reason) {
+      case "one_time_secret_spent":
+        return (
+          <>
+            An enrollment attempt for {host} was rejected because its one-time
+            enroll secret was already used. Resend the Fleetd configuration
+            profile to issue a new one.
+          </>
+        );
+      case "one_time_secret_identifier_mismatch":
+        return (
+          <>
+            An enrollment attempt was rejected because it used the one-time
+            enroll secret issued to {host} with a different serial number or
+            hardware UUID.
+          </>
+        );
+      case "shared_secret_for_mdm_managed_host":
+        return (
+          <>
+            An enrollment attempt for {host} was rejected because it used a
+            shared enroll secret. Hosts enrolled in Fleet MDM must enroll with
+            their one-time enroll secret.
+          </>
+        );
+      default:
+        return <>An enrollment attempt for {host} was rejected.</>;
+    }
+  },
   fleetEnrolled: (activity: IActivity) => {
     const { host_display_name, host_serial } = activity.details || {};
     if (!host_display_name) {
@@ -2483,6 +2524,9 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     case ActivityType.FleetEnrolled: {
       return TAGGED_TEMPLATES.fleetEnrolled(activity);
     }
+    case ActivityType.HostEnrollmentRejected: {
+      return TAGGED_TEMPLATES.hostEnrollmentRejected(activity);
+    }
     case ActivityType.MdmEnrolled: {
       return TAGGED_TEMPLATES.mdmEnrolled(activity);
     }
@@ -3033,6 +3077,7 @@ const GlobalActivityItem = ({
       // determine if we display the actor name so we will handle that in the
       // template function
       case ActivityType.FleetEnrolled:
+      case ActivityType.HostEnrollmentRejected:
       case ActivityType.MdmUnenrolled:
       case ActivityType.MdmEnrolled:
       case ActivityType.ResentConfigurationProfile:
