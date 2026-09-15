@@ -1,11 +1,5 @@
 import { isEmpty } from "lodash";
 
-import { PLATFORM_DISPLAY_NAMES } from "interfaces/platform";
-import {
-  CVE_SOFTWARE_CATEGORIES,
-  ALL_CVE_SOFTWARE_CATEGORY_VALUES,
-  IVulnExposureFilterDefaults,
-} from "interfaces/charts";
 import {
   ANY_SEVERITY_VALUE,
   getSeverityBand,
@@ -14,6 +8,12 @@ import {
   severityForRange,
   severityValueLabel,
 } from "components/SeverityFilter";
+import {
+  CVE_SOFTWARE_CATEGORIES,
+  ALL_CVE_SOFTWARE_CATEGORY_VALUES,
+  IVulnExposureFilterDefaults,
+} from "interfaces/charts";
+import { PLATFORM_DISPLAY_NAMES } from "interfaces/platform";
 
 import { IChartFilterState } from "./ChartFilterModal";
 import { isEpssActive } from "./ChartFilterModal/SoftwareFilters/helpers";

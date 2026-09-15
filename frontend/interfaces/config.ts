@@ -6,9 +6,10 @@ import {
   IWebhookActivities,
   IWebhookHostActivities,
 } from "interfaces/webhook";
+
+import { IVulnExposureFilterDefaults } from "./charts";
 import { IGlobalIntegrations } from "./integration";
 import { EndUserLocalAccountType } from "./mdm";
-import { IVulnExposureFilterDefaults } from "./charts";
 
 export interface ILicense {
   tier: string;

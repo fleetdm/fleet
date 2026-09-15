@@ -10,7 +10,7 @@ $shadow-transition-width: 16px;
     &__wrapper {
       position: relative;
       border: 1px solid $ui-fleet-black-10;
-      border-radius: 6px;
+      border-radius: $border-radius-large;
       flex-grow: 1;
       width: 100%;
       // Wide tables scroll horizontally within the table wrapper rather than
@@ -125,7 +125,7 @@ $shadow-transition-width: 16px;
         height: 40px; // Match body row height
 
         &:first-child {
-          border-top-left-radius: 6px;
+          border-top-left-radius: $border-radius-large;
           border-left: none;
         }
 
@@ -136,7 +136,7 @@ $shadow-transition-width: 16px;
         }
 
         &:last-child {
-          border-top-right-radius: 6px;
+          border-top-right-radius: $border-radius-large;
         }
 
         &.actions__header {
@@ -220,7 +220,7 @@ $shadow-transition-width: 16px;
       top: 0px;
       width: 100%;
       border: 0;
-      border-radius: 6px;
+      border-radius: $border-radius-large;
 
       &__checkbox {
         width: 16px;
@@ -277,10 +277,10 @@ $shadow-transition-width: 16px;
       // wrapper backgrounds differ).
       tr:last-child {
         td:first-child {
-          border-bottom-left-radius: $border-radius-medium;
+          border-bottom-left-radius: $border-radius-large;
         }
         td:last-child {
-          border-bottom-right-radius: $border-radius-medium;
+          border-bottom-right-radius: $border-radius-large;
         }
       }
 

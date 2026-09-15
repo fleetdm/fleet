@@ -1,7 +1,8 @@
+import React, { useMemo } from "react";
+
 import EmptyState from "components/EmptyState";
 import TableContainer from "components/TableContainer";
 import { IOperatingSystemVersion } from "interfaces/operating_system";
-import React, { useMemo } from "react";
 import {
   PlatformValueOptions,
   PLATFORM_DISPLAY_NAMES,

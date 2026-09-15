@@ -2,6 +2,7 @@ import {
   createMockHostSoftware,
   createMockHostSoftwarePackage,
 } from "__mocks__/hostMock";
+
 import { compareVersions, getUiStatus, getSoftwareSubheader } from "./helpers";
 
 describe("compareVersions", () => {

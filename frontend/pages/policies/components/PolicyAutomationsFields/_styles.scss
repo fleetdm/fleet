@@ -115,6 +115,12 @@
     > * {
       margin-left: 0;
     }
+
+    // Shrink each picker so the pair fits inside the trailing cell without
+    // pushing the row past the modal edge.
+    .policy-automations-fields__row-picker {
+      width: 200px;
+    }
   }
 
   &__learn-more {

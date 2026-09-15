@@ -9,6 +9,8 @@
 
 import React from "react";
 
+import CustomLink from "components/CustomLink";
+import { IDropdownOption } from "interfaces/dropdownOption";
 import { getErrorReason } from "interfaces/errors";
 import {
   IHostSoftware,
@@ -19,11 +21,8 @@ import {
   ISoftwareInstallPolicy,
   SoftwareInstallPolicyTypeSet,
 } from "interfaces/software";
-import { IDropdownOption } from "interfaces/dropdownOption";
-
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
-
-import CustomLink from "components/CustomLink";
+import { internationalTimeOnlyFormat } from "utilities/helpers";
 
 /**
  * helper function to generate error message for secret variables based
@@ -227,7 +226,7 @@ export const getSelfServiceTooltip = (
   if (isAndroidPlayStoreApp) {
     return (
       <>
-        End users can install from the <strong>Play Store</strong> <br />
+        End users can install from the <strong>Play Store</strong>
         in their work profile.
       </>
     );
@@ -235,11 +234,10 @@ export const getSelfServiceTooltip = (
   if (isIosOrIpadosApp)
     return (
       <>
-        End users can install from self service.
-        <br />
+        End users can install from{" "}
         <CustomLink
           newTab
-          text="Learn how to deploy self service"
+          text="self service"
           variant="tooltip-link"
           url={`${LEARN_MORE_ABOUT_BASE_LINK}/deploy-self-service-to-ios`}
         />
@@ -248,11 +246,10 @@ export const getSelfServiceTooltip = (
 
   return (
     <>
-      End users can install from <br />
-      <strong>Fleet Desktop</strong> &gt; <strong>Self service</strong>. <br />
+      End users can install from <strong>Fleet Desktop</strong> &gt;{" "}
       <CustomLink
         newTab
-        text="Learn more"
+        text="Self service"
         variant="tooltip-link"
         url={`${LEARN_MORE_ABOUT_BASE_LINK}/self-service-software`}
       />
@@ -263,11 +260,9 @@ export const getSelfServiceTooltip = (
 export const getAutoUpdatesTooltip = (startTime: string, endTime: string) => {
   return (
     <>
-      When a new version is available,
-      <br />
-      targeted hosts will begin updating between
-      <br />
-      {startTime} and {endTime} (host&rsquo;s local time).
+      When a new version is available, targeted hosts will begin updating
+      between {internationalTimeOnlyFormat(startTime)} and{" "}
+      {internationalTimeOnlyFormat(endTime)} (host local time).
     </>
   );
 };

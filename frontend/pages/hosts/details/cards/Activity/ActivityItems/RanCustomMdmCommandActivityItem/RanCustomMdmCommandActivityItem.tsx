@@ -1,7 +1,8 @@
 import React from "react";
 
-import { formatMdmCommandNameForActivityItem } from "utilities/activityHelpers";
 import ActivityItem from "components/ActivityItem";
+import { formatMdmCommandNameForActivityItem } from "utilities/activityHelpers";
+
 import { IHostActivityItemComponentPropsWithShowDetails } from "../../ActivityConfig";
 
 const baseClass = "ran-custom-mdm-command-activity-item";

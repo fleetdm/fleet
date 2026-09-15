@@ -2,18 +2,17 @@ import React, { useCallback, useEffect, useMemo } from "react";
 import { useQuery } from "react-query";
 import { InjectedRouter } from "react-router";
 
-import { IDeviceSoftwareWithUiStatus } from "interfaces/software";
-import { ISelfServiceCategory } from "interfaces/self_service_category";
-import selfServiceCategoriesAPI, {
-  ISelfServiceCategoriesResponse,
-} from "services/entities/self_service_categories";
-import { IGetDeviceSoftwareResponse } from "services/entities/device_user";
-import { getPathWithQueryParams } from "utilities/url";
-
 import Card from "components/Card";
 import EmptyState from "components/EmptyState";
 import Spinner from "components/Spinner";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
+import { ISelfServiceCategory } from "interfaces/self_service_category";
+import { IDeviceSoftwareWithUiStatus } from "interfaces/software";
+import { IGetDeviceSoftwareResponse } from "services/entities/device_user";
+import selfServiceCategoriesAPI, {
+  ISelfServiceCategoriesResponse,
+} from "services/entities/self_service_categories";
+import { getPathWithQueryParams } from "utilities/url";
 
 import InstallAllInCategoryButton from "../components/InstallAllInCategoryButton";
 import SelfServiceFilters from "../components/SelfServiceFilters";

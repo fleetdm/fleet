@@ -2,16 +2,6 @@ import React, { useContext, useRef, useState } from "react";
 import { useQuery } from "react-query";
 import { InjectedRouter } from "react-router";
 
-import PATHS from "router/paths";
-import { AppContext } from "context/app";
-import { notify } from "components/ToastNotification";
-
-import { getErrorReason } from "interfaces/errors";
-import { IMdmAsset } from "interfaces/mdm";
-import mdmAPI, { IListAssetsResponse } from "services/entities/mdm";
-
-import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
-
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
 import DataError from "components/DataError";
@@ -20,10 +10,17 @@ import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import PageDescription from "components/PageDescription";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 import Spinner from "components/Spinner";
+import { notify } from "components/ToastNotification";
 import UploadList from "components/UploadList";
+import { AppContext } from "context/app";
+import { getErrorReason } from "interfaces/errors";
+import { IMdmAsset } from "interfaces/mdm";
+import PATHS from "router/paths";
+import mdmAPI, { IListAssetsResponse } from "services/entities/mdm";
+import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 
-import AssetListItem from "../AssetListItem";
 import AddAssetModal from "../AddAssetModal";
+import AssetListItem from "../AssetListItem";
 import DeleteAssetModal from "../DeleteAssetModal";
 
 const baseClass = "assets-tab";

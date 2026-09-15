@@ -1027,14 +1027,24 @@ func (svc *Service) processReleaseDeviceForOldFleetd(ctx context.Context, host *
 	return nil
 }
 
-// shouldEnableBitLockerProtection reports whether Fleet should ask the agent to turn BitLocker protection back on.
-// This method requires a host loaded by LoadHostByOrbitNodeKey. A host from a loader that does not select bitlocker
-// columns reports nil, which this reads as "nothing to act on" rather than as an error.
+// shouldEnableBitLockerProtection reports whether Fleet should ask the agent to repair a volume's BitLocker protectors.
 func shouldEnableBitLockerProtection(host *fleet.Host) bool {
-	// Only act on a volume that is encrypted and positively reported as unprotected.
-	encrypted := host.DiskEncryptionEnabled != nil && *host.DiskEncryptionEnabled
-	return encrypted && host.BitLockerProtectionStatus != nil &&
-		*host.BitLockerProtectionStatus == fleet.BitLockerProtectionStatusOff
+	// Only act on a volume that is encrypted.
+	if host.DiskEncryptionEnabled == nil || !*host.DiskEncryptionEnabled {
+		return false
+	}
+
+	// Protection positively reported as off.
+	if host.BitLockerProtectionStatus != nil &&
+		*host.BitLockerProtectionStatus == fleet.BitLockerProtectionStatusOff {
+		return true
+	}
+
+	// Protection is on, but nothing on the volume can release the key at boot, so the next restart lands the end user
+	// at the 48-digit recovery prompt. The agent adds a protector without touching protection itself.
+	return host.BitLockerProtectionStatus != nil &&
+		*host.BitLockerProtectionStatus == fleet.BitLockerProtectionStatusOn &&
+		host.BitLockerBootProtectorSet != nil && !*host.BitLockerBootProtectorSet
 }
 
 func (svc *Service) setDiskEncryptionNotifications(

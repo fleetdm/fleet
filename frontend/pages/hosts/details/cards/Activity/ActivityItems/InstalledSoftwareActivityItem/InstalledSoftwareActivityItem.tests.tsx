@@ -1,6 +1,6 @@
-import React from "react";
 import { render, screen } from "@testing-library/react";
 import { noop } from "lodash";
+import React from "react";
 
 import { createMockHostPastActivity } from "__mocks__/activityMock";
 import { ActivityType } from "interfaces/activity";

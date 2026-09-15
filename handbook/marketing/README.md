@@ -182,6 +182,26 @@ To add a GitHub issue to the [Content planning](https://github.com/orgs/fleetdm/
 [Planned content for SEO and GEO optimization](https://airtable.com/appiljMCYUZJGeRmH/tblfNFlpMJrrLe3eH/viwe6rmqbyUm8XFIC?blocks=hide) 
 
 
+### Localize content
+
+To localize content, pick the best fleetie to do the translation, and refer to the following list of languages to their biggest markets:
+
+- 🇮🇳 Hindi (Delhi, Uttar Pradesh, Madhya Pradesh, Bihar, Rajasthan, Haryana, Himachal Pradesh, Chhattisgarh, and Jharkhand, Fiji, Nepal)
+- 🇪🇸 Spanish (Spain, Andorra, Colombia, Chile, Argentina, Mexico)
+- 🇫🇷 French (France, Quebec/Canada, Luxembourg, Monaco, Democratic Republic of the Congo, Cameroon, New Brunswick/Canada, Switzerland)
+- 🇵🇹 Portuguese (Brazil, Portugal, Sao Tome and Principe, Angola, Mozambique, Cape Verde)
+- 🇷🇺 Russian (Russia) (while Fleet is unable to advertise or do business with organizations in Russia, Belarus, and other markets with export controls, Fleet still advertises to native speakers of every supported language in every market where Fleet can do business, around the world)
+- 🇩🇪 German (Germany, Austria, Switzerland, Liechtenstein)
+- ळ Marathi (Maharashtra)
+- ಠ Kannada (Karnataka)
+- 🇲🇾 Malay (Malaysia)
+- 🇷🇴 Romanian (Romania, Moldova)
+- 🇳🇱 Dutch (the Netherlands, Flemish Region, Belgium, Suriname)
+- 🇸🇪 Swedish (Sweden)
+- 🇮🇱 Hebrew (Israel)
+- 🇩🇰 Danish (Denmark)
+
+
 <!-- TODO Create Article issue template and update this section of the handbook to reflect reality and add corresponding rituals to engineering.rituals.yml
 
 ### Create an article
