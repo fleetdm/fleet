@@ -8,16 +8,21 @@
 
 ## License requirements
 
-- Each **end user who enrolls a device** needs a **Microsoft Entra ID P1** license (for automatic MDM enrollment). An Intune license is
-  NOT believed to be required for the end user.
-- The **admin** needs a **Microsoft Intune** license (e.g., Intune Plan 1) to register Autopilot devices and manage deployment profiles in
-  the Intune admin center, and to connect Entra to Fleet.
+These requirements were verified end to end against a live tenant in August 2026.
 
-The simplest option for dev (where same account is both admin and end user) is **Enterprise Mobility + Security E3**, which bundles both Entra ID P1 and Intune Plan 1.
+- The **tenant** needs one subscription from Microsoft's
+  [Autopilot licensing requirements](https://learn.microsoft.com/en-us/autopilot/requirements?tabs=licensing), such as Enterprise
+  Mobility + Security E3. This is a tenant-level subscription, not a per-seat purchase. Autopilot profile authoring happens in the
+  Intune admin center, so pick one that includes Intune.
+- Each **end user who enrolls a device** needs a **Microsoft Entra ID P1** license assigned. An Intune license is not required for the
+  end user. A user with Entra ID P1 and no Intune license completes enrollment to Fleet.
+- The **admin** needs no license assigned. An unlicensed admin account can register Autopilot devices, manage deployment profiles in
+  the Intune admin center, and connect Entra to Fleet. See
+  [unlicensed admin access](https://learn.microsoft.com/en-us/intune/fundamentals/licensing#unlicensed-admin-access), which is on by
+  default for tenants created after July 2021. Older tenants must turn on **Allow access to unlicensed admins** first, and that can't
+  be undone.
 
-Note: The end-user requirement above (Entra ID P1 only, no Intune license) is our current understanding as of June 2026.
-It has not been verified end to end. If enrollment fails with `binarySecurityToken is empty` for a user who has Entra ID P1, try adding
-an Intune license and update this doc with what you learn.
+For dev, where the same account is both admin and end user, assign that account **Microsoft Entra ID P1**.
 
 To assign licenses:
 1. Go to [Microsoft 365 Admin Center](https://admin.microsoft.com) > Users > Active users > select your user
