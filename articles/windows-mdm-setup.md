@@ -114,7 +114,7 @@ Microsoft's [Autopilot licensing requirements](https://learn.microsoft.com/en-us
 - Intune for Education
 - Microsoft Entra ID P1 or P2, plus a Microsoft Intune subscription or an alternative MDM service
 
-Any one of these meets Microsoft's requirement, and Fleet is the alternative MDM service in the last option. Fleet has tested this guide with Enterprise Mobility + Security E3, which is what Step 1a below walks through. The Windows Autopilot section later in this guide authors deployment profiles in the Microsoft Intune admin center, so choose a subscription that includes Intune if you plan to use Autopilot.
+Any one of these meets Microsoft's requirement, and Fleet is the alternative MDM service in the last option. Step 1a below walks through Enterprise Mobility + Security E3, which is the combination these steps were written against. The Windows Autopilot section later in this guide authors deployment profiles in the Microsoft Intune admin center, so choose a subscription that includes Intune if you plan to use Autopilot.
 
 > **Note:** [Unlicensed admin access](https://learn.microsoft.com/en-us/intune/fundamentals/licensing#unlicensed-admin-access) is on by default for tenants created after July 2021. On an older tenant, your admin account needs an Intune license until someone turns on **Allow access to unlicensed admins** in **Tenant administration > Roles > Administrator Licensing**. That setting can't be undone.
 
