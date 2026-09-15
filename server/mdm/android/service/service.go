@@ -1259,6 +1259,9 @@ func (svc *Service) IssueCustomCommand(ctx context.Context, hostID uint, rawJSON
 		if ae, ok := errors.AsType[*googleapi.Error](err); ok && ae.Code == http.StatusInternalServerError {
 			msg := ae.Message
 			if msg == "" {
+				msg = ae.Body
+			}
+			if msg == "" {
 				msg = http.StatusText(ae.Code)
 			}
 			return nil, &fleet.BadRequestError{
