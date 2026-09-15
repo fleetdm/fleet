@@ -1607,6 +1607,9 @@ const HostDetailsPage = ({
               macDiskEncryptionStatus={
                 host?.mdm.apple_settings?.disk_encryption
               }
+              diskEncryptionActionRequired={
+                host?.mdm.apple_settings?.action_required
+              }
               connectedToFleetMdm={host?.mdm.connected_to_fleet}
               diskEncryptionOSSetting={host?.mdm.os_settings?.disk_encryption}
               diskIsEncrypted={host?.disk_encryption_enabled}
