@@ -85,6 +85,7 @@ const IosIpadosPanel = ({
           inputWrapperClass={`${baseClass}__enroll-link`}
           name="enroll-link"
           value={url}
+          helpText="This link must be opened in Safari to work."
         />
         <EnrollQrCode url={url} />
       </form>
