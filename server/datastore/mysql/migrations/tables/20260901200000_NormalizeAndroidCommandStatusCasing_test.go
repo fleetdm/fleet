@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20260915001032(t *testing.T) {
+func TestUp_20260901200000(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	// Insert rows with each lowercase status value before the migration.

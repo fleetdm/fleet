@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260915001032, Down_20260915001032)
+	MigrationClient.AddMigration(Up_20260901200000, Down_20260901200000)
 }
 
-func Up_20260915001032(tx *sql.Tx) error {
+func Up_20260901200000(tx *sql.Tx) error {
 	// Temporarily remove ON UPDATE from updated_at so the ENUM modification
 	// does not reset every row's timestamp.
 	if _, err := tx.Exec(`
@@ -37,6 +37,6 @@ func Up_20260915001032(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20260915001032(tx *sql.Tx) error {
+func Down_20260901200000(tx *sql.Tx) error {
 	return nil
 }
