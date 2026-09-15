@@ -6,8 +6,6 @@ Okta's FastPass can require a managed device, confirmed by a certificate from MD
 
 See Okta's [Okta Verify for Linux release notes](https://help.okta.com/oie/en-us/content/topics/releasenotes/ov/ov-release-notes-linux.htm) for supported Linux distributions and what's new in each release.
 
-See Okta's [Okta Verify for Linux release notes](https://help.okta.com/oie/en-us/content/topics/releasenotes/ov/ov-release-notes-linux.htm) for supported Linux distributions.
-
 ## Step 1: Download Okta Verify for Linux
 
 1. In Okta, head to **Settings > Downloads**.
