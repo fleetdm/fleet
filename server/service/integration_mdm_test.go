@@ -28639,7 +28639,8 @@ func (s *integrationMDMTestSuite) submitDarwinFileVaultKey(ctx context.Context, 
 }
 
 // Escrow without enforcement: status follows the escrowed key, not the disk
-// state — action required (rotate key) → verifying → verified.
+// state — action required (turn on encryption while the disk is off, rotate
+// key once it is on) → verifying → verified.
 func (s *integrationMDMTestSuite) TestMDMAppleHostDiskEncryptionEscrowOnly() {
 	t := s.T()
 	ctx := context.Background()
@@ -28660,13 +28661,20 @@ func (s *integrationMDMTestSuite) TestMDMAppleHostDiskEncryptionEscrowOnly() {
 
 	setProfileStatus, checkHost, checkHostListFilter := s.fileVaultStatusHelpers(ctx, host)
 	rotateKey := fleet.ActionRequiredRotateKey
+	turnOnEncryption := fleet.ActionRequiredTurnOnEncryption
 
 	setProfileStatus(fleet.MDMDeliveryPending)
 	checkHost(fleet.DiskEncryptionEnforcing, nil)
 	s.checkMDMDiskEncryptionSummaries(t, nil, fleet.MDMDiskEncryptionSummary{Enforcing: fleet.MDMPlatformsCounts{MacOS: 1}}, true)
 
-	// profile installed, disk encrypted by a third party, no key escrowed yet
+	// profile installed, nothing enforces FileVault and the disk is still off
 	setProfileStatus(fleet.MDMDeliveryVerified)
+	s.submitDarwinDiskEncryptionResults(*host.NodeKey, false)
+	checkHost(fleet.DiskEncryptionActionRequired, &turnOnEncryption)
+	checkHostListFilter(fleet.DiskEncryptionActionRequired, true)
+	s.checkMDMDiskEncryptionSummaries(t, nil, fleet.MDMDiskEncryptionSummary{ActionRequired: fleet.MDMPlatformsCounts{MacOS: 1}}, true)
+
+	// disk encrypted by a third party, no key escrowed yet
 	s.submitDarwinDiskEncryptionResults(*host.NodeKey, true)
 	checkHost(fleet.DiskEncryptionActionRequired, &rotateKey)
 	checkHostListFilter(fleet.DiskEncryptionActionRequired, true)
