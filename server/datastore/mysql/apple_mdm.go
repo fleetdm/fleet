@@ -4763,10 +4763,20 @@ func (ds *Datastore) MDMResetEnrollment(ctx context.Context, hostUUID string, sc
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "resetting host_emails sourced from mdm_idp_accounts")
 			}
-			// Without an IdP account (manual enrollment, or IdP user set by an admin)
-			// there is nothing to rebuild the SCIM link from, so keep the existing one.
-			// This check-in may be a SCEP renewal rather than a real re-enrollment.
-			if idp != nil {
+			// An IdP username set by an admin is kept by the reconcile above, so keep the
+			// SCIM link derived from it too: there is no IdP account to rebuild it from and
+			// this check-in may be a SCEP renewal rather than a real re-enrollment.
+			// Without either, drop the link so a host re-enrolled without SSO doesn't keep
+			// showing its previous user.
+			keepManualLink := false
+			if idp == nil {
+				if err := sqlx.GetContext(ctx, tx, &keepManualLink,
+					`SELECT EXISTS (SELECT 1 FROM host_emails WHERE host_id = ? AND source = ?)`,
+					host.ID, fleet.DeviceMappingIDP); err != nil {
+					return ctxerr.Wrap(ctx, err, "checking for manually set idp mapping")
+				}
+			}
+			if !keepManualLink {
 				if _, err := tx.ExecContext(ctx, `DELETE FROM host_scim_user WHERE host_id = ?`, host.ID); err != nil {
 					return ctxerr.Wrap(ctx, err, "resetting host_scim_users")
 				}

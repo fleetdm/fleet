@@ -13585,6 +13585,23 @@ func testMDMAppleResetEnrollmentScimLink(t *testing.T, ds *Datastore) {
 		})
 	}
 
+	t.Run("ADE host re-enrolled without SSO drops the link", func(t *testing.T) {
+		host := newDarwinHost(t, "uuid-ade-then-manual")
+		scimUserID := newScimUser(t, "gone@example.com")
+
+		associateIdPAccount(t, host, "gone@example.com")
+		require.NoError(t, ds.MaybeAssociateHostWithScimUser(ctx, host.ID))
+		requireLinkedTo(t, host, scimUserID)
+
+		// OTA/manual enrollment without an IdP reference clears the association before the reset.
+		_, err := ds.writer(ctx).ExecContext(ctx, `DELETE FROM host_mdm_idp_accounts WHERE host_uuid = ?`, host.UUID)
+		require.NoError(t, err)
+
+		require.NoError(t, ds.MDMResetEnrollment(ctx, host.UUID, false))
+		_, err = ds.ScimUserByHostID(ctx, host.ID)
+		require.True(t, fleet.IsNotFound(err), "no IdP account and no manual mapping: link must not survive")
+	})
+
 	t.Run("ADE re-enrollment by a different user re-points the link", func(t *testing.T) {
 		host := newDarwinHost(t, "uuid-ade-handoff")
 		firstUserID := newScimUser(t, "first@example.com")
