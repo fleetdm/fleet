@@ -1804,7 +1804,7 @@ func newQueryResultsCleanupSchedule(
 			// Results are stored per host, so raising the cap to the host count
 			// bounds each report to one row per host while letting one-row-per-host
 			// reports cover the whole fleet. Cached in Redis for the ingest path.
-			hostCount, err := ds.CountEnrolledHosts(ctx)
+			hostCount, err := ds.CountAllHosts(ctx)
 			if err != nil {
 				// Cleanup must still run; fall back to the last cached count.
 				logger.WarnContext(ctx, "failed to count hosts for query report cap", "err", err)

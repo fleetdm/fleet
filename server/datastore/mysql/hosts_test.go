@@ -214,7 +214,7 @@ func TestHosts(t *testing.T) {
 		{"HostTimeZone", testHostTimeZone},
 		{"ListHostsDEPFilters", testListHostsDEPFilters},
 		{"ExtendHostOrbitDebugUntil", testExtendHostOrbitDebugUntil},
-		{"CountEnrolledHosts", testCountEnrolledHosts},
+		{"CountAllHosts", testCountAllHosts},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -15197,10 +15197,10 @@ func testExtendHostOrbitDebugUntil(t *testing.T, ds *Datastore) {
 	require.True(t, got.OrbitDebugUntil.Equal(later))
 }
 
-func testCountEnrolledHosts(t *testing.T, ds *Datastore) {
+func testCountAllHosts(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
-	count, err := ds.CountEnrolledHosts(ctx)
+	count, err := ds.CountAllHosts(ctx)
 	require.NoError(t, err)
 	require.Equal(t, 0, count)
 
@@ -15208,7 +15208,7 @@ func testCountEnrolledHosts(t *testing.T, ds *Datastore) {
 	test.NewHost(t, ds, "bravo.local", "192.168.1.2", "22222", "UI8XB1222", time.Now())
 	test.NewHost(t, ds, "charlie.local", "192.168.1.3", "33333", "UI8XB1223", time.Now())
 
-	count, err = ds.CountEnrolledHosts(ctx)
+	count, err = ds.CountAllHosts(ctx)
 	require.NoError(t, err)
 	require.Equal(t, 3, count)
 }
