@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "15.0.2",
+      "version": "15.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.goodsnooze.MacWhisper';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.goodsnooze.MacWhisper' AND version_compare(bundle_short_version, '15.0.2') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.goodsnooze.MacWhisper' AND version_compare(bundle_short_version, '15.1') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.goodsnooze.MacWhisper' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://cdn.macwhisper.com/macwhisper/MacWhisper-1503.zip",
+      "installer_url": "https://cdn.macwhisper.com/macwhisper/MacWhisper-1510.zip",
       "install_script_ref": "15cfdede",
       "uninstall_script_ref": "ce1ae6ca",
-      "sha256": "3c12cb9b46ae567ea2d3b9dad3c2bc96050ac69a25368bc572b80fcab9e5f040",
+      "sha256": "80e53347048ae901ab077fd5b3db7b296c4acb4cc7186360e8b22ce033960225",
       "default_categories": [
         "Productivity"
       ]
