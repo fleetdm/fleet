@@ -85,10 +85,20 @@ type DatastoreEnrollOsqueryConfig struct {
 	TeamID         *uint
 	Cooldown       time.Duration
 	IdentityCert   *types.HostIdentityCertificate
+	// Created, when non-nil, is set to true if enrollment inserted a new hosts row.
+	Created *bool
 }
 
 // DatastoreEnrollOsqueryOption is a functional option for configuring datastore Host enrollment
 type DatastoreEnrollOsqueryOption func(*DatastoreEnrollOsqueryConfig)
+
+// WithEnrollOsqueryCreated sets *created to true when enrollment inserts a new hosts row
+// rather than re-enrolling an existing one.
+func WithEnrollOsqueryCreated(created *bool) DatastoreEnrollOsqueryOption {
+	return func(c *DatastoreEnrollOsqueryConfig) {
+		c.Created = created
+	}
+}
 
 // WithEnrollOsqueryMDMEnabled sets the MDM enabled flag for datastore Host enrollment
 func WithEnrollOsqueryMDMEnabled(enabled bool) DatastoreEnrollOsqueryOption {

@@ -338,6 +338,14 @@ func testCountResultsForQuery(t *testing.T, ds *Datastore) {
 	// Returns 0 when no results are found
 	count = resultCountForQuery(t, ds, 999)
 	require.Equal(t, 0, count)
+
+	// Batched: queries without rows are absent so callers can tell a miss from zero.
+	counts, err := ds.ResultCountsForQueries(context.Background(), []uint{query1.ID, query2.ID, 999})
+	require.NoError(t, err)
+	require.Equal(t, map[uint]int{query1.ID: 1, query2.ID: 5}, counts)
+	counts, err = ds.ResultCountsForQueries(context.Background(), nil)
+	require.NoError(t, err)
+	require.Empty(t, counts)
 }
 
 func testCountResultsForQueryAndHost(t *testing.T, ds *Datastore) {
@@ -1599,9 +1607,7 @@ func testListHostReports(t *testing.T, ds *Datastore) {
 
 // resultCountForQuery counts the stored rows with data for a query across all hosts.
 func resultCountForQuery(t *testing.T, ds *Datastore, queryID uint) int {
-	var count int
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		return sqlx.GetContext(context.Background(), q, &count, `SELECT COUNT(*) FROM query_results WHERE query_id = ? AND has_data = 1`, queryID)
-	})
-	return count
+	counts, err := ds.ResultCountsForQueries(context.Background(), []uint{queryID})
+	require.NoError(t, err)
+	return counts[queryID]
 }

@@ -328,16 +328,27 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 		}
 	}
 
+	var hostCreated bool
 	host, err := svc.ds.EnrollOrbit(ctx,
 		fleet.WithEnrollOrbitMDMEnabled(appConfig.MDM.EnabledAndConfigured),
 		fleet.WithEnrollOrbitHostInfo(hostInfo),
 		fleet.WithEnrollOrbitNodeKey(orbitNodeKey),
 		fleet.WithEnrollOrbitTeamID(secret.TeamID),
 		fleet.WithEnrollOrbitIdentityCert(identityCert),
+		fleet.WithEnrollOrbitCreated(&hostCreated),
 	)
 	if err != nil {
 		recordErrorDetail(ctx, err)
 		return "", fleet.OrbitError{Message: "failed to enroll"}
+	}
+
+	// fleetd enrolls orbit before osquery, so this is usually where the hosts row is created.
+	// Raise the report cap for it right away so its first results are not rejected while the
+	// cached host count waits for the cleanup cron to refresh it.
+	if hostCreated && svc.liveQueryStore != nil {
+		if err := svc.liveQueryStore.IncrQueryReportsHostCount(1); err != nil {
+			svc.logger.DebugContext(ctx, "incr query reports host count in redis", "err", err, "host_id", host.ID)
+		}
 	}
 
 	platform := host.FleetPlatform()

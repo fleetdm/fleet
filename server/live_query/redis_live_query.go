@@ -786,7 +786,7 @@ func queryResultsCountKey(queryID uint) string {
 }
 
 // GetQueryResultsCounts returns the current count of query results for multiple queries.
-// Returns a map of query ID -> count. Missing keys are returned with a count of 0.
+// Queries with no stored count are absent from the result.
 func (r *redisLiveQuery) GetQueryResultsCounts(queryIDs []uint) (map[uint]int, error) {
 	if len(queryIDs) == 0 {
 		return make(map[uint]int), nil
@@ -833,8 +833,7 @@ func (r *redisLiveQuery) collectBatchResultsCounts(keys []string, keyToID map[st
 	for _, key := range keys {
 		count, err := redigo.Int(conn.Receive())
 		if err != nil {
-			if err == redigo.ErrNil {
-				results[keyToID[key]] = 0
+			if errors.Is(err, redigo.ErrNil) {
 				continue
 			}
 			return fmt.Errorf("receive query results count: %w", err)
@@ -902,6 +901,54 @@ func (r *redisLiveQuery) incrBatchResultsCounts(keys []string, amountByKey map[s
 	return nil
 }
 
+// SetQueryResultsCountsIfAbsent seeds counts only for queries that have none stored.
+func (r *redisLiveQuery) SetQueryResultsCountsIfAbsent(counts map[uint]int) error {
+	if len(counts) == 0 {
+		return nil
+	}
+
+	// Keys have no hash tag, so group them by slot like the increments.
+	keys := make([]string, 0, len(counts))
+	countByKey := make(map[string]int, len(counts))
+	for queryID, count := range counts {
+		key := queryResultsCountKey(queryID)
+		keys = append(keys, key)
+		countByKey[key] = count
+	}
+
+	for _, slotKeys := range redis.SplitKeysBySlot(r.pool, keys...) {
+		if err := r.setBatchResultsCountsIfAbsent(slotKeys, countByKey); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (r *redisLiveQuery) setBatchResultsCountsIfAbsent(keys []string, countByKey map[string]int) error {
+	// Plain connection: redis.ConfigureDoer wraps it in a redisc.RetryConn whose Send is unsupported.
+	conn := r.pool.Get()
+	defer conn.Close()
+
+	for _, key := range keys {
+		if err := conn.Send("SET", key, countByKey[key], "NX"); err != nil {
+			return fmt.Errorf("send set query results count if absent: %w", err)
+		}
+	}
+
+	if err := conn.Flush(); err != nil {
+		return fmt.Errorf("flush pipeline: %w", err)
+	}
+
+	for range keys {
+		if _, err := conn.Receive(); err != nil {
+			return fmt.Errorf("receive set query results count if absent: %w", err)
+		}
+	}
+
+	return nil
+}
+
 // SetQueryResultsCount sets the query results count for a query to a specific value.
 // Used to reset counts to zero when a query is modified, or to adjust the count
 // in the cleanup cron job after deleting excess rows.
@@ -944,21 +991,45 @@ func (r *redisLiveQuery) SetQueryReportsHostCount(count int) error {
 	return nil
 }
 
-// GetQueryReportsHostCount returns the host count stored by SetQueryReportsHostCount,
-// or 0 if it has not been set yet.
-func (r *redisLiveQuery) GetQueryReportsHostCount() (int, error) {
+// GetQueryReportsHostCount returns the host count stored by SetQueryReportsHostCount. ok is
+// false when none is stored.
+func (r *redisLiveQuery) GetQueryReportsHostCount() (int, bool, error) {
 	conn := redis.ConfigureDoer(r.pool, r.pool.Get())
 	defer conn.Close()
 
 	count, err := redigo.Int(conn.Do("GET", queryReportsHostCountKey))
 	if err != nil {
 		if errors.Is(err, redigo.ErrNil) {
-			return 0, nil
+			return 0, false, nil
 		}
-		return 0, fmt.Errorf("get query reports host count: %w", err)
+		return 0, false, fmt.Errorf("get query reports host count: %w", err)
 	}
 
-	return count, nil
+	return count, true, nil
+}
+
+// SetQueryReportsHostCountIfAbsent seeds the host count only when none is stored.
+func (r *redisLiveQuery) SetQueryReportsHostCountIfAbsent(count int) error {
+	conn := redis.ConfigureDoer(r.pool, r.pool.Get())
+	defer conn.Close()
+
+	if _, err := conn.Do("SET", queryReportsHostCountKey, count, "NX"); err != nil {
+		return fmt.Errorf("set query reports host count if absent: %w", err)
+	}
+
+	return nil
+}
+
+// IncrQueryReportsHostCount adjusts the stored host count by delta.
+func (r *redisLiveQuery) IncrQueryReportsHostCount(delta int) error {
+	conn := redis.ConfigureDoer(r.pool, r.pool.Get())
+	defer conn.Close()
+
+	if _, err := conn.Do("INCRBY", queryReportsHostCountKey, delta); err != nil {
+		return fmt.Errorf("incr query reports host count: %w", err)
+	}
+
+	return nil
 }
 
 func queryReportClippedKey(queryID uint) string {

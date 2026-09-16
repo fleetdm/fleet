@@ -61,8 +61,20 @@ func (q nopLiveQuery) SetQueryReportsHostCount(int) error {
 	return nil
 }
 
-func (q nopLiveQuery) GetQueryReportsHostCount() (int, error) {
-	return 0, nil
+func (q nopLiveQuery) GetQueryReportsHostCount() (int, bool, error) {
+	return 0, false, nil
+}
+
+func (q nopLiveQuery) SetQueryReportsHostCountIfAbsent(int) error {
+	return nil
+}
+
+func (q nopLiveQuery) SetQueryResultsCountsIfAbsent(map[uint]int) error {
+	return nil
+}
+
+func (q nopLiveQuery) IncrQueryReportsHostCount(int) error {
+	return nil
 }
 
 func (q nopLiveQuery) MarkQueryReportsClipped(map[uint]time.Duration) error {

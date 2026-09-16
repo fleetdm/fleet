@@ -13,15 +13,18 @@ import (
 type MockLiveQuery struct {
 	mock.Mock
 	fleet.LiveQueryStore
-	GetQueryResultsCountsOverride    func(queryIDs []uint) (map[uint]int, error)
-	IncrQueryResultsCountsOverride   func(queryIDsToAmounts map[uint]int) error
-	SetQueryResultsCountOverride     func(queryID uint, count int) error
-	DeleteQueryResultsCountOverride  func(queryID uint) error
-	SetQueryReportsHostCountOverride func(count int) error
-	GetQueryReportsHostCountOverride func() (int, error)
-	MarkQueryReportsClippedOverride  func(ttlByQueryID map[uint]time.Duration) error
-	QueryReportsClippedOverride      func(queryIDs []uint) (map[uint]bool, error)
-	ClearQueryReportsClippedOverride func(queryIDs []uint) error
+	GetQueryResultsCountsOverride            func(queryIDs []uint) (map[uint]int, error)
+	IncrQueryResultsCountsOverride           func(queryIDsToAmounts map[uint]int) error
+	SetQueryResultsCountOverride             func(queryID uint, count int) error
+	DeleteQueryResultsCountOverride          func(queryID uint) error
+	SetQueryReportsHostCountOverride         func(count int) error
+	GetQueryReportsHostCountOverride         func() (int, bool, error)
+	SetQueryReportsHostCountIfAbsentOverride func(count int) error
+	SetQueryResultsCountsIfAbsentOverride    func(counts map[uint]int) error
+	IncrQueryReportsHostCountOverride        func(delta int) error
+	MarkQueryReportsClippedOverride          func(ttlByQueryID map[uint]time.Duration) error
+	QueryReportsClippedOverride              func(queryIDs []uint) (map[uint]bool, error)
+	ClearQueryReportsClippedOverride         func(queryIDs []uint) error
 }
 
 var _ fleet.LiveQueryStore = (*MockLiveQuery)(nil)
@@ -113,11 +116,36 @@ func (m *MockLiveQuery) SetQueryReportsHostCount(count int) error {
 }
 
 // GetQueryReportsHostCount mocks the live query store GetQueryReportsHostCount method.
-func (m *MockLiveQuery) GetQueryReportsHostCount() (int, error) {
+func (m *MockLiveQuery) GetQueryReportsHostCount() (int, bool, error) {
 	if m.GetQueryReportsHostCountOverride != nil {
 		return m.GetQueryReportsHostCountOverride()
 	}
-	return 0, nil
+	// Default to a cache hit of zero so tests opt into the database fallback explicitly.
+	return 0, true, nil
+}
+
+// SetQueryReportsHostCountIfAbsent mocks the live query store SetQueryReportsHostCountIfAbsent method.
+func (m *MockLiveQuery) SetQueryReportsHostCountIfAbsent(count int) error {
+	if m.SetQueryReportsHostCountIfAbsentOverride != nil {
+		return m.SetQueryReportsHostCountIfAbsentOverride(count)
+	}
+	return nil
+}
+
+// SetQueryResultsCountsIfAbsent mocks the live query store SetQueryResultsCountsIfAbsent method.
+func (m *MockLiveQuery) SetQueryResultsCountsIfAbsent(counts map[uint]int) error {
+	if m.SetQueryResultsCountsIfAbsentOverride != nil {
+		return m.SetQueryResultsCountsIfAbsentOverride(counts)
+	}
+	return nil
+}
+
+// IncrQueryReportsHostCount mocks the live query store IncrQueryReportsHostCount method.
+func (m *MockLiveQuery) IncrQueryReportsHostCount(delta int) error {
+	if m.IncrQueryReportsHostCountOverride != nil {
+		return m.IncrQueryReportsHostCountOverride(delta)
+	}
+	return nil
 }
 
 // MarkQueryReportsClipped mocks the live query store MarkQueryReportsClipped method.

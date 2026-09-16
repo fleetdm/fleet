@@ -283,12 +283,20 @@ func testLiveQueryResultsCounts(t *testing.T, store fleet.LiveQueryStore) {
 	cleanup()
 	t.Cleanup(cleanup)
 
-	// counts for never-incremented queries default to 0
+	// never-incremented queries are absent so callers can fall back to the database
 	counts, err := store.GetQueryResultsCounts(queryIDs)
 	require.NoError(t, err)
-	for _, id := range queryIDs {
-		require.Zero(t, counts[id])
-	}
+	require.Empty(t, counts)
+
+	// seeding only applies to queries with no stored count
+	require.NoError(t, store.SetQueryResultsCountsIfAbsent(nil))
+	require.NoError(t, store.SetQueryResultsCountsIfAbsent(map[uint]int{queryIDs[0]: 50, queryIDs[1]: 60}))
+	require.NoError(t, store.SetQueryResultsCountsIfAbsent(map[uint]int{queryIDs[0]: 1}))
+	counts, err = store.GetQueryResultsCounts(queryIDs)
+	require.NoError(t, err)
+	require.Equal(t, map[uint]int{queryIDs[0]: 50, queryIDs[1]: 60}, counts)
+	require.NoError(t, store.DeleteQueryResultsCount(queryIDs[0]))
+	require.NoError(t, store.DeleteQueryResultsCount(queryIDs[1]))
 
 	// increment each query by a distinct amount
 	increments := make(map[uint]int, len(queryIDs))
@@ -319,8 +327,7 @@ func testLiveQueryResultsCounts(t *testing.T, store fleet.LiveQueryStore) {
 	counts, err = store.GetQueryResultsCounts([]uint{queryIDs[0], 123456})
 	require.NoError(t, err)
 	require.Equal(t, 2*increments[queryIDs[0]], counts[queryIDs[0]])
-	require.Contains(t, counts, uint(123456))
-	require.Zero(t, counts[123456])
+	require.NotContains(t, counts, uint(123456))
 
 	// empty inputs are no-ops
 	err = store.IncrQueryResultsCounts(nil)
@@ -331,25 +338,50 @@ func testLiveQueryResultsCounts(t *testing.T, store fleet.LiveQueryStore) {
 }
 
 func testLiveQueryReportsHostCount(t *testing.T, store fleet.LiveQueryStore) {
-	// The key is not covered by the test cleanup key prefix, so reset it
-	// before and after the test.
-	cleanup := func() { require.NoError(t, store.SetQueryReportsHostCount(0)) }
+	// The key is not covered by the test cleanup key prefix, so remove it before and after.
+	cleanup := func() {
+		conn := store.(*redisLiveQuery).pool.Get()
+		defer conn.Close()
+		_, err := conn.Do("DEL", queryReportsHostCountKey)
+		require.NoError(t, err)
+	}
 	cleanup()
 	t.Cleanup(cleanup)
 
-	count, err := store.GetQueryReportsHostCount()
+	// Nothing stored reads as a miss.
+	count, ok, err := store.GetQueryReportsHostCount()
 	require.NoError(t, err)
+	require.False(t, ok)
 	require.Zero(t, count)
 
-	require.NoError(t, store.SetQueryReportsHostCount(12345))
-	count, err = store.GetQueryReportsHostCount()
+	// Seeding only takes effect on a miss.
+	require.NoError(t, store.SetQueryReportsHostCountIfAbsent(12345))
+	count, ok, err = store.GetQueryReportsHostCount()
 	require.NoError(t, err)
+	require.True(t, ok)
+	require.Equal(t, 12345, count)
+	require.NoError(t, store.SetQueryReportsHostCountIfAbsent(1))
+	count, ok, err = store.GetQueryReportsHostCount()
+	require.NoError(t, err)
+	require.True(t, ok)
 	require.Equal(t, 12345, count)
 
 	require.NoError(t, store.SetQueryReportsHostCount(7))
-	count, err = store.GetQueryReportsHostCount()
+	count, ok, err = store.GetQueryReportsHostCount()
 	require.NoError(t, err)
+	require.True(t, ok)
 	require.Equal(t, 7, count)
+
+	require.NoError(t, store.IncrQueryReportsHostCount(3))
+	count, _, err = store.GetQueryReportsHostCount()
+	require.NoError(t, err)
+	require.Equal(t, 10, count)
+
+	// The cron's full refresh still wins over accumulated increments.
+	require.NoError(t, store.SetQueryReportsHostCount(4))
+	count, _, err = store.GetQueryReportsHostCount()
+	require.NoError(t, err)
+	require.Equal(t, 4, count)
 }
 
 func testLiveQueryReportClipped(t *testing.T, store fleet.LiveQueryStore) {

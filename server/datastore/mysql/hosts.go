@@ -2597,6 +2597,9 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, opts ...fleet.DatastoreEnr
 				return ctxerr.Wrap(ctx, err, "insert host_display_names")
 			}
 			host.ID = uint(hostID)
+			if enrollConfig.Created != nil {
+				*enrollConfig.Created = true
+			}
 
 		default:
 			return ctxerr.Wrap(ctx, err, "orbit enroll error selecting host details")
@@ -2720,6 +2723,9 @@ func (ds *Datastore) EnrollOsquery(ctx context.Context, opts ...fleet.DatastoreE
 				return ctxerr.Wrap(ctx, err, "insert host_display_names")
 			}
 			hostID = uint(lastInsertID)
+			if enrollConfig.Created != nil {
+				*enrollConfig.Created = true
+			}
 		default:
 			hostID = enrolledHostInfo.ID
 

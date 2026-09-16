@@ -210,6 +210,7 @@ func (svc *Service) EnrollOsquery(ctx context.Context, enrollSecret, hostIdentif
 		return "", newOsqueryErrorWithInvalidNode("app config load failed")
 	}
 
+	var hostCreated bool
 	host, err := svc.ds.EnrollOsquery(ctx,
 		fleet.WithEnrollOsqueryMDMEnabled(appConfig.MDM.EnabledAndConfigured),
 		fleet.WithEnrollOsqueryHostID(hostIdentifier),
@@ -219,10 +220,19 @@ func (svc *Service) EnrollOsquery(ctx context.Context, enrollSecret, hostIdentif
 		fleet.WithEnrollOsqueryTeamID(secret.TeamID),
 		fleet.WithEnrollOsqueryCooldown(svc.config.Osquery.EnrollCooldown),
 		fleet.WithEnrollOsqueryIdentityCert(identityCert),
+		fleet.WithEnrollOsqueryCreated(&hostCreated),
 	)
 	if err != nil {
 		recordErrorDetail(ctx, err)
 		return "", newOsqueryErrorWithInvalidNode("save enroll failed")
+	}
+
+	// Raise the report cap for the new host right away so its first results are not rejected
+	// while the cached host count waits for the cleanup cron to refresh it.
+	if hostCreated && svc.liveQueryStore != nil {
+		if err := svc.liveQueryStore.IncrQueryReportsHostCount(1); err != nil {
+			svc.logger.DebugContext(ctx, "incr query reports host count in redis", "err", err, "host_id", host.ID)
+		}
 	}
 
 	features, err := svc.HostFeatures(ctx, host)
@@ -4249,7 +4259,8 @@ func (svc *Service) saveResultLogsToQueryReports(
 	// Filter results to only the most recent for each query.
 	unmarshaledResultsFiltered = getMostRecentResults(unmarshaledResultsFiltered)
 
-	// Batch fetch query result counts from Redis for all queries
+	// Batch fetch query result counts from Redis for all queries, reading any that Redis
+	// doesn't have from the database and seeding them so later requests hit the cache.
 	var queryResultCounts map[uint]int
 	if svc.liveQueryStore != nil {
 		queryIDs := make([]uint, 0, len(queriesDBData))
@@ -4261,6 +4272,27 @@ func (svc *Service) saveResultLogsToQueryReports(
 		if err != nil {
 			svc.logger.ErrorContext(ctx, "get result counts for queries", "err", err)
 			return
+		}
+		var missing []uint
+		for _, id := range queryIDs {
+			if _, ok := queryResultCounts[id]; !ok {
+				missing = append(missing, id)
+			}
+		}
+		if len(missing) > 0 {
+			fromDB, err := svc.ds.ResultCountsForQueries(ctx, missing)
+			if err != nil {
+				svc.logger.ErrorContext(ctx, "count results for queries missing from redis", "err", err)
+				return
+			}
+			seed := make(map[uint]int, len(missing))
+			for _, id := range missing {
+				seed[id] = fromDB[id]
+				queryResultCounts[id] = fromDB[id]
+			}
+			if err := svc.liveQueryStore.SetQueryResultsCountsIfAbsent(seed); err != nil {
+				svc.logger.DebugContext(ctx, "seed query results counts in redis", "err", err)
+			}
 		}
 	}
 

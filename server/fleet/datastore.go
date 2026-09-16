@@ -714,6 +714,9 @@ type Datastore interface {
 	QueryResultRows(ctx context.Context, queryID uint, filter TeamFilter, opts ListOptions) ([]*ScheduledQueryResultRow, int, *PaginationMetadata, error)
 	QueryResultRowsForHost(ctx context.Context, queryID, hostID uint) ([]*ScheduledQueryResultRow, error)
 	ResultCountForQueryAndHost(ctx context.Context, queryID, hostID uint) (int, error)
+	// ResultCountsForQueries returns the number of stored rows with data per query. Queries with
+	// no rows are absent from the result.
+	ResultCountsForQueries(ctx context.Context, queryIDs []uint) (map[uint]int, error)
 	// OverwriteQueryResultRows replaces the stored rows of a host for a query. currentCount is the
 	// (approximate) number of rows stored for the query across all hosts; if the replacement would
 	// push it above maxQueryReportRows nothing is changed and the result is marked rejected.

@@ -210,17 +210,26 @@ func (svc *Service) GetQueryReportResults(ctx context.Context, id uint, teamID *
 	return queryReportResults, count, meta, reportClipped, nil
 }
 
-// queryReportCap returns the effective report cap, raised to the total host
-// count cached in Redis by the query results cleanup cron. Falls back to the
-// configured cap if the count is unavailable.
+// queryReportCap returns the effective report cap, raised to the total host count cached in
+// Redis by the query results cleanup cron. On a cache miss the count is read from the database
+// and seeded into Redis. Falls back to the configured cap if the count is unavailable.
 func (svc *Service) queryReportCap(ctx context.Context, serverSettings fleet.ServerSettings) int {
-	hostCount := 0
-	if svc.liveQueryStore != nil {
-		n, err := svc.liveQueryStore.GetQueryReportsHostCount()
+	if svc.liveQueryStore == nil {
+		return serverSettings.GetEffectiveQueryReportCap(0)
+	}
+	hostCount, ok, err := svc.liveQueryStore.GetQueryReportsHostCount()
+	if err != nil {
+		svc.logger.DebugContext(ctx, "get query reports host count", "err", err)
+		return serverSettings.GetEffectiveQueryReportCap(0)
+	}
+	if !ok {
+		hostCount, err = svc.ds.CountAllHosts(ctx)
 		if err != nil {
-			svc.logger.DebugContext(ctx, "get query reports host count", "err", err)
-		} else {
-			hostCount = n
+			svc.logger.DebugContext(ctx, "count hosts for query report cap", "err", err)
+			return serverSettings.GetEffectiveQueryReportCap(0)
+		}
+		if err := svc.liveQueryStore.SetQueryReportsHostCountIfAbsent(hostCount); err != nil {
+			svc.logger.DebugContext(ctx, "seed query reports host count in redis", "err", err)
 		}
 	}
 	return serverSettings.GetEffectiveQueryReportCap(hostCount)

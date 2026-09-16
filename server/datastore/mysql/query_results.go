@@ -209,6 +209,30 @@ func (ds *Datastore) ResultCountForQueryAndHost(ctx context.Context, queryID, ho
 	return count, nil
 }
 
+// ResultCountsForQueries counts the stored rows with data for each query.
+func (ds *Datastore) ResultCountsForQueries(ctx context.Context, queryIDs []uint) (map[uint]int, error) {
+	counts := make(map[uint]int, len(queryIDs))
+	if len(queryIDs) == 0 {
+		return counts, nil
+	}
+
+	stmt, args, err := sqlx.In(`SELECT query_id, COUNT(*) AS n FROM query_results WHERE query_id IN (?) AND has_data = 1 GROUP BY query_id`, queryIDs)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "building query results count statement")
+	}
+	var rows []struct {
+		QueryID uint `db:"query_id"`
+		N       int  `db:"n"`
+	}
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, stmt, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "counting query results for queries")
+	}
+	for _, row := range rows {
+		counts[row.QueryID] = row.N
+	}
+	return counts, nil
+}
+
 // QueryResultRowsForHost returns the query result rows for a given query and host
 // including rows with null data
 func (ds *Datastore) QueryResultRowsForHost(ctx context.Context, queryID, hostID uint) ([]*fleet.ScheduledQueryResultRow, error) {

@@ -2488,24 +2488,30 @@ func testHostsEnroll(t *testing.T, ds *Datastore) {
 	}
 
 	for _, tt := range enrollTests {
+		var created bool
 		h, err := ds.EnrollOsquery(context.Background(),
 			fleet.WithEnrollOsqueryHostID(tt.uuid),
 			fleet.WithEnrollOsqueryNodeKey(tt.nodeKey),
 			fleet.WithEnrollOsqueryTeamID(&team.ID),
+			fleet.WithEnrollOsqueryCreated(&created),
 		)
 		require.NoError(t, err)
 		assert.NotZero(t, h.LastEnrolledAt)
+		assert.True(t, created)
 
 		assert.Equal(t, tt.uuid, *h.OsqueryHostID)
 		assert.Equal(t, tt.nodeKey, *h.NodeKey)
 
 		// This host should be allowed to re-enroll immediately if cooldown is disabled
+		created = false
 		_, err = ds.EnrollOsquery(context.Background(),
 			fleet.WithEnrollOsqueryHostID(tt.uuid),
 			fleet.WithEnrollOsqueryNodeKey(tt.nodeKey+"new"),
+			fleet.WithEnrollOsqueryCreated(&created),
 		)
 		require.NoError(t, err)
 		assert.NotZero(t, h.LastEnrolledAt)
+		assert.False(t, created)
 
 		// This host should not be allowed to re-enroll immediately if cooldown is enabled
 		_, err = ds.EnrollOsquery(context.Background(),
@@ -12054,6 +12060,7 @@ func testHostsEnrollOrbit(t *testing.T, ds *Datastore) {
 
 	// enroll with no match, will create a new one
 	newSerial := uuid.NewString()
+	var created bool
 	h, err = ds.EnrollOrbit(ctx,
 		fleet.WithEnrollOrbitMDMEnabled(true),
 		fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{
@@ -12065,9 +12072,27 @@ func testHostsEnrollOrbit(t *testing.T, ds *Datastore) {
 			HardwareModel:  "ABC-3000",
 		}),
 		fleet.WithEnrollOrbitNodeKey(uuid.New().String()),
+		fleet.WithEnrollOrbitCreated(&created),
 	)
 	require.NoError(t, err)
 	require.Greater(t, h.ID, hBoth.ID)
+	require.True(t, created)
+
+	// re-enrolling the same host doesn't report it as created
+	created = false
+	_, err = ds.EnrollOrbit(ctx,
+		fleet.WithEnrollOrbitMDMEnabled(true),
+		fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{
+			HardwareUUID:   h.UUID,
+			HardwareSerial: newSerial,
+			Hostname:       "foo2",
+			Platform:       "darwin",
+		}),
+		fleet.WithEnrollOrbitNodeKey(uuid.New().String()),
+		fleet.WithEnrollOrbitCreated(&created),
+	)
+	require.NoError(t, err)
+	require.False(t, created)
 	// Hostname and platform values should be set by the Orbit enroll.
 	h, err = ds.Host(ctx, h.ID)
 	require.NoError(t, err)

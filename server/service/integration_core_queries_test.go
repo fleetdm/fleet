@@ -935,6 +935,14 @@ func (s *integrationTestSuite) TestQueryReports() {
 		counts[queryID] = count
 		return nil
 	}
+	s.lq.SetQueryResultsCountsIfAbsentOverride = func(seed map[uint]int) error {
+		for queryID, count := range seed {
+			if _, ok := counts[queryID]; !ok {
+				counts[queryID] = count
+			}
+		}
+		return nil
+	}
 	s.lq.IncrQueryResultsCountsOverride = func(queryIDsToAmounts map[uint]int) error {
 		for queryID, amount := range queryIDsToAmounts {
 			counts[queryID] += amount
@@ -964,6 +972,7 @@ func (s *integrationTestSuite) TestQueryReports() {
 	defer func() {
 		s.lq.GetQueryResultsCountsOverride = nil
 		s.lq.SetQueryResultsCountOverride = nil
+		s.lq.SetQueryResultsCountsIfAbsentOverride = nil
 		s.lq.IncrQueryResultsCountsOverride = nil
 		s.lq.DeleteQueryResultsCountOverride = nil
 		s.lq.MarkQueryReportsClippedOverride = nil

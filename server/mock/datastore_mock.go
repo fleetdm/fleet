@@ -490,6 +490,8 @@ type QueryResultRowsForHostFunc func(ctx context.Context, queryID uint, hostID u
 
 type ResultCountForQueryAndHostFunc func(ctx context.Context, queryID uint, hostID uint) (int, error)
 
+type ResultCountsForQueriesFunc func(ctx context.Context, queryIDs []uint) (map[uint]int, error)
+
 type OverwriteQueryResultRowsFunc func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows int, currentCount int) (fleet.QueryReportWriteResult, error)
 
 type CleanupDiscardedQueryResultsFunc func(ctx context.Context) error
@@ -3117,6 +3119,9 @@ type DataStore struct {
 
 	ResultCountForQueryAndHostFunc        ResultCountForQueryAndHostFunc
 	ResultCountForQueryAndHostFuncInvoked bool
+
+	ResultCountsForQueriesFunc        ResultCountsForQueriesFunc
+	ResultCountsForQueriesFuncInvoked bool
 
 	OverwriteQueryResultRowsFunc        OverwriteQueryResultRowsFunc
 	OverwriteQueryResultRowsFuncInvoked bool
@@ -7642,6 +7647,13 @@ func (s *DataStore) ResultCountForQueryAndHost(ctx context.Context, queryID uint
 	s.ResultCountForQueryAndHostFuncInvoked = true
 	s.mu.Unlock()
 	return s.ResultCountForQueryAndHostFunc(ctx, queryID, hostID)
+}
+
+func (s *DataStore) ResultCountsForQueries(ctx context.Context, queryIDs []uint) (map[uint]int, error) {
+	s.mu.Lock()
+	s.ResultCountsForQueriesFuncInvoked = true
+	s.mu.Unlock()
+	return s.ResultCountsForQueriesFunc(ctx, queryIDs)
 }
 
 func (s *DataStore) OverwriteQueryResultRows(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows int, currentCount int) (fleet.QueryReportWriteResult, error) {

@@ -1808,7 +1808,7 @@ func newQueryResultsCleanupSchedule(
 			if err != nil {
 				// Cleanup must still run; fall back to the last cached count.
 				logger.WarnContext(ctx, "failed to count hosts for query report cap", "err", err)
-				if hostCount, err = liveQueryStore.GetQueryReportsHostCount(); err != nil {
+				if hostCount, _, err = liveQueryStore.GetQueryReportsHostCount(); err != nil {
 					logger.WarnContext(ctx, "failed to get query reports host count from redis", "err", err)
 					hostCount = 0
 				}
