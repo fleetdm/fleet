@@ -10,6 +10,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/bitlocker"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/rs/zerolog/log"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -21,8 +22,9 @@ func TestWindowsMDMBitlockerPIN(t *testing.T) {
 	t.Cleanup(func() { log.Logger = oldLog })
 
 	const (
-		pin         = `open "sesame" \ 42`
-		requestUUID = "request-uuid"
+		pin                    = `open "sesame" \ 42`
+		requestUUID            = "request-uuid"
+		resubmittedRequestUUID = "resubmitted-request-uuid"
 	)
 	notFound := &client.NotFoundErr{}
 	networkErr := errors.New("connection refused")
@@ -35,8 +37,10 @@ func TestWindowsMDMBitlockerPIN(t *testing.T) {
 		server    *mockDiskEncryptionKeySetter
 		appliedTo []string
 	}
-	newFixture := func(applyErr error) *fixture {
+	newFixture := func(t *testing.T, applyErr error) *fixture {
 		logBuf.Reset()
+		// Every path through the receiver logs, and none of it may carry the PIN.
+		t.Cleanup(func() { assert.NotContains(t, logBuf.String(), pin) })
 		f := &fixture{server: &mockDiskEncryptionKeySetter{
 			GetPINDetailsImpl: func() (string, string, error) { return pin, requestUUID, nil },
 			SetPINResultImpl:  func(pinOutcome) error { return nil },
@@ -44,30 +48,27 @@ func TestWindowsMDMBitlockerPIN(t *testing.T) {
 		f.receiver = &windowsMDMBitlockerConfigReceiver{
 			EncryptionResult: f.server,
 			execSetTPMAndPINProtectorFn: func(volumeID, gotPIN string) error {
-				require.Equal(t, pin, gotPIN)
+				// Not require: this runs inside the receiver, and a failure here must not stop the subtest's goroutine.
+				assert.Equal(t, pin, gotPIN)
 				f.appliedTo = append(f.appliedTo, volumeID)
 				return applyErr
 			},
 		}
 		return f
 	}
-	requireNoPINInLogs := func(t *testing.T) {
-		require.NotContains(t, logBuf.String(), pin)
-	}
 	setOutcome := pinOutcome{requestUUID: requestUUID, outcome: fleet.BitLockerPINRequestSet}
 
 	t.Run("a pending PIN is applied and reported", func(t *testing.T) {
-		f := newFixture(nil)
+		f := newFixture(t, nil)
 		require.NoError(t, f.receiver.Run(pinPending))
 
 		require.Equal(t, []string{"C:"}, f.appliedTo)
 		require.Equal(t, []pinOutcome{setOutcome}, f.server.PINResults)
 		require.Nil(t, f.receiver.heldPINOutcome)
-		requireNoPINInLogs(t)
 	})
 
 	t.Run("nothing is collected without the pending flag", func(t *testing.T) {
-		f := newFixture(nil)
+		f := newFixture(t, nil)
 		require.NoError(t, f.receiver.Run(nothingPending))
 
 		require.Zero(t, f.server.GetPINDetailsCalls)
@@ -75,7 +76,7 @@ func TestWindowsMDMBitlockerPIN(t *testing.T) {
 	})
 
 	t.Run("nothing is collected while another BitLocker operation holds the lock", func(t *testing.T) {
-		f := newFixture(nil)
+		f := newFixture(t, nil)
 		f.receiver.mu.Lock()
 		require.NoError(t, f.receiver.Run(pinPending))
 		f.receiver.mu.Unlock()
@@ -85,7 +86,7 @@ func TestWindowsMDMBitlockerPIN(t *testing.T) {
 	})
 
 	t.Run("nothing is collected while encryption is being enforced", func(t *testing.T) {
-		f := newFixture(nil)
+		f := newFixture(t, nil)
 		f.receiver.encryptionRetryAfter = time.Now().Add(time.Hour)
 		cfg := &fleet.OrbitConfig{Notifications: fleet.OrbitConfigNotifications{
 			BitLockerPINRequestPending: true,
@@ -96,23 +97,35 @@ func TestWindowsMDMBitlockerPIN(t *testing.T) {
 		require.Zero(t, f.server.GetPINDetailsCalls)
 	})
 
-	for _, tc := range []struct {
-		name       string
-		collectErr error
-	}{
-		{name: "a collect 404 means nothing to apply", collectErr: notFound},
-		{name: "a failed collect is retried on the next poll", collectErr: networkErr},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			f := newFixture(nil)
-			f.server.GetPINDetailsImpl = func() (string, string, error) { return "", "", tc.collectErr }
-			require.NoError(t, f.receiver.Run(pinPending))
-
-			require.Empty(t, f.appliedTo)
-			require.Empty(t, f.server.PINResults)
-			require.Nil(t, f.receiver.heldPINOutcome)
-		})
+	requireNothingHappened := func(t *testing.T, f *fixture) {
+		t.Helper()
+		require.Empty(t, f.appliedTo)
+		require.Empty(t, f.server.PINResults)
+		require.Nil(t, f.receiver.heldPINOutcome)
 	}
+
+	t.Run("a collect 404 means nothing to apply", func(t *testing.T) {
+		f := newFixture(t, nil)
+		f.server.GetPINDetailsImpl = func() (string, string, error) { return "", "", notFound }
+		require.NoError(t, f.receiver.Run(pinPending))
+
+		requireNothingHappened(t, f)
+	})
+
+	t.Run("a failed collect is retried on the next poll", func(t *testing.T) {
+		f := newFixture(t, nil)
+		f.server.GetPINDetailsImpl = func() (string, string, error) { return "", "", networkErr }
+		require.NoError(t, f.receiver.Run(pinPending))
+		requireNothingHappened(t, f)
+
+		// The server still has the PIN, so a later poll collects it. Nothing from the failure may stand in the way.
+		f.server.GetPINDetailsImpl = func() (string, string, error) { return pin, requestUUID, nil }
+		require.NoError(t, f.receiver.Run(pinPending))
+
+		require.Equal(t, []string{"C:"}, f.appliedTo)
+		require.Equal(t, []pinOutcome{setOutcome}, f.server.PINResults)
+		require.Nil(t, f.receiver.heldPINOutcome)
+	})
 
 	for _, tc := range []struct {
 		name       string
@@ -131,7 +144,7 @@ func TestWindowsMDMBitlockerPIN(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			f := newFixture(tc.applyErr)
+			f := newFixture(t, tc.applyErr)
 			require.NoError(t, f.receiver.Run(pinPending))
 
 			require.Equal(t, []pinOutcome{{
@@ -139,12 +152,11 @@ func TestWindowsMDMBitlockerPIN(t *testing.T) {
 				outcome:     fleet.BitLockerPINRequestFailed,
 				clientError: tc.wantReason,
 			}}, f.server.PINResults)
-			requireNoPINInLogs(t)
 		})
 	}
 
-	t.Run("an unreported outcome is held and retried on a later poll without the flag", func(t *testing.T) {
-		f := newFixture(nil)
+	t.Run("an unreported outcome is held and retried on a later poll without the bitlocker_pin_request_pending flag", func(t *testing.T) {
+		f := newFixture(t, nil)
 		f.server.SetPINResultImpl = func(pinOutcome) error { return networkErr }
 		require.NoError(t, f.receiver.Run(pinPending))
 		require.Equal(t, &setOutcome, f.receiver.heldPINOutcome)
@@ -156,11 +168,10 @@ func TestWindowsMDMBitlockerPIN(t *testing.T) {
 		require.Equal(t, 1, f.server.GetPINDetailsCalls)
 		require.Len(t, f.appliedTo, 1)
 		require.Nil(t, f.receiver.heldPINOutcome)
-		requireNoPINInLogs(t)
 	})
 
 	t.Run("an outcome the server no longer wants is dropped", func(t *testing.T) {
-		f := newFixture(nil)
+		f := newFixture(t, nil)
 		f.server.SetPINResultImpl = func(pinOutcome) error { return notFound }
 		require.NoError(t, f.receiver.Run(pinPending))
 		require.Nil(t, f.receiver.heldPINOutcome)
