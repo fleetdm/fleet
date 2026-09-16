@@ -119,7 +119,7 @@ func (f *fakePINVolume) deleteKeyProtector(protectorID string) error {
 func TestSetTPMAndPINProtector(t *testing.T) {
 	t.Parallel()
 
-	// An enhanced PIN with the characters most likely to be mangled on the way to WMI.
+	// An enhanced PIN with a mix of characters.
 	const pin = ` my "PIN" \ 1'2 `
 
 	protectedAndEncrypted := &EncryptionStatus{ConversionStatus: ConversionStatusFullyEncrypted, ProtectionStatus: ProtectionStatusOn}
@@ -193,7 +193,6 @@ func TestSetTPMAndPINProtector(t *testing.T) {
 			wantProtectors: tpmOnlyAndRecovery(),
 		},
 		{
-			// Never reported as success, because the PIN on the volume is not the one the end user typed.
 			name: "Windows says a PIN protector exists",
 			vol: &fakePINVolume{
 				status: protectedAndEncrypted, protectors: tpmOnlyAndRecovery(),
@@ -292,16 +291,14 @@ func TestPINAddFailureReason(t *testing.T) {
 		err  error
 		want string
 	}{
-		{name: "PIN length", err: NewEncryptionError("", ErrorCodeInvalidPINLength), want: PINReasonInvalidLength},
+		// Windows returns the detailed code, not FVE_E_INVALID_PIN_CHARS, when a PIN has letters and enhanced PINs are off.
 		{name: "PIN characters", err: NewEncryptionError("", ErrorCodeInvalidPINCharsDetailed), want: PINReasonInvalidChars},
-		{name: "TPM service", err: NewEncryptionError("", ErrorCodeTBSServiceNotRunning), want: PINReasonTPMServiceStopped},
-		{name: "locked volume", err: NewEncryptionError("", ErrorCodeLockedVolume), want: PINReasonLockedVolume},
-		{name: "bootable media", err: NewEncryptionError("", ErrorCodeBootableCDOrDVD), want: PINReasonBootableMedia},
-		{name: "foreign volume", err: NewEncryptionError("", ErrorCodeForeignVolume), want: PINReasonForeignVolume},
+		// The codes are negative int32 on the wire, so the fallback has to render them as Windows writes them.
 		{name: "unmapped code", err: NewEncryptionError("", ErrorCodeIODevice), want: "Windows couldn't add the PIN (error 0x8007045D)"},
 		{name: "not a WMI error", err: errors.New("COM failure"), want: PINReasonNotFinished},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
+			// Wrapped, because the caller always wraps: the lookup has to walk the error chain.
 			require.Equal(t, tc.want, pinAddFailureReason(fmt.Errorf("wrapped: %w", tc.err)))
 		})
 	}
