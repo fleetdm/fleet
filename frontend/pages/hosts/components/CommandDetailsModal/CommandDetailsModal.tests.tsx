@@ -279,12 +279,22 @@ describe("formatCommandJson", () => {
   });
 
   it("preserves escape sequences, including escaped quotes and braces", () => {
-    // Go's json.Marshal escapes "<" as <, so the stored payload really
-    // does contain escape sequences that must survive formatting
+    // Go's json.Marshal escapes "<" as a unicode escape, so stored payloads
+    // really do contain escape sequences that must survive formatting
     const withEscapes = '{"msg":"a \\u003c b \\"quoted\\" {not:nested}"}';
 
     expect(formatCommandJson(withEscapes)).toEqual(`{
   "msg": "a \\u003c b \\"quoted\\" {not:nested}"
+}`);
+  });
+
+  it("treats an escaped quote as part of the string, not its end", () => {
+    // the text after the escaped quote holds a space and a comma, which would
+    // be eaten or broken onto a new line if the escape ended the string early
+    const escapedQuote = '{"msg":"say \\"hi there\\", ok"}';
+
+    expect(formatCommandJson(escapedQuote)).toEqual(`{
+  "msg": "say \\"hi there\\", ok"
 }`);
   });
 
