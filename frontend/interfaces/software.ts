@@ -750,6 +750,7 @@ export const isSoftwareSuccessStatus = (
 // Update-available UI status
 export const HOST_SOFTWARE_UI_UPDATE_AVAILABLE_STATUSES = [
   "update_available", // In inventory, but newer fleet installer version is available
+  "skipped_install", // Patch-when-closed skip; renders as a deferred update
 ] as const;
 export type HostSoftwareUiUpdateAvailableStatus = typeof HOST_SOFTWARE_UI_UPDATE_AVAILABLE_STATUSES[number];
 export const isSoftwareUpdateAvailableStatus = (
