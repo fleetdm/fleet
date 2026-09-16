@@ -330,6 +330,12 @@
   quoteAuthorJobTitle: IT Manager and CPE, Reed College 
   quoteLinkUrl: https://www.linkedin.com/in/mason-peressini
   productCategories: [Device management, Software management]
+- quote: Having Fleet on site was phenomenal! Their professionalism and commitment to ensuring our use cases were managed was some of the best customer partnership we've ever seen.
+  quoteAuthorName: Jonathan Keyes
+  quoteAuthorJobTitle: Director of Project Management at Hawx
+  quoteAuthorProfileImageFilename: https://media.licdn.com/dms/image/…/1705292486858?e=1791417600&v=beta&… # TODO: this URL appears truncated/incomplete (copied from LinkedIn with "…" characters); re-fetch the full avatar image from LinkedIn and replace with a properly named local asset filename (e.g. testimonial-author-jonathan-keyes-100x100@2x.png), following the convention used by other entries in this file.
+  quoteLinkUrl: https://www.linkedin.com/in/jonathan-keyes-7350212aa
+  productCategories: [Device management, Software management, Observability]
 
 
 # -
