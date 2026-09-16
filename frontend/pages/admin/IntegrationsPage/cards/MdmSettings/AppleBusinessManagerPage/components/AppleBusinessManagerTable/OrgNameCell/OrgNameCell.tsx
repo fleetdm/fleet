@@ -1,12 +1,11 @@
 import React from "react";
 
-import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
-
 import CustomLink from "components/CustomLink";
 import Icon from "components/Icon";
-import Tag from "components/Tag";
 import TextCell from "components/TableContainer/DataTable/TextCell";
+import Tag from "components/Tag";
 import TooltipWrapper from "components/TooltipWrapper";
+import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 
 const baseClass = "org-name-cell";
 

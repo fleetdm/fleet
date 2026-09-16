@@ -1,11 +1,11 @@
-import React from "react";
 import { screen, waitFor } from "@testing-library/react";
 import { noop } from "lodash";
+import React from "react";
 
 import createMockConfig from "__mocks__/configMock";
-import { createCustomRenderer, createMockRouter } from "test/test-utils";
 import { IMdmAbToken } from "interfaces/mdm";
 import mdmAbmAPI from "services/entities/mdm_apple_bm";
+import { createCustomRenderer, createMockRouter } from "test/test-utils";
 
 import AppleBusinessManagerPage from "./AppleBusinessManagerPage";
 

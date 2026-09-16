@@ -1,6 +1,6 @@
-import React from "react";
 import { render, screen } from "@testing-library/react";
 import { noop } from "lodash";
+import React from "react";
 
 import DeleteAbmModal from "./DeleteAbmModal";
 
@@ -22,7 +22,9 @@ describe("DeleteAbmModal", () => {
     expect(
       screen.getByText(/won't automatically enroll to Fleet/)
     ).toBeInTheDocument();
-    expect(screen.queryByText(/will become the default|set a new default/)).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/will become the default|set a new default/)
+    ).not.toBeInTheDocument();
   });
 
   it("omits default token copy when deleting a non-default token", () => {
@@ -31,14 +33,18 @@ describe("DeleteAbmModal", () => {
     expect(
       screen.getByText(/won't automatically enroll to Fleet/)
     ).toBeInTheDocument();
-    expect(screen.queryByText(/will become the default|set a new default/)).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/will become the default|set a new default/)
+    ).not.toBeInTheDocument();
   });
 
   it("says the remaining token becomes the default when deleting the default of two", () => {
     renderModal({ tokenIsDefault: true, tokensCount: 2 });
 
     expect(
-      screen.getByText(/Your remaining token will become the default automatically/)
+      screen.getByText(
+        /Your remaining token will become the default automatically/
+      )
     ).toBeInTheDocument();
   });
 
