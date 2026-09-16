@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/Masterminds/semver/v3"
+	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 )
@@ -1335,14 +1336,14 @@ type HostSummaryPlatform struct {
 	HostsCount uint   `json:"hosts_count" db:"total"`
 }
 
-// neverTimestampParsed mirrors server.NeverTimestamp as a time.Time so
-// mobileStatus can compare against it without importing server (cycle).
-// Panics on parse failure so a format/literal drift can't silently degrade to
-// zero-time and false-online every never-checked-in mobile host.
+// neverTimestampParsed parses server.NeverTimestamp once so mobileStatus can
+// compare against it as a time.Time. Panics on parse failure so a format
+// drift can't silently degrade to zero-time and false-online every
+// never-checked-in mobile host.
 var neverTimestampParsed = mustParseNeverTimestamp()
 
 func mustParseNeverTimestamp() time.Time {
-	t, err := time.Parse("2006-01-02 15:04:05", "2000-01-01 00:00:00")
+	t, err := time.Parse("2006-01-02 15:04:05", server.NeverTimestamp)
 	if err != nil {
 		panic("fleet: neverTimestampParsed: " + err.Error())
 	}

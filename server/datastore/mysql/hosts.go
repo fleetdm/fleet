@@ -1241,7 +1241,7 @@ func (ds *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt
 		    `
 	}
 
-	sql, params, err := ds.applyHostFilters(ctx, opt, sql, filter, params, true)
+	sql, params, err := ds.applyHostFilters(ctx, opt, sql, filter, params, hostFilterList)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "list hosts: apply host filters")
 	}
@@ -1346,13 +1346,21 @@ WHERE
 	return hosts, meta, count, nil
 }
 
+// hostFilterMode signals how the caller uses the SELECT: hostFilterList
+// SELECTs nstm.seen_time (and needs the mobile MDM join unconditionally, to
+// populate Host.LastMDMCheckedInAt); hostFilterCount omits nstm and only
+// needs the join when a status filter references it in the WHERE.
+type hostFilterMode int
+
+const (
+	hostFilterCount hostFilterMode = iota
+	hostFilterList
+)
+
 // TODO(Sarah): Do we need to reconcile mutually exclusive filters?
 // applyHostFilters splices the WHERE clause and its associated joins onto sqlStmt.
-// forListSelect signals that the caller's SELECT reads nstm.seen_time
-// (populating Host.LastMDMCheckedInAt on each row); CountHosts leaves it false
-// so the mobile MDM join only appears when a status filter needs it in the WHERE.
 func (ds *Datastore) applyHostFilters(
-	ctx context.Context, opt fleet.HostListOptions, sqlStmt string, filter fleet.TeamFilter, selectParams []any, forListSelect bool,
+	ctx context.Context, opt fleet.HostListOptions, sqlStmt string, filter fleet.TeamFilter, selectParams []any, mode hostFilterMode,
 ) (string, []interface{}, error) {
 	// prior to returning, params will be appended in the following order: selectParams, joinParams, whereParams
 	var whereParams, joinParams []interface{}
@@ -1496,7 +1504,7 @@ func (ds *Datastore) applyHostFilters(
 	// Host.LastMDMCheckedInAt) and by any online/offline status filter WHERE
 	// clause. Skip it for callers like CountHosts that need neither.
 	hostMDMSeenJoin := ""
-	if forListSelect || opt.StatusFilter.IsValid() {
+	if mode == hostFilterList || opt.StatusFilter.IsValid() {
 		hostMDMSeenJoin = hostMobileMDMSeenTimeJoin
 	}
 	if opt.StatusFilter.IsValid() {
@@ -2202,7 +2210,7 @@ func (ds *Datastore) CountHosts(ctx context.Context, filter fleet.TeamFilter, op
 
 	var params []interface{}
 
-	sql, params, err := ds.applyHostFilters(ctx, opt, sql, filter, params, false)
+	sql, params, err := ds.applyHostFilters(ctx, opt, sql, filter, params, hostFilterCount)
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "count hosts: apply host filters")
 	}
@@ -3337,12 +3345,13 @@ func (ds *Datastore) MarkHostsSeen(ctx context.Context, hostIDs []uint, t time.T
 //   - An optional list of IDs to omit from the search.
 //
 // Deliberately does not populate LastMDMCheckedInAt: sole caller is the
-// live-query target picker, and mobile hosts can't be live-queried. Any
-// mobile row returned here has an incomplete status signal (no MDM
-// last_seen, so mobileStatus reads only DetailUpdatedAt) and should not be
-// treated as authoritative. If a new caller flows results to a
-// mobile-visible surface, add hostMobileMDMSeenTimeJoin + nstm.seen_time
-// to keep Host.Status() honest.
+// live-query target picker, and mobile hosts can't respond to a live report
+// anyway (CountHostsInTargets filters them out of the metrics). Any mobile
+// row returned here matches by hostname/uuid/serial/IP but has an incomplete
+// status signal (no MDM last_seen, so mobileStatus reads only
+// DetailUpdatedAt) and should not be treated as authoritative. If a new
+// caller flows these rows to a mobile-visible surface, add
+// hostMobileMDMSeenTimeJoin + nstm.seen_time to keep Host.Status() honest.
 func (ds *Datastore) SearchHosts(ctx context.Context, filter fleet.TeamFilter, matchQuery string, omit ...uint) ([]*fleet.Host, error) {
 	query := `SELECT
     h.id,

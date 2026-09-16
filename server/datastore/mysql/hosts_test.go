@@ -3336,9 +3336,9 @@ func testHostsMobileOnlineOffline(t *testing.T, ds *Datastore) {
 	}
 
 	// CountHostsInTargets against the same host set: mobile hosts are excluded
-	// from live-query target metrics (matches SearchHosts, which excludes them
-	// from the picker rows) so the counts stay at zero even though the host set
-	// contains mobile IDs.
+	// from live-query target metrics via CountHostsInTargets's platform filter
+	// (SearchHosts itself doesn't exclude them from the picker rows), so the
+	// counts stay at zero even though the host set contains mobile IDs.
 	targetIDs := append(append([]uint{}, expectedOnline...), expectedOffline...)
 	metrics, err := ds.CountHostsInTargets(ctx, filter, fleet.HostTargets{HostIDs: targetIDs}, now)
 	require.NoError(t, err)

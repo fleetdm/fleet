@@ -23,11 +23,12 @@ func (ds *Datastore) CountHostsInTargets(ctx context.Context, filter fleet.TeamF
 	queryTargetLogicCondition, queryTargetArgs := targetSQLCondAndArgs(targets, "h")
 
 	// As of Fleet 4.15, mia hosts are also included in the total for offline hosts.
-	// Live query picker excludes mobile hosts entirely: SearchHosts returns none,
-	// so counts here match that. Mobile hosts can't respond to a live report, so
-	// counting them as "online" would overstate what a run would actually reach.
-	// Desktop online/offline still uses the osquery interval; mobile CASE arm and
-	// its joins are omitted since no mobile rows pass the platform filter.
+	// Mobile hosts are excluded here (WHERE platform NOT IN ...) because they
+	// can't respond to a live report, and counting them as "online" would
+	// overstate what a run would actually reach. SearchHosts still returns
+	// mobile matches to the picker UI, but the target metrics computed here
+	// omit them. Desktop online/offline uses the osquery interval; the mobile
+	// CASE arm and its joins are absent since no mobile rows pass the filter.
 	sql := fmt.Sprintf(`
 		SELECT
 			COUNT(*) total,
