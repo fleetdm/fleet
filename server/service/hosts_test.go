@@ -4993,7 +4993,7 @@ func TestLockUnlockWipeHostAuth(t *testing.T) {
 		},
 		{
 			name:          "team observer",
-			user:          &fleet.User{Teams: []fleet.UserTeam{{fleet.Team{ID: 1}, fleet.RoleObserver}}},
+			user:          &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserver}}},
 			wantGlobalErr: test.ErrNotFound,
 			wantTeamErr:   test.ErrForbidden,
 		},
@@ -5005,7 +5005,7 @@ func TestLockUnlockWipeHostAuth(t *testing.T) {
 		},
 		{
 			name:          "team observer plus",
-			user:          &fleet.User{Teams: []fleet.UserTeam{{fleet.Team{ID: 1}, fleet.RoleObserverPlus}}},
+			user:          &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserverPlus}}},
 			wantGlobalErr: test.ErrNotFound,
 			wantTeamErr:   test.ErrForbidden,
 		},
@@ -5017,7 +5017,7 @@ func TestLockUnlockWipeHostAuth(t *testing.T) {
 		},
 		{
 			name:          "team admin",
-			user:          &fleet.User{Teams: []fleet.UserTeam{{fleet.Team{ID: 1}, fleet.RoleAdmin}}},
+			user:          &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleAdmin}}},
 			wantGlobalErr: test.ErrNotFound,
 			wantTeamErr:   nil,
 		},
@@ -5029,19 +5029,19 @@ func TestLockUnlockWipeHostAuth(t *testing.T) {
 		},
 		{
 			name:          "team maintainer",
-			user:          &fleet.User{Teams: []fleet.UserTeam{{fleet.Team{ID: 1}, fleet.RoleMaintainer}}},
+			user:          &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleMaintainer}}},
 			wantGlobalErr: test.ErrNotFound,
 			wantTeamErr:   nil,
 		},
 		{
 			name:          "team admin wrong team",
-			user:          &fleet.User{Teams: []fleet.UserTeam{{fleet.Team{ID: 42}, fleet.RoleAdmin}}},
+			user:          &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 42}, Role: fleet.RoleAdmin}}},
 			wantGlobalErr: test.ErrNotFound,
 			wantTeamErr:   test.ErrNotFound,
 		},
 		{
 			name:          "team maintainer wrong team",
-			user:          &fleet.User{Teams: []fleet.UserTeam{{fleet.Team{ID: 42}, fleet.RoleMaintainer}}},
+			user:          &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 42}, Role: fleet.RoleMaintainer}}},
 			wantGlobalErr: test.ErrNotFound,
 			wantTeamErr:   test.ErrNotFound,
 		},
@@ -5053,7 +5053,7 @@ func TestLockUnlockWipeHostAuth(t *testing.T) {
 		},
 		{
 			name:          "team gitops",
-			user:          &fleet.User{Teams: []fleet.UserTeam{{fleet.Team{ID: 1}, fleet.RoleGitOps}}},
+			user:          &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleGitOps}}},
 			wantGlobalErr: test.ErrForbidden,
 			wantTeamErr:   test.ErrForbidden,
 		},
