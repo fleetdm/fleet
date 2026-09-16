@@ -43,7 +43,7 @@ interface ICheckerboardVizProps {
   // "Offline [offline swatch] [online swatch] Online" — for filters that
   // render as on/off only, e.g. a single-host uptime view.
   legendVariant?: "gradient" | "binary";
-  // Shrinks cell dimensions to 0.9 so the 30-day grid fits inside a medium
+  // Shrinks cell dimensions to 0.92 so the 30-day grid fits inside a medium
   // modal (~570px content). Dashboard cards leave this off and render at
   // the default cell size.
   compact?: boolean;
@@ -58,7 +58,7 @@ const Y_AXIS_WIDTH = 40; // space for y-axis labels on the left
 // than this threshold and we scale cells up by WIDE_MULTIPLIER.
 const WIDE_THRESHOLD = 700;
 const WIDE_MULTIPLIER = 1.5;
-const COMPACT_MULTIPLIER = 0.9;
+const COMPACT_MULTIPLIER = 0.92;
 
 const CheckerboardViz = ({
   data,
