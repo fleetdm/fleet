@@ -5974,9 +5974,11 @@ func (svc *MDMAppleCheckinAndCommandService) handleRefetchAppsResults(ctx contex
 	}
 
 	// We remove pending command first in case there is an error processing the results, so that we don't prevent another refetch.
+	// The UUID pins the delete to the acked command: an ack of a stale duplicate must not clear the tracking for the newest one.
 	if err := svc.ds.RemoveHostMDMCommand(ctx, fleet.HostMDMCommand{
 		HostID:      host.ID,
 		CommandType: fleet.RefetchAppsCommandUUIDPrefix,
+		CommandUUID: cmdResult.CommandUUID,
 	}); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "remove refetch apps command")
 	}
@@ -6558,9 +6560,11 @@ func (svc *MDMAppleCheckinAndCommandService) handleRefetchCertsResults(ctx conte
 	}
 
 	// We remove pending command first in case there is an error processing the results, so that we don't prevent another refetch.
+	// The UUID pins the delete to the acked command: an ack of a stale duplicate must not clear the tracking for the newest one.
 	if err := svc.ds.RemoveHostMDMCommand(ctx, fleet.HostMDMCommand{
 		HostID:      host.ID,
 		CommandType: fleet.RefetchCertsCommandUUIDPrefix,
+		CommandUUID: cmdResult.CommandUUID,
 	}); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "refetch certs: remove refetch command")
 	}
@@ -6793,9 +6797,11 @@ func (svc *MDMAppleCheckinAndCommandService) handleRefetchDeviceResults(ctx cont
 	}
 
 	// We remove pending command first in case there is an error processing the results, so that we don't prevent another refetch.
+	// The UUID pins the delete to the acked command: an ack of a stale duplicate must not clear the tracking for the newest one.
 	if err := svc.ds.RemoveHostMDMCommand(ctx, fleet.HostMDMCommand{
 		HostID:      host.ID,
 		CommandType: fleet.RefetchDeviceCommandUUIDPrefix,
+		CommandUUID: cmdResult.CommandUUID,
 	}); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "remove refetch device command")
 	}

@@ -118,6 +118,7 @@ func TestMDMApple(t *testing.T) {
 		{"ABMTokensTokenInvalid", testMDMAppleABMTokensTokenInvalid},
 		{"TestMDMGetABMTokenOrgNamesAssociatedWithTeam", testMDMGetABMTokenOrgNamesAssociatedWithTeam},
 		{"HostMDMCommands", testHostMDMCommands},
+		{"HostMDMCommandsUUID", testHostMDMCommandsUUID},
 		{"IngestMDMAppleDeviceFromOTAEnrollment", testIngestMDMAppleDeviceFromOTAEnrollment},
 		{"IngestMDMAppleDeviceFromOTAEnrollmentSCIMMapping", testIngestMDMAppleDeviceFromOTAEnrollmentSCIMMapping},
 		{"MDMManagedSCEPCertificates", testMDMManagedSCEPCertificates},
@@ -10008,6 +10009,59 @@ func testMDMGetABMTokenOrgNamesAssociatedWithTeam(t *testing.T, ds *Datastore) {
 	sort.Strings(orgNames)
 	require.Len(t, orgNames, 1)
 	require.Equal(t, orgNames[0], "org3")
+}
+
+func testHostMDMCommandsUUID(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	h, err := ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		OsqueryHostID:   new("host-mdm-cmd-uuid-osquery-id"),
+		NodeKey:         new("host-mdm-cmd-uuid-node-key"),
+		UUID:            "host-mdm-cmd-uuid",
+		Hostname:        "host-mdm-cmd-uuid",
+	})
+	require.NoError(t, err)
+
+	get := func() []fleet.HostMDMCommand {
+		commands, err := ds.GetHostMDMCommands(ctx, h.ID)
+		require.NoError(t, err)
+		return commands
+	}
+
+	tracked := fleet.HostMDMCommand{HostID: h.ID, CommandType: "refetch-t", CommandUUID: "refetch-t-uuid-new"}
+	require.NoError(t, ds.AddHostMDMCommands(ctx, []fleet.HostMDMCommand{tracked}))
+	require.ElementsMatch(t, []fleet.HostMDMCommand{tracked}, get())
+
+	// an ack of a stale duplicate must not clear the tracking row
+	stale := tracked
+	stale.CommandUUID = "refetch-t-uuid-old"
+	require.NoError(t, ds.RemoveHostMDMCommand(ctx, stale))
+	require.ElementsMatch(t, []fleet.HostMDMCommand{tracked}, get())
+
+	// the ack of the tracked command clears it
+	require.NoError(t, ds.RemoveHostMDMCommand(ctx, tracked))
+	require.Empty(t, get())
+
+	// a pre-UUID row (no recorded UUID) is cleared by any ack of its type
+	legacy := fleet.HostMDMCommand{HostID: h.ID, CommandType: "refetch-t"}
+	require.NoError(t, ds.AddHostMDMCommands(ctx, []fleet.HostMDMCommand{legacy}))
+	require.NoError(t, ds.RemoveHostMDMCommand(ctx, fleet.HostMDMCommand{
+		HostID: h.ID, CommandType: "refetch-t", CommandUUID: "any-uuid",
+	}))
+	require.Empty(t, get())
+
+	// a UUID-less remove keeps the pre-UUID semantics: the row goes regardless
+	require.NoError(t, ds.AddHostMDMCommands(ctx, []fleet.HostMDMCommand{tracked}))
+	require.NoError(t, ds.RemoveHostMDMCommand(ctx, fleet.HostMDMCommand{HostID: h.ID, CommandType: "refetch-t"}))
+	require.Empty(t, get())
+
+	// re-tracking an existing row updates its UUID to the newest command
+	require.NoError(t, ds.AddHostMDMCommands(ctx, []fleet.HostMDMCommand{legacy}))
+	require.NoError(t, ds.AddHostMDMCommands(ctx, []fleet.HostMDMCommand{tracked}))
+	require.ElementsMatch(t, []fleet.HostMDMCommand{tracked}, get())
 }
 
 func testHostMDMCommands(t *testing.T, ds *Datastore) {

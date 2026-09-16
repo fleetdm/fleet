@@ -1759,12 +1759,13 @@ func IOSiPadOSRefetch(ctx context.Context, ds fleet.Datastore, commander *MDMApp
 	// enqueue is a single transaction, so on enqueue failure nothing was
 	// queued and the rows are removed again; if only the notification failed
 	// the command is durably queued and the rows must stay.
-	trackAndSend := func(commandType string, group deviceGroup, wrapMsg string, enqueue func() error) error {
+	trackAndSend := func(commandType, commandUUID string, group deviceGroup, wrapMsg string, enqueue func() error) error {
 		rows := make([]fleet.HostMDMCommand, 0, len(group.hostIDs))
 		for _, hostID := range group.hostIDs {
 			rows = append(rows, fleet.HostMDMCommand{
 				HostID:      hostID,
 				CommandType: commandType,
+				CommandUUID: commandUUID,
 			})
 		}
 		if err := ds.AddHostMDMCommands(ctx, rows); err != nil {
@@ -1830,10 +1831,10 @@ func IOSiPadOSRefetch(ctx context.Context, ds fleet.Datastore, commander *MDMApp
 			continue
 		}
 
-		commandUUID := uuid.NewString()
-		err := trackAndSend(fleet.RefetchAppsCommandUUIDPrefix, group,
+		commandUUID := fleet.RefetchAppsCommandUUIDPrefix + uuid.NewString()
+		err := trackAndSend(fleet.RefetchAppsCommandUUIDPrefix, commandUUID, group,
 			"send InstalledApplicationList commands to ios and ipados devices", func() error {
-				return commander.InstalledApplicationList(ctx, group.uuids, fleet.RefetchAppsCommandUUIDPrefix+commandUUID, managedOnly)
+				return commander.InstalledApplicationList(ctx, group.uuids, commandUUID, managedOnly)
 			})
 		if err != nil {
 			return err
@@ -1842,10 +1843,10 @@ func IOSiPadOSRefetch(ctx context.Context, ds fleet.Datastore, commander *MDMApp
 
 	certs := groupToSend(fleet.RefetchCertsCommandUUIDPrefix)
 	if len(certs.uuids) > 0 {
-		commandUUID := uuid.NewString()
-		err := trackAndSend(fleet.RefetchCertsCommandUUIDPrefix, certs,
+		commandUUID := fleet.RefetchCertsCommandUUIDPrefix + uuid.NewString()
+		err := trackAndSend(fleet.RefetchCertsCommandUUIDPrefix, commandUUID, certs,
 			"send CertificateList commands to ios and ipados devices", func() error {
-				return commander.CertificateList(ctx, certs.uuids, fleet.RefetchCertsCommandUUIDPrefix+commandUUID)
+				return commander.CertificateList(ctx, certs.uuids, commandUUID)
 			})
 		if err != nil {
 			return err
@@ -1862,10 +1863,10 @@ func IOSiPadOSRefetch(ctx context.Context, ds fleet.Datastore, commander *MDMApp
 			continue
 		}
 
-		commandUUID := uuid.NewString()
-		err := trackAndSend(fleet.RefetchDeviceCommandUUIDPrefix, group,
+		commandUUID := fleet.RefetchDeviceCommandUUIDPrefix + uuid.NewString()
+		err := trackAndSend(fleet.RefetchDeviceCommandUUIDPrefix, commandUUID, group,
 			"send DeviceInformation commands to ios and ipados devices", func() error {
-				return commander.DeviceInformation(ctx, group.uuids, fleet.RefetchDeviceCommandUUIDPrefix+commandUUID, isPersonalEnrollment)
+				return commander.DeviceInformation(ctx, group.uuids, commandUUID, isPersonalEnrollment)
 			})
 		if err != nil {
 			return err

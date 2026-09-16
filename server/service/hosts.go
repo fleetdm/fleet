@@ -1708,10 +1708,11 @@ func (svc *Service) RefetchHost(ctx context.Context, id uint) error {
 		// on enqueue failure nothing was queued and the row is removed again;
 		// if only the APNs notification failed the command is durably queued
 		// and the row must stay.
-		trackAndSend := func(commandType, wrapMsg string, enqueue func() error) error {
+		trackAndSend := func(commandType, commandUUID, wrapMsg string, enqueue func() error) error {
 			hostCmd := fleet.HostMDMCommand{
 				HostID:      host.ID,
 				CommandType: commandType,
+				CommandUUID: commandUUID,
 			}
 			if err := svc.ds.AddHostMDMCommands(ctx, []fleet.HostMDMCommand{hostCmd}); err != nil {
 				return ctxerr.Wrap(ctx, err, "add host mdm command")
@@ -1731,8 +1732,9 @@ func (svc *Service) RefetchHost(ctx context.Context, id uint) error {
 		cmdUUID := uuid.NewString()
 		if doAppRefetch {
 			isBYOD := !hostMDM.InstalledFromDep
-			err = trackAndSend(fleet.RefetchAppsCommandUUIDPrefix, "refetch apps with MDM", func() error {
-				return svc.mdmAppleCommander.InstalledApplicationList(ctx, []string{host.UUID}, fleet.RefetchAppsCommandUUIDPrefix+cmdUUID, isBYOD)
+			fullUUID := fleet.RefetchAppsCommandUUIDPrefix + cmdUUID
+			err = trackAndSend(fleet.RefetchAppsCommandUUIDPrefix, fullUUID, "refetch apps with MDM", func() error {
+				return svc.mdmAppleCommander.InstalledApplicationList(ctx, []string{host.UUID}, fullUUID, isBYOD)
 			})
 			if err != nil {
 				return err
@@ -1740,8 +1742,9 @@ func (svc *Service) RefetchHost(ctx context.Context, id uint) error {
 		}
 
 		if doCertsRefetch {
-			err = trackAndSend(fleet.RefetchCertsCommandUUIDPrefix, "refetch certs with MDM", func() error {
-				return svc.mdmAppleCommander.CertificateList(ctx, []string{host.UUID}, fleet.RefetchCertsCommandUUIDPrefix+cmdUUID)
+			fullUUID := fleet.RefetchCertsCommandUUIDPrefix + cmdUUID
+			err = trackAndSend(fleet.RefetchCertsCommandUUIDPrefix, fullUUID, "refetch certs with MDM", func() error {
+				return svc.mdmAppleCommander.CertificateList(ctx, []string{host.UUID}, fullUUID)
 			})
 			if err != nil {
 				return err
@@ -1750,8 +1753,9 @@ func (svc *Service) RefetchHost(ctx context.Context, id uint) error {
 
 		if doDeviceInfoRefetch {
 			// DeviceInformation is last because the refetch response clears the refetch_requested flag
-			err = trackAndSend(fleet.RefetchDeviceCommandUUIDPrefix, "refetch host with MDM", func() error {
-				return svc.mdmAppleCommander.DeviceInformation(ctx, []string{host.UUID}, fleet.RefetchDeviceCommandUUIDPrefix+cmdUUID, hostMDM.IsPersonalEnrollment)
+			fullUUID := fleet.RefetchDeviceCommandUUIDPrefix + cmdUUID
+			err = trackAndSend(fleet.RefetchDeviceCommandUUIDPrefix, fullUUID, "refetch host with MDM", func() error {
+				return svc.mdmAppleCommander.DeviceInformation(ctx, []string{host.UUID}, fullUUID, hostMDM.IsPersonalEnrollment)
 			})
 			if err != nil {
 				return err
