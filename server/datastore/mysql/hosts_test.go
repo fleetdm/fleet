@@ -3289,7 +3289,16 @@ func testHostsMobileOnlineOffline(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	setLabelUpdatedAt(t, iosDisabled, neverTS)
 
-	expectedOnline := []uint{iosOnline.ID, ipadosOnline.ID, androidOnline.ID}
+	// iOS with stale nano seen_time but fresh label_updated_at — must read
+	// online. Regression for hostMobileOnlineExpr: a bare COALESCE(nstm, label)
+	// picks the older nstm.seen_time and reports offline, splitting from
+	// Host.mobileStatus which takes the greater of the two.
+	iosLabelFreshest := newMobileHost(t, "ios-label-freshest", "ios-label-freshest-uuid", "ios")
+	nanoEnroll(t, ds, iosLabelFreshest, false)
+	setNanoLastSeen(t, iosLabelFreshest, stale)
+	setLabelUpdatedAt(t, iosLabelFreshest, recent)
+
+	expectedOnline := []uint{iosOnline.ID, ipadosOnline.ID, androidOnline.ID, iosLabelFreshest.ID}
 	expectedOffline := []uint{iosOffline.ID, androidNever.ID, iosDisabled.ID}
 
 	// GenerateHostStatusStatistics counts.
@@ -3336,16 +3345,33 @@ func testHostsMobileOnlineOffline(t *testing.T, ds *Datastore) {
 		assert.Equal(t, fleet.StatusOffline, h.Status(now), "Host.Status for %s", h.Hostname)
 	}
 
-	// CountHostsInTargets against the same host set: mobile hosts are excluded
-	// from live-query target metrics via CountHostsInTargets's platform filter
-	// (SearchHosts itself doesn't exclude them from the picker rows), so the
-	// counts stay at zero even though the host set contains mobile IDs.
+	// Live-query target flow against the same host set: mobile hosts must be
+	// excluded from all three paths so the picker hides them (SearchHosts),
+	// the metrics don't lie about counting them (CountHostsInTargets), and
+	// the campaign never fires against phones that can't answer
+	// (HostIDsInTargets). If any of the three regresses, a mobile-only or
+	// mobile-inclusive target either shows a phantom row in the picker,
+	// reports counts that don't match the campaign, or launches a dead run.
 	targetIDs := append(append([]uint{}, expectedOnline...), expectedOffline...)
 	metrics, err := ds.CountHostsInTargets(ctx, filter, fleet.HostTargets{HostIDs: targetIDs}, now)
 	require.NoError(t, err)
 	assert.Equal(t, uint(0), metrics.OnlineHosts, "mobile hosts must not contribute to target metrics online")
 	assert.Equal(t, uint(0), metrics.OfflineHosts, "mobile hosts must not contribute to target metrics offline")
 	assert.Equal(t, uint(0), metrics.TotalHosts, "mobile hosts must not contribute to target metrics total")
+
+	ids, err := ds.HostIDsInTargets(ctx, filter, fleet.HostTargets{HostIDs: targetIDs})
+	require.NoError(t, err)
+	assert.Empty(t, ids, "mobile hosts must not flow into liveQueryStore.RunQuery")
+
+	// SearchHosts by name should skip mobile hosts even when they match — the
+	// picker calls this and would otherwise let a user pick a phone.
+	for _, h := range []*fleet.Host{iosOnline, ipadosOnline, androidOnline} {
+		found, err := ds.SearchHosts(ctx, filter, h.Hostname)
+		require.NoError(t, err)
+		for _, r := range found {
+			assert.NotEqual(t, h.ID, r.ID, "SearchHosts must not surface mobile host %q to the target picker", h.Hostname)
+		}
+	}
 }
 
 // testHostsMDMCheckinParity locks in the parity contract between the /hosts

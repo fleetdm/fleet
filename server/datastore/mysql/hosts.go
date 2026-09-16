@@ -1775,15 +1775,23 @@ const hostEffectiveLastSeenExpr = `COALESCE(GREATEST(COALESCE(hst.seen_time, nst
 // INTERVAL and Host.mobileStatus stay in sync.
 const mobileOnlineWindowSeconds = int(fleet.MobileOnlineWindow / time.Second)
 
-// hostMobileOnlineExpr is the freshest MDM activity signal for mobile hosts.
-// nstm.seen_time first, then non-sentinel label_updated_at. No hst.seen_time
+// hostMobileOnlineExpr is the freshest MDM activity signal for mobile hosts:
+// the GREATEST of nstm.seen_time and non-sentinel label_updated_at, NULL when
+// neither is available. The COALESCE-swap trick keeps GREATEST NULL-safe (a
+// bare GREATEST returns NULL if any argument is NULL). No hst.seen_time
 // (mobile enrollment paths don't write host_seen_times) and no created_at
 // fallback (never-checked-in device stays offline). label_updated_at is
 // preferred over detail_updated_at because Android's AMAPI ingestion stamps
-// detail_updated_at with the device's report time (subject to Pub/Sub delivery
-// lag) while label_updated_at is Fleet's process time. Requires
-// hostMobileMDMSeenTimeJoin.
-const hostMobileOnlineExpr = `COALESCE(nstm.seen_time, NULLIF(h.label_updated_at, '` + server.NeverTimestamp + `'))`
+// detail_updated_at with the device's report time (subject to Pub/Sub
+// delivery lag) while label_updated_at is Fleet's process time. Mirrors
+// Host.mobileStatus, which takes the max of LastMDMCheckedInAt and
+// LabelUpdatedAt — using COALESCE here instead of GREATEST would let a stale
+// nstm.seen_time shadow a fresher label_updated_at and split the two paths.
+// Requires hostMobileMDMSeenTimeJoin.
+const hostMobileOnlineExpr = `GREATEST(` +
+	`COALESCE(nstm.seen_time, NULLIF(h.label_updated_at, '` + server.NeverTimestamp + `')), ` +
+	`COALESCE(NULLIF(h.label_updated_at, '` + server.NeverTimestamp + `'), nstm.seen_time)` +
+	`)`
 
 func filterHostsByStatus(now time.Time, sql string, opt fleet.HostListOptions, params []interface{}) (string, []interface{}) {
 	switch opt.StatusFilter {
@@ -3350,14 +3358,13 @@ func (ds *Datastore) MarkHostsSeen(ctx context.Context, hostIDs []uint, t time.T
 //   - Search hostname, uuid, hardware_serial, and primary_ip using LIKE (mimics ListHosts behavior)
 //   - An optional list of IDs to omit from the search.
 //
-// Deliberately does not populate LastMDMCheckedInAt: sole caller is the
-// live-query target picker, and mobile hosts can't respond to a live report
-// anyway (CountHostsInTargets filters them out of the metrics). Any mobile
-// row returned here matches by hostname/uuid/serial/IP but has an incomplete
-// status signal (no MDM last_seen, so mobileStatus reads only
-// DetailUpdatedAt) and should not be treated as authoritative. If a new
-// caller flows these rows to a mobile-visible surface, add
-// hostMobileMDMSeenTimeJoin + nstm.seen_time to keep Host.Status() honest.
+// Excludes mobile platforms (ios/ipados/android): sole caller is the
+// live-query target picker, and mobile hosts don't run osquery so they can't
+// respond to a live report. Kept in lockstep with CountHostsInTargets and
+// HostIDsInTargets so the picker hides mobile and campaign metrics stay
+// honest. Deliberately does not populate LastMDMCheckedInAt either: no
+// caller reads it here, and skipping the mobile MDM join keeps this query
+// off a hot path it doesn't need.
 func (ds *Datastore) SearchHosts(ctx context.Context, filter fleet.TeamFilter, matchQuery string, omit ...uint) ([]*fleet.Host, error) {
 	query := `SELECT
     h.id,
@@ -3412,7 +3419,7 @@ func (ds *Datastore) SearchHosts(ctx context.Context, filter fleet.TeamFilter, m
   LEFT JOIN host_updates hu ON (h.id = hu.host_id)
   LEFT JOIN host_disks hd ON hd.host_id = h.id
   ` + hostMDMJoin + `
-  WHERE TRUE AND `
+  WHERE h.platform NOT IN ('ios','ipados','android') AND `
 
 	matchingHostIDs := make([]int, 0)
 	if len(matchQuery) > 0 {
@@ -3420,7 +3427,7 @@ func (ds *Datastore) SearchHosts(ctx context.Context, filter fleet.TeamFilter, m
 		// to get all the additional data for hosts that match the search criteria by host_id.
 		// Apply the team filter so that LIMIT 10 below only counts hosts the caller can access —
 		// without it, 10 high-ID hosts on inaccessible teams could crowd out all accessible results.
-		matchingHosts := "SELECT h.id FROM hosts h WHERE " + ds.whereFilterHostsByTeams(filter, "h")
+		matchingHosts := "SELECT h.id FROM hosts h WHERE h.platform NOT IN ('ios','ipados','android') AND " + ds.whereFilterHostsByTeams(filter, "h")
 		var args []interface{}
 		// TODO: should search columns include display_name (requires join to host_display_names)?
 		searchHostsQuery, args := hostSearchLike(matchingHosts, args, matchQuery, hostSearchColumns...)

@@ -25,9 +25,10 @@ func (ds *Datastore) CountHostsInTargets(ctx context.Context, filter fleet.TeamF
 	// As of Fleet 4.15, mia hosts are also included in the total for offline hosts.
 	// Mobile hosts are excluded here (WHERE platform NOT IN ...) because they
 	// can't respond to a live report, and counting them as "online" would
-	// overstate what a run would actually reach. SearchHosts still returns
-	// mobile matches to the picker UI, but the target metrics computed here
-	// omit them. Desktop online/offline uses the osquery interval; the mobile
+	// overstate what a run would actually reach. SearchHosts and
+	// HostIDsInTargets apply the same filter so the picker hides mobile and a
+	// mobile-inclusive team target still drops mobile before the campaign
+	// fires. Desktop online/offline uses the osquery interval; the mobile
 	// CASE arm and its joins are absent since no mobile rows pass the filter.
 	sql := fmt.Sprintf(`
 		SELECT
@@ -138,10 +139,15 @@ func (ds *Datastore) HostIDsInTargets(ctx context.Context, filter fleet.TeamFilt
 
 	queryTargetLogicCondition, queryTargetArgs := targetSQLCondAndArgs(targets, "hosts")
 
+	// Live-query targets are desktop-only: mobile hosts don't run osquery, so
+	// forwarding them here would fire a campaign that never gets a response.
+	// Kept in lockstep with CountHostsInTargets and SearchHosts so a
+	// mobile-only target rejects at the "no hosts targeted" gate in
+	// NewDistributedQueryCampaign.
 	sql := fmt.Sprintf(`
 			SELECT DISTINCT id
 			FROM hosts
-			WHERE %s AND %s
+			WHERE hosts.platform NOT IN ('ios','ipados','android') AND %s AND %s
 			ORDER BY id ASC
 		`,
 		queryTargetLogicCondition,
