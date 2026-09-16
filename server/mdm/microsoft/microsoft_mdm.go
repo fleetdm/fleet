@@ -104,15 +104,17 @@ func IsValidUPN(userID string) bool {
 }
 
 // IsValidEntraUPN additionally applies Entra ID's own limits on a user principal
-// name: at most 113 characters, no '+' or '%' in the local part, and a local part
-// that does not end with a period.
+// name: at most 64 characters before the '@' and 48 after, no '+' or '%' in the
+// local part, and a local part that does not end with a period.
 // https://learn.microsoft.com/en-us/microsoft-365/enterprise/prepare-for-directory-synchronization
 func IsValidEntraUPN(userID string) bool {
-	if len(userID) > 113 || !IsValidUPN(userID) {
+	if !IsValidUPN(userID) {
 		return false
 	}
-	local := userID[:strings.LastIndex(userID, "@")]
-	return !strings.ContainsAny(local, "+%") && !strings.HasSuffix(local, ".")
+	at := strings.LastIndex(userID, "@")
+	local, domain := userID[:at], userID[at+1:]
+	return len(local) <= 64 && len(domain) <= 48 &&
+		!strings.ContainsAny(local, "+%") && !strings.HasSuffix(local, ".")
 }
 
 // WindowsUserContextStateFromDevice reports what Fleet knows about the enrollment's MDM user context, which decides whether its

@@ -5331,7 +5331,7 @@ func TestBitlockerKeyProtectorsVerifyDirectIngest(t *testing.T) {
 func TestDirectIngestEntraJoinUser(t *testing.T) {
 	ctx := t.Context()
 	logger := slog.New(slog.DiscardHandler)
-	host := &fleet.Host{ID: 42, UUID: "entra-join-uuid"}
+	host := &fleet.Host{ID: 42, UUID: "entra-join-uuid", Platform: "windows"}
 
 	cases := []struct {
 		name     string
@@ -5366,5 +5366,16 @@ func TestDirectIngestEntraJoinUser(t *testing.T) {
 		}
 		err := directIngestEntraJoinUser(ctx, logger, host, ds, []map[string]string{{"user_email": "join.user@example.com"}})
 		require.ErrorContains(t, err, "boom")
+	})
+
+	t.Run("results from a non-windows host are ignored", func(t *testing.T) {
+		ds := new(mock.Store)
+		ds.SetOrUpdateEntraJoinHostDeviceMappingFunc = func(ctx context.Context, hostID uint, upn string) (bool, error) {
+			return true, nil
+		}
+		macHost := &fleet.Host{ID: 43, UUID: "not-windows", Platform: "darwin"}
+		err := directIngestEntraJoinUser(ctx, logger, macHost, ds, []map[string]string{{"user_email": "join.user@example.com"}})
+		require.NoError(t, err)
+		require.False(t, ds.SetOrUpdateEntraJoinHostDeviceMappingFuncInvoked)
 	})
 }

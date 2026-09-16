@@ -45,11 +45,12 @@ func TestIsValidEntraUPN(t *testing.T) {
 		"user+tag@example.com",
 		"user%40@example.com",
 		"user.@example.com",
-		strings.Repeat("a", 102) + "@example.com", // 114 characters
+		strings.Repeat("a", 65) + "@example.com",   // local part over 64
+		"user@" + strings.Repeat("b", 45) + ".com", // domain over 48
 		"DESKTOP-ABC",
 		"",
 	} {
 		require.False(t, IsValidEntraUPN(upn), upn)
 	}
-	require.True(t, IsValidEntraUPN(strings.Repeat("a", 101)+"@example.com")) // 113 characters
+	require.True(t, IsValidEntraUPN(strings.Repeat("a", 64)+"@"+strings.Repeat("b", 44)+".com")) // 64 and 48, 113 total
 }

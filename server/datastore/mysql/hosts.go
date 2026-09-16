@@ -17,7 +17,6 @@ import (
 	"github.com/doug-martin/goqu/v9"
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/config"
-	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -4342,20 +4341,15 @@ func (ds *Datastore) SetOrUpdateCustomHostDeviceMapping(ctx context.Context, hos
 
 func (ds *Datastore) SetOrUpdateIDPHostDeviceMapping(ctx context.Context, hostID uint, email string) error {
 	const (
-		delStmt = `DELETE FROM host_emails WHERE host_id = ? AND source = ?`
+		delStmt = `DELETE FROM host_emails WHERE host_id = ? AND source IN (?, ?, ?)`
 		insStmt = `INSERT INTO host_emails (email, host_id, source) VALUES (?, ?, ?)`
 	)
 
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		// First, delete any existing IDP mappings for this host from both mdm_idp and idp sources
-		if _, err := tx.ExecContext(ctx, delStmt, hostID, fleet.DeviceMappingIDP); err != nil {
+		// the manual mapping replaces the authenticated and device-reported ones
+		if _, err := tx.ExecContext(ctx, delStmt, hostID,
+			fleet.DeviceMappingIDP, fleet.DeviceMappingMDMIdpAccounts, fleet.DeviceMappingEntraJoin); err != nil {
 			return ctxerr.Wrap(ctx, err, "delete existing IDP device mappings")
-		}
-		if _, err := tx.ExecContext(ctx, delStmt, hostID, fleet.DeviceMappingMDMIdpAccounts); err != nil {
-			return ctxerr.Wrap(ctx, err, "delete existing MDM IDP device mappings")
-		}
-		if _, err := tx.ExecContext(ctx, delStmt, hostID, fleet.DeviceMappingEntraJoin); err != nil {
-			return ctxerr.Wrap(ctx, err, "delete existing Entra join device mappings")
 		}
 
 		if _, err := tx.ExecContext(ctx, insStmt, email, hostID, fleet.DeviceMappingIDP); err != nil {
@@ -4421,11 +4415,10 @@ func (ds *Datastore) DeleteHostIDP(ctx context.Context, id uint) error {
 
 func (ds *Datastore) SetOrUpdateEntraJoinHostDeviceMapping(ctx context.Context, hostID uint, upn string) (bool, error) {
 	// Runs on every detail refresh of every Entra-joined host and usually changes
-	// nothing, so decide on a read and only open a write transaction when needed.
-	// Read the primary: a clear-and-refetch must refill on that refresh, not after
-	// replica lag.
-	primaryCtx := ctxdb.RequirePrimary(ctx, true)
-	needsWrite, err := entraJoinHostDeviceMappingDB(primaryCtx, ds.reader(primaryCtx), nil, hostID, upn)
+	// nothing, so decide on a replica read and only open a write transaction when
+	// needed. The transaction re-reads on the primary under lock, so a stale read
+	// can only skip a write until the next refresh, never write the wrong thing.
+	needsWrite, err := entraJoinHostDeviceMappingDB(ctx, ds.reader(ctx), nil, hostID, upn)
 	if err != nil || !needsWrite {
 		return false, err
 	}

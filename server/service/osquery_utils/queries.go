@@ -2254,6 +2254,11 @@ func directIngestEntraJoinUser(
 	ds fleet.Datastore,
 	rows []map[string]string,
 ) error {
+	// the query is only sent to Windows hosts, but results are not filtered by
+	// platform on the way back in
+	if host.Platform != "windows" {
+		return nil
+	}
 	// Failed queries never reach here, so no rows means not joined, and a row
 	// without a usable user means joined without one (left Entra, pre-provisioned,
 	// or a malformed value): an empty UPN tells the datastore to clear the mapping.
