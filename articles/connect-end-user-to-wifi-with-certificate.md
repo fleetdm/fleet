@@ -1097,7 +1097,7 @@ org_settings:
       password: "$FLEET_OKTA_CA_NDES_PASSWORD"
 ```
 
-4. Add a reference like the following (e.g., FLEET_OKTA_CA_NDES_PASSWORD) for the new repository secret in the `workflow.yml` file:
+4. Add a reference like the following (e.g., `FLEET_OKTA_CA_NDES_PASSWORD`) for the new repository secret in the `workflow.yml` file:
 
 ```
         # In addition, specify or add secrets for all the environment variables that are mentioned in the global/team YAML files.
