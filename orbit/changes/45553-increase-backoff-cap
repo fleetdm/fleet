@@ -1,0 +1,1 @@
+Increased agent backoff cap from 5 minutes to an effective 15-30 minute range with wider jitter to prevent thundering herd after extended server outages.
