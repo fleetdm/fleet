@@ -3730,9 +3730,9 @@ var bitlockerPolicyQueries = map[string]DetailQuery{
 }
 
 var tpmPINQueries = map[string]DetailQuery{
-	// The tpm_pin_config_verify query checks the Windows registry to verify whether the host has the proper
-	// BitLocker policy for allowing the setup of a TPM PIN protector, if not properly set, the proper
-	// configuration is enforced via an MDM command.
+	// The tpm_pin_config_verify query checks the Windows registry to verify whether the host's BitLocker policies allow
+	// the PIN Fleet's flow sets: a TPM PIN protector, enhanced PIN characters, the minimum PIN length Fleet validates, and
+	// standard users changing their own PIN. If any is off, one MDM command sets all of them.
 	"tpm_pin_config_verify": {
 		Platforms: []string{"windows"},
 		// We only want to run this query iff:
@@ -3751,7 +3751,8 @@ var tpmPINQueries = map[string]DetailQuery{
 				AND EXISTS(SELECT 1 FROM bitlocker_info WHERE drive_letter = 'C:' AND protection_status = 1)
 			)
 			SELECT 1 FROM should_run WHERE yes = 1`, bitLockerPresent),
-		Query: "SELECT data FROM registry WHERE path='HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\FVE\\UseTPMPIN'",
+		// Every value under the policy key, matched by name in Go because registry value names are case-insensitive.
+		Query: "SELECT name, data FROM registry WHERE key = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\FVE'",
 		DirectIngestFunc: func(
 			ctx context.Context,
 			logger *slog.Logger,
@@ -3764,24 +3765,30 @@ var tpmPINQueries = map[string]DetailQuery{
 				return nil
 			}
 
-			if len(rows) > 1 {
-				return ctxerr.Errorf(
-					ctx,
-					"tpm_pin_config_verify query: invalid number of rows: %d", len(rows),
-				)
+			values := make(map[string]string, len(rows))
+			for _, row := range rows {
+				values[strings.ToLower(row["name"])] = strings.TrimSpace(row["data"])
 			}
+			useTPMPIN := values["usetpmpin"]
+			minimumPIN, minimumPINSet := values["minimumpin"]
+			disallowPINChange, disallowPINChangeSet := values["disallowstandarduserpinreset"]
 
-			// If no results are returned, then the policy setting is in a 'Not Configured' state.
-			// If the policy is 'Enabled', we need to make sure the proper setting is not in a 'Disallowed' state.
-			if len(rows) == 0 || rows[0]["data"] == fmt.Sprintf("%d", microsoft_mdm.PolicyOptDropdownDisallowed) {
+			// Only a required or optional UseTPMPIN permits a PIN protector. An unset UseEnhancedPin does not permit enhanced characters. An
+			// unset MinimumPIN or DisallowStandardUserPINReset is Windows' default, which is already what Fleet wants.
+			if (useTPMPIN != strconv.Itoa(microsoft_mdm.PolicyOptDropdownRequired) &&
+				useTPMPIN != strconv.Itoa(microsoft_mdm.PolicyOptDropdownOptional)) ||
+				values["useenhancedpin"] != "1" ||
+				(minimumPINSet && minimumPIN != strconv.Itoa(microsoft_mdm.BitLockerPINMinLength)) ||
+				(disallowPINChangeSet && disallowPINChange != "0") {
 				logger.InfoContext(ctx, "Updating TPM PIN protector configuration via MDM",
 					"query", "tpm_pin_config_verify",
 					"host_id", host.ID)
 				cmd, err := microsoft_mdm.SystemDriveRequiresStartupAuthCmd(
 					microsoft_mdm.SystemDriveRequiresStartupAuthSpec{
-						CmdUUID:      uuid.NewString(),
-						Enabled:      true,
-						ConfigurePIN: ptr.Uint(microsoft_mdm.PolicyOptDropdownOptional),
+						CmdUUID:              uuid.NewString(),
+						Enabled:              true,
+						ConfigurePIN:         new(uint(microsoft_mdm.PolicyOptDropdownOptional)),
+						ConfigurePINPolicies: true,
 					},
 				)
 				if err != nil {

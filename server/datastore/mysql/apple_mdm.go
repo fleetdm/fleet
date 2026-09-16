@@ -7643,7 +7643,6 @@ LIMIT ?
 }
 
 func (ds *Datastore) GetNanoMDMEnrollmentDetails(ctx context.Context, hostUUID string) (*fleet.NanoMDMEnrollmentDetails, error) {
-	res := []*fleet.NanoMDMEnrollmentDetails{}
 	// We are specifically only looking at the singular device enrollment row and not the
 	// potentially many user enrollment rows that will exist for a given device. The device
 	// enrollment row is the only one that gets regularly updated with the last seen time. Along
@@ -7651,20 +7650,22 @@ func (ds *Datastore) GetNanoMDMEnrollmentDetails(ctx context.Context, hostUUID s
 	// enroll process and as such is a good indicator of the last enrollment or reenrollment.
 	query := `
 	SELECT nd.authenticate_at, nst.seen_time AS last_seen_at, ne.hardware_attested, nd.unlock_token,
-	  nd.bootstrap_token_b64 IS NOT NULL AS bootstrap_token_escrowed
+	  nd.bootstrap_token_b64 IS NOT NULL AS bootstrap_token_escrowed,
+	  ne.type AS enrollment_type,
+	  ne.enabled
 	FROM nano_devices nd
 	  INNER JOIN nano_enrollments ne ON ne.id = nd.id
 	  LEFT JOIN nano_seen_times nst ON nst.id = ne.id
 	WHERE ne.type IN ('Device', 'User Enrollment (Device)') AND nd.id = ?`
-	err := sqlx.SelectContext(ctx, ds.reader(ctx), &res, query, hostUUID)
-
-	if err == sql.ErrNoRows || len(res) == 0 {
+	var res fleet.NanoMDMEnrollmentDetails
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &res, query, hostUUID)
+	if err == sql.ErrNoRows {
 		return &fleet.NanoMDMEnrollmentDetails{}, nil
 	}
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get mdm enrollment times")
 	}
-	return res[0], nil
+	return &res, nil
 }
 
 func (ds *Datastore) AssociateHostMDMIdPAccount(ctx context.Context, hostUUID, idpAcctUUID string) error {
