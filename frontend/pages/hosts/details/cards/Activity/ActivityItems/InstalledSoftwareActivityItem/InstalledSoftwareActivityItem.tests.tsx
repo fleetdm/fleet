@@ -78,4 +78,29 @@ describe("InstalledSoftwareActivityItem", () => {
     expect(screen.getByText("Fleet")).toBeInTheDocument();
     expect(screen.queryByText("Some Admin")).not.toBeInTheDocument();
   });
+
+  it("keeps a space before the self-service parenthetical", () => {
+    const activity = createMockHostPastActivity({
+      type: ActivityType.InstalledSoftware,
+      actor_full_name: "End user",
+      details: {
+        software_title: "Firefox",
+        source: "apps",
+        status: "installed",
+        install_uuid: "uuid-123",
+        self_service: true,
+      },
+    });
+
+    const { container } = render(
+      <InstalledSoftwareActivityItem
+        activity={activity}
+        tab="past"
+        onShowDetails={noop}
+      />
+    );
+
+    expect(container.textContent).toContain("on this host (self service).");
+    expect(container.textContent).not.toContain("host(self service)");
+  });
 });
